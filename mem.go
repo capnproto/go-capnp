@@ -217,7 +217,7 @@ func (b *Buffer) NewRoot(v PointerType) int {
 }
 
 func (b *Buffer) ReadRoot(off int) (Pointer, error) {
-	return b.readptr(off*8)
+	return b.readptr(off * 8)
 }
 
 type bufferPointer struct {
@@ -265,7 +265,7 @@ func (b *Buffer) readptr(off int) (Pointer, error) {
 	}
 
 	typ := PointerType{Value: little64(b.buf[off:])}
-	ptr := bufferPointer{seg: b, off: off+8, typ: typ}
+	ptr := bufferPointer{seg: b, off: off + 8, typ: typ}
 
 	switch typ.Type() {
 	case FarPointer:

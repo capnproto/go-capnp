@@ -1,7 +1,9 @@
 .PHONY: all
 
 all:
+	go fmt && \
 	cd capngoc && \
+	go fmt && \
 	go build && \
 	./capngoc -pkg msgs ../msgs/*.capnp && \
 	./capngoc -pkg test ../test/*.capnp && \

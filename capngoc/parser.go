@@ -20,6 +20,7 @@ const importPath = "github.com/jmckaskill/go-capnproto"
 var (
 	errUnfinishedString = errors.New("unfinished string")
 	errInvalidUnicode   = errors.New("invalid unicode")
+	sprintf             = fmt.Sprintf
 )
 
 func strerr(err error) {
@@ -354,6 +355,7 @@ const (
 	stringType
 	listType
 	bitsetType
+	unionType
 )
 
 func (t *typ) String() string {
@@ -361,13 +363,14 @@ func (t *typ) String() string {
 }
 
 type typ struct {
-	typ      typeType
-	name     string
-	comment  string
-	fields   []*field
-	dataSize int
-	ptrSize  int
-	listType *typ
+	typ        typeType
+	name       string
+	enumPrefix string
+	comment    string
+	fields     []*field
+	dataSize   int
+	ptrSize    int
+	listType   *typ
 }
 
 type field struct {
@@ -379,6 +382,7 @@ type field struct {
 	args    *typ
 	value   *value
 	offset  int
+	union   *field
 }
 
 type value struct {
@@ -413,7 +417,6 @@ func (p *file) parseValue(tok token) *value {
 				panic(fmt.Errorf("expected , got %s", tok))
 			}
 		}
-		fmt.Printf("have value %#v\n", v)
 		return v
 
 	case '[':
@@ -435,7 +438,6 @@ func (p *file) parseValue(tok token) *value {
 				panic(fmt.Errorf("expected , got %s", tok))
 			}
 		}
-		fmt.Printf("have value %#v\n", v)
 		return v
 
 	case '0', '\'', '"', 'a':
@@ -443,7 +445,6 @@ func (p *file) parseValue(tok token) *value {
 			typ:    tok.typ,
 			string: tok.str,
 		}
-		fmt.Printf("have value %#v\n", v)
 		return v
 	}
 
@@ -574,8 +575,9 @@ func (p *file) parseEnum(ns string) {
 	tok := p.expect('a', "enum name")
 
 	t := &typ{
-		typ:  enumType,
-		name: ns + tok.str,
+		typ:        enumType,
+		name:       ns + tok.str,
+		enumPrefix: ns + tok.str + "_",
 	}
 
 	p.expect('{', "opening brace {")
@@ -596,7 +598,6 @@ func (p *file) parseEnum(ns string) {
 		t.fields = append(t.fields, field)
 	}
 
-	fmt.Printf("have enum %#v\n", t)
 	p.types = append(p.types, t)
 }
 
@@ -624,8 +625,8 @@ func (p *file) parseInterface(ns string) {
 		p.expect('(', "arguments opening brace (")
 
 		f.args = &typ{
-			typ: structType,
-			name: fmt.Sprintf("_%s_%s_args", t.name, f.name),
+			typ:  structType,
+			name: sprintf("_%s_%s_args", t.name, f.name),
 		}
 
 		tok = p.next()
@@ -637,7 +638,7 @@ func (p *file) parseInterface(ns string) {
 				arg.name = tok.str
 				tok = p.next()
 			} else {
-				arg.name = fmt.Sprintf("arg%d", len(f.args.fields))
+				arg.name = sprintf("arg%d", len(f.args.fields))
 			}
 
 			if tok.typ != ':' {
@@ -654,7 +655,6 @@ func (p *file) parseInterface(ns string) {
 				tok = p.next()
 			}
 
-			fmt.Printf("have arg %#v\n", arg)
 			f.args.fields = append(f.args.fields, arg)
 
 			if tok.typ == ')' {
@@ -668,7 +668,7 @@ func (p *file) parseInterface(ns string) {
 
 		p.types = append(p.types, f.args)
 
-		tok = p.next();
+		tok = p.next()
 		if tok.typ == ':' {
 			f.typestr = p.parseTypeName()
 			p.expect(';', "method terminator")
@@ -682,11 +682,9 @@ func (p *file) parseInterface(ns string) {
 
 		f.comment, tok = p.parseComment()
 
-		fmt.Printf("have field %#v\n", f)
 		t.fields = append(t.fields, f)
 	}
 
-	fmt.Printf("have interface %#v\n", t)
 	p.types = append(p.types, t)
 }
 
@@ -702,6 +700,7 @@ func (p *file) parseStruct(ns string) {
 
 	p.expect('{', "opening brace {")
 	t.comment, tok = p.parseComment()
+	union := (*field)(nil)
 
 	for tok.typ != '}' {
 		if tok.typ != 'a' {
@@ -710,42 +709,86 @@ func (p *file) parseStruct(ns string) {
 
 		switch tok.str {
 		case "interface":
+			if union != nil {
+				panic(fmt.Errorf("unexpected interface in union"))
+			}
 			p.parseInterface(ns)
 			tok = p.next()
 		case "struct":
+			if union != nil {
+				panic(fmt.Errorf("unexpected struct in union"))
+			}
 			p.parseStruct(ns)
 			tok = p.next()
 		case "const":
+			if union != nil {
+				panic(fmt.Errorf("unexpected const in union"))
+			}
 			tok = p.parseConst(ns)
 		case "enum":
+			if union != nil {
+				panic(fmt.Errorf("unexpected enum in union"))
+			}
 			p.parseEnum(ns)
 			tok = p.next()
 		default:
 			f := &field{
-				name: tok.str,
+				name:  tok.str,
+				union: union,
 			}
 
 			f.ordinal = p.parseOrdinal()
 
-			p.expect(':', "type seperator :")
+			p.expect(':', "type seperator")
+
 			f.typestr = p.parseTypeName()
 
-			tok = p.next()
-			if tok.typ == '=' {
-				f.value = p.parseValue(p.next())
+			switch f.typestr {
+			case "union":
+				if union != nil {
+					panic(fmt.Errorf("unexpected union in union"))
+				}
+				p.expect('{', "union open brace {")
+				f.typestr = ""
+				f.typ = &typ{
+					typ:        unionType,
+					name:       sprintf("%s_%s", t.name, f.name),
+					enumPrefix: sprintf("%s_", t.name),
+				}
+				p.types = append(p.types, f.typ)
+				union = f
+
+			default:
 				tok = p.next()
-			} else if tok.typ != ';' {
-				panic(fmt.Errorf("expected field terminator ; got %s", tok))
+				switch tok.typ {
+				case ';':
+				case '=':
+					f.value = p.parseValue(p.next())
+					tok = p.next()
+				default:
+					panic(fmt.Errorf("expected field terminator ; got %s", tok))
+				}
 			}
 
 			f.comment, tok = p.parseComment()
 
-			fmt.Printf("have field %#v\n", f)
 			t.fields = append(t.fields, f)
+
+			if union != nil && f != union {
+				if f.ordinal <= union.ordinal {
+					panic(fmt.Errorf("union field %s has lower ordinal than the union tag %s", f, union))
+				}
+
+				union.typ.fields = append(union.typ.fields, f)
+			}
+		}
+
+		if union != nil && tok.typ == '}' {
+			union = nil
+			tok = p.next()
 		}
 	}
 
-	fmt.Printf("have type %#v\n", t)
 	p.types = append(p.types, t)
 }
 
@@ -802,10 +845,11 @@ func (p *file) addBuiltinTypes() {
 }
 
 func (p *file) doFindType(pfx int, name string) (*typ, error) {
-	for i := len(p.types)-1; i >= 0; i-- {
+	for i := len(p.types) - 1; i >= 0; i-- {
 		t := p.types[i]
-
-		fmt.Printf("findtype %d %s %s\n", pfx, name, t.name)
+		if t.typ == unionType {
+			continue
+		}
 
 		for j := 0; j <= pfx; j += 2 {
 			if name[j:] == t.name {
@@ -837,7 +881,7 @@ func (p *file) findType(ns *typ, name string) (*typ, error) {
 		pfx += 2
 	}
 	if ns != nil && strings.Index(name, "·") < 0 {
-		t, err := p.doFindType(pfx, name[:pfx] + ns.name + "·" + name[pfx:])
+		t, err := p.doFindType(pfx, name[:pfx]+ns.name+"·"+name[pfx:])
 		if err == nil {
 			return t, nil
 		}
@@ -857,8 +901,10 @@ func (p *file) resolveTypes() error {
 	}
 
 	for _, t := range p.types {
+		if t.typ == unionType {
+			continue
+		}
 		for _, f := range t.fields {
-			fmt.Printf("resolve field %s\n", f.name)
 			if f.typestr != "" {
 				f.typ, err = p.findType(t, f.typestr)
 				if err != nil {
@@ -911,6 +957,32 @@ func align(val, align int) int {
 	return (val + align - 1) &^ (align - 1)
 }
 
+func (t *typ) isptr() bool {
+	switch t.typ {
+	case stringType, structType, interfaceType, listType, bitsetType:
+		return true
+	default:
+		return false
+	}
+}
+
+func (t *typ) datasize() int {
+	switch t.typ {
+	case boolType:
+		return 1
+	case int8Type, uint8Type:
+		return 8
+	case int16Type, uint16Type, enumType, unionType:
+		return 16
+	case int32Type, uint32Type, float32Type:
+		return 32
+	case int64Type, uint64Type, float64Type:
+		return 64
+	default:
+		panic("unhandled")
+	}
+}
+
 func (p *file) resolveOffsets() error {
 	for _, t := range p.types {
 		if t.typ != structType {
@@ -920,42 +992,51 @@ func (p *file) resolveOffsets() error {
 		fields := ordinalFields(t.fields)
 		sort.Sort(fields)
 
+	next_field:
 		for i, f := range fields {
 			if f.ordinal != i {
 				return fmt.Errorf("missing ordinal %d in type %s", i, t.name)
 			}
+			if f.typ.typ == voidType {
+				continue
+			}
 
-			switch f.typ.typ {
-			case voidType:
-				f.offset = t.dataSize
+			if f.union != nil {
+				// want the last field with the same or bigger size
+				for i := len(f.union.typ.fields) - 1; i >= 0; i-- {
+					g := f.union.typ.fields[i]
 
-			case boolType:
-				f.offset = t.dataSize
-				t.dataSize++
+					if f.ordinal <= g.ordinal || f.typ.isptr() != g.typ.isptr() || g.typ.typ == voidType {
+						continue
+					}
 
-			case int8Type, uint8Type:
-				f.offset = align(t.dataSize, 8)
-				t.dataSize = f.offset + 8
+					if f.typ.isptr() {
+						f.offset = g.offset
+						continue next_field
 
-			case int16Type, uint16Type, enumType:
-				f.offset = align(t.dataSize, 16)
-				t.dataSize = f.offset + 16
+					} else if f.typ.datasize() <= g.typ.datasize() {
+						f.offset = g.offset
+						continue next_field
+					}
+				}
+			}
 
-			case int32Type, uint32Type, float32Type:
-				f.offset = align(t.dataSize, 32)
-				t.dataSize = f.offset + 32
-
-			case int64Type, uint64Type, float64Type:
-				f.offset = align(t.dataSize, 64)
-				t.dataSize = f.offset + 64
-
-			case stringType, structType, interfaceType, listType, bitsetType:
+			if f.typ.isptr() {
 				f.offset = t.ptrSize
 				t.ptrSize++
-
-			default:
-				panic("unhandled")
+			} else {
+				sz := f.typ.datasize()
+				f.offset = align(t.dataSize, sz)
+				t.dataSize = f.offset + sz
 			}
+
+			if f.typ.typ == unionType {
+				// Sort the union fields for the offset calculation
+				fields := ordinalFields(f.typ.fields)
+				sort.Sort(fields)
+				f.typ.fields = []*field(fields)
+			}
+
 		}
 
 		t.dataSize = align(t.dataSize, 64) / 64
@@ -980,14 +1061,14 @@ func (t *typ) findField(name string) *field {
 			return f
 		}
 	}
-	panic(fmt.Errorf("can't find field %s in type %s", name, t.name))
+	return nil
 }
 
 var pkg = flag.String("pkg", "main", "Package name to use with generated files")
 
 type printer func(string, ...interface{})
 
-func (v *value) write(t *typ, out printer, marshalled bool) {
+func (v *value) String(t *typ, marshalled bool) string {
 	switch t.typ {
 	case bitsetType:
 		if v.typ != '[' {
@@ -1003,30 +1084,22 @@ func (v *value) write(t *typ, out printer, marshalled bool) {
 				panic(fmt.Errorf("unexpected value %v in bitset", v))
 			}
 		}
+		out := ""
 		if marshalled {
-			out("C.Must(NewBitset(C.NewMemory, ")
+			out += "C.Must(NewBitset(C.NewMemory, "
 		}
-		out("C.Bitset{")
+		out += "C.Bitset{"
 		for i, b := range set {
 			if i > 0 {
-				out(", ")
+				out += ", "
 			}
-			out("%#02x", b)
+			out += sprintf("%#02x", b)
 		}
-		out("}")
+		out += "}"
 		if marshalled {
-			out("))")
+			out += "))"
 		}
-
-	case voidType:
-		out("nil")
-
-	case enumType:
-		if marshalled {
-			out("uint16(%s)", v.string)
-		} else {
-			out("%s", v.string)
-		}
+		return out
 
 	case stringType:
 		if v.typ != '"' {
@@ -1034,29 +1107,27 @@ func (v *value) write(t *typ, out printer, marshalled bool) {
 		}
 
 		if marshalled {
-			out("C.Must(C.NewString(C.NewMemory, %s))", strconv.Quote(v.string))
+			return sprintf("C.Must(C.NewString(C.NewMemory, %s))", strconv.Quote(v.string))
 		} else {
-			out("%s", strconv.Quote(v.string))
+			return sprintf("%s", strconv.Quote(v.string))
 		}
 
 	case listType:
 		if v.typ == '"' && t.listType.typ == uint8Type {
 			// Data fields with a string value
 			if marshalled {
-				out("C.Must(C.NewUInt8List(C.NewMemory, []byte(%s)))", strconv.Quote(v.string))
+				return sprintf("C.Must(C.NewUInt8List(C.NewMemory, []byte(%s)))", strconv.Quote(v.string))
 			} else {
-				out("[]byte(%s)", strconv.Quote(v.string))
+				return sprintf("[]byte(%s)", strconv.Quote(v.string))
 			}
-			return
 		}
 
 		if t.listType.typ == voidType {
 			if marshalled {
-				out("C.Must(C.NewVoidList(C.NewMemory, make([]struct{}, %d)))", len(v.fields))
+				return sprintf("C.Must(C.NewVoidList(C.NewMemory, make([]struct{}, %d)))", len(v.fields))
 			} else {
-				out("make([]struct{}, %d)", len(v.fields))
+				return sprintf("make([]struct{}, %d)", len(v.fields))
 			}
-			return
 		}
 
 		if v.typ != '[' {
@@ -1071,99 +1142,127 @@ func (v *value) write(t *typ, out printer, marshalled bool) {
 			listTypeName = "[](struct{})"
 		}
 
+		out := ""
 		if marshalled {
 			switch t.listType.typ {
 			case int8Type:
-				out("C.Must(C.NewInt8List(C.NewMemory, ")
+				out += "C.Must(C.NewInt8List(C.NewMemory, "
 			case uint8Type:
-				out("C.Must(C.NewUInt8List(C.NewMemory, ")
+				out += "C.Must(C.NewUInt8List(C.NewMemory, "
 			case int16Type:
-				out("C.Must(C.NewInt16List(C.NewMemory, ")
+				out += "C.Must(C.NewInt16List(C.NewMemory, "
 			case uint16Type:
-				out("C.Must(C.NewUInt16List(C.NewMemory, ")
+				out += "C.Must(C.NewUInt16List(C.NewMemory, "
 			case enumType:
-				out("C.Must(C.NewUInt16List(C.NewMemory, ")
+				out += "C.Must(C.NewUInt16List(C.NewMemory, "
 				listTypeName = "[]uint16"
 				innerMarshalled = true
 			case int32Type:
-				out("C.Must(C.NewInt32List(C.NewMemory, ")
+				out += "C.Must(C.NewInt32List(C.NewMemory, "
 			case uint32Type:
-				out("C.Must(C.NewUInt32List(C.NewMemory, ")
+				out += "C.Must(C.NewUInt32List(C.NewMemory, "
 			case int64Type:
-				out("C.Must(C.NewInt64List(C.NewMemory, ")
+				out += "C.Must(C.NewInt64List(C.NewMemory, "
 			case uint64Type:
-				out("C.Must(C.NewUInt64List(C.NewMemory, ")
+				out += "C.Must(C.NewUInt64List(C.NewMemory, "
 			case float32Type:
-				out("C.Must(C.NewFloat32List(C.NewMemory, ")
+				out += "C.Must(C.NewFloat32List(C.NewMemory, "
 			case float64Type:
-				out("C.Must(C.NewFloat64List(C.NewMemory, ")
+				out += "C.Must(C.NewFloat64List(C.NewMemory, "
 			case stringType:
-				out("C.Must(C.NewStringList(C.NewMemory, ")
+				out += "C.Must(C.NewStringList(C.NewMemory, "
 			case bitsetType:
-				out("C.Must(C.NewBitsetList(C.NewMemory, ")
+				out += "C.Must(C.NewBitsetList(C.NewMemory, "
 			case listType:
-				out("C.Must(C.NewPointerList(C.NewMemory, ")
+				out += "C.Must(C.NewPointerList(C.NewMemory, "
 				listTypeName = "[]C.Pointer"
 				innerMarshalled = true
 			default:
 				panic("unhandled")
 			}
 
-		} else if t.listType.typ == listType{
+		} else if t.listType.typ == listType {
 			listTypeName = "[]C.Pointer"
 			innerMarshalled = true
 		}
 
-		out("%s{", listTypeName)
+		out += sprintf("%s{", listTypeName)
 		for i, v := range v.fields {
 			if i > 0 {
-				out(", ")
+				out += ", "
 			}
-			v.write(t.listType, out, innerMarshalled)
+			out += v.String(t.listType, innerMarshalled)
 		}
-		out("}")
+		out += "}"
 
 		if marshalled {
-			out("))")
+			out += "))"
 		}
+		return out
 
 	case structType:
 		if v.typ != '(' {
 			panic(fmt.Errorf("unexpected value %v in struct", v))
 		}
-		out("func() %s {\n", t.name)
-		out("p, _ := %s(C.NewMemory)\n", pfxname("new", t.name))
+		out := sprintf("func() %s {\n", t.name)
+		out += sprintf("p, _ := %s(C.NewMemory)\n", pfxname("new", t.name))
 		for _, v := range v.fields {
 			f := t.findField(v.name)
+			if f == nil {
+				panic(fmt.Errorf("can't find field %s in type %s", v.name, t.name))
+			}
 			if f.typ.typ != voidType {
-				out("p.%s(", pfxname("set", f.name))
-				v.write(f.typ, out, false)
-				out(")\n")
+				out += sprintf("p.%s(", pfxname("set", f.name))
+				out += v.String(f.typ, false)
+				out += ")\n"
 			}
 		}
-		out("return p\n")
-		out("}()")
+		out += "return p\n"
+		out += "}()"
 		if marshalled {
-			out(".Ptr")
+			out += ".Ptr"
+		}
+		return out
+
+	case enumType:
+		if v.typ != 'a' {
+			panic(fmt.Errorf("unexpected value %v in enum for %v", v, t))
 		}
 
-	default:
+		// Can be either a constant (use v.string) or an enum value (use type_v.string)
+		str := v.string
+		if f := t.findField(str); f != nil {
+			str = t.enumPrefix + v.string
+		}
+
+		if marshalled {
+			return sprintf("uint16(%s)", str)
+		} else {
+			return str
+		}
+
+	case boolType, float32Type, float64Type,
+		int8Type, uint8Type, int16Type, uint16Type,
+		int32Type, uint32Type, int64Type, uint64Type:
+
 		// number types, can be number or constants
 		switch v.typ {
 		case '0', 'a':
-			out("%s", v.string)
+			return v.string
 		default:
 			panic(fmt.Errorf("unexpected value %v in number for %v", v, t))
 		}
+
+	default:
+		panic("unhandled")
 	}
 }
 
 func (f *field) writeGetterXorDefault(out printer) {
 	if f.value != nil {
-		out("^ %s\n", f.value.string)
-	} else {
-		out("\n")
+		out("^ %s", f.value.String(f.typ, false))
 	}
+	out("\n")
 }
 
 func (f *field) writeGetter(out printer, ptr string) {
@@ -1200,7 +1299,7 @@ func (f *field) writeGetter(out printer, ptr string) {
 	case uint64Type:
 		out("return C.ReadUInt64(%s, %d)", ptr, f.offset/8)
 		f.writeGetterXorDefault(out)
-	case enumType:
+	case enumType, unionType:
 		out("return %s(C.ReadUInt16(%s, %d))", f.typ.name, ptr, f.offset/8)
 		f.writeGetterXorDefault(out)
 
@@ -1233,12 +1332,12 @@ func (f *field) writeGetter(out printer, ptr string) {
 
 	case structType:
 		if f.value != nil {
-			out("ret := %s{Ptr: %s}\n", f.typ.name, ptr)
-			out("if ret.Ptr == nil {\n")
-			out("ret = ")
-			f.value.write(f.typ, out, false)
-			out("\n}\n")
-			out("return ret\n")
+			out(`ret := %s{Ptr: %s}
+			if ret.Ptr == nil {
+				ret = %s
+			}
+			return ret
+			`, f.typ.name, ptr, f.value.String(f.typ, false))
 		} else {
 			out("return %s{Ptr: %s}\n", f.typ.name, ptr)
 		}
@@ -1248,11 +1347,12 @@ func (f *field) writeGetter(out printer, ptr string) {
 
 	case bitsetType:
 		if f.value != nil {
-			out("ret := C.ToBitset(%s)\n", ptr)
-			out("if ret == nil {\n")
-			out("ret = ")
-			f.value.write(f.typ, out, false)
-			out("\n}\nreturn ret\n")
+			out(`ret := C.ToBitset(%s)
+			if ret == nil {
+				ret = %s
+			}
+			return ret
+			`, ptr, f.value.String(f.typ, false))
 		} else {
 			out("return C.ToBitset(%s)\n", ptr)
 		}
@@ -1317,11 +1417,11 @@ func (f *field) writeGetter(out printer, ptr string) {
 		}
 
 		if f.value != nil {
-			out("if ret == nil {\n")
-			out("ret = ")
-			f.value.write(f.typ, out, false)
-			out("\n}\n")
-			out("return ret\n")
+			out(`if ret == nil {
+				ret = %s
+			}
+			return ret
+			`, f.value.String(f.typ, false))
 		} else {
 			switch f.typ.listType.typ {
 			case enumType, structType, interfaceType:
@@ -1348,14 +1448,14 @@ func (f *field) writeDataSetter(out printer, ptr, ret string) {
 	if f.value != nil {
 		switch f.typ.typ {
 		case enumType, int8Type, uint8Type, int16Type, uint16Type, int32Type, uint32Type, int64Type, uint64Type:
-			arg = fmt.Sprintf("%s ^ %s", arg, f.value.string)
+			arg = sprintf("%s ^ %s", arg, f.value.String(f.typ, false))
 		case float32Type:
-			arg = fmt.Sprintf("%s ^ M.Float32bits(%s)", arg, f.value.string)
+			arg = sprintf("%s ^ M.Float32bits(%s)", arg, f.value.String(f.typ, false))
 		case float64Type:
-			arg = fmt.Sprintf("%s ^ M.Float64bits(%s)", arg, f.value.string)
+			arg = sprintf("%s ^ M.Float64bits(%s)", arg, f.value.String(f.typ, false))
 		case boolType:
 			if f.value.string == "true" {
-				arg = fmt.Sprintf("!%s", arg)
+				arg = sprintf("!%s", arg)
 			}
 		case voidType:
 			// nothing to do
@@ -1483,32 +1583,179 @@ func (p *file) writeStruct(t *typ, out printer) {
 
 		out("func (p %s) %s() %s {\n", t.name, f.name, f.typ.name)
 
-		switch f.typ.typ {
-		case stringType, structType, interfaceType, bitsetType, listType:
+		if f.typ.isptr() {
 			out("ptr := C.ReadPtr(p.Ptr, %d)\n", f.offset)
 			f.writeGetter(out, "ptr")
-		default:
+		} else {
 			f.writeGetter(out, "p.Ptr")
 		}
 
 		out("}\n")
 
-		out("func (p %s) %s(v %s) error {\n", t.name, pfxname("set", f.name), f.typ.name)
+		if f.typ.typ != unionType {
+			out("func (p %s) %s(v %s) error {\n", t.name, pfxname("set", f.name), f.typ.name)
 
-		switch f.typ.typ {
-		case structType:
-			out("return p.Ptr.WritePtrs(%d, []C.Pointer{v.Ptr})\n", f.offset)
-		case stringType, interfaceType, bitsetType, listType:
-			f.writeNewPointer(out, "p.Ptr.New", "return err")
-			out("if err != nil { return err }\n")
-			out("return p.Ptr.WritePtrs(%d, []C.Pointer{data})\n", f.offset)
-		default:
-			f.writeDataSetter(out, "p.Ptr", "return")
-			out("\n")
+			if f.union != nil {
+				out(`if err := C.WriteUInt16(p.Ptr, %d, uint16(%s%s)); err != nil {
+					return err
+				}
+				`, f.union.offset/8, f.union.typ.enumPrefix, f.name)
+			}
+
+			if f.typ.typ == structType {
+				out("return p.Ptr.WritePtrs(%d, []C.Pointer{v.Ptr})\n", f.offset)
+			} else if f.typ.isptr() {
+				f.writeNewPointer(out, "p.Ptr.New", "return err")
+				out(`if err != nil { return err }
+				return p.Ptr.WritePtrs(%d, []C.Pointer{data})
+				`, f.offset)
+			} else {
+				f.writeDataSetter(out, "p.Ptr", "return")
+				out("\n")
+			}
+
+			out("}\n")
+		}
+	}
+}
+
+func (p *file) writeInterface(t *typ, out printer) {
+	out(`type %s interface {
+		C.Marshaller
+		`, t.name)
+
+	for _, f := range t.fields {
+		if len(f.comment) > 0 {
+			out("/* %s */\n", f.comment)
+		}
+
+		out("%s(", f.name)
+		for ai, a := range f.args.fields {
+			if ai > 0 {
+				out(", ")
+			}
+			out("%s %s", a.name, a.typ.name)
+		}
+		out(") (")
+
+		if f.typ != nil {
+			out("%s, ", f.typ.name)
+		}
+
+		out("error)\n")
+	}
+
+	out("}\n")
+
+	out(`type _%s_remote struct {
+			Ptr C.Pointer
+		}
+		func (p _%s_remote) MarshalCaptain(new C.NewFunc) (C.Pointer, error) {
+			return p.Ptr, nil
+		}
+		`, t.name, t.name)
+
+	for _, f := range t.fields {
+		if f.typ != nil {
+			out("func getret_%s_%s(p C.Pointer) %s {\n", t.name, f.name, f.typ.name)
+			f.writeGetter(out, "p")
+			out("}\n")
+
+			out("func setret_%s_%s(new C.NewFunc, v %s) (C.Pointer, error) {\n", t.name, f.name, f.typ.name)
+
+			if f.typ.typ == structType {
+				out("return v.Ptr, nil\n")
+			} else if f.typ.isptr() {
+				f.writeNewPointer(out, "new", "return nil, err")
+				out("if err != nil { return nil, err }\n")
+				out("return data, nil\n")
+			} else {
+				out(`data, err := C.NewStruct(new, 8, 0)
+					if err != nil { return nil, err }
+					`)
+				f.writeDataSetter(out, "data", "if err :=")
+				out(" != nil { return nil, err }\n")
+				out("return data, nil\n")
+			}
+			out("}\n")
+		}
+
+		out("func (p _%s_remote) %s(", t.name, f.name)
+		for ai, a := range f.args.fields {
+			if ai > 0 {
+				out(", ")
+			}
+			out("a%d %s", ai, a.typ.name)
+		}
+		out(") (")
+		if f.typ != nil {
+			out("ret %s, ", f.typ.name)
+		}
+		out("err error) {\n")
+
+		out(`var args _%s_%s_args
+			args, err = new_%s_%s_args(p.Ptr.New)
+			if err != nil { return }
+			`, t.name, f.name, t.name, f.name)
+		for ai, a := range f.args.fields {
+			out("args.%s(a%d)\n", pfxname("set", a.name), ai)
+		}
+
+		if f.typ != nil {
+			out(`var rets C.Pointer
+				rets, err = p.Ptr.Call(%d, args.Ptr)
+				if err != nil { return }
+				ret = getret_%s_%s(rets)
+				return
+				`, f.ordinal, t.name, f.name)
+		} else {
+			out(`_, err = p.Ptr.Call(%d, args.Ptr)
+				return
+				`, f.ordinal)
 		}
 
 		out("}\n")
 	}
+
+	out(`func %s(iface interface{}, method int, args C.Pointer, retnew C.NewFunc) (C.Pointer, error) {
+			p, ok := iface.(%s)
+			if !ok {
+				return nil, C.ErrInvalidInterface
+			}
+			switch (method) {
+				`, pfxname("dispatch", t.name), t.name)
+
+	for _, f := range t.fields {
+		out(`case %d:
+					a := _%s_%s_args{Ptr: args}
+					`, f.ordinal, t.name, f.name)
+
+		if f.typ != nil {
+			out("r, err := p.%s(", f.name)
+		} else {
+			out("err := p.%s(", f.name)
+		}
+		for ai, a := range f.args.fields {
+			if ai > 0 {
+				out(", ")
+			}
+			out("a.%s()", a.name)
+		}
+		out(")\n")
+		out("if err != nil { return nil, err }\n")
+
+		if f.typ != nil {
+			out("return setret_%s_%s(retnew, r)\n", t.name, f.name)
+		} else {
+			out("return nil, nil\n")
+		}
+	}
+
+	out(`default:
+				return nil, C.ErrInvalidInterface
+			}
+		}
+		`)
 }
 
 func (p *file) write(out printer) {
@@ -1524,21 +1771,21 @@ func (p *file) write(out printer) {
 		_ = M.Float32bits
 		_ = reflect.SliceHeader{}
 		_ = unsafe.Pointer(nil)
-	)
+
 	`, *pkg, strconv.Quote(importPath))
 
 	for _, c := range p.constants {
+		if c.typ.typ == voidType {
+			continue
+		}
 		if len(c.comment) > 0 {
 			out("/* %s */\n", c.comment)
 		}
 
-		out("var %s %s = ", c.name, c.typ.name)
-		c.value.write(c.typ, out, false)
-		out("\n")
-
+		out("%s %s = %s\n", c.name, c.typ.name, c.value.String(c.typ, false))
 	}
 
-	out("\n")
+	out(")\n")
 
 	for _, t := range p.types {
 		if len(t.comment) > 0 {
@@ -1546,159 +1793,23 @@ func (p *file) write(out printer) {
 		}
 
 		switch t.typ {
-		case enumType:
-			out("type %s uint16\n", t.name)
-			out("const (\n")
-			for _, f := range t.fields {
-				if len(f.comment) > 0 {
-					out("/* %s */\n", f.comment)
-				}
-				out("%s %s = %d\n", f.name, t.name, f.ordinal)
-			}
-			out(")\n")
-
-		case structType:
-			p.writeStruct(t, out)
-
-		case interfaceType:
-			out(`type %s interface {
-				C.Marshaller
+		case enumType, unionType:
+			out(`type %s uint16
+			const (
 			`, t.name)
 
 			for _, f := range t.fields {
 				if len(f.comment) > 0 {
 					out("/* %s */\n", f.comment)
 				}
-
-				out("%s(", f.name)
-				for ai, a := range f.args.fields {
-					if ai > 0 {
-						out(", ")
-					}
-					out("%s %s", a.name, a.typ.name)
-				}
-				out(") (")
-
-				if f.typ != nil {
-					out("%s, ", f.typ.name)
-				}
-
-				out("error)\n")
+				out("%s%s %s = %d\n", t.enumPrefix, f.name, t.name, f.ordinal)
 			}
+			out(")\n")
 
-			out("}\n")
-
-			out(`type _%s_remote struct {
-				Ptr C.Pointer
-			}
-			func (p _%s_remote) MarshalCaptain(new C.NewFunc) (C.Pointer, error) {
-				return p.Ptr, nil
-			}
-			`, t.name, t.name)
-
-			for _, f := range t.fields {
-				if f.typ != nil {
-					out("func getret_%s_%s(p C.Pointer) %s {\n", t.name, f.name, f.typ.name)
-					f.writeGetter(out, "p")
-					out("}\n")
-
-					out("func setret_%s_%s(new C.NewFunc, v %s) (C.Pointer, error) {\n", t.name, f.name, f.typ.name)
-
-					switch f.typ.typ {
-					case structType:
-						out("return v.Ptr, nil\n")
-					case stringType, interfaceType, bitsetType, listType:
-						f.writeNewPointer(out, "new", "return nil, err")
-						out("if err != nil { return nil, err }\n")
-						out("return data, nil\n")
-					default:
-						out(`data, err := C.NewStruct(new, 8, 0)
-						if err != nil { return nil, err }
-						`)
-						f.writeDataSetter(out, "data", "if err :=")
-						out(" != nil { return nil, err }\n")
-						out("return data, nil\n")
-					}
-					out("}\n")
-				}
-
-				out("func (p _%s_remote) %s(", t.name, f.name)
-				for ai, a := range f.args.fields {
-					if ai > 0 {
-						out(", ")
-					}
-					out("a%d %s", ai, a.typ.name)
-				}
-				out(") (")
-				if f.typ != nil {
-					out("ret %s, ", f.typ.name)
-				}
-				out("err error) {\n")
-
-				out(`var args _%s_%s_args
-				args, err = new_%s_%s_args(p.Ptr.New)
-				if err != nil { return }
-				`, t.name, f.name, t.name, f.name)
-				for ai, a := range f.args.fields {
-					out("args.%s(a%d)\n", pfxname("set", a.name), ai)
-				}
-
-
-				if f.typ != nil {
-					out(`var rets C.Pointer
-					rets, err = p.Ptr.Call(%d, args.Ptr)
-					if err != nil { return }
-					ret = getret_%s_%s(rets)
-					return
-					`, f.ordinal, t.name, f.name)
-				} else {
-					out(`_, err = p.Ptr.Call(%d, args.Ptr)
-					return
-					`, f.ordinal)
-				}
-
-				out("}\n")
-			}
-
-			out(`func %s(iface interface{}, method int, args C.Pointer, retnew C.NewFunc) (C.Pointer, error) {
-				p, ok := iface.(%s)
-				if !ok {
-					return nil, C.ErrInvalidInterface
-				}
-				switch (method) {
-			`, pfxname("dispatch", t.name), t.name)
-
-			for _, f := range t.fields {
-				out(`case %d:
-					a := _%s_%s_args{Ptr: args}
-				`, f.ordinal, t.name, f.name)
-
-				if f.typ != nil {
-					out("r, err := p.%s(", f.name)
-				} else {
-					out("err := p.%s(", f.name)
-				}
-				for ai, a := range f.args.fields {
-					if ai > 0 {
-						out(", ")
-					}
-					out("a.%s()", a.name)
-				}
-				out(")\n")
-				out("if err != nil { return nil, err }\n")
-
-				if f.typ != nil {
-					out("return setret_%s_%s(retnew, r)\n", t.name, f.name)
-				} else {
-					out("return nil, nil\n")
-				}
-			}
-
-			out(`default:
-				return nil, C.ErrInvalidInterface
-			}
-			}
-			`)
+		case structType:
+			p.writeStruct(t, out)
+		case interfaceType:
+			p.writeInterface(t, out)
 		}
 	}
 }

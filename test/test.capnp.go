@@ -11,6 +11,105 @@ var (
 	_ = M.Float32bits
 	_ = reflect.SliceHeader{}
 	_ = unsafe.Pointer(nil)
+
+	boolConst    bool         = true
+	int8Const    int8         = -123
+	int16Const   int16        = -12345
+	int32Const   int32        = -12345678
+	int64Const   int64        = -123456789012345
+	uInt8Const   uint8        = 234
+	uInt16Const  uint16       = 45678
+	uInt32Const  uint32       = 3456789012
+	uInt64Const  uint64       = 12345678901234567890
+	float32Const float32      = 1234.5
+	float64Const float64      = -123e45
+	textConst    string       = "foo"
+	dataConst    []uint8      = []byte("bar")
+	structConst  TestAllTypes = func() TestAllTypes {
+		p, _ := NewTestAllTypes(C.NewMemory)
+		p.setBoolField(true)
+		p.setInt8Field(-12)
+		p.setInt16Field(3456)
+		p.setInt32Field(-78901234)
+		p.setInt64Field(56789012345678)
+		p.setUInt8Field(90)
+		p.setUInt16Field(1234)
+		p.setUInt32Field(56789012)
+		p.setUInt64Field(345678901234567890)
+		p.setFloat32Field(-1.25e-10)
+		p.setFloat64Field(345)
+		p.setTextField("baz")
+		p.setDataField([]byte("qux"))
+		p.setStructField(func() TestAllTypes {
+			p, _ := NewTestAllTypes(C.NewMemory)
+			p.setTextField("nested")
+			p.setStructField(func() TestAllTypes {
+				p, _ := NewTestAllTypes(C.NewMemory)
+				p.setTextField("really nested")
+				return p
+			}())
+			return p
+		}())
+		p.setEnumField(TestEnum_FOO)
+		p.setVoidList(make([]struct{}, 3))
+		p.setBoolList(C.Bitset{0x1a})
+		p.setInt8List([]int8{12, -34, -0x80, 0x7f})
+		p.setInt16List([]int16{1234, -5678, -0x8000, 0x7fff})
+		p.setInt32List([]int32{12345678, -90123456, -0x8000000, 0x7ffffff})
+		p.setInt64List([]int64{123456789012345, -678901234567890, -0x8000000000000000, 0x7fffffffffffffff})
+		p.setUInt8List([]uint8{12, 34, 0, 0xff})
+		p.setUInt16List([]uint16{1234, 5678, 0, 0xffff})
+		p.setUInt32List([]uint32{12345678, 90123456, 0, 0xffffffff})
+		p.setUInt64List([]uint64{123456789012345, 678901234567890, 0, 0xffffffffffffffff})
+		p.setFloat32List([]float32{0, 1234567, 1e37, -1e37, 1e-37, -1e-37})
+		p.setFloat64List([]float64{0, 123456789012345, 1e306, -1e306, 1e-306, -1e-306})
+		p.setTextList([]string{"quux", "corge", "grault"})
+		p.setDataList([]C.Pointer{C.Must(C.NewUInt8List(C.NewMemory, []byte("garply"))), C.Must(C.NewUInt8List(C.NewMemory, []byte("waldo"))), C.Must(C.NewUInt8List(C.NewMemory, []byte("fred")))})
+		p.setStructList([]TestAllTypes{func() TestAllTypes {
+			p, _ := NewTestAllTypes(C.NewMemory)
+			p.setTextField("x structlist 1")
+			return p
+		}(), func() TestAllTypes {
+			p, _ := NewTestAllTypes(C.NewMemory)
+			p.setTextField("x structlist 2")
+			return p
+		}(), func() TestAllTypes {
+			p, _ := NewTestAllTypes(C.NewMemory)
+			p.setTextField("x structlist 3")
+			return p
+		}()})
+		p.setEnumList([]TestEnum{TestEnum_BAR, TestEnum_FOO})
+		return p
+	}()
+	enumConst        TestEnum       = TestEnum_FOO
+	voidListConst    []struct{}     = make([]struct{}, 6)
+	boolListConst    C.Bitset       = C.Bitset{0x09}
+	int8ListConst    []int8         = []int8{111, -111}
+	int16ListConst   []int16        = []int16{11111, -11111}
+	int32ListConst   []int32        = []int32{111111111, -111111111}
+	int64ListConst   []int64        = []int64{1111111111111111111, -1111111111111111111}
+	uInt8ListConst   []uint8        = []uint8{111, 222}
+	uInt16ListConst  []uint16       = []uint16{33333, 44444}
+	uInt32ListConst  []uint32       = []uint32{3333333333}
+	uInt64ListConst  []uint64       = []uint64{11111111111111111111}
+	float32ListConst []float32      = []float32{5555.5, 2222.25}
+	float64ListConst []float64      = []float64{7777.75, 1111.125}
+	textListConst    []string       = []string{"plugh", "xyzzy", "thud"}
+	dataListConst    []C.Pointer    = []C.Pointer{C.Must(C.NewUInt8List(C.NewMemory, []byte("oops"))), C.Must(C.NewUInt8List(C.NewMemory, []byte("exhausted"))), C.Must(C.NewUInt8List(C.NewMemory, []byte("rfc3092")))}
+	structListConst  []TestAllTypes = []TestAllTypes{func() TestAllTypes {
+		p, _ := NewTestAllTypes(C.NewMemory)
+		p.setTextField("structlist 1")
+		return p
+	}(), func() TestAllTypes {
+		p, _ := NewTestAllTypes(C.NewMemory)
+		p.setTextField("structlist 2")
+		return p
+	}(), func() TestAllTypes {
+		p, _ := NewTestAllTypes(C.NewMemory)
+		p.setTextField("structlist 3")
+		return p
+	}()}
+	enumListConst []TestEnum = []TestEnum{TestEnum_FOO, TestEnum_BAR}
 )
 
 type _TestInterface_testMethod1_args struct {
@@ -176,8 +275,30 @@ func DispatchTestInterface(iface interface{}, method int, args C.Pointer, retnew
 type TestEnum uint16
 
 const (
-	FOO TestEnum = 1
-	BAR TestEnum = 2
+	TestEnum_FOO TestEnum = 1
+	TestEnum_BAR TestEnum = 2
+)
+
+type TestAllTypes_unionField uint16
+
+const (
+	TestAllTypes_voidUnion      TestAllTypes_unionField = 35
+	TestAllTypes_boolUnion      TestAllTypes_unionField = 36
+	TestAllTypes_int8Union      TestAllTypes_unionField = 37
+	TestAllTypes_uint8Union     TestAllTypes_unionField = 38
+	TestAllTypes_int16Union     TestAllTypes_unionField = 39
+	TestAllTypes_uint16Union    TestAllTypes_unionField = 40
+	TestAllTypes_int32Union     TestAllTypes_unionField = 41
+	TestAllTypes_uint32Union    TestAllTypes_unionField = 42
+	TestAllTypes_int64Union     TestAllTypes_unionField = 43
+	TestAllTypes_uint64Union    TestAllTypes_unionField = 44
+	TestAllTypes_float32Union   TestAllTypes_unionField = 45
+	TestAllTypes_float64Union   TestAllTypes_unionField = 46
+	TestAllTypes_textUnion      TestAllTypes_unionField = 47
+	TestAllTypes_dataUnion      TestAllTypes_unionField = 48
+	TestAllTypes_structUnion    TestAllTypes_unionField = 49
+	TestAllTypes_enumUnion      TestAllTypes_unionField = 50
+	TestAllTypes_interfaceUnion TestAllTypes_unionField = 51
 )
 
 type TestAllTypes struct {
@@ -185,7 +306,7 @@ type TestAllTypes struct {
 }
 
 func NewTestAllTypes(new C.NewFunc) (TestAllTypes, error) {
-	ptr, err := C.NewStruct(new, 7, 21)
+	ptr, err := C.NewStruct(new, 9, 22)
 	return TestAllTypes{Ptr: ptr}, err
 }
 func (p TestAllTypes) boolField() bool {
@@ -514,13 +635,198 @@ func (p TestAllTypes) setInterfaceList(v []TestInterface) error {
 	}
 	return p.Ptr.WritePtrs(20, []C.Pointer{data})
 }
+func (p TestAllTypes) unionField() TestAllTypes_unionField {
+	return TestAllTypes_unionField(C.ReadUInt16(p.Ptr, 50))
+}
+func (p TestAllTypes) boolUnion() bool {
+	return (C.ReadUInt8(p.Ptr, 52) & 0) != 0
+}
+func (p TestAllTypes) setBoolUnion(v bool) error {
+	if err := C.WriteUInt16(p.Ptr, 50, uint16(TestAllTypes_boolUnion)); err != nil {
+		return err
+	}
+	return C.WriteBool(p.Ptr, 416, v)
+}
+func (p TestAllTypes) int8Union() int8 {
+	return int8(C.ReadUInt8(p.Ptr, 53))
+}
+func (p TestAllTypes) setInt8Union(v int8) error {
+	if err := C.WriteUInt16(p.Ptr, 50, uint16(TestAllTypes_int8Union)); err != nil {
+		return err
+	}
+	return C.WriteUInt8(p.Ptr, 53, uint8(v))
+}
+func (p TestAllTypes) uint8Union() uint8 {
+	return C.ReadUInt8(p.Ptr, 53)
+}
+func (p TestAllTypes) setUint8Union(v uint8) error {
+	if err := C.WriteUInt16(p.Ptr, 50, uint16(TestAllTypes_uint8Union)); err != nil {
+		return err
+	}
+	return C.WriteUInt8(p.Ptr, 53, v)
+}
+func (p TestAllTypes) int16Union() int16 {
+	return int16(C.ReadUInt16(p.Ptr, 54))
+}
+func (p TestAllTypes) setInt16Union(v int16) error {
+	if err := C.WriteUInt16(p.Ptr, 50, uint16(TestAllTypes_int16Union)); err != nil {
+		return err
+	}
+	return C.WriteUInt16(p.Ptr, 54, uint16(v))
+}
+func (p TestAllTypes) uint16Union() uint16 {
+	return C.ReadUInt16(p.Ptr, 54)
+}
+func (p TestAllTypes) setUint16Union(v uint16) error {
+	if err := C.WriteUInt16(p.Ptr, 50, uint16(TestAllTypes_uint16Union)); err != nil {
+		return err
+	}
+	return C.WriteUInt16(p.Ptr, 54, v)
+}
+func (p TestAllTypes) int32Union() int32 {
+	return int32(C.ReadUInt32(p.Ptr, 56))
+}
+func (p TestAllTypes) setInt32Union(v int32) error {
+	if err := C.WriteUInt16(p.Ptr, 50, uint16(TestAllTypes_int32Union)); err != nil {
+		return err
+	}
+	return C.WriteUInt32(p.Ptr, 56, uint32(v))
+}
+func (p TestAllTypes) uint32Union() uint32 {
+	return C.ReadUInt32(p.Ptr, 56)
+}
+func (p TestAllTypes) setUint32Union(v uint32) error {
+	if err := C.WriteUInt16(p.Ptr, 50, uint16(TestAllTypes_uint32Union)); err != nil {
+		return err
+	}
+	return C.WriteUInt32(p.Ptr, 56, v)
+}
+func (p TestAllTypes) int64Union() int64 {
+	return int64(C.ReadUInt64(p.Ptr, 64))
+}
+func (p TestAllTypes) setInt64Union(v int64) error {
+	if err := C.WriteUInt16(p.Ptr, 50, uint16(TestAllTypes_int64Union)); err != nil {
+		return err
+	}
+	return C.WriteUInt64(p.Ptr, 64, uint64(v))
+}
+func (p TestAllTypes) uint64Union() uint64 {
+	return C.ReadUInt64(p.Ptr, 64)
+}
+func (p TestAllTypes) setUint64Union(v uint64) error {
+	if err := C.WriteUInt16(p.Ptr, 50, uint16(TestAllTypes_uint64Union)); err != nil {
+		return err
+	}
+	return C.WriteUInt64(p.Ptr, 64, v)
+}
+func (p TestAllTypes) float32Union() float32 {
+	return M.Float32frombits(C.ReadUInt32(p.Ptr, 64))
+}
+func (p TestAllTypes) setFloat32Union(v float32) error {
+	if err := C.WriteUInt16(p.Ptr, 50, uint16(TestAllTypes_float32Union)); err != nil {
+		return err
+	}
+	return C.WriteUInt32(p.Ptr, 64, M.Float32bits(v))
+}
+func (p TestAllTypes) float64Union() float64 {
+	return M.Float64frombits(C.ReadUInt64(p.Ptr, 64))
+}
+func (p TestAllTypes) setFloat64Union(v float64) error {
+	if err := C.WriteUInt16(p.Ptr, 50, uint16(TestAllTypes_float64Union)); err != nil {
+		return err
+	}
+	return C.WriteUInt64(p.Ptr, 64, uint64(M.Float64bits(v)))
+}
+func (p TestAllTypes) textUnion() string {
+	ptr := C.ReadPtr(p.Ptr, 21)
+	return C.ToString(ptr, "")
+}
+func (p TestAllTypes) setTextUnion(v string) error {
+	if err := C.WriteUInt16(p.Ptr, 50, uint16(TestAllTypes_textUnion)); err != nil {
+		return err
+	}
+	data, err := C.NewString(p.Ptr.New, v)
+	if err != nil {
+		return err
+	}
+	return p.Ptr.WritePtrs(21, []C.Pointer{data})
+}
+func (p TestAllTypes) dataUnion() []uint8 {
+	ptr := C.ReadPtr(p.Ptr, 21)
+	return C.ToUInt8List(ptr)
+}
+func (p TestAllTypes) setDataUnion(v []uint8) error {
+	if err := C.WriteUInt16(p.Ptr, 50, uint16(TestAllTypes_dataUnion)); err != nil {
+		return err
+	}
+	data, err := C.NewUInt8List(p.Ptr.New, v)
+	if err != nil {
+		return err
+	}
+	return p.Ptr.WritePtrs(21, []C.Pointer{data})
+}
+func (p TestAllTypes) structUnion() TestAllTypes {
+	ptr := C.ReadPtr(p.Ptr, 21)
+	return TestAllTypes{Ptr: ptr}
+}
+func (p TestAllTypes) setStructUnion(v TestAllTypes) error {
+	if err := C.WriteUInt16(p.Ptr, 50, uint16(TestAllTypes_structUnion)); err != nil {
+		return err
+	}
+	return p.Ptr.WritePtrs(21, []C.Pointer{v.Ptr})
+}
+func (p TestAllTypes) enumUnion() TestEnum {
+	return TestEnum(C.ReadUInt16(p.Ptr, 64))
+}
+func (p TestAllTypes) setEnumUnion(v TestEnum) error {
+	if err := C.WriteUInt16(p.Ptr, 50, uint16(TestAllTypes_enumUnion)); err != nil {
+		return err
+	}
+	return C.WriteUInt16(p.Ptr, 64, uint16(v))
+}
+func (p TestAllTypes) interfaceUnion() TestInterface {
+	ptr := C.ReadPtr(p.Ptr, 21)
+	return _TestInterface_remote{Ptr: ptr}
+}
+func (p TestAllTypes) setInterfaceUnion(v TestInterface) error {
+	if err := C.WriteUInt16(p.Ptr, 50, uint16(TestAllTypes_interfaceUnion)); err != nil {
+		return err
+	}
+	data, err := v.MarshalCaptain(p.Ptr.New)
+	if err != nil {
+		return err
+	}
+	return p.Ptr.WritePtrs(21, []C.Pointer{data})
+}
+
+type TestDefaults_unionField uint16
+
+const (
+	TestDefaults_voidUnion      TestDefaults_unionField = 35
+	TestDefaults_boolUnion      TestDefaults_unionField = 36
+	TestDefaults_int8Union      TestDefaults_unionField = 37
+	TestDefaults_uint8Union     TestDefaults_unionField = 38
+	TestDefaults_int16Union     TestDefaults_unionField = 39
+	TestDefaults_uint16Union    TestDefaults_unionField = 40
+	TestDefaults_int32Union     TestDefaults_unionField = 41
+	TestDefaults_uint32Union    TestDefaults_unionField = 42
+	TestDefaults_int64Union     TestDefaults_unionField = 43
+	TestDefaults_uint64Union    TestDefaults_unionField = 44
+	TestDefaults_float32Union   TestDefaults_unionField = 45
+	TestDefaults_float64Union   TestDefaults_unionField = 46
+	TestDefaults_textUnion      TestDefaults_unionField = 47
+	TestDefaults_dataUnion      TestDefaults_unionField = 48
+	TestDefaults_structUnion    TestDefaults_unionField = 49
+	TestDefaults_enumUnion      TestDefaults_unionField = 50
+	TestDefaults_interfaceUnion TestDefaults_unionField = 51
+)
 
 type TestDefaults struct {
 	Ptr C.Pointer
 }
 
 func NewTestDefaults(new C.NewFunc) (TestDefaults, error) {
-	ptr, err := C.NewStruct(new, 7, 21)
+	ptr, err := C.NewStruct(new, 9, 22)
 	return TestDefaults{Ptr: ptr}, err
 }
 func (p TestDefaults) boolField() bool {
@@ -648,7 +954,7 @@ func (p TestDefaults) structField() TestAllTypes {
 				}())
 				return p
 			}())
-			p.setEnumField(FOO)
+			p.setEnumField(TestEnum_FOO)
 			p.setVoidList(make([]struct{}, 3))
 			p.setBoolList(C.Bitset{0x1a})
 			p.setInt8List([]int8{12, -34, -0x80, 0x7f})
@@ -676,7 +982,7 @@ func (p TestDefaults) structField() TestAllTypes {
 				p.setTextField("x structlist 3")
 				return p
 			}()})
-			p.setEnumList([]TestEnum{BAR, FOO})
+			p.setEnumList([]TestEnum{TestEnum_BAR, TestEnum_FOO})
 			return p
 		}()
 	}
@@ -686,10 +992,10 @@ func (p TestDefaults) setStructField(v TestAllTypes) error {
 	return p.Ptr.WritePtrs(2, []C.Pointer{v.Ptr})
 }
 func (p TestDefaults) enumField() TestEnum {
-	return TestEnum(C.ReadUInt16(p.Ptr, 48)) ^ FOO
+	return TestEnum(C.ReadUInt16(p.Ptr, 48)) ^ TestEnum_FOO
 }
 func (p TestDefaults) setEnumField(v TestEnum) error {
-	return C.WriteUInt16(p.Ptr, 48, uint16(v^FOO))
+	return C.WriteUInt16(p.Ptr, 48, uint16(v^TestEnum_FOO))
 }
 
 /* interface can't have a default
@@ -955,7 +1261,7 @@ func (p TestDefaults) enumList() []TestEnum {
 	pret := (*reflect.SliceHeader)(unsafe.Pointer(&ret))
 	*pret = *(*reflect.SliceHeader)(unsafe.Pointer(&u16))
 	if ret == nil {
-		ret = []TestEnum{FOO, BAR}
+		ret = []TestEnum{TestEnum_FOO, TestEnum_BAR}
 	}
 	return ret
 }
@@ -992,4 +1298,183 @@ func (p TestDefaults) setInterfaceList(v []TestInterface) error {
 		return err
 	}
 	return p.Ptr.WritePtrs(20, []C.Pointer{data})
+}
+func (p TestDefaults) unionField() TestDefaults_unionField {
+	return TestDefaults_unionField(C.ReadUInt16(p.Ptr, 50))
+}
+func (p TestDefaults) boolUnion() bool {
+	return (C.ReadUInt8(p.Ptr, 52) & 0) != 1
+}
+func (p TestDefaults) setBoolUnion(v bool) error {
+	if err := C.WriteUInt16(p.Ptr, 50, uint16(TestDefaults_boolUnion)); err != nil {
+		return err
+	}
+	return C.WriteBool(p.Ptr, 416, !v)
+}
+func (p TestDefaults) int8Union() int8 {
+	return int8(C.ReadUInt8(p.Ptr, 53)) ^ -123
+}
+func (p TestDefaults) setInt8Union(v int8) error {
+	if err := C.WriteUInt16(p.Ptr, 50, uint16(TestDefaults_int8Union)); err != nil {
+		return err
+	}
+	return C.WriteUInt8(p.Ptr, 53, uint8(v^-123))
+}
+func (p TestDefaults) uint8Union() uint8 {
+	return C.ReadUInt8(p.Ptr, 53) ^ 124
+}
+func (p TestDefaults) setUint8Union(v uint8) error {
+	if err := C.WriteUInt16(p.Ptr, 50, uint16(TestDefaults_uint8Union)); err != nil {
+		return err
+	}
+	return C.WriteUInt8(p.Ptr, 53, v^124)
+}
+func (p TestDefaults) int16Union() int16 {
+	return int16(C.ReadUInt16(p.Ptr, 54)) ^ -12345
+}
+func (p TestDefaults) setInt16Union(v int16) error {
+	if err := C.WriteUInt16(p.Ptr, 50, uint16(TestDefaults_int16Union)); err != nil {
+		return err
+	}
+	return C.WriteUInt16(p.Ptr, 54, uint16(v^-12345))
+}
+func (p TestDefaults) uint16Union() uint16 {
+	return C.ReadUInt16(p.Ptr, 54) ^ 12456
+}
+func (p TestDefaults) setUint16Union(v uint16) error {
+	if err := C.WriteUInt16(p.Ptr, 50, uint16(TestDefaults_uint16Union)); err != nil {
+		return err
+	}
+	return C.WriteUInt16(p.Ptr, 54, v^12456)
+}
+func (p TestDefaults) int32Union() int32 {
+	return int32(C.ReadUInt32(p.Ptr, 56)) ^ -125678
+}
+func (p TestDefaults) setInt32Union(v int32) error {
+	if err := C.WriteUInt16(p.Ptr, 50, uint16(TestDefaults_int32Union)); err != nil {
+		return err
+	}
+	return C.WriteUInt32(p.Ptr, 56, uint32(v^-125678))
+}
+func (p TestDefaults) uint32Union() uint32 {
+	return C.ReadUInt32(p.Ptr, 56) ^ 345786
+}
+func (p TestDefaults) setUint32Union(v uint32) error {
+	if err := C.WriteUInt16(p.Ptr, 50, uint16(TestDefaults_uint32Union)); err != nil {
+		return err
+	}
+	return C.WriteUInt32(p.Ptr, 56, v^345786)
+}
+func (p TestDefaults) int64Union() int64 {
+	return int64(C.ReadUInt64(p.Ptr, 64)) ^ -123567379234
+}
+func (p TestDefaults) setInt64Union(v int64) error {
+	if err := C.WriteUInt16(p.Ptr, 50, uint16(TestDefaults_int64Union)); err != nil {
+		return err
+	}
+	return C.WriteUInt64(p.Ptr, 64, uint64(v^-123567379234))
+}
+func (p TestDefaults) uint64Union() uint64 {
+	return C.ReadUInt64(p.Ptr, 64) ^ 1235768497284
+}
+func (p TestDefaults) setUint64Union(v uint64) error {
+	if err := C.WriteUInt16(p.Ptr, 50, uint16(TestDefaults_uint64Union)); err != nil {
+		return err
+	}
+	return C.WriteUInt64(p.Ptr, 64, v^1235768497284)
+}
+func (p TestDefaults) float32Union() float32 {
+	u := C.ReadUInt32(p.Ptr, 64)
+	u ^= M.Float32bits(33.3)
+	return M.Float32frombits(u)
+}
+func (p TestDefaults) setFloat32Union(v float32) error {
+	if err := C.WriteUInt16(p.Ptr, 50, uint16(TestDefaults_float32Union)); err != nil {
+		return err
+	}
+	return C.WriteUInt32(p.Ptr, 64, M.Float32bits(v)^M.Float32bits(33.3))
+}
+func (p TestDefaults) float64Union() float64 {
+	u := C.ReadUInt64(p.Ptr, 64)
+	u ^= M.Float64bits(3.4e5)
+	return M.Float64frombits(u)
+}
+func (p TestDefaults) setFloat64Union(v float64) error {
+	if err := C.WriteUInt16(p.Ptr, 50, uint16(TestDefaults_float64Union)); err != nil {
+		return err
+	}
+	return C.WriteUInt64(p.Ptr, 64, uint64(M.Float64bits(v)^M.Float64bits(3.4e5)))
+}
+func (p TestDefaults) textUnion() string {
+	ptr := C.ReadPtr(p.Ptr, 21)
+	return C.ToString(ptr, "foo")
+}
+func (p TestDefaults) setTextUnion(v string) error {
+	if err := C.WriteUInt16(p.Ptr, 50, uint16(TestDefaults_textUnion)); err != nil {
+		return err
+	}
+	data, err := C.NewString(p.Ptr.New, v)
+	if err != nil {
+		return err
+	}
+	return p.Ptr.WritePtrs(21, []C.Pointer{data})
+}
+func (p TestDefaults) dataUnion() []uint8 {
+	ptr := C.ReadPtr(p.Ptr, 21)
+	ret := C.ToUInt8List(ptr)
+	if ret == nil {
+		ret = []byte("bar")
+	}
+	return ret
+}
+func (p TestDefaults) setDataUnion(v []uint8) error {
+	if err := C.WriteUInt16(p.Ptr, 50, uint16(TestDefaults_dataUnion)); err != nil {
+		return err
+	}
+	data, err := C.NewUInt8List(p.Ptr.New, v)
+	if err != nil {
+		return err
+	}
+	return p.Ptr.WritePtrs(21, []C.Pointer{data})
+}
+func (p TestDefaults) structUnion() TestAllTypes {
+	ptr := C.ReadPtr(p.Ptr, 21)
+	ret := TestAllTypes{Ptr: ptr}
+	if ret.Ptr == nil {
+		ret = func() TestAllTypes {
+			p, _ := NewTestAllTypes(C.NewMemory)
+			p.setInt8Union(-123)
+			return p
+		}()
+	}
+	return ret
+}
+func (p TestDefaults) setStructUnion(v TestAllTypes) error {
+	if err := C.WriteUInt16(p.Ptr, 50, uint16(TestDefaults_structUnion)); err != nil {
+		return err
+	}
+	return p.Ptr.WritePtrs(21, []C.Pointer{v.Ptr})
+}
+func (p TestDefaults) enumUnion() TestEnum {
+	return TestEnum(C.ReadUInt16(p.Ptr, 64)) ^ TestEnum_FOO
+}
+func (p TestDefaults) setEnumUnion(v TestEnum) error {
+	if err := C.WriteUInt16(p.Ptr, 50, uint16(TestDefaults_enumUnion)); err != nil {
+		return err
+	}
+	return C.WriteUInt16(p.Ptr, 64, uint16(v^TestEnum_FOO))
+}
+func (p TestDefaults) interfaceUnion() TestInterface {
+	ptr := C.ReadPtr(p.Ptr, 21)
+	return _TestInterface_remote{Ptr: ptr}
+}
+func (p TestDefaults) setInterfaceUnion(v TestInterface) error {
+	if err := C.WriteUInt16(p.Ptr, 50, uint16(TestDefaults_interfaceUnion)); err != nil {
+		return err
+	}
+	data, err := v.MarshalCaptain(p.Ptr.New)
+	if err != nil {
+		return err
+	}
+	return p.Ptr.WritePtrs(21, []C.Pointer{data})
 }
