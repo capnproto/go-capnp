@@ -12,20 +12,20 @@ var (
 	_ = reflect.SliceHeader{}
 	_ = unsafe.Pointer(nil)
 
-	boolConst    bool         = true
-	int8Const    int8         = -123
-	int16Const   int16        = -12345
-	int32Const   int32        = -12345678
-	int64Const   int64        = -123456789012345
-	uInt8Const   uint8        = 234
-	uInt16Const  uint16       = 45678
-	uInt32Const  uint32       = 3456789012
-	uInt64Const  uint64       = 12345678901234567890
-	float32Const float32      = 1234.5
-	float64Const float64      = -123e45
-	textConst    string       = "foo"
-	dataConst    []uint8      = []byte("bar")
-	structConst  TestAllTypes = func() TestAllTypes {
+	boolConst            = true
+	int8Const    int8    = -123
+	int16Const   int16   = -12345
+	int32Const   int32   = -12345678
+	int64Const   int64   = -123456789012345
+	uInt8Const   uint8   = 234
+	uInt16Const  uint16  = 45678
+	uInt32Const  uint32  = 3456789012
+	uInt64Const  uint64  = 12345678901234567890
+	float32Const float32 = 1234.5
+	float64Const         = -123e45
+	textConst            = "foo"
+	dataConst            = []byte("bar")
+	structConst          = func() TestAllTypes {
 		p, _ := NewTestAllTypes(C.NewMemory)
 		p.setBoolField(true)
 		p.setInt8Field(-12)
@@ -81,22 +81,22 @@ var (
 		p.setEnumList([]TestEnum{TestEnum_BAR, TestEnum_FOO})
 		return p
 	}()
-	enumConst        TestEnum       = TestEnum_FOO
-	voidListConst    []struct{}     = make([]struct{}, 6)
-	boolListConst    C.Bitset       = C.Bitset{0x09}
-	int8ListConst    []int8         = []int8{111, -111}
-	int16ListConst   []int16        = []int16{11111, -11111}
-	int32ListConst   []int32        = []int32{111111111, -111111111}
-	int64ListConst   []int64        = []int64{1111111111111111111, -1111111111111111111}
-	uInt8ListConst   []uint8        = []uint8{111, 222}
-	uInt16ListConst  []uint16       = []uint16{33333, 44444}
-	uInt32ListConst  []uint32       = []uint32{3333333333}
-	uInt64ListConst  []uint64       = []uint64{11111111111111111111}
-	float32ListConst []float32      = []float32{5555.5, 2222.25}
-	float64ListConst []float64      = []float64{7777.75, 1111.125}
-	textListConst    []string       = []string{"plugh", "xyzzy", "thud"}
-	dataListConst    []C.Pointer    = []C.Pointer{C.Must(C.NewUInt8List(C.NewMemory, []byte("oops"))), C.Must(C.NewUInt8List(C.NewMemory, []byte("exhausted"))), C.Must(C.NewUInt8List(C.NewMemory, []byte("rfc3092")))}
-	structListConst  []TestAllTypes = []TestAllTypes{func() TestAllTypes {
+	enumConst        = TestEnum_FOO
+	voidListConst    = make([]struct{}, 6)
+	boolListConst    = C.Bitset{0x09}
+	int8ListConst    = []int8{111, -111}
+	int16ListConst   = []int16{11111, -11111}
+	int32ListConst   = []int32{111111111, -111111111}
+	int64ListConst   = []int64{1111111111111111111, -1111111111111111111}
+	uInt8ListConst   = []uint8{111, 222}
+	uInt16ListConst  = []uint16{33333, 44444}
+	uInt32ListConst  = []uint32{3333333333}
+	uInt64ListConst  = []uint64{11111111111111111111}
+	float32ListConst = []float32{5555.5, 2222.25}
+	float64ListConst = []float64{7777.75, 1111.125}
+	textListConst    = []string{"plugh", "xyzzy", "thud"}
+	dataListConst    = []C.Pointer{C.Must(C.NewUInt8List(C.NewMemory, []byte("oops"))), C.Must(C.NewUInt8List(C.NewMemory, []byte("exhausted"))), C.Must(C.NewUInt8List(C.NewMemory, []byte("rfc3092")))}
+	structListConst  = []TestAllTypes{func() TestAllTypes {
 		p, _ := NewTestAllTypes(C.NewMemory)
 		p.setTextField("structlist 1")
 		return p
@@ -109,7 +109,7 @@ var (
 		p.setTextField("structlist 3")
 		return p
 	}()}
-	enumListConst []TestEnum = []TestEnum{TestEnum_FOO, TestEnum_BAR}
+	enumListConst = []TestEnum{TestEnum_FOO, TestEnum_BAR}
 )
 
 type _TestInterface_testMethod1_args struct {

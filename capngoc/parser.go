@@ -1782,7 +1782,19 @@ func (p *file) write(out printer) {
 			out("/* %s */\n", c.comment)
 		}
 
-		out("%s %s = %s\n", c.name, c.typ.name, c.value.String(c.typ, false))
+		// For many types the inferred type is correct so don't output
+		// the type on the left
+		switch c.typ.typ {
+		case boolType, float64Type, stringType, bitsetType, listType, structType, enumType:
+			out("%s = %s\n", c.name, c.value.String(c.typ, false))
+
+		case int8Type, uint8Type, int16Type, uint16Type,
+			int32Type, uint32Type, int64Type, uint64Type, float32Type:
+			out("%s %s = %s\n", c.name, c.typ.name, c.value.String(c.typ, false))
+
+		default:
+			panic("unhandled")
+		}
 	}
 
 	out(")\n")
