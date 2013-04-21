@@ -18,7 +18,7 @@ type _TestInterface_testMethod1_args struct {
 }
 
 func new_TestInterface_testMethod1_args(new C.NewFunc) (_TestInterface_testMethod1_args, error) {
-	ptr, err := new(C.MakeStruct(1, 1))
+	ptr, err := C.NewStruct(new, 1, 1)
 	return _TestInterface_testMethod1_args{Ptr: ptr}, err
 }
 func (p _TestInterface_testMethod1_args) v() bool {
@@ -50,7 +50,7 @@ type _TestInterface_testMethod0_args struct {
 }
 
 func new_TestInterface_testMethod0_args(new C.NewFunc) (_TestInterface_testMethod0_args, error) {
-	ptr, err := new(C.MakeStruct(0, 1))
+	ptr, err := C.NewStruct(new, 0, 1)
 	return _TestInterface_testMethod0_args{Ptr: ptr}, err
 }
 func (p _TestInterface_testMethod0_args) arg0() TestInterface {
@@ -70,7 +70,7 @@ type _TestInterface_testMethod2_args struct {
 }
 
 func new_TestInterface_testMethod2_args(new C.NewFunc) (_TestInterface_testMethod2_args, error) {
-	ptr, err := new(C.MakeStruct(0, 1))
+	ptr, err := C.NewStruct(new, 0, 1)
 	return _TestInterface_testMethod2_args{Ptr: ptr}, err
 }
 func (p _TestInterface_testMethod2_args) arg0() TestInterface {
@@ -185,7 +185,7 @@ type TestAllTypes struct {
 }
 
 func NewTestAllTypes(new C.NewFunc) (TestAllTypes, error) {
-	ptr, err := new(C.MakeStruct(7, 21))
+	ptr, err := C.NewStruct(new, 7, 21)
 	return TestAllTypes{Ptr: ptr}, err
 }
 func (p TestAllTypes) boolField() bool {
@@ -520,7 +520,7 @@ type TestDefaults struct {
 }
 
 func NewTestDefaults(new C.NewFunc) (TestDefaults, error) {
-	ptr, err := new(C.MakeStruct(7, 21))
+	ptr, err := C.NewStruct(new, 7, 21)
 	return TestDefaults{Ptr: ptr}, err
 }
 func (p TestDefaults) boolField() bool {

@@ -1467,7 +1467,7 @@ func (p *file) writeStruct(t *typ, out printer) {
 	`, t.name)
 
 	out(`func %s(new C.NewFunc) (%s, error) {
-		ptr, err := new(C.MakeStruct(%d, %d))
+		ptr, err := C.NewStruct(new, %d, %d)
 		return %s{Ptr: ptr}, err
 	}
 	`, pfxname("new", t.name), t.name, t.dataSize, t.ptrSize, t.name)
@@ -1612,7 +1612,7 @@ func (p *file) write(out printer) {
 						out("if err != nil { return nil, err }\n")
 						out("return data, nil\n")
 					default:
-						out(`data, err := new(captain.MakeStruct(8, 0))
+						out(`data, err := C.NewStruct(new, 8, 0)
 						if err != nil { return nil, err }
 						`)
 						f.writeDataSetter(out, "data", "if err :=")

@@ -125,28 +125,28 @@ const (
 	CompositeList          = 15
 )
 
-func MakeStruct(data, ptrs int) PointerType {
-	return PointerType{uint64(Struct) | uint64((data+7)/8)<<32 | uint64(ptrs)<<48, 0}
+func NewStruct(new NewFunc, data, ptrs int) (Pointer, error) {
+	return new(PointerType{uint64(Struct) | uint64((data+7)/8)<<32 | uint64(ptrs)<<48, 0})
 }
 
-func MakeList(typ DataType, elems int) PointerType {
-	return PointerType{uint64(ListPointer) | uint64(typ)<<31 | uint64(elems)<<35, 0}
+func NewList(new NewFunc, typ DataType, elems int) (Pointer, error) {
+	return new(PointerType{uint64(ListPointer) | uint64(typ)<<31 | uint64(elems)<<35, 0})
 }
 
-func MakeCompositeList(elems, data, ptrs int) PointerType {
+func NewCompositeList(new NewFunc, elems, data, ptrs int) (Pointer, error) {
 	data = (data + 7) / 8
-	return PointerType{
+	return new(PointerType{
 		uint64(ListPointer) | uint64(CompositeList)<<31 | uint64(elems*(data+ptrs))<<35,
 		uint64(Struct) | uint64(elems)<<2 | uint64(data)<<32 | uint64(ptrs)<<48,
-	}
+	})
 }
 
-func MakeFarPointer(seg uint32, off int) PointerType {
-	return PointerType{uint64(FarPointer) | uint64(off)<<2 | uint64(seg)<<32, 0}
+func MakeFarPointer(seg uint32, off int) uint64 {
+	return uint64(FarPointer) | uint64(off)<<2 | uint64(seg)<<32
 }
 
 func (p PointerType) CompositeType() PointerType {
-	return MakeStruct(p.DataSize(), p.PointerNum())
+	return PointerType{p.Composite, 0}
 }
 
 func (p PointerType) Type() DataType {
@@ -535,7 +535,7 @@ func WriteUInt64(ptr Pointer, off int, v uint64) error {
 }
 
 func newList(new NewFunc, typ DataType, sz int, data []uint8) (Pointer, error) {
-	to, err := new(MakeList(typ, sz))
+	to, err := NewList(new, typ, sz)
 	if err != nil {
 		return nil, err
 	}
@@ -633,14 +633,14 @@ func NewVoidList(new NewFunc, v []struct{}) (Pointer, error) {
 	if v == nil {
 		return nil, nil
 	}
-	return new(MakeList(VoidList, len(v)))
+	return NewList(new, VoidList, len(v))
 }
 
 func NewPointerList(new NewFunc, v []Pointer) (Pointer, error) {
 	if v == nil {
 		return nil, nil
 	}
-	to, err := new(MakeList(PointerList, len(v)))
+	to, err := NewList(new, PointerList, len(v))
 	if err != nil {
 		return nil, err
 	}

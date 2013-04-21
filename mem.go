@@ -217,17 +217,7 @@ func (b *Buffer) NewRoot(v PointerType) int {
 }
 
 func (b *Buffer) ReadRoot(off int) (Pointer, error) {
-	p := bufferPointer{
-		typ: MakeList(PointerList, len(b.buf)/8),
-		off: 0,
-		seg: b,
-	}
-
-	ret := [1]Pointer{}
-	if err := p.ReadPtrs(off, ret[:]); err != nil {
-		return nil, err
-	}
-	return ret[0], nil
+	return b.readptr(off*8)
 }
 
 type bufferPointer struct {
@@ -269,6 +259,41 @@ func (p bufferPointer) Write(off int, v []uint8) error {
 	return nil
 }
 
+func (b *Buffer) readptr(off int) (Pointer, error) {
+	if off+8 > len(b.buf) {
+		return nil, errOutOfBounds
+	}
+
+	typ := PointerType{Value: little64(b.buf[off:])}
+	ptr := bufferPointer{seg: b, off: off+8, typ: typ}
+
+	switch typ.Type() {
+	case FarPointer:
+		ptr.off = 0
+
+	case CompositeList:
+		ptr.off += 8 * typ.Offset()
+		if ptr.off+8 > len(b.buf) {
+			return nil, errOutOfBounds
+		}
+
+		ptr.typ.Composite = little64(b.buf[ptr.off:])
+		ptr.off += 8
+
+		if ptr.off+typ.Elements()*(typ.DataSize()+typ.PointerNum()*8) > len(b.buf) {
+			return nil, errOutOfBounds
+		}
+
+	default:
+		ptr.off += 8 * typ.Offset()
+		if ptr.off+typ.DataSize()+typ.PointerNum()*8 > len(b.buf) {
+			return nil, errOutOfBounds
+		}
+	}
+
+	return ptr, nil
+}
+
 func (p bufferPointer) ReadPtrs(off int, v []Pointer) error {
 	if p.typ.Type() == CompositeList {
 		if off+len(v) > p.typ.Elements() {
@@ -286,42 +311,12 @@ func (p bufferPointer) ReadPtrs(off int, v []Pointer) error {
 		return nil
 	}
 
-	off = p.off + 8*off
-	if off+len(v)*8 > len(p.seg.buf) {
-		return errOutOfBounds
-	}
-
 	for i := range v {
-		typ := PointerType{Value: little64(p.seg.buf[off:])}
-		off += 8
-
-		ptr := bufferPointer{seg: p.seg, off: off, typ: typ}
-
-		switch typ.Type() {
-		case FarPointer:
-			ptr.off = 0
-
-		case CompositeList:
-			ptr.off += 8 * typ.Offset()
-			if ptr.off+8 > len(p.seg.buf) {
-				return errOutOfBounds
-			}
-
-			ptr.typ.Composite = little64(p.seg.buf[ptr.off:])
-			ptr.off += 8
-
-			if ptr.off+typ.Elements()*(typ.DataSize()+typ.PointerNum()*8) > len(p.seg.buf) {
-				return errOutOfBounds
-			}
-
-		default:
-			ptr.off += 8 * typ.Offset()
-			if ptr.off+typ.DataSize()+typ.PointerNum()*8 > len(p.seg.buf) {
-				return errOutOfBounds
-			}
+		var err error
+		v[i], err = p.seg.readptr(p.off + 8*(off+i))
+		if err != nil {
+			return err
 		}
-
-		v[i] = ptr
 	}
 
 	return nil

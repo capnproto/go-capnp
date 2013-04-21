@@ -18,7 +18,7 @@ type Pointer struct {
 }
 
 func NewPointer(new C.NewFunc) (Pointer, error) {
-	ptr, err := new(C.MakeStruct(0, 0))
+	ptr, err := C.NewStruct(new, 0, 0)
 	return Pointer{Ptr: ptr}, err
 }
 
@@ -27,7 +27,7 @@ type Message struct {
 }
 
 func NewMessage(new C.NewFunc) (Message, error) {
-	ptr, err := new(C.MakeStruct(1, 3))
+	ptr, err := C.NewStruct(new, 1, 3)
 	return Message{Ptr: ptr}, err
 }
 func (p Message) Cookie() Pointer {
