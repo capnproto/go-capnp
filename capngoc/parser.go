@@ -499,7 +499,7 @@ func (p *file) parseTypeName() string {
 		}
 
 		if inner == "bool" {
-			return "capnproto.Bitset"
+			return "C.Bitset"
 		} else {
 			return "[]" + inner
 		}
@@ -623,16 +623,21 @@ func (p *file) parseInterface(ns string) {
 		f.ordinal = p.parseOrdinal()
 		p.expect('(', "arguments opening brace (")
 
-		f.args = &typ{typ: structType}
+		f.args = &typ{
+			typ: structType,
+			name: fmt.Sprintf("_%s_%s_args", t.name, f.name),
+		}
 
 		tok = p.next()
 		for tok.typ != ')' {
-			arg := &field{}
+			arg := &field{ordinal: len(f.args.fields)}
 
 			// Name is optional ie method @0(:bool) :bool is valid
 			if tok.typ == 'a' {
 				arg.name = tok.str
 				tok = p.next()
+			} else {
+				arg.name = fmt.Sprintf("arg%d", len(f.args.fields))
 			}
 
 			if tok.typ != ':' {
@@ -649,17 +654,19 @@ func (p *file) parseInterface(ns string) {
 				tok = p.next()
 			}
 
+			fmt.Printf("have arg %#v\n", arg)
+			f.args.fields = append(f.args.fields, arg)
+
 			if tok.typ == ')' {
 				break
 			} else if tok.typ != ',' {
 				panic(fmt.Errorf("expected comma or ) got %s", tok))
 			}
 
-			arg.comment, tok = p.parseComment()
-
-			fmt.Printf("have arg %#v\n", arg)
-			f.args.fields = append(f.args.fields, arg)
+			tok = p.next()
 		}
+
+		p.types = append(p.types, f.args)
 
 		tok = p.next();
 		if tok.typ == ':' {
@@ -667,6 +674,10 @@ func (p *file) parseInterface(ns string) {
 			p.expect(';', "method terminator")
 		} else if tok.typ != ';' {
 			panic(fmt.Errorf("expected : or ; got %s", tok))
+		}
+
+		if f.typestr == "struct{}" {
+			f.typestr = ""
 		}
 
 		f.comment, tok = p.parseComment()
@@ -787,7 +798,7 @@ func (p *file) addBuiltinTypes() {
 	p.types = append(p.types, &typ{typ: float32Type, name: "float32"})
 	p.types = append(p.types, &typ{typ: float64Type, name: "float64"})
 	p.types = append(p.types, &typ{typ: stringType, name: "string"})
-	p.types = append(p.types, &typ{typ: bitsetType, name: "capnproto.Bitset"})
+	p.types = append(p.types, &typ{typ: bitsetType, name: "C.Bitset"})
 }
 
 func (p *file) doFindType(pfx int, name string) (*typ, error) {
@@ -869,7 +880,7 @@ func (p *file) resolveTypes() error {
 	// We cap the max list depth at one for the go types
 	for _, t := range p.types {
 		if t.typ == listType && t.listType.typ == listType {
-			t.name = "[]capnproto.Pointer"
+			t.name = "[]C.Pointer"
 		}
 	}
 
@@ -993,22 +1004,22 @@ func (v *value) write(t *typ, out printer, marshalled bool) {
 			}
 		}
 		if marshalled {
-			out("NewBitset(capnproto.Memory, ")
+			out("C.Must(NewBitset(C.NewMemory, ")
 		}
-		out("capnproto.Bitset{")
+		out("C.Bitset{")
 		for i, b := range set {
 			if i > 0 {
 				out(", ")
 			}
-			out("%d", b)
+			out("%#02x", b)
 		}
 		out("}")
 		if marshalled {
-			out(")")
+			out("))")
 		}
 
 	case voidType:
-		out("struct{}")
+		out("nil")
 
 	case enumType:
 		if marshalled {
@@ -1023,7 +1034,7 @@ func (v *value) write(t *typ, out printer, marshalled bool) {
 		}
 
 		if marshalled {
-			out("NewString(capnproto.NewMemory, %s)", strconv.Quote(v.string))
+			out("C.Must(C.NewString(C.NewMemory, %s))", strconv.Quote(v.string))
 		} else {
 			out("%s", strconv.Quote(v.string))
 		}
@@ -1032,9 +1043,18 @@ func (v *value) write(t *typ, out printer, marshalled bool) {
 		if v.typ == '"' && t.listType.typ == uint8Type {
 			// Data fields with a string value
 			if marshalled {
-				out("NewUInt8List(capnproto.NewMemory, %s)", strconv.Quote(v.string))
+				out("C.Must(C.NewUInt8List(C.NewMemory, []byte(%s)))", strconv.Quote(v.string))
 			} else {
 				out("[]byte(%s)", strconv.Quote(v.string))
+			}
+			return
+		}
+
+		if t.listType.typ == voidType {
+			if marshalled {
+				out("C.Must(C.NewVoidList(C.NewMemory, make([]struct{}, %d)))", len(v.fields))
+			} else {
+				out("make([]struct{}, %d)", len(v.fields))
 			}
 			return
 		}
@@ -1046,48 +1066,51 @@ func (v *value) write(t *typ, out printer, marshalled bool) {
 		listTypeName := t.name
 		innerMarshalled := false
 
+		if t.listType.typ == voidType {
+			// otherwise we get []struct{}{nil}
+			listTypeName = "[](struct{})"
+		}
+
 		if marshalled {
 			switch t.listType.typ {
 			case int8Type:
-				out("NewInt8List(capnproto.NewMemory, ")
+				out("C.Must(C.NewInt8List(C.NewMemory, ")
 			case uint8Type:
-				out("NewUInt8List(capnproto.NewMemory, ")
+				out("C.Must(C.NewUInt8List(C.NewMemory, ")
 			case int16Type:
-				out("NewInt16List(capnproto.NewMemory, ")
+				out("C.Must(C.NewInt16List(C.NewMemory, ")
 			case uint16Type:
-				out("NewUInt16List(capnproto.NewMemory, ")
+				out("C.Must(C.NewUInt16List(C.NewMemory, ")
 			case enumType:
-				out("NewUInt16List(capnproto.NewMemory, ")
+				out("C.Must(C.NewUInt16List(C.NewMemory, ")
 				listTypeName = "[]uint16"
 				innerMarshalled = true
 			case int32Type:
-				out("NewInt32List(capnproto.NewMemory, ")
+				out("C.Must(C.NewInt32List(C.NewMemory, ")
 			case uint32Type:
-				out("NewUInt32List(capnproto.NewMemory, ")
+				out("C.Must(C.NewUInt32List(C.NewMemory, ")
 			case int64Type:
-				out("NewInt64List(capnproto.NewMemory, ")
+				out("C.Must(C.NewInt64List(C.NewMemory, ")
 			case uint64Type:
-				out("NewUInt64List(capnproto.NewMemory, ")
+				out("C.Must(C.NewUInt64List(C.NewMemory, ")
 			case float32Type:
-				out("NewFloat32List(capnproto.NewMemory, ")
+				out("C.Must(C.NewFloat32List(C.NewMemory, ")
 			case float64Type:
-				out("NewFloat64List(capnproto.NewMemory, ")
-			case voidType:
-				out("NewVoidList(capnproto.NewMemory, ")
+				out("C.Must(C.NewFloat64List(C.NewMemory, ")
 			case stringType:
-				out("NewStringList(capnproto.NewMemory, ")
+				out("C.Must(C.NewStringList(C.NewMemory, ")
 			case bitsetType:
-				out("NewBitsetList(capnproto.NewMemory, ")
+				out("C.Must(C.NewBitsetList(C.NewMemory, ")
 			case listType:
-				out("NewPointerList(capnproto.NewMemory, ")
-				listTypeName = "[]capnproto.Pointer"
+				out("C.Must(C.NewPointerList(C.NewMemory, ")
+				listTypeName = "[]C.Pointer"
 				innerMarshalled = true
 			default:
 				panic("unhandled")
 			}
 
 		} else if t.listType.typ == listType{
-			listTypeName = "[]capnproto.Pointer"
+			listTypeName = "[]C.Pointer"
 			innerMarshalled = true
 		}
 
@@ -1101,7 +1124,7 @@ func (v *value) write(t *typ, out printer, marshalled bool) {
 		out("}")
 
 		if marshalled {
-			out(")")
+			out("))")
 		}
 
 	case structType:
@@ -1109,16 +1132,16 @@ func (v *value) write(t *typ, out printer, marshalled bool) {
 			panic(fmt.Errorf("unexpected value %v in struct", v))
 		}
 		out("func() %s {\n", t.name)
-		out("ptr := %s(capnproto.Memory)\n", pfxname("new", t.name))
+		out("p, _ := %s(C.NewMemory)\n", pfxname("new", t.name))
 		for _, v := range v.fields {
 			f := t.findField(v.name)
 			if f.typ.typ != voidType {
-				out("ptr.%s(", pfxname("set", f.name))
+				out("p.%s(", pfxname("set", f.name))
 				v.write(f.typ, out, false)
 				out(")\n")
 			}
 		}
-		out("return ptr\n")
+		out("return p\n")
 		out("}()")
 		if marshalled {
 			out(".Ptr")
@@ -1137,142 +1160,158 @@ func (v *value) write(t *typ, out printer, marshalled bool) {
 
 func (f *field) writeGetterXorDefault(out printer) {
 	if f.value != nil {
-		out("ret ^= %s\n", f.value.string)
+		out("^ %s\n", f.value.string)
+	} else {
+		out("\n")
 	}
 }
 
 func (f *field) writeGetter(out printer, ptr string) {
 	switch f.typ.typ {
 	case voidType:
-		out("ret = struct{}\n")
+		// nothing to do
 	case boolType:
 		def := 0
 		if f.value != nil && f.value.string == "true" {
 			def = 1
 		}
-		out("ret = (capnproto.ReadUInt8(%s, %d) & %d) != %d\n", f.offset/8, f.offset%8, def)
+		out("return (C.ReadUInt8(%s, %d) & %d) != %d\n", ptr, f.offset/8, f.offset%8, def)
 	case int8Type:
-		out("ret = int8(capnproto.ReadUInt8(%s, %d))\n", ptr, f.offset/8)
+		out("return int8(C.ReadUInt8(%s, %d))", ptr, f.offset/8)
 		f.writeGetterXorDefault(out)
 	case uint8Type:
-		out("ret = capnproto.ReadUInt8(%s, %d)\n", ptr, f.offset/8)
+		out("return C.ReadUInt8(%s, %d)", ptr, f.offset/8)
 		f.writeGetterXorDefault(out)
 	case int16Type:
-		out("ret = int16(capnproto.ReadUInt16(%s, %d))\n", ptr, f.offset/8)
+		out("return int16(C.ReadUInt16(%s, %d))", ptr, f.offset/8)
 		f.writeGetterXorDefault(out)
 	case uint16Type:
-		out("ret = capnproto.ReadUInt16(%s, %d)\n", ptr, f.offset/8)
+		out("return C.ReadUInt16(%s, %d)", ptr, f.offset/8)
 		f.writeGetterXorDefault(out)
 	case int32Type:
-		out("ret = capnproto.ReadInt32(%s, %d)\n", ptr, f.offset/8)
+		out("return int32(C.ReadUInt32(%s, %d))", ptr, f.offset/8)
 		f.writeGetterXorDefault(out)
 	case uint32Type:
-		out("ret = capnproto.ReadUInt32(%s, %d)\n", ptr, f.offset/8)
+		out("return C.ReadUInt32(%s, %d)", ptr, f.offset/8)
 		f.writeGetterXorDefault(out)
 	case int64Type:
-		out("ret = capnproto.ReadInt64(%s, %d)\n", ptr, f.offset/8)
+		out("return int64(C.ReadUInt64(%s, %d))", ptr, f.offset/8)
 		f.writeGetterXorDefault(out)
 	case uint64Type:
-		out("ret = capnproto.ReadUInt64(%s, %d)\n", ptr, f.offset/8)
+		out("return C.ReadUInt64(%s, %d)", ptr, f.offset/8)
 		f.writeGetterXorDefault(out)
 	case enumType:
-		out("ret = %s(capnproto.ReadUInt16(%s, %d))\n", f.typ.name, ptr, f.offset/8)
+		out("return %s(C.ReadUInt16(%s, %d))", f.typ.name, ptr, f.offset/8)
 		f.writeGetterXorDefault(out)
 
 	case float32Type:
-		out("u := capnproto.ReadUint32(%s, %d)\n", ptr, f.offset/8)
 		if f.value != nil {
-			out("u ^= math.Float32bits(%s)\n", f.value.string)
+			out(`u := C.ReadUInt32(%s, %d)
+			u ^= M.Float32bits(%s)
+			return M.Float32frombits(u)
+			`, ptr, f.offset/8, f.value.string)
+		} else {
+			out("return M.Float32frombits(C.ReadUInt32(%s, %d))\n", ptr, f.offset/8)
 		}
-		out("ret = math.Float32frombits(u)\n")
 
 	case float64Type:
-		out("u := capnproto.ReadUint64(%s, %d)\n", ptr, f.offset/8)
 		if f.value != nil {
-			out("u ^= math.Float64bits(%s)\n", f.value.string)
+			out(`u := C.ReadUInt64(%s, %d)
+			u ^= M.Float64bits(%s)
+			return M.Float64frombits(u)
+			`, ptr, f.offset/8, f.value.string)
+		} else {
+			out("return M.Float64frombits(C.ReadUInt64(%s, %d))\n", ptr, f.offset/8)
 		}
-		out("ret = math.Float64frombits(u)\n")
 
 	case stringType:
 		def := ""
 		if f.value != nil {
 			def = f.value.string
 		}
-		out("ret = capnproto.ToString(%s, %s)\n", ptr, strconv.Quote(def))
+		out("return C.ToString(%s, %s)\n", ptr, strconv.Quote(def))
 
 	case structType:
-		out("ret.Ptr = %s\n", ptr)
 		if f.value != nil {
+			out("ret := %s{Ptr: %s}\n", f.typ.name, ptr)
 			out("if ret.Ptr == nil {\n")
 			out("ret = ")
 			f.value.write(f.typ, out, false)
 			out("\n}\n")
+			out("return ret\n")
+		} else {
+			out("return %s{Ptr: %s}\n", f.typ.name, ptr)
 		}
 
 	case interfaceType:
-		out("ret = remote·%s{Ptr: %s}\n", f.typ.name, ptr)
+		out("return _%s_remote{Ptr: %s}\n", f.typ.name, ptr)
 
 	case bitsetType:
-		out("ret = capnproto.ToBitset(%s)\n", ptr)
 		if f.value != nil {
+			out("ret := C.ToBitset(%s)\n", ptr)
 			out("if ret == nil {\n")
 			out("ret = ")
 			f.value.write(f.typ, out, false)
-			out("\n}\n")
+			out("\n}\nreturn ret\n")
+		} else {
+			out("return C.ToBitset(%s)\n", ptr)
 		}
 
 	case listType:
+		ret := "return"
+		if f.value != nil {
+			ret = "ret :="
+		}
 		switch f.typ.listType.typ {
 		case voidType:
-			out("ret = capnproto.ToVoidList(%s)\n", ptr)
+			out("%s C.ToVoidList(%s)\n", ret, ptr)
 		case int8Type:
-			out("ret = capnproto.ToInt8List(%s)\n", ptr)
+			out("%s C.ToInt8List(%s)\n", ret, ptr)
 		case uint8Type:
-			out("ret = capnproto.ToUInt8List(%s)\n", ptr)
+			out("%s C.ToUInt8List(%s)\n", ret, ptr)
 		case int16Type:
-			out("ret = capnproto.ToInt16List(%s)\n", ptr)
+			out("%s C.ToInt16List(%s)\n", ret, ptr)
 		case uint16Type:
-			out("ret = capnproto.ToUInt16List(%s)\n", ptr)
+			out("%s C.ToUInt16List(%s)\n", ret, ptr)
 		case int32Type:
-			out("ret = capnproto.ToInt32List(%s)\n", ptr)
+			out("%s C.ToInt32List(%s)\n", ret, ptr)
 		case uint32Type:
-			out("ret = capnproto.ToUInt32List(%s)\n", ptr)
+			out("%s C.ToUInt32List(%s)\n", ret, ptr)
 		case int64Type:
-			out("ret = capnproto.ToInt64List(%s)\n", ptr)
+			out("%s C.ToInt64List(%s)\n", ret, ptr)
 		case uint64Type:
-			out("ret = capnproto.ToUInt64List(%s)\n", ptr)
+			out("%s C.ToUInt64List(%s)\n", ret, ptr)
 		case enumType:
-			out(`
-			u16 := capnproto.ToUInt16List(%s)
 			// the binary layout matches, but the type does not
+			out(`u16 := C.ToUInt16List(%s)
+			ret := %s(nil)
 			pret := (*reflect.SliceHeader)(unsafe.Pointer(&ret))
-			pret = *(*reflect.SliceHeader)(unsafe.Pointer(&u16))
-			`, ptr)
+			*pret = *(*reflect.SliceHeader)(unsafe.Pointer(&u16))
+			`, ptr, f.typ.name)
 		case float32Type:
-			out("ret = capnproto.ToFloat32List(%s)\n", ptr)
+			out("%s C.ToFloat32List(%s)\n", ret, ptr)
 		case float64Type:
-			out("ret = capnproto.ToFloat64List(%s)\n", ptr)
+			out("%s C.ToFloat64List(%s)\n", ret, ptr)
 		case stringType:
-			out("ret = capnproto.ToStringList(%s)\n", ptr)
+			out("%s C.ToStringList(%s)\n", ret, ptr)
 		case bitsetType:
-			out("ret = capnproto.ToBitsetList(%s)\n", ptr)
+			out("%s C.ToBitsetList(%s)\n", ret, ptr)
 		case structType:
-			out(`
-			"list := capnproto.ToPointerList(%s)
-			"// the binary layout matches, but the type does not
-			"pret := (*reflect.SliceHeader)(unsafe.Pointer(&ret))
-			"*pret = *(*reflect.SliceHeader)(unsafe.Pointer(&list))
-			`, ptr)
+			// the binary layout matches, but the type does not
+			out(`list := C.ToPointerList(%s)
+			ret := %s(nil)
+			pret := (*reflect.SliceHeader)(unsafe.Pointer(&ret))
+			*pret = *(*reflect.SliceHeader)(unsafe.Pointer(&list))
+			`, ptr, f.typ.name)
 		case interfaceType:
-			out(`
-			ptrs := capnproto.ToPointerList(%s)
+			out(`ptrs := C.ToPointerList(%s)
 			ret := make(%s, len(ptrs))
 			for i := range ptrs {
-				ret[i] = remote·%s{Ptr: ptr}
+				ret[i] = _%s_remote{Ptr: ptr}
 			}
 			`, ptr, f.typ.name, f.typ.listType.name)
 		case listType:
-			out("ret = ToPointerList(%s)\n", ptr)
+			out("%s C.ToPointerList(%s)\n", ret, ptr)
 		default:
 			panic("unhandled")
 		}
@@ -1282,6 +1321,12 @@ func (f *field) writeGetter(out printer, ptr string) {
 			out("ret = ")
 			f.value.write(f.typ, out, false)
 			out("\n}\n")
+			out("return ret\n")
+		} else {
+			switch f.typ.listType.typ {
+			case enumType, structType, interfaceType:
+				out("return ret\n")
+			}
 		}
 
 	default:
@@ -1290,22 +1335,28 @@ func (f *field) writeGetter(out printer, ptr string) {
 
 }
 
-func (f *field) writeDataSetter(out printer, ptr string) {
+func (f *field) writeDataSetter(out printer, ptr, ret string) {
+	arg := "v"
+
 	switch f.typ.typ {
 	case float32Type:
-		out("u := math.Float32bits(v)\n")
+		arg = "M.Float32bits(v)"
 	case float64Type:
-		out("u := math.Float64bits(v)\n")
+		arg = "M.Float64bits(v)"
 	}
 
 	if f.value != nil {
 		switch f.typ.typ {
-		case boolType, enumType, int8Type, uint8Type, int16Type, uint16Type, int32Type, uint32Type, int64Type, uint64Type:
-			out("v ^= %s\n", f.value.string)
+		case enumType, int8Type, uint8Type, int16Type, uint16Type, int32Type, uint32Type, int64Type, uint64Type:
+			arg = fmt.Sprintf("%s ^ %s", arg, f.value.string)
 		case float32Type:
-			out("u ^= math.Float32frombits(%s)\n", f.value.string)
+			arg = fmt.Sprintf("%s ^ M.Float32bits(%s)", arg, f.value.string)
 		case float64Type:
-			out("u ^= math.Float64frombits(%s)\n", f.value.string)
+			arg = fmt.Sprintf("%s ^ M.Float64bits(%s)", arg, f.value.string)
+		case boolType:
+			if f.value.string == "true" {
+				arg = fmt.Sprintf("!%s", arg)
+			}
 		case voidType:
 			// nothing to do
 		default:
@@ -1317,153 +1368,89 @@ func (f *field) writeDataSetter(out printer, ptr string) {
 	case voidType:
 		// nothing to do ...
 	case boolType:
-		out("err = capnproto.WriteBool(%s, %d, v)\n", ptr, f.offset)
+		out("%s C.WriteBool(%s, %d, %s)", ret, ptr, f.offset, arg)
 	case int8Type:
-		out("err = capnproto.WriteUInt8(%s, %d, uint8(v))\n", ptr, f.offset/8)
+		out("%s C.WriteUInt8(%s, %d, uint8(%s))", ret, ptr, f.offset/8, arg)
 	case uint8Type:
-		out("err = capnproto.WriteUInt8(%s, %d, v)\n", ptr, f.offset/8)
-	case int16Type:
-		out("err = capnproto.WriteUInt16(%s, %d, uint16(v))\n", ptr, f.offset/8)
+		out("%s C.WriteUInt8(%s, %d, %s)", ret, ptr, f.offset/8, arg)
+	case int16Type, enumType:
+		out("%s C.WriteUInt16(%s, %d, uint16(%s))", ret, ptr, f.offset/8, arg)
 	case uint16Type:
-		out("err = capnproto.WriteUInt16(%s, %d, v)\n", ptr, f.offset/8)
+		out("%s C.WriteUInt16(%s, %d, %s)", ret, ptr, f.offset/8, arg)
 	case int32Type:
-		out("err = capnproto.WriteInt32(%s, %d, uint32(v))\n", ptr, f.offset/8)
-	case uint32Type:
-		out("err = capnproto.WriteUInt32(%s, %d, v)\n", ptr, f.offset/8)
-	case int64Type:
-		out("err = capnproto.WriteInt64(%s, %d, uint64(v))\n", ptr, f.offset/8)
+		out("%s C.WriteUInt32(%s, %d, uint32(%s))", ret, ptr, f.offset/8, arg)
+	case uint32Type, float32Type:
+		out("%s C.WriteUInt32(%s, %d, %s)", ret, ptr, f.offset/8, arg)
+	case int64Type, float64Type:
+		out("%s C.WriteUInt64(%s, %d, uint64(%s))", ret, ptr, f.offset/8, arg)
 	case uint64Type:
-		out("err = capnproto.WriteUInt64(%s, %d, v)\n", ptr, f.offset/8)
-	case enumType:
-		out("err = capnproto.WriteUInt16(%s, %d, uint16(v))\n", ptr, f.offset/8)
-	case float32Type:
-		out("err = capnproto.WriteUInt32(%s, %d, u)\n", ptr, f.offset/8)
-	case float64Type:
-		out("err = capnproto.WriteUInt64(%s, %d, u)\n", ptr, f.offset/8)
+		out("%s C.WriteUInt64(%s, %d, %s)", ret, ptr, f.offset/8, arg)
 	default:
 		panic("unhandled")
 	}
 }
 
-func (f *field) writeNewPointer(out printer, new string) {
+func (f *field) writeNewPointer(out printer, new, ret string) {
 	switch f.typ.typ {
 	case stringType:
-		out(`
-		data, err = capnproto.NewString(%s, v)
-		if err != nil { return }
-		`, new)
-	case structType:
-		out("data = v.Ptr\n")
+		out("data, err := C.NewString(%s, v)\n", new)
 	case interfaceType:
-		out(`
-		data, err = v.MarshalCaptain(%s)
-		if err != nil { return }
-		`, new)
+		out("data, err := v.MarshalCaptain(%s)\n", new)
 	case bitsetType:
-		out(`
-		data, err = capnproto.NewBitset(%s, v)
-		if err != nil { return }
-		`, new)
+		out("data, err := C.NewBitset(%s, v)\n", new)
 	case listType:
 		switch f.typ.listType.typ {
 		case voidType:
-			out(`
-			data, err = capnproto.NewVoidList(%s, v)
-			if err != nil { return }
-			`, new)
+			out("data, err := C.NewVoidList(%s, v)\n", new)
 		case int8Type:
-			out(`
-			data, err = capnproto.NewInt8List(%s, v)
-			if err != nil { return }
-			`, new)
+			out("data, err := C.NewInt8List(%s, v)\n", new)
 		case uint8Type:
-			out(`
-			data, err = capnproto.NewUInt8List(%s, v)
-			if err != nil { return }
-			`, new)
+			out("data, err := C.NewUInt8List(%s, v)\n", new)
 		case int16Type:
-			out(`
-			data, err = capnproto.NewInt16List(%s, v)
-			if err != nil { return }
-			`, new)
+			out("data, err := C.NewInt16List(%s, v)\n", new)
 		case uint16Type:
-			out(`
-			data, err = capnproto.NewUInt16List(%s, v)
-			if err != nil { return }
-			`, new)
+			out("data, err := C.NewUInt16List(%s, v)\n", new)
 		case int32Type:
-			out(`
-			data, err = capnproto.NewInt32List(%s, v)
-			if err != nil { return }
-			`, new)
+			out("data, err := C.NewInt32List(%s, v)\n", new)
 		case uint32Type:
-			out(`
-			data, err = capnproto.NewUInt32List(%s, v)
-			if err != nil { return }
-			`, new)
+			out("data, err := C.NewUInt32List(%s, v)\n", new)
 		case int64Type:
-			out(`
-			data, err = capnproto.NewInt64List(%s, v)
-			if err != nil { return }
-			`, new)
+			out("data, err := C.NewInt64List(%s, v)\n", new)
 		case uint64Type:
-			out(`
-			data, err = capnproto.NewUInt64List(%s, v)
-			if err != nil { return }
-			`, new)
+			out("data, err := C.NewUInt64List(%s, v)\n", new)
 		case float32Type:
-			out(`
-			data, err = capnproto.NewFloat32List(%s, v)
-			if err != nil { return }
-			`, new)
+			out("data, err := C.NewFloat32List(%s, v)\n", new)
 		case float64Type:
-			out(`
-			data, err = capnproto.NewFloat64List(%s, v)
-			if err != nil { return }
-			`, new)
+			out("data, err := C.NewFloat64List(%s, v)\n", new)
 		case enumType:
-			out(`
 			// the binary layout matches, but the type does not
-			var u16 []uint16
+			out(`u16 := []uint16(nil)
 			pu16 := (*reflect.SliceHeader)(unsafe.Pointer(&u16))
 			*pu16 = *(*reflect.SliceHeader)(unsafe.Pointer(&v))
-			data, err = capnproto.NewUInt16List(%s, u16)
-			if err != nil { return }
+			data, err := C.NewUInt16List(%s, u16)
 			`, new)
 		case stringType:
-			out(`
-			data, err = capnproto.NewStringList(%s, v)
-			if err != nil { return }
-			`, new)
+			out("data, err := C.NewStringList(%s, v)\n", new)
 		case bitsetType:
-			out(`
-			data, err = capnproto.NewBitsetList(%s, v)
-			if err != nil { return }
-			`, new)
+			out("data, err := C.NewBitsetList(%s, v)\n", new)
 		case structType:
-			out(`
 			// the binary layout matches, but the type does not
-			var ptrs []Pointer
+			out(`ptrs := []C.Pointer(nil)
 			pptrs := (*reflect.SliceHeader)(unsafe.Pointer(&ptrs))
 			*pptrs = *(*reflect.SliceHeader)(unsafe.Pointer(&v))
-			data, err = capnproto.NewPointerList(%s, ptrs)
-			if err != nil { return }
+			data, err := C.NewPointerList(%s, ptrs)
 			`, new)
 		case interfaceType:
-			out(`
-			cookies := make([]Pointer, len(v))
+			out(`cookies := make([]C.Pointer, len(v))
 			for i, iface := range v {
+				var err error
 				cookies[i], err = iface.MarshalCaptain(%s)
-				if err != nil { return }
+				if err != nil { %s }
 			}
-			data, err = capnproto.NewPointerList(%s, cookies)
-			if err != nil { return }
-			`, new)
+			data, err := C.NewPointerList(%s, cookies)
+			`, new, ret, new)
 		case listType:
-			out(`
-			data, err = capnproto.NewPointerList(%s, v)
-			if err != nil { return }
-			`, new)
+			out("data, err := C.NewPointerList(%s, v)\n", new)
 		default:
 			panic("unhandled")
 		}
@@ -1474,58 +1461,69 @@ func (f *field) writeNewPointer(out printer, new string) {
 }
 
 func (p *file) writeStruct(t *typ, out printer) {
-	out(`
-	type %s struct {
-		Ptr capnproto.Pointer
-	}`, t.name)
-
-	out(`
-	func %s(new capnproto.NewFunc) (Pointer, error)) %s {
-		return %s{Ptr: new(capnproto.MakeStruct(%d, %d))}
+	out(`type %s struct {
+		Ptr C.Pointer
 	}
-	`, pfxname("new", t.name), t.name, t.name, t.dataSize, t.ptrSize)
+	`, t.name)
+
+	out(`func %s(new C.NewFunc) (%s, error) {
+		ptr, err := new(C.MakeStruct(%d, %d))
+		return %s{Ptr: ptr}, err
+	}
+	`, pfxname("new", t.name), t.name, t.dataSize, t.ptrSize, t.name)
 
 	for _, f := range t.fields {
+		if f.typ.typ == voidType {
+			continue
+		}
+
 		if len(f.comment) > 0 {
 			out("/* %s */\n", f.comment)
 		}
 
-		out("func (p %s) %s() (ret %s) {\n", t.name, f.name, f.typ.name)
+		out("func (p %s) %s() %s {\n", t.name, f.name, f.typ.name)
 
 		switch f.typ.typ {
 		case stringType, structType, interfaceType, bitsetType, listType:
-			out("ptr := capnproto.ReadPtr(p.Ptr, %d)\n", f.offset)
+			out("ptr := C.ReadPtr(p.Ptr, %d)\n", f.offset)
 			f.writeGetter(out, "ptr")
 		default:
 			f.writeGetter(out, "p.Ptr")
 		}
 
-		out("return ret\n}\n\n")
+		out("}\n")
 
-		out("func (p %s) %s(v %s) (err error) {\n", t.name, pfxname("set", f.name), f.typ.name)
+		out("func (p %s) %s(v %s) error {\n", t.name, pfxname("set", f.name), f.typ.name)
 
 		switch f.typ.typ {
-		case stringType, structType, interfaceType, bitsetType, listType:
-			out("var data captain.Pointer\n")
-			f.writeNewPointer(out, "p.Ptr.New")
-			out("return p.Ptr.WritePtrs(%d, []Pointer{data})\n", f.offset)
+		case structType:
+			out("return p.Ptr.WritePtrs(%d, []C.Pointer{v.Ptr})\n", f.offset)
+		case stringType, interfaceType, bitsetType, listType:
+			f.writeNewPointer(out, "p.Ptr.New", "return err")
+			out("if err != nil { return err }\n")
+			out("return p.Ptr.WritePtrs(%d, []C.Pointer{data})\n", f.offset)
 		default:
-			f.writeDataSetter(out, "p.Ptr")
-			out("return\n")
+			f.writeDataSetter(out, "p.Ptr", "return")
+			out("\n")
 		}
 
-		out("}\n\n")
+		out("}\n")
 	}
 }
 
 func (p *file) write(out printer) {
-	out(`
-	package %s
+	out(`package %s
 	import (
-		"math"
+		M "math"
 		"reflect"
 		"unsafe"
-		%s
+		C %s
+	)
+
+	var (
+		_ = M.Float32bits
+		_ = reflect.SliceHeader{}
+		_ = unsafe.Pointer(nil)
 	)
 	`, *pkg, strconv.Quote(importPath))
 
@@ -1557,13 +1555,15 @@ func (p *file) write(out printer) {
 				}
 				out("%s %s = %d\n", f.name, t.name, f.ordinal)
 			}
-			out(")\n\n")
+			out(")\n")
 
 		case structType:
 			p.writeStruct(t, out)
 
 		case interfaceType:
-			out("type %s interface{\n", t.name)
+			out(`type %s interface {
+				C.Marshaller
+			`, t.name)
 
 			for _, f := range t.fields {
 				if len(f.comment) > 0 {
@@ -1588,36 +1588,41 @@ func (p *file) write(out printer) {
 
 			out("}\n")
 
-			out(`type remote·%s struct {
-				Ptr capnproto.Pointer
+			out(`type _%s_remote struct {
+				Ptr C.Pointer
 			}
-			`, t.name)
+			func (p _%s_remote) MarshalCaptain(new C.NewFunc) (C.Pointer, error) {
+				return p.Ptr, nil
+			}
+			`, t.name, t.name)
 
 			for _, f := range t.fields {
-				f.args.name = fmt.Sprintf("args·%s·%s", t.name, f.name)
-				p.writeStruct(f.args, out)
-
 				if f.typ != nil {
-					out("func getret·%s·%s(p capnproto.Pointer) %s {\n", t.name, f.name, f.typ.name)
+					out("func getret_%s_%s(p C.Pointer) %s {\n", t.name, f.name, f.typ.name)
 					f.writeGetter(out, "p")
-					out("}\n\n")
+					out("}\n")
 
-					out("func setret·%s·%s(new capnproto.NewFunc, v %s) (data capnproto.Pointer, err error) {\n", t.name, f.name, f.typ.name)
+					out("func setret_%s_%s(new C.NewFunc, v %s) (C.Pointer, error) {\n", t.name, f.name, f.typ.name)
 
 					switch f.typ.typ {
-					case stringType, structType, interfaceType, bitsetType, listType:
-						f.writeNewPointer(out, "new")
+					case structType:
+						out("return v.Ptr, nil\n")
+					case stringType, interfaceType, bitsetType, listType:
+						f.writeNewPointer(out, "new", "return nil, err")
+						out("if err != nil { return nil, err }\n")
+						out("return data, nil\n")
 					default:
-						out(`
-						data, err := new(captain.MakeStruct(8, 0))
+						out(`data, err := new(captain.MakeStruct(8, 0))
 						if err != nil { return nil, err }
 						`)
-						f.writeDataSetter(out, "data")
+						f.writeDataSetter(out, "data", "if err :=")
+						out(" != nil { return nil, err }\n")
+						out("return data, nil\n")
 					}
-					out("return\n}\n\n")
+					out("}\n")
 				}
 
-				out("func (p remote·%s) %s(", t.name, f.name)
+				out("func (p _%s_remote) %s(", t.name, f.name)
 				for ai, a := range f.args.fields {
 					if ai > 0 {
 						out(", ")
@@ -1630,43 +1635,48 @@ func (p *file) write(out printer) {
 				}
 				out("err error) {\n")
 
-				out("args := newargs·%s·%s(p.New)\n", t.name, f.name)
+				out(`var args _%s_%s_args
+				args, err = new_%s_%s_args(p.Ptr.New)
+				if err != nil { return }
+				`, t.name, f.name, t.name, f.name)
 				for ai, a := range f.args.fields {
 					out("args.%s(a%d)\n", pfxname("set", a.name), ai)
 				}
 
-				out("args, err = p.Ptr.Call(%d, args)\n", f.ordinal)
 
 				if f.typ != nil {
-					out(`
-					if err == nil {
-						ret = getret·%s·%s(args)
-					}
-					`, t.name, f.name)
+					out(`var rets C.Pointer
+					rets, err = p.Ptr.Call(%d, args.Ptr)
+					if err != nil { return }
+					ret = getret_%s_%s(rets)
+					return
+					`, f.ordinal, t.name, f.name)
+				} else {
+					out(`_, err = p.Ptr.Call(%d, args.Ptr)
+					return
+					`, f.ordinal)
 				}
 
-				out("return\n}\n")
+				out("}\n")
 			}
 
-			out(`
-			func dispatch·%s(iface interface{}, method int, args capnproto.Pointer, retnew capnproto.NewFunc) (capnproto.Pointer, error) {
+			out(`func %s(iface interface{}, method int, args C.Pointer, retnew C.NewFunc) (C.Pointer, error) {
 				p, ok := iface.(%s)
 				if !ok {
-					return capnproto.ErrInvalidInterface
+					return nil, C.ErrInvalidInterface
 				}
 				switch (method) {
-			`, t.name, t.name)
+			`, pfxname("dispatch", t.name), t.name)
 
 			for _, f := range t.fields {
-				out(`
-				case %d:
-					a := args·%s·%s{Ptr: args}
+				out(`case %d:
+					a := _%s_%s_args{Ptr: args}
 				`, f.ordinal, t.name, f.name)
 
 				if f.typ != nil {
-					out("r, err := p.%s(")
+					out("r, err := p.%s(", f.name)
 				} else {
-					out("p.%s(")
+					out("err := p.%s(", f.name)
 				}
 				for ai, a := range f.args.fields {
 					if ai > 0 {
@@ -1678,11 +1688,17 @@ func (p *file) write(out printer) {
 				out("if err != nil { return nil, err }\n")
 
 				if f.typ != nil {
-					out("return setret·%s·%s(retnew, r)\n")
+					out("return setret_%s_%s(retnew, r)\n", t.name, f.name)
 				} else {
 					out("return nil, nil\n")
 				}
 			}
+
+			out(`default:
+				return nil, C.ErrInvalidInterface
+			}
+			}
+			`)
 		}
 	}
 }

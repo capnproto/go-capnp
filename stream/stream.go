@@ -1,5 +1,10 @@
 package capnproto
 
+import (
+	"errors"
+	"io"
+)
+
 type Compressor struct {
 	w io.Writer
 }
@@ -18,6 +23,13 @@ func NewCompressor(w io.Writer) *Compressor {
 
 func NewDecompressor(r io.Reader) *Decompressor {
 	return &Decompressor{r: r}
+}
+
+func min(a, b int) int {
+	if b < a {
+		return b
+	}
+	return a
 }
 
 func (c *Decompressor) Read(v []byte) (n int, err error) {
@@ -54,11 +66,11 @@ func (c *Decompressor) Read(v []byte) (n int, err error) {
 			if _, err = c.r.Read(b[:]); err != nil {
 				return
 			}
-			zeros := min(b[1], len(v) - n)
+			zeros := min(int(b[0]), len(v) - n)
 			for i := range v[n:n+zeros] {
 				v[i] = 0
 			}
-			c.zeros = b[1] - zeros
+			c.zeros = int(b[0]) - zeros
 			n += zeros
 		default:
 			ones := 0
@@ -97,7 +109,7 @@ func (c *Compressor) Write(v []byte) (n int, err error) {
 	}
 
 	for n < len(v) {
-		hdr := 0
+		var hdr byte
 		for i, b := range v[n:n+8] {
 			if b != 0 {
 				hdr |= 1 << uint(i)
@@ -116,7 +128,7 @@ func (c *Compressor) Write(v []byte) (n int, err error) {
 				n += 8
 			}
 
-			buf = append(buf, byte(zeros))
+			buf = append(buf, byte(i))
 
 		case 0xFF:
 			buf = append(buf, v[n:n+8]...)
@@ -138,7 +150,8 @@ func (c *Compressor) Write(v []byte) (n int, err error) {
 				i += 8
 			}
 
-			buf = append(buf, byte((i - n)/8), v[n:i]...)
+			buf = append(buf, byte((i - n)/8))
+			buf = append(buf, v[n:i]...)
 			n = i
 
 		default:
@@ -154,7 +167,7 @@ func (c *Compressor) Write(v []byte) (n int, err error) {
 	}
 
 	if w, err := c.w.Write(buf); err != nil {
-		return err
+		return 0, err
 	} else if w != len(buf) {
 		return 0, io.ErrShortWrite
 	}

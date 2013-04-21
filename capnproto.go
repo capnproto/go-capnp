@@ -1,7 +1,20 @@
 package capnproto
 
 import (
-	"fmt"
+	"encoding/binary"
+	"errors"
+	"math"
+)
+
+var (
+	little16    = binary.LittleEndian.Uint16
+	little32    = binary.LittleEndian.Uint32
+	little64    = binary.LittleEndian.Uint64
+	putLittle16 = binary.LittleEndian.PutUint16
+	putLittle32 = binary.LittleEndian.PutUint32
+	putLittle64 = binary.LittleEndian.PutUint64
+
+	ErrInvalidInterface = errors.New("capnproto: invalid interface")
 )
 
 type NewFunc func(p PointerType) (Pointer, error)
@@ -113,23 +126,23 @@ const (
 )
 
 func MakeStruct(data, ptrs int) PointerType {
-	return PointerType{StructPointer | uint64((data+7)/8)<<32 | uint64(ptr)<<48, 0}
+	return PointerType{uint64(Struct) | uint64((data+7)/8)<<32 | uint64(ptrs)<<48, 0}
 }
 
 func MakeList(typ DataType, elems int) PointerType {
-	return PointerType{ListPointer | uint64(typ)<<31 | uint64(elems)<<35, 0}
+	return PointerType{uint64(ListPointer) | uint64(typ)<<31 | uint64(elems)<<35, 0}
 }
 
 func MakeCompositeList(elems, data, ptrs int) PointerType {
 	data = (data + 7) / 8
 	return PointerType{
-		ListPointer | CompositeList<<31 | uint64(elems*(data+ptrs))<<35,
-		StructPointer | uint64(elems)<<2 | uint64(data)<<32 | uint64(ptrs)<<48,
+		uint64(ListPointer) | uint64(CompositeList)<<31 | uint64(elems*(data+ptrs))<<35,
+		uint64(Struct) | uint64(elems)<<2 | uint64(data)<<32 | uint64(ptrs)<<48,
 	}
 }
 
 func MakeFarPointer(seg uint32, off int) PointerType {
-	return PointetType{FarPointer | uint64(off)<<2 | uint64(seg)<<32, 0}
+	return PointerType{uint64(FarPointer) | uint64(off)<<2 | uint64(seg)<<32, 0}
 }
 
 func (p PointerType) CompositeType() PointerType {
@@ -159,7 +172,7 @@ func (p PointerType) Offset() int {
 
 func (p PointerType) Elements() int {
 	switch p.Type() {
-	case VoidList, Bit1List, Bit1List, Byte1List, Byte2List, Byte4List, Byte8List, PointerList:
+	case VoidList, Bit1List, Byte1List, Byte2List, Byte4List, Byte8List, PointerList:
 		return int(p.Value >> 35)
 	case CompositeList:
 		return int(uint32(p.Composite) >> 2)
@@ -205,7 +218,7 @@ func (p PointerType) PointerNum() int {
 func ReadPtr(ptr Pointer, off int) Pointer {
 	ret := [1]Pointer{}
 	ptr.ReadPtrs(off, ret[:])
-	return ret
+	return ret[0]
 }
 
 func ReadUInt8(ptr Pointer, off int) uint8 {
@@ -223,7 +236,7 @@ func ReadUInt16(ptr Pointer, off int) uint16 {
 	return little16(buf[:])
 }
 
-func ReadUInt32(ptr Pointer, off int) uint16 {
+func ReadUInt32(ptr Pointer, off int) uint32 {
 	buf := [4]byte{}
 	if err := ptr.Read(off, buf[:]); err != nil {
 		return 0
@@ -231,7 +244,7 @@ func ReadUInt32(ptr Pointer, off int) uint16 {
 	return little32(buf[:])
 }
 
-func ReadUInt64(ptr Pointer, off int) uint16 {
+func ReadUInt64(ptr Pointer, off int) uint64 {
 	buf := [8]byte{}
 	if err := ptr.Read(off, buf[:]); err != nil {
 		return 0
@@ -252,9 +265,9 @@ func ToPointerList(p Pointer) []Pointer {
 }
 
 func tolist(p Pointer, expect DataType, esz int) []uint8 {
-	typ := mbr.Type()
+	typ := p.Type()
 
-	switch typ.DataType() {
+	switch typ.Type() {
 	case expect:
 		u8 := make([]byte, typ.DataSize())
 		if err := p.Read(0, u8); err != nil {
@@ -286,7 +299,7 @@ func tolist(p Pointer, expect DataType, esz int) []uint8 {
 func ToVoidList(p Pointer) []struct{} {
 	typ := p.Type()
 
-	switch typ.DataType() {
+	switch typ.Type() {
 	case VoidList, PointerList, CompositeList:
 		return make([]struct{}, typ.Elements())
 	default:
@@ -312,7 +325,7 @@ func (b *Bitset) Clear(i int) {
 func ToBitset(p Pointer) Bitset {
 	typ := p.Type()
 
-	switch typ.DataType() {
+	switch typ.Type() {
 	case Bit1List:
 		u8 := make([]byte, typ.DataSize())
 		if err := p.Read(0, u8); err != nil {
@@ -350,7 +363,7 @@ func ToUInt8List(p Pointer) []uint8 {
 }
 
 func ToString(p Pointer, def string) string {
-	u8 := ToUInt8List(p, off)
+	u8 := ToUInt8List(p)
 	if u8 == nil || len(u8) < 1 || u8[len(u8)-1] != 0 {
 		return def
 	}
@@ -362,9 +375,9 @@ func ToInt8List(p Pointer) []int8 {
 	if u8 == nil {
 		return nil
 	}
-	ret := make([]int8, p.Elements())
-	for i := range ret {
-		ret[i] = int8(u8)
+	ret := make([]int8, len(u8))
+	for i, u := range u8 {
+		ret[i] = int8(u)
 	}
 	return ret
 }
@@ -374,19 +387,19 @@ func ToUInt16List(p Pointer) []uint16 {
 	if u8 == nil {
 		return nil
 	}
-	ret := make([]uint16, p.Elements())
+	ret := make([]uint16, len(u8)/2)
 	for i := range ret {
 		ret[i] = little16(u8[2*i:])
 	}
 	return ret
 }
 
-func ToInt16List(p Pointer) []uint16 {
+func ToInt16List(p Pointer) []int16 {
 	u8 := tolist(p, Byte2List, 2)
 	if u8 == nil {
 		return nil
 	}
-	ret := make([]int16, p.Elements())
+	ret := make([]int16, len(u8)/2)
 	for i := range ret {
 		ret[i] = int16(little16(u8[2*i:]))
 	}
@@ -398,43 +411,43 @@ func ToUInt32List(p Pointer) []uint32 {
 	if u8 == nil {
 		return nil
 	}
-	ret := make([]uint32, p.Elements())
+	ret := make([]uint32, len(u8)/4)
 	for i := range ret {
 		ret[i] = little32(u8[4*i:])
 	}
 	return ret
 }
 
-func ToInt32List(p Pointer) []uint32 {
+func ToInt32List(p Pointer) []int32 {
 	u8 := tolist(p, Byte4List, 4)
 	if u8 == nil {
 		return nil
 	}
-	ret := make([]int32, p.Elements())
+	ret := make([]int32, len(u8)/4)
 	for i := range ret {
 		ret[i] = int32(little32(u8[4*i:]))
 	}
 	return ret
 }
 
-func ToUInt64List(p Pointer) []uint16 {
+func ToUInt64List(p Pointer) []uint64 {
 	u8 := tolist(p, Byte8List, 8)
 	if u8 == nil {
 		return nil
 	}
-	ret := make([]uint64, p.Elements())
+	ret := make([]uint64, len(u8)/8)
 	for i := range ret {
 		ret[i] = little64(u8[8*i:])
 	}
 	return ret
 }
 
-func ToInt64List(p Pointer) []uint16 {
+func ToInt64List(p Pointer) []int64 {
 	u8 := tolist(p, Byte8List, 8)
 	if u8 == nil {
 		return nil
 	}
-	ret := make([]int64, p.Elements())
+	ret := make([]int64, len(u8)/8)
 	for i := range ret {
 		ret[i] = int64(little16(u8[8*i:]))
 	}
@@ -446,7 +459,7 @@ func ToFloat32List(p Pointer) []float32 {
 	if u8 == nil {
 		return nil
 	}
-	ret := make([]float32, p.Elements())
+	ret := make([]float32, len(u8)/4)
 	for i := range ret {
 		ret[i] = math.Float32frombits(little32(u8[4*i:]))
 	}
@@ -458,9 +471,9 @@ func ToFloat64List(p Pointer) []float64 {
 	if u8 == nil {
 		return nil
 	}
-	ret := make([]float64, p.Elements())
+	ret := make([]float64, len(u8)/8)
 	for i := range ret {
-		ret[i] = math.Float64frombits(little32(u8[8*i:]))
+		ret[i] = math.Float64frombits(little64(u8[8*i:]))
 	}
 	return ret
 }
@@ -490,7 +503,7 @@ func ToBitsetList(p Pointer) []Bitset {
 }
 
 func WriteBool(ptr Pointer, off int, v bool) error {
-	u := ReadUIint8(ptr, off/8)
+	u := ReadUInt8(ptr, off/8)
 	if v {
 		u &= 1 << uint(off%8)
 	} else {
@@ -500,7 +513,7 @@ func WriteBool(ptr Pointer, off int, v bool) error {
 }
 
 func WriteUInt8(ptr Pointer, off int, v uint8) error {
-	return ptr.Write(off, [1]uint8{v}[:])
+	return ptr.Write(off, []uint8{v})
 }
 
 func WriteUInt16(ptr Pointer, off int, v uint16) error {
@@ -526,7 +539,10 @@ func newList(new NewFunc, typ DataType, sz int, data []uint8) (Pointer, error) {
 	if err != nil {
 		return nil, err
 	}
-	return to.Write(0, data)
+	if err := to.Write(0, data); err != nil {
+		return nil, err
+	}
+	return to, nil
 }
 
 func NewString(new NewFunc, v string) (Pointer, error) {
@@ -615,9 +631,9 @@ func NewFloat64List(new NewFunc, v []float64) (Pointer, error) {
 
 func NewVoidList(new NewFunc, v []struct{}) (Pointer, error) {
 	if v == nil {
-		return nil
+		return nil, nil
 	}
-	return new(capnproto.MakeList(VoidList, len(v)))
+	return new(MakeList(VoidList, len(v)))
 }
 
 func NewPointerList(new NewFunc, v []Pointer) (Pointer, error) {
@@ -626,9 +642,12 @@ func NewPointerList(new NewFunc, v []Pointer) (Pointer, error) {
 	}
 	to, err := new(MakeList(PointerList, len(v)))
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return to.WritePtrs(0, v)
+	if err := to.WritePtrs(0, v); err != nil {
+		return nil, err
+	}
+	return to, nil
 }
 
 func NewStringList(new NewFunc, v []string) (Pointer, error) {
