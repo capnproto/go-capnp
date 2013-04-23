@@ -365,8 +365,8 @@ func (t *typ) String() string {
 type typ struct {
 	typ        typeType
 	name       string
-	enumPrefix string
 	comment    string
+	enumPrefix string
 	fields     []*field
 	dataSize   int
 	ptrSize    int
@@ -458,34 +458,8 @@ func (p *file) parseTypeName() string {
 	}
 
 	switch tok.str {
-	case "Void":
-		return "struct{}"
-	case "Bool":
-		return "bool"
 	case "Data":
 		return "[]uint8"
-	case "Text":
-		return "string"
-	case "Int8":
-		return "int8"
-	case "UInt8":
-		return "uint8"
-	case "Int16":
-		return "int16"
-	case "UInt16":
-		return "uint16"
-	case "Int32":
-		return "int32"
-	case "UInt32":
-		return "uint32"
-	case "Int64":
-		return "int64"
-	case "UInt64":
-		return "uint64"
-	case "Float32":
-		return "float32"
-	case "Float64":
-		return "float64"
 	case "List":
 		tok = p.next()
 		if tok.typ != '(' {
@@ -499,9 +473,12 @@ func (p *file) parseTypeName() string {
 			panic(fmt.Errorf("malformed list type - expected ) got %s", tok))
 		}
 
-		if inner == "bool" {
-			return "C.Bitset"
-		} else {
+		switch inner {
+		case "bool":
+			return "List(Bool)"
+		case "Void":
+			return "List(Void)"
+		default:
 			return "[]" + inner
 		}
 
@@ -673,11 +650,8 @@ func (p *file) parseInterface(ns string) {
 			f.typestr = p.parseTypeName()
 			p.expect(';', "method terminator")
 		} else if tok.typ != ';' {
+			f.typestr = "Void"
 			panic(fmt.Errorf("expected : or ; got %s", tok))
-		}
-
-		if f.typestr == "struct{}" {
-			f.typestr = ""
 		}
 
 		f.comment, tok = p.parseComment()
@@ -751,9 +725,8 @@ func (p *file) parseStruct(ns string) {
 				p.expect('{', "union open brace {")
 				f.typestr = ""
 				f.typ = &typ{
-					typ:        unionType,
-					name:       sprintf("%s_%s", t.name, f.name),
-					enumPrefix: sprintf("%s_", t.name),
+					typ: unionType,
+					name: ns + f.name,
 				}
 				p.types = append(p.types, f.typ)
 				union = f
@@ -828,20 +801,21 @@ func (p *file) parse() (err error) {
 }
 
 func (p *file) addBuiltinTypes() {
-	p.types = append(p.types, &typ{typ: voidType, name: "struct{}"})
-	p.types = append(p.types, &typ{typ: boolType, name: "bool"})
-	p.types = append(p.types, &typ{typ: int8Type, name: "int8"})
-	p.types = append(p.types, &typ{typ: uint8Type, name: "uint8"})
-	p.types = append(p.types, &typ{typ: int16Type, name: "int16"})
-	p.types = append(p.types, &typ{typ: uint16Type, name: "uint16"})
-	p.types = append(p.types, &typ{typ: int32Type, name: "int32"})
-	p.types = append(p.types, &typ{typ: uint32Type, name: "uint32"})
-	p.types = append(p.types, &typ{typ: int64Type, name: "int64"})
-	p.types = append(p.types, &typ{typ: uint64Type, name: "uint64"})
-	p.types = append(p.types, &typ{typ: float32Type, name: "float32"})
-	p.types = append(p.types, &typ{typ: float64Type, name: "float64"})
-	p.types = append(p.types, &typ{typ: stringType, name: "string"})
-	p.types = append(p.types, &typ{typ: bitsetType, name: "C.Bitset"})
+	p.types = append(p.types, &typ{typ: voidType, name: "Void"})
+	p.types = append(p.types, &typ{typ: boolType, name: "Bool"})
+	p.types = append(p.types, &typ{typ: int8Type, name: "Int8"})
+	p.types = append(p.types, &typ{typ: uint8Type, name: "UInt8"})
+	p.types = append(p.types, &typ{typ: int16Type, name: "Int16"})
+	p.types = append(p.types, &typ{typ: uint16Type, name: "UInt16"})
+	p.types = append(p.types, &typ{typ: int32Type, name: "Int32"})
+	p.types = append(p.types, &typ{typ: uint32Type, name: "UInt32"})
+	p.types = append(p.types, &typ{typ: int64Type, name: "Int64"})
+	p.types = append(p.types, &typ{typ: uint64Type, name: "UInt64"})
+	p.types = append(p.types, &typ{typ: float32Type, name: "Float32"})
+	p.types = append(p.types, &typ{typ: float64Type, name: "Float64"})
+	p.types = append(p.types, &typ{typ: stringType, name: "Text"})
+	p.types = append(p.types, &typ{typ: bitsetType, name: "List(Bool)"})
+	p.types = append(p.types, &typ{typ: voidListType: name: "List(Void)"})
 }
 
 func (p *file) doFindType(pfx int, name string) (*typ, error) {
@@ -905,11 +879,9 @@ func (p *file) resolveTypes() error {
 			continue
 		}
 		for _, f := range t.fields {
-			if f.typestr != "" {
-				f.typ, err = p.findType(t, f.typestr)
-				if err != nil {
-					return err
-				}
+			f.typ, err = p.findType(t, f.typestr)
+			if err != nil {
+				return err
 			}
 
 			if f.args != nil {
@@ -923,10 +895,50 @@ func (p *file) resolveTypes() error {
 		}
 	}
 
-	// We cap the max list depth at one for the go types
 	for _, t := range p.types {
-		if t.typ == listType && t.listType.typ == listType {
-			t.name = "[]C.Pointer"
+		switch t.typ {
+		case structType, interfaceType:
+			t.name = strings.Replace(t.name, "·", "_")
+		case enumType, unionType:
+			t.name = strings.Replace(t.name, "·", "_")
+			t.enumPrefix = t.name + "_"
+		case voidType:
+			t.name = "struct{}"
+		case boolType:
+			t.name = "bool"
+		case int8Type:
+			t.name = "int8"
+		case int16Type:
+			t.name = "int16"
+		case int32Type:
+			t.name = "int32"
+		case int64Type:
+			t.name = "int64"
+		case uint8Type:
+			t.name = "uint8"
+		case uint16Type:
+			t.name = "uint16"
+		case uint32Type:
+			t.name = "uint32"
+		case uint64Type:
+			t.name = "uint64"
+		case float32Type:
+			t.name = "float32"
+		case float64Type:
+			t.name = "float64"
+		case stringType:
+			t.name = "string"
+		case listType:
+			// We cap the max list depth at one for the go types
+			if t.listType.typ == listType {
+				t.name = "[]C.Pointer"
+			} else {
+				t.name = "[]" + t.listType.name
+			}
+		case bitsetType:
+			t.name = "C.Bitset"
+		default:
+			panic("unhandled")
 		}
 	}
 
@@ -1068,7 +1080,66 @@ var pkg = flag.String("pkg", "main", "Package name to use with generated files")
 
 type printer func(string, ...interface{})
 
-func (v *value) String(t *typ, marshalled bool) string {
+func (v *value) GoMarshalledString(t *typ) string {
+	switch t.typ {
+	case bitsetType:
+		return "C.Must(NewBitset(C.NewMemory, " + v.String(t) + "))"
+
+	case stringType:
+		return "C.Must(C.NewString(C.NewMemory, " + v.String(t) + "))"
+
+	case listType:
+		switch t.listType.typ {
+		case voidType:
+			return "C.Must(C.NewVoidList(C.NewMemory, " + v.String(t) + "))"
+		case int8Type:
+			return "C.Must(C.NewInt8List(C.NewMemory, []int8{" + v.String(t) + "}))"
+		case uint8Type:
+			if v.typ == '"' {
+				return "C.Must(C.NewUInt8List(C.NewMemory, " + v.String(t) + "))"
+			} else {
+				return "C.Must(C.NewUInt8List(C.NewMemory, []uint8{" + v.String(t) + "}))"
+			}
+		case int16Type:
+			return "C.Must(C.NewInt16List(C.NewMemory, []int16{" + v.String(t) + "}))"
+		case uint16Type:
+			return "C.Must(C.NewUInt16List(C.NewMemory, []uint16{" + v.String(t) + "}))"
+		case enumType:
+			return "C.Must(C.NewUInt16List(C.NewMemory, []uint16{" + v.GoMarshalledString(t) + "}))"
+		case int32Type:
+			out += "C.Must(C.NewInt32List(C.NewMemory, []int32{" + v.String(t) + "}))"
+		case uint32Type:
+			out += "C.Must(C.NewUInt32List(C.NewMemory, []uint32{" + v.String(t) + "}))"
+		case int64Type:
+			out += "C.Must(C.NewInt64List(C.NewMemory, []int64{" + v.String(t) + "}))"
+		case uint64Type:
+			out += "C.Must(C.NewUInt64List(C.NewMemory, []uint64{" + v.String(t) + "}))"
+		case float32Type:
+			out += "C.Must(C.NewFloat32List(C.NewMemory, []float32{" + v.String(t) + "}))"
+		case float64Type:
+			out += "C.Must(C.NewFloat64List(C.NewMemory, []float64" + v.String(t) + "}))"
+		case stringType:
+			out += "C.Must(C.NewStringList(C.NewMemory, []string{" + v.String(t) + "}))"
+		case bitsetType:
+			out += "C.Must(C.NewBitsetList(C.NewMemory, []C.Bitset{" + v.String(t) + "}))"
+		case listType:
+			return "C.Must(C.NewPointerList(C.NewMemory, []C.Pointer{" + v.GoMarshalledString(t) + "}))"
+		default:
+			panic("unhandled")
+		}
+
+	case structType:
+		return v.String(t) + ".Ptr"
+
+	case enumType:
+		return "uint16(" + v.String(t) + ")"
+
+	default:
+		return v.String(t)
+	}
+}
+
+func (v *value) String(t *typ) string {
 	switch t.typ {
 	case bitsetType:
 		if v.typ != '[' {
@@ -1084,11 +1155,7 @@ func (v *value) String(t *typ, marshalled bool) string {
 				panic(fmt.Errorf("unexpected value %v in bitset", v))
 			}
 		}
-		out := ""
-		if marshalled {
-			out += "C.Must(NewBitset(C.NewMemory, "
-		}
-		out += "C.Bitset{"
+		out := "C.Bitset{"
 		for i, b := range set {
 			if i > 0 {
 				out += ", "
@@ -1096,9 +1163,6 @@ func (v *value) String(t *typ, marshalled bool) string {
 			out += sprintf("%#02x", b)
 		}
 		out += "}"
-		if marshalled {
-			out += "))"
-		}
 		return out
 
 	case stringType:
@@ -1106,99 +1170,42 @@ func (v *value) String(t *typ, marshalled bool) string {
 			panic(fmt.Errorf("unexpected value %v in string", v))
 		}
 
-		if marshalled {
-			return sprintf("C.Must(C.NewString(C.NewMemory, %s))", strconv.Quote(v.string))
-		} else {
-			return sprintf("%s", strconv.Quote(v.string))
-		}
+		return strconv.Quote(v.string)
 
 	case listType:
 		if v.typ == '"' && t.listType.typ == uint8Type {
 			// Data fields with a string value
-			if marshalled {
-				return sprintf("C.Must(C.NewUInt8List(C.NewMemory, []byte(%s)))", strconv.Quote(v.string))
-			} else {
-				return sprintf("[]byte(%s)", strconv.Quote(v.string))
-			}
-		}
-
-		if t.listType.typ == voidType {
-			if marshalled {
-				return sprintf("C.Must(C.NewVoidList(C.NewMemory, make([]struct{}, %d)))", len(v.fields))
-			} else {
-				return sprintf("make([]struct{}, %d)", len(v.fields))
-			}
-		}
-
-		if v.typ != '[' {
+			return sprintf("[]byte( " + strconv.Quote(v.string) + ")"
+		} else if v.typ != '[' {
 			panic(fmt.Errorf("unexpected value %v in list", v))
 		}
 
-		listTypeName := t.name
-		innerMarshalled := false
+		switch t.listType {
+		case voidType:
+			return sprintf("make([]struct{}, %d)", len(v.fields))
 
-		if t.listType.typ == voidType {
-			// otherwise we get []struct{}{nil}
-			listTypeName = "[](struct{})"
-		}
-
-		out := ""
-		if marshalled {
-			switch t.listType.typ {
-			case int8Type:
-				out += "C.Must(C.NewInt8List(C.NewMemory, "
-			case uint8Type:
-				out += "C.Must(C.NewUInt8List(C.NewMemory, "
-			case int16Type:
-				out += "C.Must(C.NewInt16List(C.NewMemory, "
-			case uint16Type:
-				out += "C.Must(C.NewUInt16List(C.NewMemory, "
-			case enumType:
-				out += "C.Must(C.NewUInt16List(C.NewMemory, "
-				listTypeName = "[]uint16"
-				innerMarshalled = true
-			case int32Type:
-				out += "C.Must(C.NewInt32List(C.NewMemory, "
-			case uint32Type:
-				out += "C.Must(C.NewUInt32List(C.NewMemory, "
-			case int64Type:
-				out += "C.Must(C.NewInt64List(C.NewMemory, "
-			case uint64Type:
-				out += "C.Must(C.NewUInt64List(C.NewMemory, "
-			case float32Type:
-				out += "C.Must(C.NewFloat32List(C.NewMemory, "
-			case float64Type:
-				out += "C.Must(C.NewFloat64List(C.NewMemory, "
-			case stringType:
-				out += "C.Must(C.NewStringList(C.NewMemory, "
-			case bitsetType:
-				out += "C.Must(C.NewBitsetList(C.NewMemory, "
-			case listType:
-				out += "C.Must(C.NewPointerList(C.NewMemory, "
-				listTypeName = "[]C.Pointer"
-				innerMarshalled = true
-			default:
-				panic("unhandled")
+		case listType:
+			out := "[]C.Pointer{"
+			for i, v := range v.fields {
+				if i > 0 {
+					out += ", "
+				}
+				out += v.GoMarshalledString(t.listType)
 			}
+			out += "}"
+			return out
 
-		} else if t.listType.typ == listType {
-			listTypeName = "[]C.Pointer"
-			innerMarshalled = true
-		}
-
-		out += sprintf("%s{", listTypeName)
-		for i, v := range v.fields {
-			if i > 0 {
-				out += ", "
+		default:
+			out := t.name + "{"
+			for i, v := range v.fields {
+				if i > 0 {
+					out += ", "
+				}
+				out += v.String(t.listType)
 			}
-			out += v.String(t.listType, innerMarshalled)
+			out += "}"
+			return out
 		}
-		out += "}"
-
-		if marshalled {
-			out += "))"
-		}
-		return out
 
 	case structType:
 		if v.typ != '(' {
@@ -1219,9 +1226,6 @@ func (v *value) String(t *typ, marshalled bool) string {
 		}
 		out += "return p\n"
 		out += "}()"
-		if marshalled {
-			out += ".Ptr"
-		}
 		return out
 
 	case enumType:
@@ -1230,15 +1234,10 @@ func (v *value) String(t *typ, marshalled bool) string {
 		}
 
 		// Can be either a constant (use v.string) or an enum value (use type_v.string)
-		str := v.string
-		if f := t.findField(str); f != nil {
-			str = t.enumPrefix + v.string
-		}
-
-		if marshalled {
-			return sprintf("uint16(%s)", str)
+		if f := t.findField(v.string); f != nil {
+			return t.enumPrefix + v.string
 		} else {
-			return str
+			return v.string
 		}
 
 	case boolType, float32Type, float64Type,
