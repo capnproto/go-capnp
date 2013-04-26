@@ -1,7 +1,8 @@
-package capnproto
+package capn
 
 import (
 	"errors"
+	"fmt"
 )
 
 func min(a, b int) int {
@@ -11,7 +12,7 @@ func min(a, b int) int {
 	return a
 }
 
-var errOutOfBounds = errors.New("capnproto: supplied offset is out of bounds")
+var errOutOfBounds = errors.New("capn: supplied offset is out of bounds")
 
 func copyData(to, from Pointer, sz int) error {
 	buf := make([]byte, sz)
@@ -86,7 +87,7 @@ func Copy(to, from Pointer) error {
 		}
 	}
 
-	return errors.New("capnproto: incompatible copy src/target")
+	return errors.New("capn: incompatible copy src/target")
 }
 
 func Must(p Pointer, err error) Pointer {
@@ -131,7 +132,7 @@ func (m *memory) New(p PointerType) (Pointer, error) {
 }
 
 func (m *memory) Call(method int, args Pointer) (Pointer, error) {
-	return nil, errors.New("capnproto: memory pointers do not support interfaces")
+	return nil, errors.New("capn: memory pointers do not support interfaces")
 }
 
 func (m *memory) Read(off int, v []uint8) error {
@@ -161,7 +162,8 @@ func (m *memory) WritePtrs(off int, v []Pointer) error {
 type Buffer struct {
 	buf    []byte
 	ptrs   map[Pointer]int
-	caller CallFunc
+	Caller CallFunc
+	Id     uint32
 }
 
 // NewBuffer creates a new segment buffer. Data is read/written in wire
@@ -171,10 +173,6 @@ func NewBuffer(buf []byte) *Buffer {
 		buf:  buf,
 		ptrs: make(map[Pointer]int),
 	}
-}
-
-func (b *Buffer) SetCaller(c CallFunc) {
-	b.caller = c
 }
 
 func (b *Buffer) Bytes() []byte {
@@ -200,20 +198,25 @@ func (b *Buffer) New(p PointerType) (Pointer, error) {
 	}
 
 	b.buf = append(b.buf, make([]byte, sz)...)
+	println("new", p.Type(), sz, p.Elements(), p.DataSize(), p.PointerNum())
 	return bufferPointer{b, off, p}, nil
 }
 
 // NewRoot creates a new root value. This writes a pointer tag that points to
-// the data immediately after the tag. NewRoot should be followed immediately
-// by a call Buffer.New. The tag can be pointed to via a far pointer from
-// another segment using the returned offset. The offset is relative to the
-// beginning of the buffer provided in NewBuffer.
-func (b *Buffer) NewRoot(v PointerType) int {
+// the data immediately after the tag. The returned pointer points to the tag
+// and can be written to another segment to create a far pointer.
+func (b *Buffer) NewRoot(v PointerType) (Pointer, error) {
 	off := len(b.buf)
+
 	v.SetOffset(0)
 	b.buf = append(b.buf, make([]byte, 8)...)
 	putLittle64(b.buf[off:], v.Value)
-	return off
+
+	if _, err := b.New(v); err != nil {
+		return nil, err
+	}
+
+	return bufferPointer{b, off, MakeFarPointer(b.Id, off+8)}, nil
 }
 
 func (b *Buffer) ReadRoot(off int) (Pointer, error) {
@@ -231,16 +234,21 @@ func (p bufferPointer) New(typ PointerType) (Pointer, error) {
 }
 
 func (p bufferPointer) Call(method int, args Pointer) (Pointer, error) {
-	if p.seg.caller == nil {
-		return nil, errors.New("capnproto: no bound caller")
+	if p.seg.Caller == nil {
+		return nil, errors.New("capn: no bound caller")
 	}
-	return p.seg.caller(p, method, args)
+	return p.seg.Caller(p, method, args)
 }
 
 func (p bufferPointer) Read(off int, v []uint8) error {
+	if err := p.deref(); err != nil {
+		return err
+	}
+
 	off = p.off + off*8
 
 	if off+len(v) > len(p.seg.buf) {
+		panic("out of bounds")
 		return errOutOfBounds
 	}
 
@@ -249,9 +257,15 @@ func (p bufferPointer) Read(off int, v []uint8) error {
 }
 
 func (p bufferPointer) Write(off int, v []uint8) error {
+	if err := p.deref(); err != nil {
+		return err
+	}
+
 	off = p.off + off*8
 
 	if off+len(v) > len(p.seg.buf) {
+		println(off, len(v), len(p.seg.buf))
+		panic("out of bounds")
 		return errOutOfBounds
 	}
 
@@ -259,8 +273,20 @@ func (p bufferPointer) Write(off int, v []uint8) error {
 	return nil
 }
 
+func (p *bufferPointer) deref() error {
+	if p.typ.Type() == FarPointer && p.typ.SegmentId() == p.seg.Id {
+		p2, err := p.seg.readptr(p.typ.SegmentOffset())
+		if err != nil {
+			return err
+		}
+		*p = p2.(bufferPointer)
+	}
+	return nil
+}
+
 func (b *Buffer) readptr(off int) (Pointer, error) {
 	if off+8 > len(b.buf) {
+		panic("out of bounds")
 		return nil, errOutOfBounds
 	}
 
@@ -274,6 +300,7 @@ func (b *Buffer) readptr(off int) (Pointer, error) {
 	case CompositeList:
 		ptr.off += 8 * typ.Offset()
 		if ptr.off+8 > len(b.buf) {
+			panic("out of bounds")
 			return nil, errOutOfBounds
 		}
 
@@ -281,12 +308,15 @@ func (b *Buffer) readptr(off int) (Pointer, error) {
 		ptr.off += 8
 
 		if ptr.off+typ.Elements()*(typ.DataSize()+typ.PointerNum()*8) > len(b.buf) {
+			panic("out of bounds")
 			return nil, errOutOfBounds
 		}
 
 	default:
+		println("readptr", typ.Offset(), typ.DataSize(), typ.PointerNum())
 		ptr.off += 8 * typ.Offset()
 		if ptr.off+typ.DataSize()+typ.PointerNum()*8 > len(b.buf) {
+			panic("out of bounds")
 			return nil, errOutOfBounds
 		}
 	}
@@ -295,8 +325,13 @@ func (b *Buffer) readptr(off int) (Pointer, error) {
 }
 
 func (p bufferPointer) ReadPtrs(off int, v []Pointer) error {
+	if err := p.deref(); err != nil {
+		return err
+	}
+
 	if p.typ.Type() == CompositeList {
 		if off+len(v) > p.typ.Elements() {
+			panic("out of bounds")
 			return errOutOfBounds
 		}
 
@@ -323,6 +358,10 @@ func (p bufferPointer) ReadPtrs(off int, v []Pointer) error {
 }
 
 func (p bufferPointer) WritePtrs(off int, v []Pointer) error {
+	if err := p.deref(); err != nil {
+		return err
+	}
+
 	switch p.typ.Type() {
 	case CompositeList:
 		for _, src := range v {
@@ -341,6 +380,8 @@ func (p bufferPointer) WritePtrs(off int, v []Pointer) error {
 	}
 
 	if off+len(v) > p.typ.PointerNum() {
+		fmt.Println(p, off, len(v), p.typ.PointerNum())
+		panic("out of bounds")
 		return errOutOfBounds
 	}
 

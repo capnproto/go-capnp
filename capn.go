@@ -126,7 +126,7 @@ const (
 )
 
 func NewStruct(new NewFunc, data, ptrs int) (Pointer, error) {
-	return new(PointerType{uint64(Struct) | uint64((data+7)/8)<<32 | uint64(ptrs)<<48, 0})
+	return new(PointerType{uint64(Struct) | uint64(data/8)<<32 | uint64(ptrs)<<48, 0})
 }
 
 func NewList(new NewFunc, typ DataType, elems int) (Pointer, error) {
@@ -505,7 +505,7 @@ func ToBitsetList(p Pointer) []Bitset {
 func WriteBool(ptr Pointer, off int, v bool) error {
 	u := ReadUInt8(ptr, off/8)
 	if v {
-		u &= 1 << uint(off%8)
+		u |= 1 << uint(off%8)
 	} else {
 		u &^= 1 << uint(off%8)
 	}
@@ -629,55 +629,44 @@ func NewFloat64List(new NewFunc, v []float64) (Pointer, error) {
 	return newList(new, Byte8List, len(v), u8)
 }
 
-func NewVoidList(new NewFunc, v []struct{}) (Pointer, error) {
-	if v == nil {
-		return nil, nil
-	}
-	return NewList(new, VoidList, len(v))
-}
-
-func NewPointerList(new NewFunc, v []Pointer) (Pointer, error) {
-	if v == nil {
-		return nil, nil
-	}
-	to, err := NewList(new, PointerList, len(v))
-	if err != nil {
-		return nil, err
-	}
-	if err := to.WritePtrs(0, v); err != nil {
-		return nil, err
-	}
-	return to, nil
-}
-
 func NewStringList(new NewFunc, v []string) (Pointer, error) {
 	if v == nil {
 		return nil, nil
 	}
-	ptrs := make([]Pointer, len(v))
+	p, err := NewList(new, PointerList, len(v))
+	if err != nil {
+		return nil, err
+	}
 	for i, s := range v {
-		ps, err := NewString(new, s)
+		ps, err := NewString(p.New, s)
 		if err != nil {
 			return nil, err
 		}
-		ptrs[i] = ps
+		if err := p.WritePtrs(i, []Pointer{ps}); err != nil {
+			return nil, err
+		}
 	}
 
-	return NewPointerList(new, ptrs)
+	return p, nil
 }
 
 func NewBitsetList(new NewFunc, v []Bitset) (Pointer, error) {
 	if v == nil {
 		return nil, nil
 	}
-	ptrs := make([]Pointer, len(v))
+	p, err := NewList(new, PointerList, len(v))
+	if err != nil {
+		return nil, err
+	}
 	for i, b := range v {
-		pb, err := NewBitset(new, b)
+		pb, err := NewBitset(p.New, b)
 		if err != nil {
 			return nil, err
 		}
-		ptrs[i] = pb
+		if err := p.WritePtrs(i, []Pointer{pb}); err != nil {
+			return nil, err
+		}
 	}
 
-	return NewPointerList(new, ptrs)
+	return p, nil
 }
