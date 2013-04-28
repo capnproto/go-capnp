@@ -17,8 +17,6 @@ import (
 	"unicode/utf8"
 )
 
-const importPath = "github.com/jmckaskill/go-capnproto"
-
 var (
 	errUnfinishedString = errors.New("unfinished string")
 	errInvalidUnicode   = errors.New("invalid unicode")
@@ -65,8 +63,6 @@ type file struct {
 	line      int
 	types     []*typ
 	constants []*field
-	buf       *C.Buffer
-	bufName   string
 }
 
 type typeType int
@@ -76,6 +72,7 @@ const (
 	enumType
 	interfaceType
 	methodType
+	returnType
 	voidType
 	boolType
 	int8Type
@@ -89,10 +86,59 @@ const (
 	float32Type
 	float64Type
 	stringType
+	dataType
 	listType
-	bitsetType
 	unionType
 )
+
+func (t typeType) String() string {
+	switch t {
+	case structType:
+		return "struct"
+	case enumType:
+		return "enum"
+	case interfaceType:
+		return "interface"
+	case methodType:
+		return "method"
+	case returnType:
+		return "return"
+	case voidType:
+		return "Void"
+	case boolType:
+		return "Bool"
+	case int8Type:
+		return "Int8"
+	case int16Type:
+		return "Int16"
+	case int32Type:
+		return "Int32"
+	case int64Type:
+		return "Int64"
+	case uint8Type:
+		return "UInt8"
+	case uint16Type:
+		return "UInt16"
+	case uint32Type:
+		return "UInt32"
+	case uint64Type:
+		return "UInt64"
+	case float32Type:
+		return "Float32"
+	case float64Type:
+		return "Float64"
+	case stringType:
+		return "Text"
+	case dataType:
+		return "Data"
+	case listType:
+		return "List"
+	case unionType:
+		return "union"
+	default:
+		panic("unhandled")
+	}
+}
 
 func (t *typ) String() string {
 	return t.name
@@ -104,7 +150,6 @@ type typ struct {
 	comment    string
 	enumPrefix string
 	fields     []*field
-	ret        *field
 	sortFields ordinalFields
 	dataSize   int
 	ptrSize    int
@@ -117,9 +162,15 @@ type field struct {
 	ordinal int
 	typestr string
 	typ     *typ
+	ret     *typ
 	value   *value
 	offset  int
 	union   *field
+}
+
+type structField struct {
+	name  string
+	value *value
 }
 
 type value struct {
@@ -130,8 +181,10 @@ type value struct {
 	float   float64
 	num     int64
 	array   []*value
-	members map[string]*value
+	members []*structField
 	dataPtr C.Pointer
+	dataTag int
+	symbol  string
 }
 
 func (v *value) String() string {
@@ -430,7 +483,7 @@ func (p *file) parseValue(tok token) *value {
 	switch tok.typ {
 	case '(':
 		// struct
-		v := &value{tok: '(', members: make(map[string]*value)}
+		v := &value{tok: '('}
 		for {
 			tok := p.next()
 			if tok.typ == ')' {
@@ -440,7 +493,10 @@ func (p *file) parseValue(tok token) *value {
 			}
 			p.expect('=', "=")
 
-			v.members[tok.str] = p.parseValue(p.next())
+			v.members = append(v.members, &structField{
+				value: p.parseValue(p.next()),
+				name:  tok.str,
+			})
 
 			tok = p.next()
 			if tok.typ == ')' {
@@ -511,8 +567,6 @@ func (p *file) parseTypeName() string {
 	}
 
 	switch tok.str {
-	case "Data":
-		return "[]UInt8"
 	case "List":
 		tok = p.next()
 		if tok.typ != '(' {
@@ -526,12 +580,7 @@ func (p *file) parseTypeName() string {
 			panic(fmt.Errorf("malformed list type - expected ) got %s", tok))
 		}
 
-		switch inner {
-		case "bool":
-			return "List(Bool)"
-		default:
-			return "[]" + inner
-		}
+		return "[]" + inner
 
 	default:
 		return strings.Replace(tok.str, ".", "·", -1)
@@ -629,6 +678,54 @@ func (p *file) parseEnum(ns string) {
 	p.types = append(p.types, t)
 }
 
+func (p *file) parseArguments(t *typ, base string) {
+	tok := p.next()
+	for tok.typ != ')' {
+		arg := &field{ordinal: len(t.fields)}
+
+		// Name is optional ie method @0(:bool) :bool is valid
+		if tok.typ == 'a' {
+			arg.name = tok.str
+			tok = p.next()
+		} else {
+			arg.name = sprintf("%s%d", base, len(t.fields))
+		}
+
+		if tok.typ != ':' {
+			panic(fmt.Errorf("expected type colon : got %s", tok))
+		}
+
+		arg.typestr = p.parseTypeName()
+
+		// Can give a default value
+		// method @0 (:bool = true) :bool
+		tok = p.next()
+		if tok.typ == '=' {
+			arg.value = p.parseValue(p.next())
+			tok = p.next()
+		}
+
+		if arg.typestr == "Void" {
+			if len(t.fields) > 0 {
+				p.expect(')', "argument list end")
+				return
+			} else {
+				panic(fmt.Errorf("void return not the only type"))
+			}
+		}
+
+		t.fields = append(t.fields, arg)
+
+		if tok.typ == ')' {
+			break
+		} else if tok.typ != ',' {
+			panic(fmt.Errorf("expected comma or ) got %s", tok))
+		}
+
+		tok = p.next()
+	}
+}
+
 func (p *file) parseInterface(ns string) {
 	tok := p.expect('a', "interface name")
 
@@ -653,62 +750,39 @@ func (p *file) parseInterface(ns string) {
 		p.expect('(', "arguments opening brace (")
 
 		f.typ = &typ{
-			typ:     methodType,
-			name:    t.name + "·" + f.name,
-			comment: t.comment,
+			typ:  methodType,
+			name: t.name + "·" + f.name,
+		}
+
+		p.parseArguments(f.typ, "arg")
+
+		f.ret = &typ{
+			typ:  returnType,
+			name: t.name + "·" + f.name,
 		}
 
 		tok = p.next()
-		for tok.typ != ')' {
-			arg := &field{ordinal: len(f.typ.fields)}
-
-			// Name is optional ie method @0(:bool) :bool is valid
-			if tok.typ == 'a' {
-				arg.name = tok.str
-				tok = p.next()
-			} else {
-				arg.name = sprintf("arg%d", len(f.typ.fields))
+		switch tok.typ {
+		case ':':
+			// single return type
+			if str := p.parseTypeName(); str != "Void" {
+				r := &field{name: "return", typestr: str}
+				f.ret.fields = append(f.ret.fields, r)
 			}
-
-			if tok.typ != ':' {
-				panic(fmt.Errorf("expected type colon : got %s", tok))
-			}
-
-			arg.typestr = p.parseTypeName()
-
-			// Can give a default value
-			// method @0 (:bool = true) :bool
-			tok = p.next()
-			if tok.typ == '=' {
-				arg.value = p.parseValue(p.next())
-				tok = p.next()
-			}
-
-			f.typ.fields = append(f.typ.fields, arg)
-
-			if tok.typ == ')' {
-				break
-			} else if tok.typ != ',' {
-				panic(fmt.Errorf("expected comma or ) got %s", tok))
-			}
-
-			tok = p.next()
+			p.expect(';', "method terminator")
+		case ';':
+			// no return type
+		case '(':
+			// return type list
+			p.parseArguments(f.ret, "ret")
+			p.expect(';', "method terminator")
+		default:
+			panic(fmt.Errorf("expected return type got %s", tok))
 		}
 
 		p.types = append(p.types, f.typ)
-
-		tok = p.next()
-		if tok.typ == ':' {
-			if str := p.parseTypeName(); str != "Void" {
-				f.typ.ret = &field{typestr: str}
-			}
-			p.expect(';', "method terminator")
-		} else if tok.typ != ';' {
-			panic(fmt.Errorf("expected : or ; got %s", tok))
-		}
-
+		p.types = append(p.types, f.ret)
 		f.comment, tok = p.parseComment()
-
 		t.fields = append(t.fields, f)
 	}
 
@@ -867,7 +941,7 @@ func (p *file) addBuiltins() {
 	p.types = append(p.types, &typ{typ: float32Type, name: "Float32"})
 	p.types = append(p.types, &typ{typ: float64Type, name: "Float64"})
 	p.types = append(p.types, &typ{typ: stringType, name: "Text"})
-	p.types = append(p.types, &typ{typ: bitsetType, name: "List(Bool)"})
+	p.types = append(p.types, &typ{typ: dataType, name: "Data"})
 	p.constants = append(p.constants, &field{typestr: "Void", name: "void", value: &value{tok: 'v'}})
 	p.constants = append(p.constants, &field{typestr: "Bool", name: "true", value: &value{tok: 'b', bool: true}})
 	p.constants = append(p.constants, &field{typestr: "Bool", name: "false", value: &value{tok: 'b', bool: false}})
@@ -950,19 +1024,13 @@ func (p *file) resolveTypes() error {
 
 	for _, t := range p.types {
 		switch t.typ {
-		case structType, methodType:
+		case structType, methodType, returnType:
 			for _, f := range t.fields {
 				if f.typ == nil {
 					f.typ, err = p.findType(t, f.typestr)
 					if err != nil {
 						return err
 					}
-				}
-			}
-			if t.ret != nil {
-				t.ret.typ, err = p.findType(t, t.ret.typestr)
-				if err != nil {
-					return err
 				}
 			}
 		}
@@ -997,7 +1065,7 @@ func align(val, align int) int {
 
 func (t *typ) isptr() bool {
 	switch t.typ {
-	case stringType, structType, interfaceType, listType, bitsetType:
+	case stringType, dataType, structType, interfaceType, listType:
 		return true
 	default:
 		return false
@@ -1023,7 +1091,7 @@ func (t *typ) datasize() int {
 
 func (p *file) resolveOffsets() {
 	for _, t := range p.types {
-		if t.typ != structType {
+		if t.typ != structType && t.typ != methodType && t.typ != returnType {
 			continue
 		}
 
@@ -1077,8 +1145,6 @@ func (p *file) resolveOffsets() {
 			}
 
 		}
-
-		t.dataSize = align(t.dataSize, 64) / 8
 	}
 }
 
@@ -1118,27 +1184,33 @@ func (v *value) SetType(p *file, t *typ) *value {
 			goto err
 		}
 
-		for name, w := range v.members {
-			f := t.findField(name)
+		for _, w := range v.members {
+			f := t.findField(w.name)
 			if f == nil {
-				panic(fmt.Errorf("type %s does not have a field %s", t.name, name))
+				panic(fmt.Errorf("type %s does not have a field %s", t.name, w.name))
 			}
 
-			v.members[name] = w.SetType(p, f.typ)
+			w.value = w.value.SetType(p, f.typ)
 		}
 
-	case listType:
+	case dataType:
 		switch v.tok {
 		case '[':
 			for i, w := range v.array {
 				v.array[i] = w.SetType(p, t.listType)
 			}
 		case '"':
-			if t.listType.typ != uint8Type {
-				goto err
-			}
 		default:
 			goto err
+		}
+
+	case listType:
+		if v.tok != '[' {
+			goto err
+		}
+
+		for i, w := range v.array {
+			v.array[i] = w.SetType(p, t.listType)
 		}
 
 	case enumType:
@@ -1198,169 +1270,164 @@ func (t *typ) findField(name string) *field {
 	return nil
 }
 
-func (v *value) MarshalCaptain(new C.NewFunc) (C.Pointer, error) {
-	if v.dataPtr != nil {
-		return v.dataPtr, nil
+func checkptr(p C.Pointer, err error) C.Pointer {
+	if err != nil {
+		panic(err)
+	}
+	return p
+}
+
+func check(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (v *value) MarshalStruct(p C.Pointer) {
+	t := v.typ
+	for _, w := range v.members {
+		ft := t.findField(w.name)
+		def := ft.value
+		if def == nil {
+			def = &value{}
+		}
+
+		switch w.value.typ.typ {
+		case voidType:
+
+		case structType, stringType, listType, dataType:
+			check(w.value.MarshalCaptain(p, ft.offset))
+
+		case boolType:
+			u := w.value.bool != def.bool
+			check(p.WriteStruct1(ft.offset, u))
+
+		case int8Type, uint8Type:
+			u := uint8(int8(w.value.num)) ^ uint8(int8(def.num))
+			check(p.WriteStruct8(ft.offset, u))
+
+		case int16Type, uint16Type, enumType:
+			u := uint16(int16(w.value.num)) ^ uint16(int16(def.num))
+			check(p.WriteStruct16(ft.offset, u))
+
+		case int32Type, uint32Type:
+			u := uint32(int32(w.value.num)) ^ uint32(int32(def.num))
+			check(p.WriteStruct32(ft.offset, u))
+
+		case int64Type, uint64Type:
+			u := uint64(int64(w.value.num)) ^ uint64(int64(def.num))
+			check(p.WriteStruct64(ft.offset, u))
+
+		case float32Type:
+			u := math.Float32bits(float32(w.value.float)) ^ math.Float32bits(float32(def.float))
+			check(p.WriteStruct32(ft.offset, u))
+
+		case float64Type:
+			u := math.Float64bits(w.value.float) ^ math.Float64bits(def.float)
+			check(p.WriteStruct64(ft.offset, u))
+
+		default:
+			panic("unhandled")
+		}
+	}
+}
+
+func (v *value) MarshalCaptain(ptr C.Pointer, off int) error {
+	if v.dataTag != 0 {
+		return ptr.WritePtr(off, v.dataPtr)
 	}
 
 	t := v.typ
 	switch t.typ {
 	case structType:
-		p, err := C.NewStruct(new, t.dataSize, t.ptrSize)
-		if err != nil {
-			return nil, err
-		}
-
-		for name, w := range v.members {
-			var err error
-
-			ft := t.findField(name)
-			def := ft.value
-			if def == nil {
-				def = &value{}
-			}
-			println("write", ft.offset, t.dataSize, t.ptrSize)
-
-			switch w.typ.typ {
-			case structType, stringType, listType, bitsetType:
-				m, err := w.MarshalCaptain(p.New)
-				if err != nil {
-					return nil, err
-				}
-				if err := p.WritePtrs(ft.offset, []C.Pointer{m}); err != nil {
-					return nil, err
-				}
-
-			case boolType:
-				u := w.bool != def.bool
-				err = C.WriteBool(p, ft.offset, u)
-
-			case int8Type, uint8Type:
-				u := uint8(int8(w.num)) ^ uint8(int8(def.num))
-				err = C.WriteUInt8(p, ft.offset/8, u)
-
-			case int16Type, uint16Type, enumType:
-				u := uint16(int16(w.num)) ^ uint16(int16(def.num))
-				err = C.WriteUInt16(p, ft.offset/8, u)
-
-			case int32Type, uint32Type:
-				u := uint32(int32(w.num)) ^ uint32(int32(def.num))
-				err = C.WriteUInt32(p, ft.offset/8, u)
-
-			case int64Type, uint64Type:
-				u := uint64(int64(w.num)) ^ uint64(int64(def.num))
-				err = C.WriteUInt64(p, ft.offset/8, u)
-
-			case float32Type:
-				u := math.Float32bits(float32(w.float)) ^ math.Float32bits(float32(def.float))
-				err = C.WriteUInt32(p, ft.offset/8, u)
-
-			case float64Type:
-				u := math.Float64bits(w.float) ^ math.Float64bits(def.float)
-				err = C.WriteUInt64(p, ft.offset/8, u)
-			}
-
-			if err != nil {
-				return nil, err
-			}
-		}
+		p := checkptr(ptr.Segment.NewStruct(t.dataSize, t.ptrSize))
+		v.MarshalStruct(p)
+		return ptr.WritePtr(off, p)
 
 	case stringType:
-		return C.NewString(new, v.string)
+		return ptr.WriteString(off, v.string, "")
 
-	case bitsetType:
-		set := C.MakeBitset(len(v.array))
-		for i, w := range v.array {
-			if w.bool {
-				set.Set(i)
+	case dataType:
+		d := []byte(v.string)
+		if v.tok == '[' {
+			d = make([]uint8, len(v.array))
+			for i, w := range v.array {
+				d[i] = uint8(int8(w.num))
 			}
 		}
-		return C.NewBitset(new, set)
+		return ptr.WriteU8List(off, d, nil)
 
 	case listType:
 		lt := t.listType
 
-		if v.tok == '"' && lt.typ == uint8Type {
-			return C.NewUInt8List(new, []byte(v.string))
-		}
-
 		switch lt.typ {
 		case voidType:
-			return C.NewList(new, C.VoidList, len(v.array))
+			return ptr.WriteVoidList(off, make([]struct{}, len(v.array)), nil)
 
-		case listType, bitsetType, stringType:
-			p, err := C.NewList(new, C.PointerList, len(v.array))
-			if err != nil {
-				return nil, err
-			}
+		case boolType:
+			set := C.MakeBitset(len(v.array))
 			for i, w := range v.array {
-				m, err := w.MarshalCaptain(p.New)
-				if err != nil {
-					return nil, err
-				}
-				if err := p.WritePtrs(i, []C.Pointer{m}); err != nil {
-					return nil, err
+				if w.bool {
+					set.Set(i)
 				}
 			}
-			return p, nil
+			return ptr.WriteBitset(off, set, C.Bitset{})
+
+		case listType, stringType, dataType:
+			p := checkptr(ptr.Segment.NewPointerList(len(v.array)))
+			for i, w := range v.array {
+				check(w.MarshalCaptain(p, i))
+			}
+			return ptr.WritePtr(off, p)
 
 		case structType:
-			p, err := C.NewCompositeList(new, len(v.array), lt.dataSize, lt.ptrSize)
-			if err != nil {
-				return nil, err
-			}
+			p := checkptr(ptr.Segment.NewList(lt.dataSize, lt.ptrSize, len(v.array)))
 			for i, w := range v.array {
-				m, err := w.MarshalCaptain(p.New)
-				if err != nil {
-					return nil, err
-				}
-				if err := p.WritePtrs(i, []C.Pointer{m}); err != nil {
-					return nil, err
-				}
+				w.MarshalStruct(p.ReadPtr(i))
 			}
-			return p, nil
+			return ptr.WritePtr(off, p)
 
 		case int8Type, uint8Type:
 			d := make([]uint8, len(v.array))
 			for i, w := range v.array {
 				d[i] = uint8(int8(w.num))
 			}
-			return C.NewUInt8List(new, d)
+			return ptr.WriteU8List(off, d, nil)
 
 		case int16Type, uint16Type, enumType:
 			d := make([]uint16, len(v.array))
 			for i, w := range v.array {
 				d[i] = uint16(int16(w.num))
 			}
-			return C.NewUInt16List(new, d)
+			return ptr.WriteU16List(off, d, nil)
 
 		case int32Type, uint32Type:
 			d := make([]uint32, len(v.array))
 			for i, w := range v.array {
 				d[i] = uint32(int32(w.num))
 			}
-			return C.NewUInt32List(new, d)
+			return ptr.WriteU32List(off, d, nil)
 
 		case int64Type, uint64Type:
 			d := make([]uint64, len(v.array))
 			for i, w := range v.array {
 				d[i] = uint64(int64(w.num))
 			}
-			return C.NewUInt64List(new, d)
+			return ptr.WriteU64List(off, d, nil)
 
 		case float32Type:
 			d := make([]float32, len(v.array))
 			for i, w := range v.array {
 				d[i] = float32(w.float)
 			}
-			return C.NewFloat32List(new, d)
+			return ptr.WriteF32List(off, d, nil)
 
 		case float64Type:
 			d := make([]float64, len(v.array))
 			for i, w := range v.array {
 				d[i] = w.float
 			}
-			return C.NewFloat64List(new, d)
+			return ptr.WriteF64List(off, d, nil)
 
 		default:
 			panic("unhandled")
@@ -1369,18 +1436,22 @@ func (v *value) MarshalCaptain(new C.NewFunc) (C.Pointer, error) {
 	default:
 		panic("unhandled")
 	}
-
-	return nil, fmt.Errorf("unexpected value %v in %v", v, t)
 }
 
-func (v *value) Marshal(p *file) int {
-	if v.dataPtr == nil {
-		v.dataPtr = C.Must(v.MarshalCaptain(p.buf.NewRoot))
+func (v *value) Marshal(buf *C.Segment) int {
+	if v.dataTag == 0 {
+		root, tag, err := buf.NewRoot()
+		if err != nil {
+			panic(err)
+		}
+		check(v.MarshalCaptain(root, 0))
+		v.dataTag = tag + 1
+		v.dataPtr = root.ReadPtr(0)
 	}
-	return v.dataPtr.Type().SegmentOffset()
+	return v.dataTag - 1
 }
 
-var currentOutput *bufio.Writer
+var currentOutput io.Writer
 
 func out(f string, args ...interface{}) {
 	fmt.Fprintf(currentOutput, f, args...)
@@ -1420,22 +1491,10 @@ func main() {
 
 		p.resolveOffsets()
 		p.resolveValues()
-		p.buf = C.NewBuffer(nil)
 
 		switch *lang {
 		case "go":
-			p.resolveGoTypes()
-			out, err := os.Create(name + ".go")
-			if err != nil {
-				fmt.Fprintln(os.Stderr, err)
-				os.Exit(1)
-			}
-
-			currentOutput = bufio.NewWriter(out)
 			p.writeGo(name)
-			currentOutput.Flush()
-			out.Close()
-
 		case "c":
 			p.resolveCTypes()
 			out, err := os.Create(name + ".h")
@@ -1444,9 +1503,8 @@ func main() {
 				os.Exit(1)
 			}
 
-			currentOutput = bufio.NewWriter(out)
+			currentOutput = out
 			p.writeCHeader(name)
-			currentOutput.Flush()
 			out.Close()
 
 			out, err = os.Create(name + ".c")
@@ -1455,9 +1513,8 @@ func main() {
 				os.Exit(1)
 			}
 
-			currentOutput = bufio.NewWriter(out)
+			currentOutput = out
 			p.writeCSource(name)
-			currentOutput.Flush()
 			out.Close()
 		}
 	}

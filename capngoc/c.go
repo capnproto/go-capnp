@@ -38,7 +38,7 @@ func (p *file) resolveCTypes() {
 			t.name = "double"
 		case stringType:
 			t.name = "char"
-		case listType, bitsetType:
+		case listType, dataType:
 			t.name = "struct capn_ptr"
 		default:
 			panic("unhandled")
@@ -58,7 +58,7 @@ func (t *typ) writeCStruct() {
 			switch f.typ.typ {
 			case structType, interfaceType:
 				out("\tstruct %s_ptr %s;\n", f.typ.name, f.name)
-			case stringType, listType, bitsetType:
+			case stringType, listType, dataType:
 				out("\tstruct capn_ptr %s;\n", f.name)
 			}
 		}
@@ -104,7 +104,7 @@ func (p *file) writeCHeader(name string) {
 		case structType:
 			out("extern const struct %s_ptr %s;\n", c.typ.name, c.name)
 
-		case stringType, listType, bitsetType:
+		case stringType, listType, dataType:
 			out("extern const struct capn_ptr %s;\n", c.name)
 
 		case int8Type, uint8Type, int16Type, uint16Type,
