@@ -23,7 +23,7 @@
 
 interface TestInterface {
 	testMethod1 @1 (v :Bool, :Text, :UInt16) :TestAllTypes;
-	testMethod0 @0 (:TestInterface);
+	testMethod0 @0 (:TestInterface) (:Int8, :Error);
 	testMethod2 @2 (:TestInterface) :Void;
 	testMultiRet @3 (:Bool, :Text) (v :UInt16, :Text = "abc");
 }

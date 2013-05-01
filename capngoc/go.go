@@ -44,10 +44,8 @@ func (g *GoFile) resolveTypes() {
 			findex := strings.LastIndex(t.name, "·")
 			t.name = strings.Replace(t.name, "·", "_", -1)
 			t.enumPrefix = t.name[:findex] + "_"
-		case methodType:
-			t.name = "_" + strings.Replace(t.name, "·", "_", -1) + "_args"
-		case returnType:
-			t.name = "_" + strings.Replace(t.name, "·", "_", -1) + "_ret"
+		case methodType, returnType:
+			/* not used directly */
 		case voidType:
 			t.name = "struct{}"
 		case boolType:
@@ -776,10 +774,6 @@ var (
 			out("/* %s */\n", c.comment)
 		}
 
-		if c.name == "true" || c.name == "false" || c.typ.typ == voidType {
-			continue
-		}
-
 		// For many types the inferred type is correct so don't output
 		// the type on the left
 		switch c.typ.typ {
@@ -789,6 +783,8 @@ var (
 		case int8Type, uint8Type, int16Type, uint16Type,
 			int32Type, uint32Type, int64Type, uint64Type, float32Type:
 			out("%s %s = %s\n", c.name, c.typ.name, g.GoString(c.value, c.name))
+
+		case voidType:
 
 		default:
 			panic("unhandled")

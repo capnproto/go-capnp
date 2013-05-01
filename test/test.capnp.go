@@ -46,7 +46,7 @@ var (
 type TestInterface interface {
 	C.Marshaller
 	testMethod1(v bool, arg1 string, arg2 uint16) TestAllTypes
-	testMethod0(arg0 TestInterface)
+	testMethod0(arg0 TestInterface) (int8, error)
 	testMethod2(arg0 TestInterface)
 	testMultiRet(arg0 bool, arg1 string) (v uint16, ret1 string)
 }
@@ -594,8 +594,7 @@ func (p TestDefaults) structField() TestAllTypes {
 }
 func (p TestDefaults) enumField() TestEnum { return TestEnum(p.P.ReadStruct16(384) ^ 1) }
 
-/* interface can't have a default
- */
+/* interface can't have a default */
 func (p TestDefaults) interfaceField() TestInterface  { return RemoteTestInterface{p.P.ReadPtr(3)} }
 func (p TestDefaults) voidList() []struct{}           { return p.P.ReadVoidList(4, test_capnp_5) }
 func (p TestDefaults) boolList() C.Bitset             { return p.P.ReadBitset(5, test_capnp_6) }
@@ -736,8 +735,7 @@ func (p TestDefaults) setStructField(v TestAllTypes) error {
 }
 func (p TestDefaults) setEnumField(v TestEnum) error { return p.P.WriteStruct16(384, uint16(v)^1) }
 
-/* interface can't have a default
- */
+/* interface can't have a default */
 func (p TestDefaults) setInterfaceField(v TestInterface) error { return v.MarshalCaptain(p.P, 3) }
 func (p TestDefaults) setVoidList(v []struct{}) error          { return p.P.WriteVoidList(4, v, test_capnp_5) }
 func (p TestDefaults) setBoolList(v C.Bitset) error            { return p.P.WriteBitset(5, v, test_capnp_6) }

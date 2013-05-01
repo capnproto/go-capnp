@@ -1,17 +1,36 @@
 package main
 
 import (
+	"fmt"
+	C "github.com/jmckaskill/go-capnproto"
+	"os"
+	"path/filepath"
 	"strings"
 )
 
-func (p *file) resolveCTypes() {
+type CFile struct {
+	buf       *C.Segment
+	constants []*field
+	types     []*typ
+	vals      []string
+}
+
+func (p *CFile) resolveTypes() {
 	for _, t := range p.types {
 		switch t.typ {
-		case structType, interfaceType, methodType:
+		case structType, interfaceType:
 			t.name = strings.Replace(t.name, "·", "_", -1)
-		case enumType, unionType:
+		case enumType:
 			t.name = strings.Replace(t.name, "·", "_", -1)
 			t.enumPrefix = t.name + "_"
+		case unionType:
+			findex := strings.LastIndex(t.name, "·")
+			t.name = strings.Replace(t.name, "·", "_", -1)
+			t.enumPrefix = t.name[:findex] + "_"
+		case methodType:
+			t.name = strings.Replace(t.name, "·", "_", -1) + "_args"
+		case returnType:
+			t.name = strings.Replace(t.name, "·", "_", -1) + "_ret"
 		case voidType:
 			t.name = "void"
 		case boolType:
@@ -37,117 +56,229 @@ func (p *file) resolveCTypes() {
 		case float64Type:
 			t.name = "double"
 		case stringType:
-			t.name = "char"
-		case listType, dataType:
-			t.name = "struct capn_ptr"
+			t.name = "struct capn_string"
+		case dataType, listType:
 		default:
 			panic("unhandled")
 		}
 	}
 }
 
-func (t *typ) writeCStruct() {
-	out("struct %s {\n", t.name)
-
-	for _, f := range t.sortFields {
-		if f.typ.isptr() {
-			if f.comment != "" {
-				out("/* %s */\n", f.comment)
-			}
-
-			switch f.typ.typ {
-			case structType, interfaceType:
-				out("\tstruct %s_ptr %s;\n", f.typ.name, f.name)
-			case stringType, listType, dataType:
-				out("\tstruct capn_ptr %s;\n", f.name)
-			}
-		}
+func structTypeName(t *typ) string {
+	switch t.typ {
+	case enumType, unionType:
+		return "enum " + t.name
+	case structType, interfaceType, methodType, returnType:
+		return "struct " + t.name
+	default:
+		return t.name
 	}
+}
 
-	for _, f := range t.sortFields {
-		if !f.typ.isptr() {
-			if f.comment != "" {
-				out("/* %s */\n", f.comment)
-			}
+func (c *CFile) declareInterface(t *typ) {
+	out("\nstruct %s_vt {\n", t.name)
+	for _, method := range t.fields {
+		mt := method.typ
+		mr := method.ret
 
-			switch f.typ.typ {
-			case boolType:
-				out("\tunsigned char %s : 1;\n", f.name)
-			case enumType, unionType:
-				out("\tenum %s %s;\n", f.typ.name, t.name)
+		if method.comment != "" {
+			out("\t/* %s */\n", method.comment)
+		}
+
+		switch len(mr.fields) {
+		case 0:
+			out("\tvoid")
+		case 1:
+			switch rt := mr.fields[0].typ; rt.typ {
+			case enumType:
+				out("\tenum %s", rt.name)
+			case structType:
+				out("\tstruct %s_ptr", rt.name)
+			case interfaceType:
+				out("\tstruct %s", rt.name)
 			default:
-				out("\t%s %s;\n", f.typ.name, t.name)
+				out("\t%s", rt.name)
 			}
+		default:
+			out("\tstruct %s", mr.name)
+		}
+
+		out(" (*%s)(void*", method.name)
+		for _, a := range mt.fields {
+			out(", %s %s", structTypeName(a.typ), a.name)
+		}
+		out(");\n")
+	}
+	out("}\n")
+
+	out("\nstruct %s {\n", t.name)
+	out("\tstruct %s_vt *vt;\n", t.name)
+	out("\tvoid *data;\n")
+	out("}\n")
+}
+
+func (c *CFile) writeStructMember(tab string, f *field) {
+	if f.comment != "" {
+		out("%s/* %s */\n", tab, f.comment)
+	}
+
+	switch f.typ.typ {
+	case structType:
+		out("%sstruct %s_ptr %s;\n", tab, f.typ.name, f.name)
+	case interfaceType:
+		out("%sstruct %s %s;\n", tab, f.typ.name, f.name)
+	case dataType, listType:
+		out("%sstruct capn_ptr %s; /* %s */\n", tab, f.name, f.typ.name)
+	case boolType:
+		out("%sunsigned int %s : 1;\n", tab, f.name)
+	case enumType:
+		out("%senum %s %s;\n", tab, f.typ.name, f.name)
+	default:
+		out("%s%s %s;\n", tab, f.typ.name, f.name)
+	}
+}
+
+func (c *CFile) declareStruct(t *typ) {
+	out("\nstruct %s {\n", t.name)
+
+	for _, f := range t.fields {
+		if f.typ.typ == voidType || f.union != nil {
+			continue
+		}
+
+		if f.typ.typ == unionType {
+			out("\tenum %s %s_tag;\n", f.typ.name, f.name)
+			out("\tunion {\n")
+			for _, a := range f.typ.fields {
+				c.writeStructMember("\t\t", a)
+			}
+			out("\t} %s;\n", f.name)
+		} else {
+			c.writeStructMember("\t", f)
 		}
 	}
 
-	out("};")
+	out("};\n")
+}
+
+func (c *CFile) declareStructFuncs(t *typ) {
+	out("\n")
+	out("struct %s_ptr{struct capn_ptr p;};\n", t.name)
+	out("struct %s_ptr new_%s(struct capn_segment*);\n", t.name, t.name)
+	out("struct capn_ptr new_%s_list(struct capn_segment*);\n", t.name)
+	out("int read_%s(const struct %s_ptr*, struct %s*);\n", t.name, t.name, t.name)
+	out("int write_%s(struct %s_ptr*, const struct %s*);\n", t.name, t.name, t.name)
+}
+
+func (c *CFile) declareEnum(t *typ) {
+	out("\nenum %s {\n", t.name)
+	for i, f := range t.fields {
+		if i > 0 {
+			out(",\n")
+		}
+		if f.comment != "" {
+			out("/* %s */\n", f.comment)
+		}
+
+		out("\t%s%s = %d", t.enumPrefix, f.name, f.ordinal)
+	}
+	out("\n};\n")
 }
 
 var cheader = `#ifndef CAPN_%s
 #define CAPN_%s
-#include <capnproto.h>
-#include <stdint.h>
+#include <capn.h>
 /* AUTOGENERATED - DO NOT EDIT */
+
 `
 
-func (p *file) writeCHeader(name string) {
-	hdr := strings.Replace(strings.ToUpper(name), ".", "_", -1)
+func (c *CFile) writeHeader(name string) {
+	f, err := os.Create(name + ".h")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	currentOutput = f
+	defer f.Close()
+
+	buf := []rune{}
+	for _, r := range filepath.Base(name) {
+		// For max compatibility restrict to ascii identifier characters
+		if !('a' <= r && r <= 'z') && !('A' <= r && r <= 'Z') && r != '_' && !('0' <= r && r <= '0') {
+			r = '_'
+		}
+		buf = append(buf, r)
+	}
+
+	hdr := strings.ToUpper(string(buf))
 	out(cheader, hdr, hdr)
 
-	for _, c := range p.constants {
-		if c.comment != "" {
-			out("/* %s */\n", c.comment)
+	for _, f := range c.constants {
+		if f.comment != "" {
+			out("/* %s */\n", f.comment)
 		}
 
-		switch c.typ.typ {
+		switch f.typ.typ {
 		case structType:
-			out("extern const struct %s_ptr %s;\n", c.typ.name, c.name)
+			out("extern const struct %s %s;\n", f.typ.name, f.name)
 
 		case stringType, listType, dataType:
-			out("extern const struct capn_ptr %s;\n", c.name)
+			out("extern const struct capn_ptr %s;\n", f.name)
 
 		case int8Type, uint8Type, int16Type, uint16Type,
 			int32Type, uint32Type, int64Type, uint64Type,
 			float32Type, float64Type, enumType, boolType:
-			out("extern const %s %s;\n", c.typ.name, c.name)
+			out("extern const %s %s;\n", f.typ.name, f.name)
+
+		case voidType:
 
 		default:
 			panic("unhandled")
 		}
 	}
 
-	for _, t := range p.types {
+	for _, t := range c.types {
 		if t.comment != "" {
 			out("/* %s */\n", t.comment)
 		}
 		switch t.typ {
 		case enumType, unionType:
-			out("enum %s {\n", t.name)
-			for i, f := range t.fields {
-				if i > 0 {
-					out(",\n")
-				}
-				if f.comment != "" {
-					out("/* %s */\n", f.comment)
-				}
-
-				out("\t%s%s = %d", t.enumPrefix, f.name, t.name)
+			c.declareEnum(t)
+		case structType:
+			c.declareStruct(t)
+			c.declareStructFuncs(t)
+		case returnType:
+			if len(t.fields) > 1 {
+				c.declareStruct(t)
 			}
-			out("\n};\n\n")
-
-		case structType, methodType:
-			t.writeCStruct()
-			out("struct %s_ptr {struct capn_ptr ptr;};\n", t.name)
-			out("struct %s_ptr new_%s(struct capn_segment*, struct %s*);\n", t.name, t.name, t.name)
-			out("void read_%s(struct %s_ptr*, struct %s*);\n", t.name, t.name, t.name)
-			out("void write_%s(struct %s_ptr*, const struct %s*);\n", t.name, t.name, t.name)
-			out("\n")
+		case interfaceType:
+			c.declareInterface(t)
 		}
 	}
 
 	out("#endif\n")
 }
 
-func (p *file) writeCSource(name string) {
+func (c *CFile) writeSource(name string) {
+	f, err := os.Create(name + ".c")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	currentOutput = f
+	defer f.Close()
+}
+
+func (p *file) writeC(name string) {
+	c := &CFile{
+		constants: p.constants,
+		types:     p.types,
+		buf:       C.NewBuffer(nil),
+	}
+
+	c.resolveTypes()
+	c.writeHeader(name)
+	c.writeSource(name)
 }

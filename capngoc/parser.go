@@ -617,7 +617,7 @@ func (p *file) parseComment() (string, token) {
 		tok = p.next()
 	}
 
-	return comment, tok
+	return strings.TrimSpace(comment), tok
 }
 
 func (p *file) expect(typ rune, name string) token {
@@ -926,6 +926,8 @@ func (p *file) parse() (err error) {
 
 	return nil
 }
+
+const ConstantBuiltins = 3
 
 func (p *file) addBuiltins() {
 	p.types = append(p.types, &typ{typ: voidType, name: "Void"})
@@ -1492,30 +1494,13 @@ func main() {
 		p.resolveOffsets()
 		p.resolveValues()
 
+		p.constants = p.constants[ConstantBuiltins:]
+
 		switch *lang {
 		case "go":
 			p.writeGo(name)
 		case "c":
-			p.resolveCTypes()
-			out, err := os.Create(name + ".h")
-			if err != nil {
-				fmt.Fprintln(os.Stderr, err)
-				os.Exit(1)
-			}
-
-			currentOutput = out
-			p.writeCHeader(name)
-			out.Close()
-
-			out, err = os.Create(name + ".c")
-			if err != nil {
-				fmt.Fprintln(os.Stderr, err)
-				os.Exit(1)
-			}
-
-			currentOutput = out
-			p.writeCSource(name)
-			out.Close()
+			p.writeC(name)
 		}
 	}
 }
