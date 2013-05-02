@@ -46,7 +46,7 @@ var (
 type TestInterface interface {
 	C.Marshaller
 	testMethod1(v bool, arg1 string, arg2 uint16) TestAllTypes
-	testMethod0(arg0 TestInterface) (int8, error)
+	testMethod0(arg0 TestInterface) int8
 	testMethod2(arg0 TestInterface)
 	testMultiRet(arg0 bool, arg1 string) (v uint16, ret1 string)
 }
@@ -73,7 +73,7 @@ func (p RemoteTestInterface) testMethod1(a0 bool, a1 string, a2 uint16) (r0 Test
 	}
 	return TestAllTypes{c.Reply.ReadPtr(0)}
 }
-func (p RemoteTestInterface) testMethod0(a0 TestInterface) {
+func (p RemoteTestInterface) testMethod0(a0 TestInterface) (r0 int8) {
 	c, err := p.P.Segment.Session.NewCall()
 	if err != nil {
 		return
@@ -83,7 +83,10 @@ func (p RemoteTestInterface) testMethod0(a0 TestInterface) {
 	args, _ := c.Message.P.Segment.NewStruct(0, 1)
 	a0.MarshalCaptain(args, 0)
 	c.Message.SetArguments(args)
-	c.Send(c)
+	if c.Send(c) != nil {
+		return
+	}
+	return int8(c.Reply.ReadStruct8(0))
 }
 func (p RemoteTestInterface) testMethod2(a0 TestInterface) {
 	c, err := p.P.Segment.Session.NewCall()
@@ -130,8 +133,15 @@ func DispatchTestInterface(p TestInterface, in, out C.Message) error {
 		return out.SetArguments(ret)
 	case 0:
 		a := in.Arguments()
-		p.testMethod0(RemoteTestInterface{a.ReadPtr(0)})
-		return nil
+		r0 := p.testMethod0(RemoteTestInterface{a.ReadPtr(0)})
+		ret, err := out.P.Segment.NewStruct(8, 0)
+		if err != nil {
+			return err
+		}
+		if err := ret.WriteStruct8(0, uint8(r0)); err != nil {
+			return err
+		}
+		return out.SetArguments(ret)
 	case 2:
 		a := in.Arguments()
 		p.testMethod2(RemoteTestInterface{a.ReadPtr(0)})

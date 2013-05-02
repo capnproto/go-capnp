@@ -51,8 +51,8 @@ static uint64_t lookup_far(struct capn_segment **s, char **d, uint64_t val) {
 			return 0;
 		}
 
-		far = capn_flip_64(*(uint64_t*) p);
-		tag = capn_flip_64(*(uint64_t*) (p+8));
+		far = capn_flip64(*(uint64_t*) p);
+		tag = capn_flip64(*(uint64_t*) (p+8));
 
 		/* the far tag should not be another double, and the tag
 		 * should be struct/list and have no offset */
@@ -72,12 +72,12 @@ static uint64_t lookup_far(struct capn_segment **s, char **d, uint64_t val) {
 		}
 
 		*d = (*s)->data + off;
-		return capn_flip_64(*(uint64_t*) *d);
+		return capn_flip64(*(uint64_t*) *d);
 	}
 }
 
 static char *struct_ptr(struct capn_segment *s, char *d) {
-	uint64_t val = capn_flip_64(*(uint64_t*)d);
+	uint64_t val = capn_flip64(*(uint64_t*)d);
 	uint16_t datasz;
 
 	if ((val&3) == FAR_PTR) {
@@ -133,7 +133,7 @@ struct capn_ptr capn_read_ptr(const struct capn_ptr *p, int off) {
 			goto err;
 	}
 
-	val = capn_flip_64(*(uint64_t*) d);
+	val = capn_flip64(*(uint64_t*) d);
 	ret.seg = p->seg;
 
 	if ((val&3) == FAR_PTR) {
@@ -193,7 +193,7 @@ struct capn_ptr capn_read_ptr(const struct capn_ptr *p, int off) {
 					goto err;
 				}
 
-				val = capn_flip_64(*(uint64_t*) d);
+				val = capn_flip64(*(uint64_t*) d);
 
 				d += 8;
 				e = d + ret.size * 8;
@@ -255,15 +255,15 @@ static uint64_t ptr_value(const struct capn_ptr *p, int off) {
 		break;
 	}
 
-	return capn_flip_64(val);
+	return capn_flip64(val);
 }
 
 static void write_far_ptr(char *d, struct capn_segment *s, char *tgt) {
-	*(uint64_t*) d = capn_flip_64(FAR_PTR | U64(tgt - s->data) | (U64(s->id) << 32));
+	*(uint64_t*) d = capn_flip64(FAR_PTR | U64(tgt - s->data) | (U64(s->id) << 32));
 }
 
 static void write_double_far(char *d, struct capn_segment *s, char *tgt) {
-	*(uint64_t*) d = capn_flip_64(FAR_PTR | 4 | U64(tgt - s->data) | (U64(s->id) << 32));
+	*(uint64_t*) d = capn_flip64(FAR_PTR | 4 | U64(tgt - s->data) | (U64(s->id) << 32));
 }
 
 static void write_ptr_tag(char *d, const struct capn_ptr *p, int off) {
@@ -351,7 +351,7 @@ static int write_ptr(struct capn_segment *s, char *d, const struct capn_ptr *p) 
 	}
 }
 
-int capn_write_ptr(struct capn_ptr *p, int off, struct capn_ptr *tgt) {
+int capn_write_ptr(struct capn_ptr *p, int off, const struct capn_ptr *tgt) {
 	struct capn_ptr inner;
 
 	switch (p->type) {
@@ -445,9 +445,10 @@ int capn_copy(struct capn_ptr *t, const struct capn_ptr *f) {
 	}
 }
 
-int capn_read_1(const struct capn_ptr *p, int off, uint8_t *data, int sz) {
+int capn_read1(const struct capn_list1 *list, int off, uint8_t *data, int sz) {
 	/* Note we only support aligned reads */
 	int bsz;
+	const struct capn_ptr *p = &list->p;
 	if (p->type != CAPN_BIT_LIST || (off & 7) != 0)
 		return -1;
 
@@ -463,9 +464,10 @@ int capn_read_1(const struct capn_ptr *p, int off, uint8_t *data, int sz) {
 	}
 }
 
-int capn_write_1(struct capn_ptr *p, int off, const uint8_t *data, int sz) {
+int capn_write1(struct capn_list1 *list, int off, const uint8_t *data, int sz) {
 	/* Note we only support aligned writes */
 	int bsz;
+	const struct capn_ptr *p = &list->p;
 	if (p->type != CAPN_BIT_LIST || (off & 7) != 0)
 		return -1;
 
@@ -599,4 +601,60 @@ char *capn_to_string(const struct capn_ptr *p, int *psz) {
 
 	if (psz) *psz = p->size - 1;
 	return p->data;
+}
+
+struct capn_text capn_read_text(const struct capn_ptr *p, int off) {
+	struct capn_text ret;
+	if (p->type == CAPN_LIST && p->datasz == 1 && p->size && p->data[p->size - 1] == 0) {
+		ret.seg = p->seg;
+		ret.str = p->data;
+		ret.size = p->size - 1;
+	} else {
+		ret.seg = NULL;
+		ret.str = NULL;
+		ret.size = 0;
+	}
+	return ret;
+}
+
+struct capn_data capn_read_data(const struct capn_ptr *p, int off) {
+	struct capn_data ret;
+	if (p->type == CAPN_LIST && p->datasz == 1) {
+		ret.seg = p->seg;
+		ret.data = (uint8_t*) p->data;
+		ret.size = p->size;
+	} else {
+		ret.seg = NULL;
+		ret.data = NULL;
+		ret.size = 0;
+	}
+	return ret;
+}
+
+int capn_write_text(struct capn_ptr *p, int off, struct capn_text tgt) {
+	struct capn_ptr m;
+	if (tgt.str) {
+		m.type = CAPN_LIST;
+		m.size = (tgt.size >= 0 ? tgt.size : strlen(tgt.str)) + 1;
+		m.seg = tgt.seg;
+		m.data = (char*)tgt.str;
+		m.datasz = 1;
+	} else {
+		m.type = CAPN_NULL;
+	}
+	return capn_write_ptr(p, off, &m);
+}
+
+int capn_write_data(struct capn_ptr *p, int off, struct capn_data tgt) {
+	struct capn_ptr m;
+	if (tgt.data) {
+		m.type = CAPN_LIST;
+		m.data = (char*)tgt.data;
+		m.size = tgt.size;
+		m.datasz = 1;
+		m.seg = tgt.seg;
+	} else {
+		m.type = CAPN_NULL;
+	}
+	return capn_write_ptr(p, off, &m);
 }

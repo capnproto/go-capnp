@@ -655,6 +655,7 @@ func (p *file) parseEnum(ns string) {
 		typ:        enumType,
 		name:       ns + tok.str,
 		enumPrefix: ns + tok.str + "_",
+		dataSize:   16,
 	}
 
 	p.expect('{', "opening brace {")
@@ -852,8 +853,9 @@ func (p *file) parseStruct(ns string) {
 				p.expect('{', "union open brace {")
 				f.typestr = ""
 				f.typ = &typ{
-					typ:  unionType,
-					name: ns + f.name,
+					typ:      unionType,
+					name:     ns + f.name,
+					dataSize: 16,
 				}
 				p.types = append(p.types, f.typ)
 				union = f
@@ -931,17 +933,17 @@ const ConstantBuiltins = 3
 
 func (p *file) addBuiltins() {
 	p.types = append(p.types, &typ{typ: voidType, name: "Void"})
-	p.types = append(p.types, &typ{typ: boolType, name: "Bool"})
-	p.types = append(p.types, &typ{typ: int8Type, name: "Int8"})
-	p.types = append(p.types, &typ{typ: uint8Type, name: "UInt8"})
-	p.types = append(p.types, &typ{typ: int16Type, name: "Int16"})
-	p.types = append(p.types, &typ{typ: uint16Type, name: "UInt16"})
-	p.types = append(p.types, &typ{typ: int32Type, name: "Int32"})
-	p.types = append(p.types, &typ{typ: uint32Type, name: "UInt32"})
-	p.types = append(p.types, &typ{typ: int64Type, name: "Int64"})
-	p.types = append(p.types, &typ{typ: uint64Type, name: "UInt64"})
-	p.types = append(p.types, &typ{typ: float32Type, name: "Float32"})
-	p.types = append(p.types, &typ{typ: float64Type, name: "Float64"})
+	p.types = append(p.types, &typ{typ: boolType, name: "Bool", dataSize: 1})
+	p.types = append(p.types, &typ{typ: int8Type, name: "Int8", dataSize: 8})
+	p.types = append(p.types, &typ{typ: uint8Type, name: "UInt8", dataSize: 8})
+	p.types = append(p.types, &typ{typ: int16Type, name: "Int16", dataSize: 16})
+	p.types = append(p.types, &typ{typ: uint16Type, name: "UInt16", dataSize: 16})
+	p.types = append(p.types, &typ{typ: int32Type, name: "Int32", dataSize: 32})
+	p.types = append(p.types, &typ{typ: uint32Type, name: "UInt32", dataSize: 32})
+	p.types = append(p.types, &typ{typ: int64Type, name: "Int64", dataSize: 64})
+	p.types = append(p.types, &typ{typ: uint64Type, name: "UInt64", dataSize: 64})
+	p.types = append(p.types, &typ{typ: float32Type, name: "Float32", dataSize: 32})
+	p.types = append(p.types, &typ{typ: float64Type, name: "Float64", dataSize: 64})
 	p.types = append(p.types, &typ{typ: stringType, name: "Text"})
 	p.types = append(p.types, &typ{typ: dataType, name: "Data"})
 	p.constants = append(p.constants, &field{typestr: "Void", name: "void", value: &value{tok: 'v'}})
@@ -1074,23 +1076,6 @@ func (t *typ) isptr() bool {
 	}
 }
 
-func (t *typ) datasize() int {
-	switch t.typ {
-	case boolType:
-		return 1
-	case int8Type, uint8Type:
-		return 8
-	case int16Type, uint16Type, enumType, unionType:
-		return 16
-	case int32Type, uint32Type, float32Type:
-		return 32
-	case int64Type, uint64Type, float64Type:
-		return 64
-	default:
-		panic("unhandled")
-	}
-}
-
 func (p *file) resolveOffsets() {
 	for _, t := range p.types {
 		if t.typ != structType && t.typ != methodType && t.typ != returnType {
@@ -1123,7 +1108,7 @@ func (p *file) resolveOffsets() {
 						f.offset = g.offset
 						continue next_field
 
-					} else if f.typ.datasize() <= g.typ.datasize() {
+					} else if f.typ.dataSize <= g.typ.dataSize {
 						f.offset = g.offset
 						continue next_field
 					}
@@ -1134,7 +1119,7 @@ func (p *file) resolveOffsets() {
 				f.offset = t.ptrSize
 				t.ptrSize++
 			} else {
-				sz := f.typ.datasize()
+				sz := f.typ.dataSize
 				f.offset = align(t.dataSize, sz)
 				t.dataSize = f.offset + sz
 			}

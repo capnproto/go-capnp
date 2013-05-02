@@ -2,10 +2,11 @@
 #define CAT2(A,B) A ## B
 #define CAT(A,B) CAT2(A, B)
 #define UINT_T CAT(CAT(uint, SZ), _t)
-#define FLIP CAT(capn_flip_, SZ)
+#define FLIP CAT(capn_flip, SZ)
 
-int CAT(capn_read_,SZ) (const struct capn_ptr *p, int off, UINT_T *to, int sz) {
+int CAT(capn_read,SZ) (const struct CAT(capn_list,SZ) *list, int off, UINT_T *to, int sz) {
 	int i;
+	const struct capn_ptr *p = &list->p;
 
 	if (off + sz > p->size) {
 		sz = p->size - off;
@@ -42,8 +43,9 @@ int CAT(capn_read_,SZ) (const struct capn_ptr *p, int off, UINT_T *to, int sz) {
 	}
 }
 
-int CAT(capn_write_,SZ) (struct capn_ptr *p, int off, const UINT_T *from, int sz) {
+int CAT(capn_write,SZ) (struct CAT(capn_list,SZ) *list, int off, const UINT_T *from, int sz) {
 	int i;
+	struct capn_ptr *p = &list->p;
 
 	if (off + sz > p->size) {
 		sz = p->size - off;

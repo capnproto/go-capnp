@@ -58,17 +58,23 @@ struct capn_ptr {
 	uint32_t ptrsz;
 };
 
-struct capn_string {
-	struct capn_ptr p;
-	const char *str;
+struct capn_text {
 	int size;
+	const char *str;
+	struct capn_segment *seg;
 };
 
-struct capn_data{struct capn_ptr p;};
-struct capn_list_8{struct capn_ptr p;};
-struct capn_list_16{struct capn_ptr p;};
-struct capn_list_32{struct capn_ptr p;};
-struct capn_list_64{struct capn_ptr p;};
+struct capn_data {
+	int size;
+	const uint8_t *data;
+	struct capn_segment *seg;
+};
+
+struct capn_list1{struct capn_ptr p;};
+struct capn_list8{struct capn_ptr p;};
+struct capn_list16{struct capn_ptr p;};
+struct capn_list32{struct capn_ptr p;};
+struct capn_list64{struct capn_ptr p;};
 
 /* capn_read|write_ptr functions read/write ptrs to list/structs
  * off is the list index or pointer index in a struct
@@ -77,14 +83,17 @@ struct capn_list_64{struct capn_ptr p;};
  * Both of these will use/return inner pointers for composite lists.
  */
 struct capn_ptr capn_read_ptr(const struct capn_ptr *p, int off);
-int capn_write_ptr(struct capn_ptr *p, int off, struct capn_ptr *tgt);
+int capn_write_ptr(struct capn_ptr *p, int off, const struct capn_ptr *tgt);
 
 /* capn_to_string returns a pointer to a string
  * Use this instead of accessing the data directly as these checks that the
  * string is null terminated, the list type, etc.
  * psz is filled out with the string length if non NULL
  */
-char *capn_to_string(const struct capn_string *p, int *psz);
+struct capn_text capn_read_text(const struct capn_ptr *p, int off);
+struct capn_data capn_read_data(const struct capn_ptr *p, int off);
+int capn_write_text(struct capn_ptr *p, int off, struct capn_text tgt);
+int capn_write_data(struct capn_ptr *p, int off, struct capn_data tgt);
 
 /* capn_copy copies data from 'from' to 'to'
  * returns 0 on success, non-zero on error (type mismatch, allocation error,
@@ -99,11 +108,11 @@ int capn_copy(struct capn_ptr *to, const struct capn_ptr *from);
  * The function returns the number of elements read or -1 on an error.
  * off must be byte aligned for capn_read_1
  */
-int capn_read_1(const struct capn_list_1 *p, int off, uint8_t *data, int sz);
-int capn_read_8(const struct capn_list_8 *p, int off, uint8_t *data, int sz);
-int capn_read_16(const struct capn_list_16 *p, int off, uint16_t *data, int sz);
-int capn_read_32(const struct capn_list_32 *p, int off, uint32_t *data, int sz);
-int capn_read_64(const struct capn_list_64 *p, int off, uint64_t *data, int sz);
+int capn_read_1(const struct capn_list1 *p, int off, uint8_t *data, int sz);
+int capn_read8(const struct capn_list8 *p, int off, uint8_t *data, int sz);
+int capn_read16(const struct capn_list16 *p, int off, uint16_t *data, int sz);
+int capn_read32(const struct capn_list32 *p, int off, uint32_t *data, int sz);
+int capn_read64(const struct capn_list64 *p, int off, uint64_t *data, int sz);
 
 /* capn_write_* function write data to a list
  * off specifies how far into the list to start
@@ -111,11 +120,11 @@ int capn_read_64(const struct capn_list_64 *p, int off, uint64_t *data, int sz);
  * The function returns the number of elemnts written or -1 on an error.
  * off must be byte aligned for capn_read_1
  */
-int capn_write_1(struct capn_list_1 *p, int off, const uint8_t *data, int sz);
-int capn_write_8(struct capn_list_8 *p, int off, const uint8_t *data, int sz);
-int capn_write_16(struct capn_list_16 *p, int off, const uint16_t *data, int sz);
-int capn_write_32(struct capn_list_32 *p, int off, const uint32_t *data, int sz);
-int capn_write_64(struct capn_list_64 *p, int off, const uint64_t *data, int sz);
+int capn_write_1(struct capn_list1 *p, int off, const uint8_t *data, int sz);
+int capn_write8(struct capn_list8 *p, int off, const uint8_t *data, int sz);
+int capn_write16(struct capn_list16 *p, int off, const uint16_t *data, int sz);
+int capn_write32(struct capn_list32 *p, int off, const uint32_t *data, int sz);
+int capn_write64(struct capn_list64 *p, int off, const uint64_t *data, int sz);
 
 /* capn_new_* functions create a new object
  * datasz is in bytes, ptrs is # of pointers, sz is # of elements in the list
@@ -134,14 +143,14 @@ struct capn_ptr capn_new_string(struct capn_segment *seg, const char *str, int s
  * Data must be xored with the default value
  * These are static in order to be inlined.
  */
-static uint8_t capn_get_8(const struct capn_ptr *p, int off);
-static uint16_t capn_get_16(const struct capn_ptr *p, int off);
-static uint32_t capn_get_32(const struct capn_ptr *p, int off);
-static uint64_t capn_get_64(const struct capn_ptr *p, int off);
-static int capn_set_8(struct capn_ptr *p, int off, uint8_t val);
-static int capn_set_16(struct capn_ptr *p, int off, uint16_t val);
-static int capn_set_32(struct capn_ptr *p, int off, uint32_t val);
-static int capn_set_64(struct capn_ptr *p, int off, uint64_t val);
+static uint8_t capn_get8(const struct capn_ptr *p, int off);
+static uint16_t capn_get16(const struct capn_ptr *p, int off);
+static uint32_t capn_get32(const struct capn_ptr *p, int off);
+static uint64_t capn_get64(const struct capn_ptr *p, int off);
+static int capn_set8(struct capn_ptr *p, int off, uint8_t val);
+static int capn_set16(struct capn_ptr *p, int off, uint16_t val);
+static int capn_set32(struct capn_ptr *p, int off, uint32_t val);
+static int capn_set64(struct capn_ptr *p, int off, uint64_t val);
 
 
 
@@ -150,94 +159,100 @@ static int capn_set_64(struct capn_ptr *p, int off, uint64_t val);
 
 
 #define T(IDX) s.v[IDX] = (uint8_t) (v >> (8*IDX))
-static uint8_t capn_flip_8(uint8_t v) {
+static uint8_t capn_flip8(uint8_t v) {
 	return v;
 }
-static uint16_t capn_flip_16(uint16_t v) {
+static uint16_t capn_flip16(uint16_t v) {
 	union { uint16_t u; uint8_t v[2]; } s;
 	T(0); T(1);
 	return s.u;
 }
-static uint32_t capn_flip_32(uint32_t v) {
+static uint32_t capn_flip32(uint32_t v) {
 	union { uint32_t u; uint16_t v[2]; } s;
 	T(0); T(1); T(2); T(3);
 	return s.u;
 }
-static uint64_t capn_flip_64(uint64_t v) {
+static uint64_t capn_flip64(uint64_t v) {
 	union { uint64_t u; uint32_t v[2]; } s;
 	T(0); T(1); T(2); T(3); T(4); T(5); T(6); T(7);
 	return s.u;
 }
 #undef T
 
-static uint8_t capn_get_8(const struct capn_ptr *p, int off) {
-	return (p->type == CAPN_STRUCT && off < p->datasz) ? capn_flip_8(*(uint8_t*) p->data) : 0;
+static uint8_t capn_get8(const struct capn_ptr *p, int off) {
+	return (p->type == CAPN_STRUCT && off < p->datasz) ? capn_flip8(*(uint8_t*) p->data) : 0;
 }
-static int capn_set_8(struct capn_ptr *p, int off, uint8_t val) {
+static int capn_set8(struct capn_ptr *p, int off, uint8_t val) {
 	if (p->type == CAPN_STRUCT && off < p->datasz) {
-		*(uint8_t*) p->data = capn_flip_8(val);
+		*(uint8_t*) p->data = capn_flip8(val);
 		return 0;
 	} else {
 		return -1;
 	}
 }
 
-static uint16_t capn_get_16(const struct capn_ptr *p, int off) {
-	return (p->type == CAPN_STRUCT && off < p->datasz) ? capn_flip_16(*(uint16_t*) p->data) : 0;
+static uint16_t capn_get16(const struct capn_ptr *p, int off) {
+	return (p->type == CAPN_STRUCT && off < p->datasz) ? capn_flip16(*(uint16_t*) p->data) : 0;
 }
-static int capn_set_16(struct capn_ptr *p, int off, uint16_t val) {
+static int capn_set16(struct capn_ptr *p, int off, uint16_t val) {
 	if (p->type == CAPN_STRUCT && off < p->datasz) {
-		*(uint16_t*) p->data = capn_flip_16(val);
+		*(uint16_t*) p->data = capn_flip16(val);
 		return 0;
 	} else {
 		return -1;
 	}
 }
 
-static uint32_t capn_get_32(const struct capn_ptr *p, int off) {
-	return (p->type == CAPN_STRUCT && off < p->datasz) ? capn_flip_32(*(uint32_t*) p->data) : 0;
+static uint32_t capn_get32(const struct capn_ptr *p, int off) {
+	return (p->type == CAPN_STRUCT && off < p->datasz) ? capn_flip32(*(uint32_t*) p->data) : 0;
 }
-static int capn_set_32(struct capn_ptr *p, int off, uint32_t val) {
+static int capn_set32(struct capn_ptr *p, int off, uint32_t val) {
 	if (p->type == CAPN_STRUCT && off < p->datasz) {
-		*(uint32_t*) p->data = capn_flip_32(val);
+		*(uint32_t*) p->data = capn_flip32(val);
 		return 0;
 	} else {
 		return -1;
 	}
 }
 
-static uint64_t capn_get_64(const struct capn_ptr *p, int off) {
-	return (p->type == CAPN_STRUCT && off < p->datasz) ? capn_flip_64(*(uint64_t*) p->data) : 0;
+static uint64_t capn_get64(const struct capn_ptr *p, int off) {
+	return (p->type == CAPN_STRUCT && off < p->datasz) ? capn_flip64(*(uint64_t*) p->data) : 0;
 }
-static int capn_set_64(struct capn_ptr *p, int off, uint64_t val) {
+static int capn_set64(struct capn_ptr *p, int off, uint64_t val) {
 	if (p->type == CAPN_STRUCT && off < p->datasz) {
-		*(uint64_t*) p->data = capn_flip_64(val);
+		*(uint64_t*) p->data = capn_flip64(val);
 		return 0;
 	} else {
 		return -1;
 	}
 }
 
-static float capn_get_float(const struct capn_ptr *p, int off) {
+static float capn_get_float(const struct capn_ptr *p, int off, float def) {
 	union { float f; uint32_t u;} u;
-	u.u = capn_get_32(p, off);
+	u.f = def;
+	u.u ^= capn_get32(p, off);
 	return u.f;
 }
-static int capn_set_float(struct capn_ptr *p, int off, float f) {
+static int capn_set_float(struct capn_ptr *p, int off, float f, float def) {
 	union { float f; uint32_t u;} u;
+	union { float f; uint32_t u;} d;
 	u.f = f;
-	return capn_set_32(p, off, u.u);
+	d.f = def;
+	return capn_set32(p, off, u.u ^ d.u);
 }
 
-static double capn_get_double(const struct capn_ptr *p, int off) {
+static double capn_get_double(const struct capn_ptr *p, int off, double def) {
 	union { double f; uint64_t u;} u;
-	u.u = capn_get_64(p, off);
+	u.f = def;
+	u.u ^= capn_get64(p, off);
 	return u.f;
 }
-static int capn_set_double(struct capn_ptr *p, int off, double f) {
+static int capn_set_double(struct capn_ptr *p, int off, double f, double def) {
 	union { double f; uint64_t u;} u;
+	union { double f; uint64_t u;} d;
+	d.f = f;
 	u.f = f;
-	return capn_set_64(p, off, u.u);
+	return capn_set64(p, off, u.u ^ d.u);
 }
 
 #endif
