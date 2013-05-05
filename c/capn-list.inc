@@ -14,7 +14,7 @@ int CAT(capn_read,SZ) (const struct CAT(capn_list,SZ) *list, int off, UINT_T *to
 
 	switch (p->type) {
 	case CAPN_LIST:
-		if (p->datasz == SZ/8 && !p->ptrsz && (SZ == 8 || LITTLE_ENDIAN)) {
+		if (p->datasz == SZ/8 && !p->ptrsz && (SZ == 8 || CAPN_LITTLE)) {
 			memcpy(to, p->data + off, sz * (SZ/8));
 			return sz;
 		} else if (p->datasz < SZ/8) {
@@ -53,7 +53,7 @@ int CAT(capn_write,SZ) (struct CAT(capn_list,SZ) *list, int off, const UINT_T *f
 
 	switch (p->type) {
 	case CAPN_LIST:
-		if (p->datasz == SZ/8 && !p->ptrsz && (SZ == 8 || LITTLE_ENDIAN)) {
+		if (p->datasz == SZ/8 && !p->ptrsz && (SZ == 8 || CAPN_LITTLE)) {
 			memcpy(p->data + off, from, sz * (SZ/8));
 			return sz;
 		} else if (p->datasz < SZ/8) {
