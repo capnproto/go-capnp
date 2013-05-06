@@ -212,6 +212,33 @@ CAPN_INLINE int capn_set64(struct capn_ptr *p, int off, uint64_t val);
 void capn_init_malloc(struct capn *c);
 void capn_free_all(struct capn *c);
 
+/* capn_stream encapsulates the needed fields for capn_(deflate|inflate) in a
+ * similar manner to z_stream from zlib
+ *
+ * The user should set next_in, avail_in, next_out, avail_out to the
+ * available in/out buffers before calling capn_(deflate|inflate).
+ *
+ * Other fields should be zero initialized.
+ */
+struct capn_stream {
+	uint8_t *next_in;
+	int avail_in;
+	uint8_t *next_out;
+	int avail_out;
+	int zeros, raw;
+};
+
+#define CAPN_NEED_MORE_IN -1
+#define CAPN_NEED_MORE_OUT -2
+
+/* capn_deflate deflates a stream to the packed format
+ * capn_inflate inflates a stream from the packed format
+ *
+ * They will return CAPN_NEED_MORE_(IN|OUT) as appropriate or 0 if the entire
+ * input has been processed.
+ */
+int capn_deflate(struct capn_stream*);
+int capn_inflate(struct capn_stream*);
 
 int capn_marshal_iptr(const union capn_iptr*, struct capn_ptr*, int off);
 
