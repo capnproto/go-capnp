@@ -15,6 +15,8 @@
  * create is used to create or lookup an alternate segment that has at least
  * sz available (ie returned seg->len + sz <= seg->cap)
  *
+ * Allocated segments must be zero initialized.
+ *
  * create and lookup can be NULL if you don't need multiple segments and don't
  * want to support copying
  *
@@ -56,7 +58,7 @@ struct capn_tree {
  *
  * data, len, and cap must all by 8 byte aligned
  *
- * data, len, cap, id should all set by the user. Other values should be zero
+ * data, len, cap should all set by the user. Other values should be zero
  * initialized.
  */
 struct capn_segment {
@@ -150,7 +152,7 @@ int capn_write_data(struct capn_ptr *p, int off, struct capn_data tgt);
  * The function returns the number of elements read or -1 on an error.
  * off must be byte aligned for capn_read_1
  */
-int capn_read_1(const struct capn_list1 *p, int off, uint8_t *data, int sz);
+int capn_read1(const struct capn_list1 *p, int off, uint8_t *data, int sz);
 int capn_read8(const struct capn_list8 *p, int off, uint8_t *data, int sz);
 int capn_read16(const struct capn_list16 *p, int off, uint16_t *data, int sz);
 int capn_read32(const struct capn_list32 *p, int off, uint32_t *data, int sz);
@@ -162,7 +164,7 @@ int capn_read64(const struct capn_list64 *p, int off, uint64_t *data, int sz);
  * The function returns the number of elemnts written or -1 on an error.
  * off must be byte aligned for capn_read_1
  */
-int capn_write_1(struct capn_list1 *p, int off, const uint8_t *data, int sz);
+int capn_write1(struct capn_list1 *p, int off, const uint8_t *data, int sz);
 int capn_write8(struct capn_list8 *p, int off, const uint8_t *data, int sz);
 int capn_write16(struct capn_list16 *p, int off, const uint16_t *data, int sz);
 int capn_write32(struct capn_list32 *p, int off, const uint32_t *data, int sz);
@@ -199,6 +201,16 @@ CAPN_INLINE int capn_set8(struct capn_ptr *p, int off, uint8_t val);
 CAPN_INLINE int capn_set16(struct capn_ptr *p, int off, uint16_t val);
 CAPN_INLINE int capn_set32(struct capn_ptr *p, int off, uint32_t val);
 CAPN_INLINE int capn_set64(struct capn_ptr *p, int off, uint64_t val);
+
+
+/* capn_init_malloc inits the capn struct with a create function which
+ * allocates segments on the heap using malloc
+ *
+ * capn_free_all frees all the segment headers and data created by the create
+ * function setup by capn_init_malloc
+ */
+void capn_init_malloc(struct capn *c);
+void capn_free_all(struct capn *c);
 
 
 int capn_marshal_iptr(const union capn_iptr*, struct capn_ptr*, int off);

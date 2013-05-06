@@ -8,5 +8,5 @@ clean:
 %.o: %.c *.h *.inc
 	$(CC) -Wall -Werror -g -O2 -c $< -o $@
 
-capn.so: capn.o
+capn.so: capn-malloc.o capn.o
 	$(CC) -shared -Wall -Werror -fPIC -g -O2 $^ -o $@
