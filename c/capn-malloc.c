@@ -11,8 +11,7 @@ static struct capn_segment *create(void *u, uint32_t id, int sz) {
 		sz = (sz + 4095) & ~4095;
 	}
 	s = (struct capn_segment*) calloc(1, sizeof(*s));
-	s->data = calloc(1, sz);
-	s->len = 0;
+	s->data = (char*) calloc(1, sz);
 	s->cap = sz;
 	return s;
 }
@@ -22,7 +21,7 @@ void capn_init_malloc(struct capn *c) {
 	c->create = &create;
 }
 
-void capn_free_all(struct capn *c) {
+void capn_free_malloc(struct capn *c) {
 	struct capn_segment *s = c->seglist;
 	while (s != NULL) {
 		struct capn_segment *n = s->next;

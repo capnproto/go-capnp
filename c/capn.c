@@ -37,103 +37,132 @@ static int min(int a, int b) { return (a < b) ? a : b; }
 #define CAPN_LITTLE 0
 #endif
 
-/* from    to
- *     G         G
- *    / \       / \
- *   P   U     N   U
- *  / \       / \
- * 1   N     P   3
- *    / \   / \
- *   2   3 1   2
- */
-static void rotate_left(struct capn_tree **pp, struct capn_tree **pn) {
-	struct capn_tree *p = *pp, *n = *pn;
-        struct capn_tree *g = p->parent;
-	p->right = n->left;
-	n->left = p;
-	g->left = n;
-	n->parent = g;
-	p->parent = n;
-	*pn = p;
-	*pp = n;
-}
-
-/* from     to
- *     G      G
- *    / \    / \
- *   U   P  U   N
- *      / \    / \
- *     N   3  1   P
- *    / \        / \
- *   1   2      2   3
- */
-static void rotate_right(struct capn_tree **pp, struct capn_tree **pn) {
-	struct capn_tree *p = *pp, *n = *pn;
-        struct capn_tree *g = p->parent;
-	p->left = n->right;
-	n->right = p;
-	g->right = n;
-	n->parent = g;
-	p->parent = n;
-	*pn = p;
-	*pp = n;
-}
-
-static void insert_rebalance(struct capn_tree **root, struct capn_tree *n) {
+static struct capn_tree *insert_rebalance(struct capn_tree *root, struct capn_tree *n) {
 	n->red = 1;
-	n->left = n->right = NULL;
+	n->link[0] = n->link[1] = NULL;
 
 	for (;;) {
-		struct capn_tree *p, *u, *g;
+		/* parent, uncle, grandparent, great grandparent link */
+		struct capn_tree *p, *u, *g, **gglink;
+		int dir;
 
+		/* Case 1: N is root */
 		p = n->parent;
 		if (!p) {
-			*root = n;
 			n->red = 0;
-			return;
+			root = n;
+			break;
+		}
+
+		/* Case 2: p is black */
+		if (!p->red) {
+			break;
 		}
 
 		g = p->parent;
-		if (!g->red) {
-			return;
+		dir = (p == g->link[1]);
+
+		/* Case 3: P and U are red, switch g to red, but must
+		 * loop as G could be root or have a red parent
+		 *     g    to   G
+		 *    / \       / \
+		 *   P   U     p   u
+		 *  /         /
+		 * N         N
+		 */
+		u = g->link[!dir];
+		if (u != NULL && u->red) {
+			p->red = 0;
+			u->red = 0;
+			g->red = 1;
+			n = g;
+			continue;
 		}
 
-		if (p == g->left) {
-			if ((u = g->right) != NULL && u->red) {
-				p->red = 0;
-				u->red = 0;
-				g->red = 1;
-				n = g;
-				continue;
-			}
-			if (n == p->right) {
-				rotate_left(&p, &n);
-			}
-			p->red = 0;
-			g->red = 1;
-			rotate_right(&g, &p);
+		if (!g->parent) {
+			gglink = &root;
+		} else if (g->parent->link[1] == g) {
+			gglink = &g->parent->link[1];
 		} else {
-			if ((u = g->left) != NULL && u->red) {
-				p->red = 0;
-				u->red = 0;
-				g->red = 1;
-				n = g;
-				continue;
-			}
-			if (n == p->left) {
-				rotate_right(&p, &n);
-			}
-			p->red = 0;
-			g->red = 1;
-			rotate_left(&g, &p);
+			gglink = &g->parent->link[0];
 		}
+
+		if (dir != (n == p->link[1])) {
+			/* Case 4: rotate on P, then on g
+			 * here dir is /
+			 *     g    to   g   to   n
+			 *    / \       / \      / \
+			 *   P   u     N   u    P   G
+			 *  / \       / \      /|  / \
+			 * 1   N     P   3    1 2 3   u
+			 *    / \   / \
+			 *   2   3 1   2
+			 */
+			struct capn_tree *two = n->link[dir];
+			struct capn_tree *three = n->link[!dir];
+			p->link[!dir] = two;
+			g->link[dir] = three;
+			n->link[dir] = p;
+			n->link[!dir] = g;
+			*gglink = n;
+			n->parent = g->parent;
+			p->parent = n;
+			g->parent = n;
+			if (two)
+				two->parent = p;
+			if (three)
+				three->parent = g;
+			n->red = 0;
+			g->red = 1;
+		} else {
+			/* Case 5: rotate on g
+			 * here dir is /
+			 *       g   to   p
+			 *      / \      / \
+			 *     P   u    N   G
+			 *    / \      /|  / \
+			 *   N   3    1 2 3   u
+			 *  / \
+			 * 1   2
+			 */
+			struct capn_tree *three = p->link[!dir];
+			g->link[dir] = three;
+			p->link[!dir] = g;
+			*gglink = p;
+			p->parent = g->parent;
+			g->parent = p;
+			if (three)
+				three->parent = g;
+			g->red = 1;
+			p->red = 0;
+		}
+
+		break;
 	}
 
+	return root;
 }
 
-static void *new_data(struct capn_segment **ps, int sz) {
-	struct capn *c = (*ps)->capn;
-	struct capn_segment *s = *ps;
+void capn_append_segment(struct capn *c, struct capn_segment *s) {
+	s->id = c->segnum++;
+	s->capn = c;
+	s->next = NULL;
+
+	if (c->lastseg) {
+		c->lastseg->next = s;
+		c->lastseg->hdr.link[1] = &s->hdr;
+		s->hdr.parent = &c->lastseg->hdr;
+	} else {
+		c->seglist = s;
+		s->hdr.parent = NULL;
+	}
+
+	c->lastseg = s;
+	c->segtree = insert_rebalance(c->segtree, &s->hdr);
+}
+
+static char *new_data(struct capn *c, int sz, struct capn_segment **ps) {
+	struct capn_segment *s;
 
 	/* find a segment with sufficient data */
 	for (s = c->seglist; s != NULL; s = s->next) {
@@ -144,33 +173,15 @@ static void *new_data(struct capn_segment **ps, int sz) {
 
 	s = c->create ? c->create(c->user, c->segnum, sz) : NULL;
 	if (!s) {
+		*ps = NULL;
 		return NULL;
 	}
 
-	s->capn = c;
-	s->id = c->segnum++;
-	s->next = c->seglist;
-	c->seglist = s;
-	s->hdr.parent = c->lastseg;
-	c->lastseg->right = &s->hdr;
-	c->lastseg = &s->hdr;
-	insert_rebalance(&c->segtree, &s->hdr);
-
+	capn_append_segment(c, s);
 end:
 	*ps = s;
 	s->len += sz;
 	return s->data + s->len - sz;
-}
-
-void capn_append_segment(struct capn *c, struct capn_segment *s) {
-	s->id = c->segnum++;
-	s->capn = c;
-	s->next = c->seglist;
-	c->seglist = s;
-	s->hdr.parent = c->lastseg;
-	c->lastseg->right = &s->hdr;
-	c->lastseg = &s->hdr;
-	insert_rebalance(&c->segtree, &s->hdr);
 }
 
 static struct capn_segment *lookup_segment(struct capn* c, struct capn_segment *s, uint32_t id) {
@@ -182,16 +193,18 @@ static struct capn_segment *lookup_segment(struct capn* c, struct capn_segment *
 	if (!c)
 		return NULL;
 
-	x = &c->segtree;
-	y = NULL;
-	while (*x) {
-		y = (struct capn_segment*) *x;
-		if (id == y->id) {
-			return y;
-		} else if (id < y->id) {
-			x = &y->hdr.left;
-		} else {
-			x = &y->hdr.right;
+	if (id < c->segnum) {
+		x = &c->segtree;
+		y = NULL;
+		while (*x) {
+			y = (struct capn_segment*) *x;
+			if (id == y->id) {
+				return y;
+			} else if (id < y->id) {
+				x = &y->hdr.link[0];
+			} else {
+				x = &y->hdr.link[1];
+			}
 		}
 	}
 
@@ -199,24 +212,24 @@ static struct capn_segment *lookup_segment(struct capn* c, struct capn_segment *
 	if (!s)
 		return NULL;
 
-	if (id >= c->segnum) {
-		c->lastseg = &s->hdr;
-		c->segnum = id+1;
+	if (id < c->segnum) {
+		s->id = id;
+		s->capn = c;
+		s->next = c->seglist;
+		c->seglist = s;
+		s->hdr.parent = &y->hdr;
+		*x = &s->hdr;
+		c->segtree = insert_rebalance(c->segtree, &s->hdr);
+	} else {
+		c->segnum = id;
+		capn_append_segment(c, s);
 	}
-
-	s->id = id;
-	s->capn = c;
-	s->next = c->seglist;
-	c->seglist = s;
-	s->hdr.parent = &y->hdr;
-	*x = &s->hdr;
-	insert_rebalance(&c->segtree, &s->hdr);
 
 	return s;
 }
 
 static uint64_t lookup_far(struct capn_segment **s, char **d, uint64_t val) {
-	uint32_t off = U32(val >> 3);
+	uint32_t off = (U32(val) >> 3) * 8;
 
 	if ((*s = lookup_segment((*s)->capn, *s, U32(val >> 32))) == NULL) {
 		return 0;
@@ -226,7 +239,7 @@ static uint64_t lookup_far(struct capn_segment **s, char **d, uint64_t val) {
 		/* Double far pointer */
 		uint64_t far, tag;
 		char *p = (*s)->data + off;
-		if (off + 16 >= (*s)->len) {
+		if (off + 16 > (*s)->len) {
 			return 0;
 		}
 
@@ -243,10 +256,15 @@ static uint64_t lookup_far(struct capn_segment **s, char **d, uint64_t val) {
 			return 0;
 		}
 
-		*d = (*s)->data;
-		return U64(U32(far >> 3) << 2) | tag;
+		/* -8 because far pointers reference from the start of
+		 * the segment, but offsets reference the end of the
+		 * pointer data. Here *d points to where an equivalent
+		 * ptr would be.
+		 */
+		*d = (*s)->data - 8;
+		return U64(U32(far) >> 3 << 2) | tag;
 	} else {
-		if (off + 8 >= (*s)->len) {
+		if (off + 8 > (*s)->len) {
 			return 0;
 		}
 
@@ -255,7 +273,7 @@ static uint64_t lookup_far(struct capn_segment **s, char **d, uint64_t val) {
 	}
 }
 
-static char *struct_ptr(struct capn_segment *s, char *d) {
+static char *struct_ptr(struct capn_segment *s, char *d, int minsz) {
 	uint64_t val = capn_flip64(*(uint64_t*)d);
 	uint16_t datasz;
 
@@ -266,7 +284,7 @@ static char *struct_ptr(struct capn_segment *s, char *d) {
 	datasz = U16(val >> 32);
 	d += (I32(U32(val)) << 1) + 8;
 
-	if (val != 0 && (val&3) != STRUCT_PTR && !datasz && s->data <= d && d < s->data + s->len) {
+	if (val != 0 && (val&3) != STRUCT_PTR && datasz >= minsz && s->data <= d && d < s->data + s->len) {
 		return d;
 	}
 
@@ -284,8 +302,7 @@ static struct capn_ptr read_ptr(struct capn_segment *s, char *d) {
 		val = lookup_far(&s, &d, val);
 	}
 
-	d += (I32(U32(val)) << 1) + 8;
-	ret.data = d;
+	d += (I32(U32(val)) >> 2) * 8 + 8;
 
 	if ((val&3) > LIST_PTR || d < s->data) {
 		goto err;
@@ -344,7 +361,7 @@ static struct capn_ptr read_ptr(struct capn_segment *s, char *d) {
 
 			ret.datasz = U32(U16(val >> 32)) * 8;
 			ret.ptrsz = U32(U16(val >> 48)) * 8;
-			ret.size = U32(val >> 2);
+			ret.size = U32(val) >> 2;
 
 			if ((ret.datasz + ret.ptrsz) * ret.size != e - d) {
 				goto err;
@@ -356,6 +373,7 @@ static struct capn_ptr read_ptr(struct capn_segment *s, char *d) {
 	if (e - s->data > s->len)
 		goto err;
 
+	ret.data = d;
 	ret.seg = s;
 	return ret;
 err:
@@ -363,7 +381,7 @@ err:
 	return ret;
 }
 
-struct capn_ptr capn_read_ptr(const struct capn_ptr *p, int off) {
+struct capn_ptr capn_getp(const struct capn_ptr *p, int off) {
 	struct capn_ptr ret;
 
 	switch (p->type) {
@@ -404,11 +422,11 @@ err:
 }
 
 static uint64_t ptr_value(const struct capn_ptr *p, int off) {
-	uint64_t val = U64(U32(I32((off >> 3) << 2)));
+	uint64_t val = U64(U32(I32(off/8) << 2));
 
 	switch (p->type) {
 	case CAPN_STRUCT:
-		val |= STRUCT_PTR | (U64(p->datasz) << 32) | (U64(p->ptrsz) << 48);
+		val |= STRUCT_PTR | (U64(p->datasz/8) << 32) | (U64(p->ptrsz/8) << 48);
 		break;
 
 	case CAPN_LIST:
@@ -455,15 +473,22 @@ static void write_ptr_tag(char *d, const struct capn_ptr *p, int off) {
 	*(uint64_t*) d = ptr_value(p, off);
 }
 
-static int has_tag(const struct capn_ptr* p) {
-	char *d = p->data - 8;
+static int has_tag(const struct capn_ptr* p, const char *pdata) {
+	const char *d = pdata - 8;
 	return d >= p->seg->data && ptr_value(p, 0) == *(uint64_t*) d;
 }
 
 #define NEED_TO_COPY 1
 
-static int write_ptr(struct capn_segment *s, char *d, const struct capn_ptr *p) {
+static int write_ptr_no_copy(struct capn_segment *s, char *d, const struct capn_ptr *p) {
 	/* note p->seg can be NULL if its a ptr to static data */
+	char *pdata = p->data;
+
+	/* TODO: how to distinguish between 8 byte list and a composite
+	 * list with ptrs == 0, data == 1? */
+	if (p->type == CAPN_LIST && (p->ptrsz || p->datasz > 8)) {
+		pdata -= 8;
+	}
 
 	if (!p || p->type == CAPN_NULL) {
 		*(uint64_t*) d = 0;
@@ -473,23 +498,23 @@ static int write_ptr(struct capn_segment *s, char *d, const struct capn_ptr *p) 
 		return NEED_TO_COPY;
 
 	} else if (p->seg == s) {
-		write_ptr_tag(d, p, p->data - d - 8);
+		write_ptr_tag(d, p, pdata - d - 8);
 		return 0;
 
 	} else {
 		/* if its in the same context we can create a far pointer */
 
-		if (has_tag(p)) {
+		if (has_tag(p, pdata)) {
 			/* By lucky chance, the data has a tag in front
 			 * of it. This happens when new_object had to move
 			 * the data to a new segment. */
-			write_far_ptr(d, p->seg, p->data);
+			write_far_ptr(d, p->seg, pdata-8);
 			return 0;
 
 		} else if (p->seg->len + 8 <= p->seg->cap) {
 			/* The target segment has enough room for tag */
 			char *t = p->seg->data + p->seg->len;
-			write_ptr_tag(t, p, p->data - t - 8);
+			write_ptr_tag(t, p, pdata - t - 8);
 			write_far_ptr(d, p->seg, t);
 			p->seg->len += 8;
 			return 0;
@@ -506,11 +531,11 @@ static int write_ptr(struct capn_segment *s, char *d, const struct capn_ptr *p) 
 				t = s->data + s->len;
 				s->len += 16;
 			} else {
-				t = new_data(&s, 16);
+				t = new_data(s->capn, 16, &s);
 				if (!t) return -1;
 			}
 
-			write_far_ptr(t, p->seg, p->data);
+			write_far_ptr(t, p->seg, pdata);
 			write_ptr_tag(t+8, p, 0);
 			write_double_far(d, s, t);
 			return 0;
@@ -561,7 +586,7 @@ static int is_ptr_equal(const struct capn_ptr *a, const struct capn_ptr *b) {
 	return a->data == b->data && a->type == b->type && a->size == b->size && a->datasz == b->datasz && a->ptrsz == b->ptrsz;
 }
 
-static int write_copy(struct capn_segment *seg, char *data, struct capn_ptr *t, struct capn_ptr *f, int *dep) {
+static int write_copy(struct capn_segment *seg, char *data, struct capn_ptr *t, struct capn_ptr *f, int *dep, int zeros) {
 	struct capn *c = seg->capn;
 	struct copy *cp = (struct copy*) c->copy;
 	int sz = data_size(f);
@@ -576,12 +601,12 @@ static int write_copy(struct capn_segment *seg, char *data, struct capn_ptr *t, 
 
 	while (c && sz) {
 		if (f->data + sz <= cp->from.data) {
-			cp = (struct copy*) cp->hdr.left;
+			cp = (struct copy*) cp->hdr.link[0];
 		} else if (cp->from.data + cp->fsize <= f->data) {
-			cp = (struct copy*) cp->hdr.right;
+			cp = (struct copy*) cp->hdr.link[1];
 		} else if (is_ptr_equal(f, &cp->from)) {
 			/* we already have a copy so just point to that */
-			return write_ptr(seg, data, &cp->from);
+			return write_ptr_no_copy(seg, data, &cp->from);
 		} else {
 			/* pointer to overlapped data */
 			return -1;
@@ -617,12 +642,12 @@ static int write_copy(struct capn_segment *seg, char *data, struct capn_ptr *t, 
 		n->fsize = sz;
 
 		if (f->data < cp->from.data) {
-			cp->hdr.left = &n->hdr;
+			cp->hdr.link[0] = &n->hdr;
 		} else {
-			cp->hdr.right = &n->hdr;
+			cp->hdr.link[1] = &n->hdr;
 		}
 
-		insert_rebalance(&seg->capn->copy, &n->hdr);
+		seg->capn->copy = insert_rebalance(seg->capn->copy, &n->hdr);
 	}
 
 	/* minimize the number of types the main copy routine has to
@@ -633,7 +658,7 @@ static int write_copy(struct capn_segment *seg, char *data, struct capn_ptr *t, 
 	case CAPN_STRUCT:
 	case CAPN_LIST_MEMBER:
 		if (t->datasz) {
-			memcpy(t->data, f->data, t->datasz);
+			memcpy(t->data, f->data, t->datasz - zeros);
 			t->data += t->datasz;
 			f->data += t->datasz;
 		}
@@ -675,7 +700,7 @@ static int write_copy(struct capn_segment *seg, char *data, struct capn_ptr *t, 
 
 #define MAX_COPY_DEPTH 32
 
-int capn_write_ptr(struct capn_ptr *p, int off, const struct capn_ptr *tgt) {
+int write_ptr(struct capn_ptr *p, int off, const struct capn_ptr *tgt, int zeros) {
 	struct capn_ptr to[MAX_COPY_DEPTH], from[MAX_COPY_DEPTH];
 	char *data;
 	int err, dep;
@@ -736,7 +761,7 @@ int capn_write_ptr(struct capn_ptr *p, int off, const struct capn_ptr *tgt) {
 		return -1;
 	}
 
-	err = write_ptr(p->seg, data, tgt);
+	err = write_ptr_no_copy(p->seg, data, tgt);
 	if (err != NEED_TO_COPY)
 		return err;
 
@@ -750,7 +775,7 @@ int capn_write_ptr(struct capn_ptr *p, int off, const struct capn_ptr *tgt) {
 
 	dep = 0;
 	from[0] = *tgt;
-	if (write_copy(p->seg, data, to, from, &dep))
+	if (write_copy(p->seg, data, to, from, &dep, zeros))
 		return -1;
 
 copy_loop:
@@ -775,7 +800,7 @@ copy_loop:
 			fn->type = tn->type = CAPN_LIST_MEMBER;
 			fn->size = tn->size = 0;
 
-			if (write_copy(tc->seg, tc->data, tn, fn, &dep))
+			if (write_copy(tc->seg, tc->data, tn, fn, &dep, 0))
 				return -1;
 
 			fc->data += tc->datasz + tc->ptrsz;
@@ -787,7 +812,7 @@ copy_loop:
 		default:
 			*fn = read_ptr(fc->seg, fc->data);
 
-			if (write_copy(tc->seg, tc->data, tn, fn, &dep))
+			if (write_copy(tc->seg, tc->data, tn, fn, &dep, 0))
 				return -1;
 
 			fc->data += 8;
@@ -800,10 +825,13 @@ copy_loop:
 	return 0;
 }
 
-int capn_read1(const struct capn_list1 *list, int off, uint8_t *data, int sz) {
+int capn_setp(struct capn_ptr *p, int off, const struct capn_ptr *tgt) {
+	return write_ptr(p, off, tgt, 0);
+}
+
+int capn_read1(const struct capn_ptr *p, int off, uint8_t *data, int sz) {
 	/* Note we only support aligned reads */
 	int bsz;
-	const struct capn_ptr *p = &list->p;
 	if (p->type != CAPN_BIT_LIST || (off & 7) != 0)
 		return -1;
 
@@ -819,10 +847,9 @@ int capn_read1(const struct capn_list1 *list, int off, uint8_t *data, int sz) {
 	}
 }
 
-int capn_write1(struct capn_list1 *list, int off, const uint8_t *data, int sz) {
+int capn_write1(struct capn_ptr *p, int off, const uint8_t *data, int sz) {
 	/* Note we only support aligned writes */
 	int bsz;
-	const struct capn_ptr *p = &list->p;
 	if (p->type != CAPN_BIT_LIST || (off & 7) != 0)
 		return -1;
 
@@ -854,6 +881,12 @@ int capn_write1(struct capn_list1 *list, int off, const uint8_t *data, int sz) {
 #include "capn-list.inc"
 #undef SZ
 
+/* pull out whether we add a tag or nor as a define so the unit test can
+ * test double far pointers by not creating tags */
+#ifndef ADD_TAG
+#define ADD_TAG 1
+#endif
+
 static void new_object(struct capn_ptr *p, int bytes) {
 	struct capn_segment *s = p->seg;
 
@@ -868,26 +901,34 @@ static void new_object(struct capn_ptr *p, int bytes) {
 
 	/* add a tag whenever we switch segments so that write_ptr can
 	 * use it */
-	p->data = new_data(&s, bytes + 8);
+	p->data = new_data(s->capn, bytes + ADD_TAG*8, &p->seg);
 	if (!p->data) {
 		memset(p, 0, sizeof(*p));
 		return;
 	}
 
-	write_ptr_tag(p->data, p, 0);
-	p->data += 8;
+	if (ADD_TAG) {
+		write_ptr_tag(p->data, p, 0);
+		p->data += 8;
+	}
 }
 
 struct capn_ptr capn_root(struct capn* c) {
 	struct capn_ptr p;
 	p.seg = lookup_segment(c, NULL, 0);
-	if (!p.seg) goto err;
+
+	/* don't use new_object as we don't want the tag */
+	if (!p.seg && new_data(c, 8, &p.seg) == NULL)
+		goto err;
+
+	if (p.seg->len < 8)
+		goto err;
+
 	p.data = p.seg->data;
 	p.size = 1;
 	p.type = CAPN_PTR_LIST;
 	p.datasz = 0;
 	p.ptrsz = 0;
-	new_object(&p, 8);
 	return p;
 err:
 	memset(&p, 0, sizeof(p));
@@ -910,19 +951,28 @@ struct capn_ptr capn_new_list(struct capn_segment *seg, int sz, int datasz, int 
 	p.seg = seg;
 	p.type = CAPN_LIST;
 	p.size = sz;
+	p.ptrsz = 0;
 
-	if (ptrs || datasz > 4) {
+	if (ptrs || datasz > 8) {
 		p.datasz = (datasz + 7) & ~7;
 		p.ptrsz = ptrs*8;
-	} else if (datasz == 3) {
+		new_object(&p, p.size * (p.datasz + p.ptrsz) + 8);
+		if (p.data) {
+			uint64_t hdr = STRUCT_PTR | (U64(p.size) << 2) | (U64(p.datasz/8) << 32) | (U64(ptrs) << 48);
+			*(uint64_t*) p.data = capn_flip64(hdr);
+			p.data += 8;
+		}
+	} else if (datasz > 4) {
+		p.datasz = 8;
+		new_object(&p, p.size * 8);
+	} else if (datasz > 2) {
 		p.datasz = 4;
-		p.ptrsz = 0;
+		new_object(&p, p.size * 4);
 	} else {
 		p.datasz = datasz;
-		p.ptrsz = 0;
+		new_object(&p, p.size * datasz);
 	}
 
-	new_object(&p, p.size * (p.datasz+p.ptrsz));
 	return p;
 }
 
@@ -972,12 +1022,13 @@ char *capn_to_string(const struct capn_ptr *p, int *psz) {
 	return p->data;
 }
 
-struct capn_text capn_read_text(const struct capn_ptr *p, int off) {
+struct capn_text capn_get_text(const struct capn_ptr *p, int off) {
+	struct capn_ptr m = capn_getp(p, off);
 	struct capn_text ret;
-	if (p->type == CAPN_LIST && p->datasz == 1 && p->size && p->data[p->size - 1] == 0) {
-		ret.seg = p->seg;
-		ret.str = p->data;
-		ret.size = p->size - 1;
+	if (m.type == CAPN_LIST && m.datasz == 1 && m.size && m.data[m.size - 1] == 0) {
+		ret.seg = m.seg;
+		ret.str = m.data;
+		ret.size = m.size - 1;
 	} else {
 		ret.seg = NULL;
 		ret.str = NULL;
@@ -986,12 +1037,13 @@ struct capn_text capn_read_text(const struct capn_ptr *p, int off) {
 	return ret;
 }
 
-struct capn_data capn_read_data(const struct capn_ptr *p, int off) {
+struct capn_data capn_get_data(const struct capn_ptr *p, int off) {
+	struct capn_ptr m = capn_getp(p, off);
 	struct capn_data ret;
-	if (p->type == CAPN_LIST && p->datasz == 1) {
-		ret.seg = p->seg;
-		ret.data = (uint8_t*) p->data;
-		ret.size = p->size;
+	if (m.type == CAPN_LIST && m.datasz == 1) {
+		ret.seg = m.seg;
+		ret.data = (uint8_t*) m.data;
+		ret.size = m.size;
 	} else {
 		ret.seg = NULL;
 		ret.data = NULL;
@@ -1000,34 +1052,40 @@ struct capn_data capn_read_data(const struct capn_ptr *p, int off) {
 	return ret;
 }
 
-int capn_write_text(struct capn_ptr *p, int off, struct capn_text tgt) {
+int capn_set_text(struct capn_ptr *p, int off, struct capn_text tgt) {
 	struct capn_ptr m;
 	if (tgt.str) {
 		m.type = CAPN_LIST;
-		m.size = (tgt.size >= 0 ? tgt.size : strlen(tgt.str)) + 1;
 		m.seg = tgt.seg;
 		m.data = (char*)tgt.str;
+		m.size = (tgt.size >= 0 ? tgt.size : strlen(tgt.str)) + 1;
 		m.datasz = 1;
+		m.ptrsz = 0;
 	} else {
 		m.type = CAPN_NULL;
 	}
-	return capn_write_ptr(p, off, &m);
+	/* in the case that the size is specified we need to be careful
+	 * that we don't read the extra byte as it may be not be null or
+	 * may be in a different page and cause a segfault
+	 */
+	return write_ptr(p, off, &m, 1);
 }
 
-int capn_write_data(struct capn_ptr *p, int off, struct capn_data tgt) {
+int capn_set_data(struct capn_ptr *p, int off, struct capn_data tgt) {
 	struct capn_ptr m;
 	if (tgt.data) {
 		m.type = CAPN_LIST;
+		m.seg = tgt.seg;
 		m.data = (char*)tgt.data;
 		m.size = tgt.size;
 		m.datasz = 1;
-		m.seg = tgt.seg;
+		m.ptrsz = 0;
 	} else {
 		m.type = CAPN_NULL;
 	}
-	return capn_write_ptr(p, off, &m);
+	return write_ptr(p, off, &m, 0);
 }
 
 int capn_marshal_iptr(const union capn_iptr *ip, struct capn_ptr *p, int off) {
-	return capn_write_ptr(p, off, &ip->c);
+	return write_ptr(p, off, &ip->c, 0);
 }

@@ -1,12 +1,23 @@
-.PHONY: all clean
+.PHONY: all clean test
 
-all: capn.so
+CFLAGS=-g -Wall -Werror -fPIC -I. -Wno-unused-function
+
+all: capn.so test
 
 clean:
-	rm -f *.o *.so
+	rm -f *.o *.so capnpc-c compiler/*.o
 
 %.o: %.c *.h *.inc
-	$(CC) -Wall -Werror -g -O2 -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 capn.so: capn-malloc.o capn-stream.o capn.o
-	$(CC) -shared -Wall -Werror -fPIC -g -O2 $^ -o $@
+	$(CC) -shared $(CFLAGS) $^ -o $@
+
+test: capn-test
+	./capn-test
+
+%-test.o: %-test.cpp *.h *.c *.inc
+	$(CXX) `gtest-config --cppflags --cxxflags` -o $@ -c $<
+
+capn-test: capn-test.o
+	$(CXX) `gtest-config --ldflags --libs` -o $@ $^

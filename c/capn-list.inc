@@ -4,9 +4,34 @@
 #define UINT_T CAT(CAT(uint, SZ), _t)
 #define FLIP CAT(capn_flip, SZ)
 
-int CAT(capn_read,SZ) (const struct CAT(capn_list,SZ) *list, int off, UINT_T *to, int sz) {
+UINT_T CAT(capn_get,SZ) (const struct capn_ptr *p, int off) {
+	char *d;
+	if (off >= p->size) {
+		return 0;
+	}
+
+	switch (p->type) {
+	case CAPN_LIST:
+		if (p->datasz < SZ/8)
+			return 0;
+		d = p->data + off * (p->datasz + p->ptrsz);
+		return FLIP(*(UINT_T*)d);
+
+	case CAPN_PTR_LIST:
+		d = struct_ptr(p->seg, p->data + 8*off, SZ/8);
+		if (d) {
+			return FLIP(*(UINT_T*)d);
+		} else {
+			return 0;
+		}
+
+	default:
+		return 0;
+	}
+}
+
+int CAT(capn_getv,SZ) (const struct capn_ptr *p, int off, UINT_T *to, int sz) {
 	int i;
-	const struct capn_ptr *p = &list->p;
 
 	if (off + sz > p->size) {
 		sz = p->size - off;
@@ -29,7 +54,7 @@ int CAT(capn_read,SZ) (const struct CAT(capn_list,SZ) *list, int off, UINT_T *to
 
 	case CAPN_PTR_LIST:
 		for (i = 0; i < sz; i++) {
-			char *d = struct_ptr(p->seg, p->data + 8*(i+off));
+			char *d = struct_ptr(p->seg, p->data + 8*(i+off), SZ/8);
 			if (d) {
 				to[i] = FLIP(*(UINT_T*)d);
 			} else {
@@ -43,9 +68,35 @@ int CAT(capn_read,SZ) (const struct CAT(capn_list,SZ) *list, int off, UINT_T *to
 	}
 }
 
-int CAT(capn_write,SZ) (struct CAT(capn_list,SZ) *list, int off, const UINT_T *from, int sz) {
+int CAT(capn_set,SZ) (struct capn_ptr *p, int off, UINT_T v) {
+	char *d;
+	if (off >= p->size) {
+		return -1;
+	}
+
+	switch (p->type) {
+	case CAPN_LIST:
+		if (p->datasz < SZ/8)
+			return -1;
+		d = p->data + off * (p->datasz + p->ptrsz);
+		*(UINT_T*) d = FLIP(v);
+		return 0;
+
+	case CAPN_PTR_LIST:
+		d = struct_ptr(p->seg, p->data + 8*off, SZ/8);
+		if (!d) {
+			return -1;
+		}
+		*(UINT_T*) d = FLIP(v);
+		return 0;
+
+	default:
+		return -1;
+	}
+}
+
+int CAT(capn_setv,SZ) (struct capn_ptr *p, int off, const UINT_T *from, int sz) {
 	int i;
-	struct capn_ptr *p = &list->p;
 
 	if (off + sz > p->size) {
 		sz = p->size - off;
@@ -68,7 +119,7 @@ int CAT(capn_write,SZ) (struct CAT(capn_list,SZ) *list, int off, const UINT_T *f
 
 	case CAPN_PTR_LIST:
 		for (i = 0; i < sz; i++) {
-			char *d = struct_ptr(p->seg, p->data + 8*(i+off));
+			char *d = struct_ptr(p->seg, p->data + 8*(i+off), SZ/8);
 			if (d) {
 				*(UINT_T*) d = FLIP(from[i]);
 			} else {
