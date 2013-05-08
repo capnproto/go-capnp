@@ -6,15 +6,10 @@ static int g_AddTag = 1;
 #include "capn.c"
 #include "capn-malloc.c"
 
-typedef uint64_t word;
-
 template <int wordCount>
 union AlignedData {
-  // Useful for declaring static constant data blobs as an array of bytes, but forcing those
-  // bytes to be word-aligned.
-
-  uint8_t bytes[wordCount * sizeof(word)];
-  word words[wordCount];
+  uint8_t bytes[wordCount * 8];
+  uint64_t words[wordCount];
 };
 
 class Session {
@@ -51,25 +46,21 @@ TEST(WireFormat, SimpleRawDataStruct) {
   EXPECT_EQ(1, ctx.segnum);
   EXPECT_EQ(0, seg.id);
 
-  struct capn_ptr root = capn_root(&ctx);
-  EXPECT_EQ(CAPN_PTR_LIST, root.type);
-  EXPECT_EQ(1, root.size);
-
-  struct capn_ptr ptr = capn_getp(&root, 0);
+  struct capn_ptr ptr = capn_get_root(&ctx);
   EXPECT_EQ(CAPN_STRUCT, ptr.type);
   EXPECT_EQ(8, ptr.datasz);
   EXPECT_EQ(0, ptr.ptrsz);
 
-  EXPECT_EQ(UINT64_C(0xefcdab8967452301), capn_read64(&ptr, 0));
-  EXPECT_EQ(UINT64_C(0), capn_read64(&ptr, 8));
-  EXPECT_EQ(UINT32_C(0x67452301), capn_read32(&ptr, 0));
-  EXPECT_EQ(UINT32_C(0xefcdab89), capn_read32(&ptr, 4));
-  EXPECT_EQ(UINT32_C(0), capn_read32(&ptr, 8));
-  EXPECT_EQ(UINT16_C(0x2301), capn_read16(&ptr, 0));
-  EXPECT_EQ(UINT16_C(0x6745), capn_read16(&ptr, 2));
-  EXPECT_EQ(UINT16_C(0xab89), capn_read16(&ptr, 4));
-  EXPECT_EQ(UINT16_C(0xefcd), capn_read16(&ptr, 6));
-  EXPECT_EQ(UINT16_C(0), capn_read16(&ptr, 8));
+  EXPECT_EQ(UINT64_C(0xefcdab8967452301), capn_read64(ptr, 0));
+  EXPECT_EQ(UINT64_C(0), capn_read64(ptr, 8));
+  EXPECT_EQ(UINT32_C(0x67452301), capn_read32(ptr, 0));
+  EXPECT_EQ(UINT32_C(0xefcdab89), capn_read32(ptr, 4));
+  EXPECT_EQ(UINT32_C(0), capn_read32(ptr, 8));
+  EXPECT_EQ(UINT16_C(0x2301), capn_read16(ptr, 0));
+  EXPECT_EQ(UINT16_C(0x6745), capn_read16(ptr, 2));
+  EXPECT_EQ(UINT16_C(0xab89), capn_read16(ptr, 4));
+  EXPECT_EQ(UINT16_C(0xefcd), capn_read16(ptr, 6));
+  EXPECT_EQ(UINT16_C(0), capn_read16(ptr, 8));
 }
 
 static const AlignedData<2> SUBSTRUCT_DEFAULT = {{0,0,0,0,1,0,0,0,  0,0,0,0,0,0,0,0}};
@@ -77,144 +68,142 @@ static const AlignedData<2> STRUCTLIST_ELEMENT_SUBSTRUCT_DEFAULT =
     {{0,0,0,0,1,0,0,0,  0,0,0,0,0,0,0,0}};
 
 static void setupStruct(struct capn *ctx) {
-  struct capn_ptr root = capn_root(ctx);
-  EXPECT_EQ(CAPN_PTR_LIST, root.type);
-  EXPECT_EQ(1, root.size);
+  struct capn_ptr root = capn_new_root(ctx);
+  ASSERT_EQ(CAPN_PTR_LIST, root.type);
+  ASSERT_EQ(1, root.size);
 
   struct capn_ptr ptr = capn_new_struct(root.seg, 16, 4);
-  EXPECT_EQ(CAPN_STRUCT, ptr.type);
+  ASSERT_EQ(CAPN_STRUCT, ptr.type);
   EXPECT_EQ(16, ptr.datasz);
   EXPECT_EQ(32, ptr.ptrsz);
-  EXPECT_EQ(0, capn_setp(&root, 0, &ptr));
+  EXPECT_EQ(0, capn_setp(root, 0, ptr));
 
-  EXPECT_EQ(0, capn_write64(&ptr, 0, UINT64_C(0x1011121314151617)));
-  EXPECT_EQ(0, capn_write32(&ptr, 8, UINT32_C(0x20212223)));
-  EXPECT_EQ(0, capn_write16(&ptr, 12, UINT16_C(0x3031)));
-  EXPECT_EQ(0, capn_write8(&ptr, 14, 0x40));
-  EXPECT_EQ(0, capn_write8(&ptr, 15, (1 << 6) | (1 << 5) | (1 << 4) | (1 << 2)));
+  EXPECT_EQ(0, capn_write64(ptr, 0, UINT64_C(0x1011121314151617)));
+  EXPECT_EQ(0, capn_write32(ptr, 8, UINT32_C(0x20212223)));
+  EXPECT_EQ(0, capn_write16(ptr, 12, UINT16_C(0x3031)));
+  EXPECT_EQ(0, capn_write8(ptr, 14, 0x40));
+  EXPECT_EQ(0, capn_write8(ptr, 15, (1 << 6) | (1 << 5) | (1 << 4) | (1 << 2)));
 
   struct capn_ptr subStruct = capn_new_struct(ptr.seg, 8, 0);
-  EXPECT_EQ(CAPN_STRUCT, subStruct.type);
+  ASSERT_EQ(CAPN_STRUCT, subStruct.type);
   EXPECT_EQ(8, subStruct.datasz);
   EXPECT_EQ(0, subStruct.ptrsz);
-  EXPECT_EQ(0, capn_write32(&subStruct, 0, 123));
-  EXPECT_NE(0, capn_write32(&subStruct, 8, 124));
-  EXPECT_EQ(0, capn_setp(&ptr, 0, &subStruct));
+  EXPECT_EQ(0, capn_write32(subStruct, 0, 123));
+  EXPECT_NE(0, capn_write32(subStruct, 8, 124));
+  EXPECT_EQ(0, capn_setp(ptr, 0, subStruct));
 
   struct capn_ptr list = capn_new_list(ptr.seg, 3, 4, 0);
-  EXPECT_EQ(CAPN_LIST, list.type);
+  ASSERT_EQ(CAPN_LIST, list.type);
   EXPECT_EQ(3, list.size);
   EXPECT_EQ(4, list.datasz);
-  EXPECT_EQ(0, capn_set32(&list, 0, 200));
-  EXPECT_EQ(0, capn_set32(&list, 1, 201));
-  EXPECT_EQ(0, capn_set32(&list, 2, 202));
-  EXPECT_NE(0, capn_set32(&list, 3, 203));
-  EXPECT_NE(0, capn_set64(&list, 0, 405));
-  EXPECT_EQ(0, capn_setp(&ptr, 1, &list));
+  EXPECT_EQ(0, capn_set32(list, 0, 200));
+  EXPECT_EQ(0, capn_set32(list, 1, 201));
+  EXPECT_EQ(0, capn_set32(list, 2, 202));
+  EXPECT_NE(0, capn_set32(list, 3, 203));
+  EXPECT_NE(0, capn_set64(list, 0, 405));
+  EXPECT_EQ(0, capn_setp(ptr, 1, list));
 
   list = capn_new_list(ptr.seg, 4, 4, 1);
-  EXPECT_EQ(CAPN_LIST, list.type);
+  ASSERT_EQ(CAPN_LIST, list.type);
   EXPECT_EQ(4, list.size);
   EXPECT_EQ(8, list.datasz);
   EXPECT_EQ(8, list.ptrsz);
-  EXPECT_EQ(0, capn_setp(&ptr, 2, &list));
+  EXPECT_EQ(0, capn_setp(ptr, 2, list));
   for (int i = 0; i < 4; i++) {
-    struct capn_ptr element = capn_getp(&list, i);
-    EXPECT_EQ(CAPN_LIST_MEMBER, element.type);
+    struct capn_ptr element = capn_getp(list, i);
+    ASSERT_EQ(CAPN_STRUCT, element.type);
+    EXPECT_EQ(1, element.is_list_member);
     EXPECT_EQ(8, element.datasz);
     EXPECT_EQ(8, element.ptrsz);
-    EXPECT_EQ(0, capn_write32(&element, 0, 300+i));
+    EXPECT_EQ(0, capn_write32(element, 0, 300+i));
 
     struct capn_ptr subelement = capn_new_struct(element.seg, 8, 0);
-    EXPECT_EQ(CAPN_STRUCT, subelement.type);
+    ASSERT_EQ(CAPN_STRUCT, subelement.type);
     EXPECT_EQ(8, subelement.datasz);
     EXPECT_EQ(0, subelement.ptrsz);
-    EXPECT_EQ(0, capn_write32(&subelement, 0, 400+i));
-    EXPECT_EQ(0, capn_setp(&element, 0, &subelement));
+    EXPECT_EQ(0, capn_write32(subelement, 0, 400+i));
+    EXPECT_EQ(0, capn_setp(element, 0, subelement));
   }
 
   list = capn_new_ptr_list(ptr.seg, 5);
-  EXPECT_EQ(CAPN_PTR_LIST, list.type);
+  ASSERT_EQ(CAPN_PTR_LIST, list.type);
   EXPECT_EQ(5, list.size);
-  EXPECT_EQ(0, capn_setp(&ptr, 3, &list));
+  EXPECT_EQ(0, capn_setp(ptr, 3, list));
   for (int i = 0; i < 5; i++) {
     struct capn_ptr element = capn_new_list(list.seg, i+1, 2, 0);
-    EXPECT_EQ(CAPN_LIST, element.type);
+    ASSERT_EQ(CAPN_LIST, element.type);
     EXPECT_EQ(i+1, element.size);
     EXPECT_EQ(2, element.datasz);
     EXPECT_EQ(0, element.ptrsz);
-    EXPECT_EQ(0, capn_setp(&list, i, &element));
+    EXPECT_EQ(0, capn_setp(list, i, element));
     for (int j = 0; j <= i; j++) {
-      EXPECT_EQ(0, capn_set16(&element, j, 500+j));
+      EXPECT_EQ(0, capn_set16(element, j, 500+j));
     }
   }
 }
 
 static void checkStruct(struct capn *ctx) {
-  struct capn_ptr root = capn_root(ctx);
-  EXPECT_EQ(CAPN_PTR_LIST, root.type);
-  EXPECT_EQ(1, root.size);
-
-  struct capn_ptr ptr = capn_getp(&root, 0);
+  struct capn_ptr ptr = capn_get_root(ctx);
   EXPECT_EQ(CAPN_STRUCT, ptr.type);
   EXPECT_EQ(16, ptr.datasz);
   EXPECT_EQ(32, ptr.ptrsz);
-  EXPECT_EQ(UINT64_C(0x1011121314151617), capn_read64(&ptr, 0));
-  EXPECT_EQ(UINT32_C(0x20212223), capn_read32(&ptr, 8));
-  EXPECT_EQ(0x3031, capn_read16(&ptr, 12));
-  EXPECT_EQ(0x40, capn_read8(&ptr, 14));
-  EXPECT_EQ((1 << 6) | (1 << 5) | (1 << 4) | (1 << 2), capn_read8(&ptr, 15));
+  EXPECT_EQ(UINT64_C(0x1011121314151617), capn_read64(ptr, 0));
+  EXPECT_EQ(UINT32_C(0x20212223), capn_read32(ptr, 8));
+  EXPECT_EQ(0x3031, capn_read16(ptr, 12));
+  EXPECT_EQ(0x40, capn_read8(ptr, 14));
+  EXPECT_EQ((1 << 6) | (1 << 5) | (1 << 4) | (1 << 2), capn_read8(ptr, 15));
 
-  struct capn_ptr subStruct = capn_getp(&ptr, 0);
+  struct capn_ptr subStruct = capn_getp(ptr, 0);
   EXPECT_EQ(CAPN_STRUCT, subStruct.type);
   EXPECT_EQ(8, subStruct.datasz);
   EXPECT_EQ(0, subStruct.ptrsz);
-  EXPECT_EQ(123, capn_read32(&subStruct, 0));
+  EXPECT_EQ(123, capn_read32(subStruct, 0));
 
-  struct capn_ptr list = capn_getp(&ptr, 1);
+  struct capn_ptr list = capn_getp(ptr, 1);
   EXPECT_EQ(CAPN_LIST, list.type);
   EXPECT_EQ(3, list.size);
   EXPECT_EQ(4, list.datasz);
   EXPECT_EQ(0, list.ptrsz);
-  EXPECT_EQ(200, capn_get32(&list, 0));
-  EXPECT_EQ(201, capn_get32(&list, 1));
-  EXPECT_EQ(202, capn_get32(&list, 2));
-  EXPECT_EQ(0, capn_get32(&list, 3));
-  EXPECT_EQ(0, capn_get64(&list, 0));
-  EXPECT_EQ(201, capn_get8(&list, 1));
-  EXPECT_EQ(202, capn_get16(&list, 2));
+  EXPECT_EQ(200, capn_get32(list, 0));
+  EXPECT_EQ(201, capn_get32(list, 1));
+  EXPECT_EQ(202, capn_get32(list, 2));
+  EXPECT_EQ(0, capn_get32(list, 3));
+  EXPECT_EQ(0, capn_get64(list, 0));
+  EXPECT_EQ(201, capn_get8(list, 1));
+  EXPECT_EQ(202, capn_get16(list, 2));
 
-  list = capn_getp(&ptr, 2);
+  list = capn_getp(ptr, 2);
   EXPECT_EQ(CAPN_LIST, list.type);
   EXPECT_EQ(4, list.size);
   EXPECT_EQ(8, list.datasz);
   EXPECT_EQ(8, list.ptrsz);
 
   for (int i = 0; i < 4; i++) {
-    struct capn_ptr element = capn_getp(&list, i);
-    EXPECT_EQ(CAPN_LIST_MEMBER, element.type);
+    struct capn_ptr element = capn_getp(list, i);
+    EXPECT_EQ(CAPN_STRUCT, element.type);
+    EXPECT_EQ(1, element.is_list_member);
     EXPECT_EQ(8, element.datasz);
     EXPECT_EQ(8, element.ptrsz);
-    EXPECT_EQ(300+i, capn_read32(&element,0));
+    EXPECT_EQ(300+i, capn_read32(element,0));
 
-    struct capn_ptr subelement = capn_getp(&element, 0);
+    struct capn_ptr subelement = capn_getp(element, 0);
     EXPECT_EQ(CAPN_STRUCT, subelement.type);
     EXPECT_EQ(8, subelement.datasz);
     EXPECT_EQ(0, subelement.ptrsz);
-    EXPECT_EQ(400+i, capn_read32(&subelement, 0));
+    EXPECT_EQ(400+i, capn_read32(subelement, 0));
   }
 
-  list = capn_getp(&ptr, 3);
+  list = capn_getp(ptr, 3);
   EXPECT_EQ(CAPN_PTR_LIST, list.type);
   EXPECT_EQ(5, list.size);
   for (int i = 0; i < 5; i++) {
-    struct capn_ptr element = capn_getp(&list, i);
+    struct capn_ptr element = capn_getp(list, i);
     EXPECT_EQ(CAPN_LIST, element.type);
     EXPECT_EQ(i+1, element.size);
     EXPECT_EQ(2, element.datasz);
     EXPECT_EQ(0, element.ptrsz);
     for (int j = 0; j <= i; j++) {
-      EXPECT_EQ(500+j, capn_get16(&element, j));
+      EXPECT_EQ(500+j, capn_get16(element, j));
     }
   }
 }

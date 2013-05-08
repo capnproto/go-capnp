@@ -37,5 +37,3 @@ void capn_free_malloc(struct capn *c) {
 		s = n;
 	}
 }
-
-

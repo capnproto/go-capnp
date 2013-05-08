@@ -1,6 +1,7 @@
 .PHONY: all clean test
 
-CFLAGS=-g -Wall -Werror -fPIC -I. -Wno-unused-function
+LDFLAGS=-g -Wall -Werror -fPIC
+CFLAGS=-g -Wall -Werror -fPIC -I. -Wno-unused-function -ansi -pedantic
 
 all: capn.so test
 
@@ -11,7 +12,7 @@ clean:
 	$(CC) $(CFLAGS) -c $< -o $@
 
 capn.so: capn-malloc.o capn-stream.o capn.o
-	$(CC) -shared $(CFLAGS) $^ -o $@
+	$(CC) -shared $(LDFLAGS) $^ -o $@
 
 test: capn-test
 	./capn-test
