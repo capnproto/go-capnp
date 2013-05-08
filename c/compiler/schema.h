@@ -1,25 +1,109 @@
 /* vim: set sw=8 ts=8 sts=8 noet: */
 #include <capn.h>
 
-struct Node_ptr {struct capn_ptr p;};
-struct Node_NestedNode_ptr {struct capn_ptr p;};
-struct Type_ptr {struct capn_ptr p;};
-struct Value_ptr {struct capn_ptr p;};
-struct Annotation_ptr {struct capn_ptr p;};
-struct FileNode_ptr {struct capn_ptr p;};
-struct FileNode_Import_ptr {struct capn_ptr p;};
-struct StructNode_ptr {struct capn_ptr p;};
-struct StructNode_Member_ptr {struct capn_ptr p;};
-struct StructNode_Field_ptr {struct capn_ptr p;};
-struct StructNode_Union_ptr {struct capn_ptr p;};
-struct EnumNode_ptr {struct capn_ptr p;};
-struct EnumNode_Enumerant_ptr {struct capn_ptr p;};
-struct InterfaceNode_ptr {struct capn_ptr p;};
-struct InterfaceNode_Method_ptr {struct capn_ptr p;};
-struct InterfaceNode_Method_Param_ptr {struct capn_ptr p;};
-struct ConstNode_ptr {struct capn_ptr p;};
-struct AnnotationNode_ptr {struct capn_ptr p;};
-struct CodeGeneratorRequest_ptr {struct capn_ptr p;};
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+struct Node;
+struct Node_NestedNode;
+struct Type;
+struct Value;
+struct Annotation;
+struct FileNode;
+struct FileNode_Import;
+struct StructNode;
+struct StructNode_Member;
+struct StructNode_Field;
+struct StructNode_Union;
+struct EnumNode;
+struct EnumNode_Enumerant;
+struct InterfaceNode;
+struct InterfaceNode_Method;
+struct InterfaceNode_Method_Param;
+struct ConstNode;
+struct AnnotationNode;
+struct CodeGeneratorRequest;
+
+typedef struct {capn_ptr p;} Node_ptr;
+typedef struct {capn_ptr p;} Node_NestedNode_ptr;
+typedef struct {capn_ptr p;} Type_ptr;
+typedef struct {capn_ptr p;} Value_ptr;
+typedef struct {capn_ptr p;} Annotation_ptr;
+typedef struct {capn_ptr p;} FileNode_ptr;
+typedef struct {capn_ptr p;} FileNode_Import_ptr;
+typedef struct {capn_ptr p;} StructNode_ptr;
+typedef struct {capn_ptr p;} StructNode_Member_ptr;
+typedef struct {capn_ptr p;} StructNode_Field_ptr;
+typedef struct {capn_ptr p;} StructNode_Union_ptr;
+typedef struct {capn_ptr p;} EnumNode_ptr;
+typedef struct {capn_ptr p;} EnumNode_Enumerant_ptr;
+typedef struct {capn_ptr p;} InterfaceNode_ptr;
+typedef struct {capn_ptr p;} InterfaceNode_Method_ptr;
+typedef struct {capn_ptr p;} InterfaceNode_Method_Param_ptr;
+typedef struct {capn_ptr p;} ConstNode_ptr;
+typedef struct {capn_ptr p;} AnnotationNode_ptr;
+typedef struct {capn_ptr p;} CodeGeneratorRequest_ptr;
+
+typedef struct {capn_ptr p;} Node_list;
+typedef struct {capn_ptr p;} Node_NestedNode_list;
+typedef struct {capn_ptr p;} Type_list;
+typedef struct {capn_ptr p;} Value_list;
+typedef struct {capn_ptr p;} Annotation_list;
+typedef struct {capn_ptr p;} FileNode_list;
+typedef struct {capn_ptr p;} FileNode_Import_list;
+typedef struct {capn_ptr p;} StructNode_list;
+typedef struct {capn_ptr p;} StructNode_Member_list;
+typedef struct {capn_ptr p;} StructNode_Field_list;
+typedef struct {capn_ptr p;} StructNode_Union_list;
+typedef struct {capn_ptr p;} EnumNode_list;
+typedef struct {capn_ptr p;} EnumNode_Enumerant_list;
+typedef struct {capn_ptr p;} InterfaceNode_list;
+typedef struct {capn_ptr p;} InterfaceNode_Method_list;
+typedef struct {capn_ptr p;} InterfaceNode_Method_Param_list;
+typedef struct {capn_ptr p;} ConstNode_list;
+typedef struct {capn_ptr p;} AnnotationNode_list;
+typedef struct {capn_ptr p;} CodeGeneratorRequest_list;
+
+void read_Node(struct Node*, Node_ptr);
+void read_Node_NestedNode(struct Node_NestedNode*, Node_NestedNode_ptr);
+void read_Type(struct Type*, Type_ptr);
+void read_Value(struct Value*, Value_ptr);
+void read_Annotation(struct Annotation*, Annotation_ptr);
+void read_FileNode(struct FileNode*, FileNode_ptr);
+void read_FileNode_Import(struct FileNode_Import*, FileNode_Import_ptr);
+void read_StructNode(struct StructNode*, StructNode_ptr);
+void read_StructNode_Member(struct StructNode_Member*, StructNode_Member_ptr);
+void read_StructNode_Field(struct StructNode_Field*, StructNode_Field_ptr);
+void read_StructNode_Union(struct StructNode_Union*, StructNode_Union_ptr);
+void read_EnumNode(struct EnumNode*, EnumNode_ptr);
+void read_EnumNode_Enumerant(struct EnumNode_Enumerant*, EnumNode_Enumerant_ptr);
+void read_InterfaceNode(struct InterfaceNode*, InterfaceNode_ptr);
+void read_InterfaceNode_Method(struct InterfaceNode_Method*, InterfaceNode_Method_ptr);
+void read_InterfaceNode_Method_Param(struct InterfaceNode_Method_Param*, InterfaceNode_Method_Param_ptr);
+void read_ConstNode(struct ConstNode*, ConstNode_ptr);
+void read_AnnotationNode(struct AnnotationNode*, AnnotationNode_ptr);
+void read_CodeGeneratorRequest(struct CodeGeneratorRequest*, CodeGeneratorRequest_ptr);
+
+void get_Node(struct Node*, Node_list, int i);
+void get_Node_NestedNode(struct Node_NestedNode*, Node_NestedNode_list, int i);
+void get_Type(struct Type*, Type_list, int i);
+void get_Value(struct Value*, Value_list, int i);
+void get_Annotation(struct Annotation*, Annotation_list, int i);
+void get_FileNode(struct FileNode*, FileNode_list, int i);
+void get_FileNode_Import(struct FileNode_Import*, FileNode_Import_list, int i);
+void get_StructNode(struct StructNode*, StructNode_list, int i);
+void get_StructNode_Member(struct StructNode_Member*, StructNode_Member_list, int i);
+void get_StructNode_Field(struct StructNode_Field*, StructNode_Field_list, int i);
+void get_StructNode_Union(struct StructNode_Union*, StructNode_Union_list, int i);
+void get_EnumNode(struct EnumNode*, EnumNode_list, int i);
+void get_EnumNode_Enumerant(struct EnumNode_Enumerant*, EnumNode_Enumerant_list, int i);
+void get_InterfaceNode(struct InterfaceNode*, InterfaceNode_list, int i);
+void get_InterfaceNode_Method(struct InterfaceNode_Method*, InterfaceNode_Method_list, int i);
+void get_InterfaceNode_Method_Param(struct InterfaceNode_Method_Param*, InterfaceNode_Method_Param_list, int i);
+void get_ConstNode(struct ConstNode*, ConstNode_list, int i);
+void get_AnnotationNode(struct AnnotationNode*, AnnotationNode_list, int i);
+void get_CodeGeneratorRequest(struct CodeGeneratorRequest*, CodeGeneratorRequest_list, int i);
 
 enum Node_body {
 	Node_fileNode = 0,
@@ -27,28 +111,28 @@ enum Node_body {
 	Node_enumNode = 2,
 	Node_interfaceNode = 3,
 	Node_constNode = 4,
-	Node_annotationNode = 5,
+	Node_annotationNode = 5
 };
 
 struct Node {
 	uint64_t id;
-	struct capn_text displayName;
+	capn_text displayName;
 	uint64_t scopeId;
-	struct capn_ptr nestedNodes; /* List(Node_NestedNode) */
-	struct capn_ptr annotations; /* List(Annotation) */
+	Node_NestedNode_list nestedNodes;
+	Annotation_list annotations;
 	enum Node_body body_tag;
 	union {
-		struct FileNode_ptr fileNode;
-		struct StructNode_ptr structNode;
-		struct EnumNode_ptr enumNode;
-		struct InterfaceNode_ptr interfaceNode;
-		struct ConstNode_ptr constNode;
-		struct AnnotationNode_ptr annotationNode;
+		FileNode_ptr fileNode;
+		StructNode_ptr structNode;
+		EnumNode_ptr enumNode;
+		InterfaceNode_ptr interfaceNode;
+		ConstNode_ptr constNode;
+		AnnotationNode_ptr annotationNode;
 	} body;
 };
 
 struct Node_NestedNode {
-	struct capn_text name;
+	capn_text name;
 	uint64_t id;
 };
 
@@ -71,13 +155,13 @@ enum Type_body {
 	Type_enumType = 15,
 	Type_structType = 16,
 	Type_interfaceType = 17,
-	Type_objectType = 18,
+	Type_objectType = 18
 };
 
 struct Type {
 	enum Type_body body_tag;
 	union {
-		struct Type_ptr listType;
+		Type_ptr listType;
 		uint64_t enumType;
 		uint64_t structType;
 		uint64_t interfaceType;
@@ -103,7 +187,7 @@ enum Value_body {
 	Value_enumValue = 15,
 	Value_structValue = 16,
 	Value_interfaceValue = 17,
-	Value_objectValue = 18,
+	Value_objectValue = 18
 };
 
 struct Value {
@@ -120,27 +204,27 @@ struct Value {
 		uint64_t uint64Value;
 		float float32Value;
 		double float64Value;
-		struct capn_text textValue;
-		struct capn_data dataValue;
-		struct capn_ptr listValue;
+		capn_text textValue;
+		capn_data dataValue;
+		capn_ptr listValue;
 		uint16_t enumValue;
-		struct capn_ptr structValue;
-		struct capn_ptr objectValue;
+		capn_ptr structValue;
+		capn_ptr objectValue;
 	} body;
 };
 
 struct Annotation {
 	uint64_t id;
-	struct Value_ptr value;
+	Value_ptr value;
 };
 
 struct FileNode {
-	struct capn_ptr imports; /* List(FileNode_Import) */
+	FileNode_Import_list imports;
 };
 
 struct FileNode_Import {
 	uint64_t id;
-	struct capn_text name;
+	capn_text name;
 };
 
 enum ElementSize {
@@ -151,81 +235,81 @@ enum ElementSize {
 	ElementSize_fourBytes = 4,
 	ElementSize_eightBytes = 5,
 	ElementSize_pointer = 6,
-	ElementSize_inlineComposite = 7,
+	ElementSize_inlineComposite = 7
 };
 
 struct StructNode {
 	uint16_t dataSectionWordSize;
 	uint16_t pointerSectionSize;
 	enum ElementSize preferredListEncoding;
-	struct capn_ptr members; /* List(StructNode_Member) */
+	StructNode_Member_list members;
 };
 
 enum StructNode_Member_body {
 	StructNode_Member_fieldMember = 0,
-	StructNode_Member_unionMember = 1,
+	StructNode_Member_unionMember = 1
 };
 
 struct StructNode_Member {
-	struct capn_text name;
+	capn_text name;
 	uint16_t ordinal;
 	uint16_t codeOrder;
-	struct capn_ptr annotations; /* List(Annotation) */
+	Annotation_list annotations;
 	enum StructNode_Member_body body_tag;
 	union {
-		struct StructNode_Field_ptr fieldMember;
-		struct StructNode_Field_ptr unionMember;
+		StructNode_Field_ptr fieldMember;
+		StructNode_Union_ptr unionMember;
 	} body;
 };
 
 struct StructNode_Field {
 	uint32_t offset;
-	struct Type_ptr type;
-	struct Value_ptr defaultValue;
+	Type_ptr type;
+	Value_ptr defaultValue;
 };
 
 struct StructNode_Union {
 	uint32_t discriminantOffset;
-	struct capn_ptr members; /* List(StructNode_Member) */
+	StructNode_Member_list members;
 };
 
 struct EnumNode {
-	struct capn_ptr enumerants; /* List(EnumNode_Enumerant) */
+	EnumNode_Enumerant_list enumerants;
 };
 
 struct EnumNode_Enumerant {
-	struct capn_text name;
+	capn_text name;
 	uint16_t codeOrder;
-	struct capn_ptr annotations; /* List(Annotation) */
+	Annotation_list annotations;
 };
 
 struct InterfaceNode {
-	struct capn_ptr methods; /* List(InterfaceNode_Method) */
+	InterfaceNode_Method_list methods;
 };
 
 struct InterfaceNode_Method {
-	struct capn_text name;
+	capn_text name;
 	uint16_t codeOrder;
-	struct capn_ptr params; /* List(InterfaceNode_Method_Param) */
+	InterfaceNode_Method_Param_list params;
 	uint16_t requiredParamCount;
-	struct Type_ptr returnType;
-	struct capn_ptr annotations; /* List(Annotation) */
+	Type_ptr returnType;
+	Annotation_list annotations;
 };
 
 struct InterfaceNode_Method_Param {
-	struct capn_text name;
-	struct Type_ptr type;
-	struct Value_ptr defaultValue;
-	struct capn_ptr annotations; /* List(Annotation) */
+	capn_text name;
+	Type_ptr type;
+	Value_ptr defaultValue;
+	Annotation_list annotations;
 };
 
 struct ConstNode {
-	struct Type_ptr type;
-	struct Value_ptr value;
+	Type_ptr type;
+	Value_ptr value;
 };
 
 struct AnnotationNode {
-	struct Type_ptr type;
+	Type_ptr type;
 	unsigned int targetsFile : 1;
 	unsigned int targetsConst : 1;
 	unsigned int targetsEnum : 1;
@@ -240,27 +324,11 @@ struct AnnotationNode {
 };
 
 struct CodeGeneratorRequest {
-	struct capn_ptr nodes; /* List(Node) */
-	struct capn_ptr requestedFiles; /* List(uint64_t) */
+	Node_list nodes;
+	capn_ptr requestedFiles; /* List(uint64_t) */
 };
 
-void read_Node(const struct Node_ptr*, struct Node*);
-void read_Node_NestedNode(const struct Node_NestedNode_ptr*, struct Node_NestedNode*);
-void read_Type(const struct Type_ptr*, struct Type*);
-void read_Value(const struct Value_ptr*, struct Value*);
-void read_Annotation(const struct Annotation_ptr*, struct Annotation*);
-void read_FileNode(const struct FileNode_ptr*, struct FileNode*);
-void read_FileNode_Import(const struct FileNode_Import_ptr*, struct FileNode_Import*);
-void read_StructNode(const struct StructNode_ptr*, struct StructNode*);
-void read_StructNode_Member(const struct StructNode_Member_ptr*, struct StructNode_Member*);
-void read_StructNode_Field(const struct StructNode_Field_ptr*, struct StructNode_Field*);
-void read_StructNode_Union(const struct StructNode_Union_ptr*, struct StructNode_Union*);
-void read_EnumNode(const struct EnumNode_ptr*, struct EnumNode*);
-void read_EnumNode_Enumerant(const struct EnumNode_Enumerant_ptr*, struct EnumNode_Enumerant*);
-void read_InterfaceNode(const struct InterfaceNode_ptr*, struct InterfaceNode*);
-void read_InterfaceNode_Method(const struct InterfaceNode_Method_ptr*, struct InterfaceNode_Method*);
-void read_InterfaceNode_Method_Param(const struct InterfaceNode_Method_Param_ptr*, struct InterfaceNode_Method_Param*);
-void read_ConstNode(const struct ConstNode_ptr*, struct ConstNode*);
-void read_AnnotationNode(const struct AnnotationNode_ptr*, struct AnnotationNode*);
-void read_CodeGeneratorRequest(const struct CodeGeneratorRequest_ptr*, struct CodeGeneratorRequest*);
+#ifdef __cplusplus
+}
+#endif
 

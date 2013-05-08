@@ -198,6 +198,7 @@ CAPN_INLINE int capn_write16(capn_ptr p, int off, uint16_t val);
 CAPN_INLINE int capn_write32(capn_ptr p, int off, uint32_t val);
 CAPN_INLINE int capn_write64(capn_ptr p, int off, uint64_t val);
 
+struct capn_tree *capn_tree_insert(struct capn_tree *root, struct capn_tree *n);
 
 /* capn_init_malloc inits the capn struct with a create function which
  * allocates segments on the heap using malloc

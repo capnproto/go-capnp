@@ -38,7 +38,7 @@ static int min(int a, int b) { return (a < b) ? a : b; }
 #define CAPN_LITTLE 0
 #endif
 
-static struct capn_tree *insert_rebalance(struct capn_tree *root, struct capn_tree *n) {
+struct capn_tree *capn_tree_insert(struct capn_tree *root, struct capn_tree *n) {
 	n->red = 1;
 	n->link[0] = n->link[1] = NULL;
 
@@ -159,7 +159,7 @@ void capn_append_segment(struct capn *c, struct capn_segment *s) {
 	}
 
 	c->lastseg = s;
-	c->segtree = insert_rebalance(c->segtree, &s->hdr);
+	c->segtree = capn_tree_insert(c->segtree, &s->hdr);
 }
 
 static char *new_data(struct capn *c, int sz, struct capn_segment **ps) {
@@ -220,7 +220,7 @@ static struct capn_segment *lookup_segment(struct capn* c, struct capn_segment *
 		c->seglist = s;
 		s->hdr.parent = &y->hdr;
 		*x = &s->hdr;
-		c->segtree = insert_rebalance(c->segtree, &s->hdr);
+		c->segtree = capn_tree_insert(c->segtree, &s->hdr);
 	} else {
 		c->segnum = id;
 		capn_append_segment(c, s);
