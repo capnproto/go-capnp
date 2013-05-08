@@ -4,6 +4,7 @@
 #define CAPN_H
 
 #include <stdint.h>
+#include <stdio.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -207,6 +208,12 @@ CAPN_INLINE int capn_write64(capn_ptr p, int off, uint64_t val);
 void capn_init_malloc(struct capn *c);
 void capn_free_malloc(struct capn *c);
 
+int capn_init_fp(struct capn *c, FILE *f, int packed);
+void capn_free_fp(struct capn *c);
+
+int capn_init_mem(struct capn *c, const uint8_t *p, size_t sz, int packed);
+void capn_free_mem(struct capn *c);
+
 /* capn_stream encapsulates the needed fields for capn_(deflate|inflate) in a
  * similar manner to z_stream from zlib
  *
@@ -216,26 +223,27 @@ void capn_free_malloc(struct capn *c);
  * Other fields should be zero initialized.
  */
 struct capn_stream {
-	uint8_t *next_in;
+	const uint8_t *next_in;
 	int avail_in;
 	uint8_t *next_out;
 	int avail_out;
 	int zeros, raw;
 };
 
-#define CAPN_NEED_MORE_IN -1
-#define CAPN_NEED_MORE_OUT -2
+#define CAPN_MISALIGNED -1
+#define CAPN_NEED_MORE -2
 
 /* capn_deflate deflates a stream to the packed format
  * capn_inflate inflates a stream from the packed format
  *
- * They will return CAPN_NEED_MORE_(IN|OUT) as appropriate or 0 if the entire
- * input has been processed.
+ * Returns:
+ * CAPN_MISALIGNED - if the unpacked data is not 8 byte aligned
+ * CAPN_NEED_MORE - more packed data/room is required (out for inflate, in for
+ * deflate)
+ * 0 - success, all output for inflate, all input for deflate processed
  */
 int capn_deflate(struct capn_stream*);
 int capn_inflate(struct capn_stream*);
-
-int capn_marshal_iptr(const union capn_iptr*, struct capn_ptr*, int off);
 
 /* Inline functions */
 

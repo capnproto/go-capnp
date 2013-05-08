@@ -20,5 +20,5 @@ test: capn-test
 %-test.o: %-test.cpp *.h *.c *.inc
 	$(CXX) `gtest-config --cppflags --cxxflags` -o $@ -c $<
 
-capn-test: capn-test.o
+capn-test: capn-test.o capn-stream-test.o
 	$(CXX) `gtest-config --ldflags --libs` -o $@ $^
