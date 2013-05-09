@@ -4,9 +4,10 @@
 #define UINT_T CAT(CAT(uint, SZ), _t)
 #define FLIP CAT(capn_flip, SZ)
 
-UINT_T CAT(capn_get,SZ) (capn_ptr p, int off) {
+UINT_T CAT(capn_get,SZ) (CAT(capn_list,SZ) l, int off) {
 	char *d;
-	if (off >= p.size) {
+	capn_ptr p = l.p;
+	if (off >= p.len) {
 		return 0;
 	}
 
@@ -30,11 +31,11 @@ UINT_T CAT(capn_get,SZ) (capn_ptr p, int off) {
 	}
 }
 
-int CAT(capn_getv,SZ) (capn_ptr p, int off, UINT_T *to, int sz) {
+int CAT(capn_getv,SZ) (CAT(capn_list,SZ) l, int off, UINT_T *to, int sz) {
 	int i;
-
-	if (off + sz > p.size) {
-		sz = p.size - off;
+	capn_ptr p = l.p;
+	if (off + sz > p.len) {
+		sz = p.len - off;
 	}
 
 	switch (p.type) {
@@ -68,9 +69,10 @@ int CAT(capn_getv,SZ) (capn_ptr p, int off, UINT_T *to, int sz) {
 	}
 }
 
-int CAT(capn_set,SZ) (capn_ptr p, int off, UINT_T v) {
+int CAT(capn_set,SZ) (CAT(capn_list,SZ) l, int off, UINT_T v) {
 	char *d;
-	if (off >= p.size) {
+	capn_ptr p = l.p;
+	if (off >= p.len) {
 		return -1;
 	}
 
@@ -95,11 +97,11 @@ int CAT(capn_set,SZ) (capn_ptr p, int off, UINT_T v) {
 	}
 }
 
-int CAT(capn_setv,SZ) (capn_ptr p, int off, const UINT_T *from, int sz) {
+int CAT(capn_setv,SZ) (CAT(capn_list,SZ) l, int off, const UINT_T *from, int sz) {
 	int i;
-
-	if (off + sz > p.size) {
-		sz = p.size - off;
+	capn_ptr p = l.p;
+	if (off + sz > p.len) {
+		sz = p.len - off;
 	}
 
 	switch (p.type) {

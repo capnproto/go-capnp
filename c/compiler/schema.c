@@ -314,6 +314,6 @@ void read_AnnotationNode(struct AnnotationNode *s, AnnotationNode_ptr p) {
 
 void read_CodeGeneratorRequest(struct CodeGeneratorRequest *s, CodeGeneratorRequest_ptr p) {
 	s->nodes.p = capn_getp(p.p, 0);
-	s->requestedFiles = capn_getp(p.p, 1);
+	s->requestedFiles.p = capn_getp(p.p, 1);
 }
 

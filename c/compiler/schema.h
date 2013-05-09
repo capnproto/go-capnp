@@ -325,7 +325,7 @@ struct AnnotationNode {
 
 struct CodeGeneratorRequest {
 	Node_list nodes;
-	capn_ptr requestedFiles; /* List(uint64_t) */
+	capn_list64 requestedFiles;
 };
 
 #ifdef __cplusplus
