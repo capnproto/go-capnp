@@ -10,13 +10,11 @@ struct node {
 	struct node *next;
 	struct node *first_child, *next_child;
 	struct str name;
-	union {
-		struct StructNode structNode;
-		struct EnumNode enumNode;
-		struct InterfaceNode interfaceNode;
-		struct ConstNode constNode;
-		struct FileNode fileNode;
-	} u;
+	struct StructNode s;
+	struct EnumNode e;
+	struct InterfaceNode i;
+	struct ConstNode c;
+	struct FileNode f;
 };
 
 static struct node *g_files;
@@ -67,9 +65,9 @@ static void define_enum(struct node *n) {
 	int i;
 
 	fprintf(HDR, "\nenum %s {", n->name.str);
-	for (i = 0; i < n->u.enumNode.enumerants.p.len; i++) {
+	for (i = 0; i < n->e.enumerants.p.len; i++) {
 		struct EnumNode_Enumerant ee;
-		get_EnumNode_Enumerant(&ee, n->u.enumNode.enumerants, i);
+		get_EnumNode_Enumerant(&ee, n->e.enumerants, i);
 		if (i) {
 			fprintf(HDR, ",");
 		}
@@ -472,12 +470,12 @@ static struct member *decode_member(struct member *mbrs, StructNode_Member_list 
 static void define_struct(struct node *n) {
 	static struct str buf = STR_INIT;
 
-	int i, j, mlen = n->u.structNode.members.p.len;
+	int i, j, mlen = n->s.members.p.len;
 	struct member *mbrs = calloc(mlen, sizeof(*mbrs));
 
 	/* get list of members in code order and emit union enums */
 	for (i = 0; i < mlen; i++) {
-		struct member *m = decode_member(mbrs, n->u.structNode.members, i);
+		struct member *m = decode_member(mbrs, n->s.members, i);
 
 		if (m->m.body_tag == StructNode_Member_unionMember) {
 			int first, ulen;
@@ -616,19 +614,19 @@ int main() {
 		case Node_fileNode:
 			n->next = g_files;
 			g_files = n;
-			read_FileNode(&n->u.fileNode, n->n.body.fileNode);
+			read_FileNode(&n->f, n->n.body.fileNode);
 			break;
 		case Node_structNode:
-			read_StructNode(&n->u.structNode, n->n.body.structNode);
+			read_StructNode(&n->s, n->n.body.structNode);
 			break;
 		case Node_enumNode:
-			read_EnumNode(&n->u.enumNode, n->n.body.enumNode);
+			read_EnumNode(&n->e, n->n.body.enumNode);
 			break;
 		case Node_interfaceNode:
-			read_InterfaceNode(&n->u.interfaceNode, n->n.body.interfaceNode);
+			read_InterfaceNode(&n->i, n->n.body.interfaceNode);
 			break;
 		case Node_constNode:
-			read_ConstNode(&n->u.constNode, n->n.body.constNode);
+			read_ConstNode(&n->c, n->n.body.constNode);
 			break;
 		default:
 			break;
@@ -674,9 +672,9 @@ int main() {
 		fprintf(HDR, "/* AUTO GENERATED DO NOT EDIT*/\n");
 		fprintf(HDR, "#include <capn.h>\n");
 
-		for (i = 0; i < n->u.fileNode.imports.p.len; i++) {
+		for (i = 0; i < n->f.imports.p.len; i++) {
 			struct FileNode_Import im;
-			get_FileNode_Import(&im, n->u.fileNode.imports, i);
+			get_FileNode_Import(&im, n->f.imports, i);
 			fprintf(HDR, "#include \"%s.h\"\n", im.name.str);
 		}
 
