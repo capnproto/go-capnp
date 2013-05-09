@@ -140,13 +140,13 @@ void read_Type(struct Type *s, Type_ptr p) {
 		s->body.listType.p = capn_getp(p.p, 0);
 		break;
 	case Type_enumType:
-		s->body.enumType = capn_read64(p.p, 0);
+		s->body.enumType = capn_read64(p.p, 8);
 		break;
 	case Type_structType:
-		s->body.structType = capn_read64(p.p, 0);
+		s->body.structType = capn_read64(p.p, 8);
 		break;
 	case Type_interfaceType:
-		s->body.interfaceType = capn_read64(p.p, 0);
+		s->body.interfaceType = capn_read64(p.p, 8);
 		break;
 	default:
 		break;

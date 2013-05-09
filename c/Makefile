@@ -14,7 +14,7 @@ clean:
 capn.so: capn-malloc.o capn-stream.o capn.o
 	$(CC) -shared $(LDFLAGS) $^ -o $@
 
-capnpc-c: compiler/capnpc-c.o compiler/schema.capnp.o capn.so
+capnpc-c: compiler/capnpc-c.o compiler/schema.capnp.o compiler/str.o capn.so
 	$(CC) $(LDFLAGS) $^ -o $@
 
 test: capn-test
