@@ -1,4 +1,6 @@
-/* vim: set sw=8 ts=8 sts=8 noet: */
+#ifndef CAPN_b471df2f45ca32c7
+#define CAPN_b471df2f45ca32c7
+/* AUTO GENERATED DO NOT EDIT*/
 #include <capn.h>
 
 #ifdef __cplusplus
@@ -85,6 +87,26 @@ void read_ConstNode(struct ConstNode*, ConstNode_ptr);
 void read_AnnotationNode(struct AnnotationNode*, AnnotationNode_ptr);
 void read_CodeGeneratorRequest(struct CodeGeneratorRequest*, CodeGeneratorRequest_ptr);
 
+int write_Node(const struct Node*, Node_ptr);
+int write_Node_NestedNode(const struct Node_NestedNode*, Node_NestedNode_ptr);
+int write_Type(const struct Type*, Type_ptr);
+int write_Value(const struct Value*, Value_ptr);
+int write_Annotation(const struct Annotation*, Annotation_ptr);
+int write_FileNode(const struct FileNode*, FileNode_ptr);
+int write_FileNode_Import(const struct FileNode_Import*, FileNode_Import_ptr);
+int write_StructNode(const struct StructNode*, StructNode_ptr);
+int write_StructNode_Member(const struct StructNode_Member*, StructNode_Member_ptr);
+int write_StructNode_Field(const struct StructNode_Field*, StructNode_Field_ptr);
+int write_StructNode_Union(const struct StructNode_Union*, StructNode_Union_ptr);
+int write_EnumNode(const struct EnumNode*, EnumNode_ptr);
+int write_EnumNode_Enumerant(const struct EnumNode_Enumerant*, EnumNode_Enumerant_ptr);
+int write_InterfaceNode(const struct InterfaceNode*, InterfaceNode_ptr);
+int write_InterfaceNode_Method(const struct InterfaceNode_Method*, InterfaceNode_Method_ptr);
+int write_InterfaceNode_Method_Param(const struct InterfaceNode_Method_Param*, InterfaceNode_Method_Param_ptr);
+int write_ConstNode(const struct ConstNode*, ConstNode_ptr);
+int write_AnnotationNode(const struct AnnotationNode*, AnnotationNode_ptr);
+int write_CodeGeneratorRequest(const struct CodeGeneratorRequest*, CodeGeneratorRequest_ptr);
+
 void get_Node(struct Node*, Node_list, int i);
 void get_Node_NestedNode(struct Node_NestedNode*, Node_NestedNode_list, int i);
 void get_Type(struct Type*, Type_list, int i);
@@ -104,6 +126,26 @@ void get_InterfaceNode_Method_Param(struct InterfaceNode_Method_Param*, Interfac
 void get_ConstNode(struct ConstNode*, ConstNode_list, int i);
 void get_AnnotationNode(struct AnnotationNode*, AnnotationNode_list, int i);
 void get_CodeGeneratorRequest(struct CodeGeneratorRequest*, CodeGeneratorRequest_list, int i);
+
+int set_Node(const struct Node*, Node_list, int i);
+int set_Node_NestedNode(const struct Node_NestedNode*, Node_NestedNode_list, int i);
+int set_Type(const struct Type*, Type_list, int i);
+int set_Value(const struct Value*, Value_list, int i);
+int set_Annotation(const struct Annotation*, Annotation_list, int i);
+int set_FileNode(const struct FileNode*, FileNode_list, int i);
+int set_FileNode_Import(const struct FileNode_Import*, FileNode_Import_list, int i);
+int set_StructNode(const struct StructNode*, StructNode_list, int i);
+int set_StructNode_Member(const struct StructNode_Member*, StructNode_Member_list, int i);
+int set_StructNode_Field(const struct StructNode_Field*, StructNode_Field_list, int i);
+int set_StructNode_Union(const struct StructNode_Union*, StructNode_Union_list, int i);
+int set_EnumNode(const struct EnumNode*, EnumNode_list, int i);
+int set_EnumNode_Enumerant(const struct EnumNode_Enumerant*, EnumNode_Enumerant_list, int i);
+int set_InterfaceNode(const struct InterfaceNode*, InterfaceNode_list, int i);
+int set_InterfaceNode_Method(const struct InterfaceNode_Method*, InterfaceNode_Method_list, int i);
+int set_InterfaceNode_Method_Param(const struct InterfaceNode_Method_Param*, InterfaceNode_Method_Param_list, int i);
+int set_ConstNode(const struct ConstNode*, ConstNode_list, int i);
+int set_AnnotationNode(const struct AnnotationNode*, AnnotationNode_list, int i);
+int set_CodeGeneratorRequest(const struct CodeGeneratorRequest*, CodeGeneratorRequest_list, int i);
 
 enum Node_body {
 	Node_fileNode = 0,
@@ -331,4 +373,4 @@ struct CodeGeneratorRequest {
 #ifdef __cplusplus
 }
 #endif
-
+#endif
