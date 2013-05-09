@@ -1,4 +1,4 @@
-#include "schema.h"
+#include "schema.capnp.h"
 
 struct scope {
 	struct capn_tree hdr;

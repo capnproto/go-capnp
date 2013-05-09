@@ -14,7 +14,7 @@ clean:
 capn.so: capn-malloc.o capn-stream.o capn.o
 	$(CC) -shared $(LDFLAGS) $^ -o $@
 
-capnpc-c: compiler/capnpc-c.o compiler/schema.o capn.so
+capnpc-c: compiler/capnpc-c.o compiler/schema.capnp.o capn.so
 	$(CC) $(LDFLAGS) $^ -o $@
 
 test: capn-test
@@ -23,5 +23,5 @@ test: capn-test
 %-test.o: %-test.cpp *.h *.c *.inc
 	$(CXX) -g -Wall -Werror -I. `gtest-config --cppflags --cxxflags` -o $@ -c $<
 
-capn-test: capn-test.o capn-stream-test.o compiler/schema-test.o compiler/schema.o
+capn-test: capn-test.o capn-stream-test.o compiler/schema-test.o compiler/schema.capnp.o
 	$(CXX) -g -Wall -Werror -I. `gtest-config --ldflags --libs` -o $@ $^

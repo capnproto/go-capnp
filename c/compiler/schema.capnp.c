@@ -1,4 +1,4 @@
-#include "schema.h"
+#include "schema.capnp.h"
 
 void get_Node(struct Node *s, Node_list l, int i) {
 	Node_ptr p = {capn_getp(l.p, i)};

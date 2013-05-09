@@ -1,4 +1,4 @@
-#include "schema.h"
+#include "schema.capnp.h"
 #include <gtest/gtest.h>
 
 static const uint8_t simple_schema[] = {
