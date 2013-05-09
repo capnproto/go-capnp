@@ -15,7 +15,7 @@ union AlignedData {
 class Session {
 public:
   Session() {capn_init_malloc(&capn);}
-  ~Session() {capn_free_malloc(&capn);}
+  ~Session() {capn_free(&capn);}
   struct capn capn;
 };
 

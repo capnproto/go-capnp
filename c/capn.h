@@ -73,6 +73,7 @@ struct capn_segment {
 	uint32_t id;
 	char *data;
 	int len, cap;
+	void *user;
 };
 
 enum CAPN_TYPE {
@@ -203,17 +204,18 @@ struct capn_tree *capn_tree_insert(struct capn_tree *root, struct capn_tree *n);
 /* capn_init_malloc inits the capn struct with a create function which
  * allocates segments on the heap using malloc
  *
- * capn_free_all frees all the segment headers and data created by the create
- * function setup by capn_init_malloc
+ * capn_init_(fp|mem) inits by reading segments in from the file/memory buffer
+ * in serialized form (optionally packed). It will then setup the create
+ * function ala capn_init_malloc so that further segments can be created.
+ *
+ * capn_free frees all the segment headers and data created by the create
+ * function setup by capn_init_*
  */
 void capn_init_malloc(struct capn *c);
-void capn_free_malloc(struct capn *c);
-
 int capn_init_fp(struct capn *c, FILE *f, int packed);
-void capn_free_fp(struct capn *c);
-
 int capn_init_mem(struct capn *c, const uint8_t *p, size_t sz, int packed);
-void capn_free_mem(struct capn *c);
+
+void capn_free(struct capn *c);
 
 /* capn_stream encapsulates the needed fields for capn_(deflate|inflate) in a
  * similar manner to z_stream from zlib

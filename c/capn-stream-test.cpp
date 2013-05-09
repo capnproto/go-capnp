@@ -21,7 +21,7 @@ TEST(Stream, ReadEmptyStream_Even) {
   EXPECT_EQ(2, ctx.segnum);
   EXPECT_EQ(0, ctx.seglist->len);
   EXPECT_EQ(0, ctx.seglist->next->len);
-  capn_free_mem(&ctx);
+  capn_free(&ctx);
 }
 
 TEST(Stream, ReadEmptyStream_Odd) {
@@ -40,13 +40,13 @@ TEST(Stream, ReadEmptyStream_Odd) {
   EXPECT_EQ(3, ctx.segnum);
   EXPECT_EQ(0, ctx.seglist->len);
   EXPECT_EQ(0, ctx.seglist->next->len);
-  capn_free_mem(&ctx);
+  capn_free(&ctx);
 
   ASSERT_EQ(0, capn_init_mem(&ctx, data.bytes, 20, 0));
   EXPECT_EQ(3, ctx.segnum);
   EXPECT_EQ(0, ctx.seglist->len);
   EXPECT_EQ(0, ctx.seglist->next->len);
-  capn_free_mem(&ctx);
+  capn_free(&ctx);
 }
 
 TEST(Stream, ReadStream_Even) {
@@ -68,5 +68,5 @@ TEST(Stream, ReadStream_Even) {
   EXPECT_EQ(1, ctx.seglist->data[0]);
   EXPECT_EQ(16, ctx.seglist->next->len);
   EXPECT_EQ(9, ctx.seglist->next->data[0]);
-  capn_free_mem(&ctx);
+  capn_free(&ctx);
 }
