@@ -1,6 +1,14 @@
 #include "schema.capnp.h"
 /* AUTO GENERATED DO NOT EDIT*/
 
+Node_ptr new_Node(struct capn_segment *s) {
+	Node_ptr p = {capn_new_struct(s, 24, 4)};
+	return p;
+}
+Node_list new_Node_list(struct capn_segment *s, int len) {
+	Node_list p = {capn_new_list(s, len, 24, 4)};
+	return p;
+}
 void read_Node(struct Node *s, Node_ptr p) {
 	s->id = capn_read64(p.p, 0);
 	s->displayName = capn_get_text(p.p, 0);
@@ -50,6 +58,14 @@ int set_Node(const struct Node *s, Node_list l, int i) {
 	return write_Node(s, p);
 }
 
+Node_NestedNode_ptr new_Node_NestedNode(struct capn_segment *s) {
+	Node_NestedNode_ptr p = {capn_new_struct(s, 8, 1)};
+	return p;
+}
+Node_NestedNode_list new_Node_NestedNode_list(struct capn_segment *s, int len) {
+	Node_NestedNode_list p = {capn_new_list(s, len, 8, 1)};
+	return p;
+}
 void read_Node_NestedNode(struct Node_NestedNode *s, Node_NestedNode_ptr p) {
 	s->name = capn_get_text(p.p, 0);
 	s->id = capn_read64(p.p, 0);
@@ -69,6 +85,14 @@ int set_Node_NestedNode(const struct Node_NestedNode *s, Node_NestedNode_list l,
 	return write_Node_NestedNode(s, p);
 }
 
+Type_ptr new_Type(struct capn_segment *s) {
+	Type_ptr p = {capn_new_struct(s, 16, 1)};
+	return p;
+}
+Type_list new_Type_list(struct capn_segment *s, int len) {
+	Type_list p = {capn_new_list(s, len, 16, 1)};
+	return p;
+}
 void read_Type(struct Type *s, Type_ptr p) {
 	s->body_tag = (enum Type_body) capn_read16(p.p, 0);
 
@@ -140,6 +164,14 @@ int set_Type(const struct Type *s, Type_list l, int i) {
 	return write_Type(s, p);
 }
 
+Value_ptr new_Value(struct capn_segment *s) {
+	Value_ptr p = {capn_new_struct(s, 16, 1)};
+	return p;
+}
+Value_list new_Value_list(struct capn_segment *s, int len) {
+	Value_list p = {capn_new_list(s, len, 16, 1)};
+	return p;
+}
 void read_Value(struct Value *s, Value_ptr p) {
 	s->body_tag = (enum Value_body) capn_read16(p.p, 0);
 
@@ -235,6 +267,14 @@ int set_Value(const struct Value *s, Value_list l, int i) {
 	return write_Value(s, p);
 }
 
+Annotation_ptr new_Annotation(struct capn_segment *s) {
+	Annotation_ptr p = {capn_new_struct(s, 8, 1)};
+	return p;
+}
+Annotation_list new_Annotation_list(struct capn_segment *s, int len) {
+	Annotation_list p = {capn_new_list(s, len, 8, 1)};
+	return p;
+}
 void read_Annotation(struct Annotation *s, Annotation_ptr p) {
 	s->id = capn_read64(p.p, 0);
 	s->value.p = capn_getp(p.p, 0);
@@ -254,6 +294,14 @@ int set_Annotation(const struct Annotation *s, Annotation_list l, int i) {
 	return write_Annotation(s, p);
 }
 
+FileNode_ptr new_FileNode(struct capn_segment *s) {
+	FileNode_ptr p = {capn_new_struct(s, 0, 1)};
+	return p;
+}
+FileNode_list new_FileNode_list(struct capn_segment *s, int len) {
+	FileNode_list p = {capn_new_list(s, len, 0, 1)};
+	return p;
+}
 void read_FileNode(struct FileNode *s, FileNode_ptr p) {
 	s->imports.p = capn_getp(p.p, 0);
 }
@@ -271,6 +319,14 @@ int set_FileNode(const struct FileNode *s, FileNode_list l, int i) {
 	return write_FileNode(s, p);
 }
 
+FileNode_Import_ptr new_FileNode_Import(struct capn_segment *s) {
+	FileNode_Import_ptr p = {capn_new_struct(s, 8, 1)};
+	return p;
+}
+FileNode_Import_list new_FileNode_Import_list(struct capn_segment *s, int len) {
+	FileNode_Import_list p = {capn_new_list(s, len, 8, 1)};
+	return p;
+}
 void read_FileNode_Import(struct FileNode_Import *s, FileNode_Import_ptr p) {
 	s->id = capn_read64(p.p, 0);
 	s->name = capn_get_text(p.p, 0);
@@ -290,6 +346,14 @@ int set_FileNode_Import(const struct FileNode_Import *s, FileNode_Import_list l,
 	return write_FileNode_Import(s, p);
 }
 
+StructNode_ptr new_StructNode(struct capn_segment *s) {
+	StructNode_ptr p = {capn_new_struct(s, 8, 1)};
+	return p;
+}
+StructNode_list new_StructNode_list(struct capn_segment *s, int len) {
+	StructNode_list p = {capn_new_list(s, len, 8, 1)};
+	return p;
+}
 void read_StructNode(struct StructNode *s, StructNode_ptr p) {
 	s->dataSectionWordSize = capn_read16(p.p, 0);
 	s->pointerSectionSize = capn_read16(p.p, 2);
@@ -313,6 +377,14 @@ int set_StructNode(const struct StructNode *s, StructNode_list l, int i) {
 	return write_StructNode(s, p);
 }
 
+StructNode_Member_ptr new_StructNode_Member(struct capn_segment *s) {
+	StructNode_Member_ptr p = {capn_new_struct(s, 8, 3)};
+	return p;
+}
+StructNode_Member_list new_StructNode_Member_list(struct capn_segment *s, int len) {
+	StructNode_Member_list p = {capn_new_list(s, len, 8, 3)};
+	return p;
+}
 void read_StructNode_Member(struct StructNode_Member *s, StructNode_Member_ptr p) {
 	s->name = capn_get_text(p.p, 0);
 	s->ordinal = capn_read16(p.p, 0);
@@ -352,6 +424,14 @@ int set_StructNode_Member(const struct StructNode_Member *s, StructNode_Member_l
 	return write_StructNode_Member(s, p);
 }
 
+StructNode_Field_ptr new_StructNode_Field(struct capn_segment *s) {
+	StructNode_Field_ptr p = {capn_new_struct(s, 8, 2)};
+	return p;
+}
+StructNode_Field_list new_StructNode_Field_list(struct capn_segment *s, int len) {
+	StructNode_Field_list p = {capn_new_list(s, len, 8, 2)};
+	return p;
+}
 void read_StructNode_Field(struct StructNode_Field *s, StructNode_Field_ptr p) {
 	s->offset = capn_read32(p.p, 0);
 	s->type.p = capn_getp(p.p, 0);
@@ -373,6 +453,14 @@ int set_StructNode_Field(const struct StructNode_Field *s, StructNode_Field_list
 	return write_StructNode_Field(s, p);
 }
 
+StructNode_Union_ptr new_StructNode_Union(struct capn_segment *s) {
+	StructNode_Union_ptr p = {capn_new_struct(s, 8, 1)};
+	return p;
+}
+StructNode_Union_list new_StructNode_Union_list(struct capn_segment *s, int len) {
+	StructNode_Union_list p = {capn_new_list(s, len, 8, 1)};
+	return p;
+}
 void read_StructNode_Union(struct StructNode_Union *s, StructNode_Union_ptr p) {
 	s->discriminantOffset = capn_read32(p.p, 0);
 	s->members.p = capn_getp(p.p, 0);
@@ -392,6 +480,14 @@ int set_StructNode_Union(const struct StructNode_Union *s, StructNode_Union_list
 	return write_StructNode_Union(s, p);
 }
 
+EnumNode_ptr new_EnumNode(struct capn_segment *s) {
+	EnumNode_ptr p = {capn_new_struct(s, 0, 1)};
+	return p;
+}
+EnumNode_list new_EnumNode_list(struct capn_segment *s, int len) {
+	EnumNode_list p = {capn_new_list(s, len, 0, 1)};
+	return p;
+}
 void read_EnumNode(struct EnumNode *s, EnumNode_ptr p) {
 	s->enumerants.p = capn_getp(p.p, 0);
 }
@@ -409,6 +505,14 @@ int set_EnumNode(const struct EnumNode *s, EnumNode_list l, int i) {
 	return write_EnumNode(s, p);
 }
 
+EnumNode_Enumerant_ptr new_EnumNode_Enumerant(struct capn_segment *s) {
+	EnumNode_Enumerant_ptr p = {capn_new_struct(s, 8, 2)};
+	return p;
+}
+EnumNode_Enumerant_list new_EnumNode_Enumerant_list(struct capn_segment *s, int len) {
+	EnumNode_Enumerant_list p = {capn_new_list(s, len, 8, 2)};
+	return p;
+}
 void read_EnumNode_Enumerant(struct EnumNode_Enumerant *s, EnumNode_Enumerant_ptr p) {
 	s->name = capn_get_text(p.p, 0);
 	s->codeOrder = capn_read16(p.p, 0);
@@ -430,6 +534,14 @@ int set_EnumNode_Enumerant(const struct EnumNode_Enumerant *s, EnumNode_Enumeran
 	return write_EnumNode_Enumerant(s, p);
 }
 
+InterfaceNode_ptr new_InterfaceNode(struct capn_segment *s) {
+	InterfaceNode_ptr p = {capn_new_struct(s, 0, 1)};
+	return p;
+}
+InterfaceNode_list new_InterfaceNode_list(struct capn_segment *s, int len) {
+	InterfaceNode_list p = {capn_new_list(s, len, 0, 1)};
+	return p;
+}
 void read_InterfaceNode(struct InterfaceNode *s, InterfaceNode_ptr p) {
 	s->methods.p = capn_getp(p.p, 0);
 }
@@ -447,6 +559,14 @@ int set_InterfaceNode(const struct InterfaceNode *s, InterfaceNode_list l, int i
 	return write_InterfaceNode(s, p);
 }
 
+InterfaceNode_Method_ptr new_InterfaceNode_Method(struct capn_segment *s) {
+	InterfaceNode_Method_ptr p = {capn_new_struct(s, 8, 4)};
+	return p;
+}
+InterfaceNode_Method_list new_InterfaceNode_Method_list(struct capn_segment *s, int len) {
+	InterfaceNode_Method_list p = {capn_new_list(s, len, 8, 4)};
+	return p;
+}
 void read_InterfaceNode_Method(struct InterfaceNode_Method *s, InterfaceNode_Method_ptr p) {
 	s->name = capn_get_text(p.p, 0);
 	s->codeOrder = capn_read16(p.p, 0);
@@ -474,6 +594,14 @@ int set_InterfaceNode_Method(const struct InterfaceNode_Method *s, InterfaceNode
 	return write_InterfaceNode_Method(s, p);
 }
 
+InterfaceNode_Method_Param_ptr new_InterfaceNode_Method_Param(struct capn_segment *s) {
+	InterfaceNode_Method_Param_ptr p = {capn_new_struct(s, 0, 4)};
+	return p;
+}
+InterfaceNode_Method_Param_list new_InterfaceNode_Method_Param_list(struct capn_segment *s, int len) {
+	InterfaceNode_Method_Param_list p = {capn_new_list(s, len, 0, 4)};
+	return p;
+}
 void read_InterfaceNode_Method_Param(struct InterfaceNode_Method_Param *s, InterfaceNode_Method_Param_ptr p) {
 	s->name = capn_get_text(p.p, 0);
 	s->type.p = capn_getp(p.p, 1);
@@ -497,6 +625,14 @@ int set_InterfaceNode_Method_Param(const struct InterfaceNode_Method_Param *s, I
 	return write_InterfaceNode_Method_Param(s, p);
 }
 
+ConstNode_ptr new_ConstNode(struct capn_segment *s) {
+	ConstNode_ptr p = {capn_new_struct(s, 0, 2)};
+	return p;
+}
+ConstNode_list new_ConstNode_list(struct capn_segment *s, int len) {
+	ConstNode_list p = {capn_new_list(s, len, 0, 2)};
+	return p;
+}
 void read_ConstNode(struct ConstNode *s, ConstNode_ptr p) {
 	s->type.p = capn_getp(p.p, 0);
 	s->value.p = capn_getp(p.p, 1);
@@ -516,6 +652,14 @@ int set_ConstNode(const struct ConstNode *s, ConstNode_list l, int i) {
 	return write_ConstNode(s, p);
 }
 
+AnnotationNode_ptr new_AnnotationNode(struct capn_segment *s) {
+	AnnotationNode_ptr p = {capn_new_struct(s, 8, 1)};
+	return p;
+}
+AnnotationNode_list new_AnnotationNode_list(struct capn_segment *s, int len) {
+	AnnotationNode_list p = {capn_new_list(s, len, 8, 1)};
+	return p;
+}
 void read_AnnotationNode(struct AnnotationNode *s, AnnotationNode_ptr p) {
 	s->type.p = capn_getp(p.p, 0);
 	s->targetsFile = (capn_read8(p.p, 0) & 1) != 0;
@@ -555,6 +699,14 @@ int set_AnnotationNode(const struct AnnotationNode *s, AnnotationNode_list l, in
 	return write_AnnotationNode(s, p);
 }
 
+CodeGeneratorRequest_ptr new_CodeGeneratorRequest(struct capn_segment *s) {
+	CodeGeneratorRequest_ptr p = {capn_new_struct(s, 0, 2)};
+	return p;
+}
+CodeGeneratorRequest_list new_CodeGeneratorRequest_list(struct capn_segment *s, int len) {
+	CodeGeneratorRequest_list p = {capn_new_list(s, len, 0, 2)};
+	return p;
+}
 void read_CodeGeneratorRequest(struct CodeGeneratorRequest *s, CodeGeneratorRequest_ptr p) {
 	s->nodes.p = capn_getp(p.p, 0);
 	s->requestedFiles.p = capn_getp(p.p, 1);

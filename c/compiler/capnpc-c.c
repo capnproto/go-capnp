@@ -525,7 +525,19 @@ static void define_struct(struct node *n) {
 	}
 	fprintf(HDR, "};\n");
 
-	fprintf(SRC, "\nvoid read_%s(struct %s *s, %s_ptr p) {\n", n->name.str, n->name.str, n->name.str);
+	fprintf(SRC, "\n%s_ptr new_%s(struct capn_segment *s) {\n", n->name.str, n->name.str);
+	fprintf(SRC, "\t%s_ptr p = {capn_new_struct(s, %d, %d)};\n",
+			n->name.str, 8*n->s.dataSectionWordSize, n->s.pointerSectionSize);
+	fprintf(SRC, "\treturn p;\n");
+	fprintf(SRC, "}\n");
+
+	fprintf(SRC, "%s_list new_%s_list(struct capn_segment *s, int len) {\n", n->name.str, n->name.str);
+	fprintf(SRC, "\t%s_list p = {capn_new_list(s, len, %d, %d)};\n",
+			n->name.str, 8*n->s.dataSectionWordSize, n->s.pointerSectionSize);
+	fprintf(SRC, "\treturn p;\n");
+	fprintf(SRC, "}\n");
+
+	fprintf(SRC, "void read_%s(struct %s *s, %s_ptr p) {\n", n->name.str, n->name.str, n->name.str);
 	for (i = 0; i < mlen; i++) {
 		struct member *m = &mbrs[i];
 		if (!m->is_valid) continue;
@@ -582,6 +594,9 @@ static void declare_structs(struct node *n, const char *format, int num) {
 			switch (num) {
 			case 3:
 				fprintf(HDR, format, n->name.str, n->name.str, n->name.str);
+				break;
+			case 2:
+				fprintf(HDR, format, n->name.str, n->name.str);
 				break;
 			case 1:
 				fprintf(HDR, format, n->name.str);
@@ -687,6 +702,8 @@ int main() {
 		declare_structs(n, "struct %s;\n", 1);
 		declare_structs(n, "typedef struct {capn_ptr p;} %s_ptr;\n", 1);
 		declare_structs(n, "typedef struct {capn_ptr p;} %s_list;\n", 1);
+		declare_structs(n, "%s_ptr new_%s(struct capn_segment*);\n", 2);
+		declare_structs(n, "%s_list new_%s_list(struct capn_segment*, int len);\n", 2);
 		declare_structs(n, "void read_%s(struct %s*, %s_ptr);\n", 3);
 		declare_structs(n, "int write_%s(const struct %s*, %s_ptr);\n", 3);
 		declare_structs(n, "void get_%s(struct %s*, %s_list, int i);\n", 3);

@@ -8,7 +8,7 @@ all: capn.so capnpc-c test
 clean:
 	rm -f *.o *.so capnpc-c compiler/*.o
 
-%.o: %.c *.h *.inc
+%.o: %.c *.h *.inc compiler/*.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 capn.so: capn-malloc.o capn-stream.o capn.o
