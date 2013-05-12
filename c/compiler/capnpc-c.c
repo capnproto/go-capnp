@@ -617,7 +617,7 @@ int main() {
 		return -1;
 	}
 
-	root.p = capn_get_root(&capn);
+	root.p = capn_getp(capn_root(&capn), 0);
 	read_CodeGeneratorRequest(&req, root);
 
 	for (i = 0; i < req.nodes.p.len; i++) {

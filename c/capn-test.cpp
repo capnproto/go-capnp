@@ -46,7 +46,7 @@ TEST(WireFormat, SimpleRawDataStruct) {
   EXPECT_EQ(1, ctx.segnum);
   EXPECT_EQ(0, seg.id);
 
-  struct capn_ptr ptr = capn_get_root(&ctx);
+  struct capn_ptr ptr = capn_getp(capn_root(&ctx), 0);
   EXPECT_EQ(CAPN_STRUCT, ptr.type);
   EXPECT_EQ(8, ptr.datasz);
   EXPECT_EQ(0, ptr.ptrsz);
@@ -68,7 +68,7 @@ static const AlignedData<2> STRUCTLIST_ELEMENT_SUBSTRUCT_DEFAULT =
     {{0,0,0,0,1,0,0,0,  0,0,0,0,0,0,0,0}};
 
 static void setupStruct(struct capn *ctx) {
-  struct capn_ptr root = capn_new_root(ctx);
+  struct capn_ptr root = capn_root(ctx);
   ASSERT_EQ(CAPN_PTR_LIST, root.type);
   ASSERT_EQ(1, root.len);
 
@@ -143,16 +143,16 @@ static void setupStruct(struct capn *ctx) {
     }
   }
 
-  capn_ptr recurse = capn_new_struct(ptr.seg, 0, 1);
+  capn_ptr recurse = capn_new_struct(ptr.seg, 0, 2);
   EXPECT_EQ(CAPN_STRUCT, recurse.type);
   EXPECT_EQ(0, recurse.datasz);
-  EXPECT_EQ(8, recurse.ptrsz);
+  EXPECT_EQ(16, recurse.ptrsz);
   EXPECT_EQ(0, capn_setp(recurse, 0, recurse));
   EXPECT_EQ(0, capn_setp(ptr, 4, recurse));
 }
 
 static void checkStruct(struct capn *ctx) {
-  capn_ptr ptr = capn_get_root(ctx);
+  capn_ptr ptr = capn_getp(capn_root(ctx), 0);
   EXPECT_EQ(CAPN_STRUCT, ptr.type);
   EXPECT_EQ(16, ptr.datasz);
   EXPECT_EQ(40, ptr.ptrsz);
@@ -434,8 +434,8 @@ TEST(WireFormat, CopyStruct) {
   setupStruct(&ctx1.capn);
   checkStruct(&ctx1.capn);
 
-  capn_ptr root = capn_new_root(&ctx2.capn);
-  EXPECT_EQ(0, capn_setp(root, 0, capn_get_root(&ctx1.capn)));
+  capn_ptr root = capn_root(&ctx2.capn);
+  EXPECT_EQ(0, capn_setp(root, 0, capn_getp(capn_root(&ctx1.capn), 0)));
 
   checkStruct(&ctx2.capn);
 }

@@ -184,7 +184,7 @@ TEST(Schema, ReadSimple) {
   struct capn ctx;
   ASSERT_EQ(0, capn_init_mem(&ctx, simple_schema, sizeof(simple_schema), 0));
 
-  CodeGeneratorRequest_ptr root = {capn_get_root(&ctx)};
+  CodeGeneratorRequest_ptr root = {capn_getp(capn_root(&ctx), 0)};
   EXPECT_EQ(CAPN_STRUCT, root.p.type);
 
   struct CodeGeneratorRequest req;

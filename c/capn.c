@@ -938,29 +938,19 @@ static void new_object(capn_ptr *p, int bytes) {
 	}
 }
 
-capn_ptr capn_get_root(struct capn* c) {
-	struct capn_segment* s = lookup_segment(c, NULL, 0);
-	if (s->len < 8) {
-		capn_ptr ret = {CAPN_NULL};
-		return ret;
-	} else {
-		return read_ptr(s, s->data);
-	}
-}
+capn_ptr capn_root(struct capn *c) {
+	capn_ptr r = {CAPN_PTR_LIST};
+	r.seg = lookup_segment(c, NULL, 0);
+	r.data = r.seg ? r.seg->data : new_data(c, 8, &r.seg);
+	r.len = 1;
 
-capn_ptr capn_new_root(struct capn *c) {
-	capn_ptr p = {CAPN_NULL};
-	struct capn_segment *s = lookup_segment(c, NULL, 0);
-
-	/* don't use new_object as we don't want the tag */
-	if ((s || new_data(c, 8, &s) != NULL) && s->len >= 8) {
-		p.seg = s;
-		p.data = p.seg->data;
-		p.len = 1;
-		p.type = CAPN_PTR_LIST;
+	if (!r.seg || r.seg->cap < 8) {
+		memset(&r, 0, sizeof(r));
+	} else if (r.seg->len < 8) {
+		r.seg->len = 8;
 	}
 
-	return p;
+	return r;
 }
 
 capn_ptr capn_new_struct(struct capn_segment *seg, int datasz, int ptrs) {

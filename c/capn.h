@@ -120,7 +120,7 @@ typedef struct {capn_ptr p;} capn_list64;
 /* capn_append_segment appends a segment to a session */
 void capn_append_segment(struct capn*, struct capn_segment*);
 
-capn_ptr capn_get_root(struct capn*);
+capn_ptr capn_root(struct capn *c);
 
 /* capn_getp|setp functions get/set ptrs in list/structs
  * off is the list index or pointer index in a struct
@@ -175,7 +175,6 @@ int capn_setv64(capn_list64 p, int off, const uint64_t *data, int sz);
  * datasz is in bytes, ptrs is # of pointers, sz is # of elements in the list
  * On an error a CAPN_NULL pointer is returned
  */
-capn_ptr capn_new_root(struct capn*);
 capn_ptr capn_new_struct(struct capn_segment *seg, int datasz, int ptrs);
 capn_ptr capn_new_list(struct capn_segment *seg, int sz, int datasz, int ptrs);
 capn_list1 capn_new_list1(struct capn_segment *seg, int sz);
