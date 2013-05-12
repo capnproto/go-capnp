@@ -335,32 +335,25 @@ CAPN_INLINE int capn_write64(capn_ptr p, int off, uint64_t val) {
 	}
 }
 
-CAPN_INLINE float capn_read_float(capn_ptr p, int off, float def) {
+CAPN_INLINE float capn_to_f32(uint32_t v) {
 	union { float f; uint32_t u;} u;
-	u.f = def;
-	u.u ^= capn_read32(p, off);
+	u.u = v;
 	return u.f;
 }
-CAPN_INLINE int capn_write_float(capn_ptr p, int off, float f, float def) {
-	union { float f; uint32_t u;} u;
-	union { float f; uint32_t u;} d;
-	u.f = f;
-	d.f = def;
-	return capn_write32(p, off, u.u ^ d.u);
-}
-
-CAPN_INLINE double capn_read_double(capn_ptr p, int off, double def) {
-	union { double f; uint64_t u;} u;
-	u.f = def;
-	u.u ^= capn_read64(p, off);
+CAPN_INLINE double capn_to_f64(uint64_t v) {
+	union { float f; uint64_t u;} u;
+	u.u = v;
 	return u.f;
 }
-CAPN_INLINE int capn_write_double(capn_ptr p, int off, double f, double def) {
-	union { double f; uint64_t u;} u;
-	union { double f; uint64_t u;} d;
-	d.f = f;
-	u.f = f;
-	return capn_write64(p, off, u.u ^ d.u);
+CAPN_INLINE uint32_t capn_from_f32(float v) {
+	union { float f; uint32_t u;} u;
+	u.f = v;
+	return u.u;
+}
+CAPN_INLINE uint64_t capn_from_f64(double v) {
+	union { float f; uint64_t u;} u;
+	u.f = v;
+	return u.u;
 }
 
 CAPN_INLINE capn_list8 capn_new_list8(struct capn_segment *seg, int sz) {

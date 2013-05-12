@@ -195,12 +195,12 @@ void read_Value(struct Value *s, Value_ptr p) {
 	case Value_int32Value:
 	case Value_uint32Value:
 	case Value_float32Value:
-		s->body.float32Value = capn_read_float(p.p, 8, 0.0f);
+		s->body.float32Value = capn_to_f32(capn_read32(p.p, 8));
 		break;
 	case Value_int64Value:
 	case Value_uint64Value:
 	case Value_float64Value:
-		s->body.float64Value = capn_read_double(p.p, 8, 0.0);
+		s->body.float64Value = capn_to_f64(capn_read64(p.p, 8));
 		break;
 	case Value_textValue:
 		s->body.textValue = capn_get_text(p.p, 0, g_nullstr);
@@ -238,12 +238,12 @@ int write_Value(const struct Value *s, Value_ptr p) {
 	case Value_int32Value:
 	case Value_uint32Value:
 	case Value_float32Value:
-		err = err || capn_write_float(p.p, 8, s->body.float32Value, 0.0f);
+		err = err || capn_write32(p.p, 8, capn_from_f32(s->body.float32Value));
 		break;
 	case Value_int64Value:
 	case Value_uint64Value:
 	case Value_float64Value:
-		err = err || capn_write_double(p.p, 4, s->body.float64Value, 0.0);
+		err = err || capn_write64(p.p, 4, capn_from_f64(s->body.float64Value));
 		break;
 	case Value_textValue:
 		err = err || capn_set_text(p.p, 0, s->body.textValue);
