@@ -327,10 +327,10 @@ static capn_ptr read_ptr(struct capn_segment *s, char *d) {
 	}
 
 	if ((val&3) == STRUCT_PTR) {
-		ret.type = CAPN_STRUCT;
 		ret.datasz = U32(U16(val >> 32)) * 8;
 		ret.ptrsz = U32(U16(val >> 48)) * 8;
-		e = d + ret.len * (ret.datasz + ret.ptrsz);
+		ret.type = (ret.datasz || ret.ptrsz) ? CAPN_STRUCT : CAPN_NULL;
+		e = d + ret.datasz + ret.ptrsz;
 	} else {
 		ret.type = CAPN_LIST;
 		ret.len = val >> 35;
@@ -821,7 +821,7 @@ int capn_setp(capn_ptr p, int off, capn_ptr tgt) {
 		default:
 			*fn = read_ptr(fc->seg, fc->data);
 
-			if (copy_ptr(tc->seg, tc->data, tn, fn, &dep))
+			if (fn->type && copy_ptr(tc->seg, tc->data, tn, fn, &dep))
 				return -1;
 
 			fc->data += 8;
@@ -1056,7 +1056,7 @@ int capn_set_text(capn_ptr p, int off, capn_text tgt) {
 		m.data = (char*)tgt.str;
 		m.len = tgt.len + 1;
 		m.datasz = 1;
-	} else if (tgt.str) {
+	} else if (p.seg && tgt.str) {
 		m = capn_new_string(p.seg, tgt.str, tgt.len);
 	}
 	return capn_setp(p, off, m);

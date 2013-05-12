@@ -222,13 +222,14 @@ static void checkStruct(struct capn *ctx) {
   capn_ptr recurse = capn_getp(ptr, 4);
   EXPECT_EQ(CAPN_STRUCT, recurse.type);
   EXPECT_EQ(0, recurse.datasz);
-  EXPECT_EQ(8, recurse.ptrsz);
+  EXPECT_EQ(16, recurse.ptrsz);
   capn_ptr recurse_mbr = capn_getp(recurse, 0);
   EXPECT_EQ(CAPN_STRUCT, recurse_mbr.type);
   EXPECT_EQ(0, recurse_mbr.datasz);
-  EXPECT_EQ(8, recurse_mbr.ptrsz);
+  EXPECT_EQ(16, recurse_mbr.ptrsz);
   EXPECT_EQ(recurse.seg, recurse_mbr.seg);
   EXPECT_EQ(recurse.data, recurse_mbr.data);
+  EXPECT_EQ(CAPN_NULL, capn_getp(recurse, 1).type);
 }
 
 TEST(WireFormat, StructRoundTrip_OneSegment) {
@@ -249,11 +250,11 @@ TEST(WireFormat, StructRoundTrip_OneSegment) {
   //   11  list list
   //         5 references to sub-lists
   //         6 sub-lists (4x 1 word, 1x 2 words)
-  //    1  recurse
+  //    2  recurse
   // -----
-  //   36
+  //   37
   ASSERT_EQ(1, ctx.capn.segnum);
-  EXPECT_EQ(36*8, ctx.capn.seglist->len);
+  EXPECT_EQ(37*8, ctx.capn.seglist->len);
 
   checkStruct(&ctx.capn);
 
@@ -309,7 +310,7 @@ TEST(WireFormat, StructRoundTrip_OneSegmentPerAllocation) {
   EXPECT_EQ(16, segments[12]->len);  // list list sublist 3
   EXPECT_EQ(16, segments[13]->len);  // list list sublist 4
   EXPECT_EQ(24, segments[14]->len);  // list list sublist 5
-  EXPECT_EQ(16, segments[15]->len);  // recurse struct
+  EXPECT_EQ(24, segments[15]->len);  // recurse struct
 
   checkStruct(&ctx.capn);
 
@@ -364,7 +365,7 @@ TEST(WireFormat, StructRoundTrip_OneSegmentPerAllocation_NoTag) {
   EXPECT_EQ(16, segments[26]->len);  // list list sublist 4 ptr
   EXPECT_EQ(16, segments[27]->len);  // list list sublist 5
   EXPECT_EQ(16, segments[28]->len);  // list list sublist 5 ptr
-  EXPECT_EQ( 8, segments[29]->len);  // recurse struct
+  EXPECT_EQ(16, segments[29]->len);  // recurse struct
   EXPECT_EQ(16, segments[30]->len);  // recurse struct ptr
 
   checkStruct(&ctx.capn);
@@ -415,7 +416,7 @@ TEST(WireFormat, StructRoundTrip_MultipleSegmentsWithMultipleAllocations) {
   EXPECT_EQ(80, segments[2]->len);  // struct list (72+tag)
   EXPECT_EQ(64, segments[3]->len);  // struct list substructs 2+3+4 3*(8+tag) + list list sublist 3 (8+tag)
   EXPECT_EQ(64, segments[4]->len);  // list list (40+tag) + sublist 1,2 2*(8)
-  EXPECT_EQ(56, segments[5]->len);  // list list sublist 4 (8+tag), 5 (16+tag) + recurse struct (8+tag)
+  EXPECT_EQ(64, segments[5]->len);  // list list sublist 4 (8+tag), 5 (16+tag) + recurse struct (16+tag)
 
   checkStruct(&ctx.capn);
 

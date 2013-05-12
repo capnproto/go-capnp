@@ -91,7 +91,7 @@ enum CAPN_TYPE {
 };
 
 struct capn_ptr {
-	enum CAPN_TYPE type : 3;
+	unsigned int type : 3;
 	unsigned int is_list_member : 1;
 	unsigned int has_ptr_tag : 1;
 	unsigned int has_composite_tag : 1;
@@ -357,19 +357,23 @@ CAPN_INLINE uint64_t capn_from_f64(double v) {
 }
 
 CAPN_INLINE capn_list8 capn_new_list8(struct capn_segment *seg, int sz) {
-	capn_list8 p = {capn_new_list(seg, sz, 1, 0)};
+	capn_list8 p;
+	p.p = capn_new_list(seg, sz, 1, 0);
 	return p;
 }
 CAPN_INLINE capn_list16 capn_new_list16(struct capn_segment *seg, int sz) {
-	capn_list16 p = {capn_new_list(seg, sz, 2, 0)};
+	capn_list16 p;
+	p.p = capn_new_list(seg, sz, 2, 0);
 	return p;
 }
 CAPN_INLINE capn_list32 capn_new_list32(struct capn_segment *seg, int sz) {
-	capn_list32 p = {capn_new_list(seg, sz, 4, 0)};
+	capn_list32 p;
+	p.p = capn_new_list(seg, sz, 4, 0);
 	return p;
 }
 CAPN_INLINE capn_list64 capn_new_list64(struct capn_segment *seg, int sz) {
-	capn_list64 p = {capn_new_list(seg, sz, 8, 0)};
+	capn_list64 p;
+	p.p = capn_new_list(seg, sz, 8, 0);
 	return p;
 }
 CAPN_INLINE int capn_set_data(capn_ptr p, int off, capn_data d) {
