@@ -1,5 +1,6 @@
 #include "schema.capnp.h"
 /* AUTO GENERATED DO NOT EDIT*/
+static const capn_text g_nullstr = {0, ""};
 
 Node_ptr new_Node(struct capn_segment *s) {
 	Node_ptr p = {capn_new_struct(s, 24, 4)};
@@ -11,7 +12,7 @@ Node_list new_Node_list(struct capn_segment *s, int len) {
 }
 void read_Node(struct Node *s, Node_ptr p) {
 	s->id = capn_read64(p.p, 0);
-	s->displayName = capn_get_text(p.p, 0);
+	s->displayName = capn_get_text(p.p, 0, g_nullstr);
 	s->scopeId = capn_read64(p.p, 8);
 	s->nestedNodes.p = capn_getp(p.p, 1);
 	s->annotations.p = capn_getp(p.p, 2);
@@ -67,7 +68,7 @@ Node_NestedNode_list new_Node_NestedNode_list(struct capn_segment *s, int len) {
 	return p;
 }
 void read_Node_NestedNode(struct Node_NestedNode *s, Node_NestedNode_ptr p) {
-	s->name = capn_get_text(p.p, 0);
+	s->name = capn_get_text(p.p, 0, g_nullstr);
 	s->id = capn_read64(p.p, 0);
 }
 int write_Node_NestedNode(const struct Node_NestedNode *s, Node_NestedNode_ptr p) {
@@ -202,7 +203,7 @@ void read_Value(struct Value *s, Value_ptr p) {
 		s->body.float64Value = capn_read_double(p.p, 8, 0.0);
 		break;
 	case Value_textValue:
-		s->body.textValue = capn_get_text(p.p, 0);
+		s->body.textValue = capn_get_text(p.p, 0, g_nullstr);
 		break;
 	case Value_dataValue:
 		s->body.dataValue = capn_get_data(p.p, 0);
@@ -329,7 +330,7 @@ FileNode_Import_list new_FileNode_Import_list(struct capn_segment *s, int len) {
 }
 void read_FileNode_Import(struct FileNode_Import *s, FileNode_Import_ptr p) {
 	s->id = capn_read64(p.p, 0);
-	s->name = capn_get_text(p.p, 0);
+	s->name = capn_get_text(p.p, 0, g_nullstr);
 }
 int write_FileNode_Import(const struct FileNode_Import *s, FileNode_Import_ptr p) {
 	int err = 0;
@@ -386,7 +387,7 @@ StructNode_Member_list new_StructNode_Member_list(struct capn_segment *s, int le
 	return p;
 }
 void read_StructNode_Member(struct StructNode_Member *s, StructNode_Member_ptr p) {
-	s->name = capn_get_text(p.p, 0);
+	s->name = capn_get_text(p.p, 0, g_nullstr);
 	s->ordinal = capn_read16(p.p, 0);
 	s->codeOrder = capn_read16(p.p, 2);
 	s->annotations.p = capn_getp(p.p, 1);
@@ -514,7 +515,7 @@ EnumNode_Enumerant_list new_EnumNode_Enumerant_list(struct capn_segment *s, int 
 	return p;
 }
 void read_EnumNode_Enumerant(struct EnumNode_Enumerant *s, EnumNode_Enumerant_ptr p) {
-	s->name = capn_get_text(p.p, 0);
+	s->name = capn_get_text(p.p, 0, g_nullstr);
 	s->codeOrder = capn_read16(p.p, 0);
 	s->annotations.p = capn_getp(p.p, 1);
 }
@@ -568,7 +569,7 @@ InterfaceNode_Method_list new_InterfaceNode_Method_list(struct capn_segment *s, 
 	return p;
 }
 void read_InterfaceNode_Method(struct InterfaceNode_Method *s, InterfaceNode_Method_ptr p) {
-	s->name = capn_get_text(p.p, 0);
+	s->name = capn_get_text(p.p, 0, g_nullstr);
 	s->codeOrder = capn_read16(p.p, 0);
 	s->params.p = capn_getp(p.p, 1);
 	s->requiredParamCount = capn_read16(p.p, 2);
@@ -603,7 +604,7 @@ InterfaceNode_Method_Param_list new_InterfaceNode_Method_Param_list(struct capn_
 	return p;
 }
 void read_InterfaceNode_Method_Param(struct InterfaceNode_Method_Param *s, InterfaceNode_Method_Param_ptr p) {
-	s->name = capn_get_text(p.p, 0);
+	s->name = capn_get_text(p.p, 0, g_nullstr);
 	s->type.p = capn_getp(p.p, 1);
 	s->defaultValue.p = capn_getp(p.p, 2);
 	s->annotations.p = capn_getp(p.p, 3);

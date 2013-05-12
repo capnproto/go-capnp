@@ -492,7 +492,7 @@ static void write_ptr_tag(char *d, capn_ptr p, int off) {
 
 #define NEED_TO_COPY 1
 
-static int write_ptr_no_copy(struct capn_segment *s, char *d, capn_ptr p) {
+static int write_ptr(struct capn_segment *s, char *d, capn_ptr p) {
 	/* note p.seg can be NULL if its a ptr to static data */
 	char *pdata = p.data;
 
@@ -556,8 +556,7 @@ static int write_ptr_no_copy(struct capn_segment *s, char *d, capn_ptr p) {
 struct copy {
 	struct capn_tree hdr;
 	struct capn_ptr to, from;
-	char *fdata;
-	int fsize;
+	char *fbegin, *fend;
 };
 
 static int data_size(const struct capn_ptr *p) {
@@ -578,17 +577,16 @@ static int data_size(const struct capn_ptr *p) {
 static capn_ptr new_clone(struct capn_segment *s, capn_ptr p) {
 	switch (p.type) {
 	case CAPN_STRUCT:
-		return capn_new_struct(s, p.datasz, p.ptrsz);
+		return capn_new_struct(s, p.datasz, p.ptrsz/8);
 	case CAPN_PTR_LIST:
 		return capn_new_ptr_list(s, p.len);
 	case CAPN_BIT_LIST:
 		return capn_new_list1(s, p.len).p;
 	case CAPN_LIST:
-		return capn_new_list(s, p.len, p.datasz, p.ptrsz);
+		return capn_new_list(s, p.len, p.datasz, p.ptrsz/8);
 	default:
 		return p;
 	}
-
 }
 
 static int is_ptr_equal(const struct capn_ptr *a, const struct capn_ptr *b) {
@@ -600,45 +598,52 @@ static int is_ptr_equal(const struct capn_ptr *a, const struct capn_ptr *b) {
 		&& a->has_composite_tag == b->has_composite_tag;
 }
 
-static int write_copy(struct capn_segment *seg, char *data, struct capn_ptr *t, struct capn_ptr *f, int *dep, int zeros) {
+static int copy_ptr(struct capn_segment *seg, char *data, struct capn_ptr *t, struct capn_ptr *f, int *dep) {
 	struct capn *c = seg->capn;
-	struct copy *cp = (struct copy*) c->copy;
-	int fsize = data_size(f);
-	char *fdata = f->data;
+	struct copy *cp = NULL;
+	struct capn_tree **xcp;
+	char *fbegin = f->data;
+	char *fend = fbegin + data_size(f);
 
 	if (f->has_composite_tag) {
-		fsize += 8;
-		fdata -= 8;
+		fbegin -= 8;
+	} else if (f->is_list_member) {
+		fend = fbegin;
 	}
 
 	/* We always copy list members as it would otherwise be an
-	 * overlapped pointer (the data is owned by the inclosing list).
+	 * overlapped pointer (the data is owned by the enclosing list).
 	 * We do not bother with the overlapped lookup for zero sized
 	 * structures/lists as they never overlap. Nor do we add them to
 	 * the copy list as there is no data to be shared by multiple
 	 * pointers.
 	 */
 
-	while (c && fsize) {
-		if (fdata + fsize <= cp->fdata) {
-			cp = (struct copy*) cp->hdr.link[0];
-		} else if (cp->fdata + cp->fsize <= fdata) {
-			cp = (struct copy*) cp->hdr.link[1];
+	xcp = &c->copy;
+	while (*xcp && fend > fbegin) {
+		cp = (struct copy*) *xcp;
+		if (fend <= cp->fbegin) {
+			xcp = &cp->hdr.link[0];
+		} else if (cp->fend <= fbegin) {
+			xcp = &cp->hdr.link[1];
 		} else if (is_ptr_equal(f, &cp->from)) {
 			/* we already have a copy so just point to that */
-			return write_ptr_no_copy(seg, data, cp->from);
+			return write_ptr(seg, data, cp->to);
 		} else {
 			/* pointer to overlapped data */
 			return -1;
 		}
 	}
 
-	/* no copy - have to copy */
+	/* no copy found - have to create a new copy */
 	*t = new_clone(seg, *f);
+
+	if (write_ptr(seg, data, *t))
+		return -1;
 
 	/* add the copy to the copy tree so we can look for overlapping
 	 * source pointers and handle recursive structures */
-	if (fsize && !f->is_list_member) {
+	if (fend > fbegin) {
 		struct copy *n;
 		struct capn_segment *cs = c->copylist;
 
@@ -658,13 +663,13 @@ static int write_copy(struct capn_segment *seg, char *data, struct capn_ptr *t, 
 
 		n->from = *f;
 		n->to = *t;
-		n->fdata = fdata;
-		n->fsize = fsize;
+		n->fbegin = fbegin;
+		n->fend = fend;
 
+		*xcp = &n->hdr;
 		n->hdr.parent = &cp->hdr;
-		cp->hdr.link[cp->fdata < f->data] = &n->hdr;
 
-		seg->capn->copy = capn_tree_insert(seg->capn->copy, &n->hdr);
+		c->copy = capn_tree_insert(c->copy, &n->hdr);
 	}
 
 	/* minimize the number of types the main copy routine has to
@@ -674,7 +679,7 @@ static int write_copy(struct capn_segment *seg, char *data, struct capn_ptr *t, 
 	switch (t->type) {
 	case CAPN_STRUCT:
 		if (t->datasz) {
-			memcpy(t->data, f->data, t->datasz - zeros);
+			memcpy(t->data, f->data, t->datasz);
 			t->data += t->datasz;
 			f->data += t->datasz;
 		}
@@ -714,86 +719,78 @@ static int write_copy(struct capn_segment *seg, char *data, struct capn_ptr *t, 
 	}
 }
 
+void copy_list_member(capn_ptr* t, capn_ptr *f, int *dep) {
+	/* copy struct data */
+	int sz = min(t->datasz, f->datasz);
+	memcpy(t->data, f->data, sz);
+	memset(t->data + sz, 0, t->datasz - sz);
+	t->data += t->datasz;
+	f->data += f->datasz;
+
+	/* reset excess pointers */
+	sz = min(t->ptrsz, f->ptrsz);
+	memset(t->data + sz, 0, t->ptrsz - sz);
+
+	/* create a pointer list for the main loop to copy */
+	if (t->ptrsz) {
+		t->type = CAPN_PTR_LIST;
+		t->len = t->ptrsz/8;
+		(*dep)++;
+	}
+}
+
 #define MAX_COPY_DEPTH 32
 
-int write_ptr(capn_ptr p, int off, struct capn_ptr tgt, int zeros) {
+int capn_setp(capn_ptr p, int off, capn_ptr tgt) {
 	struct capn_ptr to[MAX_COPY_DEPTH], from[MAX_COPY_DEPTH];
 	char *data;
-	int err, dep;
+	int err, dep = 0;
 
 	switch (p.type) {
 	case CAPN_LIST:
-		if (off < p.len && tgt.type == CAPN_STRUCT) {
-			struct capn_ptr *f, *t;
-			char *d;
-			int sz;
-
-			/* copy struct data */
-			d = p.data + off * (p.datasz + p.ptrsz);
-			sz = min(p.datasz, tgt.datasz);
-			memcpy(d, tgt.data, sz);
-			memset(d + sz, 0, p.datasz - sz);
-
-			/* reset excess pointers */
-			d += p.datasz;
-			sz = min(p.ptrsz, tgt.ptrsz);
-			memset(d + sz, 0, p.ptrsz - sz);
-
-			/* create a pointer list for the main loop to copy */
-			dep = 1;
-
-			/* main copy loop doesn't need the other fields
-			 * for ptr lists */
-			f = &from[0];
-			f->data = tgt.data + tgt.datasz;
-			f->seg = tgt.seg;
-
-			t = &to[0];
-			t->type = CAPN_PTR_LIST;
-			t->data = d;
-			t->len = sz/8;
-			t->seg = p.seg;
-
-			goto copy_loop;
-		} else {
+		if (off >= p.len || tgt.type != CAPN_STRUCT)
 			return -1;
-		}
+
+		to[0] = p;
+		to[0].data += off * (p.datasz + p.ptrsz);
+		from[0] = tgt;
+		copy_list_member(to, from, &dep);
+		break;
 
 	case CAPN_PTR_LIST:
 		if (off >= p.len)
 			return -1;
 		data = p.data + off * 8;
-		break;
+		goto copy_ptr;
 
 	case CAPN_STRUCT:
 		off *= 8;
 		if (off >= p.ptrsz)
 			return -1;
 		data = p.data + p.datasz + off;
+		goto copy_ptr;
+
+	copy_ptr:
+		err = write_ptr(p.seg, data, tgt);
+		if (err != NEED_TO_COPY)
+			return err;
+
+		/* Depth first copy the source whilst using a pointer stack to
+		 * maintain the ptr to set and size left to copy at each level.
+		 * We also maintain a rbtree (capn->copy) of the copies indexed
+		 * by the source data. This way we can detect overlapped
+		 * pointers in the source (and bail) and recursive structures
+		 * (and point to the previous copy).
+		 */
+
+		from[0] = tgt;
+		if (copy_ptr(p.seg, data, to, from, &dep))
+			return -1;
 		break;
 
 	default:
 		return -1;
 	}
-
-	err = write_ptr_no_copy(p.seg, data, tgt);
-	if (err != NEED_TO_COPY)
-		return err;
-
-	/* Depth first copy the source whilst using a pointer stack to
-	 * maintain the ptr to set and size left to copy at each level.
-	 * We also maintain a rbtree (capn->copy) of the copies indexed
-	 * by the source data. This way we can detect overlapped
-	 * pointers in the source (and bail) and recursive structures
-	 * (and point to the previous copy).
-	 */
-
-	dep = 0;
-	from[0] = tgt;
-	if (write_copy(p.seg, data, to, from, &dep, zeros))
-		return -1;
-
-copy_loop:
 
 	while (dep) {
 		struct capn_ptr *tc = &to[dep-1], *tn = &to[dep];
@@ -810,16 +807,12 @@ copy_loop:
 
 		switch (tc->type) {
 		case CAPN_LIST:
-			*fn = *fc;
-			*tn = *tc;
-			fn->type = tn->type = CAPN_STRUCT;
-			fn->is_list_member = tn->is_list_member = 1;
-			fn->len = tn->len = 0;
+			*fn = capn_getp(*fc, 0);
+			*tn = capn_getp(*tc, 0);
 
-			if (write_copy(tc->seg, tc->data, tn, fn, &dep, 0))
-				return -1;
+			copy_list_member(tn, fn, &dep);
 
-			fc->data += tc->datasz + tc->ptrsz;
+			fc->data += fc->datasz + fc->ptrsz;
 			tc->data += tc->datasz + tc->ptrsz;
 			tc->len--;
 			break;
@@ -828,7 +821,7 @@ copy_loop:
 		default:
 			*fn = read_ptr(fc->seg, fc->data);
 
-			if (write_copy(tc->seg, tc->data, tn, fn, &dep, 0))
+			if (copy_ptr(tc->seg, tc->data, tn, fn, &dep))
 				return -1;
 
 			fc->data += 8;
@@ -839,10 +832,6 @@ copy_loop:
 	}
 
 	return 0;
-}
-
-int capn_setp(capn_ptr p, int off, capn_ptr tgt) {
-	return write_ptr(p, off, tgt, 0);
 }
 
 int capn_get1(capn_list1 l, int off) {
@@ -916,7 +905,7 @@ int capn_setv1(capn_list1 l, int off, const uint8_t *data, int sz) {
 #include "capn-list.inc"
 #undef SZ
 
-/* pull out whether we add a tag or nor as a define so the unit test can
+/* pull out whether we add a tag or not as a define so the unit test can
  * test double far pointers by not creating tags */
 #ifndef ADD_TAG
 #define ADD_TAG 1
@@ -1048,9 +1037,9 @@ capn_ptr capn_new_string(struct capn_segment *seg, const char *str, int sz) {
 	return p;
 }
 
-capn_text capn_get_text(capn_ptr p, int off) {
+capn_text capn_get_text(capn_ptr p, int off, capn_text def) {
 	capn_ptr m = capn_getp(p, off);
-	capn_text ret = {CAPN_NULL};
+	capn_text ret = def;
 	if (m.type == CAPN_LIST && m.datasz == 1 && m.len && m.data[m.len - 1] == 0) {
 		ret.seg = m.seg;
 		ret.str = m.data;
@@ -1059,42 +1048,24 @@ capn_text capn_get_text(capn_ptr p, int off) {
 	return ret;
 }
 
-capn_data capn_get_data(capn_ptr p, int off) {
-	capn_ptr m = capn_getp(p, off);
-	capn_data ret = {CAPN_NULL};
-	if (m.type == CAPN_LIST && m.datasz == 1) {
-		ret.seg = m.seg;
-		ret.data = (uint8_t*) m.data;
-		ret.len = m.len;
-	}
-	return ret;
-}
-
 int capn_set_text(capn_ptr p, int off, capn_text tgt) {
 	capn_ptr m = {CAPN_NULL};
-	if (tgt.str) {
+	if (tgt.seg) {
 		m.type = CAPN_LIST;
 		m.seg = tgt.seg;
 		m.data = (char*)tgt.str;
-		m.len = (tgt.len >= 0 ? tgt.len : strlen(tgt.str)) + 1;
+		m.len = tgt.len + 1;
 		m.datasz = 1;
+	} else if (tgt.str) {
+		m = capn_new_string(p.seg, tgt.str, tgt.len);
 	}
-	/* in the case that the size is specified we need to be careful
-	 * that we don't read the extra byte as it may be not be null or
-	 * may be in a different page and cause a segfault
-	 */
-	return write_ptr(p, off, m, 1);
+	return capn_setp(p, off, m);
 }
 
-int capn_set_data(capn_ptr p, int off, capn_data tgt) {
-	capn_ptr m = {CAPN_NULL};
-	if (tgt.data) {
-		m.type = CAPN_LIST;
-		m.seg = tgt.seg;
-		m.data = (char*)tgt.data;
-		m.len = tgt.len;
-		m.datasz = 1;
+capn_data capn_get_data(capn_ptr p, int off) {
+	capn_data ret = {capn_getp(p, off)};
+	if (ret.p.type != CAPN_LIST || ret.p.datasz != 1) {
+		memset(&ret, 0, sizeof(ret));
 	}
-	return write_ptr(p, off, m, 0);
+	return ret;
 }
-

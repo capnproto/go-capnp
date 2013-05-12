@@ -108,15 +108,9 @@ struct capn_text {
 	struct capn_segment *seg;
 };
 
-struct capn_data {
-	int len;
-	const uint8_t *data;
-	struct capn_segment *seg;
-};
-
 typedef struct capn_ptr capn_ptr;
 typedef struct capn_text capn_text;
-typedef struct capn_data capn_data;
+typedef struct {capn_ptr p;} capn_data;
 typedef struct {capn_ptr p;} capn_list1;
 typedef struct {capn_ptr p;} capn_list8;
 typedef struct {capn_ptr p;} capn_list16;
@@ -137,10 +131,10 @@ capn_ptr capn_get_root(struct capn*);
 capn_ptr capn_getp(capn_ptr p, int off);
 int capn_setp(capn_ptr p, int off, capn_ptr tgt);
 
-capn_text capn_get_text(capn_ptr p, int off);
+capn_text capn_get_text(capn_ptr p, int off, capn_text def);
 capn_data capn_get_data(capn_ptr p, int off);
 int capn_set_text(capn_ptr p, int off, capn_text tgt);
-int capn_set_data(capn_ptr p, int off, capn_data tgt);
+CAPN_INLINE int capn_set_data(capn_ptr p, int off, capn_data tgt);
 
 /* capn_get_* functions get data from a list
  * The length of the list is given by p->size
@@ -383,6 +377,9 @@ CAPN_INLINE capn_list32 capn_new_list32(struct capn_segment *seg, int sz) {
 CAPN_INLINE capn_list64 capn_new_list64(struct capn_segment *seg, int sz) {
 	capn_list64 p = {capn_new_list(seg, sz, 8, 0)};
 	return p;
+}
+CAPN_INLINE int capn_set_data(capn_ptr p, int off, capn_data d) {
+	return capn_setp(p, off, d.p);
 }
 
 #ifdef __cplusplus

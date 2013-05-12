@@ -72,10 +72,10 @@ static void setupStruct(struct capn *ctx) {
   ASSERT_EQ(CAPN_PTR_LIST, root.type);
   ASSERT_EQ(1, root.len);
 
-  struct capn_ptr ptr = capn_new_struct(root.seg, 16, 4);
+  struct capn_ptr ptr = capn_new_struct(root.seg, 16, 5);
   ASSERT_EQ(CAPN_STRUCT, ptr.type);
   EXPECT_EQ(16, ptr.datasz);
-  EXPECT_EQ(32, ptr.ptrsz);
+  EXPECT_EQ(40, ptr.ptrsz);
   EXPECT_EQ(0, capn_setp(root, 0, ptr));
 
   EXPECT_EQ(0, capn_write64(ptr, 0, UINT64_C(0x1011121314151617)));
@@ -106,6 +106,7 @@ static void setupStruct(struct capn *ctx) {
 
   capn_ptr list = capn_new_list(ptr.seg, 4, 4, 1);
   ASSERT_EQ(CAPN_LIST, list.type);
+  EXPECT_EQ(1, list.has_composite_tag);
   EXPECT_EQ(4, list.len);
   EXPECT_EQ(8, list.datasz);
   EXPECT_EQ(8, list.ptrsz);
@@ -141,13 +142,20 @@ static void setupStruct(struct capn *ctx) {
       EXPECT_EQ(0, capn_set16(element, j, 500+j));
     }
   }
+
+  capn_ptr recurse = capn_new_struct(ptr.seg, 0, 1);
+  EXPECT_EQ(CAPN_STRUCT, recurse.type);
+  EXPECT_EQ(0, recurse.datasz);
+  EXPECT_EQ(8, recurse.ptrsz);
+  EXPECT_EQ(0, capn_setp(recurse, 0, recurse));
+  EXPECT_EQ(0, capn_setp(ptr, 4, recurse));
 }
 
 static void checkStruct(struct capn *ctx) {
   capn_ptr ptr = capn_get_root(ctx);
   EXPECT_EQ(CAPN_STRUCT, ptr.type);
   EXPECT_EQ(16, ptr.datasz);
-  EXPECT_EQ(32, ptr.ptrsz);
+  EXPECT_EQ(40, ptr.ptrsz);
   EXPECT_EQ(UINT64_C(0x1011121314151617), capn_read64(ptr, 0));
   EXPECT_EQ(UINT32_C(0x20212223), capn_read32(ptr, 8));
   EXPECT_EQ(0x3031, capn_read16(ptr, 12));
@@ -210,6 +218,17 @@ static void checkStruct(struct capn *ctx) {
       EXPECT_EQ(500+j, capn_get16(element, j));
     }
   }
+
+  capn_ptr recurse = capn_getp(ptr, 4);
+  EXPECT_EQ(CAPN_STRUCT, recurse.type);
+  EXPECT_EQ(0, recurse.datasz);
+  EXPECT_EQ(8, recurse.ptrsz);
+  capn_ptr recurse_mbr = capn_getp(recurse, 0);
+  EXPECT_EQ(CAPN_STRUCT, recurse_mbr.type);
+  EXPECT_EQ(0, recurse_mbr.datasz);
+  EXPECT_EQ(8, recurse_mbr.ptrsz);
+  EXPECT_EQ(recurse.seg, recurse_mbr.seg);
+  EXPECT_EQ(recurse.data, recurse_mbr.data);
 }
 
 TEST(WireFormat, StructRoundTrip_OneSegment) {
@@ -218,7 +237,7 @@ TEST(WireFormat, StructRoundTrip_OneSegment) {
 
   // word count:
   //    1  root reference
-  //    6  root struct
+  //    7  root struct
   //    1  sub message
   //    2  3-element int32 list
   //   13  struct list
@@ -230,10 +249,11 @@ TEST(WireFormat, StructRoundTrip_OneSegment) {
   //   11  list list
   //         5 references to sub-lists
   //         6 sub-lists (4x 1 word, 1x 2 words)
+  //    1  recurse
   // -----
-  //   34
+  //   36
   ASSERT_EQ(1, ctx.capn.segnum);
-  EXPECT_EQ(34*8, ctx.capn.seglist->len);
+  EXPECT_EQ(36*8, ctx.capn.seglist->len);
 
   checkStruct(&ctx.capn);
 
@@ -269,13 +289,13 @@ TEST(WireFormat, StructRoundTrip_OneSegmentPerAllocation) {
 
   setupStruct(&ctx.capn);
 
-  struct capn_segment *segments[15];
-  getSegments(&ctx.capn, segments, 15);
+  struct capn_segment *segments[16];
+  getSegments(&ctx.capn, segments, 16);
 
   // Check that each segment has the expected size.  Recall that the first word of each segment will
   // actually be a reference to the first thing allocated within that segment.
   EXPECT_EQ( 8, segments[ 0]->len);  // root ref
-  EXPECT_EQ(56, segments[ 1]->len);  // root struct
+  EXPECT_EQ(64, segments[ 1]->len);  // root struct
   EXPECT_EQ(16, segments[ 2]->len);  // sub-struct
   EXPECT_EQ(24, segments[ 3]->len);  // 3-element int32 list
   EXPECT_EQ(80, segments[ 4]->len);  // struct list
@@ -289,12 +309,13 @@ TEST(WireFormat, StructRoundTrip_OneSegmentPerAllocation) {
   EXPECT_EQ(16, segments[12]->len);  // list list sublist 3
   EXPECT_EQ(16, segments[13]->len);  // list list sublist 4
   EXPECT_EQ(24, segments[14]->len);  // list list sublist 5
+  EXPECT_EQ(16, segments[15]->len);  // recurse struct
 
   checkStruct(&ctx.capn);
 
   struct capn ctx2;
   memset(&ctx2, 0, sizeof(ctx2));
-  for (int i = 0; i < 15; i++) {
+  for (int i = 0; i < sizeof(segments)/sizeof(segments[0]); i++) {
     capn_append_segment(&ctx2, segments[i]);
   }
 
@@ -309,13 +330,13 @@ TEST(WireFormat, StructRoundTrip_OneSegmentPerAllocation_NoTag) {
   setupStruct(&ctx.capn);
   g_AddTag = 1;
 
-  struct capn_segment *segments[29];
-  getSegments(&ctx.capn, segments, 29);
+  struct capn_segment *segments[31];
+  getSegments(&ctx.capn, segments, 31);
 
   // Check that each segment has the expected size. Note that we have plenty
   // of 16 byte double far ptrs.
   EXPECT_EQ( 8, segments[ 0]->len);  // root ref
-  EXPECT_EQ(48, segments[ 1]->len);  // root struct
+  EXPECT_EQ(56, segments[ 1]->len);  // root struct
   EXPECT_EQ(16, segments[ 2]->len);  // root struct ptr
   EXPECT_EQ( 8, segments[ 3]->len);  // sub-struct
   EXPECT_EQ(16, segments[ 4]->len);  // sub-struct ptr
@@ -343,12 +364,14 @@ TEST(WireFormat, StructRoundTrip_OneSegmentPerAllocation_NoTag) {
   EXPECT_EQ(16, segments[26]->len);  // list list sublist 4 ptr
   EXPECT_EQ(16, segments[27]->len);  // list list sublist 5
   EXPECT_EQ(16, segments[28]->len);  // list list sublist 5 ptr
+  EXPECT_EQ( 8, segments[29]->len);  // recurse struct
+  EXPECT_EQ(16, segments[30]->len);  // recurse struct ptr
 
   checkStruct(&ctx.capn);
 
   struct capn ctx2;
   memset(&ctx2, 0, sizeof(ctx2));
-  for (int i = 0; i < 29; i++) {
+  for (int i = 0; i < sizeof(segments)/sizeof(segments[0]); i++) {
     capn_append_segment(&ctx2, segments[i]);
   }
 
@@ -387,22 +410,33 @@ TEST(WireFormat, StructRoundTrip_MultipleSegmentsWithMultipleAllocations) {
 
   // Check that each segment has the expected size.  Recall that each object will be prefixed by an
   // extra word if its parent is in a different segment.
-  EXPECT_EQ(64, segments[0]->len);  // root ref + struct + sub
-  EXPECT_EQ(56, segments[1]->len);  // 3-element int32 list (+tag) + struct list substructs 1+2 (+tag)
-  EXPECT_EQ(80, segments[2]->len);  // struct list (+tag)
-  EXPECT_EQ(64, segments[3]->len);  // struct list substructs 3+4 (+tag) + list list sublist 1,2 (+tag)
-  EXPECT_EQ(64, segments[4]->len);  // list list (+tag) + sublist 3,4
-  EXPECT_EQ(24, segments[5]->len);  // list list sublist 5
+  EXPECT_EQ(64, segments[0]->len);  // root ref + struct (48)
+  EXPECT_EQ(56, segments[1]->len);  // sub (8+tag) + 3-element int32 list (16+tag) + struct list substructs 1 (8+tag)
+  EXPECT_EQ(80, segments[2]->len);  // struct list (72+tag)
+  EXPECT_EQ(64, segments[3]->len);  // struct list substructs 2+3+4 3*(8+tag) + list list sublist 3 (8+tag)
+  EXPECT_EQ(64, segments[4]->len);  // list list (40+tag) + sublist 1,2 2*(8)
+  EXPECT_EQ(56, segments[5]->len);  // list list sublist 4 (8+tag), 5 (16+tag) + recurse struct (8+tag)
 
   checkStruct(&ctx.capn);
 
   struct capn ctx2;
   memset(&ctx2, 0, sizeof(ctx2));
-  for (int i = 0; i < 6; i++) {
+  for (int i = 0; i < sizeof(segments)/sizeof(segments[0]); i++) {
     capn_append_segment(&ctx2, segments[i]);
   }
 
   checkStruct(&ctx2);
+}
+
+TEST(WireFormat, CopyStruct) {
+  Session ctx1, ctx2;
+  setupStruct(&ctx1.capn);
+  checkStruct(&ctx1.capn);
+
+  capn_ptr root = capn_new_root(&ctx2.capn);
+  EXPECT_EQ(0, capn_setp(root, 0, capn_get_root(&ctx1.capn)));
+
+  checkStruct(&ctx2.capn);
 }
 
 int main(int argc, char *argv[]) {
