@@ -4,17 +4,22 @@
 #include <string.h>
 #include <limits.h>
 
+struct check_segment_alignment {
+	char foo : (sizeof(struct capn_segment)&7) ? -1 : 1;
+};
+
 static struct capn_segment *create(void *u, uint32_t id, int sz) {
 	struct capn_segment *s;
+	sz += sizeof(*s);
 	if (sz < 4096) {
 		sz = 4096;
 	} else {
 		sz = (sz + 4095) & ~4095;
 	}
-	s = (struct capn_segment*) calloc(1, sizeof(*s));
-	s->data = (char*) calloc(1, sz);
-	s->cap = sz;
-	s->user = (void*)(uintptr_t) 1;
+	s = (struct capn_segment*) calloc(1, sz);
+	s->data = (char*) (s+1);
+	s->cap = sz - sizeof(*s);
+	s->user = s;
 	return s;
 }
 
@@ -27,21 +32,21 @@ void capn_free(struct capn *c) {
 	struct capn_segment *s = c->seglist;
 	while (s != NULL) {
 		struct capn_segment *n = s->next;
-		if (s->user) {
-			free(s->data);
-			free(s);
-		}
+		free(s->user);
 		s = n;
 	}
-	s = c->copylist;
+	capn_reset_copy(c);
+}
+
+void capn_reset_copy(struct capn *c) {
+	struct capn_segment *s = c->copylist;
 	while (s != NULL) {
 		struct capn_segment *n = s->next;
-		if (s->user) {
-			free(s->data);
-			free(s);
-		}
+		free(s->user);
 		s = n;
 	}
+	c->copy = NULL;
+	c->copylist = NULL;
 }
 
 #define ZBUF_SZ 4096
@@ -96,10 +101,6 @@ static int init_fp(struct capn *c, FILE *f, struct capn_stream *z, int packed) {
 		goto err;
 	segnum++;
 
-	s = (struct capn_segment*) calloc(segnum, sizeof(*s));
-	if (!s)
-		goto err;
-
 	if (read_fp(hdr, 8 * (segnum/2) + 4, f, z, zbuf, packed))
 		goto err;
 
@@ -107,32 +108,31 @@ static int init_fp(struct capn *c, FILE *f, struct capn_stream *z, int packed) {
 		uint32_t n = capn_flip32(hdr[i]);
 		if (n > INT_MAX/8 || n > UINT32_MAX/8 || UINT32_MAX - total < n*8)
 			goto err;
-		s[i].cap = s[i].len = n * 8;
-		total += s[i].len;
+		hdr[i] = n*8;
+		total += hdr[i];
 	}
 
-	data = (char*) calloc(1, total);
-	if (!data)
+	s = (struct capn_segment*) calloc(1, total + (sizeof(*s) * segnum));
+	if (!s)
 		goto err;
 
+	data = (char*) (s+segnum);
 	if (read_fp(data, total, f, z, zbuf, packed))
 		goto err;
 
 	for (i = 0; i < segnum; i++) {
+		s[i].len = s[i].cap = hdr[i];
 		s[i].data = data;
 		data += s[i].len;
 		capn_append_segment(c, &s[i]);
 	}
 
-	/* mark the first segment so capn_free will free the data and
-	 * segment arrays */
-	s[0].user = (void*)(uintptr_t) 1;
+	s[segnum-1].user = s;
 
 	return 0;
 
 err:
 	memset(c, 0, sizeof(*c));
-	free(data);
 	free(s);
 	return -1;
 }

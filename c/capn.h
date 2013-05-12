@@ -218,6 +218,7 @@ int capn_init_fp(struct capn *c, FILE *f, int packed);
 int capn_init_mem(struct capn *c, const uint8_t *p, size_t sz, int packed);
 
 void capn_free(struct capn *c);
+void capn_reset_copy(struct capn *c);
 
 /* capn_stream encapsulates the needed fields for capn_(deflate|inflate) in a
  * similar manner to z_stream from zlib
