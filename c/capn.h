@@ -334,23 +334,33 @@ CAPN_INLINE int capn_write64(capn_ptr p, int off, uint64_t val) {
 	}
 }
 
+union capn_conv_f32 {
+	uint32_t u;
+	float f;
+};
+
+union capn_conv_f64 {
+	uint64_t u;
+	double f;
+};
+
 CAPN_INLINE float capn_to_f32(uint32_t v) {
-	union { float f; uint32_t u;} u;
+	union capn_conv_f32 u;
 	u.u = v;
 	return u.f;
 }
 CAPN_INLINE double capn_to_f64(uint64_t v) {
-	union { float f; uint64_t u;} u;
+	union capn_conv_f64 u;
 	u.u = v;
 	return u.f;
 }
 CAPN_INLINE uint32_t capn_from_f32(float v) {
-	union { float f; uint32_t u;} u;
+	union capn_conv_f32 u;
 	u.f = v;
 	return u.u;
 }
 CAPN_INLINE uint64_t capn_from_f64(double v) {
-	union { float f; uint64_t u;} u;
+	union capn_conv_f64 u;
 	u.f = v;
 	return u.u;
 }

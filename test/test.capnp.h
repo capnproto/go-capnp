@@ -20,28 +20,41 @@ typedef struct {capn_ptr p;} TestInterface_ptr;
 
 typedef struct {capn_ptr p;} TestInterface_list;
 
-TestAllTypes_ptr new_TestAllTypes(struct capn_segment*);
-TestDefaults_ptr new_TestDefaults(struct capn_segment*);
-
-TestAllTypes_list new_TestAllTypes_list(struct capn_segment*, int len);
-TestDefaults_list new_TestDefaults_list(struct capn_segment*, int len);
-
-void read_TestAllTypes(struct TestAllTypes*, TestAllTypes_ptr);
-void read_TestDefaults(struct TestDefaults*, TestDefaults_ptr);
-
-int write_TestAllTypes(const struct TestAllTypes*, TestAllTypes_ptr);
-int write_TestDefaults(const struct TestDefaults*, TestDefaults_ptr);
-
-void get_TestAllTypes(struct TestAllTypes*, TestAllTypes_list, int i);
-void get_TestDefaults(struct TestDefaults*, TestDefaults_list, int i);
-
-int set_TestAllTypes(const struct TestAllTypes*, TestAllTypes_list, int i);
-int set_TestDefaults(const struct TestDefaults*, TestDefaults_list, int i);
-
 enum TestEnum {
 	TestEnum_foo = 0,
 	TestEnum_bar = 1
 };
+extern unsigned int boolConst;
+extern int8_t int8Const;
+extern int16_t int16Const;
+extern int32_t int32Const;
+extern int64_t int64Const;
+extern uint8_t uInt8Const;
+extern uint16_t uInt16Const;
+extern uint32_t uInt32Const;
+extern uint64_t uInt64Const;
+extern union capn_conv_f32 float32Const;
+extern union capn_conv_f64 float64Const;
+extern capn_text textConst;
+extern capn_data dataConst;
+extern TestAllTypes_ptr structConst;
+extern enum TestEnum enumConst;
+extern capn_ptr voidListConst;
+extern capn_list1 boolListConst;
+extern capn_list8 int8ListConst;
+extern capn_list16 int16ListConst;
+extern capn_list32 int32ListConst;
+extern capn_list64 int64ListConst;
+extern capn_list8 uInt8ListConst;
+extern capn_list16 uInt16ListConst;
+extern capn_list32 uInt32ListConst;
+extern capn_list64 uInt64ListConst;
+extern capn_list32 float32ListConst;
+extern capn_list64 float64ListConst;
+extern capn_ptr textListConst;
+extern capn_ptr dataListConst;
+extern TestAllTypes_list structListConst;
+extern capn_list16 enumListConst;
 
 enum TestAllTypes_unionField {
 	TestAllTypes_voidUnion = 0,
@@ -192,6 +205,24 @@ struct TestDefaults {
 		TestInterface_ptr interfaceUnion;
 	} unionField;
 };
+
+TestAllTypes_ptr new_TestAllTypes(struct capn_segment*);
+TestDefaults_ptr new_TestDefaults(struct capn_segment*);
+
+TestAllTypes_list new_TestAllTypes_list(struct capn_segment*, int len);
+TestDefaults_list new_TestDefaults_list(struct capn_segment*, int len);
+
+void read_TestAllTypes(struct TestAllTypes*, TestAllTypes_ptr);
+void read_TestDefaults(struct TestDefaults*, TestDefaults_ptr);
+
+int write_TestAllTypes(const struct TestAllTypes*, TestAllTypes_ptr);
+int write_TestDefaults(const struct TestDefaults*, TestDefaults_ptr);
+
+void get_TestAllTypes(struct TestAllTypes*, TestAllTypes_list, int i);
+void get_TestDefaults(struct TestDefaults*, TestDefaults_list, int i);
+
+int set_TestAllTypes(const struct TestAllTypes*, TestAllTypes_list, int i);
+int set_TestDefaults(const struct TestDefaults*, TestDefaults_list, int i);
 
 #ifdef __cplusplus
 }
