@@ -21,16 +21,17 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+@0xddaa5e267a490cc9;
+
 interface TestInterface {
-	testMethod1 @1 (v :Bool, :Text, :UInt16) :TestAllTypes;
-	testMethod0 @0 (:TestInterface) (:Int8);
-	testMethod2 @2 (:TestInterface) :Void;
-	testMultiRet @3 (:Bool, :Text) (v :UInt16, :Text = "abc");
+	testMethod0 @0 (i :TestInterface) :Int8;
+	testMethod1 @1 (v :Bool, t :Text, u :UInt16) :TestAllTypes;
+	testMethod2 @2 (i :TestInterface) :Void;
 }
 
 enum TestEnum {
-	FOO @1
-	BAR @2
+	foo @0;
+	bar @1;
 }
 
 const voidConst : Void    = void;
@@ -65,7 +66,7 @@ const structConst : TestAllTypes = (
 		structField    = (
 			textField = "nested",
 			structField = (textField = "really nested")),
-		enumField      = FOO,
+		enumField      = foo,
 
 		voidList      = [void, void, void],
 		boolList      = [false, true, false, true, true],
@@ -85,10 +86,10 @@ const structConst : TestAllTypes = (
 		(textField = "x structlist 1"),
 		(textField = "x structlist 2"),
 		(textField = "x structlist 3")],
-		enumList      = [BAR,FOO],
+		enumList      = [bar,foo]
 		);
 
-const enumConst : TestEnum = FOO;
+const enumConst : TestEnum = foo;
 const voidListConst : List(Void)    = [void, void, void, void, void, void];
 const boolListConst : List(Bool)    = [true, false, false, true];
 const int8ListConst : List(Int8)    = [111, -111];
@@ -107,7 +108,7 @@ const structListConst : List(TestAllTypes) = [
 	(textField = "structlist 1"),
 	(textField = "structlist 2"),
 	(textField = "structlist 3")];
-const enumListConst : List(TestEnum) = [FOO, BAR];
+const enumListConst : List(TestEnum) = [foo, bar];
 
 struct TestAllTypes {
 	voidField      @0  : Void;
@@ -146,7 +147,7 @@ struct TestAllTypes {
 	enumList      @32 : List(TestEnum);
 	interfaceList @33 : List(TestInterface);
 
-	unionField @34 : union {
+	unionField @34 union {
 		voidUnion @35 : Void;
 		boolUnion @36 : Bool;
 		int8Union @37 : Int8;
@@ -200,7 +201,7 @@ struct TestDefaults {
 			structField    = (
 				textField = "nested",
 				structField = (textField = "really nested")),
-			enumField      = FOO,
+			enumField      = foo,
 # interfaceField can't have a default
 
 			voidList      = [void, void, void],
@@ -221,10 +222,10 @@ struct TestDefaults {
 				(textField = "x structlist 1"),
 			(textField = "x structlist 2"),
 			(textField = "x structlist 3")],
-			enumList      = [BAR,FOO],
+			enumList      = [bar,foo]
 # interfaceList can't have a default
 			);
-	enumField      @15 : TestEnum = FOO;
+	enumField      @15 : TestEnum = foo;
 	interfaceField @16 : TestInterface; # interface can't have a default
 
 		voidList      @17 : List(Void)    = [void, void, void, void, void, void];
@@ -245,10 +246,10 @@ struct TestDefaults {
 		(textField = "structlist 1"),
 		(textField = "structlist 2"),
 		(textField = "structlist 3")];
-	enumList      @32 : List(TestEnum) = [FOO, BAR];
+	enumList      @32 : List(TestEnum) = [foo, bar];
 	interfaceList @33 : List(TestInterface);
 
-	unionField @34 : union {
+	unionField @34 union {
 		voidUnion @35 : Void;
 		boolUnion @36 : Bool = true;
 		int8Union @37 : Int8 = -123;
@@ -263,8 +264,8 @@ struct TestDefaults {
 		float64Union @46 : Float64 = 3.4e5;
 		textUnion @47 : Text = "foo";
 		dataUnion @48 : Data = "bar";
-		structUnion @49 : TestAllTypes = (int8Union = -123);
-		enumUnion @50 : TestEnum = FOO;
+		structUnion @49 : TestAllTypes = (textField="foo");
+		enumUnion @50 : TestEnum = foo;
 		interfaceUnion @51 : TestInterface;
 	}
 }

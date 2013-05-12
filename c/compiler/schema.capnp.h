@@ -1,6 +1,6 @@
-#ifndef CAPN_b471df2f45ca32c7
-#define CAPN_b471df2f45ca32c7
-/* AUTO GENERATED DO NOT EDIT*/
+#ifndef CAPN_B471DF2F45CA32C7
+#define CAPN_B471DF2F45CA32C7
+/* AUTO GENERATED - DO NOT EDIT */
 #include <capn.h>
 
 #ifdef __cplusplus
@@ -66,6 +66,8 @@ typedef struct {capn_ptr p;} InterfaceNode_Method_Param_list;
 typedef struct {capn_ptr p;} ConstNode_list;
 typedef struct {capn_ptr p;} AnnotationNode_list;
 typedef struct {capn_ptr p;} CodeGeneratorRequest_list;
+
+
 
 Node_ptr new_Node(struct capn_segment*);
 Node_NestedNode_ptr new_Node_NestedNode(struct capn_segment*);
@@ -275,7 +277,7 @@ enum Value_body {
 struct Value {
 	enum Value_body body_tag;
 	union {
-		unsigned int boolValue : 1;
+		unsigned int boolValue:1;
 		int8_t int8Value;
 		int16_t int16Value;
 		int32_t int32Value;
@@ -392,17 +394,17 @@ struct ConstNode {
 
 struct AnnotationNode {
 	Type_ptr type;
-	unsigned int targetsFile : 1;
-	unsigned int targetsConst : 1;
-	unsigned int targetsEnum : 1;
-	unsigned int targetsEnumerant : 1;
-	unsigned int targetsStruct : 1;
-	unsigned int targetsField : 1;
-	unsigned int targetsUnion : 1;
-	unsigned int targetsInterface : 1;
-	unsigned int targetsMethod : 1;
-	unsigned int targetsParam : 1;
-	unsigned int targetsAnnotation : 1;
+	unsigned int targetsFile:1;
+	unsigned int targetsConst:1;
+	unsigned int targetsEnum:1;
+	unsigned int targetsEnumerant:1;
+	unsigned int targetsStruct:1;
+	unsigned int targetsField:1;
+	unsigned int targetsUnion:1;
+	unsigned int targetsInterface:1;
+	unsigned int targetsMethod:1;
+	unsigned int targetsParam:1;
+	unsigned int targetsAnnotation:1;
 };
 
 struct CodeGeneratorRequest {

@@ -5,7 +5,7 @@
 #include <limits.h>
 
 struct check_segment_alignment {
-	char foo : (sizeof(struct capn_segment)&7) ? -1 : 1;
+	unsigned int foo : (sizeof(struct capn_segment)&7) ? -1 : 1;
 };
 
 static struct capn_segment *create(void *u, uint32_t id, int sz) {

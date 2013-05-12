@@ -19,8 +19,10 @@ static void str_release(struct str *v) {
 }
 
 static void str_reset(struct str *v) {
-	v->len = 0;
-	v->str[0] = '\0';
+	if (v->len) {
+		v->len = 0;
+		v->str[0] = '\0';
+	}
 }
 
 static void str_setlen(struct str *v, int sz) {
@@ -38,5 +40,6 @@ static void str_setlen(struct str *v, int sz) {
 void str_add(struct str *v, const char *str, int sz);
 int str_vaddf(struct str *v, const char *format, va_list ap) ATTR(2,0);
 int str_addf(struct str *v, const char *format, ...) ATTR(2,3);
+char *strf(struct str *v, const char *format, ...) ATTR(2,3);
 
 

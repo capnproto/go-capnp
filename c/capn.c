@@ -1053,7 +1053,8 @@ int capn_set_text(capn_ptr p, int off, capn_text tgt) {
 }
 
 capn_data capn_get_data(capn_ptr p, int off) {
-	capn_data ret = {capn_getp(p, off)};
+	capn_data ret;
+	ret.p = capn_getp(p, off);
 	if (ret.p.type != CAPN_LIST || ret.p.datasz != 1) {
 		memset(&ret, 0, sizeof(ret));
 	}

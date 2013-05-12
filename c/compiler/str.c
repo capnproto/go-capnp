@@ -94,3 +94,11 @@ int str_addf(struct str *v, const char* format, ...) {
 	return str_vaddf(v, format, ap);
 }
 
+char *strf(struct str *v, const char* format, ...) {
+	va_list ap;
+	va_start(ap, format);
+	str_reset(v);
+	str_vaddf(v, format, ap);
+	return v->str;
+}
+

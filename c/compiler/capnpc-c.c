@@ -18,7 +18,12 @@ struct node {
 };
 
 static struct node *g_files;
-static FILE *HDR, *SRC;
+static FILE *HDR;
+static struct str SRC;
+static struct capn g_valcapn;
+static struct capn_segment g_valseg;
+static int g_valc;
+static int g_val0used, g_nullused;
 
 static struct capn_tree *g_node_tree;
 
@@ -28,7 +33,7 @@ struct node *find_node(uint64_t id) {
 		s = (struct node*) s->hdr.link[s->n.id < id];
 	}
 	if (s == NULL) {
-		fprintf(stderr, "cant find node with id %#llx\n", id);
+		fprintf(stderr, "cant find node with id 0x%x%x\n", (uint32_t) (id >> 32), (uint32_t) id);
 		exit(2);
 	}
 	return s;
@@ -76,232 +81,468 @@ static void define_enum(struct node *n) {
 	fprintf(HDR, "\n};\n");
 }
 
+struct type {
+	struct Type t;
+	struct Type lt;
+	const char *name;
+	struct str buf;
+};
+
+struct value {
+	struct type t;
+	struct Value v;
+	capn_ptr ptr;
+	int64_t num;
+};
+
+static void decode_type(struct type *t, Type_ptr p) {
+	read_Type(&t->t, p);
+
+	switch (t->t.body_tag) {
+	case Type_voidType:
+		t->name = "void";
+		break;
+	case Type_boolType:
+		t->name = "unsigned int";
+		break;
+	case Type_int8Type:
+		t->name = "int8_t";
+		break;
+	case Type_int16Type:
+		t->name = "int16_t";
+		break;
+	case Type_int32Type:
+		t->name = "int32_t";
+		break;
+	case Type_int64Type:
+		t->name = "int64_t";
+		break;
+	case Type_uint8Type:
+		t->name = "uint8_t";
+		break;
+	case Type_uint16Type:
+		t->name = "uint16_t";
+		break;
+	case Type_uint32Type:
+		t->name = "uint32_t";
+		break;
+	case Type_uint64Type:
+		t->name = "uint64_t";
+		break;
+	case Type_float32Type:
+		t->name = "float";
+		break;
+	case Type_float64Type:
+		t->name = "double";
+		break;
+	case Type_textType:
+		t->name = "capn_text";
+		break;
+	case Type_dataType:
+		t->name = "capn_data";
+		break;
+	case Type_enumType:
+		t->name = strf(&t->buf, "enum %s", find_node(t->t.body.enumType)->name.str);
+		break;
+	case Type_structType:
+	case Type_interfaceType:
+		t->name = strf(&t->buf, "%s_ptr", find_node(t->t.body.structType)->name.str);
+		break;
+	case Type_objectType:
+		t->name = "capn_ptr";
+		break;
+	case Type_listType:
+		read_Type(&t->lt, t->t.body.listType);
+
+		switch (t->lt.body_tag) {
+		case Type_voidType:
+			t->name = "capn_ptr";
+			break;
+		case Type_boolType:
+			t->name = "capn_list1";
+			break;
+		case Type_int8Type:
+		case Type_uint8Type:
+			t->name = "capn_list8";
+			break;
+		case Type_int16Type:
+		case Type_uint16Type:
+		case Type_enumType:
+			t->name = "capn_list16";
+			break;
+		case Type_int32Type:
+		case Type_uint32Type:
+		case Type_float32Type:
+			t->name = "capn_list32";
+			break;
+		case Type_int64Type:
+		case Type_uint64Type:
+		case Type_float64Type:
+			t->name = "capn_list64";
+			break;
+		case Type_textType:
+		case Type_dataType:
+		case Type_objectType:
+		case Type_listType:
+			t->name = "capn_ptr";
+			break;
+		case Type_structType:
+		case Type_interfaceType:
+			t->name = strf(&t->buf, "%s_list", find_node(t->lt.body.structType)->name.str);
+			break;
+		}
+	}
+}
+
+static void decode_value(struct value* v, Type_ptr type, Value_ptr value) {
+	decode_type(&v->t, type);
+	read_Value(&v->v, value);
+
+	switch (v->v.body_tag) {
+	case Value_boolValue:
+		v->num = v->v.body.boolValue;
+		break;
+	case Value_int8Value:
+		v->num = v->v.body.int8Value;
+		break;
+	case Value_uint8Value:
+		v->num = v->v.body.uint8Value;
+		break;
+	case Value_int16Value:
+		v->num = v->v.body.int16Value;
+		break;
+	case Value_uint16Value:
+	case Value_enumValue:
+		v->num = v->v.body.uint16Value;
+		break;
+	case Value_int32Value:
+		v->num = v->v.body.int32Value;
+		break;
+	case Value_uint32Value:
+	case Value_float32Value:
+		v->num = v->v.body.uint32Value;
+		break;
+	case Value_int64Value:
+		v->num = v->v.body.int64Value;
+		break;
+	case Value_float64Value:
+	case Value_uint64Value:
+		v->num = v->v.body.uint64Value;
+		break;
+	case Value_textValue:
+		if (v->v.body.textValue.len) {
+			capn_ptr p = capn_root(&g_valcapn);
+			if (capn_set_text(p, 0, v->v.body.textValue)) {
+				fprintf(stderr, "failed to copy text\n");
+				exit(2);
+			}
+			p = capn_getp(p, 0);
+
+			v->ptr = p;
+			v->num = ++g_valc;
+
+			str_addf(&SRC, "static capn_text g_val%d = {%d,(char*)&g_buf[%d],(struct capn_segment*)&g_seg};\n",
+					(int)v->num, p.len-1, (int) (p.data-p.seg->data-8));
+		}
+		break;
+
+	case Value_dataValue:
+	case Value_structValue:
+	case Value_objectValue:
+	case Value_listValue:
+		if (v->v.body.objectValue.type) {
+			capn_ptr p = capn_root(&g_valcapn);
+			if (capn_setp(p, 0, v->v.body.objectValue)) {
+				fprintf(stderr, "failed to copy object\n");
+				exit(2);
+			}
+			p = capn_getp(p, 0);
+
+			v->ptr = p;
+			v->num = ++g_valc;
+
+			str_addf(&SRC, "static %s g_val%d = {", v->t.name, (int)v->num);
+			if (strcmp(v->t.name, "capn_ptr"))
+				str_addf(&SRC, "{");
+
+			str_addf(&SRC, "%d,%d,%d,%d,%d,%d,%d,(char*)&g_buf[%d],(struct capn_segment*)&g_seg",
+					p.type, p.is_list_member,
+					p.has_ptr_tag, p.has_composite_tag,
+					p.datasz, p.ptrsz,
+					p.len, (int) (p.data-p.seg->data-8));
+
+			if (strcmp(v->t.name, "capn_ptr"))
+				str_addf(&SRC, "}");
+
+			str_addf(&SRC, "};\n");
+		}
+		break;
+
+	case Value_interfaceValue:
+	case Value_voidValue:
+		break;
+	}
+}
+
 struct member {
 	unsigned int is_valid : 1;
 	struct StructNode_Member m;
 	struct StructNode_Field f;
 	struct StructNode_Union u;
-	struct Type t;
-	struct Value v;
-	struct node *type;
-	struct Type list;
+	struct value v;
 	struct member *mbrs;
 	int idx;
 };
 
-static void set_member(FILE *f, struct member *m, const char *tab, const char *var) {
-	if (m->t.body_tag == Type_voidType)
-		return;
+static struct member *decode_member(struct member *mbrs, StructNode_Member_list l, int i) {
+	struct member m;
+	memset(&m, 0, sizeof(m));
+	m.is_valid = 1;
+	m.idx = i;
+	get_StructNode_Member(&m.m, l, i);
 
-	fputs(tab, f);
+	if (m.m.codeOrder >= l.p.len) {
+		fprintf(stderr, "unexpectedly large code order %d >= %d\n", m.m.codeOrder, l.p.len);
+		exit(3);
+	}
 
-	switch (m->t.body_tag) {
-	case Type_voidType:
-		break;
-	case Type_boolType:
-		fprintf(f, "err = err || capn_write1(p.p, %d, %s);\n", m->f.offset, var);
-		break;
-	case Type_int8Type:
-		fprintf(f, "err = err || capn_write8(p.p, %d, (uint8_t) %s);\n", m->f.offset, var);
-		break;
-	case Type_int16Type:
-	case Type_enumType:
-		fprintf(f, "err = err || capn_write16(p.p, %d, (uint16_t) %s);\n", 2*m->f.offset, var);
-		break;
-	case Type_int32Type:
-		fprintf(f, "err = err || capn_write32(p.p, %d, (uint32_t) %s);\n", 4*m->f.offset, var);
-		break;
-	case Type_int64Type:
-		fprintf(f, "err = err || capn_write64(p.p, %d, (uint64_t) %s);\n", 8*m->f.offset, var);
-		break;
-	case Type_uint8Type:
-		fprintf(f, "err = err || capn_write8(p.p, %d, %s);\n", m->f.offset, var);
-		break;
-	case Type_uint16Type:
-		fprintf(f, "err = err || capn_write16(p.p, %d, %s);\n", 2*m->f.offset, var);
-		break;
-	case Type_uint32Type:
-		fprintf(f, "err = err || capn_write32(p.p, %d, %s);\n", 4*m->f.offset, var);
-		break;
-	case Type_uint64Type:
-		fprintf(f, "err = err || capn_write64(p.p, %d, %s);\n", 8*m->f.offset, var);
-		break;
-	case Type_float32Type:
-		fprintf(f, "err = err || capn_write_float(p.p, %d, %s, 0.0f);\n", 4*m->f.offset, var);
-		break;
-	case Type_float64Type:
-		fprintf(f, "err = err || capn_write_double(p.p, %d, %s, 0.0);\n", 4*m->f.offset, var);
-		break;
-	case Type_textType:
-		fprintf(f, "err = err || capn_set_text(p.p, %d, %s);\n", m->f.offset, var);
-		break;
-	case Type_dataType:
-		fprintf(f, "err = err || capn_set_data(p.p, %d, %s);\n", m->f.offset, var);
-		break;
-	case Type_structType:
-	case Type_interfaceType:
-		fprintf(f, "err = err || capn_setp(p.p, %d, %s.p);\n", m->f.offset, var);
-		break;
-	case Type_objectType:
-		fprintf(f, "err = err || capn_setp(p.p, %d, %s);\n", m->f.offset, var);
-		break;
-	case Type_listType:
-		switch (m->list.body_tag) {
-		case Type_boolType:
-		case Type_int8Type:
-		case Type_uint8Type:
-		case Type_int16Type:
-		case Type_uint16Type:
-		case Type_enumType:
-		case Type_int32Type:
-		case Type_uint32Type:
-		case Type_int64Type:
-		case Type_uint64Type:
+	if (m.m.body_tag == StructNode_Member_fieldMember) {
+		read_StructNode_Field(&m.f, m.m.body.fieldMember);
+		decode_value(&m.v, m.f.type, m.f.defaultValue);
+	}
+
+	memcpy(&mbrs[m.m.codeOrder], &m, sizeof(m));
+	return &mbrs[m.m.codeOrder];
+}
+
+static const char *xor_member(struct member *m, const char *var) {
+	static struct str buf = STR_INIT, tbuf = STR_INIT;
+
+	if (*var) {
+		switch (m->v.t.t.body_tag) {
 		case Type_float32Type:
-		case Type_float64Type:
-		case Type_structType:
-		case Type_interfaceType:
-			fprintf(f, "err = err || capn_setp(p.p, %d, %s.p);\n", m->f.offset, var);
+			var = strf(&tbuf, "capn_from_f32(%s)", var);
 			break;
-		case Type_voidType:
-		case Type_textType:
-		case Type_dataType:
-		case Type_objectType:
-		case Type_listType:
-			fprintf(f, "err = err || capn_setp(p.p, %d, %s);\n", m->f.offset, var);
+		case Type_float64Type:
+			var = strf(&tbuf, "capn_from_f64(%s)", var);
+			break;
+		default:
 			break;
 		}
+	}
+
+	if (m->v.num) {
+		switch (m->v.v.body_tag) {
+		case Value_boolValue:
+			return strf(&buf, "!%s", var);
+
+		case Value_int8Value:
+		case Value_int16Value:
+		case Value_int32Value:
+			return strf(&buf, "%s ^ %d", var, (int) m->v.num);
+
+		case Value_uint8Value:
+		case Value_uint16Value:
+		case Value_uint32Value:
+		case Value_enumValue:
+			return strf(&buf, "%s ^ %u", var, (uint32_t) m->v.num);
+
+		case Value_float32Value:
+			return strf(&buf, "%s ^ %u", var, (uint32_t) m->v.num);
+
+		case Value_int64Value:
+		case Value_uint64Value:
+		case Value_float64Value:
+			return strf(&buf, "%s ^ ((uint64_t) %u << 32) ^ %u", var, (int) (m->v.num >> 32), (int) m->v.num);
+
+		default:
+			return var;
+		}
+	} else {
+		return var;
 	}
 }
 
-static void get_member(FILE *f, struct member *m, const char *tab, const char *var) {
-	if (m->t.body_tag == Type_voidType)
+static void set_member(struct member *m, const char *tab, const char *var) {
+	const char *mbr;
+	if (m->v.t.t.body_tag == Type_voidType)
 		return;
 
-	fputs(tab, f);
-	fputs(var, f);
+	var = xor_member(m, var);
 
-	switch (m->t.body_tag) {
+	str_add(&SRC, tab, -1);
+
+	switch (m->v.t.t.body_tag) {
 	case Type_voidType:
 		break;
 	case Type_boolType:
-		fprintf(f, " = (capn_read8(p.p, %d) & %d) != 0;\n",
-				m->f.offset/8, 1 << (m->f.offset%8));
+		str_addf(&SRC, "err = err || capn_write1(p.p, %d, %s);\n", m->f.offset, var);
 		break;
 	case Type_int8Type:
-		fprintf(f, " = (int8_t) capn_read8(p.p, %d);\n", m->f.offset);
+		str_addf(&SRC, "err = err || capn_write8(p.p, %d, (uint8_t) %s);\n", m->f.offset, var);
 		break;
 	case Type_int16Type:
-		fprintf(f, " = (int16_t) capn_read16(p.p, %d);\n", 2*m->f.offset);
+	case Type_enumType:
+		str_addf(&SRC, "err = err || capn_write16(p.p, %d, (uint16_t) %s);\n", 2*m->f.offset, var);
 		break;
 	case Type_int32Type:
-		fprintf(f, " = (int32_t) capn_read32(p.p, %d);\n", 4*m->f.offset);
+		str_addf(&SRC, "err = err || capn_write32(p.p, %d, (uint32_t) %s);\n", 4*m->f.offset, var);
 		break;
 	case Type_int64Type:
-		fprintf(f, " = (int64_t) capn_read64(p.p, %d);\n", 8*m->f.offset);
+		str_addf(&SRC, "err = err || capn_write64(p.p, %d, (uint64_t) %s);\n", 8*m->f.offset, var);
 		break;
 	case Type_uint8Type:
-		fprintf(f, " = capn_read8(p.p, %d);\n", m->f.offset);
+		str_addf(&SRC, "err = err || capn_write8(p.p, %d, %s);\n", m->f.offset, var);
 		break;
 	case Type_uint16Type:
-		fprintf(f, " = capn_read16(p.p, %d);\n", 2*m->f.offset);
+		str_addf(&SRC, "err = err || capn_write16(p.p, %d, %s);\n", 2*m->f.offset, var);
 		break;
 	case Type_uint32Type:
-		fprintf(f, " = capn_read32(p.p, %d);\n", 4*m->f.offset);
+	case Type_float32Type:
+		str_addf(&SRC, "err = err || capn_write32(p.p, %d, %s);\n", 4*m->f.offset, var);
 		break;
 	case Type_uint64Type:
-		fprintf(f, " = capn_read64(p.p, %d);\n", 8*m->f.offset);
-		break;
-	case Type_float32Type:
-		fprintf(f, " = capn_read_float(p.p, %d, 0.0f);\n", 4*m->f.offset);
-		break;
 	case Type_float64Type:
-		fprintf(f, " = capn_read_double(p.p, %d, 0.0);\n", 8*m->f.offset);
+		str_addf(&SRC, "err = err || capn_write64(p.p, %d, %s);\n", 8*m->f.offset, var);
 		break;
 	case Type_textType:
-		fprintf(f, " = capn_get_text(p.p, %d);\n", m->f.offset);
+		if (m->v.num) {
+			g_val0used = 1;
+			str_addf(&SRC, "err = err || capn_set_text(p.p, %d, (%s.str != g_val%d.str) ? %s : g_val0);\n",
+					m->f.offset, var, (int)m->v.num, var);
+		} else {
+			str_addf(&SRC, "err = err || capn_set_text(p.p, %d, %s);\n", m->f.offset, var);
+		}
 		break;
 	case Type_dataType:
-		fprintf(f, " = capn_get_data(p.p, %d);\n", m->f.offset);
+	case Type_structType:
+	case Type_interfaceType:
+	case Type_listType:
+	case Type_objectType:
+		mbr = strcmp(m->v.t.name, "capn_ptr") ? ".p" : "";
+		if (m->v.num) {
+			g_nullused = 1;
+			str_addf(&SRC, "err = err || capn_setp(p.p, %d, (%s%s.data != g_val%d%s.data) ? %s%s : g_null);\n",
+					m->f.offset, var, mbr, (int)m->v.num, mbr, var, mbr);
+		} else {
+			str_addf(&SRC, "err = err || capn_setp(p.p, %d, %s%s);\n", m->f.offset, var, mbr);
+		}
 		break;
+	}
+}
+
+static void get_member(struct member *m, const char *tab, const char *var) {
+	const char *xor = xor_member(m, "");
+	const char *mbr = (strcmp(m->v.t.name, "capn_ptr")) ? ".p" : "";
+
+	if (m->v.t.t.body_tag == Type_voidType)
+		return;
+
+	str_add(&SRC, tab, -1);
+	str_add(&SRC, var, -1);
+
+	switch (m->v.t.t.body_tag) {
+	case Type_voidType:
+		return;
+	case Type_boolType:
+		str_addf(&SRC, " = (capn_read8(p.p, %d) & %d) != %d;\n",
+				m->f.offset/8, 1 << (m->f.offset%8), (int)m->v.num);
+		return;
+	case Type_int8Type:
+		str_addf(&SRC, " = (int8_t) (capn_read8(p.p, %d)%s);\n", m->f.offset, xor);
+		return;
+	case Type_int16Type:
+		str_addf(&SRC, " = (int16_t) (capn_read16(p.p, %d)%s);\n", 2*m->f.offset, xor);
+		return;
+	case Type_int32Type:
+		str_addf(&SRC, " = (int32_t) (capn_read32(p.p, %d)%s);\n", 4*m->f.offset, xor);
+		return;
+	case Type_int64Type:
+		str_addf(&SRC, " = (int64_t) (capn_read64(p.p, %d)%s);\n", 8*m->f.offset, xor);
+		return;
+	case Type_uint8Type:
+		str_addf(&SRC, " = capn_read8(p.p, %d)%s;\n", m->f.offset, xor);
+		return;
+	case Type_uint16Type:
+		str_addf(&SRC, " = capn_read16(p.p, %d)%s;\n", 2*m->f.offset, xor);
+		return;
+	case Type_uint32Type:
+		str_addf(&SRC, " = capn_read32(p.p, %d)%s;\n", 4*m->f.offset, xor);
+		return;
+	case Type_uint64Type:
+		str_addf(&SRC, " = capn_read64(p.p, %d)%s;\n", 8*m->f.offset, xor);
+		return;
+	case Type_float32Type:
+		str_addf(&SRC, " = capn_to_f32(capn_read32(p.p, %d)%s);\n", 4*m->f.offset, xor);
+		return;
+	case Type_float64Type:
+		str_addf(&SRC, " = capn_to_f64(capn_read64(p.p, %d)%s);\n", 8*m->f.offset, xor);
+		return;
 	case Type_enumType:
-		fprintf(f, " = (enum %s) capn_read16(p.p, %d);\n", m->type->name.str, 2*m->f.offset);
+		str_addf(&SRC, " = (%s) (capn_read16(p.p, %d)%s);\n", m->v.t.name, 2*m->f.offset, xor);
+		return;
+	case Type_textType:
+		if (!m->v.num)
+			g_val0used = 1;
+		str_addf(&SRC, " = capn_get_text(p.p, %d, g_val%d);\n", m->f.offset, (int)m->v.num);
+		return;
+
+	case Type_dataType:
+		str_addf(&SRC, " = capn_get_data(p.p, %d);\n", m->f.offset);
 		break;
 	case Type_structType:
 	case Type_interfaceType:
-		fprintf(f, ".p = capn_getp(p.p, %d);\n", m->f.offset);
-		break;
 	case Type_objectType:
-		fprintf(f, " = capn_getp(p.p, %d);\n", m->f.offset);
-		break;
 	case Type_listType:
-		switch (m->list.body_tag) {
-		case Type_boolType:
-		case Type_int8Type:
-		case Type_uint8Type:
-		case Type_int16Type:
-		case Type_uint16Type:
-		case Type_enumType:
-		case Type_int32Type:
-		case Type_uint32Type:
-		case Type_int64Type:
-		case Type_uint64Type:
-		case Type_float32Type:
-		case Type_float64Type:
-		case Type_structType:
-		case Type_interfaceType:
-			fprintf(f, ".p = capn_getp(p.p, %d);\n", m->f.offset);
-			break;
-		case Type_voidType:
-		case Type_textType:
-		case Type_dataType:
-		case Type_objectType:
-		case Type_listType:
-			fprintf(f, " = capn_getp(p.p, %d);\n", m->f.offset);
-			break;
-		}
+		str_addf(&SRC, "%s = capn_getp(p.p, %d);\n", mbr, m->f.offset);
+		break;
 	}
+
+	if (m->v.num) {
+		str_addf(&SRC, "%sif (!%s%s.type) {\n", tab, var, mbr);
+		str_addf(&SRC, "%s\t%s = g_val%d;\n", tab, var, (int)m->v.num);
+		str_addf(&SRC, "%s}\n", tab);
+	}
+}
+
+static void union_block(struct member *m, struct member *u, int set) {
+	static struct str buf = STR_INIT;
+	if (set) {
+		set_member(u, "\t\t", strf(&buf, "s->%s.%s", m->m.name.str, u->m.name.str));
+	} else {
+		get_member(u, "\t\t", strf(&buf, "s->%s.%s", m->m.name.str, u->m.name.str));
+	}
+
+	str_addf(&SRC, "\t\tbreak;\n");
 }
 
 static void union_cases(struct node *n, struct member *m, int set, int mask) {
-	static struct str buf = STR_INIT;
 	struct member *u = NULL;
 	int j;
 
 	for (j = 0; j < m->u.members.p.len; j++) {
-		if (mask & (1 << m->mbrs[j].t.body_tag)) {
+		if (!m->mbrs[j].v.num && (mask & (1 << m->mbrs[j].v.t.t.body_tag))) {
 			u = &m->mbrs[j];
-			fprintf(SRC, "\tcase %s_%s:\n", n->name.str, u->m.name.str);
+			str_addf(&SRC, "\tcase %s_%s:\n", n->name.str, u->m.name.str);
 		}
 	}
 
-	if (!u)
-		return;
-
-	str_reset(&buf);
-	str_addf(&buf, "s->%s.%s", m->m.name.str, u->m.name.str);
-
-	if (u->t.body_tag == Type_voidType) {
-		/* nothing to do */
-	} else if (set) {
-		set_member(SRC, u, "\t\t", buf.str);
-	} else {
-		get_member(SRC, u, "\t\t", buf.str);
-	}
-
-	fprintf(SRC, "\t\tbreak;\n");
+	if (u)
+		union_block(m, u, set);
 }
 
 static void do_union(struct node *n, struct member *m, int set) {
+	int j;
+
 	if (set) {
-		fprintf(SRC, "\terr = err || capn_write16(p.p, %d, s->%s_tag);\n",
+		str_addf(&SRC, "\terr = err || capn_write16(p.p, %d, s->%s_tag);\n",
 				2*m->u.discriminantOffset, m->m.name.str);
 	} else {
-		fprintf(SRC, "\ts->%s_tag = (enum %s_%s) capn_read16(p.p, %d);\n",
+		str_addf(&SRC, "\ts->%s_tag = (enum %s_%s) capn_read16(p.p, %d);\n",
 				m->m.name.str, n->name.str, m->m.name.str, 2*m->u.discriminantOffset);
 	}
 
-	fprintf(SRC, "\n\tswitch (s->%s_tag) {\n", m->m.name.str);
+	str_addf(&SRC, "\n\tswitch (s->%s_tag) {\n", m->m.name.str);
 
 	/* if we have a bunch of the same C type with zero defaults, we
 	 * only need to emit one switch block as the layout will line up
@@ -316,157 +557,30 @@ static void do_union(struct node *n, struct member *m, int set) {
 	union_cases(n, m, set, (1 << Type_dataType));
 	union_cases(n, m, set, (1 << Type_structType) | (1 << Type_interfaceType) | (1 << Type_objectType) | (1 << Type_listType));
 
-	fprintf(SRC, "\t}\n");
+	/* when we have defaults we have to emit each case seperately */
+	for (j = 0; j < m->u.members.p.len; j++) {
+		struct member *u = &m->mbrs[j];
+		if (u->v.num) {
+			str_addf(&SRC, "\tcase %s_%s:\n", n->name.str, u->m.name.str);
+			union_block(m, u, set);
+		}
+	}
+
+	str_addf(&SRC, "\t}\n");
 }
 
-static void print_member(FILE *f, struct member *m, const char *tab) {
-	if (m->t.body_tag == Type_voidType)
-		return;
-
-	fputs(tab, f);
-
-	switch (m->t.body_tag) {
+static void print_member(struct member *m, const char *tab) {
+	switch (m->v.t.t.body_tag) {
 	case Type_voidType:
 		break;
 	case Type_boolType:
-		fprintf(f, "unsigned int %s : 1;\n", m->m.name.str);
+		fprintf(HDR, "%s%s %s:1;\n", tab, m->v.t.name, m->m.name.str);
 		break;
-	case Type_int8Type:
-		fprintf(f, "int8_t %s;\n", m->m.name.str);
+	default:
+		fprintf(HDR, "%s%s %s;\n", tab, m->v.t.name, m->m.name.str);
 		break;
-	case Type_int16Type:
-		fprintf(f, "int16_t %s;\n", m->m.name.str);
-		break;
-	case Type_int32Type:
-		fprintf(f, "int32_t %s;\n", m->m.name.str);
-		break;
-	case Type_int64Type:
-		fprintf(f, "int64_t %s;\n", m->m.name.str);
-		break;
-	case Type_uint8Type:
-		fprintf(f, "uint8_t %s;\n", m->m.name.str);
-		break;
-	case Type_uint16Type:
-		fprintf(f, "uint16_t %s;\n", m->m.name.str);
-		break;
-	case Type_uint32Type:
-		fprintf(f, "uint32_t %s;\n", m->m.name.str);
-		break;
-	case Type_uint64Type:
-		fprintf(f, "uint64_t %s;\n", m->m.name.str);
-		break;
-	case Type_float32Type:
-		fprintf(f, "float %s;\n", m->m.name.str);
-		break;
-	case Type_float64Type:
-		fprintf(f, "double %s;\n", m->m.name.str);
-		break;
-	case Type_textType:
-		fprintf(f, "capn_text %s;\n", m->m.name.str);
-		break;
-	case Type_dataType:
-		fprintf(f, "capn_data %s;\n", m->m.name.str);
-		break;
-	case Type_enumType:
-		fprintf(f, "enum %s %s;\n", m->type->name.str, m->m.name.str);
-		break;
-	case Type_structType:
-	case Type_interfaceType:
-		fprintf(f, "%s_ptr %s;\n", m->type->name.str, m->m.name.str);
-		break;
-	case Type_objectType:
-		fprintf(f, "capn_ptr %s;\n", m->m.name.str);
-		break;
-	case Type_listType:
-		switch (m->list.body_tag) {
-		case Type_voidType:
-			fprintf(f, "capn_ptr %s;\n", m->m.name.str);
-			break;
-		case Type_boolType:
-			fprintf(f, "capn_list1 %s;\n", m->m.name.str);
-			break;
-		case Type_int8Type:
-		case Type_uint8Type:
-			fprintf(f, "capn_list8 %s;\n", m->m.name.str);
-			break;
-		case Type_int16Type:
-		case Type_uint16Type:
-		case Type_enumType:
-			fprintf(f, "capn_list16 %s;\n", m->m.name.str);
-			break;
-		case Type_int32Type:
-		case Type_uint32Type:
-			fprintf(f, "capn_list32 %s;\n", m->m.name.str);
-			break;
-		case Type_int64Type:
-		case Type_uint64Type:
-			fprintf(f, "capn_list64 %s;\n", m->m.name.str);
-			break;
-		case Type_float32Type:
-			fprintf(f, "capn_list_float %s;\n", m->m.name.str);
-			break;
-		case Type_float64Type:
-			fprintf(f, "capn_list_double %s;\n", m->m.name.str);
-			break;
-		case Type_textType:
-		case Type_dataType:
-		case Type_objectType:
-		case Type_listType:
-			fprintf(f, "capn_ptr %s;\n", m->m.name.str);
-			break;
-		case Type_structType:
-		case Type_interfaceType:
-			fprintf(f, "%s_list %s;\n", m->type->name.str, m->m.name.str);
-			break;
-		}
 	}
 }
-
-static struct member *decode_member(struct member *mbrs, StructNode_Member_list l, int i) {
-	struct member m;
-	m.is_valid = 1;
-	m.idx = i;
-	get_StructNode_Member(&m.m, l, i);
-
-	if (m.m.codeOrder >= l.p.len) {
-		fprintf(stderr, "unexpectedly large code order %d >= %d\n", m.m.codeOrder, l.p.len);
-		exit(3);
-	}
-
-	if (m.m.body_tag == StructNode_Member_fieldMember) {
-		read_StructNode_Field(&m.f, m.m.body.fieldMember);
-		read_Type(&m.t, m.f.type);
-		read_Value(&m.v, m.f.defaultValue);
-
-		switch (m.t.body_tag) {
-		case Type_enumType:
-		case Type_structType:
-		case Type_interfaceType:
-			m.type = find_node(m.t.body.enumType);
-			break;
-
-		case Type_listType:
-			read_Type(&m.list, m.t.body.listType);
-
-			switch (m.list.body_tag) {
-			case Type_enumType:
-			case Type_structType:
-			case Type_interfaceType:
-				m.type = find_node(m.list.body.enumType);
-				break;
-			default:
-				break;
-			}
-
-		default:
-			break;
-		}
-	}
-
-	memcpy(&mbrs[m.m.codeOrder], &m, sizeof(m));
-	return &mbrs[m.m.codeOrder];
-}
-
 static void define_struct(struct node *n) {
 	static struct str buf = STR_INIT;
 
@@ -511,13 +625,13 @@ static void define_struct(struct node *n) {
 
 		switch (m->m.body_tag) {
 		case StructNode_Member_fieldMember:
-			print_member(HDR, m, "\t");
+			print_member(m, "\t");
 			break;
 		case StructNode_Member_unionMember:
 			fprintf(HDR, "\tenum %s_%s %s_tag;\n", n->name.str, m->m.name.str, m->m.name.str);
 			fprintf(HDR, "\tunion {\n");
 			for (j = 0; j < m->u.members.p.len; j++) {
-				print_member(HDR, &m->mbrs[j], "\t\t");
+				print_member(&m->mbrs[j], "\t\t");
 			}
 			fprintf(HDR, "\t} %s;\n", m->m.name.str);
 			break;
@@ -525,72 +639,68 @@ static void define_struct(struct node *n) {
 	}
 	fprintf(HDR, "};\n");
 
-	fprintf(SRC, "\n%s_ptr new_%s(struct capn_segment *s) {\n", n->name.str, n->name.str);
-	fprintf(SRC, "\t%s_ptr p = {capn_new_struct(s, %d, %d)};\n",
-			n->name.str, 8*n->s.dataSectionWordSize, n->s.pointerSectionSize);
-	fprintf(SRC, "\treturn p;\n");
-	fprintf(SRC, "}\n");
+	str_addf(&SRC, "\n%s_ptr new_%s(struct capn_segment *s) {\n", n->name.str, n->name.str);
+	str_addf(&SRC, "\t%s_ptr p;\n", n->name.str);
+	str_addf(&SRC, "\tp.p = capn_new_struct(s, %d, %d);\n", 8*n->s.dataSectionWordSize, n->s.pointerSectionSize);
+	str_addf(&SRC, "\treturn p;\n");
+	str_addf(&SRC, "}\n");
 
-	fprintf(SRC, "%s_list new_%s_list(struct capn_segment *s, int len) {\n", n->name.str, n->name.str);
-	fprintf(SRC, "\t%s_list p = {capn_new_list(s, len, %d, %d)};\n",
-			n->name.str, 8*n->s.dataSectionWordSize, n->s.pointerSectionSize);
-	fprintf(SRC, "\treturn p;\n");
-	fprintf(SRC, "}\n");
+	str_addf(&SRC, "%s_list new_%s_list(struct capn_segment *s, int len) {\n", n->name.str, n->name.str);
+	str_addf(&SRC, "\t%s_list p;\n", n->name.str);
+	str_addf(&SRC, "\tp.p = capn_new_list(s, len, %d, %d);\n", 8*n->s.dataSectionWordSize, n->s.pointerSectionSize);
+	str_addf(&SRC, "\treturn p;\n");
+	str_addf(&SRC, "}\n");
 
-	fprintf(SRC, "void read_%s(struct %s *s, %s_ptr p) {\n", n->name.str, n->name.str, n->name.str);
+	str_addf(&SRC, "void read_%s(struct %s *s, %s_ptr p) {\n", n->name.str, n->name.str, n->name.str);
 	for (i = 0; i < mlen; i++) {
 		struct member *m = &mbrs[i];
 		if (!m->is_valid) continue;
 
 		switch (m->m.body_tag) {
 		case StructNode_Member_fieldMember:
-			str_reset(&buf);
-			str_addf(&buf, "s->%s", m->m.name.str);
-			get_member(SRC, m, "\t", buf.str);
+			get_member(m, "\t", strf(&buf, "s->%s", m->m.name.str));
 			break;
 		case StructNode_Member_unionMember:
 			do_union(n, m, 0);
 			break;
 		}
 	}
-	fprintf(SRC, "}\n");
+	str_addf(&SRC, "}\n");
 
-	fprintf(SRC, "int write_%s(const struct %s *s, %s_ptr p) {\n", n->name.str, n->name.str, n->name.str);
-	fprintf(SRC, "\tint err = 0;\n");
+	str_addf(&SRC, "int write_%s(const struct %s *s, %s_ptr p) {\n", n->name.str, n->name.str, n->name.str);
+	str_addf(&SRC, "\tint err = 0;\n");
 	for (i = 0; i < mlen; i++) {
 		struct member *m = &mbrs[i];
 		if (!m->is_valid) continue;
 
 		switch (m->m.body_tag) {
 		case StructNode_Member_fieldMember:
-			if (m->t.body_tag != Type_voidType) {
-				str_reset(&buf);
-				str_addf(&buf, "s->%s", m->m.name.str);
-				set_member(SRC, m, "\t", buf.str);
-			}
+			set_member(m, "\t", strf(&buf, "s->%s", m->m.name.str));
 			break;
 		case StructNode_Member_unionMember:
 			do_union(n, m, 1);
 			break;
 		}
 	}
-	fprintf(SRC, "\treturn err;\n}\n");
+	str_addf(&SRC, "\treturn err;\n}\n");
 
-	fprintf(SRC, "void get_%s(struct %s *s, %s_list l, int i) {\n", n->name.str, n->name.str, n->name.str);
-	fprintf(SRC, "\t%s_ptr p = {capn_getp(l.p, i)};\n", n->name.str);
-	fprintf(SRC, "\tread_%s(s, p);\n", n->name.str);
-	fprintf(SRC, "}\n");
+	str_addf(&SRC, "void get_%s(struct %s *s, %s_list l, int i) {\n", n->name.str, n->name.str, n->name.str);
+	str_addf(&SRC, "\t%s_ptr p;\n", n->name.str);
+	str_addf(&SRC, "\tp.p = capn_getp(l.p, i);\n");
+	str_addf(&SRC, "\tread_%s(s, p);\n", n->name.str);
+	str_addf(&SRC, "}\n");
 
-	fprintf(SRC, "int set_%s(const struct %s *s, %s_list l, int i) {\n", n->name.str, n->name.str, n->name.str);
-	fprintf(SRC, "\t%s_ptr p = {capn_getp(l.p, i)};\n", n->name.str);
-	fprintf(SRC, "\treturn write_%s(s, p);\n", n->name.str);
-	fprintf(SRC, "}\n");
+	str_addf(&SRC, "int set_%s(const struct %s *s, %s_list l, int i) {\n", n->name.str, n->name.str, n->name.str);
+	str_addf(&SRC, "\t%s_ptr p;\n", n->name.str);
+	str_addf(&SRC, "\tp.p = capn_getp(l.p, i);\n");
+	str_addf(&SRC, "\treturn write_%s(s, p);\n", n->name.str);
+	str_addf(&SRC, "}\n");
 }
 
-static void declare_structs(struct node *n, const char *format, int num) {
+static void declare(struct node *n, enum Node_body type, const char *format, int num) {
 	fprintf(HDR, "\n");
 	for (n = n->first_child; n != NULL; n = n->next_child) {
-		if (n->n.body_tag == Node_structNode) {
+		if (n->n.body_tag == type) {
 			switch (num) {
 			case 3:
 				fprintf(HDR, format, n->name.str, n->name.str, n->name.str);
@@ -616,6 +726,9 @@ int main() {
 		fprintf(stderr, "failed to read schema from stdin\n");
 		return -1;
 	}
+
+	g_valseg.data = calloc(1, capn.seglist->len);
+	g_valseg.cap = capn.seglist->len;
 
 	root.p = capn_getp(capn_root(&capn), 0);
 	read_CodeGeneratorRequest(&req, root);
@@ -661,30 +774,36 @@ int main() {
 	}
 
 	for (i = 0; i < req.requestedFiles.p.len; i++) {
-		struct str b = STR_INIT;
+		static struct str b = STR_INIT;
 		struct node *s;
 		char *p;
+		FILE *srcf;
+
+		g_valc = 0;
+		g_valseg.len = 0;
+		g_val0used = 0;
+		g_nullused = 0;
+		capn_init_malloc(&g_valcapn);
+		capn_append_segment(&g_valcapn, &g_valseg);
+
 		n = find_node(capn_get64(req.requestedFiles, i));
 
-		str_reset(&b);
-		str_addf(&b, "%s.h", n->n.displayName.str);
-		HDR = fopen(b.str, "w");
+		HDR = fopen(strf(&b, "%s.h", n->n.displayName.str), "w");
 		if (!HDR) {
 			fprintf(stderr, "failed to open %s: %s\n", b.str, strerror(errno));
 			exit(2);
 		}
 
-		str_reset(&b);
-		str_addf(&b, "%s.c", n->n.displayName.str);
-		SRC = fopen(b.str, "w");
-		if (!SRC) {
+		str_reset(&SRC);
+		srcf = fopen(strf(&b, "%s.c", n->n.displayName.str), "w");
+		if (!srcf) {
 			fprintf(stderr, "failed to open %s: %s\n", b.str, strerror(errno));
 			exit(2);
 		}
 
-		fprintf(HDR, "#ifndef CAPN_%llx\n", n->n.id);
-		fprintf(HDR, "#define CAPN_%llx\n", n->n.id);
-		fprintf(HDR, "/* AUTO GENERATED DO NOT EDIT*/\n");
+		fprintf(HDR, "#ifndef CAPN_%X%X\n", (uint32_t) (n->n.id >> 32), (uint32_t) n->n.id);
+		fprintf(HDR, "#define CAPN_%X%X\n", (uint32_t) (n->n.id >> 32), (uint32_t) n->n.id);
+		fprintf(HDR, "/* AUTO GENERATED - DO NOT EDIT */\n");
 		fprintf(HDR, "#include <capn.h>\n");
 
 		for (i = 0; i < n->f.imports.p.len; i++) {
@@ -695,19 +814,18 @@ int main() {
 
 		fprintf(HDR, "\n#ifdef __cplusplus\nextern \"C\" {\n#endif\n");
 
-		p = strrchr(n->n.displayName.str, '/');
-		fprintf(SRC, "#include \"%s.h\"\n", p ? p+1 : n->n.displayName.str);
-		fprintf(SRC, "/* AUTO GENERATED DO NOT EDIT*/\n");
 
-		declare_structs(n, "struct %s;\n", 1);
-		declare_structs(n, "typedef struct {capn_ptr p;} %s_ptr;\n", 1);
-		declare_structs(n, "typedef struct {capn_ptr p;} %s_list;\n", 1);
-		declare_structs(n, "%s_ptr new_%s(struct capn_segment*);\n", 2);
-		declare_structs(n, "%s_list new_%s_list(struct capn_segment*, int len);\n", 2);
-		declare_structs(n, "void read_%s(struct %s*, %s_ptr);\n", 3);
-		declare_structs(n, "int write_%s(const struct %s*, %s_ptr);\n", 3);
-		declare_structs(n, "void get_%s(struct %s*, %s_list, int i);\n", 3);
-		declare_structs(n, "int set_%s(const struct %s*, %s_list, int i);\n", 3);
+		declare(n, Node_structNode, "struct %s;\n", 1);
+		declare(n, Node_structNode, "typedef struct {capn_ptr p;} %s_ptr;\n", 1);
+		declare(n, Node_structNode, "typedef struct {capn_ptr p;} %s_list;\n", 1);
+		declare(n, Node_interfaceNode, "typedef struct {capn_ptr p;} %s_ptr;\n", 1);
+		declare(n, Node_interfaceNode, "typedef struct {capn_ptr p;} %s_list;\n", 1);
+		declare(n, Node_structNode, "%s_ptr new_%s(struct capn_segment*);\n", 2);
+		declare(n, Node_structNode, "%s_list new_%s_list(struct capn_segment*, int len);\n", 2);
+		declare(n, Node_structNode, "void read_%s(struct %s*, %s_ptr);\n", 3);
+		declare(n, Node_structNode, "int write_%s(const struct %s*, %s_ptr);\n", 3);
+		declare(n, Node_structNode, "void get_%s(struct %s*, %s_list, int i);\n", 3);
+		declare(n, Node_structNode, "int set_%s(const struct %s*, %s_list, int i);\n", 3);
 
 		for (s = n->first_child; s != NULL; s = s->next_child) {
 			switch (s->n.body_tag) {
@@ -722,11 +840,37 @@ int main() {
 			}
 		}
 
+		p = strrchr(n->n.displayName.str, '/');
+		fprintf(srcf, "#include \"%s.h\"\n", p ? p+1 : n->n.displayName.str);
+		fprintf(srcf, "/* AUTO GENERATED - DO NOT EDIT */\n");
+
+		if (g_val0used)
+			fprintf(srcf, "static const capn_text g_val0 = {0,\"\"};\n");
+		if (g_nullused)
+			fprintf(srcf, "static const capn_ptr g_null = {CAPN_NULL};\n");
+
+		if (g_valseg.len) {
+			fprintf(srcf, "static const uint8_t g_buf[%d] = {", g_valseg.len-8);
+			for (i = 8; i < g_valseg.len; i++) {
+				if (i > 8)
+					fprintf(srcf, ",");
+				if ((i % 16) == 8)
+					fprintf(srcf, "\n\t");
+				fprintf(srcf, "%u", ((uint8_t*)g_valseg.data)[i]);
+			}
+			fprintf(srcf, "\n};\n");
+
+			fprintf(srcf, "static const struct capn_segment g_seg = {{0},0,0,0,(char*)&g_buf[0],%d,%d};\n",
+					g_valseg.len-8, g_valseg.len-8);
+		}
+
+		fwrite(SRC.str, 1, SRC.len, srcf);
+
 		fprintf(HDR, "\n#ifdef __cplusplus\n}\n#endif\n#endif\n");
-		str_release(&b);
 		fclose(HDR);
-		fclose(SRC);
-		HDR = SRC = NULL;
+		fclose(srcf);
+		capn_free(&g_valcapn);
+		HDR = srcf = NULL;
 	}
 
 	return 0;
