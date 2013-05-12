@@ -13,6 +13,7 @@ UINT_T CAT(capn_get,SZ) (CAT(capn_list,SZ) l, int off) {
 
 	switch (p.type) {
 	case CAPN_LIST:
+	case CAPN_COMPOSITE_LIST:
 		if (p.datasz < SZ/8)
 			return 0;
 		d = p.data + off * (p.datasz + p.ptrsz);
@@ -40,6 +41,7 @@ int CAT(capn_getv,SZ) (CAT(capn_list,SZ) l, int off, UINT_T *to, int sz) {
 
 	switch (p.type) {
 	case CAPN_LIST:
+	case CAPN_COMPOSITE_LIST:
 		if (p.datasz == SZ/8 && !p.ptrsz && (SZ == 8 || CAPN_LITTLE)) {
 			memcpy(to, p.data + off, sz * (SZ/8));
 			return sz;
@@ -78,6 +80,7 @@ int CAT(capn_set,SZ) (CAT(capn_list,SZ) l, int off, UINT_T v) {
 
 	switch (p.type) {
 	case CAPN_LIST:
+	case CAPN_COMPOSITE_LIST:
 		if (p.datasz < SZ/8)
 			return -1;
 		d = p.data + off * (p.datasz + p.ptrsz);
@@ -106,6 +109,7 @@ int CAT(capn_setv,SZ) (CAT(capn_list,SZ) l, int off, const UINT_T *from, int sz)
 
 	switch (p.type) {
 	case CAPN_LIST:
+	case CAPN_COMPOSITE_LIST:
 		if (p.datasz == SZ/8 && !p.ptrsz && (SZ == 8 || CAPN_LITTLE)) {
 			memcpy(p.data + off, from, sz * (SZ/8));
 			return sz;

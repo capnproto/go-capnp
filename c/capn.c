@@ -8,6 +8,7 @@
 #define STRUCT_PTR 0
 #define LIST_PTR 1
 #define FAR_PTR 2
+#define INTERFACE_PTR 3
 #define DOUBLE_PTR 6
 
 #define VOID_LIST 0
@@ -322,16 +323,26 @@ static capn_ptr read_ptr(struct capn_segment *s, char *d) {
 
 	d += (I32(U32(val)) >> 2) * 8 + 8;
 
-	if ((val&3) > LIST_PTR || d < s->data) {
+	if (d < s->data) {
 		goto err;
 	}
 
-	if ((val&3) == STRUCT_PTR) {
+	switch (val & 3) {
+	case STRUCT_PTR:
+		ret.type = val ? CAPN_STRUCT : CAPN_NULL;
+		goto struct_common;
+
+	case INTERFACE_PTR:
+		ret.type = CAPN_INTERFACE;
+		goto struct_common;
+
+	struct_common:
 		ret.datasz = U32(U16(val >> 32)) * 8;
 		ret.ptrsz = U32(U16(val >> 48)) * 8;
-		ret.type = (ret.datasz || ret.ptrsz) ? CAPN_STRUCT : CAPN_NULL;
 		e = d + ret.datasz + ret.ptrsz;
-	} else {
+		break;
+
+	case LIST_PTR:
 		ret.type = CAPN_LIST;
 		ret.len = val >> 35;
 
@@ -377,13 +388,14 @@ static capn_ptr read_ptr(struct capn_segment *s, char *d) {
 			ret.datasz = U32(U16(val >> 32)) * 8;
 			ret.ptrsz = U32(U16(val >> 48)) * 8;
 			ret.len = U32(val) >> 2;
-			ret.has_composite_tag = 1;
+			ret.type = CAPN_COMPOSITE_LIST;
 
 			if ((ret.datasz + ret.ptrsz) * ret.len != e - d) {
 				goto err;
 			}
 			break;
 		}
+		break;
 	}
 
 	if (e - s->data > s->len)
@@ -399,12 +411,11 @@ err:
 
 capn_ptr capn_getp(capn_ptr p, int off) {
 	switch (p.type) {
+	case CAPN_COMPOSITE_LIST:
 	case CAPN_LIST:
 		/* Return an inner pointer */
 		if (off < p.len) {
-			capn_ptr ret = {CAPN_NULL};
-			ret.type = CAPN_STRUCT;
-			ret.is_list_member = 1;
+			capn_ptr ret = {CAPN_LIST_MEMBER};
 			ret.data = p.data + off * (p.datasz + p.ptrsz);
 			ret.seg = p.seg;
 			ret.datasz = p.datasz;
@@ -414,6 +425,8 @@ capn_ptr capn_getp(capn_ptr p, int off) {
 			goto err;
 		}
 
+	case CAPN_INTERFACE:
+	case CAPN_LIST_MEMBER:
 	case CAPN_STRUCT:
 		off *= 8;
 		if (off >= p.ptrsz) {
@@ -438,27 +451,53 @@ err:
 	return p;
 }
 
-static uint64_t ptr_value(capn_ptr p, int off) {
+static int data_size(struct capn_ptr p) {
+	switch (p.type) {
+	case CAPN_BIT_LIST:
+		return p.datasz;
+	case CAPN_PTR_LIST:
+		return p.len*8;
+	case CAPN_INTERFACE:
+	case CAPN_STRUCT:
+		return p.datasz + p.ptrsz;
+	case CAPN_COMPOSITE_LIST:
+		return p.len * (p.datasz + p.ptrsz) + 8;
+	case CAPN_LIST:
+		return p.len * (p.datasz + p.ptrsz);
+	default:
+		return 0;
+	}
+}
+
+static void write_ptr_tag(char *d, capn_ptr p, int off) {
 	uint64_t val = U64(U32(I32(off/8) << 2));
 
 	switch (p.type) {
+	case CAPN_INTERFACE:
+		val |= INTERFACE_PTR | (U64(p.datasz/8) << 32) | (U64(p.ptrsz/8) << 48);
+		break;
+
 	case CAPN_STRUCT:
 		val |= STRUCT_PTR | (U64(p.datasz/8) << 32) | (U64(p.ptrsz/8) << 48);
 		break;
 
+	case CAPN_COMPOSITE_LIST:
+		val |= LIST_PTR | (U64(COMPOSITE_LIST) << 32) | (U64(p.len * (p.datasz + p.ptrsz)/8) << 35);
+		break;
+
 	case CAPN_LIST:
-		if (p.has_composite_tag) {
-			val |= LIST_PTR | (U64(COMPOSITE_LIST) << 32) | (U64(p.len * (p.datasz + p.ptrsz)/8) << 35);
-		} else if (p.datasz == 8) {
-			val |= LIST_PTR | (U64(BYTE_8_LIST) << 32) | (U64(p.len) << 35);
+		val |= LIST_PTR | (U64(p.len) << 35);
+
+		if (p.datasz == 8) {
+			val |= (U64(BYTE_8_LIST) << 32);
 		} else if (p.datasz == 4) {
-			val |= LIST_PTR | (U64(BYTE_4_LIST) << 32) | (U64(p.len) << 35);
+			val |= (U64(BYTE_4_LIST) << 32);
 		} else if (p.datasz == 2) {
-			val |= LIST_PTR | (U64(BYTE_2_LIST) << 32) | (U64(p.len) << 35);
+			val |= (U64(BYTE_2_LIST) << 32);
 		} else if (p.datasz == 1) {
-			val |= LIST_PTR | (U64(BYTE_1_LIST) << 32) | (U64(p.len) << 35);
+			val |= (U64(BYTE_1_LIST) << 32);
 		} else {
-			val |= LIST_PTR | (U64(VOID_LIST) << 32) | (U64(p.len) << 35);
+			val |= (U64(VOID_LIST) << 32);
 		}
 		break;
 
@@ -475,7 +514,7 @@ static uint64_t ptr_value(capn_ptr p, int off) {
 		break;
 	}
 
-	return capn_flip64(val);
+	*(uint64_t*) d = capn_flip64(val);
 }
 
 static void write_far_ptr(char *d, struct capn_segment *s, char *tgt) {
@@ -486,25 +525,17 @@ static void write_double_far(char *d, struct capn_segment *s, char *tgt) {
 	*(uint64_t*) d = capn_flip64(DOUBLE_PTR | U64(tgt - s->data) | (U64(s->id) << 32));
 }
 
-static void write_ptr_tag(char *d, capn_ptr p, int off) {
-	*(uint64_t*) d = ptr_value(p, off);
-}
-
 #define NEED_TO_COPY 1
 
 static int write_ptr(struct capn_segment *s, char *d, capn_ptr p) {
 	/* note p.seg can be NULL if its a ptr to static data */
-	char *pdata = p.data;
+	char *pdata = p.data - (p.type == CAPN_COMPOSITE_LIST ? 8 : 0);
 
-	if (p.has_composite_tag) {
-		pdata -= 8;
-	}
-
-	if (p.type == CAPN_NULL) {
-		*(uint64_t*) d = 0;
+	if (data_size(p) == 0) {
+		write_ptr_tag(d, p, 0);
 		return 0;
 
-	} else if (!p.seg || p.seg->capn != s->capn || p.is_list_member) {
+	} else if (!p.seg || p.seg->capn != s->capn || p.type == CAPN_LIST_MEMBER) {
 		return NEED_TO_COPY;
 
 	} else if (p.seg == s) {
@@ -559,30 +590,19 @@ struct copy {
 	char *fbegin, *fend;
 };
 
-static int data_size(const struct capn_ptr *p) {
-	switch (p->type) {
-	case CAPN_BIT_LIST:
-		return p->datasz;
-	case CAPN_PTR_LIST:
-		return p->len*8;
-	case CAPN_STRUCT:
-		return p->datasz + p->ptrsz;
-	case CAPN_LIST:
-		return p->len * (p->datasz + p->ptrsz);
-	default:
-		return 0;
-	}
-}
-
 static capn_ptr new_clone(struct capn_segment *s, capn_ptr p) {
 	switch (p.type) {
+	case CAPN_INTERFACE:
+		return capn_new_interface(s, p.datasz, p.ptrsz/8);
 	case CAPN_STRUCT:
+	case CAPN_LIST_MEMBER:
 		return capn_new_struct(s, p.datasz, p.ptrsz/8);
 	case CAPN_PTR_LIST:
 		return capn_new_ptr_list(s, p.len);
 	case CAPN_BIT_LIST:
 		return capn_new_list1(s, p.len).p;
 	case CAPN_LIST:
+	case CAPN_COMPOSITE_LIST:
 		return capn_new_list(s, p.len, p.datasz, p.ptrsz/8);
 	default:
 		return p;
@@ -594,22 +614,15 @@ static int is_ptr_equal(const struct capn_ptr *a, const struct capn_ptr *b) {
 		&& a->type == b->type
 		&& a->len == b->len
 		&& a->datasz == b->datasz
-		&& a->ptrsz == b->ptrsz
-		&& a->has_composite_tag == b->has_composite_tag;
+		&& a->ptrsz == b->ptrsz;
 }
 
 static int copy_ptr(struct capn_segment *seg, char *data, struct capn_ptr *t, struct capn_ptr *f, int *dep) {
 	struct capn *c = seg->capn;
 	struct copy *cp = NULL;
 	struct capn_tree **xcp;
-	char *fbegin = f->data;
-	char *fend = fbegin + data_size(f);
-
-	if (f->has_composite_tag) {
-		fbegin -= 8;
-	} else if (f->is_list_member) {
-		fend = fbegin;
-	}
+	char *fbegin = f->data - (f->type == CAPN_COMPOSITE_LIST ? 8 : 0);
+	char *fend = fbegin + data_size(*f);
 
 	/* We always copy list members as it would otherwise be an
 	 * overlapped pointer (the data is owned by the enclosing list).
@@ -678,6 +691,7 @@ static int copy_ptr(struct capn_segment *seg, char *data, struct capn_ptr *t, st
 	 * be valid */
 	switch (t->type) {
 	case CAPN_STRUCT:
+	case CAPN_INTERFACE:
 		if (t->datasz) {
 			memcpy(t->data, f->data, t->datasz);
 			t->data += t->datasz;
@@ -695,6 +709,7 @@ static int copy_ptr(struct capn_segment *seg, char *data, struct capn_ptr *t, st
 		return 0;
 
 	case CAPN_LIST:
+	case CAPN_COMPOSITE_LIST:
 		if (!t->len) {
 			/* empty list - nothing to copy */
 		} else if (t->ptrsz && t->datasz) {
@@ -748,7 +763,8 @@ int capn_setp(capn_ptr p, int off, capn_ptr tgt) {
 
 	switch (p.type) {
 	case CAPN_LIST:
-		if (off >= p.len || tgt.type != CAPN_STRUCT)
+	case CAPN_COMPOSITE_LIST:
+		if (off >= p.len || (tgt.type != CAPN_STRUCT && tgt.type != CAPN_LIST_MEMBER))
 			return -1;
 
 		to[0] = p;
@@ -764,6 +780,8 @@ int capn_setp(capn_ptr p, int off, capn_ptr tgt) {
 		goto copy_ptr;
 
 	case CAPN_STRUCT:
+	case CAPN_INTERFACE:
+	case CAPN_LIST_MEMBER:
 		off *= 8;
 		if (off >= p.ptrsz)
 			return -1;
@@ -805,8 +823,7 @@ int capn_setp(capn_ptr p, int off, capn_ptr tgt) {
 			continue;
 		}
 
-		switch (tc->type) {
-		case CAPN_LIST:
+		if (tc->type == CAPN_COMPOSITE_LIST) {
 			*fn = capn_getp(*fc, 0);
 			*tn = capn_getp(*tc, 0);
 
@@ -815,10 +832,8 @@ int capn_setp(capn_ptr p, int off, capn_ptr tgt) {
 			fc->data += fc->datasz + fc->ptrsz;
 			tc->data += tc->datasz + tc->ptrsz;
 			tc->len--;
-			break;
 
-		case CAPN_PTR_LIST:
-		default:
+		} else { /* CAPN_PTR_LIST */
 			*fn = read_ptr(fc->seg, fc->data);
 
 			if (fn->type && copy_ptr(tc->seg, tc->data, tn, fn, &dep))
@@ -827,7 +842,6 @@ int capn_setp(capn_ptr p, int off, capn_ptr tgt) {
 			fc->data += 8;
 			tc->data += 8;
 			tc->len--;
-			break;
 		}
 	}
 
@@ -914,6 +928,9 @@ int capn_setv1(capn_list1 l, int off, const uint8_t *data, int sz) {
 static void new_object(capn_ptr *p, int bytes) {
 	struct capn_segment *s = p->seg;
 
+	if (!bytes)
+		return;
+
 	/* all allocations are 8 byte aligned */
 	bytes = (bytes + 7) & ~7;
 
@@ -954,9 +971,17 @@ capn_ptr capn_root(struct capn *c) {
 }
 
 capn_ptr capn_new_struct(struct capn_segment *seg, int datasz, int ptrs) {
-	capn_ptr p = {CAPN_NULL};
+	capn_ptr p = {CAPN_STRUCT};
 	p.seg = seg;
-	p.type = CAPN_STRUCT;
+	p.datasz = (datasz + 7) & ~7;
+	p.ptrsz = ptrs * 8;
+	new_object(&p, p.datasz + p.ptrsz);
+	return p;
+}
+
+capn_ptr capn_new_interface(struct capn_segment *seg, int datasz, int ptrs) {
+	capn_ptr p = {CAPN_INTERFACE};
+	p.seg = seg;
 	p.datasz = (datasz + 7) & ~7;
 	p.ptrsz = ptrs * 8;
 	new_object(&p, p.datasz + p.ptrsz);
@@ -964,15 +989,16 @@ capn_ptr capn_new_struct(struct capn_segment *seg, int datasz, int ptrs) {
 }
 
 capn_ptr capn_new_list(struct capn_segment *seg, int sz, int datasz, int ptrs) {
-	capn_ptr p = {CAPN_NULL};
+	capn_ptr p = {CAPN_LIST};
 	p.seg = seg;
-	p.type = CAPN_LIST;
 	p.len = sz;
 
-	if (ptrs || datasz > 8) {
+	if (!sz) {
+		/* empty lists may as well be a len=0 void list */
+	} else if (ptrs || datasz > 8) {
+		p.type = CAPN_COMPOSITE_LIST;
 		p.datasz = (datasz + 7) & ~7;
 		p.ptrsz = ptrs*8;
-		p.has_composite_tag = 1;
 		new_object(&p, p.len * (p.datasz + p.ptrsz) + 8);
 		if (p.data) {
 			uint64_t hdr = STRUCT_PTR | (U64(p.len) << 2) | (U64(p.datasz/8) << 32) | (U64(ptrs) << 48);
@@ -994,9 +1020,8 @@ capn_ptr capn_new_list(struct capn_segment *seg, int sz, int datasz, int ptrs) {
 }
 
 capn_list1 capn_new_list1(struct capn_segment *seg, int sz) {
-	capn_list1 l = {{CAPN_NULL}};
+	capn_list1 l = {{CAPN_BIT_LIST}};
 	l.p.seg = seg;
-	l.p.type = CAPN_BIT_LIST;
 	l.p.datasz = (sz+7)/8;
 	l.p.len = sz;
 	new_object(&l.p, l.p.datasz);
@@ -1004,9 +1029,8 @@ capn_list1 capn_new_list1(struct capn_segment *seg, int sz) {
 }
 
 capn_ptr capn_new_ptr_list(struct capn_segment *seg, int sz) {
-	capn_ptr p = {CAPN_NULL};
+	capn_ptr p = {CAPN_PTR_LIST};
 	p.seg = seg;
-	p.type = CAPN_PTR_LIST;
 	p.len = sz;
 	p.ptrsz = 0;
 	p.datasz = 0;
@@ -1015,9 +1039,8 @@ capn_ptr capn_new_ptr_list(struct capn_segment *seg, int sz) {
 }
 
 capn_ptr capn_new_string(struct capn_segment *seg, const char *str, int sz) {
-	capn_ptr p = {CAPN_NULL};
+	capn_ptr p = {CAPN_LIST};
 	p.seg = seg;
-	p.type = CAPN_LIST;
 	p.len = ((sz >= 0) ? sz : strlen(str)) + 1;
 	p.datasz = 1;
 	new_object(&p, p.len);

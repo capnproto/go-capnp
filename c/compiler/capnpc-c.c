@@ -288,9 +288,8 @@ static void decode_value(struct value* v, Type_ptr type, Value_ptr value, const 
 			if (strcmp(v->t.name, "capn_ptr"))
 				str_addf(&SRC, "{");
 
-			str_addf(&SRC, "%d,%d,%d,%d,%d,%d,%d,(char*)&capn_buf[%d],(struct capn_segment*)&capn_seg",
-					p.type, p.is_list_member,
-					p.has_ptr_tag, p.has_composite_tag,
+			str_addf(&SRC, "%d,%d,%d,%d,%d,(char*)&capn_buf[%d],(struct capn_segment*)&capn_seg",
+					p.type, p.has_ptr_tag,
 					p.datasz, p.ptrsz,
 					p.len, (int) (p.data-p.seg->data-8));
 

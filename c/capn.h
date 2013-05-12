@@ -87,14 +87,15 @@ enum CAPN_TYPE {
 	CAPN_STRUCT = 1,
 	CAPN_LIST = 2,
 	CAPN_PTR_LIST = 3,
-	CAPN_BIT_LIST = 4
+	CAPN_BIT_LIST = 4,
+	CAPN_INTERFACE = 5,
+	CAPN_LIST_MEMBER = 6,
+	CAPN_COMPOSITE_LIST = 7
 };
 
 struct capn_ptr {
-	unsigned int type : 3;
-	unsigned int is_list_member : 1;
+	unsigned int type : 4;
 	unsigned int has_ptr_tag : 1;
-	unsigned int has_composite_tag : 1;
 	unsigned int datasz : 19;
 	unsigned int ptrsz : 19;
 	int len;
@@ -176,6 +177,7 @@ int capn_setv64(capn_list64 p, int off, const uint64_t *data, int sz);
  * On an error a CAPN_NULL pointer is returned
  */
 capn_ptr capn_new_struct(struct capn_segment *seg, int datasz, int ptrs);
+capn_ptr capn_new_interface(struct capn_segment *seg, int datasz, int ptrs);
 capn_ptr capn_new_list(struct capn_segment *seg, int sz, int datasz, int ptrs);
 capn_list1 capn_new_list1(struct capn_segment *seg, int sz);
 capn_ptr capn_new_ptr_list(struct capn_segment *seg, int sz);
