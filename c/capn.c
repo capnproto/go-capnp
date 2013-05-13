@@ -903,22 +903,6 @@ int capn_setv1(capn_list1 l, int off, const uint8_t *data, int sz) {
 	}
 }
 
-#define SZ 8
-#include "capn-list.inc"
-#undef SZ
-
-#define SZ 16
-#include "capn-list.inc"
-#undef SZ
-
-#define SZ 32
-#include "capn-list.inc"
-#undef SZ
-
-#define SZ 64
-#include "capn-list.inc"
-#undef SZ
-
 /* pull out whether we add a tag or not as a define so the unit test can
  * test double far pointers by not creating tags */
 #ifndef ADD_TAG
@@ -927,6 +911,11 @@ int capn_setv1(capn_list1 l, int off, const uint8_t *data, int sz) {
 
 static void new_object(capn_ptr *p, int bytes) {
 	struct capn_segment *s = p->seg;
+
+	if (!s) {
+		memset(p, 0, sizeof(*p));
+		return;
+	}
 
 	if (!bytes)
 		return;
@@ -1069,7 +1058,7 @@ int capn_set_text(capn_ptr p, int off, capn_text tgt) {
 		m.data = (char*)tgt.str;
 		m.len = tgt.len + 1;
 		m.datasz = 1;
-	} else if (p.seg && tgt.str) {
+	} else if (tgt.str) {
 		m = capn_new_string(p.seg, tgt.str, tgt.len);
 	}
 	return capn_setp(p, off, m);
@@ -1083,3 +1072,19 @@ capn_data capn_get_data(capn_ptr p, int off) {
 	}
 	return ret;
 }
+
+#define SZ 8
+#include "capn-list.inc"
+#undef SZ
+
+#define SZ 16
+#include "capn-list.inc"
+#undef SZ
+
+#define SZ 32
+#include "capn-list.inc"
+#undef SZ
+
+#define SZ 64
+#include "capn-list.inc"
+#undef SZ

@@ -27,6 +27,7 @@ interface TestInterface {
 	testMethod0 @0 (i :TestInterface) :Int8;
 	testMethod1 @1 (v :Bool, t :Text, u :UInt16) :TestAllTypes;
 	testMethod2 @2 (i :TestInterface) :Void;
+	testMethod3 @3 () :Void;
 }
 
 enum TestEnum {

@@ -20,11 +20,22 @@ typedef struct {capn_ptr p;} TestInterface_ptr;
 
 typedef struct {capn_ptr p;} TestInterface_list;
 
+int write_TestInterface_testMethod0(struct capn_msg*, TestInterface_ptr i);
+void read_TestInterface_testMethod0(struct capn_msg*, TestInterface_ptr *i);
+
+int write_TestInterface_testMethod1(struct capn_msg*, unsigned v, capn_text t, uint16_t u);
+void read_TestInterface_testMethod1(struct capn_msg*, unsigned *v, capn_text *t, uint16_t *u);
+
+int write_TestInterface_testMethod2(struct capn_msg*, TestInterface_ptr i);
+void read_TestInterface_testMethod2(struct capn_msg*, TestInterface_ptr *i);
+
+int write_TestInterface_testMethod3(struct capn_msg*);
+
 enum TestEnum {
 	TestEnum_foo = 0,
 	TestEnum_bar = 1
 };
-extern unsigned int boolConst;
+extern unsigned boolConst;
 extern int8_t int8Const;
 extern int16_t int16Const;
 extern int32_t int32Const;
@@ -77,7 +88,7 @@ enum TestAllTypes_unionField {
 };
 
 struct TestAllTypes {
-	unsigned int boolField:1;
+	unsigned boolField:1;
 	int8_t int8Field;
 	int16_t int16Field;
 	int32_t int32Field;
@@ -112,7 +123,7 @@ struct TestAllTypes {
 	TestInterface_list interfaceList;
 	enum TestAllTypes_unionField unionField_tag;
 	union {
-		unsigned int boolUnion:1;
+		unsigned boolUnion:1;
 		int8_t int8Union;
 		uint8_t uint8Union;
 		int16_t int16Union;
@@ -152,7 +163,7 @@ enum TestDefaults_unionField {
 };
 
 struct TestDefaults {
-	unsigned int boolField:1;
+	unsigned boolField:1;
 	int8_t int8Field;
 	int16_t int16Field;
 	int32_t int32Field;
@@ -187,7 +198,7 @@ struct TestDefaults {
 	TestInterface_list interfaceList;
 	enum TestDefaults_unionField unionField_tag;
 	union {
-		unsigned int boolUnion:1;
+		unsigned boolUnion:1;
 		int8_t int8Union;
 		uint8_t uint8Union;
 		int16_t int16Union;

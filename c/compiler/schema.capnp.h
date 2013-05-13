@@ -157,7 +157,7 @@ enum Value_body {
 struct Value {
 	enum Value_body body_tag;
 	union {
-		unsigned int boolValue:1;
+		unsigned boolValue:1;
 		int8_t int8Value;
 		int16_t int16Value;
 		int32_t int32Value;
@@ -274,17 +274,17 @@ struct ConstNode {
 
 struct AnnotationNode {
 	Type_ptr type;
-	unsigned int targetsFile:1;
-	unsigned int targetsConst:1;
-	unsigned int targetsEnum:1;
-	unsigned int targetsEnumerant:1;
-	unsigned int targetsStruct:1;
-	unsigned int targetsField:1;
-	unsigned int targetsUnion:1;
-	unsigned int targetsInterface:1;
-	unsigned int targetsMethod:1;
-	unsigned int targetsParam:1;
-	unsigned int targetsAnnotation:1;
+	unsigned targetsFile:1;
+	unsigned targetsConst:1;
+	unsigned targetsEnum:1;
+	unsigned targetsEnumerant:1;
+	unsigned targetsStruct:1;
+	unsigned targetsField:1;
+	unsigned targetsUnion:1;
+	unsigned targetsInterface:1;
+	unsigned targetsMethod:1;
+	unsigned targetsParam:1;
+	unsigned targetsAnnotation:1;
 };
 
 struct CodeGeneratorRequest {

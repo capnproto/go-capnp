@@ -733,7 +733,55 @@ static const uint8_t capn_buf[5824] = {
 	102,111,111,0,0,0,0,0
 };
 static const struct capn_segment capn_seg = {{0},0,0,0,(char*)&capn_buf[0],5824,5824};
-unsigned int boolConst = 1;
+
+int write_TestInterface_testMethod0(struct capn_msg *m, TestInterface_ptr a0) {
+	int err = 0;
+	m->method = 0;
+	m->iface = ((uint64_t) 0x81bbd258u << 32) | 0x6f2b8594u;
+	m->args = capn_new_struct(m->seg, 0, 1);
+	err = err || capn_setp(m->args, 0, a0.p);
+	return err;
+}
+void read_TestInterface_testMethod0(struct capn_msg *m, TestInterface_ptr *a0) {
+	a0->p = capn_getp(m->args, 0);
+}
+
+int write_TestInterface_testMethod1(struct capn_msg *m, unsigned a0, capn_text a1, uint16_t a2) {
+	int err = 0;
+	m->method = 1;
+	m->iface = ((uint64_t) 0x81bbd258u << 32) | 0x6f2b8594u;
+	m->args = capn_new_struct(m->seg, 8, 1);
+	err = err || capn_write1(m->args, 0, a0 != 0);
+	err = err || capn_set_text(m->args, 0, a1);
+	err = err || capn_write16(m->args, 4, a2);
+	return err;
+}
+void read_TestInterface_testMethod1(struct capn_msg *m, unsigned *a0, capn_text *a1, uint16_t *a2) {
+	*a0 = (capn_read8(m->args, 0) & 1) != 0;
+	*a1 = capn_get_text(m->args, 0, capn_val0);
+	*a2 = capn_read16(m->args, 4);
+}
+
+int write_TestInterface_testMethod2(struct capn_msg *m, TestInterface_ptr a0) {
+	int err = 0;
+	m->method = 2;
+	m->iface = ((uint64_t) 0x81bbd258u << 32) | 0x6f2b8594u;
+	m->args = capn_new_struct(m->seg, 0, 1);
+	err = err || capn_setp(m->args, 0, a0.p);
+	return err;
+}
+void read_TestInterface_testMethod2(struct capn_msg *m, TestInterface_ptr *a0) {
+	a0->p = capn_getp(m->args, 0);
+}
+
+int write_TestInterface_testMethod3(struct capn_msg *m) {
+	int err = 0;
+	m->method = 3;
+	m->iface = ((uint64_t) 0x81bbd258u << 32) | 0x6f2b8594u;
+	m->args = capn_null;
+	return err;
+}
+unsigned boolConst = 1;
 int8_t int8Const = -123;
 int16_t int16Const = -12345;
 int32_t int32Const = -12345678;

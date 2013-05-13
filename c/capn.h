@@ -118,6 +118,13 @@ typedef struct {capn_ptr p;} capn_list16;
 typedef struct {capn_ptr p;} capn_list32;
 typedef struct {capn_ptr p;} capn_list64;
 
+struct capn_msg {
+	struct capn_segment *seg;
+	uint64_t iface;
+	uint16_t method;
+	capn_ptr args;
+};
+
 /* capn_append_segment appends a segment to a session */
 void capn_append_segment(struct capn*, struct capn_segment*);
 
@@ -178,13 +185,13 @@ int capn_setv64(capn_list64 p, int off, const uint64_t *data, int sz);
  */
 capn_ptr capn_new_struct(struct capn_segment *seg, int datasz, int ptrs);
 capn_ptr capn_new_interface(struct capn_segment *seg, int datasz, int ptrs);
+capn_ptr capn_new_ptr_list(struct capn_segment *seg, int sz);
 capn_ptr capn_new_list(struct capn_segment *seg, int sz, int datasz, int ptrs);
 capn_list1 capn_new_list1(struct capn_segment *seg, int sz);
-capn_ptr capn_new_ptr_list(struct capn_segment *seg, int sz);
-CAPN_INLINE capn_list8 capn_new_list8(struct capn_segment *seg, int sz);
-CAPN_INLINE capn_list16 capn_new_list16(struct capn_segment *seg, int sz);
-CAPN_INLINE capn_list32 capn_new_list32(struct capn_segment *seg, int sz);
-CAPN_INLINE capn_list64 capn_new_list64(struct capn_segment *seg, int sz);
+capn_list8 capn_new_list8(struct capn_segment *seg, int sz);
+capn_list16 capn_new_list16(struct capn_segment *seg, int sz);
+capn_list32 capn_new_list32(struct capn_segment *seg, int sz);
+capn_list64 capn_new_list64(struct capn_segment *seg, int sz);
 
 /* capn_read|write_* functions read/write struct values
  * off is the offset into the structure in bytes
@@ -367,26 +374,6 @@ CAPN_INLINE uint64_t capn_from_f64(double v) {
 	return u.u;
 }
 
-CAPN_INLINE capn_list8 capn_new_list8(struct capn_segment *seg, int sz) {
-	capn_list8 p;
-	p.p = capn_new_list(seg, sz, 1, 0);
-	return p;
-}
-CAPN_INLINE capn_list16 capn_new_list16(struct capn_segment *seg, int sz) {
-	capn_list16 p;
-	p.p = capn_new_list(seg, sz, 2, 0);
-	return p;
-}
-CAPN_INLINE capn_list32 capn_new_list32(struct capn_segment *seg, int sz) {
-	capn_list32 p;
-	p.p = capn_new_list(seg, sz, 4, 0);
-	return p;
-}
-CAPN_INLINE capn_list64 capn_new_list64(struct capn_segment *seg, int sz) {
-	capn_list64 p;
-	p.p = capn_new_list(seg, sz, 8, 0);
-	return p;
-}
 CAPN_INLINE int capn_set_data(capn_ptr p, int off, capn_data d) {
 	return capn_setp(p, off, d.p);
 }

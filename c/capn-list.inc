@@ -2,9 +2,10 @@
 #define CAT2(A,B) A ## B
 #define CAT(A,B) CAT2(A, B)
 #define UINT_T CAT(CAT(uint, SZ), _t)
+#define LIST_T CAT(capn_list, SZ)
 #define FLIP CAT(capn_flip, SZ)
 
-UINT_T CAT(capn_get,SZ) (CAT(capn_list,SZ) l, int off) {
+UINT_T CAT(capn_get,SZ) (LIST_T l, int off) {
 	char *d;
 	capn_ptr p = l.p;
 	if (off >= p.len) {
@@ -32,7 +33,7 @@ UINT_T CAT(capn_get,SZ) (CAT(capn_list,SZ) l, int off) {
 	}
 }
 
-int CAT(capn_getv,SZ) (CAT(capn_list,SZ) l, int off, UINT_T *to, int sz) {
+int CAT(capn_getv,SZ) (LIST_T l, int off, UINT_T *to, int sz) {
 	int i;
 	capn_ptr p = l.p;
 	if (off + sz > p.len) {
@@ -71,7 +72,7 @@ int CAT(capn_getv,SZ) (CAT(capn_list,SZ) l, int off, UINT_T *to, int sz) {
 	}
 }
 
-int CAT(capn_set,SZ) (CAT(capn_list,SZ) l, int off, UINT_T v) {
+int CAT(capn_set,SZ) (LIST_T l, int off, UINT_T v) {
 	char *d;
 	capn_ptr p = l.p;
 	if (off >= p.len) {
@@ -100,7 +101,7 @@ int CAT(capn_set,SZ) (CAT(capn_list,SZ) l, int off, UINT_T v) {
 	}
 }
 
-int CAT(capn_setv,SZ) (CAT(capn_list,SZ) l, int off, const UINT_T *from, int sz) {
+int CAT(capn_setv,SZ) (LIST_T l, int off, const UINT_T *from, int sz) {
 	int i;
 	capn_ptr p = l.p;
 	if (off + sz > p.len) {
@@ -137,6 +138,15 @@ int CAT(capn_setv,SZ) (CAT(capn_list,SZ) l, int off, const UINT_T *from, int sz)
 	default:
 		return -1;
 	}
+}
+
+LIST_T CAT(capn_new_list,SZ) (struct capn_segment *seg, int sz) {
+	LIST_T l = {{CAPN_LIST}};
+	l.p.seg = seg;
+	l.p.len = sz;
+	l.p.datasz = SZ/8;
+	new_object(&l.p, sz*(SZ/8));
+	return l;
 }
 
 #undef FLIP
