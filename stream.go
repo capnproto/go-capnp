@@ -1,4 +1,4 @@
-package capnproto
+package capn
 
 import (
 	"errors"
@@ -10,11 +10,11 @@ type Compressor struct {
 }
 
 type Decompressor struct {
-	r io.Reader
-	buf [8]byte
+	r     io.Reader
+	buf   [8]byte
 	bufsz int
 	zeros int
-	raw int
+	raw   int
 }
 
 func NewCompressor(w io.Writer) *Compressor {
@@ -66,8 +66,8 @@ func (c *Decompressor) Read(v []byte) (n int, err error) {
 			if _, err = c.r.Read(b[:]); err != nil {
 				return
 			}
-			zeros := min(int(b[0]), len(v) - n)
-			for i := range v[n:n+zeros] {
+			zeros := min(int(b[0]), len(v)-n)
+			for i := range v[n : n+zeros] {
 				v[i] = 0
 			}
 			c.zeros = int(b[0]) - zeros
@@ -110,7 +110,7 @@ func (c *Compressor) Write(v []byte) (n int, err error) {
 
 	for n < len(v) {
 		var hdr byte
-		for i, b := range v[n:n+8] {
+		for i, b := range v[n : n+8] {
 			if b != 0 {
 				hdr |= 1 << uint(i)
 			}
@@ -135,9 +135,9 @@ func (c *Compressor) Write(v []byte) (n int, err error) {
 			n += 8
 
 			i := n
-			for i < min(len(v), n + 0xFF*8) {
+			for i < min(len(v), n+0xFF*8) {
 				zeros := 0
-				for _, b := range v[i:i+8] {
+				for _, b := range v[i : i+8] {
 					if b == 0 {
 						zeros++
 					}
@@ -150,12 +150,12 @@ func (c *Compressor) Write(v []byte) (n int, err error) {
 				i += 8
 			}
 
-			buf = append(buf, byte((i - n)/8))
+			buf = append(buf, byte((i-n)/8))
 			buf = append(buf, v[n:i]...)
 			n = i
 
 		default:
-			for _, b := range v[n:n+8] {
+			for _, b := range v[n : n+8] {
 				if b != 0 {
 					buf = append(buf, b)
 				}
@@ -174,5 +174,3 @@ func (c *Compressor) Write(v []byte) (n int, err error) {
 
 	return n, nil
 }
-
-
