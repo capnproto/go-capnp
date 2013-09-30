@@ -124,6 +124,17 @@ func (s *Segment) NewRoot() (PointerList, int, error) {
 	return PointerList(n), n.off / 8, err
 }
 
+func (s *Segment) NewString(v string) Object {
+	n, _ := s.create(len(v)+1, Object{typ: TypeList, length: len(v)+1, datasz: 1})
+	copy(n.Segment.Data[n.off:], v)
+	return n
+}
+func (s *Segment) NewData(v []byte) Object {
+	n, _ := s.create(len(v)+1, Object{typ: TypeList, length: len(v)+1, datasz: 1})
+	copy(n.Segment.Data[n.off:], v)
+	return n
+}
+
 func (s *Segment) NewPointerList(length int) (PointerList, error) {
 	n, err := s.create(length*8, Object{typ: TypePointerList, length: length, ptrs: 1})
 	return PointerList(n), err
@@ -189,10 +200,10 @@ func (s *Segment) NewListF64(length int) (ListF64, error) {
 	return ListF64(n), err
 }
 
-func (s *Segment) NewCompositeList(datasz, ptrs, length int) (PointerList, error) {
+func (s *Segment) NewCompositeList(datasz, ptrs, length int) PointerList {
 	flags := uint(0)
 	if datasz < 0 || datasz > maxDataSize || ptrs < 0 || ptrs > maxPtrs {
-		return PointerList{}, ErrOverlarge
+		return PointerList{}
 	} else if ptrs > 0 || datasz > 8 {
 		datasz = (datasz + 7) &^ 7
 		flags |= isCompositeList
@@ -201,17 +212,17 @@ func (s *Segment) NewCompositeList(datasz, ptrs, length int) (PointerList, error
 	} else if datasz > 2 {
 		datasz = (datasz + 3) &^ 3
 	}
-	n, err := s.create(length*(datasz+8*ptrs), Object{typ: TypeList, length: length, datasz: datasz, ptrs: ptrs, flags: flags})
-	return PointerList(n), err
+	n, _ := s.create(length*(datasz+8*ptrs), Object{typ: TypeList, length: length, datasz: datasz, ptrs: ptrs, flags: flags})
+	return PointerList(n)
 }
 
-func (s *Segment) NewStruct(datasz, ptrs int) (Struct, error) {
+func (s *Segment) NewStruct(datasz, ptrs int) Struct {
 	if datasz < 0 || datasz > maxDataSize || ptrs < 0 || ptrs > maxPtrs {
-		return Struct{}, ErrOverlarge
+		return Struct{}
 	}
 	datasz = (datasz + 7) &^ 7
-	n, err := s.create(datasz, Object{typ: TypeStruct, datasz: datasz, ptrs: ptrs})
-	return Struct(n), err
+	n, _ := s.create(datasz, Object{typ: TypeStruct, datasz: datasz, ptrs: ptrs})
+	return Struct(n)
 }
 
 func (s *Segment) create(sz int, n Object) (Object, error) {

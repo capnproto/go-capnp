@@ -265,7 +265,7 @@ func (n *node) defineConst(w io.Writer) {
 	fprintf(w, "\n")
 }
 
-func (n *node) defineGetter(w io.Writer, f Field) {
+func (n *node) defineField(w io.Writer, f Field) {
 	t := f.Slot().Type()
 	def := f.Slot().DefaultValue()
 	off := f.Slot().Offset()
@@ -274,109 +274,137 @@ func (n *node) defineGetter(w io.Writer, f Field) {
 		return
 	}
 
-	fprintf(w, "func (s %s) %s() ", n.name, title(f.Name()))
+	settag := ""
+	if f.DiscriminantValue() != 0xFFFF {
+		settag = sprintf(" C.Struct(s).Set16(%d, %d);", n.Struct().DiscriminantOffset()*2, f.DiscriminantValue())
+	}
+
+	var g, s bytes.Buffer
+
+	fprintf(&g, "func (s %s) %s() ", n.name, title(f.Name()))
+	fprintf(&s, "func (s %s) Set%s", n.name, title(f.Name()))
 
 	switch t.which() {
-	case TYPE_VOID, TYPE_INTERFACE:
-		fprintf(w, "C.Void { return C.Void{} }\n")
-
 	case TYPE_BOOL:
 		assert(def.which() == VALUE_VOID || def.which() == VALUE_BOOL, "expected bool default")
 		if def.which() == VALUE_BOOL && def.Bool() {
-			fprintf(w, "bool { return !C.Struct(s).Get1(%d) }\n", off)
+			fprintf(&g, "bool { return !C.Struct(s).Get1(%d) }\n", off)
+			fprintf(&s, "(v bool) {%s C.Struct(s).Set1(%d, !v) }\n", settag, off)
 		} else {
-			fprintf(w, "bool { return C.Struct(s).Get1(%d) }\n", off)
+			fprintf(&g, "bool { return C.Struct(s).Get1(%d) }\n", off)
+			fprintf(&s, "(v bool) {%s C.Struct(s).Set1(%d, v) }\n", settag, off)
 		}
 
 	case TYPE_INT8:
 		assert(def.which() == VALUE_VOID || def.which() == VALUE_INT8, "expected int8 default")
 		if def.which() == VALUE_INT8 && def.Int8() != 0 {
-			fprintf(w, "int8 { return int8(C.Struct(s).Get8(%d)) ^ %d }\n", off, def.Int8())
+			fprintf(&g, "int8 { return int8(C.Struct(s).Get8(%d)) ^ %d }\n", off, def.Int8())
+			fprintf(&s, "(v int8) {%s C.Struct(s).Set8(%d, uint8(v^%d)) }\n", settag, off, def.Int8())
 		} else {
-			fprintf(w, "int8 { return int8(C.Struct(s).Get8(%d)) }\n", off)
+			fprintf(&g, "int8 { return int8(C.Struct(s).Get8(%d)) }\n", off)
+			fprintf(&s, "(v int8) {%s C.Struct(s).Set8(%d, uint8(v)) }\n", settag, off)
 		}
 
 	case TYPE_UINT8:
 		assert(def.which() == VALUE_VOID || def.which() == VALUE_UINT8, "expected uint8 default")
 		if def.which() == VALUE_UINT8 && def.Uint8() != 0 {
-			fprintf(w, "uint8 { return C.Struct(s).Get8(%d) ^ %d }\n", off, def.Uint8())
+			fprintf(&g, "uint8 { return C.Struct(s).Get8(%d) ^ %d }\n", off, def.Uint8())
+			fprintf(&s, "(v uint8) {%s C.Struct(s).Set8(%d, v^%d) }\n", settag, off, def.Uint8())
 		} else {
-			fprintf(w, "uint8 { return C.Struct(s).Get8(%d) }\n", off)
+			fprintf(&g, "uint8 { return C.Struct(s).Get8(%d) }\n", off)
+			fprintf(&s, "(v uint8) {%s C.Struct(s).Set8(%d, v) }\n", settag, off)
 		}
 
 	case TYPE_INT16:
 		assert(def.which() == VALUE_VOID || def.which() == VALUE_INT16, "expected int16 default")
 		if def.which() == VALUE_INT16 && def.Int16() != 0 {
-			fprintf(w, "int16 { return int16(C.Struct(s).Get16(%d)) ^ %d }\n", off*2, def.Int16())
+			fprintf(&g, "int16 { return int16(C.Struct(s).Get16(%d)) ^ %d }\n", off*2, def.Int16())
+			fprintf(&s, "(v int16) {%s C.Struct(s).Set16(%d, uint16(v^%d)) }\n", settag, off*2, def.Int16())
 		} else {
-			fprintf(w, "int16 { return int16(C.Struct(s).Get16(%d)) }\n", off*2)
+			fprintf(&g, "int16 { return int16(C.Struct(s).Get16(%d)) }\n", off*2)
+			fprintf(&s, "(v int16) {%s C.Struct(s).Set16(%d, uint16(v)) }\n", settag, off*2)
 		}
 
 	case TYPE_UINT16:
 		assert(def.which() == VALUE_VOID || def.which() == VALUE_UINT16, "expected uint16 default")
 		if def.which() == VALUE_UINT16 && def.Uint16() != 0 {
-			fprintf(w, "uint16 { return C.Struct(s).Get16(%d) ^ %d }\n", off*2, def.Uint16())
+			fprintf(&g, "uint16 { return C.Struct(s).Get16(%d) ^ %d }\n", off*2, def.Uint16())
+			fprintf(&s, "(v uint16) {%s C.Struct(s).Set16(%d, v^%d) }\n", settag, off*2, def.Uint16())
 		} else {
-			fprintf(w, "uint16 { return C.Struct(s).Get16(%d) }\n", off*2)
+			fprintf(&g, "uint16 { return C.Struct(s).Get16(%d) }\n", off*2)
+			fprintf(&s, "(v uint16) {%s C.Struct(s).Set16(%d, v) }\n", settag, off*2)
 		}
 
 	case TYPE_INT32:
 		assert(def.which() == VALUE_VOID || def.which() == VALUE_INT32, "expected int32 default")
 		if def.which() == VALUE_INT32 && def.Int32() != 0 {
-			fprintf(w, "int32 { return int32(C.Struct(s).Get32(%d)) ^ %d }\n", off*4, def.Int32())
+			fprintf(&g, "int32 { return int32(C.Struct(s).Get32(%d)) ^ %d }\n", off*4, def.Int32())
+			fprintf(&s, "(v int32) {%s C.Struct(s).Set32(%d, uint32(v^%d)) }\n", settag, off*4, def.Int32())
 		} else {
-			fprintf(w, "int32 { return int32(C.Struct(s).Get32(%d)) }\n", off*4)
+			fprintf(&g, "int32 { return int32(C.Struct(s).Get32(%d)) }\n", off*4)
+			fprintf(&s, "(v int32) {%s C.Struct(s).Set32(%d, uint32(v)) }\n", settag, off*4)
 		}
 
 	case TYPE_UINT32:
 		assert(def.which() == VALUE_VOID || def.which() == VALUE_UINT32, "expected uint32 default")
 		if def.which() == VALUE_UINT32 && def.Uint32() != 0 {
-			fprintf(w, "uint32 { return C.Struct(s).Get32(%d) ^ %d }\n", off*4, def.Uint32())
+			fprintf(&g, "uint32 { return C.Struct(s).Get32(%d) ^ %d }\n", off*4, def.Uint32())
+			fprintf(&s, "(v uint32) {%s C.Struct(s).Set32(%d, v^%d) }\n", settag, off*4, def.Uint32())
 		} else {
-			fprintf(w, "uint32 { return C.Struct(s).Get32(%d) }\n", off*4)
+			fprintf(&g, "uint32 { return C.Struct(s).Get32(%d) }\n", off*4)
+			fprintf(&s, "(v uint32) {%s C.Struct(s).Set32(%d, v) }\n", settag, off*4)
 		}
 
 	case TYPE_INT64:
 		assert(def.which() == VALUE_VOID || def.which() == VALUE_INT64, "expected int64 default")
 		if def.which() == VALUE_INT64 && def.Int64() != 0 {
-			fprintf(w, "int64 { return int64(C.Struct(s).Get64(%d)) ^ %d }\n", off*8, def.Int64())
+			fprintf(&g, "int64 { return int64(C.Struct(s).Get64(%d)) ^ %d }\n", off*8, def.Int64())
+			fprintf(&s, "(v int64) {%s C.Struct(s).Set64(%d, uint64(v^%d)) }\n", settag, off*8, def.Int64())
 		} else {
-			fprintf(w, "int64 { return int64(C.Struct(s).Get64(%d)) }\n", off*8)
+			fprintf(&g, "int64 { return int64(C.Struct(s).Get64(%d)) }\n", off*8)
+			fprintf(&s, "(v int64) {%s C.Struct(s).Set64(%d, uint64(v)) }\n", settag, off*8)
 		}
 
 	case TYPE_UINT64:
 		assert(def.which() == VALUE_VOID || def.which() == VALUE_UINT64, "expected uint64 default")
 		if def.which() == VALUE_UINT64 && def.Uint64() != 0 {
-			fprintf(w, "uint64 { return C.Struct(s).Get64(%d) ^ %d }\n", off*8, def.Uint64())
+			fprintf(&g, "uint64 { return C.Struct(s).Get64(%d) ^ %d }\n", off*8, def.Uint64())
+			fprintf(&s, "(v uint64) {%s C.Struct(s).Set64(%d, v^%d) }\n", settag, off*8, def.Uint64())
 		} else {
-			fprintf(w, "uint64 { return C.Struct(s).Get64(%d) }\n", off*8)
+			fprintf(&g, "uint64 { return C.Struct(s).Get64(%d) }\n", off*8)
+			fprintf(&s, "(v uint64) {%s C.Struct(s).Set64(%d, v) }\n", settag, off*8)
 		}
 
 	case TYPE_FLOAT32:
 		assert(def.which() == VALUE_VOID || def.which() == VALUE_FLOAT32, "expected float32 default")
 		if def.which() == VALUE_FLOAT32 && def.Float32() != 0 {
-			fprintf(w, "float32 { return math.Float32frombits(C.Struct(s).Get32(%d) ^ 0x%x) }\n", off*4, math.Float32bits(def.Float32()))
+			fprintf(&g, "float32 { return math.Float32frombits(C.Struct(s).Get32(%d) ^ 0x%x) }\n", off*4, math.Float32bits(def.Float32()))
+			fprintf(&s, "(v float32) {%s C.Struct(s).Set32(%d, math.Float32bits(v) ^ 0x%x) }\n", settag, off*4, math.Float32bits(def.Float32()))
 		} else {
-			fprintf(w, "float32 { return math.Float32frombits(C.Struct(s).Get32(%d)) }\n", off*4)
+			fprintf(&g, "float32 { return math.Float32frombits(C.Struct(s).Get32(%d)) }\n", off*4)
+			fprintf(&s, "(v float32) {%s C.Struct(s).Set32(%d, math.Float32bits(v)) }\n", settag, off*4)
 		}
 		g_imported["math"] = struct{}{}
 
 	case TYPE_FLOAT64:
 		assert(def.which() == VALUE_VOID || def.which() == VALUE_FLOAT64, "expected float64 default")
 		if def.which() == VALUE_FLOAT64 && def.Float64() != 0 {
-			fprintf(w, "float64 { return math.Float64frombits(C.Struct(s).Get64(%d) ^ 0x%x) }\n", off*8, math.Float64bits(def.Float64()))
+			fprintf(&g, "float64 { return math.Float64frombits(C.Struct(s).Get64(%d) ^ 0x%x) }\n", off*8, math.Float64bits(def.Float64()))
+			fprintf(&s, "(v float64) {%s C.Struct(s).Set64(%d, math.Float64bits(v) ^ 0x%x) }\n", settag, off*8, math.Float64bits(def.Float64()))
 		} else {
-			fprintf(w, "float64 { return math.Float64frombits(C.Struct(s).Get64(%d)) }\n", off*8)
+			fprintf(&g, "float64 { return math.Float64frombits(C.Struct(s).Get64(%d)) }\n", off*8)
+			fprintf(&s, "(v float64) {%s C.Struct(s).Set64(%d, math.Float64bits(v)) }\n", settag, off*8)
 		}
 		g_imported["math"] = struct{}{}
 
 	case TYPE_TEXT:
 		assert(def.which() == VALUE_VOID || def.which() == VALUE_TEXT, "expected text default")
 		if def.which() == VALUE_TEXT && def.Text() != "" {
-			fprintf(w, "string { return C.Struct(s).GetObject(%d).ToStringDefault(%s) }\n", off, strconv.Quote(def.Text()))
+			fprintf(&g, "string { return C.Struct(s).GetObject(%d).ToStringDefault(%s) }\n", off, strconv.Quote(def.Text()))
 		} else {
-			fprintf(w, "string { return C.Struct(s).GetObject(%d).ToString() }\n", off)
+			fprintf(&g, "string { return C.Struct(s).GetObject(%d).ToString() }\n", off)
 		}
+		fprintf(&s, "(v string) {%s C.Struct(s).SetObject(%d, s.Segment.NewString(v)) }\n", settag, off)
 
 	case TYPE_DATA:
 		assert(def.which() == VALUE_VOID || def.which() == VALUE_DATA, "expected data default")
@@ -389,41 +417,44 @@ func (n *node) defineGetter(w io.Writer, f Field) {
 				dstr += sprintf("%d", b)
 			}
 			dstr += "}"
-			fprintf(w, "[]byte { return C.Struct(s).GetObject(%d).ToDataDefault(%s) }\n", off, dstr)
+			fprintf(&g, "[]byte { return C.Struct(s).GetObject(%d).ToDataDefault(%s) }\n", off, dstr)
 		} else {
-			fprintf(w, "[]byte { return C.Struct(s).GetObject(%d).ToData() }\n", off)
+			fprintf(&g, "[]byte { return C.Struct(s).GetObject(%d).ToData() }\n", off)
 		}
+		fprintf(&s, "(v []byte) {%s C.Struct(s).SetObject(%d, s.Segment.NewData(v)) }\n", settag, off)
 
 	case TYPE_ENUM:
 		ni := findNode(t.Enum().TypeId())
 		assert(def.which() == VALUE_VOID || def.which() == VALUE_ENUM, "expected enum default")
 		if def.which() == VALUE_ENUM && def.Enum() != 0 {
-			fprintf(w, "%s { return %s(C.Struct(s).Get16(%d) ^ %d) }\n",
-				ni.remoteName(n), ni.remoteName(n), off*2, def.Enum())
+			fprintf(&g, "%s { return %s(C.Struct(s).Get16(%d) ^ %d) }\n", ni.remoteName(n), ni.remoteName(n), off*2, def.Enum())
+			fprintf(&s, "(v %s) {%s C.Struct(s).Set16(%d, uint16(v)^%d) }\n", ni.remoteName(n), settag, off*2, def.Uint16())
 		} else {
-			fprintf(w, "%s { return %s(C.Struct(s).Get16(%d)) }\n",
-				ni.remoteName(n), ni.remoteName(n), off*2)
+			fprintf(&g, "%s { return %s(C.Struct(s).Get16(%d)) }\n", ni.remoteName(n), ni.remoteName(n), off*2)
+			fprintf(&s, "(v %s) {%s C.Struct(s).Set16(%d, uint16(v)) }\n", ni.remoteName(n), settag, off*2)
 		}
 
 	case TYPE_STRUCT:
 		ni := findNode(t.Struct().TypeId())
 		assert(def.which() == VALUE_VOID || def.which() == VALUE_STRUCT, "expected struct default")
 		if def.which() == VALUE_STRUCT && def.Struct().HasData() {
-			fprintf(w, "%s { return %s(C.Struct(s).GetObject(%d).ToStructDefault(%s, %d)) }\n",
+			fprintf(&g, "%s { return %s(C.Struct(s).GetObject(%d).ToStructDefault(%s, %d)) }\n",
 				ni.remoteName(n), ni.remoteName(n), off, g_bufname, copyData(def.Struct()))
 		} else {
-			fprintf(w, "%s { return %s(C.Struct(s).GetObject(%d).ToStruct()) }\n",
+			fprintf(&g, "%s { return %s(C.Struct(s).GetObject(%d).ToStruct()) }\n",
 				ni.remoteName(n), ni.remoteName(n), off)
 		}
+		fprintf(&s, "(v %s) {%s C.Struct(s).SetObject(%d, C.Object(v)) }\n", ni.remoteName(n), settag, off)
 
 	case TYPE_OBJECT:
 		assert(def.which() == VALUE_VOID || def.which() == VALUE_OBJECT, "expected object default")
 		if def.which() == VALUE_OBJECT && def.Object().HasData() {
-			fprintf(w, "C.Object { return C.Struct(s).GetObject(%d).ToObjectDefault(%s, %d) }\n",
+			fprintf(&g, "C.Object { return C.Struct(s).GetObject(%d).ToObjectDefault(%s, %d) }\n",
 				off, g_bufname, copyData(def.Object()))
 		} else {
-			fprintf(w, "C.Object { return C.Struct(s).GetObject(%d) }\n", off)
+			fprintf(&g, "C.Object { return C.Struct(s).GetObject(%d) }\n", off)
 		}
+		fprintf(&s, "(v C.Object) {%s C.Struct(s).SetObject(%d, v) }\n", settag, off)
 
 	case TYPE_LIST:
 		assert(def.which() == VALUE_VOID || def.which() == VALUE_LIST, "expected list default")
@@ -475,13 +506,18 @@ func (n *node) defineGetter(w io.Writer, f Field) {
 		}
 
 		if ldef.HasData() {
-			fprintf(w, "%s { return %s(C.Struct(s).GetObject(%d).ToListDefault(%s, %d)) } }\n",
+			fprintf(&g, "%s { return %s(C.Struct(s).GetObject(%d).ToListDefault(%s, %d)) } }\n",
 				typ, typ, off, g_bufname, copyData(ldef))
 		} else {
-			fprintf(w, "%s { return %s(C.Struct(s).GetObject(%d)) }\n",
+			fprintf(&g, "%s { return %s(C.Struct(s).GetObject(%d)) }\n",
 				typ, typ, off)
 		}
+
+		fprintf(&s, "(v %s) {%s C.Struct(s).SetObject(%d, C.Object(v)) }\n", typ, settag, off)
 	}
+
+	w.Write(g.Bytes())
+	w.Write(s.Bytes())
 }
 
 func (n *node) codeOrderFields() []Field {
@@ -549,19 +585,31 @@ func (n *node) defineStructFuncs(w io.Writer) {
 	for _, f := range n.codeOrderFields() {
 		switch f.which() {
 		case FIELD_SLOT:
-			n.defineGetter(w, f)
+			n.defineField(w, f)
 		case FIELD_GROUP:
 			g := findNode(f.Group().TypeId())
 			fprintf(w, "func (s %s) %s() %s { return %s(s) }\n", n.name, title(f.Name()), g.name, g.name)
+			if f.DiscriminantValue() != 0xFFFF {
+				fprintf(w, "func (s %s) Set%s() { C.Struct(s).Set16(%d, %d) }\n", n.name, title(f.Name()), n.Struct().DiscriminantOffset()*2, f.DiscriminantValue())
+			}
 			g.defineStructFuncs(w)
 		}
 	}
+}
+
+func (n *node) defineNewStructFunc(w io.Writer) {
+	assert(n.which() == NODE_STRUCT, "invalid struct node")
+
+	fprintf(w, "func New%s(s *C.Segment) %s { return %s(s.NewStruct(%d, %d)) }\n",
+		n.name, n.name, n.name, n.Struct().DataWordCount()*8, n.Struct().PointerCount())
 }
 
 func (n *node) defineStructList(w io.Writer) {
 	assert(n.which() == NODE_STRUCT, "invalid struct node")
 
 	fprintf(w, "type %s_List C.PointerList\n", n.name)
+	fprintf(w, "func New%sList(s *C.Segment, sz int) %s_List { return %s_List(s.NewCompositeList(%d, %d, sz)) }\n",
+		n.name, n.name, n.name, n.Struct().DataWordCount()*8, n.Struct().PointerCount())
 	fprintf(w, "func (s %s_List) Len() int { return C.PointerList(s).Len() }\n", n.name)
 	fprintf(w, "func (s %s_List) At(i int) %s { return %s(C.PointerList(s).At(i).ToStruct()) }\n", n.name, n.name, n.name)
 	fprintf(w, "func (s %s_List) ToArray() []%s { return *(*[]%s)(unsafe.Pointer(C.PointerList(s).ToArray())) }\n", n.name, n.name, n.name)
@@ -632,6 +680,7 @@ func main() {
 				if !n.Struct().IsGroup() {
 					n.defineStructTypes(&buf, nil)
 					n.defineStructEnums(&buf)
+					n.defineNewStructFunc(&buf)
 					n.defineStructFuncs(&buf)
 					n.defineStructList(&buf)
 				}
