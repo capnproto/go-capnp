@@ -564,11 +564,9 @@ func (n *node) defineStructList(w io.Writer) {
 	fprintf(w, "type %s_List C.PointerList\n", n.name)
 	fprintf(w, "func (s %s_List) Len() int { return C.PointerList(s).Len() }\n", n.name)
 	fprintf(w, "func (s %s_List) At(i int) %s { return %s(C.PointerList(s).At(i).ToStruct()) }\n", n.name, n.name, n.name)
-	fprintf(w, "func (s %s_List) ToArray() []%s {\n", n.name, n.name)
-	fprintf(w, "v := make([]%s, s.Len())\n", n.name)
-	fprintf(w, "for i := range v { v[i] = s.At(i) }\n")
-	fprintf(w, "return v\n")
-	fprintf(w, "}\n")
+	fprintf(w, "func (s %s_List) ToArray() []%s { return *(*[]%s)(unsafe.Pointer(C.PointerList(s).ToArray())) }\n", n.name, n.name, n.name)
+
+	g_imported["unsafe"] = struct{}{}
 }
 
 func main() {
@@ -651,7 +649,7 @@ func main() {
 			fprintf(file, "import (\n")
 			fprintf(file, "C \"github.com/jmckaskill/go-capnproto\"\n")
 			for imp := range g_imported {
-				fprintf(file, "%s", strconv.Quote(imp))
+				fprintf(file, "%s\n", strconv.Quote(imp))
 			}
 			fprintf(file, ")\n")
 		}

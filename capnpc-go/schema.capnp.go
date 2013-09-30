@@ -4,6 +4,7 @@ package main
 import (
 	C "github.com/jmckaskill/go-capnproto"
 	"math"
+	"unsafe"
 )
 
 type Node C.Struct
@@ -62,15 +63,9 @@ func (s NodeAnnotation) TargetsAnnotation() bool        { return C.Struct(s).Get
 
 type Node_List C.PointerList
 
-func (s Node_List) Len() int      { return C.PointerList(s).Len() }
-func (s Node_List) At(i int) Node { return Node(C.PointerList(s).At(i).ToStruct()) }
-func (s Node_List) ToArray() []Node {
-	v := make([]Node, s.Len())
-	for i := range v {
-		v[i] = s.At(i)
-	}
-	return v
-}
+func (s Node_List) Len() int        { return C.PointerList(s).Len() }
+func (s Node_List) At(i int) Node   { return Node(C.PointerList(s).At(i).ToStruct()) }
+func (s Node_List) ToArray() []Node { return *(*[]Node)(unsafe.Pointer(C.PointerList(s).ToArray())) }
 
 type NodeNestedNode C.Struct
 
@@ -84,11 +79,7 @@ func (s NodeNestedNode_List) At(i int) NodeNestedNode {
 	return NodeNestedNode(C.PointerList(s).At(i).ToStruct())
 }
 func (s NodeNestedNode_List) ToArray() []NodeNestedNode {
-	v := make([]NodeNestedNode, s.Len())
-	for i := range v {
-		v[i] = s.At(i)
-	}
-	return v
+	return *(*[]NodeNestedNode)(unsafe.Pointer(C.PointerList(s).ToArray()))
 }
 
 type Field C.Struct
@@ -126,15 +117,9 @@ func (s FieldOrdinal) Explicit() uint16          { return C.Struct(s).Get16(12) 
 
 type Field_List C.PointerList
 
-func (s Field_List) Len() int       { return C.PointerList(s).Len() }
-func (s Field_List) At(i int) Field { return Field(C.PointerList(s).At(i).ToStruct()) }
-func (s Field_List) ToArray() []Field {
-	v := make([]Field, s.Len())
-	for i := range v {
-		v[i] = s.At(i)
-	}
-	return v
-}
+func (s Field_List) Len() int         { return C.PointerList(s).Len() }
+func (s Field_List) At(i int) Field   { return Field(C.PointerList(s).At(i).ToStruct()) }
+func (s Field_List) ToArray() []Field { return *(*[]Field)(unsafe.Pointer(C.PointerList(s).ToArray())) }
 
 type Enumerant C.Struct
 
@@ -147,11 +132,7 @@ type Enumerant_List C.PointerList
 func (s Enumerant_List) Len() int           { return C.PointerList(s).Len() }
 func (s Enumerant_List) At(i int) Enumerant { return Enumerant(C.PointerList(s).At(i).ToStruct()) }
 func (s Enumerant_List) ToArray() []Enumerant {
-	v := make([]Enumerant, s.Len())
-	for i := range v {
-		v[i] = s.At(i)
-	}
-	return v
+	return *(*[]Enumerant)(unsafe.Pointer(C.PointerList(s).ToArray()))
 }
 
 type Method C.Struct
@@ -168,11 +149,7 @@ type Method_List C.PointerList
 func (s Method_List) Len() int        { return C.PointerList(s).Len() }
 func (s Method_List) At(i int) Method { return Method(C.PointerList(s).At(i).ToStruct()) }
 func (s Method_List) ToArray() []Method {
-	v := make([]Method, s.Len())
-	for i := range v {
-		v[i] = s.At(i)
-	}
-	return v
+	return *(*[]Method)(unsafe.Pointer(C.PointerList(s).ToArray()))
 }
 
 type MethodParam C.Struct
@@ -187,11 +164,7 @@ type MethodParam_List C.PointerList
 func (s MethodParam_List) Len() int             { return C.PointerList(s).Len() }
 func (s MethodParam_List) At(i int) MethodParam { return MethodParam(C.PointerList(s).At(i).ToStruct()) }
 func (s MethodParam_List) ToArray() []MethodParam {
-	v := make([]MethodParam, s.Len())
-	for i := range v {
-		v[i] = s.At(i)
-	}
-	return v
+	return *(*[]MethodParam)(unsafe.Pointer(C.PointerList(s).ToArray()))
 }
 
 type Type C.Struct
@@ -235,15 +208,9 @@ func (s TypeInterface) TypeId() uint64  { return C.Struct(s).Get64(8) }
 
 type Type_List C.PointerList
 
-func (s Type_List) Len() int      { return C.PointerList(s).Len() }
-func (s Type_List) At(i int) Type { return Type(C.PointerList(s).At(i).ToStruct()) }
-func (s Type_List) ToArray() []Type {
-	v := make([]Type, s.Len())
-	for i := range v {
-		v[i] = s.At(i)
-	}
-	return v
-}
+func (s Type_List) Len() int        { return C.PointerList(s).Len() }
+func (s Type_List) At(i int) Type   { return Type(C.PointerList(s).At(i).ToStruct()) }
+func (s Type_List) ToArray() []Type { return *(*[]Type)(unsafe.Pointer(C.PointerList(s).ToArray())) }
 
 type Value C.Struct
 type Value_which uint16
@@ -291,15 +258,9 @@ func (s Value) Object() C.Object   { return C.Struct(s).GetObject(0) }
 
 type Value_List C.PointerList
 
-func (s Value_List) Len() int       { return C.PointerList(s).Len() }
-func (s Value_List) At(i int) Value { return Value(C.PointerList(s).At(i).ToStruct()) }
-func (s Value_List) ToArray() []Value {
-	v := make([]Value, s.Len())
-	for i := range v {
-		v[i] = s.At(i)
-	}
-	return v
-}
+func (s Value_List) Len() int         { return C.PointerList(s).Len() }
+func (s Value_List) At(i int) Value   { return Value(C.PointerList(s).At(i).ToStruct()) }
+func (s Value_List) ToArray() []Value { return *(*[]Value)(unsafe.Pointer(C.PointerList(s).ToArray())) }
 
 type Annotation C.Struct
 
@@ -311,11 +272,7 @@ type Annotation_List C.PointerList
 func (s Annotation_List) Len() int            { return C.PointerList(s).Len() }
 func (s Annotation_List) At(i int) Annotation { return Annotation(C.PointerList(s).At(i).ToStruct()) }
 func (s Annotation_List) ToArray() []Annotation {
-	v := make([]Annotation, s.Len())
-	for i := range v {
-		v[i] = s.At(i)
-	}
-	return v
+	return *(*[]Annotation)(unsafe.Pointer(C.PointerList(s).ToArray()))
 }
 
 type ElementSize uint16
@@ -345,11 +302,7 @@ func (s CodeGeneratorRequest_List) At(i int) CodeGeneratorRequest {
 	return CodeGeneratorRequest(C.PointerList(s).At(i).ToStruct())
 }
 func (s CodeGeneratorRequest_List) ToArray() []CodeGeneratorRequest {
-	v := make([]CodeGeneratorRequest, s.Len())
-	for i := range v {
-		v[i] = s.At(i)
-	}
-	return v
+	return *(*[]CodeGeneratorRequest)(unsafe.Pointer(C.PointerList(s).ToArray()))
 }
 
 type CodeGeneratorRequestRequestedFile C.Struct
@@ -369,11 +322,7 @@ func (s CodeGeneratorRequestRequestedFile_List) At(i int) CodeGeneratorRequestRe
 	return CodeGeneratorRequestRequestedFile(C.PointerList(s).At(i).ToStruct())
 }
 func (s CodeGeneratorRequestRequestedFile_List) ToArray() []CodeGeneratorRequestRequestedFile {
-	v := make([]CodeGeneratorRequestRequestedFile, s.Len())
-	for i := range v {
-		v[i] = s.At(i)
-	}
-	return v
+	return *(*[]CodeGeneratorRequestRequestedFile)(unsafe.Pointer(C.PointerList(s).ToArray()))
 }
 
 type CodeGeneratorRequestRequestedFileImport C.Struct
@@ -390,9 +339,5 @@ func (s CodeGeneratorRequestRequestedFileImport_List) At(i int) CodeGeneratorReq
 	return CodeGeneratorRequestRequestedFileImport(C.PointerList(s).At(i).ToStruct())
 }
 func (s CodeGeneratorRequestRequestedFileImport_List) ToArray() []CodeGeneratorRequestRequestedFileImport {
-	v := make([]CodeGeneratorRequestRequestedFileImport, s.Len())
-	for i := range v {
-		v[i] = s.At(i)
-	}
-	return v
+	return *(*[]CodeGeneratorRequestRequestedFileImport)(unsafe.Pointer(C.PointerList(s).ToArray()))
 }

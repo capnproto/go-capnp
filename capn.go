@@ -570,6 +570,14 @@ func (p ListU64) Set(i int, v uint64) {
 	}
 }
 
+func (p PointerList) ToArray() *[]Object {
+	v := make([]Object, p.Len())
+	for i := range v {
+		v[i] = p.At(i)
+	}
+	return &v
+}
+
 func (p PointerList) At(i int) Object {
 	if i < 0 || i >= p.length {
 		return Object{}
