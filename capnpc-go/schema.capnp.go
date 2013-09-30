@@ -1,12 +1,10 @@
 package main
 
+// AUTO GENERATED - DO NOT EDIT
 import (
 	C "github.com/jmckaskill/go-capnproto"
 	"math"
 )
-
-var package_annotation = uint64(0xbea97f1023792be0)
-var import_annotation = uint64(0xe130b601260e44b5)
 
 type Node C.Struct
 type NodeStruct Node
@@ -29,6 +27,7 @@ func (s Node) which() Node_which                        { return Node_which(C.St
 func (s Node) Id() uint64                               { return C.Struct(s).Get64(0) }
 func (s Node) DisplayName() string                      { return C.Struct(s).GetObject(0).ToString() }
 func (s Node) DisplayNamePrefixLength() uint32          { return C.Struct(s).Get32(8) }
+func (s Node) ScopeId() uint64                          { return C.Struct(s).Get64(16) }
 func (s Node) NestedNodes() NodeNestedNode_List         { return NodeNestedNode_List(C.Struct(s).GetObject(1)) }
 func (s Node) Annotations() Annotation_List             { return Annotation_List(C.Struct(s).GetObject(2)) }
 func (s Node) Struct() NodeStruct                       { return NodeStruct(s) }
@@ -42,10 +41,24 @@ func (s NodeStruct) Fields() Field_List                 { return Field_List(C.St
 func (s Node) Enum() NodeEnum                           { return NodeEnum(s) }
 func (s NodeEnum) Enumerants() Enumerant_List           { return Enumerant_List(C.Struct(s).GetObject(3)) }
 func (s Node) Interface() NodeInterface                 { return NodeInterface(s) }
+func (s NodeInterface) Methods() Method_List            { return Method_List(C.Struct(s).GetObject(3)) }
 func (s Node) Const() NodeConst                         { return NodeConst(s) }
 func (s NodeConst) Type() Type                          { return Type(C.Struct(s).GetObject(3).ToStruct()) }
 func (s NodeConst) Value() Value                        { return Value(C.Struct(s).GetObject(4).ToStruct()) }
 func (s Node) Annotation() NodeAnnotation               { return NodeAnnotation(s) }
+func (s NodeAnnotation) Type() Type                     { return Type(C.Struct(s).GetObject(3).ToStruct()) }
+func (s NodeAnnotation) TargetsFile() bool              { return C.Struct(s).Get1(112) }
+func (s NodeAnnotation) TargetsConst() bool             { return C.Struct(s).Get1(113) }
+func (s NodeAnnotation) TargetsEnum() bool              { return C.Struct(s).Get1(114) }
+func (s NodeAnnotation) TargetsEnumerant() bool         { return C.Struct(s).Get1(115) }
+func (s NodeAnnotation) TargetsStruct() bool            { return C.Struct(s).Get1(116) }
+func (s NodeAnnotation) TargetsField() bool             { return C.Struct(s).Get1(117) }
+func (s NodeAnnotation) TargetsUnion() bool             { return C.Struct(s).Get1(118) }
+func (s NodeAnnotation) TargetsGroup() bool             { return C.Struct(s).Get1(119) }
+func (s NodeAnnotation) TargetsInterface() bool         { return C.Struct(s).Get1(120) }
+func (s NodeAnnotation) TargetsMethod() bool            { return C.Struct(s).Get1(121) }
+func (s NodeAnnotation) TargetsParam() bool             { return C.Struct(s).Get1(122) }
+func (s NodeAnnotation) TargetsAnnotation() bool        { return C.Struct(s).Get1(123) }
 
 type Node_List C.PointerList
 
@@ -53,7 +66,7 @@ func (s Node_List) Len() int      { return C.PointerList(s).Len() }
 func (s Node_List) At(i int) Node { return Node(C.PointerList(s).At(i).ToStruct()) }
 func (s Node_List) ToArray() []Node {
 	v := make([]Node, s.Len())
-	for i := 0; i < s.Len(); i++ {
+	for i := range v {
 		v[i] = s.At(i)
 	}
 	return v
@@ -72,7 +85,7 @@ func (s NodeNestedNode_List) At(i int) NodeNestedNode {
 }
 func (s NodeNestedNode_List) ToArray() []NodeNestedNode {
 	v := make([]NodeNestedNode, s.Len())
-	for i := 0; i < s.Len(); i++ {
+	for i := range v {
 		v[i] = s.At(i)
 	}
 	return v
@@ -99,6 +112,7 @@ const (
 func (s Field) which() Field_which               { return Field_which(C.Struct(s).Get16(8)) }
 func (s Field) Name() string                     { return C.Struct(s).GetObject(0).ToString() }
 func (s Field) CodeOrder() uint16                { return C.Struct(s).Get16(0) }
+func (s Field) Annotations() Annotation_List     { return Annotation_List(C.Struct(s).GetObject(1)) }
 func (s Field) DiscriminantValue() uint16        { return C.Struct(s).Get16(2) ^ 65535 }
 func (s Field) Slot() FieldSlot                  { return FieldSlot(s) }
 func (s FieldSlot) Offset() uint32               { return C.Struct(s).Get32(4) }
@@ -108,6 +122,7 @@ func (s Field) Group() FieldGroup                { return FieldGroup(s) }
 func (s FieldGroup) TypeId() uint64              { return C.Struct(s).Get64(16) }
 func (s Field) Ordinal() FieldOrdinal            { return FieldOrdinal(s) }
 func (s FieldOrdinal) which() FieldOrdinal_which { return FieldOrdinal_which(C.Struct(s).Get16(10)) }
+func (s FieldOrdinal) Explicit() uint16          { return C.Struct(s).Get16(12) }
 
 type Field_List C.PointerList
 
@@ -115,7 +130,7 @@ func (s Field_List) Len() int       { return C.PointerList(s).Len() }
 func (s Field_List) At(i int) Field { return Field(C.PointerList(s).At(i).ToStruct()) }
 func (s Field_List) ToArray() []Field {
 	v := make([]Field, s.Len())
-	for i := 0; i < s.Len(); i++ {
+	for i := range v {
 		v[i] = s.At(i)
 	}
 	return v
@@ -123,8 +138,9 @@ func (s Field_List) ToArray() []Field {
 
 type Enumerant C.Struct
 
-func (s Enumerant) Name() string      { return C.Struct(s).GetObject(0).ToString() }
-func (s Enumerant) CodeOrder() uint16 { return C.Struct(s).Get16(0) }
+func (s Enumerant) Name() string                 { return C.Struct(s).GetObject(0).ToString() }
+func (s Enumerant) CodeOrder() uint16            { return C.Struct(s).Get16(0) }
+func (s Enumerant) Annotations() Annotation_List { return Annotation_List(C.Struct(s).GetObject(1)) }
 
 type Enumerant_List C.PointerList
 
@@ -132,7 +148,47 @@ func (s Enumerant_List) Len() int           { return C.PointerList(s).Len() }
 func (s Enumerant_List) At(i int) Enumerant { return Enumerant(C.PointerList(s).At(i).ToStruct()) }
 func (s Enumerant_List) ToArray() []Enumerant {
 	v := make([]Enumerant, s.Len())
-	for i := 0; i < s.Len(); i++ {
+	for i := range v {
+		v[i] = s.At(i)
+	}
+	return v
+}
+
+type Method C.Struct
+
+func (s Method) Name() string                 { return C.Struct(s).GetObject(0).ToString() }
+func (s Method) CodeOrder() uint16            { return C.Struct(s).Get16(0) }
+func (s Method) Params() MethodParam_List     { return MethodParam_List(C.Struct(s).GetObject(1)) }
+func (s Method) RequiredParamCount() uint16   { return C.Struct(s).Get16(2) }
+func (s Method) ReturnType() Type             { return Type(C.Struct(s).GetObject(2).ToStruct()) }
+func (s Method) Annotations() Annotation_List { return Annotation_List(C.Struct(s).GetObject(3)) }
+
+type Method_List C.PointerList
+
+func (s Method_List) Len() int        { return C.PointerList(s).Len() }
+func (s Method_List) At(i int) Method { return Method(C.PointerList(s).At(i).ToStruct()) }
+func (s Method_List) ToArray() []Method {
+	v := make([]Method, s.Len())
+	for i := range v {
+		v[i] = s.At(i)
+	}
+	return v
+}
+
+type MethodParam C.Struct
+
+func (s MethodParam) Name() string                 { return C.Struct(s).GetObject(0).ToString() }
+func (s MethodParam) Type() Type                   { return Type(C.Struct(s).GetObject(1).ToStruct()) }
+func (s MethodParam) DefaultValue() Value          { return Value(C.Struct(s).GetObject(2).ToStruct()) }
+func (s MethodParam) Annotations() Annotation_List { return Annotation_List(C.Struct(s).GetObject(3)) }
+
+type MethodParam_List C.PointerList
+
+func (s MethodParam_List) Len() int             { return C.PointerList(s).Len() }
+func (s MethodParam_List) At(i int) MethodParam { return MethodParam(C.PointerList(s).At(i).ToStruct()) }
+func (s MethodParam_List) ToArray() []MethodParam {
+	v := make([]MethodParam, s.Len())
+	for i := range v {
 		v[i] = s.At(i)
 	}
 	return v
@@ -175,6 +231,19 @@ func (s TypeEnum) TypeId() uint64       { return C.Struct(s).Get64(8) }
 func (s Type) Struct() TypeStruct       { return TypeStruct(s) }
 func (s TypeStruct) TypeId() uint64     { return C.Struct(s).Get64(8) }
 func (s Type) Interface() TypeInterface { return TypeInterface(s) }
+func (s TypeInterface) TypeId() uint64  { return C.Struct(s).Get64(8) }
+
+type Type_List C.PointerList
+
+func (s Type_List) Len() int      { return C.PointerList(s).Len() }
+func (s Type_List) At(i int) Type { return Type(C.PointerList(s).At(i).ToStruct()) }
+func (s Type_List) ToArray() []Type {
+	v := make([]Type, s.Len())
+	for i := range v {
+		v[i] = s.At(i)
+	}
+	return v
+}
 
 type Value C.Struct
 type Value_which uint16
@@ -213,12 +282,24 @@ func (s Value) Uint32() uint32     { return C.Struct(s).Get32(4) }
 func (s Value) Uint64() uint64     { return C.Struct(s).Get64(8) }
 func (s Value) Float32() float32   { return math.Float32frombits(C.Struct(s).Get32(4)) }
 func (s Value) Float64() float64   { return math.Float64frombits(C.Struct(s).Get64(8)) }
-func (s Value) Enum() uint16       { return C.Struct(s).Get16(2) }
 func (s Value) Text() string       { return C.Struct(s).GetObject(0).ToString() }
 func (s Value) Data() []byte       { return C.Struct(s).GetObject(0).ToData() }
 func (s Value) List() C.Object     { return C.Struct(s).GetObject(0) }
+func (s Value) Enum() uint16       { return C.Struct(s).Get16(2) }
 func (s Value) Struct() C.Object   { return C.Struct(s).GetObject(0) }
 func (s Value) Object() C.Object   { return C.Struct(s).GetObject(0) }
+
+type Value_List C.PointerList
+
+func (s Value_List) Len() int       { return C.PointerList(s).Len() }
+func (s Value_List) At(i int) Value { return Value(C.PointerList(s).At(i).ToStruct()) }
+func (s Value_List) ToArray() []Value {
+	v := make([]Value, s.Len())
+	for i := range v {
+		v[i] = s.At(i)
+	}
+	return v
+}
 
 type Annotation C.Struct
 
@@ -231,7 +312,7 @@ func (s Annotation_List) Len() int            { return C.PointerList(s).Len() }
 func (s Annotation_List) At(i int) Annotation { return Annotation(C.PointerList(s).At(i).ToStruct()) }
 func (s Annotation_List) ToArray() []Annotation {
 	v := make([]Annotation, s.Len())
-	for i := 0; i < s.Len(); i++ {
+	for i := range v {
 		v[i] = s.At(i)
 	}
 	return v
@@ -257,6 +338,20 @@ func (s CodeGeneratorRequest) RequestedFiles() CodeGeneratorRequestRequestedFile
 	return CodeGeneratorRequestRequestedFile_List(C.Struct(s).GetObject(1))
 }
 
+type CodeGeneratorRequest_List C.PointerList
+
+func (s CodeGeneratorRequest_List) Len() int { return C.PointerList(s).Len() }
+func (s CodeGeneratorRequest_List) At(i int) CodeGeneratorRequest {
+	return CodeGeneratorRequest(C.PointerList(s).At(i).ToStruct())
+}
+func (s CodeGeneratorRequest_List) ToArray() []CodeGeneratorRequest {
+	v := make([]CodeGeneratorRequest, s.Len())
+	for i := range v {
+		v[i] = s.At(i)
+	}
+	return v
+}
+
 type CodeGeneratorRequestRequestedFile C.Struct
 
 func (s CodeGeneratorRequestRequestedFile) Id() uint64 { return C.Struct(s).Get64(0) }
@@ -275,7 +370,7 @@ func (s CodeGeneratorRequestRequestedFile_List) At(i int) CodeGeneratorRequestRe
 }
 func (s CodeGeneratorRequestRequestedFile_List) ToArray() []CodeGeneratorRequestRequestedFile {
 	v := make([]CodeGeneratorRequestRequestedFile, s.Len())
-	for i := 0; i < s.Len(); i++ {
+	for i := range v {
 		v[i] = s.At(i)
 	}
 	return v
@@ -293,4 +388,11 @@ type CodeGeneratorRequestRequestedFileImport_List C.PointerList
 func (s CodeGeneratorRequestRequestedFileImport_List) Len() int { return C.PointerList(s).Len() }
 func (s CodeGeneratorRequestRequestedFileImport_List) At(i int) CodeGeneratorRequestRequestedFileImport {
 	return CodeGeneratorRequestRequestedFileImport(C.PointerList(s).At(i).ToStruct())
+}
+func (s CodeGeneratorRequestRequestedFileImport_List) ToArray() []CodeGeneratorRequestRequestedFileImport {
+	v := make([]CodeGeneratorRequestRequestedFileImport, s.Len())
+	for i := range v {
+		v[i] = s.At(i)
+	}
+	return v
 }
