@@ -1,6 +1,7 @@
 package capn
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"math"
@@ -62,45 +63,81 @@ var (
 	MaxTotalSize     = 1024 * 1024 * 1024
 )
 
-func ReadFromStream(r io.Reader) (*Segment, error) {
-	var segnumv [4]byte
-	if _, err := io.ReadFull(r, segnumv[:]); err != nil {
+func ReadFromStream(r io.Reader, buf *bytes.Buffer) (*Segment, error) {
+	if buf == nil {
+		buf = new(bytes.Buffer)
+	}
+
+	if _, err := io.CopyN(buf, r, 4); err != nil {
 		return nil, err
 	}
 
-	if little32(segnumv[:]) >= uint32(MaxSegmentNumber) {
+	if little32(buf.Bytes()[:]) >= uint32(MaxSegmentNumber) {
 		return nil, ErrTooMuchData
 	}
 
-	segnum := int(little32(segnumv[:]) + 1)
-	hdrsv := make([]byte, 8*(segnum/2)+4) // also include the padding
+	segnum := int(little32(buf.Bytes()[:]) + 1)
+	hdrsz := 8*(segnum/2) + 4
 
-	if _, err := io.ReadFull(r, hdrsv[:]); err != nil {
+	if _, err := io.CopyN(buf, r, int64(hdrsz)); err != nil {
 		return nil, err
 	}
 
 	total := 0
 	for i := 0; i < segnum; i++ {
-		sz := little32(hdrsv[4*i:])
+		sz := little32(buf.Bytes()[4*i+4:])
 		if uint64(total)+uint64(sz)*8 > uint64(MaxTotalSize) {
 			return nil, ErrTooMuchData
 		}
 		total += int(sz) * 8
 	}
 
-	datav := make([]byte, total)
-	if _, err := io.ReadFull(r, datav[:]); err != nil {
+	if _, err := io.CopyN(buf, r, int64(total)); err != nil {
 		return nil, err
 	}
 
+	hdrv := buf.Bytes()[4:hdrsz+4]
+	datav := buf.Bytes()[hdrsz+4:]
 	m := &multiBuffer{make([]*Segment, segnum)}
 	for i := 0; i < segnum; i++ {
-		sz := int(little32(hdrsv[4*i:])) * 8
+		sz := int(little32(hdrv[4*i:])) * 8
 		m.segments[i] = &Segment{m, datav[:sz], uint32(i)}
 		datav = datav[sz:]
 	}
 
 	return m.segments[0], nil
+}
+
+func (s *Segment) WriteTo(w io.Writer) (int64, error) {
+	segnum := uint32(1)
+	for {
+		if seg, _ := s.Session.Lookup(segnum); seg == nil {
+			break
+		}
+		segnum++
+	}
+
+	hdrv := make([]uint8, 8*(segnum/2) + 8)
+	putLittle32(hdrv, segnum-1)
+	for i := 0; i < segnum; i++ {
+		seg, _ := s.Session.Lookup(i)
+		putLittle32(hdrv[4*i+4:], len(seg.Data)/8)
+	}
+
+	if n, err := w.Write(hdrv); err != nil {
+		return n, err
+	}
+	written := len(hdrv)
+
+	for i := 0; i < segnum; i++ {
+		seg, _ := s.Session.Lookup(i)
+		if n, err := w.Write(seg.Data); err != nil {
+			return written+n, err
+		}
+		written += n
+	}
+
+	return written, nil
 }
 
 func (m *multiBuffer) NewSegment(minsz int) (*Segment, error) {
