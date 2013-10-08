@@ -119,22 +119,23 @@ func (s *Segment) WriteTo(w io.Writer) (int64, error) {
 
 	hdrv := make([]uint8, 8*(segnum/2) + 8)
 	putLittle32(hdrv, segnum-1)
-	for i := 0; i < segnum; i++ {
+	for i := uint32(0); i < segnum; i++ {
 		seg, _ := s.Session.Lookup(i)
-		putLittle32(hdrv[4*i+4:], len(seg.Data)/8)
+		putLittle32(hdrv[4*i+4:], uint32(len(seg.Data)/8))
 	}
 
 	if n, err := w.Write(hdrv); err != nil {
-		return n, err
+		return int64(n), err
 	}
-	written := len(hdrv)
+	written := int64(len(hdrv))
 
-	for i := 0; i < segnum; i++ {
+	for i := uint32(0); i < segnum; i++ {
 		seg, _ := s.Session.Lookup(i)
 		if n, err := w.Write(seg.Data); err != nil {
-			return written+n, err
+			return written+int64(n), err
+		} else {
+			written += int64(n)
 		}
-		written += n
 	}
 
 	return written, nil
