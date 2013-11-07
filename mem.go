@@ -96,7 +96,7 @@ func ReadFromStream(r io.Reader, buf *bytes.Buffer) (*Segment, error) {
 		return nil, err
 	}
 
-	hdrv := buf.Bytes()[4:hdrsz+4]
+	hdrv := buf.Bytes()[4 : hdrsz+4]
 	datav := buf.Bytes()[hdrsz+4:]
 	m := &multiBuffer{make([]*Segment, segnum)}
 	for i := 0; i < segnum; i++ {
@@ -117,7 +117,7 @@ func (s *Segment) WriteTo(w io.Writer) (int64, error) {
 		segnum++
 	}
 
-	hdrv := make([]uint8, 8*(segnum/2) + 8)
+	hdrv := make([]uint8, 8*(segnum/2)+8)
 	putLittle32(hdrv, segnum-1)
 	for i := uint32(0); i < segnum; i++ {
 		seg, _ := s.Session.Lookup(i)
@@ -132,7 +132,7 @@ func (s *Segment) WriteTo(w io.Writer) (int64, error) {
 	for i := uint32(0); i < segnum; i++ {
 		seg, _ := s.Session.Lookup(i)
 		if n, err := w.Write(seg.Data); err != nil {
-			return written+int64(n), err
+			return written + int64(n), err
 		} else {
 			written += int64(n)
 		}

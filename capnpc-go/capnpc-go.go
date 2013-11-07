@@ -241,7 +241,7 @@ func (n *node) writeValue(w io.Writer, t Type, v Value) {
 		case TYPE_FLOAT64:
 			fprintf(w, "C.ListF64(%s.Root(%d))", g_bufname, copyData(v.List()))
 		case TYPE_TEXT:
-			fprintf(w, "C.StringList(%s.Root(%d))", g_bufname, copyData(v.List()))
+			fprintf(w, "C.TextList(%s.Root(%d))", g_bufname, copyData(v.List()))
 		case TYPE_DATA:
 			fprintf(w, "C.DataList(%s.Root(%d))", g_bufname, copyData(v.List()))
 		case TYPE_ENUM:
@@ -400,11 +400,11 @@ func (n *node) defineField(w io.Writer, f Field) {
 	case TYPE_TEXT:
 		assert(def.which() == VALUE_VOID || def.which() == VALUE_TEXT, "expected text default")
 		if def.which() == VALUE_TEXT && def.Text() != "" {
-			fprintf(&g, "string { return C.Struct(s).GetObject(%d).ToStringDefault(%s) }\n", off, strconv.Quote(def.Text()))
+			fprintf(&g, "string { return C.Struct(s).GetObject(%d).ToTextDefault(%s) }\n", off, strconv.Quote(def.Text()))
 		} else {
-			fprintf(&g, "string { return C.Struct(s).GetObject(%d).ToString() }\n", off)
+			fprintf(&g, "string { return C.Struct(s).GetObject(%d).ToText() }\n", off)
 		}
-		fprintf(&s, "(v string) {%s C.Struct(s).SetObject(%d, s.Segment.NewString(v)) }\n", settag, off)
+		fprintf(&s, "(v string) {%s C.Struct(s).SetObject(%d, s.Segment.NewText(v)) }\n", settag, off)
 
 	case TYPE_DATA:
 		assert(def.which() == VALUE_VOID || def.which() == VALUE_DATA, "expected data default")
