@@ -221,25 +221,25 @@ func (n *node) writeValue(w io.Writer, t Type, v Value) {
 		case TYPE_BOOL:
 			fprintf(w, "C.List1(%s.Root(%d))", g_bufname, copyData(v.List()))
 		case TYPE_INT8:
-			fprintf(w, "C.ListI8(%s.Root(%d))", g_bufname, copyData(v.List()))
+			fprintf(w, "C.Int8List(%s.Root(%d))", g_bufname, copyData(v.List()))
 		case TYPE_UINT8:
-			fprintf(w, "C.ListU8(%s.Root(%d))", g_bufname, copyData(v.List()))
+			fprintf(w, "C.UInt8List(%s.Root(%d))", g_bufname, copyData(v.List()))
 		case TYPE_INT16:
-			fprintf(w, "C.ListI16(%s.Root(%d))", g_bufname, copyData(v.List()))
+			fprintf(w, "C.Int16List(%s.Root(%d))", g_bufname, copyData(v.List()))
 		case TYPE_UINT16:
-			fprintf(w, "C.ListU16(%s.Root(%d))", g_bufname, copyData(v.List()))
+			fprintf(w, "C.UInt16List(%s.Root(%d))", g_bufname, copyData(v.List()))
 		case TYPE_INT32:
-			fprintf(w, "C.ListI32(%s.Root(%d))", g_bufname, copyData(v.List()))
+			fprintf(w, "C.Int32List(%s.Root(%d))", g_bufname, copyData(v.List()))
 		case TYPE_UINT32:
-			fprintf(w, "C.ListU32(%s.Root(%d))", g_bufname, copyData(v.List()))
+			fprintf(w, "C.UInt32List(%s.Root(%d))", g_bufname, copyData(v.List()))
 		case TYPE_FLOAT32:
-			fprintf(w, "C.ListF32(%s.Root(%d))", g_bufname, copyData(v.List()))
+			fprintf(w, "C.Float32List(%s.Root(%d))", g_bufname, copyData(v.List()))
 		case TYPE_INT64:
-			fprintf(w, "C.ListI64(%s.Root(%d))", g_bufname, copyData(v.List()))
+			fprintf(w, "C.Int64List(%s.Root(%d))", g_bufname, copyData(v.List()))
 		case TYPE_UINT64:
-			fprintf(w, "C.ListU64(%s.Root(%d))", g_bufname, copyData(v.List()))
+			fprintf(w, "C.UInt64List(%s.Root(%d))", g_bufname, copyData(v.List()))
 		case TYPE_FLOAT64:
-			fprintf(w, "C.ListF64(%s.Root(%d))", g_bufname, copyData(v.List()))
+			fprintf(w, "C.Float64List(%s.Root(%d))", g_bufname, copyData(v.List()))
 		case TYPE_TEXT:
 			fprintf(w, "C.TextList(%s.Root(%d))", g_bufname, copyData(v.List()))
 		case TYPE_DATA:
@@ -467,25 +467,25 @@ func (n *node) defineField(w io.Writer, f Field) {
 		case TYPE_BOOL:
 			typ = "C.List1"
 		case TYPE_INT8:
-			typ = "C.ListI8"
+			typ = "C.Int8List"
 		case TYPE_UINT8:
-			typ = "C.ListU8"
+			typ = "C.UInt8List"
 		case TYPE_INT16:
-			typ = "C.ListI16"
+			typ = "C.Int16List"
 		case TYPE_UINT16:
-			typ = "C.ListU16"
+			typ = "C.UInt16List"
 		case TYPE_INT32:
-			typ = "C.ListI32"
+			typ = "C.Int32List"
 		case TYPE_UINT32:
-			typ = "C.ListU32"
+			typ = "C.UInt32List"
 		case TYPE_INT64:
-			typ = "C.ListI64"
+			typ = "C.Int64List"
 		case TYPE_UINT64:
-			typ = "C.ListU64"
+			typ = "C.UInt64List"
 		case TYPE_FLOAT32:
-			typ = "C.ListF32"
+			typ = "C.Float32List"
 		case TYPE_FLOAT64:
-			typ = "C.ListF64"
+			typ = "C.Float64List"
 		case TYPE_TEXT:
 			typ = "C.TextList"
 		case TYPE_DATA:
