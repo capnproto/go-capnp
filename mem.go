@@ -15,6 +15,10 @@ var (
 
 type buffer Segment
 
+// NewBuffer creates an expanding single segment buffer. Creating new objects
+// will expand the buffer. Data can be nil (or length 0 with some capacity) if
+// you are creating a new session or if parsing an existing segment than data
+// should be the segment contents.
 func NewBuffer(data []byte) *Segment {
 	if uint64(len(data)) > uint64(math.MaxUint32) {
 		return nil
@@ -47,6 +51,9 @@ type multiBuffer struct {
 	segments []*Segment
 }
 
+// NewMultiBuffer creates a new multi segment session. Creating new objects
+// will try and reuse the buffers available, but will create new ones if there
+// is insufficient capacity.
 func NewMultiBuffer(data [][]byte) *Segment {
 	m := &multiBuffer{make([]*Segment, len(data))}
 	for i, d := range data {
@@ -63,6 +70,10 @@ var (
 	MaxTotalSize     = 1024 * 1024 * 1024
 )
 
+// ReadFromStream reads a non-packed serialized buffer stream from r. buf is
+// used to buffer the read contents and is provided so that the buffer can be
+// reused between messages. The returned segment is the first segment read,
+// which contains the root pointer.
 func ReadFromStream(r io.Reader, buf *bytes.Buffer) (*Segment, error) {
 	if buf == nil {
 		buf = new(bytes.Buffer)
@@ -108,6 +119,7 @@ func ReadFromStream(r io.Reader, buf *bytes.Buffer) (*Segment, error) {
 	return m.segments[0], nil
 }
 
+// WriteTo writes all the segments in s's Session as a packed stream to w.
 func (s *Segment) WriteTo(w io.Writer) (int64, error) {
 	segnum := uint32(1)
 	for {
