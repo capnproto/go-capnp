@@ -71,9 +71,9 @@ var (
 )
 
 // ReadFromStream reads a non-packed serialized buffer stream from r. buf is
-// used to buffer the read contents and is provided so that the buffer can be
-// reused between messages. The returned segment is the first segment read,
-// which contains the root pointer.
+// used to buffer the read contents, can be nil, and is provided so that the
+// buffer can be reused between messages. The returned segment is the first
+// segment read, which contains the root pointer.
 func ReadFromStream(r io.Reader, buf *bytes.Buffer) (*Segment, error) {
 	if buf == nil {
 		buf = new(bytes.Buffer)

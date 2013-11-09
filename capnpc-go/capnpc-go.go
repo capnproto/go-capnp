@@ -602,7 +602,9 @@ func (n *node) defineNewStructFunc(w io.Writer) {
 
 	fprintf(w, "func New%s(s *C.Segment) %s { return %s(s.NewStruct(%d, %d)) }\n",
 		n.name, n.name, n.name, n.Struct().DataWordCount()*8, n.Struct().PointerCount())
-	fprintf(w, "func Read%s(s *C.Segment) %s { return %s(s.Root(0).ToStruct()) }\n",
+	fprintf(w, "func NewRoot%s(s *C.Segment) %s { return %s(s.NewRootStruct(%d, %d)) }\n",
+		n.name, n.name, n.name, n.Struct().DataWordCount()*8, n.Struct().PointerCount())
+	fprintf(w, "func ReadRoot%s(s *C.Segment) %s { return %s(s.Root(0).ToStruct()) }\n",
 		n.name, n.name, n.name)
 }
 
@@ -623,7 +625,7 @@ func main() {
 	s, err := C.ReadFromStream(os.Stdin, nil)
 	assert(err == nil, "%v\n", err)
 
-	req := CodeGeneratorRequest(s.Root(0).ToStruct())
+	req := ReadRootCodeGeneratorRequest(s)
 	allfiles := []*node{}
 
 	for _, ni := range req.Nodes().ToArray() {

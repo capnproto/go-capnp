@@ -229,6 +229,16 @@ func (s *Segment) NewCompositeList(datasz, ptrs, length int) PointerList {
 	return PointerList(n)
 }
 
+func (s *Segment) NewRootStruct(datasz, ptrs int) Struct {
+	r, _, err := s.NewRoot()
+	if err != nil {
+		return Struct{}
+	}
+	v := s.NewStruct(datasz, ptrs)
+	r.Set(0, Object(v))
+	return v
+}
+
 func (s *Segment) NewStruct(datasz, ptrs int) Struct {
 	if datasz < 0 || datasz > maxDataSize || ptrs < 0 || ptrs > maxPtrs {
 		return Struct{}
