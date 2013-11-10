@@ -256,14 +256,57 @@ func (n *node) writeValue(w io.Writer, t Type, v Value) {
 }
 
 func (n *node) defineAnnotation(w io.Writer) {
-	fprintf(w, "var %s = uint64(0x%x)\n", n.name, n.Id())
+	fprintf(w, "const %s = uint64(0x%x)\n", n.name, n.Id())
 }
 
-func (n *node) defineConst(w io.Writer) {
-	assert(n.which() == NODE_CONST, "invalid struct node")
-	fprintf(w, "var %s = ", n.name)
-	n.writeValue(w, n.Const().Type(), n.Const().Value())
-	fprintf(w, "\n")
+func constIsVar(n *node) bool {
+	switch n.Const().Type().which() {
+	case TYPE_BOOL, TYPE_INT8, TYPE_UINT8, TYPE_INT16,
+		TYPE_UINT16, TYPE_INT32, TYPE_UINT32, TYPE_INT64,
+		TYPE_UINT64, TYPE_TEXT, TYPE_ENUM:
+		return false
+	default:
+		return true
+	}
+}
+
+func defineConstNodes(w io.Writer, nodes []*node) {
+
+	any := false
+
+	for _, n := range nodes {
+		if n.which() == NODE_CONST && !constIsVar(n) {
+			if !any {
+				fprintf(w, "const (\n")
+				any = true
+			}
+			fprintf(w, "%s = ", n.name)
+			n.writeValue(w, n.Const().Type(), n.Const().Value())
+			fprintf(w, "\n")
+		}
+	}
+
+	if any {
+		fprintf(w, ")\n")
+	}
+
+	any = false
+
+	for _, n := range nodes {
+		if n.which() == NODE_CONST && constIsVar(n) {
+			if !any {
+				fprintf(w, "var (\n")
+				any = true
+			}
+			fprintf(w, "%s = ", n.name)
+			n.writeValue(w, n.Const().Type(), n.Const().Value())
+			fprintf(w, "\n")
+		}
+	}
+
+	if any {
+		fprintf(w, ")\n")
+	}
 }
 
 func (n *node) defineField(w io.Writer, f Field) {
@@ -507,7 +550,7 @@ func (n *node) defineField(w io.Writer, f Field) {
 		}
 
 		if ldef.HasData() {
-			fprintf(&g, "%s { return %s(C.Struct(s).GetObject(%d).ToListDefault(%s, %d)) } }\n",
+			fprintf(&g, "%s { return %s(C.Struct(s).GetObject(%d).ToListDefault(%s, %d)) }\n",
 				typ, typ, off, g_bufname, copyData(ldef))
 		} else {
 			fprintf(&g, "%s { return %s(C.Struct(s).GetObject(%d)) }\n",
@@ -670,11 +713,7 @@ func main() {
 			}
 		}
 
-		for _, n := range f.nodes {
-			if n.which() == NODE_CONST {
-				n.defineConst(&buf)
-			}
-		}
+		defineConstNodes(&buf, f.nodes)
 
 		for _, n := range f.nodes {
 			switch n.which() {
