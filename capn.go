@@ -139,78 +139,78 @@ func (s *Segment) NewData(v []byte) Object {
 	return n
 }
 
-func (s *Segment) NewPointerList(length int) (PointerList, error) {
-	n, err := s.create(length*8, Object{typ: TypePointerList, length: length, ptrs: 1})
-	return PointerList(n), err
+func (s *Segment) NewPointerList(length int) PointerList {
+	n, _ := s.create(length*8, Object{typ: TypePointerList, length: length, ptrs: 1})
+	return PointerList(n)
 }
 
-func (s *Segment) NewTextList(length int) (TextList, error) {
-	n, err := s.create(length*8, Object{typ: TypePointerList, length: length, ptrs: 1})
-	return TextList(n), err
+func (s *Segment) NewTextList(length int) TextList {
+	n, _ := s.create(length*8, Object{typ: TypePointerList, length: length, ptrs: 1})
+	return TextList(n)
 }
 
-func (s *Segment) NewDataList(length int) (DataList, error) {
-	n, err := s.create(length*8, Object{typ: TypePointerList, length: length, ptrs: 1})
-	return DataList(n), err
+func (s *Segment) NewDataList(length int) DataList {
+	n, _ := s.create(length*8, Object{typ: TypePointerList, length: length, ptrs: 1})
+	return DataList(n)
 }
 
-func (s *Segment) NewVoidList(length int) (VoidList, error) {
-	return VoidList{typ: TypeList, length: length, datasz: 0}, nil
+func (s *Segment) NewVoidList(length int) VoidList {
+	return VoidList{typ: TypeList, length: length, datasz: 0}
 }
 
-func (s *Segment) NewBitList(length int) (BitList, error) {
-	n, err := s.create((length+63)/8, Object{typ: TypeBitList, length: length})
-	return BitList(n), err
+func (s *Segment) NewBitList(length int) BitList {
+	n, _ := s.create((length+63)/8, Object{typ: TypeBitList, length: length})
+	return BitList(n)
 }
 
-func (s *Segment) NewInt8List(length int) (Int8List, error) {
-	n, err := s.create(length, Object{typ: TypeList, length: length, datasz: 1})
-	return Int8List(n), err
+func (s *Segment) NewInt8List(length int) Int8List {
+	n, _ := s.create(length, Object{typ: TypeList, length: length, datasz: 1})
+	return Int8List(n)
 }
 
-func (s *Segment) NewUInt8List(length int) (UInt8List, error) {
-	n, err := s.create(length, Object{typ: TypeList, length: length, datasz: 1})
-	return UInt8List(n), err
+func (s *Segment) NewUInt8List(length int) UInt8List {
+	n, _ := s.create(length, Object{typ: TypeList, length: length, datasz: 1})
+	return UInt8List(n)
 }
 
-func (s *Segment) NewInt16List(length int) (Int16List, error) {
-	n, err := s.create(2*length, Object{typ: TypeList, length: length, datasz: 2})
-	return Int16List(n), err
+func (s *Segment) NewInt16List(length int) Int16List {
+	n, _ := s.create(2*length, Object{typ: TypeList, length: length, datasz: 2})
+	return Int16List(n)
 }
 
-func (s *Segment) NewUInt16List(length int) (UInt16List, error) {
-	n, err := s.create(2*length, Object{typ: TypeList, length: length, datasz: 2})
-	return UInt16List(n), err
+func (s *Segment) NewUInt16List(length int) UInt16List {
+	n, _ := s.create(2*length, Object{typ: TypeList, length: length, datasz: 2})
+	return UInt16List(n)
 }
 
-func (s *Segment) NewInt32List(length int) (Int32List, error) {
-	n, err := s.create(4*length, Object{typ: TypeList, length: length, datasz: 4})
-	return Int32List(n), err
+func (s *Segment) NewInt32List(length int) Int32List {
+	n, _ := s.create(4*length, Object{typ: TypeList, length: length, datasz: 4})
+	return Int32List(n)
 }
 
-func (s *Segment) NewUInt32List(length int) (UInt32List, error) {
-	n, err := s.create(4*length, Object{typ: TypeList, length: length, datasz: 4})
-	return UInt32List(n), err
+func (s *Segment) NewUInt32List(length int) UInt32List {
+	n, _ := s.create(4*length, Object{typ: TypeList, length: length, datasz: 4})
+	return UInt32List(n)
 }
 
-func (s *Segment) NewFloat32List(length int) (Float32List, error) {
-	n, err := s.create(4*length, Object{typ: TypeList, length: length, datasz: 4})
-	return Float32List(n), err
+func (s *Segment) NewFloat32List(length int) Float32List {
+	n, _ := s.create(4*length, Object{typ: TypeList, length: length, datasz: 4})
+	return Float32List(n)
 }
 
-func (s *Segment) NewInt64List(length int) (Int64List, error) {
-	n, err := s.create(8*length, Object{typ: TypeList, length: length, datasz: 8})
-	return Int64List(n), err
+func (s *Segment) NewInt64List(length int) Int64List {
+	n, _ := s.create(8*length, Object{typ: TypeList, length: length, datasz: 8})
+	return Int64List(n)
 }
 
-func (s *Segment) NewUInt64List(length int) (UInt64List, error) {
-	n, err := s.create(8*length, Object{typ: TypeList, length: length, datasz: 8})
-	return UInt64List(n), err
+func (s *Segment) NewUInt64List(length int) UInt64List {
+	n, _ := s.create(8*length, Object{typ: TypeList, length: length, datasz: 8})
+	return UInt64List(n)
 }
 
-func (s *Segment) NewFloat64List(length int) (Float64List, error) {
-	n, err := s.create(8*length, Object{typ: TypeList, length: length, datasz: 8})
-	return Float64List(n), err
+func (s *Segment) NewFloat64List(length int) Float64List {
+	n, _ := s.create(8*length, Object{typ: TypeList, length: length, datasz: 8})
+	return Float64List(n)
 }
 
 func (s *Segment) NewCompositeList(datasz, ptrs, length int) PointerList {
@@ -608,6 +608,106 @@ func (p UInt64List) Set(i int, v uint64) {
 	if data := Object(p).listData(i, 64); data != nil {
 		putLittle64(data, v)
 	}
+}
+
+func (p BitList) ToArray() []bool {
+	v := make([]bool, p.Len())
+	for i := range v {
+		v[i] = p.At(i)
+	}
+	return v
+}
+
+func (p UInt8List) ToArray() []uint8 {
+	if p.typ == TypeList && p.datasz == 1 && p.ptrs == 0 {
+		return p.Segment.Data[p.off:p.off + p.length]
+	}
+
+	v := make([]uint8, p.Len())
+	for i := range v {
+		v[i] = p.At(i)
+	}
+	return v
+}
+
+func (p Int8List) ToArray() []int8 {
+	v := make([]int8, p.Len())
+	for i := range v {
+		v[i] = p.At(i)
+	}
+	return v
+}
+
+func (p UInt16List) ToArray() []uint16 {
+	v := make([]uint16, p.Len())
+	for i := range v {
+		v[i] = p.At(i)
+	}
+	return v
+}
+
+func (p UInt16List) ToEnumArray() *[]uint16 {
+	v := make([]uint16, p.Len())
+	for i := range v {
+		v[i] = p.At(i)
+	}
+	return &v
+}
+
+func (p Int16List) ToArray() []int16 {
+	v := make([]int16, p.Len())
+	for i := range v {
+		v[i] = p.At(i)
+	}
+	return v
+}
+
+func (p UInt32List) ToArray() []uint32 {
+	v := make([]uint32, p.Len())
+	for i := range v {
+		v[i] = p.At(i)
+	}
+	return v
+}
+
+func (p Float32List) ToArray() []float32 {
+	v := make([]float32, p.Len())
+	for i := range v {
+		v[i] = p.At(i)
+	}
+	return v
+}
+
+func (p Int32List) ToArray() []int32 {
+	v := make([]int32, p.Len())
+	for i := range v {
+		v[i] = p.At(i)
+	}
+	return v
+}
+
+func (p Int64List) ToArray() []int64 {
+	v := make([]int64, p.Len())
+	for i := range v {
+		v[i] = p.At(i)
+	}
+	return v
+}
+
+func (p Float64List) ToArray() []float64 {
+	v := make([]float64, p.Len())
+	for i := range v {
+		v[i] = p.At(i)
+	}
+	return v
+}
+
+func (p UInt64List) ToArray() []uint64 {
+	v := make([]uint64, p.Len())
+	for i := range v {
+		v[i] = p.At(i)
+	}
+	return v
 }
 
 func (p TextList) ToArray() []string {

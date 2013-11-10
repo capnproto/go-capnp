@@ -433,6 +433,17 @@ const (
 	ELEMENTSIZE_INLINECOMPOSITE             = 7
 )
 
+type ElementSize_List C.PointerList
+
+func NewElementSizeList(s *C.Segment, sz int) ElementSize_List {
+	return ElementSize_List(s.NewUInt16List(sz))
+}
+func (s ElementSize_List) Len() int             { return C.UInt16List(s).Len() }
+func (s ElementSize_List) At(i int) ElementSize { return ElementSize(C.UInt16List(s).At(i)) }
+func (s ElementSize_List) ToArray() []ElementSize {
+	return *(*[]ElementSize)(unsafe.Pointer(C.UInt16List(s).ToEnumArray()))
+}
+
 type CodeGeneratorRequest C.Struct
 
 func NewCodeGeneratorRequest(s *C.Segment) CodeGeneratorRequest {

@@ -20,7 +20,7 @@ var (
 )
 
 var g_nodes = make(map[uint64]*node)
-var g_imported map[string]struct{}
+var g_imported map[string]bool
 var g_segment *C.Segment
 var g_bufname string
 
@@ -61,7 +61,7 @@ func (n *node) remoteScope(from *node) string {
 	if n.imp == from.imp {
 		return ""
 	} else {
-		g_imported[n.imp] = struct{}{}
+		g_imported[n.imp] = true
 		return n.pkg + "."
 	}
 }
@@ -124,6 +124,14 @@ func (n *node) defineEnum(w io.Writer) {
 
 		fprintf(w, ")\n")
 	}
+
+	fprintf(w, "type %s_List C.PointerList\n", n.name)
+	fprintf(w, "func New%sList(s *C.Segment, sz int) %s_List { return %s_List(s.NewUInt16List(sz)) }\n", n.name, n.name, n.name)
+	fprintf(w, "func (s %s_List) Len() int { return C.UInt16List(s).Len() }\n", n.name)
+	fprintf(w, "func (s %s_List) At(i int) %s { return %s(C.UInt16List(s).At(i)) }\n", n.name, n.name, n.name)
+	fprintf(w, "func (s %s_List) ToArray() []%s { return *(*[]%s)(unsafe.Pointer(C.UInt16List(s).ToEnumArray())) }\n", n.name, n.name, n.name)
+
+	g_imported["unsafe"] = true
 }
 
 func (n *node) writeValue(w io.Writer, t Type, v Value) {
@@ -174,12 +182,12 @@ func (n *node) writeValue(w io.Writer, t Type, v Value) {
 	case TYPE_FLOAT32:
 		assert(v.which() == VALUE_FLOAT32, "expected float32 value")
 		fprintf(w, "math.Float32frombits(0x%x)", math.Float32bits(v.Float32()))
-		g_imported["math"] = struct{}{}
+		g_imported["math"] = true
 
 	case TYPE_FLOAT64:
 		assert(v.which() == VALUE_FLOAT64, "expected float64 value")
 		fprintf(w, "math.Float64frombits(0x%x)", math.Float64bits(v.Float64()))
-		g_imported["math"] = struct{}{}
+		g_imported["math"] = true
 
 	case TYPE_TEXT:
 		assert(v.which() == VALUE_TEXT, "expected text value")
@@ -220,7 +228,7 @@ func (n *node) writeValue(w io.Writer, t Type, v Value) {
 		case TYPE_VOID, TYPE_INTERFACE:
 			fprintf(w, "make([]C.Void, %d)", v.List().ToVoidList().Len())
 		case TYPE_BOOL:
-			fprintf(w, "C.List1(%s.Root(%d))", g_bufname, copyData(v.List()))
+			fprintf(w, "C.BitList(%s.Root(%d))", g_bufname, copyData(v.List()))
 		case TYPE_INT8:
 			fprintf(w, "C.Int8List(%s.Root(%d))", g_bufname, copyData(v.List()))
 		case TYPE_UINT8:
@@ -428,7 +436,7 @@ func (n *node) defineField(w io.Writer, f Field) {
 			fprintf(&g, "float32 { return math.Float32frombits(C.Struct(s).Get32(%d)) }\n", off*4)
 			fprintf(&s, "(v float32) {%s C.Struct(s).Set32(%d, math.Float32bits(v)) }\n", settag, off*4)
 		}
-		g_imported["math"] = struct{}{}
+		g_imported["math"] = true
 
 	case TYPE_FLOAT64:
 		assert(def.which() == VALUE_VOID || def.which() == VALUE_FLOAT64, "expected float64 default")
@@ -439,7 +447,7 @@ func (n *node) defineField(w io.Writer, f Field) {
 			fprintf(&g, "float64 { return math.Float64frombits(C.Struct(s).Get64(%d)) }\n", off*8)
 			fprintf(&s, "(v float64) {%s C.Struct(s).Set64(%d, math.Float64bits(v)) }\n", settag, off*8)
 		}
-		g_imported["math"] = struct{}{}
+		g_imported["math"] = true
 
 	case TYPE_TEXT:
 		assert(def.which() == VALUE_VOID || def.which() == VALUE_TEXT, "expected text default")
@@ -509,7 +517,7 @@ func (n *node) defineField(w io.Writer, f Field) {
 		case TYPE_VOID, TYPE_INTERFACE:
 			typ = "C.VoidList"
 		case TYPE_BOOL:
-			typ = "C.List1"
+			typ = "C.BitList"
 		case TYPE_INT8:
 			typ = "C.Int8List"
 		case TYPE_UINT8:
@@ -662,7 +670,7 @@ func (n *node) defineStructList(w io.Writer) {
 	fprintf(w, "func (s %s_List) At(i int) %s { return %s(C.PointerList(s).At(i).ToStruct()) }\n", n.name, n.name, n.name)
 	fprintf(w, "func (s %s_List) ToArray() []%s { return *(*[]%s)(unsafe.Pointer(C.PointerList(s).ToArray())) }\n", n.name, n.name, n.name)
 
-	g_imported["unsafe"] = struct{}{}
+	g_imported["unsafe"] = true
 }
 
 func main() {
@@ -703,7 +711,7 @@ func main() {
 	for _, reqf := range req.RequestedFiles().ToArray() {
 		f := findNode(reqf.Id())
 		buf := bytes.Buffer{}
-		g_imported = make(map[string]struct{})
+		g_imported = make(map[string]bool)
 		g_segment = C.NewBuffer([]byte{})
 		g_bufname = sprintf("x_%x", f.Id())
 
