@@ -33,13 +33,13 @@ const (
 	TypeBitList
 )
 
-type Session interface {
+type Message interface {
 	NewSegment(minsz int) (*Segment, error)
 	Lookup(segid uint32) (*Segment, error)
 }
 
 type Segment struct {
-	Session Session
+	Message Message
 	Data    []uint8
 	Id      uint32
 }
@@ -267,7 +267,7 @@ func (s *Segment) create(sz int, n Object) (Object, error) {
 			tag = true
 			sz += 8
 		}
-		news, err := s.Session.NewSegment(sz)
+		news, err := s.Message.NewSegment(sz)
 		if err != nil {
 			return Object{}, err
 		}
@@ -337,7 +337,7 @@ func (p Object) ToDataDefault(def []byte) []byte {
 // 3. Its TypeNull, but then the length is 0
 
 func (p Object) ToVoidList() VoidList       { return VoidList(p) }
-func (p Object) ToListU1() BitList          { return BitList(p) }
+func (p Object) ToBitList() BitList         { return BitList(p) }
 func (p Object) ToInt8List() Int8List       { return Int8List(p) }
 func (p Object) ToUInt8List() UInt8List     { return UInt8List(p) }
 func (p Object) ToInt16List() Int16List     { return Int16List(p) }
@@ -721,7 +721,7 @@ func (p PointerList) Set(i int, tgt Object) error {
 
 func (s *Segment) lookupSegment(id uint32) (*Segment, error) {
 	if s.Id != id {
-		return s.Session.Lookup(id)
+		return s.Message.Lookup(id)
 	} else {
 		return s, nil
 	}
@@ -968,7 +968,7 @@ func (s *Segment) writePtr(off int, p Object, copies *rbtree.Tree, depth int) er
 		putLittle64(s.Data[off:], p.value(off))
 		return nil
 
-	} else if s.Session != ps.Session || (p.flags&isListMember) != 0 || (p.flags&isBitListMember) != 0 {
+	} else if s.Message != ps.Message || (p.flags&isListMember) != 0 || (p.flags&isBitListMember) != 0 {
 		// We need to clone the target.
 
 		if depth >= 32 {
@@ -1113,7 +1113,7 @@ func (s *Segment) writePtr(off int, p Object, copies *rbtree.Tree, depth int) er
 		t := s
 		if len(t.Data)+16 > cap(t.Data) {
 			var err error
-			if t, err = t.Session.NewSegment(16); err != nil {
+			if t, err = t.Message.NewSegment(16); err != nil {
 				return err
 			}
 		}

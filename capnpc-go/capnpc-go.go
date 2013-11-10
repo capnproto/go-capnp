@@ -13,9 +13,10 @@ import (
 )
 
 var (
-	fprintf = fmt.Fprintf
-	sprintf = fmt.Sprintf
-	title   = strings.Title
+	go_capnproto_import = "github.com/jmckaskill/go-capnproto"
+	fprintf             = fmt.Fprintf
+	sprintf             = fmt.Sprintf
+	title               = strings.Title
 )
 
 var g_nodes = make(map[uint64]*node)
@@ -695,12 +696,12 @@ func main() {
 
 		file, err := os.Create(reqf.Filename() + ".go")
 		assert(err == nil, "%v\n", err)
-		fprintf(file, "package %s\n", f.pkg)
-		fprintf(file, "// AUTO GENERATED - DO NOT EDIT\n")
+		fprintf(file, "package %s\n\n", f.pkg)
+		fprintf(file, "// AUTO GENERATED - DO NOT EDIT\n\n")
 
-		if f.imp != "github.com/jmckaskill/go-capnproto" {
+		if f.imp != go_capnproto_import {
 			fprintf(file, "import (\n")
-			fprintf(file, "C \"github.com/jmckaskill/go-capnproto\"\n")
+			fprintf(file, "C \"%s\"\n", go_capnproto_import)
 			for imp := range g_imported {
 				fprintf(file, "%s\n", strconv.Quote(imp))
 			}

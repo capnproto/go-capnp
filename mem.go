@@ -17,15 +17,15 @@ type buffer Segment
 
 // NewBuffer creates an expanding single segment buffer. Creating new objects
 // will expand the buffer. Data can be nil (or length 0 with some capacity) if
-// you are creating a new session or if parsing an existing segment than data
-// should be the segment contents.
+// creating a new session. If parsing an existing segment than data should be
+// the segment contents and will not be copied.
 func NewBuffer(data []byte) *Segment {
 	if uint64(len(data)) > uint64(math.MaxUint32) {
 		return nil
 	}
 
 	b := &buffer{}
-	b.Session = b
+	b.Message = b
 	b.Data = data
 	return (*Segment)(b)
 }
@@ -51,9 +51,10 @@ type multiBuffer struct {
 	segments []*Segment
 }
 
-// NewMultiBuffer creates a new multi segment session. Creating new objects
+// NewMultiBuffer creates a new multi segment message. Creating new objects
 // will try and reuse the buffers available, but will create new ones if there
-// is insufficient capacity.
+// is insufficient capacity. When parsing an existing message data should be
+// the list of segments. The data buffers will not be copied.
 func NewMultiBuffer(data [][]byte) *Segment {
 	m := &multiBuffer{make([]*Segment, len(data))}
 	for i, d := range data {
@@ -70,13 +71,38 @@ var (
 	MaxTotalSize     = 1024 * 1024 * 1024
 )
 
-// ReadFromStream reads a non-packed serialized buffer stream from r. buf is
-// used to buffer the read contents, can be nil, and is provided so that the
-// buffer can be reused between messages. The returned segment is the first
-// segment read, which contains the root pointer.
+func (m *multiBuffer) NewSegment(minsz int) (*Segment, error) {
+	for _, s := range m.segments {
+		if len(s.Data)+minsz <= cap(s.Data) {
+			return s, nil
+		}
+	}
+
+	if minsz < 4096 {
+		minsz = 4096
+	}
+	s := &Segment{m, make([]byte, 0, minsz), uint32(len(m.segments))}
+	m.segments = append(m.segments, s)
+	return s, nil
+}
+
+func (m *multiBuffer) Lookup(segid uint32) (*Segment, error) {
+	if uint(segid) < uint(len(m.segments)) {
+		return m.segments[segid], nil
+	} else {
+		return nil, ErrInvalidSegment
+	}
+}
+
+// ReadFromStream reads a non-packed serialized stream from r. buf is used to
+// buffer the read contents, can be nil, and is provided so that the buffer
+// can be reused between messages. The returned segment is the first segment
+// read, which contains the root pointer.
 func ReadFromStream(r io.Reader, buf *bytes.Buffer) (*Segment, error) {
 	if buf == nil {
 		buf = new(bytes.Buffer)
+	} else {
+		buf.Reset()
 	}
 
 	if _, err := io.CopyN(buf, r, 4); err != nil {
@@ -119,11 +145,12 @@ func ReadFromStream(r io.Reader, buf *bytes.Buffer) (*Segment, error) {
 	return m.segments[0], nil
 }
 
-// WriteTo writes all the segments in s's Session as a packed stream to w.
+// WriteTo writes the message that the segment is part of to the
+// provided stream in serialized form.
 func (s *Segment) WriteTo(w io.Writer) (int64, error) {
 	segnum := uint32(1)
 	for {
-		if seg, _ := s.Session.Lookup(segnum); seg == nil {
+		if seg, _ := s.Message.Lookup(segnum); seg == nil {
 			break
 		}
 		segnum++
@@ -132,7 +159,7 @@ func (s *Segment) WriteTo(w io.Writer) (int64, error) {
 	hdrv := make([]uint8, 8*(segnum/2)+8)
 	putLittle32(hdrv, segnum-1)
 	for i := uint32(0); i < segnum; i++ {
-		seg, _ := s.Session.Lookup(i)
+		seg, _ := s.Message.Lookup(i)
 		putLittle32(hdrv[4*i+4:], uint32(len(seg.Data)/8))
 	}
 
@@ -142,7 +169,7 @@ func (s *Segment) WriteTo(w io.Writer) (int64, error) {
 	written := int64(len(hdrv))
 
 	for i := uint32(0); i < segnum; i++ {
-		seg, _ := s.Session.Lookup(i)
+		seg, _ := s.Message.Lookup(i)
 		if n, err := w.Write(seg.Data); err != nil {
 			return written + int64(n), err
 		} else {
@@ -151,27 +178,4 @@ func (s *Segment) WriteTo(w io.Writer) (int64, error) {
 	}
 
 	return written, nil
-}
-
-func (m *multiBuffer) NewSegment(minsz int) (*Segment, error) {
-	for _, s := range m.segments {
-		if len(s.Data)+minsz <= cap(s.Data) {
-			return s, nil
-		}
-	}
-
-	if minsz < 4096 {
-		minsz = 4096
-	}
-	s := &Segment{m, make([]byte, 0, minsz), uint32(len(m.segments))}
-	m.segments = append(m.segments, s)
-	return s, nil
-}
-
-func (m *multiBuffer) Lookup(segid uint32) (*Segment, error) {
-	if uint(segid) < uint(len(m.segments)) {
-		return m.segments[segid], nil
-	} else {
-		return nil, ErrInvalidSegment
-	}
 }

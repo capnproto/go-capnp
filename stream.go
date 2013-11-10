@@ -1,6 +1,7 @@
 package capn
 
 import (
+	"bytes"
 	"errors"
 	"io"
 )
@@ -21,8 +22,23 @@ func NewCompressor(w io.Writer) *Compressor {
 	return &Compressor{w: w}
 }
 
+// WriteToPacked writes the message that the segment is part of to the
+// provided stream in packed form.
+func (s *Segment) WriteToPacked(w io.Writer) (int64, error) {
+	c := Compressor{w: w}
+	return s.WriteTo(&c)
+}
+
 func NewDecompressor(r io.Reader) *Decompressor {
 	return &Decompressor{r: r}
+}
+
+// ReadFromPackedStream reads a single message from the stream r in packed
+// form returning the first segment. buf can be specified in order to reuse
+// the buffer (or it is allocated each call if nil).
+func ReadFromPackedStream(r io.Reader, buf *bytes.Buffer) (*Segment, error) {
+	c := Decompressor{r: r}
+	return ReadFromStream(&c, buf)
 }
 
 func min(a, b int) int {

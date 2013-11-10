@@ -1,6 +1,7 @@
 package main
 
 // AUTO GENERATED - DO NOT EDIT
+
 import (
 	C "github.com/jmckaskill/go-capnproto"
 	"math"
