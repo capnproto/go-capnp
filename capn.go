@@ -244,7 +244,7 @@ func (s *Segment) NewStruct(datasz, ptrs int) Struct {
 		return Struct{}
 	}
 	datasz = (datasz + 7) &^ 7
-	n, _ := s.create(datasz, Object{typ: TypeStruct, datasz: datasz, ptrs: ptrs})
+	n, _ := s.create(datasz + ptrs*8, Object{typ: TypeStruct, datasz: datasz, ptrs: ptrs})
 	return Struct(n)
 }
 
