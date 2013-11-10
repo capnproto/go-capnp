@@ -752,12 +752,12 @@ func main() {
 		if len(g_segment.Data) > 0 {
 			fprintf(file, "var %s = []byte{", g_bufname)
 			for i, b := range g_segment.Data {
-				if i > 0 {
-					fprintf(file, ", ")
+				if i % 8 == 0 {
+					fprintf(file, "\n")
 				}
-				fprintf(file, "%d", b)
+				fprintf(file, "%d,", b)
 			}
-			fprintf(file, "}\n")
+			fprintf(file, "\n}\n")
 		}
 		file.Close()
 
