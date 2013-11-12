@@ -21,7 +21,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-using Go = import "../go.capnp";
+using Go = import "/github.com/jmckaskill/go-capnproto/go.capnp";
 
 @0xa93fc509624c72d9;
 $Go.package("main");

@@ -763,21 +763,19 @@ func main() {
 		fprintf(file, "package %s\n\n", f.pkg)
 		fprintf(file, "// AUTO GENERATED - DO NOT EDIT\n\n")
 
-		if f.imp != go_capnproto_import {
-			fprintf(file, "import (\n")
-			fprintf(file, "C \"%s\"\n", go_capnproto_import)
-			for imp := range g_imported {
-				fprintf(file, "%s\n", strconv.Quote(imp))
-			}
-			fprintf(file, ")\n")
+		fprintf(file, "import (\n")
+		fprintf(file, "C \"%s\"\n", go_capnproto_import)
+		for imp := range g_imported {
+			fprintf(file, "%s\n", strconv.Quote(imp))
 		}
+		fprintf(file, ")\n")
 
 		file.Write(buf.Bytes())
 
 		if len(g_segment.Data) > 0 {
 			fprintf(file, "var %s = C.NewBuffer([]byte{", g_bufname)
 			for i, b := range g_segment.Data {
-				if i % 8 == 0 {
+				if i%8 == 0 {
 					fprintf(file, "\n")
 				}
 				fprintf(file, "%d,", b)
