@@ -246,6 +246,10 @@ func (s *Segment) create(sz int, n Object) (Object, error) {
 		n.flags |= hasPointerTag
 	}
 
+	for i := n.off; i < len(s.Data); i++ {
+		s.Data[i] = 0
+	}
+
 	return n, nil
 }
 
