@@ -664,8 +664,25 @@ func (n *node) defineStructList(w io.Writer) {
 	assert(n.which() == NODE_STRUCT, "invalid struct node")
 
 	fprintf(w, "type %s_List C.PointerList\n", n.name)
-	fprintf(w, "func New%sList(s *C.Segment, sz int) %s_List { return %s_List(s.NewCompositeList(%d, %d, sz)) }\n",
-		n.name, n.name, n.name, n.Struct().DataWordCount()*8, n.Struct().PointerCount())
+
+	switch n.Struct().PreferredListEncoding() {
+	case ELEMENTSIZE_EMPTY:
+		fprintf(w, "func New%sList(s *C.Segment, sz int) %s_List { return %s_List(s.NewVoidList(sz)) }\n", n.name, n.name, n.name)
+	case ELEMENTSIZE_BIT:
+		fprintf(w, "func New%sList(s *C.Segment, sz int) %s_List { return %s_List(s.NewBitList(sz)) }\n", n.name, n.name, n.name)
+	case ELEMENTSIZE_BYTE:
+		fprintf(w, "func New%sList(s *C.Segment, sz int) %s_List { return %s_List(s.NewUInt8List(sz)) }\n", n.name, n.name, n.name)
+	case ELEMENTSIZE_TWOBYTES:
+		fprintf(w, "func New%sList(s *C.Segment, sz int) %s_List { return %s_List(s.NewUInt16List(sz)) }\n", n.name, n.name, n.name)
+	case ELEMENTSIZE_FOURBYTES:
+		fprintf(w, "func New%sList(s *C.Segment, sz int) %s_List { return %s_List(s.NewUInt32List(sz)) }\n", n.name, n.name, n.name)
+	case ELEMENTSIZE_EIGHTBYTES:
+		fprintf(w, "func New%sList(s *C.Segment, sz int) %s_List { return %s_List(s.NewUInt64List(sz)) }\n", n.name, n.name, n.name)
+	default:
+		fprintf(w, "func New%sList(s *C.Segment, sz int) %s_List { return %s_List(s.NewCompositeList(%d, %d, sz)) }\n",
+			n.name, n.name, n.name, n.Struct().DataWordCount()*8, n.Struct().PointerCount())
+	}
+
 	fprintf(w, "func (s %s_List) Len() int { return C.PointerList(s).Len() }\n", n.name)
 	fprintf(w, "func (s %s_List) At(i int) %s { return %s(C.PointerList(s).At(i).ToStruct()) }\n", n.name, n.name, n.name)
 	fprintf(w, "func (s %s_List) ToArray() []%s { return *(*[]%s)(unsafe.Pointer(C.PointerList(s).ToArray())) }\n", n.name, n.name, n.name)
