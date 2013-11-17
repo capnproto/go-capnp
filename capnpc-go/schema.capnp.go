@@ -28,7 +28,7 @@ const (
 func NewNode(s *C.Segment) Node                             { return Node(s.NewStruct(40, 5)) }
 func NewRootNode(s *C.Segment) Node                         { return Node(s.NewRootStruct(40, 5)) }
 func ReadRootNode(s *C.Segment) Node                        { return Node(s.Root(0).ToStruct()) }
-func (s Node) which() Node_which                            { return Node_which(C.Struct(s).Get16(12)) }
+func (s Node) Which() Node_which                            { return Node_which(C.Struct(s).Get16(12)) }
 func (s Node) Id() uint64                                   { return C.Struct(s).Get64(0) }
 func (s Node) SetId(v uint64)                               { C.Struct(s).Set64(0, v) }
 func (s Node) DisplayName() string                          { return C.Struct(s).GetObject(0).ToText() }
@@ -151,7 +151,7 @@ const (
 func NewField(s *C.Segment) Field                { return Field(s.NewStruct(24, 4)) }
 func NewRootField(s *C.Segment) Field            { return Field(s.NewRootStruct(24, 4)) }
 func ReadRootField(s *C.Segment) Field           { return Field(s.Root(0).ToStruct()) }
-func (s Field) which() Field_which               { return Field_which(C.Struct(s).Get16(8)) }
+func (s Field) Which() Field_which               { return Field_which(C.Struct(s).Get16(8)) }
 func (s Field) Name() string                     { return C.Struct(s).GetObject(0).ToText() }
 func (s Field) SetName(v string)                 { C.Struct(s).SetObject(0, s.Segment.NewText(v)) }
 func (s Field) CodeOrder() uint16                { return C.Struct(s).Get16(0) }
@@ -173,7 +173,7 @@ func (s Field) SetGroup()                        { C.Struct(s).Set16(8, 1) }
 func (s FieldGroup) TypeId() uint64              { return C.Struct(s).Get64(16) }
 func (s FieldGroup) SetTypeId(v uint64)          { C.Struct(s).Set64(16, v) }
 func (s Field) Ordinal() FieldOrdinal            { return FieldOrdinal(s) }
-func (s FieldOrdinal) which() FieldOrdinal_which { return FieldOrdinal_which(C.Struct(s).Get16(10)) }
+func (s FieldOrdinal) Which() FieldOrdinal_which { return FieldOrdinal_which(C.Struct(s).Get16(10)) }
 func (s FieldOrdinal) Explicit() uint16          { return C.Struct(s).Get16(12) }
 func (s FieldOrdinal) SetExplicit(v uint16)      { C.Struct(s).Set16(10, 1); C.Struct(s).Set16(12, v) }
 
@@ -291,7 +291,7 @@ const (
 func NewType(s *C.Segment) Type            { return Type(s.NewStruct(16, 1)) }
 func NewRootType(s *C.Segment) Type        { return Type(s.NewRootStruct(16, 1)) }
 func ReadRootType(s *C.Segment) Type       { return Type(s.Root(0).ToStruct()) }
-func (s Type) which() Type_which           { return Type_which(C.Struct(s).Get16(0)) }
+func (s Type) Which() Type_which           { return Type_which(C.Struct(s).Get16(0)) }
 func (s Type) List() TypeList              { return TypeList(s) }
 func (s Type) SetList()                    { C.Struct(s).Set16(0, 14) }
 func (s TypeList) ElementType() Type       { return Type(C.Struct(s).GetObject(0).ToStruct()) }
@@ -344,7 +344,7 @@ const (
 func NewValue(s *C.Segment) Value      { return Value(s.NewStruct(16, 1)) }
 func NewRootValue(s *C.Segment) Value  { return Value(s.NewRootStruct(16, 1)) }
 func ReadRootValue(s *C.Segment) Value { return Value(s.Root(0).ToStruct()) }
-func (s Value) which() Value_which     { return Value_which(C.Struct(s).Get16(0)) }
+func (s Value) Which() Value_which     { return Value_which(C.Struct(s).Get16(0)) }
 func (s Value) Bool() bool             { return C.Struct(s).Get1(16) }
 func (s Value) SetBool(v bool)         { C.Struct(s).Set16(0, 1); C.Struct(s).Set1(16, v) }
 func (s Value) Int8() int8             { return int8(C.Struct(s).Get8(2)) }
