@@ -2,4 +2,5 @@
 annotation package(file) :Text;
 annotation import(file) :Text;
 annotation tag(enumerant) : Text;
+annotation notag(enumerant) : Void;
 $package("capn");

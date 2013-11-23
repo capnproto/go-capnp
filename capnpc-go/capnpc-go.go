@@ -108,39 +108,41 @@ type enumval struct {
 func (n *node) defineEnum(w io.Writer) {
 	fprintf(w, "\ntype %s uint16\n", n.name)
 
-	has_tags := false
 	if es := n.Enum().Enumerants(); es.Len() > 0 {
 		fprintf(w, "const (\n")
 
 		ev := make([]enumval, es.Len())
 		for i := 0; i < es.Len(); i++ {
 			e := es.At(i)
-			var t string
+
+			t := e.Name()
 			for _, an := range e.Annotations().ToArray() {
 				if an.Id() == C.Tag {
 					t = an.Value().Text()
-					has_tags = true
-					break
+				} else if an.Id() == C.Notag {
+					t = ""
 				}
 			}
 			ev[e.CodeOrder()] = enumval{e, i, t}
 		}
 
-		fprintf(w, "%s_%s %s = %d // %s\n", strings.ToUpper(n.name), strings.ToUpper(ev[0].Name()), n.name, ev[0].val, ev[0].tag)
+		fprintf(w, "%s_%s %s = %d\n", strings.ToUpper(n.name), strings.ToUpper(ev[0].Name()), n.name, ev[0].val)
 
 		for _, e := range ev[1:] {
-			fprintf(w, "%s_%s = %d // %s\n", strings.ToUpper(n.name), strings.ToUpper(e.Name()), e.val, e.tag)
+			fprintf(w, "%s_%s = %d\n", strings.ToUpper(n.name), strings.ToUpper(e.Name()), e.val)
 		}
 
 		fprintf(w, ")\n")
 
-		if has_tags {
-			fprintf(w, "var %s_Tags map[%s]string = map[%s]string{\n", n.name, n.name, n.name)
-			for _, e := range ev {
-				fprintf(w, "%s_%s: \"%s\",\n", strings.ToUpper(n.name), strings.ToUpper(e.Name()), e.tag)
+		fprintf(w, "func %s_Tag(c %s) string {\n", n.name, n.name)
+		fprintf(w, "switch c {\n")
+		for _, e := range ev {
+			if e.tag != "" {
+				fprintf(w, "case %s_%s: return \"%s\"\n", strings.ToUpper(n.name), strings.ToUpper(e.Name()), e.tag)
 			}
-			fprintf(w, "}\n")
 		}
+		fprintf(w, "default: return \"\"\n")
+		fprintf(w, "}\n}\n")
 	}
 
 	fprintf(w, "type %s_List C.PointerList\n", n.name)
