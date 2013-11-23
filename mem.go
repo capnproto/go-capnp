@@ -149,9 +149,10 @@ func ReadFromStream(r io.Reader, buf *bytes.Buffer) (*Segment, error) {
 // ReadFromMemoryZeroCopy: like ReadFromStream, but reads a non-packed 
 // serialized stream that already resides in memory in the argument data.
 // The returned segment is the first segment read, which contains 
-// the root pointer. The returned bytesRead says how many bytes are pointed
-// to by seg. The caller should do data = data[bytesRead:] between
-// successive calls to ReadFromMemoryZeroCopy().
+// the root pointer. The returned bytesRead says how many bytes were
+// consumed from data in making seg. The caller should advance the
+// data slice by doing data = data[bytesRead:] between successive calls
+// to ReadFromMemoryZeroCopy().
 func ReadFromMemoryZeroCopy(data []byte) (seg *Segment, bytesRead int64, err error) {
 
 	if little32(data[0:4]) >= uint32(MaxSegmentNumber) {
