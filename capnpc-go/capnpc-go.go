@@ -134,7 +134,7 @@ func (n *node) defineEnum(w io.Writer) {
 
 		fprintf(w, ")\n")
 
-		fprintf(w, "func %s_Tag(c %s) string {\n", n.name, n.name)
+		fprintf(w, "func (c %s) String() string {\n", n.name)
 		fprintf(w, "switch c {\n")
 		for _, e := range ev {
 			if e.tag != "" {
