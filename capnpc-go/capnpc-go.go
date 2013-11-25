@@ -622,7 +622,7 @@ func (n *node) defineStructEnums(w io.Writer) {
 	assert(n.Which() == NODE_STRUCT, "invalid struct node")
 
 	if n.Struct().DiscriminantCount() > 0 {
-		fprintf(w, "type %s_which uint16\n", n.name)
+		fprintf(w, "type %s_Which uint16\n", n.name)
 		fprintf(w, "const (\n")
 
 		writtenType := false
@@ -630,7 +630,7 @@ func (n *node) defineStructEnums(w io.Writer) {
 			if f.DiscriminantValue() == 0xFFFF {
 				// Non-union member
 			} else if !writtenType {
-				fprintf(w, "%s_%s %s_which = %d\n", strings.ToUpper(n.name), strings.ToUpper(f.Name()), n.name, f.DiscriminantValue())
+				fprintf(w, "%s_%s %s_Which = %d\n", strings.ToUpper(n.name), strings.ToUpper(f.Name()), n.name, f.DiscriminantValue())
 				writtenType = true
 			} else {
 				fprintf(w, "%s_%s = %d\n", strings.ToUpper(n.name), strings.ToUpper(f.Name()), f.DiscriminantValue())
@@ -650,7 +650,7 @@ func (n *node) defineStructFuncs(w io.Writer) {
 	assert(n.Which() == NODE_STRUCT, "invalid struct node")
 
 	if n.Struct().DiscriminantCount() > 0 {
-		fprintf(w, "func (s %s) Which() %s_which { return %s_which(C.Struct(s).Get16(%d)) }\n",
+		fprintf(w, "func (s %s) Which() %s_Which { return %s_Which(C.Struct(s).Get16(%d)) }\n",
 			n.name, n.name, n.name, n.Struct().DiscriminantOffset()*2)
 	}
 
