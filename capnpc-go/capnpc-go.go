@@ -102,6 +102,7 @@ func (n *node) resolveName(base, name string, file *node) {
 type enumval struct {
 	Enumerant
 	val int
+	tag string
 }
 
 func (n *node) defineEnum(w io.Writer) {
@@ -113,7 +114,16 @@ func (n *node) defineEnum(w io.Writer) {
 		ev := make([]enumval, es.Len())
 		for i := 0; i < es.Len(); i++ {
 			e := es.At(i)
-			ev[e.CodeOrder()] = enumval{e, i}
+
+			t := e.Name()
+			for _, an := range e.Annotations().ToArray() {
+				if an.Id() == C.Tag {
+					t = an.Value().Text()
+				} else if an.Id() == C.Notag {
+					t = ""
+				}
+			}
+			ev[e.CodeOrder()] = enumval{e, i, t}
 		}
 
 		fprintf(w, "%s_%s %s = %d\n", strings.ToUpper(n.name), strings.ToUpper(ev[0].Name()), n.name, ev[0].val)
@@ -123,6 +133,16 @@ func (n *node) defineEnum(w io.Writer) {
 		}
 
 		fprintf(w, ")\n")
+
+		fprintf(w, "func (c %s) String() string {\n", n.name)
+		fprintf(w, "switch c {\n")
+		for _, e := range ev {
+			if e.tag != "" {
+				fprintf(w, "case %s_%s: return \"%s\"\n", strings.ToUpper(n.name), strings.ToUpper(e.Name()), e.tag)
+			}
+		}
+		fprintf(w, "default: return \"\"\n")
+		fprintf(w, "}\n}\n")
 	}
 
 	fprintf(w, "type %s_List C.PointerList\n", n.name)
