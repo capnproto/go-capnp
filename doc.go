@@ -130,7 +130,7 @@ Note that Group accessors just cast the type and so have no overhead
 Unions
 
 Named unions are treated as a group with an inner unnamed union. Unnamed
-unions generate an enum Type_which and a corresponding which() function:
+unions generate an enum Type_Which and a corresponding Which() function:
 
 	struct Foo {
 		union {
@@ -139,10 +139,10 @@ unions generate an enum Type_which and a corresponding which() function:
 		}
 	}
 
-	type Foo_which uint16
+	type Foo_Which uint16
 
 	const (
-		FOO_A Foo_which = 0
+		FOO_A Foo_Which = 0
 		FOO_B           = 1
 	)
 
@@ -150,9 +150,9 @@ unions generate an enum Type_which and a corresponding which() function:
 	func (s Foo) B() bool
 	func (s Foo) SetA(v bool)
 	func (s Foo) SetB(v bool)
-	func (s Foo) which() Foo_which
+	func (s Foo) Which() Foo_Which
 
-which() should be checked before using the getters, and the default case must
+Which() should be checked before using the getters, and the default case must
 always be handled.
 
 Setters for single values will set the union discriminator as well as set the
@@ -207,5 +207,33 @@ In the generated capnp.go file:
 		ELEMENTSIZE_POINTER                     = 6
 		ELEMENTSIZE_INLINECOMPOSITE             = 7
 	)
+
+In addition an enum.String() function is generated that will convert the constants to a string
+for debugging or logging purposes. By default, the enum name is used as the tag value,
+but the tags can be customized with a $Go.tag or $Go.notag annotation.
+
+For example:
+
+	enum ElementSize {
+		empty @0           $Go.tag("void");
+		bit @1             $Go.tag("1 bit");
+		byte @2            $Go.tag("8 bits");
+		inlineComposite @7 $Go.notag;
+	}
+
+In the generated go file:
+
+	func (c ElementSize) String() string {
+		switch c {
+		case ELEMENTSIZE_EMPTY:
+			return "void"
+		case ELEMENTSIZE_BIT:
+			return "1 bit"
+		case ELEMENTSIZE_BYTE:
+			return "8 bits"
+		default:
+			return ""
+		}
+	}
 */
 package capn
