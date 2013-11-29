@@ -172,6 +172,7 @@ func ReadFromMemoryZeroCopy(data []byte) (seg *Segment, bytesRead int64, err err
 		}
 		total += int(sz) * 8
 	}
+	if total == 0 { return nil, 0, io.EOF }
 
 	hdrv := data[4 : (hdrsz+4)]
 	datav := data[hdrsz+4:]
