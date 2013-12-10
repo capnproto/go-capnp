@@ -169,18 +169,22 @@ func (s *Segment) NewPointerList(sz int) PointerList {
 }
 
 func (s *Segment) NewCompositeList(datasz, ptrs, length int) PointerList {
-	flags := uint(0)
 	if datasz < 0 || datasz > maxDataSize || ptrs < 0 || ptrs > maxPtrs {
 		return PointerList{}
 	} else if ptrs > 0 || datasz > 8 {
 		datasz = (datasz + 7) &^ 7
-		flags |= isCompositeList
+		n, _ := s.create(8+length*(datasz+8*ptrs), Object{typ: TypeList, length: length, datasz: datasz, ptrs: ptrs, flags: isCompositeList})
+		n.off += 8
+		hdr := structPointer | uint64(length) << 2 | uint64(datasz/8) << 32 | uint64(ptrs) << 48
+		putLittle64(s.Data[n.off-8:], hdr)
+		return PointerList(n)
 	} else if datasz > 4 {
 		datasz = (datasz + 7) &^ 7
 	} else if datasz > 2 {
 		datasz = (datasz + 3) &^ 3
 	}
-	n, _ := s.create(length*(datasz+8*ptrs), Object{typ: TypeList, length: length, datasz: datasz, ptrs: ptrs, flags: flags})
+
+	n, _ := s.create(length*(datasz+8*ptrs), Object{typ: TypeList, length: length, datasz: datasz, ptrs: ptrs})
 	return PointerList(n)
 }
 
@@ -949,6 +953,7 @@ func (p Object) value(off int) uint64 {
 		return listPointer | d | pointerList<<32 | uint64(p.length)<<35
 	case TypeList:
 		if (p.flags & isCompositeList) != 0 {
+			d -= 1 << 2 // p.off points to the data not the header
 			return listPointer | d | compositeList<<32 | uint64(p.length*(p.datasz/8+p.ptrs))<<35
 		}
 
