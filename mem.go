@@ -47,7 +47,7 @@ func (b *buffer) Lookup(segid uint32) (*Segment, error) {
 	}
 }
 
-type multiBuffer struct {
+type MultiBuffer struct {
 	segments []*Segment
 }
 
@@ -56,7 +56,7 @@ type multiBuffer struct {
 // is insufficient capacity. When parsing an existing message data should be
 // the list of segments. The data buffers will not be copied.
 func NewMultiBuffer(data [][]byte) *Segment {
-	m := &multiBuffer{make([]*Segment, len(data))}
+	m := &MultiBuffer{make([]*Segment, len(data))}
 	for i, d := range data {
 		m.segments[i] = &Segment{m, d, uint32(i)}
 	}
@@ -71,7 +71,7 @@ var (
 	MaxTotalSize     = 1024 * 1024 * 1024
 )
 
-func (m *multiBuffer) NewSegment(minsz int) (*Segment, error) {
+func (m *MultiBuffer) NewSegment(minsz int) (*Segment, error) {
 	for _, s := range m.segments {
 		if len(s.Data)+minsz <= cap(s.Data) {
 			return s, nil
@@ -86,7 +86,7 @@ func (m *multiBuffer) NewSegment(minsz int) (*Segment, error) {
 	return s, nil
 }
 
-func (m *multiBuffer) Lookup(segid uint32) (*Segment, error) {
+func (m *MultiBuffer) Lookup(segid uint32) (*Segment, error) {
 	if uint(segid) < uint(len(m.segments)) {
 		return m.segments[segid], nil
 	} else {
@@ -135,7 +135,7 @@ func ReadFromStream(r io.Reader, buf *bytes.Buffer) (*Segment, error) {
 
 	hdrv := buf.Bytes()[4 : hdrsz+4]
 	datav := buf.Bytes()[hdrsz+4:]
-	m := &multiBuffer{make([]*Segment, segnum)}
+	m := &MultiBuffer{make([]*Segment, segnum)}
 	for i := 0; i < segnum; i++ {
 		sz := int(little32(hdrv[4*i:])) * 8
 		m.segments[i] = &Segment{m, datav[:sz], uint32(i)}
@@ -145,10 +145,9 @@ func ReadFromStream(r io.Reader, buf *bytes.Buffer) (*Segment, error) {
 	return m.segments[0], nil
 }
 
-
-// ReadFromMemoryZeroCopy: like ReadFromStream, but reads a non-packed 
+// ReadFromMemoryZeroCopy: like ReadFromStream, but reads a non-packed
 // serialized stream that already resides in memory in the argument data.
-// The returned segment is the first segment read, which contains 
+// The returned segment is the first segment read, which contains
 // the root pointer. The returned bytesRead says how many bytes were
 // consumed from data in making seg. The caller should advance the
 // data slice by doing data = data[bytesRead:] between successive calls
@@ -162,7 +161,7 @@ func ReadFromMemoryZeroCopy(data []byte) (seg *Segment, bytesRead int64, err err
 	segnum := int(little32(data[0:4]) + 1)
 	hdrsz := 8*(segnum/2) + 4
 
-	b := data[0 : (hdrsz+4)]
+	b := data[0:(hdrsz + 4)]
 
 	total := 0
 	for i := 0; i < segnum; i++ {
@@ -172,20 +171,21 @@ func ReadFromMemoryZeroCopy(data []byte) (seg *Segment, bytesRead int64, err err
 		}
 		total += int(sz) * 8
 	}
-	if total == 0 { return nil, 0, io.EOF }
+	if total == 0 {
+		return nil, 0, io.EOF
+	}
 
-	hdrv := data[4 : (hdrsz+4)]
+	hdrv := data[4:(hdrsz + 4)]
 	datav := data[hdrsz+4:]
-	m := &multiBuffer{make([]*Segment, segnum)}
+	m := &MultiBuffer{make([]*Segment, segnum)}
 	for i := 0; i < segnum; i++ {
 		sz := int(little32(hdrv[4*i:])) * 8
 		m.segments[i] = &Segment{m, datav[:sz], uint32(i)}
 		datav = datav[sz:]
 	}
 
-	return m.segments[0], int64(4+hdrsz+total), nil
+	return m.segments[0], int64(4 + hdrsz + total), nil
 }
-
 
 // WriteTo writes the message that the segment is part of to the
 // provided stream in serialized form.
