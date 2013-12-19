@@ -3,17 +3,18 @@ package main
 import (
 	"bytes"
 	"fmt"
-	C "github.com/jmckaskill/go-capnproto"
 	"io"
 	"math"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
+
+	C "github.com/glycerine/go-capnproto"
 )
 
 var (
-	go_capnproto_import = "github.com/jmckaskill/go-capnproto"
+	go_capnproto_import = "github.com/glycerine/go-capnproto"
 	fprintf             = fmt.Fprintf
 	sprintf             = fmt.Sprintf
 	title               = strings.Title
