@@ -47,7 +47,7 @@ func (b *buffer) Lookup(segid uint32) (*Segment, error) {
 	}
 }
 
-type MultiBuffer struct {
+type multiBuffer struct {
 	segments []*Segment
 }
 
@@ -55,8 +55,8 @@ type MultiBuffer struct {
 // will try and reuse the buffers available, but will create new ones if there
 // is insufficient capacity. When parsing an existing message data should be
 // the list of segments. The data buffers will not be copied.
-func NewMultiBuffer(data [][]byte) *Segment {
-	m := &MultiBuffer{make([]*Segment, len(data))}
+func NewmultiBuffer(data [][]byte) *Segment {
+	m := &multiBuffer{make([]*Segment, len(data))}
 	for i, d := range data {
 		m.segments[i] = &Segment{m, d, uint32(i)}
 	}
@@ -71,7 +71,7 @@ var (
 	MaxTotalSize     = 1024 * 1024 * 1024
 )
 
-func (m *MultiBuffer) NewSegment(minsz int) (*Segment, error) {
+func (m *multiBuffer) NewSegment(minsz int) (*Segment, error) {
 	for _, s := range m.segments {
 		if len(s.Data)+minsz <= cap(s.Data) {
 			return s, nil
@@ -86,7 +86,7 @@ func (m *MultiBuffer) NewSegment(minsz int) (*Segment, error) {
 	return s, nil
 }
 
-func (m *MultiBuffer) Lookup(segid uint32) (*Segment, error) {
+func (m *multiBuffer) Lookup(segid uint32) (*Segment, error) {
 	if uint(segid) < uint(len(m.segments)) {
 		return m.segments[segid], nil
 	} else {
@@ -187,7 +187,7 @@ func ReadFromMemoryZeroCopy(data []byte) (seg *Segment, bytesRead int64, err err
 
 	hdrv := data[4:(hdrsz + 4)]
 	datav := data[hdrsz+4:]
-	m := &MultiBuffer{make([]*Segment, segnum)}
+	m := &multiBuffer{make([]*Segment, segnum)}
 	for i := 0; i < segnum; i++ {
 		sz := int(little32(hdrv[4*i:])) * 8
 		m.segments[i] = &Segment{m, datav[:sz], uint32(i)}
