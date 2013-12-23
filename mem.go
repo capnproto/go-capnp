@@ -154,6 +154,10 @@ func ReadFromStream(r io.Reader, buf *bytes.Buffer) (*Segment, error) {
 // to ReadFromMemoryZeroCopy().
 func ReadFromMemoryZeroCopy(data []byte) (seg *Segment, bytesRead int64, err error) {
 
+	if len(data) < 4 {
+		return nil, 0, io.EOF
+	}
+
 	if little32(data[0:4]) >= uint32(MaxSegmentNumber) {
 		return nil, 0, ErrTooMuchData
 	}
