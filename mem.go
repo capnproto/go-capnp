@@ -135,6 +135,12 @@ func ReadFromStream(r io.Reader, buf *bytes.Buffer) (*Segment, error) {
 
 	hdrv := buf.Bytes()[4 : hdrsz+4]
 	datav := buf.Bytes()[hdrsz+4:]
+
+	if segnum == 1 {
+		sz := int(little32(hdrv)) * 8
+		return NewBuffer(datav[:sz]), nil
+	}
+
 	m := &multiBuffer{make([]*Segment, segnum)}
 	for i := 0; i < segnum; i++ {
 		sz := int(little32(hdrv[4*i:])) * 8
