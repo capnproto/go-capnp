@@ -3,8 +3,9 @@ package capn
 import (
 	"encoding/binary"
 	"errors"
-	"github.com/yasushi-saito/rbtree"
 	"math"
+
+	"github.com/glycerine/rbtree"
 )
 
 var (
