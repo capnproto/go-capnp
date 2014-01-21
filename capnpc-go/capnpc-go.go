@@ -678,7 +678,7 @@ func (n *node) defineStructFuncs(w io.Writer) {
 // For all statements, the json encoder js and the bufio writer b will be in scope.
 // The value will be in scope as s. Some features need to redefine s, like unions.
 // In that case, Make a new block and redeclare s
-func (n *node) defineTypeJsonFunc(w io.Writer) {
+func (n *node) defineTypeJsonFuncs(w io.Writer) {
 	fprintf(w, "func (s %s) WriteJSON(w io.Writer) error {\n", n.name)
 	fprintf(w, `
 		b := bufio.NewWriter(w)
@@ -690,7 +690,10 @@ func (n *node) defineTypeJsonFunc(w io.Writer) {
 		n.jsonStruct(w)
 	}
 
-	fprintf(w, "b.Flush(); return nil\n}\n")
+	fprintf(w, "b.Flush(); return nil\n};\n")
+
+	fprintf(w, "func (s %s) MarshalJSON() ([]byte, error) {\n", n.name)
+	fprintf(w, "b := bytes.Buffer{}; s.WriteJSON(&b); return b.Bytes(), nil };")
 }
 
 func (n *node) jsonEnum(w io.Writer) {
@@ -839,14 +842,14 @@ func main() {
 			case NODE_ANNOTATION:
 			case NODE_ENUM:
 				n.defineEnum(&buf)
-				n.defineTypeJsonFunc(&buf)
+				n.defineTypeJsonFuncs(&buf)
 			case NODE_STRUCT:
 				if !n.Struct().IsGroup() {
 					n.defineStructTypes(&buf, nil)
 					n.defineStructEnums(&buf)
 					n.defineNewStructFunc(&buf)
 					n.defineStructFuncs(&buf)
-					n.defineTypeJsonFunc(&buf)
+					n.defineTypeJsonFuncs(&buf)
 					n.defineStructList(&buf)
 				}
 			}
@@ -865,6 +868,7 @@ func main() {
 			"io"
 			"encoding/json"
 			"bufio"
+			"bytes"
 		`)
 		for imp := range g_imported {
 			fprintf(file, "%s\n", strconv.Quote(imp))
