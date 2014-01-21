@@ -679,6 +679,11 @@ func (n *node) defineStructFuncs(w io.Writer) {
 // The value will be in scope as s. Some features need to redefine s, like unions.
 // In that case, Make a new block and redeclare s
 func (n *node) defineTypeJsonFuncs(w io.Writer) {
+	g_imported["io"] = true
+	g_imported["encoding/json"] = true
+	g_imported["bufio"] = true
+	g_imported["bytes"] = true
+
 	fprintf(w, "func (s %s) WriteJSON(w io.Writer) error {\n", n.name)
 	fprintf(w, `
 		b := bufio.NewWriter(w)
@@ -864,12 +869,6 @@ func main() {
 
 		fprintf(file, "import (\n")
 		fprintf(file, "C \"%s\"\n", go_capnproto_import)
-		fprintf(file, `
-			"io"
-			"encoding/json"
-			"bufio"
-			"bytes"
-		`)
 		for imp := range g_imported {
 			fprintf(file, "%s\n", strconv.Quote(imp))
 		}
