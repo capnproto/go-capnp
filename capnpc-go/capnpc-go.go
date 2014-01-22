@@ -732,22 +732,35 @@ func (f *Field) json(w io.Writer) {
 	switch f.Which() {
 	case FIELD_SLOT:
 		fs := f.Slot()
-		switch fs.Type().Which() {
-		case TYPE_UINT8, TYPE_UINT16, TYPE_UINT32, TYPE_UINT64,
-			TYPE_INT8, TYPE_INT16, TYPE_INT32, TYPE_INT64,
-			TYPE_FLOAT32, TYPE_FLOAT64, TYPE_BOOL, TYPE_TEXT:
-			fprintf(w, `
-			js.Encode(s.%s());
-		`, title(f.Name()))
-		case TYPE_ENUM, TYPE_STRUCT:
-			fprintf(w, "s.%s().WriteJSON(b);", title(f.Name()))
-		}
+		fprintf(w, "{ s := s.%s(); ", title(f.Name()))
+		fs.Type().json(w)
+		fprintf(w, "}; ")
 	case FIELD_GROUP:
 		tid := f.Group().TypeId()
 		n := findNode(tid)
 		fprintf(w, "{ s := s.%s();", title(f.Name()))
 		n.jsonStruct(w)
 		fprintf(w, "};")
+	}
+}
+
+func (t Type) json(w io.Writer) {
+	switch t.Which() {
+	case TYPE_UINT8, TYPE_UINT16, TYPE_UINT32, TYPE_UINT64,
+		TYPE_INT8, TYPE_INT16, TYPE_INT32, TYPE_INT64,
+		TYPE_FLOAT32, TYPE_FLOAT64, TYPE_BOOL, TYPE_TEXT, TYPE_DATA:
+		fprintf(w, "js.Encode(s);")
+	case TYPE_ENUM, TYPE_STRUCT:
+		// since we handle groups at the field level, only named struct types make it in here
+		// so we can just call the named structs json dumper
+		fprintf(w, "s.WriteJSON(b);")
+	case TYPE_LIST:
+		fprintf(w, "{ b.WriteByte('[');")
+		fprintf(w, "for i, s := range s.ToArray() {")
+		fprintf(w, `if i != 0 { b.WriteString(", ")};`)
+		typ := t.List().ElementType()
+		typ.json(w)
+		fprintf(w, "}; b.WriteByte(']'); };")
 	}
 }
 
