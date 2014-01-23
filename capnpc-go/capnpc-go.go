@@ -107,7 +107,12 @@ type enumval struct {
 }
 
 func (n *node) defineEnum(w io.Writer) {
-	fprintf(w, "\ntype %s uint16\n", n.name)
+	for _, a := range n.Annotations().ToArray() {
+		if a.Id() == C.Doc {
+			fprintf(w, "// %s\n", a.Value().Text())
+		}
+	}
+	fprintf(w, "type %s uint16\n", n.name)
 
 	if es := n.Enum().Enumerants(); es.Len() > 0 {
 		fprintf(w, "const (\n")
@@ -354,6 +359,11 @@ func (n *node) defineField(w io.Writer, f Field) {
 
 	var g, s bytes.Buffer
 
+	for _, a := range f.Annotations().ToArray() {
+		if a.Id() == C.Doc {
+			fprintf(&g, "// %s\n", a.Value().Text())
+		}
+	}
 	fprintf(&g, "func (s %s) %s() ", n.name, title(f.Name()))
 	fprintf(&s, "func (s %s) Set%s", n.name, title(f.Name()))
 
@@ -605,10 +615,15 @@ func (n *node) codeOrderFields() []Field {
 func (n *node) defineStructTypes(w io.Writer, baseNode *node) {
 	assert(n.Which() == NODE_STRUCT, "invalid struct node")
 
+	for _, a := range n.Annotations().ToArray() {
+		if a.Id() == C.Doc {
+			fprintf(w, "// %s\n", a.Value().Text())
+		}
+	}
 	if baseNode != nil {
 		fprintf(w, "type %s %s\n", n.name, baseNode.name)
 	} else {
-		fprintf(w, "\ntype %s C.Struct\n", n.name)
+		fprintf(w, "type %s C.Struct\n", n.name)
 		baseNode = n
 	}
 
