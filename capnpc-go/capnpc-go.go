@@ -680,20 +680,26 @@ func (n *node) defineStructFuncs(w io.Writer) {
 // In that case, Make a new block and redeclare s
 func (n *node) defineTypeJsonFuncs(w io.Writer) {
 	g_imported["io"] = true
-	g_imported["encoding/json"] = true
 	g_imported["bufio"] = true
 	g_imported["bytes"] = true
 
-	fprintf(w, "func (s %s) WriteJSON(w io.Writer) error {\n", n.name)
-	fprintf(w, `
-		b := bufio.NewWriter(w)
-		js := json.NewEncoder(b);`)
+	buf := bytes.Buffer{}
+
 	switch n.Which() {
 	case NODE_ENUM:
-		n.jsonEnum(w)
+		n.jsonEnum(&buf)
 	case NODE_STRUCT:
-		n.jsonStruct(w)
+		n.jsonStruct(&buf)
 	}
+
+	fprintf(w, "func (s %s) WriteJSON(w io.Writer) error {\n", n.name)
+	fprintf(w, "b := bufio.NewWriter(w);")
+	if jsUsed {
+		fprintf(w, "js := json.NewEncoder(b);")
+		g_imported["encoding/json"] = true
+		jsUsed = false
+	}
+	io.Copy(w, &buf)
 
 	fprintf(w, "b.Flush(); return nil\n};\n")
 
@@ -702,8 +708,11 @@ func (n *node) defineTypeJsonFuncs(w io.Writer) {
 }
 
 func (n *node) jsonEnum(w io.Writer) {
+	jsUsed = true
 	fprintf(w, `js.Encode(s.String());`)
 }
+
+var jsUsed bool
 
 // Write statements that will write a json struct
 func (n *node) jsonStruct(w io.Writer) {
@@ -749,6 +758,7 @@ func (t Type) json(w io.Writer) {
 	case TYPE_UINT8, TYPE_UINT16, TYPE_UINT32, TYPE_UINT64,
 		TYPE_INT8, TYPE_INT16, TYPE_INT32, TYPE_INT64,
 		TYPE_FLOAT32, TYPE_FLOAT64, TYPE_BOOL, TYPE_TEXT, TYPE_DATA:
+		jsUsed = true
 		fprintf(w, "js.Encode(s);")
 	case TYPE_ENUM, TYPE_STRUCT:
 		// since we handle groups at the field level, only named struct types make it in here
