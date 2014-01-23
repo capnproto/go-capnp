@@ -709,6 +709,7 @@ func (n *node) defineTypeJsonFuncs(w io.Writer) {
 
 	fprintf(w, "func (s %s) WriteJSON(w io.Writer) error {\n", n.name)
 	fprintf(w, "b := bufio.NewWriter(w);")
+	fprintf(w, "var err error;")
 	if jsUsed {
 		fprintf(w, "js := json.NewEncoder(b);")
 		g_imported["encoding/json"] = true
@@ -716,22 +717,28 @@ func (n *node) defineTypeJsonFuncs(w io.Writer) {
 	}
 	io.Copy(w, &buf)
 
-	fprintf(w, "b.Flush(); return nil\n};\n")
+	fprintf(w, "err = b.Flush(); return err\n};\n")
 
 	fprintf(w, "func (s %s) MarshalJSON() ([]byte, error) {\n", n.name)
-	fprintf(w, "b := bytes.Buffer{}; s.WriteJSON(&b); return b.Bytes(), nil };")
+	fprintf(w, "b := bytes.Buffer{}; err := s.WriteJSON(&b); return b.Bytes(), err };")
+}
+
+func writeErrCheck(w io.Writer) {
+	fprintf(w, "if err != nil { return err; };")
 }
 
 func (n *node) jsonEnum(w io.Writer) {
 	jsUsed = true
-	fprintf(w, `js.Encode(s.String());`)
+	fprintf(w, `err = js.Encode(s.String());`)
+	writeErrCheck(w)
 }
 
 var jsUsed bool
 
 // Write statements that will write a json struct
 func (n *node) jsonStruct(w io.Writer) {
-	fprintf(w, `b.WriteByte('{');`)
+	fprintf(w, `err = b.WriteByte('{');`)
+	writeErrCheck(w)
 	for i, f := range n.codeOrderFields() {
 		if f.DiscriminantValue() != 0xFFFF {
 			enumname := fmt.Sprintf("%s_%s", strings.ToUpper(n.name), strings.ToUpper(f.Name()))
@@ -739,16 +746,19 @@ func (n *node) jsonStruct(w io.Writer) {
 		}
 		if i != 0 {
 			fprintf(w, `
-				b.WriteByte(',');
+				err = b.WriteByte(',');
 			`)
+			writeErrCheck(w)
 		}
-		fprintf(w, `b.WriteString("\"%s\":");`, f.Name())
+		fprintf(w, `_, err = b.WriteString("\"%s\":");`, f.Name())
+		writeErrCheck(w)
 		f.json(w)
 		if f.DiscriminantValue() != 0xFFFF {
 			fprintf(w, "};")
 		}
 	}
-	fprintf(w, `b.WriteByte('}');`)
+	fprintf(w, `err = b.WriteByte('}');`)
+	writeErrCheck(w)
 }
 
 // This function writes statements that write the fields json representation to the bufio.
@@ -774,18 +784,23 @@ func (t Type) json(w io.Writer) {
 		TYPE_INT8, TYPE_INT16, TYPE_INT32, TYPE_INT64,
 		TYPE_FLOAT32, TYPE_FLOAT64, TYPE_BOOL, TYPE_TEXT, TYPE_DATA:
 		jsUsed = true
-		fprintf(w, "js.Encode(s);")
+		fprintf(w, "err = js.Encode(s);")
+		writeErrCheck(w)
 	case TYPE_ENUM, TYPE_STRUCT:
 		// since we handle groups at the field level, only named struct types make it in here
 		// so we can just call the named structs json dumper
 		fprintf(w, "s.WriteJSON(b);")
+		writeErrCheck(w)
 	case TYPE_LIST:
-		fprintf(w, "{ b.WriteByte('[');")
+		fprintf(w, "{ err = b.WriteByte('[');")
+		writeErrCheck(w)
 		fprintf(w, "for i, s := range s.ToArray() {")
-		fprintf(w, `if i != 0 { b.WriteString(", ")};`)
+		fprintf(w, `if i != 0 { _, err = b.WriteString(", "); };`)
+		writeErrCheck(w)
 		typ := t.List().ElementType()
 		typ.json(w)
-		fprintf(w, "}; b.WriteByte(']'); };")
+		fprintf(w, "}; err = b.WriteByte(']'); };")
+		writeErrCheck(w)
 	}
 }
 
