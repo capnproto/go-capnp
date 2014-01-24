@@ -789,7 +789,7 @@ func (t Type) json(w io.Writer) {
 	case TYPE_ENUM, TYPE_STRUCT:
 		// since we handle groups at the field level, only named struct types make it in here
 		// so we can just call the named structs json dumper
-		fprintf(w, "s.WriteJSON(b);")
+		fprintf(w, "err = s.WriteJSON(b);")
 		writeErrCheck(w)
 	case TYPE_LIST:
 		fprintf(w, "{ err = b.WriteByte('[');")
