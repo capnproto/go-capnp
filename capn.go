@@ -175,7 +175,7 @@ func (s *Segment) NewCompositeList(datasz, ptrs, length int) PointerList {
 		datasz = (datasz + 7) &^ 7
 		n, _ := s.create(8+length*(datasz+8*ptrs), Object{typ: TypeList, length: length, datasz: datasz, ptrs: ptrs, flags: isCompositeList})
 		n.off += 8
-		hdr := structPointer | uint64(length) << 2 | uint64(datasz/8) << 32 | uint64(ptrs) << 48
+		hdr := structPointer | uint64(length)<<2 | uint64(datasz/8)<<32 | uint64(ptrs)<<48
 		putLittle64(s.Data[n.off-8:], hdr)
 		return PointerList(n)
 	} else if datasz > 4 {

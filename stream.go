@@ -1,13 +1,14 @@
 package capn
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
 	"io"
 )
 
 type Compressor struct {
-	w io.Writer
+	w *bufio.Writer
 }
 
 type Decompressor struct {
@@ -19,14 +20,16 @@ type Decompressor struct {
 }
 
 func NewCompressor(w io.Writer) *Compressor {
-	return &Compressor{w: w}
+	return &Compressor{
+		w: bufio.NewWriter(w),
+	}
 }
 
 // WriteToPacked writes the message that the segment is part of to the
 // provided stream in packed form.
 func (s *Segment) WriteToPacked(w io.Writer) (int64, error) {
-	c := Compressor{w: w}
-	return s.WriteTo(&c)
+	c := NewCompressor(w)
+	return s.WriteTo(c)
 }
 
 func NewDecompressor(r io.Reader) *Decompressor {
@@ -118,40 +121,44 @@ func (c *Decompressor) Read(v []byte) (n int, err error) {
 }
 
 func (c *Compressor) Write(v []byte) (n int, err error) {
-	buf := []byte{}
-
 	if (len(v) % 8) != 0 {
 		return 0, errors.New("capnproto: compressor relies on word aligned data")
 	}
-
+	buf := make([]byte, 0, 8)
 	for n < len(v) {
 		var hdr byte
+		buf = buf[:0]
 		for i, b := range v[n : n+8] {
 			if b != 0 {
 				hdr |= 1 << uint(i)
+				buf = append(buf, b)
 			}
 		}
-
-		buf = append(buf, hdr)
+		err = c.w.WriteByte(hdr)
+		if err != nil {
+			return n, err
+		}
+		_, err = c.w.Write(buf)
+		if err != nil {
+			return n, err
+		}
+		n += 8
 
 		switch hdr {
 		case 0x00:
-			n += 8
-
 			i := 0
 			for n < len(v) && little64(v[n:]) == 0 && i < 0xFF {
 				i++
 				n += 8
 			}
-
-			buf = append(buf, byte(i))
-
+			err = c.w.WriteByte(byte(i))
+			if err != nil {
+				return n, err
+			}
 		case 0xFF:
-			buf = append(buf, v[n:n+8]...)
-			n += 8
-
 			i := n
-			for i < min(len(v), n+0xFF*8) {
+			end := min(len(v), n+0xFF*8)
+			for i < end {
 				zeros := 0
 				for _, b := range v[i : i+8] {
 					if b == 0 {
@@ -159,34 +166,24 @@ func (c *Compressor) Write(v []byte) (n int, err error) {
 					}
 				}
 
-				if zeros < 7 {
+				if zeros > 7 {
 					break
 				}
-
 				i += 8
 			}
 
-			buf = append(buf, byte((i-n)/8))
-			buf = append(buf, v[n:i]...)
-			n = i
-
-		default:
-			for _, b := range v[n : n+8] {
-				if b != 0 {
-					buf = append(buf, b)
-				}
+			rawWords := byte((i - n) / 8)
+			err := c.w.WriteByte(rawWords)
+			if err != nil {
+				return n, err
 			}
-			v = v[8:]
-			n += 8
+			_, err = c.w.Write(v[n:i])
+			if err != nil {
+				return n, err
+			}
+			n = i
 		}
-
 	}
-
-	if w, err := c.w.Write(buf); err != nil {
-		return 0, err
-	} else if w != len(buf) {
-		return 0, io.ErrShortWrite
-	}
-
-	return n, nil
+	err = c.w.Flush()
+	return n, err
 }
