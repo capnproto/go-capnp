@@ -43,6 +43,15 @@ type). capnp schemas that use deeper lists (e.g. List(List(UInt8))) will use
 PointerList and the user will have to use the Object.ToList* functions to cast
 to the correct type.
 
+For adding documentation comments to the generated code, there's the doc
+annotation. This annotation adds the comment to a struct, enum or field so
+that godoc will pick it up. For Example:
+
+	struct Zdate $Go.doc("Zdate represents an instance in time") {
+	  year  @0   :Int16;
+	  month @1   :UInt8;
+	  day   @2   :UInt8 ;
+	}
 
 Structs
 
