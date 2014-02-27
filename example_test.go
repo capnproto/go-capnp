@@ -1,14 +1,13 @@
-package main
+package capn_test
 
 import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
-	"github.com/jmckaskill/go-capnproto"
+	capn "github.com/jmckaskill/go-capnproto"
 )
 
-func main() {
-	// Write
+func ExampleReadFromStream() {
 	s := capn.NewBuffer(nil)
 	d := NewRootZdate(s)
 	d.SetYear(2004)

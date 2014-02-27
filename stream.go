@@ -16,7 +16,6 @@ type Decompressor struct {
 	buf   [8]byte
 	bufsz int
 	zeros int
-	raw   int
 }
 
 func NewCompressor(w io.Writer) *Compressor {
@@ -52,12 +51,6 @@ func min(a, b int) int {
 }
 
 func (c *Decompressor) Read(v []byte) (n int, err error) {
-	if c.raw > 0 {
-		n, err = c.r.Read(v[:min(len(v), c.raw)])
-		c.raw -= n
-		return
-	}
-
 	if c.zeros > 0 {
 		n = min(len(v), c.zeros)
 		for i := range v[:n] {
@@ -68,19 +61,22 @@ func (c *Decompressor) Read(v []byte) (n int, err error) {
 	}
 
 	if c.bufsz > 0 {
-		n = copy(v, c.buf[:c.bufsz])
+		n = copy(v, c.buf[8-c.bufsz:])
 		c.bufsz -= n
 	}
 
 	for n < len(v) {
-		b := [1]byte{}
+		var b [1]byte
 		if _, err = c.r.Read(b[:]); err != nil {
 			return
 		}
 
 		switch b[0] {
 		case 0xFF:
-			io.ReadFull(c.r, c.buf[:])
+			_, err = io.ReadFull(c.r, c.buf[:])
+			if err != nil {
+				return
+			}
 		case 0x00:
 			if _, err = c.r.Read(b[:]); err != nil {
 				return
@@ -93,14 +89,17 @@ func (c *Decompressor) Read(v []byte) (n int, err error) {
 			n += zeros
 		default:
 			ones := 0
-			buf := [8]byte{}
+			var buf [8]byte
 			for i := 0; i < 8; i++ {
 				if (b[0] & (1 << uint(i))) != 0 {
 					ones++
 				}
 			}
 
-			io.ReadFull(c.r, buf[:ones])
+			_, err = io.ReadFull(c.r, buf[:ones])
+			if err != nil {
+				return
+			}
 
 			for i, j := 0, 0; i < 8; i++ {
 				if (b[0] & (1 << uint(i))) != 0 {
