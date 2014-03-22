@@ -747,22 +747,22 @@ func (p PointerList) Set(i int, tgt Object) error {
 		}
 
 		off := p.off + i*(p.datasz+p.ptrs*8)
-		data := p.Segment.Data[off:p.datasz]
+		data := p.Segment.Data[off : off+p.datasz]
 		data = data[copy(data, tgt.Segment.Data[tgt.off:tgt.off+tgt.datasz]):]
 		for j := range data {
 			data[j] = 0
 		}
 
-		j := int(p.ptrs * 8)
-		for ; j > tgt.ptrs*8 && j >= 0; j -= 8 {
-			putLittle64(p.Segment.Data[off+p.datasz+j:], 0)
-		}
-
-		for ; j >= 0; j -= 8 {
-			m := tgt.Segment.readPtr(tgt.off + tgt.datasz + j)
-			if err := p.Segment.writePtr(off+p.datasz+j, m, nil, 0); err != nil {
-				return err
+		for j := 0; j < int(p.ptrs*8); j += 8 {
+			if j < tgt.ptrs*8 {
+				m := tgt.Segment.readPtr(tgt.off + tgt.datasz + j)
+				if err := p.Segment.writePtr(off+p.datasz+j, m, nil, 0); err != nil {
+					return err
+				}
+			} else {
+				putLittle64(p.Segment.Data[off+p.datasz+j:], 0)
 			}
+
 		}
 		return nil
 
