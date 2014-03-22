@@ -944,7 +944,14 @@ func (s *Segment) readPtr(off int) Object {
 }
 
 func (p Object) value(off int) uint64 {
-	d := uint64(p.off/8-off/8-1) << 2
+	// signed 32bits, not unsigned 64.
+	d32 := int32(p.off/8-off/8-1) << 2
+
+	// d in 64-bit read-to-or form must have the high 32 bits all zeroed.
+	var minus1 int32 = -1
+	u32 := uint32(minus1)
+	zerohi32 := uint64(u32)
+	d := uint64(d32) & zerohi32
 
 	switch p.typ {
 	case TypeStruct:
