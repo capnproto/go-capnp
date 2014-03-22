@@ -1,7 +1,7 @@
 using Go = import "go.capnp";
 
 $Go.package("capn_test");
-$Go.import("capn_test");
+$Go.import("go-capnproto/example");
 
 @0x832bcc6686a26d56;
 
@@ -24,8 +24,8 @@ enum Airport {
   luv @4;
   dfw @5;
   test @6; 
-  # test loc must be last because we use it to count
-  # the number of elements in the Airport enum!!
+  # test must be last because we use it to count
+  # the number of elements in the Airport enum.
 }
 
 struct PlaneBase {
