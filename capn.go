@@ -117,6 +117,16 @@ const (
 	hasPointerTag   = 128
 )
 
+// used in orable30BitOffsetPart() and signedOffsetFromStructPointer()
+var zerohi32 uint64
+
+func init() {
+	// initialize zerohi32 once
+	var minus1 int32 = -1
+	u32 := uint32(minus1)
+	zerohi32 = uint64(u32)
+}
+
 func (s *Segment) Root(off int) Object {
 	if off+8 > len(s.Data) {
 		return Object{}
@@ -860,7 +870,8 @@ func (s *Segment) readPtr(off int) Object {
 	// using 32 bit maths as bits or bytes will overflow.
 	switch val & 3 {
 	case structPointer:
-		offw := off/8 + 1 + int(uint32(val)>>2)
+		offw := off/8 + 1 + signedOffsetFromStructPointer(val)
+
 		if offw < 0 || offw >= len(s.Data)/8 {
 			return Object{}
 		}
@@ -880,7 +891,7 @@ func (s *Segment) readPtr(off int) Object {
 		return p
 
 	case listPointer:
-		offw := off/8 + 1 + int(uint32(val))>>2
+		offw := off/8 + 1 + signedOffsetFromStructPointer(val)
 		if offw < 0 || offw >= len(s.Data)/8 {
 			return Object{}
 		}
@@ -943,15 +954,42 @@ func (s *Segment) readPtr(off int) Object {
 	}
 }
 
-func (p Object) value(off int) uint64 {
-	// signed 32bits, not unsigned 64.
-	d32 := int32(p.off/8-off/8-1) << 2
+// orable30BitOffsetPart(): get an or-able value that handles sign
+// conversion. Creates part B in a struct (or list) pointer, leaving
+// parts A, C, and D completely zeroed in the returned uint64.
+//
+// From the spec:
+//
+// lsb                      struct pointer                       msb
+// +-+-----------------------------+---------------+---------------+
+// |A|             B               |       C       |       D       |
+// +-+-----------------------------+---------------+---------------+
+//
+// A (2 bits) = 0, to indicate that this is a struct pointer.
+// B (30 bits) = Offset, in words, from the end of the pointer to the
+//     start of the struct's data section.  Signed.
+// C (16 bits) = Size of the struct's data section, in words.
+// D (16 bits) = Size of the struct's pointer section, in words.
+//
+// (B is the same for list pointers, but C and D have different size
+// and meaning)
+//
+func orable30BitOffsetPart(signedOff int) uint64 {
+	d32 := int32(signedOff) << 2
+	return uint64(d32) & zerohi32
+}
 
-	// d in 64-bit read-to-or form must have the high 32 bits all zeroed.
-	var minus1 int32 = -1
-	u32 := uint32(minus1)
-	zerohi32 := uint64(u32)
-	d := uint64(d32) & zerohi32
+// and convert in the other direction, extracting the count from
+// the B section into an int
+func signedOffsetFromStructPointer(val uint64) int {
+	u64 := uint64(val) & zerohi32
+	u32 := uint32(u64)
+	s32 := int32(u32) >> 2
+	return int(s32)
+}
+
+func (p Object) value(off int) uint64 {
+	d := orable30BitOffsetPart(p.off/8 - off/8 - 1)
 
 	switch p.typ {
 	case TypeStruct:
