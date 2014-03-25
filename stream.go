@@ -51,6 +51,7 @@ func min(a, b int) int {
 }
 
 func (c *Decompressor) Read(v []byte) (n int, err error) {
+	//fmt.Printf("Decompressor.Read() called with address of v[0] at: %p  and len(v)=%d\n", &v[0], len(v))
 	if c.zeros > 0 {
 		n = min(len(v), c.zeros)
 		for i := range v[:n] {
@@ -60,6 +61,10 @@ func (c *Decompressor) Read(v []byte) (n int, err error) {
 		return
 	}
 
+	//	if len(v) > 5 {
+	//		fmt.Printf("address of v[4] is: %p\n", &v[4])
+	//	}
+
 	if c.bufsz > 0 {
 		n = copy(v, c.buf[8-c.bufsz:])
 		c.bufsz -= n
@@ -67,9 +72,11 @@ func (c *Decompressor) Read(v []byte) (n int, err error) {
 
 	for n < len(v) {
 		var b [1]byte
+
 		if _, err = c.r.Read(b[:]); err != nil {
 			return
 		}
+		//fmt.Printf("decompression read byte TAG byte b: %#v\n", b)
 
 		switch b[0] {
 		case 0xFF:
@@ -81,11 +88,17 @@ func (c *Decompressor) Read(v []byte) (n int, err error) {
 			if _, err = c.r.Read(b[:]); err != nil {
 				return
 			}
-			zeros := min(int(b[0]), len(v)-n)
-			for i := range v[n : n+zeros] {
+			//fmt.Printf("decompression read byte Zero-word -1 count byte b: %#v\n", b)
+
+			requestedZeroBytes := (int(b[0]) + 1) * 8
+			zeros := min(requestedZeroBytes, len(v)-n)
+
+			//fmt.Printf("decompression writing zeros to n=%d to n+zeros=%d  &v[0]=%p\n", n, n+zeros, &v[0]) // this next is obliterating out v[4] wierdly
+			//for i := range v[n : n+zeros] { // this is a bug: the range is from 0...zeros, obliterating the already written stuff. not what we want.
+			for i := n; i < n+zeros; i++ {
 				v[i] = 0
 			}
-			c.zeros = int(b[0]) - zeros
+			c.zeros = requestedZeroBytes - zeros
 			n += zeros
 		default:
 			ones := 0
@@ -111,6 +124,7 @@ func (c *Decompressor) Read(v []byte) (n int, err error) {
 			}
 
 			use := copy(v[n:], c.buf[:])
+			//fmt.Printf("decompression copied in %d bytes: %v\n", use, c.buf[:])
 			n += use
 			c.bufsz = 8 - use
 		}
