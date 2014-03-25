@@ -54,8 +54,9 @@ func (c *Decompressor) Read(v []byte) (n int, err error) {
 	//fmt.Printf("Decompressor.Read() called with address of v[0] at: %p  and len(v)=%d\n", &v[0], len(v))
 	if c.zeros > 0 {
 		n = min(len(v), c.zeros)
-		for i := range v[:n] {
-			v[i] = 0
+		x := v[:n]
+		for i := range x {
+			x[i] = 0
 		}
 		c.zeros -= n
 		return
