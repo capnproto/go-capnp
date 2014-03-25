@@ -1,0 +1,2 @@
+#!/bin/bash
+capnp decode --short test.capnp Z
