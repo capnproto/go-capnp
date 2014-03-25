@@ -115,3 +115,44 @@ func CheckAndGetCapnpPath() string {
 
 	return path
 }
+
+// take an already (packed or unpacked, depending on the packed flag) buffer of a serialized segment, and display it
+func CapnpDecodeBuf(buf []byte, capnpExePath string, capnpSchemaFilePath string, typeName string, packed bool) string {
+
+	// set defaults
+	if capnpExePath == "" {
+		capnpExePath = CheckAndGetCapnpPath()
+	}
+
+	if capnpSchemaFilePath == "" {
+		capnpSchemaFilePath = "test.capnp"
+	}
+
+	if typeName == "" {
+		typeName = "Z"
+	}
+
+	cs := []string{"decode", "--short", capnpSchemaFilePath, typeName}
+	if packed {
+		cs = []string{"decode", "--short", "--packed", capnpSchemaFilePath, typeName}
+	}
+	cmd := exec.Command(capnpExePath, cs...)
+	cmdline := capnpExePath + " " + strings.Join(cs, " ")
+
+	cmd.Stdin = bytes.NewReader(buf)
+
+	var errout bytes.Buffer
+	cmd.Stderr = &errout
+
+	bs, err := cmd.Output()
+	if err != nil {
+		if err.Error() == "exit status 1" {
+			cwd, _ := os.Getwd()
+			fmt.Fprintf(os.Stderr, "\nCall to capnp in CapnpDecodeBuf(): '%s' in dir '%s' failed with status 1\n", cmdline, cwd)
+			fmt.Printf("stderr: '%s'\n", string(errout.Bytes()))
+			fmt.Printf("stdout: '%s'\n", string(bs))
+		}
+		panic(err)
+	}
+	return strings.TrimSpace(string(bs))
+}
