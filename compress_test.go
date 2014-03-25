@@ -2,7 +2,7 @@ package capn_test
 
 import (
 	"bytes"
-	"github.com/jmckaskill/go-capnproto"
+	"github.com/glycerine/go-capnproto"
 	"io/ioutil"
 	"testing"
 )

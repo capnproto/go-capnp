@@ -3,10 +3,11 @@ package capn_test
 import (
 	"bytes"
 	"flag"
-	capn "github.com/jmckaskill/go-capnproto"
 	"io"
 	"io/ioutil"
 	"testing"
+
+	capn "github.com/glycerine/go-capnproto"
 )
 
 var benchForever bool

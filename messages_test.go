@@ -6,7 +6,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	C "github.com/jmckaskill/go-capnproto"
+	C "github.com/glycerine/go-capnproto"
 	"io"
 	"unsafe"
 )

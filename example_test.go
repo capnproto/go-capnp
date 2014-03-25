@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
-	capn "github.com/jmckaskill/go-capnproto"
+	capn "github.com/glycerine/go-capnproto"
 )
 
 func ExampleReadFromStream() {

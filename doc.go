@@ -16,9 +16,9 @@ and is used to generate import statement from other packages and to detect
 when two types are in the same package. Typically these are added as file
 annotations. For example:
 
-	using Go = import "github.com/jmckaskill/go-capnproto/go.capnp";
+	using Go = import "github.com/glycerine/go-capnproto/go.capnp";
 	$Go.package("main");
-	$Go.import("github.com/jmckaskill/go-capnproto/example");
+	$Go.import("github.com/glycerine/go-capnproto/example");
 
 In capnproto a Message is the logical data unit. It may consist of a number of
 segments to allow easier allocation. All objects are values with pointer

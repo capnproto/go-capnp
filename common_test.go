@@ -2,7 +2,7 @@ package capn_test
 
 import (
 	"bytes"
-	capn "github.com/jmckaskill/go-capnproto"
+	capn "github.com/glycerine/go-capnproto"
 )
 
 func zdateReader(n int, packed bool) *bytes.Reader {
