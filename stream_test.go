@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	capn "github.com/glycerine/go-capnproto"
-	//cv "github.com/smartystreets/goconvey/convey"
+	cv "github.com/smartystreets/goconvey/convey"
 )
 
 var benchForever bool
@@ -43,7 +43,7 @@ func TestReadFromStream(t *testing.T) {
 }
 
 func TestDecompressorZdate(t *testing.T) {
-	const n = 10
+	const n = 2
 
 	r := zdateReader(n, false)
 	expected, err := ioutil.ReadAll(r)
@@ -61,6 +61,149 @@ func TestDecompressorZdate(t *testing.T) {
 		fmt.Printf("expected to get: '%s'\n actually observed instead: '%s'\n", expected, actual)
 		t.Fatal("decompressor failed")
 	}
+}
+
+/*
+func TestDecompressorZdate2(t *testing.T) {
+	const n = 1
+
+	r := zdateReader(n, false)
+	expected, err := ioutil.ReadAll(r)
+	if err != nil {
+		t.Fatalf("ReadAll: %v", err)
+	}
+	fmt.Printf("expected is '%#v'\n", expected)
+	// prints: expected is '[]byte{0x0, 0x0, 0x0, 0x0, 0x6, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x2, 0x0, 0x1, 0x0, 0x25, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, 0x0, 0x0, 0x0, 0xc, 0x0, 0x0, 0x0, 0xd4, 0x7, 0xc, 0x7, 0x0, 0x0, 0x0, 0x0, 0xd4, 0x7, 0xc, 0x7, 0x0, 0x0, 0x0, 0x0}'
+
+	eDecode := CapnpDecodeBuf(expected, "", "", "Z", false)
+	fmt.Printf("expected decoded is: '%s'\n", eDecode)
+
+	_, byteSlice := zdateFilledSegment(n, true)
+	//r = zdateReader(n, true)
+
+	// save byteSlice to file, seems capnp is crashing on it?
+	f, err := os.Create("packed.byteslice.dat")
+	if err != nil {
+		panic(err)
+	}
+	f.Write(byteSlice)
+	f.Close()
+
+	fmt.Printf("byteSlice of packed one-Zdate ZdateVector is: '%#v' of len %d\n", byteSlice, len(byteSlice))
+	// byteSlice of packed one-Zdate ZdateVector is: '[]byte{
+	// 0x10, 0x6, 0x50, 0x2, 0x1, 0x1, 0x25, 0x0, 0x0, 0x11, 0x1, 0xc, 0xf, 0xd4, 0x7, 0xc, 0x7, 0xf, 0xd4, 0x7, 0xc, 0x7}' of len 22
+	// note that it has the last 5 bytes duplicated again at the end, which is wrong packing compared to capnp encode --packed packing.
+
+	// but the capnp compression of the same data is:
+	// cat packed.byteslice.dat   | capnp decode --packed --short test.capnp Z | capnp encode --packed test.capnp Z  > capnp.packed.one.zdate.vector.dat
+	capnpPacked, err := os.Open("capnp.packed.one.zdate.vector.dat")
+	if err != nil {
+		panic(err)
+	}
+	capnpPackedBytes, err := ioutil.ReadAll(capnpPacked)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("from capnpPacked, byteSlice of packed one-Zdate ZdateVector is: '%#v' of len %d\n", capnpPackedBytes, len(capnpPackedBytes))
+	// prints from capnpPacked, byteSlice of packed one-Zdate ZdateVector is: '[]byte{
+	// 0x10, 0x5, 0x50, 0x2, 0x1, 0x1, 0x25, 0x0, 0x0, 0x11, 0x1, 0xc, 0xf, 0xd4, 0x7, 0xc, 0x7}' of len 17
+
+	// check the packing-- is it wrong? no looks okay on creation.
+	actDecode := CapnpDecodeBuf(byteSlice, "", "", "Z", true)
+	fmt.Printf("packed byteSlice decoded is: '%s'\n", actDecode)
+
+	if actDecode != eDecode {
+		msg := "actual actDecode does not match expected eDecode from packed.\n"
+		fmt.Printf(msg)
+		panic(msg)
+	} else {
+		fmt.Printf("actual actDecode matches expected eDecode from packed.\n")
+	}
+
+	fmt.Printf("\nbytesSlice is %#v\n", byteSlice)
+	r = bytes.NewReader(byteSlice)
+	actual, err := ioutil.ReadAll(capn.NewDecompressor(r))
+	if err != nil {
+		t.Fatalf("ReadAll: %v", err)
+	}
+
+	fmt.Printf("actual = %#v\n", actual)
+
+	f, err = os.Create("decoded.from.packed.dat")
+	if err != nil {
+		panic(err)
+	}
+	nbytes, err := io.Copy(f, bytes.NewReader(actual))
+	if err != nil {
+		panic(err)
+	}
+	if nbytes <= 0 {
+		panic(fmt.Sprintf("no bytes written to decoded.from.packed.dat"))
+	}
+	f.Close()
+
+	if !bytes.Equal(expected, actual) {
+		fmt.Printf("expected to get   : '%s'\n actually observed: '%s'\n", expected, actual)
+	}
+
+	//fmt.Printf("actual decoded is: '%s'\n", CapnpDecodeBuf(actual, "", "", "Z", true)) // corruption detected here.
+	// seeing src/kj/io.c++:40: requirement not met: expected n >= minBytes; Premature EOF
+	// expected to get   : `\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00%\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\d324\x00\x00\x00\x00\d324\x00\x00\x00\x00`
+	//  actually observed: `\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00%\x00\x00\x00\x00\x00\x00\x00(8B of 0 missing at (0-)byte 24)\x00\x00\x00\x00\x00\x00\d324\x00\x00\x00\x00\d324\x00\x00\x00\x00`
+
+	if !bytes.Equal(expected, actual) {
+		t.Fatal("decompressor failed")
+	}
+}
+*/
+
+func TestDecodeOnKnownWellPackedData(t *testing.T) {
+
+	// generate expected from
+	// cat capnp.packed.one.zdate.vector.dat | capnp decode --packed --short test.capnp Z | capnp encode test.capnp Z  > capnp.unpacked.one.zdate.vector.dat
+	//capnpUnpacked, err := os.Open("capnp.unpacked.one.zdate.vector.dat")
+	//if err != nil {
+	//   panic(err)
+	//}
+	//capnpUnpackedBytes, err := ioutil.ReadAll(capnpUnpacked)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//fmt.Printf("capnpUnpacked generation cmd: cat capnp.packed.one.zdate.vector.dat | capnp decode --packed --short test.capnp Z | capnp encode test.capnp Z  > capnp.unpacked.one.zdate.vector.dat\n")
+	//fmt.Printf("from capnpUnpacked, byteSlice of packed one-Zdate ZdateVector is: '%#v' of len %d\n", capnpUnpackedBytes, len(capnpUnpackedBytes))
+	// prints from capnpUnpacked, byteSlice of packed one-Zdate ZdateVector is: '[]byte{0x0, 0x0, 0x0, 0x0, 0x5, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x2, 0x0, 0x1, 0x0, 0x25, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, 0x0, 0x0, 0x0, 0xc, 0x0, 0x0, 0x0, 0xd4, 0x7, 0xc, 0x7, 0x0, 0x0, 0x0, 0x0}' of len 48
+
+	// length 17
+	byteSliceIn := []byte{0x10, 0x5, 0x50, 0x2, 0x1, 0x1, 0x25, 0x0, 0x0, 0x11, 0x1, 0xc, 0xf, 0xd4, 0x7, 0xc, 0x7}
+	fmt.Printf("len of byteSliceIn is %d\n", len(byteSliceIn))
+	// annotated: byteSliceIn := []byte{tag:0x10, 0x5, tag:0x50, 0x2, 0x1, tag:0x1, 0x25, tag:0x0, 0x0, tag:0x11, 0x1, 0xc, tag:0xf, 0xd4, 0x7, 0xc, 0x7}
+
+	// length 48
+	expectedOut := []byte{0x0, 0x0, 0x0, 0x0, 0x5, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x2, 0x0, 0x1, 0x0, 0x25, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, 0x0, 0x0, 0x0, 0xc, 0x0, 0x0, 0x0, 0xd4, 0x7, 0xc, 0x7, 0x0, 0x0, 0x0, 0x0}
+
+	//fmt.Printf("len of expectedOut is %d\n", len(expectedOut))
+
+	//fmt.Printf("\nbytesSlice is %#v\n", byteSliceIn)
+	r := bytes.NewReader(byteSliceIn)
+	actual, err := ioutil.ReadAll(capn.NewDecompressor(r))
+	if err != nil {
+		panic(err)
+	}
+
+	// length 40, missing 8 bytes upon expansion: looks the the 0x00 0x00 isn't being expanded into a word of zeros properly
+	//	fmt.Printf("len of actual is %d\n", len(actual))
+	//	fmt.Printf("actual is %#v\n", actual)
+	// actual is []byte{0x0, 0x0, 0x0, 0x0, 0x5, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x2, 0x0, 0x1, 0x0, 0x25, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, 0x0, 0x0, 0x0, 0xc, 0x0, 0x0, 0x0, 0xd4, 0x7, 0xc, 0x7, 0x0, 0x0, 0x0, 0x0}
+
+	cv.Convey("Given a known-to-be-correctly packed 17-byte long sequence for a ZdateVector holding a single Zdate", t, func() {
+		cv.Convey("When we use go-capnproto NewDecompressor", func() {
+			cv.Convey("Then we should get the same unpacked bytes as capnp provides", func() {
+				cv.So(len(actual), cv.ShouldResemble, len(expectedOut))
+				cv.So(actual, cv.ShouldResemble, expectedOut)
+			})
+		})
+	})
+
 }
 
 var compressionTests = []struct {
