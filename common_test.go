@@ -10,14 +10,16 @@ func zdateFilledSegment(n int, packed bool) (*capn.Segment, []byte) {
 	seg := capn.NewBuffer(nil)
 	z := NewRootZ(seg)
 	list := NewZdateList(seg, n)
-	plist := capn.PointerList(list)
+	// hand added a Set() method to messages_test.go, so plist not needed
+	// plist := capn.PointerList(list)
 
 	for i := 0; i < n; i++ {
 		d := NewZdate(seg)
 		d.SetMonth(12)
 		d.SetDay(7)
 		d.SetYear(int16(2004 + i))
-		plist.Set(i, capn.Object(d))
+		//plist.Set(i, capn.Object(d))
+		list.Set(i, d)
 	}
 	z.SetZdatevec(list)
 
