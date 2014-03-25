@@ -92,13 +92,38 @@ func TestDecompressorZdate2(t *testing.T) {
 	f.Close()
 	fmt.Printf("TestDecompressorZdate2(): wroted packed bytes out to file '%s'\n", fnout)
 
+	fn := "zdate2.unpacked.dat"
+	capnpUn, err := os.Open(fn)
+	if err != nil {
+		panic(err)
+	}
+	capnpUnBytes, err := ioutil.ReadAll(capnpUn)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("\nfrom %s: capnpUnBytes: '%#v' of len %d\n", fn, capnpUnBytes, len(capnpUnBytes))
+	// capnpUnBytes is the expected values, *for real*
+
 	actual, err := ioutil.ReadAll(capn.NewDecompressor(r))
 	if err != nil {
 		t.Fatalf("ReadAll: %v", err)
 	}
 
+	cv.Convey("Given the []byte slice from a capnp conversion from packed to unpacked form of a two Zdate vector", t, func() {
+		cv.Convey("When we use go-capnproto NewDecompressor", func() {
+			cv.Convey("Then we should get the same unpacked bytes as capnp provides", func() {
+				cv.So(len(actual), cv.ShouldResemble, len(capnpUnBytes))
+				cv.So(actual, cv.ShouldResemble, capnpUnBytes)
+			})
+			cv.Convey("Then we expect that the go-capnproto should produce the same unpacked bytes as the capnp (c++ original)", func() {
+				cv.So(len(expected), cv.ShouldResemble, len(capnpUnBytes))
+				cv.So(expected, cv.ShouldResemble, capnpUnBytes)
+			})
+		})
+	})
+
 	if !bytes.Equal(expected, actual) {
-		fmt.Printf("expected to get: '%s'\n actually observed instead: '%s'\n", expected, actual)
+		fmt.Printf("expected to get: '%#v' (len: %d)\n actually observed instead: '%#v' (len %d)\n", expected, len(expected), actual, len(actual))
 		t.Fatal("decompressor failed")
 	}
 }
