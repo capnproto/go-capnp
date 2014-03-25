@@ -129,6 +129,7 @@ struct Z {
     a320              @35: A320;
     f16               @36: F16;
     zdatevec          @37: List(Zdate);
+    zdatavec          @38: List(Zdata);
   }
 }
 

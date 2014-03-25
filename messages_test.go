@@ -377,6 +377,7 @@ const (
 	Z_A320                = 35
 	Z_F16                 = 36
 	Z_ZDATEVEC            = 37
+	Z_ZDATAVEC            = 38
 )
 
 func NewZ(s *C.Segment) Z             { return Z(s.NewStruct(16, 1)) }
@@ -466,6 +467,8 @@ func (s Z) F16() F16                 { return F16(C.Struct(s).GetObject(0).ToStr
 func (s Z) SetF16(v F16)             { C.Struct(s).Set16(0, 36); C.Struct(s).SetObject(0, C.Object(v)) }
 func (s Z) Zdatevec() Zdate_List     { return Zdate_List(C.Struct(s).GetObject(0)) }
 func (s Z) SetZdatevec(v Zdate_List) { C.Struct(s).Set16(0, 37); C.Struct(s).SetObject(0, C.Object(v)) }
+func (s Z) Zdatavec() Zdata_List     { return Zdata_List(C.Struct(s).GetObject(0)) }
+func (s Z) SetZdatavec(v Zdata_List) { C.Struct(s).Set16(0, 38); C.Struct(s).SetObject(0, C.Object(v)) }
 
 type Z_List C.PointerList
 
