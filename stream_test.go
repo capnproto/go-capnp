@@ -3,6 +3,7 @@ package capn_test
 import (
 	"bytes"
 	"flag"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"testing"
@@ -21,13 +22,19 @@ func init() {
 func TestReadFromStream(t *testing.T) {
 	const n = 10
 	r := zdateReader(n, false)
+	s, err := capn.ReadFromStream(r, nil)
+	if err != nil {
+		t.Fatalf("ReadFromStream: %v", err)
+	}
+	z := ReadRootZ(s)
+	if z.Which() != Z_ZDATEVEC {
+		panic("expected Z_ZDATEVEC in root Z of segment")
+	}
+	zdatelist := z.Zdatevec()
+
 	for i := 0; i < n; i++ {
-		s, err := capn.ReadFromStream(r, nil)
-		if err != nil {
-			t.Fatalf("ReadFromStream: %v", err)
-		}
-		m := ReadRootZdate(s)
-		js, err := m.MarshalJSON()
+		zdate := zdatelist.At(i)
+		js, err := zdate.MarshalJSON()
 		if err != nil {
 			t.Fatalf("MarshalJSON: %v", err)
 		}
@@ -51,6 +58,7 @@ func TestDecompressorZdate(t *testing.T) {
 	}
 
 	if !bytes.Equal(expected, actual) {
+		fmt.Printf("expected to get: '%s'\n actually observed instead: '%s'\n", expected, actual)
 		t.Fatal("decompressor failed")
 	}
 }
