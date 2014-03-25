@@ -15,8 +15,8 @@ import (
 
 // some generally useful capnp/segment utilities
 
-// shell out to display capnp bytes as human-readable text
-// in-memory capn segment -> stdin to capnp decode -> stdout human-readble string form
+// shell out to display capnp bytes as human-readable text. Data flow:
+//    in-memory capn segment -> stdin to capnp decode -> stdout human-readble string form
 func CapnpDecodeSegment(seg *capn.Segment, capnpExePath string, capnpSchemaFilePath string, typeName string) string {
 
 	// set defaults
@@ -57,6 +57,7 @@ func CapnpDecodeSegment(seg *capn.Segment, capnpExePath string, capnpSchemaFileP
 	return strings.TrimSpace(string(bs))
 }
 
+// reduce boilerplate, dump this segment to disk.
 func SegToFile(seg *capn.Segment, filePath string) {
 	file, err := os.Create(filePath)
 	if err != nil {
@@ -94,11 +95,11 @@ func CapnFileToText(serializedCapnpFilePathToDisplay string, capnpSchemaFilePath
 	return CapnpDecodeSegment(seg, capnpExePath, capnpSchemaFilePath, "Z"), nil
 }
 
-// return path to capnp if which can find it. Feel free to override with more
-// general configuration mechanism.
+// return path to capnp if 'which' can find it. Feel free to replace this with
+//   a more general configuration mechanism.
 func CheckAndGetCapnpPath() string {
 
-	whichCmd := exec.Command("/usr/bin/which", "capnp")
+	whichCmd := exec.Command("which", "capnp")
 	wbs, err := whichCmd.Output()
 	if err != nil {
 		panic("could not locate capnp with /usr/bin/which; put the capnp executable in your path; e.g /usr/local/bin/capnp")
