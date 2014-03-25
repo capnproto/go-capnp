@@ -8,17 +8,24 @@ import (
 
 func zdateFilledSegment(n int, packed bool) (*capn.Segment, []byte) {
 	seg := capn.NewBuffer(nil)
-	d := NewRootZdate(seg)
-	d.SetMonth(12)
-	d.SetDay(7)
-	buf := bytes.Buffer{}
+	z := NewRootZ(seg)
+	list := NewZdateList(seg, n)
+	plist := capn.PointerList(list)
+
 	for i := 0; i < n; i++ {
+		d := NewZdate(seg)
+		d.SetMonth(12)
+		d.SetDay(7)
 		d.SetYear(int16(2004 + i))
-		if packed {
-			seg.WriteToPacked(&buf)
-		} else {
-			seg.WriteTo(&buf)
-		}
+		plist.Set(i, capn.Object(d))
+	}
+	z.SetZdatevec(list)
+
+	buf := bytes.Buffer{}
+	if packed {
+		seg.WriteToPacked(&buf)
+	} else {
+		seg.WriteTo(&buf)
 	}
 	return seg, buf.Bytes()
 }
