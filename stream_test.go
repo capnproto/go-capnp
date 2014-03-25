@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 	"testing"
 
 	capn "github.com/glycerine/go-capnproto"
@@ -42,8 +43,8 @@ func TestReadFromStream(t *testing.T) {
 	}
 }
 
-func TestDecompressorZdate(t *testing.T) {
-	const n = 2
+func TestDecompressorZdate1(t *testing.T) {
+	const n = 1
 
 	r := zdateReader(n, false)
 	expected, err := ioutil.ReadAll(r)
@@ -52,6 +53,45 @@ func TestDecompressorZdate(t *testing.T) {
 	}
 
 	r = zdateReader(n, true)
+	actual, err := ioutil.ReadAll(capn.NewDecompressor(r))
+	if err != nil {
+		t.Fatalf("ReadAll: %v", err)
+	}
+
+	if !bytes.Equal(expected, actual) {
+		fmt.Printf("expected to get: '%s'\n actually observed instead: '%s'\n", expected, actual)
+		t.Fatal("decompressor failed")
+	}
+}
+
+func TestDecompressorZdate2(t *testing.T) {
+	const n = 2
+
+	r := zdateReader(n, false)
+	expected, err := ioutil.ReadAll(r)
+	if err != nil {
+		t.Fatalf("ReadAll: %v", err)
+	}
+
+	//r = zdateReader(n, true)
+	_, slice := zdateFilledSegment(n, true)
+	r = bytes.NewReader(slice)
+
+	fnout := "zdate2.packed.dat"
+	f, err := os.Create(fnout)
+	if err != nil {
+		panic(err)
+	}
+	nbytes, err := io.Copy(f, bytes.NewReader(slice))
+	if err != nil {
+		panic(err)
+	}
+	if nbytes <= 0 {
+		panic(fmt.Sprintf(fmt.Sprintf("no bytes written to '%s'", fnout)))
+	}
+	f.Close()
+	fmt.Printf("TestDecompressorZdate2(): wroted packed bytes out to file '%s'\n", fnout)
+
 	actual, err := ioutil.ReadAll(capn.NewDecompressor(r))
 	if err != nil {
 		t.Fatalf("ReadAll: %v", err)
