@@ -59,6 +59,25 @@ func TestCreationOfManyZDatePacked(t *testing.T) {
 	})
 }
 
+func TestSegmentWriteToPackedOfManyZDatePacked(t *testing.T) {
+	const n = 10
+	packed := true
+	_, byteSlice := zdateFilledSegment(n, packed)
+
+	// check the packing-- is it wrong?
+	text := CapnpDecodeBuf(byteSlice, "", "", "Z", true)
+
+	expectedText := `(zdatevec = [(year = 2004, month = 12, day = 7), (year = 2005, month = 12, day = 7), (year = 2006, month = 12, day = 7), (year = 2007, month = 12, day = 7), (year = 2008, month = 12, day = 7), (year = 2009, month = 12, day = 7), (year = 2010, month = 12, day = 7), (year = 2011, month = 12, day = 7), (year = 2012, month = 12, day = 7), (year = 2013, month = 12, day = 7)])`
+
+	cv.Convey("Given a go-capnproto write packed with WriteToPacked() with 10 Zdate", t, func() {
+		cv.Convey("When we decode it with capnp", func() {
+			cv.Convey(fmt.Sprintf("Then we should get the expected text '%s'", expectedText), func() {
+				cv.So(text, cv.ShouldEqual, expectedText)
+			})
+		})
+	})
+}
+
 /// now for Zdata (not Zdate)
 
 func TestCreationOfZData(t *testing.T) {
