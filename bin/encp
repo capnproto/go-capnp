@@ -1,2 +1,2 @@
 #!/bin/bash
-capnp encode --packed --short test.capnp Z
+capnp encode --packed test.capnp Z
