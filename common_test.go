@@ -39,12 +39,16 @@ func zdateReader(n int, packed bool) *bytes.Reader {
 
 func zdataFilledSegment(n int) (*capn.Segment, []byte) {
 	seg := capn.NewBuffer(nil)
-	d := NewRootZdata(seg)
+	z := NewRootZ(seg)
+	d := NewZdata(seg)
+
 	b := make([]byte, n)
 	for i := 0; i < len(b); i++ {
 		b[i] = byte(i)
 	}
 	d.SetData(b)
+	z.SetZdata(d)
+
 	buf := bytes.Buffer{}
 	seg.WriteTo(&buf)
 	return seg, buf.Bytes()
