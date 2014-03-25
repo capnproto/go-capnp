@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	capn "github.com/glycerine/go-capnproto"
+	//cv "github.com/smartystreets/goconvey/convey"
 )
 
 var benchForever bool
