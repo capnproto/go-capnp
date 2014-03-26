@@ -37,6 +37,30 @@ func zdateReader(n int, packed bool) *bytes.Reader {
 	return bytes.NewReader(byteSlice)
 }
 
+// actually return n segments back-to-back.
+// WriteTo will automatically add the stream header word with message length.
+//
+func zdateReaderNBackToBack(n int, packed bool) *bytes.Reader {
+
+	buf := bytes.Buffer{}
+
+	for i := 0; i < n; i++ {
+		seg := capn.NewBuffer(nil)
+		d := NewRootZdate(seg)
+		d.SetMonth(12)
+		d.SetDay(7)
+		d.SetYear(int16(2004 + i))
+
+		if packed {
+			seg.WriteToPacked(&buf)
+		} else {
+			seg.WriteTo(&buf)
+		}
+	}
+
+	return bytes.NewReader(buf.Bytes())
+}
+
 func zdataFilledSegment(n int) (*capn.Segment, []byte) {
 	seg := capn.NewBuffer(nil)
 	z := NewRootZ(seg)
