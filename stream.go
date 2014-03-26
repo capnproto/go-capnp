@@ -42,6 +42,7 @@ type Decompressor struct {
 
 // externally available flag for compiling with debug info on/off
 const VerboseDecomp = false
+const VerboseCompress = false
 
 func NewCompressor(w io.Writer) *Compressor {
 	return &Compressor{
@@ -264,14 +265,15 @@ func (c *Decompressor) Read(v []byte) (n int, err error) {
 }
 
 func (c *Compressor) Write(v []byte) (n int, err error) {
-	if (len(v) % 8) != 0 {
+	origVlen := len(v)
+	if (origVlen % 8) != 0 {
 		return 0, errors.New("capnproto: compressor relies on word aligned data")
 	}
 	buf := make([]byte, 0, 8)
-	for n < len(v) {
+	for len(v) > 0 {
 		var hdr byte
 		buf = buf[:0]
-		for i, b := range v[n : n+8] {
+		for i, b := range v[:8] {
 			if b != 0 {
 				hdr |= 1 << uint(i)
 				buf = append(buf, b)
@@ -286,21 +288,23 @@ func (c *Compressor) Write(v []byte) (n int, err error) {
 			return n, err
 		}
 		n += 8
+		v = v[8:]
 
 		switch hdr {
 		case 0x00:
 			i := 0
-			for n < len(v) && little64(v[n:]) == 0 && i < 0xFF {
+			for len(v) > 0 && little64(v) == 0 && i < 0xFF {
 				i++
 				n += 8
+				v = v[8:]
 			}
 			err = c.w.WriteByte(byte(i))
 			if err != nil {
 				return n, err
 			}
 		case 0xFF:
-			i := n
-			end := min(len(v), n+0xFF*8)
+			i := 0
+			end := min(len(v), 0xFF*8)
 			for i < end {
 				zeros := 0
 				for _, b := range v[i : i+8] {
@@ -309,22 +313,23 @@ func (c *Compressor) Write(v []byte) (n int, err error) {
 					}
 				}
 
-				if zeros > 7 {
+				if zeros > 1 {
 					break
 				}
 				i += 8
 			}
 
-			rawWords := byte((i - n) / 8)
+			rawWords := byte(i / 8)
 			err := c.w.WriteByte(rawWords)
 			if err != nil {
 				return n, err
 			}
-			_, err = c.w.Write(v[n:i])
+			_, err = c.w.Write(v[:i])
 			if err != nil {
 				return n, err
 			}
-			n = i
+			n += i
+			v = v[i:]
 		}
 	}
 	err = c.w.Flush()

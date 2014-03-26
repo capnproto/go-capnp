@@ -254,6 +254,21 @@ func TestCompressor(t *testing.T) {
 	}
 }
 
+func TestCompressor7(t *testing.T) {
+	i := 7
+	test := compressionTests[i]
+	var buf bytes.Buffer
+	c := capn.NewCompressor(&buf)
+
+	fmt.Printf("compressing test.original = %#v\n", test.original)
+
+	c.Write(test.original)
+	if !bytes.Equal(test.compressed, buf.Bytes()) {
+		t.Errorf("test:%d: failed", i)
+		fmt.Printf("   test.original = %#v\n test.compressed = %#v\n    buf.Bytes() =  %#v\n", test.original, test.compressed, buf.Bytes())
+	}
+}
+
 func TestDecompressor(t *testing.T) {
 	errCount := 0
 	for i, test := range compressionTests {
