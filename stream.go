@@ -40,6 +40,9 @@ type Decompressor struct {
 	state DecompParseState
 }
 
+// externally available flag for compiling with debug info on/off
+const VerboseDecomp = false
+
 func NewCompressor(w io.Writer) *Compressor {
 	return &Compressor{
 		w: bufio.NewWriter(w),
@@ -87,7 +90,9 @@ func (c *Decompressor) Read(v []byte) (n int, err error) {
 		case S_RAW:
 			if c.raw > 0 {
 				bytesRead, err = c.r.Read(v[:min(len(v), c.raw)])
-				fmt.Printf("decompression copied in %d raw bytes: %v\n", bytesRead, v[:bytesRead])
+				if VerboseDecomp {
+					fmt.Printf("decompression copied in %d raw bytes: %v\n", bytesRead, v[:bytesRead])
+				}
 				c.raw -= bytesRead
 				v = v[bytesRead:]
 				n += bytesRead
@@ -106,41 +111,39 @@ func (c *Decompressor) Read(v []byte) (n int, err error) {
 			}
 			// invar: c.ffBufUsedCount < 8
 
-			// first empty any residual in buffer but not yet given to v
-			// since these bytes are first in line to go.
-			if c.ffBufLoadCount > c.ffBufUsedCount {
+			// before reading more from r, first empty any residual in buffer. Such
+			// bytes were already read from r, are now
+			// waiting in c.ffBuf, and have not yet been given to v: so
+			// these bytes are first in line to go.
+			if c.ffBufUsedCount < c.ffBufLoadCount {
 				br := copy(v, c.ffBuf[c.ffBufUsedCount:c.ffBufLoadCount])
+				if VerboseDecomp {
+					fmt.Printf("decompression copied in %d bytes: %v\n", br, v[:br])
+				}
 				c.ffBufUsedCount += br
 				v = v[br:]
 				n += br
-				if c.ffBufUsedCount == 8 {
-					c.state = S_READN
-					continue
-				}
 			}
+			if c.ffBufUsedCount >= 8 {
+				c.state = S_READN
+				continue
+			}
+			// invar: c.ffBufUsedCount < 8
 
-			// io.ReadFull, try to read exactly 8 - cc.ffBufLoadCount bytes
+			// io.ReadFull, try to read exactly (8 - cc.ffBufLoadCount) bytes
 			// io.ReadFull returns EOF only if no bytes were read
 			if c.ffBufLoadCount < 8 {
-				bytesRead, err = io.ReadFull(c.r, c.buf[c.ffBufLoadCount:]) // read up to 8 bytes into c.buf
+				bytesRead, err = io.ReadFull(c.r, c.ffBuf[c.ffBufLoadCount:]) // read up to 8 bytes into c.buf
 				if bytesRead > 0 {
 					c.ffBufLoadCount += bytesRead
+				} else {
+					return
+				}
+				if err != nil {
+					return
 				}
 			}
-
-			br := copy(v, c.buf[c.ffBufUsedCount:c.ffBufLoadCount])
-			fmt.Printf("decompression copied in %d bytes: %v\n", br, v[:br])
-			v = v[br:]
-			n += br
-			c.ffBufUsedCount += br
-
-			if c.ffBufUsedCount == 8 {
-				c.state = S_READN
-			}
-
-			if err != nil {
-				return
-			}
+			// stay in S_POSTFF
 
 		case S_READN:
 			if bytesRead, err = c.r.Read(b[:]); err != nil {
@@ -188,7 +191,9 @@ func (c *Decompressor) Read(v []byte) (n int, err error) {
 				if _, err = c.r.Read(b[:]); err != nil {
 					return
 				}
-				fmt.Printf("decompression read TAG byte b: %#v\n", b)
+				if VerboseDecomp {
+					fmt.Printf("decompression read TAG byte b: %#v\n", b)
+				}
 
 				switch b[0] {
 				case 0xFF:
@@ -202,12 +207,16 @@ func (c *Decompressor) Read(v []byte) (n int, err error) {
 					if _, err = c.r.Read(b[:]); err != nil {
 						return
 					}
-					fmt.Printf("decompression read byte Zero-word -1 count byte b: %#v\n", b)
+					if VerboseDecomp {
+						fmt.Printf("decompression read byte Zero-word -1 count byte b: %#v\n", b)
+					}
 
 					requestedZeroBytes := (int(b[0]) + 1) * 8
 					zeros := min(requestedZeroBytes, len(v))
 
-					fmt.Printf("decompression writing zeros to n=%d to n+zeros=%d  &v[0]=%p\n", n, n+zeros, &v[0]) // this next is obliterating out v[4] wierdly
+					if VerboseDecomp {
+						fmt.Printf("decompression writing zeros to n=%d to n+zeros=%d  &v[0]=%p\n", n, n+zeros, &v[0])
+					} // this next is obliterating out v[4] wierdly
 					for i := 0; i < zeros; i++ {
 						v[i] = 0
 					}
@@ -240,7 +249,9 @@ func (c *Decompressor) Read(v []byte) (n int, err error) {
 					}
 
 					use := copy(v, c.buf[:])
-					fmt.Printf("decompression copied in %d bytes: %v\n", use, c.buf[:])
+					if VerboseDecomp {
+						fmt.Printf("decompression copied in %d bytes: %v\n", use, c.buf[:])
+					}
 					v = v[use:]
 					n += use
 					c.bufsz = 8 - use

@@ -139,7 +139,7 @@ func TestDecompressorZdate2(t *testing.T) {
 	// 0x0, tag0x11, 0x1, 0x14, tag0xff, 0xd4, 0x7, 0xc,
 	// 0x7, 0xd5, 0x7, 0xc, 0x7, N:0x2, 0xd4, 0x7,
 	// 0xc, 0x7, 0x0, 0x0, 0x0, 0x0, 0xd5, 0x7,
-	// 0xc, 0x7, 0x0, 0x0, 0x0, 0x0}
+	// 0xc, 0x7, 0x0, 0x0, 0x0, 0x0 -- -- }
 
 	r = bytes.NewReader(slicePacked)
 
@@ -448,6 +448,7 @@ func TestCompressor(t *testing.T) {
 }
 
 func TestDecompressor(t *testing.T) {
+	errCount := 0
 	for i, test := range compressionTests {
 		for readSize := 1; readSize <= 8+2*len(test.original); readSize++ {
 			r := bytes.NewReader(test.compressed)
@@ -466,50 +467,57 @@ func TestDecompressor(t *testing.T) {
 			}
 
 			if len(test.original) != len(actual) {
+				errCount++
 				t.Errorf("test:%d readSize:%d expected %d bytes, got %d",
 					i, readSize, len(test.original), len(actual))
 				continue
 			}
 
 			if !bytes.Equal(test.original, actual) {
+				errCount++
 				t.Errorf("test:%d readSize:%d: bytes not equal", i, readSize)
 			}
 		}
 	}
+	if errCount == 0 {
+		fmt.Printf("TestDecompressor() passed. (0 errors).\n")
+	}
+
 }
 
-func TestDecompressor3(t *testing.T) {
-	i := 3
-	test := compressionTests[i]
-	fmt.Printf("   test.original = %#v\n test.compressed = %#v\n", test.original, test.compressed)
-	//	for readSize := 1; readSize <= 8+2*len(test.original); readSize++ {
-	readSize := 1
-	r := bytes.NewReader(test.compressed)
-	d := capn.NewDecompressor(r)
-	buf := make([]byte, readSize)
-	var actual []byte
-	for {
-		n, err := d.Read(buf)
-		actual = append(actual, buf[:n]...)
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			t.Fatalf("Read: %v", err)
+func TestDecompressorVerbosely(t *testing.T) {
+	cv.Convey("Testing the go-capnproto Decompressor.Read() function:", t, func() {
+		for _, test := range compressionTests {
+
+			fmt.Printf("\n\nGiven compressed text '%#v'\n", test.compressed)
+
+			//	fmt.Printf("   test.original = %#v\n test.compressed = %#v\n", test.original, test.compressed)
+			for readSize := 1; readSize <= 8+2*len(test.original); readSize++ {
+				fmt.Printf("\n  When we use go-capnproto NewDecompressor, with readSize: %d\n    Then we should get the original text back.", readSize)
+
+				r := bytes.NewReader(test.compressed)
+				d := capn.NewDecompressor(r)
+				buf := make([]byte, readSize)
+				var actual []byte
+				for {
+					n, err := d.Read(buf)
+					actual = append(actual, buf[:n]...)
+					if err != nil {
+						if err == io.EOF {
+							break
+						}
+						t.Fatalf("Read: %v", err)
+					}
+				}
+
+				cv.So(len(actual), cv.ShouldResemble, len(test.original))
+				if len(test.original) > 0 {
+					cv.So(actual, cv.ShouldResemble, test.original)
+				}
+			} // end readSize loop
 		}
-	}
-
-	if len(test.original) != len(actual) {
-		t.Errorf("test:%d readSize:%d expected %d bytes, got %d",
-			i, readSize, len(test.original), len(actual))
-	}
-
-	if !bytes.Equal(test.original, actual) {
-		t.Errorf("test:%d readSize:%d: bytes not equal", i, readSize)
-	}
-	//	}
-	fmt.Printf("func TestDecompressor3(t *testing.T)")
-
+		fmt.Printf("\n\n")
+	})
 }
 
 func TestReadFromPackedStream(t *testing.T) {
