@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"os"
 	"testing"
 
 	capn "github.com/glycerine/go-capnproto"
@@ -64,7 +63,7 @@ func TestDecompressorZdate1(t *testing.T) {
 	}
 }
 
-func TestDecompressorUNPACLZdate2(t *testing.T) {
+func TestDecompressorUNPACKZdate2(t *testing.T) {
 	const n = 2
 
 	un := zdateReader(n, false)
@@ -72,14 +71,14 @@ func TestDecompressorUNPACLZdate2(t *testing.T) {
 	fmt.Printf("expected: '%#v' of len(%d)\n", expected, len(expected))
 	// prints:
 	// expected: []byte{
-	// 0x0, 0x0, 0x0, 0x0, 0x7, 0x0, 0x0, 0x0,
-	// 0x0, 0x0, 0x0, 0x0, 0x2, 0x0, 0x1, 0x0,
-	// 0x25, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-	// 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-	// 0x1, 0x0, 0x0, 0x0, 0x14, 0x0, 0x0, 0x0,
+	// 0x0,  0x0, 0x0, 0x0, 0x7,  0x0, 0x0, 0x0,
+	// 0x0,  0x0, 0x0, 0x0, 0x2,  0x0, 0x1, 0x0,
+	// 0x25, 0x0, 0x0, 0x0, 0x0,  0x0, 0x0, 0x0,
+	// 0x0,  0x0, 0x0, 0x0, 0x0,  0x0, 0x0, 0x0,
+	// 0x1,  0x0, 0x0, 0x0, 0x14, 0x0, 0x0, 0x0,
 	// 0xd4, 0x7, 0xc, 0x7, 0xd5, 0x7, 0xc, 0x7,
-	// 0xd4, 0x7, 0xc, 0x7, 0x0, 0x0, 0x0, 0x0,
-	// 0xd5, 0x7, 0xc, 0x7, 0x0, 0x0, 0x0, 0x0}  of len(64)
+	// 0xd4, 0x7, 0xc, 0x7, 0x0,  0x0, 0x0, 0x0,
+	// 0xd5, 0x7, 0xc, 0x7, 0x0,  0x0, 0x0, 0x0}  of len(64)
 	if err != nil {
 		t.Fatalf("ReadAll: %v", err)
 	}
@@ -111,6 +110,7 @@ func TestDecompressorUNPACLZdate2(t *testing.T) {
 	})
 }
 
+/*
 func TestDecompressorZdate2(t *testing.T) {
 	const n = 2
 
@@ -205,6 +205,7 @@ func TestDecompressorZdate2(t *testing.T) {
 		t.Fatal("decompressor failed")
 	}
 }
+*/
 
 /*
 func TestDecompressorZdate2(t *testing.T) {
@@ -434,10 +435,14 @@ var compressionTests = []struct {
 func TestCompressor(t *testing.T) {
 	for i, test := range compressionTests {
 		var buf bytes.Buffer
+		if i == 7 {
+			fmt.Printf("at test 7\n")
+		}
 		c := capn.NewCompressor(&buf)
 		c.Write(test.original)
 		if !bytes.Equal(test.compressed, buf.Bytes()) {
 			t.Errorf("test:%d: failed", i)
+			fmt.Printf("   test.original = %#v\n test.compressed = %#v\n    buf.Bytes() =  %#v\n", test.original, test.compressed, buf.Bytes())
 		}
 	}
 }
@@ -471,6 +476,40 @@ func TestDecompressor(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestDecompressor3(t *testing.T) {
+	i := 3
+	test := compressionTests[i]
+	fmt.Printf("   test.original = %#v\n test.compressed = %#v\n", test.original, test.compressed)
+	//	for readSize := 1; readSize <= 8+2*len(test.original); readSize++ {
+	readSize := 1
+	r := bytes.NewReader(test.compressed)
+	d := capn.NewDecompressor(r)
+	buf := make([]byte, readSize)
+	var actual []byte
+	for {
+		n, err := d.Read(buf)
+		actual = append(actual, buf[:n]...)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			t.Fatalf("Read: %v", err)
+		}
+	}
+
+	if len(test.original) != len(actual) {
+		t.Errorf("test:%d readSize:%d expected %d bytes, got %d",
+			i, readSize, len(test.original), len(actual))
+	}
+
+	if !bytes.Equal(test.original, actual) {
+		t.Errorf("test:%d readSize:%d: bytes not equal", i, readSize)
+	}
+	//	}
+	fmt.Printf("func TestDecompressor3(t *testing.T)")
+
 }
 
 func TestReadFromPackedStream(t *testing.T) {

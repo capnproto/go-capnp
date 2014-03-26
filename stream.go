@@ -16,18 +16,27 @@ type DecompParseState uint8
 
 const (
 	S_NORMAL DecompParseState = 0
-	S_POSTFF                  = 1
-	S_READN                   = 2
-	S_RAW                     = 3
+
+	// The 1-3 states are for dealing with the 0xFF tag and the raw bytes that follow.
+	// They tell us where to pick up if we are interrupted in the middle of anything
+	// after the 0xFF tag, until we are done with the raw read.
+	S_POSTFF = 1
+	S_READN  = 2
+	S_RAW    = 3
 )
 
 type Decompressor struct {
 	r     io.Reader
 	buf   [8]byte
 	bufsz int
+
+	// track the bytes after a 0xff raw tag
+	ffBuf          [8]byte
+	ffBufLoadCount int // count of bytes loaded from r into ffBuf (max 8)
+	ffBufUsedCount int // count of bytes supplied to v during Read().
+
 	zeros int
 	raw   int // number of raw bytes left to copy through
-	preN  int // number of bytes that we have left to read, after the 0xFF and before the N. (preN has max of 8)
 	state DecompParseState
 }
 
@@ -66,75 +75,127 @@ func min(a, b int) int {
 func (c *Decompressor) Read(v []byte) (n int, err error) {
 
 	var b [1]byte
+	var bytesRead int
 
 	for {
+		if len(v) == 0 {
+			return
+		}
+
 		switch c.state {
 
 		case S_RAW:
 			if c.raw > 0 {
-				n, err = c.r.Read(v[:min(len(v), c.raw)])
-				c.raw -= n
-				if c.raw == 0 {
-					c.state = S_NORMAL
+				bytesRead, err = c.r.Read(v[:min(len(v), c.raw)])
+				fmt.Printf("decompression copied in %d raw bytes: %v\n", bytesRead, v[:bytesRead])
+				c.raw -= bytesRead
+				v = v[bytesRead:]
+				n += bytesRead
+
+				if err != nil {
+					return
 				}
-				return
+			} else {
+				c.state = S_NORMAL
 			}
 
 		case S_POSTFF:
-			bytesRead, err = io.ReadFull(c.r, c.buf[:c.PreN]) // read 8 bytes
-			if bytesRead > 0 {
-				br := copy(p, c.buf[:c.PreN])
-				n += br
+			if c.ffBufUsedCount >= 8 {
+				c.state = S_READN
+				continue
 			}
-			c.preN -= bytesRead
-			if c.preN == 0 {
+			// invar: c.ffBufUsedCount < 8
+
+			// first empty any residual in buffer but not yet given to v
+			// since these bytes are first in line to go.
+			if c.ffBufLoadCount > c.ffBufUsedCount {
+				br := copy(v, c.ffBuf[c.ffBufUsedCount:c.ffBufLoadCount])
+				c.ffBufUsedCount += br
+				v = v[br:]
+				n += br
+				if c.ffBufUsedCount == 8 {
+					c.state = S_READN
+					continue
+				}
+			}
+
+			// io.ReadFull, try to read exactly 8 - cc.ffBufLoadCount bytes
+			// io.ReadFull returns EOF only if no bytes were read
+			if c.ffBufLoadCount < 8 {
+				bytesRead, err = io.ReadFull(c.r, c.buf[c.ffBufLoadCount:]) // read up to 8 bytes into c.buf
+				if bytesRead > 0 {
+					c.ffBufLoadCount += bytesRead
+				}
+			}
+
+			br := copy(v, c.buf[c.ffBufUsedCount:c.ffBufLoadCount])
+			fmt.Printf("decompression copied in %d bytes: %v\n", br, v[:br])
+			v = v[br:]
+			n += br
+			c.ffBufUsedCount += br
+
+			if c.ffBufUsedCount == 8 {
 				c.state = S_READN
 			}
 
 			if err != nil {
 				return
-				// panic("Decompression error: truncated stream after 0xFF tag: we could not read 8 bytes after 0xFF")
 			}
 
 		case S_READN:
-			if _, err = c.r.Read(b[:]); err != nil {
+			if bytesRead, err = c.r.Read(b[:]); err != nil {
 				return
 			}
-			c.raw = int(b) * 8
+			if bytesRead == 0 {
+				return
+			}
+			c.raw = int(b[0]) * 8
 			c.state = S_RAW
 
 		case S_NORMAL:
 
 			if c.zeros > 0 {
-				n = min(len(v), c.zeros)
-				x := v[:n]
+				num0 := min(len(v), c.zeros)
+				x := v[:num0]
 				for i := range x {
 					x[i] = 0
 				}
-				c.zeros -= n
-				return
+				c.zeros -= num0
+				n += num0
+				if c.zeros > 0 {
+					return n, nil
+				}
+				v = v[num0:]
+				if len(v) == 0 {
+					return n, nil
+				}
 			}
-
-			//	if len(v) > 5 {
-			//		fmt.Printf("address of v[4] is: %p\n", &v[4])
-			//	}
+			// INVAR: c.zeros == 0
 
 			if c.bufsz > 0 {
-				n = copy(v, c.buf[8-c.bufsz:])
-				c.bufsz -= n
+				nc := copy(v, c.buf[8-c.bufsz:])
+				c.bufsz -= nc
+				n += nc
+				v = v[nc:]
+				if c.bufsz > 0 {
+					return n, nil
+				}
 			}
+			// INVAR: c.bufz == 0
 
-			for c.state == S_NORMAL && n < len(v) {
+			for c.state == S_NORMAL && len(v) > 0 {
 
 				if _, err = c.r.Read(b[:]); err != nil {
 					return
 				}
-				fmt.Printf("decompression read byte TAG byte b: %#v\n", b)
+				fmt.Printf("decompression read TAG byte b: %#v\n", b)
 
 				switch b[0] {
 				case 0xFF:
-					c.preN = 8
+					c.ffBufLoadCount = 0
+					c.ffBufUsedCount = 0
 					c.state = S_POSTFF
+
 					break
 
 				case 0x00:
@@ -144,15 +205,17 @@ func (c *Decompressor) Read(v []byte) (n int, err error) {
 					fmt.Printf("decompression read byte Zero-word -1 count byte b: %#v\n", b)
 
 					requestedZeroBytes := (int(b[0]) + 1) * 8
-					zeros := min(requestedZeroBytes, len(v)-n)
+					zeros := min(requestedZeroBytes, len(v))
 
 					fmt.Printf("decompression writing zeros to n=%d to n+zeros=%d  &v[0]=%p\n", n, n+zeros, &v[0]) // this next is obliterating out v[4] wierdly
-					//for i := range v[n : n+zeros] { // this is a bug: the range is from 0...zeros, obliterating the already written stuff. not what we want.
-					for i := n; i < n+zeros; i++ {
+					for i := 0; i < zeros; i++ {
 						v[i] = 0
 					}
-					c.zeros = requestedZeroBytes - zeros
+					v = v[zeros:]
 					n += zeros
+					// remember the leftover zeros to write
+					c.zeros = requestedZeroBytes - zeros
+
 				default:
 					ones := 0
 					var buf [8]byte
@@ -176,13 +239,15 @@ func (c *Decompressor) Read(v []byte) (n int, err error) {
 						}
 					}
 
-					use := copy(v[n:], c.buf[:])
+					use := copy(v, c.buf[:])
 					fmt.Printf("decompression copied in %d bytes: %v\n", use, c.buf[:])
+					v = v[use:]
 					n += use
 					c.bufsz = 8 - use
 				}
 			}
 		}
+
 	}
 	return
 }
