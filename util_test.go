@@ -25,7 +25,7 @@ func CapnpDecodeSegment(seg *capn.Segment, capnpExePath string, capnpSchemaFileP
 	}
 
 	if capnpSchemaFilePath == "" {
-		capnpSchemaFilePath = "test.capnp"
+		capnpSchemaFilePath = "aircraftlib/aircraft.capnp"
 	}
 
 	if typeName == "" {
@@ -99,13 +99,10 @@ func CapnFileToText(serializedCapnpFilePathToDisplay string, capnpSchemaFilePath
 //   a more general configuration mechanism.
 func CheckAndGetCapnpPath() string {
 
-	whichCmd := exec.Command("which", "capnp")
-	wbs, err := whichCmd.Output()
+	path, err := exec.LookPath("capnp")
 	if err != nil {
-		panic("could not locate capnp with /usr/bin/which; put the capnp executable in your path; e.g /usr/local/bin/capnp")
+		panic(fmt.Sprintf("could not locate the capnp executable: put the capnp executable in your path: %s", err))
 	}
-
-	path := strings.TrimSpace(string(wbs))
 
 	cmd := exec.Command(path, "id")
 	bs, err := cmd.Output()
@@ -125,7 +122,7 @@ func CapnpDecodeBuf(buf []byte, capnpExePath string, capnpSchemaFilePath string,
 	}
 
 	if capnpSchemaFilePath == "" {
-		capnpSchemaFilePath = "test.capnp"
+		capnpSchemaFilePath = "aircraftlib/aircraft.capnp"
 	}
 
 	if typeName == "" {

@@ -1,2 +1,2 @@
 #!/bin/bash
-capnp decode --packed --short test.capnp Z
+capnp decode --packed --short aircraftlib/aircraft.capnp Z

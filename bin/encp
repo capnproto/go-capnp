@@ -1,2 +1,2 @@
 #!/bin/bash
-capnp encode --packed test.capnp Z
+capnp encode --packed aircraftlib/aircraft.capnp Z
