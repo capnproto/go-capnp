@@ -17,4 +17,4 @@ has been super busy of late, so I agreed to take over as maintainer. This branch
 creation (originating) of structs for Go, and an implementation of the packing/unpacking capnp specification.
 Thanks to Albert Strasheim (https://github.com/alberts/go-capnproto) of CloudFlare for a great set of packing tests.
 
- - Jason
+Jason
