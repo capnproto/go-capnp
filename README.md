@@ -18,11 +18,18 @@ creation (originating) of structs for Go, and an implementation of the packing/u
 Thanks to Albert Strasheim (https://github.com/alberts/go-capnproto) of CloudFlare for a great set of packing tests. - Jason
 
 Getting started
---------------
+---------------
 
 ~~~
 $ make # will install capnpc-go and compile the test schema aircraftlib/aircraft.capnp, which is used in the tests.
 $ diff ./capnpc-go/capnpc-go `which capnpc-go` # you should verify that you are using the capnpc-go binary you just built. There should be no diff. Adjust your PATH if necessary to include the binary capnpc-go that you just built/installed from ./capnpc-go/capnpc-go.
 $ go test -v  # confirm all tests are green
 ~~~
+
+What is Cap'n Proto?
+--------------------
+
+The best cerealization...
+
+http://kentonv.github.io/capnproto/
 
