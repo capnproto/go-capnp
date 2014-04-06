@@ -33,3 +33,5 @@ The best cerealization...
 
 http://kentonv.github.io/capnproto/
 
+Note, go-capnproto doesn't support the RPC layer of capnp, which is a more recent work-in-progress than the serialization.  Personally I use capnp (for schema based serialization) with nanomsg (for network transport). Here is a toy example of using them together: https://github.com/glycerine/gozbus
+
