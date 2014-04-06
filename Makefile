@@ -1,9 +1,13 @@
 .PHONY: prepare
 
-prepare: test.capnp
+prepare:
+	cd capnpc-go; go build
 	go install ./capnpc-go
-	capnp compile -ogo test.capnp
-	mv test.capnp.go messages_test.go
+	cd aircraftlib; make
+	which capnpc-go
+	diff `which capnpc-go` ./capnpc-go/capnpc-go
+	# if there was a diff above, adjust your PATH to use the most-recently build capnpc-go
+
 
 check:
 	cat data/check.zdate.cpz | capnp decode aircraftlib/aircraft.capnp  Zdate 
@@ -16,3 +20,4 @@ testbuild:
 
 clean:
 	rm -f go-capnproto.test *~
+	cd aircraftlib; make clean

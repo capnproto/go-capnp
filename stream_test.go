@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	capn "github.com/glycerine/go-capnproto"
+	air "github.com/glycerine/go-capnproto/aircraftlib"
 	cv "github.com/smartystreets/goconvey/convey"
 )
 
@@ -19,7 +20,6 @@ func init() {
 	flag.Parse()
 }
 
-/* json temporarily disabled
 func TestReadFromStream(t *testing.T) {
 	const n = 10
 	r := zdateReader(n, false)
@@ -33,13 +33,15 @@ func TestReadFromStream(t *testing.T) {
 	}
 	zdatelist := z.Zdatevec()
 
-	for i := 0; i < n; i++ {
-		zdate := zdatelist.At(i)
-		js, err := zdate.MarshalJSON()
-		if err != nil {
-			t.Fatalf("MarshalJSON: %v", err)
+	if capn.JSON_enabled {
+		for i := 0; i < n; i++ {
+			zdate := zdatelist.At(i)
+			js, err := zdate.MarshalJSON()
+			if err != nil {
+				t.Fatalf("MarshalJSON: %v", err)
+			}
+			t.Logf("%s", string(js))
 		}
-		t.Logf("%s", string(js))
 	}
 }
 
@@ -54,15 +56,17 @@ func TestReadFromStreamBackToBack(t *testing.T) {
 			t.Fatalf("ReadFromStream: %v", err)
 		}
 		m := air.ReadRootZdate(s)
-		js, err := m.MarshalJSON()
-		if err != nil {
-			t.Fatalf("MarshalJSON: %v", err)
+		if capn.JSON_enabled {
+			js, err := m.MarshalJSON()
+			if err != nil {
+				t.Fatalf("MarshalJSON: %v", err)
+			}
+			t.Logf("%s", string(js))
 		}
-		t.Logf("%s", string(js))
 	}
 
 }
-*/
+
 func TestDecompressorZdate1(t *testing.T) {
 	const n = 1
 
@@ -343,7 +347,6 @@ func TestDecompressorVerbosely(t *testing.T) {
 	})
 }
 
-/*
 func TestReadFromPackedStream(t *testing.T) {
 	const n = 10
 
@@ -355,14 +358,16 @@ func TestReadFromPackedStream(t *testing.T) {
 			t.Fatalf("ReadFromPackedStream: %v, i=%d", err, i)
 		}
 		m := air.ReadRootZdate(s)
-		js, err := m.MarshalJSON()
-		if err != nil {
-			t.Fatalf("MarshalJSON: %v", err)
+		if capn.JSON_enabled {
+			js, err := m.MarshalJSON()
+			if err != nil {
+				t.Fatalf("MarshalJSON: %v", err)
+			}
+			t.Logf("%s", string(js))
 		}
-		t.Logf("%s", string(js))
 	}
 }
-*/
+
 func BenchmarkCompressor(b *testing.B) {
 	r := zdateReader(100, false)
 	buf, err := ioutil.ReadAll(r)

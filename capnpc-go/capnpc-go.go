@@ -694,27 +694,33 @@ func (n *node) defineStructFuncs(w io.Writer) {
 // The value will be in scope as s. Some features need to redefine s, like unions.
 // In that case, Make a new block and redeclare s
 func (n *node) defineTypeJsonFuncs(w io.Writer) {
-	g_imported["io"] = true
-	g_imported["bufio"] = true
-	g_imported["bytes"] = true
+	if C.JSON_enabled {
+		g_imported["io"] = true
+		g_imported["bufio"] = true
+		g_imported["bytes"] = true
 
-	fprintf(w, "func (s %s) WriteJSON(w io.Writer) error {\n", n.name)
-	fprintf(w, "b := bufio.NewWriter(w);")
-	fprintf(w, "var err error;")
-	fprintf(w, "var buf []byte;")
-	fprintf(w, "_ = buf;")
+		fprintf(w, "func (s %s) WriteJSON(w io.Writer) error {\n", n.name)
+		fprintf(w, "b := bufio.NewWriter(w);")
+		fprintf(w, "var err error;")
+		fprintf(w, "var buf []byte;")
+		fprintf(w, "_ = buf;")
 
-	switch n.Which() {
-	case NODE_ENUM:
-		n.jsonEnum(w)
-	case NODE_STRUCT:
-		n.jsonStruct(w)
+		switch n.Which() {
+		case NODE_ENUM:
+			n.jsonEnum(w)
+		case NODE_STRUCT:
+			n.jsonStruct(w)
+		}
+
+		fprintf(w, "err = b.Flush(); return err\n};\n")
+
+		fprintf(w, "func (s %s) MarshalJSON() ([]byte, error) {\n", n.name)
+		fprintf(w, "b := bytes.Buffer{}; err := s.WriteJSON(&b); return b.Bytes(), err };")
+
+	} else {
+		fprintf(w, "// capn.JSON_enabled == false so we stub MarshallJSON until List(List(Z)) support ")
+		fprintf(w, "is fixed\nfunc (s %s) MarshalJSON() (bs []byte, err error) { return } \n", n.name)
 	}
-
-	fprintf(w, "err = b.Flush(); return err\n};\n")
-
-	fprintf(w, "func (s %s) MarshalJSON() ([]byte, error) {\n", n.name)
-	fprintf(w, "b := bytes.Buffer{}; err := s.WriteJSON(&b); return b.Bytes(), err };")
 }
 
 func writeErrCheck(w io.Writer) {
@@ -757,9 +763,15 @@ func (n *node) jsonStruct(w io.Writer) {
 
 // This function writes statements that write the fields json representation to the bufio.
 func (f *Field) json(w io.Writer) {
+
 	switch f.Which() {
 	case FIELD_SLOT:
 		fs := f.Slot()
+		// we don't generate .Void() field setters
+		if title(f.Name()) == "Void" {
+			fs.Type().json(w)
+			return
+		}
 		fprintf(w, "{ s := s.%s(); ", title(f.Name()))
 		fs.Type().json(w)
 		fprintf(w, "}; ")
@@ -767,6 +779,7 @@ func (f *Field) json(w io.Writer) {
 		tid := f.Group().TypeId()
 		n := findNode(tid)
 		fprintf(w, "{ s := s.%s();", title(f.Name()))
+
 		n.jsonStruct(w)
 		fprintf(w, "};")
 	}
@@ -796,6 +809,9 @@ func (t Type) json(w io.Writer) {
 		typ := t.List().ElementType()
 		typ.json(w)
 		fprintf(w, "}; err = b.WriteByte(']'); };")
+		writeErrCheck(w)
+	case TYPE_VOID:
+		fprintf(w, `_, err = b.WriteString("null");`)
 		writeErrCheck(w)
 	}
 }
