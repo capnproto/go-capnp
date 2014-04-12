@@ -48,6 +48,9 @@ func ExampleAirplaneWrite() string {
 	planebase.SetCanFly(true)
 	planebase.SetName("Henrietta")
 	planebase.SetRating(100)
+	planebase.SetMaxSpeed(876) // km/hr
+	// if we don't set capacity, it will get the default value, in this case 0.
+	//planebase.SetCapacity(26020) // Liters fuel
 
 	// set a list field
 	planebase.SetHomes(homes)
@@ -87,7 +90,7 @@ func ExampleAirplaneWrite() string {
 func TestAircraftWrite(t *testing.T) {
 
 	observedText := ExampleAirplaneWrite()
-	expectedText := `(aircraft = (b737 = (base = (name = "Henrietta", homes = [jfk, lax], rating = 100, canFly = true, capacity = 0, maxSpeed = 0))))`
+	expectedText := `(aircraft = (b737 = (base = (name = "Henrietta", homes = [jfk, lax], rating = 100, canFly = true, capacity = 0, maxSpeed = 876))))`
 
 	cv.Convey("When we run the ExampleAirplaneWrite() function in write_test.go", t, func() {
 		cv.Convey("Then we should see the human readable B737 example struct we expect", func() {
