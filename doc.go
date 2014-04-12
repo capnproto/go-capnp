@@ -20,8 +20,8 @@ annotations. For example:
 	$Go.package("main");
 	$Go.import("github.com/glycerine/go-capnproto/example");
 
-In capnproto, the unit of communication is a message. A message of
-consist of one or more of segments to allow easier allocation, but
+In capnproto, the unit of communication is a message. A message
+consists of one or more of segments to allow easier allocation, but
 ideally and typically you just make one segment per message.
 
 Logically, a message orgianized in a tree of objects, with the root
