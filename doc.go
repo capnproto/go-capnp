@@ -20,10 +20,31 @@ annotations. For example:
 	$Go.package("main");
 	$Go.import("github.com/glycerine/go-capnproto/example");
 
-In capnproto a Message is the logical data unit. It may consist of a number of
-segments to allow easier allocation. All objects are values with pointer
-semantics that point into the data in a message or segment. Messages can be
-read/written from a stream uncompressed or using the capnproto compression.
+In capnproto, the unit of communication is a message. A message of
+consist of one or more of segments to allow easier allocation, but
+ideally and typically you just make one segment per message.
+
+Logically, a message orgianized in a tree of objects, with the root
+always being a struct (as opposed to a list or primitive).
+
+Here is an example of writing a new message. We use the demo schema
+aircraft.capnp from the aircraftlib directory. You may wish to read
+the schema before reading this example.
+
+<< Example moved to its own file: See the file, write_test.go >>
+
+In summary, when you make a new message, you should first make new segment,
+and then create the root struct in that segment. Then add your non-child
+(contained) objects. This is because, as the spec says:
+
+   The first word of the first segment of the message
+   is always a pointer pointing to the message's root
+   struct.
+
+
+All objects are values with pointer semantics that point into the data
+in a message or segment. Messages can be read/written from a stream
+uncompressed or using the capnproto compression.
 
 In this library a *Segment is taken to refer to both a specific segment as
 well as the containing message. This is to reduce the number of types generic
@@ -67,9 +88,12 @@ capnpc-go will generate the following for structs:
 	// a message by using a Set function which takes a Foo argument.
 	func NewFoo(s *capn.Segment) Foo
 
-	// NewRootFoo creates a new root of type Foo at the end of the
+	// NewRootFoo creates a new root of type Foo in the next unused space in the
 	// provided segment. This is distinct from NewFoo as this always
 	// creates a root tag. Typically the provided segment should be empty.
+    // Remember that a message is a tree of objects with a single root, and
+    // you usually have to create the root before any other object in a
+    // segment. The only exception would be for a multi-segment message.
 	func NewRootFoo(s *capn.Segment) Foo
 
 	// ReadRootFoo reads the root tag at the beginning of the provided
