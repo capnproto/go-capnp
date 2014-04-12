@@ -26,7 +26,7 @@ func ExampleAirplaneWrite() string {
 	//
 	// $ cat binary.cpz | capnp decode aircraft.capnp Z
 	//
-	// If you need to conserve space, and known your content in advance, it
+	// If you need to conserve space, and know your content in advance, it
 	// isn't necessary to use an anonymous union. Just supply the type name
 	// in place of 'Z' in the decode command above.
 
