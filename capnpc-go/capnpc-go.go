@@ -801,16 +801,28 @@ func (t Type) json(w io.Writer) {
 		fprintf(w, "err = s.WriteJSON(b);")
 		writeErrCheck(w)
 	case TYPE_LIST:
+		typ := t.List().ElementType()
+		which := typ.Which()
+		if which == TYPE_LIST || which == TYPE_OBJECT {
+			// untyped list, cant do anything but report
+			// that a field existed.
+			//
+			// s will be unused in this case, so ignore
+			fprintf(w, `_ = s;`)
+			fprintf(w, `_, err = b.WriteString("\"untyped list\"");`)
+			writeErrCheck(w)
+			return
+		}
 		fprintf(w, "{ err = b.WriteByte('[');")
 		writeErrCheck(w)
 		fprintf(w, "for i, s := range s.ToArray() {")
 		fprintf(w, `if i != 0 { _, err = b.WriteString(", "); };`)
 		writeErrCheck(w)
-		typ := t.List().ElementType()
 		typ.json(w)
 		fprintf(w, "}; err = b.WriteByte(']'); };")
 		writeErrCheck(w)
 	case TYPE_VOID:
+		fprintf(w, `_ = s;`)
 		fprintf(w, `_, err = b.WriteString("null");`)
 		writeErrCheck(w)
 	}
