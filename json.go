@@ -1,5 +1,6 @@
 package capn
 
-// JSON support for List(List(something)), e.g ZVECVEC in the aircraft.capnp, isn't finished (currently broken).
-//  We disable JSON generation to get back to a working state.
+// If you want to omit the json support
+// in the generated code, to save space,
+// it can be disabled here.
 const JSON_enabled = true

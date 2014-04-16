@@ -718,8 +718,8 @@ func (n *node) defineTypeJsonFuncs(w io.Writer) {
 		fprintf(w, "b := bytes.Buffer{}; err := s.WriteJSON(&b); return b.Bytes(), err };")
 
 	} else {
-		fprintf(w, "// capn.JSON_enabled == false so we stub MarshallJSON until List(List(Z)) support ")
-		fprintf(w, "is fixed\nfunc (s %s) MarshalJSON() (bs []byte, err error) { return } \n", n.name)
+		fprintf(w, "// capn.JSON_enabled == false so we stub MarshallJSON().")
+		fprintf(w, "\nfunc (s %s) MarshalJSON() (bs []byte, err error) { return } \n", n.name)
 	}
 }
 
