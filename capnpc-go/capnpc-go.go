@@ -132,10 +132,9 @@ func (n *node) defineEnum(w io.Writer) {
 			ev[e.CodeOrder()] = enumval{e, i, t}
 		}
 
-		fprintf(w, "%s_%s %s = %d\n", strings.ToUpper(n.name), strings.ToUpper(ev[0].Name()), n.name, ev[0].val)
-
-		for _, e := range ev[1:] {
-			fprintf(w, "%s_%s = %d\n", strings.ToUpper(n.name), strings.ToUpper(e.Name()), e.val)
+		// not an iota, so type has to go on each line
+		for _, e := range ev {
+			fprintf(w, "%s_%s %s = %d\n", strings.ToUpper(n.name), strings.ToUpper(e.Name()), n.name, e.val)
 		}
 
 		fprintf(w, ")\n")
