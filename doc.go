@@ -24,7 +24,7 @@ In capnproto, the unit of communication is a message. A message
 consists of one or more of segments to allow easier allocation, but
 ideally and typically you just make one segment per message.
 
-Logically, a message orgianized in a tree of objects, with the root
+Logically, a message organized in a tree of objects, with the root
 always being a struct (as opposed to a list or primitive).
 
 Here is an example of writing a new message. We use the demo schema
@@ -91,9 +91,9 @@ capnpc-go will generate the following for structs:
 	// NewRootFoo creates a new root of type Foo in the next unused space in the
 	// provided segment. This is distinct from NewFoo as this always
 	// creates a root tag. Typically the provided segment should be empty.
-    // Remember that a message is a tree of objects with a single root, and
-    // you usually have to create the root before any other object in a
-    // segment. The only exception would be for a multi-segment message.
+	// Remember that a message is a tree of objects with a single root, and
+	// you usually have to create the root before any other object in a
+	// segment. The only exception would be for a multi-segment message.
 	func NewRootFoo(s *capn.Segment) Foo
 
 	// ReadRootFoo reads the root tag at the beginning of the provided
@@ -124,7 +124,7 @@ capnpc-go will generate the following for structs:
 	func (s Foo_List) At(i int) Foo
 
 	// ToArray converts the capnproto list into a go list. For large lists
-	// this is inefficent as it has to read all elements. This can be
+	// this is inefficient as it has to read all elements. This can be
 	// quite convenient especially for iterating as it lets you use a for
 	// range clause:
 	//	for i, f := range mylist.ToArray() {}
