@@ -133,4 +133,22 @@ struct Z {
   }
 }
 
+struct Counter {
+  size  @0: Int64;
+  words @1: Text;
+  wordlist @2: List(Text);
+}
+
+struct Bag {
+  counter  @0: Counter;
+}
+
+struct Zserver {
+   waitingjobs       @0: List(Zjob);
+}
+
+struct Zjob {
+    cmd        @0: Text;
+    args       @1: List(Text);
+}
 

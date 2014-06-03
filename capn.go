@@ -34,6 +34,23 @@ const (
 	TypeBitList
 )
 
+func (o ObjectType) String() string {
+	switch o {
+	case TypeNull:
+		return "TypeNull"
+	case TypeStruct:
+		return "TypeStruct"
+	case TypeList:
+		return "TypeList"
+	case TypePointerList:
+		return "TypePointerList"
+	case TypeBitList:
+		return "TypeBitList"
+	default:
+		return "Unknown ObjectType"
+	}
+}
+
 type Message interface {
 	NewSegment(minsz int) (*Segment, error)
 	Lookup(segid uint32) (*Segment, error)
@@ -118,13 +135,13 @@ const (
 )
 
 // used in orable30BitOffsetPart() and signedOffsetFromStructPointer()
-var zerohi32 uint64
+var Zerohi32 uint64
 
 func init() {
-	// initialize zerohi32 once
+	// initialize Zerohi32 once
 	var minus1 int32 = -1
 	u32 := uint32(minus1)
-	zerohi32 = uint64(u32)
+	Zerohi32 = uint64(u32)
 }
 
 func (s *Segment) Root(off int) Object {
@@ -180,6 +197,7 @@ func (s *Segment) NewPointerList(sz int) PointerList {
 
 func (s *Segment) NewCompositeList(datasz, ptrs, length int) PointerList {
 	if datasz < 0 || datasz > maxDataSize || ptrs < 0 || ptrs > maxPtrs {
+		// jea Q: when would these conditions ever be met??? Everything is going to be a TypeList.
 		return PointerList{}
 	} else if ptrs > 0 || datasz > 8 {
 		datasz = (datasz + 7) &^ 7
@@ -350,9 +368,9 @@ func (p Struct) GetObject(off int) Object {
 	}
 }
 
-func (p Struct) SetObject(i int, tgt Object) {
+func (p Struct) SetObject(i int, src Object) {
 	if uint(i) < uint(p.ptrs) {
-		p.Segment.writePtr(p.off+p.datasz+i*8, tgt, nil, 0)
+		p.Segment.writePtr(p.off+p.datasz+i*8, src, nil, 0)
 	}
 }
 
@@ -743,6 +761,56 @@ func (p PointerList) At(i int) Object {
 	}
 }
 
+func copyStructHandlingVersionSkew(toSeg *Segment, toDatasz int, toPtrs int, toOff int, src Object) error {
+
+	off := toOff
+	data := toSeg.Data[off : off+toDatasz]
+
+	// Q: how does version handling happen here, when the
+	//    desination data[] slice can be bigger or smaller
+	//    than the source data slice, which is in
+	//    src.Segment.Data[src.off:src.off+src.datasz] ?
+	//
+	// A: Newer fields only come *after* old fields. Note that
+	//    copy only copies min(len(src), len(dst)) size,
+	//    and then we manually zero the rest in the for loop
+	//    that writes data[j] = 0.
+	//
+
+	// data section:
+	copyCount := copy(data, src.Segment.Data[src.off:src.off+src.datasz])
+	data = data[copyCount:]
+	for j := range data {
+		data[j] = 0
+	}
+
+	// ptrs section:
+
+	// version handling: we ignore any extra-newer-pointers in src,
+	// i.e. the case when srcPtrSize > dstPtrSize, by only
+	// running j over the size of dstPtrSize, the destination size.
+	srcPtrSize := src.ptrs * 8
+	dstPtrSize := int(toPtrs * 8)
+	for j := 0; j < dstPtrSize; j += 8 {
+		if j < srcPtrSize {
+			m := src.Segment.readPtr(src.off + src.datasz + j)
+			//fmt.Printf("jea debug: PointerList.Set(i=%d, src=%#v). source ptr is m = %#v\n", i, src, m)
+			if err := toSeg.writePtr(off+toDatasz+j, m, nil, 0); err != nil {
+				return err
+			}
+		} else {
+			// destination p is a newer version than source
+			//  so these extra new pointer fields in p must be zeroed.
+			putLittle64(toSeg.Data[off+toDatasz+j:], 0)
+		}
+	}
+	// Nothing more here: so any other pointers in srcPtrSize beyond
+	// those in dstPtrSize are ignored and discarded.
+
+	// end copyStructHandlingVersionSkew()
+	return nil
+}
+
 func (p TextList) Set(i int, v string) { PointerList(p).Set(i, p.Segment.NewText(v)) }
 func (p DataList) Set(i int, v []byte) { PointerList(p).Set(i, p.Segment.NewData(v)) }
 func (p PointerList) Set(i int, src Object) error {
@@ -757,48 +825,56 @@ func (p PointerList) Set(i int, src Object) error {
 		}
 
 		off := p.off + i*(p.datasz+p.ptrs*8)
-		data := p.Segment.Data[off : off+p.datasz]
 
-		// Q: how does version handling happen here, when the
-		//    desination data[] slice can be bigger or smaller
-		//    than the source data slice, which is in
-		//    src.Segment.Data[src.off:src.off+src.datasz] ?
-		//
-		// A: Newer fields only come *after* old fields. Note that
-		//    copy only copies min(len(src), len(dst)) size,
-		//    and then we manually zero the rest in the for loop
-		//    that writes data[j] = 0.
-		//
-
-		// data section:
-		copyCount := copy(data, src.Segment.Data[src.off:src.off+src.datasz])
-		data = data[copyCount:]
-		for j := range data {
-			data[j] = 0
+		err := copyStructHandlingVersionSkew(p.Segment, p.datasz, p.ptrs, off, src)
+		if err != nil {
+			return err
 		}
 
-		// ptrs section:
+		/*
+			data := p.Segment.Data[off : off+p.datasz]
 
-		// version handling: we ignore any extra-newer-pointers in src,
-		// i.e. the case when srcPtrSize > dstPtrSize, by only
-		// running j over the size of dstPtrSize, the destination size.
-		srcPtrSize := src.ptrs * 8
-		dstPtrSize := int(p.ptrs * 8)
-		for j := 0; j < dstPtrSize; j += 8 {
-			if j < srcPtrSize {
-				m := src.Segment.readPtr(src.off + src.datasz + j)
-				if err := p.Segment.writePtr(off+p.datasz+j, m, nil, 0); err != nil {
-					return err
-				}
-			} else {
-				// destination p is a newer version than source
-				//  so these extra new pointer fields in p must be zeroed.
-				putLittle64(p.Segment.Data[off+p.datasz+j:], 0)
+			// Q: how does version handling happen here, when the
+			//    desination data[] slice can be bigger or smaller
+			//    than the source data slice, which is in
+			//    src.Segment.Data[src.off:src.off+src.datasz] ?
+			//
+			// A: Newer fields only come *after* old fields. Note that
+			//    copy only copies min(len(src), len(dst)) size,
+			//    and then we manually zero the rest in the for loop
+			//    that writes data[j] = 0.
+			//
+
+			// data section:
+			copyCount := copy(data, src.Segment.Data[src.off:src.off+src.datasz])
+			data = data[copyCount:]
+			for j := range data {
+				data[j] = 0
 			}
-		}
-		// Nothing more here: so any other pointers in srcPtrSize beyond
-		// those in dstPtrSize are ignored and discarded.
 
+			// ptrs section:
+
+			// version handling: we ignore any extra-newer-pointers in src,
+			// i.e. the case when srcPtrSize > dstPtrSize, by only
+			// running j over the size of dstPtrSize, the destination size.
+			srcPtrSize := src.ptrs * 8
+			dstPtrSize := int(p.ptrs * 8)
+			for j := 0; j < dstPtrSize; j += 8 {
+				if j < srcPtrSize {
+					m := src.Segment.readPtr(src.off + src.datasz + j)
+					//fmt.Printf("jea debug: PointerList.Set(i=%d, src=%#v). source ptr is m = %#v\n", i, src, m)
+					if err := p.Segment.writePtr(off+p.datasz+j, m, nil, 0); err != nil {
+						return err
+					}
+				} else {
+					// destination p is a newer version than source
+					//  so these extra new pointer fields in p must be zeroed.
+					putLittle64(p.Segment.Data[off+p.datasz+j:], 0)
+				}
+			}
+			// Nothing more here: so any other pointers in srcPtrSize beyond
+			// those in dstPtrSize are ignored and discarded.
+		*/
 		return nil
 
 	case TypePointerList:
@@ -1001,13 +1077,13 @@ func (s *Segment) readPtr(off int) Object {
 //
 func orable30BitOffsetPart(signedOff int) uint64 {
 	d32 := int32(signedOff) << 2
-	return uint64(d32) & zerohi32
+	return uint64(d32) & Zerohi32
 }
 
 // and convert in the other direction, extracting the count from
 // the B section into an int
 func signedOffsetFromStructPointer(val uint64) int {
-	u64 := uint64(val) & zerohi32
+	u64 := uint64(val) & Zerohi32
 	u32 := uint32(u64)
 	s32 := int32(u32) >> 2
 	return int(s32)
@@ -1015,6 +1091,7 @@ func signedOffsetFromStructPointer(val uint64) int {
 
 func (p Object) value(off int) uint64 {
 	d := orable30BitOffsetPart(p.off/8 - off/8 - 1)
+	//fmt.Printf("jea debug4 in value(off=%d): p.off/8 = %d, off/8 = %d,  and p.off/8 - off/8 -1 = %d    d=%v\n", off, p.off/8, off/8, p.off/8-off/8-1, d)
 
 	switch p.typ {
 	case TypeStruct:
@@ -1090,19 +1167,29 @@ func (p Object) dataEnd() int {
 	}
 }
 
-func (s *Segment) writePtr(off int, p Object, copies *rbtree.Tree, depth int) error {
-	ps := p.Segment
+func isEmptyStruct(src Object) bool {
+	if src.typ == TypeStruct && src.length == 0 && src.datasz == 0 && src.ptrs == 0 && src.flags == 0 {
+		return true
+	}
+	return false
+}
 
-	if p.typ == TypeNull {
-		putLittle64(s.Data[off:], 0)
+func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth int) error {
+	srcSeg := src.Segment
+	//fmt.Printf("\n  %s ---> writePtr(off=%d) at depth %d called: destSeg: %p,  srcSeg: %p   src: %#v\n", strings.Repeat("   ", depth), off, depth, destSeg, srcSeg, src)
+
+	if src.typ == TypeNull || isEmptyStruct(src) {
+		//fmt.Printf("  jea: recognized EmptyStruct, writing 0 word to off=%d   at depth %d\n", off, depth)
+		putLittle64(destSeg.Data[off:], 0)
 		return nil
 
-	} else if s == p.Segment {
+	} else if destSeg == srcSeg {
 		// Same segment
-		putLittle64(s.Data[off:], p.value(off))
+		//fmt.Printf("jea debug2: Same segment (%p) writePtr happening: src.value(off) = %#v to destSeg.Data[off=%d]\n", destSeg, src.value(off), off)
+		putLittle64(destSeg.Data[off:], src.value(off))
 		return nil
 
-	} else if s.Message != ps.Message || (p.flags&isListMember) != 0 || (p.flags&isBitListMember) != 0 {
+	} else if destSeg.Message != srcSeg.Message || (src.flags&isListMember) != 0 || (src.flags&isBitListMember) != 0 {
 		// We need to clone the target.
 
 		if depth >= 32 {
@@ -1115,26 +1202,26 @@ func (s *Segment) writePtr(off int, p Object, copies *rbtree.Tree, depth int) er
 		}
 
 		key := offset{
-			id:   ps.Id,
-			boff: int64(p.off) * 8,
-			bend: int64(p.dataEnd()) * 8,
+			id:   srcSeg.Id,
+			boff: int64(src.off) * 8,
+			bend: int64(src.dataEnd()) * 8,
 			newval: Object{
-				typ:    p.typ,
-				length: p.length,
-				datasz: p.datasz,
-				ptrs:   p.ptrs,
-				flags:  (p.flags & isCompositeList),
+				typ:    src.typ,
+				length: src.length,
+				datasz: src.datasz,
+				ptrs:   src.ptrs,
+				flags:  (src.flags & isCompositeList),
 			},
 		}
 
-		if (p.flags & isBitListMember) != 0 {
-			key.boff += int64(p.flags & bitOffsetMask)
+		if (src.flags & isBitListMember) != 0 {
+			key.boff += int64(src.flags & bitOffsetMask)
 			key.bend = key.boff + 1
 			key.newval.datasz = 8
 		}
 
-		if (p.flags & isCompositeList) != 0 {
-			key.boff -= 64
+		if (src.flags & isCompositeList) != 0 {
+			key.boff -= 64 // jea Q: what the heck does this do? why is it here?
 		}
 
 		iter := copies.FindLE(key)
@@ -1144,7 +1231,7 @@ func (s *Segment) writePtr(off int, p Object, copies *rbtree.Tree, depth int) er
 				other := iter.Item().(offset)
 				if key.id == other.id {
 					if key.boff == other.boff && key.bend == other.bend {
-						return s.writePtr(off, other.newval, nil, depth+1)
+						return destSeg.writePtr(off, other.newval, nil, depth+1)
 					} else if other.bend >= key.bend {
 						return ErrOverlap
 					}
@@ -1162,38 +1249,43 @@ func (s *Segment) writePtr(off int, p Object, copies *rbtree.Tree, depth int) er
 		}
 
 		// No copy nor overlap found, so we need to clone the target
-		n, err := s.create(int((key.bend-key.boff)/8), key.newval)
+		n, err := destSeg.create(int((key.bend-key.boff)/8), key.newval)
 		if err != nil {
 			return err
 		}
 
-		ns := n.Segment
+		// n is possibly in a new segment, if destSeg was full.
+		newSeg := n.Segment
 
 		if (n.flags & isCompositeList) != 0 {
-			copy(ns.Data[n.off:], ps.Data[p.off-8:p.off])
+			copy(newSeg.Data[n.off:], srcSeg.Data[src.off-8:src.off])
 			n.off += 8
 		}
 
 		key.newval = n
 		copies.Insert(key)
 
-		switch p.typ {
+		//fmt.Printf(" ..... jea need to clone target: key.newval: %#v of type '%s'\n", key.newval, key.newval.typ.String())
+
+		switch src.typ {
 		case TypeStruct:
-			if (p.flags & isBitListMember) != 0 {
-				if (ps.Data[p.off] & (1 << (p.flags & bitOffsetMask))) != 0 {
-					ns.Data[n.off] = 1
+			if (src.flags & isBitListMember) != 0 {
+				if (srcSeg.Data[src.off] & (1 << (src.flags & bitOffsetMask))) != 0 {
+					newSeg.Data[n.off] = 1
 				} else {
-					ns.Data[n.off] = 0
+					newSeg.Data[n.off] = 0
 				}
 
-				for i := range ns.Data[n.off+1 : n.off+8] {
-					ns.Data[i] = 0
+				for i := range newSeg.Data[n.off+1 : n.off+8] {
+					newSeg.Data[i] = 0
 				}
 			} else {
-				copy(ns.Data[n.off:], ps.Data[p.off:p.off+p.datasz])
+				// jea Q: does this handle versioning? or does it even need too?
+				// We are copying between segments.
+				copy(newSeg.Data[n.off:], srcSeg.Data[src.off:src.off+src.datasz])
 				for i := 0; i < n.ptrs; i++ {
-					c := ps.readPtr(p.off + p.datasz + i*8)
-					if err := ns.writePtr(n.off+n.datasz+i*8, c, copies, depth+1); err != nil {
+					c := srcSeg.readPtr(src.off + src.datasz + i*8)
+					if err := newSeg.writePtr(n.off+n.datasz+i*8, c, copies, depth+1); err != nil {
 						return err
 					}
 				}
@@ -1202,12 +1294,15 @@ func (s *Segment) writePtr(off int, p Object, copies *rbtree.Tree, depth int) er
 		case TypeList:
 			for i := 0; i < n.length; i++ {
 				o := i * (n.datasz + n.ptrs*8)
-				copy(ns.Data[n.off+o:], ps.Data[p.off+o:p.off+o+n.datasz])
+				//fmt.Printf("\n        in TypeList:   copying % bytes: '%#v'/%c to newSeg.Data[%d]\n", n.datasz, srcSeg.Data[src.off+o:src.off+o+n.datasz], rune(srcSeg.Data[src.off+o]), n.off+o)
+				copy(newSeg.Data[n.off+o:], srcSeg.Data[src.off+o:src.off+o+n.datasz])
 				o += n.datasz
 
+				// recursively writePtr for each of our member pointers
 				for j := 0; j < n.ptrs; j++ {
-					c := ps.readPtr(p.off + o)
-					if err := ns.writePtr(n.off+o, c, copies, depth+1); err != nil {
+					c := srcSeg.readPtr(src.off + o)
+					//fmt.Printf("\n ... in src.typ == TypeList, recursively calling writePtr for c:%#v... \n", c)
+					if err := newSeg.writePtr(n.off+o, c, copies, depth+1); err != nil {
 						return err
 					}
 					o += 8
@@ -1215,36 +1310,38 @@ func (s *Segment) writePtr(off int, p Object, copies *rbtree.Tree, depth int) er
 			}
 
 		case TypePointerList:
-			for i := 0; i < n.ptrs; i++ {
-				c := ps.readPtr(p.off + i*8)
-				if err := ns.writePtr(n.off+i*8, c, copies, depth+1); err != nil {
+			// was bugily: for i := 0; i < n.ptrs; i++ {
+			// which is wrong because n.ptrs can be 0 while length > 0 and recursive copying was missed.
+			for i := 0; i < n.length; i++ {
+				c := srcSeg.readPtr(src.off + i*8)
+				if err := newSeg.writePtr(n.off+i*8, c, copies, depth+1); err != nil {
 					return err
 				}
 			}
 
 		case TypeBitList:
-			copy(ns.Data[n.off:], ps.Data[p.off:p.off+p.datasz])
+			copy(newSeg.Data[n.off:], srcSeg.Data[src.off:src.off+src.datasz])
 		}
+		//fmt.Printf("\n      jea debug3, about to call destSeg.writePtr(off = %d, key.newval = %#v)\n", off, key.newval)
+		return destSeg.writePtr(off, key.newval, nil, depth+1)
 
-		return s.writePtr(off, key.newval, nil, depth+1)
-
-	} else if (p.flags & hasPointerTag) != 0 {
+	} else if (src.flags & hasPointerTag) != 0 {
 		// By lucky chance, the data has a tag in front of it. This
 		// happens when create had to move the data to a new segment.
-		putLittle64(s.Data[off:], ps.farPtrValue(farPointer, p.off-8))
+		putLittle64(destSeg.Data[off:], srcSeg.farPtrValue(farPointer, src.off-8))
 		return nil
 
-	} else if len(ps.Data)+8 <= cap(ps.Data) {
+	} else if len(srcSeg.Data)+8 <= cap(srcSeg.Data) {
 		// Have room in the target for a tag
-		putLittle64(ps.Data[len(ps.Data):], p.value(len(ps.Data)))
-		putLittle64(s.Data[off:], ps.farPtrValue(farPointer, len(ps.Data)))
-		ps.Data = ps.Data[:len(ps.Data)+8]
+		putLittle64(srcSeg.Data[len(srcSeg.Data):], src.value(len(srcSeg.Data)))
+		putLittle64(destSeg.Data[off:], srcSeg.farPtrValue(farPointer, len(srcSeg.Data)))
+		srcSeg.Data = srcSeg.Data[:len(srcSeg.Data)+8]
 		return nil
 
 	} else {
 		// Need to create a double far pointer. Try and create it in
 		// the originating segment if we can.
-		t := s
+		t := destSeg
 		if len(t.Data)+16 > cap(t.Data) {
 			var err error
 			if t, err = t.Message.NewSegment(16); err != nil {
@@ -1252,9 +1349,9 @@ func (s *Segment) writePtr(off int, p Object, copies *rbtree.Tree, depth int) er
 			}
 		}
 
-		putLittle64(t.Data[len(t.Data):], ps.farPtrValue(farPointer, p.off))
-		putLittle64(t.Data[len(t.Data)+8:], p.value(p.off-8))
-		putLittle64(s.Data[off:], t.farPtrValue(doubleFarPointer, len(t.Data)))
+		putLittle64(t.Data[len(t.Data):], srcSeg.farPtrValue(farPointer, src.off))
+		putLittle64(t.Data[len(t.Data)+8:], src.value(src.off-8))
+		putLittle64(destSeg.Data[off:], t.farPtrValue(doubleFarPointer, len(t.Data)))
 		t.Data = t.Data[:len(t.Data)+16]
 		return nil
 	}
