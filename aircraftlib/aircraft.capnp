@@ -133,6 +133,8 @@ struct Z {
   }
 }
 
+# tests for Text/List(Text) recusion handling
+
 struct Counter {
   size  @0: Int64;
   words @1: Text;
@@ -150,5 +152,59 @@ struct Zserver {
 struct Zjob {
     cmd        @0: Text;
     args       @1: List(Text);
+}
+
+# versioning test structs
+
+struct VerEmpty {
+}
+
+struct VerOneData {
+    val @0: Int16;
+}
+
+struct VerTwoData {
+    val @0: Int16;
+    duo @1: Int64;
+}
+
+struct VerOnePtr {
+    ptr @0: VerOneData;
+}
+
+struct VerTwoPtr {
+       ptr1 @0: VerOneData;
+       ptr2 @1: VerOneData;
+}
+
+struct VerTwoDataTwoPtr {
+    val @0: Int16;
+    duo @1: Int64;
+    ptr1 @2: VerOneData;
+    ptr2 @3: VerOneData;
+}
+
+struct HoldsVerEmptyList {
+  mylist @0: List(VerEmpty);
+}
+
+struct HoldsVerOneDataList {
+  mylist @0: List(VerOneData);
+}
+
+struct HoldsVerTwoDataList {
+  mylist @0: List(VerTwoData);
+}
+
+struct HoldsVerOnePtrList {
+  mylist @0: List(VerOnePtr);
+}
+
+struct HoldsVerTwoPtrList {
+  mylist @0: List(VerTwoPtr);
+}
+
+struct HoldsVerTwoTwoList {
+  mylist @0: List(VerTwoDataTwoPtr);
 }
 
