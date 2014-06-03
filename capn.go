@@ -761,9 +761,16 @@ func (p PointerList) At(i int) Object {
 	}
 }
 
-func copyStructHandlingVersionSkew(dest Object, src Object, copies *rbtree.Tree, depth int) error {
+// listpos allows us to use this routine for copying elements between lists
+func copyStructHandlingVersionSkew(dest Object, src Object, copies *rbtree.Tree, depth int, listpos int) error {
 
-	data := dest.Segment.Data[dest.off : dest.off+dest.datasz]
+	destElemSz := dest.datasz + dest.ptrs*8
+	srcElemSz := src.datasz + src.ptrs*8
+
+	destListInc := destElemSz * listpos
+	srcListInc := srcElemSz * listpos
+
+	data := dest.Segment.Data[dest.off+destListInc : dest.off+destListInc+dest.datasz]
 
 	// Q: how does version handling happen here, when the
 	//    desination data[] slice can be bigger or smaller
@@ -777,7 +784,7 @@ func copyStructHandlingVersionSkew(dest Object, src Object, copies *rbtree.Tree,
 	//
 
 	// data section:
-	copyCount := copy(data, src.Segment.Data[src.off:src.off+src.datasz])
+	copyCount := copy(data, src.Segment.Data[src.off+srcListInc:src.off+srcListInc+src.datasz])
 	data = data[copyCount:]
 	for j := range data {
 		data[j] = 0
@@ -792,15 +799,15 @@ func copyStructHandlingVersionSkew(dest Object, src Object, copies *rbtree.Tree,
 	dstPtrSize := int(dest.ptrs * 8)
 	for j := 0; j < dstPtrSize; j += 8 {
 		if j < srcPtrSize {
-			m := src.Segment.readPtr(src.off + src.datasz + j)
+			m := src.Segment.readPtr(src.off + srcListInc + src.datasz + j)
 			//fmt.Printf("debug: PointerList.Set(i=%d, src=%#v). source ptr is m = %#v\n", i, src, m)
-			if err := dest.Segment.writePtr(dest.off+dest.datasz+j, m, copies, depth+1); err != nil {
+			if err := dest.Segment.writePtr(dest.off+destListInc+dest.datasz+j, m, copies, depth+1); err != nil {
 				return err
 			}
 		} else {
 			// destination p is a newer version than source
 			//  so these extra new pointer fields in p must be zeroed.
-			putLittle64(dest.Segment.Data[dest.off+dest.datasz+j:], 0)
+			putLittle64(dest.Segment.Data[dest.off+destListInc+dest.datasz+j:], 0)
 		}
 	}
 	// Nothing more here: so any other pointers in srcPtrSize beyond
@@ -832,7 +839,7 @@ func (p PointerList) Set(i int, src Object) error {
 			ptrs:    p.ptrs,
 		}
 
-		err := copyStructHandlingVersionSkew(dest, src, nil, 0)
+		err := copyStructHandlingVersionSkew(dest, src, nil, 0, 0)
 		if err != nil {
 			return err
 		}
@@ -1297,7 +1304,7 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 					ptrs:    n.ptrs,
 				}
 
-				if err := copyStructHandlingVersionSkew(dest, src, copies, depth); err != nil {
+				if err := copyStructHandlingVersionSkew(dest, src, copies, depth, 0); err != nil {
 					return err
 				}
 				/* old, not-robust-against-version-changes code:
@@ -1313,7 +1320,18 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 			}
 
 		case TypeList:
+			// recognize Data and Text, both List(Byte), as special cases for speed.
+			if n.datasz == 1 && n.ptrs == 0 && src.datasz == 1 && src.ptrs == 0 {
+				//fmt.Printf("\n\n    *** special case for Text and Data kicking in *** \n\n")
+				copy(newSeg.Data[n.off:], srcSeg.Data[src.off:src.off+n.length+1])
+				break
+			}
+
 			for i := 0; i < n.length; i++ {
+				if err := copyStructHandlingVersionSkew(n, src, copies, depth, i); err != nil {
+					return err
+				}
+				/* old:
 				o := i * (n.datasz + n.ptrs*8)
 				//fmt.Printf("\n        in TypeList:   copying % bytes: '%#v'/%c to newSeg.Data[%d]\n", n.datasz, srcSeg.Data[src.off+o:src.off+o+n.datasz], rune(srcSeg.Data[src.off+o]), n.off+o)
 				copy(newSeg.Data[n.off+o:], srcSeg.Data[src.off+o:src.off+o+n.datasz])
@@ -1328,6 +1346,7 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 					}
 					o += 8
 				}
+				*/
 			}
 
 		case TypePointerList:
