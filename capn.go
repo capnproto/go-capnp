@@ -197,7 +197,7 @@ func (s *Segment) NewPointerList(sz int) PointerList {
 
 func (s *Segment) NewCompositeList(datasz, ptrs, length int) PointerList {
 	if datasz < 0 || datasz > maxDataSize || ptrs < 0 || ptrs > maxPtrs {
-		// jea Q: when would these conditions ever be met??? Everything is going to be a TypeList.
+		// Q: when would these conditions ever be met??? Why isn't everything is going to be a TypeList?
 		return PointerList{}
 	} else if ptrs > 0 || datasz > 8 {
 		datasz = (datasz + 7) &^ 7
@@ -761,10 +761,9 @@ func (p PointerList) At(i int) Object {
 	}
 }
 
-func copyStructHandlingVersionSkew(toSeg *Segment, toDatasz int, toPtrs int, toOff int, src Object) error {
+func copyStructHandlingVersionSkew(dest Object, src Object, copies *rbtree.Tree, depth int) error {
 
-	off := toOff
-	data := toSeg.Data[off : off+toDatasz]
+	data := dest.Segment.Data[dest.off : dest.off+dest.datasz]
 
 	// Q: how does version handling happen here, when the
 	//    desination data[] slice can be bigger or smaller
@@ -790,26 +789,26 @@ func copyStructHandlingVersionSkew(toSeg *Segment, toDatasz int, toPtrs int, toO
 	// i.e. the case when srcPtrSize > dstPtrSize, by only
 	// running j over the size of dstPtrSize, the destination size.
 	srcPtrSize := src.ptrs * 8
-	dstPtrSize := int(toPtrs * 8)
+	dstPtrSize := int(dest.ptrs * 8)
 	for j := 0; j < dstPtrSize; j += 8 {
 		if j < srcPtrSize {
 			m := src.Segment.readPtr(src.off + src.datasz + j)
-			//fmt.Printf("jea debug: PointerList.Set(i=%d, src=%#v). source ptr is m = %#v\n", i, src, m)
-			if err := toSeg.writePtr(off+toDatasz+j, m, nil, 0); err != nil {
+			//fmt.Printf("debug: PointerList.Set(i=%d, src=%#v). source ptr is m = %#v\n", i, src, m)
+			if err := dest.Segment.writePtr(dest.off+dest.datasz+j, m, copies, depth+1); err != nil {
 				return err
 			}
 		} else {
 			// destination p is a newer version than source
 			//  so these extra new pointer fields in p must be zeroed.
-			putLittle64(toSeg.Data[off+toDatasz+j:], 0)
+			putLittle64(dest.Segment.Data[dest.off+dest.datasz+j:], 0)
 		}
 	}
 	// Nothing more here: so any other pointers in srcPtrSize beyond
 	// those in dstPtrSize are ignored and discarded.
 
-	// end copyStructHandlingVersionSkew()
 	return nil
-}
+
+} // end copyStructHandlingVersionSkew()
 
 func (p TextList) Set(i int, v string) { PointerList(p).Set(i, p.Segment.NewText(v)) }
 func (p DataList) Set(i int, v []byte) { PointerList(p).Set(i, p.Segment.NewData(v)) }
@@ -826,7 +825,14 @@ func (p PointerList) Set(i int, src Object) error {
 
 		off := p.off + i*(p.datasz+p.ptrs*8)
 
-		err := copyStructHandlingVersionSkew(p.Segment, p.datasz, p.ptrs, off, src)
+		dest := Object{
+			Segment: p.Segment,
+			off:     off,
+			datasz:  p.datasz,
+			ptrs:    p.ptrs,
+		}
+
+		err := copyStructHandlingVersionSkew(dest, src, nil, 0)
 		if err != nil {
 			return err
 		}
@@ -862,7 +868,7 @@ func (p PointerList) Set(i int, src Object) error {
 			for j := 0; j < dstPtrSize; j += 8 {
 				if j < srcPtrSize {
 					m := src.Segment.readPtr(src.off + src.datasz + j)
-					//fmt.Printf("jea debug: PointerList.Set(i=%d, src=%#v). source ptr is m = %#v\n", i, src, m)
+					//fmt.Printf(" debug: PointerList.Set(i=%d, src=%#v). source ptr is m = %#v\n", i, src, m)
 					if err := p.Segment.writePtr(off+p.datasz+j, m, nil, 0); err != nil {
 						return err
 					}
@@ -1091,7 +1097,7 @@ func signedOffsetFromStructPointer(val uint64) int {
 
 func (p Object) value(off int) uint64 {
 	d := orable30BitOffsetPart(p.off/8 - off/8 - 1)
-	//fmt.Printf("jea debug4 in value(off=%d): p.off/8 = %d, off/8 = %d,  and p.off/8 - off/8 -1 = %d    d=%v\n", off, p.off/8, off/8, p.off/8-off/8-1, d)
+	//fmt.Printf(" debug4 in value(off=%d): p.off/8 = %d, off/8 = %d,  and p.off/8 - off/8 -1 = %d    d=%v\n", off, p.off/8, off/8, p.off/8-off/8-1, d)
 
 	switch p.typ {
 	case TypeStruct:
@@ -1179,13 +1185,13 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 	//fmt.Printf("\n  %s ---> writePtr(off=%d) at depth %d called: destSeg: %p,  srcSeg: %p   src: %#v\n", strings.Repeat("   ", depth), off, depth, destSeg, srcSeg, src)
 
 	if src.typ == TypeNull || isEmptyStruct(src) {
-		//fmt.Printf("  jea: recognized EmptyStruct, writing 0 word to off=%d   at depth %d\n", off, depth)
+		//fmt.Printf("  debug: recognized EmptyStruct, writing 0 word to off=%d   at depth %d\n", off, depth)
 		putLittle64(destSeg.Data[off:], 0)
 		return nil
 
 	} else if destSeg == srcSeg {
 		// Same segment
-		//fmt.Printf("jea debug2: Same segment (%p) writePtr happening: src.value(off) = %#v to destSeg.Data[off=%d]\n", destSeg, src.value(off), off)
+		//fmt.Printf(" debug2: Same segment (%p) writePtr happening: src.value(off) = %#v to destSeg.Data[off=%d]\n", destSeg, src.value(off), off)
 		putLittle64(destSeg.Data[off:], src.value(off))
 		return nil
 
@@ -1221,7 +1227,7 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 		}
 
 		if (src.flags & isCompositeList) != 0 {
-			key.boff -= 64 // jea Q: what the heck does this do? why is it here?
+			key.boff -= 64 //  Q: what the heck does this do? why is it here?
 		}
 
 		iter := copies.FindLE(key)
@@ -1265,7 +1271,7 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 		key.newval = n
 		copies.Insert(key)
 
-		//fmt.Printf(" ..... jea need to clone target: key.newval: %#v of type '%s'\n", key.newval, key.newval.typ.String())
+		//fmt.Printf(" .....  need to clone target: key.newval: %#v of type '%s'\n", key.newval, key.newval.typ.String())
 
 		switch src.typ {
 		case TypeStruct:
@@ -1280,8 +1286,21 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 					newSeg.Data[i] = 0
 				}
 			} else {
-				// jea Q: does this handle versioning? or does it even need too?
-				// We are copying between segments.
+				//  Q: does this handle versioning? or does it even need too?
+				// Well, we are copying between segments, so version skew is possible. Lets
+				// extract and re-use our version handling code, into copyStructHandlingVersionSkew()
+
+				dest := Object{
+					Segment: newSeg,
+					off:     n.off,
+					datasz:  n.datasz,
+					ptrs:    n.ptrs,
+				}
+
+				if err := copyStructHandlingVersionSkew(dest, src, copies, depth); err != nil {
+					return err
+				}
+				/* old, not-robust-against-version-changes code:
 				copy(newSeg.Data[n.off:], srcSeg.Data[src.off:src.off+src.datasz])
 				for i := 0; i < n.ptrs; i++ {
 					c := srcSeg.readPtr(src.off + src.datasz + i*8)
@@ -1289,6 +1308,8 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 						return err
 					}
 				}
+				*/
+
 			}
 
 		case TypeList:
@@ -1322,7 +1343,7 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 		case TypeBitList:
 			copy(newSeg.Data[n.off:], srcSeg.Data[src.off:src.off+src.datasz])
 		}
-		//fmt.Printf("\n      jea debug3, about to call destSeg.writePtr(off = %d, key.newval = %#v)\n", off, key.newval)
+		//fmt.Printf("\n       debug3, about to call destSeg.writePtr(off = %d, key.newval = %#v)\n", off, key.newval)
 		return destSeg.writePtr(off, key.newval, nil, depth+1)
 
 	} else if (src.flags & hasPointerTag) != 0 {
