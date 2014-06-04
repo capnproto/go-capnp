@@ -5,8 +5,6 @@ import (
 	"errors"
 	"io"
 	"math"
-
-	"github.com/glycerine/rbtree"
 )
 
 var (
@@ -29,7 +27,6 @@ func NewBuffer(data []byte) *Segment {
 	b := &buffer{}
 	b.Message = b
 	b.Data = data
-	b.Copies = rbtree.NewTree(compare)
 	return (*Segment)(b)
 }
 
@@ -39,7 +36,6 @@ func (b *buffer) NewSegment(minsz int) (*Segment, error) {
 	}
 	b.Data = append(b.Data, make([]byte, minsz)...)
 	b.Data = b.Data[:len(b.Data)-minsz]
-	b.Copies = rbtree.NewTree(compare)
 	return (*Segment)(b), nil
 }
 
@@ -62,12 +58,12 @@ type multiBuffer struct {
 func NewmultiBuffer(data [][]byte) *Segment {
 	m := &multiBuffer{make([]*Segment, len(data))}
 	for i, d := range data {
-		m.segments[i] = &Segment{m, d, uint32(i), rbtree.NewTree(compare)}
+		m.segments[i] = &Segment{m, d, uint32(i)}
 	}
 	if len(data) > 0 {
 		return m.segments[0]
 	}
-	return &Segment{m, nil, 0xFFFFFFFF, rbtree.NewTree(compare)}
+	return &Segment{m, nil, 0xFFFFFFFF}
 }
 
 var (
@@ -85,7 +81,7 @@ func (m *multiBuffer) NewSegment(minsz int) (*Segment, error) {
 	if minsz < 4096 {
 		minsz = 4096
 	}
-	s := &Segment{m, make([]byte, 0, minsz), uint32(len(m.segments)), rbtree.NewTree(compare)}
+	s := &Segment{m, make([]byte, 0, minsz), uint32(len(m.segments))}
 	m.segments = append(m.segments, s)
 	return s, nil
 }
@@ -148,7 +144,7 @@ func ReadFromStream(r io.Reader, buf *bytes.Buffer) (*Segment, error) {
 	m := &multiBuffer{make([]*Segment, segnum)}
 	for i := 0; i < segnum; i++ {
 		sz := int(little32(hdrv[4*i:])) * 8
-		m.segments[i] = &Segment{m, datav[:sz], uint32(i), rbtree.NewTree(compare)}
+		m.segments[i] = &Segment{m, datav[:sz], uint32(i)}
 		datav = datav[sz:]
 	}
 
@@ -194,7 +190,7 @@ func ReadFromMemoryZeroCopy(data []byte) (seg *Segment, bytesRead int64, err err
 	m := &multiBuffer{make([]*Segment, segnum)}
 	for i := 0; i < segnum; i++ {
 		sz := int(little32(hdrv[4*i:])) * 8
-		m.segments[i] = &Segment{m, datav[:sz], uint32(i), rbtree.NewTree(compare)}
+		m.segments[i] = &Segment{m, datav[:sz], uint32(i)}
 		datav = datav[sz:]
 	}
 

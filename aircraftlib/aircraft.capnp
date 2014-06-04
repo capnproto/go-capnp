@@ -208,3 +208,15 @@ struct HoldsVerTwoTwoList {
   mylist @0: List(VerTwoDataTwoPtr);
 }
 
+struct HoldsVerTwoTwoPlus {
+  mylist @0: List(VerTwoTwoPlus);
+}
+
+struct VerTwoTwoPlus {
+    val @0: Int16;
+    duo @1: Int64;
+    ptr1 @2: VerTwoDataTwoPtr;
+    ptr2 @3: VerTwoDataTwoPtr;
+    tre  @4: Int64;
+    lst3 @5: List(Int64);
+}

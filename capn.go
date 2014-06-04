@@ -3,7 +3,6 @@ package capn
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"math"
 
 	"github.com/glycerine/rbtree"
@@ -61,17 +60,6 @@ type Segment struct {
 	Message Message
 	Data    []uint8
 	Id      uint32
-	Copies  *rbtree.Tree
-}
-
-func (s *Segment) ShowCopies() {
-	fmt.Printf("ShowCopies dumping copies for segment %p:  size: %d\n", s, s.Copies.Len())
-	i := 0
-	for it := s.Copies.Min(); !it.Limit(); it = it.Next() {
-		o := it.Item().(offset)
-		fmt.Printf("%02d   offset: %#v\n", i, o)
-		i++
-	}
 }
 
 type Object struct {
@@ -809,7 +797,7 @@ func copyStructHandlingVersionSkew(dest Object, src Object, copies *rbtree.Tree,
 
 	toData := dest.Segment.Data[dest.off+destListInc : dest.off+destListInc+dest.datasz]
 
-	fmt.Printf("\n\n debug: destElemSz = %d, srcElemSz = %d, destListInc = %d, srcListInc = %d, toData = %#v, len(toData)=%d\n", destElemSz, srcElemSz, destListInc, srcListInc, toData, len(toData))
+	//fmt.Printf("\n\n debug: destElemSz = %d, srcElemSz = %d, destListInc = %d, srcListInc = %d, toData = %#v, len(toData)=%d\n", destElemSz, srcElemSz, destListInc, srcListInc, toData, len(toData))
 
 	// Q: how does version handling happen here, when the
 	//    desination toData[] slice can be bigger or smaller
@@ -823,12 +811,12 @@ func copyStructHandlingVersionSkew(dest Object, src Object, copies *rbtree.Tree,
 	//
 
 	// data section:
-	fmt.Printf("\n\n  debug: len(src.Segment.Data) = %d, src.off(%d)+srcListInc(%d) = %d\n", len(src.Segment.Data), src.off, srcListInc, src.off+srcListInc)
+	//fmt.Printf("\n\n  debug: len(src.Segment.Data) = %d, src.off(%d)+srcListInc(%d) = %d\n", len(src.Segment.Data), src.off, srcListInc, src.off+srcListInc)
 	from := src.Segment.Data[src.off+srcListInc : src.off+srcListInc+src.datasz]
-	fmt.Printf("\n\n  debug: len(src.Segment.Data) = %d, src.off(%d)+srcListInc(%d) = %d,  len(from)=%d\n", len(src.Segment.Data), src.off, srcListInc, src.off+srcListInc, len(from))
+	//fmt.Printf("\n\n  debug: len(src.Segment.Data) = %d, src.off(%d)+srcListInc(%d) = %d,  len(from)=%d\n", len(src.Segment.Data), src.off, srcListInc, src.off+srcListInc, len(from))
 
 	copyCount := copy(toData, from)
-	fmt.Printf("\n\n  debug: copyCount = %d\n", copyCount)
+	//fmt.Printf("\n\n  debug: copyCount = %d\n", copyCount)
 	toData = toData[copyCount:]
 	for j := range toData {
 		toData[j] = 0
@@ -878,51 +866,6 @@ func (p PointerList) Set(i int, src Object) error {
 		if err != nil {
 			return err
 		}
-
-		/*
-			data := p.Segment.Data[off : off+p.datasz]
-
-			// Q: how does version handling happen here, when the
-			//    desination data[] slice can be bigger or smaller
-			//    than the source data slice, which is in
-			//    src.Segment.Data[src.off:src.off+src.datasz] ?
-			//
-			// A: Newer fields only come *after* old fields. Note that
-			//    copy only copies min(len(src), len(dst)) size,
-			//    and then we manually zero the rest in the for loop
-			//    that writes data[j] = 0.
-			//
-
-			// data section:
-			copyCount := copy(data, src.Segment.Data[src.off:src.off+src.datasz])
-			data = data[copyCount:]
-			for j := range data {
-				data[j] = 0
-			}
-
-			// ptrs section:
-
-			// version handling: we ignore any extra-newer-pointers in src,
-			// i.e. the case when srcPtrSize > dstPtrSize, by only
-			// running j over the size of dstPtrSize, the destination size.
-			srcPtrSize := src.ptrs * 8
-			dstPtrSize := int(p.ptrs * 8)
-			for j := 0; j < dstPtrSize; j += 8 {
-				if j < srcPtrSize {
-					m := src.Segment.readPtr(src.off + src.datasz + j)
-					//fmt.Printf(" debug: PointerList.Set(i=%d, src=%#v). source ptr is m = %#v\n", i, src, m)
-					if err := p.Segment.writePtr(off+p.datasz+j, m, nil, 0); err != nil {
-						return err
-					}
-				} else {
-					// destination p is a newer version than source
-					//  so these extra new pointer fields in p must be zeroed.
-					putLittle64(p.Segment.Data[off+p.datasz+j:], 0)
-				}
-			}
-			// Nothing more here: so any other pointers in srcPtrSize beyond
-			// those in dstPtrSize are ignored and discarded.
-		*/
 		return nil
 
 	case TypePointerList:
@@ -969,7 +912,7 @@ func (s *Segment) readPtr(off int) Object {
 	var err error
 	val := little64(s.Data[off:])
 
-	fmt.Printf("readPtr see val= %x\n", val)
+	//fmt.Printf("readPtr see val= %x\n", val)
 
 	switch val & 7 {
 	case doubleFarPointer:
@@ -1043,10 +986,13 @@ func (s *Segment) readPtr(off int) Object {
 
 	case listPointer:
 		offw := off/8 + 1 + signedOffsetFromStructPointer(val)
-		fmt.Printf("offw = %d,  len(s.Data)=%d", offw, len(s.Data))
-		//if offw < 0 || offw >= len(s.Data)/8 {
-		//	return Object{}
-		//}
+		//fmt.Printf("offw = %d,  len(s.Data)=%d", offw, len(s.Data))
+		listc := ListC(val)
+		if listc != voidList {
+			if offw < 0 || offw >= len(s.Data)/8 {
+				return Object{}
+			}
+		}
 
 		p := Object{
 			Segment: s,
@@ -1057,9 +1003,9 @@ func (s *Segment) readPtr(off int) Object {
 
 		words := p.length
 
-		switch (val >> 32) & 7 {
+		switch listc {
 		case voidList:
-			fmt.Printf("we see a voidList with len: %d\n", p.length)
+			//fmt.Printf("we see a voidList with len: %d\n", p.length)
 			return p
 		case bit1List:
 			p.typ = TypeBitList
@@ -1266,29 +1212,19 @@ func isEmptyStruct(src Object) bool {
 
 func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth int) error {
 
-	// make copies persistent
-	//copies = destSeg.Copies
-
-	fmt.Printf("debug: destSeg.ShowCopies() = \n")
-	destSeg.ShowCopies()
-
 	// handle size-zero Objects/empty structs
 	if src.Segment == nil {
 		return nil
 	}
 	srcSeg := src.Segment
-	//fmt.Printf("\n  %s ---> writePtr(off=%d) at depth %d called: destSeg: %p,  srcSeg: %p   src: %#v\n", strings.Repeat("   ", depth), off, depth, destSeg, srcSeg, src)
 
 	if src.typ == TypeNull || isEmptyStruct(src) {
-		//fmt.Printf("  debug: recognized EmptyStruct, writing 0 word to off=%d   at depth %d\n", off, depth)
 		putLittle64(destSeg.Data[off:], 0)
 		return nil
 
 	} else if destSeg == srcSeg {
 		// Same segment
-		fmt.Printf(" debug2: Same segment (%p) writePtr happening: src.value(off) = %#v to len(destSeg.Data)=%d\n", destSeg, src.value(off), len(destSeg.Data))
 		putLittle64(destSeg.Data[off:], src.value(off))
-		fmt.Printf(" debug2: after putLittle64, len(destSeg.Data)=%d\n", len(destSeg.Data))
 		return nil
 
 	} else if destSeg.Message != srcSeg.Message || (src.flags&isListMember) != 0 || (src.flags&isBitListMember) != 0 {
@@ -1327,17 +1263,6 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 		}
 
 		iter := copies.FindLE(key)
-
-		fmt.Printf("\n\n debug: iter after FindLE(key=%#v) is : %#v,  len(copies)=%d\n", key, iter, copies.Len())
-		if iter.NegativeLimit() {
-			fmt.Printf("debug: iter is at NegativeLimit()\n")
-		}
-		if iter.Limit() {
-			fmt.Printf("debug: iter is at Limit()\n")
-		}
-		if !iter.NegativeLimit() {
-			fmt.Printf("debug: copies.FindLE(key) found something: %#v\n", iter.Item().(offset))
-		}
 
 		if key.bend > key.boff {
 			if !iter.NegativeLimit() {
@@ -1378,7 +1303,7 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 		key.newval = n
 		copies.Insert(key)
 
-		fmt.Printf(" .....  need to clone target: key.newval: %#v of type '%s'\n", key.newval, key.newval.typ.String())
+		//fmt.Printf(" .....  need to clone target: key.newval: %#v of type '%s'\n", key.newval, key.newval.typ.String())
 
 		switch src.typ {
 		case TypeStruct:
@@ -1393,10 +1318,6 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 					newSeg.Data[i] = 0
 				}
 			} else {
-				//  Q: does this handle versioning? or does it even need too?
-				// Well, we are copying between segments, so version skew is possible. Lets
-				// extract and re-use our version handling code, into copyStructHandlingVersionSkew()
-
 				dest := Object{
 					Segment: newSeg,
 					off:     n.off,
@@ -1407,61 +1328,29 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 				if err := copyStructHandlingVersionSkew(dest, src, copies, depth, 0, 0); err != nil {
 					return err
 				}
-				/* old, not-robust-against-version-changes code:
-				copy(newSeg.Data[n.off:], srcSeg.Data[src.off:src.off+src.datasz])
-				for i := 0; i < n.ptrs; i++ {
-					c := srcSeg.readPtr(src.off + src.datasz + i*8)
-					if err := newSeg.writePtr(n.off+n.datasz+i*8, c, copies, depth+1); err != nil {
-						return err
-					}
-				}
-				*/
-
 			}
 
 		case TypeList:
 			// recognize Data and Text, both List(Byte), as special cases for speed.
 			if n.datasz == 1 && n.ptrs == 0 && src.datasz == 1 && src.ptrs == 0 {
-				fmt.Printf("\n\n    *** special case for Text and Data kicking in *** \n\n")
+				//fmt.Printf("\n\n    *** special case for Text and Data kicking in *** \n\n")
 				copy(newSeg.Data[n.off:], srcSeg.Data[src.off:src.off+n.length+1])
 				break
 			}
 
-			//dest := destSeg.readPtr(off)
-			//if dest.Segment == nil {
 			dest := Object{
 				Segment: newSeg,
 				off:     n.off,
 				datasz:  n.datasz,
 				ptrs:    n.ptrs,
 			}
-			//}
-			fmt.Printf("\n debug, dest = %#v\n", dest)
 			for i := 0; i < n.length; i++ {
 				if err := copyStructHandlingVersionSkew(dest, src, copies, depth, i, i); err != nil {
 					return err
 				}
-				/* old:
-				o := i * (n.datasz + n.ptrs*8)
-				//fmt.Printf("\n        in TypeList:   copying % bytes: '%#v'/%c to newSeg.Data[%d]\n", n.datasz, srcSeg.Data[src.off+o:src.off+o+n.datasz], rune(srcSeg.Data[src.off+o]), n.off+o)
-				copy(newSeg.Data[n.off+o:], srcSeg.Data[src.off+o:src.off+o+n.datasz])
-				o += n.datasz
-
-				// recursively writePtr for each of our member pointers
-				for j := 0; j < n.ptrs; j++ {
-					c := srcSeg.readPtr(src.off + o)
-					//fmt.Printf("\n ... in src.typ == TypeList, recursively calling writePtr for c:%#v... \n", c)
-					if err := newSeg.writePtr(n.off+o, c, copies, depth+1); err != nil {
-						return err
-					}
-					o += 8
-				}
-				*/
 			}
 
 		case TypePointerList:
-			// was bugily: for i := 0; i < n.ptrs; i++ {
-			// which is wrong because n.ptrs can be 0 while length > 0 and recursive copying was missed.
 			for i := 0; i < n.length; i++ {
 				c := srcSeg.readPtr(src.off + i*8)
 				if err := newSeg.writePtr(n.off+i*8, c, copies, depth+1); err != nil {
@@ -1472,7 +1361,6 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 		case TypeBitList:
 			copy(newSeg.Data[n.off:], srcSeg.Data[src.off:src.off+src.datasz])
 		}
-		//fmt.Printf("\n       debug3, about to call destSeg.writePtr(off = %d, key.newval = %#v)\n", off, key.newval)
 		return destSeg.writePtr(off, key.newval, nil, depth+1)
 
 	} else if (src.flags & hasPointerTag) != 0 {
@@ -1505,86 +1393,6 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 		t.Data = t.Data[:len(t.Data)+16]
 		return nil
 	}
-}
-
-func (destSeg *Segment) RememberWrite(off int, src Object, copies *rbtree.Tree, depth int) (already bool, err error) {
-	srcSeg := src.Segment
-	key := offset{
-		id:   srcSeg.Id,
-		boff: int64(src.off) * 8,
-		bend: int64(src.dataEnd()) * 8,
-		newval: Object{
-			typ:    src.typ,
-			length: src.length,
-			datasz: src.datasz,
-			ptrs:   src.ptrs,
-			flags:  (src.flags & isCompositeList),
-		},
-	}
-
-	if (src.flags & isBitListMember) != 0 {
-		key.boff += int64(src.flags & bitOffsetMask)
-		key.bend = key.boff + 1
-		key.newval.datasz = 8
-	}
-
-	if (src.flags & isCompositeList) != 0 {
-		key.boff -= 64 //  Q: what the heck does this do? why is it here? A: Accounts for the Tag word, perhaps because dataEnd() does not.
-	}
-
-	iter := copies.FindLE(key)
-
-	fmt.Printf("\n\n debug: iter after FindLE(key=%#v) is : %#v,  len(copies)=%d\n", key, iter, copies.Len())
-	if iter.NegativeLimit() {
-		fmt.Printf("debug: iter is at NegativeLimit()\n")
-	}
-	if iter.Limit() {
-		fmt.Printf("debug: iter is at Limit()\n")
-	}
-	if !iter.NegativeLimit() {
-		fmt.Printf("debug: copies.FindLE(key) found something: %#v\n", iter.Item().(offset))
-	}
-
-	if key.bend > key.boff {
-		if !iter.NegativeLimit() {
-			other := iter.Item().(offset)
-			if key.id == other.id {
-				if key.boff == other.boff && key.bend == other.bend {
-					return true, destSeg.writePtr(off, other.newval, nil, depth+1)
-				} else if other.bend >= key.bend {
-					return true, ErrOverlap
-				}
-			}
-		}
-
-		iter = iter.Next()
-
-		if !iter.Limit() {
-			other := iter.Item().(offset)
-			if key.id == other.id && other.boff < key.bend {
-				return true, ErrOverlap
-			}
-		}
-	}
-
-	// No copy nor overlap found, so we need to clone the target
-	n, err := destSeg.create(int((key.bend-key.boff)/8), key.newval)
-	if err != nil {
-		return false, err
-	}
-
-	// n is possibly in a new segment, if destSeg was full.
-	newSeg := n.Segment
-
-	if (n.flags & isCompositeList) != 0 {
-		copy(newSeg.Data[n.off:], srcSeg.Data[src.off-8:src.off])
-		n.off += 8
-	}
-
-	key.newval = n
-	copies.Insert(key)
-
-	return false, nil
 }
 
 func B(val uint64) int {
@@ -1629,20 +1437,3 @@ func ListCString(val uint64) string {
 func ListD(val uint64) int {
 	return int(uint32(val >> 35))
 }
-
-/*
-func (o Object) ListLenInWordsOmittingTag(val uint64) (listLenInWords int, tagOffsetInWords int) {
-	if o.typ != TypeList {
-		panic("ListLenInWordsOmittingTag() can only be called on Objects of TypeList")
-	}
-	if ListC(val) == compositeList {
-
-		tagOffsetInWords = 1 + B(val)
-		//tag := binary.LittleEndian.Uint64(b[(tagline)*8 : (tagline+1)*8])
-		r = fmt.Sprintf("list-of-composite, count: %d. (from tag at line %d).", B(tag), line+1+B(val))
-		listLenInWords = ListD(val)
-		c.expected[tagline] = CompositeTag(tag)
-		return r
-	}
-}
-*/
