@@ -220,3 +220,11 @@ struct VerTwoTwoPlus {
     tre  @4: Int64;
     lst3 @5: List(Int64);
 }
+
+# text handling
+
+struct HoldsText {
+       txt @0: Text;
+       lst @1: List(Text);
+       lstlst @2: List(List(Text));
+}
