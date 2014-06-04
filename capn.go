@@ -3,6 +3,7 @@ package capn
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math"
 
 	"github.com/glycerine/rbtree"
@@ -172,7 +173,8 @@ func (s *Segment) NewBitList(sz int) BitList {
 	return BitList(n)
 }
 
-func (s *Segment) NewVoidList(sz int) VoidList       { return VoidList{typ: TypeList, length: sz, datasz: 0} }
+//func (s *Segment) NewVoidList(sz int) VoidList       { return VoidList{typ: TypeList, length: sz, datasz: 0} }
+func (s *Segment) NewVoidList(sz int) VoidList       { return VoidList(s.newList(0, sz)) }
 func (s *Segment) NewInt8List(sz int) Int8List       { return Int8List(s.newList(1, sz)) }
 func (s *Segment) NewUInt8List(sz int) UInt8List     { return UInt8List(s.newList(1, sz)) }
 func (s *Segment) NewInt16List(sz int) Int16List     { return Int16List(s.newList(2, sz)) }
@@ -764,6 +766,11 @@ func (p PointerList) At(i int) Object {
 // listpos allows us to use this routine for copying elements between lists
 func copyStructHandlingVersionSkew(dest Object, src Object, copies *rbtree.Tree, depth int, listpos int) error {
 
+	// handle VoidList destinations
+	if dest.Segment == nil {
+		return nil
+	}
+
 	destElemSz := dest.datasz + dest.ptrs*8
 	srcElemSz := src.datasz + src.ptrs*8
 
@@ -830,16 +837,7 @@ func (p PointerList) Set(i int, src Object) error {
 			src = Object{}
 		}
 
-		off := p.off + i*(p.datasz+p.ptrs*8)
-
-		dest := Object{
-			Segment: p.Segment,
-			off:     off,
-			datasz:  p.datasz,
-			ptrs:    p.ptrs,
-		}
-
-		err := copyStructHandlingVersionSkew(dest, src, nil, 0, 0)
+		err := copyStructHandlingVersionSkew(Object(p), src, nil, 0, i)
 		if err != nil {
 			return err
 		}
@@ -1188,6 +1186,11 @@ func isEmptyStruct(src Object) bool {
 }
 
 func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth int) error {
+
+	// handle size-zero Objects/empty structs
+	if src.Segment == nil {
+		return nil
+	}
 	srcSeg := src.Segment
 	//fmt.Printf("\n  %s ---> writePtr(off=%d) at depth %d called: destSeg: %p,  srcSeg: %p   src: %#v\n", strings.Repeat("   ", depth), off, depth, destSeg, srcSeg, src)
 
@@ -1322,7 +1325,7 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 		case TypeList:
 			// recognize Data and Text, both List(Byte), as special cases for speed.
 			if n.datasz == 1 && n.ptrs == 0 && src.datasz == 1 && src.ptrs == 0 {
-				//fmt.Printf("\n\n    *** special case for Text and Data kicking in *** \n\n")
+				fmt.Printf("\n\n    *** special case for Text and Data kicking in *** \n\n")
 				copy(newSeg.Data[n.off:], srcSeg.Data[src.off:src.off+n.length+1])
 				break
 			}

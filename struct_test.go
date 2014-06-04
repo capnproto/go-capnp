@@ -340,12 +340,14 @@ func TestSetBetweenSegments(t *testing.T) {
 	})
 }
 
-func ShowSeg(msg string, seg *capn.Segment) {
+func ShowSeg(msg string, seg *capn.Segment) []byte {
 	pre := bytes.Buffer{}
 	seg.WriteTo(&pre)
 
 	fmt.Printf("%s\n", msg)
-	ShowBytes(pre.Bytes(), 10)
+	by := pre.Bytes()
+	ShowBytes(by, 10)
+	return by
 }
 
 func TestZserverWithOneEmptyJob(t *testing.T) {
