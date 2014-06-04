@@ -31,6 +31,9 @@ func NewBuffer(data []byte) *Segment {
 }
 
 func (b *buffer) NewSegment(minsz int) (*Segment, error) {
+	if minsz < 4096 {
+		minsz = 4096
+	}
 	if uint64(len(b.Data)) > uint64(math.MaxUint32)-uint64(minsz) {
 		return nil, ErrOverlarge
 	}

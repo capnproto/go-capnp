@@ -284,7 +284,7 @@ func (s *Segment) create(sz int, n Object) (Object, error) {
 
 	n.Segment = s
 	n.off = len(s.Data)
-	s.Data = s.Data[:len(s.Data)+sz] // jea: how is this possibly safe?
+	s.Data = s.Data[:len(s.Data)+sz] // NewSegment() makes this promise
 
 	if tag {
 		n.off += 8
