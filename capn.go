@@ -61,6 +61,17 @@ type Segment struct {
 	Message Message
 	Data    []uint8
 	Id      uint32
+	Copies  *rbtree.Tree
+}
+
+func (s *Segment) ShowCopies() {
+	fmt.Printf("ShowCopies dumping copies for segment %p:  size: %d\n", s, s.Copies.Len())
+	i := 0
+	for it := s.Copies.Min(); !it.Limit(); it = it.Next() {
+		o := it.Item().(offset)
+		fmt.Printf("%02d   offset: %#v\n", i, o)
+		i++
+	}
 }
 
 type Object struct {
@@ -71,6 +82,18 @@ type Object struct {
 	ptrs    int
 	typ     ObjectType
 	flags   uint
+}
+
+func (o Object) DupWithOff(off int) Object {
+	return Object{
+		Segment: o.Segment,
+		off:     off,
+		length:  o.length,
+		datasz:  o.datasz,
+		ptrs:    o.ptrs,
+		typ:     o.typ,
+		flags:   o.flags,
+	}
 }
 
 type Void struct{}
@@ -273,7 +296,7 @@ func (s *Segment) create(sz int, n Object) (Object, error) {
 
 	n.Segment = s
 	n.off = len(s.Data)
-	s.Data = s.Data[:len(s.Data)+sz]
+	s.Data = s.Data[:len(s.Data)+sz] // jea: how is this possibly safe?
 
 	if tag {
 		n.off += 8
@@ -372,6 +395,8 @@ func (p Struct) GetObject(off int) Object {
 
 func (p Struct) SetObject(i int, src Object) {
 	if uint(i) < uint(p.ptrs) {
+		//replaceMe := p.Segment.readPtr(p.off + p.datasz + i*8)
+		//copyStructHandlingVersionSkew(replaceMe, src, nil, 0, 0, 0)
 		p.Segment.writePtr(p.off+p.datasz+i*8, src, nil, 0)
 	}
 }
@@ -764,7 +789,7 @@ func (p PointerList) At(i int) Object {
 }
 
 // listpos allows us to use this routine for copying elements between lists
-func copyStructHandlingVersionSkew(dest Object, src Object, copies *rbtree.Tree, depth int, listpos int) error {
+func copyStructHandlingVersionSkew(dest Object, src Object, copies *rbtree.Tree, depth int, destListPos int, srcListPos int) error {
 
 	// handle VoidList destinations
 	if dest.Segment == nil {
@@ -774,27 +799,39 @@ func copyStructHandlingVersionSkew(dest Object, src Object, copies *rbtree.Tree,
 	destElemSz := dest.datasz + dest.ptrs*8
 	srcElemSz := src.datasz + src.ptrs*8
 
-	destListInc := destElemSz * listpos
-	srcListInc := srcElemSz * listpos
+	// handle assignment into a size-zero object/empty struct/old version
+	//if destElemSz == 0 {
+	// return nil
+	// }
 
-	data := dest.Segment.Data[dest.off+destListInc : dest.off+destListInc+dest.datasz]
+	destListInc := destElemSz * destListPos
+	srcListInc := srcElemSz * srcListPos
+
+	toData := dest.Segment.Data[dest.off+destListInc : dest.off+destListInc+dest.datasz]
+
+	fmt.Printf("\n\n debug: destElemSz = %d, srcElemSz = %d, destListInc = %d, srcListInc = %d, toData = %#v, len(toData)=%d\n", destElemSz, srcElemSz, destListInc, srcListInc, toData, len(toData))
 
 	// Q: how does version handling happen here, when the
-	//    desination data[] slice can be bigger or smaller
+	//    desination toData[] slice can be bigger or smaller
 	//    than the source data slice, which is in
 	//    src.Segment.Data[src.off:src.off+src.datasz] ?
 	//
 	// A: Newer fields only come *after* old fields. Note that
 	//    copy only copies min(len(src), len(dst)) size,
 	//    and then we manually zero the rest in the for loop
-	//    that writes data[j] = 0.
+	//    that writes toData[j] = 0.
 	//
 
 	// data section:
-	copyCount := copy(data, src.Segment.Data[src.off+srcListInc:src.off+srcListInc+src.datasz])
-	data = data[copyCount:]
-	for j := range data {
-		data[j] = 0
+	fmt.Printf("\n\n  debug: len(src.Segment.Data) = %d, src.off(%d)+srcListInc(%d) = %d\n", len(src.Segment.Data), src.off, srcListInc, src.off+srcListInc)
+	from := src.Segment.Data[src.off+srcListInc : src.off+srcListInc+src.datasz]
+	fmt.Printf("\n\n  debug: len(src.Segment.Data) = %d, src.off(%d)+srcListInc(%d) = %d,  len(from)=%d\n", len(src.Segment.Data), src.off, srcListInc, src.off+srcListInc, len(from))
+
+	copyCount := copy(toData, from)
+	fmt.Printf("\n\n  debug: copyCount = %d\n", copyCount)
+	toData = toData[copyCount:]
+	for j := range toData {
+		toData[j] = 0
 	}
 
 	// ptrs section:
@@ -837,7 +874,7 @@ func (p PointerList) Set(i int, src Object) error {
 			src = Object{}
 		}
 
-		err := copyStructHandlingVersionSkew(Object(p), src, nil, 0, i)
+		err := copyStructHandlingVersionSkew(Object(p), src, nil, 0, i, 0)
 		if err != nil {
 			return err
 		}
@@ -932,6 +969,8 @@ func (s *Segment) readPtr(off int) Object {
 	var err error
 	val := little64(s.Data[off:])
 
+	fmt.Printf("readPtr see val= %x\n", val)
+
 	switch val & 7 {
 	case doubleFarPointer:
 		// A double far pointer points to a double pointer, where the
@@ -992,8 +1031,8 @@ func (s *Segment) readPtr(off int) Object {
 			Segment: s,
 			typ:     TypeStruct,
 			off:     offw * 8,
-			datasz:  int(uint16(val>>32)) * 8,
-			ptrs:    int(uint16(val >> 48)),
+			datasz:  StructC(val) * 8,
+			ptrs:    StructD(val),
 		}
 
 		if p.off+p.datasz+p.ptrs*8 > len(s.Data) {
@@ -1004,9 +1043,10 @@ func (s *Segment) readPtr(off int) Object {
 
 	case listPointer:
 		offw := off/8 + 1 + signedOffsetFromStructPointer(val)
-		if offw < 0 || offw >= len(s.Data)/8 {
-			return Object{}
-		}
+		fmt.Printf("offw = %d,  len(s.Data)=%d", offw, len(s.Data))
+		//if offw < 0 || offw >= len(s.Data)/8 {
+		//	return Object{}
+		//}
 
 		p := Object{
 			Segment: s,
@@ -1018,6 +1058,9 @@ func (s *Segment) readPtr(off int) Object {
 		words := p.length
 
 		switch (val >> 32) & 7 {
+		case voidList:
+			fmt.Printf("we see a voidList with len: %d\n", p.length)
+			return p
 		case bit1List:
 			p.typ = TypeBitList
 			words = (p.length + 63) / 64
@@ -1100,6 +1143,14 @@ func signedOffsetFromStructPointer(val uint64) int {
 	return int(s32)
 }
 
+func StructC(val uint64) int {
+	return int(uint16(val >> 32))
+}
+
+func StructD(val uint64) int {
+	return int(uint16(val >> 48))
+}
+
 func (p Object) value(off int) uint64 {
 	d := orable30BitOffsetPart(p.off/8 - off/8 - 1)
 	//fmt.Printf(" debug4 in value(off=%d): p.off/8 = %d, off/8 = %d,  and p.off/8 - off/8 -1 = %d    d=%v\n", off, p.off/8, off/8, p.off/8-off/8-1, d)
@@ -1138,6 +1189,34 @@ func (p Object) value(off int) uint64 {
 		panic(errObjectType)
 	}
 }
+
+/*
+lsb                       list pointer                        msb
++-+-----------------------------+--+----------------------------+
+|A|             B               |C |             D              |
++-+-----------------------------+--+----------------------------+
+
+A (2 bits) = 1, to indicate that this is a list pointer.
+B (30 bits) = Offset, in words, from the end of the pointer to the
+    start of the first element of the list.  Signed.
+C (3 bits) = Size of each element:
+    0 = 0 (e.g. List(Void))
+    1 = 1 bit
+    2 = 1 byte
+    3 = 2 bytes
+    4 = 4 bytes
+    5 = 8 bytes (non-pointer)
+    6 = 8 bytes (pointer)
+    7 = composite (see below)
+D (29 bits) = Number of elements in the list, except when C is 7
+    (see below).
+
+The pointed-to values are tightly-packed. In particular, Bools are packed bit-by-bit in little-endian order (the first bit is the least-significant bit of the first byte).
+
+Lists of structs use the smallest element size in which the struct can fit. So, a list of structs that each contain two UInt8 fields and nothing else could be encoded with C = 3 (2-byte elements). A list of structs that each contain a single Text field would be encoded as C = 6 (pointer elements). A list of structs that each contain a single Bool field would be encoded using C = 1 (1-bit elements). A list structs which are each more than one word in size must be be encoded using C = 7 (composite).
+
+When C = 7, the elements of the list are fixed-width composite values – usually, structs. In this case, the list content is prefixed by a "tag" word that describes each individual element. The tag has the same layout as a struct pointer, except that the pointer offset (B) instead indicates the number of elements in the list. Meanwhile, section (D) of the list pointer – which normally would store this element count – instead stores the total number of words in the list (not counting the tag word). The reason we store a word count in the pointer rather than an element count is to ensure that the extents of the list’s location can always be determined by inspecting the pointer alone, without having to look at the tag; this may allow more-efficient prefetching in some use cases. The reason we don’t store struct lists as a list of pointers is because doing so would take significantly more space (an extra pointer per element) and may be less cache-friendly.
+*/
 
 func (s *Segment) farPtrValue(farType int, off int) uint64 {
 	return uint64(farType) | uint64(off) | (uint64(s.Id) << 32)
@@ -1187,6 +1266,12 @@ func isEmptyStruct(src Object) bool {
 
 func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth int) error {
 
+	// make copies persistent
+	//copies = destSeg.Copies
+
+	fmt.Printf("debug: destSeg.ShowCopies() = \n")
+	destSeg.ShowCopies()
+
 	// handle size-zero Objects/empty structs
 	if src.Segment == nil {
 		return nil
@@ -1201,8 +1286,9 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 
 	} else if destSeg == srcSeg {
 		// Same segment
-		//fmt.Printf(" debug2: Same segment (%p) writePtr happening: src.value(off) = %#v to destSeg.Data[off=%d]\n", destSeg, src.value(off), off)
+		fmt.Printf(" debug2: Same segment (%p) writePtr happening: src.value(off) = %#v to len(destSeg.Data)=%d\n", destSeg, src.value(off), len(destSeg.Data))
 		putLittle64(destSeg.Data[off:], src.value(off))
+		fmt.Printf(" debug2: after putLittle64, len(destSeg.Data)=%d\n", len(destSeg.Data))
 		return nil
 
 	} else if destSeg.Message != srcSeg.Message || (src.flags&isListMember) != 0 || (src.flags&isBitListMember) != 0 {
@@ -1237,10 +1323,21 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 		}
 
 		if (src.flags & isCompositeList) != 0 {
-			key.boff -= 64 //  Q: what the heck does this do? why is it here?
+			key.boff -= 64 //  Q: what the heck does this do? why is it here? A: Accounts for the Tag word, perhaps because dataEnd() does not.
 		}
 
 		iter := copies.FindLE(key)
+
+		fmt.Printf("\n\n debug: iter after FindLE(key=%#v) is : %#v,  len(copies)=%d\n", key, iter, copies.Len())
+		if iter.NegativeLimit() {
+			fmt.Printf("debug: iter is at NegativeLimit()\n")
+		}
+		if iter.Limit() {
+			fmt.Printf("debug: iter is at Limit()\n")
+		}
+		if !iter.NegativeLimit() {
+			fmt.Printf("debug: copies.FindLE(key) found something: %#v\n", iter.Item().(offset))
+		}
 
 		if key.bend > key.boff {
 			if !iter.NegativeLimit() {
@@ -1281,7 +1378,7 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 		key.newval = n
 		copies.Insert(key)
 
-		//fmt.Printf(" .....  need to clone target: key.newval: %#v of type '%s'\n", key.newval, key.newval.typ.String())
+		fmt.Printf(" .....  need to clone target: key.newval: %#v of type '%s'\n", key.newval, key.newval.typ.String())
 
 		switch src.typ {
 		case TypeStruct:
@@ -1307,7 +1404,7 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 					ptrs:    n.ptrs,
 				}
 
-				if err := copyStructHandlingVersionSkew(dest, src, copies, depth, 0); err != nil {
+				if err := copyStructHandlingVersionSkew(dest, src, copies, depth, 0, 0); err != nil {
 					return err
 				}
 				/* old, not-robust-against-version-changes code:
@@ -1330,8 +1427,18 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 				break
 			}
 
+			//dest := destSeg.readPtr(off)
+			//if dest.Segment == nil {
+			dest := Object{
+				Segment: newSeg,
+				off:     n.off,
+				datasz:  n.datasz,
+				ptrs:    n.ptrs,
+			}
+			//}
+			fmt.Printf("\n debug, dest = %#v\n", dest)
 			for i := 0; i < n.length; i++ {
-				if err := copyStructHandlingVersionSkew(n, src, copies, depth, i); err != nil {
+				if err := copyStructHandlingVersionSkew(dest, src, copies, depth, i, i); err != nil {
 					return err
 				}
 				/* old:
@@ -1399,3 +1506,143 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 		return nil
 	}
 }
+
+func (destSeg *Segment) RememberWrite(off int, src Object, copies *rbtree.Tree, depth int) (already bool, err error) {
+	srcSeg := src.Segment
+	key := offset{
+		id:   srcSeg.Id,
+		boff: int64(src.off) * 8,
+		bend: int64(src.dataEnd()) * 8,
+		newval: Object{
+			typ:    src.typ,
+			length: src.length,
+			datasz: src.datasz,
+			ptrs:   src.ptrs,
+			flags:  (src.flags & isCompositeList),
+		},
+	}
+
+	if (src.flags & isBitListMember) != 0 {
+		key.boff += int64(src.flags & bitOffsetMask)
+		key.bend = key.boff + 1
+		key.newval.datasz = 8
+	}
+
+	if (src.flags & isCompositeList) != 0 {
+		key.boff -= 64 //  Q: what the heck does this do? why is it here? A: Accounts for the Tag word, perhaps because dataEnd() does not.
+	}
+
+	iter := copies.FindLE(key)
+
+	fmt.Printf("\n\n debug: iter after FindLE(key=%#v) is : %#v,  len(copies)=%d\n", key, iter, copies.Len())
+	if iter.NegativeLimit() {
+		fmt.Printf("debug: iter is at NegativeLimit()\n")
+	}
+	if iter.Limit() {
+		fmt.Printf("debug: iter is at Limit()\n")
+	}
+	if !iter.NegativeLimit() {
+		fmt.Printf("debug: copies.FindLE(key) found something: %#v\n", iter.Item().(offset))
+	}
+
+	if key.bend > key.boff {
+		if !iter.NegativeLimit() {
+			other := iter.Item().(offset)
+			if key.id == other.id {
+				if key.boff == other.boff && key.bend == other.bend {
+					return true, destSeg.writePtr(off, other.newval, nil, depth+1)
+				} else if other.bend >= key.bend {
+					return true, ErrOverlap
+				}
+			}
+		}
+
+		iter = iter.Next()
+
+		if !iter.Limit() {
+			other := iter.Item().(offset)
+			if key.id == other.id && other.boff < key.bend {
+				return true, ErrOverlap
+			}
+		}
+	}
+
+	// No copy nor overlap found, so we need to clone the target
+	n, err := destSeg.create(int((key.bend-key.boff)/8), key.newval)
+	if err != nil {
+		return false, err
+	}
+
+	// n is possibly in a new segment, if destSeg was full.
+	newSeg := n.Segment
+
+	if (n.flags & isCompositeList) != 0 {
+		copy(newSeg.Data[n.off:], srcSeg.Data[src.off-8:src.off])
+		n.off += 8
+	}
+
+	key.newval = n
+	copies.Insert(key)
+
+	return false, nil
+}
+
+func B(val uint64) int {
+	u64 := uint64(val) & Zerohi32
+	u32 := uint32(u64)
+	s32 := int32(u32) >> 2
+	return int(s32)
+}
+
+func A(val uint64) int {
+	return int(val & 3)
+}
+
+func ListC(val uint64) int {
+	return int((val >> 32) & 7)
+}
+
+func ListCString(val uint64) string {
+	switch ListC(val) {
+	case voidList:
+		return "void"
+	case bit1List:
+		return "1bit"
+	case byte1List:
+		return "1byte"
+	case byte2List:
+		return "2bytes"
+	case byte4List:
+		return "4bytes"
+	case byte8List:
+		return "8bytes"
+	case pointerList:
+		return "pointer"
+	case compositeList:
+		return "composite"
+	default:
+		panic("unknown list element size")
+	}
+	return ""
+}
+
+func ListD(val uint64) int {
+	return int(uint32(val >> 35))
+}
+
+/*
+func (o Object) ListLenInWordsOmittingTag(val uint64) (listLenInWords int, tagOffsetInWords int) {
+	if o.typ != TypeList {
+		panic("ListLenInWordsOmittingTag() can only be called on Objects of TypeList")
+	}
+	if ListC(val) == compositeList {
+
+		tagOffsetInWords = 1 + B(val)
+		//tag := binary.LittleEndian.Uint64(b[(tagline)*8 : (tagline+1)*8])
+		r = fmt.Sprintf("list-of-composite, count: %d. (from tag at line %d).", B(tag), line+1+B(val))
+		listLenInWords = ListD(val)
+		c.expected[tagline] = CompositeTag(tag)
+		return r
+	}
+}
+*/
