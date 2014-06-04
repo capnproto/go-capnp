@@ -302,6 +302,9 @@ func CompositeTag(val uint64) string {
 }
 
 func (c *Cap) StructPointer(val uint64, line int) string {
+	if val == 0 {
+		return "empty struct, zero valued."
+	}
 	eline := line + 1 + B(val)
 	numprim := StructC(val)
 	if numprim > 0 {
