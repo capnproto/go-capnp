@@ -228,3 +228,18 @@ struct HoldsText {
        lst @1: List(Text);
        lstlst @2: List(List(Text));
 }
+
+# test that we avoid unnecessary truncation
+
+struct WrapEmpty {
+   mightNotBeReallyEmpty @0: VerEmpty;
+}
+
+struct Wrap2x2 {
+   mightNotBeReallyEmpty @0: VerTwoDataTwoPtr;
+}
+
+struct Wrap2x2plus {
+   mightNotBeReallyEmpty @0: VerTwoTwoPlus;
+}
+
