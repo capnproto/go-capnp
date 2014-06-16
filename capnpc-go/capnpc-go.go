@@ -926,6 +926,7 @@ func main() {
 				n.defineTypeJsonFuncs(&buf)
 			case NODE_STRUCT:
 				if !n.Struct().IsGroup() {
+					n.defineGoStructTypes(&buf, nil)
 					n.defineStructTypes(&buf, nil)
 					n.defineStructEnums(&buf)
 					n.defineNewStructFunc(&buf)
@@ -969,4 +970,104 @@ func main() {
 		err = cmd.Run()
 		assert(err == nil, "%v\n", err)
 	}
+}
+
+func (n *node) defineGoField(w io.Writer, f Field) {
+	t := f.Slot().Type()
+	switch t.Which() {
+	case TYPE_VOID:
+		fallthrough
+	case TYPE_INTERFACE:
+		fallthrough
+	case TYPE_OBJECT:
+		return
+	}
+	fprintf(w, " %s %s\n", title(f.Name()), CapTypeToGoType(t, n))
+}
+
+func CapTypeToGoType(t Type, n *node) string {
+	switch t.Which() {
+	case TYPE_BOOL:
+		return "bool"
+	case TYPE_INT8:
+		return "int8"
+	case TYPE_UINT8:
+		return "uint8"
+	case TYPE_INT16:
+		return "int16"
+	case TYPE_UINT16:
+		return "uint16"
+	case TYPE_INT32:
+		return "int32"
+	case TYPE_UINT32:
+		return "uint32"
+	case TYPE_INT64:
+		return "int64"
+	case TYPE_UINT64:
+		return "uint64"
+	case TYPE_FLOAT32:
+		return "float32"
+	case TYPE_FLOAT64:
+		return "float64"
+	case TYPE_TEXT:
+		return "string"
+	case TYPE_DATA:
+		return "[]byte"
+	case TYPE_ENUM:
+		ni := findNode(t.Enum().TypeId())
+		return ni.remoteName(n)
+	case TYPE_STRUCT:
+		ni := findNode(t.Struct().TypeId())
+		return ni.remoteName(n)
+	case TYPE_LIST:
+		return fmt.Sprintf("[]%s", CapTypeToGoType(t.List().ElementType(), n))
+	}
+	panic(fmt.Sprintf("unknown_type: %#v  at node n: %#v", t, n))
+	return "UNKNOWN_TYPE"
+}
+
+func (n *node) defineGoStructTypes(w io.Writer, baseNode *node) {
+	assert(n.Which() == NODE_STRUCT, "invalid struct node")
+
+	fprintf(w, "type %sNat struct {\n", n.name)
+	for _, f := range n.codeOrderFields() {
+		switch f.Which() {
+		case FIELD_SLOT:
+			n.defineGoField(w, f)
+		case FIELD_GROUP:
+			fmt.Printf("FIELD_GROUP not implemented.\n")
+			panic("FIELD_GROUP not implemented.\n")
+		}
+	}
+	fprintf(w, "}\n")
+	fprintf(w, `func (s *%sNat) ToCap(seg *C.Segment, root bool) %s { 
+ var r %s
+ if root {
+   r = NewRoot%s(seg)
+ } else {
+  r = New%s(seg)
+ }
+ if s != nil {
+     %s
+ }
+ return r}
+`, n.name, n.name, n.name, n.name, n.name, n.NatToCapBody(baseNode))
+	fprintf(w, `func (s *%s) ToNat() *%sNat {
+ if s != nil {
+   return &%sNat{
+      %s
+   }
+ }
+ return nil
+}
+`, n.name, n.name, n.name, n.CapToNatBody(baseNode))
+}
+
+func (n *node) NatToCapBody(baseNode *node) string {
+//	var g bytes.Buffer
+	return `println("")`
+}
+
+func (n *node) CapToNatBody(baseNode *node) string {
+	return ``
 }
