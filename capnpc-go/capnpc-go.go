@@ -1047,9 +1047,7 @@ func (n *node) defineGoStructTypes(w io.Writer, baseNode *node) {
  } else {
   r = New%s(seg)
  }
- if s != nil {
      %s
- }
  return r}
 `, n.name, n.name, n.name, n.name, n.name, n.NatToCapBody(baseNode))
 	fprintf(w, `func (s *%s) ToNat() *%sNat {
@@ -1065,7 +1063,10 @@ func (n *node) defineGoStructTypes(w io.Writer, baseNode *node) {
 
 func (n *node) NatToCapBody(baseNode *node) string {
 //	var g bytes.Buffer
-	return `println("")`
+	return `
+ if s != nil {
+   println("")
+ }`
 }
 
 func (n *node) CapToNatBody(baseNode *node) string {
