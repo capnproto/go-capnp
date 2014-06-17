@@ -21,3 +21,9 @@ testbuild:
 clean:
 	rm -f go-capnproto.test *~
 	cd aircraftlib; make clean
+
+test:
+	cd capnpc-go; go build; go install
+	cd aircraftlib; make
+	go test -v
+

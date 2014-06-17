@@ -356,7 +356,7 @@ func (n *node) defineField(w io.Writer, f Field) {
 		settag = sprintf(" C.Struct(s).Set16(%d, %d);", n.Struct().DiscriminantOffset()*2, f.DiscriminantValue())
 	}
 
-	var g, s bytes.Buffer
+	var g, s, setSlice bytes.Buffer
 
 	for _, a := range f.Annotations().ToArray() {
 		if a.Id() == C.Doc {
@@ -365,6 +365,7 @@ func (n *node) defineField(w io.Writer, f Field) {
 	}
 	fprintf(&g, "func (s %s) %s() ", n.name, title(f.Name()))
 	fprintf(&s, "func (s %s) Set%s", n.name, title(f.Name()))
+
 
 	switch t.Which() {
 	case TYPE_BOOL:
@@ -542,6 +543,7 @@ func (n *node) defineField(w io.Writer, f Field) {
 		assert(def.Which() == VALUE_VOID || def.Which() == VALUE_LIST, "expected list default")
 
 		typ := ""
+		elemName := ""
 
 		switch lt := t.List().ElementType(); lt.Which() {
 		case TYPE_VOID, TYPE_INTERFACE:
@@ -574,10 +576,12 @@ func (n *node) defineField(w io.Writer, f Field) {
 			typ = "C.DataList"
 		case TYPE_ENUM:
 			ni := findNode(lt.Enum().TypeId())
-			typ = sprintf("%s_List", ni.remoteName(n))
+			elemName = ni.remoteName(n)
+			typ = sprintf("%s_List", elemName)
 		case TYPE_STRUCT:
 			ni := findNode(lt.Struct().TypeId())
-			typ = sprintf("%s_List", ni.remoteName(n))
+			elemName = ni.remoteName(n)
+			typ = sprintf("%s_List", elemName)
 		case TYPE_OBJECT, TYPE_LIST:
 			typ = "C.PointerList"
 		}
@@ -596,10 +600,32 @@ func (n *node) defineField(w io.Writer, f Field) {
 		}
 
 		fprintf(&s, "(v %s) {%s C.Struct(s).SetObject(%d, C.Object(v)) }\n", typ, settag, off)
+		
+		// jea: list setter is here: make v []%s
+/*
+		if elemName != "" {
+			ti := title(f.Name())
+			fprintf(&setSlice, "func (s %s) SetSlice%s", n.name, ti)
+			fprintf(&setSlice, 
+`(v []%s) {
+    tlist := New%sList(s.Segment, len(v))
+	plist := C.PointerList(tlist)
+	for i := range v {
+        // TextList:
+        //	plist.Set(i, C.Object(s.Segment.NewText(v[i])))
+
+		plist.Set(i, C.Object(v[i]))
+	}
+    s.Set%s(tlist)
+}
+`, elemName, elemName, ti)
+		}
+*/
 	}
 
 	w.Write(g.Bytes())
 	w.Write(s.Bytes())
+	w.Write(setSlice.Bytes())
 }
 
 func (n *node) codeOrderFields() []Field {
@@ -718,7 +744,11 @@ func (n *node) defineTypeJsonFuncs(w io.Writer) {
 
 	} else {
 		fprintf(w, "// capn.JSON_enabled == false so we stub MarshallJSON().")
-		fprintf(w, "\nfunc (s %s) MarshalJSON() (bs []byte, err error) { return } \n", n.name)
+		fprintf(w, `
+func (s *%s) MarshalJSON() (bs []byte, err error) {
+ return
+}
+`, n.name)
 	}
 }
 
@@ -923,10 +953,10 @@ func main() {
 			case NODE_ANNOTATION:
 			case NODE_ENUM:
 				n.defineEnum(&buf)
-				n.defineTypeJsonFuncs(&buf)
+				//n.defineTypeJsonFuncs(&buf)
 			case NODE_STRUCT:
 				if !n.Struct().IsGroup() {
-					n.defineGoStructTypes(&buf, nil)
+					//n.defineGoStructTypes(&buf, nil)
 					n.defineStructTypes(&buf, nil)
 					n.defineStructEnums(&buf)
 					n.defineNewStructFunc(&buf)
@@ -1026,6 +1056,11 @@ func CapTypeToGoType(t Type, n *node) string {
 	return "UNKNOWN_TYPE"
 }
 
+/*
+func fieldInUnion(f Field) bool {
+    return f.DiscriminantValue() != 0xFFFF
+}
+
 func (n *node) defineGoStructTypes(w io.Writer, baseNode *node) {
 	assert(n.Which() == NODE_STRUCT, "invalid struct node")
 
@@ -1033,7 +1068,11 @@ func (n *node) defineGoStructTypes(w io.Writer, baseNode *node) {
 	for _, f := range n.codeOrderFields() {
 		switch f.Which() {
 		case FIELD_SLOT:
-			n.defineGoField(w, f)
+			if fieldInUnion(f) {
+				// nothing
+			} else {
+				n.defineGoField(w, f)
+			}
 		case FIELD_GROUP:
 			fmt.Printf("FIELD_GROUP not implemented.\n")
 			panic("FIELD_GROUP not implemented.\n")
@@ -1100,9 +1139,59 @@ func (n *node) CapToNatBody(baseNode *node) string {
 
 
 func (n *node) toNatFromGetField(w io.Writer, f Field) {
-	fprintf(w, "%s: s.%s(),\n", title(f.Name()), title(f.Name()))
+	ti := title(f.Name()) 
+	if ti == "Void" {
+		return
+	}
+	if f.Slot().Type().Which() == TYPE_LIST {
+		//fprintf(w, "// list ommitted: %s: s.%s(),\n", ti, ti)
+	} else {
+	   //fprintf(w, "%s: s.%s(),\n", ti, ti)
+	}
 }
 
 func (n *node) toCapSetterField(w io.Writer, f Field) {
-	fprintf(w, "r.Set%s(s.%s)\n", title(f.Name()), title(f.Name()))
+	ti := title(f.Name()) 
+	if ti == "Void" {
+		return
+	}
+	if f.Slot().Type().Which() == TYPE_LIST {
+		//fprintf(w, "// list omitted: r.SetSlice%s(s.%s)\n", ti, ti)
+	} else {
+		//fprintf(w, "r.Set%s(s.%s)\n", ti, ti)
+	}
 }
+*/
+
+/*
+
+func (n *node) GenerateToCapnListField(w io.Writer, f Field) {
+	fieldTy := f.Slot().Type()
+    elemTy := CapTypeToGoType(fieldTy.List().ElementType(), n, false)
+	tn := CapTypeToGoType(fieldTy, n, true)
+	elemTypename := CapTypeToGoType(fieldTy.List().ElementType(), n, true)
+	nm := n.name
+
+// type PlaneBaseNatSlice []PlaneBaseNat
+// func (s *PlaneBaseNatSlice) ToCapList(seg *C.Segment) PlaneBase_List {
+// }
+
+
+// elemTy='Airport'  tn='ListAirport' elemTypename='Airport'  nm='PlaneBase'
+	fprintf(w,
+		`// fieldTy='%s'  elemTy='%s'  tn='%s' elemTypename='%s'  nm='%s'
+type %s %s
+func (s *%s) ToCapnList(seg *C.Segment, s []%s) %s_List {
+	tlist := New%sList(seg, len(s))
+	plist := capn.PointerList(tlist)
+		for i := range s {
+			plist.Set(i, capn.Object(%s))
+		}
+	return tlist
+}
+`, 	fieldTy, elemTy, tn, elemTypename, nm,
+		tn, nm, nm,
+		nm, elemValue())
+}
+
+*/
