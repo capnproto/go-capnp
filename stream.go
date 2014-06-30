@@ -3,6 +3,7 @@ package capn
 import (
 	"bufio"
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -293,7 +294,7 @@ func (c *Compressor) Write(v []byte) (n int, err error) {
 		switch hdr {
 		case 0x00:
 			i := 0
-			for len(v) > 0 && little64(v) == 0 && i < 0xFF {
+			for len(v) > 0 && binary.LittleEndian.Uint64(v) == 0 && i < 0xFF {
 				i++
 				n += 8
 				v = v[8:]

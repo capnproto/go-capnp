@@ -9,13 +9,6 @@ import (
 )
 
 var (
-	little16    = binary.LittleEndian.Uint16
-	little32    = binary.LittleEndian.Uint32
-	little64    = binary.LittleEndian.Uint64
-	putLittle16 = binary.LittleEndian.PutUint16
-	putLittle32 = binary.LittleEndian.PutUint32
-	putLittle64 = binary.LittleEndian.PutUint64
-
 	ErrOverlarge   = errors.New("capn: overlarge struct/list")
 	ErrOutOfBounds = errors.New("capn: write out of bounds")
 	ErrCopyDepth   = errors.New("capn: copy depth too large")
@@ -217,7 +210,7 @@ func (s *Segment) NewCompositeList(datasz, ptrs, length int) PointerList {
 		n, _ := s.create(8+length*(datasz+8*ptrs), Object{typ: TypeList, length: length, datasz: datasz, ptrs: ptrs, flags: isCompositeList})
 		n.off += 8
 		hdr := structPointer | uint64(length)<<2 | uint64(datasz/8)<<32 | uint64(ptrs)<<48
-		putLittle64(s.Data[n.off-8:], hdr)
+		binary.LittleEndian.PutUint64(s.Data[n.off-8:], hdr)
 		return PointerList(n)
 	} else if datasz > 4 {
 		datasz = (datasz + 7) &^ 7
@@ -288,7 +281,7 @@ func (s *Segment) create(sz int, n Object) (Object, error) {
 
 	if tag {
 		n.off += 8
-		putLittle64(s.Data[n.off-8:], n.value(n.off-8))
+		binary.LittleEndian.PutUint64(s.Data[n.off-8:], n.value(n.off-8))
 		n.flags |= hasPointerTag
 	}
 
@@ -427,7 +420,7 @@ func (p Struct) Get8(off int) uint8 {
 
 func (p Struct) Get16(off int) uint16 {
 	if off < p.datasz {
-		return little16(p.Segment.Data[uint(p.off)+uint(off):])
+		return binary.LittleEndian.Uint16(p.Segment.Data[uint(p.off)+uint(off):])
 	} else {
 		return 0
 	}
@@ -435,7 +428,7 @@ func (p Struct) Get16(off int) uint16 {
 
 func (p Struct) Get32(off int) uint32 {
 	if off < p.datasz {
-		return little32(p.Segment.Data[uint(p.off)+uint(off):])
+		return binary.LittleEndian.Uint32(p.Segment.Data[uint(p.off)+uint(off):])
 	} else {
 		return 0
 	}
@@ -443,7 +436,7 @@ func (p Struct) Get32(off int) uint32 {
 
 func (p Struct) Get64(off int) uint64 {
 	if off < p.datasz {
-		return little64(p.Segment.Data[uint(p.off)+uint(off):])
+		return binary.LittleEndian.Uint64(p.Segment.Data[uint(p.off)+uint(off):])
 	} else {
 		return 0
 	}
@@ -457,19 +450,19 @@ func (p Struct) Set8(off int, v uint8) {
 
 func (p Struct) Set16(off int, v uint16) {
 	if uint(off) < uint(p.datasz) {
-		putLittle16(p.Segment.Data[uint(p.off)+uint(off):], v)
+		binary.LittleEndian.PutUint16(p.Segment.Data[uint(p.off)+uint(off):], v)
 	}
 }
 
 func (p Struct) Set32(off int, v uint32) {
 	if uint(off) < uint(p.datasz) {
-		putLittle32(p.Segment.Data[uint(p.off)+uint(off):], v)
+		binary.LittleEndian.PutUint32(p.Segment.Data[uint(p.off)+uint(off):], v)
 	}
 }
 
 func (p Struct) Set64(off int, v uint64) {
 	if uint(off) < uint(p.datasz) {
-		putLittle64(p.Segment.Data[uint(p.off)+uint(off):], v)
+		binary.LittleEndian.PutUint64(p.Segment.Data[uint(p.off)+uint(off):], v)
 	}
 }
 
@@ -560,7 +553,7 @@ func (p UInt8List) At(i int) uint8 {
 func (p Int16List) At(i int) int16 { return int16(UInt16List(p).At(i)) }
 func (p UInt16List) At(i int) uint16 {
 	if data := Object(p).listData(i, 16); data != nil {
-		return little16(data)
+		return binary.LittleEndian.Uint16(data)
 	} else {
 		return 0
 	}
@@ -570,7 +563,7 @@ func (p Int32List) At(i int) int32     { return int32(UInt32List(p).At(i)) }
 func (p Float32List) At(i int) float32 { return math.Float32frombits(UInt32List(p).At(i)) }
 func (p UInt32List) At(i int) uint32 {
 	if data := Object(p).listData(i, 32); data != nil {
-		return little32(data)
+		return binary.LittleEndian.Uint32(data)
 	} else {
 		return 0
 	}
@@ -580,7 +573,7 @@ func (p Int64List) At(i int) int64     { return int64(UInt64List(p).At(i)) }
 func (p Float64List) At(i int) float64 { return math.Float64frombits(UInt64List(p).At(i)) }
 func (p UInt64List) At(i int) uint64 {
 	if data := Object(p).listData(i, 64); data != nil {
-		return little64(data)
+		return binary.LittleEndian.Uint64(data)
 	} else {
 		return 0
 	}
@@ -596,7 +589,7 @@ func (p UInt8List) Set(i int, v uint8) {
 func (p Int16List) Set(i int, v int16) { UInt16List(p).Set(i, uint16(v)) }
 func (p UInt16List) Set(i int, v uint16) {
 	if data := Object(p).listData(i, 16); data != nil {
-		putLittle16(data, v)
+		binary.LittleEndian.PutUint16(data, v)
 	}
 }
 
@@ -604,7 +597,7 @@ func (p Int32List) Set(i int, v int32)     { UInt32List(p).Set(i, uint32(v)) }
 func (p Float32List) Set(i int, v float32) { UInt32List(p).Set(i, math.Float32bits(v)) }
 func (p UInt32List) Set(i int, v uint32) {
 	if data := Object(p).listData(i, 32); data != nil {
-		putLittle32(data, v)
+		binary.LittleEndian.PutUint32(data, v)
 	}
 }
 
@@ -612,7 +605,7 @@ func (p Int64List) Set(i int, v int64)     { UInt64List(p).Set(i, uint64(v)) }
 func (p Float64List) Set(i int, v float64) { UInt64List(p).Set(i, math.Float64bits(v)) }
 func (p UInt64List) Set(i int, v uint64) {
 	if data := Object(p).listData(i, 64); data != nil {
-		putLittle64(data, v)
+		binary.LittleEndian.PutUint64(data, v)
 	}
 }
 
@@ -839,7 +832,7 @@ func copyStructHandlingVersionSkew(dest Object, src Object, copies *rbtree.Tree,
 		} else {
 			// destination p is a newer version than source
 			//  so these extra new pointer fields in p must be zeroed.
-			putLittle64(dest.Segment.Data[dest.off+destListInc+dest.datasz+j:], 0)
+			binary.LittleEndian.PutUint64(dest.Segment.Data[dest.off+destListInc+dest.datasz+j:], 0)
 		}
 	}
 	// Nothing more here: so any other pointers in srcPtrSize beyond
@@ -910,7 +903,7 @@ const (
 
 func (s *Segment) readPtr(off int) Object {
 	var err error
-	val := little64(s.Data[off:])
+	val := binary.LittleEndian.Uint64(s.Data[off:])
 
 	//fmt.Printf("readPtr see val= %x\n", val)
 
@@ -928,8 +921,8 @@ func (s *Segment) readPtr(off int) Object {
 			return Object{}
 		}
 
-		far := little64(s.Data[faroff:])
-		tag := little64(s.Data[faroff+8:])
+		far := binary.LittleEndian.Uint64(s.Data[faroff:])
+		tag := binary.LittleEndian.Uint64(s.Data[faroff+8:])
 
 		// The far tag should not be another double and the tag should
 		// be struct/list with a 0 offset.
@@ -956,7 +949,7 @@ func (s *Segment) readPtr(off int) Object {
 		}
 
 		off = faroff
-		val = little64(s.Data[faroff:])
+		val = binary.LittleEndian.Uint64(s.Data[faroff:])
 	}
 
 	// Be wary of overflow. Offset is 30 bits signed. List size is 29 bits
@@ -1024,7 +1017,7 @@ func (s *Segment) readPtr(off int) Object {
 		case pointerList:
 			p.typ = TypePointerList
 		case compositeList:
-			hdr := little64(p.Segment.Data[p.off:])
+			hdr := binary.LittleEndian.Uint64(p.Segment.Data[p.off:])
 			p.off += 8
 			if hdr&2 != structPointer {
 				return Object{}
@@ -1219,12 +1212,12 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 	srcSeg := src.Segment
 
 	if src.typ == TypeNull || isEmptyStruct(src) {
-		putLittle64(destSeg.Data[off:], 0)
+		binary.LittleEndian.PutUint64(destSeg.Data[off:], 0)
 		return nil
 
 	} else if destSeg == srcSeg {
 		// Same segment
-		putLittle64(destSeg.Data[off:], src.value(off))
+		binary.LittleEndian.PutUint64(destSeg.Data[off:], src.value(off))
 		return nil
 
 	} else if destSeg.Message != srcSeg.Message || (src.flags&isListMember) != 0 || (src.flags&isBitListMember) != 0 {
@@ -1366,13 +1359,13 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 	} else if (src.flags & hasPointerTag) != 0 {
 		// By lucky chance, the data has a tag in front of it. This
 		// happens when create had to move the data to a new segment.
-		putLittle64(destSeg.Data[off:], srcSeg.farPtrValue(farPointer, src.off-8))
+		binary.LittleEndian.PutUint64(destSeg.Data[off:], srcSeg.farPtrValue(farPointer, src.off-8))
 		return nil
 
 	} else if len(srcSeg.Data)+8 <= cap(srcSeg.Data) {
 		// Have room in the target for a tag
-		putLittle64(srcSeg.Data[len(srcSeg.Data):], src.value(len(srcSeg.Data)))
-		putLittle64(destSeg.Data[off:], srcSeg.farPtrValue(farPointer, len(srcSeg.Data)))
+		binary.LittleEndian.PutUint64(srcSeg.Data[len(srcSeg.Data):], src.value(len(srcSeg.Data)))
+		binary.LittleEndian.PutUint64(destSeg.Data[off:], srcSeg.farPtrValue(farPointer, len(srcSeg.Data)))
 		srcSeg.Data = srcSeg.Data[:len(srcSeg.Data)+8]
 		return nil
 
@@ -1387,9 +1380,9 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 			}
 		}
 
-		putLittle64(t.Data[len(t.Data):], srcSeg.farPtrValue(farPointer, src.off))
-		putLittle64(t.Data[len(t.Data)+8:], src.value(src.off-8))
-		putLittle64(destSeg.Data[off:], t.farPtrValue(doubleFarPointer, len(t.Data)))
+		binary.LittleEndian.PutUint64(t.Data[len(t.Data):], srcSeg.farPtrValue(farPointer, src.off))
+		binary.LittleEndian.PutUint64(t.Data[len(t.Data)+8:], src.value(src.off-8))
+		binary.LittleEndian.PutUint64(destSeg.Data[off:], t.farPtrValue(doubleFarPointer, len(t.Data)))
 		t.Data = t.Data[:len(t.Data)+16]
 		return nil
 	}
