@@ -358,9 +358,16 @@ func (n *node) defineField(w io.Writer, f Field) {
 
 	var g, s bytes.Buffer
 
+	customtype := ""
 	for _, a := range f.Annotations().ToArray() {
 		if a.Id() == C.Doc {
 			fprintf(&g, "// %s\n", a.Value().Text())
+		}
+		if a.Id() == C.Customtype {
+			customtype = a.Value().Text()
+			if i := strings.LastIndex(customtype, "."); i != -1 {
+				g_imported[customtype[:i]] = true
+			}
 		}
 	}
 	fprintf(&g, "func (s %s) %s() ", n.name, title(f.Name()))
@@ -499,11 +506,23 @@ func (n *node) defineField(w io.Writer, f Field) {
 				dstr += sprintf("%d", b)
 			}
 			dstr += "}"
-			fprintf(&g, "[]byte { return C.Struct(s).GetObject(%d).ToDataDefault(%s) }\n", off, dstr)
+			if len(customtype) != 0 {
+				fprintf(&g, "%s { return %s(C.Struct(s).GetObject(%d).ToDataDefault(%s)) }\n", customtype, customtype, off, dstr)
+			} else {
+				fprintf(&g, "[]byte { return C.Struct(s).GetObject(%d).ToDataDefault(%s) }\n", off, dstr)
+			}
 		} else {
-			fprintf(&g, "[]byte { return C.Struct(s).GetObject(%d).ToData() }\n", off)
+			if len(customtype) != 0 {
+				fprintf(&g, "%s { return %s(C.Struct(s).GetObject(%d).ToData()) }\n", customtype, customtype, off)
+			} else {
+				fprintf(&g, "[]byte { return C.Struct(s).GetObject(%d).ToData() }\n", off)
+			}
 		}
-		fprintf(&s, "(v []byte) {%s C.Struct(s).SetObject(%d, s.Segment.NewData(v)) }\n", settag, off)
+		if len(customtype) != 0 {
+			fprintf(&s, "(v %s) {%s C.Struct(s).SetObject(%d, s.Segment.NewData([]byte(v))) }\n", customtype, settag, off)
+		} else {
+			fprintf(&s, "(v []byte) {%s C.Struct(s).SetObject(%d, s.Segment.NewData(v)) }\n", settag, off)
+		}
 
 	case TYPE_ENUM:
 		ni := findNode(t.Enum().TypeId())
