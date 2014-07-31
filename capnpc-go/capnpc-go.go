@@ -785,8 +785,8 @@ func (f *Field) json(w io.Writer) {
 	switch f.Which() {
 	case FIELD_SLOT:
 		fs := f.Slot()
-		// we don't generate .Void() field setters
-		if title(f.Name()) == "Void" {
+		// we don't generate setters for Void fields
+		if fs.Type().Which() == TYPE_VOID {
 			fs.Type().json(w)
 			return
 		}
