@@ -2,6 +2,7 @@ package capn
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"io"
 	"math"
@@ -112,11 +113,11 @@ func ReadFromStream(r io.Reader, buf *bytes.Buffer) (*Segment, error) {
 		return nil, err
 	}
 
-	if little32(buf.Bytes()[:]) >= uint32(MaxSegmentNumber) {
+	if binary.LittleEndian.Uint32(buf.Bytes()[:]) >= uint32(MaxSegmentNumber) {
 		return nil, ErrTooMuchData
 	}
 
-	segnum := int(little32(buf.Bytes()[:]) + 1)
+	segnum := int(binary.LittleEndian.Uint32(buf.Bytes()[:]) + 1)
 	hdrsz := 8*(segnum/2) + 4
 
 	if _, err := io.CopyN(buf, r, int64(hdrsz)); err != nil {
@@ -125,7 +126,7 @@ func ReadFromStream(r io.Reader, buf *bytes.Buffer) (*Segment, error) {
 
 	total := 0
 	for i := 0; i < segnum; i++ {
-		sz := little32(buf.Bytes()[4*i+4:])
+		sz := binary.LittleEndian.Uint32(buf.Bytes()[4*i+4:])
 		if uint64(total)+uint64(sz)*8 > uint64(MaxTotalSize) {
 			return nil, ErrTooMuchData
 		}
@@ -140,13 +141,13 @@ func ReadFromStream(r io.Reader, buf *bytes.Buffer) (*Segment, error) {
 	datav := buf.Bytes()[hdrsz+4:]
 
 	if segnum == 1 {
-		sz := int(little32(hdrv)) * 8
+		sz := int(binary.LittleEndian.Uint32(hdrv)) * 8
 		return NewBuffer(datav[:sz]), nil
 	}
 
 	m := &multiBuffer{make([]*Segment, segnum)}
 	for i := 0; i < segnum; i++ {
-		sz := int(little32(hdrv[4*i:])) * 8
+		sz := int(binary.LittleEndian.Uint32(hdrv[4*i:])) * 8
 		m.segments[i] = &Segment{m, datav[:sz], uint32(i)}
 		datav = datav[sz:]
 	}
@@ -167,18 +168,18 @@ func ReadFromMemoryZeroCopy(data []byte) (seg *Segment, bytesRead int64, err err
 		return nil, 0, io.EOF
 	}
 
-	if little32(data[0:4]) >= uint32(MaxSegmentNumber) {
+	if binary.LittleEndian.Uint32(data[0:4]) >= uint32(MaxSegmentNumber) {
 		return nil, 0, ErrTooMuchData
 	}
 
-	segnum := int(little32(data[0:4]) + 1)
+	segnum := int(binary.LittleEndian.Uint32(data[0:4]) + 1)
 	hdrsz := 8*(segnum/2) + 4
 
 	b := data[0:(hdrsz + 4)]
 
 	total := 0
 	for i := 0; i < segnum; i++ {
-		sz := little32(b[4*i+4:])
+		sz := binary.LittleEndian.Uint32(b[4*i+4:])
 		if uint64(total)+uint64(sz)*8 > uint64(MaxTotalSize) {
 			return nil, 0, ErrTooMuchData
 		}
@@ -192,7 +193,7 @@ func ReadFromMemoryZeroCopy(data []byte) (seg *Segment, bytesRead int64, err err
 	datav := data[hdrsz+4:]
 	m := &multiBuffer{make([]*Segment, segnum)}
 	for i := 0; i < segnum; i++ {
-		sz := int(little32(hdrv[4*i:])) * 8
+		sz := int(binary.LittleEndian.Uint32(hdrv[4*i:])) * 8
 		m.segments[i] = &Segment{m, datav[:sz], uint32(i)}
 		datav = datav[sz:]
 	}
@@ -212,10 +213,10 @@ func (s *Segment) WriteTo(w io.Writer) (int64, error) {
 	}
 
 	hdrv := make([]uint8, 8*(segnum/2)+8)
-	putLittle32(hdrv, segnum-1)
+	binary.LittleEndian.PutUint32(hdrv, segnum-1)
 	for i := uint32(0); i < segnum; i++ {
 		seg, _ := s.Message.Lookup(i)
-		putLittle32(hdrv[4*i+4:], uint32(len(seg.Data)/8))
+		binary.LittleEndian.PutUint32(hdrv[4*i+4:], uint32(len(seg.Data)/8))
 	}
 
 	if n, err := w.Write(hdrv); err != nil {
