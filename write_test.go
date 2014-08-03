@@ -22,7 +22,7 @@ func ExampleAirplaneWrite() string {
 	// wrap everything in a struct that contains a single anoymous union (e.g. struct Z).
 	// Then always set a Z as the root object in you message/first segment.
 	// The cost of the extra word of storage is usually worth it, as
-	// then human readalbe output is easily obtained via a shell command such as
+	// then human readable output is easily obtained via a shell command such as
 	//
 	// $ cat binary.cpz | capnp decode aircraft.capnp Z
 	//
