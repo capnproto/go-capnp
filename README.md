@@ -20,6 +20,8 @@ Thanks to Albert Strasheim (https://github.com/alberts/go-capnproto) of CloudFla
 Getting started
 ---------------
 
+pre-requisite: Due to the use of the customtype annotation feature, you will need a relatively recent capnproto installation.  At or after 1 July 2014 (at or after b2d752beac5436bada2712f1a23185b78063e6fa) is known to work.
+
 ~~~
 # first: be sure you have your GOPATH env variable setup.
 $ go get -u -t github.com/glycerine/go-capnproto
