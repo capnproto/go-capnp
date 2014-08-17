@@ -21,6 +21,9 @@ Getting started
 ---------------
 
 ~~~
+# first: be sure you have your GOPATH env variable setup.
+$ go get -u -t github.com/glycerine/go-capnproto
+$ cd $GOPATH/src/github.com/glycerine/go-capnproto
 $ make # will install capnpc-go and compile the test schema aircraftlib/aircraft.capnp, which is used in the tests.
 $ diff ./capnpc-go/capnpc-go `which capnpc-go` # you should verify that you are using the capnpc-go binary you just built. There should be no diff. Adjust your PATH if necessary to include the binary capnpc-go that you just built/installed from ./capnpc-go/capnpc-go.
 $ go test -v  # confirm all tests are green
