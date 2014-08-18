@@ -303,6 +303,7 @@ const (
 	Z_F16                 = 36
 	Z_ZDATEVEC            = 37
 	Z_ZDATAVEC            = 38
+	Z_BOOLVEC             = 39
 )
 
 func NewZ(s *C.Segment) Z             { return Z(s.NewStruct(16, 1)) }
@@ -394,6 +395,8 @@ func (s Z) Zdatevec() Zdate_List     { return Zdate_List(C.Struct(s).GetObject(0
 func (s Z) SetZdatevec(v Zdate_List) { C.Struct(s).Set16(0, 37); C.Struct(s).SetObject(0, C.Object(v)) }
 func (s Z) Zdatavec() Zdata_List     { return Zdata_List(C.Struct(s).GetObject(0)) }
 func (s Z) SetZdatavec(v Zdata_List) { C.Struct(s).Set16(0, 38); C.Struct(s).SetObject(0, C.Object(v)) }
+func (s Z) Boolvec() C.BitList       { return C.BitList(C.Struct(s).GetObject(0)) }
+func (s Z) SetBoolvec(v C.BitList)   { C.Struct(s).Set16(0, 39); C.Struct(s).SetObject(0, C.Object(v)) }
 
 // capn.JSON_enabled == false so we stub MarshallJSON().
 func (s *Z) MarshalJSON() (bs []byte, err error) {

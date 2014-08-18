@@ -160,6 +160,18 @@ func (c *Cap) Interp(line int, val uint64, b []byte) string {
 		case structPointer:
 			return c.StructPointer(val, line)
 		case listPointer:
+			//fmt.Printf("\ndetected List with element count = %d (unless this is a composite). ListB = %d, ListC = %d\n", ListD(val), B(val), ListC(val))
+
+			if ListC(val) == bit1List {
+				listSize := ListD(val)
+				bytesRequired := (listSize + 7) / 8
+				szBytesWordBoundary := (bytesRequired + 7) &^ 7
+				eline := line + 1 + B(val)
+				listContent := BytesToWordString(b[eline*8 : (eline*8 + szBytesWordBoundary)])
+				c.expected[eline] = fmt.Sprintf("bit-list contents: %s", listContent)
+				return fmt.Sprintf("list of %d bits (pointer to: '%s' at line %d)", listSize, listContent, eline)
+			}
+
 			if ListC(val) == byte1List {
 				// assume it will be text
 				eline := line + 1 + B(val)
@@ -356,4 +368,19 @@ func DirExists(name string) bool {
 		return true
 	}
 	return false
+}
+
+func BytesToWordString(b []byte) string {
+	var s string
+	k := 0
+	for i := 0; i < len(b)/8; i++ {
+		for j := 0; j < 8; j++ {
+			s += fmt.Sprintf("%02x ", b[k])
+			k++
+			if k == len(b) {
+				break
+			}
+		}
+	}
+	return s
 }

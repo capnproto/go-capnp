@@ -241,7 +241,9 @@ func (s *Segment) NewStruct(datasz, ptrs int) Struct {
 	return Struct(n)
 }
 
+// sz is in bytes
 func (s *Segment) create(sz int, n Object) (Object, error) {
+	// rounded up to word-boundary number of bytes:
 	sz = (sz + 7) &^ 7
 
 	if uint64(sz) > uint64(math.MaxUint32)-8 {
@@ -479,7 +481,7 @@ func (p BitList) At(i int) bool {
 		off := p.off + i*(p.datasz+p.ptrs*8)
 		return (p.Segment.Data[off] & 1) != 0
 	case TypeBitList:
-		return (p.Segment.Data[i/8] & (1 << uint(i%8))) != 0
+		return (p.Segment.Data[p.off+i/8] & (1 << uint(i%8))) != 0
 	default:
 		return false
 	}
@@ -509,9 +511,9 @@ func (p BitList) Set(i int, v bool) {
 		}
 	case TypeBitList:
 		if v {
-			p.Segment.Data[i/8] |= 1 << uint(i%8)
+			p.Segment.Data[p.off+i/8] |= 1 << uint(i%8)
 		} else {
-			p.Segment.Data[i/8] &^= 1 << uint(i%8)
+			p.Segment.Data[p.off+i/8] &^= 1 << uint(i%8)
 		}
 	}
 }
