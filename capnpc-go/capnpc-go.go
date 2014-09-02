@@ -659,15 +659,11 @@ func (n *node) defineStructEnums(w io.Writer) {
 		fprintf(w, "type %s_Which uint16\n", n.name)
 		fprintf(w, "const (\n")
 
-		writtenType := false
 		for _, f := range n.codeOrderFields() {
 			if f.DiscriminantValue() == 0xFFFF {
 				// Non-union member
-			} else if !writtenType {
-				fprintf(w, "%s_%s %s_Which = %d\n", strings.ToUpper(n.name), strings.ToUpper(f.Name()), n.name, f.DiscriminantValue())
-				writtenType = true
 			} else {
-				fprintf(w, "%s_%s = %d\n", strings.ToUpper(n.name), strings.ToUpper(f.Name()), f.DiscriminantValue())
+				fprintf(w, "%s_%s %s_Which = %d\n", strings.ToUpper(n.name), strings.ToUpper(f.Name()), n.name, f.DiscriminantValue())
 			}
 		}
 		fprintf(w, ")\n")

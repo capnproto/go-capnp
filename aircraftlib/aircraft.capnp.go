@@ -3,11 +3,10 @@ package aircraftlib
 // AUTO GENERATED - DO NOT EDIT
 
 import (
+	C "github.com/glycerine/go-capnproto"
 	"math"
 	"net"
 	"unsafe"
-
-	C "github.com/glycerine/go-capnproto"
 )
 
 type Zdate C.Struct
@@ -218,9 +217,9 @@ type Aircraft_Which uint16
 
 const (
 	AIRCRAFT_VOID Aircraft_Which = 0
-	AIRCRAFT_B737                = 1
-	AIRCRAFT_A320                = 2
-	AIRCRAFT_F16                 = 3
+	AIRCRAFT_B737 Aircraft_Which = 1
+	AIRCRAFT_A320 Aircraft_Which = 2
+	AIRCRAFT_F16  Aircraft_Which = 3
 )
 
 func NewAircraft(s *C.Segment) Aircraft      { return Aircraft(s.NewStruct(8, 1)) }
@@ -253,45 +252,45 @@ type Z_Which uint16
 
 const (
 	Z_VOID        Z_Which = 0
-	Z_ZZ                  = 1
-	Z_F64                 = 2
-	Z_F32                 = 3
-	Z_I64                 = 4
-	Z_I32                 = 5
-	Z_I16                 = 6
-	Z_I8                  = 7
-	Z_U64                 = 8
-	Z_U32                 = 9
-	Z_U16                 = 10
-	Z_U8                  = 11
-	Z_BOOL                = 12
-	Z_TEXT                = 13
-	Z_BLOB                = 14
-	Z_F64VEC              = 15
-	Z_F32VEC              = 16
-	Z_I64VEC              = 17
-	Z_I32VEC              = 18
-	Z_I16VEC              = 19
-	Z_I8VEC               = 20
-	Z_U64VEC              = 21
-	Z_U32VEC              = 22
-	Z_U16VEC              = 23
-	Z_U8VEC               = 24
-	Z_ZVEC                = 25
-	Z_ZVECVEC             = 26
-	Z_ZDATE               = 27
-	Z_ZDATA               = 28
-	Z_AIRCRAFTVEC         = 29
-	Z_AIRCRAFT            = 30
-	Z_REGRESSION          = 31
-	Z_PLANEBASE           = 32
-	Z_AIRPORT             = 33
-	Z_B737                = 34
-	Z_A320                = 35
-	Z_F16                 = 36
-	Z_ZDATEVEC            = 37
-	Z_ZDATAVEC            = 38
-	Z_BOOLVEC             = 39
+	Z_ZZ          Z_Which = 1
+	Z_F64         Z_Which = 2
+	Z_F32         Z_Which = 3
+	Z_I64         Z_Which = 4
+	Z_I32         Z_Which = 5
+	Z_I16         Z_Which = 6
+	Z_I8          Z_Which = 7
+	Z_U64         Z_Which = 8
+	Z_U32         Z_Which = 9
+	Z_U16         Z_Which = 10
+	Z_U8          Z_Which = 11
+	Z_BOOL        Z_Which = 12
+	Z_TEXT        Z_Which = 13
+	Z_BLOB        Z_Which = 14
+	Z_F64VEC      Z_Which = 15
+	Z_F32VEC      Z_Which = 16
+	Z_I64VEC      Z_Which = 17
+	Z_I32VEC      Z_Which = 18
+	Z_I16VEC      Z_Which = 19
+	Z_I8VEC       Z_Which = 20
+	Z_U64VEC      Z_Which = 21
+	Z_U32VEC      Z_Which = 22
+	Z_U16VEC      Z_Which = 23
+	Z_U8VEC       Z_Which = 24
+	Z_ZVEC        Z_Which = 25
+	Z_ZVECVEC     Z_Which = 26
+	Z_ZDATE       Z_Which = 27
+	Z_ZDATA       Z_Which = 28
+	Z_AIRCRAFTVEC Z_Which = 29
+	Z_AIRCRAFT    Z_Which = 30
+	Z_REGRESSION  Z_Which = 31
+	Z_PLANEBASE   Z_Which = 32
+	Z_AIRPORT     Z_Which = 33
+	Z_B737        Z_Which = 34
+	Z_A320        Z_Which = 35
+	Z_F16         Z_Which = 36
+	Z_ZDATEVEC    Z_Which = 37
+	Z_ZDATAVEC    Z_Which = 38
+	Z_BOOLVEC     Z_Which = 39
 )
 
 func NewZ(s *C.Segment) Z             { return Z(s.NewStruct(16, 1)) }
