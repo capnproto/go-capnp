@@ -99,3 +99,21 @@ func TestAircraftWrite(t *testing.T) {
 	})
 
 }
+
+func TestVoidUnionSetters(t *testing.T) {
+	want := CapnpEncode(`(b = void)`, "VoidUnion")
+
+	cv.Convey("Given a VoidUnion set to b", t, func() {
+		cv.Convey("then the go-capnproto serialization should match the capnp c++ serialization", func() {
+			seg := capn.NewBuffer(nil)
+			voidUnion := air.NewRootVoidUnion(seg)
+			voidUnion.SetB()
+
+			var buf bytes.Buffer
+			seg.WriteTo(&buf)
+			act := buf.Bytes()
+
+			cv.So(act, cv.ShouldResemble, want)
+		})
+	})
+}

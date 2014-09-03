@@ -253,3 +253,11 @@ struct Endpoint {
    hostname @2: Text;
 }
 
+# test voids in a union
+
+struct VoidUnion {
+  union {
+    a @0 :Void;
+    b @1 :Void;
+  }
+}
