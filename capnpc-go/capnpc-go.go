@@ -347,16 +347,23 @@ func (n *node) defineField(w io.Writer, f Field) {
 	def := f.Slot().DefaultValue()
 	off := f.Slot().Offset()
 
-	if t.Which() == TYPE_VOID || t.Which() == TYPE_INTERFACE {
+	if t.Which() == TYPE_INTERFACE {
 		return
 	}
+
+	var g, s bytes.Buffer
 
 	settag := ""
 	if f.DiscriminantValue() != 0xFFFF {
 		settag = sprintf(" C.Struct(s).Set16(%d, %d);", n.Struct().DiscriminantOffset()*2, f.DiscriminantValue())
+		if t.Which() == TYPE_VOID {
+			fprintf(&s, "func (s %s) Set%s() {%s }\n", n.name, title(f.Name()), settag)
+			w.Write(s.Bytes())
+			return
+		}
+	} else if t.Which() == TYPE_VOID {
+		return
 	}
-
-	var g, s bytes.Buffer
 
 	customtype := ""
 	for _, a := range f.Annotations().ToArray() {

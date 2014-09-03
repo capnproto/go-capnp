@@ -226,6 +226,7 @@ func NewAircraft(s *C.Segment) Aircraft      { return Aircraft(s.NewStruct(8, 1)
 func NewRootAircraft(s *C.Segment) Aircraft  { return Aircraft(s.NewRootStruct(8, 1)) }
 func ReadRootAircraft(s *C.Segment) Aircraft { return Aircraft(s.Root(0).ToStruct()) }
 func (s Aircraft) Which() Aircraft_Which     { return Aircraft_Which(C.Struct(s).Get16(0)) }
+func (s Aircraft) SetVoid()                  { C.Struct(s).Set16(0, 0) }
 func (s Aircraft) B737() B737                { return B737(C.Struct(s).GetObject(0).ToStruct()) }
 func (s Aircraft) SetB737(v B737)            { C.Struct(s).Set16(0, 1); C.Struct(s).SetObject(0, C.Object(v)) }
 func (s Aircraft) A320() A320                { return A320(C.Struct(s).GetObject(0).ToStruct()) }
@@ -297,6 +298,7 @@ func NewZ(s *C.Segment) Z             { return Z(s.NewStruct(16, 1)) }
 func NewRootZ(s *C.Segment) Z         { return Z(s.NewRootStruct(16, 1)) }
 func ReadRootZ(s *C.Segment) Z        { return Z(s.Root(0).ToStruct()) }
 func (s Z) Which() Z_Which            { return Z_Which(C.Struct(s).Get16(0)) }
+func (s Z) SetVoid()                  { C.Struct(s).Set16(0, 0) }
 func (s Z) Zz() Z                     { return Z(C.Struct(s).GetObject(0).ToStruct()) }
 func (s Z) SetZz(v Z)                 { C.Struct(s).Set16(0, 1); C.Struct(s).SetObject(0, C.Object(v)) }
 func (s Z) F64() float64              { return math.Float64frombits(C.Struct(s).Get64(8)) }
