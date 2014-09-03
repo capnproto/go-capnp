@@ -191,6 +191,19 @@ always be handled.
 Setters for single values will set the union discriminator as well as set the
 value.
 
+For voids in unions, there is a void setter that just sets the discriminator.
+For example:
+
+	struct Foo {
+		union {
+			a @0 :Void;
+			b @1 :Void;
+		}
+	}
+
+	f.SetA() // Set that we are using A
+	f.SetB() // Set that we are using B
+
 For groups in unions, there is a group setter that just sets the
 discriminator. This must be called before the group getter can be used to set
 values. For example:
