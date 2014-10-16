@@ -7,6 +7,7 @@ import (
 	"math"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -959,6 +960,11 @@ func main() {
 		}
 
 		assert(f.pkg != "", "missing package annotation for %s", reqf.Filename())
+
+		if dirPath, _ := filepath.Split(reqf.Filename()); dirPath != "" {
+			err := os.MkdirAll(dirPath, os.ModePerm)
+			assert(err == nil, "%v\n", err)
+		}
 
 		file, err := os.Create(reqf.Filename() + ".go")
 		assert(err == nil, "%v\n", err)
