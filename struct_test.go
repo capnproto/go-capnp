@@ -212,6 +212,19 @@ func TestZserverWithAccessors(t *testing.T) {
 	})
 }
 
+func TestEnumFromString(t *testing.T) {
+	cv.Convey("Given an enum tag string matching a constant", t, func() {
+		cv.Convey("FromString should return the corresponding matching constant value", func() {
+			cv.So(air.AirportFromString("jfk"), cv.ShouldEqual, air.AIRPORT_JFK)
+		})
+	})
+	cv.Convey("Given an enum tag string that does not match a constant", t, func() {
+		cv.Convey("FromString should return 0", func() {
+			cv.So(air.AirportFromString("notEverMatching"), cv.ShouldEqual, 0)
+		})
+	})
+}
+
 func TestSetObjectBetweenSegments(t *testing.T) {
 
 	exp := CapnpEncode(`(counter = (size = 9))`, "Bag")
