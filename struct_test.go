@@ -156,6 +156,62 @@ func TestZserverWithOneFullJob(t *testing.T) {
 	})
 }
 
+func TestZserverWithAccessors(t *testing.T) {
+
+	exp := CapnpEncode(`(waitingjobs = [(cmd = "abc"), (cmd = "xyz")])`, "Zserver")
+
+	cv.Convey("Given an Zserver with a custom list", t, func() {
+		cv.Convey("then all the accessors should work as expected", func() {
+
+			seg := capn.NewBuffer(nil)
+			scratch := capn.NewBuffer(nil)
+
+			server := air.NewRootZserver(seg)
+
+			joblist := air.NewZjobList(seg, 2)
+
+			// .Set(int, item)
+			zjob := air.NewZjob(scratch)
+			zjob.SetCmd("abc")
+			joblist.Set(0, zjob)
+
+			zjob = air.NewZjob(scratch)
+			zjob.SetCmd("xyz")
+			joblist.Set(1, zjob)
+
+			// .At(int)
+			cv.So(joblist.At(0).Cmd(), cv.ShouldEqual, "abc")
+			cv.So(joblist.At(1).Cmd(), cv.ShouldEqual, "xyz")
+
+			// .Len()
+			cv.So(joblist.Len(), cv.ShouldEqual, 2)
+
+			// .ToArray()
+			cv.So(len(joblist.ToArray()), cv.ShouldEqual, 2)
+			cv.So(joblist.ToArray()[0].Cmd(), cv.ShouldEqual, "abc")
+			cv.So(joblist.ToArray()[1].Cmd(), cv.ShouldEqual, "xyz")
+
+			server.SetWaitingjobs(joblist)
+
+			buf := bytes.Buffer{}
+			seg.WriteTo(&buf)
+
+			act := buf.Bytes()
+			fmt.Printf("          actual:\n")
+			ShowBytes(act, 10)
+			fmt.Printf("act decoded by capnp: '%s'\n", string(CapnpDecode(act, "Zserver")))
+			save(act, "myact")
+
+			fmt.Printf("expected:\n")
+			ShowBytes(exp, 10)
+			fmt.Printf("exp decoded by capnp: '%s'\n", string(CapnpDecode(exp, "Zserver")))
+			save(exp, "myexp")
+
+			cv.So(act, cv.ShouldResemble, exp)
+		})
+	})
+}
+
 func TestSetObjectBetweenSegments(t *testing.T) {
 
 	exp := CapnpEncode(`(counter = (size = 9))`, "Bag")

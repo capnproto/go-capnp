@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	C "github.com/glycerine/go-capnproto"
 	"io"
 	"math"
 	"os"
@@ -10,8 +11,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-
-	C "github.com/glycerine/go-capnproto"
 )
 
 var (
@@ -887,6 +886,7 @@ func (n *node) defineStructList(w io.Writer) {
 	fprintf(w, "func (s %s_List) Len() int { return C.PointerList(s).Len() }\n", n.name)
 	fprintf(w, "func (s %s_List) At(i int) %s { return %s(C.PointerList(s).At(i).ToStruct()) }\n", n.name, n.name, n.name)
 	fprintf(w, "func (s %s_List) ToArray() []%s { return *(*[]%s)(unsafe.Pointer(C.PointerList(s).ToArray())) }\n", n.name, n.name, n.name)
+	fprintf(w, "func (s %s_List) Set(i int, item %s) { C.PointerList(s).Set(i, C.Object(item)) }\n", n.name, n.name)
 
 	g_imported["unsafe"] = true
 }

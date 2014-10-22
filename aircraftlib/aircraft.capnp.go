@@ -30,6 +30,7 @@ func NewZdateList(s *C.Segment, sz int) Zdate_List { return Zdate_List(s.NewUInt
 func (s Zdate_List) Len() int                      { return C.PointerList(s).Len() }
 func (s Zdate_List) At(i int) Zdate                { return Zdate(C.PointerList(s).At(i).ToStruct()) }
 func (s Zdate_List) ToArray() []Zdate              { return *(*[]Zdate)(unsafe.Pointer(C.PointerList(s).ToArray())) }
+func (s Zdate_List) Set(i int, item Zdate)         { C.PointerList(s).Set(i, C.Object(item)) }
 
 type Zdata C.Struct
 
@@ -48,6 +49,7 @@ func NewZdataList(s *C.Segment, sz int) Zdata_List { return Zdata_List(s.NewComp
 func (s Zdata_List) Len() int                      { return C.PointerList(s).Len() }
 func (s Zdata_List) At(i int) Zdata                { return Zdata(C.PointerList(s).At(i).ToStruct()) }
 func (s Zdata_List) ToArray() []Zdata              { return *(*[]Zdata)(unsafe.Pointer(C.PointerList(s).ToArray())) }
+func (s Zdata_List) Set(i int, item Zdata)         { C.PointerList(s).Set(i, C.Object(item)) }
 
 type Airport uint16
 
@@ -125,6 +127,7 @@ func (s PlaneBase_List) At(i int) PlaneBase { return PlaneBase(C.PointerList(s).
 func (s PlaneBase_List) ToArray() []PlaneBase {
 	return *(*[]PlaneBase)(unsafe.Pointer(C.PointerList(s).ToArray()))
 }
+func (s PlaneBase_List) Set(i int, item PlaneBase) { C.PointerList(s).Set(i, C.Object(item)) }
 
 type B737 C.Struct
 
@@ -143,6 +146,7 @@ func NewB737List(s *C.Segment, sz int) B737_List { return B737_List(s.NewComposi
 func (s B737_List) Len() int                     { return C.PointerList(s).Len() }
 func (s B737_List) At(i int) B737                { return B737(C.PointerList(s).At(i).ToStruct()) }
 func (s B737_List) ToArray() []B737              { return *(*[]B737)(unsafe.Pointer(C.PointerList(s).ToArray())) }
+func (s B737_List) Set(i int, item B737)         { C.PointerList(s).Set(i, C.Object(item)) }
 
 type A320 C.Struct
 
@@ -161,6 +165,7 @@ func NewA320List(s *C.Segment, sz int) A320_List { return A320_List(s.NewComposi
 func (s A320_List) Len() int                     { return C.PointerList(s).Len() }
 func (s A320_List) At(i int) A320                { return A320(C.PointerList(s).At(i).ToStruct()) }
 func (s A320_List) ToArray() []A320              { return *(*[]A320)(unsafe.Pointer(C.PointerList(s).ToArray())) }
+func (s A320_List) Set(i int, item A320)         { C.PointerList(s).Set(i, C.Object(item)) }
 
 type F16 C.Struct
 
@@ -179,6 +184,7 @@ func NewF16List(s *C.Segment, sz int) F16_List { return F16_List(s.NewCompositeL
 func (s F16_List) Len() int                    { return C.PointerList(s).Len() }
 func (s F16_List) At(i int) F16                { return F16(C.PointerList(s).At(i).ToStruct()) }
 func (s F16_List) ToArray() []F16              { return *(*[]F16)(unsafe.Pointer(C.PointerList(s).ToArray())) }
+func (s F16_List) Set(i int, item F16)         { C.PointerList(s).Set(i, C.Object(item)) }
 
 type Regression C.Struct
 
@@ -211,6 +217,7 @@ func (s Regression_List) At(i int) Regression { return Regression(C.PointerList(
 func (s Regression_List) ToArray() []Regression {
 	return *(*[]Regression)(unsafe.Pointer(C.PointerList(s).ToArray()))
 }
+func (s Regression_List) Set(i int, item Regression) { C.PointerList(s).Set(i, C.Object(item)) }
 
 type Aircraft C.Struct
 type Aircraft_Which uint16
@@ -247,6 +254,7 @@ func (s Aircraft_List) At(i int) Aircraft { return Aircraft(C.PointerList(s).At(
 func (s Aircraft_List) ToArray() []Aircraft {
 	return *(*[]Aircraft)(unsafe.Pointer(C.PointerList(s).ToArray()))
 }
+func (s Aircraft_List) Set(i int, item Aircraft) { C.PointerList(s).Set(i, C.Object(item)) }
 
 type Z C.Struct
 type Z_Which uint16
@@ -396,6 +404,7 @@ func NewZList(s *C.Segment, sz int) Z_List { return Z_List(s.NewCompositeList(16
 func (s Z_List) Len() int                  { return C.PointerList(s).Len() }
 func (s Z_List) At(i int) Z                { return Z(C.PointerList(s).At(i).ToStruct()) }
 func (s Z_List) ToArray() []Z              { return *(*[]Z)(unsafe.Pointer(C.PointerList(s).ToArray())) }
+func (s Z_List) Set(i int, item Z)         { C.PointerList(s).Set(i, C.Object(item)) }
 
 type Counter C.Struct
 
@@ -422,6 +431,7 @@ func (s Counter_List) At(i int) Counter { return Counter(C.PointerList(s).At(i).
 func (s Counter_List) ToArray() []Counter {
 	return *(*[]Counter)(unsafe.Pointer(C.PointerList(s).ToArray()))
 }
+func (s Counter_List) Set(i int, item Counter) { C.PointerList(s).Set(i, C.Object(item)) }
 
 type Bag C.Struct
 
@@ -440,6 +450,7 @@ func NewBagList(s *C.Segment, sz int) Bag_List { return Bag_List(s.NewCompositeL
 func (s Bag_List) Len() int                    { return C.PointerList(s).Len() }
 func (s Bag_List) At(i int) Bag                { return Bag(C.PointerList(s).At(i).ToStruct()) }
 func (s Bag_List) ToArray() []Bag              { return *(*[]Bag)(unsafe.Pointer(C.PointerList(s).ToArray())) }
+func (s Bag_List) Set(i int, item Bag)         { C.PointerList(s).Set(i, C.Object(item)) }
 
 type Zserver C.Struct
 
@@ -462,6 +473,7 @@ func (s Zserver_List) At(i int) Zserver { return Zserver(C.PointerList(s).At(i).
 func (s Zserver_List) ToArray() []Zserver {
 	return *(*[]Zserver)(unsafe.Pointer(C.PointerList(s).ToArray()))
 }
+func (s Zserver_List) Set(i int, item Zserver) { C.PointerList(s).Set(i, C.Object(item)) }
 
 type Zjob C.Struct
 
@@ -482,6 +494,7 @@ func NewZjobList(s *C.Segment, sz int) Zjob_List { return Zjob_List(s.NewComposi
 func (s Zjob_List) Len() int                     { return C.PointerList(s).Len() }
 func (s Zjob_List) At(i int) Zjob                { return Zjob(C.PointerList(s).At(i).ToStruct()) }
 func (s Zjob_List) ToArray() []Zjob              { return *(*[]Zjob)(unsafe.Pointer(C.PointerList(s).ToArray())) }
+func (s Zjob_List) Set(i int, item Zjob)         { C.PointerList(s).Set(i, C.Object(item)) }
 
 type VerEmpty C.Struct
 
@@ -500,6 +513,7 @@ func (s VerEmpty_List) At(i int) VerEmpty                { return VerEmpty(C.Poi
 func (s VerEmpty_List) ToArray() []VerEmpty {
 	return *(*[]VerEmpty)(unsafe.Pointer(C.PointerList(s).ToArray()))
 }
+func (s VerEmpty_List) Set(i int, item VerEmpty) { C.PointerList(s).Set(i, C.Object(item)) }
 
 type VerOneData C.Struct
 
@@ -522,6 +536,7 @@ func (s VerOneData_List) At(i int) VerOneData { return VerOneData(C.PointerList(
 func (s VerOneData_List) ToArray() []VerOneData {
 	return *(*[]VerOneData)(unsafe.Pointer(C.PointerList(s).ToArray()))
 }
+func (s VerOneData_List) Set(i int, item VerOneData) { C.PointerList(s).Set(i, C.Object(item)) }
 
 type VerTwoData C.Struct
 
@@ -546,6 +561,7 @@ func (s VerTwoData_List) At(i int) VerTwoData { return VerTwoData(C.PointerList(
 func (s VerTwoData_List) ToArray() []VerTwoData {
 	return *(*[]VerTwoData)(unsafe.Pointer(C.PointerList(s).ToArray()))
 }
+func (s VerTwoData_List) Set(i int, item VerTwoData) { C.PointerList(s).Set(i, C.Object(item)) }
 
 type VerOnePtr C.Struct
 
@@ -568,6 +584,7 @@ func (s VerOnePtr_List) At(i int) VerOnePtr { return VerOnePtr(C.PointerList(s).
 func (s VerOnePtr_List) ToArray() []VerOnePtr {
 	return *(*[]VerOnePtr)(unsafe.Pointer(C.PointerList(s).ToArray()))
 }
+func (s VerOnePtr_List) Set(i int, item VerOnePtr) { C.PointerList(s).Set(i, C.Object(item)) }
 
 type VerTwoPtr C.Struct
 
@@ -592,6 +609,7 @@ func (s VerTwoPtr_List) At(i int) VerTwoPtr { return VerTwoPtr(C.PointerList(s).
 func (s VerTwoPtr_List) ToArray() []VerTwoPtr {
 	return *(*[]VerTwoPtr)(unsafe.Pointer(C.PointerList(s).ToArray()))
 }
+func (s VerTwoPtr_List) Set(i int, item VerTwoPtr) { C.PointerList(s).Set(i, C.Object(item)) }
 
 type VerTwoDataTwoPtr C.Struct
 
@@ -626,6 +644,9 @@ func (s VerTwoDataTwoPtr_List) At(i int) VerTwoDataTwoPtr {
 func (s VerTwoDataTwoPtr_List) ToArray() []VerTwoDataTwoPtr {
 	return *(*[]VerTwoDataTwoPtr)(unsafe.Pointer(C.PointerList(s).ToArray()))
 }
+func (s VerTwoDataTwoPtr_List) Set(i int, item VerTwoDataTwoPtr) {
+	C.PointerList(s).Set(i, C.Object(item))
+}
 
 type HoldsVerEmptyList C.Struct
 
@@ -653,6 +674,9 @@ func (s HoldsVerEmptyList_List) At(i int) HoldsVerEmptyList {
 }
 func (s HoldsVerEmptyList_List) ToArray() []HoldsVerEmptyList {
 	return *(*[]HoldsVerEmptyList)(unsafe.Pointer(C.PointerList(s).ToArray()))
+}
+func (s HoldsVerEmptyList_List) Set(i int, item HoldsVerEmptyList) {
+	C.PointerList(s).Set(i, C.Object(item))
 }
 
 type HoldsVerOneDataList C.Struct
@@ -686,6 +710,9 @@ func (s HoldsVerOneDataList_List) At(i int) HoldsVerOneDataList {
 func (s HoldsVerOneDataList_List) ToArray() []HoldsVerOneDataList {
 	return *(*[]HoldsVerOneDataList)(unsafe.Pointer(C.PointerList(s).ToArray()))
 }
+func (s HoldsVerOneDataList_List) Set(i int, item HoldsVerOneDataList) {
+	C.PointerList(s).Set(i, C.Object(item))
+}
 
 type HoldsVerTwoDataList C.Struct
 
@@ -718,6 +745,9 @@ func (s HoldsVerTwoDataList_List) At(i int) HoldsVerTwoDataList {
 func (s HoldsVerTwoDataList_List) ToArray() []HoldsVerTwoDataList {
 	return *(*[]HoldsVerTwoDataList)(unsafe.Pointer(C.PointerList(s).ToArray()))
 }
+func (s HoldsVerTwoDataList_List) Set(i int, item HoldsVerTwoDataList) {
+	C.PointerList(s).Set(i, C.Object(item))
+}
 
 type HoldsVerOnePtrList C.Struct
 
@@ -748,6 +778,9 @@ func (s HoldsVerOnePtrList_List) At(i int) HoldsVerOnePtrList {
 func (s HoldsVerOnePtrList_List) ToArray() []HoldsVerOnePtrList {
 	return *(*[]HoldsVerOnePtrList)(unsafe.Pointer(C.PointerList(s).ToArray()))
 }
+func (s HoldsVerOnePtrList_List) Set(i int, item HoldsVerOnePtrList) {
+	C.PointerList(s).Set(i, C.Object(item))
+}
 
 type HoldsVerTwoPtrList C.Struct
 
@@ -777,6 +810,9 @@ func (s HoldsVerTwoPtrList_List) At(i int) HoldsVerTwoPtrList {
 }
 func (s HoldsVerTwoPtrList_List) ToArray() []HoldsVerTwoPtrList {
 	return *(*[]HoldsVerTwoPtrList)(unsafe.Pointer(C.PointerList(s).ToArray()))
+}
+func (s HoldsVerTwoPtrList_List) Set(i int, item HoldsVerTwoPtrList) {
+	C.PointerList(s).Set(i, C.Object(item))
 }
 
 type HoldsVerTwoTwoList C.Struct
@@ -810,6 +846,9 @@ func (s HoldsVerTwoTwoList_List) At(i int) HoldsVerTwoTwoList {
 func (s HoldsVerTwoTwoList_List) ToArray() []HoldsVerTwoTwoList {
 	return *(*[]HoldsVerTwoTwoList)(unsafe.Pointer(C.PointerList(s).ToArray()))
 }
+func (s HoldsVerTwoTwoList_List) Set(i int, item HoldsVerTwoTwoList) {
+	C.PointerList(s).Set(i, C.Object(item))
+}
 
 type HoldsVerTwoTwoPlus C.Struct
 
@@ -841,6 +880,9 @@ func (s HoldsVerTwoTwoPlus_List) At(i int) HoldsVerTwoTwoPlus {
 }
 func (s HoldsVerTwoTwoPlus_List) ToArray() []HoldsVerTwoTwoPlus {
 	return *(*[]HoldsVerTwoTwoPlus)(unsafe.Pointer(C.PointerList(s).ToArray()))
+}
+func (s HoldsVerTwoTwoPlus_List) Set(i int, item HoldsVerTwoTwoPlus) {
+	C.PointerList(s).Set(i, C.Object(item))
 }
 
 type VerTwoTwoPlus C.Struct
@@ -880,6 +922,7 @@ func (s VerTwoTwoPlus_List) At(i int) VerTwoTwoPlus {
 func (s VerTwoTwoPlus_List) ToArray() []VerTwoTwoPlus {
 	return *(*[]VerTwoTwoPlus)(unsafe.Pointer(C.PointerList(s).ToArray()))
 }
+func (s VerTwoTwoPlus_List) Set(i int, item VerTwoTwoPlus) { C.PointerList(s).Set(i, C.Object(item)) }
 
 type HoldsText C.Struct
 
@@ -906,6 +949,7 @@ func (s HoldsText_List) At(i int) HoldsText { return HoldsText(C.PointerList(s).
 func (s HoldsText_List) ToArray() []HoldsText {
 	return *(*[]HoldsText)(unsafe.Pointer(C.PointerList(s).ToArray()))
 }
+func (s HoldsText_List) Set(i int, item HoldsText) { C.PointerList(s).Set(i, C.Object(item)) }
 
 type WrapEmpty C.Struct
 
@@ -930,6 +974,7 @@ func (s WrapEmpty_List) At(i int) WrapEmpty { return WrapEmpty(C.PointerList(s).
 func (s WrapEmpty_List) ToArray() []WrapEmpty {
 	return *(*[]WrapEmpty)(unsafe.Pointer(C.PointerList(s).ToArray()))
 }
+func (s WrapEmpty_List) Set(i int, item WrapEmpty) { C.PointerList(s).Set(i, C.Object(item)) }
 
 type Wrap2x2 C.Struct
 
@@ -954,6 +999,7 @@ func (s Wrap2x2_List) At(i int) Wrap2x2 { return Wrap2x2(C.PointerList(s).At(i).
 func (s Wrap2x2_List) ToArray() []Wrap2x2 {
 	return *(*[]Wrap2x2)(unsafe.Pointer(C.PointerList(s).ToArray()))
 }
+func (s Wrap2x2_List) Set(i int, item Wrap2x2) { C.PointerList(s).Set(i, C.Object(item)) }
 
 type Wrap2x2plus C.Struct
 
@@ -978,6 +1024,7 @@ func (s Wrap2x2plus_List) At(i int) Wrap2x2plus { return Wrap2x2plus(C.PointerLi
 func (s Wrap2x2plus_List) ToArray() []Wrap2x2plus {
 	return *(*[]Wrap2x2plus)(unsafe.Pointer(C.PointerList(s).ToArray()))
 }
+func (s Wrap2x2plus_List) Set(i int, item Wrap2x2plus) { C.PointerList(s).Set(i, C.Object(item)) }
 
 type Endpoint C.Struct
 
@@ -1004,6 +1051,7 @@ func (s Endpoint_List) At(i int) Endpoint { return Endpoint(C.PointerList(s).At(
 func (s Endpoint_List) ToArray() []Endpoint {
 	return *(*[]Endpoint)(unsafe.Pointer(C.PointerList(s).ToArray()))
 }
+func (s Endpoint_List) Set(i int, item Endpoint) { C.PointerList(s).Set(i, C.Object(item)) }
 
 type VoidUnion C.Struct
 type VoidUnion_Which uint16
@@ -1031,3 +1079,4 @@ func (s VoidUnion_List) At(i int) VoidUnion                { return VoidUnion(C.
 func (s VoidUnion_List) ToArray() []VoidUnion {
 	return *(*[]VoidUnion)(unsafe.Pointer(C.PointerList(s).ToArray()))
 }
+func (s VoidUnion_List) Set(i int, item VoidUnion) { C.PointerList(s).Set(i, C.Object(item)) }
