@@ -857,6 +857,8 @@ func (n *node) defineNewStructFunc(w io.Writer) {
 		n.name, n.name, n.name, n.Struct().DataWordCount()*8, n.Struct().PointerCount())
 	fprintf(w, "func NewRoot%s(s *C.Segment) %s { return %s(s.NewRootStruct(%d, %d)) }\n",
 		n.name, n.name, n.name, n.Struct().DataWordCount()*8, n.Struct().PointerCount())
+	fprintf(w, "func AutoNew%s(s *C.Segment) %s { return %s(s.NewStructAR(%d, %d)) }\n",
+		n.name, n.name, n.name, n.Struct().DataWordCount()*8, n.Struct().PointerCount())
 	fprintf(w, "func ReadRoot%s(s *C.Segment) %s { return %s(s.Root(0).ToStruct()) }\n",
 		n.name, n.name, n.name)
 }

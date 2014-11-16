@@ -50,9 +50,10 @@ type Message interface {
 }
 
 type Segment struct {
-	Message Message
-	Data    []uint8
-	Id      uint32
+	Message  Message
+	Data     []uint8
+	Id       uint32
+	RootDone bool
 }
 
 type Object struct {
@@ -239,6 +240,17 @@ func (s *Segment) NewStruct(datasz, ptrs int) Struct {
 	datasz = (datasz + 7) &^ 7
 	n, _ := s.create(datasz+ptrs*8, Object{typ: TypeStruct, datasz: datasz, ptrs: ptrs})
 	return Struct(n)
+}
+
+// NewStructAR (AutoRoot): experimental Root settting: assumes the
+// struct is the root iff it is the first allocation in a segment.
+func (s *Segment) NewStructAR(datasz, ptrs int) Struct {
+	if s.RootDone {
+		return s.NewStruct(datasz, ptrs)
+	} else {
+		s.RootDone = true
+		return s.NewRootStruct(datasz, ptrs)
+	}
 }
 
 // sz is in bytes

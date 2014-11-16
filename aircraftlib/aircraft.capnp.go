@@ -13,6 +13,7 @@ type Zdate C.Struct
 
 func NewZdate(s *C.Segment) Zdate      { return Zdate(s.NewStruct(8, 0)) }
 func NewRootZdate(s *C.Segment) Zdate  { return Zdate(s.NewRootStruct(8, 0)) }
+func AutoNewZdate(s *C.Segment) Zdate  { return Zdate(s.NewStructAR(8, 0)) }
 func ReadRootZdate(s *C.Segment) Zdate { return Zdate(s.Root(0).ToStruct()) }
 func (s Zdate) Year() int16            { return int16(C.Struct(s).Get16(0)) }
 func (s Zdate) SetYear(v int16)        { C.Struct(s).Set16(0, uint16(v)) }
@@ -36,6 +37,7 @@ type Zdata C.Struct
 
 func NewZdata(s *C.Segment) Zdata      { return Zdata(s.NewStruct(0, 1)) }
 func NewRootZdata(s *C.Segment) Zdata  { return Zdata(s.NewRootStruct(0, 1)) }
+func AutoNewZdata(s *C.Segment) Zdata  { return Zdata(s.NewStructAR(0, 1)) }
 func ReadRootZdata(s *C.Segment) Zdata { return Zdata(s.Root(0).ToStruct()) }
 func (s Zdata) Data() []byte           { return C.Struct(s).GetObject(0).ToData() }
 func (s Zdata) SetData(v []byte)       { C.Struct(s).SetObject(0, s.Segment.NewData(v)) }
@@ -100,6 +102,7 @@ type PlaneBase C.Struct
 
 func NewPlaneBase(s *C.Segment) PlaneBase      { return PlaneBase(s.NewStruct(32, 2)) }
 func NewRootPlaneBase(s *C.Segment) PlaneBase  { return PlaneBase(s.NewRootStruct(32, 2)) }
+func AutoNewPlaneBase(s *C.Segment) PlaneBase  { return PlaneBase(s.NewStructAR(32, 2)) }
 func ReadRootPlaneBase(s *C.Segment) PlaneBase { return PlaneBase(s.Root(0).ToStruct()) }
 func (s PlaneBase) Name() string               { return C.Struct(s).GetObject(0).ToText() }
 func (s PlaneBase) SetName(v string)           { C.Struct(s).SetObject(0, s.Segment.NewText(v)) }
@@ -133,6 +136,7 @@ type B737 C.Struct
 
 func NewB737(s *C.Segment) B737      { return B737(s.NewStruct(0, 1)) }
 func NewRootB737(s *C.Segment) B737  { return B737(s.NewRootStruct(0, 1)) }
+func AutoNewB737(s *C.Segment) B737  { return B737(s.NewStructAR(0, 1)) }
 func ReadRootB737(s *C.Segment) B737 { return B737(s.Root(0).ToStruct()) }
 func (s B737) Base() PlaneBase       { return PlaneBase(C.Struct(s).GetObject(0).ToStruct()) }
 func (s B737) SetBase(v PlaneBase)   { C.Struct(s).SetObject(0, C.Object(v)) }
@@ -152,6 +156,7 @@ type A320 C.Struct
 
 func NewA320(s *C.Segment) A320      { return A320(s.NewStruct(0, 1)) }
 func NewRootA320(s *C.Segment) A320  { return A320(s.NewRootStruct(0, 1)) }
+func AutoNewA320(s *C.Segment) A320  { return A320(s.NewStructAR(0, 1)) }
 func ReadRootA320(s *C.Segment) A320 { return A320(s.Root(0).ToStruct()) }
 func (s A320) Base() PlaneBase       { return PlaneBase(C.Struct(s).GetObject(0).ToStruct()) }
 func (s A320) SetBase(v PlaneBase)   { C.Struct(s).SetObject(0, C.Object(v)) }
@@ -171,6 +176,7 @@ type F16 C.Struct
 
 func NewF16(s *C.Segment) F16      { return F16(s.NewStruct(0, 1)) }
 func NewRootF16(s *C.Segment) F16  { return F16(s.NewRootStruct(0, 1)) }
+func AutoNewF16(s *C.Segment) F16  { return F16(s.NewStructAR(0, 1)) }
 func ReadRootF16(s *C.Segment) F16 { return F16(s.Root(0).ToStruct()) }
 func (s F16) Base() PlaneBase      { return PlaneBase(C.Struct(s).GetObject(0).ToStruct()) }
 func (s F16) SetBase(v PlaneBase)  { C.Struct(s).SetObject(0, C.Object(v)) }
@@ -190,6 +196,7 @@ type Regression C.Struct
 
 func NewRegression(s *C.Segment) Regression      { return Regression(s.NewStruct(24, 3)) }
 func NewRootRegression(s *C.Segment) Regression  { return Regression(s.NewRootStruct(24, 3)) }
+func AutoNewRegression(s *C.Segment) Regression  { return Regression(s.NewStructAR(24, 3)) }
 func ReadRootRegression(s *C.Segment) Regression { return Regression(s.Root(0).ToStruct()) }
 func (s Regression) Base() PlaneBase             { return PlaneBase(C.Struct(s).GetObject(0).ToStruct()) }
 func (s Regression) SetBase(v PlaneBase)         { C.Struct(s).SetObject(0, C.Object(v)) }
@@ -231,6 +238,7 @@ const (
 
 func NewAircraft(s *C.Segment) Aircraft      { return Aircraft(s.NewStruct(8, 1)) }
 func NewRootAircraft(s *C.Segment) Aircraft  { return Aircraft(s.NewRootStruct(8, 1)) }
+func AutoNewAircraft(s *C.Segment) Aircraft  { return Aircraft(s.NewStructAR(8, 1)) }
 func ReadRootAircraft(s *C.Segment) Aircraft { return Aircraft(s.Root(0).ToStruct()) }
 func (s Aircraft) Which() Aircraft_Which     { return Aircraft_Which(C.Struct(s).Get16(0)) }
 func (s Aircraft) SetVoid()                  { C.Struct(s).Set16(0, 0) }
@@ -304,6 +312,7 @@ const (
 
 func NewZ(s *C.Segment) Z             { return Z(s.NewStruct(16, 1)) }
 func NewRootZ(s *C.Segment) Z         { return Z(s.NewRootStruct(16, 1)) }
+func AutoNewZ(s *C.Segment) Z         { return Z(s.NewStructAR(16, 1)) }
 func ReadRootZ(s *C.Segment) Z        { return Z(s.Root(0).ToStruct()) }
 func (s Z) Which() Z_Which            { return Z_Which(C.Struct(s).Get16(0)) }
 func (s Z) SetVoid()                  { C.Struct(s).Set16(0, 0) }
@@ -410,6 +419,7 @@ type Counter C.Struct
 
 func NewCounter(s *C.Segment) Counter      { return Counter(s.NewStruct(8, 2)) }
 func NewRootCounter(s *C.Segment) Counter  { return Counter(s.NewRootStruct(8, 2)) }
+func AutoNewCounter(s *C.Segment) Counter  { return Counter(s.NewStructAR(8, 2)) }
 func ReadRootCounter(s *C.Segment) Counter { return Counter(s.Root(0).ToStruct()) }
 func (s Counter) Size() int64              { return int64(C.Struct(s).Get64(0)) }
 func (s Counter) SetSize(v int64)          { C.Struct(s).Set64(0, uint64(v)) }
@@ -437,6 +447,7 @@ type Bag C.Struct
 
 func NewBag(s *C.Segment) Bag      { return Bag(s.NewStruct(0, 1)) }
 func NewRootBag(s *C.Segment) Bag  { return Bag(s.NewRootStruct(0, 1)) }
+func AutoNewBag(s *C.Segment) Bag  { return Bag(s.NewStructAR(0, 1)) }
 func ReadRootBag(s *C.Segment) Bag { return Bag(s.Root(0).ToStruct()) }
 func (s Bag) Counter() Counter     { return Counter(C.Struct(s).GetObject(0).ToStruct()) }
 func (s Bag) SetCounter(v Counter) { C.Struct(s).SetObject(0, C.Object(v)) }
@@ -456,6 +467,7 @@ type Zserver C.Struct
 
 func NewZserver(s *C.Segment) Zserver        { return Zserver(s.NewStruct(0, 1)) }
 func NewRootZserver(s *C.Segment) Zserver    { return Zserver(s.NewRootStruct(0, 1)) }
+func AutoNewZserver(s *C.Segment) Zserver    { return Zserver(s.NewStructAR(0, 1)) }
 func ReadRootZserver(s *C.Segment) Zserver   { return Zserver(s.Root(0).ToStruct()) }
 func (s Zserver) Waitingjobs() Zjob_List     { return Zjob_List(C.Struct(s).GetObject(0)) }
 func (s Zserver) SetWaitingjobs(v Zjob_List) { C.Struct(s).SetObject(0, C.Object(v)) }
@@ -479,6 +491,7 @@ type Zjob C.Struct
 
 func NewZjob(s *C.Segment) Zjob      { return Zjob(s.NewStruct(0, 2)) }
 func NewRootZjob(s *C.Segment) Zjob  { return Zjob(s.NewRootStruct(0, 2)) }
+func AutoNewZjob(s *C.Segment) Zjob  { return Zjob(s.NewStructAR(0, 2)) }
 func ReadRootZjob(s *C.Segment) Zjob { return Zjob(s.Root(0).ToStruct()) }
 func (s Zjob) Cmd() string           { return C.Struct(s).GetObject(0).ToText() }
 func (s Zjob) SetCmd(v string)       { C.Struct(s).SetObject(0, s.Segment.NewText(v)) }
@@ -500,6 +513,7 @@ type VerEmpty C.Struct
 
 func NewVerEmpty(s *C.Segment) VerEmpty      { return VerEmpty(s.NewStruct(0, 0)) }
 func NewRootVerEmpty(s *C.Segment) VerEmpty  { return VerEmpty(s.NewRootStruct(0, 0)) }
+func AutoNewVerEmpty(s *C.Segment) VerEmpty  { return VerEmpty(s.NewStructAR(0, 0)) }
 func ReadRootVerEmpty(s *C.Segment) VerEmpty { return VerEmpty(s.Root(0).ToStruct()) }
 
 // capn.JSON_enabled == false so we stub MarshallJSON().
@@ -519,6 +533,7 @@ type VerOneData C.Struct
 
 func NewVerOneData(s *C.Segment) VerOneData      { return VerOneData(s.NewStruct(8, 0)) }
 func NewRootVerOneData(s *C.Segment) VerOneData  { return VerOneData(s.NewRootStruct(8, 0)) }
+func AutoNewVerOneData(s *C.Segment) VerOneData  { return VerOneData(s.NewStructAR(8, 0)) }
 func ReadRootVerOneData(s *C.Segment) VerOneData { return VerOneData(s.Root(0).ToStruct()) }
 func (s VerOneData) Val() int16                  { return int16(C.Struct(s).Get16(0)) }
 func (s VerOneData) SetVal(v int16)              { C.Struct(s).Set16(0, uint16(v)) }
@@ -542,6 +557,7 @@ type VerTwoData C.Struct
 
 func NewVerTwoData(s *C.Segment) VerTwoData      { return VerTwoData(s.NewStruct(16, 0)) }
 func NewRootVerTwoData(s *C.Segment) VerTwoData  { return VerTwoData(s.NewRootStruct(16, 0)) }
+func AutoNewVerTwoData(s *C.Segment) VerTwoData  { return VerTwoData(s.NewStructAR(16, 0)) }
 func ReadRootVerTwoData(s *C.Segment) VerTwoData { return VerTwoData(s.Root(0).ToStruct()) }
 func (s VerTwoData) Val() int16                  { return int16(C.Struct(s).Get16(0)) }
 func (s VerTwoData) SetVal(v int16)              { C.Struct(s).Set16(0, uint16(v)) }
@@ -567,6 +583,7 @@ type VerOnePtr C.Struct
 
 func NewVerOnePtr(s *C.Segment) VerOnePtr      { return VerOnePtr(s.NewStruct(0, 1)) }
 func NewRootVerOnePtr(s *C.Segment) VerOnePtr  { return VerOnePtr(s.NewRootStruct(0, 1)) }
+func AutoNewVerOnePtr(s *C.Segment) VerOnePtr  { return VerOnePtr(s.NewStructAR(0, 1)) }
 func ReadRootVerOnePtr(s *C.Segment) VerOnePtr { return VerOnePtr(s.Root(0).ToStruct()) }
 func (s VerOnePtr) Ptr() VerOneData            { return VerOneData(C.Struct(s).GetObject(0).ToStruct()) }
 func (s VerOnePtr) SetPtr(v VerOneData)        { C.Struct(s).SetObject(0, C.Object(v)) }
@@ -590,6 +607,7 @@ type VerTwoPtr C.Struct
 
 func NewVerTwoPtr(s *C.Segment) VerTwoPtr      { return VerTwoPtr(s.NewStruct(0, 2)) }
 func NewRootVerTwoPtr(s *C.Segment) VerTwoPtr  { return VerTwoPtr(s.NewRootStruct(0, 2)) }
+func AutoNewVerTwoPtr(s *C.Segment) VerTwoPtr  { return VerTwoPtr(s.NewStructAR(0, 2)) }
 func ReadRootVerTwoPtr(s *C.Segment) VerTwoPtr { return VerTwoPtr(s.Root(0).ToStruct()) }
 func (s VerTwoPtr) Ptr1() VerOneData           { return VerOneData(C.Struct(s).GetObject(0).ToStruct()) }
 func (s VerTwoPtr) SetPtr1(v VerOneData)       { C.Struct(s).SetObject(0, C.Object(v)) }
@@ -616,6 +634,9 @@ type VerTwoDataTwoPtr C.Struct
 func NewVerTwoDataTwoPtr(s *C.Segment) VerTwoDataTwoPtr { return VerTwoDataTwoPtr(s.NewStruct(16, 2)) }
 func NewRootVerTwoDataTwoPtr(s *C.Segment) VerTwoDataTwoPtr {
 	return VerTwoDataTwoPtr(s.NewRootStruct(16, 2))
+}
+func AutoNewVerTwoDataTwoPtr(s *C.Segment) VerTwoDataTwoPtr {
+	return VerTwoDataTwoPtr(s.NewStructAR(16, 2))
 }
 func ReadRootVerTwoDataTwoPtr(s *C.Segment) VerTwoDataTwoPtr {
 	return VerTwoDataTwoPtr(s.Root(0).ToStruct())
@@ -654,6 +675,9 @@ func NewHoldsVerEmptyList(s *C.Segment) HoldsVerEmptyList { return HoldsVerEmpty
 func NewRootHoldsVerEmptyList(s *C.Segment) HoldsVerEmptyList {
 	return HoldsVerEmptyList(s.NewRootStruct(0, 1))
 }
+func AutoNewHoldsVerEmptyList(s *C.Segment) HoldsVerEmptyList {
+	return HoldsVerEmptyList(s.NewStructAR(0, 1))
+}
 func ReadRootHoldsVerEmptyList(s *C.Segment) HoldsVerEmptyList {
 	return HoldsVerEmptyList(s.Root(0).ToStruct())
 }
@@ -686,6 +710,9 @@ func NewHoldsVerOneDataList(s *C.Segment) HoldsVerOneDataList {
 }
 func NewRootHoldsVerOneDataList(s *C.Segment) HoldsVerOneDataList {
 	return HoldsVerOneDataList(s.NewRootStruct(0, 1))
+}
+func AutoNewHoldsVerOneDataList(s *C.Segment) HoldsVerOneDataList {
+	return HoldsVerOneDataList(s.NewStructAR(0, 1))
 }
 func ReadRootHoldsVerOneDataList(s *C.Segment) HoldsVerOneDataList {
 	return HoldsVerOneDataList(s.Root(0).ToStruct())
@@ -722,6 +749,9 @@ func NewHoldsVerTwoDataList(s *C.Segment) HoldsVerTwoDataList {
 func NewRootHoldsVerTwoDataList(s *C.Segment) HoldsVerTwoDataList {
 	return HoldsVerTwoDataList(s.NewRootStruct(0, 1))
 }
+func AutoNewHoldsVerTwoDataList(s *C.Segment) HoldsVerTwoDataList {
+	return HoldsVerTwoDataList(s.NewStructAR(0, 1))
+}
 func ReadRootHoldsVerTwoDataList(s *C.Segment) HoldsVerTwoDataList {
 	return HoldsVerTwoDataList(s.Root(0).ToStruct())
 }
@@ -757,6 +787,9 @@ func NewHoldsVerOnePtrList(s *C.Segment) HoldsVerOnePtrList {
 func NewRootHoldsVerOnePtrList(s *C.Segment) HoldsVerOnePtrList {
 	return HoldsVerOnePtrList(s.NewRootStruct(0, 1))
 }
+func AutoNewHoldsVerOnePtrList(s *C.Segment) HoldsVerOnePtrList {
+	return HoldsVerOnePtrList(s.NewStructAR(0, 1))
+}
 func ReadRootHoldsVerOnePtrList(s *C.Segment) HoldsVerOnePtrList {
 	return HoldsVerOnePtrList(s.Root(0).ToStruct())
 }
@@ -790,6 +823,9 @@ func NewHoldsVerTwoPtrList(s *C.Segment) HoldsVerTwoPtrList {
 func NewRootHoldsVerTwoPtrList(s *C.Segment) HoldsVerTwoPtrList {
 	return HoldsVerTwoPtrList(s.NewRootStruct(0, 1))
 }
+func AutoNewHoldsVerTwoPtrList(s *C.Segment) HoldsVerTwoPtrList {
+	return HoldsVerTwoPtrList(s.NewStructAR(0, 1))
+}
 func ReadRootHoldsVerTwoPtrList(s *C.Segment) HoldsVerTwoPtrList {
 	return HoldsVerTwoPtrList(s.Root(0).ToStruct())
 }
@@ -822,6 +858,9 @@ func NewHoldsVerTwoTwoList(s *C.Segment) HoldsVerTwoTwoList {
 }
 func NewRootHoldsVerTwoTwoList(s *C.Segment) HoldsVerTwoTwoList {
 	return HoldsVerTwoTwoList(s.NewRootStruct(0, 1))
+}
+func AutoNewHoldsVerTwoTwoList(s *C.Segment) HoldsVerTwoTwoList {
+	return HoldsVerTwoTwoList(s.NewStructAR(0, 1))
 }
 func ReadRootHoldsVerTwoTwoList(s *C.Segment) HoldsVerTwoTwoList {
 	return HoldsVerTwoTwoList(s.Root(0).ToStruct())
@@ -858,6 +897,9 @@ func NewHoldsVerTwoTwoPlus(s *C.Segment) HoldsVerTwoTwoPlus {
 func NewRootHoldsVerTwoTwoPlus(s *C.Segment) HoldsVerTwoTwoPlus {
 	return HoldsVerTwoTwoPlus(s.NewRootStruct(0, 1))
 }
+func AutoNewHoldsVerTwoTwoPlus(s *C.Segment) HoldsVerTwoTwoPlus {
+	return HoldsVerTwoTwoPlus(s.NewStructAR(0, 1))
+}
 func ReadRootHoldsVerTwoTwoPlus(s *C.Segment) HoldsVerTwoTwoPlus {
 	return HoldsVerTwoTwoPlus(s.Root(0).ToStruct())
 }
@@ -889,6 +931,7 @@ type VerTwoTwoPlus C.Struct
 
 func NewVerTwoTwoPlus(s *C.Segment) VerTwoTwoPlus      { return VerTwoTwoPlus(s.NewStruct(24, 3)) }
 func NewRootVerTwoTwoPlus(s *C.Segment) VerTwoTwoPlus  { return VerTwoTwoPlus(s.NewRootStruct(24, 3)) }
+func AutoNewVerTwoTwoPlus(s *C.Segment) VerTwoTwoPlus  { return VerTwoTwoPlus(s.NewStructAR(24, 3)) }
 func ReadRootVerTwoTwoPlus(s *C.Segment) VerTwoTwoPlus { return VerTwoTwoPlus(s.Root(0).ToStruct()) }
 func (s VerTwoTwoPlus) Val() int16                     { return int16(C.Struct(s).Get16(0)) }
 func (s VerTwoTwoPlus) SetVal(v int16)                 { C.Struct(s).Set16(0, uint16(v)) }
@@ -928,6 +971,7 @@ type HoldsText C.Struct
 
 func NewHoldsText(s *C.Segment) HoldsText      { return HoldsText(s.NewStruct(0, 3)) }
 func NewRootHoldsText(s *C.Segment) HoldsText  { return HoldsText(s.NewRootStruct(0, 3)) }
+func AutoNewHoldsText(s *C.Segment) HoldsText  { return HoldsText(s.NewStructAR(0, 3)) }
 func ReadRootHoldsText(s *C.Segment) HoldsText { return HoldsText(s.Root(0).ToStruct()) }
 func (s HoldsText) Txt() string                { return C.Struct(s).GetObject(0).ToText() }
 func (s HoldsText) SetTxt(v string)            { C.Struct(s).SetObject(0, s.Segment.NewText(v)) }
@@ -955,6 +999,7 @@ type WrapEmpty C.Struct
 
 func NewWrapEmpty(s *C.Segment) WrapEmpty      { return WrapEmpty(s.NewStruct(0, 1)) }
 func NewRootWrapEmpty(s *C.Segment) WrapEmpty  { return WrapEmpty(s.NewRootStruct(0, 1)) }
+func AutoNewWrapEmpty(s *C.Segment) WrapEmpty  { return WrapEmpty(s.NewStructAR(0, 1)) }
 func ReadRootWrapEmpty(s *C.Segment) WrapEmpty { return WrapEmpty(s.Root(0).ToStruct()) }
 func (s WrapEmpty) MightNotBeReallyEmpty() VerEmpty {
 	return VerEmpty(C.Struct(s).GetObject(0).ToStruct())
@@ -980,6 +1025,7 @@ type Wrap2x2 C.Struct
 
 func NewWrap2x2(s *C.Segment) Wrap2x2      { return Wrap2x2(s.NewStruct(0, 1)) }
 func NewRootWrap2x2(s *C.Segment) Wrap2x2  { return Wrap2x2(s.NewRootStruct(0, 1)) }
+func AutoNewWrap2x2(s *C.Segment) Wrap2x2  { return Wrap2x2(s.NewStructAR(0, 1)) }
 func ReadRootWrap2x2(s *C.Segment) Wrap2x2 { return Wrap2x2(s.Root(0).ToStruct()) }
 func (s Wrap2x2) MightNotBeReallyEmpty() VerTwoDataTwoPtr {
 	return VerTwoDataTwoPtr(C.Struct(s).GetObject(0).ToStruct())
@@ -1005,6 +1051,7 @@ type Wrap2x2plus C.Struct
 
 func NewWrap2x2plus(s *C.Segment) Wrap2x2plus      { return Wrap2x2plus(s.NewStruct(0, 1)) }
 func NewRootWrap2x2plus(s *C.Segment) Wrap2x2plus  { return Wrap2x2plus(s.NewRootStruct(0, 1)) }
+func AutoNewWrap2x2plus(s *C.Segment) Wrap2x2plus  { return Wrap2x2plus(s.NewStructAR(0, 1)) }
 func ReadRootWrap2x2plus(s *C.Segment) Wrap2x2plus { return Wrap2x2plus(s.Root(0).ToStruct()) }
 func (s Wrap2x2plus) MightNotBeReallyEmpty() VerTwoTwoPlus {
 	return VerTwoTwoPlus(C.Struct(s).GetObject(0).ToStruct())
@@ -1030,6 +1077,7 @@ type Endpoint C.Struct
 
 func NewEndpoint(s *C.Segment) Endpoint      { return Endpoint(s.NewStruct(8, 2)) }
 func NewRootEndpoint(s *C.Segment) Endpoint  { return Endpoint(s.NewRootStruct(8, 2)) }
+func AutoNewEndpoint(s *C.Segment) Endpoint  { return Endpoint(s.NewStructAR(8, 2)) }
 func ReadRootEndpoint(s *C.Segment) Endpoint { return Endpoint(s.Root(0).ToStruct()) }
 func (s Endpoint) Ip() net.IP                { return net.IP(C.Struct(s).GetObject(0).ToData()) }
 func (s Endpoint) SetIp(v net.IP)            { C.Struct(s).SetObject(0, s.Segment.NewData([]byte(v))) }
@@ -1063,6 +1111,7 @@ const (
 
 func NewVoidUnion(s *C.Segment) VoidUnion      { return VoidUnion(s.NewStruct(8, 0)) }
 func NewRootVoidUnion(s *C.Segment) VoidUnion  { return VoidUnion(s.NewRootStruct(8, 0)) }
+func AutoNewVoidUnion(s *C.Segment) VoidUnion  { return VoidUnion(s.NewStructAR(8, 0)) }
 func ReadRootVoidUnion(s *C.Segment) VoidUnion { return VoidUnion(s.Root(0).ToStruct()) }
 func (s VoidUnion) Which() VoidUnion_Which     { return VoidUnion_Which(C.Struct(s).Get16(0)) }
 func (s VoidUnion) SetA()                      { C.Struct(s).Set16(0, 0) }
