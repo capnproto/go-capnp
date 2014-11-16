@@ -86,6 +86,27 @@ func (c Airport) String() string {
 	}
 }
 
+func AirportFromString(c string) Airport {
+	switch c {
+	case "none":
+		return AIRPORT_NONE
+	case "jfk":
+		return AIRPORT_JFK
+	case "lax":
+		return AIRPORT_LAX
+	case "sfo":
+		return AIRPORT_SFO
+	case "luv":
+		return AIRPORT_LUV
+	case "dfw":
+		return AIRPORT_DFW
+	case "test":
+		return AIRPORT_TEST
+	default:
+		return 0
+	}
+}
+
 type Airport_List C.PointerList
 
 func NewAirportList(s *C.Segment, sz int) Airport_List { return Airport_List(s.NewUInt16List(sz)) }

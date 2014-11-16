@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	C "github.com/glycerine/go-capnproto"
 	"io"
 	"math"
 	"os"
@@ -10,8 +11,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-
-	C "github.com/glycerine/go-capnproto"
 )
 
 var (
@@ -103,8 +102,13 @@ func (n *node) resolveName(base, name string, file *node) {
 
 type enumval struct {
 	Enumerant
-	val int
-	tag string
+	val    int
+	tag    string
+	parent *node
+}
+
+func (e *enumval) fullName() string {
+	return fmt.Sprintf("%s_%s", strings.ToUpper(e.parent.name), strings.ToUpper(e.Name()))
 }
 
 func (n *node) defineEnum(w io.Writer) {
@@ -130,12 +134,12 @@ func (n *node) defineEnum(w io.Writer) {
 					t = ""
 				}
 			}
-			ev[e.CodeOrder()] = enumval{e, i, t}
+			ev[e.CodeOrder()] = enumval{e, i, t, n}
 		}
 
 		// not an iota, so type has to go on each line
 		for _, e := range ev {
-			fprintf(w, "%s_%s %s = %d\n", strings.ToUpper(n.name), strings.ToUpper(e.Name()), n.name, e.val)
+			fprintf(w, "%s %s = %d\n", e.fullName(), n.name, e.val)
 		}
 
 		fprintf(w, ")\n")
@@ -144,10 +148,20 @@ func (n *node) defineEnum(w io.Writer) {
 		fprintf(w, "switch c {\n")
 		for _, e := range ev {
 			if e.tag != "" {
-				fprintf(w, "case %s_%s: return \"%s\"\n", strings.ToUpper(n.name), strings.ToUpper(e.Name()), e.tag)
+				fprintf(w, "case %s: return \"%s\"\n", e.fullName(), e.tag)
 			}
 		}
 		fprintf(w, "default: return \"\"\n")
+		fprintf(w, "}\n}\n\n")
+
+		fprintf(w, "func %sFromString(c string) %s {\n", n.name, n.name)
+		fprintf(w, "switch c {\n")
+		for _, e := range ev {
+			if e.tag != "" {
+				fprintf(w, "case \"%s\": return %s\n", e.tag, e.fullName())
+			}
+		}
+		fprintf(w, "default: return 0\n")
 		fprintf(w, "}\n}\n")
 	}
 
