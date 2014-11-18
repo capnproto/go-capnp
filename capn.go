@@ -202,11 +202,35 @@ func (s *Segment) NewPointerList(sz int) PointerList {
 	return PointerList(n)
 }
 
+/*
+Canonicalization discussion on the Capnproto mailing list:
+
+https://groups.google.com/d/msg/capnproto/V_NysVkvNgs/P5RfeQyMvpkJ
+
+> Q:
+> 1: lists of non-trivial but honogeneous structs;
+> These will often be 7 (inline-composite). However, is it legal (and: common?) for such to be stored as 6 (pointer)? At the moment I can support both - I just want to make sure I'm not emitting something unusual.
+
+Actually, through Cap'n Proto 0.4.x, it is not only allowed, it is expected. In fact, a struct list can be encoded with any element size, as long as the struct fits. For example, if a struct type Foo has two int16 fields, then List(Foo) can be encoded as a list of 32-bit values.
+
+This rule was intended partly for optimization and partly to solve a common problem, for which I'll give a real example: In schema.capnp, to represent an interface's list of superclasses, I used a List(UInt64) containing the type IDs. Recently, when generics were implemented, I found I now additionally had to specify a type parameterization for each superclass, in addition to its type ID, since they could be generic. Because of the rule that struct lists may be encoded as primitive lists, I was able to simply replace my List(UInt64) with List(Superclass), where Superclass is a struct containing a UInt64 type ID as its @0 field. This change is backwards-compatible. Without this ability, I would have had to use parallel arrays, which would be terrible.
+
+With all that said, in Cap'n Proto 0.5.x, we are making a change: When reading a struct list, the above still applies (a list of non-structs must be accepted), but when writing a struct list, the implementation should always prefer to encode the list using the inline-composite element type.
+
+The reason for this change is so that we can define a canonicalization algorithm for Cap'n Proto messages that does not require knowledge of the schema yet produces stable canonicalizations even as new fields are added to struct types. The canonicalization algorithm needs to know when a value is a struct so that it can truncate trailing zeroes.
+
+List(primitive) -> List(struct) updates are still allowed (because they have proven useful), but with the understanding that this kind of upgrade breaks canonicalization. This seems like an acceptable trade-off.
+
+We also made a second change: Previously, consistent with the above rule, a list of structs where each struct contains a single boolean field was allowed to be encoded as a bit list. We now make a special exception to say that this is *not* allowed, because the implementation burden was too high and we have doubts about whether it would ever be used in practice. In other words, we used to allow List(Bool) -> List(struct) updates where the struct's @0 field was of type Bool, but we no longer allow this. For all types other than Bool, it is still allowed.
+
+*/
+
+const CanonicalizationOn = true
+
 func (s *Segment) NewCompositeList(datasz, ptrs, length int) PointerList {
 	if datasz < 0 || datasz > maxDataSize || ptrs < 0 || ptrs > maxPtrs {
-		// Q: when would these conditions ever be met??? Why isn't everything is going to be a TypeList?
 		return PointerList{}
-	} else if ptrs > 0 || datasz > 8 {
+	} else if ptrs > 0 || datasz > 8 || CanonicalizationOn {
 		datasz = (datasz + 7) &^ 7
 		n, _ := s.create(8+length*(datasz+8*ptrs), Object{typ: TypeList, length: length, datasz: datasz, ptrs: ptrs, flags: isCompositeList})
 		n.off += 8
@@ -703,6 +727,14 @@ func (p Int64List) ToArray() []int64 {
 	v := make([]int64, p.Len())
 	for i := range v {
 		v[i] = p.At(i)
+	}
+	return v
+}
+
+func (p Int64List) ToIntArray() []int {
+	v := make([]int, p.Len())
+	for i := range v {
+		v[i] = int(p.At(i))
 	}
 	return v
 }
