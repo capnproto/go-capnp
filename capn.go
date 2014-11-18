@@ -225,12 +225,12 @@ We also made a second change: Previously, consistent with the above rule, a list
 
 */
 
-const CanonicalizationOn = true
+const CanonicalizableOn = true
 
 func (s *Segment) NewCompositeList(datasz, ptrs, length int) PointerList {
 	if datasz < 0 || datasz > maxDataSize || ptrs < 0 || ptrs > maxPtrs {
 		return PointerList{}
-	} else if ptrs > 0 || datasz > 8 || CanonicalizationOn {
+	} else if ptrs > 0 || datasz > 8 || CanonicalizableOn {
 		datasz = (datasz + 7) &^ 7
 		n, _ := s.create(8+length*(datasz+8*ptrs), Object{typ: TypeList, length: length, datasz: datasz, ptrs: ptrs, flags: isCompositeList})
 		n.off += 8
