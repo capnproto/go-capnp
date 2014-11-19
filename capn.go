@@ -266,7 +266,7 @@ func (s *Segment) NewStruct(datasz, ptrs int) Struct {
 	return Struct(n)
 }
 
-// NewStructAR (AutoRoot): experimental Root settting: assumes the
+// NewStructAR (AutoRoot): experimental Root setting: assumes the
 // struct is the root iff it is the first allocation in a segment.
 func (s *Segment) NewStructAR(datasz, ptrs int) Struct {
 	if s.RootDone {

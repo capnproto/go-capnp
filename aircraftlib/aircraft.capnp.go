@@ -1150,3 +1150,51 @@ func (s VoidUnion_List) ToArray() []VoidUnion {
 	return *(*[]VoidUnion)(unsafe.Pointer(C.PointerList(s).ToArray()))
 }
 func (s VoidUnion_List) Set(i int, item VoidUnion) { C.PointerList(s).Set(i, C.Object(item)) }
+
+type Nester1Capn C.Struct
+
+func NewNester1Capn(s *C.Segment) Nester1Capn      { return Nester1Capn(s.NewStruct(0, 1)) }
+func NewRootNester1Capn(s *C.Segment) Nester1Capn  { return Nester1Capn(s.NewRootStruct(0, 1)) }
+func AutoNewNester1Capn(s *C.Segment) Nester1Capn  { return Nester1Capn(s.NewStructAR(0, 1)) }
+func ReadRootNester1Capn(s *C.Segment) Nester1Capn { return Nester1Capn(s.Root(0).ToStruct()) }
+func (s Nester1Capn) Strs() C.TextList             { return C.TextList(C.Struct(s).GetObject(0)) }
+func (s Nester1Capn) SetStrs(v C.TextList)         { C.Struct(s).SetObject(0, C.Object(v)) }
+
+// capn.JSON_enabled == false so we stub MarshallJSON().
+func (s Nester1Capn) MarshalJSON() (bs []byte, err error) { return }
+
+type Nester1Capn_List C.PointerList
+
+func NewNester1CapnList(s *C.Segment, sz int) Nester1Capn_List {
+	return Nester1Capn_List(s.NewCompositeList(0, 1, sz))
+}
+func (s Nester1Capn_List) Len() int             { return C.PointerList(s).Len() }
+func (s Nester1Capn_List) At(i int) Nester1Capn { return Nester1Capn(C.PointerList(s).At(i).ToStruct()) }
+func (s Nester1Capn_List) ToArray() []Nester1Capn {
+	return *(*[]Nester1Capn)(unsafe.Pointer(C.PointerList(s).ToArray()))
+}
+func (s Nester1Capn_List) Set(i int, item Nester1Capn) { C.PointerList(s).Set(i, C.Object(item)) }
+
+type RWTestCapn C.Struct
+
+func NewRWTestCapn(s *C.Segment) RWTestCapn        { return RWTestCapn(s.NewStruct(0, 1)) }
+func NewRootRWTestCapn(s *C.Segment) RWTestCapn    { return RWTestCapn(s.NewRootStruct(0, 1)) }
+func AutoNewRWTestCapn(s *C.Segment) RWTestCapn    { return RWTestCapn(s.NewStructAR(0, 1)) }
+func ReadRootRWTestCapn(s *C.Segment) RWTestCapn   { return RWTestCapn(s.Root(0).ToStruct()) }
+func (s RWTestCapn) NestMatrix() C.PointerList     { return C.PointerList(C.Struct(s).GetObject(0)) }
+func (s RWTestCapn) SetNestMatrix(v C.PointerList) { C.Struct(s).SetObject(0, C.Object(v)) }
+
+// capn.JSON_enabled == false so we stub MarshallJSON().
+func (s RWTestCapn) MarshalJSON() (bs []byte, err error) { return }
+
+type RWTestCapn_List C.PointerList
+
+func NewRWTestCapnList(s *C.Segment, sz int) RWTestCapn_List {
+	return RWTestCapn_List(s.NewCompositeList(0, 1, sz))
+}
+func (s RWTestCapn_List) Len() int            { return C.PointerList(s).Len() }
+func (s RWTestCapn_List) At(i int) RWTestCapn { return RWTestCapn(C.PointerList(s).At(i).ToStruct()) }
+func (s RWTestCapn_List) ToArray() []RWTestCapn {
+	return *(*[]RWTestCapn)(unsafe.Pointer(C.PointerList(s).ToArray()))
+}
+func (s RWTestCapn_List) Set(i int, item RWTestCapn) { C.PointerList(s).Set(i, C.Object(item)) }

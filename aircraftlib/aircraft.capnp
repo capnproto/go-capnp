@@ -261,3 +261,17 @@ struct VoidUnion {
     b @1 :Void;
   }
 }
+
+# test List(List(Struct(List)))
+
+struct Nester1Capn { 
+   strs  @0:   List(Text); 
+} 
+
+struct RWTestCapn { 
+   nestMatrix  @0:   List(List(Nester1Capn)); 
+} 
+
+struct ListStructCapn { 
+   vec  @0:   List(Nester1Capn); 
+}
