@@ -140,16 +140,6 @@ const (
 	hasPointerTag   = 128
 )
 
-// used in orable30BitOffsetPart() and signedOffsetFromStructPointer()
-var Zerohi32 uint64
-
-func init() {
-	// initialize Zerohi32 once
-	var minus1 int32 = -1
-	u32 := uint32(minus1)
-	Zerohi32 = uint64(u32)
-}
-
 func (s *Segment) Root(off int) Object {
 	if off+8 > len(s.Data) {
 		return Object{}
@@ -1094,6 +1084,9 @@ func (s *Segment) readPtr(off int) Object {
 	}
 }
 
+// used in orable30BitOffsetPart() and signedOffsetFromStructPointer()
+const zerohi32 uint64 = ^(^0 << 32)
+
 // orable30BitOffsetPart(): get an or-able value that handles sign
 // conversion. Creates part B in a struct (or list) pointer, leaving
 // parts A, C, and D completely zeroed in the returned uint64.
@@ -1116,13 +1109,13 @@ func (s *Segment) readPtr(off int) Object {
 //
 func orable30BitOffsetPart(signedOff int) uint64 {
 	d32 := int32(signedOff) << 2
-	return uint64(d32) & Zerohi32
+	return uint64(d32) & zerohi32
 }
 
 // and convert in the other direction, extracting the count from
 // the B section into an int
 func signedOffsetFromStructPointer(val uint64) int {
-	u64 := uint64(val) & Zerohi32
+	u64 := uint64(val) & zerohi32
 	u32 := uint32(u64)
 	s32 := int32(u32) >> 2
 	return int(s32)
@@ -1435,7 +1428,7 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 }
 
 func B(val uint64) int {
-	u64 := uint64(val) & Zerohi32
+	u64 := uint64(val) & zerohi32
 	u32 := uint32(u64)
 	s32 := int32(u32) >> 2
 	return int(s32)
@@ -1447,32 +1440,4 @@ func A(val uint64) int {
 
 func ListC(val uint64) int {
 	return int((val >> 32) & 7)
-}
-
-func ListCString(val uint64) string {
-	switch ListC(val) {
-	case voidList:
-		return "void"
-	case bit1List:
-		return "1bit"
-	case byte1List:
-		return "1byte"
-	case byte2List:
-		return "2bytes"
-	case byte4List:
-		return "4bytes"
-	case byte8List:
-		return "8bytes"
-	case pointerList:
-		return "pointer"
-	case compositeList:
-		return "composite"
-	default:
-		panic("unknown list element size")
-	}
-	return ""
-}
-
-func ListD(val uint64) int {
-	return int(uint32(val >> 35))
 }

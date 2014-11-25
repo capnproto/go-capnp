@@ -11,14 +11,7 @@ import (
 	"unsafe"
 )
 
-var zerohi32 uint64
-
-func init() {
-	// initialize zerohi32 once
-	var minus1 int32 = -1
-	u32 := uint32(minus1)
-	zerohi32 = uint64(u32)
-}
+const zerohi32 uint64 = ^(^0 << 32)
 
 func CapnpEncode(msg string, typ string) []byte {
 	capnpPath, err := exec.LookPath("capnp")
