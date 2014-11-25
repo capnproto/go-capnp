@@ -309,7 +309,7 @@ func (s *Segment) create(sz int, n Object) (Object, error) {
 
 	if tag {
 		n.off += 8
-		binary.LittleEndian.PutUint64(s.Data[n.off-8:], n.value(n.off-8))
+		binary.LittleEndian.PutUint64(s.Data[n.off-8:], uint64(n.value(n.off-8)))
 		n.flags |= hasPointerTag
 	}
 
@@ -921,29 +921,13 @@ func (s *Segment) lookupSegment(id uint32) (*Segment, error) {
 	}
 }
 
-const (
-	structPointer    = 0
-	listPointer      = 1
-	farPointer       = 2
-	doubleFarPointer = 6
-
-	voidList      = 0
-	bit1List      = 1
-	byte1List     = 2
-	byte2List     = 3
-	byte4List     = 4
-	byte8List     = 5
-	pointerList   = 6
-	compositeList = 7
-)
-
 func (s *Segment) readPtr(off int) Object {
 	var err error
-	val := binary.LittleEndian.Uint64(s.Data[off:])
+	val := pointer(binary.LittleEndian.Uint64(s.Data[off:]))
 
 	//fmt.Printf("readPtr see val= %x\n", val)
 
-	switch val & 7 {
+	switch val.pointerType() {
 	case doubleFarPointer:
 		// A double far pointer points to a double pointer, where the
 		// first points to the actual data, and the second is the tag
@@ -974,7 +958,7 @@ func (s *Segment) readPtr(off int) Object {
 		// -8 because far pointers reference from the start of the
 		// segment, but offsets reference the end of the pointer data.
 		off = -8
-		val = uint64(uint32(far)>>3<<2) | tag
+		val = pointer(uint64(uint32(far)>>3<<2) | tag)
 
 	case farPointer:
 		segid := uint32(val >> 32)
@@ -985,15 +969,15 @@ func (s *Segment) readPtr(off int) Object {
 		}
 
 		off = faroff
-		val = binary.LittleEndian.Uint64(s.Data[faroff:])
+		val = pointer(binary.LittleEndian.Uint64(s.Data[faroff:]))
 	}
 
 	// Be wary of overflow. Offset is 30 bits signed. List size is 29 bits
 	// unsigned. For both of these we need to check in terms of words if
 	// using 32 bit maths as bits or bytes will overflow.
-	switch val & 3 {
+	switch val.pointerType() {
 	case structPointer:
-		offw := off/8 + 1 + signedOffsetFromStructPointer(val)
+		offw := off/8 + 1 + val.structSignedOffset()
 
 		if offw < 0 || offw >= len(s.Data)/8 {
 			return Object{}
@@ -1003,8 +987,8 @@ func (s *Segment) readPtr(off int) Object {
 			Segment: s,
 			typ:     TypeStruct,
 			off:     offw * 8,
-			datasz:  StructC(val) * 8,
-			ptrs:    StructD(val),
+			datasz:  pointer(val).structC() * 8,
+			ptrs:    pointer(val).structD(),
 		}
 
 		if p.off+p.datasz+p.ptrs*8 > len(s.Data) {
@@ -1014,10 +998,9 @@ func (s *Segment) readPtr(off int) Object {
 		return p
 
 	case listPointer:
-		offw := off/8 + 1 + signedOffsetFromStructPointer(val)
+		offw := off/8 + 1 + val.structSignedOffset()
 		//fmt.Printf("offw = %d,  len(s.Data)=%d", offw, len(s.Data))
-		listc := ListC(val)
-		if listc != voidList {
+		if val.listC() != voidList {
 			if offw < 0 || offw >= len(s.Data)/8 {
 				return Object{}
 			}
@@ -1032,7 +1015,7 @@ func (s *Segment) readPtr(off int) Object {
 
 		words := p.length
 
-		switch listc {
+		switch val.listC() {
 		case voidList:
 			//fmt.Printf("we see a voidList with len: %d\n", p.length)
 			return p
@@ -1084,8 +1067,51 @@ func (s *Segment) readPtr(off int) Object {
 	}
 }
 
-// used in orable30BitOffsetPart() and signedOffsetFromStructPointer()
-const zerohi32 uint64 = ^(^0 << 32)
+// pointer is an encoded pointer.
+type pointer uint64
+
+// Pointer types
+const (
+	structPointer    = 0
+	listPointer      = 1
+	farPointer       = 2
+	doubleFarPointer = 6
+)
+
+// List pointer types
+const (
+	voidList      = 0
+	bit1List      = 1
+	byte1List     = 2
+	byte2List     = 3
+	byte4List     = 4
+	byte8List     = 5
+	pointerList   = 6
+	compositeList = 7
+)
+
+func (p pointer) pointerType() int {
+	t := p & 3
+	if t == farPointer {
+		return int(p & 7)
+	}
+	return int(t)
+}
+
+func (p pointer) structC() int {
+	return int(uint16(p >> 32))
+}
+
+func (p pointer) structD() int {
+	return int(uint16(p >> 48))
+}
+
+func (p pointer) listC() int {
+	return int((p >> 32) & 7)
+}
+
+// used in orable30BitOffsetPart() and pointer.structSignedOffset()
+const zerohi32 pointer = ^(^0 << 32)
 
 // orable30BitOffsetPart(): get an or-able value that handles sign
 // conversion. Creates part B in a struct (or list) pointer, leaving
@@ -1107,60 +1133,52 @@ const zerohi32 uint64 = ^(^0 << 32)
 // (B is the same for list pointers, but C and D have different size
 // and meaning)
 //
-func orable30BitOffsetPart(signedOff int) uint64 {
+func orable30BitOffsetPart(signedOff int) pointer {
 	d32 := int32(signedOff) << 2
-	return uint64(d32) & zerohi32
+	return pointer(d32) & zerohi32
 }
 
 // and convert in the other direction, extracting the count from
 // the B section into an int
-func signedOffsetFromStructPointer(val uint64) int {
-	u64 := uint64(val) & zerohi32
+func (p pointer) structSignedOffset() int {
+	u64 := p & zerohi32
 	u32 := uint32(u64)
 	s32 := int32(u32) >> 2
 	return int(s32)
 }
 
-func StructC(val uint64) int {
-	return int(uint16(val >> 32))
-}
-
-func StructD(val uint64) int {
-	return int(uint16(val >> 48))
-}
-
-func (p Object) value(off int) uint64 {
+func (p Object) value(off int) pointer {
 	d := orable30BitOffsetPart(p.off/8 - off/8 - 1)
 	//fmt.Printf(" debug4 in value(off=%d): p.off/8 = %d, off/8 = %d,  and p.off/8 - off/8 -1 = %d    d=%v\n", off, p.off/8, off/8, p.off/8-off/8-1, d)
 
 	switch p.typ {
 	case TypeStruct:
-		return structPointer | d | uint64(p.datasz/8)<<32 | uint64(p.ptrs)<<48
+		return structPointer | d | pointer(p.datasz/8)<<32 | pointer(p.ptrs)<<48
 	case TypePointerList:
-		return listPointer | d | pointerList<<32 | uint64(p.length)<<35
+		return listPointer | d | pointerList<<32 | pointer(p.length)<<35
 	case TypeList:
 		if (p.flags & isCompositeList) != 0 {
 			d -= 1 << 2 // p.off points to the data not the header
-			return listPointer | d | compositeList<<32 | uint64(p.length*(p.datasz/8+p.ptrs))<<35
+			return listPointer | d | compositeList<<32 | pointer(p.length*(p.datasz/8+p.ptrs))<<35
 		}
 
 		switch p.datasz {
 		case 0:
-			return listPointer | d | voidList<<32 | uint64(p.length)<<35
+			return listPointer | d | voidList<<32 | pointer(p.length)<<35
 		case 1:
-			return listPointer | d | byte1List<<32 | uint64(p.length)<<35
+			return listPointer | d | byte1List<<32 | pointer(p.length)<<35
 		case 2:
-			return listPointer | d | byte2List<<32 | uint64(p.length)<<35
+			return listPointer | d | byte2List<<32 | pointer(p.length)<<35
 		case 4:
-			return listPointer | d | byte4List<<32 | uint64(p.length)<<35
+			return listPointer | d | byte4List<<32 | pointer(p.length)<<35
 		case 8:
-			return listPointer | d | byte8List<<32 | uint64(p.length)<<35
+			return listPointer | d | byte8List<<32 | pointer(p.length)<<35
 		default:
 			panic(errListSize)
 		}
 
 	case TypeBitList:
-		return listPointer | d | bit1List<<32 | uint64(p.length)<<35
+		return listPointer | d | bit1List<<32 | pointer(p.length)<<35
 	case TypeNull:
 		return 0
 	default:
@@ -1196,8 +1214,8 @@ Lists of structs use the smallest element size in which the struct can fit. So, 
 When C = 7, the elements of the list are fixed-width composite values – usually, structs. In this case, the list content is prefixed by a "tag" word that describes each individual element. The tag has the same layout as a struct pointer, except that the pointer offset (B) instead indicates the number of elements in the list. Meanwhile, section (D) of the list pointer – which normally would store this element count – instead stores the total number of words in the list (not counting the tag word). The reason we store a word count in the pointer rather than an element count is to ensure that the extents of the list’s location can always be determined by inspecting the pointer alone, without having to look at the tag; this may allow more-efficient prefetching in some use cases. The reason we don’t store struct lists as a list of pointers is because doing so would take significantly more space (an extra pointer per element) and may be less cache-friendly.
 */
 
-func (s *Segment) farPtrValue(farType int, off int) uint64 {
-	return uint64(farType) | uint64(off) | (uint64(s.Id) << 32)
+func (s *Segment) farPtrValue(farType int, off int) pointer {
+	return pointer(farType) | pointer(off) | (pointer(s.Id) << 32)
 }
 
 type offset struct {
@@ -1256,7 +1274,7 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 
 	} else if destSeg == srcSeg {
 		// Same segment
-		binary.LittleEndian.PutUint64(destSeg.Data[off:], src.value(off))
+		binary.LittleEndian.PutUint64(destSeg.Data[off:], uint64(src.value(off)))
 		return nil
 
 	} else if destSeg.Message != srcSeg.Message || (src.flags&isListMember) != 0 || (src.flags&isBitListMember) != 0 {
@@ -1398,13 +1416,13 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 	} else if (src.flags & hasPointerTag) != 0 {
 		// By lucky chance, the data has a tag in front of it. This
 		// happens when create had to move the data to a new segment.
-		binary.LittleEndian.PutUint64(destSeg.Data[off:], srcSeg.farPtrValue(farPointer, src.off-8))
+		binary.LittleEndian.PutUint64(destSeg.Data[off:], uint64(srcSeg.farPtrValue(farPointer, src.off-8)))
 		return nil
 
 	} else if len(srcSeg.Data)+8 <= cap(srcSeg.Data) {
 		// Have room in the target for a tag
-		binary.LittleEndian.PutUint64(srcSeg.Data[len(srcSeg.Data):], src.value(len(srcSeg.Data)))
-		binary.LittleEndian.PutUint64(destSeg.Data[off:], srcSeg.farPtrValue(farPointer, len(srcSeg.Data)))
+		binary.LittleEndian.PutUint64(srcSeg.Data[len(srcSeg.Data):], uint64(src.value(len(srcSeg.Data))))
+		binary.LittleEndian.PutUint64(destSeg.Data[off:], uint64(srcSeg.farPtrValue(farPointer, len(srcSeg.Data))))
 		srcSeg.Data = srcSeg.Data[:len(srcSeg.Data)+8]
 		return nil
 
@@ -1419,25 +1437,10 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 			}
 		}
 
-		binary.LittleEndian.PutUint64(t.Data[len(t.Data):], srcSeg.farPtrValue(farPointer, src.off))
-		binary.LittleEndian.PutUint64(t.Data[len(t.Data)+8:], src.value(src.off-8))
-		binary.LittleEndian.PutUint64(destSeg.Data[off:], t.farPtrValue(doubleFarPointer, len(t.Data)))
+		binary.LittleEndian.PutUint64(t.Data[len(t.Data):], uint64(srcSeg.farPtrValue(farPointer, src.off)))
+		binary.LittleEndian.PutUint64(t.Data[len(t.Data)+8:], uint64(src.value(src.off-8)))
+		binary.LittleEndian.PutUint64(destSeg.Data[off:], uint64(t.farPtrValue(doubleFarPointer, len(t.Data))))
 		t.Data = t.Data[:len(t.Data)+16]
 		return nil
 	}
-}
-
-func B(val uint64) int {
-	u64 := uint64(val) & zerohi32
-	u32 := uint32(u64)
-	s32 := int32(u32) >> 2
-	return int(s32)
-}
-
-func A(val uint64) int {
-	return int(val & 3)
-}
-
-func ListC(val uint64) int {
-	return int((val >> 32) & 7)
 }
