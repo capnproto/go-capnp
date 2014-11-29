@@ -859,11 +859,11 @@ func (t Type) json(w io.Writer) {
 func (n *node) defineNewStructFunc(w io.Writer) {
 	assert(n.Which() == NODE_STRUCT, "invalid struct node")
 
-	fmt.Fprintf(w, "func New%s(s *C.Segment) %s { return %s(s.NewStruct(%d, %d)) }\n",
+	fmt.Fprintf(w, "func New%s(s *C.Segment) %s { return %s(s.NewStruct(C.ObjectSize{DataSize: %d, PointerCount: %d})) }\n",
 		n.name, n.name, n.name, n.Struct().DataWordCount()*8, n.Struct().PointerCount())
-	fmt.Fprintf(w, "func NewRoot%s(s *C.Segment) %s { return %s(s.NewRootStruct(%d, %d)) }\n",
+	fmt.Fprintf(w, "func NewRoot%s(s *C.Segment) %s { return %s(s.NewRootStruct(C.ObjectSize{DataSize: %d, PointerCount: %d})) }\n",
 		n.name, n.name, n.name, n.Struct().DataWordCount()*8, n.Struct().PointerCount())
-	fmt.Fprintf(w, "func AutoNew%s(s *C.Segment) %s { return %s(s.NewStructAR(%d, %d)) }\n",
+	fmt.Fprintf(w, "func AutoNew%s(s *C.Segment) %s { return %s(s.NewStructAR(C.ObjectSize{DataSize: %d, PointerCount: %d})) }\n",
 		n.name, n.name, n.name, n.Struct().DataWordCount()*8, n.Struct().PointerCount())
 	fmt.Fprintf(w, "func ReadRoot%s(s *C.Segment) %s { return %s(s.Root(0).ToStruct()) }\n",
 		n.name, n.name, n.name)
@@ -888,7 +888,7 @@ func (n *node) defineStructList(w io.Writer) {
 	case ELEMENTSIZE_EIGHTBYTES:
 		fmt.Fprintf(w, "func New%sList(s *C.Segment, sz int) %s_List { return %s_List(s.NewUInt64List(sz)) }\n", n.name, n.name, n.name)
 	default:
-		fmt.Fprintf(w, "func New%sList(s *C.Segment, sz int) %s_List { return %s_List(s.NewCompositeList(%d, %d, sz)) }\n",
+		fmt.Fprintf(w, "func New%sList(s *C.Segment, sz int) %s_List { return %s_List(s.NewCompositeList(C.ObjectSize{DataSize: %d, PointerCount: %d}, sz)) }\n",
 			n.name, n.name, n.name, n.Struct().DataWordCount()*8, n.Struct().PointerCount())
 	}
 

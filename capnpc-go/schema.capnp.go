@@ -26,8 +26,8 @@ const (
 	NODE_ANNOTATION            = 5
 )
 
-func NewNode(s *C.Segment) Node                             { return Node(s.NewStruct(40, 5)) }
-func NewRootNode(s *C.Segment) Node                         { return Node(s.NewRootStruct(40, 5)) }
+func NewNode(s *C.Segment) Node                             { return Node(s.NewStruct(C.ObjectSize{40, 5})) }
+func NewRootNode(s *C.Segment) Node                         { return Node(s.NewRootStruct(C.ObjectSize{40, 5})) }
 func ReadRootNode(s *C.Segment) Node                        { return Node(s.Root(0).ToStruct()) }
 func (s Node) Which() Node_Which                            { return Node_Which(C.Struct(s).Get16(12)) }
 func (s Node) Id() uint64                                   { return C.Struct(s).Get64(0) }
@@ -103,15 +103,21 @@ func (s NodeAnnotation) SetTargetsAnnotation(v bool)        { C.Struct(s).Set1(1
 
 type Node_List C.PointerList
 
-func NewNodeList(s *C.Segment, sz int) Node_List { return Node_List(s.NewCompositeList(40, 5, sz)) }
-func (s Node_List) Len() int                     { return C.PointerList(s).Len() }
-func (s Node_List) At(i int) Node                { return Node(C.PointerList(s).At(i).ToStruct()) }
-func (s Node_List) ToArray() []Node              { return *(*[]Node)(unsafe.Pointer(C.PointerList(s).ToArray())) }
+func NewNodeList(s *C.Segment, sz int) Node_List {
+	return Node_List(s.NewCompositeList(C.ObjectSize{40, 5}, sz))
+}
+func (s Node_List) Len() int        { return C.PointerList(s).Len() }
+func (s Node_List) At(i int) Node   { return Node(C.PointerList(s).At(i).ToStruct()) }
+func (s Node_List) ToArray() []Node { return *(*[]Node)(unsafe.Pointer(C.PointerList(s).ToArray())) }
 
 type NodeNestedNode C.Struct
 
-func NewNodeNestedNode(s *C.Segment) NodeNestedNode      { return NodeNestedNode(s.NewStruct(8, 1)) }
-func NewRootNodeNestedNode(s *C.Segment) NodeNestedNode  { return NodeNestedNode(s.NewRootStruct(8, 1)) }
+func NewNodeNestedNode(s *C.Segment) NodeNestedNode {
+	return NodeNestedNode(s.NewStruct(C.ObjectSize{8, 1}))
+}
+func NewRootNodeNestedNode(s *C.Segment) NodeNestedNode {
+	return NodeNestedNode(s.NewRootStruct(C.ObjectSize{8, 1}))
+}
 func ReadRootNodeNestedNode(s *C.Segment) NodeNestedNode { return NodeNestedNode(s.Root(0).ToStruct()) }
 func (s NodeNestedNode) Name() string                    { return C.Struct(s).GetObject(0).ToText() }
 func (s NodeNestedNode) SetName(v string)                { C.Struct(s).SetObject(0, s.Segment.NewText(v)) }
@@ -121,7 +127,7 @@ func (s NodeNestedNode) SetId(v uint64)                  { C.Struct(s).Set64(0, 
 type NodeNestedNode_List C.PointerList
 
 func NewNodeNestedNodeList(s *C.Segment, sz int) NodeNestedNode_List {
-	return NodeNestedNode_List(s.NewCompositeList(8, 1, sz))
+	return NodeNestedNode_List(s.NewCompositeList(C.ObjectSize{8, 1}, sz))
 }
 func (s NodeNestedNode_List) Len() int { return C.PointerList(s).Len() }
 func (s NodeNestedNode_List) At(i int) NodeNestedNode {
@@ -149,8 +155,8 @@ const (
 	FIELDORDINAL_EXPLICIT                    = 1
 )
 
-func NewField(s *C.Segment) Field                { return Field(s.NewStruct(24, 4)) }
-func NewRootField(s *C.Segment) Field            { return Field(s.NewRootStruct(24, 4)) }
+func NewField(s *C.Segment) Field                { return Field(s.NewStruct(C.ObjectSize{24, 4})) }
+func NewRootField(s *C.Segment) Field            { return Field(s.NewRootStruct(C.ObjectSize{24, 4})) }
 func ReadRootField(s *C.Segment) Field           { return Field(s.Root(0).ToStruct()) }
 func (s Field) Which() Field_Which               { return Field_Which(C.Struct(s).Get16(8)) }
 func (s Field) Name() string                     { return C.Struct(s).GetObject(0).ToText() }
@@ -180,15 +186,17 @@ func (s FieldOrdinal) SetExplicit(v uint16)      { C.Struct(s).Set16(10, 1); C.S
 
 type Field_List C.PointerList
 
-func NewFieldList(s *C.Segment, sz int) Field_List { return Field_List(s.NewCompositeList(24, 4, sz)) }
-func (s Field_List) Len() int                      { return C.PointerList(s).Len() }
-func (s Field_List) At(i int) Field                { return Field(C.PointerList(s).At(i).ToStruct()) }
-func (s Field_List) ToArray() []Field              { return *(*[]Field)(unsafe.Pointer(C.PointerList(s).ToArray())) }
+func NewFieldList(s *C.Segment, sz int) Field_List {
+	return Field_List(s.NewCompositeList(C.ObjectSize{24, 4}, sz))
+}
+func (s Field_List) Len() int         { return C.PointerList(s).Len() }
+func (s Field_List) At(i int) Field   { return Field(C.PointerList(s).At(i).ToStruct()) }
+func (s Field_List) ToArray() []Field { return *(*[]Field)(unsafe.Pointer(C.PointerList(s).ToArray())) }
 
 type Enumerant C.Struct
 
-func NewEnumerant(s *C.Segment) Enumerant            { return Enumerant(s.NewStruct(8, 2)) }
-func NewRootEnumerant(s *C.Segment) Enumerant        { return Enumerant(s.NewRootStruct(8, 2)) }
+func NewEnumerant(s *C.Segment) Enumerant            { return Enumerant(s.NewStruct(C.ObjectSize{8, 2})) }
+func NewRootEnumerant(s *C.Segment) Enumerant        { return Enumerant(s.NewRootStruct(C.ObjectSize{8, 2})) }
 func ReadRootEnumerant(s *C.Segment) Enumerant       { return Enumerant(s.Root(0).ToStruct()) }
 func (s Enumerant) Name() string                     { return C.Struct(s).GetObject(0).ToText() }
 func (s Enumerant) SetName(v string)                 { C.Struct(s).SetObject(0, s.Segment.NewText(v)) }
@@ -200,7 +208,7 @@ func (s Enumerant) SetAnnotations(v Annotation_List) { C.Struct(s).SetObject(1, 
 type Enumerant_List C.PointerList
 
 func NewEnumerantList(s *C.Segment, sz int) Enumerant_List {
-	return Enumerant_List(s.NewCompositeList(8, 2, sz))
+	return Enumerant_List(s.NewCompositeList(C.ObjectSize{8, 2}, sz))
 }
 func (s Enumerant_List) Len() int           { return C.PointerList(s).Len() }
 func (s Enumerant_List) At(i int) Enumerant { return Enumerant(C.PointerList(s).At(i).ToStruct()) }
@@ -210,8 +218,8 @@ func (s Enumerant_List) ToArray() []Enumerant {
 
 type Method C.Struct
 
-func NewMethod(s *C.Segment) Method               { return Method(s.NewStruct(8, 4)) }
-func NewRootMethod(s *C.Segment) Method           { return Method(s.NewRootStruct(8, 4)) }
+func NewMethod(s *C.Segment) Method               { return Method(s.NewStruct(C.ObjectSize{8, 4})) }
+func NewRootMethod(s *C.Segment) Method           { return Method(s.NewRootStruct(C.ObjectSize{8, 4})) }
 func ReadRootMethod(s *C.Segment) Method          { return Method(s.Root(0).ToStruct()) }
 func (s Method) Name() string                     { return C.Struct(s).GetObject(0).ToText() }
 func (s Method) SetName(v string)                 { C.Struct(s).SetObject(0, s.Segment.NewText(v)) }
@@ -228,17 +236,21 @@ func (s Method) SetAnnotations(v Annotation_List) { C.Struct(s).SetObject(3, C.O
 
 type Method_List C.PointerList
 
-func NewMethodList(s *C.Segment, sz int) Method_List { return Method_List(s.NewCompositeList(8, 4, sz)) }
-func (s Method_List) Len() int                       { return C.PointerList(s).Len() }
-func (s Method_List) At(i int) Method                { return Method(C.PointerList(s).At(i).ToStruct()) }
+func NewMethodList(s *C.Segment, sz int) Method_List {
+	return Method_List(s.NewCompositeList(C.ObjectSize{8, 4}, sz))
+}
+func (s Method_List) Len() int        { return C.PointerList(s).Len() }
+func (s Method_List) At(i int) Method { return Method(C.PointerList(s).At(i).ToStruct()) }
 func (s Method_List) ToArray() []Method {
 	return *(*[]Method)(unsafe.Pointer(C.PointerList(s).ToArray()))
 }
 
 type MethodParam C.Struct
 
-func NewMethodParam(s *C.Segment) MethodParam          { return MethodParam(s.NewStruct(0, 4)) }
-func NewRootMethodParam(s *C.Segment) MethodParam      { return MethodParam(s.NewRootStruct(0, 4)) }
+func NewMethodParam(s *C.Segment) MethodParam { return MethodParam(s.NewStruct(C.ObjectSize{0, 4})) }
+func NewRootMethodParam(s *C.Segment) MethodParam {
+	return MethodParam(s.NewRootStruct(C.ObjectSize{0, 4}))
+}
 func ReadRootMethodParam(s *C.Segment) MethodParam     { return MethodParam(s.Root(0).ToStruct()) }
 func (s MethodParam) Name() string                     { return C.Struct(s).GetObject(0).ToText() }
 func (s MethodParam) SetName(v string)                 { C.Struct(s).SetObject(0, s.Segment.NewText(v)) }
@@ -252,7 +264,7 @@ func (s MethodParam) SetAnnotations(v Annotation_List) { C.Struct(s).SetObject(3
 type MethodParam_List C.PointerList
 
 func NewMethodParamList(s *C.Segment, sz int) MethodParam_List {
-	return MethodParam_List(s.NewCompositeList(0, 4, sz))
+	return MethodParam_List(s.NewCompositeList(C.ObjectSize{0, 4}, sz))
 }
 func (s MethodParam_List) Len() int             { return C.PointerList(s).Len() }
 func (s MethodParam_List) At(i int) MethodParam { return MethodParam(C.PointerList(s).At(i).ToStruct()) }
@@ -289,8 +301,8 @@ const (
 	TYPE_OBJECT               = 18
 )
 
-func NewType(s *C.Segment) Type            { return Type(s.NewStruct(16, 1)) }
-func NewRootType(s *C.Segment) Type        { return Type(s.NewRootStruct(16, 1)) }
+func NewType(s *C.Segment) Type            { return Type(s.NewStruct(C.ObjectSize{16, 1})) }
+func NewRootType(s *C.Segment) Type        { return Type(s.NewRootStruct(C.ObjectSize{16, 1})) }
 func ReadRootType(s *C.Segment) Type       { return Type(s.Root(0).ToStruct()) }
 func (s Type) Which() Type_Which           { return Type_Which(C.Struct(s).Get16(0)) }
 func (s Type) List() TypeList              { return TypeList(s) }
@@ -312,10 +324,12 @@ func (s TypeInterface) SetTypeId(v uint64) { C.Struct(s).Set64(8, v) }
 
 type Type_List C.PointerList
 
-func NewTypeList(s *C.Segment, sz int) Type_List { return Type_List(s.NewCompositeList(16, 1, sz)) }
-func (s Type_List) Len() int                     { return C.PointerList(s).Len() }
-func (s Type_List) At(i int) Type                { return Type(C.PointerList(s).At(i).ToStruct()) }
-func (s Type_List) ToArray() []Type              { return *(*[]Type)(unsafe.Pointer(C.PointerList(s).ToArray())) }
+func NewTypeList(s *C.Segment, sz int) Type_List {
+	return Type_List(s.NewCompositeList(C.ObjectSize{16, 1}, sz))
+}
+func (s Type_List) Len() int        { return C.PointerList(s).Len() }
+func (s Type_List) At(i int) Type   { return Type(C.PointerList(s).At(i).ToStruct()) }
+func (s Type_List) ToArray() []Type { return *(*[]Type)(unsafe.Pointer(C.PointerList(s).ToArray())) }
 
 type Value C.Struct
 type Value_Which uint16
@@ -342,8 +356,8 @@ const (
 	VALUE_OBJECT                = 18
 )
 
-func NewValue(s *C.Segment) Value      { return Value(s.NewStruct(16, 1)) }
-func NewRootValue(s *C.Segment) Value  { return Value(s.NewRootStruct(16, 1)) }
+func NewValue(s *C.Segment) Value      { return Value(s.NewStruct(C.ObjectSize{16, 1})) }
+func NewRootValue(s *C.Segment) Value  { return Value(s.NewRootStruct(C.ObjectSize{16, 1})) }
 func ReadRootValue(s *C.Segment) Value { return Value(s.Root(0).ToStruct()) }
 func (s Value) Which() Value_Which     { return Value_Which(C.Struct(s).Get16(0)) }
 func (s Value) Bool() bool             { return C.Struct(s).Get1(16) }
@@ -395,15 +409,19 @@ func (s Value) SetObject(v C.Object) { C.Struct(s).Set16(0, 18); C.Struct(s).Set
 
 type Value_List C.PointerList
 
-func NewValueList(s *C.Segment, sz int) Value_List { return Value_List(s.NewCompositeList(16, 1, sz)) }
-func (s Value_List) Len() int                      { return C.PointerList(s).Len() }
-func (s Value_List) At(i int) Value                { return Value(C.PointerList(s).At(i).ToStruct()) }
-func (s Value_List) ToArray() []Value              { return *(*[]Value)(unsafe.Pointer(C.PointerList(s).ToArray())) }
+func NewValueList(s *C.Segment, sz int) Value_List {
+	return Value_List(s.NewCompositeList(C.ObjectSize{16, 1}, sz))
+}
+func (s Value_List) Len() int         { return C.PointerList(s).Len() }
+func (s Value_List) At(i int) Value   { return Value(C.PointerList(s).At(i).ToStruct()) }
+func (s Value_List) ToArray() []Value { return *(*[]Value)(unsafe.Pointer(C.PointerList(s).ToArray())) }
 
 type Annotation C.Struct
 
-func NewAnnotation(s *C.Segment) Annotation      { return Annotation(s.NewStruct(8, 1)) }
-func NewRootAnnotation(s *C.Segment) Annotation  { return Annotation(s.NewRootStruct(8, 1)) }
+func NewAnnotation(s *C.Segment) Annotation { return Annotation(s.NewStruct(C.ObjectSize{8, 1})) }
+func NewRootAnnotation(s *C.Segment) Annotation {
+	return Annotation(s.NewRootStruct(C.ObjectSize{8, 1}))
+}
 func ReadRootAnnotation(s *C.Segment) Annotation { return Annotation(s.Root(0).ToStruct()) }
 func (s Annotation) Id() uint64                  { return C.Struct(s).Get64(0) }
 func (s Annotation) SetId(v uint64)              { C.Struct(s).Set64(0, v) }
@@ -413,7 +431,7 @@ func (s Annotation) SetValue(v Value)            { C.Struct(s).SetObject(0, C.Ob
 type Annotation_List C.PointerList
 
 func NewAnnotationList(s *C.Segment, sz int) Annotation_List {
-	return Annotation_List(s.NewCompositeList(8, 1, sz))
+	return Annotation_List(s.NewCompositeList(C.ObjectSize{8, 1}, sz))
 }
 func (s Annotation_List) Len() int            { return C.PointerList(s).Len() }
 func (s Annotation_List) At(i int) Annotation { return Annotation(C.PointerList(s).At(i).ToStruct()) }
@@ -448,10 +466,10 @@ func (s ElementSize_List) ToArray() []ElementSize {
 type CodeGeneratorRequest C.Struct
 
 func NewCodeGeneratorRequest(s *C.Segment) CodeGeneratorRequest {
-	return CodeGeneratorRequest(s.NewStruct(0, 2))
+	return CodeGeneratorRequest(s.NewStruct(C.ObjectSize{0, 2}))
 }
 func NewRootCodeGeneratorRequest(s *C.Segment) CodeGeneratorRequest {
-	return CodeGeneratorRequest(s.NewRootStruct(0, 2))
+	return CodeGeneratorRequest(s.NewRootStruct(C.ObjectSize{0, 2}))
 }
 func ReadRootCodeGeneratorRequest(s *C.Segment) CodeGeneratorRequest {
 	return CodeGeneratorRequest(s.Root(0).ToStruct())
@@ -468,7 +486,7 @@ func (s CodeGeneratorRequest) SetRequestedFiles(v CodeGeneratorRequestRequestedF
 type CodeGeneratorRequest_List C.PointerList
 
 func NewCodeGeneratorRequestList(s *C.Segment, sz int) CodeGeneratorRequest_List {
-	return CodeGeneratorRequest_List(s.NewCompositeList(0, 2, sz))
+	return CodeGeneratorRequest_List(s.NewCompositeList(C.ObjectSize{0, 2}, sz))
 }
 func (s CodeGeneratorRequest_List) Len() int { return C.PointerList(s).Len() }
 func (s CodeGeneratorRequest_List) At(i int) CodeGeneratorRequest {
@@ -481,10 +499,10 @@ func (s CodeGeneratorRequest_List) ToArray() []CodeGeneratorRequest {
 type CodeGeneratorRequestRequestedFile C.Struct
 
 func NewCodeGeneratorRequestRequestedFile(s *C.Segment) CodeGeneratorRequestRequestedFile {
-	return CodeGeneratorRequestRequestedFile(s.NewStruct(8, 2))
+	return CodeGeneratorRequestRequestedFile(s.NewStruct(C.ObjectSize{8, 2}))
 }
 func NewRootCodeGeneratorRequestRequestedFile(s *C.Segment) CodeGeneratorRequestRequestedFile {
-	return CodeGeneratorRequestRequestedFile(s.NewRootStruct(8, 2))
+	return CodeGeneratorRequestRequestedFile(s.NewRootStruct(C.ObjectSize{8, 2}))
 }
 func ReadRootCodeGeneratorRequestRequestedFile(s *C.Segment) CodeGeneratorRequestRequestedFile {
 	return CodeGeneratorRequestRequestedFile(s.Root(0).ToStruct())
@@ -505,7 +523,7 @@ func (s CodeGeneratorRequestRequestedFile) SetImports(v CodeGeneratorRequestRequ
 type CodeGeneratorRequestRequestedFile_List C.PointerList
 
 func NewCodeGeneratorRequestRequestedFileList(s *C.Segment, sz int) CodeGeneratorRequestRequestedFile_List {
-	return CodeGeneratorRequestRequestedFile_List(s.NewCompositeList(8, 2, sz))
+	return CodeGeneratorRequestRequestedFile_List(s.NewCompositeList(C.ObjectSize{8, 2}, sz))
 }
 func (s CodeGeneratorRequestRequestedFile_List) Len() int { return C.PointerList(s).Len() }
 func (s CodeGeneratorRequestRequestedFile_List) At(i int) CodeGeneratorRequestRequestedFile {
@@ -518,10 +536,10 @@ func (s CodeGeneratorRequestRequestedFile_List) ToArray() []CodeGeneratorRequest
 type CodeGeneratorRequestRequestedFileImport C.Struct
 
 func NewCodeGeneratorRequestRequestedFileImport(s *C.Segment) CodeGeneratorRequestRequestedFileImport {
-	return CodeGeneratorRequestRequestedFileImport(s.NewStruct(8, 1))
+	return CodeGeneratorRequestRequestedFileImport(s.NewStruct(C.ObjectSize{8, 1}))
 }
 func NewRootCodeGeneratorRequestRequestedFileImport(s *C.Segment) CodeGeneratorRequestRequestedFileImport {
-	return CodeGeneratorRequestRequestedFileImport(s.NewRootStruct(8, 1))
+	return CodeGeneratorRequestRequestedFileImport(s.NewRootStruct(C.ObjectSize{8, 1}))
 }
 func ReadRootCodeGeneratorRequestRequestedFileImport(s *C.Segment) CodeGeneratorRequestRequestedFileImport {
 	return CodeGeneratorRequestRequestedFileImport(s.Root(0).ToStruct())
@@ -538,7 +556,7 @@ func (s CodeGeneratorRequestRequestedFileImport) SetName(v string) {
 type CodeGeneratorRequestRequestedFileImport_List C.PointerList
 
 func NewCodeGeneratorRequestRequestedFileImportList(s *C.Segment, sz int) CodeGeneratorRequestRequestedFileImport_List {
-	return CodeGeneratorRequestRequestedFileImport_List(s.NewCompositeList(8, 1, sz))
+	return CodeGeneratorRequestRequestedFileImport_List(s.NewCompositeList(C.ObjectSize{8, 1}, sz))
 }
 func (s CodeGeneratorRequestRequestedFileImport_List) Len() int { return C.PointerList(s).Len() }
 func (s CodeGeneratorRequestRequestedFileImport_List) At(i int) CodeGeneratorRequestRequestedFileImport {
