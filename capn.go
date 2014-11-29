@@ -56,12 +56,56 @@ type Segment struct {
 	RootDone bool
 }
 
+// ObjectSize records section sizes for a struct or list.
+type ObjectSize struct {
+	DataSize     int // in bytes
+	PointerCount int
+}
+
+// isZero reports whether sz is the zero size.
+func (sz ObjectSize) isZero() bool {
+	return sz.DataSize == 0 && sz.PointerCount == 0
+}
+
+// isOneByte reports whether the object size is one byte (for Text/Data element sizes).
+func (sz ObjectSize) isOneByte() bool {
+	return sz.DataSize == 1 && sz.PointerCount == 0
+}
+
+// isValid reports whether sz's fields are non-negative and less than the maximum.
+func (sz ObjectSize) isValid() bool {
+	const (
+		maxDataSize = 0xFFFF * 8
+		maxPtrs     = 0xFFFF
+	)
+	return sz.DataSize >= 0 && sz.DataSize <= maxDataSize && sz.PointerCount >= 0 && sz.PointerCount <= maxPtrs
+}
+
+// pointerSize returns the number of bytes the pointer section occupies.
+func (sz ObjectSize) pointerSize() int {
+	return sz.PointerCount * 8
+}
+
+// totalSize returns the number of bytes that the object occupies.
+func (sz ObjectSize) totalSize() int {
+	return sz.DataSize + sz.pointerSize()
+}
+
+// dataWordCount returns the number of 8-byte words in the data section.
+func (sz ObjectSize) dataWordCount() int {
+	return sz.DataSize / 8
+}
+
+// totalWordCount returns the number of 8-byte words that the object occupies.
+func (sz ObjectSize) totalWordCount() int {
+	return sz.dataWordCount() + sz.PointerCount
+}
+
 type Object struct {
 	Segment *Segment
 	off     int // in bytes
 	length  int
-	datasz  int // in bytes
-	ptrs    int
+	size    ObjectSize
 	typ     ObjectType
 	flags   uint
 }
@@ -71,8 +115,7 @@ func (o Object) DupWithOff(off int) Object {
 		Segment: o.Segment,
 		off:     off,
 		length:  o.length,
-		datasz:  o.datasz,
-		ptrs:    o.ptrs,
+		size:    o.size,
 		typ:     o.typ,
 		flags:   o.flags,
 	}
@@ -115,23 +158,20 @@ func (p DataList) Len() int    { return p.length }
 func (p Object) HasData() bool {
 	switch p.typ {
 	case TypeList:
-		return p.length > 0 && (p.datasz != 0 || p.ptrs != 0)
+		return p.length > 0 && !p.size.isZero()
 	case TypePointerList:
 		return p.length > 0
 	case TypeBitList:
 		return p.length > 0
 	case TypeStruct:
-		return p.datasz != 0 || p.ptrs != 0
+		return !p.size.isZero()
 	default:
 		return false
 	}
 }
 
+// flags
 const (
-	maxDataSize = 0xFFFF * 8
-	maxPtrs     = 0xFFFF
-
-	// flags
 	bitOffsetMask   = 7
 	isBitListMember = 8
 	isListMember    = 16
@@ -148,7 +188,11 @@ func (s *Segment) Root(off int) Object {
 }
 
 func (s *Segment) NewRoot() (PointerList, int, error) {
-	n, err := s.create(8, Object{typ: TypePointerList, length: 1, ptrs: 1, flags: isRoot})
+	n, err := s.create(8, Object{
+		typ:   TypePointerList,
+		size:  ObjectSize{DataSize: 1, PointerCount: 1},
+		flags: isRoot,
+	})
 	return PointerList(n), n.off / 8, err
 }
 
@@ -168,27 +212,34 @@ func (s *Segment) NewBitList(sz int) BitList {
 	return BitList(n)
 }
 
-//func (s *Segment) NewVoidList(sz int) VoidList       { return VoidList{typ: TypeList, length: sz, datasz: 0} }
-func (s *Segment) NewVoidList(sz int) VoidList       { return VoidList(s.newList(0, sz)) }
-func (s *Segment) NewInt8List(sz int) Int8List       { return Int8List(s.newList(1, sz)) }
-func (s *Segment) NewUInt8List(sz int) UInt8List     { return UInt8List(s.newList(1, sz)) }
-func (s *Segment) NewInt16List(sz int) Int16List     { return Int16List(s.newList(2, sz)) }
-func (s *Segment) NewUInt16List(sz int) UInt16List   { return UInt16List(s.newList(2, sz)) }
-func (s *Segment) NewFloat32List(sz int) Float32List { return Float32List(s.newList(4, sz)) }
-func (s *Segment) NewInt32List(sz int) Int32List     { return Int32List(s.newList(4, sz)) }
-func (s *Segment) NewUInt32List(sz int) UInt32List   { return UInt32List(s.newList(4, sz)) }
-func (s *Segment) NewFloat64List(sz int) Float64List { return Float64List(s.newList(8, sz)) }
-func (s *Segment) NewInt64List(sz int) Int64List     { return Int64List(s.newList(8, sz)) }
-func (s *Segment) NewUInt64List(sz int) UInt64List   { return UInt64List(s.newList(8, sz)) }
+func (s *Segment) NewVoidList(n int) VoidList       { return VoidList(s.newList(0, n)) }
+func (s *Segment) NewInt8List(n int) Int8List       { return Int8List(s.newList(1, n)) }
+func (s *Segment) NewUInt8List(n int) UInt8List     { return UInt8List(s.newList(1, n)) }
+func (s *Segment) NewInt16List(n int) Int16List     { return Int16List(s.newList(2, n)) }
+func (s *Segment) NewUInt16List(n int) UInt16List   { return UInt16List(s.newList(2, n)) }
+func (s *Segment) NewFloat32List(n int) Float32List { return Float32List(s.newList(4, n)) }
+func (s *Segment) NewInt32List(n int) Int32List     { return Int32List(s.newList(4, n)) }
+func (s *Segment) NewUInt32List(n int) UInt32List   { return UInt32List(s.newList(4, n)) }
+func (s *Segment) NewFloat64List(n int) Float64List { return Float64List(s.newList(8, n)) }
+func (s *Segment) NewInt64List(n int) Int64List     { return Int64List(s.newList(8, n)) }
+func (s *Segment) NewUInt64List(n int) UInt64List   { return UInt64List(s.newList(8, n)) }
 func (s *Segment) newList(datasz, length int) Object {
-	n, _ := s.create(datasz*length, Object{typ: TypeList, length: length, datasz: datasz})
+	n, _ := s.create(datasz*length, Object{
+		typ:    TypeList,
+		length: length,
+		size:   ObjectSize{DataSize: datasz},
+	})
 	return n
 }
 
-func (s *Segment) NewTextList(sz int) TextList { return TextList(s.NewPointerList(sz)) }
-func (s *Segment) NewDataList(sz int) DataList { return DataList(s.NewPointerList(sz)) }
-func (s *Segment) NewPointerList(sz int) PointerList {
-	n, _ := s.create(sz*8, Object{typ: TypePointerList, length: sz, ptrs: 1})
+func (s *Segment) NewTextList(n int) TextList { return TextList(s.NewPointerList(n)) }
+func (s *Segment) NewDataList(n int) DataList { return DataList(s.NewPointerList(n)) }
+func (s *Segment) NewPointerList(length int) PointerList {
+	n, _ := s.create(length*8, Object{
+		typ:    TypePointerList,
+		length: length,
+		size:   ObjectSize{PointerCount: 1},
+	})
 	return PointerList(n)
 }
 
@@ -217,61 +268,78 @@ We also made a second change: Previously, consistent with the above rule, a list
 
 const CanonicalizableOn = true
 
-func (s *Segment) NewCompositeList(datasz, ptrs, length int) PointerList {
-	if datasz < 0 || datasz > maxDataSize || ptrs < 0 || ptrs > maxPtrs {
+func (s *Segment) NewCompositeList(sz ObjectSize, length int) PointerList {
+	switch {
+	case !sz.isValid():
 		return PointerList{}
-	} else if ptrs > 0 || datasz > 8 || CanonicalizableOn {
-		datasz = (datasz + 7) &^ 7
-		n, _ := s.create(8+length*(datasz+8*ptrs), Object{typ: TypeList, length: length, datasz: datasz, ptrs: ptrs, flags: isCompositeList})
+	case sz.PointerCount > 0 || sz.DataSize > 8 || CanonicalizableOn:
+		sz.DataSize = pad(sz.DataSize, 8)
+		n, _ := s.create(8+length*sz.totalSize(), Object{
+			typ:    TypeList,
+			length: length,
+			size:   sz,
+			flags:  isCompositeList,
+		})
 		n.off += 8
-		hdr := structPointer | uint64(length)<<2 | uint64(datasz/8)<<32 | uint64(ptrs)<<48
+		hdr := structPointer | uint64(length)<<2 | uint64(sz.dataWordCount())<<32 | uint64(sz.PointerCount)<<48
 		binary.LittleEndian.PutUint64(s.Data[n.off-8:], hdr)
 		return PointerList(n)
-	} else if datasz > 4 {
-		datasz = (datasz + 7) &^ 7
-	} else if datasz > 2 {
-		datasz = (datasz + 3) &^ 3
+	case sz.DataSize > 4:
+		sz.DataSize = pad(sz.DataSize, 8)
+	case sz.DataSize > 2:
+		sz.DataSize = pad(sz.DataSize, 4)
 	}
 
-	n, _ := s.create(length*(datasz+8*ptrs), Object{typ: TypeList, length: length, datasz: datasz, ptrs: ptrs})
+	n, _ := s.create(length*sz.totalSize(), Object{
+		typ:    TypeList,
+		length: length,
+		size:   sz,
+	})
 	return PointerList(n)
 }
 
-func (s *Segment) NewRootStruct(datasz, ptrs int) Struct {
+// pad returns the smallest number greater than or equal to i that is
+// evenly divisible by align, which must be a power of two.
+func pad(i int, align uint) int {
+	n := int(align - 1)
+	return (i + n) &^ n
+}
+
+func (s *Segment) NewRootStruct(sz ObjectSize) Struct {
 	r, _, err := s.NewRoot()
 	if err != nil {
 		return Struct{}
 	}
-	v := s.NewStruct(datasz, ptrs)
+	v := s.NewStruct(sz)
 	r.Set(0, Object(v))
 	return v
 }
 
-func (s *Segment) NewStruct(datasz, ptrs int) Struct {
-	if datasz < 0 || datasz > maxDataSize || ptrs < 0 || ptrs > maxPtrs {
+func (s *Segment) NewStruct(sz ObjectSize) Struct {
+	if !sz.isValid() {
 		return Struct{}
 	}
-	datasz = (datasz + 7) &^ 7
-	n, _ := s.create(datasz+ptrs*8, Object{typ: TypeStruct, datasz: datasz, ptrs: ptrs})
+	sz.DataSize = pad(sz.DataSize, 8)
+	n, _ := s.create(sz.totalSize(), Object{typ: TypeStruct, size: sz})
 	return Struct(n)
 }
 
 // NewStructAR (AutoRoot): experimental Root setting: assumes the
 // struct is the root iff it is the first allocation in a segment.
-func (s *Segment) NewStructAR(datasz, ptrs int) Struct {
+func (s *Segment) NewStructAR(sz ObjectSize) Struct {
 	if s.RootDone {
-		return s.NewStruct(datasz, ptrs)
+		return s.NewStruct(sz)
 	} else {
 		s.RootDone = true
-		return s.NewRootStruct(datasz, ptrs)
+		return s.NewRootStruct(sz)
 	}
 }
 
 // sz is in bytes
 func (s *Segment) create(sz int, n Object) (Object, error) {
-	// rounded up to word-boundary number of bytes:
-	sz = (sz + 7) &^ 7
+	sz = pad(sz, 8)
 
+	// TODO(light): this can overflow easily
 	if uint64(sz) > uint64(math.MaxUint32)-8 {
 		return Object{}, ErrOverlarge
 	}
@@ -340,7 +408,7 @@ func (p Object) ToStructDefault(s *Segment, tagoff int) Struct {
 
 func (p Object) ToText() string { return p.ToTextDefault("") }
 func (p Object) ToTextDefault(def string) string {
-	if p.typ != TypeList || p.datasz != 1 || p.length == 0 || p.Segment.Data[p.off+p.length-1] != 0 {
+	if p.typ != TypeList || !p.size.isOneByte() || p.Segment.Data[p.off+p.length-1] != 0 {
 		return def
 	}
 
@@ -349,7 +417,7 @@ func (p Object) ToTextDefault(def string) string {
 
 func (p Object) ToData() []byte { return p.ToDataDefault(nil) }
 func (p Object) ToDataDefault(def []byte) []byte {
-	if p.typ != TypeList || p.datasz != 1 {
+	if p.typ != TypeList || !p.size.isOneByte() {
 		return def
 	}
 
@@ -395,18 +463,18 @@ func (p Object) ToObjectDefault(s *Segment, tagoff int) Object {
 }
 
 func (p Struct) GetObject(off int) Object {
-	if uint(off) < uint(p.ptrs) {
-		return p.Segment.readPtr(p.off + p.datasz + off*8)
+	if uint(off) < uint(p.size.PointerCount) {
+		return p.Segment.readPtr(p.off + p.size.DataSize + off*8)
 	} else {
 		return Object{}
 	}
 }
 
 func (p Struct) SetObject(i int, src Object) {
-	if uint(i) < uint(p.ptrs) {
+	if uint(i) < uint(p.size.PointerCount) {
 		//replaceMe := p.Segment.readPtr(p.off + p.datasz + i*8)
 		//copyStructHandlingVersionSkew(replaceMe, src, nil, 0, 0, 0)
-		p.Segment.writePtr(p.off+p.datasz+i*8, src, nil, 0)
+		p.Segment.writePtr(p.off+p.size.DataSize+i*8, src, nil, 0)
 	}
 }
 
@@ -415,7 +483,7 @@ func (p Struct) Get1(bitoff int) bool {
 
 	if bitoff == 0 && (p.flags&isBitListMember) != 0 {
 		off += p.flags & bitOffsetMask
-	} else if bitoff < 0 || bitoff >= p.datasz*8 {
+	} else if bitoff < 0 || bitoff >= p.size.DataSize*8 {
 		return false
 	}
 
@@ -427,7 +495,7 @@ func (p Struct) Set1(bitoff int, v bool) {
 
 	if bitoff == 0 && (p.flags&isBitListMember) != 0 {
 		off += p.flags & bitOffsetMask
-	} else if bitoff < 0 || bitoff >= p.datasz*8 {
+	} else if bitoff < 0 || bitoff >= p.size.DataSize*8 {
 		return
 	}
 
@@ -439,7 +507,7 @@ func (p Struct) Set1(bitoff int, v bool) {
 }
 
 func (p Struct) Get8(off int) uint8 {
-	if off < p.datasz {
+	if off < p.size.DataSize {
 		return p.Segment.Data[uint(p.off)+uint(off)]
 	} else {
 		return 0
@@ -447,7 +515,7 @@ func (p Struct) Get8(off int) uint8 {
 }
 
 func (p Struct) Get16(off int) uint16 {
-	if off < p.datasz {
+	if off < p.size.DataSize {
 		return binary.LittleEndian.Uint16(p.Segment.Data[uint(p.off)+uint(off):])
 	} else {
 		return 0
@@ -455,7 +523,7 @@ func (p Struct) Get16(off int) uint16 {
 }
 
 func (p Struct) Get32(off int) uint32 {
-	if off < p.datasz {
+	if off < p.size.DataSize {
 		return binary.LittleEndian.Uint32(p.Segment.Data[uint(p.off)+uint(off):])
 	} else {
 		return 0
@@ -463,7 +531,7 @@ func (p Struct) Get32(off int) uint32 {
 }
 
 func (p Struct) Get64(off int) uint64 {
-	if off < p.datasz {
+	if off < p.size.DataSize {
 		return binary.LittleEndian.Uint64(p.Segment.Data[uint(p.off)+uint(off):])
 	} else {
 		return 0
@@ -471,25 +539,25 @@ func (p Struct) Get64(off int) uint64 {
 }
 
 func (p Struct) Set8(off int, v uint8) {
-	if uint(off) < uint(p.datasz) {
+	if uint(off) < uint(p.size.DataSize) {
 		p.Segment.Data[uint(p.off)+uint(off)] = v
 	}
 }
 
 func (p Struct) Set16(off int, v uint16) {
-	if uint(off) < uint(p.datasz) {
+	if uint(off) < uint(p.size.DataSize) {
 		binary.LittleEndian.PutUint16(p.Segment.Data[uint(p.off)+uint(off):], v)
 	}
 }
 
 func (p Struct) Set32(off int, v uint32) {
-	if uint(off) < uint(p.datasz) {
+	if uint(off) < uint(p.size.DataSize) {
 		binary.LittleEndian.PutUint32(p.Segment.Data[uint(p.off)+uint(off):], v)
 	}
 }
 
 func (p Struct) Set64(off int, v uint64) {
-	if uint(off) < uint(p.datasz) {
+	if uint(off) < uint(p.size.DataSize) {
 		binary.LittleEndian.PutUint64(p.Segment.Data[uint(p.off)+uint(off):], v)
 	}
 }
@@ -502,9 +570,9 @@ func (p BitList) At(i int) bool {
 	switch p.typ {
 	case TypePointerList:
 		m := p.Segment.readPtr(p.off + i*8)
-		return m.typ == TypeStruct && m.datasz > 0 && (m.Segment.Data[0]&1) != 0
+		return m.typ == TypeStruct && m.size.DataSize > 0 && (m.Segment.Data[0]&1) != 0
 	case TypeList:
-		off := p.off + i*(p.datasz+p.ptrs*8)
+		off := p.off + i*p.size.totalSize()
 		return (p.Segment.Data[off] & 1) != 0
 	case TypeBitList:
 		return (p.Segment.Data[p.off+i/8] & (1 << uint(i%8))) != 0
@@ -521,7 +589,7 @@ func (p BitList) Set(i int, v bool) {
 	switch p.typ {
 	case TypePointerList:
 		m := p.Segment.readPtr(p.off + i*8)
-		if m.typ == TypeStruct && m.datasz > 0 {
+		if m.typ == TypeStruct && m.size.DataSize > 0 {
 			if v {
 				m.Segment.Data[0] |= 1
 			} else {
@@ -529,7 +597,7 @@ func (p BitList) Set(i int, v bool) {
 			}
 		}
 	case TypeList:
-		off := p.off + i*(p.datasz+p.ptrs*8)
+		off := p.off + i*p.size.totalSize()
 		if v {
 			p.Segment.Data[off] |= 1
 		} else {
@@ -552,16 +620,16 @@ func (p Object) listData(i int, sz int) []byte {
 	switch p.typ {
 	case TypePointerList:
 		m := p.Segment.readPtr(p.off + i*8)
-		if m.typ != TypeStruct || sz > m.datasz*8 {
+		if m.typ != TypeStruct || sz > m.size.DataSize*8 {
 			return nil
 		}
 		return m.Segment.Data[m.off:]
 
 	case TypeList:
-		if sz > p.datasz*8 {
+		if sz > p.size.DataSize*8 {
 			return nil
 		}
-		off := p.off + i*(p.datasz+p.ptrs*8)
+		off := p.off + i*p.size.totalSize()
 		return p.Segment.Data[off:]
 
 	default: // including TypeBitList as this is only used for 8 bit and larger
@@ -646,7 +714,7 @@ func (p BitList) ToArray() []bool {
 }
 
 func (p UInt8List) ToArray() []uint8 {
-	if p.typ == TypeList && p.datasz == 1 && p.ptrs == 0 {
+	if p.typ == TypeList && p.size.isOneByte() {
 		return p.Segment.Data[p.off : p.off+p.length]
 	}
 
@@ -781,9 +849,8 @@ func (p PointerList) At(i int) Object {
 		return Object{
 			Segment: p.Segment,
 			typ:     TypeStruct,
-			off:     p.off + i*(p.datasz+p.ptrs*8),
-			datasz:  p.datasz,
-			ptrs:    p.ptrs,
+			off:     p.off + i*p.size.totalSize(),
+			size:    p.size,
 			flags:   isListMember,
 		}
 
@@ -796,8 +863,6 @@ func (p PointerList) At(i int) Object {
 			typ:     TypeStruct,
 			off:     p.off + i/8,
 			flags:   uint(i%8) | isBitListMember,
-			datasz:  0,
-			ptrs:    0,
 		}
 
 	default:
@@ -813,25 +878,22 @@ func copyStructHandlingVersionSkew(dest Object, src Object, copies *rbtree.Tree,
 		return nil
 	}
 
-	destElemSz := dest.datasz + dest.ptrs*8
-	srcElemSz := src.datasz + src.ptrs*8
-
 	// handle assignment into a size-zero object/empty struct/old version
 	//if destElemSz == 0 {
 	// return nil
 	// }
 
-	destListInc := destElemSz * destListPos
-	srcListInc := srcElemSz * srcListPos
+	destListInc := dest.size.totalSize() * destListPos
+	srcListInc := src.size.totalSize() * srcListPos
 
-	toData := dest.Segment.Data[dest.off+destListInc : dest.off+destListInc+dest.datasz]
+	toData := dest.Segment.Data[dest.off+destListInc : dest.off+destListInc+dest.size.DataSize]
 
 	//fmt.Printf("\n\n debug: destElemSz = %d, srcElemSz = %d, destListInc = %d, srcListInc = %d, toData = %#v, len(toData)=%d\n", destElemSz, srcElemSz, destListInc, srcListInc, toData, len(toData))
 
 	// Q: how does version handling happen here, when the
 	//    desination toData[] slice can be bigger or smaller
 	//    than the source data slice, which is in
-	//    src.Segment.Data[src.off:src.off+src.datasz] ?
+	//    src.Segment.Data[src.off:src.off+src.size.DataSize] ?
 	//
 	// A: Newer fields only come *after* old fields. Note that
 	//    copy only copies min(len(src), len(dst)) size,
@@ -841,7 +903,7 @@ func copyStructHandlingVersionSkew(dest Object, src Object, copies *rbtree.Tree,
 
 	// data section:
 	//fmt.Printf("\n\n  debug: len(src.Segment.Data) = %d, src.off(%d)+srcListInc(%d) = %d\n", len(src.Segment.Data), src.off, srcListInc, src.off+srcListInc)
-	from := src.Segment.Data[src.off+srcListInc : src.off+srcListInc+src.datasz]
+	from := src.Segment.Data[src.off+srcListInc : src.off+srcListInc+src.size.DataSize]
 	//fmt.Printf("\n\n  debug: len(src.Segment.Data) = %d, src.off(%d)+srcListInc(%d) = %d,  len(from)=%d\n", len(src.Segment.Data), src.off, srcListInc, src.off+srcListInc, len(from))
 
 	copyCount := copy(toData, from)
@@ -856,19 +918,19 @@ func copyStructHandlingVersionSkew(dest Object, src Object, copies *rbtree.Tree,
 	// version handling: we ignore any extra-newer-pointers in src,
 	// i.e. the case when srcPtrSize > dstPtrSize, by only
 	// running j over the size of dstPtrSize, the destination size.
-	srcPtrSize := src.ptrs * 8
-	dstPtrSize := int(dest.ptrs * 8)
+	srcPtrSize := src.size.pointerSize()
+	dstPtrSize := dest.size.pointerSize()
 	for j := 0; j < dstPtrSize; j += 8 {
 		if j < srcPtrSize {
-			m := src.Segment.readPtr(src.off + srcListInc + src.datasz + j)
+			m := src.Segment.readPtr(src.off + srcListInc + src.size.DataSize + j)
 			//fmt.Printf("debug: PointerList.Set(i=%d, src=%#v). source ptr is m = %#v\n", i, src, m)
-			if err := dest.Segment.writePtr(dest.off+destListInc+dest.datasz+j, m, copies, depth+1); err != nil {
+			if err := dest.Segment.writePtr(dest.off+destListInc+dest.size.DataSize+j, m, copies, depth+1); err != nil {
 				return err
 			}
 		} else {
 			// destination p is a newer version than source
 			//  so these extra new pointer fields in p must be zeroed.
-			binary.LittleEndian.PutUint64(dest.Segment.Data[dest.off+destListInc+dest.datasz+j:], 0)
+			binary.LittleEndian.PutUint64(dest.Segment.Data[dest.off+destListInc+dest.size.DataSize+j:], 0)
 		}
 	}
 	// Nothing more here: so any other pointers in srcPtrSize beyond
@@ -987,11 +1049,13 @@ func (s *Segment) readPtr(off int) Object {
 			Segment: s,
 			typ:     TypeStruct,
 			off:     offw * 8,
-			datasz:  pointer(val).structC() * 8,
-			ptrs:    pointer(val).structD(),
+			size: ObjectSize{
+				DataSize:     pointer(val).structC() * 8,
+				PointerCount: pointer(val).structD(),
+			},
 		}
 
-		if p.off+p.datasz+p.ptrs*8 > len(s.Data) {
+		if p.off+p.size.totalSize() > len(s.Data) {
 			return Object{}
 		}
 
@@ -1023,16 +1087,16 @@ func (s *Segment) readPtr(off int) Object {
 			p.typ = TypeBitList
 			words = (p.length + 63) / 64
 		case byte1List:
-			p.datasz = 1
+			p.size.DataSize = 1
 			words = (p.length + 7) / 8
 		case byte2List:
-			p.datasz = 2
+			p.size.DataSize = 2
 			words = (p.length + 3) / 4
 		case byte4List:
-			p.datasz = 4
+			p.size.DataSize = 4
 			words = (p.length + 1) / 2
 		case byte8List:
-			p.datasz = 8
+			p.size.DataSize = 8
 		case pointerList:
 			p.typ = TypePointerList
 		case compositeList:
@@ -1044,11 +1108,13 @@ func (s *Segment) readPtr(off int) Object {
 
 			p.flags |= isCompositeList
 			p.length = int(uint32(hdr) >> 2)
-			p.datasz = int(uint16(hdr>>32)) * 8
-			p.ptrs = int(uint16(hdr >> 48))
+			p.size = ObjectSize{
+				DataSize:     int(uint16(hdr>>32)) * 8,
+				PointerCount: int(uint16(hdr >> 48)),
+			}
 
 			// Jump up to 64bit as length is 30 bits, datasz+ptrs is 17 bit
-			if uint64(p.length)*uint64(p.datasz/8+p.ptrs) != uint64(words) {
+			if uint64(p.length)*uint64(p.size.totalWordCount()) != uint64(words) {
 				return Object{}
 			}
 		}
@@ -1153,16 +1219,16 @@ func (p Object) value(off int) pointer {
 
 	switch p.typ {
 	case TypeStruct:
-		return structPointer | d | pointer(p.datasz/8)<<32 | pointer(p.ptrs)<<48
+		return structPointer | d | pointer(p.size.dataWordCount())<<32 | pointer(p.size.PointerCount)<<48
 	case TypePointerList:
 		return listPointer | d | pointerList<<32 | pointer(p.length)<<35
 	case TypeList:
 		if (p.flags & isCompositeList) != 0 {
 			d -= 1 << 2 // p.off points to the data not the header
-			return listPointer | d | compositeList<<32 | pointer(p.length*(p.datasz/8+p.ptrs))<<35
+			return listPointer | d | compositeList<<32 | pointer(p.length*p.size.totalWordCount())<<35
 		}
 
-		switch p.datasz {
+		switch p.size.DataSize {
 		case 0:
 			return listPointer | d | voidList<<32 | pointer(p.length)<<35
 		case 1:
@@ -1241,11 +1307,11 @@ func compare(a, b rbtree.Item) int {
 func (p Object) dataEnd() int {
 	switch p.typ {
 	case TypeList:
-		return p.off + p.length*(p.datasz+p.ptrs*8)
+		return p.off + p.length*p.size.totalSize()
 	case TypePointerList:
 		return p.off + p.length*8
 	case TypeStruct:
-		return p.off + p.datasz + p.ptrs*8
+		return p.off + p.size.totalSize()
 	case TypeBitList:
 		return p.off + (p.length+7)/8
 	default:
@@ -1254,10 +1320,7 @@ func (p Object) dataEnd() int {
 }
 
 func isEmptyStruct(src Object) bool {
-	if src.typ == TypeStruct && src.length == 0 && src.datasz == 0 && src.ptrs == 0 && src.flags == 0 {
-		return true
-	}
-	return false
+	return src.typ == TypeStruct && src.length == 0 && src.size.isZero() && src.flags == 0
 }
 
 func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth int) error {
@@ -1296,8 +1359,7 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 			newval: Object{
 				typ:    src.typ,
 				length: src.length,
-				datasz: src.datasz,
-				ptrs:   src.ptrs,
+				size:   src.size,
 				flags:  (src.flags & isCompositeList),
 			},
 		}
@@ -1305,7 +1367,7 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 		if (src.flags & isBitListMember) != 0 {
 			key.boff += int64(src.flags & bitOffsetMask)
 			key.bend = key.boff + 1
-			key.newval.datasz = 8
+			key.newval.size.DataSize = 8
 		}
 
 		if (src.flags & isCompositeList) != 0 {
@@ -1371,8 +1433,7 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 				dest := Object{
 					Segment: newSeg,
 					off:     n.off,
-					datasz:  n.datasz,
-					ptrs:    n.ptrs,
+					size:    n.size,
 				}
 
 				if err := copyStructHandlingVersionSkew(dest, src, copies, depth, 0, 0); err != nil {
@@ -1382,7 +1443,7 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 
 		case TypeList:
 			// recognize Data and Text, both List(Byte), as special cases for speed.
-			if n.datasz == 1 && n.ptrs == 0 && src.datasz == 1 && src.ptrs == 0 {
+			if n.size.isOneByte() && src.size.isOneByte() {
 				//fmt.Printf("\n\n    *** special case for Text and Data kicking in *** \n\n")
 				copy(newSeg.Data[n.off:], srcSeg.Data[src.off:src.off+n.length+1])
 				break
@@ -1391,8 +1452,7 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 			dest := Object{
 				Segment: newSeg,
 				off:     n.off,
-				datasz:  n.datasz,
-				ptrs:    n.ptrs,
+				size:    n.size,
 			}
 			for i := 0; i < n.length; i++ {
 				if err := copyStructHandlingVersionSkew(dest, src, copies, depth, i, i); err != nil {
@@ -1409,7 +1469,7 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 			}
 
 		case TypeBitList:
-			copy(newSeg.Data[n.off:], srcSeg.Data[src.off:src.off+src.datasz])
+			copy(newSeg.Data[n.off:], srcSeg.Data[src.off:src.off+src.size.DataSize])
 		}
 		return destSeg.writePtr(off, key.newval, nil, depth+1)
 
