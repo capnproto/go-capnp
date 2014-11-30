@@ -186,11 +186,6 @@ func TestZserverWithAccessors(t *testing.T) {
 			// .Len()
 			cv.So(joblist.Len(), cv.ShouldEqual, 2)
 
-			// .ToArray()
-			cv.So(len(joblist.ToArray()), cv.ShouldEqual, 2)
-			cv.So(joblist.ToArray()[0].Cmd(), cv.ShouldEqual, "abc")
-			cv.So(joblist.ToArray()[1].Cmd(), cv.ShouldEqual, "xyz")
-
 			server.SetWaitingjobs(joblist)
 
 			buf := bytes.Buffer{}

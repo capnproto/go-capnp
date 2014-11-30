@@ -77,14 +77,16 @@ func (n *node) resolveName(base, name string, file *node) {
 		file.nodes = append(file.nodes, n)
 	}
 
-	for _, nn := range n.NestedNodes().ToArray() {
+	for i := 0; i < n.NestedNodes().Len(); i++ {
+		nn := n.NestedNodes().At(i)
 		if ni := g_nodes[nn.Id()]; ni != nil {
 			ni.resolveName(n.name, nn.Name(), file)
 		}
 	}
 
 	if n.Which() == NODE_STRUCT {
-		for _, f := range n.Struct().Fields().ToArray() {
+		for i := 0; i < n.Struct().Fields().Len(); i++ {
+			f := n.Struct().Fields().At(i)
 			if f.Which() == FIELD_GROUP {
 				findNode(f.Group().TypeId()).resolveName(n.name, f.Name(), file)
 			}
@@ -104,7 +106,8 @@ func (e *enumval) fullName() string {
 }
 
 func (n *node) defineEnum(w io.Writer) {
-	for _, a := range n.Annotations().ToArray() {
+	for i := 0; i < n.Annotations().Len(); i++ {
+		a := n.Annotations().At(i)
 		if a.Id() == C.Doc {
 			fmt.Fprintf(w, "// %s\n", a.Value().Text())
 		}
@@ -119,7 +122,8 @@ func (n *node) defineEnum(w io.Writer) {
 			e := es.At(i)
 
 			t := e.Name()
-			for _, an := range e.Annotations().ToArray() {
+			for i := 0; i < e.Annotations().Len(); i++ {
+				an := e.Annotations().At(i)
 				if an.Id() == C.Tag {
 					t = an.Value().Text()
 				} else if an.Id() == C.Notag {
@@ -161,9 +165,6 @@ func (n *node) defineEnum(w io.Writer) {
 	fmt.Fprintf(w, "func New%sList(s *C.Segment, sz int) %s_List { return %s_List(s.NewUInt16List(sz)) }\n", n.name, n.name, n.name)
 	fmt.Fprintf(w, "func (s %s_List) Len() int { return C.UInt16List(s).Len() }\n", n.name)
 	fmt.Fprintf(w, "func (s %s_List) At(i int) %s { return %s(C.UInt16List(s).At(i)) }\n", n.name, n.name, n.name)
-	fmt.Fprintf(w, "func (s %s_List) ToArray() []%s { return *(*[]%s)(unsafe.Pointer(C.UInt16List(s).ToEnumArray())) }\n", n.name, n.name, n.name)
-
-	g_imported["unsafe"] = true
 }
 
 func (n *node) writeValue(w io.Writer, t Type, v Value) {
@@ -373,7 +374,8 @@ func (n *node) defineField(w io.Writer, f Field) {
 	}
 
 	customtype := ""
-	for _, a := range f.Annotations().ToArray() {
+	for i := 0; i < f.Annotations().Len(); i++ {
+		a := f.Annotations().At(i)
 		if a.Id() == C.Doc {
 			fmt.Fprintf(&g, "// %s\n", a.Value().Text())
 		}
@@ -636,9 +638,10 @@ func (n *node) defineField(w io.Writer, f Field) {
 }
 
 func (n *node) codeOrderFields() []Field {
-	fields := n.Struct().Fields().ToArray()
-	mbrs := make([]Field, len(fields))
-	for _, f := range fields {
+	numFields := n.Struct().Fields().Len()
+	mbrs := make([]Field, numFields)
+	for i := 0; i < numFields; i++ {
+		f := n.Struct().Fields().At(i)
 		mbrs[f.CodeOrder()] = f
 	}
 	return mbrs
@@ -647,7 +650,8 @@ func (n *node) codeOrderFields() []Field {
 func (n *node) defineStructTypes(w io.Writer, baseNode *node) {
 	assert(n.Which() == NODE_STRUCT, "invalid struct node")
 
-	for _, a := range n.Annotations().ToArray() {
+	for i := 0; i < n.Annotations().Len(); i++ {
+		a := n.Annotations().At(i)
 		if a.Id() == C.Doc {
 			fmt.Fprintf(w, "// %s\n", a.Value().Text())
 		}
@@ -843,7 +847,7 @@ func (t Type) json(w io.Writer) {
 		}
 		fmt.Fprintf(w, "{ err = b.WriteByte('[');")
 		writeErrCheck(w)
-		fmt.Fprintf(w, "for i, s := range s.ToArray() {")
+		fmt.Fprintf(w, "for i := 0; i < s.Len(); i++ { s := s.At(i); ")
 		fmt.Fprintf(w, `if i != 0 { _, err = b.WriteString(", "); };`)
 		writeErrCheck(w)
 		typ.json(w)
@@ -894,10 +898,7 @@ func (n *node) defineStructList(w io.Writer) {
 
 	fmt.Fprintf(w, "func (s %s_List) Len() int { return C.PointerList(s).Len() }\n", n.name)
 	fmt.Fprintf(w, "func (s %s_List) At(i int) %s { return %s(C.PointerList(s).At(i).ToStruct()) }\n", n.name, n.name, n.name)
-	fmt.Fprintf(w, "func (s %s_List) ToArray() []%s { return *(*[]%s)(unsafe.Pointer(C.PointerList(s).ToArray())) }\n", n.name, n.name, n.name)
 	fmt.Fprintf(w, "func (s %s_List) Set(i int, item %s) { C.PointerList(s).Set(i, C.Object(item)) }\n", n.name, n.name)
-
-	g_imported["unsafe"] = true
 }
 
 func main() {
@@ -907,7 +908,8 @@ func main() {
 	req := ReadRootCodeGeneratorRequest(s)
 	allfiles := []*node{}
 
-	for _, ni := range req.Nodes().ToArray() {
+	for i := 0; i < req.Nodes().Len(); i++ {
+		ni := req.Nodes().At(i)
 		n := &node{Node: ni}
 		g_nodes[n.Id()] = n
 
@@ -917,7 +919,8 @@ func main() {
 	}
 
 	for _, f := range allfiles {
-		for _, a := range f.Annotations().ToArray() {
+		for i := 0; i < f.Annotations().Len(); i++ {
+			a := f.Annotations().At(i)
 			if v := a.Value(); v.Which() == VALUE_TEXT {
 				switch a.Id() {
 				case C.Package:
@@ -928,14 +931,16 @@ func main() {
 			}
 		}
 
-		for _, nn := range f.NestedNodes().ToArray() {
+		for i := 0; i < f.NestedNodes().Len(); i++ {
+			nn := f.NestedNodes().At(i)
 			if ni := g_nodes[nn.Id()]; ni != nil {
 				ni.resolveName("", nn.Name(), f)
 			}
 		}
 	}
 
-	for _, reqf := range req.RequestedFiles().ToArray() {
+	for i := 0; i < req.RequestedFiles().Len(); i++ {
+		reqf := req.RequestedFiles().At(i)
 		f := findNode(reqf.Id())
 		buf := bytes.Buffer{}
 		g_imported = make(map[string]bool)

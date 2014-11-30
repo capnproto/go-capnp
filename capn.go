@@ -742,14 +742,6 @@ func (p UInt16List) ToArray() []uint16 {
 	return v
 }
 
-func (p UInt16List) ToEnumArray() *[]uint16 {
-	v := make([]uint16, p.Len())
-	for i := range v {
-		v[i] = p.At(i)
-	}
-	return &v
-}
-
 func (p Int16List) ToArray() []int16 {
 	v := make([]int16, p.Len())
 	for i := range v {
@@ -790,14 +782,6 @@ func (p Int64List) ToArray() []int64 {
 	return v
 }
 
-func (p Int64List) ToIntArray() []int {
-	v := make([]int, p.Len())
-	for i := range v {
-		v[i] = int(p.At(i))
-	}
-	return v
-}
-
 func (p Float64List) ToArray() []float64 {
 	v := make([]float64, p.Len())
 	for i := range v {
@@ -828,14 +812,6 @@ func (p DataList) ToArray() [][]byte {
 		v[i] = p.At(i)
 	}
 	return v
-}
-
-func (p PointerList) ToArray() *[]Object {
-	v := make([]Object, p.Len())
-	for i := range v {
-		v[i] = p.At(i)
-	}
-	return &v
 }
 
 func (p TextList) At(i int) string { return PointerList(p).At(i).ToText() }
