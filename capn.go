@@ -189,9 +189,10 @@ func (s *Segment) Root(off int) Object {
 
 func (s *Segment) NewRoot() (PointerList, int, error) {
 	n, err := s.create(8, Object{
-		typ:   TypePointerList,
-		size:  ObjectSize{DataSize: 1, PointerCount: 1},
-		flags: isRoot,
+		typ:    TypePointerList,
+		length: 1,
+		size:   ObjectSize{PointerCount: 1},
+		flags:  isRoot,
 	})
 	return PointerList(n), n.off / 8, err
 }
@@ -408,7 +409,7 @@ func (p Object) ToStructDefault(s *Segment, tagoff int) Struct {
 
 func (p Object) ToText() string { return p.ToTextDefault("") }
 func (p Object) ToTextDefault(def string) string {
-	if p.typ != TypeList || !p.size.isOneByte() || p.Segment.Data[p.off+p.length-1] != 0 {
+	if p.typ != TypeList || !p.size.isOneByte() || p.length == 0 || p.Segment.Data[p.off+p.length-1] != 0 {
 		return def
 	}
 
