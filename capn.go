@@ -25,6 +25,7 @@ const (
 	TypeList
 	TypePointerList
 	TypeBitList
+	TypeInterface
 )
 
 func (o ObjectType) String() string {
@@ -39,6 +40,8 @@ func (o ObjectType) String() string {
 		return "TypePointerList"
 	case TypeBitList:
 		return "TypeBitList"
+	case TypeInterface:
+		return "TypeInterface"
 	default:
 		return "Unknown ObjectType"
 	}
@@ -108,6 +111,7 @@ type Object struct {
 	size    ObjectSize
 	typ     ObjectType
 	flags   uint
+	cap     uint32
 }
 
 func (o Object) DupWithOff(off int) Object {
@@ -118,6 +122,7 @@ func (o Object) DupWithOff(off int) Object {
 		size:    o.size,
 		typ:     o.typ,
 		flags:   o.flags,
+		cap:     o.cap,
 	}
 }
 
@@ -165,6 +170,8 @@ func (p Object) HasData() bool {
 		return p.length > 0
 	case TypeStruct:
 		return !p.size.isZero()
+	case TypeInterface:
+		return true
 	default:
 		return false
 	}
@@ -389,6 +396,14 @@ func (s *Segment) create(sz int, n Object) (Object, error) {
 	return n, nil
 }
 
+func (s *Segment) NewInterface(cap uint32) Interface {
+	return Interface(Object{
+		Segment: s,
+		typ:     TypeInterface,
+		cap:     cap,
+	})
+}
+
 func (p Object) Type() ObjectType { return p.typ }
 
 func (p Object) ToStruct() Struct {
@@ -404,6 +419,14 @@ func (p Object) ToStructDefault(s *Segment, tagoff int) Struct {
 		return Struct(p)
 	} else {
 		return s.Root(tagoff).ToStruct()
+	}
+}
+
+func (p Object) ToInterface() Interface {
+	if p.typ == TypeInterface {
+		return Interface(p)
+	} else {
+		return Interface{}
 	}
 }
 
@@ -1119,6 +1142,7 @@ const (
 	listPointer      = 1
 	farPointer       = 2
 	doubleFarPointer = 6
+	otherPointer     = 3
 )
 
 // List pointer types
@@ -1222,6 +1246,8 @@ func (p Object) value(off int) pointer {
 
 	case TypeBitList:
 		return listPointer | d | bit1List<<32 | pointer(p.length)<<35
+	case TypeInterface:
+		return otherPointer | pointer(p.cap)<<32
 	case TypeNull:
 		return 0
 	default:
@@ -1480,4 +1506,10 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 		t.Data = t.Data[:len(t.Data)+16]
 		return nil
 	}
+}
+
+type Interface Object
+
+func (i Interface) Capability() uint32 {
+	return i.cap
 }
