@@ -1,25 +1,23 @@
-# Copyright (c) 2013, Kenton Varda <temporal@gmail.com>
-# All rights reserved.
+# Copyright (c) 2013-2014 Sandstorm Development Group, Inc. and contributors
+# Licensed under the MIT License:
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-# 1. Redistributions of source code must retain the above copyright notice, this
-#    list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright notice,
-#    this list of conditions and the following disclaimer in the documentation
-#    and/or other materials provided with the distribution.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
 
 using Go = import "../go.capnp";
 
@@ -50,12 +48,25 @@ struct Node {
   # zero if the node has no parent, which is normally only the case with files, but should be
   # allowed for any kind of node (in order to make runtime type generation easier).
 
+  parameters @32 :List(Parameter);
+  # If this node is parameterized (generic), the list of parameters. Empty for non-generic types.
+
+  isGeneric @33 :Bool;
+  # True if this node is generic, meaning that it or one of its parent scopes has a non-empty
+  # `parameters`.
+
+  struct Parameter {
+    # Information about one of the node's parameters.
+
+    name @0 :Text;
+  }
+
   nestedNodes @4 :List(NestedNode);
   # List of nodes nested within this node, along with the names under which they were declared.
 
   struct NestedNode {
     name @0 :Text;
-    # Unqualified symbol name.  Unlike Node.name, this *can* be used programmatically.
+    # Unqualified symbol name.  Unlike Node.displayName, this *can* be used programmatically.
     #
     # (On Zooko's triangle, this is the node's petname according to its parent scope.)
 
@@ -132,6 +143,9 @@ struct Node {
     interface :group {
       methods @15 :List(Method);
       # Methods ordered by ordinal.
+
+      superclasses @31 :List(Superclass);
+      # Superclasses of this interface.
     }
 
     const :group {
@@ -173,10 +187,11 @@ struct Field {
 
   annotations @2 :List(Annotation);
 
-  discriminantValue @3 :UInt16 = 0xffff;
+  const noDiscriminant :UInt16 = 0xffff;
+
+  discriminantValue @3 :UInt16 = Field.noDiscriminant;
   # If the field is in a union, this is the value which the union's discriminant should take when
-  # the field is active.  If the field is not in a union, this is 0xffff (so hasDiscriminantValue()
-  # returns false).
+  # the field is active.  If the field is not in a union, this is 0xffff.
 
   union {
     slot :group {
@@ -189,6 +204,12 @@ struct Field {
 
       type @5 :Type;
       defaultValue @6 :Value;
+
+      hadExplicitDefault @10 :Bool;
+      # Whether the default value was specified explicitly.  Non-explicit default values are always
+      # zero or empty values.  Usually, whether the default value was explicit shouldn't matter.
+      # The main use case for this flag is for structs representing method parameters:
+      # explicitly-defaulted parameters may be allowed to be omitted when calling the method.
     }
 
     group :group {
@@ -221,6 +242,11 @@ struct Enumerant {
   annotations @2 :List(Annotation);
 }
 
+struct Superclass {
+  id @0 :Id;
+  brand @1 :Brand;
+}
+
 struct Method {
   # Schema for method of an interface.
 
@@ -230,22 +256,29 @@ struct Method {
   # Specifies order in which the methods were declared in the code.
   # Like Struct.Field.codeOrder.
 
-  params @2 :List(Param);
-  struct Param {
-    name @0 :Text;
-    type @1 :Type;
-    defaultValue @2 :Value;
-    annotations @3 :List(Annotation);
-  }
+  implicitParameters @7 :List(Node.Parameter);
+  # The parameters listed in [] (typically, type / generic parameters), whose bindings are intended
+  # to be inferred rather than specified explicitly, although not all languages support this.
 
-  requiredParamCount @3 :UInt16;
-  # One plus the index of the last parameter that has no default value.  In languages where
-  # method calls look like function calls, this is the minimum number of parameters that must
-  # always be specified, while subsequent parameters are optional.
+  paramStructType @2 :Id;
+  # ID of the parameter struct type.  If a named parameter list was specified in the method
+  # declaration (rather than a single struct parameter type) then a corresponding struct type is
+  # auto-generated.  Such an auto-generated type will not be listed in the interface's
+  # `nestedNodes` and its `scopeId` will be zero -- it is completely detached from the namespace.
+  # (Awkwardly, it does of course inherit generic parameters from the method's scope, which makes
+  # this a situation where you can't just climb the scope chain to find where a particular
+  # generic parameter was introduced. Making the `scopeId` zero was a mistake.)
 
-  returnType @4 :Type;
+  paramBrand @5 :Brand;
+  # Brand of param struct type.
 
-  annotations @5 :List(Annotation);
+  resultStructType @3 :Id;
+  # ID of the return struct type; similar to `paramStructType`.
+
+  resultBrand @6 :Brand;
+  # Brand of result struct type.
+
+  annotations @4 :List(Annotation);
 }
 
 struct Type {
@@ -275,15 +308,72 @@ struct Type {
 
     enum :group {
       typeId @15 :Id;
+      brand @21 :Brand;
     }
     struct :group {
       typeId @16 :Id;
+      brand @22 :Brand;
     }
     interface :group {
       typeId @17 :Id;
+      brand @23 :Brand;
     }
 
-    object @18 :Void;
+    anyPointer :union {
+      unconstrained @18 :Void;
+      # A regular AnyPointer.
+
+      parameter :group {
+        # This is actually a reference to a type parameter defined within this scope.
+
+        scopeId @19 :Id;
+        # ID of the generic type whose parameter we're referencing. This should be a parent of the
+        # current scope.
+
+        parameterIndex @20 :UInt16;
+        # Index of the parameter within the generic type's parameter list.
+      }
+
+      implicitMethodParameter :group {
+        # This is actually a reference to an implicit (generic) parameter of a method. The only
+        # legal context for this type to appear is inside Method.paramBrand or Method.resultBrand.
+
+        parameterIndex @24 :UInt16;
+      }
+    }
+  }
+}
+
+struct Brand {
+  # Specifies bindings for parameters of generics. Since these bindings turn a generic into a
+  # non-generic, we call it the "brand".
+
+  scopes @0 :List(Scope);
+  # For each of the target type and each of its parent scopes, a parameterization may be included
+  # in this list. If no parameterization is included for a particular relevant scope, then either
+  # that scope has no parameters or all parameters should be considered to be `AnyPointer`.
+
+  struct Scope {
+    scopeId @0 :Id;
+    # ID of the scope to which these params apply.
+
+    union {
+      bind @1 :List(Binding);
+      # List of parameter bindings.
+
+      inherit @2 :Void;
+      # The place where this Brand appears is actually within this scope or a sub-scope,
+      # and the bindings for this scope should be inherited from the reference point.
+    }
+  }
+
+  struct Binding {
+    union {
+      unbound @0 :Void;
+      type @1 :Type;
+
+      # TODO(someday): Allow non-type parameters? Unsure if useful.
+    }
   }
 }
 
@@ -308,16 +398,16 @@ struct Value {
     text @12 :Text;
     data @13 :Data;
 
-    list @14 :Object;
+    list @14 :AnyPointer;
 
     enum @15 :UInt16;
-    struct @16 :Object;
+    struct @16 :AnyPointer;
 
     interface @17 :Void;
     # The only interface value that can be represented statically is "null", whose methods always
     # throw exceptions.
 
-    object @18 :Object;
+    anyPointer @18 :AnyPointer;
   }
 }
 
@@ -327,6 +417,11 @@ struct Annotation {
 
   id @0 :Id;
   # ID of the annotation node.
+
+  brand @2 :Brand;
+  # Brand of the annotation.
+  #
+  # Note that the annotation itself is not allowed to be parameterized, but its scope might be.
 
   value @1 :Value;
 }
