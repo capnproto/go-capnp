@@ -1131,6 +1131,16 @@ func (s *Segment) readPtr(off int) Object {
 
 		return p
 
+	case otherPointer:
+		if val.otherPointerType() != 0 {
+			return Object{}
+		}
+		return Object{
+			Segment: s,
+			typ:     TypeInterface,
+			cap:     val.capabilityIndex(),
+		}
+
 	default:
 		return Object{}
 	}
@@ -1180,7 +1190,7 @@ func (p pointer) listC() int {
 	return int((p >> 32) & 7)
 }
 
-// used in orable30BitOffsetPart() and pointer.structSignedOffset()
+// used in orable30BitOffsetPart(), pointer.structSignedOffset(), and pointer.otherPointerType()
 const zerohi32 pointer = ^(^0 << 32)
 
 // orable30BitOffsetPart(): get an or-able value that handles sign
@@ -1215,6 +1225,16 @@ func (p pointer) structSignedOffset() int {
 	u32 := uint32(u64)
 	s32 := int32(u32) >> 2
 	return int(s32)
+}
+
+// otherPointerType returns the type of "other pointer" from p.
+func (p pointer) otherPointerType() uint32 {
+	return uint32(p & zerohi32 >> 2)
+}
+
+// capabilityIndex returns the index of the capability in the message's capability table.
+func (p pointer) capabilityIndex() uint32 {
+	return uint32(p >> 32)
 }
 
 func (p Object) value(off int) pointer {
