@@ -1516,3 +1516,16 @@ type Interface Object
 func (i Interface) Capability() uint32 {
 	return i.cap
 }
+
+// Client returns the client stored in the message's capability table
+// or nil if the pointer is invalid.
+func (i Interface) Client() Client {
+	if i.Segment == nil || i.typ == TypeNull {
+		return nil
+	}
+	tab := i.Segment.Message.CapTable()
+	if uint64(i.cap) >= uint64(len(tab)) {
+		return nil
+	}
+	return tab[i.cap]
+}

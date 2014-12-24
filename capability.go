@@ -59,8 +59,7 @@ func (ip immediatePromise) Get() (Struct, error) {
 }
 
 func (ip immediatePromise) GetClient(off int) Client {
-	// TODO(light): return Struct(ip).GetObject(off).ToInterface().Client()
-	return nil
+	return Struct(ip).GetObject(off).ToInterface().Client()
 }
 
 func (ip immediatePromise) GetPromise(off int) Promise {
