@@ -50,6 +50,9 @@ func (o ObjectType) String() string {
 type Message interface {
 	NewSegment(minsz int) (*Segment, error)
 	Lookup(segid uint32) (*Segment, error)
+
+	CapTable() []Client
+	AddCap(c Client) uint32
 }
 
 type Segment struct {

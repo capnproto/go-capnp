@@ -14,7 +14,10 @@ var (
 	ErrTooMuchData    = errors.New("capn: too much data in stream")
 )
 
-type buffer Segment
+type buffer struct {
+	Segment
+	capTable
+}
 
 // NewBuffer creates an expanding single segment buffer. Creating new objects
 // will expand the buffer. Data can be nil (or length 0 with some capacity) if
@@ -25,10 +28,10 @@ func NewBuffer(data []byte) *Segment {
 		return nil
 	}
 
-	b := &buffer{}
+	b := new(buffer)
 	b.Message = b
 	b.Data = data
-	return (*Segment)(b)
+	return &b.Segment
 }
 
 func (b *buffer) NewSegment(minsz int) (*Segment, error) {
@@ -40,12 +43,12 @@ func (b *buffer) NewSegment(minsz int) (*Segment, error) {
 	}
 	b.Data = append(b.Data, make([]byte, minsz)...)
 	b.Data = b.Data[:len(b.Data)-minsz]
-	return (*Segment)(b), nil
+	return &b.Segment, nil
 }
 
 func (b *buffer) Lookup(segid uint32) (*Segment, error) {
 	if segid == 0 {
-		return (*Segment)(b), nil
+		return &b.Segment, nil
 	} else {
 		return nil, ErrInvalidSegment
 	}
@@ -53,6 +56,7 @@ func (b *buffer) Lookup(segid uint32) (*Segment, error) {
 
 type multiBuffer struct {
 	segments []*Segment
+	capTable
 }
 
 // NewmultiBuffer creates a new multi segment message. Creating new objects
@@ -60,7 +64,9 @@ type multiBuffer struct {
 // is insufficient capacity. When parsing an existing message data should be
 // the list of segments. The data buffers will not be copied.
 func NewmultiBuffer(data [][]byte) *Segment {
-	m := &multiBuffer{make([]*Segment, len(data))}
+	m := &multiBuffer{
+		segments: make([]*Segment, len(data)),
+	}
 	for i, d := range data {
 		m.segments[i] = &Segment{m, d, uint32(i), false}
 	}
@@ -145,7 +151,7 @@ func ReadFromStream(r io.Reader, buf *bytes.Buffer) (*Segment, error) {
 		return NewBuffer(datav[:sz]), nil
 	}
 
-	m := &multiBuffer{make([]*Segment, segnum)}
+	m := &multiBuffer{segments: make([]*Segment, segnum)}
 	for i := 0; i < segnum; i++ {
 		sz := int(binary.LittleEndian.Uint32(hdrv[4*i:])) * 8
 		m.segments[i] = &Segment{m, datav[:sz], uint32(i), false}
@@ -191,7 +197,7 @@ func ReadFromMemoryZeroCopy(data []byte) (seg *Segment, bytesRead int64, err err
 
 	hdrv := data[4:(hdrsz + 4)]
 	datav := data[hdrsz+4:]
-	m := &multiBuffer{make([]*Segment, segnum)}
+	m := &multiBuffer{segments: make([]*Segment, segnum)}
 	for i := 0; i < segnum; i++ {
 		sz := int(binary.LittleEndian.Uint32(hdrv[4*i:])) * 8
 		m.segments[i] = &Segment{m, datav[:sz], uint32(i), false}
@@ -234,4 +240,16 @@ func (s *Segment) WriteTo(w io.Writer) (int64, error) {
 	}
 
 	return written, nil
+}
+
+type capTable []Client
+
+func (tab capTable) CapTable() []Client {
+	return []Client(tab)
+}
+
+func (tab *capTable) AddCap(c Client) uint32 {
+	n := uint32(len(*tab))
+	*tab = append(*tab, c)
+	return n
 }
