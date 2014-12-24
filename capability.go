@@ -1,6 +1,8 @@
 package capn
 
 import (
+	"strconv"
+
 	"golang.org/x/net/context"
 )
 
@@ -45,6 +47,27 @@ type Method struct {
 	InterfaceName string
 	// Method name as it appears in the schema.  May be empty.
 	MethodName string
+}
+
+// String returns a formatted string containing the interface name or
+// the method name if present, otherwise it uses the raw IDs.
+// This is suitable for use in error messages and logs.
+func (m *Method) String() string {
+	buf := make([]byte, 0, 128)
+	if m.InterfaceName == "" {
+		buf = append(buf, '@', '0', 'x')
+		buf = strconv.AppendUint(buf, m.InterfaceID, 16)
+	} else {
+		buf = append(buf, m.InterfaceName...)
+	}
+	buf = append(buf, '/')
+	if m.MethodName == "" {
+		buf = append(buf, '@')
+		buf = strconv.AppendUint(buf, uint64(m.MethodID), 10)
+	} else {
+		buf = append(buf, m.MethodName...)
+	}
+	return string(buf)
 }
 
 type immediatePromise Struct
