@@ -3,14 +3,15 @@ package main
 import (
 	"bytes"
 	"fmt"
-	C "github.com/glycerine/go-capnproto"
+	"go/format"
 	"io"
 	"math"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	C "github.com/glycerine/go-capnproto"
 )
 
 const go_capnproto_import = "github.com/glycerine/go-capnproto"
@@ -32,9 +33,14 @@ type node struct {
 
 func assert(chk bool, format string, a ...interface{}) {
 	if !chk {
-		panic(fmt.Sprintf(format, a...))
-		os.Exit(1)
+		panic(assertionError(fmt.Sprintf(format, a...)))
 	}
+}
+
+type assertionError string
+
+func (ae assertionError) Error() string {
+	return string(ae)
 }
 
 func copyData(obj C.Object) int {
@@ -901,9 +907,106 @@ func (n *node) defineStructList(w io.Writer) {
 	fmt.Fprintf(w, "func (s %s_List) Set(i int, item %s) { C.PointerList(s).Set(i, C.Object(item)) }\n", n.name, n.name)
 }
 
+func generateFile(reqf CodeGeneratorRequestRequestedFile) (generr error) {
+	defer func() {
+		e := recover()
+		if ae, ok := e.(assertionError); ok {
+			generr = ae
+		} else if e != nil {
+			panic(e)
+		}
+	}()
+
+	f := findNode(reqf.Id())
+	var buf bytes.Buffer
+	g_imported = make(map[string]bool)
+	g_segment = C.NewBuffer([]byte{})
+	g_bufname = fmt.Sprintf("x_%x", f.Id())
+
+	for _, n := range f.nodes {
+		if n.Which() == NODE_ANNOTATION {
+			n.defineAnnotation(&buf)
+		}
+	}
+
+	defineConstNodes(&buf, f.nodes)
+
+	for _, n := range f.nodes {
+		switch n.Which() {
+		case NODE_ANNOTATION:
+		case NODE_ENUM:
+			n.defineEnum(&buf)
+			n.defineTypeJsonFuncs(&buf)
+		case NODE_STRUCT:
+			if !n.Struct().IsGroup() {
+				n.defineStructTypes(&buf, nil)
+				n.defineStructEnums(&buf)
+				n.defineNewStructFunc(&buf)
+				n.defineStructFuncs(&buf)
+				n.defineTypeJsonFuncs(&buf)
+				n.defineStructList(&buf)
+			}
+		}
+	}
+
+	if f.pkg == "" {
+		return fmt.Errorf("missing package annotation for %s", reqf.Filename())
+	}
+
+	if dirPath, _ := filepath.Split(reqf.Filename()); dirPath != "" {
+		err := os.MkdirAll(dirPath, os.ModePerm)
+		if err != nil {
+			return err
+		}
+	}
+
+	var unformatted bytes.Buffer
+	fmt.Fprintf(&unformatted, "package %s\n\n", f.pkg)
+	fmt.Fprintf(&unformatted, "// AUTO GENERATED - DO NOT EDIT\n\n")
+	fmt.Fprintf(&unformatted, "import (\n")
+	fmt.Fprintf(&unformatted, "C %q\n", go_capnproto_import)
+	for imp := range g_imported {
+		fmt.Fprintf(&unformatted, "%q\n", imp)
+	}
+	fmt.Fprintf(&unformatted, ")\n")
+	unformatted.Write(buf.Bytes())
+	if len(g_segment.Data) > 0 {
+		fmt.Fprintf(&unformatted, "var %s = C.NewBuffer([]byte{", g_bufname)
+		for i, b := range g_segment.Data {
+			if i%8 == 0 {
+				fmt.Fprintf(&unformatted, "\n")
+			}
+			fmt.Fprintf(&unformatted, "%d,", b)
+		}
+		fmt.Fprintf(&unformatted, "\n})\n")
+	}
+	formatted, err := format.Source(unformatted.Bytes())
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Can't format generated code:", err)
+		formatted = unformatted.Bytes()
+	}
+
+	file, err := os.Create(reqf.Filename() + ".go")
+	if err != nil {
+		return err
+	}
+	_, werr := file.Write(formatted)
+	cerr := file.Close()
+	if werr != nil {
+		return err
+	}
+	if cerr != nil {
+		return err
+	}
+	return nil
+}
+
 func main() {
 	s, err := C.ReadFromStream(os.Stdin, nil)
-	assert(err == nil, "%v\n", err)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "capnpc-go: Reading input:", err)
+		os.Exit(1)
+	}
 
 	req := ReadRootCodeGeneratorRequest(s)
 	allfiles := []*node{}
@@ -939,76 +1042,16 @@ func main() {
 		}
 	}
 
+	success := true
 	for i := 0; i < req.RequestedFiles().Len(); i++ {
 		reqf := req.RequestedFiles().At(i)
-		f := findNode(reqf.Id())
-		buf := bytes.Buffer{}
-		g_imported = make(map[string]bool)
-		g_segment = C.NewBuffer([]byte{})
-		g_bufname = fmt.Sprintf("x_%x", f.Id())
-
-		for _, n := range f.nodes {
-			if n.Which() == NODE_ANNOTATION {
-				n.defineAnnotation(&buf)
-			}
+		err := generateFile(reqf)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "capnpc-go: Generating Go for %s failed: %v\n", reqf.Filename(), err)
+			success = false
 		}
-
-		defineConstNodes(&buf, f.nodes)
-
-		for _, n := range f.nodes {
-			switch n.Which() {
-			case NODE_ANNOTATION:
-			case NODE_ENUM:
-				n.defineEnum(&buf)
-				n.defineTypeJsonFuncs(&buf)
-			case NODE_STRUCT:
-				if !n.Struct().IsGroup() {
-					n.defineStructTypes(&buf, nil)
-					n.defineStructEnums(&buf)
-					n.defineNewStructFunc(&buf)
-					n.defineStructFuncs(&buf)
-					n.defineTypeJsonFuncs(&buf)
-					n.defineStructList(&buf)
-				}
-			}
-		}
-
-		assert(f.pkg != "", "missing package annotation for %s", reqf.Filename())
-
-		if dirPath, _ := filepath.Split(reqf.Filename()); dirPath != "" {
-			err := os.MkdirAll(dirPath, os.ModePerm)
-			assert(err == nil, "%v\n", err)
-		}
-
-		file, err := os.Create(reqf.Filename() + ".go")
-		assert(err == nil, "%v\n", err)
-		fmt.Fprintf(file, "package %s\n\n", f.pkg)
-		fmt.Fprintf(file, "// AUTO GENERATED - DO NOT EDIT\n\n")
-
-		fmt.Fprintf(file, "import (\n")
-		fmt.Fprintf(file, "C \"%s\"\n", go_capnproto_import)
-		for imp := range g_imported {
-			fmt.Fprintf(file, "%s\n", strconv.Quote(imp))
-		}
-		fmt.Fprintf(file, ")\n")
-
-		file.Write(buf.Bytes())
-
-		if len(g_segment.Data) > 0 {
-			fmt.Fprintf(file, "var %s = C.NewBuffer([]byte{", g_bufname)
-			for i, b := range g_segment.Data {
-				if i%8 == 0 {
-					fmt.Fprintf(file, "\n")
-				}
-				fmt.Fprintf(file, "%d,", b)
-			}
-			fmt.Fprintf(file, "\n})\n")
-		}
-		file.Close()
-
-		cmd := exec.Command("gofmt", "-w", reqf.Filename()+".go")
-		cmd.Stderr = os.Stderr
-		err = cmd.Run()
-		assert(err == nil, "%v\n", err)
+	}
+	if !success {
+		os.Exit(1)
 	}
 }
