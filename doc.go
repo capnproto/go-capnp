@@ -104,12 +104,12 @@ capnpc-go will generate the following for structs:
 	// structs, and is used for List(Foo) in the capnp file.
 	type Foo_List capn.List
 
-	// NewFooList creates a new orphaned List(Foo). This can then be added
+	// NewFoo_List creates a new orphaned List(Foo). This can then be added
 	// to a message by using a Set function which takes a Foo_List. sz
 	// specifies the list size. Due to the list using memory directly in
 	// the outgoing buffer (i.e. arena style memory management), the size
 	// can not be changed after creation.
-	func NewFooList(s *capn.Segment, sz int) Foo_List
+	func NewFoo_List(s *capn.Segment, sz int) Foo_List
 
 	// Len returns the list length. For composite lists this is the number
 	// of list elements.
@@ -122,13 +122,6 @@ capnpc-go will generate the following for structs:
 	// members forces a copy of the data. For pointer lists, the pointer
 	// value will be auto-derefenced.
 	func (s Foo_List) At(i int) Foo
-
-	// ToArray converts the capnproto list into a go list. For large lists
-	// this is inefficient as it has to read all elements. This can be
-	// quite convenient especially for iterating as it lets you use a for
-	// range clause:
-	//	for i, f := range mylist.ToArray() {}
-	func (s Foo_List) ToArray() []Foo
 
 
 
@@ -144,10 +137,10 @@ groups fields:
 	}
 
 	type Foo capn.Struct
-	type FooGroup Foo
+	type Foo_group Foo
 
-	func (s Foo) Group() FooGroup
-	func (s FooGroup) Field() bool
+	func (s Foo) Group() Foo_group
+	func (s Foo_group) Field() bool
 
 That way the following may be used to access a field in a group:
 
@@ -156,7 +149,7 @@ That way the following may be used to access a field in a group:
 
 Note that Group accessors just cast the type and so have no overhead
 
-	func (s Foo) Group() FooGroup {return FooGroup(s)}
+	func (s Foo) Group() Foo_group {return Foo_group(s)}
 
 
 
@@ -175,8 +168,8 @@ unions generate an enum Type_Which and a corresponding Which() function:
 	type Foo_Which uint16
 
 	const (
-		FOO_A Foo_Which = 0
-		FOO_B           = 1
+		Foo_Which_a Foo_Which = 0
+		Foo_Which_b Foo_Which = 1
 	)
 
 	func (s Foo) A() bool
@@ -244,14 +237,14 @@ In the generated capnp.go file:
 	type ElementSize uint16
 
 	const (
-		ELEMENTSIZE_EMPTY           ElementSize = 0
-		ELEMENTSIZE_BIT                         = 1
-		ELEMENTSIZE_BYTE                        = 2
-		ELEMENTSIZE_TWOBYTES                    = 3
-		ELEMENTSIZE_FOURBYTES                   = 4
-		ELEMENTSIZE_EIGHTBYTES                  = 5
-		ELEMENTSIZE_POINTER                     = 6
-		ELEMENTSIZE_INLINECOMPOSITE             = 7
+		ElementSize_empty           ElementSize = 0
+		ElementSize_bit             ElementSize = 1
+		ElementSize_byte            ElementSize = 2
+		ElementSize_twoBytes        ElementSize = 3
+		ElementSize_fourBytes       ElementSize = 4
+		ElementSize_eightBytes      ElementSize = 5
+		ElementSize_pointer         ElementSize = 6
+		ElementSize_inlineComposite ElementSize = 7
 	)
 
 In addition an enum.String() function is generated that will convert the constants to a string
@@ -271,11 +264,11 @@ In the generated go file:
 
 	func (c ElementSize) String() string {
 		switch c {
-		case ELEMENTSIZE_EMPTY:
+		case ElementSize_empty:
 			return "void"
-		case ELEMENTSIZE_BIT:
+		case ElementSize_bit:
 			return "1 bit"
-		case ELEMENTSIZE_BYTE:
+		case ElementSize_byte:
 			return "8 bits"
 		default:
 			return ""

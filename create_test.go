@@ -95,7 +95,7 @@ func TestCreationOfZData(t *testing.T) {
 			})
 			cv.Convey("And our data should contain Z_ZDATA with contents 0,1,2,...,n", func() {
 				z := air.ReadRootZ(seg)
-				cv.So(z.Which(), cv.ShouldEqual, air.Z_ZDATA)
+				cv.So(z.Which(), cv.ShouldEqual, air.Z_Which_zdata)
 
 				var data []byte = z.Zdata().Data()
 				cv.So(len(data), cv.ShouldEqual, n)

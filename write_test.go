@@ -39,10 +39,10 @@ func ExampleAirplaneWrite() string {
 	planebase := air.NewPlaneBase(seg)
 
 	// how to create a list. Requires a cast at the moment.
-	homes := air.NewAirportList(seg, 2)
+	homes := air.NewAirport_List(seg, 2)
 	uint16list := capn.UInt16List(homes) // cast to the underlying type
-	uint16list.Set(0, uint16(air.AIRPORT_JFK))
-	uint16list.Set(1, uint16(air.AIRPORT_LAX))
+	uint16list.Set(0, uint16(air.Airport_jfk))
+	uint16list.Set(1, uint16(air.Airport_lax))
 
 	// set the primitive fields
 	planebase.SetCanFly(true)

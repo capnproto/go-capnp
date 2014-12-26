@@ -94,9 +94,9 @@ func TestBitList(t *testing.T) {
 			cv.Convey(fmt.Sprintf("Then we should get the expected text '%s'", expectedText), func() {
 				cv.So(text, cv.ShouldEqual, expectedText)
 			})
-			cv.Convey("And our data should contain Z_BOOLVEC with contents true, false, true", func() {
+			cv.Convey("And our data should contain Z_Which_boolvec with contents true, false, true", func() {
 				z := air.ReadRootZ(seg)
-				cv.So(z.Which(), cv.ShouldEqual, air.Z_BOOLVEC)
+				cv.So(z.Which(), cv.ShouldEqual, air.Z_Which_boolvec)
 
 				var bitlist = z.Boolvec()
 				cv.So(bitlist.Len(), cv.ShouldEqual, 3)
@@ -119,7 +119,7 @@ func TestWriteBitList0(t *testing.T) {
 
 	cv.Convey("And we should be able to read back what we wrote", t, func() {
 		z := air.ReadRootZ(seg)
-		cv.So(z.Which(), cv.ShouldEqual, air.Z_BOOLVEC)
+		cv.So(z.Which(), cv.ShouldEqual, air.Z_Which_boolvec)
 
 		var bitlist = z.Boolvec()
 		cv.So(bitlist.Len(), cv.ShouldEqual, 1)
@@ -137,7 +137,7 @@ func TestWriteBitList1(t *testing.T) {
 
 	cv.Convey("And we should be able to read back what we wrote", t, func() {
 		z := air.ReadRootZ(seg)
-		cv.So(z.Which(), cv.ShouldEqual, air.Z_BOOLVEC)
+		cv.So(z.Which(), cv.ShouldEqual, air.Z_Which_boolvec)
 
 		var bitlist = z.Boolvec()
 		cv.So(bitlist.Len(), cv.ShouldEqual, 1)
@@ -158,7 +158,7 @@ func TestWriteBitList2(t *testing.T) {
 
 	cv.Convey("And we should be able to read back what we wrote", t, func() {
 		z := air.ReadRootZ(seg)
-		cv.So(z.Which(), cv.ShouldEqual, air.Z_BOOLVEC)
+		cv.So(z.Which(), cv.ShouldEqual, air.Z_Which_boolvec)
 
 		var bitlist = z.Boolvec()
 		cv.So(bitlist.Len(), cv.ShouldEqual, 2)
@@ -177,7 +177,7 @@ func TestWriteBitList3(t *testing.T) {
 
 	cv.Convey("And we should be able to read back what we wrote", t, func() {
 		z := air.ReadRootZ(seg)
-		cv.So(z.Which(), cv.ShouldEqual, air.Z_BOOLVEC)
+		cv.So(z.Which(), cv.ShouldEqual, air.Z_Which_boolvec)
 
 		var bitlist = z.Boolvec()
 		cv.So(bitlist.Len(), cv.ShouldEqual, 2)
@@ -197,7 +197,7 @@ func TestWriteBitList4(t *testing.T) {
 
 	cv.Convey("And we should be able to read back what we wrote", t, func() {
 		z := air.ReadRootZ(seg)
-		cv.So(z.Which(), cv.ShouldEqual, air.Z_BOOLVEC)
+		cv.So(z.Which(), cv.ShouldEqual, air.Z_Which_boolvec)
 
 		var bitlist = z.Boolvec()
 		cv.So(bitlist.Len(), cv.ShouldEqual, 3)
@@ -217,7 +217,7 @@ func TestWriteBitList21(t *testing.T) {
 
 	cv.Convey("And we should be able to read back what we wrote", t, func() {
 		z := air.ReadRootZ(seg)
-		cv.So(z.Which(), cv.ShouldEqual, air.Z_BOOLVEC)
+		cv.So(z.Which(), cv.ShouldEqual, air.Z_Which_boolvec)
 
 		var bitlist = z.Boolvec()
 		cv.So(bitlist.Len(), cv.ShouldEqual, 5)
@@ -250,7 +250,7 @@ func TestWriteBitListTwo64BitWords(t *testing.T) {
 
 	cv.Convey("And we should be able to read back what we wrote", t, func() {
 		z := air.ReadRootZ(seg)
-		cv.So(z.Which(), cv.ShouldEqual, air.Z_BOOLVEC)
+		cv.So(z.Which(), cv.ShouldEqual, air.Z_Which_boolvec)
 
 		var bitlist = z.Boolvec()
 		cv.So(bitlist.Len(), cv.ShouldEqual, 66)

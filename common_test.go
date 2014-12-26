@@ -10,7 +10,7 @@ import (
 func zdateFilledSegment(n int, packed bool) (*capn.Segment, []byte) {
 	seg := capn.NewBuffer(nil)
 	z := air.NewRootZ(seg)
-	list := air.NewZdateList(seg, n)
+	list := air.NewZdate_List(seg, n)
 	// hand added a Set() method to messages_test.go, so plist not needed
 	plist := capn.PointerList(list)
 

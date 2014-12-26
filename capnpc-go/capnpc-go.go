@@ -75,11 +75,15 @@ func (n *node) remoteName(from *node) string {
 }
 
 func (n *node) resolveName(base, name string, file *node) {
-	n.name = base + strings.Title(name)
+	if base == "" {
+		n.name = strings.Title(name)
+	} else {
+		n.name = base + "_" + name
+	}
 	n.pkg = file.pkg
 	n.imp = file.imp
 
-	if n.Which() != NODE_STRUCT || !n.Struct().IsGroup() {
+	if n.Which() != Node_Which_struct || !n.Struct().IsGroup() {
 		file.nodes = append(file.nodes, n)
 	}
 
@@ -90,10 +94,10 @@ func (n *node) resolveName(base, name string, file *node) {
 		}
 	}
 
-	if n.Which() == NODE_STRUCT {
+	if n.Which() == Node_Which_struct {
 		for i := 0; i < n.Struct().Fields().Len(); i++ {
 			f := n.Struct().Fields().At(i)
-			if f.Which() == FIELD_GROUP {
+			if f.Which() == Field_Which_group {
 				findNode(f.Group().TypeId()).resolveName(n.name, f.Name(), file)
 			}
 		}
@@ -108,7 +112,7 @@ type enumval struct {
 }
 
 func (e *enumval) fullName() string {
-	return fmt.Sprintf("%s_%s", strings.ToUpper(e.parent.name), strings.ToUpper(e.Name()))
+	return e.parent.name + "_" + e.Name()
 }
 
 func (n *node) defineEnum(w io.Writer) {
@@ -168,72 +172,72 @@ func (n *node) defineEnum(w io.Writer) {
 	}
 
 	fmt.Fprintf(w, "type %s_List C.PointerList\n", n.name)
-	fmt.Fprintf(w, "func New%sList(s *C.Segment, sz int) %s_List { return %s_List(s.NewUInt16List(sz)) }\n", n.name, n.name, n.name)
+	fmt.Fprintf(w, "func New%s_List(s *C.Segment, sz int) %s_List { return %s_List(s.NewUInt16List(sz)) }\n", n.name, n.name, n.name)
 	fmt.Fprintf(w, "func (s %s_List) Len() int { return C.UInt16List(s).Len() }\n", n.name)
 	fmt.Fprintf(w, "func (s %s_List) At(i int) %s { return %s(C.UInt16List(s).At(i)) }\n", n.name, n.name, n.name)
 }
 
 func (n *node) writeValue(w io.Writer, t Type, v Value) {
 	switch t.Which() {
-	case TYPE_VOID, TYPE_INTERFACE:
+	case Type_Which_void, Type_Which_interface:
 		fmt.Fprintf(w, "C.Void{}")
 
-	case TYPE_BOOL:
-		assert(v.Which() == VALUE_BOOL, "expected bool value")
+	case Type_Which_bool:
+		assert(v.Which() == Value_Which_bool, "expected bool value")
 		if v.Bool() {
 			fmt.Fprintf(w, "true")
 		} else {
 			fmt.Fprintf(w, "false")
 		}
 
-	case TYPE_INT8:
-		assert(v.Which() == VALUE_INT8, "expected int8 value")
+	case Type_Which_int8:
+		assert(v.Which() == Value_Which_int8, "expected int8 value")
 		fmt.Fprintf(w, "int8(%d)", v.Int8())
 
-	case TYPE_UINT8:
-		assert(v.Which() == VALUE_UINT8, "expected uint8 value")
+	case Type_Which_uint8:
+		assert(v.Which() == Value_Which_uint8, "expected uint8 value")
 		fmt.Fprintf(w, "uint8(%d)", v.Uint8())
 
-	case TYPE_INT16:
-		assert(v.Which() == VALUE_INT16, "expected int16 value")
+	case Type_Which_int16:
+		assert(v.Which() == Value_Which_int16, "expected int16 value")
 		fmt.Fprintf(w, "int16(%d)", v.Int16())
 
-	case TYPE_UINT16:
-		assert(v.Which() == VALUE_UINT16, "expected uint16 value")
+	case Type_Which_uint16:
+		assert(v.Which() == Value_Which_uint16, "expected uint16 value")
 		fmt.Fprintf(w, "uint16(%d)", v.Uint16())
 
-	case TYPE_INT32:
-		assert(v.Which() == VALUE_INT32, "expected int32 value")
+	case Type_Which_int32:
+		assert(v.Which() == Value_Which_int32, "expected int32 value")
 		fmt.Fprintf(w, "int32(%d)", v.Int32())
 
-	case TYPE_UINT32:
-		assert(v.Which() == VALUE_UINT32, "expected uint32 value")
+	case Type_Which_uint32:
+		assert(v.Which() == Value_Which_uint32, "expected uint32 value")
 		fmt.Fprintf(w, "uint32(%d)", v.Uint32())
 
-	case TYPE_INT64:
-		assert(v.Which() == VALUE_INT64, "expected int64 value")
+	case Type_Which_int64:
+		assert(v.Which() == Value_Which_int64, "expected int64 value")
 		fmt.Fprintf(w, "int64(%d)", v.Int64())
 
-	case TYPE_UINT64:
-		assert(v.Which() == VALUE_UINT64, "expected uint64 value")
+	case Type_Which_uint64:
+		assert(v.Which() == Value_Which_uint64, "expected uint64 value")
 		fmt.Fprintf(w, "uint64(%d)", v.Uint64())
 
-	case TYPE_FLOAT32:
-		assert(v.Which() == VALUE_FLOAT32, "expected float32 value")
+	case Type_Which_float32:
+		assert(v.Which() == Value_Which_float32, "expected float32 value")
 		fmt.Fprintf(w, "math.Float32frombits(0x%x)", math.Float32bits(v.Float32()))
 		g_imported["math"] = true
 
-	case TYPE_FLOAT64:
-		assert(v.Which() == VALUE_FLOAT64, "expected float64 value")
+	case Type_Which_float64:
+		assert(v.Which() == Value_Which_float64, "expected float64 value")
 		fmt.Fprintf(w, "math.Float64frombits(0x%x)", math.Float64bits(v.Float64()))
 		g_imported["math"] = true
 
-	case TYPE_TEXT:
-		assert(v.Which() == VALUE_TEXT, "expected text value")
+	case Type_Which_text:
+		assert(v.Which() == Value_Which_text, "expected text value")
 		fmt.Fprintf(w, "%s", strconv.Quote(v.Text()))
 
-	case TYPE_DATA:
-		assert(v.Which() == VALUE_DATA, "expected data value")
+	case Type_Which_data:
+		assert(v.Which() == Value_Which_data, "expected data value")
 		fmt.Fprintf(w, "[]byte{")
 		for i, b := range v.Data() {
 			if i > 0 {
@@ -243,10 +247,10 @@ func (n *node) writeValue(w io.Writer, t Type, v Value) {
 		}
 		fmt.Fprintf(w, "}")
 
-	case TYPE_ENUM:
-		assert(v.Which() == VALUE_ENUM, "expected enum value")
+	case Type_Which_enum:
+		assert(v.Which() == Value_Which_enum, "expected enum value")
 		en := findNode(t.Enum().TypeId())
-		assert(en.Which() == NODE_ENUM, "expected enum type ID")
+		assert(en.Which() == Node_Which_enum, "expected enum type ID")
 		ev := en.Enum().Enumerants()
 		if val := int(v.Enum()); val >= ev.Len() {
 			fmt.Fprintf(w, "%s(%d)", en.remoteName(n), val)
@@ -254,49 +258,49 @@ func (n *node) writeValue(w io.Writer, t Type, v Value) {
 			fmt.Fprintf(w, "%s%s", en.remoteScope(n), ev.At(val).Name())
 		}
 
-	case TYPE_STRUCT:
+	case Type_Which_struct:
 		fmt.Fprintf(w, "%s(%s.Root(%d))", findNode(t.Struct().TypeId()).remoteName(n), g_bufname, copyData(v.Struct()))
 
-	case TYPE_ANYPOINTER:
+	case Type_Which_anyPointer:
 		fmt.Fprintf(w, "%s.Root(%d)", g_bufname, copyData(v.AnyPointer()))
 
-	case TYPE_LIST:
-		assert(v.Which() == VALUE_LIST, "expected list value")
+	case Type_Which_list:
+		assert(v.Which() == Value_Which_list, "expected list value")
 
 		switch lt := t.List().ElementType(); lt.Which() {
-		case TYPE_VOID, TYPE_INTERFACE:
+		case Type_Which_void, Type_Which_interface:
 			fmt.Fprintf(w, "make([]C.Void, %d)", v.List().ToVoidList().Len())
-		case TYPE_BOOL:
+		case Type_Which_bool:
 			fmt.Fprintf(w, "C.BitList(%s.Root(%d))", g_bufname, copyData(v.List()))
-		case TYPE_INT8:
+		case Type_Which_int8:
 			fmt.Fprintf(w, "C.Int8List(%s.Root(%d))", g_bufname, copyData(v.List()))
-		case TYPE_UINT8:
+		case Type_Which_uint8:
 			fmt.Fprintf(w, "C.UInt8List(%s.Root(%d))", g_bufname, copyData(v.List()))
-		case TYPE_INT16:
+		case Type_Which_int16:
 			fmt.Fprintf(w, "C.Int16List(%s.Root(%d))", g_bufname, copyData(v.List()))
-		case TYPE_UINT16:
+		case Type_Which_uint16:
 			fmt.Fprintf(w, "C.UInt16List(%s.Root(%d))", g_bufname, copyData(v.List()))
-		case TYPE_INT32:
+		case Type_Which_int32:
 			fmt.Fprintf(w, "C.Int32List(%s.Root(%d))", g_bufname, copyData(v.List()))
-		case TYPE_UINT32:
+		case Type_Which_uint32:
 			fmt.Fprintf(w, "C.UInt32List(%s.Root(%d))", g_bufname, copyData(v.List()))
-		case TYPE_FLOAT32:
+		case Type_Which_float32:
 			fmt.Fprintf(w, "C.Float32List(%s.Root(%d))", g_bufname, copyData(v.List()))
-		case TYPE_INT64:
+		case Type_Which_int64:
 			fmt.Fprintf(w, "C.Int64List(%s.Root(%d))", g_bufname, copyData(v.List()))
-		case TYPE_UINT64:
+		case Type_Which_uint64:
 			fmt.Fprintf(w, "C.UInt64List(%s.Root(%d))", g_bufname, copyData(v.List()))
-		case TYPE_FLOAT64:
+		case Type_Which_float64:
 			fmt.Fprintf(w, "C.Float64List(%s.Root(%d))", g_bufname, copyData(v.List()))
-		case TYPE_TEXT:
+		case Type_Which_text:
 			fmt.Fprintf(w, "C.TextList(%s.Root(%d))", g_bufname, copyData(v.List()))
-		case TYPE_DATA:
+		case Type_Which_data:
 			fmt.Fprintf(w, "C.DataList(%s.Root(%d))", g_bufname, copyData(v.List()))
-		case TYPE_ENUM:
+		case Type_Which_enum:
 			fmt.Fprintf(w, "%s_List(%s.Root(%d))", findNode(lt.Enum().TypeId()).remoteName(n), g_bufname, copyData(v.List()))
-		case TYPE_STRUCT:
+		case Type_Which_struct:
 			fmt.Fprintf(w, "%s_List(%s.Root(%d))", findNode(lt.Struct().TypeId()).remoteName(n), g_bufname, copyData(v.List()))
-		case TYPE_LIST, TYPE_ANYPOINTER:
+		case Type_Which_list, Type_Which_anyPointer:
 			fmt.Fprintf(w, "C.PointerList(%s.Root(%d))", g_bufname, copyData(v.List()))
 		}
 	}
@@ -308,9 +312,9 @@ func (n *node) defineAnnotation(w io.Writer) {
 
 func constIsVar(n *node) bool {
 	switch n.Const().Type().Which() {
-	case TYPE_BOOL, TYPE_INT8, TYPE_UINT8, TYPE_INT16,
-		TYPE_UINT16, TYPE_INT32, TYPE_UINT32, TYPE_INT64,
-		TYPE_UINT64, TYPE_TEXT, TYPE_ENUM:
+	case Type_Which_bool, Type_Which_int8, Type_Which_uint8, Type_Which_int16,
+		Type_Which_uint16, Type_Which_int32, Type_Which_uint32, Type_Which_int64,
+		Type_Which_uint64, Type_Which_text, Type_Which_enum:
 		return false
 	default:
 		return true
@@ -322,7 +326,7 @@ func defineConstNodes(w io.Writer, nodes []*node) {
 	any := false
 
 	for _, n := range nodes {
-		if n.Which() == NODE_CONST && !constIsVar(n) {
+		if n.Which() == Node_Which_const && !constIsVar(n) {
 			if !any {
 				fmt.Fprintf(w, "const (\n")
 				any = true
@@ -340,7 +344,7 @@ func defineConstNodes(w io.Writer, nodes []*node) {
 	any = false
 
 	for _, n := range nodes {
-		if n.Which() == NODE_CONST && constIsVar(n) {
+		if n.Which() == Node_Which_const && constIsVar(n) {
 			if !any {
 				fmt.Fprintf(w, "var (\n")
 				any = true
@@ -361,21 +365,21 @@ func (n *node) defineField(w io.Writer, f Field) {
 	def := f.Slot().DefaultValue()
 	off := f.Slot().Offset()
 
-	if t.Which() == TYPE_INTERFACE {
+	if t.Which() == Type_Which_interface {
 		return
 	}
 
 	var g, s bytes.Buffer
 
 	settag := ""
-	if f.DiscriminantValue() != 0xFFFF {
+	if f.DiscriminantValue() != Field_noDiscriminant {
 		settag = fmt.Sprintf(" C.Struct(s).Set16(%d, %d);", n.Struct().DiscriminantOffset()*2, f.DiscriminantValue())
-		if t.Which() == TYPE_VOID {
+		if t.Which() == Type_Which_void {
 			fmt.Fprintf(&s, "func (s %s) Set%s() {%s }\n", n.name, strings.Title(f.Name()), settag)
 			w.Write(s.Bytes())
 			return
 		}
-	} else if t.Which() == TYPE_VOID {
+	} else if t.Which() == Type_Which_void {
 		return
 	}
 
@@ -396,9 +400,9 @@ func (n *node) defineField(w io.Writer, f Field) {
 	fmt.Fprintf(&s, "func (s %s) Set%s", n.name, strings.Title(f.Name()))
 
 	switch t.Which() {
-	case TYPE_BOOL:
-		assert(def.Which() == VALUE_VOID || def.Which() == VALUE_BOOL, "expected bool default")
-		if def.Which() == VALUE_BOOL && def.Bool() {
+	case Type_Which_bool:
+		assert(def.Which() == Value_Which_void || def.Which() == Value_Which_bool, "expected bool default")
+		if def.Which() == Value_Which_bool && def.Bool() {
 			fmt.Fprintf(&g, "bool { return !C.Struct(s).Get1(%d) }\n", off)
 			fmt.Fprintf(&s, "(v bool) {%s C.Struct(s).Set1(%d, !v) }\n", settag, off)
 		} else {
@@ -406,9 +410,9 @@ func (n *node) defineField(w io.Writer, f Field) {
 			fmt.Fprintf(&s, "(v bool) {%s C.Struct(s).Set1(%d, v) }\n", settag, off)
 		}
 
-	case TYPE_INT8:
-		assert(def.Which() == VALUE_VOID || def.Which() == VALUE_INT8, "expected int8 default")
-		if def.Which() == VALUE_INT8 && def.Int8() != 0 {
+	case Type_Which_int8:
+		assert(def.Which() == Value_Which_void || def.Which() == Value_Which_int8, "expected int8 default")
+		if def.Which() == Value_Which_int8 && def.Int8() != 0 {
 			fmt.Fprintf(&g, "int8 { return int8(C.Struct(s).Get8(%d)) ^ %d }\n", off, def.Int8())
 			fmt.Fprintf(&s, "(v int8) {%s C.Struct(s).Set8(%d, uint8(v^%d)) }\n", settag, off, def.Int8())
 		} else {
@@ -416,9 +420,9 @@ func (n *node) defineField(w io.Writer, f Field) {
 			fmt.Fprintf(&s, "(v int8) {%s C.Struct(s).Set8(%d, uint8(v)) }\n", settag, off)
 		}
 
-	case TYPE_UINT8:
-		assert(def.Which() == VALUE_VOID || def.Which() == VALUE_UINT8, "expected uint8 default")
-		if def.Which() == VALUE_UINT8 && def.Uint8() != 0 {
+	case Type_Which_uint8:
+		assert(def.Which() == Value_Which_void || def.Which() == Value_Which_uint8, "expected uint8 default")
+		if def.Which() == Value_Which_uint8 && def.Uint8() != 0 {
 			fmt.Fprintf(&g, "uint8 { return C.Struct(s).Get8(%d) ^ %d }\n", off, def.Uint8())
 			fmt.Fprintf(&s, "(v uint8) {%s C.Struct(s).Set8(%d, v^%d) }\n", settag, off, def.Uint8())
 		} else {
@@ -426,9 +430,9 @@ func (n *node) defineField(w io.Writer, f Field) {
 			fmt.Fprintf(&s, "(v uint8) {%s C.Struct(s).Set8(%d, v) }\n", settag, off)
 		}
 
-	case TYPE_INT16:
-		assert(def.Which() == VALUE_VOID || def.Which() == VALUE_INT16, "expected int16 default")
-		if def.Which() == VALUE_INT16 && def.Int16() != 0 {
+	case Type_Which_int16:
+		assert(def.Which() == Value_Which_void || def.Which() == Value_Which_int16, "expected int16 default")
+		if def.Which() == Value_Which_int16 && def.Int16() != 0 {
 			fmt.Fprintf(&g, "int16 { return int16(C.Struct(s).Get16(%d)) ^ %d }\n", off*2, def.Int16())
 			fmt.Fprintf(&s, "(v int16) {%s C.Struct(s).Set16(%d, uint16(v^%d)) }\n", settag, off*2, def.Int16())
 		} else {
@@ -436,9 +440,9 @@ func (n *node) defineField(w io.Writer, f Field) {
 			fmt.Fprintf(&s, "(v int16) {%s C.Struct(s).Set16(%d, uint16(v)) }\n", settag, off*2)
 		}
 
-	case TYPE_UINT16:
-		assert(def.Which() == VALUE_VOID || def.Which() == VALUE_UINT16, "expected uint16 default")
-		if def.Which() == VALUE_UINT16 && def.Uint16() != 0 {
+	case Type_Which_uint16:
+		assert(def.Which() == Value_Which_void || def.Which() == Value_Which_uint16, "expected uint16 default")
+		if def.Which() == Value_Which_uint16 && def.Uint16() != 0 {
 			fmt.Fprintf(&g, "uint16 { return C.Struct(s).Get16(%d) ^ %d }\n", off*2, def.Uint16())
 			fmt.Fprintf(&s, "(v uint16) {%s C.Struct(s).Set16(%d, v^%d) }\n", settag, off*2, def.Uint16())
 		} else {
@@ -446,9 +450,9 @@ func (n *node) defineField(w io.Writer, f Field) {
 			fmt.Fprintf(&s, "(v uint16) {%s C.Struct(s).Set16(%d, v) }\n", settag, off*2)
 		}
 
-	case TYPE_INT32:
-		assert(def.Which() == VALUE_VOID || def.Which() == VALUE_INT32, "expected int32 default")
-		if def.Which() == VALUE_INT32 && def.Int32() != 0 {
+	case Type_Which_int32:
+		assert(def.Which() == Value_Which_void || def.Which() == Value_Which_int32, "expected int32 default")
+		if def.Which() == Value_Which_int32 && def.Int32() != 0 {
 			fmt.Fprintf(&g, "int32 { return int32(C.Struct(s).Get32(%d)) ^ %d }\n", off*4, def.Int32())
 			fmt.Fprintf(&s, "(v int32) {%s C.Struct(s).Set32(%d, uint32(v^%d)) }\n", settag, off*4, def.Int32())
 		} else {
@@ -456,9 +460,9 @@ func (n *node) defineField(w io.Writer, f Field) {
 			fmt.Fprintf(&s, "(v int32) {%s C.Struct(s).Set32(%d, uint32(v)) }\n", settag, off*4)
 		}
 
-	case TYPE_UINT32:
-		assert(def.Which() == VALUE_VOID || def.Which() == VALUE_UINT32, "expected uint32 default")
-		if def.Which() == VALUE_UINT32 && def.Uint32() != 0 {
+	case Type_Which_uint32:
+		assert(def.Which() == Value_Which_void || def.Which() == Value_Which_uint32, "expected uint32 default")
+		if def.Which() == Value_Which_uint32 && def.Uint32() != 0 {
 			fmt.Fprintf(&g, "uint32 { return C.Struct(s).Get32(%d) ^ %d }\n", off*4, def.Uint32())
 			fmt.Fprintf(&s, "(v uint32) {%s C.Struct(s).Set32(%d, v^%d) }\n", settag, off*4, def.Uint32())
 		} else {
@@ -466,9 +470,9 @@ func (n *node) defineField(w io.Writer, f Field) {
 			fmt.Fprintf(&s, "(v uint32) {%s C.Struct(s).Set32(%d, v) }\n", settag, off*4)
 		}
 
-	case TYPE_INT64:
-		assert(def.Which() == VALUE_VOID || def.Which() == VALUE_INT64, "expected int64 default")
-		if def.Which() == VALUE_INT64 && def.Int64() != 0 {
+	case Type_Which_int64:
+		assert(def.Which() == Value_Which_void || def.Which() == Value_Which_int64, "expected int64 default")
+		if def.Which() == Value_Which_int64 && def.Int64() != 0 {
 			fmt.Fprintf(&g, "int64 { return int64(C.Struct(s).Get64(%d)) ^ %d }\n", off*8, def.Int64())
 			fmt.Fprintf(&s, "(v int64) {%s C.Struct(s).Set64(%d, uint64(v^%d)) }\n", settag, off*8, def.Int64())
 		} else {
@@ -476,9 +480,9 @@ func (n *node) defineField(w io.Writer, f Field) {
 			fmt.Fprintf(&s, "(v int64) {%s C.Struct(s).Set64(%d, uint64(v)) }\n", settag, off*8)
 		}
 
-	case TYPE_UINT64:
-		assert(def.Which() == VALUE_VOID || def.Which() == VALUE_UINT64, "expected uint64 default")
-		if def.Which() == VALUE_UINT64 && def.Uint64() != 0 {
+	case Type_Which_uint64:
+		assert(def.Which() == Value_Which_void || def.Which() == Value_Which_uint64, "expected uint64 default")
+		if def.Which() == Value_Which_uint64 && def.Uint64() != 0 {
 			fmt.Fprintf(&g, "uint64 { return C.Struct(s).Get64(%d) ^ %d }\n", off*8, def.Uint64())
 			fmt.Fprintf(&s, "(v uint64) {%s C.Struct(s).Set64(%d, v^%d) }\n", settag, off*8, def.Uint64())
 		} else {
@@ -486,9 +490,9 @@ func (n *node) defineField(w io.Writer, f Field) {
 			fmt.Fprintf(&s, "(v uint64) {%s C.Struct(s).Set64(%d, v) }\n", settag, off*8)
 		}
 
-	case TYPE_FLOAT32:
-		assert(def.Which() == VALUE_VOID || def.Which() == VALUE_FLOAT32, "expected float32 default")
-		if def.Which() == VALUE_FLOAT32 && def.Float32() != 0 {
+	case Type_Which_float32:
+		assert(def.Which() == Value_Which_void || def.Which() == Value_Which_float32, "expected float32 default")
+		if def.Which() == Value_Which_float32 && def.Float32() != 0 {
 			fmt.Fprintf(&g, "float32 { return math.Float32frombits(C.Struct(s).Get32(%d) ^ 0x%x) }\n", off*4, math.Float32bits(def.Float32()))
 			fmt.Fprintf(&s, "(v float32) {%s C.Struct(s).Set32(%d, math.Float32bits(v) ^ 0x%x) }\n", settag, off*4, math.Float32bits(def.Float32()))
 		} else {
@@ -497,9 +501,9 @@ func (n *node) defineField(w io.Writer, f Field) {
 		}
 		g_imported["math"] = true
 
-	case TYPE_FLOAT64:
-		assert(def.Which() == VALUE_VOID || def.Which() == VALUE_FLOAT64, "expected float64 default")
-		if def.Which() == VALUE_FLOAT64 && def.Float64() != 0 {
+	case Type_Which_float64:
+		assert(def.Which() == Value_Which_void || def.Which() == Value_Which_float64, "expected float64 default")
+		if def.Which() == Value_Which_float64 && def.Float64() != 0 {
 			fmt.Fprintf(&g, "float64 { return math.Float64frombits(C.Struct(s).Get64(%d) ^ 0x%x) }\n", off*8, math.Float64bits(def.Float64()))
 			fmt.Fprintf(&s, "(v float64) {%s C.Struct(s).Set64(%d, math.Float64bits(v) ^ 0x%x) }\n", settag, off*8, math.Float64bits(def.Float64()))
 		} else {
@@ -508,18 +512,18 @@ func (n *node) defineField(w io.Writer, f Field) {
 		}
 		g_imported["math"] = true
 
-	case TYPE_TEXT:
-		assert(def.Which() == VALUE_VOID || def.Which() == VALUE_TEXT, "expected text default")
-		if def.Which() == VALUE_TEXT && def.Text() != "" {
+	case Type_Which_text:
+		assert(def.Which() == Value_Which_void || def.Which() == Value_Which_text, "expected text default")
+		if def.Which() == Value_Which_text && def.Text() != "" {
 			fmt.Fprintf(&g, "string { return C.Struct(s).GetObject(%d).ToTextDefault(%s) }\n", off, strconv.Quote(def.Text()))
 		} else {
 			fmt.Fprintf(&g, "string { return C.Struct(s).GetObject(%d).ToText() }\n", off)
 		}
 		fmt.Fprintf(&s, "(v string) {%s C.Struct(s).SetObject(%d, s.Segment.NewText(v)) }\n", settag, off)
 
-	case TYPE_DATA:
-		assert(def.Which() == VALUE_VOID || def.Which() == VALUE_DATA, "expected data default")
-		if def.Which() == VALUE_DATA && len(def.Data()) > 0 {
+	case Type_Which_data:
+		assert(def.Which() == Value_Which_void || def.Which() == Value_Which_data, "expected data default")
+		if def.Which() == Value_Which_data && len(def.Data()) > 0 {
 			dstr := "[]byte{"
 			for i, b := range def.Data() {
 				if i > 0 {
@@ -546,10 +550,10 @@ func (n *node) defineField(w io.Writer, f Field) {
 			fmt.Fprintf(&s, "(v []byte) {%s C.Struct(s).SetObject(%d, s.Segment.NewData(v)) }\n", settag, off)
 		}
 
-	case TYPE_ENUM:
+	case Type_Which_enum:
 		ni := findNode(t.Enum().TypeId())
-		assert(def.Which() == VALUE_VOID || def.Which() == VALUE_ENUM, "expected enum default")
-		if def.Which() == VALUE_ENUM && def.Enum() != 0 {
+		assert(def.Which() == Value_Which_void || def.Which() == Value_Which_enum, "expected enum default")
+		if def.Which() == Value_Which_enum && def.Enum() != 0 {
 			fmt.Fprintf(&g, "%s { return %s(C.Struct(s).Get16(%d) ^ %d) }\n", ni.remoteName(n), ni.remoteName(n), off*2, def.Enum())
 			fmt.Fprintf(&s, "(v %s) {%s C.Struct(s).Set16(%d, uint16(v)^%d) }\n", ni.remoteName(n), settag, off*2, def.Uint16())
 		} else {
@@ -557,10 +561,10 @@ func (n *node) defineField(w io.Writer, f Field) {
 			fmt.Fprintf(&s, "(v %s) {%s C.Struct(s).Set16(%d, uint16(v)) }\n", ni.remoteName(n), settag, off*2)
 		}
 
-	case TYPE_STRUCT:
+	case Type_Which_struct:
 		ni := findNode(t.Struct().TypeId())
-		assert(def.Which() == VALUE_VOID || def.Which() == VALUE_STRUCT, "expected struct default")
-		if def.Which() == VALUE_STRUCT && def.Struct().HasData() {
+		assert(def.Which() == Value_Which_void || def.Which() == Value_Which_struct, "expected struct default")
+		if def.Which() == Value_Which_struct && def.Struct().HasData() {
 			fmt.Fprintf(&g, "%s { return %s(C.Struct(s).GetObject(%d).ToStructDefault(%s, %d)) }\n",
 				ni.remoteName(n), ni.remoteName(n), off, g_bufname, copyData(def.Struct()))
 		} else {
@@ -569,9 +573,9 @@ func (n *node) defineField(w io.Writer, f Field) {
 		}
 		fmt.Fprintf(&s, "(v %s) {%s C.Struct(s).SetObject(%d, C.Object(v)) }\n", ni.remoteName(n), settag, off)
 
-	case TYPE_ANYPOINTER:
-		assert(def.Which() == VALUE_VOID || def.Which() == VALUE_ANYPOINTER, "expected object default")
-		if def.Which() == VALUE_ANYPOINTER && def.AnyPointer().HasData() {
+	case Type_Which_anyPointer:
+		assert(def.Which() == Value_Which_void || def.Which() == Value_Which_anyPointer, "expected object default")
+		if def.Which() == Value_Which_anyPointer && def.AnyPointer().HasData() {
 			fmt.Fprintf(&g, "C.Object { return C.Struct(s).GetObject(%d).ToObjectDefault(%s, %d) }\n",
 				off, g_bufname, copyData(def.AnyPointer()))
 		} else {
@@ -579,52 +583,52 @@ func (n *node) defineField(w io.Writer, f Field) {
 		}
 		fmt.Fprintf(&s, "(v C.Object) {%s C.Struct(s).SetObject(%d, v) }\n", settag, off)
 
-	case TYPE_LIST:
-		assert(def.Which() == VALUE_VOID || def.Which() == VALUE_LIST, "expected list default")
+	case Type_Which_list:
+		assert(def.Which() == Value_Which_void || def.Which() == Value_Which_list, "expected list default")
 
 		typ := ""
 
 		switch lt := t.List().ElementType(); lt.Which() {
-		case TYPE_VOID, TYPE_INTERFACE:
+		case Type_Which_void, Type_Which_interface:
 			typ = "C.VoidList"
-		case TYPE_BOOL:
+		case Type_Which_bool:
 			typ = "C.BitList"
-		case TYPE_INT8:
+		case Type_Which_int8:
 			typ = "C.Int8List"
-		case TYPE_UINT8:
+		case Type_Which_uint8:
 			typ = "C.UInt8List"
-		case TYPE_INT16:
+		case Type_Which_int16:
 			typ = "C.Int16List"
-		case TYPE_UINT16:
+		case Type_Which_uint16:
 			typ = "C.UInt16List"
-		case TYPE_INT32:
+		case Type_Which_int32:
 			typ = "C.Int32List"
-		case TYPE_UINT32:
+		case Type_Which_uint32:
 			typ = "C.UInt32List"
-		case TYPE_INT64:
+		case Type_Which_int64:
 			typ = "C.Int64List"
-		case TYPE_UINT64:
+		case Type_Which_uint64:
 			typ = "C.UInt64List"
-		case TYPE_FLOAT32:
+		case Type_Which_float32:
 			typ = "C.Float32List"
-		case TYPE_FLOAT64:
+		case Type_Which_float64:
 			typ = "C.Float64List"
-		case TYPE_TEXT:
+		case Type_Which_text:
 			typ = "C.TextList"
-		case TYPE_DATA:
+		case Type_Which_data:
 			typ = "C.DataList"
-		case TYPE_ENUM:
+		case Type_Which_enum:
 			ni := findNode(lt.Enum().TypeId())
 			typ = fmt.Sprintf("%s_List", ni.remoteName(n))
-		case TYPE_STRUCT:
+		case Type_Which_struct:
 			ni := findNode(lt.Struct().TypeId())
 			typ = fmt.Sprintf("%s_List", ni.remoteName(n))
-		case TYPE_ANYPOINTER, TYPE_LIST:
+		case Type_Which_anyPointer, Type_Which_list:
 			typ = "C.PointerList"
 		}
 
 		ldef := C.Object{}
-		if def.Which() == VALUE_LIST {
+		if def.Which() == Value_Which_list {
 			ldef = def.List()
 		}
 
@@ -654,7 +658,7 @@ func (n *node) codeOrderFields() []Field {
 }
 
 func (n *node) defineStructTypes(w io.Writer, baseNode *node) {
-	assert(n.Which() == NODE_STRUCT, "invalid struct node")
+	assert(n.Which() == Node_Which_struct, "invalid struct node")
 
 	for i := 0; i < n.Annotations().Len(); i++ {
 		a := n.Annotations().At(i)
@@ -670,38 +674,38 @@ func (n *node) defineStructTypes(w io.Writer, baseNode *node) {
 	}
 
 	for _, f := range n.codeOrderFields() {
-		if f.Which() == FIELD_GROUP {
+		if f.Which() == Field_Which_group {
 			findNode(f.Group().TypeId()).defineStructTypes(w, baseNode)
 		}
 	}
 }
 
 func (n *node) defineStructEnums(w io.Writer) {
-	assert(n.Which() == NODE_STRUCT, "invalid struct node")
+	assert(n.Which() == Node_Which_struct, "invalid struct node")
 
 	if n.Struct().DiscriminantCount() > 0 {
 		fmt.Fprintf(w, "type %s_Which uint16\n", n.name)
 		fmt.Fprintf(w, "const (\n")
 
 		for _, f := range n.codeOrderFields() {
-			if f.DiscriminantValue() == 0xFFFF {
+			if f.DiscriminantValue() == Field_noDiscriminant {
 				// Non-union member
 			} else {
-				fmt.Fprintf(w, "%s_%s %s_Which = %d\n", strings.ToUpper(n.name), strings.ToUpper(f.Name()), n.name, f.DiscriminantValue())
+				fmt.Fprintf(w, "%s_Which_%s %s_Which = %d\n", n.name, f.Name(), n.name, f.DiscriminantValue())
 			}
 		}
 		fmt.Fprintf(w, ")\n")
 	}
 
 	for _, f := range n.codeOrderFields() {
-		if f.Which() == FIELD_GROUP {
+		if f.Which() == Field_Which_group {
 			findNode(f.Group().TypeId()).defineStructEnums(w)
 		}
 	}
 }
 
 func (n *node) defineStructFuncs(w io.Writer) {
-	assert(n.Which() == NODE_STRUCT, "invalid struct node")
+	assert(n.Which() == Node_Which_struct, "invalid struct node")
 
 	if n.Struct().DiscriminantCount() > 0 {
 		fmt.Fprintf(w, "func (s %s) Which() %s_Which { return %s_Which(C.Struct(s).Get16(%d)) }\n",
@@ -710,12 +714,12 @@ func (n *node) defineStructFuncs(w io.Writer) {
 
 	for _, f := range n.codeOrderFields() {
 		switch f.Which() {
-		case FIELD_SLOT:
+		case Field_Which_slot:
 			n.defineField(w, f)
-		case FIELD_GROUP:
+		case Field_Which_group:
 			g := findNode(f.Group().TypeId())
 			fmt.Fprintf(w, "func (s %s) %s() %s { return %s(s) }\n", n.name, strings.Title(f.Name()), g.name, g.name)
-			if f.DiscriminantValue() != 0xFFFF {
+			if f.DiscriminantValue() != Field_noDiscriminant {
 				fmt.Fprintf(w, "func (s %s) Set%s() { C.Struct(s).Set16(%d, %d) }\n", n.name, strings.Title(f.Name()), n.Struct().DiscriminantOffset()*2, f.DiscriminantValue())
 			}
 			g.defineStructFuncs(w)
@@ -744,9 +748,9 @@ func (n *node) defineTypeJsonFuncs(w io.Writer) {
 		fmt.Fprintf(w, "_ = buf;")
 
 		switch n.Which() {
-		case NODE_ENUM:
+		case Node_Which_enum:
 			n.jsonEnum(w)
-		case NODE_STRUCT:
+		case Node_Which_struct:
 			n.jsonStruct(w)
 		}
 
@@ -756,7 +760,7 @@ func (n *node) defineTypeJsonFuncs(w io.Writer) {
 		fmt.Fprintf(w, "b := bytes.Buffer{}; err := s.WriteJSON(&b); return b.Bytes(), err };")
 
 	} else {
-		fmt.Fprintf(w, "// capn.JSON_enabled == false so we stub MarshallJSON().")
+		fmt.Fprintf(w, "// capn.JSON_enabled == false so we stub MarshalJSON().")
 		fmt.Fprintf(w, "\nfunc (s %s) MarshalJSON() (bs []byte, err error) { return } \n", n.name)
 	}
 }
@@ -778,7 +782,7 @@ func (n *node) jsonStruct(w io.Writer) {
 	fmt.Fprintf(w, `err = b.WriteByte('{');`)
 	writeErrCheck(w)
 	for i, f := range n.codeOrderFields() {
-		if f.DiscriminantValue() != 0xFFFF {
+		if f.DiscriminantValue() != Field_noDiscriminant {
 			enumname := fmt.Sprintf("%s_%s", strings.ToUpper(n.name), strings.ToUpper(f.Name()))
 			fmt.Fprintf(w, "if s.Which() == %s {", enumname)
 		}
@@ -791,7 +795,7 @@ func (n *node) jsonStruct(w io.Writer) {
 		fmt.Fprintf(w, `_, err = b.WriteString("\"%s\":");`, f.Name())
 		writeErrCheck(w)
 		f.json(w)
-		if f.DiscriminantValue() != 0xFFFF {
+		if f.DiscriminantValue() != Field_noDiscriminant {
 			fmt.Fprintf(w, "};")
 		}
 	}
@@ -803,17 +807,17 @@ func (n *node) jsonStruct(w io.Writer) {
 func (f *Field) json(w io.Writer) {
 
 	switch f.Which() {
-	case FIELD_SLOT:
+	case Field_Which_slot:
 		fs := f.Slot()
 		// we don't generate setters for Void fields
-		if fs.Type().Which() == TYPE_VOID {
+		if fs.Type().Which() == Type_Which_void {
 			fs.Type().json(w)
 			return
 		}
 		fmt.Fprintf(w, "{ s := s.%s(); ", strings.Title(f.Name()))
 		fs.Type().json(w)
 		fmt.Fprintf(w, "}; ")
-	case FIELD_GROUP:
+	case Field_Which_group:
 		tid := f.Group().TypeId()
 		n := findNode(tid)
 		fmt.Fprintf(w, "{ s := s.%s();", strings.Title(f.Name()))
@@ -825,23 +829,23 @@ func (f *Field) json(w io.Writer) {
 
 func (t Type) json(w io.Writer) {
 	switch t.Which() {
-	case TYPE_UINT8, TYPE_UINT16, TYPE_UINT32, TYPE_UINT64,
-		TYPE_INT8, TYPE_INT16, TYPE_INT32, TYPE_INT64,
-		TYPE_FLOAT32, TYPE_FLOAT64, TYPE_BOOL, TYPE_TEXT, TYPE_DATA:
+	case Type_Which_uint8, Type_Which_uint16, Type_Which_uint32, Type_Which_uint64,
+		Type_Which_int8, Type_Which_int16, Type_Which_int32, Type_Which_int64,
+		Type_Which_float32, Type_Which_float64, Type_Which_bool, Type_Which_text, Type_Which_data:
 		g_imported["encoding/json"] = true
 		fmt.Fprintf(w, "buf, err = json.Marshal(s);")
 		writeErrCheck(w)
 		fmt.Fprintf(w, "_, err = b.Write(buf);")
 		writeErrCheck(w)
-	case TYPE_ENUM, TYPE_STRUCT:
+	case Type_Which_enum, Type_Which_struct:
 		// since we handle groups at the field level, only named struct types make it in here
 		// so we can just call the named structs json dumper
 		fmt.Fprintf(w, "err = s.WriteJSON(b);")
 		writeErrCheck(w)
-	case TYPE_LIST:
+	case Type_Which_list:
 		typ := t.List().ElementType()
 		which := typ.Which()
-		if which == TYPE_LIST || which == TYPE_ANYPOINTER {
+		if which == Type_Which_list || which == Type_Which_anyPointer {
 			// untyped list, cant do anything but report
 			// that a field existed.
 			//
@@ -859,7 +863,7 @@ func (t Type) json(w io.Writer) {
 		typ.json(w)
 		fmt.Fprintf(w, "}; err = b.WriteByte(']'); };")
 		writeErrCheck(w)
-	case TYPE_VOID:
+	case Type_Which_void:
 		fmt.Fprintf(w, `_ = s;`)
 		fmt.Fprintf(w, `_, err = b.WriteString("null");`)
 		writeErrCheck(w)
@@ -867,7 +871,7 @@ func (t Type) json(w io.Writer) {
 }
 
 func (n *node) defineNewStructFunc(w io.Writer) {
-	assert(n.Which() == NODE_STRUCT, "invalid struct node")
+	assert(n.Which() == Node_Which_struct, "invalid struct node")
 
 	fmt.Fprintf(w, "func New%s(s *C.Segment) %s { return %s(s.NewStruct(C.ObjectSize{DataSize: %d, PointerCount: %d})) }\n",
 		n.name, n.name, n.name, n.Struct().DataWordCount()*8, n.Struct().PointerCount())
@@ -880,26 +884,27 @@ func (n *node) defineNewStructFunc(w io.Writer) {
 }
 
 func (n *node) defineStructList(w io.Writer) {
-	assert(n.Which() == NODE_STRUCT, "invalid struct node")
+	assert(n.Which() == Node_Which_struct, "invalid struct node")
 
 	fmt.Fprintf(w, "type %s_List C.PointerList\n", n.name)
 
+	fmt.Fprintf(w, "func New%s_List(s *C.Segment, sz int) %s_List ", n.name, n.name)
 	switch n.Struct().PreferredListEncoding() {
-	case ELEMENTSIZE_EMPTY:
-		fmt.Fprintf(w, "func New%sList(s *C.Segment, sz int) %s_List { return %s_List(s.NewVoidList(sz)) }\n", n.name, n.name, n.name)
-	case ELEMENTSIZE_BIT:
-		fmt.Fprintf(w, "func New%sList(s *C.Segment, sz int) %s_List { return %s_List(s.NewBitList(sz)) }\n", n.name, n.name, n.name)
-	case ELEMENTSIZE_BYTE:
-		fmt.Fprintf(w, "func New%sList(s *C.Segment, sz int) %s_List { return %s_List(s.NewUInt8List(sz)) }\n", n.name, n.name, n.name)
-	case ELEMENTSIZE_TWOBYTES:
-		fmt.Fprintf(w, "func New%sList(s *C.Segment, sz int) %s_List { return %s_List(s.NewUInt16List(sz)) }\n", n.name, n.name, n.name)
-	case ELEMENTSIZE_FOURBYTES:
-		fmt.Fprintf(w, "func New%sList(s *C.Segment, sz int) %s_List { return %s_List(s.NewUInt32List(sz)) }\n", n.name, n.name, n.name)
-	case ELEMENTSIZE_EIGHTBYTES:
-		fmt.Fprintf(w, "func New%sList(s *C.Segment, sz int) %s_List { return %s_List(s.NewUInt64List(sz)) }\n", n.name, n.name, n.name)
+	case ElementSize_empty:
+		fmt.Fprintf(w, "{ return %s_List(s.NewVoidList(sz)) }\n", n.name)
+	case ElementSize_bit:
+		fmt.Fprintf(w, "{ return %s_List(s.NewBitList(sz)) }\n", n.name)
+	case ElementSize_byte:
+		fmt.Fprintf(w, "{ return %s_List(s.NewUInt8List(sz)) }\n", n.name)
+	case ElementSize_twoBytes:
+		fmt.Fprintf(w, "{ return %s_List(s.NewUInt16List(sz)) }\n", n.name)
+	case ElementSize_fourBytes:
+		fmt.Fprintf(w, "{ return %s_List(s.NewUInt32List(sz)) }\n", n.name)
+	case ElementSize_eightBytes:
+		fmt.Fprintf(w, "{ return %s_List(s.NewUInt64List(sz)) }\n", n.name)
 	default:
-		fmt.Fprintf(w, "func New%sList(s *C.Segment, sz int) %s_List { return %s_List(s.NewCompositeList(C.ObjectSize{DataSize: %d, PointerCount: %d}, sz)) }\n",
-			n.name, n.name, n.name, n.Struct().DataWordCount()*8, n.Struct().PointerCount())
+		fmt.Fprintf(w, "{ return %s_List(s.NewCompositeList(C.ObjectSize{DataSize: %d, PointerCount: %d}, sz)) }\n",
+			n.name, n.Struct().DataWordCount()*8, n.Struct().PointerCount())
 	}
 
 	fmt.Fprintf(w, "func (s %s_List) Len() int { return C.PointerList(s).Len() }\n", n.name)
@@ -907,7 +912,7 @@ func (n *node) defineStructList(w io.Writer) {
 	fmt.Fprintf(w, "func (s %s_List) Set(i int, item %s) { C.PointerList(s).Set(i, C.Object(item)) }\n", n.name, n.name)
 }
 
-func generateFile(reqf CodeGeneratorRequestRequestedFile) (generr error) {
+func generateFile(reqf CodeGeneratorRequest_RequestedFile) (generr error) {
 	defer func() {
 		e := recover()
 		if ae, ok := e.(assertionError); ok {
@@ -924,7 +929,7 @@ func generateFile(reqf CodeGeneratorRequestRequestedFile) (generr error) {
 	g_bufname = fmt.Sprintf("x_%x", f.Id())
 
 	for _, n := range f.nodes {
-		if n.Which() == NODE_ANNOTATION {
+		if n.Which() == Node_Which_annotation {
 			n.defineAnnotation(&buf)
 		}
 	}
@@ -933,11 +938,11 @@ func generateFile(reqf CodeGeneratorRequestRequestedFile) (generr error) {
 
 	for _, n := range f.nodes {
 		switch n.Which() {
-		case NODE_ANNOTATION:
-		case NODE_ENUM:
+		case Node_Which_annotation:
+		case Node_Which_enum:
 			n.defineEnum(&buf)
 			n.defineTypeJsonFuncs(&buf)
-		case NODE_STRUCT:
+		case Node_Which_struct:
 			if !n.Struct().IsGroup() {
 				n.defineStructTypes(&buf, nil)
 				n.defineStructEnums(&buf)
@@ -1016,7 +1021,7 @@ func main() {
 		n := &node{Node: ni}
 		g_nodes[n.Id()] = n
 
-		if n.Which() == NODE_FILE {
+		if n.Which() == Node_Which_file {
 			allfiles = append(allfiles, n)
 		}
 	}
@@ -1024,7 +1029,7 @@ func main() {
 	for _, f := range allfiles {
 		for i := 0; i < f.Annotations().Len(); i++ {
 			a := f.Annotations().At(i)
-			if v := a.Value(); v.Which() == VALUE_TEXT {
+			if v := a.Value(); v.Which() == Value_Which_text {
 				switch a.Id() {
 				case C.Package:
 					f.pkg = v.Text()

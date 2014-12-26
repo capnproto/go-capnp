@@ -28,7 +28,7 @@ func TestReadFromStream(t *testing.T) {
 		t.Fatalf("ReadFromStream: %v", err)
 	}
 	z := air.ReadRootZ(s)
-	if z.Which() != air.Z_ZDATEVEC {
+	if z.Which() != air.Z_Which_zdatevec {
 		panic("expected Z_ZDATEVEC in root Z of segment")
 	}
 	zdatelist := z.Zdatevec()

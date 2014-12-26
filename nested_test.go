@@ -187,7 +187,7 @@ func Nester1CapnListToSliceNester1(p air.Nester1Capn_List) []Nester1 {
 }
 
 func SliceNester1ToNester1CapnList(seg *capn.Segment, m []Nester1) air.Nester1Capn_List {
-	lst := air.NewNester1CapnList(seg, len(m))
+	lst := air.NewNester1Capn_List(seg, len(m))
 	for i := range m {
 		lst.Set(i, Nester1GoToCapn(seg, &m[i]))
 	}

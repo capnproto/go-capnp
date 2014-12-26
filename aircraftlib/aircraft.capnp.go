@@ -27,15 +27,15 @@ func (s Zdate) SetMonth(v uint8)       { C.Struct(s).Set8(2, v) }
 func (s Zdate) Day() uint8             { return C.Struct(s).Get8(3) }
 func (s Zdate) SetDay(v uint8)         { C.Struct(s).Set8(3, v) }
 
-// capn.JSON_enabled == false so we stub MarshallJSON().
+// capn.JSON_enabled == false so we stub MarshalJSON().
 func (s Zdate) MarshalJSON() (bs []byte, err error) { return }
 
 type Zdate_List C.PointerList
 
-func NewZdateList(s *C.Segment, sz int) Zdate_List { return Zdate_List(s.NewUInt32List(sz)) }
-func (s Zdate_List) Len() int                      { return C.PointerList(s).Len() }
-func (s Zdate_List) At(i int) Zdate                { return Zdate(C.PointerList(s).At(i).ToStruct()) }
-func (s Zdate_List) Set(i int, item Zdate)         { C.PointerList(s).Set(i, C.Object(item)) }
+func NewZdate_List(s *C.Segment, sz int) Zdate_List { return Zdate_List(s.NewUInt32List(sz)) }
+func (s Zdate_List) Len() int                       { return C.PointerList(s).Len() }
+func (s Zdate_List) At(i int) Zdate                 { return Zdate(C.PointerList(s).At(i).ToStruct()) }
+func (s Zdate_List) Set(i int, item Zdate)          { C.PointerList(s).Set(i, C.Object(item)) }
 
 type Zdata C.Struct
 
@@ -52,12 +52,12 @@ func ReadRootZdata(s *C.Segment) Zdata { return Zdata(s.Root(0).ToStruct()) }
 func (s Zdata) Data() []byte           { return C.Struct(s).GetObject(0).ToData() }
 func (s Zdata) SetData(v []byte)       { C.Struct(s).SetObject(0, s.Segment.NewData(v)) }
 
-// capn.JSON_enabled == false so we stub MarshallJSON().
+// capn.JSON_enabled == false so we stub MarshalJSON().
 func (s Zdata) MarshalJSON() (bs []byte, err error) { return }
 
 type Zdata_List C.PointerList
 
-func NewZdataList(s *C.Segment, sz int) Zdata_List {
+func NewZdata_List(s *C.Segment, sz int) Zdata_List {
 	return Zdata_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 1}, sz))
 }
 func (s Zdata_List) Len() int              { return C.PointerList(s).Len() }
@@ -67,30 +67,30 @@ func (s Zdata_List) Set(i int, item Zdata) { C.PointerList(s).Set(i, C.Object(it
 type Airport uint16
 
 const (
-	AIRPORT_NONE Airport = 0
-	AIRPORT_JFK  Airport = 1
-	AIRPORT_LAX  Airport = 2
-	AIRPORT_SFO  Airport = 3
-	AIRPORT_LUV  Airport = 4
-	AIRPORT_DFW  Airport = 5
-	AIRPORT_TEST Airport = 6
+	Airport_none Airport = 0
+	Airport_jfk  Airport = 1
+	Airport_lax  Airport = 2
+	Airport_sfo  Airport = 3
+	Airport_luv  Airport = 4
+	Airport_dfw  Airport = 5
+	Airport_test Airport = 6
 )
 
 func (c Airport) String() string {
 	switch c {
-	case AIRPORT_NONE:
+	case Airport_none:
 		return "none"
-	case AIRPORT_JFK:
+	case Airport_jfk:
 		return "jfk"
-	case AIRPORT_LAX:
+	case Airport_lax:
 		return "lax"
-	case AIRPORT_SFO:
+	case Airport_sfo:
 		return "sfo"
-	case AIRPORT_LUV:
+	case Airport_luv:
 		return "luv"
-	case AIRPORT_DFW:
+	case Airport_dfw:
 		return "dfw"
-	case AIRPORT_TEST:
+	case Airport_test:
 		return "test"
 	default:
 		return ""
@@ -100,19 +100,19 @@ func (c Airport) String() string {
 func AirportFromString(c string) Airport {
 	switch c {
 	case "none":
-		return AIRPORT_NONE
+		return Airport_none
 	case "jfk":
-		return AIRPORT_JFK
+		return Airport_jfk
 	case "lax":
-		return AIRPORT_LAX
+		return Airport_lax
 	case "sfo":
-		return AIRPORT_SFO
+		return Airport_sfo
 	case "luv":
-		return AIRPORT_LUV
+		return Airport_luv
 	case "dfw":
-		return AIRPORT_DFW
+		return Airport_dfw
 	case "test":
-		return AIRPORT_TEST
+		return Airport_test
 	default:
 		return 0
 	}
@@ -120,11 +120,11 @@ func AirportFromString(c string) Airport {
 
 type Airport_List C.PointerList
 
-func NewAirportList(s *C.Segment, sz int) Airport_List { return Airport_List(s.NewUInt16List(sz)) }
-func (s Airport_List) Len() int                        { return C.UInt16List(s).Len() }
-func (s Airport_List) At(i int) Airport                { return Airport(C.UInt16List(s).At(i)) }
+func NewAirport_List(s *C.Segment, sz int) Airport_List { return Airport_List(s.NewUInt16List(sz)) }
+func (s Airport_List) Len() int                         { return C.UInt16List(s).Len() }
+func (s Airport_List) At(i int) Airport                 { return Airport(C.UInt16List(s).At(i)) }
 
-// capn.JSON_enabled == false so we stub MarshallJSON().
+// capn.JSON_enabled == false so we stub MarshalJSON().
 func (s Airport) MarshalJSON() (bs []byte, err error) { return }
 
 type PlaneBase C.Struct
@@ -152,12 +152,12 @@ func (s PlaneBase) SetCapacity(v int64)        { C.Struct(s).Set64(16, uint64(v)
 func (s PlaneBase) MaxSpeed() float64          { return math.Float64frombits(C.Struct(s).Get64(24)) }
 func (s PlaneBase) SetMaxSpeed(v float64)      { C.Struct(s).Set64(24, math.Float64bits(v)) }
 
-// capn.JSON_enabled == false so we stub MarshallJSON().
+// capn.JSON_enabled == false so we stub MarshalJSON().
 func (s PlaneBase) MarshalJSON() (bs []byte, err error) { return }
 
 type PlaneBase_List C.PointerList
 
-func NewPlaneBaseList(s *C.Segment, sz int) PlaneBase_List {
+func NewPlaneBase_List(s *C.Segment, sz int) PlaneBase_List {
 	return PlaneBase_List(s.NewCompositeList(C.ObjectSize{DataSize: 32, PointerCount: 2}, sz))
 }
 func (s PlaneBase_List) Len() int                  { return C.PointerList(s).Len() }
@@ -177,12 +177,12 @@ func ReadRootB737(s *C.Segment) B737 { return B737(s.Root(0).ToStruct()) }
 func (s B737) Base() PlaneBase       { return PlaneBase(C.Struct(s).GetObject(0).ToStruct()) }
 func (s B737) SetBase(v PlaneBase)   { C.Struct(s).SetObject(0, C.Object(v)) }
 
-// capn.JSON_enabled == false so we stub MarshallJSON().
+// capn.JSON_enabled == false so we stub MarshalJSON().
 func (s B737) MarshalJSON() (bs []byte, err error) { return }
 
 type B737_List C.PointerList
 
-func NewB737List(s *C.Segment, sz int) B737_List {
+func NewB737_List(s *C.Segment, sz int) B737_List {
 	return B737_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 1}, sz))
 }
 func (s B737_List) Len() int             { return C.PointerList(s).Len() }
@@ -202,12 +202,12 @@ func ReadRootA320(s *C.Segment) A320 { return A320(s.Root(0).ToStruct()) }
 func (s A320) Base() PlaneBase       { return PlaneBase(C.Struct(s).GetObject(0).ToStruct()) }
 func (s A320) SetBase(v PlaneBase)   { C.Struct(s).SetObject(0, C.Object(v)) }
 
-// capn.JSON_enabled == false so we stub MarshallJSON().
+// capn.JSON_enabled == false so we stub MarshalJSON().
 func (s A320) MarshalJSON() (bs []byte, err error) { return }
 
 type A320_List C.PointerList
 
-func NewA320List(s *C.Segment, sz int) A320_List {
+func NewA320_List(s *C.Segment, sz int) A320_List {
 	return A320_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 1}, sz))
 }
 func (s A320_List) Len() int             { return C.PointerList(s).Len() }
@@ -227,12 +227,12 @@ func ReadRootF16(s *C.Segment) F16 { return F16(s.Root(0).ToStruct()) }
 func (s F16) Base() PlaneBase      { return PlaneBase(C.Struct(s).GetObject(0).ToStruct()) }
 func (s F16) SetBase(v PlaneBase)  { C.Struct(s).SetObject(0, C.Object(v)) }
 
-// capn.JSON_enabled == false so we stub MarshallJSON().
+// capn.JSON_enabled == false so we stub MarshalJSON().
 func (s F16) MarshalJSON() (bs []byte, err error) { return }
 
 type F16_List C.PointerList
 
-func NewF16List(s *C.Segment, sz int) F16_List {
+func NewF16_List(s *C.Segment, sz int) F16_List {
 	return F16_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 1}, sz))
 }
 func (s F16_List) Len() int            { return C.PointerList(s).Len() }
@@ -264,12 +264,12 @@ func (s Regression) SetYmu(v float64)            { C.Struct(s).Set64(8, math.Flo
 func (s Regression) Ysd() float64                { return math.Float64frombits(C.Struct(s).Get64(16)) }
 func (s Regression) SetYsd(v float64)            { C.Struct(s).Set64(16, math.Float64bits(v)) }
 
-// capn.JSON_enabled == false so we stub MarshallJSON().
+// capn.JSON_enabled == false so we stub MarshalJSON().
 func (s Regression) MarshalJSON() (bs []byte, err error) { return }
 
 type Regression_List C.PointerList
 
-func NewRegressionList(s *C.Segment, sz int) Regression_List {
+func NewRegression_List(s *C.Segment, sz int) Regression_List {
 	return Regression_List(s.NewCompositeList(C.ObjectSize{DataSize: 24, PointerCount: 3}, sz))
 }
 func (s Regression_List) Len() int                   { return C.PointerList(s).Len() }
@@ -280,10 +280,10 @@ type Aircraft C.Struct
 type Aircraft_Which uint16
 
 const (
-	AIRCRAFT_VOID Aircraft_Which = 0
-	AIRCRAFT_B737 Aircraft_Which = 1
-	AIRCRAFT_A320 Aircraft_Which = 2
-	AIRCRAFT_F16  Aircraft_Which = 3
+	Aircraft_Which_void Aircraft_Which = 0
+	Aircraft_Which_b737 Aircraft_Which = 1
+	Aircraft_Which_a320 Aircraft_Which = 2
+	Aircraft_Which_f16  Aircraft_Which = 3
 )
 
 func NewAircraft(s *C.Segment) Aircraft {
@@ -305,12 +305,12 @@ func (s Aircraft) SetA320(v A320)            { C.Struct(s).Set16(0, 2); C.Struct
 func (s Aircraft) F16() F16                  { return F16(C.Struct(s).GetObject(0).ToStruct()) }
 func (s Aircraft) SetF16(v F16)              { C.Struct(s).Set16(0, 3); C.Struct(s).SetObject(0, C.Object(v)) }
 
-// capn.JSON_enabled == false so we stub MarshallJSON().
+// capn.JSON_enabled == false so we stub MarshalJSON().
 func (s Aircraft) MarshalJSON() (bs []byte, err error) { return }
 
 type Aircraft_List C.PointerList
 
-func NewAircraftList(s *C.Segment, sz int) Aircraft_List {
+func NewAircraft_List(s *C.Segment, sz int) Aircraft_List {
 	return Aircraft_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 1}, sz))
 }
 func (s Aircraft_List) Len() int                 { return C.PointerList(s).Len() }
@@ -321,46 +321,46 @@ type Z C.Struct
 type Z_Which uint16
 
 const (
-	Z_VOID        Z_Which = 0
-	Z_ZZ          Z_Which = 1
-	Z_F64         Z_Which = 2
-	Z_F32         Z_Which = 3
-	Z_I64         Z_Which = 4
-	Z_I32         Z_Which = 5
-	Z_I16         Z_Which = 6
-	Z_I8          Z_Which = 7
-	Z_U64         Z_Which = 8
-	Z_U32         Z_Which = 9
-	Z_U16         Z_Which = 10
-	Z_U8          Z_Which = 11
-	Z_BOOL        Z_Which = 12
-	Z_TEXT        Z_Which = 13
-	Z_BLOB        Z_Which = 14
-	Z_F64VEC      Z_Which = 15
-	Z_F32VEC      Z_Which = 16
-	Z_I64VEC      Z_Which = 17
-	Z_I32VEC      Z_Which = 18
-	Z_I16VEC      Z_Which = 19
-	Z_I8VEC       Z_Which = 20
-	Z_U64VEC      Z_Which = 21
-	Z_U32VEC      Z_Which = 22
-	Z_U16VEC      Z_Which = 23
-	Z_U8VEC       Z_Which = 24
-	Z_ZVEC        Z_Which = 25
-	Z_ZVECVEC     Z_Which = 26
-	Z_ZDATE       Z_Which = 27
-	Z_ZDATA       Z_Which = 28
-	Z_AIRCRAFTVEC Z_Which = 29
-	Z_AIRCRAFT    Z_Which = 30
-	Z_REGRESSION  Z_Which = 31
-	Z_PLANEBASE   Z_Which = 32
-	Z_AIRPORT     Z_Which = 33
-	Z_B737        Z_Which = 34
-	Z_A320        Z_Which = 35
-	Z_F16         Z_Which = 36
-	Z_ZDATEVEC    Z_Which = 37
-	Z_ZDATAVEC    Z_Which = 38
-	Z_BOOLVEC     Z_Which = 39
+	Z_Which_void        Z_Which = 0
+	Z_Which_zz          Z_Which = 1
+	Z_Which_f64         Z_Which = 2
+	Z_Which_f32         Z_Which = 3
+	Z_Which_i64         Z_Which = 4
+	Z_Which_i32         Z_Which = 5
+	Z_Which_i16         Z_Which = 6
+	Z_Which_i8          Z_Which = 7
+	Z_Which_u64         Z_Which = 8
+	Z_Which_u32         Z_Which = 9
+	Z_Which_u16         Z_Which = 10
+	Z_Which_u8          Z_Which = 11
+	Z_Which_bool        Z_Which = 12
+	Z_Which_text        Z_Which = 13
+	Z_Which_blob        Z_Which = 14
+	Z_Which_f64vec      Z_Which = 15
+	Z_Which_f32vec      Z_Which = 16
+	Z_Which_i64vec      Z_Which = 17
+	Z_Which_i32vec      Z_Which = 18
+	Z_Which_i16vec      Z_Which = 19
+	Z_Which_i8vec       Z_Which = 20
+	Z_Which_u64vec      Z_Which = 21
+	Z_Which_u32vec      Z_Which = 22
+	Z_Which_u16vec      Z_Which = 23
+	Z_Which_u8vec       Z_Which = 24
+	Z_Which_zvec        Z_Which = 25
+	Z_Which_zvecvec     Z_Which = 26
+	Z_Which_zdate       Z_Which = 27
+	Z_Which_zdata       Z_Which = 28
+	Z_Which_aircraftvec Z_Which = 29
+	Z_Which_aircraft    Z_Which = 30
+	Z_Which_regression  Z_Which = 31
+	Z_Which_planebase   Z_Which = 32
+	Z_Which_airport     Z_Which = 33
+	Z_Which_b737        Z_Which = 34
+	Z_Which_a320        Z_Which = 35
+	Z_Which_f16         Z_Which = 36
+	Z_Which_zdatevec    Z_Which = 37
+	Z_Which_zdatavec    Z_Which = 38
+	Z_Which_boolvec     Z_Which = 39
 )
 
 func NewZ(s *C.Segment) Z             { return Z(s.NewStruct(C.ObjectSize{DataSize: 16, PointerCount: 1})) }
@@ -457,12 +457,12 @@ func (s Z) SetZdatavec(v Zdata_List) { C.Struct(s).Set16(0, 38); C.Struct(s).Set
 func (s Z) Boolvec() C.BitList       { return C.BitList(C.Struct(s).GetObject(0)) }
 func (s Z) SetBoolvec(v C.BitList)   { C.Struct(s).Set16(0, 39); C.Struct(s).SetObject(0, C.Object(v)) }
 
-// capn.JSON_enabled == false so we stub MarshallJSON().
+// capn.JSON_enabled == false so we stub MarshalJSON().
 func (s Z) MarshalJSON() (bs []byte, err error) { return }
 
 type Z_List C.PointerList
 
-func NewZList(s *C.Segment, sz int) Z_List {
+func NewZ_List(s *C.Segment, sz int) Z_List {
 	return Z_List(s.NewCompositeList(C.ObjectSize{DataSize: 16, PointerCount: 1}, sz))
 }
 func (s Z_List) Len() int          { return C.PointerList(s).Len() }
@@ -488,12 +488,12 @@ func (s Counter) SetWords(v string)        { C.Struct(s).SetObject(0, s.Segment.
 func (s Counter) Wordlist() C.TextList     { return C.TextList(C.Struct(s).GetObject(1)) }
 func (s Counter) SetWordlist(v C.TextList) { C.Struct(s).SetObject(1, C.Object(v)) }
 
-// capn.JSON_enabled == false so we stub MarshallJSON().
+// capn.JSON_enabled == false so we stub MarshalJSON().
 func (s Counter) MarshalJSON() (bs []byte, err error) { return }
 
 type Counter_List C.PointerList
 
-func NewCounterList(s *C.Segment, sz int) Counter_List {
+func NewCounter_List(s *C.Segment, sz int) Counter_List {
 	return Counter_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 2}, sz))
 }
 func (s Counter_List) Len() int                { return C.PointerList(s).Len() }
@@ -513,12 +513,12 @@ func ReadRootBag(s *C.Segment) Bag { return Bag(s.Root(0).ToStruct()) }
 func (s Bag) Counter() Counter     { return Counter(C.Struct(s).GetObject(0).ToStruct()) }
 func (s Bag) SetCounter(v Counter) { C.Struct(s).SetObject(0, C.Object(v)) }
 
-// capn.JSON_enabled == false so we stub MarshallJSON().
+// capn.JSON_enabled == false so we stub MarshalJSON().
 func (s Bag) MarshalJSON() (bs []byte, err error) { return }
 
 type Bag_List C.PointerList
 
-func NewBagList(s *C.Segment, sz int) Bag_List {
+func NewBag_List(s *C.Segment, sz int) Bag_List {
 	return Bag_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 1}, sz))
 }
 func (s Bag_List) Len() int            { return C.PointerList(s).Len() }
@@ -540,12 +540,12 @@ func ReadRootZserver(s *C.Segment) Zserver   { return Zserver(s.Root(0).ToStruct
 func (s Zserver) Waitingjobs() Zjob_List     { return Zjob_List(C.Struct(s).GetObject(0)) }
 func (s Zserver) SetWaitingjobs(v Zjob_List) { C.Struct(s).SetObject(0, C.Object(v)) }
 
-// capn.JSON_enabled == false so we stub MarshallJSON().
+// capn.JSON_enabled == false so we stub MarshalJSON().
 func (s Zserver) MarshalJSON() (bs []byte, err error) { return }
 
 type Zserver_List C.PointerList
 
-func NewZserverList(s *C.Segment, sz int) Zserver_List {
+func NewZserver_List(s *C.Segment, sz int) Zserver_List {
 	return Zserver_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 1}, sz))
 }
 func (s Zserver_List) Len() int                { return C.PointerList(s).Len() }
@@ -567,12 +567,12 @@ func (s Zjob) SetCmd(v string)       { C.Struct(s).SetObject(0, s.Segment.NewTex
 func (s Zjob) Args() C.TextList      { return C.TextList(C.Struct(s).GetObject(1)) }
 func (s Zjob) SetArgs(v C.TextList)  { C.Struct(s).SetObject(1, C.Object(v)) }
 
-// capn.JSON_enabled == false so we stub MarshallJSON().
+// capn.JSON_enabled == false so we stub MarshalJSON().
 func (s Zjob) MarshalJSON() (bs []byte, err error) { return }
 
 type Zjob_List C.PointerList
 
-func NewZjobList(s *C.Segment, sz int) Zjob_List {
+func NewZjob_List(s *C.Segment, sz int) Zjob_List {
 	return Zjob_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 2}, sz))
 }
 func (s Zjob_List) Len() int             { return C.PointerList(s).Len() }
@@ -592,15 +592,15 @@ func AutoNewVerEmpty(s *C.Segment) VerEmpty {
 }
 func ReadRootVerEmpty(s *C.Segment) VerEmpty { return VerEmpty(s.Root(0).ToStruct()) }
 
-// capn.JSON_enabled == false so we stub MarshallJSON().
+// capn.JSON_enabled == false so we stub MarshalJSON().
 func (s VerEmpty) MarshalJSON() (bs []byte, err error) { return }
 
 type VerEmpty_List C.PointerList
 
-func NewVerEmptyList(s *C.Segment, sz int) VerEmpty_List { return VerEmpty_List(s.NewVoidList(sz)) }
-func (s VerEmpty_List) Len() int                         { return C.PointerList(s).Len() }
-func (s VerEmpty_List) At(i int) VerEmpty                { return VerEmpty(C.PointerList(s).At(i).ToStruct()) }
-func (s VerEmpty_List) Set(i int, item VerEmpty)         { C.PointerList(s).Set(i, C.Object(item)) }
+func NewVerEmpty_List(s *C.Segment, sz int) VerEmpty_List { return VerEmpty_List(s.NewVoidList(sz)) }
+func (s VerEmpty_List) Len() int                          { return C.PointerList(s).Len() }
+func (s VerEmpty_List) At(i int) VerEmpty                 { return VerEmpty(C.PointerList(s).At(i).ToStruct()) }
+func (s VerEmpty_List) Set(i int, item VerEmpty)          { C.PointerList(s).Set(i, C.Object(item)) }
 
 type VerOneData C.Struct
 
@@ -617,12 +617,12 @@ func ReadRootVerOneData(s *C.Segment) VerOneData { return VerOneData(s.Root(0).T
 func (s VerOneData) Val() int16                  { return int16(C.Struct(s).Get16(0)) }
 func (s VerOneData) SetVal(v int16)              { C.Struct(s).Set16(0, uint16(v)) }
 
-// capn.JSON_enabled == false so we stub MarshallJSON().
+// capn.JSON_enabled == false so we stub MarshalJSON().
 func (s VerOneData) MarshalJSON() (bs []byte, err error) { return }
 
 type VerOneData_List C.PointerList
 
-func NewVerOneDataList(s *C.Segment, sz int) VerOneData_List {
+func NewVerOneData_List(s *C.Segment, sz int) VerOneData_List {
 	return VerOneData_List(s.NewUInt16List(sz))
 }
 func (s VerOneData_List) Len() int                   { return C.PointerList(s).Len() }
@@ -646,12 +646,12 @@ func (s VerTwoData) SetVal(v int16)              { C.Struct(s).Set16(0, uint16(v
 func (s VerTwoData) Duo() int64                  { return int64(C.Struct(s).Get64(8)) }
 func (s VerTwoData) SetDuo(v int64)              { C.Struct(s).Set64(8, uint64(v)) }
 
-// capn.JSON_enabled == false so we stub MarshallJSON().
+// capn.JSON_enabled == false so we stub MarshalJSON().
 func (s VerTwoData) MarshalJSON() (bs []byte, err error) { return }
 
 type VerTwoData_List C.PointerList
 
-func NewVerTwoDataList(s *C.Segment, sz int) VerTwoData_List {
+func NewVerTwoData_List(s *C.Segment, sz int) VerTwoData_List {
 	return VerTwoData_List(s.NewCompositeList(C.ObjectSize{DataSize: 16, PointerCount: 0}, sz))
 }
 func (s VerTwoData_List) Len() int                   { return C.PointerList(s).Len() }
@@ -673,12 +673,12 @@ func ReadRootVerOnePtr(s *C.Segment) VerOnePtr { return VerOnePtr(s.Root(0).ToSt
 func (s VerOnePtr) Ptr() VerOneData            { return VerOneData(C.Struct(s).GetObject(0).ToStruct()) }
 func (s VerOnePtr) SetPtr(v VerOneData)        { C.Struct(s).SetObject(0, C.Object(v)) }
 
-// capn.JSON_enabled == false so we stub MarshallJSON().
+// capn.JSON_enabled == false so we stub MarshalJSON().
 func (s VerOnePtr) MarshalJSON() (bs []byte, err error) { return }
 
 type VerOnePtr_List C.PointerList
 
-func NewVerOnePtrList(s *C.Segment, sz int) VerOnePtr_List {
+func NewVerOnePtr_List(s *C.Segment, sz int) VerOnePtr_List {
 	return VerOnePtr_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 1}, sz))
 }
 func (s VerOnePtr_List) Len() int                  { return C.PointerList(s).Len() }
@@ -702,12 +702,12 @@ func (s VerTwoPtr) SetPtr1(v VerOneData)       { C.Struct(s).SetObject(0, C.Obje
 func (s VerTwoPtr) Ptr2() VerOneData           { return VerOneData(C.Struct(s).GetObject(1).ToStruct()) }
 func (s VerTwoPtr) SetPtr2(v VerOneData)       { C.Struct(s).SetObject(1, C.Object(v)) }
 
-// capn.JSON_enabled == false so we stub MarshallJSON().
+// capn.JSON_enabled == false so we stub MarshalJSON().
 func (s VerTwoPtr) MarshalJSON() (bs []byte, err error) { return }
 
 type VerTwoPtr_List C.PointerList
 
-func NewVerTwoPtrList(s *C.Segment, sz int) VerTwoPtr_List {
+func NewVerTwoPtr_List(s *C.Segment, sz int) VerTwoPtr_List {
 	return VerTwoPtr_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 2}, sz))
 }
 func (s VerTwoPtr_List) Len() int                  { return C.PointerList(s).Len() }
@@ -737,12 +737,12 @@ func (s VerTwoDataTwoPtr) SetPtr1(v VerOneData) { C.Struct(s).SetObject(0, C.Obj
 func (s VerTwoDataTwoPtr) Ptr2() VerOneData     { return VerOneData(C.Struct(s).GetObject(1).ToStruct()) }
 func (s VerTwoDataTwoPtr) SetPtr2(v VerOneData) { C.Struct(s).SetObject(1, C.Object(v)) }
 
-// capn.JSON_enabled == false so we stub MarshallJSON().
+// capn.JSON_enabled == false so we stub MarshalJSON().
 func (s VerTwoDataTwoPtr) MarshalJSON() (bs []byte, err error) { return }
 
 type VerTwoDataTwoPtr_List C.PointerList
 
-func NewVerTwoDataTwoPtrList(s *C.Segment, sz int) VerTwoDataTwoPtr_List {
+func NewVerTwoDataTwoPtr_List(s *C.Segment, sz int) VerTwoDataTwoPtr_List {
 	return VerTwoDataTwoPtr_List(s.NewCompositeList(C.ObjectSize{DataSize: 16, PointerCount: 2}, sz))
 }
 func (s VerTwoDataTwoPtr_List) Len() int { return C.PointerList(s).Len() }
@@ -770,12 +770,12 @@ func ReadRootHoldsVerEmptyList(s *C.Segment) HoldsVerEmptyList {
 func (s HoldsVerEmptyList) Mylist() VerEmpty_List     { return VerEmpty_List(C.Struct(s).GetObject(0)) }
 func (s HoldsVerEmptyList) SetMylist(v VerEmpty_List) { C.Struct(s).SetObject(0, C.Object(v)) }
 
-// capn.JSON_enabled == false so we stub MarshallJSON().
+// capn.JSON_enabled == false so we stub MarshalJSON().
 func (s HoldsVerEmptyList) MarshalJSON() (bs []byte, err error) { return }
 
 type HoldsVerEmptyList_List C.PointerList
 
-func NewHoldsVerEmptyListList(s *C.Segment, sz int) HoldsVerEmptyList_List {
+func NewHoldsVerEmptyList_List(s *C.Segment, sz int) HoldsVerEmptyList_List {
 	return HoldsVerEmptyList_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 1}, sz))
 }
 func (s HoldsVerEmptyList_List) Len() int { return C.PointerList(s).Len() }
@@ -805,12 +805,12 @@ func (s HoldsVerOneDataList) Mylist() VerOneData_List {
 }
 func (s HoldsVerOneDataList) SetMylist(v VerOneData_List) { C.Struct(s).SetObject(0, C.Object(v)) }
 
-// capn.JSON_enabled == false so we stub MarshallJSON().
+// capn.JSON_enabled == false so we stub MarshalJSON().
 func (s HoldsVerOneDataList) MarshalJSON() (bs []byte, err error) { return }
 
 type HoldsVerOneDataList_List C.PointerList
 
-func NewHoldsVerOneDataListList(s *C.Segment, sz int) HoldsVerOneDataList_List {
+func NewHoldsVerOneDataList_List(s *C.Segment, sz int) HoldsVerOneDataList_List {
 	return HoldsVerOneDataList_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 1}, sz))
 }
 func (s HoldsVerOneDataList_List) Len() int { return C.PointerList(s).Len() }
@@ -840,12 +840,12 @@ func (s HoldsVerTwoDataList) Mylist() VerTwoData_List {
 }
 func (s HoldsVerTwoDataList) SetMylist(v VerTwoData_List) { C.Struct(s).SetObject(0, C.Object(v)) }
 
-// capn.JSON_enabled == false so we stub MarshallJSON().
+// capn.JSON_enabled == false so we stub MarshalJSON().
 func (s HoldsVerTwoDataList) MarshalJSON() (bs []byte, err error) { return }
 
 type HoldsVerTwoDataList_List C.PointerList
 
-func NewHoldsVerTwoDataListList(s *C.Segment, sz int) HoldsVerTwoDataList_List {
+func NewHoldsVerTwoDataList_List(s *C.Segment, sz int) HoldsVerTwoDataList_List {
 	return HoldsVerTwoDataList_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 1}, sz))
 }
 func (s HoldsVerTwoDataList_List) Len() int { return C.PointerList(s).Len() }
@@ -873,12 +873,12 @@ func ReadRootHoldsVerOnePtrList(s *C.Segment) HoldsVerOnePtrList {
 func (s HoldsVerOnePtrList) Mylist() VerOnePtr_List     { return VerOnePtr_List(C.Struct(s).GetObject(0)) }
 func (s HoldsVerOnePtrList) SetMylist(v VerOnePtr_List) { C.Struct(s).SetObject(0, C.Object(v)) }
 
-// capn.JSON_enabled == false so we stub MarshallJSON().
+// capn.JSON_enabled == false so we stub MarshalJSON().
 func (s HoldsVerOnePtrList) MarshalJSON() (bs []byte, err error) { return }
 
 type HoldsVerOnePtrList_List C.PointerList
 
-func NewHoldsVerOnePtrListList(s *C.Segment, sz int) HoldsVerOnePtrList_List {
+func NewHoldsVerOnePtrList_List(s *C.Segment, sz int) HoldsVerOnePtrList_List {
 	return HoldsVerOnePtrList_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 1}, sz))
 }
 func (s HoldsVerOnePtrList_List) Len() int { return C.PointerList(s).Len() }
@@ -906,12 +906,12 @@ func ReadRootHoldsVerTwoPtrList(s *C.Segment) HoldsVerTwoPtrList {
 func (s HoldsVerTwoPtrList) Mylist() VerTwoPtr_List     { return VerTwoPtr_List(C.Struct(s).GetObject(0)) }
 func (s HoldsVerTwoPtrList) SetMylist(v VerTwoPtr_List) { C.Struct(s).SetObject(0, C.Object(v)) }
 
-// capn.JSON_enabled == false so we stub MarshallJSON().
+// capn.JSON_enabled == false so we stub MarshalJSON().
 func (s HoldsVerTwoPtrList) MarshalJSON() (bs []byte, err error) { return }
 
 type HoldsVerTwoPtrList_List C.PointerList
 
-func NewHoldsVerTwoPtrListList(s *C.Segment, sz int) HoldsVerTwoPtrList_List {
+func NewHoldsVerTwoPtrList_List(s *C.Segment, sz int) HoldsVerTwoPtrList_List {
 	return HoldsVerTwoPtrList_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 1}, sz))
 }
 func (s HoldsVerTwoPtrList_List) Len() int { return C.PointerList(s).Len() }
@@ -941,12 +941,12 @@ func (s HoldsVerTwoTwoList) Mylist() VerTwoDataTwoPtr_List {
 }
 func (s HoldsVerTwoTwoList) SetMylist(v VerTwoDataTwoPtr_List) { C.Struct(s).SetObject(0, C.Object(v)) }
 
-// capn.JSON_enabled == false so we stub MarshallJSON().
+// capn.JSON_enabled == false so we stub MarshalJSON().
 func (s HoldsVerTwoTwoList) MarshalJSON() (bs []byte, err error) { return }
 
 type HoldsVerTwoTwoList_List C.PointerList
 
-func NewHoldsVerTwoTwoListList(s *C.Segment, sz int) HoldsVerTwoTwoList_List {
+func NewHoldsVerTwoTwoList_List(s *C.Segment, sz int) HoldsVerTwoTwoList_List {
 	return HoldsVerTwoTwoList_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 1}, sz))
 }
 func (s HoldsVerTwoTwoList_List) Len() int { return C.PointerList(s).Len() }
@@ -976,12 +976,12 @@ func (s HoldsVerTwoTwoPlus) Mylist() VerTwoTwoPlus_List {
 }
 func (s HoldsVerTwoTwoPlus) SetMylist(v VerTwoTwoPlus_List) { C.Struct(s).SetObject(0, C.Object(v)) }
 
-// capn.JSON_enabled == false so we stub MarshallJSON().
+// capn.JSON_enabled == false so we stub MarshalJSON().
 func (s HoldsVerTwoTwoPlus) MarshalJSON() (bs []byte, err error) { return }
 
 type HoldsVerTwoTwoPlus_List C.PointerList
 
-func NewHoldsVerTwoTwoPlusList(s *C.Segment, sz int) HoldsVerTwoTwoPlus_List {
+func NewHoldsVerTwoTwoPlus_List(s *C.Segment, sz int) HoldsVerTwoTwoPlus_List {
 	return HoldsVerTwoTwoPlus_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 1}, sz))
 }
 func (s HoldsVerTwoTwoPlus_List) Len() int { return C.PointerList(s).Len() }
@@ -1021,12 +1021,12 @@ func (s VerTwoTwoPlus) SetTre(v int64)             { C.Struct(s).Set64(16, uint6
 func (s VerTwoTwoPlus) Lst3() C.Int64List          { return C.Int64List(C.Struct(s).GetObject(2)) }
 func (s VerTwoTwoPlus) SetLst3(v C.Int64List)      { C.Struct(s).SetObject(2, C.Object(v)) }
 
-// capn.JSON_enabled == false so we stub MarshallJSON().
+// capn.JSON_enabled == false so we stub MarshalJSON().
 func (s VerTwoTwoPlus) MarshalJSON() (bs []byte, err error) { return }
 
 type VerTwoTwoPlus_List C.PointerList
 
-func NewVerTwoTwoPlusList(s *C.Segment, sz int) VerTwoTwoPlus_List {
+func NewVerTwoTwoPlus_List(s *C.Segment, sz int) VerTwoTwoPlus_List {
 	return VerTwoTwoPlus_List(s.NewCompositeList(C.ObjectSize{DataSize: 24, PointerCount: 3}, sz))
 }
 func (s VerTwoTwoPlus_List) Len() int { return C.PointerList(s).Len() }
@@ -1054,12 +1054,12 @@ func (s HoldsText) SetLst(v C.TextList)        { C.Struct(s).SetObject(1, C.Obje
 func (s HoldsText) Lstlst() C.PointerList      { return C.PointerList(C.Struct(s).GetObject(2)) }
 func (s HoldsText) SetLstlst(v C.PointerList)  { C.Struct(s).SetObject(2, C.Object(v)) }
 
-// capn.JSON_enabled == false so we stub MarshallJSON().
+// capn.JSON_enabled == false so we stub MarshalJSON().
 func (s HoldsText) MarshalJSON() (bs []byte, err error) { return }
 
 type HoldsText_List C.PointerList
 
-func NewHoldsTextList(s *C.Segment, sz int) HoldsText_List {
+func NewHoldsText_List(s *C.Segment, sz int) HoldsText_List {
 	return HoldsText_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 3}, sz))
 }
 func (s HoldsText_List) Len() int                  { return C.PointerList(s).Len() }
@@ -1083,12 +1083,12 @@ func (s WrapEmpty) MightNotBeReallyEmpty() VerEmpty {
 }
 func (s WrapEmpty) SetMightNotBeReallyEmpty(v VerEmpty) { C.Struct(s).SetObject(0, C.Object(v)) }
 
-// capn.JSON_enabled == false so we stub MarshallJSON().
+// capn.JSON_enabled == false so we stub MarshalJSON().
 func (s WrapEmpty) MarshalJSON() (bs []byte, err error) { return }
 
 type WrapEmpty_List C.PointerList
 
-func NewWrapEmptyList(s *C.Segment, sz int) WrapEmpty_List {
+func NewWrapEmpty_List(s *C.Segment, sz int) WrapEmpty_List {
 	return WrapEmpty_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 1}, sz))
 }
 func (s WrapEmpty_List) Len() int                  { return C.PointerList(s).Len() }
@@ -1112,12 +1112,12 @@ func (s Wrap2x2) MightNotBeReallyEmpty() VerTwoDataTwoPtr {
 }
 func (s Wrap2x2) SetMightNotBeReallyEmpty(v VerTwoDataTwoPtr) { C.Struct(s).SetObject(0, C.Object(v)) }
 
-// capn.JSON_enabled == false so we stub MarshallJSON().
+// capn.JSON_enabled == false so we stub MarshalJSON().
 func (s Wrap2x2) MarshalJSON() (bs []byte, err error) { return }
 
 type Wrap2x2_List C.PointerList
 
-func NewWrap2x2List(s *C.Segment, sz int) Wrap2x2_List {
+func NewWrap2x2_List(s *C.Segment, sz int) Wrap2x2_List {
 	return Wrap2x2_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 1}, sz))
 }
 func (s Wrap2x2_List) Len() int                { return C.PointerList(s).Len() }
@@ -1141,12 +1141,12 @@ func (s Wrap2x2plus) MightNotBeReallyEmpty() VerTwoTwoPlus {
 }
 func (s Wrap2x2plus) SetMightNotBeReallyEmpty(v VerTwoTwoPlus) { C.Struct(s).SetObject(0, C.Object(v)) }
 
-// capn.JSON_enabled == false so we stub MarshallJSON().
+// capn.JSON_enabled == false so we stub MarshalJSON().
 func (s Wrap2x2plus) MarshalJSON() (bs []byte, err error) { return }
 
 type Wrap2x2plus_List C.PointerList
 
-func NewWrap2x2plusList(s *C.Segment, sz int) Wrap2x2plus_List {
+func NewWrap2x2plus_List(s *C.Segment, sz int) Wrap2x2plus_List {
 	return Wrap2x2plus_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 1}, sz))
 }
 func (s Wrap2x2plus_List) Len() int                    { return C.PointerList(s).Len() }
@@ -1172,12 +1172,12 @@ func (s Endpoint) SetPort(v int16)           { C.Struct(s).Set16(0, uint16(v)) }
 func (s Endpoint) Hostname() string          { return C.Struct(s).GetObject(1).ToText() }
 func (s Endpoint) SetHostname(v string)      { C.Struct(s).SetObject(1, s.Segment.NewText(v)) }
 
-// capn.JSON_enabled == false so we stub MarshallJSON().
+// capn.JSON_enabled == false so we stub MarshalJSON().
 func (s Endpoint) MarshalJSON() (bs []byte, err error) { return }
 
 type Endpoint_List C.PointerList
 
-func NewEndpointList(s *C.Segment, sz int) Endpoint_List {
+func NewEndpoint_List(s *C.Segment, sz int) Endpoint_List {
 	return Endpoint_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 2}, sz))
 }
 func (s Endpoint_List) Len() int                 { return C.PointerList(s).Len() }
@@ -1188,8 +1188,8 @@ type VoidUnion C.Struct
 type VoidUnion_Which uint16
 
 const (
-	VOIDUNION_A VoidUnion_Which = 0
-	VOIDUNION_B VoidUnion_Which = 1
+	VoidUnion_Which_a VoidUnion_Which = 0
+	VoidUnion_Which_b VoidUnion_Which = 1
 )
 
 func NewVoidUnion(s *C.Segment) VoidUnion {
@@ -1206,15 +1206,17 @@ func (s VoidUnion) Which() VoidUnion_Which     { return VoidUnion_Which(C.Struct
 func (s VoidUnion) SetA()                      { C.Struct(s).Set16(0, 0) }
 func (s VoidUnion) SetB()                      { C.Struct(s).Set16(0, 1) }
 
-// capn.JSON_enabled == false so we stub MarshallJSON().
+// capn.JSON_enabled == false so we stub MarshalJSON().
 func (s VoidUnion) MarshalJSON() (bs []byte, err error) { return }
 
 type VoidUnion_List C.PointerList
 
-func NewVoidUnionList(s *C.Segment, sz int) VoidUnion_List { return VoidUnion_List(s.NewUInt16List(sz)) }
-func (s VoidUnion_List) Len() int                          { return C.PointerList(s).Len() }
-func (s VoidUnion_List) At(i int) VoidUnion                { return VoidUnion(C.PointerList(s).At(i).ToStruct()) }
-func (s VoidUnion_List) Set(i int, item VoidUnion)         { C.PointerList(s).Set(i, C.Object(item)) }
+func NewVoidUnion_List(s *C.Segment, sz int) VoidUnion_List {
+	return VoidUnion_List(s.NewUInt16List(sz))
+}
+func (s VoidUnion_List) Len() int                  { return C.PointerList(s).Len() }
+func (s VoidUnion_List) At(i int) VoidUnion        { return VoidUnion(C.PointerList(s).At(i).ToStruct()) }
+func (s VoidUnion_List) Set(i int, item VoidUnion) { C.PointerList(s).Set(i, C.Object(item)) }
 
 type Nester1Capn C.Struct
 
@@ -1231,12 +1233,12 @@ func ReadRootNester1Capn(s *C.Segment) Nester1Capn { return Nester1Capn(s.Root(0
 func (s Nester1Capn) Strs() C.TextList             { return C.TextList(C.Struct(s).GetObject(0)) }
 func (s Nester1Capn) SetStrs(v C.TextList)         { C.Struct(s).SetObject(0, C.Object(v)) }
 
-// capn.JSON_enabled == false so we stub MarshallJSON().
+// capn.JSON_enabled == false so we stub MarshalJSON().
 func (s Nester1Capn) MarshalJSON() (bs []byte, err error) { return }
 
 type Nester1Capn_List C.PointerList
 
-func NewNester1CapnList(s *C.Segment, sz int) Nester1Capn_List {
+func NewNester1Capn_List(s *C.Segment, sz int) Nester1Capn_List {
 	return Nester1Capn_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 1}, sz))
 }
 func (s Nester1Capn_List) Len() int                    { return C.PointerList(s).Len() }
@@ -1258,12 +1260,12 @@ func ReadRootRWTestCapn(s *C.Segment) RWTestCapn   { return RWTestCapn(s.Root(0)
 func (s RWTestCapn) NestMatrix() C.PointerList     { return C.PointerList(C.Struct(s).GetObject(0)) }
 func (s RWTestCapn) SetNestMatrix(v C.PointerList) { C.Struct(s).SetObject(0, C.Object(v)) }
 
-// capn.JSON_enabled == false so we stub MarshallJSON().
+// capn.JSON_enabled == false so we stub MarshalJSON().
 func (s RWTestCapn) MarshalJSON() (bs []byte, err error) { return }
 
 type RWTestCapn_List C.PointerList
 
-func NewRWTestCapnList(s *C.Segment, sz int) RWTestCapn_List {
+func NewRWTestCapn_List(s *C.Segment, sz int) RWTestCapn_List {
 	return RWTestCapn_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 1}, sz))
 }
 func (s RWTestCapn_List) Len() int                   { return C.PointerList(s).Len() }
@@ -1285,12 +1287,12 @@ func ReadRootListStructCapn(s *C.Segment) ListStructCapn { return ListStructCapn
 func (s ListStructCapn) Vec() Nester1Capn_List           { return Nester1Capn_List(C.Struct(s).GetObject(0)) }
 func (s ListStructCapn) SetVec(v Nester1Capn_List)       { C.Struct(s).SetObject(0, C.Object(v)) }
 
-// capn.JSON_enabled == false so we stub MarshallJSON().
+// capn.JSON_enabled == false so we stub MarshalJSON().
 func (s ListStructCapn) MarshalJSON() (bs []byte, err error) { return }
 
 type ListStructCapn_List C.PointerList
 
-func NewListStructCapnList(s *C.Segment, sz int) ListStructCapn_List {
+func NewListStructCapn_List(s *C.Segment, sz int) ListStructCapn_List {
 	return ListStructCapn_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 1}, sz))
 }
 func (s ListStructCapn_List) Len() int { return C.PointerList(s).Len() }

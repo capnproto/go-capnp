@@ -23,7 +23,7 @@ func TestV0ListofEmptyShouldMatchCapnp(t *testing.T) {
 
 			emptyBytes := ShowSeg("          after NewRootHoldsVerEmptyList(seg), segment seg is:", seg)
 
-			elist := air.NewVerEmptyList(seg, 2)
+			elist := air.NewVerEmpty_List(seg, 2)
 			plist := capn.PointerList(elist)
 
 			addList2bytes := ShowSeg("          pre NewVerEmpty(scratch), segment seg is:", seg)
@@ -75,7 +75,7 @@ func TestV1DataVersioningBiggerToEmpty(t *testing.T) {
 			scratch := capn.NewBuffer(nil)
 			holder := air.NewRootHoldsVerTwoDataList(seg)
 
-			twolist := air.NewVerTwoDataList(scratch, 2)
+			twolist := air.NewVerTwoData_List(scratch, 2)
 			plist := capn.PointerList(twolist)
 
 			d0 := air.NewVerTwoData(scratch)
@@ -154,7 +154,7 @@ func TestV1DataVersioningEmptyToBigger(t *testing.T) {
 			scratch := capn.NewBuffer(nil)
 
 			emptyholder := air.NewRootHoldsVerEmptyList(seg)
-			elist := air.NewVerEmptyList(scratch, 2)
+			elist := air.NewVerEmpty_List(scratch, 2)
 			emptyholder.SetMylist(elist)
 
 			actEmpty := ShowSeg("          after NewRootHoldsVerEmptyList(seg) and SetMylist(elist), segment seg is:", seg)
@@ -216,7 +216,7 @@ func TestDataVersioningZeroPointersToMore(t *testing.T) {
 			scratch := capn.NewBuffer(nil)
 
 			emptyholder := air.NewRootHoldsVerEmptyList(seg)
-			elist := air.NewVerEmptyList(scratch, 2)
+			elist := air.NewVerEmpty_List(scratch, 2)
 			emptyholder.SetMylist(elist)
 
 			actEmpty := ShowSeg("          after NewRootHoldsVerEmptyList(seg) and SetMylist(elist), segment seg is:", seg)
@@ -271,7 +271,7 @@ func TestDataVersioningZeroPointersToTwo(t *testing.T) {
 			scratch := capn.NewBuffer(nil)
 			holder := air.NewRootHoldsVerTwoTwoList(seg)
 
-			twolist := air.NewVerTwoDataTwoPtrList(scratch, 2)
+			twolist := air.NewVerTwoDataTwoPtr_List(scratch, 2)
 			plist := capn.PointerList(twolist)
 
 			d0 := air.NewVerTwoDataTwoPtr(scratch)

@@ -124,7 +124,7 @@ func TestZserverWithOneFullJob(t *testing.T) {
 
 			server := air.NewRootZserver(seg)
 
-			joblist := air.NewZjobList(seg, 1)
+			joblist := air.NewZjob_List(seg, 1)
 			plist := capn.PointerList(joblist)
 
 			zjob := air.NewZjob(scratch)
@@ -168,7 +168,7 @@ func TestZserverWithAccessors(t *testing.T) {
 
 			server := air.NewRootZserver(seg)
 
-			joblist := air.NewZjobList(seg, 2)
+			joblist := air.NewZjob_List(seg, 2)
 
 			// .Set(int, item)
 			zjob := air.NewZjob(scratch)
@@ -210,7 +210,7 @@ func TestZserverWithAccessors(t *testing.T) {
 func TestEnumFromString(t *testing.T) {
 	cv.Convey("Given an enum tag string matching a constant", t, func() {
 		cv.Convey("FromString should return the corresponding matching constant value", func() {
-			cv.So(air.AirportFromString("jfk"), cv.ShouldEqual, air.AIRPORT_JFK)
+			cv.So(air.AirportFromString("jfk"), cv.ShouldEqual, air.Airport_jfk)
 		})
 	})
 	cv.Convey("Given an enum tag string that does not match a constant", t, func() {
@@ -425,7 +425,7 @@ func TestZserverWithOneEmptyJob(t *testing.T) {
 			scratch := capn.NewBuffer(nil)
 			server := air.NewRootZserver(seg)
 
-			joblist := air.NewZjobList(seg, 1)
+			joblist := air.NewZjob_List(seg, 1)
 			plist := capn.PointerList(joblist)
 
 			ShowSeg("          pre NewZjob, segment seg is:", seg)
