@@ -21,7 +21,7 @@ type buffer struct {
 
 // NewBuffer creates an expanding single segment buffer. Creating new objects
 // will expand the buffer. Data can be nil (or length 0 with some capacity) if
-// creating a new session. If parsing an existing segment than data should be
+// creating a new session. If parsing an existing segment then data should be
 // the segment contents and will not be copied.
 func NewBuffer(data []byte) *Segment {
 	if uint64(len(data)) > uint64(math.MaxUint32) {
@@ -59,11 +59,11 @@ type multiBuffer struct {
 	capTable
 }
 
-// NewmultiBuffer creates a new multi segment message. Creating new objects
+// NewMultiBuffer creates a new multi segment message. Creating new objects
 // will try and reuse the buffers available, but will create new ones if there
 // is insufficient capacity. When parsing an existing message data should be
 // the list of segments. The data buffers will not be copied.
-func NewmultiBuffer(data [][]byte) *Segment {
+func NewMultiBuffer(data [][]byte) *Segment {
 	m := &multiBuffer{
 		segments: make([]*Segment, len(data)),
 	}
