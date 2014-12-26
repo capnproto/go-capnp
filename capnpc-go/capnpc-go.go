@@ -783,7 +783,7 @@ func (n *node) jsonStruct(w io.Writer) {
 	writeErrCheck(w)
 	for i, f := range n.codeOrderFields() {
 		if f.DiscriminantValue() != Field_noDiscriminant {
-			enumname := fmt.Sprintf("%s_%s", strings.ToUpper(n.name), strings.ToUpper(f.Name()))
+			enumname := n.name + "_Which_" + f.Name()
 			fmt.Fprintf(w, "if s.Which() == %s {", enumname)
 		}
 		if i != 0 {
