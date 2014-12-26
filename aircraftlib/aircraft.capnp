@@ -1,4 +1,4 @@
-using Go = import "go.capnp";
+using Go = import "../go.capnp";
 
 $Go.package("aircraftlib");
 $Go.import("go-capnproto/aircraftlib");
