@@ -1300,3 +1300,53 @@ func (s ListStructCapn_List) At(i int) ListStructCapn {
 	return ListStructCapn(C.PointerList(s).At(i).ToStruct())
 }
 func (s ListStructCapn_List) Set(i int, item ListStructCapn) { C.PointerList(s).Set(i, C.Object(item)) }
+
+type Hoth C.Struct
+
+func NewHoth(s *C.Segment) Hoth { return Hoth(s.NewStruct(C.ObjectSize{DataSize: 0, PointerCount: 1})) }
+func NewRootHoth(s *C.Segment) Hoth {
+	return Hoth(s.NewRootStruct(C.ObjectSize{DataSize: 0, PointerCount: 1}))
+}
+func AutoNewHoth(s *C.Segment) Hoth {
+	return Hoth(s.NewStructAR(C.ObjectSize{DataSize: 0, PointerCount: 1}))
+}
+func ReadRootHoth(s *C.Segment) Hoth { return Hoth(s.Root(0).ToStruct()) }
+func (s Hoth) Base() EchoBase        { return EchoBase(C.Struct(s).GetObject(0).ToStruct()) }
+func (s Hoth) SetBase(v EchoBase)    { C.Struct(s).SetObject(0, C.Object(v)) }
+
+// capn.JSON_enabled == false so we stub MarshalJSON().
+func (s Hoth) MarshalJSON() (bs []byte, err error) { return }
+
+type Hoth_List C.PointerList
+
+func NewHoth_List(s *C.Segment, sz int) Hoth_List {
+	return Hoth_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 1}, sz))
+}
+func (s Hoth_List) Len() int             { return C.PointerList(s).Len() }
+func (s Hoth_List) At(i int) Hoth        { return Hoth(C.PointerList(s).At(i).ToStruct()) }
+func (s Hoth_List) Set(i int, item Hoth) { C.PointerList(s).Set(i, C.Object(item)) }
+
+type EchoBase C.Struct
+
+func NewEchoBase(s *C.Segment) EchoBase {
+	return EchoBase(s.NewStruct(C.ObjectSize{DataSize: 0, PointerCount: 1}))
+}
+func NewRootEchoBase(s *C.Segment) EchoBase {
+	return EchoBase(s.NewRootStruct(C.ObjectSize{DataSize: 0, PointerCount: 1}))
+}
+func AutoNewEchoBase(s *C.Segment) EchoBase {
+	return EchoBase(s.NewStructAR(C.ObjectSize{DataSize: 0, PointerCount: 1}))
+}
+func ReadRootEchoBase(s *C.Segment) EchoBase { return EchoBase(s.Root(0).ToStruct()) }
+
+// capn.JSON_enabled == false so we stub MarshalJSON().
+func (s EchoBase) MarshalJSON() (bs []byte, err error) { return }
+
+type EchoBase_List C.PointerList
+
+func NewEchoBase_List(s *C.Segment, sz int) EchoBase_List {
+	return EchoBase_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 1}, sz))
+}
+func (s EchoBase_List) Len() int                 { return C.PointerList(s).Len() }
+func (s EchoBase_List) At(i int) EchoBase        { return EchoBase(C.PointerList(s).At(i).ToStruct()) }
+func (s EchoBase_List) Set(i int, item EchoBase) { C.PointerList(s).Set(i, C.Object(item)) }

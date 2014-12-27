@@ -275,3 +275,17 @@ struct RWTestCapn {
 struct ListStructCapn { 
    vec  @0:   List(Nester1Capn); 
 }
+
+# test interfaces
+
+interface Echo {
+  echo @0 (in :Text) -> (out :Text);
+}
+
+struct Hoth {
+  base @0 :EchoBase;
+}
+
+struct EchoBase {
+  echo @0 :Echo;
+}
