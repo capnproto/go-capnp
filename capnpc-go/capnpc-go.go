@@ -151,7 +151,7 @@ type node struct {
 	pkg   string
 	imp   string
 	nodes []*node
-	name  string
+	Name  string
 }
 
 func assert(chk bool, format string, a ...interface{}) {
@@ -234,7 +234,7 @@ func findNode(id uint64) *node {
 	return n
 }
 
-func (n *node) remoteScope(from *node) string {
+func (n *node) RemoteScope(from *node) string {
 	assert(n.pkg != "", "missing package declaration for %s", n.DisplayName())
 	assert(n.imp != "", "missing import declaration for %s", n.DisplayName())
 	assert(from.imp != "", "missing import declaration for %s", from.DisplayName())
@@ -247,15 +247,15 @@ func (n *node) remoteScope(from *node) string {
 	}
 }
 
-func (n *node) remoteName(from *node) string {
-	return n.remoteScope(from) + n.name
+func (n *node) RemoteName(from *node) string {
+	return n.RemoteScope(from) + n.Name
 }
 
 func (n *node) resolveName(base, name string, file *node) {
 	if base == "" {
-		n.name = strings.Title(name)
+		n.Name = strings.Title(name)
 	} else {
-		n.name = base + "_" + name
+		n.Name = base + "_" + name
 	}
 	n.pkg = file.pkg
 	n.imp = file.imp
@@ -267,7 +267,7 @@ func (n *node) resolveName(base, name string, file *node) {
 	for i := 0; i < n.NestedNodes().Len(); i++ {
 		nn := n.NestedNodes().At(i)
 		if ni := g_nodes[nn.Id()]; ni != nil {
-			ni.resolveName(n.name, nn.Name(), file)
+			ni.resolveName(n.Name, nn.Name(), file)
 		}
 	}
 
@@ -275,7 +275,7 @@ func (n *node) resolveName(base, name string, file *node) {
 		for i := 0; i < n.Struct().Fields().Len(); i++ {
 			f := n.Struct().Fields().At(i)
 			if f.Which() == Field_Which_group {
-				findNode(f.Group().TypeId()).resolveName(n.name, f.Name(), file)
+				findNode(f.Group().TypeId()).resolveName(n.Name, f.Name(), file)
 			}
 		}
 	}
@@ -289,7 +289,7 @@ type enumval struct {
 }
 
 func (e *enumval) fullName() string {
-	return e.parent.name + "_" + e.Name()
+	return e.parent.Name + "_" + e.Name()
 }
 
 func (n *node) defineEnum(w io.Writer) {
@@ -297,7 +297,7 @@ func (n *node) defineEnum(w io.Writer) {
 	if ann.Doc != "" {
 		fmt.Fprintf(w, "// %s\n", ann.Doc)
 	}
-	fmt.Fprintf(w, "type %s uint16\n", n.name)
+	fmt.Fprintf(w, "type %s uint16\n", n.Name)
 
 	if es := n.Enum().Enumerants(); es.Len() > 0 {
 		fmt.Fprintf(w, "const (\n")
@@ -312,12 +312,12 @@ func (n *node) defineEnum(w io.Writer) {
 
 		// not an iota, so type has to go on each line
 		for _, e := range ev {
-			fmt.Fprintf(w, "%s %s = %d\n", e.fullName(), n.name, e.val)
+			fmt.Fprintf(w, "%s %s = %d\n", e.fullName(), n.Name, e.val)
 		}
 
 		fmt.Fprintf(w, ")\n")
 
-		fmt.Fprintf(w, "func (c %s) String() string {\n", n.name)
+		fmt.Fprintf(w, "func (c %s) String() string {\n", n.Name)
 		fmt.Fprintf(w, "switch c {\n")
 		for _, e := range ev {
 			if e.tag != "" {
@@ -327,7 +327,7 @@ func (n *node) defineEnum(w io.Writer) {
 		fmt.Fprintf(w, "default: return \"\"\n")
 		fmt.Fprintf(w, "}\n}\n\n")
 
-		fmt.Fprintf(w, "func %sFromString(c string) %s {\n", n.name, n.name)
+		fmt.Fprintf(w, "func %sFromString(c string) %s {\n", n.Name, n.Name)
 		fmt.Fprintf(w, "switch c {\n")
 		for _, e := range ev {
 			if e.tag != "" {
@@ -339,10 +339,10 @@ func (n *node) defineEnum(w io.Writer) {
 	}
 
 	c := g_imports.capn()
-	fmt.Fprintf(w, "type %s_List %s.PointerList\n", n.name, c)
-	fmt.Fprintf(w, "func New%[1]s_List(s *%[2]s.Segment, sz int) %[1]s_List { return %[1]s_List(s.NewUInt16List(sz)) }\n", n.name, c)
-	fmt.Fprintf(w, "func (s %s_List) Len() int { return %s.UInt16List(s).Len() }\n", n.name, c)
-	fmt.Fprintf(w, "func (s %[1]s_List) At(i int) %[1]s { return %[1]s(%[2]s.UInt16List(s).At(i)) }\n", n.name, c)
+	fmt.Fprintf(w, "type %s_List %s.PointerList\n", n.Name, c)
+	fmt.Fprintf(w, "func New%[1]s_List(s *%[2]s.Segment, sz int) %[1]s_List { return %[1]s_List(s.NewUInt16List(sz)) }\n", n.Name, c)
+	fmt.Fprintf(w, "func (s %s_List) Len() int { return %s.UInt16List(s).Len() }\n", n.Name, c)
+	fmt.Fprintf(w, "func (s %[1]s_List) At(i int) %[1]s { return %[1]s(%[2]s.UInt16List(s).At(i)) }\n", n.Name, c)
 }
 
 func (n *node) writeValue(w io.Writer, t Type, v Value) {
@@ -393,17 +393,17 @@ func (n *node) writeValue(w io.Writer, t Type, v Value) {
 		assert(en.Which() == Node_Which_enum, "expected enum type ID")
 		enums := en.Enum().Enumerants()
 		if val := int(v.Enum()); val >= enums.Len() {
-			fmt.Fprintf(w, "%s(%d)", en.remoteName(n), val)
+			fmt.Fprintf(w, "%s(%d)", en.RemoteName(n), val)
 		} else {
 			ev := enumval{
 				Enumerant: enums.At(val),
 				parent:    en,
 			}
-			fmt.Fprintf(w, "%s%s", en.remoteScope(n), ev.fullName())
+			fmt.Fprintf(w, "%s%s", en.RemoteScope(n), ev.fullName())
 		}
 
 	case Type_Which_struct:
-		fmt.Fprintf(w, "%s(%s.Root(%d))", findNode(t.Struct().TypeId()).remoteName(n), g_bufname, copyData(v.Struct()))
+		fmt.Fprintf(w, "%s(%s.Root(%d))", findNode(t.Struct().TypeId()).RemoteName(n), g_bufname, copyData(v.Struct()))
 
 	case Type_Which_anyPointer:
 		fmt.Fprintf(w, "%s.Root(%d)", g_bufname, copyData(v.AnyPointer()))
@@ -423,7 +423,7 @@ func (n *node) writeValue(w io.Writer, t Type, v Value) {
 }
 
 func (n *node) defineAnnotation(w io.Writer) {
-	fmt.Fprintf(w, "const %s = uint64(0x%x)\n", n.name, n.Id())
+	fmt.Fprintf(w, "const %s = uint64(0x%x)\n", n.Name, n.Id())
 }
 
 func constIsVar(n *node) bool {
@@ -447,7 +447,7 @@ func defineConstNodes(w io.Writer, nodes []*node) {
 				fmt.Fprintf(w, "const (\n")
 				any = true
 			}
-			fmt.Fprintf(w, "%s = ", n.name)
+			fmt.Fprintf(w, "%s = ", n.Name)
 			n.writeValue(w, n.Const().Type(), n.Const().Value())
 			fmt.Fprintf(w, "\n")
 		}
@@ -465,7 +465,7 @@ func defineConstNodes(w io.Writer, nodes []*node) {
 				fmt.Fprintf(w, "var (\n")
 				any = true
 			}
-			fmt.Fprintf(w, "%s = ", n.name)
+			fmt.Fprintf(w, "%s = ", n.Name)
 			n.writeValue(w, n.Const().Type(), n.Const().Value())
 			fmt.Fprintf(w, "\n")
 		}
@@ -494,7 +494,7 @@ func (n *node) defineField(w io.Writer, f Field) {
 	}
 	if t.Which() == Type_Which_void {
 		if f.DiscriminantValue() != Field_noDiscriminant {
-			fmt.Fprintf(&s, "func (s %s) Set%s() {%s }\n", n.name, fieldTitle, settag)
+			fmt.Fprintf(&s, "func (s %s) Set%s() {%s }\n", n.Name, fieldTitle, settag)
 			w.Write(s.Bytes())
 		}
 		return
@@ -508,8 +508,8 @@ func (n *node) defineField(w io.Writer, f Field) {
 	if typ == "" {
 		return
 	}
-	fmt.Fprintf(&g, "func (s %s) %s() %s { ", n.name, fieldTitle, typ)
-	fmt.Fprintf(&s, "func (s %s) Set%s(v %s) {%s ", n.name, fieldTitle, typ, settag)
+	fmt.Fprintf(&g, "func (s %s) %s() %s { ", n.Name, fieldTitle, typ)
+	fmt.Fprintf(&s, "func (s %s) Set%s(v %s) {%s ", n.Name, fieldTitle, typ, settag)
 
 	switch t.Which() {
 	case Type_Which_bool:
@@ -536,7 +536,7 @@ func (n *node) defineField(w io.Writer, f Field) {
 		if def.Which() == Value_Which_enum {
 			d = int64(def.Enum())
 		}
-		n.defineIntField(&g, &s, 16, off, d, ni.remoteName(n))
+		n.defineIntField(&g, &s, 16, off, d, ni.RemoteName(n))
 
 	case Type_Which_float32:
 		assert(def.Which() == Value_Which_void || def.Which() == Value_Which_float32, "expected float32 default")
@@ -692,13 +692,12 @@ func (n *node) fieldType(t Type, ann *annotations) string {
 		return "[]byte"
 	case Type_Which_enum:
 		ni := findNode(t.Enum().TypeId())
-		return ni.remoteName(n)
+		return ni.RemoteName(n)
 	case Type_Which_struct:
 		ni := findNode(t.Struct().TypeId())
-		return ni.remoteName(n)
+		return ni.RemoteName(n)
 	case Type_Which_anyPointer:
-		c := g_imports.add(importSpec{path: go_capnproto_import})
-		return c + ".Object"
+		return g_imports.capn() + ".Object"
 	case Type_Which_list:
 		switch lt := t.List().ElementType(); lt.Which() {
 		case Type_Which_void, Type_Which_interface:
@@ -731,10 +730,10 @@ func (n *node) fieldType(t Type, ann *annotations) string {
 			return g_imports.capn() + ".DataList"
 		case Type_Which_enum:
 			ni := findNode(lt.Enum().TypeId())
-			return ni.remoteName(n) + "_List"
+			return ni.RemoteName(n) + "_List"
 		case Type_Which_struct:
 			ni := findNode(lt.Struct().TypeId())
-			return ni.remoteName(n) + "_List"
+			return ni.RemoteName(n) + "_List"
 		case Type_Which_anyPointer, Type_Which_list:
 			return g_imports.capn() + ".PointerList"
 		}
@@ -855,9 +854,9 @@ func (n *node) defineStructTypes(w io.Writer, baseNode *node) {
 		fmt.Fprintf(w, "// %s\n", ann.Doc)
 	}
 	if baseNode != nil {
-		fmt.Fprintf(w, "type %s %s\n", n.name, baseNode.name)
+		fmt.Fprintf(w, "type %s %s\n", n.Name, baseNode.Name)
 	} else {
-		fmt.Fprintf(w, "type %s %s.Struct\n", n.name, g_imports.capn())
+		fmt.Fprintf(w, "type %s %s.Struct\n", n.Name, g_imports.capn())
 		baseNode = n
 	}
 
@@ -872,14 +871,14 @@ func (n *node) defineStructEnums(w io.Writer) {
 	assert(n.Which() == Node_Which_struct, "invalid struct node")
 
 	if n.Struct().DiscriminantCount() > 0 {
-		fmt.Fprintf(w, "type %s_Which uint16\n", n.name)
+		fmt.Fprintf(w, "type %s_Which uint16\n", n.Name)
 		fmt.Fprintf(w, "const (\n")
 
 		for _, f := range n.codeOrderFields() {
 			if f.DiscriminantValue() == Field_noDiscriminant {
 				// Non-union member
 			} else {
-				fmt.Fprintf(w, "%s_Which_%s %s_Which = %d\n", n.name, f.Name(), n.name, f.DiscriminantValue())
+				fmt.Fprintf(w, "%s_Which_%s %s_Which = %d\n", n.Name, f.Name(), n.Name, f.DiscriminantValue())
 			}
 		}
 		fmt.Fprintf(w, ")\n")
@@ -897,7 +896,7 @@ func (n *node) defineStructFuncs(w io.Writer) {
 
 	if n.Struct().DiscriminantCount() > 0 {
 		fmt.Fprintf(w, "func (s %s) Which() %s_Which { return %s_Which(%s.Struct(s).Get16(%d)) }\n",
-			n.name, n.name, n.name, g_imports.capn(), n.Struct().DiscriminantOffset()*2)
+			n.Name, n.Name, n.Name, g_imports.capn(), n.Struct().DiscriminantOffset()*2)
 	}
 
 	for _, f := range n.codeOrderFields() {
@@ -906,9 +905,9 @@ func (n *node) defineStructFuncs(w io.Writer) {
 			n.defineField(w, f)
 		case Field_Which_group:
 			g := findNode(f.Group().TypeId())
-			fmt.Fprintf(w, "func (s %s) %s() %s { return %s(s) }\n", n.name, strings.Title(f.Name()), g.name, g.name)
+			fmt.Fprintf(w, "func (s %s) %s() %s { return %s(s) }\n", n.Name, strings.Title(f.Name()), g.Name, g.Name)
 			if f.DiscriminantValue() != Field_noDiscriminant {
-				fmt.Fprintf(w, "func (s %s) Set%s() { %s.Struct(s).Set16(%d, %d) }\n", n.name, strings.Title(f.Name()), g_imports.capn(), n.Struct().DiscriminantOffset()*2, f.DiscriminantValue())
+				fmt.Fprintf(w, "func (s %s) Set%s() { %s.Struct(s).Set16(%d, %d) }\n", n.Name, strings.Title(f.Name()), g_imports.capn(), n.Struct().DiscriminantOffset()*2, f.DiscriminantValue())
 			}
 			g.defineStructFuncs(w)
 		}
@@ -929,7 +928,7 @@ func (n *node) defineTypeJsonFuncs(w io.Writer) {
 		bufioImp := g_imports.add(importSpec{path: "bufio", name: "bufio"})
 		bytesImp := g_imports.add(importSpec{path: "bytes", name: "bytes"})
 
-		fmt.Fprintf(w, "func (s %s) WriteJSON(w %s.Writer) error {\n", n.name, ioImp)
+		fmt.Fprintf(w, "func (s %s) WriteJSON(w %s.Writer) error {\n", n.Name, ioImp)
 		fmt.Fprintf(w, "b := %s.NewWriter(w);", bufioImp)
 		fmt.Fprintf(w, "var err error;")
 		fmt.Fprintf(w, "var buf []byte;")
@@ -944,12 +943,12 @@ func (n *node) defineTypeJsonFuncs(w io.Writer) {
 
 		fmt.Fprintf(w, "err = b.Flush(); return err\n};\n")
 
-		fmt.Fprintf(w, "func (s %s) MarshalJSON() ([]byte, error) {\n", n.name)
+		fmt.Fprintf(w, "func (s %s) MarshalJSON() ([]byte, error) {\n", n.Name)
 		fmt.Fprintf(w, "var b %s.Buffer; err := s.WriteJSON(&b); return b.Bytes(), err };", bytesImp)
 
 	} else {
 		fmt.Fprintf(w, "// capn.JSON_enabled == false so we stub MarshalJSON().")
-		fmt.Fprintf(w, "\nfunc (s %s) MarshalJSON() (bs []byte, err error) { return } \n", n.name)
+		fmt.Fprintf(w, "\nfunc (s %s) MarshalJSON() (bs []byte, err error) { return } \n", n.Name)
 	}
 }
 
@@ -971,7 +970,7 @@ func (n *node) jsonStruct(w io.Writer) {
 	writeErrCheck(w)
 	for i, f := range n.codeOrderFields() {
 		if f.DiscriminantValue() != Field_noDiscriminant {
-			enumname := n.name + "_Which_" + f.Name()
+			enumname := n.Name + "_Which_" + f.Name()
 			fmt.Fprintf(w, "if s.Which() == %s {", enumname)
 		}
 		if i != 0 {
@@ -1063,43 +1062,92 @@ func (n *node) defineNewStructFunc(w io.Writer) {
 
 	c := g_imports.capn()
 	fmt.Fprintf(w, "func New%[1]s(s *%[2]s.Segment) %[1]s { return %[1]s(s.NewStruct(%[2]s.ObjectSize{DataSize: %[3]d, PointerCount: %[4]d})) }\n",
-		n.name, c, n.Struct().DataWordCount()*8, n.Struct().PointerCount())
+		n.Name, c, n.Struct().DataWordCount()*8, n.Struct().PointerCount())
 	fmt.Fprintf(w, "func NewRoot%[1]s(s *%[2]s.Segment) %[1]s { return %[1]s(s.NewRootStruct(%[2]s.ObjectSize{DataSize: %[3]d, PointerCount: %[4]d})) }\n",
-		n.name, c, n.Struct().DataWordCount()*8, n.Struct().PointerCount())
+		n.Name, c, n.Struct().DataWordCount()*8, n.Struct().PointerCount())
 	fmt.Fprintf(w, "func AutoNew%[1]s(s *%[2]s.Segment) %[1]s { return %[1]s(s.NewStructAR(%[2]s.ObjectSize{DataSize: %[3]d, PointerCount: %[4]d})) }\n",
-		n.name, c, n.Struct().DataWordCount()*8, n.Struct().PointerCount())
+		n.Name, c, n.Struct().DataWordCount()*8, n.Struct().PointerCount())
 	fmt.Fprintf(w, "func ReadRoot%[1]s(s *%[2]s.Segment) %[1]s { return %[1]s(s.Root(0).ToStruct()) }\n",
-		n.name, c)
+		n.Name, c)
 }
 
 func (n *node) defineStructList(w io.Writer) {
 	assert(n.Which() == Node_Which_struct, "invalid struct node")
 
 	c := g_imports.capn()
-	fmt.Fprintf(w, "type %s_List %s.PointerList\n", n.name, c)
+	fmt.Fprintf(w, "type %s_List %s.PointerList\n", n.Name, c)
 
-	fmt.Fprintf(w, "func New%s_List(s *%s.Segment, sz int) %s_List ", n.name, c, n.name)
+	fmt.Fprintf(w, "func New%s_List(s *%s.Segment, sz int) %s_List ", n.Name, c, n.Name)
 	switch n.Struct().PreferredListEncoding() {
 	case ElementSize_empty:
-		fmt.Fprintf(w, "{ return %s_List(s.NewVoidList(sz)) }\n", n.name)
+		fmt.Fprintf(w, "{ return %s_List(s.NewVoidList(sz)) }\n", n.Name)
 	case ElementSize_bit:
-		fmt.Fprintf(w, "{ return %s_List(s.NewBitList(sz)) }\n", n.name)
+		fmt.Fprintf(w, "{ return %s_List(s.NewBitList(sz)) }\n", n.Name)
 	case ElementSize_byte:
-		fmt.Fprintf(w, "{ return %s_List(s.NewUInt8List(sz)) }\n", n.name)
+		fmt.Fprintf(w, "{ return %s_List(s.NewUInt8List(sz)) }\n", n.Name)
 	case ElementSize_twoBytes:
-		fmt.Fprintf(w, "{ return %s_List(s.NewUInt16List(sz)) }\n", n.name)
+		fmt.Fprintf(w, "{ return %s_List(s.NewUInt16List(sz)) }\n", n.Name)
 	case ElementSize_fourBytes:
-		fmt.Fprintf(w, "{ return %s_List(s.NewUInt32List(sz)) }\n", n.name)
+		fmt.Fprintf(w, "{ return %s_List(s.NewUInt32List(sz)) }\n", n.Name)
 	case ElementSize_eightBytes:
-		fmt.Fprintf(w, "{ return %s_List(s.NewUInt64List(sz)) }\n", n.name)
+		fmt.Fprintf(w, "{ return %s_List(s.NewUInt64List(sz)) }\n", n.Name)
 	default:
 		fmt.Fprintf(w, "{ return %s_List(s.NewCompositeList(%s.ObjectSize{DataSize: %d, PointerCount: %d}, sz)) }\n",
-			n.name, c, n.Struct().DataWordCount()*8, n.Struct().PointerCount())
+			n.Name, c, n.Struct().DataWordCount()*8, n.Struct().PointerCount())
 	}
 
-	fmt.Fprintf(w, "func (s %s_List) Len() int { return %s.PointerList(s).Len() }\n", n.name, c)
-	fmt.Fprintf(w, "func (s %s_List) At(i int) %s { return %s(%s.PointerList(s).At(i).ToStruct()) }\n", n.name, n.name, n.name, c)
-	fmt.Fprintf(w, "func (s %s_List) Set(i int, item %s) { %s.PointerList(s).Set(i, %s.Object(item)) }\n", n.name, n.name, c, c)
+	fmt.Fprintf(w, "func (s %s_List) Len() int { return %s.PointerList(s).Len() }\n", n.Name, c)
+	fmt.Fprintf(w, "func (s %s_List) At(i int) %s { return %s(%s.PointerList(s).At(i).ToStruct()) }\n", n.Name, n.Name, n.Name, c)
+	fmt.Fprintf(w, "func (s %s_List) Set(i int, item %s) { %s.PointerList(s).Set(i, %s.Object(item)) }\n", n.Name, n.Name, c, c)
+}
+
+func (n *node) defineStructPromise(w io.Writer) {
+	templates.ExecuteTemplate(w, "promise", promiseTemplateParams{
+		Node:   n,
+		Fields: n.codeOrderFields(),
+	})
+
+	for _, f := range n.codeOrderFields() {
+		switch f.Which() {
+		case Field_Which_slot:
+			if t := f.Slot().Type().Which(); t == Type_Which_struct || t == Type_Which_interface || t == Type_Which_anyPointer {
+				n.definePromiseField(w, f)
+			}
+		case Field_Which_group:
+			g := findNode(f.Group().TypeId())
+			templates.ExecuteTemplate(w, "promiseGroup", promiseGroupTemplateParams{
+				Node:  n,
+				Field: f,
+				Group: g,
+			})
+			g.defineStructPromise(w)
+		}
+	}
+}
+
+func (n *node) definePromiseField(w io.Writer, f Field) {
+	slot := f.Slot()
+	switch t := slot.Type(); t.Which() {
+	case Type_Which_struct:
+		ni := findNode(t.Struct().TypeId())
+		params := promiseFieldStructTemplateParams{
+			Node:   n,
+			Field:  f,
+			Struct: ni,
+		}
+		if def := slot.DefaultValue(); def.Which() == Value_Which_struct && def.Struct().HasData() {
+			params.BufName = g_bufname
+			params.DefaultOffset = copyData(def.Struct())
+		}
+		templates.ExecuteTemplate(w, "promiseFieldStruct", params)
+	case Type_Which_anyPointer:
+		templates.ExecuteTemplate(w, "promiseFieldAnyPointer", promiseFieldAnyPointerTemplateParams{
+			Node:  n,
+			Field: f,
+		})
+	case Type_Which_interface:
+		// TODO(light)
+	}
 }
 
 func generateFile(reqf CodeGeneratorRequest_RequestedFile) (generr error) {
@@ -1139,6 +1187,7 @@ func generateFile(reqf CodeGeneratorRequest_RequestedFile) (generr error) {
 				n.defineStructFuncs(&buf)
 				n.defineTypeJsonFuncs(&buf)
 				n.defineStructList(&buf)
+				n.defineStructPromise(&buf)
 			}
 		case Node_Which_interface:
 			// TODO(light)

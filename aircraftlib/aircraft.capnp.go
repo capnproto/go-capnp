@@ -39,6 +39,21 @@ func (s Zdate_List) Len() int              { return C.PointerList(s).Len() }
 func (s Zdate_List) At(i int) Zdate        { return Zdate(C.PointerList(s).At(i).ToStruct()) }
 func (s Zdate_List) Set(i int, item Zdate) { C.PointerList(s).Set(i, C.Object(item)) }
 
+type Zdate_Promise struct {
+	p C.Promise
+}
+
+func NewZdate_Promise(p C.Promise) Zdate_Promise {
+	return Zdate_Promise{p}
+}
+
+func (p Zdate_Promise) Get() (Zdate, error) {
+	s, err := p.p.Get()
+	return Zdate(s), err
+}
+
+func (p Zdate_Promise) GenericPromise() C.Promise { return p.p }
+
 type Zdata C.Struct
 
 func NewZdata(s *C.Segment) Zdata {
@@ -65,6 +80,21 @@ func NewZdata_List(s *C.Segment, sz int) Zdata_List {
 func (s Zdata_List) Len() int              { return C.PointerList(s).Len() }
 func (s Zdata_List) At(i int) Zdata        { return Zdata(C.PointerList(s).At(i).ToStruct()) }
 func (s Zdata_List) Set(i int, item Zdata) { C.PointerList(s).Set(i, C.Object(item)) }
+
+type Zdata_Promise struct {
+	p C.Promise
+}
+
+func NewZdata_Promise(p C.Promise) Zdata_Promise {
+	return Zdata_Promise{p}
+}
+
+func (p Zdata_Promise) Get() (Zdata, error) {
+	s, err := p.p.Get()
+	return Zdata(s), err
+}
+
+func (p Zdata_Promise) GenericPromise() C.Promise { return p.p }
 
 type Airport uint16
 
@@ -166,6 +196,21 @@ func (s PlaneBase_List) Len() int                  { return C.PointerList(s).Len
 func (s PlaneBase_List) At(i int) PlaneBase        { return PlaneBase(C.PointerList(s).At(i).ToStruct()) }
 func (s PlaneBase_List) Set(i int, item PlaneBase) { C.PointerList(s).Set(i, C.Object(item)) }
 
+type PlaneBase_Promise struct {
+	p C.Promise
+}
+
+func NewPlaneBase_Promise(p C.Promise) PlaneBase_Promise {
+	return PlaneBase_Promise{p}
+}
+
+func (p PlaneBase_Promise) Get() (PlaneBase, error) {
+	s, err := p.p.Get()
+	return PlaneBase(s), err
+}
+
+func (p PlaneBase_Promise) GenericPromise() C.Promise { return p.p }
+
 type B737 C.Struct
 
 func NewB737(s *C.Segment) B737 { return B737(s.NewStruct(C.ObjectSize{DataSize: 0, PointerCount: 1})) }
@@ -190,6 +235,26 @@ func NewB737_List(s *C.Segment, sz int) B737_List {
 func (s B737_List) Len() int             { return C.PointerList(s).Len() }
 func (s B737_List) At(i int) B737        { return B737(C.PointerList(s).At(i).ToStruct()) }
 func (s B737_List) Set(i int, item B737) { C.PointerList(s).Set(i, C.Object(item)) }
+
+type B737_Promise struct {
+	p C.Promise
+}
+
+func NewB737_Promise(p C.Promise) B737_Promise {
+	return B737_Promise{p}
+}
+
+func (p B737_Promise) Get() (B737, error) {
+	s, err := p.p.Get()
+	return B737(s), err
+}
+
+func (p B737_Promise) GenericPromise() C.Promise { return p.p }
+
+func (p B737_Promise) Base() PlaneBase_Promise {
+	return NewPlaneBase_Promise(
+		p.p.GetPromise(0))
+}
 
 type A320 C.Struct
 
@@ -216,6 +281,26 @@ func (s A320_List) Len() int             { return C.PointerList(s).Len() }
 func (s A320_List) At(i int) A320        { return A320(C.PointerList(s).At(i).ToStruct()) }
 func (s A320_List) Set(i int, item A320) { C.PointerList(s).Set(i, C.Object(item)) }
 
+type A320_Promise struct {
+	p C.Promise
+}
+
+func NewA320_Promise(p C.Promise) A320_Promise {
+	return A320_Promise{p}
+}
+
+func (p A320_Promise) Get() (A320, error) {
+	s, err := p.p.Get()
+	return A320(s), err
+}
+
+func (p A320_Promise) GenericPromise() C.Promise { return p.p }
+
+func (p A320_Promise) Base() PlaneBase_Promise {
+	return NewPlaneBase_Promise(
+		p.p.GetPromise(0))
+}
+
 type F16 C.Struct
 
 func NewF16(s *C.Segment) F16 { return F16(s.NewStruct(C.ObjectSize{DataSize: 0, PointerCount: 1})) }
@@ -240,6 +325,26 @@ func NewF16_List(s *C.Segment, sz int) F16_List {
 func (s F16_List) Len() int            { return C.PointerList(s).Len() }
 func (s F16_List) At(i int) F16        { return F16(C.PointerList(s).At(i).ToStruct()) }
 func (s F16_List) Set(i int, item F16) { C.PointerList(s).Set(i, C.Object(item)) }
+
+type F16_Promise struct {
+	p C.Promise
+}
+
+func NewF16_Promise(p C.Promise) F16_Promise {
+	return F16_Promise{p}
+}
+
+func (p F16_Promise) Get() (F16, error) {
+	s, err := p.p.Get()
+	return F16(s), err
+}
+
+func (p F16_Promise) GenericPromise() C.Promise { return p.p }
+
+func (p F16_Promise) Base() PlaneBase_Promise {
+	return NewPlaneBase_Promise(
+		p.p.GetPromise(0))
+}
 
 type Regression C.Struct
 
@@ -277,6 +382,26 @@ func NewRegression_List(s *C.Segment, sz int) Regression_List {
 func (s Regression_List) Len() int                   { return C.PointerList(s).Len() }
 func (s Regression_List) At(i int) Regression        { return Regression(C.PointerList(s).At(i).ToStruct()) }
 func (s Regression_List) Set(i int, item Regression) { C.PointerList(s).Set(i, C.Object(item)) }
+
+type Regression_Promise struct {
+	p C.Promise
+}
+
+func NewRegression_Promise(p C.Promise) Regression_Promise {
+	return Regression_Promise{p}
+}
+
+func (p Regression_Promise) Get() (Regression, error) {
+	s, err := p.p.Get()
+	return Regression(s), err
+}
+
+func (p Regression_Promise) GenericPromise() C.Promise { return p.p }
+
+func (p Regression_Promise) Base() PlaneBase_Promise {
+	return NewPlaneBase_Promise(
+		p.p.GetPromise(0))
+}
 
 type Aircraft C.Struct
 type Aircraft_Which uint16
@@ -318,6 +443,36 @@ func NewAircraft_List(s *C.Segment, sz int) Aircraft_List {
 func (s Aircraft_List) Len() int                 { return C.PointerList(s).Len() }
 func (s Aircraft_List) At(i int) Aircraft        { return Aircraft(C.PointerList(s).At(i).ToStruct()) }
 func (s Aircraft_List) Set(i int, item Aircraft) { C.PointerList(s).Set(i, C.Object(item)) }
+
+type Aircraft_Promise struct {
+	p C.Promise
+}
+
+func NewAircraft_Promise(p C.Promise) Aircraft_Promise {
+	return Aircraft_Promise{p}
+}
+
+func (p Aircraft_Promise) Get() (Aircraft, error) {
+	s, err := p.p.Get()
+	return Aircraft(s), err
+}
+
+func (p Aircraft_Promise) GenericPromise() C.Promise { return p.p }
+
+func (p Aircraft_Promise) B737() B737_Promise {
+	return NewB737_Promise(
+		p.p.GetPromise(0))
+}
+
+func (p Aircraft_Promise) A320() A320_Promise {
+	return NewA320_Promise(
+		p.p.GetPromise(0))
+}
+
+func (p Aircraft_Promise) F16() F16_Promise {
+	return NewF16_Promise(
+		p.p.GetPromise(0))
+}
 
 type Z C.Struct
 type Z_Which uint16
@@ -471,6 +626,66 @@ func (s Z_List) Len() int          { return C.PointerList(s).Len() }
 func (s Z_List) At(i int) Z        { return Z(C.PointerList(s).At(i).ToStruct()) }
 func (s Z_List) Set(i int, item Z) { C.PointerList(s).Set(i, C.Object(item)) }
 
+type Z_Promise struct {
+	p C.Promise
+}
+
+func NewZ_Promise(p C.Promise) Z_Promise {
+	return Z_Promise{p}
+}
+
+func (p Z_Promise) Get() (Z, error) {
+	s, err := p.p.Get()
+	return Z(s), err
+}
+
+func (p Z_Promise) GenericPromise() C.Promise { return p.p }
+
+func (p Z_Promise) Zz() Z_Promise {
+	return NewZ_Promise(
+		p.p.GetPromise(0))
+}
+
+func (p Z_Promise) Zdate() Zdate_Promise {
+	return NewZdate_Promise(
+		p.p.GetPromise(0))
+}
+
+func (p Z_Promise) Zdata() Zdata_Promise {
+	return NewZdata_Promise(
+		p.p.GetPromise(0))
+}
+
+func (p Z_Promise) Aircraft() Aircraft_Promise {
+	return NewAircraft_Promise(
+		p.p.GetPromise(0))
+}
+
+func (p Z_Promise) Regression() Regression_Promise {
+	return NewRegression_Promise(
+		p.p.GetPromise(0))
+}
+
+func (p Z_Promise) Planebase() PlaneBase_Promise {
+	return NewPlaneBase_Promise(
+		p.p.GetPromise(0))
+}
+
+func (p Z_Promise) B737() B737_Promise {
+	return NewB737_Promise(
+		p.p.GetPromise(0))
+}
+
+func (p Z_Promise) A320() A320_Promise {
+	return NewA320_Promise(
+		p.p.GetPromise(0))
+}
+
+func (p Z_Promise) F16() F16_Promise {
+	return NewF16_Promise(
+		p.p.GetPromise(0))
+}
+
 type Counter C.Struct
 
 func NewCounter(s *C.Segment) Counter {
@@ -502,6 +717,21 @@ func (s Counter_List) Len() int                { return C.PointerList(s).Len() }
 func (s Counter_List) At(i int) Counter        { return Counter(C.PointerList(s).At(i).ToStruct()) }
 func (s Counter_List) Set(i int, item Counter) { C.PointerList(s).Set(i, C.Object(item)) }
 
+type Counter_Promise struct {
+	p C.Promise
+}
+
+func NewCounter_Promise(p C.Promise) Counter_Promise {
+	return Counter_Promise{p}
+}
+
+func (p Counter_Promise) Get() (Counter, error) {
+	s, err := p.p.Get()
+	return Counter(s), err
+}
+
+func (p Counter_Promise) GenericPromise() C.Promise { return p.p }
+
 type Bag C.Struct
 
 func NewBag(s *C.Segment) Bag { return Bag(s.NewStruct(C.ObjectSize{DataSize: 0, PointerCount: 1})) }
@@ -526,6 +756,26 @@ func NewBag_List(s *C.Segment, sz int) Bag_List {
 func (s Bag_List) Len() int            { return C.PointerList(s).Len() }
 func (s Bag_List) At(i int) Bag        { return Bag(C.PointerList(s).At(i).ToStruct()) }
 func (s Bag_List) Set(i int, item Bag) { C.PointerList(s).Set(i, C.Object(item)) }
+
+type Bag_Promise struct {
+	p C.Promise
+}
+
+func NewBag_Promise(p C.Promise) Bag_Promise {
+	return Bag_Promise{p}
+}
+
+func (p Bag_Promise) Get() (Bag, error) {
+	s, err := p.p.Get()
+	return Bag(s), err
+}
+
+func (p Bag_Promise) GenericPromise() C.Promise { return p.p }
+
+func (p Bag_Promise) Counter() Counter_Promise {
+	return NewCounter_Promise(
+		p.p.GetPromise(0))
+}
 
 type Zserver C.Struct
 
@@ -554,6 +804,21 @@ func (s Zserver_List) Len() int                { return C.PointerList(s).Len() }
 func (s Zserver_List) At(i int) Zserver        { return Zserver(C.PointerList(s).At(i).ToStruct()) }
 func (s Zserver_List) Set(i int, item Zserver) { C.PointerList(s).Set(i, C.Object(item)) }
 
+type Zserver_Promise struct {
+	p C.Promise
+}
+
+func NewZserver_Promise(p C.Promise) Zserver_Promise {
+	return Zserver_Promise{p}
+}
+
+func (p Zserver_Promise) Get() (Zserver, error) {
+	s, err := p.p.Get()
+	return Zserver(s), err
+}
+
+func (p Zserver_Promise) GenericPromise() C.Promise { return p.p }
+
 type Zjob C.Struct
 
 func NewZjob(s *C.Segment) Zjob { return Zjob(s.NewStruct(C.ObjectSize{DataSize: 0, PointerCount: 2})) }
@@ -581,6 +846,21 @@ func (s Zjob_List) Len() int             { return C.PointerList(s).Len() }
 func (s Zjob_List) At(i int) Zjob        { return Zjob(C.PointerList(s).At(i).ToStruct()) }
 func (s Zjob_List) Set(i int, item Zjob) { C.PointerList(s).Set(i, C.Object(item)) }
 
+type Zjob_Promise struct {
+	p C.Promise
+}
+
+func NewZjob_Promise(p C.Promise) Zjob_Promise {
+	return Zjob_Promise{p}
+}
+
+func (p Zjob_Promise) Get() (Zjob, error) {
+	s, err := p.p.Get()
+	return Zjob(s), err
+}
+
+func (p Zjob_Promise) GenericPromise() C.Promise { return p.p }
+
 type VerEmpty C.Struct
 
 func NewVerEmpty(s *C.Segment) VerEmpty {
@@ -605,6 +885,21 @@ func NewVerEmpty_List(s *C.Segment, sz int) VerEmpty_List {
 func (s VerEmpty_List) Len() int                 { return C.PointerList(s).Len() }
 func (s VerEmpty_List) At(i int) VerEmpty        { return VerEmpty(C.PointerList(s).At(i).ToStruct()) }
 func (s VerEmpty_List) Set(i int, item VerEmpty) { C.PointerList(s).Set(i, C.Object(item)) }
+
+type VerEmpty_Promise struct {
+	p C.Promise
+}
+
+func NewVerEmpty_Promise(p C.Promise) VerEmpty_Promise {
+	return VerEmpty_Promise{p}
+}
+
+func (p VerEmpty_Promise) Get() (VerEmpty, error) {
+	s, err := p.p.Get()
+	return VerEmpty(s), err
+}
+
+func (p VerEmpty_Promise) GenericPromise() C.Promise { return p.p }
 
 type VerOneData C.Struct
 
@@ -632,6 +927,21 @@ func NewVerOneData_List(s *C.Segment, sz int) VerOneData_List {
 func (s VerOneData_List) Len() int                   { return C.PointerList(s).Len() }
 func (s VerOneData_List) At(i int) VerOneData        { return VerOneData(C.PointerList(s).At(i).ToStruct()) }
 func (s VerOneData_List) Set(i int, item VerOneData) { C.PointerList(s).Set(i, C.Object(item)) }
+
+type VerOneData_Promise struct {
+	p C.Promise
+}
+
+func NewVerOneData_Promise(p C.Promise) VerOneData_Promise {
+	return VerOneData_Promise{p}
+}
+
+func (p VerOneData_Promise) Get() (VerOneData, error) {
+	s, err := p.p.Get()
+	return VerOneData(s), err
+}
+
+func (p VerOneData_Promise) GenericPromise() C.Promise { return p.p }
 
 type VerTwoData C.Struct
 
@@ -662,6 +972,21 @@ func (s VerTwoData_List) Len() int                   { return C.PointerList(s).L
 func (s VerTwoData_List) At(i int) VerTwoData        { return VerTwoData(C.PointerList(s).At(i).ToStruct()) }
 func (s VerTwoData_List) Set(i int, item VerTwoData) { C.PointerList(s).Set(i, C.Object(item)) }
 
+type VerTwoData_Promise struct {
+	p C.Promise
+}
+
+func NewVerTwoData_Promise(p C.Promise) VerTwoData_Promise {
+	return VerTwoData_Promise{p}
+}
+
+func (p VerTwoData_Promise) Get() (VerTwoData, error) {
+	s, err := p.p.Get()
+	return VerTwoData(s), err
+}
+
+func (p VerTwoData_Promise) GenericPromise() C.Promise { return p.p }
+
 type VerOnePtr C.Struct
 
 func NewVerOnePtr(s *C.Segment) VerOnePtr {
@@ -688,6 +1013,26 @@ func NewVerOnePtr_List(s *C.Segment, sz int) VerOnePtr_List {
 func (s VerOnePtr_List) Len() int                  { return C.PointerList(s).Len() }
 func (s VerOnePtr_List) At(i int) VerOnePtr        { return VerOnePtr(C.PointerList(s).At(i).ToStruct()) }
 func (s VerOnePtr_List) Set(i int, item VerOnePtr) { C.PointerList(s).Set(i, C.Object(item)) }
+
+type VerOnePtr_Promise struct {
+	p C.Promise
+}
+
+func NewVerOnePtr_Promise(p C.Promise) VerOnePtr_Promise {
+	return VerOnePtr_Promise{p}
+}
+
+func (p VerOnePtr_Promise) Get() (VerOnePtr, error) {
+	s, err := p.p.Get()
+	return VerOnePtr(s), err
+}
+
+func (p VerOnePtr_Promise) GenericPromise() C.Promise { return p.p }
+
+func (p VerOnePtr_Promise) Ptr() VerOneData_Promise {
+	return NewVerOneData_Promise(
+		p.p.GetPromise(0))
+}
 
 type VerTwoPtr C.Struct
 
@@ -717,6 +1062,31 @@ func NewVerTwoPtr_List(s *C.Segment, sz int) VerTwoPtr_List {
 func (s VerTwoPtr_List) Len() int                  { return C.PointerList(s).Len() }
 func (s VerTwoPtr_List) At(i int) VerTwoPtr        { return VerTwoPtr(C.PointerList(s).At(i).ToStruct()) }
 func (s VerTwoPtr_List) Set(i int, item VerTwoPtr) { C.PointerList(s).Set(i, C.Object(item)) }
+
+type VerTwoPtr_Promise struct {
+	p C.Promise
+}
+
+func NewVerTwoPtr_Promise(p C.Promise) VerTwoPtr_Promise {
+	return VerTwoPtr_Promise{p}
+}
+
+func (p VerTwoPtr_Promise) Get() (VerTwoPtr, error) {
+	s, err := p.p.Get()
+	return VerTwoPtr(s), err
+}
+
+func (p VerTwoPtr_Promise) GenericPromise() C.Promise { return p.p }
+
+func (p VerTwoPtr_Promise) Ptr1() VerOneData_Promise {
+	return NewVerOneData_Promise(
+		p.p.GetPromise(0))
+}
+
+func (p VerTwoPtr_Promise) Ptr2() VerOneData_Promise {
+	return NewVerOneData_Promise(
+		p.p.GetPromise(1))
+}
 
 type VerTwoDataTwoPtr C.Struct
 
@@ -757,6 +1127,31 @@ func (s VerTwoDataTwoPtr_List) Set(i int, item VerTwoDataTwoPtr) {
 	C.PointerList(s).Set(i, C.Object(item))
 }
 
+type VerTwoDataTwoPtr_Promise struct {
+	p C.Promise
+}
+
+func NewVerTwoDataTwoPtr_Promise(p C.Promise) VerTwoDataTwoPtr_Promise {
+	return VerTwoDataTwoPtr_Promise{p}
+}
+
+func (p VerTwoDataTwoPtr_Promise) Get() (VerTwoDataTwoPtr, error) {
+	s, err := p.p.Get()
+	return VerTwoDataTwoPtr(s), err
+}
+
+func (p VerTwoDataTwoPtr_Promise) GenericPromise() C.Promise { return p.p }
+
+func (p VerTwoDataTwoPtr_Promise) Ptr1() VerOneData_Promise {
+	return NewVerOneData_Promise(
+		p.p.GetPromise(0))
+}
+
+func (p VerTwoDataTwoPtr_Promise) Ptr2() VerOneData_Promise {
+	return NewVerOneData_Promise(
+		p.p.GetPromise(1))
+}
+
 type HoldsVerEmptyList C.Struct
 
 func NewHoldsVerEmptyList(s *C.Segment) HoldsVerEmptyList {
@@ -789,6 +1184,21 @@ func (s HoldsVerEmptyList_List) At(i int) HoldsVerEmptyList {
 func (s HoldsVerEmptyList_List) Set(i int, item HoldsVerEmptyList) {
 	C.PointerList(s).Set(i, C.Object(item))
 }
+
+type HoldsVerEmptyList_Promise struct {
+	p C.Promise
+}
+
+func NewHoldsVerEmptyList_Promise(p C.Promise) HoldsVerEmptyList_Promise {
+	return HoldsVerEmptyList_Promise{p}
+}
+
+func (p HoldsVerEmptyList_Promise) Get() (HoldsVerEmptyList, error) {
+	s, err := p.p.Get()
+	return HoldsVerEmptyList(s), err
+}
+
+func (p HoldsVerEmptyList_Promise) GenericPromise() C.Promise { return p.p }
 
 type HoldsVerOneDataList C.Struct
 
@@ -825,6 +1235,21 @@ func (s HoldsVerOneDataList_List) Set(i int, item HoldsVerOneDataList) {
 	C.PointerList(s).Set(i, C.Object(item))
 }
 
+type HoldsVerOneDataList_Promise struct {
+	p C.Promise
+}
+
+func NewHoldsVerOneDataList_Promise(p C.Promise) HoldsVerOneDataList_Promise {
+	return HoldsVerOneDataList_Promise{p}
+}
+
+func (p HoldsVerOneDataList_Promise) Get() (HoldsVerOneDataList, error) {
+	s, err := p.p.Get()
+	return HoldsVerOneDataList(s), err
+}
+
+func (p HoldsVerOneDataList_Promise) GenericPromise() C.Promise { return p.p }
+
 type HoldsVerTwoDataList C.Struct
 
 func NewHoldsVerTwoDataList(s *C.Segment) HoldsVerTwoDataList {
@@ -860,6 +1285,21 @@ func (s HoldsVerTwoDataList_List) Set(i int, item HoldsVerTwoDataList) {
 	C.PointerList(s).Set(i, C.Object(item))
 }
 
+type HoldsVerTwoDataList_Promise struct {
+	p C.Promise
+}
+
+func NewHoldsVerTwoDataList_Promise(p C.Promise) HoldsVerTwoDataList_Promise {
+	return HoldsVerTwoDataList_Promise{p}
+}
+
+func (p HoldsVerTwoDataList_Promise) Get() (HoldsVerTwoDataList, error) {
+	s, err := p.p.Get()
+	return HoldsVerTwoDataList(s), err
+}
+
+func (p HoldsVerTwoDataList_Promise) GenericPromise() C.Promise { return p.p }
+
 type HoldsVerOnePtrList C.Struct
 
 func NewHoldsVerOnePtrList(s *C.Segment) HoldsVerOnePtrList {
@@ -893,6 +1333,21 @@ func (s HoldsVerOnePtrList_List) Set(i int, item HoldsVerOnePtrList) {
 	C.PointerList(s).Set(i, C.Object(item))
 }
 
+type HoldsVerOnePtrList_Promise struct {
+	p C.Promise
+}
+
+func NewHoldsVerOnePtrList_Promise(p C.Promise) HoldsVerOnePtrList_Promise {
+	return HoldsVerOnePtrList_Promise{p}
+}
+
+func (p HoldsVerOnePtrList_Promise) Get() (HoldsVerOnePtrList, error) {
+	s, err := p.p.Get()
+	return HoldsVerOnePtrList(s), err
+}
+
+func (p HoldsVerOnePtrList_Promise) GenericPromise() C.Promise { return p.p }
+
 type HoldsVerTwoPtrList C.Struct
 
 func NewHoldsVerTwoPtrList(s *C.Segment) HoldsVerTwoPtrList {
@@ -925,6 +1380,21 @@ func (s HoldsVerTwoPtrList_List) At(i int) HoldsVerTwoPtrList {
 func (s HoldsVerTwoPtrList_List) Set(i int, item HoldsVerTwoPtrList) {
 	C.PointerList(s).Set(i, C.Object(item))
 }
+
+type HoldsVerTwoPtrList_Promise struct {
+	p C.Promise
+}
+
+func NewHoldsVerTwoPtrList_Promise(p C.Promise) HoldsVerTwoPtrList_Promise {
+	return HoldsVerTwoPtrList_Promise{p}
+}
+
+func (p HoldsVerTwoPtrList_Promise) Get() (HoldsVerTwoPtrList, error) {
+	s, err := p.p.Get()
+	return HoldsVerTwoPtrList(s), err
+}
+
+func (p HoldsVerTwoPtrList_Promise) GenericPromise() C.Promise { return p.p }
 
 type HoldsVerTwoTwoList C.Struct
 
@@ -961,6 +1431,21 @@ func (s HoldsVerTwoTwoList_List) Set(i int, item HoldsVerTwoTwoList) {
 	C.PointerList(s).Set(i, C.Object(item))
 }
 
+type HoldsVerTwoTwoList_Promise struct {
+	p C.Promise
+}
+
+func NewHoldsVerTwoTwoList_Promise(p C.Promise) HoldsVerTwoTwoList_Promise {
+	return HoldsVerTwoTwoList_Promise{p}
+}
+
+func (p HoldsVerTwoTwoList_Promise) Get() (HoldsVerTwoTwoList, error) {
+	s, err := p.p.Get()
+	return HoldsVerTwoTwoList(s), err
+}
+
+func (p HoldsVerTwoTwoList_Promise) GenericPromise() C.Promise { return p.p }
+
 type HoldsVerTwoTwoPlus C.Struct
 
 func NewHoldsVerTwoTwoPlus(s *C.Segment) HoldsVerTwoTwoPlus {
@@ -995,6 +1480,21 @@ func (s HoldsVerTwoTwoPlus_List) At(i int) HoldsVerTwoTwoPlus {
 func (s HoldsVerTwoTwoPlus_List) Set(i int, item HoldsVerTwoTwoPlus) {
 	C.PointerList(s).Set(i, C.Object(item))
 }
+
+type HoldsVerTwoTwoPlus_Promise struct {
+	p C.Promise
+}
+
+func NewHoldsVerTwoTwoPlus_Promise(p C.Promise) HoldsVerTwoTwoPlus_Promise {
+	return HoldsVerTwoTwoPlus_Promise{p}
+}
+
+func (p HoldsVerTwoTwoPlus_Promise) Get() (HoldsVerTwoTwoPlus, error) {
+	s, err := p.p.Get()
+	return HoldsVerTwoTwoPlus(s), err
+}
+
+func (p HoldsVerTwoTwoPlus_Promise) GenericPromise() C.Promise { return p.p }
 
 type VerTwoTwoPlus C.Struct
 
@@ -1039,6 +1539,31 @@ func (s VerTwoTwoPlus_List) At(i int) VerTwoTwoPlus {
 }
 func (s VerTwoTwoPlus_List) Set(i int, item VerTwoTwoPlus) { C.PointerList(s).Set(i, C.Object(item)) }
 
+type VerTwoTwoPlus_Promise struct {
+	p C.Promise
+}
+
+func NewVerTwoTwoPlus_Promise(p C.Promise) VerTwoTwoPlus_Promise {
+	return VerTwoTwoPlus_Promise{p}
+}
+
+func (p VerTwoTwoPlus_Promise) Get() (VerTwoTwoPlus, error) {
+	s, err := p.p.Get()
+	return VerTwoTwoPlus(s), err
+}
+
+func (p VerTwoTwoPlus_Promise) GenericPromise() C.Promise { return p.p }
+
+func (p VerTwoTwoPlus_Promise) Ptr1() VerTwoDataTwoPtr_Promise {
+	return NewVerTwoDataTwoPtr_Promise(
+		p.p.GetPromise(0))
+}
+
+func (p VerTwoTwoPlus_Promise) Ptr2() VerTwoDataTwoPtr_Promise {
+	return NewVerTwoDataTwoPtr_Promise(
+		p.p.GetPromise(1))
+}
+
 type HoldsText C.Struct
 
 func NewHoldsText(s *C.Segment) HoldsText {
@@ -1070,6 +1595,21 @@ func (s HoldsText_List) Len() int                  { return C.PointerList(s).Len
 func (s HoldsText_List) At(i int) HoldsText        { return HoldsText(C.PointerList(s).At(i).ToStruct()) }
 func (s HoldsText_List) Set(i int, item HoldsText) { C.PointerList(s).Set(i, C.Object(item)) }
 
+type HoldsText_Promise struct {
+	p C.Promise
+}
+
+func NewHoldsText_Promise(p C.Promise) HoldsText_Promise {
+	return HoldsText_Promise{p}
+}
+
+func (p HoldsText_Promise) Get() (HoldsText, error) {
+	s, err := p.p.Get()
+	return HoldsText(s), err
+}
+
+func (p HoldsText_Promise) GenericPromise() C.Promise { return p.p }
+
 type WrapEmpty C.Struct
 
 func NewWrapEmpty(s *C.Segment) WrapEmpty {
@@ -1098,6 +1638,26 @@ func NewWrapEmpty_List(s *C.Segment, sz int) WrapEmpty_List {
 func (s WrapEmpty_List) Len() int                  { return C.PointerList(s).Len() }
 func (s WrapEmpty_List) At(i int) WrapEmpty        { return WrapEmpty(C.PointerList(s).At(i).ToStruct()) }
 func (s WrapEmpty_List) Set(i int, item WrapEmpty) { C.PointerList(s).Set(i, C.Object(item)) }
+
+type WrapEmpty_Promise struct {
+	p C.Promise
+}
+
+func NewWrapEmpty_Promise(p C.Promise) WrapEmpty_Promise {
+	return WrapEmpty_Promise{p}
+}
+
+func (p WrapEmpty_Promise) Get() (WrapEmpty, error) {
+	s, err := p.p.Get()
+	return WrapEmpty(s), err
+}
+
+func (p WrapEmpty_Promise) GenericPromise() C.Promise { return p.p }
+
+func (p WrapEmpty_Promise) MightNotBeReallyEmpty() VerEmpty_Promise {
+	return NewVerEmpty_Promise(
+		p.p.GetPromise(0))
+}
 
 type Wrap2x2 C.Struct
 
@@ -1128,6 +1688,26 @@ func (s Wrap2x2_List) Len() int                { return C.PointerList(s).Len() }
 func (s Wrap2x2_List) At(i int) Wrap2x2        { return Wrap2x2(C.PointerList(s).At(i).ToStruct()) }
 func (s Wrap2x2_List) Set(i int, item Wrap2x2) { C.PointerList(s).Set(i, C.Object(item)) }
 
+type Wrap2x2_Promise struct {
+	p C.Promise
+}
+
+func NewWrap2x2_Promise(p C.Promise) Wrap2x2_Promise {
+	return Wrap2x2_Promise{p}
+}
+
+func (p Wrap2x2_Promise) Get() (Wrap2x2, error) {
+	s, err := p.p.Get()
+	return Wrap2x2(s), err
+}
+
+func (p Wrap2x2_Promise) GenericPromise() C.Promise { return p.p }
+
+func (p Wrap2x2_Promise) MightNotBeReallyEmpty() VerTwoDataTwoPtr_Promise {
+	return NewVerTwoDataTwoPtr_Promise(
+		p.p.GetPromise(0))
+}
+
 type Wrap2x2plus C.Struct
 
 func NewWrap2x2plus(s *C.Segment) Wrap2x2plus {
@@ -1156,6 +1736,26 @@ func NewWrap2x2plus_List(s *C.Segment, sz int) Wrap2x2plus_List {
 func (s Wrap2x2plus_List) Len() int                    { return C.PointerList(s).Len() }
 func (s Wrap2x2plus_List) At(i int) Wrap2x2plus        { return Wrap2x2plus(C.PointerList(s).At(i).ToStruct()) }
 func (s Wrap2x2plus_List) Set(i int, item Wrap2x2plus) { C.PointerList(s).Set(i, C.Object(item)) }
+
+type Wrap2x2plus_Promise struct {
+	p C.Promise
+}
+
+func NewWrap2x2plus_Promise(p C.Promise) Wrap2x2plus_Promise {
+	return Wrap2x2plus_Promise{p}
+}
+
+func (p Wrap2x2plus_Promise) Get() (Wrap2x2plus, error) {
+	s, err := p.p.Get()
+	return Wrap2x2plus(s), err
+}
+
+func (p Wrap2x2plus_Promise) GenericPromise() C.Promise { return p.p }
+
+func (p Wrap2x2plus_Promise) MightNotBeReallyEmpty() VerTwoTwoPlus_Promise {
+	return NewVerTwoTwoPlus_Promise(
+		p.p.GetPromise(0))
+}
 
 type Endpoint C.Struct
 
@@ -1187,6 +1787,21 @@ func NewEndpoint_List(s *C.Segment, sz int) Endpoint_List {
 func (s Endpoint_List) Len() int                 { return C.PointerList(s).Len() }
 func (s Endpoint_List) At(i int) Endpoint        { return Endpoint(C.PointerList(s).At(i).ToStruct()) }
 func (s Endpoint_List) Set(i int, item Endpoint) { C.PointerList(s).Set(i, C.Object(item)) }
+
+type Endpoint_Promise struct {
+	p C.Promise
+}
+
+func NewEndpoint_Promise(p C.Promise) Endpoint_Promise {
+	return Endpoint_Promise{p}
+}
+
+func (p Endpoint_Promise) Get() (Endpoint, error) {
+	s, err := p.p.Get()
+	return Endpoint(s), err
+}
+
+func (p Endpoint_Promise) GenericPromise() C.Promise { return p.p }
 
 type VoidUnion C.Struct
 type VoidUnion_Which uint16
@@ -1222,6 +1837,21 @@ func (s VoidUnion_List) Len() int                  { return C.PointerList(s).Len
 func (s VoidUnion_List) At(i int) VoidUnion        { return VoidUnion(C.PointerList(s).At(i).ToStruct()) }
 func (s VoidUnion_List) Set(i int, item VoidUnion) { C.PointerList(s).Set(i, C.Object(item)) }
 
+type VoidUnion_Promise struct {
+	p C.Promise
+}
+
+func NewVoidUnion_Promise(p C.Promise) VoidUnion_Promise {
+	return VoidUnion_Promise{p}
+}
+
+func (p VoidUnion_Promise) Get() (VoidUnion, error) {
+	s, err := p.p.Get()
+	return VoidUnion(s), err
+}
+
+func (p VoidUnion_Promise) GenericPromise() C.Promise { return p.p }
+
 type Nester1Capn C.Struct
 
 func NewNester1Capn(s *C.Segment) Nester1Capn {
@@ -1249,6 +1879,21 @@ func (s Nester1Capn_List) Len() int                    { return C.PointerList(s)
 func (s Nester1Capn_List) At(i int) Nester1Capn        { return Nester1Capn(C.PointerList(s).At(i).ToStruct()) }
 func (s Nester1Capn_List) Set(i int, item Nester1Capn) { C.PointerList(s).Set(i, C.Object(item)) }
 
+type Nester1Capn_Promise struct {
+	p C.Promise
+}
+
+func NewNester1Capn_Promise(p C.Promise) Nester1Capn_Promise {
+	return Nester1Capn_Promise{p}
+}
+
+func (p Nester1Capn_Promise) Get() (Nester1Capn, error) {
+	s, err := p.p.Get()
+	return Nester1Capn(s), err
+}
+
+func (p Nester1Capn_Promise) GenericPromise() C.Promise { return p.p }
+
 type RWTestCapn C.Struct
 
 func NewRWTestCapn(s *C.Segment) RWTestCapn {
@@ -1275,6 +1920,21 @@ func NewRWTestCapn_List(s *C.Segment, sz int) RWTestCapn_List {
 func (s RWTestCapn_List) Len() int                   { return C.PointerList(s).Len() }
 func (s RWTestCapn_List) At(i int) RWTestCapn        { return RWTestCapn(C.PointerList(s).At(i).ToStruct()) }
 func (s RWTestCapn_List) Set(i int, item RWTestCapn) { C.PointerList(s).Set(i, C.Object(item)) }
+
+type RWTestCapn_Promise struct {
+	p C.Promise
+}
+
+func NewRWTestCapn_Promise(p C.Promise) RWTestCapn_Promise {
+	return RWTestCapn_Promise{p}
+}
+
+func (p RWTestCapn_Promise) Get() (RWTestCapn, error) {
+	s, err := p.p.Get()
+	return RWTestCapn(s), err
+}
+
+func (p RWTestCapn_Promise) GenericPromise() C.Promise { return p.p }
 
 type ListStructCapn C.Struct
 
@@ -1305,6 +1965,21 @@ func (s ListStructCapn_List) At(i int) ListStructCapn {
 }
 func (s ListStructCapn_List) Set(i int, item ListStructCapn) { C.PointerList(s).Set(i, C.Object(item)) }
 
+type ListStructCapn_Promise struct {
+	p C.Promise
+}
+
+func NewListStructCapn_Promise(p C.Promise) ListStructCapn_Promise {
+	return ListStructCapn_Promise{p}
+}
+
+func (p ListStructCapn_Promise) Get() (ListStructCapn, error) {
+	s, err := p.p.Get()
+	return ListStructCapn(s), err
+}
+
+func (p ListStructCapn_Promise) GenericPromise() C.Promise { return p.p }
+
 type Hoth C.Struct
 
 func NewHoth(s *C.Segment) Hoth { return Hoth(s.NewStruct(C.ObjectSize{DataSize: 0, PointerCount: 1})) }
@@ -1330,6 +2005,26 @@ func (s Hoth_List) Len() int             { return C.PointerList(s).Len() }
 func (s Hoth_List) At(i int) Hoth        { return Hoth(C.PointerList(s).At(i).ToStruct()) }
 func (s Hoth_List) Set(i int, item Hoth) { C.PointerList(s).Set(i, C.Object(item)) }
 
+type Hoth_Promise struct {
+	p C.Promise
+}
+
+func NewHoth_Promise(p C.Promise) Hoth_Promise {
+	return Hoth_Promise{p}
+}
+
+func (p Hoth_Promise) Get() (Hoth, error) {
+	s, err := p.p.Get()
+	return Hoth(s), err
+}
+
+func (p Hoth_Promise) GenericPromise() C.Promise { return p.p }
+
+func (p Hoth_Promise) Base() EchoBase_Promise {
+	return NewEchoBase_Promise(
+		p.p.GetPromise(0))
+}
+
 type EchoBase C.Struct
 
 func NewEchoBase(s *C.Segment) EchoBase {
@@ -1354,3 +2049,18 @@ func NewEchoBase_List(s *C.Segment, sz int) EchoBase_List {
 func (s EchoBase_List) Len() int                 { return C.PointerList(s).Len() }
 func (s EchoBase_List) At(i int) EchoBase        { return EchoBase(C.PointerList(s).At(i).ToStruct()) }
 func (s EchoBase_List) Set(i int, item EchoBase) { C.PointerList(s).Set(i, C.Object(item)) }
+
+type EchoBase_Promise struct {
+	p C.Promise
+}
+
+func NewEchoBase_Promise(p C.Promise) EchoBase_Promise {
+	return EchoBase_Promise{p}
+}
+
+func (p EchoBase_Promise) Get() (EchoBase, error) {
+	s, err := p.p.Get()
+	return EchoBase(s), err
+}
+
+func (p EchoBase_Promise) GenericPromise() C.Promise { return p.p }

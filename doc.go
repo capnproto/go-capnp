@@ -123,6 +123,19 @@ capnpc-go will generate the following for structs:
 	// value will be auto-derefenced.
 	func (s Foo_List) At(i int) Foo
 
+	// Foo_Promise is a promise for a Foo.  Methods are provided to get
+	// promises of struct fields.  Fields of type AnyPointer will have two
+	// methods: for a field "bar", it would be Bar() and Bar_Client().
+	type Foo_Promise struct { p capn.Promise }
+
+	// NewFoo_Promise creates a Foo_Promise from a generic promise.
+	func NewFoo_Promise(p capn.Promise) Foo_Promise
+
+	// Get waits until the promise is resolved and returns the result.
+	func (p Foo_Promise) Get() (Foo, error)
+
+	// GenericPromise returns the underlying generic promise.
+	func (p Foo_Promise) GenericPromise() capn.Promise
 
 
 Groups
