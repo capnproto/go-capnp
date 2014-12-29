@@ -32,10 +32,12 @@ func (s Zdate) MarshalJSON() (bs []byte, err error) { return }
 
 type Zdate_List C.PointerList
 
-func NewZdate_List(s *C.Segment, sz int) Zdate_List { return Zdate_List(s.NewUInt32List(sz)) }
-func (s Zdate_List) Len() int                       { return C.PointerList(s).Len() }
-func (s Zdate_List) At(i int) Zdate                 { return Zdate(C.PointerList(s).At(i).ToStruct()) }
-func (s Zdate_List) Set(i int, item Zdate)          { C.PointerList(s).Set(i, C.Object(item)) }
+func NewZdate_List(s *C.Segment, sz int) Zdate_List {
+	return Zdate_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 0}, sz))
+}
+func (s Zdate_List) Len() int              { return C.PointerList(s).Len() }
+func (s Zdate_List) At(i int) Zdate        { return Zdate(C.PointerList(s).At(i).ToStruct()) }
+func (s Zdate_List) Set(i int, item Zdate) { C.PointerList(s).Set(i, C.Object(item)) }
 
 type Zdata C.Struct
 
@@ -597,10 +599,12 @@ func (s VerEmpty) MarshalJSON() (bs []byte, err error) { return }
 
 type VerEmpty_List C.PointerList
 
-func NewVerEmpty_List(s *C.Segment, sz int) VerEmpty_List { return VerEmpty_List(s.NewVoidList(sz)) }
-func (s VerEmpty_List) Len() int                          { return C.PointerList(s).Len() }
-func (s VerEmpty_List) At(i int) VerEmpty                 { return VerEmpty(C.PointerList(s).At(i).ToStruct()) }
-func (s VerEmpty_List) Set(i int, item VerEmpty)          { C.PointerList(s).Set(i, C.Object(item)) }
+func NewVerEmpty_List(s *C.Segment, sz int) VerEmpty_List {
+	return VerEmpty_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 0}, sz))
+}
+func (s VerEmpty_List) Len() int                 { return C.PointerList(s).Len() }
+func (s VerEmpty_List) At(i int) VerEmpty        { return VerEmpty(C.PointerList(s).At(i).ToStruct()) }
+func (s VerEmpty_List) Set(i int, item VerEmpty) { C.PointerList(s).Set(i, C.Object(item)) }
 
 type VerOneData C.Struct
 
@@ -623,7 +627,7 @@ func (s VerOneData) MarshalJSON() (bs []byte, err error) { return }
 type VerOneData_List C.PointerList
 
 func NewVerOneData_List(s *C.Segment, sz int) VerOneData_List {
-	return VerOneData_List(s.NewUInt16List(sz))
+	return VerOneData_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 0}, sz))
 }
 func (s VerOneData_List) Len() int                   { return C.PointerList(s).Len() }
 func (s VerOneData_List) At(i int) VerOneData        { return VerOneData(C.PointerList(s).At(i).ToStruct()) }
@@ -1212,7 +1216,7 @@ func (s VoidUnion) MarshalJSON() (bs []byte, err error) { return }
 type VoidUnion_List C.PointerList
 
 func NewVoidUnion_List(s *C.Segment, sz int) VoidUnion_List {
-	return VoidUnion_List(s.NewUInt16List(sz))
+	return VoidUnion_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 0}, sz))
 }
 func (s VoidUnion_List) Len() int                  { return C.PointerList(s).Len() }
 func (s VoidUnion_List) At(i int) VoidUnion        { return VoidUnion(C.PointerList(s).At(i).ToStruct()) }
