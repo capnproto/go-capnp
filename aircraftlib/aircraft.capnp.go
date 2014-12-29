@@ -4,8 +4,8 @@ package aircraftlib
 
 import (
 	C "github.com/glycerine/go-capnproto"
-	"math"
-	"net"
+	math "math"
+	net "net"
 )
 
 type Zdate C.Struct

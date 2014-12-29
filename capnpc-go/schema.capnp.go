@@ -4,7 +4,7 @@ package main
 
 import (
 	C "github.com/glycerine/go-capnproto"
-	"math"
+	math "math"
 )
 
 const (
