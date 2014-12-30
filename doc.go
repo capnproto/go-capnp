@@ -232,7 +232,7 @@ values. For example:
 
 Enums
 
-capnpc-go generates enum values in all caps. For example in the capnp file:
+capnpc-go generates enum values as constants. For example in the capnp file:
 
 	enum ElementSize {
 	  empty @0;
@@ -287,5 +287,63 @@ In the generated go file:
 			return ""
 		}
 	}
+
+
+Interfaces
+
+capnpc-go generates type-safe Client wrappers for interfaces. For parameter
+lists and result lists, structs are generated as described above with the names
+Interface_method_Params and Interface_method_Results, unless a single struct
+type is used. For example, for this interface:
+
+	interface Calculator {
+		evaluate @0 (expression :Expression) -> (value :Value);
+	}
+
+capnpc-go generates the following Go code (along with the structs
+Calculator_evaluate_Params and Calculator_evaluate_Results):
+
+	// Calculator is a client to a Calculator interface.
+	type Calculator struct { c capn.Client }
+
+	// NewCalculator creates a Calculator from a generic promise.
+	func NewCalculator(c capn.Client) Calculator
+
+	// GenericClient returns the underlying generic client.
+	func (c Calculator) GenericClient() capn.Client
+
+	// IsNull returns whether the underlying client is nil.
+	func (c Calculator) IsNull() bool
+
+	// Evaluate calls `evaluate` on the client.  params is called on a newly
+	// allocated Calculator_evaluate_Params to fill in the parameters.
+	func (c Calculator) Evaluate(
+		ctx context.Context,
+		params func(Calculator_evaluate_Params)) Calculator_evaluate_Results_Promise
+
+capnpc-go also generates code to implement the interface.  Since a single
+capability may want to implement many interfaces, you can use multiple *_Methods
+functions to build a single slice to send to NewServer.  Per each interface,
+capnpc-go generates the following:
+
+	// A Calculator_Server implements the Calculator interface.
+	type Calculator_Server interface {
+		Evaluate(context.Context, Calculator_evaluate_Params, Calculator_evaluate_Results) error
+	}
+
+	// Calculator_Methods appends methods from Calculator that call to server and
+	// returns the methods.  If methods is nil or the capacity of the underlying
+	// slice is too small, a new slice is returned.
+	func Calculator_Methods(methods []ServerMethod, server Calculator_Server) []ServerMethod
+
+An example of combining the client/server code to communicate with a locally
+implemented Calculator:
+
+	var srv Calculator_Server
+	calc := capn.NewServer(Calculator_Methods(nil, srv))
+	result := calc.Evaluate(ctx, func(params Calculator_evaluate_Params) {
+		params.SetExpression(expr)
+	})
+	val := result.Value().Get()
 */
 package capn

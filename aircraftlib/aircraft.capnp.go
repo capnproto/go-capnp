@@ -4,6 +4,7 @@ package aircraftlib
 
 import (
 	C "github.com/glycerine/go-capnproto"
+	context "golang.org/x/net/context"
 	math "math"
 	net "net"
 )
@@ -1980,6 +1981,149 @@ func (p ListStructCapn_Promise) Get() (ListStructCapn, error) {
 
 func (p ListStructCapn_Promise) GenericPromise() C.Promise { return p.p }
 
+type Echo struct{ c C.Client }
+
+func NewEcho(c C.Client) Echo { return Echo{c} }
+
+func (c Echo) GenericClient() C.Client { return c.c }
+
+func (c Echo) IsNull() bool { return c.c == nil }
+
+func (c Echo) Echo(ctx context.Context, params func(Echo_echo_Params)) Echo_echo_Results_Promise {
+	return NewEcho_echo_Results_Promise(c.c.NewCall(ctx,
+		&C.Method{
+
+			InterfaceID:   0x8e5322c1e9282534,
+			MethodID:      0,
+			InterfaceName: "aircraft.capnp:Echo",
+			MethodName:    "echo",
+		},
+		C.ObjectSize{DataSize: 0, PointerCount: 1},
+		func(s C.Struct) { params(Echo_echo_Params(s)) }))
+}
+
+type Echo_Server interface {
+	Echo(ctx context.Context, params Echo_echo_Params, results Echo_echo_Results) error
+}
+
+func Echo_Methods(methods []C.ServerMethod, server Echo_Server) []C.ServerMethod {
+	if cap(methods) == 0 {
+		methods = make([]C.ServerMethod, 0, 1)
+	}
+
+	methods = append(methods, C.ServerMethod{
+		Method: C.Method{
+
+			InterfaceID:   0x8e5322c1e9282534,
+			MethodID:      0,
+			InterfaceName: "aircraft.capnp:Echo",
+			MethodName:    "echo",
+		},
+		Impl: func(c context.Context, p, r C.Struct) error {
+			return server.Echo(c, Echo_echo_Params(p), Echo_echo_Results(r))
+		},
+		ResultsSize: C.ObjectSize{DataSize: 0, PointerCount: 1},
+	})
+
+	return methods
+}
+
+type Echo_echo_Params C.Struct
+
+func NewEcho_echo_Params(s *C.Segment) Echo_echo_Params {
+	return Echo_echo_Params(s.NewStruct(C.ObjectSize{DataSize: 0, PointerCount: 1}))
+}
+func NewRootEcho_echo_Params(s *C.Segment) Echo_echo_Params {
+	return Echo_echo_Params(s.NewRootStruct(C.ObjectSize{DataSize: 0, PointerCount: 1}))
+}
+func AutoNewEcho_echo_Params(s *C.Segment) Echo_echo_Params {
+	return Echo_echo_Params(s.NewStructAR(C.ObjectSize{DataSize: 0, PointerCount: 1}))
+}
+func ReadRootEcho_echo_Params(s *C.Segment) Echo_echo_Params {
+	return Echo_echo_Params(s.Root(0).ToStruct())
+}
+func (s Echo_echo_Params) In() string     { return C.Struct(s).GetObject(0).ToText() }
+func (s Echo_echo_Params) SetIn(v string) { C.Struct(s).SetObject(0, s.Segment.NewText(v)) }
+
+// capn.JSON_enabled == false so we stub MarshalJSON().
+func (s Echo_echo_Params) MarshalJSON() (bs []byte, err error) { return }
+
+type Echo_echo_Params_List C.PointerList
+
+func NewEcho_echo_Params_List(s *C.Segment, sz int) Echo_echo_Params_List {
+	return Echo_echo_Params_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 1}, sz))
+}
+func (s Echo_echo_Params_List) Len() int { return C.PointerList(s).Len() }
+func (s Echo_echo_Params_List) At(i int) Echo_echo_Params {
+	return Echo_echo_Params(C.PointerList(s).At(i).ToStruct())
+}
+func (s Echo_echo_Params_List) Set(i int, item Echo_echo_Params) {
+	C.PointerList(s).Set(i, C.Object(item))
+}
+
+type Echo_echo_Params_Promise struct {
+	p C.Promise
+}
+
+func NewEcho_echo_Params_Promise(p C.Promise) Echo_echo_Params_Promise {
+	return Echo_echo_Params_Promise{p}
+}
+
+func (p Echo_echo_Params_Promise) Get() (Echo_echo_Params, error) {
+	s, err := p.p.Get()
+	return Echo_echo_Params(s), err
+}
+
+func (p Echo_echo_Params_Promise) GenericPromise() C.Promise { return p.p }
+
+type Echo_echo_Results C.Struct
+
+func NewEcho_echo_Results(s *C.Segment) Echo_echo_Results {
+	return Echo_echo_Results(s.NewStruct(C.ObjectSize{DataSize: 0, PointerCount: 1}))
+}
+func NewRootEcho_echo_Results(s *C.Segment) Echo_echo_Results {
+	return Echo_echo_Results(s.NewRootStruct(C.ObjectSize{DataSize: 0, PointerCount: 1}))
+}
+func AutoNewEcho_echo_Results(s *C.Segment) Echo_echo_Results {
+	return Echo_echo_Results(s.NewStructAR(C.ObjectSize{DataSize: 0, PointerCount: 1}))
+}
+func ReadRootEcho_echo_Results(s *C.Segment) Echo_echo_Results {
+	return Echo_echo_Results(s.Root(0).ToStruct())
+}
+func (s Echo_echo_Results) Out() string     { return C.Struct(s).GetObject(0).ToText() }
+func (s Echo_echo_Results) SetOut(v string) { C.Struct(s).SetObject(0, s.Segment.NewText(v)) }
+
+// capn.JSON_enabled == false so we stub MarshalJSON().
+func (s Echo_echo_Results) MarshalJSON() (bs []byte, err error) { return }
+
+type Echo_echo_Results_List C.PointerList
+
+func NewEcho_echo_Results_List(s *C.Segment, sz int) Echo_echo_Results_List {
+	return Echo_echo_Results_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 1}, sz))
+}
+func (s Echo_echo_Results_List) Len() int { return C.PointerList(s).Len() }
+func (s Echo_echo_Results_List) At(i int) Echo_echo_Results {
+	return Echo_echo_Results(C.PointerList(s).At(i).ToStruct())
+}
+func (s Echo_echo_Results_List) Set(i int, item Echo_echo_Results) {
+	C.PointerList(s).Set(i, C.Object(item))
+}
+
+type Echo_echo_Results_Promise struct {
+	p C.Promise
+}
+
+func NewEcho_echo_Results_Promise(p C.Promise) Echo_echo_Results_Promise {
+	return Echo_echo_Results_Promise{p}
+}
+
+func (p Echo_echo_Results_Promise) Get() (Echo_echo_Results, error) {
+	s, err := p.p.Get()
+	return Echo_echo_Results(s), err
+}
+
+func (p Echo_echo_Results_Promise) GenericPromise() C.Promise { return p.p }
+
 type Hoth C.Struct
 
 func NewHoth(s *C.Segment) Hoth { return Hoth(s.NewStruct(C.ObjectSize{DataSize: 0, PointerCount: 1})) }
@@ -2037,6 +2181,11 @@ func AutoNewEchoBase(s *C.Segment) EchoBase {
 	return EchoBase(s.NewStructAR(C.ObjectSize{DataSize: 0, PointerCount: 1}))
 }
 func ReadRootEchoBase(s *C.Segment) EchoBase { return EchoBase(s.Root(0).ToStruct()) }
+func (s EchoBase) Echo() Echo                { return NewEcho(C.Struct(s).GetObject(0).ToInterface().Client()) }
+func (s EchoBase) SetEcho(v Echo) {
+	ci := s.Segment.Message.AddCap(v.GenericClient())
+	C.Struct(s).SetObject(0, C.Object(s.Segment.NewInterface(ci)))
+}
 
 // capn.JSON_enabled == false so we stub MarshalJSON().
 func (s EchoBase) MarshalJSON() (bs []byte, err error) { return }
@@ -2064,3 +2213,7 @@ func (p EchoBase_Promise) Get() (EchoBase, error) {
 }
 
 func (p EchoBase_Promise) GenericPromise() C.Promise { return p.p }
+
+func (p EchoBase_Promise) Echo() Echo {
+	return NewEcho(p.p.GetClient(0))
+}

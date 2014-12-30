@@ -50,6 +50,10 @@ func (i *imports) capn() string {
 	return i.add(importSpec{path: go_capnproto_import, name: "C"})
 }
 
+func (i *imports) context() string {
+	return i.add(importSpec{path: context_import, name: "context"})
+}
+
 func (i *imports) math() string {
 	return i.add(importSpec{path: "math", name: "math"})
 }
@@ -234,7 +238,7 @@ func findNode(id uint64) *node {
 	return n
 }
 
-func (n *node) RemoteScope(from *node) string {
+func (n *node) remoteScope(from *node) string {
 	assert(n.pkg != "", "missing package declaration for %s", n.DisplayName())
 	assert(n.imp != "", "missing import declaration for %s", n.DisplayName())
 	assert(from.imp != "", "missing import declaration for %s", from.DisplayName())
@@ -247,8 +251,12 @@ func (n *node) RemoteScope(from *node) string {
 	}
 }
 
+func (n *node) RemoteNew(from *node) string {
+	return n.remoteScope(from) + "New" + n.Name
+}
+
 func (n *node) RemoteName(from *node) string {
-	return n.RemoteScope(from) + n.Name
+	return n.remoteScope(from) + n.Name
 }
 
 func (n *node) resolveName(base, name string, file *node) {
@@ -276,6 +284,17 @@ func (n *node) resolveName(base, name string, file *node) {
 			f := n.Struct().Fields().At(i)
 			if f.Which() == Field_Which_group {
 				findNode(f.Group().TypeId()).resolveName(n.Name, f.Name(), file)
+			}
+		}
+	} else if n.Which() == Node_Which_interface {
+		for i, m := 0, n.Interface().Methods(); i < m.Len(); i++ {
+			mm := m.At(i)
+			base := n.Name + "_" + mm.Name()
+			if p := findNode(mm.ParamStructType()); p.ScopeId() == 0 {
+				p.resolveName(base, "Params", file)
+			}
+			if r := findNode(mm.ResultStructType()); r.ScopeId() == 0 {
+				r.resolveName(base, "Results", file)
 			}
 		}
 	}
@@ -347,8 +366,12 @@ func (n *node) defineEnum(w io.Writer) {
 
 func (n *node) writeValue(w io.Writer, t Type, v Value) {
 	switch t.Which() {
-	case Type_Which_void, Type_Which_interface:
+	case Type_Which_void:
 		fmt.Fprintf(w, "%s.Void{}", g_imports.capn())
+
+	case Type_Which_interface:
+		// The only statically representable interface value is null.
+		fmt.Fprintf(w, "%s.Promise(nil)", g_imports.capn())
 
 	case Type_Which_bool:
 		assert(v.Which() == Value_Which_bool, "expected bool value")
@@ -399,7 +422,7 @@ func (n *node) writeValue(w io.Writer, t Type, v Value) {
 				Enumerant: enums.At(val),
 				parent:    en,
 			}
-			fmt.Fprintf(w, "%s%s", en.RemoteScope(n), ev.fullName())
+			fmt.Fprintf(w, "%s%s", en.remoteScope(n), ev.fullName())
 		}
 
 	case Type_Which_struct:
@@ -411,11 +434,9 @@ func (n *node) writeValue(w io.Writer, t Type, v Value) {
 	case Type_Which_list:
 		assert(v.Which() == Value_Which_list, "expected list value")
 
-		switch lt := t.List().ElementType(); lt.Which() {
-		case Type_Which_void, Type_Which_interface:
-			// TODO(light): is this actually valid?
+		if lt := t.List().ElementType(); lt.Which() == Type_Which_void {
 			fmt.Fprintf(w, "make([]%s.Void, %d)", g_imports.capn(), v.List().ToVoidList().Len())
-		default:
+		} else {
 			typ := n.fieldType(t, new(annotations))
 			fmt.Fprintf(w, "%s(%s.Root(%d))", typ, g_bufname, copyData(v.List()))
 		}
@@ -480,10 +501,6 @@ func (n *node) defineField(w io.Writer, f Field) {
 	t := f.Slot().Type()
 	def := f.Slot().DefaultValue()
 	off := f.Slot().Offset()
-
-	if t.Which() == Type_Which_interface {
-		return
-	}
 
 	var g, s bytes.Buffer
 
@@ -646,6 +663,12 @@ func (n *node) defineField(w io.Writer, f Field) {
 			fmt.Fprint(&g, ") }\n")
 		}
 		fmt.Fprintf(&s, "%s.Struct(s).SetObject(%d, %s.Object(v)) }\n", c, off, c)
+
+	case Type_Which_interface:
+		c := g_imports.capn()
+		ni := findNode(t.Interface().TypeId())
+		fmt.Fprintf(&g, "return %s(%s.Struct(s).GetObject(%d).ToInterface().Client()) }\n", ni.RemoteNew(n), c, off)
+		fmt.Fprintf(&s, "ci := s.Segment.Message.AddCap(v.GenericClient()); %[1]s.Struct(s).SetObject(%[2]d, %[1]s.Object(s.Segment.NewInterface(ci))) }\n", c, off)
 	}
 
 	w.Write(g.Bytes())
@@ -696,11 +719,14 @@ func (n *node) fieldType(t Type, ann *annotations) string {
 	case Type_Which_struct:
 		ni := findNode(t.Struct().TypeId())
 		return ni.RemoteName(n)
+	case Type_Which_interface:
+		ni := findNode(t.Interface().TypeId())
+		return ni.RemoteName(n)
 	case Type_Which_anyPointer:
 		return g_imports.capn() + ".Object"
 	case Type_Which_list:
 		switch lt := t.List().ElementType(); lt.Which() {
-		case Type_Which_void, Type_Which_interface:
+		case Type_Which_void:
 			return g_imports.capn() + ".VoidList"
 		case Type_Which_bool:
 			return g_imports.capn() + ".BitList"
@@ -734,7 +760,7 @@ func (n *node) fieldType(t Type, ann *annotations) string {
 		case Type_Which_struct:
 			ni := findNode(lt.Struct().TypeId())
 			return ni.RemoteName(n) + "_List"
-		case Type_Which_anyPointer, Type_Which_list:
+		case Type_Which_anyPointer, Type_Which_list, Type_Which_interface:
 			return g_imports.capn() + ".PointerList"
 		}
 	}
@@ -948,7 +974,7 @@ func (n *node) defineTypeJsonFuncs(w io.Writer) {
 
 	} else {
 		fmt.Fprintf(w, "// capn.JSON_enabled == false so we stub MarshalJSON().")
-		fmt.Fprintf(w, "\nfunc (s %s) MarshalJSON() (bs []byte, err error) { return } \n", n.Name)
+		fmt.Fprintf(w, "\nfunc (s %s) MarshalJSON() (bs []byte, err error) { return }\n", n.Name)
 	}
 }
 
@@ -1057,18 +1083,20 @@ func (t Type) json(w io.Writer) {
 	}
 }
 
+func (n *node) ObjectSize() string {
+	assert(n.Which() == Node_Which_struct, "ObjectSize for invalid struct node")
+	return fmt.Sprintf("%s.ObjectSize{DataSize: %d, PointerCount: %d}", g_imports.capn(), int(n.Struct().DataWordCount())*8, n.Struct().PointerCount())
+}
+
 func (n *node) defineNewStructFunc(w io.Writer) {
 	assert(n.Which() == Node_Which_struct, "invalid struct node")
 
+	os := n.ObjectSize()
 	c := g_imports.capn()
-	fmt.Fprintf(w, "func New%[1]s(s *%[2]s.Segment) %[1]s { return %[1]s(s.NewStruct(%[2]s.ObjectSize{DataSize: %[3]d, PointerCount: %[4]d})) }\n",
-		n.Name, c, n.Struct().DataWordCount()*8, n.Struct().PointerCount())
-	fmt.Fprintf(w, "func NewRoot%[1]s(s *%[2]s.Segment) %[1]s { return %[1]s(s.NewRootStruct(%[2]s.ObjectSize{DataSize: %[3]d, PointerCount: %[4]d})) }\n",
-		n.Name, c, n.Struct().DataWordCount()*8, n.Struct().PointerCount())
-	fmt.Fprintf(w, "func AutoNew%[1]s(s *%[2]s.Segment) %[1]s { return %[1]s(s.NewStructAR(%[2]s.ObjectSize{DataSize: %[3]d, PointerCount: %[4]d})) }\n",
-		n.Name, c, n.Struct().DataWordCount()*8, n.Struct().PointerCount())
-	fmt.Fprintf(w, "func ReadRoot%[1]s(s *%[2]s.Segment) %[1]s { return %[1]s(s.Root(0).ToStruct()) }\n",
-		n.Name, c)
+	fmt.Fprintf(w, "func New%[1]s(s *%[2]s.Segment) %[1]s { return %[1]s(s.NewStruct(%[3]s)) }\n", n.Name, c, os)
+	fmt.Fprintf(w, "func NewRoot%[1]s(s *%[2]s.Segment) %[1]s { return %[1]s(s.NewRootStruct(%[3]s)) }\n", n.Name, c, os)
+	fmt.Fprintf(w, "func AutoNew%[1]s(s *%[2]s.Segment) %[1]s { return %[1]s(s.NewStructAR(%[3]s)) }\n", n.Name, c, os)
+	fmt.Fprintf(w, "func ReadRoot%[1]s(s *%[2]s.Segment) %[1]s { return %[1]s(s.Root(0).ToStruct()) }\n", n.Name, c)
 }
 
 func (n *node) defineStructList(w io.Writer) {
@@ -1092,8 +1120,8 @@ func (n *node) defineStructList(w io.Writer) {
 	case ElementSize_eightBytes:
 		fmt.Fprintf(w, "{ return %s_List(s.NewUInt64List(sz)) }\n", n.Name)
 	default:
-		fmt.Fprintf(w, "{ return %s_List(s.NewCompositeList(%s.ObjectSize{DataSize: %d, PointerCount: %d}, sz)) }\n",
-			n.Name, c, n.Struct().DataWordCount()*8, n.Struct().PointerCount())
+		fmt.Fprintf(w, "{ return %s_List(s.NewCompositeList(%s, sz)) }\n",
+			n.Name, n.ObjectSize())
 	}
 
 	fmt.Fprintf(w, "func (s %s_List) Len() int { return %s.PointerList(s).Len() }\n", n.Name, c)
@@ -1146,8 +1174,58 @@ func (n *node) definePromiseField(w io.Writer, f Field) {
 			Field: f,
 		})
 	case Type_Which_interface:
-		// TODO(light)
+		templates.ExecuteTemplate(w, "promiseFieldInterface", promiseFieldInterfaceTemplateParams{
+			Node:      n,
+			Field:     f,
+			Interface: findNode(t.Interface().TypeId()),
+		})
 	}
+}
+
+type interfaceMethod struct {
+	Method
+	Interface *node
+	ID        int
+	Params    *node
+	Results   *node
+}
+
+func (n *node) methodSet(methods []interfaceMethod) []interfaceMethod {
+	for i, ms := 0, n.Interface().Methods(); i < ms.Len(); i++ {
+		m := ms.At(i)
+		methods = append(methods, interfaceMethod{
+			Method:    m,
+			Interface: n,
+			ID:        i,
+			Params:    findNode(m.ParamStructType()),
+			Results:   findNode(m.ResultStructType()),
+		})
+	}
+	// TODO(light): sort added methods by code order
+
+	for i, supers := 0, n.Interface().Superclasses(); i < supers.Len(); i++ {
+		s := supers.At(i)
+		methods = findNode(s.Id()).methodSet(methods)
+	}
+	return methods
+}
+
+func (n *node) defineInterfaceClient(w io.Writer) {
+	m := n.methodSet(nil)
+	templates.ExecuteTemplate(w, "interfaceClient", interfaceClientTemplateParams{
+		Node:        n,
+		Annotations: parseAnnotations(n.Annotations()),
+		Methods:     m,
+	})
+}
+
+func (n *node) defineInterfaceServer(w io.Writer) {
+	m := n.methodSet(nil)
+	templates.ExecuteTemplate(w, "interfaceServer", interfaceServerTemplateParams{
+		Node:        n,
+		Annotations: parseAnnotations(n.Annotations()),
+		Methods:     m,
+	})
 }
 
 func generateFile(reqf CodeGeneratorRequest_RequestedFile) (generr error) {
@@ -1190,7 +1268,8 @@ func generateFile(reqf CodeGeneratorRequest_RequestedFile) (generr error) {
 				n.defineStructPromise(&buf)
 			}
 		case Node_Which_interface:
-			// TODO(light)
+			n.defineInterfaceClient(&buf)
+			n.defineInterfaceServer(&buf)
 		}
 	}
 
