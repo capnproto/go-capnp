@@ -18,7 +18,7 @@ type buffer Segment
 
 // NewBuffer creates an expanding single segment buffer. Creating new objects
 // will expand the buffer. Data can be nil (or length 0 with some capacity) if
-// creating a new session. If parsing an existing segment than data should be
+// creating a new session. If parsing an existing segment then data should be
 // the segment contents and will not be copied.
 func NewBuffer(data []byte) *Segment {
 	if uint64(len(data)) > uint64(math.MaxUint32) {
@@ -67,7 +67,7 @@ func NewmultiBuffer(data [][]byte) *Segment {
 	if len(data) > 0 {
 		return m.segments[0]
 	}
-	return &Segment{m, nil, 0xFFFFFFFF, false}
+	return &Segment{Message: m, Data: nil, Id: 0xFFFFFFFF, RootDone: false}
 }
 
 var (
