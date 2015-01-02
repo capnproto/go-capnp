@@ -42,12 +42,16 @@ func (s *server) Call(ctx context.Context, method *Method, params Struct) Promis
 		})
 	}
 	results := out.NewRootStruct(sm.ResultsSize)
-	// TODO(light): Execute in separate goroutine and return immediately.
-	err := sm.Impl(ctx, params, results)
-	if err != nil {
-		return ErrorPromise(err)
-	}
-	return ImmediatePromise(results)
+	var r Fulfiller
+	go func() {
+		err := sm.Impl(ctx, params, results)
+		if err == nil {
+			r.Fulfill(Object(results))
+		} else {
+			r.Reject(err)
+		}
+	}()
+	return r.Promise()
 }
 
 func (s *server) NewCall(ctx context.Context, method *Method, paramsSize ObjectSize, paramsFunc func(Struct)) Promise {
