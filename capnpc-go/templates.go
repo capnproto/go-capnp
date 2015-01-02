@@ -69,6 +69,9 @@ func (c {{.Node.Name}}) IsNull() bool { return c.c == nil }
 
 {{range .Methods}}
 func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{context}}.Context, params func({{.Params.RemoteName $.Node}})) {{.Results.RemoteName $.Node}}_Promise {
+	if c.c == nil {
+		return {{.Results.RemoteNew $.Node}}_Promise({{capn}}.ErrorPromise({{capn}}.ErrNullClient))
+	}
 	return {{.Results.RemoteNew $.Node}}_Promise(c.c.NewCall(ctx,
 		&{{capn}}.Method{
 			{{template "_interfaceMethod" .}}

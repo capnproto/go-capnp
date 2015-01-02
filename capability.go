@@ -1,10 +1,13 @@
 package capn
 
 import (
+	"errors"
 	"strconv"
 
 	"golang.org/x/net/context"
 )
+
+var ErrNullClient = errors.New("capn: call on null client")
 
 // A Client makes calls for an interface type.
 type Client interface {

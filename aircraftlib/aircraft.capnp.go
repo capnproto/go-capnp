@@ -1990,6 +1990,9 @@ func (c Echo) GenericClient() C.Client { return c.c }
 func (c Echo) IsNull() bool { return c.c == nil }
 
 func (c Echo) Echo(ctx context.Context, params func(Echo_echo_Params)) Echo_echo_Results_Promise {
+	if c.c == nil {
+		return NewEcho_echo_Results_Promise(C.ErrorPromise(C.ErrNullClient))
+	}
 	return NewEcho_echo_Results_Promise(c.c.NewCall(ctx,
 		&C.Method{
 
