@@ -1350,7 +1350,6 @@ func isEmptyStruct(src Object) bool {
 }
 
 func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth int) error {
-
 	// handle size-zero Objects/empty structs
 	if src.Segment == nil {
 		return nil
@@ -1361,9 +1360,16 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 		binary.LittleEndian.PutUint64(destSeg.Data[off:], 0)
 		return nil
 
-	} else if destSeg == srcSeg {
+	} else if destSeg == srcSeg || src.typ == TypeInterface && destSeg.Message == srcSeg.Message {
 		// Same segment
 		binary.LittleEndian.PutUint64(destSeg.Data[off:], uint64(src.value(off)))
+		return nil
+
+	} else if src.typ == TypeInterface {
+		// Different messages.  Need to copy table entry.
+		c := destSeg.Message.AddCap(Interface(src).Client())
+		p := Object(destSeg.NewInterface(c))
+		binary.LittleEndian.PutUint64(destSeg.Data[off:], uint64(p.value(off)))
 		return nil
 
 	} else if destSeg.Message != srcSeg.Message || (src.flags&isListMember) != 0 || (src.flags&isBitListMember) != 0 {
