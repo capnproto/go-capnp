@@ -67,15 +67,21 @@ func (c {{.Node.Name}}) GenericClient() {{capn}}.Client { return c.c }
 
 func (c {{.Node.Name}}) IsNull() bool { return c.c == nil }
 
-{{range .Methods}}
+var clientMethods_{{.Node.Name}} = []{{capn}}.Method{
+	{{range .Methods}}
+	{
+		{{template "_interfaceMethod" .}}
+	},
+	{{end}}
+}
+
+{{range $i, $m := .Methods}}
 func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{context}}.Context, params func({{.Params.RemoteName $.Node}})) {{.Results.RemoteName $.Node}}_Promise {
 	if c.c == nil {
 		return {{.Results.RemoteNew $.Node}}_Promise({{capn}}.ErrorPromise({{capn}}.ErrNullClient))
 	}
 	return {{.Results.RemoteNew $.Node}}_Promise(c.c.NewCall(ctx,
-		&{{capn}}.Method{
-			{{template "_interfaceMethod" .}}
-		},
+		&clientMethods_{{$.Node.Name}}[{{$i}}],
 		{{.Params.ObjectSize}},
 		func(s {{capn}}.Struct) { params({{.Params.RemoteName $.Node}}(s)) }))
 }

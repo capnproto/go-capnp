@@ -1989,18 +1989,23 @@ func (c Echo) GenericClient() C.Client { return c.c }
 
 func (c Echo) IsNull() bool { return c.c == nil }
 
+var clientMethods_Echo = []C.Method{
+
+	{
+
+		InterfaceID:   0x8e5322c1e9282534,
+		MethodID:      0,
+		InterfaceName: "aircraft.capnp:Echo",
+		MethodName:    "echo",
+	},
+}
+
 func (c Echo) Echo(ctx context.Context, params func(Echo_echo_Params)) Echo_echo_Results_Promise {
 	if c.c == nil {
 		return NewEcho_echo_Results_Promise(C.ErrorPromise(C.ErrNullClient))
 	}
 	return NewEcho_echo_Results_Promise(c.c.NewCall(ctx,
-		&C.Method{
-
-			InterfaceID:   0x8e5322c1e9282534,
-			MethodID:      0,
-			InterfaceName: "aircraft.capnp:Echo",
-			MethodName:    "echo",
-		},
+		&clientMethods_Echo[0],
 		C.ObjectSize{DataSize: 0, PointerCount: 1},
 		func(s C.Struct) { params(Echo_echo_Params(s)) }))
 }
