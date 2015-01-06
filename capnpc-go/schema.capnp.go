@@ -131,114 +131,63 @@ func (s Node_List) Len() int             { return C.PointerList(s).Len() }
 func (s Node_List) At(i int) Node        { return Node(C.PointerList(s).At(i).ToStruct()) }
 func (s Node_List) Set(i int, item Node) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type Node_Promise struct {
-	p C.Promise
-}
+type Node_Promise C.Promise
 
-func NewNode_Promise(p C.Promise) Node_Promise {
-	return Node_Promise{p}
-}
-
-func (p Node_Promise) Get() (Node, error) {
-	s, err := p.p.Get()
+func (p *Node_Promise) Get() (Node, error) {
+	s, err := (*C.Promise)(p).Struct()
 	return Node(s), err
 }
+func (p *Node_Promise) Struct() *Node_struct_Promise { return (*Node_struct_Promise)(p) }
 
-func (p Node_Promise) GenericPromise() C.Promise   { return p.p }
-func (p Node_Promise) Struct() Node_struct_Promise { return Node_struct_Promise(p) }
+type Node_struct_Promise C.Promise
 
-type Node_struct_Promise struct {
-	p C.Promise
-}
-
-func NewNode_struct_Promise(p C.Promise) Node_struct_Promise {
-	return Node_struct_Promise{p}
-}
-
-func (p Node_struct_Promise) Get() (Node_struct, error) {
-	s, err := p.p.Get()
+func (p *Node_struct_Promise) Get() (Node_struct, error) {
+	s, err := (*C.Promise)(p).Struct()
 	return Node_struct(s), err
 }
+func (p *Node_Promise) Enum() *Node_enum_Promise { return (*Node_enum_Promise)(p) }
 
-func (p Node_struct_Promise) GenericPromise() C.Promise { return p.p }
-func (p Node_Promise) Enum() Node_enum_Promise          { return Node_enum_Promise(p) }
+type Node_enum_Promise C.Promise
 
-type Node_enum_Promise struct {
-	p C.Promise
-}
-
-func NewNode_enum_Promise(p C.Promise) Node_enum_Promise {
-	return Node_enum_Promise{p}
-}
-
-func (p Node_enum_Promise) Get() (Node_enum, error) {
-	s, err := p.p.Get()
+func (p *Node_enum_Promise) Get() (Node_enum, error) {
+	s, err := (*C.Promise)(p).Struct()
 	return Node_enum(s), err
 }
+func (p *Node_Promise) Interface() *Node_interface_Promise { return (*Node_interface_Promise)(p) }
 
-func (p Node_enum_Promise) GenericPromise() C.Promise    { return p.p }
-func (p Node_Promise) Interface() Node_interface_Promise { return Node_interface_Promise(p) }
+type Node_interface_Promise C.Promise
 
-type Node_interface_Promise struct {
-	p C.Promise
-}
-
-func NewNode_interface_Promise(p C.Promise) Node_interface_Promise {
-	return Node_interface_Promise{p}
-}
-
-func (p Node_interface_Promise) Get() (Node_interface, error) {
-	s, err := p.p.Get()
+func (p *Node_interface_Promise) Get() (Node_interface, error) {
+	s, err := (*C.Promise)(p).Struct()
 	return Node_interface(s), err
 }
+func (p *Node_Promise) Const() *Node_const_Promise { return (*Node_const_Promise)(p) }
 
-func (p Node_interface_Promise) GenericPromise() C.Promise { return p.p }
-func (p Node_Promise) Const() Node_const_Promise           { return Node_const_Promise(p) }
+type Node_const_Promise C.Promise
 
-type Node_const_Promise struct {
-	p C.Promise
-}
-
-func NewNode_const_Promise(p C.Promise) Node_const_Promise {
-	return Node_const_Promise{p}
-}
-
-func (p Node_const_Promise) Get() (Node_const, error) {
-	s, err := p.p.Get()
+func (p *Node_const_Promise) Get() (Node_const, error) {
+	s, err := (*C.Promise)(p).Struct()
 	return Node_const(s), err
 }
 
-func (p Node_const_Promise) GenericPromise() C.Promise { return p.p }
-
-func (p Node_const_Promise) Type() Type_Promise {
-	return NewType_Promise(
-		p.p.GetPromise(3))
+func (p *Node_const_Promise) Type() *Type_Promise {
+	return (*Type_Promise)((*C.Promise)(p).GetPromise(3))
 }
 
-func (p Node_const_Promise) Value() Value_Promise {
-	return NewValue_Promise(
-		p.p.GetPromise(4))
+func (p *Node_const_Promise) Value() *Value_Promise {
+	return (*Value_Promise)((*C.Promise)(p).GetPromise(4))
 }
-func (p Node_Promise) Annotation() Node_annotation_Promise { return Node_annotation_Promise(p) }
+func (p *Node_Promise) Annotation() *Node_annotation_Promise { return (*Node_annotation_Promise)(p) }
 
-type Node_annotation_Promise struct {
-	p C.Promise
-}
+type Node_annotation_Promise C.Promise
 
-func NewNode_annotation_Promise(p C.Promise) Node_annotation_Promise {
-	return Node_annotation_Promise{p}
-}
-
-func (p Node_annotation_Promise) Get() (Node_annotation, error) {
-	s, err := p.p.Get()
+func (p *Node_annotation_Promise) Get() (Node_annotation, error) {
+	s, err := (*C.Promise)(p).Struct()
 	return Node_annotation(s), err
 }
 
-func (p Node_annotation_Promise) GenericPromise() C.Promise { return p.p }
-
-func (p Node_annotation_Promise) Type() Type_Promise {
-	return NewType_Promise(
-		p.p.GetPromise(3))
+func (p *Node_annotation_Promise) Type() *Type_Promise {
+	return (*Type_Promise)((*C.Promise)(p).GetPromise(3))
 }
 
 type Node_Parameter C.Struct
@@ -270,20 +219,12 @@ func (s Node_Parameter_List) At(i int) Node_Parameter {
 }
 func (s Node_Parameter_List) Set(i int, item Node_Parameter) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type Node_Parameter_Promise struct {
-	p C.Promise
-}
+type Node_Parameter_Promise C.Promise
 
-func NewNode_Parameter_Promise(p C.Promise) Node_Parameter_Promise {
-	return Node_Parameter_Promise{p}
-}
-
-func (p Node_Parameter_Promise) Get() (Node_Parameter, error) {
-	s, err := p.p.Get()
+func (p *Node_Parameter_Promise) Get() (Node_Parameter, error) {
+	s, err := (*C.Promise)(p).Struct()
 	return Node_Parameter(s), err
 }
-
-func (p Node_Parameter_Promise) GenericPromise() C.Promise { return p.p }
 
 type Node_NestedNode C.Struct
 
@@ -320,20 +261,12 @@ func (s Node_NestedNode_List) Set(i int, item Node_NestedNode) {
 	C.PointerList(s).Set(i, C.Object(item))
 }
 
-type Node_NestedNode_Promise struct {
-	p C.Promise
-}
+type Node_NestedNode_Promise C.Promise
 
-func NewNode_NestedNode_Promise(p C.Promise) Node_NestedNode_Promise {
-	return Node_NestedNode_Promise{p}
-}
-
-func (p Node_NestedNode_Promise) Get() (Node_NestedNode, error) {
-	s, err := p.p.Get()
+func (p *Node_NestedNode_Promise) Get() (Node_NestedNode, error) {
+	s, err := (*C.Promise)(p).Struct()
 	return Node_NestedNode(s), err
 }
-
-func (p Node_NestedNode_Promise) GenericPromise() C.Promise { return p.p }
 
 type Field C.Struct
 type Field_slot Field
@@ -404,78 +337,44 @@ func (s Field_List) Len() int              { return C.PointerList(s).Len() }
 func (s Field_List) At(i int) Field        { return Field(C.PointerList(s).At(i).ToStruct()) }
 func (s Field_List) Set(i int, item Field) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type Field_Promise struct {
-	p C.Promise
-}
+type Field_Promise C.Promise
 
-func NewField_Promise(p C.Promise) Field_Promise {
-	return Field_Promise{p}
-}
-
-func (p Field_Promise) Get() (Field, error) {
-	s, err := p.p.Get()
+func (p *Field_Promise) Get() (Field, error) {
+	s, err := (*C.Promise)(p).Struct()
 	return Field(s), err
 }
+func (p *Field_Promise) Slot() *Field_slot_Promise { return (*Field_slot_Promise)(p) }
 
-func (p Field_Promise) GenericPromise() C.Promise { return p.p }
-func (p Field_Promise) Slot() Field_slot_Promise  { return Field_slot_Promise(p) }
+type Field_slot_Promise C.Promise
 
-type Field_slot_Promise struct {
-	p C.Promise
-}
-
-func NewField_slot_Promise(p C.Promise) Field_slot_Promise {
-	return Field_slot_Promise{p}
-}
-
-func (p Field_slot_Promise) Get() (Field_slot, error) {
-	s, err := p.p.Get()
+func (p *Field_slot_Promise) Get() (Field_slot, error) {
+	s, err := (*C.Promise)(p).Struct()
 	return Field_slot(s), err
 }
 
-func (p Field_slot_Promise) GenericPromise() C.Promise { return p.p }
-
-func (p Field_slot_Promise) Type() Type_Promise {
-	return NewType_Promise(
-		p.p.GetPromise(2))
+func (p *Field_slot_Promise) Type() *Type_Promise {
+	return (*Type_Promise)((*C.Promise)(p).GetPromise(2))
 }
 
-func (p Field_slot_Promise) DefaultValue() Value_Promise {
-	return NewValue_Promise(
-		p.p.GetPromise(3))
+func (p *Field_slot_Promise) DefaultValue() *Value_Promise {
+	return (*Value_Promise)((*C.Promise)(p).GetPromise(3))
 }
-func (p Field_Promise) Group() Field_group_Promise { return Field_group_Promise(p) }
+func (p *Field_Promise) Group() *Field_group_Promise { return (*Field_group_Promise)(p) }
 
-type Field_group_Promise struct {
-	p C.Promise
-}
+type Field_group_Promise C.Promise
 
-func NewField_group_Promise(p C.Promise) Field_group_Promise {
-	return Field_group_Promise{p}
-}
-
-func (p Field_group_Promise) Get() (Field_group, error) {
-	s, err := p.p.Get()
+func (p *Field_group_Promise) Get() (Field_group, error) {
+	s, err := (*C.Promise)(p).Struct()
 	return Field_group(s), err
 }
+func (p *Field_Promise) Ordinal() *Field_ordinal_Promise { return (*Field_ordinal_Promise)(p) }
 
-func (p Field_group_Promise) GenericPromise() C.Promise { return p.p }
-func (p Field_Promise) Ordinal() Field_ordinal_Promise  { return Field_ordinal_Promise(p) }
+type Field_ordinal_Promise C.Promise
 
-type Field_ordinal_Promise struct {
-	p C.Promise
-}
-
-func NewField_ordinal_Promise(p C.Promise) Field_ordinal_Promise {
-	return Field_ordinal_Promise{p}
-}
-
-func (p Field_ordinal_Promise) Get() (Field_ordinal, error) {
-	s, err := p.p.Get()
+func (p *Field_ordinal_Promise) Get() (Field_ordinal, error) {
+	s, err := (*C.Promise)(p).Struct()
 	return Field_ordinal(s), err
 }
-
-func (p Field_ordinal_Promise) GenericPromise() C.Promise { return p.p }
 
 type Enumerant C.Struct
 
@@ -508,20 +407,12 @@ func (s Enumerant_List) Len() int                  { return C.PointerList(s).Len
 func (s Enumerant_List) At(i int) Enumerant        { return Enumerant(C.PointerList(s).At(i).ToStruct()) }
 func (s Enumerant_List) Set(i int, item Enumerant) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type Enumerant_Promise struct {
-	p C.Promise
-}
+type Enumerant_Promise C.Promise
 
-func NewEnumerant_Promise(p C.Promise) Enumerant_Promise {
-	return Enumerant_Promise{p}
-}
-
-func (p Enumerant_Promise) Get() (Enumerant, error) {
-	s, err := p.p.Get()
+func (p *Enumerant_Promise) Get() (Enumerant, error) {
+	s, err := (*C.Promise)(p).Struct()
 	return Enumerant(s), err
 }
-
-func (p Enumerant_Promise) GenericPromise() C.Promise { return p.p }
 
 type Superclass C.Struct
 
@@ -552,24 +443,15 @@ func (s Superclass_List) Len() int                   { return C.PointerList(s).L
 func (s Superclass_List) At(i int) Superclass        { return Superclass(C.PointerList(s).At(i).ToStruct()) }
 func (s Superclass_List) Set(i int, item Superclass) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type Superclass_Promise struct {
-	p C.Promise
-}
+type Superclass_Promise C.Promise
 
-func NewSuperclass_Promise(p C.Promise) Superclass_Promise {
-	return Superclass_Promise{p}
-}
-
-func (p Superclass_Promise) Get() (Superclass, error) {
-	s, err := p.p.Get()
+func (p *Superclass_Promise) Get() (Superclass, error) {
+	s, err := (*C.Promise)(p).Struct()
 	return Superclass(s), err
 }
 
-func (p Superclass_Promise) GenericPromise() C.Promise { return p.p }
-
-func (p Superclass_Promise) Brand() Brand_Promise {
-	return NewBrand_Promise(
-		p.p.GetPromise(0))
+func (p *Superclass_Promise) Brand() *Brand_Promise {
+	return (*Brand_Promise)((*C.Promise)(p).GetPromise(0))
 }
 
 type Method C.Struct
@@ -615,29 +497,19 @@ func (s Method_List) Len() int               { return C.PointerList(s).Len() }
 func (s Method_List) At(i int) Method        { return Method(C.PointerList(s).At(i).ToStruct()) }
 func (s Method_List) Set(i int, item Method) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type Method_Promise struct {
-	p C.Promise
-}
+type Method_Promise C.Promise
 
-func NewMethod_Promise(p C.Promise) Method_Promise {
-	return Method_Promise{p}
-}
-
-func (p Method_Promise) Get() (Method, error) {
-	s, err := p.p.Get()
+func (p *Method_Promise) Get() (Method, error) {
+	s, err := (*C.Promise)(p).Struct()
 	return Method(s), err
 }
 
-func (p Method_Promise) GenericPromise() C.Promise { return p.p }
-
-func (p Method_Promise) ParamBrand() Brand_Promise {
-	return NewBrand_Promise(
-		p.p.GetPromise(2))
+func (p *Method_Promise) ParamBrand() *Brand_Promise {
+	return (*Brand_Promise)((*C.Promise)(p).GetPromise(2))
 }
 
-func (p Method_Promise) ResultBrand() Brand_Promise {
-	return NewBrand_Promise(
-		p.p.GetPromise(3))
+func (p *Method_Promise) ResultBrand() *Brand_Promise {
+	return (*Brand_Promise)((*C.Promise)(p).GetPromise(3))
 }
 
 type Type C.Struct
@@ -756,156 +628,88 @@ func (s Type_List) Len() int             { return C.PointerList(s).Len() }
 func (s Type_List) At(i int) Type        { return Type(C.PointerList(s).At(i).ToStruct()) }
 func (s Type_List) Set(i int, item Type) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type Type_Promise struct {
-	p C.Promise
-}
+type Type_Promise C.Promise
 
-func NewType_Promise(p C.Promise) Type_Promise {
-	return Type_Promise{p}
-}
-
-func (p Type_Promise) Get() (Type, error) {
-	s, err := p.p.Get()
+func (p *Type_Promise) Get() (Type, error) {
+	s, err := (*C.Promise)(p).Struct()
 	return Type(s), err
 }
+func (p *Type_Promise) List() *Type_list_Promise { return (*Type_list_Promise)(p) }
 
-func (p Type_Promise) GenericPromise() C.Promise { return p.p }
-func (p Type_Promise) List() Type_list_Promise   { return Type_list_Promise(p) }
+type Type_list_Promise C.Promise
 
-type Type_list_Promise struct {
-	p C.Promise
-}
-
-func NewType_list_Promise(p C.Promise) Type_list_Promise {
-	return Type_list_Promise{p}
-}
-
-func (p Type_list_Promise) Get() (Type_list, error) {
-	s, err := p.p.Get()
+func (p *Type_list_Promise) Get() (Type_list, error) {
+	s, err := (*C.Promise)(p).Struct()
 	return Type_list(s), err
 }
 
-func (p Type_list_Promise) GenericPromise() C.Promise { return p.p }
-
-func (p Type_list_Promise) ElementType() Type_Promise {
-	return NewType_Promise(
-		p.p.GetPromise(0))
+func (p *Type_list_Promise) ElementType() *Type_Promise {
+	return (*Type_Promise)((*C.Promise)(p).GetPromise(0))
 }
-func (p Type_Promise) Enum() Type_enum_Promise { return Type_enum_Promise(p) }
+func (p *Type_Promise) Enum() *Type_enum_Promise { return (*Type_enum_Promise)(p) }
 
-type Type_enum_Promise struct {
-	p C.Promise
-}
+type Type_enum_Promise C.Promise
 
-func NewType_enum_Promise(p C.Promise) Type_enum_Promise {
-	return Type_enum_Promise{p}
-}
-
-func (p Type_enum_Promise) Get() (Type_enum, error) {
-	s, err := p.p.Get()
+func (p *Type_enum_Promise) Get() (Type_enum, error) {
+	s, err := (*C.Promise)(p).Struct()
 	return Type_enum(s), err
 }
 
-func (p Type_enum_Promise) GenericPromise() C.Promise { return p.p }
-
-func (p Type_enum_Promise) Brand() Brand_Promise {
-	return NewBrand_Promise(
-		p.p.GetPromise(0))
+func (p *Type_enum_Promise) Brand() *Brand_Promise {
+	return (*Brand_Promise)((*C.Promise)(p).GetPromise(0))
 }
-func (p Type_Promise) Struct() Type_struct_Promise { return Type_struct_Promise(p) }
+func (p *Type_Promise) Struct() *Type_struct_Promise { return (*Type_struct_Promise)(p) }
 
-type Type_struct_Promise struct {
-	p C.Promise
-}
+type Type_struct_Promise C.Promise
 
-func NewType_struct_Promise(p C.Promise) Type_struct_Promise {
-	return Type_struct_Promise{p}
-}
-
-func (p Type_struct_Promise) Get() (Type_struct, error) {
-	s, err := p.p.Get()
+func (p *Type_struct_Promise) Get() (Type_struct, error) {
+	s, err := (*C.Promise)(p).Struct()
 	return Type_struct(s), err
 }
 
-func (p Type_struct_Promise) GenericPromise() C.Promise { return p.p }
-
-func (p Type_struct_Promise) Brand() Brand_Promise {
-	return NewBrand_Promise(
-		p.p.GetPromise(0))
+func (p *Type_struct_Promise) Brand() *Brand_Promise {
+	return (*Brand_Promise)((*C.Promise)(p).GetPromise(0))
 }
-func (p Type_Promise) Interface() Type_interface_Promise { return Type_interface_Promise(p) }
+func (p *Type_Promise) Interface() *Type_interface_Promise { return (*Type_interface_Promise)(p) }
 
-type Type_interface_Promise struct {
-	p C.Promise
-}
+type Type_interface_Promise C.Promise
 
-func NewType_interface_Promise(p C.Promise) Type_interface_Promise {
-	return Type_interface_Promise{p}
-}
-
-func (p Type_interface_Promise) Get() (Type_interface, error) {
-	s, err := p.p.Get()
+func (p *Type_interface_Promise) Get() (Type_interface, error) {
+	s, err := (*C.Promise)(p).Struct()
 	return Type_interface(s), err
 }
 
-func (p Type_interface_Promise) GenericPromise() C.Promise { return p.p }
-
-func (p Type_interface_Promise) Brand() Brand_Promise {
-	return NewBrand_Promise(
-		p.p.GetPromise(0))
+func (p *Type_interface_Promise) Brand() *Brand_Promise {
+	return (*Brand_Promise)((*C.Promise)(p).GetPromise(0))
 }
-func (p Type_Promise) AnyPointer() Type_anyPointer_Promise { return Type_anyPointer_Promise(p) }
+func (p *Type_Promise) AnyPointer() *Type_anyPointer_Promise { return (*Type_anyPointer_Promise)(p) }
 
-type Type_anyPointer_Promise struct {
-	p C.Promise
-}
+type Type_anyPointer_Promise C.Promise
 
-func NewType_anyPointer_Promise(p C.Promise) Type_anyPointer_Promise {
-	return Type_anyPointer_Promise{p}
-}
-
-func (p Type_anyPointer_Promise) Get() (Type_anyPointer, error) {
-	s, err := p.p.Get()
+func (p *Type_anyPointer_Promise) Get() (Type_anyPointer, error) {
+	s, err := (*C.Promise)(p).Struct()
 	return Type_anyPointer(s), err
 }
-
-func (p Type_anyPointer_Promise) GenericPromise() C.Promise { return p.p }
-func (p Type_anyPointer_Promise) Parameter() Type_anyPointer_parameter_Promise {
-	return Type_anyPointer_parameter_Promise(p)
+func (p *Type_anyPointer_Promise) Parameter() *Type_anyPointer_parameter_Promise {
+	return (*Type_anyPointer_parameter_Promise)(p)
 }
 
-type Type_anyPointer_parameter_Promise struct {
-	p C.Promise
-}
+type Type_anyPointer_parameter_Promise C.Promise
 
-func NewType_anyPointer_parameter_Promise(p C.Promise) Type_anyPointer_parameter_Promise {
-	return Type_anyPointer_parameter_Promise{p}
-}
-
-func (p Type_anyPointer_parameter_Promise) Get() (Type_anyPointer_parameter, error) {
-	s, err := p.p.Get()
+func (p *Type_anyPointer_parameter_Promise) Get() (Type_anyPointer_parameter, error) {
+	s, err := (*C.Promise)(p).Struct()
 	return Type_anyPointer_parameter(s), err
 }
-
-func (p Type_anyPointer_parameter_Promise) GenericPromise() C.Promise { return p.p }
-func (p Type_anyPointer_Promise) ImplicitMethodParameter() Type_anyPointer_implicitMethodParameter_Promise {
-	return Type_anyPointer_implicitMethodParameter_Promise(p)
+func (p *Type_anyPointer_Promise) ImplicitMethodParameter() *Type_anyPointer_implicitMethodParameter_Promise {
+	return (*Type_anyPointer_implicitMethodParameter_Promise)(p)
 }
 
-type Type_anyPointer_implicitMethodParameter_Promise struct {
-	p C.Promise
-}
+type Type_anyPointer_implicitMethodParameter_Promise C.Promise
 
-func NewType_anyPointer_implicitMethodParameter_Promise(p C.Promise) Type_anyPointer_implicitMethodParameter_Promise {
-	return Type_anyPointer_implicitMethodParameter_Promise{p}
-}
-
-func (p Type_anyPointer_implicitMethodParameter_Promise) Get() (Type_anyPointer_implicitMethodParameter, error) {
-	s, err := p.p.Get()
+func (p *Type_anyPointer_implicitMethodParameter_Promise) Get() (Type_anyPointer_implicitMethodParameter, error) {
+	s, err := (*C.Promise)(p).Struct()
 	return Type_anyPointer_implicitMethodParameter(s), err
 }
-
-func (p Type_anyPointer_implicitMethodParameter_Promise) GenericPromise() C.Promise { return p.p }
 
 type Brand C.Struct
 
@@ -934,20 +738,12 @@ func (s Brand_List) Len() int              { return C.PointerList(s).Len() }
 func (s Brand_List) At(i int) Brand        { return Brand(C.PointerList(s).At(i).ToStruct()) }
 func (s Brand_List) Set(i int, item Brand) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type Brand_Promise struct {
-	p C.Promise
-}
+type Brand_Promise C.Promise
 
-func NewBrand_Promise(p C.Promise) Brand_Promise {
-	return Brand_Promise{p}
-}
-
-func (p Brand_Promise) Get() (Brand, error) {
-	s, err := p.p.Get()
+func (p *Brand_Promise) Get() (Brand, error) {
+	s, err := (*C.Promise)(p).Struct()
 	return Brand(s), err
 }
-
-func (p Brand_Promise) GenericPromise() C.Promise { return p.p }
 
 type Brand_Scope C.Struct
 type Brand_Scope_Which uint16
@@ -989,20 +785,12 @@ func (s Brand_Scope_List) Len() int                    { return C.PointerList(s)
 func (s Brand_Scope_List) At(i int) Brand_Scope        { return Brand_Scope(C.PointerList(s).At(i).ToStruct()) }
 func (s Brand_Scope_List) Set(i int, item Brand_Scope) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type Brand_Scope_Promise struct {
-	p C.Promise
-}
+type Brand_Scope_Promise C.Promise
 
-func NewBrand_Scope_Promise(p C.Promise) Brand_Scope_Promise {
-	return Brand_Scope_Promise{p}
-}
-
-func (p Brand_Scope_Promise) Get() (Brand_Scope, error) {
-	s, err := p.p.Get()
+func (p *Brand_Scope_Promise) Get() (Brand_Scope, error) {
+	s, err := (*C.Promise)(p).Struct()
 	return Brand_Scope(s), err
 }
-
-func (p Brand_Scope_Promise) GenericPromise() C.Promise { return p.p }
 
 type Brand_Binding C.Struct
 type Brand_Binding_Which uint16
@@ -1041,24 +829,15 @@ func (s Brand_Binding_List) At(i int) Brand_Binding {
 }
 func (s Brand_Binding_List) Set(i int, item Brand_Binding) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type Brand_Binding_Promise struct {
-	p C.Promise
-}
+type Brand_Binding_Promise C.Promise
 
-func NewBrand_Binding_Promise(p C.Promise) Brand_Binding_Promise {
-	return Brand_Binding_Promise{p}
-}
-
-func (p Brand_Binding_Promise) Get() (Brand_Binding, error) {
-	s, err := p.p.Get()
+func (p *Brand_Binding_Promise) Get() (Brand_Binding, error) {
+	s, err := (*C.Promise)(p).Struct()
 	return Brand_Binding(s), err
 }
 
-func (p Brand_Binding_Promise) GenericPromise() C.Promise { return p.p }
-
-func (p Brand_Binding_Promise) Type() Type_Promise {
-	return NewType_Promise(
-		p.p.GetPromise(0))
+func (p *Brand_Binding_Promise) Type() *Type_Promise {
+	return (*Type_Promise)((*C.Promise)(p).GetPromise(0))
 }
 
 type Value C.Struct
@@ -1158,43 +937,23 @@ func (s Value_List) Len() int              { return C.PointerList(s).Len() }
 func (s Value_List) At(i int) Value        { return Value(C.PointerList(s).At(i).ToStruct()) }
 func (s Value_List) Set(i int, item Value) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type Value_Promise struct {
-	p C.Promise
-}
+type Value_Promise C.Promise
 
-func NewValue_Promise(p C.Promise) Value_Promise {
-	return Value_Promise{p}
-}
-
-func (p Value_Promise) Get() (Value, error) {
-	s, err := p.p.Get()
+func (p *Value_Promise) Get() (Value, error) {
+	s, err := (*C.Promise)(p).Struct()
 	return Value(s), err
 }
 
-func (p Value_Promise) GenericPromise() C.Promise { return p.p }
-
-func (p Value_Promise) List() C.Promise {
-	return p.p.GetPromise(0)
+func (p *Value_Promise) List() *C.Promise {
+	return (*C.Promise)(p).GetPromise(0)
 }
 
-func (p Value_Promise) List_Client() C.Client {
-	return p.p.GetClient(0)
+func (p *Value_Promise) Struct() *C.Promise {
+	return (*C.Promise)(p).GetPromise(0)
 }
 
-func (p Value_Promise) Struct() C.Promise {
-	return p.p.GetPromise(0)
-}
-
-func (p Value_Promise) Struct_Client() C.Client {
-	return p.p.GetClient(0)
-}
-
-func (p Value_Promise) AnyPointer() C.Promise {
-	return p.p.GetPromise(0)
-}
-
-func (p Value_Promise) AnyPointer_Client() C.Client {
-	return p.p.GetClient(0)
+func (p *Value_Promise) AnyPointer() *C.Promise {
+	return (*C.Promise)(p).GetPromise(0)
 }
 
 type Annotation C.Struct
@@ -1228,29 +987,19 @@ func (s Annotation_List) Len() int                   { return C.PointerList(s).L
 func (s Annotation_List) At(i int) Annotation        { return Annotation(C.PointerList(s).At(i).ToStruct()) }
 func (s Annotation_List) Set(i int, item Annotation) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type Annotation_Promise struct {
-	p C.Promise
-}
+type Annotation_Promise C.Promise
 
-func NewAnnotation_Promise(p C.Promise) Annotation_Promise {
-	return Annotation_Promise{p}
-}
-
-func (p Annotation_Promise) Get() (Annotation, error) {
-	s, err := p.p.Get()
+func (p *Annotation_Promise) Get() (Annotation, error) {
+	s, err := (*C.Promise)(p).Struct()
 	return Annotation(s), err
 }
 
-func (p Annotation_Promise) GenericPromise() C.Promise { return p.p }
-
-func (p Annotation_Promise) Brand() Brand_Promise {
-	return NewBrand_Promise(
-		p.p.GetPromise(1))
+func (p *Annotation_Promise) Brand() *Brand_Promise {
+	return (*Brand_Promise)((*C.Promise)(p).GetPromise(1))
 }
 
-func (p Annotation_Promise) Value() Value_Promise {
-	return NewValue_Promise(
-		p.p.GetPromise(0))
+func (p *Annotation_Promise) Value() *Value_Promise {
+	return (*Value_Promise)((*C.Promise)(p).GetPromise(0))
 }
 
 type ElementSize uint16
@@ -1362,20 +1111,12 @@ func (s CodeGeneratorRequest_List) Set(i int, item CodeGeneratorRequest) {
 	C.PointerList(s).Set(i, C.Object(item))
 }
 
-type CodeGeneratorRequest_Promise struct {
-	p C.Promise
-}
+type CodeGeneratorRequest_Promise C.Promise
 
-func NewCodeGeneratorRequest_Promise(p C.Promise) CodeGeneratorRequest_Promise {
-	return CodeGeneratorRequest_Promise{p}
-}
-
-func (p CodeGeneratorRequest_Promise) Get() (CodeGeneratorRequest, error) {
-	s, err := p.p.Get()
+func (p *CodeGeneratorRequest_Promise) Get() (CodeGeneratorRequest, error) {
+	s, err := (*C.Promise)(p).Struct()
 	return CodeGeneratorRequest(s), err
 }
-
-func (p CodeGeneratorRequest_Promise) GenericPromise() C.Promise { return p.p }
 
 type CodeGeneratorRequest_RequestedFile C.Struct
 
@@ -1422,20 +1163,12 @@ func (s CodeGeneratorRequest_RequestedFile_List) Set(i int, item CodeGeneratorRe
 	C.PointerList(s).Set(i, C.Object(item))
 }
 
-type CodeGeneratorRequest_RequestedFile_Promise struct {
-	p C.Promise
-}
+type CodeGeneratorRequest_RequestedFile_Promise C.Promise
 
-func NewCodeGeneratorRequest_RequestedFile_Promise(p C.Promise) CodeGeneratorRequest_RequestedFile_Promise {
-	return CodeGeneratorRequest_RequestedFile_Promise{p}
-}
-
-func (p CodeGeneratorRequest_RequestedFile_Promise) Get() (CodeGeneratorRequest_RequestedFile, error) {
-	s, err := p.p.Get()
+func (p *CodeGeneratorRequest_RequestedFile_Promise) Get() (CodeGeneratorRequest_RequestedFile, error) {
+	s, err := (*C.Promise)(p).Struct()
 	return CodeGeneratorRequest_RequestedFile(s), err
 }
-
-func (p CodeGeneratorRequest_RequestedFile_Promise) GenericPromise() C.Promise { return p.p }
 
 type CodeGeneratorRequest_RequestedFile_Import C.Struct
 
@@ -1476,17 +1209,9 @@ func (s CodeGeneratorRequest_RequestedFile_Import_List) Set(i int, item CodeGene
 	C.PointerList(s).Set(i, C.Object(item))
 }
 
-type CodeGeneratorRequest_RequestedFile_Import_Promise struct {
-	p C.Promise
-}
+type CodeGeneratorRequest_RequestedFile_Import_Promise C.Promise
 
-func NewCodeGeneratorRequest_RequestedFile_Import_Promise(p C.Promise) CodeGeneratorRequest_RequestedFile_Import_Promise {
-	return CodeGeneratorRequest_RequestedFile_Import_Promise{p}
-}
-
-func (p CodeGeneratorRequest_RequestedFile_Import_Promise) Get() (CodeGeneratorRequest_RequestedFile_Import, error) {
-	s, err := p.p.Get()
+func (p *CodeGeneratorRequest_RequestedFile_Import_Promise) Get() (CodeGeneratorRequest_RequestedFile_Import, error) {
+	s, err := (*C.Promise)(p).Struct()
 	return CodeGeneratorRequest_RequestedFile_Import(s), err
 }
-
-func (p CodeGeneratorRequest_RequestedFile_Import_Promise) GenericPromise() C.Promise { return p.p }

@@ -11,50 +11,37 @@ var templates = template.Must(template.New("").Funcs(template.FuncMap{
 	"title":   strings.Title,
 }).Parse(`
 {{define "promise"}}
-type {{.Node.Name}}_Promise struct {
-	p {{capn}}.Promise
-}
+type {{.Node.Name}}_Promise {{capn}}.Promise
 
-func New{{.Node.Name}}_Promise(p {{capn}}.Promise) {{.Node.Name}}_Promise {
-	return {{.Node.Name}}_Promise{p}
-}
-
-func (p {{.Node.Name}}_Promise) Get() ({{.Node.Name}}, error) {
-	s, err := p.p.Get()
+func (p *{{.Node.Name}}_Promise) Get() ({{.Node.Name}}, error) {
+	s, err := (*{{capn}}.Promise)(p).Struct()
 	return {{.Node.Name}}(s), err
 }
-
-func (p {{.Node.Name}}_Promise) GenericPromise() {{capn}}.Promise { return p.p }
 {{end}}
 
 
 {{define "promiseFieldStruct"}}
-func (p {{.Node.Name}}_Promise) {{.Field.Name|title}}() {{.Struct.RemoteName .Node}}_Promise {
-	return {{.Struct.RemoteNew .Node}}_Promise(
-		{{if .BufName}}p.p.GetPromiseDefault({{.Field.Slot.Offset}}, {{.BufName}}, {{.DefaultOffset}}){{else}}p.p.GetPromise({{.Field.Slot.Offset}}){{end}})
+func (p *{{.Node.Name}}_Promise) {{.Field.Name|title}}() *{{.Struct.RemoteName .Node}}_Promise {
+	return (*{{.Struct.RemoteName .Node}}_Promise)((*{{capn}}.Promise)(p).{{if .BufName}}GetPromiseDefault({{.Field.Slot.Offset}}, {{.BufName}}, {{.DefaultOffset}}){{else}}GetPromise({{.Field.Slot.Offset}}){{end}})
 }
 {{end}}
 
 
 {{define "promiseFieldAnyPointer"}}
-func (p {{.Node.Name}}_Promise) {{.Field.Name|title}}() {{capn}}.Promise {
-	return p.p.GetPromise({{.Field.Slot.Offset}})
-}
-
-func (p {{.Node.Name}}_Promise) {{.Field.Name|title}}_Client() {{capn}}.Client {
-	return p.p.GetClient({{.Field.Slot.Offset}})
+func (p *{{.Node.Name}}_Promise) {{.Field.Name|title}}() *{{capn}}.Promise {
+	return (*{{capn}}.Promise)(p).GetPromise({{.Field.Slot.Offset}})
 }
 {{end}}
 
 
 {{define "promiseFieldInterface"}}
-func (p {{.Node.Name}}_Promise) {{.Field.Name|title}}() {{.Interface.RemoteName .Node}} {
-	return {{.Interface.RemoteNew .Node}}(p.p.GetClient({{.Field.Slot.Offset}}))
+func (p *{{.Node.Name}}_Promise) {{.Field.Name|title}}() {{.Interface.RemoteName .Node}} {
+	return {{.Interface.RemoteNew .Node}}((*{{capn}}.Promise)(p).GetPromise({{.Field.Slot.Offset}}).Client())
 }
 {{end}}
 
 
-{{define "promiseGroup"}}func (p {{.Node.Name}}_Promise) {{.Field.Name|title}}() {{.Group.Name}}_Promise { return {{.Group.Name}}_Promise(p) }
+{{define "promiseGroup"}}func (p *{{.Node.Name}}_Promise) {{.Field.Name|title}}() *{{.Group.Name}}_Promise { return (*{{.Group.Name}}_Promise)(p) }
 {{end}}
 
 
@@ -76,14 +63,14 @@ var clientMethods_{{.Node.Name}} = []{{capn}}.Method{
 }
 
 {{range $i, $m := .Methods}}
-func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{context}}.Context, params func({{.Params.RemoteName $.Node}})) {{.Results.RemoteName $.Node}}_Promise {
+func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{context}}.Context, params func({{.Params.RemoteName $.Node}})) *{{.Results.RemoteName $.Node}}_Promise {
 	if c.c == nil {
-		return {{.Results.RemoteNew $.Node}}_Promise({{capn}}.ErrorPromise({{capn}}.ErrNullClient))
+		return (*{{.Results.RemoteName $.Node}}_Promise)({{capn}}.NewPromise({{capn}}.ErrorAnswer({{capn}}.ErrNullClient)))
 	}
-	return {{.Results.RemoteNew $.Node}}_Promise(c.c.NewCall(ctx,
+	return (*{{.Results.RemoteName $.Node}}_Promise)({{capn}}.NewPromise(c.c.NewCall(ctx,
 		&clientMethods_{{$.Node.Name}}[{{$i}}],
 		{{.Params.ObjectSize}},
-		func(s {{capn}}.Struct) { params({{.Params.RemoteName $.Node}}(s)) }))
+		func(s {{capn}}.Struct) { params({{.Params.RemoteName $.Node}}(s)) })))
 }
 {{end}}
 {{end}}

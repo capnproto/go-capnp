@@ -124,18 +124,11 @@ capnpc-go will generate the following for structs:
 	func (s Foo_List) At(i int) Foo
 
 	// Foo_Promise is a promise for a Foo.  Methods are provided to get
-	// promises of struct fields.  Fields of type AnyPointer will have two
-	// methods: for a field "bar", it would be Bar() and Bar_Client().
-	type Foo_Promise struct { p capn.Promise }
-
-	// NewFoo_Promise creates a Foo_Promise from a generic promise.
-	func NewFoo_Promise(p capn.Promise) Foo_Promise
+	// promises of struct and interface fields.
+	type Foo_Promise capn.Promise
 
 	// Get waits until the promise is resolved and returns the result.
 	func (p Foo_Promise) Get() (Foo, error)
-
-	// GenericPromise returns the underlying generic promise.
-	func (p Foo_Promise) GenericPromise() capn.Promise
 
 
 Groups
@@ -319,7 +312,7 @@ Calculator_evaluate_Params and Calculator_evaluate_Results):
 	// allocated Calculator_evaluate_Params to fill in the parameters.
 	func (c Calculator) Evaluate(
 		ctx context.Context,
-		params func(Calculator_evaluate_Params)) Calculator_evaluate_Results_Promise
+		params func(Calculator_evaluate_Params)) *Calculator_evaluate_Results_Promise
 
 capnpc-go also generates code to implement the interface.  Since a single
 capability may want to implement many interfaces, you can use multiple *_Methods

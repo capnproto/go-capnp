@@ -3,7 +3,6 @@ package capn
 import (
 	"errors"
 	"strconv"
-	"sync"
 
 	"golang.org/x/net/context"
 )
@@ -17,7 +16,7 @@ type Client interface {
 	Call(
 		ctx context.Context,
 		method *Method,
-		params Struct) Promise
+		params Struct) Answer
 
 	// NewCall calls a method, allowing the client to allocate the
 	// parameters struct.  This is used when application code is using
@@ -26,19 +25,125 @@ type Client interface {
 		ctx context.Context,
 		method *Method,
 		paramsSize ObjectSize,
-		params func(Struct)) Promise
+		params func(Struct)) Answer
 
 	// Close releases any resources associated with this client.
 	// No further calls to the client should be made after calling Close.
 	Close() error
 }
 
-// A Promise is a generic promise for a Struct.
-type Promise interface {
-	Get() (Struct, error)
-	GetClient(off int) Client
-	GetPromise(off int) Promise
-	GetPromiseDefault(off int, s *Segment, tagoff int) Promise
+// An Answer is the deferred result of a client call, which is usually wrapped by a Promise.
+type Answer interface {
+	// Struct waits until the call is finished and returns the result.
+	Struct() (Struct, error)
+
+	// The following methods are the same as in Client except with an added transform parameter.
+	// This parameter describes the path to the interface to use for the call.
+
+	Call(
+		ctx context.Context,
+		transform []PromiseOp,
+		method *Method,
+		params Struct) Answer
+	NewCall(
+		ctx context.Context,
+		transform []PromiseOp,
+		method *Method,
+		paramsSize ObjectSize,
+		params func(Struct)) Answer
+	CloseClient(transform []PromiseOp) error
+}
+
+// A Promise is a generic promise for an object.
+type Promise struct {
+	answer Answer
+	parent *Promise
+	op     PromiseOp
+}
+
+// NewPromise returns a new promise based on an answer.
+func NewPromise(ans Answer) *Promise {
+	return &Promise{answer: ans}
+}
+
+// Answer returns the answer the promise is derived from.
+func (p *Promise) Answer() Answer {
+	return p.answer
+}
+
+// Transform returns the operations needed to transform the root answer
+// into the value p represents.
+func (p *Promise) Transform() []PromiseOp {
+	n := 0
+	for q := p; q.parent != nil; q = q.parent {
+		n++
+	}
+	xform := make([]PromiseOp, n)
+	for i, q := n-1, p; q.parent != nil; i, q = i-1, q.parent {
+		xform[i] = q.op
+	}
+	return xform
+}
+
+// Struct waits until the answer is resolved and returns the struct
+// this promise represents.
+func (p *Promise) Struct() (Struct, error) {
+	s, err := p.answer.Struct()
+	if err != nil {
+		return Struct{}, err
+	}
+	return walk(Object(s), p.Transform()).ToStruct(), err
+}
+
+// Client returns the client version of p.
+func (p *Promise) Client() *PromiseClient {
+	return (*PromiseClient)(p)
+}
+
+// GetPromise returns a derived promise which yields the pointer field given.
+func (p *Promise) GetPromise(off int) *Promise {
+	return p.GetPromiseDefault(off, nil, 0)
+}
+
+// GetPromiseDefault returns a derived promise which yields the pointer field given,
+// defaulting to the value given.
+func (p *Promise) GetPromiseDefault(off int, dseg *Segment, doff int) *Promise {
+	return &Promise{
+		answer: p.answer,
+		parent: p,
+		op: PromiseOp{
+			Field:          off,
+			DefaultSegment: dseg,
+			DefaultOffset:  doff,
+		},
+	}
+}
+
+// PromiseClient implements Client by calling to the promise's answer.
+type PromiseClient Promise
+
+func (pc *PromiseClient) transform() []PromiseOp {
+	return (*Promise)(pc).Transform()
+}
+
+func (pc *PromiseClient) NewCall(ctx context.Context, method *Method, paramsSize ObjectSize, params func(Struct)) Answer {
+	return pc.answer.NewCall(ctx, pc.transform(), method, paramsSize, params)
+}
+
+func (pc *PromiseClient) Call(ctx context.Context, method *Method, params Struct) Answer {
+	return pc.answer.Call(ctx, pc.transform(), method, params)
+}
+
+func (pc *PromiseClient) Close() error {
+	return pc.answer.CloseClient(pc.transform())
+}
+
+// A PromiseOp describes a step in transforming a promise.
+// It maps closely with the PromisedAnswer.Op struct in rpc.capnp.
+type PromiseOp struct {
+	Field          int
+	DefaultSegment *Segment
+	DefaultOffset  int
 }
 
 // A Method identifies a method along with an optional human-readable
@@ -74,304 +179,86 @@ func (m *Method) String() string {
 	return string(buf)
 }
 
-// A Fulfiller is a placeholder for a promised value or an error.
-// The zero value is an empty placeholder.  A Fulfiller is safe to use
-// from multiple goroutines.
-type Fulfiller struct {
-	once sync.Once
-	done chan struct{}
-
-	mu       sync.RWMutex
-	resolved bool
-	obj      Object
-	err      error
-}
-
-// init initializes the fulfiller.  It is idempotent.
-func (f *Fulfiller) init() {
-	f.once.Do(func() {
-		f.done = make(chan struct{})
-	})
-}
-
-// get blocks until Fulfill or Reject is called and returns the result.
-func (f *Fulfiller) get() (obj Object, err error) {
-	f.init()
-	<-f.done
-	obj, err, _ = f.nowaitGet()
-	return
-}
-
-// nowaitGet returns the current state of the fulfiller.
-func (f *Fulfiller) nowaitGet() (obj Object, err error, resolved bool) {
-	f.mu.RLock()
-	obj, err, resolved = f.obj, f.err, f.resolved
-	f.mu.RUnlock()
-	return
-}
-
-// Fulfill resolves f with a successful value.
-// This method is a no-op if f has already been resolved.
-func (f *Fulfiller) Fulfill(obj Object) {
-	f.init()
-	f.mu.Lock()
-	if !f.resolved {
-		f.obj = obj
-		close(f.done)
-	}
-	f.mu.Unlock()
-}
-
-// Reject resolves f with an error.
-// This method is a no-op if f has already been resolved.
-func (f *Fulfiller) Reject(err error) {
-	f.init()
-	f.mu.Lock()
-	if !f.resolved {
-		f.err = err
-		close(f.done)
-	}
-	f.mu.Unlock()
-}
-
-// Promise returns a promise that resolves when f is resolved.
-func (f *Fulfiller) Promise() Promise {
-	obj, err, resolved := f.nowaitGet()
-	if !resolved {
-		return &fulfillerPromise{f: f, path: fulfillerPath{noop: true}}
-	}
-	if err != nil {
-		return ErrorPromise(err)
-	}
-	return ImmediatePromise(obj.ToStruct())
-}
-
-// Client returns a client that makes calls to the fulfilled interface.
-// If f is already resolved, then the fulfilled client is returned.
-func (f *Fulfiller) Client() Client {
-	obj, err, resolved := f.nowaitGet()
-	if !resolved {
-		return &fulfillerClient{f: f, path: fulfillerPath{noop: true}}
-	}
-	if err != nil {
-		return ErrorClient(err)
-	}
-	return obj.ToInterface().Client()
-}
-
-type fulfillerPromise struct {
-	path fulfillerPath
-	f    *Fulfiller
-}
-
-func (fp *fulfillerPromise) Get() (Struct, error) {
-	p, err := fp.f.get()
-	if err != nil {
-		return Struct{}, err
-	}
-	p = fp.path.traverse(p.ToStruct())
-	return p.ToStruct(), nil
-}
-
-func (fp *fulfillerPromise) GetClient(off int) Client {
-	return &fulfillerClient{
-		f: fp.f,
-		path: fulfillerPath{
-			parent: &fp.path,
-			field:  off,
-		},
-	}
-}
-
-func (fp *fulfillerPromise) GetPromise(off int) Promise {
-	return fp.GetPromiseDefault(off, nil, 0)
-}
-
-func (fp *fulfillerPromise) GetPromiseDefault(off int, s *Segment, tagoff int) Promise {
-	return &fulfillerPromise{
-		f: fp.f,
-		path: fulfillerPath{
-			parent: &fp.path,
-			field:  off,
-			defseg: s,
-			defoff: tagoff,
-		},
-	}
-}
-
-type fulfillerClient struct {
-	path fulfillerPath
-	f    *Fulfiller
-}
-
-func (fc *fulfillerClient) client(obj Object, err error) (Client, error) {
-	if err != nil {
-		return nil, err
-	}
-	client := fc.path.traverse(obj.ToStruct()).ToInterface().Client()
-	if client == nil {
-		return nil, ErrNullClient
-	}
-	return client, nil
-}
-
-func (fc *fulfillerClient) Call(ctx context.Context, method *Method, params Struct) Promise {
-	obj, err, ok := fc.f.nowaitGet()
-	if ok {
-		client, err := fc.client(obj, err)
-		if err != nil {
-			return ErrorPromise(err)
-		}
-		return client.Call(ctx, method, params)
-	}
-	var results Fulfiller
-	go func() {
-		client, err := fc.client(fc.f.get())
-		if err != nil {
-			results.Reject(err)
-			return
-		}
-		s, err := client.Call(ctx, method, params).Get()
-		if err != nil {
-			results.Reject(err)
-			return
-		}
-		results.Fulfill(Object(s))
-	}()
-	return results.Promise()
-}
-
-func (fc *fulfillerClient) NewCall(ctx context.Context, method *Method, paramsSize ObjectSize, params func(Struct)) Promise {
-	obj, err, ok := fc.f.nowaitGet()
-	if ok {
-		client, err := fc.client(obj, err)
-		if err != nil {
-			return ErrorPromise(err)
-		}
-		return client.NewCall(ctx, method, paramsSize, params)
-	}
-	var results Fulfiller
-	go func() {
-		client, err := fc.client(fc.f.get())
-		if err != nil {
-			results.Reject(err)
-			return
-		}
-		s, err := client.NewCall(ctx, method, paramsSize, params).Get()
-		if err != nil {
-			results.Reject(err)
-			return
-		}
-		results.Fulfill(Object(s))
-	}()
-	return results.Promise()
-}
-
-func (fc *fulfillerClient) Close() error {
-	obj, err, ok := fc.f.nowaitGet()
-	if !ok {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	client, err := fc.client(obj, nil)
-	if err != nil {
-		return err
-	}
-	return client.Close()
-}
-
-type fulfillerPath struct {
-	parent *fulfillerPath
-
-	noop bool
-
-	field  int
-	defseg *Segment
-	defoff int
-}
-
-func (p *fulfillerPath) len() int {
-	var n int
-	for curr := p; curr != nil; curr = curr.parent {
-		if !curr.noop {
-			n++
-		}
-	}
-	return n
-}
-
-// traverse walks through a struct to get to a value.
-func (p *fulfillerPath) traverse(s Struct) Object {
-	n := p.len()
-	ops := make([]*fulfillerPath, n)
+func walk(p Object, transform []PromiseOp) Object {
+	n := len(transform)
 	if n == 0 {
-		return Object(s)
+		return p
 	}
-	for curr, i := p, n-1; curr != nil; curr = curr.parent {
-		if !curr.noop {
-			ops[i] = curr
-			i--
-		}
-	}
-	for _, op := range ops[:n-1] {
-		field := s.GetObject(int(op.field))
-		if op.defseg == nil {
+	s := p.ToStruct()
+	for _, op := range transform[:n-1] {
+		field := s.GetObject(op.Field)
+		if op.DefaultSegment == nil {
 			s = field.ToStruct()
 		} else {
-			s = field.ToStructDefault(p.defseg, p.defoff)
+			s = field.ToStructDefault(op.DefaultSegment, op.DefaultOffset)
 		}
 	}
-	return s.GetObject(int(ops[n-1].field))
+	op := transform[n-1]
+	p = s.GetObject(op.Field)
+	if op.DefaultSegment != nil {
+		p = Object(p.ToStructDefault(op.DefaultSegment, op.DefaultOffset))
+	}
+	return p
 }
 
-type immediatePromise Struct
+type immediateAnswer Object
 
-// ImmediatePromise returns a Promise that accesses s.
-func ImmediatePromise(s Struct) Promise {
-	return immediatePromise(s)
+// ImmediateAnswer returns an Answer that accesses s.
+func ImmediateAnswer(s Object) Answer {
+	return immediateAnswer(s)
 }
 
-func (ip immediatePromise) Get() (Struct, error) {
-	return Struct(ip), nil
+func (ans immediateAnswer) Struct() (Struct, error) {
+	return Struct(ans), nil
 }
 
-func (ip immediatePromise) GetClient(off int) Client {
-	return Struct(ip).GetObject(off).ToInterface().Client()
+func (ans immediateAnswer) Call(ctx context.Context, transform []PromiseOp, method *Method, params Struct) Answer {
+	c := walk(Object(ans), transform).ToInterface().Client()
+	if c == nil {
+		return ErrorAnswer(ErrNullClient)
+	}
+	return c.Call(ctx, method, params)
 }
 
-func (ip immediatePromise) GetPromise(off int) Promise {
-	return immediatePromise(Struct(ip).GetObject(off).ToStruct())
+func (ans immediateAnswer) NewCall(ctx context.Context, transform []PromiseOp, method *Method, paramsSize ObjectSize, params func(Struct)) Answer {
+	c := walk(Object(ans), transform).ToInterface().Client()
+	if c == nil {
+		return ErrorAnswer(ErrNullClient)
+	}
+	return c.NewCall(ctx, method, paramsSize, params)
 }
 
-func (ip immediatePromise) GetPromiseDefault(off int, s *Segment, tagoff int) Promise {
-	return immediatePromise(Struct(ip).GetObject(off).ToStructDefault(s, tagoff))
+func (ans immediateAnswer) CloseClient(transform []PromiseOp) error {
+	c := walk(Object(ans), transform).ToInterface().Client()
+	if c == nil {
+		return ErrNullClient
+	}
+	return c.Close()
 }
 
-type errorPromise struct {
+type errorAnswer struct {
 	e error
 }
 
-// ErrorPromise returns a Promise that always returns error e.
-func ErrorPromise(e error) Promise {
-	return errorPromise{e}
+// ErrorAnswer returns a Answer that always returns error e.
+func ErrorAnswer(e error) Answer {
+	return errorAnswer{e}
 }
 
-func (ep errorPromise) Get() (Struct, error) {
-	return Struct{}, ep.e
+func (ans errorAnswer) Struct() (Struct, error) {
+	return Struct{}, ans.e
 }
 
-func (ep errorPromise) GetClient(off int) Client {
-	return ErrorClient(ep.e)
+func (ans errorAnswer) Call(ctx context.Context, transform []PromiseOp, method *Method, params Struct) Answer {
+	return ans
 }
 
-func (ep errorPromise) GetPromise(off int) Promise {
-	return ep
+func (ans errorAnswer) NewCall(ctx context.Context, transform []PromiseOp, method *Method, paramsSize ObjectSize, params func(Struct)) Answer {
+	return ans
 }
 
-func (ep errorPromise) GetPromiseDefault(off int, s *Segment, tagoff int) Promise {
-	return ep
+func (ans errorAnswer) CloseClient(transform []PromiseOp) error {
+	return ans.e
 }
 
 type errorClient struct {
@@ -383,12 +270,12 @@ func ErrorClient(e error) Client {
 	return errorClient{e}
 }
 
-func (ec errorClient) NewCall(ctx context.Context, method *Method, paramsSize ObjectSize, params func(Struct)) Promise {
-	return ErrorPromise(ec.e)
+func (ec errorClient) NewCall(ctx context.Context, method *Method, paramsSize ObjectSize, params func(Struct)) Answer {
+	return ErrorAnswer(ec.e)
 }
 
-func (ec errorClient) Call(ctx context.Context, method *Method, params Struct) Promise {
-	return ErrorPromise(ec.e)
+func (ec errorClient) Call(ctx context.Context, method *Method, params Struct) Answer {
+	return ErrorAnswer(ec.e)
 }
 
 func (ec errorClient) Close() error {
