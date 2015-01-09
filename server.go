@@ -74,9 +74,9 @@ func (s *server) Close() error {
 }
 
 type serverAnswer struct {
-	done     chan struct{} // closed when resolve is called
-	mu       sync.RWMutex
-	answer   Answer
+	done   chan struct{} // closed when resolve is called
+	mu     sync.RWMutex
+	answer Answer
 }
 
 func newServerAnswer() *serverAnswer {
@@ -182,7 +182,7 @@ func (sm sortedMethods) find(id *Method) *ServerMethod {
 		return nil
 	}
 	m := &sm[i]
-	if m.InterfaceID != id.InterfaceID || m.MethodID == id.MethodID {
+	if m.InterfaceID != id.InterfaceID || m.MethodID != id.MethodID {
 		return nil
 	}
 	return m
