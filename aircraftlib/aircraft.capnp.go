@@ -1855,6 +1855,9 @@ func AutoNewEchoBase(s *C.Segment) EchoBase {
 func ReadRootEchoBase(s *C.Segment) EchoBase { return EchoBase(s.Root(0).ToStruct()) }
 func (s EchoBase) Echo() Echo                { return NewEcho(C.Struct(s).GetObject(0).ToInterface().Client()) }
 func (s EchoBase) SetEcho(v Echo) {
+	if s.Segment == nil {
+		return
+	}
 	ci := s.Segment.Message.AddCap(v.GenericClient())
 	C.Struct(s).SetObject(0, C.Object(s.Segment.NewInterface(ci)))
 }

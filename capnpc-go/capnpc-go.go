@@ -668,7 +668,7 @@ func (n *node) defineField(w io.Writer, f Field) {
 		c := g_imports.capn()
 		ni := findNode(t.Interface().TypeId())
 		fmt.Fprintf(&g, "return %s(%s.Struct(s).GetObject(%d).ToInterface().Client()) }\n", ni.RemoteNew(n), c, off)
-		fmt.Fprintf(&s, "ci := s.Segment.Message.AddCap(v.GenericClient()); %[1]s.Struct(s).SetObject(%[2]d, %[1]s.Object(s.Segment.NewInterface(ci))) }\n", c, off)
+		fmt.Fprintf(&s, "if s.Segment == nil { return }; ci := s.Segment.Message.AddCap(v.GenericClient()); %[1]s.Struct(s).SetObject(%[2]d, %[1]s.Object(s.Segment.NewInterface(ci))) }\n", c, off)
 	}
 
 	w.Write(g.Bytes())
