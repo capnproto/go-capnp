@@ -82,6 +82,10 @@ func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{context}}.Context, params func({{
 	{{end}}
 }
 
+func {{.Node.Name}}_ServerToClient(s {{.Node.Name}}_Server) {{.Node.Name}} {
+	return New{{.Node.Name}}({{capn}}.NewServer({{.Node.Name}}_Methods(nil, s)))
+}
+
 func {{.Node.Name}}_Methods(methods []{{capn}}.ServerMethod, server {{.Node.Name}}_Server) []{{capn}}.ServerMethod {
 	if cap(methods) == 0 {
 		methods = make([]{{capn}}.ServerMethod, 0, {{len .Methods}})

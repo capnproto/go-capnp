@@ -324,6 +324,10 @@ capnpc-go generates the following:
 		Evaluate(context.Context, Calculator_evaluate_Params, Calculator_evaluate_Results) error
 	}
 
+	// Calculator_ServerToClient is equivalent to calling:
+	// NewCalculator(capn.NewServer(Calculator_Methods(nil, s)))
+	func Calculator_ServerToClient(s Calculator_Server) Calculator
+
 	// Calculator_Methods appends methods from Calculator that call to server and
 	// returns the methods.  If methods is nil or the capacity of the underlying
 	// slice is too small, a new slice is returned.

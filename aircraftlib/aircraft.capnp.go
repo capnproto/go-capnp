@@ -1699,6 +1699,10 @@ type Echo_Server interface {
 	Echo(ctx context.Context, params Echo_echo_Params, results Echo_echo_Results) error
 }
 
+func Echo_ServerToClient(s Echo_Server) Echo {
+	return NewEcho(C.NewServer(Echo_Methods(nil, s)))
+}
+
 func Echo_Methods(methods []C.ServerMethod, server Echo_Server) []C.ServerMethod {
 	if cap(methods) == 0 {
 		methods = make([]C.ServerMethod, 0, 1)

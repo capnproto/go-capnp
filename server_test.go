@@ -3,7 +3,6 @@ package capn_test
 import (
 	"testing"
 
-	"github.com/glycerine/go-capnproto"
 	air "github.com/glycerine/go-capnproto/aircraftlib"
 	"golang.org/x/net/context"
 )
@@ -17,7 +16,7 @@ func (echoImpl) Echo(ctx context.Context, p air.Echo_echo_Params, r air.Echo_ech
 }
 
 func TestServerCall(t *testing.T) {
-	echo := air.NewEcho(capn.NewServer(air.Echo_Methods(nil, echoImpl{})))
+	echo := air.Echo_ServerToClient(echoImpl{})
 
 	result, err := echo.Echo(context.Background(), func(p air.Echo_echo_Params) {
 		p.SetIn("foo")
