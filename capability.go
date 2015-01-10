@@ -92,7 +92,7 @@ func (p *Promise) Struct() (Struct, error) {
 	if err != nil {
 		return Struct{}, err
 	}
-	return walk(Object(s), p.Transform()).ToStruct(), err
+	return TransformObject(Object(s), p.Transform()).ToStruct(), err
 }
 
 // Client returns the client version of p.
@@ -191,7 +191,9 @@ func (m *Method) String() string {
 	return string(buf)
 }
 
-func walk(p Object, transform []PromiseOp) Object {
+// TransformObject applies a sequence of promise operations to an object
+// and returns the result.
+func TransformObject(p Object, transform []PromiseOp) Object {
 	n := len(transform)
 	if n == 0 {
 		return p
@@ -225,7 +227,7 @@ func (ans immediateAnswer) Struct() (Struct, error) {
 }
 
 func (ans immediateAnswer) Call(ctx context.Context, transform []PromiseOp, method *Method, params Struct) Answer {
-	c := walk(Object(ans), transform).ToInterface().Client()
+	c := TransformObject(Object(ans), transform).ToInterface().Client()
 	if c == nil {
 		return ErrorAnswer(ErrNullClient)
 	}
@@ -233,7 +235,7 @@ func (ans immediateAnswer) Call(ctx context.Context, transform []PromiseOp, meth
 }
 
 func (ans immediateAnswer) NewCall(ctx context.Context, transform []PromiseOp, method *Method, paramsSize ObjectSize, params func(Struct)) Answer {
-	c := walk(Object(ans), transform).ToInterface().Client()
+	c := TransformObject(Object(ans), transform).ToInterface().Client()
 	if c == nil {
 		return ErrorAnswer(ErrNullClient)
 	}
@@ -241,7 +243,7 @@ func (ans immediateAnswer) NewCall(ctx context.Context, transform []PromiseOp, m
 }
 
 func (ans immediateAnswer) CloseClient(transform []PromiseOp) error {
-	c := walk(Object(ans), transform).ToInterface().Client()
+	c := TransformObject(Object(ans), transform).ToInterface().Client()
 	if c == nil {
 		return ErrNullClient
 	}
