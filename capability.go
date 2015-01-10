@@ -146,6 +146,18 @@ type PromiseOp struct {
 	DefaultOffset  int
 }
 
+// String returns a human-readable description of op.
+func (op PromiseOp) String() string {
+	s := make([]byte, 0, 32)
+	s = append(s, "get field "...)
+	s = strconv.AppendInt(s, int64(op.Field), 10)
+	if op.DefaultSegment == nil {
+		return string(s)
+	}
+	s = append(s, " with default"...)
+	return string(s)
+}
+
 // A Method identifies a method along with an optional human-readable
 // description of the method.
 type Method struct {
