@@ -289,3 +289,19 @@ struct Hoth {
 struct EchoBase {
   echo @0 :Echo;
 }
+
+# test transforms
+
+struct StackingRoot {
+  a @1 :StackingA;
+  aWithDefault @0 :StackingA = (num = 42);
+}
+
+struct StackingA {
+  num @0 :Int32;
+  b @1 :StackingB;
+}
+
+struct StackingB {
+  num @0 :Int32;
+}

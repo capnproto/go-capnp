@@ -1037,6 +1037,11 @@ func (s *Segment) readPtr(off int) Object {
 		val = pointer(binary.LittleEndian.Uint64(s.Data[faroff:]))
 	}
 
+	if val == 0 {
+		// This is a null pointer.
+		return Object{}
+	}
+
 	// Be wary of overflow. Offset is 30 bits signed. List size is 29 bits
 	// unsigned. For both of these we need to check in terms of words if
 	// using 32 bit maths as bits or bytes will overflow.
