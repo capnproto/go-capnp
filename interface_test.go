@@ -62,3 +62,32 @@ func TestInterfaceCopyToOtherMessageWithCaps(t *testing.T) {
 		t.Errorf("len(s2.Message.CapTable()) = %d; want 2", len(tab2))
 	}
 }
+
+func TestMethodString(t *testing.T) {
+	tests := []struct {
+		m *capn.Method
+		s string
+	}{
+		{
+			&capn.Method{
+				InterfaceID: 0x8e5322c1e9282534,
+				MethodID:    1,
+			},
+			"@0x8e5322c1e9282534/@1",
+		},
+		{
+			&capn.Method{
+				InterfaceID:   0x8e5322c1e9282534,
+				MethodID:      1,
+				InterfaceName: "aircraftlib:Echo",
+				MethodName:    "foo",
+			},
+			"aircraftlib:Echo/foo",
+		},
+	}
+	for _, test := range tests {
+		if s := test.m.String(); s != test.s {
+			t.Errorf("%#v.String() = %q; want %q", test.m, s, test.s)
+		}
+	}
+}
