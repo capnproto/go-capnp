@@ -190,7 +190,7 @@ func (m *Method) String() string {
 	} else {
 		buf = append(buf, m.InterfaceName...)
 	}
-	buf = append(buf, '/')
+	buf = append(buf, '.')
 	if m.MethodName == "" {
 		buf = append(buf, '@')
 		buf = strconv.AppendUint(buf, uint64(m.MethodID), 10)

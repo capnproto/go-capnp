@@ -73,7 +73,7 @@ func TestMethodString(t *testing.T) {
 				InterfaceID: 0x8e5322c1e9282534,
 				MethodID:    1,
 			},
-			"@0x8e5322c1e9282534/@1",
+			"@0x8e5322c1e9282534.@1",
 		},
 		{
 			&capn.Method{
@@ -82,7 +82,7 @@ func TestMethodString(t *testing.T) {
 				InterfaceName: "aircraftlib:Echo",
 				MethodName:    "foo",
 			},
-			"aircraftlib:Echo/foo",
+			"aircraftlib:Echo.foo",
 		},
 	}
 	for _, test := range tests {
