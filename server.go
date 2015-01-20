@@ -121,7 +121,7 @@ type MethodError struct {
 
 // Error returns the method name concatenated with the error string.
 func (me *MethodError) Error() string {
-	return "capn: " + me.Method.String() + ": " + me.Err.Error()
+	return me.Method.String() + ": " + me.Err.Error()
 }
 
 // ErrUnimplemented is the error returned when a method is called on
