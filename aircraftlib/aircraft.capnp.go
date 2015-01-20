@@ -40,10 +40,10 @@ func (s Zdate_List) Len() int              { return C.PointerList(s).Len() }
 func (s Zdate_List) At(i int) Zdate        { return Zdate(C.PointerList(s).At(i).ToStruct()) }
 func (s Zdate_List) Set(i int, item Zdate) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type Zdate_Promise C.Promise
+type Zdate_Promise C.Pipeline
 
 func (p *Zdate_Promise) Get() (Zdate, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Zdate(s), err
 }
 
@@ -74,10 +74,10 @@ func (s Zdata_List) Len() int              { return C.PointerList(s).Len() }
 func (s Zdata_List) At(i int) Zdata        { return Zdata(C.PointerList(s).At(i).ToStruct()) }
 func (s Zdata_List) Set(i int, item Zdata) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type Zdata_Promise C.Promise
+type Zdata_Promise C.Pipeline
 
 func (p *Zdata_Promise) Get() (Zdata, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Zdata(s), err
 }
 
@@ -181,10 +181,10 @@ func (s PlaneBase_List) Len() int                  { return C.PointerList(s).Len
 func (s PlaneBase_List) At(i int) PlaneBase        { return PlaneBase(C.PointerList(s).At(i).ToStruct()) }
 func (s PlaneBase_List) Set(i int, item PlaneBase) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type PlaneBase_Promise C.Promise
+type PlaneBase_Promise C.Pipeline
 
 func (p *PlaneBase_Promise) Get() (PlaneBase, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return PlaneBase(s), err
 }
 
@@ -213,15 +213,15 @@ func (s B737_List) Len() int             { return C.PointerList(s).Len() }
 func (s B737_List) At(i int) B737        { return B737(C.PointerList(s).At(i).ToStruct()) }
 func (s B737_List) Set(i int, item B737) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type B737_Promise C.Promise
+type B737_Promise C.Pipeline
 
 func (p *B737_Promise) Get() (B737, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return B737(s), err
 }
 
 func (p *B737_Promise) Base() *PlaneBase_Promise {
-	return (*PlaneBase_Promise)((*C.Promise)(p).GetPromise(0))
+	return (*PlaneBase_Promise)((*C.Pipeline)(p).GetPipeline(0))
 }
 
 type A320 C.Struct
@@ -249,15 +249,15 @@ func (s A320_List) Len() int             { return C.PointerList(s).Len() }
 func (s A320_List) At(i int) A320        { return A320(C.PointerList(s).At(i).ToStruct()) }
 func (s A320_List) Set(i int, item A320) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type A320_Promise C.Promise
+type A320_Promise C.Pipeline
 
 func (p *A320_Promise) Get() (A320, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return A320(s), err
 }
 
 func (p *A320_Promise) Base() *PlaneBase_Promise {
-	return (*PlaneBase_Promise)((*C.Promise)(p).GetPromise(0))
+	return (*PlaneBase_Promise)((*C.Pipeline)(p).GetPipeline(0))
 }
 
 type F16 C.Struct
@@ -285,15 +285,15 @@ func (s F16_List) Len() int            { return C.PointerList(s).Len() }
 func (s F16_List) At(i int) F16        { return F16(C.PointerList(s).At(i).ToStruct()) }
 func (s F16_List) Set(i int, item F16) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type F16_Promise C.Promise
+type F16_Promise C.Pipeline
 
 func (p *F16_Promise) Get() (F16, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return F16(s), err
 }
 
 func (p *F16_Promise) Base() *PlaneBase_Promise {
-	return (*PlaneBase_Promise)((*C.Promise)(p).GetPromise(0))
+	return (*PlaneBase_Promise)((*C.Pipeline)(p).GetPipeline(0))
 }
 
 type Regression C.Struct
@@ -333,15 +333,15 @@ func (s Regression_List) Len() int                   { return C.PointerList(s).L
 func (s Regression_List) At(i int) Regression        { return Regression(C.PointerList(s).At(i).ToStruct()) }
 func (s Regression_List) Set(i int, item Regression) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type Regression_Promise C.Promise
+type Regression_Promise C.Pipeline
 
 func (p *Regression_Promise) Get() (Regression, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Regression(s), err
 }
 
 func (p *Regression_Promise) Base() *PlaneBase_Promise {
-	return (*PlaneBase_Promise)((*C.Promise)(p).GetPromise(0))
+	return (*PlaneBase_Promise)((*C.Pipeline)(p).GetPipeline(0))
 }
 
 type Aircraft C.Struct
@@ -385,23 +385,23 @@ func (s Aircraft_List) Len() int                 { return C.PointerList(s).Len()
 func (s Aircraft_List) At(i int) Aircraft        { return Aircraft(C.PointerList(s).At(i).ToStruct()) }
 func (s Aircraft_List) Set(i int, item Aircraft) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type Aircraft_Promise C.Promise
+type Aircraft_Promise C.Pipeline
 
 func (p *Aircraft_Promise) Get() (Aircraft, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Aircraft(s), err
 }
 
 func (p *Aircraft_Promise) B737() *B737_Promise {
-	return (*B737_Promise)((*C.Promise)(p).GetPromise(0))
+	return (*B737_Promise)((*C.Pipeline)(p).GetPipeline(0))
 }
 
 func (p *Aircraft_Promise) A320() *A320_Promise {
-	return (*A320_Promise)((*C.Promise)(p).GetPromise(0))
+	return (*A320_Promise)((*C.Pipeline)(p).GetPipeline(0))
 }
 
 func (p *Aircraft_Promise) F16() *F16_Promise {
-	return (*F16_Promise)((*C.Promise)(p).GetPromise(0))
+	return (*F16_Promise)((*C.Pipeline)(p).GetPipeline(0))
 }
 
 type Z C.Struct
@@ -556,47 +556,47 @@ func (s Z_List) Len() int          { return C.PointerList(s).Len() }
 func (s Z_List) At(i int) Z        { return Z(C.PointerList(s).At(i).ToStruct()) }
 func (s Z_List) Set(i int, item Z) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type Z_Promise C.Promise
+type Z_Promise C.Pipeline
 
 func (p *Z_Promise) Get() (Z, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Z(s), err
 }
 
 func (p *Z_Promise) Zz() *Z_Promise {
-	return (*Z_Promise)((*C.Promise)(p).GetPromise(0))
+	return (*Z_Promise)((*C.Pipeline)(p).GetPipeline(0))
 }
 
 func (p *Z_Promise) Zdate() *Zdate_Promise {
-	return (*Zdate_Promise)((*C.Promise)(p).GetPromise(0))
+	return (*Zdate_Promise)((*C.Pipeline)(p).GetPipeline(0))
 }
 
 func (p *Z_Promise) Zdata() *Zdata_Promise {
-	return (*Zdata_Promise)((*C.Promise)(p).GetPromise(0))
+	return (*Zdata_Promise)((*C.Pipeline)(p).GetPipeline(0))
 }
 
 func (p *Z_Promise) Aircraft() *Aircraft_Promise {
-	return (*Aircraft_Promise)((*C.Promise)(p).GetPromise(0))
+	return (*Aircraft_Promise)((*C.Pipeline)(p).GetPipeline(0))
 }
 
 func (p *Z_Promise) Regression() *Regression_Promise {
-	return (*Regression_Promise)((*C.Promise)(p).GetPromise(0))
+	return (*Regression_Promise)((*C.Pipeline)(p).GetPipeline(0))
 }
 
 func (p *Z_Promise) Planebase() *PlaneBase_Promise {
-	return (*PlaneBase_Promise)((*C.Promise)(p).GetPromise(0))
+	return (*PlaneBase_Promise)((*C.Pipeline)(p).GetPipeline(0))
 }
 
 func (p *Z_Promise) B737() *B737_Promise {
-	return (*B737_Promise)((*C.Promise)(p).GetPromise(0))
+	return (*B737_Promise)((*C.Pipeline)(p).GetPipeline(0))
 }
 
 func (p *Z_Promise) A320() *A320_Promise {
-	return (*A320_Promise)((*C.Promise)(p).GetPromise(0))
+	return (*A320_Promise)((*C.Pipeline)(p).GetPipeline(0))
 }
 
 func (p *Z_Promise) F16() *F16_Promise {
-	return (*F16_Promise)((*C.Promise)(p).GetPromise(0))
+	return (*F16_Promise)((*C.Pipeline)(p).GetPipeline(0))
 }
 
 type Counter C.Struct
@@ -630,10 +630,10 @@ func (s Counter_List) Len() int                { return C.PointerList(s).Len() }
 func (s Counter_List) At(i int) Counter        { return Counter(C.PointerList(s).At(i).ToStruct()) }
 func (s Counter_List) Set(i int, item Counter) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type Counter_Promise C.Promise
+type Counter_Promise C.Pipeline
 
 func (p *Counter_Promise) Get() (Counter, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Counter(s), err
 }
 
@@ -662,15 +662,15 @@ func (s Bag_List) Len() int            { return C.PointerList(s).Len() }
 func (s Bag_List) At(i int) Bag        { return Bag(C.PointerList(s).At(i).ToStruct()) }
 func (s Bag_List) Set(i int, item Bag) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type Bag_Promise C.Promise
+type Bag_Promise C.Pipeline
 
 func (p *Bag_Promise) Get() (Bag, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Bag(s), err
 }
 
 func (p *Bag_Promise) Counter() *Counter_Promise {
-	return (*Counter_Promise)((*C.Promise)(p).GetPromise(0))
+	return (*Counter_Promise)((*C.Pipeline)(p).GetPipeline(0))
 }
 
 type Zserver C.Struct
@@ -700,10 +700,10 @@ func (s Zserver_List) Len() int                { return C.PointerList(s).Len() }
 func (s Zserver_List) At(i int) Zserver        { return Zserver(C.PointerList(s).At(i).ToStruct()) }
 func (s Zserver_List) Set(i int, item Zserver) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type Zserver_Promise C.Promise
+type Zserver_Promise C.Pipeline
 
 func (p *Zserver_Promise) Get() (Zserver, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Zserver(s), err
 }
 
@@ -734,10 +734,10 @@ func (s Zjob_List) Len() int             { return C.PointerList(s).Len() }
 func (s Zjob_List) At(i int) Zjob        { return Zjob(C.PointerList(s).At(i).ToStruct()) }
 func (s Zjob_List) Set(i int, item Zjob) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type Zjob_Promise C.Promise
+type Zjob_Promise C.Pipeline
 
 func (p *Zjob_Promise) Get() (Zjob, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Zjob(s), err
 }
 
@@ -766,10 +766,10 @@ func (s VerEmpty_List) Len() int                 { return C.PointerList(s).Len()
 func (s VerEmpty_List) At(i int) VerEmpty        { return VerEmpty(C.PointerList(s).At(i).ToStruct()) }
 func (s VerEmpty_List) Set(i int, item VerEmpty) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type VerEmpty_Promise C.Promise
+type VerEmpty_Promise C.Pipeline
 
 func (p *VerEmpty_Promise) Get() (VerEmpty, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return VerEmpty(s), err
 }
 
@@ -800,10 +800,10 @@ func (s VerOneData_List) Len() int                   { return C.PointerList(s).L
 func (s VerOneData_List) At(i int) VerOneData        { return VerOneData(C.PointerList(s).At(i).ToStruct()) }
 func (s VerOneData_List) Set(i int, item VerOneData) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type VerOneData_Promise C.Promise
+type VerOneData_Promise C.Pipeline
 
 func (p *VerOneData_Promise) Get() (VerOneData, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return VerOneData(s), err
 }
 
@@ -836,10 +836,10 @@ func (s VerTwoData_List) Len() int                   { return C.PointerList(s).L
 func (s VerTwoData_List) At(i int) VerTwoData        { return VerTwoData(C.PointerList(s).At(i).ToStruct()) }
 func (s VerTwoData_List) Set(i int, item VerTwoData) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type VerTwoData_Promise C.Promise
+type VerTwoData_Promise C.Pipeline
 
 func (p *VerTwoData_Promise) Get() (VerTwoData, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return VerTwoData(s), err
 }
 
@@ -870,15 +870,15 @@ func (s VerOnePtr_List) Len() int                  { return C.PointerList(s).Len
 func (s VerOnePtr_List) At(i int) VerOnePtr        { return VerOnePtr(C.PointerList(s).At(i).ToStruct()) }
 func (s VerOnePtr_List) Set(i int, item VerOnePtr) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type VerOnePtr_Promise C.Promise
+type VerOnePtr_Promise C.Pipeline
 
 func (p *VerOnePtr_Promise) Get() (VerOnePtr, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return VerOnePtr(s), err
 }
 
 func (p *VerOnePtr_Promise) Ptr() *VerOneData_Promise {
-	return (*VerOneData_Promise)((*C.Promise)(p).GetPromise(0))
+	return (*VerOneData_Promise)((*C.Pipeline)(p).GetPipeline(0))
 }
 
 type VerTwoPtr C.Struct
@@ -910,19 +910,19 @@ func (s VerTwoPtr_List) Len() int                  { return C.PointerList(s).Len
 func (s VerTwoPtr_List) At(i int) VerTwoPtr        { return VerTwoPtr(C.PointerList(s).At(i).ToStruct()) }
 func (s VerTwoPtr_List) Set(i int, item VerTwoPtr) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type VerTwoPtr_Promise C.Promise
+type VerTwoPtr_Promise C.Pipeline
 
 func (p *VerTwoPtr_Promise) Get() (VerTwoPtr, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return VerTwoPtr(s), err
 }
 
 func (p *VerTwoPtr_Promise) Ptr1() *VerOneData_Promise {
-	return (*VerOneData_Promise)((*C.Promise)(p).GetPromise(0))
+	return (*VerOneData_Promise)((*C.Pipeline)(p).GetPipeline(0))
 }
 
 func (p *VerTwoPtr_Promise) Ptr2() *VerOneData_Promise {
-	return (*VerOneData_Promise)((*C.Promise)(p).GetPromise(1))
+	return (*VerOneData_Promise)((*C.Pipeline)(p).GetPipeline(1))
 }
 
 type VerTwoDataTwoPtr C.Struct
@@ -964,19 +964,19 @@ func (s VerTwoDataTwoPtr_List) Set(i int, item VerTwoDataTwoPtr) {
 	C.PointerList(s).Set(i, C.Object(item))
 }
 
-type VerTwoDataTwoPtr_Promise C.Promise
+type VerTwoDataTwoPtr_Promise C.Pipeline
 
 func (p *VerTwoDataTwoPtr_Promise) Get() (VerTwoDataTwoPtr, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return VerTwoDataTwoPtr(s), err
 }
 
 func (p *VerTwoDataTwoPtr_Promise) Ptr1() *VerOneData_Promise {
-	return (*VerOneData_Promise)((*C.Promise)(p).GetPromise(0))
+	return (*VerOneData_Promise)((*C.Pipeline)(p).GetPipeline(0))
 }
 
 func (p *VerTwoDataTwoPtr_Promise) Ptr2() *VerOneData_Promise {
-	return (*VerOneData_Promise)((*C.Promise)(p).GetPromise(1))
+	return (*VerOneData_Promise)((*C.Pipeline)(p).GetPipeline(1))
 }
 
 type HoldsVerEmptyList C.Struct
@@ -1012,10 +1012,10 @@ func (s HoldsVerEmptyList_List) Set(i int, item HoldsVerEmptyList) {
 	C.PointerList(s).Set(i, C.Object(item))
 }
 
-type HoldsVerEmptyList_Promise C.Promise
+type HoldsVerEmptyList_Promise C.Pipeline
 
 func (p *HoldsVerEmptyList_Promise) Get() (HoldsVerEmptyList, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return HoldsVerEmptyList(s), err
 }
 
@@ -1054,10 +1054,10 @@ func (s HoldsVerOneDataList_List) Set(i int, item HoldsVerOneDataList) {
 	C.PointerList(s).Set(i, C.Object(item))
 }
 
-type HoldsVerOneDataList_Promise C.Promise
+type HoldsVerOneDataList_Promise C.Pipeline
 
 func (p *HoldsVerOneDataList_Promise) Get() (HoldsVerOneDataList, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return HoldsVerOneDataList(s), err
 }
 
@@ -1096,10 +1096,10 @@ func (s HoldsVerTwoDataList_List) Set(i int, item HoldsVerTwoDataList) {
 	C.PointerList(s).Set(i, C.Object(item))
 }
 
-type HoldsVerTwoDataList_Promise C.Promise
+type HoldsVerTwoDataList_Promise C.Pipeline
 
 func (p *HoldsVerTwoDataList_Promise) Get() (HoldsVerTwoDataList, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return HoldsVerTwoDataList(s), err
 }
 
@@ -1136,10 +1136,10 @@ func (s HoldsVerOnePtrList_List) Set(i int, item HoldsVerOnePtrList) {
 	C.PointerList(s).Set(i, C.Object(item))
 }
 
-type HoldsVerOnePtrList_Promise C.Promise
+type HoldsVerOnePtrList_Promise C.Pipeline
 
 func (p *HoldsVerOnePtrList_Promise) Get() (HoldsVerOnePtrList, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return HoldsVerOnePtrList(s), err
 }
 
@@ -1176,10 +1176,10 @@ func (s HoldsVerTwoPtrList_List) Set(i int, item HoldsVerTwoPtrList) {
 	C.PointerList(s).Set(i, C.Object(item))
 }
 
-type HoldsVerTwoPtrList_Promise C.Promise
+type HoldsVerTwoPtrList_Promise C.Pipeline
 
 func (p *HoldsVerTwoPtrList_Promise) Get() (HoldsVerTwoPtrList, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return HoldsVerTwoPtrList(s), err
 }
 
@@ -1218,10 +1218,10 @@ func (s HoldsVerTwoTwoList_List) Set(i int, item HoldsVerTwoTwoList) {
 	C.PointerList(s).Set(i, C.Object(item))
 }
 
-type HoldsVerTwoTwoList_Promise C.Promise
+type HoldsVerTwoTwoList_Promise C.Pipeline
 
 func (p *HoldsVerTwoTwoList_Promise) Get() (HoldsVerTwoTwoList, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return HoldsVerTwoTwoList(s), err
 }
 
@@ -1260,10 +1260,10 @@ func (s HoldsVerTwoTwoPlus_List) Set(i int, item HoldsVerTwoTwoPlus) {
 	C.PointerList(s).Set(i, C.Object(item))
 }
 
-type HoldsVerTwoTwoPlus_Promise C.Promise
+type HoldsVerTwoTwoPlus_Promise C.Pipeline
 
 func (p *HoldsVerTwoTwoPlus_Promise) Get() (HoldsVerTwoTwoPlus, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return HoldsVerTwoTwoPlus(s), err
 }
 
@@ -1310,19 +1310,19 @@ func (s VerTwoTwoPlus_List) At(i int) VerTwoTwoPlus {
 }
 func (s VerTwoTwoPlus_List) Set(i int, item VerTwoTwoPlus) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type VerTwoTwoPlus_Promise C.Promise
+type VerTwoTwoPlus_Promise C.Pipeline
 
 func (p *VerTwoTwoPlus_Promise) Get() (VerTwoTwoPlus, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return VerTwoTwoPlus(s), err
 }
 
 func (p *VerTwoTwoPlus_Promise) Ptr1() *VerTwoDataTwoPtr_Promise {
-	return (*VerTwoDataTwoPtr_Promise)((*C.Promise)(p).GetPromise(0))
+	return (*VerTwoDataTwoPtr_Promise)((*C.Pipeline)(p).GetPipeline(0))
 }
 
 func (p *VerTwoTwoPlus_Promise) Ptr2() *VerTwoDataTwoPtr_Promise {
-	return (*VerTwoDataTwoPtr_Promise)((*C.Promise)(p).GetPromise(1))
+	return (*VerTwoDataTwoPtr_Promise)((*C.Pipeline)(p).GetPipeline(1))
 }
 
 type HoldsText C.Struct
@@ -1356,10 +1356,10 @@ func (s HoldsText_List) Len() int                  { return C.PointerList(s).Len
 func (s HoldsText_List) At(i int) HoldsText        { return HoldsText(C.PointerList(s).At(i).ToStruct()) }
 func (s HoldsText_List) Set(i int, item HoldsText) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type HoldsText_Promise C.Promise
+type HoldsText_Promise C.Pipeline
 
 func (p *HoldsText_Promise) Get() (HoldsText, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return HoldsText(s), err
 }
 
@@ -1392,15 +1392,15 @@ func (s WrapEmpty_List) Len() int                  { return C.PointerList(s).Len
 func (s WrapEmpty_List) At(i int) WrapEmpty        { return WrapEmpty(C.PointerList(s).At(i).ToStruct()) }
 func (s WrapEmpty_List) Set(i int, item WrapEmpty) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type WrapEmpty_Promise C.Promise
+type WrapEmpty_Promise C.Pipeline
 
 func (p *WrapEmpty_Promise) Get() (WrapEmpty, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return WrapEmpty(s), err
 }
 
 func (p *WrapEmpty_Promise) MightNotBeReallyEmpty() *VerEmpty_Promise {
-	return (*VerEmpty_Promise)((*C.Promise)(p).GetPromise(0))
+	return (*VerEmpty_Promise)((*C.Pipeline)(p).GetPipeline(0))
 }
 
 type Wrap2x2 C.Struct
@@ -1432,15 +1432,15 @@ func (s Wrap2x2_List) Len() int                { return C.PointerList(s).Len() }
 func (s Wrap2x2_List) At(i int) Wrap2x2        { return Wrap2x2(C.PointerList(s).At(i).ToStruct()) }
 func (s Wrap2x2_List) Set(i int, item Wrap2x2) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type Wrap2x2_Promise C.Promise
+type Wrap2x2_Promise C.Pipeline
 
 func (p *Wrap2x2_Promise) Get() (Wrap2x2, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Wrap2x2(s), err
 }
 
 func (p *Wrap2x2_Promise) MightNotBeReallyEmpty() *VerTwoDataTwoPtr_Promise {
-	return (*VerTwoDataTwoPtr_Promise)((*C.Promise)(p).GetPromise(0))
+	return (*VerTwoDataTwoPtr_Promise)((*C.Pipeline)(p).GetPipeline(0))
 }
 
 type Wrap2x2plus C.Struct
@@ -1472,15 +1472,15 @@ func (s Wrap2x2plus_List) Len() int                    { return C.PointerList(s)
 func (s Wrap2x2plus_List) At(i int) Wrap2x2plus        { return Wrap2x2plus(C.PointerList(s).At(i).ToStruct()) }
 func (s Wrap2x2plus_List) Set(i int, item Wrap2x2plus) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type Wrap2x2plus_Promise C.Promise
+type Wrap2x2plus_Promise C.Pipeline
 
 func (p *Wrap2x2plus_Promise) Get() (Wrap2x2plus, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Wrap2x2plus(s), err
 }
 
 func (p *Wrap2x2plus_Promise) MightNotBeReallyEmpty() *VerTwoTwoPlus_Promise {
-	return (*VerTwoTwoPlus_Promise)((*C.Promise)(p).GetPromise(0))
+	return (*VerTwoTwoPlus_Promise)((*C.Pipeline)(p).GetPipeline(0))
 }
 
 type Endpoint C.Struct
@@ -1514,10 +1514,10 @@ func (s Endpoint_List) Len() int                 { return C.PointerList(s).Len()
 func (s Endpoint_List) At(i int) Endpoint        { return Endpoint(C.PointerList(s).At(i).ToStruct()) }
 func (s Endpoint_List) Set(i int, item Endpoint) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type Endpoint_Promise C.Promise
+type Endpoint_Promise C.Pipeline
 
 func (p *Endpoint_Promise) Get() (Endpoint, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Endpoint(s), err
 }
 
@@ -1555,10 +1555,10 @@ func (s VoidUnion_List) Len() int                  { return C.PointerList(s).Len
 func (s VoidUnion_List) At(i int) VoidUnion        { return VoidUnion(C.PointerList(s).At(i).ToStruct()) }
 func (s VoidUnion_List) Set(i int, item VoidUnion) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type VoidUnion_Promise C.Promise
+type VoidUnion_Promise C.Pipeline
 
 func (p *VoidUnion_Promise) Get() (VoidUnion, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return VoidUnion(s), err
 }
 
@@ -1589,10 +1589,10 @@ func (s Nester1Capn_List) Len() int                    { return C.PointerList(s)
 func (s Nester1Capn_List) At(i int) Nester1Capn        { return Nester1Capn(C.PointerList(s).At(i).ToStruct()) }
 func (s Nester1Capn_List) Set(i int, item Nester1Capn) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type Nester1Capn_Promise C.Promise
+type Nester1Capn_Promise C.Pipeline
 
 func (p *Nester1Capn_Promise) Get() (Nester1Capn, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Nester1Capn(s), err
 }
 
@@ -1623,10 +1623,10 @@ func (s RWTestCapn_List) Len() int                   { return C.PointerList(s).L
 func (s RWTestCapn_List) At(i int) RWTestCapn        { return RWTestCapn(C.PointerList(s).At(i).ToStruct()) }
 func (s RWTestCapn_List) Set(i int, item RWTestCapn) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type RWTestCapn_Promise C.Promise
+type RWTestCapn_Promise C.Pipeline
 
 func (p *RWTestCapn_Promise) Get() (RWTestCapn, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return RWTestCapn(s), err
 }
 
@@ -1659,10 +1659,10 @@ func (s ListStructCapn_List) At(i int) ListStructCapn {
 }
 func (s ListStructCapn_List) Set(i int, item ListStructCapn) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type ListStructCapn_Promise C.Promise
+type ListStructCapn_Promise C.Pipeline
 
 func (p *ListStructCapn_Promise) Get() (ListStructCapn, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return ListStructCapn(s), err
 }
 
@@ -1674,25 +1674,22 @@ func (c Echo) GenericClient() C.Client { return c.c }
 
 func (c Echo) IsNull() bool { return c.c == nil }
 
-var clientMethods_Echo = []C.Method{
-
-	{
-
-		InterfaceID:   0x8e5322c1e9282534,
-		MethodID:      0,
-		InterfaceName: "aircraft.capnp:Echo",
-		MethodName:    "echo",
-	},
-}
-
 func (c Echo) Echo(ctx context.Context, params func(Echo_echo_Params)) *Echo_echo_Results_Promise {
 	if c.c == nil {
-		return (*Echo_echo_Results_Promise)(C.NewPromise(C.ErrorAnswer(C.ErrNullClient)))
+		return (*Echo_echo_Results_Promise)(C.NewPipeline(C.ErrorAnswer(C.ErrNullClient)))
 	}
-	return (*Echo_echo_Results_Promise)(C.NewPromise(c.c.NewCall(ctx,
-		&clientMethods_Echo[0],
-		C.ObjectSize{DataSize: 0, PointerCount: 1},
-		func(s C.Struct) { params(Echo_echo_Params(s)) })))
+	return (*Echo_echo_Results_Promise)(C.NewPipeline(c.c.Call(&C.Call{
+		Ctx: ctx,
+		Method: C.Method{
+
+			InterfaceID:   0x8e5322c1e9282534,
+			MethodID:      0,
+			InterfaceName: "aircraft.capnp:Echo",
+			MethodName:    "echo",
+		},
+		ParamsSize: C.ObjectSize{DataSize: 0, PointerCount: 1},
+		ParamsFunc: func(s C.Struct) { params(Echo_echo_Params(s)) },
+	})))
 }
 
 type Echo_Server interface {
@@ -1758,10 +1755,10 @@ func (s Echo_echo_Params_List) Set(i int, item Echo_echo_Params) {
 	C.PointerList(s).Set(i, C.Object(item))
 }
 
-type Echo_echo_Params_Promise C.Promise
+type Echo_echo_Params_Promise C.Pipeline
 
 func (p *Echo_echo_Params_Promise) Get() (Echo_echo_Params, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Echo_echo_Params(s), err
 }
 
@@ -1798,10 +1795,10 @@ func (s Echo_echo_Results_List) Set(i int, item Echo_echo_Results) {
 	C.PointerList(s).Set(i, C.Object(item))
 }
 
-type Echo_echo_Results_Promise C.Promise
+type Echo_echo_Results_Promise C.Pipeline
 
 func (p *Echo_echo_Results_Promise) Get() (Echo_echo_Results, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Echo_echo_Results(s), err
 }
 
@@ -1830,15 +1827,15 @@ func (s Hoth_List) Len() int             { return C.PointerList(s).Len() }
 func (s Hoth_List) At(i int) Hoth        { return Hoth(C.PointerList(s).At(i).ToStruct()) }
 func (s Hoth_List) Set(i int, item Hoth) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type Hoth_Promise C.Promise
+type Hoth_Promise C.Pipeline
 
 func (p *Hoth_Promise) Get() (Hoth, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Hoth(s), err
 }
 
 func (p *Hoth_Promise) Base() *EchoBase_Promise {
-	return (*EchoBase_Promise)((*C.Promise)(p).GetPromise(0))
+	return (*EchoBase_Promise)((*C.Pipeline)(p).GetPipeline(0))
 }
 
 type EchoBase C.Struct
@@ -1874,15 +1871,15 @@ func (s EchoBase_List) Len() int                 { return C.PointerList(s).Len()
 func (s EchoBase_List) At(i int) EchoBase        { return EchoBase(C.PointerList(s).At(i).ToStruct()) }
 func (s EchoBase_List) Set(i int, item EchoBase) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type EchoBase_Promise C.Promise
+type EchoBase_Promise C.Pipeline
 
 func (p *EchoBase_Promise) Get() (EchoBase, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return EchoBase(s), err
 }
 
 func (p *EchoBase_Promise) Echo() Echo {
-	return NewEcho((*C.Promise)(p).GetPromise(0).Client())
+	return NewEcho((*C.Pipeline)(p).GetPipeline(0).Client())
 }
 
 type StackingRoot C.Struct
@@ -1918,19 +1915,19 @@ func (s StackingRoot_List) At(i int) StackingRoot {
 }
 func (s StackingRoot_List) Set(i int, item StackingRoot) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type StackingRoot_Promise C.Promise
+type StackingRoot_Promise C.Pipeline
 
 func (p *StackingRoot_Promise) Get() (StackingRoot, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return StackingRoot(s), err
 }
 
 func (p *StackingRoot_Promise) A() *StackingA_Promise {
-	return (*StackingA_Promise)((*C.Promise)(p).GetPromise(1))
+	return (*StackingA_Promise)((*C.Pipeline)(p).GetPipeline(1))
 }
 
 func (p *StackingRoot_Promise) AWithDefault() *StackingA_Promise {
-	return (*StackingA_Promise)((*C.Promise)(p).GetPromiseDefault(0, x_832bcc6686a26d56, 3))
+	return (*StackingA_Promise)((*C.Pipeline)(p).GetPipelineDefault(0, x_832bcc6686a26d56, 3))
 }
 
 type StackingA C.Struct
@@ -1962,15 +1959,15 @@ func (s StackingA_List) Len() int                  { return C.PointerList(s).Len
 func (s StackingA_List) At(i int) StackingA        { return StackingA(C.PointerList(s).At(i).ToStruct()) }
 func (s StackingA_List) Set(i int, item StackingA) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type StackingA_Promise C.Promise
+type StackingA_Promise C.Pipeline
 
 func (p *StackingA_Promise) Get() (StackingA, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return StackingA(s), err
 }
 
 func (p *StackingA_Promise) B() *StackingB_Promise {
-	return (*StackingB_Promise)((*C.Promise)(p).GetPromise(0))
+	return (*StackingB_Promise)((*C.Pipeline)(p).GetPipeline(0))
 }
 
 type StackingB C.Struct
@@ -2000,10 +1997,10 @@ func (s StackingB_List) Len() int                  { return C.PointerList(s).Len
 func (s StackingB_List) At(i int) StackingB        { return StackingB(C.PointerList(s).At(i).ToStruct()) }
 func (s StackingB_List) Set(i int, item StackingB) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type StackingB_Promise C.Promise
+type StackingB_Promise C.Pipeline
 
 func (p *StackingB_Promise) Get() (StackingB, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return StackingB(s), err
 }
 

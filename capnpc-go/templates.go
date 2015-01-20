@@ -11,10 +11,10 @@ var templates = template.Must(template.New("").Funcs(template.FuncMap{
 	"title":   strings.Title,
 }).Parse(`
 {{define "promise"}}
-type {{.Node.Name}}_Promise {{capn}}.Promise
+type {{.Node.Name}}_Promise {{capn}}.Pipeline
 
 func (p *{{.Node.Name}}_Promise) Get() ({{.Node.Name}}, error) {
-	s, err := (*{{capn}}.Promise)(p).Struct()
+	s, err := (*{{capn}}.Pipeline)(p).Struct()
 	return {{.Node.Name}}(s), err
 }
 {{end}}
@@ -22,21 +22,21 @@ func (p *{{.Node.Name}}_Promise) Get() ({{.Node.Name}}, error) {
 
 {{define "promiseFieldStruct"}}
 func (p *{{.Node.Name}}_Promise) {{.Field.Name|title}}() *{{.Struct.RemoteName .Node}}_Promise {
-	return (*{{.Struct.RemoteName .Node}}_Promise)((*{{capn}}.Promise)(p).{{if .BufName}}GetPromiseDefault({{.Field.Slot.Offset}}, {{.BufName}}, {{.DefaultOffset}}){{else}}GetPromise({{.Field.Slot.Offset}}){{end}})
+	return (*{{.Struct.RemoteName .Node}}_Promise)((*{{capn}}.Pipeline)(p).{{if .BufName}}GetPipelineDefault({{.Field.Slot.Offset}}, {{.BufName}}, {{.DefaultOffset}}){{else}}GetPipeline({{.Field.Slot.Offset}}){{end}})
 }
 {{end}}
 
 
 {{define "promiseFieldAnyPointer"}}
-func (p *{{.Node.Name}}_Promise) {{.Field.Name|title}}() *{{capn}}.Promise {
-	return (*{{capn}}.Promise)(p).GetPromise({{.Field.Slot.Offset}})
+func (p *{{.Node.Name}}_Promise) {{.Field.Name|title}}() *{{capn}}.Pipeline {
+	return (*{{capn}}.Pipeline)(p).GetPipeline({{.Field.Slot.Offset}})
 }
 {{end}}
 
 
 {{define "promiseFieldInterface"}}
 func (p *{{.Node.Name}}_Promise) {{.Field.Name|title}}() {{.Interface.RemoteName .Node}} {
-	return {{.Interface.RemoteNew .Node}}((*{{capn}}.Promise)(p).GetPromise({{.Field.Slot.Offset}}).Client())
+	return {{.Interface.RemoteNew .Node}}((*{{capn}}.Pipeline)(p).GetPipeline({{.Field.Slot.Offset}}).Client())
 }
 {{end}}
 
@@ -54,23 +54,19 @@ func (c {{.Node.Name}}) GenericClient() {{capn}}.Client { return c.c }
 
 func (c {{.Node.Name}}) IsNull() bool { return c.c == nil }
 
-var clientMethods_{{.Node.Name}} = []{{capn}}.Method{
-	{{range .Methods}}
-	{
-		{{template "_interfaceMethod" .}}
-	},
-	{{end}}
-}
-
-{{range $i, $m := .Methods}}
+{{range .Methods}}
 func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{context}}.Context, params func({{.Params.RemoteName $.Node}})) *{{.Results.RemoteName $.Node}}_Promise {
 	if c.c == nil {
-		return (*{{.Results.RemoteName $.Node}}_Promise)({{capn}}.NewPromise({{capn}}.ErrorAnswer({{capn}}.ErrNullClient)))
+		return (*{{.Results.RemoteName $.Node}}_Promise)({{capn}}.NewPipeline({{capn}}.ErrorAnswer({{capn}}.ErrNullClient)))
 	}
-	return (*{{.Results.RemoteName $.Node}}_Promise)({{capn}}.NewPromise(c.c.NewCall(ctx,
-		&clientMethods_{{$.Node.Name}}[{{$i}}],
-		{{.Params.ObjectSize}},
-		func(s {{capn}}.Struct) { params({{.Params.RemoteName $.Node}}(s)) })))
+	return (*{{.Results.RemoteName $.Node}}_Promise)({{capn}}.NewPipeline(c.c.Call(&{{capn}}.Call{
+		Ctx: ctx,
+		Method: {{capn}}.Method{
+			{{template "_interfaceMethod" .}}
+		},
+		ParamsSize: {{.Params.ObjectSize}},
+		ParamsFunc: func(s {{capn}}.Struct) { params({{.Params.RemoteName $.Node}}(s)) },
+	})))
 }
 {{end}}
 {{end}}

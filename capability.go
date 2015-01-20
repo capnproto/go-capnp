@@ -9,76 +9,89 @@ import (
 
 var ErrNullClient = errors.New("capn: call on null client")
 
-// A Client makes calls for an interface type.
+// A Client represents an interface type.
 type Client interface {
-	// Call calls a method with an existing parameters struct.  This is
-	// used when the RPC system receives a call for an exported object.
-	Call(
-		ctx context.Context,
-		method *Method,
-		params Struct) Answer
-
-	// NewCall calls a method, allowing the client to allocate the
-	// parameters struct.  This is used when application code is using
-	// a client.
-	NewCall(
-		ctx context.Context,
-		method *Method,
-		paramsSize ObjectSize,
-		params func(Struct)) Answer
+	Call(call *Call) Answer
 
 	// Close releases any resources associated with this client.
 	// No further calls to the client should be made after calling Close.
 	Close() error
 }
 
-// An Answer is the deferred result of a client call, which is usually wrapped by a Promise.
+// The Call type holds the record for an outgoing call.
+type Call struct {
+	// Ctx is the context of the call.
+	Ctx context.Context
+
+	// Method is the interface ID and method ID, along with the optional name,
+	// of the method to call.
+	Method Method
+
+	// Params is a struct containing parameters for the call.
+	// This should be set when the RPC system receives a call for an
+	// exported interface.  It is mutually exclusive with ParamsFunc
+	// and ParamsSize.
+	Params Struct
+	// ParamsFunc is a function that populates an allocated struct with
+	// the parameters for the call.  ParamsSize determines the size of the
+	// struct to allocate.  This is used when application code is using a
+	// client.  These settings should be set together; they are mutually
+	// exclusive with Params.
+	ParamsFunc func(Struct)
+	ParamsSize ObjectSize
+}
+
+// PlaceParams returns the parameters struct, allocating it inside
+// segment s as necessary.  If s is nil, a new segment is allocated.
+func (call *Call) PlaceParams(s *Segment) Struct {
+	if call.ParamsFunc == nil {
+		return call.Params
+	}
+	if s == nil {
+		s = NewBuffer(nil)
+	}
+	p := s.NewStruct(call.ParamsSize)
+	call.ParamsFunc(p)
+	return p
+}
+
+// An Answer is the deferred result of a client call, which is usually wrapped by a Pipeline.
 type Answer interface {
 	// Struct waits until the call is finished and returns the result.
 	Struct() (Struct, error)
 
-	// The following methods are the same as in Client except with an added transform parameter.
-	// This parameter describes the path to the interface to use for the call.
+	// The following methods are the same as in Client except with
+	// an added transform parameter -- a path to the interface to use.
 
-	Call(
-		ctx context.Context,
-		transform []PromiseOp,
-		method *Method,
-		params Struct) Answer
-	NewCall(
-		ctx context.Context,
-		transform []PromiseOp,
-		method *Method,
-		paramsSize ObjectSize,
-		params func(Struct)) Answer
-	CloseClient(transform []PromiseOp) error
+	PipelineCall(transform []PipelineOp, call *Call) Answer
+	PipelineClose(transform []PipelineOp) error
 }
 
-// A Promise is a generic promise for an object.
-type Promise struct {
+// A Pipeline is a generic wrapper for an answer.
+type Pipeline struct {
 	answer Answer
-	parent *Promise
-	op     PromiseOp
+	parent *Pipeline
+	op     PipelineOp
 }
 
-// NewPromise returns a new promise based on an answer.
-func NewPromise(ans Answer) *Promise {
-	return &Promise{answer: ans}
+// NewPipeline returns a new pipeline based on an answer.
+func NewPipeline(ans Answer) *Pipeline {
+	return &Pipeline{answer: ans}
 }
 
-// Answer returns the answer the promise is derived from.
-func (p *Promise) Answer() Answer {
+// Answer returns the answer the pipeline is derived from.
+func (p *Pipeline) Answer() Answer {
 	return p.answer
 }
 
 // Transform returns the operations needed to transform the root answer
 // into the value p represents.
-func (p *Promise) Transform() []PromiseOp {
+func (p *Pipeline) Transform() []PipelineOp {
 	n := 0
 	for q := p; q.parent != nil; q = q.parent {
 		n++
 	}
-	xform := make([]PromiseOp, n)
+	xform := make([]PipelineOp, n)
 	for i, q := n-1, p; q.parent != nil; i, q = i-1, q.parent {
 		xform[i] = q.op
 	}
@@ -86,8 +99,8 @@ func (p *Promise) Transform() []PromiseOp {
 }
 
 // Struct waits until the answer is resolved and returns the struct
-// this promise represents.
-func (p *Promise) Struct() (Struct, error) {
+// this pipeline represents.
+func (p *Pipeline) Struct() (Struct, error) {
 	s, err := p.answer.Struct()
 	if err != nil {
 		return Struct{}, err
@@ -96,22 +109,22 @@ func (p *Promise) Struct() (Struct, error) {
 }
 
 // Client returns the client version of p.
-func (p *Promise) Client() *PromiseClient {
-	return (*PromiseClient)(p)
+func (p *Pipeline) Client() *PipelineClient {
+	return (*PipelineClient)(p)
 }
 
-// GetPromise returns a derived promise which yields the pointer field given.
-func (p *Promise) GetPromise(off int) *Promise {
-	return p.GetPromiseDefault(off, nil, 0)
+// GetPipeline returns a derived pipeline which yields the pointer field given.
+func (p *Pipeline) GetPipeline(off int) *Pipeline {
+	return p.GetPipelineDefault(off, nil, 0)
 }
 
-// GetPromiseDefault returns a derived promise which yields the pointer field given,
+// GetPipelineDefault returns a derived pipeline which yields the pointer field given,
 // defaulting to the value given.
-func (p *Promise) GetPromiseDefault(off int, dseg *Segment, doff int) *Promise {
-	return &Promise{
+func (p *Pipeline) GetPipelineDefault(off int, dseg *Segment, doff int) *Pipeline {
+	return &Pipeline{
 		answer: p.answer,
 		parent: p,
-		op: PromiseOp{
+		op: PipelineOp{
 			Field:          off,
 			DefaultSegment: dseg,
 			DefaultOffset:  doff,
@@ -119,35 +132,31 @@ func (p *Promise) GetPromiseDefault(off int, dseg *Segment, doff int) *Promise {
 	}
 }
 
-// PromiseClient implements Client by calling to the promise's answer.
-type PromiseClient Promise
+// PipelineClient implements Client by calling to the pipeline's answer.
+type PipelineClient Pipeline
 
-func (pc *PromiseClient) transform() []PromiseOp {
-	return (*Promise)(pc).Transform()
+func (pc *PipelineClient) transform() []PipelineOp {
+	return (*Pipeline)(pc).Transform()
 }
 
-func (pc *PromiseClient) NewCall(ctx context.Context, method *Method, paramsSize ObjectSize, params func(Struct)) Answer {
-	return pc.answer.NewCall(ctx, pc.transform(), method, paramsSize, params)
+func (pc *PipelineClient) Call(call *Call) Answer {
+	return pc.answer.PipelineCall(pc.transform(), call)
 }
 
-func (pc *PromiseClient) Call(ctx context.Context, method *Method, params Struct) Answer {
-	return pc.answer.Call(ctx, pc.transform(), method, params)
+func (pc *PipelineClient) Close() error {
+	return pc.answer.PipelineClose(pc.transform())
 }
 
-func (pc *PromiseClient) Close() error {
-	return pc.answer.CloseClient(pc.transform())
-}
-
-// A PromiseOp describes a step in transforming a promise.
+// A PipelineOp describes a step in transforming a pipeline.
 // It maps closely with the PromisedAnswer.Op struct in rpc.capnp.
-type PromiseOp struct {
+type PipelineOp struct {
 	Field          int
 	DefaultSegment *Segment
 	DefaultOffset  int
 }
 
 // String returns a human-readable description of op.
-func (op PromiseOp) String() string {
+func (op PipelineOp) String() string {
 	s := make([]byte, 0, 32)
 	s = append(s, "get field "...)
 	s = strconv.AppendInt(s, int64(op.Field), 10)
@@ -191,9 +200,9 @@ func (m *Method) String() string {
 	return string(buf)
 }
 
-// TransformObject applies a sequence of promise operations to an object
+// TransformObject applies a sequence of pipeline operations to an object
 // and returns the result.
-func TransformObject(p Object, transform []PromiseOp) Object {
+func TransformObject(p Object, transform []PipelineOp) Object {
 	n := len(transform)
 	if n == 0 {
 		return p
@@ -226,23 +235,15 @@ func (ans immediateAnswer) Struct() (Struct, error) {
 	return Struct(ans), nil
 }
 
-func (ans immediateAnswer) Call(ctx context.Context, transform []PromiseOp, method *Method, params Struct) Answer {
+func (ans immediateAnswer) PipelineCall(transform []PipelineOp, call *Call) Answer {
 	c := TransformObject(Object(ans), transform).ToInterface().Client()
 	if c == nil {
 		return ErrorAnswer(ErrNullClient)
 	}
-	return c.Call(ctx, method, params)
+	return c.Call(call)
 }
 
-func (ans immediateAnswer) NewCall(ctx context.Context, transform []PromiseOp, method *Method, paramsSize ObjectSize, params func(Struct)) Answer {
-	c := TransformObject(Object(ans), transform).ToInterface().Client()
-	if c == nil {
-		return ErrorAnswer(ErrNullClient)
-	}
-	return c.NewCall(ctx, method, paramsSize, params)
-}
-
-func (ans immediateAnswer) CloseClient(transform []PromiseOp) error {
+func (ans immediateAnswer) PipelineClose(transform []PipelineOp) error {
 	c := TransformObject(Object(ans), transform).ToInterface().Client()
 	if c == nil {
 		return ErrNullClient
@@ -263,15 +264,11 @@ func (ans errorAnswer) Struct() (Struct, error) {
 	return Struct{}, ans.e
 }
 
-func (ans errorAnswer) Call(ctx context.Context, transform []PromiseOp, method *Method, params Struct) Answer {
+func (ans errorAnswer) PipelineCall([]PipelineOp, *Call) Answer {
 	return ans
 }
 
-func (ans errorAnswer) NewCall(ctx context.Context, transform []PromiseOp, method *Method, paramsSize ObjectSize, params func(Struct)) Answer {
-	return ans
-}
-
-func (ans errorAnswer) CloseClient(transform []PromiseOp) error {
+func (ans errorAnswer) PipelineClose([]PipelineOp) error {
 	return ans.e
 }
 
@@ -284,11 +281,7 @@ func ErrorClient(e error) Client {
 	return errorClient{e}
 }
 
-func (ec errorClient) NewCall(ctx context.Context, method *Method, paramsSize ObjectSize, params func(Struct)) Answer {
-	return ErrorAnswer(ec.e)
-}
-
-func (ec errorClient) Call(ctx context.Context, method *Method, params Struct) Answer {
+func (ec errorClient) Call(*Call) Answer {
 	return ErrorAnswer(ec.e)
 }
 

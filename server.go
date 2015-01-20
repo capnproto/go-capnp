@@ -33,19 +33,19 @@ func NewServer(methods []ServerMethod) Client {
 	return s
 }
 
-func (s *server) Call(ctx context.Context, method *Method, params Struct) Answer {
+func (s *server) Call(call *Call) Answer {
 	out := NewBuffer(nil)
-	sm := s.methods.find(method)
+	sm := s.methods.find(&call.Method)
 	if sm == nil {
 		return ErrorAnswer(&MethodError{
-			Method: method,
+			Method: &call.Method,
 			Err:    ErrUnimplemented,
 		})
 	}
 	results := out.NewRootStruct(sm.ResultsSize)
 	ans := newServerAnswer()
 	go func() {
-		err := sm.Impl(ctx, params, results)
+		err := sm.Impl(call.Ctx, call.PlaceParams(nil), results)
 		if err == nil {
 			ans.resolve(ImmediateAnswer(Object(results)))
 		} else {
@@ -55,26 +55,14 @@ func (s *server) Call(ctx context.Context, method *Method, params Struct) Answer
 	return ans
 }
 
-func (s *server) NewCall(ctx context.Context, method *Method, paramsSize ObjectSize, paramsFunc func(Struct)) Answer {
-	if s.methods.find(method) == nil {
-		// short-circuit parameter allocation
-		return ErrorAnswer(&MethodError{
-			Method: method,
-			Err:    ErrUnimplemented,
-		})
-	}
-	in := NewBuffer(nil)
-	params := in.NewRootStruct(paramsSize)
-	paramsFunc(params)
-	return s.Call(ctx, method, params)
-}
-
 func (s *server) Close() error {
+	// TODO(light): server closer
 	return nil
 }
 
 type serverAnswer struct {
-	done   chan struct{} // closed when resolve is called
+	done chan struct{} // closed when resolve is called
+
 	mu     sync.RWMutex
 	answer Answer
 }
@@ -98,12 +86,12 @@ func (ans *serverAnswer) Struct() (Struct, error) {
 	return a.Struct()
 }
 
-func (ans *serverAnswer) Call(ctx context.Context, transform []PromiseOp, method *Method, params Struct) Answer {
+func (ans *serverAnswer) PipelineCall(transform []PipelineOp, call *Call) Answer {
 	ans.mu.RLock()
 	a := ans.answer
 	ans.mu.RUnlock()
 	if a != nil {
-		return a.Call(ctx, transform, method, params)
+		return a.PipelineCall(transform, call)
 	}
 
 	sa := newServerAnswer()
@@ -112,36 +100,17 @@ func (ans *serverAnswer) Call(ctx context.Context, transform []PromiseOp, method
 		ans.mu.RLock()
 		a := ans.answer
 		ans.mu.RUnlock()
-		sa.resolve(a.Call(ctx, transform, method, params))
+		sa.resolve(a.PipelineCall(transform, call))
 	}()
 	return sa
 }
 
-func (ans *serverAnswer) NewCall(ctx context.Context, transform []PromiseOp, method *Method, paramsSize ObjectSize, params func(Struct)) Answer {
-	ans.mu.RLock()
-	a := ans.answer
-	ans.mu.RUnlock()
-	if a != nil {
-		return a.NewCall(ctx, transform, method, paramsSize, params)
-	}
-
-	sa := newServerAnswer()
-	go func() {
-		<-ans.done
-		ans.mu.RLock()
-		a := ans.answer
-		ans.mu.RUnlock()
-		sa.resolve(a.NewCall(ctx, transform, method, paramsSize, params))
-	}()
-	return sa
-}
-
-func (ans *serverAnswer) CloseClient(transform []PromiseOp) error {
+func (ans *serverAnswer) PipelineClose(transform []PipelineOp) error {
 	<-ans.done
 	ans.mu.RLock()
 	a := ans.answer
 	ans.mu.RUnlock()
-	return a.CloseClient(transform)
+	return a.PipelineClose(transform)
 }
 
 // MethodError is an error on an associated method.

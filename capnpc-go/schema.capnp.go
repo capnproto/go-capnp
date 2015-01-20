@@ -131,63 +131,63 @@ func (s Node_List) Len() int             { return C.PointerList(s).Len() }
 func (s Node_List) At(i int) Node        { return Node(C.PointerList(s).At(i).ToStruct()) }
 func (s Node_List) Set(i int, item Node) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type Node_Promise C.Promise
+type Node_Promise C.Pipeline
 
 func (p *Node_Promise) Get() (Node, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Node(s), err
 }
 func (p *Node_Promise) Struct() *Node_struct_Promise { return (*Node_struct_Promise)(p) }
 
-type Node_struct_Promise C.Promise
+type Node_struct_Promise C.Pipeline
 
 func (p *Node_struct_Promise) Get() (Node_struct, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Node_struct(s), err
 }
 func (p *Node_Promise) Enum() *Node_enum_Promise { return (*Node_enum_Promise)(p) }
 
-type Node_enum_Promise C.Promise
+type Node_enum_Promise C.Pipeline
 
 func (p *Node_enum_Promise) Get() (Node_enum, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Node_enum(s), err
 }
 func (p *Node_Promise) Interface() *Node_interface_Promise { return (*Node_interface_Promise)(p) }
 
-type Node_interface_Promise C.Promise
+type Node_interface_Promise C.Pipeline
 
 func (p *Node_interface_Promise) Get() (Node_interface, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Node_interface(s), err
 }
 func (p *Node_Promise) Const() *Node_const_Promise { return (*Node_const_Promise)(p) }
 
-type Node_const_Promise C.Promise
+type Node_const_Promise C.Pipeline
 
 func (p *Node_const_Promise) Get() (Node_const, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Node_const(s), err
 }
 
 func (p *Node_const_Promise) Type() *Type_Promise {
-	return (*Type_Promise)((*C.Promise)(p).GetPromise(3))
+	return (*Type_Promise)((*C.Pipeline)(p).GetPipeline(3))
 }
 
 func (p *Node_const_Promise) Value() *Value_Promise {
-	return (*Value_Promise)((*C.Promise)(p).GetPromise(4))
+	return (*Value_Promise)((*C.Pipeline)(p).GetPipeline(4))
 }
 func (p *Node_Promise) Annotation() *Node_annotation_Promise { return (*Node_annotation_Promise)(p) }
 
-type Node_annotation_Promise C.Promise
+type Node_annotation_Promise C.Pipeline
 
 func (p *Node_annotation_Promise) Get() (Node_annotation, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Node_annotation(s), err
 }
 
 func (p *Node_annotation_Promise) Type() *Type_Promise {
-	return (*Type_Promise)((*C.Promise)(p).GetPromise(3))
+	return (*Type_Promise)((*C.Pipeline)(p).GetPipeline(3))
 }
 
 type Node_Parameter C.Struct
@@ -219,10 +219,10 @@ func (s Node_Parameter_List) At(i int) Node_Parameter {
 }
 func (s Node_Parameter_List) Set(i int, item Node_Parameter) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type Node_Parameter_Promise C.Promise
+type Node_Parameter_Promise C.Pipeline
 
 func (p *Node_Parameter_Promise) Get() (Node_Parameter, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Node_Parameter(s), err
 }
 
@@ -261,10 +261,10 @@ func (s Node_NestedNode_List) Set(i int, item Node_NestedNode) {
 	C.PointerList(s).Set(i, C.Object(item))
 }
 
-type Node_NestedNode_Promise C.Promise
+type Node_NestedNode_Promise C.Pipeline
 
 func (p *Node_NestedNode_Promise) Get() (Node_NestedNode, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Node_NestedNode(s), err
 }
 
@@ -337,42 +337,42 @@ func (s Field_List) Len() int              { return C.PointerList(s).Len() }
 func (s Field_List) At(i int) Field        { return Field(C.PointerList(s).At(i).ToStruct()) }
 func (s Field_List) Set(i int, item Field) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type Field_Promise C.Promise
+type Field_Promise C.Pipeline
 
 func (p *Field_Promise) Get() (Field, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Field(s), err
 }
 func (p *Field_Promise) Slot() *Field_slot_Promise { return (*Field_slot_Promise)(p) }
 
-type Field_slot_Promise C.Promise
+type Field_slot_Promise C.Pipeline
 
 func (p *Field_slot_Promise) Get() (Field_slot, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Field_slot(s), err
 }
 
 func (p *Field_slot_Promise) Type() *Type_Promise {
-	return (*Type_Promise)((*C.Promise)(p).GetPromise(2))
+	return (*Type_Promise)((*C.Pipeline)(p).GetPipeline(2))
 }
 
 func (p *Field_slot_Promise) DefaultValue() *Value_Promise {
-	return (*Value_Promise)((*C.Promise)(p).GetPromise(3))
+	return (*Value_Promise)((*C.Pipeline)(p).GetPipeline(3))
 }
 func (p *Field_Promise) Group() *Field_group_Promise { return (*Field_group_Promise)(p) }
 
-type Field_group_Promise C.Promise
+type Field_group_Promise C.Pipeline
 
 func (p *Field_group_Promise) Get() (Field_group, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Field_group(s), err
 }
 func (p *Field_Promise) Ordinal() *Field_ordinal_Promise { return (*Field_ordinal_Promise)(p) }
 
-type Field_ordinal_Promise C.Promise
+type Field_ordinal_Promise C.Pipeline
 
 func (p *Field_ordinal_Promise) Get() (Field_ordinal, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Field_ordinal(s), err
 }
 
@@ -407,10 +407,10 @@ func (s Enumerant_List) Len() int                  { return C.PointerList(s).Len
 func (s Enumerant_List) At(i int) Enumerant        { return Enumerant(C.PointerList(s).At(i).ToStruct()) }
 func (s Enumerant_List) Set(i int, item Enumerant) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type Enumerant_Promise C.Promise
+type Enumerant_Promise C.Pipeline
 
 func (p *Enumerant_Promise) Get() (Enumerant, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Enumerant(s), err
 }
 
@@ -443,15 +443,15 @@ func (s Superclass_List) Len() int                   { return C.PointerList(s).L
 func (s Superclass_List) At(i int) Superclass        { return Superclass(C.PointerList(s).At(i).ToStruct()) }
 func (s Superclass_List) Set(i int, item Superclass) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type Superclass_Promise C.Promise
+type Superclass_Promise C.Pipeline
 
 func (p *Superclass_Promise) Get() (Superclass, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Superclass(s), err
 }
 
 func (p *Superclass_Promise) Brand() *Brand_Promise {
-	return (*Brand_Promise)((*C.Promise)(p).GetPromise(0))
+	return (*Brand_Promise)((*C.Pipeline)(p).GetPipeline(0))
 }
 
 type Method C.Struct
@@ -497,19 +497,19 @@ func (s Method_List) Len() int               { return C.PointerList(s).Len() }
 func (s Method_List) At(i int) Method        { return Method(C.PointerList(s).At(i).ToStruct()) }
 func (s Method_List) Set(i int, item Method) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type Method_Promise C.Promise
+type Method_Promise C.Pipeline
 
 func (p *Method_Promise) Get() (Method, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Method(s), err
 }
 
 func (p *Method_Promise) ParamBrand() *Brand_Promise {
-	return (*Brand_Promise)((*C.Promise)(p).GetPromise(2))
+	return (*Brand_Promise)((*C.Pipeline)(p).GetPipeline(2))
 }
 
 func (p *Method_Promise) ResultBrand() *Brand_Promise {
-	return (*Brand_Promise)((*C.Promise)(p).GetPromise(3))
+	return (*Brand_Promise)((*C.Pipeline)(p).GetPipeline(3))
 }
 
 type Type C.Struct
@@ -628,86 +628,86 @@ func (s Type_List) Len() int             { return C.PointerList(s).Len() }
 func (s Type_List) At(i int) Type        { return Type(C.PointerList(s).At(i).ToStruct()) }
 func (s Type_List) Set(i int, item Type) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type Type_Promise C.Promise
+type Type_Promise C.Pipeline
 
 func (p *Type_Promise) Get() (Type, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Type(s), err
 }
 func (p *Type_Promise) List() *Type_list_Promise { return (*Type_list_Promise)(p) }
 
-type Type_list_Promise C.Promise
+type Type_list_Promise C.Pipeline
 
 func (p *Type_list_Promise) Get() (Type_list, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Type_list(s), err
 }
 
 func (p *Type_list_Promise) ElementType() *Type_Promise {
-	return (*Type_Promise)((*C.Promise)(p).GetPromise(0))
+	return (*Type_Promise)((*C.Pipeline)(p).GetPipeline(0))
 }
 func (p *Type_Promise) Enum() *Type_enum_Promise { return (*Type_enum_Promise)(p) }
 
-type Type_enum_Promise C.Promise
+type Type_enum_Promise C.Pipeline
 
 func (p *Type_enum_Promise) Get() (Type_enum, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Type_enum(s), err
 }
 
 func (p *Type_enum_Promise) Brand() *Brand_Promise {
-	return (*Brand_Promise)((*C.Promise)(p).GetPromise(0))
+	return (*Brand_Promise)((*C.Pipeline)(p).GetPipeline(0))
 }
 func (p *Type_Promise) Struct() *Type_struct_Promise { return (*Type_struct_Promise)(p) }
 
-type Type_struct_Promise C.Promise
+type Type_struct_Promise C.Pipeline
 
 func (p *Type_struct_Promise) Get() (Type_struct, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Type_struct(s), err
 }
 
 func (p *Type_struct_Promise) Brand() *Brand_Promise {
-	return (*Brand_Promise)((*C.Promise)(p).GetPromise(0))
+	return (*Brand_Promise)((*C.Pipeline)(p).GetPipeline(0))
 }
 func (p *Type_Promise) Interface() *Type_interface_Promise { return (*Type_interface_Promise)(p) }
 
-type Type_interface_Promise C.Promise
+type Type_interface_Promise C.Pipeline
 
 func (p *Type_interface_Promise) Get() (Type_interface, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Type_interface(s), err
 }
 
 func (p *Type_interface_Promise) Brand() *Brand_Promise {
-	return (*Brand_Promise)((*C.Promise)(p).GetPromise(0))
+	return (*Brand_Promise)((*C.Pipeline)(p).GetPipeline(0))
 }
 func (p *Type_Promise) AnyPointer() *Type_anyPointer_Promise { return (*Type_anyPointer_Promise)(p) }
 
-type Type_anyPointer_Promise C.Promise
+type Type_anyPointer_Promise C.Pipeline
 
 func (p *Type_anyPointer_Promise) Get() (Type_anyPointer, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Type_anyPointer(s), err
 }
 func (p *Type_anyPointer_Promise) Parameter() *Type_anyPointer_parameter_Promise {
 	return (*Type_anyPointer_parameter_Promise)(p)
 }
 
-type Type_anyPointer_parameter_Promise C.Promise
+type Type_anyPointer_parameter_Promise C.Pipeline
 
 func (p *Type_anyPointer_parameter_Promise) Get() (Type_anyPointer_parameter, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Type_anyPointer_parameter(s), err
 }
 func (p *Type_anyPointer_Promise) ImplicitMethodParameter() *Type_anyPointer_implicitMethodParameter_Promise {
 	return (*Type_anyPointer_implicitMethodParameter_Promise)(p)
 }
 
-type Type_anyPointer_implicitMethodParameter_Promise C.Promise
+type Type_anyPointer_implicitMethodParameter_Promise C.Pipeline
 
 func (p *Type_anyPointer_implicitMethodParameter_Promise) Get() (Type_anyPointer_implicitMethodParameter, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Type_anyPointer_implicitMethodParameter(s), err
 }
 
@@ -738,10 +738,10 @@ func (s Brand_List) Len() int              { return C.PointerList(s).Len() }
 func (s Brand_List) At(i int) Brand        { return Brand(C.PointerList(s).At(i).ToStruct()) }
 func (s Brand_List) Set(i int, item Brand) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type Brand_Promise C.Promise
+type Brand_Promise C.Pipeline
 
 func (p *Brand_Promise) Get() (Brand, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Brand(s), err
 }
 
@@ -785,10 +785,10 @@ func (s Brand_Scope_List) Len() int                    { return C.PointerList(s)
 func (s Brand_Scope_List) At(i int) Brand_Scope        { return Brand_Scope(C.PointerList(s).At(i).ToStruct()) }
 func (s Brand_Scope_List) Set(i int, item Brand_Scope) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type Brand_Scope_Promise C.Promise
+type Brand_Scope_Promise C.Pipeline
 
 func (p *Brand_Scope_Promise) Get() (Brand_Scope, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Brand_Scope(s), err
 }
 
@@ -829,15 +829,15 @@ func (s Brand_Binding_List) At(i int) Brand_Binding {
 }
 func (s Brand_Binding_List) Set(i int, item Brand_Binding) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type Brand_Binding_Promise C.Promise
+type Brand_Binding_Promise C.Pipeline
 
 func (p *Brand_Binding_Promise) Get() (Brand_Binding, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Brand_Binding(s), err
 }
 
 func (p *Brand_Binding_Promise) Type() *Type_Promise {
-	return (*Type_Promise)((*C.Promise)(p).GetPromise(0))
+	return (*Type_Promise)((*C.Pipeline)(p).GetPipeline(0))
 }
 
 type Value C.Struct
@@ -937,23 +937,23 @@ func (s Value_List) Len() int              { return C.PointerList(s).Len() }
 func (s Value_List) At(i int) Value        { return Value(C.PointerList(s).At(i).ToStruct()) }
 func (s Value_List) Set(i int, item Value) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type Value_Promise C.Promise
+type Value_Promise C.Pipeline
 
 func (p *Value_Promise) Get() (Value, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Value(s), err
 }
 
-func (p *Value_Promise) List() *C.Promise {
-	return (*C.Promise)(p).GetPromise(0)
+func (p *Value_Promise) List() *C.Pipeline {
+	return (*C.Pipeline)(p).GetPipeline(0)
 }
 
-func (p *Value_Promise) Struct() *C.Promise {
-	return (*C.Promise)(p).GetPromise(0)
+func (p *Value_Promise) Struct() *C.Pipeline {
+	return (*C.Pipeline)(p).GetPipeline(0)
 }
 
-func (p *Value_Promise) AnyPointer() *C.Promise {
-	return (*C.Promise)(p).GetPromise(0)
+func (p *Value_Promise) AnyPointer() *C.Pipeline {
+	return (*C.Pipeline)(p).GetPipeline(0)
 }
 
 type Annotation C.Struct
@@ -987,19 +987,19 @@ func (s Annotation_List) Len() int                   { return C.PointerList(s).L
 func (s Annotation_List) At(i int) Annotation        { return Annotation(C.PointerList(s).At(i).ToStruct()) }
 func (s Annotation_List) Set(i int, item Annotation) { C.PointerList(s).Set(i, C.Object(item)) }
 
-type Annotation_Promise C.Promise
+type Annotation_Promise C.Pipeline
 
 func (p *Annotation_Promise) Get() (Annotation, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return Annotation(s), err
 }
 
 func (p *Annotation_Promise) Brand() *Brand_Promise {
-	return (*Brand_Promise)((*C.Promise)(p).GetPromise(1))
+	return (*Brand_Promise)((*C.Pipeline)(p).GetPipeline(1))
 }
 
 func (p *Annotation_Promise) Value() *Value_Promise {
-	return (*Value_Promise)((*C.Promise)(p).GetPromise(0))
+	return (*Value_Promise)((*C.Pipeline)(p).GetPipeline(0))
 }
 
 type ElementSize uint16
@@ -1111,10 +1111,10 @@ func (s CodeGeneratorRequest_List) Set(i int, item CodeGeneratorRequest) {
 	C.PointerList(s).Set(i, C.Object(item))
 }
 
-type CodeGeneratorRequest_Promise C.Promise
+type CodeGeneratorRequest_Promise C.Pipeline
 
 func (p *CodeGeneratorRequest_Promise) Get() (CodeGeneratorRequest, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return CodeGeneratorRequest(s), err
 }
 
@@ -1163,10 +1163,10 @@ func (s CodeGeneratorRequest_RequestedFile_List) Set(i int, item CodeGeneratorRe
 	C.PointerList(s).Set(i, C.Object(item))
 }
 
-type CodeGeneratorRequest_RequestedFile_Promise C.Promise
+type CodeGeneratorRequest_RequestedFile_Promise C.Pipeline
 
 func (p *CodeGeneratorRequest_RequestedFile_Promise) Get() (CodeGeneratorRequest_RequestedFile, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return CodeGeneratorRequest_RequestedFile(s), err
 }
 
@@ -1209,9 +1209,9 @@ func (s CodeGeneratorRequest_RequestedFile_Import_List) Set(i int, item CodeGene
 	C.PointerList(s).Set(i, C.Object(item))
 }
 
-type CodeGeneratorRequest_RequestedFile_Import_Promise C.Promise
+type CodeGeneratorRequest_RequestedFile_Import_Promise C.Pipeline
 
 func (p *CodeGeneratorRequest_RequestedFile_Import_Promise) Get() (CodeGeneratorRequest_RequestedFile_Import, error) {
-	s, err := (*C.Promise)(p).Struct()
+	s, err := (*C.Pipeline)(p).Struct()
 	return CodeGeneratorRequest_RequestedFile_Import(s), err
 }

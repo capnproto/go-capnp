@@ -7,17 +7,17 @@ import (
 	air "github.com/glycerine/go-capnproto/aircraftlib"
 )
 
-func TestPromiseOpString(t *testing.T) {
+func TestPipelineOpString(t *testing.T) {
 	tests := []struct {
-		op capn.PromiseOp
+		op capn.PipelineOp
 		s  string
 	}{
 		{
-			capn.PromiseOp{Field: 4},
+			capn.PipelineOp{Field: 4},
 			"get field 4",
 		},
 		{
-			capn.PromiseOp{Field: 4, DefaultSegment: capn.NewBuffer(nil), DefaultOffset: 0},
+			capn.PipelineOp{Field: 4, DefaultSegment: capn.NewBuffer(nil), DefaultOffset: 0},
 			"get field 4 with default",
 		},
 	}
@@ -47,7 +47,7 @@ func TestTransformObject(t *testing.T) {
 
 	tests := []struct {
 		p         capn.Object
-		transform []capn.PromiseOp
+		transform []capn.PipelineOp
 		out       capn.Object
 	}{
 		{
@@ -57,40 +57,40 @@ func TestTransformObject(t *testing.T) {
 		},
 		{
 			capn.Object(root),
-			[]capn.PromiseOp{},
+			[]capn.PipelineOp{},
 			capn.Object(root),
 		},
 		{
 			capn.Object(root),
-			[]capn.PromiseOp{
+			[]capn.PipelineOp{
 				{Field: 0},
 			},
 			capn.Object{},
 		},
 		{
 			capn.Object(root),
-			[]capn.PromiseOp{
+			[]capn.PipelineOp{
 				{Field: 0, DefaultSegment: d, DefaultOffset: 0},
 			},
 			capn.Object(da),
 		},
 		{
 			capn.Object(root),
-			[]capn.PromiseOp{
+			[]capn.PipelineOp{
 				{Field: 1},
 			},
 			capn.Object(a),
 		},
 		{
 			capn.Object(root),
-			[]capn.PromiseOp{
+			[]capn.PipelineOp{
 				{Field: 1, DefaultSegment: d, DefaultOffset: 0},
 			},
 			capn.Object(a),
 		},
 		{
 			capn.Object(root),
-			[]capn.PromiseOp{
+			[]capn.PipelineOp{
 				{Field: 1},
 				{Field: 0},
 			},
@@ -98,7 +98,7 @@ func TestTransformObject(t *testing.T) {
 		},
 		{
 			capn.Object(root),
-			[]capn.PromiseOp{
+			[]capn.PipelineOp{
 				{Field: 0},
 				{Field: 0},
 			},
@@ -106,7 +106,7 @@ func TestTransformObject(t *testing.T) {
 		},
 		{
 			capn.Object(root),
-			[]capn.PromiseOp{
+			[]capn.PipelineOp{
 				{Field: 0, DefaultSegment: d, DefaultOffset: 0},
 				{Field: 0},
 			},
@@ -114,7 +114,7 @@ func TestTransformObject(t *testing.T) {
 		},
 		{
 			capn.Object(root),
-			[]capn.PromiseOp{
+			[]capn.PipelineOp{
 				{Field: 0},
 				{Field: 0, DefaultSegment: d, DefaultOffset: 0},
 			},
@@ -122,7 +122,7 @@ func TestTransformObject(t *testing.T) {
 		},
 		{
 			capn.Object(root),
-			[]capn.PromiseOp{
+			[]capn.PipelineOp{
 				{Field: 0, DefaultSegment: d, DefaultOffset: 0},
 				{Field: 1, DefaultSegment: d, DefaultOffset: 0},
 			},
