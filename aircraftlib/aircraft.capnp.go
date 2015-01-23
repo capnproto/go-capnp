@@ -1674,7 +1674,7 @@ func (c Echo) GenericClient() C.Client { return c.c }
 
 func (c Echo) IsNull() bool { return c.c == nil }
 
-func (c Echo) Echo(ctx context.Context, params func(Echo_echo_Params)) *Echo_echo_Results_Promise {
+func (c Echo) Echo(ctx context.Context, params func(Echo_echo_Params), opts ...C.CallOption) *Echo_echo_Results_Promise {
 	if c.c == nil {
 		return (*Echo_echo_Results_Promise)(C.NewPipeline(C.ErrorAnswer(C.ErrNullClient)))
 	}
@@ -1689,11 +1689,12 @@ func (c Echo) Echo(ctx context.Context, params func(Echo_echo_Params)) *Echo_ech
 		},
 		ParamsSize: C.ObjectSize{DataSize: 0, PointerCount: 1},
 		ParamsFunc: func(s C.Struct) { params(Echo_echo_Params(s)) },
+		Options:    C.NewCallOptions(opts),
 	})))
 }
 
 type Echo_Server interface {
-	Echo(ctx context.Context, params Echo_echo_Params, results Echo_echo_Results) error
+	Echo(ctx context.Context, opts C.CallOptions, params Echo_echo_Params, results Echo_echo_Results) error
 }
 
 func Echo_ServerToClient(s Echo_Server) Echo {
@@ -1713,8 +1714,8 @@ func Echo_Methods(methods []C.ServerMethod, server Echo_Server) []C.ServerMethod
 			InterfaceName: "aircraft.capnp:Echo",
 			MethodName:    "echo",
 		},
-		Impl: func(c context.Context, p, r C.Struct) error {
-			return server.Echo(c, Echo_echo_Params(p), Echo_echo_Results(r))
+		Impl: func(c context.Context, opts C.CallOptions, p, r C.Struct) error {
+			return server.Echo(c, opts, Echo_echo_Params(p), Echo_echo_Results(r))
 		},
 		ResultsSize: C.ObjectSize{DataSize: 0, PointerCount: 1},
 	})

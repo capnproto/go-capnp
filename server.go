@@ -16,7 +16,7 @@ type ServerMethod struct {
 }
 
 // A ServerFunc is a function that implements a single method.
-type ServerFunc func(ctx context.Context, params, results Struct) error
+type ServerFunc func(ctx context.Context, options CallOptions, params, results Struct) error
 
 // A server is a locally implemented interface.
 type server struct {
@@ -45,7 +45,7 @@ func (s *server) Call(call *Call) Answer {
 	results := out.NewRootStruct(sm.ResultsSize)
 	ans := newServerAnswer()
 	go func() {
-		err := sm.Impl(call.Ctx, call.PlaceParams(nil), results)
+		err := sm.Impl(call.Ctx, call.Options, call.PlaceParams(nil), results)
 		if err == nil {
 			ans.resolve(ImmediateAnswer(Object(results)))
 		} else {

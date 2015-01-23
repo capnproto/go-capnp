@@ -39,7 +39,25 @@ type Call struct {
 	// exclusive with Params.
 	ParamsFunc func(Struct)
 	ParamsSize ObjectSize
+
+	// Options passes RPC-specific options for a call.
+	Options CallOptions
 }
+
+// CallOptions holds RPC-specific options for a call.
+type CallOptions map[interface{}]interface{}
+
+// NewCallOptions builds a CallOptions value from a list of individual options.
+func NewCallOptions(opts []CallOption) CallOptions {
+	co := make(CallOptions)
+	for _, o := range opts {
+		o(co)
+	}
+	return co
+}
+
+// A CallOption modifies options on a call.
+type CallOption func(CallOptions)
 
 // PlaceParams returns the parameters struct, allocating it inside
 // segment s as necessary.  If s is nil, a new segment is allocated.

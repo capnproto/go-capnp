@@ -55,7 +55,7 @@ func (c {{.Node.Name}}) GenericClient() {{capn}}.Client { return c.c }
 func (c {{.Node.Name}}) IsNull() bool { return c.c == nil }
 
 {{range .Methods}}
-func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{context}}.Context, params func({{.Params.RemoteName $.Node}})) *{{.Results.RemoteName $.Node}}_Promise {
+func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{context}}.Context, params func({{.Params.RemoteName $.Node}}), opts ...{{capn}}.CallOption) *{{.Results.RemoteName $.Node}}_Promise {
 	if c.c == nil {
 		return (*{{.Results.RemoteName $.Node}}_Promise)({{capn}}.NewPipeline({{capn}}.ErrorAnswer({{capn}}.ErrNullClient)))
 	}
@@ -66,6 +66,7 @@ func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{context}}.Context, params func({{
 		},
 		ParamsSize: {{.Params.ObjectSize}},
 		ParamsFunc: func(s {{capn}}.Struct) { params({{.Params.RemoteName $.Node}}(s)) },
+		Options: {{capn}}.NewCallOptions(opts),
 	})))
 }
 {{end}}
@@ -74,7 +75,7 @@ func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{context}}.Context, params func({{
 
 {{define "interfaceServer"}}type {{.Node.Name}}_Server interface {
 	{{range .Methods}}
-	{{.Name|title}}(ctx {{context}}.Context, params {{.Params.RemoteName $.Node}}, results {{.Results.RemoteName $.Node}}) error
+	{{.Name|title}}(ctx {{context}}.Context, opts {{capn}}.CallOptions, params {{.Params.RemoteName $.Node}}, results {{.Results.RemoteName $.Node}}) error
 	{{end}}
 }
 
@@ -91,8 +92,8 @@ func {{.Node.Name}}_Methods(methods []{{capn}}.ServerMethod, server {{.Node.Name
 		Method: {{capn}}.Method{
 			{{template "_interfaceMethod" .}}
 		},
-		Impl: func(c {{context}}.Context, p, r {{capn}}.Struct) error {
-			return server.{{.Name|title}}(c, {{.Params.RemoteName $.Node}}(p), {{.Results.RemoteName $.Node}}(r))
+		Impl: func(c {{context}}.Context, opts {{capn}}.CallOptions, p, r {{capn}}.Struct) error {
+			return server.{{.Name|title}}(c, opts, {{.Params.RemoteName $.Node}}(p), {{.Results.RemoteName $.Node}}(r))
 		},
 		ResultsSize: {{.Results.ObjectSize}},
 	})
