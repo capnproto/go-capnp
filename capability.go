@@ -18,7 +18,7 @@ type Client interface {
 	Close() error
 }
 
-// The Call type holds the record for an outgoing call.
+// The Call type holds the record for an outgoing interface call.
 type Call struct {
 	// Ctx is the context of the call.
 	Ctx context.Context
@@ -40,11 +40,15 @@ type Call struct {
 	ParamsFunc func(Struct)
 	ParamsSize ObjectSize
 
-	// Options passes RPC-specific options for a call.
+	// Options passes RPC-specific options for the call.
 	Options CallOptions
 }
 
-// CallOptions holds RPC-specific options for a call.
+// CallOptions holds RPC-specific options for an interface call.
+// Its usage is similar to the values in context.Context, but is only
+// used for a single call: its values are not intended to propagate to
+// other callees.  An example of an option would be the
+// Call.sendResultsTo field in rpc.capnp.
 type CallOptions map[interface{}]interface{}
 
 // NewCallOptions builds a CallOptions value from a list of individual options.
@@ -56,7 +60,7 @@ func NewCallOptions(opts []CallOption) CallOptions {
 	return co
 }
 
-// A CallOption modifies options on a call.
+// A CallOption is a function that modifies options on an interface call.
 type CallOption func(CallOptions)
 
 // PlaceParams returns the parameters struct, allocating it inside
