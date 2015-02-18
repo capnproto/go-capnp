@@ -102,6 +102,14 @@ func (m *multiBuffer) Lookup(segid uint32) (*Segment, error) {
 // buffer the read contents, can be nil, and is provided so that the buffer
 // can be reused between messages. The returned segment is the first segment
 // read, which contains the root pointer.
+//
+// Warning about buf reuse:  It is safer to just pass nil for buf.
+// When making multiple calls to ReadFromStream() with the same buf argument, you
+// may overwrite the data in a previously returned Segment.
+// The re-use of buf is an optimization for when you are actually
+// done with any previously returned Segment which may have data still alive
+// in buf.
+//
 func ReadFromStream(r io.Reader, buf *bytes.Buffer) (*Segment, error) {
 	if buf == nil {
 		buf = new(bytes.Buffer)
