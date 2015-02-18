@@ -80,7 +80,8 @@ func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{context}}.Context, params func({{
 }
 
 func {{.Node.Name}}_ServerToClient(s {{.Node.Name}}_Server) {{.Node.Name}} {
-	return New{{.Node.Name}}({{capn}}.NewServer({{.Node.Name}}_Methods(nil, s)))
+	c, _ := s.({{capn}}.Closer)
+	return New{{.Node.Name}}({{capn}}.NewServer({{.Node.Name}}_Methods(nil, s), c))
 }
 
 func {{.Node.Name}}_Methods(methods []{{capn}}.ServerMethod, server {{.Node.Name}}_Server) []{{capn}}.ServerMethod {

@@ -125,7 +125,7 @@ capnpc-go will generate the following for structs:
 
 	// Foo_Promise is a promise for a Foo.  Methods are provided to get
 	// promises of struct and interface fields.
-	type Foo_Promise capn.Promise
+	type Foo_Promise capn.Pipeline
 
 	// Get waits until the promise is resolved and returns the result.
 	func (p Foo_Promise) Get() (Foo, error)
@@ -312,7 +312,8 @@ Calculator_evaluate_Params and Calculator_evaluate_Results):
 	// allocated Calculator_evaluate_Params to fill in the parameters.
 	func (c Calculator) Evaluate(
 		ctx context.Context,
-		params func(Calculator_evaluate_Params)) *Calculator_evaluate_Results_Promise
+		params func(Calculator_evaluate_Params),
+		opts ...capn.CallOption) *Calculator_evaluate_Results_Promise
 
 capnpc-go also generates code to implement the interface.  Since a single
 capability may want to implement many interfaces, you can use multiple *_Methods
@@ -321,11 +322,12 @@ capnpc-go generates the following:
 
 	// A Calculator_Server implements the Calculator interface.
 	type Calculator_Server interface {
-		Evaluate(context.Context, Calculator_evaluate_Params, Calculator_evaluate_Results) error
+		Evaluate(context.Context, capn.CallOptions, Calculator_evaluate_Params, Calculator_evaluate_Results) error
 	}
 
 	// Calculator_ServerToClient is equivalent to calling:
-	// NewCalculator(capn.NewServer(Calculator_Methods(nil, s)))
+	// NewCalculator(capn.NewServer(Calculator_Methods(nil, s), s))
+	// If s does not implement the Close method, then nil is used.
 	func Calculator_ServerToClient(s Calculator_Server) Calculator
 
 	// Calculator_Methods appends methods from Calculator that call to server and
@@ -337,7 +339,7 @@ An example of combining the client/server code to communicate with a locally
 implemented Calculator:
 
 	var srv Calculator_Server
-	calc := capn.NewServer(Calculator_Methods(nil, srv))
+	calc := Calculator_ServerToClient(srv)
 	result := calc.Evaluate(ctx, func(params Calculator_evaluate_Params) {
 		params.SetExpression(expr)
 	})

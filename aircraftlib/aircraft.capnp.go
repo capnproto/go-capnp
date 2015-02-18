@@ -1698,7 +1698,8 @@ type Echo_Server interface {
 }
 
 func Echo_ServerToClient(s Echo_Server) Echo {
-	return NewEcho(C.NewServer(Echo_Methods(nil, s)))
+	c, _ := s.(C.Closer)
+	return NewEcho(C.NewServer(Echo_Methods(nil, s), c))
 }
 
 func Echo_Methods(methods []C.ServerMethod, server Echo_Server) []C.ServerMethod {

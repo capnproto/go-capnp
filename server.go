@@ -18,15 +18,23 @@ type ServerMethod struct {
 // A ServerFunc is a function that implements a single method.
 type ServerFunc func(ctx context.Context, options CallOptions, params, results Struct) error
 
+// Closer is the interface that wraps the Close method.
+type Closer interface {
+	Close() error
+}
+
 // A server is a locally implemented interface.
 type server struct {
 	methods sortedMethods
+	closer  Closer
 }
 
 // NewServer returns a client that makes calls to a set of methods.
-func NewServer(methods []ServerMethod) Client {
+// If closer is nil then the client's Close is a no-op.
+func NewServer(methods []ServerMethod, closer Closer) Client {
 	s := &server{
 		methods: make(sortedMethods, len(methods)),
+		closer:  closer,
 	}
 	copy(s.methods, methods)
 	sort.Sort(s.methods)
@@ -56,8 +64,10 @@ func (s *server) Call(call *Call) Answer {
 }
 
 func (s *server) Close() error {
-	// TODO(light): server closer
-	return nil
+	if s.closer == nil {
+		return nil
+	}
+	return s.closer.Close()
 }
 
 type serverAnswer struct {
