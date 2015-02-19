@@ -1,7 +1,7 @@
 /*
-Package capn is a capnproto library for go
+Package capn is a Cap'n Proto library for Go.
 
-see http://kentonv.github.io/capnproto/
+see https://capnproto.org/
 
 capnpc-go provides the compiler backend for capnp
 after installing to $PATH capnp files can be compiled with
@@ -16,9 +16,9 @@ and is used to generate import statement from other packages and to detect
 when two types are in the same package. Typically these are added as file
 annotations. For example:
 
-	using Go = import "github.com/glycerine/go-capnproto/go.capnp";
+	using Go = import "zombiezen.com/go/capnproto/go.capnp";
 	$Go.package("main");
-	$Go.import("github.com/glycerine/go-capnproto/example");
+	$Go.import("zombiezen.com/go/capnproto/example");
 
 In capnproto, the unit of communication is a message. A message
 consists of one or more of segments to allow easier allocation, but
@@ -345,4 +345,4 @@ implemented Calculator:
 	})
 	val := result.Value().Get()
 */
-package capn
+package capn // import "zombiezen.com/go/capnproto"

@@ -10,7 +10,7 @@ import (
 	"os/exec"
 	"strings"
 
-	capn "github.com/glycerine/go-capnproto"
+	capn "zombiezen.com/go/capnproto"
 )
 
 // some generally useful capnp/segment utilities

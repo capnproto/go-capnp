@@ -6,9 +6,9 @@ import (
 	"os"
 	"testing"
 
-	capn "github.com/glycerine/go-capnproto"
-	air "github.com/glycerine/go-capnproto/aircraftlib"
 	cv "github.com/smartystreets/goconvey/convey"
+	capn "zombiezen.com/go/capnproto"
+	air "zombiezen.com/go/capnproto/aircraftlib"
 )
 
 func ExampleAirplaneWrite() string {

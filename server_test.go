@@ -3,9 +3,9 @@ package capn_test
 import (
 	"testing"
 
-	"github.com/glycerine/go-capnproto"
-	air "github.com/glycerine/go-capnproto/aircraftlib"
 	"golang.org/x/net/context"
+	"zombiezen.com/go/capnproto"
+	air "zombiezen.com/go/capnproto/aircraftlib"
 )
 
 type echoImpl struct{}

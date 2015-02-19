@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/glycerine/go-capnproto"
-	air "github.com/glycerine/go-capnproto/aircraftlib"
+	"zombiezen.com/go/capnproto"
+	air "zombiezen.com/go/capnproto/aircraftlib"
 )
 
 func TestInterfaceSet(t *testing.T) {

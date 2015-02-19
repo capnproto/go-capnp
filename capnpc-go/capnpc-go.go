@@ -12,11 +12,11 @@ import (
 	"strings"
 	"unicode"
 
-	C "github.com/glycerine/go-capnproto"
+	C "zombiezen.com/go/capnproto"
 )
 
 const (
-	go_capnproto_import = "github.com/glycerine/go-capnproto"
+	go_capnproto_import = "zombiezen.com/go/capnproto"
 	context_import      = "golang.org/x/net/context"
 )
 

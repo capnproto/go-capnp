@@ -3,10 +3,10 @@ package aircraftlib
 // AUTO GENERATED - DO NOT EDIT
 
 import (
-	C "github.com/glycerine/go-capnproto"
 	context "golang.org/x/net/context"
 	math "math"
 	net "net"
+	C "zombiezen.com/go/capnproto"
 )
 
 type Zdate C.Struct

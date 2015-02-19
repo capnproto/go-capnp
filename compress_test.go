@@ -2,9 +2,9 @@ package capn_test
 
 import (
 	"bytes"
-	"github.com/glycerine/go-capnproto"
 	"io/ioutil"
 	"testing"
+	"zombiezen.com/go/capnproto"
 )
 
 func TestPackingRoundtrip(t *testing.T) {

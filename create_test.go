@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	air "github.com/glycerine/go-capnproto/aircraftlib"
 	cv "github.com/smartystreets/goconvey/convey"
+	air "zombiezen.com/go/capnproto/aircraftlib"
 )
 
 func TestCreationOfZDate(t *testing.T) {

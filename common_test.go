@@ -3,8 +3,8 @@ package capn_test
 import (
 	"bytes"
 
-	capn "github.com/glycerine/go-capnproto"
-	air "github.com/glycerine/go-capnproto/aircraftlib"
+	capn "zombiezen.com/go/capnproto"
+	air "zombiezen.com/go/capnproto/aircraftlib"
 )
 
 func zdateFilledSegment(n int, packed bool) (*capn.Segment, []byte) {
