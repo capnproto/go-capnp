@@ -11,11 +11,11 @@ Proto interfaces.  It's not API compatible, as I chose to clean up some of the
 naming rules to bring it more in line with the Protobuf code generator.
 Jason has agreed that this should live as its own fork for a while, but I
 will try to upstream as much as possible.  As a result, some branches in
-this repo may be used to push smaller features back upstream.
+this repo may be used to push smaller features back upstream. -Ross
 
 5 April 2014: James McKaskill, the author of go-capnproto (https://github.com/jmckaskill/go-capnproto), 
 has been super busy of late, so I agreed to take over as maintainer. This branch 
-(https://github.com/glycerine/capnproto) includes my recent work to fix bugs in the
+(https://github.com/glycerine/go-capnproto) includes my recent work to fix bugs in the
 creation (originating) of structs for Go, and an implementation of the packing/unpacking capnp specification.
 Thanks to Albert Strasheim (https://github.com/alberts/go-capnproto) of CloudFlare for a great set of packing tests. - Jason
 
