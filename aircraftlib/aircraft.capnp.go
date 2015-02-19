@@ -6,6 +6,7 @@ import (
 	context "golang.org/x/net/context"
 	math "math"
 	net "net"
+	strconv "strconv"
 	C "zombiezen.com/go/capnproto"
 )
 
@@ -354,6 +355,22 @@ const (
 	Aircraft_Which_f16  Aircraft_Which = 3
 )
 
+func (w Aircraft_Which) String() string {
+	const s = "voidb737a320f16"
+	switch w {
+	case Aircraft_Which_void:
+		return s[0:4]
+	case Aircraft_Which_b737:
+		return s[4:8]
+	case Aircraft_Which_a320:
+		return s[8:12]
+	case Aircraft_Which_f16:
+		return s[12:15]
+
+	}
+	return "Aircraft_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
+}
+
 func NewAircraft(s *C.Segment) Aircraft {
 	return Aircraft(s.NewStruct(C.ObjectSize{DataSize: 8, PointerCount: 1}))
 }
@@ -449,6 +466,94 @@ const (
 	Z_Which_zdatavec    Z_Which = 38
 	Z_Which_boolvec     Z_Which = 39
 )
+
+func (w Z_Which) String() string {
+	const s = "voidzzf64f32i64i32i16i8u64u32u16u8booltextblobf64vecf32veci64veci32veci16veci8vecu64vecu32vecu16vecu8veczveczvecveczdatezdataaircraftvecaircraftregressionplanebaseairportb737a320f16zdateveczdatavecboolvec"
+	switch w {
+	case Z_Which_void:
+		return s[0:4]
+	case Z_Which_zz:
+		return s[4:6]
+	case Z_Which_f64:
+		return s[6:9]
+	case Z_Which_f32:
+		return s[9:12]
+	case Z_Which_i64:
+		return s[12:15]
+	case Z_Which_i32:
+		return s[15:18]
+	case Z_Which_i16:
+		return s[18:21]
+	case Z_Which_i8:
+		return s[21:23]
+	case Z_Which_u64:
+		return s[23:26]
+	case Z_Which_u32:
+		return s[26:29]
+	case Z_Which_u16:
+		return s[29:32]
+	case Z_Which_u8:
+		return s[32:34]
+	case Z_Which_bool:
+		return s[34:38]
+	case Z_Which_text:
+		return s[38:42]
+	case Z_Which_blob:
+		return s[42:46]
+	case Z_Which_f64vec:
+		return s[46:52]
+	case Z_Which_f32vec:
+		return s[52:58]
+	case Z_Which_i64vec:
+		return s[58:64]
+	case Z_Which_i32vec:
+		return s[64:70]
+	case Z_Which_i16vec:
+		return s[70:76]
+	case Z_Which_i8vec:
+		return s[76:81]
+	case Z_Which_u64vec:
+		return s[81:87]
+	case Z_Which_u32vec:
+		return s[87:93]
+	case Z_Which_u16vec:
+		return s[93:99]
+	case Z_Which_u8vec:
+		return s[99:104]
+	case Z_Which_zvec:
+		return s[104:108]
+	case Z_Which_zvecvec:
+		return s[108:115]
+	case Z_Which_zdate:
+		return s[115:120]
+	case Z_Which_zdata:
+		return s[120:125]
+	case Z_Which_aircraftvec:
+		return s[125:136]
+	case Z_Which_aircraft:
+		return s[136:144]
+	case Z_Which_regression:
+		return s[144:154]
+	case Z_Which_planebase:
+		return s[154:163]
+	case Z_Which_airport:
+		return s[163:170]
+	case Z_Which_b737:
+		return s[170:174]
+	case Z_Which_a320:
+		return s[174:178]
+	case Z_Which_f16:
+		return s[178:181]
+	case Z_Which_zdatevec:
+		return s[181:189]
+	case Z_Which_zdatavec:
+		return s[189:197]
+	case Z_Which_boolvec:
+		return s[197:204]
+
+	}
+	return "Z_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
+}
 
 func NewZ(s *C.Segment) Z             { return Z(s.NewStruct(C.ObjectSize{DataSize: 16, PointerCount: 1})) }
 func NewRootZ(s *C.Segment) Z         { return Z(s.NewRootStruct(C.ObjectSize{DataSize: 16, PointerCount: 1})) }
@@ -1528,6 +1633,18 @@ const (
 	VoidUnion_Which_a VoidUnion_Which = 0
 	VoidUnion_Which_b VoidUnion_Which = 1
 )
+
+func (w VoidUnion_Which) String() string {
+	const s = "ab"
+	switch w {
+	case VoidUnion_Which_a:
+		return s[0:1]
+	case VoidUnion_Which_b:
+		return s[1:2]
+
+	}
+	return "VoidUnion_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
+}
 
 func NewVoidUnion(s *C.Segment) VoidUnion {
 	return VoidUnion(s.NewStruct(C.ObjectSize{DataSize: 8, PointerCount: 0}))

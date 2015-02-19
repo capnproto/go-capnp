@@ -8,8 +8,29 @@ import (
 var templates = template.Must(template.New("").Funcs(template.FuncMap{
 	"capn":    g_imports.capn,
 	"context": g_imports.context,
+	"strconv": g_imports.strconv,
 	"title":   strings.Title,
 }).Parse(`
+{{define "structEnums"}}type {{.Node.Name}}_Which uint16
+
+const (
+{{range .Fields}}	{{$.Node.Name}}_Which_{{.Name}} {{$.Node.Name}}_Which = {{.DiscriminantValue}}
+{{end}}
+)
+
+func (w {{.Node.Name}}_Which) String() string {
+	const s = {{.EnumString.ValueString|printf "%q"}}
+	switch w {
+	{{range $i, $f := .Fields}}case {{$.Node.Name}}_Which_{{.Name}}:
+		return s{{$.EnumString.SliceFor $i}}
+	{{end}}
+	}
+	return "{{.Node.Name}}_Which(" + {{strconv}}.FormatUint(uint64(w), 10) + ")"
+}
+
+{{end}}
+
+
 {{define "promise"}}
 type {{.Node.Name}}_Promise {{capn}}.Pipeline
 
@@ -111,6 +132,12 @@ func {{.Node.Name}}_Methods(methods []{{capn}}.ServerMethod, server {{.Node.Name
 			MethodName: {{.Name|printf "%q"}},
 {{end}}
 `))
+
+type structEnumsParams struct {
+	Node       *node
+	Fields     []Field
+	EnumString enumString
+}
 
 type promiseTemplateParams struct {
 	Node   *node

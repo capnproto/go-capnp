@@ -4,6 +4,7 @@ package main
 
 import (
 	math "math"
+	strconv "strconv"
 	C "zombiezen.com/go/capnproto"
 )
 
@@ -27,6 +28,26 @@ const (
 	Node_Which_const      Node_Which = 4
 	Node_Which_annotation Node_Which = 5
 )
+
+func (w Node_Which) String() string {
+	const s = "filestructenuminterfaceconstannotation"
+	switch w {
+	case Node_Which_file:
+		return s[0:4]
+	case Node_Which_struct:
+		return s[4:10]
+	case Node_Which_enum:
+		return s[10:14]
+	case Node_Which_interface:
+		return s[14:23]
+	case Node_Which_const:
+		return s[23:28]
+	case Node_Which_annotation:
+		return s[28:38]
+
+	}
+	return "Node_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
+}
 
 func NewNode(s *C.Segment) Node { return Node(s.NewStruct(C.ObjectSize{DataSize: 40, PointerCount: 6})) }
 func NewRootNode(s *C.Segment) Node {
@@ -279,12 +300,36 @@ const (
 	Field_Which_group Field_Which = 1
 )
 
+func (w Field_Which) String() string {
+	const s = "slotgroup"
+	switch w {
+	case Field_Which_slot:
+		return s[0:4]
+	case Field_Which_group:
+		return s[4:9]
+
+	}
+	return "Field_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
+}
+
 type Field_ordinal_Which uint16
 
 const (
 	Field_ordinal_Which_implicit Field_ordinal_Which = 0
 	Field_ordinal_Which_explicit Field_ordinal_Which = 1
 )
+
+func (w Field_ordinal_Which) String() string {
+	const s = "implicitexplicit"
+	switch w {
+	case Field_ordinal_Which_implicit:
+		return s[0:8]
+	case Field_ordinal_Which_explicit:
+		return s[8:16]
+
+	}
+	return "Field_ordinal_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
+}
 
 func NewField(s *C.Segment) Field {
 	return Field(s.NewStruct(C.ObjectSize{DataSize: 24, PointerCount: 4}))
@@ -544,6 +589,52 @@ const (
 	Type_Which_anyPointer Type_Which = 18
 )
 
+func (w Type_Which) String() string {
+	const s = "voidboolint8int16int32int64uint8uint16uint32uint64float32float64textdatalistenumstructinterfaceanyPointer"
+	switch w {
+	case Type_Which_void:
+		return s[0:4]
+	case Type_Which_bool:
+		return s[4:8]
+	case Type_Which_int8:
+		return s[8:12]
+	case Type_Which_int16:
+		return s[12:17]
+	case Type_Which_int32:
+		return s[17:22]
+	case Type_Which_int64:
+		return s[22:27]
+	case Type_Which_uint8:
+		return s[27:32]
+	case Type_Which_uint16:
+		return s[32:38]
+	case Type_Which_uint32:
+		return s[38:44]
+	case Type_Which_uint64:
+		return s[44:50]
+	case Type_Which_float32:
+		return s[50:57]
+	case Type_Which_float64:
+		return s[57:64]
+	case Type_Which_text:
+		return s[64:68]
+	case Type_Which_data:
+		return s[68:72]
+	case Type_Which_list:
+		return s[72:76]
+	case Type_Which_enum:
+		return s[76:80]
+	case Type_Which_struct:
+		return s[80:86]
+	case Type_Which_interface:
+		return s[86:95]
+	case Type_Which_anyPointer:
+		return s[95:105]
+
+	}
+	return "Type_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
+}
+
 type Type_anyPointer_Which uint16
 
 const (
@@ -551,6 +642,20 @@ const (
 	Type_anyPointer_Which_parameter               Type_anyPointer_Which = 1
 	Type_anyPointer_Which_implicitMethodParameter Type_anyPointer_Which = 2
 )
+
+func (w Type_anyPointer_Which) String() string {
+	const s = "unconstrainedparameterimplicitMethodParameter"
+	switch w {
+	case Type_anyPointer_Which_unconstrained:
+		return s[0:13]
+	case Type_anyPointer_Which_parameter:
+		return s[13:22]
+	case Type_anyPointer_Which_implicitMethodParameter:
+		return s[22:45]
+
+	}
+	return "Type_anyPointer_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
+}
 
 func NewType(s *C.Segment) Type { return Type(s.NewStruct(C.ObjectSize{DataSize: 24, PointerCount: 1})) }
 func NewRootType(s *C.Segment) Type {
@@ -753,6 +858,18 @@ const (
 	Brand_Scope_Which_inherit Brand_Scope_Which = 1
 )
 
+func (w Brand_Scope_Which) String() string {
+	const s = "bindinherit"
+	switch w {
+	case Brand_Scope_Which_bind:
+		return s[0:4]
+	case Brand_Scope_Which_inherit:
+		return s[4:11]
+
+	}
+	return "Brand_Scope_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
+}
+
 func NewBrand_Scope(s *C.Segment) Brand_Scope {
 	return Brand_Scope(s.NewStruct(C.ObjectSize{DataSize: 16, PointerCount: 1}))
 }
@@ -799,6 +916,18 @@ const (
 	Brand_Binding_Which_unbound Brand_Binding_Which = 0
 	Brand_Binding_Which_type    Brand_Binding_Which = 1
 )
+
+func (w Brand_Binding_Which) String() string {
+	const s = "unboundtype"
+	switch w {
+	case Brand_Binding_Which_unbound:
+		return s[0:7]
+	case Brand_Binding_Which_type:
+		return s[7:11]
+
+	}
+	return "Brand_Binding_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
+}
 
 func NewBrand_Binding(s *C.Segment) Brand_Binding {
 	return Brand_Binding(s.NewStruct(C.ObjectSize{DataSize: 8, PointerCount: 1}))
@@ -864,6 +993,52 @@ const (
 	Value_Which_interface  Value_Which = 17
 	Value_Which_anyPointer Value_Which = 18
 )
+
+func (w Value_Which) String() string {
+	const s = "voidboolint8int16int32int64uint8uint16uint32uint64float32float64textdatalistenumstructinterfaceanyPointer"
+	switch w {
+	case Value_Which_void:
+		return s[0:4]
+	case Value_Which_bool:
+		return s[4:8]
+	case Value_Which_int8:
+		return s[8:12]
+	case Value_Which_int16:
+		return s[12:17]
+	case Value_Which_int32:
+		return s[17:22]
+	case Value_Which_int64:
+		return s[22:27]
+	case Value_Which_uint8:
+		return s[27:32]
+	case Value_Which_uint16:
+		return s[32:38]
+	case Value_Which_uint32:
+		return s[38:44]
+	case Value_Which_uint64:
+		return s[44:50]
+	case Value_Which_float32:
+		return s[50:57]
+	case Value_Which_float64:
+		return s[57:64]
+	case Value_Which_text:
+		return s[64:68]
+	case Value_Which_data:
+		return s[68:72]
+	case Value_Which_list:
+		return s[72:76]
+	case Value_Which_enum:
+		return s[76:80]
+	case Value_Which_struct:
+		return s[80:86]
+	case Value_Which_interface:
+		return s[86:95]
+	case Value_Which_anyPointer:
+		return s[95:105]
+
+	}
+	return "Value_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
+}
 
 func NewValue(s *C.Segment) Value {
 	return Value(s.NewStruct(C.ObjectSize{DataSize: 16, PointerCount: 1}))

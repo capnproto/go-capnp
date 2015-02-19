@@ -44,6 +44,7 @@ func (i *imports) init() {
 	i.reserve(importSpec{path: "io", name: "io"})
 	i.reserve(importSpec{path: "json", name: "encoding/json"})
 	i.reserve(importSpec{path: "math", name: "math"})
+	i.reserve(importSpec{path: "strconv", name: "strconv"})
 }
 
 func (i *imports) capn() string {
@@ -56,6 +57,10 @@ func (i *imports) context() string {
 
 func (i *imports) math() string {
 	return i.add(importSpec{path: "math", name: "math"})
+}
+
+func (i *imports) strconv() string {
+	return i.add(importSpec{path: "strconv", name: "strconv"})
 }
 
 func (i *imports) usedImports() []importSpec {
@@ -895,22 +900,23 @@ func (n *node) defineStructTypes(w io.Writer, baseNode *node) {
 
 func (n *node) defineStructEnums(w io.Writer) {
 	assert(n.Which() == Node_Which_struct, "invalid struct node")
-
-	if n.Struct().DiscriminantCount() > 0 {
-		fmt.Fprintf(w, "type %s_Which uint16\n", n.Name)
-		fmt.Fprintf(w, "const (\n")
-
-		for _, f := range n.codeOrderFields() {
-			if f.DiscriminantValue() == Field_noDiscriminant {
-				// Non-union member
-			} else {
-				fmt.Fprintf(w, "%s_Which_%s %s_Which = %d\n", n.Name, f.Name(), n.Name, f.DiscriminantValue())
-			}
+	fields := n.codeOrderFields()
+	members := make([]Field, 0, len(fields))
+	es := make(enumString, 0, len(fields))
+	for _, f := range fields {
+		if f.DiscriminantValue() != Field_noDiscriminant {
+			members = append(members, f)
+			es = append(es, f.Name())
 		}
-		fmt.Fprintf(w, ")\n")
 	}
-
-	for _, f := range n.codeOrderFields() {
+	if n.Struct().DiscriminantCount() > 0 {
+		templates.ExecuteTemplate(w, "structEnums", structEnumsParams{
+			Node:       n,
+			Fields:     members,
+			EnumString: es,
+		})
+	}
+	for _, f := range fields {
 		if f.Which() == Field_Which_group {
 			findNode(f.Group().TypeId()).defineStructEnums(w)
 		}
@@ -1226,6 +1232,20 @@ func (n *node) defineInterfaceServer(w io.Writer) {
 		Annotations: parseAnnotations(n.Annotations()),
 		Methods:     m,
 	})
+}
+
+type enumString []string
+
+func (es enumString) ValueString() string {
+	return strings.Join([]string(es), "")
+}
+
+func (es enumString) SliceFor(i int) string {
+	n := 0
+	for _, v := range es[:i] {
+		n += len(v)
+	}
+	return fmt.Sprintf("[%d:%d]", n, n+len(es[i]))
 }
 
 func generateFile(reqf CodeGeneratorRequest_RequestedFile) (generr error) {
