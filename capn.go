@@ -1,4 +1,4 @@
-package capn
+package capnp
 
 import (
 	"encoding/binary"

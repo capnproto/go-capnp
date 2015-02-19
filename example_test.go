@@ -1,16 +1,16 @@
-package capn_test
+package capnp_test
 
 import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
 
-	capn "zombiezen.com/go/capnproto"
+	"zombiezen.com/go/capnproto"
 	air "zombiezen.com/go/capnproto/aircraftlib"
 )
 
 func ExampleReadFromStream() {
-	s := capn.NewBuffer(nil)
+	s := capnp.NewBuffer(nil)
 	d := air.NewRootZdate(s)
 	d.SetYear(2004)
 	d.SetMonth(12)
@@ -21,7 +21,7 @@ func ExampleReadFromStream() {
 	fmt.Println(hex.EncodeToString(buf.Bytes()))
 
 	// Read
-	s, err := capn.ReadFromStream(&buf, nil)
+	s, err := capnp.ReadFromStream(&buf, nil)
 	if err != nil {
 		fmt.Printf("read error %v\n", err)
 		return

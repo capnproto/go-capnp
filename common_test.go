@@ -1,25 +1,25 @@
-package capn_test
+package capnp_test
 
 import (
 	"bytes"
 
-	capn "zombiezen.com/go/capnproto"
+	"zombiezen.com/go/capnproto"
 	air "zombiezen.com/go/capnproto/aircraftlib"
 )
 
-func zdateFilledSegment(n int, packed bool) (*capn.Segment, []byte) {
-	seg := capn.NewBuffer(nil)
+func zdateFilledSegment(n int, packed bool) (*capnp.Segment, []byte) {
+	seg := capnp.NewBuffer(nil)
 	z := air.NewRootZ(seg)
 	list := air.NewZdate_List(seg, n)
 	// hand added a Set() method to messages_test.go, so plist not needed
-	plist := capn.PointerList(list)
+	plist := capnp.PointerList(list)
 
 	for i := 0; i < n; i++ {
 		d := air.NewZdate(seg)
 		d.SetMonth(12)
 		d.SetDay(7)
 		d.SetYear(int16(2004 + i))
-		plist.Set(i, capn.Object(d))
+		plist.Set(i, capnp.Object(d))
 		//list.Set(i, d)
 	}
 	z.SetZdatevec(list)
@@ -46,7 +46,7 @@ func zdateReaderNBackToBack(n int, packed bool) *bytes.Reader {
 	buf := bytes.Buffer{}
 
 	for i := 0; i < n; i++ {
-		seg := capn.NewBuffer(nil)
+		seg := capnp.NewBuffer(nil)
 		d := air.NewRootZdate(seg)
 		d.SetMonth(12)
 		d.SetDay(7)
@@ -62,8 +62,8 @@ func zdateReaderNBackToBack(n int, packed bool) *bytes.Reader {
 	return bytes.NewReader(buf.Bytes())
 }
 
-func zdataFilledSegment(n int) (*capn.Segment, []byte) {
-	seg := capn.NewBuffer(nil)
+func zdataFilledSegment(n int) (*capnp.Segment, []byte) {
+	seg := capnp.NewBuffer(nil)
 	z := air.NewRootZ(seg)
 	d := air.NewZdata(seg)
 

@@ -1,4 +1,4 @@
-package capn_test
+package capnp_test
 
 import (
 	"errors"
@@ -9,8 +9,8 @@ import (
 )
 
 func TestInterfaceSet(t *testing.T) {
-	cl := air.NewEcho(capn.ErrorClient(errors.New("foo")))
-	s := capn.NewBuffer(nil)
+	cl := air.NewEcho(capnp.ErrorClient(errors.New("foo")))
+	s := capnp.NewBuffer(nil)
 	base := air.NewRootEchoBase(s)
 
 	base.SetEcho(cl)
@@ -21,12 +21,12 @@ func TestInterfaceSet(t *testing.T) {
 }
 
 func TestInterfaceCopyToOtherMessage(t *testing.T) {
-	cl := air.NewEcho(capn.ErrorClient(errors.New("foo")))
-	s1 := capn.NewBuffer(nil)
+	cl := air.NewEcho(capnp.ErrorClient(errors.New("foo")))
+	s1 := capnp.NewBuffer(nil)
 	base1 := air.NewRootEchoBase(s1)
 	base1.SetEcho(cl)
 
-	s2 := capn.NewBuffer(nil)
+	s2 := capnp.NewBuffer(nil)
 	hoth2 := air.NewRootHoth(s2)
 	hoth2.SetBase(base1)
 
@@ -44,12 +44,12 @@ func TestInterfaceCopyToOtherMessage(t *testing.T) {
 }
 
 func TestInterfaceCopyToOtherMessageWithCaps(t *testing.T) {
-	cl := air.NewEcho(capn.ErrorClient(errors.New("foo")))
-	s1 := capn.NewBuffer(nil)
+	cl := air.NewEcho(capnp.ErrorClient(errors.New("foo")))
+	s1 := capnp.NewBuffer(nil)
 	base1 := air.NewRootEchoBase(s1)
 	base1.SetEcho(cl)
 
-	s2 := capn.NewBuffer(nil)
+	s2 := capnp.NewBuffer(nil)
 	s2.Message.AddCap(nil)
 	hoth2 := air.NewRootHoth(s2)
 	hoth2.SetBase(base1)
@@ -65,18 +65,18 @@ func TestInterfaceCopyToOtherMessageWithCaps(t *testing.T) {
 
 func TestMethodString(t *testing.T) {
 	tests := []struct {
-		m *capn.Method
+		m *capnp.Method
 		s string
 	}{
 		{
-			&capn.Method{
+			&capnp.Method{
 				InterfaceID: 0x8e5322c1e9282534,
 				MethodID:    1,
 			},
 			"@0x8e5322c1e9282534.@1",
 		},
 		{
-			&capn.Method{
+			&capnp.Method{
 				InterfaceID:   0x8e5322c1e9282534,
 				MethodID:      1,
 				InterfaceName: "aircraftlib:Echo",

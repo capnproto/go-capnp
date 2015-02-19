@@ -1,15 +1,16 @@
-package capn_test
+package capnp_test
 
 import (
 	"bytes"
 	"io/ioutil"
 	"testing"
+
 	"zombiezen.com/go/capnproto"
 )
 
 func TestPackingRoundtrip(t *testing.T) {
 	var buf bytes.Buffer
-	c := capn.NewCompressor(&buf)
+	c := capnp.NewCompressor(&buf)
 	b := []byte{0x8, 0, 0, 0, 0x3, 0, 0x2, 0, 0x19, 0, 0, 0, 0xaa, 0x1, 0, 0}
 	n, err := c.Write(b)
 	if err != nil {
@@ -23,7 +24,7 @@ func TestPackingRoundtrip(t *testing.T) {
 	if !bytes.Equal(buf.Bytes(), exp) {
 		t.Fatalf("expected %x bytes, got %x", exp, buf.Bytes())
 	}
-	dc := capn.NewDecompressor(&buf)
+	dc := capnp.NewDecompressor(&buf)
 	readBuf, err := ioutil.ReadAll(dc)
 	if err != nil {
 		panic(err)
@@ -36,7 +37,7 @@ func TestPackingRoundtrip(t *testing.T) {
 
 func TestPackingTag1(t *testing.T) {
 	var buf bytes.Buffer
-	c := capn.NewCompressor(&buf)
+	c := capnp.NewCompressor(&buf)
 	_, err := c.Write(make([]byte, 32))
 	if err != nil {
 		panic(err)
@@ -48,7 +49,7 @@ func TestPackingTag1(t *testing.T) {
 
 func TestPackingTag2(t *testing.T) {
 	var buf bytes.Buffer
-	c := capn.NewCompressor(&buf)
+	c := capnp.NewCompressor(&buf)
 	b := make([]byte, 32)
 	for i := 0; i < len(b); i++ {
 		b[i] = 0x8a

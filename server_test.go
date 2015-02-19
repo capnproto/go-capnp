@@ -1,4 +1,4 @@
-package capn_test
+package capnp_test
 
 import (
 	"testing"
@@ -10,7 +10,7 @@ import (
 
 type echoImpl struct{}
 
-func (echoImpl) Echo(ctx context.Context, opts capn.CallOptions, p air.Echo_echo_Params, r air.Echo_echo_Results) error {
+func (echoImpl) Echo(ctx context.Context, opts capnp.CallOptions, p air.Echo_echo_Params, r air.Echo_echo_Results) error {
 	in := p.In()
 	r.SetOut(in + in)
 	return nil

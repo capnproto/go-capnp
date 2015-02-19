@@ -1,4 +1,4 @@
-package capn_test
+package capnp_test
 
 import (
 	"bytes"
@@ -7,12 +7,12 @@ import (
 	"testing"
 
 	cv "github.com/smartystreets/goconvey/convey"
-	capn "zombiezen.com/go/capnproto"
+	"zombiezen.com/go/capnproto"
 	air "zombiezen.com/go/capnproto/aircraftlib"
 )
 
-func ExampleCreateEndpoint() (*capn.Segment, []byte) {
-	seg := capn.NewBuffer(nil)
+func ExampleCreateEndpoint() (*capnp.Segment, []byte) {
+	seg := capnp.NewBuffer(nil)
 	e := air.NewRootEndpoint(seg)
 	e.SetIp(net.ParseIP("1.2.3.4").To4())
 	e.SetPort(56)
@@ -21,7 +21,7 @@ func ExampleCreateEndpoint() (*capn.Segment, []byte) {
 	fmt.Printf("ip: %s\n", e.Ip().String())
 	fmt.Printf("port: %d\n", e.Port())
 	fmt.Printf("hostname: %s\n", e.Hostname())
-	if capn.JSON_enabled {
+	if capnp.JSON_enabled {
 		json, err := e.MarshalJSON()
 		if err != nil {
 			panic(err)
@@ -62,7 +62,7 @@ func TestCreationOfEndpoint(t *testing.T) {
 			cv.Convey(fmt.Sprintf("Then we should get the expected hostname '%s'", expectedHostname), func() {
 				cv.So(endpoint.Hostname(), cv.ShouldEqual, expectedHostname)
 			})
-			if capn.JSON_enabled {
+			if capnp.JSON_enabled {
 				json, err := endpoint.MarshalJSON()
 				if err != nil {
 					panic(err)

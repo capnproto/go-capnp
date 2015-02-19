@@ -1,17 +1,17 @@
-package capn_test
+package capnp_test
 
 import (
 	"math/rand"
 	"testing"
 
-	capn "zombiezen.com/go/capnproto"
+	"zombiezen.com/go/capnproto"
 	air "zombiezen.com/go/capnproto/aircraftlib"
 )
 
 // highlight how much faster text movement between segments
 // is when special casing Text and Data
 //
-// run this test with capn.go:1334-1341 commented in/out to compare.
+// run this test with capnp.go:1334-1341 commented in/out to compare.
 //
 func BenchmarkTextMovementBetweenSegments(b *testing.B) {
 
@@ -32,8 +32,8 @@ func BenchmarkTextMovementBetweenSegments(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		seg := capn.NewBuffer(buf[:0])
-		scratch := capn.NewBuffer(buf2[:0])
+		seg := capnp.NewBuffer(buf[:0])
+		scratch := capnp.NewBuffer(buf2[:0])
 
 		ht := air.NewRootHoldsText(seg)
 		tl := scratch.NewTextList(1000)

@@ -1,4 +1,4 @@
-package capn_test
+package capnp_test
 
 import (
 	"bytes"
@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	cv "github.com/smartystreets/goconvey/convey"
-	capn "zombiezen.com/go/capnproto"
+	"zombiezen.com/go/capnproto"
 	air "zombiezen.com/go/capnproto/aircraftlib"
 )
 
@@ -18,7 +18,7 @@ func TestTextAndListTextContaintingEmptyStruct(t *testing.T) {
 		cv.Convey("then the go-capnproto serialization should match the capnp c++ serialization", func() {
 			ShowBytes(emptyZjobBytes, 10)
 
-			seg := capn.NewBuffer(nil)
+			seg := capnp.NewBuffer(nil)
 			air.NewRootZjob(seg)
 
 			buf := bytes.Buffer{}
@@ -36,7 +36,7 @@ func TestTextContaintingStruct(t *testing.T) {
 	cv.Convey("Given a simple struct message Zjob containing a string 'abc' and a list of string (empty)", t, func() {
 		cv.Convey("then the go-capnproto serialization should match the capnp c++ serialization", func() {
 
-			seg := capn.NewBuffer(nil)
+			seg := capnp.NewBuffer(nil)
 			zjob := air.NewRootZjob(seg)
 			zjob.SetCmd("abc")
 
@@ -62,7 +62,7 @@ func TestTextListContaintingStruct(t *testing.T) {
 	cv.Convey("Given a simple struct message Zjob containing an unset string and a list of string ('xyz' as the only element)", t, func() {
 		cv.Convey("then the go-capnproto serialization should match the capnp c++ serialization", func() {
 
-			seg := capn.NewBuffer(nil)
+			seg := capnp.NewBuffer(nil)
 			zjob := air.NewRootZjob(seg)
 			tl := seg.NewTextList(1)
 			tl.Set(0, "xyz")
@@ -90,7 +90,7 @@ func TestTextAndTextListContaintingStruct(t *testing.T) {
 	cv.Convey("Given a simple struct message Zjob containing a string (cmd='abc') and a list of string (args=['xyz'])", t, func() {
 		cv.Convey("then the go-capnproto serialization should match the capnp c++ serialization", func() {
 
-			seg := capn.NewBuffer(nil)
+			seg := capnp.NewBuffer(nil)
 			zjob := air.NewRootZjob(seg)
 			zjob.SetCmd("abc")
 			tl := seg.NewTextList(1)
@@ -119,13 +119,13 @@ func TestZserverWithOneFullJob(t *testing.T) {
 	cv.Convey("Given an Zserver with one empty job", t, func() {
 		cv.Convey("then the go-capnproto serialization should match the capnp c++ serialization", func() {
 
-			seg := capn.NewBuffer(nil)
-			scratch := capn.NewBuffer(nil)
+			seg := capnp.NewBuffer(nil)
+			scratch := capnp.NewBuffer(nil)
 
 			server := air.NewRootZserver(seg)
 
 			joblist := air.NewZjob_List(seg, 1)
-			plist := capn.PointerList(joblist)
+			plist := capnp.PointerList(joblist)
 
 			zjob := air.NewZjob(scratch)
 			zjob.SetCmd("abc")
@@ -133,7 +133,7 @@ func TestZserverWithOneFullJob(t *testing.T) {
 			tl.Set(0, "xyz")
 			zjob.SetArgs(tl)
 
-			plist.Set(0, capn.Object(zjob))
+			plist.Set(0, capnp.Object(zjob))
 
 			server.SetWaitingjobs(joblist)
 
@@ -163,8 +163,8 @@ func TestZserverWithAccessors(t *testing.T) {
 	cv.Convey("Given an Zserver with a custom list", t, func() {
 		cv.Convey("then all the accessors should work as expected", func() {
 
-			seg := capn.NewBuffer(nil)
-			scratch := capn.NewBuffer(nil)
+			seg := capnp.NewBuffer(nil)
+			scratch := capnp.NewBuffer(nil)
 
 			server := air.NewRootZserver(seg)
 
@@ -227,8 +227,8 @@ func TestSetObjectBetweenSegments(t *testing.T) {
 	cv.Convey("Given an Counter in one segment and a Bag in another", t, func() {
 		cv.Convey("we should be able to copy from one segment to the other with SetCounter() on a Bag", func() {
 
-			seg := capn.NewBuffer(nil)
-			scratch := capn.NewBuffer(nil)
+			seg := capnp.NewBuffer(nil)
+			scratch := capnp.NewBuffer(nil)
 
 			// in seg
 			segbag := air.NewRootBag(seg)
@@ -266,8 +266,8 @@ func TestObjectWithTextBetweenSegments(t *testing.T) {
 	cv.Convey("Given an Counter in one segment and a Bag with text in another", t, func() {
 		cv.Convey("we should be able to copy from one segment to the other with SetCounter() on a Bag", func() {
 
-			seg := capn.NewBuffer(nil)
-			scratch := capn.NewBuffer(nil)
+			seg := capnp.NewBuffer(nil)
+			scratch := capnp.NewBuffer(nil)
 
 			// in seg
 			segbag := air.NewRootBag(seg)
@@ -306,8 +306,8 @@ func TestObjectWithListOfTextBetweenSegments(t *testing.T) {
 	cv.Convey("Given an Counter in one segment and a Bag with text in another", t, func() {
 		cv.Convey("we should be able to copy from one segment to the other with SetCounter() on a Bag", func() {
 
-			seg := capn.NewBuffer(nil)
-			scratch := capn.NewBuffer(nil)
+			seg := capnp.NewBuffer(nil)
+			scratch := capnp.NewBuffer(nil)
 
 			// in seg
 			segbag := air.NewRootBag(seg)
@@ -365,8 +365,8 @@ func TestSetBetweenSegments(t *testing.T) {
 	cv.Convey("Given an struct with Text and List(Text) in one segment", t, func() {
 		cv.Convey("assigning it to a struct in a different segment should recursively import", func() {
 
-			seg := capn.NewBuffer(nil)
-			scratch := capn.NewBuffer(nil)
+			seg := capnp.NewBuffer(nil)
+			scratch := capnp.NewBuffer(nil)
 
 			// in seg
 			segbag := air.NewRootBag(seg)
@@ -404,7 +404,7 @@ func TestSetBetweenSegments(t *testing.T) {
 	})
 }
 
-func ShowSeg(msg string, seg *capn.Segment) []byte {
+func ShowSeg(msg string, seg *capnp.Segment) []byte {
 	pre := bytes.Buffer{}
 	seg.WriteTo(&pre)
 
@@ -421,17 +421,17 @@ func TestZserverWithOneEmptyJob(t *testing.T) {
 	cv.Convey("Given an Zserver with one empty job", t, func() {
 		cv.Convey("then the go-capnproto serialization should match the capnp c++ serialization", func() {
 
-			seg := capn.NewBuffer(nil)
-			scratch := capn.NewBuffer(nil)
+			seg := capnp.NewBuffer(nil)
+			scratch := capnp.NewBuffer(nil)
 			server := air.NewRootZserver(seg)
 
 			joblist := air.NewZjob_List(seg, 1)
-			plist := capn.PointerList(joblist)
+			plist := capnp.PointerList(joblist)
 
 			ShowSeg("          pre NewZjob, segment seg is:", seg)
 
 			zjob := air.NewZjob(scratch)
-			plist.Set(0, capn.Object(zjob))
+			plist.Set(0, capnp.Object(zjob))
 
 			ShowSeg("          pre SetWaitingjobs, segment seg is:", seg)
 
@@ -461,7 +461,7 @@ func TestZserverWithOneEmptyJob(t *testing.T) {
 func TestDefaultStructField(t *testing.T) {
 	cv.Convey("Given a new root StackingRoot", t, func() {
 		cv.Convey("then the aWithDefault field should have a default", func() {
-			seg := capn.NewBuffer(nil)
+			seg := capnp.NewBuffer(nil)
 			root := air.NewRootStackingRoot(seg)
 
 			cv.So(root.AWithDefault().Num(), cv.ShouldEqual, 42)

@@ -1,5 +1,5 @@
 /*
-Package capn is a Cap'n Proto library for Go.
+Package capnp is a Cap'n Proto library for Go.
 
 see https://capnproto.org/
 
@@ -82,11 +82,11 @@ capnpc-go will generate the following for structs:
 	// segment. Member functions are provided to get/set members in the
 	// struct. Getters/setters of an outer struct will use values of type
 	// Foo to set/get pointers.
-	type Foo capn.Struct
+	type Foo capnp.Struct
 
 	// NewFoo creates a new orphaned Foo struct. This can then be added to
 	// a message by using a Set function which takes a Foo argument.
-	func NewFoo(s *capn.Segment) Foo
+	func NewFoo(s *capnp.Segment) Foo
 
 	// NewRootFoo creates a new root of type Foo in the next unused space in the
 	// provided segment. This is distinct from NewFoo as this always
@@ -94,22 +94,22 @@ capnpc-go will generate the following for structs:
 	// Remember that a message is a tree of objects with a single root, and
 	// you usually have to create the root before any other object in a
 	// segment. The only exception would be for a multi-segment message.
-	func NewRootFoo(s *capn.Segment) Foo
+	func NewRootFoo(s *capnp.Segment) Foo
 
 	// ReadRootFoo reads the root tag at the beginning of the provided
 	// segment and returns it as a Foo struct.
-	func ReadRootFoo(s *capn.Segment) Foo
+	func ReadRootFoo(s *capnp.Segment) Foo
 
 	// Foo_List is a value with pointer semantics. It is created for all
 	// structs, and is used for List(Foo) in the capnp file.
-	type Foo_List capn.List
+	type Foo_List capnp.List
 
 	// NewFoo_List creates a new orphaned List(Foo). This can then be added
 	// to a message by using a Set function which takes a Foo_List. sz
 	// specifies the list size. Due to the list using memory directly in
 	// the outgoing buffer (i.e. arena style memory management), the size
 	// can not be changed after creation.
-	func NewFoo_List(s *capn.Segment, sz int) Foo_List
+	func NewFoo_List(s *capnp.Segment, sz int) Foo_List
 
 	// Len returns the list length. For composite lists this is the number
 	// of list elements.
@@ -125,7 +125,7 @@ capnpc-go will generate the following for structs:
 
 	// Foo_Promise is a promise for a Foo.  Methods are provided to get
 	// promises of struct and interface fields.
-	type Foo_Promise capn.Pipeline
+	type Foo_Promise capnp.Pipeline
 
 	// Get waits until the promise is resolved and returns the result.
 	func (p Foo_Promise) Get() (Foo, error)
@@ -142,7 +142,7 @@ groups fields:
 		}
 	}
 
-	type Foo capn.Struct
+	type Foo capnp.Struct
 	type Foo_group Foo
 
 	func (s Foo) Group() Foo_group
@@ -297,13 +297,13 @@ capnpc-go generates the following Go code (along with the structs
 Calculator_evaluate_Params and Calculator_evaluate_Results):
 
 	// Calculator is a client to a Calculator interface.
-	type Calculator struct { c capn.Client }
+	type Calculator struct { c capnp.Client }
 
 	// NewCalculator creates a Calculator from a generic promise.
-	func NewCalculator(c capn.Client) Calculator
+	func NewCalculator(c capnp.Client) Calculator
 
 	// GenericClient returns the underlying generic client.
-	func (c Calculator) GenericClient() capn.Client
+	func (c Calculator) GenericClient() capnp.Client
 
 	// IsNull returns whether the underlying client is nil.
 	func (c Calculator) IsNull() bool
@@ -313,7 +313,7 @@ Calculator_evaluate_Params and Calculator_evaluate_Results):
 	func (c Calculator) Evaluate(
 		ctx context.Context,
 		params func(Calculator_evaluate_Params),
-		opts ...capn.CallOption) *Calculator_evaluate_Results_Promise
+		opts ...capnp.CallOption) *Calculator_evaluate_Results_Promise
 
 capnpc-go also generates code to implement the interface.  Since a single
 capability may want to implement many interfaces, you can use multiple *_Methods
@@ -322,11 +322,11 @@ capnpc-go generates the following:
 
 	// A Calculator_Server implements the Calculator interface.
 	type Calculator_Server interface {
-		Evaluate(context.Context, capn.CallOptions, Calculator_evaluate_Params, Calculator_evaluate_Results) error
+		Evaluate(context.Context, capnp.CallOptions, Calculator_evaluate_Params, Calculator_evaluate_Results) error
 	}
 
 	// Calculator_ServerToClient is equivalent to calling:
-	// NewCalculator(capn.NewServer(Calculator_Methods(nil, s), s))
+	// NewCalculator(capnp.NewServer(Calculator_Methods(nil, s), s))
 	// If s does not implement the Close method, then nil is used.
 	func Calculator_ServerToClient(s Calculator_Server) Calculator
 
@@ -345,4 +345,4 @@ implemented Calculator:
 	})
 	val := result.Value().Get()
 */
-package capn // import "zombiezen.com/go/capnproto"
+package capnp // import "zombiezen.com/go/capnproto"

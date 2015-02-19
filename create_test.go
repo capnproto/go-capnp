@@ -1,4 +1,4 @@
-package capn_test
+package capnp_test
 
 import (
 	"fmt"

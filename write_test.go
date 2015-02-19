@@ -1,4 +1,4 @@
-package capn_test
+package capnp_test
 
 import (
 	"bytes"
@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	cv "github.com/smartystreets/goconvey/convey"
-	capn "zombiezen.com/go/capnproto"
+	"zombiezen.com/go/capnproto"
 	air "zombiezen.com/go/capnproto/aircraftlib"
 )
 
@@ -16,7 +16,7 @@ func ExampleAirplaneWrite() string {
 	fname := "out.write_test.airplane.cpz"
 
 	// make a brand new, empty segment (message)
-	seg := capn.NewBuffer(nil)
+	seg := capnp.NewBuffer(nil)
 
 	// If you want runtime-type identification, this is easily obtained. Just
 	// wrap everything in a struct that contains a single anoymous union (e.g. struct Z).
@@ -40,7 +40,7 @@ func ExampleAirplaneWrite() string {
 
 	// how to create a list. Requires a cast at the moment.
 	homes := air.NewAirport_List(seg, 2)
-	uint16list := capn.UInt16List(homes) // cast to the underlying type
+	uint16list := capnp.UInt16List(homes) // cast to the underlying type
 	uint16list.Set(0, uint16(air.Airport_jfk))
 	uint16list.Set(1, uint16(air.Airport_lax))
 
@@ -105,7 +105,7 @@ func TestVoidUnionSetters(t *testing.T) {
 
 	cv.Convey("Given a VoidUnion set to b", t, func() {
 		cv.Convey("then the go-capnproto serialization should match the capnp c++ serialization", func() {
-			seg := capn.NewBuffer(nil)
+			seg := capnp.NewBuffer(nil)
 			voidUnion := air.NewRootVoidUnion(seg)
 			voidUnion.SetB()
 

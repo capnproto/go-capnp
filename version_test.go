@@ -1,4 +1,4 @@
-package capn_test
+package capnp_test
 
 import (
 	"bytes"
@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	cv "github.com/smartystreets/goconvey/convey"
-	capn "zombiezen.com/go/capnproto"
+	"zombiezen.com/go/capnproto"
 	air "zombiezen.com/go/capnproto/aircraftlib"
 )
 
@@ -17,17 +17,17 @@ func TestV0ListofEmptyShouldMatchCapnp(t *testing.T) {
 	cv.Convey("Given an empty struct with 0 data/0 ptr fields", t, func() {
 		cv.Convey("then a list of 2 empty structs should match the capnp representation", func() {
 
-			seg := capn.NewBuffer(nil)
-			scratch := capn.NewBuffer(nil)
+			seg := capnp.NewBuffer(nil)
+			scratch := capnp.NewBuffer(nil)
 			holder := air.NewRootHoldsVerEmptyList(seg)
 
 			elist := air.NewVerEmpty_List(seg, 2)
-			plist := capn.PointerList(elist)
+			plist := capnp.PointerList(elist)
 
 			e0 := air.NewVerEmpty(scratch)
 			e1 := air.NewVerEmpty(scratch)
-			plist.Set(0, capn.Object(e0))
-			plist.Set(1, capn.Object(e1))
+			plist.Set(0, capnp.Object(e0))
+			plist.Set(1, capnp.Object(e1))
 
 			ShowSeg("          pre SetMylist, segment seg is:", seg)
 
@@ -66,12 +66,12 @@ func TestV1DataVersioningBiggerToEmpty(t *testing.T) {
 	cv.Convey("Given a struct with 0 data/0 ptr fields, and a newer version of the struct with 2 data fields", t, func() {
 		cv.Convey("then reading serialized bigger-struct-list into the smaller (empty or one data-member) list should work, truncating/ignoring the new fields", func() {
 
-			seg := capn.NewBuffer(nil)
-			scratch := capn.NewBuffer(nil)
+			seg := capnp.NewBuffer(nil)
+			scratch := capnp.NewBuffer(nil)
 			holder := air.NewRootHoldsVerTwoDataList(seg)
 
 			twolist := air.NewVerTwoData_List(scratch, 2)
-			plist := capn.PointerList(twolist)
+			plist := capnp.PointerList(twolist)
 
 			d0 := air.NewVerTwoData(scratch)
 			d0.SetVal(27)
@@ -79,8 +79,8 @@ func TestV1DataVersioningBiggerToEmpty(t *testing.T) {
 			d1 := air.NewVerTwoData(scratch)
 			d1.SetVal(42)
 			d1.SetDuo(41)
-			plist.Set(0, capn.Object(d0))
-			plist.Set(1, capn.Object(d1))
+			plist.Set(0, capnp.Object(d0))
+			plist.Set(1, capnp.Object(d1))
 
 			holder.SetMylist(twolist)
 
@@ -93,7 +93,7 @@ func TestV1DataVersioningBiggerToEmpty(t *testing.T) {
 			segbytes := buf.Bytes()
 
 			// and read-back in using smaller expectations
-			reseg, _, err := capn.ReadFromMemoryZeroCopy(segbytes)
+			reseg, _, err := capnp.ReadFromMemoryZeroCopy(segbytes)
 			if err != nil {
 				panic(err)
 			}
@@ -145,8 +145,8 @@ func TestV1DataVersioningEmptyToBigger(t *testing.T) {
 	cv.Convey("Given a struct with 0 data/0 ptr fields, and a newer version of the struct with 1 data fields", t, func() {
 		cv.Convey("then reading from serialized form the small list into the bigger (one or two data values) list should work, getting default value 0 for val/duo.", func() {
 
-			seg := capn.NewBuffer(nil)
-			scratch := capn.NewBuffer(nil)
+			seg := capnp.NewBuffer(nil)
+			scratch := capnp.NewBuffer(nil)
 
 			emptyholder := air.NewRootHoldsVerEmptyList(seg)
 			elist := air.NewVerEmpty_List(scratch, 2)
@@ -167,7 +167,7 @@ func TestV1DataVersioningEmptyToBigger(t *testing.T) {
 			seg.WriteTo(&buf)
 			segbytes := buf.Bytes()
 
-			reseg, _, err := capn.ReadFromMemoryZeroCopy(segbytes)
+			reseg, _, err := capnp.ReadFromMemoryZeroCopy(segbytes)
 			if err != nil {
 				panic(err)
 			}
@@ -207,8 +207,8 @@ func TestDataVersioningZeroPointersToMore(t *testing.T) {
 	cv.Convey("Given a struct with 0 ptr fields, and a newer version of the struct with 1-2 pointer fields", t, func() {
 		cv.Convey("then serializing the empty list and reading it back into 1 or 2 pointer fields should default initialize the pointer fields", func() {
 
-			seg := capn.NewBuffer(nil)
-			scratch := capn.NewBuffer(nil)
+			seg := capnp.NewBuffer(nil)
+			scratch := capnp.NewBuffer(nil)
 
 			emptyholder := air.NewRootHoldsVerEmptyList(seg)
 			elist := air.NewVerEmpty_List(scratch, 2)
@@ -229,7 +229,7 @@ func TestDataVersioningZeroPointersToMore(t *testing.T) {
 			seg.WriteTo(&buf)
 			segbytes := buf.Bytes()
 
-			reseg, _, err := capn.ReadFromMemoryZeroCopy(segbytes)
+			reseg, _, err := capnp.ReadFromMemoryZeroCopy(segbytes)
 			if err != nil {
 				panic(err)
 			}
@@ -262,12 +262,12 @@ func TestDataVersioningZeroPointersToTwo(t *testing.T) {
 	cv.Convey("Given a struct with 2 ptr fields, and another version of the struct with 0 or 1 pointer fields", t, func() {
 		cv.Convey("then reading serialized bigger-struct-list into the smaller (empty or one data-pointer) list should work, truncating/ignoring the new fields", func() {
 
-			seg := capn.NewBuffer(nil)
-			scratch := capn.NewBuffer(nil)
+			seg := capnp.NewBuffer(nil)
+			scratch := capnp.NewBuffer(nil)
 			holder := air.NewRootHoldsVerTwoTwoList(seg)
 
 			twolist := air.NewVerTwoDataTwoPtr_List(scratch, 2)
-			plist := capn.PointerList(twolist)
+			plist := capnp.PointerList(twolist)
 
 			d0 := air.NewVerTwoDataTwoPtr(scratch)
 			d0.SetVal(27)
@@ -293,8 +293,8 @@ func TestDataVersioningZeroPointersToTwo(t *testing.T) {
 			d1.SetPtr1(w1)
 			d1.SetPtr2(w2)
 
-			plist.Set(0, capn.Object(d0))
-			plist.Set(1, capn.Object(d1))
+			plist.Set(0, capnp.Object(d0))
+			plist.Set(1, capnp.Object(d1))
 
 			holder.SetMylist(twolist)
 
@@ -307,7 +307,7 @@ func TestDataVersioningZeroPointersToTwo(t *testing.T) {
 			segbytes := buf.Bytes()
 
 			// and read-back in using smaller expectations
-			reseg, _, err := capn.ReadFromMemoryZeroCopy(segbytes)
+			reseg, _, err := capnp.ReadFromMemoryZeroCopy(segbytes)
 			if err != nil {
 				panic(err)
 			}

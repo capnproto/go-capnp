@@ -1,4 +1,4 @@
-package capn_test
+package capnp_test
 
 import (
 	"bytes"
@@ -10,14 +10,14 @@ import (
 	"os/exec"
 	"strings"
 
-	capn "zombiezen.com/go/capnproto"
+	"zombiezen.com/go/capnproto"
 )
 
 // some generally useful capnp/segment utilities
 
 // shell out to display capnp bytes as human-readable text. Data flow:
 //    in-memory capn segment -> stdin to capnp decode -> stdout human-readble string form
-func CapnpDecodeSegment(seg *capn.Segment, capnpExePath string, capnpSchemaFilePath string, typeName string) string {
+func CapnpDecodeSegment(seg *capnp.Segment, capnpExePath string, capnpSchemaFilePath string, typeName string) string {
 
 	// set defaults
 	if capnpExePath == "" {
@@ -58,7 +58,7 @@ func CapnpDecodeSegment(seg *capn.Segment, capnpExePath string, capnpSchemaFileP
 }
 
 // reduce boilerplate, dump this segment to disk.
-func SegToFile(seg *capn.Segment, filePath string) {
+func SegToFile(seg *capnp.Segment, filePath string) {
 	file, err := os.Create(filePath)
 	if err != nil {
 		panic(err)
@@ -77,7 +77,7 @@ func CapnFileToText(serializedCapnpFilePathToDisplay string, capnpSchemaFilePath
 		return "", err
 	}
 
-	seg, nbytes, err := capn.ReadFromMemoryZeroCopy(byteslice)
+	seg, nbytes, err := capnp.ReadFromMemoryZeroCopy(byteslice)
 
 	if err == io.EOF {
 		return "", err
@@ -86,7 +86,7 @@ func CapnFileToText(serializedCapnpFilePathToDisplay string, capnpSchemaFilePath
 		return "", err
 	}
 	if nbytes == 0 {
-		return "", errors.New(fmt.Sprintf("did not expect 0 bytes back from capn.ReadFromMemoryZeroCopy() on reading file '%s'", serializedCapnpFilePathToDisplay))
+		return "", errors.New(fmt.Sprintf("did not expect 0 bytes back from capnp.ReadFromMemoryZeroCopy() on reading file '%s'", serializedCapnpFilePathToDisplay))
 	}
 
 	// b) tell CapnpDecodeSegment() to show the human-readable-text form of the message

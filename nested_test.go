@@ -1,4 +1,4 @@
-package capn_test
+package capnp_test
 
 import (
 	"bytes"
@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	cv "github.com/smartystreets/goconvey/convey"
-	capn "zombiezen.com/go/capnproto"
+	"zombiezen.com/go/capnproto"
 	air "zombiezen.com/go/capnproto/aircraftlib"
 )
 
@@ -26,7 +26,7 @@ func Test001StructList(t *testing.T) {
 			var o bytes.Buffer
 			rw.Save(&o)
 
-			seg, n, err := capn.ReadFromMemoryZeroCopy(o.Bytes())
+			seg, n, err := capnp.ReadFromMemoryZeroCopy(o.Bytes())
 			cv.So(err, cv.ShouldEqual, nil)
 			cv.So(n, cv.ShouldBeGreaterThan, 0)
 
@@ -59,7 +59,7 @@ func Test002ListListStructList(t *testing.T) {
 			var o bytes.Buffer
 			rw.Save(&o)
 
-			seg, n, err := capn.ReadFromMemoryZeroCopy(o.Bytes())
+			seg, n, err := capnp.ReadFromMemoryZeroCopy(o.Bytes())
 			cv.So(err, cv.ShouldEqual, nil)
 			cv.So(n, cv.ShouldBeGreaterThan, 0)
 
@@ -90,12 +90,12 @@ type RWTest struct {
 }
 
 func (s *Nester1) Save(w io.Writer) {
-	seg := capn.NewBuffer(nil)
+	seg := capnp.NewBuffer(nil)
 	Nester1GoToCapn(seg, s)
 	seg.WriteTo(w)
 }
 
-func Nester1GoToCapn(seg *capn.Segment, src *Nester1) air.Nester1Capn {
+func Nester1GoToCapn(seg *capnp.Segment, src *Nester1) air.Nester1Capn {
 	//fmt.Printf("\n\n   Nester1GoToCapn sees seg = '%#v'\n", seg)
 	dest := air.AutoNewNester1Capn(seg)
 
@@ -119,24 +119,24 @@ func Nester1CapnToGo(src air.Nester1Capn, dest *Nester1) *Nester1 {
 }
 
 func (s *Nester1) Load(r io.Reader) {
-	capMsg, err := capn.ReadFromStream(r, nil)
+	capMsg, err := capnp.ReadFromStream(r, nil)
 	if err != nil {
-		panic(fmt.Errorf("capn.ReadFromStream error: %s", err))
+		panic(fmt.Errorf("capnp.ReadFromStream error: %s", err))
 	}
 	z := air.ReadRootNester1Capn(capMsg)
 	Nester1CapnToGo(z, s)
 }
 
 func (s *RWTest) Save(w io.Writer) {
-	seg := capn.NewBuffer(nil)
+	seg := capnp.NewBuffer(nil)
 	RWTestGoToCapn(seg, s)
 	seg.WriteTo(w)
 }
 
 func (s *RWTest) Load(r io.Reader) {
-	capMsg, err := capn.ReadFromStream(r, nil)
+	capMsg, err := capnp.ReadFromStream(r, nil)
 	if err != nil {
-		panic(fmt.Errorf("capn.ReadFromStream error: %s", err))
+		panic(fmt.Errorf("capnp.ReadFromStream error: %s", err))
 	}
 	z := air.ReadRootRWTestCapn(capMsg)
 	RWTestCapnToGo(z, s)
@@ -157,7 +157,7 @@ func RWTestCapnToGo(src air.RWTestCapn, dest *RWTest) *RWTest {
 	return dest
 }
 
-func RWTestGoToCapn(seg *capn.Segment, src *RWTest) air.RWTestCapn {
+func RWTestGoToCapn(seg *capnp.Segment, src *RWTest) air.RWTestCapn {
 	dest := air.AutoNewRWTestCapn(seg)
 
 	// NestMatrix -> Nester1Capn (go slice to capn list)
@@ -166,8 +166,8 @@ func RWTestGoToCapn(seg *capn.Segment, src *RWTest) air.RWTestCapn {
 		plist := seg.NewPointerList(len(src.NestMatrix))
 		i := 0
 		for _, ele := range src.NestMatrix {
-			//plist.Set(i, capn.Object(Nester1GoToCapn(seg, &ele)))
-			r := capn.Object(SliceNester1ToNester1CapnList(seg, ele))
+			//plist.Set(i, capnp.Object(Nester1GoToCapn(seg, &ele)))
+			r := capnp.Object(SliceNester1ToNester1CapnList(seg, ele))
 			plist.Set(i, r)
 			i++
 		}
@@ -186,7 +186,7 @@ func Nester1CapnListToSliceNester1(p air.Nester1Capn_List) []Nester1 {
 	return v
 }
 
-func SliceNester1ToNester1CapnList(seg *capn.Segment, m []Nester1) air.Nester1Capn_List {
+func SliceNester1ToNester1CapnList(seg *capnp.Segment, m []Nester1) air.Nester1Capn_List {
 	lst := air.NewNester1Capn_List(seg, len(m))
 	for i := range m {
 		lst.Set(i, Nester1GoToCapn(seg, &m[i]))
@@ -194,7 +194,7 @@ func SliceNester1ToNester1CapnList(seg *capn.Segment, m []Nester1) air.Nester1Ca
 	return lst
 }
 
-func SliceStringToTextList(seg *capn.Segment, m []string) capn.TextList {
+func SliceStringToTextList(seg *capnp.Segment, m []string) capnp.TextList {
 	lst := seg.NewTextList(len(m))
 	for i := range m {
 		lst.Set(i, string(m[i]))
@@ -202,7 +202,7 @@ func SliceStringToTextList(seg *capn.Segment, m []string) capn.TextList {
 	return lst
 }
 
-func TextListToSliceString(p capn.TextList) []string {
+func TextListToSliceString(p capnp.TextList) []string {
 	v := make([]string, p.Len())
 	for i := range v {
 		v[i] = string(p.At(i))

@@ -1,4 +1,4 @@
-package capn_test
+package capnp_test
 
 import (
 	"bytes"
@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	cv "github.com/smartystreets/goconvey/convey"
-	capn "zombiezen.com/go/capnproto"
+	"zombiezen.com/go/capnproto"
 	air "zombiezen.com/go/capnproto/aircraftlib"
 )
 
@@ -23,7 +23,7 @@ func init() {
 func TestReadFromStream(t *testing.T) {
 	const n = 10
 	r := zdateReader(n, false)
-	s, err := capn.ReadFromStream(r, nil)
+	s, err := capnp.ReadFromStream(r, nil)
 	if err != nil {
 		t.Fatalf("ReadFromStream: %v", err)
 	}
@@ -33,7 +33,7 @@ func TestReadFromStream(t *testing.T) {
 	}
 	zdatelist := z.Zdatevec()
 
-	if capn.JSON_enabled {
+	if capnp.JSON_enabled {
 		for i := 0; i < n; i++ {
 			zdate := zdatelist.At(i)
 			js, err := zdate.MarshalJSON()
@@ -51,12 +51,12 @@ func TestReadFromStreamBackToBack(t *testing.T) {
 	r := zdateReaderNBackToBack(n, false)
 
 	for i := 0; i < n; i++ {
-		s, err := capn.ReadFromStream(r, nil)
+		s, err := capnp.ReadFromStream(r, nil)
 		if err != nil {
 			t.Fatalf("ReadFromStream: %v", err)
 		}
 		m := air.ReadRootZdate(s)
-		if capn.JSON_enabled {
+		if capnp.JSON_enabled {
 			js, err := m.MarshalJSON()
 			if err != nil {
 				t.Fatalf("MarshalJSON: %v", err)
@@ -77,7 +77,7 @@ func TestDecompressorZdate1(t *testing.T) {
 	}
 
 	r = zdateReader(n, true)
-	actual, err := ioutil.ReadAll(capn.NewDecompressor(r))
+	actual, err := ioutil.ReadAll(capnp.NewDecompressor(r))
 	if err != nil {
 		t.Fatalf("ReadAll: %v", err)
 	}
@@ -120,7 +120,7 @@ func TestDecompressorUNPACKZdate2(t *testing.T) {
 
 	pa := bytes.NewReader(slicePacked)
 
-	actual, err := ioutil.ReadAll(capn.NewDecompressor(pa))
+	actual, err := ioutil.ReadAll(capnp.NewDecompressor(pa))
 	if err != nil {
 		t.Fatalf("ReadAll: %v", err)
 	}
@@ -146,7 +146,7 @@ func TestDecodeOnKnownWellPackedData(t *testing.T) {
 	expectedOut := []byte{0x0, 0x0, 0x0, 0x0, 0x5, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x2, 0x0, 0x1, 0x0, 0x25, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, 0x0, 0x0, 0x0, 0xc, 0x0, 0x0, 0x0, 0xd4, 0x7, 0xc, 0x7, 0x0, 0x0, 0x0, 0x0}
 
 	r := bytes.NewReader(byteSliceIn)
-	actual, err := ioutil.ReadAll(capn.NewDecompressor(r))
+	actual, err := ioutil.ReadAll(capnp.NewDecompressor(r))
 	if err != nil {
 		panic(err)
 	}
@@ -250,7 +250,7 @@ func TestCompressor(t *testing.T) {
 		if i == 7 {
 			fmt.Printf("at test 7\n")
 		}
-		c := capn.NewCompressor(&buf)
+		c := capnp.NewCompressor(&buf)
 		c.Write(test.original)
 		if !bytes.Equal(test.compressed, buf.Bytes()) {
 			t.Errorf("test:%d: failed", i)
@@ -263,7 +263,7 @@ func TestCompressor7(t *testing.T) {
 	i := 7
 	test := compressionTests[i]
 	var buf bytes.Buffer
-	c := capn.NewCompressor(&buf)
+	c := capnp.NewCompressor(&buf)
 
 	fmt.Printf("compressing test.original = %#v\n", test.original)
 
@@ -279,7 +279,7 @@ func TestDecompressor(t *testing.T) {
 	for i, test := range compressionTests {
 		for readSize := 1; readSize <= 8+2*len(test.original); readSize++ {
 			r := bytes.NewReader(test.compressed)
-			d := capn.NewDecompressor(r)
+			d := capnp.NewDecompressor(r)
 			buf := make([]byte, readSize)
 			var actual []byte
 			for {
@@ -323,7 +323,7 @@ func TestDecompressorVerbosely(t *testing.T) {
 				fmt.Printf("\n  When we use go-capnproto NewDecompressor, with readSize: %d\n    Then we should get the original text back.", readSize)
 
 				r := bytes.NewReader(test.compressed)
-				d := capn.NewDecompressor(r)
+				d := capnp.NewDecompressor(r)
 				buf := make([]byte, readSize)
 				var actual []byte
 				for {
@@ -353,12 +353,12 @@ func TestReadFromPackedStream(t *testing.T) {
 	r := zdateReaderNBackToBack(n, true)
 
 	for i := 0; i < n; i++ {
-		s, err := capn.ReadFromPackedStream(r, nil)
+		s, err := capnp.ReadFromPackedStream(r, nil)
 		if err != nil {
 			t.Fatalf("ReadFromPackedStream: %v, i=%d", err, i)
 		}
 		m := air.ReadRootZdate(s)
-		if capn.JSON_enabled {
+		if capnp.JSON_enabled {
 			js, err := m.MarshalJSON()
 			if err != nil {
 				t.Fatalf("MarshalJSON: %v", err)
@@ -374,7 +374,7 @@ func BenchmarkCompressor(b *testing.B) {
 	if err != nil {
 		panic(err)
 	}
-	c := capn.NewCompressor(ioutil.Discard)
+	c := capnp.NewCompressor(ioutil.Discard)
 	b.SetBytes(int64(len(buf)))
 
 	b.ResetTimer()
@@ -394,7 +394,7 @@ func BenchmarkDecompressor(b *testing.B) {
 	// determine buffer size to read all the data
 	// in a single call
 	r.Seek(0, 0)
-	d := capn.NewDecompressor(r)
+	d := capnp.NewDecompressor(r)
 	buf, err = ioutil.ReadAll(d)
 	if err != nil {
 		b.Fatalf("%v", err)

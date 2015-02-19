@@ -1,11 +1,11 @@
-package capn_test
+package capnp_test
 
 import (
 	"fmt"
 	"testing"
 
 	cv "github.com/smartystreets/goconvey/convey"
-	capn "zombiezen.com/go/capnproto"
+	"zombiezen.com/go/capnproto"
 	air "zombiezen.com/go/capnproto/aircraftlib"
 )
 
@@ -17,8 +17,8 @@ func TestDataVersioningAvoidsUnnecessaryTruncation(t *testing.T) {
 	cv.Convey("Given a struct with 0 ptr fields, and a newer version of the struct with two data and two pointer fields", t, func() {
 		cv.Convey("then old code expecting the smaller struct but reading the newer-bigger struct should not truncate it if it doesn't have to (e.g. not assigning into a composite list), and should preserve all data when re-serializing it.", func() {
 
-			seg := capn.NewBuffer(nil)
-			scratch := capn.NewBuffer(nil)
+			seg := capnp.NewBuffer(nil)
+			scratch := capnp.NewBuffer(nil)
 
 			big := air.NewRootVerTwoDataTwoPtr(seg)
 			one := air.NewVerOneData(scratch)
@@ -47,7 +47,7 @@ func TestDataVersioningAvoidsUnnecessaryTruncation(t *testing.T) {
 			// okay, now the actual test:
 			weThinkEmptyButActuallyFull := air.ReadRootVerEmpty(seg)
 
-			freshSeg := capn.NewBuffer(nil)
+			freshSeg := capnp.NewBuffer(nil)
 			wrapEmpty := air.NewRootWrapEmpty(freshSeg)
 
 			// here is the critical step, this should not truncate:
@@ -56,7 +56,7 @@ func TestDataVersioningAvoidsUnnecessaryTruncation(t *testing.T) {
 			// now verify:
 			freshBytes := ShowSeg("\n\n          after wrapEmpty.SetMightNotBeReallyEmpty(weThinkEmptyButActuallyFull), segment freshSeg is:", freshSeg)
 
-			reseg, _, err := capn.ReadFromMemoryZeroCopy(freshBytes)
+			reseg, _, err := capnp.ReadFromMemoryZeroCopy(freshBytes)
 			if err != nil {
 				panic(err)
 			}

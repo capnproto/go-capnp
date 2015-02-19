@@ -1,4 +1,4 @@
-package capn_test
+package capnp_test
 
 import (
 	"bytes"
@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	cv "github.com/smartystreets/goconvey/convey"
-	capn "zombiezen.com/go/capnproto"
+	"zombiezen.com/go/capnproto"
 	air "zombiezen.com/go/capnproto/aircraftlib"
 )
 
@@ -67,8 +67,8 @@ func TestValAtBit(t *testing.T) {
 	})
 }
 
-func zboolvec_value_FilledSegment(value int64, elementCount uint) (*capn.Segment, []byte) {
-	seg := capn.NewBuffer(nil)
+func zboolvec_value_FilledSegment(value int64, elementCount uint) (*capnp.Segment, []byte) {
+	seg := capnp.NewBuffer(nil)
 	z := air.NewRootZ(seg)
 	list := seg.NewBitList(int(elementCount))
 	if value > 0 {
@@ -231,7 +231,7 @@ func TestWriteBitList21(t *testing.T) {
 
 func TestWriteBitListTwo64BitWords(t *testing.T) {
 
-	seg := capn.NewBuffer(nil)
+	seg := capnp.NewBuffer(nil)
 	z := air.NewRootZ(seg)
 	list := seg.NewBitList(66)
 	list.Set(64, true)
