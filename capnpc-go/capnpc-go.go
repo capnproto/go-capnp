@@ -163,6 +163,11 @@ type node struct {
 	Name  string
 }
 
+type field struct {
+	Field
+	Name string
+}
+
 func assert(chk bool, format string, a ...interface{}) {
 	if !chk {
 		panic(assertionError(fmt.Sprintf(format, a...)))
@@ -197,6 +202,7 @@ type annotations struct {
 	Import     string
 	TagType    int
 	CustomTag  string
+	Name       string
 }
 
 func parseAnnotations(list Annotation_List) *annotations {
@@ -217,6 +223,8 @@ func parseAnnotations(list Annotation_List) *annotations {
 			ann.CustomTag = a.Value().Text()
 		case C.Notag:
 			ann.TagType = noTag
+		case C.Name:
+			ann.Name = a.Value().Text()
 		}
 	}
 	return ann
@@ -235,6 +243,15 @@ func (ann *annotations) Tag(name string) string {
 	default:
 		return name
 	}
+}
+
+// Rename returns the overridden name from the annotations or the given name
+// if no annotation was found.
+func (ann *annotations) Rename(given string) string {
+	if ann.Name == "" {
+		return given
+	}
+	return ann.Name
 }
 
 func findNode(id uint64) *node {
@@ -265,6 +282,7 @@ func (n *node) RemoteName(from *node) string {
 }
 
 func (n *node) resolveName(base, name string, file *node) {
+	name = parseAnnotations(n.Annotations()).Rename(name)
 	if base == "" {
 		n.Name = strings.Title(name)
 	} else {
@@ -288,13 +306,15 @@ func (n *node) resolveName(base, name string, file *node) {
 		for i := 0; i < n.Struct().Fields().Len(); i++ {
 			f := n.Struct().Fields().At(i)
 			if f.Which() == Field_Which_group {
-				findNode(f.Group().TypeId()).resolveName(n.Name, f.Name(), file)
+				fname := parseAnnotations(f.Annotations()).Rename(f.Name())
+				findNode(f.Group().TypeId()).resolveName(n.Name, fname, file)
 			}
 		}
 	} else if n.Which() == Node_Which_interface {
 		for i, m := 0, n.Interface().Methods(); i < m.Len(); i++ {
 			mm := m.At(i)
-			base := n.Name + "_" + mm.Name()
+			mname := parseAnnotations(mm.Annotations()).Rename(mm.Name())
+			base := n.Name + "_" + mname
 			if p := findNode(mm.ParamStructType()); p.ScopeId() == 0 {
 				p.resolveName(base, "Params", file)
 			}
@@ -307,13 +327,14 @@ func (n *node) resolveName(base, name string, file *node) {
 
 type enumval struct {
 	Enumerant
+	name   string
 	val    int
 	tag    string
 	parent *node
 }
 
 func (e *enumval) fullName() string {
-	return e.parent.Name + "_" + e.Name()
+	return e.parent.Name + "_" + e.name
 }
 
 func (n *node) defineEnum(w io.Writer) {
@@ -330,8 +351,9 @@ func (n *node) defineEnum(w io.Writer) {
 		for i := 0; i < es.Len(); i++ {
 			e := es.At(i)
 			ann := parseAnnotations(e.Annotations())
-			t := ann.Tag(e.Name())
-			ev[e.CodeOrder()] = enumval{e, i, t, n}
+			name := ann.Rename(e.Name())
+			t := ann.Tag(name)
+			ev[e.CodeOrder()] = enumval{e, name, i, t, n}
 		}
 
 		// not an iota, so type has to go on each line
@@ -449,7 +471,9 @@ func (n *node) writeValue(w io.Writer, t Type, v Value) {
 }
 
 func (n *node) defineAnnotation(w io.Writer) {
-	fmt.Fprintf(w, "const %s = uint64(0x%x)\n", n.Name, n.Id())
+	templates.ExecuteTemplate(w, "annotation", annotationParams{
+		Node: n,
+	})
 }
 
 func constIsVar(n *node) bool {
@@ -502,14 +526,15 @@ func defineConstNodes(w io.Writer, nodes []*node) {
 	}
 }
 
-func (n *node) defineField(w io.Writer, f Field) {
+func (n *node) defineField(w io.Writer, f field) {
 	t := f.Slot().Type()
 	def := f.Slot().DefaultValue()
 	off := f.Slot().Offset()
 
 	var g, s bytes.Buffer
 
-	fieldTitle := strings.Title(f.Name())
+	ann := parseAnnotations(f.Annotations())
+	fieldTitle := strings.Title(f.Name)
 	settag := ""
 	if f.DiscriminantValue() != Field_noDiscriminant {
 		settag = fmt.Sprintf(" %s.Struct(s).Set16(%d, %d);", g_imports.capn(), n.Struct().DiscriminantOffset()*2, f.DiscriminantValue())
@@ -522,7 +547,6 @@ func (n *node) defineField(w io.Writer, f Field) {
 		return
 	}
 
-	ann := parseAnnotations(f.Annotations())
 	if ann.Doc != "" {
 		fmt.Fprintf(&g, "// %s\n", ann.Doc)
 	}
@@ -867,12 +891,13 @@ func intbits(t Type_Which) int {
 	return 0
 }
 
-func (n *node) codeOrderFields() []Field {
+func (n *node) codeOrderFields() []field {
 	numFields := n.Struct().Fields().Len()
-	mbrs := make([]Field, numFields)
+	mbrs := make([]field, numFields)
 	for i := 0; i < numFields; i++ {
 		f := n.Struct().Fields().At(i)
-		mbrs[f.CodeOrder()] = f
+		fname := parseAnnotations(f.Annotations()).Rename(f.Name())
+		mbrs[f.CodeOrder()] = field{Field: f, Name: fname}
 	}
 	return mbrs
 }
@@ -901,12 +926,12 @@ func (n *node) defineStructTypes(w io.Writer, baseNode *node) {
 func (n *node) defineStructEnums(w io.Writer) {
 	assert(n.Which() == Node_Which_struct, "invalid struct node")
 	fields := n.codeOrderFields()
-	members := make([]Field, 0, len(fields))
+	members := make([]field, 0, len(fields))
 	es := make(enumString, 0, len(fields))
 	for _, f := range fields {
 		if f.DiscriminantValue() != Field_noDiscriminant {
 			members = append(members, f)
-			es = append(es, f.Name())
+			es = append(es, f.Name)
 		}
 	}
 	if n.Struct().DiscriminantCount() > 0 {
@@ -937,9 +962,10 @@ func (n *node) defineStructFuncs(w io.Writer) {
 			n.defineField(w, f)
 		case Field_Which_group:
 			g := findNode(f.Group().TypeId())
-			fmt.Fprintf(w, "func (s %s) %s() %s { return %s(s) }\n", n.Name, strings.Title(f.Name()), g.Name, g.Name)
+			fname := strings.Title(f.Name)
+			fmt.Fprintf(w, "func (s %s) %s() %s { return %s(s) }\n", n.Name, fname, g.Name, g.Name)
 			if f.DiscriminantValue() != Field_noDiscriminant {
-				fmt.Fprintf(w, "func (s %s) Set%s() { %s.Struct(s).Set16(%d, %d) }\n", n.Name, strings.Title(f.Name()), g_imports.capn(), n.Struct().DiscriminantOffset()*2, f.DiscriminantValue())
+				fmt.Fprintf(w, "func (s %s) Set%s() { %s.Struct(s).Set16(%d, %d) }\n", n.Name, fname, g_imports.capn(), n.Struct().DiscriminantOffset()*2, f.DiscriminantValue())
 			}
 			g.defineStructFuncs(w)
 		}
@@ -1002,7 +1028,7 @@ func (n *node) jsonStruct(w io.Writer) {
 	writeErrCheck(w)
 	for i, f := range n.codeOrderFields() {
 		if f.DiscriminantValue() != Field_noDiscriminant {
-			enumname := n.Name + "_Which_" + f.Name()
+			enumname := n.Name + "_Which_" + f.Name
 			fmt.Fprintf(w, "if s.Which() == %s {", enumname)
 		}
 		if i != 0 {
@@ -1011,7 +1037,7 @@ func (n *node) jsonStruct(w io.Writer) {
 			`)
 			writeErrCheck(w)
 		}
-		fmt.Fprintf(w, `_, err = b.WriteString("\"%s\":");`, f.Name())
+		fmt.Fprintf(w, `_, err = b.WriteString("\"%s\":");`, f.Name)
 		writeErrCheck(w)
 		f.json(w)
 		if f.DiscriminantValue() != Field_noDiscriminant {
@@ -1159,7 +1185,7 @@ func (n *node) defineStructPromise(w io.Writer) {
 	}
 }
 
-func (n *node) definePromiseField(w io.Writer, f Field) {
+func (n *node) definePromiseField(w io.Writer, f field) {
 	slot := f.Slot()
 	switch t := slot.Type(); t.Which() {
 	case Type_Which_struct:
@@ -1192,6 +1218,7 @@ type interfaceMethod struct {
 	Method
 	Interface *node
 	ID        int
+	Name      string
 	Params    *node
 	Results   *node
 }
@@ -1203,6 +1230,7 @@ func (n *node) methodSet(methods []interfaceMethod) []interfaceMethod {
 			Method:    m,
 			Interface: n,
 			ID:        i,
+			Name:      parseAnnotations(m.Annotations()).Rename(m.Name()),
 			Params:    findNode(m.ParamStructType()),
 			Results:   findNode(m.ResultStructType()),
 		})

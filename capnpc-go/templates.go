@@ -31,6 +31,10 @@ func (w {{.Node.Name}}_Which) String() string {
 {{end}}
 
 
+{{define "annotation"}}const {{.Node.Name}} = uint64({{.Node.Id|printf "%#x"}})
+{{end}}
+
+
 {{define "promise"}}
 type {{.Node.Name}}_Promise {{capn}}.Pipeline
 
@@ -133,26 +137,30 @@ func {{.Node.Name}}_Methods(methods []{{capn}}.ServerMethod, server {{.Node.Name
 {{end}}
 `))
 
+type annotationParams struct {
+	Node *node
+}
+
 type structEnumsParams struct {
 	Node       *node
-	Fields     []Field
+	Fields     []field
 	EnumString enumString
 }
 
 type promiseTemplateParams struct {
 	Node   *node
-	Fields []Field
+	Fields []field
 }
 
 type promiseGroupTemplateParams struct {
 	Node  *node
-	Field Field
+	Field field
 	Group *node
 }
 
 type promiseFieldStructTemplateParams struct {
 	Node          *node
-	Field         Field
+	Field         field
 	Struct        *node
 	BufName       string
 	DefaultOffset int
@@ -160,12 +168,12 @@ type promiseFieldStructTemplateParams struct {
 
 type promiseFieldAnyPointerTemplateParams struct {
 	Node  *node
-	Field Field
+	Field field
 }
 
 type promiseFieldInterfaceTemplateParams struct {
 	Node      *node
-	Field     Field
+	Field     field
 	Interface *node
 }
 
