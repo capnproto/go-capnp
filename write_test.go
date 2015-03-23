@@ -3,6 +3,7 @@ package capnp_test
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"testing"
 
@@ -11,10 +12,7 @@ import (
 	air "zombiezen.com/go/capnproto/aircraftlib"
 )
 
-func ExampleAirplaneWrite() string {
-
-	fname := "out.write_test.airplane.cpz"
-
+func Example() {
 	// make a brand new, empty segment (message)
 	seg := capnp.NewBuffer(nil)
 
@@ -69,35 +67,25 @@ func ExampleAirplaneWrite() string {
 	// example of writing to file. Just use WriteTo().
 	// We could have used SegToFile(seg, fname) from
 	// util_test.go intead, but this makes it clear how easy it is.
-	file, err := os.Create(fname)
-	defer file.Close()
+	file, err := ioutil.TempFile("", "go-capnproto")
 	if err != nil {
 		panic(err)
 	}
+	defer file.Close()
+	defer os.Remove(file.Name())
 	seg.WriteTo(file)
 
 	// readback and view that file in human readable format. Defined in util_test.go
-	text, err := CapnFileToText(fname, "aircraftlib/aircraft.capnp", "")
+	text, err := CapnFileToText(file.Name(), "aircraftlib/aircraft.capnp", "")
 	if err != nil {
 		panic(err)
 	}
 	fmt.Printf("here is our aircraft:\n")
 	fmt.Printf("%s\n", text)
 
-	return text
-}
-
-func TestAircraftWrite(t *testing.T) {
-
-	observedText := ExampleAirplaneWrite()
-	expectedText := `(aircraft = (b737 = (base = (name = "Henrietta", homes = [jfk, lax], rating = 100, canFly = true, capacity = 0, maxSpeed = 876))))`
-
-	cv.Convey("When we run the ExampleAirplaneWrite() function in write_test.go", t, func() {
-		cv.Convey("Then we should see the human readable B737 example struct we expect", func() {
-			cv.So(observedText, cv.ShouldEqual, expectedText)
-		})
-	})
-
+	// Output:
+	// here is our aircraft:
+	// (aircraft = (b737 = (base = (name = "Henrietta", homes = [jfk, lax], rating = 100, canFly = true, capacity = 0, maxSpeed = 876))))
 }
 
 func TestVoidUnionSetters(t *testing.T) {
