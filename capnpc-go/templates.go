@@ -133,7 +133,7 @@ func {{.Node.Name}}_Methods(methods []{{capn}}.ServerMethod, server {{.Node.Name
 			InterfaceID: {{.Interface.Id|printf "%#x"}},
 			MethodID: {{.ID}},
 			InterfaceName: {{.Interface.DisplayName|printf "%q"}},
-			MethodName: {{.Name|printf "%q"}},
+			MethodName: {{.OriginalName|printf "%q"}},
 {{end}}
 `))
 

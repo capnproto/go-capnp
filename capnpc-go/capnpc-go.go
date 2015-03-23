@@ -1216,23 +1216,25 @@ func (n *node) definePromiseField(w io.Writer, f field) {
 
 type interfaceMethod struct {
 	Method
-	Interface *node
-	ID        int
-	Name      string
-	Params    *node
-	Results   *node
+	Interface    *node
+	ID           int
+	Name         string
+	OriginalName string
+	Params       *node
+	Results      *node
 }
 
 func (n *node) methodSet(methods []interfaceMethod) []interfaceMethod {
 	for i, ms := 0, n.Interface().Methods(); i < ms.Len(); i++ {
 		m := ms.At(i)
 		methods = append(methods, interfaceMethod{
-			Method:    m,
-			Interface: n,
-			ID:        i,
-			Name:      parseAnnotations(m.Annotations()).Rename(m.Name()),
-			Params:    findNode(m.ParamStructType()),
-			Results:   findNode(m.ResultStructType()),
+			Method:       m,
+			Interface:    n,
+			ID:           i,
+			OriginalName: m.Name(),
+			Name:         parseAnnotations(m.Annotations()).Rename(m.Name()),
+			Params:       findNode(m.ParamStructType()),
+			Results:      findNode(m.ResultStructType()),
 		})
 	}
 	// TODO(light): sort added methods by code order
