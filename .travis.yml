@@ -1,0 +1,14 @@
+language: go
+
+go:
+- tip
+- 1.2
+
+install:
+- export GOPATH="$HOME/gopath"
+- mkdir -p "$GOPATH/src/zombiezen.com/go"
+- mv "$TRAVIS_BUILD_DIR" "$GOPATH/src/zombiezen.com/go/capnproto"
+- go get -v -t -d zombiezen.com/go/capnproto
+
+script:
+- go test -v zombiezen.com/go/capnproto/...
