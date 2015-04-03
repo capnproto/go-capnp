@@ -9,6 +9,6 @@ before_install:
 - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
 - sudo apt-get update -qq
 
-install: bin/travis-build.sh
+install: bin/travis-install.sh
 
 script: go test -v zombiezen.com/go/capnproto/...
