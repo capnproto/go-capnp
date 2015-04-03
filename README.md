@@ -1,3 +1,6 @@
+[![Build Status](https://travis-ci.org/zombiezen/go-capnproto.svg?branch=master)](https://travis-ci.org/zombiezen/go-capnproto)
+[![GoDoc](https://godoc.org/zombiezen.com/go/capnproto?status.svg)](https://godoc.org/zombiezen.com/go/capnproto)
+
 go-capnproto consists of a Go code generator for Cap'n Proto and a Go
 package that provides runtime support.  The RPC protocol is not yet
 implemented, but there is support for generating interfaces.
