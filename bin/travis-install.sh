@@ -11,7 +11,7 @@ cd "$HOME"
 wget -O capnproto.tar.gz https://capnproto.org/capnproto-c++-0.5.1.2.tar.gz
 tar zxf capnproto.tar.gz
 cd capnproto-c++-0.5.1.2
-./configure && make -j6 check
+./configure && make -j2 check
 sudo make install
 
 # Install go-capnproto
