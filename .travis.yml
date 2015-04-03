@@ -3,6 +3,12 @@ language: go
 go:
 - 1.4
 
+sudo: required
 install: bin/travis-build.sh
-
 script: go test -v zombiezen.com/go/capnproto/...
+
+addons:
+  apt:
+    packages:
+    - gcc-4.8
+    - g++-4.8

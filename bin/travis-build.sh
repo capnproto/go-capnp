@@ -1,11 +1,8 @@
 #!/bin/bash
 set -ev
 
-# Install gcc 4.7
-sudo apt-get install -qq gcc-4.7 g++-4.7
-export CXX=g++-4.7
-
 # Install capnp
+export CXX=g++-4.8
 cd "$HOME"
 wget -O capnproto.tar.gz https://capnproto.org/capnproto-c++-0.5.1.2.tar.gz
 tar zxf capnproto.tar.gz
