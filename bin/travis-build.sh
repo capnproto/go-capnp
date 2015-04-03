@@ -2,7 +2,7 @@
 set -ev
 
 # Install capnp
-export CXX=g++-4.8
+export CXX=g++-4.9
 cd "$HOME"
 wget -O capnproto.tar.gz https://capnproto.org/capnproto-c++-0.5.1.2.tar.gz
 tar zxf capnproto.tar.gz
