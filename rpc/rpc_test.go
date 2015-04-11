@@ -1,8 +1,9 @@
 package rpc_test
 
 import (
+	"bytes"
 	"errors"
-	"io"
+	"sync"
 	"testing"
 
 	"golang.org/x/net/context"
@@ -17,7 +18,7 @@ const (
 	bootstrapExportID uint32 = 84
 )
 
-func newTestConn(t *testing.T, options ...zrpc.ConnOption) (*zrpc.Conn, rwcPipe) {
+func newTestConn(t *testing.T, options ...zrpc.ConnOption) (*zrpc.Conn, zrpc.Transport) {
 	p, q := newPipe()
 	c := zrpc.NewConn(p, options...)
 	return c, q
@@ -32,7 +33,7 @@ func TestBootstrap(t *testing.T) {
 	readBootstrap(t, ctx, conn, p)
 }
 
-func readBootstrap(t *testing.T, ctx context.Context, conn *zrpc.Conn, p rwcPipe) (client capnp.Client, questionID uint32) {
+func readBootstrap(t *testing.T, ctx context.Context, conn *zrpc.Conn, p zrpc.Transport) (client capnp.Client, questionID uint32) {
 	clientCh := make(chan capnp.Client, 1)
 	clientCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -40,7 +41,7 @@ func readBootstrap(t *testing.T, ctx context.Context, conn *zrpc.Conn, p rwcPipe
 		clientCh <- conn.Bootstrap(clientCtx)
 	}()
 
-	msg, err := readMessage(p)
+	msg, err := p.RecvMessage(ctx)
 	if err != nil {
 		t.Fatal("Read Bootstrap failed:", err)
 	}
@@ -65,10 +66,10 @@ func TestBootstrapFulfilled(t *testing.T) {
 	bootstrapAndFulfill(t, ctx, conn, p)
 }
 
-func bootstrapAndFulfill(t *testing.T, ctx context.Context, conn *zrpc.Conn, p rwcPipe) capnp.Client {
+func bootstrapAndFulfill(t *testing.T, ctx context.Context, conn *zrpc.Conn, p zrpc.Transport) capnp.Client {
 	client, bootstrapID := readBootstrap(t, ctx, conn, p)
 
-	err := writeMessage(p, func(msg rpc.Message) {
+	err := sendMessage(ctx, p, func(msg rpc.Message) {
 		ret := rpc.NewReturn(msg.Segment)
 		ret.SetAnswerId(bootstrapID)
 		payload := rpc.NewPayload(msg.Segment)
@@ -83,7 +84,7 @@ func bootstrapAndFulfill(t *testing.T, ctx context.Context, conn *zrpc.Conn, p r
 		t.Fatal("error writing Return:", err)
 	}
 
-	if finish, err := readMessage(p); err != nil {
+	if finish, err := p.RecvMessage(ctx); err != nil {
 		t.Fatal("error reading Finish:", err)
 	} else if finish.Which() != rpc.Message_Which_finish {
 		t.Fatalf("message sent is %v; want Message_Which_finish", finish.Which())
@@ -105,7 +106,7 @@ func TestCallOnPromisedAnswer(t *testing.T) {
 	defer p.Close()
 	client, bootstrapID := readBootstrap(t, ctx, conn, p)
 
-	readDone := startReadMessage(p)
+	readDone := startRecvMessage(p)
 	client.Call(&capnp.Call{
 		Ctx: ctx,
 		Method: capnp.Method{
@@ -157,7 +158,7 @@ func TestCallOnExportId(t *testing.T) {
 	defer p.Close()
 	client := bootstrapAndFulfill(t, ctx, conn, p)
 
-	readDone := startReadMessage(p)
+	readDone := startRecvMessage(p)
 	client.Call(&capnp.Call{
 		Ctx: ctx,
 		Method: capnp.Method{
@@ -207,9 +208,9 @@ func TestMainInterface(t *testing.T) {
 	bootstrapRoundtrip(t, p)
 }
 
-func bootstrapRoundtrip(t *testing.T, p io.ReadWriter) (importID, questionID uint32) {
+func bootstrapRoundtrip(t *testing.T, p zrpc.Transport) (importID, questionID uint32) {
 	questionID = 54
-	err := writeMessage(p, func(msg rpc.Message) {
+	err := sendMessage(context.TODO(), p, func(msg rpc.Message) {
 		bootstrap := rpc.NewBootstrap(msg.Segment)
 		bootstrap.SetQuestionId(questionID)
 		msg.SetBootstrap(bootstrap)
@@ -217,7 +218,7 @@ func bootstrapRoundtrip(t *testing.T, p io.ReadWriter) (importID, questionID uin
 	if err != nil {
 		t.Fatal("Write Bootstrap failed:", err)
 	}
-	msg, err := readMessage(p)
+	msg, err := p.RecvMessage(context.TODO())
 	if err != nil {
 		t.Fatal("Read Bootstrap response failed:", err)
 	}
@@ -259,7 +260,7 @@ func TestReceiveCallOnPromisedAnswer(t *testing.T) {
 	defer p.Close()
 	_, bootqID := bootstrapRoundtrip(t, p)
 
-	err := writeMessage(p, func(msg rpc.Message) {
+	err := sendMessage(context.TODO(), p, func(msg rpc.Message) {
 		call := rpc.NewCall(msg.Segment)
 		call.SetQuestionId(questionID)
 		call.SetInterfaceId(interfaceID)
@@ -277,7 +278,7 @@ func TestReceiveCallOnPromisedAnswer(t *testing.T) {
 	if err != nil {
 		t.Fatal("Call message failed:", err)
 	}
-	retmsg, err := readMessage(p)
+	retmsg, err := p.RecvMessage(context.TODO())
 	if err != nil {
 		t.Fatal("Read Call return failed:", err)
 	}
@@ -315,7 +316,7 @@ func TestReceiveCallOnExport(t *testing.T) {
 	defer p.Close()
 	importID := sendBootstrapAndFinish(t, p)
 
-	err := writeMessage(p, func(msg rpc.Message) {
+	err := sendMessage(context.TODO(), p, func(msg rpc.Message) {
 		call := rpc.NewCall(msg.Segment)
 		call.SetQuestionId(questionID)
 		call.SetInterfaceId(interfaceID)
@@ -331,7 +332,7 @@ func TestReceiveCallOnExport(t *testing.T) {
 	if err != nil {
 		t.Fatal("Call message failed:", err)
 	}
-	retmsg, err := readMessage(p)
+	retmsg, err := p.RecvMessage(context.TODO())
 	if err != nil {
 		t.Fatal("Read Call return failed:", err)
 	}
@@ -355,9 +356,9 @@ func TestReceiveCallOnExport(t *testing.T) {
 	}
 }
 
-func sendBootstrapAndFinish(t *testing.T, p io.ReadWriter) (importID uint32) {
+func sendBootstrapAndFinish(t *testing.T, p zrpc.Transport) (importID uint32) {
 	importID, questionID := bootstrapRoundtrip(t, p)
-	err := writeMessage(p, func(msg rpc.Message) {
+	err := sendMessage(context.TODO(), p, func(msg rpc.Message) {
 		finish := rpc.NewFinish(msg.Segment)
 		finish.SetQuestionId(questionID)
 		finish.SetReleaseResultCaps(false)
@@ -369,46 +370,36 @@ func sendBootstrapAndFinish(t *testing.T, p io.ReadWriter) (importID uint32) {
 	return importID
 }
 
-func readMessage(r io.Reader) (rpc.Message, error) {
-	s, err := capnp.ReadFromStream(r, nil)
-	var msg rpc.Message
-	if err == nil {
-		msg = rpc.ReadRootMessage(s)
-	}
-	return msg, err
-}
-
-func writeMessage(w io.Writer, f func(rpc.Message)) error {
+func sendMessage(ctx context.Context, t zrpc.Transport, f func(rpc.Message)) error {
 	s := capnp.NewBuffer(nil)
 	m := rpc.NewRootMessage(s)
 	f(m)
-	_, err := m.Segment.WriteTo(w)
-	return err
+	return t.SendMessage(ctx, m)
 }
 
-func startReadMessage(r io.Reader) <-chan asyncRead {
-	ch := make(chan asyncRead, 1)
+func startRecvMessage(t zrpc.Transport) <-chan asyncRecv {
+	ch := make(chan asyncRecv, 1)
 	go func() {
-		msg, err := readMessage(r)
-		ch <- asyncRead{msg, err}
+		msg, err := t.RecvMessage(context.TODO())
+		ch <- asyncRecv{msg, err}
 	}()
 	return ch
 }
 
-type asyncRead struct {
+type asyncRecv struct {
 	msg rpc.Message
 	err error
 }
 
 func mockClient() capnp.Client {
-	return capnp.ErrorClient(errors.New("mock client"))
+	return capnp.ErrorClient(errMockClient)
 }
 
 type stubClient func(ctx context.Context, params capnp.Struct) (capnp.Struct, error)
 
 func (stub stubClient) Call(call *capnp.Call) capnp.Answer {
 	if call.Method.InterfaceID != interfaceID || call.Method.MethodID != methodID {
-		return capnp.ErrorAnswer(errors.New("stub client method not implemented"))
+		return capnp.ErrorAnswer(errNotImplemented)
 	}
 	s, err := stub(call.Ctx, call.PlaceParams(nil))
 	if err != nil {
@@ -421,49 +412,105 @@ func (stub stubClient) Close() error {
 	return nil
 }
 
-// rwcPipe is a synchronous in-memory pipe that implements io.ReadWriteCloser.
-type rwcPipe struct {
-	*io.PipeReader
-	*io.PipeWriter
+type pipeTransport struct {
+	r      <-chan rpc.Message
+	w      chan<- rpc.Message
+	finish chan struct{}
+
+	mu       sync.Mutex
+	inflight int
+	done     bool
 }
 
-// newPipe returns two pipes connected to each other.
-func newPipe() (p, q rwcPipe) {
-	pr, qw := io.Pipe()
-	qr, pw := io.Pipe()
-	p = rwcPipe{
-		PipeReader: pr,
-		PipeWriter: pw,
+func newPipe() (p, q zrpc.Transport) {
+	a, b := make(chan rpc.Message), make(chan rpc.Message)
+	p = &pipeTransport{
+		r:      a,
+		w:      b,
+		finish: make(chan struct{}),
 	}
-	q = rwcPipe{
-		PipeReader: qr,
-		PipeWriter: qw,
+	q = &pipeTransport{
+		r:      b,
+		w:      a,
+		finish: make(chan struct{}),
 	}
 	return
 }
 
-func (p rwcPipe) Close() error {
-	rerr := p.PipeReader.Close()
-	werr := p.PipeWriter.Close()
-	switch {
-	case rerr != nil:
-		return rerr
-	case werr != nil:
-		return werr
-	default:
+func (p *pipeTransport) SendMessage(ctx context.Context, msg rpc.Message) error {
+	if !p.startSend() {
+		return errClosed
+	}
+	defer p.finishSend()
+
+	buf := new(bytes.Buffer)
+	_, err := msg.Segment.WriteTo(buf)
+	if err != nil {
+		return err
+	}
+	seg, _, err := capnp.ReadFromMemoryZeroCopy(buf.Bytes())
+	if err != nil {
+		return err
+	}
+
+	select {
+	case p.w <- rpc.ReadRootMessage(seg):
 		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-p.finish:
+		return errClosed
 	}
 }
 
-func (p rwcPipe) CloseWithError(err error) error {
-	rerr := p.PipeReader.CloseWithError(err)
-	werr := p.PipeWriter.CloseWithError(err)
-	switch {
-	case rerr != nil:
-		return rerr
-	case werr != nil:
-		return werr
-	default:
-		return nil
+func (p *pipeTransport) startSend() bool {
+	p.mu.Lock()
+	ok := !p.done
+	if ok {
+		p.inflight++
+	}
+	p.mu.Unlock()
+	return ok
+}
+
+func (p *pipeTransport) finishSend() {
+	p.mu.Lock()
+	p.inflight--
+	p.mu.Unlock()
+}
+
+func (p *pipeTransport) RecvMessage(ctx context.Context) (rpc.Message, error) {
+	select {
+	case msg, ok := <-p.r:
+		if !ok {
+			return rpc.Message{}, errBrokenPipe
+		}
+		return msg, nil
+	case <-ctx.Done():
+		return rpc.Message{}, ctx.Err()
 	}
 }
+
+func (p *pipeTransport) Close() error {
+	p.mu.Lock()
+	done := p.done
+	if !done {
+		p.done = true
+		close(p.finish)
+		if p.inflight == 0 {
+			close(p.w)
+		}
+	}
+	p.mu.Unlock()
+	if done {
+		return errClosed
+	}
+	return nil
+}
+
+var (
+	errBrokenPipe     = errors.New("rpc_test: broken pipe")
+	errClosed         = errors.New("rpc_test: write to broken pipe")
+	errMockClient     = errors.New("rpc_test: mock client")
+	errNotImplemented = errors.New("rpc_test: stub client method not implemented")
+)

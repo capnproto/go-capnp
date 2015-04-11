@@ -2,11 +2,8 @@
 package rpc
 
 import (
-	"bytes"
-	"io"
 	"log"
 	"sync"
-	"time"
 
 	"golang.org/x/net/context"
 	"zombiezen.com/go/capnproto"
@@ -15,8 +12,8 @@ import (
 
 // A Conn is a connection to another Cap'n Proto vat.
 type Conn struct {
-	c    io.ReadWriteCloser
-	main capnp.Client
+	transport Transport
+	main      capnp.Client
 
 	questions questionTable
 	answers   answerTable
@@ -24,7 +21,7 @@ type Conn struct {
 	exports   exportTable
 
 	manager manager
-	writes  chan write
+	sends   chan msgSend
 	calls   chan *call
 }
 
@@ -42,19 +39,19 @@ func MainInterface(client capnp.Client) ConnOption {
 
 // NewConn creates a new connection that communicates on c.
 // Closing the connection will cause c to be closed.
-func NewConn(c io.ReadWriteCloser, options ...ConnOption) *Conn {
+func NewConn(t Transport, options ...ConnOption) *Conn {
 	conn := &Conn{
-		c:      c,
-		writes: make(chan write),
-		calls:  make(chan *call),
+		transport: t,
+		sends:     make(chan msgSend),
+		calls:     make(chan *call),
 	}
-	conn.manager.finish = make(chan struct{})
+	conn.manager.init()
 	for _, o := range options {
 		o(conn)
 	}
-	conn.manager.do(conn.dispatchReads)
-	conn.manager.do(conn.dispatchWrites)
-	conn.manager.do(conn.dispatchCalls)
+	conn.manager.do(conn.dispatchRecv)
+	conn.manager.do(conn.dispatchSend)
+	conn.manager.do(conn.dispatchCall)
 	return conn
 }
 
@@ -73,13 +70,13 @@ func (c *Conn) Close() error {
 	e := rpc.NewException(s)
 	toException(e, errShutdown)
 	n.SetAbort(e)
-	werr := c.write(context.Background(), n)
+	werr := c.send(context.Background(), n)
 
 	// Stop helper goroutines.
 	if !c.manager.shutdown(ErrConnClosed) {
 		return werr
 	}
-	cerr := c.c.Close()
+	cerr := c.transport.Close()
 	if werr != nil {
 		return werr
 	}
@@ -98,7 +95,7 @@ func (c *Conn) Bootstrap(ctx context.Context) capnp.Client {
 	b.SetQuestionId(uint32(q.id))
 	m.SetBootstrap(b)
 	var ans capnp.Answer
-	if err := c.write(ctx, m); err != nil {
+	if err := c.send(ctx, m); err != nil {
 		ans = capnp.ErrorAnswer(err)
 	} else {
 		ans = q
@@ -108,6 +105,8 @@ func (c *Conn) Bootstrap(ctx context.Context) capnp.Client {
 
 // handleMessage is run from the reader goroutine.
 func (c *Conn) handleMessage(m rpc.Message) {
+	// TODO(light): copy where necessary
+
 	switch m.Which() {
 	case rpc.Message_Which_unimplemented:
 		// no-op for now to avoid feedback loop
@@ -130,7 +129,7 @@ func (c *Conn) handleMessage(m rpc.Message) {
 		a := c.answers.insert(id, cancel)
 		go func() {
 			m := c.handleBootstrap(ctx, id, a)
-			if err := c.write(ctx, m); err != nil {
+			if err := c.send(ctx, m); err != nil {
 				log.Println("rpc: bootstrap:", err)
 			}
 		}()
@@ -142,7 +141,7 @@ func (c *Conn) handleMessage(m rpc.Message) {
 		go func() {
 			hold := make(chan struct{})
 			m := c.handleCall(ctx, id, a, target, m.Call(), hold)
-			err := c.write(ctx, m)
+			err := c.send(ctx, m)
 			close(hold)
 			if err != nil {
 				log.Println("rpc: call:", err)
@@ -152,7 +151,7 @@ func (c *Conn) handleMessage(m rpc.Message) {
 		log.Printf("rpc: received unimplemented message, which = %v", m.Which())
 		ctx, _ := c.newContext()
 		go func() {
-			err := c.write(ctx, newUnimplementedMessage(nil, m))
+			err := c.send(ctx, newUnimplementedMessage(nil, m))
 			if err != nil {
 				log.Println("rpc: writing unimplemented:", err)
 			}
@@ -162,7 +161,7 @@ func (c *Conn) handleMessage(m rpc.Message) {
 
 // newContext creates a new context for a received message sequence.
 func (c *Conn) newContext() (context.Context, context.CancelFunc) {
-	return context.WithCancel(context.Background())
+	return context.WithCancel(c.manager.context())
 }
 
 func newUnimplementedMessage(buf []byte, m rpc.Message) rpc.Message {
@@ -177,7 +176,7 @@ func (c *Conn) sendCall(cl *call) capnp.Answer {
 	q := c.questions.new(c, cl.Ctx, &cl.Method)
 	hold := make(chan struct{})
 	msg := c.newCallMessage(nil, q.id, cl, hold)
-	err := c.write(cl.Ctx, msg)
+	err := c.send(cl.Ctx, msg)
 	close(hold)
 	if err != nil {
 		return capnp.ErrorAnswer(err)
@@ -246,13 +245,13 @@ func (c *Conn) handleReturn(id questionID, q *question, m rpc.Return) {
 		s := capnp.NewBuffer(nil)
 		mm := rpc.NewRootMessage(s)
 		mm.SetUnimplemented(rpc.ReadRootMessage(m.Segment))
-		if err := c.write(context.Background(), mm); err != nil {
+		if err := c.send(c.manager.context(), mm); err != nil {
 			log.Println("rpc: failed to write unimplemented return:", err)
 		}
 		return
 	}
 	fin := newFinishMessage(nil, id, releaseResultCaps)
-	if err := c.write(context.Background(), fin); err != nil {
+	if err := c.send(c.manager.context(), fin); err != nil {
 		log.Printf("rpc: failed to write finish for ID=%d: %v", id, err)
 	}
 	c.questions.remove(id)
@@ -484,42 +483,16 @@ func setReturnException(ret rpc.Return, err error) rpc.Exception {
 	return e
 }
 
-// dispatchReads runs in its own goroutine.
-func (c *Conn) dispatchReads() {
-	type read struct {
-		m   rpc.Message
-		err error
-	}
-
-	reads := make(chan read, 1)
-	start := make(chan struct{})
-	defer close(start)
-	go func() {
-		for range start {
-			// TODO(light): don't allocate on every read
-			s, err := capnp.ReadFromStream(c.c, nil)
-			var m rpc.Message
-			if err == nil {
-				m = rpc.ReadRootMessage(s)
-			}
-			reads <- read{m, err}
-		}
-	}()
-
-	start <- struct{}{}
+// dispatchRecv runs in its own goroutine.
+func (c *Conn) dispatchRecv() {
 	for {
-		select {
-		case r := <-reads:
-			if r.err == nil {
-				c.handleMessage(r.m)
-			} else if isTemporaryError(r.err) {
-				log.Println("rpc: read temporary error:", r.err)
-			} else {
-				c.manager.shutdown(r.err)
-				return
-			}
-			start <- struct{}{}
-		case <-c.manager.finish:
+		msg, err := c.transport.RecvMessage(c.manager.context())
+		if err == nil {
+			c.handleMessage(msg)
+		} else if isTemporaryError(err) {
+			log.Println("rpc: read temporary error:", err)
+		} else {
+			c.manager.shutdown(err)
 			return
 		}
 	}
@@ -533,45 +506,30 @@ func isTemporaryError(e error) bool {
 	return ok && t.Temporary()
 }
 
-// dispatchWrites runs in its own goroutine.
-func (c *Conn) dispatchWrites() {
-	var buf bytes.Buffer
-	deadline, _ := c.c.(writeDeadlineSetter)
+// dispatchSend runs in its own goroutine.
+func (c *Conn) dispatchSend() {
+	finish := c.manager.context().Done()
 	for {
 		select {
-		case w := <-c.writes:
-			buf.Reset()
-			w.done <- c.doWrite(w, &buf, deadline)
-		case <-c.manager.finish:
+		case s := <-c.sends:
+			s.done <- c.transport.SendMessage(s.ctx, s.msg)
+		case <-finish:
 			return
 		}
 	}
 }
 
-// doWrite runs in the writer goroutine.
-func (c *Conn) doWrite(w write, buf *bytes.Buffer, deadline writeDeadlineSetter) error {
-	if _, err := w.seg.WriteTo(buf); err != nil {
-		return err
-	}
-	if d, ok := w.ctx.Deadline(); ok && deadline != nil {
-		// TODO(light): log error
-		deadline.SetWriteDeadline(d)
-	}
-	_, err := c.c.Write(buf.Bytes())
-	return err
-}
-
-func (c *Conn) write(ctx context.Context, m rpc.Message) error {
-	w := makeWrite(ctx, m.Segment)
+func (c *Conn) send(ctx context.Context, m rpc.Message) error {
+	s := makeMsgSend(ctx, m)
 	select {
-	case c.writes <- w:
+	case c.sends <- s:
 	case <-ctx.Done():
 		return ctx.Err()
 	case <-c.manager.finish:
 		return c.manager.err()
 	}
 	select {
-	case err := <-w.done:
+	case err := <-s.done:
 		return err
 	case <-ctx.Done():
 		return ctx.Err()
@@ -580,8 +538,8 @@ func (c *Conn) write(ctx context.Context, m rpc.Message) error {
 	}
 }
 
-// dispatchCalls runs in its own goroutine.
-func (c *Conn) dispatchCalls() {
+// dispatchCall runs in its own goroutine.
+func (c *Conn) dispatchCall() {
 	for {
 		select {
 		case cl := <-c.calls:
@@ -592,14 +550,14 @@ func (c *Conn) dispatchCalls() {
 	}
 }
 
-type write struct {
+type msgSend struct {
 	ctx  context.Context
-	seg  *capnp.Segment
+	msg  rpc.Message
 	done chan error
 }
 
-func makeWrite(ctx context.Context, s *capnp.Segment) write {
-	return write{ctx, s, make(chan error, 1)}
+func makeMsgSend(ctx context.Context, msg rpc.Message) msgSend {
+	return msgSend{ctx, msg, make(chan error, 1)}
 }
 
 type call struct {
@@ -633,18 +591,29 @@ func (ic *importClient) Close() error {
 	return nil
 }
 
-type writeDeadlineSetter interface {
-	SetWriteDeadline(t time.Time) error
-}
-
 // manager signals the running goroutines in a Conn.
 type manager struct {
 	finish chan struct{}
 	wg     sync.WaitGroup
+	ctx    context.Context
 
 	mu   sync.RWMutex
 	done bool
 	e    error
+}
+
+func (m *manager) init() {
+	m.finish = make(chan struct{})
+	var cancel context.CancelFunc
+	m.ctx, cancel = context.WithCancel(context.Background())
+	go func() {
+		<-m.finish
+		cancel()
+	}()
+}
+
+func (m *manager) context() context.Context {
+	return m.ctx
 }
 
 // do starts a function in a new goroutine and will block shutdown
