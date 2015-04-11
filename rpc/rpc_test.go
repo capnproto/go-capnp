@@ -417,6 +417,8 @@ type pipeTransport struct {
 	w      chan<- rpc.Message
 	finish chan struct{}
 
+	rbuf bytes.Buffer
+
 	mu       sync.Mutex
 	inflight int
 	done     bool
@@ -480,12 +482,25 @@ func (p *pipeTransport) finishSend() {
 }
 
 func (p *pipeTransport) RecvMessage(ctx context.Context) (rpc.Message, error) {
+	// Scribble over shared buffer to test for race conditions.
+	for b, i := p.rbuf.Bytes(), 0; i < len(b); i++ {
+		b[i] = 0xff
+	}
+	p.rbuf.Reset()
+
 	select {
 	case msg, ok := <-p.r:
 		if !ok {
 			return rpc.Message{}, errBrokenPipe
 		}
-		return msg, nil
+		if _, err := msg.Segment.WriteTo(&p.rbuf); err != nil {
+			return rpc.Message{}, err
+		}
+		seg, _, err := capnp.ReadFromMemoryZeroCopy(p.rbuf.Bytes())
+		if err != nil {
+			return rpc.Message{}, err
+		}
+		return rpc.ReadRootMessage(seg), nil
 	case <-ctx.Done():
 		return rpc.Message{}, ctx.Err()
 	}

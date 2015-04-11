@@ -105,8 +105,6 @@ func (c *Conn) Bootstrap(ctx context.Context) capnp.Client {
 
 // handleMessage is run from the reader goroutine.
 func (c *Conn) handleMessage(m rpc.Message) {
-	// TODO(light): copy where necessary
-
 	switch m.Which() {
 	case rpc.Message_Which_unimplemented:
 		// no-op for now to avoid feedback loop
@@ -117,7 +115,7 @@ func (c *Conn) handleMessage(m rpc.Message) {
 	case rpc.Message_Which_return:
 		id := questionID(m.Return().AnswerId())
 		q := c.questions.get(id)
-		go c.handleReturn(id, q, m.Return())
+		go c.handleReturn(id, q, copyRPCMessage(m).Return())
 	case rpc.Message_Which_finish:
 		// TODO(light): what if answers never had this ID?
 		// TODO(light): return if cancelled
@@ -138,25 +136,54 @@ func (c *Conn) handleMessage(m rpc.Message) {
 		id := answerID(m.Call().QuestionId())
 		a := c.answers.insert(id, cancel)
 		target := c.resolveTarget(m.Call().Target())
-		go func() {
+		go func(mc rpc.Call) {
 			hold := make(chan struct{})
-			m := c.handleCall(ctx, id, a, target, m.Call(), hold)
+			m := c.handleCall(ctx, id, a, target, mc, hold)
 			err := c.send(ctx, m)
 			close(hold)
 			if err != nil {
 				log.Println("rpc: call:", err)
 			}
-		}()
+		}(copyRPCMessage(m).Call())
 	default:
 		log.Printf("rpc: received unimplemented message, which = %v", m.Which())
 		ctx, _ := c.newContext()
-		go func() {
+		go func(m rpc.Message) {
 			err := c.send(ctx, newUnimplementedMessage(nil, m))
 			if err != nil {
 				log.Println("rpc: writing unimplemented:", err)
 			}
-		}()
+		}(copyRPCMessage(m))
 	}
+}
+
+func copyMessage(msg capnp.Message) capnp.Message {
+	n := 0
+	for {
+		if _, err := msg.Lookup(uint32(n)); err != nil {
+			break
+		}
+		n++
+	}
+	segments := make([][]byte, n)
+	for i := range segments {
+		s, err := msg.Lookup(uint32(i))
+		if err != nil {
+			panic(err)
+		}
+		segments[i] = make([]byte, len(s.Data))
+		copy(segments[i], s.Data)
+	}
+	return capnp.NewMultiBuffer(segments).Message
+}
+
+func copyRPCMessage(m rpc.Message) rpc.Message {
+	mm := copyMessage(m.Segment.Message)
+	seg, err := mm.Lookup(0)
+	if err != nil {
+		panic(err)
+	}
+	return rpc.ReadRootMessage(seg)
 }
 
 // newContext creates a new context for a received message sequence.
