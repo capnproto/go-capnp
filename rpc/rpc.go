@@ -639,6 +639,7 @@ func (m *manager) init() {
 	}()
 }
 
+// context returns a context that is cancelled when the manager shuts down.
 func (m *manager) context() context.Context {
 	return m.ctx
 }
