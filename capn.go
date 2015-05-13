@@ -1482,7 +1482,7 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 			// recognize Data and Text, both List(Byte), as special cases for speed.
 			if n.size.isOneByte() && src.size.isOneByte() {
 				//fmt.Printf("\n\n    *** special case for Text and Data kicking in *** \n\n")
-				copy(newSeg.Data[n.off:], srcSeg.Data[src.off:src.off+n.length+1])
+				copy(newSeg.Data[n.off:], srcSeg.Data[src.off:src.off+n.length])
 				break
 			}
 

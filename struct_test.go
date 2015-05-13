@@ -468,3 +468,20 @@ func TestDefaultStructField(t *testing.T) {
 		})
 	})
 }
+
+func TestDataTextCopyOptimization(t *testing.T) {
+	cv.Convey("Given a text list from a different segment", t, func() {
+		cv.Convey("Adding it to a different segment shouldn't panic", func() {
+			seg := capnp.NewBuffer(nil)
+			seg2 := capnp.NewBuffer(nil)
+			root := air.NewRootNester1Capn(seg)
+
+			strsl := seg2.NewTextList(256)
+			for i := 0; i < strsl.Len(); i++ {
+				strsl.Set(i, "testess")
+			}
+
+			root.SetStrs(strsl)
+		})
+	})
+}
