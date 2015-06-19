@@ -7,19 +7,19 @@ import (
 
 	"golang.org/x/net/context"
 	"zombiezen.com/go/capnproto"
-	"zombiezen.com/go/capnproto/rpc/internal/rpc"
+	"zombiezen.com/go/capnproto/rpc/rpccapnp"
 )
 
 // Transport is the interface that abstracts sending and receiving
 // individual messages of the Cap'n Proto RPC protocol.
 type Transport interface {
 	// SendMessage sends msg.
-	SendMessage(ctx context.Context, msg rpc.Message) error
+	SendMessage(ctx context.Context, msg rpccapnp.Message) error
 
 	// RecvMessage waits to receive a message and returns it.
 	// Implementations may re-use buffers between calls, so the message is
 	// only valid until the next call to RecvMessage.
-	RecvMessage(ctx context.Context) (rpc.Message, error)
+	RecvMessage(ctx context.Context) (rpccapnp.Message, error)
 
 	// Close releases any resources associated with the transport.
 	Close() error
@@ -43,7 +43,7 @@ func StreamTransport(rwc io.ReadWriteCloser) Transport {
 	return s
 }
 
-func (s *streamTransport) SendMessage(ctx context.Context, msg rpc.Message) error {
+func (s *streamTransport) SendMessage(ctx context.Context, msg rpccapnp.Message) error {
 	s.wbuf.Reset()
 	if _, err := msg.Segment.WriteTo(&s.wbuf); err != nil {
 		return err
@@ -56,12 +56,12 @@ func (s *streamTransport) SendMessage(ctx context.Context, msg rpc.Message) erro
 	return err
 }
 
-func (s *streamTransport) RecvMessage(ctx context.Context) (rpc.Message, error) {
+func (s *streamTransport) RecvMessage(ctx context.Context) (rpccapnp.Message, error) {
 	seg, err := capnp.ReadFromStream(s.rwc, &s.rbuf)
 	if err != nil {
-		return rpc.Message{}, err
+		return rpccapnp.Message{}, err
 	}
-	msg := rpc.ReadRootMessage(seg)
+	msg := rpccapnp.ReadRootMessage(seg)
 	return msg, nil
 }
 

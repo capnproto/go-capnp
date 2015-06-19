@@ -1,4 +1,4 @@
-package rpc
+package rpccapnp
 
 // AUTO GENERATED - DO NOT EDIT
 

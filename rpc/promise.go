@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	"zombiezen.com/go/capnproto"
-	"zombiezen.com/go/capnproto/rpc/internal/rpc"
+	"zombiezen.com/go/capnproto/rpc/rpccapnp"
 )
 
 // fulfiller is a placeholder for a promised value or an error.
@@ -74,8 +74,8 @@ func (f *fulfiller) PipelineClose(transform []capnp.PipelineOp) error {
 	return a.PipelineClose(transform)
 }
 
-func transformToPromisedAnswer(s *capnp.Segment, answer rpc.PromisedAnswer, transform []capnp.PipelineOp) {
-	opList := rpc.NewPromisedAnswer_Op_List(s, len(transform))
+func transformToPromisedAnswer(s *capnp.Segment, answer rpccapnp.PromisedAnswer, transform []capnp.PipelineOp) {
+	opList := rpccapnp.NewPromisedAnswer_Op_List(s, len(transform))
 	for i, op := range transform {
 		opList.At(i).SetGetPointerField(uint16(op.Field))
 	}

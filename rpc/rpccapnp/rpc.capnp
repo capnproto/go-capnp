@@ -109,9 +109,9 @@
 # bother implementing any other vat network protocol -- just use the correct container type and get
 # it for free.
 
-using Go = import "../../../go.capnp";
-$Go.package("rpc");
-$Go.import("zombiezen.com/go/capnproto/rpc/internal/rpc");
+using Go = import "../../go.capnp";
+$Go.package("rpccapnp");
+$Go.import("zombiezen.com/go/capnproto/rpc/rpccapnp");
 
 # ========================================================================================
 # The Four Tables

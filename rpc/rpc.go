@@ -7,7 +7,7 @@ import (
 
 	"golang.org/x/net/context"
 	"zombiezen.com/go/capnproto"
-	"zombiezen.com/go/capnproto/rpc/internal/rpc"
+	"zombiezen.com/go/capnproto/rpc/rpccapnp"
 )
 
 // A Conn is a connection to another Cap'n Proto vat.
@@ -66,8 +66,8 @@ func (c *Conn) Wait() error {
 func (c *Conn) Close() error {
 	// Hang up.
 	s := capnp.NewBuffer(nil)
-	n := rpc.NewRootMessage(s)
-	e := rpc.NewException(s)
+	n := rpccapnp.NewRootMessage(s)
+	e := rpccapnp.NewException(s)
 	toException(e, errShutdown)
 	n.SetAbort(e)
 	werr := c.send(context.Background(), n)
@@ -90,8 +90,8 @@ func (c *Conn) Close() error {
 func (c *Conn) Bootstrap(ctx context.Context) capnp.Client {
 	q := c.questions.new(c, ctx, nil)
 	s := capnp.NewBuffer(nil)
-	m := rpc.NewRootMessage(s)
-	b := rpc.NewBootstrap(s)
+	m := rpccapnp.NewRootMessage(s)
+	b := rpccapnp.NewBootstrap(s)
 	b.SetQuestionId(uint32(q.id))
 	m.SetBootstrap(b)
 	var ans capnp.Answer
@@ -104,24 +104,24 @@ func (c *Conn) Bootstrap(ctx context.Context) capnp.Client {
 }
 
 // handleMessage is run from the reader goroutine.
-func (c *Conn) handleMessage(m rpc.Message) {
+func (c *Conn) handleMessage(m rpccapnp.Message) {
 	switch m.Which() {
-	case rpc.Message_Which_unimplemented:
+	case rpccapnp.Message_Which_unimplemented:
 		// no-op for now to avoid feedback loop
-	case rpc.Message_Which_abort:
+	case rpccapnp.Message_Which_abort:
 		a := Abort{m.Abort()}
 		log.Print(a)
 		c.manager.shutdown(a)
-	case rpc.Message_Which_return:
+	case rpccapnp.Message_Which_return:
 		id := questionID(m.Return().AnswerId())
 		q := c.questions.get(id)
 		go c.handleReturn(id, q, copyRPCMessage(m).Return())
-	case rpc.Message_Which_finish:
+	case rpccapnp.Message_Which_finish:
 		// TODO(light): what if answers never had this ID?
 		// TODO(light): return if cancelled
 		// TODO(light): release
 		c.answers.pop(answerID(m.Finish().QuestionId()))
-	case rpc.Message_Which_bootstrap:
+	case rpccapnp.Message_Which_bootstrap:
 		ctx, cancel := c.newContext()
 		id := answerID(m.Bootstrap().QuestionId())
 		a := c.answers.insert(id, cancel)
@@ -131,12 +131,12 @@ func (c *Conn) handleMessage(m rpc.Message) {
 				log.Println("rpc: bootstrap:", err)
 			}
 		}()
-	case rpc.Message_Which_call:
+	case rpccapnp.Message_Which_call:
 		ctx, cancel := c.newContext()
 		id := answerID(m.Call().QuestionId())
 		a := c.answers.insert(id, cancel)
 		target := c.resolveTarget(m.Call().Target())
-		go func(mc rpc.Call) {
+		go func(mc rpccapnp.Call) {
 			hold := make(chan struct{})
 			m := c.handleCall(ctx, id, a, target, mc, hold)
 			err := c.send(ctx, m)
@@ -148,7 +148,7 @@ func (c *Conn) handleMessage(m rpc.Message) {
 	default:
 		log.Printf("rpc: received unimplemented message, which = %v", m.Which())
 		ctx, _ := c.newContext()
-		go func(m rpc.Message) {
+		go func(m rpccapnp.Message) {
 			err := c.send(ctx, newUnimplementedMessage(nil, m))
 			if err != nil {
 				log.Println("rpc: writing unimplemented:", err)
@@ -177,13 +177,13 @@ func copyMessage(msg capnp.Message) capnp.Message {
 	return capnp.NewMultiBuffer(segments).Message
 }
 
-func copyRPCMessage(m rpc.Message) rpc.Message {
+func copyRPCMessage(m rpccapnp.Message) rpccapnp.Message {
 	mm := copyMessage(m.Segment.Message)
 	seg, err := mm.Lookup(0)
 	if err != nil {
 		panic(err)
 	}
-	return rpc.ReadRootMessage(seg)
+	return rpccapnp.ReadRootMessage(seg)
 }
 
 // newContext creates a new context for a received message sequence.
@@ -191,9 +191,9 @@ func (c *Conn) newContext() (context.Context, context.CancelFunc) {
 	return context.WithCancel(c.manager.context())
 }
 
-func newUnimplementedMessage(buf []byte, m rpc.Message) rpc.Message {
+func newUnimplementedMessage(buf []byte, m rpccapnp.Message) rpccapnp.Message {
 	s := capnp.NewBuffer(buf)
-	n := rpc.NewRootMessage(s)
+	n := rpccapnp.NewRootMessage(s)
 	n.SetUnimplemented(m)
 	return n
 }
@@ -211,18 +211,18 @@ func (c *Conn) sendCall(cl *call) capnp.Answer {
 	return q
 }
 
-func (c *Conn) newCallMessage(buf []byte, id questionID, cl *call, hold <-chan struct{}) rpc.Message {
+func (c *Conn) newCallMessage(buf []byte, id questionID, cl *call, hold <-chan struct{}) rpccapnp.Message {
 	s := capnp.NewBuffer(buf)
-	msg := rpc.NewRootMessage(s)
+	msg := rpccapnp.NewRootMessage(s)
 
-	msgCall := rpc.NewCall(s)
+	msgCall := rpccapnp.NewCall(s)
 	msgCall.SetQuestionId(uint32(id))
 	msgCall.SetInterfaceId(cl.Method.InterfaceID)
 	msgCall.SetMethodId(cl.Method.MethodID)
 
-	target := rpc.NewMessageTarget(s)
+	target := rpccapnp.NewMessageTarget(s)
 	if cl.transform != nil {
-		a := rpc.NewPromisedAnswer(s)
+		a := rpccapnp.NewPromisedAnswer(s)
 		a.SetQuestionId(uint32(cl.questionID))
 		transformToPromisedAnswer(s, a, cl.transform)
 		target.SetPromisedAnswer(a)
@@ -231,7 +231,7 @@ func (c *Conn) newCallMessage(buf []byte, id questionID, cl *call, hold <-chan s
 	}
 	msgCall.SetTarget(target)
 
-	payload := rpc.NewPayload(s)
+	payload := rpccapnp.NewPayload(s)
 	params := cl.PlaceParams(s)
 	payload.SetContent(capnp.Object(params))
 	payload.SetCapTable(c.makeCapTable(s, hold))
@@ -242,18 +242,18 @@ func (c *Conn) newCallMessage(buf []byte, id questionID, cl *call, hold <-chan s
 }
 
 // handleReturn is run in its own goroutine.
-func (c *Conn) handleReturn(id questionID, q *question, m rpc.Return) {
+func (c *Conn) handleReturn(id questionID, q *question, m rpccapnp.Return) {
 	if q == nil {
 		log.Printf("rpc: received return for unknown question id=%d", id)
 		return
 	}
 	releaseResultCaps := true
 	switch m.Which() {
-	case rpc.Return_Which_results:
+	case rpccapnp.Return_Which_results:
 		releaseResultCaps = false
 		c.populateMessageCapTable(m.Results())
 		q.resolve(capnp.ImmediateAnswer(m.Results().Content()))
-	case rpc.Return_Which_exception:
+	case rpccapnp.Return_Which_exception:
 		e := error(Exception{m.Exception()})
 		if q.method != nil {
 			e = &capnp.MethodError{
@@ -264,14 +264,14 @@ func (c *Conn) handleReturn(id questionID, q *question, m rpc.Return) {
 			e = bootstrapError{e}
 		}
 		q.resolve(capnp.ErrorAnswer(e))
-	case rpc.Return_Which_canceled:
+	case rpccapnp.Return_Which_canceled:
 		q.resolve(capnp.ErrorAnswer(errCallCanceled))
 		// Don't send another finish message.
 		return
 	default:
 		s := capnp.NewBuffer(nil)
-		mm := rpc.NewRootMessage(s)
-		mm.SetUnimplemented(rpc.ReadRootMessage(m.Segment))
+		mm := rpccapnp.NewRootMessage(s)
+		mm.SetUnimplemented(rpccapnp.ReadRootMessage(m.Segment))
 		if err := c.send(c.manager.context(), mm); err != nil {
 			log.Println("rpc: failed to write unimplemented return:", err)
 		}
@@ -284,10 +284,10 @@ func (c *Conn) handleReturn(id questionID, q *question, m rpc.Return) {
 	c.questions.remove(id)
 }
 
-func newFinishMessage(buf []byte, questionID questionID, release bool) rpc.Message {
+func newFinishMessage(buf []byte, questionID questionID, release bool) rpccapnp.Message {
 	s := capnp.NewBuffer(buf)
-	m := rpc.NewRootMessage(s)
-	f := rpc.NewFinish(s)
+	m := rpccapnp.NewRootMessage(s)
+	f := rpccapnp.NewFinish(s)
 	f.SetQuestionId(uint32(questionID))
 	f.SetReleaseResultCaps(release)
 	m.SetFinish(f)
@@ -296,17 +296,17 @@ func newFinishMessage(buf []byte, questionID questionID, release bool) rpc.Messa
 
 // populateMessageCapTable converts the descriptors in the payload into
 // clients and sets it on the message the payload is a part of.
-func (c *Conn) populateMessageCapTable(payload rpc.Payload) {
+func (c *Conn) populateMessageCapTable(payload rpccapnp.Payload) {
 	msg := payload.Segment.Message
 	for i, n := 0, payload.CapTable().Len(); i < n; i++ {
 		desc := payload.CapTable().At(i)
 		switch desc.Which() {
-		case rpc.CapDescriptor_Which_none:
+		case rpccapnp.CapDescriptor_Which_none:
 			msg.AddCap(nil)
-		case rpc.CapDescriptor_Which_senderHosted:
+		case rpccapnp.CapDescriptor_Which_senderHosted:
 			// TODO(light): add import to table
 			msg.AddCap(&importClient{c: c, id: importID(desc.SenderHosted())})
-		case rpc.CapDescriptor_Which_receiverHosted:
+		case rpccapnp.CapDescriptor_Which_receiverHosted:
 			id := exportID(desc.ReceiverHosted())
 			e := c.exports.get(id)
 			if e == nil {
@@ -314,7 +314,7 @@ func (c *Conn) populateMessageCapTable(payload rpc.Payload) {
 			} else {
 				msg.AddCap(e.client)
 			}
-		case rpc.CapDescriptor_Which_receiverAnswer:
+		case rpccapnp.CapDescriptor_Which_receiverAnswer:
 			msg.AddCap(c.getPromisedAnswer(desc.ReceiverAnswer()))
 		default:
 			log.Println("rpc: unknown capability type", desc.Which())
@@ -326,9 +326,9 @@ func (c *Conn) populateMessageCapTable(payload rpc.Payload) {
 // makeCapTable converts the clients in the segment's message into capability descriptors.
 // The hold channel should be closed when the descriptors have been written,
 // since this blocks sending a Finish.
-func (c *Conn) makeCapTable(s *capnp.Segment, hold <-chan struct{}) rpc.CapDescriptor_List {
+func (c *Conn) makeCapTable(s *capnp.Segment, hold <-chan struct{}) rpccapnp.CapDescriptor_List {
 	msgtab := s.Message.CapTable()
-	t := rpc.NewCapDescriptor_List(s, len(msgtab))
+	t := rpccapnp.NewCapDescriptor_List(s, len(msgtab))
 	for i, client := range msgtab {
 		desc := t.At(i)
 		if client == nil {
@@ -340,7 +340,7 @@ func (c *Conn) makeCapTable(s *capnp.Segment, hold <-chan struct{}) rpc.CapDescr
 	return t
 }
 
-func (c *Conn) descriptorForClient(desc rpc.CapDescriptor, client capnp.Client, hold <-chan struct{}) {
+func (c *Conn) descriptorForClient(desc rpccapnp.CapDescriptor, client capnp.Client, hold <-chan struct{}) {
 	if client == nil {
 		id := c.exports.add(capnp.ErrorClient(capnp.ErrNullClient))
 		desc.SetSenderHosted(uint32(id))
@@ -361,7 +361,7 @@ func (c *Conn) descriptorForClient(desc rpc.CapDescriptor, client capnp.Client, 
 			}
 			ans, id := q.promiseInfo(hold)
 			if ans == nil && q.conn == c {
-				a := rpc.NewPromisedAnswer(desc.Segment)
+				a := rpccapnp.NewPromisedAnswer(desc.Segment)
 				a.SetQuestionId(uint32(id))
 				transformToPromisedAnswer(desc.Segment, a, p.Transform())
 				desc.SetReceiverAnswer(a)
@@ -389,7 +389,7 @@ func (c *Conn) descriptorForClient(desc rpc.CapDescriptor, client capnp.Client, 
 }
 
 // handleBootstrap is run in its own goroutine.
-func (c *Conn) handleBootstrap(ctx context.Context, id answerID, a *answer) rpc.Message {
+func (c *Conn) handleBootstrap(ctx context.Context, id answerID, a *answer) rpccapnp.Message {
 	retmsg := newReturnMessage(id)
 	ret := retmsg.Return()
 	if a == nil {
@@ -404,11 +404,11 @@ func (c *Conn) handleBootstrap(ctx context.Context, id answerID, a *answer) rpc.
 	}
 	exportID := c.exports.add(c.main)
 	retmsg.Segment.Message.AddCap(c.main)
-	payload := rpc.NewPayload(retmsg.Segment)
+	payload := rpccapnp.NewPayload(retmsg.Segment)
 	const capIndex = 0
 	in := capnp.Object(retmsg.Segment.NewInterface(capIndex))
 	payload.SetContent(in)
-	ctab := rpc.NewCapDescriptor_List(retmsg.Segment, capIndex+1)
+	ctab := rpccapnp.NewCapDescriptor_List(retmsg.Segment, capIndex+1)
 	ctab.At(capIndex).SetSenderHosted(uint32(exportID))
 	payload.SetCapTable(ctab)
 	ret.SetResults(payload)
@@ -416,23 +416,23 @@ func (c *Conn) handleBootstrap(ctx context.Context, id answerID, a *answer) rpc.
 	return retmsg
 }
 
-func (c *Conn) resolveTarget(mt rpc.MessageTarget) capnp.Client {
+func (c *Conn) resolveTarget(mt rpccapnp.MessageTarget) capnp.Client {
 	switch mt.Which() {
-	case rpc.MessageTarget_Which_importedCap:
+	case rpccapnp.MessageTarget_Which_importedCap:
 		id := exportID(mt.ImportedCap())
 		e := c.exports.get(id)
 		if e == nil {
 			return nil
 		}
 		return e.client
-	case rpc.MessageTarget_Which_promisedAnswer:
+	case rpccapnp.MessageTarget_Which_promisedAnswer:
 		return c.getPromisedAnswer(mt.PromisedAnswer())
 	default:
 		return nil
 	}
 }
 
-func (c *Conn) getPromisedAnswer(pa rpc.PromisedAnswer) capnp.Client {
+func (c *Conn) getPromisedAnswer(pa rpccapnp.PromisedAnswer) capnp.Client {
 	id := answerID(pa.QuestionId())
 	a := c.answers.get(id)
 	if a == nil {
@@ -442,9 +442,9 @@ func (c *Conn) getPromisedAnswer(pa rpc.PromisedAnswer) capnp.Client {
 	for i := 0; i < pa.Transform().Len(); i++ {
 		op := pa.Transform().At(i)
 		switch op.Which() {
-		case rpc.PromisedAnswer_Op_Which_getPointerField:
+		case rpccapnp.PromisedAnswer_Op_Which_getPointerField:
 			p = p.GetPipeline(int(op.GetPointerField()))
-		case rpc.PromisedAnswer_Op_Which_noop:
+		case rpccapnp.PromisedAnswer_Op_Which_noop:
 			fallthrough
 		default:
 			// do nothing
@@ -455,7 +455,7 @@ func (c *Conn) getPromisedAnswer(pa rpc.PromisedAnswer) capnp.Client {
 
 // handleCall is run in its own goroutine.
 // hold is closed when the message has been written.
-func (c *Conn) handleCall(ctx context.Context, id answerID, a *answer, target capnp.Client, call rpc.Call, hold <-chan struct{}) rpc.Message {
+func (c *Conn) handleCall(ctx context.Context, id answerID, a *answer, target capnp.Client, call rpccapnp.Call, hold <-chan struct{}) rpccapnp.Message {
 	retmsg := newReturnMessage(id)
 	ret := retmsg.Return()
 	if a == nil {
@@ -486,7 +486,7 @@ func (c *Conn) handleCall(ctx context.Context, id answerID, a *answer, target ca
 		a.resolve(capnp.ErrorAnswer(Exception{e}))
 		return retmsg
 	}
-	payload := rpc.NewPayload(retmsg.Segment)
+	payload := rpccapnp.NewPayload(retmsg.Segment)
 	payload.SetContent(capnp.Object(results))
 	payload.SetCapTable(c.makeCapTable(retmsg.Segment, hold))
 	ret.SetResults(payload)
@@ -494,17 +494,17 @@ func (c *Conn) handleCall(ctx context.Context, id answerID, a *answer, target ca
 	return retmsg
 }
 
-func newReturnMessage(id answerID) rpc.Message {
+func newReturnMessage(id answerID) rpccapnp.Message {
 	s := capnp.NewBuffer(nil)
-	retmsg := rpc.NewRootMessage(s)
-	ret := rpc.NewReturn(s)
+	retmsg := rpccapnp.NewRootMessage(s)
+	ret := rpccapnp.NewReturn(s)
 	ret.SetAnswerId(uint32(id))
 	retmsg.SetReturn(ret)
 	return retmsg
 }
 
-func setReturnException(ret rpc.Return, err error) rpc.Exception {
-	e := rpc.NewException(ret.Segment)
+func setReturnException(ret rpccapnp.Return, err error) rpccapnp.Exception {
+	e := rpccapnp.NewException(ret.Segment)
 	toException(e, err)
 	ret.SetException(e)
 	return e
@@ -546,7 +546,7 @@ func (c *Conn) dispatchSend() {
 	}
 }
 
-func (c *Conn) send(ctx context.Context, m rpc.Message) error {
+func (c *Conn) send(ctx context.Context, m rpccapnp.Message) error {
 	s := makeMsgSend(ctx, m)
 	select {
 	case c.sends <- s:
@@ -579,11 +579,11 @@ func (c *Conn) dispatchCall() {
 
 type msgSend struct {
 	ctx  context.Context
-	msg  rpc.Message
+	msg  rpccapnp.Message
 	done chan error
 }
 
-func makeMsgSend(ctx context.Context, msg rpc.Message) msgSend {
+func makeMsgSend(ctx context.Context, msg rpccapnp.Message) msgSend {
 	return msgSend{ctx, msg, make(chan error, 1)}
 }
 
