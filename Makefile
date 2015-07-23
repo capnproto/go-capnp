@@ -25,5 +25,5 @@ clean:
 test:
 	cd capnpc-go; go build; go install
 	cd aircraftlib; make
-	go test -v
+	go test -v . ./rpc
 
