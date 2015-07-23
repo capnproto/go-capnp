@@ -2,11 +2,24 @@
 [![GoDoc](https://godoc.org/zombiezen.com/go/capnproto?status.svg)](https://godoc.org/zombiezen.com/go/capnproto)
 
 go-capnproto consists of a Go code generator for Cap'n Proto and a Go
-package that provides runtime support.  The RPC protocol is not yet
-implemented, but there is support for generating interfaces.
+package that provides runtime support.  The RPC protocol is not fully
+implemented.
 
 News
 ----
+
+23 July 2015: **Level 0 RPC support (and parts of Level 1)!** Things that work:
+
+- Bootstrap interfaces
+- Calls/returns
+- Promises
+
+Things that don't work:
+
+- Embargoes
+- Releasing capabilities
+
+The rest of Level 1 will be coming soon. -Ross
 
 19 February 2015: This is a fork of Jason Aten's [go-capnproto
 branch](https://github.com/glycerine/go-capnproto) that supports Cap'n
