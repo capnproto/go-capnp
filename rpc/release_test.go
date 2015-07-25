@@ -20,21 +20,59 @@ func TestRelease(t *testing.T) {
 	d := rpc.NewConn(q, rpc.MainInterface(testcapnp.HandleFactory_ServerToClient(hf).GenericClient()))
 	defer d.Close()
 	client := testcapnp.NewHandleFactory(c.Bootstrap(ctx))
+	r, err := client.NewHandle(ctx, func(r testcapnp.HandleFactory_newHandle_Params) {}).Get()
+	if err != nil {
+		t.Fatal("NewHandle:", err)
+	}
+	handle := r.Handle()
+	if n := hf.numHandles(); n != 1 {
+		t.Fatalf("numHandles = %d; want 1", n)
+	}
+
+	if err := handle.GenericClient().Close(); err != nil {
+		t.Error("handle.Close():", err)
+	}
+
+	if n := hf.numHandles(); n != 0 {
+		t.Errorf("numHandles = %d; want 0", n)
+	}
+}
+
+func TestReleaseAlias(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	p, q := newPipe()
+	c := rpc.NewConn(p)
+	defer c.Close()
+	hf := singletonHandleFactory()
+	d := rpc.NewConn(q, rpc.MainInterface(testcapnp.HandleFactory_ServerToClient(hf).GenericClient()))
+	defer d.Close()
+	client := testcapnp.NewHandleFactory(c.Bootstrap(ctx))
 	r1, err := client.NewHandle(ctx, func(r testcapnp.HandleFactory_newHandle_Params) {}).Get()
 	if err != nil {
 		t.Fatal("NewHandle #1:", err)
 	}
 	handle1 := r1.Handle()
+	r2, err := client.NewHandle(ctx, func(r testcapnp.HandleFactory_newHandle_Params) {}).Get()
+	if err != nil {
+		t.Fatal("NewHandle #2:", err)
+	}
+	handle2 := r2.Handle()
 	if n := hf.numHandles(); n != 1 {
-		t.Fatalf("numHandles = %d; want 1", n)
+		t.Fatalf("after creation, numHandles = %d; want 1", n)
 	}
 
 	if err := handle1.GenericClient().Close(); err != nil {
 		t.Error("handle1.Close():", err)
 	}
-
+	if n := hf.numHandles(); n != 1 {
+		t.Errorf("after handle1.Close(), numHandles = %d; want 1", n)
+	}
+	if err := handle2.GenericClient().Close(); err != nil {
+		t.Error("handle2.Close():", err)
+	}
 	if n := hf.numHandles(); n != 0 {
-		t.Errorf("numHandles = %d; want 0", n)
+		t.Errorf("after handle1.Close() and handle2.Close(), numHandles = %d; want 0", n)
 	}
 }
 
@@ -50,8 +88,15 @@ func (h Handle) Close() error {
 }
 
 type HandleFactory struct {
-	n  int
-	mu sync.Mutex
+	n         int
+	mu        sync.Mutex
+	singleton testcapnp.Handle
+}
+
+func singletonHandleFactory() *HandleFactory {
+	hf := new(HandleFactory)
+	hf.singleton = testcapnp.Handle_ServerToClient(&Handle{f: hf})
+	return hf
 }
 
 func (hf *HandleFactory) NewHandle(
@@ -59,10 +104,17 @@ func (hf *HandleFactory) NewHandle(
 	opts capnp.CallOptions,
 	p testcapnp.HandleFactory_newHandle_Params,
 	r testcapnp.HandleFactory_newHandle_Results) error {
-	hf.mu.Lock()
-	hf.n++
-	hf.mu.Unlock()
-	r.SetHandle(testcapnp.Handle_ServerToClient(Handle{f: hf}))
+	if hf.singleton.IsNull() {
+		hf.mu.Lock()
+		hf.n++
+		hf.mu.Unlock()
+		r.SetHandle(testcapnp.Handle_ServerToClient(&Handle{f: hf}))
+	} else {
+		hf.mu.Lock()
+		hf.n = 1
+		hf.mu.Unlock()
+		r.SetHandle(hf.singleton)
+	}
 	return nil
 }
 
