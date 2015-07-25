@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"log"
 	"sync"
 
 	"golang.org/x/net/context"
@@ -164,10 +165,38 @@ func (at *answerTable) pop(id answerID) *answer {
 	return a
 }
 
+type importTable struct {
+	mu  sync.Mutex
+	tab map[importID]int
+}
+
+// addRef increases the counter of the times the import ID was sent to this vat.
+func (it *importTable) addRef(id importID) {
+	it.mu.Lock()
+	if it.tab == nil {
+		it.tab = make(map[importID]int)
+	}
+	it.tab[id]++
+	it.mu.Unlock()
+}
+
+// pop removes the import ID and returns the number of times the import ID was sent to this vat.
+func (it *importTable) pop(id importID) (refs int) {
+	it.mu.Lock()
+	if it.tab != nil {
+		refs = it.tab[id]
+		delete(it.tab, id)
+	}
+	it.mu.Unlock()
+	return
+}
+
 type export struct {
 	id     exportID
 	client capnp.Client
-	refCount
+
+	// for use by the table only
+	refs int
 }
 
 type exportTable struct {
@@ -188,15 +217,13 @@ func (et *exportTable) get(id exportID) *export {
 
 // add puts client in the table with a new ID.
 func (et *exportTable) add(client capnp.Client) exportID {
+	// TODO(light): dedupe?
 	et.mu.Lock()
 	id := exportID(et.gen.next())
 	export := &export{
 		id:     id,
 		client: client,
-		refCount: refCount{
-			refs:    1,
-			release: func() {}, // TODO(light)
-		},
+		refs:   1,
 	}
 	if int(id) == len(et.tab) {
 		et.tab = append(et.tab, export)
@@ -205,6 +232,30 @@ func (et *exportTable) add(client capnp.Client) exportID {
 	}
 	et.mu.Unlock()
 	return id
+}
+
+func (et *exportTable) release(id exportID, refs int) {
+	et.mu.Lock()
+	defer et.mu.Unlock()
+	if int(id) >= len(et.tab) {
+		return
+	}
+	e := et.tab[id]
+	if e == nil {
+		return
+	}
+	e.refs -= refs
+	if e.refs > 0 {
+		return
+	}
+	if e.refs < 0 {
+		log.Printf("rpc: warning: export %v has negative refcount (%d)", id, e.refs)
+	}
+	if err := e.client.Close(); err != nil {
+		log.Printf("rpc: export %v close: %v", id, err)
+	}
+	et.tab[id] = nil
+	et.gen.remove(uint32(id))
 }
 
 // idgen returns a sequence of monotonically increasing IDs with
@@ -228,29 +279,4 @@ func (gen *idgen) next() uint32 {
 
 func (gen *idgen) remove(i uint32) {
 	gen.free = append(gen.free, i)
-}
-
-type refCount struct {
-	refs    int
-	release func()
-	mu      sync.Mutex
-}
-
-func (rc *refCount) inc(n int) {
-	rc.mu.Lock()
-	if rc.refs > 0 {
-		rc.refs += n
-	}
-	rc.mu.Unlock()
-}
-
-func (rc *refCount) dec(n int) {
-	rc.mu.Lock()
-	if rc.refs > 0 {
-		rc.refs -= n
-		if rc.refs <= 0 {
-			rc.release()
-		}
-	}
-	rc.mu.Unlock()
 }

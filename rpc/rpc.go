@@ -17,7 +17,7 @@ type Conn struct {
 
 	questions questionTable
 	answers   answerTable
-	imports   map[importID]struct{}
+	imports   importTable
 	exports   exportTable
 
 	manager manager
@@ -145,6 +145,10 @@ func (c *Conn) handleMessage(m rpccapnp.Message) {
 				log.Println("rpc: call:", err)
 			}
 		}(copyRPCMessage(m).Call())
+	case rpccapnp.Message_Which_release:
+		id := exportID(m.Release().Id())
+		refs := int(m.Release().ReferenceCount())
+		c.exports.release(id, refs)
 	default:
 		log.Printf("rpc: received unimplemented message, which = %v", m.Which())
 		ctx, _ := c.newContext()
@@ -241,6 +245,23 @@ func (c *Conn) newCallMessage(buf []byte, id questionID, cl *call, hold <-chan s
 	return msg
 }
 
+// release sends a release message over the connection.
+func (c *Conn) release(id importID) error {
+	i := c.imports.pop(id)
+	if i == 0 {
+		return nil
+	}
+	// TODO(light): deadline to close?
+	ctx, _ := c.newContext()
+	s := capnp.NewBuffer(nil)
+	msg := rpccapnp.NewRootMessage(s)
+	msgRelease := rpccapnp.NewRelease(s)
+	msgRelease.SetId(uint32(id))
+	msgRelease.SetReferenceCount(uint32(i))
+	msg.SetRelease(msgRelease)
+	return c.send(ctx, msg)
+}
+
 // handleReturn is run in its own goroutine.
 func (c *Conn) handleReturn(id questionID, q *question, m rpccapnp.Return) {
 	if q == nil {
@@ -304,8 +325,9 @@ func (c *Conn) populateMessageCapTable(payload rpccapnp.Payload) {
 		case rpccapnp.CapDescriptor_Which_none:
 			msg.AddCap(nil)
 		case rpccapnp.CapDescriptor_Which_senderHosted:
-			// TODO(light): add import to table
-			msg.AddCap(&importClient{c: c, id: importID(desc.SenderHosted())})
+			id := importID(desc.SenderHosted())
+			c.imports.addRef(id)
+			msg.AddCap(&importClient{c: c, id: id})
 		case rpccapnp.CapDescriptor_Which_receiverHosted:
 			id := exportID(desc.ReceiverHosted())
 			e := c.exports.get(id)
@@ -614,8 +636,7 @@ func (ic *importClient) Call(cl *capnp.Call) capnp.Answer {
 }
 
 func (ic *importClient) Close() error {
-	// TODO(light): Send release message.
-	return nil
+	return ic.c.release(ic.id)
 }
 
 // manager signals the running goroutines in a Conn.
