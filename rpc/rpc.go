@@ -326,8 +326,8 @@ func (c *Conn) populateMessageCapTable(payload rpccapnp.Payload) {
 			msg.AddCap(nil)
 		case rpccapnp.CapDescriptor_Which_senderHosted:
 			id := importID(desc.SenderHosted())
-			c.imports.addRef(id)
-			msg.AddCap(&importClient{c: c, id: id})
+			client := c.imports.addRef(c, id)
+			msg.AddCap(client)
 		case rpccapnp.CapDescriptor_Which_receiverHosted:
 			id := exportID(desc.ReceiverHosted())
 			e := c.exports.get(id)

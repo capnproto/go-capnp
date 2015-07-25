@@ -6,6 +6,7 @@ import (
 
 	"golang.org/x/net/context"
 	"zombiezen.com/go/capnproto"
+	"zombiezen.com/go/capnproto/rpc/internal/refcount"
 )
 
 // Table IDs
@@ -165,26 +166,47 @@ func (at *answerTable) pop(id answerID) *answer {
 	return a
 }
 
+// impent is an entry in the import table.
+type impent struct {
+	rc   *refcount.RefCount
+	refs int
+}
+
 type importTable struct {
 	mu  sync.Mutex
-	tab map[importID]int
+	tab map[importID]*impent
 }
 
 // addRef increases the counter of the times the import ID was sent to this vat.
-func (it *importTable) addRef(id importID) {
+func (it *importTable) addRef(c *Conn, id importID) capnp.Client {
 	it.mu.Lock()
 	if it.tab == nil {
-		it.tab = make(map[importID]int)
+		it.tab = make(map[importID]*impent)
 	}
-	it.tab[id]++
+	ent := it.tab[id]
+	var ref capnp.Client
+	if ent == nil {
+		client := &importClient{c: c, id: id}
+		var rc *refcount.RefCount
+		rc, ref = refcount.New(client)
+		ent = &impent{rc: rc, refs: 1}
+		it.tab[id] = ent
+	}
+	if ref == nil {
+		ref = ent.rc.Ref()
+	}
+	ent.refs++
 	it.mu.Unlock()
+	return ref
 }
 
 // pop removes the import ID and returns the number of times the import ID was sent to this vat.
 func (it *importTable) pop(id importID) (refs int) {
 	it.mu.Lock()
 	if it.tab != nil {
-		refs = it.tab[id]
+		if ent := it.tab[id]; ent != nil {
+			refs = ent.refs
+		}
 		delete(it.tab, id)
 	}
 	it.mu.Unlock()
@@ -215,10 +237,17 @@ func (et *exportTable) get(id exportID) *export {
 	return e
 }
 
-// add puts client in the table with a new ID.
+// add ensures that the client is present in the table, returning its ID.
+// If the client is already in the table, the previous ID is returned.
 func (et *exportTable) add(client capnp.Client) exportID {
-	// TODO(light): dedupe?
 	et.mu.Lock()
+	defer et.mu.Unlock()
+	for i, e := range et.tab {
+		if e != nil && e.client == client {
+			e.refs++
+			return exportID(i)
+		}
+	}
 	id := exportID(et.gen.next())
 	export := &export{
 		id:     id,
@@ -230,7 +259,6 @@ func (et *exportTable) add(client capnp.Client) exportID {
 	} else {
 		et.tab[id] = export
 	}
-	et.mu.Unlock()
 	return id
 }
 
