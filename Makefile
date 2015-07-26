@@ -4,6 +4,7 @@ prepare:
 	cd capnpc-go; go build
 	go install ./capnpc-go
 	cd aircraftlib; make
+	cd rpc/internal/testcapnp; make
 	which capnpc-go
 	diff `which capnpc-go` ./capnpc-go/capnpc-go
 	# if there was a diff above, adjust your PATH to use the most-recently build capnpc-go

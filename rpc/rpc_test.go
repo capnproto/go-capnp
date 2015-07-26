@@ -413,9 +413,10 @@ func (stub stubClient) Close() error {
 }
 
 type pipeTransport struct {
-	r      <-chan rpccapnp.Message
-	w      chan<- rpccapnp.Message
-	finish chan struct{}
+	r        <-chan rpccapnp.Message
+	w        chan<- rpccapnp.Message
+	finish   chan struct{}
+	otherFin chan struct{}
 
 	rbuf bytes.Buffer
 
@@ -426,15 +427,18 @@ type pipeTransport struct {
 
 func newPipe() (p, q rpc.Transport) {
 	a, b := make(chan rpccapnp.Message), make(chan rpccapnp.Message)
+	afin, bfin := make(chan struct{}), make(chan struct{})
 	p = &pipeTransport{
-		r:      a,
-		w:      b,
-		finish: make(chan struct{}),
+		r:        a,
+		w:        b,
+		finish:   afin,
+		otherFin: bfin,
 	}
 	q = &pipeTransport{
-		r:      b,
-		w:      a,
-		finish: make(chan struct{}),
+		r:        b,
+		w:        a,
+		finish:   bfin,
+		otherFin: afin,
 	}
 	return
 }
@@ -462,6 +466,8 @@ func (p *pipeTransport) SendMessage(ctx context.Context, msg rpccapnp.Message) e
 		return ctx.Err()
 	case <-p.finish:
 		return errClosed
+	case <-p.otherFin:
+		return errBrokenPipe
 	}
 }
 
