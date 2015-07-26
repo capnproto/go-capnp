@@ -2,6 +2,7 @@
 package rpc
 
 import (
+	"fmt"
 	"log"
 	"sync"
 
@@ -159,47 +160,54 @@ func (c *Conn) Bootstrap(ctx context.Context) capnp.Client {
 }
 
 // handleMessage is run in the tasks goroutine.  It will block the
-// reader goroutine until it returns.  If m is needed beyond the
-// function's lifetime, then it should be copied.
-func (c *Conn) handleMessage(m rpccapnp.Message) {
+// reader goroutine until it sends to readContinue.  If m is
+// needed beyond the function's lifetime, then it should be copied.
+func (c *Conn) handleMessage(m rpccapnp.Message, readContinue chan<- struct{}) {
 	switch m.Which() {
 	case rpccapnp.Message_Which_unimplemented:
 		// no-op for now to avoid feedback loop
 	case rpccapnp.Message_Which_abort:
 		a := Abort{copyRPCMessage(m).Abort()}
+		readContinue <- struct{}{}
 		log.Print(a)
 		c.manager.shutdown(a)
 	case rpccapnp.Message_Which_return:
-		c.handleReturn(copyRPCMessage(m).Return())
+		mm := copyRPCMessage(m)
+		readContinue <- struct{}{}
+		if err := c.handleReturn(mm.Return()); err != nil {
+			log.Println("rpc: handle return:", err)
+		}
 	case rpccapnp.Message_Which_finish:
 		// TODO(light): what if answers never had this ID?
 		// TODO(light): return if cancelled
 		// TODO(light): release
 		id := answerID(m.Finish().QuestionId())
+		readContinue <- struct{}{}
 		c.answers.pop(id)
 	case rpccapnp.Message_Which_bootstrap:
 		id := answerID(m.Bootstrap().QuestionId())
-		c.handleBootstrap(id)
+		readContinue <- struct{}{}
+		if err := c.handleBootstrap(id); err != nil {
+			log.Println("rpc: handle bootstrap:", err)
+		}
 	case rpccapnp.Message_Which_call:
-		c.handleCall(copyRPCMessage(m))
+		mm := copyRPCMessage(m)
+		readContinue <- struct{}{}
+		if err := c.handleCall(mm); err != nil {
+			log.Println("rpc: handle call:", err)
+		}
 	case rpccapnp.Message_Which_release:
 		id := exportID(m.Release().Id())
 		refs := int(m.Release().ReferenceCount())
+		readContinue <- struct{}{}
 		c.exports.release(id, refs)
 	default:
 		log.Printf("rpc: received unimplemented message, which = %v", m.Which())
 		um := newUnimplementedMessage(nil, m)
-		go c.queuedSend(c.manager.context(), "writing unimplemented", um)
-	}
-}
-
-// queuedSend sends a message over the transport, logging any errors.
-func (c *Conn) queuedSend(ctx context.Context, op string, m rpccapnp.Message) {
-	err := c.do(ctx, func() error {
-		return c.transport.SendMessage(ctx, m)
-	})
-	if err != nil {
-		log.Printf("rpc: %s: failed to send: %v", op, err)
+		readContinue <- struct{}{}
+		if err := c.transport.SendMessage(c.manager.context(), um); err != nil {
+			log.Println("rpc: writing unimplemented:", err)
+		}
 	}
 }
 
@@ -307,12 +315,11 @@ func (c *Conn) release(id importID) error {
 }
 
 // handleReturn is run in the tasks goroutine.
-func (c *Conn) handleReturn(m rpccapnp.Return) {
+func (c *Conn) handleReturn(m rpccapnp.Return) error {
 	id := questionID(m.AnswerId())
 	q := c.questions.get(id)
 	if q == nil {
-		log.Printf("rpc: received return for unknown question id=%d", id)
-		return
+		return fmt.Errorf("received return for unknown question id=%d", id)
 	}
 	releaseResultCaps := true
 	switch m.Which() {
@@ -334,20 +341,17 @@ func (c *Conn) handleReturn(m rpccapnp.Return) {
 	case rpccapnp.Return_Which_canceled:
 		q.resolve(capnp.ErrorAnswer(errCallCanceled))
 		// Don't send another finish message.
-		return
+		return nil
 	default:
 		um := newUnimplementedMessage(nil, rpccapnp.ReadRootMessage(m.Segment))
-		go c.queuedSend(c.manager.context(), "unimplemented return", um)
-		return
+		return c.transport.SendMessage(c.manager.context(), um)
 	}
-	go c.do(c.manager.context(), func() error {
-		fin := newFinishMessage(nil, id, releaseResultCaps)
-		if err := c.transport.SendMessage(c.manager.context(), fin); err != nil {
-			log.Printf("rpc: failed to write finish for ID=%d: %v", id, err)
-		}
-		c.questions.remove(id)
-		return nil
-	})
+	fin := newFinishMessage(nil, id, releaseResultCaps)
+	if err := c.transport.SendMessage(c.manager.context(), fin); err != nil {
+		log.Printf("rpc: failed to write finish for %v ID=%d: %v", q.method, id, err)
+	}
+	c.questions.remove(id)
+	return nil
 }
 
 func newFinishMessage(buf []byte, questionID questionID, release bool) rpccapnp.Message {
@@ -450,7 +454,7 @@ func (c *Conn) descriptorForClient(desc rpccapnp.CapDescriptor, client capnp.Cli
 }
 
 // handleBootstrap is run in the tasks goroutine.
-func (c *Conn) handleBootstrap(id answerID) {
+func (c *Conn) handleBootstrap(id answerID) error {
 	ctx, cancel := c.newContext()
 	a := c.answers.insert(id, cancel)
 	retmsg := newReturnMessage(id)
@@ -458,14 +462,12 @@ func (c *Conn) handleBootstrap(id answerID) {
 	if a == nil {
 		// Question ID reused, error out.
 		setReturnException(ret, errQuestionReused)
-		go c.queuedSend(ctx, "bootstrap", retmsg)
-		return
+		return c.transport.SendMessage(ctx, retmsg)
 	}
 	if c.main == nil {
 		e := setReturnException(ret, errNoMainInterface)
 		a.resolve(capnp.ErrorAnswer(Exception{e}))
-		go c.queuedSend(ctx, "bootstrap", retmsg)
-		return
+		return c.transport.SendMessage(ctx, retmsg)
 	}
 	exportID := c.exports.add(c.main)
 	retmsg.Segment.Message.AddCap(c.main)
@@ -478,7 +480,7 @@ func (c *Conn) handleBootstrap(id answerID) {
 	payload.SetCapTable(ctab)
 	ret.SetResults(payload)
 	a.resolve(capnp.ImmediateAnswer(capnp.Object(in)))
-	go c.queuedSend(ctx, "bootstrap", retmsg)
+	return c.transport.SendMessage(ctx, retmsg)
 }
 
 func (c *Conn) resolveTarget(mt rpccapnp.MessageTarget) capnp.Client {
@@ -520,7 +522,7 @@ func (c *Conn) getPromisedAnswer(pa rpccapnp.PromisedAnswer) capnp.Client {
 
 // handleCall is run in the tasks goroutine.  It mutates the capability
 // table of its parameter.
-func (c *Conn) handleCall(m rpccapnp.Message) {
+func (c *Conn) handleCall(m rpccapnp.Message) error {
 	ctx, cancel := c.newContext()
 	id := answerID(m.Call().QuestionId())
 	retmsg := newReturnMessage(id)
@@ -528,25 +530,24 @@ func (c *Conn) handleCall(m rpccapnp.Message) {
 	target := c.resolveTarget(m.Call().Target())
 	if target == nil {
 		setReturnException(ret, errBadTarget)
-		go c.queuedSend(ctx, "call", retmsg)
-		return
+		return c.transport.SendMessage(ctx, retmsg)
 	}
 	a := c.answers.insert(id, cancel)
 	if a == nil {
 		// Question ID reused, error out.
 		setReturnException(ret, errQuestionReused)
-		go c.queuedSend(ctx, "call", retmsg)
-		return
+		return c.transport.SendMessage(ctx, retmsg)
 	}
 	c.populateMessageCapTable(m.Call().Params())
 
 	go func() {
+		meth := capnp.Method{
+			InterfaceID: m.Call().InterfaceId(),
+			MethodID:    m.Call().MethodId(),
+		}
 		answer := target.Call(&capnp.Call{
-			Ctx: ctx,
-			Method: capnp.Method{
-				InterfaceID: m.Call().InterfaceId(),
-				MethodID:    m.Call().MethodId(),
-			},
+			Ctx:    ctx,
+			Method: meth,
 			Params: m.Call().Params().Content().ToStruct(),
 		})
 		// TODO(light): check to see if it's one of our answer types
@@ -566,9 +567,10 @@ func (c *Conn) handleCall(m rpccapnp.Message) {
 			return c.transport.SendMessage(ctx, retmsg)
 		})
 		if err != nil {
-			log.Println("rpc: call:", err)
+			log.Printf("rpc: writing return from %v: %v", &meth, err)
 		}
 	}()
+	return nil
 }
 
 func newReturnMessage(id answerID) rpccapnp.Message {
@@ -592,12 +594,25 @@ func (c *Conn) dispatchRecv() {
 	for {
 		msg, err := c.transport.RecvMessage(c.manager.context())
 		if err == nil {
-			err := c.do(context.Background(), func() error {
-				c.handleMessage(msg)
+			cont := make(chan struct{})
+			f := func() error {
+				c.handleMessage(msg, cont)
+				close(cont)
 				return nil
-			})
-			if err != nil {
-				// Only possible errors are shutdowns.
+			}
+			// Partial reimplementation of do(). We don't want to block on
+			// function completion; we want to block on the reader signal.
+			t := task{f, make(chan error, 1)}
+			select {
+			case c.tasks <- t:
+			case <-c.manager.finish:
+				return
+			}
+			select {
+			case <-cont:
+			case <-t.done:
+				panic("handleMessage task completed before signaling reader continue")
+			case <-c.manager.finish:
 				return
 			}
 		} else if isTemporaryError(err) {
