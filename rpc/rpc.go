@@ -71,22 +71,19 @@ func (c *Conn) Wait() error {
 
 // Close closes the connection.
 func (c *Conn) Close() error {
-	// Hang up.
-	// TODO(light): add timeout
-	ctx := context.Background()
-	werr := c.do(ctx, func() error {
-		s := capnp.NewBuffer(nil)
-		n := rpccapnp.NewRootMessage(s)
-		e := rpccapnp.NewException(s)
-		toException(e, errShutdown)
-		n.SetAbort(e)
-		return c.transport.SendMessage(ctx, n)
-	})
-
 	// Stop helper goroutines.
 	if !c.manager.shutdown(ErrConnClosed) {
-		return werr
+		return ErrConnClosed
 	}
+	// Hang up.
+	// TODO(light): add timeout to write.
+	ctx := context.Background()
+	s := capnp.NewBuffer(nil)
+	n := rpccapnp.NewRootMessage(s)
+	e := rpccapnp.NewException(s)
+	toException(e, errShutdown)
+	n.SetAbort(e)
+	werr := c.transport.SendMessage(ctx, n)
 	cerr := c.transport.Close()
 	if werr != nil {
 		return werr
