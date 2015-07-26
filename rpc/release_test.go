@@ -15,10 +15,10 @@ func TestRelease(t *testing.T) {
 	defer cancel()
 	p, q := newPipe()
 	c := rpc.NewConn(p)
-	defer c.Wait()
 	hf := new(HandleFactory)
 	d := rpc.NewConn(q, rpc.MainInterface(testcapnp.HandleFactory_ServerToClient(hf).GenericClient()))
-	defer d.Close()
+	defer d.Wait()
+	defer c.Close()
 	client := testcapnp.NewHandleFactory(c.Bootstrap(ctx))
 	r, err := client.NewHandle(ctx, func(r testcapnp.HandleFactory_newHandle_Params) {}).Get()
 	if err != nil {
@@ -39,25 +39,15 @@ func TestRelease(t *testing.T) {
 	}
 }
 
-func flushConn(ctx context.Context, c *rpc.Conn) {
-	// discard result
-	c.Bootstrap(ctx).Call(&capnp.Call{
-		Ctx:        ctx,
-		Method:     capnp.Method{InterfaceID: 0xdeadbeef, MethodID: 42},
-		ParamsFunc: func(capnp.Struct) {},
-		ParamsSize: capnp.ObjectSize{},
-	}).Struct()
-}
-
 func TestReleaseAlias(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	p, q := newPipe()
 	c := rpc.NewConn(p)
-	defer c.Wait()
 	hf := singletonHandleFactory()
 	d := rpc.NewConn(q, rpc.MainInterface(testcapnp.HandleFactory_ServerToClient(hf).GenericClient()))
-	defer d.Close()
+	defer d.Wait()
+	defer c.Close()
 	client := testcapnp.NewHandleFactory(c.Bootstrap(ctx))
 	r1, err := client.NewHandle(ctx, func(r testcapnp.HandleFactory_newHandle_Params) {}).Get()
 	if err != nil {
@@ -87,6 +77,16 @@ func TestReleaseAlias(t *testing.T) {
 	if n := hf.numHandles(); n != 0 {
 		t.Errorf("after handle1.Close() and handle2.Close(), numHandles = %d; want 0", n)
 	}
+}
+
+func flushConn(ctx context.Context, c *rpc.Conn) {
+	// discard result
+	c.Bootstrap(ctx).Call(&capnp.Call{
+		Ctx:        ctx,
+		Method:     capnp.Method{InterfaceID: 0xdeadbeef, MethodID: 42},
+		ParamsFunc: func(capnp.Struct) {},
+		ParamsSize: capnp.ObjectSize{},
+	}).Struct()
 }
 
 type Handle struct {
