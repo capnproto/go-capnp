@@ -177,10 +177,13 @@ func (c *Conn) handleMessage(m rpccapnp.Message, readContinue chan<- struct{}) {
 	case rpccapnp.Message_Which_finish:
 		// TODO(light): what if answers never had this ID?
 		// TODO(light): return if cancelled
-		// TODO(light): release
 		id := answerID(m.Finish().QuestionId())
+		releaseCaps := m.Finish().ReleaseResultCaps()
 		readContinue <- struct{}{}
-		c.answers.pop(id)
+		a := c.answers.pop(id)
+		if releaseCaps {
+			c.exports.releaseList(a.resultCaps)
+		}
 	case rpccapnp.Message_Which_bootstrap:
 		id := answerID(m.Bootstrap().QuestionId())
 		readContinue <- struct{}{}
@@ -317,6 +320,9 @@ func (c *Conn) handleReturn(m rpccapnp.Return) error {
 	q := c.questions.get(id)
 	if q == nil {
 		return fmt.Errorf("received return for unknown question id=%d", id)
+	}
+	if m.ReleaseParamCaps() {
+		c.exports.releaseList(q.paramCaps)
 	}
 	releaseResultCaps := true
 	switch m.Which() {
@@ -575,6 +581,7 @@ func newReturnMessage(id answerID) rpccapnp.Message {
 	retmsg := rpccapnp.NewRootMessage(s)
 	ret := rpccapnp.NewReturn(s)
 	ret.SetAnswerId(uint32(id))
+	ret.SetReleaseParamCaps(false)
 	retmsg.SetReturn(ret)
 	return retmsg
 }

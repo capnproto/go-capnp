@@ -18,9 +18,10 @@ type (
 )
 
 type question struct {
-	conn   *Conn
-	method *capnp.Method // nil if this is bootstrap
-	ctx    context.Context
+	conn      *Conn
+	method    *capnp.Method // nil if this is bootstrap
+	ctx       context.Context
+	paramCaps []exportID
 
 	fulfiller
 	// id should only be used if fulfiller isn't finished and while holding fulfiller's read lock.
@@ -99,8 +100,9 @@ func (qt *questionTable) remove(id questionID) bool {
 }
 
 type answer struct {
-	id     answerID
-	cancel context.CancelFunc
+	id         answerID
+	cancel     context.CancelFunc
+	resultCaps []exportID
 	fulfiller
 }
 
@@ -246,6 +248,13 @@ func (et *exportTable) release(id exportID, refs int) {
 	}
 	et.tab[id] = nil
 	et.gen.remove(uint32(id))
+}
+
+// releaseList decrements the reference count of each of the given exports by 1.
+func (et *exportTable) releaseList(ids []exportID) {
+	for _, id := range ids {
+		et.release(id, 1)
+	}
 }
 
 // idgen returns a sequence of monotonically increasing IDs with
