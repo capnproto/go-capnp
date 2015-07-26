@@ -13,11 +13,11 @@ News
 - Bootstrap interfaces
 - Calls/returns
 - Promises
+- Releasing capabilities (even uses finalizers with GC in case you forget to close!)
 
 Things that don't work:
 
 - Embargoes
-- Releasing capabilities
 - Cancellation
 
 The rest of Level 1 will be coming soon. -Ross
