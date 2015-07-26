@@ -70,7 +70,8 @@ func (rc *RefCount) decref() error {
 var errClosed = errors.New("rpc: Close() called on closed client")
 
 type ref struct {
-	rc *RefCount
+	rc   *RefCount
+	once sync.Once
 }
 
 func (r *ref) Call(cl *capnp.Call) capnp.Answer {
@@ -78,5 +79,14 @@ func (r *ref) Call(cl *capnp.Call) capnp.Answer {
 }
 
 func (r *ref) Close() error {
-	return r.rc.decref()
+	var err error
+	closed := false
+	r.once.Do(func() {
+		err = r.rc.decref()
+		closed = true
+	})
+	if !closed {
+		return errClosed
+	}
+	return err
 }
