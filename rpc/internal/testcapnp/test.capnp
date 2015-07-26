@@ -11,3 +11,8 @@ interface Handle {}
 interface HandleFactory {
   newHandle @0 () -> (handle :Handle);
 }
+
+interface Hanger {
+  hang @0 () -> ();
+  # Block until context is cancelled
+}
