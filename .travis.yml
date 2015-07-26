@@ -10,5 +10,3 @@ before_install:
 - sudo apt-get update -qq
 
 install: bin/travis-install.sh
-
-script: go test -v zombiezen.com/go/capnproto/...
