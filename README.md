@@ -18,6 +18,7 @@ Things that don't work:
 
 - Embargoes
 - Releasing capabilities
+- Cancellation
 
 The rest of Level 1 will be coming soon. -Ross
 
