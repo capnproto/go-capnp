@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"log"
-	"sync"
 
 	"golang.org/x/net/context"
 	"zombiezen.com/go/capnproto"
@@ -39,46 +38,33 @@ func (q *question) PipelineCall(transform []capnp.PipelineOp, ccall *capnp.Call)
 	if transform == nil {
 		transform = []capnp.PipelineOp{}
 	}
-	ready := make(chan capnp.Answer, 1)
-	q.conn.calls <- &call{
+	// TODO(light): don't block
+	return q.conn.sendCall(&call{
 		Call:       ccall,
-		ready:      ready,
 		questionID: q.id,
 		transform:  transform,
-	}
-	return <-ready
+	})
 }
 
 // promiseInfo returns the underlying answer if q is resolved,
-// otherwise a question ID that is valid until hold is closed.
-// If hold is nil, then the returned ID is zero.
-func (q *question) promiseInfo(hold <-chan struct{}) (ans capnp.Answer, id questionID) {
+// otherwise a question ID.
+func (q *question) promiseInfo() (ans capnp.Answer, id questionID) {
 	q.mu.RLock()
-	if q.answer != nil {
-		ans = q.answer
-		q.mu.RUnlock()
-		return ans, 0
+	ans, id = q.answer, q.id
+	q.mu.RUnlock()
+	if ans != nil {
+		id = 0
 	}
-	if hold == nil {
-		q.mu.RUnlock()
-		return nil, 0
-	}
-	go func() {
-		<-hold
-		q.mu.RUnlock()
-	}()
-	return nil, q.id
+	return ans, id
 }
 
 type questionTable struct {
-	mu  sync.RWMutex
 	tab []*question
 	gen idgen
 }
 
 // new creates a new question with an unassigned ID.
 func (qt *questionTable) new(conn *Conn, ctx context.Context, method *capnp.Method) *question {
-	qt.mu.Lock()
 	id := questionID(qt.gen.next())
 	q := &question{
 		id:     id,
@@ -92,28 +78,23 @@ func (qt *questionTable) new(conn *Conn, ctx context.Context, method *capnp.Meth
 	} else {
 		qt.tab[id] = q
 	}
-	qt.mu.Unlock()
 	return q
 }
 
 func (qt *questionTable) get(id questionID) *question {
-	qt.mu.RLock()
 	var q *question
 	if int(id) < len(qt.tab) {
 		q = qt.tab[id]
 	}
-	qt.mu.RUnlock()
 	return q
 }
 
 func (qt *questionTable) remove(id questionID) bool {
-	qt.mu.Lock()
 	ok := int(id) < len(qt.tab) && qt.tab[id] != nil
 	if ok {
 		qt.tab[id] = nil
 	}
 	qt.gen.remove(uint32(id))
-	qt.mu.Unlock()
 	return ok
 }
 
@@ -124,24 +105,20 @@ type answer struct {
 }
 
 type answerTable struct {
-	mu  sync.Mutex
 	tab map[answerID]*answer
 }
 
 func (at *answerTable) get(id answerID) *answer {
-	at.mu.Lock()
 	var a *answer
 	if at.tab != nil {
 		a = at.tab[id]
 	}
-	at.mu.Unlock()
 	return a
 }
 
 // insert creates a new question with the given ID, returning nil
 // if the ID is already in use.
 func (at *answerTable) insert(id answerID, cancel context.CancelFunc) *answer {
-	at.mu.Lock()
 	if at.tab == nil {
 		at.tab = make(map[answerID]*answer)
 	}
@@ -151,18 +128,15 @@ func (at *answerTable) insert(id answerID, cancel context.CancelFunc) *answer {
 		a.init()
 		at.tab[id] = a
 	}
-	at.mu.Unlock()
 	return a
 }
 
 func (at *answerTable) pop(id answerID) *answer {
-	at.mu.Lock()
 	var a *answer
 	if at.tab != nil {
 		a = at.tab[id]
 		delete(at.tab, id)
 	}
-	at.mu.Unlock()
 	return a
 }
 
@@ -173,13 +147,11 @@ type impent struct {
 }
 
 type importTable struct {
-	mu  sync.Mutex
 	tab map[importID]*impent
 }
 
 // addRef increases the counter of the times the import ID was sent to this vat.
 func (it *importTable) addRef(c *Conn, id importID) capnp.Client {
-	it.mu.Lock()
 	if it.tab == nil {
 		it.tab = make(map[importID]*impent)
 	}
@@ -189,27 +161,24 @@ func (it *importTable) addRef(c *Conn, id importID) capnp.Client {
 		client := &importClient{c: c, id: id}
 		var rc *refcount.RefCount
 		rc, ref = refcount.New(client)
-		ent = &impent{rc: rc, refs: 1}
+		ent = &impent{rc: rc, refs: 0}
 		it.tab[id] = ent
 	}
 	if ref == nil {
 		ref = ent.rc.Ref()
 	}
 	ent.refs++
-	it.mu.Unlock()
 	return ref
 }
 
 // pop removes the import ID and returns the number of times the import ID was sent to this vat.
 func (it *importTable) pop(id importID) (refs int) {
-	it.mu.Lock()
 	if it.tab != nil {
 		if ent := it.tab[id]; ent != nil {
 			refs = ent.refs
 		}
 		delete(it.tab, id)
 	}
-	it.mu.Unlock()
 	return
 }
 
@@ -222,26 +191,21 @@ type export struct {
 }
 
 type exportTable struct {
-	mu  sync.RWMutex
 	tab []*export
 	gen idgen
 }
 
 func (et *exportTable) get(id exportID) *export {
-	et.mu.RLock()
 	var e *export
 	if int(id) < len(et.tab) {
 		e = et.tab[id]
 	}
-	et.mu.RUnlock()
 	return e
 }
 
 // add ensures that the client is present in the table, returning its ID.
 // If the client is already in the table, the previous ID is returned.
 func (et *exportTable) add(client capnp.Client) exportID {
-	et.mu.Lock()
-	defer et.mu.Unlock()
 	for i, e := range et.tab {
 		if e != nil && e.client == client {
 			e.refs++
@@ -263,8 +227,6 @@ func (et *exportTable) add(client capnp.Client) exportID {
 }
 
 func (et *exportTable) release(id exportID, refs int) {
-	et.mu.Lock()
-	defer et.mu.Unlock()
 	if int(id) >= len(et.tab) {
 		return
 	}
