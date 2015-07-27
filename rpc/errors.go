@@ -2,7 +2,9 @@ package rpc
 
 import (
 	"errors"
+	"fmt"
 
+	"zombiezen.com/go/capnproto"
 	"zombiezen.com/go/capnproto/rpc/rpccapnp"
 )
 
@@ -56,4 +58,17 @@ type bootstrapError struct {
 
 func (e bootstrapError) Error() string {
 	return "rpc bootstrap:" + e.err.Error()
+}
+
+type questionError struct {
+	id     questionID
+	method *capnp.Method // nil if this is bootstrap
+	err    error
+}
+
+func (qe *questionError) Error() string {
+	if qe.method == nil {
+		return fmt.Sprintf("bootstrap call id=%d: %v", qe.id, qe.err)
+	}
+	return fmt.Sprintf("%v call id=%d: %v", qe.method, qe.id, qe.err)
 }

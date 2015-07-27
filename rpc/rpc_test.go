@@ -37,15 +37,15 @@ func TestBootstrap(t *testing.T) {
 	defer conn.Close()
 	defer p.Close()
 
-	readBootstrap(t, ctx, conn, p)
+	clientCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	readBootstrap(t, clientCtx, conn, p)
 }
 
 func readBootstrap(t *testing.T, ctx context.Context, conn *rpc.Conn, p rpc.Transport) (client capnp.Client, questionID uint32) {
 	clientCh := make(chan capnp.Client, 1)
-	clientCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
 	go func() {
-		clientCh <- conn.Bootstrap(clientCtx)
+		clientCh <- conn.Bootstrap(ctx)
 	}()
 
 	msg, err := p.RecvMessage(ctx)
@@ -70,7 +70,9 @@ func TestBootstrapFulfilled(t *testing.T) {
 	defer conn.Close()
 	defer p.Close()
 
-	bootstrapAndFulfill(t, ctx, conn, p)
+	clientCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	bootstrapAndFulfill(t, clientCtx, conn, p)
 }
 
 func bootstrapAndFulfill(t *testing.T, ctx context.Context, conn *rpc.Conn, p rpc.Transport) capnp.Client {

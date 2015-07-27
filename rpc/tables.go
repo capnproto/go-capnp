@@ -23,9 +23,10 @@ type question struct {
 	ctx       context.Context
 	paramCaps []exportID
 
+	// mutable state
 	fulfiller
-	// id should only be used if fulfiller isn't finished and while holding fulfiller's read lock.
-	id questionID
+	id       questionID
+	canceled bool
 }
 
 func (q *question) PipelineCall(transform []capnp.PipelineOp, ccall *capnp.Call) capnp.Answer {
@@ -79,6 +80,15 @@ func (qt *questionTable) new(conn *Conn, ctx context.Context, method *capnp.Meth
 	} else {
 		qt.tab[id] = q
 	}
+	if done := q.ctx.Done(); done != nil {
+		go func() {
+			select {
+			case <-done:
+				conn.sendCancel(q)
+			case <-q.resolved:
+			}
+		}()
+	}
 	return q
 }
 
@@ -90,13 +100,14 @@ func (qt *questionTable) get(id questionID) *question {
 	return q
 }
 
-func (qt *questionTable) remove(id questionID) bool {
-	ok := int(id) < len(qt.tab) && qt.tab[id] != nil
-	if ok {
+func (qt *questionTable) pop(id questionID) *question {
+	var q *question
+	if int(id) < len(qt.tab) {
+		q = qt.tab[id]
 		qt.tab[id] = nil
+		qt.gen.remove(uint32(id))
 	}
-	qt.gen.remove(uint32(id))
-	return ok
+	return q
 }
 
 type answer struct {
