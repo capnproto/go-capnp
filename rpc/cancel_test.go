@@ -6,6 +6,7 @@ import (
 	"golang.org/x/net/context"
 	"zombiezen.com/go/capnproto"
 	"zombiezen.com/go/capnproto/rpc"
+	"zombiezen.com/go/capnproto/rpc/internal/logtransport"
 	"zombiezen.com/go/capnproto/rpc/internal/testcapnp"
 )
 
@@ -13,6 +14,9 @@ func TestCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	p, q := newPipe()
+	if *logMessages {
+		p = logtransport.New(nil, p)
+	}
 	c := rpc.NewConn(p)
 	notify := make(chan struct{})
 	hanger := testcapnp.Hanger_ServerToClient(Hanger{notify: notify})

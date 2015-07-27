@@ -7,6 +7,7 @@ import (
 	"golang.org/x/net/context"
 	"zombiezen.com/go/capnproto"
 	"zombiezen.com/go/capnproto/rpc"
+	"zombiezen.com/go/capnproto/rpc/internal/logtransport"
 	"zombiezen.com/go/capnproto/rpc/internal/testcapnp"
 )
 
@@ -14,6 +15,9 @@ func TestRelease(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	p, q := newPipe()
+	if *logMessages {
+		p = logtransport.New(nil, p)
+	}
 	c := rpc.NewConn(p)
 	hf := new(HandleFactory)
 	d := rpc.NewConn(q, rpc.MainInterface(testcapnp.HandleFactory_ServerToClient(hf).GenericClient()))
@@ -43,6 +47,9 @@ func TestReleaseAlias(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	p, q := newPipe()
+	if *logMessages {
+		p = logtransport.New(nil, p)
+	}
 	c := rpc.NewConn(p)
 	hf := singletonHandleFactory()
 	d := rpc.NewConn(q, rpc.MainInterface(testcapnp.HandleFactory_ServerToClient(hf).GenericClient()))

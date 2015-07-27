@@ -3,12 +3,14 @@ package rpc_test
 import (
 	"bytes"
 	"errors"
+	"flag"
 	"sync"
 	"testing"
 
 	"golang.org/x/net/context"
 	"zombiezen.com/go/capnproto"
 	"zombiezen.com/go/capnproto/rpc"
+	"zombiezen.com/go/capnproto/rpc/internal/logtransport"
 	"zombiezen.com/go/capnproto/rpc/rpccapnp"
 )
 
@@ -18,8 +20,13 @@ const (
 	bootstrapExportID uint32 = 84
 )
 
+var logMessages = flag.Bool("logmessages", false, "whether to log the transport in tests.  Messages are always from client to server.")
+
 func newTestConn(t *testing.T, options ...rpc.ConnOption) (*rpc.Conn, rpc.Transport) {
 	p, q := newPipe()
+	if *logMessages {
+		p = logtransport.New(nil, p)
+	}
 	c := rpc.NewConn(p, options...)
 	return c, q
 }
