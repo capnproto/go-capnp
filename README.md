@@ -14,11 +14,11 @@ News
 - Calls/returns
 - Promises
 - Releasing capabilities (even uses finalizers with GC in case you forget to close!)
+- Cancellation
 
 Things that don't work:
 
 - Embargoes
-- Cancellation
 
 The rest of Level 1 will be coming soon. -Ross
 
