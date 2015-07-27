@@ -16,3 +16,15 @@ interface Hanger {
   hang @0 () -> ();
   # Block until context is cancelled
 }
+
+interface CallOrder {
+  getCallSequence @0 (expected: UInt32) -> (n: UInt32);
+  # First call returns 0, next returns 1, ...
+  #
+  # The input `expected` is ignored but useful for disambiguating debug logs.
+}
+
+interface Echoer extends(CallOrder) {
+  echo @0 (cap :CallOrder) -> (cap :CallOrder);
+  # Just returns the input cap.
+}
