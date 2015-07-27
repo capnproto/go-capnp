@@ -7,13 +7,14 @@ import (
 	"zombiezen.com/go/capnproto"
 	"zombiezen.com/go/capnproto/rpc"
 	"zombiezen.com/go/capnproto/rpc/internal/logtransport"
+	"zombiezen.com/go/capnproto/rpc/internal/pipetransport"
 	"zombiezen.com/go/capnproto/rpc/internal/testcapnp"
 )
 
 func TestCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	p, q := newPipe()
+	p, q := pipetransport.New()
 	if *logMessages {
 		p = logtransport.New(nil, p)
 	}

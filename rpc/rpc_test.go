@@ -1,16 +1,15 @@
 package rpc_test
 
 import (
-	"bytes"
 	"errors"
 	"flag"
-	"sync"
 	"testing"
 
 	"golang.org/x/net/context"
 	"zombiezen.com/go/capnproto"
 	"zombiezen.com/go/capnproto/rpc"
 	"zombiezen.com/go/capnproto/rpc/internal/logtransport"
+	"zombiezen.com/go/capnproto/rpc/internal/pipetransport"
 	"zombiezen.com/go/capnproto/rpc/rpccapnp"
 )
 
@@ -23,7 +22,7 @@ const (
 var logMessages = flag.Bool("logmessages", false, "whether to log the transport in tests.  Messages are always from client to server.")
 
 func newTestConn(t *testing.T, options ...rpc.ConnOption) (*rpc.Conn, rpc.Transport) {
-	p, q := newPipe()
+	p, q := pipetransport.New()
 	if *logMessages {
 		p = logtransport.New(nil, p)
 	}
@@ -421,126 +420,7 @@ func (stub stubClient) Close() error {
 	return nil
 }
 
-type pipeTransport struct {
-	r        <-chan rpccapnp.Message
-	w        chan<- rpccapnp.Message
-	finish   chan struct{}
-	otherFin chan struct{}
-
-	rbuf bytes.Buffer
-
-	mu       sync.Mutex
-	inflight int
-	done     bool
-}
-
-func newPipe() (p, q rpc.Transport) {
-	a, b := make(chan rpccapnp.Message), make(chan rpccapnp.Message)
-	afin, bfin := make(chan struct{}), make(chan struct{})
-	p = &pipeTransport{
-		r:        a,
-		w:        b,
-		finish:   afin,
-		otherFin: bfin,
-	}
-	q = &pipeTransport{
-		r:        b,
-		w:        a,
-		finish:   bfin,
-		otherFin: afin,
-	}
-	return
-}
-
-func (p *pipeTransport) SendMessage(ctx context.Context, msg rpccapnp.Message) error {
-	if !p.startSend() {
-		return errClosed
-	}
-	defer p.finishSend()
-
-	buf := new(bytes.Buffer)
-	_, err := msg.Segment.WriteTo(buf)
-	if err != nil {
-		return err
-	}
-	seg, _, err := capnp.ReadFromMemoryZeroCopy(buf.Bytes())
-	if err != nil {
-		return err
-	}
-
-	select {
-	case p.w <- rpccapnp.ReadRootMessage(seg):
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-p.finish:
-		return errClosed
-	case <-p.otherFin:
-		return errBrokenPipe
-	}
-}
-
-func (p *pipeTransport) startSend() bool {
-	p.mu.Lock()
-	ok := !p.done
-	if ok {
-		p.inflight++
-	}
-	p.mu.Unlock()
-	return ok
-}
-
-func (p *pipeTransport) finishSend() {
-	p.mu.Lock()
-	p.inflight--
-	p.mu.Unlock()
-}
-
-func (p *pipeTransport) RecvMessage(ctx context.Context) (rpccapnp.Message, error) {
-	// Scribble over shared buffer to test for race conditions.
-	for b, i := p.rbuf.Bytes(), 0; i < len(b); i++ {
-		b[i] = 0xff
-	}
-	p.rbuf.Reset()
-
-	select {
-	case msg, ok := <-p.r:
-		if !ok {
-			return rpccapnp.Message{}, errBrokenPipe
-		}
-		if _, err := msg.Segment.WriteTo(&p.rbuf); err != nil {
-			return rpccapnp.Message{}, err
-		}
-		seg, _, err := capnp.ReadFromMemoryZeroCopy(p.rbuf.Bytes())
-		if err != nil {
-			return rpccapnp.Message{}, err
-		}
-		return rpccapnp.ReadRootMessage(seg), nil
-	case <-ctx.Done():
-		return rpccapnp.Message{}, ctx.Err()
-	}
-}
-
-func (p *pipeTransport) Close() error {
-	p.mu.Lock()
-	done := p.done
-	if !done {
-		p.done = true
-		close(p.finish)
-		if p.inflight == 0 {
-			close(p.w)
-		}
-	}
-	p.mu.Unlock()
-	if done {
-		return errClosed
-	}
-	return nil
-}
-
 var (
-	errBrokenPipe     = errors.New("rpc_test: broken pipe")
-	errClosed         = errors.New("rpc_test: write to broken pipe")
 	errMockClient     = errors.New("rpc_test: mock client")
 	errNotImplemented = errors.New("rpc_test: stub client method not implemented")
 )
