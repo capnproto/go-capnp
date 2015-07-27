@@ -282,23 +282,18 @@ func newUnimplementedMessage(buf []byte, m rpccapnp.Message) rpccapnp.Message {
 	return n
 }
 
+// sendCall is run from the tasks goroutine.
 func (c *Conn) sendCall(cl *call) capnp.Answer {
-	var q *question
-	err := c.do(cl.Ctx, func() error {
-		q = c.questions.new(c, cl.Ctx, &cl.Method)
-		msg := c.newCallMessage(nil, q.id, cl)
-		err := c.transport.SendMessage(cl.Ctx, msg)
-		if err != nil {
-			return &questionError{
-				id:     q.id,
-				method: q.method,
-				err:    err,
-			}
-		}
-		return nil
-	})
+	q := c.questions.new(c, cl.Ctx, &cl.Method)
+	msg := c.newCallMessage(nil, q.id, cl)
+	err := c.transport.SendMessage(cl.Ctx, msg)
 	if err != nil {
-		return capnp.ErrorAnswer(err)
+		c.questions.pop(q.id)
+		return capnp.ErrorAnswer(&questionError{
+			id:     q.id,
+			method: q.method,
+			err:    err,
+		})
 	}
 	return q
 }
@@ -738,10 +733,18 @@ type importClient struct {
 }
 
 func (ic *importClient) Call(cl *capnp.Call) capnp.Answer {
-	return ic.c.sendCall(&call{
-		Call:     cl,
-		importID: ic.id,
+	var a capnp.Answer
+	err := ic.c.do(cl.Ctx, func() error {
+		a = ic.c.sendCall(&call{
+			Call:     cl,
+			importID: ic.id,
+		})
+		return nil
 	})
+	if err != nil {
+		return capnp.ErrorAnswer(err)
+	}
+	return a
 }
 
 func (ic *importClient) Close() error {

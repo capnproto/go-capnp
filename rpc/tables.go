@@ -23,29 +23,43 @@ type question struct {
 	ctx       context.Context
 	paramCaps []exportID
 
-	// mutable state
+	canceled bool // only accessed from tasks goroutine
+
 	fulfiller
-	id       questionID
-	canceled bool
+	id questionID // protected by fulfiller.mu
 }
 
 func (q *question) PipelineCall(transform []capnp.PipelineOp, ccall *capnp.Call) capnp.Answer {
 	q.init()
-	q.mu.RLock()
-	defer q.mu.RUnlock()
-
-	if a := q.answer; a != nil {
+	if a := q.peek(); a != nil {
 		return a.PipelineCall(transform, ccall)
 	}
 	if transform == nil {
 		transform = []capnp.PipelineOp{}
 	}
-	// TODO(light): don't block
-	return q.conn.sendCall(&call{
-		Call:       ccall,
-		questionID: q.id,
-		transform:  transform,
+	var qa, sent capnp.Answer
+	err := q.conn.do(ccall.Ctx, func() error {
+		var id questionID
+		qa, id = q.promiseInfo()
+		if qa != nil {
+			// Answered while scheduling.
+			// Don't block tasks on sending a pipeline call.
+			return nil
+		}
+		sent = q.conn.sendCall(&call{
+			Call:       ccall,
+			questionID: id,
+			transform:  transform,
+		})
+		return nil
 	})
+	if err != nil {
+		return capnp.ErrorAnswer(err)
+	}
+	if qa != nil {
+		return qa.PipelineCall(transform, ccall)
+	}
+	return sent
 }
 
 // promiseInfo returns the underlying answer if q is resolved,
