@@ -43,6 +43,7 @@ type Hanger struct {
 }
 
 func (h Hanger) Hang(c context.Context, opts capnp.CallOptions, p testcapnp.Hanger_hang_Params, r testcapnp.Hanger_hang_Results) error {
+	capnp.Ack(opts)
 	h.notify <- struct{}{}
 	<-c.Done()
 	close(h.notify)

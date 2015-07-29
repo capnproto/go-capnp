@@ -125,6 +125,7 @@ func (hf *HandleFactory) NewHandle(
 	opts capnp.CallOptions,
 	p testcapnp.HandleFactory_newHandle_Params,
 	r testcapnp.HandleFactory_newHandle_Results) error {
+	capnp.Ack(opts)
 	if hf.singleton.IsNull() {
 		hf.mu.Lock()
 		hf.n++

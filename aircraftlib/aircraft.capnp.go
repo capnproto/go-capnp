@@ -2123,6 +2123,142 @@ func (p *StackingB_Promise) Get() (StackingB, error) {
 	return StackingB(s), err
 }
 
+type CallSequence struct{ c C.Client }
+
+func NewCallSequence(c C.Client) CallSequence { return CallSequence{c} }
+
+func (c CallSequence) GenericClient() C.Client { return c.c }
+
+func (c CallSequence) IsNull() bool { return c.c == nil }
+
+func (c CallSequence) GetNumber(ctx context.Context, params func(CallSequence_getNumber_Params), opts ...C.CallOption) *CallSequence_getNumber_Results_Promise {
+	if c.c == nil {
+		return (*CallSequence_getNumber_Results_Promise)(C.NewPipeline(C.ErrorAnswer(C.ErrNullClient)))
+	}
+	return (*CallSequence_getNumber_Results_Promise)(C.NewPipeline(c.c.Call(&C.Call{
+		Ctx: ctx,
+		Method: C.Method{
+
+			InterfaceID:   0xabaedf5f7817c820,
+			MethodID:      0,
+			InterfaceName: "aircraft.capnp:CallSequence",
+			MethodName:    "getNumber",
+		},
+		ParamsSize: C.ObjectSize{DataSize: 0, PointerCount: 0},
+		ParamsFunc: func(s C.Struct) { params(CallSequence_getNumber_Params(s)) },
+		Options:    C.NewCallOptions(opts),
+	})))
+}
+
+type CallSequence_Server interface {
+	GetNumber(ctx context.Context, opts C.CallOptions, params CallSequence_getNumber_Params, results CallSequence_getNumber_Results) error
+}
+
+func CallSequence_ServerToClient(s CallSequence_Server) CallSequence {
+	c, _ := s.(C.Closer)
+	return NewCallSequence(C.NewServer(CallSequence_Methods(nil, s), c))
+}
+
+func CallSequence_Methods(methods []C.ServerMethod, server CallSequence_Server) []C.ServerMethod {
+	if cap(methods) == 0 {
+		methods = make([]C.ServerMethod, 0, 1)
+	}
+
+	methods = append(methods, C.ServerMethod{
+		Method: C.Method{
+
+			InterfaceID:   0xabaedf5f7817c820,
+			MethodID:      0,
+			InterfaceName: "aircraft.capnp:CallSequence",
+			MethodName:    "getNumber",
+		},
+		Impl: func(c context.Context, opts C.CallOptions, p, r C.Struct) error {
+			return server.GetNumber(c, opts, CallSequence_getNumber_Params(p), CallSequence_getNumber_Results(r))
+		},
+		ResultsSize: C.ObjectSize{DataSize: 8, PointerCount: 0},
+	})
+
+	return methods
+}
+
+type CallSequence_getNumber_Params C.Struct
+
+func NewCallSequence_getNumber_Params(s *C.Segment) CallSequence_getNumber_Params {
+	return CallSequence_getNumber_Params(s.NewStruct(C.ObjectSize{DataSize: 0, PointerCount: 0}))
+}
+func NewRootCallSequence_getNumber_Params(s *C.Segment) CallSequence_getNumber_Params {
+	return CallSequence_getNumber_Params(s.NewRootStruct(C.ObjectSize{DataSize: 0, PointerCount: 0}))
+}
+func AutoNewCallSequence_getNumber_Params(s *C.Segment) CallSequence_getNumber_Params {
+	return CallSequence_getNumber_Params(s.NewStructAR(C.ObjectSize{DataSize: 0, PointerCount: 0}))
+}
+func ReadRootCallSequence_getNumber_Params(s *C.Segment) CallSequence_getNumber_Params {
+	return CallSequence_getNumber_Params(s.Root(0).ToStruct())
+}
+
+// capnp.JSON_enabled == false so we stub MarshalJSON().
+func (s CallSequence_getNumber_Params) MarshalJSON() (bs []byte, err error) { return }
+
+type CallSequence_getNumber_Params_List C.PointerList
+
+func NewCallSequence_getNumber_Params_List(s *C.Segment, sz int) CallSequence_getNumber_Params_List {
+	return CallSequence_getNumber_Params_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 0}, sz))
+}
+func (s CallSequence_getNumber_Params_List) Len() int { return C.PointerList(s).Len() }
+func (s CallSequence_getNumber_Params_List) At(i int) CallSequence_getNumber_Params {
+	return CallSequence_getNumber_Params(C.PointerList(s).At(i).ToStruct())
+}
+func (s CallSequence_getNumber_Params_List) Set(i int, item CallSequence_getNumber_Params) {
+	C.PointerList(s).Set(i, C.Object(item))
+}
+
+type CallSequence_getNumber_Params_Promise C.Pipeline
+
+func (p *CallSequence_getNumber_Params_Promise) Get() (CallSequence_getNumber_Params, error) {
+	s, err := (*C.Pipeline)(p).Struct()
+	return CallSequence_getNumber_Params(s), err
+}
+
+type CallSequence_getNumber_Results C.Struct
+
+func NewCallSequence_getNumber_Results(s *C.Segment) CallSequence_getNumber_Results {
+	return CallSequence_getNumber_Results(s.NewStruct(C.ObjectSize{DataSize: 8, PointerCount: 0}))
+}
+func NewRootCallSequence_getNumber_Results(s *C.Segment) CallSequence_getNumber_Results {
+	return CallSequence_getNumber_Results(s.NewRootStruct(C.ObjectSize{DataSize: 8, PointerCount: 0}))
+}
+func AutoNewCallSequence_getNumber_Results(s *C.Segment) CallSequence_getNumber_Results {
+	return CallSequence_getNumber_Results(s.NewStructAR(C.ObjectSize{DataSize: 8, PointerCount: 0}))
+}
+func ReadRootCallSequence_getNumber_Results(s *C.Segment) CallSequence_getNumber_Results {
+	return CallSequence_getNumber_Results(s.Root(0).ToStruct())
+}
+func (s CallSequence_getNumber_Results) N() uint32     { return C.Struct(s).Get32(0) }
+func (s CallSequence_getNumber_Results) SetN(v uint32) { C.Struct(s).Set32(0, v) }
+
+// capnp.JSON_enabled == false so we stub MarshalJSON().
+func (s CallSequence_getNumber_Results) MarshalJSON() (bs []byte, err error) { return }
+
+type CallSequence_getNumber_Results_List C.PointerList
+
+func NewCallSequence_getNumber_Results_List(s *C.Segment, sz int) CallSequence_getNumber_Results_List {
+	return CallSequence_getNumber_Results_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 0}, sz))
+}
+func (s CallSequence_getNumber_Results_List) Len() int { return C.PointerList(s).Len() }
+func (s CallSequence_getNumber_Results_List) At(i int) CallSequence_getNumber_Results {
+	return CallSequence_getNumber_Results(C.PointerList(s).At(i).ToStruct())
+}
+func (s CallSequence_getNumber_Results_List) Set(i int, item CallSequence_getNumber_Results) {
+	C.PointerList(s).Set(i, C.Object(item))
+}
+
+type CallSequence_getNumber_Results_Promise C.Pipeline
+
+func (p *CallSequence_getNumber_Results_Promise) Get() (CallSequence_getNumber_Results, error) {
+	s, err := (*C.Pipeline)(p).Struct()
+	return CallSequence_getNumber_Results(s), err
+}
+
 var x_832bcc6686a26d56 = C.NewBuffer([]byte{
 	0, 0, 0, 0, 1, 0, 1, 0,
 	42, 0, 0, 0, 0, 0, 0, 0,

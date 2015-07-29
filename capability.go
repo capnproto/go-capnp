@@ -117,6 +117,15 @@ func SetOptionValue(key, value interface{}) CallOption {
 	}}
 }
 
+// callOptionKey is the unexported key type for predefined options.
+type callOptionKey int
+
+// Predefined call options
+const (
+	invalidOptionKey callOptionKey = iota
+	ackSignalKey
+)
+
 // An Answer is the deferred result of a client call, which is usually wrapped by a Pipeline.
 type Answer interface {
 	// Struct waits until the call is finished and returns the result.

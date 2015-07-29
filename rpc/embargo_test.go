@@ -1,7 +1,6 @@
 package rpc_test
 
 import (
-	"sync"
 	"testing"
 
 	"golang.org/x/net/context"
@@ -13,7 +12,7 @@ import (
 )
 
 func TestEmbargo(t *testing.T) {
-	t.Skip()
+	t.Skip("still working on it")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	p, q := pipetransport.New()
@@ -72,8 +71,7 @@ func callseq(c context.Context, client capnp.Client, n uint32) *testcapnp.CallOr
 }
 
 type CallOrder struct {
-	mu sync.Mutex
-	n  uint32
+	n uint32
 }
 
 func (co *CallOrder) GetCallSequence(

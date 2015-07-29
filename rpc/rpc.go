@@ -612,17 +612,17 @@ func (c *Conn) handleCall(m rpccapnp.Message) error {
 		return c.transport.SendMessage(ctx, retmsg)
 	}
 	c.populateMessageCapTable(m.Call().Params())
+	meth := capnp.Method{
+		InterfaceID: m.Call().InterfaceId(),
+		MethodID:    m.Call().MethodId(),
+	}
+	answer := target.Call(&capnp.Call{
+		Ctx:    ctx,
+		Method: meth,
+		Params: m.Call().Params().Content().ToStruct(),
+	})
 
 	go func() {
-		meth := capnp.Method{
-			InterfaceID: m.Call().InterfaceId(),
-			MethodID:    m.Call().MethodId(),
-		}
-		answer := target.Call(&capnp.Call{
-			Ctx:    ctx,
-			Method: meth,
-			Params: m.Call().Params().Content().ToStruct(),
-		})
 		// TODO(light): check to see if it's one of our answer types
 		results, rerr := answer.Struct()
 
@@ -734,7 +734,6 @@ type importClient struct {
 
 func (ic *importClient) Call(cl *capnp.Call) capnp.Answer {
 	var a capnp.Answer
-	// TODO(light): queue without blocking?
 	err := ic.c.do(cl.Ctx, func() error {
 		a = ic.c.sendCall(&call{
 			Call:     cl,

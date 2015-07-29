@@ -305,3 +305,7 @@ struct StackingA {
 struct StackingB {
   num @0 :Int32;
 }
+
+interface CallSequence {
+  getNumber @0 () -> (n :UInt32);
+}
