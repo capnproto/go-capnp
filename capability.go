@@ -54,25 +54,6 @@ type Call struct {
 	Options CallOptions
 }
 
-// CallOptions holds RPC-specific options for an interface call.
-// Its usage is similar to the values in context.Context, but is only
-// used for a single call: its values are not intended to propagate to
-// other callees.  An example of an option would be the
-// Call.sendResultsTo field in rpc.capnp.
-type CallOptions map[interface{}]interface{}
-
-// NewCallOptions builds a CallOptions value from a list of individual options.
-func NewCallOptions(opts []CallOption) CallOptions {
-	co := make(CallOptions)
-	for _, o := range opts {
-		o(co)
-	}
-	return co
-}
-
-// A CallOption is a function that modifies options on an interface call.
-type CallOption func(CallOptions)
-
 // PlaceParams returns the parameters struct, allocating it inside
 // segment s as necessary.  If s is nil, a new segment is allocated.
 func (call *Call) PlaceParams(s *Segment) Struct {
@@ -85,6 +66,55 @@ func (call *Call) PlaceParams(s *Segment) Struct {
 	p := s.NewStruct(call.ParamsSize)
 	call.ParamsFunc(p)
 	return p
+}
+
+// CallOptions holds RPC-specific options for an interface call.
+// Its usage is similar to the values in context.Context, but is only
+// used for a single call: its values are not intended to propagate to
+// other callees.  An example of an option would be the
+// Call.sendResultsTo field in rpc.capnp.
+type CallOptions struct {
+	m map[interface{}]interface{}
+}
+
+// NewCallOptions builds a CallOptions value from a list of individual options.
+func NewCallOptions(opts []CallOption) CallOptions {
+	co := CallOptions{make(map[interface{}]interface{})}
+	for _, o := range opts {
+		o.f(co)
+	}
+	return co
+}
+
+// Value retrieves the value associated with the options for this key,
+// or nil if no value is associated with this key.
+func (co CallOptions) Value(key interface{}) interface{} {
+	return co.m[key]
+}
+
+// With creates a copy of the CallOptions value with other options applied.
+func (co CallOptions) With(opts []CallOption) CallOptions {
+	newopts := CallOptions{make(map[interface{}]interface{})}
+	for k, v := range co.m {
+		newopts.m[k] = v
+	}
+	for _, o := range opts {
+		o.f(newopts)
+	}
+	return newopts
+}
+
+// A CallOption is a function that modifies options on an interface call.
+type CallOption struct {
+	f func(CallOptions)
+}
+
+// SetOptionValue returns a call option that associates a value to an
+// option key.  This can be retrieved later with CallOptions.Value.
+func SetOptionValue(key, value interface{}) CallOption {
+	return CallOption{func(co CallOptions) {
+		co.m[key] = value
+	}}
 }
 
 // An Answer is the deferred result of a client call, which is usually wrapped by a Pipeline.
