@@ -38,6 +38,7 @@ func (q *question) PipelineCall(transform []capnp.PipelineOp, ccall *capnp.Call)
 		transform = []capnp.PipelineOp{}
 	}
 	var qa, sent capnp.Answer
+	// TODO(light): queue without blocking?
 	err := q.conn.do(ccall.Ctx, func() error {
 		var id questionID
 		qa, id = q.promiseInfo()

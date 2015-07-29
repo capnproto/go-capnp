@@ -734,6 +734,7 @@ type importClient struct {
 
 func (ic *importClient) Call(cl *capnp.Call) capnp.Answer {
 	var a capnp.Answer
+	// TODO(light): queue without blocking?
 	err := ic.c.do(cl.Ctx, func() error {
 		a = ic.c.sendCall(&call{
 			Call:     cl,

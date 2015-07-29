@@ -11,6 +11,16 @@ var ErrNullClient = errors.New("capn: call on null client")
 
 // A Client represents an interface type.
 type Client interface {
+	// Call starts executing a method and returns an answer that will hold
+	// the resulting struct.  The call's parameters must be placed before
+	// Call() returns.
+	//
+	// Calls are delivered to the capability in the order they are made.
+	// This guarantee is based on the concept of a capability
+	// acknowledging delivery of a call: this is specific to an
+	// implementation of Client.  A type that implements Client must
+	// guarantee that if foo() then bar() is called on a client, that
+	// acknowledging foo() happens before acknowledging bar().
 	Call(call *Call) Answer
 
 	// Close releases any resources associated with this client.
