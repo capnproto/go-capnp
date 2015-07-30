@@ -75,9 +75,9 @@ func (s *server) Call(call *Call) Answer {
 	go func() {
 		err := sm.Impl(call.Ctx, opts, params, results)
 		if err == nil {
-			ans.Fulfill(ImmediateAnswer(Object(results)))
+			ans.Fulfill(results)
 		} else {
-			ans.Fulfill(ErrorAnswer(err))
+			ans.Reject(err)
 		}
 	}()
 	// Wait for resolution

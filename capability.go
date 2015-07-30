@@ -295,10 +295,10 @@ func TransformObject(p Object, transform []PipelineOp) Object {
 	return p
 }
 
-type immediateAnswer Object
+type immediateAnswer Struct
 
 // ImmediateAnswer returns an Answer that accesses s.
-func ImmediateAnswer(s Object) Answer {
+func ImmediateAnswer(s Struct) Answer {
 	return immediateAnswer(s)
 }
 

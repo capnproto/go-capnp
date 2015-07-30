@@ -413,7 +413,7 @@ func (stub stubClient) Call(call *capnp.Call) capnp.Answer {
 	if err != nil {
 		return capnp.ErrorAnswer(err)
 	}
-	return capnp.ImmediateAnswer(capnp.Object(s))
+	return capnp.ImmediateAnswer(s)
 }
 
 func (stub stubClient) Close() error {
