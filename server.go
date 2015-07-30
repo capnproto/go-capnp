@@ -66,7 +66,7 @@ func (s *server) Call(call *Call) Answer {
 		return ErrorAnswer(call.Ctx.Err())
 	}
 	// Call implementation function
-	ans := newServerAnswer()
+	ans := new(Fulfiller)
 	params := call.PlaceParams(nil)
 	out := NewBuffer(nil)
 	results := out.NewRootStruct(sm.ResultsSize)
@@ -75,16 +75,16 @@ func (s *server) Call(call *Call) Answer {
 	go func() {
 		err := sm.Impl(call.Ctx, opts, params, results)
 		if err == nil {
-			ans.resolve(ImmediateAnswer(Object(results)))
+			ans.Fulfill(ImmediateAnswer(Object(results)))
 		} else {
-			ans.resolve(ErrorAnswer(err))
+			ans.Fulfill(ErrorAnswer(err))
 		}
 	}()
 	// Wait for resolution
 	select {
 	case <-acksig.c:
 		return ans
-	case <-ans.done:
+	case <-ans.Done():
 		// Implementation functions may not call Ack, which is fine for smaller functions.
 		return ans
 	case <-call.Ctx.Done():
@@ -125,59 +125,6 @@ func Ack(opts CallOptions) {
 	if ack, _ := opts.Value(ackSignalKey).(*ackSignal); ack != nil {
 		ack.signal()
 	}
-}
-
-type serverAnswer struct {
-	done chan struct{} // closed when resolve is called
-
-	mu     sync.RWMutex
-	answer Answer
-}
-
-func newServerAnswer() *serverAnswer {
-	return &serverAnswer{done: make(chan struct{})}
-}
-
-func (ans *serverAnswer) resolve(a Answer) {
-	ans.mu.Lock()
-	ans.answer = a
-	close(ans.done)
-	ans.mu.Unlock()
-}
-
-func (ans *serverAnswer) Struct() (Struct, error) {
-	<-ans.done
-	ans.mu.RLock()
-	a := ans.answer
-	ans.mu.RUnlock()
-	return a.Struct()
-}
-
-func (ans *serverAnswer) PipelineCall(transform []PipelineOp, call *Call) Answer {
-	ans.mu.RLock()
-	a := ans.answer
-	ans.mu.RUnlock()
-	if a != nil {
-		return a.PipelineCall(transform, call)
-	}
-
-	sa := newServerAnswer()
-	go func() {
-		<-ans.done
-		ans.mu.RLock()
-		a := ans.answer
-		ans.mu.RUnlock()
-		sa.resolve(a.PipelineCall(transform, call))
-	}()
-	return sa
-}
-
-func (ans *serverAnswer) PipelineClose(transform []PipelineOp) error {
-	<-ans.done
-	ans.mu.RLock()
-	a := ans.answer
-	ans.mu.RUnlock()
-	return a.PipelineClose(transform)
 }
 
 // MethodError is an error on an associated method.
