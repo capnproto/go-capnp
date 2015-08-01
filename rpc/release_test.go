@@ -119,21 +119,17 @@ func singletonHandleFactory() *HandleFactory {
 	return hf
 }
 
-func (hf *HandleFactory) NewHandle(
-	c context.Context,
-	opts capnp.CallOptions,
-	p testcapnp.HandleFactory_newHandle_Params,
-	r testcapnp.HandleFactory_newHandle_Results) error {
+func (hf *HandleFactory) NewHandle(call testcapnp.HandleFactory_newHandle) error {
 	if hf.singleton.IsNull() {
 		hf.mu.Lock()
 		hf.n++
 		hf.mu.Unlock()
-		r.SetHandle(testcapnp.Handle_ServerToClient(&Handle{f: hf}))
+		call.Results.SetHandle(testcapnp.Handle_ServerToClient(&Handle{f: hf}))
 	} else {
 		hf.mu.Lock()
 		hf.n = 1
 		hf.mu.Unlock()
-		r.SetHandle(hf.singleton)
+		call.Results.SetHandle(hf.singleton)
 	}
 	return nil
 }

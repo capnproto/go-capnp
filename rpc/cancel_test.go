@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"golang.org/x/net/context"
-	"zombiezen.com/go/capnproto"
 	"zombiezen.com/go/capnproto/rpc"
 	"zombiezen.com/go/capnproto/rpc/internal/logtransport"
 	"zombiezen.com/go/capnproto/rpc/internal/testcapnp"
@@ -41,9 +40,9 @@ type Hanger struct {
 	notify chan struct{}
 }
 
-func (h Hanger) Hang(c context.Context, opts capnp.CallOptions, p testcapnp.Hanger_hang_Params, r testcapnp.Hanger_hang_Results) error {
+func (h Hanger) Hang(call testcapnp.Hanger_hang) error {
 	h.notify <- struct{}{}
-	<-c.Done()
+	<-call.Ctx.Done()
 	close(h.notify)
 	return nil
 }

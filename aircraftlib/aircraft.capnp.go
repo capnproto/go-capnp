@@ -1811,7 +1811,7 @@ func (c Echo) Echo(ctx context.Context, params func(Echo_echo_Params), opts ...C
 }
 
 type Echo_Server interface {
-	Echo(ctx context.Context, opts C.CallOptions, params Echo_echo_Params, results Echo_echo_Results) error
+	Echo(Echo_echo) error
 }
 
 func Echo_ServerToClient(s Echo_Server) Echo {
@@ -1833,12 +1833,21 @@ func Echo_Methods(methods []C.ServerMethod, server Echo_Server) []C.ServerMethod
 			MethodName:    "echo",
 		},
 		Impl: func(c context.Context, opts C.CallOptions, p, r C.Struct) error {
-			return server.Echo(c, opts, Echo_echo_Params(p), Echo_echo_Results(r))
+			call := Echo_echo{c, opts, Echo_echo_Params(p), Echo_echo_Results(r)}
+			return server.Echo(call)
 		},
 		ResultsSize: C.ObjectSize{DataSize: 0, PointerCount: 1},
 	})
 
 	return methods
+}
+
+// Echo_echo holds the arguments for a server call to Echo.echo.
+type Echo_echo struct {
+	Ctx     context.Context
+	Options C.CallOptions
+	Params  Echo_echo_Params
+	Results Echo_echo_Results
 }
 
 type Echo_echo_Params C.Struct

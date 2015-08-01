@@ -59,7 +59,7 @@ func (c HandleFactory) NewHandle(ctx context.Context, params func(HandleFactory_
 }
 
 type HandleFactory_Server interface {
-	NewHandle(ctx context.Context, opts C.CallOptions, params HandleFactory_newHandle_Params, results HandleFactory_newHandle_Results) error
+	NewHandle(HandleFactory_newHandle) error
 }
 
 func HandleFactory_ServerToClient(s HandleFactory_Server) HandleFactory {
@@ -81,12 +81,21 @@ func HandleFactory_Methods(methods []C.ServerMethod, server HandleFactory_Server
 			MethodName:    "newHandle",
 		},
 		Impl: func(c context.Context, opts C.CallOptions, p, r C.Struct) error {
-			return server.NewHandle(c, opts, HandleFactory_newHandle_Params(p), HandleFactory_newHandle_Results(r))
+			call := HandleFactory_newHandle{c, opts, HandleFactory_newHandle_Params(p), HandleFactory_newHandle_Results(r)}
+			return server.NewHandle(call)
 		},
 		ResultsSize: C.ObjectSize{DataSize: 0, PointerCount: 1},
 	})
 
 	return methods
+}
+
+// HandleFactory_newHandle holds the arguments for a server call to HandleFactory.newHandle.
+type HandleFactory_newHandle struct {
+	Ctx     context.Context
+	Options C.CallOptions
+	Params  HandleFactory_newHandle_Params
+	Results HandleFactory_newHandle_Results
 }
 
 type HandleFactory_newHandle_Params C.Struct
@@ -207,7 +216,7 @@ func (c Hanger) Hang(ctx context.Context, params func(Hanger_hang_Params), opts 
 }
 
 type Hanger_Server interface {
-	Hang(ctx context.Context, opts C.CallOptions, params Hanger_hang_Params, results Hanger_hang_Results) error
+	Hang(Hanger_hang) error
 }
 
 func Hanger_ServerToClient(s Hanger_Server) Hanger {
@@ -229,12 +238,21 @@ func Hanger_Methods(methods []C.ServerMethod, server Hanger_Server) []C.ServerMe
 			MethodName:    "hang",
 		},
 		Impl: func(c context.Context, opts C.CallOptions, p, r C.Struct) error {
-			return server.Hang(c, opts, Hanger_hang_Params(p), Hanger_hang_Results(r))
+			call := Hanger_hang{c, opts, Hanger_hang_Params(p), Hanger_hang_Results(r)}
+			return server.Hang(call)
 		},
 		ResultsSize: C.ObjectSize{DataSize: 0, PointerCount: 0},
 	})
 
 	return methods
+}
+
+// Hanger_hang holds the arguments for a server call to Hanger.hang.
+type Hanger_hang struct {
+	Ctx     context.Context
+	Options C.CallOptions
+	Params  Hanger_hang_Params
+	Results Hanger_hang_Results
 }
 
 type Hanger_hang_Params C.Struct
