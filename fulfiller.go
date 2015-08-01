@@ -67,10 +67,7 @@ func (f *Fulfiller) emptyQueue(s Struct) map[uint32][]ecall {
 		if qs[cn] == nil {
 			qs[cn] = make([]ecall, 0, len(f.queue)-i)
 		}
-		qs[cn] = append(qs[cn], ecall{
-			call: pc.call,
-			f:    pc.f,
-		})
+		qs[cn] = append(qs[cn], pc.ecall)
 	}
 	f.queue = nil
 	return qs
@@ -143,13 +140,15 @@ func (f *Fulfiller) PipelineCall(transform []PipelineOp, call *Call) Answer {
 	g := new(Fulfiller)
 	f.queue = append(f.queue, pcall{
 		transform: transform,
-		call: &Call{
-			Ctx:     call.Ctx,
-			Method:  call.Method,
-			Params:  call.PlaceParams(nil),
-			Options: call.Options,
+		ecall: ecall{
+			call: &Call{
+				Ctx:     call.Ctx,
+				Method:  call.Method,
+				Params:  call.PlaceParams(nil),
+				Options: call.Options,
+			},
+			f: g,
 		},
-		f: new(Fulfiller),
 	})
 	f.mu.Unlock()
 	return g
@@ -165,8 +164,7 @@ func (f *Fulfiller) PipelineClose(transform []PipelineOp) error {
 // pcall is a queued pipeline call.
 type pcall struct {
 	transform []PipelineOp
-	call      *Call
-	f         *Fulfiller
+	ecall
 }
 
 // embargoClient is a client that flushes a queue of calls.
@@ -192,6 +190,7 @@ func (ec *embargoClient) push(cl *Call) Answer {
 	f := new(Fulfiller)
 	i := (ec.start + ec.n) % len(ec.queue)
 	ec.queue[i] = ecall{cl, f}
+	ec.n++
 	return f
 }
 
@@ -203,7 +202,6 @@ func (ec *embargoClient) pop() ecall {
 	ec.queue[ec.start] = ecall{}
 	ec.start = (ec.start + 1) % len(ec.queue)
 	ec.n--
-	ec.mu.Unlock()
 	return c
 }
 
