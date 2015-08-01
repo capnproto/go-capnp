@@ -328,20 +328,25 @@ func (c *Conn) newCallMessage(buf []byte, id questionID, cl *call) rpccapnp.Mess
 	return msg
 }
 
-func (c *Conn) sendCancel(q *question) {
+func transformToPromisedAnswer(s *capnp.Segment, answer rpccapnp.PromisedAnswer, transform []capnp.PipelineOp) {
+	opList := rpccapnp.NewPromisedAnswer_Op_List(s, len(transform))
+	for i, op := range transform {
+		opList.At(i).SetGetPointerField(uint16(op.Field))
+	}
+	answer.SetTransform(opList)
+}
+
+// cancelQuestion is called if a question's context is cancelled.
+func (c *Conn) cancelQuestion(q *question) {
 	err := c.do(context.Background(), func() error {
-		ans, id := q.promiseInfo()
-		if ans != nil {
-			// Call has already completed.
+		if !q.reject(questionCanceled, q.ctx.Err()) {
 			return nil
 		}
-		q.resolve(capnp.ErrorAnswer(q.ctx.Err()))
-		q.canceled = true
 		// TODO(light): timeout?
-		msg := newFinishMessage(nil, id, true /* release */)
+		msg := newFinishMessage(nil, q.id, true /* release */)
 		err := c.transport.SendMessage(c.manager.context(), msg)
 		if err != nil {
-			return &questionError{id: id, method: q.method, err: err}
+			return &questionError{id: q.id, method: q.method, err: err}
 		}
 		return nil
 	})
@@ -379,7 +384,7 @@ func (c *Conn) handleReturn(m rpccapnp.Return) error {
 	if m.ReleaseParamCaps() {
 		c.exports.releaseList(q.paramCaps)
 	}
-	if q.canceled {
+	if q.peekState() == questionCanceled {
 		// Finish has already been sent.
 		// The protocol doesn't require that implementations send back
 		// a canceled status, so we don't check.
@@ -390,7 +395,7 @@ func (c *Conn) handleReturn(m rpccapnp.Return) error {
 	case rpccapnp.Return_Which_results:
 		releaseResultCaps = false
 		c.populateMessageCapTable(m.Results())
-		q.resolve(capnp.ImmediateAnswer(m.Results().Content()))
+		q.fulfill(m.Results().Content())
 	case rpccapnp.Return_Which_exception:
 		e := error(Exception{m.Exception()})
 		if q.method != nil {
@@ -401,16 +406,15 @@ func (c *Conn) handleReturn(m rpccapnp.Return) error {
 		} else {
 			e = bootstrapError{e}
 		}
-		q.resolve(capnp.ErrorAnswer(e))
+		q.reject(questionResolved, e)
 	case rpccapnp.Return_Which_canceled:
-		q.resolve(capnp.ErrorAnswer(errCallCanceled))
 		err := &questionError{
 			id:     id,
 			method: q.method,
 			err:    fmt.Errorf("unexpected canceled status"),
 		}
 		log.Println(err)
-		q.resolve(capnp.ErrorAnswer(err))
+		q.reject(questionResolved, err)
 		return nil
 	default:
 		um := newUnimplementedMessage(nil, rpccapnp.ReadRootMessage(m.Segment))
@@ -458,9 +462,9 @@ func (c *Conn) populateMessageCapTable(payload rpccapnp.Payload) {
 			} else {
 				msg.AddCap(e.client)
 			}
-		case rpccapnp.CapDescriptor_Which_receiverAnswer:
-			msg.AddCap(c.getPromisedAnswer(desc.ReceiverAnswer()))
+		// TODO(light): case rpccapnp.CapDescriptor_Which_receiverAnswer:
 		default:
+			// TODO(light): send unimplemented
 			log.Println("rpc: unknown capability type", desc.Which())
 			msg.AddCap(nil)
 		}
@@ -496,32 +500,38 @@ func (c *Conn) descriptorForClient(desc rpccapnp.CapDescriptor, client capnp.Cli
 		}
 	case *capnp.PipelineClient:
 		p := (*capnp.Pipeline)(client)
-		if q, ok := p.Answer().(*question); ok {
-			ans, id := q.promiseInfo()
-			if ans == nil && q.conn == c {
-				a := rpccapnp.NewPromisedAnswer(desc.Segment)
-				a.SetQuestionId(uint32(id))
-				transformToPromisedAnswer(desc.Segment, a, p.Transform())
-				desc.SetReceiverAnswer(a)
-				return
-			} else if ans != nil {
-				s, err := ans.Struct()
-				if err == nil {
-					client := capnp.TransformObject(capnp.Object(s), p.Transform()).ToInterface().Client()
-					if client != nil {
-						c.descriptorForClient(desc, client)
-						return
-					}
-					err = capnp.ErrNullClient
-				}
-				id := c.exports.add(capnp.ErrorClient(err))
-				desc.SetSenderHosted(uint32(id))
-				return
-			}
+		q, ok := p.Answer().(*question)
+		if !ok {
+			goto fallback
 		}
+		id, obj, err, done := q.peek()
+		if !done {
+			if q.conn != c {
+				goto fallback
+			}
+			a := rpccapnp.NewPromisedAnswer(desc.Segment)
+			a.SetQuestionId(uint32(id))
+			transformToPromisedAnswer(desc.Segment, a, p.Transform())
+			desc.SetReceiverAnswer(a)
+			return
+		}
+		if err != nil {
+			id := c.exports.add(capnp.ErrorClient(err))
+			desc.SetSenderHosted(uint32(id))
+			return
+		}
+		tclient := capnp.TransformObject(obj, p.Transform()).ToInterface().Client()
+		if tclient == nil {
+			id := c.exports.add(capnp.ErrorClient(capnp.ErrNullClient))
+			desc.SetSenderHosted(uint32(id))
+			return
+		}
+		c.descriptorForClient(desc, tclient)
+		return
 	}
 
 	// Fallback: host and export ourselves.
+fallback:
 	id := c.exports.add(client)
 	desc.SetSenderHosted(uint32(id))
 }
@@ -529,7 +539,7 @@ func (c *Conn) descriptorForClient(desc rpccapnp.CapDescriptor, client capnp.Cli
 // handleBootstrap is run in the tasks goroutine.
 func (c *Conn) handleBootstrap(id answerID) error {
 	ctx, cancel := c.newContext()
-	a := c.answers.insert(id, cancel)
+	a := c.answers.insert(c, id, cancel)
 	retmsg := newReturnMessage(id)
 	ret := retmsg.Return()
 	if a == nil {
@@ -539,7 +549,7 @@ func (c *Conn) handleBootstrap(id answerID) error {
 	}
 	if c.main == nil {
 		e := setReturnException(ret, errNoMainInterface)
-		a.resolve(capnp.ErrorAnswer(Exception{e}))
+		a.reject(Exception{e})
 		return c.transport.SendMessage(ctx, retmsg)
 	}
 	exportID := c.exports.add(c.main)
@@ -552,45 +562,8 @@ func (c *Conn) handleBootstrap(id answerID) error {
 	ctab.At(capIndex).SetSenderHosted(uint32(exportID))
 	payload.SetCapTable(ctab)
 	ret.SetResults(payload)
-	a.resolve(capnp.ImmediateAnswer(capnp.Object(in)))
+	a.fulfill(in)
 	return c.transport.SendMessage(ctx, retmsg)
-}
-
-func (c *Conn) resolveTarget(mt rpccapnp.MessageTarget) capnp.Client {
-	switch mt.Which() {
-	case rpccapnp.MessageTarget_Which_importedCap:
-		id := exportID(mt.ImportedCap())
-		e := c.exports.get(id)
-		if e == nil {
-			return nil
-		}
-		return e.client
-	case rpccapnp.MessageTarget_Which_promisedAnswer:
-		return c.getPromisedAnswer(mt.PromisedAnswer())
-	default:
-		return nil
-	}
-}
-
-func (c *Conn) getPromisedAnswer(pa rpccapnp.PromisedAnswer) capnp.Client {
-	id := answerID(pa.QuestionId())
-	a := c.answers.get(id)
-	if a == nil {
-		return nil
-	}
-	p := capnp.NewPipeline(a)
-	for i := 0; i < pa.Transform().Len(); i++ {
-		op := pa.Transform().At(i)
-		switch op.Which() {
-		case rpccapnp.PromisedAnswer_Op_Which_getPointerField:
-			p = p.GetPipeline(int(op.GetPointerField()))
-		case rpccapnp.PromisedAnswer_Op_Which_noop:
-			fallthrough
-		default:
-			// do nothing
-		}
-	}
-	return p.Client()
 }
 
 // handleCall is run in the tasks goroutine.  It mutates the capability
@@ -598,17 +571,12 @@ func (c *Conn) getPromisedAnswer(pa rpccapnp.PromisedAnswer) capnp.Client {
 func (c *Conn) handleCall(m rpccapnp.Message) error {
 	ctx, cancel := c.newContext()
 	id := answerID(m.Call().QuestionId())
-	retmsg := newReturnMessage(id)
-	ret := retmsg.Return()
-	target := c.resolveTarget(m.Call().Target())
-	if target == nil {
-		setReturnException(ret, errBadTarget)
-		return c.transport.SendMessage(ctx, retmsg)
-	}
-	a := c.answers.insert(id, cancel)
+	a := c.answers.insert(c, id, cancel)
 	if a == nil {
 		// Question ID reused, error out.
-		setReturnException(ret, errQuestionReused)
+		retmsg := newReturnMessage(id)
+		setReturnException(retmsg.Return(), errQuestionReused)
+		a.reject(errQuestionReused)
 		return c.transport.SendMessage(ctx, retmsg)
 	}
 	c.populateMessageCapTable(m.Call().Params())
@@ -616,35 +584,89 @@ func (c *Conn) handleCall(m rpccapnp.Message) error {
 		InterfaceID: m.Call().InterfaceId(),
 		MethodID:    m.Call().MethodId(),
 	}
-	answer := target.Call(&capnp.Call{
+	err := c.localCall(a, m.Call().Target(), &capnp.Call{
 		Ctx:    ctx,
 		Method: meth,
 		Params: m.Call().Params().Content().ToStruct(),
 	})
-
-	go func() {
-		// TODO(light): check to see if it's one of our answer types
-		results, rerr := answer.Struct()
-
-		err := c.do(context.Background(), func() error {
-			ctx := c.manager.context()
-			if rerr != nil {
-				e := setReturnException(ret, rerr)
-				a.resolve(capnp.ErrorAnswer(Exception{e}))
-				return c.transport.SendMessage(ctx, retmsg)
-			}
-			payload := rpccapnp.NewPayload(retmsg.Segment)
-			payload.SetContent(capnp.Object(results))
-			payload.SetCapTable(c.makeCapTable(retmsg.Segment))
-			ret.SetResults(payload)
-			a.resolve(capnp.ImmediateAnswer(capnp.Object(results)))
-			return c.transport.SendMessage(ctx, retmsg)
-		})
-		if err != nil {
-			log.Printf("rpc: writing return from %v: %v", &meth, err)
-		}
-	}()
+	if err != nil {
+		retmsg := newReturnMessage(id)
+		setReturnException(retmsg.Return(), err)
+		a.reject(err)
+		return c.transport.SendMessage(ctx, retmsg)
+	}
 	return nil
+}
+
+func (c *Conn) localCall(resultAnswer *answer, mt rpccapnp.MessageTarget, cl *capnp.Call) error {
+	switch mt.Which() {
+	case rpccapnp.MessageTarget_Which_importedCap:
+		id := exportID(mt.ImportedCap())
+		e := c.exports.get(id)
+		if e == nil {
+			return errBadTarget
+		}
+		answer := e.client.Call(cl)
+		go joinAnswer(resultAnswer, answer)
+		return nil
+	case rpccapnp.MessageTarget_Which_promisedAnswer:
+		id := answerID(mt.PromisedAnswer().QuestionId())
+		if id == resultAnswer.id {
+			// Grandfather paradox.
+			return errBadTarget
+		}
+		pa := c.answers.get(id)
+		if pa == nil {
+			return errBadTarget
+		}
+		transform := promisedAnswerOpsToTransform(mt.PromisedAnswer().Transform())
+		if err := pa.queueCall(resultAnswer, transform, cl); err != nil {
+			return err
+		}
+		return nil
+	default:
+		// TODO(light): send unimplemented
+		return errBadTarget
+	}
+}
+
+func promisedAnswerOpsToTransform(list rpccapnp.PromisedAnswer_Op_List) []capnp.PipelineOp {
+	n := list.Len()
+	transform := make([]capnp.PipelineOp, 0, n)
+	for i := 0; i < n; i++ {
+		op := list.At(i)
+		switch op.Which() {
+		case rpccapnp.PromisedAnswer_Op_Which_getPointerField:
+			transform = append(transform, capnp.PipelineOp{
+				Field: int(op.GetPointerField()),
+			})
+		case rpccapnp.PromisedAnswer_Op_Which_noop:
+			// no-op
+		}
+	}
+	return transform
+}
+
+// returnAnswer is called to resolve an answer and return its value.
+func (c *Conn) returnAnswer(a *answer, obj capnp.Object, rerr error) {
+	err := c.do(context.Background(), func() error {
+		ctx := c.manager.context()
+		retmsg := newReturnMessage(a.id)
+		if rerr != nil {
+			e := setReturnException(retmsg.Return(), rerr)
+			a.reject(Exception{e})
+			return c.transport.SendMessage(ctx, retmsg)
+		}
+		payload := rpccapnp.NewPayload(retmsg.Segment)
+		payload.SetContent(obj)
+		payload.SetCapTable(c.makeCapTable(retmsg.Segment))
+		retmsg.Return().SetResults(payload)
+		a.fulfill(obj)
+		return c.transport.SendMessage(ctx, retmsg)
+	})
+	if err != nil {
+		log.Printf("rpc: writing return: %v", err)
+	}
 }
 
 func newReturnMessage(id answerID) rpccapnp.Message {
