@@ -23,18 +23,26 @@ type impent struct {
 }
 
 type importTable struct {
-	tab map[importID]*impent
+	tab      map[importID]*impent
+	manager  *manager
+	calls    chan<- *appCall
+	releases chan<- *outgoingRelease
 }
 
 // addRef increases the counter of the times the import ID was sent to this vat.
-func (it *importTable) addRef(c *Conn, id importID) capnp.Client {
+func (it *importTable) addRef(id importID) capnp.Client {
 	if it.tab == nil {
 		it.tab = make(map[importID]*impent)
 	}
 	ent := it.tab[id]
 	var ref capnp.Client
 	if ent == nil {
-		client := &importClient{c: c, id: id}
+		client := &importClient{
+			id:       id,
+			manager:  it.manager,
+			calls:    it.calls,
+			releases: it.releases,
+		}
 		var rc *refcount.RefCount
 		rc, ref = refcount.New(client)
 		ent = &impent{rc: rc, refs: 0}
@@ -56,6 +64,62 @@ func (it *importTable) pop(id importID) (refs int) {
 		delete(it.tab, id)
 	}
 	return
+}
+
+// An outgoingRelease is a message sent to the coordinate goroutine to
+// indicate that an import should be released.
+type outgoingRelease struct {
+	id    importID
+	echan chan<- error
+}
+
+// An importClient implements capnp.Client for a remote capability.
+type importClient struct {
+	id       importID
+	manager  *manager
+	calls    chan<- *appCall
+	releases chan<- *outgoingRelease
+}
+
+func (ic *importClient) Call(cl *capnp.Call) capnp.Answer {
+	// TODO(light): don't send if closed.
+	qchan := make(chan *question, 1)
+	ac := &appCall{
+		Call:     cl,
+		kind:     appImportCall,
+		qchan:    qchan,
+		importID: ic.id,
+	}
+	select {
+	case ic.calls <- ac:
+		select {
+		case q := <-qchan:
+			return q
+		case <-ic.manager.finish:
+			return capnp.ErrorAnswer(ic.manager.err())
+		}
+	case <-ic.manager.finish:
+		return capnp.ErrorAnswer(ic.manager.err())
+	}
+}
+
+func (ic *importClient) Close() error {
+	echan := make(chan error, 1)
+	r := &outgoingRelease{
+		id:    ic.id,
+		echan: echan,
+	}
+	select {
+	case ic.releases <- r:
+		select {
+		case err := <-echan:
+			return err
+		case <-ic.manager.finish:
+			return ic.manager.err()
+		}
+	case <-ic.manager.finish:
+		return ic.manager.err()
+	}
 }
 
 type export struct {

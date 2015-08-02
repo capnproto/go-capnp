@@ -3,6 +3,7 @@ package rpc
 import (
 	"bytes"
 	"io"
+	"log"
 	"time"
 
 	"golang.org/x/net/context"
@@ -48,6 +49,7 @@ func (s *streamTransport) SendMessage(ctx context.Context, msg rpccapnp.Message)
 	if _, err := msg.Segment.WriteTo(&s.wbuf); err != nil {
 		return err
 	}
+	// TODO(light): clear deadlines
 	if d, ok := ctx.Deadline(); ok && s.deadline != nil {
 		// TODO(light): log error
 		s.deadline.SetWriteDeadline(d)
@@ -71,4 +73,87 @@ func (s *streamTransport) Close() error {
 
 type writeDeadlineSetter interface {
 	SetWriteDeadline(t time.Time) error
+}
+
+// dispatchSend runs in its own goroutine and sends messages on a transport.
+func dispatchSend(m *manager, transport Transport, msgs <-chan outgoingMessage) {
+	for {
+		select {
+		case m := <-msgs:
+			// TODO(light): allow custom context
+			err := transport.SendMessage(m.ctx, m.msg)
+			if err != nil {
+				log.Println("rpc: write error:", err)
+			}
+		case <-m.finish:
+			return
+		}
+	}
+}
+
+// An outgoingMessage holds a packet to be sent on a transport and its context.
+type outgoingMessage struct {
+	ctx context.Context
+	msg rpccapnp.Message
+}
+
+// dispatchRecv runs in its own goroutine and receives messages from a transport.
+func dispatchRecv(m *manager, transport Transport, msgs chan<- rpccapnp.Message) {
+	for {
+		msg, err := transport.RecvMessage(m.context())
+		if err != nil {
+			if isTemporaryError(err) {
+				log.Println("rpc: read temporary error:", err)
+				continue
+			}
+			m.shutdown(err)
+			return
+		}
+		select {
+		case msgs <- copyRPCMessage(msg):
+		case <-m.finish:
+			return
+		}
+	}
+}
+
+// copyMessage clones a Cap'n Proto buffer.
+func copyMessage(msg capnp.Message) capnp.Message {
+	n := 0
+	for {
+		if _, err := msg.Lookup(uint32(n)); err != nil {
+			break
+		}
+		n++
+	}
+	segments := make([][]byte, n)
+	for i := range segments {
+		s, err := msg.Lookup(uint32(i))
+		if err != nil {
+			panic(err)
+		}
+		segments[i] = make([]byte, len(s.Data))
+		copy(segments[i], s.Data)
+	}
+	return capnp.NewMultiBuffer(segments).Message
+}
+
+// copyRPCMessage clones an RPC packet.
+func copyRPCMessage(m rpccapnp.Message) rpccapnp.Message {
+	mm := copyMessage(m.Segment.Message)
+	seg, err := mm.Lookup(0)
+	if err != nil {
+		panic(err)
+	}
+	return rpccapnp.ReadRootMessage(seg)
+}
+
+// isTemporaryError reports whether e has a Temporary() method that
+// returns true.
+func isTemporaryError(e error) bool {
+	type temp interface {
+		Temporary() bool
+	}
+	t, ok := e.(temp)
+	return ok && t.Temporary()
 }

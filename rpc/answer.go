@@ -14,7 +14,9 @@ import (
 const callQueueSize = 64
 
 type answerTable struct {
-	tab map[answerID]*answer
+	tab     map[answerID]*answer
+	manager *manager
+	returns chan<- *outgoingReturn
 }
 
 func (at *answerTable) get(id answerID) *answer {
@@ -27,16 +29,17 @@ func (at *answerTable) get(id answerID) *answer {
 
 // insert creates a new question with the given ID, returning nil
 // if the ID is already in use.
-func (at *answerTable) insert(conn *Conn, id answerID, cancel context.CancelFunc) *answer {
+func (at *answerTable) insert(id answerID, cancel context.CancelFunc) *answer {
 	if at.tab == nil {
 		at.tab = make(map[answerID]*answer)
 	}
 	var a *answer
 	if _, ok := at.tab[id]; !ok {
 		a = &answer{
-			conn:     conn,
 			id:       id,
 			cancel:   cancel,
+			manager:  at.manager,
+			returns:  at.returns,
 			resolved: make(chan struct{}),
 			queue:    make([]pcall, 0, callQueueSize),
 		}
@@ -55,17 +58,26 @@ func (at *answerTable) pop(id answerID) *answer {
 }
 
 type answer struct {
-	conn       *Conn
 	id         answerID
 	cancel     context.CancelFunc
 	resultCaps []exportID
+	manager    *manager
+	returns    chan<- *outgoingReturn
 	resolved   chan struct{}
 
-	mu    sync.RWMutex
-	obj   capnp.Object
-	err   error
-	done  bool
-	queue []pcall
+	mu        sync.RWMutex
+	canReturn bool
+	obj       capnp.Object
+	err       error
+	done      bool
+	queue     []pcall
+}
+
+// start signals that the answer is live.
+func (a *answer) start() {
+	a.mu.Lock()
+	a.canReturn = true
+	a.mu.Unlock()
 }
 
 func (a *answer) fulfill(obj capnp.Object) {
@@ -74,15 +86,16 @@ func (a *answer) fulfill(obj capnp.Object) {
 		a.mu.Unlock()
 		panic("answer.fulfill called more than once")
 	}
+	a.obj = obj
+	a.done = true
+	a.send()
 	// TODO(light): populate resultCaps
 	queues := a.emptyQueue(obj)
 	ctab := obj.Segment.Message.CapTable()
 	for capIdx, q := range queues {
 		ctab[capIdx] = newQueueClient(ctab[capIdx], q)
 	}
-	a.obj = obj
 	close(a.resolved)
-	a.done = true
 	a.mu.Unlock()
 }
 
@@ -95,14 +108,30 @@ func (a *answer) reject(err error) {
 		a.mu.Unlock()
 		panic("answer.reject called more than once")
 	}
+	a.err = err
+	a.done = true
+	a.send()
 	for i := range a.queue {
 		a.queue[i].a.reject(err)
 		a.queue[i] = pcall{}
 	}
-	a.err = err
 	close(a.resolved)
-	a.done = true
 	a.mu.Unlock()
+}
+
+func (a *answer) send() {
+	if !a.canReturn {
+		return
+	}
+	r := &outgoingReturn{
+		id:  a.id,
+		obj: a.obj,
+		err: a.err,
+	}
+	select {
+	case a.returns <- r:
+	case <-a.manager.finish:
+	}
 }
 
 // emptyQueue splits the queue by which capability it targets
@@ -113,7 +142,7 @@ func (a *answer) emptyQueue(obj capnp.Object) map[uint32][]qcall {
 	for i, pc := range a.queue {
 		c := capnp.TransformObject(obj, pc.transform)
 		if c.Type() != capnp.TypeInterface {
-			go a.conn.returnAnswer(pc.a, capnp.Object{}, capnp.ErrNullClient)
+			pc.a.reject(capnp.ErrNullClient)
 			continue
 		}
 		cn := c.ToInterface().Capability()
@@ -139,12 +168,12 @@ func (a *answer) queueCall(result *answer, transform []capnp.PipelineOp, call *c
 		obj, err := a.obj, a.err
 		a.mu.Unlock()
 		if err != nil {
-			go a.conn.returnAnswer(result, capnp.Object{}, err)
+			result.reject(err)
 			return nil
 		}
 		client := capnp.TransformObject(obj, transform).ToInterface().Client()
 		if client == nil {
-			go a.conn.returnAnswer(result, capnp.Object{}, capnp.ErrNullClient)
+			result.reject(capnp.ErrNullClient)
 			return nil
 		}
 		go joinAnswer(result, client.Call(call))
@@ -169,7 +198,7 @@ func (a *answer) queueDisembargo(transform []capnp.PipelineOp, id embargoID, tar
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.done {
-		// TODO(light): start call
+		// TODO(light): start disembargo
 		return nil
 	}
 	if len(a.queue) == cap(a.queue) {
@@ -190,7 +219,11 @@ func (a *answer) queueDisembargo(transform []capnp.PipelineOp, id embargoID, tar
 // in its own goroutine.
 func joinAnswer(a *answer, ca capnp.Answer) {
 	s, err := ca.Struct()
-	a.conn.returnAnswer(a, capnp.Object(s), err)
+	if err != nil {
+		a.reject(err)
+	} else {
+		a.fulfill(capnp.Object(s))
+	}
 }
 
 // joinFulfiller resolves a fulfiller by waiting on a generic answer.
@@ -203,6 +236,16 @@ func joinFulfiller(f *capnp.Fulfiller, ca capnp.Answer) {
 	} else {
 		f.Fulfill(s)
 	}
+}
+
+// outgoingReturn is a message sent to the coordinate goroutine to
+// indicate that a call started by an answer has completed.  A simple
+// message is insufficient, since the connection needs to populate the
+// return message's capability table.
+type outgoingReturn struct {
+	id  answerID
+	obj capnp.Object
+	err error
 }
 
 type queueClient struct {
@@ -306,7 +349,7 @@ func (qc *queueClient) Close() error {
 	for {
 		c := qc.pop()
 		if w := c.which(); w == qcallRemoteCall {
-			go c.a.conn.returnAnswer(c.a, capnp.Object{}, errQueueCallCancel)
+			c.a.reject(errQueueCallCancel)
 		} else if w == qcallLocalCall {
 			c.f.Reject(errQueueCallCancel)
 		} else if w == qcallDisembargo {

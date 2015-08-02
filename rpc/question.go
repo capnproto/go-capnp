@@ -10,32 +10,29 @@ import (
 type questionTable struct {
 	tab []*question
 	gen idgen
+
+	manager *manager
+	calls   chan<- *appCall
+	out     chan<- outgoingMessage
 }
 
 // new creates a new question with an unassigned ID.
-func (qt *questionTable) new(conn *Conn, ctx context.Context, method *capnp.Method) *question {
+func (qt *questionTable) new(ctx context.Context, method *capnp.Method) *question {
 	id := questionID(qt.gen.next())
 	q := &question{
-		id:       id,
-		conn:     conn,
 		ctx:      ctx,
 		method:   method,
+		manager:  qt.manager,
+		calls:    qt.calls,
+		out:      qt.out,
 		resolved: make(chan struct{}),
+		id:       id,
 	}
 	// TODO(light): populate paramCaps
 	if int(id) == len(qt.tab) {
 		qt.tab = append(qt.tab, q)
 	} else {
 		qt.tab[id] = q
-	}
-	if done := q.ctx.Done(); done != nil {
-		go func() {
-			select {
-			case <-done:
-				conn.cancelQuestion(q)
-			case <-q.resolved:
-			}
-		}()
 	}
 	return q
 }
@@ -59,10 +56,12 @@ func (qt *questionTable) pop(id questionID) *question {
 }
 
 type question struct {
-	conn      *Conn
-	method    *capnp.Method // nil if this is bootstrap
 	ctx       context.Context
+	method    *capnp.Method // nil if this is bootstrap
 	paramCaps []exportID
+	calls     chan<- *appCall
+	out       chan<- outgoingMessage
+	manager   *manager
 	resolved  chan struct{}
 
 	// Fields below are protected by mu.
@@ -82,6 +81,26 @@ const (
 	questionResolved
 	questionCanceled
 )
+
+// start signals that the question has been sent.
+func (q *question) start() {
+	go func() {
+		select {
+		case <-q.resolved:
+		case <-q.ctx.Done():
+			if q.reject(questionCanceled, q.ctx.Err()) {
+				// TODO(light): timeout?
+				msg := newFinishMessage(nil, q.id, true /* release */)
+				select {
+				case q.out <- outgoingMessage{q.manager.context(), msg}:
+				case <-q.manager.finish:
+				}
+			}
+		case <-q.manager.finish:
+			q.reject(questionCanceled, q.manager.err())
+		}
+	}()
+}
 
 func (q *question) fulfill(obj capnp.Object) bool {
 	q.mu.Lock()
@@ -117,13 +136,6 @@ func (q *question) peek() (id questionID, obj capnp.Object, err error, ok bool) 
 	id, obj, err, ok = q.id, q.obj, q.err, q.state != questionInProgress
 	q.mu.RUnlock()
 	return
-}
-
-func (q *question) peekState() questionState {
-	q.mu.RLock()
-	state := q.state
-	q.mu.RUnlock()
-	return state
 }
 
 func (q *question) addPromise(transform []capnp.PipelineOp) {
@@ -170,36 +182,40 @@ func (q *question) PipelineCall(transform []capnp.PipelineOp, ccall *capnp.Call)
 	if transform == nil {
 		transform = []capnp.PipelineOp{}
 	}
-	var (
-		obj  capnp.Object
-		err  error
-		sent capnp.Answer
-	)
-	err = q.conn.do(ccall.Ctx, func() error {
-		q.mu.Lock()
-		if q.state != questionInProgress {
-			// Answered while scheduling.
-			// Don't block tasks on sending a pipeline call.
-			obj, err = q.obj, q.err
-			q.mu.Unlock()
-			return nil
-		}
-		q.addPromise(transform)
+	q.mu.Lock()
+	if q.state != questionInProgress {
+		// Answered while acquiring lock.
+		obj, err := q.obj, q.err
 		q.mu.Unlock()
-		sent = q.conn.sendCall(&call{
-			Call:       ccall,
-			questionID: q.id,
-			transform:  transform,
-		})
-		return nil
-	})
-	if err != nil {
-		return capnp.ErrorAnswer(err)
-	}
-	if sent == nil {
 		return pcall(obj, err)
 	}
-	return sent
+	q.addPromise(transform)
+	qchan := make(chan *question, 1)
+	ac := &appCall{
+		Call:       ccall,
+		kind:       appPipelineCall,
+		qchan:      qchan,
+		questionID: q.id,
+		transform:  transform,
+	}
+	select {
+	case q.calls <- ac:
+	case <-ccall.Ctx.Done():
+		q.mu.Unlock()
+		return capnp.ErrorAnswer(ccall.Ctx.Err())
+	case <-q.manager.finish:
+		q.mu.Unlock()
+		return capnp.ErrorAnswer(q.manager.err())
+	}
+	q.mu.Unlock()
+	select {
+	case q := <-qchan:
+		return q
+	case <-ccall.Ctx.Done():
+		return capnp.ErrorAnswer(ccall.Ctx.Err())
+	case <-q.manager.finish:
+		return capnp.ErrorAnswer(q.manager.err())
+	}
 }
 
 func (q *question) PipelineClose(transform []capnp.PipelineOp) error {
