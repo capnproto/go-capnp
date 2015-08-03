@@ -88,13 +88,13 @@ func (a *answer) fulfill(obj capnp.Object) {
 	}
 	a.obj = obj
 	a.done = true
-	a.send()
 	// TODO(light): populate resultCaps
 	queues := a.emptyQueue(obj)
 	ctab := obj.Segment.Message.CapTable()
 	for capIdx, q := range queues {
 		ctab[capIdx] = newQueueClient(ctab[capIdx], q)
 	}
+	a.send()
 	close(a.resolved)
 	a.mu.Unlock()
 }
