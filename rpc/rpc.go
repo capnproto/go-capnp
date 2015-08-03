@@ -20,6 +20,7 @@ type Conn struct {
 	in         <-chan rpccapnp.Message
 	out        chan<- outgoingMessage
 	calls      chan *appCall
+	cancels    <-chan *question
 	releases   chan *outgoingRelease
 	localCalls chan<- *localCall
 	returns    <-chan *outgoingReturn
@@ -54,17 +55,19 @@ func NewConn(t Transport, options ...ConnOption) *Conn {
 	i := make(chan rpccapnp.Message)
 	o := make(chan outgoingMessage)
 	calls := make(chan *appCall)
+	cancels := make(chan *question)
 	lc := make(chan *localCall, 16)
 	rets := make(chan *outgoingReturn)
 	releases := make(chan *outgoingRelease)
 	conn.in, conn.out = i, o
 	conn.calls = calls
+	conn.cancels = cancels
 	conn.localCalls = lc
 	conn.returns = rets
 	conn.releases = releases
 	conn.questions.manager = &conn.manager
 	conn.questions.calls = calls
-	conn.questions.out = o
+	conn.questions.cancels = cancels
 	conn.answers.manager = &conn.manager
 	conn.answers.returns = rets
 	conn.imports.manager = &conn.manager
@@ -124,13 +127,9 @@ func (c *Conn) coordinate() {
 		case m := <-c.in:
 			c.handleMessage(m)
 		case ac := <-c.calls:
-			q, err := c.handleCall(ac)
-			if err == nil {
-				ac.qchan <- q
-			} else {
-				// TODO(light): send call errors back over qchan.
-				log.Println("rpc: handling call:", err)
-			}
+			c.handleCall(ac)
+		case q := <-c.cancels:
+			c.handleCancel(q)
 		case r := <-c.releases:
 			r.echan <- c.handleRelease(r.id)
 		case r := <-c.returns:
@@ -144,19 +143,12 @@ func (c *Conn) coordinate() {
 // Bootstrap returns the receiver's main interface.
 func (c *Conn) Bootstrap(ctx context.Context) capnp.Client {
 	// TODO(light): Create a client that returns immediately.
-	qchan := make(chan *question, 1)
-	ac := &appCall{
-		kind:  appBootstrapCall,
-		qchan: qchan,
-		Call: &capnp.Call{
-			Ctx: ctx,
-		},
-	}
+	ac, achan := newAppBootstrapCall(ctx)
 	select {
 	case c.calls <- ac:
 		select {
-		case q := <-qchan:
-			return capnp.NewPipeline(q).Client()
+		case a := <-achan:
+			return capnp.NewPipeline(a).Client()
 		case <-c.manager.finish:
 			return capnp.ErrorClient(c.manager.err())
 		}
@@ -216,19 +208,38 @@ func newUnimplementedMessage(buf []byte, m rpccapnp.Message) rpccapnp.Message {
 }
 
 // handleCall is run from the coordinate goroutine.
-func (c *Conn) handleCall(ac *appCall) (*question, error) {
+func (c *Conn) handleCall(ac *appCall) {
+	if ac.kind == appPipelineCall && c.questions.get(ac.question.id) != ac.question {
+		// Question has been finished.  The call should happen as if it is
+		// back in application code.
+		go func() {
+			<-ac.question.resolved // not strictly necessary
+			_, obj, err, _ := ac.question.peek()
+			if err != nil {
+				ac.achan <- capnp.ErrorAnswer(err)
+				return
+			}
+			c := capnp.TransformObject(obj, ac.transform).ToInterface().Client()
+			if c == nil {
+				ac.achan <- capnp.ErrorAnswer(capnp.ErrNullClient)
+				return
+			}
+			ac.achan <- c.Call(ac.Call)
+		}()
+		return
+	}
 	q := c.questions.new(ac.Ctx, &ac.Method)
 	msg := c.newCallMessage(nil, q.id, ac)
 	select {
 	case c.out <- outgoingMessage{ac.Ctx, msg}:
 		q.start()
-		return q, nil
+		ac.achan <- q
 	case <-ac.Ctx.Done():
 		c.questions.pop(q.id)
-		return nil, ac.Ctx.Err()
+		ac.achan <- capnp.ErrorAnswer(ac.Ctx.Err())
 	case <-c.manager.finish:
 		c.questions.pop(q.id)
-		return nil, c.manager.err()
+		ac.achan <- capnp.ErrorAnswer(c.manager.err())
 	}
 }
 
@@ -254,7 +265,7 @@ func (c *Conn) newCallMessage(buf []byte, id questionID, ac *appCall) rpccapnp.M
 		target.SetImportedCap(uint32(ac.importID))
 	case appPipelineCall:
 		a := rpccapnp.NewPromisedAnswer(s)
-		a.SetQuestionId(uint32(ac.questionID))
+		a.SetQuestionId(uint32(ac.question.id))
 		transformToPromisedAnswer(s, a, ac.transform)
 		target.SetPromisedAnswer(a)
 	default:
@@ -278,6 +289,17 @@ func transformToPromisedAnswer(s *capnp.Segment, answer rpccapnp.PromisedAnswer,
 		opList.At(i).SetGetPointerField(uint16(op.Field))
 	}
 	answer.SetTransform(opList)
+}
+
+// handleCancel is called from the coordinate goroutine to handle a question's cancelation.
+func (c *Conn) handleCancel(q *question) {
+	q.reject(questionCanceled, q.ctx.Err())
+	// TODO(light): timeout?
+	msg := newFinishMessage(nil, q.id, true /* release */)
+	select {
+	case c.out <- outgoingMessage{q.manager.context(), msg}:
+	case <-c.manager.finish:
+	}
 }
 
 // handleRelease is run in the coordinate goroutine to handle an import
@@ -308,12 +330,17 @@ func (c *Conn) handleReturnMessage(m rpccapnp.Return) error {
 	if m.ReleaseParamCaps() {
 		c.exports.releaseList(q.paramCaps)
 	}
-	resolved, releaseResultCaps := false, true
+	if _, _, _, resolved := q.peek(); resolved {
+		// If the question was already resolved, that means it was canceled,
+		// in which case we already sent the finish message.
+		return nil
+	}
+	releaseResultCaps := true
 	switch m.Which() {
 	case rpccapnp.Return_Which_results:
 		releaseResultCaps = false
 		c.populateMessageCapTable(m.Results())
-		resolved = q.fulfill(m.Results().Content())
+		q.fulfill(m.Results().Content())
 	case rpccapnp.Return_Which_exception:
 		e := error(Exception{m.Exception()})
 		if q.method != nil {
@@ -324,7 +351,7 @@ func (c *Conn) handleReturnMessage(m rpccapnp.Return) error {
 		} else {
 			e = bootstrapError{e}
 		}
-		resolved = q.reject(questionResolved, e)
+		q.reject(questionResolved, e)
 	case rpccapnp.Return_Which_canceled:
 		err := &questionError{
 			id:     id,
@@ -332,7 +359,7 @@ func (c *Conn) handleReturnMessage(m rpccapnp.Return) error {
 			err:    fmt.Errorf("receiver reported canceled"),
 		}
 		log.Println(err)
-		resolved = q.reject(questionResolved, err)
+		q.reject(questionResolved, err)
 		return nil
 	default:
 		um := newUnimplementedMessage(nil, rpccapnp.ReadRootMessage(m.Segment))
@@ -340,12 +367,6 @@ func (c *Conn) handleReturnMessage(m rpccapnp.Return) error {
 		case c.out <- outgoingMessage{c.manager.context(), um}:
 		case <-c.manager.finish:
 		}
-		return nil
-	}
-	if !resolved {
-		// If the question was already resolved, that usually means it was
-		// canceled, in which case that goroutine is responsible for sending
-		// finish.
 		return nil
 	}
 	fin := newFinishMessage(nil, id, releaseResultCaps)
@@ -430,7 +451,6 @@ func (c *Conn) descriptorForClient(desc rpccapnp.CapDescriptor, client capnp.Cli
 			goto fallback
 		}
 		id, obj, err, done := q.peek()
-		// TODO(light): this is racy
 		if !done {
 			if !isQuestionFromConn(q, c) {
 				goto fallback
@@ -520,6 +540,17 @@ func (c *Conn) handleCallMessage(m rpccapnp.Message) error {
 	ctx, cancel := c.newContext()
 	id := answerID(m.Call().QuestionId())
 	a := c.answers.insert(id, cancel)
+	if a == nil {
+		// Question ID reused, error out.
+		ret := newReturnMessage(id)
+		setReturnException(ret.Return(), errQuestionReused)
+		select {
+		case c.out <- outgoingMessage{ctx, ret}:
+			return nil
+		case <-c.manager.finish:
+			return c.manager.err()
+		}
+	}
 	fail := func(err error) error {
 		ret := newReturnMessage(id)
 		setReturnException(ret.Return(), err)
@@ -527,15 +558,9 @@ func (c *Conn) handleCallMessage(m rpccapnp.Message) error {
 		select {
 		case c.out <- outgoingMessage{ctx, ret}:
 			return nil
-		case <-ctx.Done():
-			return ctx.Err()
 		case <-c.manager.finish:
 			return c.manager.err()
 		}
-	}
-	if a == nil {
-		// Question ID reused, error out.
-		return fail(errQuestionReused)
 	}
 	c.populateMessageCapTable(m.Call().Params())
 	meth := capnp.Method{
@@ -555,10 +580,6 @@ func (c *Conn) handleCallMessage(m rpccapnp.Message) error {
 	select {
 	case c.localCalls <- lc:
 		return nil
-	case <-ctx.Done():
-		err := ctx.Err()
-		go a.reject(err)
-		return err
 	case <-c.manager.finish:
 		err := c.manager.err()
 		go a.reject(err)
@@ -711,14 +732,44 @@ func setReturnException(ret rpccapnp.Return, err error) rpccapnp.Exception {
 type appCall struct {
 	*capnp.Call
 	kind  int
-	qchan chan<- *question
+	achan chan<- capnp.Answer
 
 	// Import calls
 	importID importID
 
 	// Pipeline calls
-	questionID questionID
-	transform  []capnp.PipelineOp
+	question  *question
+	transform []capnp.PipelineOp
+}
+
+func newAppImportCall(id importID, cl *capnp.Call) (*appCall, <-chan capnp.Answer) {
+	achan := make(chan capnp.Answer, 1)
+	return &appCall{
+		Call:     cl,
+		kind:     appImportCall,
+		achan:    achan,
+		importID: id,
+	}, achan
+}
+
+func newAppPipelineCall(q *question, transform []capnp.PipelineOp, cl *capnp.Call) (*appCall, <-chan capnp.Answer) {
+	achan := make(chan capnp.Answer, 1)
+	return &appCall{
+		Call:      cl,
+		kind:      appPipelineCall,
+		achan:     achan,
+		question:  q,
+		transform: transform,
+	}, achan
+}
+
+func newAppBootstrapCall(ctx context.Context) (*appCall, <-chan capnp.Answer) {
+	achan := make(chan capnp.Answer, 1)
+	return &appCall{
+		Call:  &capnp.Call{Ctx: ctx},
+		kind:  appBootstrapCall,
+		achan: achan,
+	}, achan
 }
 
 // Kinds of application calls.

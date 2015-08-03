@@ -83,18 +83,12 @@ type importClient struct {
 
 func (ic *importClient) Call(cl *capnp.Call) capnp.Answer {
 	// TODO(light): don't send if closed.
-	qchan := make(chan *question, 1)
-	ac := &appCall{
-		Call:     cl,
-		kind:     appImportCall,
-		qchan:    qchan,
-		importID: ic.id,
-	}
+	ac, achan := newAppImportCall(ic.id, cl)
 	select {
 	case ic.calls <- ac:
 		select {
-		case q := <-qchan:
-			return q
+		case a := <-achan:
+			return a
 		case <-ic.manager.finish:
 			return capnp.ErrorAnswer(ic.manager.err())
 		}

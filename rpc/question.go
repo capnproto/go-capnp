@@ -13,7 +13,7 @@ type questionTable struct {
 
 	manager *manager
 	calls   chan<- *appCall
-	out     chan<- outgoingMessage
+	cancels chan<- *question
 }
 
 // new creates a new question with an unassigned ID.
@@ -24,7 +24,7 @@ func (qt *questionTable) new(ctx context.Context, method *capnp.Method) *questio
 		method:   method,
 		manager:  qt.manager,
 		calls:    qt.calls,
-		out:      qt.out,
+		cancels:  qt.cancels,
 		resolved: make(chan struct{}),
 		id:       id,
 	}
@@ -60,7 +60,7 @@ type question struct {
 	method    *capnp.Method // nil if this is bootstrap
 	paramCaps []exportID
 	calls     chan<- *appCall
-	out       chan<- outgoingMessage
+	cancels   chan<- *question
 	manager   *manager
 	resolved  chan struct{}
 
@@ -88,47 +88,45 @@ func (q *question) start() {
 		select {
 		case <-q.resolved:
 		case <-q.ctx.Done():
-			if q.reject(questionCanceled, q.ctx.Err()) {
-				// TODO(light): timeout?
-				msg := newFinishMessage(nil, q.id, true /* release */)
-				select {
-				case q.out <- outgoingMessage{q.manager.context(), msg}:
-				case <-q.manager.finish:
-				}
+			select {
+			case q.cancels <- q:
+			case <-q.resolved:
+			case <-q.manager.finish:
 			}
 		case <-q.manager.finish:
-			q.reject(questionCanceled, q.manager.err())
+			// TODO(light): connection should reject all questions on shutdown.
 		}
 	}()
 }
 
-func (q *question) fulfill(obj capnp.Object) bool {
+// fulfill is called to resolve a question succesfully.
+// It must be called from the coordinate goroutine.
+func (q *question) fulfill(obj capnp.Object) {
 	q.mu.Lock()
 	if q.state != questionInProgress {
 		q.mu.Unlock()
-		return false
+		panic("question.fulfill called more than once")
 	}
+	q.obj, q.state = obj, questionResolved
 	close(q.resolved)
-	q.obj = obj
-	q.state = questionResolved
-	// TODO(light): embargo clients and kick off loopback.
+	// TODO(light): return embargoes.
 	q.mu.Unlock()
-	return true
 }
 
-func (q *question) reject(state questionState, err error) bool {
+// reject is called to resolve a question with failure.
+// It must be called from the coordinate goroutine.
+func (q *question) reject(state questionState, err error) {
 	if err == nil {
 		panic("question.reject called with nil")
 	}
 	q.mu.Lock()
 	if q.state != questionInProgress {
 		q.mu.Unlock()
-		return false
+		panic("question.reject called more than once")
 	}
-	close(q.resolved)
 	q.err, q.state = err, state
+	close(q.resolved)
 	q.mu.Unlock()
-	return true
 }
 
 func (q *question) peek() (id questionID, obj capnp.Object, err error, ok bool) {
@@ -166,51 +164,17 @@ func (q *question) Struct() (capnp.Struct, error) {
 }
 
 func (q *question) PipelineCall(transform []capnp.PipelineOp, ccall *capnp.Call) capnp.Answer {
-	pcall := func(obj capnp.Object, err error) capnp.Answer {
-		if err != nil {
-			return capnp.ErrorAnswer(err)
-		}
-		c := capnp.TransformObject(obj, transform).ToInterface().Client()
-		if c == nil {
-			return capnp.ErrorAnswer(capnp.ErrNullClient)
-		}
-		return c.Call(ccall)
-	}
-	if _, obj, err, ok := q.peek(); ok {
-		return pcall(obj, err)
-	}
-	if transform == nil {
-		transform = []capnp.PipelineOp{}
-	}
-	q.mu.Lock()
-	if q.state != questionInProgress {
-		// Answered while acquiring lock.
-		obj, err := q.obj, q.err
-		q.mu.Unlock()
-		return pcall(obj, err)
-	}
-	q.addPromise(transform)
-	qchan := make(chan *question, 1)
-	ac := &appCall{
-		Call:       ccall,
-		kind:       appPipelineCall,
-		qchan:      qchan,
-		questionID: q.id,
-		transform:  transform,
-	}
+	ac, achan := newAppPipelineCall(q, transform, ccall)
 	select {
 	case q.calls <- ac:
 	case <-ccall.Ctx.Done():
-		q.mu.Unlock()
 		return capnp.ErrorAnswer(ccall.Ctx.Err())
 	case <-q.manager.finish:
-		q.mu.Unlock()
 		return capnp.ErrorAnswer(q.manager.err())
 	}
-	q.mu.Unlock()
 	select {
-	case q := <-qchan:
-		return q
+	case a := <-achan:
+		return a
 	case <-ccall.Ctx.Done():
 		return capnp.ErrorAnswer(ccall.Ctx.Err())
 	case <-q.manager.finish:
