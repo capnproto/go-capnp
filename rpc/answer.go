@@ -65,73 +65,49 @@ type answer struct {
 	returns    chan<- *outgoingReturn
 	resolved   chan struct{}
 
-	mu        sync.RWMutex
-	canReturn bool
-	obj       capnp.Object
-	err       error
-	done      bool
-	queue     []pcall
+	mu    sync.RWMutex
+	obj   capnp.Object
+	err   error
+	done  bool
+	queue []pcall
 }
 
-// start signals that the answer is live.
-func (a *answer) start() {
-	a.mu.Lock()
-	a.canReturn = true
-	a.mu.Unlock()
-}
-
+// fulfill is called to resolve an answer succesfully.
+// It must be called from the coordinate goroutine.
 func (a *answer) fulfill(obj capnp.Object) {
 	a.mu.Lock()
+	defer a.mu.Unlock()
 	if a.done {
-		a.mu.Unlock()
 		panic("answer.fulfill called more than once")
 	}
-	a.obj = obj
-	a.done = true
+	a.obj, a.done = obj, true
 	// TODO(light): populate resultCaps
 	queues := a.emptyQueue(obj)
 	ctab := obj.Segment.Message.CapTable()
 	for capIdx, q := range queues {
 		ctab[capIdx] = newQueueClient(ctab[capIdx], q)
 	}
-	a.send()
 	close(a.resolved)
-	a.mu.Unlock()
 }
 
+// reject is called to resolve an answer with failure.
+// It must be called from the coordinate goroutine.
 func (a *answer) reject(err error) {
 	if err == nil {
 		panic("answer.reject called with nil")
 	}
 	a.mu.Lock()
+	defer a.mu.Unlock()
 	if a.done {
-		a.mu.Unlock()
 		panic("answer.reject called more than once")
 	}
-	a.err = err
-	a.done = true
-	a.send()
+	a.err, a.done = err, true
 	for i := range a.queue {
+		// TODO(light): DO NOT SUBMIT this needs returns
 		a.queue[i].a.reject(err)
 		a.queue[i] = pcall{}
 	}
 	close(a.resolved)
-	a.mu.Unlock()
-}
-
-func (a *answer) send() {
-	if !a.canReturn {
-		return
-	}
-	r := &outgoingReturn{
-		id:  a.id,
-		obj: a.obj,
-		err: a.err,
-	}
-	select {
-	case a.returns <- r:
-	case <-a.manager.finish:
-	}
 }
 
 // emptyQueue splits the queue by which capability it targets
@@ -142,6 +118,7 @@ func (a *answer) emptyQueue(obj capnp.Object) map[uint32][]qcall {
 	for i, pc := range a.queue {
 		c := capnp.TransformObject(obj, pc.transform)
 		if c.Type() != capnp.TypeInterface {
+			// TODO(light): DO NOT SUBMIT this needs returns
 			pc.a.reject(capnp.ErrNullClient)
 			continue
 		}
@@ -162,25 +139,15 @@ func (a *answer) peek() (obj capnp.Object, err error, ok bool) {
 	return
 }
 
+// queueCall is called from the coordinate goroutine to add a call to
+// the queue.
 func (a *answer) queueCall(result *answer, transform []capnp.PipelineOp, call *capnp.Call) error {
 	a.mu.Lock()
+	defer a.mu.Unlock()
 	if a.done {
-		obj, err := a.obj, a.err
-		a.mu.Unlock()
-		if err != nil {
-			result.reject(err)
-			return nil
-		}
-		client := capnp.TransformObject(obj, transform).ToInterface().Client()
-		if client == nil {
-			result.reject(capnp.ErrNullClient)
-			return nil
-		}
-		go joinAnswer(result, client.Call(call))
-		return nil
+		panic("answer.queueCall called on resolved answer")
 	}
 	if len(a.queue) == cap(a.queue) {
-		a.mu.Unlock()
 		return errQueueFull
 	}
 	a.queue = append(a.queue, pcall{
@@ -190,16 +157,16 @@ func (a *answer) queueCall(result *answer, transform []capnp.PipelineOp, call *c
 			call: call,
 		},
 	})
-	a.mu.Unlock()
 	return nil
 }
 
+// queueDisembargo is called from the coordinate goroutine to add a
+// disembargo message to the queue.
 func (a *answer) queueDisembargo(transform []capnp.PipelineOp, id embargoID, target rpccapnp.MessageTarget) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.done {
-		// TODO(light): start disembargo
-		return nil
+		panic("answer.queueDisembargo called on resolved answer")
 	}
 	if len(a.queue) == cap(a.queue) {
 		return errQueueFull
@@ -219,10 +186,14 @@ func (a *answer) queueDisembargo(transform []capnp.PipelineOp, id embargoID, tar
 // in its own goroutine.
 func joinAnswer(a *answer, ca capnp.Answer) {
 	s, err := ca.Struct()
-	if err != nil {
-		a.reject(err)
-	} else {
-		a.fulfill(capnp.Object(s))
+	r := &outgoingReturn{
+		a:   a,
+		obj: capnp.Object(s),
+		err: err,
+	}
+	select {
+	case a.returns <- r:
+	case <-a.manager.finish:
 	}
 }
 
@@ -243,14 +214,13 @@ func joinFulfiller(f *capnp.Fulfiller, ca capnp.Answer) {
 // message is insufficient, since the connection needs to populate the
 // return message's capability table.
 type outgoingReturn struct {
-	id  answerID
+	a   *answer
 	obj capnp.Object
 	err error
 }
 
 type queueClient struct {
-	client       capnp.Client
-	answerFinish chan struct{}
+	client capnp.Client
 
 	mu       sync.RWMutex
 	queue    []qcall
@@ -349,6 +319,7 @@ func (qc *queueClient) Close() error {
 	for {
 		c := qc.pop()
 		if w := c.which(); w == qcallRemoteCall {
+			// TODO(light): DO NOT SUBMIT this needs returns
 			c.a.reject(errQueueCallCancel)
 		} else if w == qcallLocalCall {
 			c.f.Reject(errQueueCallCancel)
@@ -370,9 +341,9 @@ type pcall struct {
 
 // qcall is a queued call.
 type qcall struct {
-	// Normal pipeline call
-	a    *answer
-	f    *capnp.Fulfiller
+	// Calls
+	a    *answer          // non-nil if remote call
+	f    *capnp.Fulfiller // non-nil if local call
 	call *capnp.Call
 
 	// Disembargo

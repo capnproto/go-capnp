@@ -7,6 +7,8 @@ import (
 )
 
 // manager signals the running goroutines in a Conn.
+// Since there is one manager per connection, it's also a way of
+// identifying an object's origin.
 type manager struct {
 	finish chan struct{}
 	wg     sync.WaitGroup

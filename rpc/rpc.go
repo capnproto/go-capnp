@@ -16,14 +16,13 @@ type Conn struct {
 	transport Transport
 	main      capnp.Client
 
-	manager    manager
-	in         <-chan rpccapnp.Message
-	out        chan<- outgoingMessage
-	calls      chan *appCall
-	cancels    <-chan *question
-	releases   chan *outgoingRelease
-	localCalls chan<- *localCall
-	returns    <-chan *outgoingReturn
+	manager  manager
+	in       <-chan rpccapnp.Message
+	out      chan<- outgoingMessage
+	calls    chan *appCall
+	cancels  <-chan *question
+	releases chan *outgoingRelease
+	returns  <-chan *outgoingReturn
 
 	// Mutable state. Only accessed from coordinate goroutine.
 	questions questionTable
@@ -56,13 +55,11 @@ func NewConn(t Transport, options ...ConnOption) *Conn {
 	o := make(chan outgoingMessage)
 	calls := make(chan *appCall)
 	cancels := make(chan *question)
-	lc := make(chan *localCall, 16)
 	rets := make(chan *outgoingReturn)
 	releases := make(chan *outgoingRelease)
 	conn.in, conn.out = i, o
 	conn.calls = calls
 	conn.cancels = cancels
-	conn.localCalls = lc
 	conn.returns = rets
 	conn.releases = releases
 	conn.questions.manager = &conn.manager
@@ -80,9 +77,6 @@ func NewConn(t Transport, options ...ConnOption) *Conn {
 	})
 	conn.manager.do(func() {
 		dispatchSend(&conn.manager, t, o)
-	})
-	conn.manager.do(func() {
-		dispatchLocalCalls(&conn.manager, lc)
 	})
 	return conn
 }
@@ -149,9 +143,13 @@ func (c *Conn) Bootstrap(ctx context.Context) capnp.Client {
 		select {
 		case a := <-achan:
 			return capnp.NewPipeline(a).Client()
+		case <-ctx.Done():
+			return capnp.ErrorClient(ctx.Err())
 		case <-c.manager.finish:
 			return capnp.ErrorClient(c.manager.err())
 		}
+	case <-ctx.Done():
+		return capnp.ErrorClient(ctx.Err())
 	case <-c.manager.finish:
 		return capnp.ErrorClient(c.manager.err())
 	}
@@ -207,7 +205,7 @@ func newUnimplementedMessage(buf []byte, m rpccapnp.Message) rpccapnp.Message {
 	return n
 }
 
-// handleCall is run from the coordinate goroutine.
+// handleCall is run from the coordinate goroutine to send a question to a remote vat.
 func (c *Conn) handleCall(ac *appCall) {
 	if ac.kind == appPipelineCall && c.questions.get(ac.question.id) != ac.question {
 		// Question has been finished.  The call should happen as if it is
@@ -215,15 +213,7 @@ func (c *Conn) handleCall(ac *appCall) {
 		go func() {
 			<-ac.question.resolved // not strictly necessary
 			_, obj, err, _ := ac.question.peek()
-			if err != nil {
-				ac.achan <- capnp.ErrorAnswer(err)
-				return
-			}
-			c := capnp.TransformObject(obj, ac.transform).ToInterface().Client()
-			if c == nil {
-				ac.achan <- capnp.ErrorAnswer(capnp.ErrNullClient)
-				return
-			}
+			c := extractClient(ac.transform, obj, err)
 			ac.achan <- c.Call(ac.Call)
 		}()
 		return
@@ -231,7 +221,7 @@ func (c *Conn) handleCall(ac *appCall) {
 	q := c.questions.new(ac.Ctx, &ac.Method)
 	msg := c.newCallMessage(nil, q.id, ac)
 	select {
-	case c.out <- outgoingMessage{ac.Ctx, msg}:
+	case c.out <- outgoingMessage{c.manager.context(), msg}:
 		q.start()
 		ac.achan <- q
 	case <-ac.Ctx.Done():
@@ -461,23 +451,13 @@ func (c *Conn) descriptorForClient(desc rpccapnp.CapDescriptor, client capnp.Cli
 			desc.SetReceiverAnswer(a)
 			return
 		}
-		if err != nil {
-			id := c.exports.add(capnp.ErrorClient(err))
-			desc.SetSenderHosted(uint32(id))
-			return
-		}
-		tclient := capnp.TransformObject(obj, p.Transform()).ToInterface().Client()
-		if tclient == nil {
-			id := c.exports.add(capnp.ErrorClient(capnp.ErrNullClient))
-			desc.SetSenderHosted(uint32(id))
-			return
-		}
-		c.descriptorForClient(desc, tclient)
+		c.descriptorForClient(desc, extractClient(p.Transform(), obj, err))
 		return
 	}
 
 	// Fallback: host and export ourselves.
 fallback:
+	log.Printf("exporting a %T Client", client)
 	id := c.exports.add(client)
 	desc.SetSenderHosted(uint32(id))
 }
@@ -500,7 +480,7 @@ func (c *Conn) handleBootstrapMessage(id answerID) error {
 	retmsg := newReturnMessage(id)
 	send := func() error {
 		select {
-		case c.out <- outgoingMessage{ctx, retmsg}:
+		case c.out <- outgoingMessage{c.manager.context(), retmsg}:
 			return nil
 		case <-ctx.Done():
 			return ctx.Err()
@@ -537,6 +517,19 @@ func (c *Conn) handleBootstrapMessage(id answerID) error {
 // received call message.  It mutates the capability table of its
 // parameter.
 func (c *Conn) handleCallMessage(m rpccapnp.Message) error {
+	send := func(msg rpccapnp.Message) error {
+		select {
+		case c.out <- outgoingMessage{c.manager.context(), msg}:
+			return nil
+		case <-c.manager.finish:
+			return c.manager.err()
+		}
+	}
+	mt := m.Call().Target()
+	if mt.Which() != rpccapnp.MessageTarget_Which_importedCap && mt.Which() != rpccapnp.MessageTarget_Which_promisedAnswer {
+		um := newUnimplementedMessage(nil, m)
+		return send(um)
+	}
 	ctx, cancel := c.newContext()
 	id := answerID(m.Call().QuestionId())
 	a := c.answers.insert(id, cancel)
@@ -544,23 +537,7 @@ func (c *Conn) handleCallMessage(m rpccapnp.Message) error {
 		// Question ID reused, error out.
 		ret := newReturnMessage(id)
 		setReturnException(ret.Return(), errQuestionReused)
-		select {
-		case c.out <- outgoingMessage{ctx, ret}:
-			return nil
-		case <-c.manager.finish:
-			return c.manager.err()
-		}
-	}
-	fail := func(err error) error {
-		ret := newReturnMessage(id)
-		setReturnException(ret.Return(), err)
-		a.reject(err)
-		select {
-		case c.out <- outgoingMessage{ctx, ret}:
-			return nil
-		case <-c.manager.finish:
-			return c.manager.err()
-		}
+		return send(ret)
 	}
 	c.populateMessageCapTable(m.Call().Params())
 	meth := capnp.Method{
@@ -572,107 +549,58 @@ func (c *Conn) handleCallMessage(m rpccapnp.Message) error {
 		Method: meth,
 		Params: m.Call().Params().Content().ToStruct(),
 	}
-	lc, err := c.newLocalCall(a, m.Call().Target(), cl)
-	if err != nil {
-		return fail(err)
+	if err := c.routeCallMessage(a, mt, cl); err != nil {
+		ret := newReturnMessage(id)
+		setReturnException(ret.Return(), err)
+		a.reject(err)
+		return send(ret)
 	}
-	a.start()
-	select {
-	case c.localCalls <- lc:
-		return nil
-	case <-c.manager.finish:
-		err := c.manager.err()
-		go a.reject(err)
-		return err
-	}
+	return nil
 }
 
-// newContext creates a new context for a local call.
-func (c *Conn) newContext() (context.Context, context.CancelFunc) {
-	return context.WithCancel(c.manager.context())
-}
-
-// A localCall is the Conn-internal type for queued calls.
-type localCall struct {
-	result *answer
-	call   *capnp.Call
-
-	// Imported cap
-	client capnp.Client
-
-	// Promised answer
-	promise   *answer
-	transform []capnp.PipelineOp
-}
-
-func (c *Conn) newLocalCall(resultAnswer *answer, mt rpccapnp.MessageTarget, cl *capnp.Call) (*localCall, error) {
+func (c *Conn) routeCallMessage(result *answer, mt rpccapnp.MessageTarget, cl *capnp.Call) error {
 	switch mt.Which() {
 	case rpccapnp.MessageTarget_Which_importedCap:
 		id := exportID(mt.ImportedCap())
 		e := c.exports.get(id)
 		if e == nil {
-			return nil, errBadTarget
+			return errBadTarget
 		}
-		return &localCall{
-			result: resultAnswer,
-			call:   cl,
-			client: e.client,
-		}, nil
+		// TODO(light): DO NOT SUBMIT this can deadlock
+		log.Printf("route: making a call to an exported %T client", e.client)
+		answer := e.client.Call(cl)
+		go joinAnswer(result, answer)
 	case rpccapnp.MessageTarget_Which_promisedAnswer:
 		id := answerID(mt.PromisedAnswer().QuestionId())
-		if id == resultAnswer.id {
+		if id == result.id {
 			// Grandfather paradox.
-			return nil, errBadTarget
+			return errBadTarget
 		}
 		pa := c.answers.get(id)
 		if pa == nil {
-			return nil, errBadTarget
+			return errBadTarget
 		}
 		transform := promisedAnswerOpsToTransform(mt.PromisedAnswer().Transform())
-		return &localCall{
-			result:    resultAnswer,
-			call:      cl,
-			promise:   pa,
-			transform: transform,
-		}, nil
-	default:
-		// TODO(light): send unimplemented
-		return nil, errBadTarget
-	}
-}
-
-func (lc *localCall) do() error {
-	switch {
-	case lc.client != nil:
-		answer := lc.client.Call(lc.call)
-		go joinAnswer(lc.result, answer)
-		return nil
-	case lc.promise != nil:
-		if err := lc.promise.queueCall(lc.result, lc.transform, lc.call); err != nil {
+		if obj, err, done := pa.peek(); done {
+			client := extractClient(transform, obj, err)
+			// TODO(light): DO NOT SUBMIT this can deadlock
+			log.Printf("route: making a call to a promised-answer %T client", client)
+			answer := client.Call(cl)
+			go joinAnswer(result, answer)
+			return nil
+		}
+		if err := pa.queueCall(result, transform, cl); err != nil {
 			return err
 		}
-		return nil
 	default:
-		panic("bad localCall value")
+		panic("unreachable")
 	}
+	return nil
 }
 
-// dispatchLocalCalls is run in its own goroutine.
-// It starts calls to local capabilities.  This occurs in a
-// separate goroutine because some clients may take a long time to
-// start their call or may try to send a call on the connection.
-// By having a buffered queue, we can relieve these issues.
-func dispatchLocalCalls(m *manager, calls <-chan *localCall) {
-	for {
-		select {
-		case lc := <-calls:
-			if err := lc.do(); err != nil {
-				log.Printf("rpc: queuing %v call: %v", lc.call.Method, err)
-			}
-		case <-m.finish:
-			return
-		}
-	}
+// newContext creates a new context for a local call.
+func (c *Conn) newContext() (context.Context, context.CancelFunc) {
+	return context.WithCancel(c.manager.context())
 }
 
 func promisedAnswerOpsToTransform(list rpccapnp.PromisedAnswer_Op_List) []capnp.PipelineOp {
@@ -695,14 +623,16 @@ func promisedAnswerOpsToTransform(list rpccapnp.PromisedAnswer_Op_List) []capnp.
 // handleReturn is called from the coordinate goroutine to send an
 // answer's return value over the transport.
 func (c *Conn) handleReturn(r *outgoingReturn) {
-	msg := newReturnMessage(r.id)
+	msg := newReturnMessage(r.a.id)
 	if r.err == nil {
 		payload := rpccapnp.NewPayload(msg.Segment)
 		payload.SetContent(r.obj)
 		payload.SetCapTable(c.makeCapTable(msg.Segment))
 		msg.Return().SetResults(payload)
+		r.a.fulfill(r.obj)
 	} else {
 		setReturnException(msg.Return(), r.err)
+		r.a.reject(r.err)
 	}
 	select {
 	case c.out <- outgoingMessage{c.manager.context(), msg}:
@@ -725,6 +655,19 @@ func setReturnException(ret rpccapnp.Return, err error) rpccapnp.Exception {
 	toException(e, err)
 	ret.SetException(e)
 	return e
+}
+
+// extractClient returns transforms the base object that comes from
+// a question or answer state.
+func extractClient(transform []capnp.PipelineOp, obj capnp.Object, err error) capnp.Client {
+	if err != nil {
+		return capnp.ErrorClient(err)
+	}
+	c := capnp.TransformObject(obj, transform).ToInterface().Client()
+	if c == nil {
+		return capnp.ErrorClient(capnp.ErrNullClient)
+	}
+	return c
 }
 
 // An appCall is a message sent to the coordinate goroutine to indicate
