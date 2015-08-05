@@ -14,9 +14,10 @@ import (
 const callQueueSize = 64
 
 type answerTable struct {
-	tab     map[answerID]*answer
-	manager *manager
-	returns chan<- *outgoingReturn
+	tab         map[answerID]*answer
+	manager     *manager
+	returns     chan<- *outgoingReturn
+	queueCloses chan<- queueClientClose
 }
 
 func (at *answerTable) get(id answerID) *answer {
@@ -36,12 +37,13 @@ func (at *answerTable) insert(id answerID, cancel context.CancelFunc) *answer {
 	var a *answer
 	if _, ok := at.tab[id]; !ok {
 		a = &answer{
-			id:       id,
-			cancel:   cancel,
-			manager:  at.manager,
-			returns:  at.returns,
-			resolved: make(chan struct{}),
-			queue:    make([]pcall, 0, callQueueSize),
+			id:          id,
+			cancel:      cancel,
+			manager:     at.manager,
+			returns:     at.returns,
+			queueCloses: at.queueCloses,
+			resolved:    make(chan struct{}),
+			queue:       make([]pcall, 0, callQueueSize),
 		}
 		at.tab[id] = a
 	}
@@ -58,12 +60,13 @@ func (at *answerTable) pop(id answerID) *answer {
 }
 
 type answer struct {
-	id         answerID
-	cancel     context.CancelFunc
-	resultCaps []exportID
-	manager    *manager
-	returns    chan<- *outgoingReturn
-	resolved   chan struct{}
+	id          answerID
+	cancel      context.CancelFunc
+	resultCaps  []exportID
+	manager     *manager
+	returns     chan<- *outgoingReturn
+	queueCloses chan<- queueClientClose
+	resolved    chan struct{}
 
 	mu    sync.RWMutex
 	obj   capnp.Object
@@ -72,9 +75,10 @@ type answer struct {
 	queue []pcall
 }
 
-// fulfill is called to resolve an answer succesfully.
+// fulfill is called to resolve an answer succesfully and returns a list
+// of return messages to send.
 // It must be called from the coordinate goroutine.
-func (a *answer) fulfill(obj capnp.Object) {
+func (a *answer) fulfill(msgs []rpccapnp.Message, obj capnp.Object, makeCapTable capTableMaker) []rpccapnp.Message {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.done {
@@ -82,17 +86,27 @@ func (a *answer) fulfill(obj capnp.Object) {
 	}
 	a.obj, a.done = obj, true
 	// TODO(light): populate resultCaps
-	queues := a.emptyQueue(obj)
+
+	ret := newReturnMessage(a.id)
+	payload := rpccapnp.NewPayload(ret.Segment)
+	payload.SetContent(obj)
+	payload.SetCapTable(makeCapTable(ret.Segment))
+	ret.Return().SetResults(payload)
+	msgs = append(msgs, ret)
+
+	queues, msgs := a.emptyQueue(msgs, obj)
 	ctab := obj.Segment.Message.CapTable()
 	for capIdx, q := range queues {
-		ctab[capIdx] = newQueueClient(ctab[capIdx], q)
+		ctab[capIdx] = newQueueClient(ctab[capIdx], q, a.queueCloses)
 	}
 	close(a.resolved)
+	return msgs
 }
 
-// reject is called to resolve an answer with failure.
+// reject is called to resolve an answer with failure and returns a list
+// of return messages to send.
 // It must be called from the coordinate goroutine.
-func (a *answer) reject(err error) {
+func (a *answer) reject(msgs []rpccapnp.Message, err error) []rpccapnp.Message {
 	if err == nil {
 		panic("answer.reject called with nil")
 	}
@@ -102,24 +116,26 @@ func (a *answer) reject(err error) {
 		panic("answer.reject called more than once")
 	}
 	a.err, a.done = err, true
+	m := newReturnMessage(a.id)
+	setReturnException(m.Return(), err)
+	msgs = append(msgs, m)
 	for i := range a.queue {
-		// TODO(light): DO NOT SUBMIT this needs returns
-		a.queue[i].a.reject(err)
+		msgs = a.queue[i].a.reject(msgs, err)
 		a.queue[i] = pcall{}
 	}
 	close(a.resolved)
+	return msgs
 }
 
 // emptyQueue splits the queue by which capability it targets
 // and drops any invalid calls.  Once this function returns, a.queue
 // will be nil.
-func (a *answer) emptyQueue(obj capnp.Object) map[uint32][]qcall {
+func (a *answer) emptyQueue(msgs []rpccapnp.Message, obj capnp.Object) (map[uint32][]qcall, []rpccapnp.Message) {
 	qs := make(map[uint32][]qcall, len(a.queue))
 	for i, pc := range a.queue {
 		c := capnp.TransformObject(obj, pc.transform)
 		if c.Type() != capnp.TypeInterface {
-			// TODO(light): DO NOT SUBMIT this needs returns
-			pc.a.reject(capnp.ErrNullClient)
+			msgs = pc.a.reject(msgs, capnp.ErrNullClient)
 			continue
 		}
 		cn := c.ToInterface().Capability()
@@ -129,7 +145,7 @@ func (a *answer) emptyQueue(obj capnp.Object) map[uint32][]qcall {
 		qs[cn] = append(qs[cn], pc.qcall)
 	}
 	a.queue = nil
-	return qs
+	return qs, msgs
 }
 
 func (a *answer) peek() (obj capnp.Object, err error, ok bool) {
@@ -220,15 +236,21 @@ type outgoingReturn struct {
 }
 
 type queueClient struct {
-	client capnp.Client
+	client  capnp.Client
+	manager *manager
+	closes  chan<- queueClientClose
 
 	mu       sync.RWMutex
 	queue    []qcall
 	start, n int
 }
 
-func newQueueClient(client capnp.Client, queue []qcall) *queueClient {
-	qc := &queueClient{client: client, queue: make([]qcall, callQueueSize)}
+func newQueueClient(client capnp.Client, queue []qcall, closes chan<- queueClientClose) *queueClient {
+	qc := &queueClient{
+		client: client,
+		queue:  make([]qcall, callQueueSize),
+		closes: closes,
+	}
 	qc.n = copy(qc.queue, queue)
 	go qc.flushQueue()
 	return qc
@@ -324,13 +346,27 @@ func (qc *queueClient) WrappedClient() capnp.Client {
 }
 
 func (qc *queueClient) Close() error {
+	done := make(chan struct{})
+	select {
+	case qc.closes <- queueClientClose{qc, done}:
+	case <-qc.manager.finish:
+		return qc.manager.err()
+	}
+	select {
+	case <-done:
+	case <-qc.manager.finish:
+		return qc.manager.err()
+	}
+	return qc.client.Close()
+}
+
+// rejectQueue is called from the coordinate goroutine to close out a queueClient.
+func (qc *queueClient) rejectQueue(msgs []rpccapnp.Message) []rpccapnp.Message {
 	qc.mu.Lock()
-	// reject all queued calls
 	for {
 		c := qc.pop()
 		if w := c.which(); w == qcallRemoteCall {
-			// TODO(light): DO NOT SUBMIT this needs returns
-			c.a.reject(errQueueCallCancel)
+			msgs = c.a.reject(msgs, errQueueCallCancel)
 		} else if w == qcallLocalCall {
 			c.f.Reject(errQueueCallCancel)
 		} else if w == qcallDisembargo {
@@ -340,7 +376,14 @@ func (qc *queueClient) Close() error {
 		}
 	}
 	qc.mu.Unlock()
-	return qc.client.Close()
+	return msgs
+}
+
+// queueClientClose is a message sent to the coordinate goroutine to
+// handle rejecting a queue.
+type queueClientClose struct {
+	qc   *queueClient
+	done chan<- struct{}
 }
 
 // pcall is a queued pipeline call.
@@ -380,6 +423,9 @@ func (c *qcall) which() int {
 		return qcallInvalid
 	}
 }
+
+// A capTableMaker converts the clients in a segment's message into capability descriptors.
+type capTableMaker func(*capnp.Segment) rpccapnp.CapDescriptor_List
 
 var (
 	errQueueFull       = errors.New("rpc: pipeline queue full")

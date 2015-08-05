@@ -16,13 +16,14 @@ type Conn struct {
 	transport Transport
 	main      capnp.Client
 
-	manager  manager
-	in       <-chan rpccapnp.Message
-	out      chan<- outgoingMessage
-	calls    chan *appCall
-	cancels  <-chan *question
-	releases chan *outgoingRelease
-	returns  <-chan *outgoingReturn
+	manager     manager
+	in          <-chan rpccapnp.Message
+	out         chan<- outgoingMessage
+	calls       chan *appCall
+	cancels     <-chan *question
+	releases    chan *outgoingRelease
+	returns     <-chan *outgoingReturn
+	queueCloses <-chan queueClientClose
 
 	// Mutable state. Only accessed from coordinate goroutine.
 	questions questionTable
@@ -56,17 +57,20 @@ func NewConn(t Transport, options ...ConnOption) *Conn {
 	calls := make(chan *appCall)
 	cancels := make(chan *question)
 	rets := make(chan *outgoingReturn)
+	queueCloses := make(chan queueClientClose)
 	releases := make(chan *outgoingRelease)
 	conn.in, conn.out = i, o
 	conn.calls = calls
 	conn.cancels = cancels
-	conn.returns = rets
 	conn.releases = releases
+	conn.returns = rets
+	conn.queueCloses = queueCloses
 	conn.questions.manager = &conn.manager
 	conn.questions.calls = calls
 	conn.questions.cancels = cancels
 	conn.answers.manager = &conn.manager
 	conn.answers.returns = rets
+	conn.answers.queueCloses = queueCloses
 	conn.imports.manager = &conn.manager
 	conn.imports.calls = calls
 	conn.imports.releases = releases
@@ -134,6 +138,8 @@ func (c *Conn) coordinate() {
 			r.echan <- c.handleRelease(r.id)
 		case r := <-c.returns:
 			c.handleReturn(r)
+		case qcc := <-c.queueCloses:
+			c.handleQueueClose(qcc)
 		case <-c.manager.finish:
 			return
 		}
@@ -430,42 +436,40 @@ func (c *Conn) makeCapTable(s *capnp.Segment) rpccapnp.CapDescriptor_List {
 // handleBootstrapMessage is run in the coordinate goroutine to handle
 // a received bootstrap message.
 func (c *Conn) handleBootstrapMessage(id answerID) error {
-	ctx, cancel := c.newContext()
-	a := c.answers.insert(id, cancel)
-	retmsg := newReturnMessage(id)
-	send := func() error {
+	a := c.answers.insert(id, func() {})
+	send := func(m rpccapnp.Message) error {
 		select {
-		case c.out <- outgoingMessage{c.manager.context(), retmsg}:
+		case c.out <- outgoingMessage{c.manager.context(), m}:
 			return nil
-		case <-ctx.Done():
-			return ctx.Err()
 		case <-c.manager.finish:
 			return c.manager.err()
 		}
 	}
-	ret := retmsg.Return()
 	if a == nil {
 		// Question ID reused, error out.
-		setReturnException(ret, errQuestionReused)
-		return send()
+		retmsg := newReturnMessage(id)
+		setReturnException(retmsg.Return(), errQuestionReused)
+		return send(retmsg)
 	}
+	msgs := make([]rpccapnp.Message, 0, 1)
 	if c.main == nil {
-		e := setReturnException(ret, errNoMainInterface)
-		a.reject(Exception{e})
-		return send()
+		msgs = a.reject(msgs, errNoMainInterface)
+		for _, m := range msgs {
+			if err := send(m); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
-	exportID := c.exports.add(c.main)
-	retmsg.Segment.Message.AddCap(c.main)
-	payload := rpccapnp.NewPayload(retmsg.Segment)
-	const capIndex = 0
-	in := capnp.Object(retmsg.Segment.NewInterface(capIndex))
-	payload.SetContent(in)
-	ctab := rpccapnp.NewCapDescriptor_List(retmsg.Segment, capIndex+1)
-	ctab.At(capIndex).SetSenderHosted(uint32(exportID))
-	payload.SetCapTable(ctab)
-	ret.SetResults(payload)
-	a.fulfill(in)
-	return send()
+	s := capnp.NewBuffer(nil)
+	in := capnp.Object(s.NewInterface(s.Message.AddCap(c.main)))
+	msgs = a.fulfill(msgs, in, c.makeCapTable)
+	for _, m := range msgs {
+		if err := send(m); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // handleCallMessage is run in the coordinate goroutine to handle a
@@ -505,10 +509,13 @@ func (c *Conn) handleCallMessage(m rpccapnp.Message) error {
 		Params: m.Call().Params().Content().ToStruct(),
 	}
 	if err := c.routeCallMessage(a, mt, cl); err != nil {
-		ret := newReturnMessage(id)
-		setReturnException(ret.Return(), err)
-		a.reject(err)
-		return send(ret)
+		msgs := a.reject(nil, err)
+		for _, m := range msgs {
+			if err := send(m); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
 	return nil
 }
@@ -574,20 +581,31 @@ func promisedAnswerOpsToTransform(list rpccapnp.PromisedAnswer_Op_List) []capnp.
 // handleReturn is called from the coordinate goroutine to send an
 // answer's return value over the transport.
 func (c *Conn) handleReturn(r *outgoingReturn) {
-	msg := newReturnMessage(r.a.id)
+	msgs := make([]rpccapnp.Message, 0, 32)
 	if r.err == nil {
-		payload := rpccapnp.NewPayload(msg.Segment)
-		payload.SetContent(r.obj)
-		payload.SetCapTable(c.makeCapTable(msg.Segment))
-		msg.Return().SetResults(payload)
-		r.a.fulfill(r.obj)
+		msgs = r.a.fulfill(msgs, r.obj, c.makeCapTable)
 	} else {
-		setReturnException(msg.Return(), r.err)
-		r.a.reject(r.err)
+		msgs = r.a.reject(msgs, r.err)
 	}
-	select {
-	case c.out <- outgoingMessage{c.manager.context(), msg}:
-	case <-c.manager.finish:
+	for _, m := range msgs {
+		select {
+		case c.out <- outgoingMessage{c.manager.context(), m}:
+		case <-c.manager.finish:
+			return
+		}
+	}
+}
+
+func (c *Conn) handleQueueClose(qcc queueClientClose) {
+	msgs := make([]rpccapnp.Message, 0, 32)
+	msgs = qcc.qc.rejectQueue(msgs)
+	close(qcc.done)
+	for _, m := range msgs {
+		select {
+		case c.out <- outgoingMessage{c.manager.context(), m}:
+		case <-c.manager.finish:
+			return
+		}
 	}
 }
 
