@@ -9,7 +9,12 @@ import (
 
 var ErrNullClient = errors.New("capn: call on null client")
 
-// A Client represents an interface type.
+// A Client represents an Cap'n Proto interface type.
+//
+// Generally, only RPC protocol implementers should provide types that
+// implement Client: call ordering guarantees, promises, and
+// synchronization are tricky to get right.  Prefer creating a server
+// that wraps another interface than trying to implement Client.
 type Client interface {
 	// Call starts executing a method and returns an answer that will hold
 	// the resulting struct.  The call's parameters must be placed before
@@ -343,6 +348,19 @@ func (ans errorAnswer) PipelineClose([]PipelineOp) error {
 	return ans.e
 }
 
+// IsFixedAnswer reports whether an answer was created by
+// ImmediateAnswer or ErrorAnswer.
+func IsFixedAnswer(ans Answer) bool {
+	switch ans.(type) {
+	case immediateAnswer:
+		return true
+	case errorAnswer:
+		return true
+	default:
+		return false
+	}
+}
+
 type errorClient struct {
 	e error
 }
@@ -358,4 +376,10 @@ func (ec errorClient) Call(*Call) Answer {
 
 func (ec errorClient) Close() error {
 	return nil
+}
+
+// IsErrorClient reports whether c was created with ErrorClient.
+func IsErrorClient(c Client) bool {
+	_, ok := c.(errorClient)
+	return ok
 }

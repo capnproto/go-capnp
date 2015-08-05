@@ -121,7 +121,13 @@ func (c *Conn) coordinate() {
 		case m := <-c.in:
 			c.handleMessage(m)
 		case ac := <-c.calls:
-			c.handleCall(ac)
+			ans, err := c.handleCall(ac)
+			if err == nil {
+				ac.achan <- ans
+			} else {
+				log.Println("rpc: failed to handle call:", err)
+				ac.achan <- capnp.ErrorAnswer(err)
+			}
 		case q := <-c.cancels:
 			c.handleCancel(q)
 		case r := <-c.releases:
@@ -206,30 +212,29 @@ func newUnimplementedMessage(buf []byte, m rpccapnp.Message) rpccapnp.Message {
 }
 
 // handleCall is run from the coordinate goroutine to send a question to a remote vat.
-func (c *Conn) handleCall(ac *appCall) {
+func (c *Conn) handleCall(ac *appCall) (capnp.Answer, error) {
 	if ac.kind == appPipelineCall && c.questions.get(ac.question.id) != ac.question {
 		// Question has been finished.  The call should happen as if it is
 		// back in application code.
-		go func() {
-			<-ac.question.resolved // not strictly necessary
-			_, obj, err, _ := ac.question.peek()
-			c := extractClient(ac.transform, obj, err)
-			ac.achan <- c.Call(ac.Call)
-		}()
-		return
+		_, obj, err, done := ac.question.peek()
+		if !done {
+			panic("question popped but not done")
+		}
+		client := clientFromResolution(ac.transform, obj, err)
+		return c.nestedCall(client, ac.Call), nil
 	}
 	q := c.questions.new(ac.Ctx, &ac.Method)
 	msg := c.newCallMessage(nil, q.id, ac)
 	select {
 	case c.out <- outgoingMessage{c.manager.context(), msg}:
 		q.start()
-		ac.achan <- q
+		return q, nil
 	case <-ac.Ctx.Done():
 		c.questions.pop(q.id)
-		ac.achan <- capnp.ErrorAnswer(ac.Ctx.Err())
+		return nil, ac.Ctx.Err()
 	case <-c.manager.finish:
 		c.questions.pop(q.id)
-		ac.achan <- capnp.ErrorAnswer(c.manager.err())
+		return nil, c.manager.err()
 	}
 }
 
@@ -422,56 +427,6 @@ func (c *Conn) makeCapTable(s *capnp.Segment) rpccapnp.CapDescriptor_List {
 	return t
 }
 
-func (c *Conn) descriptorForClient(desc rpccapnp.CapDescriptor, client capnp.Client) {
-	if client == nil {
-		id := c.exports.add(capnp.ErrorClient(capnp.ErrNullClient))
-		desc.SetSenderHosted(uint32(id))
-		return
-	}
-	switch client := client.(type) {
-	case *importClient:
-		if isImportFromConn(client, c) {
-			desc.SetReceiverHosted(uint32(client.id))
-			return
-		}
-	case *capnp.PipelineClient:
-		p := (*capnp.Pipeline)(client)
-		q, ok := p.Answer().(*question)
-		if !ok {
-			goto fallback
-		}
-		id, obj, err, done := q.peek()
-		if !done {
-			if !isQuestionFromConn(q, c) {
-				goto fallback
-			}
-			a := rpccapnp.NewPromisedAnswer(desc.Segment)
-			a.SetQuestionId(uint32(id))
-			transformToPromisedAnswer(desc.Segment, a, p.Transform())
-			desc.SetReceiverAnswer(a)
-			return
-		}
-		c.descriptorForClient(desc, extractClient(p.Transform(), obj, err))
-		return
-	}
-
-	// Fallback: host and export ourselves.
-fallback:
-	log.Printf("exporting a %T Client", client)
-	id := c.exports.add(client)
-	desc.SetSenderHosted(uint32(id))
-}
-
-func isQuestionFromConn(q *question, c *Conn) bool {
-	// TODO(light): ideally there would be better ways to check.
-	return q.manager == &c.manager
-}
-
-func isImportFromConn(ic *importClient, c *Conn) bool {
-	// TODO(light): ideally there would be better ways to check.
-	return ic.manager == &c.manager
-}
-
 // handleBootstrapMessage is run in the coordinate goroutine to handle
 // a received bootstrap message.
 func (c *Conn) handleBootstrapMessage(id answerID) error {
@@ -566,9 +521,7 @@ func (c *Conn) routeCallMessage(result *answer, mt rpccapnp.MessageTarget, cl *c
 		if e == nil {
 			return errBadTarget
 		}
-		// TODO(light): DO NOT SUBMIT this can deadlock
-		log.Printf("route: making a call to an exported %T client", e.client)
-		answer := e.client.Call(cl)
+		answer := c.nestedCall(e.client, cl)
 		go joinAnswer(result, answer)
 	case rpccapnp.MessageTarget_Which_promisedAnswer:
 		id := answerID(mt.PromisedAnswer().QuestionId())
@@ -582,10 +535,8 @@ func (c *Conn) routeCallMessage(result *answer, mt rpccapnp.MessageTarget, cl *c
 		}
 		transform := promisedAnswerOpsToTransform(mt.PromisedAnswer().Transform())
 		if obj, err, done := pa.peek(); done {
-			client := extractClient(transform, obj, err)
-			// TODO(light): DO NOT SUBMIT this can deadlock
-			log.Printf("route: making a call to a promised-answer %T client", client)
-			answer := client.Call(cl)
+			client := clientFromResolution(transform, obj, err)
+			answer := c.nestedCall(client, cl)
 			go joinAnswer(result, answer)
 			return nil
 		}
@@ -657,9 +608,9 @@ func setReturnException(ret rpccapnp.Return, err error) rpccapnp.Exception {
 	return e
 }
 
-// extractClient returns transforms the base object that comes from
-// a question or answer state.
-func extractClient(transform []capnp.PipelineOp, obj capnp.Object, err error) capnp.Client {
+// clientFromResolution retrieves a client from a resolved question or
+// answer by applying a transform.
+func clientFromResolution(transform []capnp.PipelineOp, obj capnp.Object, err error) capnp.Client {
 	if err != nil {
 		return capnp.ErrorClient(err)
 	}

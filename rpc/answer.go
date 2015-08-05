@@ -313,6 +313,16 @@ func (qc *queueClient) Call(cl *capnp.Call) capnp.Answer {
 	return ans
 }
 
+func (qc *queueClient) WrappedClient() capnp.Client {
+	qc.mu.RLock()
+	ok := qc.n == 0
+	qc.mu.RUnlock()
+	if !ok {
+		return nil
+	}
+	return qc.client
+}
+
 func (qc *queueClient) Close() error {
 	qc.mu.Lock()
 	// reject all queued calls

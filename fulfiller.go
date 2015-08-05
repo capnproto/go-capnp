@@ -102,6 +102,7 @@ func (f *Fulfiller) Done() <-chan struct{} {
 }
 
 // Peek returns f's resolved answer or nil if f has not been resolved.
+// The Struct method of an answer returned from Peek returns immediately.
 func (f *Fulfiller) Peek() Answer {
 	f.init()
 	f.mu.RLock()
@@ -224,6 +225,16 @@ func (ec *embargoClient) flushQueue() {
 			}
 		}(c.f, ans)
 	}
+}
+
+func (ec *embargoClient) WrappedClient() Client {
+	ec.mu.RLock()
+	ok := ec.n == 0
+	ec.mu.RUnlock()
+	if !ok {
+		return nil
+	}
+	return ec.client
 }
 
 func (ec *embargoClient) Call(cl *Call) Answer {
