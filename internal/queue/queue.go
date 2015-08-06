@@ -40,13 +40,19 @@ func (q *Queue) Push(x interface{}) bool {
 	return true
 }
 
-// Pop pops an element from the queue.
-// If the queue is empty, Pop panics.
-func (q *Queue) Pop() interface{} {
+// Peek returns the element at the front of the queue.
+// If the queue is empty, Peek panics.
+func (q *Queue) Peek() interface{} {
 	if q.n == 0 {
 		panic("Queue.Pop called on empty queue")
 	}
-	x := q.q.At(q.start)
+	return q.q.At(q.start)
+}
+
+// Pop pops an element from the queue.
+// If the queue is empty, Pop panics.
+func (q *Queue) Pop() interface{} {
+	x := q.Peek()
 	q.q.Set(q.start, nil)
 	q.start = (q.start + 1) % q.q.Len()
 	q.n--
