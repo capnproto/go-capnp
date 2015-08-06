@@ -49,10 +49,13 @@ func (s *streamTransport) SendMessage(ctx context.Context, msg rpccapnp.Message)
 	if _, err := msg.Segment.WriteTo(&s.wbuf); err != nil {
 		return err
 	}
-	// TODO(light): clear deadlines
-	if d, ok := ctx.Deadline(); ok && s.deadline != nil {
-		// TODO(light): log error
-		s.deadline.SetWriteDeadline(d)
+	if s.deadline != nil {
+		// TODO(light): log errors
+		if d, ok := ctx.Deadline(); ok {
+			s.deadline.SetWriteDeadline(d)
+		} else {
+			s.deadline.SetWriteDeadline(time.Time{})
+		}
 	}
 	_, err := s.rwc.Write(s.wbuf.Bytes())
 	return err
