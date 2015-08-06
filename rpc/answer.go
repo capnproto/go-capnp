@@ -17,7 +17,7 @@ const callQueueSize = 64
 type answerTable struct {
 	tab         map[answerID]*answer
 	manager     *manager
-	out         chan<- outgoingMessage
+	out         chan<- rpccapnp.Message
 	returns     chan<- *outgoingReturn
 	queueCloses chan<- queueClientClose
 }
@@ -67,7 +67,7 @@ type answer struct {
 	cancel      context.CancelFunc
 	resultCaps  []exportID
 	manager     *manager
-	out         chan<- outgoingMessage
+	out         chan<- rpccapnp.Message
 	returns     chan<- *outgoingReturn
 	queueCloses chan<- queueClientClose
 	resolved    chan struct{}
@@ -252,14 +252,14 @@ type outgoingReturn struct {
 type queueClient struct {
 	manager *manager
 	client  capnp.Client
-	out     chan<- outgoingMessage
+	out     chan<- rpccapnp.Message
 	closes  chan<- queueClientClose
 
 	mu sync.RWMutex
 	q  queue.Queue
 }
 
-func newQueueClient(m *manager, client capnp.Client, queue []qcall, out chan<- outgoingMessage, closes chan<- queueClientClose) *queueClient {
+func newQueueClient(m *manager, client capnp.Client, queue []qcall, out chan<- rpccapnp.Message, closes chan<- queueClientClose) *queueClient {
 	qc := &queueClient{
 		manager: m,
 		client:  client,
@@ -330,10 +330,7 @@ func (qc *queueClient) handle(c *qcall) {
 	case qcallDisembargo:
 		msg := newDisembargoMessage(nil, rpccapnp.Disembargo_context_Which_receiverLoopback, c.embargoID)
 		msg.Disembargo().SetTarget(c.embargoTarget)
-		select {
-		case qc.out <- outgoingMessage{qc.manager.context(), msg}:
-		case <-qc.manager.finish:
-		}
+		sendMessage(qc.manager, qc.out, msg)
 	}
 }
 

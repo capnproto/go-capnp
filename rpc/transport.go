@@ -76,14 +76,13 @@ type writeDeadlineSetter interface {
 }
 
 // dispatchSend runs in its own goroutine and sends messages on a transport.
-func dispatchSend(m *manager, transport Transport, msgs <-chan outgoingMessage) {
+func dispatchSend(m *manager, transport Transport, msgs <-chan rpccapnp.Message) {
 	for {
 		select {
-		case m := <-msgs:
-			// TODO(light): allow custom context
-			err := transport.SendMessage(m.ctx, m.msg)
+		case msg := <-msgs:
+			err := transport.SendMessage(m.context(), msg)
 			if err != nil {
-				log.Printf("rpc: writing %v: %v", m.msg.Which(), err)
+				log.Printf("rpc: writing %v: %v", msg.Which(), err)
 			}
 		case <-m.finish:
 			return
@@ -91,10 +90,15 @@ func dispatchSend(m *manager, transport Transport, msgs <-chan outgoingMessage) 
 	}
 }
 
-// An outgoingMessage holds a packet to be sent on a transport and its context.
-type outgoingMessage struct {
-	ctx context.Context
-	msg rpccapnp.Message
+// sendMessage sends a message to out to be sent.  It returns an error
+// if the manager finished.
+func sendMessage(m *manager, out chan<- rpccapnp.Message, msg rpccapnp.Message) error {
+	select {
+	case out <- msg:
+		return nil
+	case <-m.finish:
+		return m.err()
+	}
 }
 
 // dispatchRecv runs in its own goroutine and receives messages from a transport.

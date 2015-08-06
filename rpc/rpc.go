@@ -18,7 +18,7 @@ type Conn struct {
 
 	manager     manager
 	in          <-chan rpccapnp.Message
-	out         chan<- outgoingMessage
+	out         chan<- rpccapnp.Message
 	calls       chan *appCall
 	cancels     <-chan *question
 	releases    chan *outgoingRelease
@@ -74,7 +74,7 @@ func NewConn(t Transport, options ...ConnOption) *Conn {
 	}
 	conn.main = p.main
 	i := make(chan rpccapnp.Message)
-	o := make(chan outgoingMessage, p.sendBufferSize)
+	o := make(chan rpccapnp.Message, p.sendBufferSize)
 	calls := make(chan *appCall)
 	cancels := make(chan *question)
 	rets := make(chan *outgoingReturn)
@@ -234,18 +234,12 @@ func (c *Conn) handleMessage(m rpccapnp.Message) {
 		if err := c.handleDisembargoMessage(m); err != nil {
 			// Any failure in a disembargo is a protocol violation.
 			am := newAbortMessage(nil, err)
-			select {
-			case c.out <- outgoingMessage{c.manager.context(), am}:
-			case <-c.manager.finish:
-			}
+			c.sendMessage(am)
 		}
 	default:
 		log.Printf("rpc: received unimplemented message, which = %v", m.Which())
 		um := newUnimplementedMessage(nil, m)
-		select {
-		case c.out <- outgoingMessage{c.manager.context(), um}:
-		case <-c.manager.finish:
-		}
+		c.sendMessage(um)
 	}
 }
 
@@ -275,7 +269,7 @@ func (c *Conn) handleCall(ac *appCall) (capnp.Answer, error) {
 	}
 	msg := c.newCallMessage(nil, q.id, ac)
 	select {
-	case c.out <- outgoingMessage{c.manager.context(), msg}:
+	case c.out <- msg:
 		q.start()
 		return q, nil
 	case <-ac.Ctx.Done():
@@ -340,10 +334,7 @@ func (c *Conn) handleCancel(q *question) {
 	q.reject(questionCanceled, q.ctx.Err())
 	// TODO(light): timeout?
 	msg := newFinishMessage(nil, q.id, true /* release */)
-	select {
-	case c.out <- outgoingMessage{q.manager.context(), msg}:
-	case <-c.manager.finish:
-	}
+	c.sendMessage(msg)
 }
 
 // handleRelease is run in the coordinate goroutine to handle an import
@@ -360,11 +351,7 @@ func (c *Conn) handleRelease(id importID) error {
 	mr.SetId(uint32(id))
 	mr.SetReferenceCount(uint32(i))
 	msg.SetRelease(mr)
-	select {
-	case c.out <- outgoingMessage{c.manager.context(), msg}:
-	case <-c.manager.finish:
-	}
-	return nil
+	return c.sendMessage(msg)
 }
 
 // handleReturnMessage is run in the coordinate goroutine.
@@ -389,9 +376,8 @@ func (c *Conn) handleReturnMessage(m rpccapnp.Return) error {
 		c.populateMessageCapTable(m.Results())
 		disembargoes := q.fulfill(m.Results().Content(), c.embargoes.new)
 		for _, d := range disembargoes {
-			select {
-			case c.out <- outgoingMessage{c.manager.context(), d}:
-			case <-c.manager.finish:
+			if err := c.sendMessage(d); err != nil {
+				// shutdown
 				return nil
 			}
 		}
@@ -417,17 +403,11 @@ func (c *Conn) handleReturnMessage(m rpccapnp.Return) error {
 		return nil
 	default:
 		um := newUnimplementedMessage(nil, rpccapnp.ReadRootMessage(m.Segment))
-		select {
-		case c.out <- outgoingMessage{c.manager.context(), um}:
-		case <-c.manager.finish:
-		}
+		c.sendMessage(um)
 		return nil
 	}
 	fin := newFinishMessage(nil, id, releaseResultCaps)
-	select {
-	case c.out <- outgoingMessage{c.manager.context(), fin}:
-	case <-c.manager.finish:
-	}
+	c.sendMessage(fin)
 	return nil
 }
 
@@ -490,25 +470,17 @@ func (c *Conn) makeCapTable(s *capnp.Segment) rpccapnp.CapDescriptor_List {
 // a received bootstrap message.
 func (c *Conn) handleBootstrapMessage(id answerID) error {
 	a := c.answers.insert(id, func() {})
-	send := func(m rpccapnp.Message) error {
-		select {
-		case c.out <- outgoingMessage{c.manager.context(), m}:
-			return nil
-		case <-c.manager.finish:
-			return c.manager.err()
-		}
-	}
 	if a == nil {
 		// Question ID reused, error out.
 		retmsg := newReturnMessage(id)
 		setReturnException(retmsg.Return(), errQuestionReused)
-		return send(retmsg)
+		return c.sendMessage(retmsg)
 	}
 	msgs := make([]rpccapnp.Message, 0, 1)
 	if c.main == nil {
 		msgs = a.reject(msgs, errNoMainInterface)
 		for _, m := range msgs {
-			if err := send(m); err != nil {
+			if err := c.sendMessage(m); err != nil {
 				return err
 			}
 		}
@@ -518,7 +490,7 @@ func (c *Conn) handleBootstrapMessage(id answerID) error {
 	in := capnp.Object(s.NewInterface(s.Message.AddCap(c.main)))
 	msgs = a.fulfill(msgs, in, c.makeCapTable)
 	for _, m := range msgs {
-		if err := send(m); err != nil {
+		if err := c.sendMessage(m); err != nil {
 			return err
 		}
 	}
@@ -529,18 +501,10 @@ func (c *Conn) handleBootstrapMessage(id answerID) error {
 // received call message.  It mutates the capability table of its
 // parameter.
 func (c *Conn) handleCallMessage(m rpccapnp.Message) error {
-	send := func(msg rpccapnp.Message) error {
-		select {
-		case c.out <- outgoingMessage{c.manager.context(), msg}:
-			return nil
-		case <-c.manager.finish:
-			return c.manager.err()
-		}
-	}
 	mt := m.Call().Target()
 	if mt.Which() != rpccapnp.MessageTarget_Which_importedCap && mt.Which() != rpccapnp.MessageTarget_Which_promisedAnswer {
 		um := newUnimplementedMessage(nil, m)
-		return send(um)
+		return c.sendMessage(um)
 	}
 	ctx, cancel := c.newContext()
 	id := answerID(m.Call().QuestionId())
@@ -549,7 +513,7 @@ func (c *Conn) handleCallMessage(m rpccapnp.Message) error {
 		// Question ID reused, error out.
 		ret := newReturnMessage(id)
 		setReturnException(ret.Return(), errQuestionReused)
-		return send(ret)
+		return c.sendMessage(ret)
 	}
 	c.populateMessageCapTable(m.Call().Params())
 	meth := capnp.Method{
@@ -564,7 +528,7 @@ func (c *Conn) handleCallMessage(m rpccapnp.Message) error {
 	if err := c.routeCallMessage(a, mt, cl); err != nil {
 		msgs := a.reject(nil, err)
 		for _, m := range msgs {
-			if err := send(m); err != nil {
+			if err := c.sendMessage(m); err != nil {
 				return err
 			}
 		}
@@ -631,20 +595,14 @@ func (c *Conn) handleDisembargoMessage(msg rpccapnp.Message) error {
 			// There's nothing to embargo; everything's been delivered.
 			msg := newDisembargoMessage(nil, rpccapnp.Disembargo_context_Which_receiverLoopback, id)
 			msg.Disembargo().SetTarget(d.Target())
-			select {
-			case c.out <- outgoingMessage{c.manager.context(), msg}:
-			case <-c.manager.finish:
-			}
+			c.sendMessage(msg)
 		}
 	case rpccapnp.Disembargo_context_Which_receiverLoopback:
 		id := embargoID(d.Context().ReceiverLoopback())
 		c.embargoes.disembargo(id)
 	default:
 		um := newUnimplementedMessage(nil, msg)
-		select {
-		case c.out <- outgoingMessage{c.manager.context(), um}:
-		case <-c.manager.finish:
-		}
+		c.sendMessage(um)
 	}
 	return nil
 }
@@ -698,9 +656,7 @@ func (c *Conn) handleReturn(r *outgoingReturn) {
 		msgs = r.a.reject(msgs, r.err)
 	}
 	for _, m := range msgs {
-		select {
-		case c.out <- outgoingMessage{c.manager.context(), m}:
-		case <-c.manager.finish:
+		if err := c.sendMessage(m); err != nil {
 			return
 		}
 	}
@@ -711,12 +667,14 @@ func (c *Conn) handleQueueClose(qcc queueClientClose) {
 	msgs = qcc.qc.rejectQueue(msgs)
 	close(qcc.done)
 	for _, m := range msgs {
-		select {
-		case c.out <- outgoingMessage{c.manager.context(), m}:
-		case <-c.manager.finish:
+		if err := c.sendMessage(m); err != nil {
 			return
 		}
 	}
+}
+
+func (c *Conn) sendMessage(msg rpccapnp.Message) error {
+	return sendMessage(&c.manager, c.out, msg)
 }
 
 func newReturnMessage(id answerID) rpccapnp.Message {
