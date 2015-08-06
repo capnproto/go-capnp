@@ -32,26 +32,35 @@ type Conn struct {
 	exports   exportTable
 }
 
+// connParams stores the initial parameters for Conn.
+type connParams struct {
+	main capnp.Client
+}
+
 // A ConnOption is an option for opening a connection.
-type ConnOption func(*Conn)
+type ConnOption struct {
+	f func(*connParams)
+}
 
 // MainInterface specifies that the connection should use client when
 // receiving bootstrap messages.  By default, all bootstrap messages will
 // fail.
 func MainInterface(client capnp.Client) ConnOption {
-	return func(c *Conn) {
+	return ConnOption{func(c *connParams) {
 		c.main = client
-	}
+	}}
 }
 
 // NewConn creates a new connection that communicates on c.
 // Closing the connection will cause c to be closed.
 func NewConn(t Transport, options ...ConnOption) *Conn {
 	conn := &Conn{transport: t}
+	p := new(connParams)
 	conn.manager.init()
 	for _, o := range options {
-		o(conn)
+		o.f(p)
 	}
+	conn.main = p.main
 	i := make(chan rpccapnp.Message)
 	o := make(chan outgoingMessage)
 	calls := make(chan *appCall)
