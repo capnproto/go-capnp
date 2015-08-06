@@ -161,7 +161,7 @@ func formatPromisedAnswer(w io.Writer, a rpccapnp.PromisedAnswer) {
 		case rpccapnp.PromisedAnswer_Op_Which_getPointerField:
 			fmt.Fprintf(w, ".getPointerField(%d)", t.GetPointerField())
 		default:
-			fmt.Fprint(w, ".UNKNOWN(%v)", t.Which())
+			fmt.Fprintf(w, ".UNKNOWN(%v)", t.Which())
 		}
 	}
 }

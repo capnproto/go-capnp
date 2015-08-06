@@ -36,7 +36,7 @@ func TestInterfaceCopyToOtherMessage(t *testing.T) {
 	tab2 := s2.Message.CapTable()
 	if len(tab2) == 1 {
 		if tab2[0] != cl.GenericClient() {
-			t.Error("s2.Message.CapTable()[0] = %#v; want %#v", tab2[0], cl.GenericClient())
+			t.Errorf("s2.Message.CapTable()[0] = %#v; want %#v", tab2[0], cl.GenericClient())
 		}
 	} else {
 		t.Errorf("len(s2.Message.CapTable()) = %d; want 1", len(tab2))

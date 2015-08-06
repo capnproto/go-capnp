@@ -34,7 +34,7 @@ func TestCancel(t *testing.T) {
 	<-notify // test will deadlock if cancel not delivered
 
 	if err != context.Canceled {
-		t.Error("promise.Get() error: %v; want %v", err, context.Canceled)
+		t.Errorf("promise.Get() error: %v; want %v", err, context.Canceled)
 	}
 }
 
