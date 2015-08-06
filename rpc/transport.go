@@ -83,7 +83,7 @@ func dispatchSend(m *manager, transport Transport, msgs <-chan outgoingMessage) 
 			// TODO(light): allow custom context
 			err := transport.SendMessage(m.ctx, m.msg)
 			if err != nil {
-				log.Println("rpc: write error:", err)
+				log.Printf("rpc: writing %v: %v", m.msg.Which(), err)
 			}
 		case <-m.finish:
 			return
