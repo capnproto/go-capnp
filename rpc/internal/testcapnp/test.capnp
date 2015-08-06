@@ -28,3 +28,9 @@ interface Echoer extends(CallOrder) {
   echo @0 (cap :CallOrder) -> (cap :CallOrder);
   # Just returns the input cap.
 }
+
+# Example interfaces
+
+interface Adder {
+  add @0 (a :Int32, b :Int32) -> (result :Int32);
+}

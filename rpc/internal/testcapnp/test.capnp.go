@@ -684,3 +684,152 @@ func (p *Echoer_echo_Results_Promise) Get() (Echoer_echo_Results, error) {
 func (p *Echoer_echo_Results_Promise) Cap() CallOrder {
 	return NewCallOrder((*C.Pipeline)(p).GetPipeline(0).Client())
 }
+
+type Adder struct{ c C.Client }
+
+func NewAdder(c C.Client) Adder { return Adder{c} }
+
+func (c Adder) GenericClient() C.Client { return c.c }
+
+func (c Adder) IsNull() bool { return c.c == nil }
+
+func (c Adder) Add(ctx context.Context, params func(Adder_add_Params), opts ...C.CallOption) *Adder_add_Results_Promise {
+	if c.c == nil {
+		return (*Adder_add_Results_Promise)(C.NewPipeline(C.ErrorAnswer(C.ErrNullClient)))
+	}
+	return (*Adder_add_Results_Promise)(C.NewPipeline(c.c.Call(&C.Call{
+		Ctx: ctx,
+		Method: C.Method{
+
+			InterfaceID:   0x8f9cac550b1bf41f,
+			MethodID:      0,
+			InterfaceName: "test.capnp:Adder",
+			MethodName:    "add",
+		},
+		ParamsSize: C.ObjectSize{DataSize: 8, PointerCount: 0},
+		ParamsFunc: func(s C.Struct) { params(Adder_add_Params(s)) },
+		Options:    C.NewCallOptions(opts),
+	})))
+}
+
+type Adder_Server interface {
+	Add(Adder_add) error
+}
+
+func Adder_ServerToClient(s Adder_Server) Adder {
+	c, _ := s.(C.Closer)
+	return NewAdder(C.NewServer(Adder_Methods(nil, s), c))
+}
+
+func Adder_Methods(methods []C.ServerMethod, server Adder_Server) []C.ServerMethod {
+	if cap(methods) == 0 {
+		methods = make([]C.ServerMethod, 0, 1)
+	}
+
+	methods = append(methods, C.ServerMethod{
+		Method: C.Method{
+
+			InterfaceID:   0x8f9cac550b1bf41f,
+			MethodID:      0,
+			InterfaceName: "test.capnp:Adder",
+			MethodName:    "add",
+		},
+		Impl: func(c context.Context, opts C.CallOptions, p, r C.Struct) error {
+			call := Adder_add{c, opts, Adder_add_Params(p), Adder_add_Results(r)}
+			return server.Add(call)
+		},
+		ResultsSize: C.ObjectSize{DataSize: 8, PointerCount: 0},
+	})
+
+	return methods
+}
+
+// Adder_add holds the arguments for a server call to Adder.add.
+type Adder_add struct {
+	Ctx     context.Context
+	Options C.CallOptions
+	Params  Adder_add_Params
+	Results Adder_add_Results
+}
+
+type Adder_add_Params C.Struct
+
+func NewAdder_add_Params(s *C.Segment) Adder_add_Params {
+	return Adder_add_Params(s.NewStruct(C.ObjectSize{DataSize: 8, PointerCount: 0}))
+}
+func NewRootAdder_add_Params(s *C.Segment) Adder_add_Params {
+	return Adder_add_Params(s.NewRootStruct(C.ObjectSize{DataSize: 8, PointerCount: 0}))
+}
+func AutoNewAdder_add_Params(s *C.Segment) Adder_add_Params {
+	return Adder_add_Params(s.NewStructAR(C.ObjectSize{DataSize: 8, PointerCount: 0}))
+}
+func ReadRootAdder_add_Params(s *C.Segment) Adder_add_Params {
+	return Adder_add_Params(s.Root(0).ToStruct())
+}
+func (s Adder_add_Params) A() int32     { return int32(C.Struct(s).Get32(0)) }
+func (s Adder_add_Params) SetA(v int32) { C.Struct(s).Set32(0, uint32(v)) }
+func (s Adder_add_Params) B() int32     { return int32(C.Struct(s).Get32(4)) }
+func (s Adder_add_Params) SetB(v int32) { C.Struct(s).Set32(4, uint32(v)) }
+
+// capnp.JSON_enabled == false so we stub MarshalJSON().
+func (s Adder_add_Params) MarshalJSON() (bs []byte, err error) { return }
+
+type Adder_add_Params_List C.PointerList
+
+func NewAdder_add_Params_List(s *C.Segment, sz int) Adder_add_Params_List {
+	return Adder_add_Params_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 0}, sz))
+}
+func (s Adder_add_Params_List) Len() int { return C.PointerList(s).Len() }
+func (s Adder_add_Params_List) At(i int) Adder_add_Params {
+	return Adder_add_Params(C.PointerList(s).At(i).ToStruct())
+}
+func (s Adder_add_Params_List) Set(i int, item Adder_add_Params) {
+	C.PointerList(s).Set(i, C.Object(item))
+}
+
+type Adder_add_Params_Promise C.Pipeline
+
+func (p *Adder_add_Params_Promise) Get() (Adder_add_Params, error) {
+	s, err := (*C.Pipeline)(p).Struct()
+	return Adder_add_Params(s), err
+}
+
+type Adder_add_Results C.Struct
+
+func NewAdder_add_Results(s *C.Segment) Adder_add_Results {
+	return Adder_add_Results(s.NewStruct(C.ObjectSize{DataSize: 8, PointerCount: 0}))
+}
+func NewRootAdder_add_Results(s *C.Segment) Adder_add_Results {
+	return Adder_add_Results(s.NewRootStruct(C.ObjectSize{DataSize: 8, PointerCount: 0}))
+}
+func AutoNewAdder_add_Results(s *C.Segment) Adder_add_Results {
+	return Adder_add_Results(s.NewStructAR(C.ObjectSize{DataSize: 8, PointerCount: 0}))
+}
+func ReadRootAdder_add_Results(s *C.Segment) Adder_add_Results {
+	return Adder_add_Results(s.Root(0).ToStruct())
+}
+func (s Adder_add_Results) Result() int32     { return int32(C.Struct(s).Get32(0)) }
+func (s Adder_add_Results) SetResult(v int32) { C.Struct(s).Set32(0, uint32(v)) }
+
+// capnp.JSON_enabled == false so we stub MarshalJSON().
+func (s Adder_add_Results) MarshalJSON() (bs []byte, err error) { return }
+
+type Adder_add_Results_List C.PointerList
+
+func NewAdder_add_Results_List(s *C.Segment, sz int) Adder_add_Results_List {
+	return Adder_add_Results_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 0}, sz))
+}
+func (s Adder_add_Results_List) Len() int { return C.PointerList(s).Len() }
+func (s Adder_add_Results_List) At(i int) Adder_add_Results {
+	return Adder_add_Results(C.PointerList(s).At(i).ToStruct())
+}
+func (s Adder_add_Results_List) Set(i int, item Adder_add_Results) {
+	C.PointerList(s).Set(i, C.Object(item))
+}
+
+type Adder_add_Results_Promise C.Pipeline
+
+func (p *Adder_add_Results_Promise) Get() (Adder_add_Results, error) {
+	s, err := (*C.Pipeline)(p).Struct()
+	return Adder_add_Results(s), err
+}
