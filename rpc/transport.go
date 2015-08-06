@@ -62,7 +62,20 @@ func (s *streamTransport) SendMessage(ctx context.Context, msg rpccapnp.Message)
 }
 
 func (s *streamTransport) RecvMessage(ctx context.Context) (rpccapnp.Message, error) {
-	seg, err := capnp.ReadFromStream(s.rwc, &s.rbuf)
+	var (
+		seg *capnp.Segment
+		err error
+	)
+	read := make(chan struct{})
+	go func() {
+		seg, err = capnp.ReadFromStream(s.rwc, &s.rbuf)
+		close(read)
+	}()
+	select {
+	case <-read:
+	case <-ctx.Done():
+		return rpccapnp.Message{}, ctx.Err()
+	}
 	if err != nil {
 		return rpccapnp.Message{}, err
 	}
