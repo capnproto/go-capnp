@@ -34,7 +34,8 @@ type Conn struct {
 }
 
 type connParams struct {
-	main capnp.Client
+	main           capnp.Client
+	sendBufferSize int
 }
 
 // A ConnOption is an option for opening a connection.
@@ -51,18 +52,29 @@ func MainInterface(client capnp.Client) ConnOption {
 	}}
 }
 
+// SendBufferSize sets the number of outgoing messages to buffer on the
+// connection.  This is in addition to whatever buffering the connection's
+// transport performs.
+func SendBufferSize(numMsgs int) ConnOption {
+	return ConnOption{func(c *connParams) {
+		c.sendBufferSize = numMsgs
+	}}
+}
+
 // NewConn creates a new connection that communicates on c.
 // Closing the connection will cause c to be closed.
 func NewConn(t Transport, options ...ConnOption) *Conn {
 	conn := &Conn{transport: t}
-	p := new(connParams)
+	p := &connParams{
+		sendBufferSize: 4,
+	}
 	conn.manager.init()
 	for _, o := range options {
 		o.f(p)
 	}
 	conn.main = p.main
 	i := make(chan rpccapnp.Message)
-	o := make(chan outgoingMessage)
+	o := make(chan outgoingMessage, p.sendBufferSize)
 	calls := make(chan *appCall)
 	cancels := make(chan *question)
 	rets := make(chan *outgoingReturn)
