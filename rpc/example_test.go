@@ -19,7 +19,6 @@ func Example() {
 	// Server-side
 	srv := testcapnp.Adder_ServerToClient(AdderServer{})
 	serverConn := rpc.NewConn(t1, rpc.MainInterface(srv.GenericClient()))
-	_ = serverConn
 	defer serverConn.Wait()
 
 	// Client-side
