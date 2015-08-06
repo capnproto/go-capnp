@@ -230,7 +230,10 @@ func (c *Conn) handleMessage(m rpccapnp.Message) {
 	default:
 		log.Printf("rpc: received unimplemented message, which = %v", m.Which())
 		um := newUnimplementedMessage(nil, m)
-		c.out <- outgoingMessage{c.manager.context(), um}
+		select {
+		case c.out <- outgoingMessage{c.manager.context(), um}:
+		case <-c.manager.finish:
+		}
 	}
 }
 
@@ -345,7 +348,10 @@ func (c *Conn) handleRelease(id importID) error {
 	mr.SetId(uint32(id))
 	mr.SetReferenceCount(uint32(i))
 	msg.SetRelease(mr)
-	c.out <- outgoingMessage{c.manager.context(), msg}
+	select {
+	case c.out <- outgoingMessage{c.manager.context(), msg}:
+	case <-c.manager.finish:
+	}
 	return nil
 }
 
