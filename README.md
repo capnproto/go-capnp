@@ -11,7 +11,7 @@ go-capnproto consists of:
 ## News
 
 6 August 2015: **Level 1 RPC support** with some [known issues][issues].  I've
-added a section about compatibility guarantees below.
+added a section about compatibility guarantees below. -Ross
 
 23 July 2015: **Level 0 RPC support (and parts of Level 1)!**
 
@@ -40,7 +40,7 @@ breaking changes are:
 - Security.
 - Changes in the Cap'n Proto specification
 - Bugs
-- And this code cleanup: #1 (but this will go away soon)
+- And [this code cleanup][issue1] (but this will go away soon)
 
 
 ## Getting started
@@ -71,6 +71,7 @@ https://capnproto.org/
 
 MIT - see [LICENSE][license] file
 
+[issue1]: https://github.com/zombiezen/go-capnproto/issues/1
 [gocompat]: https://golang.org/doc/go1compat
 [godoc]: https://godoc.org/zombiezen.com/go/capnproto
 [issues]: https://github.com/zombiezen/go-capnproto/issues
