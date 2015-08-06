@@ -59,6 +59,20 @@ type Call struct {
 	Options CallOptions
 }
 
+// Copy clones a call, ensuring that its Params are placed.
+// If Call.ParamsFunc is nil, then the same pointer will be returned.
+func (call *Call) Copy(s *Segment) *Call {
+	if call.ParamsFunc == nil {
+		return call
+	}
+	return &Call{
+		Ctx:     call.Ctx,
+		Method:  call.Method,
+		Params:  call.PlaceParams(s),
+		Options: call.Options,
+	}
+}
+
 // PlaceParams returns the parameters struct, allocating it inside
 // segment s as necessary.  If s is nil, a new segment is allocated.
 func (call *Call) PlaceParams(s *Segment) Struct {
