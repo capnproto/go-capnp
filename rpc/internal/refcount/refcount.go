@@ -78,6 +78,10 @@ func (r *ref) Call(cl *capnp.Call) capnp.Answer {
 	return r.rc.call(cl)
 }
 
+func (r *ref) WrappedClient() capnp.Client {
+	return r.rc.Client
+}
+
 func (r *ref) Close() error {
 	var err error
 	closed := false

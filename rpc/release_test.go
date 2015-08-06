@@ -8,13 +8,14 @@ import (
 	"zombiezen.com/go/capnproto"
 	"zombiezen.com/go/capnproto/rpc"
 	"zombiezen.com/go/capnproto/rpc/internal/logtransport"
+	"zombiezen.com/go/capnproto/rpc/internal/pipetransport"
 	"zombiezen.com/go/capnproto/rpc/internal/testcapnp"
 )
 
 func TestRelease(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	p, q := newPipe()
+	p, q := pipetransport.New()
 	if *logMessages {
 		p = logtransport.New(nil, p)
 	}
@@ -46,7 +47,7 @@ func TestRelease(t *testing.T) {
 func TestReleaseAlias(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	p, q := newPipe()
+	p, q := pipetransport.New()
 	if *logMessages {
 		p = logtransport.New(nil, p)
 	}
@@ -120,6 +121,7 @@ func singletonHandleFactory() *HandleFactory {
 }
 
 func (hf *HandleFactory) NewHandle(call testcapnp.HandleFactory_newHandle) error {
+	capnp.Ack(call.Options)
 	if hf.singleton.IsNull() {
 		hf.mu.Lock()
 		hf.n++

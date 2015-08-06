@@ -100,7 +100,7 @@ func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{context}}.Context, params func({{
 
 {{define "interfaceServer"}}type {{.Node.Name}}_Server interface {
 	{{range .Methods}}
-	{{.Name|title}}({{$.Node.Name}}_{{.Name}}) error
+	{{.Name|title}}({{.Interface.RemoteName $.Node}}_{{.Name}}) error
 	{{end}}
 }
 
@@ -119,7 +119,7 @@ func {{.Node.Name}}_Methods(methods []{{capn}}.ServerMethod, server {{.Node.Name
 			{{template "_interfaceMethod" .}}
 		},
 		Impl: func(c {{context}}.Context, opts {{capn}}.CallOptions, p, r {{capn}}.Struct) error {
-			call := {{$.Node.Name}}_{{.Name}}{c, opts, {{.Params.RemoteName $.Node}}(p), {{.Results.RemoteName $.Node}}(r)}
+			call := {{.Interface.RemoteName $.Node}}_{{.Name}}{c, opts, {{.Params.RemoteName $.Node}}(p), {{.Results.RemoteName $.Node}}(r)}
 			return server.{{.Name|title}}(call)
 		},
 		ResultsSize: {{.Results.ObjectSize}},
@@ -127,7 +127,7 @@ func {{.Node.Name}}_Methods(methods []{{capn}}.ServerMethod, server {{.Node.Name
 	{{end}}
 	return methods
 }
-{{range .Methods}}
+{{range .Methods}}{{if eq .Interface.Id $.Node.Id}}
 // {{$.Node.Name}}_{{.Name}} holds the arguments for a server call to {{$.Node.Name}}.{{.Name}}.
 type {{$.Node.Name}}_{{.Name}} struct {
 	Ctx     {{context}}.Context
@@ -135,7 +135,7 @@ type {{$.Node.Name}}_{{.Name}} struct {
 	Params  {{.Params.RemoteName $.Node}}
 	Results {{.Results.RemoteName $.Node}}
 }
-{{end}}
+{{end}}{{end}}
 {{end}}
 
 

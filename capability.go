@@ -9,8 +9,23 @@ import (
 
 var ErrNullClient = errors.New("capn: call on null client")
 
-// A Client represents an interface type.
+// A Client represents an Cap'n Proto interface type.
+//
+// Generally, only RPC protocol implementers should provide types that
+// implement Client: call ordering guarantees, promises, and
+// synchronization are tricky to get right.  Prefer creating a server
+// that wraps another interface than trying to implement Client.
 type Client interface {
+	// Call starts executing a method and returns an answer that will hold
+	// the resulting struct.  The call's parameters must be placed before
+	// Call() returns.
+	//
+	// Calls are delivered to the capability in the order they are made.
+	// This guarantee is based on the concept of a capability
+	// acknowledging delivery of a call: this is specific to an
+	// implementation of Client.  A type that implements Client must
+	// guarantee that if foo() then bar() is called on a client, that
+	// acknowledging foo() happens before acknowledging bar().
 	Call(call *Call) Answer
 
 	// Close releases any resources associated with this client.
@@ -44,24 +59,19 @@ type Call struct {
 	Options CallOptions
 }
 
-// CallOptions holds RPC-specific options for an interface call.
-// Its usage is similar to the values in context.Context, but is only
-// used for a single call: its values are not intended to propagate to
-// other callees.  An example of an option would be the
-// Call.sendResultsTo field in rpc.capnp.
-type CallOptions map[interface{}]interface{}
-
-// NewCallOptions builds a CallOptions value from a list of individual options.
-func NewCallOptions(opts []CallOption) CallOptions {
-	co := make(CallOptions)
-	for _, o := range opts {
-		o(co)
+// Copy clones a call, ensuring that its Params are placed.
+// If Call.ParamsFunc is nil, then the same pointer will be returned.
+func (call *Call) Copy(s *Segment) *Call {
+	if call.ParamsFunc == nil {
+		return call
 	}
-	return co
+	return &Call{
+		Ctx:     call.Ctx,
+		Method:  call.Method,
+		Params:  call.PlaceParams(s),
+		Options: call.Options,
+	}
 }
-
-// A CallOption is a function that modifies options on an interface call.
-type CallOption func(CallOptions)
 
 // PlaceParams returns the parameters struct, allocating it inside
 // segment s as necessary.  If s is nil, a new segment is allocated.
@@ -76,6 +86,64 @@ func (call *Call) PlaceParams(s *Segment) Struct {
 	call.ParamsFunc(p)
 	return p
 }
+
+// CallOptions holds RPC-specific options for an interface call.
+// Its usage is similar to the values in context.Context, but is only
+// used for a single call: its values are not intended to propagate to
+// other callees.  An example of an option would be the
+// Call.sendResultsTo field in rpc.capnp.
+type CallOptions struct {
+	m map[interface{}]interface{}
+}
+
+// NewCallOptions builds a CallOptions value from a list of individual options.
+func NewCallOptions(opts []CallOption) CallOptions {
+	co := CallOptions{make(map[interface{}]interface{})}
+	for _, o := range opts {
+		o.f(co)
+	}
+	return co
+}
+
+// Value retrieves the value associated with the options for this key,
+// or nil if no value is associated with this key.
+func (co CallOptions) Value(key interface{}) interface{} {
+	return co.m[key]
+}
+
+// With creates a copy of the CallOptions value with other options applied.
+func (co CallOptions) With(opts []CallOption) CallOptions {
+	newopts := CallOptions{make(map[interface{}]interface{})}
+	for k, v := range co.m {
+		newopts.m[k] = v
+	}
+	for _, o := range opts {
+		o.f(newopts)
+	}
+	return newopts
+}
+
+// A CallOption is a function that modifies options on an interface call.
+type CallOption struct {
+	f func(CallOptions)
+}
+
+// SetOptionValue returns a call option that associates a value to an
+// option key.  This can be retrieved later with CallOptions.Value.
+func SetOptionValue(key, value interface{}) CallOption {
+	return CallOption{func(co CallOptions) {
+		co.m[key] = value
+	}}
+}
+
+// callOptionKey is the unexported key type for predefined options.
+type callOptionKey int
+
+// Predefined call options
+const (
+	invalidOptionKey callOptionKey = iota
+	ackSignalKey
+)
 
 // An Answer is the deferred result of a client call, which is usually wrapped by a Pipeline.
 type Answer interface {
@@ -246,10 +314,10 @@ func TransformObject(p Object, transform []PipelineOp) Object {
 	return p
 }
 
-type immediateAnswer Object
+type immediateAnswer Struct
 
 // ImmediateAnswer returns an Answer that accesses s.
-func ImmediateAnswer(s Object) Answer {
+func ImmediateAnswer(s Struct) Answer {
 	return immediateAnswer(s)
 }
 
@@ -294,6 +362,19 @@ func (ans errorAnswer) PipelineClose([]PipelineOp) error {
 	return ans.e
 }
 
+// IsFixedAnswer reports whether an answer was created by
+// ImmediateAnswer or ErrorAnswer.
+func IsFixedAnswer(ans Answer) bool {
+	switch ans.(type) {
+	case immediateAnswer:
+		return true
+	case errorAnswer:
+		return true
+	default:
+		return false
+	}
+}
+
 type errorClient struct {
 	e error
 }
@@ -309,4 +390,10 @@ func (ec errorClient) Call(*Call) Answer {
 
 func (ec errorClient) Close() error {
 	return nil
+}
+
+// IsErrorClient reports whether c was created with ErrorClient.
+func IsErrorClient(c Client) bool {
+	_, ok := c.(errorClient)
+	return ok
 }

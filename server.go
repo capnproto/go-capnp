@@ -27,22 +27,28 @@ type Closer interface {
 type server struct {
 	methods sortedMethods
 	closer  Closer
+	lock    chan struct{}
 }
 
 // NewServer returns a client that makes calls to a set of methods.
-// If closer is nil then the client's Close is a no-op.
+// If closer is nil then the client's Close is a no-op.  The server
+// guarantees message delivery order by blocking each call on the
+// return or acknowledgement of the previous call.  See the Ack function
+// for more details.
 func NewServer(methods []ServerMethod, closer Closer) Client {
 	s := &server{
 		methods: make(sortedMethods, len(methods)),
 		closer:  closer,
+		lock:    make(chan struct{}, 1),
 	}
+	s.lock <- struct{}{}
 	copy(s.methods, methods)
 	sort.Sort(s.methods)
 	return s
 }
 
 func (s *server) Call(call *Call) Answer {
-	out := NewBuffer(nil)
+	// Find method
 	sm := s.methods.find(&call.Method)
 	if sm == nil {
 		return ErrorAnswer(&MethodError{
@@ -50,17 +56,40 @@ func (s *server) Call(call *Call) Answer {
 			Err:    ErrUnimplemented,
 		})
 	}
+	// Acquire lock for ordering
+	select {
+	case <-s.lock:
+		defer func() {
+			s.lock <- struct{}{}
+		}()
+	case <-call.Ctx.Done():
+		return ErrorAnswer(call.Ctx.Err())
+	}
+	// Call implementation function
+	ans := new(Fulfiller)
+	params := call.PlaceParams(nil)
+	out := NewBuffer(nil)
 	results := out.NewRootStruct(sm.ResultsSize)
-	ans := newServerAnswer()
+	acksig := &ackSignal{c: make(chan struct{})}
+	opts := call.Options.With([]CallOption{SetOptionValue(ackSignalKey, acksig)})
 	go func() {
-		err := sm.Impl(call.Ctx, call.Options, call.PlaceParams(nil), results)
+		err := sm.Impl(call.Ctx, opts, params, results)
 		if err == nil {
-			ans.resolve(ImmediateAnswer(Object(results)))
+			ans.Fulfill(results)
 		} else {
-			ans.resolve(ErrorAnswer(err))
+			ans.Reject(err)
 		}
 	}()
-	return ans
+	// Wait for resolution
+	select {
+	case <-acksig.c:
+		return ans
+	case <-ans.Done():
+		// Implementation functions may not call Ack, which is fine for smaller functions.
+		return ans
+	case <-call.Ctx.Done():
+		return ErrorAnswer(call.Ctx.Err())
+	}
 }
 
 func (s *server) Close() error {
@@ -70,57 +99,32 @@ func (s *server) Close() error {
 	return s.closer.Close()
 }
 
-type serverAnswer struct {
-	done chan struct{} // closed when resolve is called
-
-	mu     sync.RWMutex
-	answer Answer
-}
-
-func newServerAnswer() *serverAnswer {
-	return &serverAnswer{done: make(chan struct{})}
-}
-
-func (ans *serverAnswer) resolve(a Answer) {
-	ans.mu.Lock()
-	ans.answer = a
-	close(ans.done)
-	ans.mu.Unlock()
-}
-
-func (ans *serverAnswer) Struct() (Struct, error) {
-	<-ans.done
-	ans.mu.RLock()
-	a := ans.answer
-	ans.mu.RUnlock()
-	return a.Struct()
-}
-
-func (ans *serverAnswer) PipelineCall(transform []PipelineOp, call *Call) Answer {
-	ans.mu.RLock()
-	a := ans.answer
-	ans.mu.RUnlock()
-	if a != nil {
-		return a.PipelineCall(transform, call)
+// Ack acknowledges delivery of a server call, allowing other methods
+// to be called on the server.  It is intended to be used inside the
+// implementation of a server function.  Calling Ack on options that
+// aren't from a server method implementation is a no-op.
+//
+// Example:
+//
+//	func (my *myServer) MyMethod(
+//		ctx context.Context,
+//		opts capnp.CallOptions,
+//		p Interface_myMethod_Params,
+//		r Interface_myMethod_Results) error {
+//		capnp.Ack(opts)
+//		// ... do long-running operation ...
+//		return nil
+//	}
+//
+// Ack need not be the first call in a function nor is it required.
+// Since the function's return is also an acknowledgement of delivery,
+// short functions can return without calling Ack.  However, since
+// clients will not return an Answer until the delivery is acknowledged,
+// it is advisable to ack early.
+func Ack(opts CallOptions) {
+	if ack, _ := opts.Value(ackSignalKey).(*ackSignal); ack != nil {
+		ack.signal()
 	}
-
-	sa := newServerAnswer()
-	go func() {
-		<-ans.done
-		ans.mu.RLock()
-		a := ans.answer
-		ans.mu.RUnlock()
-		sa.resolve(a.PipelineCall(transform, call))
-	}()
-	return sa
-}
-
-func (ans *serverAnswer) PipelineClose(transform []PipelineOp) error {
-	<-ans.done
-	ans.mu.RLock()
-	a := ans.answer
-	ans.mu.RUnlock()
-	return a.PipelineClose(transform)
 }
 
 // MethodError is an error on an associated method.
@@ -180,4 +184,15 @@ func (sm sortedMethods) Less(i, j int) bool {
 
 func (sm sortedMethods) Swap(i, j int) {
 	sm[i], sm[j] = sm[j], sm[i]
+}
+
+type ackSignal struct {
+	c    chan struct{}
+	once sync.Once
+}
+
+func (ack *ackSignal) signal() {
+	ack.once.Do(func() {
+		close(ack.c)
+	})
 }

@@ -3,7 +3,6 @@ package rpc
 import (
 	"log"
 
-	"golang.org/x/net/context"
 	"zombiezen.com/go/capnproto"
 	"zombiezen.com/go/capnproto/rpc/internal/refcount"
 )
@@ -17,156 +16,6 @@ type (
 	embargoID  uint32
 )
 
-type question struct {
-	conn      *Conn
-	method    *capnp.Method // nil if this is bootstrap
-	ctx       context.Context
-	paramCaps []exportID
-
-	canceled bool // only accessed from tasks goroutine
-
-	fulfiller
-	id questionID // protected by fulfiller.mu
-}
-
-func (q *question) PipelineCall(transform []capnp.PipelineOp, ccall *capnp.Call) capnp.Answer {
-	q.init()
-	if a := q.peek(); a != nil {
-		return a.PipelineCall(transform, ccall)
-	}
-	if transform == nil {
-		transform = []capnp.PipelineOp{}
-	}
-	var qa, sent capnp.Answer
-	err := q.conn.do(ccall.Ctx, func() error {
-		var id questionID
-		qa, id = q.promiseInfo()
-		if qa != nil {
-			// Answered while scheduling.
-			// Don't block tasks on sending a pipeline call.
-			return nil
-		}
-		sent = q.conn.sendCall(&call{
-			Call:       ccall,
-			questionID: id,
-			transform:  transform,
-		})
-		return nil
-	})
-	if err != nil {
-		return capnp.ErrorAnswer(err)
-	}
-	if qa != nil {
-		return qa.PipelineCall(transform, ccall)
-	}
-	return sent
-}
-
-// promiseInfo returns the underlying answer if q is resolved,
-// otherwise a question ID.
-func (q *question) promiseInfo() (ans capnp.Answer, id questionID) {
-	q.mu.RLock()
-	ans, id = q.answer, q.id
-	q.mu.RUnlock()
-	if ans != nil {
-		id = 0
-	}
-	return ans, id
-}
-
-type questionTable struct {
-	tab []*question
-	gen idgen
-}
-
-// new creates a new question with an unassigned ID.
-func (qt *questionTable) new(conn *Conn, ctx context.Context, method *capnp.Method) *question {
-	id := questionID(qt.gen.next())
-	q := &question{
-		id:     id,
-		conn:   conn,
-		ctx:    ctx,
-		method: method,
-	}
-	q.init()
-	if int(id) == len(qt.tab) {
-		qt.tab = append(qt.tab, q)
-	} else {
-		qt.tab[id] = q
-	}
-	if done := q.ctx.Done(); done != nil {
-		go func() {
-			select {
-			case <-done:
-				conn.sendCancel(q)
-			case <-q.resolved:
-			}
-		}()
-	}
-	return q
-}
-
-func (qt *questionTable) get(id questionID) *question {
-	var q *question
-	if int(id) < len(qt.tab) {
-		q = qt.tab[id]
-	}
-	return q
-}
-
-func (qt *questionTable) pop(id questionID) *question {
-	var q *question
-	if int(id) < len(qt.tab) {
-		q = qt.tab[id]
-		qt.tab[id] = nil
-		qt.gen.remove(uint32(id))
-	}
-	return q
-}
-
-type answer struct {
-	id         answerID
-	cancel     context.CancelFunc
-	resultCaps []exportID
-	fulfiller
-}
-
-type answerTable struct {
-	tab map[answerID]*answer
-}
-
-func (at *answerTable) get(id answerID) *answer {
-	var a *answer
-	if at.tab != nil {
-		a = at.tab[id]
-	}
-	return a
-}
-
-// insert creates a new question with the given ID, returning nil
-// if the ID is already in use.
-func (at *answerTable) insert(id answerID, cancel context.CancelFunc) *answer {
-	if at.tab == nil {
-		at.tab = make(map[answerID]*answer)
-	}
-	var a *answer
-	if _, ok := at.tab[id]; !ok {
-		a = &answer{id: id, cancel: cancel}
-		a.init()
-		at.tab[id] = a
-	}
-	return a
-}
-
-func (at *answerTable) pop(id answerID) *answer {
-	var a *answer
-	if at.tab != nil {
-		a = at.tab[id]
-		delete(at.tab, id)
-	}
-	return a
-}
-
 // impent is an entry in the import table.
 type impent struct {
 	rc   *refcount.RefCount
@@ -174,18 +23,26 @@ type impent struct {
 }
 
 type importTable struct {
-	tab map[importID]*impent
+	tab      map[importID]*impent
+	manager  *manager
+	calls    chan<- *appCall
+	releases chan<- *outgoingRelease
 }
 
 // addRef increases the counter of the times the import ID was sent to this vat.
-func (it *importTable) addRef(c *Conn, id importID) capnp.Client {
+func (it *importTable) addRef(id importID) capnp.Client {
 	if it.tab == nil {
 		it.tab = make(map[importID]*impent)
 	}
 	ent := it.tab[id]
 	var ref capnp.Client
 	if ent == nil {
-		client := &importClient{c: c, id: id}
+		client := &importClient{
+			id:       id,
+			manager:  it.manager,
+			calls:    it.calls,
+			releases: it.releases,
+		}
 		var rc *refcount.RefCount
 		rc, ref = refcount.New(client)
 		ent = &impent{rc: rc, refs: 0}
@@ -207,6 +64,56 @@ func (it *importTable) pop(id importID) (refs int) {
 		delete(it.tab, id)
 	}
 	return
+}
+
+// An outgoingRelease is a message sent to the coordinate goroutine to
+// indicate that an import should be released.
+type outgoingRelease struct {
+	id    importID
+	echan chan<- error
+}
+
+// An importClient implements capnp.Client for a remote capability.
+type importClient struct {
+	id       importID
+	manager  *manager
+	calls    chan<- *appCall
+	releases chan<- *outgoingRelease
+}
+
+func (ic *importClient) Call(cl *capnp.Call) capnp.Answer {
+	// TODO(light): don't send if closed.
+	ac, achan := newAppImportCall(ic.id, cl)
+	select {
+	case ic.calls <- ac:
+		select {
+		case a := <-achan:
+			return a
+		case <-ic.manager.finish:
+			return capnp.ErrorAnswer(ic.manager.err())
+		}
+	case <-ic.manager.finish:
+		return capnp.ErrorAnswer(ic.manager.err())
+	}
+}
+
+func (ic *importClient) Close() error {
+	echan := make(chan error, 1)
+	r := &outgoingRelease{
+		id:    ic.id,
+		echan: echan,
+	}
+	select {
+	case ic.releases <- r:
+		select {
+		case err := <-echan:
+			return err
+		case <-ic.manager.finish:
+			return ic.manager.err()
+		}
+	case <-ic.manager.finish:
+		return ic.manager.err()
+	}
 }
 
 type export struct {
@@ -280,6 +187,37 @@ func (et *exportTable) releaseList(ids []exportID) {
 	for _, id := range ids {
 		et.release(id, 1)
 	}
+}
+
+type embargoTable struct {
+	tab []chan<- struct{}
+	gen idgen
+}
+
+type embargo <-chan struct{}
+
+func (et *embargoTable) new() (embargoID, embargo) {
+	id := embargoID(et.gen.next())
+	e := make(chan struct{})
+	if int(id) == len(et.tab) {
+		et.tab = append(et.tab, e)
+	} else {
+		et.tab[id] = e
+	}
+	return id, e
+}
+
+func (et *embargoTable) disembargo(id embargoID) {
+	if int(id) >= len(et.tab) {
+		return
+	}
+	e := et.tab[id]
+	if e == nil {
+		return
+	}
+	close(e)
+	et.tab[id] = nil
+	et.gen.remove(uint32(id))
 }
 
 // idgen returns a sequence of monotonically increasing IDs with

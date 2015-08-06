@@ -4,15 +4,17 @@ import (
 	"testing"
 
 	"golang.org/x/net/context"
+	"zombiezen.com/go/capnproto"
 	"zombiezen.com/go/capnproto/rpc"
 	"zombiezen.com/go/capnproto/rpc/internal/logtransport"
+	"zombiezen.com/go/capnproto/rpc/internal/pipetransport"
 	"zombiezen.com/go/capnproto/rpc/internal/testcapnp"
 )
 
 func TestCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	p, q := newPipe()
+	p, q := pipetransport.New()
 	if *logMessages {
 		p = logtransport.New(nil, p)
 	}
@@ -41,6 +43,7 @@ type Hanger struct {
 }
 
 func (h Hanger) Hang(call testcapnp.Hanger_hang) error {
+	capnp.Ack(call.Options)
 	h.notify <- struct{}{}
 	<-call.Ctx.Done()
 	close(h.notify)

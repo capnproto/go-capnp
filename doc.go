@@ -315,10 +315,7 @@ Calculator_evaluate_Params and Calculator_evaluate_Results):
 		params func(Calculator_evaluate_Params),
 		opts ...capnp.CallOption) *Calculator_evaluate_Results_Promise
 
-capnpc-go also generates code to implement the interface.  Since a single
-capability may want to implement many interfaces, you can use multiple *_Methods
-functions to build a single slice to send to NewServer.  Per each interface,
-capnpc-go generates the following:
+capnpc-go also generates code to implement the interface:
 
 	// A Calculator_Server implements the Calculator interface.
 	type Calculator_Server interface {
@@ -343,6 +340,10 @@ capnpc-go generates the following:
 	// slice is too small, a new slice is returned.
 	func Calculator_Methods(methods []ServerMethod, server Calculator_Server) []ServerMethod
 
+Since a single capability may want to implement many interfaces, you can
+use multiple *_Methods functions to build a single slice to send to
+NewServer.
+
 An example of combining the client/server code to communicate with a locally
 implemented Calculator:
 
@@ -352,5 +353,9 @@ implemented Calculator:
 		params.SetExpression(expr)
 	})
 	val := result.Value().Get()
+
+A note about message ordering: when implementing a server method, you
+are responsible for acknowledging delivery of a method call.  Failure to
+do so can cause deadlocks.  See the Ack function for more details.
 */
 package capnp // import "zombiezen.com/go/capnproto"
