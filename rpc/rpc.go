@@ -30,9 +30,9 @@ type Conn struct {
 	answers   answerTable
 	imports   importTable
 	exports   exportTable
+	embargoes embargoTable
 }
 
-// connParams stores the initial parameters for Conn.
 type connParams struct {
 	main capnp.Client
 }
@@ -78,6 +78,7 @@ func NewConn(t Transport, options ...ConnOption) *Conn {
 	conn.questions.calls = calls
 	conn.questions.cancels = cancels
 	conn.answers.manager = &conn.manager
+	conn.answers.out = o
 	conn.answers.returns = rets
 	conn.answers.queueCloses = queueCloses
 	conn.imports.manager = &conn.manager
@@ -110,11 +111,7 @@ func (c *Conn) Close() error {
 	// Hang up.
 	// TODO(light): add timeout to write.
 	ctx := context.Background()
-	s := capnp.NewBuffer(nil)
-	n := rpccapnp.NewRootMessage(s)
-	e := rpccapnp.NewException(s)
-	toException(e, errShutdown)
-	n.SetAbort(e)
+	n := newAbortMessage(nil, errShutdown)
 	werr := c.transport.SendMessage(ctx, n)
 	cerr := c.transport.Close()
 	if werr != nil {
@@ -124,6 +121,15 @@ func (c *Conn) Close() error {
 		return cerr
 	}
 	return nil
+}
+
+func newAbortMessage(buf []byte, err error) rpccapnp.Message {
+	s := capnp.NewBuffer(buf)
+	n := rpccapnp.NewRootMessage(s)
+	e := rpccapnp.NewException(s)
+	toException(e, err)
+	n.SetAbort(e)
+	return n
 }
 
 // coordinate runs in its own goroutine.
@@ -212,6 +218,15 @@ func (c *Conn) handleMessage(m rpccapnp.Message) {
 		id := exportID(m.Release().Id())
 		refs := int(m.Release().ReferenceCount())
 		c.exports.release(id, refs)
+	case rpccapnp.Message_Which_disembargo:
+		if err := c.handleDisembargoMessage(m); err != nil {
+			// Any failure in a disembargo is a protocol violation.
+			am := newAbortMessage(nil, err)
+			select {
+			case c.out <- outgoingMessage{c.manager.context(), am}:
+			case <-c.manager.finish:
+			}
+		}
 	default:
 		log.Printf("rpc: received unimplemented message, which = %v", m.Which())
 		um := newUnimplementedMessage(nil, m)
@@ -239,6 +254,10 @@ func (c *Conn) handleCall(ac *appCall) (capnp.Answer, error) {
 		return c.nestedCall(client, ac.Call), nil
 	}
 	q := c.questions.new(ac.Ctx, &ac.Method)
+	if ac.kind == appPipelineCall {
+		pq := c.questions.get(ac.question.id)
+		pq.addPromise(ac.transform)
+	}
 	msg := c.newCallMessage(nil, q.id, ac)
 	select {
 	case c.out <- outgoingMessage{c.manager.context(), msg}:
@@ -350,7 +369,14 @@ func (c *Conn) handleReturnMessage(m rpccapnp.Return) error {
 	case rpccapnp.Return_Which_results:
 		releaseResultCaps = false
 		c.populateMessageCapTable(m.Results())
-		q.fulfill(m.Results().Content())
+		disembargoes := q.fulfill(m.Results().Content(), c.embargoes.new)
+		for _, d := range disembargoes {
+			select {
+			case c.out <- outgoingMessage{c.manager.context(), d}:
+			case <-c.manager.finish:
+				return nil
+			}
+		}
 	case rpccapnp.Return_Which_exception:
 		e := error(Exception{m.Exception()})
 		if q.method != nil {
@@ -563,6 +589,63 @@ func (c *Conn) routeCallMessage(result *answer, mt rpccapnp.MessageTarget, cl *c
 		panic("unreachable")
 	}
 	return nil
+}
+
+func (c *Conn) handleDisembargoMessage(msg rpccapnp.Message) error {
+	d := msg.Disembargo()
+	switch d.Context().Which() {
+	case rpccapnp.Disembargo_context_Which_senderLoopback:
+		id := embargoID(d.Context().SenderLoopback())
+		if d.Target().Which() != rpccapnp.MessageTarget_Which_promisedAnswer {
+			return errDisembargoNonImport
+		}
+		aid := answerID(d.Target().PromisedAnswer().QuestionId())
+		a := c.answers.get(aid)
+		if a == nil {
+			return errDisembargoMissingAnswer
+		}
+		transform := promisedAnswerOpsToTransform(d.Target().PromisedAnswer().Transform())
+		queued, err := a.queueDisembargo(transform, id, d.Target())
+		if err != nil {
+			return err
+		}
+		if !queued {
+			// There's nothing to embargo; everything's been delivered.
+			msg := newDisembargoMessage(nil, rpccapnp.Disembargo_context_Which_receiverLoopback, id)
+			msg.Disembargo().SetTarget(d.Target())
+			select {
+			case c.out <- outgoingMessage{c.manager.context(), msg}:
+			case <-c.manager.finish:
+			}
+		}
+	case rpccapnp.Disembargo_context_Which_receiverLoopback:
+		id := embargoID(d.Context().ReceiverLoopback())
+		c.embargoes.disembargo(id)
+	default:
+		um := newUnimplementedMessage(nil, msg)
+		select {
+		case c.out <- outgoingMessage{c.manager.context(), um}:
+		case <-c.manager.finish:
+		}
+	}
+	return nil
+}
+
+// newDisembargoMessage creates a disembargo message.  Its target will be left blank.
+func newDisembargoMessage(buf []byte, which rpccapnp.Disembargo_context_Which, id embargoID) rpccapnp.Message {
+	s := capnp.NewBuffer(buf)
+	msg := rpccapnp.NewRootMessage(s)
+	d := rpccapnp.NewDisembargo(s)
+	switch which {
+	case rpccapnp.Disembargo_context_Which_senderLoopback:
+		d.Context().SetSenderLoopback(uint32(id))
+	case rpccapnp.Disembargo_context_Which_receiverLoopback:
+		d.Context().SetReceiverLoopback(uint32(id))
+	default:
+		panic("unreachable")
+	}
+	msg.SetDisembargo(d)
+	return msg
 }
 
 // newContext creates a new context for a local call.

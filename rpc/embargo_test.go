@@ -12,7 +12,6 @@ import (
 )
 
 func TestEmbargo(t *testing.T) {
-	t.Skip("still working on it")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	p, q := pipetransport.New()

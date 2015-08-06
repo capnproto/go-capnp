@@ -189,6 +189,37 @@ func (et *exportTable) releaseList(ids []exportID) {
 	}
 }
 
+type embargoTable struct {
+	tab []chan<- struct{}
+	gen idgen
+}
+
+type embargo <-chan struct{}
+
+func (et *embargoTable) new() (embargoID, embargo) {
+	id := embargoID(et.gen.next())
+	e := make(chan struct{})
+	if int(id) == len(et.tab) {
+		et.tab = append(et.tab, e)
+	} else {
+		et.tab[id] = e
+	}
+	return id, e
+}
+
+func (et *embargoTable) disembargo(id embargoID) {
+	if int(id) >= len(et.tab) {
+		return
+	}
+	e := et.tab[id]
+	if e == nil {
+		return
+	}
+	close(e)
+	et.tab[id] = nil
+	et.gen.remove(uint32(id))
+}
+
 // idgen returns a sequence of monotonically increasing IDs with
 // support for replacement.  The zero value is a generator that
 // starts at zero.
