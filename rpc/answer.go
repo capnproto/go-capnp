@@ -174,7 +174,7 @@ func (a *answer) queueCall(result *answer, transform []capnp.PipelineOp, call *c
 		transform: transform,
 		qcall: qcall{
 			a:    result,
-			call: call,
+			call: call.Copy(nil),
 		},
 	})
 	return nil
@@ -209,6 +209,10 @@ func (a *answer) queueDisembargo(transform []capnp.PipelineOp, id embargoID, tar
 	}
 	qc.mu.Unlock()
 	return queued, err
+}
+
+func (a *answer) pipelineClient(transform []capnp.PipelineOp) capnp.Client {
+	return &localAnswerClient{a: a, transform: transform}
 }
 
 // joinAnswer resolves an RPC answer by waiting on a generic answer.
@@ -466,6 +470,51 @@ func (ql qcallList) Set(i int, x interface{}) {
 	} else {
 		ql[i] = x.(qcall)
 	}
+}
+
+// A localAnswerClient is used to provide a pipelined client of an answer.
+type localAnswerClient struct {
+	a         *answer
+	transform []capnp.PipelineOp
+}
+
+func (lac *localAnswerClient) Call(call *capnp.Call) capnp.Answer {
+	lac.a.mu.Lock()
+	if lac.a.done {
+		obj, err := lac.a.obj, lac.a.err
+		lac.a.mu.Unlock()
+		return clientFromResolution(lac.transform, obj, err).Call(call)
+	}
+	defer lac.a.mu.Unlock()
+	if len(lac.a.queue) == cap(lac.a.queue) {
+		return capnp.ErrorAnswer(errQueueFull)
+	}
+	f := new(capnp.Fulfiller)
+	lac.a.queue = append(lac.a.queue, pcall{
+		transform: lac.transform,
+		qcall: qcall{
+			f:    f,
+			call: call.Copy(nil),
+		},
+	})
+	return f
+}
+
+func (lac *localAnswerClient) WrappedClient() capnp.Client {
+	obj, err, ok := lac.a.peek()
+	if !ok {
+		return nil
+	}
+	return clientFromResolution(lac.transform, obj, err)
+}
+
+func (lac *localAnswerClient) Close() error {
+	obj, err, ok := lac.a.peek()
+	if !ok {
+		return nil
+	}
+	client := clientFromResolution(lac.transform, obj, err)
+	return client.Close()
 }
 
 // A capTableMaker converts the clients in a segment's message into capability descriptors.
