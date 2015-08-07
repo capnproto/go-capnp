@@ -1,5 +1,5 @@
 // Package rpc implements the Cap'n Proto RPC protocol.
-package rpc
+package rpc // import "zombiezen.com/go/capnproto/rpc"
 
 import (
 	"fmt"

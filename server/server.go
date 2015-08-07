@@ -1,6 +1,6 @@
 // Package server provides runtime support for implementing Cap'n Proto
 // interfaces locally.
-package server
+package server // import "zombiezen.com/go/capnproto/server"
 
 import (
 	"sort"
