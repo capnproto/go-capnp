@@ -1,8 +1,10 @@
-package capnp
+package fulfiller
 
 import (
 	"errors"
 	"testing"
+
+	"zombiezen.com/go/capnproto"
 )
 
 func TestFulfiller_NewShouldBeUnresolved(t *testing.T) {
@@ -21,8 +23,8 @@ func TestFulfiller_NewShouldBeUnresolved(t *testing.T) {
 
 func TestFulfiller_FulfillShouldResolve(t *testing.T) {
 	f := new(Fulfiller)
-	s := NewBuffer(nil)
-	st := s.NewRootStruct(ObjectSize{0, 0})
+	s := capnp.NewBuffer(nil)
+	st := s.NewRootStruct(capnp.ObjectSize{0, 0})
 
 	f.Fulfill(st)
 
@@ -55,7 +57,7 @@ func TestFulfiller_RejectShouldResolve(t *testing.T) {
 	if err != e {
 		t.Errorf("f.Struct() error = %v; want %v", err, e)
 	}
-	if Object(ret).Type() != TypeNull {
+	if capnp.Object(ret).Type() != capnp.TypeNull {
 		t.Errorf("f.Struct() = %v; want null", ret)
 	}
 }
@@ -63,18 +65,18 @@ func TestFulfiller_RejectShouldResolve(t *testing.T) {
 func TestFulfiller_QueuedCallsDeliveredInOrder(t *testing.T) {
 	f := new(Fulfiller)
 	oc := new(orderClient)
-	result := NewBuffer(nil).NewRootStruct(ObjectSize{PointerCount: 1})
+	result := capnp.NewBuffer(nil).NewRootStruct(capnp.ObjectSize{PointerCount: 1})
 	in := result.Segment.Message.AddCap(oc)
-	result.SetObject(0, Object(result.Segment.NewInterface(in)))
+	result.SetObject(0, capnp.Object(result.Segment.NewInterface(in)))
 
-	ans1 := f.PipelineCall([]PipelineOp{{Field: 0}}, new(Call))
-	ans2 := f.PipelineCall([]PipelineOp{{Field: 0}}, new(Call))
+	ans1 := f.PipelineCall([]capnp.PipelineOp{{Field: 0}}, new(capnp.Call))
+	ans2 := f.PipelineCall([]capnp.PipelineOp{{Field: 0}}, new(capnp.Call))
 	f.Fulfill(result)
-	ans3 := f.PipelineCall([]PipelineOp{{Field: 0}}, new(Call))
+	ans3 := f.PipelineCall([]capnp.PipelineOp{{Field: 0}}, new(capnp.Call))
 	ans3.Struct()
-	ans4 := f.PipelineCall([]PipelineOp{{Field: 0}}, new(Call))
+	ans4 := f.PipelineCall([]capnp.PipelineOp{{Field: 0}}, new(capnp.Call))
 
-	check := func(a Answer, n uint64) {
+	check := func(a capnp.Answer, n uint64) {
 		r, err := a.Struct()
 		if r.Get64(0) != n {
 			t.Errorf("r%d = %d; want %d", n+1, r.Get64(0), n)
@@ -91,12 +93,12 @@ func TestFulfiller_QueuedCallsDeliveredInOrder(t *testing.T) {
 
 type orderClient int
 
-func (oc *orderClient) Call(cl *Call) Answer {
-	s := NewBuffer(nil)
-	st := s.NewRootStruct(ObjectSize{DataSize: 8})
+func (oc *orderClient) Call(cl *capnp.Call) capnp.Answer {
+	s := capnp.NewBuffer(nil)
+	st := s.NewRootStruct(capnp.ObjectSize{DataSize: 8})
 	st.Set64(0, uint64(*oc))
 	*oc++
-	return ImmediateAnswer(st)
+	return capnp.ImmediateAnswer(st)
 }
 
 func (oc *orderClient) Close() error {

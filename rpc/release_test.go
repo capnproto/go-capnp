@@ -10,6 +10,7 @@ import (
 	"zombiezen.com/go/capnproto/rpc/internal/logtransport"
 	"zombiezen.com/go/capnproto/rpc/internal/pipetransport"
 	"zombiezen.com/go/capnproto/rpc/internal/testcapnp"
+	"zombiezen.com/go/capnproto/server"
 )
 
 func TestRelease(t *testing.T) {
@@ -121,7 +122,7 @@ func singletonHandleFactory() *HandleFactory {
 }
 
 func (hf *HandleFactory) NewHandle(call testcapnp.HandleFactory_newHandle) error {
-	capnp.Ack(call.Options)
+	server.Ack(call.Options)
 	if hf.singleton.IsNull() {
 		hf.mu.Lock()
 		hf.n++

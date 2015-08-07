@@ -5,6 +5,7 @@ package testcapnp
 import (
 	context "golang.org/x/net/context"
 	C "zombiezen.com/go/capnproto"
+	server "zombiezen.com/go/capnproto/server"
 )
 
 type Handle struct{ c C.Client }
@@ -19,13 +20,13 @@ type Handle_Server interface {
 }
 
 func Handle_ServerToClient(s Handle_Server) Handle {
-	c, _ := s.(C.Closer)
-	return NewHandle(C.NewServer(Handle_Methods(nil, s), c))
+	c, _ := s.(server.Closer)
+	return NewHandle(server.New(Handle_Methods(nil, s), c))
 }
 
-func Handle_Methods(methods []C.ServerMethod, server Handle_Server) []C.ServerMethod {
+func Handle_Methods(methods []server.Method, s Handle_Server) []server.Method {
 	if cap(methods) == 0 {
-		methods = make([]C.ServerMethod, 0, 0)
+		methods = make([]server.Method, 0, 0)
 	}
 
 	return methods
@@ -63,16 +64,16 @@ type HandleFactory_Server interface {
 }
 
 func HandleFactory_ServerToClient(s HandleFactory_Server) HandleFactory {
-	c, _ := s.(C.Closer)
-	return NewHandleFactory(C.NewServer(HandleFactory_Methods(nil, s), c))
+	c, _ := s.(server.Closer)
+	return NewHandleFactory(server.New(HandleFactory_Methods(nil, s), c))
 }
 
-func HandleFactory_Methods(methods []C.ServerMethod, server HandleFactory_Server) []C.ServerMethod {
+func HandleFactory_Methods(methods []server.Method, s HandleFactory_Server) []server.Method {
 	if cap(methods) == 0 {
-		methods = make([]C.ServerMethod, 0, 1)
+		methods = make([]server.Method, 0, 1)
 	}
 
-	methods = append(methods, C.ServerMethod{
+	methods = append(methods, server.Method{
 		Method: C.Method{
 
 			InterfaceID:   0x8491a7fe75fe0bce,
@@ -82,7 +83,7 @@ func HandleFactory_Methods(methods []C.ServerMethod, server HandleFactory_Server
 		},
 		Impl: func(c context.Context, opts C.CallOptions, p, r C.Struct) error {
 			call := HandleFactory_newHandle{c, opts, HandleFactory_newHandle_Params(p), HandleFactory_newHandle_Results(r)}
-			return server.NewHandle(call)
+			return s.NewHandle(call)
 		},
 		ResultsSize: C.ObjectSize{DataSize: 0, PointerCount: 1},
 	})
@@ -220,16 +221,16 @@ type Hanger_Server interface {
 }
 
 func Hanger_ServerToClient(s Hanger_Server) Hanger {
-	c, _ := s.(C.Closer)
-	return NewHanger(C.NewServer(Hanger_Methods(nil, s), c))
+	c, _ := s.(server.Closer)
+	return NewHanger(server.New(Hanger_Methods(nil, s), c))
 }
 
-func Hanger_Methods(methods []C.ServerMethod, server Hanger_Server) []C.ServerMethod {
+func Hanger_Methods(methods []server.Method, s Hanger_Server) []server.Method {
 	if cap(methods) == 0 {
-		methods = make([]C.ServerMethod, 0, 1)
+		methods = make([]server.Method, 0, 1)
 	}
 
-	methods = append(methods, C.ServerMethod{
+	methods = append(methods, server.Method{
 		Method: C.Method{
 
 			InterfaceID:   0x8ae08044aae8a26e,
@@ -239,7 +240,7 @@ func Hanger_Methods(methods []C.ServerMethod, server Hanger_Server) []C.ServerMe
 		},
 		Impl: func(c context.Context, opts C.CallOptions, p, r C.Struct) error {
 			call := Hanger_hang{c, opts, Hanger_hang_Params(p), Hanger_hang_Results(r)}
-			return server.Hang(call)
+			return s.Hang(call)
 		},
 		ResultsSize: C.ObjectSize{DataSize: 0, PointerCount: 0},
 	})
@@ -363,16 +364,16 @@ type CallOrder_Server interface {
 }
 
 func CallOrder_ServerToClient(s CallOrder_Server) CallOrder {
-	c, _ := s.(C.Closer)
-	return NewCallOrder(C.NewServer(CallOrder_Methods(nil, s), c))
+	c, _ := s.(server.Closer)
+	return NewCallOrder(server.New(CallOrder_Methods(nil, s), c))
 }
 
-func CallOrder_Methods(methods []C.ServerMethod, server CallOrder_Server) []C.ServerMethod {
+func CallOrder_Methods(methods []server.Method, s CallOrder_Server) []server.Method {
 	if cap(methods) == 0 {
-		methods = make([]C.ServerMethod, 0, 1)
+		methods = make([]server.Method, 0, 1)
 	}
 
-	methods = append(methods, C.ServerMethod{
+	methods = append(methods, server.Method{
 		Method: C.Method{
 
 			InterfaceID:   0x92c5ca8314cdd2a5,
@@ -382,7 +383,7 @@ func CallOrder_Methods(methods []C.ServerMethod, server CallOrder_Server) []C.Se
 		},
 		Impl: func(c context.Context, opts C.CallOptions, p, r C.Struct) error {
 			call := CallOrder_getCallSequence{c, opts, CallOrder_getCallSequence_Params(p), CallOrder_getCallSequence_Results(r)}
-			return server.GetCallSequence(call)
+			return s.GetCallSequence(call)
 		},
 		ResultsSize: C.ObjectSize{DataSize: 8, PointerCount: 0},
 	})
@@ -531,16 +532,16 @@ type Echoer_Server interface {
 }
 
 func Echoer_ServerToClient(s Echoer_Server) Echoer {
-	c, _ := s.(C.Closer)
-	return NewEchoer(C.NewServer(Echoer_Methods(nil, s), c))
+	c, _ := s.(server.Closer)
+	return NewEchoer(server.New(Echoer_Methods(nil, s), c))
 }
 
-func Echoer_Methods(methods []C.ServerMethod, server Echoer_Server) []C.ServerMethod {
+func Echoer_Methods(methods []server.Method, s Echoer_Server) []server.Method {
 	if cap(methods) == 0 {
-		methods = make([]C.ServerMethod, 0, 2)
+		methods = make([]server.Method, 0, 2)
 	}
 
-	methods = append(methods, C.ServerMethod{
+	methods = append(methods, server.Method{
 		Method: C.Method{
 
 			InterfaceID:   0x841756c6a41b2a45,
@@ -550,12 +551,12 @@ func Echoer_Methods(methods []C.ServerMethod, server Echoer_Server) []C.ServerMe
 		},
 		Impl: func(c context.Context, opts C.CallOptions, p, r C.Struct) error {
 			call := Echoer_echo{c, opts, Echoer_echo_Params(p), Echoer_echo_Results(r)}
-			return server.Echo(call)
+			return s.Echo(call)
 		},
 		ResultsSize: C.ObjectSize{DataSize: 0, PointerCount: 1},
 	})
 
-	methods = append(methods, C.ServerMethod{
+	methods = append(methods, server.Method{
 		Method: C.Method{
 
 			InterfaceID:   0x92c5ca8314cdd2a5,
@@ -565,7 +566,7 @@ func Echoer_Methods(methods []C.ServerMethod, server Echoer_Server) []C.ServerMe
 		},
 		Impl: func(c context.Context, opts C.CallOptions, p, r C.Struct) error {
 			call := CallOrder_getCallSequence{c, opts, CallOrder_getCallSequence_Params(p), CallOrder_getCallSequence_Results(r)}
-			return server.GetCallSequence(call)
+			return s.GetCallSequence(call)
 		},
 		ResultsSize: C.ObjectSize{DataSize: 8, PointerCount: 0},
 	})
@@ -717,16 +718,16 @@ type Adder_Server interface {
 }
 
 func Adder_ServerToClient(s Adder_Server) Adder {
-	c, _ := s.(C.Closer)
-	return NewAdder(C.NewServer(Adder_Methods(nil, s), c))
+	c, _ := s.(server.Closer)
+	return NewAdder(server.New(Adder_Methods(nil, s), c))
 }
 
-func Adder_Methods(methods []C.ServerMethod, server Adder_Server) []C.ServerMethod {
+func Adder_Methods(methods []server.Method, s Adder_Server) []server.Method {
 	if cap(methods) == 0 {
-		methods = make([]C.ServerMethod, 0, 1)
+		methods = make([]server.Method, 0, 1)
 	}
 
-	methods = append(methods, C.ServerMethod{
+	methods = append(methods, server.Method{
 		Method: C.Method{
 
 			InterfaceID:   0x8f9cac550b1bf41f,
@@ -736,7 +737,7 @@ func Adder_Methods(methods []C.ServerMethod, server Adder_Server) []C.ServerMeth
 		},
 		Impl: func(c context.Context, opts C.CallOptions, p, r C.Struct) error {
 			call := Adder_add{c, opts, Adder_add_Params(p), Adder_add_Results(r)}
-			return server.Add(call)
+			return s.Add(call)
 		},
 		ResultsSize: C.ObjectSize{DataSize: 8, PointerCount: 0},
 	})

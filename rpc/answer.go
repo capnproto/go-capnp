@@ -6,6 +6,7 @@ import (
 
 	"golang.org/x/net/context"
 	"zombiezen.com/go/capnproto"
+	"zombiezen.com/go/capnproto/internal/fulfiller"
 	"zombiezen.com/go/capnproto/internal/queue"
 	"zombiezen.com/go/capnproto/rpc/rpccapnp"
 )
@@ -234,7 +235,7 @@ func joinAnswer(a *answer, ca capnp.Answer) {
 // joinFulfiller resolves a fulfiller by waiting on a generic answer.
 // It waits until the generic answer is finished, so it should be run
 // in its own goroutine.
-func joinFulfiller(f *capnp.Fulfiller, ca capnp.Answer) {
+func joinFulfiller(f *fulfiller.Fulfiller, ca capnp.Answer) {
 	s, err := ca.Struct()
 	if err != nil {
 		f.Reject(err)
@@ -278,7 +279,7 @@ func newQueueClient(m *manager, client capnp.Client, queue []qcall, out chan<- r
 }
 
 func (qc *queueClient) pushCall(cl *capnp.Call) capnp.Answer {
-	f := new(capnp.Fulfiller)
+	f := new(fulfiller.Fulfiller)
 	cl = cl.Copy(nil)
 	if ok := qc.q.Push(qcall{call: cl, f: f}); !ok {
 		return capnp.ErrorAnswer(errQueueFull)
@@ -425,8 +426,8 @@ type pcall struct {
 // qcall is a queued call.
 type qcall struct {
 	// Calls
-	a    *answer          // non-nil if remote call
-	f    *capnp.Fulfiller // non-nil if local call
+	a    *answer              // non-nil if remote call
+	f    *fulfiller.Fulfiller // non-nil if local call
 	call *capnp.Call
 
 	// Disembargo
@@ -489,7 +490,7 @@ func (lac *localAnswerClient) Call(call *capnp.Call) capnp.Answer {
 	if len(lac.a.queue) == cap(lac.a.queue) {
 		return capnp.ErrorAnswer(errQueueFull)
 	}
-	f := new(capnp.Fulfiller)
+	f := new(fulfiller.Fulfiller)
 	lac.a.queue = append(lac.a.queue, pcall{
 		transform: lac.transform,
 		qcall: qcall{

@@ -8,6 +8,7 @@ import (
 	net "net"
 	strconv "strconv"
 	C "zombiezen.com/go/capnproto"
+	server "zombiezen.com/go/capnproto/server"
 )
 
 type Zdate C.Struct
@@ -1815,16 +1816,16 @@ type Echo_Server interface {
 }
 
 func Echo_ServerToClient(s Echo_Server) Echo {
-	c, _ := s.(C.Closer)
-	return NewEcho(C.NewServer(Echo_Methods(nil, s), c))
+	c, _ := s.(server.Closer)
+	return NewEcho(server.New(Echo_Methods(nil, s), c))
 }
 
-func Echo_Methods(methods []C.ServerMethod, server Echo_Server) []C.ServerMethod {
+func Echo_Methods(methods []server.Method, s Echo_Server) []server.Method {
 	if cap(methods) == 0 {
-		methods = make([]C.ServerMethod, 0, 1)
+		methods = make([]server.Method, 0, 1)
 	}
 
-	methods = append(methods, C.ServerMethod{
+	methods = append(methods, server.Method{
 		Method: C.Method{
 
 			InterfaceID:   0x8e5322c1e9282534,
@@ -1834,7 +1835,7 @@ func Echo_Methods(methods []C.ServerMethod, server Echo_Server) []C.ServerMethod
 		},
 		Impl: func(c context.Context, opts C.CallOptions, p, r C.Struct) error {
 			call := Echo_echo{c, opts, Echo_echo_Params(p), Echo_echo_Results(r)}
-			return server.Echo(call)
+			return s.Echo(call)
 		},
 		ResultsSize: C.ObjectSize{DataSize: 0, PointerCount: 1},
 	})
@@ -2164,16 +2165,16 @@ type CallSequence_Server interface {
 }
 
 func CallSequence_ServerToClient(s CallSequence_Server) CallSequence {
-	c, _ := s.(C.Closer)
-	return NewCallSequence(C.NewServer(CallSequence_Methods(nil, s), c))
+	c, _ := s.(server.Closer)
+	return NewCallSequence(server.New(CallSequence_Methods(nil, s), c))
 }
 
-func CallSequence_Methods(methods []C.ServerMethod, server CallSequence_Server) []C.ServerMethod {
+func CallSequence_Methods(methods []server.Method, s CallSequence_Server) []server.Method {
 	if cap(methods) == 0 {
-		methods = make([]C.ServerMethod, 0, 1)
+		methods = make([]server.Method, 0, 1)
 	}
 
-	methods = append(methods, C.ServerMethod{
+	methods = append(methods, server.Method{
 		Method: C.Method{
 
 			InterfaceID:   0xabaedf5f7817c820,
@@ -2183,7 +2184,7 @@ func CallSequence_Methods(methods []C.ServerMethod, server CallSequence_Server) 
 		},
 		Impl: func(c context.Context, opts C.CallOptions, p, r C.Struct) error {
 			call := CallSequence_getNumber{c, opts, CallSequence_getNumber_Params(p), CallSequence_getNumber_Results(r)}
-			return server.GetNumber(call)
+			return s.GetNumber(call)
 		},
 		ResultsSize: C.ObjectSize{DataSize: 8, PointerCount: 0},
 	})

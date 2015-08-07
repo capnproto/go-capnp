@@ -5,6 +5,7 @@ import (
 
 	"golang.org/x/net/context"
 	"zombiezen.com/go/capnproto"
+	"zombiezen.com/go/capnproto/internal/fulfiller"
 	"zombiezen.com/go/capnproto/internal/queue"
 	"zombiezen.com/go/capnproto/rpc/rpccapnp"
 )
@@ -249,7 +250,7 @@ func newEmbargoClient(manager *manager, client capnp.Client, e embargo) *embargo
 }
 
 func (ec *embargoClient) push(cl *capnp.Call) capnp.Answer {
-	f := new(capnp.Fulfiller)
+	f := new(fulfiller.Fulfiller)
 	cl = cl.Copy(nil)
 	if ok := ec.q.Push(ecall{cl, f}); !ok {
 		return capnp.ErrorAnswer(errQueueFull)
@@ -344,7 +345,7 @@ func (ec *embargoClient) flushQueue() {
 
 type ecall struct {
 	call *capnp.Call
-	f    *capnp.Fulfiller
+	f    *fulfiller.Fulfiller
 }
 
 type ecallList []ecall

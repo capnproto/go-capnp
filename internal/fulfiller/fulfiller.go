@@ -1,9 +1,12 @@
-package capnp
+// Package fulfiller provides a type that implements capnp.Answer that
+// resolves by calling setter methods.
+package fulfiller
 
 import (
 	"errors"
 	"sync"
 
+	"zombiezen.com/go/capnproto"
 	"zombiezen.com/go/capnproto/internal/queue"
 )
 
@@ -20,7 +23,7 @@ type Fulfiller struct {
 
 	// Protected by mu
 	mu     sync.RWMutex
-	answer Answer
+	answer capnp.Answer
 	queue  []pcall // initialized by init()
 }
 
@@ -37,14 +40,14 @@ func (f *Fulfiller) init() {
 // pipeline calls, the capabilities on the struct will be embargoed
 // until the queued calls finish.  Fulfill will panic if the fulfiller
 // has already been resolved.
-func (f *Fulfiller) Fulfill(s Struct) {
+func (f *Fulfiller) Fulfill(s capnp.Struct) {
 	f.init()
 	f.mu.Lock()
 	if f.answer != nil {
 		f.mu.Unlock()
 		panic("Fulfiller.Fulfill called more than once")
 	}
-	f.answer = ImmediateAnswer(s)
+	f.answer = capnp.ImmediateAnswer(s)
 	queues := f.emptyQueue(s)
 	ctab := s.Segment.Message.CapTable()
 	for capIdx, q := range queues {
@@ -57,12 +60,12 @@ func (f *Fulfiller) Fulfill(s Struct) {
 // emptyQueue splits the queue by which capability it targets and
 // drops any invalid calls.  Once this function returns, f.queue will
 // be nil.
-func (f *Fulfiller) emptyQueue(s Struct) map[uint32][]ecall {
+func (f *Fulfiller) emptyQueue(s capnp.Struct) map[uint32][]ecall {
 	qs := make(map[uint32][]ecall, len(f.queue))
 	for i, pc := range f.queue {
-		c := TransformObject(Object(s), pc.transform)
-		if c.Type() != TypeInterface {
-			pc.f.Reject(ErrNullClient)
+		c := capnp.TransformObject(capnp.Object(s), pc.transform)
+		if c.Type() != capnp.TypeInterface {
+			pc.f.Reject(capnp.ErrNullClient)
 			continue
 		}
 		cn := c.ToInterface().Capability()
@@ -88,7 +91,7 @@ func (f *Fulfiller) Reject(err error) {
 		f.mu.Unlock()
 		panic("Fulfiller.Reject called more than once")
 	}
-	f.answer = ErrorAnswer(err)
+	f.answer = capnp.ErrorAnswer(err)
 	for i := range f.queue {
 		f.queue[i].f.Reject(err)
 		f.queue[i] = pcall{}
@@ -105,7 +108,7 @@ func (f *Fulfiller) Done() <-chan struct{} {
 
 // Peek returns f's resolved answer or nil if f has not been resolved.
 // The Struct method of an answer returned from Peek returns immediately.
-func (f *Fulfiller) Peek() Answer {
+func (f *Fulfiller) Peek() capnp.Answer {
 	f.init()
 	f.mu.RLock()
 	a := f.answer
@@ -115,14 +118,14 @@ func (f *Fulfiller) Peek() Answer {
 
 // Struct waits until f is resolved and returns its struct if fulfilled
 // or an error if rejected.
-func (f *Fulfiller) Struct() (Struct, error) {
+func (f *Fulfiller) Struct() (capnp.Struct, error) {
 	<-f.Done()
 	return f.Peek().Struct()
 }
 
 // PipelineCall calls PipelineCall on the fulfilled answer or queues the
 // call if f has not been fulfilled.
-func (f *Fulfiller) PipelineCall(transform []PipelineOp, call *Call) Answer {
+func (f *Fulfiller) PipelineCall(transform []capnp.PipelineOp, call *capnp.Call) capnp.Answer {
 	f.init()
 
 	// Fast path: pass-through after fulfilled.
@@ -138,7 +141,7 @@ func (f *Fulfiller) PipelineCall(transform []PipelineOp, call *Call) Answer {
 	}
 	if len(f.queue) == cap(f.queue) {
 		f.mu.Unlock()
-		return ErrorAnswer(errCallQueueFull)
+		return capnp.ErrorAnswer(errCallQueueFull)
 	}
 	g := new(Fulfiller)
 	f.queue = append(f.queue, pcall{
@@ -154,26 +157,26 @@ func (f *Fulfiller) PipelineCall(transform []PipelineOp, call *Call) Answer {
 
 // PipelineClose waits until f is resolved and then calls PipelineClose
 // on the fulfilled answer.
-func (f *Fulfiller) PipelineClose(transform []PipelineOp) error {
+func (f *Fulfiller) PipelineClose(transform []capnp.PipelineOp) error {
 	<-f.Done()
 	return f.Peek().PipelineClose(transform)
 }
 
 // pcall is a queued pipeline call.
 type pcall struct {
-	transform []PipelineOp
+	transform []capnp.PipelineOp
 	ecall
 }
 
 // embargoClient is a client that flushes a queue of calls.
 type embargoClient struct {
-	client Client
+	client capnp.Client
 
 	mu sync.RWMutex
 	q  queue.Queue
 }
 
-func newEmbargoClient(client Client, queue []ecall) Client {
+func newEmbargoClient(client capnp.Client, queue []ecall) capnp.Client {
 	ec := &embargoClient{client: client}
 	qq := make(ecallList, callQueueSize)
 	n := copy(qq, queue)
@@ -182,11 +185,11 @@ func newEmbargoClient(client Client, queue []ecall) Client {
 	return ec
 }
 
-func (ec *embargoClient) push(cl *Call) Answer {
+func (ec *embargoClient) push(cl *capnp.Call) capnp.Answer {
 	f := new(Fulfiller)
 	cl = cl.Copy(nil)
 	if ok := ec.q.Push(ecall{cl, f}); !ok {
-		return ErrorAnswer(errCallQueueFull)
+		return capnp.ErrorAnswer(errCallQueueFull)
 	}
 	return f
 }
@@ -212,7 +215,7 @@ func (ec *embargoClient) flushQueue() {
 	ec.mu.Unlock()
 	for c.call != nil {
 		ans := ec.client.Call(c.call)
-		go func(f *Fulfiller, ans Answer) {
+		go func(f *Fulfiller, ans capnp.Answer) {
 			s, err := ans.Struct()
 			if err == nil {
 				f.Fulfill(s)
@@ -227,7 +230,7 @@ func (ec *embargoClient) flushQueue() {
 	}
 }
 
-func (ec *embargoClient) WrappedClient() Client {
+func (ec *embargoClient) WrappedClient() capnp.Client {
 	ec.mu.RLock()
 	ok := ec.isPassthrough()
 	ec.mu.RUnlock()
@@ -241,7 +244,7 @@ func (ec *embargoClient) isPassthrough() bool {
 	return ec.q.Len() == 0
 }
 
-func (ec *embargoClient) Call(cl *Call) Answer {
+func (ec *embargoClient) Call(cl *capnp.Call) capnp.Answer {
 	// Fast path: queue is flushed.
 	ec.mu.RLock()
 	ok := ec.isPassthrough()
@@ -275,7 +278,7 @@ func (ec *embargoClient) Close() error {
 
 // ecall is an queued embargoed call.
 type ecall struct {
-	call *Call
+	call *capnp.Call
 	f    *Fulfiller
 }
 

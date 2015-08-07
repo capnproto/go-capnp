@@ -4,11 +4,11 @@ import (
 	"testing"
 
 	"golang.org/x/net/context"
-	"zombiezen.com/go/capnproto"
 	"zombiezen.com/go/capnproto/rpc"
 	"zombiezen.com/go/capnproto/rpc/internal/logtransport"
 	"zombiezen.com/go/capnproto/rpc/internal/pipetransport"
 	"zombiezen.com/go/capnproto/rpc/internal/testcapnp"
+	"zombiezen.com/go/capnproto/server"
 )
 
 func TestPromisedCapability(t *testing.T) {
@@ -53,7 +53,7 @@ type DelayEchoer struct {
 }
 
 func (de *DelayEchoer) Echo(call testcapnp.Echoer_echo) error {
-	capnp.Ack(call.Options)
+	server.Ack(call.Options)
 	<-de.delay
 	return de.Echoer.Echo(call)
 }

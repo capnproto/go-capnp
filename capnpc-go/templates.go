@@ -7,6 +7,7 @@ import (
 
 var templates = template.Must(template.New("").Funcs(template.FuncMap{
 	"capn":    g_imports.capn,
+	"server":  g_imports.server,
 	"context": g_imports.context,
 	"strconv": g_imports.strconv,
 	"title":   strings.Title,
@@ -105,22 +106,22 @@ func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{context}}.Context, params func({{
 }
 
 func {{.Node.Name}}_ServerToClient(s {{.Node.Name}}_Server) {{.Node.Name}} {
-	c, _ := s.({{capn}}.Closer)
-	return New{{.Node.Name}}({{capn}}.NewServer({{.Node.Name}}_Methods(nil, s), c))
+	c, _ := s.({{server}}.Closer)
+	return New{{.Node.Name}}({{server}}.New({{.Node.Name}}_Methods(nil, s), c))
 }
 
-func {{.Node.Name}}_Methods(methods []{{capn}}.ServerMethod, server {{.Node.Name}}_Server) []{{capn}}.ServerMethod {
+func {{.Node.Name}}_Methods(methods []{{server}}.Method, s {{.Node.Name}}_Server) []{{server}}.Method {
 	if cap(methods) == 0 {
-		methods = make([]{{capn}}.ServerMethod, 0, {{len .Methods}})
+		methods = make([]{{server}}.Method, 0, {{len .Methods}})
 	}
 	{{range .Methods}}
-	methods = append(methods, {{capn}}.ServerMethod{
+	methods = append(methods, {{server}}.Method{
 		Method: {{capn}}.Method{
 			{{template "_interfaceMethod" .}}
 		},
 		Impl: func(c {{context}}.Context, opts {{capn}}.CallOptions, p, r {{capn}}.Struct) error {
 			call := {{.Interface.RemoteName $.Node}}_{{.Name}}{c, opts, {{.Params.RemoteName $.Node}}(p), {{.Results.RemoteName $.Node}}(r)}
-			return server.{{.Name|title}}(call)
+			return s.{{.Name|title}}(call)
 		},
 		ResultsSize: {{.Results.ObjectSize}},
 	})

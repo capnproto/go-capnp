@@ -17,6 +17,7 @@ import (
 
 const (
 	go_capnproto_import = "zombiezen.com/go/capnproto"
+	server_import       = go_capnproto_import + "/server"
 	context_import      = "golang.org/x/net/context"
 )
 
@@ -49,6 +50,10 @@ func (i *imports) init() {
 
 func (i *imports) capn() string {
 	return i.add(importSpec{path: go_capnproto_import, name: "C"})
+}
+
+func (i *imports) server() string {
+	return i.add(importSpec{path: server_import, name: "server"})
 }
 
 func (i *imports) context() string {

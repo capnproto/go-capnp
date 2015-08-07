@@ -1,22 +1,25 @@
-package capnp
+// Package server provides runtime support for implementing Cap'n Proto
+// interfaces locally.
+package server
 
 import (
-	"errors"
 	"sort"
 	"sync"
 
 	"golang.org/x/net/context"
+	"zombiezen.com/go/capnproto"
+	"zombiezen.com/go/capnproto/internal/fulfiller"
 )
 
-// A ServerMethod describes a single method on a server object.
-type ServerMethod struct {
-	Method
-	Impl        ServerFunc
-	ResultsSize ObjectSize
+// A Method describes a single method on a server object.
+type Method struct {
+	capnp.Method
+	Impl        Func
+	ResultsSize capnp.ObjectSize
 }
 
-// A ServerFunc is a function that implements a single method.
-type ServerFunc func(ctx context.Context, options CallOptions, params, results Struct) error
+// A Func is a function that implements a single method.
+type Func func(ctx context.Context, options capnp.CallOptions, params, results capnp.Struct) error
 
 // Closer is the interface that wraps the Close method.
 type Closer interface {
@@ -30,12 +33,12 @@ type server struct {
 	lock    chan struct{}
 }
 
-// NewServer returns a client that makes calls to a set of methods.
+// New returns a client that makes calls to a set of methods.
 // If closer is nil then the client's Close is a no-op.  The server
 // guarantees message delivery order by blocking each call on the
 // return or acknowledgement of the previous call.  See the Ack function
 // for more details.
-func NewServer(methods []ServerMethod, closer Closer) Client {
+func New(methods []Method, closer Closer) capnp.Client {
 	s := &server{
 		methods: make(sortedMethods, len(methods)),
 		closer:  closer,
@@ -47,13 +50,13 @@ func NewServer(methods []ServerMethod, closer Closer) Client {
 	return s
 }
 
-func (s *server) Call(call *Call) Answer {
+func (s *server) Call(call *capnp.Call) capnp.Answer {
 	// Find method
 	sm := s.methods.find(&call.Method)
 	if sm == nil {
-		return ErrorAnswer(&MethodError{
+		return capnp.ErrorAnswer(&capnp.MethodError{
 			Method: &call.Method,
-			Err:    ErrUnimplemented,
+			Err:    capnp.ErrUnimplemented,
 		})
 	}
 	// Acquire lock for ordering
@@ -63,15 +66,15 @@ func (s *server) Call(call *Call) Answer {
 			s.lock <- struct{}{}
 		}()
 	case <-call.Ctx.Done():
-		return ErrorAnswer(call.Ctx.Err())
+		return capnp.ErrorAnswer(call.Ctx.Err())
 	}
 	// Call implementation function
-	ans := new(Fulfiller)
+	ans := new(fulfiller.Fulfiller)
 	params := call.PlaceParams(nil)
-	out := NewBuffer(nil)
+	out := capnp.NewBuffer(nil)
 	results := out.NewRootStruct(sm.ResultsSize)
 	acksig := &ackSignal{c: make(chan struct{})}
-	opts := call.Options.With([]CallOption{SetOptionValue(ackSignalKey, acksig)})
+	opts := call.Options.With([]capnp.CallOption{capnp.SetOptionValue(ackSignalKey, acksig)})
 	go func() {
 		err := sm.Impl(call.Ctx, opts, params, results)
 		if err == nil {
@@ -88,7 +91,7 @@ func (s *server) Call(call *Call) Answer {
 		// Implementation functions may not call Ack, which is fine for smaller functions.
 		return ans
 	case <-call.Ctx.Done():
-		return ErrorAnswer(call.Ctx.Err())
+		return capnp.ErrorAnswer(call.Ctx.Err())
 	}
 }
 
@@ -106,12 +109,8 @@ func (s *server) Close() error {
 //
 // Example:
 //
-//	func (my *myServer) MyMethod(
-//		ctx context.Context,
-//		opts capnp.CallOptions,
-//		p Interface_myMethod_Params,
-//		r Interface_myMethod_Results) error {
-//		capnp.Ack(opts)
+//	func (my *myServer) MyMethod(call schema.MyServer_myMethod) error {
+//		server.Ack(call.Options)
 //		// ... do long-running operation ...
 //		return nil
 //	}
@@ -121,39 +120,16 @@ func (s *server) Close() error {
 // short functions can return without calling Ack.  However, since
 // clients will not return an Answer until the delivery is acknowledged,
 // it is advisable to ack early.
-func Ack(opts CallOptions) {
+func Ack(opts capnp.CallOptions) {
 	if ack, _ := opts.Value(ackSignalKey).(*ackSignal); ack != nil {
 		ack.signal()
 	}
 }
 
-// MethodError is an error on an associated method.
-type MethodError struct {
-	Method *Method
-	Err    error
-}
-
-// Error returns the method name concatenated with the error string.
-func (me *MethodError) Error() string {
-	return me.Method.String() + ": " + me.Err.Error()
-}
-
-// ErrUnimplemented is the error returned when a method is called on
-// a server that does not implement the method.
-var ErrUnimplemented = errors.New("method not implemented")
-
-// IsUnimplemented reports whether e indicates an unimplemented method error.
-func IsUnimplemented(e error) bool {
-	if me, ok := e.(*MethodError); ok {
-		e = me
-	}
-	return e == ErrUnimplemented
-}
-
-type sortedMethods []ServerMethod
+type sortedMethods []Method
 
 // find returns the method with the given ID or nil.
-func (sm sortedMethods) find(id *Method) *ServerMethod {
+func (sm sortedMethods) find(id *capnp.Method) *Method {
 	i := sort.Search(len(sm), func(i int) bool {
 		m := &sm[i]
 		if m.InterfaceID != id.InterfaceID {
@@ -196,3 +172,12 @@ func (ack *ackSignal) signal() {
 		close(ack.c)
 	})
 }
+
+// callOptionKey is the unexported key type for predefined options.
+type callOptionKey int
+
+// Predefined call options
+const (
+	invalidOptionKey callOptionKey = iota
+	ackSignalKey
+)

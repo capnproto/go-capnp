@@ -2,12 +2,12 @@ package rpc_test
 
 import (
 	"fmt"
-	"golang.org/x/net/context"
 	"net"
 
-	"zombiezen.com/go/capnproto"
+	"golang.org/x/net/context"
 	"zombiezen.com/go/capnproto/rpc"
 	"zombiezen.com/go/capnproto/rpc/internal/testcapnp"
+	"zombiezen.com/go/capnproto/server"
 )
 
 func Example() {
@@ -60,7 +60,7 @@ type AdderServer struct{}
 func (AdderServer) Add(call testcapnp.Adder_add) error {
 	// Acknowledging the call allows other calls to be made (it returns the Answer
 	// to the caller).
-	capnp.Ack(call.Options)
+	server.Ack(call.Options)
 
 	// Parameters are accessed with call.Params.
 	a := call.Params.A()

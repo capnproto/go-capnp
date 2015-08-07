@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"zombiezen.com/go/capnproto"
+	"zombiezen.com/go/capnproto/internal/fulfiller"
 	"zombiezen.com/go/capnproto/rpc/rpccapnp"
 )
 
@@ -107,7 +108,7 @@ func extractRPCClientFromPipeline(ans capnp.Answer, transform []capnp.PipelineOp
 		return clientFromResolution(transform, capnp.Object(s), err)
 	}
 	switch a := ans.(type) {
-	case *capnp.Fulfiller:
+	case *fulfiller.Fulfiller:
 		ap := a.Peek()
 		if ap == nil {
 			// This can race, see TODO in nestedCall.

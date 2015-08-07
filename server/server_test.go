@@ -1,11 +1,11 @@
-package capnp_test
+package server_test
 
 import (
 	"testing"
 
 	"golang.org/x/net/context"
-	"zombiezen.com/go/capnproto"
 	air "zombiezen.com/go/capnproto/internal/aircraftlib"
+	. "zombiezen.com/go/capnproto/server"
 )
 
 type echoImpl struct{}
@@ -36,7 +36,7 @@ type callSeq uint32
 func (seq *callSeq) GetNumber(call air.CallSequence_getNumber) error {
 	call.Results.SetN(uint32(*seq))
 	*seq++
-	capnp.Ack(call.Options)
+	Ack(call.Options)
 	return nil
 }
 

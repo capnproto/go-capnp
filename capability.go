@@ -136,15 +136,6 @@ func SetOptionValue(key, value interface{}) CallOption {
 	}}
 }
 
-// callOptionKey is the unexported key type for predefined options.
-type callOptionKey int
-
-// Predefined call options
-const (
-	invalidOptionKey callOptionKey = iota
-	ackSignalKey
-)
-
 // An Answer is the deferred result of a client call, which is usually wrapped by a Pipeline.
 type Answer interface {
 	// Struct waits until the call is finished and returns the result.
@@ -396,4 +387,27 @@ func (ec errorClient) Close() error {
 func IsErrorClient(c Client) bool {
 	_, ok := c.(errorClient)
 	return ok
+}
+
+// MethodError is an error on an associated method.
+type MethodError struct {
+	Method *Method
+	Err    error
+}
+
+// Error returns the method name concatenated with the error string.
+func (me *MethodError) Error() string {
+	return me.Method.String() + ": " + me.Err.Error()
+}
+
+// ErrUnimplemented is the error returned when a method is called on
+// a server that does not implement the method.
+var ErrUnimplemented = errors.New("method not implemented")
+
+// IsUnimplemented reports whether e indicates an unimplemented method error.
+func IsUnimplemented(e error) bool {
+	if me, ok := e.(*MethodError); ok {
+		e = me
+	}
+	return e == ErrUnimplemented
 }
