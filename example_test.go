@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"zombiezen.com/go/capnproto"
-	air "zombiezen.com/go/capnproto/aircraftlib"
+	air "zombiezen.com/go/capnproto/internal/aircraftlib"
 )
 
 func ExampleReadFromStream() {

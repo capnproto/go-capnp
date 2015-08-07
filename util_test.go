@@ -25,7 +25,7 @@ func CapnpDecodeSegment(seg *capnp.Segment, capnpExePath string, capnpSchemaFile
 	}
 
 	if capnpSchemaFilePath == "" {
-		capnpSchemaFilePath = "aircraftlib/aircraft.capnp"
+		capnpSchemaFilePath = schemaPath
 	}
 
 	if typeName == "" {
@@ -122,7 +122,7 @@ func CapnpDecodeBuf(buf []byte, capnpExePath string, capnpSchemaFilePath string,
 	}
 
 	if capnpSchemaFilePath == "" {
-		capnpSchemaFilePath = "aircraftlib/aircraft.capnp"
+		capnpSchemaFilePath = schemaPath
 	}
 
 	if typeName == "" {

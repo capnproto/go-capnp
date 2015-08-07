@@ -9,7 +9,7 @@ import (
 
 	cv "github.com/smartystreets/goconvey/convey"
 	"zombiezen.com/go/capnproto"
-	air "zombiezen.com/go/capnproto/aircraftlib"
+	air "zombiezen.com/go/capnproto/internal/aircraftlib"
 )
 
 // demonstrate and test serialization to List(List(Struct(List))), nested lists.
@@ -30,7 +30,7 @@ func Test001StructList(t *testing.T) {
 			cv.So(err, cv.ShouldEqual, nil)
 			cv.So(n, cv.ShouldBeGreaterThan, 0)
 
-			text := CapnpDecodeSegment(seg, "", "aircraftlib/aircraft.capnp", "Nester1Capn")
+			text := CapnpDecodeSegment(seg, "", schemaPath, "Nester1Capn")
 			if false {
 				fmt.Printf("text = '%s'\n", text)
 			}
@@ -63,7 +63,7 @@ func Test002ListListStructList(t *testing.T) {
 			cv.So(err, cv.ShouldEqual, nil)
 			cv.So(n, cv.ShouldBeGreaterThan, 0)
 
-			text := CapnpDecodeSegment(seg, "", "aircraftlib/aircraft.capnp", "RWTestCapn")
+			text := CapnpDecodeSegment(seg, "", schemaPath, "RWTestCapn")
 
 			if false {
 				fmt.Printf("text = '%s'\n", text)

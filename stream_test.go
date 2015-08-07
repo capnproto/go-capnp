@@ -10,7 +10,7 @@ import (
 
 	cv "github.com/smartystreets/goconvey/convey"
 	"zombiezen.com/go/capnproto"
-	air "zombiezen.com/go/capnproto/aircraftlib"
+	air "zombiezen.com/go/capnproto/internal/aircraftlib"
 )
 
 var benchForever bool

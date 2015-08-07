@@ -9,7 +9,7 @@ import (
 
 	cv "github.com/smartystreets/goconvey/convey"
 	"zombiezen.com/go/capnproto"
-	air "zombiezen.com/go/capnproto/aircraftlib"
+	air "zombiezen.com/go/capnproto/internal/aircraftlib"
 )
 
 func Example() {
@@ -76,7 +76,7 @@ func Example() {
 	seg.WriteTo(file)
 
 	// readback and view that file in human readable format. Defined in util_test.go
-	text, err := CapnFileToText(file.Name(), "aircraftlib/aircraft.capnp", "")
+	text, err := CapnFileToText(file.Name(), schemaPath, "")
 	if err != nil {
 		panic(err)
 	}

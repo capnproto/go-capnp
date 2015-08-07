@@ -4,8 +4,10 @@ import (
 	"bytes"
 
 	"zombiezen.com/go/capnproto"
-	air "zombiezen.com/go/capnproto/aircraftlib"
+	air "zombiezen.com/go/capnproto/internal/aircraftlib"
 )
+
+const schemaPath = "internal/aircraftlib/aircraft.capnp"
 
 func zdateFilledSegment(n int, packed bool) (*capnp.Segment, []byte) {
 	seg := capnp.NewBuffer(nil)

@@ -7,7 +7,7 @@ import (
 
 	cv "github.com/smartystreets/goconvey/convey"
 	"zombiezen.com/go/capnproto"
-	air "zombiezen.com/go/capnproto/aircraftlib"
+	air "zombiezen.com/go/capnproto/internal/aircraftlib"
 )
 
 func ValAtBit(value int64, bitPosition uint) bool {
@@ -85,7 +85,7 @@ func zboolvec_value_FilledSegment(value int64, elementCount uint) (*capnp.Segmen
 
 func TestBitList(t *testing.T) {
 	seg, _ := zboolvec_value_FilledSegment(5, 3)
-	text := CapnpDecodeSegment(seg, "", "aircraftlib/aircraft.capnp", "Z")
+	text := CapnpDecodeSegment(seg, "", schemaPath, "Z")
 
 	expectedText := `(boolvec = [true, false, true])`
 
@@ -113,7 +113,7 @@ func TestWriteBitList0(t *testing.T) {
 	seg, _ := zboolvec_value_FilledSegment(0, 1)
 	cv.Convey("Given a go-capnproto created List(Bool) Z::boolvec with bool values [false]", t, func() {
 		cv.Convey("Decoding it with c++ capnp should yield the expected text", func() {
-			cv.So(CapnpDecodeSegment(seg, "", "aircraftlib/aircraft.capnp", "Z"), cv.ShouldEqual, `(boolvec = [false])`)
+			cv.So(CapnpDecodeSegment(seg, "", schemaPath, "Z"), cv.ShouldEqual, `(boolvec = [false])`)
 		})
 	})
 
@@ -131,7 +131,7 @@ func TestWriteBitList1(t *testing.T) {
 	seg, _ := zboolvec_value_FilledSegment(1, 1)
 	cv.Convey("Given a go-capnproto created List(Bool) Z::boolvec with bool values [true]", t, func() {
 		cv.Convey("Decoding it with c++ capnp should yield the expected text", func() {
-			cv.So(CapnpDecodeSegment(seg, "", "aircraftlib/aircraft.capnp", "Z"), cv.ShouldEqual, `(boolvec = [true])`)
+			cv.So(CapnpDecodeSegment(seg, "", schemaPath, "Z"), cv.ShouldEqual, `(boolvec = [true])`)
 		})
 	})
 
@@ -152,7 +152,7 @@ func TestWriteBitList2(t *testing.T) {
 	//ShowBytes(by, 0)
 	cv.Convey("Given a go-capnproto created List(Bool) Z::boolvec with bool values [false, true]", t, func() {
 		cv.Convey("Decoding it with c++ capnp should yield the expected text", func() {
-			cv.So(CapnpDecodeSegment(seg, "", "aircraftlib/aircraft.capnp", "Z"), cv.ShouldEqual, `(boolvec = [false, true])`)
+			cv.So(CapnpDecodeSegment(seg, "", schemaPath, "Z"), cv.ShouldEqual, `(boolvec = [false, true])`)
 		})
 	})
 
@@ -171,7 +171,7 @@ func TestWriteBitList3(t *testing.T) {
 	seg, _ := zboolvec_value_FilledSegment(3, 2)
 	cv.Convey("Given a go-capnproto created List(Bool) Z::boolvec with bool values [true, true]", t, func() {
 		cv.Convey("Decoding it with c++ capnp should yield the expected text", func() {
-			cv.So(CapnpDecodeSegment(seg, "", "aircraftlib/aircraft.capnp", "Z"), cv.ShouldEqual, `(boolvec = [true, true])`)
+			cv.So(CapnpDecodeSegment(seg, "", schemaPath, "Z"), cv.ShouldEqual, `(boolvec = [true, true])`)
 		})
 	})
 
@@ -191,7 +191,7 @@ func TestWriteBitList4(t *testing.T) {
 	seg, _ := zboolvec_value_FilledSegment(4, 3)
 	cv.Convey("Given a go-capnproto created List(Bool) Z::boolvec with bool values [false, false, true]", t, func() {
 		cv.Convey("Decoding it with c++ capnp should yield the expected text", func() {
-			cv.So(CapnpDecodeSegment(seg, "", "aircraftlib/aircraft.capnp", "Z"), cv.ShouldEqual, `(boolvec = [false, false, true])`)
+			cv.So(CapnpDecodeSegment(seg, "", schemaPath, "Z"), cv.ShouldEqual, `(boolvec = [false, false, true])`)
 		})
 	})
 
@@ -211,7 +211,7 @@ func TestWriteBitList21(t *testing.T) {
 	seg, _ := zboolvec_value_FilledSegment(21, 5)
 	cv.Convey("Given a go-capnproto created List(Bool) Z::boolvec with bool values [true, false, true, false, true]", t, func() {
 		cv.Convey("Decoding it with c++ capnp should yield the expected text", func() {
-			cv.So(CapnpDecodeSegment(seg, "", "aircraftlib/aircraft.capnp", "Z"), cv.ShouldEqual, `(boolvec = [true, false, true, false, true])`)
+			cv.So(CapnpDecodeSegment(seg, "", schemaPath, "Z"), cv.ShouldEqual, `(boolvec = [true, false, true, false, true])`)
 		})
 	})
 
@@ -244,7 +244,7 @@ func TestWriteBitListTwo64BitWords(t *testing.T) {
 
 	cv.Convey("Given a go-capnproto created List(Bool) Z::boolvec with bool values [true (+ 64 more times)]", t, func() {
 		cv.Convey("Decoding it with c++ capnp should yield the expected text", func() {
-			cv.So(CapnpDecodeSegment(seg, "", "aircraftlib/aircraft.capnp", "Z"), cv.ShouldEqual, `(boolvec = [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, true])`)
+			cv.So(CapnpDecodeSegment(seg, "", schemaPath, "Z"), cv.ShouldEqual, `(boolvec = [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, true])`)
 		})
 	})
 
@@ -266,10 +266,10 @@ func TestWriteBitListTwo64BitWords(t *testing.T) {
 /*
 expected binaries: see data/bvec*.bin
 
-jaten@i7:~/cap:master$ echo "(boolvec = [true, false, true])" | capnp encode aircraftlib/aircraft.capnp Z > bvec5.bin
-jaten@i7:~/cap:master$ echo "(boolvec = [true, true])" | capnp encode aircraftlib/aircraft.capnp Z > bvec3.bin
-jaten@i7:~/cap:master$ echo "(boolvec = [true])" | capnp encode aircraftlib/aircraft.capnp Z > bvec1.bin
-jaten@i7:~/cap:master$ echo "(boolvec = [false])" | capnp encode aircraftlib/aircraft.capnp Z > bvec0.bin
+jaten@i7:~/cap:master$ echo "(boolvec = [true, false, true])" | capnp encode internal/aircraftlib/aircraft.capnp Z > bvec5.bin
+jaten@i7:~/cap:master$ echo "(boolvec = [true, true])" | capnp encode internal/aircraftlib/aircraft.capnp Z > bvec3.bin
+jaten@i7:~/cap:master$ echo "(boolvec = [true])" | capnp encode internal/aircraftlib/aircraft.capnp Z > bvec1.bin
+jaten@i7:~/cap:master$ echo "(boolvec = [false])" | capnp encode internal/aircraftlib/aircraft.capnp Z > bvec0.bin
 
 jaten@i7:~/cap:master$ xxd -g 1 -c 8 bvec0.bin
 0000000: 00 00 00 00 05 00 00 00  ........

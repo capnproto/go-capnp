@@ -23,7 +23,7 @@ func CapnpEncode(msg string, typ string) []byte {
 		panic(fmt.Sprintf("could not locate capnp tool in PATH"))
 	}
 
-	schfn := "aircraftlib/aircraft.capnp"
+	schfn := schemaPath
 	args := []string{"encode", schfn, typ}
 	cmdline := fmt.Sprintf("%s %s %s %s", capnpPath, "encode", schfn, typ)
 	//fmt.Printf("cmdline = %s\n", cmdline)
@@ -53,7 +53,7 @@ func CapnpDecode(input []byte, typ string) []byte {
 		panic(fmt.Sprintf("could not locate capnp tool in PATH"))
 	}
 
-	schfn := "aircraftlib/aircraft.capnp"
+	schfn := schemaPath
 	args := []string{"decode", "--short", schfn, typ}
 	cmdline := fmt.Sprintf("%s %s %s %s %s", capnpPath, "decode", "--short", schfn, typ)
 	fmt.Printf("cmdline = %s\n", cmdline)

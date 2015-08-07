@@ -5,7 +5,7 @@ import (
 
 	"golang.org/x/net/context"
 	"zombiezen.com/go/capnproto"
-	air "zombiezen.com/go/capnproto/aircraftlib"
+	air "zombiezen.com/go/capnproto/internal/aircraftlib"
 )
 
 type echoImpl struct{}

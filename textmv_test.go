@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"zombiezen.com/go/capnproto"
-	air "zombiezen.com/go/capnproto/aircraftlib"
+	air "zombiezen.com/go/capnproto/internal/aircraftlib"
 )
 
 // highlight how much faster text movement between segments

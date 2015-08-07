@@ -8,7 +8,7 @@ import (
 
 	cv "github.com/smartystreets/goconvey/convey"
 	"zombiezen.com/go/capnproto"
-	air "zombiezen.com/go/capnproto/aircraftlib"
+	air "zombiezen.com/go/capnproto/internal/aircraftlib"
 )
 
 func ExampleCreateEndpoint() (*capnp.Segment, []byte) {
@@ -37,7 +37,7 @@ func ExampleCreateEndpoint() (*capnp.Segment, []byte) {
 
 func TestCreationOfEndpoint(t *testing.T) {
 	seg, _ := ExampleCreateEndpoint()
-	text := CapnpDecodeSegment(seg, "", "aircraftlib/aircraft.capnp", "Endpoint")
+	text := CapnpDecodeSegment(seg, "", schemaPath, "Endpoint")
 
 	expectedText := `(ip = "\x01\x02\x03\x04", port = 56, hostname = "test.com")`
 	expectedIP := net.IP([]byte{1, 2, 3, 4})

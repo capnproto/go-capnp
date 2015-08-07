@@ -1,7 +1,7 @@
 using Go = import "../go.capnp";
 
 $Go.package("aircraftlib");
-$Go.import("go-capnproto/aircraftlib");
+$Go.import("zombieen.com/go/capnproto/internal/aircraftlib");
 
 @0x832bcc6686a26d56;
 
