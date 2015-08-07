@@ -1,2 +1,0 @@
-#!/bin/bash
-capnp decode --short aircraftlib/aircraft.capnp Z
