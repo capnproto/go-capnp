@@ -338,7 +338,7 @@ capnpc-go also generates code to implement the interface:
 	// Calculator_Methods appends methods from Calculator that call to server and
 	// returns the methods.  If methods is nil or the capacity of the underlying
 	// slice is too small, a new slice is returned.
-	func Calculator_Methods(methods []ServerMethod, server Calculator_Server) []ServerMethod
+	func Calculator_Methods(methods []server.Method, s Calculator_Server) []server.Method
 
 Since a single capability may want to implement many interfaces, you can
 use multiple *_Methods functions to build a single slice to send to
@@ -356,6 +356,6 @@ implemented Calculator:
 
 A note about message ordering: when implementing a server method, you
 are responsible for acknowledging delivery of a method call.  Failure to
-do so can cause deadlocks.  See the Ack function for more details.
+do so can cause deadlocks.  See the server.Ack function for more details.
 */
 package capnp // import "zombiezen.com/go/capnproto"
