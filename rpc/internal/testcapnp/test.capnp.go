@@ -114,9 +114,6 @@ func ReadRootHandleFactory_newHandle_Params(s *C.Segment) HandleFactory_newHandl
 	return HandleFactory_newHandle_Params(s.Root(0).ToStruct())
 }
 
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s HandleFactory_newHandle_Params) MarshalJSON() (bs []byte, err error) { return }
-
 type HandleFactory_newHandle_Params_List C.PointerList
 
 func NewHandleFactory_newHandle_Params_List(s *C.Segment, sz int) HandleFactory_newHandle_Params_List {
@@ -161,9 +158,6 @@ func (s HandleFactory_newHandle_Results) SetHandle(v Handle) {
 	ci := s.Segment.Message.AddCap(v.GenericClient())
 	C.Struct(s).SetObject(0, C.Object(s.Segment.NewInterface(ci)))
 }
-
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s HandleFactory_newHandle_Results) MarshalJSON() (bs []byte, err error) { return }
 
 type HandleFactory_newHandle_Results_List C.PointerList
 
@@ -271,9 +265,6 @@ func ReadRootHanger_hang_Params(s *C.Segment) Hanger_hang_Params {
 	return Hanger_hang_Params(s.Root(0).ToStruct())
 }
 
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Hanger_hang_Params) MarshalJSON() (bs []byte, err error) { return }
-
 type Hanger_hang_Params_List C.PointerList
 
 func NewHanger_hang_Params_List(s *C.Segment, sz int) Hanger_hang_Params_List {
@@ -308,9 +299,6 @@ func AutoNewHanger_hang_Results(s *C.Segment) Hanger_hang_Results {
 func ReadRootHanger_hang_Results(s *C.Segment) Hanger_hang_Results {
 	return Hanger_hang_Results(s.Root(0).ToStruct())
 }
-
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Hanger_hang_Results) MarshalJSON() (bs []byte, err error) { return }
 
 type Hanger_hang_Results_List C.PointerList
 
@@ -416,9 +404,6 @@ func ReadRootCallOrder_getCallSequence_Params(s *C.Segment) CallOrder_getCallSeq
 func (s CallOrder_getCallSequence_Params) Expected() uint32     { return C.Struct(s).Get32(0) }
 func (s CallOrder_getCallSequence_Params) SetExpected(v uint32) { C.Struct(s).Set32(0, v) }
 
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s CallOrder_getCallSequence_Params) MarshalJSON() (bs []byte, err error) { return }
-
 type CallOrder_getCallSequence_Params_List C.PointerList
 
 func NewCallOrder_getCallSequence_Params_List(s *C.Segment, sz int) CallOrder_getCallSequence_Params_List {
@@ -455,9 +440,6 @@ func ReadRootCallOrder_getCallSequence_Results(s *C.Segment) CallOrder_getCallSe
 }
 func (s CallOrder_getCallSequence_Results) N() uint32     { return C.Struct(s).Get32(0) }
 func (s CallOrder_getCallSequence_Results) SetN(v uint32) { C.Struct(s).Set32(0, v) }
-
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s CallOrder_getCallSequence_Results) MarshalJSON() (bs []byte, err error) { return }
 
 type CallOrder_getCallSequence_Results_List C.PointerList
 
@@ -607,9 +589,6 @@ func (s Echoer_echo_Params) SetCap(v CallOrder) {
 	C.Struct(s).SetObject(0, C.Object(s.Segment.NewInterface(ci)))
 }
 
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Echoer_echo_Params) MarshalJSON() (bs []byte, err error) { return }
-
 type Echoer_echo_Params_List C.PointerList
 
 func NewEchoer_echo_Params_List(s *C.Segment, sz int) Echoer_echo_Params_List {
@@ -658,9 +637,6 @@ func (s Echoer_echo_Results) SetCap(v CallOrder) {
 	ci := s.Segment.Message.AddCap(v.GenericClient())
 	C.Struct(s).SetObject(0, C.Object(s.Segment.NewInterface(ci)))
 }
-
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Echoer_echo_Results) MarshalJSON() (bs []byte, err error) { return }
 
 type Echoer_echo_Results_List C.PointerList
 
@@ -772,9 +748,6 @@ func (s Adder_add_Params) SetA(v int32) { C.Struct(s).Set32(0, uint32(v)) }
 func (s Adder_add_Params) B() int32     { return int32(C.Struct(s).Get32(4)) }
 func (s Adder_add_Params) SetB(v int32) { C.Struct(s).Set32(4, uint32(v)) }
 
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Adder_add_Params) MarshalJSON() (bs []byte, err error) { return }
-
 type Adder_add_Params_List C.PointerList
 
 func NewAdder_add_Params_List(s *C.Segment, sz int) Adder_add_Params_List {
@@ -811,9 +784,6 @@ func ReadRootAdder_add_Results(s *C.Segment) Adder_add_Results {
 }
 func (s Adder_add_Results) Result() int32     { return int32(C.Struct(s).Get32(0)) }
 func (s Adder_add_Results) SetResult(v int32) { C.Struct(s).Set32(0, uint32(v)) }
-
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Adder_add_Results) MarshalJSON() (bs []byte, err error) { return }
 
 type Adder_add_Results_List C.PointerList
 

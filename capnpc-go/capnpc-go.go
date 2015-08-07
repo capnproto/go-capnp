@@ -1,3 +1,5 @@
+//go:generate capnp compile -ogo schema.capnp
+
 package main
 
 import (
@@ -43,7 +45,6 @@ func (i *imports) init() {
 	i.reserve(importSpec{path: "bufio", name: "bufio"})
 	i.reserve(importSpec{path: "bytes", name: "bytes"})
 	i.reserve(importSpec{path: "io", name: "io"})
-	i.reserve(importSpec{path: "json", name: "encoding/json"})
 	i.reserve(importSpec{path: "math", name: "math"})
 	i.reserve(importSpec{path: "strconv", name: "strconv"})
 }
@@ -977,149 +978,6 @@ func (n *node) defineStructFuncs(w io.Writer) {
 	}
 }
 
-// This writes the WriteJSON function.
-//
-// This is an unusual interface, but it was chosen because the types in go-capnproto
-// didn't match right to use the json.Marshaler interface.
-// This function recurses through the type, writing statements that will dump json to a wire
-// For all statements, the json encoder js and the bufio writer b will be in scope.
-// The value will be in scope as s. Some features need to redefine s, like unions.
-// In that case, Make a new block and redeclare s
-func (n *node) defineTypeJsonFuncs(w io.Writer) {
-	if C.JSON_enabled {
-		ioImp := g_imports.add(importSpec{path: "io", name: "io"})
-		bufioImp := g_imports.add(importSpec{path: "bufio", name: "bufio"})
-		bytesImp := g_imports.add(importSpec{path: "bytes", name: "bytes"})
-
-		fmt.Fprintf(w, "func (s %s) WriteJSON(w %s.Writer) error {\n", n.Name, ioImp)
-		fmt.Fprintf(w, "b := %s.NewWriter(w);", bufioImp)
-		fmt.Fprintf(w, "var err error;")
-		fmt.Fprintf(w, "var buf []byte;")
-		fmt.Fprintf(w, "_ = buf;")
-
-		switch n.Which() {
-		case Node_Which_enum:
-			n.jsonEnum(w)
-		case Node_Which_struct:
-			n.jsonStruct(w)
-		}
-
-		fmt.Fprintf(w, "err = b.Flush(); return err\n};\n")
-
-		fmt.Fprintf(w, "func (s %s) MarshalJSON() ([]byte, error) {\n", n.Name)
-		fmt.Fprintf(w, "var b %s.Buffer; err := s.WriteJSON(&b); return b.Bytes(), err };", bytesImp)
-
-	} else {
-		fmt.Fprintf(w, "// capnp.JSON_enabled == false so we stub MarshalJSON().")
-		fmt.Fprintf(w, "\nfunc (s %s) MarshalJSON() (bs []byte, err error) { return }\n", n.Name)
-	}
-}
-
-func writeErrCheck(w io.Writer) {
-	fmt.Fprintf(w, "if err != nil { return err; };")
-}
-
-func (n *node) jsonEnum(w io.Writer) {
-	json := g_imports.add(importSpec{path: "encoding/json", name: "json"})
-	fmt.Fprintf(w, `buf, err = %s.Marshal(s.String());`, json)
-	writeErrCheck(w)
-	fmt.Fprintf(w, "_, err = b.Write(buf);")
-	writeErrCheck(w)
-}
-
-// Write statements that will write a json struct
-func (n *node) jsonStruct(w io.Writer) {
-	fmt.Fprintf(w, `err = b.WriteByte('{');`)
-	writeErrCheck(w)
-	for i, f := range n.codeOrderFields() {
-		if f.DiscriminantValue() != Field_noDiscriminant {
-			enumname := n.Name + "_Which_" + f.Name
-			fmt.Fprintf(w, "if s.Which() == %s {", enumname)
-		}
-		if i != 0 {
-			fmt.Fprintf(w, `
-				err = b.WriteByte(',');
-			`)
-			writeErrCheck(w)
-		}
-		fmt.Fprintf(w, `_, err = b.WriteString("\"%s\":");`, f.Name)
-		writeErrCheck(w)
-		f.json(w)
-		if f.DiscriminantValue() != Field_noDiscriminant {
-			fmt.Fprintf(w, "};")
-		}
-	}
-	fmt.Fprintf(w, `err = b.WriteByte('}');`)
-	writeErrCheck(w)
-}
-
-// This function writes statements that write the fields json representation to the bufio.
-func (f *Field) json(w io.Writer) {
-
-	switch f.Which() {
-	case Field_Which_slot:
-		fs := f.Slot()
-		// we don't generate setters for Void fields
-		if fs.Type().Which() == Type_Which_void {
-			fs.Type().json(w)
-			return
-		}
-		fmt.Fprintf(w, "{ s := s.%s(); ", strings.Title(f.Name()))
-		fs.Type().json(w)
-		fmt.Fprintf(w, "}; ")
-	case Field_Which_group:
-		tid := f.Group().TypeId()
-		n := findNode(tid)
-		fmt.Fprintf(w, "{ s := s.%s();", strings.Title(f.Name()))
-
-		n.jsonStruct(w)
-		fmt.Fprintf(w, "};")
-	}
-}
-
-func (t Type) json(w io.Writer) {
-	switch t.Which() {
-	case Type_Which_uint8, Type_Which_uint16, Type_Which_uint32, Type_Which_uint64,
-		Type_Which_int8, Type_Which_int16, Type_Which_int32, Type_Which_int64,
-		Type_Which_float32, Type_Which_float64, Type_Which_bool, Type_Which_text, Type_Which_data:
-		json := g_imports.add(importSpec{path: "encoding/json", name: "json"})
-		fmt.Fprintf(w, "buf, err = %s.Marshal(s);", json)
-		writeErrCheck(w)
-		fmt.Fprintf(w, "_, err = b.Write(buf);")
-		writeErrCheck(w)
-	case Type_Which_enum, Type_Which_struct:
-		// since we handle groups at the field level, only named struct types make it in here
-		// so we can just call the named structs json dumper
-		fmt.Fprintf(w, "err = s.WriteJSON(b);")
-		writeErrCheck(w)
-	case Type_Which_list:
-		typ := t.List().ElementType()
-		which := typ.Which()
-		if which == Type_Which_list || which == Type_Which_anyPointer {
-			// untyped list, cant do anything but report
-			// that a field existed.
-			//
-			// s will be unused in this case, so ignore
-			fmt.Fprintf(w, `_ = s;`)
-			fmt.Fprintf(w, `_, err = b.WriteString("\"untyped list\"");`)
-			writeErrCheck(w)
-			return
-		}
-		fmt.Fprintf(w, "{ err = b.WriteByte('[');")
-		writeErrCheck(w)
-		fmt.Fprintf(w, "for i := 0; i < s.Len(); i++ { s := s.At(i); ")
-		fmt.Fprintf(w, `if i != 0 { _, err = b.WriteString(", "); };`)
-		writeErrCheck(w)
-		typ.json(w)
-		fmt.Fprintf(w, "}; err = b.WriteByte(']'); };")
-		writeErrCheck(w)
-	case Type_Which_void:
-		fmt.Fprintf(w, `_ = s;`)
-		fmt.Fprintf(w, `_, err = b.WriteString("null");`)
-		writeErrCheck(w)
-	}
-}
-
 func (n *node) ObjectSize() string {
 	assert(n.Which() == Node_Which_struct, "ObjectSize for invalid struct node")
 	return fmt.Sprintf("%s.ObjectSize{DataSize: %d, PointerCount: %d}", g_imports.capn(), int(n.Struct().DataWordCount())*8, n.Struct().PointerCount())
@@ -1311,14 +1169,12 @@ func generateFile(reqf CodeGeneratorRequest_RequestedFile) (generr error) {
 		switch n.Which() {
 		case Node_Which_enum:
 			n.defineEnum(&buf)
-			n.defineTypeJsonFuncs(&buf)
 		case Node_Which_struct:
 			if !n.Struct().IsGroup() {
 				n.defineStructTypes(&buf, nil)
 				n.defineStructEnums(&buf)
 				n.defineNewStructFunc(&buf)
 				n.defineStructFuncs(&buf)
-				n.defineTypeJsonFuncs(&buf)
 				n.defineStructList(&buf)
 				n.defineStructPromise(&buf)
 			}

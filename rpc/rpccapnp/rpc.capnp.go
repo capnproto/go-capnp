@@ -115,9 +115,6 @@ func (s Message) SetAccept(v Accept) { C.Struct(s).Set16(0, 11); C.Struct(s).Set
 func (s Message) Join() Join         { return Join(C.Struct(s).GetObject(0).ToStruct()) }
 func (s Message) SetJoin(v Join)     { C.Struct(s).Set16(0, 12); C.Struct(s).SetObject(0, C.Object(v)) }
 
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Message) MarshalJSON() (bs []byte, err error) { return }
-
 type Message_List C.PointerList
 
 func NewMessage_List(s *C.Segment, sz int) Message_List {
@@ -207,9 +204,6 @@ func (s Bootstrap) SetQuestionId(v uint32)           { C.Struct(s).Set32(0, v) }
 func (s Bootstrap) DeprecatedObjectId() C.Object     { return C.Struct(s).GetObject(0) }
 func (s Bootstrap) SetDeprecatedObjectId(v C.Object) { C.Struct(s).SetObject(0, v) }
 
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Bootstrap) MarshalJSON() (bs []byte, err error) { return }
-
 type Bootstrap_List C.PointerList
 
 func NewBootstrap_List(s *C.Segment, sz int) Bootstrap_List {
@@ -285,9 +279,6 @@ func (s Call_sendResultsTo) SetThirdParty(v C.Object) {
 	C.Struct(s).Set16(6, 2)
 	C.Struct(s).SetObject(2, v)
 }
-
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Call) MarshalJSON() (bs []byte, err error) { return }
 
 type Call_List C.PointerList
 
@@ -391,9 +382,6 @@ func (s Return) SetAcceptFromThirdParty(v C.Object) {
 	C.Struct(s).SetObject(0, v)
 }
 
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Return) MarshalJSON() (bs []byte, err error) { return }
-
 type Return_List C.PointerList
 
 func NewReturn_List(s *C.Segment, sz int) Return_List {
@@ -438,9 +426,6 @@ func (s Finish) QuestionId() uint32          { return C.Struct(s).Get32(0) }
 func (s Finish) SetQuestionId(v uint32)      { C.Struct(s).Set32(0, v) }
 func (s Finish) ReleaseResultCaps() bool     { return !C.Struct(s).Get1(32) }
 func (s Finish) SetReleaseResultCaps(v bool) { C.Struct(s).Set1(32, !v) }
-
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Finish) MarshalJSON() (bs []byte, err error) { return }
 
 type Finish_List C.PointerList
 
@@ -502,9 +487,6 @@ func (s Resolve) SetException(v Exception) {
 	C.Struct(s).SetObject(0, C.Object(v))
 }
 
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Resolve) MarshalJSON() (bs []byte, err error) { return }
-
 type Resolve_List C.PointerList
 
 func NewResolve_List(s *C.Segment, sz int) Resolve_List {
@@ -545,9 +527,6 @@ func (s Release) Id() uint32                 { return C.Struct(s).Get32(0) }
 func (s Release) SetId(v uint32)             { C.Struct(s).Set32(0, v) }
 func (s Release) ReferenceCount() uint32     { return C.Struct(s).Get32(4) }
 func (s Release) SetReferenceCount(v uint32) { C.Struct(s).Set32(4, v) }
-
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Release) MarshalJSON() (bs []byte, err error) { return }
 
 type Release_List C.PointerList
 
@@ -622,9 +601,6 @@ func (s Disembargo_context) SetAccept()          { C.Struct(s).Set16(4, 2) }
 func (s Disembargo_context) Provide() uint32     { return C.Struct(s).Get32(0) }
 func (s Disembargo_context) SetProvide(v uint32) { C.Struct(s).Set16(4, 3); C.Struct(s).Set32(0, v) }
 
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Disembargo) MarshalJSON() (bs []byte, err error) { return }
-
 type Disembargo_List C.PointerList
 
 func NewDisembargo_List(s *C.Segment, sz int) Disembargo_List {
@@ -674,9 +650,6 @@ func (s Provide) SetTarget(v MessageTarget) { C.Struct(s).SetObject(0, C.Object(
 func (s Provide) Recipient() C.Object       { return C.Struct(s).GetObject(1) }
 func (s Provide) SetRecipient(v C.Object)   { C.Struct(s).SetObject(1, v) }
 
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Provide) MarshalJSON() (bs []byte, err error) { return }
-
 type Provide_List C.PointerList
 
 func NewProvide_List(s *C.Segment, sz int) Provide_List {
@@ -720,9 +693,6 @@ func (s Accept) SetProvision(v C.Object) { C.Struct(s).SetObject(0, v) }
 func (s Accept) Embargo() bool           { return C.Struct(s).Get1(32) }
 func (s Accept) SetEmbargo(v bool)       { C.Struct(s).Set1(32, v) }
 
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Accept) MarshalJSON() (bs []byte, err error) { return }
-
 type Accept_List C.PointerList
 
 func NewAccept_List(s *C.Segment, sz int) Accept_List {
@@ -759,9 +729,6 @@ func (s Join) Target() MessageTarget     { return MessageTarget(C.Struct(s).GetO
 func (s Join) SetTarget(v MessageTarget) { C.Struct(s).SetObject(0, C.Object(v)) }
 func (s Join) KeyPart() C.Object         { return C.Struct(s).GetObject(1) }
 func (s Join) SetKeyPart(v C.Object)     { C.Struct(s).SetObject(1, v) }
-
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Join) MarshalJSON() (bs []byte, err error) { return }
 
 type Join_List C.PointerList
 
@@ -828,9 +795,6 @@ func (s MessageTarget) SetPromisedAnswer(v PromisedAnswer) {
 	C.Struct(s).SetObject(0, C.Object(v))
 }
 
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s MessageTarget) MarshalJSON() (bs []byte, err error) { return }
-
 type MessageTarget_List C.PointerList
 
 func NewMessageTarget_List(s *C.Segment, sz int) MessageTarget_List {
@@ -869,9 +833,6 @@ func (s Payload) Content() C.Object                { return C.Struct(s).GetObjec
 func (s Payload) SetContent(v C.Object)            { C.Struct(s).SetObject(0, v) }
 func (s Payload) CapTable() CapDescriptor_List     { return CapDescriptor_List(C.Struct(s).GetObject(1)) }
 func (s Payload) SetCapTable(v CapDescriptor_List) { C.Struct(s).SetObject(1, C.Object(v)) }
-
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Payload) MarshalJSON() (bs []byte, err error) { return }
 
 type Payload_List C.PointerList
 
@@ -958,9 +919,6 @@ func (s CapDescriptor) SetThirdPartyHosted(v ThirdPartyCapDescriptor) {
 	C.Struct(s).SetObject(0, C.Object(v))
 }
 
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s CapDescriptor) MarshalJSON() (bs []byte, err error) { return }
-
 type CapDescriptor_List C.PointerList
 
 func NewCapDescriptor_List(s *C.Segment, sz int) CapDescriptor_List {
@@ -1005,9 +963,6 @@ func (s PromisedAnswer) Transform() PromisedAnswer_Op_List {
 	return PromisedAnswer_Op_List(C.Struct(s).GetObject(0))
 }
 func (s PromisedAnswer) SetTransform(v PromisedAnswer_Op_List) { C.Struct(s).SetObject(0, C.Object(v)) }
-
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s PromisedAnswer) MarshalJSON() (bs []byte, err error) { return }
 
 type PromisedAnswer_List C.PointerList
 
@@ -1069,9 +1024,6 @@ func (s PromisedAnswer_Op) SetGetPointerField(v uint16) {
 	C.Struct(s).Set16(2, v)
 }
 
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s PromisedAnswer_Op) MarshalJSON() (bs []byte, err error) { return }
-
 type PromisedAnswer_Op_List C.PointerList
 
 func NewPromisedAnswer_Op_List(s *C.Segment, sz int) PromisedAnswer_Op_List {
@@ -1110,9 +1062,6 @@ func (s ThirdPartyCapDescriptor) Id() C.Object       { return C.Struct(s).GetObj
 func (s ThirdPartyCapDescriptor) SetId(v C.Object)   { C.Struct(s).SetObject(0, v) }
 func (s ThirdPartyCapDescriptor) VineId() uint32     { return C.Struct(s).Get32(0) }
 func (s ThirdPartyCapDescriptor) SetVineId(v uint32) { C.Struct(s).Set32(0, v) }
-
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s ThirdPartyCapDescriptor) MarshalJSON() (bs []byte, err error) { return }
 
 type ThirdPartyCapDescriptor_List C.PointerList
 
@@ -1158,9 +1107,6 @@ func (s Exception) ObsoleteIsCallersFault() bool     { return C.Struct(s).Get1(0
 func (s Exception) SetObsoleteIsCallersFault(v bool) { C.Struct(s).Set1(0, v) }
 func (s Exception) ObsoleteDurability() uint16       { return C.Struct(s).Get16(2) }
 func (s Exception) SetObsoleteDurability(v uint16)   { C.Struct(s).Set16(2, v) }
-
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Exception) MarshalJSON() (bs []byte, err error) { return }
 
 type Exception_List C.PointerList
 
@@ -1224,6 +1170,3 @@ func NewException_Type_List(s *C.Segment, sz int) Exception_Type_List {
 }
 func (s Exception_Type_List) Len() int                { return C.UInt16List(s).Len() }
 func (s Exception_Type_List) At(i int) Exception_Type { return Exception_Type(C.UInt16List(s).At(i)) }
-
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Exception_Type) MarshalJSON() (bs []byte, err error) { return }

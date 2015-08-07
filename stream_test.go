@@ -31,18 +31,6 @@ func TestReadFromStream(t *testing.T) {
 	if z.Which() != air.Z_Which_zdatevec {
 		panic("expected Z_ZDATEVEC in root Z of segment")
 	}
-	zdatelist := z.Zdatevec()
-
-	if capnp.JSON_enabled {
-		for i := 0; i < n; i++ {
-			zdate := zdatelist.At(i)
-			js, err := zdate.MarshalJSON()
-			if err != nil {
-				t.Fatalf("MarshalJSON: %v", err)
-			}
-			t.Logf("%s", string(js))
-		}
-	}
 }
 
 func TestReadFromStreamBackToBack(t *testing.T) {
@@ -51,20 +39,11 @@ func TestReadFromStreamBackToBack(t *testing.T) {
 	r := zdateReaderNBackToBack(n, false)
 
 	for i := 0; i < n; i++ {
-		s, err := capnp.ReadFromStream(r, nil)
+		_, err := capnp.ReadFromStream(r, nil)
 		if err != nil {
 			t.Fatalf("ReadFromStream: %v", err)
 		}
-		m := air.ReadRootZdate(s)
-		if capnp.JSON_enabled {
-			js, err := m.MarshalJSON()
-			if err != nil {
-				t.Fatalf("MarshalJSON: %v", err)
-			}
-			t.Logf("%s", string(js))
-		}
 	}
-
 }
 
 func TestDecompressorZdate1(t *testing.T) {
@@ -353,17 +332,9 @@ func TestReadFromPackedStream(t *testing.T) {
 	r := zdateReaderNBackToBack(n, true)
 
 	for i := 0; i < n; i++ {
-		s, err := capnp.ReadFromPackedStream(r, nil)
+		_, err := capnp.ReadFromPackedStream(r, nil)
 		if err != nil {
 			t.Fatalf("ReadFromPackedStream: %v, i=%d", err, i)
-		}
-		m := air.ReadRootZdate(s)
-		if capnp.JSON_enabled {
-			js, err := m.MarshalJSON()
-			if err != nil {
-				t.Fatalf("MarshalJSON: %v", err)
-			}
-			t.Logf("%s", string(js))
 		}
 	}
 }

@@ -140,9 +140,6 @@ func (s Node_annotation) SetTargetsParam(v bool)           { C.Struct(s).Set1(12
 func (s Node_annotation) TargetsAnnotation() bool          { return C.Struct(s).Get1(123) }
 func (s Node_annotation) SetTargetsAnnotation(v bool)      { C.Struct(s).Set1(123, v) }
 
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Node) MarshalJSON() (bs []byte, err error) { return }
-
 type Node_List C.PointerList
 
 func NewNode_List(s *C.Segment, sz int) Node_List {
@@ -226,9 +223,6 @@ func ReadRootNode_Parameter(s *C.Segment) Node_Parameter { return Node_Parameter
 func (s Node_Parameter) Name() string                    { return C.Struct(s).GetObject(0).ToText() }
 func (s Node_Parameter) SetName(v string)                { C.Struct(s).SetObject(0, s.Segment.NewText(v)) }
 
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Node_Parameter) MarshalJSON() (bs []byte, err error) { return }
-
 type Node_Parameter_List C.PointerList
 
 func NewNode_Parameter_List(s *C.Segment, sz int) Node_Parameter_List {
@@ -265,9 +259,6 @@ func (s Node_NestedNode) Name() string     { return C.Struct(s).GetObject(0).ToT
 func (s Node_NestedNode) SetName(v string) { C.Struct(s).SetObject(0, s.Segment.NewText(v)) }
 func (s Node_NestedNode) Id() uint64       { return C.Struct(s).Get64(0) }
 func (s Node_NestedNode) SetId(v uint64)   { C.Struct(s).Set64(0, v) }
-
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Node_NestedNode) MarshalJSON() (bs []byte, err error) { return }
 
 type Node_NestedNode_List C.PointerList
 
@@ -370,9 +361,6 @@ func (s Field_ordinal) SetImplicit()               { C.Struct(s).Set16(10, 0) }
 func (s Field_ordinal) Explicit() uint16           { return C.Struct(s).Get16(12) }
 func (s Field_ordinal) SetExplicit(v uint16)       { C.Struct(s).Set16(10, 1); C.Struct(s).Set16(12, v) }
 
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Field) MarshalJSON() (bs []byte, err error) { return }
-
 type Field_List C.PointerList
 
 func NewField_List(s *C.Segment, sz int) Field_List {
@@ -440,9 +428,6 @@ func (s Enumerant) SetCodeOrder(v uint16)            { C.Struct(s).Set16(0, v) }
 func (s Enumerant) Annotations() Annotation_List     { return Annotation_List(C.Struct(s).GetObject(1)) }
 func (s Enumerant) SetAnnotations(v Annotation_List) { C.Struct(s).SetObject(1, C.Object(v)) }
 
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Enumerant) MarshalJSON() (bs []byte, err error) { return }
-
 type Enumerant_List C.PointerList
 
 func NewEnumerant_List(s *C.Segment, sz int) Enumerant_List {
@@ -475,9 +460,6 @@ func (s Superclass) Id() uint64                  { return C.Struct(s).Get64(0) }
 func (s Superclass) SetId(v uint64)              { C.Struct(s).Set64(0, v) }
 func (s Superclass) Brand() Brand                { return Brand(C.Struct(s).GetObject(0).ToStruct()) }
 func (s Superclass) SetBrand(v Brand)            { C.Struct(s).SetObject(0, C.Object(v)) }
-
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Superclass) MarshalJSON() (bs []byte, err error) { return }
 
 type Superclass_List C.PointerList
 
@@ -529,9 +511,6 @@ func (s Method) ResultBrand() Brand                          { return Brand(C.St
 func (s Method) SetResultBrand(v Brand)                      { C.Struct(s).SetObject(3, C.Object(v)) }
 func (s Method) Annotations() Annotation_List                { return Annotation_List(C.Struct(s).GetObject(1)) }
 func (s Method) SetAnnotations(v Annotation_List)            { C.Struct(s).SetObject(1, C.Object(v)) }
-
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Method) MarshalJSON() (bs []byte, err error) { return }
 
 type Method_List C.PointerList
 
@@ -721,9 +700,6 @@ func (s Type_anyPointer) SetImplicitMethodParameter()                        { C
 func (s Type_anyPointer_implicitMethodParameter) ParameterIndex() uint16     { return C.Struct(s).Get16(10) }
 func (s Type_anyPointer_implicitMethodParameter) SetParameterIndex(v uint16) { C.Struct(s).Set16(10, v) }
 
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Type) MarshalJSON() (bs []byte, err error) { return }
-
 type Type_List C.PointerList
 
 func NewType_List(s *C.Segment, sz int) Type_List {
@@ -831,9 +807,6 @@ func ReadRootBrand(s *C.Segment) Brand       { return Brand(s.Root(0).ToStruct()
 func (s Brand) Scopes() Brand_Scope_List     { return Brand_Scope_List(C.Struct(s).GetObject(0)) }
 func (s Brand) SetScopes(v Brand_Scope_List) { C.Struct(s).SetObject(0, C.Object(v)) }
 
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Brand) MarshalJSON() (bs []byte, err error) { return }
-
 type Brand_List C.PointerList
 
 func NewBrand_List(s *C.Segment, sz int) Brand_List {
@@ -890,9 +863,6 @@ func (s Brand_Scope) SetBind(v Brand_Binding_List) {
 }
 func (s Brand_Scope) SetInherit() { C.Struct(s).Set16(8, 1) }
 
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Brand_Scope) MarshalJSON() (bs []byte, err error) { return }
-
 type Brand_Scope_List C.PointerList
 
 func NewBrand_Scope_List(s *C.Segment, sz int) Brand_Scope_List {
@@ -943,9 +913,6 @@ func (s Brand_Binding) Which() Brand_Binding_Which     { return Brand_Binding_Wh
 func (s Brand_Binding) SetUnbound()                    { C.Struct(s).Set16(0, 0) }
 func (s Brand_Binding) Type() Type                     { return Type(C.Struct(s).GetObject(0).ToStruct()) }
 func (s Brand_Binding) SetType(v Type)                 { C.Struct(s).Set16(0, 1); C.Struct(s).SetObject(0, C.Object(v)) }
-
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Brand_Binding) MarshalJSON() (bs []byte, err error) { return }
 
 type Brand_Binding_List C.PointerList
 
@@ -1100,9 +1067,6 @@ func (s Value) SetInterface()            { C.Struct(s).Set16(0, 17) }
 func (s Value) AnyPointer() C.Object     { return C.Struct(s).GetObject(0) }
 func (s Value) SetAnyPointer(v C.Object) { C.Struct(s).Set16(0, 18); C.Struct(s).SetObject(0, v) }
 
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Value) MarshalJSON() (bs []byte, err error) { return }
-
 type Value_List C.PointerList
 
 func NewValue_List(s *C.Segment, sz int) Value_List {
@@ -1149,9 +1113,6 @@ func (s Annotation) Brand() Brand                { return Brand(C.Struct(s).GetO
 func (s Annotation) SetBrand(v Brand)            { C.Struct(s).SetObject(1, C.Object(v)) }
 func (s Annotation) Value() Value                { return Value(C.Struct(s).GetObject(0).ToStruct()) }
 func (s Annotation) SetValue(v Value)            { C.Struct(s).SetObject(0, C.Object(v)) }
-
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Annotation) MarshalJSON() (bs []byte, err error) { return }
 
 type Annotation_List C.PointerList
 
@@ -1244,9 +1205,6 @@ func NewElementSize_List(s *C.Segment, sz int) ElementSize_List {
 func (s ElementSize_List) Len() int             { return C.UInt16List(s).Len() }
 func (s ElementSize_List) At(i int) ElementSize { return ElementSize(C.UInt16List(s).At(i)) }
 
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s ElementSize) MarshalJSON() (bs []byte, err error) { return }
-
 type CodeGeneratorRequest C.Struct
 
 func NewCodeGeneratorRequest(s *C.Segment) CodeGeneratorRequest {
@@ -1269,9 +1227,6 @@ func (s CodeGeneratorRequest) RequestedFiles() CodeGeneratorRequest_RequestedFil
 func (s CodeGeneratorRequest) SetRequestedFiles(v CodeGeneratorRequest_RequestedFile_List) {
 	C.Struct(s).SetObject(1, C.Object(v))
 }
-
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s CodeGeneratorRequest) MarshalJSON() (bs []byte, err error) { return }
 
 type CodeGeneratorRequest_List C.PointerList
 
@@ -1322,9 +1277,6 @@ func (s CodeGeneratorRequest_RequestedFile) SetImports(v CodeGeneratorRequest_Re
 	C.Struct(s).SetObject(1, C.Object(v))
 }
 
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s CodeGeneratorRequest_RequestedFile) MarshalJSON() (bs []byte, err error) { return }
-
 type CodeGeneratorRequest_RequestedFile_List C.PointerList
 
 func NewCodeGeneratorRequest_RequestedFile_List(s *C.Segment, sz int) CodeGeneratorRequest_RequestedFile_List {
@@ -1367,9 +1319,6 @@ func (s CodeGeneratorRequest_RequestedFile_Import) Name() string {
 func (s CodeGeneratorRequest_RequestedFile_Import) SetName(v string) {
 	C.Struct(s).SetObject(0, s.Segment.NewText(v))
 }
-
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s CodeGeneratorRequest_RequestedFile_Import) MarshalJSON() (bs []byte, err error) { return }
 
 type CodeGeneratorRequest_RequestedFile_Import_List C.PointerList
 
