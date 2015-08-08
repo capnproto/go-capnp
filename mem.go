@@ -6,6 +6,8 @@ import (
 	"errors"
 	"io"
 	"math"
+
+	"zombiezen.com/go/capnproto/internal/packed"
 )
 
 var (
@@ -215,39 +217,70 @@ func ReadFromMemoryZeroCopy(data []byte) (seg *Segment, bytesRead int64, err err
 	return m.segments[0], int64(4 + hdrsz + total), nil
 }
 
+// ReadFromPackedStream reads a single message from the stream r in packed
+// form returning the first segment. buf can be specified in order to reuse
+// the buffer (or it is allocated each call if nil).
+func ReadFromPackedStream(r io.Reader, buf *bytes.Buffer) (*Segment, error) {
+	return ReadFromStream(packed.NewReader(r), buf)
+}
+
+func serialize(msg Message) []byte {
+	// Compute buffer size.
+	const (
+		msgHeaderSize = 4
+		segHeaderSize = 4
+		wordSize      = 8
+	)
+	nsegs := numSegments(msg)
+	hdrSize := msgHeaderSize + (int(nsegs) * segHeaderSize)
+	hdrSize = pad(hdrSize, wordSize)
+	total := hdrSize
+	for i := uint32(0); i < nsegs; i++ {
+		s, _ := msg.Lookup(i)
+		total += len(s.Data)
+	}
+
+	// Fill in buffer.
+	buf := make([]byte, hdrSize, total)
+	binary.LittleEndian.PutUint32(buf, nsegs-1)
+	for i := uint32(0); i < nsegs; i++ {
+		s, _ := msg.Lookup(i)
+		binary.LittleEndian.PutUint32(buf[4*(i+1):], uint32(len(s.Data)/wordSize))
+	}
+	for i := uint32(0); i < nsegs; i++ {
+		s, _ := msg.Lookup(i)
+		buf = append(buf, s.Data...)
+	}
+	return buf
+}
+
+// TODO(light): this smells.
+func numSegments(msg Message) uint32 {
+	n := uint32(1)
+	for {
+		if seg, _ := msg.Lookup(n); seg == nil {
+			return n
+		}
+		n++
+	}
+}
+
 // WriteTo writes the message that the segment is part of to the
 // provided stream in serialized form.
 func (s *Segment) WriteTo(w io.Writer) (int64, error) {
-	segnum := uint32(1)
-	for {
-		if seg, _ := s.Message.Lookup(segnum); seg == nil {
-			break
-		}
-		segnum++
-	}
+	data := serialize(s.Message)
+	n, err := w.Write(data)
+	return int64(n), err
+}
 
-	hdrv := make([]uint8, 8*(segnum/2)+8)
-	binary.LittleEndian.PutUint32(hdrv, segnum-1)
-	for i := uint32(0); i < segnum; i++ {
-		seg, _ := s.Message.Lookup(i)
-		binary.LittleEndian.PutUint32(hdrv[4*i+4:], uint32(len(seg.Data)/8))
-	}
-
-	if n, err := w.Write(hdrv); err != nil {
-		return int64(n), err
-	}
-	written := int64(len(hdrv))
-
-	for i := uint32(0); i < segnum; i++ {
-		seg, _ := s.Message.Lookup(i)
-		if n, err := w.Write(seg.Data); err != nil {
-			return written + int64(n), err
-		} else {
-			written += int64(n)
-		}
-	}
-
-	return written, nil
+// WriteToPacked writes the message that the segment is part of to the
+// provided stream in packed form.
+func (s *Segment) WriteToPacked(w io.Writer) (int64, error) {
+	data := serialize(s.Message)
+	buf := make([]byte, 0, len(data))
+	buf = packed.Pack(buf, data)
+	n, err := w.Write(buf)
+	return int64(n), err
 }
 
 type capTable []Client
