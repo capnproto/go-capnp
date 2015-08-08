@@ -57,7 +57,7 @@ type Message interface {
 
 type Segment struct {
 	Message  Message
-	Data     []uint8
+	Data     []byte
 	Id       uint32
 	RootDone bool
 }
