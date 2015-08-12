@@ -3,15 +3,29 @@ package main
 import (
 	"strings"
 	"text/template"
+
+	C "zombiezen.com/go/capnproto"
 )
 
 var templates = template.Must(template.New("").Funcs(template.FuncMap{
-	"capn":    g_imports.capn,
+	"capnp":   g_imports.capnp,
 	"server":  g_imports.server,
 	"context": g_imports.context,
 	"strconv": g_imports.strconv,
 	"title":   strings.Title,
 }).Parse(`
+{{define "structFuncs"}}
+func (s {{.Node.Name}}) Segment() *{{capnp}}.Segment {
+	return {{capnp}}.Struct(s).Segment()
+}
+{{if gt .Node.Struct.DiscriminantCount 0}}
+func (s {{.Node.Name}}) Which() {{.Node.Name}}_Which {
+	return {{.Node.Name}}_Which({{capnp}}.Struct(s).Uint16({{.DiscriminantOffset}}))
+}
+{{end}}
+{{end}}
+
+
 {{define "structEnums"}}type {{.Node.Name}}_Which uint16
 
 const (
@@ -37,10 +51,10 @@ func (w {{.Node.Name}}_Which) String() string {
 
 
 {{define "promise"}}
-type {{.Node.Name}}_Promise {{capn}}.Pipeline
+type {{.Node.Name}}_Promise {{capnp}}.Pipeline
 
 func (p *{{.Node.Name}}_Promise) Get() ({{.Node.Name}}, error) {
-	s, err := (*{{capn}}.Pipeline)(p).Struct()
+	s, err := (*{{capnp}}.Pipeline)(p).Struct()
 	return {{.Node.Name}}(s), err
 }
 {{end}}
@@ -48,21 +62,21 @@ func (p *{{.Node.Name}}_Promise) Get() ({{.Node.Name}}, error) {
 
 {{define "promiseFieldStruct"}}
 func (p *{{.Node.Name}}_Promise) {{.Field.Name|title}}() *{{.Struct.RemoteName .Node}}_Promise {
-	return (*{{.Struct.RemoteName .Node}}_Promise)((*{{capn}}.Pipeline)(p).{{if .BufName}}GetPipelineDefault({{.Field.Slot.Offset}}, {{.BufName}}, {{.DefaultOffset}}){{else}}GetPipeline({{.Field.Slot.Offset}}){{end}})
+	return (*{{.Struct.RemoteName .Node}}_Promise)((*{{capnp}}.Pipeline)(p).{{if .BufName}}GetPipelineDefault({{.Field.Slot.Offset}}, {{.BufName}}, {{.DefaultOffset}}){{else}}GetPipeline({{.Field.Slot.Offset}}){{end}})
 }
 {{end}}
 
 
 {{define "promiseFieldAnyPointer"}}
-func (p *{{.Node.Name}}_Promise) {{.Field.Name|title}}() *{{capn}}.Pipeline {
-	return (*{{capn}}.Pipeline)(p).GetPipeline({{.Field.Slot.Offset}})
+func (p *{{.Node.Name}}_Promise) {{.Field.Name|title}}() *{{capnp}}.Pipeline {
+	return (*{{capnp}}.Pipeline)(p).GetPipeline({{.Field.Slot.Offset}})
 }
 {{end}}
 
 
 {{define "promiseFieldInterface"}}
 func (p *{{.Node.Name}}_Promise) {{.Field.Name|title}}() {{.Interface.RemoteName .Node}} {
-	return {{.Interface.RemoteNew .Node}}((*{{capn}}.Pipeline)(p).GetPipeline({{.Field.Slot.Offset}}).Client())
+	return {{.Interface.RemoteNew .Node}}((*{{capnp}}.Pipeline)(p).GetPipeline({{.Field.Slot.Offset}}).Client())
 }
 {{end}}
 
@@ -72,27 +86,27 @@ func (p *{{.Node.Name}}_Promise) {{.Field.Name|title}}() {{.Interface.RemoteName
 
 
 {{define "interfaceClient"}}{{with .Annotations.Doc}}// {{.}}
-{{end}}type {{.Node.Name}} struct { c {{capn}}.Client }
+{{end}}type {{.Node.Name}} struct { c {{capnp}}.Client }
 
-func New{{.Node.Name}}(c {{capn}}.Client) {{.Node.Name}} { return {{.Node.Name}}{c} }
+func New{{.Node.Name}}(c {{capnp}}.Client) {{.Node.Name}} { return {{.Node.Name}}{c} }
 
-func (c {{.Node.Name}}) GenericClient() {{capn}}.Client { return c.c }
+func (c {{.Node.Name}}) GenericClient() {{capnp}}.Client { return c.c }
 
 func (c {{.Node.Name}}) IsNull() bool { return c.c == nil }
 
 {{range .Methods}}
-func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{context}}.Context, params func({{.Params.RemoteName $.Node}}), opts ...{{capn}}.CallOption) *{{.Results.RemoteName $.Node}}_Promise {
+func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{context}}.Context, params func({{.Params.RemoteName $.Node}}), opts ...{{capnp}}.CallOption) *{{.Results.RemoteName $.Node}}_Promise {
 	if c.c == nil {
-		return (*{{.Results.RemoteName $.Node}}_Promise)({{capn}}.NewPipeline({{capn}}.ErrorAnswer({{capn}}.ErrNullClient)))
+		return (*{{.Results.RemoteName $.Node}}_Promise)({{capnp}}.NewPipeline({{capnp}}.ErrorAnswer({{capnp}}.ErrNullClient)))
 	}
-	return (*{{.Results.RemoteName $.Node}}_Promise)({{capn}}.NewPipeline(c.c.Call(&{{capn}}.Call{
+	return (*{{.Results.RemoteName $.Node}}_Promise)({{capnp}}.NewPipeline(c.c.Call(&{{capnp}}.Call{
 		Ctx: ctx,
-		Method: {{capn}}.Method{
+		Method: {{capnp}}.Method{
 			{{template "_interfaceMethod" .}}
 		},
 		ParamsSize: {{.Params.ObjectSize}},
-		ParamsFunc: func(s {{capn}}.Struct) { params({{.Params.RemoteName $.Node}}(s)) },
-		Options: {{capn}}.NewCallOptions(opts),
+		ParamsFunc: func(s {{capnp}}.Struct) { params({{.Params.RemoteName $.Node}}(s)) },
+		Options: {{capnp}}.NewCallOptions(opts),
 	})))
 }
 {{end}}
@@ -116,10 +130,10 @@ func {{.Node.Name}}_Methods(methods []{{server}}.Method, s {{.Node.Name}}_Server
 	}
 	{{range .Methods}}
 	methods = append(methods, {{server}}.Method{
-		Method: {{capn}}.Method{
+		Method: {{capnp}}.Method{
 			{{template "_interfaceMethod" .}}
 		},
-		Impl: func(c {{context}}.Context, opts {{capn}}.CallOptions, p, r {{capn}}.Struct) error {
+		Impl: func(c {{context}}.Context, opts {{capnp}}.CallOptions, p, r {{capnp}}.Struct) error {
 			call := {{.Interface.RemoteName $.Node}}_{{.Name}}{c, opts, {{.Params.RemoteName $.Node}}(p), {{.Results.RemoteName $.Node}}(r)}
 			return s.{{.Name|title}}(call)
 		},
@@ -132,7 +146,7 @@ func {{.Node.Name}}_Methods(methods []{{server}}.Method, s {{.Node.Name}}_Server
 // {{$.Node.Name}}_{{.Name}} holds the arguments for a server call to {{$.Node.Name}}.{{.Name}}.
 type {{$.Node.Name}}_{{.Name}} struct {
 	Ctx     {{context}}.Context
-	Options {{capn}}.CallOptions
+	Options {{capnp}}.CallOptions
 	Params  {{.Params.RemoteName $.Node}}
 	Results {{.Results.RemoteName $.Node}}
 }
@@ -150,6 +164,11 @@ type {{$.Node.Name}}_{{.Name}} struct {
 
 type annotationParams struct {
 	Node *node
+}
+
+type structFuncsParams struct {
+	Node               *node
+	DiscriminantOffset C.DataOffset
 }
 
 type structEnumsParams struct {
@@ -174,7 +193,7 @@ type promiseFieldStructTemplateParams struct {
 	Field         field
 	Struct        *node
 	BufName       string
-	DefaultOffset int
+	DefaultOffset C.Address
 }
 
 type promiseFieldAnyPointerTemplateParams struct {

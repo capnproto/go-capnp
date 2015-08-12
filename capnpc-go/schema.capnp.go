@@ -56,98 +56,127 @@ func NewRootNode(s *C.Segment) Node {
 func AutoNewNode(s *C.Segment) Node {
 	return Node(s.NewStructAR(C.ObjectSize{DataSize: 40, PointerCount: 6}))
 }
-func ReadRootNode(s *C.Segment) Node               { return Node(s.Root(0).ToStruct()) }
-func (s Node) Which() Node_Which                   { return Node_Which(C.Struct(s).Get16(12)) }
-func (s Node) Id() uint64                          { return C.Struct(s).Get64(0) }
-func (s Node) SetId(v uint64)                      { C.Struct(s).Set64(0, v) }
-func (s Node) DisplayName() string                 { return C.Struct(s).GetObject(0).ToText() }
-func (s Node) SetDisplayName(v string)             { C.Struct(s).SetObject(0, s.Segment.NewText(v)) }
-func (s Node) DisplayNamePrefixLength() uint32     { return C.Struct(s).Get32(8) }
-func (s Node) SetDisplayNamePrefixLength(v uint32) { C.Struct(s).Set32(8, v) }
-func (s Node) ScopeId() uint64                     { return C.Struct(s).Get64(16) }
-func (s Node) SetScopeId(v uint64)                 { C.Struct(s).Set64(16, v) }
-func (s Node) Parameters() Node_Parameter_List     { return Node_Parameter_List(C.Struct(s).GetObject(5)) }
-func (s Node) SetParameters(v Node_Parameter_List) { C.Struct(s).SetObject(5, C.Object(v)) }
-func (s Node) IsGeneric() bool                     { return C.Struct(s).Get1(288) }
-func (s Node) SetIsGeneric(v bool)                 { C.Struct(s).Set1(288, v) }
-func (s Node) NestedNodes() Node_NestedNode_List {
-	return Node_NestedNode_List(C.Struct(s).GetObject(1))
+func ReadRootNode(s *C.Segment) Node { return Node(s.Root(0).ToStruct()) }
+
+func (s Node) Segment() *C.Segment {
+	return C.Struct(s).Segment()
 }
-func (s Node) SetNestedNodes(v Node_NestedNode_List)         { C.Struct(s).SetObject(1, C.Object(v)) }
-func (s Node) Annotations() Annotation_List                  { return Annotation_List(C.Struct(s).GetObject(2)) }
-func (s Node) SetAnnotations(v Annotation_List)              { C.Struct(s).SetObject(2, C.Object(v)) }
-func (s Node) SetFile()                                      { C.Struct(s).Set16(12, 0) }
-func (s Node) Struct() Node_struct                           { return Node_struct(s) }
-func (s Node) SetStruct()                                    { C.Struct(s).Set16(12, 1) }
-func (s Node_struct) DataWordCount() uint16                  { return C.Struct(s).Get16(14) }
-func (s Node_struct) SetDataWordCount(v uint16)              { C.Struct(s).Set16(14, v) }
-func (s Node_struct) PointerCount() uint16                   { return C.Struct(s).Get16(24) }
-func (s Node_struct) SetPointerCount(v uint16)               { C.Struct(s).Set16(24, v) }
-func (s Node_struct) PreferredListEncoding() ElementSize     { return ElementSize(C.Struct(s).Get16(26)) }
-func (s Node_struct) SetPreferredListEncoding(v ElementSize) { C.Struct(s).Set16(26, uint16(v)) }
-func (s Node_struct) IsGroup() bool                          { return C.Struct(s).Get1(224) }
-func (s Node_struct) SetIsGroup(v bool)                      { C.Struct(s).Set1(224, v) }
-func (s Node_struct) DiscriminantCount() uint16              { return C.Struct(s).Get16(30) }
-func (s Node_struct) SetDiscriminantCount(v uint16)          { C.Struct(s).Set16(30, v) }
-func (s Node_struct) DiscriminantOffset() uint32             { return C.Struct(s).Get32(32) }
-func (s Node_struct) SetDiscriminantOffset(v uint32)         { C.Struct(s).Set32(32, v) }
-func (s Node_struct) Fields() Field_List                     { return Field_List(C.Struct(s).GetObject(3)) }
-func (s Node_struct) SetFields(v Field_List)                 { C.Struct(s).SetObject(3, C.Object(v)) }
+
+func (s Node) Which() Node_Which {
+	return Node_Which(C.Struct(s).Uint16(12))
+}
+
+func (s Node) Id() uint64                            { return C.Struct(s).Uint64(0) }
+func (s Node) SetId(v uint64)                        { C.Struct(s).SetUint64(0, v) }
+func (s Node) DisplayName() string                   { return C.Struct(s).Pointer(0).ToText() }
+func (s Node) SetDisplayName(v string)               { C.Struct(s).SetPointer(0, s.Segment().NewText(v)) }
+func (s Node) DisplayNamePrefixLength() uint32       { return C.Struct(s).Uint32(8) }
+func (s Node) SetDisplayNamePrefixLength(v uint32)   { C.Struct(s).SetUint32(8, v) }
+func (s Node) ScopeId() uint64                       { return C.Struct(s).Uint64(16) }
+func (s Node) SetScopeId(v uint64)                   { C.Struct(s).SetUint64(16, v) }
+func (s Node) Parameters() Node_Parameter_List       { return Node_Parameter_List(C.Struct(s).Pointer(5)) }
+func (s Node) SetParameters(v Node_Parameter_List)   { C.Struct(s).SetPointer(5, C.Pointer(v)) }
+func (s Node) IsGeneric() bool                       { return C.Struct(s).Bit(288) }
+func (s Node) SetIsGeneric(v bool)                   { C.Struct(s).SetBit(288, v) }
+func (s Node) NestedNodes() Node_NestedNode_List     { return Node_NestedNode_List(C.Struct(s).Pointer(1)) }
+func (s Node) SetNestedNodes(v Node_NestedNode_List) { C.Struct(s).SetPointer(1, C.Pointer(v)) }
+func (s Node) Annotations() Annotation_List          { return Annotation_List(C.Struct(s).Pointer(2)) }
+func (s Node) SetAnnotations(v Annotation_List)      { C.Struct(s).SetPointer(2, C.Pointer(v)) }
+func (s Node) SetFile()                              { C.Struct(s).SetUint16(12, 0) }
+func (s Node) Struct() Node_struct                   { return Node_struct(s) }
+func (s Node) SetStruct()                            { C.Struct(s).SetUint16(12, 1) }
+
+func (s Node_struct) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s Node_struct) DataWordCount() uint16                  { return C.Struct(s).Uint16(14) }
+func (s Node_struct) SetDataWordCount(v uint16)              { C.Struct(s).SetUint16(14, v) }
+func (s Node_struct) PointerCount() uint16                   { return C.Struct(s).Uint16(24) }
+func (s Node_struct) SetPointerCount(v uint16)               { C.Struct(s).SetUint16(24, v) }
+func (s Node_struct) PreferredListEncoding() ElementSize     { return ElementSize(C.Struct(s).Uint16(26)) }
+func (s Node_struct) SetPreferredListEncoding(v ElementSize) { C.Struct(s).SetUint16(26, uint16(v)) }
+func (s Node_struct) IsGroup() bool                          { return C.Struct(s).Bit(224) }
+func (s Node_struct) SetIsGroup(v bool)                      { C.Struct(s).SetBit(224, v) }
+func (s Node_struct) DiscriminantCount() uint16              { return C.Struct(s).Uint16(30) }
+func (s Node_struct) SetDiscriminantCount(v uint16)          { C.Struct(s).SetUint16(30, v) }
+func (s Node_struct) DiscriminantOffset() uint32             { return C.Struct(s).Uint32(32) }
+func (s Node_struct) SetDiscriminantOffset(v uint32)         { C.Struct(s).SetUint32(32, v) }
+func (s Node_struct) Fields() Field_List                     { return Field_List(C.Struct(s).Pointer(3)) }
+func (s Node_struct) SetFields(v Field_List)                 { C.Struct(s).SetPointer(3, C.Pointer(v)) }
 func (s Node) Enum() Node_enum                               { return Node_enum(s) }
-func (s Node) SetEnum()                                      { C.Struct(s).Set16(12, 2) }
-func (s Node_enum) Enumerants() Enumerant_List               { return Enumerant_List(C.Struct(s).GetObject(3)) }
-func (s Node_enum) SetEnumerants(v Enumerant_List)           { C.Struct(s).SetObject(3, C.Object(v)) }
-func (s Node) Interface() Node_interface                     { return Node_interface(s) }
-func (s Node) SetInterface()                                 { C.Struct(s).Set16(12, 3) }
-func (s Node_interface) Methods() Method_List                { return Method_List(C.Struct(s).GetObject(3)) }
-func (s Node_interface) SetMethods(v Method_List)            { C.Struct(s).SetObject(3, C.Object(v)) }
-func (s Node_interface) Superclasses() Superclass_List {
-	return Superclass_List(C.Struct(s).GetObject(4))
+func (s Node) SetEnum()                                      { C.Struct(s).SetUint16(12, 2) }
+
+func (s Node_enum) Segment() *C.Segment {
+	return C.Struct(s).Segment()
 }
-func (s Node_interface) SetSuperclasses(v Superclass_List) { C.Struct(s).SetObject(4, C.Object(v)) }
+
+func (s Node_enum) Enumerants() Enumerant_List     { return Enumerant_List(C.Struct(s).Pointer(3)) }
+func (s Node_enum) SetEnumerants(v Enumerant_List) { C.Struct(s).SetPointer(3, C.Pointer(v)) }
+func (s Node) Interface() Node_interface           { return Node_interface(s) }
+func (s Node) SetInterface()                       { C.Struct(s).SetUint16(12, 3) }
+
+func (s Node_interface) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s Node_interface) Methods() Method_List              { return Method_List(C.Struct(s).Pointer(3)) }
+func (s Node_interface) SetMethods(v Method_List)          { C.Struct(s).SetPointer(3, C.Pointer(v)) }
+func (s Node_interface) Superclasses() Superclass_List     { return Superclass_List(C.Struct(s).Pointer(4)) }
+func (s Node_interface) SetSuperclasses(v Superclass_List) { C.Struct(s).SetPointer(4, C.Pointer(v)) }
 func (s Node) Const() Node_const                           { return Node_const(s) }
-func (s Node) SetConst()                                   { C.Struct(s).Set16(12, 4) }
-func (s Node_const) Type() Type                            { return Type(C.Struct(s).GetObject(3).ToStruct()) }
-func (s Node_const) SetType(v Type)                        { C.Struct(s).SetObject(3, C.Object(v)) }
-func (s Node_const) Value() Value                          { return Value(C.Struct(s).GetObject(4).ToStruct()) }
-func (s Node_const) SetValue(v Value)                      { C.Struct(s).SetObject(4, C.Object(v)) }
-func (s Node) Annotation() Node_annotation                 { return Node_annotation(s) }
-func (s Node) SetAnnotation()                              { C.Struct(s).Set16(12, 5) }
-func (s Node_annotation) Type() Type                       { return Type(C.Struct(s).GetObject(3).ToStruct()) }
-func (s Node_annotation) SetType(v Type)                   { C.Struct(s).SetObject(3, C.Object(v)) }
-func (s Node_annotation) TargetsFile() bool                { return C.Struct(s).Get1(112) }
-func (s Node_annotation) SetTargetsFile(v bool)            { C.Struct(s).Set1(112, v) }
-func (s Node_annotation) TargetsConst() bool               { return C.Struct(s).Get1(113) }
-func (s Node_annotation) SetTargetsConst(v bool)           { C.Struct(s).Set1(113, v) }
-func (s Node_annotation) TargetsEnum() bool                { return C.Struct(s).Get1(114) }
-func (s Node_annotation) SetTargetsEnum(v bool)            { C.Struct(s).Set1(114, v) }
-func (s Node_annotation) TargetsEnumerant() bool           { return C.Struct(s).Get1(115) }
-func (s Node_annotation) SetTargetsEnumerant(v bool)       { C.Struct(s).Set1(115, v) }
-func (s Node_annotation) TargetsStruct() bool              { return C.Struct(s).Get1(116) }
-func (s Node_annotation) SetTargetsStruct(v bool)          { C.Struct(s).Set1(116, v) }
-func (s Node_annotation) TargetsField() bool               { return C.Struct(s).Get1(117) }
-func (s Node_annotation) SetTargetsField(v bool)           { C.Struct(s).Set1(117, v) }
-func (s Node_annotation) TargetsUnion() bool               { return C.Struct(s).Get1(118) }
-func (s Node_annotation) SetTargetsUnion(v bool)           { C.Struct(s).Set1(118, v) }
-func (s Node_annotation) TargetsGroup() bool               { return C.Struct(s).Get1(119) }
-func (s Node_annotation) SetTargetsGroup(v bool)           { C.Struct(s).Set1(119, v) }
-func (s Node_annotation) TargetsInterface() bool           { return C.Struct(s).Get1(120) }
-func (s Node_annotation) SetTargetsInterface(v bool)       { C.Struct(s).Set1(120, v) }
-func (s Node_annotation) TargetsMethod() bool              { return C.Struct(s).Get1(121) }
-func (s Node_annotation) SetTargetsMethod(v bool)          { C.Struct(s).Set1(121, v) }
-func (s Node_annotation) TargetsParam() bool               { return C.Struct(s).Get1(122) }
-func (s Node_annotation) SetTargetsParam(v bool)           { C.Struct(s).Set1(122, v) }
-func (s Node_annotation) TargetsAnnotation() bool          { return C.Struct(s).Get1(123) }
-func (s Node_annotation) SetTargetsAnnotation(v bool)      { C.Struct(s).Set1(123, v) }
+func (s Node) SetConst()                                   { C.Struct(s).SetUint16(12, 4) }
+
+func (s Node_const) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s Node_const) Type() Type            { return Type(C.Struct(s).Pointer(3).ToStruct()) }
+func (s Node_const) SetType(v Type)        { C.Struct(s).SetPointer(3, C.Pointer(v)) }
+func (s Node_const) Value() Value          { return Value(C.Struct(s).Pointer(4).ToStruct()) }
+func (s Node_const) SetValue(v Value)      { C.Struct(s).SetPointer(4, C.Pointer(v)) }
+func (s Node) Annotation() Node_annotation { return Node_annotation(s) }
+func (s Node) SetAnnotation()              { C.Struct(s).SetUint16(12, 5) }
+
+func (s Node_annotation) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s Node_annotation) Type() Type                  { return Type(C.Struct(s).Pointer(3).ToStruct()) }
+func (s Node_annotation) SetType(v Type)              { C.Struct(s).SetPointer(3, C.Pointer(v)) }
+func (s Node_annotation) TargetsFile() bool           { return C.Struct(s).Bit(112) }
+func (s Node_annotation) SetTargetsFile(v bool)       { C.Struct(s).SetBit(112, v) }
+func (s Node_annotation) TargetsConst() bool          { return C.Struct(s).Bit(113) }
+func (s Node_annotation) SetTargetsConst(v bool)      { C.Struct(s).SetBit(113, v) }
+func (s Node_annotation) TargetsEnum() bool           { return C.Struct(s).Bit(114) }
+func (s Node_annotation) SetTargetsEnum(v bool)       { C.Struct(s).SetBit(114, v) }
+func (s Node_annotation) TargetsEnumerant() bool      { return C.Struct(s).Bit(115) }
+func (s Node_annotation) SetTargetsEnumerant(v bool)  { C.Struct(s).SetBit(115, v) }
+func (s Node_annotation) TargetsStruct() bool         { return C.Struct(s).Bit(116) }
+func (s Node_annotation) SetTargetsStruct(v bool)     { C.Struct(s).SetBit(116, v) }
+func (s Node_annotation) TargetsField() bool          { return C.Struct(s).Bit(117) }
+func (s Node_annotation) SetTargetsField(v bool)      { C.Struct(s).SetBit(117, v) }
+func (s Node_annotation) TargetsUnion() bool          { return C.Struct(s).Bit(118) }
+func (s Node_annotation) SetTargetsUnion(v bool)      { C.Struct(s).SetBit(118, v) }
+func (s Node_annotation) TargetsGroup() bool          { return C.Struct(s).Bit(119) }
+func (s Node_annotation) SetTargetsGroup(v bool)      { C.Struct(s).SetBit(119, v) }
+func (s Node_annotation) TargetsInterface() bool      { return C.Struct(s).Bit(120) }
+func (s Node_annotation) SetTargetsInterface(v bool)  { C.Struct(s).SetBit(120, v) }
+func (s Node_annotation) TargetsMethod() bool         { return C.Struct(s).Bit(121) }
+func (s Node_annotation) SetTargetsMethod(v bool)     { C.Struct(s).SetBit(121, v) }
+func (s Node_annotation) TargetsParam() bool          { return C.Struct(s).Bit(122) }
+func (s Node_annotation) SetTargetsParam(v bool)      { C.Struct(s).SetBit(122, v) }
+func (s Node_annotation) TargetsAnnotation() bool     { return C.Struct(s).Bit(123) }
+func (s Node_annotation) SetTargetsAnnotation(v bool) { C.Struct(s).SetBit(123, v) }
 
 type Node_List C.PointerList
 
-func NewNode_List(s *C.Segment, sz int) Node_List {
+func NewNode_List(s *C.Segment, sz int32) Node_List {
 	return Node_List(s.NewCompositeList(C.ObjectSize{DataSize: 40, PointerCount: 6}, sz))
 }
 func (s Node_List) Len() int             { return C.PointerList(s).Len() }
 func (s Node_List) At(i int) Node        { return Node(C.PointerList(s).At(i).ToStruct()) }
-func (s Node_List) Set(i int, item Node) { C.PointerList(s).Set(i, C.Object(item)) }
+func (s Node_List) Set(i int, item Node) { C.PointerList(s).Set(i, C.Pointer(item)) }
 
 type Node_Promise C.Pipeline
 
@@ -220,19 +249,24 @@ func AutoNewNode_Parameter(s *C.Segment) Node_Parameter {
 	return Node_Parameter(s.NewStructAR(C.ObjectSize{DataSize: 0, PointerCount: 1}))
 }
 func ReadRootNode_Parameter(s *C.Segment) Node_Parameter { return Node_Parameter(s.Root(0).ToStruct()) }
-func (s Node_Parameter) Name() string                    { return C.Struct(s).GetObject(0).ToText() }
-func (s Node_Parameter) SetName(v string)                { C.Struct(s).SetObject(0, s.Segment.NewText(v)) }
+
+func (s Node_Parameter) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s Node_Parameter) Name() string     { return C.Struct(s).Pointer(0).ToText() }
+func (s Node_Parameter) SetName(v string) { C.Struct(s).SetPointer(0, s.Segment().NewText(v)) }
 
 type Node_Parameter_List C.PointerList
 
-func NewNode_Parameter_List(s *C.Segment, sz int) Node_Parameter_List {
+func NewNode_Parameter_List(s *C.Segment, sz int32) Node_Parameter_List {
 	return Node_Parameter_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 1}, sz))
 }
 func (s Node_Parameter_List) Len() int { return C.PointerList(s).Len() }
 func (s Node_Parameter_List) At(i int) Node_Parameter {
 	return Node_Parameter(C.PointerList(s).At(i).ToStruct())
 }
-func (s Node_Parameter_List) Set(i int, item Node_Parameter) { C.PointerList(s).Set(i, C.Object(item)) }
+func (s Node_Parameter_List) Set(i int, item Node_Parameter) { C.PointerList(s).Set(i, C.Pointer(item)) }
 
 type Node_Parameter_Promise C.Pipeline
 
@@ -255,14 +289,19 @@ func AutoNewNode_NestedNode(s *C.Segment) Node_NestedNode {
 func ReadRootNode_NestedNode(s *C.Segment) Node_NestedNode {
 	return Node_NestedNode(s.Root(0).ToStruct())
 }
-func (s Node_NestedNode) Name() string     { return C.Struct(s).GetObject(0).ToText() }
-func (s Node_NestedNode) SetName(v string) { C.Struct(s).SetObject(0, s.Segment.NewText(v)) }
-func (s Node_NestedNode) Id() uint64       { return C.Struct(s).Get64(0) }
-func (s Node_NestedNode) SetId(v uint64)   { C.Struct(s).Set64(0, v) }
+
+func (s Node_NestedNode) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s Node_NestedNode) Name() string     { return C.Struct(s).Pointer(0).ToText() }
+func (s Node_NestedNode) SetName(v string) { C.Struct(s).SetPointer(0, s.Segment().NewText(v)) }
+func (s Node_NestedNode) Id() uint64       { return C.Struct(s).Uint64(0) }
+func (s Node_NestedNode) SetId(v uint64)   { C.Struct(s).SetUint64(0, v) }
 
 type Node_NestedNode_List C.PointerList
 
-func NewNode_NestedNode_List(s *C.Segment, sz int) Node_NestedNode_List {
+func NewNode_NestedNode_List(s *C.Segment, sz int32) Node_NestedNode_List {
 	return Node_NestedNode_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 1}, sz))
 }
 func (s Node_NestedNode_List) Len() int { return C.PointerList(s).Len() }
@@ -270,7 +309,7 @@ func (s Node_NestedNode_List) At(i int) Node_NestedNode {
 	return Node_NestedNode(C.PointerList(s).At(i).ToStruct())
 }
 func (s Node_NestedNode_List) Set(i int, item Node_NestedNode) {
-	C.PointerList(s).Set(i, C.Object(item))
+	C.PointerList(s).Set(i, C.Pointer(item))
 }
 
 type Node_NestedNode_Promise C.Pipeline
@@ -331,44 +370,73 @@ func NewRootField(s *C.Segment) Field {
 func AutoNewField(s *C.Segment) Field {
 	return Field(s.NewStructAR(C.ObjectSize{DataSize: 24, PointerCount: 4}))
 }
-func ReadRootField(s *C.Segment) Field             { return Field(s.Root(0).ToStruct()) }
-func (s Field) Which() Field_Which                 { return Field_Which(C.Struct(s).Get16(8)) }
-func (s Field) Name() string                       { return C.Struct(s).GetObject(0).ToText() }
-func (s Field) SetName(v string)                   { C.Struct(s).SetObject(0, s.Segment.NewText(v)) }
-func (s Field) CodeOrder() uint16                  { return C.Struct(s).Get16(0) }
-func (s Field) SetCodeOrder(v uint16)              { C.Struct(s).Set16(0, v) }
-func (s Field) Annotations() Annotation_List       { return Annotation_List(C.Struct(s).GetObject(1)) }
-func (s Field) SetAnnotations(v Annotation_List)   { C.Struct(s).SetObject(1, C.Object(v)) }
-func (s Field) DiscriminantValue() uint16          { return C.Struct(s).Get16(2) ^ 65535 }
-func (s Field) SetDiscriminantValue(v uint16)      { C.Struct(s).Set16(2, v^65535) }
-func (s Field) Slot() Field_slot                   { return Field_slot(s) }
-func (s Field) SetSlot()                           { C.Struct(s).Set16(8, 0) }
-func (s Field_slot) Offset() uint32                { return C.Struct(s).Get32(4) }
-func (s Field_slot) SetOffset(v uint32)            { C.Struct(s).Set32(4, v) }
-func (s Field_slot) Type() Type                    { return Type(C.Struct(s).GetObject(2).ToStruct()) }
-func (s Field_slot) SetType(v Type)                { C.Struct(s).SetObject(2, C.Object(v)) }
-func (s Field_slot) DefaultValue() Value           { return Value(C.Struct(s).GetObject(3).ToStruct()) }
-func (s Field_slot) SetDefaultValue(v Value)       { C.Struct(s).SetObject(3, C.Object(v)) }
-func (s Field_slot) HadExplicitDefault() bool      { return C.Struct(s).Get1(128) }
-func (s Field_slot) SetHadExplicitDefault(v bool)  { C.Struct(s).Set1(128, v) }
-func (s Field) Group() Field_group                 { return Field_group(s) }
-func (s Field) SetGroup()                          { C.Struct(s).Set16(8, 1) }
-func (s Field_group) TypeId() uint64               { return C.Struct(s).Get64(16) }
-func (s Field_group) SetTypeId(v uint64)           { C.Struct(s).Set64(16, v) }
-func (s Field) Ordinal() Field_ordinal             { return Field_ordinal(s) }
-func (s Field_ordinal) Which() Field_ordinal_Which { return Field_ordinal_Which(C.Struct(s).Get16(10)) }
-func (s Field_ordinal) SetImplicit()               { C.Struct(s).Set16(10, 0) }
-func (s Field_ordinal) Explicit() uint16           { return C.Struct(s).Get16(12) }
-func (s Field_ordinal) SetExplicit(v uint16)       { C.Struct(s).Set16(10, 1); C.Struct(s).Set16(12, v) }
+func ReadRootField(s *C.Segment) Field { return Field(s.Root(0).ToStruct()) }
+
+func (s Field) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s Field) Which() Field_Which {
+	return Field_Which(C.Struct(s).Uint16(8))
+}
+
+func (s Field) Name() string                     { return C.Struct(s).Pointer(0).ToText() }
+func (s Field) SetName(v string)                 { C.Struct(s).SetPointer(0, s.Segment().NewText(v)) }
+func (s Field) CodeOrder() uint16                { return C.Struct(s).Uint16(0) }
+func (s Field) SetCodeOrder(v uint16)            { C.Struct(s).SetUint16(0, v) }
+func (s Field) Annotations() Annotation_List     { return Annotation_List(C.Struct(s).Pointer(1)) }
+func (s Field) SetAnnotations(v Annotation_List) { C.Struct(s).SetPointer(1, C.Pointer(v)) }
+func (s Field) DiscriminantValue() uint16        { return C.Struct(s).Uint16(2) ^ 65535 }
+func (s Field) SetDiscriminantValue(v uint16)    { C.Struct(s).SetUint16(2, v^65535) }
+func (s Field) Slot() Field_slot                 { return Field_slot(s) }
+func (s Field) SetSlot()                         { C.Struct(s).SetUint16(8, 0) }
+
+func (s Field_slot) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s Field_slot) Offset() uint32               { return C.Struct(s).Uint32(4) }
+func (s Field_slot) SetOffset(v uint32)           { C.Struct(s).SetUint32(4, v) }
+func (s Field_slot) Type() Type                   { return Type(C.Struct(s).Pointer(2).ToStruct()) }
+func (s Field_slot) SetType(v Type)               { C.Struct(s).SetPointer(2, C.Pointer(v)) }
+func (s Field_slot) DefaultValue() Value          { return Value(C.Struct(s).Pointer(3).ToStruct()) }
+func (s Field_slot) SetDefaultValue(v Value)      { C.Struct(s).SetPointer(3, C.Pointer(v)) }
+func (s Field_slot) HadExplicitDefault() bool     { return C.Struct(s).Bit(128) }
+func (s Field_slot) SetHadExplicitDefault(v bool) { C.Struct(s).SetBit(128, v) }
+func (s Field) Group() Field_group                { return Field_group(s) }
+func (s Field) SetGroup()                         { C.Struct(s).SetUint16(8, 1) }
+
+func (s Field_group) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s Field_group) TypeId() uint64     { return C.Struct(s).Uint64(16) }
+func (s Field_group) SetTypeId(v uint64) { C.Struct(s).SetUint64(16, v) }
+func (s Field) Ordinal() Field_ordinal   { return Field_ordinal(s) }
+
+func (s Field_ordinal) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s Field_ordinal) Which() Field_ordinal_Which {
+	return Field_ordinal_Which(C.Struct(s).Uint16(10))
+}
+
+func (s Field_ordinal) SetImplicit()     { C.Struct(s).SetUint16(10, 0) }
+func (s Field_ordinal) Explicit() uint16 { return C.Struct(s).Uint16(12) }
+func (s Field_ordinal) SetExplicit(v uint16) {
+	C.Struct(s).SetUint16(10, 1)
+	C.Struct(s).SetUint16(12, v)
+}
 
 type Field_List C.PointerList
 
-func NewField_List(s *C.Segment, sz int) Field_List {
+func NewField_List(s *C.Segment, sz int32) Field_List {
 	return Field_List(s.NewCompositeList(C.ObjectSize{DataSize: 24, PointerCount: 4}, sz))
 }
 func (s Field_List) Len() int              { return C.PointerList(s).Len() }
 func (s Field_List) At(i int) Field        { return Field(C.PointerList(s).At(i).ToStruct()) }
-func (s Field_List) Set(i int, item Field) { C.PointerList(s).Set(i, C.Object(item)) }
+func (s Field_List) Set(i int, item Field) { C.PointerList(s).Set(i, C.Pointer(item)) }
 
 type Field_Promise C.Pipeline
 
@@ -420,22 +488,27 @@ func NewRootEnumerant(s *C.Segment) Enumerant {
 func AutoNewEnumerant(s *C.Segment) Enumerant {
 	return Enumerant(s.NewStructAR(C.ObjectSize{DataSize: 8, PointerCount: 2}))
 }
-func ReadRootEnumerant(s *C.Segment) Enumerant       { return Enumerant(s.Root(0).ToStruct()) }
-func (s Enumerant) Name() string                     { return C.Struct(s).GetObject(0).ToText() }
-func (s Enumerant) SetName(v string)                 { C.Struct(s).SetObject(0, s.Segment.NewText(v)) }
-func (s Enumerant) CodeOrder() uint16                { return C.Struct(s).Get16(0) }
-func (s Enumerant) SetCodeOrder(v uint16)            { C.Struct(s).Set16(0, v) }
-func (s Enumerant) Annotations() Annotation_List     { return Annotation_List(C.Struct(s).GetObject(1)) }
-func (s Enumerant) SetAnnotations(v Annotation_List) { C.Struct(s).SetObject(1, C.Object(v)) }
+func ReadRootEnumerant(s *C.Segment) Enumerant { return Enumerant(s.Root(0).ToStruct()) }
+
+func (s Enumerant) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s Enumerant) Name() string                     { return C.Struct(s).Pointer(0).ToText() }
+func (s Enumerant) SetName(v string)                 { C.Struct(s).SetPointer(0, s.Segment().NewText(v)) }
+func (s Enumerant) CodeOrder() uint16                { return C.Struct(s).Uint16(0) }
+func (s Enumerant) SetCodeOrder(v uint16)            { C.Struct(s).SetUint16(0, v) }
+func (s Enumerant) Annotations() Annotation_List     { return Annotation_List(C.Struct(s).Pointer(1)) }
+func (s Enumerant) SetAnnotations(v Annotation_List) { C.Struct(s).SetPointer(1, C.Pointer(v)) }
 
 type Enumerant_List C.PointerList
 
-func NewEnumerant_List(s *C.Segment, sz int) Enumerant_List {
+func NewEnumerant_List(s *C.Segment, sz int32) Enumerant_List {
 	return Enumerant_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 2}, sz))
 }
 func (s Enumerant_List) Len() int                  { return C.PointerList(s).Len() }
 func (s Enumerant_List) At(i int) Enumerant        { return Enumerant(C.PointerList(s).At(i).ToStruct()) }
-func (s Enumerant_List) Set(i int, item Enumerant) { C.PointerList(s).Set(i, C.Object(item)) }
+func (s Enumerant_List) Set(i int, item Enumerant) { C.PointerList(s).Set(i, C.Pointer(item)) }
 
 type Enumerant_Promise C.Pipeline
 
@@ -456,19 +529,24 @@ func AutoNewSuperclass(s *C.Segment) Superclass {
 	return Superclass(s.NewStructAR(C.ObjectSize{DataSize: 8, PointerCount: 1}))
 }
 func ReadRootSuperclass(s *C.Segment) Superclass { return Superclass(s.Root(0).ToStruct()) }
-func (s Superclass) Id() uint64                  { return C.Struct(s).Get64(0) }
-func (s Superclass) SetId(v uint64)              { C.Struct(s).Set64(0, v) }
-func (s Superclass) Brand() Brand                { return Brand(C.Struct(s).GetObject(0).ToStruct()) }
-func (s Superclass) SetBrand(v Brand)            { C.Struct(s).SetObject(0, C.Object(v)) }
+
+func (s Superclass) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s Superclass) Id() uint64       { return C.Struct(s).Uint64(0) }
+func (s Superclass) SetId(v uint64)   { C.Struct(s).SetUint64(0, v) }
+func (s Superclass) Brand() Brand     { return Brand(C.Struct(s).Pointer(0).ToStruct()) }
+func (s Superclass) SetBrand(v Brand) { C.Struct(s).SetPointer(0, C.Pointer(v)) }
 
 type Superclass_List C.PointerList
 
-func NewSuperclass_List(s *C.Segment, sz int) Superclass_List {
+func NewSuperclass_List(s *C.Segment, sz int32) Superclass_List {
 	return Superclass_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 1}, sz))
 }
 func (s Superclass_List) Len() int                   { return C.PointerList(s).Len() }
 func (s Superclass_List) At(i int) Superclass        { return Superclass(C.PointerList(s).At(i).ToStruct()) }
-func (s Superclass_List) Set(i int, item Superclass) { C.PointerList(s).Set(i, C.Object(item)) }
+func (s Superclass_List) Set(i int, item Superclass) { C.PointerList(s).Set(i, C.Pointer(item)) }
 
 type Superclass_Promise C.Pipeline
 
@@ -493,33 +571,38 @@ func AutoNewMethod(s *C.Segment) Method {
 	return Method(s.NewStructAR(C.ObjectSize{DataSize: 24, PointerCount: 5}))
 }
 func ReadRootMethod(s *C.Segment) Method { return Method(s.Root(0).ToStruct()) }
-func (s Method) Name() string            { return C.Struct(s).GetObject(0).ToText() }
-func (s Method) SetName(v string)        { C.Struct(s).SetObject(0, s.Segment.NewText(v)) }
-func (s Method) CodeOrder() uint16       { return C.Struct(s).Get16(0) }
-func (s Method) SetCodeOrder(v uint16)   { C.Struct(s).Set16(0, v) }
-func (s Method) ImplicitParameters() Node_Parameter_List {
-	return Node_Parameter_List(C.Struct(s).GetObject(4))
+
+func (s Method) Segment() *C.Segment {
+	return C.Struct(s).Segment()
 }
-func (s Method) SetImplicitParameters(v Node_Parameter_List) { C.Struct(s).SetObject(4, C.Object(v)) }
-func (s Method) ParamStructType() uint64                     { return C.Struct(s).Get64(8) }
-func (s Method) SetParamStructType(v uint64)                 { C.Struct(s).Set64(8, v) }
-func (s Method) ParamBrand() Brand                           { return Brand(C.Struct(s).GetObject(2).ToStruct()) }
-func (s Method) SetParamBrand(v Brand)                       { C.Struct(s).SetObject(2, C.Object(v)) }
-func (s Method) ResultStructType() uint64                    { return C.Struct(s).Get64(16) }
-func (s Method) SetResultStructType(v uint64)                { C.Struct(s).Set64(16, v) }
-func (s Method) ResultBrand() Brand                          { return Brand(C.Struct(s).GetObject(3).ToStruct()) }
-func (s Method) SetResultBrand(v Brand)                      { C.Struct(s).SetObject(3, C.Object(v)) }
-func (s Method) Annotations() Annotation_List                { return Annotation_List(C.Struct(s).GetObject(1)) }
-func (s Method) SetAnnotations(v Annotation_List)            { C.Struct(s).SetObject(1, C.Object(v)) }
+
+func (s Method) Name() string          { return C.Struct(s).Pointer(0).ToText() }
+func (s Method) SetName(v string)      { C.Struct(s).SetPointer(0, s.Segment().NewText(v)) }
+func (s Method) CodeOrder() uint16     { return C.Struct(s).Uint16(0) }
+func (s Method) SetCodeOrder(v uint16) { C.Struct(s).SetUint16(0, v) }
+func (s Method) ImplicitParameters() Node_Parameter_List {
+	return Node_Parameter_List(C.Struct(s).Pointer(4))
+}
+func (s Method) SetImplicitParameters(v Node_Parameter_List) { C.Struct(s).SetPointer(4, C.Pointer(v)) }
+func (s Method) ParamStructType() uint64                     { return C.Struct(s).Uint64(8) }
+func (s Method) SetParamStructType(v uint64)                 { C.Struct(s).SetUint64(8, v) }
+func (s Method) ParamBrand() Brand                           { return Brand(C.Struct(s).Pointer(2).ToStruct()) }
+func (s Method) SetParamBrand(v Brand)                       { C.Struct(s).SetPointer(2, C.Pointer(v)) }
+func (s Method) ResultStructType() uint64                    { return C.Struct(s).Uint64(16) }
+func (s Method) SetResultStructType(v uint64)                { C.Struct(s).SetUint64(16, v) }
+func (s Method) ResultBrand() Brand                          { return Brand(C.Struct(s).Pointer(3).ToStruct()) }
+func (s Method) SetResultBrand(v Brand)                      { C.Struct(s).SetPointer(3, C.Pointer(v)) }
+func (s Method) Annotations() Annotation_List                { return Annotation_List(C.Struct(s).Pointer(1)) }
+func (s Method) SetAnnotations(v Annotation_List)            { C.Struct(s).SetPointer(1, C.Pointer(v)) }
 
 type Method_List C.PointerList
 
-func NewMethod_List(s *C.Segment, sz int) Method_List {
+func NewMethod_List(s *C.Segment, sz int32) Method_List {
 	return Method_List(s.NewCompositeList(C.ObjectSize{DataSize: 24, PointerCount: 5}, sz))
 }
 func (s Method_List) Len() int               { return C.PointerList(s).Len() }
 func (s Method_List) At(i int) Method        { return Method(C.PointerList(s).At(i).ToStruct()) }
-func (s Method_List) Set(i int, item Method) { C.PointerList(s).Set(i, C.Object(item)) }
+func (s Method_List) Set(i int, item Method) { C.PointerList(s).Set(i, C.Pointer(item)) }
 
 type Method_Promise C.Pipeline
 
@@ -643,71 +726,119 @@ func NewRootType(s *C.Segment) Type {
 func AutoNewType(s *C.Segment) Type {
 	return Type(s.NewStructAR(C.ObjectSize{DataSize: 24, PointerCount: 1}))
 }
-func ReadRootType(s *C.Segment) Type        { return Type(s.Root(0).ToStruct()) }
-func (s Type) Which() Type_Which            { return Type_Which(C.Struct(s).Get16(0)) }
-func (s Type) SetVoid()                     { C.Struct(s).Set16(0, 0) }
-func (s Type) SetBool()                     { C.Struct(s).Set16(0, 1) }
-func (s Type) SetInt8()                     { C.Struct(s).Set16(0, 2) }
-func (s Type) SetInt16()                    { C.Struct(s).Set16(0, 3) }
-func (s Type) SetInt32()                    { C.Struct(s).Set16(0, 4) }
-func (s Type) SetInt64()                    { C.Struct(s).Set16(0, 5) }
-func (s Type) SetUint8()                    { C.Struct(s).Set16(0, 6) }
-func (s Type) SetUint16()                   { C.Struct(s).Set16(0, 7) }
-func (s Type) SetUint32()                   { C.Struct(s).Set16(0, 8) }
-func (s Type) SetUint64()                   { C.Struct(s).Set16(0, 9) }
-func (s Type) SetFloat32()                  { C.Struct(s).Set16(0, 10) }
-func (s Type) SetFloat64()                  { C.Struct(s).Set16(0, 11) }
-func (s Type) SetText()                     { C.Struct(s).Set16(0, 12) }
-func (s Type) SetData()                     { C.Struct(s).Set16(0, 13) }
-func (s Type) List() Type_list              { return Type_list(s) }
-func (s Type) SetList()                     { C.Struct(s).Set16(0, 14) }
-func (s Type_list) ElementType() Type       { return Type(C.Struct(s).GetObject(0).ToStruct()) }
-func (s Type_list) SetElementType(v Type)   { C.Struct(s).SetObject(0, C.Object(v)) }
-func (s Type) Enum() Type_enum              { return Type_enum(s) }
-func (s Type) SetEnum()                     { C.Struct(s).Set16(0, 15) }
-func (s Type_enum) TypeId() uint64          { return C.Struct(s).Get64(8) }
-func (s Type_enum) SetTypeId(v uint64)      { C.Struct(s).Set64(8, v) }
-func (s Type_enum) Brand() Brand            { return Brand(C.Struct(s).GetObject(0).ToStruct()) }
-func (s Type_enum) SetBrand(v Brand)        { C.Struct(s).SetObject(0, C.Object(v)) }
-func (s Type) Struct() Type_struct          { return Type_struct(s) }
-func (s Type) SetStruct()                   { C.Struct(s).Set16(0, 16) }
-func (s Type_struct) TypeId() uint64        { return C.Struct(s).Get64(8) }
-func (s Type_struct) SetTypeId(v uint64)    { C.Struct(s).Set64(8, v) }
-func (s Type_struct) Brand() Brand          { return Brand(C.Struct(s).GetObject(0).ToStruct()) }
-func (s Type_struct) SetBrand(v Brand)      { C.Struct(s).SetObject(0, C.Object(v)) }
-func (s Type) Interface() Type_interface    { return Type_interface(s) }
-func (s Type) SetInterface()                { C.Struct(s).Set16(0, 17) }
-func (s Type_interface) TypeId() uint64     { return C.Struct(s).Get64(8) }
-func (s Type_interface) SetTypeId(v uint64) { C.Struct(s).Set64(8, v) }
-func (s Type_interface) Brand() Brand       { return Brand(C.Struct(s).GetObject(0).ToStruct()) }
-func (s Type_interface) SetBrand(v Brand)   { C.Struct(s).SetObject(0, C.Object(v)) }
-func (s Type) AnyPointer() Type_anyPointer  { return Type_anyPointer(s) }
-func (s Type) SetAnyPointer()               { C.Struct(s).Set16(0, 18) }
-func (s Type_anyPointer) Which() Type_anyPointer_Which {
-	return Type_anyPointer_Which(C.Struct(s).Get16(8))
+func ReadRootType(s *C.Segment) Type { return Type(s.Root(0).ToStruct()) }
+
+func (s Type) Segment() *C.Segment {
+	return C.Struct(s).Segment()
 }
-func (s Type_anyPointer) SetUnconstrained()                    { C.Struct(s).Set16(8, 0) }
+
+func (s Type) Which() Type_Which {
+	return Type_Which(C.Struct(s).Uint16(0))
+}
+
+func (s Type) SetVoid()        { C.Struct(s).SetUint16(0, 0) }
+func (s Type) SetBool()        { C.Struct(s).SetUint16(0, 1) }
+func (s Type) SetInt8()        { C.Struct(s).SetUint16(0, 2) }
+func (s Type) SetInt16()       { C.Struct(s).SetUint16(0, 3) }
+func (s Type) SetInt32()       { C.Struct(s).SetUint16(0, 4) }
+func (s Type) SetInt64()       { C.Struct(s).SetUint16(0, 5) }
+func (s Type) SetUint8()       { C.Struct(s).SetUint16(0, 6) }
+func (s Type) SetUint16()      { C.Struct(s).SetUint16(0, 7) }
+func (s Type) SetUint32()      { C.Struct(s).SetUint16(0, 8) }
+func (s Type) SetUint64()      { C.Struct(s).SetUint16(0, 9) }
+func (s Type) SetFloat32()     { C.Struct(s).SetUint16(0, 10) }
+func (s Type) SetFloat64()     { C.Struct(s).SetUint16(0, 11) }
+func (s Type) SetText()        { C.Struct(s).SetUint16(0, 12) }
+func (s Type) SetData()        { C.Struct(s).SetUint16(0, 13) }
+func (s Type) List() Type_list { return Type_list(s) }
+func (s Type) SetList()        { C.Struct(s).SetUint16(0, 14) }
+
+func (s Type_list) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s Type_list) ElementType() Type     { return Type(C.Struct(s).Pointer(0).ToStruct()) }
+func (s Type_list) SetElementType(v Type) { C.Struct(s).SetPointer(0, C.Pointer(v)) }
+func (s Type) Enum() Type_enum            { return Type_enum(s) }
+func (s Type) SetEnum()                   { C.Struct(s).SetUint16(0, 15) }
+
+func (s Type_enum) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s Type_enum) TypeId() uint64     { return C.Struct(s).Uint64(8) }
+func (s Type_enum) SetTypeId(v uint64) { C.Struct(s).SetUint64(8, v) }
+func (s Type_enum) Brand() Brand       { return Brand(C.Struct(s).Pointer(0).ToStruct()) }
+func (s Type_enum) SetBrand(v Brand)   { C.Struct(s).SetPointer(0, C.Pointer(v)) }
+func (s Type) Struct() Type_struct     { return Type_struct(s) }
+func (s Type) SetStruct()              { C.Struct(s).SetUint16(0, 16) }
+
+func (s Type_struct) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s Type_struct) TypeId() uint64     { return C.Struct(s).Uint64(8) }
+func (s Type_struct) SetTypeId(v uint64) { C.Struct(s).SetUint64(8, v) }
+func (s Type_struct) Brand() Brand       { return Brand(C.Struct(s).Pointer(0).ToStruct()) }
+func (s Type_struct) SetBrand(v Brand)   { C.Struct(s).SetPointer(0, C.Pointer(v)) }
+func (s Type) Interface() Type_interface { return Type_interface(s) }
+func (s Type) SetInterface()             { C.Struct(s).SetUint16(0, 17) }
+
+func (s Type_interface) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s Type_interface) TypeId() uint64     { return C.Struct(s).Uint64(8) }
+func (s Type_interface) SetTypeId(v uint64) { C.Struct(s).SetUint64(8, v) }
+func (s Type_interface) Brand() Brand       { return Brand(C.Struct(s).Pointer(0).ToStruct()) }
+func (s Type_interface) SetBrand(v Brand)   { C.Struct(s).SetPointer(0, C.Pointer(v)) }
+func (s Type) AnyPointer() Type_anyPointer  { return Type_anyPointer(s) }
+func (s Type) SetAnyPointer()               { C.Struct(s).SetUint16(0, 18) }
+
+func (s Type_anyPointer) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s Type_anyPointer) Which() Type_anyPointer_Which {
+	return Type_anyPointer_Which(C.Struct(s).Uint16(8))
+}
+
+func (s Type_anyPointer) SetUnconstrained()                    { C.Struct(s).SetUint16(8, 0) }
 func (s Type_anyPointer) Parameter() Type_anyPointer_parameter { return Type_anyPointer_parameter(s) }
-func (s Type_anyPointer) SetParameter()                        { C.Struct(s).Set16(8, 1) }
-func (s Type_anyPointer_parameter) ScopeId() uint64            { return C.Struct(s).Get64(16) }
-func (s Type_anyPointer_parameter) SetScopeId(v uint64)        { C.Struct(s).Set64(16, v) }
-func (s Type_anyPointer_parameter) ParameterIndex() uint16     { return C.Struct(s).Get16(10) }
-func (s Type_anyPointer_parameter) SetParameterIndex(v uint16) { C.Struct(s).Set16(10, v) }
+func (s Type_anyPointer) SetParameter()                        { C.Struct(s).SetUint16(8, 1) }
+
+func (s Type_anyPointer_parameter) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s Type_anyPointer_parameter) ScopeId() uint64            { return C.Struct(s).Uint64(16) }
+func (s Type_anyPointer_parameter) SetScopeId(v uint64)        { C.Struct(s).SetUint64(16, v) }
+func (s Type_anyPointer_parameter) ParameterIndex() uint16     { return C.Struct(s).Uint16(10) }
+func (s Type_anyPointer_parameter) SetParameterIndex(v uint16) { C.Struct(s).SetUint16(10, v) }
 func (s Type_anyPointer) ImplicitMethodParameter() Type_anyPointer_implicitMethodParameter {
 	return Type_anyPointer_implicitMethodParameter(s)
 }
-func (s Type_anyPointer) SetImplicitMethodParameter()                        { C.Struct(s).Set16(8, 2) }
-func (s Type_anyPointer_implicitMethodParameter) ParameterIndex() uint16     { return C.Struct(s).Get16(10) }
-func (s Type_anyPointer_implicitMethodParameter) SetParameterIndex(v uint16) { C.Struct(s).Set16(10, v) }
+func (s Type_anyPointer) SetImplicitMethodParameter() { C.Struct(s).SetUint16(8, 2) }
+
+func (s Type_anyPointer_implicitMethodParameter) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s Type_anyPointer_implicitMethodParameter) ParameterIndex() uint16 {
+	return C.Struct(s).Uint16(10)
+}
+func (s Type_anyPointer_implicitMethodParameter) SetParameterIndex(v uint16) {
+	C.Struct(s).SetUint16(10, v)
+}
 
 type Type_List C.PointerList
 
-func NewType_List(s *C.Segment, sz int) Type_List {
+func NewType_List(s *C.Segment, sz int32) Type_List {
 	return Type_List(s.NewCompositeList(C.ObjectSize{DataSize: 24, PointerCount: 1}, sz))
 }
 func (s Type_List) Len() int             { return C.PointerList(s).Len() }
 func (s Type_List) At(i int) Type        { return Type(C.PointerList(s).At(i).ToStruct()) }
-func (s Type_List) Set(i int, item Type) { C.PointerList(s).Set(i, C.Object(item)) }
+func (s Type_List) Set(i int, item Type) { C.PointerList(s).Set(i, C.Pointer(item)) }
 
 type Type_Promise C.Pipeline
 
@@ -803,18 +934,23 @@ func NewRootBrand(s *C.Segment) Brand {
 func AutoNewBrand(s *C.Segment) Brand {
 	return Brand(s.NewStructAR(C.ObjectSize{DataSize: 0, PointerCount: 1}))
 }
-func ReadRootBrand(s *C.Segment) Brand       { return Brand(s.Root(0).ToStruct()) }
-func (s Brand) Scopes() Brand_Scope_List     { return Brand_Scope_List(C.Struct(s).GetObject(0)) }
-func (s Brand) SetScopes(v Brand_Scope_List) { C.Struct(s).SetObject(0, C.Object(v)) }
+func ReadRootBrand(s *C.Segment) Brand { return Brand(s.Root(0).ToStruct()) }
+
+func (s Brand) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s Brand) Scopes() Brand_Scope_List     { return Brand_Scope_List(C.Struct(s).Pointer(0)) }
+func (s Brand) SetScopes(v Brand_Scope_List) { C.Struct(s).SetPointer(0, C.Pointer(v)) }
 
 type Brand_List C.PointerList
 
-func NewBrand_List(s *C.Segment, sz int) Brand_List {
+func NewBrand_List(s *C.Segment, sz int32) Brand_List {
 	return Brand_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 1}, sz))
 }
 func (s Brand_List) Len() int              { return C.PointerList(s).Len() }
 func (s Brand_List) At(i int) Brand        { return Brand(C.PointerList(s).At(i).ToStruct()) }
-func (s Brand_List) Set(i int, item Brand) { C.PointerList(s).Set(i, C.Object(item)) }
+func (s Brand_List) Set(i int, item Brand) { C.PointerList(s).Set(i, C.Pointer(item)) }
 
 type Brand_Promise C.Pipeline
 
@@ -853,24 +989,32 @@ func AutoNewBrand_Scope(s *C.Segment) Brand_Scope {
 	return Brand_Scope(s.NewStructAR(C.ObjectSize{DataSize: 16, PointerCount: 1}))
 }
 func ReadRootBrand_Scope(s *C.Segment) Brand_Scope { return Brand_Scope(s.Root(0).ToStruct()) }
-func (s Brand_Scope) Which() Brand_Scope_Which     { return Brand_Scope_Which(C.Struct(s).Get16(8)) }
-func (s Brand_Scope) ScopeId() uint64              { return C.Struct(s).Get64(0) }
-func (s Brand_Scope) SetScopeId(v uint64)          { C.Struct(s).Set64(0, v) }
-func (s Brand_Scope) Bind() Brand_Binding_List     { return Brand_Binding_List(C.Struct(s).GetObject(0)) }
-func (s Brand_Scope) SetBind(v Brand_Binding_List) {
-	C.Struct(s).Set16(8, 0)
-	C.Struct(s).SetObject(0, C.Object(v))
+
+func (s Brand_Scope) Segment() *C.Segment {
+	return C.Struct(s).Segment()
 }
-func (s Brand_Scope) SetInherit() { C.Struct(s).Set16(8, 1) }
+
+func (s Brand_Scope) Which() Brand_Scope_Which {
+	return Brand_Scope_Which(C.Struct(s).Uint16(8))
+}
+
+func (s Brand_Scope) ScopeId() uint64          { return C.Struct(s).Uint64(0) }
+func (s Brand_Scope) SetScopeId(v uint64)      { C.Struct(s).SetUint64(0, v) }
+func (s Brand_Scope) Bind() Brand_Binding_List { return Brand_Binding_List(C.Struct(s).Pointer(0)) }
+func (s Brand_Scope) SetBind(v Brand_Binding_List) {
+	C.Struct(s).SetUint16(8, 0)
+	C.Struct(s).SetPointer(0, C.Pointer(v))
+}
+func (s Brand_Scope) SetInherit() { C.Struct(s).SetUint16(8, 1) }
 
 type Brand_Scope_List C.PointerList
 
-func NewBrand_Scope_List(s *C.Segment, sz int) Brand_Scope_List {
+func NewBrand_Scope_List(s *C.Segment, sz int32) Brand_Scope_List {
 	return Brand_Scope_List(s.NewCompositeList(C.ObjectSize{DataSize: 16, PointerCount: 1}, sz))
 }
 func (s Brand_Scope_List) Len() int                    { return C.PointerList(s).Len() }
 func (s Brand_Scope_List) At(i int) Brand_Scope        { return Brand_Scope(C.PointerList(s).At(i).ToStruct()) }
-func (s Brand_Scope_List) Set(i int, item Brand_Scope) { C.PointerList(s).Set(i, C.Object(item)) }
+func (s Brand_Scope_List) Set(i int, item Brand_Scope) { C.PointerList(s).Set(i, C.Pointer(item)) }
 
 type Brand_Scope_Promise C.Pipeline
 
@@ -909,21 +1053,32 @@ func AutoNewBrand_Binding(s *C.Segment) Brand_Binding {
 	return Brand_Binding(s.NewStructAR(C.ObjectSize{DataSize: 8, PointerCount: 1}))
 }
 func ReadRootBrand_Binding(s *C.Segment) Brand_Binding { return Brand_Binding(s.Root(0).ToStruct()) }
-func (s Brand_Binding) Which() Brand_Binding_Which     { return Brand_Binding_Which(C.Struct(s).Get16(0)) }
-func (s Brand_Binding) SetUnbound()                    { C.Struct(s).Set16(0, 0) }
-func (s Brand_Binding) Type() Type                     { return Type(C.Struct(s).GetObject(0).ToStruct()) }
-func (s Brand_Binding) SetType(v Type)                 { C.Struct(s).Set16(0, 1); C.Struct(s).SetObject(0, C.Object(v)) }
+
+func (s Brand_Binding) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s Brand_Binding) Which() Brand_Binding_Which {
+	return Brand_Binding_Which(C.Struct(s).Uint16(0))
+}
+
+func (s Brand_Binding) SetUnbound() { C.Struct(s).SetUint16(0, 0) }
+func (s Brand_Binding) Type() Type  { return Type(C.Struct(s).Pointer(0).ToStruct()) }
+func (s Brand_Binding) SetType(v Type) {
+	C.Struct(s).SetUint16(0, 1)
+	C.Struct(s).SetPointer(0, C.Pointer(v))
+}
 
 type Brand_Binding_List C.PointerList
 
-func NewBrand_Binding_List(s *C.Segment, sz int) Brand_Binding_List {
+func NewBrand_Binding_List(s *C.Segment, sz int32) Brand_Binding_List {
 	return Brand_Binding_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 1}, sz))
 }
 func (s Brand_Binding_List) Len() int { return C.PointerList(s).Len() }
 func (s Brand_Binding_List) At(i int) Brand_Binding {
 	return Brand_Binding(C.PointerList(s).At(i).ToStruct())
 }
-func (s Brand_Binding_List) Set(i int, item Brand_Binding) { C.PointerList(s).Set(i, C.Object(item)) }
+func (s Brand_Binding_List) Set(i int, item Brand_Binding) { C.PointerList(s).Set(i, C.Pointer(item)) }
 
 type Brand_Binding_Promise C.Pipeline
 
@@ -1017,64 +1172,72 @@ func AutoNewValue(s *C.Segment) Value {
 	return Value(s.NewStructAR(C.ObjectSize{DataSize: 16, PointerCount: 1}))
 }
 func ReadRootValue(s *C.Segment) Value { return Value(s.Root(0).ToStruct()) }
-func (s Value) Which() Value_Which     { return Value_Which(C.Struct(s).Get16(0)) }
-func (s Value) SetVoid()               { C.Struct(s).Set16(0, 0) }
-func (s Value) Bool() bool             { return C.Struct(s).Get1(16) }
-func (s Value) SetBool(v bool)         { C.Struct(s).Set16(0, 1); C.Struct(s).Set1(16, v) }
-func (s Value) Int8() int8             { return int8(C.Struct(s).Get8(2)) }
-func (s Value) SetInt8(v int8)         { C.Struct(s).Set16(0, 2); C.Struct(s).Set8(2, uint8(v)) }
-func (s Value) Int16() int16           { return int16(C.Struct(s).Get16(2)) }
-func (s Value) SetInt16(v int16)       { C.Struct(s).Set16(0, 3); C.Struct(s).Set16(2, uint16(v)) }
-func (s Value) Int32() int32           { return int32(C.Struct(s).Get32(4)) }
-func (s Value) SetInt32(v int32)       { C.Struct(s).Set16(0, 4); C.Struct(s).Set32(4, uint32(v)) }
-func (s Value) Int64() int64           { return int64(C.Struct(s).Get64(8)) }
-func (s Value) SetInt64(v int64)       { C.Struct(s).Set16(0, 5); C.Struct(s).Set64(8, uint64(v)) }
-func (s Value) Uint8() uint8           { return C.Struct(s).Get8(2) }
-func (s Value) SetUint8(v uint8)       { C.Struct(s).Set16(0, 6); C.Struct(s).Set8(2, v) }
-func (s Value) Uint16() uint16         { return C.Struct(s).Get16(2) }
-func (s Value) SetUint16(v uint16)     { C.Struct(s).Set16(0, 7); C.Struct(s).Set16(2, v) }
-func (s Value) Uint32() uint32         { return C.Struct(s).Get32(4) }
-func (s Value) SetUint32(v uint32)     { C.Struct(s).Set16(0, 8); C.Struct(s).Set32(4, v) }
-func (s Value) Uint64() uint64         { return C.Struct(s).Get64(8) }
-func (s Value) SetUint64(v uint64)     { C.Struct(s).Set16(0, 9); C.Struct(s).Set64(8, v) }
-func (s Value) Float32() float32       { return math.Float32frombits(C.Struct(s).Get32(4)) }
+
+func (s Value) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s Value) Which() Value_Which {
+	return Value_Which(C.Struct(s).Uint16(0))
+}
+
+func (s Value) SetVoid()           { C.Struct(s).SetUint16(0, 0) }
+func (s Value) Bool() bool         { return C.Struct(s).Bit(16) }
+func (s Value) SetBool(v bool)     { C.Struct(s).SetUint16(0, 1); C.Struct(s).SetBit(16, v) }
+func (s Value) Int8() int8         { return int8(C.Struct(s).Uint8(2)) }
+func (s Value) SetInt8(v int8)     { C.Struct(s).SetUint16(0, 2); C.Struct(s).SetUint8(2, uint8(v)) }
+func (s Value) Int16() int16       { return int16(C.Struct(s).Uint16(2)) }
+func (s Value) SetInt16(v int16)   { C.Struct(s).SetUint16(0, 3); C.Struct(s).SetUint16(2, uint16(v)) }
+func (s Value) Int32() int32       { return int32(C.Struct(s).Uint32(4)) }
+func (s Value) SetInt32(v int32)   { C.Struct(s).SetUint16(0, 4); C.Struct(s).SetUint32(4, uint32(v)) }
+func (s Value) Int64() int64       { return int64(C.Struct(s).Uint64(8)) }
+func (s Value) SetInt64(v int64)   { C.Struct(s).SetUint16(0, 5); C.Struct(s).SetUint64(8, uint64(v)) }
+func (s Value) Uint8() uint8       { return C.Struct(s).Uint8(2) }
+func (s Value) SetUint8(v uint8)   { C.Struct(s).SetUint16(0, 6); C.Struct(s).SetUint8(2, v) }
+func (s Value) Uint16() uint16     { return C.Struct(s).Uint16(2) }
+func (s Value) SetUint16(v uint16) { C.Struct(s).SetUint16(0, 7); C.Struct(s).SetUint16(2, v) }
+func (s Value) Uint32() uint32     { return C.Struct(s).Uint32(4) }
+func (s Value) SetUint32(v uint32) { C.Struct(s).SetUint16(0, 8); C.Struct(s).SetUint32(4, v) }
+func (s Value) Uint64() uint64     { return C.Struct(s).Uint64(8) }
+func (s Value) SetUint64(v uint64) { C.Struct(s).SetUint16(0, 9); C.Struct(s).SetUint64(8, v) }
+func (s Value) Float32() float32   { return math.Float32frombits(C.Struct(s).Uint32(4)) }
 func (s Value) SetFloat32(v float32) {
-	C.Struct(s).Set16(0, 10)
-	C.Struct(s).Set32(4, math.Float32bits(v))
+	C.Struct(s).SetUint16(0, 10)
+	C.Struct(s).SetUint32(4, math.Float32bits(v))
 }
-func (s Value) Float64() float64 { return math.Float64frombits(C.Struct(s).Get64(8)) }
+func (s Value) Float64() float64 { return math.Float64frombits(C.Struct(s).Uint64(8)) }
 func (s Value) SetFloat64(v float64) {
-	C.Struct(s).Set16(0, 11)
-	C.Struct(s).Set64(8, math.Float64bits(v))
+	C.Struct(s).SetUint16(0, 11)
+	C.Struct(s).SetUint64(8, math.Float64bits(v))
 }
-func (s Value) Text() string { return C.Struct(s).GetObject(0).ToText() }
+func (s Value) Text() string { return C.Struct(s).Pointer(0).ToText() }
 func (s Value) SetText(v string) {
-	C.Struct(s).Set16(0, 12)
-	C.Struct(s).SetObject(0, s.Segment.NewText(v))
+	C.Struct(s).SetUint16(0, 12)
+	C.Struct(s).SetPointer(0, s.Segment().NewText(v))
 }
-func (s Value) Data() []byte { return C.Struct(s).GetObject(0).ToData() }
+func (s Value) Data() []byte { return C.Struct(s).Pointer(0).ToData() }
 func (s Value) SetData(v []byte) {
-	C.Struct(s).Set16(0, 13)
-	C.Struct(s).SetObject(0, s.Segment.NewData(v))
+	C.Struct(s).SetUint16(0, 13)
+	C.Struct(s).SetPointer(0, s.Segment().NewData(v))
 }
-func (s Value) List() C.Object           { return C.Struct(s).GetObject(0) }
-func (s Value) SetList(v C.Object)       { C.Struct(s).Set16(0, 14); C.Struct(s).SetObject(0, v) }
-func (s Value) Enum() uint16             { return C.Struct(s).Get16(2) }
-func (s Value) SetEnum(v uint16)         { C.Struct(s).Set16(0, 15); C.Struct(s).Set16(2, v) }
-func (s Value) Struct() C.Object         { return C.Struct(s).GetObject(0) }
-func (s Value) SetStruct(v C.Object)     { C.Struct(s).Set16(0, 16); C.Struct(s).SetObject(0, v) }
-func (s Value) SetInterface()            { C.Struct(s).Set16(0, 17) }
-func (s Value) AnyPointer() C.Object     { return C.Struct(s).GetObject(0) }
-func (s Value) SetAnyPointer(v C.Object) { C.Struct(s).Set16(0, 18); C.Struct(s).SetObject(0, v) }
+func (s Value) List() C.Pointer           { return C.Struct(s).Pointer(0) }
+func (s Value) SetList(v C.Pointer)       { C.Struct(s).SetUint16(0, 14); C.Struct(s).SetPointer(0, v) }
+func (s Value) Enum() uint16              { return C.Struct(s).Uint16(2) }
+func (s Value) SetEnum(v uint16)          { C.Struct(s).SetUint16(0, 15); C.Struct(s).SetUint16(2, v) }
+func (s Value) Struct() C.Pointer         { return C.Struct(s).Pointer(0) }
+func (s Value) SetStruct(v C.Pointer)     { C.Struct(s).SetUint16(0, 16); C.Struct(s).SetPointer(0, v) }
+func (s Value) SetInterface()             { C.Struct(s).SetUint16(0, 17) }
+func (s Value) AnyPointer() C.Pointer     { return C.Struct(s).Pointer(0) }
+func (s Value) SetAnyPointer(v C.Pointer) { C.Struct(s).SetUint16(0, 18); C.Struct(s).SetPointer(0, v) }
 
 type Value_List C.PointerList
 
-func NewValue_List(s *C.Segment, sz int) Value_List {
+func NewValue_List(s *C.Segment, sz int32) Value_List {
 	return Value_List(s.NewCompositeList(C.ObjectSize{DataSize: 16, PointerCount: 1}, sz))
 }
 func (s Value_List) Len() int              { return C.PointerList(s).Len() }
 func (s Value_List) At(i int) Value        { return Value(C.PointerList(s).At(i).ToStruct()) }
-func (s Value_List) Set(i int, item Value) { C.PointerList(s).Set(i, C.Object(item)) }
+func (s Value_List) Set(i int, item Value) { C.PointerList(s).Set(i, C.Pointer(item)) }
 
 type Value_Promise C.Pipeline
 
@@ -1107,21 +1270,26 @@ func AutoNewAnnotation(s *C.Segment) Annotation {
 	return Annotation(s.NewStructAR(C.ObjectSize{DataSize: 8, PointerCount: 2}))
 }
 func ReadRootAnnotation(s *C.Segment) Annotation { return Annotation(s.Root(0).ToStruct()) }
-func (s Annotation) Id() uint64                  { return C.Struct(s).Get64(0) }
-func (s Annotation) SetId(v uint64)              { C.Struct(s).Set64(0, v) }
-func (s Annotation) Brand() Brand                { return Brand(C.Struct(s).GetObject(1).ToStruct()) }
-func (s Annotation) SetBrand(v Brand)            { C.Struct(s).SetObject(1, C.Object(v)) }
-func (s Annotation) Value() Value                { return Value(C.Struct(s).GetObject(0).ToStruct()) }
-func (s Annotation) SetValue(v Value)            { C.Struct(s).SetObject(0, C.Object(v)) }
+
+func (s Annotation) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s Annotation) Id() uint64       { return C.Struct(s).Uint64(0) }
+func (s Annotation) SetId(v uint64)   { C.Struct(s).SetUint64(0, v) }
+func (s Annotation) Brand() Brand     { return Brand(C.Struct(s).Pointer(1).ToStruct()) }
+func (s Annotation) SetBrand(v Brand) { C.Struct(s).SetPointer(1, C.Pointer(v)) }
+func (s Annotation) Value() Value     { return Value(C.Struct(s).Pointer(0).ToStruct()) }
+func (s Annotation) SetValue(v Value) { C.Struct(s).SetPointer(0, C.Pointer(v)) }
 
 type Annotation_List C.PointerList
 
-func NewAnnotation_List(s *C.Segment, sz int) Annotation_List {
+func NewAnnotation_List(s *C.Segment, sz int32) Annotation_List {
 	return Annotation_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 2}, sz))
 }
 func (s Annotation_List) Len() int                   { return C.PointerList(s).Len() }
 func (s Annotation_List) At(i int) Annotation        { return Annotation(C.PointerList(s).At(i).ToStruct()) }
-func (s Annotation_List) Set(i int, item Annotation) { C.PointerList(s).Set(i, C.Object(item)) }
+func (s Annotation_List) Set(i int, item Annotation) { C.PointerList(s).Set(i, C.Pointer(item)) }
 
 type Annotation_Promise C.Pipeline
 
@@ -1197,9 +1365,9 @@ func ElementSizeFromString(c string) ElementSize {
 	}
 }
 
-type ElementSize_List C.PointerList
+type ElementSize_List C.UInt16List
 
-func NewElementSize_List(s *C.Segment, sz int) ElementSize_List {
+func NewElementSize_List(s *C.Segment, sz int32) ElementSize_List {
 	return ElementSize_List(s.NewUInt16List(sz))
 }
 func (s ElementSize_List) Len() int             { return C.UInt16List(s).Len() }
@@ -1219,18 +1387,23 @@ func AutoNewCodeGeneratorRequest(s *C.Segment) CodeGeneratorRequest {
 func ReadRootCodeGeneratorRequest(s *C.Segment) CodeGeneratorRequest {
 	return CodeGeneratorRequest(s.Root(0).ToStruct())
 }
-func (s CodeGeneratorRequest) Nodes() Node_List     { return Node_List(C.Struct(s).GetObject(0)) }
-func (s CodeGeneratorRequest) SetNodes(v Node_List) { C.Struct(s).SetObject(0, C.Object(v)) }
+
+func (s CodeGeneratorRequest) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s CodeGeneratorRequest) Nodes() Node_List     { return Node_List(C.Struct(s).Pointer(0)) }
+func (s CodeGeneratorRequest) SetNodes(v Node_List) { C.Struct(s).SetPointer(0, C.Pointer(v)) }
 func (s CodeGeneratorRequest) RequestedFiles() CodeGeneratorRequest_RequestedFile_List {
-	return CodeGeneratorRequest_RequestedFile_List(C.Struct(s).GetObject(1))
+	return CodeGeneratorRequest_RequestedFile_List(C.Struct(s).Pointer(1))
 }
 func (s CodeGeneratorRequest) SetRequestedFiles(v CodeGeneratorRequest_RequestedFile_List) {
-	C.Struct(s).SetObject(1, C.Object(v))
+	C.Struct(s).SetPointer(1, C.Pointer(v))
 }
 
 type CodeGeneratorRequest_List C.PointerList
 
-func NewCodeGeneratorRequest_List(s *C.Segment, sz int) CodeGeneratorRequest_List {
+func NewCodeGeneratorRequest_List(s *C.Segment, sz int32) CodeGeneratorRequest_List {
 	return CodeGeneratorRequest_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 2}, sz))
 }
 func (s CodeGeneratorRequest_List) Len() int { return C.PointerList(s).Len() }
@@ -1238,7 +1411,7 @@ func (s CodeGeneratorRequest_List) At(i int) CodeGeneratorRequest {
 	return CodeGeneratorRequest(C.PointerList(s).At(i).ToStruct())
 }
 func (s CodeGeneratorRequest_List) Set(i int, item CodeGeneratorRequest) {
-	C.PointerList(s).Set(i, C.Object(item))
+	C.PointerList(s).Set(i, C.Pointer(item))
 }
 
 type CodeGeneratorRequest_Promise C.Pipeline
@@ -1262,24 +1435,27 @@ func AutoNewCodeGeneratorRequest_RequestedFile(s *C.Segment) CodeGeneratorReques
 func ReadRootCodeGeneratorRequest_RequestedFile(s *C.Segment) CodeGeneratorRequest_RequestedFile {
 	return CodeGeneratorRequest_RequestedFile(s.Root(0).ToStruct())
 }
-func (s CodeGeneratorRequest_RequestedFile) Id() uint64     { return C.Struct(s).Get64(0) }
-func (s CodeGeneratorRequest_RequestedFile) SetId(v uint64) { C.Struct(s).Set64(0, v) }
-func (s CodeGeneratorRequest_RequestedFile) Filename() string {
-	return C.Struct(s).GetObject(0).ToText()
+
+func (s CodeGeneratorRequest_RequestedFile) Segment() *C.Segment {
+	return C.Struct(s).Segment()
 }
+
+func (s CodeGeneratorRequest_RequestedFile) Id() uint64       { return C.Struct(s).Uint64(0) }
+func (s CodeGeneratorRequest_RequestedFile) SetId(v uint64)   { C.Struct(s).SetUint64(0, v) }
+func (s CodeGeneratorRequest_RequestedFile) Filename() string { return C.Struct(s).Pointer(0).ToText() }
 func (s CodeGeneratorRequest_RequestedFile) SetFilename(v string) {
-	C.Struct(s).SetObject(0, s.Segment.NewText(v))
+	C.Struct(s).SetPointer(0, s.Segment().NewText(v))
 }
 func (s CodeGeneratorRequest_RequestedFile) Imports() CodeGeneratorRequest_RequestedFile_Import_List {
-	return CodeGeneratorRequest_RequestedFile_Import_List(C.Struct(s).GetObject(1))
+	return CodeGeneratorRequest_RequestedFile_Import_List(C.Struct(s).Pointer(1))
 }
 func (s CodeGeneratorRequest_RequestedFile) SetImports(v CodeGeneratorRequest_RequestedFile_Import_List) {
-	C.Struct(s).SetObject(1, C.Object(v))
+	C.Struct(s).SetPointer(1, C.Pointer(v))
 }
 
 type CodeGeneratorRequest_RequestedFile_List C.PointerList
 
-func NewCodeGeneratorRequest_RequestedFile_List(s *C.Segment, sz int) CodeGeneratorRequest_RequestedFile_List {
+func NewCodeGeneratorRequest_RequestedFile_List(s *C.Segment, sz int32) CodeGeneratorRequest_RequestedFile_List {
 	return CodeGeneratorRequest_RequestedFile_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 2}, sz))
 }
 func (s CodeGeneratorRequest_RequestedFile_List) Len() int { return C.PointerList(s).Len() }
@@ -1287,7 +1463,7 @@ func (s CodeGeneratorRequest_RequestedFile_List) At(i int) CodeGeneratorRequest_
 	return CodeGeneratorRequest_RequestedFile(C.PointerList(s).At(i).ToStruct())
 }
 func (s CodeGeneratorRequest_RequestedFile_List) Set(i int, item CodeGeneratorRequest_RequestedFile) {
-	C.PointerList(s).Set(i, C.Object(item))
+	C.PointerList(s).Set(i, C.Pointer(item))
 }
 
 type CodeGeneratorRequest_RequestedFile_Promise C.Pipeline
@@ -1311,18 +1487,23 @@ func AutoNewCodeGeneratorRequest_RequestedFile_Import(s *C.Segment) CodeGenerato
 func ReadRootCodeGeneratorRequest_RequestedFile_Import(s *C.Segment) CodeGeneratorRequest_RequestedFile_Import {
 	return CodeGeneratorRequest_RequestedFile_Import(s.Root(0).ToStruct())
 }
-func (s CodeGeneratorRequest_RequestedFile_Import) Id() uint64     { return C.Struct(s).Get64(0) }
-func (s CodeGeneratorRequest_RequestedFile_Import) SetId(v uint64) { C.Struct(s).Set64(0, v) }
+
+func (s CodeGeneratorRequest_RequestedFile_Import) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s CodeGeneratorRequest_RequestedFile_Import) Id() uint64     { return C.Struct(s).Uint64(0) }
+func (s CodeGeneratorRequest_RequestedFile_Import) SetId(v uint64) { C.Struct(s).SetUint64(0, v) }
 func (s CodeGeneratorRequest_RequestedFile_Import) Name() string {
-	return C.Struct(s).GetObject(0).ToText()
+	return C.Struct(s).Pointer(0).ToText()
 }
 func (s CodeGeneratorRequest_RequestedFile_Import) SetName(v string) {
-	C.Struct(s).SetObject(0, s.Segment.NewText(v))
+	C.Struct(s).SetPointer(0, s.Segment().NewText(v))
 }
 
 type CodeGeneratorRequest_RequestedFile_Import_List C.PointerList
 
-func NewCodeGeneratorRequest_RequestedFile_Import_List(s *C.Segment, sz int) CodeGeneratorRequest_RequestedFile_Import_List {
+func NewCodeGeneratorRequest_RequestedFile_Import_List(s *C.Segment, sz int32) CodeGeneratorRequest_RequestedFile_Import_List {
 	return CodeGeneratorRequest_RequestedFile_Import_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 1}, sz))
 }
 func (s CodeGeneratorRequest_RequestedFile_Import_List) Len() int { return C.PointerList(s).Len() }
@@ -1330,7 +1511,7 @@ func (s CodeGeneratorRequest_RequestedFile_Import_List) At(i int) CodeGeneratorR
 	return CodeGeneratorRequest_RequestedFile_Import(C.PointerList(s).At(i).ToStruct())
 }
 func (s CodeGeneratorRequest_RequestedFile_Import_List) Set(i int, item CodeGeneratorRequest_RequestedFile_Import) {
-	C.PointerList(s).Set(i, C.Object(item))
+	C.PointerList(s).Set(i, C.Pointer(item))
 }
 
 type CodeGeneratorRequest_RequestedFile_Import_Promise C.Pipeline

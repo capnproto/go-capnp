@@ -26,8 +26,8 @@ func TestV0ListofEmptyShouldMatchCapnp(t *testing.T) {
 
 			e0 := air.NewVerEmpty(scratch)
 			e1 := air.NewVerEmpty(scratch)
-			plist.Set(0, capnp.Object(e0))
-			plist.Set(1, capnp.Object(e1))
+			plist.Set(0, capnp.Pointer(e0))
+			plist.Set(1, capnp.Pointer(e1))
 
 			ShowSeg("          pre SetMylist, segment seg is:", seg)
 
@@ -79,8 +79,8 @@ func TestV1DataVersioningBiggerToEmpty(t *testing.T) {
 			d1 := air.NewVerTwoData(scratch)
 			d1.SetVal(42)
 			d1.SetDuo(41)
-			plist.Set(0, capnp.Object(d0))
-			plist.Set(1, capnp.Object(d1))
+			plist.Set(0, capnp.Pointer(d0))
+			plist.Set(1, capnp.Pointer(d1))
 
 			holder.SetMylist(twolist)
 
@@ -249,9 +249,9 @@ func TestDataVersioningZeroPointersToMore(t *testing.T) {
 				ptr1 := ele.Ptr1()
 				ptr2 := ele.Ptr2()
 				fmt.Printf("ptr1 = %#v\n", ptr1)
-				cv.So(ptr1.Segment, cv.ShouldEqual, nil)
+				cv.So(ptr1.Segment(), cv.ShouldEqual, nil)
 				fmt.Printf("ptr2 = %#v\n", ptr2)
-				cv.So(ptr2.Segment, cv.ShouldEqual, nil)
+				cv.So(ptr2.Segment(), cv.ShouldEqual, nil)
 			}
 
 		})
@@ -293,8 +293,8 @@ func TestDataVersioningZeroPointersToTwo(t *testing.T) {
 			d1.SetPtr1(w1)
 			d1.SetPtr2(w2)
 
-			plist.Set(0, capnp.Object(d0))
-			plist.Set(1, capnp.Object(d1))
+			plist.Set(0, capnp.Pointer(d0))
+			plist.Set(1, capnp.Pointer(d1))
 
 			holder.SetMylist(twolist)
 

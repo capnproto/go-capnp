@@ -133,7 +133,7 @@ func TestZserverWithOneFullJob(t *testing.T) {
 			tl.Set(0, "xyz")
 			zjob.SetArgs(tl)
 
-			plist.Set(0, capnp.Object(zjob))
+			plist.Set(0, capnp.Pointer(zjob))
 
 			server.SetWaitingjobs(joblist)
 
@@ -431,7 +431,7 @@ func TestZserverWithOneEmptyJob(t *testing.T) {
 			ShowSeg("          pre NewZjob, segment seg is:", seg)
 
 			zjob := air.NewZjob(scratch)
-			plist.Set(0, capnp.Object(zjob))
+			plist.Set(0, capnp.Pointer(zjob))
 
 			ShowSeg("          pre SetWaitingjobs, segment seg is:", seg)
 

@@ -46,7 +46,7 @@ func StreamTransport(rwc io.ReadWriteCloser) Transport {
 
 func (s *streamTransport) SendMessage(ctx context.Context, msg rpccapnp.Message) error {
 	s.wbuf.Reset()
-	if _, err := msg.Segment.WriteTo(&s.wbuf); err != nil {
+	if _, err := msg.Segment().WriteTo(&s.wbuf); err != nil {
 		return err
 	}
 	if s.deadline != nil {
@@ -141,14 +141,14 @@ func dispatchRecv(m *manager, transport Transport, msgs chan<- rpccapnp.Message)
 func copyMessage(msg capnp.Message) capnp.Message {
 	n := 0
 	for {
-		if _, err := msg.Lookup(uint32(n)); err != nil {
+		if _, err := msg.Lookup(capnp.SegmentID(n)); err != nil {
 			break
 		}
 		n++
 	}
 	segments := make([][]byte, n)
 	for i := range segments {
-		s, err := msg.Lookup(uint32(i))
+		s, err := msg.Lookup(capnp.SegmentID(i))
 		if err != nil {
 			panic(err)
 		}
@@ -160,7 +160,7 @@ func copyMessage(msg capnp.Message) capnp.Message {
 
 // copyRPCMessage clones an RPC packet.
 func copyRPCMessage(m rpccapnp.Message) rpccapnp.Message {
-	mm := copyMessage(m.Segment.Message)
+	mm := copyMessage(m.Segment().Message)
 	seg, err := mm.Lookup(0)
 	if err != nil {
 		panic(err)

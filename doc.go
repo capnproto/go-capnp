@@ -100,6 +100,9 @@ capnpc-go will generate the following for structs:
 	// segment and returns it as a Foo struct.
 	func ReadRootFoo(s *capnp.Segment) Foo
 
+	// Segment returns the struct's segment.
+	func (s Foo) Segment() *capnp.Segment
+
 	// Foo_List is a value with pointer semantics. It is created for all
 	// structs, and is used for List(Foo) in the capnp file.
 	type Foo_List capnp.List

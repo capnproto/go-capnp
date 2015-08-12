@@ -9,6 +9,9 @@ import (
 
 var ErrNullClient = errors.New("capn: call on null client")
 
+// A CapabilityID is an index into a message's capability table.
+type CapabilityID uint32
+
 // A Client represents an Cap'n Proto interface type.
 //
 // Generally, only RPC protocol implementers should provide types that
@@ -186,7 +189,7 @@ func (p *Pipeline) Struct() (Struct, error) {
 	if err != nil {
 		return Struct{}, err
 	}
-	return TransformObject(Object(s), p.Transform()).ToStruct(), err
+	return TransformPointer(Pointer(s), p.Transform()).ToStruct(), err
 }
 
 // Client returns the client version of p.
@@ -195,20 +198,20 @@ func (p *Pipeline) Client() *PipelineClient {
 }
 
 // GetPipeline returns a derived pipeline which yields the pointer field given.
-func (p *Pipeline) GetPipeline(off int) *Pipeline {
+func (p *Pipeline) GetPipeline(off uint16) *Pipeline {
 	return p.GetPipelineDefault(off, nil, 0)
 }
 
 // GetPipelineDefault returns a derived pipeline which yields the pointer field given,
 // defaulting to the value given.
-func (p *Pipeline) GetPipelineDefault(off int, dseg *Segment, doff int) *Pipeline {
+func (p *Pipeline) GetPipelineDefault(off uint16, dseg *Segment, daddr Address) *Pipeline {
 	return &Pipeline{
 		answer: p.answer,
 		parent: p,
 		op: PipelineOp{
 			Field:          off,
 			DefaultSegment: dseg,
-			DefaultOffset:  doff,
+			DefaultAddress: daddr,
 		},
 	}
 }
@@ -231,9 +234,9 @@ func (pc *PipelineClient) Close() error {
 // A PipelineOp describes a step in transforming a pipeline.
 // It maps closely with the PromisedAnswer.Op struct in rpc.capnp.
 type PipelineOp struct {
-	Field          int
+	Field          uint16
 	DefaultSegment *Segment
-	DefaultOffset  int
+	DefaultAddress Address
 }
 
 // String returns a human-readable description of op.
@@ -281,26 +284,26 @@ func (m *Method) String() string {
 	return string(buf)
 }
 
-// TransformObject applies a sequence of pipeline operations to an object
+// TransformPointer applies a sequence of pipeline operations to a pointer
 // and returns the result.
-func TransformObject(p Object, transform []PipelineOp) Object {
+func TransformPointer(p Pointer, transform []PipelineOp) Pointer {
 	n := len(transform)
 	if n == 0 {
 		return p
 	}
 	s := p.ToStruct()
 	for _, op := range transform[:n-1] {
-		field := s.GetObject(op.Field)
+		field := s.Pointer(op.Field)
 		if op.DefaultSegment == nil {
 			s = field.ToStruct()
 		} else {
-			s = field.ToStructDefault(op.DefaultSegment, op.DefaultOffset)
+			s = field.ToStructDefault(op.DefaultSegment, op.DefaultAddress)
 		}
 	}
 	op := transform[n-1]
-	p = s.GetObject(op.Field)
+	p = s.Pointer(op.Field)
 	if op.DefaultSegment != nil {
-		p = Object(p.ToStructDefault(op.DefaultSegment, op.DefaultOffset))
+		p = Pointer(p.ToStructDefault(op.DefaultSegment, op.DefaultAddress))
 	}
 	return p
 }
@@ -317,7 +320,7 @@ func (ans immediateAnswer) Struct() (Struct, error) {
 }
 
 func (ans immediateAnswer) PipelineCall(transform []PipelineOp, call *Call) Answer {
-	c := TransformObject(Object(ans), transform).ToInterface().Client()
+	c := TransformPointer(Pointer(ans), transform).ToInterface().Client()
 	if c == nil {
 		return ErrorAnswer(ErrNullClient)
 	}
@@ -325,7 +328,7 @@ func (ans immediateAnswer) PipelineCall(transform []PipelineOp, call *Call) Answ
 }
 
 func (ans immediateAnswer) PipelineClose(transform []PipelineOp) error {
-	c := TransformObject(Object(ans), transform).ToInterface().Client()
+	c := TransformPointer(Pointer(ans), transform).ToInterface().Client()
 	if c == nil {
 		return ErrNullClient
 	}

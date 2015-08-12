@@ -70,7 +70,7 @@ type question struct {
 	// Fields below are protected by mu.
 	mu      sync.RWMutex
 	id      questionID
-	obj     capnp.Object
+	obj     capnp.Pointer
 	err     error
 	state   questionState
 	derived [][]capnp.PipelineOp
@@ -104,17 +104,17 @@ func (q *question) start() {
 
 // fulfill is called to resolve a question succesfully and returns the disembargoes.
 // It must be called from the coordinate goroutine.
-func (q *question) fulfill(obj capnp.Object, makeDisembargo func() (embargoID, embargo)) []rpccapnp.Message {
+func (q *question) fulfill(obj capnp.Pointer, makeDisembargo func() (embargoID, embargo)) []rpccapnp.Message {
 	q.mu.Lock()
 	if q.state != questionInProgress {
 		q.mu.Unlock()
 		panic("question.fulfill called more than once")
 	}
-	ctab := obj.Segment.Message.CapTable()
+	ctab := obj.Segment().Message.CapTable()
 	visited := make([]bool, len(ctab))
 	msgs := make([]rpccapnp.Message, 0, len(q.derived))
 	for _, d := range q.derived {
-		in := capnp.TransformObject(obj, d)
+		in := capnp.TransformPointer(obj, d)
 		if in.Type() != capnp.TypeInterface {
 			continue
 		}
@@ -127,10 +127,10 @@ func (q *question) fulfill(obj capnp.Object, makeDisembargo func() (embargoID, e
 			id, e := makeDisembargo()
 			ctab[cn] = newEmbargoClient(q.manager, ctab[cn], e)
 			m := newDisembargoMessage(nil, rpccapnp.Disembargo_context_Which_senderLoopback, id)
-			mt := rpccapnp.NewMessageTarget(m.Segment)
-			pa := rpccapnp.NewPromisedAnswer(m.Segment)
+			mt := rpccapnp.NewMessageTarget(m.Segment())
+			pa := rpccapnp.NewPromisedAnswer(m.Segment())
 			pa.SetQuestionId(uint32(q.id))
-			transformToPromisedAnswer(m.Segment, pa, d)
+			transformToPromisedAnswer(m.Segment(), pa, d)
 			mt.SetPromisedAnswer(pa)
 			m.Disembargo().SetTarget(mt)
 			msgs = append(msgs, m)
@@ -159,7 +159,7 @@ func (q *question) reject(state questionState, err error) {
 	q.mu.Unlock()
 }
 
-func (q *question) peek() (id questionID, obj capnp.Object, err error, ok bool) {
+func (q *question) peek() (id questionID, obj capnp.Pointer, err error, ok bool) {
 	q.mu.RLock()
 	id, obj, err, ok = q.id, q.obj, q.err, q.state != questionInProgress
 	q.mu.RUnlock()
@@ -220,7 +220,7 @@ func (q *question) PipelineClose(transform []capnp.PipelineOp) error {
 	if err != nil {
 		return err
 	}
-	c := capnp.TransformObject(obj, transform).ToInterface().Client()
+	c := capnp.TransformPointer(obj, transform).ToInterface().Client()
 	if c == nil {
 		return capnp.ErrNullClient
 	}

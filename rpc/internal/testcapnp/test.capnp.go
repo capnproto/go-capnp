@@ -114,9 +114,13 @@ func ReadRootHandleFactory_newHandle_Params(s *C.Segment) HandleFactory_newHandl
 	return HandleFactory_newHandle_Params(s.Root(0).ToStruct())
 }
 
+func (s HandleFactory_newHandle_Params) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
 type HandleFactory_newHandle_Params_List C.PointerList
 
-func NewHandleFactory_newHandle_Params_List(s *C.Segment, sz int) HandleFactory_newHandle_Params_List {
+func NewHandleFactory_newHandle_Params_List(s *C.Segment, sz int32) HandleFactory_newHandle_Params_List {
 	return HandleFactory_newHandle_Params_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 0}, sz))
 }
 func (s HandleFactory_newHandle_Params_List) Len() int { return C.PointerList(s).Len() }
@@ -124,7 +128,7 @@ func (s HandleFactory_newHandle_Params_List) At(i int) HandleFactory_newHandle_P
 	return HandleFactory_newHandle_Params(C.PointerList(s).At(i).ToStruct())
 }
 func (s HandleFactory_newHandle_Params_List) Set(i int, item HandleFactory_newHandle_Params) {
-	C.PointerList(s).Set(i, C.Object(item))
+	C.PointerList(s).Set(i, C.Pointer(item))
 }
 
 type HandleFactory_newHandle_Params_Promise C.Pipeline
@@ -148,20 +152,26 @@ func AutoNewHandleFactory_newHandle_Results(s *C.Segment) HandleFactory_newHandl
 func ReadRootHandleFactory_newHandle_Results(s *C.Segment) HandleFactory_newHandle_Results {
 	return HandleFactory_newHandle_Results(s.Root(0).ToStruct())
 }
+
+func (s HandleFactory_newHandle_Results) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
 func (s HandleFactory_newHandle_Results) Handle() Handle {
-	return NewHandle(C.Struct(s).GetObject(0).ToInterface().Client())
+	return NewHandle(C.Struct(s).Pointer(0).ToInterface().Client())
 }
 func (s HandleFactory_newHandle_Results) SetHandle(v Handle) {
-	if s.Segment == nil {
+	seg := s.Segment()
+	if seg == nil {
 		return
 	}
-	ci := s.Segment.Message.AddCap(v.GenericClient())
-	C.Struct(s).SetObject(0, C.Object(s.Segment.NewInterface(ci)))
+	ci := seg.Message.AddCap(v.GenericClient())
+	C.Struct(s).SetPointer(0, C.Pointer(seg.NewInterface(ci)))
 }
 
 type HandleFactory_newHandle_Results_List C.PointerList
 
-func NewHandleFactory_newHandle_Results_List(s *C.Segment, sz int) HandleFactory_newHandle_Results_List {
+func NewHandleFactory_newHandle_Results_List(s *C.Segment, sz int32) HandleFactory_newHandle_Results_List {
 	return HandleFactory_newHandle_Results_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 1}, sz))
 }
 func (s HandleFactory_newHandle_Results_List) Len() int { return C.PointerList(s).Len() }
@@ -169,7 +179,7 @@ func (s HandleFactory_newHandle_Results_List) At(i int) HandleFactory_newHandle_
 	return HandleFactory_newHandle_Results(C.PointerList(s).At(i).ToStruct())
 }
 func (s HandleFactory_newHandle_Results_List) Set(i int, item HandleFactory_newHandle_Results) {
-	C.PointerList(s).Set(i, C.Object(item))
+	C.PointerList(s).Set(i, C.Pointer(item))
 }
 
 type HandleFactory_newHandle_Results_Promise C.Pipeline
@@ -265,9 +275,13 @@ func ReadRootHanger_hang_Params(s *C.Segment) Hanger_hang_Params {
 	return Hanger_hang_Params(s.Root(0).ToStruct())
 }
 
+func (s Hanger_hang_Params) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
 type Hanger_hang_Params_List C.PointerList
 
-func NewHanger_hang_Params_List(s *C.Segment, sz int) Hanger_hang_Params_List {
+func NewHanger_hang_Params_List(s *C.Segment, sz int32) Hanger_hang_Params_List {
 	return Hanger_hang_Params_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 0}, sz))
 }
 func (s Hanger_hang_Params_List) Len() int { return C.PointerList(s).Len() }
@@ -275,7 +289,7 @@ func (s Hanger_hang_Params_List) At(i int) Hanger_hang_Params {
 	return Hanger_hang_Params(C.PointerList(s).At(i).ToStruct())
 }
 func (s Hanger_hang_Params_List) Set(i int, item Hanger_hang_Params) {
-	C.PointerList(s).Set(i, C.Object(item))
+	C.PointerList(s).Set(i, C.Pointer(item))
 }
 
 type Hanger_hang_Params_Promise C.Pipeline
@@ -300,9 +314,13 @@ func ReadRootHanger_hang_Results(s *C.Segment) Hanger_hang_Results {
 	return Hanger_hang_Results(s.Root(0).ToStruct())
 }
 
+func (s Hanger_hang_Results) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
 type Hanger_hang_Results_List C.PointerList
 
-func NewHanger_hang_Results_List(s *C.Segment, sz int) Hanger_hang_Results_List {
+func NewHanger_hang_Results_List(s *C.Segment, sz int32) Hanger_hang_Results_List {
 	return Hanger_hang_Results_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 0}, sz))
 }
 func (s Hanger_hang_Results_List) Len() int { return C.PointerList(s).Len() }
@@ -310,7 +328,7 @@ func (s Hanger_hang_Results_List) At(i int) Hanger_hang_Results {
 	return Hanger_hang_Results(C.PointerList(s).At(i).ToStruct())
 }
 func (s Hanger_hang_Results_List) Set(i int, item Hanger_hang_Results) {
-	C.PointerList(s).Set(i, C.Object(item))
+	C.PointerList(s).Set(i, C.Pointer(item))
 }
 
 type Hanger_hang_Results_Promise C.Pipeline
@@ -401,12 +419,17 @@ func AutoNewCallOrder_getCallSequence_Params(s *C.Segment) CallOrder_getCallSequ
 func ReadRootCallOrder_getCallSequence_Params(s *C.Segment) CallOrder_getCallSequence_Params {
 	return CallOrder_getCallSequence_Params(s.Root(0).ToStruct())
 }
-func (s CallOrder_getCallSequence_Params) Expected() uint32     { return C.Struct(s).Get32(0) }
-func (s CallOrder_getCallSequence_Params) SetExpected(v uint32) { C.Struct(s).Set32(0, v) }
+
+func (s CallOrder_getCallSequence_Params) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s CallOrder_getCallSequence_Params) Expected() uint32     { return C.Struct(s).Uint32(0) }
+func (s CallOrder_getCallSequence_Params) SetExpected(v uint32) { C.Struct(s).SetUint32(0, v) }
 
 type CallOrder_getCallSequence_Params_List C.PointerList
 
-func NewCallOrder_getCallSequence_Params_List(s *C.Segment, sz int) CallOrder_getCallSequence_Params_List {
+func NewCallOrder_getCallSequence_Params_List(s *C.Segment, sz int32) CallOrder_getCallSequence_Params_List {
 	return CallOrder_getCallSequence_Params_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 0}, sz))
 }
 func (s CallOrder_getCallSequence_Params_List) Len() int { return C.PointerList(s).Len() }
@@ -414,7 +437,7 @@ func (s CallOrder_getCallSequence_Params_List) At(i int) CallOrder_getCallSequen
 	return CallOrder_getCallSequence_Params(C.PointerList(s).At(i).ToStruct())
 }
 func (s CallOrder_getCallSequence_Params_List) Set(i int, item CallOrder_getCallSequence_Params) {
-	C.PointerList(s).Set(i, C.Object(item))
+	C.PointerList(s).Set(i, C.Pointer(item))
 }
 
 type CallOrder_getCallSequence_Params_Promise C.Pipeline
@@ -438,12 +461,17 @@ func AutoNewCallOrder_getCallSequence_Results(s *C.Segment) CallOrder_getCallSeq
 func ReadRootCallOrder_getCallSequence_Results(s *C.Segment) CallOrder_getCallSequence_Results {
 	return CallOrder_getCallSequence_Results(s.Root(0).ToStruct())
 }
-func (s CallOrder_getCallSequence_Results) N() uint32     { return C.Struct(s).Get32(0) }
-func (s CallOrder_getCallSequence_Results) SetN(v uint32) { C.Struct(s).Set32(0, v) }
+
+func (s CallOrder_getCallSequence_Results) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s CallOrder_getCallSequence_Results) N() uint32     { return C.Struct(s).Uint32(0) }
+func (s CallOrder_getCallSequence_Results) SetN(v uint32) { C.Struct(s).SetUint32(0, v) }
 
 type CallOrder_getCallSequence_Results_List C.PointerList
 
-func NewCallOrder_getCallSequence_Results_List(s *C.Segment, sz int) CallOrder_getCallSequence_Results_List {
+func NewCallOrder_getCallSequence_Results_List(s *C.Segment, sz int32) CallOrder_getCallSequence_Results_List {
 	return CallOrder_getCallSequence_Results_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 0}, sz))
 }
 func (s CallOrder_getCallSequence_Results_List) Len() int { return C.PointerList(s).Len() }
@@ -451,7 +479,7 @@ func (s CallOrder_getCallSequence_Results_List) At(i int) CallOrder_getCallSeque
 	return CallOrder_getCallSequence_Results(C.PointerList(s).At(i).ToStruct())
 }
 func (s CallOrder_getCallSequence_Results_List) Set(i int, item CallOrder_getCallSequence_Results) {
-	C.PointerList(s).Set(i, C.Object(item))
+	C.PointerList(s).Set(i, C.Pointer(item))
 }
 
 type CallOrder_getCallSequence_Results_Promise C.Pipeline
@@ -578,20 +606,26 @@ func AutoNewEchoer_echo_Params(s *C.Segment) Echoer_echo_Params {
 func ReadRootEchoer_echo_Params(s *C.Segment) Echoer_echo_Params {
 	return Echoer_echo_Params(s.Root(0).ToStruct())
 }
+
+func (s Echoer_echo_Params) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
 func (s Echoer_echo_Params) Cap() CallOrder {
-	return NewCallOrder(C.Struct(s).GetObject(0).ToInterface().Client())
+	return NewCallOrder(C.Struct(s).Pointer(0).ToInterface().Client())
 }
 func (s Echoer_echo_Params) SetCap(v CallOrder) {
-	if s.Segment == nil {
+	seg := s.Segment()
+	if seg == nil {
 		return
 	}
-	ci := s.Segment.Message.AddCap(v.GenericClient())
-	C.Struct(s).SetObject(0, C.Object(s.Segment.NewInterface(ci)))
+	ci := seg.Message.AddCap(v.GenericClient())
+	C.Struct(s).SetPointer(0, C.Pointer(seg.NewInterface(ci)))
 }
 
 type Echoer_echo_Params_List C.PointerList
 
-func NewEchoer_echo_Params_List(s *C.Segment, sz int) Echoer_echo_Params_List {
+func NewEchoer_echo_Params_List(s *C.Segment, sz int32) Echoer_echo_Params_List {
 	return Echoer_echo_Params_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 1}, sz))
 }
 func (s Echoer_echo_Params_List) Len() int { return C.PointerList(s).Len() }
@@ -599,7 +633,7 @@ func (s Echoer_echo_Params_List) At(i int) Echoer_echo_Params {
 	return Echoer_echo_Params(C.PointerList(s).At(i).ToStruct())
 }
 func (s Echoer_echo_Params_List) Set(i int, item Echoer_echo_Params) {
-	C.PointerList(s).Set(i, C.Object(item))
+	C.PointerList(s).Set(i, C.Pointer(item))
 }
 
 type Echoer_echo_Params_Promise C.Pipeline
@@ -627,20 +661,26 @@ func AutoNewEchoer_echo_Results(s *C.Segment) Echoer_echo_Results {
 func ReadRootEchoer_echo_Results(s *C.Segment) Echoer_echo_Results {
 	return Echoer_echo_Results(s.Root(0).ToStruct())
 }
+
+func (s Echoer_echo_Results) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
 func (s Echoer_echo_Results) Cap() CallOrder {
-	return NewCallOrder(C.Struct(s).GetObject(0).ToInterface().Client())
+	return NewCallOrder(C.Struct(s).Pointer(0).ToInterface().Client())
 }
 func (s Echoer_echo_Results) SetCap(v CallOrder) {
-	if s.Segment == nil {
+	seg := s.Segment()
+	if seg == nil {
 		return
 	}
-	ci := s.Segment.Message.AddCap(v.GenericClient())
-	C.Struct(s).SetObject(0, C.Object(s.Segment.NewInterface(ci)))
+	ci := seg.Message.AddCap(v.GenericClient())
+	C.Struct(s).SetPointer(0, C.Pointer(seg.NewInterface(ci)))
 }
 
 type Echoer_echo_Results_List C.PointerList
 
-func NewEchoer_echo_Results_List(s *C.Segment, sz int) Echoer_echo_Results_List {
+func NewEchoer_echo_Results_List(s *C.Segment, sz int32) Echoer_echo_Results_List {
 	return Echoer_echo_Results_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 1}, sz))
 }
 func (s Echoer_echo_Results_List) Len() int { return C.PointerList(s).Len() }
@@ -648,7 +688,7 @@ func (s Echoer_echo_Results_List) At(i int) Echoer_echo_Results {
 	return Echoer_echo_Results(C.PointerList(s).At(i).ToStruct())
 }
 func (s Echoer_echo_Results_List) Set(i int, item Echoer_echo_Results) {
-	C.PointerList(s).Set(i, C.Object(item))
+	C.PointerList(s).Set(i, C.Pointer(item))
 }
 
 type Echoer_echo_Results_Promise C.Pipeline
@@ -743,14 +783,19 @@ func AutoNewAdder_add_Params(s *C.Segment) Adder_add_Params {
 func ReadRootAdder_add_Params(s *C.Segment) Adder_add_Params {
 	return Adder_add_Params(s.Root(0).ToStruct())
 }
-func (s Adder_add_Params) A() int32     { return int32(C.Struct(s).Get32(0)) }
-func (s Adder_add_Params) SetA(v int32) { C.Struct(s).Set32(0, uint32(v)) }
-func (s Adder_add_Params) B() int32     { return int32(C.Struct(s).Get32(4)) }
-func (s Adder_add_Params) SetB(v int32) { C.Struct(s).Set32(4, uint32(v)) }
+
+func (s Adder_add_Params) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s Adder_add_Params) A() int32     { return int32(C.Struct(s).Uint32(0)) }
+func (s Adder_add_Params) SetA(v int32) { C.Struct(s).SetUint32(0, uint32(v)) }
+func (s Adder_add_Params) B() int32     { return int32(C.Struct(s).Uint32(4)) }
+func (s Adder_add_Params) SetB(v int32) { C.Struct(s).SetUint32(4, uint32(v)) }
 
 type Adder_add_Params_List C.PointerList
 
-func NewAdder_add_Params_List(s *C.Segment, sz int) Adder_add_Params_List {
+func NewAdder_add_Params_List(s *C.Segment, sz int32) Adder_add_Params_List {
 	return Adder_add_Params_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 0}, sz))
 }
 func (s Adder_add_Params_List) Len() int { return C.PointerList(s).Len() }
@@ -758,7 +803,7 @@ func (s Adder_add_Params_List) At(i int) Adder_add_Params {
 	return Adder_add_Params(C.PointerList(s).At(i).ToStruct())
 }
 func (s Adder_add_Params_List) Set(i int, item Adder_add_Params) {
-	C.PointerList(s).Set(i, C.Object(item))
+	C.PointerList(s).Set(i, C.Pointer(item))
 }
 
 type Adder_add_Params_Promise C.Pipeline
@@ -782,12 +827,17 @@ func AutoNewAdder_add_Results(s *C.Segment) Adder_add_Results {
 func ReadRootAdder_add_Results(s *C.Segment) Adder_add_Results {
 	return Adder_add_Results(s.Root(0).ToStruct())
 }
-func (s Adder_add_Results) Result() int32     { return int32(C.Struct(s).Get32(0)) }
-func (s Adder_add_Results) SetResult(v int32) { C.Struct(s).Set32(0, uint32(v)) }
+
+func (s Adder_add_Results) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s Adder_add_Results) Result() int32     { return int32(C.Struct(s).Uint32(0)) }
+func (s Adder_add_Results) SetResult(v int32) { C.Struct(s).SetUint32(0, uint32(v)) }
 
 type Adder_add_Results_List C.PointerList
 
-func NewAdder_add_Results_List(s *C.Segment, sz int) Adder_add_Results_List {
+func NewAdder_add_Results_List(s *C.Segment, sz int32) Adder_add_Results_List {
 	return Adder_add_Results_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 0}, sz))
 }
 func (s Adder_add_Results_List) Len() int { return C.PointerList(s).Len() }
@@ -795,7 +845,7 @@ func (s Adder_add_Results_List) At(i int) Adder_add_Results {
 	return Adder_add_Results(C.PointerList(s).At(i).ToStruct())
 }
 func (s Adder_add_Results_List) Set(i int, item Adder_add_Results) {
-	C.PointerList(s).Set(i, C.Object(item))
+	C.PointerList(s).Set(i, C.Pointer(item))
 }
 
 type Adder_add_Results_Promise C.Pipeline

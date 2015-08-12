@@ -73,56 +73,91 @@ func AutoNewMessage(s *C.Segment) Message {
 	return Message(s.NewStructAR(C.ObjectSize{DataSize: 8, PointerCount: 1}))
 }
 func ReadRootMessage(s *C.Segment) Message { return Message(s.Root(0).ToStruct()) }
-func (s Message) Which() Message_Which     { return Message_Which(C.Struct(s).Get16(0)) }
-func (s Message) Unimplemented() Message   { return Message(C.Struct(s).GetObject(0).ToStruct()) }
+
+func (s Message) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s Message) Which() Message_Which {
+	return Message_Which(C.Struct(s).Uint16(0))
+}
+
+func (s Message) Unimplemented() Message { return Message(C.Struct(s).Pointer(0).ToStruct()) }
 func (s Message) SetUnimplemented(v Message) {
-	C.Struct(s).Set16(0, 0)
-	C.Struct(s).SetObject(0, C.Object(v))
+	C.Struct(s).SetUint16(0, 0)
+	C.Struct(s).SetPointer(0, C.Pointer(v))
 }
-func (s Message) Abort() Exception     { return Exception(C.Struct(s).GetObject(0).ToStruct()) }
-func (s Message) SetAbort(v Exception) { C.Struct(s).Set16(0, 1); C.Struct(s).SetObject(0, C.Object(v)) }
-func (s Message) Bootstrap() Bootstrap { return Bootstrap(C.Struct(s).GetObject(0).ToStruct()) }
+func (s Message) Abort() Exception { return Exception(C.Struct(s).Pointer(0).ToStruct()) }
+func (s Message) SetAbort(v Exception) {
+	C.Struct(s).SetUint16(0, 1)
+	C.Struct(s).SetPointer(0, C.Pointer(v))
+}
+func (s Message) Bootstrap() Bootstrap { return Bootstrap(C.Struct(s).Pointer(0).ToStruct()) }
 func (s Message) SetBootstrap(v Bootstrap) {
-	C.Struct(s).Set16(0, 8)
-	C.Struct(s).SetObject(0, C.Object(v))
+	C.Struct(s).SetUint16(0, 8)
+	C.Struct(s).SetPointer(0, C.Pointer(v))
 }
-func (s Message) Call() Call             { return Call(C.Struct(s).GetObject(0).ToStruct()) }
-func (s Message) SetCall(v Call)         { C.Struct(s).Set16(0, 2); C.Struct(s).SetObject(0, C.Object(v)) }
-func (s Message) Return() Return         { return Return(C.Struct(s).GetObject(0).ToStruct()) }
-func (s Message) SetReturn(v Return)     { C.Struct(s).Set16(0, 3); C.Struct(s).SetObject(0, C.Object(v)) }
-func (s Message) Finish() Finish         { return Finish(C.Struct(s).GetObject(0).ToStruct()) }
-func (s Message) SetFinish(v Finish)     { C.Struct(s).Set16(0, 4); C.Struct(s).SetObject(0, C.Object(v)) }
-func (s Message) Resolve() Resolve       { return Resolve(C.Struct(s).GetObject(0).ToStruct()) }
-func (s Message) SetResolve(v Resolve)   { C.Struct(s).Set16(0, 5); C.Struct(s).SetObject(0, C.Object(v)) }
-func (s Message) Release() Release       { return Release(C.Struct(s).GetObject(0).ToStruct()) }
-func (s Message) SetRelease(v Release)   { C.Struct(s).Set16(0, 6); C.Struct(s).SetObject(0, C.Object(v)) }
-func (s Message) Disembargo() Disembargo { return Disembargo(C.Struct(s).GetObject(0).ToStruct()) }
+func (s Message) Call() Call     { return Call(C.Struct(s).Pointer(0).ToStruct()) }
+func (s Message) SetCall(v Call) { C.Struct(s).SetUint16(0, 2); C.Struct(s).SetPointer(0, C.Pointer(v)) }
+func (s Message) Return() Return { return Return(C.Struct(s).Pointer(0).ToStruct()) }
+func (s Message) SetReturn(v Return) {
+	C.Struct(s).SetUint16(0, 3)
+	C.Struct(s).SetPointer(0, C.Pointer(v))
+}
+func (s Message) Finish() Finish { return Finish(C.Struct(s).Pointer(0).ToStruct()) }
+func (s Message) SetFinish(v Finish) {
+	C.Struct(s).SetUint16(0, 4)
+	C.Struct(s).SetPointer(0, C.Pointer(v))
+}
+func (s Message) Resolve() Resolve { return Resolve(C.Struct(s).Pointer(0).ToStruct()) }
+func (s Message) SetResolve(v Resolve) {
+	C.Struct(s).SetUint16(0, 5)
+	C.Struct(s).SetPointer(0, C.Pointer(v))
+}
+func (s Message) Release() Release { return Release(C.Struct(s).Pointer(0).ToStruct()) }
+func (s Message) SetRelease(v Release) {
+	C.Struct(s).SetUint16(0, 6)
+	C.Struct(s).SetPointer(0, C.Pointer(v))
+}
+func (s Message) Disembargo() Disembargo { return Disembargo(C.Struct(s).Pointer(0).ToStruct()) }
 func (s Message) SetDisembargo(v Disembargo) {
-	C.Struct(s).Set16(0, 13)
-	C.Struct(s).SetObject(0, C.Object(v))
+	C.Struct(s).SetUint16(0, 13)
+	C.Struct(s).SetPointer(0, C.Pointer(v))
 }
-func (s Message) ObsoleteSave() C.Object       { return C.Struct(s).GetObject(0) }
-func (s Message) SetObsoleteSave(v C.Object)   { C.Struct(s).Set16(0, 7); C.Struct(s).SetObject(0, v) }
-func (s Message) ObsoleteDelete() C.Object     { return C.Struct(s).GetObject(0) }
-func (s Message) SetObsoleteDelete(v C.Object) { C.Struct(s).Set16(0, 9); C.Struct(s).SetObject(0, v) }
-func (s Message) Provide() Provide             { return Provide(C.Struct(s).GetObject(0).ToStruct()) }
+func (s Message) ObsoleteSave() C.Pointer { return C.Struct(s).Pointer(0) }
+func (s Message) SetObsoleteSave(v C.Pointer) {
+	C.Struct(s).SetUint16(0, 7)
+	C.Struct(s).SetPointer(0, v)
+}
+func (s Message) ObsoleteDelete() C.Pointer { return C.Struct(s).Pointer(0) }
+func (s Message) SetObsoleteDelete(v C.Pointer) {
+	C.Struct(s).SetUint16(0, 9)
+	C.Struct(s).SetPointer(0, v)
+}
+func (s Message) Provide() Provide { return Provide(C.Struct(s).Pointer(0).ToStruct()) }
 func (s Message) SetProvide(v Provide) {
-	C.Struct(s).Set16(0, 10)
-	C.Struct(s).SetObject(0, C.Object(v))
+	C.Struct(s).SetUint16(0, 10)
+	C.Struct(s).SetPointer(0, C.Pointer(v))
 }
-func (s Message) Accept() Accept     { return Accept(C.Struct(s).GetObject(0).ToStruct()) }
-func (s Message) SetAccept(v Accept) { C.Struct(s).Set16(0, 11); C.Struct(s).SetObject(0, C.Object(v)) }
-func (s Message) Join() Join         { return Join(C.Struct(s).GetObject(0).ToStruct()) }
-func (s Message) SetJoin(v Join)     { C.Struct(s).Set16(0, 12); C.Struct(s).SetObject(0, C.Object(v)) }
+func (s Message) Accept() Accept { return Accept(C.Struct(s).Pointer(0).ToStruct()) }
+func (s Message) SetAccept(v Accept) {
+	C.Struct(s).SetUint16(0, 11)
+	C.Struct(s).SetPointer(0, C.Pointer(v))
+}
+func (s Message) Join() Join { return Join(C.Struct(s).Pointer(0).ToStruct()) }
+func (s Message) SetJoin(v Join) {
+	C.Struct(s).SetUint16(0, 12)
+	C.Struct(s).SetPointer(0, C.Pointer(v))
+}
 
 type Message_List C.PointerList
 
-func NewMessage_List(s *C.Segment, sz int) Message_List {
+func NewMessage_List(s *C.Segment, sz int32) Message_List {
 	return Message_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 1}, sz))
 }
 func (s Message_List) Len() int                { return C.PointerList(s).Len() }
 func (s Message_List) At(i int) Message        { return Message(C.PointerList(s).At(i).ToStruct()) }
-func (s Message_List) Set(i int, item Message) { C.PointerList(s).Set(i, C.Object(item)) }
+func (s Message_List) Set(i int, item Message) { C.PointerList(s).Set(i, C.Pointer(item)) }
 
 type Message_Promise C.Pipeline
 
@@ -198,20 +233,25 @@ func NewRootBootstrap(s *C.Segment) Bootstrap {
 func AutoNewBootstrap(s *C.Segment) Bootstrap {
 	return Bootstrap(s.NewStructAR(C.ObjectSize{DataSize: 8, PointerCount: 1}))
 }
-func ReadRootBootstrap(s *C.Segment) Bootstrap       { return Bootstrap(s.Root(0).ToStruct()) }
-func (s Bootstrap) QuestionId() uint32               { return C.Struct(s).Get32(0) }
-func (s Bootstrap) SetQuestionId(v uint32)           { C.Struct(s).Set32(0, v) }
-func (s Bootstrap) DeprecatedObjectId() C.Object     { return C.Struct(s).GetObject(0) }
-func (s Bootstrap) SetDeprecatedObjectId(v C.Object) { C.Struct(s).SetObject(0, v) }
+func ReadRootBootstrap(s *C.Segment) Bootstrap { return Bootstrap(s.Root(0).ToStruct()) }
+
+func (s Bootstrap) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s Bootstrap) QuestionId() uint32                { return C.Struct(s).Uint32(0) }
+func (s Bootstrap) SetQuestionId(v uint32)            { C.Struct(s).SetUint32(0, v) }
+func (s Bootstrap) DeprecatedObjectId() C.Pointer     { return C.Struct(s).Pointer(0) }
+func (s Bootstrap) SetDeprecatedObjectId(v C.Pointer) { C.Struct(s).SetPointer(0, v) }
 
 type Bootstrap_List C.PointerList
 
-func NewBootstrap_List(s *C.Segment, sz int) Bootstrap_List {
+func NewBootstrap_List(s *C.Segment, sz int32) Bootstrap_List {
 	return Bootstrap_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 1}, sz))
 }
 func (s Bootstrap_List) Len() int                  { return C.PointerList(s).Len() }
 func (s Bootstrap_List) At(i int) Bootstrap        { return Bootstrap(C.PointerList(s).At(i).ToStruct()) }
-func (s Bootstrap_List) Set(i int, item Bootstrap) { C.PointerList(s).Set(i, C.Object(item)) }
+func (s Bootstrap_List) Set(i int, item Bootstrap) { C.PointerList(s).Set(i, C.Pointer(item)) }
 
 type Bootstrap_Promise C.Pipeline
 
@@ -255,39 +295,50 @@ func NewRootCall(s *C.Segment) Call {
 func AutoNewCall(s *C.Segment) Call {
 	return Call(s.NewStructAR(C.ObjectSize{DataSize: 24, PointerCount: 3}))
 }
-func ReadRootCall(s *C.Segment) Call             { return Call(s.Root(0).ToStruct()) }
-func (s Call) QuestionId() uint32                { return C.Struct(s).Get32(0) }
-func (s Call) SetQuestionId(v uint32)            { C.Struct(s).Set32(0, v) }
-func (s Call) Target() MessageTarget             { return MessageTarget(C.Struct(s).GetObject(0).ToStruct()) }
-func (s Call) SetTarget(v MessageTarget)         { C.Struct(s).SetObject(0, C.Object(v)) }
-func (s Call) InterfaceId() uint64               { return C.Struct(s).Get64(8) }
-func (s Call) SetInterfaceId(v uint64)           { C.Struct(s).Set64(8, v) }
-func (s Call) MethodId() uint16                  { return C.Struct(s).Get16(4) }
-func (s Call) SetMethodId(v uint16)              { C.Struct(s).Set16(4, v) }
-func (s Call) AllowThirdPartyTailCall() bool     { return C.Struct(s).Get1(128) }
-func (s Call) SetAllowThirdPartyTailCall(v bool) { C.Struct(s).Set1(128, v) }
-func (s Call) Params() Payload                   { return Payload(C.Struct(s).GetObject(1).ToStruct()) }
-func (s Call) SetParams(v Payload)               { C.Struct(s).SetObject(1, C.Object(v)) }
-func (s Call) SendResultsTo() Call_sendResultsTo { return Call_sendResultsTo(s) }
-func (s Call_sendResultsTo) Which() Call_sendResultsTo_Which {
-	return Call_sendResultsTo_Which(C.Struct(s).Get16(6))
+func ReadRootCall(s *C.Segment) Call { return Call(s.Root(0).ToStruct()) }
+
+func (s Call) Segment() *C.Segment {
+	return C.Struct(s).Segment()
 }
-func (s Call_sendResultsTo) SetCaller()           { C.Struct(s).Set16(6, 0) }
-func (s Call_sendResultsTo) SetYourself()         { C.Struct(s).Set16(6, 1) }
-func (s Call_sendResultsTo) ThirdParty() C.Object { return C.Struct(s).GetObject(2) }
-func (s Call_sendResultsTo) SetThirdParty(v C.Object) {
-	C.Struct(s).Set16(6, 2)
-	C.Struct(s).SetObject(2, v)
+
+func (s Call) QuestionId() uint32                { return C.Struct(s).Uint32(0) }
+func (s Call) SetQuestionId(v uint32)            { C.Struct(s).SetUint32(0, v) }
+func (s Call) Target() MessageTarget             { return MessageTarget(C.Struct(s).Pointer(0).ToStruct()) }
+func (s Call) SetTarget(v MessageTarget)         { C.Struct(s).SetPointer(0, C.Pointer(v)) }
+func (s Call) InterfaceId() uint64               { return C.Struct(s).Uint64(8) }
+func (s Call) SetInterfaceId(v uint64)           { C.Struct(s).SetUint64(8, v) }
+func (s Call) MethodId() uint16                  { return C.Struct(s).Uint16(4) }
+func (s Call) SetMethodId(v uint16)              { C.Struct(s).SetUint16(4, v) }
+func (s Call) AllowThirdPartyTailCall() bool     { return C.Struct(s).Bit(128) }
+func (s Call) SetAllowThirdPartyTailCall(v bool) { C.Struct(s).SetBit(128, v) }
+func (s Call) Params() Payload                   { return Payload(C.Struct(s).Pointer(1).ToStruct()) }
+func (s Call) SetParams(v Payload)               { C.Struct(s).SetPointer(1, C.Pointer(v)) }
+func (s Call) SendResultsTo() Call_sendResultsTo { return Call_sendResultsTo(s) }
+
+func (s Call_sendResultsTo) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s Call_sendResultsTo) Which() Call_sendResultsTo_Which {
+	return Call_sendResultsTo_Which(C.Struct(s).Uint16(6))
+}
+
+func (s Call_sendResultsTo) SetCaller()            { C.Struct(s).SetUint16(6, 0) }
+func (s Call_sendResultsTo) SetYourself()          { C.Struct(s).SetUint16(6, 1) }
+func (s Call_sendResultsTo) ThirdParty() C.Pointer { return C.Struct(s).Pointer(2) }
+func (s Call_sendResultsTo) SetThirdParty(v C.Pointer) {
+	C.Struct(s).SetUint16(6, 2)
+	C.Struct(s).SetPointer(2, v)
 }
 
 type Call_List C.PointerList
 
-func NewCall_List(s *C.Segment, sz int) Call_List {
+func NewCall_List(s *C.Segment, sz int32) Call_List {
 	return Call_List(s.NewCompositeList(C.ObjectSize{DataSize: 24, PointerCount: 3}, sz))
 }
 func (s Call_List) Len() int             { return C.PointerList(s).Len() }
 func (s Call_List) At(i int) Call        { return Call(C.PointerList(s).At(i).ToStruct()) }
-func (s Call_List) Set(i int, item Call) { C.PointerList(s).Set(i, C.Object(item)) }
+func (s Call_List) Set(i int, item Call) { C.PointerList(s).Set(i, C.Pointer(item)) }
 
 type Call_Promise C.Pipeline
 
@@ -359,37 +410,51 @@ func NewRootReturn(s *C.Segment) Return {
 func AutoNewReturn(s *C.Segment) Return {
 	return Return(s.NewStructAR(C.ObjectSize{DataSize: 16, PointerCount: 1}))
 }
-func ReadRootReturn(s *C.Segment) Return    { return Return(s.Root(0).ToStruct()) }
-func (s Return) Which() Return_Which        { return Return_Which(C.Struct(s).Get16(6)) }
-func (s Return) AnswerId() uint32           { return C.Struct(s).Get32(0) }
-func (s Return) SetAnswerId(v uint32)       { C.Struct(s).Set32(0, v) }
-func (s Return) ReleaseParamCaps() bool     { return !C.Struct(s).Get1(32) }
-func (s Return) SetReleaseParamCaps(v bool) { C.Struct(s).Set1(32, !v) }
-func (s Return) Results() Payload           { return Payload(C.Struct(s).GetObject(0).ToStruct()) }
-func (s Return) SetResults(v Payload)       { C.Struct(s).Set16(6, 0); C.Struct(s).SetObject(0, C.Object(v)) }
-func (s Return) Exception() Exception       { return Exception(C.Struct(s).GetObject(0).ToStruct()) }
-func (s Return) SetException(v Exception) {
-	C.Struct(s).Set16(6, 1)
-	C.Struct(s).SetObject(0, C.Object(v))
+func ReadRootReturn(s *C.Segment) Return { return Return(s.Root(0).ToStruct()) }
+
+func (s Return) Segment() *C.Segment {
+	return C.Struct(s).Segment()
 }
-func (s Return) SetCanceled()                      { C.Struct(s).Set16(6, 2) }
-func (s Return) SetResultsSentElsewhere()          { C.Struct(s).Set16(6, 3) }
-func (s Return) TakeFromOtherQuestion() uint32     { return C.Struct(s).Get32(8) }
-func (s Return) SetTakeFromOtherQuestion(v uint32) { C.Struct(s).Set16(6, 4); C.Struct(s).Set32(8, v) }
-func (s Return) AcceptFromThirdParty() C.Object    { return C.Struct(s).GetObject(0) }
-func (s Return) SetAcceptFromThirdParty(v C.Object) {
-	C.Struct(s).Set16(6, 5)
-	C.Struct(s).SetObject(0, v)
+
+func (s Return) Which() Return_Which {
+	return Return_Which(C.Struct(s).Uint16(6))
+}
+
+func (s Return) AnswerId() uint32           { return C.Struct(s).Uint32(0) }
+func (s Return) SetAnswerId(v uint32)       { C.Struct(s).SetUint32(0, v) }
+func (s Return) ReleaseParamCaps() bool     { return !C.Struct(s).Bit(32) }
+func (s Return) SetReleaseParamCaps(v bool) { C.Struct(s).SetBit(32, !v) }
+func (s Return) Results() Payload           { return Payload(C.Struct(s).Pointer(0).ToStruct()) }
+func (s Return) SetResults(v Payload) {
+	C.Struct(s).SetUint16(6, 0)
+	C.Struct(s).SetPointer(0, C.Pointer(v))
+}
+func (s Return) Exception() Exception { return Exception(C.Struct(s).Pointer(0).ToStruct()) }
+func (s Return) SetException(v Exception) {
+	C.Struct(s).SetUint16(6, 1)
+	C.Struct(s).SetPointer(0, C.Pointer(v))
+}
+func (s Return) SetCanceled()                  { C.Struct(s).SetUint16(6, 2) }
+func (s Return) SetResultsSentElsewhere()      { C.Struct(s).SetUint16(6, 3) }
+func (s Return) TakeFromOtherQuestion() uint32 { return C.Struct(s).Uint32(8) }
+func (s Return) SetTakeFromOtherQuestion(v uint32) {
+	C.Struct(s).SetUint16(6, 4)
+	C.Struct(s).SetUint32(8, v)
+}
+func (s Return) AcceptFromThirdParty() C.Pointer { return C.Struct(s).Pointer(0) }
+func (s Return) SetAcceptFromThirdParty(v C.Pointer) {
+	C.Struct(s).SetUint16(6, 5)
+	C.Struct(s).SetPointer(0, v)
 }
 
 type Return_List C.PointerList
 
-func NewReturn_List(s *C.Segment, sz int) Return_List {
+func NewReturn_List(s *C.Segment, sz int32) Return_List {
 	return Return_List(s.NewCompositeList(C.ObjectSize{DataSize: 16, PointerCount: 1}, sz))
 }
 func (s Return_List) Len() int               { return C.PointerList(s).Len() }
 func (s Return_List) At(i int) Return        { return Return(C.PointerList(s).At(i).ToStruct()) }
-func (s Return_List) Set(i int, item Return) { C.PointerList(s).Set(i, C.Object(item)) }
+func (s Return_List) Set(i int, item Return) { C.PointerList(s).Set(i, C.Pointer(item)) }
 
 type Return_Promise C.Pipeline
 
@@ -421,20 +486,25 @@ func NewRootFinish(s *C.Segment) Finish {
 func AutoNewFinish(s *C.Segment) Finish {
 	return Finish(s.NewStructAR(C.ObjectSize{DataSize: 8, PointerCount: 0}))
 }
-func ReadRootFinish(s *C.Segment) Finish     { return Finish(s.Root(0).ToStruct()) }
-func (s Finish) QuestionId() uint32          { return C.Struct(s).Get32(0) }
-func (s Finish) SetQuestionId(v uint32)      { C.Struct(s).Set32(0, v) }
-func (s Finish) ReleaseResultCaps() bool     { return !C.Struct(s).Get1(32) }
-func (s Finish) SetReleaseResultCaps(v bool) { C.Struct(s).Set1(32, !v) }
+func ReadRootFinish(s *C.Segment) Finish { return Finish(s.Root(0).ToStruct()) }
+
+func (s Finish) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s Finish) QuestionId() uint32          { return C.Struct(s).Uint32(0) }
+func (s Finish) SetQuestionId(v uint32)      { C.Struct(s).SetUint32(0, v) }
+func (s Finish) ReleaseResultCaps() bool     { return !C.Struct(s).Bit(32) }
+func (s Finish) SetReleaseResultCaps(v bool) { C.Struct(s).SetBit(32, !v) }
 
 type Finish_List C.PointerList
 
-func NewFinish_List(s *C.Segment, sz int) Finish_List {
+func NewFinish_List(s *C.Segment, sz int32) Finish_List {
 	return Finish_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 0}, sz))
 }
 func (s Finish_List) Len() int               { return C.PointerList(s).Len() }
 func (s Finish_List) At(i int) Finish        { return Finish(C.PointerList(s).At(i).ToStruct()) }
-func (s Finish_List) Set(i int, item Finish) { C.PointerList(s).Set(i, C.Object(item)) }
+func (s Finish_List) Set(i int, item Finish) { C.PointerList(s).Set(i, C.Pointer(item)) }
 
 type Finish_Promise C.Pipeline
 
@@ -473,28 +543,36 @@ func AutoNewResolve(s *C.Segment) Resolve {
 	return Resolve(s.NewStructAR(C.ObjectSize{DataSize: 8, PointerCount: 1}))
 }
 func ReadRootResolve(s *C.Segment) Resolve { return Resolve(s.Root(0).ToStruct()) }
-func (s Resolve) Which() Resolve_Which     { return Resolve_Which(C.Struct(s).Get16(4)) }
-func (s Resolve) PromiseId() uint32        { return C.Struct(s).Get32(0) }
-func (s Resolve) SetPromiseId(v uint32)    { C.Struct(s).Set32(0, v) }
-func (s Resolve) Cap() CapDescriptor       { return CapDescriptor(C.Struct(s).GetObject(0).ToStruct()) }
-func (s Resolve) SetCap(v CapDescriptor) {
-	C.Struct(s).Set16(4, 0)
-	C.Struct(s).SetObject(0, C.Object(v))
+
+func (s Resolve) Segment() *C.Segment {
+	return C.Struct(s).Segment()
 }
-func (s Resolve) Exception() Exception { return Exception(C.Struct(s).GetObject(0).ToStruct()) }
+
+func (s Resolve) Which() Resolve_Which {
+	return Resolve_Which(C.Struct(s).Uint16(4))
+}
+
+func (s Resolve) PromiseId() uint32     { return C.Struct(s).Uint32(0) }
+func (s Resolve) SetPromiseId(v uint32) { C.Struct(s).SetUint32(0, v) }
+func (s Resolve) Cap() CapDescriptor    { return CapDescriptor(C.Struct(s).Pointer(0).ToStruct()) }
+func (s Resolve) SetCap(v CapDescriptor) {
+	C.Struct(s).SetUint16(4, 0)
+	C.Struct(s).SetPointer(0, C.Pointer(v))
+}
+func (s Resolve) Exception() Exception { return Exception(C.Struct(s).Pointer(0).ToStruct()) }
 func (s Resolve) SetException(v Exception) {
-	C.Struct(s).Set16(4, 1)
-	C.Struct(s).SetObject(0, C.Object(v))
+	C.Struct(s).SetUint16(4, 1)
+	C.Struct(s).SetPointer(0, C.Pointer(v))
 }
 
 type Resolve_List C.PointerList
 
-func NewResolve_List(s *C.Segment, sz int) Resolve_List {
+func NewResolve_List(s *C.Segment, sz int32) Resolve_List {
 	return Resolve_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 1}, sz))
 }
 func (s Resolve_List) Len() int                { return C.PointerList(s).Len() }
 func (s Resolve_List) At(i int) Resolve        { return Resolve(C.PointerList(s).At(i).ToStruct()) }
-func (s Resolve_List) Set(i int, item Resolve) { C.PointerList(s).Set(i, C.Object(item)) }
+func (s Resolve_List) Set(i int, item Resolve) { C.PointerList(s).Set(i, C.Pointer(item)) }
 
 type Resolve_Promise C.Pipeline
 
@@ -522,20 +600,25 @@ func NewRootRelease(s *C.Segment) Release {
 func AutoNewRelease(s *C.Segment) Release {
 	return Release(s.NewStructAR(C.ObjectSize{DataSize: 8, PointerCount: 0}))
 }
-func ReadRootRelease(s *C.Segment) Release   { return Release(s.Root(0).ToStruct()) }
-func (s Release) Id() uint32                 { return C.Struct(s).Get32(0) }
-func (s Release) SetId(v uint32)             { C.Struct(s).Set32(0, v) }
-func (s Release) ReferenceCount() uint32     { return C.Struct(s).Get32(4) }
-func (s Release) SetReferenceCount(v uint32) { C.Struct(s).Set32(4, v) }
+func ReadRootRelease(s *C.Segment) Release { return Release(s.Root(0).ToStruct()) }
+
+func (s Release) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s Release) Id() uint32                 { return C.Struct(s).Uint32(0) }
+func (s Release) SetId(v uint32)             { C.Struct(s).SetUint32(0, v) }
+func (s Release) ReferenceCount() uint32     { return C.Struct(s).Uint32(4) }
+func (s Release) SetReferenceCount(v uint32) { C.Struct(s).SetUint32(4, v) }
 
 type Release_List C.PointerList
 
-func NewRelease_List(s *C.Segment, sz int) Release_List {
+func NewRelease_List(s *C.Segment, sz int32) Release_List {
 	return Release_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 0}, sz))
 }
 func (s Release_List) Len() int                { return C.PointerList(s).Len() }
 func (s Release_List) At(i int) Release        { return Release(C.PointerList(s).At(i).ToStruct()) }
-func (s Release_List) Set(i int, item Release) { C.PointerList(s).Set(i, C.Object(item)) }
+func (s Release_List) Set(i int, item Release) { C.PointerList(s).Set(i, C.Pointer(item)) }
 
 type Release_Promise C.Pipeline
 
@@ -581,34 +664,48 @@ func AutoNewDisembargo(s *C.Segment) Disembargo {
 	return Disembargo(s.NewStructAR(C.ObjectSize{DataSize: 8, PointerCount: 1}))
 }
 func ReadRootDisembargo(s *C.Segment) Disembargo { return Disembargo(s.Root(0).ToStruct()) }
-func (s Disembargo) Target() MessageTarget       { return MessageTarget(C.Struct(s).GetObject(0).ToStruct()) }
-func (s Disembargo) SetTarget(v MessageTarget)   { C.Struct(s).SetObject(0, C.Object(v)) }
+
+func (s Disembargo) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s Disembargo) Target() MessageTarget       { return MessageTarget(C.Struct(s).Pointer(0).ToStruct()) }
+func (s Disembargo) SetTarget(v MessageTarget)   { C.Struct(s).SetPointer(0, C.Pointer(v)) }
 func (s Disembargo) Context() Disembargo_context { return Disembargo_context(s) }
+
+func (s Disembargo_context) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
 func (s Disembargo_context) Which() Disembargo_context_Which {
-	return Disembargo_context_Which(C.Struct(s).Get16(4))
+	return Disembargo_context_Which(C.Struct(s).Uint16(4))
 }
-func (s Disembargo_context) SenderLoopback() uint32 { return C.Struct(s).Get32(0) }
+
+func (s Disembargo_context) SenderLoopback() uint32 { return C.Struct(s).Uint32(0) }
 func (s Disembargo_context) SetSenderLoopback(v uint32) {
-	C.Struct(s).Set16(4, 0)
-	C.Struct(s).Set32(0, v)
+	C.Struct(s).SetUint16(4, 0)
+	C.Struct(s).SetUint32(0, v)
 }
-func (s Disembargo_context) ReceiverLoopback() uint32 { return C.Struct(s).Get32(0) }
+func (s Disembargo_context) ReceiverLoopback() uint32 { return C.Struct(s).Uint32(0) }
 func (s Disembargo_context) SetReceiverLoopback(v uint32) {
-	C.Struct(s).Set16(4, 1)
-	C.Struct(s).Set32(0, v)
+	C.Struct(s).SetUint16(4, 1)
+	C.Struct(s).SetUint32(0, v)
 }
-func (s Disembargo_context) SetAccept()          { C.Struct(s).Set16(4, 2) }
-func (s Disembargo_context) Provide() uint32     { return C.Struct(s).Get32(0) }
-func (s Disembargo_context) SetProvide(v uint32) { C.Struct(s).Set16(4, 3); C.Struct(s).Set32(0, v) }
+func (s Disembargo_context) SetAccept()      { C.Struct(s).SetUint16(4, 2) }
+func (s Disembargo_context) Provide() uint32 { return C.Struct(s).Uint32(0) }
+func (s Disembargo_context) SetProvide(v uint32) {
+	C.Struct(s).SetUint16(4, 3)
+	C.Struct(s).SetUint32(0, v)
+}
 
 type Disembargo_List C.PointerList
 
-func NewDisembargo_List(s *C.Segment, sz int) Disembargo_List {
+func NewDisembargo_List(s *C.Segment, sz int32) Disembargo_List {
 	return Disembargo_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 1}, sz))
 }
 func (s Disembargo_List) Len() int                   { return C.PointerList(s).Len() }
 func (s Disembargo_List) At(i int) Disembargo        { return Disembargo(C.PointerList(s).At(i).ToStruct()) }
-func (s Disembargo_List) Set(i int, item Disembargo) { C.PointerList(s).Set(i, C.Object(item)) }
+func (s Disembargo_List) Set(i int, item Disembargo) { C.PointerList(s).Set(i, C.Pointer(item)) }
 
 type Disembargo_Promise C.Pipeline
 
@@ -642,22 +739,27 @@ func NewRootProvide(s *C.Segment) Provide {
 func AutoNewProvide(s *C.Segment) Provide {
 	return Provide(s.NewStructAR(C.ObjectSize{DataSize: 8, PointerCount: 2}))
 }
-func ReadRootProvide(s *C.Segment) Provide  { return Provide(s.Root(0).ToStruct()) }
-func (s Provide) QuestionId() uint32        { return C.Struct(s).Get32(0) }
-func (s Provide) SetQuestionId(v uint32)    { C.Struct(s).Set32(0, v) }
-func (s Provide) Target() MessageTarget     { return MessageTarget(C.Struct(s).GetObject(0).ToStruct()) }
-func (s Provide) SetTarget(v MessageTarget) { C.Struct(s).SetObject(0, C.Object(v)) }
-func (s Provide) Recipient() C.Object       { return C.Struct(s).GetObject(1) }
-func (s Provide) SetRecipient(v C.Object)   { C.Struct(s).SetObject(1, v) }
+func ReadRootProvide(s *C.Segment) Provide { return Provide(s.Root(0).ToStruct()) }
+
+func (s Provide) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s Provide) QuestionId() uint32        { return C.Struct(s).Uint32(0) }
+func (s Provide) SetQuestionId(v uint32)    { C.Struct(s).SetUint32(0, v) }
+func (s Provide) Target() MessageTarget     { return MessageTarget(C.Struct(s).Pointer(0).ToStruct()) }
+func (s Provide) SetTarget(v MessageTarget) { C.Struct(s).SetPointer(0, C.Pointer(v)) }
+func (s Provide) Recipient() C.Pointer      { return C.Struct(s).Pointer(1) }
+func (s Provide) SetRecipient(v C.Pointer)  { C.Struct(s).SetPointer(1, v) }
 
 type Provide_List C.PointerList
 
-func NewProvide_List(s *C.Segment, sz int) Provide_List {
+func NewProvide_List(s *C.Segment, sz int32) Provide_List {
 	return Provide_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 2}, sz))
 }
 func (s Provide_List) Len() int                { return C.PointerList(s).Len() }
 func (s Provide_List) At(i int) Provide        { return Provide(C.PointerList(s).At(i).ToStruct()) }
-func (s Provide_List) Set(i int, item Provide) { C.PointerList(s).Set(i, C.Object(item)) }
+func (s Provide_List) Set(i int, item Provide) { C.PointerList(s).Set(i, C.Pointer(item)) }
 
 type Provide_Promise C.Pipeline
 
@@ -686,21 +788,26 @@ func AutoNewAccept(s *C.Segment) Accept {
 	return Accept(s.NewStructAR(C.ObjectSize{DataSize: 8, PointerCount: 1}))
 }
 func ReadRootAccept(s *C.Segment) Accept { return Accept(s.Root(0).ToStruct()) }
-func (s Accept) QuestionId() uint32      { return C.Struct(s).Get32(0) }
-func (s Accept) SetQuestionId(v uint32)  { C.Struct(s).Set32(0, v) }
-func (s Accept) Provision() C.Object     { return C.Struct(s).GetObject(0) }
-func (s Accept) SetProvision(v C.Object) { C.Struct(s).SetObject(0, v) }
-func (s Accept) Embargo() bool           { return C.Struct(s).Get1(32) }
-func (s Accept) SetEmbargo(v bool)       { C.Struct(s).Set1(32, v) }
+
+func (s Accept) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s Accept) QuestionId() uint32       { return C.Struct(s).Uint32(0) }
+func (s Accept) SetQuestionId(v uint32)   { C.Struct(s).SetUint32(0, v) }
+func (s Accept) Provision() C.Pointer     { return C.Struct(s).Pointer(0) }
+func (s Accept) SetProvision(v C.Pointer) { C.Struct(s).SetPointer(0, v) }
+func (s Accept) Embargo() bool            { return C.Struct(s).Bit(32) }
+func (s Accept) SetEmbargo(v bool)        { C.Struct(s).SetBit(32, v) }
 
 type Accept_List C.PointerList
 
-func NewAccept_List(s *C.Segment, sz int) Accept_List {
+func NewAccept_List(s *C.Segment, sz int32) Accept_List {
 	return Accept_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 1}, sz))
 }
 func (s Accept_List) Len() int               { return C.PointerList(s).Len() }
 func (s Accept_List) At(i int) Accept        { return Accept(C.PointerList(s).At(i).ToStruct()) }
-func (s Accept_List) Set(i int, item Accept) { C.PointerList(s).Set(i, C.Object(item)) }
+func (s Accept_List) Set(i int, item Accept) { C.PointerList(s).Set(i, C.Pointer(item)) }
 
 type Accept_Promise C.Pipeline
 
@@ -722,22 +829,27 @@ func NewRootJoin(s *C.Segment) Join {
 func AutoNewJoin(s *C.Segment) Join {
 	return Join(s.NewStructAR(C.ObjectSize{DataSize: 8, PointerCount: 2}))
 }
-func ReadRootJoin(s *C.Segment) Join     { return Join(s.Root(0).ToStruct()) }
-func (s Join) QuestionId() uint32        { return C.Struct(s).Get32(0) }
-func (s Join) SetQuestionId(v uint32)    { C.Struct(s).Set32(0, v) }
-func (s Join) Target() MessageTarget     { return MessageTarget(C.Struct(s).GetObject(0).ToStruct()) }
-func (s Join) SetTarget(v MessageTarget) { C.Struct(s).SetObject(0, C.Object(v)) }
-func (s Join) KeyPart() C.Object         { return C.Struct(s).GetObject(1) }
-func (s Join) SetKeyPart(v C.Object)     { C.Struct(s).SetObject(1, v) }
+func ReadRootJoin(s *C.Segment) Join { return Join(s.Root(0).ToStruct()) }
+
+func (s Join) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s Join) QuestionId() uint32        { return C.Struct(s).Uint32(0) }
+func (s Join) SetQuestionId(v uint32)    { C.Struct(s).SetUint32(0, v) }
+func (s Join) Target() MessageTarget     { return MessageTarget(C.Struct(s).Pointer(0).ToStruct()) }
+func (s Join) SetTarget(v MessageTarget) { C.Struct(s).SetPointer(0, C.Pointer(v)) }
+func (s Join) KeyPart() C.Pointer        { return C.Struct(s).Pointer(1) }
+func (s Join) SetKeyPart(v C.Pointer)    { C.Struct(s).SetPointer(1, v) }
 
 type Join_List C.PointerList
 
-func NewJoin_List(s *C.Segment, sz int) Join_List {
+func NewJoin_List(s *C.Segment, sz int32) Join_List {
 	return Join_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 2}, sz))
 }
 func (s Join_List) Len() int             { return C.PointerList(s).Len() }
 func (s Join_List) At(i int) Join        { return Join(C.PointerList(s).At(i).ToStruct()) }
-func (s Join_List) Set(i int, item Join) { C.PointerList(s).Set(i, C.Object(item)) }
+func (s Join_List) Set(i int, item Join) { C.PointerList(s).Set(i, C.Pointer(item)) }
 
 type Join_Promise C.Pipeline
 
@@ -784,27 +896,38 @@ func AutoNewMessageTarget(s *C.Segment) MessageTarget {
 	return MessageTarget(s.NewStructAR(C.ObjectSize{DataSize: 8, PointerCount: 1}))
 }
 func ReadRootMessageTarget(s *C.Segment) MessageTarget { return MessageTarget(s.Root(0).ToStruct()) }
-func (s MessageTarget) Which() MessageTarget_Which     { return MessageTarget_Which(C.Struct(s).Get16(4)) }
-func (s MessageTarget) ImportedCap() uint32            { return C.Struct(s).Get32(0) }
-func (s MessageTarget) SetImportedCap(v uint32)        { C.Struct(s).Set16(4, 0); C.Struct(s).Set32(0, v) }
+
+func (s MessageTarget) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s MessageTarget) Which() MessageTarget_Which {
+	return MessageTarget_Which(C.Struct(s).Uint16(4))
+}
+
+func (s MessageTarget) ImportedCap() uint32 { return C.Struct(s).Uint32(0) }
+func (s MessageTarget) SetImportedCap(v uint32) {
+	C.Struct(s).SetUint16(4, 0)
+	C.Struct(s).SetUint32(0, v)
+}
 func (s MessageTarget) PromisedAnswer() PromisedAnswer {
-	return PromisedAnswer(C.Struct(s).GetObject(0).ToStruct())
+	return PromisedAnswer(C.Struct(s).Pointer(0).ToStruct())
 }
 func (s MessageTarget) SetPromisedAnswer(v PromisedAnswer) {
-	C.Struct(s).Set16(4, 1)
-	C.Struct(s).SetObject(0, C.Object(v))
+	C.Struct(s).SetUint16(4, 1)
+	C.Struct(s).SetPointer(0, C.Pointer(v))
 }
 
 type MessageTarget_List C.PointerList
 
-func NewMessageTarget_List(s *C.Segment, sz int) MessageTarget_List {
+func NewMessageTarget_List(s *C.Segment, sz int32) MessageTarget_List {
 	return MessageTarget_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 1}, sz))
 }
 func (s MessageTarget_List) Len() int { return C.PointerList(s).Len() }
 func (s MessageTarget_List) At(i int) MessageTarget {
 	return MessageTarget(C.PointerList(s).At(i).ToStruct())
 }
-func (s MessageTarget_List) Set(i int, item MessageTarget) { C.PointerList(s).Set(i, C.Object(item)) }
+func (s MessageTarget_List) Set(i int, item MessageTarget) { C.PointerList(s).Set(i, C.Pointer(item)) }
 
 type MessageTarget_Promise C.Pipeline
 
@@ -828,20 +951,25 @@ func NewRootPayload(s *C.Segment) Payload {
 func AutoNewPayload(s *C.Segment) Payload {
 	return Payload(s.NewStructAR(C.ObjectSize{DataSize: 0, PointerCount: 2}))
 }
-func ReadRootPayload(s *C.Segment) Payload         { return Payload(s.Root(0).ToStruct()) }
-func (s Payload) Content() C.Object                { return C.Struct(s).GetObject(0) }
-func (s Payload) SetContent(v C.Object)            { C.Struct(s).SetObject(0, v) }
-func (s Payload) CapTable() CapDescriptor_List     { return CapDescriptor_List(C.Struct(s).GetObject(1)) }
-func (s Payload) SetCapTable(v CapDescriptor_List) { C.Struct(s).SetObject(1, C.Object(v)) }
+func ReadRootPayload(s *C.Segment) Payload { return Payload(s.Root(0).ToStruct()) }
+
+func (s Payload) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s Payload) Content() C.Pointer               { return C.Struct(s).Pointer(0) }
+func (s Payload) SetContent(v C.Pointer)           { C.Struct(s).SetPointer(0, v) }
+func (s Payload) CapTable() CapDescriptor_List     { return CapDescriptor_List(C.Struct(s).Pointer(1)) }
+func (s Payload) SetCapTable(v CapDescriptor_List) { C.Struct(s).SetPointer(1, C.Pointer(v)) }
 
 type Payload_List C.PointerList
 
-func NewPayload_List(s *C.Segment, sz int) Payload_List {
+func NewPayload_List(s *C.Segment, sz int32) Payload_List {
 	return Payload_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 2}, sz))
 }
 func (s Payload_List) Len() int                { return C.PointerList(s).Len() }
 func (s Payload_List) At(i int) Payload        { return Payload(C.PointerList(s).At(i).ToStruct()) }
-func (s Payload_List) Set(i int, item Payload) { C.PointerList(s).Set(i, C.Object(item)) }
+func (s Payload_List) Set(i int, item Payload) { C.PointerList(s).Set(i, C.Pointer(item)) }
 
 type Payload_Promise C.Pipeline
 
@@ -896,39 +1024,56 @@ func AutoNewCapDescriptor(s *C.Segment) CapDescriptor {
 	return CapDescriptor(s.NewStructAR(C.ObjectSize{DataSize: 8, PointerCount: 1}))
 }
 func ReadRootCapDescriptor(s *C.Segment) CapDescriptor { return CapDescriptor(s.Root(0).ToStruct()) }
-func (s CapDescriptor) Which() CapDescriptor_Which     { return CapDescriptor_Which(C.Struct(s).Get16(0)) }
-func (s CapDescriptor) SetNone()                       { C.Struct(s).Set16(0, 0) }
-func (s CapDescriptor) SenderHosted() uint32           { return C.Struct(s).Get32(4) }
-func (s CapDescriptor) SetSenderHosted(v uint32)       { C.Struct(s).Set16(0, 1); C.Struct(s).Set32(4, v) }
-func (s CapDescriptor) SenderPromise() uint32          { return C.Struct(s).Get32(4) }
-func (s CapDescriptor) SetSenderPromise(v uint32)      { C.Struct(s).Set16(0, 2); C.Struct(s).Set32(4, v) }
-func (s CapDescriptor) ReceiverHosted() uint32         { return C.Struct(s).Get32(4) }
-func (s CapDescriptor) SetReceiverHosted(v uint32)     { C.Struct(s).Set16(0, 3); C.Struct(s).Set32(4, v) }
+
+func (s CapDescriptor) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s CapDescriptor) Which() CapDescriptor_Which {
+	return CapDescriptor_Which(C.Struct(s).Uint16(0))
+}
+
+func (s CapDescriptor) SetNone()             { C.Struct(s).SetUint16(0, 0) }
+func (s CapDescriptor) SenderHosted() uint32 { return C.Struct(s).Uint32(4) }
+func (s CapDescriptor) SetSenderHosted(v uint32) {
+	C.Struct(s).SetUint16(0, 1)
+	C.Struct(s).SetUint32(4, v)
+}
+func (s CapDescriptor) SenderPromise() uint32 { return C.Struct(s).Uint32(4) }
+func (s CapDescriptor) SetSenderPromise(v uint32) {
+	C.Struct(s).SetUint16(0, 2)
+	C.Struct(s).SetUint32(4, v)
+}
+func (s CapDescriptor) ReceiverHosted() uint32 { return C.Struct(s).Uint32(4) }
+func (s CapDescriptor) SetReceiverHosted(v uint32) {
+	C.Struct(s).SetUint16(0, 3)
+	C.Struct(s).SetUint32(4, v)
+}
 func (s CapDescriptor) ReceiverAnswer() PromisedAnswer {
-	return PromisedAnswer(C.Struct(s).GetObject(0).ToStruct())
+	return PromisedAnswer(C.Struct(s).Pointer(0).ToStruct())
 }
 func (s CapDescriptor) SetReceiverAnswer(v PromisedAnswer) {
-	C.Struct(s).Set16(0, 4)
-	C.Struct(s).SetObject(0, C.Object(v))
+	C.Struct(s).SetUint16(0, 4)
+	C.Struct(s).SetPointer(0, C.Pointer(v))
 }
 func (s CapDescriptor) ThirdPartyHosted() ThirdPartyCapDescriptor {
-	return ThirdPartyCapDescriptor(C.Struct(s).GetObject(0).ToStruct())
+	return ThirdPartyCapDescriptor(C.Struct(s).Pointer(0).ToStruct())
 }
 func (s CapDescriptor) SetThirdPartyHosted(v ThirdPartyCapDescriptor) {
-	C.Struct(s).Set16(0, 5)
-	C.Struct(s).SetObject(0, C.Object(v))
+	C.Struct(s).SetUint16(0, 5)
+	C.Struct(s).SetPointer(0, C.Pointer(v))
 }
 
 type CapDescriptor_List C.PointerList
 
-func NewCapDescriptor_List(s *C.Segment, sz int) CapDescriptor_List {
+func NewCapDescriptor_List(s *C.Segment, sz int32) CapDescriptor_List {
 	return CapDescriptor_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 1}, sz))
 }
 func (s CapDescriptor_List) Len() int { return C.PointerList(s).Len() }
 func (s CapDescriptor_List) At(i int) CapDescriptor {
 	return CapDescriptor(C.PointerList(s).At(i).ToStruct())
 }
-func (s CapDescriptor_List) Set(i int, item CapDescriptor) { C.PointerList(s).Set(i, C.Object(item)) }
+func (s CapDescriptor_List) Set(i int, item CapDescriptor) { C.PointerList(s).Set(i, C.Pointer(item)) }
 
 type CapDescriptor_Promise C.Pipeline
 
@@ -957,23 +1102,30 @@ func AutoNewPromisedAnswer(s *C.Segment) PromisedAnswer {
 	return PromisedAnswer(s.NewStructAR(C.ObjectSize{DataSize: 8, PointerCount: 1}))
 }
 func ReadRootPromisedAnswer(s *C.Segment) PromisedAnswer { return PromisedAnswer(s.Root(0).ToStruct()) }
-func (s PromisedAnswer) QuestionId() uint32              { return C.Struct(s).Get32(0) }
-func (s PromisedAnswer) SetQuestionId(v uint32)          { C.Struct(s).Set32(0, v) }
-func (s PromisedAnswer) Transform() PromisedAnswer_Op_List {
-	return PromisedAnswer_Op_List(C.Struct(s).GetObject(0))
+
+func (s PromisedAnswer) Segment() *C.Segment {
+	return C.Struct(s).Segment()
 }
-func (s PromisedAnswer) SetTransform(v PromisedAnswer_Op_List) { C.Struct(s).SetObject(0, C.Object(v)) }
+
+func (s PromisedAnswer) QuestionId() uint32     { return C.Struct(s).Uint32(0) }
+func (s PromisedAnswer) SetQuestionId(v uint32) { C.Struct(s).SetUint32(0, v) }
+func (s PromisedAnswer) Transform() PromisedAnswer_Op_List {
+	return PromisedAnswer_Op_List(C.Struct(s).Pointer(0))
+}
+func (s PromisedAnswer) SetTransform(v PromisedAnswer_Op_List) {
+	C.Struct(s).SetPointer(0, C.Pointer(v))
+}
 
 type PromisedAnswer_List C.PointerList
 
-func NewPromisedAnswer_List(s *C.Segment, sz int) PromisedAnswer_List {
+func NewPromisedAnswer_List(s *C.Segment, sz int32) PromisedAnswer_List {
 	return PromisedAnswer_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 1}, sz))
 }
 func (s PromisedAnswer_List) Len() int { return C.PointerList(s).Len() }
 func (s PromisedAnswer_List) At(i int) PromisedAnswer {
 	return PromisedAnswer(C.PointerList(s).At(i).ToStruct())
 }
-func (s PromisedAnswer_List) Set(i int, item PromisedAnswer) { C.PointerList(s).Set(i, C.Object(item)) }
+func (s PromisedAnswer_List) Set(i int, item PromisedAnswer) { C.PointerList(s).Set(i, C.Pointer(item)) }
 
 type PromisedAnswer_Promise C.Pipeline
 
@@ -1014,19 +1166,25 @@ func AutoNewPromisedAnswer_Op(s *C.Segment) PromisedAnswer_Op {
 func ReadRootPromisedAnswer_Op(s *C.Segment) PromisedAnswer_Op {
 	return PromisedAnswer_Op(s.Root(0).ToStruct())
 }
-func (s PromisedAnswer_Op) Which() PromisedAnswer_Op_Which {
-	return PromisedAnswer_Op_Which(C.Struct(s).Get16(0))
+
+func (s PromisedAnswer_Op) Segment() *C.Segment {
+	return C.Struct(s).Segment()
 }
-func (s PromisedAnswer_Op) SetNoop()                { C.Struct(s).Set16(0, 0) }
-func (s PromisedAnswer_Op) GetPointerField() uint16 { return C.Struct(s).Get16(2) }
+
+func (s PromisedAnswer_Op) Which() PromisedAnswer_Op_Which {
+	return PromisedAnswer_Op_Which(C.Struct(s).Uint16(0))
+}
+
+func (s PromisedAnswer_Op) SetNoop()                { C.Struct(s).SetUint16(0, 0) }
+func (s PromisedAnswer_Op) GetPointerField() uint16 { return C.Struct(s).Uint16(2) }
 func (s PromisedAnswer_Op) SetGetPointerField(v uint16) {
-	C.Struct(s).Set16(0, 1)
-	C.Struct(s).Set16(2, v)
+	C.Struct(s).SetUint16(0, 1)
+	C.Struct(s).SetUint16(2, v)
 }
 
 type PromisedAnswer_Op_List C.PointerList
 
-func NewPromisedAnswer_Op_List(s *C.Segment, sz int) PromisedAnswer_Op_List {
+func NewPromisedAnswer_Op_List(s *C.Segment, sz int32) PromisedAnswer_Op_List {
 	return PromisedAnswer_Op_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 0}, sz))
 }
 func (s PromisedAnswer_Op_List) Len() int { return C.PointerList(s).Len() }
@@ -1034,7 +1192,7 @@ func (s PromisedAnswer_Op_List) At(i int) PromisedAnswer_Op {
 	return PromisedAnswer_Op(C.PointerList(s).At(i).ToStruct())
 }
 func (s PromisedAnswer_Op_List) Set(i int, item PromisedAnswer_Op) {
-	C.PointerList(s).Set(i, C.Object(item))
+	C.PointerList(s).Set(i, C.Pointer(item))
 }
 
 type PromisedAnswer_Op_Promise C.Pipeline
@@ -1058,14 +1216,19 @@ func AutoNewThirdPartyCapDescriptor(s *C.Segment) ThirdPartyCapDescriptor {
 func ReadRootThirdPartyCapDescriptor(s *C.Segment) ThirdPartyCapDescriptor {
 	return ThirdPartyCapDescriptor(s.Root(0).ToStruct())
 }
-func (s ThirdPartyCapDescriptor) Id() C.Object       { return C.Struct(s).GetObject(0) }
-func (s ThirdPartyCapDescriptor) SetId(v C.Object)   { C.Struct(s).SetObject(0, v) }
-func (s ThirdPartyCapDescriptor) VineId() uint32     { return C.Struct(s).Get32(0) }
-func (s ThirdPartyCapDescriptor) SetVineId(v uint32) { C.Struct(s).Set32(0, v) }
+
+func (s ThirdPartyCapDescriptor) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s ThirdPartyCapDescriptor) Id() C.Pointer      { return C.Struct(s).Pointer(0) }
+func (s ThirdPartyCapDescriptor) SetId(v C.Pointer)  { C.Struct(s).SetPointer(0, v) }
+func (s ThirdPartyCapDescriptor) VineId() uint32     { return C.Struct(s).Uint32(0) }
+func (s ThirdPartyCapDescriptor) SetVineId(v uint32) { C.Struct(s).SetUint32(0, v) }
 
 type ThirdPartyCapDescriptor_List C.PointerList
 
-func NewThirdPartyCapDescriptor_List(s *C.Segment, sz int) ThirdPartyCapDescriptor_List {
+func NewThirdPartyCapDescriptor_List(s *C.Segment, sz int32) ThirdPartyCapDescriptor_List {
 	return ThirdPartyCapDescriptor_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 1}, sz))
 }
 func (s ThirdPartyCapDescriptor_List) Len() int { return C.PointerList(s).Len() }
@@ -1073,7 +1236,7 @@ func (s ThirdPartyCapDescriptor_List) At(i int) ThirdPartyCapDescriptor {
 	return ThirdPartyCapDescriptor(C.PointerList(s).At(i).ToStruct())
 }
 func (s ThirdPartyCapDescriptor_List) Set(i int, item ThirdPartyCapDescriptor) {
-	C.PointerList(s).Set(i, C.Object(item))
+	C.PointerList(s).Set(i, C.Pointer(item))
 }
 
 type ThirdPartyCapDescriptor_Promise C.Pipeline
@@ -1098,24 +1261,29 @@ func NewRootException(s *C.Segment) Exception {
 func AutoNewException(s *C.Segment) Exception {
 	return Exception(s.NewStructAR(C.ObjectSize{DataSize: 8, PointerCount: 1}))
 }
-func ReadRootException(s *C.Segment) Exception       { return Exception(s.Root(0).ToStruct()) }
-func (s Exception) Reason() string                   { return C.Struct(s).GetObject(0).ToText() }
-func (s Exception) SetReason(v string)               { C.Struct(s).SetObject(0, s.Segment.NewText(v)) }
-func (s Exception) Type() Exception_Type             { return Exception_Type(C.Struct(s).Get16(4)) }
-func (s Exception) SetType(v Exception_Type)         { C.Struct(s).Set16(4, uint16(v)) }
-func (s Exception) ObsoleteIsCallersFault() bool     { return C.Struct(s).Get1(0) }
-func (s Exception) SetObsoleteIsCallersFault(v bool) { C.Struct(s).Set1(0, v) }
-func (s Exception) ObsoleteDurability() uint16       { return C.Struct(s).Get16(2) }
-func (s Exception) SetObsoleteDurability(v uint16)   { C.Struct(s).Set16(2, v) }
+func ReadRootException(s *C.Segment) Exception { return Exception(s.Root(0).ToStruct()) }
+
+func (s Exception) Segment() *C.Segment {
+	return C.Struct(s).Segment()
+}
+
+func (s Exception) Reason() string                   { return C.Struct(s).Pointer(0).ToText() }
+func (s Exception) SetReason(v string)               { C.Struct(s).SetPointer(0, s.Segment().NewText(v)) }
+func (s Exception) Type() Exception_Type             { return Exception_Type(C.Struct(s).Uint16(4)) }
+func (s Exception) SetType(v Exception_Type)         { C.Struct(s).SetUint16(4, uint16(v)) }
+func (s Exception) ObsoleteIsCallersFault() bool     { return C.Struct(s).Bit(0) }
+func (s Exception) SetObsoleteIsCallersFault(v bool) { C.Struct(s).SetBit(0, v) }
+func (s Exception) ObsoleteDurability() uint16       { return C.Struct(s).Uint16(2) }
+func (s Exception) SetObsoleteDurability(v uint16)   { C.Struct(s).SetUint16(2, v) }
 
 type Exception_List C.PointerList
 
-func NewException_List(s *C.Segment, sz int) Exception_List {
+func NewException_List(s *C.Segment, sz int32) Exception_List {
 	return Exception_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 1}, sz))
 }
 func (s Exception_List) Len() int                  { return C.PointerList(s).Len() }
 func (s Exception_List) At(i int) Exception        { return Exception(C.PointerList(s).At(i).ToStruct()) }
-func (s Exception_List) Set(i int, item Exception) { C.PointerList(s).Set(i, C.Object(item)) }
+func (s Exception_List) Set(i int, item Exception) { C.PointerList(s).Set(i, C.Pointer(item)) }
 
 type Exception_Promise C.Pipeline
 
@@ -1163,9 +1331,9 @@ func Exception_TypeFromString(c string) Exception_Type {
 	}
 }
 
-type Exception_Type_List C.PointerList
+type Exception_Type_List C.UInt16List
 
-func NewException_Type_List(s *C.Segment, sz int) Exception_Type_List {
+func NewException_Type_List(s *C.Segment, sz int32) Exception_Type_List {
 	return Exception_Type_List(s.NewUInt16List(sz))
 }
 func (s Exception_Type_List) Len() int                { return C.UInt16List(s).Len() }

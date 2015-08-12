@@ -51,7 +51,7 @@ func (p *pipeTransport) SendMessage(ctx context.Context, msg rpccapnp.Message) e
 	defer p.finishSend()
 
 	buf := new(bytes.Buffer)
-	_, err := msg.Segment.WriteTo(buf)
+	_, err := msg.Segment().WriteTo(buf)
 	if err != nil {
 		return err
 	}
@@ -100,7 +100,7 @@ func (p *pipeTransport) RecvMessage(ctx context.Context) (rpccapnp.Message, erro
 		if !ok {
 			return rpccapnp.Message{}, errBrokenPipe
 		}
-		if _, err := msg.Segment.WriteTo(&p.rbuf); err != nil {
+		if _, err := msg.Segment().WriteTo(&p.rbuf); err != nil {
 			return rpccapnp.Message{}, err
 		}
 		seg, _, err := capnp.ReadFromMemoryZeroCopy(p.rbuf.Bytes())

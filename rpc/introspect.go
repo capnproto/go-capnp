@@ -49,9 +49,9 @@ func (c *Conn) descriptorForClient(desc rpccapnp.CapDescriptor, client capnp.Cli
 	if pc, ok := client.(*capnp.PipelineClient); ok {
 		p := (*capnp.Pipeline)(pc)
 		if q, ok := p.Answer().(*question); ok && isQuestionFromConn(q, c) {
-			a := rpccapnp.NewPromisedAnswer(desc.Segment)
+			a := rpccapnp.NewPromisedAnswer(desc.Segment())
 			a.SetQuestionId(uint32(q.id))
-			transformToPromisedAnswer(desc.Segment, a, p.Transform())
+			transformToPromisedAnswer(desc.Segment(), a, p.Transform())
 			desc.SetReceiverAnswer(a)
 			return
 		}
@@ -105,7 +105,7 @@ func extractRPCClient(client capnp.Client) capnp.Client {
 func extractRPCClientFromPipeline(ans capnp.Answer, transform []capnp.PipelineOp) capnp.Client {
 	if capnp.IsFixedAnswer(ans) {
 		s, err := ans.Struct()
-		return clientFromResolution(transform, capnp.Object(s), err)
+		return clientFromResolution(transform, capnp.Pointer(s), err)
 	}
 	switch a := ans.(type) {
 	case *fulfiller.Fulfiller:
@@ -115,7 +115,7 @@ func extractRPCClientFromPipeline(ans capnp.Answer, transform []capnp.PipelineOp
 			return nil
 		}
 		s, err := ap.Struct()
-		return clientFromResolution(transform, capnp.Object(s), err)
+		return clientFromResolution(transform, capnp.Pointer(s), err)
 	case *question:
 		_, obj, err, ok := a.peek()
 		if !ok {

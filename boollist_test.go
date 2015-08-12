@@ -70,7 +70,7 @@ func TestValAtBit(t *testing.T) {
 func zboolvec_value_FilledSegment(value int64, elementCount uint) (*capnp.Segment, []byte) {
 	seg := capnp.NewBuffer(nil)
 	z := air.NewRootZ(seg)
-	list := seg.NewBitList(int(elementCount))
+	list := seg.NewBitList(int32(elementCount))
 	if value > 0 {
 		for i := uint(0); i < elementCount; i++ {
 			list.Set(int(i), ValAtBit(value, i))

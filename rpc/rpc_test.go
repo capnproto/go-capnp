@@ -78,11 +78,11 @@ func bootstrapAndFulfill(t *testing.T, ctx context.Context, conn *rpc.Conn, p rp
 	client, bootstrapID := readBootstrap(t, ctx, conn, p)
 
 	err := sendMessage(ctx, p, func(msg rpccapnp.Message) {
-		ret := rpccapnp.NewReturn(msg.Segment)
+		ret := rpccapnp.NewReturn(msg.Segment())
 		ret.SetAnswerId(bootstrapID)
-		payload := rpccapnp.NewPayload(msg.Segment)
-		payload.SetContent(capnp.Object(msg.Segment.NewInterface(0)))
-		capTable := rpccapnp.NewCapDescriptor_List(msg.Segment, 1)
+		payload := rpccapnp.NewPayload(msg.Segment())
+		payload.SetContent(capnp.Pointer(msg.Segment().NewInterface(0)))
+		capTable := rpccapnp.NewCapDescriptor_List(msg.Segment(), 1)
 		capTable.At(0).SetSenderHosted(bootstrapExportID)
 		payload.SetCapTable(capTable)
 		ret.SetResults(payload)
@@ -122,7 +122,7 @@ func TestCallOnPromisedAnswer(t *testing.T) {
 			MethodID:    methodID,
 		},
 		ParamsSize: capnp.ObjectSize{DataSize: 8},
-		ParamsFunc: func(s capnp.Struct) { s.Set64(0, 42) },
+		ParamsFunc: func(s capnp.Struct) { s.SetUint64(0, 42) },
 	})
 	read := <-readDone
 
@@ -148,7 +148,7 @@ func TestCallOnPromisedAnswer(t *testing.T) {
 			t.Errorf("Method ID = %d; want %d", id, methodID)
 		}
 		params := read.msg.Call().Params()
-		if x := params.Content().ToStruct().Get64(0); x != 42 {
+		if x := params.Content().ToStruct().Uint64(0); x != 42 {
 			t.Errorf("Params content value = %d; want %d", x, 42)
 		}
 		if sendResultsTo := read.msg.Call().SendResultsTo().Which(); sendResultsTo != rpccapnp.Call_sendResultsTo_Which_caller {
@@ -174,7 +174,7 @@ func TestCallOnExportId(t *testing.T) {
 			MethodID:    methodID,
 		},
 		ParamsSize: capnp.ObjectSize{DataSize: 8},
-		ParamsFunc: func(s capnp.Struct) { s.Set64(0, 42) },
+		ParamsFunc: func(s capnp.Struct) { s.SetUint64(0, 42) },
 	})
 	read := <-readDone
 
@@ -196,7 +196,7 @@ func TestCallOnExportId(t *testing.T) {
 			t.Errorf("Method ID = %d; want %d", id, methodID)
 		}
 		params := read.msg.Call().Params()
-		if x := params.Content().ToStruct().Get64(0); x != 42 {
+		if x := params.Content().ToStruct().Uint64(0); x != 42 {
 			t.Errorf("Params content value = %d; want %d", x, 42)
 		}
 		if sendResultsTo := read.msg.Call().SendResultsTo().Which(); sendResultsTo != rpccapnp.Call_sendResultsTo_Which_caller {
@@ -219,7 +219,7 @@ func TestMainInterface(t *testing.T) {
 func bootstrapRoundtrip(t *testing.T, p rpc.Transport) (importID, questionID uint32) {
 	questionID = 54
 	err := sendMessage(context.TODO(), p, func(msg rpccapnp.Message) {
-		bootstrap := rpccapnp.NewBootstrap(msg.Segment)
+		bootstrap := rpccapnp.NewBootstrap(msg.Segment())
 		bootstrap.SetQuestionId(questionID)
 		msg.SetBootstrap(bootstrap)
 	})
@@ -269,17 +269,17 @@ func TestReceiveCallOnPromisedAnswer(t *testing.T) {
 	_, bootqID := bootstrapRoundtrip(t, p)
 
 	err := sendMessage(context.TODO(), p, func(msg rpccapnp.Message) {
-		call := rpccapnp.NewCall(msg.Segment)
+		call := rpccapnp.NewCall(msg.Segment())
 		call.SetQuestionId(questionID)
 		call.SetInterfaceId(interfaceID)
 		call.SetMethodId(methodID)
-		target := rpccapnp.NewMessageTarget(msg.Segment)
-		pa := rpccapnp.NewPromisedAnswer(msg.Segment)
+		target := rpccapnp.NewMessageTarget(msg.Segment())
+		pa := rpccapnp.NewPromisedAnswer(msg.Segment())
 		pa.SetQuestionId(bootqID)
 		target.SetPromisedAnswer(pa)
 		call.SetTarget(target)
-		payload := rpccapnp.NewPayload(msg.Segment)
-		payload.SetContent(capnp.Object(msg.Segment.NewStruct(capnp.ObjectSize{})))
+		payload := rpccapnp.NewPayload(msg.Segment())
+		payload.SetContent(capnp.Pointer(msg.Segment().NewStruct(capnp.ObjectSize{})))
 		call.SetParams(payload)
 		msg.SetCall(call)
 	})
@@ -325,15 +325,15 @@ func TestReceiveCallOnExport(t *testing.T) {
 	importID := sendBootstrapAndFinish(t, p)
 
 	err := sendMessage(context.TODO(), p, func(msg rpccapnp.Message) {
-		call := rpccapnp.NewCall(msg.Segment)
+		call := rpccapnp.NewCall(msg.Segment())
 		call.SetQuestionId(questionID)
 		call.SetInterfaceId(interfaceID)
 		call.SetMethodId(methodID)
-		target := rpccapnp.NewMessageTarget(msg.Segment)
+		target := rpccapnp.NewMessageTarget(msg.Segment())
 		target.SetImportedCap(importID)
 		call.SetTarget(target)
-		payload := rpccapnp.NewPayload(msg.Segment)
-		payload.SetContent(capnp.Object(msg.Segment.NewStruct(capnp.ObjectSize{})))
+		payload := rpccapnp.NewPayload(msg.Segment())
+		payload.SetContent(capnp.Pointer(msg.Segment().NewStruct(capnp.ObjectSize{})))
 		call.SetParams(payload)
 		msg.SetCall(call)
 	})
@@ -367,7 +367,7 @@ func TestReceiveCallOnExport(t *testing.T) {
 func sendBootstrapAndFinish(t *testing.T, p rpc.Transport) (importID uint32) {
 	importID, questionID := bootstrapRoundtrip(t, p)
 	err := sendMessage(context.TODO(), p, func(msg rpccapnp.Message) {
-		finish := rpccapnp.NewFinish(msg.Segment)
+		finish := rpccapnp.NewFinish(msg.Segment())
 		finish.SetQuestionId(questionID)
 		finish.SetReleaseResultCaps(false)
 		msg.SetFinish(finish)

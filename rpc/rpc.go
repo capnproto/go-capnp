@@ -303,7 +303,7 @@ func (c *Conn) newCallMessage(buf []byte, id questionID, ac *appCall) rpccapnp.M
 
 	payload := rpccapnp.NewPayload(s)
 	params := ac.PlaceParams(s)
-	payload.SetContent(capnp.Object(params))
+	payload.SetContent(capnp.Pointer(params))
 	payload.SetCapTable(c.makeCapTable(s))
 	msgCall.SetParams(payload)
 
@@ -312,7 +312,7 @@ func (c *Conn) newCallMessage(buf []byte, id questionID, ac *appCall) rpccapnp.M
 }
 
 func transformToPromisedAnswer(s *capnp.Segment, answer rpccapnp.PromisedAnswer, transform []capnp.PipelineOp) {
-	opList := rpccapnp.NewPromisedAnswer_Op_List(s, len(transform))
+	opList := rpccapnp.NewPromisedAnswer_Op_List(s, int32(len(transform)))
 	for i, op := range transform {
 		opList.At(i).SetGetPointerField(uint16(op.Field))
 	}
@@ -422,7 +422,7 @@ func newFinishMessage(buf []byte, questionID questionID, release bool) rpccapnp.
 // populateMessageCapTable converts the descriptors in the payload into
 // clients and sets it on the message the payload is a part of.
 func (c *Conn) populateMessageCapTable(payload rpccapnp.Payload) error {
-	msg := payload.Segment.Message
+	msg := payload.Segment().Message
 	for i, n := 0, payload.CapTable().Len(); i < n; i++ {
 		desc := payload.CapTable().At(i)
 		switch desc.Which() {
@@ -458,7 +458,7 @@ func (c *Conn) populateMessageCapTable(payload rpccapnp.Payload) error {
 // makeCapTable converts the clients in the segment's message into capability descriptors.
 func (c *Conn) makeCapTable(s *capnp.Segment) rpccapnp.CapDescriptor_List {
 	msgtab := s.Message.CapTable()
-	t := rpccapnp.NewCapDescriptor_List(s, len(msgtab))
+	t := rpccapnp.NewCapDescriptor_List(s, int32(len(msgtab)))
 	for i, client := range msgtab {
 		desc := t.At(i)
 		if client == nil {
@@ -491,7 +491,7 @@ func (c *Conn) handleBootstrapMessage(id answerID) error {
 		return nil
 	}
 	s := capnp.NewBuffer(nil)
-	in := capnp.Object(s.NewInterface(s.Message.AddCap(c.main)))
+	in := capnp.Pointer(s.NewInterface(s.Message.AddCap(c.main)))
 	msgs = a.fulfill(msgs, in, c.makeCapTable)
 	for _, m := range msgs {
 		if err := c.sendMessage(m); err != nil {
@@ -646,7 +646,7 @@ func promisedAnswerOpsToTransform(list rpccapnp.PromisedAnswer_Op_List) []capnp.
 		switch op.Which() {
 		case rpccapnp.PromisedAnswer_Op_Which_getPointerField:
 			transform = append(transform, capnp.PipelineOp{
-				Field: int(op.GetPointerField()),
+				Field: op.GetPointerField(),
 			})
 		case rpccapnp.PromisedAnswer_Op_Which_noop:
 			// no-op
@@ -713,7 +713,7 @@ func newReturnMessage(id answerID) rpccapnp.Message {
 }
 
 func setReturnException(ret rpccapnp.Return, err error) rpccapnp.Exception {
-	e := rpccapnp.NewException(ret.Segment)
+	e := rpccapnp.NewException(ret.Segment())
 	toException(e, err)
 	ret.SetException(e)
 	return e
@@ -721,11 +721,11 @@ func setReturnException(ret rpccapnp.Return, err error) rpccapnp.Exception {
 
 // clientFromResolution retrieves a client from a resolved question or
 // answer by applying a transform.
-func clientFromResolution(transform []capnp.PipelineOp, obj capnp.Object, err error) capnp.Client {
+func clientFromResolution(transform []capnp.PipelineOp, obj capnp.Pointer, err error) capnp.Client {
 	if err != nil {
 		return capnp.ErrorClient(err)
 	}
-	c := capnp.TransformObject(obj, transform).ToInterface().Client()
+	c := capnp.TransformPointer(obj, transform).ToInterface().Client()
 	if c == nil {
 		return capnp.ErrorClient(capnp.ErrNullClient)
 	}

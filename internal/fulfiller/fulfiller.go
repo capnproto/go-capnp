@@ -49,7 +49,7 @@ func (f *Fulfiller) Fulfill(s capnp.Struct) {
 	}
 	f.answer = capnp.ImmediateAnswer(s)
 	queues := f.emptyQueue(s)
-	ctab := s.Segment.Message.CapTable()
+	ctab := s.Segment().Message.CapTable()
 	for capIdx, q := range queues {
 		ctab[capIdx] = newEmbargoClient(ctab[capIdx], q)
 	}
@@ -60,10 +60,10 @@ func (f *Fulfiller) Fulfill(s capnp.Struct) {
 // emptyQueue splits the queue by which capability it targets and
 // drops any invalid calls.  Once this function returns, f.queue will
 // be nil.
-func (f *Fulfiller) emptyQueue(s capnp.Struct) map[uint32][]ecall {
-	qs := make(map[uint32][]ecall, len(f.queue))
+func (f *Fulfiller) emptyQueue(s capnp.Struct) map[capnp.CapabilityID][]ecall {
+	qs := make(map[capnp.CapabilityID][]ecall, len(f.queue))
 	for i, pc := range f.queue {
-		c := capnp.TransformObject(capnp.Object(s), pc.transform)
+		c := capnp.TransformPointer(capnp.Pointer(s), pc.transform)
 		if c.Type() != capnp.TypeInterface {
 			pc.f.Reject(capnp.ErrNullClient)
 			continue

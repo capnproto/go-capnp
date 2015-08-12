@@ -9,19 +9,19 @@ import (
 
 const schemaPath = "internal/aircraftlib/aircraft.capnp"
 
-func zdateFilledSegment(n int, packed bool) (*capnp.Segment, []byte) {
+func zdateFilledSegment(n int32, packed bool) (*capnp.Segment, []byte) {
 	seg := capnp.NewBuffer(nil)
 	z := air.NewRootZ(seg)
 	list := air.NewZdate_List(seg, n)
 	// hand added a Set() method to messages_test.go, so plist not needed
 	plist := capnp.PointerList(list)
 
-	for i := 0; i < n; i++ {
+	for i := 0; i < int(n); i++ {
 		d := air.NewZdate(seg)
 		d.SetMonth(12)
 		d.SetDay(7)
 		d.SetYear(int16(2004 + i))
-		plist.Set(i, capnp.Object(d))
+		plist.Set(i, capnp.Pointer(d))
 		//list.Set(i, d)
 	}
 	z.SetZdatevec(list)
@@ -35,7 +35,7 @@ func zdateFilledSegment(n int, packed bool) (*capnp.Segment, []byte) {
 	return seg, buf.Bytes()
 }
 
-func zdateReader(n int, packed bool) *bytes.Reader {
+func zdateReader(n int32, packed bool) *bytes.Reader {
 	_, byteSlice := zdateFilledSegment(n, packed)
 	return bytes.NewReader(byteSlice)
 }

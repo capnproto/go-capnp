@@ -17,7 +17,7 @@ func TestPipelineOpString(t *testing.T) {
 			"get field 4",
 		},
 		{
-			capnp.PipelineOp{Field: 4, DefaultSegment: capnp.NewBuffer(nil), DefaultOffset: 0},
+			capnp.PipelineOp{Field: 4, DefaultSegment: capnp.NewBuffer(nil), DefaultAddress: 0},
 			"get field 4 with default",
 		},
 	}
@@ -28,7 +28,7 @@ func TestPipelineOpString(t *testing.T) {
 	}
 }
 
-func TestTransformObject(t *testing.T) {
+func TestTransformPointer(t *testing.T) {
 	s := capnp.NewBuffer(nil)
 	root := air.NewRootStackingRoot(s)
 	a := air.NewStackingA(s)
@@ -46,94 +46,94 @@ func TestTransformObject(t *testing.T) {
 	da.SetB(db)
 
 	tests := []struct {
-		p         capnp.Object
+		p         capnp.Pointer
 		transform []capnp.PipelineOp
-		out       capnp.Object
+		out       capnp.Pointer
 	}{
 		{
-			capnp.Object(root),
+			capnp.Pointer(root),
 			nil,
-			capnp.Object(root),
+			capnp.Pointer(root),
 		},
 		{
-			capnp.Object(root),
+			capnp.Pointer(root),
 			[]capnp.PipelineOp{},
-			capnp.Object(root),
+			capnp.Pointer(root),
 		},
 		{
-			capnp.Object(root),
+			capnp.Pointer(root),
 			[]capnp.PipelineOp{
 				{Field: 0},
 			},
-			capnp.Object{},
+			capnp.Pointer{},
 		},
 		{
-			capnp.Object(root),
+			capnp.Pointer(root),
 			[]capnp.PipelineOp{
-				{Field: 0, DefaultSegment: d, DefaultOffset: 0},
+				{Field: 0, DefaultSegment: d, DefaultAddress: 0},
 			},
-			capnp.Object(da),
+			capnp.Pointer(da),
 		},
 		{
-			capnp.Object(root),
+			capnp.Pointer(root),
 			[]capnp.PipelineOp{
 				{Field: 1},
 			},
-			capnp.Object(a),
+			capnp.Pointer(a),
 		},
 		{
-			capnp.Object(root),
+			capnp.Pointer(root),
 			[]capnp.PipelineOp{
-				{Field: 1, DefaultSegment: d, DefaultOffset: 0},
+				{Field: 1, DefaultSegment: d, DefaultAddress: 0},
 			},
-			capnp.Object(a),
+			capnp.Pointer(a),
 		},
 		{
-			capnp.Object(root),
+			capnp.Pointer(root),
 			[]capnp.PipelineOp{
 				{Field: 1},
 				{Field: 0},
 			},
-			capnp.Object(b),
+			capnp.Pointer(b),
 		},
 		{
-			capnp.Object(root),
+			capnp.Pointer(root),
 			[]capnp.PipelineOp{
 				{Field: 0},
 				{Field: 0},
 			},
-			capnp.Object{},
+			capnp.Pointer{},
 		},
 		{
-			capnp.Object(root),
+			capnp.Pointer(root),
 			[]capnp.PipelineOp{
-				{Field: 0, DefaultSegment: d, DefaultOffset: 0},
+				{Field: 0, DefaultSegment: d, DefaultAddress: 0},
 				{Field: 0},
 			},
-			capnp.Object(db),
+			capnp.Pointer(db),
 		},
 		{
-			capnp.Object(root),
+			capnp.Pointer(root),
 			[]capnp.PipelineOp{
 				{Field: 0},
-				{Field: 0, DefaultSegment: d, DefaultOffset: 0},
+				{Field: 0, DefaultSegment: d, DefaultAddress: 0},
 			},
-			capnp.Object(da),
+			capnp.Pointer(da),
 		},
 		{
-			capnp.Object(root),
+			capnp.Pointer(root),
 			[]capnp.PipelineOp{
-				{Field: 0, DefaultSegment: d, DefaultOffset: 0},
-				{Field: 1, DefaultSegment: d, DefaultOffset: 0},
+				{Field: 0, DefaultSegment: d, DefaultAddress: 0},
+				{Field: 1, DefaultSegment: d, DefaultAddress: 0},
 			},
-			capnp.Object(da),
+			capnp.Pointer(da),
 		},
 	}
 
 	for _, test := range tests {
-		out := capnp.TransformObject(test.p, test.transform)
+		out := capnp.TransformPointer(test.p, test.transform)
 		if out != test.out {
-			t.Errorf("TransformObject(%+v, %v) = %+v; want %+v", test.p, test.transform, out, test.out)
+			t.Errorf("TransformPointer(%+v, %v) = %+v; want %+v", test.p, test.transform, out, test.out)
 		}
 	}
 }

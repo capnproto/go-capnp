@@ -36,19 +36,25 @@ func NewBuffer(data []byte) *Segment {
 	return &b.Segment
 }
 
-func (b *buffer) NewSegment(minsz int) (*Segment, error) {
+func (b *buffer) NewSegment(minsz Size) (*Segment, error) {
 	if minsz < 4096 {
 		minsz = 4096
 	}
-	if uint64(len(b.Data)) > uint64(math.MaxUint32)-uint64(minsz) {
+	n := len(b.Data)
+	if uint64(n)+uint64(minsz) > uint64(math.MaxUint32) {
 		return nil, ErrOverlarge
 	}
-	b.Data = append(b.Data, make([]byte, minsz)...)
-	b.Data = b.Data[:len(b.Data)-minsz]
+	if nn := n + int(minsz); nn < cap(b.Data) {
+		b.Data = b.Data[:nn]
+	} else {
+		newData := make([]byte, nn)
+		copy(newData, b.Data)
+		b.Data = newData
+	}
 	return &b.Segment, nil
 }
 
-func (b *buffer) Lookup(segid uint32) (*Segment, error) {
+func (b *buffer) Lookup(segid SegmentID) (*Segment, error) {
 	if segid == 0 {
 		return &b.Segment, nil
 	} else {
@@ -70,7 +76,7 @@ func NewMultiBuffer(data [][]byte) *Segment {
 		segments: make([]*Segment, len(data)),
 	}
 	for i, d := range data {
-		m.segments[i] = &Segment{m, d, uint32(i), false}
+		m.segments[i] = &Segment{m, d, SegmentID(i), false}
 	}
 	if len(data) > 0 {
 		return m.segments[0]
@@ -83,9 +89,9 @@ var (
 	MaxTotalSize     = 1024 * 1024 * 1024
 )
 
-func (m *multiBuffer) NewSegment(minsz int) (*Segment, error) {
+func (m *multiBuffer) NewSegment(minsz Size) (*Segment, error) {
 	for _, s := range m.segments {
-		if len(s.Data)+minsz <= cap(s.Data) {
+		if uint64(len(s.Data))+uint64(minsz) <= uint64(cap(s.Data)) {
 			return s, nil
 		}
 	}
@@ -93,12 +99,16 @@ func (m *multiBuffer) NewSegment(minsz int) (*Segment, error) {
 	if minsz < 4096 {
 		minsz = 4096
 	}
-	s := &Segment{m, make([]byte, 0, minsz), uint32(len(m.segments)), false}
+	s := &Segment{
+		Message: m,
+		Data:    make([]byte, 0, minsz),
+		Id:      SegmentID(len(m.segments)),
+	}
 	m.segments = append(m.segments, s)
 	return s, nil
 }
 
-func (m *multiBuffer) Lookup(segid uint32) (*Segment, error) {
+func (m *multiBuffer) Lookup(segid SegmentID) (*Segment, error) {
 	if uint(segid) < uint(len(m.segments)) {
 		return m.segments[segid], nil
 	} else {
@@ -164,7 +174,11 @@ func ReadFromStream(r io.Reader, buf *bytes.Buffer) (*Segment, error) {
 	m := &multiBuffer{segments: make([]*Segment, segnum)}
 	for i := 0; i < segnum; i++ {
 		sz := int(binary.LittleEndian.Uint32(hdrv[4*i:])) * 8
-		m.segments[i] = &Segment{m, datav[:sz], uint32(i), false}
+		m.segments[i] = &Segment{
+			Message: m,
+			Data:    datav[:sz],
+			Id:      SegmentID(i),
+		}
 		datav = datav[sz:]
 	}
 
@@ -210,7 +224,11 @@ func ReadFromMemoryZeroCopy(data []byte) (seg *Segment, bytesRead int64, err err
 	m := &multiBuffer{segments: make([]*Segment, segnum)}
 	for i := 0; i < segnum; i++ {
 		sz := int(binary.LittleEndian.Uint32(hdrv[4*i:])) * 8
-		m.segments[i] = &Segment{m, datav[:sz], uint32(i), false}
+		m.segments[i] = &Segment{
+			Message: m,
+			Data:    datav[:sz],
+			Id:      SegmentID(i),
+		}
 		datav = datav[sz:]
 	}
 
@@ -227,15 +245,13 @@ func ReadFromPackedStream(r io.Reader, buf *bytes.Buffer) (*Segment, error) {
 func serialize(msg Message) []byte {
 	// Compute buffer size.
 	const (
-		msgHeaderSize = 4
-		segHeaderSize = 4
-		wordSize      = 8
+		msgHeaderSize Size = 4
+		segHeaderSize Size = 4
 	)
 	nsegs := numSegments(msg)
-	hdrSize := msgHeaderSize + (int(nsegs) * segHeaderSize)
-	hdrSize = pad(hdrSize, wordSize)
+	hdrSize := int((msgHeaderSize + segHeaderSize.times(int32(nsegs))).padToWord())
 	total := hdrSize
-	for i := uint32(0); i < nsegs; i++ {
+	for i := SegmentID(0); i < SegmentID(nsegs); i++ {
 		s, _ := msg.Lookup(i)
 		total += len(s.Data)
 	}
@@ -243,11 +259,11 @@ func serialize(msg Message) []byte {
 	// Fill in buffer.
 	buf := make([]byte, hdrSize, total)
 	binary.LittleEndian.PutUint32(buf, nsegs-1)
-	for i := uint32(0); i < nsegs; i++ {
+	for i := SegmentID(0); i < SegmentID(nsegs); i++ {
 		s, _ := msg.Lookup(i)
-		binary.LittleEndian.PutUint32(buf[4*(i+1):], uint32(len(s.Data)/wordSize))
+		binary.LittleEndian.PutUint32(buf[4*(i+1):], uint32(len(s.Data)/int(wordSize)))
 	}
-	for i := uint32(0); i < nsegs; i++ {
+	for i := SegmentID(0); i < SegmentID(nsegs); i++ {
 		s, _ := msg.Lookup(i)
 		buf = append(buf, s.Data...)
 	}
@@ -258,7 +274,7 @@ func serialize(msg Message) []byte {
 func numSegments(msg Message) uint32 {
 	n := uint32(1)
 	for {
-		if seg, _ := msg.Lookup(n); seg == nil {
+		if seg, _ := msg.Lookup(SegmentID(n)); seg == nil {
 			return n
 		}
 		n++
@@ -289,8 +305,8 @@ func (tab capTable) CapTable() []Client {
 	return []Client(tab)
 }
 
-func (tab *capTable) AddCap(c Client) uint32 {
-	n := uint32(len(*tab))
+func (tab *capTable) AddCap(c Client) CapabilityID {
+	n := CapabilityID(len(*tab))
 	*tab = append(*tab, c)
 	return n
 }

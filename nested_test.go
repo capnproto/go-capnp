@@ -99,7 +99,7 @@ func Nester1GoToCapn(seg *capnp.Segment, src *Nester1) air.Nester1Capn {
 	//fmt.Printf("\n\n   Nester1GoToCapn sees seg = '%#v'\n", seg)
 	dest := air.AutoNewNester1Capn(seg)
 
-	mylist1 := seg.NewTextList(len(src.Strs))
+	mylist1 := seg.NewTextList(int32(len(src.Strs)))
 	for i := range src.Strs {
 		mylist1.Set(i, string(src.Strs[i]))
 	}
@@ -163,11 +163,11 @@ func RWTestGoToCapn(seg *capnp.Segment, src *RWTest) air.RWTestCapn {
 	// NestMatrix -> Nester1Capn (go slice to capn list)
 	if len(src.NestMatrix) > 0 {
 		//typedList := air.NewNester1CapnList(seg, len(src.NestMatrix))
-		plist := seg.NewPointerList(len(src.NestMatrix))
+		plist := seg.NewPointerList(int32(len(src.NestMatrix)))
 		i := 0
 		for _, ele := range src.NestMatrix {
 			//plist.Set(i, capnp.Object(Nester1GoToCapn(seg, &ele)))
-			r := capnp.Object(SliceNester1ToNester1CapnList(seg, ele))
+			r := capnp.Pointer(SliceNester1ToNester1CapnList(seg, ele))
 			plist.Set(i, r)
 			i++
 		}
@@ -187,7 +187,7 @@ func Nester1CapnListToSliceNester1(p air.Nester1Capn_List) []Nester1 {
 }
 
 func SliceNester1ToNester1CapnList(seg *capnp.Segment, m []Nester1) air.Nester1Capn_List {
-	lst := air.NewNester1Capn_List(seg, len(m))
+	lst := air.NewNester1Capn_List(seg, int32(len(m)))
 	for i := range m {
 		lst.Set(i, Nester1GoToCapn(seg, &m[i]))
 	}
@@ -195,7 +195,7 @@ func SliceNester1ToNester1CapnList(seg *capnp.Segment, m []Nester1) air.Nester1C
 }
 
 func SliceStringToTextList(seg *capnp.Segment, m []string) capnp.TextList {
-	lst := seg.NewTextList(len(m))
+	lst := seg.NewTextList(int32(len(m)))
 	for i := range m {
 		lst.Set(i, string(m[i]))
 	}

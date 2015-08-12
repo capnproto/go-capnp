@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"math"
+	"strconv"
 
 	"github.com/glycerine/rbtree"
 )
@@ -17,10 +18,12 @@ var (
 	errObjectType  = errors.New("capn: invalid object type")
 )
 
-type ObjectType uint8
+// PointerType is an enumeration of pointer types.
+type PointerType uint8
 
+// Pointer types.
 const (
-	TypeNull ObjectType = iota
+	TypeNull PointerType = iota
 	TypeStruct
 	TypeList
 	TypePointerList
@@ -28,8 +31,9 @@ const (
 	TypeInterface
 )
 
-func (o ObjectType) String() string {
-	switch o {
+// String returns the constant name of the pointer type.
+func (t PointerType) String() string {
+	switch t {
 	case TypeNull:
 		return "TypeNull"
 	case TypeStruct:
@@ -43,29 +47,48 @@ func (o ObjectType) String() string {
 	case TypeInterface:
 		return "TypeInterface"
 	default:
-		return "Unknown ObjectType"
+		return "PointerType(" + strconv.FormatUint(uint64(t), 10) + ")"
 	}
 }
 
 type Message interface {
-	NewSegment(minsz int) (*Segment, error)
-	Lookup(segid uint32) (*Segment, error)
+	NewSegment(minsz Size) (*Segment, error)
+	Lookup(segid SegmentID) (*Segment, error)
 
 	CapTable() []Client
-	AddCap(c Client) uint32
+	AddCap(c Client) CapabilityID
 }
 
+// A Segment is an allocation arena for Cap'n Proto objects.
+// It is part of a Message, which can contain other segments that
+// reference each other.
 type Segment struct {
 	Message  Message
 	Data     []byte
-	Id       uint32
+	Id       SegmentID
 	RootDone bool
 }
 
+func (s *Segment) inBounds(addr Address) bool {
+	return addr < Address(len(s.Data))
+}
+
+func (s *Segment) regionInBounds(base Address, sz Size) bool {
+	return base.addSize(sz) <= Address(len(s.Data))
+}
+
+// Address returns the address the pointer references.
+func (p Pointer) Address() Address {
+	return p.off
+}
+
+// A SegmentID is a numeric identifier for a Segment.
+type SegmentID uint32
+
 // ObjectSize records section sizes for a struct or list.
 type ObjectSize struct {
-	DataSize     int // in bytes
-	PointerCount int
+	DataSize     Size
+	PointerCount uint16
 }
 
 // isZero reports whether sz is the zero size.
@@ -78,92 +101,109 @@ func (sz ObjectSize) isOneByte() bool {
 	return sz.DataSize == 1 && sz.PointerCount == 0
 }
 
-// isValid reports whether sz's fields are non-negative and less than the maximum.
+// isValid reports whether sz's fields are in range.
 func (sz ObjectSize) isValid() bool {
-	const (
-		maxDataSize = 0xFFFF * 8
-		maxPtrs     = 0xFFFF
-	)
-	return sz.DataSize >= 0 && sz.DataSize <= maxDataSize && sz.PointerCount >= 0 && sz.PointerCount <= maxPtrs
+	return sz.DataSize <= 0xffff*wordSize
 }
 
 // pointerSize returns the number of bytes the pointer section occupies.
-func (sz ObjectSize) pointerSize() int {
-	return sz.PointerCount * 8
+func (sz ObjectSize) pointerSize() Size {
+	return Size(sz.PointerCount) * wordSize
 }
 
 // totalSize returns the number of bytes that the object occupies.
-func (sz ObjectSize) totalSize() int {
+func (sz ObjectSize) totalSize() Size {
 	return sz.DataSize + sz.pointerSize()
 }
 
-// dataWordCount returns the number of 8-byte words in the data section.
-func (sz ObjectSize) dataWordCount() int {
-	return sz.DataSize / 8
+// dataWordCount returns the number of words in the data section.
+func (sz ObjectSize) dataWordCount() int32 {
+	if sz.DataSize%wordSize != 0 {
+		panic("data size not aligned by word")
+	}
+	return int32(sz.DataSize / wordSize)
 }
 
-// totalWordCount returns the number of 8-byte words that the object occupies.
-func (sz ObjectSize) totalWordCount() int {
-	return sz.dataWordCount() + sz.PointerCount
+// totalWordCount returns the number of words that the object occupies.
+func (sz ObjectSize) totalWordCount() int32 {
+	return sz.dataWordCount() + int32(sz.PointerCount)
 }
 
-type Object struct {
-	Segment *Segment
-	off     int // in bytes
-	length  int
-	size    ObjectSize
-	typ     ObjectType
-	flags   uint
-	cap     uint32
+// A Pointer is a reference to a Cap'n Proto struct, list, or interface.
+// The zero value is a null pointer.
+type Pointer struct {
+	seg    *Segment
+	off    Address
+	length int32
+	size   ObjectSize
+	typ    PointerType
+	flags  pointerFlags
+	cap    CapabilityID
 }
 
-func (o Object) DupWithOff(off int) Object {
-	return Object{
-		Segment: o.Segment,
-		off:     off,
-		length:  o.length,
-		size:    o.size,
-		typ:     o.typ,
-		flags:   o.flags,
-		cap:     o.cap,
+// IsNull reports whether this is a null pointer.
+func (p Pointer) IsNull() bool {
+	return p.typ == TypeNull
+}
+
+// Segment returns the segment this pointer came from.
+func (p Pointer) Segment() *Segment {
+	return p.seg
+}
+
+func (p Pointer) DupWithOff(off Address) Pointer {
+	return Pointer{
+		seg:    p.seg,
+		off:    off,
+		length: p.length,
+		size:   p.size,
+		typ:    p.typ,
+		flags:  p.flags,
+		cap:    p.cap,
 	}
 }
 
 type Void struct{}
-type Struct Object
-type VoidList Object
-type BitList Object
-type Int8List Object
-type UInt8List Object
-type Int16List Object
-type UInt16List Object
-type Int32List Object
-type UInt32List Object
-type Float32List Object
-type Int64List Object
-type UInt64List Object
-type Float64List Object
-type PointerList Object
-type TextList Object
-type DataList Object
+type Struct Pointer
+type VoidList Pointer
+type BitList Pointer
+type Int8List Pointer
+type UInt8List Pointer
+type Int16List Pointer
+type UInt16List Pointer
+type Int32List Pointer
+type UInt32List Pointer
+type Float32List Pointer
+type Int64List Pointer
+type UInt64List Pointer
+type Float64List Pointer
+type PointerList Pointer
+type TextList Pointer
+type DataList Pointer
 
-func (p VoidList) Len() int    { return p.length }
-func (p BitList) Len() int     { return p.length }
-func (p Int8List) Len() int    { return p.length }
-func (p UInt8List) Len() int   { return p.length }
-func (p Int16List) Len() int   { return p.length }
-func (p UInt16List) Len() int  { return p.length }
-func (p Int32List) Len() int   { return p.length }
-func (p UInt32List) Len() int  { return p.length }
-func (p Float32List) Len() int { return p.length }
-func (p Int64List) Len() int   { return p.length }
-func (p UInt64List) Len() int  { return p.length }
-func (p Float64List) Len() int { return p.length }
-func (p PointerList) Len() int { return p.length }
-func (p TextList) Len() int    { return p.length }
-func (p DataList) Len() int    { return p.length }
+func (p VoidList) Len() int    { return int(p.length) }
+func (p BitList) Len() int     { return int(p.length) }
+func (p Int8List) Len() int    { return int(p.length) }
+func (p UInt8List) Len() int   { return int(p.length) }
+func (p Int16List) Len() int   { return int(p.length) }
+func (p UInt16List) Len() int  { return int(p.length) }
+func (p Int32List) Len() int   { return int(p.length) }
+func (p UInt32List) Len() int  { return int(p.length) }
+func (p Float32List) Len() int { return int(p.length) }
+func (p Int64List) Len() int   { return int(p.length) }
+func (p UInt64List) Len() int  { return int(p.length) }
+func (p Float64List) Len() int { return int(p.length) }
+func (p PointerList) Len() int { return int(p.length) }
+func (p TextList) Len() int    { return int(p.length) }
+func (p DataList) Len() int    { return int(p.length) }
 
-func (p Object) HasData() bool {
+// Segment returns the segment this pointer came from.
+func (s Struct) Segment() *Segment {
+	return s.seg
+}
+
+// HasData reports whether the object referenced by p has non-zero size.
+func (p Pointer) HasData() bool {
 	switch p.typ {
 	case TypeList:
 		return p.length > 0 && !p.size.isZero()
@@ -180,62 +220,78 @@ func (p Object) HasData() bool {
 	}
 }
 
-// flags
+// pointerFlags is a bitmask of flags for a pointer.
+type pointerFlags uint8
+
+// Pointer flags.
 const (
-	bitOffsetMask   = 7
-	isBitListMember = 8
-	isListMember    = 16
-	isCompositeList = 32
-	isRoot          = 64
-	hasPointerTag   = 128
+	isBitListMember pointerFlags = 8 << iota
+	isListMember
+	isCompositeList
+	isRoot
+	hasPointerTag
+
+	bitOffsetMask pointerFlags = 7
 )
 
-func (s *Segment) Root(off int) Object {
-	if off+8 > len(s.Data) {
-		return Object{}
-	}
-	return s.readPtr(off)
+func (flags pointerFlags) bitOffset() bitOffset {
+	return bitOffset(flags & bitOffsetMask)
 }
 
-func (s *Segment) NewRoot() (PointerList, int, error) {
-	n, err := s.create(8, Object{
+func (s *Segment) Root(addr Address) Pointer {
+	if !s.regionInBounds(addr, wordSize) {
+		return Pointer{}
+	}
+	return s.readPtr(addr)
+}
+
+func (s *Segment) NewRoot() (PointerList, error) {
+	n, err := s.create(wordSize, Pointer{
 		typ:    TypePointerList,
 		length: 1,
 		size:   ObjectSize{PointerCount: 1},
 		flags:  isRoot,
 	})
-	return PointerList(n), n.off / 8, err
+	return PointerList(n), err
 }
 
-func (s *Segment) NewText(v string) Object {
-	n := s.NewUInt8List(len(v) + 1)
-	copy(n.Segment.Data[n.off:], v)
-	return Object(n)
+const maxDataSize = 1<<32 - 1
+
+func (s *Segment) NewText(v string) Pointer {
+	if int64(len(v))+1 > maxDataSize {
+		panic(ErrOverlarge)
+	}
+	n := s.NewUInt8List(int32(len(v) + 1))
+	copy(n.seg.Data[n.off:], v)
+	return Pointer(n)
 }
-func (s *Segment) NewData(v []byte) Object {
-	n := s.NewUInt8List(len(v))
-	copy(n.Segment.Data[n.off:], v)
-	return Object(n)
+func (s *Segment) NewData(v []byte) Pointer {
+	if int64(len(v)) > maxDataSize {
+		panic(ErrOverlarge)
+	}
+	n := s.NewUInt8List(int32(len(v)))
+	copy(n.seg.Data[n.off:], v)
+	return Pointer(n)
 }
 
-func (s *Segment) NewBitList(sz int) BitList {
-	n, _ := s.create((sz+63)/8, Object{typ: TypeBitList, length: sz})
-	return BitList(n)
+func (s *Segment) NewBitList(n int32) BitList {
+	p, _ := s.create(Size((n+63)/8), Pointer{typ: TypeBitList, length: n})
+	return BitList(p)
 }
 
-func (s *Segment) NewVoidList(n int) VoidList       { return VoidList(s.newList(0, n)) }
-func (s *Segment) NewInt8List(n int) Int8List       { return Int8List(s.newList(1, n)) }
-func (s *Segment) NewUInt8List(n int) UInt8List     { return UInt8List(s.newList(1, n)) }
-func (s *Segment) NewInt16List(n int) Int16List     { return Int16List(s.newList(2, n)) }
-func (s *Segment) NewUInt16List(n int) UInt16List   { return UInt16List(s.newList(2, n)) }
-func (s *Segment) NewFloat32List(n int) Float32List { return Float32List(s.newList(4, n)) }
-func (s *Segment) NewInt32List(n int) Int32List     { return Int32List(s.newList(4, n)) }
-func (s *Segment) NewUInt32List(n int) UInt32List   { return UInt32List(s.newList(4, n)) }
-func (s *Segment) NewFloat64List(n int) Float64List { return Float64List(s.newList(8, n)) }
-func (s *Segment) NewInt64List(n int) Int64List     { return Int64List(s.newList(8, n)) }
-func (s *Segment) NewUInt64List(n int) UInt64List   { return UInt64List(s.newList(8, n)) }
-func (s *Segment) newList(datasz, length int) Object {
-	n, _ := s.create(datasz*length, Object{
+func (s *Segment) NewVoidList(n int32) VoidList       { return VoidList(s.newList(0, n)) }
+func (s *Segment) NewInt8List(n int32) Int8List       { return Int8List(s.newList(1, n)) }
+func (s *Segment) NewUInt8List(n int32) UInt8List     { return UInt8List(s.newList(1, n)) }
+func (s *Segment) NewInt16List(n int32) Int16List     { return Int16List(s.newList(2, n)) }
+func (s *Segment) NewUInt16List(n int32) UInt16List   { return UInt16List(s.newList(2, n)) }
+func (s *Segment) NewFloat32List(n int32) Float32List { return Float32List(s.newList(4, n)) }
+func (s *Segment) NewInt32List(n int32) Int32List     { return Int32List(s.newList(4, n)) }
+func (s *Segment) NewUInt32List(n int32) UInt32List   { return UInt32List(s.newList(4, n)) }
+func (s *Segment) NewFloat64List(n int32) Float64List { return Float64List(s.newList(8, n)) }
+func (s *Segment) NewInt64List(n int32) Int64List     { return Int64List(s.newList(8, n)) }
+func (s *Segment) NewUInt64List(n int32) UInt64List   { return UInt64List(s.newList(8, n)) }
+func (s *Segment) newList(datasz Size, length int32) Pointer {
+	n, _ := s.create(datasz*Size(length), Pointer{
 		typ:    TypeList,
 		length: length,
 		size:   ObjectSize{DataSize: datasz},
@@ -243,10 +299,10 @@ func (s *Segment) newList(datasz, length int) Object {
 	return n
 }
 
-func (s *Segment) NewTextList(n int) TextList { return TextList(s.NewPointerList(n)) }
-func (s *Segment) NewDataList(n int) DataList { return DataList(s.NewPointerList(n)) }
-func (s *Segment) NewPointerList(length int) PointerList {
-	n, _ := s.create(length*8, Object{
+func (s *Segment) NewTextList(n int32) TextList { return TextList(s.NewPointerList(n)) }
+func (s *Segment) NewDataList(n int32) DataList { return DataList(s.NewPointerList(n)) }
+func (s *Segment) NewPointerList(length int32) PointerList {
+	n, _ := s.create(wordSize.times(length), Pointer{
 		typ:    TypePointerList,
 		length: length,
 		size:   ObjectSize{PointerCount: 1},
@@ -254,75 +310,30 @@ func (s *Segment) NewPointerList(length int) PointerList {
 	return PointerList(n)
 }
 
-/*
-Canonicalization discussion on the Capnproto mailing list:
-
-https://groups.google.com/d/msg/capnproto/V_NysVkvNgs/P5RfeQyMvpkJ
-
-> Q:
-> 1: lists of non-trivial but honogeneous structs;
-> These will often be 7 (inline-composite). However, is it legal (and: common?) for such to be stored as 6 (pointer)? At the moment I can support both - I just want to make sure I'm not emitting something unusual.
-
-Actually, through Cap'n Proto 0.4.x, it is not only allowed, it is expected. In fact, a struct list can be encoded with any element size, as long as the struct fits. For example, if a struct type Foo has two int16 fields, then List(Foo) can be encoded as a list of 32-bit values.
-
-This rule was intended partly for optimization and partly to solve a common problem, for which I'll give a real example: In schema.capnp, to represent an interface's list of superclasses, I used a List(UInt64) containing the type IDs. Recently, when generics were implemented, I found I now additionally had to specify a type parameterization for each superclass, in addition to its type ID, since they could be generic. Because of the rule that struct lists may be encoded as primitive lists, I was able to simply replace my List(UInt64) with List(Superclass), where Superclass is a struct containing a UInt64 type ID as its @0 field. This change is backwards-compatible. Without this ability, I would have had to use parallel arrays, which would be terrible.
-
-With all that said, in Cap'n Proto 0.5.x, we are making a change: When reading a struct list, the above still applies (a list of non-structs must be accepted), but when writing a struct list, the implementation should always prefer to encode the list using the inline-composite element type.
-
-The reason for this change is so that we can define a canonicalization algorithm for Cap'n Proto messages that does not require knowledge of the schema yet produces stable canonicalizations even as new fields are added to struct types. The canonicalization algorithm needs to know when a value is a struct so that it can truncate trailing zeroes.
-
-List(primitive) -> List(struct) updates are still allowed (because they have proven useful), but with the understanding that this kind of upgrade breaks canonicalization. This seems like an acceptable trade-off.
-
-We also made a second change: Previously, consistent with the above rule, a list of structs where each struct contains a single boolean field was allowed to be encoded as a bit list. We now make a special exception to say that this is *not* allowed, because the implementation burden was too high and we have doubts about whether it would ever be used in practice. In other words, we used to allow List(Bool) -> List(struct) updates where the struct's @0 field was of type Bool, but we no longer allow this. For all types other than Bool, it is still allowed.
-
-*/
-
-const CanonicalizableOn = true
-
-func (s *Segment) NewCompositeList(sz ObjectSize, length int) PointerList {
-	switch {
-	case !sz.isValid():
+func (s *Segment) NewCompositeList(sz ObjectSize, length int32) PointerList {
+	if !sz.isValid() {
 		return PointerList{}
-	case sz.PointerCount > 0 || sz.DataSize > 8 || CanonicalizableOn:
-		sz.DataSize = pad(sz.DataSize, 8)
-		n, _ := s.create(8+length*sz.totalSize(), Object{
-			typ:    TypeList,
-			length: length,
-			size:   sz,
-			flags:  isCompositeList,
-		})
-		n.off += 8
-		hdr := structPointer | uint64(length)<<2 | uint64(sz.dataWordCount())<<32 | uint64(sz.PointerCount)<<48
-		binary.LittleEndian.PutUint64(s.Data[n.off-8:], hdr)
-		return PointerList(n)
-	case sz.DataSize > 4:
-		sz.DataSize = pad(sz.DataSize, 8)
-	case sz.DataSize > 2:
-		sz.DataSize = pad(sz.DataSize, 4)
 	}
-
-	n, _ := s.create(length*sz.totalSize(), Object{
+	sz.DataSize = sz.DataSize.padToWord()
+	n, _ := s.create(wordSize+sz.totalSize().times(length), Pointer{
 		typ:    TypeList,
 		length: length,
 		size:   sz,
+		flags:  isCompositeList,
 	})
+	// Add tag word
+	putRawPointer(s.Data[n.off:], rawStructPointer(pointerOffset(length), sz))
+	n.off = n.off.addSize(wordSize)
 	return PointerList(n)
 }
 
-// pad returns the smallest number greater than or equal to i that is
-// evenly divisible by align, which must be a power of two.
-func pad(i int, align uint) int {
-	n := int(align - 1)
-	return (i + n) &^ n
-}
-
 func (s *Segment) NewRootStruct(sz ObjectSize) Struct {
-	r, _, err := s.NewRoot()
+	r, err := s.NewRoot()
 	if err != nil {
 		return Struct{}
 	}
 	v := s.NewStruct(sz)
-	r.Set(0, Object(v))
+	r.Set(0, Pointer(v))
 	return v
 }
 
@@ -330,8 +341,8 @@ func (s *Segment) NewStruct(sz ObjectSize) Struct {
 	if !sz.isValid() {
 		return Struct{}
 	}
-	sz.DataSize = pad(sz.DataSize, 8)
-	n, _ := s.create(sz.totalSize(), Object{typ: TypeStruct, size: sz})
+	sz.DataSize = sz.DataSize.padToWord()
+	n, _ := s.create(sz.totalSize(), Pointer{typ: TypeStruct, size: sz})
 	return Struct(n)
 }
 
@@ -346,13 +357,13 @@ func (s *Segment) NewStructAR(sz ObjectSize) Struct {
 	}
 }
 
-// sz is in bytes
-func (s *Segment) create(sz int, n Object) (Object, error) {
-	sz = pad(sz, 8)
+// create allocates sz bytes in the segment, using n as a template.
+func (s *Segment) create(sz Size, n Pointer) (Pointer, error) {
+	sz = sz.padToWord()
 
 	// TODO(light): this can overflow easily
 	if uint64(sz) > uint64(math.MaxUint32)-8 {
-		return Object{}, ErrOverlarge
+		return Pointer{}, ErrOverlarge
 	}
 
 	if s == nil {
@@ -360,56 +371,61 @@ func (s *Segment) create(sz int, n Object) (Object, error) {
 	}
 
 	tag := false
-	if len(s.Data)+sz > cap(s.Data) {
+	newSize := Size(len(s.Data)) + sz
+	addr := Address(len(s.Data))
+	end := addr.addSize(sz)
+	if newSize > Size(cap(s.Data)) {
 		// If we can't fit the data in the current segment, we always
 		// return a far pointer to a tag in the new segment.
 		if (n.flags & isRoot) != 0 {
 			tag = true
-			sz += 8
+			sz += wordSize
 		}
 		news, err := s.Message.NewSegment(sz)
 		if err != nil {
-			return Object{}, err
+			return Pointer{}, err
 		}
 
 		// NewSegment is allowed to grow the segment and return it. In
 		// which case we don't want to create a tag.
 		if tag && news == s {
-			sz -= 8
+			sz -= wordSize
 			tag = false
 		}
 
 		s = news
 	}
 
-	n.Segment = s
-	n.off = len(s.Data)
-	s.Data = s.Data[:len(s.Data)+sz] // NewSegment() makes this promise
+	n.seg = s
+	n.off = addr
+	s.Data = s.Data[:newSize] // NewSegment() makes this promise
 
 	if tag {
-		n.off += 8
-		binary.LittleEndian.PutUint64(s.Data[n.off-8:], uint64(n.value(n.off-8)))
+		putRawPointer(s.Data[addr:], n.value(addr))
+		n.off = n.off.addSize(wordSize)
 		n.flags |= hasPointerTag
 	}
 
-	for i := n.off; i < len(s.Data); i++ {
+	for i := n.off; i < end; i++ {
 		s.Data[i] = 0
 	}
 
 	return n, nil
 }
 
-func (s *Segment) NewInterface(cap uint32) Interface {
-	return Interface(Object{
-		Segment: s,
-		typ:     TypeInterface,
-		cap:     cap,
+// NewInterface returns a new interface pointer.
+func (s *Segment) NewInterface(cap CapabilityID) Interface {
+	return Interface(Pointer{
+		seg: s,
+		typ: TypeInterface,
+		cap: cap,
 	})
 }
 
-func (p Object) Type() ObjectType { return p.typ }
+// Type returns the type of object referenced by p.
+func (p Pointer) Type() PointerType { return p.typ }
 
-func (p Object) ToStruct() Struct {
+func (p Pointer) ToStruct() Struct {
 	if p.typ == TypeStruct {
 		return Struct(p)
 	} else {
@@ -417,15 +433,15 @@ func (p Object) ToStruct() Struct {
 	}
 }
 
-func (p Object) ToStructDefault(s *Segment, tagoff int) Struct {
+func (p Pointer) ToStructDefault(s *Segment, tagAddr Address) Struct {
 	if p.typ == TypeStruct {
 		return Struct(p)
 	} else {
-		return s.Root(tagoff).ToStruct()
+		return s.Root(tagAddr).ToStruct()
 	}
 }
 
-func (p Object) ToInterface() Interface {
+func (p Pointer) ToInterface() Interface {
 	if p.typ == TypeInterface {
 		return Interface(p)
 	} else {
@@ -433,22 +449,23 @@ func (p Object) ToInterface() Interface {
 	}
 }
 
-func (p Object) ToText() string { return p.ToTextDefault("") }
-func (p Object) ToTextDefault(def string) string {
-	if p.typ != TypeList || !p.size.isOneByte() || p.length == 0 || p.Segment.Data[p.off+p.length-1] != 0 {
+func (p Pointer) ToText() string { return p.ToTextDefault("") }
+func (p Pointer) ToTextDefault(def string) string {
+	lastAddr := p.off.element(p.length-1, 1)
+	if p.typ != TypeList || !p.size.isOneByte() || p.length == 0 || p.seg.Data[lastAddr] != 0 {
 		return def
 	}
 
-	return string(p.Segment.Data[p.off : p.off+p.length-1])
+	return string(p.seg.Data[p.off:lastAddr])
 }
 
-func (p Object) ToData() []byte { return p.ToDataDefault(nil) }
-func (p Object) ToDataDefault(def []byte) []byte {
+func (p Pointer) ToData() []byte { return p.ToDataDefault(nil) }
+func (p Pointer) ToDataDefault(def []byte) []byte {
 	if p.typ != TypeList || !p.size.isOneByte() {
 		return def
 	}
 
-	return p.Segment.Data[p.off : p.off+p.length]
+	return p.seg.Data[p.off:p.off.element(p.length, 1)]
 }
 
 // There is no need to check the object type for lists as:
@@ -456,208 +473,251 @@ func (p Object) ToDataDefault(def []byte) []byte {
 // 2. Its TypeStruct, but then the length is 0
 // 3. Its TypeNull, but then the length is 0
 
-func (p Object) ToVoidList() VoidList       { return VoidList(p) }
-func (p Object) ToBitList() BitList         { return BitList(p) }
-func (p Object) ToInt8List() Int8List       { return Int8List(p) }
-func (p Object) ToUInt8List() UInt8List     { return UInt8List(p) }
-func (p Object) ToInt16List() Int16List     { return Int16List(p) }
-func (p Object) ToUInt16List() UInt16List   { return UInt16List(p) }
-func (p Object) ToInt32List() Int32List     { return Int32List(p) }
-func (p Object) ToUInt32List() UInt32List   { return UInt32List(p) }
-func (p Object) ToFloat32List() Float32List { return Float32List(p) }
-func (p Object) ToInt64List() Int64List     { return Int64List(p) }
-func (p Object) ToUInt64List() UInt64List   { return UInt64List(p) }
-func (p Object) ToFloat64List() Float64List { return Float64List(p) }
-func (p Object) ToPointerList() PointerList { return PointerList(p) }
-func (p Object) ToTextList() TextList       { return TextList(p) }
-func (p Object) ToDataList() DataList       { return DataList(p) }
+func (p Pointer) ToVoidList() VoidList       { return VoidList(p) }
+func (p Pointer) ToBitList() BitList         { return BitList(p) }
+func (p Pointer) ToInt8List() Int8List       { return Int8List(p) }
+func (p Pointer) ToUInt8List() UInt8List     { return UInt8List(p) }
+func (p Pointer) ToInt16List() Int16List     { return Int16List(p) }
+func (p Pointer) ToUInt16List() UInt16List   { return UInt16List(p) }
+func (p Pointer) ToInt32List() Int32List     { return Int32List(p) }
+func (p Pointer) ToUInt32List() UInt32List   { return UInt32List(p) }
+func (p Pointer) ToFloat32List() Float32List { return Float32List(p) }
+func (p Pointer) ToInt64List() Int64List     { return Int64List(p) }
+func (p Pointer) ToUInt64List() UInt64List   { return UInt64List(p) }
+func (p Pointer) ToFloat64List() Float64List { return Float64List(p) }
+func (p Pointer) ToPointerList() PointerList { return PointerList(p) }
+func (p Pointer) ToTextList() TextList       { return TextList(p) }
+func (p Pointer) ToDataList() DataList       { return DataList(p) }
 
-func (p Object) ToListDefault(s *Segment, tagoff int) Object {
+func (p Pointer) ToListDefault(s *Segment, tagAddr Address) Pointer {
 	switch p.typ {
 	case TypeList, TypeBitList, TypePointerList:
 		return p
 	default:
-		return s.Root(tagoff)
+		return s.Root(tagAddr)
 	}
 }
 
-func (p Object) ToObjectDefault(s *Segment, tagoff int) Object {
+func (p Pointer) ToObjectDefault(s *Segment, tagAddr Address) Pointer {
 	if p.typ == TypeNull {
-		return s.Root(tagoff)
+		return s.Root(tagAddr)
 	} else {
 		return p
 	}
 }
 
-func (p Struct) GetObject(off int) Object {
-	if uint(off) < uint(p.size.PointerCount) {
-		return p.Segment.readPtr(p.off + p.size.DataSize + off*8)
+// Pointer returns the i'th pointer in the struct.
+func (p Struct) Pointer(i uint16) Pointer {
+	if i < p.size.PointerCount {
+		return p.seg.readPtr(p.pointerAddress(i))
 	} else {
-		return Object{}
+		return Pointer{}
 	}
 }
 
-func (p Struct) SetObject(i int, src Object) {
-	if uint(i) < uint(p.size.PointerCount) {
-		//replaceMe := p.Segment.readPtr(p.off + p.datasz + i*8)
+// SetPointer sets the i'th pointer in the struct to src.
+func (p Struct) SetPointer(i uint16, src Pointer) {
+	if i < p.size.PointerCount {
+		//replaceMe := p.seg.readPtr(p.off + p.datasz + i*8)
 		//copyStructHandlingVersionSkew(replaceMe, src, nil, 0, 0, 0)
-		p.Segment.writePtr(p.off+p.size.DataSize+i*8, src, nil, 0)
+		p.seg.writePtr(p.pointerAddress(i), src, nil, 0)
 	}
 }
 
-func (p Struct) Get1(bitoff int) bool {
-	off := uint(p.off*8 + bitoff)
+func (p Struct) pointerAddress(i uint16) Address {
+	ptrStart := p.off.addSize(p.size.DataSize)
+	return ptrStart.element(int32(i), wordSize)
+}
 
+func (p Struct) bitOffset(bitoff uint32) bitOffset {
 	if bitoff == 0 && (p.flags&isBitListMember) != 0 {
-		off += p.flags & bitOffsetMask
-	} else if bitoff < 0 || bitoff >= p.size.DataSize*8 {
+		return p.flags.bitOffset()
+	}
+	return bitOffset(bitoff)
+}
+
+// Bit returns the bit that is bitoff bits from the start of the struct.
+func (p Struct) Bit(bitoff uint32) bool {
+	o := p.bitOffset(bitoff)
+	if o >= bitOffset(p.size.DataSize*8) {
 		return false
 	}
-
-	return p.Segment.Data[off/8]&(1<<uint(off%8)) != 0
+	addr := p.off.addOffset(o.offset())
+	mask := o.mask()
+	return p.seg.Data[addr]&mask != 0
 }
 
-func (p Struct) Set1(bitoff int, v bool) {
-	off := uint(p.off*8 + bitoff)
-
-	if bitoff == 0 && (p.flags&isBitListMember) != 0 {
-		off += p.flags & bitOffsetMask
-	} else if bitoff < 0 || bitoff >= p.size.DataSize*8 {
+// SetBit sets the bit that is bitoff bits from the start of the struct to v.
+func (p Struct) SetBit(bitoff uint32, v bool) {
+	o := p.bitOffset(bitoff)
+	if o >= bitOffset(p.size.DataSize*8) {
 		return
 	}
-
+	addr := p.off.addOffset(o.offset())
+	mask := o.mask()
 	if v {
-		p.Segment.Data[off/8] |= 1 << (off % 8)
+		p.seg.Data[addr] |= mask
 	} else {
-		p.Segment.Data[off/8] &^= 1 << (off % 8)
+		p.seg.Data[addr] &^= mask
 	}
 }
 
-func (p Struct) Get8(off int) uint8 {
-	if off < p.size.DataSize {
-		return p.Segment.Data[uint(p.off)+uint(off)]
-	} else {
+func (p Struct) dataAddress(off DataOffset, sz Size) (addr Address, ok bool) {
+	if Size(off)+sz > p.size.DataSize {
+		return 0, false
+	}
+	return p.off.addOffset(off), true
+}
+
+// Uint8 returns an 8-bit integer from the struct's data section.
+func (p Struct) Uint8(off DataOffset) uint8 {
+	addr, ok := p.dataAddress(off, 1)
+	if !ok {
 		return 0
 	}
+	return p.seg.Data[addr]
 }
 
-func (p Struct) Get16(off int) uint16 {
-	if off < p.size.DataSize {
-		return binary.LittleEndian.Uint16(p.Segment.Data[uint(p.off)+uint(off):])
-	} else {
+// Uint16 returns a 16-bit integer from the struct's data section.
+func (p Struct) Uint16(off DataOffset) uint16 {
+	addr, ok := p.dataAddress(off, 2)
+	if !ok {
 		return 0
 	}
+	return binary.LittleEndian.Uint16(p.seg.Data[addr:])
 }
 
-func (p Struct) Get32(off int) uint32 {
-	if off < p.size.DataSize {
-		return binary.LittleEndian.Uint32(p.Segment.Data[uint(p.off)+uint(off):])
-	} else {
+// Uint32 returns a 32-bit integer from the struct's data section.
+func (p Struct) Uint32(off DataOffset) uint32 {
+	addr, ok := p.dataAddress(off, 4)
+	if !ok {
 		return 0
 	}
+	return binary.LittleEndian.Uint32(p.seg.Data[addr:])
 }
 
-func (p Struct) Get64(off int) uint64 {
-	if off < p.size.DataSize {
-		return binary.LittleEndian.Uint64(p.Segment.Data[uint(p.off)+uint(off):])
-	} else {
+// Uint64 returns a 64-bit integer from the struct's data section.
+func (p Struct) Uint64(off DataOffset) uint64 {
+	addr, ok := p.dataAddress(off, 8)
+	if !ok {
 		return 0
 	}
+	return binary.LittleEndian.Uint64(p.seg.Data[addr:])
 }
 
-func (p Struct) Set8(off int, v uint8) {
-	if uint(off) < uint(p.size.DataSize) {
-		p.Segment.Data[uint(p.off)+uint(off)] = v
+// SetUint8 sets the 8-bit integer that is off bytes from the start of the struct to v.
+func (p Struct) SetUint8(off DataOffset, v uint8) {
+	addr, ok := p.dataAddress(off, 1)
+	if !ok {
+		panic(ErrOutOfBounds)
 	}
+	p.seg.Data[addr] = v
 }
 
-func (p Struct) Set16(off int, v uint16) {
-	if uint(off) < uint(p.size.DataSize) {
-		binary.LittleEndian.PutUint16(p.Segment.Data[uint(p.off)+uint(off):], v)
+// SetUint16 sets the 16-bit integer that is off bytes from the start of the struct to v.
+func (p Struct) SetUint16(off DataOffset, v uint16) {
+	addr, ok := p.dataAddress(off, 2)
+	if !ok {
+		panic(ErrOutOfBounds)
 	}
+	binary.LittleEndian.PutUint16(p.seg.Data[addr:], v)
 }
 
-func (p Struct) Set32(off int, v uint32) {
-	if uint(off) < uint(p.size.DataSize) {
-		binary.LittleEndian.PutUint32(p.Segment.Data[uint(p.off)+uint(off):], v)
+// SetUint32 sets the 32-bit integer that is off bytes from the start of the struct to v.
+func (p Struct) SetUint32(off DataOffset, v uint32) {
+	addr, ok := p.dataAddress(off, 4)
+	if !ok {
+		panic(ErrOutOfBounds)
 	}
+	binary.LittleEndian.PutUint32(p.seg.Data[addr:], v)
 }
 
-func (p Struct) Set64(off int, v uint64) {
-	if uint(off) < uint(p.size.DataSize) {
-		binary.LittleEndian.PutUint64(p.Segment.Data[uint(p.off)+uint(off):], v)
+// SetUint64 sets the 64-bit integer that is off bytes from the start of the struct to v.
+func (p Struct) SetUint64(off DataOffset, v uint64) {
+	addr, ok := p.dataAddress(off, 8)
+	if !ok {
+		panic(ErrOutOfBounds)
 	}
+	binary.LittleEndian.PutUint64(p.seg.Data[addr:], v)
 }
 
 func (p BitList) At(i int) bool {
-	if i < 0 || i >= p.length {
+	if i < 0 || i >= int(p.length) {
 		return false
 	}
 
 	switch p.typ {
 	case TypePointerList:
-		m := p.Segment.readPtr(p.off + i*8)
-		return m.typ == TypeStruct && m.size.DataSize > 0 && (m.Segment.Data[0]&1) != 0
+		addr := p.off.element(int32(i), wordSize)
+		m := p.seg.readPtr(addr)
+		// TODO(light): the m.seg.Data[0] seems wrong
+		return m.typ == TypeStruct && m.size.DataSize > 0 && (m.seg.Data[0]&1) != 0
 	case TypeList:
-		off := p.off + i*p.size.totalSize()
-		return (p.Segment.Data[off] & 1) != 0
+		addr := p.off.element(int32(i), p.size.totalSize())
+		return (p.seg.Data[addr] & 1) != 0
 	case TypeBitList:
-		return (p.Segment.Data[p.off+i/8] & (1 << uint(i%8))) != 0
+		addr := p.off.element(int32(i/8), 1)
+		mask := byte(1 << uint(i%8))
+		return p.seg.Data[addr]&mask != 0
 	default:
 		return false
 	}
 }
 
 func (p BitList) Set(i int, v bool) {
-	if i < 0 || i >= p.length {
+	if i < 0 || i >= int(p.length) {
 		return
 	}
 
 	switch p.typ {
 	case TypePointerList:
-		m := p.Segment.readPtr(p.off + i*8)
+		addr := p.off.element(int32(i), wordSize)
+		m := p.seg.readPtr(addr)
 		if m.typ == TypeStruct && m.size.DataSize > 0 {
 			if v {
-				m.Segment.Data[0] |= 1
+				// TODO(light): the m.seg.Data[0] seems wrong
+				m.seg.Data[0] |= 1
 			} else {
-				m.Segment.Data[0] &^= 1
+				m.seg.Data[0] &^= 1
 			}
 		}
 	case TypeList:
-		off := p.off + i*p.size.totalSize()
+		addr := p.off.element(int32(i), p.size.totalSize())
 		if v {
-			p.Segment.Data[off] |= 1
+			p.seg.Data[addr] |= 1
 		} else {
-			p.Segment.Data[off] &^= 1
+			p.seg.Data[addr] &^= 1
 		}
 	case TypeBitList:
+		addr := p.off.element(int32(i/8), 1)
+		mask := byte(1 << uint(i%8))
 		if v {
-			p.Segment.Data[p.off+i/8] |= 1 << uint(i%8)
+			p.seg.Data[addr] |= mask
 		} else {
-			p.Segment.Data[p.off+i/8] &^= 1 << uint(i%8)
+			p.seg.Data[addr] &^= mask
 		}
 	}
 }
 
-func (p Object) listData(i int, sz int) []byte {
-	if i < 0 || i >= p.length {
+func (p Pointer) listData(i int, sz Size) []byte {
+	if i < 0 || i >= int(p.length) {
 		return nil
 	}
 
 	switch p.typ {
 	case TypePointerList:
-		m := p.Segment.readPtr(p.off + i*8)
-		if m.typ != TypeStruct || sz > m.size.DataSize*8 {
+		m := p.seg.readPtr(p.off.element(int32(i), wordSize))
+		if m.typ != TypeStruct || sz > m.size.DataSize {
 			return nil
 		}
-		return m.Segment.Data[m.off:]
+		return m.seg.Data[m.off:]
 
 	case TypeList:
-		if sz > p.size.DataSize*8 {
+		if sz > p.size.DataSize {
 			return nil
 		}
-		off := p.off + i*p.size.totalSize()
-		return p.Segment.Data[off:]
+		addr := p.off.element(int32(i), p.size.totalSize())
+		return p.seg.Data[addr:]
 
 	default: // including TypeBitList as this is only used for 8 bit and larger
 		return nil
@@ -666,7 +726,7 @@ func (p Object) listData(i int, sz int) []byte {
 
 func (p Int8List) At(i int) int8 { return int8(UInt8List(p).At(i)) }
 func (p UInt8List) At(i int) uint8 {
-	if data := Object(p).listData(i, 8); data != nil {
+	if data := Pointer(p).listData(i, 1); data != nil {
 		return data[0]
 	} else {
 		return 0
@@ -675,7 +735,7 @@ func (p UInt8List) At(i int) uint8 {
 
 func (p Int16List) At(i int) int16 { return int16(UInt16List(p).At(i)) }
 func (p UInt16List) At(i int) uint16 {
-	if data := Object(p).listData(i, 16); data != nil {
+	if data := Pointer(p).listData(i, 2); data != nil {
 		return binary.LittleEndian.Uint16(data)
 	} else {
 		return 0
@@ -685,7 +745,7 @@ func (p UInt16List) At(i int) uint16 {
 func (p Int32List) At(i int) int32     { return int32(UInt32List(p).At(i)) }
 func (p Float32List) At(i int) float32 { return math.Float32frombits(UInt32List(p).At(i)) }
 func (p UInt32List) At(i int) uint32 {
-	if data := Object(p).listData(i, 32); data != nil {
+	if data := Pointer(p).listData(i, 4); data != nil {
 		return binary.LittleEndian.Uint32(data)
 	} else {
 		return 0
@@ -695,7 +755,7 @@ func (p UInt32List) At(i int) uint32 {
 func (p Int64List) At(i int) int64     { return int64(UInt64List(p).At(i)) }
 func (p Float64List) At(i int) float64 { return math.Float64frombits(UInt64List(p).At(i)) }
 func (p UInt64List) At(i int) uint64 {
-	if data := Object(p).listData(i, 64); data != nil {
+	if data := Pointer(p).listData(i, 8); data != nil {
 		return binary.LittleEndian.Uint64(data)
 	} else {
 		return 0
@@ -704,14 +764,14 @@ func (p UInt64List) At(i int) uint64 {
 
 func (p Int8List) Set(i int, v int8) { UInt8List(p).Set(i, uint8(v)) }
 func (p UInt8List) Set(i int, v uint8) {
-	if data := Object(p).listData(i, 8); data != nil {
+	if data := Pointer(p).listData(i, 1); data != nil {
 		data[0] = v
 	}
 }
 
 func (p Int16List) Set(i int, v int16) { UInt16List(p).Set(i, uint16(v)) }
 func (p UInt16List) Set(i int, v uint16) {
-	if data := Object(p).listData(i, 16); data != nil {
+	if data := Pointer(p).listData(i, 2); data != nil {
 		binary.LittleEndian.PutUint16(data, v)
 	}
 }
@@ -719,7 +779,7 @@ func (p UInt16List) Set(i int, v uint16) {
 func (p Int32List) Set(i int, v int32)     { UInt32List(p).Set(i, uint32(v)) }
 func (p Float32List) Set(i int, v float32) { UInt32List(p).Set(i, math.Float32bits(v)) }
 func (p UInt32List) Set(i int, v uint32) {
-	if data := Object(p).listData(i, 32); data != nil {
+	if data := Pointer(p).listData(i, 4); data != nil {
 		binary.LittleEndian.PutUint32(data, v)
 	}
 }
@@ -727,7 +787,7 @@ func (p UInt32List) Set(i int, v uint32) {
 func (p Int64List) Set(i int, v int64)     { UInt64List(p).Set(i, uint64(v)) }
 func (p Float64List) Set(i int, v float64) { UInt64List(p).Set(i, math.Float64bits(v)) }
 func (p UInt64List) Set(i int, v uint64) {
-	if data := Object(p).listData(i, 64); data != nil {
+	if data := Pointer(p).listData(i, 8); data != nil {
 		binary.LittleEndian.PutUint64(data, v)
 	}
 }
@@ -742,7 +802,7 @@ func (p BitList) ToArray() []bool {
 
 func (p UInt8List) ToArray() []uint8 {
 	if p.typ == TypeList && p.size.isOneByte() {
-		return p.Segment.Data[p.off : p.off+p.length]
+		return p.seg.Data[p.off:p.off.element(p.length, 1)]
 	}
 
 	v := make([]uint8, p.Len())
@@ -842,61 +902,53 @@ func (p DataList) ToArray() [][]byte {
 
 func (p TextList) At(i int) string { return PointerList(p).At(i).ToText() }
 func (p DataList) At(i int) []byte { return PointerList(p).At(i).ToData() }
-func (p PointerList) At(i int) Object {
-	if i < 0 || i >= p.length {
-		return Object{}
+func (p PointerList) At(i int) Pointer {
+	if i < 0 || i >= int(p.length) {
+		return Pointer{}
 	}
 
 	switch p.typ {
 	case TypeList:
-		return Object{
-			Segment: p.Segment,
-			typ:     TypeStruct,
-			off:     p.off + i*p.size.totalSize(),
-			size:    p.size,
-			flags:   isListMember,
+		return Pointer{
+			seg:   p.seg,
+			typ:   TypeStruct,
+			off:   p.off.element(int32(i), p.size.totalSize()),
+			size:  p.size,
+			flags: isListMember,
 		}
 
 	case TypePointerList:
-		return p.Segment.readPtr(p.off + i*8)
+		return p.seg.readPtr(p.off.element(int32(i), wordSize))
 
 	case TypeBitList:
-		return Object{
-			Segment: p.Segment,
-			typ:     TypeStruct,
-			off:     p.off + i/8,
-			flags:   uint(i%8) | isBitListMember,
+		return Pointer{
+			seg:   p.seg,
+			typ:   TypeStruct,
+			off:   p.off.element(int32(i/8), 1),
+			flags: pointerFlags(i%8) | isBitListMember,
 		}
 
 	default:
-		return Object{}
+		return Pointer{}
 	}
 }
 
 // listpos allows us to use this routine for copying elements between lists
-func copyStructHandlingVersionSkew(dest Object, src Object, copies *rbtree.Tree, depth int, destListPos int, srcListPos int) error {
-
+func copyStructHandlingVersionSkew(dest, src Pointer, copies *rbtree.Tree, depth int, destListPos, srcListPos int32) error {
 	// handle VoidList destinations
-	if dest.Segment == nil {
+	if dest.seg == nil {
 		return nil
 	}
 
-	// handle assignment into a size-zero object/empty struct/old version
-	//if destElemSz == 0 {
-	// return nil
-	// }
-
-	destListInc := dest.size.totalSize() * destListPos
-	srcListInc := src.size.totalSize() * srcListPos
-
-	toData := dest.Segment.Data[dest.off+destListInc : dest.off+destListInc+dest.size.DataSize]
-
-	//fmt.Printf("\n\n debug: destElemSz = %d, srcElemSz = %d, destListInc = %d, srcListInc = %d, toData = %#v, len(toData)=%d\n", destElemSz, srcElemSz, destListInc, srcListInc, toData, len(toData))
+	destBase := dest.off.element(destListPos, dest.size.totalSize())
+	destDataEnd := destBase.addSize(dest.size.DataSize)
+	srcBase := src.off.element(srcListPos, src.size.totalSize())
+	srcDataEnd := srcBase.addSize(src.size.DataSize)
 
 	// Q: how does version handling happen here, when the
 	//    desination toData[] slice can be bigger or smaller
 	//    than the source data slice, which is in
-	//    src.Segment.Data[src.off:src.off+src.size.DataSize] ?
+	//    src.seg.Data[src.off:src.off+src.size.DataSize] ?
 	//
 	// A: Newer fields only come *after* old fields. Note that
 	//    copy only copies min(len(src), len(dst)) size,
@@ -905,12 +957,9 @@ func copyStructHandlingVersionSkew(dest Object, src Object, copies *rbtree.Tree,
 	//
 
 	// data section:
-	//fmt.Printf("\n\n  debug: len(src.Segment.Data) = %d, src.off(%d)+srcListInc(%d) = %d\n", len(src.Segment.Data), src.off, srcListInc, src.off+srcListInc)
-	from := src.Segment.Data[src.off+srcListInc : src.off+srcListInc+src.size.DataSize]
-	//fmt.Printf("\n\n  debug: len(src.Segment.Data) = %d, src.off(%d)+srcListInc(%d) = %d,  len(from)=%d\n", len(src.Segment.Data), src.off, srcListInc, src.off+srcListInc, len(from))
-
+	toData := dest.seg.Data[destBase:destDataEnd]
+	from := src.seg.Data[srcBase:srcDataEnd]
 	copyCount := copy(toData, from)
-	//fmt.Printf("\n\n  debug: copyCount = %d\n", copyCount)
 	toData = toData[copyCount:]
 	for j := range toData {
 		toData[j] = 0
@@ -921,20 +970,19 @@ func copyStructHandlingVersionSkew(dest Object, src Object, copies *rbtree.Tree,
 	// version handling: we ignore any extra-newer-pointers in src,
 	// i.e. the case when srcPtrSize > dstPtrSize, by only
 	// running j over the size of dstPtrSize, the destination size.
-	srcPtrSize := src.size.pointerSize()
-	dstPtrSize := dest.size.pointerSize()
-	for j := 0; j < dstPtrSize; j += 8 {
-		if j < srcPtrSize {
-			m := src.Segment.readPtr(src.off + srcListInc + src.size.DataSize + j)
-			//fmt.Printf("debug: PointerList.Set(i=%d, src=%#v). source ptr is m = %#v\n", i, src, m)
-			if err := dest.Segment.writePtr(dest.off+destListInc+dest.size.DataSize+j, m, copies, depth+1); err != nil {
-				return err
-			}
-		} else {
-			// destination p is a newer version than source
-			//  so these extra new pointer fields in p must be zeroed.
-			binary.LittleEndian.PutUint64(dest.Segment.Data[dest.off+destListInc+dest.size.DataSize+j:], 0)
+	numSrcPtrs := src.size.PointerCount
+	numDstPtrs := dest.size.PointerCount
+	for j := uint16(0); j < numSrcPtrs && j < numDstPtrs; j++ {
+		m := src.seg.readPtr(srcDataEnd.element(int32(j), wordSize))
+		err := dest.seg.writePtr(destDataEnd.element(int32(j), wordSize), m, copies, depth+1)
+		if err != nil {
+			return err
 		}
+	}
+	for j := numSrcPtrs; j < numDstPtrs; j++ {
+		// destination p is a newer version than source so these extra new pointer fields in p must be zeroed.
+		addr := destDataEnd.element(int32(j), wordSize)
+		putRawPointer(dest.seg.Data[addr:], 0)
 	}
 	// Nothing more here: so any other pointers in srcPtrSize beyond
 	// those in dstPtrSize are ignored and discarded.
@@ -943,33 +991,35 @@ func copyStructHandlingVersionSkew(dest Object, src Object, copies *rbtree.Tree,
 
 } // end copyStructHandlingVersionSkew()
 
-func (p TextList) Set(i int, v string) { PointerList(p).Set(i, p.Segment.NewText(v)) }
-func (p DataList) Set(i int, v []byte) { PointerList(p).Set(i, p.Segment.NewData(v)) }
-func (p PointerList) Set(i int, src Object) error {
-	if i < 0 || i >= p.length {
+func (p TextList) Set(i int, v string) { PointerList(p).Set(i, p.seg.NewText(v)) }
+func (p DataList) Set(i int, v []byte) { PointerList(p).Set(i, p.seg.NewData(v)) }
+func (p PointerList) Set(i int, src Pointer) error {
+	if i < 0 || i >= int(p.length) {
 		return nil
 	}
 
 	switch p.typ {
 	case TypeList:
 		if src.typ != TypeStruct {
-			src = Object{}
+			src = Pointer{}
 		}
 
-		err := copyStructHandlingVersionSkew(Object(p), src, nil, 0, i, 0)
+		err := copyStructHandlingVersionSkew(Pointer(p), src, nil, 0, int32(i), 0)
 		if err != nil {
 			return err
 		}
 		return nil
 
 	case TypePointerList:
-		return p.Segment.writePtr(p.off+i*8, src, nil, 0)
+		return p.seg.writePtr(p.off.element(int32(i), wordSize), src, nil, 0)
 
 	case TypeBitList:
-		if src.ToStruct().Get1(0) {
-			p.Segment.Data[p.off+i/8] |= 1 << uint(i%8)
+		boff := bitOffset(i)
+		addr := p.off + Address(boff.offset())
+		if src.ToStruct().Bit(0) {
+			p.seg.Data[addr] |= boff.mask()
 		} else {
-			p.Segment.Data[p.off+i/8] &^= 1 << uint(i%8)
+			p.seg.Data[addr] &^= boff.mask()
 		}
 		return nil
 
@@ -978,7 +1028,7 @@ func (p PointerList) Set(i int, src Object) error {
 	}
 }
 
-func (s *Segment) lookupSegment(id uint32) (*Segment, error) {
+func (s *Segment) lookupSegment(id SegmentID) (*Segment, error) {
 	if s.Id != id {
 		return s.Message.Lookup(id)
 	} else {
@@ -986,11 +1036,9 @@ func (s *Segment) lookupSegment(id uint32) (*Segment, error) {
 	}
 }
 
-func (s *Segment) readPtr(off int) Object {
+func (s *Segment) readPtr(off Address) Pointer {
 	var err error
-	val := pointer(binary.LittleEndian.Uint64(s.Data[off:]))
-
-	//fmt.Printf("readPtr see val= %x\n", val)
+	val := rawPointer(binary.LittleEndian.Uint64(s.Data[off:]))
 
 	switch val.pointerType() {
 	case doubleFarPointer:
@@ -999,47 +1047,38 @@ func (s *Segment) readPtr(off int) Object {
 		// that would normally be placed right before the data (offset
 		// == 0).
 
-		faroff := int((uint32(val) >> 3) * 8)
-		segid := uint32(val >> 32)
-
-		if s, err = s.lookupSegment(segid); err != nil || uint(faroff)+16 > uint(len(s.Data)) {
-			return Object{}
+		faroff, segid := val.farAddress(), val.farSegment()
+		if s, err = s.lookupSegment(segid); err != nil || !s.regionInBounds(faroff, wordSize.times(2)) {
+			return Pointer{}
 		}
-
-		far := binary.LittleEndian.Uint64(s.Data[faroff:])
-		tag := binary.LittleEndian.Uint64(s.Data[faroff+8:])
-
-		// The far tag should not be another double and the tag should
-		// be struct/list with a 0 offset.
-		if far&7 != farPointer || uint32(tag) > listPointer {
-			return Object{}
+		far := rawPointer(binary.LittleEndian.Uint64(s.Data[faroff:]))
+		tag := rawPointer(binary.LittleEndian.Uint64(s.Data[faroff.addSize(wordSize):]))
+		if far.pointerType() != farPointer || tag.offset() != 0 {
+			return Pointer{}
 		}
-
-		segid = uint32(far >> 32)
+		segid = far.farSegment()
 		if s, err = s.lookupSegment(segid); err != nil {
-			return Object{}
+			return Pointer{}
 		}
 
 		// -8 because far pointers reference from the start of the
 		// segment, but offsets reference the end of the pointer data.
-		off = -8
-		val = pointer(uint64(uint32(far)>>3<<2) | tag)
+		val = tag | rawPointer(far.farAddress()-Address(wordSize))<<2
 
 	case farPointer:
-		segid := uint32(val >> 32)
-		faroff := int((uint32(val) >> 3) * 8)
+		faroff, segid := val.farAddress(), val.farSegment()
 
-		if s, err = s.lookupSegment(segid); err != nil || faroff+8 > len(s.Data) {
-			return Object{}
+		if s, err = s.lookupSegment(segid); err != nil || !s.regionInBounds(faroff, wordSize) {
+			return Pointer{}
 		}
 
 		off = faroff
-		val = pointer(binary.LittleEndian.Uint64(s.Data[faroff:]))
+		val = rawPointer(binary.LittleEndian.Uint64(s.Data[faroff:]))
 	}
 
 	if val == 0 {
 		// This is a null pointer.
-		return Object{}
+		return Pointer{}
 	}
 
 	// Be wary of overflow. Offset is 30 bits signed. List size is 29 bits
@@ -1047,235 +1086,117 @@ func (s *Segment) readPtr(off int) Object {
 	// using 32 bit maths as bits or bytes will overflow.
 	switch val.pointerType() {
 	case structPointer:
-		offw := off/8 + 1 + val.structSignedOffset()
-
-		if offw < 0 || offw >= len(s.Data)/8 {
-			return Object{}
+		addr, ok := val.offset().resolve(off)
+		if !ok {
+			return Pointer{}
 		}
-
-		p := Object{
-			Segment: s,
-			typ:     TypeStruct,
-			off:     offw * 8,
-			size: ObjectSize{
-				DataSize:     pointer(val).structC() * 8,
-				PointerCount: pointer(val).structD(),
-			},
+		sz := val.structSize()
+		if !s.regionInBounds(addr, sz.totalSize()) {
+			return Pointer{}
 		}
-
-		if p.off+p.size.totalSize() > len(s.Data) {
-			return Object{}
+		return Pointer{
+			seg:  s,
+			typ:  TypeStruct,
+			off:  addr,
+			size: sz,
 		}
-
-		return p
-
 	case listPointer:
-		offw := off/8 + 1 + val.structSignedOffset()
-		//fmt.Printf("offw = %d,  len(s.Data)=%d", offw, len(s.Data))
-		if val.listC() != voidList {
-			if offw < 0 || offw >= len(s.Data)/8 {
-				return Object{}
+		addr, ok := val.offset().resolve(off)
+		if !ok {
+			return Pointer{}
+		}
+		lt, lsize := val.listType(), val.totalListSize()
+		if !s.regionInBounds(addr, lsize) {
+			return Pointer{}
+		}
+		if lt == compositeList {
+			hdr := rawPointer(binary.LittleEndian.Uint64(s.Data[addr:]))
+			addr = addr.addSize(wordSize)
+			if hdr.pointerType() != structPointer {
+				return Pointer{}
+			}
+			sz := hdr.structSize()
+			n := int32(hdr.offset())
+			if !s.regionInBounds(addr, sz.totalSize().times(n)) {
+				return Pointer{}
+			}
+			return Pointer{
+				seg:    s,
+				typ:    TypeList,
+				size:   sz,
+				off:    addr,
+				length: n,
+				flags:  isCompositeList,
 			}
 		}
-
-		p := Object{
-			Segment: s,
-			typ:     TypeList,
-			off:     offw * 8,
-			length:  int(uint32(val >> 35)),
+		return Pointer{
+			seg:    s,
+			typ:    listPointerType(lt),
+			size:   val.elementSize(),
+			off:    addr,
+			length: val.numListElements(),
 		}
-
-		words := p.length
-
-		switch val.listC() {
-		case voidList:
-			//fmt.Printf("we see a voidList with len: %d\n", p.length)
-			return p
-		case bit1List:
-			p.typ = TypeBitList
-			words = (p.length + 63) / 64
-		case byte1List:
-			p.size.DataSize = 1
-			words = (p.length + 7) / 8
-		case byte2List:
-			p.size.DataSize = 2
-			words = (p.length + 3) / 4
-		case byte4List:
-			p.size.DataSize = 4
-			words = (p.length + 1) / 2
-		case byte8List:
-			p.size.DataSize = 8
-		case pointerList:
-			p.typ = TypePointerList
-		case compositeList:
-			hdr := binary.LittleEndian.Uint64(p.Segment.Data[p.off:])
-			p.off += 8
-			if hdr&2 != structPointer {
-				return Object{}
-			}
-
-			p.flags |= isCompositeList
-			p.length = int(uint32(hdr) >> 2)
-			p.size = ObjectSize{
-				DataSize:     int(uint16(hdr>>32)) * 8,
-				PointerCount: int(uint16(hdr >> 48)),
-			}
-
-			// Jump up to 64bit as length is 30 bits, datasz+ptrs is 17 bit
-			if uint64(p.length)*uint64(p.size.totalWordCount()) != uint64(words) {
-				return Object{}
-			}
-		}
-
-		// Largest possible message is 30 bits * 1 word, with either a
-		// composite, ptr, or 8 byte list. If we do a size check using
-		// bits or bytes, we overflow.
-		if words > len(s.Data)/8-offw {
-			return Object{}
-		}
-
-		return p
-
 	case otherPointer:
 		if val.otherPointerType() != 0 {
-			return Object{}
+			return Pointer{}
 		}
-		return Object{
-			Segment: s,
-			typ:     TypeInterface,
-			cap:     val.capabilityIndex(),
+		return Pointer{
+			seg: s,
+			typ: TypeInterface,
+			cap: val.capabilityIndex(),
 		}
 
 	default:
-		return Object{}
+		return Pointer{}
 	}
 }
 
-// pointer is an encoded pointer.
-type pointer uint64
-
-// Pointer types
-const (
-	structPointer    = 0
-	listPointer      = 1
-	farPointer       = 2
-	doubleFarPointer = 6
-	otherPointer     = 3
-)
-
-// List pointer types
-const (
-	voidList      = 0
-	bit1List      = 1
-	byte1List     = 2
-	byte2List     = 3
-	byte4List     = 4
-	byte8List     = 5
-	pointerList   = 6
-	compositeList = 7
-)
-
-func (p pointer) pointerType() int {
-	t := p & 3
-	if t == farPointer {
-		return int(p & 7)
+func listPointerType(listType int) PointerType {
+	switch listType {
+	case bit1List:
+		return TypeBitList
+	case pointerList:
+		return TypePointerList
+	default:
+		return TypeList
 	}
-	return int(t)
 }
 
-func (p pointer) structC() int {
-	return int(uint16(p >> 32))
-}
-
-func (p pointer) structD() int {
-	return int(uint16(p >> 48))
-}
-
-func (p pointer) listC() int {
-	return int((p >> 32) & 7)
-}
-
-// used in orable30BitOffsetPart(), pointer.structSignedOffset(), and pointer.otherPointerType()
-const zerohi32 pointer = ^(^0 << 32)
-
-// orable30BitOffsetPart(): get an or-able value that handles sign
-// conversion. Creates part B in a struct (or list) pointer, leaving
-// parts A, C, and D completely zeroed in the returned uint64.
-//
-// From the spec:
-//
-// lsb                      struct pointer                       msb
-// +-+-----------------------------+---------------+---------------+
-// |A|             B               |       C       |       D       |
-// +-+-----------------------------+---------------+---------------+
-//
-// A (2 bits) = 0, to indicate that this is a struct pointer.
-// B (30 bits) = Offset, in words, from the end of the pointer to the
-//     start of the struct's data section.  Signed.
-// C (16 bits) = Size of the struct's data section, in words.
-// D (16 bits) = Size of the struct's pointer section, in words.
-//
-// (B is the same for list pointers, but C and D have different size
-// and meaning)
-//
-func orable30BitOffsetPart(signedOff int) pointer {
-	d32 := int32(signedOff) << 2
-	return pointer(d32) & zerohi32
-}
-
-// and convert in the other direction, extracting the count from
-// the B section into an int
-func (p pointer) structSignedOffset() int {
-	u64 := p & zerohi32
-	u32 := uint32(u64)
-	s32 := int32(u32) >> 2
-	return int(s32)
-}
-
-// otherPointerType returns the type of "other pointer" from p.
-func (p pointer) otherPointerType() uint32 {
-	return uint32(p & zerohi32 >> 2)
-}
-
-// capabilityIndex returns the index of the capability in the message's capability table.
-func (p pointer) capabilityIndex() uint32 {
-	return uint32(p >> 32)
-}
-
-func (p Object) value(off int) pointer {
-	d := orable30BitOffsetPart(p.off/8 - off/8 - 1)
-	//fmt.Printf(" debug4 in value(off=%d): p.off/8 = %d, off/8 = %d,  and p.off/8 - off/8 -1 = %d    d=%v\n", off, p.off/8, off/8, p.off/8-off/8-1, d)
+// value converts the pointer into a raw near pointer.
+// paddr is where the pointer will be located in the segment.
+func (p Pointer) value(paddr Address) rawPointer {
+	off := makePointerOffset(paddr, p.off)
 
 	switch p.typ {
 	case TypeStruct:
-		return structPointer | d | pointer(p.size.dataWordCount())<<32 | pointer(p.size.PointerCount)<<48
+		return rawStructPointer(off, p.size)
 	case TypePointerList:
-		return listPointer | d | pointerList<<32 | pointer(p.length)<<35
+		return rawListPointer(off, pointerList, p.length)
 	case TypeList:
 		if (p.flags & isCompositeList) != 0 {
-			d -= 1 << 2 // p.off points to the data not the header
-			return listPointer | d | compositeList<<32 | pointer(p.length*p.size.totalWordCount())<<35
+			// p.off points to the data not the header
+			return rawListPointer(off-1, compositeList, p.length*p.size.totalWordCount())
 		}
 
 		switch p.size.DataSize {
 		case 0:
-			return listPointer | d | voidList<<32 | pointer(p.length)<<35
+			return rawListPointer(off, voidList, p.length)
 		case 1:
-			return listPointer | d | byte1List<<32 | pointer(p.length)<<35
+			return rawListPointer(off, byte1List, p.length)
 		case 2:
-			return listPointer | d | byte2List<<32 | pointer(p.length)<<35
+			return rawListPointer(off, byte2List, p.length)
 		case 4:
-			return listPointer | d | byte4List<<32 | pointer(p.length)<<35
+			return rawListPointer(off, byte4List, p.length)
 		case 8:
-			return listPointer | d | byte8List<<32 | pointer(p.length)<<35
+			return rawListPointer(off, byte8List, p.length)
 		default:
 			panic(errListSize)
 		}
 
 	case TypeBitList:
-		return listPointer | d | bit1List<<32 | pointer(p.length)<<35
+		return rawListPointer(off, bit1List, p.length)
 	case TypeInterface:
-		return otherPointer | pointer(p.cap)<<32
+		return rawInterfacePointer(p.cap)
 	case TypeNull:
 		return 0
 	default:
@@ -1311,14 +1232,10 @@ Lists of structs use the smallest element size in which the struct can fit. So, 
 When C = 7, the elements of the list are fixed-width composite values – usually, structs. In this case, the list content is prefixed by a "tag" word that describes each individual element. The tag has the same layout as a struct pointer, except that the pointer offset (B) instead indicates the number of elements in the list. Meanwhile, section (D) of the list pointer – which normally would store this element count – instead stores the total number of words in the list (not counting the tag word). The reason we store a word count in the pointer rather than an element count is to ensure that the extents of the list’s location can always be determined by inspecting the pointer alone, without having to look at the tag; this may allow more-efficient prefetching in some use cases. The reason we don’t store struct lists as a list of pointers is because doing so would take significantly more space (an extra pointer per element) and may be less cache-friendly.
 */
 
-func (s *Segment) farPtrValue(farType int, off int) pointer {
-	return pointer(farType) | pointer(off) | (pointer(s.Id) << 32)
-}
-
 type offset struct {
-	id         uint32
+	id         SegmentID
 	boff, bend int64 // in bits
-	newval     Object
+	newval     Pointer
 }
 
 func compare(a, b rbtree.Item) int {
@@ -1335,31 +1252,32 @@ func compare(a, b rbtree.Item) int {
 	}
 }
 
-func (p Object) dataEnd() int {
+// dataEnd returns the first address greater than p.off that is not part of p's bounds.
+func (p Pointer) dataEnd() Address {
 	switch p.typ {
 	case TypeList:
-		return p.off + p.length*p.size.totalSize()
+		return p.off.addSize(p.size.totalSize().times(p.length))
 	case TypePointerList:
-		return p.off + p.length*8
+		return p.off.addSize(wordSize.times(p.length))
 	case TypeStruct:
-		return p.off + p.size.totalSize()
+		return p.off.addSize(p.size.totalSize())
 	case TypeBitList:
-		return p.off + (p.length+7)/8
+		return p.off.addSize(Size((p.length + 7) / 8))
 	default:
 		return p.off
 	}
 }
 
-func isEmptyStruct(src Object) bool {
+func isEmptyStruct(src Pointer) bool {
 	return src.typ == TypeStruct && src.length == 0 && src.size.isZero() && src.flags == 0
 }
 
-func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth int) error {
+func (destSeg *Segment) writePtr(off Address, src Pointer, copies *rbtree.Tree, depth int) error {
 	// handle size-zero Objects/empty structs
-	if src.Segment == nil {
+	if src.seg == nil {
 		return nil
 	}
-	srcSeg := src.Segment
+	srcSeg := src.seg
 
 	if src.typ == TypeNull || isEmptyStruct(src) {
 		binary.LittleEndian.PutUint64(destSeg.Data[off:], 0)
@@ -1373,7 +1291,7 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 	} else if src.typ == TypeInterface {
 		// Different messages.  Need to copy table entry.
 		c := destSeg.Message.AddCap(Interface(src).Client())
-		p := Object(destSeg.NewInterface(c))
+		p := Pointer(destSeg.NewInterface(c))
 		binary.LittleEndian.PutUint64(destSeg.Data[off:], uint64(p.value(off)))
 		return nil
 
@@ -1393,7 +1311,7 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 			id:   srcSeg.Id,
 			boff: int64(src.off) * 8,
 			bend: int64(src.dataEnd()) * 8,
-			newval: Object{
+			newval: Pointer{
 				typ:    src.typ,
 				length: src.length,
 				size:   src.size,
@@ -1436,13 +1354,13 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 		}
 
 		// No copy nor overlap found, so we need to clone the target
-		n, err := destSeg.create(int((key.bend-key.boff)/8), key.newval)
+		n, err := destSeg.create(Size((key.bend-key.boff)/8), key.newval)
 		if err != nil {
 			return err
 		}
 
 		// n is possibly in a new segment, if destSeg was full.
-		newSeg := n.Segment
+		newSeg := n.seg
 
 		if (n.flags & isCompositeList) != 0 {
 			copy(newSeg.Data[n.off:], srcSeg.Data[src.off-8:src.off])
@@ -1451,8 +1369,6 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 
 		key.newval = n
 		copies.Insert(key)
-
-		//fmt.Printf(" .....  need to clone target: key.newval: %#v of type '%s'\n", key.newval, key.newval.typ.String())
 
 		switch src.typ {
 		case TypeStruct:
@@ -1467,10 +1383,10 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 					newSeg.Data[i] = 0
 				}
 			} else {
-				dest := Object{
-					Segment: newSeg,
-					off:     n.off,
-					size:    n.size,
+				dest := Pointer{
+					seg:  newSeg,
+					off:  n.off,
+					size: n.size,
 				}
 
 				if err := copyStructHandlingVersionSkew(dest, src, copies, depth, 0, 0); err != nil {
@@ -1481,80 +1397,93 @@ func (destSeg *Segment) writePtr(off int, src Object, copies *rbtree.Tree, depth
 		case TypeList:
 			// recognize Data and Text, both List(Byte), as special cases for speed.
 			if n.size.isOneByte() && src.size.isOneByte() {
-				//fmt.Printf("\n\n    *** special case for Text and Data kicking in *** \n\n")
-				copy(newSeg.Data[n.off:], srcSeg.Data[src.off:src.off+n.length])
+				copy(newSeg.Data[n.off:], srcSeg.Data[src.off:src.off.element(n.length, 1)])
 				break
 			}
 
-			dest := Object{
-				Segment: newSeg,
-				off:     n.off,
-				size:    n.size,
+			dest := Pointer{
+				seg:  newSeg,
+				off:  n.off,
+				size: n.size,
 			}
-			for i := 0; i < n.length; i++ {
+			for i := int32(0); i < n.length; i++ {
 				if err := copyStructHandlingVersionSkew(dest, src, copies, depth, i, i); err != nil {
 					return err
 				}
 			}
 
 		case TypePointerList:
-			for i := 0; i < n.length; i++ {
-				c := srcSeg.readPtr(src.off + i*8)
-				if err := newSeg.writePtr(n.off+i*8, c, copies, depth+1); err != nil {
+			for i := int32(0); i < n.length; i++ {
+				c := srcSeg.readPtr(src.off.element(i, wordSize))
+				if err := newSeg.writePtr(n.off.element(i, wordSize), c, copies, depth+1); err != nil {
 					return err
 				}
 			}
 
 		case TypeBitList:
-			copy(newSeg.Data[n.off:], srcSeg.Data[src.off:src.off+src.size.DataSize])
+			// TODO(light): DataSize is not populated for BitList.
+			nbytes := int(src.length + 7/8)
+			listSize := Size(nbytes).padToWord()
+			copy(newSeg.Data[n.off:], srcSeg.Data[src.off:src.off.addSize(listSize)])
 		}
 		return destSeg.writePtr(off, key.newval, nil, depth+1)
 
 	} else if (src.flags & hasPointerTag) != 0 {
 		// By lucky chance, the data has a tag in front of it. This
 		// happens when create had to move the data to a new segment.
-		binary.LittleEndian.PutUint64(destSeg.Data[off:], uint64(srcSeg.farPtrValue(farPointer, src.off-8)))
+		binary.LittleEndian.PutUint64(destSeg.Data[off:], uint64(rawFarPointer(srcSeg.Id, src.off-8)))
 		return nil
 
-	} else if len(srcSeg.Data)+8 <= cap(srcSeg.Data) {
+	} else if len(srcSeg.Data)+int(wordSize) <= cap(srcSeg.Data) {
 		// Have room in the target for a tag
-		binary.LittleEndian.PutUint64(srcSeg.Data[len(srcSeg.Data):], uint64(src.value(len(srcSeg.Data))))
-		binary.LittleEndian.PutUint64(destSeg.Data[off:], uint64(srcSeg.farPtrValue(farPointer, len(srcSeg.Data))))
-		srcSeg.Data = srcSeg.Data[:len(srcSeg.Data)+8]
+		srcAddr := Address(len(srcSeg.Data))
+		srcSeg.Data = srcSeg.Data[:srcAddr.addSize(wordSize)]
+		binary.LittleEndian.PutUint64(srcSeg.Data[srcAddr:], uint64(src.value(srcAddr)))
+		binary.LittleEndian.PutUint64(destSeg.Data[off:], uint64(rawFarPointer(srcSeg.Id, srcAddr)))
 		return nil
 
 	} else {
 		// Need to create a double far pointer. Try and create it in
 		// the originating segment if we can.
 		t := destSeg
-		if len(t.Data)+16 > cap(t.Data) {
+		const landingSize = wordSize * 2
+		if len(t.Data)+int(landingSize) > cap(t.Data) {
 			var err error
-			if t, err = t.Message.NewSegment(16); err != nil {
+			if t, err = t.Message.NewSegment(landingSize); err != nil {
 				return err
 			}
 		}
 
-		binary.LittleEndian.PutUint64(t.Data[len(t.Data):], uint64(srcSeg.farPtrValue(farPointer, src.off)))
-		binary.LittleEndian.PutUint64(t.Data[len(t.Data)+8:], uint64(src.value(src.off-8)))
-		binary.LittleEndian.PutUint64(destSeg.Data[off:], uint64(t.farPtrValue(doubleFarPointer, len(t.Data))))
+		dstAddr := Address(len(t.Data))
+		binary.LittleEndian.PutUint64(t.Data[dstAddr:], uint64(rawFarPointer(srcSeg.Id, src.off)))
+		binary.LittleEndian.PutUint64(t.Data[dstAddr.addSize(wordSize):], uint64(src.value(src.off-8)))
+		binary.LittleEndian.PutUint64(destSeg.Data[off:], uint64(rawDoubleFarPointer(t.Id, dstAddr)))
 		t.Data = t.Data[:len(t.Data)+16]
 		return nil
 	}
 }
 
-type Interface Object
+// An Interface is a wrapper for a Pointer that provides methods to
+// access interface information.
+type Interface Pointer
 
-func (i Interface) Capability() uint32 {
+// Segment returns the segment this pointer came from.
+func (i Interface) Segment() *Segment {
+	return i.seg
+}
+
+// Capability returns the capability ID of the interface.
+func (i Interface) Capability() CapabilityID {
 	return i.cap
 }
 
 // Client returns the client stored in the message's capability table
 // or nil if the pointer is invalid.
 func (i Interface) Client() Client {
-	if i.Segment == nil || i.typ == TypeNull {
+	if i.seg == nil || i.typ == TypeNull {
 		return nil
 	}
-	tab := i.Segment.Message.CapTable()
+	tab := i.seg.Message.CapTable()
 	if uint64(i.cap) >= uint64(len(tab)) {
 		return nil
 	}
