@@ -119,7 +119,7 @@ func (p Struct) Uint64(off DataOffset) uint64 {
 func (p Struct) SetUint8(off DataOffset, v uint8) {
 	addr, ok := p.dataAddress(off, 1)
 	if !ok {
-		panic(ErrOutOfBounds)
+		panic(errOutOfBounds)
 	}
 	p.seg.Data[addr] = v
 }
@@ -128,7 +128,7 @@ func (p Struct) SetUint8(off DataOffset, v uint8) {
 func (p Struct) SetUint16(off DataOffset, v uint16) {
 	addr, ok := p.dataAddress(off, 2)
 	if !ok {
-		panic(ErrOutOfBounds)
+		panic(errOutOfBounds)
 	}
 	binary.LittleEndian.PutUint16(p.seg.Data[addr:], v)
 }
@@ -137,7 +137,7 @@ func (p Struct) SetUint16(off DataOffset, v uint16) {
 func (p Struct) SetUint32(off DataOffset, v uint32) {
 	addr, ok := p.dataAddress(off, 4)
 	if !ok {
-		panic(ErrOutOfBounds)
+		panic(errOutOfBounds)
 	}
 	binary.LittleEndian.PutUint32(p.seg.Data[addr:], v)
 }
@@ -146,7 +146,7 @@ func (p Struct) SetUint32(off DataOffset, v uint32) {
 func (p Struct) SetUint64(off DataOffset, v uint64) {
 	addr, ok := p.dataAddress(off, 8)
 	if !ok {
-		panic(ErrOutOfBounds)
+		panic(errOutOfBounds)
 	}
 	binary.LittleEndian.PutUint64(p.seg.Data[addr:], v)
 }

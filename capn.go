@@ -9,10 +9,10 @@ import (
 )
 
 var (
-	ErrOverlarge   = errors.New("capn: overlarge struct/list")
-	ErrOutOfBounds = errors.New("capn: write out of bounds")
-	ErrCopyDepth   = errors.New("capn: copy depth too large")
-	ErrOverlap     = errors.New("capn: overlapping data on copy")
+	errOverlarge   = errors.New("capn: overlarge struct/list")
+	errOutOfBounds = errors.New("capn: write out of bounds")
+	errCopyDepth   = errors.New("capn: copy depth too large")
+	errOverlap     = errors.New("capn: overlapping data on copy")
 	errListSize    = errors.New("capn: invalid list size")
 	errObjectType  = errors.New("capn: invalid object type")
 )
@@ -67,7 +67,7 @@ const maxDataSize = 1<<32 - 1
 
 func (s *Segment) NewText(v string) Pointer {
 	if int64(len(v))+1 > maxDataSize {
-		panic(ErrOverlarge)
+		panic(errOverlarge)
 	}
 	n := s.NewUInt8List(int32(len(v) + 1))
 	copy(n.seg.Data[n.off:], v)
@@ -75,7 +75,7 @@ func (s *Segment) NewText(v string) Pointer {
 }
 func (s *Segment) NewData(v []byte) Pointer {
 	if int64(len(v)) > maxDataSize {
-		panic(ErrOverlarge)
+		panic(errOverlarge)
 	}
 	n := s.NewUInt8List(int32(len(v)))
 	copy(n.seg.Data[n.off:], v)
@@ -118,7 +118,7 @@ func (s *Segment) create(sz Size, n Pointer) (Pointer, error) {
 
 	// TODO(light): this can overflow easily
 	if uint64(sz) > uint64(math.MaxUint32)-8 {
-		return Pointer{}, ErrOverlarge
+		return Pointer{}, errOverlarge
 	}
 
 	if s == nil {
@@ -444,7 +444,7 @@ func (destSeg *Segment) writePtr(off Address, src Pointer, copies *rbtree.Tree, 
 		// We need to clone the target.
 
 		if depth >= 32 {
-			return ErrCopyDepth
+			return errCopyDepth
 		}
 
 		// First see if the ptr has already been copied
@@ -483,7 +483,7 @@ func (destSeg *Segment) writePtr(off Address, src Pointer, copies *rbtree.Tree, 
 					if key.boff == other.boff && key.bend == other.bend {
 						return destSeg.writePtr(off, other.newval, nil, depth+1)
 					} else if other.bend >= key.bend {
-						return ErrOverlap
+						return errOverlap
 					}
 				}
 			}
@@ -493,7 +493,7 @@ func (destSeg *Segment) writePtr(off Address, src Pointer, copies *rbtree.Tree, 
 			if !iter.Limit() {
 				other := iter.Item().(offset)
 				if key.id == other.id && other.boff < key.bend {
-					return ErrOverlap
+					return errOverlap
 				}
 			}
 		}

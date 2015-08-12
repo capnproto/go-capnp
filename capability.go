@@ -7,6 +7,7 @@ import (
 	"golang.org/x/net/context"
 )
 
+// ErrNullClient is returned from a call made on a null client pointer.
 var ErrNullClient = errors.New("capn: call on null client")
 
 // A CapabilityID is an index into a message's capability table.

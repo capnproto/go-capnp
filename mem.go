@@ -10,12 +10,6 @@ import (
 	"zombiezen.com/go/capnproto/internal/packed"
 )
 
-var (
-	errBufferCall     = errors.New("capn: can't call on a memory buffer")
-	ErrInvalidSegment = errors.New("capn: invalid segment id")
-	ErrTooMuchData    = errors.New("capn: too much data in stream")
-)
-
 type buffer struct {
 	Segment
 	capTable
@@ -42,7 +36,7 @@ func (b *buffer) NewSegment(minsz Size) (*Segment, error) {
 	}
 	n := len(b.Data)
 	if uint64(n)+uint64(minsz) > uint64(math.MaxUint32) {
-		return nil, ErrOverlarge
+		return nil, errOverlarge
 	}
 	if nn := n + int(minsz); nn < cap(b.Data) {
 		b.Data = b.Data[:nn]
@@ -58,7 +52,7 @@ func (b *buffer) Lookup(segid SegmentID) (*Segment, error) {
 	if segid == 0 {
 		return &b.Segment, nil
 	} else {
-		return nil, ErrInvalidSegment
+		return nil, errInvalidSegment
 	}
 }
 
@@ -84,9 +78,9 @@ func NewMultiBuffer(data [][]byte) *Segment {
 	return &Segment{Message: m, Data: nil, Id: 0xFFFFFFFF, RootDone: false}
 }
 
-var (
-	MaxSegmentNumber = 1024
-	MaxTotalSize     = 1024 * 1024 * 1024
+const (
+	maxSegmentNumber = 1024
+	maxTotalSize     = 1024 * 1024 * 1024
 )
 
 func (m *multiBuffer) NewSegment(minsz Size) (*Segment, error) {
@@ -112,7 +106,7 @@ func (m *multiBuffer) Lookup(segid SegmentID) (*Segment, error) {
 	if uint(segid) < uint(len(m.segments)) {
 		return m.segments[segid], nil
 	} else {
-		return nil, ErrInvalidSegment
+		return nil, errInvalidSegment
 	}
 }
 
@@ -139,8 +133,8 @@ func ReadFromStream(r io.Reader, buf *bytes.Buffer) (*Segment, error) {
 		return nil, err
 	}
 
-	if binary.LittleEndian.Uint32(buf.Bytes()[:]) >= uint32(MaxSegmentNumber) {
-		return nil, ErrTooMuchData
+	if binary.LittleEndian.Uint32(buf.Bytes()[:]) >= uint32(maxSegmentNumber) {
+		return nil, errTooMuchData
 	}
 
 	segnum := int(binary.LittleEndian.Uint32(buf.Bytes()[:]) + 1)
@@ -153,8 +147,8 @@ func ReadFromStream(r io.Reader, buf *bytes.Buffer) (*Segment, error) {
 	total := 0
 	for i := 0; i < segnum; i++ {
 		sz := binary.LittleEndian.Uint32(buf.Bytes()[4*i+4:])
-		if uint64(total)+uint64(sz)*8 > uint64(MaxTotalSize) {
-			return nil, ErrTooMuchData
+		if uint64(total)+uint64(sz)*8 > uint64(maxTotalSize) {
+			return nil, errTooMuchData
 		}
 		total += int(sz) * 8
 	}
@@ -198,8 +192,8 @@ func ReadFromMemoryZeroCopy(data []byte) (seg *Segment, bytesRead int64, err err
 		return nil, 0, io.EOF
 	}
 
-	if binary.LittleEndian.Uint32(data[0:4]) >= uint32(MaxSegmentNumber) {
-		return nil, 0, ErrTooMuchData
+	if binary.LittleEndian.Uint32(data[0:4]) >= uint32(maxSegmentNumber) {
+		return nil, 0, errTooMuchData
 	}
 
 	segnum := int(binary.LittleEndian.Uint32(data[0:4]) + 1)
@@ -210,8 +204,8 @@ func ReadFromMemoryZeroCopy(data []byte) (seg *Segment, bytesRead int64, err err
 	total := 0
 	for i := 0; i < segnum; i++ {
 		sz := binary.LittleEndian.Uint32(b[4*i+4:])
-		if uint64(total)+uint64(sz)*8 > uint64(MaxTotalSize) {
-			return nil, 0, ErrTooMuchData
+		if uint64(total)+uint64(sz)*8 > uint64(maxTotalSize) {
+			return nil, 0, errTooMuchData
 		}
 		total += int(sz) * 8
 	}
@@ -310,3 +304,9 @@ func (tab *capTable) AddCap(c Client) CapabilityID {
 	*tab = append(*tab, c)
 	return n
 }
+
+var (
+	errBufferCall     = errors.New("capn: can't call on a memory buffer")
+	errInvalidSegment = errors.New("capn: invalid segment id")
+	errTooMuchData    = errors.New("capn: too much data in stream")
+)

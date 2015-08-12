@@ -32,7 +32,7 @@ func (sz Size) times(n int32) Size {
 	const maxSize = 1<<32 - 1
 	result := int64(sz) * int64(n)
 	if result > maxSize {
-		panic(ErrOverlarge)
+		panic(errOverlarge)
 	}
 	return Size(result)
 }
