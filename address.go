@@ -43,6 +43,50 @@ func (sz Size) padToWord() Size {
 	return (sz + n) &^ n
 }
 
+// ObjectSize records section sizes for a struct or list.
+type ObjectSize struct {
+	DataSize     Size
+	PointerCount uint16
+}
+
+// isZero reports whether sz is the zero size.
+func (sz ObjectSize) isZero() bool {
+	return sz.DataSize == 0 && sz.PointerCount == 0
+}
+
+// isOneByte reports whether the object size is one byte (for Text/Data element sizes).
+func (sz ObjectSize) isOneByte() bool {
+	return sz.DataSize == 1 && sz.PointerCount == 0
+}
+
+// isValid reports whether sz's fields are in range.
+func (sz ObjectSize) isValid() bool {
+	return sz.DataSize <= 0xffff*wordSize
+}
+
+// pointerSize returns the number of bytes the pointer section occupies.
+func (sz ObjectSize) pointerSize() Size {
+	return Size(sz.PointerCount) * wordSize
+}
+
+// totalSize returns the number of bytes that the object occupies.
+func (sz ObjectSize) totalSize() Size {
+	return sz.DataSize + sz.pointerSize()
+}
+
+// dataWordCount returns the number of words in the data section.
+func (sz ObjectSize) dataWordCount() int32 {
+	if sz.DataSize%wordSize != 0 {
+		panic("data size not aligned by word")
+	}
+	return int32(sz.DataSize / wordSize)
+}
+
+// totalWordCount returns the number of words that the object occupies.
+func (sz ObjectSize) totalWordCount() int32 {
+	return sz.dataWordCount() + int32(sz.PointerCount)
+}
+
 type bitOffset uint32
 
 func (boff bitOffset) offset() DataOffset {
