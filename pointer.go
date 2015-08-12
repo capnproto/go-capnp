@@ -31,18 +31,6 @@ func (p Pointer) Segment() *Segment {
 	return p.seg
 }
 
-func (p Pointer) DupWithOff(off Address) Pointer {
-	return Pointer{
-		seg:    p.seg,
-		off:    off,
-		length: p.length,
-		size:   p.size,
-		typ:    p.typ,
-		flags:  p.flags,
-		cap:    p.cap,
-	}
-}
-
 // HasData reports whether the object referenced by p has non-zero size.
 func (p Pointer) HasData() bool {
 	switch p.typ {
