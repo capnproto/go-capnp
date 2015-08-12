@@ -5,21 +5,24 @@ import (
 	"math"
 )
 
-type VoidList Pointer
-type BitList Pointer
-type Int8List Pointer
-type UInt8List Pointer
-type Int16List Pointer
-type UInt16List Pointer
-type Int32List Pointer
-type UInt32List Pointer
-type Float32List Pointer
-type Int64List Pointer
-type UInt64List Pointer
-type Float64List Pointer
-type PointerList Pointer
-type TextList Pointer
-type DataList Pointer
+// Primitive list types.
+type (
+	VoidList    Pointer
+	BitList     Pointer
+	Int8List    Pointer
+	UInt8List   Pointer
+	Int16List   Pointer
+	UInt16List  Pointer
+	Int32List   Pointer
+	UInt32List  Pointer
+	Float32List Pointer
+	Int64List   Pointer
+	UInt64List  Pointer
+	Float64List Pointer
+	PointerList Pointer
+	TextList    Pointer
+	DataList    Pointer
+)
 
 func (p VoidList) Len() int    { return int(p.length) }
 func (p BitList) Len() int     { return int(p.length) }
