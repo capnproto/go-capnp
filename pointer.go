@@ -157,8 +157,9 @@ func (p Pointer) value(paddr Address) rawPointer {
 	}
 }
 
-// dataEnd returns the first address greater than p.off that is not part of p's bounds.
-func (p Pointer) dataEnd() Address {
+// objectEnd returns the first address greater than p.off that is not
+// part of the object's bounds.
+func (p Pointer) objectEnd() Address {
 	switch p.typ {
 	case TypeList:
 		return p.off.addSize(p.size.totalSize().times(p.length))

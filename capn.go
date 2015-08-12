@@ -455,7 +455,7 @@ func (destSeg *Segment) writePtr(off Address, src Pointer, copies *rbtree.Tree, 
 		key := offset{
 			id:   srcSeg.Id,
 			boff: int64(src.off) * 8,
-			bend: int64(src.dataEnd()) * 8,
+			bend: int64(src.objectEnd()) * 8,
 			newval: Pointer{
 				typ:    src.typ,
 				length: src.length,
@@ -471,7 +471,7 @@ func (destSeg *Segment) writePtr(off Address, src Pointer, copies *rbtree.Tree, 
 		}
 
 		if (src.flags & isCompositeList) != 0 {
-			key.boff -= 64 //  Q: what the heck does this do? why is it here? A: Accounts for the Tag word, perhaps because dataEnd() does not.
+			key.boff -= 64 //  Q: what the heck does this do? why is it here? A: Accounts for the Tag word, perhaps because objectEnd() does not.
 		}
 
 		iter := copies.FindLE(key)
