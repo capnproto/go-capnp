@@ -15,20 +15,20 @@ func (s Struct) Segment() *Segment {
 
 // Pointer returns the i'th pointer in the struct.
 func (p Struct) Pointer(i uint16) Pointer {
-	if i < p.size.PointerCount {
-		return p.seg.readPtr(p.pointerAddress(i))
-	} else {
+	if i >= p.size.PointerCount {
 		return Pointer{}
 	}
+	return p.seg.readPtr(p.pointerAddress(i))
 }
 
 // SetPointer sets the i'th pointer in the struct to src.
 func (p Struct) SetPointer(i uint16, src Pointer) {
-	if i < p.size.PointerCount {
-		//replaceMe := p.seg.readPtr(p.off + p.datasz + i*8)
-		//copyStructHandlingVersionSkew(replaceMe, src, nil, 0, 0, 0)
-		p.seg.writePtr(p.pointerAddress(i), src, nil, 0)
+	if i >= p.size.PointerCount {
+		return
 	}
+	//replaceMe := p.seg.readPtr(p.off + p.datasz + i*8)
+	//copyStructHandlingVersionSkew(replaceMe, src, nil, 0, 0, 0)
+	p.seg.writePtr(p.pointerAddress(i), src, nil, 0)
 }
 
 func (p Struct) pointerAddress(i uint16) Address {
