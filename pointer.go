@@ -213,6 +213,6 @@ const (
 	bitOffsetMask pointerFlags = 7
 )
 
-func (flags pointerFlags) bitOffset() bitOffset {
-	return bitOffset(flags & bitOffsetMask)
+func (flags pointerFlags) bitOffset() BitOffset {
+	return BitOffset(flags & bitOffsetMask)
 }

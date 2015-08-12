@@ -66,7 +66,7 @@ func (sz ObjectSize) isValid() bool {
 
 // pointerSize returns the number of bytes the pointer section occupies.
 func (sz ObjectSize) pointerSize() Size {
-	return Size(sz.PointerCount) * wordSize
+	return wordSize.times(int32(sz.PointerCount))
 }
 
 // totalSize returns the number of bytes that the object occupies.
@@ -87,12 +87,15 @@ func (sz ObjectSize) totalWordCount() int32 {
 	return sz.dataWordCount() + int32(sz.PointerCount)
 }
 
-type bitOffset uint32
+// BitOffset is an offset in bits from the beginning of a struct's data section.
+type BitOffset uint32
 
-func (boff bitOffset) offset() DataOffset {
-	return DataOffset(boff / 8)
+// offset returns the equivalent byte offset.
+func (bit BitOffset) offset() DataOffset {
+	return DataOffset(bit / 8)
 }
 
-func (boff bitOffset) mask() byte {
-	return byte(1 << (boff % 8))
+// mask returns the bitmask for the bit.
+func (bit BitOffset) mask() byte {
+	return byte(1 << (bit % 8))
 }

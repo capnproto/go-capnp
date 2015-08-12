@@ -327,7 +327,7 @@ func (p PointerList) Set(i int, src Pointer) error {
 		return p.seg.writePtr(p.off.element(int32(i), wordSize), src, nil, 0)
 
 	case TypeBitList:
-		boff := bitOffset(i)
+		boff := BitOffset(i)
 		addr := p.off + Address(boff.offset())
 		if src.ToStruct().Bit(0) {
 			p.seg.Data[addr] |= boff.mask()

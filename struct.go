@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 )
 
+// Struct is a pointer to a struct.  Convert a Pointer into a Struct
+// using the ToStruct method.
 type Struct Pointer
 
 // Segment returns the segment this pointer came from.
@@ -34,36 +36,39 @@ func (p Struct) pointerAddress(i uint16) Address {
 	return ptrStart.element(int32(i), wordSize)
 }
 
-func (p Struct) bitOffset(bitoff uint32) bitOffset {
-	if bitoff == 0 && (p.flags&isBitListMember) != 0 {
+func (p Struct) realBitOffset(bit BitOffset) BitOffset {
+	if bit == 0 && (p.flags&isBitListMember) != 0 {
 		return p.flags.bitOffset()
 	}
-	return bitOffset(bitoff)
+	return bit
 }
 
-// Bit returns the bit that is bitoff bits from the start of the struct.
-func (p Struct) Bit(bitoff uint32) bool {
-	o := p.bitOffset(bitoff)
-	if o >= bitOffset(p.size.DataSize*8) {
+// bitInData reports whether bit is inside p's data section.
+func (p Struct) bitInData(bit BitOffset) bool {
+	return bit < BitOffset(p.size.DataSize*8)
+}
+
+// Bit returns the bit that is n bits from the start of the struct.
+func (p Struct) Bit(n BitOffset) bool {
+	n = p.realBitOffset(n)
+	if !p.bitInData(n) {
 		return false
 	}
-	addr := p.off.addOffset(o.offset())
-	mask := o.mask()
-	return p.seg.Data[addr]&mask != 0
+	addr := p.off.addOffset(n.offset())
+	return p.seg.Data[addr]&n.mask() != 0
 }
 
-// SetBit sets the bit that is bitoff bits from the start of the struct to v.
-func (p Struct) SetBit(bitoff uint32, v bool) {
-	o := p.bitOffset(bitoff)
-	if o >= bitOffset(p.size.DataSize*8) {
+// SetBit sets the bit that is n bits from the start of the struct to v.
+func (p Struct) SetBit(n BitOffset, v bool) {
+	n = p.realBitOffset(n)
+	if !p.bitInData(n) {
 		return
 	}
-	addr := p.off.addOffset(o.offset())
-	mask := o.mask()
+	addr := p.off.addOffset(n.offset())
 	if v {
-		p.seg.Data[addr] |= mask
+		p.seg.Data[addr] |= n.mask()
 	} else {
-		p.seg.Data[addr] &^= mask
+		p.seg.Data[addr] &^= n.mask()
 	}
 }
 
