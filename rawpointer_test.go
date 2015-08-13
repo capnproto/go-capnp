@@ -33,6 +33,12 @@ func TestRawStructPointer(t *testing.T) {
 			t.Errorf("rawPointer(%#016x).structSize() = %d; want %d", uint64(test.ptr), size, test.size)
 		}
 	}
+	for _, test := range tests {
+		ptr := rawStructPointer(test.offset, test.size)
+		if ptr != test.ptr {
+			t.Errorf("rawStructPointer(%d, %d) = rawPointer(%#016x); want rawPointer(%#016x)", test.offset, test.size, ptr, test.ptr)
+		}
+	}
 }
 
 func TestRawListPointer(t *testing.T) {
@@ -77,6 +83,12 @@ func TestRawListPointer(t *testing.T) {
 			t.Errorf("rawPointer(%#016x).numListElements() = %d; want %d", uint64(test.ptr), n, test.n)
 		}
 	}
+	for _, test := range tests {
+		ptr := rawListPointer(test.offset, test.lt, test.n)
+		if ptr != test.ptr {
+			t.Errorf("rawListPointer(%d, %d, %d) = rawPointer(%#016x); want rawPointer(%#016x)", test.offset, test.lt, test.n, ptr, test.ptr)
+		}
+	}
 }
 
 func TestRawOtherPointer(t *testing.T) {
@@ -89,6 +101,7 @@ func TestRawOtherPointer(t *testing.T) {
 		{0x0000000000000007, 1, 0},
 		{0x000000000000000b, 2, 0},
 		{0x000000000000000f, 3, 0},
+		{0xffffffff00000003, 0, 0xffffffff},
 		{0xfffffffffffffffb, 0x3ffffffe, 0xffffffff},
 		{0xffffffffffffffff, 0x3fffffff, 0xffffffff},
 	}
@@ -101,6 +114,15 @@ func TestRawOtherPointer(t *testing.T) {
 		}
 		if cap := test.ptr.capabilityIndex(); cap != test.cap {
 			t.Errorf("rawPointer(%#016x).capabilityIndex() = %d; want %d", uint64(test.ptr), cap, test.cap)
+		}
+	}
+	for _, test := range tests {
+		if test.typ != 0 {
+			continue
+		}
+		ptr := rawInterfacePointer(test.cap)
+		if ptr != test.ptr {
+			t.Errorf("rawInterfacePointer(%d) = rawPointer(%#016x); want rawPointer(%#016x)", test.cap, ptr, test.ptr)
 		}
 	}
 }
@@ -128,6 +150,19 @@ func TestRawFarPointer(t *testing.T) {
 		}
 		if seg := test.ptr.farSegment(); seg != test.seg {
 			t.Errorf("rawPointer(%#016x).farSegment() = %d; want %d", uint64(test.ptr), seg, test.seg)
+		}
+	}
+	for _, test := range tests {
+		if test.typ == farPointer {
+			ptr := rawFarPointer(test.seg, test.addr)
+			if ptr != test.ptr {
+				t.Errorf("rawFarPointer(%d, %v) = rawPointer(%#016x); want rawPointer(%#016x)", test.seg, test.addr, ptr, test.ptr)
+			}
+		} else {
+			ptr := rawDoubleFarPointer(test.seg, test.addr)
+			if ptr != test.ptr {
+				t.Errorf("rawDoubleFarPointer(%d, %v) = rawPointer(%#016x); want rawPointer(%#016x)", test.seg, test.addr, ptr, test.ptr)
+			}
 		}
 	}
 }
