@@ -10,6 +10,14 @@ go-capnproto consists of:
 
 ## News
 
+16 August 2015: I'm cleaning up the API to make it more Go-like.  This change will mostly affect those that were using the runtime library directly, but the generated code will now expose errors in places that it hasn't before.  Watch the `cleanup` branch for changes, and expect the branch to be merged in the next few weeks.
+
+*Why the change?* Since most users of the go-capnproto package are depending on Jason's (@glycerine) fork, I want to take the opportunity to clean up non-idiomatic parts of the API.  In particular, the current design makes it difficult to implement new allocation algorithms or make changes to internals without breaking callers.  The main goals are:
+
+- Surface errors from `Message` that were being silenced before.
+- Make all integer parameters use types (e.g. addresses can't be mixed with sizes, etc.).
+- Make `Pointer` into an interface instead of a struct.  `Pointer` is already essentially a generic type, but its fields are not well documented and confusing.  By making the generated code embed exactly the pointer type they need, this should reduce memory usage and provide more type checking.
+
 6 August 2015: **Level 1 RPC support** with some [known issues][issues].  I've
 added a section about compatibility guarantees below. -Ross
 
@@ -37,10 +45,10 @@ Consider this package's API as beta software.  In the spirit of
 making breaking API changes.  The major cases where I reserve the right to make
 breaking changes are:
 
+- The upcoming `cleanup` branch (see the news section)
 - Security.
 - Changes in the Cap'n Proto specification
 - Bugs
-- And [this code cleanup][issue1] (but this will go away soon)
 
 
 ## Getting started
