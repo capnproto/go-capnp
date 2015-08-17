@@ -1,9 +1,5 @@
 package capnp
 
-import (
-	"encoding/binary"
-)
-
 // pointerOffset is an address offset in multiples of word size.
 type pointerOffset int32
 
@@ -56,8 +52,11 @@ func rawDoubleFarPointer(segID SegmentID, off Address) rawPointer {
 	return doubleFarPointer | rawPointer(off&^7) | (rawPointer(segID) << 32)
 }
 
-func putRawPointer(b []byte, ptr rawPointer) {
-	binary.LittleEndian.PutUint64(b, uint64(ptr))
+// landingPadNearPointer converts a far pointer landing pad into
+// a near pointer in the destination segment.  Its offset will be
+// relative to the beginning of the segment.
+func landingPadNearPointer(far, tag rawPointer) rawPointer {
+	return tag | rawPointer(far.farAddress()-Address(wordSize))<<2
 }
 
 // Raw pointer types.

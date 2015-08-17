@@ -1,7 +1,6 @@
 package capnp
 
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
 	"io"
@@ -10,303 +9,448 @@ import (
 	"zombiezen.com/go/capnproto/internal/packed"
 )
 
-type buffer struct {
-	Segment
-	capTable
+// A Message is a tree of Cap'n Proto objects, split into one or more
+// segments of contiguous memory.  The only required field is Arena.
+type Message struct {
+	Arena Arena
+
+	// CapTable is the indexed list of the clients referenced in the
+	// message.  Capability pointers inside the message will use this table
+	// to map pointers to Clients.  The table is usually populated by the
+	// RPC system.
+	//
+	// See https://capnproto.org/encoding.html#capabilities-interfaces for
+	// more details on the capability table.
+	CapTable []Client
+
+	segs []*Segment
 }
 
-// NewBuffer creates an expanding single segment buffer. Creating new objects
-// will expand the buffer. Data can be nil (or length 0 with some capacity) if
-// creating a new session. If parsing an existing segment then data should be
-// the segment contents and will not be copied.
-func NewBuffer(data []byte) *Segment {
-	if uint64(len(data)) > uint64(math.MaxUint32) {
+// NewMessage creates a message with a new root and returns the first
+// segment.  It is an error to call NewMessage on an arena with data in it.
+func NewMessage(arena Arena) (msg *Message, first *Segment, err error) {
+	msg = &Message{Arena: arena}
+	switch arena.NumSegments() {
+	case 0:
+		first, err = msg.segmentForAlloc(defaultBufferSize)
+		if err != nil {
+			return nil, nil, err
+		}
+	case 1:
+		first, err = msg.Segment(0)
+		if err != nil {
+			return nil, nil, err
+		}
+		if len(first.data) > 0 {
+			return nil, nil, errHasData
+		}
+		if !hasCapacity(first.data, wordSize) {
+			return nil, nil, errSegmentTooSmall
+		}
+	default:
+		return nil, nil, errHasData
+	}
+	alloc(first, wordSize) // allocate root
+	return msg, first, nil
+}
+
+// Root returns the pointer to the message's root object.
+func (m *Message) Root() (Pointer, error) {
+	s, err := m.Segment(0)
+	if err != nil {
+		return nil, err
+	}
+	return s.root().At(0)
+}
+
+// SetRoot sets the message's root object to p.
+func (m *Message) SetRoot(p Pointer) error {
+	s, err := m.Segment(0)
+	if err != nil {
+		return err
+	}
+	return s.root().Set(0, p)
+}
+
+// AddCap appends a capability to the message's capability table and
+// returns its ID.
+func (m *Message) AddCap(c Client) CapabilityID {
+	n := CapabilityID(len(m.CapTable))
+	m.CapTable = append(m.CapTable, c)
+	return n
+}
+
+// NumSegments returns the number of segments in the message.
+func (m *Message) NumSegments() int {
+	return m.Arena.NumSegments()
+}
+
+// Segment returns the segment with the given ID.
+func (m *Message) Segment(id SegmentID) (*Segment, error) {
+	if isInt32Bit() && id > maxInt32 {
+		return nil, errSegment32Bit
+	}
+	if seg := m.segment(id); seg != nil {
+		return seg, nil
+	}
+	if int(id) >= m.Arena.NumSegments() {
+		return nil, errSegmentOutOfBounds
+	}
+	data, err := m.Arena.Data(id)
+	if err != nil {
+		return nil, err
+	}
+	return m.setSegment(id, data), nil
+}
+
+func (m *Message) segment(id SegmentID) *Segment {
+	if uint32(id) >= uint32(len(m.segs)) {
 		return nil
 	}
-
-	b := new(buffer)
-	b.Message = b
-	b.Data = data
-	return &b.Segment
+	return m.segs[id]
 }
 
-func (b *buffer) NewSegment(minsz Size) (*Segment, error) {
-	if minsz < 4096 {
-		minsz = 4096
+func (m *Message) setSegment(id SegmentID, data []byte) *Segment {
+	if seg := m.segment(id); seg != nil {
+		seg.data = data
+		return seg
 	}
-	n := len(b.Data)
-	if uint64(n)+uint64(minsz) > uint64(math.MaxUint32) {
-		return nil, errOverlarge
+	for uint32(len(m.segs)) <= uint32(id) {
+		m.segs = append(m.segs, nil)
 	}
-	if nn := n + int(minsz); nn < cap(b.Data) {
-		b.Data = b.Data[:nn]
+	seg := &Segment{
+		id:   id,
+		msg:  m,
+		data: data,
+	}
+	m.segs[id] = seg
+	return seg
+}
+
+// segmentForAlloc creates or resizes an existing segment such that
+// cap(seg.Data) - len(seg.Data) >= sz.
+func (m *Message) segmentForAlloc(sz Size) (*Segment, error) {
+	for _, seg := range m.segs {
+		if seg == nil {
+			continue
+		}
+		if hasCapacity(seg.data, sz) {
+			return seg, nil
+		}
+	}
+	id, data, err := m.Arena.Allocate(sz, m.segs)
+	if err != nil {
+		return nil, err
+	}
+	if isInt32Bit() && id > maxInt32 {
+		return nil, errSegment32Bit
+	}
+	return m.setSegment(id, data), nil
+}
+
+// alloc allocates sz zero-filled bytes.  It prefers using s, but may
+// use a different segment in the same message if there's not sufficient
+// capacity.
+func alloc(s *Segment, sz Size) (*Segment, Address, error) {
+	sz = sz.padToWord()
+	if sz > Size(math.MaxUint32)-wordSize {
+		return nil, 0, errOverlarge
+	}
+
+	if !hasCapacity(s.data, sz) {
+		// If we can't fit the data in the current segment, we always
+		// return a far pointer to a tag in the new segment.
+		var err error
+		s, err = s.msg.segmentForAlloc(sz)
+		if err != nil {
+			return nil, 0, err
+		}
+	}
+
+	addr := Address(len(s.data))
+	end := addr.addSize(sz)
+	s.data = s.data[:end]
+	for i := addr; i < end; i++ {
+		s.data[i] = 0
+	}
+	return s, addr, nil
+}
+
+// An Arena loads and allocates segments for a Message.  Segment IDs
+// must be tightly packed in the range [0, NumSegments()).
+type Arena interface {
+	// NumSegments returns the number of segments in the arena.
+	NumSegments() int
+
+	// Data loads the data for the segment with the given ID.
+	Data(id SegmentID) ([]byte, error)
+
+	// Allocate allocates a byte slice such that cap(data) - len(data) >= minsz.
+	// segs is a sparse list of already loaded segments, indexed by ID.
+	// The arena may return an existing segment's ID, in which case the
+	// arena is responsible for copying the data to the new byte slice.
+	// Allocate must not modify the segments passed into it.
+	Allocate(minsz Size, segs []*Segment) (SegmentID, []byte, error)
+}
+
+// Arena parameters.
+const (
+	defaultBufferSize      = 4096
+	minSingleSegmentGrowth = 4096
+)
+
+type singleSegmentArena []byte
+
+// SingleSegment returns a new arena with an expanding single-segment
+// buffer.  b can be used to populate the buffer for reading or to
+// reserve memory of a specific size.
+func SingleSegment(b []byte) Arena {
+	if cap(b) == 0 {
+		b = make([]byte, 0, defaultBufferSize)
+	}
+	ssa := new(singleSegmentArena)
+	*ssa = b
+	return ssa
+}
+
+func (ssa *singleSegmentArena) NumSegments() int {
+	return 1
+}
+
+func (ssa *singleSegmentArena) Data(id SegmentID) ([]byte, error) {
+	if id != 0 {
+		return nil, errSegmentOutOfBounds
+	}
+	return *ssa, nil
+}
+
+func (ssa *singleSegmentArena) Allocate(sz Size, segs []*Segment) (SegmentID, []byte, error) {
+	if (len(segs) == 0 || segs[0] == nil) && hasCapacity(*ssa, sz) {
+		return 0, *ssa, nil
+	}
+	// TODO(light): ensure len(data)+sz is word-aligned
+	if sz < minSingleSegmentGrowth {
+		sz = minSingleSegmentGrowth
 	} else {
-		newData := make([]byte, nn)
-		copy(newData, b.Data)
-		b.Data = newData
+		sz = sz.padToWord()
 	}
-	return &b.Segment, nil
+	buf := make([]byte, len(segs[0].data), cap(*ssa)+int(sz))
+	copy(buf, *ssa)
+	*ssa = buf
+	return 0, *ssa, nil
 }
 
-func (b *buffer) Lookup(segid SegmentID) (*Segment, error) {
-	if segid == 0 {
-		return &b.Segment, nil
+type multiSegmentArena [][]byte
+
+// MultiSegment returns a new arena that allocates new segments when
+// they are full.  b can be used to populate the buffer for reading or
+// to reserve memory of a specific size.
+func MultiSegment(b [][]byte) Arena {
+	msa := new(multiSegmentArena)
+	*msa = b
+	return msa
+}
+
+// demuxArena slices b into a multi-segment arena.
+func demuxArena(sizes []Size, data []byte) Arena {
+	segs := make([][]byte, len(sizes))
+	for i, sz := range sizes {
+		segs[i], data = data[:sz:sz], data[sz:]
+	}
+	return MultiSegment(segs)
+}
+
+func (msa *multiSegmentArena) NumSegments() int {
+	return len(*msa)
+}
+
+func (msa *multiSegmentArena) Data(id SegmentID) ([]byte, error) {
+	if int64(id) >= int64(len(*msa)) {
+		return nil, errSegmentOutOfBounds
+	}
+	return (*msa)[id], nil
+}
+
+func (msa *multiSegmentArena) Allocate(sz Size, segs []*Segment) (SegmentID, []byte, error) {
+	for i, data := range *msa {
+		if i < len(segs) && segs[i] != nil {
+			// The message would have already considered this segment.
+			continue
+		}
+		if hasCapacity(data, sz) {
+			return SegmentID(i), data, nil
+		}
+	}
+	if sz < defaultBufferSize {
+		sz = defaultBufferSize
 	} else {
-		return nil, errInvalidSegment
+		sz = sz.padToWord()
 	}
+	buf := make([]byte, 0, int(sz))
+	id := SegmentID(len(*msa))
+	*msa = append(*msa, buf)
+	return id, buf, nil
 }
 
-type multiBuffer struct {
-	segments []*Segment
-	capTable
+// A Decoder represents a framer that deserializes a particular Cap'n
+// Proto input stream.
+type Decoder struct {
+	r io.Reader
 }
 
-// NewMultiBuffer creates a new multi segment message. Creating new objects
-// will try and reuse the buffers available, but will create new ones if there
-// is insufficient capacity. When parsing an existing message data should be
-// the list of segments. The data buffers will not be copied.
-func NewMultiBuffer(data [][]byte) *Segment {
-	m := &multiBuffer{
-		segments: make([]*Segment, len(data)),
+// NewDecoder creates a new Cap'n Proto framer that reads from r.
+func NewDecoder(r io.Reader) *Decoder {
+	return &Decoder{r: r}
+}
+
+// NewPackedDecoder creates a new Cap'n Proto framer that reads from a
+// packed stream r.
+func NewPackedDecoder(r io.Reader) *Decoder {
+	return NewDecoder(packed.NewReader(r))
+}
+
+// Decode reads a message from the decoder stream.
+func (d *Decoder) Decode() (*Message, error) {
+	var maxSegBuf [msgHeaderSize]byte
+	if _, err := io.ReadFull(d.r, maxSegBuf[:]); err != nil {
+		return nil, err
 	}
-	for i, d := range data {
-		m.segments[i] = &Segment{m, d, SegmentID(i), false}
+	maxSeg := binary.LittleEndian.Uint32(maxSegBuf[:])
+	hdrSize := streamHeaderSize(maxSeg)
+	hdr := make([]byte, hdrSize)
+	copy(hdr, maxSegBuf[:])
+	if _, err := io.ReadFull(d.r, hdr[msgHeaderSize:]); err != nil {
+		return nil, err
 	}
-	if len(data) > 0 {
-		return m.segments[0]
+	sizes, _, err := parseStreamHeader(hdr)
+	if err != nil {
+		return nil, err
 	}
-	return &Segment{Message: m, Data: nil, Id: 0xFFFFFFFF, RootDone: false}
+	var total int64
+	for _, sz := range sizes {
+		total += int64(sz)
+	}
+	// TODO(light): size check
+	buf := make([]byte, int(total))
+	if _, err := io.ReadFull(d.r, buf); err != nil {
+		return nil, err
+	}
+	return &Message{Arena: demuxArena(sizes, buf)}, nil
+}
+
+// Unmarshal reads an unpacked serialized stream into a message.  No
+// copying is performed, so the objects in the returned message read
+// directly from data.
+func Unmarshal(data []byte) (*Message, error) {
+	sizes, data, err := parseStreamHeader(data)
+	if err != nil {
+		return nil, err
+	}
+	// TODO(light): check len(data) to size
+	return &Message{Arena: demuxArena(sizes, data)}, nil
 }
 
 const (
-	maxSegmentNumber = 1024
-	maxTotalSize     = 1024 * 1024 * 1024
+	msgHeaderSize = 4
+	segHeaderSize = 4
 )
 
-func (m *multiBuffer) NewSegment(minsz Size) (*Segment, error) {
-	for _, s := range m.segments {
-		if uint64(len(s.Data))+uint64(minsz) <= uint64(cap(s.Data)) {
-			return s, nil
-		}
-	}
-
-	if minsz < 4096 {
-		minsz = 4096
-	}
-	s := &Segment{
-		Message: m,
-		Data:    make([]byte, 0, minsz),
-		Id:      SegmentID(len(m.segments)),
-	}
-	m.segments = append(m.segments, s)
-	return s, nil
+// streamHeaderSize returns the size of the header, given the
+// first 32-bit number.
+func streamHeaderSize(n uint32) int {
+	return (msgHeaderSize + segHeaderSize*(int(n)+1) + 7) &^ 7
 }
 
-func (m *multiBuffer) Lookup(segid SegmentID) (*Segment, error) {
-	if uint(segid) < uint(len(m.segments)) {
-		return m.segments[segid], nil
-	} else {
-		return nil, errInvalidSegment
+// parseStreamHeader parses the header of the stream framing format.
+func parseStreamHeader(data []byte) (sizes []Size, tail []byte, err error) {
+	if len(data) < streamHeaderSize(0) {
+		return nil, nil, io.ErrUnexpectedEOF
 	}
+	maxSeg := binary.LittleEndian.Uint32(data)
+	// TODO(light): check int
+	hdrSize := streamHeaderSize(maxSeg)
+	if len(data) < hdrSize {
+		return nil, nil, io.ErrUnexpectedEOF
+	}
+	n := int(maxSeg + 1)
+	sizes = make([]Size, n)
+	for i := 0; i < n; i++ {
+		s := binary.LittleEndian.Uint32(data[msgHeaderSize+i*segHeaderSize:])
+		sizes[i] = wordSize.times(int32(s))
+	}
+	return sizes, data[hdrSize:], nil
 }
 
-// ReadFromStream reads a non-packed serialized stream from r. buf is used to
-// buffer the read contents, can be nil, and is provided so that the buffer
-// can be reused between messages. The returned segment is the first segment
-// read, which contains the root pointer.
-//
-// Warning about buf reuse:  It is safer to just pass nil for buf.
-// When making multiple calls to ReadFromStream() with the same buf argument, you
-// may overwrite the data in a previously returned Segment.
-// The re-use of buf is an optimization for when you are actually
-// done with any previously returned Segment which may have data still alive
-// in buf.
-//
-func ReadFromStream(r io.Reader, buf *bytes.Buffer) (*Segment, error) {
-	if buf == nil {
-		buf = new(bytes.Buffer)
-	} else {
-		buf.Reset()
-	}
-
-	if _, err := io.CopyN(buf, r, 4); err != nil {
-		return nil, err
-	}
-
-	if binary.LittleEndian.Uint32(buf.Bytes()[:]) >= uint32(maxSegmentNumber) {
-		return nil, errTooMuchData
-	}
-
-	segnum := int(binary.LittleEndian.Uint32(buf.Bytes()[:]) + 1)
-	hdrsz := 8*(segnum/2) + 4
-
-	if _, err := io.CopyN(buf, r, int64(hdrsz)); err != nil {
-		return nil, err
-	}
-
-	total := 0
-	for i := 0; i < segnum; i++ {
-		sz := binary.LittleEndian.Uint32(buf.Bytes()[4*i+4:])
-		if uint64(total)+uint64(sz)*8 > uint64(maxTotalSize) {
-			return nil, errTooMuchData
-		}
-		total += int(sz) * 8
-	}
-
-	if _, err := io.CopyN(buf, r, int64(total)); err != nil {
-		return nil, err
-	}
-
-	hdrv := buf.Bytes()[4 : hdrsz+4]
-	datav := buf.Bytes()[hdrsz+4:]
-
-	if segnum == 1 {
-		sz := int(binary.LittleEndian.Uint32(hdrv)) * 8
-		return NewBuffer(datav[:sz]), nil
-	}
-
-	m := &multiBuffer{segments: make([]*Segment, segnum)}
-	for i := 0; i < segnum; i++ {
-		sz := int(binary.LittleEndian.Uint32(hdrv[4*i:])) * 8
-		m.segments[i] = &Segment{
-			Message: m,
-			Data:    datav[:sz],
-			Id:      SegmentID(i),
-		}
-		datav = datav[sz:]
-	}
-
-	return m.segments[0], nil
-}
-
-// ReadFromMemoryZeroCopy: like ReadFromStream, but reads a non-packed
-// serialized stream that already resides in memory in the argument data.
-// The returned segment is the first segment read, which contains
-// the root pointer. The returned bytesRead says how many bytes were
-// consumed from data in making seg. The caller should advance the
-// data slice by doing data = data[bytesRead:] between successive calls
-// to ReadFromMemoryZeroCopy().
-func ReadFromMemoryZeroCopy(data []byte) (seg *Segment, bytesRead int64, err error) {
-
-	if len(data) < 4 {
-		return nil, 0, io.EOF
-	}
-
-	if binary.LittleEndian.Uint32(data[0:4]) >= uint32(maxSegmentNumber) {
-		return nil, 0, errTooMuchData
-	}
-
-	segnum := int(binary.LittleEndian.Uint32(data[0:4]) + 1)
-	hdrsz := 8*(segnum/2) + 4
-
-	b := data[0:(hdrsz + 4)]
-
-	total := 0
-	for i := 0; i < segnum; i++ {
-		sz := binary.LittleEndian.Uint32(b[4*i+4:])
-		if uint64(total)+uint64(sz)*8 > uint64(maxTotalSize) {
-			return nil, 0, errTooMuchData
-		}
-		total += int(sz) * 8
-	}
-	if total == 0 {
-		return nil, 0, io.EOF
-	}
-
-	hdrv := data[4:(hdrsz + 4)]
-	datav := data[hdrsz+4:]
-	m := &multiBuffer{segments: make([]*Segment, segnum)}
-	for i := 0; i < segnum; i++ {
-		sz := int(binary.LittleEndian.Uint32(hdrv[4*i:])) * 8
-		m.segments[i] = &Segment{
-			Message: m,
-			Data:    datav[:sz],
-			Id:      SegmentID(i),
-		}
-		datav = datav[sz:]
-	}
-
-	return m.segments[0], int64(4 + hdrsz + total), nil
-}
-
-// ReadFromPackedStream reads a single message from the stream r in packed
-// form returning the first segment. buf can be specified in order to reuse
-// the buffer (or it is allocated each call if nil).
-func ReadFromPackedStream(r io.Reader, buf *bytes.Buffer) (*Segment, error) {
-	return ReadFromStream(packed.NewReader(r), buf)
-}
-
-func serialize(msg Message) []byte {
+// Marshal concatenates the segments in the message into a single byte
+// slice including framing.
+func (m *Message) Marshal() ([]byte, error) {
 	// Compute buffer size.
 	const (
-		msgHeaderSize Size = 4
-		segHeaderSize Size = 4
+		msgHeaderSize = 4
+		segHeaderSize = 4
 	)
-	nsegs := numSegments(msg)
-	hdrSize := int((msgHeaderSize + segHeaderSize.times(int32(nsegs))).padToWord())
+	// TODO(light): error out if too many segments
+	nsegs := m.NumSegments()
+	hdrSize := msgHeaderSize + segHeaderSize*int(nsegs)
+	hdrSize = (hdrSize + 7) &^ 7 // pad to word
 	total := hdrSize
-	for i := SegmentID(0); i < SegmentID(nsegs); i++ {
-		s, _ := msg.Lookup(i)
-		total += len(s.Data)
+	for i := 0; i < nsegs; i++ {
+		s, err := m.Segment(SegmentID(i))
+		if err != nil {
+			return nil, err
+		}
+		total += len(s.data)
 	}
 
 	// Fill in buffer.
 	buf := make([]byte, hdrSize, total)
-	binary.LittleEndian.PutUint32(buf, nsegs-1)
-	for i := SegmentID(0); i < SegmentID(nsegs); i++ {
-		s, _ := msg.Lookup(i)
-		binary.LittleEndian.PutUint32(buf[4*(i+1):], uint32(len(s.Data)/int(wordSize)))
-	}
-	for i := SegmentID(0); i < SegmentID(nsegs); i++ {
-		s, _ := msg.Lookup(i)
-		buf = append(buf, s.Data...)
-	}
-	return buf
-}
-
-// TODO(light): this smells.
-func numSegments(msg Message) uint32 {
-	n := uint32(1)
-	for {
-		if seg, _ := msg.Lookup(SegmentID(n)); seg == nil {
-			return n
+	binary.LittleEndian.PutUint32(buf, uint32(nsegs-1))
+	for i := 0; i < nsegs; i++ {
+		s, err := m.Segment(SegmentID(i))
+		if err != nil {
+			return nil, err
 		}
-		n++
+		binary.LittleEndian.PutUint32(buf[4*(i+1):], uint32(len(s.data)/int(wordSize)))
 	}
+	for i := 0; i < nsegs; i++ {
+		s, err := m.Segment(SegmentID(i))
+		if err != nil {
+			return nil, err
+		}
+		buf = append(buf, s.data...)
+	}
+	return buf, nil
 }
 
-// WriteTo writes the message that the segment is part of to the
-// provided stream in serialized form.
-func (s *Segment) WriteTo(w io.Writer) (int64, error) {
-	data := serialize(s.Message)
-	n, err := w.Write(data)
-	return int64(n), err
-}
-
-// WriteToPacked writes the message that the segment is part of to the
-// provided stream in packed form.
-func (s *Segment) WriteToPacked(w io.Writer) (int64, error) {
-	data := serialize(s.Message)
+// MarshalPacked marshals the message in packed form.
+func (m *Message) MarshalPacked() ([]byte, error) {
+	data, err := m.Marshal()
+	if err != nil {
+		return nil, err
+	}
 	buf := make([]byte, 0, len(data))
 	buf = packed.Pack(buf, data)
-	n, err := w.Write(buf)
-	return int64(n), err
+	return buf, nil
 }
 
-type capTable []Client
-
-func (tab capTable) CapTable() []Client {
-	return []Client(tab)
+func hasCapacity(b []byte, sz Size) bool {
+	return sz <= Size(cap(b)-len(b))
 }
 
-func (tab *capTable) AddCap(c Client) CapabilityID {
-	n := CapabilityID(len(*tab))
-	*tab = append(*tab, c)
-	return n
+const maxInt32 = 0x7fffffff
+
+// isInt32Bit reports whether the built-in int type is 32 bits.
+func isInt32Bit() bool {
+	const maxInt = int(^uint(0) >> 1)
+	return maxInt == maxInt32
 }
 
 var (
-	errBufferCall     = errors.New("capn: can't call on a memory buffer")
-	errInvalidSegment = errors.New("capn: invalid segment id")
-	errTooMuchData    = errors.New("capn: too much data in stream")
+	errBufferCall         = errors.New("capn: can't call on a memory buffer")
+	errSegmentOutOfBounds = errors.New("capn: segment ID out of bounds")
+	errSegment32Bit       = errors.New("capn: segment ID larger than 31 bits")
+	errHasData            = errors.New("capnp: NewMessage called on arena with data")
+	errTooMuchData        = errors.New("capn: too much data in stream")
+	errSegmentTooSmall    = errors.New("capn: segment too small")
+	errStreamHeader       = errors.New("capnp: invalid stream header")
 )

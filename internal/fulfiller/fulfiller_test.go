@@ -23,8 +23,7 @@ func TestFulfiller_NewShouldBeUnresolved(t *testing.T) {
 
 func TestFulfiller_FulfillShouldResolve(t *testing.T) {
 	f := new(Fulfiller)
-	s := capnp.NewBuffer(nil)
-	st := s.NewRootStruct(capnp.ObjectSize{})
+	st := newStruct(t, capnp.ObjectSize{})
 
 	f.Fulfill(st)
 
@@ -57,7 +56,7 @@ func TestFulfiller_RejectShouldResolve(t *testing.T) {
 	if err != e {
 		t.Errorf("f.Struct() error = %v; want %v", err, e)
 	}
-	if capnp.Pointer(ret).Type() != capnp.TypeNull {
+	if capnp.IsValid(ret) {
 		t.Errorf("f.Struct() = %v; want null", ret)
 	}
 }
@@ -65,9 +64,9 @@ func TestFulfiller_RejectShouldResolve(t *testing.T) {
 func TestFulfiller_QueuedCallsDeliveredInOrder(t *testing.T) {
 	f := new(Fulfiller)
 	oc := new(orderClient)
-	result := capnp.NewBuffer(nil).NewRootStruct(capnp.ObjectSize{PointerCount: 1})
-	in := result.Segment().Message.AddCap(oc)
-	result.SetPointer(0, capnp.Pointer(result.Segment().NewInterface(in)))
+	result := newStruct(t, capnp.ObjectSize{PointerCount: 1})
+	in := result.Segment().Message().AddCap(oc)
+	result.SetPointer(0, capnp.NewInterface(result.Segment(), in))
 
 	ans1 := f.PipelineCall([]capnp.PipelineOp{{Field: 0}}, new(capnp.Call))
 	ans2 := f.PipelineCall([]capnp.PipelineOp{{Field: 0}}, new(capnp.Call))
@@ -91,11 +90,29 @@ func TestFulfiller_QueuedCallsDeliveredInOrder(t *testing.T) {
 	check(ans4, 3)
 }
 
+func newStruct(t *testing.T, sz capnp.ObjectSize) capnp.Struct {
+	_, s, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	st, err := capnp.NewStruct(s, sz)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return st
+}
+
 type orderClient int
 
 func (oc *orderClient) Call(cl *capnp.Call) capnp.Answer {
-	s := capnp.NewBuffer(nil)
-	st := s.NewRootStruct(capnp.ObjectSize{DataSize: 8})
+	_, s, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		return capnp.ErrorAnswer(err)
+	}
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8})
+	if err != nil {
+		return capnp.ErrorAnswer(err)
+	}
 	st.SetUint64(0, uint64(*oc))
 	*oc++
 	return capnp.ImmediateAnswer(st)

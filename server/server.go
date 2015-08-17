@@ -70,9 +70,18 @@ func (s *server) Call(call *capnp.Call) capnp.Answer {
 	}
 	// Call implementation function
 	ans := new(fulfiller.Fulfiller)
-	params := call.PlaceParams(nil)
-	out := capnp.NewBuffer(nil)
-	results := out.NewRootStruct(sm.ResultsSize)
+	params, err := call.PlaceParams(nil)
+	if err != nil {
+		return capnp.ErrorAnswer(err)
+	}
+	_, out, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		return capnp.ErrorAnswer(err)
+	}
+	results, err := capnp.NewRootStruct(out, sm.ResultsSize)
+	if err != nil {
+		return capnp.ErrorAnswer(err)
+	}
 	acksig := &ackSignal{c: make(chan struct{})}
 	opts := call.Options.With([]capnp.CallOption{capnp.SetOptionValue(ackSignalKey, acksig)})
 	go func() {

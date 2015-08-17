@@ -49,7 +49,7 @@ func (f *Fulfiller) Fulfill(s capnp.Struct) {
 	}
 	f.answer = capnp.ImmediateAnswer(s)
 	queues := f.emptyQueue(s)
-	ctab := s.Segment().Message.CapTable()
+	ctab := s.Segment().Message().CapTable
 	for capIdx, q := range queues {
 		ctab[capIdx] = newEmbargoClient(ctab[capIdx], q)
 	}
@@ -63,12 +63,17 @@ func (f *Fulfiller) Fulfill(s capnp.Struct) {
 func (f *Fulfiller) emptyQueue(s capnp.Struct) map[capnp.CapabilityID][]ecall {
 	qs := make(map[capnp.CapabilityID][]ecall, len(f.queue))
 	for i, pc := range f.queue {
-		c := capnp.TransformPointer(capnp.Pointer(s), pc.transform)
-		if c.Type() != capnp.TypeInterface {
+		c, err := capnp.Transform(capnp.Pointer(s), pc.transform)
+		if err != nil {
+			pc.f.Reject(err)
+			continue
+		}
+		in := capnp.ToInterface(c)
+		if !capnp.IsValid(in) {
 			pc.f.Reject(capnp.ErrNullClient)
 			continue
 		}
-		cn := c.ToInterface().Capability()
+		cn := in.Capability()
 		if qs[cn] == nil {
 			qs[cn] = make([]ecall, 0, len(f.queue)-i)
 		}
@@ -143,11 +148,16 @@ func (f *Fulfiller) PipelineCall(transform []capnp.PipelineOp, call *capnp.Call)
 		f.mu.Unlock()
 		return capnp.ErrorAnswer(errCallQueueFull)
 	}
+	cc, err := call.Copy(nil)
+	if err != nil {
+		f.mu.Unlock()
+		return capnp.ErrorAnswer(err)
+	}
 	g := new(Fulfiller)
 	f.queue = append(f.queue, pcall{
 		transform: transform,
 		ecall: ecall{
-			call: call.Copy(nil),
+			call: cc,
 			f:    g,
 		},
 	})
@@ -187,7 +197,10 @@ func newEmbargoClient(client capnp.Client, queue []ecall) capnp.Client {
 
 func (ec *embargoClient) push(cl *capnp.Call) capnp.Answer {
 	f := new(Fulfiller)
-	cl = cl.Copy(nil)
+	cl, err := cl.Copy(nil)
+	if err != nil {
+		return capnp.ErrorAnswer(err)
+	}
 	if ok := ec.q.Push(ecall{cl, f}); !ok {
 		return capnp.ErrorAnswer(errCallQueueFull)
 	}

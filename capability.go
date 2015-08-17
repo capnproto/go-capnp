@@ -7,6 +7,71 @@ import (
 	"golang.org/x/net/context"
 )
 
+// An Interface is a reference to a client in a message's capability table.
+type Interface struct {
+	seg *Segment
+	cap CapabilityID
+}
+
+// NewInterface creates a new interface pointer.  No allocation is
+// performed; s is only used for Segment()'s return value.
+func NewInterface(s *Segment, cap CapabilityID) Interface {
+	return Interface{
+		seg: s,
+		cap: cap,
+	}
+}
+
+// ToInterface attempts to convert p into an interface.  If p is not a
+// valid interface, then ToInterface returns an invalid Interface.
+func ToInterface(p Pointer) Interface {
+	if !IsValid(p) {
+		return Interface{}
+	}
+	i, ok := p.underlying().(Interface)
+	if !ok {
+		return Interface{}
+	}
+	return i
+}
+
+// Segment returns the segment this pointer came from.
+func (i Interface) Segment() *Segment {
+	return i.seg
+}
+
+// HasData is always true.
+func (i Interface) HasData() bool {
+	return true
+}
+
+// Capability returns the capability ID of the interface.
+func (i Interface) Capability() CapabilityID {
+	return i.cap
+}
+
+// value returns a raw interface pointer with the capability ID.
+func (i Interface) value(paddr Address) rawPointer {
+	return rawInterfacePointer(i.cap)
+}
+
+func (i Interface) underlying() Pointer {
+	return i
+}
+
+// Client returns the client stored in the message's capability table
+// or nil if the pointer is invalid.
+func (i Interface) Client() Client {
+	if i.seg == nil {
+		return nil
+	}
+	tab := i.seg.msg.CapTable
+	if int64(i.cap) >= int64(len(tab)) {
+		return nil
+	}
+	return tab[i.cap]
+}
+
 // ErrNullClient is returned from a call made on a null client pointer.
 var ErrNullClient = errors.New("capn: call on null client")
 
@@ -64,31 +129,42 @@ type Call struct {
 }
 
 // Copy clones a call, ensuring that its Params are placed.
-// If Call.ParamsFunc is nil, then the same pointer will be returned.
-func (call *Call) Copy(s *Segment) *Call {
+// If Call.ParamsFunc is nil, then the same Call will be returned.
+func (call *Call) Copy(s *Segment) (*Call, error) {
 	if call.ParamsFunc == nil {
-		return call
+		return call, nil
+	}
+	p, err := call.PlaceParams(s)
+	if err != nil {
+		return nil, err
 	}
 	return &Call{
 		Ctx:     call.Ctx,
 		Method:  call.Method,
-		Params:  call.PlaceParams(s),
+		Params:  p,
 		Options: call.Options,
-	}
+	}, nil
 }
 
 // PlaceParams returns the parameters struct, allocating it inside
 // segment s as necessary.  If s is nil, a new segment is allocated.
-func (call *Call) PlaceParams(s *Segment) Struct {
+func (call *Call) PlaceParams(s *Segment) (Struct, error) {
 	if call.ParamsFunc == nil {
-		return call.Params
+		return call.Params, nil
 	}
 	if s == nil {
-		s = NewBuffer(nil)
+		var err error
+		_, s, err = NewMessage(SingleSegment(nil))
+		if err != nil {
+			return Struct{}, err
+		}
 	}
-	p := s.NewStruct(call.ParamsSize)
+	p, err := NewStruct(s, call.ParamsSize)
+	if err != nil {
+		return Struct{}, nil
+	}
 	call.ParamsFunc(p)
-	return p
+	return p, nil
 }
 
 // CallOptions holds RPC-specific options for an interface call.
@@ -190,7 +266,11 @@ func (p *Pipeline) Struct() (Struct, error) {
 	if err != nil {
 		return Struct{}, err
 	}
-	return TransformPointer(Pointer(s), p.Transform()).ToStruct(), err
+	ptr, err := Transform(s, p.Transform())
+	if err != nil {
+		return Struct{}, err
+	}
+	return ToStruct(ptr), nil
 }
 
 // Client returns the client version of p.
@@ -200,19 +280,18 @@ func (p *Pipeline) Client() *PipelineClient {
 
 // GetPipeline returns a derived pipeline which yields the pointer field given.
 func (p *Pipeline) GetPipeline(off uint16) *Pipeline {
-	return p.GetPipelineDefault(off, nil, 0)
+	return p.GetPipelineDefault(off, nil)
 }
 
 // GetPipelineDefault returns a derived pipeline which yields the pointer field given,
 // defaulting to the value given.
-func (p *Pipeline) GetPipelineDefault(off uint16, dseg *Segment, daddr Address) *Pipeline {
+func (p *Pipeline) GetPipelineDefault(off uint16, def []byte) *Pipeline {
 	return &Pipeline{
 		answer: p.answer,
 		parent: p,
 		op: PipelineOp{
-			Field:          off,
-			DefaultSegment: dseg,
-			DefaultAddress: daddr,
+			Field:        off,
+			DefaultValue: def,
 		},
 	}
 }
@@ -235,9 +314,8 @@ func (pc *PipelineClient) Close() error {
 // A PipelineOp describes a step in transforming a pipeline.
 // It maps closely with the PromisedAnswer.Op struct in rpc.capnp.
 type PipelineOp struct {
-	Field          uint16
-	DefaultSegment *Segment
-	DefaultAddress Address
+	Field        uint16
+	DefaultValue []byte
 }
 
 // String returns a human-readable description of op.
@@ -245,7 +323,7 @@ func (op PipelineOp) String() string {
 	s := make([]byte, 0, 32)
 	s = append(s, "get field "...)
 	s = strconv.AppendInt(s, int64(op.Field), 10)
-	if op.DefaultSegment == nil {
+	if op.DefaultValue == nil {
 		return string(s)
 	}
 	s = append(s, " with default"...)
@@ -285,43 +363,59 @@ func (m *Method) String() string {
 	return string(buf)
 }
 
-// TransformPointer applies a sequence of pipeline operations to a pointer
+// Transform applies a sequence of pipeline operations to a pointer
 // and returns the result.
-func TransformPointer(p Pointer, transform []PipelineOp) Pointer {
+func Transform(p Pointer, transform []PipelineOp) (Pointer, error) {
 	n := len(transform)
 	if n == 0 {
-		return p
+		return p, nil
 	}
-	s := p.ToStruct()
+	s, _ := p.(Struct)
 	for _, op := range transform[:n-1] {
-		field := s.Pointer(op.Field)
-		if op.DefaultSegment == nil {
-			s = field.ToStruct()
+		field, err := s.Pointer(op.Field)
+		if err != nil {
+			return nil, err
+		}
+		if op.DefaultValue == nil {
+			s, _ = field.(Struct)
 		} else {
-			s = field.ToStructDefault(op.DefaultSegment, op.DefaultAddress)
+			s = ToStructDefault(field, op.DefaultValue)
 		}
 	}
 	op := transform[n-1]
-	p = s.Pointer(op.Field)
-	if op.DefaultSegment != nil {
-		p = Pointer(p.ToStructDefault(op.DefaultSegment, op.DefaultAddress))
+	p, err := s.Pointer(op.Field)
+	if err != nil {
+		return nil, err
 	}
-	return p
+	if op.DefaultValue != nil {
+		p = ToStructDefault(p, op.DefaultValue)
+	}
+	return p, nil
 }
 
-type immediateAnswer Struct
+type immediateAnswer struct {
+	s Struct
+}
 
 // ImmediateAnswer returns an Answer that accesses s.
 func ImmediateAnswer(s Struct) Answer {
-	return immediateAnswer(s)
+	return immediateAnswer{s}
 }
 
 func (ans immediateAnswer) Struct() (Struct, error) {
-	return Struct(ans), nil
+	return ans.s, nil
+}
+
+func (ans immediateAnswer) findClient(transform []PipelineOp) Client {
+	p, err := Transform(ans.s, transform)
+	if err != nil {
+		return ErrorClient(err)
+	}
+	return ToInterface(p).Client()
 }
 
 func (ans immediateAnswer) PipelineCall(transform []PipelineOp, call *Call) Answer {
-	c := TransformPointer(Pointer(ans), transform).ToInterface().Client()
+	c := ans.findClient(transform)
 	if c == nil {
 		return ErrorAnswer(ErrNullClient)
 	}
@@ -329,7 +423,7 @@ func (ans immediateAnswer) PipelineCall(transform []PipelineOp, call *Call) Answ
 }
 
 func (ans immediateAnswer) PipelineClose(transform []PipelineOp) error {
-	c := TransformPointer(Pointer(ans), transform).ToInterface().Client()
+	c := ans.findClient(transform)
 	if c == nil {
 		return ErrNullClient
 	}
