@@ -1,6 +1,7 @@
 package capnp
 
 import "errors"
+import "math"
 
 // A List is a reference to an array of values.
 type List struct {
@@ -182,6 +183,20 @@ func (p List) SetStruct(i int, s Struct) error {
 // A BitList is a reference to a list of booleans.
 type BitList struct{ List }
 
+// NewBitList creates a new bit list, preferring placement in s.
+func NewBitList(s *Segment, n int32) (BitList, error) {
+	s, addr, err := alloc(s, Size(1).times((n+7)&^7))
+	if err != nil {
+		return BitList{}, err
+	}
+	return BitList{List{
+		seg:    s,
+		off:    addr,
+		length: n,
+		flags:  isBitList,
+	}}, nil
+}
+
 // At returns the i'th bit.
 func (p BitList) At(i int) bool {
 	b := p.slice(i)
@@ -209,6 +224,20 @@ func (p BitList) Set(i int, v bool) {
 // A PointerList is a reference to an array of pointers.
 type PointerList struct{ List }
 
+// NewPointerList allocates a new list of pointers, preferring placement in s.
+func NewPointerList(s *Segment, n int32) (PointerList, error) {
+	s, addr, err := alloc(s, wordSize.times(n))
+	if err != nil {
+		return PointerList{}, err
+	}
+	return PointerList{List{
+		seg:    s,
+		off:    addr,
+		length: n,
+		size:   ObjectSize{PointerCount: 1},
+	}}, nil
+}
+
 // At returns the i'th pointer in the list.
 func (p PointerList) At(i int) (Pointer, error) {
 	addr, _, ok := p.elem(i)
@@ -229,6 +258,15 @@ func (p PointerList) Set(i int, v Pointer) error {
 
 // TextList is an array of pointers to strings.
 type TextList struct{ List }
+
+// NewTextList allocates a new list of text pointers, preferring placement in s.
+func NewTextList(s *Segment, n int32) (TextList, error) {
+	pl, err := NewPointerList(s, n)
+	if err != nil {
+		return TextList{}, err
+	}
+	return TextList{pl.List}, nil
+}
 
 // At returns the i'th string in the list.
 func (l TextList) At(i int) (string, error) {
@@ -258,6 +296,15 @@ func (l TextList) Set(i int, v string) error {
 
 // DataList is an array of pointers to data.
 type DataList struct{ List }
+
+// NewDataList allocates a new list of data pointers, preferring placement in s.
+func NewDataList(s *Segment, n int32) (DataList, error) {
+	pl, err := NewPointerList(s, n)
+	if err != nil {
+		return DataList{}, err
+	}
+	return DataList{pl.List}, nil
+}
 
 // At returns the i'th data in the list.
 func (l DataList) At(i int) ([]byte, error) {
@@ -609,8 +656,62 @@ func (l Int64List) Set(i int, v int64) {
 // Float32List is an array of Float32 values.
 type Float32List struct{ List }
 
+// NewFloat32List creates a new list of Float32, preferring placement in s.
+func NewFloat32List(s *Segment, n int32) (Float32List, error) {
+	l, err := newPrimitiveList(s, 8, n)
+	if err != nil {
+		return Float32List{}, err
+	}
+	return Float32List{l}, nil
+}
+
+// At returns the i'th element.
+func (l Float32List) At(i int) float32 {
+	addr, _, ok := l.elem(i)
+	if !ok {
+		return 0
+	}
+	return math.Float32frombits(l.seg.readUint32(addr))
+}
+
+// Set sets the i'th element to v.
+func (l Float32List) Set(i int, v float32) {
+	addr, _, ok := l.elem(i)
+	if !ok {
+		panic(errOutOfBounds)
+	}
+	l.seg.writeUint32(addr, math.Float32bits(v))
+}
+
 // Float64List is an array of Float64 values.
 type Float64List struct{ List }
+
+// NewFloat64List creates a new list of Float64, preferring placement in s.
+func NewFloat64List(s *Segment, n int32) (Float64List, error) {
+	l, err := newPrimitiveList(s, 8, n)
+	if err != nil {
+		return Float64List{}, err
+	}
+	return Float64List{l}, nil
+}
+
+// At returns the i'th element.
+func (l Float64List) At(i int) float64 {
+	addr, _, ok := l.elem(i)
+	if !ok {
+		return 0
+	}
+	return math.Float64frombits(l.seg.readUint64(addr))
+}
+
+// Set sets the i'th element to v.
+func (l Float64List) Set(i int, v float64) {
+	addr, _, ok := l.elem(i)
+	if !ok {
+		panic(errOutOfBounds)
+	}
+	l.seg.writeUint64(addr, math.Float64bits(v))
+}
 
 type listFlags uint8
 
