@@ -376,11 +376,7 @@ func Transform(p Pointer, transform []PipelineOp) (Pointer, error) {
 		if err != nil {
 			return nil, err
 		}
-		if op.DefaultValue == nil {
-			s, _ = field.(Struct)
-		} else {
-			s = ToStructDefault(field, op.DefaultValue)
-		}
+		s, err = ToStructDefault(field, op.DefaultValue)
 	}
 	op := transform[n-1]
 	p, err := s.Pointer(op.Field)
@@ -388,9 +384,9 @@ func Transform(p Pointer, transform []PipelineOp) (Pointer, error) {
 		return nil, err
 	}
 	if op.DefaultValue != nil {
-		p = ToStructDefault(p, op.DefaultValue)
+		p, err = PointerDefault(p, op.DefaultValue)
 	}
-	return p, nil
+	return p, err
 }
 
 type immediateAnswer struct {

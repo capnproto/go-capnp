@@ -41,22 +41,37 @@ func NewRootStruct(s *Segment, sz ObjectSize) (Struct, error) {
 // ToStruct attempts to convert p into a struct.  If p is not a valid
 // struct, then it returns an invalid Struct.
 func ToStruct(p Pointer) Struct {
-	return ToStructDefault(p, nil)
-}
-
-// ToStructDefault attempts to convert p into a struct, reading the
-// default value from def if p is not a struct.
-func ToStructDefault(p Pointer, def []byte) Struct {
 	if !IsValid(p) {
-		// TODO(light): read default
 		return Struct{}
 	}
 	s, ok := p.underlying().(Struct)
 	if !ok {
-		// TODO(light): read default
 		return Struct{}
 	}
 	return s
+}
+
+// ToStructDefault attempts to convert p into a struct, reading the
+// default value from def if p is not a struct.
+func ToStructDefault(p Pointer, def []byte) (Struct, error) {
+	fallback := func() (Struct, error) {
+		if def == nil {
+			return Struct{}, nil
+		}
+		defp, err := unmarshalDefault(def)
+		if err != nil {
+			return Struct{}, err
+		}
+		return ToStruct(defp), nil
+	}
+	if !IsValid(p) {
+		return fallback()
+	}
+	s, ok := p.underlying().(Struct)
+	if !ok {
+		return fallback()
+	}
+	return s, nil
 }
 
 // Segment returns the segment this pointer came from.

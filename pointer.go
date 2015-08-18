@@ -28,6 +28,26 @@ func HasData(p Pointer) bool {
 	return IsValid(p) && p.HasData()
 }
 
+// PointerDefault returns p if it is valid, otherwise it unmarshals def.
+func PointerDefault(p Pointer, def []byte) (Pointer, error) {
+	if !IsValid(p) {
+		return unmarshalDefault(def)
+	}
+	return p, nil
+}
+
+func unmarshalDefault(def []byte) (Pointer, error) {
+	msg, err := Unmarshal(def)
+	if err != nil {
+		return nil, err
+	}
+	p, err := msg.Root()
+	if err != nil {
+		return nil, err
+	}
+	return p, nil
+}
+
 /*
 func (p Pointer) ToStruct() Struct {
 	if p.typ == TypeStruct {

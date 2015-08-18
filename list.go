@@ -50,22 +50,31 @@ func NewCompositeList(s *Segment, sz ObjectSize, n int32) (List, error) {
 // ToList attempts to convert p into a list.  If p is not a valid
 // list, then it returns an invalid List.
 func ToList(p Pointer) List {
-	return ToListDefault(p, nil)
+	l, _ := ToListDefault(p, nil)
+	return l
 }
 
 // ToListDefault attempts to convert p into a struct, reading the
 // default value from def if p is not a struct.
-func ToListDefault(p Pointer, def []byte) List {
+func ToListDefault(p Pointer, def []byte) (List, error) {
+	fallback := func() (List, error) {
+		if def == nil {
+			return List{}, nil
+		}
+		defp, err := unmarshalDefault(def)
+		if err != nil {
+			return List{}, err
+		}
+		return ToList(defp), nil
+	}
 	if !IsValid(p) {
-		// TODO(light): read default
-		return List{}
+		return fallback()
 	}
 	l, ok := p.underlying().(List)
 	if !ok {
-		// TODO(light): read default
-		return List{}
+		return fallback()
 	}
-	return l
+	return l, nil
 }
 
 // Segment returns the segment this pointer references.
