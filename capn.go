@@ -303,7 +303,12 @@ func makeOffsetKey(p Pointer) offset {
 			boff: int64(p.off) * 8,
 			bend: int64(p.off.addSize(p.size.totalSize())) * 8,
 		}
-		if (p.flags & isCompositeList) != 0 {
+		if p.flags&isBitList != 0 {
+			key.bend = int64(p.off)*8 + int64(p.length)
+		} else {
+			key.bend = int64(p.off.addSize(p.size.totalSize())) * 8
+		}
+		if p.flags&isCompositeList != 0 {
 			// Composite lists' offsets are after the tag word.
 			key.boff -= int64(wordSize) * 8
 		}
@@ -439,6 +444,7 @@ func copyPointer(cc copyContext, dstSeg *Segment, dstAddr Address, src Pointer) 
 			size:   src.size,
 			flags:  src.flags,
 		}
+		// TODO(light): fast path for copying text/data
 		if dst.flags&isCompositeList != 0 {
 			// Copy tag word
 			copy(newSeg.data[newAddr:], src.seg.data[src.off-Address(wordSize):src.off])
@@ -446,6 +452,7 @@ func copyPointer(cc copyContext, dstSeg *Segment, dstAddr Address, src Pointer) 
 		}
 		key.newval = dst
 		cc.copies.Insert(key)
+		// TODO(light): bit list
 		for i := 0; i < src.Len(); i++ {
 			err := copyStruct(cc, dst.Struct(i), src.Struct(i))
 			if err != nil {
