@@ -1,8 +1,5 @@
 package capnp
 
-// wordSize is the number of bytes in a Cap'n Proto word.
-const wordSize Size = 8
-
 // An Address is an index inside a segment's data (in bytes).
 type Address uint32
 
@@ -24,14 +21,19 @@ func (a Address) addOffset(o DataOffset) Address {
 // A Size is a size (in bytes).
 type Size uint32
 
+// wordSize is the number of bytes in a Cap'n Proto word.
+const wordSize Size = 8
+
+// maxSize is the maximum representable size.
+const maxSize Size = 1<<32 - 1
+
 // DataOffset is an offset in bytes from the beginning of a struct's data section.
 type DataOffset uint32
 
 // times returns the size sz*n.
 func (sz Size) times(n int32) Size {
-	const maxSize = 1<<32 - 1
 	result := int64(sz) * int64(n)
-	if result > maxSize {
+	if result > int64(maxSize) {
 		panic(errOverlarge)
 	}
 	return Size(result)

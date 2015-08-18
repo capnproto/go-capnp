@@ -322,7 +322,7 @@ func (d *Decoder) Decode() (*Message, error) {
 	if _, err := io.ReadFull(d.r, hdr[msgHeaderSize:]); err != nil {
 		return nil, err
 	}
-	sizes, _, err := parseStreamHeader(hdr)
+	sizes, _, err := unmarshalStreamHeader(hdr)
 	if err != nil {
 		return nil, err
 	}
@@ -342,7 +342,7 @@ func (d *Decoder) Decode() (*Message, error) {
 // copying is performed, so the objects in the returned message read
 // directly from data.
 func Unmarshal(data []byte) (*Message, error) {
-	sizes, data, err := parseStreamHeader(data)
+	sizes, data, err := unmarshalStreamHeader(data)
 	if err != nil {
 		return nil, err
 	}
@@ -350,68 +350,105 @@ func Unmarshal(data []byte) (*Message, error) {
 	return &Message{Arena: demuxArena(sizes, data)}, nil
 }
 
-const (
-	msgHeaderSize = 4
-	segHeaderSize = 4
-)
+// An Encoder represents a framer for serializing a particular Cap'n
+// Proto stream.
+type Encoder struct {
+	w      io.Writer
+	hdrbuf []byte
 
-// streamHeaderSize returns the size of the header, given the
-// first 32-bit number.
-func streamHeaderSize(n uint32) int {
-	return (msgHeaderSize + segHeaderSize*(int(n)+1) + 7) &^ 7
+	packed  bool
+	packbuf []byte
 }
 
-// parseStreamHeader parses the header of the stream framing format.
-func parseStreamHeader(data []byte) (sizes []Size, tail []byte, err error) {
-	if len(data) < streamHeaderSize(0) {
-		return nil, nil, io.ErrUnexpectedEOF
+// NewEncoder creates a new Cap'n Proto framer that writes to w.
+func NewEncoder(w io.Writer) *Encoder {
+	return &Encoder{w: w}
+}
+
+// NewPackedEncoder creates a new Cap'n Proto framer that writes to a
+// packed stream w.
+func NewPackedEncoder(w io.Writer) *Encoder {
+	return &Encoder{w: w, packed: true}
+}
+
+// Encode writes a message to the encoder stream.
+func (e *Encoder) Encode(m *Message) error {
+	// TODO(light): Lazily load from arena, don't necessarily need to fit in memory.
+	nsegs := m.NumSegments()
+	sizes, err := m.segmentSizes()
+	if err != nil {
+		return err
 	}
-	maxSeg := binary.LittleEndian.Uint32(data)
-	// TODO(light): check int
+	maxSeg := uint32(nsegs - 1)
 	hdrSize := streamHeaderSize(maxSeg)
-	if len(data) < hdrSize {
-		return nil, nil, io.ErrUnexpectedEOF
+	if cap(e.hdrbuf) < hdrSize {
+		e.hdrbuf = make([]byte, hdrSize)
+	} else {
+		e.hdrbuf = e.hdrbuf[:hdrSize]
 	}
-	n := int(maxSeg + 1)
-	sizes = make([]Size, n)
-	for i := 0; i < n; i++ {
-		s := binary.LittleEndian.Uint32(data[msgHeaderSize+i*segHeaderSize:])
-		sizes[i] = wordSize.times(int32(s))
+	marshalStreamHeader(e.hdrbuf, sizes)
+	if err := e.write(e.hdrbuf); err != nil {
+		return err
 	}
-	return sizes, data[hdrSize:], nil
+	for i := 0; i < nsegs; i++ {
+		s, err := m.Segment(SegmentID(i))
+		if err != nil {
+			return err
+		}
+		if err := e.write(s.data); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (e *Encoder) write(b []byte) error {
+	if e.packed {
+		e.packbuf = packed.Pack(e.packbuf[:0], b)
+		b = e.packbuf
+	}
+	_, err := e.w.Write(b)
+	return err
+}
+
+func (m *Message) segmentSizes() ([]Size, error) {
+	nsegs := m.NumSegments()
+	sizes := make([]Size, nsegs)
+	for i := 0; i < nsegs; i++ {
+		s, err := m.Segment(SegmentID(i))
+		if err != nil {
+			return sizes[:i], err
+		}
+		n := len(s.data)
+		if int64(n) > int64(maxSize) {
+			return sizes[:i], errOverlarge
+		}
+		sizes[i] = Size(n)
+	}
+	return sizes, nil
 }
 
 // Marshal concatenates the segments in the message into a single byte
 // slice including framing.
 func (m *Message) Marshal() ([]byte, error) {
 	// Compute buffer size.
-	const (
-		msgHeaderSize = 4
-		segHeaderSize = 4
-	)
 	// TODO(light): error out if too many segments
 	nsegs := m.NumSegments()
-	hdrSize := msgHeaderSize + segHeaderSize*int(nsegs)
-	hdrSize = (hdrSize + 7) &^ 7 // pad to word
+	maxSeg := uint32(nsegs - 1)
+	hdrSize := streamHeaderSize(maxSeg)
+	sizes, err := m.segmentSizes()
+	if err != nil {
+		return nil, err
+	}
 	total := hdrSize
-	for i := 0; i < nsegs; i++ {
-		s, err := m.Segment(SegmentID(i))
-		if err != nil {
-			return nil, err
-		}
-		total += len(s.data)
+	for _, sz := range sizes {
+		// TODO(light): error out if too large
+		total += int(sz)
 	}
 
 	// Fill in buffer.
 	buf := make([]byte, hdrSize, total)
-	binary.LittleEndian.PutUint32(buf, uint32(nsegs-1))
-	for i := 0; i < nsegs; i++ {
-		s, err := m.Segment(SegmentID(i))
-		if err != nil {
-			return nil, err
-		}
-		binary.LittleEndian.PutUint32(buf[4*(i+1):], uint32(len(s.data)/int(wordSize)))
-	}
+	marshalStreamHeader(buf, sizes)
 	for i := 0; i < nsegs; i++ {
 		s, err := m.Segment(SegmentID(i))
 		if err != nil {
@@ -431,6 +468,48 @@ func (m *Message) MarshalPacked() ([]byte, error) {
 	buf := make([]byte, 0, len(data))
 	buf = packed.Pack(buf, data)
 	return buf, nil
+}
+
+// Stream header sizes.
+const (
+	msgHeaderSize = 4
+	segHeaderSize = 4
+)
+
+// streamHeaderSize returns the size of the header, given the
+// first 32-bit number.
+func streamHeaderSize(n uint32) int {
+	return (msgHeaderSize + segHeaderSize*(int(n)+1) + 7) &^ 7
+}
+
+// marshalStreamHeader marshals the sizes into the byte slice, which
+// must be of size streamHeaderSize(len(sizes) - 1).
+func marshalStreamHeader(b []byte, sizes []Size) {
+	binary.LittleEndian.PutUint32(b, uint32(len(sizes)-1))
+	for i, sz := range sizes {
+		loc := msgHeaderSize + i*segHeaderSize
+		binary.LittleEndian.PutUint32(b[loc:], uint32(sz/Size(wordSize)))
+	}
+}
+
+// unmarshalStreamHeader parses the header of the stream framing format.
+func unmarshalStreamHeader(data []byte) (sizes []Size, tail []byte, err error) {
+	if len(data) < streamHeaderSize(0) {
+		return nil, nil, io.ErrUnexpectedEOF
+	}
+	maxSeg := binary.LittleEndian.Uint32(data)
+	// TODO(light): check int
+	hdrSize := streamHeaderSize(maxSeg)
+	if len(data) < hdrSize {
+		return nil, nil, io.ErrUnexpectedEOF
+	}
+	n := int(maxSeg + 1)
+	sizes = make([]Size, n)
+	for i := 0; i < n; i++ {
+		s := binary.LittleEndian.Uint32(data[msgHeaderSize+i*segHeaderSize:])
+		sizes[i] = wordSize.times(int32(s))
+	}
+	return sizes, data[hdrSize:], nil
 }
 
 func hasCapacity(b []byte, sz Size) bool {
