@@ -1,12 +1,8 @@
-// +build ignore
-
 package capnp_test
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -38,10 +34,12 @@ func CapnpDecodeSegment(seg *capnp.Segment, capnpExePath string, capnpSchemaFile
 	cmd := exec.Command(capnpExePath, cs...)
 	cmdline := capnpExePath + " " + strings.Join(cs, " ")
 
-	buf := new(bytes.Buffer)
-	seg.WriteTo(buf)
+	buf, err := seg.Message().Marshal()
+	if err != nil {
+		panic(err)
+	}
 
-	cmd.Stdin = buf
+	cmd.Stdin = bytes.NewReader(buf)
 
 	var errout bytes.Buffer
 	cmd.Stderr = &errout
@@ -62,11 +60,14 @@ func CapnpDecodeSegment(seg *capnp.Segment, capnpExePath string, capnpSchemaFile
 // reduce boilerplate, dump this segment to disk.
 func SegToFile(seg *capnp.Segment, filePath string) {
 	file, err := os.Create(filePath)
+	defer file.Close()
 	if err != nil {
 		panic(err)
 	}
-	seg.WriteTo(file)
-	file.Close()
+	err = capnp.NewEncoder(file).Encode(seg.Message())
+	if err != nil {
+		panic(err)
+	}
 }
 
 // disk file of a capn segment -> in-memory capn segment -> stdin to capnp decode -> stdout human-readble string form
@@ -79,16 +80,14 @@ func CapnFileToText(serializedCapnpFilePathToDisplay string, capnpSchemaFilePath
 		return "", err
 	}
 
-	seg, nbytes, err := capnp.ReadFromMemoryZeroCopy(byteslice)
+	msg, err := capnp.Unmarshal(byteslice)
 
-	if err == io.EOF {
-		return "", err
-	}
 	if err != nil {
 		return "", err
 	}
-	if nbytes == 0 {
-		return "", errors.New(fmt.Sprintf("did not expect 0 bytes back from capnp.ReadFromMemoryZeroCopy() on reading file '%s'", serializedCapnpFilePathToDisplay))
+	seg, err := msg.Segment(0)
+	if err != nil {
+		return "", err
 	}
 
 	// b) tell CapnpDecodeSegment() to show the human-readable-text form of the message

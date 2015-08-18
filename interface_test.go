@@ -1,5 +1,3 @@
-// +build ignore
-
 package capnp_test
 
 import (
@@ -11,9 +9,15 @@ import (
 )
 
 func TestInterfaceSet(t *testing.T) {
-	cl := air.NewEcho(capnp.ErrorClient(errors.New("foo")))
-	s := capnp.NewBuffer(nil)
-	base := air.NewRootEchoBase(s)
+	cl := air.Echo{Client: capnp.ErrorClient(errors.New("foo"))}
+	_, s, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	base, err := air.NewRootEchoBase(s)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	base.SetEcho(cl)
 
@@ -23,45 +27,81 @@ func TestInterfaceSet(t *testing.T) {
 }
 
 func TestInterfaceCopyToOtherMessage(t *testing.T) {
-	cl := air.NewEcho(capnp.ErrorClient(errors.New("foo")))
-	s1 := capnp.NewBuffer(nil)
-	base1 := air.NewRootEchoBase(s1)
-	base1.SetEcho(cl)
-
-	s2 := capnp.NewBuffer(nil)
-	hoth2 := air.NewRootHoth(s2)
-	hoth2.SetBase(base1)
-
-	if hoth2.Base().Echo() != cl {
-		t.Errorf("hoth2.Base().Echo() = %#v; want %#v", hoth2.Base().Echo(), cl)
+	cl := air.Echo{Client: capnp.ErrorClient(errors.New("foo"))}
+	_, s1, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		t.Fatal(err)
 	}
-	tab2 := s2.Message.CapTable()
+	base1, err := air.NewRootEchoBase(s1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := base1.SetEcho(cl); err != nil {
+		t.Fatal(err)
+	}
+
+	_, s2, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	hoth2, err := air.NewRootHoth(s2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := hoth2.SetBase(base1); err != nil {
+		t.Fatal(err)
+	}
+
+	if base, err := hoth2.Base(); err != nil {
+		t.Errorf("hoth2.Base() error: %v", err)
+	} else if base.Echo() != cl {
+		t.Errorf("hoth2.Base().Echo() = %#v; want %#v", base.Echo(), cl)
+	}
+	tab2 := s2.Message().CapTable
 	if len(tab2) == 1 {
-		if tab2[0] != cl.GenericClient() {
-			t.Errorf("s2.Message.CapTable()[0] = %#v; want %#v", tab2[0], cl.GenericClient())
+		if tab2[0] != cl.Client {
+			t.Errorf("s2.Message().CapTable[0] = %#v; want %#v", tab2[0], cl.Client)
 		}
 	} else {
-		t.Errorf("len(s2.Message.CapTable()) = %d; want 1", len(tab2))
+		t.Errorf("len(s2.Message().CapTable) = %d; want 1", len(tab2))
 	}
 }
 
 func TestInterfaceCopyToOtherMessageWithCaps(t *testing.T) {
-	cl := air.NewEcho(capnp.ErrorClient(errors.New("foo")))
-	s1 := capnp.NewBuffer(nil)
-	base1 := air.NewRootEchoBase(s1)
-	base1.SetEcho(cl)
-
-	s2 := capnp.NewBuffer(nil)
-	s2.Message.AddCap(nil)
-	hoth2 := air.NewRootHoth(s2)
-	hoth2.SetBase(base1)
-
-	if hoth2.Base().Echo() != cl {
-		t.Errorf("hoth2.Base().Echo() = %#v; want %#v", hoth2.Base().Echo(), cl)
+	cl := air.Echo{Client: capnp.ErrorClient(errors.New("foo"))}
+	_, s1, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		t.Fatal(err)
 	}
-	tab2 := s2.Message.CapTable()
+	base1, err := air.NewRootEchoBase(s1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := base1.SetEcho(cl); err != nil {
+		t.Fatal(err)
+	}
+
+	_, s2, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s2.Message().AddCap(nil)
+	hoth2, err := air.NewRootHoth(s2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := hoth2.SetBase(base1); err != nil {
+		t.Fatal(err)
+	}
+
+	if base, err := hoth2.Base(); err != nil {
+		t.Errorf("hoth2.Base() error: %v", err)
+	} else if base.Echo() != cl {
+		t.Errorf("hoth2.Base().Echo() = %#v; want %#v", base.Echo(), cl)
+	}
+	tab2 := s2.Message().CapTable
 	if len(tab2) != 2 {
-		t.Errorf("len(s2.Message.CapTable()) = %d; want 2", len(tab2))
+		t.Errorf("len(s2.Message().CapTable) = %d; want 2", len(tab2))
 	}
 }
 

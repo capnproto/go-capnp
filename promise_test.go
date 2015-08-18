@@ -1,5 +1,3 @@
-// +build ignore
-
 package capnp_test
 
 import (
@@ -19,7 +17,7 @@ func TestPipelineOpString(t *testing.T) {
 			"get field 4",
 		},
 		{
-			capnp.PipelineOp{Field: 4, DefaultSegment: capnp.NewBuffer(nil), DefaultAddress: 0},
+			capnp.PipelineOp{Field: 4, DefaultValue: []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}},
 			"get field 4 with default",
 		},
 	}
@@ -30,20 +28,46 @@ func TestPipelineOpString(t *testing.T) {
 	}
 }
 
-func TestTransformPointer(t *testing.T) {
-	s := capnp.NewBuffer(nil)
-	root := air.NewRootStackingRoot(s)
-	a := air.NewStackingA(s)
+func mustMarshal(t *testing.T, msg *capnp.Message) []byte {
+	data, err := msg.Marshal()
+	if err != nil {
+		t.Fatal("Marshal:", err)
+	}
+	return data
+}
+
+func TestTransform(t *testing.T) {
+	_, s, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, err := air.NewRootStackingRoot(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err := air.NewStackingA(s)
+	if err != nil {
+		t.Fatal(err)
+	}
 	a.SetNum(1)
 	root.SetA(a) // assumed to be pointer index 1
-	b := air.NewStackingB(s)
+	b, err := air.NewStackingB(s)
 	b.SetNum(2)
 	a.SetB(b)
 
-	d := capnp.NewBuffer(nil)
-	da := air.NewRootStackingA(d)
+	dmsg, d, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	da, err := air.NewRootStackingA(d)
+	if err != nil {
+		t.Fatal(err)
+	}
 	da.SetNum(56)
-	db := air.NewStackingB(d)
+	db, err := air.NewStackingB(d)
+	if err != nil {
+		t.Fatal(err)
+	}
 	db.SetNum(78)
 	da.SetB(db)
 
@@ -53,89 +77,92 @@ func TestTransformPointer(t *testing.T) {
 		out       capnp.Pointer
 	}{
 		{
-			capnp.Pointer(root),
+			root,
 			nil,
-			capnp.Pointer(root),
+			root,
 		},
 		{
-			capnp.Pointer(root),
+			root,
 			[]capnp.PipelineOp{},
-			capnp.Pointer(root),
+			root,
 		},
 		{
-			capnp.Pointer(root),
+			root,
 			[]capnp.PipelineOp{
 				{Field: 0},
 			},
-			capnp.Pointer{},
+			nil,
 		},
 		{
-			capnp.Pointer(root),
+			root,
 			[]capnp.PipelineOp{
-				{Field: 0, DefaultSegment: d, DefaultAddress: 0},
+				{Field: 0, DefaultValue: mustMarshal(t, dmsg)},
 			},
-			capnp.Pointer(da),
+			da,
 		},
 		{
-			capnp.Pointer(root),
+			root,
 			[]capnp.PipelineOp{
 				{Field: 1},
 			},
-			capnp.Pointer(a),
+			a,
 		},
 		{
-			capnp.Pointer(root),
+			root,
 			[]capnp.PipelineOp{
-				{Field: 1, DefaultSegment: d, DefaultAddress: 0},
+				{Field: 1, DefaultValue: mustMarshal(t, dmsg)},
 			},
-			capnp.Pointer(a),
+			a,
 		},
 		{
-			capnp.Pointer(root),
+			root,
 			[]capnp.PipelineOp{
 				{Field: 1},
 				{Field: 0},
 			},
-			capnp.Pointer(b),
+			b,
 		},
 		{
-			capnp.Pointer(root),
+			root,
 			[]capnp.PipelineOp{
 				{Field: 0},
 				{Field: 0},
 			},
-			capnp.Pointer{},
+			nil,
 		},
 		{
-			capnp.Pointer(root),
+			root,
 			[]capnp.PipelineOp{
-				{Field: 0, DefaultSegment: d, DefaultAddress: 0},
+				{Field: 0, DefaultValue: mustMarshal(t, dmsg)},
 				{Field: 0},
 			},
-			capnp.Pointer(db),
+			db,
 		},
 		{
-			capnp.Pointer(root),
+			root,
 			[]capnp.PipelineOp{
 				{Field: 0},
-				{Field: 0, DefaultSegment: d, DefaultAddress: 0},
+				{Field: 0, DefaultValue: mustMarshal(t, dmsg)},
 			},
-			capnp.Pointer(da),
+			da,
 		},
 		{
-			capnp.Pointer(root),
+			root,
 			[]capnp.PipelineOp{
-				{Field: 0, DefaultSegment: d, DefaultAddress: 0},
-				{Field: 1, DefaultSegment: d, DefaultAddress: 0},
+				{Field: 0, DefaultValue: mustMarshal(t, dmsg)},
+				{Field: 1, DefaultValue: mustMarshal(t, dmsg)},
 			},
-			capnp.Pointer(da),
+			da,
 		},
 	}
 
 	for _, test := range tests {
-		out := capnp.TransformPointer(test.p, test.transform)
+		out, err := capnp.Transform(test.p, test.transform)
 		if out != test.out {
-			t.Errorf("TransformPointer(%+v, %v) = %+v; want %+v", test.p, test.transform, out, test.out)
+			t.Errorf("Transform(%+v, %v) = %+v; want %+v", test.p, test.transform, out, test.out)
+		}
+		if err != nil {
+			t.Errorf("Transform(%+v, %v) error: %v", test.p, test.transform, err)
 		}
 	}
 }

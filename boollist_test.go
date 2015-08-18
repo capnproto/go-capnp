@@ -1,9 +1,6 @@
-// +build ignore
-
 package capnp_test
 
 import (
-	"bytes"
 	"fmt"
 	"testing"
 
@@ -70,9 +67,18 @@ func TestValAtBit(t *testing.T) {
 }
 
 func zboolvec_value_FilledSegment(value int64, elementCount uint) (*capnp.Segment, []byte) {
-	seg := capnp.NewBuffer(nil)
-	z := air.NewRootZ(seg)
-	list := seg.NewBitList(int32(elementCount))
+	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		panic(err)
+	}
+	z, err := air.NewRootZ(seg)
+	if err != nil {
+		panic(err)
+	}
+	list, err := capnp.NewBitList(seg, int32(elementCount))
+	if err != nil {
+		panic(err)
+	}
 	if value > 0 {
 		for i := uint(0); i < elementCount; i++ {
 			list.Set(int(i), ValAtBit(value, i))
@@ -80,9 +86,11 @@ func zboolvec_value_FilledSegment(value int64, elementCount uint) (*capnp.Segmen
 	}
 	z.SetBoolvec(list)
 
-	buf := bytes.Buffer{}
-	seg.WriteTo(&buf)
-	return seg, buf.Bytes()
+	b, err := msg.Marshal()
+	if err != nil {
+		panic(err)
+	}
+	return seg, b
 }
 
 func TestBitList(t *testing.T) {
@@ -97,10 +105,12 @@ func TestBitList(t *testing.T) {
 				cv.So(text, cv.ShouldEqual, expectedText)
 			})
 			cv.Convey("And our data should contain Z_Which_boolvec with contents true, false, true", func() {
-				z := air.ReadRootZ(seg)
+				z, err := air.ReadRootZ(seg.Message())
+				cv.So(err, cv.ShouldEqual, nil)
 				cv.So(z.Which(), cv.ShouldEqual, air.Z_Which_boolvec)
 
-				var bitlist = z.Boolvec()
+				bitlist, err := z.Boolvec()
+				cv.So(err, cv.ShouldEqual, nil)
 				cv.So(bitlist.Len(), cv.ShouldEqual, 3)
 				cv.So(bitlist.At(0), cv.ShouldEqual, true)
 				cv.So(bitlist.At(1), cv.ShouldEqual, false)
@@ -120,10 +130,12 @@ func TestWriteBitList0(t *testing.T) {
 	})
 
 	cv.Convey("And we should be able to read back what we wrote", t, func() {
-		z := air.ReadRootZ(seg)
+		z, err := air.ReadRootZ(seg.Message())
+		cv.So(err, cv.ShouldEqual, nil)
 		cv.So(z.Which(), cv.ShouldEqual, air.Z_Which_boolvec)
 
-		var bitlist = z.Boolvec()
+		bitlist, err := z.Boolvec()
+		cv.So(err, cv.ShouldEqual, nil)
 		cv.So(bitlist.Len(), cv.ShouldEqual, 1)
 		cv.So(bitlist.At(0), cv.ShouldEqual, false)
 	})
@@ -138,10 +150,12 @@ func TestWriteBitList1(t *testing.T) {
 	})
 
 	cv.Convey("And we should be able to read back what we wrote", t, func() {
-		z := air.ReadRootZ(seg)
+		z, err := air.ReadRootZ(seg.Message())
+		cv.So(err, cv.ShouldEqual, nil)
 		cv.So(z.Which(), cv.ShouldEqual, air.Z_Which_boolvec)
 
-		var bitlist = z.Boolvec()
+		bitlist, err := z.Boolvec()
+		cv.So(err, cv.ShouldEqual, nil)
 		cv.So(bitlist.Len(), cv.ShouldEqual, 1)
 		cv.So(bitlist.At(0), cv.ShouldEqual, true)
 	})
@@ -159,10 +173,12 @@ func TestWriteBitList2(t *testing.T) {
 	})
 
 	cv.Convey("And we should be able to read back what we wrote", t, func() {
-		z := air.ReadRootZ(seg)
+		z, err := air.ReadRootZ(seg.Message())
+		cv.So(err, cv.ShouldEqual, nil)
 		cv.So(z.Which(), cv.ShouldEqual, air.Z_Which_boolvec)
 
-		var bitlist = z.Boolvec()
+		bitlist, err := z.Boolvec()
+		cv.So(err, cv.ShouldEqual, nil)
 		cv.So(bitlist.Len(), cv.ShouldEqual, 2)
 		cv.So(bitlist.At(0), cv.ShouldEqual, false)
 		cv.So(bitlist.At(1), cv.ShouldEqual, true)
@@ -178,10 +194,12 @@ func TestWriteBitList3(t *testing.T) {
 	})
 
 	cv.Convey("And we should be able to read back what we wrote", t, func() {
-		z := air.ReadRootZ(seg)
+		z, err := air.ReadRootZ(seg.Message())
+		cv.So(err, cv.ShouldEqual, nil)
 		cv.So(z.Which(), cv.ShouldEqual, air.Z_Which_boolvec)
 
-		var bitlist = z.Boolvec()
+		bitlist, err := z.Boolvec()
+		cv.So(err, cv.ShouldEqual, nil)
 		cv.So(bitlist.Len(), cv.ShouldEqual, 2)
 		cv.So(bitlist.At(0), cv.ShouldEqual, true)
 		cv.So(bitlist.At(1), cv.ShouldEqual, true)
@@ -198,10 +216,11 @@ func TestWriteBitList4(t *testing.T) {
 	})
 
 	cv.Convey("And we should be able to read back what we wrote", t, func() {
-		z := air.ReadRootZ(seg)
+		z, err := air.ReadRootZ(seg.Message())
+		cv.So(err, cv.ShouldEqual, nil)
 		cv.So(z.Which(), cv.ShouldEqual, air.Z_Which_boolvec)
 
-		var bitlist = z.Boolvec()
+		bitlist, err := z.Boolvec()
 		cv.So(bitlist.Len(), cv.ShouldEqual, 3)
 		cv.So(bitlist.At(0), cv.ShouldEqual, false)
 		cv.So(bitlist.At(1), cv.ShouldEqual, false)
@@ -218,10 +237,12 @@ func TestWriteBitList21(t *testing.T) {
 	})
 
 	cv.Convey("And we should be able to read back what we wrote", t, func() {
-		z := air.ReadRootZ(seg)
+		z, err := air.ReadRootZ(seg.Message())
+		cv.So(err, cv.ShouldEqual, nil)
 		cv.So(z.Which(), cv.ShouldEqual, air.Z_Which_boolvec)
 
-		var bitlist = z.Boolvec()
+		bitlist, err := z.Boolvec()
+		cv.So(err, cv.ShouldEqual, nil)
 		cv.So(bitlist.Len(), cv.ShouldEqual, 5)
 		cv.So(bitlist.At(0), cv.ShouldEqual, true)
 		cv.So(bitlist.At(1), cv.ShouldEqual, false)
@@ -233,16 +254,22 @@ func TestWriteBitList21(t *testing.T) {
 
 func TestWriteBitListTwo64BitWords(t *testing.T) {
 
-	seg := capnp.NewBuffer(nil)
-	z := air.NewRootZ(seg)
-	list := seg.NewBitList(66)
+	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		panic(err)
+	}
+	z, err := air.NewRootZ(seg)
+	if err != nil {
+		panic(err)
+	}
+	list, err := capnp.NewBitList(seg, 66)
+	if err != nil {
+		panic(err)
+	}
 	list.Set(64, true)
 	list.Set(65, true)
 
 	z.SetBoolvec(list)
-
-	buf := bytes.Buffer{}
-	seg.WriteTo(&buf)
 
 	cv.Convey("Given a go-capnproto created List(Bool) Z::boolvec with bool values [true (+ 64 more times)]", t, func() {
 		cv.Convey("Decoding it with c++ capnp should yield the expected text", func() {
@@ -251,10 +278,12 @@ func TestWriteBitListTwo64BitWords(t *testing.T) {
 	})
 
 	cv.Convey("And we should be able to read back what we wrote", t, func() {
-		z := air.ReadRootZ(seg)
+		z, err := air.ReadRootZ(seg.Message())
+		cv.So(err, cv.ShouldEqual, nil)
 		cv.So(z.Which(), cv.ShouldEqual, air.Z_Which_boolvec)
 
-		var bitlist = z.Boolvec()
+		bitlist, err := z.Boolvec()
+		cv.So(err, cv.ShouldEqual, nil)
 		cv.So(bitlist.Len(), cv.ShouldEqual, 66)
 
 		for i := 0; i < 64; i++ {

@@ -444,7 +444,6 @@ func copyPointer(cc copyContext, dstSeg *Segment, dstAddr Address, src Pointer) 
 			size:   src.size,
 			flags:  src.flags,
 		}
-		// TODO(light): fast path for copying text/data
 		if dst.flags&isCompositeList != 0 {
 			// Copy tag word
 			copy(newSeg.data[newAddr:], src.seg.data[src.off-Address(wordSize):src.off])
@@ -452,11 +451,15 @@ func copyPointer(cc copyContext, dstSeg *Segment, dstAddr Address, src Pointer) 
 		}
 		key.newval = dst
 		cc.copies.Insert(key)
-		// TODO(light): bit list
-		for i := 0; i < src.Len(); i++ {
-			err := copyStruct(cc, dst.Struct(i), src.Struct(i))
-			if err != nil {
-				return err
+		// TODO(light): fast path for copying text/data
+		if dst.flags&isBitList != 0 {
+			copy(newSeg.data[newAddr:], src.seg.data[src.off:src.length+7/8])
+		} else {
+			for i := 0; i < src.Len(); i++ {
+				err := copyStruct(cc, dst.Struct(i), src.Struct(i))
+				if err != nil {
+					return err
+				}
 			}
 		}
 	default:

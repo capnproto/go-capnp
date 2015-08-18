@@ -1,9 +1,6 @@
-// +build ignore
-
 package capnp_test
 
 import (
-	"bytes"
 	"fmt"
 	"testing"
 
@@ -19,17 +16,13 @@ func TestV0ListofEmptyShouldMatchCapnp(t *testing.T) {
 	cv.Convey("Given an empty struct with 0 data/0 ptr fields", t, func() {
 		cv.Convey("then a list of 2 empty structs should match the capnp representation", func() {
 
-			seg := capnp.NewBuffer(nil)
-			scratch := capnp.NewBuffer(nil)
-			holder := air.NewRootHoldsVerEmptyList(seg)
+			msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+			cv.So(err, cv.ShouldEqual, nil)
+			holder, err := air.NewRootHoldsVerEmptyList(seg)
+			cv.So(err, cv.ShouldEqual, nil)
 
-			elist := air.NewVerEmpty_List(seg, 2)
-			plist := capnp.PointerList(elist)
-
-			e0 := air.NewVerEmpty(scratch)
-			e1 := air.NewVerEmpty(scratch)
-			plist.Set(0, capnp.Pointer(e0))
-			plist.Set(1, capnp.Pointer(e1))
+			elist, err := air.NewVerEmpty_List(seg, 2)
+			cv.So(err, cv.ShouldEqual, nil)
 
 			ShowSeg("          pre SetMylist, segment seg is:", seg)
 
@@ -37,9 +30,8 @@ func TestV0ListofEmptyShouldMatchCapnp(t *testing.T) {
 			holder.SetMylist(elist)
 
 			// save
-			buf := bytes.Buffer{}
-			seg.WriteTo(&buf)
-			act := buf.Bytes()
+			act, err := msg.Marshal()
+			cv.So(err, cv.ShouldEqual, nil)
 			save(act, "my.act.holder.elist")
 
 			// show
@@ -68,21 +60,22 @@ func TestV1DataVersioningBiggerToEmpty(t *testing.T) {
 	cv.Convey("Given a struct with 0 data/0 ptr fields, and a newer version of the struct with 2 data fields", t, func() {
 		cv.Convey("then reading serialized bigger-struct-list into the smaller (empty or one data-member) list should work, truncating/ignoring the new fields", func() {
 
-			seg := capnp.NewBuffer(nil)
-			scratch := capnp.NewBuffer(nil)
-			holder := air.NewRootHoldsVerTwoDataList(seg)
+			msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+			cv.So(err, cv.ShouldEqual, nil)
+			_, scratch, err := capnp.NewMessage(capnp.SingleSegment(nil))
+			cv.So(err, cv.ShouldEqual, nil)
+			holder, err := air.NewRootHoldsVerTwoDataList(seg)
+			cv.So(err, cv.ShouldEqual, nil)
 
-			twolist := air.NewVerTwoData_List(scratch, 2)
-			plist := capnp.PointerList(twolist)
+			twolist, err := air.NewVerTwoData_List(scratch, 2)
+			cv.So(err, cv.ShouldEqual, nil)
 
-			d0 := air.NewVerTwoData(scratch)
+			d0 := twolist.At(0)
 			d0.SetVal(27)
 			d0.SetDuo(26)
-			d1 := air.NewVerTwoData(scratch)
+			d1 := twolist.At(1)
 			d1.SetVal(42)
 			d1.SetDuo(41)
-			plist.Set(0, capnp.Pointer(d0))
-			plist.Set(1, capnp.Pointer(d1))
 
 			holder.SetMylist(twolist)
 
@@ -90,27 +83,30 @@ func TestV1DataVersioningBiggerToEmpty(t *testing.T) {
 			ShowSeg("     before serializing out, segment seg is:", seg)
 
 			// serialize out
-			buf := bytes.Buffer{}
-			seg.WriteTo(&buf)
-			segbytes := buf.Bytes()
+			segbytes, err := msg.Marshal()
+			cv.So(err, cv.ShouldEqual, nil)
 
 			// and read-back in using smaller expectations
-			reseg, _, err := capnp.ReadFromMemoryZeroCopy(segbytes)
-			if err != nil {
-				panic(err)
-			}
+			remsg, err := capnp.Unmarshal(segbytes)
+			cv.So(err, cv.ShouldEqual, nil)
+			reseg, err := remsg.Segment(0)
+			cv.So(err, cv.ShouldEqual, nil)
 			ShowSeg("      after re-reading segbytes, segment reseg is:", reseg)
 			fmt.Printf("segbytes decoded by capnp as HoldsVerEmptyList: '%s'\n", string(CapnpDecode(segbytes, "HoldsVerEmptyList")))
 			fmt.Printf("segbytes decoded by capnp as HoldsVerOneDataList: '%s'\n", string(CapnpDecode(segbytes, "HoldsVerOneDataList")))
 			fmt.Printf("segbytes decoded by capnp as HoldsVerTwoDataList: '%s'\n", string(CapnpDecode(segbytes, "HoldsVerTwoDataList")))
 
-			reHolder := air.ReadRootHoldsVerEmptyList(reseg)
-			elist := reHolder.Mylist()
+			reHolder, err := air.ReadRootHoldsVerEmptyList(remsg)
+			cv.So(err, cv.ShouldEqual, nil)
+			elist, err := reHolder.Mylist()
+			cv.So(err, cv.ShouldEqual, nil)
 			lene := elist.Len()
 			cv.So(lene, cv.ShouldEqual, 2)
 
-			reHolder1 := air.ReadRootHoldsVerOneDataList(reseg)
-			onelist := reHolder1.Mylist()
+			reHolder1, err := air.ReadRootHoldsVerOneDataList(remsg)
+			cv.So(err, cv.ShouldEqual, nil)
+			onelist, err := reHolder1.Mylist()
+			cv.So(err, cv.ShouldEqual, nil)
 			lenone := onelist.Len()
 			cv.So(lenone, cv.ShouldEqual, 2)
 
@@ -120,8 +116,10 @@ func TestV1DataVersioningBiggerToEmpty(t *testing.T) {
 				cv.So(val, cv.ShouldEqual, twolist.At(i).Val())
 			}
 
-			reHolder2 := air.ReadRootHoldsVerTwoDataList(reseg)
-			twolist2 := reHolder2.Mylist()
+			reHolder2, err := air.ReadRootHoldsVerTwoDataList(remsg)
+			cv.So(err, cv.ShouldEqual, nil)
+			twolist2, err := reHolder2.Mylist()
+			cv.So(err, cv.ShouldEqual, nil)
 			lentwo2 := twolist2.Len()
 			cv.So(lentwo2, cv.ShouldEqual, 2)
 
@@ -147,11 +145,15 @@ func TestV1DataVersioningEmptyToBigger(t *testing.T) {
 	cv.Convey("Given a struct with 0 data/0 ptr fields, and a newer version of the struct with 1 data fields", t, func() {
 		cv.Convey("then reading from serialized form the small list into the bigger (one or two data values) list should work, getting default value 0 for val/duo.", func() {
 
-			seg := capnp.NewBuffer(nil)
-			scratch := capnp.NewBuffer(nil)
+			msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+			cv.So(err, cv.ShouldEqual, nil)
+			_, scratch, err := capnp.NewMessage(capnp.SingleSegment(nil))
+			cv.So(err, cv.ShouldEqual, nil)
 
-			emptyholder := air.NewRootHoldsVerEmptyList(seg)
-			elist := air.NewVerEmpty_List(scratch, 2)
+			emptyholder, err := air.NewRootHoldsVerEmptyList(seg)
+			cv.So(err, cv.ShouldEqual, nil)
+			elist, err := air.NewVerEmpty_List(scratch, 2)
+			cv.So(err, cv.ShouldEqual, nil)
 			emptyholder.SetMylist(elist)
 
 			actEmpty := ShowSeg("          after NewRootHoldsVerEmptyList(seg) and SetMylist(elist), segment seg is:", seg)
@@ -165,19 +167,20 @@ func TestV1DataVersioningEmptyToBigger(t *testing.T) {
 			cv.So(actEmpty, cv.ShouldResemble, expEmpty)
 
 			// seg is set, now read into bigger list
-			buf := bytes.Buffer{}
-			seg.WriteTo(&buf)
-			segbytes := buf.Bytes()
+			segbytes, err := msg.Marshal()
+			cv.So(err, cv.ShouldEqual, nil)
 
-			reseg, _, err := capnp.ReadFromMemoryZeroCopy(segbytes)
-			if err != nil {
-				panic(err)
-			}
+			remsg, err := capnp.Unmarshal(segbytes)
+			cv.So(err, cv.ShouldEqual, nil)
+			reseg, err := remsg.Segment(0)
+			cv.So(err, cv.ShouldEqual, nil)
 			ShowSeg("      after re-reading segbytes, segment reseg is:", reseg)
 			fmt.Printf("segbytes decoded by capnp as HoldsVerOneDataList: '%s'\n", string(CapnpDecode(segbytes, "HoldsVerOneDataList")))
 
-			reHolder := air.ReadRootHoldsVerOneDataList(reseg)
-			onelist := reHolder.Mylist()
+			reHolder, err := air.ReadRootHoldsVerOneDataList(remsg)
+			cv.So(err, cv.ShouldEqual, nil)
+			onelist, err := reHolder.Mylist()
+			cv.So(err, cv.ShouldEqual, nil)
 			lenone := onelist.Len()
 			cv.So(lenone, cv.ShouldEqual, 2)
 			for i := 0; i < 2; i++ {
@@ -186,8 +189,10 @@ func TestV1DataVersioningEmptyToBigger(t *testing.T) {
 				cv.So(val, cv.ShouldEqual, 0)
 			}
 
-			reHolder2 := air.ReadRootHoldsVerTwoDataList(reseg)
-			twolist := reHolder2.Mylist()
+			reHolder2, err := air.ReadRootHoldsVerTwoDataList(remsg)
+			cv.So(err, cv.ShouldEqual, nil)
+			twolist, err := reHolder2.Mylist()
+			cv.So(err, cv.ShouldEqual, nil)
 			lentwo := twolist.Len()
 			cv.So(lentwo, cv.ShouldEqual, 2)
 			for i := 0; i < 2; i++ {
@@ -209,11 +214,15 @@ func TestDataVersioningZeroPointersToMore(t *testing.T) {
 	cv.Convey("Given a struct with 0 ptr fields, and a newer version of the struct with 1-2 pointer fields", t, func() {
 		cv.Convey("then serializing the empty list and reading it back into 1 or 2 pointer fields should default initialize the pointer fields", func() {
 
-			seg := capnp.NewBuffer(nil)
-			scratch := capnp.NewBuffer(nil)
+			msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+			cv.So(err, cv.ShouldEqual, nil)
+			_, scratch, err := capnp.NewMessage(capnp.SingleSegment(nil))
+			cv.So(err, cv.ShouldEqual, nil)
 
-			emptyholder := air.NewRootHoldsVerEmptyList(seg)
-			elist := air.NewVerEmpty_List(scratch, 2)
+			emptyholder, err := air.NewRootHoldsVerEmptyList(seg)
+			cv.So(err, cv.ShouldEqual, nil)
+			elist, err := air.NewVerEmpty_List(scratch, 2)
+			cv.So(err, cv.ShouldEqual, nil)
 			emptyholder.SetMylist(elist)
 
 			actEmpty := ShowSeg("          after NewRootHoldsVerEmptyList(seg) and SetMylist(elist), segment seg is:", seg)
@@ -227,19 +236,20 @@ func TestDataVersioningZeroPointersToMore(t *testing.T) {
 			cv.So(actEmpty, cv.ShouldResemble, expEmpty)
 
 			// seg is set, now read into bigger list
-			buf := bytes.Buffer{}
-			seg.WriteTo(&buf)
-			segbytes := buf.Bytes()
+			segbytes, err := msg.Marshal()
+			cv.So(err, cv.ShouldEqual, nil)
 
-			reseg, _, err := capnp.ReadFromMemoryZeroCopy(segbytes)
-			if err != nil {
-				panic(err)
-			}
+			remsg, err := capnp.Unmarshal(segbytes)
+			cv.So(err, cv.ShouldEqual, nil)
+			reseg, err := remsg.Segment(0)
+			cv.So(err, cv.ShouldEqual, nil)
 			ShowSeg("      after re-reading segbytes, segment reseg is:", reseg)
 			fmt.Printf("segbytes decoded by capnp as HoldsVerOneDataList: '%s'\n", string(CapnpDecode(segbytes, "HoldsVerOneDataList")))
 
-			reHolder := air.ReadRootHoldsVerTwoTwoList(reseg)
-			list22 := reHolder.Mylist()
+			reHolder, err := air.ReadRootHoldsVerTwoTwoList(remsg)
+			cv.So(err, cv.ShouldEqual, nil)
+			list22, err := reHolder.Mylist()
+			cv.So(err, cv.ShouldEqual, nil)
 			len22 := list22.Len()
 			cv.So(len22, cv.ShouldEqual, 2)
 			for i := 0; i < 2; i++ {
@@ -248,8 +258,10 @@ func TestDataVersioningZeroPointersToMore(t *testing.T) {
 				cv.So(val, cv.ShouldEqual, 0)
 				duo := ele.Duo()
 				cv.So(duo, cv.ShouldEqual, 0)
-				ptr1 := ele.Ptr1()
-				ptr2 := ele.Ptr2()
+				ptr1, err := ele.Ptr1()
+				cv.So(err, cv.ShouldEqual, nil)
+				ptr2, err := ele.Ptr2()
+				cv.So(err, cv.ShouldEqual, nil)
 				fmt.Printf("ptr1 = %#v\n", ptr1)
 				cv.So(ptr1.Segment(), cv.ShouldEqual, nil)
 				fmt.Printf("ptr2 = %#v\n", ptr2)
@@ -264,39 +276,43 @@ func TestDataVersioningZeroPointersToTwo(t *testing.T) {
 	cv.Convey("Given a struct with 2 ptr fields, and another version of the struct with 0 or 1 pointer fields", t, func() {
 		cv.Convey("then reading serialized bigger-struct-list into the smaller (empty or one data-pointer) list should work, truncating/ignoring the new fields", func() {
 
-			seg := capnp.NewBuffer(nil)
-			scratch := capnp.NewBuffer(nil)
-			holder := air.NewRootHoldsVerTwoTwoList(seg)
+			msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+			cv.So(err, cv.ShouldEqual, nil)
+			_, scratch, err := capnp.NewMessage(capnp.SingleSegment(nil))
+			cv.So(err, cv.ShouldEqual, nil)
+			holder, err := air.NewRootHoldsVerTwoTwoList(seg)
+			cv.So(err, cv.ShouldEqual, nil)
 
-			twolist := air.NewVerTwoDataTwoPtr_List(scratch, 2)
-			plist := capnp.PointerList(twolist)
+			twolist, err := air.NewVerTwoDataTwoPtr_List(scratch, 2)
+			cv.So(err, cv.ShouldEqual, nil)
 
-			d0 := air.NewVerTwoDataTwoPtr(scratch)
+			d0 := twolist.At(0)
 			d0.SetVal(27)
 			d0.SetDuo(26)
 
-			v1 := air.NewVerOneData(scratch)
+			v1, err := air.NewVerOneData(scratch)
+			cv.So(err, cv.ShouldEqual, nil)
 			v1.SetVal(25)
-			v2 := air.NewVerOneData(scratch)
+			v2, err := air.NewVerOneData(scratch)
+			cv.So(err, cv.ShouldEqual, nil)
 			v2.SetVal(23)
 
 			d0.SetPtr1(v1)
 			d0.SetPtr2(v2)
 
-			d1 := air.NewVerTwoDataTwoPtr(scratch)
+			d1 := twolist.At(1)
 			d1.SetVal(42)
 			d1.SetDuo(41)
 
-			w1 := air.NewVerOneData(scratch)
+			w1, err := air.NewVerOneData(scratch)
+			cv.So(err, cv.ShouldEqual, nil)
 			w1.SetVal(40)
-			w2 := air.NewVerOneData(scratch)
+			w2, err := air.NewVerOneData(scratch)
+			cv.So(err, cv.ShouldEqual, nil)
 			w2.SetVal(38)
 
 			d1.SetPtr1(w1)
 			d1.SetPtr2(w2)
-
-			plist.Set(0, capnp.Pointer(d0))
-			plist.Set(1, capnp.Pointer(d1))
 
 			holder.SetMylist(twolist)
 
@@ -304,51 +320,65 @@ func TestDataVersioningZeroPointersToTwo(t *testing.T) {
 			ShowSeg("     before serializing out, segment seg is:", seg)
 
 			// serialize out
-			buf := bytes.Buffer{}
-			seg.WriteTo(&buf)
-			segbytes := buf.Bytes()
+			segbytes, err := msg.Marshal()
+			cv.So(err, cv.ShouldEqual, nil)
 
 			// and read-back in using smaller expectations
-			reseg, _, err := capnp.ReadFromMemoryZeroCopy(segbytes)
-			if err != nil {
-				panic(err)
-			}
+			remsg, err := capnp.Unmarshal(segbytes)
+			cv.So(err, cv.ShouldEqual, nil)
+			reseg, err := remsg.Segment(0)
+			cv.So(err, cv.ShouldEqual, nil)
 			ShowSeg("      after re-reading segbytes, segment reseg is:", reseg)
 			fmt.Printf("segbytes decoded by capnp as HoldsVerEmptyList: '%s'\n", string(CapnpDecode(segbytes, "HoldsVerEmptyList")))
 			fmt.Printf("segbytes decoded by capnp as HoldsVerOnePtrList: '%s'\n", string(CapnpDecode(segbytes, "HoldsVerOnePtrList")))
 			fmt.Printf("segbytes decoded by capnp as HoldsVerTwoTwoList: '%s'\n", string(CapnpDecode(segbytes, "HoldsVerTwoTwoList")))
 
-			reHolder := air.ReadRootHoldsVerEmptyList(reseg)
-			elist := reHolder.Mylist()
+			reHolder, err := air.ReadRootHoldsVerEmptyList(remsg)
+			elist, err := reHolder.Mylist()
+			cv.So(err, cv.ShouldEqual, nil)
 			lene := elist.Len()
 			cv.So(lene, cv.ShouldEqual, 2)
 
-			reHolder1 := air.ReadRootHoldsVerOnePtrList(reseg)
-			onelist := reHolder1.Mylist()
+			reHolder1, err := air.ReadRootHoldsVerOnePtrList(remsg)
+			onelist, err := reHolder1.Mylist()
+			cv.So(err, cv.ShouldEqual, nil)
 			lenone := onelist.Len()
 			cv.So(lenone, cv.ShouldEqual, 2)
 
 			for i := 0; i < 2; i++ {
 				ele := onelist.At(i)
-				ptr1 := ele.Ptr()
-				cv.So(ptr1.Val(), cv.ShouldEqual, twolist.At(i).Ptr1().Val())
+				ptr1, err := ele.Ptr()
+				cv.So(err, cv.ShouldEqual, nil)
+				origPtr1, err := twolist.At(i).Ptr1()
+				cv.So(err, cv.ShouldEqual, nil)
+				cv.So(ptr1.Val(), cv.ShouldEqual, origPtr1.Val())
 			}
 
-			reHolder2 := air.ReadRootHoldsVerTwoTwoPlus(reseg)
-			twolist2 := reHolder2.Mylist()
+			reHolder2, err := air.ReadRootHoldsVerTwoTwoPlus(remsg)
+			cv.So(err, cv.ShouldEqual, nil)
+			twolist2, err := reHolder2.Mylist()
+			cv.So(err, cv.ShouldEqual, nil)
 			lentwo2 := twolist2.Len()
 			cv.So(lentwo2, cv.ShouldEqual, 2)
 
 			for i := 0; i < 2; i++ {
 				ele := twolist2.At(i)
-				ptr1 := ele.Ptr1()
-				ptr2 := ele.Ptr2()
-				cv.So(ptr1.Val(), cv.ShouldEqual, twolist.At(i).Ptr1().Val())
+				ptr1, err := ele.Ptr1()
+				cv.So(err, cv.ShouldEqual, nil)
+				ptr2, err := ele.Ptr2()
+				cv.So(err, cv.ShouldEqual, nil)
+				origPtr1, err := ele.Ptr1()
+				cv.So(err, cv.ShouldEqual, nil)
+				origPtr2, err := ele.Ptr2()
+				cv.So(err, cv.ShouldEqual, nil)
+				cv.So(ptr1.Val(), cv.ShouldEqual, origPtr1.Val())
 				//cv.So(ptr1.Duo(), cv.ShouldEqual, twolist.At(i).Ptr1().Duo())
-				cv.So(ptr2.Val(), cv.ShouldEqual, twolist.At(i).Ptr2().Val())
+				cv.So(ptr2.Val(), cv.ShouldEqual, origPtr2.Val())
 				//cv.So(ptr2.Duo(), cv.ShouldEqual, twolist.At(i).Ptr2().Duo())
 				cv.So(ele.Tre(), cv.ShouldEqual, 0)
-				cv.So(ele.Lst3().Len(), cv.ShouldEqual, 0)
+				lst3, err := ele.Lst3()
+				cv.So(err, cv.ShouldEqual, nil)
+				cv.So(lst3.Len(), cv.ShouldEqual, 0)
 			}
 
 		})

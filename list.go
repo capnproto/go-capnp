@@ -95,6 +95,9 @@ func (p List) value(paddr Address) rawPointer {
 		// p.off points to the data not the header
 		return rawListPointer(off-1, compositeList, p.length*p.size.totalWordCount())
 	}
+	if p.flags&isBitList != 0 {
+		return rawListPointer(off, bit1List, p.length)
+	}
 	if p.size.PointerCount == 1 && p.size.DataSize == 0 {
 		return rawListPointer(off, pointerList, p.length)
 	}

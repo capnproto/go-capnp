@@ -1,9 +1,6 @@
-// +build ignore
-
 package capnp_test
 
 import (
-	"bytes"
 	"fmt"
 	"net"
 	"testing"
@@ -13,25 +10,40 @@ import (
 	air "zombiezen.com/go/capnproto/internal/aircraftlib"
 )
 
-func Example_createEndpoint() (*capnp.Segment, []byte) {
-	seg := capnp.NewBuffer(nil)
-	e := air.NewRootEndpoint(seg)
+func Example_customType() (*capnp.Segment, []byte) {
+	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		panic(err)
+	}
+	e, err := air.NewRootEndpoint(seg)
+	if err != nil {
+		panic(err)
+	}
 	e.SetIp(net.ParseIP("1.2.3.4").To4())
 	e.SetPort(56)
 	e.SetHostname("test.com")
 
-	fmt.Printf("ip: %s\n", e.Ip().String())
+	ip, err := e.Ip()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("ip: %s\n", ip.String())
 	fmt.Printf("port: %d\n", e.Port())
-	fmt.Printf("hostname: %s\n", e.Hostname())
+	hostname, err := e.Hostname()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("hostname: %s\n", hostname)
 
-	buf := bytes.Buffer{}
-	seg.WriteTo(&buf)
-
-	return seg, buf.Bytes()
+	buf, err := msg.Marshal()
+	if err != nil {
+		panic(err)
+	}
+	return seg, buf
 }
 
 func TestCreationOfEndpoint(t *testing.T) {
-	seg, _ := Example_createEndpoint()
+	seg, _ := Example_customType()
 	text := CapnpDecodeSegment(seg, "", schemaPath, "Endpoint")
 
 	expectedText := `(ip = "\x01\x02\x03\x04", port = 56, hostname = "test.com")`
@@ -46,15 +58,20 @@ func TestCreationOfEndpoint(t *testing.T) {
 			})
 		})
 		cv.Convey("When we decode it", func() {
-			endpoint := air.ReadRootEndpoint(seg)
+			endpoint, err := air.ReadRootEndpoint(seg.Message())
+			cv.So(err, cv.ShouldEqual, nil)
 			cv.Convey(fmt.Sprintf("Then we should get the expected ip '%s'", expectedIP), func() {
-				cv.So(endpoint.Ip(), cv.ShouldResemble, expectedIP)
+				ip, err := endpoint.Ip()
+				cv.So(err, cv.ShouldEqual, nil)
+				cv.So(ip, cv.ShouldResemble, expectedIP)
 			})
 			cv.Convey(fmt.Sprintf("Then we should get the expected port '%d'", expectedPort), func() {
 				cv.So(endpoint.Port(), cv.ShouldEqual, expectedPort)
 			})
 			cv.Convey(fmt.Sprintf("Then we should get the expected hostname '%s'", expectedHostname), func() {
-				cv.So(endpoint.Hostname(), cv.ShouldEqual, expectedHostname)
+				hostname, err := endpoint.Hostname()
+				cv.So(err, cv.ShouldEqual, nil)
+				cv.So(hostname, cv.ShouldEqual, expectedHostname)
 			})
 		})
 	})

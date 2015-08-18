@@ -1,5 +1,3 @@
-// +build ignore
-
 package capnp_test
 
 import (
@@ -12,29 +10,43 @@ import (
 const schemaPath = "internal/aircraftlib/aircraft.capnp"
 
 func zdateFilledSegment(n int32, packed bool) (*capnp.Segment, []byte) {
-	seg := capnp.NewBuffer(nil)
-	z := air.NewRootZ(seg)
-	list := air.NewZdate_List(seg, n)
-	// hand added a Set() method to messages_test.go, so plist not needed
-	plist := capnp.PointerList(list)
+	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		panic(err)
+	}
+	z, err := air.NewRootZ(seg)
+	if err != nil {
+		panic(err)
+	}
+	list, err := air.NewZdate_List(seg, n)
+	if err != nil {
+		panic(err)
+	}
 
 	for i := 0; i < int(n); i++ {
-		d := air.NewZdate(seg)
+		d, err := air.NewZdate(seg)
+		if err != nil {
+			panic(err)
+		}
 		d.SetMonth(12)
 		d.SetDay(7)
 		d.SetYear(int16(2004 + i))
-		plist.Set(i, capnp.Pointer(d))
-		//list.Set(i, d)
+		list.Set(i, d)
 	}
 	z.SetZdatevec(list)
 
-	buf := bytes.Buffer{}
 	if packed {
-		seg.WriteToPacked(&buf)
-	} else {
-		seg.WriteTo(&buf)
+		b, err := msg.MarshalPacked()
+		if err != nil {
+			panic(err)
+		}
+		return seg, b
 	}
-	return seg, buf.Bytes()
+	b, err := msg.Marshal()
+	if err != nil {
+		panic(err)
+	}
+	return seg, b
 }
 
 func zdateReader(n int32, packed bool) *bytes.Reader {
@@ -50,16 +62,30 @@ func zdateReaderNBackToBack(n int, packed bool) *bytes.Reader {
 	buf := bytes.Buffer{}
 
 	for i := 0; i < n; i++ {
-		seg := capnp.NewBuffer(nil)
-		d := air.NewRootZdate(seg)
+		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		if err != nil {
+			panic(err)
+		}
+		d, err := air.NewRootZdate(seg)
+		if err != nil {
+			panic(err)
+		}
 		d.SetMonth(12)
 		d.SetDay(7)
 		d.SetYear(int16(2004 + i))
 
 		if packed {
-			seg.WriteToPacked(&buf)
+			b, err := msg.MarshalPacked()
+			if err != nil {
+				panic(err)
+			}
+			buf.Write(b)
 		} else {
-			seg.WriteTo(&buf)
+			b, err := msg.Marshal()
+			if err != nil {
+				panic(err)
+			}
+			buf.Write(b)
 		}
 	}
 
@@ -67,9 +93,18 @@ func zdateReaderNBackToBack(n int, packed bool) *bytes.Reader {
 }
 
 func zdataFilledSegment(n int) (*capnp.Segment, []byte) {
-	seg := capnp.NewBuffer(nil)
-	z := air.NewRootZ(seg)
-	d := air.NewZdata(seg)
+	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		panic(err)
+	}
+	z, err := air.NewRootZ(seg)
+	if err != nil {
+		panic(err)
+	}
+	d, err := air.NewZdata(seg)
+	if err != nil {
+		panic(err)
+	}
 
 	b := make([]byte, n)
 	for i := 0; i < len(b); i++ {
@@ -78,9 +113,11 @@ func zdataFilledSegment(n int) (*capnp.Segment, []byte) {
 	d.SetData(b)
 	z.SetZdata(d)
 
-	buf := bytes.Buffer{}
-	seg.WriteTo(&buf)
-	return seg, buf.Bytes()
+	buf, err := msg.Marshal()
+	if err != nil {
+		panic(err)
+	}
+	return seg, buf
 }
 
 func zdataReader(n int) *bytes.Reader {

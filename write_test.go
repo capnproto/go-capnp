@@ -1,9 +1,6 @@
-// +build ignore
-
 package capnp_test
 
 import (
-	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -15,8 +12,8 @@ import (
 )
 
 func Example() {
-	// make a brand new, empty segment (message)
-	seg := capnp.NewBuffer(nil)
+	// Make a brand new empty message.
+	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
 
 	// If you want runtime-type identification, this is easily obtained. Just
 	// wrap everything in a struct that contains a single anoymous union (e.g. struct Z).
@@ -30,19 +27,31 @@ func Example() {
 	// isn't necessary to use an anonymous union. Just supply the type name
 	// in place of 'Z' in the decode command above.
 
-	z := air.NewRootZ(seg) // root should be allocated first.
-	// There must be only one root.
+	// There can only be one root.  Subsequent NewRoot* calls will set the root
+	// pointer and orphan the previous root.
+	z, err := air.NewRootZ(seg)
 
 	// then non-root objects:
-	aircraft := air.NewAircraft(seg)
-	b737 := air.NewB737(seg)
-	planebase := air.NewPlaneBase(seg)
+	aircraft, err := air.NewAircraft(seg)
+	if err != nil {
+		panic(err)
+	}
+	b737, err := air.NewB737(seg)
+	if err != nil {
+		panic(err)
+	}
+	planebase, err := air.NewPlaneBase(seg)
+	if err != nil {
+		panic(err)
+	}
 
 	// how to create a list. Requires a cast at the moment.
-	homes := air.NewAirport_List(seg, 2)
-	uint16list := capnp.UInt16List(homes) // cast to the underlying type
-	uint16list.Set(0, uint16(air.Airport_jfk))
-	uint16list.Set(1, uint16(air.Airport_lax))
+	homes, err := air.NewAirport_List(seg, 2)
+	if err != nil {
+		panic(err)
+	}
+	homes.Set(0, air.Airport_jfk)
+	homes.Set(1, air.Airport_lax)
 
 	// set the primitive fields
 	planebase.SetCanFly(true)
@@ -63,8 +72,11 @@ func Example() {
 	// ready to write
 
 	// example of writing to memory
-	buf := bytes.Buffer{}
-	seg.WriteTo(&buf)
+	buf, err := msg.Marshal()
+	if err != nil {
+		panic(err)
+	}
+	_ = buf
 
 	// example of writing to file. Just use WriteTo().
 	// We could have used SegToFile(seg, fname) from
@@ -75,7 +87,10 @@ func Example() {
 	}
 	defer file.Close()
 	defer os.Remove(file.Name())
-	seg.WriteTo(file)
+	err = capnp.NewEncoder(file).Encode(msg)
+	if err != nil {
+		panic(err)
+	}
 
 	// readback and view that file in human readable format. Defined in util_test.go
 	text, err := CapnFileToText(file.Name(), schemaPath, "")
@@ -95,13 +110,14 @@ func TestVoidUnionSetters(t *testing.T) {
 
 	cv.Convey("Given a VoidUnion set to b", t, func() {
 		cv.Convey("then the go-capnproto serialization should match the capnp c++ serialization", func() {
-			seg := capnp.NewBuffer(nil)
-			voidUnion := air.NewRootVoidUnion(seg)
+			msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+			cv.So(err, cv.ShouldEqual, nil)
+			voidUnion, err := air.NewRootVoidUnion(seg)
+			cv.So(err, cv.ShouldEqual, nil)
 			voidUnion.SetB()
 
-			var buf bytes.Buffer
-			seg.WriteTo(&buf)
-			act := buf.Bytes()
+			act, err := msg.Marshal()
+			cv.So(err, cv.ShouldEqual, nil)
 
 			cv.So(act, cv.ShouldResemble, want)
 		})

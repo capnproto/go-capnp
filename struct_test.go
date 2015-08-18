@@ -1,9 +1,6 @@
-// +build ignore
-
 package capnp_test
 
 import (
-	"bytes"
 	"fmt"
 	"testing"
 
@@ -20,13 +17,14 @@ func TestTextAndListTextContaintingEmptyStruct(t *testing.T) {
 		cv.Convey("then the go-capnproto serialization should match the capnp c++ serialization", func() {
 			ShowBytes(emptyZjobBytes, 10)
 
-			seg := capnp.NewBuffer(nil)
+			msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+			cv.So(err, cv.ShouldEqual, nil)
 			air.NewRootZjob(seg)
 
-			buf := bytes.Buffer{}
-			seg.WriteTo(&buf)
+			buf, err := msg.Marshal()
+			cv.So(err, cv.ShouldEqual, nil)
 
-			cv.So(buf.Bytes(), cv.ShouldResemble, emptyZjobBytes)
+			cv.So(buf, cv.ShouldResemble, emptyZjobBytes)
 		})
 	})
 }
@@ -38,14 +36,15 @@ func TestTextContaintingStruct(t *testing.T) {
 	cv.Convey("Given a simple struct message Zjob containing a string 'abc' and a list of string (empty)", t, func() {
 		cv.Convey("then the go-capnproto serialization should match the capnp c++ serialization", func() {
 
-			seg := capnp.NewBuffer(nil)
-			zjob := air.NewRootZjob(seg)
+			msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+			cv.So(err, cv.ShouldEqual, nil)
+			zjob, err := air.NewRootZjob(seg)
+			cv.So(err, cv.ShouldEqual, nil)
 			zjob.SetCmd("abc")
 
-			buf := bytes.Buffer{}
-			seg.WriteTo(&buf)
+			act, err := msg.Marshal()
+			cv.So(err, cv.ShouldEqual, nil)
 
-			act := buf.Bytes()
 			fmt.Printf("          actual:\n")
 			ShowBytes(act, 10)
 
@@ -64,16 +63,18 @@ func TestTextListContaintingStruct(t *testing.T) {
 	cv.Convey("Given a simple struct message Zjob containing an unset string and a list of string ('xyz' as the only element)", t, func() {
 		cv.Convey("then the go-capnproto serialization should match the capnp c++ serialization", func() {
 
-			seg := capnp.NewBuffer(nil)
-			zjob := air.NewRootZjob(seg)
-			tl := seg.NewTextList(1)
+			msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+			cv.So(err, cv.ShouldEqual, nil)
+			zjob, err := air.NewRootZjob(seg)
+			cv.So(err, cv.ShouldEqual, nil)
+			tl, err := capnp.NewTextList(seg, 1)
+			cv.So(err, cv.ShouldEqual, nil)
 			tl.Set(0, "xyz")
 			zjob.SetArgs(tl)
 
-			buf := bytes.Buffer{}
-			seg.WriteTo(&buf)
+			act, err := msg.Marshal()
+			cv.So(err, cv.ShouldEqual, nil)
 
-			act := buf.Bytes()
 			fmt.Printf("          actual:\n")
 			ShowBytes(act, 10)
 
@@ -92,17 +93,19 @@ func TestTextAndTextListContaintingStruct(t *testing.T) {
 	cv.Convey("Given a simple struct message Zjob containing a string (cmd='abc') and a list of string (args=['xyz'])", t, func() {
 		cv.Convey("then the go-capnproto serialization should match the capnp c++ serialization", func() {
 
-			seg := capnp.NewBuffer(nil)
-			zjob := air.NewRootZjob(seg)
+			msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+			cv.So(err, cv.ShouldEqual, nil)
+			zjob, err := air.NewRootZjob(seg)
+			cv.So(err, cv.ShouldEqual, nil)
 			zjob.SetCmd("abc")
-			tl := seg.NewTextList(1)
+			tl, err := capnp.NewTextList(seg, 1)
+			cv.So(err, cv.ShouldEqual, nil)
 			tl.Set(0, "xyz")
 			zjob.SetArgs(tl)
 
-			buf := bytes.Buffer{}
-			seg.WriteTo(&buf)
+			act, err := msg.Marshal()
+			cv.So(err, cv.ShouldEqual, nil)
 
-			act := buf.Bytes()
 			fmt.Printf("          actual:\n")
 			ShowBytes(act, 10)
 
@@ -121,28 +124,32 @@ func TestZserverWithOneFullJob(t *testing.T) {
 	cv.Convey("Given an Zserver with one empty job", t, func() {
 		cv.Convey("then the go-capnproto serialization should match the capnp c++ serialization", func() {
 
-			seg := capnp.NewBuffer(nil)
-			scratch := capnp.NewBuffer(nil)
+			msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+			cv.So(err, cv.ShouldEqual, nil)
+			_, scratch, err := capnp.NewMessage(capnp.SingleSegment(nil))
+			cv.So(err, cv.ShouldEqual, nil)
 
-			server := air.NewRootZserver(seg)
+			server, err := air.NewRootZserver(seg)
+			cv.So(err, cv.ShouldEqual, nil)
 
-			joblist := air.NewZjob_List(seg, 1)
-			plist := capnp.PointerList(joblist)
+			joblist, err := air.NewZjob_List(seg, 1)
+			cv.So(err, cv.ShouldEqual, nil)
 
-			zjob := air.NewZjob(scratch)
+			zjob, err := air.NewZjob(scratch)
+			cv.So(err, cv.ShouldEqual, nil)
 			zjob.SetCmd("abc")
-			tl := scratch.NewTextList(1)
+			tl, err := capnp.NewTextList(scratch, 1)
+			cv.So(err, cv.ShouldEqual, nil)
 			tl.Set(0, "xyz")
 			zjob.SetArgs(tl)
 
-			plist.Set(0, capnp.Pointer(zjob))
+			joblist.Set(0, zjob)
 
 			server.SetWaitingjobs(joblist)
 
-			buf := bytes.Buffer{}
-			seg.WriteTo(&buf)
+			act, err := msg.Marshal()
+			cv.So(err, cv.ShouldEqual, nil)
 
-			act := buf.Bytes()
 			fmt.Printf("          actual:\n")
 			ShowBytes(act, 10)
 			fmt.Printf("act decoded by capnp: '%s'\n", string(CapnpDecode(act, "Zserver")))
@@ -165,35 +172,45 @@ func TestZserverWithAccessors(t *testing.T) {
 	cv.Convey("Given an Zserver with a custom list", t, func() {
 		cv.Convey("then all the accessors should work as expected", func() {
 
-			seg := capnp.NewBuffer(nil)
-			scratch := capnp.NewBuffer(nil)
+			msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+			cv.So(err, cv.ShouldEqual, nil)
+			_, scratch, err := capnp.NewMessage(capnp.SingleSegment(nil))
+			cv.So(err, cv.ShouldEqual, nil)
 
-			server := air.NewRootZserver(seg)
+			server, err := air.NewRootZserver(seg)
+			cv.So(err, cv.ShouldEqual, nil)
 
-			joblist := air.NewZjob_List(seg, 2)
+			joblist, err := air.NewZjob_List(seg, 2)
+			cv.So(err, cv.ShouldEqual, nil)
 
 			// .Set(int, item)
-			zjob := air.NewZjob(scratch)
+			zjob, err := air.NewZjob(scratch)
+			cv.So(err, cv.ShouldEqual, nil)
 			zjob.SetCmd("abc")
 			joblist.Set(0, zjob)
 
-			zjob = air.NewZjob(scratch)
+			zjob, err = air.NewZjob(scratch)
+			cv.So(err, cv.ShouldEqual, nil)
 			zjob.SetCmd("xyz")
 			joblist.Set(1, zjob)
-
-			// .At(int)
-			cv.So(joblist.At(0).Cmd(), cv.ShouldEqual, "abc")
-			cv.So(joblist.At(1).Cmd(), cv.ShouldEqual, "xyz")
 
 			// .Len()
 			cv.So(joblist.Len(), cv.ShouldEqual, 2)
 
+			// .At(int)
+			cmd := func(i int) string {
+				s, err := joblist.At(0).Cmd()
+				cv.So(err, cv.ShouldEqual, nil)
+				return s
+			}
+			cv.So(cmd(0), cv.ShouldEqual, "abc")
+			cv.So(cmd(1), cv.ShouldEqual, "xyz")
+
 			server.SetWaitingjobs(joblist)
 
-			buf := bytes.Buffer{}
-			seg.WriteTo(&buf)
+			act, err := msg.Marshal()
+			cv.So(err, cv.ShouldEqual, nil)
 
-			act := buf.Bytes()
 			fmt.Printf("          actual:\n")
 			ShowBytes(act, 10)
 			fmt.Printf("act decoded by capnp: '%s'\n", string(CapnpDecode(act, "Zserver")))
@@ -229,23 +246,27 @@ func TestSetObjectBetweenSegments(t *testing.T) {
 	cv.Convey("Given an Counter in one segment and a Bag in another", t, func() {
 		cv.Convey("we should be able to copy from one segment to the other with SetCounter() on a Bag", func() {
 
-			seg := capnp.NewBuffer(nil)
-			scratch := capnp.NewBuffer(nil)
+			msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+			cv.So(err, cv.ShouldEqual, nil)
+			_, scratch, err := capnp.NewMessage(capnp.SingleSegment(nil))
+			cv.So(err, cv.ShouldEqual, nil)
 
 			// in seg
-			segbag := air.NewRootBag(seg)
+			segbag, err := air.NewRootBag(seg)
+			cv.So(err, cv.ShouldEqual, nil)
 
 			// in scratch
-			xc := air.NewRootCounter(scratch)
+			xc, err := air.NewRootCounter(scratch)
+			cv.So(err, cv.ShouldEqual, nil)
 			xc.SetSize(9)
 
 			// copy from scratch to seg
-			segbag.SetCounter(xc)
+			err = segbag.SetCounter(xc)
+			cv.So(err, cv.ShouldEqual, nil)
 
-			buf := bytes.Buffer{}
-			seg.WriteTo(&buf)
+			act, err := msg.Marshal()
+			cv.So(err, cv.ShouldEqual, nil)
 
-			act := buf.Bytes()
 			fmt.Printf("          actual:\n")
 			ShowBytes(act, 10)
 			fmt.Printf("act decoded by capnp: '%s'\n", string(CapnpDecode(act, "Bag")))
@@ -268,24 +289,28 @@ func TestObjectWithTextBetweenSegments(t *testing.T) {
 	cv.Convey("Given an Counter in one segment and a Bag with text in another", t, func() {
 		cv.Convey("we should be able to copy from one segment to the other with SetCounter() on a Bag", func() {
 
-			seg := capnp.NewBuffer(nil)
-			scratch := capnp.NewBuffer(nil)
+			msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+			cv.So(err, cv.ShouldEqual, nil)
+			_, scratch, err := capnp.NewMessage(capnp.SingleSegment(nil))
+			cv.So(err, cv.ShouldEqual, nil)
 
 			// in seg
-			segbag := air.NewRootBag(seg)
+			segbag, err := air.NewRootBag(seg)
+			cv.So(err, cv.ShouldEqual, nil)
 
 			// in scratch
-			xc := air.NewRootCounter(scratch)
+			xc, err := air.NewRootCounter(scratch)
+			cv.So(err, cv.ShouldEqual, nil)
 			xc.SetSize(9)
 			xc.SetWords("hello")
 
 			// copy from scratch to seg
-			segbag.SetCounter(xc)
+			err = segbag.SetCounter(xc)
+			cv.So(err, cv.ShouldEqual, nil)
 
-			buf := bytes.Buffer{}
-			seg.WriteTo(&buf)
+			act, err := msg.Marshal()
+			cv.So(err, cv.ShouldEqual, nil)
 
-			act := buf.Bytes()
 			fmt.Printf("          actual:\n")
 			ShowBytes(act, 10)
 			fmt.Printf("act decoded by capnp: '%s'\n", string(CapnpDecode(act, "Bag")))
@@ -308,42 +333,46 @@ func TestObjectWithListOfTextBetweenSegments(t *testing.T) {
 	cv.Convey("Given an Counter in one segment and a Bag with text in another", t, func() {
 		cv.Convey("we should be able to copy from one segment to the other with SetCounter() on a Bag", func() {
 
-			seg := capnp.NewBuffer(nil)
-			scratch := capnp.NewBuffer(nil)
+			msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+			cv.So(err, cv.ShouldEqual, nil)
+			scratchMsg, scratch, err := capnp.NewMessage(capnp.SingleSegment(nil))
+			cv.So(err, cv.ShouldEqual, nil)
 
 			// in seg
-			segbag := air.NewRootBag(seg)
+			segbag, err := air.NewRootBag(seg)
+			cv.So(err, cv.ShouldEqual, nil)
 
 			// in scratch
-			xc := air.NewRootCounter(scratch)
+			xc, err := air.NewRootCounter(scratch)
+			cv.So(err, cv.ShouldEqual, nil)
 			xc.SetSize(9)
-			tl := scratch.NewTextList(2)
+			tl, err := capnp.NewTextList(scratch, 2)
+			cv.So(err, cv.ShouldEqual, nil)
 			tl.Set(0, "hello")
 			tl.Set(1, "bye")
-			xc.SetWordlist(tl)
+			err = xc.SetWordlist(tl)
+			cv.So(err, cv.ShouldEqual, nil)
 
-			xbuf := bytes.Buffer{}
-			scratch.WriteTo(&xbuf)
+			x, err := scratchMsg.Marshal()
+			cv.So(err, cv.ShouldEqual, nil)
 
-			x := xbuf.Bytes()
 			save(x, "myscratch")
 			fmt.Printf("scratch segment (%p):\n", scratch)
 			ShowBytes(x, 10)
 			fmt.Printf("scratch segment (%p) with Counter decoded by capnp: '%s'\n", scratch, string(CapnpDecode(x, "Counter")))
 
-			prebuf := bytes.Buffer{}
-			seg.WriteTo(&prebuf)
+			pre, err := msg.Marshal()
+			cv.So(err, cv.ShouldEqual, nil)
 			fmt.Printf("Bag only segment seg (%p), pre-transfer:\n", seg)
-			ShowBytes(prebuf.Bytes(), 10)
+			ShowBytes(pre, 10)
 
 			// now for the actual test:
 			// copy from scratch to seg
 			segbag.SetCounter(xc)
 
-			buf := bytes.Buffer{}
-			seg.WriteTo(&buf)
+			act, err := msg.Marshal()
+			cv.So(err, cv.ShouldEqual, nil)
 
-			act := buf.Bytes()
 			save(act, "myact")
 			save(exp, "myexp")
 
@@ -367,30 +396,37 @@ func TestSetBetweenSegments(t *testing.T) {
 	cv.Convey("Given an struct with Text and List(Text) in one segment", t, func() {
 		cv.Convey("assigning it to a struct in a different segment should recursively import", func() {
 
-			seg := capnp.NewBuffer(nil)
-			scratch := capnp.NewBuffer(nil)
+			msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+			cv.So(err, cv.ShouldEqual, nil)
+			_, scratch, err := capnp.NewMessage(capnp.SingleSegment(nil))
+			cv.So(err, cv.ShouldEqual, nil)
 
 			// in seg
-			segbag := air.NewRootBag(seg)
+			segbag, err := air.NewRootBag(seg)
+			cv.So(err, cv.ShouldEqual, nil)
 
 			// in scratch
-			xc := air.NewRootCounter(scratch)
+			xc, err := air.NewRootCounter(scratch)
+			cv.So(err, cv.ShouldEqual, nil)
 			xc.SetSize(9)
-			tl := scratch.NewTextList(2)
+			tl, err := capnp.NewTextList(scratch, 2)
+			cv.So(err, cv.ShouldEqual, nil)
 			tl.Set(0, "hello")
 			tl.Set(1, "byenow")
-			xc.SetWordlist(tl)
-			xc.SetWords("abc")
+			err = xc.SetWordlist(tl)
+			cv.So(err, cv.ShouldEqual, nil)
+			err = xc.SetWords("abc")
+			cv.So(err, cv.ShouldEqual, nil)
 
 			fmt.Printf("\n\n starting copy from scratch to seg \n\n")
 
 			// copy from scratch to seg
-			segbag.SetCounter(xc)
+			err = segbag.SetCounter(xc)
+			cv.So(err, cv.ShouldEqual, nil)
 
-			buf := bytes.Buffer{}
-			seg.WriteTo(&buf)
+			act, err := msg.Marshal()
+			cv.So(err, cv.ShouldEqual, nil)
 
-			act := buf.Bytes()
 			fmt.Printf("          actual:\n")
 			ShowBytes(act, 10)
 			//fmt.Printf("act decoded by capnp: '%s'\n", string(CapnpDecode(act, "Bag")))
@@ -407,13 +443,14 @@ func TestSetBetweenSegments(t *testing.T) {
 }
 
 func ShowSeg(msg string, seg *capnp.Segment) []byte {
-	pre := bytes.Buffer{}
-	seg.WriteTo(&pre)
+	b, err := seg.Message().Marshal()
+	if err != nil {
+		panic(err)
+	}
 
 	fmt.Printf("%s\n", msg)
-	by := pre.Bytes()
-	ShowBytes(by, 10)
-	return by
+	ShowBytes(b, 10)
+	return b
 }
 
 func TestZserverWithOneEmptyJob(t *testing.T) {
@@ -423,17 +460,22 @@ func TestZserverWithOneEmptyJob(t *testing.T) {
 	cv.Convey("Given an Zserver with one empty job", t, func() {
 		cv.Convey("then the go-capnproto serialization should match the capnp c++ serialization", func() {
 
-			seg := capnp.NewBuffer(nil)
-			scratch := capnp.NewBuffer(nil)
-			server := air.NewRootZserver(seg)
+			msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+			cv.So(err, cv.ShouldEqual, nil)
+			_, scratch, err := capnp.NewMessage(capnp.SingleSegment(nil))
+			cv.So(err, cv.ShouldEqual, nil)
+			server, err := air.NewRootZserver(seg)
+			cv.So(err, cv.ShouldEqual, nil)
 
-			joblist := air.NewZjob_List(seg, 1)
-			plist := capnp.PointerList(joblist)
+			joblist, err := air.NewZjob_List(seg, 1)
+			cv.So(err, cv.ShouldEqual, nil)
 
 			ShowSeg("          pre NewZjob, segment seg is:", seg)
 
-			zjob := air.NewZjob(scratch)
-			plist.Set(0, capnp.Pointer(zjob))
+			zjob, err := air.NewZjob(scratch)
+			cv.So(err, cv.ShouldEqual, nil)
+			err = joblist.Set(0, zjob)
+			cv.So(err, cv.ShouldEqual, nil)
 
 			ShowSeg("          pre SetWaitingjobs, segment seg is:", seg)
 
@@ -441,9 +483,8 @@ func TestZserverWithOneEmptyJob(t *testing.T) {
 			server.SetWaitingjobs(joblist)
 
 			// save
-			buf := bytes.Buffer{}
-			seg.WriteTo(&buf)
-			act := buf.Bytes()
+			act, err := msg.Marshal()
+			cv.So(err, cv.ShouldEqual, nil)
 			save(act, "my.act.zserver")
 
 			// show
@@ -463,10 +504,14 @@ func TestZserverWithOneEmptyJob(t *testing.T) {
 func TestDefaultStructField(t *testing.T) {
 	cv.Convey("Given a new root StackingRoot", t, func() {
 		cv.Convey("then the aWithDefault field should have a default", func() {
-			seg := capnp.NewBuffer(nil)
-			root := air.NewRootStackingRoot(seg)
+			_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+			cv.So(err, cv.ShouldEqual, nil)
+			root, err := air.NewRootStackingRoot(seg)
+			cv.So(err, cv.ShouldEqual, nil)
 
-			cv.So(root.AWithDefault().Num(), cv.ShouldEqual, 42)
+			a, err := root.AWithDefault()
+			cv.So(err, cv.ShouldEqual, nil)
+			cv.So(a.Num(), cv.ShouldEqual, 42)
 		})
 	})
 }
@@ -474,11 +519,15 @@ func TestDefaultStructField(t *testing.T) {
 func TestDataTextCopyOptimization(t *testing.T) {
 	cv.Convey("Given a text list from a different segment", t, func() {
 		cv.Convey("Adding it to a different segment shouldn't panic", func() {
-			seg := capnp.NewBuffer(nil)
-			seg2 := capnp.NewBuffer(nil)
-			root := air.NewRootNester1Capn(seg)
+			_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+			cv.So(err, cv.ShouldEqual, nil)
+			_, seg2, err := capnp.NewMessage(capnp.SingleSegment(nil))
+			cv.So(err, cv.ShouldEqual, nil)
+			root, err := air.NewRootNester1Capn(seg)
+			cv.So(err, cv.ShouldEqual, nil)
 
-			strsl := seg2.NewTextList(256)
+			strsl, err := capnp.NewTextList(seg2, 256)
+			cv.So(err, cv.ShouldEqual, nil)
 			for i := 0; i < strsl.Len(); i++ {
 				strsl.Set(i, "testess")
 			}

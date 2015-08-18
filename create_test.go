@@ -1,5 +1,3 @@
-// +build ignore
-
 package capnp_test
 
 import (
@@ -96,10 +94,14 @@ func TestCreationOfZData(t *testing.T) {
 				cv.So(text, cv.ShouldEqual, expectedText)
 			})
 			cv.Convey("And our data should contain Z_ZDATA with contents 0,1,2,...,n", func() {
-				z := air.ReadRootZ(seg)
+				z, err := air.ReadRootZ(seg.Message())
+				cv.So(err, cv.ShouldEqual, nil)
 				cv.So(z.Which(), cv.ShouldEqual, air.Z_Which_zdata)
 
-				var data []byte = z.Zdata().Data()
+				zdata, err := z.Zdata()
+				cv.So(err, cv.ShouldEqual, nil)
+				data, err := zdata.Data()
+				cv.So(err, cv.ShouldEqual, nil)
 				cv.So(len(data), cv.ShouldEqual, n)
 				for i := range data {
 					cv.So(data[i], cv.ShouldEqual, i)

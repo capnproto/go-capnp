@@ -1,5 +1,3 @@
-// +build ignore
-
 package capnp_test
 
 import (
@@ -19,13 +17,18 @@ func TestDataVersioningAvoidsUnnecessaryTruncation(t *testing.T) {
 	cv.Convey("Given a struct with 0 ptr fields, and a newer version of the struct with two data and two pointer fields", t, func() {
 		cv.Convey("then old code expecting the smaller struct but reading the newer-bigger struct should not truncate it if it doesn't have to (e.g. not assigning into a composite list), and should preserve all data when re-serializing it.", func() {
 
-			seg := capnp.NewBuffer(nil)
-			scratch := capnp.NewBuffer(nil)
+			msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+			cv.So(err, cv.ShouldEqual, nil)
+			_, scratch, err := capnp.NewMessage(capnp.SingleSegment(nil))
+			cv.So(err, cv.ShouldEqual, nil)
 
-			big := air.NewRootVerTwoDataTwoPtr(seg)
-			one := air.NewVerOneData(scratch)
+			big, err := air.NewRootVerTwoDataTwoPtr(seg)
+			cv.So(err, cv.ShouldEqual, nil)
+			one, err := air.NewVerOneData(scratch)
+			cv.So(err, cv.ShouldEqual, nil)
 			one.SetVal(77)
-			two := air.NewVerOneData(scratch)
+			two, err := air.NewVerOneData(scratch)
+			cv.So(err, cv.ShouldEqual, nil)
 			two.SetVal(55)
 			big.SetVal(9)
 			big.SetDuo(8)
@@ -47,10 +50,13 @@ func TestDataVersioningAvoidsUnnecessaryTruncation(t *testing.T) {
 			cv.So(actEmptyCap, cv.ShouldResemble, "()\n")
 
 			// okay, now the actual test:
-			weThinkEmptyButActuallyFull := air.ReadRootVerEmpty(seg)
+			weThinkEmptyButActuallyFull, err := air.ReadRootVerEmpty(msg)
+			cv.So(err, cv.ShouldEqual, nil)
 
-			freshSeg := capnp.NewBuffer(nil)
-			wrapEmpty := air.NewRootWrapEmpty(freshSeg)
+			_, freshSeg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+			cv.So(err, cv.ShouldEqual, nil)
+			wrapEmpty, err := air.NewRootWrapEmpty(freshSeg)
+			cv.So(err, cv.ShouldEqual, nil)
 
 			// here is the critical step, this should not truncate:
 			wrapEmpty.SetMightNotBeReallyEmpty(weThinkEmptyButActuallyFull)
@@ -58,27 +64,33 @@ func TestDataVersioningAvoidsUnnecessaryTruncation(t *testing.T) {
 			// now verify:
 			freshBytes := ShowSeg("\n\n          after wrapEmpty.SetMightNotBeReallyEmpty(weThinkEmptyButActuallyFull), segment freshSeg is:", freshSeg)
 
-			reseg, _, err := capnp.ReadFromMemoryZeroCopy(freshBytes)
-			if err != nil {
-				panic(err)
-			}
+			remsg, err := capnp.Unmarshal(freshBytes)
+			cv.So(err, cv.ShouldEqual, nil)
+			reseg, err := remsg.Segment(0)
+			cv.So(err, cv.ShouldEqual, nil)
 			ShowSeg("      after re-reading freshBytes, segment reseg is:", reseg)
 			fmt.Printf("freshBytes decoded by capnp as Wrap2x2: '%s'\n", string(CapnpDecode(freshBytes, "Wrap2x2")))
 
-			wrap22 := air.ReadRootWrap2x2plus(reseg)
-			notEmpty := wrap22.MightNotBeReallyEmpty()
+			wrap22, err := air.ReadRootWrap2x2plus(remsg)
+			cv.So(err, cv.ShouldEqual, nil)
+			notEmpty, err := wrap22.MightNotBeReallyEmpty()
+			cv.So(err, cv.ShouldEqual, nil)
 			val := notEmpty.Val()
 			cv.So(val, cv.ShouldEqual, 9)
 			duo := notEmpty.Duo()
 			cv.So(duo, cv.ShouldEqual, 8)
-			ptr1 := notEmpty.Ptr1()
-			ptr2 := notEmpty.Ptr2()
+			ptr1, err := notEmpty.Ptr1()
+			cv.So(err, cv.ShouldEqual, nil)
+			ptr2, err := notEmpty.Ptr2()
+			cv.So(err, cv.ShouldEqual, nil)
 			cv.So(ptr1.Val(), cv.ShouldEqual, 77)
 			cv.So(ptr2.Val(), cv.ShouldEqual, 55)
 			// Tre should get the default, as it was never set
 			cv.So(notEmpty.Tre(), cv.ShouldEqual, 0)
 			// same for Lst3
-			cv.So(notEmpty.Lst3().Len(), cv.ShouldEqual, 0)
+			lst3, err := notEmpty.Lst3()
+			cv.So(err, cv.ShouldEqual, nil)
+			cv.So(lst3.Len(), cv.ShouldEqual, 0)
 		})
 	})
 }

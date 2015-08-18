@@ -1,5 +1,3 @@
-// +build ignore
-
 package capnp_test
 
 import (
@@ -34,11 +32,11 @@ func BenchmarkTextMovementBetweenSegments(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		seg := capnp.NewBuffer(buf[:0])
-		scratch := capnp.NewBuffer(buf2[:0])
+		_, seg, _ := capnp.NewMessage(capnp.SingleSegment(buf[:0]))
+		_, scratch, _ := capnp.NewMessage(capnp.SingleSegment(buf2[:0]))
 
-		ht := air.NewRootHoldsText(seg)
-		tl := scratch.NewTextList(1000)
+		ht, _ := air.NewRootHoldsText(seg)
+		tl, _ := capnp.NewTextList(scratch, 1000)
 
 		for j := 0; j < 1000; j++ {
 			tl.Set(j, astr[j])
