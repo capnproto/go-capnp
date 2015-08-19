@@ -262,7 +262,7 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() ({{capnp}}.Pointer, error) {
 
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{capnp}}.Pointer) error {
 	{{template "settag" .}}
-	return s.Struct.SetPointer({{.Field.Slot.Offset}}, v.Struct)
+	return s.Struct.SetPointer({{.Field.Slot.Offset}}, v)
 }
 {{end}}
 
@@ -359,7 +359,7 @@ func (w {{.Node.Name}}_Which) String() string {
 {{define "promise"}}// {{.Node.Name}}_Promise is a wrapper for a {{.Node.Name}} promised by a client call.
 type {{.Node.Name}}_Promise struct { *{{capnp}}.Pipeline }
 
-func (p *{{.Node.Name}}_Promise) Struct() ({{.Node.Name}}, error) {
+func (p {{.Node.Name}}_Promise) Struct() ({{.Node.Name}}, error) {
 	s, err := p.Pipeline.Struct()
 	return {{.Node.Name}}{s}, err
 }
@@ -367,27 +367,27 @@ func (p *{{.Node.Name}}_Promise) Struct() ({{.Node.Name}}, error) {
 
 
 {{define "promiseFieldStruct"}}
-func (p *{{.Node.Name}}_Promise) {{.Field.Name|title}}() {{.Struct.RemoteName .Node}}_Promise {
+func (p {{.Node.Name}}_Promise) {{.Field.Name|title}}() {{.Struct.RemoteName .Node}}_Promise {
 	return {{.Struct.RemoteName .Node}}_Promise{Pipeline: p.Pipeline.{{if .Default.IsValid}}GetPipelineDefault({{.Field.Slot.Offset}}, {{.Default}}){{else}}GetPipeline({{.Field.Slot.Offset}}){{end}} }
 }
 {{end}}
 
 
 {{define "promiseFieldAnyPointer"}}
-func (p *{{.Node.Name}}_Promise) {{.Field.Name|title}}() *{{capnp}}.Pipeline {
+func (p {{.Node.Name}}_Promise) {{.Field.Name|title}}() *{{capnp}}.Pipeline {
 	return p.Pipeline.GetPipeline({{.Field.Slot.Offset}})
 }
 {{end}}
 
 
 {{define "promiseFieldInterface"}}
-func (p *{{.Node.Name}}_Promise) {{.Field.Name|title}}() {{.Interface.RemoteName .Node}} {
+func (p {{.Node.Name}}_Promise) {{.Field.Name|title}}() {{.Interface.RemoteName .Node}} {
 	return {{.Interface.RemoteName .Node}}{Client: p.Pipeline.GetPipeline({{.Field.Slot.Offset}}).Client()}
 }
 {{end}}
 
 
-{{define "promiseGroup"}}func (p *{{.Node.Name}}_Promise) {{.Field.Name|title}}() *{{.Group.Name}}_Promise { return {{.Group.Name}}_Promise(p) }
+{{define "promiseGroup"}}func (p {{.Node.Name}}_Promise) {{.Field.Name|title}}() {{.Group.Name}}_Promise { return {{.Group.Name}}_Promise{p.Pipeline} }
 {{end}}
 
 
