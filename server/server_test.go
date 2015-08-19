@@ -11,7 +11,10 @@ import (
 type echoImpl struct{}
 
 func (echoImpl) Echo(call air.Echo_echo) error {
-	in := call.Params.In()
+	in, err := call.Params.In()
+	if err != nil {
+		return err
+	}
 	call.Results.SetOut(in + in)
 	return nil
 }
@@ -19,14 +22,17 @@ func (echoImpl) Echo(call air.Echo_echo) error {
 func TestServerCall(t *testing.T) {
 	echo := air.Echo_ServerToClient(echoImpl{})
 
-	result, err := echo.Echo(context.Background(), func(p air.Echo_echo_Params) {
-		p.SetIn("foo")
-	}).Get()
+	result, err := echo.Echo(context.Background(), func(p air.Echo_echo_Params) error {
+		err := p.SetIn("foo")
+		return err
+	}).Struct()
 
 	if err != nil {
 		t.Errorf("echo.Echo() error: %v", err)
 	}
-	if out := result.Out(); out != "foofoo" {
+	if out, err := result.Out(); err != nil {
+		t.Errorf("echo.Echo() error: %v", err)
+	} else if out != "foofoo" {
 		t.Errorf("echo.Echo() = %q; want %q", out, "foofoo")
 	}
 }
@@ -43,11 +49,11 @@ func (seq *callSeq) GetNumber(call air.CallSequence_getNumber) error {
 func TestServerCallOrder(t *testing.T) {
 	seq := air.CallSequence_ServerToClient(new(callSeq))
 	ctx := context.Background()
-	send := func() *air.CallSequence_getNumber_Results_Promise {
-		return seq.GetNumber(ctx, func(air.CallSequence_getNumber_Params) {})
+	send := func() air.CallSequence_getNumber_Results_Promise {
+		return seq.GetNumber(ctx, func(air.CallSequence_getNumber_Params) error { return nil })
 	}
-	check := func(p *air.CallSequence_getNumber_Results_Promise, n uint32) {
-		result, err := p.Get()
+	check := func(p air.CallSequence_getNumber_Results_Promise, n uint32) {
+		result, err := p.Struct()
 		if err != nil {
 			t.Errorf("seq.getNumber() error: %v; want %d", err, n)
 		} else if result.N() != n {

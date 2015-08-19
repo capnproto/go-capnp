@@ -28,7 +28,7 @@ func Handle_Methods(methods []server.Method, s Handle_Server) []server.Method {
 
 type HandleFactory struct{ C.Client }
 
-func (c HandleFactory) NewHandle(ctx context.Context, params func(HandleFactory_newHandle_Params), opts ...C.CallOption) HandleFactory_newHandle_Results_Promise {
+func (c HandleFactory) NewHandle(ctx context.Context, params func(HandleFactory_newHandle_Params) error, opts ...C.CallOption) HandleFactory_newHandle_Results_Promise {
 	if c.Client == nil {
 		return HandleFactory_newHandle_Results_Promise{Pipeline: C.NewPipeline(C.ErrorAnswer(C.ErrNullClient))}
 	}
@@ -42,7 +42,7 @@ func (c HandleFactory) NewHandle(ctx context.Context, params func(HandleFactory_
 			MethodName:    "newHandle",
 		},
 		ParamsSize: C.ObjectSize{DataSize: 0, PointerCount: 0},
-		ParamsFunc: func(s C.Struct) { params(HandleFactory_newHandle_Params{Struct: s}) },
+		ParamsFunc: func(s C.Struct) error { return params(HandleFactory_newHandle_Params{Struct: s}) },
 		Options:    C.NewCallOptions(opts),
 	}))}
 }
@@ -222,7 +222,7 @@ func (p HandleFactory_newHandle_Results_Promise) Handle() Handle {
 
 type Hanger struct{ C.Client }
 
-func (c Hanger) Hang(ctx context.Context, params func(Hanger_hang_Params), opts ...C.CallOption) Hanger_hang_Results_Promise {
+func (c Hanger) Hang(ctx context.Context, params func(Hanger_hang_Params) error, opts ...C.CallOption) Hanger_hang_Results_Promise {
 	if c.Client == nil {
 		return Hanger_hang_Results_Promise{Pipeline: C.NewPipeline(C.ErrorAnswer(C.ErrNullClient))}
 	}
@@ -236,7 +236,7 @@ func (c Hanger) Hang(ctx context.Context, params func(Hanger_hang_Params), opts 
 			MethodName:    "hang",
 		},
 		ParamsSize: C.ObjectSize{DataSize: 0, PointerCount: 0},
-		ParamsFunc: func(s C.Struct) { params(Hanger_hang_Params{Struct: s}) },
+		ParamsFunc: func(s C.Struct) error { return params(Hanger_hang_Params{Struct: s}) },
 		Options:    C.NewCallOptions(opts),
 	}))}
 }
@@ -391,7 +391,7 @@ func (p Hanger_hang_Results_Promise) Struct() (Hanger_hang_Results, error) {
 
 type CallOrder struct{ C.Client }
 
-func (c CallOrder) GetCallSequence(ctx context.Context, params func(CallOrder_getCallSequence_Params), opts ...C.CallOption) CallOrder_getCallSequence_Results_Promise {
+func (c CallOrder) GetCallSequence(ctx context.Context, params func(CallOrder_getCallSequence_Params) error, opts ...C.CallOption) CallOrder_getCallSequence_Results_Promise {
 	if c.Client == nil {
 		return CallOrder_getCallSequence_Results_Promise{Pipeline: C.NewPipeline(C.ErrorAnswer(C.ErrNullClient))}
 	}
@@ -405,7 +405,7 @@ func (c CallOrder) GetCallSequence(ctx context.Context, params func(CallOrder_ge
 			MethodName:    "getCallSequence",
 		},
 		ParamsSize: C.ObjectSize{DataSize: 8, PointerCount: 0},
-		ParamsFunc: func(s C.Struct) { params(CallOrder_getCallSequence_Params{Struct: s}) },
+		ParamsFunc: func(s C.Struct) error { return params(CallOrder_getCallSequence_Params{Struct: s}) },
 		Options:    C.NewCallOptions(opts),
 	}))}
 }
@@ -578,7 +578,7 @@ func (p CallOrder_getCallSequence_Results_Promise) Struct() (CallOrder_getCallSe
 
 type Echoer struct{ C.Client }
 
-func (c Echoer) Echo(ctx context.Context, params func(Echoer_echo_Params), opts ...C.CallOption) Echoer_echo_Results_Promise {
+func (c Echoer) Echo(ctx context.Context, params func(Echoer_echo_Params) error, opts ...C.CallOption) Echoer_echo_Results_Promise {
 	if c.Client == nil {
 		return Echoer_echo_Results_Promise{Pipeline: C.NewPipeline(C.ErrorAnswer(C.ErrNullClient))}
 	}
@@ -592,12 +592,12 @@ func (c Echoer) Echo(ctx context.Context, params func(Echoer_echo_Params), opts 
 			MethodName:    "echo",
 		},
 		ParamsSize: C.ObjectSize{DataSize: 0, PointerCount: 1},
-		ParamsFunc: func(s C.Struct) { params(Echoer_echo_Params{Struct: s}) },
+		ParamsFunc: func(s C.Struct) error { return params(Echoer_echo_Params{Struct: s}) },
 		Options:    C.NewCallOptions(opts),
 	}))}
 }
 
-func (c Echoer) GetCallSequence(ctx context.Context, params func(CallOrder_getCallSequence_Params), opts ...C.CallOption) CallOrder_getCallSequence_Results_Promise {
+func (c Echoer) GetCallSequence(ctx context.Context, params func(CallOrder_getCallSequence_Params) error, opts ...C.CallOption) CallOrder_getCallSequence_Results_Promise {
 	if c.Client == nil {
 		return CallOrder_getCallSequence_Results_Promise{Pipeline: C.NewPipeline(C.ErrorAnswer(C.ErrNullClient))}
 	}
@@ -611,7 +611,7 @@ func (c Echoer) GetCallSequence(ctx context.Context, params func(CallOrder_getCa
 			MethodName:    "getCallSequence",
 		},
 		ParamsSize: C.ObjectSize{DataSize: 8, PointerCount: 0},
-		ParamsFunc: func(s C.Struct) { params(CallOrder_getCallSequence_Params{Struct: s}) },
+		ParamsFunc: func(s C.Struct) error { return params(CallOrder_getCallSequence_Params{Struct: s}) },
 		Options:    C.NewCallOptions(opts),
 	}))}
 }
@@ -833,7 +833,7 @@ func (p Echoer_echo_Results_Promise) Cap() CallOrder {
 
 type Adder struct{ C.Client }
 
-func (c Adder) Add(ctx context.Context, params func(Adder_add_Params), opts ...C.CallOption) Adder_add_Results_Promise {
+func (c Adder) Add(ctx context.Context, params func(Adder_add_Params) error, opts ...C.CallOption) Adder_add_Results_Promise {
 	if c.Client == nil {
 		return Adder_add_Results_Promise{Pipeline: C.NewPipeline(C.ErrorAnswer(C.ErrNullClient))}
 	}
@@ -847,7 +847,7 @@ func (c Adder) Add(ctx context.Context, params func(Adder_add_Params), opts ...C
 			MethodName:    "add",
 		},
 		ParamsSize: C.ObjectSize{DataSize: 8, PointerCount: 0},
-		ParamsFunc: func(s C.Struct) { params(Adder_add_Params{Struct: s}) },
+		ParamsFunc: func(s C.Struct) error { return params(Adder_add_Params{Struct: s}) },
 		Options:    C.NewCallOptions(opts),
 	}))}
 }

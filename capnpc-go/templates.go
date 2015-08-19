@@ -407,7 +407,7 @@ func (p {{.Node.Name}}_Promise) {{.Field.Name|title}}() {{.Interface.RemoteName 
 {{end}}type {{.Node.Name}} struct { {{capnp}}.Client }
 
 {{range .Methods}}
-func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{context}}.Context, params func({{.Params.RemoteName $.Node}}), opts ...{{capnp}}.CallOption) {{.Results.RemoteName $.Node}}_Promise {
+func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{context}}.Context, params func({{.Params.RemoteName $.Node}}) error, opts ...{{capnp}}.CallOption) {{.Results.RemoteName $.Node}}_Promise {
 	if c.Client == nil {
 		return {{.Results.RemoteName $.Node}}_Promise{Pipeline: {{capnp}}.NewPipeline({{capnp}}.ErrorAnswer({{capnp}}.ErrNullClient))}
 	}
@@ -417,7 +417,7 @@ func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{context}}.Context, params func({{
 			{{template "_interfaceMethod" .}}
 		},
 		ParamsSize: {{.Params.ObjectSize}},
-		ParamsFunc: func(s {{capnp}}.Struct) { params({{.Params.RemoteName $.Node}}{Struct: s}) },
+		ParamsFunc: func(s {{capnp}}.Struct) error { return params({{.Params.RemoteName $.Node}}{Struct: s}) },
 		Options: {{capnp}}.NewCallOptions(opts),
 	}))}
 }

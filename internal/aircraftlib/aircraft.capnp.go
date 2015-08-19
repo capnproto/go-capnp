@@ -4113,7 +4113,7 @@ func (p ListStructCapn_Promise) Struct() (ListStructCapn, error) {
 
 type Echo struct{ C.Client }
 
-func (c Echo) Echo(ctx context.Context, params func(Echo_echo_Params), opts ...C.CallOption) Echo_echo_Results_Promise {
+func (c Echo) Echo(ctx context.Context, params func(Echo_echo_Params) error, opts ...C.CallOption) Echo_echo_Results_Promise {
 	if c.Client == nil {
 		return Echo_echo_Results_Promise{Pipeline: C.NewPipeline(C.ErrorAnswer(C.ErrNullClient))}
 	}
@@ -4127,7 +4127,7 @@ func (c Echo) Echo(ctx context.Context, params func(Echo_echo_Params), opts ...C
 			MethodName:    "echo",
 		},
 		ParamsSize: C.ObjectSize{DataSize: 0, PointerCount: 1},
-		ParamsFunc: func(s C.Struct) { params(Echo_echo_Params{Struct: s}) },
+		ParamsFunc: func(s C.Struct) error { return params(Echo_echo_Params{Struct: s}) },
 		Options:    C.NewCallOptions(opts),
 	}))}
 }
@@ -4742,7 +4742,7 @@ func (p StackingB_Promise) Struct() (StackingB, error) {
 
 type CallSequence struct{ C.Client }
 
-func (c CallSequence) GetNumber(ctx context.Context, params func(CallSequence_getNumber_Params), opts ...C.CallOption) CallSequence_getNumber_Results_Promise {
+func (c CallSequence) GetNumber(ctx context.Context, params func(CallSequence_getNumber_Params) error, opts ...C.CallOption) CallSequence_getNumber_Results_Promise {
 	if c.Client == nil {
 		return CallSequence_getNumber_Results_Promise{Pipeline: C.NewPipeline(C.ErrorAnswer(C.ErrNullClient))}
 	}
@@ -4756,7 +4756,7 @@ func (c CallSequence) GetNumber(ctx context.Context, params func(CallSequence_ge
 			MethodName:    "getNumber",
 		},
 		ParamsSize: C.ObjectSize{DataSize: 0, PointerCount: 0},
-		ParamsFunc: func(s C.Struct) { params(CallSequence_getNumber_Params{Struct: s}) },
+		ParamsFunc: func(s C.Struct) error { return params(CallSequence_getNumber_Params{Struct: s}) },
 		Options:    C.NewCallOptions(opts),
 	}))}
 }

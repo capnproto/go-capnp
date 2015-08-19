@@ -121,7 +121,7 @@ type Call struct {
 	// struct to allocate.  This is used when application code is using a
 	// client.  These settings should be set together; they are mutually
 	// exclusive with Params.
-	ParamsFunc func(Struct)
+	ParamsFunc func(Struct) error
 	ParamsSize ObjectSize
 
 	// Options passes RPC-specific options for the call.
@@ -147,7 +147,8 @@ func (call *Call) Copy(s *Segment) (*Call, error) {
 }
 
 // PlaceParams returns the parameters struct, allocating it inside
-// segment s as necessary.  If s is nil, a new segment is allocated.
+// segment s as necessary.  If s is nil, a new single-segment message
+// is allocated.
 func (call *Call) PlaceParams(s *Segment) (Struct, error) {
 	if call.ParamsFunc == nil {
 		return call.Params, nil
@@ -163,8 +164,8 @@ func (call *Call) PlaceParams(s *Segment) (Struct, error) {
 	if err != nil {
 		return Struct{}, nil
 	}
-	call.ParamsFunc(p)
-	return p, nil
+	err = call.ParamsFunc(p)
+	return p, err
 }
 
 // CallOptions holds RPC-specific options for an interface call.
