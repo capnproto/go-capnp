@@ -1,7 +1,6 @@
 package capnp_test
 
 import (
-	"encoding/hex"
 	"fmt"
 
 	"zombiezen.com/go/capnproto"
@@ -27,8 +26,6 @@ func ExampleUnmarshal() {
 		fmt.Printf("marshal error %v\n", err)
 		return
 	}
-
-	fmt.Println(hex.EncodeToString(data))
 
 	// Read
 	msg, err = capnp.Unmarshal(data)

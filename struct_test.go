@@ -199,7 +199,7 @@ func TestZserverWithAccessors(t *testing.T) {
 
 			// .At(int)
 			cmd := func(i int) string {
-				s, err := joblist.At(0).Cmd()
+				s, err := joblist.At(i).Cmd()
 				cv.So(err, cv.ShouldEqual, nil)
 				return s
 			}

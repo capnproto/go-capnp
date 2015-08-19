@@ -301,12 +301,11 @@ func makeOffsetKey(p Pointer) offset {
 		key := offset{
 			id:   p.seg.id,
 			boff: int64(p.off) * 8,
-			bend: int64(p.off.addSize(p.size.totalSize())) * 8,
 		}
 		if p.flags&isBitList != 0 {
 			key.bend = int64(p.off)*8 + int64(p.length)
 		} else {
-			key.bend = int64(p.off.addSize(p.size.totalSize())) * 8
+			key.bend = int64(p.off.addSize(p.size.totalSize().times(p.length))) * 8
 		}
 		if p.flags&isCompositeList != 0 {
 			// Composite lists' offsets are after the tag word.

@@ -59,6 +59,9 @@ func TestRawListPointer(t *testing.T) {
 		{0x0000000500000001, 0, byte8List, 0},
 		{0x0000000600000001, 0, pointerList, 0},
 		{0x0000000700000001, 0, compositeList, 0},
+		{0x0000001500000009, 2, byte8List, 2},
+		{0x000000170000002d, 11, compositeList, 2},
+		{0x0000001700000035, 13, compositeList, 2},
 		{0xfffffff8fffffffd, -1, voidList, 0x1fffffff},
 		{0xfffffff9fffffffd, -1, bit1List, 0x1fffffff},
 		{0xfffffffafffffffd, -1, byte1List, 0x1fffffff},
@@ -163,6 +166,67 @@ func TestRawFarPointer(t *testing.T) {
 			if ptr != test.ptr {
 				t.Errorf("rawDoubleFarPointer(%d, %v) = rawPointer(%#016x); want rawPointer(%#016x)", test.seg, test.addr, ptr, test.ptr)
 			}
+		}
+	}
+}
+
+func TestRawPointerElementSize(t *testing.T) {
+	tests := []struct {
+		typ int
+		sz  ObjectSize
+	}{
+		{voidList, ObjectSize{}},
+		{byte1List, ObjectSize{DataSize: 1}},
+		{byte2List, ObjectSize{DataSize: 2}},
+		{byte4List, ObjectSize{DataSize: 4}},
+		{byte8List, ObjectSize{DataSize: 8}},
+		{pointerList, ObjectSize{PointerCount: 1}},
+	}
+	for _, test := range tests {
+		rp := rawListPointer(0, test.typ, 0)
+		if sz := rp.elementSize(); sz != test.sz {
+			t.Errorf("rawListPointer(0, %d, 0).elementSize() = %v; want %v", test.typ, sz, test.sz)
+		}
+	}
+}
+
+func TestRawPointerTotalListSize(t *testing.T) {
+	tests := []struct {
+		typ int
+		n   int32
+		sz  Size
+	}{
+		{voidList, 0, 0},
+		{voidList, 5, 0},
+		{bit1List, 0, 0},
+		{bit1List, 1, 1},
+		{bit1List, 2, 1},
+		{bit1List, 7, 1},
+		{bit1List, 8, 1},
+		{bit1List, 9, 2},
+		{compositeList, 0, 8},
+		{compositeList, 1, 16},
+		{compositeList, 2, 24},
+		{byte1List, 0, 0},
+		{byte1List, 1, 1},
+		{byte1List, 2, 2},
+		{byte2List, 0, 0},
+		{byte2List, 1, 2},
+		{byte2List, 2, 4},
+		{byte4List, 0, 0},
+		{byte4List, 1, 4},
+		{byte4List, 2, 8},
+		{byte8List, 0, 0},
+		{byte8List, 1, 8},
+		{byte8List, 2, 16},
+		{pointerList, 0, 0},
+		{pointerList, 1, 8},
+		{pointerList, 2, 16},
+	}
+	for _, test := range tests {
+		p := rawListPointer(0, test.typ, test.n)
+		if sz := p.totalListSize(); sz != test.sz {
+			t.Errorf("rawListPointer(0, %d, %d).totalListSize() = %d; want %d", test.typ, test.n, sz, test.sz)
 		}
 	}
 }

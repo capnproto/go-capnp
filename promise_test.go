@@ -1,6 +1,7 @@
 package capnp_test
 
 import (
+	"bytes"
 	"testing"
 
 	"zombiezen.com/go/capnproto"
@@ -158,11 +159,27 @@ func TestTransform(t *testing.T) {
 
 	for _, test := range tests {
 		out, err := capnp.Transform(test.p, test.transform)
-		if out != test.out {
+		if !deepPointerEqual(out, test.out) {
 			t.Errorf("Transform(%+v, %v) = %+v; want %+v", test.p, test.transform, out, test.out)
 		}
 		if err != nil {
 			t.Errorf("Transform(%+v, %v) error: %v", test.p, test.transform, err)
 		}
 	}
+}
+
+func deepPointerEqual(a, b capnp.Pointer) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	msgA, _, _ := capnp.NewMessage(capnp.SingleSegment(nil))
+	msgA.SetRoot(a)
+	abytes, _ := msgA.Marshal()
+	msgB, _, _ := capnp.NewMessage(capnp.SingleSegment(nil))
+	msgB.SetRoot(b)
+	bbytes, _ := msgB.Marshal()
+	return bytes.Equal(abytes, bbytes)
 }

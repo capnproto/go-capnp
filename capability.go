@@ -370,7 +370,7 @@ func Transform(p Pointer, transform []PipelineOp) (Pointer, error) {
 	if n == 0 {
 		return p, nil
 	}
-	s, _ := p.(Struct)
+	s := ToStruct(p)
 	for _, op := range transform[:n-1] {
 		field, err := s.Pointer(op.Field)
 		if err != nil {

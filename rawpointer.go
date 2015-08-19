@@ -122,7 +122,7 @@ func (p rawPointer) elementSize() ObjectSize {
 	case byte8List:
 		return ObjectSize{DataSize: 8}
 	case pointerList:
-		return ObjectSize{DataSize: wordSize}
+		return ObjectSize{PointerCount: 1}
 	default:
 		panic("elementSize not supposed to be called on composite or unknown list type")
 	}
@@ -135,13 +135,12 @@ func (p rawPointer) totalListSize() Size {
 	case voidList:
 		return 0
 	case bit1List:
-		nbytes := (n + 7) / 8
-		return Size(nbytes).padToWord()
+		return Size((n + 7) / 8)
 	case compositeList:
 		// For a composite list, n represents the number of words (excluding the tag word).
 		return wordSize.times(n + 1)
 	default:
-		return p.elementSize().totalSize().times(n).padToWord()
+		return p.elementSize().totalSize().times(n)
 	}
 }
 

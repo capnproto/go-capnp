@@ -1,7 +1,9 @@
 package capnp
 
-import "errors"
-import "math"
+import (
+	"errors"
+	"math"
+)
 
 // A List is a reference to an array of values.
 type List struct {
