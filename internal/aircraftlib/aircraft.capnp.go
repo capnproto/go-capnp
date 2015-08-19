@@ -83,7 +83,7 @@ func (s Zdate_List) Set(i int, v Zdate) error { return s.List.SetStruct(i, v.Str
 // Zdate_Promise is a wrapper for a Zdate promised by a client call.
 type Zdate_Promise struct{ *C.Pipeline }
 
-func (p *Zdate_Promise) Struct() (Zdate, error) {
+func (p Zdate_Promise) Struct() (Zdate, error) {
 	s, err := p.Pipeline.Struct()
 	return Zdate{s}, err
 }
@@ -152,7 +152,7 @@ func (s Zdata_List) Set(i int, v Zdata) error { return s.List.SetStruct(i, v.Str
 // Zdata_Promise is a wrapper for a Zdata promised by a client call.
 type Zdata_Promise struct{ *C.Pipeline }
 
-func (p *Zdata_Promise) Struct() (Zdata, error) {
+func (p Zdata_Promise) Struct() (Zdata, error) {
 	s, err := p.Pipeline.Struct()
 	return Zdata{s}, err
 }
@@ -356,7 +356,7 @@ func (s PlaneBase_List) Set(i int, v PlaneBase) error { return s.List.SetStruct(
 // PlaneBase_Promise is a wrapper for a PlaneBase promised by a client call.
 type PlaneBase_Promise struct{ *C.Pipeline }
 
-func (p *PlaneBase_Promise) Struct() (PlaneBase, error) {
+func (p PlaneBase_Promise) Struct() (PlaneBase, error) {
 	s, err := p.Pipeline.Struct()
 	return PlaneBase{s}, err
 }
@@ -422,12 +422,12 @@ func (s B737_List) Set(i int, v B737) error { return s.List.SetStruct(i, v.Struc
 // B737_Promise is a wrapper for a B737 promised by a client call.
 type B737_Promise struct{ *C.Pipeline }
 
-func (p *B737_Promise) Struct() (B737, error) {
+func (p B737_Promise) Struct() (B737, error) {
 	s, err := p.Pipeline.Struct()
 	return B737{s}, err
 }
 
-func (p *B737_Promise) Base() PlaneBase_Promise {
+func (p B737_Promise) Base() PlaneBase_Promise {
 	return PlaneBase_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
@@ -492,12 +492,12 @@ func (s A320_List) Set(i int, v A320) error { return s.List.SetStruct(i, v.Struc
 // A320_Promise is a wrapper for a A320 promised by a client call.
 type A320_Promise struct{ *C.Pipeline }
 
-func (p *A320_Promise) Struct() (A320, error) {
+func (p A320_Promise) Struct() (A320, error) {
 	s, err := p.Pipeline.Struct()
 	return A320{s}, err
 }
 
-func (p *A320_Promise) Base() PlaneBase_Promise {
+func (p A320_Promise) Base() PlaneBase_Promise {
 	return PlaneBase_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
@@ -562,12 +562,12 @@ func (s F16_List) Set(i int, v F16) error { return s.List.SetStruct(i, v.Struct)
 // F16_Promise is a wrapper for a F16 promised by a client call.
 type F16_Promise struct{ *C.Pipeline }
 
-func (p *F16_Promise) Struct() (F16, error) {
+func (p F16_Promise) Struct() (F16, error) {
 	s, err := p.Pipeline.Struct()
 	return F16{s}, err
 }
 
-func (p *F16_Promise) Base() PlaneBase_Promise {
+func (p F16_Promise) Base() PlaneBase_Promise {
 	return PlaneBase_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
@@ -697,12 +697,12 @@ func (s Regression_List) Set(i int, v Regression) error { return s.List.SetStruc
 // Regression_Promise is a wrapper for a Regression promised by a client call.
 type Regression_Promise struct{ *C.Pipeline }
 
-func (p *Regression_Promise) Struct() (Regression, error) {
+func (p Regression_Promise) Struct() (Regression, error) {
 	s, err := p.Pipeline.Struct()
 	return Regression{s}, err
 }
 
-func (p *Regression_Promise) Base() PlaneBase_Promise {
+func (p Regression_Promise) Base() PlaneBase_Promise {
 	return PlaneBase_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
@@ -831,20 +831,20 @@ func (s Aircraft_List) Set(i int, v Aircraft) error { return s.List.SetStruct(i,
 // Aircraft_Promise is a wrapper for a Aircraft promised by a client call.
 type Aircraft_Promise struct{ *C.Pipeline }
 
-func (p *Aircraft_Promise) Struct() (Aircraft, error) {
+func (p Aircraft_Promise) Struct() (Aircraft, error) {
 	s, err := p.Pipeline.Struct()
 	return Aircraft{s}, err
 }
 
-func (p *Aircraft_Promise) B737() B737_Promise {
+func (p Aircraft_Promise) B737() B737_Promise {
 	return B737_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p *Aircraft_Promise) A320() A320_Promise {
+func (p Aircraft_Promise) A320() A320_Promise {
 	return A320_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p *Aircraft_Promise) F16() F16_Promise {
+func (p Aircraft_Promise) F16() F16_Promise {
 	return F16_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
@@ -1627,44 +1627,44 @@ func (s Z_List) Set(i int, v Z) error { return s.List.SetStruct(i, v.Struct) }
 // Z_Promise is a wrapper for a Z promised by a client call.
 type Z_Promise struct{ *C.Pipeline }
 
-func (p *Z_Promise) Struct() (Z, error) {
+func (p Z_Promise) Struct() (Z, error) {
 	s, err := p.Pipeline.Struct()
 	return Z{s}, err
 }
 
-func (p *Z_Promise) Zz() Z_Promise {
+func (p Z_Promise) Zz() Z_Promise {
 	return Z_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p *Z_Promise) Zdate() Zdate_Promise {
+func (p Z_Promise) Zdate() Zdate_Promise {
 	return Zdate_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p *Z_Promise) Zdata() Zdata_Promise {
+func (p Z_Promise) Zdata() Zdata_Promise {
 	return Zdata_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p *Z_Promise) Aircraft() Aircraft_Promise {
+func (p Z_Promise) Aircraft() Aircraft_Promise {
 	return Aircraft_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p *Z_Promise) Regression() Regression_Promise {
+func (p Z_Promise) Regression() Regression_Promise {
 	return Regression_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p *Z_Promise) Planebase() PlaneBase_Promise {
+func (p Z_Promise) Planebase() PlaneBase_Promise {
 	return PlaneBase_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p *Z_Promise) B737() B737_Promise {
+func (p Z_Promise) B737() B737_Promise {
 	return B737_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p *Z_Promise) A320() A320_Promise {
+func (p Z_Promise) A320() A320_Promise {
 	return A320_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p *Z_Promise) F16() F16_Promise {
+func (p Z_Promise) F16() F16_Promise {
 	return F16_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
@@ -1760,7 +1760,7 @@ func (s Counter_List) Set(i int, v Counter) error { return s.List.SetStruct(i, v
 // Counter_Promise is a wrapper for a Counter promised by a client call.
 type Counter_Promise struct{ *C.Pipeline }
 
-func (p *Counter_Promise) Struct() (Counter, error) {
+func (p Counter_Promise) Struct() (Counter, error) {
 	s, err := p.Pipeline.Struct()
 	return Counter{s}, err
 }
@@ -1826,12 +1826,12 @@ func (s Bag_List) Set(i int, v Bag) error { return s.List.SetStruct(i, v.Struct)
 // Bag_Promise is a wrapper for a Bag promised by a client call.
 type Bag_Promise struct{ *C.Pipeline }
 
-func (p *Bag_Promise) Struct() (Bag, error) {
+func (p Bag_Promise) Struct() (Bag, error) {
 	s, err := p.Pipeline.Struct()
 	return Bag{s}, err
 }
 
-func (p *Bag_Promise) Counter() Counter_Promise {
+func (p Bag_Promise) Counter() Counter_Promise {
 	return Counter_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
@@ -1899,7 +1899,7 @@ func (s Zserver_List) Set(i int, v Zserver) error { return s.List.SetStruct(i, v
 // Zserver_Promise is a wrapper for a Zserver promised by a client call.
 type Zserver_Promise struct{ *C.Pipeline }
 
-func (p *Zserver_Promise) Struct() (Zserver, error) {
+func (p Zserver_Promise) Struct() (Zserver, error) {
 	s, err := p.Pipeline.Struct()
 	return Zserver{s}, err
 }
@@ -1987,7 +1987,7 @@ func (s Zjob_List) Set(i int, v Zjob) error { return s.List.SetStruct(i, v.Struc
 // Zjob_Promise is a wrapper for a Zjob promised by a client call.
 type Zjob_Promise struct{ *C.Pipeline }
 
-func (p *Zjob_Promise) Struct() (Zjob, error) {
+func (p Zjob_Promise) Struct() (Zjob, error) {
 	s, err := p.Pipeline.Struct()
 	return Zjob{s}, err
 }
@@ -2037,7 +2037,7 @@ func (s VerEmpty_List) Set(i int, v VerEmpty) error { return s.List.SetStruct(i,
 // VerEmpty_Promise is a wrapper for a VerEmpty promised by a client call.
 type VerEmpty_Promise struct{ *C.Pipeline }
 
-func (p *VerEmpty_Promise) Struct() (VerEmpty, error) {
+func (p VerEmpty_Promise) Struct() (VerEmpty, error) {
 	s, err := p.Pipeline.Struct()
 	return VerEmpty{s}, err
 }
@@ -2096,7 +2096,7 @@ func (s VerOneData_List) Set(i int, v VerOneData) error { return s.List.SetStruc
 // VerOneData_Promise is a wrapper for a VerOneData promised by a client call.
 type VerOneData_Promise struct{ *C.Pipeline }
 
-func (p *VerOneData_Promise) Struct() (VerOneData, error) {
+func (p VerOneData_Promise) Struct() (VerOneData, error) {
 	s, err := p.Pipeline.Struct()
 	return VerOneData{s}, err
 }
@@ -2164,7 +2164,7 @@ func (s VerTwoData_List) Set(i int, v VerTwoData) error { return s.List.SetStruc
 // VerTwoData_Promise is a wrapper for a VerTwoData promised by a client call.
 type VerTwoData_Promise struct{ *C.Pipeline }
 
-func (p *VerTwoData_Promise) Struct() (VerTwoData, error) {
+func (p VerTwoData_Promise) Struct() (VerTwoData, error) {
 	s, err := p.Pipeline.Struct()
 	return VerTwoData{s}, err
 }
@@ -2230,12 +2230,12 @@ func (s VerOnePtr_List) Set(i int, v VerOnePtr) error { return s.List.SetStruct(
 // VerOnePtr_Promise is a wrapper for a VerOnePtr promised by a client call.
 type VerOnePtr_Promise struct{ *C.Pipeline }
 
-func (p *VerOnePtr_Promise) Struct() (VerOnePtr, error) {
+func (p VerOnePtr_Promise) Struct() (VerOnePtr, error) {
 	s, err := p.Pipeline.Struct()
 	return VerOnePtr{s}, err
 }
 
-func (p *VerOnePtr_Promise) Ptr() VerOneData_Promise {
+func (p VerOnePtr_Promise) Ptr() VerOneData_Promise {
 	return VerOneData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
@@ -2316,16 +2316,16 @@ func (s VerTwoPtr_List) Set(i int, v VerTwoPtr) error { return s.List.SetStruct(
 // VerTwoPtr_Promise is a wrapper for a VerTwoPtr promised by a client call.
 type VerTwoPtr_Promise struct{ *C.Pipeline }
 
-func (p *VerTwoPtr_Promise) Struct() (VerTwoPtr, error) {
+func (p VerTwoPtr_Promise) Struct() (VerTwoPtr, error) {
 	s, err := p.Pipeline.Struct()
 	return VerTwoPtr{s}, err
 }
 
-func (p *VerTwoPtr_Promise) Ptr1() VerOneData_Promise {
+func (p VerTwoPtr_Promise) Ptr1() VerOneData_Promise {
 	return VerOneData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p *VerTwoPtr_Promise) Ptr2() VerOneData_Promise {
+func (p VerTwoPtr_Promise) Ptr2() VerOneData_Promise {
 	return VerOneData_Promise{Pipeline: p.Pipeline.GetPipeline(1)}
 }
 
@@ -2426,16 +2426,16 @@ func (s VerTwoDataTwoPtr_List) Set(i int, v VerTwoDataTwoPtr) error {
 // VerTwoDataTwoPtr_Promise is a wrapper for a VerTwoDataTwoPtr promised by a client call.
 type VerTwoDataTwoPtr_Promise struct{ *C.Pipeline }
 
-func (p *VerTwoDataTwoPtr_Promise) Struct() (VerTwoDataTwoPtr, error) {
+func (p VerTwoDataTwoPtr_Promise) Struct() (VerTwoDataTwoPtr, error) {
 	s, err := p.Pipeline.Struct()
 	return VerTwoDataTwoPtr{s}, err
 }
 
-func (p *VerTwoDataTwoPtr_Promise) Ptr1() VerOneData_Promise {
+func (p VerTwoDataTwoPtr_Promise) Ptr1() VerOneData_Promise {
 	return VerOneData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p *VerTwoDataTwoPtr_Promise) Ptr2() VerOneData_Promise {
+func (p VerTwoDataTwoPtr_Promise) Ptr2() VerOneData_Promise {
 	return VerOneData_Promise{Pipeline: p.Pipeline.GetPipeline(1)}
 }
 
@@ -2507,7 +2507,7 @@ func (s HoldsVerEmptyList_List) Set(i int, v HoldsVerEmptyList) error {
 // HoldsVerEmptyList_Promise is a wrapper for a HoldsVerEmptyList promised by a client call.
 type HoldsVerEmptyList_Promise struct{ *C.Pipeline }
 
-func (p *HoldsVerEmptyList_Promise) Struct() (HoldsVerEmptyList, error) {
+func (p HoldsVerEmptyList_Promise) Struct() (HoldsVerEmptyList, error) {
 	s, err := p.Pipeline.Struct()
 	return HoldsVerEmptyList{s}, err
 }
@@ -2580,7 +2580,7 @@ func (s HoldsVerOneDataList_List) Set(i int, v HoldsVerOneDataList) error {
 // HoldsVerOneDataList_Promise is a wrapper for a HoldsVerOneDataList promised by a client call.
 type HoldsVerOneDataList_Promise struct{ *C.Pipeline }
 
-func (p *HoldsVerOneDataList_Promise) Struct() (HoldsVerOneDataList, error) {
+func (p HoldsVerOneDataList_Promise) Struct() (HoldsVerOneDataList, error) {
 	s, err := p.Pipeline.Struct()
 	return HoldsVerOneDataList{s}, err
 }
@@ -2653,7 +2653,7 @@ func (s HoldsVerTwoDataList_List) Set(i int, v HoldsVerTwoDataList) error {
 // HoldsVerTwoDataList_Promise is a wrapper for a HoldsVerTwoDataList promised by a client call.
 type HoldsVerTwoDataList_Promise struct{ *C.Pipeline }
 
-func (p *HoldsVerTwoDataList_Promise) Struct() (HoldsVerTwoDataList, error) {
+func (p HoldsVerTwoDataList_Promise) Struct() (HoldsVerTwoDataList, error) {
 	s, err := p.Pipeline.Struct()
 	return HoldsVerTwoDataList{s}, err
 }
@@ -2726,7 +2726,7 @@ func (s HoldsVerOnePtrList_List) Set(i int, v HoldsVerOnePtrList) error {
 // HoldsVerOnePtrList_Promise is a wrapper for a HoldsVerOnePtrList promised by a client call.
 type HoldsVerOnePtrList_Promise struct{ *C.Pipeline }
 
-func (p *HoldsVerOnePtrList_Promise) Struct() (HoldsVerOnePtrList, error) {
+func (p HoldsVerOnePtrList_Promise) Struct() (HoldsVerOnePtrList, error) {
 	s, err := p.Pipeline.Struct()
 	return HoldsVerOnePtrList{s}, err
 }
@@ -2799,7 +2799,7 @@ func (s HoldsVerTwoPtrList_List) Set(i int, v HoldsVerTwoPtrList) error {
 // HoldsVerTwoPtrList_Promise is a wrapper for a HoldsVerTwoPtrList promised by a client call.
 type HoldsVerTwoPtrList_Promise struct{ *C.Pipeline }
 
-func (p *HoldsVerTwoPtrList_Promise) Struct() (HoldsVerTwoPtrList, error) {
+func (p HoldsVerTwoPtrList_Promise) Struct() (HoldsVerTwoPtrList, error) {
 	s, err := p.Pipeline.Struct()
 	return HoldsVerTwoPtrList{s}, err
 }
@@ -2872,7 +2872,7 @@ func (s HoldsVerTwoTwoList_List) Set(i int, v HoldsVerTwoTwoList) error {
 // HoldsVerTwoTwoList_Promise is a wrapper for a HoldsVerTwoTwoList promised by a client call.
 type HoldsVerTwoTwoList_Promise struct{ *C.Pipeline }
 
-func (p *HoldsVerTwoTwoList_Promise) Struct() (HoldsVerTwoTwoList, error) {
+func (p HoldsVerTwoTwoList_Promise) Struct() (HoldsVerTwoTwoList, error) {
 	s, err := p.Pipeline.Struct()
 	return HoldsVerTwoTwoList{s}, err
 }
@@ -2945,7 +2945,7 @@ func (s HoldsVerTwoTwoPlus_List) Set(i int, v HoldsVerTwoTwoPlus) error {
 // HoldsVerTwoTwoPlus_Promise is a wrapper for a HoldsVerTwoTwoPlus promised by a client call.
 type HoldsVerTwoTwoPlus_Promise struct{ *C.Pipeline }
 
-func (p *HoldsVerTwoTwoPlus_Promise) Struct() (HoldsVerTwoTwoPlus, error) {
+func (p HoldsVerTwoTwoPlus_Promise) Struct() (HoldsVerTwoTwoPlus, error) {
 	s, err := p.Pipeline.Struct()
 	return HoldsVerTwoTwoPlus{s}, err
 }
@@ -3073,16 +3073,16 @@ func (s VerTwoTwoPlus_List) Set(i int, v VerTwoTwoPlus) error { return s.List.Se
 // VerTwoTwoPlus_Promise is a wrapper for a VerTwoTwoPlus promised by a client call.
 type VerTwoTwoPlus_Promise struct{ *C.Pipeline }
 
-func (p *VerTwoTwoPlus_Promise) Struct() (VerTwoTwoPlus, error) {
+func (p VerTwoTwoPlus_Promise) Struct() (VerTwoTwoPlus, error) {
 	s, err := p.Pipeline.Struct()
 	return VerTwoTwoPlus{s}, err
 }
 
-func (p *VerTwoTwoPlus_Promise) Ptr1() VerTwoDataTwoPtr_Promise {
+func (p VerTwoTwoPlus_Promise) Ptr1() VerTwoDataTwoPtr_Promise {
 	return VerTwoDataTwoPtr_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p *VerTwoTwoPlus_Promise) Ptr2() VerTwoDataTwoPtr_Promise {
+func (p VerTwoTwoPlus_Promise) Ptr2() VerTwoDataTwoPtr_Promise {
 	return VerTwoDataTwoPtr_Promise{Pipeline: p.Pipeline.GetPipeline(1)}
 }
 
@@ -3188,7 +3188,7 @@ func (s HoldsText_List) Set(i int, v HoldsText) error { return s.List.SetStruct(
 // HoldsText_Promise is a wrapper for a HoldsText promised by a client call.
 type HoldsText_Promise struct{ *C.Pipeline }
 
-func (p *HoldsText_Promise) Struct() (HoldsText, error) {
+func (p HoldsText_Promise) Struct() (HoldsText, error) {
 	s, err := p.Pipeline.Struct()
 	return HoldsText{s}, err
 }
@@ -3254,12 +3254,12 @@ func (s WrapEmpty_List) Set(i int, v WrapEmpty) error { return s.List.SetStruct(
 // WrapEmpty_Promise is a wrapper for a WrapEmpty promised by a client call.
 type WrapEmpty_Promise struct{ *C.Pipeline }
 
-func (p *WrapEmpty_Promise) Struct() (WrapEmpty, error) {
+func (p WrapEmpty_Promise) Struct() (WrapEmpty, error) {
 	s, err := p.Pipeline.Struct()
 	return WrapEmpty{s}, err
 }
 
-func (p *WrapEmpty_Promise) MightNotBeReallyEmpty() VerEmpty_Promise {
+func (p WrapEmpty_Promise) MightNotBeReallyEmpty() VerEmpty_Promise {
 	return VerEmpty_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
@@ -3324,12 +3324,12 @@ func (s Wrap2x2_List) Set(i int, v Wrap2x2) error { return s.List.SetStruct(i, v
 // Wrap2x2_Promise is a wrapper for a Wrap2x2 promised by a client call.
 type Wrap2x2_Promise struct{ *C.Pipeline }
 
-func (p *Wrap2x2_Promise) Struct() (Wrap2x2, error) {
+func (p Wrap2x2_Promise) Struct() (Wrap2x2, error) {
 	s, err := p.Pipeline.Struct()
 	return Wrap2x2{s}, err
 }
 
-func (p *Wrap2x2_Promise) MightNotBeReallyEmpty() VerTwoDataTwoPtr_Promise {
+func (p Wrap2x2_Promise) MightNotBeReallyEmpty() VerTwoDataTwoPtr_Promise {
 	return VerTwoDataTwoPtr_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
@@ -3394,12 +3394,12 @@ func (s Wrap2x2plus_List) Set(i int, v Wrap2x2plus) error { return s.List.SetStr
 // Wrap2x2plus_Promise is a wrapper for a Wrap2x2plus promised by a client call.
 type Wrap2x2plus_Promise struct{ *C.Pipeline }
 
-func (p *Wrap2x2plus_Promise) Struct() (Wrap2x2plus, error) {
+func (p Wrap2x2plus_Promise) Struct() (Wrap2x2plus, error) {
 	s, err := p.Pipeline.Struct()
 	return Wrap2x2plus{s}, err
 }
 
-func (p *Wrap2x2plus_Promise) MightNotBeReallyEmpty() VerTwoTwoPlus_Promise {
+func (p Wrap2x2plus_Promise) MightNotBeReallyEmpty() VerTwoTwoPlus_Promise {
 	return VerTwoTwoPlus_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
@@ -3495,7 +3495,7 @@ func (s Endpoint_List) Set(i int, v Endpoint) error { return s.List.SetStruct(i,
 // Endpoint_Promise is a wrapper for a Endpoint promised by a client call.
 type Endpoint_Promise struct{ *C.Pipeline }
 
-func (p *Endpoint_Promise) Struct() (Endpoint, error) {
+func (p Endpoint_Promise) Struct() (Endpoint, error) {
 	s, err := p.Pipeline.Struct()
 	return Endpoint{s}, err
 }
@@ -3575,7 +3575,7 @@ func (s VoidUnion_List) Set(i int, v VoidUnion) error { return s.List.SetStruct(
 // VoidUnion_Promise is a wrapper for a VoidUnion promised by a client call.
 type VoidUnion_Promise struct{ *C.Pipeline }
 
-func (p *VoidUnion_Promise) Struct() (VoidUnion, error) {
+func (p VoidUnion_Promise) Struct() (VoidUnion, error) {
 	s, err := p.Pipeline.Struct()
 	return VoidUnion{s}, err
 }
@@ -3644,7 +3644,7 @@ func (s Nester1Capn_List) Set(i int, v Nester1Capn) error { return s.List.SetStr
 // Nester1Capn_Promise is a wrapper for a Nester1Capn promised by a client call.
 type Nester1Capn_Promise struct{ *C.Pipeline }
 
-func (p *Nester1Capn_Promise) Struct() (Nester1Capn, error) {
+func (p Nester1Capn_Promise) Struct() (Nester1Capn, error) {
 	s, err := p.Pipeline.Struct()
 	return Nester1Capn{s}, err
 }
@@ -3713,7 +3713,7 @@ func (s RWTestCapn_List) Set(i int, v RWTestCapn) error { return s.List.SetStruc
 // RWTestCapn_Promise is a wrapper for a RWTestCapn promised by a client call.
 type RWTestCapn_Promise struct{ *C.Pipeline }
 
-func (p *RWTestCapn_Promise) Struct() (RWTestCapn, error) {
+func (p RWTestCapn_Promise) Struct() (RWTestCapn, error) {
 	s, err := p.Pipeline.Struct()
 	return RWTestCapn{s}, err
 }
@@ -3782,7 +3782,7 @@ func (s ListStructCapn_List) Set(i int, v ListStructCapn) error { return s.List.
 // ListStructCapn_Promise is a wrapper for a ListStructCapn promised by a client call.
 type ListStructCapn_Promise struct{ *C.Pipeline }
 
-func (p *ListStructCapn_Promise) Struct() (ListStructCapn, error) {
+func (p ListStructCapn_Promise) Struct() (ListStructCapn, error) {
 	s, err := p.Pipeline.Struct()
 	return ListStructCapn{s}, err
 }
@@ -3914,7 +3914,7 @@ func (s Echo_echo_Params_List) Set(i int, v Echo_echo_Params) error {
 // Echo_echo_Params_Promise is a wrapper for a Echo_echo_Params promised by a client call.
 type Echo_echo_Params_Promise struct{ *C.Pipeline }
 
-func (p *Echo_echo_Params_Promise) Struct() (Echo_echo_Params, error) {
+func (p Echo_echo_Params_Promise) Struct() (Echo_echo_Params, error) {
 	s, err := p.Pipeline.Struct()
 	return Echo_echo_Params{s}, err
 }
@@ -3987,7 +3987,7 @@ func (s Echo_echo_Results_List) Set(i int, v Echo_echo_Results) error {
 // Echo_echo_Results_Promise is a wrapper for a Echo_echo_Results promised by a client call.
 type Echo_echo_Results_Promise struct{ *C.Pipeline }
 
-func (p *Echo_echo_Results_Promise) Struct() (Echo_echo_Results, error) {
+func (p Echo_echo_Results_Promise) Struct() (Echo_echo_Results, error) {
 	s, err := p.Pipeline.Struct()
 	return Echo_echo_Results{s}, err
 }
@@ -4053,12 +4053,12 @@ func (s Hoth_List) Set(i int, v Hoth) error { return s.List.SetStruct(i, v.Struc
 // Hoth_Promise is a wrapper for a Hoth promised by a client call.
 type Hoth_Promise struct{ *C.Pipeline }
 
-func (p *Hoth_Promise) Struct() (Hoth, error) {
+func (p Hoth_Promise) Struct() (Hoth, error) {
 	s, err := p.Pipeline.Struct()
 	return Hoth{s}, err
 }
 
-func (p *Hoth_Promise) Base() EchoBase_Promise {
+func (p Hoth_Promise) Base() EchoBase_Promise {
 	return EchoBase_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
@@ -4128,12 +4128,12 @@ func (s EchoBase_List) Set(i int, v EchoBase) error { return s.List.SetStruct(i,
 // EchoBase_Promise is a wrapper for a EchoBase promised by a client call.
 type EchoBase_Promise struct{ *C.Pipeline }
 
-func (p *EchoBase_Promise) Struct() (EchoBase, error) {
+func (p EchoBase_Promise) Struct() (EchoBase, error) {
 	s, err := p.Pipeline.Struct()
 	return EchoBase{s}, err
 }
 
-func (p *EchoBase_Promise) Echo() Echo {
+func (p EchoBase_Promise) Echo() Echo {
 	return Echo{Client: p.Pipeline.GetPipeline(0).Client()}
 }
 
@@ -4217,16 +4217,16 @@ func (s StackingRoot_List) Set(i int, v StackingRoot) error { return s.List.SetS
 // StackingRoot_Promise is a wrapper for a StackingRoot promised by a client call.
 type StackingRoot_Promise struct{ *C.Pipeline }
 
-func (p *StackingRoot_Promise) Struct() (StackingRoot, error) {
+func (p StackingRoot_Promise) Struct() (StackingRoot, error) {
 	s, err := p.Pipeline.Struct()
 	return StackingRoot{s}, err
 }
 
-func (p *StackingRoot_Promise) A() StackingA_Promise {
+func (p StackingRoot_Promise) A() StackingA_Promise {
 	return StackingA_Promise{Pipeline: p.Pipeline.GetPipeline(1)}
 }
 
-func (p *StackingRoot_Promise) AWithDefault() StackingA_Promise {
+func (p StackingRoot_Promise) AWithDefault() StackingA_Promise {
 	return StackingA_Promise{Pipeline: p.Pipeline.GetPipelineDefault(0, x_832bcc6686a26d56[592:624])}
 }
 
@@ -4300,12 +4300,12 @@ func (s StackingA_List) Set(i int, v StackingA) error { return s.List.SetStruct(
 // StackingA_Promise is a wrapper for a StackingA promised by a client call.
 type StackingA_Promise struct{ *C.Pipeline }
 
-func (p *StackingA_Promise) Struct() (StackingA, error) {
+func (p StackingA_Promise) Struct() (StackingA, error) {
 	s, err := p.Pipeline.Struct()
 	return StackingA{s}, err
 }
 
-func (p *StackingA_Promise) B() StackingB_Promise {
+func (p StackingA_Promise) B() StackingB_Promise {
 	return StackingB_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
@@ -4363,7 +4363,7 @@ func (s StackingB_List) Set(i int, v StackingB) error { return s.List.SetStruct(
 // StackingB_Promise is a wrapper for a StackingB promised by a client call.
 type StackingB_Promise struct{ *C.Pipeline }
 
-func (p *StackingB_Promise) Struct() (StackingB, error) {
+func (p StackingB_Promise) Struct() (StackingB, error) {
 	s, err := p.Pipeline.Struct()
 	return StackingB{s}, err
 }
@@ -4478,7 +4478,7 @@ func (s CallSequence_getNumber_Params_List) Set(i int, v CallSequence_getNumber_
 // CallSequence_getNumber_Params_Promise is a wrapper for a CallSequence_getNumber_Params promised by a client call.
 type CallSequence_getNumber_Params_Promise struct{ *C.Pipeline }
 
-func (p *CallSequence_getNumber_Params_Promise) Struct() (CallSequence_getNumber_Params, error) {
+func (p CallSequence_getNumber_Params_Promise) Struct() (CallSequence_getNumber_Params, error) {
 	s, err := p.Pipeline.Struct()
 	return CallSequence_getNumber_Params{s}, err
 }
@@ -4541,7 +4541,7 @@ func (s CallSequence_getNumber_Results_List) Set(i int, v CallSequence_getNumber
 // CallSequence_getNumber_Results_Promise is a wrapper for a CallSequence_getNumber_Results promised by a client call.
 type CallSequence_getNumber_Results_Promise struct{ *C.Pipeline }
 
-func (p *CallSequence_getNumber_Results_Promise) Struct() (CallSequence_getNumber_Results, error) {
+func (p CallSequence_getNumber_Results_Promise) Struct() (CallSequence_getNumber_Results, error) {
 	s, err := p.Pipeline.Struct()
 	return CallSequence_getNumber_Results{s}, err
 }

@@ -28,23 +28,23 @@ func Handle_Methods(methods []server.Method, s Handle_Server) []server.Method {
 
 type HandleFactory struct{ C.Client }
 
-func (c HandleFactory) NewHandle(ctx context.Context, params func(HandleFactory_newHandle_Params), opts ...C.CallOption) *HandleFactory_newHandle_Results_Promise {
+func (c HandleFactory) NewHandle(ctx context.Context, params func(HandleFactory_newHandle_Params), opts ...C.CallOption) HandleFactory_newHandle_Results_Promise {
 	if c.Client == nil {
-		return (*HandleFactory_newHandle_Results_Promise)(C.NewPipeline(C.ErrorAnswer(C.ErrNullClient)))
+		return HandleFactory_newHandle_Results_Promise{Pipeline: C.NewPipeline(C.ErrorAnswer(C.ErrNullClient))}
 	}
-	return (*HandleFactory_newHandle_Results_Promise)(C.NewPipeline(c.Client.Call(&C.Call{
+	return HandleFactory_newHandle_Results_Promise{Pipeline: C.NewPipeline(c.Client.Call(&C.Call{
 		Ctx: ctx,
 		Method: C.Method{
 
 			InterfaceID:   0x8491a7fe75fe0bce,
 			MethodID:      0,
-			InterfaceName: "rpc/internal/testcapnp/test.capnp:HandleFactory",
+			InterfaceName: "test.capnp:HandleFactory",
 			MethodName:    "newHandle",
 		},
 		ParamsSize: C.ObjectSize{DataSize: 0, PointerCount: 0},
 		ParamsFunc: func(s C.Struct) { params(HandleFactory_newHandle_Params{Struct: s}) },
 		Options:    C.NewCallOptions(opts),
-	})))
+	}))}
 }
 
 type HandleFactory_Server interface {
@@ -66,7 +66,7 @@ func HandleFactory_Methods(methods []server.Method, s HandleFactory_Server) []se
 
 			InterfaceID:   0x8491a7fe75fe0bce,
 			MethodID:      0,
-			InterfaceName: "rpc/internal/testcapnp/test.capnp:HandleFactory",
+			InterfaceName: "test.capnp:HandleFactory",
 			MethodName:    "newHandle",
 		},
 		Impl: func(c context.Context, opts C.CallOptions, p, r C.Struct) error {
@@ -129,13 +129,14 @@ func NewHandleFactory_newHandle_Params_List(s *C.Segment, sz int32) (HandleFacto
 func (s HandleFactory_newHandle_Params_List) At(i int) HandleFactory_newHandle_Params {
 	return HandleFactory_newHandle_Params{s.List.Struct(i)}
 }
-func (s HandleFactory_newHandle_Params_List) Set(i int, v HandleFactory_newHandle_Params) {
-	s.List.SetStruct(i, v.Struct)
+func (s HandleFactory_newHandle_Params_List) Set(i int, v HandleFactory_newHandle_Params) error {
+	return s.List.SetStruct(i, v.Struct)
 }
 
-type HandleFactory_newHandle_Params_Promise struct{ C.Pipeline }
+// HandleFactory_newHandle_Params_Promise is a wrapper for a HandleFactory_newHandle_Params promised by a client call.
+type HandleFactory_newHandle_Params_Promise struct{ *C.Pipeline }
 
-func (p *HandleFactory_newHandle_Params_Promise) Struct() (HandleFactory_newHandle_Params, error) {
+func (p HandleFactory_newHandle_Params_Promise) Struct() (HandleFactory_newHandle_Params, error) {
 	s, err := p.Pipeline.Struct()
 	return HandleFactory_newHandle_Params{s}, err
 }
@@ -185,7 +186,7 @@ func (s HandleFactory_newHandle_Results) SetHandle(v Handle) error {
 		return nil
 	}
 	ci := seg.Message().AddCap(v.Client)
-	return s.Struct.SetPointer(0, C.NewInterface(ci))
+	return s.Struct.SetPointer(0, C.NewInterface(seg, ci))
 }
 
 // HandleFactory_newHandle_Results_List is a list of HandleFactory_newHandle_Results.
@@ -203,40 +204,41 @@ func NewHandleFactory_newHandle_Results_List(s *C.Segment, sz int32) (HandleFact
 func (s HandleFactory_newHandle_Results_List) At(i int) HandleFactory_newHandle_Results {
 	return HandleFactory_newHandle_Results{s.List.Struct(i)}
 }
-func (s HandleFactory_newHandle_Results_List) Set(i int, v HandleFactory_newHandle_Results) {
-	s.List.SetStruct(i, v.Struct)
+func (s HandleFactory_newHandle_Results_List) Set(i int, v HandleFactory_newHandle_Results) error {
+	return s.List.SetStruct(i, v.Struct)
 }
 
-type HandleFactory_newHandle_Results_Promise struct{ C.Pipeline }
+// HandleFactory_newHandle_Results_Promise is a wrapper for a HandleFactory_newHandle_Results promised by a client call.
+type HandleFactory_newHandle_Results_Promise struct{ *C.Pipeline }
 
-func (p *HandleFactory_newHandle_Results_Promise) Struct() (HandleFactory_newHandle_Results, error) {
+func (p HandleFactory_newHandle_Results_Promise) Struct() (HandleFactory_newHandle_Results, error) {
 	s, err := p.Pipeline.Struct()
 	return HandleFactory_newHandle_Results{s}, err
 }
 
-func (p *HandleFactory_newHandle_Results_Promise) Handle() Handle {
-	return NewHandle((*C.Pipeline)(p).GetPipeline(0).Client())
+func (p HandleFactory_newHandle_Results_Promise) Handle() Handle {
+	return Handle{Client: p.Pipeline.GetPipeline(0).Client()}
 }
 
 type Hanger struct{ C.Client }
 
-func (c Hanger) Hang(ctx context.Context, params func(Hanger_hang_Params), opts ...C.CallOption) *Hanger_hang_Results_Promise {
+func (c Hanger) Hang(ctx context.Context, params func(Hanger_hang_Params), opts ...C.CallOption) Hanger_hang_Results_Promise {
 	if c.Client == nil {
-		return (*Hanger_hang_Results_Promise)(C.NewPipeline(C.ErrorAnswer(C.ErrNullClient)))
+		return Hanger_hang_Results_Promise{Pipeline: C.NewPipeline(C.ErrorAnswer(C.ErrNullClient))}
 	}
-	return (*Hanger_hang_Results_Promise)(C.NewPipeline(c.Client.Call(&C.Call{
+	return Hanger_hang_Results_Promise{Pipeline: C.NewPipeline(c.Client.Call(&C.Call{
 		Ctx: ctx,
 		Method: C.Method{
 
 			InterfaceID:   0x8ae08044aae8a26e,
 			MethodID:      0,
-			InterfaceName: "rpc/internal/testcapnp/test.capnp:Hanger",
+			InterfaceName: "test.capnp:Hanger",
 			MethodName:    "hang",
 		},
 		ParamsSize: C.ObjectSize{DataSize: 0, PointerCount: 0},
 		ParamsFunc: func(s C.Struct) { params(Hanger_hang_Params{Struct: s}) },
 		Options:    C.NewCallOptions(opts),
-	})))
+	}))}
 }
 
 type Hanger_Server interface {
@@ -258,7 +260,7 @@ func Hanger_Methods(methods []server.Method, s Hanger_Server) []server.Method {
 
 			InterfaceID:   0x8ae08044aae8a26e,
 			MethodID:      0,
-			InterfaceName: "rpc/internal/testcapnp/test.capnp:Hanger",
+			InterfaceName: "test.capnp:Hanger",
 			MethodName:    "hang",
 		},
 		Impl: func(c context.Context, opts C.CallOptions, p, r C.Struct) error {
@@ -321,11 +323,14 @@ func NewHanger_hang_Params_List(s *C.Segment, sz int32) (Hanger_hang_Params_List
 func (s Hanger_hang_Params_List) At(i int) Hanger_hang_Params {
 	return Hanger_hang_Params{s.List.Struct(i)}
 }
-func (s Hanger_hang_Params_List) Set(i int, v Hanger_hang_Params) { s.List.SetStruct(i, v.Struct) }
+func (s Hanger_hang_Params_List) Set(i int, v Hanger_hang_Params) error {
+	return s.List.SetStruct(i, v.Struct)
+}
 
-type Hanger_hang_Params_Promise struct{ C.Pipeline }
+// Hanger_hang_Params_Promise is a wrapper for a Hanger_hang_Params promised by a client call.
+type Hanger_hang_Params_Promise struct{ *C.Pipeline }
 
-func (p *Hanger_hang_Params_Promise) Struct() (Hanger_hang_Params, error) {
+func (p Hanger_hang_Params_Promise) Struct() (Hanger_hang_Params, error) {
 	s, err := p.Pipeline.Struct()
 	return Hanger_hang_Params{s}, err
 }
@@ -372,34 +377,37 @@ func NewHanger_hang_Results_List(s *C.Segment, sz int32) (Hanger_hang_Results_Li
 func (s Hanger_hang_Results_List) At(i int) Hanger_hang_Results {
 	return Hanger_hang_Results{s.List.Struct(i)}
 }
-func (s Hanger_hang_Results_List) Set(i int, v Hanger_hang_Results) { s.List.SetStruct(i, v.Struct) }
+func (s Hanger_hang_Results_List) Set(i int, v Hanger_hang_Results) error {
+	return s.List.SetStruct(i, v.Struct)
+}
 
-type Hanger_hang_Results_Promise struct{ C.Pipeline }
+// Hanger_hang_Results_Promise is a wrapper for a Hanger_hang_Results promised by a client call.
+type Hanger_hang_Results_Promise struct{ *C.Pipeline }
 
-func (p *Hanger_hang_Results_Promise) Struct() (Hanger_hang_Results, error) {
+func (p Hanger_hang_Results_Promise) Struct() (Hanger_hang_Results, error) {
 	s, err := p.Pipeline.Struct()
 	return Hanger_hang_Results{s}, err
 }
 
 type CallOrder struct{ C.Client }
 
-func (c CallOrder) GetCallSequence(ctx context.Context, params func(CallOrder_getCallSequence_Params), opts ...C.CallOption) *CallOrder_getCallSequence_Results_Promise {
+func (c CallOrder) GetCallSequence(ctx context.Context, params func(CallOrder_getCallSequence_Params), opts ...C.CallOption) CallOrder_getCallSequence_Results_Promise {
 	if c.Client == nil {
-		return (*CallOrder_getCallSequence_Results_Promise)(C.NewPipeline(C.ErrorAnswer(C.ErrNullClient)))
+		return CallOrder_getCallSequence_Results_Promise{Pipeline: C.NewPipeline(C.ErrorAnswer(C.ErrNullClient))}
 	}
-	return (*CallOrder_getCallSequence_Results_Promise)(C.NewPipeline(c.Client.Call(&C.Call{
+	return CallOrder_getCallSequence_Results_Promise{Pipeline: C.NewPipeline(c.Client.Call(&C.Call{
 		Ctx: ctx,
 		Method: C.Method{
 
 			InterfaceID:   0x92c5ca8314cdd2a5,
 			MethodID:      0,
-			InterfaceName: "rpc/internal/testcapnp/test.capnp:CallOrder",
+			InterfaceName: "test.capnp:CallOrder",
 			MethodName:    "getCallSequence",
 		},
 		ParamsSize: C.ObjectSize{DataSize: 8, PointerCount: 0},
 		ParamsFunc: func(s C.Struct) { params(CallOrder_getCallSequence_Params{Struct: s}) },
 		Options:    C.NewCallOptions(opts),
-	})))
+	}))}
 }
 
 type CallOrder_Server interface {
@@ -421,7 +429,7 @@ func CallOrder_Methods(methods []server.Method, s CallOrder_Server) []server.Met
 
 			InterfaceID:   0x92c5ca8314cdd2a5,
 			MethodID:      0,
-			InterfaceName: "rpc/internal/testcapnp/test.capnp:CallOrder",
+			InterfaceName: "test.capnp:CallOrder",
 			MethodName:    "getCallSequence",
 		},
 		Impl: func(c context.Context, opts C.CallOptions, p, r C.Struct) error {
@@ -493,13 +501,14 @@ func NewCallOrder_getCallSequence_Params_List(s *C.Segment, sz int32) (CallOrder
 func (s CallOrder_getCallSequence_Params_List) At(i int) CallOrder_getCallSequence_Params {
 	return CallOrder_getCallSequence_Params{s.List.Struct(i)}
 }
-func (s CallOrder_getCallSequence_Params_List) Set(i int, v CallOrder_getCallSequence_Params) {
-	s.List.SetStruct(i, v.Struct)
+func (s CallOrder_getCallSequence_Params_List) Set(i int, v CallOrder_getCallSequence_Params) error {
+	return s.List.SetStruct(i, v.Struct)
 }
 
-type CallOrder_getCallSequence_Params_Promise struct{ C.Pipeline }
+// CallOrder_getCallSequence_Params_Promise is a wrapper for a CallOrder_getCallSequence_Params promised by a client call.
+type CallOrder_getCallSequence_Params_Promise struct{ *C.Pipeline }
 
-func (p *CallOrder_getCallSequence_Params_Promise) Struct() (CallOrder_getCallSequence_Params, error) {
+func (p CallOrder_getCallSequence_Params_Promise) Struct() (CallOrder_getCallSequence_Params, error) {
 	s, err := p.Pipeline.Struct()
 	return CallOrder_getCallSequence_Params{s}, err
 }
@@ -555,55 +564,56 @@ func NewCallOrder_getCallSequence_Results_List(s *C.Segment, sz int32) (CallOrde
 func (s CallOrder_getCallSequence_Results_List) At(i int) CallOrder_getCallSequence_Results {
 	return CallOrder_getCallSequence_Results{s.List.Struct(i)}
 }
-func (s CallOrder_getCallSequence_Results_List) Set(i int, v CallOrder_getCallSequence_Results) {
-	s.List.SetStruct(i, v.Struct)
+func (s CallOrder_getCallSequence_Results_List) Set(i int, v CallOrder_getCallSequence_Results) error {
+	return s.List.SetStruct(i, v.Struct)
 }
 
-type CallOrder_getCallSequence_Results_Promise struct{ C.Pipeline }
+// CallOrder_getCallSequence_Results_Promise is a wrapper for a CallOrder_getCallSequence_Results promised by a client call.
+type CallOrder_getCallSequence_Results_Promise struct{ *C.Pipeline }
 
-func (p *CallOrder_getCallSequence_Results_Promise) Struct() (CallOrder_getCallSequence_Results, error) {
+func (p CallOrder_getCallSequence_Results_Promise) Struct() (CallOrder_getCallSequence_Results, error) {
 	s, err := p.Pipeline.Struct()
 	return CallOrder_getCallSequence_Results{s}, err
 }
 
 type Echoer struct{ C.Client }
 
-func (c Echoer) Echo(ctx context.Context, params func(Echoer_echo_Params), opts ...C.CallOption) *Echoer_echo_Results_Promise {
+func (c Echoer) Echo(ctx context.Context, params func(Echoer_echo_Params), opts ...C.CallOption) Echoer_echo_Results_Promise {
 	if c.Client == nil {
-		return (*Echoer_echo_Results_Promise)(C.NewPipeline(C.ErrorAnswer(C.ErrNullClient)))
+		return Echoer_echo_Results_Promise{Pipeline: C.NewPipeline(C.ErrorAnswer(C.ErrNullClient))}
 	}
-	return (*Echoer_echo_Results_Promise)(C.NewPipeline(c.Client.Call(&C.Call{
+	return Echoer_echo_Results_Promise{Pipeline: C.NewPipeline(c.Client.Call(&C.Call{
 		Ctx: ctx,
 		Method: C.Method{
 
 			InterfaceID:   0x841756c6a41b2a45,
 			MethodID:      0,
-			InterfaceName: "rpc/internal/testcapnp/test.capnp:Echoer",
+			InterfaceName: "test.capnp:Echoer",
 			MethodName:    "echo",
 		},
 		ParamsSize: C.ObjectSize{DataSize: 0, PointerCount: 1},
 		ParamsFunc: func(s C.Struct) { params(Echoer_echo_Params{Struct: s}) },
 		Options:    C.NewCallOptions(opts),
-	})))
+	}))}
 }
 
-func (c Echoer) GetCallSequence(ctx context.Context, params func(CallOrder_getCallSequence_Params), opts ...C.CallOption) *CallOrder_getCallSequence_Results_Promise {
+func (c Echoer) GetCallSequence(ctx context.Context, params func(CallOrder_getCallSequence_Params), opts ...C.CallOption) CallOrder_getCallSequence_Results_Promise {
 	if c.Client == nil {
-		return (*CallOrder_getCallSequence_Results_Promise)(C.NewPipeline(C.ErrorAnswer(C.ErrNullClient)))
+		return CallOrder_getCallSequence_Results_Promise{Pipeline: C.NewPipeline(C.ErrorAnswer(C.ErrNullClient))}
 	}
-	return (*CallOrder_getCallSequence_Results_Promise)(C.NewPipeline(c.Client.Call(&C.Call{
+	return CallOrder_getCallSequence_Results_Promise{Pipeline: C.NewPipeline(c.Client.Call(&C.Call{
 		Ctx: ctx,
 		Method: C.Method{
 
 			InterfaceID:   0x92c5ca8314cdd2a5,
 			MethodID:      0,
-			InterfaceName: "rpc/internal/testcapnp/test.capnp:CallOrder",
+			InterfaceName: "test.capnp:CallOrder",
 			MethodName:    "getCallSequence",
 		},
 		ParamsSize: C.ObjectSize{DataSize: 8, PointerCount: 0},
 		ParamsFunc: func(s C.Struct) { params(CallOrder_getCallSequence_Params{Struct: s}) },
 		Options:    C.NewCallOptions(opts),
-	})))
+	}))}
 }
 
 type Echoer_Server interface {
@@ -627,7 +637,7 @@ func Echoer_Methods(methods []server.Method, s Echoer_Server) []server.Method {
 
 			InterfaceID:   0x841756c6a41b2a45,
 			MethodID:      0,
-			InterfaceName: "rpc/internal/testcapnp/test.capnp:Echoer",
+			InterfaceName: "test.capnp:Echoer",
 			MethodName:    "echo",
 		},
 		Impl: func(c context.Context, opts C.CallOptions, p, r C.Struct) error {
@@ -642,7 +652,7 @@ func Echoer_Methods(methods []server.Method, s Echoer_Server) []server.Method {
 
 			InterfaceID:   0x92c5ca8314cdd2a5,
 			MethodID:      0,
-			InterfaceName: "rpc/internal/testcapnp/test.capnp:CallOrder",
+			InterfaceName: "test.capnp:CallOrder",
 			MethodName:    "getCallSequence",
 		},
 		Impl: func(c context.Context, opts C.CallOptions, p, r C.Struct) error {
@@ -708,7 +718,7 @@ func (s Echoer_echo_Params) SetCap(v CallOrder) error {
 		return nil
 	}
 	ci := seg.Message().AddCap(v.Client)
-	return s.Struct.SetPointer(0, C.NewInterface(ci))
+	return s.Struct.SetPointer(0, C.NewInterface(seg, ci))
 }
 
 // Echoer_echo_Params_List is a list of Echoer_echo_Params.
@@ -726,17 +736,20 @@ func NewEchoer_echo_Params_List(s *C.Segment, sz int32) (Echoer_echo_Params_List
 func (s Echoer_echo_Params_List) At(i int) Echoer_echo_Params {
 	return Echoer_echo_Params{s.List.Struct(i)}
 }
-func (s Echoer_echo_Params_List) Set(i int, v Echoer_echo_Params) { s.List.SetStruct(i, v.Struct) }
+func (s Echoer_echo_Params_List) Set(i int, v Echoer_echo_Params) error {
+	return s.List.SetStruct(i, v.Struct)
+}
 
-type Echoer_echo_Params_Promise struct{ C.Pipeline }
+// Echoer_echo_Params_Promise is a wrapper for a Echoer_echo_Params promised by a client call.
+type Echoer_echo_Params_Promise struct{ *C.Pipeline }
 
-func (p *Echoer_echo_Params_Promise) Struct() (Echoer_echo_Params, error) {
+func (p Echoer_echo_Params_Promise) Struct() (Echoer_echo_Params, error) {
 	s, err := p.Pipeline.Struct()
 	return Echoer_echo_Params{s}, err
 }
 
-func (p *Echoer_echo_Params_Promise) Cap() CallOrder {
-	return NewCallOrder((*C.Pipeline)(p).GetPipeline(0).Client())
+func (p Echoer_echo_Params_Promise) Cap() CallOrder {
+	return CallOrder{Client: p.Pipeline.GetPipeline(0).Client()}
 }
 
 type Echoer_echo_Results struct{ C.Struct }
@@ -784,7 +797,7 @@ func (s Echoer_echo_Results) SetCap(v CallOrder) error {
 		return nil
 	}
 	ci := seg.Message().AddCap(v.Client)
-	return s.Struct.SetPointer(0, C.NewInterface(ci))
+	return s.Struct.SetPointer(0, C.NewInterface(seg, ci))
 }
 
 // Echoer_echo_Results_List is a list of Echoer_echo_Results.
@@ -802,38 +815,41 @@ func NewEchoer_echo_Results_List(s *C.Segment, sz int32) (Echoer_echo_Results_Li
 func (s Echoer_echo_Results_List) At(i int) Echoer_echo_Results {
 	return Echoer_echo_Results{s.List.Struct(i)}
 }
-func (s Echoer_echo_Results_List) Set(i int, v Echoer_echo_Results) { s.List.SetStruct(i, v.Struct) }
+func (s Echoer_echo_Results_List) Set(i int, v Echoer_echo_Results) error {
+	return s.List.SetStruct(i, v.Struct)
+}
 
-type Echoer_echo_Results_Promise struct{ C.Pipeline }
+// Echoer_echo_Results_Promise is a wrapper for a Echoer_echo_Results promised by a client call.
+type Echoer_echo_Results_Promise struct{ *C.Pipeline }
 
-func (p *Echoer_echo_Results_Promise) Struct() (Echoer_echo_Results, error) {
+func (p Echoer_echo_Results_Promise) Struct() (Echoer_echo_Results, error) {
 	s, err := p.Pipeline.Struct()
 	return Echoer_echo_Results{s}, err
 }
 
-func (p *Echoer_echo_Results_Promise) Cap() CallOrder {
-	return NewCallOrder((*C.Pipeline)(p).GetPipeline(0).Client())
+func (p Echoer_echo_Results_Promise) Cap() CallOrder {
+	return CallOrder{Client: p.Pipeline.GetPipeline(0).Client()}
 }
 
 type Adder struct{ C.Client }
 
-func (c Adder) Add(ctx context.Context, params func(Adder_add_Params), opts ...C.CallOption) *Adder_add_Results_Promise {
+func (c Adder) Add(ctx context.Context, params func(Adder_add_Params), opts ...C.CallOption) Adder_add_Results_Promise {
 	if c.Client == nil {
-		return (*Adder_add_Results_Promise)(C.NewPipeline(C.ErrorAnswer(C.ErrNullClient)))
+		return Adder_add_Results_Promise{Pipeline: C.NewPipeline(C.ErrorAnswer(C.ErrNullClient))}
 	}
-	return (*Adder_add_Results_Promise)(C.NewPipeline(c.Client.Call(&C.Call{
+	return Adder_add_Results_Promise{Pipeline: C.NewPipeline(c.Client.Call(&C.Call{
 		Ctx: ctx,
 		Method: C.Method{
 
 			InterfaceID:   0x8f9cac550b1bf41f,
 			MethodID:      0,
-			InterfaceName: "rpc/internal/testcapnp/test.capnp:Adder",
+			InterfaceName: "test.capnp:Adder",
 			MethodName:    "add",
 		},
 		ParamsSize: C.ObjectSize{DataSize: 8, PointerCount: 0},
 		ParamsFunc: func(s C.Struct) { params(Adder_add_Params{Struct: s}) },
 		Options:    C.NewCallOptions(opts),
-	})))
+	}))}
 }
 
 type Adder_Server interface {
@@ -855,7 +871,7 @@ func Adder_Methods(methods []server.Method, s Adder_Server) []server.Method {
 
 			InterfaceID:   0x8f9cac550b1bf41f,
 			MethodID:      0,
-			InterfaceName: "rpc/internal/testcapnp/test.capnp:Adder",
+			InterfaceName: "test.capnp:Adder",
 			MethodName:    "add",
 		},
 		Impl: func(c context.Context, opts C.CallOptions, p, r C.Struct) error {
@@ -933,12 +949,15 @@ func NewAdder_add_Params_List(s *C.Segment, sz int32) (Adder_add_Params_List, er
 	return Adder_add_Params_List{l}, nil
 }
 
-func (s Adder_add_Params_List) At(i int) Adder_add_Params     { return Adder_add_Params{s.List.Struct(i)} }
-func (s Adder_add_Params_List) Set(i int, v Adder_add_Params) { s.List.SetStruct(i, v.Struct) }
+func (s Adder_add_Params_List) At(i int) Adder_add_Params { return Adder_add_Params{s.List.Struct(i)} }
+func (s Adder_add_Params_List) Set(i int, v Adder_add_Params) error {
+	return s.List.SetStruct(i, v.Struct)
+}
 
-type Adder_add_Params_Promise struct{ C.Pipeline }
+// Adder_add_Params_Promise is a wrapper for a Adder_add_Params promised by a client call.
+type Adder_add_Params_Promise struct{ *C.Pipeline }
 
-func (p *Adder_add_Params_Promise) Struct() (Adder_add_Params, error) {
+func (p Adder_add_Params_Promise) Struct() (Adder_add_Params, error) {
 	s, err := p.Pipeline.Struct()
 	return Adder_add_Params{s}, err
 }
@@ -994,11 +1013,14 @@ func NewAdder_add_Results_List(s *C.Segment, sz int32) (Adder_add_Results_List, 
 func (s Adder_add_Results_List) At(i int) Adder_add_Results {
 	return Adder_add_Results{s.List.Struct(i)}
 }
-func (s Adder_add_Results_List) Set(i int, v Adder_add_Results) { s.List.SetStruct(i, v.Struct) }
+func (s Adder_add_Results_List) Set(i int, v Adder_add_Results) error {
+	return s.List.SetStruct(i, v.Struct)
+}
 
-type Adder_add_Results_Promise struct{ C.Pipeline }
+// Adder_add_Results_Promise is a wrapper for a Adder_add_Results promised by a client call.
+type Adder_add_Results_Promise struct{ *C.Pipeline }
 
-func (p *Adder_add_Results_Promise) Struct() (Adder_add_Results, error) {
+func (p Adder_add_Results_Promise) Struct() (Adder_add_Results, error) {
 	s, err := p.Pipeline.Struct()
 	return Adder_add_Results{s}, err
 }
