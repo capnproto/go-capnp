@@ -404,6 +404,18 @@ func (s B737) SetBase(v PlaneBase) error {
 	return s.Struct.SetPointer(0, v.Struct)
 }
 
+// NewBase sets the base field to a newly
+// allocated PlaneBase struct, preferring placement in s's segment.
+func (s B737) NewBase() (PlaneBase, error) {
+
+	ss, err := NewPlaneBase(s.Struct.Segment())
+	if err != nil {
+		return PlaneBase{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
+}
+
 // B737_List is a list of B737.
 type B737_List struct{ C.List }
 
@@ -472,6 +484,18 @@ func (s A320) Base() (PlaneBase, error) {
 func (s A320) SetBase(v PlaneBase) error {
 
 	return s.Struct.SetPointer(0, v.Struct)
+}
+
+// NewBase sets the base field to a newly
+// allocated PlaneBase struct, preferring placement in s's segment.
+func (s A320) NewBase() (PlaneBase, error) {
+
+	ss, err := NewPlaneBase(s.Struct.Segment())
+	if err != nil {
+		return PlaneBase{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
 }
 
 // A320_List is a list of A320.
@@ -544,6 +568,18 @@ func (s F16) SetBase(v PlaneBase) error {
 	return s.Struct.SetPointer(0, v.Struct)
 }
 
+// NewBase sets the base field to a newly
+// allocated PlaneBase struct, preferring placement in s's segment.
+func (s F16) NewBase() (PlaneBase, error) {
+
+	ss, err := NewPlaneBase(s.Struct.Segment())
+	if err != nil {
+		return PlaneBase{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
+}
+
 // F16_List is a list of F16.
 type F16_List struct{ C.List }
 
@@ -612,6 +648,18 @@ func (s Regression) Base() (PlaneBase, error) {
 func (s Regression) SetBase(v PlaneBase) error {
 
 	return s.Struct.SetPointer(0, v.Struct)
+}
+
+// NewBase sets the base field to a newly
+// allocated PlaneBase struct, preferring placement in s's segment.
+func (s Regression) NewBase() (PlaneBase, error) {
+
+	ss, err := NewPlaneBase(s.Struct.Segment())
+	if err != nil {
+		return PlaneBase{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
 }
 
 func (s Regression) B0() float64 {
@@ -781,6 +829,18 @@ func (s Aircraft) SetB737(v B737) error {
 	return s.Struct.SetPointer(0, v.Struct)
 }
 
+// NewB737 sets the b737 field to a newly
+// allocated B737 struct, preferring placement in s's segment.
+func (s Aircraft) NewB737() (B737, error) {
+	s.Struct.SetUint16(0, 1)
+	ss, err := NewB737(s.Struct.Segment())
+	if err != nil {
+		return B737{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
+}
+
 func (s Aircraft) A320() (A320, error) {
 	p, err := s.Struct.Pointer(0)
 	if err != nil {
@@ -797,6 +857,18 @@ func (s Aircraft) SetA320(v A320) error {
 	return s.Struct.SetPointer(0, v.Struct)
 }
 
+// NewA320 sets the a320 field to a newly
+// allocated A320 struct, preferring placement in s's segment.
+func (s Aircraft) NewA320() (A320, error) {
+	s.Struct.SetUint16(0, 2)
+	ss, err := NewA320(s.Struct.Segment())
+	if err != nil {
+		return A320{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
+}
+
 func (s Aircraft) F16() (F16, error) {
 	p, err := s.Struct.Pointer(0)
 	if err != nil {
@@ -811,6 +883,18 @@ func (s Aircraft) F16() (F16, error) {
 func (s Aircraft) SetF16(v F16) error {
 	s.Struct.SetUint16(0, 3)
 	return s.Struct.SetPointer(0, v.Struct)
+}
+
+// NewF16 sets the f16 field to a newly
+// allocated F16 struct, preferring placement in s's segment.
+func (s Aircraft) NewF16() (F16, error) {
+	s.Struct.SetUint16(0, 3)
+	ss, err := NewF16(s.Struct.Segment())
+	if err != nil {
+		return F16{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
 }
 
 // Aircraft_List is a list of Aircraft.
@@ -1029,6 +1113,18 @@ func (s Z) Zz() (Z, error) {
 func (s Z) SetZz(v Z) error {
 	s.Struct.SetUint16(0, 1)
 	return s.Struct.SetPointer(0, v.Struct)
+}
+
+// NewZz sets the zz field to a newly
+// allocated Z struct, preferring placement in s's segment.
+func (s Z) NewZz() (Z, error) {
+	s.Struct.SetUint16(0, 1)
+	ss, err := NewZ(s.Struct.Segment())
+	if err != nil {
+		return Z{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
 }
 
 func (s Z) F64() float64 {
@@ -1412,6 +1508,18 @@ func (s Z) SetZdate(v Zdate) error {
 	return s.Struct.SetPointer(0, v.Struct)
 }
 
+// NewZdate sets the zdate field to a newly
+// allocated Zdate struct, preferring placement in s's segment.
+func (s Z) NewZdate() (Zdate, error) {
+	s.Struct.SetUint16(0, 27)
+	ss, err := NewZdate(s.Struct.Segment())
+	if err != nil {
+		return Zdate{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
+}
+
 func (s Z) Zdata() (Zdata, error) {
 	p, err := s.Struct.Pointer(0)
 	if err != nil {
@@ -1426,6 +1534,18 @@ func (s Z) Zdata() (Zdata, error) {
 func (s Z) SetZdata(v Zdata) error {
 	s.Struct.SetUint16(0, 28)
 	return s.Struct.SetPointer(0, v.Struct)
+}
+
+// NewZdata sets the zdata field to a newly
+// allocated Zdata struct, preferring placement in s's segment.
+func (s Z) NewZdata() (Zdata, error) {
+	s.Struct.SetUint16(0, 28)
+	ss, err := NewZdata(s.Struct.Segment())
+	if err != nil {
+		return Zdata{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
 }
 
 func (s Z) Aircraftvec() (Aircraft_List, error) {
@@ -1463,6 +1583,18 @@ func (s Z) SetAircraft(v Aircraft) error {
 	return s.Struct.SetPointer(0, v.Struct)
 }
 
+// NewAircraft sets the aircraft field to a newly
+// allocated Aircraft struct, preferring placement in s's segment.
+func (s Z) NewAircraft() (Aircraft, error) {
+	s.Struct.SetUint16(0, 30)
+	ss, err := NewAircraft(s.Struct.Segment())
+	if err != nil {
+		return Aircraft{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
+}
+
 func (s Z) Regression() (Regression, error) {
 	p, err := s.Struct.Pointer(0)
 	if err != nil {
@@ -1479,6 +1611,18 @@ func (s Z) SetRegression(v Regression) error {
 	return s.Struct.SetPointer(0, v.Struct)
 }
 
+// NewRegression sets the regression field to a newly
+// allocated Regression struct, preferring placement in s's segment.
+func (s Z) NewRegression() (Regression, error) {
+	s.Struct.SetUint16(0, 31)
+	ss, err := NewRegression(s.Struct.Segment())
+	if err != nil {
+		return Regression{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
+}
+
 func (s Z) Planebase() (PlaneBase, error) {
 	p, err := s.Struct.Pointer(0)
 	if err != nil {
@@ -1493,6 +1637,18 @@ func (s Z) Planebase() (PlaneBase, error) {
 func (s Z) SetPlanebase(v PlaneBase) error {
 	s.Struct.SetUint16(0, 32)
 	return s.Struct.SetPointer(0, v.Struct)
+}
+
+// NewPlanebase sets the planebase field to a newly
+// allocated PlaneBase struct, preferring placement in s's segment.
+func (s Z) NewPlanebase() (PlaneBase, error) {
+	s.Struct.SetUint16(0, 32)
+	ss, err := NewPlaneBase(s.Struct.Segment())
+	if err != nil {
+		return PlaneBase{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
 }
 
 func (s Z) Airport() Airport {
@@ -1520,6 +1676,18 @@ func (s Z) SetB737(v B737) error {
 	return s.Struct.SetPointer(0, v.Struct)
 }
 
+// NewB737 sets the b737 field to a newly
+// allocated B737 struct, preferring placement in s's segment.
+func (s Z) NewB737() (B737, error) {
+	s.Struct.SetUint16(0, 34)
+	ss, err := NewB737(s.Struct.Segment())
+	if err != nil {
+		return B737{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
+}
+
 func (s Z) A320() (A320, error) {
 	p, err := s.Struct.Pointer(0)
 	if err != nil {
@@ -1536,6 +1704,18 @@ func (s Z) SetA320(v A320) error {
 	return s.Struct.SetPointer(0, v.Struct)
 }
 
+// NewA320 sets the a320 field to a newly
+// allocated A320 struct, preferring placement in s's segment.
+func (s Z) NewA320() (A320, error) {
+	s.Struct.SetUint16(0, 35)
+	ss, err := NewA320(s.Struct.Segment())
+	if err != nil {
+		return A320{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
+}
+
 func (s Z) F16() (F16, error) {
 	p, err := s.Struct.Pointer(0)
 	if err != nil {
@@ -1550,6 +1730,18 @@ func (s Z) F16() (F16, error) {
 func (s Z) SetF16(v F16) error {
 	s.Struct.SetUint16(0, 36)
 	return s.Struct.SetPointer(0, v.Struct)
+}
+
+// NewF16 sets the f16 field to a newly
+// allocated F16 struct, preferring placement in s's segment.
+func (s Z) NewF16() (F16, error) {
+	s.Struct.SetUint16(0, 36)
+	ss, err := NewF16(s.Struct.Segment())
+	if err != nil {
+		return F16{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
 }
 
 func (s Z) Zdatevec() (Zdate_List, error) {
@@ -1806,6 +1998,18 @@ func (s Bag) Counter() (Counter, error) {
 func (s Bag) SetCounter(v Counter) error {
 
 	return s.Struct.SetPointer(0, v.Struct)
+}
+
+// NewCounter sets the counter field to a newly
+// allocated Counter struct, preferring placement in s's segment.
+func (s Bag) NewCounter() (Counter, error) {
+
+	ss, err := NewCounter(s.Struct.Segment())
+	if err != nil {
+		return Counter{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
 }
 
 // Bag_List is a list of Bag.
@@ -2212,6 +2416,18 @@ func (s VerOnePtr) SetPtr(v VerOneData) error {
 	return s.Struct.SetPointer(0, v.Struct)
 }
 
+// NewPtr sets the ptr field to a newly
+// allocated VerOneData struct, preferring placement in s's segment.
+func (s VerOnePtr) NewPtr() (VerOneData, error) {
+
+	ss, err := NewVerOneData(s.Struct.Segment())
+	if err != nil {
+		return VerOneData{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
+}
+
 // VerOnePtr_List is a list of VerOnePtr.
 type VerOnePtr_List struct{ C.List }
 
@@ -2282,6 +2498,18 @@ func (s VerTwoPtr) SetPtr1(v VerOneData) error {
 	return s.Struct.SetPointer(0, v.Struct)
 }
 
+// NewPtr1 sets the ptr1 field to a newly
+// allocated VerOneData struct, preferring placement in s's segment.
+func (s VerTwoPtr) NewPtr1() (VerOneData, error) {
+
+	ss, err := NewVerOneData(s.Struct.Segment())
+	if err != nil {
+		return VerOneData{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
+}
+
 func (s VerTwoPtr) Ptr2() (VerOneData, error) {
 	p, err := s.Struct.Pointer(1)
 	if err != nil {
@@ -2296,6 +2524,18 @@ func (s VerTwoPtr) Ptr2() (VerOneData, error) {
 func (s VerTwoPtr) SetPtr2(v VerOneData) error {
 
 	return s.Struct.SetPointer(1, v.Struct)
+}
+
+// NewPtr2 sets the ptr2 field to a newly
+// allocated VerOneData struct, preferring placement in s's segment.
+func (s VerTwoPtr) NewPtr2() (VerOneData, error) {
+
+	ss, err := NewVerOneData(s.Struct.Segment())
+	if err != nil {
+		return VerOneData{}, err
+	}
+	err = s.Struct.SetPointer(1, ss)
+	return ss, err
 }
 
 // VerTwoPtr_List is a list of VerTwoPtr.
@@ -2390,6 +2630,18 @@ func (s VerTwoDataTwoPtr) SetPtr1(v VerOneData) error {
 	return s.Struct.SetPointer(0, v.Struct)
 }
 
+// NewPtr1 sets the ptr1 field to a newly
+// allocated VerOneData struct, preferring placement in s's segment.
+func (s VerTwoDataTwoPtr) NewPtr1() (VerOneData, error) {
+
+	ss, err := NewVerOneData(s.Struct.Segment())
+	if err != nil {
+		return VerOneData{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
+}
+
 func (s VerTwoDataTwoPtr) Ptr2() (VerOneData, error) {
 	p, err := s.Struct.Pointer(1)
 	if err != nil {
@@ -2404,6 +2656,18 @@ func (s VerTwoDataTwoPtr) Ptr2() (VerOneData, error) {
 func (s VerTwoDataTwoPtr) SetPtr2(v VerOneData) error {
 
 	return s.Struct.SetPointer(1, v.Struct)
+}
+
+// NewPtr2 sets the ptr2 field to a newly
+// allocated VerOneData struct, preferring placement in s's segment.
+func (s VerTwoDataTwoPtr) NewPtr2() (VerOneData, error) {
+
+	ss, err := NewVerOneData(s.Struct.Segment())
+	if err != nil {
+		return VerOneData{}, err
+	}
+	err = s.Struct.SetPointer(1, ss)
+	return ss, err
 }
 
 // VerTwoDataTwoPtr_List is a list of VerTwoDataTwoPtr.
@@ -3011,6 +3275,18 @@ func (s VerTwoTwoPlus) SetPtr1(v VerTwoDataTwoPtr) error {
 	return s.Struct.SetPointer(0, v.Struct)
 }
 
+// NewPtr1 sets the ptr1 field to a newly
+// allocated VerTwoDataTwoPtr struct, preferring placement in s's segment.
+func (s VerTwoTwoPlus) NewPtr1() (VerTwoDataTwoPtr, error) {
+
+	ss, err := NewVerTwoDataTwoPtr(s.Struct.Segment())
+	if err != nil {
+		return VerTwoDataTwoPtr{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
+}
+
 func (s VerTwoTwoPlus) Ptr2() (VerTwoDataTwoPtr, error) {
 	p, err := s.Struct.Pointer(1)
 	if err != nil {
@@ -3025,6 +3301,18 @@ func (s VerTwoTwoPlus) Ptr2() (VerTwoDataTwoPtr, error) {
 func (s VerTwoTwoPlus) SetPtr2(v VerTwoDataTwoPtr) error {
 
 	return s.Struct.SetPointer(1, v.Struct)
+}
+
+// NewPtr2 sets the ptr2 field to a newly
+// allocated VerTwoDataTwoPtr struct, preferring placement in s's segment.
+func (s VerTwoTwoPlus) NewPtr2() (VerTwoDataTwoPtr, error) {
+
+	ss, err := NewVerTwoDataTwoPtr(s.Struct.Segment())
+	if err != nil {
+		return VerTwoDataTwoPtr{}, err
+	}
+	err = s.Struct.SetPointer(1, ss)
+	return ss, err
 }
 
 func (s VerTwoTwoPlus) Tre() int64 {
@@ -3236,6 +3524,18 @@ func (s WrapEmpty) SetMightNotBeReallyEmpty(v VerEmpty) error {
 	return s.Struct.SetPointer(0, v.Struct)
 }
 
+// NewMightNotBeReallyEmpty sets the mightNotBeReallyEmpty field to a newly
+// allocated VerEmpty struct, preferring placement in s's segment.
+func (s WrapEmpty) NewMightNotBeReallyEmpty() (VerEmpty, error) {
+
+	ss, err := NewVerEmpty(s.Struct.Segment())
+	if err != nil {
+		return VerEmpty{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
+}
+
 // WrapEmpty_List is a list of WrapEmpty.
 type WrapEmpty_List struct{ C.List }
 
@@ -3306,6 +3606,18 @@ func (s Wrap2x2) SetMightNotBeReallyEmpty(v VerTwoDataTwoPtr) error {
 	return s.Struct.SetPointer(0, v.Struct)
 }
 
+// NewMightNotBeReallyEmpty sets the mightNotBeReallyEmpty field to a newly
+// allocated VerTwoDataTwoPtr struct, preferring placement in s's segment.
+func (s Wrap2x2) NewMightNotBeReallyEmpty() (VerTwoDataTwoPtr, error) {
+
+	ss, err := NewVerTwoDataTwoPtr(s.Struct.Segment())
+	if err != nil {
+		return VerTwoDataTwoPtr{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
+}
+
 // Wrap2x2_List is a list of Wrap2x2.
 type Wrap2x2_List struct{ C.List }
 
@@ -3374,6 +3686,18 @@ func (s Wrap2x2plus) MightNotBeReallyEmpty() (VerTwoTwoPlus, error) {
 func (s Wrap2x2plus) SetMightNotBeReallyEmpty(v VerTwoTwoPlus) error {
 
 	return s.Struct.SetPointer(0, v.Struct)
+}
+
+// NewMightNotBeReallyEmpty sets the mightNotBeReallyEmpty field to a newly
+// allocated VerTwoTwoPlus struct, preferring placement in s's segment.
+func (s Wrap2x2plus) NewMightNotBeReallyEmpty() (VerTwoTwoPlus, error) {
+
+	ss, err := NewVerTwoTwoPlus(s.Struct.Segment())
+	if err != nil {
+		return VerTwoTwoPlus{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
 }
 
 // Wrap2x2plus_List is a list of Wrap2x2plus.
@@ -4035,6 +4359,18 @@ func (s Hoth) SetBase(v EchoBase) error {
 	return s.Struct.SetPointer(0, v.Struct)
 }
 
+// NewBase sets the base field to a newly
+// allocated EchoBase struct, preferring placement in s's segment.
+func (s Hoth) NewBase() (EchoBase, error) {
+
+	ss, err := NewEchoBase(s.Struct.Segment())
+	if err != nil {
+		return EchoBase{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
+}
+
 // Hoth_List is a list of Hoth.
 type Hoth_List struct{ C.List }
 
@@ -4180,6 +4516,18 @@ func (s StackingRoot) SetA(v StackingA) error {
 	return s.Struct.SetPointer(1, v.Struct)
 }
 
+// NewA sets the a field to a newly
+// allocated StackingA struct, preferring placement in s's segment.
+func (s StackingRoot) NewA() (StackingA, error) {
+
+	ss, err := NewStackingA(s.Struct.Segment())
+	if err != nil {
+		return StackingA{}, err
+	}
+	err = s.Struct.SetPointer(1, ss)
+	return ss, err
+}
+
 func (s StackingRoot) AWithDefault() (StackingA, error) {
 	p, err := s.Struct.Pointer(0)
 	if err != nil {
@@ -4197,6 +4545,18 @@ func (s StackingRoot) AWithDefault() (StackingA, error) {
 func (s StackingRoot) SetAWithDefault(v StackingA) error {
 
 	return s.Struct.SetPointer(0, v.Struct)
+}
+
+// NewAWithDefault sets the aWithDefault field to a newly
+// allocated StackingA struct, preferring placement in s's segment.
+func (s StackingRoot) NewAWithDefault() (StackingA, error) {
+
+	ss, err := NewStackingA(s.Struct.Segment())
+	if err != nil {
+		return StackingA{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
 }
 
 // StackingRoot_List is a list of StackingRoot.
@@ -4280,6 +4640,18 @@ func (s StackingA) B() (StackingB, error) {
 func (s StackingA) SetB(v StackingB) error {
 
 	return s.Struct.SetPointer(0, v.Struct)
+}
+
+// NewB sets the b field to a newly
+// allocated StackingB struct, preferring placement in s's segment.
+func (s StackingA) NewB() (StackingB, error) {
+
+	ss, err := NewStackingB(s.Struct.Segment())
+	if err != nil {
+		return StackingB{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
 }
 
 // StackingA_List is a list of StackingA.

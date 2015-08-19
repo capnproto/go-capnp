@@ -634,6 +634,7 @@ func (n *node) defineField(w io.Writer, f field) {
 		}
 		templates.ExecuteTemplate(w, "structStructField", structObjectFieldParams{
 			structFieldParams: params,
+			TypeNode:          findNode(t.StructGroup().TypeId()),
 			Default:           defref,
 		})
 

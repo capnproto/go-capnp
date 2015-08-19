@@ -30,30 +30,25 @@ func Example() {
 	// There can only be one root.  Subsequent NewRoot* calls will set the root
 	// pointer and orphan the previous root.
 	z, err := air.NewRootZ(seg)
+	if err != nil {
+		panic(err)
+	}
 
 	// then non-root objects:
-	aircraft, err := air.NewAircraft(seg)
+	aircraft, err := z.NewAircraft()
 	if err != nil {
 		panic(err)
 	}
-	b737, err := air.NewB737(seg)
+	b737, err := aircraft.NewB737()
 	if err != nil {
 		panic(err)
 	}
-	planebase, err := air.NewPlaneBase(seg)
+	planebase, err := b737.NewBase()
 	if err != nil {
 		panic(err)
 	}
 
-	// how to create a list. Requires a cast at the moment.
-	homes, err := air.NewAirport_List(seg, 2)
-	if err != nil {
-		panic(err)
-	}
-	homes.Set(0, air.Airport_jfk)
-	homes.Set(1, air.Airport_lax)
-
-	// set the primitive fields
+	// Set primitive fields
 	planebase.SetCanFly(true)
 	planebase.SetName("Henrietta")
 	planebase.SetRating(100)
@@ -61,26 +56,26 @@ func Example() {
 	// if we don't set capacity, it will get the default value, in this case 0.
 	//planebase.SetCapacity(26020) // Liters fuel
 
-	// set a list field
+	// Creating a list
+	homes, err := air.NewAirport_List(seg, 2)
+	if err != nil {
+		panic(err)
+	}
+	homes.Set(0, air.Airport_jfk)
+	homes.Set(1, air.Airport_lax)
+	// Setting a list field
 	planebase.SetHomes(homes)
 
-	// wire up the pointers between objects
-	b737.SetBase(planebase)
-	aircraft.SetB737(b737)
-	z.SetAircraft(aircraft)
+	// Ready to write!
 
-	// ready to write
-
-	// example of writing to memory
+	// You can write to memory...
 	buf, err := msg.Marshal()
 	if err != nil {
 		panic(err)
 	}
 	_ = buf
 
-	// example of writing to file. Just use WriteTo().
-	// We could have used SegToFile(seg, fname) from
-	// util_test.go intead, but this makes it clear how easy it is.
+	// ... or write to an io.Writer.
 	file, err := ioutil.TempFile("", "go-capnproto")
 	if err != nil {
 		panic(err)
@@ -92,7 +87,7 @@ func Example() {
 		panic(err)
 	}
 
-	// readback and view that file in human readable format. Defined in util_test.go
+	// Read back and view that file in human readable format. Defined in util_test.go
 	text, err := CapnFileToText(file.Name(), schemaPath, "")
 	if err != nil {
 		panic(err)

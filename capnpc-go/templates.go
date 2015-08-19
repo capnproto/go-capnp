@@ -244,6 +244,18 @@ func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.FieldType}}) error {
 	{{template "settag" .}}
 	return s.Struct.SetPointer({{.Field.Slot.Offset}}, v.Struct)
 }
+
+// New{{.Field.Name|title}} sets the {{.Field.Name}} field to a newly
+// allocated {{.FieldType}} struct, preferring placement in s's segment.
+func (s {{.Node.Name}}) New{{.Field.Name|title}}() ({{.FieldType}}, error) {
+	{{template "settag" .}}
+	ss, err := {{.TypeNode.RemoteNew .Node}}(s.Struct.Segment())
+	if err != nil {
+		return {{.FieldType}}{}, err
+	}
+	err = s.Struct.SetPointer({{.Field.Slot.Offset}}, ss)
+	return ss, err
+}
 {{end}}
 
 
@@ -536,7 +548,8 @@ type structDataFieldParams struct {
 
 type structObjectFieldParams struct {
 	structFieldParams
-	Default staticDataRef
+	TypeNode *node
+	Default  staticDataRef
 }
 
 type structListParams struct {

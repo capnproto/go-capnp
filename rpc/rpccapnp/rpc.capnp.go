@@ -108,6 +108,18 @@ func (s Message) SetUnimplemented(v Message) error {
 	return s.Struct.SetPointer(0, v.Struct)
 }
 
+// NewUnimplemented sets the unimplemented field to a newly
+// allocated Message struct, preferring placement in s's segment.
+func (s Message) NewUnimplemented() (Message, error) {
+	s.Struct.SetUint16(0, 0)
+	ss, err := NewMessage(s.Struct.Segment())
+	if err != nil {
+		return Message{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
+}
+
 func (s Message) Abort() (Exception, error) {
 	p, err := s.Struct.Pointer(0)
 	if err != nil {
@@ -122,6 +134,18 @@ func (s Message) Abort() (Exception, error) {
 func (s Message) SetAbort(v Exception) error {
 	s.Struct.SetUint16(0, 1)
 	return s.Struct.SetPointer(0, v.Struct)
+}
+
+// NewAbort sets the abort field to a newly
+// allocated Exception struct, preferring placement in s's segment.
+func (s Message) NewAbort() (Exception, error) {
+	s.Struct.SetUint16(0, 1)
+	ss, err := NewException(s.Struct.Segment())
+	if err != nil {
+		return Exception{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
 }
 
 func (s Message) Bootstrap() (Bootstrap, error) {
@@ -140,6 +164,18 @@ func (s Message) SetBootstrap(v Bootstrap) error {
 	return s.Struct.SetPointer(0, v.Struct)
 }
 
+// NewBootstrap sets the bootstrap field to a newly
+// allocated Bootstrap struct, preferring placement in s's segment.
+func (s Message) NewBootstrap() (Bootstrap, error) {
+	s.Struct.SetUint16(0, 8)
+	ss, err := NewBootstrap(s.Struct.Segment())
+	if err != nil {
+		return Bootstrap{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
+}
+
 func (s Message) Call() (Call, error) {
 	p, err := s.Struct.Pointer(0)
 	if err != nil {
@@ -154,6 +190,18 @@ func (s Message) Call() (Call, error) {
 func (s Message) SetCall(v Call) error {
 	s.Struct.SetUint16(0, 2)
 	return s.Struct.SetPointer(0, v.Struct)
+}
+
+// NewCall sets the call field to a newly
+// allocated Call struct, preferring placement in s's segment.
+func (s Message) NewCall() (Call, error) {
+	s.Struct.SetUint16(0, 2)
+	ss, err := NewCall(s.Struct.Segment())
+	if err != nil {
+		return Call{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
 }
 
 func (s Message) Return() (Return, error) {
@@ -172,6 +220,18 @@ func (s Message) SetReturn(v Return) error {
 	return s.Struct.SetPointer(0, v.Struct)
 }
 
+// NewReturn sets the return field to a newly
+// allocated Return struct, preferring placement in s's segment.
+func (s Message) NewReturn() (Return, error) {
+	s.Struct.SetUint16(0, 3)
+	ss, err := NewReturn(s.Struct.Segment())
+	if err != nil {
+		return Return{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
+}
+
 func (s Message) Finish() (Finish, error) {
 	p, err := s.Struct.Pointer(0)
 	if err != nil {
@@ -186,6 +246,18 @@ func (s Message) Finish() (Finish, error) {
 func (s Message) SetFinish(v Finish) error {
 	s.Struct.SetUint16(0, 4)
 	return s.Struct.SetPointer(0, v.Struct)
+}
+
+// NewFinish sets the finish field to a newly
+// allocated Finish struct, preferring placement in s's segment.
+func (s Message) NewFinish() (Finish, error) {
+	s.Struct.SetUint16(0, 4)
+	ss, err := NewFinish(s.Struct.Segment())
+	if err != nil {
+		return Finish{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
 }
 
 func (s Message) Resolve() (Resolve, error) {
@@ -204,6 +276,18 @@ func (s Message) SetResolve(v Resolve) error {
 	return s.Struct.SetPointer(0, v.Struct)
 }
 
+// NewResolve sets the resolve field to a newly
+// allocated Resolve struct, preferring placement in s's segment.
+func (s Message) NewResolve() (Resolve, error) {
+	s.Struct.SetUint16(0, 5)
+	ss, err := NewResolve(s.Struct.Segment())
+	if err != nil {
+		return Resolve{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
+}
+
 func (s Message) Release() (Release, error) {
 	p, err := s.Struct.Pointer(0)
 	if err != nil {
@@ -220,6 +304,18 @@ func (s Message) SetRelease(v Release) error {
 	return s.Struct.SetPointer(0, v.Struct)
 }
 
+// NewRelease sets the release field to a newly
+// allocated Release struct, preferring placement in s's segment.
+func (s Message) NewRelease() (Release, error) {
+	s.Struct.SetUint16(0, 6)
+	ss, err := NewRelease(s.Struct.Segment())
+	if err != nil {
+		return Release{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
+}
+
 func (s Message) Disembargo() (Disembargo, error) {
 	p, err := s.Struct.Pointer(0)
 	if err != nil {
@@ -234,6 +330,18 @@ func (s Message) Disembargo() (Disembargo, error) {
 func (s Message) SetDisembargo(v Disembargo) error {
 	s.Struct.SetUint16(0, 13)
 	return s.Struct.SetPointer(0, v.Struct)
+}
+
+// NewDisembargo sets the disembargo field to a newly
+// allocated Disembargo struct, preferring placement in s's segment.
+func (s Message) NewDisembargo() (Disembargo, error) {
+	s.Struct.SetUint16(0, 13)
+	ss, err := NewDisembargo(s.Struct.Segment())
+	if err != nil {
+		return Disembargo{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
 }
 
 func (s Message) ObsoleteSave() (C.Pointer, error) {
@@ -274,6 +382,18 @@ func (s Message) SetProvide(v Provide) error {
 	return s.Struct.SetPointer(0, v.Struct)
 }
 
+// NewProvide sets the provide field to a newly
+// allocated Provide struct, preferring placement in s's segment.
+func (s Message) NewProvide() (Provide, error) {
+	s.Struct.SetUint16(0, 10)
+	ss, err := NewProvide(s.Struct.Segment())
+	if err != nil {
+		return Provide{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
+}
+
 func (s Message) Accept() (Accept, error) {
 	p, err := s.Struct.Pointer(0)
 	if err != nil {
@@ -290,6 +410,18 @@ func (s Message) SetAccept(v Accept) error {
 	return s.Struct.SetPointer(0, v.Struct)
 }
 
+// NewAccept sets the accept field to a newly
+// allocated Accept struct, preferring placement in s's segment.
+func (s Message) NewAccept() (Accept, error) {
+	s.Struct.SetUint16(0, 11)
+	ss, err := NewAccept(s.Struct.Segment())
+	if err != nil {
+		return Accept{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
+}
+
 func (s Message) Join() (Join, error) {
 	p, err := s.Struct.Pointer(0)
 	if err != nil {
@@ -304,6 +436,18 @@ func (s Message) Join() (Join, error) {
 func (s Message) SetJoin(v Join) error {
 	s.Struct.SetUint16(0, 12)
 	return s.Struct.SetPointer(0, v.Struct)
+}
+
+// NewJoin sets the join field to a newly
+// allocated Join struct, preferring placement in s's segment.
+func (s Message) NewJoin() (Join, error) {
+	s.Struct.SetUint16(0, 12)
+	ss, err := NewJoin(s.Struct.Segment())
+	if err != nil {
+		return Join{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
 }
 
 // Message_List is a list of Message.
@@ -533,6 +677,18 @@ func (s Call) SetTarget(v MessageTarget) error {
 	return s.Struct.SetPointer(0, v.Struct)
 }
 
+// NewTarget sets the target field to a newly
+// allocated MessageTarget struct, preferring placement in s's segment.
+func (s Call) NewTarget() (MessageTarget, error) {
+
+	ss, err := NewMessageTarget(s.Struct.Segment())
+	if err != nil {
+		return MessageTarget{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
+}
+
 func (s Call) InterfaceId() uint64 {
 	return s.Struct.Uint64(8)
 }
@@ -574,6 +730,18 @@ func (s Call) Params() (Payload, error) {
 func (s Call) SetParams(v Payload) error {
 
 	return s.Struct.SetPointer(1, v.Struct)
+}
+
+// NewParams sets the params field to a newly
+// allocated Payload struct, preferring placement in s's segment.
+func (s Call) NewParams() (Payload, error) {
+
+	ss, err := NewPayload(s.Struct.Segment())
+	if err != nil {
+		return Payload{}, err
+	}
+	err = s.Struct.SetPointer(1, ss)
+	return ss, err
 }
 func (s Call) SendResultsTo() Call_sendResultsTo { return Call_sendResultsTo(s) }
 
@@ -741,6 +909,18 @@ func (s Return) SetResults(v Payload) error {
 	return s.Struct.SetPointer(0, v.Struct)
 }
 
+// NewResults sets the results field to a newly
+// allocated Payload struct, preferring placement in s's segment.
+func (s Return) NewResults() (Payload, error) {
+	s.Struct.SetUint16(6, 0)
+	ss, err := NewPayload(s.Struct.Segment())
+	if err != nil {
+		return Payload{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
+}
+
 func (s Return) Exception() (Exception, error) {
 	p, err := s.Struct.Pointer(0)
 	if err != nil {
@@ -755,6 +935,18 @@ func (s Return) Exception() (Exception, error) {
 func (s Return) SetException(v Exception) error {
 	s.Struct.SetUint16(6, 1)
 	return s.Struct.SetPointer(0, v.Struct)
+}
+
+// NewException sets the exception field to a newly
+// allocated Exception struct, preferring placement in s's segment.
+func (s Return) NewException() (Exception, error) {
+	s.Struct.SetUint16(6, 1)
+	ss, err := NewException(s.Struct.Segment())
+	if err != nil {
+		return Exception{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
 }
 
 func (s Return) SetCanceled() {
@@ -962,6 +1154,18 @@ func (s Resolve) SetCap(v CapDescriptor) error {
 	return s.Struct.SetPointer(0, v.Struct)
 }
 
+// NewCap sets the cap field to a newly
+// allocated CapDescriptor struct, preferring placement in s's segment.
+func (s Resolve) NewCap() (CapDescriptor, error) {
+	s.Struct.SetUint16(4, 0)
+	ss, err := NewCapDescriptor(s.Struct.Segment())
+	if err != nil {
+		return CapDescriptor{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
+}
+
 func (s Resolve) Exception() (Exception, error) {
 	p, err := s.Struct.Pointer(0)
 	if err != nil {
@@ -976,6 +1180,18 @@ func (s Resolve) Exception() (Exception, error) {
 func (s Resolve) SetException(v Exception) error {
 	s.Struct.SetUint16(4, 1)
 	return s.Struct.SetPointer(0, v.Struct)
+}
+
+// NewException sets the exception field to a newly
+// allocated Exception struct, preferring placement in s's segment.
+func (s Resolve) NewException() (Exception, error) {
+	s.Struct.SetUint16(4, 1)
+	ss, err := NewException(s.Struct.Segment())
+	if err != nil {
+		return Exception{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
 }
 
 // Resolve_List is a list of Resolve.
@@ -1144,6 +1360,18 @@ func (s Disembargo) SetTarget(v MessageTarget) error {
 
 	return s.Struct.SetPointer(0, v.Struct)
 }
+
+// NewTarget sets the target field to a newly
+// allocated MessageTarget struct, preferring placement in s's segment.
+func (s Disembargo) NewTarget() (MessageTarget, error) {
+
+	ss, err := NewMessageTarget(s.Struct.Segment())
+	if err != nil {
+		return MessageTarget{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
+}
 func (s Disembargo) Context() Disembargo_context { return Disembargo_context(s) }
 
 func (s Disembargo_context) Which() Disembargo_context_Which {
@@ -1269,6 +1497,18 @@ func (s Provide) Target() (MessageTarget, error) {
 func (s Provide) SetTarget(v MessageTarget) error {
 
 	return s.Struct.SetPointer(0, v.Struct)
+}
+
+// NewTarget sets the target field to a newly
+// allocated MessageTarget struct, preferring placement in s's segment.
+func (s Provide) NewTarget() (MessageTarget, error) {
+
+	ss, err := NewMessageTarget(s.Struct.Segment())
+	if err != nil {
+		return MessageTarget{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
 }
 
 func (s Provide) Recipient() (C.Pointer, error) {
@@ -1448,6 +1688,18 @@ func (s Join) SetTarget(v MessageTarget) error {
 	return s.Struct.SetPointer(0, v.Struct)
 }
 
+// NewTarget sets the target field to a newly
+// allocated MessageTarget struct, preferring placement in s's segment.
+func (s Join) NewTarget() (MessageTarget, error) {
+
+	ss, err := NewMessageTarget(s.Struct.Segment())
+	if err != nil {
+		return MessageTarget{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
+}
+
 func (s Join) KeyPart() (C.Pointer, error) {
 
 	return s.Struct.Pointer(1)
@@ -1562,6 +1814,18 @@ func (s MessageTarget) PromisedAnswer() (PromisedAnswer, error) {
 func (s MessageTarget) SetPromisedAnswer(v PromisedAnswer) error {
 	s.Struct.SetUint16(4, 1)
 	return s.Struct.SetPointer(0, v.Struct)
+}
+
+// NewPromisedAnswer sets the promisedAnswer field to a newly
+// allocated PromisedAnswer struct, preferring placement in s's segment.
+func (s MessageTarget) NewPromisedAnswer() (PromisedAnswer, error) {
+	s.Struct.SetUint16(4, 1)
+	ss, err := NewPromisedAnswer(s.Struct.Segment())
+	if err != nil {
+		return PromisedAnswer{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
 }
 
 // MessageTarget_List is a list of MessageTarget.
@@ -1783,6 +2047,18 @@ func (s CapDescriptor) SetReceiverAnswer(v PromisedAnswer) error {
 	return s.Struct.SetPointer(0, v.Struct)
 }
 
+// NewReceiverAnswer sets the receiverAnswer field to a newly
+// allocated PromisedAnswer struct, preferring placement in s's segment.
+func (s CapDescriptor) NewReceiverAnswer() (PromisedAnswer, error) {
+	s.Struct.SetUint16(0, 4)
+	ss, err := NewPromisedAnswer(s.Struct.Segment())
+	if err != nil {
+		return PromisedAnswer{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
+}
+
 func (s CapDescriptor) ThirdPartyHosted() (ThirdPartyCapDescriptor, error) {
 	p, err := s.Struct.Pointer(0)
 	if err != nil {
@@ -1797,6 +2073,18 @@ func (s CapDescriptor) ThirdPartyHosted() (ThirdPartyCapDescriptor, error) {
 func (s CapDescriptor) SetThirdPartyHosted(v ThirdPartyCapDescriptor) error {
 	s.Struct.SetUint16(0, 5)
 	return s.Struct.SetPointer(0, v.Struct)
+}
+
+// NewThirdPartyHosted sets the thirdPartyHosted field to a newly
+// allocated ThirdPartyCapDescriptor struct, preferring placement in s's segment.
+func (s CapDescriptor) NewThirdPartyHosted() (ThirdPartyCapDescriptor, error) {
+	s.Struct.SetUint16(0, 5)
+	ss, err := NewThirdPartyCapDescriptor(s.Struct.Segment())
+	if err != nil {
+		return ThirdPartyCapDescriptor{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
 }
 
 // CapDescriptor_List is a list of CapDescriptor.
