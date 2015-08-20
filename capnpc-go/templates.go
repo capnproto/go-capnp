@@ -404,7 +404,7 @@ func (p {{.Node.Name}}_Promise) {{.Field.Name|title}}() {{.Interface.RemoteName 
 
 
 {{define "interfaceClient"}}{{with .Annotations.Doc}}// {{.}}
-{{end}}type {{.Node.Name}} struct { {{capnp}}.Client }
+{{end}}type {{.Node.Name}} struct { Client {{capnp}}.Client }
 
 {{range .Methods}}
 func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{context}}.Context, params func({{.Params.RemoteName $.Node}}) error, opts ...{{capnp}}.CallOption) {{.Results.RemoteName $.Node}}_Promise {

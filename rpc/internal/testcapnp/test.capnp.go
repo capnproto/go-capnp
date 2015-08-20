@@ -8,7 +8,7 @@ import (
 	server "zombiezen.com/go/capnproto/server"
 )
 
-type Handle struct{ C.Client }
+type Handle struct{ Client C.Client }
 
 type Handle_Server interface {
 }
@@ -26,7 +26,7 @@ func Handle_Methods(methods []server.Method, s Handle_Server) []server.Method {
 	return methods
 }
 
-type HandleFactory struct{ C.Client }
+type HandleFactory struct{ Client C.Client }
 
 func (c HandleFactory) NewHandle(ctx context.Context, params func(HandleFactory_newHandle_Params) error, opts ...C.CallOption) HandleFactory_newHandle_Results_Promise {
 	if c.Client == nil {
@@ -220,7 +220,7 @@ func (p HandleFactory_newHandle_Results_Promise) Handle() Handle {
 	return Handle{Client: p.Pipeline.GetPipeline(0).Client()}
 }
 
-type Hanger struct{ C.Client }
+type Hanger struct{ Client C.Client }
 
 func (c Hanger) Hang(ctx context.Context, params func(Hanger_hang_Params) error, opts ...C.CallOption) Hanger_hang_Results_Promise {
 	if c.Client == nil {
@@ -389,7 +389,7 @@ func (p Hanger_hang_Results_Promise) Struct() (Hanger_hang_Results, error) {
 	return Hanger_hang_Results{s}, err
 }
 
-type CallOrder struct{ C.Client }
+type CallOrder struct{ Client C.Client }
 
 func (c CallOrder) GetCallSequence(ctx context.Context, params func(CallOrder_getCallSequence_Params) error, opts ...C.CallOption) CallOrder_getCallSequence_Results_Promise {
 	if c.Client == nil {
@@ -576,7 +576,7 @@ func (p CallOrder_getCallSequence_Results_Promise) Struct() (CallOrder_getCallSe
 	return CallOrder_getCallSequence_Results{s}, err
 }
 
-type Echoer struct{ C.Client }
+type Echoer struct{ Client C.Client }
 
 func (c Echoer) Echo(ctx context.Context, params func(Echoer_echo_Params) error, opts ...C.CallOption) Echoer_echo_Results_Promise {
 	if c.Client == nil {
@@ -831,7 +831,7 @@ func (p Echoer_echo_Results_Promise) Cap() CallOrder {
 	return CallOrder{Client: p.Pipeline.GetPipeline(0).Client()}
 }
 
-type Adder struct{ C.Client }
+type Adder struct{ Client C.Client }
 
 func (c Adder) Add(ctx context.Context, params func(Adder_add_Params) error, opts ...C.CallOption) Adder_add_Results_Promise {
 	if c.Client == nil {

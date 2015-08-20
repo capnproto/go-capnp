@@ -27,7 +27,7 @@ func TestPromisedCapability(t *testing.T) {
 	client := testcapnp.Echoer{Client: c.Bootstrap(ctx)}
 
 	echo := client.Echo(ctx, func(p testcapnp.Echoer_echo_Params) error {
-		return p.SetCap(testcapnp.CallOrder{Client: client})
+		return p.SetCap(testcapnp.CallOrder{Client: client.Client})
 	})
 	pipeline := echo.Cap()
 	call0 := callseq(ctx, pipeline.Client, 0)

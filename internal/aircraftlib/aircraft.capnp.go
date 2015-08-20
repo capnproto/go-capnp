@@ -4111,7 +4111,7 @@ func (p ListStructCapn_Promise) Struct() (ListStructCapn, error) {
 	return ListStructCapn{s}, err
 }
 
-type Echo struct{ C.Client }
+type Echo struct{ Client C.Client }
 
 func (c Echo) Echo(ctx context.Context, params func(Echo_echo_Params) error, opts ...C.CallOption) Echo_echo_Results_Promise {
 	if c.Client == nil {
@@ -4740,7 +4740,7 @@ func (p StackingB_Promise) Struct() (StackingB, error) {
 	return StackingB{s}, err
 }
 
-type CallSequence struct{ C.Client }
+type CallSequence struct{ Client C.Client }
 
 func (c CallSequence) GetNumber(ctx context.Context, params func(CallSequence_getNumber_Params) error, opts ...C.CallOption) CallSequence_getNumber_Results_Promise {
 	if c.Client == nil {
