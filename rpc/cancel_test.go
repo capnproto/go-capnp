@@ -21,16 +21,16 @@ func TestCancel(t *testing.T) {
 	c := rpc.NewConn(p)
 	notify := make(chan struct{})
 	hanger := testcapnp.Hanger_ServerToClient(Hanger{notify: notify})
-	d := rpc.NewConn(q, rpc.MainInterface(hanger.GenericClient()))
+	d := rpc.NewConn(q, rpc.MainInterface(hanger.Client))
 	defer d.Wait()
 	defer c.Close()
-	client := testcapnp.NewHanger(c.Bootstrap(ctx))
+	client := testcapnp.Hanger{Client: c.Bootstrap(ctx)}
 
 	subctx, subcancel := context.WithCancel(ctx)
-	promise := client.Hang(subctx, func(r testcapnp.Hanger_hang_Params) {})
+	promise := client.Hang(subctx, func(r testcapnp.Hanger_hang_Params) error { return nil })
 	<-notify
 	subcancel()
-	_, err := promise.Get()
+	_, err := promise.Struct()
 	<-notify // test will deadlock if cancel not delivered
 
 	if err != context.Canceled {

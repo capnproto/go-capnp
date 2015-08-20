@@ -18,31 +18,33 @@ func Example() {
 
 	// Server-side
 	srv := testcapnp.Adder_ServerToClient(AdderServer{})
-	serverConn := rpc.NewConn(t1, rpc.MainInterface(srv.GenericClient()))
+	serverConn := rpc.NewConn(t1, rpc.MainInterface(srv.Client))
 	defer serverConn.Wait()
 
 	// Client-side
 	ctx := context.Background()
 	clientConn := rpc.NewConn(t2)
 	defer clientConn.Close()
-	adderClient := testcapnp.NewAdder(clientConn.Bootstrap(ctx))
+	adderClient := testcapnp.Adder{Client: clientConn.Bootstrap(ctx)}
 	// Every client call returns a promise.  You can make multiple calls
 	// concurrently.
-	call1 := adderClient.Add(ctx, func(p testcapnp.Adder_add_Params) {
+	call1 := adderClient.Add(ctx, func(p testcapnp.Adder_add_Params) error {
 		p.SetA(5)
 		p.SetB(2)
+		return nil
 	})
-	call2 := adderClient.Add(ctx, func(p testcapnp.Adder_add_Params) {
+	call2 := adderClient.Add(ctx, func(p testcapnp.Adder_add_Params) error {
 		p.SetA(10)
 		p.SetB(20)
+		return nil
 	})
-	// Calling Get() on a promise waits until it returns.
-	result1, err := call1.Get()
+	// Calling Struct() on a promise waits until it returns.
+	result1, err := call1.Struct()
 	if err != nil {
 		fmt.Println("Add #1 failed:", err)
 		return
 	}
-	result2, err := call2.Get()
+	result2, err := call2.Struct()
 	if err != nil {
 		fmt.Println("Add #2 failed:", err)
 		return

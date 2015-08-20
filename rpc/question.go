@@ -110,29 +110,33 @@ func (q *question) fulfill(obj capnp.Pointer, makeDisembargo func() (embargoID, 
 		q.mu.Unlock()
 		panic("question.fulfill called more than once")
 	}
-	ctab := obj.Segment().Message.CapTable()
+	ctab := obj.Segment().Message().CapTable
 	visited := make([]bool, len(ctab))
 	msgs := make([]rpccapnp.Message, 0, len(q.derived))
 	for _, d := range q.derived {
-		in := capnp.TransformPointer(obj, d)
-		if in.Type() != capnp.TypeInterface {
+		tgt, err := capnp.Transform(obj, d)
+		if err != nil {
 			continue
 		}
-		client := extractRPCClient(in.ToInterface().Client())
+		in := capnp.ToInterface(tgt)
+		if !capnp.IsValid(in) {
+			continue
+		}
+		client := extractRPCClient(in.Client())
 		if ic, ok := client.(*importClient); ok && ic.manager == q.manager {
 			// Imported from remote vat.  Don't need to disembargo.
 			continue
 		}
-		if cn := in.ToInterface().Capability(); !visited[cn] {
+		if cn := in.Capability(); !visited[cn] {
 			id, e := makeDisembargo()
 			ctab[cn] = newEmbargoClient(q.manager, ctab[cn], e)
 			m := newDisembargoMessage(nil, rpccapnp.Disembargo_context_Which_senderLoopback, id)
-			mt := rpccapnp.NewMessageTarget(m.Segment())
-			pa := rpccapnp.NewPromisedAnswer(m.Segment())
+			dis, _ := m.Disembargo()
+			mt, _ := dis.NewTarget()
+			pa, _ := mt.NewPromisedAnswer()
 			pa.SetQuestionId(uint32(q.id))
 			transformToPromisedAnswer(m.Segment(), pa, d)
 			mt.SetPromisedAnswer(pa)
-			m.Disembargo().SetTarget(mt)
 			msgs = append(msgs, m)
 			visited[cn] = true
 		}
@@ -192,7 +196,7 @@ func transformsEqual(t, u []capnp.PipelineOp) bool {
 func (q *question) Struct() (capnp.Struct, error) {
 	<-q.resolved
 	_, obj, err, _ := q.peek()
-	return obj.ToStruct(), err
+	return capnp.ToStruct(obj), err
 }
 
 func (q *question) PipelineCall(transform []capnp.PipelineOp, ccall *capnp.Call) capnp.Answer {
@@ -220,7 +224,11 @@ func (q *question) PipelineClose(transform []capnp.PipelineOp) error {
 	if err != nil {
 		return err
 	}
-	c := capnp.TransformPointer(obj, transform).ToInterface().Client()
+	x, err := capnp.Transform(obj, transform)
+	if err != nil {
+		return err
+	}
+	c := capnp.ToInterface(x).Client()
 	if c == nil {
 		return capnp.ErrNullClient
 	}
@@ -251,7 +259,10 @@ func newEmbargoClient(manager *manager, client capnp.Client, e embargo) *embargo
 
 func (ec *embargoClient) push(cl *capnp.Call) capnp.Answer {
 	f := new(fulfiller.Fulfiller)
-	cl = cl.Copy(nil)
+	cl, err := cl.Copy(nil)
+	if err != nil {
+		return capnp.ErrorAnswer(err)
+	}
 	if ok := ec.q.Push(ecall{cl, f}); !ok {
 		return capnp.ErrorAnswer(errQueueFull)
 	}

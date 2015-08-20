@@ -50,18 +50,21 @@ func (p *pipeTransport) SendMessage(ctx context.Context, msg rpccapnp.Message) e
 	}
 	defer p.finishSend()
 
-	buf := new(bytes.Buffer)
-	_, err := msg.Segment().WriteTo(buf)
+	buf, err := msg.Segment().Message().Marshal()
 	if err != nil {
 		return err
 	}
-	seg, _, err := capnp.ReadFromMemoryZeroCopy(buf.Bytes())
+	mm, err := capnp.Unmarshal(buf)
+	if err != nil {
+		return err
+	}
+	msg, err = rpccapnp.ReadRootMessage(mm)
 	if err != nil {
 		return err
 	}
 
 	select {
-	case p.w <- rpccapnp.ReadRootMessage(seg):
+	case p.w <- msg:
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
@@ -100,14 +103,14 @@ func (p *pipeTransport) RecvMessage(ctx context.Context) (rpccapnp.Message, erro
 		if !ok {
 			return rpccapnp.Message{}, errBrokenPipe
 		}
-		if _, err := msg.Segment().WriteTo(&p.rbuf); err != nil {
+		if err := capnp.NewEncoder(&p.rbuf).Encode(msg.Segment().Message()); err != nil {
 			return rpccapnp.Message{}, err
 		}
-		seg, _, err := capnp.ReadFromMemoryZeroCopy(p.rbuf.Bytes())
+		m, err := capnp.Unmarshal(p.rbuf.Bytes())
 		if err != nil {
 			return rpccapnp.Message{}, err
 		}
-		return rpccapnp.ReadRootMessage(seg), nil
+		return rpccapnp.ReadRootMessage(m)
 	case <-ctx.Done():
 		return rpccapnp.Message{}, ctx.Err()
 	}

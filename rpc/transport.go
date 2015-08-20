@@ -29,8 +29,10 @@ type Transport interface {
 type streamTransport struct {
 	rwc      io.ReadWriteCloser
 	deadline writeDeadlineSetter
-	rbuf     bytes.Buffer
-	wbuf     bytes.Buffer
+
+	enc  *capnp.Encoder
+	dec  *capnp.Decoder
+	wbuf bytes.Buffer
 }
 
 // StreamTransport creates a transport that sends and receives messages
@@ -38,15 +40,19 @@ type streamTransport struct {
 // Closing the transport will close the underlying ReadWriteCloser.
 func StreamTransport(rwc io.ReadWriteCloser) Transport {
 	d, _ := rwc.(writeDeadlineSetter)
-	s := &streamTransport{rwc: rwc, deadline: d}
-	s.rbuf.Grow(4096)
+	s := &streamTransport{
+		rwc:      rwc,
+		deadline: d,
+		dec:      capnp.NewDecoder(rwc),
+	}
 	s.wbuf.Grow(4096)
+	s.enc = capnp.NewEncoder(&s.wbuf)
 	return s
 }
 
 func (s *streamTransport) SendMessage(ctx context.Context, msg rpccapnp.Message) error {
 	s.wbuf.Reset()
-	if _, err := msg.Segment().WriteTo(&s.wbuf); err != nil {
+	if err := s.enc.Encode(msg.Segment().Message()); err != nil {
 		return err
 	}
 	if s.deadline != nil {
@@ -63,12 +69,12 @@ func (s *streamTransport) SendMessage(ctx context.Context, msg rpccapnp.Message)
 
 func (s *streamTransport) RecvMessage(ctx context.Context) (rpccapnp.Message, error) {
 	var (
-		seg *capnp.Segment
+		msg *capnp.Message
 		err error
 	)
 	read := make(chan struct{})
 	go func() {
-		seg, err = capnp.ReadFromStream(s.rwc, &s.rbuf)
+		msg, err = s.dec.Decode()
 		close(read)
 	}()
 	select {
@@ -79,8 +85,7 @@ func (s *streamTransport) RecvMessage(ctx context.Context) (rpccapnp.Message, er
 	if err != nil {
 		return rpccapnp.Message{}, err
 	}
-	msg := rpccapnp.ReadRootMessage(seg)
-	return msg, nil
+	return rpccapnp.ReadRootMessage(msg)
 }
 
 func (s *streamTransport) Close() error {
@@ -138,34 +143,28 @@ func dispatchRecv(m *manager, transport Transport, msgs chan<- rpccapnp.Message)
 }
 
 // copyMessage clones a Cap'n Proto buffer.
-func copyMessage(msg capnp.Message) capnp.Message {
-	n := 0
-	for {
-		if _, err := msg.Lookup(capnp.SegmentID(n)); err != nil {
-			break
-		}
-		n++
-	}
+func copyMessage(msg *capnp.Message) *capnp.Message {
+	n := msg.NumSegments()
 	segments := make([][]byte, n)
 	for i := range segments {
-		s, err := msg.Lookup(capnp.SegmentID(i))
+		s, err := msg.Segment(capnp.SegmentID(i))
 		if err != nil {
 			panic(err)
 		}
-		segments[i] = make([]byte, len(s.Data))
-		copy(segments[i], s.Data)
+		segments[i] = make([]byte, len(s.Data()))
+		copy(segments[i], s.Data())
 	}
-	return capnp.NewMultiBuffer(segments).Message
+	return &capnp.Message{Arena: capnp.MultiSegment(segments)}
 }
 
 // copyRPCMessage clones an RPC packet.
 func copyRPCMessage(m rpccapnp.Message) rpccapnp.Message {
-	mm := copyMessage(m.Segment().Message)
-	seg, err := mm.Lookup(0)
+	mm := copyMessage(m.Segment().Message())
+	rpcMsg, err := rpccapnp.ReadRootMessage(mm)
 	if err != nil {
 		panic(err)
 	}
-	return rpccapnp.ReadRootMessage(seg)
+	return rpcMsg
 }
 
 // isTemporaryError reports whether e has a Temporary() method that
