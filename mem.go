@@ -526,11 +526,11 @@ func isInt32Bit() bool {
 }
 
 var (
-	errBufferCall         = errors.New("capn: can't call on a memory buffer")
-	errSegmentOutOfBounds = errors.New("capn: segment ID out of bounds")
-	errSegment32Bit       = errors.New("capn: segment ID larger than 31 bits")
+	errBufferCall         = errors.New("capnp: can't call on a memory buffer")
+	errSegmentOutOfBounds = errors.New("capnp: segment ID out of bounds")
+	errSegment32Bit       = errors.New("capnp: segment ID larger than 31 bits")
 	errHasData            = errors.New("capnp: NewMessage called on arena with data")
-	errTooMuchData        = errors.New("capn: too much data in stream")
-	errSegmentTooSmall    = errors.New("capn: segment too small")
+	errTooMuchData        = errors.New("capnp: too much data in stream")
+	errSegmentTooSmall    = errors.New("capnp: segment too small")
 	errStreamHeader       = errors.New("capnp: invalid stream header")
 )

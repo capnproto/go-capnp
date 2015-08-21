@@ -73,7 +73,7 @@ func (i Interface) Client() Client {
 }
 
 // ErrNullClient is returned from a call made on a null client pointer.
-var ErrNullClient = errors.New("capn: call on null client")
+var ErrNullClient = errors.New("capnp: call on null client")
 
 // A CapabilityID is an index into a message's capability table.
 type CapabilityID uint32
@@ -497,7 +497,7 @@ func (me *MethodError) Error() string {
 
 // ErrUnimplemented is the error returned when a method is called on
 // a server that does not implement the method.
-var ErrUnimplemented = errors.New("method not implemented")
+var ErrUnimplemented = errors.New("capnp: method not implemented")
 
 // IsUnimplemented reports whether e indicates an unimplemented method error.
 func IsUnimplemented(e error) bool {

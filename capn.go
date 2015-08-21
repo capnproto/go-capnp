@@ -497,10 +497,10 @@ var (
 )
 
 var (
-	errOverlarge   = errors.New("capn: overlarge struct/list")
-	errOutOfBounds = errors.New("capn: write out of bounds")
-	errCopyDepth   = errors.New("capn: copy depth too large")
-	errOverlap     = errors.New("capn: overlapping data on copy")
-	errListSize    = errors.New("capn: invalid list size")
-	errObjectType  = errors.New("capn: invalid object type")
+	errOverlarge   = errors.New("capnp: overlarge struct/list")
+	errOutOfBounds = errors.New("capnp: write out of bounds")
+	errCopyDepth   = errors.New("capnp: copy depth too large")
+	errOverlap     = errors.New("capnp: overlapping data on copy")
+	errListSize    = errors.New("capnp: invalid list size")
+	errObjectType  = errors.New("capnp: invalid object type")
 )
