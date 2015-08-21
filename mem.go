@@ -23,7 +23,7 @@ type Message struct {
 	// more details on the capability table.
 	CapTable []Client
 
-	segs []*Segment
+	segs map[SegmentID]*Segment
 }
 
 // NewMessage creates a message with a new root and returns the first
@@ -81,8 +81,8 @@ func (m *Message) AddCap(c Client) CapabilityID {
 }
 
 // NumSegments returns the number of segments in the message.
-func (m *Message) NumSegments() int {
-	return m.Arena.NumSegments()
+func (m *Message) NumSegments() int64 {
+	return int64(m.Arena.NumSegments())
 }
 
 // Segment returns the segment with the given ID.
@@ -93,7 +93,7 @@ func (m *Message) Segment(id SegmentID) (*Segment, error) {
 	if seg := m.segment(id); seg != nil {
 		return seg, nil
 	}
-	if int(id) >= m.Arena.NumSegments() {
+	if int64(id) >= m.Arena.NumSegments() {
 		return nil, errSegmentOutOfBounds
 	}
 	data, err := m.Arena.Data(id)
@@ -104,19 +104,18 @@ func (m *Message) Segment(id SegmentID) (*Segment, error) {
 }
 
 func (m *Message) segment(id SegmentID) *Segment {
-	if uint32(id) >= uint32(len(m.segs)) {
+	if m.segs == nil {
 		return nil
 	}
 	return m.segs[id]
 }
 
 func (m *Message) setSegment(id SegmentID, data []byte) *Segment {
-	if seg := m.segment(id); seg != nil {
+	if m.segs == nil {
+		m.segs = make(map[SegmentID]*Segment)
+	} else if seg := m.segs[id]; seg != nil {
 		seg.data = data
 		return seg
-	}
-	for uint32(len(m.segs)) <= uint32(id) {
-		m.segs = append(m.segs, nil)
 	}
 	seg := &Segment{
 		id:   id,
@@ -180,20 +179,21 @@ func alloc(s *Segment, sz Size) (*Segment, Address, error) {
 // must be tightly packed in the range [0, NumSegments()).
 type Arena interface {
 	// NumSegments returns the number of segments in the arena.
-	NumSegments() int
+	// This must not be larger than 1<<32.
+	NumSegments() int64
 
 	// Data loads the data for the segment with the given ID.
 	Data(id SegmentID) ([]byte, error)
 
 	// Allocate allocates a byte slice such that cap(data) - len(data) >= minsz.
-	// segs is a sparse list of already loaded segments, indexed by ID.
-	// The arena may return an existing segment's ID, in which case the
-	// arena is responsible for copying the data to the new byte slice.
-	// Allocate must not modify the segments passed into it.
-	Allocate(minsz Size, segs []*Segment) (SegmentID, []byte, error)
+	// segs is a map of already loaded segments keyed by ID.  The arena may
+	// return an existing segment's ID, in which case the arena is responsible
+	// for copying the existing data to the returned byte slice.  Allocate must
+	// not modify the segments passed into it.
+	Allocate(minsz Size, segs map[SegmentID]*Segment) (SegmentID, []byte, error)
 }
 
-// Arena parameters.
+// Arena parameters.  Must be a multiple of wordSize.
 const (
 	defaultBufferSize      = 4096
 	minSingleSegmentGrowth = 4096
@@ -203,7 +203,8 @@ type singleSegmentArena []byte
 
 // SingleSegment returns a new arena with an expanding single-segment
 // buffer.  b can be used to populate the buffer for reading or to
-// reserve memory of a specific size.
+// reserve memory of a specific size.  A SingleSegment buffer does not
+// return errors unless you attempt to access another segment.
 func SingleSegment(b []byte) Arena {
 	if cap(b) == 0 {
 		b = make([]byte, 0, defaultBufferSize)
@@ -213,7 +214,7 @@ func SingleSegment(b []byte) Arena {
 	return ssa
 }
 
-func (ssa *singleSegmentArena) NumSegments() int {
+func (ssa *singleSegmentArena) NumSegments() int64 {
 	return 1
 }
 
@@ -224,7 +225,7 @@ func (ssa *singleSegmentArena) Data(id SegmentID) ([]byte, error) {
 	return *ssa, nil
 }
 
-func (ssa *singleSegmentArena) Allocate(sz Size, segs []*Segment) (SegmentID, []byte, error) {
+func (ssa *singleSegmentArena) Allocate(sz Size, segs map[SegmentID]*Segment) (SegmentID, []byte, error) {
 	if (len(segs) == 0 || segs[0] == nil) && hasCapacity(*ssa, sz) {
 		return 0, *ssa, nil
 	}
@@ -260,8 +261,8 @@ func demuxArena(sizes []Size, data []byte) Arena {
 	return MultiSegment(segs)
 }
 
-func (msa *multiSegmentArena) NumSegments() int {
-	return len(*msa)
+func (msa *multiSegmentArena) NumSegments() int64 {
+	return int64(len(*msa))
 }
 
 func (msa *multiSegmentArena) Data(id SegmentID) ([]byte, error) {
@@ -271,9 +272,9 @@ func (msa *multiSegmentArena) Data(id SegmentID) ([]byte, error) {
 	return (*msa)[id], nil
 }
 
-func (msa *multiSegmentArena) Allocate(sz Size, segs []*Segment) (SegmentID, []byte, error) {
+func (msa *multiSegmentArena) Allocate(sz Size, segs map[SegmentID]*Segment) (SegmentID, []byte, error) {
 	for i, data := range *msa {
-		if i < len(segs) && segs[i] != nil {
+		if segs[SegmentID(i)] != nil {
 			// The message would have already considered this segment.
 			continue
 		}
@@ -390,7 +391,7 @@ func (e *Encoder) Encode(m *Message) error {
 	if err := e.write(e.hdrbuf); err != nil {
 		return err
 	}
-	for i := 0; i < nsegs; i++ {
+	for i := int64(0); i < nsegs; i++ {
 		s, err := m.Segment(SegmentID(i))
 		if err != nil {
 			return err
@@ -414,7 +415,7 @@ func (e *Encoder) write(b []byte) error {
 func (m *Message) segmentSizes() ([]Size, error) {
 	nsegs := m.NumSegments()
 	sizes := make([]Size, nsegs)
-	for i := 0; i < nsegs; i++ {
+	for i := int64(0); i < nsegs; i++ {
 		s, err := m.Segment(SegmentID(i))
 		if err != nil {
 			return sizes[:i], err
@@ -449,7 +450,7 @@ func (m *Message) Marshal() ([]byte, error) {
 	// Fill in buffer.
 	buf := make([]byte, hdrSize, total)
 	marshalStreamHeader(buf, sizes)
-	for i := 0; i < nsegs; i++ {
+	for i := int64(0); i < nsegs; i++ {
 		s, err := m.Segment(SegmentID(i))
 		if err != nil {
 			return nil, err
