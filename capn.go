@@ -255,34 +255,6 @@ func (s *Segment) resolveFarPointer(off Address, val rawPointer) (*Segment, Addr
 	}
 }
 
-/*
-lsb                       list pointer                        msb
-+-+-----------------------------+--+----------------------------+
-|A|             B               |C |             D              |
-+-+-----------------------------+--+----------------------------+
-
-A (2 bits) = 1, to indicate that this is a list pointer.
-B (30 bits) = Offset, in words, from the end of the pointer to the
-    start of the first element of the list.  Signed.
-C (3 bits) = Size of each element:
-    0 = 0 (e.g. List(Void))
-    1 = 1 bit
-    2 = 1 byte
-    3 = 2 bytes
-    4 = 4 bytes
-    5 = 8 bytes (non-pointer)
-    6 = 8 bytes (pointer)
-    7 = composite (see below)
-D (29 bits) = Number of elements in the list, except when C is 7
-    (see below).
-
-The pointed-to values are tightly-packed. In particular, Bools are packed bit-by-bit in little-endian order (the first bit is the least-significant bit of the first byte).
-
-Lists of structs use the smallest element size in which the struct can fit. So, a list of structs that each contain two UInt8 fields and nothing else could be encoded with C = 3 (2-byte elements). A list of structs that each contain a single Text field would be encoded as C = 6 (pointer elements). A list of structs that each contain a single Bool field would be encoded using C = 1 (1-bit elements). A list structs which are each more than one word in size must be be encoded using C = 7 (composite).
-
-When C = 7, the elements of the list are fixed-width composite values – usually, structs. In this case, the list content is prefixed by a "tag" word that describes each individual element. The tag has the same layout as a struct pointer, except that the pointer offset (B) instead indicates the number of elements in the list. Meanwhile, section (D) of the list pointer – which normally would store this element count – instead stores the total number of words in the list (not counting the tag word). The reason we store a word count in the pointer rather than an element count is to ensure that the extents of the list’s location can always be determined by inspecting the pointer alone, without having to look at the tag; this may allow more-efficient prefetching in some use cases. The reason we don’t store struct lists as a list of pointers is because doing so would take significantly more space (an extra pointer per element) and may be less cache-friendly.
-*/
-
 type offset struct {
 	id         SegmentID
 	boff, bend int64 // in bits
