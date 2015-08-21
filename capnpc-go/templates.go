@@ -119,6 +119,12 @@ func (s {{.Node.Name}}) Which() {{.Node.Name}}_Which {
 {{define "settag"}}{{if hasDiscriminant .Field}}s.Struct.SetUint16({{discriminantOffset .Node}}, {{.Field.DiscriminantValue}}){{end}}{{end}}
 
 
+{{define "structGroup"}}func (s {{.Node.Name}}) {{.Field.Name|title}}() {{.Group.Name}} { return {{.Group.Name}}(s) }
+{{if hasDiscriminant .Field}}
+func (s {{.Node.Name}}) Set{{.Field.Name|title}}() { {{template "settag" .}} }
+{{end}}{{end}}
+
+
 {{define "structVoidField"}}{{if hasDiscriminant .Field}}
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}() {
 	{{template "settag" .}}
@@ -500,6 +506,12 @@ type newStructParams struct {
 
 type structFuncsParams struct {
 	Node *node
+}
+
+type structGroupParams struct {
+	Node  *node
+	Group *node
+	Field field
 }
 
 type structFieldParams struct {

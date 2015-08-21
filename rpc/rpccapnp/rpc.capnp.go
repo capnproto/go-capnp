@@ -1899,10 +1899,7 @@ func (s Payload) CapTable() (CapDescriptor_List, error) {
 		return CapDescriptor_List{}, err
 	}
 
-	l, err := C.ToListDefault(p, x_b312981b2552a250[0:16])
-	if err != nil {
-		return CapDescriptor_List{}, err
-	}
+	l := C.ToList(p)
 
 	return CapDescriptor_List{List: l}, nil
 }
@@ -2160,10 +2157,7 @@ func (s PromisedAnswer) Transform() (PromisedAnswer_Op_List, error) {
 		return PromisedAnswer_Op_List{}, err
 	}
 
-	l, err := C.ToListDefault(p, x_b312981b2552a250[16:32])
-	if err != nil {
-		return PromisedAnswer_Op_List{}, err
-	}
+	l := C.ToList(p)
 
 	return PromisedAnswer_Op_List{List: l}, nil
 }
@@ -2522,11 +2516,4 @@ func (l Exception_Type_List) At(i int) Exception_Type {
 func (l Exception_Type_List) Set(i int, v Exception_Type) {
 	ul := C.UInt16List{List: l.List}
 	ul.Set(i, uint16(v))
-}
-
-var x_b312981b2552a250 = []byte{
-	0, 0, 0, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
 }

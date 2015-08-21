@@ -247,22 +247,24 @@ func parseAnnotations(list Annotation_List) *annotations {
 	ann := new(annotations)
 	for i, n := 0, list.Len(); i < n; i++ {
 		a := list.At(i)
+		val, _ := a.Value()
+		text, _ := val.Text()
 		switch a.Id() {
 		case C.Doc:
-			ann.Doc = a.Value().Text()
+			ann.Doc = text
 		case C.Customtype:
-			ann.CustomType = a.Value().Text()
+			ann.CustomType = text
 		case C.Package:
-			ann.Package = a.Value().Text()
+			ann.Package = text
 		case C.Import:
-			ann.Import = a.Value().Text()
+			ann.Import = text
 		case C.Tag:
 			ann.TagType = customTag
-			ann.CustomTag = a.Value().Text()
+			ann.CustomTag = text
 		case C.Notag:
 			ann.TagType = noTag
 		case C.Name:
-			ann.Name = a.Value().Text()
+			ann.Name = text
 		}
 	}
 	return ann
@@ -299,9 +301,11 @@ func findNode(id uint64) *node {
 }
 
 func (n *node) remoteScope(from *node) string {
-	assert(n.pkg != "", "missing package declaration for %s", n.DisplayName())
-	assert(n.imp != "", "missing import declaration for %s", n.DisplayName())
-	assert(from.imp != "", "missing import declaration for %s", from.DisplayName())
+	displayName, _ := n.DisplayName()
+	fromDisplayName, _ := from.DisplayName()
+	assert(n.pkg != "", "missing package declaration for %s", displayName)
+	assert(n.imp != "", "missing import declaration for %s", displayName)
+	assert(from.imp != "", "missing import declaration for %s", fromDisplayName)
 
 	if n.imp == from.imp {
 		return ""
@@ -320,7 +324,8 @@ func (n *node) RemoteName(from *node) string {
 }
 
 func (n *node) resolveName(base, name string, file *node) {
-	name = parseAnnotations(n.Annotations()).Rename(name)
+	na, _ := n.Annotations()
+	name = parseAnnotations(na).Rename(name)
 	if base == "" {
 		n.Name = strings.Title(name)
 	} else {
@@ -329,29 +334,37 @@ func (n *node) resolveName(base, name string, file *node) {
 	n.pkg = file.pkg
 	n.imp = file.imp
 
-	if n.Which() != Node_Which_struct || !n.StructGroup().IsGroup() {
+	if n.Which() != Node_Which_structGroup || !n.StructGroup().IsGroup() {
 		file.nodes = append(file.nodes, n)
 	}
 
-	for i := 0; i < n.NestedNodes().Len(); i++ {
-		nn := n.NestedNodes().At(i)
+	nnodes, _ := n.NestedNodes()
+	for i := 0; i < nnodes.Len(); i++ {
+		nn := nnodes.At(i)
 		if ni := g_nodes[nn.Id()]; ni != nil {
-			ni.resolveName(n.Name, nn.Name(), file)
+			nname, _ := nn.Name()
+			ni.resolveName(n.Name, nname, file)
 		}
 	}
 
-	if n.Which() == Node_Which_struct {
-		for i := 0; i < n.StructGroup().Fields().Len(); i++ {
-			f := n.StructGroup().Fields().At(i)
+	if n.Which() == Node_Which_structGroup {
+		fields, _ := n.StructGroup().Fields()
+		for i := 0; i < fields.Len(); i++ {
+			f := fields.At(i)
 			if f.Which() == Field_Which_group {
-				fname := parseAnnotations(f.Annotations()).Rename(f.Name())
+				fa, _ := f.Annotations()
+				fname, _ := f.Name()
+				fname = parseAnnotations(fa).Rename(fname)
 				findNode(f.Group().TypeId()).resolveName(n.Name, fname, file)
 			}
 		}
 	} else if n.Which() == Node_Which_interface {
-		for i, m := 0, n.Interface().Methods(); i < m.Len(); i++ {
+		m, _ := n.Interface().Methods()
+		for i := 0; i < m.Len(); i++ {
 			mm := m.At(i)
-			mname := parseAnnotations(mm.Annotations()).Rename(mm.Name())
+			mname, _ := mm.Name()
+			mann, _ := mm.Annotations()
+			mname = parseAnnotations(mann).Rename(mname)
 			base := n.Name + "_" + mname
 			if p := findNode(mm.ParamStructType()); p.ScopeId() == 0 {
 				p.resolveName(base, "Params", file)
@@ -376,18 +389,21 @@ func (e *enumval) FullName() string {
 }
 
 func (n *node) defineEnum(w io.Writer) {
-	es := n.Enum().Enumerants()
+	es, _ := n.Enum().Enumerants()
 	ev := make([]enumval, es.Len())
 	for i := 0; i < es.Len(); i++ {
 		e := es.At(i)
-		ann := parseAnnotations(e.Annotations())
-		name := ann.Rename(e.Name())
+		eann, _ := e.Annotations()
+		ann := parseAnnotations(eann)
+		name, _ := e.Name()
+		name = ann.Rename(name)
 		t := ann.Tag(name)
 		ev[e.CodeOrder()] = enumval{e, name, i, t, n}
 	}
+	nann, _ := n.Annotations()
 	templates.ExecuteTemplate(w, "enum", enumParams{
 		Node:        n,
-		Annotations: parseAnnotations(n.Annotations()),
+		Annotations: parseAnnotations(nann),
 		EnumValues:  ev,
 	})
 }
@@ -425,12 +441,14 @@ func (n *node) writeValue(w io.Writer, t Type, v Value) {
 
 	case Type_Which_text:
 		assert(v.Which() == Value_Which_text, "expected text value")
-		fmt.Fprintf(w, "%q", v.Text())
+		text, _ := v.Text()
+		fmt.Fprintf(w, "%q", text)
 
 	case Type_Which_data:
 		assert(v.Which() == Value_Which_data, "expected data value")
 		fmt.Fprint(w, "[]byte{")
-		for i, b := range v.Data() {
+		data, _ := v.Data()
+		for i, b := range data {
 			if i > 0 {
 				fmt.Fprint(w, ", ")
 			}
@@ -442,7 +460,7 @@ func (n *node) writeValue(w io.Writer, t Type, v Value) {
 		assert(v.Which() == Value_Which_enum, "expected enum value")
 		en := findNode(t.Enum().TypeId())
 		assert(en.Which() == Node_Which_enum, "expected enum type ID")
-		enums := en.Enum().Enumerants()
+		enums, _ := en.Enum().Enumerants()
 		if val := int(v.Enum()); val >= enums.Len() {
 			fmt.Fprintf(w, "%s(%d)", en.RemoteName(n), val)
 		} else {
@@ -480,7 +498,8 @@ func (n *node) defineAnnotation(w io.Writer) {
 }
 
 func constIsVar(n *node) bool {
-	switch n.Const().Type().Which() {
+	t, _ := n.Const().Type()
+	switch t.Which() {
 	case Type_Which_bool, Type_Which_int8, Type_Which_uint8, Type_Which_int16,
 		Type_Which_uint16, Type_Which_int32, Type_Which_uint32, Type_Which_int64,
 		Type_Which_uint64, Type_Which_text, Type_Which_enum:
@@ -501,7 +520,9 @@ func defineConstNodes(w io.Writer, nodes []*node) {
 				any = true
 			}
 			fmt.Fprintf(w, "%s = ", n.Name)
-			n.writeValue(w, n.Const().Type(), n.Const().Value())
+			kt, _ := n.Const().Type()
+			kv, _ := n.Const().Value()
+			n.writeValue(w, kt, kv)
 			fmt.Fprintf(w, "\n")
 		}
 	}
@@ -519,7 +540,9 @@ func defineConstNodes(w io.Writer, nodes []*node) {
 				any = true
 			}
 			fmt.Fprintf(w, "%s = ", n.Name)
-			n.writeValue(w, n.Const().Type(), n.Const().Value())
+			kt, _ := n.Const().Type()
+			kv, _ := n.Const().Value()
+			n.writeValue(w, kt, kv)
 			fmt.Fprintf(w, "\n")
 		}
 	}
@@ -530,9 +553,10 @@ func defineConstNodes(w io.Writer, nodes []*node) {
 }
 
 func (n *node) defineField(w io.Writer, f field) {
-	ann := parseAnnotations(f.Annotations())
-	t := f.Slot().Type()
-	def := f.Slot().DefaultValue()
+	fann, _ := f.Annotations()
+	ann := parseAnnotations(fann)
+	t, _ := f.Slot().Type()
+	def, _ := f.Slot().DefaultValue()
 	params := structFieldParams{
 		Node:        n,
 		Field:       f,
@@ -608,7 +632,7 @@ func (n *node) defineField(w io.Writer, f field) {
 		assert(def.Which() == Value_Which_void || def.Which() == Value_Which_text, "expected text default")
 		var d string
 		if def.Which() == Value_Which_text {
-			d = def.Text()
+			d, _ = def.Text()
 		}
 		templates.ExecuteTemplate(w, "structTextField", structTextFieldParams{
 			structFieldParams: params,
@@ -619,18 +643,20 @@ func (n *node) defineField(w io.Writer, f field) {
 		assert(def.Which() == Value_Which_void || def.Which() == Value_Which_data, "expected data default")
 		var d []byte
 		if def.Which() == Value_Which_data {
-			d = def.Data()
+			d, _ = def.Data()
 		}
 		templates.ExecuteTemplate(w, "structDataField", structDataFieldParams{
 			structFieldParams: params,
 			Default:           d,
 		})
 
-	case Type_Which_struct:
-		assert(def.Which() == Value_Which_void || def.Which() == Value_Which_struct, "expected struct default")
+	case Type_Which_structGroup:
+		assert(def.Which() == Value_Which_void || def.Which() == Value_Which_structField, "expected struct default")
 		var defref staticDataRef
-		if def.Which() == Value_Which_struct && C.HasData(def.StructField()) {
-			defref = copyData(def.StructField())
+		if def.Which() == Value_Which_structField {
+			if sf, _ := def.StructField(); C.HasData(sf) {
+				defref = copyData(sf)
+			}
 		}
 		templates.ExecuteTemplate(w, "structStructField", structObjectFieldParams{
 			structFieldParams: params,
@@ -641,8 +667,10 @@ func (n *node) defineField(w io.Writer, f field) {
 	case Type_Which_anyPointer:
 		assert(def.Which() == Value_Which_void || def.Which() == Value_Which_anyPointer, "expected object default")
 		var defref staticDataRef
-		if def.Which() == Value_Which_anyPointer && C.HasData(def.AnyPointer()) {
-			defref = copyData(def.AnyPointer())
+		if def.Which() == Value_Which_anyPointer {
+			if p, _ := def.AnyPointer(); C.HasData(p) {
+				defref = copyData(p)
+			}
 		}
 		templates.ExecuteTemplate(w, "structPointerField", structObjectFieldParams{
 			structFieldParams: params,
@@ -653,7 +681,9 @@ func (n *node) defineField(w io.Writer, f field) {
 		assert(def.Which() == Value_Which_void || def.Which() == Value_Which_list, "expected list default")
 		var defref staticDataRef
 		if def.Which() == Value_Which_list {
-			defref = copyData(def.List())
+			if l, _ := def.List(); C.HasData(l) {
+				defref = copyData(l)
+			}
 		}
 		templates.ExecuteTemplate(w, "structListField", structObjectFieldParams{
 			structFieldParams: params,
@@ -706,7 +736,7 @@ func (n *node) fieldType(t Type, ann *annotations) string {
 	case Type_Which_enum:
 		ni := findNode(t.Enum().TypeId())
 		return ni.RemoteName(n)
-	case Type_Which_struct:
+	case Type_Which_structGroup:
 		ni := findNode(t.StructGroup().TypeId())
 		return ni.RemoteName(n)
 	case Type_Which_interface:
@@ -715,7 +745,7 @@ func (n *node) fieldType(t Type, ann *annotations) string {
 	case Type_Which_anyPointer:
 		return g_imports.capnp() + ".Pointer"
 	case Type_Which_list:
-		switch lt := t.List().ElementType(); lt.Which() {
+		switch lt, _ := t.List().ElementType(); lt.Which() {
 		case Type_Which_void:
 			return g_imports.capnp() + ".VoidList"
 		case Type_Which_bool:
@@ -747,7 +777,7 @@ func (n *node) fieldType(t Type, ann *annotations) string {
 		case Type_Which_enum:
 			ni := findNode(lt.Enum().TypeId())
 			return ni.RemoteName(n) + "_List"
-		case Type_Which_struct:
+		case Type_Which_structGroup:
 			ni := findNode(lt.StructGroup().TypeId())
 			return ni.RemoteName(n) + "_List"
 		case Type_Which_anyPointer, Type_Which_list, Type_Which_interface:
@@ -822,20 +852,24 @@ func intbits(t Type_Which) int {
 }
 
 func (n *node) codeOrderFields() []field {
-	numFields := n.StructGroup().Fields().Len()
+	fields, _ := n.StructGroup().Fields()
+	numFields := fields.Len()
 	mbrs := make([]field, numFields)
 	for i := 0; i < numFields; i++ {
-		f := n.StructGroup().Fields().At(i)
-		fname := parseAnnotations(f.Annotations()).Rename(f.Name())
+		f := fields.At(i)
+		fann, _ := f.Annotations()
+		fname, _ := f.Name()
+		fname = parseAnnotations(fann).Rename(fname)
 		mbrs[f.CodeOrder()] = field{Field: f, Name: fname}
 	}
 	return mbrs
 }
 
 func (n *node) defineStructTypes(w io.Writer, baseNode *node) {
-	assert(n.Which() == Node_Which_struct, "invalid struct node")
+	assert(n.Which() == Node_Which_structGroup, "invalid struct node")
 
-	ann := parseAnnotations(n.Annotations())
+	nann, _ := n.Annotations()
+	ann := parseAnnotations(nann)
 	templates.ExecuteTemplate(w, "structTypes", structTypesParams{
 		Node:        n,
 		Annotations: ann,
@@ -850,7 +884,7 @@ func (n *node) defineStructTypes(w io.Writer, baseNode *node) {
 }
 
 func (n *node) defineStructEnums(w io.Writer) {
-	assert(n.Which() == Node_Which_struct, "invalid struct node")
+	assert(n.Which() == Node_Which_structGroup, "invalid struct node")
 	fields := n.codeOrderFields()
 	members := make([]field, 0, len(fields))
 	es := make(enumString, 0, len(fields))
@@ -875,7 +909,7 @@ func (n *node) defineStructEnums(w io.Writer) {
 }
 
 func (n *node) defineStructFuncs(w io.Writer) {
-	assert(n.Which() == Node_Which_struct, "invalid struct node")
+	assert(n.Which() == Node_Which_structGroup, "invalid struct node")
 
 	templates.ExecuteTemplate(w, "structFuncs", structFuncsParams{
 		Node: n,
@@ -887,23 +921,23 @@ func (n *node) defineStructFuncs(w io.Writer) {
 			n.defineField(w, f)
 		case Field_Which_group:
 			g := findNode(f.Group().TypeId())
-			fname := strings.Title(f.Name)
-			fmt.Fprintf(w, "func (s %s) %s() %s { return %s(s) }\n", n.Name, fname, g.Name, g.Name)
-			if f.DiscriminantValue() != Field_noDiscriminant {
-				fmt.Fprintf(w, "func (s %s) Set%s() { %s.Struct(s).SetUint16(%d, %d) }\n", n.Name, fname, g_imports.capnp(), n.StructGroup().DiscriminantOffset()*2, f.DiscriminantValue())
-			}
+			templates.ExecuteTemplate(w, "structGroup", structGroupParams{
+				Node:  n,
+				Group: g,
+				Field: f,
+			})
 			g.defineStructFuncs(w)
 		}
 	}
 }
 
 func (n *node) ObjectSize() string {
-	assert(n.Which() == Node_Which_struct, "ObjectSize for invalid struct node")
+	assert(n.Which() == Node_Which_structGroup, "ObjectSize for invalid struct node")
 	return fmt.Sprintf("%s.ObjectSize{DataSize: %d, PointerCount: %d}", g_imports.capnp(), int(n.StructGroup().DataWordCount())*8, n.StructGroup().PointerCount())
 }
 
 func (n *node) defineNewStructFunc(w io.Writer) {
-	assert(n.Which() == Node_Which_struct, "invalid struct node")
+	assert(n.Which() == Node_Which_structGroup, "invalid struct node")
 
 	templates.ExecuteTemplate(w, "newStructFunc", newStructParams{
 		Node: n,
@@ -911,7 +945,7 @@ func (n *node) defineNewStructFunc(w io.Writer) {
 }
 
 func (n *node) defineStructList(w io.Writer) {
-	assert(n.Which() == Node_Which_struct, "invalid struct node")
+	assert(n.Which() == Node_Which_structGroup, "invalid struct node")
 
 	templates.ExecuteTemplate(w, "structList", structListParams{
 		Node: n,
@@ -927,7 +961,8 @@ func (n *node) defineStructPromise(w io.Writer) {
 	for _, f := range n.codeOrderFields() {
 		switch f.Which() {
 		case Field_Which_slot:
-			if t := f.Slot().Type().Which(); t == Type_Which_struct || t == Type_Which_interface || t == Type_Which_anyPointer {
+			t, _ := f.Slot().Type()
+			if tw := t.Which(); tw == Type_Which_structGroup || tw == Type_Which_interface || tw == Type_Which_anyPointer {
 				n.definePromiseField(w, f)
 			}
 		case Field_Which_group:
@@ -944,16 +979,18 @@ func (n *node) defineStructPromise(w io.Writer) {
 
 func (n *node) definePromiseField(w io.Writer, f field) {
 	slot := f.Slot()
-	switch t := slot.Type(); t.Which() {
-	case Type_Which_struct:
+	switch t, _ := slot.Type(); t.Which() {
+	case Type_Which_structGroup:
 		ni := findNode(t.StructGroup().TypeId())
 		params := promiseFieldStructTemplateParams{
 			Node:   n,
 			Field:  f,
 			Struct: ni,
 		}
-		if def := slot.DefaultValue(); def.Which() == Value_Which_struct && C.HasData(def.StructField()) {
-			params.Default = copyData(def.StructField())
+		if def, _ := slot.DefaultValue(); def.Which() == Value_Which_structField {
+			if sf, _ := def.StructField(); C.HasData(sf) {
+				params.Default = copyData(sf)
+			}
 		}
 		templates.ExecuteTemplate(w, "promiseFieldStruct", params)
 	case Type_Which_anyPointer:
@@ -981,21 +1018,25 @@ type interfaceMethod struct {
 }
 
 func (n *node) methodSet(methods []interfaceMethod) []interfaceMethod {
-	for i, ms := 0, n.Interface().Methods(); i < ms.Len(); i++ {
+	ms, _ := n.Interface().Methods()
+	for i := 0; i < ms.Len(); i++ {
 		m := ms.At(i)
+		mname, _ := m.Name()
+		mann, _ := m.Annotations()
 		methods = append(methods, interfaceMethod{
 			Method:       m,
 			Interface:    n,
 			ID:           i,
-			OriginalName: m.Name(),
-			Name:         parseAnnotations(m.Annotations()).Rename(m.Name()),
+			OriginalName: mname,
+			Name:         parseAnnotations(mann).Rename(mname),
 			Params:       findNode(m.ParamStructType()),
 			Results:      findNode(m.ResultStructType()),
 		})
 	}
 	// TODO(light): sort added methods by code order
 
-	for i, supers := 0, n.Interface().Superclasses(); i < supers.Len(); i++ {
+	supers, _ := n.Interface().Superclasses()
+	for i := 0; i < supers.Len(); i++ {
 		s := supers.At(i)
 		methods = findNode(s.Id()).methodSet(methods)
 	}
@@ -1004,18 +1045,20 @@ func (n *node) methodSet(methods []interfaceMethod) []interfaceMethod {
 
 func (n *node) defineInterfaceClient(w io.Writer) {
 	m := n.methodSet(nil)
+	nann, _ := n.Annotations()
 	templates.ExecuteTemplate(w, "interfaceClient", interfaceClientTemplateParams{
 		Node:        n,
-		Annotations: parseAnnotations(n.Annotations()),
+		Annotations: parseAnnotations(nann),
 		Methods:     m,
 	})
 }
 
 func (n *node) defineInterfaceServer(w io.Writer) {
 	m := n.methodSet(nil)
+	nann, _ := n.Annotations()
 	templates.ExecuteTemplate(w, "interfaceServer", interfaceServerTemplateParams{
 		Node:        n,
-		Annotations: parseAnnotations(n.Annotations()),
+		Annotations: parseAnnotations(nann),
 		Methods:     m,
 	})
 }
@@ -1062,7 +1105,7 @@ func generateFile(reqf CodeGeneratorRequest_RequestedFile) (generr error) {
 		switch n.Which() {
 		case Node_Which_enum:
 			n.defineEnum(&buf)
-		case Node_Which_struct:
+		case Node_Which_structGroup:
 			if !n.StructGroup().IsGroup() {
 				n.defineStructTypes(&buf, n)
 				n.defineStructEnums(&buf)
@@ -1079,11 +1122,12 @@ func generateFile(reqf CodeGeneratorRequest_RequestedFile) (generr error) {
 		}
 	}
 
+	fname, _ := reqf.Filename()
 	if f.pkg == "" {
-		return fmt.Errorf("missing package annotation for %s", reqf.Filename())
+		return fmt.Errorf("missing package annotation for %s", fname)
 	}
 
-	if dirPath, _ := filepath.Split(reqf.Filename()); dirPath != "" {
+	if dirPath, _ := filepath.Split(fname); dirPath != "" {
 		err := os.MkdirAll(dirPath, os.ModePerm)
 		if err != nil {
 			return err
@@ -1115,7 +1159,7 @@ func generateFile(reqf CodeGeneratorRequest_RequestedFile) (generr error) {
 		formatted = unformatted.Bytes()
 	}
 
-	file, err := os.Create(reqf.Filename() + ".go")
+	file, err := os.Create(fname + ".go")
 	if err != nil {
 		return err
 	}
@@ -1146,8 +1190,9 @@ func main() {
 	}
 	allfiles := []*node{}
 
-	for i := 0; i < req.Nodes().Len(); i++ {
-		ni := req.Nodes().At(i)
+	nodes, _ := req.Nodes()
+	for i := 0; i < nodes.Len(); i++ {
+		ni := nodes.At(i)
 		n := &node{Node: ni}
 		g_nodes[n.Id()] = n
 
@@ -1157,23 +1202,28 @@ func main() {
 	}
 
 	for _, f := range allfiles {
-		ann := parseAnnotations(f.Annotations())
+		fann, _ := f.Annotations()
+		ann := parseAnnotations(fann)
 		f.pkg = ann.Package
 		f.imp = ann.Import
-		for i := 0; i < f.NestedNodes().Len(); i++ {
-			nn := f.NestedNodes().At(i)
+		nnodes, _ := f.NestedNodes()
+		for i := 0; i < nnodes.Len(); i++ {
+			nn := nnodes.At(i)
 			if ni := g_nodes[nn.Id()]; ni != nil {
-				ni.resolveName("", nn.Name(), f)
+				nname, _ := nn.Name()
+				ni.resolveName("", nname, f)
 			}
 		}
 	}
 
 	success := true
-	for i := 0; i < req.RequestedFiles().Len(); i++ {
-		reqf := req.RequestedFiles().At(i)
+	reqFiles, _ := req.RequestedFiles()
+	for i := 0; i < reqFiles.Len(); i++ {
+		reqf := reqFiles.At(i)
+		fname, _ := reqf.Filename()
 		err := generateFile(reqf)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "capnpc-go: Generating Go for %s failed: %v\n", reqf.Filename(), err)
+			fmt.Fprintf(os.Stderr, "capnpc-go: Generating Go for %s failed: %v\n", fname, err)
 			success = false
 		}
 	}

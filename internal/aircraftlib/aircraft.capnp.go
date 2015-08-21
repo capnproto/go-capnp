@@ -289,10 +289,7 @@ func (s PlaneBase) Homes() (Airport_List, error) {
 		return Airport_List{}, err
 	}
 
-	l, err := C.ToListDefault(p, x_832bcc6686a26d56[0:16])
-	if err != nil {
-		return Airport_List{}, err
-	}
+	l := C.ToList(p)
 
 	return Airport_List{List: l}, nil
 }
@@ -677,10 +674,7 @@ func (s Regression) Beta() (C.Float64List, error) {
 		return C.Float64List{}, err
 	}
 
-	l, err := C.ToListDefault(p, x_832bcc6686a26d56[16:32])
-	if err != nil {
-		return C.Float64List{}, err
-	}
+	l := C.ToList(p)
 
 	return C.Float64List{List: l}, nil
 }
@@ -696,10 +690,7 @@ func (s Regression) Planes() (Aircraft_List, error) {
 		return Aircraft_List{}, err
 	}
 
-	l, err := C.ToListDefault(p, x_832bcc6686a26d56[32:48])
-	if err != nil {
-		return Aircraft_List{}, err
-	}
+	l := C.ToList(p)
 
 	return Aircraft_List{List: l}, nil
 }
@@ -1270,10 +1261,7 @@ func (s Z) F64vec() (C.Float64List, error) {
 		return C.Float64List{}, err
 	}
 
-	l, err := C.ToListDefault(p, x_832bcc6686a26d56[48:64])
-	if err != nil {
-		return C.Float64List{}, err
-	}
+	l := C.ToList(p)
 
 	return C.Float64List{List: l}, nil
 }
@@ -1289,10 +1277,7 @@ func (s Z) F32vec() (C.Float32List, error) {
 		return C.Float32List{}, err
 	}
 
-	l, err := C.ToListDefault(p, x_832bcc6686a26d56[64:80])
-	if err != nil {
-		return C.Float32List{}, err
-	}
+	l := C.ToList(p)
 
 	return C.Float32List{List: l}, nil
 }
@@ -1308,10 +1293,7 @@ func (s Z) I64vec() (C.Int64List, error) {
 		return C.Int64List{}, err
 	}
 
-	l, err := C.ToListDefault(p, x_832bcc6686a26d56[80:96])
-	if err != nil {
-		return C.Int64List{}, err
-	}
+	l := C.ToList(p)
 
 	return C.Int64List{List: l}, nil
 }
@@ -1327,10 +1309,7 @@ func (s Z) I32vec() (C.Int32List, error) {
 		return C.Int32List{}, err
 	}
 
-	l, err := C.ToListDefault(p, x_832bcc6686a26d56[96:112])
-	if err != nil {
-		return C.Int32List{}, err
-	}
+	l := C.ToList(p)
 
 	return C.Int32List{List: l}, nil
 }
@@ -1346,10 +1325,7 @@ func (s Z) I16vec() (C.Int16List, error) {
 		return C.Int16List{}, err
 	}
 
-	l, err := C.ToListDefault(p, x_832bcc6686a26d56[112:128])
-	if err != nil {
-		return C.Int16List{}, err
-	}
+	l := C.ToList(p)
 
 	return C.Int16List{List: l}, nil
 }
@@ -1365,10 +1341,7 @@ func (s Z) I8vec() (C.Int8List, error) {
 		return C.Int8List{}, err
 	}
 
-	l, err := C.ToListDefault(p, x_832bcc6686a26d56[128:144])
-	if err != nil {
-		return C.Int8List{}, err
-	}
+	l := C.ToList(p)
 
 	return C.Int8List{List: l}, nil
 }
@@ -1384,10 +1357,7 @@ func (s Z) U64vec() (C.UInt64List, error) {
 		return C.UInt64List{}, err
 	}
 
-	l, err := C.ToListDefault(p, x_832bcc6686a26d56[144:160])
-	if err != nil {
-		return C.UInt64List{}, err
-	}
+	l := C.ToList(p)
 
 	return C.UInt64List{List: l}, nil
 }
@@ -1403,10 +1373,7 @@ func (s Z) U32vec() (C.UInt32List, error) {
 		return C.UInt32List{}, err
 	}
 
-	l, err := C.ToListDefault(p, x_832bcc6686a26d56[160:176])
-	if err != nil {
-		return C.UInt32List{}, err
-	}
+	l := C.ToList(p)
 
 	return C.UInt32List{List: l}, nil
 }
@@ -1422,10 +1389,7 @@ func (s Z) U16vec() (C.UInt16List, error) {
 		return C.UInt16List{}, err
 	}
 
-	l, err := C.ToListDefault(p, x_832bcc6686a26d56[176:192])
-	if err != nil {
-		return C.UInt16List{}, err
-	}
+	l := C.ToList(p)
 
 	return C.UInt16List{List: l}, nil
 }
@@ -1441,10 +1405,7 @@ func (s Z) U8vec() (C.UInt8List, error) {
 		return C.UInt8List{}, err
 	}
 
-	l, err := C.ToListDefault(p, x_832bcc6686a26d56[192:208])
-	if err != nil {
-		return C.UInt8List{}, err
-	}
+	l := C.ToList(p)
 
 	return C.UInt8List{List: l}, nil
 }
@@ -1460,10 +1421,7 @@ func (s Z) Zvec() (Z_List, error) {
 		return Z_List{}, err
 	}
 
-	l, err := C.ToListDefault(p, x_832bcc6686a26d56[208:224])
-	if err != nil {
-		return Z_List{}, err
-	}
+	l := C.ToList(p)
 
 	return Z_List{List: l}, nil
 }
@@ -1479,10 +1437,7 @@ func (s Z) Zvecvec() (C.PointerList, error) {
 		return C.PointerList{}, err
 	}
 
-	l, err := C.ToListDefault(p, x_832bcc6686a26d56[224:240])
-	if err != nil {
-		return C.PointerList{}, err
-	}
+	l := C.ToList(p)
 
 	return C.PointerList{List: l}, nil
 }
@@ -1554,10 +1509,7 @@ func (s Z) Aircraftvec() (Aircraft_List, error) {
 		return Aircraft_List{}, err
 	}
 
-	l, err := C.ToListDefault(p, x_832bcc6686a26d56[240:256])
-	if err != nil {
-		return Aircraft_List{}, err
-	}
+	l := C.ToList(p)
 
 	return Aircraft_List{List: l}, nil
 }
@@ -1750,10 +1702,7 @@ func (s Z) Zdatevec() (Zdate_List, error) {
 		return Zdate_List{}, err
 	}
 
-	l, err := C.ToListDefault(p, x_832bcc6686a26d56[256:272])
-	if err != nil {
-		return Zdate_List{}, err
-	}
+	l := C.ToList(p)
 
 	return Zdate_List{List: l}, nil
 }
@@ -1769,10 +1718,7 @@ func (s Z) Zdatavec() (Zdata_List, error) {
 		return Zdata_List{}, err
 	}
 
-	l, err := C.ToListDefault(p, x_832bcc6686a26d56[272:288])
-	if err != nil {
-		return Zdata_List{}, err
-	}
+	l := C.ToList(p)
 
 	return Zdata_List{List: l}, nil
 }
@@ -1788,10 +1734,7 @@ func (s Z) Boolvec() (C.BitList, error) {
 		return C.BitList{}, err
 	}
 
-	l, err := C.ToListDefault(p, x_832bcc6686a26d56[288:304])
-	if err != nil {
-		return C.BitList{}, err
-	}
+	l := C.ToList(p)
 
 	return C.BitList{List: l}, nil
 }
@@ -1921,10 +1864,7 @@ func (s Counter) Wordlist() (C.TextList, error) {
 		return C.TextList{}, err
 	}
 
-	l, err := C.ToListDefault(p, x_832bcc6686a26d56[304:320])
-	if err != nil {
-		return C.TextList{}, err
-	}
+	l := C.ToList(p)
 
 	return C.TextList{List: l}, nil
 }
@@ -2072,10 +2012,7 @@ func (s Zserver) Waitingjobs() (Zjob_List, error) {
 		return Zjob_List{}, err
 	}
 
-	l, err := C.ToListDefault(p, x_832bcc6686a26d56[320:336])
-	if err != nil {
-		return Zjob_List{}, err
-	}
+	l := C.ToList(p)
 
 	return Zjob_List{List: l}, nil
 }
@@ -2160,10 +2097,7 @@ func (s Zjob) Args() (C.TextList, error) {
 		return C.TextList{}, err
 	}
 
-	l, err := C.ToListDefault(p, x_832bcc6686a26d56[336:352])
-	if err != nil {
-		return C.TextList{}, err
-	}
+	l := C.ToList(p)
 
 	return C.TextList{List: l}, nil
 }
@@ -2736,10 +2670,7 @@ func (s HoldsVerEmptyList) Mylist() (VerEmpty_List, error) {
 		return VerEmpty_List{}, err
 	}
 
-	l, err := C.ToListDefault(p, x_832bcc6686a26d56[352:368])
-	if err != nil {
-		return VerEmpty_List{}, err
-	}
+	l := C.ToList(p)
 
 	return VerEmpty_List{List: l}, nil
 }
@@ -2809,10 +2740,7 @@ func (s HoldsVerOneDataList) Mylist() (VerOneData_List, error) {
 		return VerOneData_List{}, err
 	}
 
-	l, err := C.ToListDefault(p, x_832bcc6686a26d56[368:384])
-	if err != nil {
-		return VerOneData_List{}, err
-	}
+	l := C.ToList(p)
 
 	return VerOneData_List{List: l}, nil
 }
@@ -2882,10 +2810,7 @@ func (s HoldsVerTwoDataList) Mylist() (VerTwoData_List, error) {
 		return VerTwoData_List{}, err
 	}
 
-	l, err := C.ToListDefault(p, x_832bcc6686a26d56[384:400])
-	if err != nil {
-		return VerTwoData_List{}, err
-	}
+	l := C.ToList(p)
 
 	return VerTwoData_List{List: l}, nil
 }
@@ -2955,10 +2880,7 @@ func (s HoldsVerOnePtrList) Mylist() (VerOnePtr_List, error) {
 		return VerOnePtr_List{}, err
 	}
 
-	l, err := C.ToListDefault(p, x_832bcc6686a26d56[400:416])
-	if err != nil {
-		return VerOnePtr_List{}, err
-	}
+	l := C.ToList(p)
 
 	return VerOnePtr_List{List: l}, nil
 }
@@ -3028,10 +2950,7 @@ func (s HoldsVerTwoPtrList) Mylist() (VerTwoPtr_List, error) {
 		return VerTwoPtr_List{}, err
 	}
 
-	l, err := C.ToListDefault(p, x_832bcc6686a26d56[416:432])
-	if err != nil {
-		return VerTwoPtr_List{}, err
-	}
+	l := C.ToList(p)
 
 	return VerTwoPtr_List{List: l}, nil
 }
@@ -3101,10 +3020,7 @@ func (s HoldsVerTwoTwoList) Mylist() (VerTwoDataTwoPtr_List, error) {
 		return VerTwoDataTwoPtr_List{}, err
 	}
 
-	l, err := C.ToListDefault(p, x_832bcc6686a26d56[432:448])
-	if err != nil {
-		return VerTwoDataTwoPtr_List{}, err
-	}
+	l := C.ToList(p)
 
 	return VerTwoDataTwoPtr_List{List: l}, nil
 }
@@ -3174,10 +3090,7 @@ func (s HoldsVerTwoTwoPlus) Mylist() (VerTwoTwoPlus_List, error) {
 		return VerTwoTwoPlus_List{}, err
 	}
 
-	l, err := C.ToListDefault(p, x_832bcc6686a26d56[448:464])
-	if err != nil {
-		return VerTwoTwoPlus_List{}, err
-	}
+	l := C.ToList(p)
 
 	return VerTwoTwoPlus_List{List: l}, nil
 }
@@ -3330,10 +3243,7 @@ func (s VerTwoTwoPlus) Lst3() (C.Int64List, error) {
 		return C.Int64List{}, err
 	}
 
-	l, err := C.ToListDefault(p, x_832bcc6686a26d56[464:480])
-	if err != nil {
-		return C.Int64List{}, err
-	}
+	l := C.ToList(p)
 
 	return C.Int64List{List: l}, nil
 }
@@ -3426,10 +3336,7 @@ func (s HoldsText) Lst() (C.TextList, error) {
 		return C.TextList{}, err
 	}
 
-	l, err := C.ToListDefault(p, x_832bcc6686a26d56[480:496])
-	if err != nil {
-		return C.TextList{}, err
-	}
+	l := C.ToList(p)
 
 	return C.TextList{List: l}, nil
 }
@@ -3445,10 +3352,7 @@ func (s HoldsText) Lstlst() (C.PointerList, error) {
 		return C.PointerList{}, err
 	}
 
-	l, err := C.ToListDefault(p, x_832bcc6686a26d56[496:512])
-	if err != nil {
-		return C.PointerList{}, err
-	}
+	l := C.ToList(p)
 
 	return C.PointerList{List: l}, nil
 }
@@ -3937,10 +3841,7 @@ func (s Nester1Capn) Strs() (C.TextList, error) {
 		return C.TextList{}, err
 	}
 
-	l, err := C.ToListDefault(p, x_832bcc6686a26d56[512:528])
-	if err != nil {
-		return C.TextList{}, err
-	}
+	l := C.ToList(p)
 
 	return C.TextList{List: l}, nil
 }
@@ -4006,10 +3907,7 @@ func (s RWTestCapn) NestMatrix() (C.PointerList, error) {
 		return C.PointerList{}, err
 	}
 
-	l, err := C.ToListDefault(p, x_832bcc6686a26d56[528:544])
-	if err != nil {
-		return C.PointerList{}, err
-	}
+	l := C.ToList(p)
 
 	return C.PointerList{List: l}, nil
 }
@@ -4075,10 +3973,7 @@ func (s ListStructCapn) Vec() (Nester1Capn_List, error) {
 		return Nester1Capn_List{}, err
 	}
 
-	l, err := C.ToListDefault(p, x_832bcc6686a26d56[544:560])
-	if err != nil {
-		return Nester1Capn_List{}, err
-	}
+	l := C.ToList(p)
 
 	return Nester1Capn_List{List: l}, nil
 }
@@ -4534,7 +4429,7 @@ func (s StackingRoot) AWithDefault() (StackingA, error) {
 		return StackingA{}, err
 	}
 
-	ss, err := C.ToStructDefault(p, x_832bcc6686a26d56[560:592])
+	ss, err := C.ToStructDefault(p, x_832bcc6686a26d56[0:32])
 	if err != nil {
 		return StackingA{}, err
 	}
@@ -4587,7 +4482,7 @@ func (p StackingRoot_Promise) A() StackingA_Promise {
 }
 
 func (p StackingRoot_Promise) AWithDefault() StackingA_Promise {
-	return StackingA_Promise{Pipeline: p.Pipeline.GetPipelineDefault(0, x_832bcc6686a26d56[592:624])}
+	return StackingA_Promise{Pipeline: p.Pipeline.GetPipelineDefault(0, x_832bcc6686a26d56[32:64])}
 }
 
 type StackingA struct{ C.Struct }
@@ -4919,76 +4814,6 @@ func (p CallSequence_getNumber_Results_Promise) Struct() (CallSequence_getNumber
 }
 
 var x_832bcc6686a26d56 = []byte{
-	0, 0, 0, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 3, 0, 0, 0,
 	0, 0, 0, 0, 1, 0, 1, 0,
 	42, 0, 0, 0, 0, 0, 0, 0,
