@@ -234,13 +234,12 @@ const (
 )
 
 type annotations struct {
-	Doc        string
-	CustomType string
-	Package    string
-	Import     string
-	TagType    int
-	CustomTag  string
-	Name       string
+	Doc       string
+	Package   string
+	Import    string
+	TagType   int
+	CustomTag string
+	Name      string
 }
 
 func parseAnnotations(list Annotation_List) *annotations {
@@ -252,8 +251,6 @@ func parseAnnotations(list Annotation_List) *annotations {
 		switch a.Id() {
 		case C.Doc:
 			ann.Doc = text
-		case C.Customtype:
-			ann.CustomType = text
 		case C.Package:
 			ann.Package = text
 		case C.Import:
@@ -696,13 +693,6 @@ func (n *node) defineField(w io.Writer, f field) {
 }
 
 func (n *node) fieldType(t Type, ann *annotations) string {
-	customtype := ann.CustomType
-	if customtype != "" {
-		if i := strings.LastIndex(customtype, "."); i != -1 {
-			pkg := g_imports.add(importSpec{path: customtype[:i]})
-			customtype = pkg + "." + customtype[i+1:]
-		}
-	}
 	switch t.Which() {
 	case Type_Which_bool:
 		return "bool"
@@ -729,9 +719,6 @@ func (n *node) fieldType(t Type, ann *annotations) string {
 	case Type_Which_text:
 		return "string"
 	case Type_Which_data:
-		if customtype != "" {
-			return customtype
-		}
 		return "[]byte"
 	case Type_Which_enum:
 		ni := findNode(t.Enum().TypeId())

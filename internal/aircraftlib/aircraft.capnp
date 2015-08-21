@@ -245,14 +245,6 @@ struct Wrap2x2plus {
    mightNotBeReallyEmpty @0: VerTwoTwoPlus;
 }
 
-# test customtype annotation for Data
-
-struct Endpoint {
-   ip   @0: Data $Go.customtype("net.IP");
-   port @1: Int16;
-   hostname @2: Text;
-}
-
 # test voids in a union
 
 struct VoidUnion {

@@ -5,7 +5,6 @@ package aircraftlib
 import (
 	context "golang.org/x/net/context"
 	math "math"
-	net "net"
 	strconv "strconv"
 	C "zombiezen.com/go/capnproto"
 	server "zombiezen.com/go/capnproto/server"
@@ -3629,103 +3628,6 @@ func (p Wrap2x2plus_Promise) Struct() (Wrap2x2plus, error) {
 
 func (p Wrap2x2plus_Promise) MightNotBeReallyEmpty() VerTwoTwoPlus_Promise {
 	return VerTwoTwoPlus_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
-type Endpoint struct{ C.Struct }
-
-func NewEndpoint(s *C.Segment) (Endpoint, error) {
-	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 8, PointerCount: 2})
-	if err != nil {
-		return Endpoint{}, err
-	}
-	return Endpoint{st}, nil
-}
-
-func NewRootEndpoint(s *C.Segment) (Endpoint, error) {
-	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 8, PointerCount: 2})
-	if err != nil {
-		return Endpoint{}, err
-	}
-	return Endpoint{st}, nil
-}
-
-func ReadRootEndpoint(msg *C.Message) (Endpoint, error) {
-	root, err := msg.Root()
-	if err != nil {
-		return Endpoint{}, err
-	}
-	st := C.ToStruct(root)
-	return Endpoint{st}, nil
-}
-
-func (s Endpoint) Ip() (net.IP, error) {
-	p, err := s.Struct.Pointer(0)
-	if err != nil {
-		return nil, err
-	}
-
-	return net.IP(C.ToData(p)), nil
-
-}
-
-func (s Endpoint) SetIp(v net.IP) error {
-
-	d, err := C.NewData(s.Struct.Segment(), []byte(v))
-	if err != nil {
-		return err
-	}
-	return s.Struct.SetPointer(0, d)
-}
-
-func (s Endpoint) Port() int16 {
-	return int16(s.Struct.Uint16(0))
-}
-
-func (s Endpoint) SetPort(v int16) {
-
-	s.Struct.SetUint16(0, uint16(v))
-}
-
-func (s Endpoint) Hostname() (string, error) {
-	p, err := s.Struct.Pointer(1)
-	if err != nil {
-		return "", err
-	}
-
-	return C.ToText(p), nil
-
-}
-
-func (s Endpoint) SetHostname(v string) error {
-
-	t, err := C.NewText(s.Struct.Segment(), v)
-	if err != nil {
-		return err
-	}
-	return s.Struct.SetPointer(1, t)
-}
-
-// Endpoint_List is a list of Endpoint.
-type Endpoint_List struct{ C.List }
-
-// NewEndpoint creates a new list of Endpoint.
-func NewEndpoint_List(s *C.Segment, sz int32) (Endpoint_List, error) {
-	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 8, PointerCount: 2}, sz)
-	if err != nil {
-		return Endpoint_List{}, err
-	}
-	return Endpoint_List{l}, nil
-}
-
-func (s Endpoint_List) At(i int) Endpoint           { return Endpoint{s.List.Struct(i)} }
-func (s Endpoint_List) Set(i int, v Endpoint) error { return s.List.SetStruct(i, v.Struct) }
-
-// Endpoint_Promise is a wrapper for a Endpoint promised by a client call.
-type Endpoint_Promise struct{ *C.Pipeline }
-
-func (p Endpoint_Promise) Struct() (Endpoint, error) {
-	s, err := p.Pipeline.Struct()
-	return Endpoint{s}, err
 }
 
 type VoidUnion struct{ C.Struct }
