@@ -5,7 +5,7 @@ import (
 	"strings"
 	"text/template"
 
-	C "zombiezen.com/go/capnproto"
+	"zombiezen.com/go/capnproto"
 )
 
 var templates = template.Must(template.New("").Funcs(template.FuncMap{
@@ -532,8 +532,8 @@ type structUintFieldParams struct {
 	Default uint64
 }
 
-func (p structUintFieldParams) Offset() C.DataOffset {
-	return C.DataOffset(p.Field.Slot().Offset()) * C.DataOffset(p.Bits/8)
+func (p structUintFieldParams) Offset() capnp.DataOffset {
+	return capnp.DataOffset(p.Field.Slot().Offset()) * capnp.DataOffset(p.Bits/8)
 }
 
 type structIntFieldParams struct {

@@ -5,14 +5,14 @@ package main
 import (
 	math "math"
 	strconv "strconv"
-	C "zombiezen.com/go/capnproto"
+	capnp "zombiezen.com/go/capnproto"
 )
 
 const (
 	Field_noDiscriminant = uint16(65535)
 )
 
-type Node struct{ C.Struct }
+type Node struct{ capnp.Struct }
 type Node_structGroup Node
 type Node_enum Node
 type Node_interface Node
@@ -49,28 +49,28 @@ func (w Node_Which) String() string {
 	return "Node_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
 }
 
-func NewNode(s *C.Segment) (Node, error) {
-	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 40, PointerCount: 6})
+func NewNode(s *capnp.Segment) (Node, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 40, PointerCount: 6})
 	if err != nil {
 		return Node{}, err
 	}
 	return Node{st}, nil
 }
 
-func NewRootNode(s *C.Segment) (Node, error) {
-	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 40, PointerCount: 6})
+func NewRootNode(s *capnp.Segment) (Node, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 40, PointerCount: 6})
 	if err != nil {
 		return Node{}, err
 	}
 	return Node{st}, nil
 }
 
-func ReadRootNode(msg *C.Message) (Node, error) {
+func ReadRootNode(msg *capnp.Message) (Node, error) {
 	root, err := msg.Root()
 	if err != nil {
 		return Node{}, err
 	}
-	st := C.ToStruct(root)
+	st := capnp.ToStruct(root)
 	return Node{st}, nil
 }
 
@@ -93,13 +93,13 @@ func (s Node) DisplayName() (string, error) {
 		return "", err
 	}
 
-	return C.ToText(p), nil
+	return capnp.ToText(p), nil
 
 }
 
 func (s Node) SetDisplayName(v string) error {
 
-	t, err := C.NewText(s.Struct.Segment(), v)
+	t, err := capnp.NewText(s.Struct.Segment(), v)
 	if err != nil {
 		return err
 	}
@@ -130,7 +130,7 @@ func (s Node) Parameters() (Node_Parameter_List, error) {
 		return Node_Parameter_List{}, err
 	}
 
-	l := C.ToList(p)
+	l := capnp.ToList(p)
 
 	return Node_Parameter_List{List: l}, nil
 }
@@ -155,7 +155,7 @@ func (s Node) NestedNodes() (Node_NestedNode_List, error) {
 		return Node_NestedNode_List{}, err
 	}
 
-	l := C.ToList(p)
+	l := capnp.ToList(p)
 
 	return Node_NestedNode_List{List: l}, nil
 }
@@ -171,7 +171,7 @@ func (s Node) Annotations() (Annotation_List, error) {
 		return Annotation_List{}, err
 	}
 
-	l := C.ToList(p)
+	l := capnp.ToList(p)
 
 	return Annotation_List{List: l}, nil
 }
@@ -248,7 +248,7 @@ func (s Node_structGroup) Fields() (Field_List, error) {
 		return Field_List{}, err
 	}
 
-	l := C.ToList(p)
+	l := capnp.ToList(p)
 
 	return Field_List{List: l}, nil
 }
@@ -267,7 +267,7 @@ func (s Node_enum) Enumerants() (Enumerant_List, error) {
 		return Enumerant_List{}, err
 	}
 
-	l := C.ToList(p)
+	l := capnp.ToList(p)
 
 	return Enumerant_List{List: l}, nil
 }
@@ -286,7 +286,7 @@ func (s Node_interface) Methods() (Method_List, error) {
 		return Method_List{}, err
 	}
 
-	l := C.ToList(p)
+	l := capnp.ToList(p)
 
 	return Method_List{List: l}, nil
 }
@@ -302,7 +302,7 @@ func (s Node_interface) Superclasses() (Superclass_List, error) {
 		return Superclass_List{}, err
 	}
 
-	l := C.ToList(p)
+	l := capnp.ToList(p)
 
 	return Superclass_List{List: l}, nil
 }
@@ -321,7 +321,7 @@ func (s Node_const) Type() (Type, error) {
 		return Type{}, err
 	}
 
-	ss := C.ToStruct(p)
+	ss := capnp.ToStruct(p)
 
 	return Type{Struct: ss}, nil
 }
@@ -349,7 +349,7 @@ func (s Node_const) Value() (Value, error) {
 		return Value{}, err
 	}
 
-	ss := C.ToStruct(p)
+	ss := capnp.ToStruct(p)
 
 	return Value{Struct: ss}, nil
 }
@@ -380,7 +380,7 @@ func (s Node_annotation) Type() (Type, error) {
 		return Type{}, err
 	}
 
-	ss := C.ToStruct(p)
+	ss := capnp.ToStruct(p)
 
 	return Type{Struct: ss}, nil
 }
@@ -511,11 +511,11 @@ func (s Node_annotation) SetTargetsAnnotation(v bool) {
 }
 
 // Node_List is a list of Node.
-type Node_List struct{ C.List }
+type Node_List struct{ capnp.List }
 
 // NewNode creates a new list of Node.
-func NewNode_List(s *C.Segment, sz int32) (Node_List, error) {
-	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 40, PointerCount: 6}, sz)
+func NewNode_List(s *capnp.Segment, sz int32) (Node_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 40, PointerCount: 6}, sz)
 	if err != nil {
 		return Node_List{}, err
 	}
@@ -525,30 +525,30 @@ func NewNode_List(s *C.Segment, sz int32) (Node_List, error) {
 func (s Node_List) At(i int) Node           { return Node{s.List.Struct(i)} }
 func (s Node_List) Set(i int, v Node) error { return s.List.SetStruct(i, v.Struct) }
 
-type Node_Parameter struct{ C.Struct }
+type Node_Parameter struct{ capnp.Struct }
 
-func NewNode_Parameter(s *C.Segment) (Node_Parameter, error) {
-	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 0, PointerCount: 1})
+func NewNode_Parameter(s *capnp.Segment) (Node_Parameter, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	if err != nil {
 		return Node_Parameter{}, err
 	}
 	return Node_Parameter{st}, nil
 }
 
-func NewRootNode_Parameter(s *C.Segment) (Node_Parameter, error) {
-	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 0, PointerCount: 1})
+func NewRootNode_Parameter(s *capnp.Segment) (Node_Parameter, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	if err != nil {
 		return Node_Parameter{}, err
 	}
 	return Node_Parameter{st}, nil
 }
 
-func ReadRootNode_Parameter(msg *C.Message) (Node_Parameter, error) {
+func ReadRootNode_Parameter(msg *capnp.Message) (Node_Parameter, error) {
 	root, err := msg.Root()
 	if err != nil {
 		return Node_Parameter{}, err
 	}
-	st := C.ToStruct(root)
+	st := capnp.ToStruct(root)
 	return Node_Parameter{st}, nil
 }
 
@@ -558,13 +558,13 @@ func (s Node_Parameter) Name() (string, error) {
 		return "", err
 	}
 
-	return C.ToText(p), nil
+	return capnp.ToText(p), nil
 
 }
 
 func (s Node_Parameter) SetName(v string) error {
 
-	t, err := C.NewText(s.Struct.Segment(), v)
+	t, err := capnp.NewText(s.Struct.Segment(), v)
 	if err != nil {
 		return err
 	}
@@ -572,11 +572,11 @@ func (s Node_Parameter) SetName(v string) error {
 }
 
 // Node_Parameter_List is a list of Node_Parameter.
-type Node_Parameter_List struct{ C.List }
+type Node_Parameter_List struct{ capnp.List }
 
 // NewNode_Parameter creates a new list of Node_Parameter.
-func NewNode_Parameter_List(s *C.Segment, sz int32) (Node_Parameter_List, error) {
-	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
+func NewNode_Parameter_List(s *capnp.Segment, sz int32) (Node_Parameter_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
 	if err != nil {
 		return Node_Parameter_List{}, err
 	}
@@ -586,30 +586,30 @@ func NewNode_Parameter_List(s *C.Segment, sz int32) (Node_Parameter_List, error)
 func (s Node_Parameter_List) At(i int) Node_Parameter           { return Node_Parameter{s.List.Struct(i)} }
 func (s Node_Parameter_List) Set(i int, v Node_Parameter) error { return s.List.SetStruct(i, v.Struct) }
 
-type Node_NestedNode struct{ C.Struct }
+type Node_NestedNode struct{ capnp.Struct }
 
-func NewNode_NestedNode(s *C.Segment) (Node_NestedNode, error) {
-	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 8, PointerCount: 1})
+func NewNode_NestedNode(s *capnp.Segment) (Node_NestedNode, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
 	if err != nil {
 		return Node_NestedNode{}, err
 	}
 	return Node_NestedNode{st}, nil
 }
 
-func NewRootNode_NestedNode(s *C.Segment) (Node_NestedNode, error) {
-	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 8, PointerCount: 1})
+func NewRootNode_NestedNode(s *capnp.Segment) (Node_NestedNode, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
 	if err != nil {
 		return Node_NestedNode{}, err
 	}
 	return Node_NestedNode{st}, nil
 }
 
-func ReadRootNode_NestedNode(msg *C.Message) (Node_NestedNode, error) {
+func ReadRootNode_NestedNode(msg *capnp.Message) (Node_NestedNode, error) {
 	root, err := msg.Root()
 	if err != nil {
 		return Node_NestedNode{}, err
 	}
-	st := C.ToStruct(root)
+	st := capnp.ToStruct(root)
 	return Node_NestedNode{st}, nil
 }
 
@@ -619,13 +619,13 @@ func (s Node_NestedNode) Name() (string, error) {
 		return "", err
 	}
 
-	return C.ToText(p), nil
+	return capnp.ToText(p), nil
 
 }
 
 func (s Node_NestedNode) SetName(v string) error {
 
-	t, err := C.NewText(s.Struct.Segment(), v)
+	t, err := capnp.NewText(s.Struct.Segment(), v)
 	if err != nil {
 		return err
 	}
@@ -642,11 +642,11 @@ func (s Node_NestedNode) SetId(v uint64) {
 }
 
 // Node_NestedNode_List is a list of Node_NestedNode.
-type Node_NestedNode_List struct{ C.List }
+type Node_NestedNode_List struct{ capnp.List }
 
 // NewNode_NestedNode creates a new list of Node_NestedNode.
-func NewNode_NestedNode_List(s *C.Segment, sz int32) (Node_NestedNode_List, error) {
-	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
+func NewNode_NestedNode_List(s *capnp.Segment, sz int32) (Node_NestedNode_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
 	if err != nil {
 		return Node_NestedNode_List{}, err
 	}
@@ -658,7 +658,7 @@ func (s Node_NestedNode_List) Set(i int, v Node_NestedNode) error {
 	return s.List.SetStruct(i, v.Struct)
 }
 
-type Field struct{ C.Struct }
+type Field struct{ capnp.Struct }
 type Field_slot Field
 type Field_group Field
 type Field_ordinal Field
@@ -700,28 +700,28 @@ func (w Field_ordinal_Which) String() string {
 	return "Field_ordinal_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
 }
 
-func NewField(s *C.Segment) (Field, error) {
-	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 24, PointerCount: 4})
+func NewField(s *capnp.Segment) (Field, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 4})
 	if err != nil {
 		return Field{}, err
 	}
 	return Field{st}, nil
 }
 
-func NewRootField(s *C.Segment) (Field, error) {
-	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 24, PointerCount: 4})
+func NewRootField(s *capnp.Segment) (Field, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 4})
 	if err != nil {
 		return Field{}, err
 	}
 	return Field{st}, nil
 }
 
-func ReadRootField(msg *C.Message) (Field, error) {
+func ReadRootField(msg *capnp.Message) (Field, error) {
 	root, err := msg.Root()
 	if err != nil {
 		return Field{}, err
 	}
-	st := C.ToStruct(root)
+	st := capnp.ToStruct(root)
 	return Field{st}, nil
 }
 
@@ -735,13 +735,13 @@ func (s Field) Name() (string, error) {
 		return "", err
 	}
 
-	return C.ToText(p), nil
+	return capnp.ToText(p), nil
 
 }
 
 func (s Field) SetName(v string) error {
 
-	t, err := C.NewText(s.Struct.Segment(), v)
+	t, err := capnp.NewText(s.Struct.Segment(), v)
 	if err != nil {
 		return err
 	}
@@ -763,7 +763,7 @@ func (s Field) Annotations() (Annotation_List, error) {
 		return Annotation_List{}, err
 	}
 
-	l := C.ToList(p)
+	l := capnp.ToList(p)
 
 	return Annotation_List{List: l}, nil
 }
@@ -800,7 +800,7 @@ func (s Field_slot) Type() (Type, error) {
 		return Type{}, err
 	}
 
-	ss := C.ToStruct(p)
+	ss := capnp.ToStruct(p)
 
 	return Type{Struct: ss}, nil
 }
@@ -828,7 +828,7 @@ func (s Field_slot) DefaultValue() (Value, error) {
 		return Value{}, err
 	}
 
-	ss := C.ToStruct(p)
+	ss := capnp.ToStruct(p)
 
 	return Value{Struct: ss}, nil
 }
@@ -890,11 +890,11 @@ func (s Field_ordinal) SetExplicit(v uint16) {
 }
 
 // Field_List is a list of Field.
-type Field_List struct{ C.List }
+type Field_List struct{ capnp.List }
 
 // NewField creates a new list of Field.
-func NewField_List(s *C.Segment, sz int32) (Field_List, error) {
-	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 24, PointerCount: 4}, sz)
+func NewField_List(s *capnp.Segment, sz int32) (Field_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 24, PointerCount: 4}, sz)
 	if err != nil {
 		return Field_List{}, err
 	}
@@ -904,30 +904,30 @@ func NewField_List(s *C.Segment, sz int32) (Field_List, error) {
 func (s Field_List) At(i int) Field           { return Field{s.List.Struct(i)} }
 func (s Field_List) Set(i int, v Field) error { return s.List.SetStruct(i, v.Struct) }
 
-type Enumerant struct{ C.Struct }
+type Enumerant struct{ capnp.Struct }
 
-func NewEnumerant(s *C.Segment) (Enumerant, error) {
-	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 8, PointerCount: 2})
+func NewEnumerant(s *capnp.Segment) (Enumerant, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2})
 	if err != nil {
 		return Enumerant{}, err
 	}
 	return Enumerant{st}, nil
 }
 
-func NewRootEnumerant(s *C.Segment) (Enumerant, error) {
-	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 8, PointerCount: 2})
+func NewRootEnumerant(s *capnp.Segment) (Enumerant, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2})
 	if err != nil {
 		return Enumerant{}, err
 	}
 	return Enumerant{st}, nil
 }
 
-func ReadRootEnumerant(msg *C.Message) (Enumerant, error) {
+func ReadRootEnumerant(msg *capnp.Message) (Enumerant, error) {
 	root, err := msg.Root()
 	if err != nil {
 		return Enumerant{}, err
 	}
-	st := C.ToStruct(root)
+	st := capnp.ToStruct(root)
 	return Enumerant{st}, nil
 }
 
@@ -937,13 +937,13 @@ func (s Enumerant) Name() (string, error) {
 		return "", err
 	}
 
-	return C.ToText(p), nil
+	return capnp.ToText(p), nil
 
 }
 
 func (s Enumerant) SetName(v string) error {
 
-	t, err := C.NewText(s.Struct.Segment(), v)
+	t, err := capnp.NewText(s.Struct.Segment(), v)
 	if err != nil {
 		return err
 	}
@@ -965,7 +965,7 @@ func (s Enumerant) Annotations() (Annotation_List, error) {
 		return Annotation_List{}, err
 	}
 
-	l := C.ToList(p)
+	l := capnp.ToList(p)
 
 	return Annotation_List{List: l}, nil
 }
@@ -976,11 +976,11 @@ func (s Enumerant) SetAnnotations(v Annotation_List) error {
 }
 
 // Enumerant_List is a list of Enumerant.
-type Enumerant_List struct{ C.List }
+type Enumerant_List struct{ capnp.List }
 
 // NewEnumerant creates a new list of Enumerant.
-func NewEnumerant_List(s *C.Segment, sz int32) (Enumerant_List, error) {
-	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 8, PointerCount: 2}, sz)
+func NewEnumerant_List(s *capnp.Segment, sz int32) (Enumerant_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2}, sz)
 	if err != nil {
 		return Enumerant_List{}, err
 	}
@@ -990,30 +990,30 @@ func NewEnumerant_List(s *C.Segment, sz int32) (Enumerant_List, error) {
 func (s Enumerant_List) At(i int) Enumerant           { return Enumerant{s.List.Struct(i)} }
 func (s Enumerant_List) Set(i int, v Enumerant) error { return s.List.SetStruct(i, v.Struct) }
 
-type Superclass struct{ C.Struct }
+type Superclass struct{ capnp.Struct }
 
-func NewSuperclass(s *C.Segment) (Superclass, error) {
-	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 8, PointerCount: 1})
+func NewSuperclass(s *capnp.Segment) (Superclass, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
 	if err != nil {
 		return Superclass{}, err
 	}
 	return Superclass{st}, nil
 }
 
-func NewRootSuperclass(s *C.Segment) (Superclass, error) {
-	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 8, PointerCount: 1})
+func NewRootSuperclass(s *capnp.Segment) (Superclass, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
 	if err != nil {
 		return Superclass{}, err
 	}
 	return Superclass{st}, nil
 }
 
-func ReadRootSuperclass(msg *C.Message) (Superclass, error) {
+func ReadRootSuperclass(msg *capnp.Message) (Superclass, error) {
 	root, err := msg.Root()
 	if err != nil {
 		return Superclass{}, err
 	}
-	st := C.ToStruct(root)
+	st := capnp.ToStruct(root)
 	return Superclass{st}, nil
 }
 
@@ -1032,7 +1032,7 @@ func (s Superclass) Brand() (Brand, error) {
 		return Brand{}, err
 	}
 
-	ss := C.ToStruct(p)
+	ss := capnp.ToStruct(p)
 
 	return Brand{Struct: ss}, nil
 }
@@ -1055,11 +1055,11 @@ func (s Superclass) NewBrand() (Brand, error) {
 }
 
 // Superclass_List is a list of Superclass.
-type Superclass_List struct{ C.List }
+type Superclass_List struct{ capnp.List }
 
 // NewSuperclass creates a new list of Superclass.
-func NewSuperclass_List(s *C.Segment, sz int32) (Superclass_List, error) {
-	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
+func NewSuperclass_List(s *capnp.Segment, sz int32) (Superclass_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
 	if err != nil {
 		return Superclass_List{}, err
 	}
@@ -1069,30 +1069,30 @@ func NewSuperclass_List(s *C.Segment, sz int32) (Superclass_List, error) {
 func (s Superclass_List) At(i int) Superclass           { return Superclass{s.List.Struct(i)} }
 func (s Superclass_List) Set(i int, v Superclass) error { return s.List.SetStruct(i, v.Struct) }
 
-type Method struct{ C.Struct }
+type Method struct{ capnp.Struct }
 
-func NewMethod(s *C.Segment) (Method, error) {
-	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 24, PointerCount: 5})
+func NewMethod(s *capnp.Segment) (Method, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 5})
 	if err != nil {
 		return Method{}, err
 	}
 	return Method{st}, nil
 }
 
-func NewRootMethod(s *C.Segment) (Method, error) {
-	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 24, PointerCount: 5})
+func NewRootMethod(s *capnp.Segment) (Method, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 5})
 	if err != nil {
 		return Method{}, err
 	}
 	return Method{st}, nil
 }
 
-func ReadRootMethod(msg *C.Message) (Method, error) {
+func ReadRootMethod(msg *capnp.Message) (Method, error) {
 	root, err := msg.Root()
 	if err != nil {
 		return Method{}, err
 	}
-	st := C.ToStruct(root)
+	st := capnp.ToStruct(root)
 	return Method{st}, nil
 }
 
@@ -1102,13 +1102,13 @@ func (s Method) Name() (string, error) {
 		return "", err
 	}
 
-	return C.ToText(p), nil
+	return capnp.ToText(p), nil
 
 }
 
 func (s Method) SetName(v string) error {
 
-	t, err := C.NewText(s.Struct.Segment(), v)
+	t, err := capnp.NewText(s.Struct.Segment(), v)
 	if err != nil {
 		return err
 	}
@@ -1130,7 +1130,7 @@ func (s Method) ImplicitParameters() (Node_Parameter_List, error) {
 		return Node_Parameter_List{}, err
 	}
 
-	l := C.ToList(p)
+	l := capnp.ToList(p)
 
 	return Node_Parameter_List{List: l}, nil
 }
@@ -1155,7 +1155,7 @@ func (s Method) ParamBrand() (Brand, error) {
 		return Brand{}, err
 	}
 
-	ss := C.ToStruct(p)
+	ss := capnp.ToStruct(p)
 
 	return Brand{Struct: ss}, nil
 }
@@ -1192,7 +1192,7 @@ func (s Method) ResultBrand() (Brand, error) {
 		return Brand{}, err
 	}
 
-	ss := C.ToStruct(p)
+	ss := capnp.ToStruct(p)
 
 	return Brand{Struct: ss}, nil
 }
@@ -1220,7 +1220,7 @@ func (s Method) Annotations() (Annotation_List, error) {
 		return Annotation_List{}, err
 	}
 
-	l := C.ToList(p)
+	l := capnp.ToList(p)
 
 	return Annotation_List{List: l}, nil
 }
@@ -1231,11 +1231,11 @@ func (s Method) SetAnnotations(v Annotation_List) error {
 }
 
 // Method_List is a list of Method.
-type Method_List struct{ C.List }
+type Method_List struct{ capnp.List }
 
 // NewMethod creates a new list of Method.
-func NewMethod_List(s *C.Segment, sz int32) (Method_List, error) {
-	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 24, PointerCount: 5}, sz)
+func NewMethod_List(s *capnp.Segment, sz int32) (Method_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 24, PointerCount: 5}, sz)
 	if err != nil {
 		return Method_List{}, err
 	}
@@ -1245,7 +1245,7 @@ func NewMethod_List(s *C.Segment, sz int32) (Method_List, error) {
 func (s Method_List) At(i int) Method           { return Method{s.List.Struct(i)} }
 func (s Method_List) Set(i int, v Method) error { return s.List.SetStruct(i, v.Struct) }
 
-type Type struct{ C.Struct }
+type Type struct{ capnp.Struct }
 type Type_list Type
 type Type_enum Type
 type Type_structGroup Type
@@ -1345,28 +1345,28 @@ func (w Type_anyPointer_Which) String() string {
 	return "Type_anyPointer_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
 }
 
-func NewType(s *C.Segment) (Type, error) {
-	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 24, PointerCount: 1})
+func NewType(s *capnp.Segment) (Type, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 1})
 	if err != nil {
 		return Type{}, err
 	}
 	return Type{st}, nil
 }
 
-func NewRootType(s *C.Segment) (Type, error) {
-	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 24, PointerCount: 1})
+func NewRootType(s *capnp.Segment) (Type, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 1})
 	if err != nil {
 		return Type{}, err
 	}
 	return Type{st}, nil
 }
 
-func ReadRootType(msg *C.Message) (Type, error) {
+func ReadRootType(msg *capnp.Message) (Type, error) {
 	root, err := msg.Root()
 	if err != nil {
 		return Type{}, err
 	}
-	st := C.ToStruct(root)
+	st := capnp.ToStruct(root)
 	return Type{st}, nil
 }
 
@@ -1439,7 +1439,7 @@ func (s Type_list) ElementType() (Type, error) {
 		return Type{}, err
 	}
 
-	ss := C.ToStruct(p)
+	ss := capnp.ToStruct(p)
 
 	return Type{Struct: ss}, nil
 }
@@ -1479,7 +1479,7 @@ func (s Type_enum) Brand() (Brand, error) {
 		return Brand{}, err
 	}
 
-	ss := C.ToStruct(p)
+	ss := capnp.ToStruct(p)
 
 	return Brand{Struct: ss}, nil
 }
@@ -1519,7 +1519,7 @@ func (s Type_structGroup) Brand() (Brand, error) {
 		return Brand{}, err
 	}
 
-	ss := C.ToStruct(p)
+	ss := capnp.ToStruct(p)
 
 	return Brand{Struct: ss}, nil
 }
@@ -1559,7 +1559,7 @@ func (s Type_interface) Brand() (Brand, error) {
 		return Brand{}, err
 	}
 
-	ss := C.ToStruct(p)
+	ss := capnp.ToStruct(p)
 
 	return Brand{Struct: ss}, nil
 }
@@ -1628,11 +1628,11 @@ func (s Type_anyPointer_implicitMethodParameter) SetParameterIndex(v uint16) {
 }
 
 // Type_List is a list of Type.
-type Type_List struct{ C.List }
+type Type_List struct{ capnp.List }
 
 // NewType creates a new list of Type.
-func NewType_List(s *C.Segment, sz int32) (Type_List, error) {
-	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 24, PointerCount: 1}, sz)
+func NewType_List(s *capnp.Segment, sz int32) (Type_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 24, PointerCount: 1}, sz)
 	if err != nil {
 		return Type_List{}, err
 	}
@@ -1642,30 +1642,30 @@ func NewType_List(s *C.Segment, sz int32) (Type_List, error) {
 func (s Type_List) At(i int) Type           { return Type{s.List.Struct(i)} }
 func (s Type_List) Set(i int, v Type) error { return s.List.SetStruct(i, v.Struct) }
 
-type Brand struct{ C.Struct }
+type Brand struct{ capnp.Struct }
 
-func NewBrand(s *C.Segment) (Brand, error) {
-	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 0, PointerCount: 1})
+func NewBrand(s *capnp.Segment) (Brand, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	if err != nil {
 		return Brand{}, err
 	}
 	return Brand{st}, nil
 }
 
-func NewRootBrand(s *C.Segment) (Brand, error) {
-	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 0, PointerCount: 1})
+func NewRootBrand(s *capnp.Segment) (Brand, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	if err != nil {
 		return Brand{}, err
 	}
 	return Brand{st}, nil
 }
 
-func ReadRootBrand(msg *C.Message) (Brand, error) {
+func ReadRootBrand(msg *capnp.Message) (Brand, error) {
 	root, err := msg.Root()
 	if err != nil {
 		return Brand{}, err
 	}
-	st := C.ToStruct(root)
+	st := capnp.ToStruct(root)
 	return Brand{st}, nil
 }
 
@@ -1675,7 +1675,7 @@ func (s Brand) Scopes() (Brand_Scope_List, error) {
 		return Brand_Scope_List{}, err
 	}
 
-	l := C.ToList(p)
+	l := capnp.ToList(p)
 
 	return Brand_Scope_List{List: l}, nil
 }
@@ -1686,11 +1686,11 @@ func (s Brand) SetScopes(v Brand_Scope_List) error {
 }
 
 // Brand_List is a list of Brand.
-type Brand_List struct{ C.List }
+type Brand_List struct{ capnp.List }
 
 // NewBrand creates a new list of Brand.
-func NewBrand_List(s *C.Segment, sz int32) (Brand_List, error) {
-	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
+func NewBrand_List(s *capnp.Segment, sz int32) (Brand_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
 	if err != nil {
 		return Brand_List{}, err
 	}
@@ -1700,7 +1700,7 @@ func NewBrand_List(s *C.Segment, sz int32) (Brand_List, error) {
 func (s Brand_List) At(i int) Brand           { return Brand{s.List.Struct(i)} }
 func (s Brand_List) Set(i int, v Brand) error { return s.List.SetStruct(i, v.Struct) }
 
-type Brand_Scope struct{ C.Struct }
+type Brand_Scope struct{ capnp.Struct }
 type Brand_Scope_Which uint16
 
 const (
@@ -1720,28 +1720,28 @@ func (w Brand_Scope_Which) String() string {
 	return "Brand_Scope_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
 }
 
-func NewBrand_Scope(s *C.Segment) (Brand_Scope, error) {
-	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 16, PointerCount: 1})
+func NewBrand_Scope(s *capnp.Segment) (Brand_Scope, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1})
 	if err != nil {
 		return Brand_Scope{}, err
 	}
 	return Brand_Scope{st}, nil
 }
 
-func NewRootBrand_Scope(s *C.Segment) (Brand_Scope, error) {
-	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 16, PointerCount: 1})
+func NewRootBrand_Scope(s *capnp.Segment) (Brand_Scope, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1})
 	if err != nil {
 		return Brand_Scope{}, err
 	}
 	return Brand_Scope{st}, nil
 }
 
-func ReadRootBrand_Scope(msg *C.Message) (Brand_Scope, error) {
+func ReadRootBrand_Scope(msg *capnp.Message) (Brand_Scope, error) {
 	root, err := msg.Root()
 	if err != nil {
 		return Brand_Scope{}, err
 	}
-	st := C.ToStruct(root)
+	st := capnp.ToStruct(root)
 	return Brand_Scope{st}, nil
 }
 
@@ -1764,7 +1764,7 @@ func (s Brand_Scope) Bind() (Brand_Binding_List, error) {
 		return Brand_Binding_List{}, err
 	}
 
-	l := C.ToList(p)
+	l := capnp.ToList(p)
 
 	return Brand_Binding_List{List: l}, nil
 }
@@ -1779,11 +1779,11 @@ func (s Brand_Scope) SetInherit() {
 }
 
 // Brand_Scope_List is a list of Brand_Scope.
-type Brand_Scope_List struct{ C.List }
+type Brand_Scope_List struct{ capnp.List }
 
 // NewBrand_Scope creates a new list of Brand_Scope.
-func NewBrand_Scope_List(s *C.Segment, sz int32) (Brand_Scope_List, error) {
-	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 16, PointerCount: 1}, sz)
+func NewBrand_Scope_List(s *capnp.Segment, sz int32) (Brand_Scope_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1}, sz)
 	if err != nil {
 		return Brand_Scope_List{}, err
 	}
@@ -1793,7 +1793,7 @@ func NewBrand_Scope_List(s *C.Segment, sz int32) (Brand_Scope_List, error) {
 func (s Brand_Scope_List) At(i int) Brand_Scope           { return Brand_Scope{s.List.Struct(i)} }
 func (s Brand_Scope_List) Set(i int, v Brand_Scope) error { return s.List.SetStruct(i, v.Struct) }
 
-type Brand_Binding struct{ C.Struct }
+type Brand_Binding struct{ capnp.Struct }
 type Brand_Binding_Which uint16
 
 const (
@@ -1813,28 +1813,28 @@ func (w Brand_Binding_Which) String() string {
 	return "Brand_Binding_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
 }
 
-func NewBrand_Binding(s *C.Segment) (Brand_Binding, error) {
-	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 8, PointerCount: 1})
+func NewBrand_Binding(s *capnp.Segment) (Brand_Binding, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
 	if err != nil {
 		return Brand_Binding{}, err
 	}
 	return Brand_Binding{st}, nil
 }
 
-func NewRootBrand_Binding(s *C.Segment) (Brand_Binding, error) {
-	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 8, PointerCount: 1})
+func NewRootBrand_Binding(s *capnp.Segment) (Brand_Binding, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
 	if err != nil {
 		return Brand_Binding{}, err
 	}
 	return Brand_Binding{st}, nil
 }
 
-func ReadRootBrand_Binding(msg *C.Message) (Brand_Binding, error) {
+func ReadRootBrand_Binding(msg *capnp.Message) (Brand_Binding, error) {
 	root, err := msg.Root()
 	if err != nil {
 		return Brand_Binding{}, err
 	}
-	st := C.ToStruct(root)
+	st := capnp.ToStruct(root)
 	return Brand_Binding{st}, nil
 }
 
@@ -1852,7 +1852,7 @@ func (s Brand_Binding) Type() (Type, error) {
 		return Type{}, err
 	}
 
-	ss := C.ToStruct(p)
+	ss := capnp.ToStruct(p)
 
 	return Type{Struct: ss}, nil
 }
@@ -1875,11 +1875,11 @@ func (s Brand_Binding) NewType() (Type, error) {
 }
 
 // Brand_Binding_List is a list of Brand_Binding.
-type Brand_Binding_List struct{ C.List }
+type Brand_Binding_List struct{ capnp.List }
 
 // NewBrand_Binding creates a new list of Brand_Binding.
-func NewBrand_Binding_List(s *C.Segment, sz int32) (Brand_Binding_List, error) {
-	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
+func NewBrand_Binding_List(s *capnp.Segment, sz int32) (Brand_Binding_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
 	if err != nil {
 		return Brand_Binding_List{}, err
 	}
@@ -1889,7 +1889,7 @@ func NewBrand_Binding_List(s *C.Segment, sz int32) (Brand_Binding_List, error) {
 func (s Brand_Binding_List) At(i int) Brand_Binding           { return Brand_Binding{s.List.Struct(i)} }
 func (s Brand_Binding_List) Set(i int, v Brand_Binding) error { return s.List.SetStruct(i, v.Struct) }
 
-type Value struct{ C.Struct }
+type Value struct{ capnp.Struct }
 type Value_Which uint16
 
 const (
@@ -1960,28 +1960,28 @@ func (w Value_Which) String() string {
 	return "Value_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
 }
 
-func NewValue(s *C.Segment) (Value, error) {
-	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 16, PointerCount: 1})
+func NewValue(s *capnp.Segment) (Value, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1})
 	if err != nil {
 		return Value{}, err
 	}
 	return Value{st}, nil
 }
 
-func NewRootValue(s *C.Segment) (Value, error) {
-	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 16, PointerCount: 1})
+func NewRootValue(s *capnp.Segment) (Value, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1})
 	if err != nil {
 		return Value{}, err
 	}
 	return Value{st}, nil
 }
 
-func ReadRootValue(msg *C.Message) (Value, error) {
+func ReadRootValue(msg *capnp.Message) (Value, error) {
 	root, err := msg.Root()
 	if err != nil {
 		return Value{}, err
 	}
-	st := C.ToStruct(root)
+	st := capnp.ToStruct(root)
 	return Value{st}, nil
 }
 
@@ -2098,13 +2098,13 @@ func (s Value) Text() (string, error) {
 		return "", err
 	}
 
-	return C.ToText(p), nil
+	return capnp.ToText(p), nil
 
 }
 
 func (s Value) SetText(v string) error {
 	s.Struct.SetUint16(0, 12)
-	t, err := C.NewText(s.Struct.Segment(), v)
+	t, err := capnp.NewText(s.Struct.Segment(), v)
 	if err != nil {
 		return err
 	}
@@ -2117,26 +2117,26 @@ func (s Value) Data() ([]byte, error) {
 		return nil, err
 	}
 
-	return []byte(C.ToData(p)), nil
+	return []byte(capnp.ToData(p)), nil
 
 }
 
 func (s Value) SetData(v []byte) error {
 	s.Struct.SetUint16(0, 13)
-	d, err := C.NewData(s.Struct.Segment(), []byte(v))
+	d, err := capnp.NewData(s.Struct.Segment(), []byte(v))
 	if err != nil {
 		return err
 	}
 	return s.Struct.SetPointer(0, d)
 }
 
-func (s Value) List() (C.Pointer, error) {
+func (s Value) List() (capnp.Pointer, error) {
 
 	return s.Struct.Pointer(0)
 
 }
 
-func (s Value) SetList(v C.Pointer) error {
+func (s Value) SetList(v capnp.Pointer) error {
 	s.Struct.SetUint16(0, 14)
 	return s.Struct.SetPointer(0, v)
 }
@@ -2150,13 +2150,13 @@ func (s Value) SetEnum(v uint16) {
 	s.Struct.SetUint16(2, v)
 }
 
-func (s Value) StructField() (C.Pointer, error) {
+func (s Value) StructField() (capnp.Pointer, error) {
 
 	return s.Struct.Pointer(0)
 
 }
 
-func (s Value) SetStructField(v C.Pointer) error {
+func (s Value) SetStructField(v capnp.Pointer) error {
 	s.Struct.SetUint16(0, 16)
 	return s.Struct.SetPointer(0, v)
 }
@@ -2165,23 +2165,23 @@ func (s Value) SetInterface() {
 	s.Struct.SetUint16(0, 17)
 }
 
-func (s Value) AnyPointer() (C.Pointer, error) {
+func (s Value) AnyPointer() (capnp.Pointer, error) {
 
 	return s.Struct.Pointer(0)
 
 }
 
-func (s Value) SetAnyPointer(v C.Pointer) error {
+func (s Value) SetAnyPointer(v capnp.Pointer) error {
 	s.Struct.SetUint16(0, 18)
 	return s.Struct.SetPointer(0, v)
 }
 
 // Value_List is a list of Value.
-type Value_List struct{ C.List }
+type Value_List struct{ capnp.List }
 
 // NewValue creates a new list of Value.
-func NewValue_List(s *C.Segment, sz int32) (Value_List, error) {
-	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 16, PointerCount: 1}, sz)
+func NewValue_List(s *capnp.Segment, sz int32) (Value_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1}, sz)
 	if err != nil {
 		return Value_List{}, err
 	}
@@ -2191,30 +2191,30 @@ func NewValue_List(s *C.Segment, sz int32) (Value_List, error) {
 func (s Value_List) At(i int) Value           { return Value{s.List.Struct(i)} }
 func (s Value_List) Set(i int, v Value) error { return s.List.SetStruct(i, v.Struct) }
 
-type Annotation struct{ C.Struct }
+type Annotation struct{ capnp.Struct }
 
-func NewAnnotation(s *C.Segment) (Annotation, error) {
-	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 8, PointerCount: 2})
+func NewAnnotation(s *capnp.Segment) (Annotation, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2})
 	if err != nil {
 		return Annotation{}, err
 	}
 	return Annotation{st}, nil
 }
 
-func NewRootAnnotation(s *C.Segment) (Annotation, error) {
-	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 8, PointerCount: 2})
+func NewRootAnnotation(s *capnp.Segment) (Annotation, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2})
 	if err != nil {
 		return Annotation{}, err
 	}
 	return Annotation{st}, nil
 }
 
-func ReadRootAnnotation(msg *C.Message) (Annotation, error) {
+func ReadRootAnnotation(msg *capnp.Message) (Annotation, error) {
 	root, err := msg.Root()
 	if err != nil {
 		return Annotation{}, err
 	}
-	st := C.ToStruct(root)
+	st := capnp.ToStruct(root)
 	return Annotation{st}, nil
 }
 
@@ -2233,7 +2233,7 @@ func (s Annotation) Brand() (Brand, error) {
 		return Brand{}, err
 	}
 
-	ss := C.ToStruct(p)
+	ss := capnp.ToStruct(p)
 
 	return Brand{Struct: ss}, nil
 }
@@ -2261,7 +2261,7 @@ func (s Annotation) Value() (Value, error) {
 		return Value{}, err
 	}
 
-	ss := C.ToStruct(p)
+	ss := capnp.ToStruct(p)
 
 	return Value{Struct: ss}, nil
 }
@@ -2284,11 +2284,11 @@ func (s Annotation) NewValue() (Value, error) {
 }
 
 // Annotation_List is a list of Annotation.
-type Annotation_List struct{ C.List }
+type Annotation_List struct{ capnp.List }
 
 // NewAnnotation creates a new list of Annotation.
-func NewAnnotation_List(s *C.Segment, sz int32) (Annotation_List, error) {
-	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 8, PointerCount: 2}, sz)
+func NewAnnotation_List(s *capnp.Segment, sz int32) (Annotation_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2}, sz)
 	if err != nil {
 		return Annotation_List{}, err
 	}
@@ -2363,10 +2363,10 @@ func ElementSizeFromString(c string) ElementSize {
 	}
 }
 
-type ElementSize_List struct{ C.List }
+type ElementSize_List struct{ capnp.List }
 
-func NewElementSize_List(s *C.Segment, sz int32) (ElementSize_List, error) {
-	l, err := C.NewUInt16List(s, sz)
+func NewElementSize_List(s *capnp.Segment, sz int32) (ElementSize_List, error) {
+	l, err := capnp.NewUInt16List(s, sz)
 	if err != nil {
 		return ElementSize_List{}, err
 	}
@@ -2374,39 +2374,39 @@ func NewElementSize_List(s *C.Segment, sz int32) (ElementSize_List, error) {
 }
 
 func (l ElementSize_List) At(i int) ElementSize {
-	ul := C.UInt16List{List: l.List}
+	ul := capnp.UInt16List{List: l.List}
 	return ElementSize(ul.At(i))
 }
 
 func (l ElementSize_List) Set(i int, v ElementSize) {
-	ul := C.UInt16List{List: l.List}
+	ul := capnp.UInt16List{List: l.List}
 	ul.Set(i, uint16(v))
 }
 
-type CodeGeneratorRequest struct{ C.Struct }
+type CodeGeneratorRequest struct{ capnp.Struct }
 
-func NewCodeGeneratorRequest(s *C.Segment) (CodeGeneratorRequest, error) {
-	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 0, PointerCount: 2})
+func NewCodeGeneratorRequest(s *capnp.Segment) (CodeGeneratorRequest, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
 	if err != nil {
 		return CodeGeneratorRequest{}, err
 	}
 	return CodeGeneratorRequest{st}, nil
 }
 
-func NewRootCodeGeneratorRequest(s *C.Segment) (CodeGeneratorRequest, error) {
-	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 0, PointerCount: 2})
+func NewRootCodeGeneratorRequest(s *capnp.Segment) (CodeGeneratorRequest, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
 	if err != nil {
 		return CodeGeneratorRequest{}, err
 	}
 	return CodeGeneratorRequest{st}, nil
 }
 
-func ReadRootCodeGeneratorRequest(msg *C.Message) (CodeGeneratorRequest, error) {
+func ReadRootCodeGeneratorRequest(msg *capnp.Message) (CodeGeneratorRequest, error) {
 	root, err := msg.Root()
 	if err != nil {
 		return CodeGeneratorRequest{}, err
 	}
-	st := C.ToStruct(root)
+	st := capnp.ToStruct(root)
 	return CodeGeneratorRequest{st}, nil
 }
 
@@ -2416,7 +2416,7 @@ func (s CodeGeneratorRequest) Nodes() (Node_List, error) {
 		return Node_List{}, err
 	}
 
-	l := C.ToList(p)
+	l := capnp.ToList(p)
 
 	return Node_List{List: l}, nil
 }
@@ -2432,7 +2432,7 @@ func (s CodeGeneratorRequest) RequestedFiles() (CodeGeneratorRequest_RequestedFi
 		return CodeGeneratorRequest_RequestedFile_List{}, err
 	}
 
-	l := C.ToList(p)
+	l := capnp.ToList(p)
 
 	return CodeGeneratorRequest_RequestedFile_List{List: l}, nil
 }
@@ -2443,11 +2443,11 @@ func (s CodeGeneratorRequest) SetRequestedFiles(v CodeGeneratorRequest_Requested
 }
 
 // CodeGeneratorRequest_List is a list of CodeGeneratorRequest.
-type CodeGeneratorRequest_List struct{ C.List }
+type CodeGeneratorRequest_List struct{ capnp.List }
 
 // NewCodeGeneratorRequest creates a new list of CodeGeneratorRequest.
-func NewCodeGeneratorRequest_List(s *C.Segment, sz int32) (CodeGeneratorRequest_List, error) {
-	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
+func NewCodeGeneratorRequest_List(s *capnp.Segment, sz int32) (CodeGeneratorRequest_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
 	if err != nil {
 		return CodeGeneratorRequest_List{}, err
 	}
@@ -2461,30 +2461,30 @@ func (s CodeGeneratorRequest_List) Set(i int, v CodeGeneratorRequest) error {
 	return s.List.SetStruct(i, v.Struct)
 }
 
-type CodeGeneratorRequest_RequestedFile struct{ C.Struct }
+type CodeGeneratorRequest_RequestedFile struct{ capnp.Struct }
 
-func NewCodeGeneratorRequest_RequestedFile(s *C.Segment) (CodeGeneratorRequest_RequestedFile, error) {
-	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 8, PointerCount: 2})
+func NewCodeGeneratorRequest_RequestedFile(s *capnp.Segment) (CodeGeneratorRequest_RequestedFile, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2})
 	if err != nil {
 		return CodeGeneratorRequest_RequestedFile{}, err
 	}
 	return CodeGeneratorRequest_RequestedFile{st}, nil
 }
 
-func NewRootCodeGeneratorRequest_RequestedFile(s *C.Segment) (CodeGeneratorRequest_RequestedFile, error) {
-	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 8, PointerCount: 2})
+func NewRootCodeGeneratorRequest_RequestedFile(s *capnp.Segment) (CodeGeneratorRequest_RequestedFile, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2})
 	if err != nil {
 		return CodeGeneratorRequest_RequestedFile{}, err
 	}
 	return CodeGeneratorRequest_RequestedFile{st}, nil
 }
 
-func ReadRootCodeGeneratorRequest_RequestedFile(msg *C.Message) (CodeGeneratorRequest_RequestedFile, error) {
+func ReadRootCodeGeneratorRequest_RequestedFile(msg *capnp.Message) (CodeGeneratorRequest_RequestedFile, error) {
 	root, err := msg.Root()
 	if err != nil {
 		return CodeGeneratorRequest_RequestedFile{}, err
 	}
-	st := C.ToStruct(root)
+	st := capnp.ToStruct(root)
 	return CodeGeneratorRequest_RequestedFile{st}, nil
 }
 
@@ -2503,13 +2503,13 @@ func (s CodeGeneratorRequest_RequestedFile) Filename() (string, error) {
 		return "", err
 	}
 
-	return C.ToText(p), nil
+	return capnp.ToText(p), nil
 
 }
 
 func (s CodeGeneratorRequest_RequestedFile) SetFilename(v string) error {
 
-	t, err := C.NewText(s.Struct.Segment(), v)
+	t, err := capnp.NewText(s.Struct.Segment(), v)
 	if err != nil {
 		return err
 	}
@@ -2522,7 +2522,7 @@ func (s CodeGeneratorRequest_RequestedFile) Imports() (CodeGeneratorRequest_Requ
 		return CodeGeneratorRequest_RequestedFile_Import_List{}, err
 	}
 
-	l := C.ToList(p)
+	l := capnp.ToList(p)
 
 	return CodeGeneratorRequest_RequestedFile_Import_List{List: l}, nil
 }
@@ -2533,11 +2533,11 @@ func (s CodeGeneratorRequest_RequestedFile) SetImports(v CodeGeneratorRequest_Re
 }
 
 // CodeGeneratorRequest_RequestedFile_List is a list of CodeGeneratorRequest_RequestedFile.
-type CodeGeneratorRequest_RequestedFile_List struct{ C.List }
+type CodeGeneratorRequest_RequestedFile_List struct{ capnp.List }
 
 // NewCodeGeneratorRequest_RequestedFile creates a new list of CodeGeneratorRequest_RequestedFile.
-func NewCodeGeneratorRequest_RequestedFile_List(s *C.Segment, sz int32) (CodeGeneratorRequest_RequestedFile_List, error) {
-	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 8, PointerCount: 2}, sz)
+func NewCodeGeneratorRequest_RequestedFile_List(s *capnp.Segment, sz int32) (CodeGeneratorRequest_RequestedFile_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2}, sz)
 	if err != nil {
 		return CodeGeneratorRequest_RequestedFile_List{}, err
 	}
@@ -2551,30 +2551,30 @@ func (s CodeGeneratorRequest_RequestedFile_List) Set(i int, v CodeGeneratorReque
 	return s.List.SetStruct(i, v.Struct)
 }
 
-type CodeGeneratorRequest_RequestedFile_Import struct{ C.Struct }
+type CodeGeneratorRequest_RequestedFile_Import struct{ capnp.Struct }
 
-func NewCodeGeneratorRequest_RequestedFile_Import(s *C.Segment) (CodeGeneratorRequest_RequestedFile_Import, error) {
-	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 8, PointerCount: 1})
+func NewCodeGeneratorRequest_RequestedFile_Import(s *capnp.Segment) (CodeGeneratorRequest_RequestedFile_Import, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
 	if err != nil {
 		return CodeGeneratorRequest_RequestedFile_Import{}, err
 	}
 	return CodeGeneratorRequest_RequestedFile_Import{st}, nil
 }
 
-func NewRootCodeGeneratorRequest_RequestedFile_Import(s *C.Segment) (CodeGeneratorRequest_RequestedFile_Import, error) {
-	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 8, PointerCount: 1})
+func NewRootCodeGeneratorRequest_RequestedFile_Import(s *capnp.Segment) (CodeGeneratorRequest_RequestedFile_Import, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
 	if err != nil {
 		return CodeGeneratorRequest_RequestedFile_Import{}, err
 	}
 	return CodeGeneratorRequest_RequestedFile_Import{st}, nil
 }
 
-func ReadRootCodeGeneratorRequest_RequestedFile_Import(msg *C.Message) (CodeGeneratorRequest_RequestedFile_Import, error) {
+func ReadRootCodeGeneratorRequest_RequestedFile_Import(msg *capnp.Message) (CodeGeneratorRequest_RequestedFile_Import, error) {
 	root, err := msg.Root()
 	if err != nil {
 		return CodeGeneratorRequest_RequestedFile_Import{}, err
 	}
-	st := C.ToStruct(root)
+	st := capnp.ToStruct(root)
 	return CodeGeneratorRequest_RequestedFile_Import{st}, nil
 }
 
@@ -2593,13 +2593,13 @@ func (s CodeGeneratorRequest_RequestedFile_Import) Name() (string, error) {
 		return "", err
 	}
 
-	return C.ToText(p), nil
+	return capnp.ToText(p), nil
 
 }
 
 func (s CodeGeneratorRequest_RequestedFile_Import) SetName(v string) error {
 
-	t, err := C.NewText(s.Struct.Segment(), v)
+	t, err := capnp.NewText(s.Struct.Segment(), v)
 	if err != nil {
 		return err
 	}
@@ -2607,11 +2607,11 @@ func (s CodeGeneratorRequest_RequestedFile_Import) SetName(v string) error {
 }
 
 // CodeGeneratorRequest_RequestedFile_Import_List is a list of CodeGeneratorRequest_RequestedFile_Import.
-type CodeGeneratorRequest_RequestedFile_Import_List struct{ C.List }
+type CodeGeneratorRequest_RequestedFile_Import_List struct{ capnp.List }
 
 // NewCodeGeneratorRequest_RequestedFile_Import creates a new list of CodeGeneratorRequest_RequestedFile_Import.
-func NewCodeGeneratorRequest_RequestedFile_Import_List(s *C.Segment, sz int32) (CodeGeneratorRequest_RequestedFile_Import_List, error) {
-	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
+func NewCodeGeneratorRequest_RequestedFile_Import_List(s *capnp.Segment, sz int32) (CodeGeneratorRequest_RequestedFile_Import_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
 	if err != nil {
 		return CodeGeneratorRequest_RequestedFile_Import_List{}, err
 	}

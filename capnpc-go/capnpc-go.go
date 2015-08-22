@@ -23,7 +23,7 @@ import (
 	"strings"
 	"unicode"
 
-	C "zombiezen.com/go/capnproto"
+	"zombiezen.com/go/capnproto"
 )
 
 var (
@@ -52,7 +52,7 @@ func (i *imports) init() {
 	i.specs = nil
 	i.used = make(map[string]bool)
 
-	i.reserve(importSpec{path: go_capnproto_import, name: "C"})
+	i.reserve(importSpec{path: go_capnproto_import, name: "capnp"})
 	i.reserve(importSpec{path: server_import, name: "server"})
 	i.reserve(importSpec{path: context_import, name: "context"})
 
@@ -64,7 +64,7 @@ func (i *imports) init() {
 }
 
 func (i *imports) capnp() string {
-	return i.add(importSpec{path: go_capnproto_import, name: "C"})
+	return i.add(importSpec{path: go_capnproto_import, name: "capnp"})
 }
 
 func (i *imports) server() string {
@@ -200,8 +200,8 @@ func (ae assertionError) Error() string {
 	return string(ae)
 }
 
-func copyData(obj C.Pointer) staticDataRef {
-	m, _, err := C.NewMessage(C.SingleSegment(nil))
+func copyData(obj capnp.Pointer) staticDataRef {
+	m, _, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	assert(err == nil, "%v\n", err)
 	err = m.SetRoot(obj)
 	assert(err == nil, "%v\n", err)
@@ -249,18 +249,18 @@ func parseAnnotations(list Annotation_List) *annotations {
 		val, _ := a.Value()
 		text, _ := val.Text()
 		switch a.Id() {
-		case C.Doc:
+		case capnp.Doc:
 			ann.Doc = text
-		case C.Package:
+		case capnp.Package:
 			ann.Package = text
-		case C.Import:
+		case capnp.Import:
 			ann.Import = text
-		case C.Tag:
+		case capnp.Tag:
 			ann.TagType = customTag
 			ann.CustomTag = text
-		case C.Notag:
+		case capnp.Notag:
 			ann.TagType = noTag
-		case C.Name:
+		case capnp.Name:
 			ann.Name = text
 		}
 	}
@@ -651,7 +651,7 @@ func (n *node) defineField(w io.Writer, f field) {
 		assert(def.Which() == Value_Which_void || def.Which() == Value_Which_structField, "expected struct default")
 		var defref staticDataRef
 		if def.Which() == Value_Which_structField {
-			if sf, _ := def.StructField(); C.HasData(sf) {
+			if sf, _ := def.StructField(); capnp.HasData(sf) {
 				defref = copyData(sf)
 			}
 		}
@@ -665,7 +665,7 @@ func (n *node) defineField(w io.Writer, f field) {
 		assert(def.Which() == Value_Which_void || def.Which() == Value_Which_anyPointer, "expected object default")
 		var defref staticDataRef
 		if def.Which() == Value_Which_anyPointer {
-			if p, _ := def.AnyPointer(); C.HasData(p) {
+			if p, _ := def.AnyPointer(); capnp.HasData(p) {
 				defref = copyData(p)
 			}
 		}
@@ -678,7 +678,7 @@ func (n *node) defineField(w io.Writer, f field) {
 		assert(def.Which() == Value_Which_void || def.Which() == Value_Which_list, "expected list default")
 		var defref staticDataRef
 		if def.Which() == Value_Which_list {
-			if l, _ := def.List(); C.HasData(l) {
+			if l, _ := def.List(); capnp.HasData(l) {
 				defref = copyData(l)
 			}
 		}
@@ -975,7 +975,7 @@ func (n *node) definePromiseField(w io.Writer, f field) {
 			Struct: ni,
 		}
 		if def, _ := slot.DefaultValue(); def.Which() == Value_Which_structField {
-			if sf, _ := def.StructField(); C.HasData(sf) {
+			if sf, _ := def.StructField(); capnp.HasData(sf) {
 				params.Default = copyData(sf)
 			}
 		}
@@ -1164,7 +1164,7 @@ func generateFile(reqf CodeGeneratorRequest_RequestedFile) (generr error) {
 func main() {
 	flag.Parse()
 
-	msg, err := C.NewDecoder(os.Stdin).Decode()
+	msg, err := capnp.NewDecoder(os.Stdin).Decode()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "capnpc-go: Reading input:", err)
 		os.Exit(1)
