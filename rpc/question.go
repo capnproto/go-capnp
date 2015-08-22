@@ -5,6 +5,7 @@ import (
 
 	"golang.org/x/net/context"
 	"zombiezen.com/go/capnproto"
+	"zombiezen.com/go/capnproto/internal/fulfiller"
 	"zombiezen.com/go/capnproto/internal/queue"
 	"zombiezen.com/go/capnproto/rpc/rpccapnp"
 )
@@ -69,7 +70,7 @@ type question struct {
 	// Fields below are protected by mu.
 	mu      sync.RWMutex
 	id      questionID
-	obj     capnp.Object
+	obj     capnp.Pointer
 	err     error
 	state   questionState
 	derived [][]capnp.PipelineOp
@@ -103,35 +104,39 @@ func (q *question) start() {
 
 // fulfill is called to resolve a question succesfully and returns the disembargoes.
 // It must be called from the coordinate goroutine.
-func (q *question) fulfill(obj capnp.Object, makeDisembargo func() (embargoID, embargo)) []rpccapnp.Message {
+func (q *question) fulfill(obj capnp.Pointer, makeDisembargo func() (embargoID, embargo)) []rpccapnp.Message {
 	q.mu.Lock()
 	if q.state != questionInProgress {
 		q.mu.Unlock()
 		panic("question.fulfill called more than once")
 	}
-	ctab := obj.Segment.Message.CapTable()
+	ctab := obj.Segment().Message().CapTable
 	visited := make([]bool, len(ctab))
 	msgs := make([]rpccapnp.Message, 0, len(q.derived))
 	for _, d := range q.derived {
-		in := capnp.TransformObject(obj, d)
-		if in.Type() != capnp.TypeInterface {
+		tgt, err := capnp.Transform(obj, d)
+		if err != nil {
 			continue
 		}
-		client := extractRPCClient(in.ToInterface().Client())
+		in := capnp.ToInterface(tgt)
+		if !capnp.IsValid(in) {
+			continue
+		}
+		client := extractRPCClient(in.Client())
 		if ic, ok := client.(*importClient); ok && ic.manager == q.manager {
 			// Imported from remote vat.  Don't need to disembargo.
 			continue
 		}
-		if cn := in.ToInterface().Capability(); !visited[cn] {
+		if cn := in.Capability(); !visited[cn] {
 			id, e := makeDisembargo()
 			ctab[cn] = newEmbargoClient(q.manager, ctab[cn], e)
 			m := newDisembargoMessage(nil, rpccapnp.Disembargo_context_Which_senderLoopback, id)
-			mt := rpccapnp.NewMessageTarget(m.Segment)
-			pa := rpccapnp.NewPromisedAnswer(m.Segment)
+			dis, _ := m.Disembargo()
+			mt, _ := dis.NewTarget()
+			pa, _ := mt.NewPromisedAnswer()
 			pa.SetQuestionId(uint32(q.id))
-			transformToPromisedAnswer(m.Segment, pa, d)
+			transformToPromisedAnswer(m.Segment(), pa, d)
 			mt.SetPromisedAnswer(pa)
-			m.Disembargo().SetTarget(mt)
 			msgs = append(msgs, m)
 			visited[cn] = true
 		}
@@ -158,7 +163,7 @@ func (q *question) reject(state questionState, err error) {
 	q.mu.Unlock()
 }
 
-func (q *question) peek() (id questionID, obj capnp.Object, err error, ok bool) {
+func (q *question) peek() (id questionID, obj capnp.Pointer, err error, ok bool) {
 	q.mu.RLock()
 	id, obj, err, ok = q.id, q.obj, q.err, q.state != questionInProgress
 	q.mu.RUnlock()
@@ -191,7 +196,7 @@ func transformsEqual(t, u []capnp.PipelineOp) bool {
 func (q *question) Struct() (capnp.Struct, error) {
 	<-q.resolved
 	_, obj, err, _ := q.peek()
-	return obj.ToStruct(), err
+	return capnp.ToStruct(obj), err
 }
 
 func (q *question) PipelineCall(transform []capnp.PipelineOp, ccall *capnp.Call) capnp.Answer {
@@ -219,7 +224,11 @@ func (q *question) PipelineClose(transform []capnp.PipelineOp) error {
 	if err != nil {
 		return err
 	}
-	c := capnp.TransformObject(obj, transform).ToInterface().Client()
+	x, err := capnp.Transform(obj, transform)
+	if err != nil {
+		return err
+	}
+	c := capnp.ToInterface(x).Client()
 	if c == nil {
 		return capnp.ErrNullClient
 	}
@@ -249,8 +258,11 @@ func newEmbargoClient(manager *manager, client capnp.Client, e embargo) *embargo
 }
 
 func (ec *embargoClient) push(cl *capnp.Call) capnp.Answer {
-	f := new(capnp.Fulfiller)
-	cl = cl.Copy(nil)
+	f := new(fulfiller.Fulfiller)
+	cl, err := cl.Copy(nil)
+	if err != nil {
+		return capnp.ErrorAnswer(err)
+	}
 	if ok := ec.q.Push(ecall{cl, f}); !ok {
 		return capnp.ErrorAnswer(errQueueFull)
 	}
@@ -344,7 +356,7 @@ func (ec *embargoClient) flushQueue() {
 
 type ecall struct {
 	call *capnp.Call
-	f    *capnp.Fulfiller
+	f    *fulfiller.Fulfiller
 }
 
 type ecallList []ecall

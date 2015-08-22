@@ -12,8 +12,8 @@ const (
 	Field_noDiscriminant = uint16(65535)
 )
 
-type Node C.Struct
-type Node_struct Node
+type Node struct{ C.Struct }
+type Node_structGroup Node
 type Node_enum Node
 type Node_interface Node
 type Node_const Node
@@ -21,275 +21,644 @@ type Node_annotation Node
 type Node_Which uint16
 
 const (
-	Node_Which_file       Node_Which = 0
-	Node_Which_struct     Node_Which = 1
-	Node_Which_enum       Node_Which = 2
-	Node_Which_interface  Node_Which = 3
-	Node_Which_const      Node_Which = 4
-	Node_Which_annotation Node_Which = 5
+	Node_Which_file        Node_Which = 0
+	Node_Which_structGroup Node_Which = 1
+	Node_Which_enum        Node_Which = 2
+	Node_Which_interface   Node_Which = 3
+	Node_Which_const       Node_Which = 4
+	Node_Which_annotation  Node_Which = 5
 )
 
 func (w Node_Which) String() string {
-	const s = "filestructenuminterfaceconstannotation"
+	const s = "filestructGroupenuminterfaceconstannotation"
 	switch w {
 	case Node_Which_file:
 		return s[0:4]
-	case Node_Which_struct:
-		return s[4:10]
+	case Node_Which_structGroup:
+		return s[4:15]
 	case Node_Which_enum:
-		return s[10:14]
+		return s[15:19]
 	case Node_Which_interface:
-		return s[14:23]
+		return s[19:28]
 	case Node_Which_const:
-		return s[23:28]
+		return s[28:33]
 	case Node_Which_annotation:
-		return s[28:38]
+		return s[33:43]
 
 	}
 	return "Node_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
 }
 
-func NewNode(s *C.Segment) Node { return Node(s.NewStruct(C.ObjectSize{DataSize: 40, PointerCount: 6})) }
-func NewRootNode(s *C.Segment) Node {
-	return Node(s.NewRootStruct(C.ObjectSize{DataSize: 40, PointerCount: 6}))
-}
-func AutoNewNode(s *C.Segment) Node {
-	return Node(s.NewStructAR(C.ObjectSize{DataSize: 40, PointerCount: 6}))
-}
-func ReadRootNode(s *C.Segment) Node               { return Node(s.Root(0).ToStruct()) }
-func (s Node) Which() Node_Which                   { return Node_Which(C.Struct(s).Get16(12)) }
-func (s Node) Id() uint64                          { return C.Struct(s).Get64(0) }
-func (s Node) SetId(v uint64)                      { C.Struct(s).Set64(0, v) }
-func (s Node) DisplayName() string                 { return C.Struct(s).GetObject(0).ToText() }
-func (s Node) SetDisplayName(v string)             { C.Struct(s).SetObject(0, s.Segment.NewText(v)) }
-func (s Node) DisplayNamePrefixLength() uint32     { return C.Struct(s).Get32(8) }
-func (s Node) SetDisplayNamePrefixLength(v uint32) { C.Struct(s).Set32(8, v) }
-func (s Node) ScopeId() uint64                     { return C.Struct(s).Get64(16) }
-func (s Node) SetScopeId(v uint64)                 { C.Struct(s).Set64(16, v) }
-func (s Node) Parameters() Node_Parameter_List     { return Node_Parameter_List(C.Struct(s).GetObject(5)) }
-func (s Node) SetParameters(v Node_Parameter_List) { C.Struct(s).SetObject(5, C.Object(v)) }
-func (s Node) IsGeneric() bool                     { return C.Struct(s).Get1(288) }
-func (s Node) SetIsGeneric(v bool)                 { C.Struct(s).Set1(288, v) }
-func (s Node) NestedNodes() Node_NestedNode_List {
-	return Node_NestedNode_List(C.Struct(s).GetObject(1))
-}
-func (s Node) SetNestedNodes(v Node_NestedNode_List)         { C.Struct(s).SetObject(1, C.Object(v)) }
-func (s Node) Annotations() Annotation_List                  { return Annotation_List(C.Struct(s).GetObject(2)) }
-func (s Node) SetAnnotations(v Annotation_List)              { C.Struct(s).SetObject(2, C.Object(v)) }
-func (s Node) SetFile()                                      { C.Struct(s).Set16(12, 0) }
-func (s Node) Struct() Node_struct                           { return Node_struct(s) }
-func (s Node) SetStruct()                                    { C.Struct(s).Set16(12, 1) }
-func (s Node_struct) DataWordCount() uint16                  { return C.Struct(s).Get16(14) }
-func (s Node_struct) SetDataWordCount(v uint16)              { C.Struct(s).Set16(14, v) }
-func (s Node_struct) PointerCount() uint16                   { return C.Struct(s).Get16(24) }
-func (s Node_struct) SetPointerCount(v uint16)               { C.Struct(s).Set16(24, v) }
-func (s Node_struct) PreferredListEncoding() ElementSize     { return ElementSize(C.Struct(s).Get16(26)) }
-func (s Node_struct) SetPreferredListEncoding(v ElementSize) { C.Struct(s).Set16(26, uint16(v)) }
-func (s Node_struct) IsGroup() bool                          { return C.Struct(s).Get1(224) }
-func (s Node_struct) SetIsGroup(v bool)                      { C.Struct(s).Set1(224, v) }
-func (s Node_struct) DiscriminantCount() uint16              { return C.Struct(s).Get16(30) }
-func (s Node_struct) SetDiscriminantCount(v uint16)          { C.Struct(s).Set16(30, v) }
-func (s Node_struct) DiscriminantOffset() uint32             { return C.Struct(s).Get32(32) }
-func (s Node_struct) SetDiscriminantOffset(v uint32)         { C.Struct(s).Set32(32, v) }
-func (s Node_struct) Fields() Field_List                     { return Field_List(C.Struct(s).GetObject(3)) }
-func (s Node_struct) SetFields(v Field_List)                 { C.Struct(s).SetObject(3, C.Object(v)) }
-func (s Node) Enum() Node_enum                               { return Node_enum(s) }
-func (s Node) SetEnum()                                      { C.Struct(s).Set16(12, 2) }
-func (s Node_enum) Enumerants() Enumerant_List               { return Enumerant_List(C.Struct(s).GetObject(3)) }
-func (s Node_enum) SetEnumerants(v Enumerant_List)           { C.Struct(s).SetObject(3, C.Object(v)) }
-func (s Node) Interface() Node_interface                     { return Node_interface(s) }
-func (s Node) SetInterface()                                 { C.Struct(s).Set16(12, 3) }
-func (s Node_interface) Methods() Method_List                { return Method_List(C.Struct(s).GetObject(3)) }
-func (s Node_interface) SetMethods(v Method_List)            { C.Struct(s).SetObject(3, C.Object(v)) }
-func (s Node_interface) Superclasses() Superclass_List {
-	return Superclass_List(C.Struct(s).GetObject(4))
-}
-func (s Node_interface) SetSuperclasses(v Superclass_List) { C.Struct(s).SetObject(4, C.Object(v)) }
-func (s Node) Const() Node_const                           { return Node_const(s) }
-func (s Node) SetConst()                                   { C.Struct(s).Set16(12, 4) }
-func (s Node_const) Type() Type                            { return Type(C.Struct(s).GetObject(3).ToStruct()) }
-func (s Node_const) SetType(v Type)                        { C.Struct(s).SetObject(3, C.Object(v)) }
-func (s Node_const) Value() Value                          { return Value(C.Struct(s).GetObject(4).ToStruct()) }
-func (s Node_const) SetValue(v Value)                      { C.Struct(s).SetObject(4, C.Object(v)) }
-func (s Node) Annotation() Node_annotation                 { return Node_annotation(s) }
-func (s Node) SetAnnotation()                              { C.Struct(s).Set16(12, 5) }
-func (s Node_annotation) Type() Type                       { return Type(C.Struct(s).GetObject(3).ToStruct()) }
-func (s Node_annotation) SetType(v Type)                   { C.Struct(s).SetObject(3, C.Object(v)) }
-func (s Node_annotation) TargetsFile() bool                { return C.Struct(s).Get1(112) }
-func (s Node_annotation) SetTargetsFile(v bool)            { C.Struct(s).Set1(112, v) }
-func (s Node_annotation) TargetsConst() bool               { return C.Struct(s).Get1(113) }
-func (s Node_annotation) SetTargetsConst(v bool)           { C.Struct(s).Set1(113, v) }
-func (s Node_annotation) TargetsEnum() bool                { return C.Struct(s).Get1(114) }
-func (s Node_annotation) SetTargetsEnum(v bool)            { C.Struct(s).Set1(114, v) }
-func (s Node_annotation) TargetsEnumerant() bool           { return C.Struct(s).Get1(115) }
-func (s Node_annotation) SetTargetsEnumerant(v bool)       { C.Struct(s).Set1(115, v) }
-func (s Node_annotation) TargetsStruct() bool              { return C.Struct(s).Get1(116) }
-func (s Node_annotation) SetTargetsStruct(v bool)          { C.Struct(s).Set1(116, v) }
-func (s Node_annotation) TargetsField() bool               { return C.Struct(s).Get1(117) }
-func (s Node_annotation) SetTargetsField(v bool)           { C.Struct(s).Set1(117, v) }
-func (s Node_annotation) TargetsUnion() bool               { return C.Struct(s).Get1(118) }
-func (s Node_annotation) SetTargetsUnion(v bool)           { C.Struct(s).Set1(118, v) }
-func (s Node_annotation) TargetsGroup() bool               { return C.Struct(s).Get1(119) }
-func (s Node_annotation) SetTargetsGroup(v bool)           { C.Struct(s).Set1(119, v) }
-func (s Node_annotation) TargetsInterface() bool           { return C.Struct(s).Get1(120) }
-func (s Node_annotation) SetTargetsInterface(v bool)       { C.Struct(s).Set1(120, v) }
-func (s Node_annotation) TargetsMethod() bool              { return C.Struct(s).Get1(121) }
-func (s Node_annotation) SetTargetsMethod(v bool)          { C.Struct(s).Set1(121, v) }
-func (s Node_annotation) TargetsParam() bool               { return C.Struct(s).Get1(122) }
-func (s Node_annotation) SetTargetsParam(v bool)           { C.Struct(s).Set1(122, v) }
-func (s Node_annotation) TargetsAnnotation() bool          { return C.Struct(s).Get1(123) }
-func (s Node_annotation) SetTargetsAnnotation(v bool)      { C.Struct(s).Set1(123, v) }
-
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Node) MarshalJSON() (bs []byte, err error) { return }
-
-type Node_List C.PointerList
-
-func NewNode_List(s *C.Segment, sz int) Node_List {
-	return Node_List(s.NewCompositeList(C.ObjectSize{DataSize: 40, PointerCount: 6}, sz))
-}
-func (s Node_List) Len() int             { return C.PointerList(s).Len() }
-func (s Node_List) At(i int) Node        { return Node(C.PointerList(s).At(i).ToStruct()) }
-func (s Node_List) Set(i int, item Node) { C.PointerList(s).Set(i, C.Object(item)) }
-
-type Node_Promise C.Pipeline
-
-func (p *Node_Promise) Get() (Node, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return Node(s), err
-}
-func (p *Node_Promise) Struct() *Node_struct_Promise { return (*Node_struct_Promise)(p) }
-
-type Node_struct_Promise C.Pipeline
-
-func (p *Node_struct_Promise) Get() (Node_struct, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return Node_struct(s), err
-}
-func (p *Node_Promise) Enum() *Node_enum_Promise { return (*Node_enum_Promise)(p) }
-
-type Node_enum_Promise C.Pipeline
-
-func (p *Node_enum_Promise) Get() (Node_enum, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return Node_enum(s), err
-}
-func (p *Node_Promise) Interface() *Node_interface_Promise { return (*Node_interface_Promise)(p) }
-
-type Node_interface_Promise C.Pipeline
-
-func (p *Node_interface_Promise) Get() (Node_interface, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return Node_interface(s), err
-}
-func (p *Node_Promise) Const() *Node_const_Promise { return (*Node_const_Promise)(p) }
-
-type Node_const_Promise C.Pipeline
-
-func (p *Node_const_Promise) Get() (Node_const, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return Node_const(s), err
+func NewNode(s *C.Segment) (Node, error) {
+	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 40, PointerCount: 6})
+	if err != nil {
+		return Node{}, err
+	}
+	return Node{st}, nil
 }
 
-func (p *Node_const_Promise) Type() *Type_Promise {
-	return (*Type_Promise)((*C.Pipeline)(p).GetPipeline(3))
+func NewRootNode(s *C.Segment) (Node, error) {
+	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 40, PointerCount: 6})
+	if err != nil {
+		return Node{}, err
+	}
+	return Node{st}, nil
 }
 
-func (p *Node_const_Promise) Value() *Value_Promise {
-	return (*Value_Promise)((*C.Pipeline)(p).GetPipeline(4))
-}
-func (p *Node_Promise) Annotation() *Node_annotation_Promise { return (*Node_annotation_Promise)(p) }
-
-type Node_annotation_Promise C.Pipeline
-
-func (p *Node_annotation_Promise) Get() (Node_annotation, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return Node_annotation(s), err
+func ReadRootNode(msg *C.Message) (Node, error) {
+	root, err := msg.Root()
+	if err != nil {
+		return Node{}, err
+	}
+	st := C.ToStruct(root)
+	return Node{st}, nil
 }
 
-func (p *Node_annotation_Promise) Type() *Type_Promise {
-	return (*Type_Promise)((*C.Pipeline)(p).GetPipeline(3))
+func (s Node) Which() Node_Which {
+	return Node_Which(s.Struct.Uint16(12))
 }
 
-type Node_Parameter C.Struct
-
-func NewNode_Parameter(s *C.Segment) Node_Parameter {
-	return Node_Parameter(s.NewStruct(C.ObjectSize{DataSize: 0, PointerCount: 1}))
-}
-func NewRootNode_Parameter(s *C.Segment) Node_Parameter {
-	return Node_Parameter(s.NewRootStruct(C.ObjectSize{DataSize: 0, PointerCount: 1}))
-}
-func AutoNewNode_Parameter(s *C.Segment) Node_Parameter {
-	return Node_Parameter(s.NewStructAR(C.ObjectSize{DataSize: 0, PointerCount: 1}))
-}
-func ReadRootNode_Parameter(s *C.Segment) Node_Parameter { return Node_Parameter(s.Root(0).ToStruct()) }
-func (s Node_Parameter) Name() string                    { return C.Struct(s).GetObject(0).ToText() }
-func (s Node_Parameter) SetName(v string)                { C.Struct(s).SetObject(0, s.Segment.NewText(v)) }
-
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Node_Parameter) MarshalJSON() (bs []byte, err error) { return }
-
-type Node_Parameter_List C.PointerList
-
-func NewNode_Parameter_List(s *C.Segment, sz int) Node_Parameter_List {
-	return Node_Parameter_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 1}, sz))
-}
-func (s Node_Parameter_List) Len() int { return C.PointerList(s).Len() }
-func (s Node_Parameter_List) At(i int) Node_Parameter {
-	return Node_Parameter(C.PointerList(s).At(i).ToStruct())
-}
-func (s Node_Parameter_List) Set(i int, item Node_Parameter) { C.PointerList(s).Set(i, C.Object(item)) }
-
-type Node_Parameter_Promise C.Pipeline
-
-func (p *Node_Parameter_Promise) Get() (Node_Parameter, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return Node_Parameter(s), err
+func (s Node) Id() uint64 {
+	return s.Struct.Uint64(0)
 }
 
-type Node_NestedNode C.Struct
+func (s Node) SetId(v uint64) {
 
-func NewNode_NestedNode(s *C.Segment) Node_NestedNode {
-	return Node_NestedNode(s.NewStruct(C.ObjectSize{DataSize: 8, PointerCount: 1}))
-}
-func NewRootNode_NestedNode(s *C.Segment) Node_NestedNode {
-	return Node_NestedNode(s.NewRootStruct(C.ObjectSize{DataSize: 8, PointerCount: 1}))
-}
-func AutoNewNode_NestedNode(s *C.Segment) Node_NestedNode {
-	return Node_NestedNode(s.NewStructAR(C.ObjectSize{DataSize: 8, PointerCount: 1}))
-}
-func ReadRootNode_NestedNode(s *C.Segment) Node_NestedNode {
-	return Node_NestedNode(s.Root(0).ToStruct())
-}
-func (s Node_NestedNode) Name() string     { return C.Struct(s).GetObject(0).ToText() }
-func (s Node_NestedNode) SetName(v string) { C.Struct(s).SetObject(0, s.Segment.NewText(v)) }
-func (s Node_NestedNode) Id() uint64       { return C.Struct(s).Get64(0) }
-func (s Node_NestedNode) SetId(v uint64)   { C.Struct(s).Set64(0, v) }
-
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Node_NestedNode) MarshalJSON() (bs []byte, err error) { return }
-
-type Node_NestedNode_List C.PointerList
-
-func NewNode_NestedNode_List(s *C.Segment, sz int) Node_NestedNode_List {
-	return Node_NestedNode_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 1}, sz))
-}
-func (s Node_NestedNode_List) Len() int { return C.PointerList(s).Len() }
-func (s Node_NestedNode_List) At(i int) Node_NestedNode {
-	return Node_NestedNode(C.PointerList(s).At(i).ToStruct())
-}
-func (s Node_NestedNode_List) Set(i int, item Node_NestedNode) {
-	C.PointerList(s).Set(i, C.Object(item))
+	s.Struct.SetUint64(0, v)
 }
 
-type Node_NestedNode_Promise C.Pipeline
+func (s Node) DisplayName() (string, error) {
+	p, err := s.Struct.Pointer(0)
+	if err != nil {
+		return "", err
+	}
 
-func (p *Node_NestedNode_Promise) Get() (Node_NestedNode, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return Node_NestedNode(s), err
+	return C.ToText(p), nil
+
 }
 
-type Field C.Struct
+func (s Node) SetDisplayName(v string) error {
+
+	t, err := C.NewText(s.Struct.Segment(), v)
+	if err != nil {
+		return err
+	}
+	return s.Struct.SetPointer(0, t)
+}
+
+func (s Node) DisplayNamePrefixLength() uint32 {
+	return s.Struct.Uint32(8)
+}
+
+func (s Node) SetDisplayNamePrefixLength(v uint32) {
+
+	s.Struct.SetUint32(8, v)
+}
+
+func (s Node) ScopeId() uint64 {
+	return s.Struct.Uint64(16)
+}
+
+func (s Node) SetScopeId(v uint64) {
+
+	s.Struct.SetUint64(16, v)
+}
+
+func (s Node) Parameters() (Node_Parameter_List, error) {
+	p, err := s.Struct.Pointer(5)
+	if err != nil {
+		return Node_Parameter_List{}, err
+	}
+
+	l := C.ToList(p)
+
+	return Node_Parameter_List{List: l}, nil
+}
+
+func (s Node) SetParameters(v Node_Parameter_List) error {
+
+	return s.Struct.SetPointer(5, v.List)
+}
+
+func (s Node) IsGeneric() bool {
+	return s.Struct.Bit(288)
+}
+
+func (s Node) SetIsGeneric(v bool) {
+
+	s.Struct.SetBit(288, v)
+}
+
+func (s Node) NestedNodes() (Node_NestedNode_List, error) {
+	p, err := s.Struct.Pointer(1)
+	if err != nil {
+		return Node_NestedNode_List{}, err
+	}
+
+	l := C.ToList(p)
+
+	return Node_NestedNode_List{List: l}, nil
+}
+
+func (s Node) SetNestedNodes(v Node_NestedNode_List) error {
+
+	return s.Struct.SetPointer(1, v.List)
+}
+
+func (s Node) Annotations() (Annotation_List, error) {
+	p, err := s.Struct.Pointer(2)
+	if err != nil {
+		return Annotation_List{}, err
+	}
+
+	l := C.ToList(p)
+
+	return Annotation_List{List: l}, nil
+}
+
+func (s Node) SetAnnotations(v Annotation_List) error {
+
+	return s.Struct.SetPointer(2, v.List)
+}
+
+func (s Node) SetFile() {
+	s.Struct.SetUint16(12, 0)
+}
+func (s Node) StructGroup() Node_structGroup { return Node_structGroup(s) }
+
+func (s Node) SetStructGroup() { s.Struct.SetUint16(12, 1) }
+
+func (s Node_structGroup) DataWordCount() uint16 {
+	return s.Struct.Uint16(14)
+}
+
+func (s Node_structGroup) SetDataWordCount(v uint16) {
+
+	s.Struct.SetUint16(14, v)
+}
+
+func (s Node_structGroup) PointerCount() uint16 {
+	return s.Struct.Uint16(24)
+}
+
+func (s Node_structGroup) SetPointerCount(v uint16) {
+
+	s.Struct.SetUint16(24, v)
+}
+
+func (s Node_structGroup) PreferredListEncoding() ElementSize {
+	return ElementSize(s.Struct.Uint16(26))
+}
+
+func (s Node_structGroup) SetPreferredListEncoding(v ElementSize) {
+
+	s.Struct.SetUint16(26, uint16(v))
+}
+
+func (s Node_structGroup) IsGroup() bool {
+	return s.Struct.Bit(224)
+}
+
+func (s Node_structGroup) SetIsGroup(v bool) {
+
+	s.Struct.SetBit(224, v)
+}
+
+func (s Node_structGroup) DiscriminantCount() uint16 {
+	return s.Struct.Uint16(30)
+}
+
+func (s Node_structGroup) SetDiscriminantCount(v uint16) {
+
+	s.Struct.SetUint16(30, v)
+}
+
+func (s Node_structGroup) DiscriminantOffset() uint32 {
+	return s.Struct.Uint32(32)
+}
+
+func (s Node_structGroup) SetDiscriminantOffset(v uint32) {
+
+	s.Struct.SetUint32(32, v)
+}
+
+func (s Node_structGroup) Fields() (Field_List, error) {
+	p, err := s.Struct.Pointer(3)
+	if err != nil {
+		return Field_List{}, err
+	}
+
+	l := C.ToList(p)
+
+	return Field_List{List: l}, nil
+}
+
+func (s Node_structGroup) SetFields(v Field_List) error {
+
+	return s.Struct.SetPointer(3, v.List)
+}
+func (s Node) Enum() Node_enum { return Node_enum(s) }
+
+func (s Node) SetEnum() { s.Struct.SetUint16(12, 2) }
+
+func (s Node_enum) Enumerants() (Enumerant_List, error) {
+	p, err := s.Struct.Pointer(3)
+	if err != nil {
+		return Enumerant_List{}, err
+	}
+
+	l := C.ToList(p)
+
+	return Enumerant_List{List: l}, nil
+}
+
+func (s Node_enum) SetEnumerants(v Enumerant_List) error {
+
+	return s.Struct.SetPointer(3, v.List)
+}
+func (s Node) Interface() Node_interface { return Node_interface(s) }
+
+func (s Node) SetInterface() { s.Struct.SetUint16(12, 3) }
+
+func (s Node_interface) Methods() (Method_List, error) {
+	p, err := s.Struct.Pointer(3)
+	if err != nil {
+		return Method_List{}, err
+	}
+
+	l := C.ToList(p)
+
+	return Method_List{List: l}, nil
+}
+
+func (s Node_interface) SetMethods(v Method_List) error {
+
+	return s.Struct.SetPointer(3, v.List)
+}
+
+func (s Node_interface) Superclasses() (Superclass_List, error) {
+	p, err := s.Struct.Pointer(4)
+	if err != nil {
+		return Superclass_List{}, err
+	}
+
+	l := C.ToList(p)
+
+	return Superclass_List{List: l}, nil
+}
+
+func (s Node_interface) SetSuperclasses(v Superclass_List) error {
+
+	return s.Struct.SetPointer(4, v.List)
+}
+func (s Node) Const() Node_const { return Node_const(s) }
+
+func (s Node) SetConst() { s.Struct.SetUint16(12, 4) }
+
+func (s Node_const) Type() (Type, error) {
+	p, err := s.Struct.Pointer(3)
+	if err != nil {
+		return Type{}, err
+	}
+
+	ss := C.ToStruct(p)
+
+	return Type{Struct: ss}, nil
+}
+
+func (s Node_const) SetType(v Type) error {
+
+	return s.Struct.SetPointer(3, v.Struct)
+}
+
+// NewType sets the type field to a newly
+// allocated Type struct, preferring placement in s's segment.
+func (s Node_const) NewType() (Type, error) {
+
+	ss, err := NewType(s.Struct.Segment())
+	if err != nil {
+		return Type{}, err
+	}
+	err = s.Struct.SetPointer(3, ss)
+	return ss, err
+}
+
+func (s Node_const) Value() (Value, error) {
+	p, err := s.Struct.Pointer(4)
+	if err != nil {
+		return Value{}, err
+	}
+
+	ss := C.ToStruct(p)
+
+	return Value{Struct: ss}, nil
+}
+
+func (s Node_const) SetValue(v Value) error {
+
+	return s.Struct.SetPointer(4, v.Struct)
+}
+
+// NewValue sets the value field to a newly
+// allocated Value struct, preferring placement in s's segment.
+func (s Node_const) NewValue() (Value, error) {
+
+	ss, err := NewValue(s.Struct.Segment())
+	if err != nil {
+		return Value{}, err
+	}
+	err = s.Struct.SetPointer(4, ss)
+	return ss, err
+}
+func (s Node) Annotation() Node_annotation { return Node_annotation(s) }
+
+func (s Node) SetAnnotation() { s.Struct.SetUint16(12, 5) }
+
+func (s Node_annotation) Type() (Type, error) {
+	p, err := s.Struct.Pointer(3)
+	if err != nil {
+		return Type{}, err
+	}
+
+	ss := C.ToStruct(p)
+
+	return Type{Struct: ss}, nil
+}
+
+func (s Node_annotation) SetType(v Type) error {
+
+	return s.Struct.SetPointer(3, v.Struct)
+}
+
+// NewType sets the type field to a newly
+// allocated Type struct, preferring placement in s's segment.
+func (s Node_annotation) NewType() (Type, error) {
+
+	ss, err := NewType(s.Struct.Segment())
+	if err != nil {
+		return Type{}, err
+	}
+	err = s.Struct.SetPointer(3, ss)
+	return ss, err
+}
+
+func (s Node_annotation) TargetsFile() bool {
+	return s.Struct.Bit(112)
+}
+
+func (s Node_annotation) SetTargetsFile(v bool) {
+
+	s.Struct.SetBit(112, v)
+}
+
+func (s Node_annotation) TargetsConst() bool {
+	return s.Struct.Bit(113)
+}
+
+func (s Node_annotation) SetTargetsConst(v bool) {
+
+	s.Struct.SetBit(113, v)
+}
+
+func (s Node_annotation) TargetsEnum() bool {
+	return s.Struct.Bit(114)
+}
+
+func (s Node_annotation) SetTargetsEnum(v bool) {
+
+	s.Struct.SetBit(114, v)
+}
+
+func (s Node_annotation) TargetsEnumerant() bool {
+	return s.Struct.Bit(115)
+}
+
+func (s Node_annotation) SetTargetsEnumerant(v bool) {
+
+	s.Struct.SetBit(115, v)
+}
+
+func (s Node_annotation) TargetsStruct() bool {
+	return s.Struct.Bit(116)
+}
+
+func (s Node_annotation) SetTargetsStruct(v bool) {
+
+	s.Struct.SetBit(116, v)
+}
+
+func (s Node_annotation) TargetsField() bool {
+	return s.Struct.Bit(117)
+}
+
+func (s Node_annotation) SetTargetsField(v bool) {
+
+	s.Struct.SetBit(117, v)
+}
+
+func (s Node_annotation) TargetsUnion() bool {
+	return s.Struct.Bit(118)
+}
+
+func (s Node_annotation) SetTargetsUnion(v bool) {
+
+	s.Struct.SetBit(118, v)
+}
+
+func (s Node_annotation) TargetsGroup() bool {
+	return s.Struct.Bit(119)
+}
+
+func (s Node_annotation) SetTargetsGroup(v bool) {
+
+	s.Struct.SetBit(119, v)
+}
+
+func (s Node_annotation) TargetsInterface() bool {
+	return s.Struct.Bit(120)
+}
+
+func (s Node_annotation) SetTargetsInterface(v bool) {
+
+	s.Struct.SetBit(120, v)
+}
+
+func (s Node_annotation) TargetsMethod() bool {
+	return s.Struct.Bit(121)
+}
+
+func (s Node_annotation) SetTargetsMethod(v bool) {
+
+	s.Struct.SetBit(121, v)
+}
+
+func (s Node_annotation) TargetsParam() bool {
+	return s.Struct.Bit(122)
+}
+
+func (s Node_annotation) SetTargetsParam(v bool) {
+
+	s.Struct.SetBit(122, v)
+}
+
+func (s Node_annotation) TargetsAnnotation() bool {
+	return s.Struct.Bit(123)
+}
+
+func (s Node_annotation) SetTargetsAnnotation(v bool) {
+
+	s.Struct.SetBit(123, v)
+}
+
+// Node_List is a list of Node.
+type Node_List struct{ C.List }
+
+// NewNode creates a new list of Node.
+func NewNode_List(s *C.Segment, sz int32) (Node_List, error) {
+	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 40, PointerCount: 6}, sz)
+	if err != nil {
+		return Node_List{}, err
+	}
+	return Node_List{l}, nil
+}
+
+func (s Node_List) At(i int) Node           { return Node{s.List.Struct(i)} }
+func (s Node_List) Set(i int, v Node) error { return s.List.SetStruct(i, v.Struct) }
+
+type Node_Parameter struct{ C.Struct }
+
+func NewNode_Parameter(s *C.Segment) (Node_Parameter, error) {
+	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 0, PointerCount: 1})
+	if err != nil {
+		return Node_Parameter{}, err
+	}
+	return Node_Parameter{st}, nil
+}
+
+func NewRootNode_Parameter(s *C.Segment) (Node_Parameter, error) {
+	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 0, PointerCount: 1})
+	if err != nil {
+		return Node_Parameter{}, err
+	}
+	return Node_Parameter{st}, nil
+}
+
+func ReadRootNode_Parameter(msg *C.Message) (Node_Parameter, error) {
+	root, err := msg.Root()
+	if err != nil {
+		return Node_Parameter{}, err
+	}
+	st := C.ToStruct(root)
+	return Node_Parameter{st}, nil
+}
+
+func (s Node_Parameter) Name() (string, error) {
+	p, err := s.Struct.Pointer(0)
+	if err != nil {
+		return "", err
+	}
+
+	return C.ToText(p), nil
+
+}
+
+func (s Node_Parameter) SetName(v string) error {
+
+	t, err := C.NewText(s.Struct.Segment(), v)
+	if err != nil {
+		return err
+	}
+	return s.Struct.SetPointer(0, t)
+}
+
+// Node_Parameter_List is a list of Node_Parameter.
+type Node_Parameter_List struct{ C.List }
+
+// NewNode_Parameter creates a new list of Node_Parameter.
+func NewNode_Parameter_List(s *C.Segment, sz int32) (Node_Parameter_List, error) {
+	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
+	if err != nil {
+		return Node_Parameter_List{}, err
+	}
+	return Node_Parameter_List{l}, nil
+}
+
+func (s Node_Parameter_List) At(i int) Node_Parameter           { return Node_Parameter{s.List.Struct(i)} }
+func (s Node_Parameter_List) Set(i int, v Node_Parameter) error { return s.List.SetStruct(i, v.Struct) }
+
+type Node_NestedNode struct{ C.Struct }
+
+func NewNode_NestedNode(s *C.Segment) (Node_NestedNode, error) {
+	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 8, PointerCount: 1})
+	if err != nil {
+		return Node_NestedNode{}, err
+	}
+	return Node_NestedNode{st}, nil
+}
+
+func NewRootNode_NestedNode(s *C.Segment) (Node_NestedNode, error) {
+	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 8, PointerCount: 1})
+	if err != nil {
+		return Node_NestedNode{}, err
+	}
+	return Node_NestedNode{st}, nil
+}
+
+func ReadRootNode_NestedNode(msg *C.Message) (Node_NestedNode, error) {
+	root, err := msg.Root()
+	if err != nil {
+		return Node_NestedNode{}, err
+	}
+	st := C.ToStruct(root)
+	return Node_NestedNode{st}, nil
+}
+
+func (s Node_NestedNode) Name() (string, error) {
+	p, err := s.Struct.Pointer(0)
+	if err != nil {
+		return "", err
+	}
+
+	return C.ToText(p), nil
+
+}
+
+func (s Node_NestedNode) SetName(v string) error {
+
+	t, err := C.NewText(s.Struct.Segment(), v)
+	if err != nil {
+		return err
+	}
+	return s.Struct.SetPointer(0, t)
+}
+
+func (s Node_NestedNode) Id() uint64 {
+	return s.Struct.Uint64(0)
+}
+
+func (s Node_NestedNode) SetId(v uint64) {
+
+	s.Struct.SetUint64(0, v)
+}
+
+// Node_NestedNode_List is a list of Node_NestedNode.
+type Node_NestedNode_List struct{ C.List }
+
+// NewNode_NestedNode creates a new list of Node_NestedNode.
+func NewNode_NestedNode_List(s *C.Segment, sz int32) (Node_NestedNode_List, error) {
+	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
+	if err != nil {
+		return Node_NestedNode_List{}, err
+	}
+	return Node_NestedNode_List{l}, nil
+}
+
+func (s Node_NestedNode_List) At(i int) Node_NestedNode { return Node_NestedNode{s.List.Struct(i)} }
+func (s Node_NestedNode_List) Set(i int, v Node_NestedNode) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+type Field struct{ C.Struct }
 type Field_slot Field
 type Field_group Field
 type Field_ordinal Field
@@ -331,236 +700,555 @@ func (w Field_ordinal_Which) String() string {
 	return "Field_ordinal_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
 }
 
-func NewField(s *C.Segment) Field {
-	return Field(s.NewStruct(C.ObjectSize{DataSize: 24, PointerCount: 4}))
-}
-func NewRootField(s *C.Segment) Field {
-	return Field(s.NewRootStruct(C.ObjectSize{DataSize: 24, PointerCount: 4}))
-}
-func AutoNewField(s *C.Segment) Field {
-	return Field(s.NewStructAR(C.ObjectSize{DataSize: 24, PointerCount: 4}))
-}
-func ReadRootField(s *C.Segment) Field             { return Field(s.Root(0).ToStruct()) }
-func (s Field) Which() Field_Which                 { return Field_Which(C.Struct(s).Get16(8)) }
-func (s Field) Name() string                       { return C.Struct(s).GetObject(0).ToText() }
-func (s Field) SetName(v string)                   { C.Struct(s).SetObject(0, s.Segment.NewText(v)) }
-func (s Field) CodeOrder() uint16                  { return C.Struct(s).Get16(0) }
-func (s Field) SetCodeOrder(v uint16)              { C.Struct(s).Set16(0, v) }
-func (s Field) Annotations() Annotation_List       { return Annotation_List(C.Struct(s).GetObject(1)) }
-func (s Field) SetAnnotations(v Annotation_List)   { C.Struct(s).SetObject(1, C.Object(v)) }
-func (s Field) DiscriminantValue() uint16          { return C.Struct(s).Get16(2) ^ 65535 }
-func (s Field) SetDiscriminantValue(v uint16)      { C.Struct(s).Set16(2, v^65535) }
-func (s Field) Slot() Field_slot                   { return Field_slot(s) }
-func (s Field) SetSlot()                           { C.Struct(s).Set16(8, 0) }
-func (s Field_slot) Offset() uint32                { return C.Struct(s).Get32(4) }
-func (s Field_slot) SetOffset(v uint32)            { C.Struct(s).Set32(4, v) }
-func (s Field_slot) Type() Type                    { return Type(C.Struct(s).GetObject(2).ToStruct()) }
-func (s Field_slot) SetType(v Type)                { C.Struct(s).SetObject(2, C.Object(v)) }
-func (s Field_slot) DefaultValue() Value           { return Value(C.Struct(s).GetObject(3).ToStruct()) }
-func (s Field_slot) SetDefaultValue(v Value)       { C.Struct(s).SetObject(3, C.Object(v)) }
-func (s Field_slot) HadExplicitDefault() bool      { return C.Struct(s).Get1(128) }
-func (s Field_slot) SetHadExplicitDefault(v bool)  { C.Struct(s).Set1(128, v) }
-func (s Field) Group() Field_group                 { return Field_group(s) }
-func (s Field) SetGroup()                          { C.Struct(s).Set16(8, 1) }
-func (s Field_group) TypeId() uint64               { return C.Struct(s).Get64(16) }
-func (s Field_group) SetTypeId(v uint64)           { C.Struct(s).Set64(16, v) }
-func (s Field) Ordinal() Field_ordinal             { return Field_ordinal(s) }
-func (s Field_ordinal) Which() Field_ordinal_Which { return Field_ordinal_Which(C.Struct(s).Get16(10)) }
-func (s Field_ordinal) SetImplicit()               { C.Struct(s).Set16(10, 0) }
-func (s Field_ordinal) Explicit() uint16           { return C.Struct(s).Get16(12) }
-func (s Field_ordinal) SetExplicit(v uint16)       { C.Struct(s).Set16(10, 1); C.Struct(s).Set16(12, v) }
-
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Field) MarshalJSON() (bs []byte, err error) { return }
-
-type Field_List C.PointerList
-
-func NewField_List(s *C.Segment, sz int) Field_List {
-	return Field_List(s.NewCompositeList(C.ObjectSize{DataSize: 24, PointerCount: 4}, sz))
-}
-func (s Field_List) Len() int              { return C.PointerList(s).Len() }
-func (s Field_List) At(i int) Field        { return Field(C.PointerList(s).At(i).ToStruct()) }
-func (s Field_List) Set(i int, item Field) { C.PointerList(s).Set(i, C.Object(item)) }
-
-type Field_Promise C.Pipeline
-
-func (p *Field_Promise) Get() (Field, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return Field(s), err
-}
-func (p *Field_Promise) Slot() *Field_slot_Promise { return (*Field_slot_Promise)(p) }
-
-type Field_slot_Promise C.Pipeline
-
-func (p *Field_slot_Promise) Get() (Field_slot, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return Field_slot(s), err
+func NewField(s *C.Segment) (Field, error) {
+	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 24, PointerCount: 4})
+	if err != nil {
+		return Field{}, err
+	}
+	return Field{st}, nil
 }
 
-func (p *Field_slot_Promise) Type() *Type_Promise {
-	return (*Type_Promise)((*C.Pipeline)(p).GetPipeline(2))
+func NewRootField(s *C.Segment) (Field, error) {
+	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 24, PointerCount: 4})
+	if err != nil {
+		return Field{}, err
+	}
+	return Field{st}, nil
 }
 
-func (p *Field_slot_Promise) DefaultValue() *Value_Promise {
-	return (*Value_Promise)((*C.Pipeline)(p).GetPipeline(3))
-}
-func (p *Field_Promise) Group() *Field_group_Promise { return (*Field_group_Promise)(p) }
-
-type Field_group_Promise C.Pipeline
-
-func (p *Field_group_Promise) Get() (Field_group, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return Field_group(s), err
-}
-func (p *Field_Promise) Ordinal() *Field_ordinal_Promise { return (*Field_ordinal_Promise)(p) }
-
-type Field_ordinal_Promise C.Pipeline
-
-func (p *Field_ordinal_Promise) Get() (Field_ordinal, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return Field_ordinal(s), err
+func ReadRootField(msg *C.Message) (Field, error) {
+	root, err := msg.Root()
+	if err != nil {
+		return Field{}, err
+	}
+	st := C.ToStruct(root)
+	return Field{st}, nil
 }
 
-type Enumerant C.Struct
-
-func NewEnumerant(s *C.Segment) Enumerant {
-	return Enumerant(s.NewStruct(C.ObjectSize{DataSize: 8, PointerCount: 2}))
-}
-func NewRootEnumerant(s *C.Segment) Enumerant {
-	return Enumerant(s.NewRootStruct(C.ObjectSize{DataSize: 8, PointerCount: 2}))
-}
-func AutoNewEnumerant(s *C.Segment) Enumerant {
-	return Enumerant(s.NewStructAR(C.ObjectSize{DataSize: 8, PointerCount: 2}))
-}
-func ReadRootEnumerant(s *C.Segment) Enumerant       { return Enumerant(s.Root(0).ToStruct()) }
-func (s Enumerant) Name() string                     { return C.Struct(s).GetObject(0).ToText() }
-func (s Enumerant) SetName(v string)                 { C.Struct(s).SetObject(0, s.Segment.NewText(v)) }
-func (s Enumerant) CodeOrder() uint16                { return C.Struct(s).Get16(0) }
-func (s Enumerant) SetCodeOrder(v uint16)            { C.Struct(s).Set16(0, v) }
-func (s Enumerant) Annotations() Annotation_List     { return Annotation_List(C.Struct(s).GetObject(1)) }
-func (s Enumerant) SetAnnotations(v Annotation_List) { C.Struct(s).SetObject(1, C.Object(v)) }
-
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Enumerant) MarshalJSON() (bs []byte, err error) { return }
-
-type Enumerant_List C.PointerList
-
-func NewEnumerant_List(s *C.Segment, sz int) Enumerant_List {
-	return Enumerant_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 2}, sz))
-}
-func (s Enumerant_List) Len() int                  { return C.PointerList(s).Len() }
-func (s Enumerant_List) At(i int) Enumerant        { return Enumerant(C.PointerList(s).At(i).ToStruct()) }
-func (s Enumerant_List) Set(i int, item Enumerant) { C.PointerList(s).Set(i, C.Object(item)) }
-
-type Enumerant_Promise C.Pipeline
-
-func (p *Enumerant_Promise) Get() (Enumerant, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return Enumerant(s), err
+func (s Field) Which() Field_Which {
+	return Field_Which(s.Struct.Uint16(8))
 }
 
-type Superclass C.Struct
+func (s Field) Name() (string, error) {
+	p, err := s.Struct.Pointer(0)
+	if err != nil {
+		return "", err
+	}
 
-func NewSuperclass(s *C.Segment) Superclass {
-	return Superclass(s.NewStruct(C.ObjectSize{DataSize: 8, PointerCount: 1}))
-}
-func NewRootSuperclass(s *C.Segment) Superclass {
-	return Superclass(s.NewRootStruct(C.ObjectSize{DataSize: 8, PointerCount: 1}))
-}
-func AutoNewSuperclass(s *C.Segment) Superclass {
-	return Superclass(s.NewStructAR(C.ObjectSize{DataSize: 8, PointerCount: 1}))
-}
-func ReadRootSuperclass(s *C.Segment) Superclass { return Superclass(s.Root(0).ToStruct()) }
-func (s Superclass) Id() uint64                  { return C.Struct(s).Get64(0) }
-func (s Superclass) SetId(v uint64)              { C.Struct(s).Set64(0, v) }
-func (s Superclass) Brand() Brand                { return Brand(C.Struct(s).GetObject(0).ToStruct()) }
-func (s Superclass) SetBrand(v Brand)            { C.Struct(s).SetObject(0, C.Object(v)) }
+	return C.ToText(p), nil
 
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Superclass) MarshalJSON() (bs []byte, err error) { return }
-
-type Superclass_List C.PointerList
-
-func NewSuperclass_List(s *C.Segment, sz int) Superclass_List {
-	return Superclass_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 1}, sz))
-}
-func (s Superclass_List) Len() int                   { return C.PointerList(s).Len() }
-func (s Superclass_List) At(i int) Superclass        { return Superclass(C.PointerList(s).At(i).ToStruct()) }
-func (s Superclass_List) Set(i int, item Superclass) { C.PointerList(s).Set(i, C.Object(item)) }
-
-type Superclass_Promise C.Pipeline
-
-func (p *Superclass_Promise) Get() (Superclass, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return Superclass(s), err
 }
 
-func (p *Superclass_Promise) Brand() *Brand_Promise {
-	return (*Brand_Promise)((*C.Pipeline)(p).GetPipeline(0))
+func (s Field) SetName(v string) error {
+
+	t, err := C.NewText(s.Struct.Segment(), v)
+	if err != nil {
+		return err
+	}
+	return s.Struct.SetPointer(0, t)
 }
 
-type Method C.Struct
-
-func NewMethod(s *C.Segment) Method {
-	return Method(s.NewStruct(C.ObjectSize{DataSize: 24, PointerCount: 5}))
-}
-func NewRootMethod(s *C.Segment) Method {
-	return Method(s.NewRootStruct(C.ObjectSize{DataSize: 24, PointerCount: 5}))
-}
-func AutoNewMethod(s *C.Segment) Method {
-	return Method(s.NewStructAR(C.ObjectSize{DataSize: 24, PointerCount: 5}))
-}
-func ReadRootMethod(s *C.Segment) Method { return Method(s.Root(0).ToStruct()) }
-func (s Method) Name() string            { return C.Struct(s).GetObject(0).ToText() }
-func (s Method) SetName(v string)        { C.Struct(s).SetObject(0, s.Segment.NewText(v)) }
-func (s Method) CodeOrder() uint16       { return C.Struct(s).Get16(0) }
-func (s Method) SetCodeOrder(v uint16)   { C.Struct(s).Set16(0, v) }
-func (s Method) ImplicitParameters() Node_Parameter_List {
-	return Node_Parameter_List(C.Struct(s).GetObject(4))
-}
-func (s Method) SetImplicitParameters(v Node_Parameter_List) { C.Struct(s).SetObject(4, C.Object(v)) }
-func (s Method) ParamStructType() uint64                     { return C.Struct(s).Get64(8) }
-func (s Method) SetParamStructType(v uint64)                 { C.Struct(s).Set64(8, v) }
-func (s Method) ParamBrand() Brand                           { return Brand(C.Struct(s).GetObject(2).ToStruct()) }
-func (s Method) SetParamBrand(v Brand)                       { C.Struct(s).SetObject(2, C.Object(v)) }
-func (s Method) ResultStructType() uint64                    { return C.Struct(s).Get64(16) }
-func (s Method) SetResultStructType(v uint64)                { C.Struct(s).Set64(16, v) }
-func (s Method) ResultBrand() Brand                          { return Brand(C.Struct(s).GetObject(3).ToStruct()) }
-func (s Method) SetResultBrand(v Brand)                      { C.Struct(s).SetObject(3, C.Object(v)) }
-func (s Method) Annotations() Annotation_List                { return Annotation_List(C.Struct(s).GetObject(1)) }
-func (s Method) SetAnnotations(v Annotation_List)            { C.Struct(s).SetObject(1, C.Object(v)) }
-
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Method) MarshalJSON() (bs []byte, err error) { return }
-
-type Method_List C.PointerList
-
-func NewMethod_List(s *C.Segment, sz int) Method_List {
-	return Method_List(s.NewCompositeList(C.ObjectSize{DataSize: 24, PointerCount: 5}, sz))
-}
-func (s Method_List) Len() int               { return C.PointerList(s).Len() }
-func (s Method_List) At(i int) Method        { return Method(C.PointerList(s).At(i).ToStruct()) }
-func (s Method_List) Set(i int, item Method) { C.PointerList(s).Set(i, C.Object(item)) }
-
-type Method_Promise C.Pipeline
-
-func (p *Method_Promise) Get() (Method, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return Method(s), err
+func (s Field) CodeOrder() uint16 {
+	return s.Struct.Uint16(0)
 }
 
-func (p *Method_Promise) ParamBrand() *Brand_Promise {
-	return (*Brand_Promise)((*C.Pipeline)(p).GetPipeline(2))
+func (s Field) SetCodeOrder(v uint16) {
+
+	s.Struct.SetUint16(0, v)
 }
 
-func (p *Method_Promise) ResultBrand() *Brand_Promise {
-	return (*Brand_Promise)((*C.Pipeline)(p).GetPipeline(3))
+func (s Field) Annotations() (Annotation_List, error) {
+	p, err := s.Struct.Pointer(1)
+	if err != nil {
+		return Annotation_List{}, err
+	}
+
+	l := C.ToList(p)
+
+	return Annotation_List{List: l}, nil
 }
 
-type Type C.Struct
+func (s Field) SetAnnotations(v Annotation_List) error {
+
+	return s.Struct.SetPointer(1, v.List)
+}
+
+func (s Field) DiscriminantValue() uint16 {
+	return s.Struct.Uint16(2) ^ 65535
+}
+
+func (s Field) SetDiscriminantValue(v uint16) {
+
+	s.Struct.SetUint16(2, v^65535)
+}
+func (s Field) Slot() Field_slot { return Field_slot(s) }
+
+func (s Field) SetSlot() { s.Struct.SetUint16(8, 0) }
+
+func (s Field_slot) Offset() uint32 {
+	return s.Struct.Uint32(4)
+}
+
+func (s Field_slot) SetOffset(v uint32) {
+
+	s.Struct.SetUint32(4, v)
+}
+
+func (s Field_slot) Type() (Type, error) {
+	p, err := s.Struct.Pointer(2)
+	if err != nil {
+		return Type{}, err
+	}
+
+	ss := C.ToStruct(p)
+
+	return Type{Struct: ss}, nil
+}
+
+func (s Field_slot) SetType(v Type) error {
+
+	return s.Struct.SetPointer(2, v.Struct)
+}
+
+// NewType sets the type field to a newly
+// allocated Type struct, preferring placement in s's segment.
+func (s Field_slot) NewType() (Type, error) {
+
+	ss, err := NewType(s.Struct.Segment())
+	if err != nil {
+		return Type{}, err
+	}
+	err = s.Struct.SetPointer(2, ss)
+	return ss, err
+}
+
+func (s Field_slot) DefaultValue() (Value, error) {
+	p, err := s.Struct.Pointer(3)
+	if err != nil {
+		return Value{}, err
+	}
+
+	ss := C.ToStruct(p)
+
+	return Value{Struct: ss}, nil
+}
+
+func (s Field_slot) SetDefaultValue(v Value) error {
+
+	return s.Struct.SetPointer(3, v.Struct)
+}
+
+// NewDefaultValue sets the defaultValue field to a newly
+// allocated Value struct, preferring placement in s's segment.
+func (s Field_slot) NewDefaultValue() (Value, error) {
+
+	ss, err := NewValue(s.Struct.Segment())
+	if err != nil {
+		return Value{}, err
+	}
+	err = s.Struct.SetPointer(3, ss)
+	return ss, err
+}
+
+func (s Field_slot) HadExplicitDefault() bool {
+	return s.Struct.Bit(128)
+}
+
+func (s Field_slot) SetHadExplicitDefault(v bool) {
+
+	s.Struct.SetBit(128, v)
+}
+func (s Field) Group() Field_group { return Field_group(s) }
+
+func (s Field) SetGroup() { s.Struct.SetUint16(8, 1) }
+
+func (s Field_group) TypeId() uint64 {
+	return s.Struct.Uint64(16)
+}
+
+func (s Field_group) SetTypeId(v uint64) {
+
+	s.Struct.SetUint64(16, v)
+}
+func (s Field) Ordinal() Field_ordinal { return Field_ordinal(s) }
+
+func (s Field_ordinal) Which() Field_ordinal_Which {
+	return Field_ordinal_Which(s.Struct.Uint16(10))
+}
+
+func (s Field_ordinal) SetImplicit() {
+	s.Struct.SetUint16(10, 0)
+}
+
+func (s Field_ordinal) Explicit() uint16 {
+	return s.Struct.Uint16(12)
+}
+
+func (s Field_ordinal) SetExplicit(v uint16) {
+	s.Struct.SetUint16(10, 1)
+	s.Struct.SetUint16(12, v)
+}
+
+// Field_List is a list of Field.
+type Field_List struct{ C.List }
+
+// NewField creates a new list of Field.
+func NewField_List(s *C.Segment, sz int32) (Field_List, error) {
+	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 24, PointerCount: 4}, sz)
+	if err != nil {
+		return Field_List{}, err
+	}
+	return Field_List{l}, nil
+}
+
+func (s Field_List) At(i int) Field           { return Field{s.List.Struct(i)} }
+func (s Field_List) Set(i int, v Field) error { return s.List.SetStruct(i, v.Struct) }
+
+type Enumerant struct{ C.Struct }
+
+func NewEnumerant(s *C.Segment) (Enumerant, error) {
+	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 8, PointerCount: 2})
+	if err != nil {
+		return Enumerant{}, err
+	}
+	return Enumerant{st}, nil
+}
+
+func NewRootEnumerant(s *C.Segment) (Enumerant, error) {
+	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 8, PointerCount: 2})
+	if err != nil {
+		return Enumerant{}, err
+	}
+	return Enumerant{st}, nil
+}
+
+func ReadRootEnumerant(msg *C.Message) (Enumerant, error) {
+	root, err := msg.Root()
+	if err != nil {
+		return Enumerant{}, err
+	}
+	st := C.ToStruct(root)
+	return Enumerant{st}, nil
+}
+
+func (s Enumerant) Name() (string, error) {
+	p, err := s.Struct.Pointer(0)
+	if err != nil {
+		return "", err
+	}
+
+	return C.ToText(p), nil
+
+}
+
+func (s Enumerant) SetName(v string) error {
+
+	t, err := C.NewText(s.Struct.Segment(), v)
+	if err != nil {
+		return err
+	}
+	return s.Struct.SetPointer(0, t)
+}
+
+func (s Enumerant) CodeOrder() uint16 {
+	return s.Struct.Uint16(0)
+}
+
+func (s Enumerant) SetCodeOrder(v uint16) {
+
+	s.Struct.SetUint16(0, v)
+}
+
+func (s Enumerant) Annotations() (Annotation_List, error) {
+	p, err := s.Struct.Pointer(1)
+	if err != nil {
+		return Annotation_List{}, err
+	}
+
+	l := C.ToList(p)
+
+	return Annotation_List{List: l}, nil
+}
+
+func (s Enumerant) SetAnnotations(v Annotation_List) error {
+
+	return s.Struct.SetPointer(1, v.List)
+}
+
+// Enumerant_List is a list of Enumerant.
+type Enumerant_List struct{ C.List }
+
+// NewEnumerant creates a new list of Enumerant.
+func NewEnumerant_List(s *C.Segment, sz int32) (Enumerant_List, error) {
+	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 8, PointerCount: 2}, sz)
+	if err != nil {
+		return Enumerant_List{}, err
+	}
+	return Enumerant_List{l}, nil
+}
+
+func (s Enumerant_List) At(i int) Enumerant           { return Enumerant{s.List.Struct(i)} }
+func (s Enumerant_List) Set(i int, v Enumerant) error { return s.List.SetStruct(i, v.Struct) }
+
+type Superclass struct{ C.Struct }
+
+func NewSuperclass(s *C.Segment) (Superclass, error) {
+	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 8, PointerCount: 1})
+	if err != nil {
+		return Superclass{}, err
+	}
+	return Superclass{st}, nil
+}
+
+func NewRootSuperclass(s *C.Segment) (Superclass, error) {
+	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 8, PointerCount: 1})
+	if err != nil {
+		return Superclass{}, err
+	}
+	return Superclass{st}, nil
+}
+
+func ReadRootSuperclass(msg *C.Message) (Superclass, error) {
+	root, err := msg.Root()
+	if err != nil {
+		return Superclass{}, err
+	}
+	st := C.ToStruct(root)
+	return Superclass{st}, nil
+}
+
+func (s Superclass) Id() uint64 {
+	return s.Struct.Uint64(0)
+}
+
+func (s Superclass) SetId(v uint64) {
+
+	s.Struct.SetUint64(0, v)
+}
+
+func (s Superclass) Brand() (Brand, error) {
+	p, err := s.Struct.Pointer(0)
+	if err != nil {
+		return Brand{}, err
+	}
+
+	ss := C.ToStruct(p)
+
+	return Brand{Struct: ss}, nil
+}
+
+func (s Superclass) SetBrand(v Brand) error {
+
+	return s.Struct.SetPointer(0, v.Struct)
+}
+
+// NewBrand sets the brand field to a newly
+// allocated Brand struct, preferring placement in s's segment.
+func (s Superclass) NewBrand() (Brand, error) {
+
+	ss, err := NewBrand(s.Struct.Segment())
+	if err != nil {
+		return Brand{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
+}
+
+// Superclass_List is a list of Superclass.
+type Superclass_List struct{ C.List }
+
+// NewSuperclass creates a new list of Superclass.
+func NewSuperclass_List(s *C.Segment, sz int32) (Superclass_List, error) {
+	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
+	if err != nil {
+		return Superclass_List{}, err
+	}
+	return Superclass_List{l}, nil
+}
+
+func (s Superclass_List) At(i int) Superclass           { return Superclass{s.List.Struct(i)} }
+func (s Superclass_List) Set(i int, v Superclass) error { return s.List.SetStruct(i, v.Struct) }
+
+type Method struct{ C.Struct }
+
+func NewMethod(s *C.Segment) (Method, error) {
+	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 24, PointerCount: 5})
+	if err != nil {
+		return Method{}, err
+	}
+	return Method{st}, nil
+}
+
+func NewRootMethod(s *C.Segment) (Method, error) {
+	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 24, PointerCount: 5})
+	if err != nil {
+		return Method{}, err
+	}
+	return Method{st}, nil
+}
+
+func ReadRootMethod(msg *C.Message) (Method, error) {
+	root, err := msg.Root()
+	if err != nil {
+		return Method{}, err
+	}
+	st := C.ToStruct(root)
+	return Method{st}, nil
+}
+
+func (s Method) Name() (string, error) {
+	p, err := s.Struct.Pointer(0)
+	if err != nil {
+		return "", err
+	}
+
+	return C.ToText(p), nil
+
+}
+
+func (s Method) SetName(v string) error {
+
+	t, err := C.NewText(s.Struct.Segment(), v)
+	if err != nil {
+		return err
+	}
+	return s.Struct.SetPointer(0, t)
+}
+
+func (s Method) CodeOrder() uint16 {
+	return s.Struct.Uint16(0)
+}
+
+func (s Method) SetCodeOrder(v uint16) {
+
+	s.Struct.SetUint16(0, v)
+}
+
+func (s Method) ImplicitParameters() (Node_Parameter_List, error) {
+	p, err := s.Struct.Pointer(4)
+	if err != nil {
+		return Node_Parameter_List{}, err
+	}
+
+	l := C.ToList(p)
+
+	return Node_Parameter_List{List: l}, nil
+}
+
+func (s Method) SetImplicitParameters(v Node_Parameter_List) error {
+
+	return s.Struct.SetPointer(4, v.List)
+}
+
+func (s Method) ParamStructType() uint64 {
+	return s.Struct.Uint64(8)
+}
+
+func (s Method) SetParamStructType(v uint64) {
+
+	s.Struct.SetUint64(8, v)
+}
+
+func (s Method) ParamBrand() (Brand, error) {
+	p, err := s.Struct.Pointer(2)
+	if err != nil {
+		return Brand{}, err
+	}
+
+	ss := C.ToStruct(p)
+
+	return Brand{Struct: ss}, nil
+}
+
+func (s Method) SetParamBrand(v Brand) error {
+
+	return s.Struct.SetPointer(2, v.Struct)
+}
+
+// NewParamBrand sets the paramBrand field to a newly
+// allocated Brand struct, preferring placement in s's segment.
+func (s Method) NewParamBrand() (Brand, error) {
+
+	ss, err := NewBrand(s.Struct.Segment())
+	if err != nil {
+		return Brand{}, err
+	}
+	err = s.Struct.SetPointer(2, ss)
+	return ss, err
+}
+
+func (s Method) ResultStructType() uint64 {
+	return s.Struct.Uint64(16)
+}
+
+func (s Method) SetResultStructType(v uint64) {
+
+	s.Struct.SetUint64(16, v)
+}
+
+func (s Method) ResultBrand() (Brand, error) {
+	p, err := s.Struct.Pointer(3)
+	if err != nil {
+		return Brand{}, err
+	}
+
+	ss := C.ToStruct(p)
+
+	return Brand{Struct: ss}, nil
+}
+
+func (s Method) SetResultBrand(v Brand) error {
+
+	return s.Struct.SetPointer(3, v.Struct)
+}
+
+// NewResultBrand sets the resultBrand field to a newly
+// allocated Brand struct, preferring placement in s's segment.
+func (s Method) NewResultBrand() (Brand, error) {
+
+	ss, err := NewBrand(s.Struct.Segment())
+	if err != nil {
+		return Brand{}, err
+	}
+	err = s.Struct.SetPointer(3, ss)
+	return ss, err
+}
+
+func (s Method) Annotations() (Annotation_List, error) {
+	p, err := s.Struct.Pointer(1)
+	if err != nil {
+		return Annotation_List{}, err
+	}
+
+	l := C.ToList(p)
+
+	return Annotation_List{List: l}, nil
+}
+
+func (s Method) SetAnnotations(v Annotation_List) error {
+
+	return s.Struct.SetPointer(1, v.List)
+}
+
+// Method_List is a list of Method.
+type Method_List struct{ C.List }
+
+// NewMethod creates a new list of Method.
+func NewMethod_List(s *C.Segment, sz int32) (Method_List, error) {
+	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 24, PointerCount: 5}, sz)
+	if err != nil {
+		return Method_List{}, err
+	}
+	return Method_List{l}, nil
+}
+
+func (s Method_List) At(i int) Method           { return Method{s.List.Struct(i)} }
+func (s Method_List) Set(i int, v Method) error { return s.List.SetStruct(i, v.Struct) }
+
+type Type struct{ C.Struct }
 type Type_list Type
 type Type_enum Type
-type Type_struct Type
+type Type_structGroup Type
 type Type_interface Type
 type Type_anyPointer Type
 type Type_anyPointer_parameter Type
@@ -568,29 +1256,29 @@ type Type_anyPointer_implicitMethodParameter Type
 type Type_Which uint16
 
 const (
-	Type_Which_void       Type_Which = 0
-	Type_Which_bool       Type_Which = 1
-	Type_Which_int8       Type_Which = 2
-	Type_Which_int16      Type_Which = 3
-	Type_Which_int32      Type_Which = 4
-	Type_Which_int64      Type_Which = 5
-	Type_Which_uint8      Type_Which = 6
-	Type_Which_uint16     Type_Which = 7
-	Type_Which_uint32     Type_Which = 8
-	Type_Which_uint64     Type_Which = 9
-	Type_Which_float32    Type_Which = 10
-	Type_Which_float64    Type_Which = 11
-	Type_Which_text       Type_Which = 12
-	Type_Which_data       Type_Which = 13
-	Type_Which_list       Type_Which = 14
-	Type_Which_enum       Type_Which = 15
-	Type_Which_struct     Type_Which = 16
-	Type_Which_interface  Type_Which = 17
-	Type_Which_anyPointer Type_Which = 18
+	Type_Which_void        Type_Which = 0
+	Type_Which_bool        Type_Which = 1
+	Type_Which_int8        Type_Which = 2
+	Type_Which_int16       Type_Which = 3
+	Type_Which_int32       Type_Which = 4
+	Type_Which_int64       Type_Which = 5
+	Type_Which_uint8       Type_Which = 6
+	Type_Which_uint16      Type_Which = 7
+	Type_Which_uint32      Type_Which = 8
+	Type_Which_uint64      Type_Which = 9
+	Type_Which_float32     Type_Which = 10
+	Type_Which_float64     Type_Which = 11
+	Type_Which_text        Type_Which = 12
+	Type_Which_data        Type_Which = 13
+	Type_Which_list        Type_Which = 14
+	Type_Which_enum        Type_Which = 15
+	Type_Which_structGroup Type_Which = 16
+	Type_Which_interface   Type_Which = 17
+	Type_Which_anyPointer  Type_Which = 18
 )
 
 func (w Type_Which) String() string {
-	const s = "voidboolint8int16int32int64uint8uint16uint32uint64float32float64textdatalistenumstructinterfaceanyPointer"
+	const s = "voidboolint8int16int32int64uint8uint16uint32uint64float32float64textdatalistenumstructGroupinterfaceanyPointer"
 	switch w {
 	case Type_Which_void:
 		return s[0:4]
@@ -624,12 +1312,12 @@ func (w Type_Which) String() string {
 		return s[72:76]
 	case Type_Which_enum:
 		return s[76:80]
-	case Type_Which_struct:
-		return s[80:86]
+	case Type_Which_structGroup:
+		return s[80:91]
 	case Type_Which_interface:
-		return s[86:95]
+		return s[91:100]
 	case Type_Which_anyPointer:
-		return s[95:105]
+		return s[100:110]
 
 	}
 	return "Type_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
@@ -657,200 +1345,362 @@ func (w Type_anyPointer_Which) String() string {
 	return "Type_anyPointer_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
 }
 
-func NewType(s *C.Segment) Type { return Type(s.NewStruct(C.ObjectSize{DataSize: 24, PointerCount: 1})) }
-func NewRootType(s *C.Segment) Type {
-	return Type(s.NewRootStruct(C.ObjectSize{DataSize: 24, PointerCount: 1}))
+func NewType(s *C.Segment) (Type, error) {
+	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 24, PointerCount: 1})
+	if err != nil {
+		return Type{}, err
+	}
+	return Type{st}, nil
 }
-func AutoNewType(s *C.Segment) Type {
-	return Type(s.NewStructAR(C.ObjectSize{DataSize: 24, PointerCount: 1}))
+
+func NewRootType(s *C.Segment) (Type, error) {
+	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 24, PointerCount: 1})
+	if err != nil {
+		return Type{}, err
+	}
+	return Type{st}, nil
 }
-func ReadRootType(s *C.Segment) Type        { return Type(s.Root(0).ToStruct()) }
-func (s Type) Which() Type_Which            { return Type_Which(C.Struct(s).Get16(0)) }
-func (s Type) SetVoid()                     { C.Struct(s).Set16(0, 0) }
-func (s Type) SetBool()                     { C.Struct(s).Set16(0, 1) }
-func (s Type) SetInt8()                     { C.Struct(s).Set16(0, 2) }
-func (s Type) SetInt16()                    { C.Struct(s).Set16(0, 3) }
-func (s Type) SetInt32()                    { C.Struct(s).Set16(0, 4) }
-func (s Type) SetInt64()                    { C.Struct(s).Set16(0, 5) }
-func (s Type) SetUint8()                    { C.Struct(s).Set16(0, 6) }
-func (s Type) SetUint16()                   { C.Struct(s).Set16(0, 7) }
-func (s Type) SetUint32()                   { C.Struct(s).Set16(0, 8) }
-func (s Type) SetUint64()                   { C.Struct(s).Set16(0, 9) }
-func (s Type) SetFloat32()                  { C.Struct(s).Set16(0, 10) }
-func (s Type) SetFloat64()                  { C.Struct(s).Set16(0, 11) }
-func (s Type) SetText()                     { C.Struct(s).Set16(0, 12) }
-func (s Type) SetData()                     { C.Struct(s).Set16(0, 13) }
-func (s Type) List() Type_list              { return Type_list(s) }
-func (s Type) SetList()                     { C.Struct(s).Set16(0, 14) }
-func (s Type_list) ElementType() Type       { return Type(C.Struct(s).GetObject(0).ToStruct()) }
-func (s Type_list) SetElementType(v Type)   { C.Struct(s).SetObject(0, C.Object(v)) }
-func (s Type) Enum() Type_enum              { return Type_enum(s) }
-func (s Type) SetEnum()                     { C.Struct(s).Set16(0, 15) }
-func (s Type_enum) TypeId() uint64          { return C.Struct(s).Get64(8) }
-func (s Type_enum) SetTypeId(v uint64)      { C.Struct(s).Set64(8, v) }
-func (s Type_enum) Brand() Brand            { return Brand(C.Struct(s).GetObject(0).ToStruct()) }
-func (s Type_enum) SetBrand(v Brand)        { C.Struct(s).SetObject(0, C.Object(v)) }
-func (s Type) Struct() Type_struct          { return Type_struct(s) }
-func (s Type) SetStruct()                   { C.Struct(s).Set16(0, 16) }
-func (s Type_struct) TypeId() uint64        { return C.Struct(s).Get64(8) }
-func (s Type_struct) SetTypeId(v uint64)    { C.Struct(s).Set64(8, v) }
-func (s Type_struct) Brand() Brand          { return Brand(C.Struct(s).GetObject(0).ToStruct()) }
-func (s Type_struct) SetBrand(v Brand)      { C.Struct(s).SetObject(0, C.Object(v)) }
-func (s Type) Interface() Type_interface    { return Type_interface(s) }
-func (s Type) SetInterface()                { C.Struct(s).Set16(0, 17) }
-func (s Type_interface) TypeId() uint64     { return C.Struct(s).Get64(8) }
-func (s Type_interface) SetTypeId(v uint64) { C.Struct(s).Set64(8, v) }
-func (s Type_interface) Brand() Brand       { return Brand(C.Struct(s).GetObject(0).ToStruct()) }
-func (s Type_interface) SetBrand(v Brand)   { C.Struct(s).SetObject(0, C.Object(v)) }
-func (s Type) AnyPointer() Type_anyPointer  { return Type_anyPointer(s) }
-func (s Type) SetAnyPointer()               { C.Struct(s).Set16(0, 18) }
+
+func ReadRootType(msg *C.Message) (Type, error) {
+	root, err := msg.Root()
+	if err != nil {
+		return Type{}, err
+	}
+	st := C.ToStruct(root)
+	return Type{st}, nil
+}
+
+func (s Type) Which() Type_Which {
+	return Type_Which(s.Struct.Uint16(0))
+}
+
+func (s Type) SetVoid() {
+	s.Struct.SetUint16(0, 0)
+}
+
+func (s Type) SetBool() {
+	s.Struct.SetUint16(0, 1)
+}
+
+func (s Type) SetInt8() {
+	s.Struct.SetUint16(0, 2)
+}
+
+func (s Type) SetInt16() {
+	s.Struct.SetUint16(0, 3)
+}
+
+func (s Type) SetInt32() {
+	s.Struct.SetUint16(0, 4)
+}
+
+func (s Type) SetInt64() {
+	s.Struct.SetUint16(0, 5)
+}
+
+func (s Type) SetUint8() {
+	s.Struct.SetUint16(0, 6)
+}
+
+func (s Type) SetUint16() {
+	s.Struct.SetUint16(0, 7)
+}
+
+func (s Type) SetUint32() {
+	s.Struct.SetUint16(0, 8)
+}
+
+func (s Type) SetUint64() {
+	s.Struct.SetUint16(0, 9)
+}
+
+func (s Type) SetFloat32() {
+	s.Struct.SetUint16(0, 10)
+}
+
+func (s Type) SetFloat64() {
+	s.Struct.SetUint16(0, 11)
+}
+
+func (s Type) SetText() {
+	s.Struct.SetUint16(0, 12)
+}
+
+func (s Type) SetData() {
+	s.Struct.SetUint16(0, 13)
+}
+func (s Type) List() Type_list { return Type_list(s) }
+
+func (s Type) SetList() { s.Struct.SetUint16(0, 14) }
+
+func (s Type_list) ElementType() (Type, error) {
+	p, err := s.Struct.Pointer(0)
+	if err != nil {
+		return Type{}, err
+	}
+
+	ss := C.ToStruct(p)
+
+	return Type{Struct: ss}, nil
+}
+
+func (s Type_list) SetElementType(v Type) error {
+
+	return s.Struct.SetPointer(0, v.Struct)
+}
+
+// NewElementType sets the elementType field to a newly
+// allocated Type struct, preferring placement in s's segment.
+func (s Type_list) NewElementType() (Type, error) {
+
+	ss, err := NewType(s.Struct.Segment())
+	if err != nil {
+		return Type{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
+}
+func (s Type) Enum() Type_enum { return Type_enum(s) }
+
+func (s Type) SetEnum() { s.Struct.SetUint16(0, 15) }
+
+func (s Type_enum) TypeId() uint64 {
+	return s.Struct.Uint64(8)
+}
+
+func (s Type_enum) SetTypeId(v uint64) {
+
+	s.Struct.SetUint64(8, v)
+}
+
+func (s Type_enum) Brand() (Brand, error) {
+	p, err := s.Struct.Pointer(0)
+	if err != nil {
+		return Brand{}, err
+	}
+
+	ss := C.ToStruct(p)
+
+	return Brand{Struct: ss}, nil
+}
+
+func (s Type_enum) SetBrand(v Brand) error {
+
+	return s.Struct.SetPointer(0, v.Struct)
+}
+
+// NewBrand sets the brand field to a newly
+// allocated Brand struct, preferring placement in s's segment.
+func (s Type_enum) NewBrand() (Brand, error) {
+
+	ss, err := NewBrand(s.Struct.Segment())
+	if err != nil {
+		return Brand{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
+}
+func (s Type) StructGroup() Type_structGroup { return Type_structGroup(s) }
+
+func (s Type) SetStructGroup() { s.Struct.SetUint16(0, 16) }
+
+func (s Type_structGroup) TypeId() uint64 {
+	return s.Struct.Uint64(8)
+}
+
+func (s Type_structGroup) SetTypeId(v uint64) {
+
+	s.Struct.SetUint64(8, v)
+}
+
+func (s Type_structGroup) Brand() (Brand, error) {
+	p, err := s.Struct.Pointer(0)
+	if err != nil {
+		return Brand{}, err
+	}
+
+	ss := C.ToStruct(p)
+
+	return Brand{Struct: ss}, nil
+}
+
+func (s Type_structGroup) SetBrand(v Brand) error {
+
+	return s.Struct.SetPointer(0, v.Struct)
+}
+
+// NewBrand sets the brand field to a newly
+// allocated Brand struct, preferring placement in s's segment.
+func (s Type_structGroup) NewBrand() (Brand, error) {
+
+	ss, err := NewBrand(s.Struct.Segment())
+	if err != nil {
+		return Brand{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
+}
+func (s Type) Interface() Type_interface { return Type_interface(s) }
+
+func (s Type) SetInterface() { s.Struct.SetUint16(0, 17) }
+
+func (s Type_interface) TypeId() uint64 {
+	return s.Struct.Uint64(8)
+}
+
+func (s Type_interface) SetTypeId(v uint64) {
+
+	s.Struct.SetUint64(8, v)
+}
+
+func (s Type_interface) Brand() (Brand, error) {
+	p, err := s.Struct.Pointer(0)
+	if err != nil {
+		return Brand{}, err
+	}
+
+	ss := C.ToStruct(p)
+
+	return Brand{Struct: ss}, nil
+}
+
+func (s Type_interface) SetBrand(v Brand) error {
+
+	return s.Struct.SetPointer(0, v.Struct)
+}
+
+// NewBrand sets the brand field to a newly
+// allocated Brand struct, preferring placement in s's segment.
+func (s Type_interface) NewBrand() (Brand, error) {
+
+	ss, err := NewBrand(s.Struct.Segment())
+	if err != nil {
+		return Brand{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
+}
+func (s Type) AnyPointer() Type_anyPointer { return Type_anyPointer(s) }
+
+func (s Type) SetAnyPointer() { s.Struct.SetUint16(0, 18) }
+
 func (s Type_anyPointer) Which() Type_anyPointer_Which {
-	return Type_anyPointer_Which(C.Struct(s).Get16(8))
+	return Type_anyPointer_Which(s.Struct.Uint16(8))
 }
-func (s Type_anyPointer) SetUnconstrained()                    { C.Struct(s).Set16(8, 0) }
+
+func (s Type_anyPointer) SetUnconstrained() {
+	s.Struct.SetUint16(8, 0)
+}
 func (s Type_anyPointer) Parameter() Type_anyPointer_parameter { return Type_anyPointer_parameter(s) }
-func (s Type_anyPointer) SetParameter()                        { C.Struct(s).Set16(8, 1) }
-func (s Type_anyPointer_parameter) ScopeId() uint64            { return C.Struct(s).Get64(16) }
-func (s Type_anyPointer_parameter) SetScopeId(v uint64)        { C.Struct(s).Set64(16, v) }
-func (s Type_anyPointer_parameter) ParameterIndex() uint16     { return C.Struct(s).Get16(10) }
-func (s Type_anyPointer_parameter) SetParameterIndex(v uint16) { C.Struct(s).Set16(10, v) }
+
+func (s Type_anyPointer) SetParameter() { s.Struct.SetUint16(8, 1) }
+
+func (s Type_anyPointer_parameter) ScopeId() uint64 {
+	return s.Struct.Uint64(16)
+}
+
+func (s Type_anyPointer_parameter) SetScopeId(v uint64) {
+
+	s.Struct.SetUint64(16, v)
+}
+
+func (s Type_anyPointer_parameter) ParameterIndex() uint16 {
+	return s.Struct.Uint16(10)
+}
+
+func (s Type_anyPointer_parameter) SetParameterIndex(v uint16) {
+
+	s.Struct.SetUint16(10, v)
+}
 func (s Type_anyPointer) ImplicitMethodParameter() Type_anyPointer_implicitMethodParameter {
 	return Type_anyPointer_implicitMethodParameter(s)
 }
-func (s Type_anyPointer) SetImplicitMethodParameter()                        { C.Struct(s).Set16(8, 2) }
-func (s Type_anyPointer_implicitMethodParameter) ParameterIndex() uint16     { return C.Struct(s).Get16(10) }
-func (s Type_anyPointer_implicitMethodParameter) SetParameterIndex(v uint16) { C.Struct(s).Set16(10, v) }
 
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Type) MarshalJSON() (bs []byte, err error) { return }
+func (s Type_anyPointer) SetImplicitMethodParameter() { s.Struct.SetUint16(8, 2) }
 
-type Type_List C.PointerList
-
-func NewType_List(s *C.Segment, sz int) Type_List {
-	return Type_List(s.NewCompositeList(C.ObjectSize{DataSize: 24, PointerCount: 1}, sz))
-}
-func (s Type_List) Len() int             { return C.PointerList(s).Len() }
-func (s Type_List) At(i int) Type        { return Type(C.PointerList(s).At(i).ToStruct()) }
-func (s Type_List) Set(i int, item Type) { C.PointerList(s).Set(i, C.Object(item)) }
-
-type Type_Promise C.Pipeline
-
-func (p *Type_Promise) Get() (Type, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return Type(s), err
-}
-func (p *Type_Promise) List() *Type_list_Promise { return (*Type_list_Promise)(p) }
-
-type Type_list_Promise C.Pipeline
-
-func (p *Type_list_Promise) Get() (Type_list, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return Type_list(s), err
+func (s Type_anyPointer_implicitMethodParameter) ParameterIndex() uint16 {
+	return s.Struct.Uint16(10)
 }
 
-func (p *Type_list_Promise) ElementType() *Type_Promise {
-	return (*Type_Promise)((*C.Pipeline)(p).GetPipeline(0))
-}
-func (p *Type_Promise) Enum() *Type_enum_Promise { return (*Type_enum_Promise)(p) }
+func (s Type_anyPointer_implicitMethodParameter) SetParameterIndex(v uint16) {
 
-type Type_enum_Promise C.Pipeline
-
-func (p *Type_enum_Promise) Get() (Type_enum, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return Type_enum(s), err
+	s.Struct.SetUint16(10, v)
 }
 
-func (p *Type_enum_Promise) Brand() *Brand_Promise {
-	return (*Brand_Promise)((*C.Pipeline)(p).GetPipeline(0))
-}
-func (p *Type_Promise) Struct() *Type_struct_Promise { return (*Type_struct_Promise)(p) }
+// Type_List is a list of Type.
+type Type_List struct{ C.List }
 
-type Type_struct_Promise C.Pipeline
-
-func (p *Type_struct_Promise) Get() (Type_struct, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return Type_struct(s), err
-}
-
-func (p *Type_struct_Promise) Brand() *Brand_Promise {
-	return (*Brand_Promise)((*C.Pipeline)(p).GetPipeline(0))
-}
-func (p *Type_Promise) Interface() *Type_interface_Promise { return (*Type_interface_Promise)(p) }
-
-type Type_interface_Promise C.Pipeline
-
-func (p *Type_interface_Promise) Get() (Type_interface, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return Type_interface(s), err
+// NewType creates a new list of Type.
+func NewType_List(s *C.Segment, sz int32) (Type_List, error) {
+	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 24, PointerCount: 1}, sz)
+	if err != nil {
+		return Type_List{}, err
+	}
+	return Type_List{l}, nil
 }
 
-func (p *Type_interface_Promise) Brand() *Brand_Promise {
-	return (*Brand_Promise)((*C.Pipeline)(p).GetPipeline(0))
-}
-func (p *Type_Promise) AnyPointer() *Type_anyPointer_Promise { return (*Type_anyPointer_Promise)(p) }
+func (s Type_List) At(i int) Type           { return Type{s.List.Struct(i)} }
+func (s Type_List) Set(i int, v Type) error { return s.List.SetStruct(i, v.Struct) }
 
-type Type_anyPointer_Promise C.Pipeline
+type Brand struct{ C.Struct }
 
-func (p *Type_anyPointer_Promise) Get() (Type_anyPointer, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return Type_anyPointer(s), err
-}
-func (p *Type_anyPointer_Promise) Parameter() *Type_anyPointer_parameter_Promise {
-	return (*Type_anyPointer_parameter_Promise)(p)
+func NewBrand(s *C.Segment) (Brand, error) {
+	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 0, PointerCount: 1})
+	if err != nil {
+		return Brand{}, err
+	}
+	return Brand{st}, nil
 }
 
-type Type_anyPointer_parameter_Promise C.Pipeline
-
-func (p *Type_anyPointer_parameter_Promise) Get() (Type_anyPointer_parameter, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return Type_anyPointer_parameter(s), err
-}
-func (p *Type_anyPointer_Promise) ImplicitMethodParameter() *Type_anyPointer_implicitMethodParameter_Promise {
-	return (*Type_anyPointer_implicitMethodParameter_Promise)(p)
+func NewRootBrand(s *C.Segment) (Brand, error) {
+	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 0, PointerCount: 1})
+	if err != nil {
+		return Brand{}, err
+	}
+	return Brand{st}, nil
 }
 
-type Type_anyPointer_implicitMethodParameter_Promise C.Pipeline
-
-func (p *Type_anyPointer_implicitMethodParameter_Promise) Get() (Type_anyPointer_implicitMethodParameter, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return Type_anyPointer_implicitMethodParameter(s), err
+func ReadRootBrand(msg *C.Message) (Brand, error) {
+	root, err := msg.Root()
+	if err != nil {
+		return Brand{}, err
+	}
+	st := C.ToStruct(root)
+	return Brand{st}, nil
 }
 
-type Brand C.Struct
+func (s Brand) Scopes() (Brand_Scope_List, error) {
+	p, err := s.Struct.Pointer(0)
+	if err != nil {
+		return Brand_Scope_List{}, err
+	}
 
-func NewBrand(s *C.Segment) Brand {
-	return Brand(s.NewStruct(C.ObjectSize{DataSize: 0, PointerCount: 1}))
-}
-func NewRootBrand(s *C.Segment) Brand {
-	return Brand(s.NewRootStruct(C.ObjectSize{DataSize: 0, PointerCount: 1}))
-}
-func AutoNewBrand(s *C.Segment) Brand {
-	return Brand(s.NewStructAR(C.ObjectSize{DataSize: 0, PointerCount: 1}))
-}
-func ReadRootBrand(s *C.Segment) Brand       { return Brand(s.Root(0).ToStruct()) }
-func (s Brand) Scopes() Brand_Scope_List     { return Brand_Scope_List(C.Struct(s).GetObject(0)) }
-func (s Brand) SetScopes(v Brand_Scope_List) { C.Struct(s).SetObject(0, C.Object(v)) }
+	l := C.ToList(p)
 
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Brand) MarshalJSON() (bs []byte, err error) { return }
-
-type Brand_List C.PointerList
-
-func NewBrand_List(s *C.Segment, sz int) Brand_List {
-	return Brand_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 1}, sz))
-}
-func (s Brand_List) Len() int              { return C.PointerList(s).Len() }
-func (s Brand_List) At(i int) Brand        { return Brand(C.PointerList(s).At(i).ToStruct()) }
-func (s Brand_List) Set(i int, item Brand) { C.PointerList(s).Set(i, C.Object(item)) }
-
-type Brand_Promise C.Pipeline
-
-func (p *Brand_Promise) Get() (Brand, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return Brand(s), err
+	return Brand_Scope_List{List: l}, nil
 }
 
-type Brand_Scope C.Struct
+func (s Brand) SetScopes(v Brand_Scope_List) error {
+
+	return s.Struct.SetPointer(0, v.List)
+}
+
+// Brand_List is a list of Brand.
+type Brand_List struct{ C.List }
+
+// NewBrand creates a new list of Brand.
+func NewBrand_List(s *C.Segment, sz int32) (Brand_List, error) {
+	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
+	if err != nil {
+		return Brand_List{}, err
+	}
+	return Brand_List{l}, nil
+}
+
+func (s Brand_List) At(i int) Brand           { return Brand{s.List.Struct(i)} }
+func (s Brand_List) Set(i int, v Brand) error { return s.List.SetStruct(i, v.Struct) }
+
+type Brand_Scope struct{ C.Struct }
 type Brand_Scope_Which uint16
 
 const (
@@ -870,46 +1720,80 @@ func (w Brand_Scope_Which) String() string {
 	return "Brand_Scope_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
 }
 
-func NewBrand_Scope(s *C.Segment) Brand_Scope {
-	return Brand_Scope(s.NewStruct(C.ObjectSize{DataSize: 16, PointerCount: 1}))
-}
-func NewRootBrand_Scope(s *C.Segment) Brand_Scope {
-	return Brand_Scope(s.NewRootStruct(C.ObjectSize{DataSize: 16, PointerCount: 1}))
-}
-func AutoNewBrand_Scope(s *C.Segment) Brand_Scope {
-	return Brand_Scope(s.NewStructAR(C.ObjectSize{DataSize: 16, PointerCount: 1}))
-}
-func ReadRootBrand_Scope(s *C.Segment) Brand_Scope { return Brand_Scope(s.Root(0).ToStruct()) }
-func (s Brand_Scope) Which() Brand_Scope_Which     { return Brand_Scope_Which(C.Struct(s).Get16(8)) }
-func (s Brand_Scope) ScopeId() uint64              { return C.Struct(s).Get64(0) }
-func (s Brand_Scope) SetScopeId(v uint64)          { C.Struct(s).Set64(0, v) }
-func (s Brand_Scope) Bind() Brand_Binding_List     { return Brand_Binding_List(C.Struct(s).GetObject(0)) }
-func (s Brand_Scope) SetBind(v Brand_Binding_List) {
-	C.Struct(s).Set16(8, 0)
-	C.Struct(s).SetObject(0, C.Object(v))
-}
-func (s Brand_Scope) SetInherit() { C.Struct(s).Set16(8, 1) }
-
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Brand_Scope) MarshalJSON() (bs []byte, err error) { return }
-
-type Brand_Scope_List C.PointerList
-
-func NewBrand_Scope_List(s *C.Segment, sz int) Brand_Scope_List {
-	return Brand_Scope_List(s.NewCompositeList(C.ObjectSize{DataSize: 16, PointerCount: 1}, sz))
-}
-func (s Brand_Scope_List) Len() int                    { return C.PointerList(s).Len() }
-func (s Brand_Scope_List) At(i int) Brand_Scope        { return Brand_Scope(C.PointerList(s).At(i).ToStruct()) }
-func (s Brand_Scope_List) Set(i int, item Brand_Scope) { C.PointerList(s).Set(i, C.Object(item)) }
-
-type Brand_Scope_Promise C.Pipeline
-
-func (p *Brand_Scope_Promise) Get() (Brand_Scope, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return Brand_Scope(s), err
+func NewBrand_Scope(s *C.Segment) (Brand_Scope, error) {
+	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 16, PointerCount: 1})
+	if err != nil {
+		return Brand_Scope{}, err
+	}
+	return Brand_Scope{st}, nil
 }
 
-type Brand_Binding C.Struct
+func NewRootBrand_Scope(s *C.Segment) (Brand_Scope, error) {
+	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 16, PointerCount: 1})
+	if err != nil {
+		return Brand_Scope{}, err
+	}
+	return Brand_Scope{st}, nil
+}
+
+func ReadRootBrand_Scope(msg *C.Message) (Brand_Scope, error) {
+	root, err := msg.Root()
+	if err != nil {
+		return Brand_Scope{}, err
+	}
+	st := C.ToStruct(root)
+	return Brand_Scope{st}, nil
+}
+
+func (s Brand_Scope) Which() Brand_Scope_Which {
+	return Brand_Scope_Which(s.Struct.Uint16(8))
+}
+
+func (s Brand_Scope) ScopeId() uint64 {
+	return s.Struct.Uint64(0)
+}
+
+func (s Brand_Scope) SetScopeId(v uint64) {
+
+	s.Struct.SetUint64(0, v)
+}
+
+func (s Brand_Scope) Bind() (Brand_Binding_List, error) {
+	p, err := s.Struct.Pointer(0)
+	if err != nil {
+		return Brand_Binding_List{}, err
+	}
+
+	l := C.ToList(p)
+
+	return Brand_Binding_List{List: l}, nil
+}
+
+func (s Brand_Scope) SetBind(v Brand_Binding_List) error {
+	s.Struct.SetUint16(8, 0)
+	return s.Struct.SetPointer(0, v.List)
+}
+
+func (s Brand_Scope) SetInherit() {
+	s.Struct.SetUint16(8, 1)
+}
+
+// Brand_Scope_List is a list of Brand_Scope.
+type Brand_Scope_List struct{ C.List }
+
+// NewBrand_Scope creates a new list of Brand_Scope.
+func NewBrand_Scope_List(s *C.Segment, sz int32) (Brand_Scope_List, error) {
+	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 16, PointerCount: 1}, sz)
+	if err != nil {
+		return Brand_Scope_List{}, err
+	}
+	return Brand_Scope_List{l}, nil
+}
+
+func (s Brand_Scope_List) At(i int) Brand_Scope           { return Brand_Scope{s.List.Struct(i)} }
+func (s Brand_Scope_List) Set(i int, v Brand_Scope) error { return s.List.SetStruct(i, v.Struct) }
+
+type Brand_Binding struct{ C.Struct }
 type Brand_Binding_Which uint16
 
 const (
@@ -929,73 +1813,109 @@ func (w Brand_Binding_Which) String() string {
 	return "Brand_Binding_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
 }
 
-func NewBrand_Binding(s *C.Segment) Brand_Binding {
-	return Brand_Binding(s.NewStruct(C.ObjectSize{DataSize: 8, PointerCount: 1}))
-}
-func NewRootBrand_Binding(s *C.Segment) Brand_Binding {
-	return Brand_Binding(s.NewRootStruct(C.ObjectSize{DataSize: 8, PointerCount: 1}))
-}
-func AutoNewBrand_Binding(s *C.Segment) Brand_Binding {
-	return Brand_Binding(s.NewStructAR(C.ObjectSize{DataSize: 8, PointerCount: 1}))
-}
-func ReadRootBrand_Binding(s *C.Segment) Brand_Binding { return Brand_Binding(s.Root(0).ToStruct()) }
-func (s Brand_Binding) Which() Brand_Binding_Which     { return Brand_Binding_Which(C.Struct(s).Get16(0)) }
-func (s Brand_Binding) SetUnbound()                    { C.Struct(s).Set16(0, 0) }
-func (s Brand_Binding) Type() Type                     { return Type(C.Struct(s).GetObject(0).ToStruct()) }
-func (s Brand_Binding) SetType(v Type)                 { C.Struct(s).Set16(0, 1); C.Struct(s).SetObject(0, C.Object(v)) }
-
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Brand_Binding) MarshalJSON() (bs []byte, err error) { return }
-
-type Brand_Binding_List C.PointerList
-
-func NewBrand_Binding_List(s *C.Segment, sz int) Brand_Binding_List {
-	return Brand_Binding_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 1}, sz))
-}
-func (s Brand_Binding_List) Len() int { return C.PointerList(s).Len() }
-func (s Brand_Binding_List) At(i int) Brand_Binding {
-	return Brand_Binding(C.PointerList(s).At(i).ToStruct())
-}
-func (s Brand_Binding_List) Set(i int, item Brand_Binding) { C.PointerList(s).Set(i, C.Object(item)) }
-
-type Brand_Binding_Promise C.Pipeline
-
-func (p *Brand_Binding_Promise) Get() (Brand_Binding, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return Brand_Binding(s), err
+func NewBrand_Binding(s *C.Segment) (Brand_Binding, error) {
+	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 8, PointerCount: 1})
+	if err != nil {
+		return Brand_Binding{}, err
+	}
+	return Brand_Binding{st}, nil
 }
 
-func (p *Brand_Binding_Promise) Type() *Type_Promise {
-	return (*Type_Promise)((*C.Pipeline)(p).GetPipeline(0))
+func NewRootBrand_Binding(s *C.Segment) (Brand_Binding, error) {
+	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 8, PointerCount: 1})
+	if err != nil {
+		return Brand_Binding{}, err
+	}
+	return Brand_Binding{st}, nil
 }
 
-type Value C.Struct
+func ReadRootBrand_Binding(msg *C.Message) (Brand_Binding, error) {
+	root, err := msg.Root()
+	if err != nil {
+		return Brand_Binding{}, err
+	}
+	st := C.ToStruct(root)
+	return Brand_Binding{st}, nil
+}
+
+func (s Brand_Binding) Which() Brand_Binding_Which {
+	return Brand_Binding_Which(s.Struct.Uint16(0))
+}
+
+func (s Brand_Binding) SetUnbound() {
+	s.Struct.SetUint16(0, 0)
+}
+
+func (s Brand_Binding) Type() (Type, error) {
+	p, err := s.Struct.Pointer(0)
+	if err != nil {
+		return Type{}, err
+	}
+
+	ss := C.ToStruct(p)
+
+	return Type{Struct: ss}, nil
+}
+
+func (s Brand_Binding) SetType(v Type) error {
+	s.Struct.SetUint16(0, 1)
+	return s.Struct.SetPointer(0, v.Struct)
+}
+
+// NewType sets the type field to a newly
+// allocated Type struct, preferring placement in s's segment.
+func (s Brand_Binding) NewType() (Type, error) {
+	s.Struct.SetUint16(0, 1)
+	ss, err := NewType(s.Struct.Segment())
+	if err != nil {
+		return Type{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
+}
+
+// Brand_Binding_List is a list of Brand_Binding.
+type Brand_Binding_List struct{ C.List }
+
+// NewBrand_Binding creates a new list of Brand_Binding.
+func NewBrand_Binding_List(s *C.Segment, sz int32) (Brand_Binding_List, error) {
+	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
+	if err != nil {
+		return Brand_Binding_List{}, err
+	}
+	return Brand_Binding_List{l}, nil
+}
+
+func (s Brand_Binding_List) At(i int) Brand_Binding           { return Brand_Binding{s.List.Struct(i)} }
+func (s Brand_Binding_List) Set(i int, v Brand_Binding) error { return s.List.SetStruct(i, v.Struct) }
+
+type Value struct{ C.Struct }
 type Value_Which uint16
 
 const (
-	Value_Which_void       Value_Which = 0
-	Value_Which_bool       Value_Which = 1
-	Value_Which_int8       Value_Which = 2
-	Value_Which_int16      Value_Which = 3
-	Value_Which_int32      Value_Which = 4
-	Value_Which_int64      Value_Which = 5
-	Value_Which_uint8      Value_Which = 6
-	Value_Which_uint16     Value_Which = 7
-	Value_Which_uint32     Value_Which = 8
-	Value_Which_uint64     Value_Which = 9
-	Value_Which_float32    Value_Which = 10
-	Value_Which_float64    Value_Which = 11
-	Value_Which_text       Value_Which = 12
-	Value_Which_data       Value_Which = 13
-	Value_Which_list       Value_Which = 14
-	Value_Which_enum       Value_Which = 15
-	Value_Which_struct     Value_Which = 16
-	Value_Which_interface  Value_Which = 17
-	Value_Which_anyPointer Value_Which = 18
+	Value_Which_void        Value_Which = 0
+	Value_Which_bool        Value_Which = 1
+	Value_Which_int8        Value_Which = 2
+	Value_Which_int16       Value_Which = 3
+	Value_Which_int32       Value_Which = 4
+	Value_Which_int64       Value_Which = 5
+	Value_Which_uint8       Value_Which = 6
+	Value_Which_uint16      Value_Which = 7
+	Value_Which_uint32      Value_Which = 8
+	Value_Which_uint64      Value_Which = 9
+	Value_Which_float32     Value_Which = 10
+	Value_Which_float64     Value_Which = 11
+	Value_Which_text        Value_Which = 12
+	Value_Which_data        Value_Which = 13
+	Value_Which_list        Value_Which = 14
+	Value_Which_enum        Value_Which = 15
+	Value_Which_structField Value_Which = 16
+	Value_Which_interface   Value_Which = 17
+	Value_Which_anyPointer  Value_Which = 18
 )
 
 func (w Value_Which) String() string {
-	const s = "voidboolint8int16int32int64uint8uint16uint32uint64float32float64textdatalistenumstructinterfaceanyPointer"
+	const s = "voidboolint8int16int32int64uint8uint16uint32uint64float32float64textdatalistenumstructFieldinterfaceanyPointer"
 	switch w {
 	case Value_Which_void:
 		return s[0:4]
@@ -1029,156 +1949,358 @@ func (w Value_Which) String() string {
 		return s[72:76]
 	case Value_Which_enum:
 		return s[76:80]
-	case Value_Which_struct:
-		return s[80:86]
+	case Value_Which_structField:
+		return s[80:91]
 	case Value_Which_interface:
-		return s[86:95]
+		return s[91:100]
 	case Value_Which_anyPointer:
-		return s[95:105]
+		return s[100:110]
 
 	}
 	return "Value_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
 }
 
-func NewValue(s *C.Segment) Value {
-	return Value(s.NewStruct(C.ObjectSize{DataSize: 16, PointerCount: 1}))
+func NewValue(s *C.Segment) (Value, error) {
+	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 16, PointerCount: 1})
+	if err != nil {
+		return Value{}, err
+	}
+	return Value{st}, nil
 }
-func NewRootValue(s *C.Segment) Value {
-	return Value(s.NewRootStruct(C.ObjectSize{DataSize: 16, PointerCount: 1}))
+
+func NewRootValue(s *C.Segment) (Value, error) {
+	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 16, PointerCount: 1})
+	if err != nil {
+		return Value{}, err
+	}
+	return Value{st}, nil
 }
-func AutoNewValue(s *C.Segment) Value {
-	return Value(s.NewStructAR(C.ObjectSize{DataSize: 16, PointerCount: 1}))
+
+func ReadRootValue(msg *C.Message) (Value, error) {
+	root, err := msg.Root()
+	if err != nil {
+		return Value{}, err
+	}
+	st := C.ToStruct(root)
+	return Value{st}, nil
 }
-func ReadRootValue(s *C.Segment) Value { return Value(s.Root(0).ToStruct()) }
-func (s Value) Which() Value_Which     { return Value_Which(C.Struct(s).Get16(0)) }
-func (s Value) SetVoid()               { C.Struct(s).Set16(0, 0) }
-func (s Value) Bool() bool             { return C.Struct(s).Get1(16) }
-func (s Value) SetBool(v bool)         { C.Struct(s).Set16(0, 1); C.Struct(s).Set1(16, v) }
-func (s Value) Int8() int8             { return int8(C.Struct(s).Get8(2)) }
-func (s Value) SetInt8(v int8)         { C.Struct(s).Set16(0, 2); C.Struct(s).Set8(2, uint8(v)) }
-func (s Value) Int16() int16           { return int16(C.Struct(s).Get16(2)) }
-func (s Value) SetInt16(v int16)       { C.Struct(s).Set16(0, 3); C.Struct(s).Set16(2, uint16(v)) }
-func (s Value) Int32() int32           { return int32(C.Struct(s).Get32(4)) }
-func (s Value) SetInt32(v int32)       { C.Struct(s).Set16(0, 4); C.Struct(s).Set32(4, uint32(v)) }
-func (s Value) Int64() int64           { return int64(C.Struct(s).Get64(8)) }
-func (s Value) SetInt64(v int64)       { C.Struct(s).Set16(0, 5); C.Struct(s).Set64(8, uint64(v)) }
-func (s Value) Uint8() uint8           { return C.Struct(s).Get8(2) }
-func (s Value) SetUint8(v uint8)       { C.Struct(s).Set16(0, 6); C.Struct(s).Set8(2, v) }
-func (s Value) Uint16() uint16         { return C.Struct(s).Get16(2) }
-func (s Value) SetUint16(v uint16)     { C.Struct(s).Set16(0, 7); C.Struct(s).Set16(2, v) }
-func (s Value) Uint32() uint32         { return C.Struct(s).Get32(4) }
-func (s Value) SetUint32(v uint32)     { C.Struct(s).Set16(0, 8); C.Struct(s).Set32(4, v) }
-func (s Value) Uint64() uint64         { return C.Struct(s).Get64(8) }
-func (s Value) SetUint64(v uint64)     { C.Struct(s).Set16(0, 9); C.Struct(s).Set64(8, v) }
-func (s Value) Float32() float32       { return math.Float32frombits(C.Struct(s).Get32(4)) }
+
+func (s Value) Which() Value_Which {
+	return Value_Which(s.Struct.Uint16(0))
+}
+
+func (s Value) SetVoid() {
+	s.Struct.SetUint16(0, 0)
+}
+
+func (s Value) Bool() bool {
+	return s.Struct.Bit(16)
+}
+
+func (s Value) SetBool(v bool) {
+	s.Struct.SetUint16(0, 1)
+	s.Struct.SetBit(16, v)
+}
+
+func (s Value) Int8() int8 {
+	return int8(s.Struct.Uint8(2))
+}
+
+func (s Value) SetInt8(v int8) {
+	s.Struct.SetUint16(0, 2)
+	s.Struct.SetUint8(2, uint8(v))
+}
+
+func (s Value) Int16() int16 {
+	return int16(s.Struct.Uint16(2))
+}
+
+func (s Value) SetInt16(v int16) {
+	s.Struct.SetUint16(0, 3)
+	s.Struct.SetUint16(2, uint16(v))
+}
+
+func (s Value) Int32() int32 {
+	return int32(s.Struct.Uint32(4))
+}
+
+func (s Value) SetInt32(v int32) {
+	s.Struct.SetUint16(0, 4)
+	s.Struct.SetUint32(4, uint32(v))
+}
+
+func (s Value) Int64() int64 {
+	return int64(s.Struct.Uint64(8))
+}
+
+func (s Value) SetInt64(v int64) {
+	s.Struct.SetUint16(0, 5)
+	s.Struct.SetUint64(8, uint64(v))
+}
+
+func (s Value) Uint8() uint8 {
+	return s.Struct.Uint8(2)
+}
+
+func (s Value) SetUint8(v uint8) {
+	s.Struct.SetUint16(0, 6)
+	s.Struct.SetUint8(2, v)
+}
+
+func (s Value) Uint16() uint16 {
+	return s.Struct.Uint16(2)
+}
+
+func (s Value) SetUint16(v uint16) {
+	s.Struct.SetUint16(0, 7)
+	s.Struct.SetUint16(2, v)
+}
+
+func (s Value) Uint32() uint32 {
+	return s.Struct.Uint32(4)
+}
+
+func (s Value) SetUint32(v uint32) {
+	s.Struct.SetUint16(0, 8)
+	s.Struct.SetUint32(4, v)
+}
+
+func (s Value) Uint64() uint64 {
+	return s.Struct.Uint64(8)
+}
+
+func (s Value) SetUint64(v uint64) {
+	s.Struct.SetUint16(0, 9)
+	s.Struct.SetUint64(8, v)
+}
+
+func (s Value) Float32() float32 {
+	return math.Float32frombits(s.Struct.Uint32(4))
+}
+
 func (s Value) SetFloat32(v float32) {
-	C.Struct(s).Set16(0, 10)
-	C.Struct(s).Set32(4, math.Float32bits(v))
+	s.Struct.SetUint16(0, 10)
+	s.Struct.SetUint32(4, math.Float32bits(v))
 }
-func (s Value) Float64() float64 { return math.Float64frombits(C.Struct(s).Get64(8)) }
+
+func (s Value) Float64() float64 {
+	return math.Float64frombits(s.Struct.Uint64(8))
+}
+
 func (s Value) SetFloat64(v float64) {
-	C.Struct(s).Set16(0, 11)
-	C.Struct(s).Set64(8, math.Float64bits(v))
-}
-func (s Value) Text() string { return C.Struct(s).GetObject(0).ToText() }
-func (s Value) SetText(v string) {
-	C.Struct(s).Set16(0, 12)
-	C.Struct(s).SetObject(0, s.Segment.NewText(v))
-}
-func (s Value) Data() []byte { return C.Struct(s).GetObject(0).ToData() }
-func (s Value) SetData(v []byte) {
-	C.Struct(s).Set16(0, 13)
-	C.Struct(s).SetObject(0, s.Segment.NewData(v))
-}
-func (s Value) List() C.Object           { return C.Struct(s).GetObject(0) }
-func (s Value) SetList(v C.Object)       { C.Struct(s).Set16(0, 14); C.Struct(s).SetObject(0, v) }
-func (s Value) Enum() uint16             { return C.Struct(s).Get16(2) }
-func (s Value) SetEnum(v uint16)         { C.Struct(s).Set16(0, 15); C.Struct(s).Set16(2, v) }
-func (s Value) Struct() C.Object         { return C.Struct(s).GetObject(0) }
-func (s Value) SetStruct(v C.Object)     { C.Struct(s).Set16(0, 16); C.Struct(s).SetObject(0, v) }
-func (s Value) SetInterface()            { C.Struct(s).Set16(0, 17) }
-func (s Value) AnyPointer() C.Object     { return C.Struct(s).GetObject(0) }
-func (s Value) SetAnyPointer(v C.Object) { C.Struct(s).Set16(0, 18); C.Struct(s).SetObject(0, v) }
-
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Value) MarshalJSON() (bs []byte, err error) { return }
-
-type Value_List C.PointerList
-
-func NewValue_List(s *C.Segment, sz int) Value_List {
-	return Value_List(s.NewCompositeList(C.ObjectSize{DataSize: 16, PointerCount: 1}, sz))
-}
-func (s Value_List) Len() int              { return C.PointerList(s).Len() }
-func (s Value_List) At(i int) Value        { return Value(C.PointerList(s).At(i).ToStruct()) }
-func (s Value_List) Set(i int, item Value) { C.PointerList(s).Set(i, C.Object(item)) }
-
-type Value_Promise C.Pipeline
-
-func (p *Value_Promise) Get() (Value, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return Value(s), err
+	s.Struct.SetUint16(0, 11)
+	s.Struct.SetUint64(8, math.Float64bits(v))
 }
 
-func (p *Value_Promise) List() *C.Pipeline {
-	return (*C.Pipeline)(p).GetPipeline(0)
+func (s Value) Text() (string, error) {
+	p, err := s.Struct.Pointer(0)
+	if err != nil {
+		return "", err
+	}
+
+	return C.ToText(p), nil
+
 }
 
-func (p *Value_Promise) Struct() *C.Pipeline {
-	return (*C.Pipeline)(p).GetPipeline(0)
+func (s Value) SetText(v string) error {
+	s.Struct.SetUint16(0, 12)
+	t, err := C.NewText(s.Struct.Segment(), v)
+	if err != nil {
+		return err
+	}
+	return s.Struct.SetPointer(0, t)
 }
 
-func (p *Value_Promise) AnyPointer() *C.Pipeline {
-	return (*C.Pipeline)(p).GetPipeline(0)
+func (s Value) Data() ([]byte, error) {
+	p, err := s.Struct.Pointer(0)
+	if err != nil {
+		return nil, err
+	}
+
+	return []byte(C.ToData(p)), nil
+
 }
 
-type Annotation C.Struct
-
-func NewAnnotation(s *C.Segment) Annotation {
-	return Annotation(s.NewStruct(C.ObjectSize{DataSize: 8, PointerCount: 2}))
-}
-func NewRootAnnotation(s *C.Segment) Annotation {
-	return Annotation(s.NewRootStruct(C.ObjectSize{DataSize: 8, PointerCount: 2}))
-}
-func AutoNewAnnotation(s *C.Segment) Annotation {
-	return Annotation(s.NewStructAR(C.ObjectSize{DataSize: 8, PointerCount: 2}))
-}
-func ReadRootAnnotation(s *C.Segment) Annotation { return Annotation(s.Root(0).ToStruct()) }
-func (s Annotation) Id() uint64                  { return C.Struct(s).Get64(0) }
-func (s Annotation) SetId(v uint64)              { C.Struct(s).Set64(0, v) }
-func (s Annotation) Brand() Brand                { return Brand(C.Struct(s).GetObject(1).ToStruct()) }
-func (s Annotation) SetBrand(v Brand)            { C.Struct(s).SetObject(1, C.Object(v)) }
-func (s Annotation) Value() Value                { return Value(C.Struct(s).GetObject(0).ToStruct()) }
-func (s Annotation) SetValue(v Value)            { C.Struct(s).SetObject(0, C.Object(v)) }
-
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Annotation) MarshalJSON() (bs []byte, err error) { return }
-
-type Annotation_List C.PointerList
-
-func NewAnnotation_List(s *C.Segment, sz int) Annotation_List {
-	return Annotation_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 2}, sz))
-}
-func (s Annotation_List) Len() int                   { return C.PointerList(s).Len() }
-func (s Annotation_List) At(i int) Annotation        { return Annotation(C.PointerList(s).At(i).ToStruct()) }
-func (s Annotation_List) Set(i int, item Annotation) { C.PointerList(s).Set(i, C.Object(item)) }
-
-type Annotation_Promise C.Pipeline
-
-func (p *Annotation_Promise) Get() (Annotation, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return Annotation(s), err
+func (s Value) SetData(v []byte) error {
+	s.Struct.SetUint16(0, 13)
+	d, err := C.NewData(s.Struct.Segment(), []byte(v))
+	if err != nil {
+		return err
+	}
+	return s.Struct.SetPointer(0, d)
 }
 
-func (p *Annotation_Promise) Brand() *Brand_Promise {
-	return (*Brand_Promise)((*C.Pipeline)(p).GetPipeline(1))
+func (s Value) List() (C.Pointer, error) {
+
+	return s.Struct.Pointer(0)
+
 }
 
-func (p *Annotation_Promise) Value() *Value_Promise {
-	return (*Value_Promise)((*C.Pipeline)(p).GetPipeline(0))
+func (s Value) SetList(v C.Pointer) error {
+	s.Struct.SetUint16(0, 14)
+	return s.Struct.SetPointer(0, v)
 }
+
+func (s Value) Enum() uint16 {
+	return s.Struct.Uint16(2)
+}
+
+func (s Value) SetEnum(v uint16) {
+	s.Struct.SetUint16(0, 15)
+	s.Struct.SetUint16(2, v)
+}
+
+func (s Value) StructField() (C.Pointer, error) {
+
+	return s.Struct.Pointer(0)
+
+}
+
+func (s Value) SetStructField(v C.Pointer) error {
+	s.Struct.SetUint16(0, 16)
+	return s.Struct.SetPointer(0, v)
+}
+
+func (s Value) SetInterface() {
+	s.Struct.SetUint16(0, 17)
+}
+
+func (s Value) AnyPointer() (C.Pointer, error) {
+
+	return s.Struct.Pointer(0)
+
+}
+
+func (s Value) SetAnyPointer(v C.Pointer) error {
+	s.Struct.SetUint16(0, 18)
+	return s.Struct.SetPointer(0, v)
+}
+
+// Value_List is a list of Value.
+type Value_List struct{ C.List }
+
+// NewValue creates a new list of Value.
+func NewValue_List(s *C.Segment, sz int32) (Value_List, error) {
+	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 16, PointerCount: 1}, sz)
+	if err != nil {
+		return Value_List{}, err
+	}
+	return Value_List{l}, nil
+}
+
+func (s Value_List) At(i int) Value           { return Value{s.List.Struct(i)} }
+func (s Value_List) Set(i int, v Value) error { return s.List.SetStruct(i, v.Struct) }
+
+type Annotation struct{ C.Struct }
+
+func NewAnnotation(s *C.Segment) (Annotation, error) {
+	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 8, PointerCount: 2})
+	if err != nil {
+		return Annotation{}, err
+	}
+	return Annotation{st}, nil
+}
+
+func NewRootAnnotation(s *C.Segment) (Annotation, error) {
+	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 8, PointerCount: 2})
+	if err != nil {
+		return Annotation{}, err
+	}
+	return Annotation{st}, nil
+}
+
+func ReadRootAnnotation(msg *C.Message) (Annotation, error) {
+	root, err := msg.Root()
+	if err != nil {
+		return Annotation{}, err
+	}
+	st := C.ToStruct(root)
+	return Annotation{st}, nil
+}
+
+func (s Annotation) Id() uint64 {
+	return s.Struct.Uint64(0)
+}
+
+func (s Annotation) SetId(v uint64) {
+
+	s.Struct.SetUint64(0, v)
+}
+
+func (s Annotation) Brand() (Brand, error) {
+	p, err := s.Struct.Pointer(1)
+	if err != nil {
+		return Brand{}, err
+	}
+
+	ss := C.ToStruct(p)
+
+	return Brand{Struct: ss}, nil
+}
+
+func (s Annotation) SetBrand(v Brand) error {
+
+	return s.Struct.SetPointer(1, v.Struct)
+}
+
+// NewBrand sets the brand field to a newly
+// allocated Brand struct, preferring placement in s's segment.
+func (s Annotation) NewBrand() (Brand, error) {
+
+	ss, err := NewBrand(s.Struct.Segment())
+	if err != nil {
+		return Brand{}, err
+	}
+	err = s.Struct.SetPointer(1, ss)
+	return ss, err
+}
+
+func (s Annotation) Value() (Value, error) {
+	p, err := s.Struct.Pointer(0)
+	if err != nil {
+		return Value{}, err
+	}
+
+	ss := C.ToStruct(p)
+
+	return Value{Struct: ss}, nil
+}
+
+func (s Annotation) SetValue(v Value) error {
+
+	return s.Struct.SetPointer(0, v.Struct)
+}
+
+// NewValue sets the value field to a newly
+// allocated Value struct, preferring placement in s's segment.
+func (s Annotation) NewValue() (Value, error) {
+
+	ss, err := NewValue(s.Struct.Segment())
+	if err != nil {
+		return Value{}, err
+	}
+	err = s.Struct.SetPointer(0, ss)
+	return ss, err
+}
+
+// Annotation_List is a list of Annotation.
+type Annotation_List struct{ C.List }
+
+// NewAnnotation creates a new list of Annotation.
+func NewAnnotation_List(s *C.Segment, sz int32) (Annotation_List, error) {
+	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 8, PointerCount: 2}, sz)
+	if err != nil {
+		return Annotation_List{}, err
+	}
+	return Annotation_List{l}, nil
+}
+
+func (s Annotation_List) At(i int) Annotation           { return Annotation{s.List.Struct(i)} }
+func (s Annotation_List) Set(i int, v Annotation) error { return s.List.SetStruct(i, v.Struct) }
 
 type ElementSize uint16
 
+// Values of ElementSize.
 const (
 	ElementSize_empty           ElementSize = 0
 	ElementSize_bit             ElementSize = 1
@@ -1190,6 +2312,7 @@ const (
 	ElementSize_inlineComposite ElementSize = 7
 )
 
+// String returns the enum's constant name.
 func (c ElementSize) String() string {
 	switch c {
 	case ElementSize_empty:
@@ -1208,11 +2331,14 @@ func (c ElementSize) String() string {
 		return "pointer"
 	case ElementSize_inlineComposite:
 		return "inlineComposite"
+
 	default:
 		return ""
 	}
 }
 
+// ElementSizeFromString returns the enum value with a name,
+// or the zero value if there's no such value.
 func ElementSizeFromString(c string) ElementSize {
 	switch c {
 	case "empty":
@@ -1231,162 +2357,270 @@ func ElementSizeFromString(c string) ElementSize {
 		return ElementSize_pointer
 	case "inlineComposite":
 		return ElementSize_inlineComposite
+
 	default:
 		return 0
 	}
 }
 
-type ElementSize_List C.PointerList
+type ElementSize_List struct{ C.List }
 
-func NewElementSize_List(s *C.Segment, sz int) ElementSize_List {
-	return ElementSize_List(s.NewUInt16List(sz))
-}
-func (s ElementSize_List) Len() int             { return C.UInt16List(s).Len() }
-func (s ElementSize_List) At(i int) ElementSize { return ElementSize(C.UInt16List(s).At(i)) }
-
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s ElementSize) MarshalJSON() (bs []byte, err error) { return }
-
-type CodeGeneratorRequest C.Struct
-
-func NewCodeGeneratorRequest(s *C.Segment) CodeGeneratorRequest {
-	return CodeGeneratorRequest(s.NewStruct(C.ObjectSize{DataSize: 0, PointerCount: 2}))
-}
-func NewRootCodeGeneratorRequest(s *C.Segment) CodeGeneratorRequest {
-	return CodeGeneratorRequest(s.NewRootStruct(C.ObjectSize{DataSize: 0, PointerCount: 2}))
-}
-func AutoNewCodeGeneratorRequest(s *C.Segment) CodeGeneratorRequest {
-	return CodeGeneratorRequest(s.NewStructAR(C.ObjectSize{DataSize: 0, PointerCount: 2}))
-}
-func ReadRootCodeGeneratorRequest(s *C.Segment) CodeGeneratorRequest {
-	return CodeGeneratorRequest(s.Root(0).ToStruct())
-}
-func (s CodeGeneratorRequest) Nodes() Node_List     { return Node_List(C.Struct(s).GetObject(0)) }
-func (s CodeGeneratorRequest) SetNodes(v Node_List) { C.Struct(s).SetObject(0, C.Object(v)) }
-func (s CodeGeneratorRequest) RequestedFiles() CodeGeneratorRequest_RequestedFile_List {
-	return CodeGeneratorRequest_RequestedFile_List(C.Struct(s).GetObject(1))
-}
-func (s CodeGeneratorRequest) SetRequestedFiles(v CodeGeneratorRequest_RequestedFile_List) {
-	C.Struct(s).SetObject(1, C.Object(v))
+func NewElementSize_List(s *C.Segment, sz int32) (ElementSize_List, error) {
+	l, err := C.NewUInt16List(s, sz)
+	if err != nil {
+		return ElementSize_List{}, err
+	}
+	return ElementSize_List{l.List}, nil
 }
 
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s CodeGeneratorRequest) MarshalJSON() (bs []byte, err error) { return }
-
-type CodeGeneratorRequest_List C.PointerList
-
-func NewCodeGeneratorRequest_List(s *C.Segment, sz int) CodeGeneratorRequest_List {
-	return CodeGeneratorRequest_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 2}, sz))
+func (l ElementSize_List) At(i int) ElementSize {
+	ul := C.UInt16List{List: l.List}
+	return ElementSize(ul.At(i))
 }
-func (s CodeGeneratorRequest_List) Len() int { return C.PointerList(s).Len() }
+
+func (l ElementSize_List) Set(i int, v ElementSize) {
+	ul := C.UInt16List{List: l.List}
+	ul.Set(i, uint16(v))
+}
+
+type CodeGeneratorRequest struct{ C.Struct }
+
+func NewCodeGeneratorRequest(s *C.Segment) (CodeGeneratorRequest, error) {
+	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 0, PointerCount: 2})
+	if err != nil {
+		return CodeGeneratorRequest{}, err
+	}
+	return CodeGeneratorRequest{st}, nil
+}
+
+func NewRootCodeGeneratorRequest(s *C.Segment) (CodeGeneratorRequest, error) {
+	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 0, PointerCount: 2})
+	if err != nil {
+		return CodeGeneratorRequest{}, err
+	}
+	return CodeGeneratorRequest{st}, nil
+}
+
+func ReadRootCodeGeneratorRequest(msg *C.Message) (CodeGeneratorRequest, error) {
+	root, err := msg.Root()
+	if err != nil {
+		return CodeGeneratorRequest{}, err
+	}
+	st := C.ToStruct(root)
+	return CodeGeneratorRequest{st}, nil
+}
+
+func (s CodeGeneratorRequest) Nodes() (Node_List, error) {
+	p, err := s.Struct.Pointer(0)
+	if err != nil {
+		return Node_List{}, err
+	}
+
+	l := C.ToList(p)
+
+	return Node_List{List: l}, nil
+}
+
+func (s CodeGeneratorRequest) SetNodes(v Node_List) error {
+
+	return s.Struct.SetPointer(0, v.List)
+}
+
+func (s CodeGeneratorRequest) RequestedFiles() (CodeGeneratorRequest_RequestedFile_List, error) {
+	p, err := s.Struct.Pointer(1)
+	if err != nil {
+		return CodeGeneratorRequest_RequestedFile_List{}, err
+	}
+
+	l := C.ToList(p)
+
+	return CodeGeneratorRequest_RequestedFile_List{List: l}, nil
+}
+
+func (s CodeGeneratorRequest) SetRequestedFiles(v CodeGeneratorRequest_RequestedFile_List) error {
+
+	return s.Struct.SetPointer(1, v.List)
+}
+
+// CodeGeneratorRequest_List is a list of CodeGeneratorRequest.
+type CodeGeneratorRequest_List struct{ C.List }
+
+// NewCodeGeneratorRequest creates a new list of CodeGeneratorRequest.
+func NewCodeGeneratorRequest_List(s *C.Segment, sz int32) (CodeGeneratorRequest_List, error) {
+	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
+	if err != nil {
+		return CodeGeneratorRequest_List{}, err
+	}
+	return CodeGeneratorRequest_List{l}, nil
+}
+
 func (s CodeGeneratorRequest_List) At(i int) CodeGeneratorRequest {
-	return CodeGeneratorRequest(C.PointerList(s).At(i).ToStruct())
+	return CodeGeneratorRequest{s.List.Struct(i)}
 }
-func (s CodeGeneratorRequest_List) Set(i int, item CodeGeneratorRequest) {
-	C.PointerList(s).Set(i, C.Object(item))
-}
-
-type CodeGeneratorRequest_Promise C.Pipeline
-
-func (p *CodeGeneratorRequest_Promise) Get() (CodeGeneratorRequest, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return CodeGeneratorRequest(s), err
+func (s CodeGeneratorRequest_List) Set(i int, v CodeGeneratorRequest) error {
+	return s.List.SetStruct(i, v.Struct)
 }
 
-type CodeGeneratorRequest_RequestedFile C.Struct
+type CodeGeneratorRequest_RequestedFile struct{ C.Struct }
 
-func NewCodeGeneratorRequest_RequestedFile(s *C.Segment) CodeGeneratorRequest_RequestedFile {
-	return CodeGeneratorRequest_RequestedFile(s.NewStruct(C.ObjectSize{DataSize: 8, PointerCount: 2}))
-}
-func NewRootCodeGeneratorRequest_RequestedFile(s *C.Segment) CodeGeneratorRequest_RequestedFile {
-	return CodeGeneratorRequest_RequestedFile(s.NewRootStruct(C.ObjectSize{DataSize: 8, PointerCount: 2}))
-}
-func AutoNewCodeGeneratorRequest_RequestedFile(s *C.Segment) CodeGeneratorRequest_RequestedFile {
-	return CodeGeneratorRequest_RequestedFile(s.NewStructAR(C.ObjectSize{DataSize: 8, PointerCount: 2}))
-}
-func ReadRootCodeGeneratorRequest_RequestedFile(s *C.Segment) CodeGeneratorRequest_RequestedFile {
-	return CodeGeneratorRequest_RequestedFile(s.Root(0).ToStruct())
-}
-func (s CodeGeneratorRequest_RequestedFile) Id() uint64     { return C.Struct(s).Get64(0) }
-func (s CodeGeneratorRequest_RequestedFile) SetId(v uint64) { C.Struct(s).Set64(0, v) }
-func (s CodeGeneratorRequest_RequestedFile) Filename() string {
-	return C.Struct(s).GetObject(0).ToText()
-}
-func (s CodeGeneratorRequest_RequestedFile) SetFilename(v string) {
-	C.Struct(s).SetObject(0, s.Segment.NewText(v))
-}
-func (s CodeGeneratorRequest_RequestedFile) Imports() CodeGeneratorRequest_RequestedFile_Import_List {
-	return CodeGeneratorRequest_RequestedFile_Import_List(C.Struct(s).GetObject(1))
-}
-func (s CodeGeneratorRequest_RequestedFile) SetImports(v CodeGeneratorRequest_RequestedFile_Import_List) {
-	C.Struct(s).SetObject(1, C.Object(v))
+func NewCodeGeneratorRequest_RequestedFile(s *C.Segment) (CodeGeneratorRequest_RequestedFile, error) {
+	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 8, PointerCount: 2})
+	if err != nil {
+		return CodeGeneratorRequest_RequestedFile{}, err
+	}
+	return CodeGeneratorRequest_RequestedFile{st}, nil
 }
 
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s CodeGeneratorRequest_RequestedFile) MarshalJSON() (bs []byte, err error) { return }
-
-type CodeGeneratorRequest_RequestedFile_List C.PointerList
-
-func NewCodeGeneratorRequest_RequestedFile_List(s *C.Segment, sz int) CodeGeneratorRequest_RequestedFile_List {
-	return CodeGeneratorRequest_RequestedFile_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 2}, sz))
+func NewRootCodeGeneratorRequest_RequestedFile(s *C.Segment) (CodeGeneratorRequest_RequestedFile, error) {
+	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 8, PointerCount: 2})
+	if err != nil {
+		return CodeGeneratorRequest_RequestedFile{}, err
+	}
+	return CodeGeneratorRequest_RequestedFile{st}, nil
 }
-func (s CodeGeneratorRequest_RequestedFile_List) Len() int { return C.PointerList(s).Len() }
+
+func ReadRootCodeGeneratorRequest_RequestedFile(msg *C.Message) (CodeGeneratorRequest_RequestedFile, error) {
+	root, err := msg.Root()
+	if err != nil {
+		return CodeGeneratorRequest_RequestedFile{}, err
+	}
+	st := C.ToStruct(root)
+	return CodeGeneratorRequest_RequestedFile{st}, nil
+}
+
+func (s CodeGeneratorRequest_RequestedFile) Id() uint64 {
+	return s.Struct.Uint64(0)
+}
+
+func (s CodeGeneratorRequest_RequestedFile) SetId(v uint64) {
+
+	s.Struct.SetUint64(0, v)
+}
+
+func (s CodeGeneratorRequest_RequestedFile) Filename() (string, error) {
+	p, err := s.Struct.Pointer(0)
+	if err != nil {
+		return "", err
+	}
+
+	return C.ToText(p), nil
+
+}
+
+func (s CodeGeneratorRequest_RequestedFile) SetFilename(v string) error {
+
+	t, err := C.NewText(s.Struct.Segment(), v)
+	if err != nil {
+		return err
+	}
+	return s.Struct.SetPointer(0, t)
+}
+
+func (s CodeGeneratorRequest_RequestedFile) Imports() (CodeGeneratorRequest_RequestedFile_Import_List, error) {
+	p, err := s.Struct.Pointer(1)
+	if err != nil {
+		return CodeGeneratorRequest_RequestedFile_Import_List{}, err
+	}
+
+	l := C.ToList(p)
+
+	return CodeGeneratorRequest_RequestedFile_Import_List{List: l}, nil
+}
+
+func (s CodeGeneratorRequest_RequestedFile) SetImports(v CodeGeneratorRequest_RequestedFile_Import_List) error {
+
+	return s.Struct.SetPointer(1, v.List)
+}
+
+// CodeGeneratorRequest_RequestedFile_List is a list of CodeGeneratorRequest_RequestedFile.
+type CodeGeneratorRequest_RequestedFile_List struct{ C.List }
+
+// NewCodeGeneratorRequest_RequestedFile creates a new list of CodeGeneratorRequest_RequestedFile.
+func NewCodeGeneratorRequest_RequestedFile_List(s *C.Segment, sz int32) (CodeGeneratorRequest_RequestedFile_List, error) {
+	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 8, PointerCount: 2}, sz)
+	if err != nil {
+		return CodeGeneratorRequest_RequestedFile_List{}, err
+	}
+	return CodeGeneratorRequest_RequestedFile_List{l}, nil
+}
+
 func (s CodeGeneratorRequest_RequestedFile_List) At(i int) CodeGeneratorRequest_RequestedFile {
-	return CodeGeneratorRequest_RequestedFile(C.PointerList(s).At(i).ToStruct())
+	return CodeGeneratorRequest_RequestedFile{s.List.Struct(i)}
 }
-func (s CodeGeneratorRequest_RequestedFile_List) Set(i int, item CodeGeneratorRequest_RequestedFile) {
-	C.PointerList(s).Set(i, C.Object(item))
-}
-
-type CodeGeneratorRequest_RequestedFile_Promise C.Pipeline
-
-func (p *CodeGeneratorRequest_RequestedFile_Promise) Get() (CodeGeneratorRequest_RequestedFile, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return CodeGeneratorRequest_RequestedFile(s), err
+func (s CodeGeneratorRequest_RequestedFile_List) Set(i int, v CodeGeneratorRequest_RequestedFile) error {
+	return s.List.SetStruct(i, v.Struct)
 }
 
-type CodeGeneratorRequest_RequestedFile_Import C.Struct
+type CodeGeneratorRequest_RequestedFile_Import struct{ C.Struct }
 
-func NewCodeGeneratorRequest_RequestedFile_Import(s *C.Segment) CodeGeneratorRequest_RequestedFile_Import {
-	return CodeGeneratorRequest_RequestedFile_Import(s.NewStruct(C.ObjectSize{DataSize: 8, PointerCount: 1}))
-}
-func NewRootCodeGeneratorRequest_RequestedFile_Import(s *C.Segment) CodeGeneratorRequest_RequestedFile_Import {
-	return CodeGeneratorRequest_RequestedFile_Import(s.NewRootStruct(C.ObjectSize{DataSize: 8, PointerCount: 1}))
-}
-func AutoNewCodeGeneratorRequest_RequestedFile_Import(s *C.Segment) CodeGeneratorRequest_RequestedFile_Import {
-	return CodeGeneratorRequest_RequestedFile_Import(s.NewStructAR(C.ObjectSize{DataSize: 8, PointerCount: 1}))
-}
-func ReadRootCodeGeneratorRequest_RequestedFile_Import(s *C.Segment) CodeGeneratorRequest_RequestedFile_Import {
-	return CodeGeneratorRequest_RequestedFile_Import(s.Root(0).ToStruct())
-}
-func (s CodeGeneratorRequest_RequestedFile_Import) Id() uint64     { return C.Struct(s).Get64(0) }
-func (s CodeGeneratorRequest_RequestedFile_Import) SetId(v uint64) { C.Struct(s).Set64(0, v) }
-func (s CodeGeneratorRequest_RequestedFile_Import) Name() string {
-	return C.Struct(s).GetObject(0).ToText()
-}
-func (s CodeGeneratorRequest_RequestedFile_Import) SetName(v string) {
-	C.Struct(s).SetObject(0, s.Segment.NewText(v))
+func NewCodeGeneratorRequest_RequestedFile_Import(s *C.Segment) (CodeGeneratorRequest_RequestedFile_Import, error) {
+	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 8, PointerCount: 1})
+	if err != nil {
+		return CodeGeneratorRequest_RequestedFile_Import{}, err
+	}
+	return CodeGeneratorRequest_RequestedFile_Import{st}, nil
 }
 
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s CodeGeneratorRequest_RequestedFile_Import) MarshalJSON() (bs []byte, err error) { return }
-
-type CodeGeneratorRequest_RequestedFile_Import_List C.PointerList
-
-func NewCodeGeneratorRequest_RequestedFile_Import_List(s *C.Segment, sz int) CodeGeneratorRequest_RequestedFile_Import_List {
-	return CodeGeneratorRequest_RequestedFile_Import_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 1}, sz))
+func NewRootCodeGeneratorRequest_RequestedFile_Import(s *C.Segment) (CodeGeneratorRequest_RequestedFile_Import, error) {
+	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 8, PointerCount: 1})
+	if err != nil {
+		return CodeGeneratorRequest_RequestedFile_Import{}, err
+	}
+	return CodeGeneratorRequest_RequestedFile_Import{st}, nil
 }
-func (s CodeGeneratorRequest_RequestedFile_Import_List) Len() int { return C.PointerList(s).Len() }
+
+func ReadRootCodeGeneratorRequest_RequestedFile_Import(msg *C.Message) (CodeGeneratorRequest_RequestedFile_Import, error) {
+	root, err := msg.Root()
+	if err != nil {
+		return CodeGeneratorRequest_RequestedFile_Import{}, err
+	}
+	st := C.ToStruct(root)
+	return CodeGeneratorRequest_RequestedFile_Import{st}, nil
+}
+
+func (s CodeGeneratorRequest_RequestedFile_Import) Id() uint64 {
+	return s.Struct.Uint64(0)
+}
+
+func (s CodeGeneratorRequest_RequestedFile_Import) SetId(v uint64) {
+
+	s.Struct.SetUint64(0, v)
+}
+
+func (s CodeGeneratorRequest_RequestedFile_Import) Name() (string, error) {
+	p, err := s.Struct.Pointer(0)
+	if err != nil {
+		return "", err
+	}
+
+	return C.ToText(p), nil
+
+}
+
+func (s CodeGeneratorRequest_RequestedFile_Import) SetName(v string) error {
+
+	t, err := C.NewText(s.Struct.Segment(), v)
+	if err != nil {
+		return err
+	}
+	return s.Struct.SetPointer(0, t)
+}
+
+// CodeGeneratorRequest_RequestedFile_Import_List is a list of CodeGeneratorRequest_RequestedFile_Import.
+type CodeGeneratorRequest_RequestedFile_Import_List struct{ C.List }
+
+// NewCodeGeneratorRequest_RequestedFile_Import creates a new list of CodeGeneratorRequest_RequestedFile_Import.
+func NewCodeGeneratorRequest_RequestedFile_Import_List(s *C.Segment, sz int32) (CodeGeneratorRequest_RequestedFile_Import_List, error) {
+	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
+	if err != nil {
+		return CodeGeneratorRequest_RequestedFile_Import_List{}, err
+	}
+	return CodeGeneratorRequest_RequestedFile_Import_List{l}, nil
+}
+
 func (s CodeGeneratorRequest_RequestedFile_Import_List) At(i int) CodeGeneratorRequest_RequestedFile_Import {
-	return CodeGeneratorRequest_RequestedFile_Import(C.PointerList(s).At(i).ToStruct())
+	return CodeGeneratorRequest_RequestedFile_Import{s.List.Struct(i)}
 }
-func (s CodeGeneratorRequest_RequestedFile_Import_List) Set(i int, item CodeGeneratorRequest_RequestedFile_Import) {
-	C.PointerList(s).Set(i, C.Object(item))
-}
-
-type CodeGeneratorRequest_RequestedFile_Import_Promise C.Pipeline
-
-func (p *CodeGeneratorRequest_RequestedFile_Import_Promise) Get() (CodeGeneratorRequest_RequestedFile_Import, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return CodeGeneratorRequest_RequestedFile_Import(s), err
+func (s CodeGeneratorRequest_RequestedFile_Import_List) Set(i int, v CodeGeneratorRequest_RequestedFile_Import) error {
+	return s.List.SetStruct(i, v.Struct)
 }

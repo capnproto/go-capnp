@@ -52,16 +52,20 @@ func formatMsg(w io.Writer, m rpccapnp.Message) {
 	case rpccapnp.Message_Which_unimplemented:
 		fmt.Fprint(w, "unimplemented")
 	case rpccapnp.Message_Which_abort:
-		fmt.Fprintf(w, "abort type=%v: %s", m.Abort().Type(), m.Abort().Reason())
+		mabort, _ := m.Abort()
+		reason, _ := mabort.Reason()
+		fmt.Fprintf(w, "abort type=%v: %s", mabort.Type(), reason)
 	case rpccapnp.Message_Which_bootstrap:
-		fmt.Fprintf(w, "bootstrap id=%d", m.Bootstrap().QuestionId())
+		mboot, _ := m.Bootstrap()
+		fmt.Fprintf(w, "bootstrap id=%d", mboot.QuestionId())
 	case rpccapnp.Message_Which_call:
-		c := m.Call()
+		c, _ := m.Call()
 		fmt.Fprintf(w, "call id=%d target=<", c.QuestionId())
-		formatMessageTarget(w, c.Target())
+		tgt, _ := c.Target()
+		formatMessageTarget(w, tgt)
 		fmt.Fprintf(w, "> @%#x/@%d", c.InterfaceId(), c.MethodId())
 	case rpccapnp.Message_Which_return:
-		r := m.Return()
+		r, _ := m.Return()
 		fmt.Fprintf(w, "return id=%d", r.AnswerId())
 		if r.ReleaseParamCaps() {
 			fmt.Fprint(w, " releaseParamCaps")
@@ -69,7 +73,9 @@ func formatMsg(w io.Writer, m rpccapnp.Message) {
 		switch r.Which() {
 		case rpccapnp.Return_Which_results:
 		case rpccapnp.Return_Which_exception:
-			fmt.Fprintf(w, ", exception type=%v: %s", r.Exception().Type(), r.Exception().Reason())
+			exc, _ := r.Exception()
+			reason, _ := exc.Reason()
+			fmt.Fprintf(w, ", exception type=%v: %s", exc.Type(), reason)
 		case rpccapnp.Return_Which_canceled:
 			fmt.Fprint(w, ", canceled")
 		case rpccapnp.Return_Which_resultsSentElsewhere:
@@ -82,28 +88,34 @@ func formatMsg(w io.Writer, m rpccapnp.Message) {
 			fmt.Fprintf(w, ", UNKNOWN RESULT which=%v", r.Which())
 		}
 	case rpccapnp.Message_Which_finish:
-		fmt.Fprintf(w, "finish id=%d", m.Finish().QuestionId())
-		if m.Finish().ReleaseResultCaps() {
+		fin, _ := m.Finish()
+		fmt.Fprintf(w, "finish id=%d", fin.QuestionId())
+		if fin.ReleaseResultCaps() {
 			fmt.Fprint(w, " releaseResultCaps")
 		}
 	case rpccapnp.Message_Which_resolve:
-		r := m.Resolve()
+		r, _ := m.Resolve()
 		fmt.Fprintf(w, "resolve id=%d ", r.PromiseId())
 		switch r.Which() {
 		case rpccapnp.Resolve_Which_cap:
 			fmt.Fprint(w, "capability=")
-			formatCapDescriptor(w, r.Cap())
+			c, _ := r.Cap()
+			formatCapDescriptor(w, c)
 		case rpccapnp.Resolve_Which_exception:
-			fmt.Fprintf(w, "exception type=%v: %s", r.Exception().Type(), r.Exception().Reason())
+			exc, _ := r.Exception()
+			reason, _ := exc.Reason()
+			fmt.Fprintf(w, "exception type=%v: %s", exc.Type(), reason)
 		default:
 			fmt.Fprintf(w, "UNKNOWN RESOLUTION which=%v", r.Which())
 		}
 	case rpccapnp.Message_Which_release:
-		fmt.Fprintf(w, "release id=%d by %d", m.Release().Id(), m.Release().ReferenceCount())
+		rel, _ := m.Release()
+		fmt.Fprintf(w, "release id=%d by %d", rel.Id(), rel.ReferenceCount())
 	case rpccapnp.Message_Which_disembargo:
-		de := m.Disembargo()
+		de, _ := m.Disembargo()
+		tgt, _ := de.Target()
 		fmt.Fprint(w, "disembargo <")
-		formatMessageTarget(w, de.Target())
+		formatMessageTarget(w, tgt)
 		fmt.Fprint(w, "> ")
 		dc := de.Context()
 		switch dc.Which() {
@@ -123,17 +135,22 @@ func formatMsg(w io.Writer, m rpccapnp.Message) {
 	case rpccapnp.Message_Which_obsoleteDelete:
 		fmt.Fprint(w, "delete")
 	case rpccapnp.Message_Which_provide:
-		fmt.Fprintf(w, "provide id=%d <", m.Provide().QuestionId())
-		formatMessageTarget(w, m.Provide().Target())
+		prov, _ := m.Provide()
+		tgt, _ := prov.Target()
+		fmt.Fprintf(w, "provide id=%d <", prov.QuestionId())
+		formatMessageTarget(w, tgt)
 		fmt.Fprint(w, ">")
 	case rpccapnp.Message_Which_accept:
-		fmt.Fprintf(w, "accept id=%d", m.Accept().QuestionId())
-		if m.Accept().Embargo() {
+		acc, _ := m.Accept()
+		fmt.Fprintf(w, "accept id=%d", acc.QuestionId())
+		if acc.Embargo() {
 			fmt.Fprint(w, " with embargo")
 		}
 	case rpccapnp.Message_Which_join:
-		fmt.Fprintf(w, "join id=%d <", m.Join().QuestionId())
-		formatMessageTarget(w, m.Join().Target())
+		join, _ := m.Join()
+		tgt, _ := join.Target()
+		fmt.Fprintf(w, "join id=%d <", join.QuestionId())
+		formatMessageTarget(w, tgt)
 		fmt.Fprint(w, ">")
 	default:
 		fmt.Fprintf(w, "UNKNOWN MESSAGE which=%v", m.Which())
@@ -146,7 +163,8 @@ func formatMessageTarget(w io.Writer, t rpccapnp.MessageTarget) {
 		fmt.Fprintf(w, "import %d", t.ImportedCap())
 	case rpccapnp.MessageTarget_Which_promisedAnswer:
 		fmt.Fprint(w, "promise ")
-		formatPromisedAnswer(w, t.PromisedAnswer())
+		pa, _ := t.PromisedAnswer()
+		formatPromisedAnswer(w, pa)
 	default:
 		fmt.Fprintf(w, "UNKNOWN TARGET which=%v", t.Which())
 	}
@@ -154,8 +172,9 @@ func formatMessageTarget(w io.Writer, t rpccapnp.MessageTarget) {
 
 func formatPromisedAnswer(w io.Writer, a rpccapnp.PromisedAnswer) {
 	fmt.Fprintf(w, "(question %d)", a.QuestionId())
-	for i := 0; i < a.Transform().Len(); i++ {
-		t := a.Transform().At(i)
+	trans, _ := a.Transform()
+	for i := 0; i < trans.Len(); i++ {
+		t := trans.At(i)
 		switch t.Which() {
 		case rpccapnp.PromisedAnswer_Op_Which_noop:
 		case rpccapnp.PromisedAnswer_Op_Which_getPointerField:
@@ -177,8 +196,9 @@ func formatCapDescriptor(w io.Writer, c rpccapnp.CapDescriptor) {
 	case rpccapnp.CapDescriptor_Which_receiverHosted:
 		fmt.Fprintf(w, "receiver-hosted %d", c.ReceiverHosted())
 	case rpccapnp.CapDescriptor_Which_receiverAnswer:
+		ans, _ := c.ReceiverAnswer()
 		fmt.Fprint(w, "receiver answer ")
-		formatPromisedAnswer(w, c.ReceiverAnswer())
+		formatPromisedAnswer(w, ans)
 	case rpccapnp.CapDescriptor_Which_thirdPartyHosted:
 		fmt.Fprint(w, "third-party hosted")
 	default:

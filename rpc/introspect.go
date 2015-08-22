@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"zombiezen.com/go/capnproto"
+	"zombiezen.com/go/capnproto/internal/fulfiller"
 	"zombiezen.com/go/capnproto/rpc/rpccapnp"
 )
 
@@ -39,24 +40,30 @@ func (c *Conn) nestedCall(client capnp.Client, cl *capnp.Call) capnp.Answer {
 	return client.Call(cl)
 }
 
-func (c *Conn) descriptorForClient(desc rpccapnp.CapDescriptor, client capnp.Client) {
+func (c *Conn) descriptorForClient(desc rpccapnp.CapDescriptor, client capnp.Client) error {
 	client = extractRPCClient(client)
 	if ic, ok := client.(*importClient); ok && isImportFromConn(ic, c) {
 		desc.SetReceiverHosted(uint32(ic.id))
-		return
+		return nil
 	}
 	if pc, ok := client.(*capnp.PipelineClient); ok {
 		p := (*capnp.Pipeline)(pc)
 		if q, ok := p.Answer().(*question); ok && isQuestionFromConn(q, c) {
-			a := rpccapnp.NewPromisedAnswer(desc.Segment)
+			a, err := desc.NewReceiverAnswer()
+			if err != nil {
+				return err
+			}
 			a.SetQuestionId(uint32(q.id))
-			transformToPromisedAnswer(desc.Segment, a, p.Transform())
-			desc.SetReceiverAnswer(a)
-			return
+			err = transformToPromisedAnswer(desc.Segment(), a, p.Transform())
+			if err != nil {
+				return err
+			}
+			return nil
 		}
 	}
 	id := c.exports.add(client)
 	desc.SetSenderHosted(uint32(id))
+	return nil
 }
 
 func appCallFromClientCall(c *Conn, client capnp.Client, cl *capnp.Call) *appCall {
@@ -104,17 +111,17 @@ func extractRPCClient(client capnp.Client) capnp.Client {
 func extractRPCClientFromPipeline(ans capnp.Answer, transform []capnp.PipelineOp) capnp.Client {
 	if capnp.IsFixedAnswer(ans) {
 		s, err := ans.Struct()
-		return clientFromResolution(transform, capnp.Object(s), err)
+		return clientFromResolution(transform, capnp.Pointer(s), err)
 	}
 	switch a := ans.(type) {
-	case *capnp.Fulfiller:
+	case *fulfiller.Fulfiller:
 		ap := a.Peek()
 		if ap == nil {
 			// This can race, see TODO in nestedCall.
 			return nil
 		}
 		s, err := ap.Struct()
-		return clientFromResolution(transform, capnp.Object(s), err)
+		return clientFromResolution(transform, capnp.Pointer(s), err)
 	case *question:
 		_, obj, err, ok := a.peek()
 		if !ok {

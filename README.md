@@ -10,13 +10,34 @@ go-capnproto consists of:
 
 ## News
 
-16 August 2015: I'm cleaning up the API to make it more Go-like.  This change will mostly affect those that were using the runtime library directly, but the generated code will now expose errors in places that it hasn't before.  Watch the `cleanup` branch for changes, and expect the branch to be merged in the next few weeks.
+22 August 2015: API breakage time!  Grep through the commit history for "API
+change" to see precise changes.  The main impact on application code is that
+more functions that could fail previously and silently swallow errors now return
+them.  Most of the methods on Struct or Pointer are now package functions to
+improve consistency with generated code.
 
-*Why the change?* Since most users of the go-capnproto package are depending on Jason's (@glycerine) fork, I want to take the opportunity to clean up non-idiomatic parts of the API.  In particular, the current design makes it difficult to implement new allocation algorithms or make changes to internals without breaking callers.  The main goals are:
+On the flip side, I am now marking the API as stable, barring major changes to
+the Cap'n Proto specification.  See the API stability section below.
+
+16 August 2015: I'm cleaning up the API to make it more Go-like.  This change
+will mostly affect those that were using the runtime library directly, but the
+generated code will now expose errors in places that it hasn't before.  Watch
+the `cleanup` branch for changes, and expect the branch to be merged in the next
+few weeks.
+
+*Why the change?* Since most users of the go-capnproto package are depending on
+Jason's (@glycerine) fork, I want to take the opportunity to clean up
+non-idiomatic parts of the API.  In particular, the current design makes it
+difficult to implement new allocation algorithms or make changes to internals
+without breaking callers.  The main goals are:
 
 - Surface errors from `Message` that were being silenced before.
-- Make all integer parameters use types (e.g. addresses can't be mixed with sizes, etc.).
-- Make `Pointer` into an interface instead of a struct.  `Pointer` is already essentially a generic type, but its fields are not well documented and confusing.  By making the generated code embed exactly the pointer type they need, this should reduce memory usage and provide more type checking.
+- Make all integer parameters use types (e.g. addresses can't be mixed with
+  sizes, etc.).
+- Make `Pointer` into an interface instead of a struct.  `Pointer` is already
+  essentially a generic type, but its fields are not well documented and
+  confusing.  By making the generated code embed exactly the pointer type they
+  need, this should reduce memory usage and provide more type checking.
 
 6 August 2015: **Level 1 RPC support** with some [known issues][issues].  I've
 added a section about compatibility guarantees below. -Ross
@@ -40,15 +61,14 @@ Thanks to Albert Strasheim (https://github.com/alberts/go-capnproto) of CloudFla
 
 ## API Compatibility
 
-Consider this package's API as beta software.  In the spirit of
-[the Go 1 compatibility guarantee][gocompat], I will make every effort to avoid
-making breaking API changes.  The major cases where I reserve the right to make
-breaking changes are:
+Consider this package's API as beta software, since the Cap'n Proto spec is not
+final.  In the spirit of [the Go 1 compatibility guarantee][gocompat], I will
+make every effort to avoid making breaking API changes.  The major cases where I
+reserve the right to make breaking changes are:
 
-- The upcoming `cleanup` branch (see the news section)
 - Security.
-- Changes in the Cap'n Proto specification
-- Bugs
+- Changes in the Cap'n Proto specification.
+- Bugs.
 
 
 ## Getting started
@@ -58,11 +78,8 @@ been tested with Cap'n Proto 0.5.0.
 
 ```
 # first: be sure you have your GOPATH env variable setup.
-$ go get -u -t zombiezen.com/go/capnproto
-$ cd $GOPATH/src/zombiezen.com/go/capnproto
-$ make # will install capnpc-go and compile the test schema aircraftlib/aircraft.capnp, which is used in the tests.
-$ diff ./capnpc-go/capnpc-go `which capnpc-go` # you should verify that you are using the capnpc-go binary you just built. There should be no diff. Adjust your PATH if necessary to include the binary capnpc-go that you just built/installed from ./capnpc-go/capnpc-go.
-$ go test -v  # confirm all tests are green
+$ go get -u -t zombiezen.com/go/capnproto/...
+$ go test -v zombiezen.com/go/capnproto/...
 ```
 
 ## Documentation

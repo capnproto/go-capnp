@@ -10,6 +10,7 @@ import (
 	"zombiezen.com/go/capnproto/rpc/internal/logtransport"
 	"zombiezen.com/go/capnproto/rpc/internal/pipetransport"
 	"zombiezen.com/go/capnproto/rpc/internal/testcapnp"
+	"zombiezen.com/go/capnproto/server"
 )
 
 func TestRelease(t *testing.T) {
@@ -21,11 +22,11 @@ func TestRelease(t *testing.T) {
 	}
 	c := rpc.NewConn(p)
 	hf := new(HandleFactory)
-	d := rpc.NewConn(q, rpc.MainInterface(testcapnp.HandleFactory_ServerToClient(hf).GenericClient()))
+	d := rpc.NewConn(q, rpc.MainInterface(testcapnp.HandleFactory_ServerToClient(hf).Client))
 	defer d.Wait()
 	defer c.Close()
-	client := testcapnp.NewHandleFactory(c.Bootstrap(ctx))
-	r, err := client.NewHandle(ctx, func(r testcapnp.HandleFactory_newHandle_Params) {}).Get()
+	client := testcapnp.HandleFactory{Client: c.Bootstrap(ctx)}
+	r, err := client.NewHandle(ctx, func(r testcapnp.HandleFactory_newHandle_Params) error { return nil }).Struct()
 	if err != nil {
 		t.Fatal("NewHandle:", err)
 	}
@@ -34,8 +35,8 @@ func TestRelease(t *testing.T) {
 		t.Fatalf("numHandles = %d; want 1", n)
 	}
 
-	if err := handle.GenericClient().Close(); err != nil {
-		t.Error("handle.Close():", err)
+	if err := handle.Client.Close(); err != nil {
+		t.Error("handle.Client.Close():", err)
 	}
 	flushConn(ctx, c)
 
@@ -53,16 +54,16 @@ func TestReleaseAlias(t *testing.T) {
 	}
 	c := rpc.NewConn(p)
 	hf := singletonHandleFactory()
-	d := rpc.NewConn(q, rpc.MainInterface(testcapnp.HandleFactory_ServerToClient(hf).GenericClient()))
+	d := rpc.NewConn(q, rpc.MainInterface(testcapnp.HandleFactory_ServerToClient(hf).Client))
 	defer d.Wait()
 	defer c.Close()
-	client := testcapnp.NewHandleFactory(c.Bootstrap(ctx))
-	r1, err := client.NewHandle(ctx, func(r testcapnp.HandleFactory_newHandle_Params) {}).Get()
+	client := testcapnp.HandleFactory{Client: c.Bootstrap(ctx)}
+	r1, err := client.NewHandle(ctx, func(r testcapnp.HandleFactory_newHandle_Params) error { return nil }).Struct()
 	if err != nil {
 		t.Fatal("NewHandle #1:", err)
 	}
 	handle1 := r1.Handle()
-	r2, err := client.NewHandle(ctx, func(r testcapnp.HandleFactory_newHandle_Params) {}).Get()
+	r2, err := client.NewHandle(ctx, func(r testcapnp.HandleFactory_newHandle_Params) error { return nil }).Struct()
 	if err != nil {
 		t.Fatal("NewHandle #2:", err)
 	}
@@ -71,15 +72,15 @@ func TestReleaseAlias(t *testing.T) {
 		t.Fatalf("after creation, numHandles = %d; want 1", n)
 	}
 
-	if err := handle1.GenericClient().Close(); err != nil {
-		t.Error("handle1.Close():", err)
+	if err := handle1.Client.Close(); err != nil {
+		t.Error("handle1.Client.Close():", err)
 	}
 	flushConn(ctx, c)
 	if n := hf.numHandles(); n != 1 {
-		t.Errorf("after handle1.Close(), numHandles = %d; want 1", n)
+		t.Errorf("after handle1.Client.Close(), numHandles = %d; want 1", n)
 	}
-	if err := handle2.GenericClient().Close(); err != nil {
-		t.Error("handle2.Close():", err)
+	if err := handle2.Client.Close(); err != nil {
+		t.Error("handle2.Client.Close():", err)
 	}
 	flushConn(ctx, c)
 	if n := hf.numHandles(); n != 0 {
@@ -92,7 +93,7 @@ func flushConn(ctx context.Context, c *rpc.Conn) {
 	c.Bootstrap(ctx).Call(&capnp.Call{
 		Ctx:        ctx,
 		Method:     capnp.Method{InterfaceID: 0xdeadbeef, MethodID: 42},
-		ParamsFunc: func(capnp.Struct) {},
+		ParamsFunc: func(capnp.Struct) error { return nil },
 		ParamsSize: capnp.ObjectSize{},
 	}).Struct()
 }
@@ -121,8 +122,8 @@ func singletonHandleFactory() *HandleFactory {
 }
 
 func (hf *HandleFactory) NewHandle(call testcapnp.HandleFactory_newHandle) error {
-	capnp.Ack(call.Options)
-	if hf.singleton.IsNull() {
+	server.Ack(call.Options)
+	if hf.singleton.Client == nil {
 		hf.mu.Lock()
 		hf.n++
 		hf.mu.Unlock()

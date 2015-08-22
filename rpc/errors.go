@@ -15,7 +15,11 @@ type Exception struct {
 
 // Error returns the exception's reason.
 func (e Exception) Error() string {
-	return "rpc exception: " + e.Reason()
+	r, err := e.Reason()
+	if err != nil {
+		return "rpc exception"
+	}
+	return "rpc exception: " + r
 }
 
 // An Abort is a hang-up by a remote vat.
@@ -23,13 +27,21 @@ type Abort Exception
 
 // Error returns the exception's reason.
 func (a Abort) Error() string {
-	return "rpc: aborted by remote: " + a.Reason()
+	r, err := a.Reason()
+	if err != nil {
+		return "rpc: aborted by remote"
+	}
+	return "rpc: aborted by remote: " + r
 }
 
 // toException sets fields on exc to match err.
 func toException(exc rpccapnp.Exception, err error) {
 	if ee, ok := err.(Exception); ok {
-		exc.SetReason(ee.Reason())
+		// TODO(light): copy struct
+		r, err := ee.Reason()
+		if err == nil {
+			exc.SetReason(r)
+		}
 		exc.SetType(ee.Type())
 		return
 	}

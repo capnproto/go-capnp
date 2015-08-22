@@ -5,45 +5,34 @@ package testcapnp
 import (
 	context "golang.org/x/net/context"
 	C "zombiezen.com/go/capnproto"
+	server "zombiezen.com/go/capnproto/server"
 )
 
-type Handle struct{ c C.Client }
-
-func NewHandle(c C.Client) Handle { return Handle{c} }
-
-func (c Handle) GenericClient() C.Client { return c.c }
-
-func (c Handle) IsNull() bool { return c.c == nil }
+type Handle struct{ Client C.Client }
 
 type Handle_Server interface {
 }
 
 func Handle_ServerToClient(s Handle_Server) Handle {
-	c, _ := s.(C.Closer)
-	return NewHandle(C.NewServer(Handle_Methods(nil, s), c))
+	c, _ := s.(server.Closer)
+	return Handle{Client: server.New(Handle_Methods(nil, s), c)}
 }
 
-func Handle_Methods(methods []C.ServerMethod, server Handle_Server) []C.ServerMethod {
+func Handle_Methods(methods []server.Method, s Handle_Server) []server.Method {
 	if cap(methods) == 0 {
-		methods = make([]C.ServerMethod, 0, 0)
+		methods = make([]server.Method, 0, 0)
 	}
 
 	return methods
 }
 
-type HandleFactory struct{ c C.Client }
+type HandleFactory struct{ Client C.Client }
 
-func NewHandleFactory(c C.Client) HandleFactory { return HandleFactory{c} }
-
-func (c HandleFactory) GenericClient() C.Client { return c.c }
-
-func (c HandleFactory) IsNull() bool { return c.c == nil }
-
-func (c HandleFactory) NewHandle(ctx context.Context, params func(HandleFactory_newHandle_Params), opts ...C.CallOption) *HandleFactory_newHandle_Results_Promise {
-	if c.c == nil {
-		return (*HandleFactory_newHandle_Results_Promise)(C.NewPipeline(C.ErrorAnswer(C.ErrNullClient)))
+func (c HandleFactory) NewHandle(ctx context.Context, params func(HandleFactory_newHandle_Params) error, opts ...C.CallOption) HandleFactory_newHandle_Results_Promise {
+	if c.Client == nil {
+		return HandleFactory_newHandle_Results_Promise{Pipeline: C.NewPipeline(C.ErrorAnswer(C.ErrNullClient))}
 	}
-	return (*HandleFactory_newHandle_Results_Promise)(C.NewPipeline(c.c.Call(&C.Call{
+	return HandleFactory_newHandle_Results_Promise{Pipeline: C.NewPipeline(c.Client.Call(&C.Call{
 		Ctx: ctx,
 		Method: C.Method{
 
@@ -53,9 +42,9 @@ func (c HandleFactory) NewHandle(ctx context.Context, params func(HandleFactory_
 			MethodName:    "newHandle",
 		},
 		ParamsSize: C.ObjectSize{DataSize: 0, PointerCount: 0},
-		ParamsFunc: func(s C.Struct) { params(HandleFactory_newHandle_Params(s)) },
+		ParamsFunc: func(s C.Struct) error { return params(HandleFactory_newHandle_Params{Struct: s}) },
 		Options:    C.NewCallOptions(opts),
-	})))
+	}))}
 }
 
 type HandleFactory_Server interface {
@@ -63,16 +52,16 @@ type HandleFactory_Server interface {
 }
 
 func HandleFactory_ServerToClient(s HandleFactory_Server) HandleFactory {
-	c, _ := s.(C.Closer)
-	return NewHandleFactory(C.NewServer(HandleFactory_Methods(nil, s), c))
+	c, _ := s.(server.Closer)
+	return HandleFactory{Client: server.New(HandleFactory_Methods(nil, s), c)}
 }
 
-func HandleFactory_Methods(methods []C.ServerMethod, server HandleFactory_Server) []C.ServerMethod {
+func HandleFactory_Methods(methods []server.Method, s HandleFactory_Server) []server.Method {
 	if cap(methods) == 0 {
-		methods = make([]C.ServerMethod, 0, 1)
+		methods = make([]server.Method, 0, 1)
 	}
 
-	methods = append(methods, C.ServerMethod{
+	methods = append(methods, server.Method{
 		Method: C.Method{
 
 			InterfaceID:   0x8491a7fe75fe0bce,
@@ -81,8 +70,8 @@ func HandleFactory_Methods(methods []C.ServerMethod, server HandleFactory_Server
 			MethodName:    "newHandle",
 		},
 		Impl: func(c context.Context, opts C.CallOptions, p, r C.Struct) error {
-			call := HandleFactory_newHandle{c, opts, HandleFactory_newHandle_Params(p), HandleFactory_newHandle_Results(r)}
-			return server.NewHandle(call)
+			call := HandleFactory_newHandle{c, opts, HandleFactory_newHandle_Params{Struct: p}, HandleFactory_newHandle_Results{Struct: r}}
+			return s.NewHandle(call)
 		},
 		ResultsSize: C.ObjectSize{DataSize: 0, PointerCount: 1},
 	})
@@ -98,109 +87,146 @@ type HandleFactory_newHandle struct {
 	Results HandleFactory_newHandle_Results
 }
 
-type HandleFactory_newHandle_Params C.Struct
+type HandleFactory_newHandle_Params struct{ C.Struct }
 
-func NewHandleFactory_newHandle_Params(s *C.Segment) HandleFactory_newHandle_Params {
-	return HandleFactory_newHandle_Params(s.NewStruct(C.ObjectSize{DataSize: 0, PointerCount: 0}))
-}
-func NewRootHandleFactory_newHandle_Params(s *C.Segment) HandleFactory_newHandle_Params {
-	return HandleFactory_newHandle_Params(s.NewRootStruct(C.ObjectSize{DataSize: 0, PointerCount: 0}))
-}
-func AutoNewHandleFactory_newHandle_Params(s *C.Segment) HandleFactory_newHandle_Params {
-	return HandleFactory_newHandle_Params(s.NewStructAR(C.ObjectSize{DataSize: 0, PointerCount: 0}))
-}
-func ReadRootHandleFactory_newHandle_Params(s *C.Segment) HandleFactory_newHandle_Params {
-	return HandleFactory_newHandle_Params(s.Root(0).ToStruct())
+func NewHandleFactory_newHandle_Params(s *C.Segment) (HandleFactory_newHandle_Params, error) {
+	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 0, PointerCount: 0})
+	if err != nil {
+		return HandleFactory_newHandle_Params{}, err
+	}
+	return HandleFactory_newHandle_Params{st}, nil
 }
 
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s HandleFactory_newHandle_Params) MarshalJSON() (bs []byte, err error) { return }
-
-type HandleFactory_newHandle_Params_List C.PointerList
-
-func NewHandleFactory_newHandle_Params_List(s *C.Segment, sz int) HandleFactory_newHandle_Params_List {
-	return HandleFactory_newHandle_Params_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 0}, sz))
+func NewRootHandleFactory_newHandle_Params(s *C.Segment) (HandleFactory_newHandle_Params, error) {
+	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 0, PointerCount: 0})
+	if err != nil {
+		return HandleFactory_newHandle_Params{}, err
+	}
+	return HandleFactory_newHandle_Params{st}, nil
 }
-func (s HandleFactory_newHandle_Params_List) Len() int { return C.PointerList(s).Len() }
+
+func ReadRootHandleFactory_newHandle_Params(msg *C.Message) (HandleFactory_newHandle_Params, error) {
+	root, err := msg.Root()
+	if err != nil {
+		return HandleFactory_newHandle_Params{}, err
+	}
+	st := C.ToStruct(root)
+	return HandleFactory_newHandle_Params{st}, nil
+}
+
+// HandleFactory_newHandle_Params_List is a list of HandleFactory_newHandle_Params.
+type HandleFactory_newHandle_Params_List struct{ C.List }
+
+// NewHandleFactory_newHandle_Params creates a new list of HandleFactory_newHandle_Params.
+func NewHandleFactory_newHandle_Params_List(s *C.Segment, sz int32) (HandleFactory_newHandle_Params_List, error) {
+	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	if err != nil {
+		return HandleFactory_newHandle_Params_List{}, err
+	}
+	return HandleFactory_newHandle_Params_List{l}, nil
+}
+
 func (s HandleFactory_newHandle_Params_List) At(i int) HandleFactory_newHandle_Params {
-	return HandleFactory_newHandle_Params(C.PointerList(s).At(i).ToStruct())
+	return HandleFactory_newHandle_Params{s.List.Struct(i)}
 }
-func (s HandleFactory_newHandle_Params_List) Set(i int, item HandleFactory_newHandle_Params) {
-	C.PointerList(s).Set(i, C.Object(item))
-}
-
-type HandleFactory_newHandle_Params_Promise C.Pipeline
-
-func (p *HandleFactory_newHandle_Params_Promise) Get() (HandleFactory_newHandle_Params, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return HandleFactory_newHandle_Params(s), err
+func (s HandleFactory_newHandle_Params_List) Set(i int, v HandleFactory_newHandle_Params) error {
+	return s.List.SetStruct(i, v.Struct)
 }
 
-type HandleFactory_newHandle_Results C.Struct
+// HandleFactory_newHandle_Params_Promise is a wrapper for a HandleFactory_newHandle_Params promised by a client call.
+type HandleFactory_newHandle_Params_Promise struct{ *C.Pipeline }
 
-func NewHandleFactory_newHandle_Results(s *C.Segment) HandleFactory_newHandle_Results {
-	return HandleFactory_newHandle_Results(s.NewStruct(C.ObjectSize{DataSize: 0, PointerCount: 1}))
+func (p HandleFactory_newHandle_Params_Promise) Struct() (HandleFactory_newHandle_Params, error) {
+	s, err := p.Pipeline.Struct()
+	return HandleFactory_newHandle_Params{s}, err
 }
-func NewRootHandleFactory_newHandle_Results(s *C.Segment) HandleFactory_newHandle_Results {
-	return HandleFactory_newHandle_Results(s.NewRootStruct(C.ObjectSize{DataSize: 0, PointerCount: 1}))
+
+type HandleFactory_newHandle_Results struct{ C.Struct }
+
+func NewHandleFactory_newHandle_Results(s *C.Segment) (HandleFactory_newHandle_Results, error) {
+	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 0, PointerCount: 1})
+	if err != nil {
+		return HandleFactory_newHandle_Results{}, err
+	}
+	return HandleFactory_newHandle_Results{st}, nil
 }
-func AutoNewHandleFactory_newHandle_Results(s *C.Segment) HandleFactory_newHandle_Results {
-	return HandleFactory_newHandle_Results(s.NewStructAR(C.ObjectSize{DataSize: 0, PointerCount: 1}))
+
+func NewRootHandleFactory_newHandle_Results(s *C.Segment) (HandleFactory_newHandle_Results, error) {
+	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 0, PointerCount: 1})
+	if err != nil {
+		return HandleFactory_newHandle_Results{}, err
+	}
+	return HandleFactory_newHandle_Results{st}, nil
 }
-func ReadRootHandleFactory_newHandle_Results(s *C.Segment) HandleFactory_newHandle_Results {
-	return HandleFactory_newHandle_Results(s.Root(0).ToStruct())
+
+func ReadRootHandleFactory_newHandle_Results(msg *C.Message) (HandleFactory_newHandle_Results, error) {
+	root, err := msg.Root()
+	if err != nil {
+		return HandleFactory_newHandle_Results{}, err
+	}
+	st := C.ToStruct(root)
+	return HandleFactory_newHandle_Results{st}, nil
 }
+
 func (s HandleFactory_newHandle_Results) Handle() Handle {
-	return NewHandle(C.Struct(s).GetObject(0).ToInterface().Client())
-}
-func (s HandleFactory_newHandle_Results) SetHandle(v Handle) {
-	if s.Segment == nil {
-		return
+	p, err := s.Struct.Pointer(0)
+	if err != nil {
+
+		return Handle{}
 	}
-	ci := s.Segment.Message.AddCap(v.GenericClient())
-	C.Struct(s).SetObject(0, C.Object(s.Segment.NewInterface(ci)))
+	c := C.ToInterface(p).Client()
+	return Handle{Client: c}
 }
 
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s HandleFactory_newHandle_Results) MarshalJSON() (bs []byte, err error) { return }
+func (s HandleFactory_newHandle_Results) SetHandle(v Handle) error {
 
-type HandleFactory_newHandle_Results_List C.PointerList
+	seg := s.Segment()
+	if seg == nil {
 
-func NewHandleFactory_newHandle_Results_List(s *C.Segment, sz int) HandleFactory_newHandle_Results_List {
-	return HandleFactory_newHandle_Results_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 1}, sz))
+		return nil
+	}
+	ci := seg.Message().AddCap(v.Client)
+	return s.Struct.SetPointer(0, C.NewInterface(seg, ci))
 }
-func (s HandleFactory_newHandle_Results_List) Len() int { return C.PointerList(s).Len() }
+
+// HandleFactory_newHandle_Results_List is a list of HandleFactory_newHandle_Results.
+type HandleFactory_newHandle_Results_List struct{ C.List }
+
+// NewHandleFactory_newHandle_Results creates a new list of HandleFactory_newHandle_Results.
+func NewHandleFactory_newHandle_Results_List(s *C.Segment, sz int32) (HandleFactory_newHandle_Results_List, error) {
+	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
+	if err != nil {
+		return HandleFactory_newHandle_Results_List{}, err
+	}
+	return HandleFactory_newHandle_Results_List{l}, nil
+}
+
 func (s HandleFactory_newHandle_Results_List) At(i int) HandleFactory_newHandle_Results {
-	return HandleFactory_newHandle_Results(C.PointerList(s).At(i).ToStruct())
+	return HandleFactory_newHandle_Results{s.List.Struct(i)}
 }
-func (s HandleFactory_newHandle_Results_List) Set(i int, item HandleFactory_newHandle_Results) {
-	C.PointerList(s).Set(i, C.Object(item))
-}
-
-type HandleFactory_newHandle_Results_Promise C.Pipeline
-
-func (p *HandleFactory_newHandle_Results_Promise) Get() (HandleFactory_newHandle_Results, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return HandleFactory_newHandle_Results(s), err
+func (s HandleFactory_newHandle_Results_List) Set(i int, v HandleFactory_newHandle_Results) error {
+	return s.List.SetStruct(i, v.Struct)
 }
 
-func (p *HandleFactory_newHandle_Results_Promise) Handle() Handle {
-	return NewHandle((*C.Pipeline)(p).GetPipeline(0).Client())
+// HandleFactory_newHandle_Results_Promise is a wrapper for a HandleFactory_newHandle_Results promised by a client call.
+type HandleFactory_newHandle_Results_Promise struct{ *C.Pipeline }
+
+func (p HandleFactory_newHandle_Results_Promise) Struct() (HandleFactory_newHandle_Results, error) {
+	s, err := p.Pipeline.Struct()
+	return HandleFactory_newHandle_Results{s}, err
 }
 
-type Hanger struct{ c C.Client }
+func (p HandleFactory_newHandle_Results_Promise) Handle() Handle {
+	return Handle{Client: p.Pipeline.GetPipeline(0).Client()}
+}
 
-func NewHanger(c C.Client) Hanger { return Hanger{c} }
+type Hanger struct{ Client C.Client }
 
-func (c Hanger) GenericClient() C.Client { return c.c }
-
-func (c Hanger) IsNull() bool { return c.c == nil }
-
-func (c Hanger) Hang(ctx context.Context, params func(Hanger_hang_Params), opts ...C.CallOption) *Hanger_hang_Results_Promise {
-	if c.c == nil {
-		return (*Hanger_hang_Results_Promise)(C.NewPipeline(C.ErrorAnswer(C.ErrNullClient)))
+func (c Hanger) Hang(ctx context.Context, params func(Hanger_hang_Params) error, opts ...C.CallOption) Hanger_hang_Results_Promise {
+	if c.Client == nil {
+		return Hanger_hang_Results_Promise{Pipeline: C.NewPipeline(C.ErrorAnswer(C.ErrNullClient))}
 	}
-	return (*Hanger_hang_Results_Promise)(C.NewPipeline(c.c.Call(&C.Call{
+	return Hanger_hang_Results_Promise{Pipeline: C.NewPipeline(c.Client.Call(&C.Call{
 		Ctx: ctx,
 		Method: C.Method{
 
@@ -210,9 +236,9 @@ func (c Hanger) Hang(ctx context.Context, params func(Hanger_hang_Params), opts 
 			MethodName:    "hang",
 		},
 		ParamsSize: C.ObjectSize{DataSize: 0, PointerCount: 0},
-		ParamsFunc: func(s C.Struct) { params(Hanger_hang_Params(s)) },
+		ParamsFunc: func(s C.Struct) error { return params(Hanger_hang_Params{Struct: s}) },
 		Options:    C.NewCallOptions(opts),
-	})))
+	}))}
 }
 
 type Hanger_Server interface {
@@ -220,16 +246,16 @@ type Hanger_Server interface {
 }
 
 func Hanger_ServerToClient(s Hanger_Server) Hanger {
-	c, _ := s.(C.Closer)
-	return NewHanger(C.NewServer(Hanger_Methods(nil, s), c))
+	c, _ := s.(server.Closer)
+	return Hanger{Client: server.New(Hanger_Methods(nil, s), c)}
 }
 
-func Hanger_Methods(methods []C.ServerMethod, server Hanger_Server) []C.ServerMethod {
+func Hanger_Methods(methods []server.Method, s Hanger_Server) []server.Method {
 	if cap(methods) == 0 {
-		methods = make([]C.ServerMethod, 0, 1)
+		methods = make([]server.Method, 0, 1)
 	}
 
-	methods = append(methods, C.ServerMethod{
+	methods = append(methods, server.Method{
 		Method: C.Method{
 
 			InterfaceID:   0x8ae08044aae8a26e,
@@ -238,8 +264,8 @@ func Hanger_Methods(methods []C.ServerMethod, server Hanger_Server) []C.ServerMe
 			MethodName:    "hang",
 		},
 		Impl: func(c context.Context, opts C.CallOptions, p, r C.Struct) error {
-			call := Hanger_hang{c, opts, Hanger_hang_Params(p), Hanger_hang_Results(r)}
-			return server.Hang(call)
+			call := Hanger_hang{c, opts, Hanger_hang_Params{Struct: p}, Hanger_hang_Results{Struct: r}}
+			return s.Hang(call)
 		},
 		ResultsSize: C.ObjectSize{DataSize: 0, PointerCount: 0},
 	})
@@ -255,95 +281,121 @@ type Hanger_hang struct {
 	Results Hanger_hang_Results
 }
 
-type Hanger_hang_Params C.Struct
+type Hanger_hang_Params struct{ C.Struct }
 
-func NewHanger_hang_Params(s *C.Segment) Hanger_hang_Params {
-	return Hanger_hang_Params(s.NewStruct(C.ObjectSize{DataSize: 0, PointerCount: 0}))
-}
-func NewRootHanger_hang_Params(s *C.Segment) Hanger_hang_Params {
-	return Hanger_hang_Params(s.NewRootStruct(C.ObjectSize{DataSize: 0, PointerCount: 0}))
-}
-func AutoNewHanger_hang_Params(s *C.Segment) Hanger_hang_Params {
-	return Hanger_hang_Params(s.NewStructAR(C.ObjectSize{DataSize: 0, PointerCount: 0}))
-}
-func ReadRootHanger_hang_Params(s *C.Segment) Hanger_hang_Params {
-	return Hanger_hang_Params(s.Root(0).ToStruct())
-}
-
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Hanger_hang_Params) MarshalJSON() (bs []byte, err error) { return }
-
-type Hanger_hang_Params_List C.PointerList
-
-func NewHanger_hang_Params_List(s *C.Segment, sz int) Hanger_hang_Params_List {
-	return Hanger_hang_Params_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 0}, sz))
-}
-func (s Hanger_hang_Params_List) Len() int { return C.PointerList(s).Len() }
-func (s Hanger_hang_Params_List) At(i int) Hanger_hang_Params {
-	return Hanger_hang_Params(C.PointerList(s).At(i).ToStruct())
-}
-func (s Hanger_hang_Params_List) Set(i int, item Hanger_hang_Params) {
-	C.PointerList(s).Set(i, C.Object(item))
-}
-
-type Hanger_hang_Params_Promise C.Pipeline
-
-func (p *Hanger_hang_Params_Promise) Get() (Hanger_hang_Params, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return Hanger_hang_Params(s), err
-}
-
-type Hanger_hang_Results C.Struct
-
-func NewHanger_hang_Results(s *C.Segment) Hanger_hang_Results {
-	return Hanger_hang_Results(s.NewStruct(C.ObjectSize{DataSize: 0, PointerCount: 0}))
-}
-func NewRootHanger_hang_Results(s *C.Segment) Hanger_hang_Results {
-	return Hanger_hang_Results(s.NewRootStruct(C.ObjectSize{DataSize: 0, PointerCount: 0}))
-}
-func AutoNewHanger_hang_Results(s *C.Segment) Hanger_hang_Results {
-	return Hanger_hang_Results(s.NewStructAR(C.ObjectSize{DataSize: 0, PointerCount: 0}))
-}
-func ReadRootHanger_hang_Results(s *C.Segment) Hanger_hang_Results {
-	return Hanger_hang_Results(s.Root(0).ToStruct())
-}
-
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Hanger_hang_Results) MarshalJSON() (bs []byte, err error) { return }
-
-type Hanger_hang_Results_List C.PointerList
-
-func NewHanger_hang_Results_List(s *C.Segment, sz int) Hanger_hang_Results_List {
-	return Hanger_hang_Results_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 0}, sz))
-}
-func (s Hanger_hang_Results_List) Len() int { return C.PointerList(s).Len() }
-func (s Hanger_hang_Results_List) At(i int) Hanger_hang_Results {
-	return Hanger_hang_Results(C.PointerList(s).At(i).ToStruct())
-}
-func (s Hanger_hang_Results_List) Set(i int, item Hanger_hang_Results) {
-	C.PointerList(s).Set(i, C.Object(item))
-}
-
-type Hanger_hang_Results_Promise C.Pipeline
-
-func (p *Hanger_hang_Results_Promise) Get() (Hanger_hang_Results, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return Hanger_hang_Results(s), err
-}
-
-type CallOrder struct{ c C.Client }
-
-func NewCallOrder(c C.Client) CallOrder { return CallOrder{c} }
-
-func (c CallOrder) GenericClient() C.Client { return c.c }
-
-func (c CallOrder) IsNull() bool { return c.c == nil }
-
-func (c CallOrder) GetCallSequence(ctx context.Context, params func(CallOrder_getCallSequence_Params), opts ...C.CallOption) *CallOrder_getCallSequence_Results_Promise {
-	if c.c == nil {
-		return (*CallOrder_getCallSequence_Results_Promise)(C.NewPipeline(C.ErrorAnswer(C.ErrNullClient)))
+func NewHanger_hang_Params(s *C.Segment) (Hanger_hang_Params, error) {
+	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 0, PointerCount: 0})
+	if err != nil {
+		return Hanger_hang_Params{}, err
 	}
-	return (*CallOrder_getCallSequence_Results_Promise)(C.NewPipeline(c.c.Call(&C.Call{
+	return Hanger_hang_Params{st}, nil
+}
+
+func NewRootHanger_hang_Params(s *C.Segment) (Hanger_hang_Params, error) {
+	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 0, PointerCount: 0})
+	if err != nil {
+		return Hanger_hang_Params{}, err
+	}
+	return Hanger_hang_Params{st}, nil
+}
+
+func ReadRootHanger_hang_Params(msg *C.Message) (Hanger_hang_Params, error) {
+	root, err := msg.Root()
+	if err != nil {
+		return Hanger_hang_Params{}, err
+	}
+	st := C.ToStruct(root)
+	return Hanger_hang_Params{st}, nil
+}
+
+// Hanger_hang_Params_List is a list of Hanger_hang_Params.
+type Hanger_hang_Params_List struct{ C.List }
+
+// NewHanger_hang_Params creates a new list of Hanger_hang_Params.
+func NewHanger_hang_Params_List(s *C.Segment, sz int32) (Hanger_hang_Params_List, error) {
+	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	if err != nil {
+		return Hanger_hang_Params_List{}, err
+	}
+	return Hanger_hang_Params_List{l}, nil
+}
+
+func (s Hanger_hang_Params_List) At(i int) Hanger_hang_Params {
+	return Hanger_hang_Params{s.List.Struct(i)}
+}
+func (s Hanger_hang_Params_List) Set(i int, v Hanger_hang_Params) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+// Hanger_hang_Params_Promise is a wrapper for a Hanger_hang_Params promised by a client call.
+type Hanger_hang_Params_Promise struct{ *C.Pipeline }
+
+func (p Hanger_hang_Params_Promise) Struct() (Hanger_hang_Params, error) {
+	s, err := p.Pipeline.Struct()
+	return Hanger_hang_Params{s}, err
+}
+
+type Hanger_hang_Results struct{ C.Struct }
+
+func NewHanger_hang_Results(s *C.Segment) (Hanger_hang_Results, error) {
+	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 0, PointerCount: 0})
+	if err != nil {
+		return Hanger_hang_Results{}, err
+	}
+	return Hanger_hang_Results{st}, nil
+}
+
+func NewRootHanger_hang_Results(s *C.Segment) (Hanger_hang_Results, error) {
+	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 0, PointerCount: 0})
+	if err != nil {
+		return Hanger_hang_Results{}, err
+	}
+	return Hanger_hang_Results{st}, nil
+}
+
+func ReadRootHanger_hang_Results(msg *C.Message) (Hanger_hang_Results, error) {
+	root, err := msg.Root()
+	if err != nil {
+		return Hanger_hang_Results{}, err
+	}
+	st := C.ToStruct(root)
+	return Hanger_hang_Results{st}, nil
+}
+
+// Hanger_hang_Results_List is a list of Hanger_hang_Results.
+type Hanger_hang_Results_List struct{ C.List }
+
+// NewHanger_hang_Results creates a new list of Hanger_hang_Results.
+func NewHanger_hang_Results_List(s *C.Segment, sz int32) (Hanger_hang_Results_List, error) {
+	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	if err != nil {
+		return Hanger_hang_Results_List{}, err
+	}
+	return Hanger_hang_Results_List{l}, nil
+}
+
+func (s Hanger_hang_Results_List) At(i int) Hanger_hang_Results {
+	return Hanger_hang_Results{s.List.Struct(i)}
+}
+func (s Hanger_hang_Results_List) Set(i int, v Hanger_hang_Results) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+// Hanger_hang_Results_Promise is a wrapper for a Hanger_hang_Results promised by a client call.
+type Hanger_hang_Results_Promise struct{ *C.Pipeline }
+
+func (p Hanger_hang_Results_Promise) Struct() (Hanger_hang_Results, error) {
+	s, err := p.Pipeline.Struct()
+	return Hanger_hang_Results{s}, err
+}
+
+type CallOrder struct{ Client C.Client }
+
+func (c CallOrder) GetCallSequence(ctx context.Context, params func(CallOrder_getCallSequence_Params) error, opts ...C.CallOption) CallOrder_getCallSequence_Results_Promise {
+	if c.Client == nil {
+		return CallOrder_getCallSequence_Results_Promise{Pipeline: C.NewPipeline(C.ErrorAnswer(C.ErrNullClient))}
+	}
+	return CallOrder_getCallSequence_Results_Promise{Pipeline: C.NewPipeline(c.Client.Call(&C.Call{
 		Ctx: ctx,
 		Method: C.Method{
 
@@ -353,9 +405,9 @@ func (c CallOrder) GetCallSequence(ctx context.Context, params func(CallOrder_ge
 			MethodName:    "getCallSequence",
 		},
 		ParamsSize: C.ObjectSize{DataSize: 8, PointerCount: 0},
-		ParamsFunc: func(s C.Struct) { params(CallOrder_getCallSequence_Params(s)) },
+		ParamsFunc: func(s C.Struct) error { return params(CallOrder_getCallSequence_Params{Struct: s}) },
 		Options:    C.NewCallOptions(opts),
-	})))
+	}))}
 }
 
 type CallOrder_Server interface {
@@ -363,16 +415,16 @@ type CallOrder_Server interface {
 }
 
 func CallOrder_ServerToClient(s CallOrder_Server) CallOrder {
-	c, _ := s.(C.Closer)
-	return NewCallOrder(C.NewServer(CallOrder_Methods(nil, s), c))
+	c, _ := s.(server.Closer)
+	return CallOrder{Client: server.New(CallOrder_Methods(nil, s), c)}
 }
 
-func CallOrder_Methods(methods []C.ServerMethod, server CallOrder_Server) []C.ServerMethod {
+func CallOrder_Methods(methods []server.Method, s CallOrder_Server) []server.Method {
 	if cap(methods) == 0 {
-		methods = make([]C.ServerMethod, 0, 1)
+		methods = make([]server.Method, 0, 1)
 	}
 
-	methods = append(methods, C.ServerMethod{
+	methods = append(methods, server.Method{
 		Method: C.Method{
 
 			InterfaceID:   0x92c5ca8314cdd2a5,
@@ -381,8 +433,8 @@ func CallOrder_Methods(methods []C.ServerMethod, server CallOrder_Server) []C.Se
 			MethodName:    "getCallSequence",
 		},
 		Impl: func(c context.Context, opts C.CallOptions, p, r C.Struct) error {
-			call := CallOrder_getCallSequence{c, opts, CallOrder_getCallSequence_Params(p), CallOrder_getCallSequence_Results(r)}
-			return server.GetCallSequence(call)
+			call := CallOrder_getCallSequence{c, opts, CallOrder_getCallSequence_Params{Struct: p}, CallOrder_getCallSequence_Results{Struct: r}}
+			return s.GetCallSequence(call)
 		},
 		ResultsSize: C.ObjectSize{DataSize: 8, PointerCount: 0},
 	})
@@ -398,99 +450,139 @@ type CallOrder_getCallSequence struct {
 	Results CallOrder_getCallSequence_Results
 }
 
-type CallOrder_getCallSequence_Params C.Struct
+type CallOrder_getCallSequence_Params struct{ C.Struct }
 
-func NewCallOrder_getCallSequence_Params(s *C.Segment) CallOrder_getCallSequence_Params {
-	return CallOrder_getCallSequence_Params(s.NewStruct(C.ObjectSize{DataSize: 8, PointerCount: 0}))
-}
-func NewRootCallOrder_getCallSequence_Params(s *C.Segment) CallOrder_getCallSequence_Params {
-	return CallOrder_getCallSequence_Params(s.NewRootStruct(C.ObjectSize{DataSize: 8, PointerCount: 0}))
-}
-func AutoNewCallOrder_getCallSequence_Params(s *C.Segment) CallOrder_getCallSequence_Params {
-	return CallOrder_getCallSequence_Params(s.NewStructAR(C.ObjectSize{DataSize: 8, PointerCount: 0}))
-}
-func ReadRootCallOrder_getCallSequence_Params(s *C.Segment) CallOrder_getCallSequence_Params {
-	return CallOrder_getCallSequence_Params(s.Root(0).ToStruct())
-}
-func (s CallOrder_getCallSequence_Params) Expected() uint32     { return C.Struct(s).Get32(0) }
-func (s CallOrder_getCallSequence_Params) SetExpected(v uint32) { C.Struct(s).Set32(0, v) }
-
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s CallOrder_getCallSequence_Params) MarshalJSON() (bs []byte, err error) { return }
-
-type CallOrder_getCallSequence_Params_List C.PointerList
-
-func NewCallOrder_getCallSequence_Params_List(s *C.Segment, sz int) CallOrder_getCallSequence_Params_List {
-	return CallOrder_getCallSequence_Params_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 0}, sz))
-}
-func (s CallOrder_getCallSequence_Params_List) Len() int { return C.PointerList(s).Len() }
-func (s CallOrder_getCallSequence_Params_List) At(i int) CallOrder_getCallSequence_Params {
-	return CallOrder_getCallSequence_Params(C.PointerList(s).At(i).ToStruct())
-}
-func (s CallOrder_getCallSequence_Params_List) Set(i int, item CallOrder_getCallSequence_Params) {
-	C.PointerList(s).Set(i, C.Object(item))
-}
-
-type CallOrder_getCallSequence_Params_Promise C.Pipeline
-
-func (p *CallOrder_getCallSequence_Params_Promise) Get() (CallOrder_getCallSequence_Params, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return CallOrder_getCallSequence_Params(s), err
-}
-
-type CallOrder_getCallSequence_Results C.Struct
-
-func NewCallOrder_getCallSequence_Results(s *C.Segment) CallOrder_getCallSequence_Results {
-	return CallOrder_getCallSequence_Results(s.NewStruct(C.ObjectSize{DataSize: 8, PointerCount: 0}))
-}
-func NewRootCallOrder_getCallSequence_Results(s *C.Segment) CallOrder_getCallSequence_Results {
-	return CallOrder_getCallSequence_Results(s.NewRootStruct(C.ObjectSize{DataSize: 8, PointerCount: 0}))
-}
-func AutoNewCallOrder_getCallSequence_Results(s *C.Segment) CallOrder_getCallSequence_Results {
-	return CallOrder_getCallSequence_Results(s.NewStructAR(C.ObjectSize{DataSize: 8, PointerCount: 0}))
-}
-func ReadRootCallOrder_getCallSequence_Results(s *C.Segment) CallOrder_getCallSequence_Results {
-	return CallOrder_getCallSequence_Results(s.Root(0).ToStruct())
-}
-func (s CallOrder_getCallSequence_Results) N() uint32     { return C.Struct(s).Get32(0) }
-func (s CallOrder_getCallSequence_Results) SetN(v uint32) { C.Struct(s).Set32(0, v) }
-
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s CallOrder_getCallSequence_Results) MarshalJSON() (bs []byte, err error) { return }
-
-type CallOrder_getCallSequence_Results_List C.PointerList
-
-func NewCallOrder_getCallSequence_Results_List(s *C.Segment, sz int) CallOrder_getCallSequence_Results_List {
-	return CallOrder_getCallSequence_Results_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 0}, sz))
-}
-func (s CallOrder_getCallSequence_Results_List) Len() int { return C.PointerList(s).Len() }
-func (s CallOrder_getCallSequence_Results_List) At(i int) CallOrder_getCallSequence_Results {
-	return CallOrder_getCallSequence_Results(C.PointerList(s).At(i).ToStruct())
-}
-func (s CallOrder_getCallSequence_Results_List) Set(i int, item CallOrder_getCallSequence_Results) {
-	C.PointerList(s).Set(i, C.Object(item))
-}
-
-type CallOrder_getCallSequence_Results_Promise C.Pipeline
-
-func (p *CallOrder_getCallSequence_Results_Promise) Get() (CallOrder_getCallSequence_Results, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return CallOrder_getCallSequence_Results(s), err
-}
-
-type Echoer struct{ c C.Client }
-
-func NewEchoer(c C.Client) Echoer { return Echoer{c} }
-
-func (c Echoer) GenericClient() C.Client { return c.c }
-
-func (c Echoer) IsNull() bool { return c.c == nil }
-
-func (c Echoer) Echo(ctx context.Context, params func(Echoer_echo_Params), opts ...C.CallOption) *Echoer_echo_Results_Promise {
-	if c.c == nil {
-		return (*Echoer_echo_Results_Promise)(C.NewPipeline(C.ErrorAnswer(C.ErrNullClient)))
+func NewCallOrder_getCallSequence_Params(s *C.Segment) (CallOrder_getCallSequence_Params, error) {
+	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 8, PointerCount: 0})
+	if err != nil {
+		return CallOrder_getCallSequence_Params{}, err
 	}
-	return (*Echoer_echo_Results_Promise)(C.NewPipeline(c.c.Call(&C.Call{
+	return CallOrder_getCallSequence_Params{st}, nil
+}
+
+func NewRootCallOrder_getCallSequence_Params(s *C.Segment) (CallOrder_getCallSequence_Params, error) {
+	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 8, PointerCount: 0})
+	if err != nil {
+		return CallOrder_getCallSequence_Params{}, err
+	}
+	return CallOrder_getCallSequence_Params{st}, nil
+}
+
+func ReadRootCallOrder_getCallSequence_Params(msg *C.Message) (CallOrder_getCallSequence_Params, error) {
+	root, err := msg.Root()
+	if err != nil {
+		return CallOrder_getCallSequence_Params{}, err
+	}
+	st := C.ToStruct(root)
+	return CallOrder_getCallSequence_Params{st}, nil
+}
+
+func (s CallOrder_getCallSequence_Params) Expected() uint32 {
+	return s.Struct.Uint32(0)
+}
+
+func (s CallOrder_getCallSequence_Params) SetExpected(v uint32) {
+
+	s.Struct.SetUint32(0, v)
+}
+
+// CallOrder_getCallSequence_Params_List is a list of CallOrder_getCallSequence_Params.
+type CallOrder_getCallSequence_Params_List struct{ C.List }
+
+// NewCallOrder_getCallSequence_Params creates a new list of CallOrder_getCallSequence_Params.
+func NewCallOrder_getCallSequence_Params_List(s *C.Segment, sz int32) (CallOrder_getCallSequence_Params_List, error) {
+	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	if err != nil {
+		return CallOrder_getCallSequence_Params_List{}, err
+	}
+	return CallOrder_getCallSequence_Params_List{l}, nil
+}
+
+func (s CallOrder_getCallSequence_Params_List) At(i int) CallOrder_getCallSequence_Params {
+	return CallOrder_getCallSequence_Params{s.List.Struct(i)}
+}
+func (s CallOrder_getCallSequence_Params_List) Set(i int, v CallOrder_getCallSequence_Params) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+// CallOrder_getCallSequence_Params_Promise is a wrapper for a CallOrder_getCallSequence_Params promised by a client call.
+type CallOrder_getCallSequence_Params_Promise struct{ *C.Pipeline }
+
+func (p CallOrder_getCallSequence_Params_Promise) Struct() (CallOrder_getCallSequence_Params, error) {
+	s, err := p.Pipeline.Struct()
+	return CallOrder_getCallSequence_Params{s}, err
+}
+
+type CallOrder_getCallSequence_Results struct{ C.Struct }
+
+func NewCallOrder_getCallSequence_Results(s *C.Segment) (CallOrder_getCallSequence_Results, error) {
+	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 8, PointerCount: 0})
+	if err != nil {
+		return CallOrder_getCallSequence_Results{}, err
+	}
+	return CallOrder_getCallSequence_Results{st}, nil
+}
+
+func NewRootCallOrder_getCallSequence_Results(s *C.Segment) (CallOrder_getCallSequence_Results, error) {
+	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 8, PointerCount: 0})
+	if err != nil {
+		return CallOrder_getCallSequence_Results{}, err
+	}
+	return CallOrder_getCallSequence_Results{st}, nil
+}
+
+func ReadRootCallOrder_getCallSequence_Results(msg *C.Message) (CallOrder_getCallSequence_Results, error) {
+	root, err := msg.Root()
+	if err != nil {
+		return CallOrder_getCallSequence_Results{}, err
+	}
+	st := C.ToStruct(root)
+	return CallOrder_getCallSequence_Results{st}, nil
+}
+
+func (s CallOrder_getCallSequence_Results) N() uint32 {
+	return s.Struct.Uint32(0)
+}
+
+func (s CallOrder_getCallSequence_Results) SetN(v uint32) {
+
+	s.Struct.SetUint32(0, v)
+}
+
+// CallOrder_getCallSequence_Results_List is a list of CallOrder_getCallSequence_Results.
+type CallOrder_getCallSequence_Results_List struct{ C.List }
+
+// NewCallOrder_getCallSequence_Results creates a new list of CallOrder_getCallSequence_Results.
+func NewCallOrder_getCallSequence_Results_List(s *C.Segment, sz int32) (CallOrder_getCallSequence_Results_List, error) {
+	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	if err != nil {
+		return CallOrder_getCallSequence_Results_List{}, err
+	}
+	return CallOrder_getCallSequence_Results_List{l}, nil
+}
+
+func (s CallOrder_getCallSequence_Results_List) At(i int) CallOrder_getCallSequence_Results {
+	return CallOrder_getCallSequence_Results{s.List.Struct(i)}
+}
+func (s CallOrder_getCallSequence_Results_List) Set(i int, v CallOrder_getCallSequence_Results) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+// CallOrder_getCallSequence_Results_Promise is a wrapper for a CallOrder_getCallSequence_Results promised by a client call.
+type CallOrder_getCallSequence_Results_Promise struct{ *C.Pipeline }
+
+func (p CallOrder_getCallSequence_Results_Promise) Struct() (CallOrder_getCallSequence_Results, error) {
+	s, err := p.Pipeline.Struct()
+	return CallOrder_getCallSequence_Results{s}, err
+}
+
+type Echoer struct{ Client C.Client }
+
+func (c Echoer) Echo(ctx context.Context, params func(Echoer_echo_Params) error, opts ...C.CallOption) Echoer_echo_Results_Promise {
+	if c.Client == nil {
+		return Echoer_echo_Results_Promise{Pipeline: C.NewPipeline(C.ErrorAnswer(C.ErrNullClient))}
+	}
+	return Echoer_echo_Results_Promise{Pipeline: C.NewPipeline(c.Client.Call(&C.Call{
 		Ctx: ctx,
 		Method: C.Method{
 
@@ -500,16 +592,16 @@ func (c Echoer) Echo(ctx context.Context, params func(Echoer_echo_Params), opts 
 			MethodName:    "echo",
 		},
 		ParamsSize: C.ObjectSize{DataSize: 0, PointerCount: 1},
-		ParamsFunc: func(s C.Struct) { params(Echoer_echo_Params(s)) },
+		ParamsFunc: func(s C.Struct) error { return params(Echoer_echo_Params{Struct: s}) },
 		Options:    C.NewCallOptions(opts),
-	})))
+	}))}
 }
 
-func (c Echoer) GetCallSequence(ctx context.Context, params func(CallOrder_getCallSequence_Params), opts ...C.CallOption) *CallOrder_getCallSequence_Results_Promise {
-	if c.c == nil {
-		return (*CallOrder_getCallSequence_Results_Promise)(C.NewPipeline(C.ErrorAnswer(C.ErrNullClient)))
+func (c Echoer) GetCallSequence(ctx context.Context, params func(CallOrder_getCallSequence_Params) error, opts ...C.CallOption) CallOrder_getCallSequence_Results_Promise {
+	if c.Client == nil {
+		return CallOrder_getCallSequence_Results_Promise{Pipeline: C.NewPipeline(C.ErrorAnswer(C.ErrNullClient))}
 	}
-	return (*CallOrder_getCallSequence_Results_Promise)(C.NewPipeline(c.c.Call(&C.Call{
+	return CallOrder_getCallSequence_Results_Promise{Pipeline: C.NewPipeline(c.Client.Call(&C.Call{
 		Ctx: ctx,
 		Method: C.Method{
 
@@ -519,9 +611,9 @@ func (c Echoer) GetCallSequence(ctx context.Context, params func(CallOrder_getCa
 			MethodName:    "getCallSequence",
 		},
 		ParamsSize: C.ObjectSize{DataSize: 8, PointerCount: 0},
-		ParamsFunc: func(s C.Struct) { params(CallOrder_getCallSequence_Params(s)) },
+		ParamsFunc: func(s C.Struct) error { return params(CallOrder_getCallSequence_Params{Struct: s}) },
 		Options:    C.NewCallOptions(opts),
-	})))
+	}))}
 }
 
 type Echoer_Server interface {
@@ -531,16 +623,16 @@ type Echoer_Server interface {
 }
 
 func Echoer_ServerToClient(s Echoer_Server) Echoer {
-	c, _ := s.(C.Closer)
-	return NewEchoer(C.NewServer(Echoer_Methods(nil, s), c))
+	c, _ := s.(server.Closer)
+	return Echoer{Client: server.New(Echoer_Methods(nil, s), c)}
 }
 
-func Echoer_Methods(methods []C.ServerMethod, server Echoer_Server) []C.ServerMethod {
+func Echoer_Methods(methods []server.Method, s Echoer_Server) []server.Method {
 	if cap(methods) == 0 {
-		methods = make([]C.ServerMethod, 0, 2)
+		methods = make([]server.Method, 0, 2)
 	}
 
-	methods = append(methods, C.ServerMethod{
+	methods = append(methods, server.Method{
 		Method: C.Method{
 
 			InterfaceID:   0x841756c6a41b2a45,
@@ -549,13 +641,13 @@ func Echoer_Methods(methods []C.ServerMethod, server Echoer_Server) []C.ServerMe
 			MethodName:    "echo",
 		},
 		Impl: func(c context.Context, opts C.CallOptions, p, r C.Struct) error {
-			call := Echoer_echo{c, opts, Echoer_echo_Params(p), Echoer_echo_Results(r)}
-			return server.Echo(call)
+			call := Echoer_echo{c, opts, Echoer_echo_Params{Struct: p}, Echoer_echo_Results{Struct: r}}
+			return s.Echo(call)
 		},
 		ResultsSize: C.ObjectSize{DataSize: 0, PointerCount: 1},
 	})
 
-	methods = append(methods, C.ServerMethod{
+	methods = append(methods, server.Method{
 		Method: C.Method{
 
 			InterfaceID:   0x92c5ca8314cdd2a5,
@@ -564,8 +656,8 @@ func Echoer_Methods(methods []C.ServerMethod, server Echoer_Server) []C.ServerMe
 			MethodName:    "getCallSequence",
 		},
 		Impl: func(c context.Context, opts C.CallOptions, p, r C.Struct) error {
-			call := CallOrder_getCallSequence{c, opts, CallOrder_getCallSequence_Params(p), CallOrder_getCallSequence_Results(r)}
-			return server.GetCallSequence(call)
+			call := CallOrder_getCallSequence{c, opts, CallOrder_getCallSequence_Params{Struct: p}, CallOrder_getCallSequence_Results{Struct: r}}
+			return s.GetCallSequence(call)
 		},
 		ResultsSize: C.ObjectSize{DataSize: 8, PointerCount: 0},
 	})
@@ -581,123 +673,171 @@ type Echoer_echo struct {
 	Results Echoer_echo_Results
 }
 
-type Echoer_echo_Params C.Struct
+type Echoer_echo_Params struct{ C.Struct }
 
-func NewEchoer_echo_Params(s *C.Segment) Echoer_echo_Params {
-	return Echoer_echo_Params(s.NewStruct(C.ObjectSize{DataSize: 0, PointerCount: 1}))
+func NewEchoer_echo_Params(s *C.Segment) (Echoer_echo_Params, error) {
+	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 0, PointerCount: 1})
+	if err != nil {
+		return Echoer_echo_Params{}, err
+	}
+	return Echoer_echo_Params{st}, nil
 }
-func NewRootEchoer_echo_Params(s *C.Segment) Echoer_echo_Params {
-	return Echoer_echo_Params(s.NewRootStruct(C.ObjectSize{DataSize: 0, PointerCount: 1}))
+
+func NewRootEchoer_echo_Params(s *C.Segment) (Echoer_echo_Params, error) {
+	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 0, PointerCount: 1})
+	if err != nil {
+		return Echoer_echo_Params{}, err
+	}
+	return Echoer_echo_Params{st}, nil
 }
-func AutoNewEchoer_echo_Params(s *C.Segment) Echoer_echo_Params {
-	return Echoer_echo_Params(s.NewStructAR(C.ObjectSize{DataSize: 0, PointerCount: 1}))
+
+func ReadRootEchoer_echo_Params(msg *C.Message) (Echoer_echo_Params, error) {
+	root, err := msg.Root()
+	if err != nil {
+		return Echoer_echo_Params{}, err
+	}
+	st := C.ToStruct(root)
+	return Echoer_echo_Params{st}, nil
 }
-func ReadRootEchoer_echo_Params(s *C.Segment) Echoer_echo_Params {
-	return Echoer_echo_Params(s.Root(0).ToStruct())
-}
+
 func (s Echoer_echo_Params) Cap() CallOrder {
-	return NewCallOrder(C.Struct(s).GetObject(0).ToInterface().Client())
-}
-func (s Echoer_echo_Params) SetCap(v CallOrder) {
-	if s.Segment == nil {
-		return
+	p, err := s.Struct.Pointer(0)
+	if err != nil {
+
+		return CallOrder{}
 	}
-	ci := s.Segment.Message.AddCap(v.GenericClient())
-	C.Struct(s).SetObject(0, C.Object(s.Segment.NewInterface(ci)))
+	c := C.ToInterface(p).Client()
+	return CallOrder{Client: c}
 }
 
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Echoer_echo_Params) MarshalJSON() (bs []byte, err error) { return }
+func (s Echoer_echo_Params) SetCap(v CallOrder) error {
 
-type Echoer_echo_Params_List C.PointerList
+	seg := s.Segment()
+	if seg == nil {
 
-func NewEchoer_echo_Params_List(s *C.Segment, sz int) Echoer_echo_Params_List {
-	return Echoer_echo_Params_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 1}, sz))
+		return nil
+	}
+	ci := seg.Message().AddCap(v.Client)
+	return s.Struct.SetPointer(0, C.NewInterface(seg, ci))
 }
-func (s Echoer_echo_Params_List) Len() int { return C.PointerList(s).Len() }
+
+// Echoer_echo_Params_List is a list of Echoer_echo_Params.
+type Echoer_echo_Params_List struct{ C.List }
+
+// NewEchoer_echo_Params creates a new list of Echoer_echo_Params.
+func NewEchoer_echo_Params_List(s *C.Segment, sz int32) (Echoer_echo_Params_List, error) {
+	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
+	if err != nil {
+		return Echoer_echo_Params_List{}, err
+	}
+	return Echoer_echo_Params_List{l}, nil
+}
+
 func (s Echoer_echo_Params_List) At(i int) Echoer_echo_Params {
-	return Echoer_echo_Params(C.PointerList(s).At(i).ToStruct())
+	return Echoer_echo_Params{s.List.Struct(i)}
 }
-func (s Echoer_echo_Params_List) Set(i int, item Echoer_echo_Params) {
-	C.PointerList(s).Set(i, C.Object(item))
-}
-
-type Echoer_echo_Params_Promise C.Pipeline
-
-func (p *Echoer_echo_Params_Promise) Get() (Echoer_echo_Params, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return Echoer_echo_Params(s), err
+func (s Echoer_echo_Params_List) Set(i int, v Echoer_echo_Params) error {
+	return s.List.SetStruct(i, v.Struct)
 }
 
-func (p *Echoer_echo_Params_Promise) Cap() CallOrder {
-	return NewCallOrder((*C.Pipeline)(p).GetPipeline(0).Client())
+// Echoer_echo_Params_Promise is a wrapper for a Echoer_echo_Params promised by a client call.
+type Echoer_echo_Params_Promise struct{ *C.Pipeline }
+
+func (p Echoer_echo_Params_Promise) Struct() (Echoer_echo_Params, error) {
+	s, err := p.Pipeline.Struct()
+	return Echoer_echo_Params{s}, err
 }
 
-type Echoer_echo_Results C.Struct
+func (p Echoer_echo_Params_Promise) Cap() CallOrder {
+	return CallOrder{Client: p.Pipeline.GetPipeline(0).Client()}
+}
 
-func NewEchoer_echo_Results(s *C.Segment) Echoer_echo_Results {
-	return Echoer_echo_Results(s.NewStruct(C.ObjectSize{DataSize: 0, PointerCount: 1}))
+type Echoer_echo_Results struct{ C.Struct }
+
+func NewEchoer_echo_Results(s *C.Segment) (Echoer_echo_Results, error) {
+	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 0, PointerCount: 1})
+	if err != nil {
+		return Echoer_echo_Results{}, err
+	}
+	return Echoer_echo_Results{st}, nil
 }
-func NewRootEchoer_echo_Results(s *C.Segment) Echoer_echo_Results {
-	return Echoer_echo_Results(s.NewRootStruct(C.ObjectSize{DataSize: 0, PointerCount: 1}))
+
+func NewRootEchoer_echo_Results(s *C.Segment) (Echoer_echo_Results, error) {
+	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 0, PointerCount: 1})
+	if err != nil {
+		return Echoer_echo_Results{}, err
+	}
+	return Echoer_echo_Results{st}, nil
 }
-func AutoNewEchoer_echo_Results(s *C.Segment) Echoer_echo_Results {
-	return Echoer_echo_Results(s.NewStructAR(C.ObjectSize{DataSize: 0, PointerCount: 1}))
+
+func ReadRootEchoer_echo_Results(msg *C.Message) (Echoer_echo_Results, error) {
+	root, err := msg.Root()
+	if err != nil {
+		return Echoer_echo_Results{}, err
+	}
+	st := C.ToStruct(root)
+	return Echoer_echo_Results{st}, nil
 }
-func ReadRootEchoer_echo_Results(s *C.Segment) Echoer_echo_Results {
-	return Echoer_echo_Results(s.Root(0).ToStruct())
-}
+
 func (s Echoer_echo_Results) Cap() CallOrder {
-	return NewCallOrder(C.Struct(s).GetObject(0).ToInterface().Client())
-}
-func (s Echoer_echo_Results) SetCap(v CallOrder) {
-	if s.Segment == nil {
-		return
+	p, err := s.Struct.Pointer(0)
+	if err != nil {
+
+		return CallOrder{}
 	}
-	ci := s.Segment.Message.AddCap(v.GenericClient())
-	C.Struct(s).SetObject(0, C.Object(s.Segment.NewInterface(ci)))
+	c := C.ToInterface(p).Client()
+	return CallOrder{Client: c}
 }
 
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Echoer_echo_Results) MarshalJSON() (bs []byte, err error) { return }
+func (s Echoer_echo_Results) SetCap(v CallOrder) error {
 
-type Echoer_echo_Results_List C.PointerList
+	seg := s.Segment()
+	if seg == nil {
 
-func NewEchoer_echo_Results_List(s *C.Segment, sz int) Echoer_echo_Results_List {
-	return Echoer_echo_Results_List(s.NewCompositeList(C.ObjectSize{DataSize: 0, PointerCount: 1}, sz))
+		return nil
+	}
+	ci := seg.Message().AddCap(v.Client)
+	return s.Struct.SetPointer(0, C.NewInterface(seg, ci))
 }
-func (s Echoer_echo_Results_List) Len() int { return C.PointerList(s).Len() }
+
+// Echoer_echo_Results_List is a list of Echoer_echo_Results.
+type Echoer_echo_Results_List struct{ C.List }
+
+// NewEchoer_echo_Results creates a new list of Echoer_echo_Results.
+func NewEchoer_echo_Results_List(s *C.Segment, sz int32) (Echoer_echo_Results_List, error) {
+	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
+	if err != nil {
+		return Echoer_echo_Results_List{}, err
+	}
+	return Echoer_echo_Results_List{l}, nil
+}
+
 func (s Echoer_echo_Results_List) At(i int) Echoer_echo_Results {
-	return Echoer_echo_Results(C.PointerList(s).At(i).ToStruct())
+	return Echoer_echo_Results{s.List.Struct(i)}
 }
-func (s Echoer_echo_Results_List) Set(i int, item Echoer_echo_Results) {
-	C.PointerList(s).Set(i, C.Object(item))
-}
-
-type Echoer_echo_Results_Promise C.Pipeline
-
-func (p *Echoer_echo_Results_Promise) Get() (Echoer_echo_Results, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return Echoer_echo_Results(s), err
+func (s Echoer_echo_Results_List) Set(i int, v Echoer_echo_Results) error {
+	return s.List.SetStruct(i, v.Struct)
 }
 
-func (p *Echoer_echo_Results_Promise) Cap() CallOrder {
-	return NewCallOrder((*C.Pipeline)(p).GetPipeline(0).Client())
+// Echoer_echo_Results_Promise is a wrapper for a Echoer_echo_Results promised by a client call.
+type Echoer_echo_Results_Promise struct{ *C.Pipeline }
+
+func (p Echoer_echo_Results_Promise) Struct() (Echoer_echo_Results, error) {
+	s, err := p.Pipeline.Struct()
+	return Echoer_echo_Results{s}, err
 }
 
-type Adder struct{ c C.Client }
+func (p Echoer_echo_Results_Promise) Cap() CallOrder {
+	return CallOrder{Client: p.Pipeline.GetPipeline(0).Client()}
+}
 
-func NewAdder(c C.Client) Adder { return Adder{c} }
+type Adder struct{ Client C.Client }
 
-func (c Adder) GenericClient() C.Client { return c.c }
-
-func (c Adder) IsNull() bool { return c.c == nil }
-
-func (c Adder) Add(ctx context.Context, params func(Adder_add_Params), opts ...C.CallOption) *Adder_add_Results_Promise {
-	if c.c == nil {
-		return (*Adder_add_Results_Promise)(C.NewPipeline(C.ErrorAnswer(C.ErrNullClient)))
+func (c Adder) Add(ctx context.Context, params func(Adder_add_Params) error, opts ...C.CallOption) Adder_add_Results_Promise {
+	if c.Client == nil {
+		return Adder_add_Results_Promise{Pipeline: C.NewPipeline(C.ErrorAnswer(C.ErrNullClient))}
 	}
-	return (*Adder_add_Results_Promise)(C.NewPipeline(c.c.Call(&C.Call{
+	return Adder_add_Results_Promise{Pipeline: C.NewPipeline(c.Client.Call(&C.Call{
 		Ctx: ctx,
 		Method: C.Method{
 
@@ -707,9 +847,9 @@ func (c Adder) Add(ctx context.Context, params func(Adder_add_Params), opts ...C
 			MethodName:    "add",
 		},
 		ParamsSize: C.ObjectSize{DataSize: 8, PointerCount: 0},
-		ParamsFunc: func(s C.Struct) { params(Adder_add_Params(s)) },
+		ParamsFunc: func(s C.Struct) error { return params(Adder_add_Params{Struct: s}) },
 		Options:    C.NewCallOptions(opts),
-	})))
+	}))}
 }
 
 type Adder_Server interface {
@@ -717,16 +857,16 @@ type Adder_Server interface {
 }
 
 func Adder_ServerToClient(s Adder_Server) Adder {
-	c, _ := s.(C.Closer)
-	return NewAdder(C.NewServer(Adder_Methods(nil, s), c))
+	c, _ := s.(server.Closer)
+	return Adder{Client: server.New(Adder_Methods(nil, s), c)}
 }
 
-func Adder_Methods(methods []C.ServerMethod, server Adder_Server) []C.ServerMethod {
+func Adder_Methods(methods []server.Method, s Adder_Server) []server.Method {
 	if cap(methods) == 0 {
-		methods = make([]C.ServerMethod, 0, 1)
+		methods = make([]server.Method, 0, 1)
 	}
 
-	methods = append(methods, C.ServerMethod{
+	methods = append(methods, server.Method{
 		Method: C.Method{
 
 			InterfaceID:   0x8f9cac550b1bf41f,
@@ -735,8 +875,8 @@ func Adder_Methods(methods []C.ServerMethod, server Adder_Server) []C.ServerMeth
 			MethodName:    "add",
 		},
 		Impl: func(c context.Context, opts C.CallOptions, p, r C.Struct) error {
-			call := Adder_add{c, opts, Adder_add_Params(p), Adder_add_Results(r)}
-			return server.Add(call)
+			call := Adder_add{c, opts, Adder_add_Params{Struct: p}, Adder_add_Results{Struct: r}}
+			return s.Add(call)
 		},
 		ResultsSize: C.ObjectSize{DataSize: 8, PointerCount: 0},
 	})
@@ -752,84 +892,135 @@ type Adder_add struct {
 	Results Adder_add_Results
 }
 
-type Adder_add_Params C.Struct
+type Adder_add_Params struct{ C.Struct }
 
-func NewAdder_add_Params(s *C.Segment) Adder_add_Params {
-	return Adder_add_Params(s.NewStruct(C.ObjectSize{DataSize: 8, PointerCount: 0}))
-}
-func NewRootAdder_add_Params(s *C.Segment) Adder_add_Params {
-	return Adder_add_Params(s.NewRootStruct(C.ObjectSize{DataSize: 8, PointerCount: 0}))
-}
-func AutoNewAdder_add_Params(s *C.Segment) Adder_add_Params {
-	return Adder_add_Params(s.NewStructAR(C.ObjectSize{DataSize: 8, PointerCount: 0}))
-}
-func ReadRootAdder_add_Params(s *C.Segment) Adder_add_Params {
-	return Adder_add_Params(s.Root(0).ToStruct())
-}
-func (s Adder_add_Params) A() int32     { return int32(C.Struct(s).Get32(0)) }
-func (s Adder_add_Params) SetA(v int32) { C.Struct(s).Set32(0, uint32(v)) }
-func (s Adder_add_Params) B() int32     { return int32(C.Struct(s).Get32(4)) }
-func (s Adder_add_Params) SetB(v int32) { C.Struct(s).Set32(4, uint32(v)) }
-
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Adder_add_Params) MarshalJSON() (bs []byte, err error) { return }
-
-type Adder_add_Params_List C.PointerList
-
-func NewAdder_add_Params_List(s *C.Segment, sz int) Adder_add_Params_List {
-	return Adder_add_Params_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 0}, sz))
-}
-func (s Adder_add_Params_List) Len() int { return C.PointerList(s).Len() }
-func (s Adder_add_Params_List) At(i int) Adder_add_Params {
-	return Adder_add_Params(C.PointerList(s).At(i).ToStruct())
-}
-func (s Adder_add_Params_List) Set(i int, item Adder_add_Params) {
-	C.PointerList(s).Set(i, C.Object(item))
+func NewAdder_add_Params(s *C.Segment) (Adder_add_Params, error) {
+	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 8, PointerCount: 0})
+	if err != nil {
+		return Adder_add_Params{}, err
+	}
+	return Adder_add_Params{st}, nil
 }
 
-type Adder_add_Params_Promise C.Pipeline
-
-func (p *Adder_add_Params_Promise) Get() (Adder_add_Params, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return Adder_add_Params(s), err
+func NewRootAdder_add_Params(s *C.Segment) (Adder_add_Params, error) {
+	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 8, PointerCount: 0})
+	if err != nil {
+		return Adder_add_Params{}, err
+	}
+	return Adder_add_Params{st}, nil
 }
 
-type Adder_add_Results C.Struct
+func ReadRootAdder_add_Params(msg *C.Message) (Adder_add_Params, error) {
+	root, err := msg.Root()
+	if err != nil {
+		return Adder_add_Params{}, err
+	}
+	st := C.ToStruct(root)
+	return Adder_add_Params{st}, nil
+}
 
-func NewAdder_add_Results(s *C.Segment) Adder_add_Results {
-	return Adder_add_Results(s.NewStruct(C.ObjectSize{DataSize: 8, PointerCount: 0}))
+func (s Adder_add_Params) A() int32 {
+	return int32(s.Struct.Uint32(0))
 }
-func NewRootAdder_add_Results(s *C.Segment) Adder_add_Results {
-	return Adder_add_Results(s.NewRootStruct(C.ObjectSize{DataSize: 8, PointerCount: 0}))
-}
-func AutoNewAdder_add_Results(s *C.Segment) Adder_add_Results {
-	return Adder_add_Results(s.NewStructAR(C.ObjectSize{DataSize: 8, PointerCount: 0}))
-}
-func ReadRootAdder_add_Results(s *C.Segment) Adder_add_Results {
-	return Adder_add_Results(s.Root(0).ToStruct())
-}
-func (s Adder_add_Results) Result() int32     { return int32(C.Struct(s).Get32(0)) }
-func (s Adder_add_Results) SetResult(v int32) { C.Struct(s).Set32(0, uint32(v)) }
 
-// capnp.JSON_enabled == false so we stub MarshalJSON().
-func (s Adder_add_Results) MarshalJSON() (bs []byte, err error) { return }
+func (s Adder_add_Params) SetA(v int32) {
 
-type Adder_add_Results_List C.PointerList
-
-func NewAdder_add_Results_List(s *C.Segment, sz int) Adder_add_Results_List {
-	return Adder_add_Results_List(s.NewCompositeList(C.ObjectSize{DataSize: 8, PointerCount: 0}, sz))
+	s.Struct.SetUint32(0, uint32(v))
 }
-func (s Adder_add_Results_List) Len() int { return C.PointerList(s).Len() }
+
+func (s Adder_add_Params) B() int32 {
+	return int32(s.Struct.Uint32(4))
+}
+
+func (s Adder_add_Params) SetB(v int32) {
+
+	s.Struct.SetUint32(4, uint32(v))
+}
+
+// Adder_add_Params_List is a list of Adder_add_Params.
+type Adder_add_Params_List struct{ C.List }
+
+// NewAdder_add_Params creates a new list of Adder_add_Params.
+func NewAdder_add_Params_List(s *C.Segment, sz int32) (Adder_add_Params_List, error) {
+	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	if err != nil {
+		return Adder_add_Params_List{}, err
+	}
+	return Adder_add_Params_List{l}, nil
+}
+
+func (s Adder_add_Params_List) At(i int) Adder_add_Params { return Adder_add_Params{s.List.Struct(i)} }
+func (s Adder_add_Params_List) Set(i int, v Adder_add_Params) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+// Adder_add_Params_Promise is a wrapper for a Adder_add_Params promised by a client call.
+type Adder_add_Params_Promise struct{ *C.Pipeline }
+
+func (p Adder_add_Params_Promise) Struct() (Adder_add_Params, error) {
+	s, err := p.Pipeline.Struct()
+	return Adder_add_Params{s}, err
+}
+
+type Adder_add_Results struct{ C.Struct }
+
+func NewAdder_add_Results(s *C.Segment) (Adder_add_Results, error) {
+	st, err := C.NewStruct(s, C.ObjectSize{DataSize: 8, PointerCount: 0})
+	if err != nil {
+		return Adder_add_Results{}, err
+	}
+	return Adder_add_Results{st}, nil
+}
+
+func NewRootAdder_add_Results(s *C.Segment) (Adder_add_Results, error) {
+	st, err := C.NewRootStruct(s, C.ObjectSize{DataSize: 8, PointerCount: 0})
+	if err != nil {
+		return Adder_add_Results{}, err
+	}
+	return Adder_add_Results{st}, nil
+}
+
+func ReadRootAdder_add_Results(msg *C.Message) (Adder_add_Results, error) {
+	root, err := msg.Root()
+	if err != nil {
+		return Adder_add_Results{}, err
+	}
+	st := C.ToStruct(root)
+	return Adder_add_Results{st}, nil
+}
+
+func (s Adder_add_Results) Result() int32 {
+	return int32(s.Struct.Uint32(0))
+}
+
+func (s Adder_add_Results) SetResult(v int32) {
+
+	s.Struct.SetUint32(0, uint32(v))
+}
+
+// Adder_add_Results_List is a list of Adder_add_Results.
+type Adder_add_Results_List struct{ C.List }
+
+// NewAdder_add_Results creates a new list of Adder_add_Results.
+func NewAdder_add_Results_List(s *C.Segment, sz int32) (Adder_add_Results_List, error) {
+	l, err := C.NewCompositeList(s, C.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	if err != nil {
+		return Adder_add_Results_List{}, err
+	}
+	return Adder_add_Results_List{l}, nil
+}
+
 func (s Adder_add_Results_List) At(i int) Adder_add_Results {
-	return Adder_add_Results(C.PointerList(s).At(i).ToStruct())
+	return Adder_add_Results{s.List.Struct(i)}
 }
-func (s Adder_add_Results_List) Set(i int, item Adder_add_Results) {
-	C.PointerList(s).Set(i, C.Object(item))
+func (s Adder_add_Results_List) Set(i int, v Adder_add_Results) error {
+	return s.List.SetStruct(i, v.Struct)
 }
 
-type Adder_add_Results_Promise C.Pipeline
+// Adder_add_Results_Promise is a wrapper for a Adder_add_Results promised by a client call.
+type Adder_add_Results_Promise struct{ *C.Pipeline }
 
-func (p *Adder_add_Results_Promise) Get() (Adder_add_Results, error) {
-	s, err := (*C.Pipeline)(p).Struct()
-	return Adder_add_Results(s), err
+func (p Adder_add_Results_Promise) Struct() (Adder_add_Results, error) {
+	s, err := p.Pipeline.Struct()
+	return Adder_add_Results{s}, err
 }

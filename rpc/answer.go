@@ -6,6 +6,7 @@ import (
 
 	"golang.org/x/net/context"
 	"zombiezen.com/go/capnproto"
+	"zombiezen.com/go/capnproto/internal/fulfiller"
 	"zombiezen.com/go/capnproto/internal/queue"
 	"zombiezen.com/go/capnproto/rpc/rpccapnp"
 )
@@ -73,7 +74,7 @@ type answer struct {
 	resolved    chan struct{}
 
 	mu    sync.RWMutex
-	obj   capnp.Object
+	obj   capnp.Pointer
 	err   error
 	done  bool
 	queue []pcall
@@ -82,7 +83,7 @@ type answer struct {
 // fulfill is called to resolve an answer succesfully and returns a list
 // of return messages to send.
 // It must be called from the coordinate goroutine.
-func (a *answer) fulfill(msgs []rpccapnp.Message, obj capnp.Object, makeCapTable capTableMaker) []rpccapnp.Message {
+func (a *answer) fulfill(msgs []rpccapnp.Message, obj capnp.Pointer, makeCapTable capTableMaker) []rpccapnp.Message {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.done {
@@ -91,15 +92,20 @@ func (a *answer) fulfill(msgs []rpccapnp.Message, obj capnp.Object, makeCapTable
 	a.obj, a.done = obj, true
 	// TODO(light): populate resultCaps
 
-	ret := newReturnMessage(a.id)
-	payload := rpccapnp.NewPayload(ret.Segment)
+	retmsg := newReturnMessage(nil, a.id)
+	ret, _ := retmsg.Return()
+	payload, _ := ret.NewResults()
 	payload.SetContent(obj)
-	payload.SetCapTable(makeCapTable(ret.Segment))
-	ret.Return().SetResults(payload)
-	msgs = append(msgs, ret)
+	payloadTab, err := makeCapTable(ret.Segment())
+	if err != nil {
+		// TODO(light): handle this more gracefully
+		panic(err)
+	}
+	payload.SetCapTable(payloadTab)
+	msgs = append(msgs, retmsg)
 
 	queues, msgs := a.emptyQueue(msgs, obj)
-	ctab := obj.Segment.Message.CapTable()
+	ctab := obj.Segment().Message().CapTable
 	for capIdx, q := range queues {
 		ctab[capIdx] = newQueueClient(a.manager, ctab[capIdx], q, a.out, a.queueCloses)
 	}
@@ -120,8 +126,9 @@ func (a *answer) reject(msgs []rpccapnp.Message, err error) []rpccapnp.Message {
 		panic("answer.reject called more than once")
 	}
 	a.err, a.done = err, true
-	m := newReturnMessage(a.id)
-	setReturnException(m.Return(), err)
+	m := newReturnMessage(nil, a.id)
+	mret, _ := m.Return()
+	setReturnException(mret, err)
 	msgs = append(msgs, m)
 	for i := range a.queue {
 		msgs = a.queue[i].a.reject(msgs, err)
@@ -134,15 +141,20 @@ func (a *answer) reject(msgs []rpccapnp.Message, err error) []rpccapnp.Message {
 // emptyQueue splits the queue by which capability it targets
 // and drops any invalid calls.  Once this function returns, a.queue
 // will be nil.
-func (a *answer) emptyQueue(msgs []rpccapnp.Message, obj capnp.Object) (map[uint32][]qcall, []rpccapnp.Message) {
-	qs := make(map[uint32][]qcall, len(a.queue))
+func (a *answer) emptyQueue(msgs []rpccapnp.Message, obj capnp.Pointer) (map[capnp.CapabilityID][]qcall, []rpccapnp.Message) {
+	qs := make(map[capnp.CapabilityID][]qcall, len(a.queue))
 	for i, pc := range a.queue {
-		c := capnp.TransformObject(obj, pc.transform)
-		if c.Type() != capnp.TypeInterface {
+		c, err := capnp.Transform(obj, pc.transform)
+		if err != nil {
+			msgs = pc.a.reject(msgs, err)
+			continue
+		}
+		ci := capnp.ToInterface(c)
+		if !capnp.IsValid(ci) {
 			msgs = pc.a.reject(msgs, capnp.ErrNullClient)
 			continue
 		}
-		cn := c.ToInterface().Capability()
+		cn := ci.Capability()
 		if qs[cn] == nil {
 			qs[cn] = make([]qcall, 0, len(a.queue)-i)
 		}
@@ -152,7 +164,7 @@ func (a *answer) emptyQueue(msgs []rpccapnp.Message, obj capnp.Object) (map[uint
 	return qs, msgs
 }
 
-func (a *answer) peek() (obj capnp.Object, err error, ok bool) {
+func (a *answer) peek() (obj capnp.Pointer, err error, ok bool) {
 	a.mu.RLock()
 	obj, err, ok = a.obj, a.err, a.done
 	a.mu.RUnlock()
@@ -170,11 +182,15 @@ func (a *answer) queueCall(result *answer, transform []capnp.PipelineOp, call *c
 	if len(a.queue) == cap(a.queue) {
 		return errQueueFull
 	}
+	cc, err := call.Copy(nil)
+	if err != nil {
+		return err
+	}
 	a.queue = append(a.queue, pcall{
 		transform: transform,
 		qcall: qcall{
 			a:    result,
-			call: call.Copy(nil),
+			call: cc,
 		},
 	})
 	return nil
@@ -191,7 +207,11 @@ func (a *answer) queueDisembargo(transform []capnp.PipelineOp, id embargoID, tar
 	if a.err != nil {
 		return false, errDisembargoNonImport
 	}
-	client := capnp.TransformObject(a.obj, transform).ToInterface().Client()
+	targetPtr, err := capnp.Transform(a.obj, transform)
+	if err != nil {
+		return false, err
+	}
+	client := capnp.ToInterface(targetPtr).Client()
 	qc, ok := client.(*queueClient)
 	if !ok {
 		// No need to embargo, disembargo immediately.
@@ -222,7 +242,7 @@ func joinAnswer(a *answer, ca capnp.Answer) {
 	s, err := ca.Struct()
 	r := &outgoingReturn{
 		a:   a,
-		obj: capnp.Object(s),
+		obj: capnp.Pointer(s),
 		err: err,
 	}
 	select {
@@ -234,7 +254,7 @@ func joinAnswer(a *answer, ca capnp.Answer) {
 // joinFulfiller resolves a fulfiller by waiting on a generic answer.
 // It waits until the generic answer is finished, so it should be run
 // in its own goroutine.
-func joinFulfiller(f *capnp.Fulfiller, ca capnp.Answer) {
+func joinFulfiller(f *fulfiller.Fulfiller, ca capnp.Answer) {
 	s, err := ca.Struct()
 	if err != nil {
 		f.Reject(err)
@@ -249,7 +269,7 @@ func joinFulfiller(f *capnp.Fulfiller, ca capnp.Answer) {
 // return message's capability table.
 type outgoingReturn struct {
 	a   *answer
-	obj capnp.Object
+	obj capnp.Pointer
 	err error
 }
 
@@ -278,8 +298,11 @@ func newQueueClient(m *manager, client capnp.Client, queue []qcall, out chan<- r
 }
 
 func (qc *queueClient) pushCall(cl *capnp.Call) capnp.Answer {
-	f := new(capnp.Fulfiller)
-	cl = cl.Copy(nil)
+	f := new(fulfiller.Fulfiller)
+	cl, err := cl.Copy(nil)
+	if err != nil {
+		return capnp.ErrorAnswer(err)
+	}
 	if ok := qc.q.Push(qcall{call: cl, f: f}); !ok {
 		return capnp.ErrorAnswer(errQueueFull)
 	}
@@ -333,7 +356,8 @@ func (qc *queueClient) handle(c *qcall) {
 		go joinFulfiller(c.f, answer)
 	case qcallDisembargo:
 		msg := newDisembargoMessage(nil, rpccapnp.Disembargo_context_Which_receiverLoopback, c.embargoID)
-		msg.Disembargo().SetTarget(c.embargoTarget)
+		d, _ := msg.Disembargo()
+		d.SetTarget(c.embargoTarget)
 		sendMessage(qc.manager, qc.out, msg)
 	}
 }
@@ -399,7 +423,8 @@ func (qc *queueClient) rejectQueue(msgs []rpccapnp.Message) []rpccapnp.Message {
 			c.f.Reject(errQueueCallCancel)
 		} else if w == qcallDisembargo {
 			m := newDisembargoMessage(nil, rpccapnp.Disembargo_context_Which_receiverLoopback, c.embargoID)
-			m.Disembargo().SetTarget(c.embargoTarget)
+			d, _ := m.Disembargo()
+			d.SetTarget(c.embargoTarget)
 			msgs = append(msgs, m)
 		} else {
 			break
@@ -425,8 +450,8 @@ type pcall struct {
 // qcall is a queued call.
 type qcall struct {
 	// Calls
-	a    *answer          // non-nil if remote call
-	f    *capnp.Fulfiller // non-nil if local call
+	a    *answer              // non-nil if remote call
+	f    *fulfiller.Fulfiller // non-nil if local call
 	call *capnp.Call
 
 	// Disembargo
@@ -447,7 +472,7 @@ func (c *qcall) which() int {
 		return qcallRemoteCall
 	} else if c.f != nil {
 		return qcallLocalCall
-	} else if capnp.Object(c.embargoTarget).Type() != capnp.TypeNull {
+	} else if capnp.IsValid(c.embargoTarget) {
 		return qcallDisembargo
 	} else {
 		return qcallInvalid
@@ -489,12 +514,16 @@ func (lac *localAnswerClient) Call(call *capnp.Call) capnp.Answer {
 	if len(lac.a.queue) == cap(lac.a.queue) {
 		return capnp.ErrorAnswer(errQueueFull)
 	}
-	f := new(capnp.Fulfiller)
+	f := new(fulfiller.Fulfiller)
+	cc, err := call.Copy(nil)
+	if err != nil {
+		return capnp.ErrorAnswer(err)
+	}
 	lac.a.queue = append(lac.a.queue, pcall{
 		transform: lac.transform,
 		qcall: qcall{
 			f:    f,
-			call: call.Copy(nil),
+			call: cc,
 		},
 	})
 	return f
@@ -518,7 +547,7 @@ func (lac *localAnswerClient) Close() error {
 }
 
 // A capTableMaker converts the clients in a segment's message into capability descriptors.
-type capTableMaker func(*capnp.Segment) rpccapnp.CapDescriptor_List
+type capTableMaker func(*capnp.Segment) (rpccapnp.CapDescriptor_List, error)
 
 var (
 	errQueueFull       = errors.New("rpc: pipeline queue full")

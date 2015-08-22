@@ -4,11 +4,11 @@ import (
 	"testing"
 
 	"golang.org/x/net/context"
-	"zombiezen.com/go/capnproto"
 	"zombiezen.com/go/capnproto/rpc"
 	"zombiezen.com/go/capnproto/rpc/internal/logtransport"
 	"zombiezen.com/go/capnproto/rpc/internal/pipetransport"
 	"zombiezen.com/go/capnproto/rpc/internal/testcapnp"
+	"zombiezen.com/go/capnproto/server"
 )
 
 func TestPromisedCapability(t *testing.T) {
@@ -21,21 +21,21 @@ func TestPromisedCapability(t *testing.T) {
 	c := rpc.NewConn(p)
 	delay := make(chan struct{})
 	echoSrv := testcapnp.Echoer_ServerToClient(&DelayEchoer{delay: delay})
-	d := rpc.NewConn(q, rpc.MainInterface(echoSrv.GenericClient()))
+	d := rpc.NewConn(q, rpc.MainInterface(echoSrv.Client))
 	defer d.Wait()
 	defer c.Close()
-	client := testcapnp.NewEchoer(c.Bootstrap(ctx))
+	client := testcapnp.Echoer{Client: c.Bootstrap(ctx)}
 
-	echo := client.Echo(ctx, func(p testcapnp.Echoer_echo_Params) {
-		p.SetCap(testcapnp.NewCallOrder(client.GenericClient()))
+	echo := client.Echo(ctx, func(p testcapnp.Echoer_echo_Params) error {
+		return p.SetCap(testcapnp.CallOrder{Client: client.Client})
 	})
 	pipeline := echo.Cap()
-	call0 := callseq(ctx, pipeline.GenericClient(), 0)
-	call1 := callseq(ctx, pipeline.GenericClient(), 1)
+	call0 := callseq(ctx, pipeline.Client, 0)
+	call1 := callseq(ctx, pipeline.Client, 1)
 	close(delay)
 
-	check := func(promise *testcapnp.CallOrder_getCallSequence_Results_Promise, n uint32) {
-		r, err := promise.Get()
+	check := func(promise testcapnp.CallOrder_getCallSequence_Results_Promise, n uint32) {
+		r, err := promise.Struct()
 		if err != nil {
 			t.Errorf("call%d error: %v", n, err)
 		}
@@ -53,7 +53,7 @@ type DelayEchoer struct {
 }
 
 func (de *DelayEchoer) Echo(call testcapnp.Echoer_echo) error {
-	capnp.Ack(call.Options)
+	server.Ack(call.Options)
 	<-de.delay
 	return de.Echoer.Echo(call)
 }

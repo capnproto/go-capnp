@@ -1,2 +1,0 @@
-#!/bin/bash
-capnp encode --packed aircraftlib/aircraft.capnp Z

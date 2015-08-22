@@ -1,5 +1,5 @@
 // Package rpc implements the Cap'n Proto RPC protocol.
-package rpc
+package rpc // import "zombiezen.com/go/capnproto/rpc"
 
 import (
 	"fmt"
@@ -191,7 +191,12 @@ func (c *Conn) handleMessage(m rpccapnp.Message) {
 	case rpccapnp.Message_Which_unimplemented:
 		// no-op for now to avoid feedback loop
 	case rpccapnp.Message_Which_abort:
-		a := Abort{m.Abort()}
+		ma, err := m.Abort()
+		if err != nil {
+			log.Println("rpc: decode abort:", err)
+			// Keep going, since we're trying to abort anyway.
+		}
+		a := Abort{ma}
 		log.Print(a)
 		c.manager.shutdown(a)
 	case rpccapnp.Message_Which_return:
@@ -201,15 +206,24 @@ func (c *Conn) handleMessage(m rpccapnp.Message) {
 	case rpccapnp.Message_Which_finish:
 		// TODO(light): what if answers never had this ID?
 		// TODO(light): return if cancelled
-		id := answerID(m.Finish().QuestionId())
-		releaseCaps := m.Finish().ReleaseResultCaps()
+		mfin, err := m.Finish()
+		if err != nil {
+			log.Println("rpc: decode finish:", err)
+			return
+		}
+		id := answerID(mfin.QuestionId())
 		a := c.answers.pop(id)
 		a.cancel()
-		if releaseCaps {
+		if mfin.ReleaseResultCaps() {
 			c.exports.releaseList(a.resultCaps)
 		}
 	case rpccapnp.Message_Which_bootstrap:
-		id := answerID(m.Bootstrap().QuestionId())
+		boot, err := m.Bootstrap()
+		if err != nil {
+			log.Println("rpc: decode bootstrap:", err)
+			return
+		}
+		id := answerID(boot.QuestionId())
 		if err := c.handleBootstrapMessage(id); err != nil {
 			log.Println("rpc: handle bootstrap:", err)
 		}
@@ -218,8 +232,13 @@ func (c *Conn) handleMessage(m rpccapnp.Message) {
 			log.Println("rpc: handle call:", err)
 		}
 	case rpccapnp.Message_Which_release:
-		id := exportID(m.Release().Id())
-		refs := int(m.Release().ReferenceCount())
+		rel, err := m.Release()
+		if err != nil {
+			log.Println("rpc: decode release:", err)
+			return
+		}
+		id := exportID(rel.Id())
+		refs := int(rel.ReferenceCount())
 		c.exports.release(id, refs)
 	case rpccapnp.Message_Which_disembargo:
 		if err := c.handleDisembargoMessage(m); err != nil {
@@ -234,8 +253,7 @@ func (c *Conn) handleMessage(m rpccapnp.Message) {
 }
 
 func newUnimplementedMessage(buf []byte, m rpccapnp.Message) rpccapnp.Message {
-	s := capnp.NewBuffer(buf)
-	n := rpccapnp.NewRootMessage(s)
+	n := newMessage(buf)
 	n.SetUnimplemented(m)
 	return n
 }
@@ -257,7 +275,10 @@ func (c *Conn) handleCall(ac *appCall) (capnp.Answer, error) {
 		pq := c.questions.get(ac.question.id)
 		pq.addPromise(ac.transform)
 	}
-	msg := c.newCallMessage(nil, q.id, ac)
+	msg, err := c.newCallMessage(nil, q.id, ac)
+	if err != nil {
+		return nil, err
+	}
 	select {
 	case c.out <- msg:
 		q.start()
@@ -271,52 +292,67 @@ func (c *Conn) handleCall(ac *appCall) (capnp.Answer, error) {
 	}
 }
 
-func (c *Conn) newCallMessage(buf []byte, id questionID, ac *appCall) rpccapnp.Message {
-	s := capnp.NewBuffer(buf)
-	msg := rpccapnp.NewRootMessage(s)
+func (c *Conn) newCallMessage(buf []byte, id questionID, ac *appCall) (rpccapnp.Message, error) {
+	msg := newMessage(buf)
 
 	if ac.kind == appBootstrapCall {
-		boot := rpccapnp.NewBootstrap(s)
+		boot, _ := msg.NewBootstrap()
 		boot.SetQuestionId(uint32(id))
-		msg.SetBootstrap(boot)
-		return msg
+		return msg, nil
 	}
 
-	msgCall := rpccapnp.NewCall(s)
+	msgCall, _ := msg.NewCall()
 	msgCall.SetQuestionId(uint32(id))
 	msgCall.SetInterfaceId(ac.Method.InterfaceID)
 	msgCall.SetMethodId(ac.Method.MethodID)
 
-	target := rpccapnp.NewMessageTarget(s)
+	target, _ := msgCall.NewTarget()
 	switch ac.kind {
 	case appImportCall:
 		target.SetImportedCap(uint32(ac.importID))
 	case appPipelineCall:
-		a := rpccapnp.NewPromisedAnswer(s)
+		a, err := target.NewPromisedAnswer()
+		if err != nil {
+			return rpccapnp.Message{}, err
+		}
 		a.SetQuestionId(uint32(ac.question.id))
-		transformToPromisedAnswer(s, a, ac.transform)
-		target.SetPromisedAnswer(a)
+		err = transformToPromisedAnswer(a.Segment(), a, ac.transform)
+		if err != nil {
+			return rpccapnp.Message{}, err
+		}
 	default:
 		panic("unknown call type")
 	}
-	msgCall.SetTarget(target)
 
-	payload := rpccapnp.NewPayload(s)
-	params := ac.PlaceParams(s)
-	payload.SetContent(capnp.Object(params))
-	payload.SetCapTable(c.makeCapTable(s))
-	msgCall.SetParams(payload)
+	payload, _ := msgCall.NewParams()
+	params, err := ac.PlaceParams(payload.Segment())
+	if err != nil {
+		return rpccapnp.Message{}, err
+	}
+	if err := payload.SetContent(params); err != nil {
+		return rpccapnp.Message{}, err
+	}
+	ctab, err := c.makeCapTable(payload.Segment())
+	if err != nil {
+		return rpccapnp.Message{}, err
+	}
+	if err := payload.SetCapTable(ctab); err != nil {
+		return rpccapnp.Message{}, err
+	}
 
-	msg.SetCall(msgCall)
-	return msg
+	return msg, nil
 }
 
-func transformToPromisedAnswer(s *capnp.Segment, answer rpccapnp.PromisedAnswer, transform []capnp.PipelineOp) {
-	opList := rpccapnp.NewPromisedAnswer_Op_List(s, len(transform))
+func transformToPromisedAnswer(s *capnp.Segment, answer rpccapnp.PromisedAnswer, transform []capnp.PipelineOp) error {
+	opList, err := rpccapnp.NewPromisedAnswer_Op_List(s, int32(len(transform)))
+	if err != nil {
+		return err
+	}
 	for i, op := range transform {
 		opList.At(i).SetGetPointerField(uint16(op.Field))
 	}
-	answer.SetTransform(opList)
+	err = answer.SetTransform(opList)
+	return err
 }
 
 // handleCancel is called from the coordinate goroutine to handle a question's cancelation.
@@ -335,18 +371,22 @@ func (c *Conn) handleRelease(id importID) error {
 		return nil
 	}
 	// TODO(light): deadline to close?
-	s := capnp.NewBuffer(nil)
-	msg := rpccapnp.NewRootMessage(s)
-	mr := rpccapnp.NewRelease(s)
+	msg := newMessage(nil)
+	mr, err := msg.NewRelease()
+	if err != nil {
+		return err
+	}
 	mr.SetId(uint32(id))
 	mr.SetReferenceCount(uint32(i))
-	msg.SetRelease(mr)
 	return c.sendMessage(msg)
 }
 
 // handleReturnMessage is run in the coordinate goroutine.
 func (c *Conn) handleReturnMessage(m rpccapnp.Message) error {
-	ret := m.Return()
+	ret, err := m.Return()
+	if err != nil {
+		return err
+	}
 	id := questionID(ret.AnswerId())
 	q := c.questions.pop(id)
 	if q == nil {
@@ -364,7 +404,11 @@ func (c *Conn) handleReturnMessage(m rpccapnp.Message) error {
 	switch ret.Which() {
 	case rpccapnp.Return_Which_results:
 		releaseResultCaps = false
-		if err := c.populateMessageCapTable(ret.Results()); err == errUnimplemented {
+		results, err := ret.Results()
+		if err != nil {
+			return err
+		}
+		if err := c.populateMessageCapTable(results); err == errUnimplemented {
 			um := newUnimplementedMessage(nil, m)
 			c.sendMessage(um)
 			return errUnimplemented
@@ -372,7 +416,11 @@ func (c *Conn) handleReturnMessage(m rpccapnp.Message) error {
 			c.abort(err)
 			return err
 		}
-		disembargoes := q.fulfill(ret.Results().Content(), c.embargoes.new)
+		content, err := results.Content()
+		if err != nil {
+			return err
+		}
+		disembargoes := q.fulfill(content, c.embargoes.new)
 		for _, d := range disembargoes {
 			if err := c.sendMessage(d); err != nil {
 				// shutdown
@@ -380,7 +428,11 @@ func (c *Conn) handleReturnMessage(m rpccapnp.Message) error {
 			}
 		}
 	case rpccapnp.Return_Which_exception:
-		e := error(Exception{ret.Exception()})
+		exc, err := ret.Exception()
+		if err != nil {
+			return err
+		}
+		e := error(Exception{exc})
 		if q.method != nil {
 			e = &capnp.MethodError{
 				Method: q.method,
@@ -410,21 +462,23 @@ func (c *Conn) handleReturnMessage(m rpccapnp.Message) error {
 }
 
 func newFinishMessage(buf []byte, questionID questionID, release bool) rpccapnp.Message {
-	s := capnp.NewBuffer(buf)
-	m := rpccapnp.NewRootMessage(s)
-	f := rpccapnp.NewFinish(s)
+	m := newMessage(buf)
+	f, _ := m.NewFinish()
 	f.SetQuestionId(uint32(questionID))
 	f.SetReleaseResultCaps(release)
-	m.SetFinish(f)
 	return m
 }
 
 // populateMessageCapTable converts the descriptors in the payload into
 // clients and sets it on the message the payload is a part of.
 func (c *Conn) populateMessageCapTable(payload rpccapnp.Payload) error {
-	msg := payload.Segment.Message
-	for i, n := 0, payload.CapTable().Len(); i < n; i++ {
-		desc := payload.CapTable().At(i)
+	msg := payload.Segment().Message()
+	ctab, err := payload.CapTable()
+	if err != nil {
+		return err
+	}
+	for i, n := 0, ctab.Len(); i < n; i++ {
+		desc := ctab.At(i)
 		switch desc.Which() {
 		case rpccapnp.CapDescriptor_Which_none:
 			msg.AddCap(nil)
@@ -440,12 +494,20 @@ func (c *Conn) populateMessageCapTable(payload rpccapnp.Payload) error {
 			}
 			msg.AddCap(e.client)
 		case rpccapnp.CapDescriptor_Which_receiverAnswer:
-			id := answerID(desc.ReceiverAnswer().QuestionId())
+			recvAns, err := desc.ReceiverAnswer()
+			if err != nil {
+				return err
+			}
+			id := answerID(recvAns.QuestionId())
 			a := c.answers.get(id)
 			if a == nil {
 				return fmt.Errorf("rpc: capability table references unknown answer ID %d", id)
 			}
-			transform := promisedAnswerOpsToTransform(desc.ReceiverAnswer().Transform())
+			recvTransform, err := recvAns.Transform()
+			if err != nil {
+				return err
+			}
+			transform := promisedAnswerOpsToTransform(recvTransform)
 			msg.AddCap(a.pipelineClient(transform))
 		default:
 			log.Println("rpc: unknown capability type", desc.Which())
@@ -456,9 +518,12 @@ func (c *Conn) populateMessageCapTable(payload rpccapnp.Payload) error {
 }
 
 // makeCapTable converts the clients in the segment's message into capability descriptors.
-func (c *Conn) makeCapTable(s *capnp.Segment) rpccapnp.CapDescriptor_List {
-	msgtab := s.Message.CapTable()
-	t := rpccapnp.NewCapDescriptor_List(s, len(msgtab))
+func (c *Conn) makeCapTable(s *capnp.Segment) (rpccapnp.CapDescriptor_List, error) {
+	msgtab := s.Message().CapTable
+	t, err := rpccapnp.NewCapDescriptor_List(s, int32(len(msgtab)))
+	if err != nil {
+		return rpccapnp.CapDescriptor_List{}, nil
+	}
 	for i, client := range msgtab {
 		desc := t.At(i)
 		if client == nil {
@@ -467,7 +532,7 @@ func (c *Conn) makeCapTable(s *capnp.Segment) rpccapnp.CapDescriptor_List {
 		}
 		c.descriptorForClient(desc, client)
 	}
-	return t
+	return t, nil
 }
 
 // handleBootstrapMessage is run in the coordinate goroutine to handle
@@ -476,8 +541,9 @@ func (c *Conn) handleBootstrapMessage(id answerID) error {
 	a := c.answers.insert(id, func() {})
 	if a == nil {
 		// Question ID reused, error out.
-		retmsg := newReturnMessage(id)
-		setReturnException(retmsg.Return(), errQuestionReused)
+		retmsg := newReturnMessage(nil, id)
+		r, _ := retmsg.Return()
+		setReturnException(r, errQuestionReused)
 		return c.sendMessage(retmsg)
 	}
 	msgs := make([]rpccapnp.Message, 0, 1)
@@ -490,8 +556,12 @@ func (c *Conn) handleBootstrapMessage(id answerID) error {
 		}
 		return nil
 	}
-	s := capnp.NewBuffer(nil)
-	in := capnp.Object(s.NewInterface(s.Message.AddCap(c.main)))
+	m := &capnp.Message{
+		Arena:    capnp.SingleSegment(make([]byte, 0)),
+		CapTable: []capnp.Client{c.main},
+	}
+	s, _ := m.Segment(0)
+	in := capnp.NewInterface(s, 0)
 	msgs = a.fulfill(msgs, in, c.makeCapTable)
 	for _, m := range msgs {
 		if err := c.sendMessage(m); err != nil {
@@ -505,12 +575,23 @@ func (c *Conn) handleBootstrapMessage(id answerID) error {
 // received call message.  It mutates the capability table of its
 // parameter.
 func (c *Conn) handleCallMessage(m rpccapnp.Message) error {
-	mt := m.Call().Target()
+	mcall, err := m.Call()
+	if err != nil {
+		return err
+	}
+	mt, err := mcall.Target()
+	if err != nil {
+		return err
+	}
 	if mt.Which() != rpccapnp.MessageTarget_Which_importedCap && mt.Which() != rpccapnp.MessageTarget_Which_promisedAnswer {
 		um := newUnimplementedMessage(nil, m)
 		return c.sendMessage(um)
 	}
-	if err := c.populateMessageCapTable(m.Call().Params()); err == errUnimplemented {
+	mparams, err := mcall.Params()
+	if err != nil {
+		return err
+	}
+	if err := c.populateMessageCapTable(mparams); err == errUnimplemented {
 		um := newUnimplementedMessage(nil, m)
 		return c.sendMessage(um)
 	} else if err != nil {
@@ -518,7 +599,7 @@ func (c *Conn) handleCallMessage(m rpccapnp.Message) error {
 		return err
 	}
 	ctx, cancel := c.newContext()
-	id := answerID(m.Call().QuestionId())
+	id := answerID(mcall.QuestionId())
 	a := c.answers.insert(id, cancel)
 	if a == nil {
 		// Question ID reused, error out.
@@ -526,13 +607,17 @@ func (c *Conn) handleCallMessage(m rpccapnp.Message) error {
 		return errQuestionReused
 	}
 	meth := capnp.Method{
-		InterfaceID: m.Call().InterfaceId(),
-		MethodID:    m.Call().MethodId(),
+		InterfaceID: mcall.InterfaceId(),
+		MethodID:    mcall.MethodId(),
+	}
+	paramContent, err := mparams.Content()
+	if err != nil {
+		return err
 	}
 	cl := &capnp.Call{
 		Ctx:    ctx,
 		Method: meth,
-		Params: m.Call().Params().Content().ToStruct(),
+		Params: capnp.ToStruct(paramContent),
 	}
 	if err := c.routeCallMessage(a, mt, cl); err != nil {
 		msgs := a.reject(nil, err)
@@ -557,7 +642,11 @@ func (c *Conn) routeCallMessage(result *answer, mt rpccapnp.MessageTarget, cl *c
 		answer := c.nestedCall(e.client, cl)
 		go joinAnswer(result, answer)
 	case rpccapnp.MessageTarget_Which_promisedAnswer:
-		id := answerID(mt.PromisedAnswer().QuestionId())
+		mpromise, err := mt.PromisedAnswer()
+		if err != nil {
+			return err
+		}
+		id := answerID(mpromise.QuestionId())
 		if id == result.id {
 			// Grandfather paradox.
 			return errBadTarget
@@ -566,7 +655,11 @@ func (c *Conn) routeCallMessage(result *answer, mt rpccapnp.MessageTarget, cl *c
 		if pa == nil {
 			return errBadTarget
 		}
-		transform := promisedAnswerOpsToTransform(mt.PromisedAnswer().Transform())
+		mtrans, err := mpromise.Transform()
+		if err != nil {
+			return err
+		}
+		transform := promisedAnswerOpsToTransform(mtrans)
 		if obj, err, done := pa.peek(); done {
 			client := clientFromResolution(transform, obj, err)
 			answer := c.nestedCall(client, cl)
@@ -583,28 +676,46 @@ func (c *Conn) routeCallMessage(result *answer, mt rpccapnp.MessageTarget, cl *c
 }
 
 func (c *Conn) handleDisembargoMessage(msg rpccapnp.Message) error {
-	d := msg.Disembargo()
+	d, err := msg.Disembargo()
+	if err != nil {
+		return err
+	}
+	dtarget, err := d.Target()
+	if err != nil {
+		return err
+	}
 	switch d.Context().Which() {
 	case rpccapnp.Disembargo_context_Which_senderLoopback:
 		id := embargoID(d.Context().SenderLoopback())
-		if d.Target().Which() != rpccapnp.MessageTarget_Which_promisedAnswer {
+		if dtarget.Which() != rpccapnp.MessageTarget_Which_promisedAnswer {
 			return errDisembargoNonImport
 		}
-		aid := answerID(d.Target().PromisedAnswer().QuestionId())
+		dpa, err := dtarget.PromisedAnswer()
+		if err != nil {
+			return err
+		}
+		aid := answerID(dpa.QuestionId())
 		a := c.answers.get(aid)
 		if a == nil {
 			return errDisembargoMissingAnswer
 		}
-		transform := promisedAnswerOpsToTransform(d.Target().PromisedAnswer().Transform())
-		queued, err := a.queueDisembargo(transform, id, d.Target())
+		dtrans, err := dpa.Transform()
+		if err != nil {
+			return err
+		}
+		transform := promisedAnswerOpsToTransform(dtrans)
+		queued, err := a.queueDisembargo(transform, id, dtarget)
 		if err != nil {
 			return err
 		}
 		if !queued {
 			// There's nothing to embargo; everything's been delivered.
-			msg := newDisembargoMessage(nil, rpccapnp.Disembargo_context_Which_receiverLoopback, id)
-			msg.Disembargo().SetTarget(d.Target())
-			c.sendMessage(msg)
+			resp := newDisembargoMessage(nil, rpccapnp.Disembargo_context_Which_receiverLoopback, id)
+			rd, _ := resp.Disembargo()
+			if err := rd.SetTarget(dtarget); err != nil {
+				return err
+			}
+			c.sendMessage(resp)
 		}
 	case rpccapnp.Disembargo_context_Which_receiverLoopback:
 		id := embargoID(d.Context().ReceiverLoopback())
@@ -618,9 +729,8 @@ func (c *Conn) handleDisembargoMessage(msg rpccapnp.Message) error {
 
 // newDisembargoMessage creates a disembargo message.  Its target will be left blank.
 func newDisembargoMessage(buf []byte, which rpccapnp.Disembargo_context_Which, id embargoID) rpccapnp.Message {
-	s := capnp.NewBuffer(buf)
-	msg := rpccapnp.NewRootMessage(s)
-	d := rpccapnp.NewDisembargo(s)
+	msg := newMessage(buf)
+	d, _ := msg.NewDisembargo()
 	switch which {
 	case rpccapnp.Disembargo_context_Which_senderLoopback:
 		d.Context().SetSenderLoopback(uint32(id))
@@ -629,7 +739,6 @@ func newDisembargoMessage(buf []byte, which rpccapnp.Disembargo_context_Which, i
 	default:
 		panic("unreachable")
 	}
-	msg.SetDisembargo(d)
 	return msg
 }
 
@@ -646,7 +755,7 @@ func promisedAnswerOpsToTransform(list rpccapnp.PromisedAnswer_Op_List) []capnp.
 		switch op.Which() {
 		case rpccapnp.PromisedAnswer_Op_Which_getPointerField:
 			transform = append(transform, capnp.PipelineOp{
-				Field: int(op.GetPointerField()),
+				Field: op.GetPointerField(),
 			})
 		case rpccapnp.PromisedAnswer_Op_Which_noop:
 			// no-op
@@ -694,26 +803,22 @@ func (c *Conn) abort(err error) {
 }
 
 func newAbortMessage(buf []byte, err error) rpccapnp.Message {
-	s := capnp.NewBuffer(buf)
-	n := rpccapnp.NewRootMessage(s)
-	e := rpccapnp.NewException(s)
+	n := newMessage(buf)
+	e, _ := n.NewAbort()
 	toException(e, err)
-	n.SetAbort(e)
 	return n
 }
 
-func newReturnMessage(id answerID) rpccapnp.Message {
-	s := capnp.NewBuffer(nil)
-	retmsg := rpccapnp.NewRootMessage(s)
-	ret := rpccapnp.NewReturn(s)
+func newReturnMessage(buf []byte, id answerID) rpccapnp.Message {
+	retmsg := newMessage(buf)
+	ret, _ := retmsg.NewReturn()
 	ret.SetAnswerId(uint32(id))
 	ret.SetReleaseParamCaps(false)
-	retmsg.SetReturn(ret)
 	return retmsg
 }
 
 func setReturnException(ret rpccapnp.Return, err error) rpccapnp.Exception {
-	e := rpccapnp.NewException(ret.Segment)
+	e, _ := rpccapnp.NewException(ret.Segment())
 	toException(e, err)
 	ret.SetException(e)
 	return e
@@ -721,15 +826,31 @@ func setReturnException(ret rpccapnp.Return, err error) rpccapnp.Exception {
 
 // clientFromResolution retrieves a client from a resolved question or
 // answer by applying a transform.
-func clientFromResolution(transform []capnp.PipelineOp, obj capnp.Object, err error) capnp.Client {
+func clientFromResolution(transform []capnp.PipelineOp, obj capnp.Pointer, err error) capnp.Client {
 	if err != nil {
 		return capnp.ErrorClient(err)
 	}
-	c := capnp.TransformObject(obj, transform).ToInterface().Client()
+	out, err := capnp.Transform(obj, transform)
+	if err != nil {
+		return capnp.ErrorClient(err)
+	}
+	c := capnp.ToInterface(out).Client()
 	if c == nil {
 		return capnp.ErrorClient(capnp.ErrNullClient)
 	}
 	return c
+}
+
+func newMessage(buf []byte) rpccapnp.Message {
+	_, s, err := capnp.NewMessage(capnp.SingleSegment(buf))
+	if err != nil {
+		panic(err)
+	}
+	m, err := rpccapnp.NewRootMessage(s)
+	if err != nil {
+		panic(err)
+	}
+	return m
 }
 
 // An appCall is a message sent to the coordinate goroutine to indicate

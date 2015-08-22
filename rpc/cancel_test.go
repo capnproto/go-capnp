@@ -4,11 +4,11 @@ import (
 	"testing"
 
 	"golang.org/x/net/context"
-	"zombiezen.com/go/capnproto"
 	"zombiezen.com/go/capnproto/rpc"
 	"zombiezen.com/go/capnproto/rpc/internal/logtransport"
 	"zombiezen.com/go/capnproto/rpc/internal/pipetransport"
 	"zombiezen.com/go/capnproto/rpc/internal/testcapnp"
+	"zombiezen.com/go/capnproto/server"
 )
 
 func TestCancel(t *testing.T) {
@@ -21,16 +21,16 @@ func TestCancel(t *testing.T) {
 	c := rpc.NewConn(p)
 	notify := make(chan struct{})
 	hanger := testcapnp.Hanger_ServerToClient(Hanger{notify: notify})
-	d := rpc.NewConn(q, rpc.MainInterface(hanger.GenericClient()))
+	d := rpc.NewConn(q, rpc.MainInterface(hanger.Client))
 	defer d.Wait()
 	defer c.Close()
-	client := testcapnp.NewHanger(c.Bootstrap(ctx))
+	client := testcapnp.Hanger{Client: c.Bootstrap(ctx)}
 
 	subctx, subcancel := context.WithCancel(ctx)
-	promise := client.Hang(subctx, func(r testcapnp.Hanger_hang_Params) {})
+	promise := client.Hang(subctx, func(r testcapnp.Hanger_hang_Params) error { return nil })
 	<-notify
 	subcancel()
-	_, err := promise.Get()
+	_, err := promise.Struct()
 	<-notify // test will deadlock if cancel not delivered
 
 	if err != context.Canceled {
@@ -43,7 +43,7 @@ type Hanger struct {
 }
 
 func (h Hanger) Hang(call testcapnp.Hanger_hang) error {
-	capnp.Ack(call.Options)
+	server.Ack(call.Options)
 	h.notify <- struct{}{}
 	<-call.Ctx.Done()
 	close(h.notify)

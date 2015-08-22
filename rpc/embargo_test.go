@@ -20,34 +20,34 @@ func TestEmbargo(t *testing.T) {
 	}
 	c := rpc.NewConn(p)
 	echoSrv := testcapnp.Echoer_ServerToClient(new(Echoer))
-	d := rpc.NewConn(q, rpc.MainInterface(echoSrv.GenericClient()))
+	d := rpc.NewConn(q, rpc.MainInterface(echoSrv.Client))
 	defer d.Wait()
 	defer c.Close()
-	client := testcapnp.NewEchoer(c.Bootstrap(ctx))
+	client := testcapnp.Echoer{Client: c.Bootstrap(ctx)}
 	localCap := testcapnp.CallOrder_ServerToClient(new(CallOrder))
 
-	earlyCall := callseq(ctx, client.GenericClient(), 0)
-	echo := client.Echo(ctx, func(p testcapnp.Echoer_echo_Params) {
-		p.SetCap(localCap)
+	earlyCall := callseq(ctx, client.Client, 0)
+	echo := client.Echo(ctx, func(p testcapnp.Echoer_echo_Params) error {
+		return p.SetCap(localCap)
 	})
 	pipeline := echo.Cap()
-	call0 := callseq(ctx, pipeline.GenericClient(), 0)
-	call1 := callseq(ctx, pipeline.GenericClient(), 1)
-	_, err := earlyCall.Get()
+	call0 := callseq(ctx, pipeline.Client, 0)
+	call1 := callseq(ctx, pipeline.Client, 1)
+	_, err := earlyCall.Struct()
 	if err != nil {
 		t.Errorf("earlyCall error: %v", err)
 	}
-	call2 := callseq(ctx, pipeline.GenericClient(), 2)
-	_, err = echo.Get()
+	call2 := callseq(ctx, pipeline.Client, 2)
+	_, err = echo.Struct()
 	if err != nil {
 		t.Errorf("echo.Get() error: %v", err)
 	}
-	call3 := callseq(ctx, pipeline.GenericClient(), 3)
-	call4 := callseq(ctx, pipeline.GenericClient(), 4)
-	call5 := callseq(ctx, pipeline.GenericClient(), 5)
+	call3 := callseq(ctx, pipeline.Client, 3)
+	call4 := callseq(ctx, pipeline.Client, 4)
+	call5 := callseq(ctx, pipeline.Client, 5)
 
-	check := func(promise *testcapnp.CallOrder_getCallSequence_Results_Promise, n uint32) {
-		r, err := promise.Get()
+	check := func(promise testcapnp.CallOrder_getCallSequence_Results_Promise, n uint32) {
+		r, err := promise.Struct()
 		if err != nil {
 			t.Errorf("call%d error: %v", n, err)
 		}
@@ -63,9 +63,10 @@ func TestEmbargo(t *testing.T) {
 	check(call5, 5)
 }
 
-func callseq(c context.Context, client capnp.Client, n uint32) *testcapnp.CallOrder_getCallSequence_Results_Promise {
-	return testcapnp.NewCallOrder(client).GetCallSequence(c, func(p testcapnp.CallOrder_getCallSequence_Params) {
+func callseq(c context.Context, client capnp.Client, n uint32) testcapnp.CallOrder_getCallSequence_Results_Promise {
+	return testcapnp.CallOrder{Client: client}.GetCallSequence(c, func(p testcapnp.CallOrder_getCallSequence_Params) error {
 		p.SetExpected(n)
+		return nil
 	})
 }
 
