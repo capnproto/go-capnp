@@ -1,137 +1,143 @@
 /*
 Package capnp is a Cap'n Proto library for Go.
+https://capnproto.org/
 
-see https://capnproto.org/
+Generating code
 
-capnpc-go provides the compiler backend for capnp
-after installing to $PATH capnp files can be compiled with
+capnpc-go provides the compiler backend for capnp.
 
+	# First, install capnpc-go to $PATH.
+	go install zombiezen.com/go/capnproto/capnpc-go
+	# Then, generate Go files.
 	capnp compile -ogo *.capnp
 
-capnpc-go requires two annotations for all types. This is the package and
-import found in go.capnp. Package is needed to know what package to place at
-the head of the generated file and what go name to use when referring to the
-type from another package. Import should be the fully qualified import path
-and is used to generate import statement from other packages and to detect
-when two types are in the same package. Typically these are added as file
-annotations. For example:
+capnpc-go requires two annotations for all files: package and import.
+package is needed to know what package to place at the head of the
+generated file and what identifier to use when referring to the type
+from another package.  import should be the fully qualified import path
+and is used to generate import statement from other packages and to
+detect when two types are in the same package.  For example:
 
 	using Go = import "zombiezen.com/go/capnproto/go.capnp";
 	$Go.package("main");
 	$Go.import("zombiezen.com/go/capnproto/example");
 
-In capnproto, the unit of communication is a message. A message
-consists of one or more of segments to allow easier allocation, but
-ideally and typically you just make one segment per message.
-
-Logically, a message organized in a tree of objects, with the root
-always being a struct (as opposed to a list or primitive).
-
-Here is an example of writing a new message. We use the demo schema
-aircraft.capnp from the aircraftlib directory. You may wish to read
-the schema before reading this example.
-
-<< Example moved to its own file: See the file, write_test.go >>
-
-In summary, when you make a new message, you should first make new segment,
-and then create the root struct in that segment. Then add your non-child
-(contained) objects. This is because, as the spec says:
-
-   The first word of the first segment of the message
-   is always a pointer pointing to the message's root
-   struct.
-
-
-All objects are values with pointer semantics that point into the data
-in a message or segment. Messages can be read/written from a stream
-uncompressed or using the capnproto compression.
-
-In this library a *Segment is taken to refer to both a specific segment as
-well as the containing message. This is to reduce the number of types generic
-code needs to deal with and allows objects to be created in the same segment
-as their outer object (thus reducing the number of far pointers).
-
-Most getters/setters in the library don't return an error. Instead a get that
-fails due to an invalid pointer, out of bounds, etc will return the default
-value. A invalid set will be noop'ed. If you really need to know whether a set
-succeeds then errors are provided by the lower level Object methods.
-
-Since go doesn't have any templating, lists are created for the basic types
-and one level of named types. The list of basic types (e.g. List(UInt8),
-List(Text), etc) are all provided in this library. Lists of user named types
-are created with the user types (e.g. user struct Foo will create a Foo_List
-type). capnp schemas that use deeper lists (e.g. List(List(UInt8))) will use
-PointerList and the user will have to use the Object.ToList* functions to cast
-to the correct type.
-
 For adding documentation comments to the generated code, there's the doc
 annotation. This annotation adds the comment to a struct, enum or field so
-that godoc will pick it up. For Example:
+that godoc will pick it up. For example:
 
-	struct Zdate $Go.doc("Zdate represents an instance in time") {
+	struct Zdate $Go.doc("Zdate represents a calendar date") {
 	  year  @0   :Int16;
 	  month @1   :UInt8;
 	  day   @2   :UInt8 ;
 	}
 
+Messages and Segments
+
+In Cap'n Proto, the unit of communication is a message. A message
+consists of one or more segments -- contiguous blocks of memory.  This
+allows large messages to be split up and loaded independently or lazily.
+Typically you will use one segment per message.  Logically, a message is
+organized in a tree of objects, with the root always being a struct (as
+opposed to a list or primitive).  Messages can be read from and written
+to a stream.
+
+Pointers
+
+The interface for accessing a Cap'n Proto object is Pointer.  This can
+refer to a struct, a list, or an interface.  Pointers have value
+semantics and refer to data in a single segment.  All of the concrete
+pointer types have a notion of "valid".  An invalid pointer will return
+the default value from any accessor and panic when any setter is called.
+
+Data accessors and setters (i.e. struct primitive fields and list
+elements) do not return errors, but pointer accessors and setters do.
+There are a reasons that a read or write of a pointer can fail, but the
+most common are bad pointers or allocation failures.  For accessors, an
+invalid object will be returned in case of an error.
+
+Since Go doesn't have generics, wrapper types provide type safety on
+lists.  This package provides lists of basic types, and capnpc-go
+generates list wrappers for named types.  However, if you need to use
+deeper nesting of lists (e.g. List(List(UInt8))), you will need to use a
+PointerList and wrap the elements.
+
 Structs
 
-capnpc-go will generate the following for structs:
+For the following schema:
 
-	// Foo is a value with pointer semantics referencing the data in a
-	// segment. Member functions are provided to get/set members in the
-	// struct. Getters/setters of an outer struct will use values of type
-	// Foo to set/get pointers.
-	type Foo capnp.Struct
+struct Foo {
+  num @0 :UInt32;
+  bar @1 :Foo;
+}
 
-	// NewFoo creates a new orphaned Foo struct. This can then be added to
-	// a message by using a Set function which takes a Foo argument.
-	func NewFoo(s *capnp.Segment) Foo
+capnpc-go will generate:
 
-	// NewRootFoo creates a new root of type Foo in the next unused space in the
-	// provided segment. This is distinct from NewFoo as this always
-	// creates a root tag. Typically the provided segment should be empty.
-	// Remember that a message is a tree of objects with a single root, and
-	// you usually have to create the root before any other object in a
-	// segment. The only exception would be for a multi-segment message.
-	func NewRootFoo(s *capnp.Segment) Foo
+	// Foo is a pointer to a Foo struct in a segment.
+	// Member functions are provided to get/set members in the
+	// struct.
+	type Foo struct{ capnp.Struct }
 
-	// ReadRootFoo reads the root tag at the beginning of the provided
-	// segment and returns it as a Foo struct.
-	func ReadRootFoo(s *capnp.Segment) Foo
+	// NewFoo creates a new orphaned Foo struct, preferring placement in
+	// s.  If there isn't enough space, then another segment in the
+	// message will be used or allocated.  You can set a field of type Foo
+	// to this new message, but usually you will want to use the
+	// NewBar()-style method shown below.
+	func NewFoo(s *capnp.Segment) (Foo, error)
 
-	// Segment returns the struct's segment.
-	func (s Foo) Segment() *capnp.Segment
+	// NewRootFoo creates a new Foo struct and sets the message's root to
+	// it.
+	func NewRootFoo(s *capnp.Segment) (Foo, error)
+
+	// ReadRootFoo reads the message's root pointer and converts it to a
+	// Foo struct.
+	func ReadRootFoo(msg *capnp.Message) (Foo, error)
+
+	// Num returns the value of the num field.
+	func (s Foo) Num() uint32
+
+	// SetNum sets the value of the num field to v.
+	func (s Foo) SetNum(v uint32)
+
+	// Bar returns the value of the bar field.  This can return an error
+	// if the pointer goes beyond the segment's range, the segment fails
+	// to load, or the pointer recursion limit has been reached.
+	func (s Foo) Bar() (Foo, error)
+
+	// SetBar sets the value of the bar field to v.
+	func (s Foo) SetBar(v Foo) error
+
+	// NewBar sets the bar field to a newly allocated Foo struct,
+	// preferring placement in s's segment.
+	func (s Foo) NewBar() (Foo, error)
 
 	// Foo_List is a value with pointer semantics. It is created for all
 	// structs, and is used for List(Foo) in the capnp file.
-	type Foo_List capnp.List
+	type Foo_List struct{ capnp.List }
 
-	// NewFoo_List creates a new orphaned List(Foo). This can then be added
-	// to a message by using a Set function which takes a Foo_List. sz
-	// specifies the list size. Due to the list using memory directly in
-	// the outgoing buffer (i.e. arena style memory management), the size
-	// can not be changed after creation.
-	func NewFoo_List(s *capnp.Segment, sz int) Foo_List
+	// NewFoo_List creates a new orphaned List(Foo), preferring placement
+	// in s. This can then be added to a message by using a Set function
+	// which takes a Foo_List. sz specifies the number of elements in the
+	// list.  The list's size cannot be changed after creation.
+	func NewFoo_List(s *capnp.Segment, sz int32) Foo_List
 
-	// Len returns the list length. For composite lists this is the number
-	// of list elements.
+	// Len returns the number of elements in the list.
 	func (s Foo_List) Len() int
 
 	// At returns a pointer to the i'th element. If i is an invalid index,
-	// this will return a null Foo (all getters will return default
-	// values, setters will fail). For a composite list the returned value
-	// will be a list member. Setting another value to point to list
-	// members forces a copy of the data. For pointer lists, the pointer
-	// value will be auto-derefenced.
+	// this will return an invalid Foo (all getters will return default
+	// values, setters will fail).
 	func (s Foo_List) At(i int) Foo
 
 	// Foo_Promise is a promise for a Foo.  Methods are provided to get
 	// promises of struct and interface fields.
-	type Foo_Promise capnp.Pipeline
+	type Foo_Promise struct{ *capnp.Pipeline }
 
 	// Get waits until the promise is resolved and returns the result.
 	func (p Foo_Promise) Get() (Foo, error)
+
+	// Bar returns a promise for that bar field.
+	func (p Foo_Promise) Bar() Foo_Promise
 
 
 Groups
@@ -145,7 +151,9 @@ groups fields:
 		}
 	}
 
-	type Foo capnp.Struct
+generates the following:
+
+	type Foo struct{ capnp.Struct }
 	type Foo_group Foo
 
 	func (s Foo) Group() Foo_group
@@ -156,11 +164,7 @@ That way the following may be used to access a field in a group:
 	var f Foo
 	value := f.Group().Field()
 
-Note that Group accessors just cast the type and so have no overhead
-
-	func (s Foo) Group() Foo_group {return Foo_group(s)}
-
-
+Note that group accessors just convert the type and so have no overhead.
 
 Unions
 
@@ -173,6 +177,8 @@ unions generate an enum Type_Which and a corresponding Which() function:
 			b @1 :Bool;
 		}
 	}
+
+generates the following:
 
 	type Foo_Which uint16
 
@@ -203,12 +209,14 @@ For example:
 		}
 	}
 
-	f.SetA() // Set that we are using A
-	f.SetB() // Set that we are using B
+generates the following:
 
-For groups in unions, there is a group setter that just sets the
-discriminator. This must be called before the group getter can be used to set
-values. For example:
+	func (s Foo) SetA() // Set that we are using A
+	func (s Foo) SetB() // Set that we are using B
+
+Similarly, for groups in unions, there is a group setter that just sets
+the discriminator. This must be called before the group getter can be
+used to set values. For example:
 
 	struct Foo {
 		union {
@@ -221,10 +229,10 @@ values. For example:
 		}
 	}
 
+and in usage:
+
 	f.SetA()         // Set that we are using group A
 	f.A().SetV(true) // then we can use the group A getter to set the inner values
-
-
 
 Enums
 
@@ -284,7 +292,6 @@ In the generated go file:
 		}
 	}
 
-
 Interfaces
 
 capnpc-go generates type-safe Client wrappers for interfaces. For parameter
@@ -300,22 +307,13 @@ capnpc-go generates the following Go code (along with the structs
 Calculator_evaluate_Params and Calculator_evaluate_Results):
 
 	// Calculator is a client to a Calculator interface.
-	type Calculator struct { c capnp.Client }
-
-	// NewCalculator creates a Calculator from a generic promise.
-	func NewCalculator(c capnp.Client) Calculator
-
-	// GenericClient returns the underlying generic client.
-	func (c Calculator) GenericClient() capnp.Client
-
-	// IsNull returns whether the underlying client is nil.
-	func (c Calculator) IsNull() bool
+	type Calculator struct{ Client capnp.Client }
 
 	// Evaluate calls `evaluate` on the client.  params is called on a newly
-	// allocated Calculator_evaluate_Params to fill in the parameters.
+	// allocated Calculator_evaluate_Params struct to fill in the parameters.
 	func (c Calculator) Evaluate(
 		ctx context.Context,
-		params func(Calculator_evaluate_Params),
+		params func(Calculator_evaluate_Params) error,
 		opts ...capnp.CallOption) *Calculator_evaluate_Results_Promise
 
 capnpc-go also generates code to implement the interface:
