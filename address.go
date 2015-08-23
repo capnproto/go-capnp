@@ -27,9 +27,6 @@ const wordSize Size = 8
 // maxSize is the maximum representable size.
 const maxSize Size = 1<<32 - 1
 
-// DataOffset is an offset in bytes from the beginning of a struct's data section.
-type DataOffset uint32
-
 // times returns the size sz*n.
 func (sz Size) times(n int32) Size {
 	result := int64(sz) * int64(n)
@@ -44,6 +41,9 @@ func (sz Size) padToWord() Size {
 	n := Size(wordSize - 1)
 	return (sz + n) &^ n
 }
+
+// DataOffset is an offset in bytes from the beginning of a struct's data section.
+type DataOffset uint32
 
 // ObjectSize records section sizes for a struct or list.
 type ObjectSize struct {

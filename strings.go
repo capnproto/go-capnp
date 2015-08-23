@@ -13,7 +13,33 @@ func (addr Address) String() string {
 
 // GoString returns the address in hex format.
 func (addr Address) GoString() string {
-	return fmt.Sprintf("Address(%#016x)", uint64(addr))
+	return fmt.Sprintf("capnp.Address(%#016x)", uint64(addr))
+}
+
+// String returns the size in the format "X bytes".
+func (sz Size) String() string {
+	if sz == 1 {
+		return "1 byte"
+	}
+	return fmt.Sprintf("%d bytes", sz)
+}
+
+// GoString returns the size as a Go expression.
+func (sz Size) GoString() string {
+	return fmt.Sprintf("capnp.Size(%d)", sz)
+}
+
+// String returns the offset in the format "+X bytes".
+func (off DataOffset) String() string {
+	if off == 1 {
+		return "+1 byte"
+	}
+	return fmt.Sprintf("+%d bytes", off)
+}
+
+// GoString returns the offset as a Go expression.
+func (off DataOffset) GoString() string {
+	return fmt.Sprintf("capnp.DataOffset(%d)", off)
 }
 
 // String returns a short, human readable representation of the object
@@ -24,7 +50,17 @@ func (sz ObjectSize) String() string {
 
 // GoString formats the ObjectSize as a keyed struct literal.
 func (sz ObjectSize) GoString() string {
-	return fmt.Sprintf("ObjectSize{DataSize: %d, PointerCount: %d}", sz.DataSize, sz.PointerCount)
+	return fmt.Sprintf("capnp.ObjectSize{DataSize: %d, PointerCount: %d}", sz.DataSize, sz.PointerCount)
+}
+
+// String returns the offset in the format "bit X".
+func (bit BitOffset) String() string {
+	return fmt.Sprintf("bit %d", bit)
+}
+
+// GoString returns the offset as a Go expression.
+func (bit BitOffset) GoString() string {
+	return fmt.Sprintf("capnp.BitOffset(%d)", bit)
 }
 
 // GoString formats the pointer as a call to one of the rawPointer
