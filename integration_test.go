@@ -1014,12 +1014,10 @@ func TestZserverWithOneFullJob(t *testing.T) {
 			fmt.Printf("          actual:\n")
 			ShowBytes(act, 10)
 			fmt.Printf("act decoded by capnp: '%s'\n", string(CapnpDecode(act, "Zserver")))
-			save(act, "myact")
 
 			fmt.Printf("expected:\n")
 			ShowBytes(exp, 10)
 			fmt.Printf("exp decoded by capnp: '%s'\n", string(CapnpDecode(exp, "Zserver")))
-			save(exp, "myexp")
 
 			cv.So(act, cv.ShouldResemble, exp)
 		})
@@ -1075,12 +1073,10 @@ func TestZserverWithAccessors(t *testing.T) {
 			fmt.Printf("          actual:\n")
 			ShowBytes(act, 10)
 			fmt.Printf("act decoded by capnp: '%s'\n", string(CapnpDecode(act, "Zserver")))
-			save(act, "myact")
 
 			fmt.Printf("expected:\n")
 			ShowBytes(exp, 10)
 			fmt.Printf("exp decoded by capnp: '%s'\n", string(CapnpDecode(exp, "Zserver")))
-			save(exp, "myexp")
 
 			cv.So(act, cv.ShouldResemble, exp)
 		})
@@ -1131,12 +1127,10 @@ func TestSetObjectBetweenSegments(t *testing.T) {
 			fmt.Printf("          actual:\n")
 			ShowBytes(act, 10)
 			fmt.Printf("act decoded by capnp: '%s'\n", string(CapnpDecode(act, "Bag")))
-			save(act, "myact")
 
 			fmt.Printf("expected:\n")
 			ShowBytes(exp, 10)
 			fmt.Printf("exp decoded by capnp: '%s'\n", string(CapnpDecode(exp, "Bag")))
-			save(exp, "myexp")
 
 			cv.So(act, cv.ShouldResemble, exp)
 		})
@@ -1175,12 +1169,10 @@ func TestObjectWithTextBetweenSegments(t *testing.T) {
 			fmt.Printf("          actual:\n")
 			ShowBytes(act, 10)
 			fmt.Printf("act decoded by capnp: '%s'\n", string(CapnpDecode(act, "Bag")))
-			save(act, "myact")
 
 			fmt.Printf("expected:\n")
 			ShowBytes(exp, 10)
 			fmt.Printf("exp decoded by capnp: '%s'\n", string(CapnpDecode(exp, "Bag")))
-			save(exp, "myexp")
 
 			cv.So(act, cv.ShouldResemble, exp)
 		})
@@ -1217,7 +1209,6 @@ func TestObjectWithListOfTextBetweenSegments(t *testing.T) {
 			x, err := scratchMsg.Marshal()
 			cv.So(err, cv.ShouldEqual, nil)
 
-			save(x, "myscratch")
 			fmt.Printf("scratch segment (%p):\n", scratch)
 			ShowBytes(x, 10)
 			fmt.Printf("scratch segment (%p) with Counter decoded by capnp: '%s'\n", scratch, string(CapnpDecode(x, "Counter")))
@@ -1233,9 +1224,6 @@ func TestObjectWithListOfTextBetweenSegments(t *testing.T) {
 
 			act, err := msg.Marshal()
 			cv.So(err, cv.ShouldEqual, nil)
-
-			save(act, "myact")
-			save(exp, "myexp")
 
 			fmt.Printf("expected:\n")
 			ShowBytes(exp, 10)
@@ -1291,12 +1279,10 @@ func TestSetBetweenSegments(t *testing.T) {
 			fmt.Printf("          actual:\n")
 			ShowBytes(act, 10)
 			//fmt.Printf("act decoded by capnp: '%s'\n", string(CapnpDecode(act, "Bag")))
-			save(act, "myact")
 
 			fmt.Printf("expected:\n")
 			ShowBytes(exp, 10)
 			//fmt.Printf("exp decoded by capnp: '%s'\n", string(CapnpDecode(exp, "Bag")))
-			save(exp, "myexp")
 
 			cv.So(act, cv.ShouldResemble, exp)
 		})
@@ -1343,10 +1329,8 @@ func TestZserverWithOneEmptyJob(t *testing.T) {
 			fmt.Printf("Then we do the SetWaitingjobs:\n")
 			server.SetWaitingjobs(joblist)
 
-			// save
 			act, err := msg.Marshal()
 			cv.So(err, cv.ShouldEqual, nil)
-			save(act, "my.act.zserver")
 
 			// show
 			ShowSeg("          actual:\n", seg)
@@ -1457,10 +1441,8 @@ func TestV0ListofEmptyShouldMatchCapnp(t *testing.T) {
 			fmt.Printf("Then we do the SetMylist():\n")
 			holder.SetMylist(elist)
 
-			// save
 			act, err := msg.Marshal()
 			cv.So(err, cv.ShouldEqual, nil)
-			save(act, "my.act.holder.elist")
 
 			// show
 			ShowSeg("          actual:\n", seg)

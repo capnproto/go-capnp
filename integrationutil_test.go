@@ -178,19 +178,6 @@ func CapnpDecodeSegment(seg *capnp.Segment, capnpExePath string, capnpSchemaFile
 	return strings.TrimSpace(string(bs))
 }
 
-// reduce boilerplate, dump this segment to disk.
-func SegToFile(seg *capnp.Segment, filePath string) {
-	file, err := os.Create(filePath)
-	defer file.Close()
-	if err != nil {
-		panic(err)
-	}
-	err = capnp.NewEncoder(file).Encode(seg.Message())
-	if err != nil {
-		panic(err)
-	}
-}
-
 // disk file of a capn segment -> in-memory capn segment -> stdin to capnp decode -> stdout human-readble string form
 func CapnFileToText(serializedCapnpFilePathToDisplay string, capnpSchemaFilePath string, capnpExePath string) (string, error) {
 
@@ -342,34 +329,6 @@ func CapnpDecode(input []byte, typ string) []byte {
 	return o.Bytes()
 }
 
-func MakeAndMoveToTempDir() (origdir string, tmpdir string) {
-
-	var err error
-	origdir, err = os.Getwd()
-	if err != nil {
-		panic(err)
-	}
-	tmpdir, err = ioutil.TempDir(origdir, "tempgocapnpdir")
-	if err != nil {
-		panic(err)
-	}
-	err = os.Chdir(tmpdir)
-	if err != nil {
-		panic(err)
-	}
-
-	return origdir, tmpdir
-}
-
-func TempDirCleanup(origdir string, tmpdir string) {
-	// cleanup
-	os.Chdir(origdir)
-	err := os.RemoveAll(tmpdir)
-	if err != nil {
-		panic(err)
-	}
-}
-
 func ShowBytes(b []byte, indent int) {
 	c := NewCap()
 	k := 0
@@ -425,7 +384,7 @@ func (c *Cap) Interp(line int, val uint64, b []byte) string {
 				bytesRequired := (listSize + 7) / 8
 				szBytesWordBoundary := (bytesRequired + 7) &^ 7
 				eline := line + 1 + B(val)
-				listContent := BytesToWordString(b[eline*8 : (eline*8 + szBytesWordBoundary)])
+				listContent := fmt.Sprintf("% 02x", b[eline*8:(eline*8+szBytesWordBoundary)])
 				c.expected[eline] = fmt.Sprintf("bit-list contents: %s", listContent)
 				return fmt.Sprintf("list of %d bits (pointer to: '%s' at line %d)", listSize, listContent, eline)
 			}
@@ -585,16 +544,6 @@ func (c *Cap) StructPointer(val uint64, line int) string {
 	return fmt.Sprintf("struct-pointer, data starts at +%d words (line %d). {prim: %d, pointers: %d words}.", B(val), eline, StructC(val), StructD(val))
 }
 
-func save(b []byte, fn string) {
-	file, err := os.Create(fn)
-	if err != nil {
-		panic(err)
-	}
-	file.Write(b)
-	file.Close()
-
-}
-
 func InspectSlice(slice []byte) {
 	// Capture the address to the slice structure
 	address := unsafe.Pointer(&slice)
@@ -615,30 +564,4 @@ func FileExists(name string) bool {
 		return false
 	}
 	return true
-}
-
-func DirExists(name string) bool {
-	fi, err := os.Stat(name)
-	if err != nil {
-		return false
-	}
-	if fi.IsDir() {
-		return true
-	}
-	return false
-}
-
-func BytesToWordString(b []byte) string {
-	var s string
-	k := 0
-	for i := 0; i < len(b)/8; i++ {
-		for j := 0; j < 8; j++ {
-			s += fmt.Sprintf("%02x ", b[k])
-			k++
-			if k == len(b) {
-				break
-			}
-		}
-	}
-	return s
 }
