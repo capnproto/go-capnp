@@ -202,8 +202,8 @@ const (
 type singleSegmentArena []byte
 
 // SingleSegment returns a new arena with an expanding single-segment
-// buffer.  b can be used to populate the buffer for reading or to
-// reserve memory of a specific size.  A SingleSegment buffer does not
+// buffer.  b can be used to populate the segment for reading or to
+// reserve memory of a specific size.  A SingleSegment arena does not
 // return errors unless you attempt to access another segment.
 func SingleSegment(b []byte) Arena {
 	if cap(b) == 0 {
