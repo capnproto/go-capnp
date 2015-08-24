@@ -363,21 +363,23 @@ func NewUInt8List(s *Segment, n int32) (UInt8List, error) {
 
 // NewText creates a new list of UInt8 from a string.
 func NewText(s *Segment, v string) (UInt8List, error) {
+	// TODO(light): error if v is too long
 	l, err := NewUInt8List(s, int32(len(v)+1))
 	if err != nil {
 		return UInt8List{}, err
 	}
-	copy(l.seg.data[l.off:], v)
+	copy(l.seg.slice(l.off, Size(len(v))), v)
 	return l, nil
 }
 
 // NewData creates a new list of UInt8 from a byte slice.
 func NewData(s *Segment, v []byte) (UInt8List, error) {
+	// TODO(light): error if v is too long
 	l, err := NewUInt8List(s, int32(len(v)))
 	if err != nil {
 		return UInt8List{}, err
 	}
-	copy(l.seg.data[l.off:], v)
+	copy(l.seg.slice(l.off, Size(len(v))), v)
 	return l, nil
 }
 

@@ -131,7 +131,7 @@ func (p Struct) Bit(n BitOffset) bool {
 		return false
 	}
 	addr := p.off.addOffset(n.offset())
-	return p.seg.data[addr]&n.mask() != 0
+	return p.seg.readUint8(addr)&n.mask() != 0
 }
 
 // SetBit sets the bit that is n bits from the start of the struct to v.
@@ -140,11 +140,13 @@ func (p Struct) SetBit(n BitOffset, v bool) {
 		return
 	}
 	addr := p.off.addOffset(n.offset())
+	b := p.seg.readUint8(addr)
 	if v {
-		p.seg.data[addr] |= n.mask()
+		b |= n.mask()
 	} else {
-		p.seg.data[addr] &^= n.mask()
+		b &^= n.mask()
 	}
+	p.seg.writeUint8(addr, b)
 }
 
 func (p Struct) dataAddress(off DataOffset, sz Size) (addr Address, ok bool) {
@@ -160,7 +162,7 @@ func (p Struct) Uint8(off DataOffset) uint8 {
 	if !ok {
 		return 0
 	}
-	return p.seg.data[addr]
+	return p.seg.readUint8(addr)
 }
 
 // Uint16 returns a 16-bit integer from the struct's data section.
@@ -196,7 +198,7 @@ func (p Struct) SetUint8(off DataOffset, v uint8) {
 	if !ok {
 		panic(errOutOfBounds)
 	}
-	p.seg.data[addr] = v
+	p.seg.writeUint8(addr, v)
 }
 
 // SetUint16 sets the 16-bit integer that is off bytes from the start of the struct to v.
@@ -248,9 +250,6 @@ func copyStruct(cc copyContext, dst, src Struct) error {
 		return nil
 	}
 
-	dstDataEnd := dst.off.addSize(dst.size.DataSize)
-	srcDataEnd := src.off.addSize(src.size.DataSize)
-
 	// Q: how does version handling happen here, when the
 	//    destination toData[] slice can be bigger or smaller
 	//    than the source data slice, which is in
@@ -263,8 +262,8 @@ func copyStruct(cc copyContext, dst, src Struct) error {
 	//
 
 	// data section:
-	dstData := dst.seg.data[dst.off:dstDataEnd]
-	srcData := src.seg.data[src.off:srcDataEnd]
+	srcData := src.seg.slice(src.off, src.size.DataSize)
+	dstData := dst.seg.slice(dst.off, dst.size.DataSize)
 	copyCount := copy(dstData, srcData)
 	dstData = dstData[copyCount:]
 	for j := range dstData {
@@ -276,11 +275,13 @@ func copyStruct(cc copyContext, dst, src Struct) error {
 	// version handling: we ignore any extra-newer-pointers in src,
 	// i.e. the case when srcPtrSize > dstPtrSize, by only
 	// running j over the size of dstPtrSize, the destination size.
+	srcPtrSect := src.off.addSize(src.size.DataSize)
+	dstPtrSect := dst.off.addSize(dst.size.DataSize)
 	numSrcPtrs := src.size.PointerCount
 	numDstPtrs := dst.size.PointerCount
 	for j := uint16(0); j < numSrcPtrs && j < numDstPtrs; j++ {
-		srcAddr := srcDataEnd.element(int32(j), wordSize)
-		dstAddr := dstDataEnd.element(int32(j), wordSize)
+		srcAddr := srcPtrSect.element(int32(j), wordSize)
+		dstAddr := dstPtrSect.element(int32(j), wordSize)
 		m, err := src.seg.readPtr(srcAddr)
 		if err != nil {
 			return err
@@ -292,7 +293,7 @@ func copyStruct(cc copyContext, dst, src Struct) error {
 	}
 	for j := numSrcPtrs; j < numDstPtrs; j++ {
 		// destination p is a newer version than source so these extra new pointer fields in p must be zeroed.
-		addr := dstDataEnd.element(int32(j), wordSize)
+		addr := dstPtrSect.element(int32(j), wordSize)
 		dst.seg.writeRawPointer(addr, 0)
 	}
 	// Nothing more here: so any other pointers in srcPtrSize beyond

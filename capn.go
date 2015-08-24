@@ -45,61 +45,45 @@ func (s *Segment) regionInBounds(base Address, sz Size) bool {
 // slice returns the segment of data from base to base+sz.
 func (s *Segment) slice(base Address, sz Size) []byte {
 	if !s.regionInBounds(base, sz) {
-		return nil
+		panic(errOutOfBounds)
 	}
 	return s.data[base:base.addSize(sz)]
 }
 
+func (s *Segment) readUint8(addr Address) uint8 {
+	return s.slice(addr, 1)[0]
+}
+
 func (s *Segment) readUint16(addr Address) uint16 {
-	data := s.slice(addr, 2)
-	if data == nil {
-		panic(errOutOfBounds)
-	}
-	return binary.LittleEndian.Uint16(data)
+	return binary.LittleEndian.Uint16(s.slice(addr, 2))
 }
 
 func (s *Segment) readUint32(addr Address) uint32 {
-	data := s.slice(addr, 4)
-	if data == nil {
-		panic(errOutOfBounds)
-	}
-	return binary.LittleEndian.Uint32(data)
+	return binary.LittleEndian.Uint32(s.slice(addr, 4))
 }
 
 func (s *Segment) readUint64(addr Address) uint64 {
-	data := s.slice(addr, 8)
-	if data == nil {
-		panic(errOutOfBounds)
-	}
-	return binary.LittleEndian.Uint64(data)
+	return binary.LittleEndian.Uint64(s.slice(addr, 8))
 }
 
 func (s *Segment) readRawPointer(addr Address) rawPointer {
 	return rawPointer(s.readUint64(addr))
 }
 
+func (s *Segment) writeUint8(addr Address, val uint8) {
+	s.slice(addr, 1)[0] = val
+}
+
 func (s *Segment) writeUint16(addr Address, val uint16) {
-	data := s.slice(addr, 2)
-	if data == nil {
-		panic(errOutOfBounds)
-	}
-	binary.LittleEndian.PutUint16(data, val)
+	binary.LittleEndian.PutUint16(s.slice(addr, 2), val)
 }
 
 func (s *Segment) writeUint32(addr Address, val uint32) {
-	data := s.slice(addr, 4)
-	if data == nil {
-		panic(errOutOfBounds)
-	}
-	binary.LittleEndian.PutUint32(data, val)
+	binary.LittleEndian.PutUint32(s.slice(addr, 4), val)
 }
 
 func (s *Segment) writeUint64(addr Address, val uint64) {
-	data := s.slice(addr, 8)
-	if data == nil {
-		panic(errOutOfBounds)
-	}
-	binary.LittleEndian.PutUint64(data, val)
+	binary.LittleEndian.PutUint64(s.slice(addr, 8), val)
 }
 
 func (s *Segment) writeRawPointer(addr Address, val rawPointer) {
@@ -417,7 +401,7 @@ func copyPointer(cc copyContext, dstSeg *Segment, dstAddr Address, src Pointer) 
 		}
 		if dst.flags&isCompositeList != 0 {
 			// Copy tag word
-			copy(newSeg.data[newAddr:], src.seg.data[src.off-Address(wordSize):src.off])
+			newSeg.writeRawPointer(newAddr, src.seg.readRawPointer(src.off-Address(wordSize)))
 			dst.off = dst.off.addSize(wordSize)
 		}
 		key.newval = dst
@@ -470,7 +454,7 @@ var (
 
 var (
 	errOverlarge   = errors.New("capnp: overlarge struct/list")
-	errOutOfBounds = errors.New("capnp: write out of bounds")
+	errOutOfBounds = errors.New("capnp: address out of bounds")
 	errCopyDepth   = errors.New("capnp: copy depth too large")
 	errOverlap     = errors.New("capnp: overlapping data on copy")
 	errListSize    = errors.New("capnp: invalid list size")
