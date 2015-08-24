@@ -110,7 +110,7 @@ func (p Struct) Pointer(i uint16) (Pointer, error) {
 // SetPointer sets the i'th pointer in the struct to src.
 func (p Struct) SetPointer(i uint16, src Pointer) error {
 	if p.seg == nil || i >= p.size.PointerCount {
-		return errOutOfBounds
+		panic(errOutOfBounds)
 	}
 	return p.seg.writePtr(copyContext{}, p.pointerAddress(i), src)
 }
@@ -137,7 +137,7 @@ func (p Struct) Bit(n BitOffset) bool {
 // SetBit sets the bit that is n bits from the start of the struct to v.
 func (p Struct) SetBit(n BitOffset, v bool) {
 	if !p.bitInData(n) {
-		return
+		panic(errOutOfBounds)
 	}
 	addr := p.off.addOffset(n.offset())
 	b := p.seg.readUint8(addr)
