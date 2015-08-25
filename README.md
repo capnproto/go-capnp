@@ -4,9 +4,22 @@
 [![GoDoc](https://godoc.org/zombiezen.com/go/capnproto?status.svg)][godoc]
 
 go-capnproto consists of:
-- a Go code generator for Cap'n Proto
+- a Go code generator for [Cap'n Proto][capnproto]
 - a Go package that provides runtime support
 - a Go package that implements the RPC protocol
+
+## Getting started
+
+You will need the `capnp` tool to compile schemas into Go.  This package has
+been tested with Cap'n Proto 0.5.0.
+
+```
+# first: be sure you have your GOPATH env variable setup.
+$ go get -u -t zombiezen.com/go/capnproto/...
+$ go test -v zombiezen.com/go/capnproto/...
+```
+
+Then read [the Getting Started guide][gettingstarted].
 
 ## News
 
@@ -70,18 +83,6 @@ reserve the right to make breaking changes are:
 - Changes in the Cap'n Proto specification.
 - Bugs.
 
-
-## Getting started
-
-You will need the `capnp` tool to compile schemas into Go.  This package has
-been tested with Cap'n Proto 0.5.0.
-
-```
-# first: be sure you have your GOPATH env variable setup.
-$ go get -u -t zombiezen.com/go/capnproto/...
-$ go test -v zombiezen.com/go/capnproto/...
-```
-
 ## Documentation
 
 See the docs on [godoc.org][godoc].
@@ -96,9 +97,11 @@ https://capnproto.org/
 
 MIT - see [LICENSE][license] file
 
-[issue1]: https://github.com/zombiezen/go-capnproto/issues/1
+[capnproto]: https://capnproto.org/
+[gettingstarted]: https://github.com/zombiezen/go-capnproto/wiki/Getting-Started
+[glycerine]: https://github.com/glycerine/go-capnproto
 [gocompat]: https://golang.org/doc/go1compat
 [godoc]: https://godoc.org/zombiezen.com/go/capnproto
+[issue1]: https://github.com/zombiezen/go-capnproto/issues/1
 [issues]: https://github.com/zombiezen/go-capnproto/issues
 [license]: https://github.com/zombiezen/go-capnproto/blob/master/LICENSE
-[glycerine]: https://github.com/glycerine/go-capnproto
