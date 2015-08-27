@@ -78,7 +78,8 @@ var ErrNullClient = errors.New("capnp: call on null client")
 // A CapabilityID is an index into a message's capability table.
 type CapabilityID uint32
 
-// A Client represents an Cap'n Proto interface type.
+// A Client represents an Cap'n Proto interface type.  It is safe to use
+// from multiple goroutines.
 //
 // Generally, only RPC protocol implementers should provide types that
 // implement Client: call ordering guarantees, promises, and
