@@ -3,6 +3,7 @@
 package server // import "zombiezen.com/go/capnproto/server"
 
 import (
+	"errors"
 	"sort"
 	"sync"
 
@@ -26,11 +27,16 @@ type Closer interface {
 	Close() error
 }
 
+// queueSize is the number of calls that can be made on a server
+// before Call blocks returning an answer.
+const queueSize = 64
+
 // A server is a locally implemented interface.
 type server struct {
 	methods sortedMethods
 	closer  Closer
-	lock    chan struct{}
+	queue   chan *call
+	stop    chan struct{}
 }
 
 // New returns a client that makes calls to a set of methods.
@@ -42,69 +48,96 @@ func New(methods []Method, closer Closer) capnp.Client {
 	s := &server{
 		methods: make(sortedMethods, len(methods)),
 		closer:  closer,
-		lock:    make(chan struct{}, 1),
+		queue:   make(chan *call, 64),
+		stop:    make(chan struct{}),
 	}
-	s.lock <- struct{}{}
 	copy(s.methods, methods)
 	sort.Sort(s.methods)
+	go s.dispatch()
 	return s
 }
 
-func (s *server) Call(call *capnp.Call) capnp.Answer {
-	// Find method
-	sm := s.methods.find(&call.Method)
+// dispatch runs in its own goroutine.
+func (s *server) dispatch() {
+dispatch:
+	for {
+		select {
+		case cl, ok := <-s.queue:
+			if !ok {
+				return
+			}
+			err := s.startCall(cl)
+			if err != nil {
+				cl.ans.Reject(err)
+				continue dispatch
+			}
+		case <-s.stop:
+			break dispatch
+		}
+	}
+
+	// Close() has been called, flush the queue.
+	for cl := range s.queue {
+		cl.ans.Reject(errClosed)
+	}
+}
+
+// startCall runs in the dispatch goroutine to start a call.
+func (s *server) startCall(cl *call) error {
+	_, out, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		return err
+	}
+	results, err := capnp.NewRootStruct(out, cl.method.ResultsSize)
+	if err != nil {
+		return err
+	}
+	acksig := newAckSignal()
+	opts := cl.Options.With([]capnp.CallOption{capnp.SetOptionValue(ackSignalKey, acksig)})
+	go func() {
+		err := cl.method.Impl(cl.Ctx, opts, cl.Params, results)
+		if err == nil {
+			cl.ans.Fulfill(results)
+		} else {
+			cl.ans.Reject(err)
+		}
+	}()
+	select {
+	case <-acksig.c:
+	case <-cl.ans.Done():
+		// Implementation functions may not call Ack, which is fine for
+		// smaller functions.
+	case <-cl.Ctx.Done():
+		// Ideally, this would reject the answer immediately, but then you
+		// would race with the implementation function.
+	}
+	return nil
+}
+
+func (s *server) Call(cl *capnp.Call) capnp.Answer {
+	sm := s.methods.find(&cl.Method)
 	if sm == nil {
 		return capnp.ErrorAnswer(&capnp.MethodError{
-			Method: &call.Method,
+			Method: &cl.Method,
 			Err:    capnp.ErrUnimplemented,
 		})
 	}
-	// Acquire lock for ordering
+	cl, err := cl.Copy(nil)
+	if err != nil {
+		return capnp.ErrorAnswer(err)
+	}
+	scall := newCall(cl, sm)
 	select {
-	case <-s.lock:
-		defer func() {
-			s.lock <- struct{}{}
-		}()
-	case <-call.Ctx.Done():
-		return capnp.ErrorAnswer(call.Ctx.Err())
-	}
-	// Call implementation function
-	ans := new(fulfiller.Fulfiller)
-	params, err := call.PlaceParams(nil)
-	if err != nil {
-		return capnp.ErrorAnswer(err)
-	}
-	_, out, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		return capnp.ErrorAnswer(err)
-	}
-	results, err := capnp.NewRootStruct(out, sm.ResultsSize)
-	if err != nil {
-		return capnp.ErrorAnswer(err)
-	}
-	acksig := &ackSignal{c: make(chan struct{})}
-	opts := call.Options.With([]capnp.CallOption{capnp.SetOptionValue(ackSignalKey, acksig)})
-	go func() {
-		err := sm.Impl(call.Ctx, opts, params, results)
-		if err == nil {
-			ans.Fulfill(results)
-		} else {
-			ans.Reject(err)
-		}
-	}()
-	// Wait for resolution
-	select {
-	case <-acksig.c:
-		return ans
-	case <-ans.Done():
-		// Implementation functions may not call Ack, which is fine for smaller functions.
-		return ans
-	case <-call.Ctx.Done():
-		return capnp.ErrorAnswer(call.Ctx.Err())
+	case s.queue <- scall:
+		return &scall.ans
+	case <-cl.Ctx.Done():
+		return capnp.ErrorAnswer(cl.Ctx.Err())
 	}
 }
 
 func (s *server) Close() error {
+	close(s.stop)
+	close(s.queue)
 	if s.closer == nil {
 		return nil
 	}
@@ -133,6 +166,16 @@ func Ack(opts capnp.CallOptions) {
 	if ack, _ := opts.Value(ackSignalKey).(*ackSignal); ack != nil {
 		ack.signal()
 	}
+}
+
+type call struct {
+	*capnp.Call
+	ans    fulfiller.Fulfiller
+	method *Method
+}
+
+func newCall(cl *capnp.Call, sm *Method) *call {
+	return &call{Call: cl, method: sm}
 }
 
 type sortedMethods []Method
@@ -176,6 +219,10 @@ type ackSignal struct {
 	once sync.Once
 }
 
+func newAckSignal() *ackSignal {
+	return &ackSignal{c: make(chan struct{})}
+}
+
 func (ack *ackSignal) signal() {
 	ack.once.Do(func() {
 		close(ack.c)
@@ -190,3 +237,5 @@ const (
 	invalidOptionKey callOptionKey = iota
 	ackSignalKey
 )
+
+var errClosed = errors.New("capnp: server closed")

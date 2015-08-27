@@ -1,6 +1,7 @@
 package server_test
 
 import (
+	"sync"
 	"testing"
 
 	"golang.org/x/net/context"
@@ -42,12 +43,33 @@ type callSeq uint32
 func (seq *callSeq) GetNumber(call air.CallSequence_getNumber) error {
 	call.Results.SetN(uint32(*seq))
 	*seq++
+	return nil
+}
+
+type lockCallSeq struct {
+	n  uint32
+	mu sync.Mutex
+}
+
+func (seq *lockCallSeq) GetNumber(call air.CallSequence_getNumber) error {
+	seq.mu.Lock()
+	defer seq.mu.Unlock()
 	Ack(call.Options)
+
+	call.Results.SetN(seq.n)
+	seq.n++
 	return nil
 }
 
 func TestServerCallOrder(t *testing.T) {
-	seq := air.CallSequence_ServerToClient(new(callSeq))
+	testCallOrder(t, air.CallSequence_ServerToClient(new(callSeq)))
+}
+
+func TestServerCallOrderWithCustomLocks(t *testing.T) {
+	testCallOrder(t, air.CallSequence_ServerToClient(new(lockCallSeq)))
+}
+
+func testCallOrder(t *testing.T, seq air.CallSequence) {
 	ctx := context.Background()
 	send := func() air.CallSequence_getNumber_Results_Promise {
 		return seq.GetNumber(ctx, func(air.CallSequence_getNumber_Params) error { return nil })
