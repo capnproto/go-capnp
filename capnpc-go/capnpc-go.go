@@ -381,6 +381,15 @@ type enumval struct {
 	parent *node
 }
 
+func makeEnumval(enum *node, i int, e Enumerant) enumval {
+	eann, _ := e.Annotations()
+	ann := parseAnnotations(eann)
+	name, _ := e.Name()
+	name = ann.Rename(name)
+	t := ann.Tag(name)
+	return enumval{e, name, i, t, enum}
+}
+
 func (e *enumval) FullName() string {
 	return e.parent.Name + "_" + e.Name
 }
@@ -390,12 +399,7 @@ func (n *node) defineEnum(w io.Writer) {
 	ev := make([]enumval, es.Len())
 	for i := 0; i < es.Len(); i++ {
 		e := es.At(i)
-		eann, _ := e.Annotations()
-		ann := parseAnnotations(eann)
-		name, _ := e.Name()
-		name = ann.Rename(name)
-		t := ann.Tag(name)
-		ev[e.CodeOrder()] = enumval{e, name, i, t, n}
+		ev[e.CodeOrder()] = makeEnumval(n, i, e)
 	}
 	nann, _ := n.Annotations()
 	templates.ExecuteTemplate(w, "enum", enumParams{
@@ -408,11 +412,11 @@ func (n *node) defineEnum(w io.Writer) {
 func (n *node) writeValue(w io.Writer, t Type, v Value) {
 	switch t.Which() {
 	case Type_Which_void:
-		fmt.Fprintf(w, "%s.Void{}", g_imports.capnp())
+		fmt.Fprintf(w, "struct{}{}")
 
 	case Type_Which_interface:
 		// The only statically representable interface value is null.
-		fmt.Fprintf(w, "%s.Promise(nil)", g_imports.capnp())
+		fmt.Fprintf(w, "%s.Client(nil)", g_imports.capnp())
 
 	case Type_Which_bool:
 		assert(v.Which() == Value_Which_bool, "expected bool value")
@@ -461,30 +465,27 @@ func (n *node) writeValue(w io.Writer, t Type, v Value) {
 		if val := int(v.Enum()); val >= enums.Len() {
 			fmt.Fprintf(w, "%s(%d)", en.RemoteName(n), val)
 		} else {
-			ev := enumval{
-				Enumerant: enums.At(val),
-				parent:    en,
-			}
+			ev := makeEnumval(en, val, enums.At(val))
 			fmt.Fprintf(w, "%s%s", en.remoteScope(n), ev.FullName())
 		}
-	default:
-		panic("DO NOT SUBMIT")
 
-		//case Type_Which_struct:
-		//	fmt.Fprintf(w, "%s(%s.Root(%d))", findNode(t.StructGroup().TypeId()).RemoteName(n), g_bufname, copyData(v.StructField()))
+	case Type_Which_structGroup:
+		assert(v.Which() == Value_Which_structField, "expected struct value")
+		c := g_imports.capnp()
+		data, _ := v.StructField()
+		fmt.Fprintf(w, "%s{Struct: %s.ToStruct(%s.MustUnmarshalRoot(%v))}", findNode(t.StructGroup().TypeId()).RemoteName(n), c, c, copyData(data))
 
-		//case Type_Which_anyPointer:
-		//	fmt.Fprintf(w, "%s.Root(%d)", g_bufname, copyData(v.AnyPointer()))
+	case Type_Which_anyPointer:
+		assert(v.Which() == Value_Which_anyPointer, "expected pointer value")
+		data, _ := v.AnyPointer()
+		fmt.Fprintf(w, "%s.MustUnmarshalRoot(%v)", g_imports.capnp(), copyData(data))
 
-		//case Type_Which_list:
-		//	assert(v.Which() == Value_Which_list, "expected list value")
-
-		//	if lt := t.List().ElementType(); lt.Which() == Type_Which_void {
-		//		fmt.Fprintf(w, "make([]%s.Void, %d)", g_imports.capnp(), v.List().Len())
-		//	} else {
-		//		typ := n.fieldType(t, new(annotations))
-		//		fmt.Fprintf(w, "%s(%s.Root(%d))", typ, g_bufname, copyData(v.List()))
-		//	}
+	case Type_Which_list:
+		assert(v.Which() == Value_Which_list, "expected list value")
+		c := g_imports.capnp()
+		typ := n.fieldType(t, new(annotations))
+		data, _ := v.List()
+		fmt.Fprintf(w, "%s{List: %s.ToList(%s.MustUnmarshalRoot(%v))}", typ, c, c, copyData(data))
 	}
 }
 

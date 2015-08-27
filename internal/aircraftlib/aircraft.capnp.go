@@ -10,6 +10,15 @@ import (
 	server "zombiezen.com/go/capnproto/server"
 )
 
+const (
+	ConstEnum = Airport_jfk
+)
+
+var (
+	ConstDate = Zdate{Struct: capnp.ToStruct(capnp.MustUnmarshalRoot(x_832bcc6686a26d56[0:24]))}
+	ConstList = Zdate_List{List: capnp.ToList(capnp.MustUnmarshalRoot(x_832bcc6686a26d56[24:64]))}
+)
+
 type Zdate struct{ capnp.Struct }
 
 func NewZdate(s *capnp.Segment) (Zdate, error) {
@@ -4331,7 +4340,7 @@ func (s StackingRoot) AWithDefault() (StackingA, error) {
 		return StackingA{}, err
 	}
 
-	ss, err := capnp.ToStructDefault(p, x_832bcc6686a26d56[0:32])
+	ss, err := capnp.ToStructDefault(p, x_832bcc6686a26d56[64:96])
 	if err != nil {
 		return StackingA{}, err
 	}
@@ -4384,7 +4393,7 @@ func (p StackingRoot_Promise) A() StackingA_Promise {
 }
 
 func (p StackingRoot_Promise) AWithDefault() StackingA_Promise {
-	return StackingA_Promise{Pipeline: p.Pipeline.GetPipelineDefault(0, x_832bcc6686a26d56[32:64])}
+	return StackingA_Promise{Pipeline: p.Pipeline.GetPipelineDefault(0, x_832bcc6686a26d56[96:128])}
 }
 
 type StackingA struct{ capnp.Struct }
@@ -4716,6 +4725,14 @@ func (p CallSequence_getNumber_Results_Promise) Struct() (CallSequence_getNumber
 }
 
 var x_832bcc6686a26d56 = []byte{
+	0, 0, 0, 0, 2, 0, 0, 0,
+	0, 0, 0, 0, 1, 0, 0, 0,
+	223, 7, 8, 27, 0, 0, 0, 0,
+	0, 0, 0, 0, 4, 0, 0, 0,
+	1, 0, 0, 0, 23, 0, 0, 0,
+	8, 0, 0, 0, 1, 0, 0, 0,
+	223, 7, 8, 27, 0, 0, 0, 0,
+	223, 7, 8, 28, 0, 0, 0, 0,
 	0, 0, 0, 0, 3, 0, 0, 0,
 	0, 0, 0, 0, 1, 0, 1, 0,
 	42, 0, 0, 0, 0, 0, 0, 0,

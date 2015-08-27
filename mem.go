@@ -351,6 +351,20 @@ func Unmarshal(data []byte) (*Message, error) {
 	return &Message{Arena: demuxArena(sizes, data)}, nil
 }
 
+// MustUnmarshalRoot reads an unpacked serialized stream and returns its
+// root pointer.  If there is any error, it panics.
+func MustUnmarshalRoot(data []byte) Pointer {
+	msg, err := Unmarshal(data)
+	if err != nil {
+		panic(err)
+	}
+	p, err := msg.Root()
+	if err != nil {
+		panic(err)
+	}
+	return p
+}
+
 // An Encoder represents a framer for serializing a particular Cap'n
 // Proto stream.
 type Encoder struct {

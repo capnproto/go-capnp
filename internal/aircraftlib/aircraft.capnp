@@ -5,6 +5,10 @@ $Go.import("zombiezen.com/go/capnproto/internal/aircraftlib");
 
 @0x832bcc6686a26d56;
 
+const constDate :Zdate = (year = 2015, month = 8, day = 27);
+const constList :List(Zdate) = [(year = 2015, month = 8, day = 27), (year = 2015, month = 8, day = 28)];
+const constEnum :Airport = jfk;
+
 struct Zdate {
   year  @0   :Int16;
   month @1   :UInt8;
