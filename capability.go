@@ -52,6 +52,9 @@ func (i Interface) Capability() CapabilityID {
 
 // value returns a raw interface pointer with the capability ID.
 func (i Interface) value(paddr Address) rawPointer {
+	if i.seg == nil {
+		return 0
+	}
 	return rawInterfacePointer(i.cap)
 }
 
@@ -503,7 +506,7 @@ var ErrUnimplemented = errors.New("capnp: method not implemented")
 // IsUnimplemented reports whether e indicates an unimplemented method error.
 func IsUnimplemented(e error) bool {
 	if me, ok := e.(*MethodError); ok {
-		e = me
+		e = me.Err
 	}
 	return e == ErrUnimplemented
 }

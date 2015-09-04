@@ -2,8 +2,53 @@ package capnp
 
 import (
 	"bytes"
+	"errors"
 	"testing"
 )
+
+func TestToInterface(t *testing.T) {
+	_, seg, err := NewMessage(SingleSegment(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		ptr Pointer
+		in  Interface
+	}{
+		{nil, Interface{}},
+		{Struct{}, Interface{}},
+		{Struct{seg: seg, off: 0}, Interface{}},
+		{Interface{}, Interface{}},
+		{Interface{seg, 42}, Interface{seg, 42}},
+	}
+	for _, test := range tests {
+		if in := ToInterface(test.ptr); in != test.in {
+			t.Errorf("ToInterface(%#v) = %#v; want %#v", test.ptr, in, test.in)
+		}
+	}
+}
+
+func TestInterface_value(t *testing.T) {
+	_, seg, err := NewMessage(SingleSegment(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		in  Interface
+		val rawPointer
+	}{
+		{Interface{}, 0},
+		{NewInterface(seg, 0), 0x0000000000000003},
+		{NewInterface(seg, 0xdeadbeef), 0xdeadbeef00000003},
+	}
+	for _, test := range tests {
+		for paddr := Address(0); paddr < 16; paddr++ {
+			if val := test.in.value(paddr); val != test.val {
+				t.Errorf("Interface{seg: %p, cap: %d}.value(%v) = %v; want %v", test.in.seg, test.in.cap, paddr, val, test.val)
+			}
+		}
+	}
+}
 
 func TestTransform(t *testing.T) {
 	_, s, err := NewMessage(SingleSegment(nil))
@@ -188,6 +233,24 @@ func TestPipelineOpString(t *testing.T) {
 	for _, test := range tests {
 		if s := test.op.String(); s != test.s {
 			t.Errorf("%#v.String() = %q; want %q", test.op, s, test.s)
+		}
+	}
+}
+
+func TestIsUnimplemented(t *testing.T) {
+	tests := []struct {
+		e  error
+		ok bool
+	}{
+		{nil, false},
+		{ErrUnimplemented, true},
+		{errors.New("foo"), false},
+		{&MethodError{Method: new(Method), Err: ErrUnimplemented}, true},
+		{&MethodError{Method: new(Method), Err: errors.New("foo")}, false},
+	}
+	for _, test := range tests {
+		if ok := IsUnimplemented(test.e); ok != test.ok {
+			t.Errorf("IsUnimplemented(%#v) = %t; want %t", test.e, ok, test.ok)
 		}
 	}
 }

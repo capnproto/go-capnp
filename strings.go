@@ -63,6 +63,16 @@ func (bit BitOffset) GoString() string {
 	return fmt.Sprintf("capnp.BitOffset(%d)", bit)
 }
 
+// String returns the ID in the format "capability X".
+func (id CapabilityID) String() string {
+	return fmt.Sprintf("capability %d", id)
+}
+
+// GoString returns the ID as a Go expression.
+func (id CapabilityID) GoString() string {
+	return fmt.Sprintf("capnp.CapabilityID(%d)", id)
+}
+
 // GoString formats the pointer as a call to one of the rawPointer
 // construction functions.
 func (p rawPointer) GoString() string {
