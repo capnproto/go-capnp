@@ -2,8 +2,50 @@ package capnp
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
 	"testing"
 )
+
+func TestNewMessage(t *testing.T) {
+	tests := []struct {
+		arena Arena
+		fails bool
+	}{
+		{arena: SingleSegment(nil)},
+		{arena: MultiSegment(nil)},
+		{arena: readOnlyArena{SingleSegment(make([]byte, 0, 7))}, fails: true},
+		{arena: readOnlyArena{SingleSegment(make([]byte, 0, 8))}},
+		{arena: MultiSegment(nil)},
+		{arena: MultiSegment([][]byte{make([]byte, 8)}), fails: true},
+		{arena: MultiSegment([][]byte{incrementingData(8)}), fails: true},
+		// This is somewhat arbitrary, but more than one segment = data.
+		// This restriction may be lifted if it's not useful.
+		{arena: MultiSegment([][]byte{make([]byte, 0, 16), make([]byte, 0)}), fails: true},
+	}
+	for _, test := range tests {
+		msg, seg, err := NewMessage(test.arena)
+		if err != nil {
+			if !test.fails {
+				t.Errorf("NewMessage(%v) failed unexpectedly: %v", test.arena, err)
+			}
+			continue
+		}
+		if test.fails {
+			t.Errorf("NewMessage(%v) succeeded; want error", test.arena)
+			continue
+		}
+		if n := msg.NumSegments(); n != 1 {
+			t.Errorf("NewMessage(%v).NumSegments() = %d; want 1", test.arena, n)
+		}
+		if seg.ID() != 0 {
+			t.Errorf("NewMessage(%v) segment.ID() = %d; want 0", test.arena, seg.ID())
+		}
+		if len(seg.Data()) != 8 {
+			t.Errorf("NewMessage(%v) segment.Data() = % 02x; want length 8", test.arena, seg.Data())
+		}
+	}
+}
 
 func TestAlloc(t *testing.T) {
 	type allocTest struct {
@@ -104,14 +146,14 @@ func TestAlloc(t *testing.T) {
 			t.Errorf("tests[%d] - %s: alloc(..., %d) error: %v", i, test.name, test.size, err)
 			continue
 		}
-		if seg.id != test.allocID {
-			t.Errorf("tests[%d] - %s: alloc(..., %d) returned segment %d; want segment %d", i, test.name, test.size, seg.id, test.allocID)
+		if seg.ID() != test.allocID {
+			t.Errorf("tests[%d] - %s: alloc(..., %d) returned segment %d; want segment %d", i, test.name, test.size, seg.ID(), test.allocID)
 		}
 		if addr != test.addr {
 			t.Errorf("tests[%d] - %s: alloc(..., %d) returned address %v; want address %v", i, test.name, test.size, addr, test.addr)
 		}
 		if !seg.regionInBounds(addr, test.size) {
-			t.Errorf("tests[%d] - %s: alloc(..., %d) returned address %v, which is not in bounds (len(seg.data) == %d)", i, test.name, test.size, addr, len(seg.data))
+			t.Errorf("tests[%d] - %s: alloc(..., %d) returned address %v, which is not in bounds (len(seg.data) == %d)", i, test.name, test.size, addr, len(seg.Data()))
 		} else if data := seg.slice(addr, test.size); !isZeroFilled(data) {
 			t.Errorf("tests[%d] - %s: alloc(..., %d) region has data % 02x; want zero-filled", i, test.name, test.size, data)
 		}
@@ -380,3 +422,17 @@ func isZeroFilled(b []byte) bool {
 	}
 	return true
 }
+
+type readOnlyArena struct {
+	Arena
+}
+
+func (ro readOnlyArena) String() string {
+	return fmt.Sprintf("readOnlyArena{%v}", ro.Arena)
+}
+
+func (readOnlyArena) Allocate(sz Size, segs map[SegmentID]*Segment) (SegmentID, []byte, error) {
+	return 0, nil, errReadOnlyArena
+}
+
+var errReadOnlyArena = errors.New("Allocate called on read-only arena")

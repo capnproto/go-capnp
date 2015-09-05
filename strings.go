@@ -115,3 +115,11 @@ func (p rawPointer) GoString() string {
 		return fmt.Sprintf("rawInterfacePointer(%d)", p.capabilityIndex())
 	}
 }
+
+func (ssa *singleSegmentArena) String() string {
+	return fmt.Sprintf("single-segment arena [len=%d cap=%d]", len(*ssa), cap(*ssa))
+}
+
+func (msa *multiSegmentArena) String() string {
+	return fmt.Sprintf("multi-segment arena [%d segments]", len(*msa))
+}
