@@ -32,7 +32,7 @@ func NewMessage(arena Arena) (msg *Message, first *Segment, err error) {
 	msg = &Message{Arena: arena}
 	switch arena.NumSegments() {
 	case 0:
-		first, err = msg.segmentForAlloc(defaultBufferSize)
+		first, err = msg.allocSegment(defaultBufferSize)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -126,17 +126,9 @@ func (m *Message) setSegment(id SegmentID, data []byte) *Segment {
 	return seg
 }
 
-// segmentForAlloc creates or resizes an existing segment such that
+// allocSegment creates or resizes an existing segment such that
 // cap(seg.Data) - len(seg.Data) >= sz.
-func (m *Message) segmentForAlloc(sz Size) (*Segment, error) {
-	for _, seg := range m.segs {
-		if seg == nil {
-			continue
-		}
-		if hasCapacity(seg.data, sz) {
-			return seg, nil
-		}
-	}
+func (m *Message) allocSegment(sz Size) (*Segment, error) {
 	id, data, err := m.Arena.Allocate(sz, m.segs)
 	if err != nil {
 		return nil, err
@@ -157,10 +149,8 @@ func alloc(s *Segment, sz Size) (*Segment, Address, error) {
 	}
 
 	if !hasCapacity(s.data, sz) {
-		// If we can't fit the data in the current segment, we always
-		// return a far pointer to a tag in the new segment.
 		var err error
-		s, err = s.msg.segmentForAlloc(sz)
+		s, err = s.msg.allocSegment(sz)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -226,8 +216,12 @@ func (ssa *singleSegmentArena) Data(id SegmentID) ([]byte, error) {
 }
 
 func (ssa *singleSegmentArena) Allocate(sz Size, segs map[SegmentID]*Segment) (SegmentID, []byte, error) {
-	if (len(segs) == 0 || segs[0] == nil) && hasCapacity(*ssa, sz) {
-		return 0, *ssa, nil
+	data := []byte(*ssa)
+	if segs[0] != nil {
+		data = segs[0].data
+	}
+	if hasCapacity(data, sz) {
+		return 0, data, nil
 	}
 	// TODO(light): ensure len(data)+sz is word-aligned
 	if sz < minSingleSegmentGrowth {
@@ -235,8 +229,8 @@ func (ssa *singleSegmentArena) Allocate(sz Size, segs map[SegmentID]*Segment) (S
 	} else {
 		sz = sz.padToWord()
 	}
-	buf := make([]byte, len(segs[0].data), cap(*ssa)+int(sz))
-	copy(buf, *ssa)
+	buf := make([]byte, len(data), cap(data)+int(sz))
+	copy(buf, data)
 	*ssa = buf
 	return 0, *ssa, nil
 }
@@ -274,17 +268,18 @@ func (msa *multiSegmentArena) Data(id SegmentID) ([]byte, error) {
 
 func (msa *multiSegmentArena) Allocate(sz Size, segs map[SegmentID]*Segment) (SegmentID, []byte, error) {
 	for i, data := range *msa {
-		if segs[SegmentID(i)] != nil {
-			// The message would have already considered this segment.
-			continue
+		id := SegmentID(i)
+		if s := segs[id]; s != nil {
+			data = s.data
 		}
 		if hasCapacity(data, sz) {
-			return SegmentID(i), data, nil
+			return id, data, nil
 		}
 	}
 	if sz < defaultBufferSize {
 		sz = defaultBufferSize
 	} else {
+		// TODO(light): check >maxInt
 		sz = sz.padToWord()
 	}
 	buf := make([]byte, 0, int(sz))
