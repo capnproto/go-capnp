@@ -402,7 +402,7 @@ func (test *arenaAllocTest) run(t *testing.T, i int) {
 		t.Errorf("tests[%d] - %s: Allocate data = % 02x; want % 02x", i, test.name, data, test.data)
 	}
 	if Size(cap(data)-len(data)) < test.size {
-		t.Errorf("tests[%d] - %s: Allocate len(data) = %d, cap(data) = %d; cap(data) should be at least %d", len(data), cap(data), Size(len(data))+test.size)
+		t.Errorf("tests[%d] - %s: Allocate len(data) = %d, cap(data) = %d; cap(data) should be at least %d", i, test.name, len(data), cap(data), Size(len(data))+test.size)
 	}
 }
 
