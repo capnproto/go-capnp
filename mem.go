@@ -322,10 +322,7 @@ func (d *Decoder) Decode() (*Message, error) {
 	if err != nil {
 		return nil, err
 	}
-	var total int64
-	for _, sz := range sizes {
-		total += int64(sz)
-	}
+	total := totalSize(sizes)
 	// TODO(light): size check
 	buf := make([]byte, int(total))
 	if _, err := io.ReadFull(d.r, buf); err != nil {
@@ -342,7 +339,9 @@ func Unmarshal(data []byte) (*Message, error) {
 	if err != nil {
 		return nil, err
 	}
-	// TODO(light): check len(data) to size
+	if tot := totalSize(sizes); tot > uint64(len(data)) {
+		return nil, io.ErrUnexpectedEOF
+	}
 	return &Message{Arena: demuxArena(sizes, data)}, nil
 }
 
@@ -385,6 +384,9 @@ func NewPackedEncoder(w io.Writer) *Encoder {
 func (e *Encoder) Encode(m *Message) error {
 	// TODO(light): Lazily load from arena, don't necessarily need to fit in memory.
 	nsegs := m.NumSegments()
+	if nsegs == 0 {
+		return errMessageEmpty
+	}
 	sizes, err := m.segmentSizes()
 	if err != nil {
 		return err
@@ -444,17 +446,17 @@ func (m *Message) Marshal() ([]byte, error) {
 	// Compute buffer size.
 	// TODO(light): error out if too many segments
 	nsegs := m.NumSegments()
+	if nsegs == 0 {
+		return nil, errMessageEmpty
+	}
 	maxSeg := uint32(nsegs - 1)
 	hdrSize := streamHeaderSize(maxSeg)
 	sizes, err := m.segmentSizes()
 	if err != nil {
 		return nil, err
 	}
-	total := hdrSize
-	for _, sz := range sizes {
-		// TODO(light): error out if too large
-		total += int(sz)
-	}
+	// TODO(light): error out if too large
+	total := uint64(hdrSize) + totalSize(sizes)
 
 	// Fill in buffer.
 	buf := make([]byte, hdrSize, total)
@@ -526,6 +528,14 @@ func hasCapacity(b []byte, sz Size) bool {
 	return sz <= Size(cap(b)-len(b))
 }
 
+func totalSize(s []Size) uint64 {
+	var sum uint64
+	for _, sz := range s {
+		sum += uint64(sz)
+	}
+	return sum
+}
+
 const maxInt32 = 0x7fffffff
 
 // isInt32Bit reports whether the built-in int type is 32 bits.
@@ -538,6 +548,7 @@ var (
 	errBufferCall         = errors.New("capnp: can't call on a memory buffer")
 	errSegmentOutOfBounds = errors.New("capnp: segment ID out of bounds")
 	errSegment32Bit       = errors.New("capnp: segment ID larger than 31 bits")
+	errMessageEmpty       = errors.New("capnp: marshalling an empty message")
 	errHasData            = errors.New("capnp: NewMessage called on arena with data")
 	errTooMuchData        = errors.New("capnp: too much data in stream")
 	errSegmentTooSmall    = errors.New("capnp: segment too small")

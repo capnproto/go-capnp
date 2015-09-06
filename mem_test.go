@@ -375,6 +375,242 @@ func TestMultiSegmentAllocate(t *testing.T) {
 	}
 }
 
+type serializeTest struct {
+	name        string
+	segs        [][]byte
+	out         []byte
+	encodeFails bool
+	decodeFails bool
+}
+
+func (st *serializeTest) arena() Arena {
+	bb := make([][]byte, len(st.segs))
+	for i := range bb {
+		bb[i] = make([]byte, len(st.segs[i]))
+		copy(bb[i], st.segs[i])
+	}
+	return MultiSegment(bb)
+}
+
+func (st *serializeTest) copyOut() []byte {
+	out := make([]byte, len(st.out))
+	copy(out, st.out)
+	return out
+}
+
+var serializeTests = []serializeTest{
+	{
+		name:        "empty message",
+		segs:        [][]byte{},
+		encodeFails: true,
+	},
+	{
+		name:        "empty stream",
+		out:         []byte{},
+		decodeFails: true,
+	},
+	{
+		name:        "incomplete segment count",
+		out:         []byte{0x01},
+		decodeFails: true,
+	},
+	{
+		name: "incomplete segment size",
+		out: []byte{
+			0x00, 0x00, 0x00, 0x00,
+			0x00,
+		},
+		decodeFails: true,
+	},
+	{
+		name: "empty single segment",
+		segs: [][]byte{
+			{},
+		},
+		out: []byte{
+			0x00, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0x00, 0x00,
+		},
+	},
+	{
+		name: "missing segment data",
+		out: []byte{
+			0x00, 0x00, 0x00, 0x00,
+			0x01, 0x00, 0x00, 0x00,
+		},
+		decodeFails: true,
+	},
+	{
+		name: "missing segment size",
+		out: []byte{
+			0x01, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0x00, 0x00,
+		},
+		decodeFails: true,
+	},
+	{
+		name: "missing segment size padding",
+		out: []byte{
+			0x01, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0x00, 0x00,
+		},
+		decodeFails: true,
+	},
+	{
+		name: "single segment",
+		segs: [][]byte{
+			incrementingData(8),
+		},
+		out: []byte{
+			0x00, 0x00, 0x00, 0x00,
+			0x01, 0x00, 0x00, 0x00,
+			0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+		},
+	},
+	{
+		name: "two segments",
+		segs: [][]byte{
+			incrementingData(8),
+			incrementingData(8),
+		},
+		out: []byte{
+			0x01, 0x00, 0x00, 0x00,
+			0x01, 0x00, 0x00, 0x00,
+			0x01, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0x00, 0x00,
+			0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+			0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+		},
+	},
+	{
+		name: "two segments, missing size padding",
+		out: []byte{
+			0x01, 0x00, 0x00, 0x00,
+			0x01, 0x00, 0x00, 0x00,
+			0x01, 0x00, 0x00, 0x00,
+			0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+			0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+		},
+		decodeFails: true,
+	},
+}
+
+func TestMarshal(t *testing.T) {
+	for i, test := range serializeTests {
+		if test.decodeFails {
+			continue
+		}
+		msg := &Message{Arena: test.arena()}
+		out, err := msg.Marshal()
+		if err != nil {
+			if !test.encodeFails {
+				t.Errorf("serializeTests[%d] %s: Marshal error: %v", i, test.name, err)
+			}
+			continue
+		}
+		if test.encodeFails {
+			t.Errorf("serializeTests[%d] - %s: Marshal success; want error", i, test.name)
+			continue
+		}
+		if !bytes.Equal(out, test.out) {
+			t.Errorf("serializeTests[%d] - %s: Marshal = % 02x; want % 02x", i, test.name, out, test.out)
+		}
+	}
+}
+
+func TestUnmarshal(t *testing.T) {
+	for i, test := range serializeTests {
+		if test.encodeFails {
+			continue
+		}
+		msg, err := Unmarshal(test.copyOut())
+		if err != nil {
+			if !test.decodeFails {
+				t.Errorf("serializeTests[%d] - %s: Unmarshal error: %v", i, test.name, err)
+			}
+			continue
+		}
+		if test.decodeFails {
+			t.Errorf("serializeTests[%d] - %s: Unmarshal success; want error", i, test.name)
+			continue
+		}
+		if msg.NumSegments() != int64(len(test.segs)) {
+			t.Errorf("serializeTests[%d] - %s: Unmarshal NumSegments() = %d; want %d", i, test.name, msg.NumSegments(), len(test.segs))
+			continue
+		}
+		for j := range test.segs {
+			seg, err := msg.Segment(SegmentID(j))
+			if err != nil {
+				t.Errorf("serializeTests[%d] - %s: Unmarshal Segment(%d) error: %v", i, test.name, j, err)
+				continue
+			}
+			if !bytes.Equal(seg.Data(), test.segs[j]) {
+				t.Errorf("serializeTests[%d] - %s: Unmarshal Segment(%d) = % 02x; want % 02x", i, test.name, j, seg.Data(), test.segs[j])
+			}
+		}
+	}
+}
+
+func TestEncoder(t *testing.T) {
+	for i, test := range serializeTests {
+		if test.decodeFails {
+			continue
+		}
+		msg := &Message{Arena: test.arena()}
+		var buf bytes.Buffer
+		enc := NewEncoder(&buf)
+		err := enc.Encode(msg)
+		out := buf.Bytes()
+		if err != nil {
+			if !test.encodeFails {
+				t.Errorf("serializeTests[%d] - %s: Encode error: %v", i, test.name, err)
+			}
+			continue
+		}
+		if test.encodeFails {
+			t.Errorf("serializeTests[%d] - %s: Encode success; want error", i, test.name)
+			continue
+		}
+		if !bytes.Equal(out, test.out) {
+			t.Errorf("serializeTests[%d] - %s: Encode = % 02x; want % 02x", i, test.name, out, test.out)
+		}
+	}
+}
+
+func TestDecoder(t *testing.T) {
+	for i, test := range serializeTests {
+		if test.encodeFails {
+			continue
+		}
+		msg, err := NewDecoder(bytes.NewReader(test.out)).Decode()
+		if err != nil {
+			if !test.decodeFails {
+				t.Errorf("serializeTests[%d] - %s: Decode error: %v", i, test.name, err)
+			}
+			continue
+		}
+		if test.decodeFails {
+			t.Errorf("serializeTests[%d] - %s: Decode success; want error", i, test.name)
+			continue
+		}
+		if msg.NumSegments() != int64(len(test.segs)) {
+			t.Errorf("serializeTests[%d] - %s: Decode NumSegments() = %d; want %d", i, test.name, msg.NumSegments(), len(test.segs))
+			continue
+		}
+		for j := range test.segs {
+			seg, err := msg.Segment(SegmentID(j))
+			if err != nil {
+				t.Errorf("serializeTests[%d] - %s: Decode Segment(%d) error: %v", i, test.name, j, err)
+				continue
+			}
+			if !bytes.Equal(seg.Data(), test.segs[j]) {
+				t.Errorf("serializeTests[%d] - %s: Decode Segment(%d) = % 02x; want % 02x", i, test.name, j, seg.Data(), test.segs[j])
+			}
+		}
+	}
+}
+
 type arenaAllocTest struct {
 	name string
 
