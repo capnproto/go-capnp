@@ -228,14 +228,6 @@ func (p Struct) SetUint64(off DataOffset, v uint64) {
 	p.seg.writeUint64(addr, v)
 }
 
-func isEmptyStruct(src Pointer) bool {
-	s := ToStruct(src)
-	if IsValid(s) {
-		return false
-	}
-	return s.size.isZero() && s.flags == 0
-}
-
 // structFlags is a bitmask of flags for a pointer.
 type structFlags uint8
 
