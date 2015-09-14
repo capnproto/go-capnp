@@ -335,6 +335,9 @@ func (d *Decoder) Decode() (*Message, error) {
 // copying is performed, so the objects in the returned message read
 // directly from data.
 func Unmarshal(data []byte) (*Message, error) {
+	if len(data) == 0 {
+		return nil, io.EOF
+	}
 	sizes, data, err := unmarshalStreamHeader(data)
 	if err != nil {
 		return nil, err

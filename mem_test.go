@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"testing"
 )
 
@@ -381,6 +382,7 @@ type serializeTest struct {
 	out         []byte
 	encodeFails bool
 	decodeFails bool
+	decodeError error
 }
 
 func (st *serializeTest) arena() Arena {
@@ -408,6 +410,7 @@ var serializeTests = []serializeTest{
 		name:        "empty stream",
 		out:         []byte{},
 		decodeFails: true,
+		decodeError: io.EOF,
 	},
 	{
 		name:        "incomplete segment count",
@@ -529,6 +532,9 @@ func TestUnmarshal(t *testing.T) {
 			if !test.decodeFails {
 				t.Errorf("serializeTests[%d] - %s: Unmarshal error: %v", i, test.name, err)
 			}
+			if test.decodeError != nil && err != test.decodeError {
+				t.Errorf("serializeTests[%d] - %s: Unmarshal error: %v; want %v", i, test.name, err, test.decodeError)
+			}
 			continue
 		}
 		if test.decodeFails {
@@ -587,6 +593,9 @@ func TestDecoder(t *testing.T) {
 		if err != nil {
 			if !test.decodeFails {
 				t.Errorf("serializeTests[%d] - %s: Decode error: %v", i, test.name, err)
+			}
+			if test.decodeError != nil && err != test.decodeError {
+				t.Errorf("serializeTests[%d] - %s: Decode error: %v; want %v", i, test.name, err, test.decodeError)
 			}
 			continue
 		}
