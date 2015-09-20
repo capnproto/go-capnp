@@ -1,6 +1,6 @@
 # Cap'n Proto bindings for Go
 
-[![Build Status](https://travis-ci.org/zombiezen/go-capnproto.svg?branch=master)](https://travis-ci.org/zombiezen/go-capnproto)
+[![Build Status](https://travis-ci.org/zombiezen/go-capnproto2.svg?branch=master)](https://travis-ci.org/zombiezen/go-capnproto2)
 [![GoDoc](https://godoc.org/zombiezen.com/go/capnproto2?status.svg)][godoc]
 
 go-capnproto consists of:
