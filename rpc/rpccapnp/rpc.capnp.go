@@ -4,7 +4,7 @@ package rpccapnp
 
 import (
 	strconv "strconv"
-	capnp "zombiezen.com/go/capnproto"
+	capnp "zombiezen.com/go/capnproto2"
 )
 
 type Message struct{ capnp.Struct }

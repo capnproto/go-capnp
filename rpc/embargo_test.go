@@ -4,11 +4,11 @@ import (
 	"testing"
 
 	"golang.org/x/net/context"
-	"zombiezen.com/go/capnproto"
-	"zombiezen.com/go/capnproto/rpc"
-	"zombiezen.com/go/capnproto/rpc/internal/logtransport"
-	"zombiezen.com/go/capnproto/rpc/internal/pipetransport"
-	"zombiezen.com/go/capnproto/rpc/internal/testcapnp"
+	"zombiezen.com/go/capnproto2"
+	"zombiezen.com/go/capnproto2/rpc"
+	"zombiezen.com/go/capnproto2/rpc/internal/logtransport"
+	"zombiezen.com/go/capnproto2/rpc/internal/pipetransport"
+	"zombiezen.com/go/capnproto2/rpc/internal/testcapnp"
 )
 
 func TestEmbargo(t *testing.T) {

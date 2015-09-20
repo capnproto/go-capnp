@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"zombiezen.com/go/capnproto"
+	"zombiezen.com/go/capnproto2"
 )
 
 func TestFulfiller_NewShouldBeUnresolved(t *testing.T) {

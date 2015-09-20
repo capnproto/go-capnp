@@ -111,7 +111,7 @@
 
 using Go = import "../../go.capnp";
 $Go.package("rpccapnp");
-$Go.import("zombiezen.com/go/capnproto/rpc/rpccapnp");
+$Go.import("zombiezen.com/go/capnproto2/rpc/rpccapnp");
 
 # ========================================================================================
 # The Four Tables

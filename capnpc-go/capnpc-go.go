@@ -23,7 +23,7 @@ import (
 	"strings"
 	"unicode"
 
-	"zombiezen.com/go/capnproto"
+	"zombiezen.com/go/capnproto2"
 )
 
 var (
@@ -31,7 +31,7 @@ var (
 )
 
 const (
-	go_capnproto_import = "zombiezen.com/go/capnproto"
+	go_capnproto_import = "zombiezen.com/go/capnproto2"
 	server_import       = go_capnproto_import + "/server"
 	context_import      = "golang.org/x/net/context"
 )

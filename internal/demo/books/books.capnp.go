@@ -3,7 +3,7 @@ package books
 // AUTO GENERATED - DO NOT EDIT
 
 import (
-	capnp "zombiezen.com/go/capnproto"
+	capnp "zombiezen.com/go/capnproto2"
 )
 
 type Book struct{ capnp.Struct }

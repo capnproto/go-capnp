@@ -7,7 +7,7 @@ Generating code
 capnpc-go provides the compiler backend for capnp.
 
 	# First, install capnpc-go to $PATH.
-	go install zombiezen.com/go/capnproto/capnpc-go
+	go install zombiezen.com/go/capnproto2/capnpc-go
 	# Then, generate Go files.
 	capnp compile -ogo *.capnp
 
@@ -18,9 +18,9 @@ from another package.  import should be the fully qualified import path
 and is used to generate import statement from other packages and to
 detect when two types are in the same package.  For example:
 
-	using Go = import "zombiezen.com/go/capnproto/go.capnp";
+	using Go = import "zombiezen.com/go/capnproto2/go.capnp";
 	$Go.package("main");
-	$Go.import("zombiezen.com/go/capnproto/example");
+	$Go.import("zombiezen.com/go/capnproto2/example");
 
 For adding documentation comments to the generated code, there's the doc
 annotation. This annotation adds the comment to a struct, enum or field so
@@ -359,4 +359,4 @@ A note about message ordering: when implementing a server method, you
 are responsible for acknowledging delivery of a method call.  Failure to
 do so can cause deadlocks.  See the server.Ack function for more details.
 */
-package capnp // import "zombiezen.com/go/capnproto"
+package capnp // import "zombiezen.com/go/capnproto2"

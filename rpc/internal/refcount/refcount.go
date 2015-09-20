@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"sync"
 
-	"zombiezen.com/go/capnproto"
+	"zombiezen.com/go/capnproto2"
 )
 
 // A RefCount will close its underlying client once all its references are closed.

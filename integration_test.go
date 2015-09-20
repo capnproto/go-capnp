@@ -10,8 +10,8 @@ import (
 	"testing"
 
 	cv "github.com/smartystreets/goconvey/convey"
-	"zombiezen.com/go/capnproto"
-	air "zombiezen.com/go/capnproto/internal/aircraftlib"
+	"zombiezen.com/go/capnproto2"
+	air "zombiezen.com/go/capnproto2/internal/aircraftlib"
 )
 
 func ValAtBit(value int64, bitPosition uint) bool {

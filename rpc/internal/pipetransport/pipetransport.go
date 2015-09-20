@@ -7,9 +7,9 @@ import (
 	"sync"
 
 	"golang.org/x/net/context"
-	"zombiezen.com/go/capnproto"
-	"zombiezen.com/go/capnproto/rpc"
-	"zombiezen.com/go/capnproto/rpc/rpccapnp"
+	"zombiezen.com/go/capnproto2"
+	"zombiezen.com/go/capnproto2/rpc"
+	"zombiezen.com/go/capnproto2/rpc/rpccapnp"
 )
 
 type pipeTransport struct {

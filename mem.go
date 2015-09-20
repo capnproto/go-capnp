@@ -6,7 +6,7 @@ import (
 	"io"
 	"math"
 
-	"zombiezen.com/go/capnproto/internal/packed"
+	"zombiezen.com/go/capnproto2/internal/packed"
 )
 
 // A Message is a tree of Cap'n Proto objects, split into one or more

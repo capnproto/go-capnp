@@ -4,8 +4,8 @@ package testcapnp
 
 import (
 	context "golang.org/x/net/context"
-	capnp "zombiezen.com/go/capnproto"
-	server "zombiezen.com/go/capnproto/server"
+	capnp "zombiezen.com/go/capnproto2"
+	server "zombiezen.com/go/capnproto2/server"
 )
 
 type Handle struct{ Client capnp.Client }

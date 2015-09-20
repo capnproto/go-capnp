@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"io"
 
-	"zombiezen.com/go/capnproto"
-	"zombiezen.com/go/capnproto/internal/demo/books"
+	"zombiezen.com/go/capnproto2"
+	"zombiezen.com/go/capnproto2/internal/demo/books"
 )
 
 func Example_book() {

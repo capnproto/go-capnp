@@ -1,7 +1,7 @@
 # Cap'n Proto bindings for Go
 
 [![Build Status](https://travis-ci.org/zombiezen/go-capnproto.svg?branch=master)](https://travis-ci.org/zombiezen/go-capnproto)
-[![GoDoc](https://godoc.org/zombiezen.com/go/capnproto?status.svg)][godoc]
+[![GoDoc](https://godoc.org/zombiezen.com/go/capnproto2?status.svg)][godoc]
 
 go-capnproto consists of:
 - a Go code generator for [Cap'n Proto][capnproto]
@@ -15,8 +15,8 @@ been tested with Cap'n Proto 0.5.0.
 
 ```
 # first: be sure you have your GOPATH env variable setup.
-$ go get -u -t zombiezen.com/go/capnproto/...
-$ go test -v zombiezen.com/go/capnproto/...
+$ go get -u -t zombiezen.com/go/capnproto2/...
+$ go test -v zombiezen.com/go/capnproto2/...
 ```
 
 Then read [the Getting Started guide][gettingstarted].
@@ -101,7 +101,7 @@ MIT - see [LICENSE][license] file
 [gettingstarted]: https://github.com/zombiezen/go-capnproto/wiki/Getting-Started
 [glycerine]: https://github.com/glycerine/go-capnproto
 [gocompat]: https://golang.org/doc/go1compat
-[godoc]: https://godoc.org/zombiezen.com/go/capnproto
+[godoc]: https://godoc.org/zombiezen.com/go/capnproto2
 [issue1]: https://github.com/zombiezen/go-capnproto/issues/1
 [issues]: https://github.com/zombiezen/go-capnproto/issues
 [license]: https://github.com/zombiezen/go-capnproto/blob/master/LICENSE
