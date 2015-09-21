@@ -92,6 +92,9 @@ func (p List) HasData() bool {
 
 // value returns the equivalent raw list pointer.
 func (p List) value(paddr Address) rawPointer {
+	if p.seg == nil {
+		return 0
+	}
 	off := makePointerOffset(paddr, p.off)
 	if p.flags&isCompositeList != 0 {
 		// p.off points to the data not the header
