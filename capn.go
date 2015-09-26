@@ -277,7 +277,7 @@ func compare(a, b rbtree.Item) int {
 	ao := a.(offset)
 	bo := b.(offset)
 	if ao.id != bo.id {
-		return int(ao.id - bo.id)
+		return int(ao.id) - int(bo.id)
 	} else if ao.boff > bo.boff {
 		return 1
 	} else if ao.boff < bo.boff {

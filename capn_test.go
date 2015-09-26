@@ -583,3 +583,34 @@ func catchPanic(f func()) (err error) {
 	f()
 	return nil
 }
+
+func TestOidComparison(t *testing.T) {
+	data := []offset{
+		offset{id: 0, boff: 10},
+		offset{id: 0, boff: 20},
+		offset{id: 0, boff: 30},
+		offset{id: 0, boff: 65535},
+		offset{id: 0, boff: 65536},
+		offset{id: 1, boff: 0},
+		offset{id: 1, boff: 5},
+		offset{id: 1, boff: 65536},
+	}
+	length := len(data)
+
+	for i := 0; i < length; i++ {
+		for j := 0; j < i; j++ {
+			if v := compare(data[i], data[j]); v <= 0 {
+				t.Errorf("compare({id: %d, boff: %d}, {id: %d, boff: %d}) should >0, but %d", data[i].id, data[i].boff, data[j].id, data[j].boff, v)
+			}
+		}
+		for j := i + 1; j < length; j++ {
+			if v := compare(data[i], data[j]); v >= 0 {
+				t.Errorf("compare({id: %d, boff: %d}, {id: %d, boff: %d}) should <0, but %d", data[i].id, data[i].boff, data[j].id, data[j].boff, v)
+			}
+		}
+
+		if v := compare(data[i], data[i]); v != 0 {
+			t.Errorf("compare({id: %d, boff: %d}, {id: %d, boff: %d}) should 0, but %d", data[i].id, data[i].boff, data[i].id, data[i].boff, v)
+		}
+	}
+}
