@@ -47,7 +47,7 @@ https://capnproto.org/
 MIT - see [LICENSE][license] file
 
 [capnproto]: https://capnproto.org/
-[gettingstarted]: https://github.com/zombiezen/go-capnproto/wiki/Getting-Started
+[gettingstarted]: https://github.com/zombiezen/go-capnproto2/wiki/Getting-Started
 [gocompat]: https://golang.org/doc/go1compat
 [godoc]: https://godoc.org/zombiezen.com/go/capnproto2
-[license]: https://github.com/zombiezen/go-capnproto/blob/master/LICENSE
+[license]: https://github.com/zombiezen/go-capnproto2/blob/master/LICENSE
