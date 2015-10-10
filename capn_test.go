@@ -584,7 +584,8 @@ func catchPanic(f func()) (err error) {
 	return nil
 }
 
-func TestOidComparison(t *testing.T) {
+func TestCompare(t *testing.T) {
+	// Offsets are in ascending order.
 	data := []offset{
 		offset{id: 0, boff: 10},
 		offset{id: 0, boff: 20},
@@ -595,22 +596,23 @@ func TestOidComparison(t *testing.T) {
 		offset{id: 1, boff: 5},
 		offset{id: 1, boff: 65536},
 	}
-	length := len(data)
+	formatOffset := func(o offset) string {
+		return fmt.Sprintf("{id: %d, boff: %d}", o.id, o.boff)
+	}
 
-	for i := 0; i < length; i++ {
-		for j := 0; j < i; j++ {
-			if v := compare(data[i], data[j]); v <= 0 {
-				t.Errorf("compare({id: %d, boff: %d}, {id: %d, boff: %d}) should >0, but %d", data[i].id, data[i].boff, data[j].id, data[j].boff, v)
+	for i, curr := range data {
+		for _, prev := range data[:i] {
+			if v := compare(curr, prev); v <= 0 {
+				t.Errorf("compare(%s, %s) = %d; want >0", formatOffset(curr), formatOffset(prev), v)
 			}
 		}
-		for j := i + 1; j < length; j++ {
-			if v := compare(data[i], data[j]); v >= 0 {
-				t.Errorf("compare({id: %d, boff: %d}, {id: %d, boff: %d}) should <0, but %d", data[i].id, data[i].boff, data[j].id, data[j].boff, v)
-			}
+		if v := compare(curr, curr); v != 0 {
+			t.Errorf("compare(%s, %s) = %d; want 0", formatOffset(curr), formatOffset(curr), v)
 		}
-
-		if v := compare(data[i], data[i]); v != 0 {
-			t.Errorf("compare({id: %d, boff: %d}, {id: %d, boff: %d}) should 0, but %d", data[i].id, data[i].boff, data[i].id, data[i].boff, v)
+		for _, next := range data[i+1:] {
+			if v := compare(curr, next); v >= 0 {
+				t.Errorf("compare(%s, %s) = %d; want <0", formatOffset(curr), formatOffset(next), v)
+			}
 		}
 	}
 }
