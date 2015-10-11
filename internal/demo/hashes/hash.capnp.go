@@ -170,8 +170,11 @@ func (s HashFactory_newSha1_Results) SetHash(v Hash) error {
 
 		return nil
 	}
-	ci := seg.Message().AddCap(v.Client)
-	return s.Struct.SetPointer(0, capnp.NewInterface(seg, ci))
+	var in capnp.Interface
+	if v.Client != nil {
+		in = capnp.NewInterface(seg, seg.Message().AddCap(v.Client))
+	}
+	return s.Struct.SetPointer(0, in)
 }
 
 // HashFactory_newSha1_Results_List is a list of HashFactory_newSha1_Results.

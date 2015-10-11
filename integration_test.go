@@ -422,6 +422,28 @@ func TestInterfaceSet(t *testing.T) {
 	}
 }
 
+func TestInterfaceSetNull(t *testing.T) {
+	cl := air.Echo{Client: capnp.ErrorClient(errors.New("foo"))}
+	msg, s, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	base, err := air.NewRootEchoBase(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	base.SetEcho(cl)
+
+	base.SetEcho(air.Echo{})
+
+	if e := base.Echo().Client; e != nil {
+		t.Errorf("base.Echo() = %#v; want nil", e)
+	}
+	if len(msg.CapTable) != 1 {
+		t.Errorf("msg.CapTable = %#v; want len = 1", msg.CapTable)
+	}
+}
+
 func TestInterfaceCopyToOtherMessage(t *testing.T) {
 	cl := air.Echo{Client: capnp.ErrorClient(errors.New("foo"))}
 	_, s1, err := capnp.NewMessage(capnp.SingleSegment(nil))

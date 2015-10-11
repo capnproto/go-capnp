@@ -325,8 +325,11 @@ func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.FieldType}}) error {
 		{{/* TODO(light): error? */}}
 		return nil
 	}
-	ci := seg.Message().AddCap(v.Client)
-	return s.Struct.SetPointer({{.Field.Slot.Offset}}, {{capnp}}.NewInterface(seg, ci))
+	var in capnp.Interface
+	if v.Client != nil {
+		in = {{capnp}}.NewInterface(seg, seg.Message().AddCap(v.Client))
+	}
+	return s.Struct.SetPointer({{.Field.Slot.Offset}}, in)
 }
 {{end}}
 

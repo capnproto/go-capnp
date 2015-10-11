@@ -4251,8 +4251,11 @@ func (s EchoBase) SetEcho(v Echo) error {
 
 		return nil
 	}
-	ci := seg.Message().AddCap(v.Client)
-	return s.Struct.SetPointer(0, capnp.NewInterface(seg, ci))
+	var in capnp.Interface
+	if v.Client != nil {
+		in = capnp.NewInterface(seg, seg.Message().AddCap(v.Client))
+	}
+	return s.Struct.SetPointer(0, in)
 }
 
 // EchoBase_List is a list of EchoBase.

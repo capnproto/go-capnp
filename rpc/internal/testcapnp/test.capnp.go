@@ -188,8 +188,11 @@ func (s HandleFactory_newHandle_Results) SetHandle(v Handle) error {
 
 		return nil
 	}
-	ci := seg.Message().AddCap(v.Client)
-	return s.Struct.SetPointer(0, capnp.NewInterface(seg, ci))
+	var in capnp.Interface
+	if v.Client != nil {
+		in = capnp.NewInterface(seg, seg.Message().AddCap(v.Client))
+	}
+	return s.Struct.SetPointer(0, in)
 }
 
 // HandleFactory_newHandle_Results_List is a list of HandleFactory_newHandle_Results.
@@ -732,8 +735,11 @@ func (s Echoer_echo_Params) SetCap(v CallOrder) error {
 
 		return nil
 	}
-	ci := seg.Message().AddCap(v.Client)
-	return s.Struct.SetPointer(0, capnp.NewInterface(seg, ci))
+	var in capnp.Interface
+	if v.Client != nil {
+		in = capnp.NewInterface(seg, seg.Message().AddCap(v.Client))
+	}
+	return s.Struct.SetPointer(0, in)
 }
 
 // Echoer_echo_Params_List is a list of Echoer_echo_Params.
@@ -811,8 +817,11 @@ func (s Echoer_echo_Results) SetCap(v CallOrder) error {
 
 		return nil
 	}
-	ci := seg.Message().AddCap(v.Client)
-	return s.Struct.SetPointer(0, capnp.NewInterface(seg, ci))
+	var in capnp.Interface
+	if v.Client != nil {
+		in = capnp.NewInterface(seg, seg.Message().AddCap(v.Client))
+	}
+	return s.Struct.SetPointer(0, in)
 }
 
 // Echoer_echo_Results_List is a list of Echoer_echo_Results.
