@@ -26,7 +26,7 @@ func TestRelease(t *testing.T) {
 	defer d.Wait()
 	defer c.Close()
 	client := testcapnp.HandleFactory{Client: c.Bootstrap(ctx)}
-	r, err := client.NewHandle(ctx, func(r testcapnp.HandleFactory_newHandle_Params) error { return nil }).Struct()
+	r, err := client.NewHandle(ctx, nil).Struct()
 	if err != nil {
 		t.Fatal("NewHandle:", err)
 	}
@@ -58,12 +58,12 @@ func TestReleaseAlias(t *testing.T) {
 	defer d.Wait()
 	defer c.Close()
 	client := testcapnp.HandleFactory{Client: c.Bootstrap(ctx)}
-	r1, err := client.NewHandle(ctx, func(r testcapnp.HandleFactory_newHandle_Params) error { return nil }).Struct()
+	r1, err := client.NewHandle(ctx, nil).Struct()
 	if err != nil {
 		t.Fatal("NewHandle #1:", err)
 	}
 	handle1 := r1.Handle()
-	r2, err := client.NewHandle(ctx, func(r testcapnp.HandleFactory_newHandle_Params) error { return nil }).Struct()
+	r2, err := client.NewHandle(ctx, nil).Struct()
 	if err != nil {
 		t.Fatal("NewHandle #2:", err)
 	}
@@ -91,10 +91,8 @@ func TestReleaseAlias(t *testing.T) {
 func flushConn(ctx context.Context, c *rpc.Conn) {
 	// discard result
 	c.Bootstrap(ctx).Call(&capnp.Call{
-		Ctx:        ctx,
-		Method:     capnp.Method{InterfaceID: 0xdeadbeef, MethodID: 42},
-		ParamsFunc: func(capnp.Struct) error { return nil },
-		ParamsSize: capnp.ObjectSize{},
+		Ctx:    ctx,
+		Method: capnp.Method{InterfaceID: 0xdeadbeef, MethodID: 42},
 	}).Struct()
 }
 

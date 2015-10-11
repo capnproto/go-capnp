@@ -27,7 +27,7 @@ func TestCancel(t *testing.T) {
 	client := testcapnp.Hanger{Client: c.Bootstrap(ctx)}
 
 	subctx, subcancel := context.WithCancel(ctx)
-	promise := client.Hang(subctx, func(r testcapnp.Hanger_hang_Params) error { return nil })
+	promise := client.Hang(subctx, nil)
 	<-notify
 	subcancel()
 	_, err := promise.Struct()

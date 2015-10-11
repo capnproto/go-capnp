@@ -72,7 +72,7 @@ func TestServerCallOrderWithCustomLocks(t *testing.T) {
 func testCallOrder(t *testing.T, seq air.CallSequence) {
 	ctx := context.Background()
 	send := func() air.CallSequence_getNumber_Results_Promise {
-		return seq.GetNumber(ctx, func(air.CallSequence_getNumber_Params) error { return nil })
+		return seq.GetNumber(ctx, nil)
 	}
 	check := func(p air.CallSequence_getNumber_Results_Promise, n uint32) {
 		result, err := p.Struct()

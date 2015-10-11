@@ -32,7 +32,7 @@ func (c HandleFactory) NewHandle(ctx context.Context, params func(HandleFactory_
 	if c.Client == nil {
 		return HandleFactory_newHandle_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
 	}
-	return HandleFactory_newHandle_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(&capnp.Call{
+	call := &capnp.Call{
 		Ctx: ctx,
 		Method: capnp.Method{
 
@@ -41,10 +41,13 @@ func (c HandleFactory) NewHandle(ctx context.Context, params func(HandleFactory_
 			InterfaceName: "test.capnp:HandleFactory",
 			MethodName:    "newHandle",
 		},
-		ParamsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 0},
-		ParamsFunc: func(s capnp.Struct) error { return params(HandleFactory_newHandle_Params{Struct: s}) },
-		Options:    capnp.NewCallOptions(opts),
-	}))}
+		Options: capnp.NewCallOptions(opts),
+	}
+	if params != nil {
+		call.ParamsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
+		call.ParamsFunc = func(s capnp.Struct) error { return params(HandleFactory_newHandle_Params{Struct: s}) }
+	}
+	return HandleFactory_newHandle_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
 }
 
 type HandleFactory_Server interface {
@@ -226,7 +229,7 @@ func (c Hanger) Hang(ctx context.Context, params func(Hanger_hang_Params) error,
 	if c.Client == nil {
 		return Hanger_hang_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
 	}
-	return Hanger_hang_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(&capnp.Call{
+	call := &capnp.Call{
 		Ctx: ctx,
 		Method: capnp.Method{
 
@@ -235,10 +238,13 @@ func (c Hanger) Hang(ctx context.Context, params func(Hanger_hang_Params) error,
 			InterfaceName: "test.capnp:Hanger",
 			MethodName:    "hang",
 		},
-		ParamsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 0},
-		ParamsFunc: func(s capnp.Struct) error { return params(Hanger_hang_Params{Struct: s}) },
-		Options:    capnp.NewCallOptions(opts),
-	}))}
+		Options: capnp.NewCallOptions(opts),
+	}
+	if params != nil {
+		call.ParamsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
+		call.ParamsFunc = func(s capnp.Struct) error { return params(Hanger_hang_Params{Struct: s}) }
+	}
+	return Hanger_hang_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
 }
 
 type Hanger_Server interface {
@@ -395,7 +401,7 @@ func (c CallOrder) GetCallSequence(ctx context.Context, params func(CallOrder_ge
 	if c.Client == nil {
 		return CallOrder_getCallSequence_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
 	}
-	return CallOrder_getCallSequence_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(&capnp.Call{
+	call := &capnp.Call{
 		Ctx: ctx,
 		Method: capnp.Method{
 
@@ -404,10 +410,13 @@ func (c CallOrder) GetCallSequence(ctx context.Context, params func(CallOrder_ge
 			InterfaceName: "test.capnp:CallOrder",
 			MethodName:    "getCallSequence",
 		},
-		ParamsSize: capnp.ObjectSize{DataSize: 8, PointerCount: 0},
-		ParamsFunc: func(s capnp.Struct) error { return params(CallOrder_getCallSequence_Params{Struct: s}) },
-		Options:    capnp.NewCallOptions(opts),
-	}))}
+		Options: capnp.NewCallOptions(opts),
+	}
+	if params != nil {
+		call.ParamsSize = capnp.ObjectSize{DataSize: 8, PointerCount: 0}
+		call.ParamsFunc = func(s capnp.Struct) error { return params(CallOrder_getCallSequence_Params{Struct: s}) }
+	}
+	return CallOrder_getCallSequence_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
 }
 
 type CallOrder_Server interface {
@@ -582,7 +591,7 @@ func (c Echoer) Echo(ctx context.Context, params func(Echoer_echo_Params) error,
 	if c.Client == nil {
 		return Echoer_echo_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
 	}
-	return Echoer_echo_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(&capnp.Call{
+	call := &capnp.Call{
 		Ctx: ctx,
 		Method: capnp.Method{
 
@@ -591,17 +600,20 @@ func (c Echoer) Echo(ctx context.Context, params func(Echoer_echo_Params) error,
 			InterfaceName: "test.capnp:Echoer",
 			MethodName:    "echo",
 		},
-		ParamsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 1},
-		ParamsFunc: func(s capnp.Struct) error { return params(Echoer_echo_Params{Struct: s}) },
-		Options:    capnp.NewCallOptions(opts),
-	}))}
+		Options: capnp.NewCallOptions(opts),
+	}
+	if params != nil {
+		call.ParamsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 1}
+		call.ParamsFunc = func(s capnp.Struct) error { return params(Echoer_echo_Params{Struct: s}) }
+	}
+	return Echoer_echo_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
 }
 
 func (c Echoer) GetCallSequence(ctx context.Context, params func(CallOrder_getCallSequence_Params) error, opts ...capnp.CallOption) CallOrder_getCallSequence_Results_Promise {
 	if c.Client == nil {
 		return CallOrder_getCallSequence_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
 	}
-	return CallOrder_getCallSequence_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(&capnp.Call{
+	call := &capnp.Call{
 		Ctx: ctx,
 		Method: capnp.Method{
 
@@ -610,10 +622,13 @@ func (c Echoer) GetCallSequence(ctx context.Context, params func(CallOrder_getCa
 			InterfaceName: "test.capnp:CallOrder",
 			MethodName:    "getCallSequence",
 		},
-		ParamsSize: capnp.ObjectSize{DataSize: 8, PointerCount: 0},
-		ParamsFunc: func(s capnp.Struct) error { return params(CallOrder_getCallSequence_Params{Struct: s}) },
-		Options:    capnp.NewCallOptions(opts),
-	}))}
+		Options: capnp.NewCallOptions(opts),
+	}
+	if params != nil {
+		call.ParamsSize = capnp.ObjectSize{DataSize: 8, PointerCount: 0}
+		call.ParamsFunc = func(s capnp.Struct) error { return params(CallOrder_getCallSequence_Params{Struct: s}) }
+	}
+	return CallOrder_getCallSequence_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
 }
 
 type Echoer_Server interface {
@@ -837,7 +852,7 @@ func (c Adder) Add(ctx context.Context, params func(Adder_add_Params) error, opt
 	if c.Client == nil {
 		return Adder_add_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
 	}
-	return Adder_add_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(&capnp.Call{
+	call := &capnp.Call{
 		Ctx: ctx,
 		Method: capnp.Method{
 
@@ -846,10 +861,13 @@ func (c Adder) Add(ctx context.Context, params func(Adder_add_Params) error, opt
 			InterfaceName: "test.capnp:Adder",
 			MethodName:    "add",
 		},
-		ParamsSize: capnp.ObjectSize{DataSize: 8, PointerCount: 0},
-		ParamsFunc: func(s capnp.Struct) error { return params(Adder_add_Params{Struct: s}) },
-		Options:    capnp.NewCallOptions(opts),
-	}))}
+		Options: capnp.NewCallOptions(opts),
+	}
+	if params != nil {
+		call.ParamsSize = capnp.ObjectSize{DataSize: 8, PointerCount: 0}
+		call.ParamsFunc = func(s capnp.Struct) error { return params(Adder_add_Params{Struct: s}) }
+	}
+	return Adder_add_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
 }
 
 type Adder_Server interface {

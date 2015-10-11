@@ -14,7 +14,7 @@ func (c HashFactory) NewSha1(ctx context.Context, params func(HashFactory_newSha
 	if c.Client == nil {
 		return HashFactory_newSha1_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
 	}
-	return HashFactory_newSha1_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(&capnp.Call{
+	call := &capnp.Call{
 		Ctx: ctx,
 		Method: capnp.Method{
 
@@ -23,10 +23,13 @@ func (c HashFactory) NewSha1(ctx context.Context, params func(HashFactory_newSha
 			InterfaceName: "hash.capnp:HashFactory",
 			MethodName:    "newSha1",
 		},
-		ParamsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 0},
-		ParamsFunc: func(s capnp.Struct) error { return params(HashFactory_newSha1_Params{Struct: s}) },
-		Options:    capnp.NewCallOptions(opts),
-	}))}
+		Options: capnp.NewCallOptions(opts),
+	}
+	if params != nil {
+		call.ParamsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
+		call.ParamsFunc = func(s capnp.Struct) error { return params(HashFactory_newSha1_Params{Struct: s}) }
+	}
+	return HashFactory_newSha1_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
 }
 
 type HashFactory_Server interface {
@@ -208,7 +211,7 @@ func (c Hash) Write(ctx context.Context, params func(Hash_write_Params) error, o
 	if c.Client == nil {
 		return Hash_write_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
 	}
-	return Hash_write_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(&capnp.Call{
+	call := &capnp.Call{
 		Ctx: ctx,
 		Method: capnp.Method{
 
@@ -217,17 +220,20 @@ func (c Hash) Write(ctx context.Context, params func(Hash_write_Params) error, o
 			InterfaceName: "hash.capnp:Hash",
 			MethodName:    "write",
 		},
-		ParamsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 1},
-		ParamsFunc: func(s capnp.Struct) error { return params(Hash_write_Params{Struct: s}) },
-		Options:    capnp.NewCallOptions(opts),
-	}))}
+		Options: capnp.NewCallOptions(opts),
+	}
+	if params != nil {
+		call.ParamsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 1}
+		call.ParamsFunc = func(s capnp.Struct) error { return params(Hash_write_Params{Struct: s}) }
+	}
+	return Hash_write_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
 }
 
 func (c Hash) Sum(ctx context.Context, params func(Hash_sum_Params) error, opts ...capnp.CallOption) Hash_sum_Results_Promise {
 	if c.Client == nil {
 		return Hash_sum_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
 	}
-	return Hash_sum_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(&capnp.Call{
+	call := &capnp.Call{
 		Ctx: ctx,
 		Method: capnp.Method{
 
@@ -236,10 +242,13 @@ func (c Hash) Sum(ctx context.Context, params func(Hash_sum_Params) error, opts 
 			InterfaceName: "hash.capnp:Hash",
 			MethodName:    "sum",
 		},
-		ParamsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 0},
-		ParamsFunc: func(s capnp.Struct) error { return params(Hash_sum_Params{Struct: s}) },
-		Options:    capnp.NewCallOptions(opts),
-	}))}
+		Options: capnp.NewCallOptions(opts),
+	}
+	if params != nil {
+		call.ParamsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
+		call.ParamsFunc = func(s capnp.Struct) error { return params(Hash_sum_Params{Struct: s}) }
+	}
+	return Hash_sum_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
 }
 
 type Hash_Server interface {

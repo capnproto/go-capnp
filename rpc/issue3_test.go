@@ -40,9 +40,7 @@ type SideEffectEchoer struct {
 }
 
 func (*SideEffectEchoer) Echo(call testcapnp.Echoer_echo) error {
-	call.Params.Cap().GetCallSequence(call.Ctx, func(p testcapnp.CallOrder_getCallSequence_Params) error {
-		return nil
-	})
+	call.Params.Cap().GetCallSequence(call.Ctx, nil)
 	call.Results.SetCap(call.Params.Cap())
 	return nil
 }

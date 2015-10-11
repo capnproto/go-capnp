@@ -415,15 +415,18 @@ func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{context}}.Context, params func({{
 	if c.Client == nil {
 		return {{.Results.RemoteName $.Node}}_Promise{Pipeline: {{capnp}}.NewPipeline({{capnp}}.ErrorAnswer({{capnp}}.ErrNullClient))}
 	}
-	return {{.Results.RemoteName $.Node}}_Promise{Pipeline: {{capnp}}.NewPipeline(c.Client.Call(&{{capnp}}.Call{
+	call := &{{capnp}}.Call{
 		Ctx: ctx,
 		Method: {{capnp}}.Method{
 			{{template "_interfaceMethod" .}}
 		},
-		ParamsSize: {{.Params.ObjectSize}},
-		ParamsFunc: func(s {{capnp}}.Struct) error { return params({{.Params.RemoteName $.Node}}{Struct: s}) },
 		Options: {{capnp}}.NewCallOptions(opts),
-	}))}
+	}
+	if params != nil {
+		call.ParamsSize = {{.Params.ObjectSize}}
+		call.ParamsFunc = func(s {{capnp}}.Struct) error { return params({{.Params.RemoteName $.Node}}{Struct: s}) }
+	}
+	return {{.Results.RemoteName $.Node}}_Promise{Pipeline: {{capnp}}.NewPipeline(c.Client.Call(call))}
 }
 {{end}}
 {{end}}

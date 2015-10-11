@@ -62,9 +62,7 @@ func client(ctx context.Context, c net.Conn) error {
 	hf := hashes.HashFactory{Client: conn.Bootstrap(ctx)}
 
 	// Now we can call methods on hf, and they will be sent over c.
-	s := hf.NewSha1(ctx, func(p hashes.HashFactory_newSha1_Params) error {
-		return nil
-	}).Hash()
+	s := hf.NewSha1(ctx, nil).Hash()
 	// s refers to a remote Hash.  Method calls are delivered in order.
 	s.Write(ctx, func(p hashes.Hash_write_Params) error {
 		err := p.SetData([]byte("Hello, "))
@@ -74,9 +72,7 @@ func client(ctx context.Context, c net.Conn) error {
 		err := p.SetData([]byte("World!"))
 		return err
 	})
-	result, err := s.Sum(ctx, func(p hashes.Hash_sum_Params) error {
-		return nil
-	}).Struct()
+	result, err := s.Sum(ctx, nil).Struct()
 	if err != nil {
 		return err
 	}
