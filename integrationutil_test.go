@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"testing"
 	"unsafe"
 
 	"zombiezen.com/go/capnproto2"
@@ -564,4 +565,95 @@ func FileExists(name string) bool {
 		return false
 	}
 	return true
+}
+
+func ValAtBit(value int64, bitPosition uint) bool {
+	return (int64(1)<<bitPosition)&value != 0
+}
+
+func TestValAtBit(t *testing.T) {
+	const two_to_62 = int64(2) << 61
+	tests := []struct {
+		value       int64
+		bitPosition uint
+		bit         bool
+	}{
+		{0, 0, false},
+
+		{1, 0, true},
+
+		{2, 1, true},
+		{2, 0, false},
+
+		{3, 2, false},
+		{3, 1, true},
+		{3, 0, true},
+
+		{4, 3, false},
+		{4, 2, true},
+		{4, 1, false},
+		{4, 0, false},
+
+		{5, 3, false},
+		{5, 2, true},
+		{5, 1, false},
+		{5, 0, true},
+
+		{6, 3, false},
+		{6, 2, true},
+		{6, 1, true},
+		{6, 0, false},
+
+		{7, 3, false},
+		{7, 2, true},
+		{7, 1, true},
+		{7, 0, true},
+
+		{8, 3, true},
+		{8, 2, false},
+		{8, 1, false},
+		{8, 0, false},
+
+		{two_to_62, 62, true},
+		{two_to_62, 2, false},
+		{two_to_62, 1, false},
+		{two_to_62, 0, false},
+
+		{9, 3, true},
+		{9, 2, false},
+		{9, 1, false},
+		{9, 0, true},
+	}
+	for _, test := range tests {
+		if bit := ValAtBit(test.value, test.bitPosition); bit != test.bit {
+			t.Errorf("ValAtBit(%#x, %d) = %t; want %t", test.value, test.bitPosition, bit, test.bit)
+		}
+	}
+}
+
+func zboolvec_value_FilledSegment(value int64, elementCount uint) (*capnp.Segment, []byte) {
+	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		panic(err)
+	}
+	z, err := air.NewRootZ(seg)
+	if err != nil {
+		panic(err)
+	}
+	list, err := capnp.NewBitList(seg, int32(elementCount))
+	if err != nil {
+		panic(err)
+	}
+	if value > 0 {
+		for i := uint(0); i < elementCount; i++ {
+			list.Set(int(i), ValAtBit(value, i))
+		}
+	}
+	z.SetBoolvec(list)
+
+	b, err := msg.Marshal()
+	if err != nil {
+		panic(err)
+	}
+	return seg, b
 }
