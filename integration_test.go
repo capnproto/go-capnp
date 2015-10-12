@@ -7,6 +7,7 @@ import (
 	"io"
 	"math/rand"
 	"reflect"
+	"strings"
 	"testing"
 
 	cv "github.com/smartystreets/goconvey/convey"
@@ -14,205 +15,126 @@ import (
 	air "zombiezen.com/go/capnproto2/internal/aircraftlib"
 )
 
-func TestBitList(t *testing.T) {
-	seg, _ := zboolvec_value_FilledSegment(5, 3)
-	text := CapnpDecodeSegment(seg, "", schemaPath, "Z")
-
-	expectedText := `(boolvec = [true, false, true])`
-
-	cv.Convey("Given a go-capnproto created List(Bool) Z::boolvec with bool values [true, false, true]", t, func() {
-		cv.Convey("When we decode it with capnp", func() {
-			cv.Convey(fmt.Sprintf("Then we should get the expected text '%s'", expectedText), func() {
-				cv.So(text, cv.ShouldEqual, expectedText)
-			})
-			cv.Convey("And our data should contain Z_Which_boolvec with contents true, false, true", func() {
-				z, err := air.ReadRootZ(seg.Message())
-				cv.So(err, cv.ShouldEqual, nil)
-				cv.So(z.Which(), cv.ShouldEqual, air.Z_Which_boolvec)
-
-				bitlist, err := z.Boolvec()
-				cv.So(err, cv.ShouldEqual, nil)
-				cv.So(bitlist.Len(), cv.ShouldEqual, 3)
-				cv.So(bitlist.At(0), cv.ShouldEqual, true)
-				cv.So(bitlist.At(1), cv.ShouldEqual, false)
-				cv.So(bitlist.At(2), cv.ShouldEqual, true)
-			})
-		})
-	})
-
+type bitListTest struct {
+	list []bool
+	text string
 }
 
-func TestWriteBitList0(t *testing.T) {
-	seg, _ := zboolvec_value_FilledSegment(0, 1)
-	cv.Convey("Given a go-capnproto created List(Bool) Z::boolvec with bool values [false]", t, func() {
-		cv.Convey("Decoding it with c++ capnp should yield the expected text", func() {
-			cv.So(CapnpDecodeSegment(seg, "", schemaPath, "Z"), cv.ShouldEqual, `(boolvec = [false])`)
-		})
-	})
-
-	cv.Convey("And we should be able to read back what we wrote", t, func() {
-		z, err := air.ReadRootZ(seg.Message())
-		cv.So(err, cv.ShouldEqual, nil)
-		cv.So(z.Which(), cv.ShouldEqual, air.Z_Which_boolvec)
-
-		bitlist, err := z.Boolvec()
-		cv.So(err, cv.ShouldEqual, nil)
-		cv.So(bitlist.Len(), cv.ShouldEqual, 1)
-		cv.So(bitlist.At(0), cv.ShouldEqual, false)
-	})
+var bitListTests = []bitListTest{
+	{
+		[]bool{true, false, true},
+		"(boolvec = [true, false, true])\n",
+	},
+	{
+		[]bool{false},
+		"(boolvec = [false])\n",
+	},
+	{
+		[]bool{true},
+		"(boolvec = [true])\n",
+	},
+	{
+		[]bool{false, true},
+		"(boolvec = [false, true])\n",
+	},
+	{
+		[]bool{true, true},
+		"(boolvec = [true, true])\n",
+	},
+	{
+		[]bool{false, false, true},
+		"(boolvec = [false, false, true])\n",
+	},
+	{
+		[]bool{true, false, true, false, true},
+		"(boolvec = [true, false, true, false, true])\n",
+	},
+	{
+		[]bool{
+			false, false, false, false, false, false, false, false,
+			false, false, false, false, false, false, false, false,
+			false, false, false, false, false, false, false, false,
+			false, false, false, false, false, false, false, false,
+			false, false, false, false, false, false, false, false,
+			false, false, false, false, false, false, false, false,
+			false, false, false, false, false, false, false, false,
+			false, false, false, false, false, false, false, false,
+			true, true,
+		},
+		"(boolvec = [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, true])\n",
+	},
 }
 
-func TestWriteBitList1(t *testing.T) {
-	seg, _ := zboolvec_value_FilledSegment(1, 1)
-	cv.Convey("Given a go-capnproto created List(Bool) Z::boolvec with bool values [true]", t, func() {
-		cv.Convey("Decoding it with c++ capnp should yield the expected text", func() {
-			cv.So(CapnpDecodeSegment(seg, "", schemaPath, "Z"), cv.ShouldEqual, `(boolvec = [true])`)
-		})
-	})
-
-	cv.Convey("And we should be able to read back what we wrote", t, func() {
-		z, err := air.ReadRootZ(seg.Message())
-		cv.So(err, cv.ShouldEqual, nil)
-		cv.So(z.Which(), cv.ShouldEqual, air.Z_Which_boolvec)
-
-		bitlist, err := z.Boolvec()
-		cv.So(err, cv.ShouldEqual, nil)
-		cv.So(bitlist.Len(), cv.ShouldEqual, 1)
-		cv.So(bitlist.At(0), cv.ShouldEqual, true)
-	})
-
-}
-
-func TestWriteBitList2(t *testing.T) {
-	seg, _ := zboolvec_value_FilledSegment(2, 2)
-	//seg, by := zboolvec_value_FilledSegment(2, 2)
-	//ShowBytes(by, 0)
-	cv.Convey("Given a go-capnproto created List(Bool) Z::boolvec with bool values [false, true]", t, func() {
-		cv.Convey("Decoding it with c++ capnp should yield the expected text", func() {
-			cv.So(CapnpDecodeSegment(seg, "", schemaPath, "Z"), cv.ShouldEqual, `(boolvec = [false, true])`)
-		})
-	})
-
-	cv.Convey("And we should be able to read back what we wrote", t, func() {
-		z, err := air.ReadRootZ(seg.Message())
-		cv.So(err, cv.ShouldEqual, nil)
-		cv.So(z.Which(), cv.ShouldEqual, air.Z_Which_boolvec)
-
-		bitlist, err := z.Boolvec()
-		cv.So(err, cv.ShouldEqual, nil)
-		cv.So(bitlist.Len(), cv.ShouldEqual, 2)
-		cv.So(bitlist.At(0), cv.ShouldEqual, false)
-		cv.So(bitlist.At(1), cv.ShouldEqual, true)
-	})
-}
-
-func TestWriteBitList3(t *testing.T) {
-	seg, _ := zboolvec_value_FilledSegment(3, 2)
-	cv.Convey("Given a go-capnproto created List(Bool) Z::boolvec with bool values [true, true]", t, func() {
-		cv.Convey("Decoding it with c++ capnp should yield the expected text", func() {
-			cv.So(CapnpDecodeSegment(seg, "", schemaPath, "Z"), cv.ShouldEqual, `(boolvec = [true, true])`)
-		})
-	})
-
-	cv.Convey("And we should be able to read back what we wrote", t, func() {
-		z, err := air.ReadRootZ(seg.Message())
-		cv.So(err, cv.ShouldEqual, nil)
-		cv.So(z.Which(), cv.ShouldEqual, air.Z_Which_boolvec)
-
-		bitlist, err := z.Boolvec()
-		cv.So(err, cv.ShouldEqual, nil)
-		cv.So(bitlist.Len(), cv.ShouldEqual, 2)
-		cv.So(bitlist.At(0), cv.ShouldEqual, true)
-		cv.So(bitlist.At(1), cv.ShouldEqual, true)
-	})
-
-}
-
-func TestWriteBitList4(t *testing.T) {
-	seg, _ := zboolvec_value_FilledSegment(4, 3)
-	cv.Convey("Given a go-capnproto created List(Bool) Z::boolvec with bool values [false, false, true]", t, func() {
-		cv.Convey("Decoding it with c++ capnp should yield the expected text", func() {
-			cv.So(CapnpDecodeSegment(seg, "", schemaPath, "Z"), cv.ShouldEqual, `(boolvec = [false, false, true])`)
-		})
-	})
-
-	cv.Convey("And we should be able to read back what we wrote", t, func() {
-		z, err := air.ReadRootZ(seg.Message())
-		cv.So(err, cv.ShouldEqual, nil)
-		cv.So(z.Which(), cv.ShouldEqual, air.Z_Which_boolvec)
-
-		bitlist, err := z.Boolvec()
-		cv.So(bitlist.Len(), cv.ShouldEqual, 3)
-		cv.So(bitlist.At(0), cv.ShouldEqual, false)
-		cv.So(bitlist.At(1), cv.ShouldEqual, false)
-		cv.So(bitlist.At(2), cv.ShouldEqual, true)
-	})
-}
-
-func TestWriteBitList21(t *testing.T) {
-	seg, _ := zboolvec_value_FilledSegment(21, 5)
-	cv.Convey("Given a go-capnproto created List(Bool) Z::boolvec with bool values [true, false, true, false, true]", t, func() {
-		cv.Convey("Decoding it with c++ capnp should yield the expected text", func() {
-			cv.So(CapnpDecodeSegment(seg, "", schemaPath, "Z"), cv.ShouldEqual, `(boolvec = [true, false, true, false, true])`)
-		})
-	})
-
-	cv.Convey("And we should be able to read back what we wrote", t, func() {
-		z, err := air.ReadRootZ(seg.Message())
-		cv.So(err, cv.ShouldEqual, nil)
-		cv.So(z.Which(), cv.ShouldEqual, air.Z_Which_boolvec)
-
-		bitlist, err := z.Boolvec()
-		cv.So(err, cv.ShouldEqual, nil)
-		cv.So(bitlist.Len(), cv.ShouldEqual, 5)
-		cv.So(bitlist.At(0), cv.ShouldEqual, true)
-		cv.So(bitlist.At(1), cv.ShouldEqual, false)
-		cv.So(bitlist.At(2), cv.ShouldEqual, true)
-		cv.So(bitlist.At(3), cv.ShouldEqual, false)
-		cv.So(bitlist.At(4), cv.ShouldEqual, true)
-	})
-}
-
-func TestWriteBitListTwo64BitWords(t *testing.T) {
-
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+func (blt bitListTest) makeMessage() (*capnp.Message, error) {
+	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	z, err := air.NewRootZ(seg)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	list, err := capnp.NewBitList(seg, 66)
+	list, err := capnp.NewBitList(seg, int32(len(blt.list)))
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	list.Set(64, true)
-	list.Set(65, true)
+	for i := range blt.list {
+		list.Set(i, blt.list[i])
+	}
+	if err := z.SetBoolvec(list); err != nil {
+		return nil, err
+	}
+	return msg, nil
+}
 
-	z.SetBoolvec(list)
-
-	cv.Convey("Given a go-capnproto created List(Bool) Z::boolvec with bool values [true (+ 64 more times)]", t, func() {
-		cv.Convey("Decoding it with c++ capnp should yield the expected text", func() {
-			cv.So(CapnpDecodeSegment(seg, "", schemaPath, "Z"), cv.ShouldEqual, `(boolvec = [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, true])`)
-		})
-	})
-
-	cv.Convey("And we should be able to read back what we wrote", t, func() {
-		z, err := air.ReadRootZ(seg.Message())
-		cv.So(err, cv.ShouldEqual, nil)
-		cv.So(z.Which(), cv.ShouldEqual, air.Z_Which_boolvec)
-
-		bitlist, err := z.Boolvec()
-		cv.So(err, cv.ShouldEqual, nil)
-		cv.So(bitlist.Len(), cv.ShouldEqual, 66)
-
-		for i := 0; i < 64; i++ {
-			cv.So(bitlist.At(i), cv.ShouldEqual, false)
+func TestBitList(t *testing.T) {
+	for _, test := range bitListTests {
+		msg, err := test.makeMessage()
+		if err != nil {
+			t.Errorf("%v: make message: %v", test.list, err)
+			continue
 		}
-		cv.So(bitlist.At(64), cv.ShouldEqual, true)
-		cv.So(bitlist.At(65), cv.ShouldEqual, true)
-	})
+
+		z, err := air.ReadRootZ(msg)
+		if err != nil {
+			t.Errorf("%v: read root Z: %v", test.list, err)
+			continue
+		}
+		if w := z.Which(); w != air.Z_Which_boolvec {
+			t.Errorf("%v: root.Which() = %v; want boolvec", test.list, w)
+			continue
+		}
+		list, err := z.Boolvec()
+		if err != nil {
+			t.Errorf("%v: read Z.boolvec: %v", test.list, err)
+			continue
+		}
+		if n := list.Len(); n != len(test.list) {
+			t.Errorf("%v: len(Z.boolvec) = %d", test.list, n, len(test.list))
+			continue
+		}
+		for i := range test.list {
+			if li := list.At(i); li != test.list[i] {
+				t.Errorf("%v: Z.boolvec[%d] = %t; want %t", test.list, i, li, test.list[i])
+			}
+		}
+	}
+}
+
+func TestBitList_Decode(t *testing.T) {
+	// TODO(light): skip if tool not present
+	for _, test := range bitListTests {
+		msg, err := test.makeMessage()
+		if err != nil {
+			t.Errorf("%v: make message: %v", test.list, err)
+			continue
+		}
+		seg, _ := msg.Segment(0)
+		text := CapnpDecodeSegment(seg, "", schemaPath, "Z")
+		if want := strings.TrimSpace(test.text); text != want {
+			t.Errorf("%v: capnp decode = %q; want %q", test.list, text, want)
+		}
+	}
 }
 
 func TestCreationOfZDate(t *testing.T) {
