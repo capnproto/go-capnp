@@ -139,58 +139,551 @@ func TestBitList_Decode(t *testing.T) {
 	}
 }
 
-// A zEncodeTest tests whether a message can be encoded then read by the
+// A marshalTest tests whether a message can be encoded then read by the
 // reference capnp implementation.
-type zEncodeTest struct {
+type marshalTest struct {
 	name string
-	msg  *capnp.Message
+
+	msg *capnp.Message
+	typ string
+
 	text string
+	data []byte
 }
 
-func makeZEncodeTests(t *testing.T) []zEncodeTest {
-	return []zEncodeTest{
+func makeMarshalTests(t *testing.T) []marshalTest {
+	tests := []marshalTest{
 		{
 			name: "zdateFilledMessage(1)",
 			msg:  zdateFilledMessage(t, 1),
+			typ:  "Z",
 			text: "(zdatevec = [(year = 2004, month = 12, day = 7)])\n",
 		},
 		{
 			name: "zdateFilledMessage(10)",
 			msg:  zdateFilledMessage(t, 10),
+			typ:  "Z",
 			text: "(zdatevec = [(year = 2004, month = 12, day = 7), (year = 2005, month = 12, day = 7), (year = 2006, month = 12, day = 7), (year = 2007, month = 12, day = 7), (year = 2008, month = 12, day = 7), (year = 2009, month = 12, day = 7), (year = 2010, month = 12, day = 7), (year = 2011, month = 12, day = 7), (year = 2012, month = 12, day = 7), (year = 2013, month = 12, day = 7)])\n",
 		},
 		{
 			name: "zdataFilledMessage(20)",
 			msg:  zdataFilledMessage(t, 20),
+			typ:  "Z",
 			text: `(zdata = (data = "\x00\x01\x02\x03\x04\x05\x06\a\b\t\n\v\f\r\x0e\x0f\x10\x11\x12\x13"))` + "\n",
 		},
 	}
+
+	{
+		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := air.NewRootZjob(seg); err != nil {
+			t.Fatal(err)
+		}
+		tests = append(tests, marshalTest{
+			name: "empty Zjob",
+			msg:  msg,
+			typ:  "Zjob",
+			text: "()\n",
+			data: []byte{
+				0, 0, 0, 0, 3, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 2, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+			},
+		})
+	}
+
+	{
+		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		if err != nil {
+			t.Fatal(err)
+		}
+		zjob, err := air.NewRootZjob(seg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := zjob.SetCmd("abc"); err != nil {
+			t.Fatal(err)
+		}
+		tests = append(tests, marshalTest{
+			name: "Zjob with text",
+			msg:  msg,
+			typ:  "Zjob",
+			text: "(cmd = \"abc\")\n",
+			data: []byte{
+				0, 0, 0, 0, 4, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 2, 0,
+				5, 0, 0, 0, 34, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				97, 98, 99, 0, 0, 0, 0, 0,
+			},
+		})
+	}
+
+	{
+		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		if err != nil {
+			t.Fatal(err)
+		}
+		zjob, err := air.NewRootZjob(seg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		tl, err := capnp.NewTextList(seg, 1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := tl.Set(0, "xyz"); err != nil {
+			t.Fatal(err)
+		}
+		if err := zjob.SetArgs(tl); err != nil {
+			t.Fatal(err)
+		}
+		tests = append(tests, marshalTest{
+			name: "Zjob with text list",
+			msg:  msg,
+			typ:  "Zjob",
+			text: "(args = [\"xyz\"])\n",
+			data: []byte{
+				0, 0, 0, 0, 5, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 2, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				1, 0, 0, 0, 14, 0, 0, 0,
+				1, 0, 0, 0, 34, 0, 0, 0,
+				120, 121, 122, 0, 0, 0, 0, 0,
+			},
+		})
+	}
+
+	{
+		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		if err != nil {
+			t.Fatal(err)
+		}
+		zjob, err := air.NewRootZjob(seg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := zjob.SetCmd("abc"); err != nil {
+			t.Fatal(err)
+		}
+		tl, err := capnp.NewTextList(seg, 1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := tl.Set(0, "xyz"); err != nil {
+			t.Fatal(err)
+		}
+		if err := zjob.SetArgs(tl); err != nil {
+			t.Fatal(err)
+		}
+		tests = append(tests, marshalTest{
+			name: "Zjob with text and text list",
+			msg:  msg,
+			typ:  "Zjob",
+			text: "(cmd = \"abc\", args = [\"xyz\"])\n",
+			data: []byte{
+				0, 0, 0, 0, 6, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 2, 0,
+				5, 0, 0, 0, 34, 0, 0, 0,
+				5, 0, 0, 0, 14, 0, 0, 0,
+				97, 98, 99, 0, 0, 0, 0, 0,
+				1, 0, 0, 0, 34, 0, 0, 0,
+				120, 121, 122, 0, 0, 0, 0, 0,
+			},
+		})
+	}
+
+	{
+		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		if err != nil {
+			t.Fatal(err)
+		}
+		server, err := air.NewRootZserver(seg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		joblist, err := air.NewZjob_List(seg, 1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := server.SetWaitingjobs(joblist); err != nil {
+			t.Fatal(err)
+		}
+
+		tests = append(tests, marshalTest{
+			name: "Zserver with one empty job",
+			msg:  msg,
+			typ:  "Zserver",
+			text: "(waitingjobs = [()])\n",
+			data: []byte{
+				0, 0, 0, 0, 5, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 1, 0,
+				1, 0, 0, 0, 23, 0, 0, 0,
+				4, 0, 0, 0, 0, 0, 2, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+			},
+		})
+	}
+
+	{
+		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		if err != nil {
+			t.Fatal(err)
+		}
+		server, err := air.NewRootZserver(seg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		joblist, err := air.NewZjob_List(seg, 1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		server.SetWaitingjobs(joblist)
+		if err := joblist.At(0).SetCmd("abc"); err != nil {
+			t.Fatal(err)
+		}
+		tl, err := capnp.NewTextList(seg, 1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := tl.Set(0, "xyz"); err != nil {
+			t.Fatal(err)
+		}
+		if err := joblist.At(0).SetArgs(tl); err != nil {
+			t.Fatal(err)
+		}
+
+		tests = append(tests, marshalTest{
+			name: "Zserver with one full job",
+			msg:  msg,
+			typ:  "Zserver",
+			text: "(waitingjobs = [(cmd = \"abc\", args = [\"xyz\"])])\n",
+			data: []byte{
+				0, 0, 0, 0, 8, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 1, 0,
+				1, 0, 0, 0, 23, 0, 0, 0,
+				4, 0, 0, 0, 0, 0, 2, 0,
+				5, 0, 0, 0, 34, 0, 0, 0,
+				5, 0, 0, 0, 14, 0, 0, 0,
+				97, 98, 99, 0, 0, 0, 0, 0,
+				1, 0, 0, 0, 34, 0, 0, 0,
+				120, 121, 122, 0, 0, 0, 0, 0,
+			},
+		})
+	}
+
+	{
+		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		if err != nil {
+			t.Fatal(err)
+		}
+		server, err := air.NewRootZserver(seg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		joblist, err := air.NewZjob_List(seg, 2)
+		if err != nil {
+			t.Fatal(err)
+		}
+		server.SetWaitingjobs(joblist)
+		if err := joblist.At(0).SetCmd("abc"); err != nil {
+			t.Fatal(err)
+		}
+		if err := joblist.At(1).SetCmd("xyz"); err != nil {
+			t.Fatal(err)
+		}
+
+		tests = append(tests, marshalTest{
+			name: "Zserver with two jobs",
+			msg:  msg,
+			typ:  "Zserver",
+			text: "(waitingjobs = [(cmd = \"abc\"), (cmd = \"xyz\")])\n",
+			data: []byte{
+				0, 0, 0, 0, 9, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 1, 0,
+				1, 0, 0, 0, 39, 0, 0, 0,
+				8, 0, 0, 0, 0, 0, 2, 0,
+				13, 0, 0, 0, 34, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				9, 0, 0, 0, 34, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				97, 98, 99, 0, 0, 0, 0, 0,
+				120, 121, 122, 0, 0, 0, 0, 0,
+			},
+		})
+	}
+
+	{
+		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, scratch, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// in seg
+		segbag, err := air.NewRootBag(seg)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// in scratch
+		xc, err := air.NewRootCounter(scratch)
+		if err != nil {
+			t.Fatal(err)
+		}
+		xc.SetSize(9)
+
+		// copy from scratch to seg
+		if err = segbag.SetCounter(xc); err != nil {
+			t.Fatal(err)
+		}
+
+		tests = append(tests, marshalTest{
+			name: "copy struct between messages",
+			msg:  msg,
+			typ:  "Bag",
+			text: "(counter = (size = 9))\n",
+			data: []byte{
+				0, 0, 0, 0, 5, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 1, 0,
+				0, 0, 0, 0, 1, 0, 2, 0,
+				9, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+			},
+		})
+	}
+
+	{
+		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, scratch, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// in seg
+		segbag, err := air.NewRootBag(seg)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// in scratch
+		xc, err := air.NewRootCounter(scratch)
+		if err != nil {
+			t.Fatal(err)
+		}
+		xc.SetSize(9)
+		if err := xc.SetWords("hello"); err != nil {
+			t.Fatal(err)
+		}
+
+		// copy from scratch to seg
+		if err = segbag.SetCounter(xc); err != nil {
+			t.Fatal(err)
+		}
+
+		tests = append(tests, marshalTest{
+			name: "copy struct with text between messages",
+			msg:  msg,
+			typ:  "Bag",
+			text: "(counter = (size = 9, words = \"hello\"))\n",
+			data: []byte{
+				0, 0, 0, 0, 6, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 1, 0,
+				0, 0, 0, 0, 1, 0, 2, 0,
+				9, 0, 0, 0, 0, 0, 0, 0,
+				5, 0, 0, 0, 50, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				104, 101, 108, 108, 111, 0, 0, 0,
+			},
+		})
+	}
+
+	{
+		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, scratch, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// in seg
+		segbag, err := air.NewRootBag(seg)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// in scratch
+		xc, err := air.NewRootCounter(scratch)
+		if err != nil {
+			t.Fatal(err)
+		}
+		xc.SetSize(9)
+		tl, err := capnp.NewTextList(scratch, 2)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := tl.Set(0, "hello"); err != nil {
+			t.Fatal(err)
+		}
+		if err := tl.Set(1, "bye"); err != nil {
+			t.Fatal(err)
+		}
+		if err := xc.SetWordlist(tl); err != nil {
+			t.Fatal(err)
+		}
+
+		// copy from scratch to seg
+		if err = segbag.SetCounter(xc); err != nil {
+			t.Fatal(err)
+		}
+
+		tests = append(tests, marshalTest{
+			name: "copy struct with list of text between messages",
+			msg:  msg,
+			typ:  "Bag",
+			text: "(counter = (size = 9, wordlist = [\"hello\", \"bye\"]))\n",
+			data: []byte{
+				0, 0, 0, 0, 9, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 1, 0,
+				0, 0, 0, 0, 1, 0, 2, 0,
+				9, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				1, 0, 0, 0, 22, 0, 0, 0,
+				5, 0, 0, 0, 50, 0, 0, 0,
+				5, 0, 0, 0, 34, 0, 0, 0,
+				104, 101, 108, 108, 111, 0, 0, 0,
+				98, 121, 101, 0, 0, 0, 0, 0,
+			},
+		})
+	}
+
+	{
+		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, scratch, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// in seg
+		segbag, err := air.NewRootBag(seg)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// in scratch
+		xc, err := air.NewRootCounter(scratch)
+		if err != nil {
+			t.Fatal(err)
+		}
+		xc.SetSize(9)
+		if err := xc.SetWords("abc"); err != nil {
+			t.Fatal(err)
+		}
+		tl, err := capnp.NewTextList(scratch, 2)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := tl.Set(0, "hello"); err != nil {
+			t.Fatal(err)
+		}
+		if err := tl.Set(1, "byenow"); err != nil {
+			t.Fatal(err)
+		}
+		if err := xc.SetWordlist(tl); err != nil {
+			t.Fatal(err)
+		}
+
+		// copy from scratch to seg
+		if err = segbag.SetCounter(xc); err != nil {
+			t.Fatal(err)
+		}
+
+		tests = append(tests, marshalTest{
+			name: "copy struct with data, text, and list of text between messages",
+			msg:  msg,
+			typ:  "Bag",
+			text: "(counter = (size = 9, words = \"abc\", wordlist = [\"hello\", \"byenow\"]))\n",
+			data: []byte{
+				0, 0, 0, 0, 10, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 1, 0,
+				0, 0, 0, 0, 1, 0, 2, 0,
+				9, 0, 0, 0, 0, 0, 0, 0,
+				5, 0, 0, 0, 34, 0, 0, 0,
+				5, 0, 0, 0, 22, 0, 0, 0,
+				97, 98, 99, 0, 0, 0, 0, 0,
+				5, 0, 0, 0, 50, 0, 0, 0,
+				5, 0, 0, 0, 58, 0, 0, 0,
+				104, 101, 108, 108, 111, 0, 0, 0,
+				98, 121, 101, 110, 111, 119, 0, 0,
+			},
+		})
+	}
+
+	return tests
 }
 
-func TestZMarshalShouldMatchTextWhenDecoded(t *testing.T) {
-	// TODO(light): skip test when tool not found
-	for _, test := range makeZEncodeTests(t) {
+func TestMarshalShouldMatchData(t *testing.T) {
+	for _, test := range makeMarshalTests(t) {
+		if test.data == nil {
+			// TODO(light): backfill all data
+			continue
+		}
 		data, err := test.msg.Marshal()
 		if err != nil {
 			t.Errorf("%s: marshal error: %v", test.name, err)
 			continue
 		}
-		text := string(CapnpDecode(data, "Z"))
+		want, err := encodeTestMessage(test.typ, test.text, test.data)
+		if err != nil {
+			t.Errorf("%s: %v", test.name, err)
+			continue
+		}
+		if !bytes.Equal(data, want) {
+			t.Errorf("%s: Marshal returned:\n%s\nwant:\n%s", test.name, hex.Dump(data), hex.Dump(want))
+		}
+	}
+}
+
+func TestMarshalShouldMatchTextWhenDecoded(t *testing.T) {
+	// TODO(light): skip test when tool not found
+	for _, test := range makeMarshalTests(t) {
+		data, err := test.msg.Marshal()
+		if err != nil {
+			t.Errorf("%s: marshal error: %v", test.name, err)
+			continue
+		}
+		text := string(CapnpDecode(data, test.typ))
 		if text != test.text {
 			t.Errorf("%s: decoded to:\n%q; want:\n%q", test.name, text, test.text)
 		}
 	}
 }
 
-func TestZMarshalPackedShouldMatchTextWhenDecoded(t *testing.T) {
+func TestMarshalPackedShouldMatchTextWhenDecoded(t *testing.T) {
 	// TODO(light): skip test when tool not found
-	for _, test := range makeZEncodeTests(t) {
+	for _, test := range makeMarshalTests(t) {
 		data, err := test.msg.MarshalPacked()
 		if err != nil {
 			t.Errorf("%s: marshal error: %v", test.name, err)
 			continue
 		}
-		text := CapnpDecodeBuf(data, "", "", "Z", true)
+		text := CapnpDecodeBuf(data, "", "", test.typ, true)
 		// TODO(light): don't trim
 		if want := strings.TrimSpace(test.text); text != want {
 			t.Errorf("%s: decoded to:\n%q; want:\n%q", test.name, text, want)
@@ -584,7 +1077,7 @@ func TextListToSliceString(p capnp.TextList) []string {
 
 func TestDataVersioningAvoidsUnnecessaryTruncation(t *testing.T) {
 
-	expFull := encodeTestMessage(t, "VerTwoDataTwoPtr", "(val = 9, duo = 8, ptr1 = (val = 77), ptr2 = (val = 55))", []byte{
+	expFull := mustEncodeTestMessage(t, "VerTwoDataTwoPtr", "(val = 9, duo = 8, ptr1 = (val = 77), ptr2 = (val = 55))", []byte{
 		0, 0, 0, 0, 7, 0, 0, 0,
 		0, 0, 0, 0, 2, 0, 2, 0,
 		9, 0, 0, 0, 0, 0, 0, 0,
@@ -676,199 +1169,9 @@ func TestDataVersioningAvoidsUnnecessaryTruncation(t *testing.T) {
 	})
 }
 
-func TestTextAndListTextContaintingEmptyStruct(t *testing.T) {
-
-	emptyZjobBytes := encodeTestMessage(t, "Zjob", "()", []byte{
-		0, 0, 0, 0, 3, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 2, 0,
-		0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0,
-	})
-
-	cv.Convey("Given a simple struct message Zjob containing a string and a list of string (all empty)", t, func() {
-		cv.Convey("then the go-capnproto serialization should match the capnp c++ serialization", func() {
-			ShowBytes(emptyZjobBytes, 10)
-
-			msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-			cv.So(err, cv.ShouldEqual, nil)
-			air.NewRootZjob(seg)
-
-			buf, err := msg.Marshal()
-			cv.So(err, cv.ShouldEqual, nil)
-
-			cv.So(buf, cv.ShouldResemble, emptyZjobBytes)
-		})
-	})
-}
-
-func TestTextContainingStruct(t *testing.T) {
-
-	zjobBytes := encodeTestMessage(t, "Zjob", `(cmd = "abc")`, []byte{
-		0, 0, 0, 0, 4, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 2, 0,
-		5, 0, 0, 0, 34, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0,
-		97, 98, 99, 0, 0, 0, 0, 0,
-	})
-
-	cv.Convey("Given a simple struct message Zjob containing a string 'abc' and a list of string (empty)", t, func() {
-		cv.Convey("then the go-capnproto serialization should match the capnp c++ serialization", func() {
-
-			msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-			cv.So(err, cv.ShouldEqual, nil)
-			zjob, err := air.NewRootZjob(seg)
-			cv.So(err, cv.ShouldEqual, nil)
-			zjob.SetCmd("abc")
-
-			act, err := msg.Marshal()
-			cv.So(err, cv.ShouldEqual, nil)
-
-			fmt.Printf("          actual:\n")
-			ShowBytes(act, 10)
-
-			fmt.Printf("\n\n          expected:\n")
-			ShowBytes(zjobBytes, 10)
-
-			cv.So(act, cv.ShouldResemble, zjobBytes)
-		})
-	})
-}
-
-func TestTextListContaintingStruct(t *testing.T) {
-
-	zjobBytes := encodeTestMessage(t, "Zjob", `(args = ["xyz"])`, []byte{
-		0, 0, 0, 0, 5, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 2, 0,
-		0, 0, 0, 0, 0, 0, 0, 0,
-		1, 0, 0, 0, 14, 0, 0, 0,
-		1, 0, 0, 0, 34, 0, 0, 0,
-		120, 121, 122, 0, 0, 0, 0, 0,
-	})
-
-	cv.Convey("Given a simple struct message Zjob containing an unset string and a list of string ('xyz' as the only element)", t, func() {
-		cv.Convey("then the go-capnproto serialization should match the capnp c++ serialization", func() {
-
-			msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-			cv.So(err, cv.ShouldEqual, nil)
-			zjob, err := air.NewRootZjob(seg)
-			cv.So(err, cv.ShouldEqual, nil)
-			tl, err := capnp.NewTextList(seg, 1)
-			cv.So(err, cv.ShouldEqual, nil)
-			tl.Set(0, "xyz")
-			zjob.SetArgs(tl)
-
-			act, err := msg.Marshal()
-			cv.So(err, cv.ShouldEqual, nil)
-
-			fmt.Printf("          actual:\n")
-			ShowBytes(act, 10)
-
-			fmt.Printf("expected:\n")
-			ShowBytes(zjobBytes, 10)
-
-			cv.So(act, cv.ShouldResemble, zjobBytes)
-		})
-	})
-}
-
-func TestTextAndTextListContaintingStruct(t *testing.T) {
-
-	zjobBytes := encodeTestMessage(t, "Zjob", `(cmd = "abc", args = ["xyz"])`, []byte{
-		0, 0, 0, 0, 6, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 2, 0,
-		5, 0, 0, 0, 34, 0, 0, 0,
-		5, 0, 0, 0, 14, 0, 0, 0,
-		97, 98, 99, 0, 0, 0, 0, 0,
-		1, 0, 0, 0, 34, 0, 0, 0,
-		120, 121, 122, 0, 0, 0, 0, 0,
-	})
-
-	cv.Convey("Given a simple struct message Zjob containing a string (cmd='abc') and a list of string (args=['xyz'])", t, func() {
-		cv.Convey("then the go-capnproto serialization should match the capnp c++ serialization", func() {
-
-			msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-			cv.So(err, cv.ShouldEqual, nil)
-			zjob, err := air.NewRootZjob(seg)
-			cv.So(err, cv.ShouldEqual, nil)
-			zjob.SetCmd("abc")
-			tl, err := capnp.NewTextList(seg, 1)
-			cv.So(err, cv.ShouldEqual, nil)
-			tl.Set(0, "xyz")
-			zjob.SetArgs(tl)
-
-			act, err := msg.Marshal()
-			cv.So(err, cv.ShouldEqual, nil)
-
-			fmt.Printf("          actual:\n")
-			ShowBytes(act, 10)
-
-			fmt.Printf("expected:\n")
-			ShowBytes(zjobBytes, 10)
-
-			cv.So(act, cv.ShouldResemble, zjobBytes)
-		})
-	})
-}
-
-func TestZserverWithOneFullJob(t *testing.T) {
-
-	exp := encodeTestMessage(t, "Zserver", `(waitingjobs = [(cmd = "abc", args = ["xyz"])])`, []byte{
-		0, 0, 0, 0, 8, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 1, 0,
-		1, 0, 0, 0, 23, 0, 0, 0,
-		4, 0, 0, 0, 0, 0, 2, 0,
-		5, 0, 0, 0, 34, 0, 0, 0,
-		5, 0, 0, 0, 14, 0, 0, 0,
-		97, 98, 99, 0, 0, 0, 0, 0,
-		1, 0, 0, 0, 34, 0, 0, 0,
-		120, 121, 122, 0, 0, 0, 0, 0,
-	})
-
-	cv.Convey("Given an Zserver with one empty job", t, func() {
-		cv.Convey("then the go-capnproto serialization should match the capnp c++ serialization", func() {
-
-			msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-			cv.So(err, cv.ShouldEqual, nil)
-			_, scratch, err := capnp.NewMessage(capnp.SingleSegment(nil))
-			cv.So(err, cv.ShouldEqual, nil)
-
-			server, err := air.NewRootZserver(seg)
-			cv.So(err, cv.ShouldEqual, nil)
-
-			joblist, err := air.NewZjob_List(seg, 1)
-			cv.So(err, cv.ShouldEqual, nil)
-
-			zjob, err := air.NewZjob(scratch)
-			cv.So(err, cv.ShouldEqual, nil)
-			zjob.SetCmd("abc")
-			tl, err := capnp.NewTextList(scratch, 1)
-			cv.So(err, cv.ShouldEqual, nil)
-			tl.Set(0, "xyz")
-			zjob.SetArgs(tl)
-
-			joblist.Set(0, zjob)
-
-			server.SetWaitingjobs(joblist)
-
-			act, err := msg.Marshal()
-			cv.So(err, cv.ShouldEqual, nil)
-
-			fmt.Printf("          actual:\n")
-			ShowBytes(act, 10)
-			fmt.Printf("act decoded by capnp: '%s'\n", string(CapnpDecode(act, "Zserver")))
-
-			fmt.Printf("expected:\n")
-			ShowBytes(exp, 10)
-			fmt.Printf("exp decoded by capnp: '%s'\n", string(CapnpDecode(exp, "Zserver")))
-
-			cv.So(act, cv.ShouldResemble, exp)
-		})
-	})
-}
-
 func TestZserverWithAccessors(t *testing.T) {
 
-	exp := encodeTestMessage(t, "Zserver", `(waitingjobs = [(cmd = "abc"), (cmd = "xyz")])`, []byte{
+	exp := mustEncodeTestMessage(t, "Zserver", `(waitingjobs = [(cmd = "abc"), (cmd = "xyz")])`, []byte{
 		0, 0, 0, 0, 9, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 1, 0,
 		1, 0, 0, 0, 39, 0, 0, 0,
@@ -880,11 +1183,13 @@ func TestZserverWithAccessors(t *testing.T) {
 		97, 98, 99, 0, 0, 0, 0, 0,
 		120, 121, 122, 0, 0, 0, 0, 0,
 	})
+	// TODO(light): don't create, read.
+	_ = exp
 
 	cv.Convey("Given an Zserver with a custom list", t, func() {
 		cv.Convey("then all the accessors should work as expected", func() {
 
-			msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+			_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
 			cv.So(err, cv.ShouldEqual, nil)
 			_, scratch, err := capnp.NewMessage(capnp.SingleSegment(nil))
 			cv.So(err, cv.ShouldEqual, nil)
@@ -919,19 +1224,6 @@ func TestZserverWithAccessors(t *testing.T) {
 			cv.So(cmd(1), cv.ShouldEqual, "xyz")
 
 			server.SetWaitingjobs(joblist)
-
-			act, err := msg.Marshal()
-			cv.So(err, cv.ShouldEqual, nil)
-
-			fmt.Printf("          actual:\n")
-			ShowBytes(act, 10)
-			fmt.Printf("act decoded by capnp: '%s'\n", string(CapnpDecode(act, "Zserver")))
-
-			fmt.Printf("expected:\n")
-			ShowBytes(exp, 10)
-			fmt.Printf("exp decoded by capnp: '%s'\n", string(CapnpDecode(exp, "Zserver")))
-
-			cv.So(act, cv.ShouldResemble, exp)
 		})
 	})
 }
@@ -951,237 +1243,6 @@ func TestEnumFromString(t *testing.T) {
 	}
 }
 
-func TestSetObjectBetweenSegments(t *testing.T) {
-
-	exp := encodeTestMessage(t, "Bag", `(counter = (size = 9))`, []byte{
-		0, 0, 0, 0, 5, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 1, 0,
-		0, 0, 0, 0, 1, 0, 2, 0,
-		9, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0,
-	})
-
-	cv.Convey("Given an Counter in one segment and a Bag in another", t, func() {
-		cv.Convey("we should be able to copy from one segment to the other with SetCounter() on a Bag", func() {
-
-			msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-			cv.So(err, cv.ShouldEqual, nil)
-			_, scratch, err := capnp.NewMessage(capnp.SingleSegment(nil))
-			cv.So(err, cv.ShouldEqual, nil)
-
-			// in seg
-			segbag, err := air.NewRootBag(seg)
-			cv.So(err, cv.ShouldEqual, nil)
-
-			// in scratch
-			xc, err := air.NewRootCounter(scratch)
-			cv.So(err, cv.ShouldEqual, nil)
-			xc.SetSize(9)
-
-			// copy from scratch to seg
-			err = segbag.SetCounter(xc)
-			cv.So(err, cv.ShouldEqual, nil)
-
-			act, err := msg.Marshal()
-			cv.So(err, cv.ShouldEqual, nil)
-
-			fmt.Printf("          actual:\n")
-			ShowBytes(act, 10)
-			fmt.Printf("act decoded by capnp: '%s'\n", string(CapnpDecode(act, "Bag")))
-
-			fmt.Printf("expected:\n")
-			ShowBytes(exp, 10)
-			fmt.Printf("exp decoded by capnp: '%s'\n", string(CapnpDecode(exp, "Bag")))
-
-			cv.So(act, cv.ShouldResemble, exp)
-		})
-	})
-}
-
-func TestObjectWithTextBetweenSegments(t *testing.T) {
-
-	exp := encodeTestMessage(t, "Bag", `(counter = (size = 9, words = "hello"))`, []byte{
-		0, 0, 0, 0, 6, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 1, 0,
-		0, 0, 0, 0, 1, 0, 2, 0,
-		9, 0, 0, 0, 0, 0, 0, 0,
-		5, 0, 0, 0, 50, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0,
-		104, 101, 108, 108, 111, 0, 0, 0,
-	})
-
-	cv.Convey("Given an Counter in one segment and a Bag with text in another", t, func() {
-		cv.Convey("we should be able to copy from one segment to the other with SetCounter() on a Bag", func() {
-
-			msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-			cv.So(err, cv.ShouldEqual, nil)
-			_, scratch, err := capnp.NewMessage(capnp.SingleSegment(nil))
-			cv.So(err, cv.ShouldEqual, nil)
-
-			// in seg
-			segbag, err := air.NewRootBag(seg)
-			cv.So(err, cv.ShouldEqual, nil)
-
-			// in scratch
-			xc, err := air.NewRootCounter(scratch)
-			cv.So(err, cv.ShouldEqual, nil)
-			xc.SetSize(9)
-			xc.SetWords("hello")
-
-			// copy from scratch to seg
-			err = segbag.SetCounter(xc)
-			cv.So(err, cv.ShouldEqual, nil)
-
-			act, err := msg.Marshal()
-			cv.So(err, cv.ShouldEqual, nil)
-
-			fmt.Printf("          actual:\n")
-			ShowBytes(act, 10)
-			fmt.Printf("act decoded by capnp: '%s'\n", string(CapnpDecode(act, "Bag")))
-
-			fmt.Printf("expected:\n")
-			ShowBytes(exp, 10)
-			fmt.Printf("exp decoded by capnp: '%s'\n", string(CapnpDecode(exp, "Bag")))
-
-			cv.So(act, cv.ShouldResemble, exp)
-		})
-	})
-}
-
-func TestObjectWithListOfTextBetweenSegments(t *testing.T) {
-
-	exp := encodeTestMessage(t, "Bag", `(counter = (size = 9, wordlist = ["hello","bye"]))`, []byte{
-		0, 0, 0, 0, 9, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 1, 0,
-		0, 0, 0, 0, 1, 0, 2, 0,
-		9, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0,
-		1, 0, 0, 0, 22, 0, 0, 0,
-		5, 0, 0, 0, 50, 0, 0, 0,
-		5, 0, 0, 0, 34, 0, 0, 0,
-		104, 101, 108, 108, 111, 0, 0, 0,
-		98, 121, 101, 0, 0, 0, 0, 0,
-	})
-
-	cv.Convey("Given an Counter in one segment and a Bag with text in another", t, func() {
-		cv.Convey("we should be able to copy from one segment to the other with SetCounter() on a Bag", func() {
-
-			msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-			cv.So(err, cv.ShouldEqual, nil)
-			scratchMsg, scratch, err := capnp.NewMessage(capnp.SingleSegment(nil))
-			cv.So(err, cv.ShouldEqual, nil)
-
-			// in seg
-			segbag, err := air.NewRootBag(seg)
-			cv.So(err, cv.ShouldEqual, nil)
-
-			// in scratch
-			xc, err := air.NewRootCounter(scratch)
-			cv.So(err, cv.ShouldEqual, nil)
-			xc.SetSize(9)
-			tl, err := capnp.NewTextList(scratch, 2)
-			cv.So(err, cv.ShouldEqual, nil)
-			tl.Set(0, "hello")
-			tl.Set(1, "bye")
-			err = xc.SetWordlist(tl)
-			cv.So(err, cv.ShouldEqual, nil)
-
-			x, err := scratchMsg.Marshal()
-			cv.So(err, cv.ShouldEqual, nil)
-
-			fmt.Printf("scratch segment (%p):\n", scratch)
-			ShowBytes(x, 10)
-			fmt.Printf("scratch segment (%p) with Counter decoded by capnp: '%s'\n", scratch, string(CapnpDecode(x, "Counter")))
-
-			pre, err := msg.Marshal()
-			cv.So(err, cv.ShouldEqual, nil)
-			fmt.Printf("Bag only segment seg (%p), pre-transfer:\n", seg)
-			ShowBytes(pre, 10)
-
-			// now for the actual test:
-			// copy from scratch to seg
-			segbag.SetCounter(xc)
-
-			act, err := msg.Marshal()
-			cv.So(err, cv.ShouldEqual, nil)
-
-			fmt.Printf("expected:\n")
-			ShowBytes(exp, 10)
-			fmt.Printf("exp decoded by capnp: '%s'\n", string(CapnpDecode(exp, "Bag")))
-
-			fmt.Printf("          actual:\n")
-			ShowBytes(act, 10)
-			fmt.Printf("act decoded by capnp: '%s'\n", string(CapnpDecode(act, "Bag")))
-
-			cv.So(act, cv.ShouldResemble, exp)
-		})
-	})
-}
-
-func TestSetBetweenSegments(t *testing.T) {
-
-	exp := encodeTestMessage(t, "Bag", `(counter = (size = 9, words = "abc", wordlist = ["hello","byenow"]))`, []byte{
-		0, 0, 0, 0, 10, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 1, 0,
-		0, 0, 0, 0, 1, 0, 2, 0,
-		9, 0, 0, 0, 0, 0, 0, 0,
-		5, 0, 0, 0, 34, 0, 0, 0,
-		5, 0, 0, 0, 22, 0, 0, 0,
-		97, 98, 99, 0, 0, 0, 0, 0,
-		5, 0, 0, 0, 50, 0, 0, 0,
-		5, 0, 0, 0, 58, 0, 0, 0,
-		104, 101, 108, 108, 111, 0, 0, 0,
-		98, 121, 101, 110, 111, 119, 0, 0,
-	})
-
-	cv.Convey("Given an struct with Text and List(Text) in one segment", t, func() {
-		cv.Convey("assigning it to a struct in a different segment should recursively import", func() {
-
-			msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-			cv.So(err, cv.ShouldEqual, nil)
-			_, scratch, err := capnp.NewMessage(capnp.SingleSegment(nil))
-			cv.So(err, cv.ShouldEqual, nil)
-
-			// in seg
-			segbag, err := air.NewRootBag(seg)
-			cv.So(err, cv.ShouldEqual, nil)
-
-			// in scratch
-			xc, err := air.NewRootCounter(scratch)
-			cv.So(err, cv.ShouldEqual, nil)
-			xc.SetSize(9)
-			tl, err := capnp.NewTextList(scratch, 2)
-			cv.So(err, cv.ShouldEqual, nil)
-			tl.Set(0, "hello")
-			tl.Set(1, "byenow")
-			err = xc.SetWordlist(tl)
-			cv.So(err, cv.ShouldEqual, nil)
-			err = xc.SetWords("abc")
-			cv.So(err, cv.ShouldEqual, nil)
-
-			fmt.Printf("\n\n starting copy from scratch to seg \n\n")
-
-			// copy from scratch to seg
-			err = segbag.SetCounter(xc)
-			cv.So(err, cv.ShouldEqual, nil)
-
-			act, err := msg.Marshal()
-			cv.So(err, cv.ShouldEqual, nil)
-
-			fmt.Printf("          actual:\n")
-			ShowBytes(act, 10)
-			//fmt.Printf("act decoded by capnp: '%s'\n", string(CapnpDecode(act, "Bag")))
-
-			fmt.Printf("expected:\n")
-			ShowBytes(exp, 10)
-			//fmt.Printf("exp decoded by capnp: '%s'\n", string(CapnpDecode(exp, "Bag")))
-
-			cv.So(act, cv.ShouldResemble, exp)
-		})
-	})
-}
-
 func ShowSeg(msg string, seg *capnp.Segment) []byte {
 	b, err := seg.Message().Marshal()
 	if err != nil {
@@ -1191,59 +1252,6 @@ func ShowSeg(msg string, seg *capnp.Segment) []byte {
 	fmt.Printf("%s\n", msg)
 	ShowBytes(b, 10)
 	return b
-}
-
-func TestZserverWithOneEmptyJob(t *testing.T) {
-
-	exp := encodeTestMessage(t, "Zserver", `(waitingjobs = [()])`, []byte{
-		0, 0, 0, 0, 5, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 1, 0,
-		1, 0, 0, 0, 23, 0, 0, 0,
-		4, 0, 0, 0, 0, 0, 2, 0,
-		0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0,
-	})
-
-	cv.Convey("Given an Zserver with one empty job", t, func() {
-		cv.Convey("then the go-capnproto serialization should match the capnp c++ serialization", func() {
-
-			msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-			cv.So(err, cv.ShouldEqual, nil)
-			_, scratch, err := capnp.NewMessage(capnp.SingleSegment(nil))
-			cv.So(err, cv.ShouldEqual, nil)
-			server, err := air.NewRootZserver(seg)
-			cv.So(err, cv.ShouldEqual, nil)
-
-			joblist, err := air.NewZjob_List(seg, 1)
-			cv.So(err, cv.ShouldEqual, nil)
-
-			ShowSeg("          pre NewZjob, segment seg is:", seg)
-
-			zjob, err := air.NewZjob(scratch)
-			cv.So(err, cv.ShouldEqual, nil)
-			err = joblist.Set(0, zjob)
-			cv.So(err, cv.ShouldEqual, nil)
-
-			ShowSeg("          pre SetWaitingjobs, segment seg is:", seg)
-
-			fmt.Printf("Then we do the SetWaitingjobs:\n")
-			server.SetWaitingjobs(joblist)
-
-			act, err := msg.Marshal()
-			cv.So(err, cv.ShouldEqual, nil)
-
-			// show
-			ShowSeg("          actual:\n", seg)
-
-			fmt.Printf("act decoded by capnp: '%s'\n", string(CapnpDecode(act, "Zserver")))
-
-			fmt.Printf("expected:\n")
-			ShowBytes(exp, 10)
-			fmt.Printf("exp decoded by capnp: '%s'\n", string(CapnpDecode(exp, "Zserver")))
-
-			cv.So(act, cv.ShouldResemble, exp)
-		})
-	})
 }
 
 func TestDefaultStructField(t *testing.T) {
@@ -1352,7 +1360,7 @@ func BenchmarkTextMovementBetweenSegments(b *testing.B) {
 
 func TestV0ListofEmptyShouldMatchCapnp(t *testing.T) {
 
-	exp := encodeTestMessage(t, "HoldsVerEmptyList", "(mylist = [(),()])", []byte{
+	exp := mustEncodeTestMessage(t, "HoldsVerEmptyList", "(mylist = [(),()])", []byte{
 		0, 0, 0, 0, 3, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 1, 0,
 		1, 0, 0, 0, 7, 0, 0, 0,
@@ -1474,7 +1482,7 @@ func TestV1DataVersioningBiggerToEmpty(t *testing.T) {
 
 func TestV1DataVersioningEmptyToBigger(t *testing.T) {
 
-	expEmpty := encodeTestMessage(t, "HoldsVerEmptyList", "(mylist = [(),()])", []byte{
+	expEmpty := mustEncodeTestMessage(t, "HoldsVerEmptyList", "(mylist = [(),()])", []byte{
 		0, 0, 0, 0, 3, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 1, 0,
 		1, 0, 0, 0, 7, 0, 0, 0,
@@ -1548,7 +1556,7 @@ func TestV1DataVersioningEmptyToBigger(t *testing.T) {
 
 func TestDataVersioningZeroPointersToMore(t *testing.T) {
 
-	expEmpty := encodeTestMessage(t, "HoldsVerEmptyList", "(mylist = [(),()])", []byte{
+	expEmpty := mustEncodeTestMessage(t, "HoldsVerEmptyList", "(mylist = [(),()])", []byte{
 		0, 0, 0, 0, 3, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 1, 0,
 		1, 0, 0, 0, 7, 0, 0, 0,
@@ -1730,7 +1738,7 @@ func TestDataVersioningZeroPointersToTwo(t *testing.T) {
 }
 
 func TestVoidUnionSetters(t *testing.T) {
-	want := encodeTestMessage(t, "VoidUnion", "(b = void)", []byte{
+	want := mustEncodeTestMessage(t, "VoidUnion", "(b = void)", []byte{
 		0, 0, 0, 0, 2, 0, 0, 0,
 		0, 0, 0, 0, 1, 0, 0, 0,
 		1, 0, 0, 0, 0, 0, 0, 0,
