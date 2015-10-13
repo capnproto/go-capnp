@@ -602,8 +602,16 @@ func TextListToSliceString(p capnp.TextList) []string {
 
 func TestDataVersioningAvoidsUnnecessaryTruncation(t *testing.T) {
 
-	expFull := CapnpEncode("(val = 9, duo = 8, ptr1 = (val = 77), ptr2 = (val = 55))", "VerTwoDataTwoPtr")
-	//expEmpty := CapnpEncode("()", "VerEmpty")
+	expFull := encodeTestMessage(t, "VerTwoDataTwoPtr", "(val = 9, duo = 8, ptr1 = (val = 77), ptr2 = (val = 55))", []byte{
+		0, 0, 0, 0, 7, 0, 0, 0,
+		0, 0, 0, 0, 2, 0, 2, 0,
+		9, 0, 0, 0, 0, 0, 0, 0,
+		8, 0, 0, 0, 0, 0, 0, 0,
+		4, 0, 0, 0, 1, 0, 0, 0,
+		4, 0, 0, 0, 1, 0, 0, 0,
+		77, 0, 0, 0, 0, 0, 0, 0,
+		55, 0, 0, 0, 0, 0, 0, 0,
+	})
 
 	cv.Convey("Given a struct with 0 ptr fields, and a newer version of the struct with two data and two pointer fields", t, func() {
 		cv.Convey("then old code expecting the smaller struct but reading the newer-bigger struct should not truncate it if it doesn't have to (e.g. not assigning into a composite list), and should preserve all data when re-serializing it.", func() {
@@ -688,7 +696,12 @@ func TestDataVersioningAvoidsUnnecessaryTruncation(t *testing.T) {
 
 func TestTextAndListTextContaintingEmptyStruct(t *testing.T) {
 
-	emptyZjobBytes := CapnpEncode("()", "Zjob")
+	emptyZjobBytes := encodeTestMessage(t, "Zjob", "()", []byte{
+		0, 0, 0, 0, 3, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 2, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,
+	})
 
 	cv.Convey("Given a simple struct message Zjob containing a string and a list of string (all empty)", t, func() {
 		cv.Convey("then the go-capnproto serialization should match the capnp c++ serialization", func() {
@@ -708,7 +721,13 @@ func TestTextAndListTextContaintingEmptyStruct(t *testing.T) {
 
 func TestTextContaintingStruct(t *testing.T) {
 
-	zjobBytes := CapnpEncode(`(cmd = "abc")`, "Zjob")
+	zjobBytes := encodeTestMessage(t, "Zjob", `(cmd = "abc")`, []byte{
+		0, 0, 0, 0, 4, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 2, 0,
+		5, 0, 0, 0, 34, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,
+		97, 98, 99, 0, 0, 0, 0, 0,
+	})
 
 	cv.Convey("Given a simple struct message Zjob containing a string 'abc' and a list of string (empty)", t, func() {
 		cv.Convey("then the go-capnproto serialization should match the capnp c++ serialization", func() {
@@ -735,7 +754,14 @@ func TestTextContaintingStruct(t *testing.T) {
 
 func TestTextListContaintingStruct(t *testing.T) {
 
-	zjobBytes := CapnpEncode(`(args = ["xyz"])`, "Zjob")
+	zjobBytes := encodeTestMessage(t, "Zjob", `(args = ["xyz"])`, []byte{
+		0, 0, 0, 0, 5, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 2, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,
+		1, 0, 0, 0, 14, 0, 0, 0,
+		1, 0, 0, 0, 34, 0, 0, 0,
+		120, 121, 122, 0, 0, 0, 0, 0,
+	})
 
 	cv.Convey("Given a simple struct message Zjob containing an unset string and a list of string ('xyz' as the only element)", t, func() {
 		cv.Convey("then the go-capnproto serialization should match the capnp c++ serialization", func() {
@@ -765,7 +791,15 @@ func TestTextListContaintingStruct(t *testing.T) {
 
 func TestTextAndTextListContaintingStruct(t *testing.T) {
 
-	zjobBytes := CapnpEncode(`(cmd = "abc", args = ["xyz"])`, "Zjob")
+	zjobBytes := encodeTestMessage(t, "Zjob", `(cmd = "abc", args = ["xyz"])`, []byte{
+		0, 0, 0, 0, 6, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 2, 0,
+		5, 0, 0, 0, 34, 0, 0, 0,
+		5, 0, 0, 0, 14, 0, 0, 0,
+		97, 98, 99, 0, 0, 0, 0, 0,
+		1, 0, 0, 0, 34, 0, 0, 0,
+		120, 121, 122, 0, 0, 0, 0, 0,
+	})
 
 	cv.Convey("Given a simple struct message Zjob containing a string (cmd='abc') and a list of string (args=['xyz'])", t, func() {
 		cv.Convey("then the go-capnproto serialization should match the capnp c++ serialization", func() {
@@ -796,7 +830,17 @@ func TestTextAndTextListContaintingStruct(t *testing.T) {
 
 func TestZserverWithOneFullJob(t *testing.T) {
 
-	exp := CapnpEncode(`(waitingjobs = [(cmd = "abc", args = ["xyz"])])`, "Zserver")
+	exp := encodeTestMessage(t, "Zserver", `(waitingjobs = [(cmd = "abc", args = ["xyz"])])`, []byte{
+		0, 0, 0, 0, 8, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 1, 0,
+		1, 0, 0, 0, 23, 0, 0, 0,
+		4, 0, 0, 0, 0, 0, 2, 0,
+		5, 0, 0, 0, 34, 0, 0, 0,
+		5, 0, 0, 0, 14, 0, 0, 0,
+		97, 98, 99, 0, 0, 0, 0, 0,
+		1, 0, 0, 0, 34, 0, 0, 0,
+		120, 121, 122, 0, 0, 0, 0, 0,
+	})
 
 	cv.Convey("Given an Zserver with one empty job", t, func() {
 		cv.Convey("then the go-capnproto serialization should match the capnp c++ serialization", func() {
@@ -842,7 +886,18 @@ func TestZserverWithOneFullJob(t *testing.T) {
 
 func TestZserverWithAccessors(t *testing.T) {
 
-	exp := CapnpEncode(`(waitingjobs = [(cmd = "abc"), (cmd = "xyz")])`, "Zserver")
+	exp := encodeTestMessage(t, "Zserver", `(waitingjobs = [(cmd = "abc"), (cmd = "xyz")])`, []byte{
+		0, 0, 0, 0, 9, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 1, 0,
+		1, 0, 0, 0, 39, 0, 0, 0,
+		8, 0, 0, 0, 0, 0, 2, 0,
+		13, 0, 0, 0, 34, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,
+		9, 0, 0, 0, 34, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,
+		97, 98, 99, 0, 0, 0, 0, 0,
+		120, 121, 122, 0, 0, 0, 0, 0,
+	})
 
 	cv.Convey("Given an Zserver with a custom list", t, func() {
 		cv.Convey("then all the accessors should work as expected", func() {
@@ -914,7 +969,14 @@ func TestEnumFromString(t *testing.T) {
 
 func TestSetObjectBetweenSegments(t *testing.T) {
 
-	exp := CapnpEncode(`(counter = (size = 9))`, "Bag")
+	exp := encodeTestMessage(t, "Bag", `(counter = (size = 9))`, []byte{
+		0, 0, 0, 0, 5, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 1, 0,
+		0, 0, 0, 0, 1, 0, 2, 0,
+		9, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,
+	})
 
 	cv.Convey("Given an Counter in one segment and a Bag in another", t, func() {
 		cv.Convey("we should be able to copy from one segment to the other with SetCounter() on a Bag", func() {
@@ -955,7 +1017,15 @@ func TestSetObjectBetweenSegments(t *testing.T) {
 
 func TestObjectWithTextBetweenSegments(t *testing.T) {
 
-	exp := CapnpEncode(`(counter = (size = 9, words = "hello"))`, "Bag")
+	exp := encodeTestMessage(t, "Bag", `(counter = (size = 9, words = "hello"))`, []byte{
+		0, 0, 0, 0, 6, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 1, 0,
+		0, 0, 0, 0, 1, 0, 2, 0,
+		9, 0, 0, 0, 0, 0, 0, 0,
+		5, 0, 0, 0, 50, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,
+		104, 101, 108, 108, 111, 0, 0, 0,
+	})
 
 	cv.Convey("Given an Counter in one segment and a Bag with text in another", t, func() {
 		cv.Convey("we should be able to copy from one segment to the other with SetCounter() on a Bag", func() {
@@ -997,7 +1067,18 @@ func TestObjectWithTextBetweenSegments(t *testing.T) {
 
 func TestObjectWithListOfTextBetweenSegments(t *testing.T) {
 
-	exp := CapnpEncode(`(counter = (size = 9, wordlist = ["hello","bye"]))`, "Bag")
+	exp := encodeTestMessage(t, "Bag", `(counter = (size = 9, wordlist = ["hello","bye"]))`, []byte{
+		0, 0, 0, 0, 9, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 1, 0,
+		0, 0, 0, 0, 1, 0, 2, 0,
+		9, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,
+		1, 0, 0, 0, 22, 0, 0, 0,
+		5, 0, 0, 0, 50, 0, 0, 0,
+		5, 0, 0, 0, 34, 0, 0, 0,
+		104, 101, 108, 108, 111, 0, 0, 0,
+		98, 121, 101, 0, 0, 0, 0, 0,
+	})
 
 	cv.Convey("Given an Counter in one segment and a Bag with text in another", t, func() {
 		cv.Convey("we should be able to copy from one segment to the other with SetCounter() on a Bag", func() {
@@ -1056,7 +1137,19 @@ func TestObjectWithListOfTextBetweenSegments(t *testing.T) {
 
 func TestSetBetweenSegments(t *testing.T) {
 
-	exp := CapnpEncode(`(counter = (size = 9, words = "abc", wordlist = ["hello","byenow"]))`, "Bag")
+	exp := encodeTestMessage(t, "Bag", `(counter = (size = 9, words = "abc", wordlist = ["hello","byenow"]))`, []byte{
+		0, 0, 0, 0, 10, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 1, 0,
+		0, 0, 0, 0, 1, 0, 2, 0,
+		9, 0, 0, 0, 0, 0, 0, 0,
+		5, 0, 0, 0, 34, 0, 0, 0,
+		5, 0, 0, 0, 22, 0, 0, 0,
+		97, 98, 99, 0, 0, 0, 0, 0,
+		5, 0, 0, 0, 50, 0, 0, 0,
+		5, 0, 0, 0, 58, 0, 0, 0,
+		104, 101, 108, 108, 111, 0, 0, 0,
+		98, 121, 101, 110, 111, 119, 0, 0,
+	})
 
 	cv.Convey("Given an struct with Text and List(Text) in one segment", t, func() {
 		cv.Convey("assigning it to a struct in a different segment should recursively import", func() {
@@ -1118,7 +1211,14 @@ func ShowSeg(msg string, seg *capnp.Segment) []byte {
 
 func TestZserverWithOneEmptyJob(t *testing.T) {
 
-	exp := CapnpEncode(`(waitingjobs = [()])`, "Zserver")
+	exp := encodeTestMessage(t, "Zserver", `(waitingjobs = [()])`, []byte{
+		0, 0, 0, 0, 5, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 1, 0,
+		1, 0, 0, 0, 23, 0, 0, 0,
+		4, 0, 0, 0, 0, 0, 2, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,
+	})
 
 	cv.Convey("Given an Zserver with one empty job", t, func() {
 		cv.Convey("then the go-capnproto serialization should match the capnp c++ serialization", func() {
@@ -1239,7 +1339,12 @@ func BenchmarkTextMovementBetweenSegments(b *testing.B) {
 
 func TestV0ListofEmptyShouldMatchCapnp(t *testing.T) {
 
-	exp := CapnpEncode("(mylist = [(),()])", "HoldsVerEmptyList")
+	exp := encodeTestMessage(t, "HoldsVerEmptyList", "(mylist = [(),()])", []byte{
+		0, 0, 0, 0, 3, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 1, 0,
+		1, 0, 0, 0, 7, 0, 0, 0,
+		8, 0, 0, 0, 0, 0, 0, 0,
+	})
 
 	cv.Convey("Given an empty struct with 0 data/0 ptr fields", t, func() {
 		cv.Convey("then a list of 2 empty structs should match the capnp representation", func() {
@@ -1275,13 +1380,6 @@ func TestV0ListofEmptyShouldMatchCapnp(t *testing.T) {
 }
 
 func TestV1DataVersioningBiggerToEmpty(t *testing.T) {
-
-	//expTwoSet := CapnpEncode("(mylist = [(val = 27, duo = 26),(val = 42, duo = 41)])", "HoldsVerTwoDataList")
-	//expOneDataOneDefault := CapnpEncode("(mylist = [(val = 27, duo = 0),(val = 42, duo = 0)])", "HoldsVerTwoDataList")
-	//expTwoEmpty := CapnpEncode("(mylist = [(),()])", "HoldsVerTwoDataList")
-
-	//expEmpty := CapnpEncode("(mylist = [(),()])", "HoldsVerEmptyList")
-	//expOne := CapnpEncode("(mylist = [(val = 27),(val = 42)])", "HoldsVerOneDataList")
 
 	cv.Convey("Given a struct with 0 data/0 ptr fields, and a newer version of the struct with 2 data fields", t, func() {
 		cv.Convey("then reading serialized bigger-struct-list into the smaller (empty or one data-member) list should work, truncating/ignoring the new fields", func() {
@@ -1363,10 +1461,12 @@ func TestV1DataVersioningBiggerToEmpty(t *testing.T) {
 
 func TestV1DataVersioningEmptyToBigger(t *testing.T) {
 
-	//expOneSet := CapnpEncode("(mylist = [(val = 27),(val = 42)])", "HoldsVerOneDataList")
-	//expOneZeroed := CapnpEncode("(mylist = [(val = 0),(val = 0)])", "HoldsVerOneDataList")
-	//expOneEmpty := CapnpEncode("(mylist = [(),()])", "HoldsVerOneDataList")
-	expEmpty := CapnpEncode("(mylist = [(),()])", "HoldsVerEmptyList")
+	expEmpty := encodeTestMessage(t, "HoldsVerEmptyList", "(mylist = [(),()])", []byte{
+		0, 0, 0, 0, 3, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 1, 0,
+		1, 0, 0, 0, 7, 0, 0, 0,
+		8, 0, 0, 0, 0, 0, 0, 0,
+	})
 
 	cv.Convey("Given a struct with 0 data/0 ptr fields, and a newer version of the struct with 1 data fields", t, func() {
 		cv.Convey("then reading from serialized form the small list into the bigger (one or two data values) list should work, getting default value 0 for val/duo.", func() {
@@ -1435,7 +1535,12 @@ func TestV1DataVersioningEmptyToBigger(t *testing.T) {
 
 func TestDataVersioningZeroPointersToMore(t *testing.T) {
 
-	expEmpty := CapnpEncode("(mylist = [(),()])", "HoldsVerEmptyList")
+	expEmpty := encodeTestMessage(t, "HoldsVerEmptyList", "(mylist = [(),()])", []byte{
+		0, 0, 0, 0, 3, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 1, 0,
+		1, 0, 0, 0, 7, 0, 0, 0,
+		8, 0, 0, 0, 0, 0, 0, 0,
+	})
 
 	cv.Convey("Given a struct with 0 ptr fields, and a newer version of the struct with 1-2 pointer fields", t, func() {
 		cv.Convey("then serializing the empty list and reading it back into 1 or 2 pointer fields should default initialize the pointer fields", func() {
@@ -1612,7 +1717,11 @@ func TestDataVersioningZeroPointersToTwo(t *testing.T) {
 }
 
 func TestVoidUnionSetters(t *testing.T) {
-	want := CapnpEncode(`(b = void)`, "VoidUnion")
+	want := encodeTestMessage(t, "VoidUnion", "(b = void)", []byte{
+		0, 0, 0, 0, 2, 0, 0, 0,
+		0, 0, 0, 0, 1, 0, 0, 0,
+		1, 0, 0, 0, 0, 0, 0, 0,
+	})
 
 	cv.Convey("Given a VoidUnion set to b", t, func() {
 		cv.Convey("then the go-capnproto serialization should match the capnp c++ serialization", func() {

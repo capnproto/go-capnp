@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"unsafe"
@@ -656,4 +658,21 @@ func zboolvec_value_FilledSegment(value int64, elementCount uint) (*capnp.Segmen
 		panic(err)
 	}
 	return seg, b
+}
+
+// encodeTestMessage encodes the textual Cap'n Proto message to unpacked
+// binary using the capnp tool, or returns the fallback if the tool fails.
+func encodeTestMessage(t testing.TB, typ string, text string, fallback []byte) []byte {
+	// TODO(light): use fallback if tool not present.
+	b := CapnpEncode(text, typ)
+	if !bytes.Equal(b, fallback) {
+		_, fname, line, ok := runtime.Caller(1)
+		const fstr = "%s value %q =\n% x; fallback is\n% x\nFallback out of date?"
+		if ok {
+			t.Fatalf("%s:%d: "+fstr, filepath.Base(fname), line, typ, text, b, fallback)
+		} else {
+			t.Fatalf(fstr, typ, text, b, fallback)
+		}
+	}
+	return b
 }
