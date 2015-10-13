@@ -132,97 +132,78 @@ func TestBitList_Decode(t *testing.T) {
 		}
 		seg, _ := msg.Segment(0)
 		text := CapnpDecodeSegment(seg, "", schemaPath, "Z")
+		// TODO(light): don't trim
 		if want := strings.TrimSpace(test.text); text != want {
 			t.Errorf("%v: capnp decode = %q; want %q", test.list, text, want)
 		}
 	}
 }
 
-func TestCreationOfZDate(t *testing.T) {
-	const n = 1
-	packed := false
-	seg, _ := zdateFilledSegment(n, packed)
-	text := CapnpDecodeSegment(seg, "", schemaPath, "Z")
-
-	//expectedText := `(year = 2004, month = 12, day = 7)`
-	expectedText := `(zdatevec = [(year = 2004, month = 12, day = 7)])`
-
-	cv.Convey("Given a go-capnproto created Zdate", t, func() {
-		cv.Convey("When we decode it with capnp", func() {
-			cv.Convey(fmt.Sprintf("Then we should get the expected text '%s'", expectedText), func() {
-				cv.So(text, cv.ShouldEqual, expectedText)
-			})
-		})
-	})
+// A zEncodeTest tests whether a message can be encoded then read by the
+// reference capnp implementation.
+type zEncodeTest struct {
+	name string
+	msg  *capnp.Message
+	text string
 }
 
-func TestCreationOfManyZDate(t *testing.T) {
-	const n = 10
-	packed := false
-	seg, _ := zdateFilledSegment(n, packed)
-	text := CapnpDecodeSegment(seg, "", schemaPath, "Z")
-
-	expectedText := `(zdatevec = [(year = 2004, month = 12, day = 7), (year = 2005, month = 12, day = 7), (year = 2006, month = 12, day = 7), (year = 2007, month = 12, day = 7), (year = 2008, month = 12, day = 7), (year = 2009, month = 12, day = 7), (year = 2010, month = 12, day = 7), (year = 2011, month = 12, day = 7), (year = 2012, month = 12, day = 7), (year = 2013, month = 12, day = 7)])`
-
-	cv.Convey("Given a go-capnproto created segment with 10 Zdate", t, func() {
-		cv.Convey("When we decode it with capnp", func() {
-			cv.Convey(fmt.Sprintf("Then we should get the expected text '%s'", expectedText), func() {
-				cv.So(text, cv.ShouldEqual, expectedText)
-			})
-		})
-	})
+func makeZEncodeTests(t *testing.T) []zEncodeTest {
+	return []zEncodeTest{
+		{
+			name: "zdateFilledMessage(1)",
+			msg:  zdateFilledMessage(t, 1),
+			text: "(zdatevec = [(year = 2004, month = 12, day = 7)])\n",
+		},
+		{
+			name: "zdateFilledMessage(10)",
+			msg:  zdateFilledMessage(t, 10),
+			text: "(zdatevec = [(year = 2004, month = 12, day = 7), (year = 2005, month = 12, day = 7), (year = 2006, month = 12, day = 7), (year = 2007, month = 12, day = 7), (year = 2008, month = 12, day = 7), (year = 2009, month = 12, day = 7), (year = 2010, month = 12, day = 7), (year = 2011, month = 12, day = 7), (year = 2012, month = 12, day = 7), (year = 2013, month = 12, day = 7)])\n",
+		},
+		{
+			name: "zdataFilledMessage(20)",
+			msg:  zdataFilledMessage(t, 20),
+			text: `(zdata = (data = "\x00\x01\x02\x03\x04\x05\x06\a\b\t\n\v\f\r\x0e\x0f\x10\x11\x12\x13"))` + "\n",
+		},
+	}
 }
 
-func TestCreationOfManyZDatePacked(t *testing.T) {
-	const n = 10
-	packed := true
-	seg, _ := zdateFilledSegment(n, packed)
-	text := CapnpDecodeSegment(seg, "", schemaPath, "Z")
-
-	expectedText := `(zdatevec = [(year = 2004, month = 12, day = 7), (year = 2005, month = 12, day = 7), (year = 2006, month = 12, day = 7), (year = 2007, month = 12, day = 7), (year = 2008, month = 12, day = 7), (year = 2009, month = 12, day = 7), (year = 2010, month = 12, day = 7), (year = 2011, month = 12, day = 7), (year = 2012, month = 12, day = 7), (year = 2013, month = 12, day = 7)])`
-
-	cv.Convey("Given a go-capnproto created a PACKED segment with 10 Zdate", t, func() {
-		cv.Convey("When we decode it with capnp", func() {
-			cv.Convey(fmt.Sprintf("Then we should get the expected text '%s'", expectedText), func() {
-				cv.So(text, cv.ShouldEqual, expectedText)
-			})
-		})
-	})
+func TestZMarshalShouldMatchTextWhenDecoded(t *testing.T) {
+	// TODO(light): skip test when tool not found
+	for _, test := range makeZEncodeTests(t) {
+		data, err := test.msg.Marshal()
+		if err != nil {
+			t.Errorf("%s: marshal error: %v", test.name, err)
+			continue
+		}
+		text := string(CapnpDecode(data, "Z"))
+		if text != test.text {
+			t.Errorf("%s: decoded to:\n%q; want:\n%q", test.name, text, test.text)
+		}
+	}
 }
 
-func TestSegmentWriteToPackedOfManyZDatePacked(t *testing.T) {
-	const n = 10
-	packed := true
-	_, byteSlice := zdateFilledSegment(n, packed)
-
-	// check the packing-- is it wrong?
-	text := CapnpDecodeBuf(byteSlice, "", "", "Z", true)
-
-	expectedText := `(zdatevec = [(year = 2004, month = 12, day = 7), (year = 2005, month = 12, day = 7), (year = 2006, month = 12, day = 7), (year = 2007, month = 12, day = 7), (year = 2008, month = 12, day = 7), (year = 2009, month = 12, day = 7), (year = 2010, month = 12, day = 7), (year = 2011, month = 12, day = 7), (year = 2012, month = 12, day = 7), (year = 2013, month = 12, day = 7)])`
-
-	cv.Convey("Given a go-capnproto write packed with WriteToPacked() with 10 Zdate", t, func() {
-		cv.Convey("When we decode it with capnp", func() {
-			cv.Convey(fmt.Sprintf("Then we should get the expected text '%s'", expectedText), func() {
-				cv.So(text, cv.ShouldEqual, expectedText)
-			})
-		})
-	})
+func TestZMarshalPackedShouldMatchTextWhenDecoded(t *testing.T) {
+	// TODO(light): skip test when tool not found
+	for _, test := range makeZEncodeTests(t) {
+		data, err := test.msg.MarshalPacked()
+		if err != nil {
+			t.Errorf("%s: marshal error: %v", test.name, err)
+			continue
+		}
+		text := CapnpDecodeBuf(data, "", "", "Z", true)
+		// TODO(light): don't trim
+		if want := strings.TrimSpace(test.text); text != want {
+			t.Errorf("%s: decoded to:\n%q; want:\n%q", test.name, text, want)
+		}
+	}
 }
-
-/// now for Zdata (not Zdate)
 
 func TestCreationOfZData(t *testing.T) {
-	const n = 20
-	seg, _ := zdataFilledSegment(n)
-	text := CapnpDecodeSegment(seg, "", schemaPath, "Z")
-
-	expectedText := `(zdata = (data = "\x00\x01\x02\x03\x04\x05\x06\a\b\t\n\v\f\r\x0e\x0f\x10\x11\x12\x13"))`
-
+	// TODO(light): does this test provide value?
 	cv.Convey("Given a go-capnproto created Zdata DATA element with n=20", t, func() {
+		msg := zdataFilledMessage(t, 20)
+		seg, _ := msg.Segment(0)
 		cv.Convey("When we decode it with capnp", func() {
-			cv.Convey(fmt.Sprintf("Then we should get the expected text '%s'", expectedText), func() {
-				cv.So(text, cv.ShouldEqual, expectedText)
-			})
 			cv.Convey("And our data should contain Z_ZDATA with contents 0,1,2,...,n", func() {
 				z, err := air.ReadRootZ(seg.Message())
 				cv.So(err, cv.ShouldEqual, nil)
@@ -232,7 +213,7 @@ func TestCreationOfZData(t *testing.T) {
 				cv.So(err, cv.ShouldEqual, nil)
 				data, err := zdata.Data()
 				cv.So(err, cv.ShouldEqual, nil)
-				cv.So(len(data), cv.ShouldEqual, n)
+				cv.So(len(data), cv.ShouldEqual, 20)
 				for i := range data {
 					cv.So(data[i], cv.ShouldEqual, i)
 				}
@@ -1278,8 +1259,8 @@ func TestDefaultStructField(t *testing.T) {
 	if err != nil {
 		t.Error("StackingRoot.aWithDefault error:", err)
 	}
-	if a != 42 {
-		t.Errorf("StackingRoot.aWithDefault = %d; want 42", a)
+	if a.Num() != 42 {
+		t.Errorf("StackingRoot.aWithDefault = %d; want 42", a.Num())
 	}
 }
 
