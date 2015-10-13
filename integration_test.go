@@ -1264,18 +1264,23 @@ func TestZserverWithOneEmptyJob(t *testing.T) {
 }
 
 func TestDefaultStructField(t *testing.T) {
-	cv.Convey("Given a new root StackingRoot", t, func() {
-		cv.Convey("then the aWithDefault field should have a default", func() {
-			_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-			cv.So(err, cv.ShouldEqual, nil)
-			root, err := air.NewRootStackingRoot(seg)
-			cv.So(err, cv.ShouldEqual, nil)
+	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, err := air.NewRootStackingRoot(seg)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-			a, err := root.AWithDefault()
-			cv.So(err, cv.ShouldEqual, nil)
-			cv.So(a.Num(), cv.ShouldEqual, 42)
-		})
-	})
+	a, err := root.AWithDefault()
+
+	if err != nil {
+		t.Error("StackingRoot.aWithDefault error:", err)
+	}
+	if a != 42 {
+		t.Errorf("StackingRoot.aWithDefault = %d; want 42", a)
+	}
 }
 
 func TestDataTextCopyOptimization(t *testing.T) {
