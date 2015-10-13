@@ -2,6 +2,7 @@ package capnp_test
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -1723,18 +1724,21 @@ func TestVoidUnionSetters(t *testing.T) {
 		1, 0, 0, 0, 0, 0, 0, 0,
 	})
 
-	cv.Convey("Given a VoidUnion set to b", t, func() {
-		cv.Convey("then the go-capnproto serialization should match the capnp c++ serialization", func() {
-			msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-			cv.So(err, cv.ShouldEqual, nil)
-			voidUnion, err := air.NewRootVoidUnion(seg)
-			cv.So(err, cv.ShouldEqual, nil)
-			voidUnion.SetB()
+	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	voidUnion, err := air.NewRootVoidUnion(seg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	voidUnion.SetB()
 
-			act, err := msg.Marshal()
-			cv.So(err, cv.ShouldEqual, nil)
-
-			cv.So(act, cv.ShouldResemble, want)
-		})
-	})
+	act, err := msg.Marshal()
+	if err != nil {
+		t.Fatal("msg.Marshal():", err)
+	}
+	if !bytes.Equal(act, want) {
+		t.Errorf("msg.Marshal() =\n%s\n; want:\n%s", hex.Dump(act), hex.Dump(want))
+	}
 }
