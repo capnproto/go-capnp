@@ -1403,83 +1403,80 @@ func BenchmarkTextMovementBetweenSegments(b *testing.B) {
 }
 
 func TestV1DataVersioningBiggerToEmpty(t *testing.T) {
-
-	cv.Convey("Given a struct with 0 data/0 ptr fields, and a newer version of the struct with 2 data fields", t, func() {
-		cv.Convey("then reading serialized bigger-struct-list into the smaller (empty or one data-member) list should work, truncating/ignoring the new fields", func() {
-
-			msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-			cv.So(err, cv.ShouldEqual, nil)
-			_, scratch, err := capnp.NewMessage(capnp.SingleSegment(nil))
-			cv.So(err, cv.ShouldEqual, nil)
-			holder, err := air.NewRootHoldsVerTwoDataList(seg)
-			cv.So(err, cv.ShouldEqual, nil)
-
-			twolist, err := air.NewVerTwoData_List(scratch, 2)
-			cv.So(err, cv.ShouldEqual, nil)
-
-			d0 := twolist.At(0)
-			d0.SetVal(27)
-			d0.SetDuo(26)
-			d1 := twolist.At(1)
-			d1.SetVal(42)
-			d1.SetDuo(41)
-
-			holder.SetMylist(twolist)
-
-			ShowSeg("     before serializing out, segment scratch is:", scratch)
-			ShowSeg("     before serializing out, segment seg is:", seg)
-
-			// serialize out
-			segbytes, err := msg.Marshal()
-			cv.So(err, cv.ShouldEqual, nil)
-
-			// and read-back in using smaller expectations
-			remsg, err := capnp.Unmarshal(segbytes)
-			cv.So(err, cv.ShouldEqual, nil)
-			reseg, err := remsg.Segment(0)
-			cv.So(err, cv.ShouldEqual, nil)
-			ShowSeg("      after re-reading segbytes, segment reseg is:", reseg)
-			fmt.Printf("segbytes decoded by capnp as HoldsVerEmptyList: '%s'\n", string(CapnpDecode(segbytes, "HoldsVerEmptyList")))
-			fmt.Printf("segbytes decoded by capnp as HoldsVerOneDataList: '%s'\n", string(CapnpDecode(segbytes, "HoldsVerOneDataList")))
-			fmt.Printf("segbytes decoded by capnp as HoldsVerTwoDataList: '%s'\n", string(CapnpDecode(segbytes, "HoldsVerTwoDataList")))
-
-			reHolder, err := air.ReadRootHoldsVerEmptyList(remsg)
-			cv.So(err, cv.ShouldEqual, nil)
-			elist, err := reHolder.Mylist()
-			cv.So(err, cv.ShouldEqual, nil)
-			lene := elist.Len()
-			cv.So(lene, cv.ShouldEqual, 2)
-
-			reHolder1, err := air.ReadRootHoldsVerOneDataList(remsg)
-			cv.So(err, cv.ShouldEqual, nil)
-			onelist, err := reHolder1.Mylist()
-			cv.So(err, cv.ShouldEqual, nil)
-			lenone := onelist.Len()
-			cv.So(lenone, cv.ShouldEqual, 2)
-
-			for i := 0; i < 2; i++ {
-				ele := onelist.At(i)
-				val := ele.Val()
-				cv.So(val, cv.ShouldEqual, twolist.At(i).Val())
-			}
-
-			reHolder2, err := air.ReadRootHoldsVerTwoDataList(remsg)
-			cv.So(err, cv.ShouldEqual, nil)
-			twolist2, err := reHolder2.Mylist()
-			cv.So(err, cv.ShouldEqual, nil)
-			lentwo2 := twolist2.Len()
-			cv.So(lentwo2, cv.ShouldEqual, 2)
-
-			for i := 0; i < 2; i++ {
-				ele := twolist2.At(i)
-				val := ele.Val()
-				duo := ele.Duo()
-				cv.So(val, cv.ShouldEqual, twolist.At(i).Val())
-				cv.So(duo, cv.ShouldEqual, twolist.At(i).Duo())
-			}
-
-		})
+	in := mustEncodeTestMessage(t, "HoldsVerTwoDataList", "(mylist = [(val = 27, duo = 26), (val = 42, duo = 41)])", []byte{
+		0, 0, 0, 0, 7, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 1, 0,
+		1, 0, 0, 0, 39, 0, 0, 0,
+		8, 0, 0, 0, 2, 0, 0, 0,
+		27, 0, 0, 0, 0, 0, 0, 0,
+		26, 0, 0, 0, 0, 0, 0, 0,
+		42, 0, 0, 0, 0, 0, 0, 0,
+		41, 0, 0, 0, 0, 0, 0, 0,
 	})
+
+	remsg, err := capnp.Unmarshal(in)
+	if err != nil {
+		t.Fatal("Unmarshal:", err)
+	}
+
+	// Zero data
+	reHolder0, err := air.ReadRootHoldsVerEmptyList(remsg)
+	if err != nil {
+		t.Fatal("ReadRootHoldsVerEmptyList:", err)
+	}
+	list0, err := reHolder0.Mylist()
+	if err != nil {
+		t.Fatal("HoldsVerEmptyList.mylist:", err)
+	}
+	if list0.Len() != 2 {
+		t.Errorf("len(HoldsVerEmptyList.mylist) = %d; want 2", list0.Len())
+	}
+
+	// One datum
+	reHolder1, err := air.ReadRootHoldsVerOneDataList(remsg)
+	if err != nil {
+		t.Fatal("ReadRootHoldsVerOneDataList:", err)
+	}
+	list1, err := reHolder1.Mylist()
+	if err != nil {
+		t.Fatal("HoldsVerOneDataList.mylist:", err)
+	}
+	if list1.Len() == 2 {
+		if v := list1.At(0).Val(); v != 27 {
+			t.Errorf("HoldsVerOneDataList.mylist[0].val = %d; want 27", v)
+		}
+		if v := list1.At(1).Val(); v != 42 {
+			t.Errorf("HoldsVerOneDataList.mylist[1].val = %d; want 42", v)
+		}
+	} else {
+		t.Errorf("len(HoldsVerOneDataList.mylist) = %d; want 2", list1.Len())
+	}
+
+	// Two data
+	reHolder2, err := air.ReadRootHoldsVerTwoDataList(remsg)
+	if err != nil {
+		t.Fatal("ReadRootHoldsVerTwoDataList:", err)
+	}
+	list2, err := reHolder2.Mylist()
+	if err != nil {
+		t.Fatal("HoldsVerTwoDataList.mylist:", err)
+	}
+	if list2.Len() == 2 {
+		if v := list2.At(0).Val(); v != 27 {
+			t.Errorf("HoldsVerTwoDataList.mylist[0].val = %d; want 27", v)
+		}
+		if v := list2.At(0).Duo(); v != 26 {
+			t.Errorf("HoldsVerTwoDataList.mylist[0].duo = %d; want 27", v)
+		}
+		if v := list2.At(1).Val(); v != 42 {
+			t.Errorf("HoldsVerTwoDataList.mylist[1].val = %d; want 42", v)
+		}
+		if v := list2.At(1).Duo(); v != 41 {
+			t.Errorf("HoldsVerTwoDataList.mylist[1].duo = %d; want 41", v)
+		}
+	} else {
+		t.Errorf("len(HoldsVerTwoDataList.mylist) = %d; want 2", list2.Len())
+	}
 }
 
 func TestV1DataVersioningEmptyToBigger(t *testing.T) {
