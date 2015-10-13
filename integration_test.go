@@ -170,6 +170,17 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 			msg:  zdataFilledMessage(t, 20),
 			typ:  "Z",
 			text: `(zdata = (data = "\x00\x01\x02\x03\x04\x05\x06\a\b\t\n\v\f\r\x0e\x0f\x10\x11\x12\x13"))` + "\n",
+			data: []byte{
+				0, 0, 0, 0, 8, 0, 0, 0,
+				0, 0, 0, 0, 2, 0, 1, 0,
+				28, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 1, 0,
+				1, 0, 0, 0, 162, 0, 0, 0,
+				0, 1, 2, 3, 4, 5, 6, 7,
+				8, 9, 10, 11, 12, 13, 14, 15,
+				16, 17, 18, 19, 0, 0, 0, 0,
+			},
 		},
 	}
 
@@ -691,30 +702,47 @@ func TestMarshalPackedShouldMatchTextWhenDecoded(t *testing.T) {
 	}
 }
 
-func TestCreationOfZData(t *testing.T) {
-	// TODO(light): does this test provide value?
-	cv.Convey("Given a go-capnproto created Zdata DATA element with n=20", t, func() {
-		msg := zdataFilledMessage(t, 20)
-		seg, _ := msg.Segment(0)
-		cv.Convey("When we decode it with capnp", func() {
-			cv.Convey("And our data should contain Z_ZDATA with contents 0,1,2,...,n", func() {
-				z, err := air.ReadRootZ(seg.Message())
-				cv.So(err, cv.ShouldEqual, nil)
-				cv.So(z.Which(), cv.ShouldEqual, air.Z_Which_zdata)
-
-				zdata, err := z.Zdata()
-				cv.So(err, cv.ShouldEqual, nil)
-				data, err := zdata.Data()
-				cv.So(err, cv.ShouldEqual, nil)
-				cv.So(len(data), cv.ShouldEqual, 20)
-				for i := range data {
-					cv.So(data[i], cv.ShouldEqual, i)
-				}
-
-			})
-		})
+func TestZDataAccessors(t *testing.T) {
+	data := mustEncodeTestMessage(t, "Z", `(zdata = (data = "\x00\x01\x02\x03\x04\x05\x06\a\b\t\n\v\f\r\x0e\x0f\x10\x11\x12\x13"))`, []byte{
+		0, 0, 0, 0, 8, 0, 0, 0,
+		0, 0, 0, 0, 2, 0, 1, 0,
+		28, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 1, 0,
+		1, 0, 0, 0, 162, 0, 0, 0,
+		0, 1, 2, 3, 4, 5, 6, 7,
+		8, 9, 10, 11, 12, 13, 14, 15,
+		16, 17, 18, 19, 0, 0, 0, 0,
 	})
 
+	msg, err := capnp.Unmarshal(data)
+	if err != nil {
+		t.Fatal("Unmarshal:", err)
+	}
+	z, err := air.ReadRootZ(msg)
+	if err != nil {
+		t.Fatal("ReadRootZ:", err)
+	}
+
+	if z.Which() != air.Z_Which_zdata {
+		t.Fatalf("z.Which() = %v; want zdata", z.Which())
+	}
+	zdata, err := z.Zdata()
+	if err != nil {
+		t.Fatal("z.Zdata():", err)
+	}
+	d, err := zdata.Data()
+	if err != nil {
+		t.Fatal("z.Zdata().Data():", err)
+	}
+	if len(d) != 20 {
+		t.Errorf("z.Zdata().Data() len = %d; want 20", len(d))
+	}
+	for i := range d {
+		if d[i] != byte(i) {
+			t.Errorf("z.Zdata().Data()[%d] = %d; want %d", i, d[i], i)
+		}
+	}
 }
 
 func TestInterfaceSet(t *testing.T) {
@@ -1169,9 +1197,8 @@ func TestDataVersioningAvoidsUnnecessaryTruncation(t *testing.T) {
 	})
 }
 
-func TestZserverWithAccessors(t *testing.T) {
-
-	exp := mustEncodeTestMessage(t, "Zserver", `(waitingjobs = [(cmd = "abc"), (cmd = "xyz")])`, []byte{
+func TestZserverAccessors(t *testing.T) {
+	in := mustEncodeTestMessage(t, "Zserver", `(waitingjobs = [(cmd = "abc"), (cmd = "xyz")])`, []byte{
 		0, 0, 0, 0, 9, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 1, 0,
 		1, 0, 0, 0, 39, 0, 0, 0,
@@ -1183,49 +1210,35 @@ func TestZserverWithAccessors(t *testing.T) {
 		97, 98, 99, 0, 0, 0, 0, 0,
 		120, 121, 122, 0, 0, 0, 0, 0,
 	})
-	// TODO(light): don't create, read.
-	_ = exp
 
-	cv.Convey("Given an Zserver with a custom list", t, func() {
-		cv.Convey("then all the accessors should work as expected", func() {
+	msg, err := capnp.Unmarshal(in)
+	if err != nil {
+		t.Fatal("Unmarshal:", err)
+	}
 
-			_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-			cv.So(err, cv.ShouldEqual, nil)
-			_, scratch, err := capnp.NewMessage(capnp.SingleSegment(nil))
-			cv.So(err, cv.ShouldEqual, nil)
-
-			server, err := air.NewRootZserver(seg)
-			cv.So(err, cv.ShouldEqual, nil)
-
-			joblist, err := air.NewZjob_List(seg, 2)
-			cv.So(err, cv.ShouldEqual, nil)
-
-			// .Set(int, item)
-			zjob, err := air.NewZjob(scratch)
-			cv.So(err, cv.ShouldEqual, nil)
-			zjob.SetCmd("abc")
-			joblist.Set(0, zjob)
-
-			zjob, err = air.NewZjob(scratch)
-			cv.So(err, cv.ShouldEqual, nil)
-			zjob.SetCmd("xyz")
-			joblist.Set(1, zjob)
-
-			// .Len()
-			cv.So(joblist.Len(), cv.ShouldEqual, 2)
-
-			// .At(int)
-			cmd := func(i int) string {
-				s, err := joblist.At(i).Cmd()
-				cv.So(err, cv.ShouldEqual, nil)
-				return s
-			}
-			cv.So(cmd(0), cv.ShouldEqual, "abc")
-			cv.So(cmd(1), cv.ShouldEqual, "xyz")
-
-			server.SetWaitingjobs(joblist)
-		})
-	})
+	zserver, err := air.ReadRootZserver(msg)
+	if err != nil {
+		t.Fatal("ReadRootZserver:", err)
+	}
+	joblist, err := zserver.Waitingjobs()
+	if err != nil {
+		t.Fatal("Zserver.waitingjobs:", err)
+	}
+	if joblist.Len() != 2 {
+		t.Fatalf("len(Zserver.waitingjobs) = %d; want 2", joblist.Len())
+	}
+	checkCmd := func(i int, want string) {
+		cmd, err := joblist.At(i).Cmd()
+		if err != nil {
+			t.Errorf("Zserver.waitingjobs[%d].cmd error: %v", i, err)
+			return
+		}
+		if cmd != want {
+			t.Errorf("Zserver.waitingjobs[%d].cmd = %q; want %q", i, cmd, want)
+		}
+	}
+	checkCmd(0, "abc")
+	checkCmd(1, "xyz")
 }
 
 func TestEnumFromString(t *testing.T) {
