@@ -701,7 +701,7 @@ func TestTextAndListTextContaintingEmptyStruct(t *testing.T) {
 	})
 }
 
-func TestTextContaintingStruct(t *testing.T) {
+func TestTextContainingStruct(t *testing.T) {
 
 	zjobBytes := encodeTestMessage(t, "Zjob", `(cmd = "abc")`, []byte{
 		0, 0, 0, 0, 4, 0, 0, 0,
@@ -937,16 +937,18 @@ func TestZserverWithAccessors(t *testing.T) {
 }
 
 func TestEnumFromString(t *testing.T) {
-	cv.Convey("Given an enum tag string matching a constant", t, func() {
-		cv.Convey("FromString should return the corresponding matching constant value", func() {
-			cv.So(air.AirportFromString("jfk"), cv.ShouldEqual, air.Airport_jfk)
-		})
-	})
-	cv.Convey("Given an enum tag string that does not match a constant", t, func() {
-		cv.Convey("FromString should return 0", func() {
-			cv.So(air.AirportFromString("notEverMatching"), cv.ShouldEqual, 0)
-		})
-	})
+	tests := []struct {
+		s  string
+		ap air.Airport
+	}{
+		{"jfk", air.Airport_jfk},
+		{"notEverMatching", 0},
+	}
+	for _, test := range tests {
+		if ap := air.AirportFromString(test.s); ap != test.ap {
+			t.Errorf("air.AirportFromString(%q) = %v; want %v", test.s, ap, test.ap)
+		}
+	}
 }
 
 func TestSetObjectBetweenSegments(t *testing.T) {
@@ -1265,24 +1267,48 @@ func TestDefaultStructField(t *testing.T) {
 }
 
 func TestDataTextCopyOptimization(t *testing.T) {
-	cv.Convey("Given a text list from a different segment", t, func() {
-		cv.Convey("Adding it to a different segment shouldn't panic", func() {
-			_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-			cv.So(err, cv.ShouldEqual, nil)
-			_, seg2, err := capnp.NewMessage(capnp.SingleSegment(nil))
-			cv.So(err, cv.ShouldEqual, nil)
-			root, err := air.NewRootNester1Capn(seg)
-			cv.So(err, cv.ShouldEqual, nil)
+	_, seg1, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, err := air.NewRootNester1Capn(seg1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, seg2, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	strsl, err := capnp.NewTextList(seg2, 256)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < strsl.Len(); i++ {
+		strsl.Set(i, "testess")
+	}
 
-			strsl, err := capnp.NewTextList(seg2, 256)
-			cv.So(err, cv.ShouldEqual, nil)
-			for i := 0; i < strsl.Len(); i++ {
-				strsl.Set(i, "testess")
-			}
+	err = root.SetStrs(strsl)
 
-			root.SetStrs(strsl)
-		})
-	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	strsl, err = root.Strs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strsl.Len() != 256 {
+		t.Errorf("strsl.Len() = %d; want 256", strsl.Len())
+	}
+	for i := 0; i < strsl.Len(); i++ {
+		s, err := strsl.At(i)
+		if err != nil {
+			t.Errorf("strsl.At(%d) error: %v", i, err)
+			continue
+		}
+		if s != "testess" {
+			t.Errorf("strsl.At(%d) = %q; want \"testess\"", i, s)
+		}
+	}
 }
 
 // highlight how much faster text movement between segments
