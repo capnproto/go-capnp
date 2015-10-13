@@ -646,6 +646,37 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 		})
 	}
 
+	{
+		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		if err != nil {
+			t.Fatal(err)
+		}
+		holder, err := air.NewRootHoldsVerEmptyList(seg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		elist, err := air.NewVerEmpty_List(seg, 2)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := holder.SetMylist(elist); err != nil {
+			t.Fatal(err)
+		}
+
+		tests = append(tests, marshalTest{
+			name: "V0 list of empty",
+			msg:  msg,
+			typ:  "HoldsVerEmptyList",
+			text: "(mylist = [(), ()])\n",
+			data: []byte{
+				0, 0, 0, 0, 3, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 1, 0,
+				1, 0, 0, 0, 7, 0, 0, 0,
+				8, 0, 0, 0, 0, 0, 0, 0,
+			},
+		})
+	}
+
 	return tests
 }
 
@@ -1369,48 +1400,6 @@ func BenchmarkTextMovementBetweenSegments(b *testing.B) {
 		ht.SetLst(tl)
 
 	}
-}
-
-func TestV0ListofEmptyShouldMatchCapnp(t *testing.T) {
-
-	exp := mustEncodeTestMessage(t, "HoldsVerEmptyList", "(mylist = [(),()])", []byte{
-		0, 0, 0, 0, 3, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 1, 0,
-		1, 0, 0, 0, 7, 0, 0, 0,
-		8, 0, 0, 0, 0, 0, 0, 0,
-	})
-
-	cv.Convey("Given an empty struct with 0 data/0 ptr fields", t, func() {
-		cv.Convey("then a list of 2 empty structs should match the capnp representation", func() {
-
-			msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-			cv.So(err, cv.ShouldEqual, nil)
-			holder, err := air.NewRootHoldsVerEmptyList(seg)
-			cv.So(err, cv.ShouldEqual, nil)
-
-			elist, err := air.NewVerEmpty_List(seg, 2)
-			cv.So(err, cv.ShouldEqual, nil)
-
-			ShowSeg("          pre SetMylist, segment seg is:", seg)
-
-			fmt.Printf("Then we do the SetMylist():\n")
-			holder.SetMylist(elist)
-
-			act, err := msg.Marshal()
-			cv.So(err, cv.ShouldEqual, nil)
-
-			// show
-			ShowSeg("          actual:\n", seg)
-
-			fmt.Printf("act decoded by capnp: '%s'\n", string(CapnpDecode(act, "HoldsVerEmptyList")))
-
-			fmt.Printf("expected:\n")
-			ShowBytes(exp, 10)
-			fmt.Printf("exp decoded by capnp: '%s'\n", string(CapnpDecode(exp, "HoldsVerEmptyList")))
-
-			cv.So(act, cv.ShouldResemble, exp)
-		})
-	})
 }
 
 func TestV1DataVersioningBiggerToEmpty(t *testing.T) {
