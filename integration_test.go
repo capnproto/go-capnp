@@ -111,7 +111,7 @@ func TestBitList(t *testing.T) {
 			continue
 		}
 		if n := list.Len(); n != len(test.list) {
-			t.Errorf("%v: len(Z.boolvec) = %d", test.list, n, len(test.list))
+			t.Errorf("%v: len(Z.boolvec) = %d; want %d", test.list, n, len(test.list))
 			continue
 		}
 		for i := range test.list {

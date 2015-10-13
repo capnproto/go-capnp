@@ -477,7 +477,6 @@ func ListCString(val uint64) string {
 	default:
 		panic("unknown list element size")
 	}
-	return ""
 }
 
 func ListD(val uint64) int {
