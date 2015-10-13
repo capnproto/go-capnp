@@ -3,6 +3,7 @@ package capnp_test
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -600,7 +601,7 @@ func encodeTestMessage(typ string, text string, fallback []byte) ([]byte, error)
 	// TODO(light): use fallback if tool not present.
 	b := CapnpEncode(text, typ)
 	if !bytes.Equal(b, fallback) {
-		return nil, fmt.Errorf("%s value %q =\n% x; fallback is\n% x\nFallback out of date?", typ, text, b, fallback)
+		return nil, fmt.Errorf("%s value %q =\n%s; fallback is\n%s\nFallback out of date?", typ, text, hex.Dump(b), hex.Dump(fallback))
 	}
 	return b, nil
 }
