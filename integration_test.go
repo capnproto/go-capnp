@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"math/rand"
-	"strings"
 	"testing"
 
 	"zombiezen.com/go/capnproto2"
@@ -119,18 +118,28 @@ func TestBitList(t *testing.T) {
 }
 
 func TestBitList_Decode(t *testing.T) {
-	// TODO(light): skip if tool not present
+	tool, err := findCapnpTool()
+	if err != nil {
+		t.Skip("capnp tool not found:", err)
+	}
 	for _, test := range bitListTests {
 		msg, err := test.makeMessage()
 		if err != nil {
 			t.Errorf("%v: make message: %v", test.list, err)
 			continue
 		}
-		seg, _ := msg.Segment(0)
-		text := CapnpDecodeSegment(seg, "", schemaPath, "Z")
-		// TODO(light): don't trim
-		if want := strings.TrimSpace(test.text); text != want {
-			t.Errorf("%v: capnp decode = %q; want %q", test.list, text, want)
+		out, err := msg.Marshal()
+		if err != nil {
+			t.Errorf("%v: marshal: %v", test.list, err)
+			continue
+		}
+		text, err := tool.decode("Z", bytes.NewReader(out))
+		if err != nil {
+			t.Errorf("%v: capnp decode: %v", test.list, err)
+			continue
+		}
+		if text != test.text {
+			t.Errorf("%v: capnp decode = %q; want %q", test.list, text, test.text)
 		}
 	}
 }
@@ -801,14 +810,21 @@ func TestMarshalShouldMatchData(t *testing.T) {
 }
 
 func TestMarshalShouldMatchTextWhenDecoded(t *testing.T) {
-	// TODO(light): skip test when tool not found
+	tool, err := findCapnpTool()
+	if err != nil {
+		t.Skip("capnp tool not found:", err)
+	}
 	for _, test := range makeMarshalTests(t) {
 		data, err := test.msg.Marshal()
 		if err != nil {
 			t.Errorf("%s: marshal error: %v", test.name, err)
 			continue
 		}
-		text := string(CapnpDecode(data, test.typ))
+		text, err := tool.decode(test.typ, bytes.NewReader(data))
+		if err != nil {
+			t.Errorf("%s: capnp decode: %v", test.name, err)
+			continue
+		}
 		if text != test.text {
 			t.Errorf("%s: decoded to:\n%q; want:\n%q", test.name, text, test.text)
 		}
@@ -816,17 +832,23 @@ func TestMarshalShouldMatchTextWhenDecoded(t *testing.T) {
 }
 
 func TestMarshalPackedShouldMatchTextWhenDecoded(t *testing.T) {
-	// TODO(light): skip test when tool not found
+	tool, err := findCapnpTool()
+	if err != nil {
+		t.Skip("capnp tool not found:", err)
+	}
 	for _, test := range makeMarshalTests(t) {
 		data, err := test.msg.MarshalPacked()
 		if err != nil {
 			t.Errorf("%s: marshal error: %v", test.name, err)
 			continue
 		}
-		text := CapnpDecodeBuf(data, "", "", test.typ, true)
-		// TODO(light): don't trim
-		if want := strings.TrimSpace(test.text); text != want {
-			t.Errorf("%s: decoded to:\n%q; want:\n%q", test.name, text, want)
+		text, err := tool.decodePacked(test.typ, bytes.NewReader(data))
+		if err != nil {
+			t.Errorf("%s: capnp decode: %v", test.name, err)
+			continue
+		}
+		if text != test.text {
+			t.Errorf("%s: decoded to:\n%q; want:\n%q", test.name, text, test.text)
 		}
 	}
 }
