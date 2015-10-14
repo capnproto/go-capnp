@@ -84,6 +84,7 @@ func (blt bitListTest) makeMessage() (*capnp.Message, error) {
 }
 
 func TestBitList(t *testing.T) {
+	t.Parallel()
 	for _, test := range bitListTests {
 		msg, err := test.makeMessage()
 		if err != nil {
@@ -118,6 +119,7 @@ func TestBitList(t *testing.T) {
 }
 
 func TestBitList_Decode(t *testing.T) {
+	t.Parallel()
 	tool, err := findCapnpTool()
 	if err != nil {
 		t.Skip("capnp tool not found:", err)
@@ -788,6 +790,7 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 }
 
 func TestMarshalShouldMatchData(t *testing.T) {
+	t.Parallel()
 	for _, test := range makeMarshalTests(t) {
 		if test.data == nil {
 			// TODO(light): backfill all data
@@ -810,6 +813,7 @@ func TestMarshalShouldMatchData(t *testing.T) {
 }
 
 func TestMarshalShouldMatchTextWhenDecoded(t *testing.T) {
+	t.Parallel()
 	tool, err := findCapnpTool()
 	if err != nil {
 		t.Skip("capnp tool not found:", err)
@@ -832,6 +836,7 @@ func TestMarshalShouldMatchTextWhenDecoded(t *testing.T) {
 }
 
 func TestMarshalPackedShouldMatchTextWhenDecoded(t *testing.T) {
+	t.Parallel()
 	tool, err := findCapnpTool()
 	if err != nil {
 		t.Skip("capnp tool not found:", err)
@@ -854,6 +859,7 @@ func TestMarshalPackedShouldMatchTextWhenDecoded(t *testing.T) {
 }
 
 func TestZDataAccessors(t *testing.T) {
+	t.Parallel()
 	data := mustEncodeTestMessage(t, "Z", `(zdata = (data = "\x00\x01\x02\x03\x04\x05\x06\a\b\t\n\v\f\r\x0e\x0f\x10\x11\x12\x13"))`, []byte{
 		0, 0, 0, 0, 8, 0, 0, 0,
 		0, 0, 0, 0, 2, 0, 1, 0,
@@ -897,6 +903,7 @@ func TestZDataAccessors(t *testing.T) {
 }
 
 func TestInterfaceSet(t *testing.T) {
+	t.Parallel()
 	cl := air.Echo{Client: capnp.ErrorClient(errors.New("foo"))}
 	_, s, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	if err != nil {
@@ -915,6 +922,7 @@ func TestInterfaceSet(t *testing.T) {
 }
 
 func TestInterfaceSetNull(t *testing.T) {
+	t.Parallel()
 	cl := air.Echo{Client: capnp.ErrorClient(errors.New("foo"))}
 	msg, s, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	if err != nil {
@@ -937,6 +945,7 @@ func TestInterfaceSetNull(t *testing.T) {
 }
 
 func TestInterfaceCopyToOtherMessage(t *testing.T) {
+	t.Parallel()
 	cl := air.Echo{Client: capnp.ErrorClient(errors.New("foo"))}
 	_, s1, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	if err != nil {
@@ -978,6 +987,7 @@ func TestInterfaceCopyToOtherMessage(t *testing.T) {
 }
 
 func TestInterfaceCopyToOtherMessageWithCaps(t *testing.T) {
+	t.Parallel()
 	cl := air.Echo{Client: capnp.ErrorClient(errors.New("foo"))}
 	_, s1, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	if err != nil {
@@ -1016,6 +1026,7 @@ func TestInterfaceCopyToOtherMessageWithCaps(t *testing.T) {
 }
 
 func TestReadListInStruct(t *testing.T) {
+	t.Parallel()
 	in := mustEncodeTestMessage(t, "Nester1Capn", "(strs = [\"furiosa\", \"max\"])", []byte{
 		0, 0, 0, 0, 6, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 1, 0,
@@ -1055,6 +1066,7 @@ func TestReadListInStruct(t *testing.T) {
 }
 
 func TestReadNestedListOfStructWithList(t *testing.T) {
+	t.Parallel()
 	in := mustEncodeTestMessage(
 		t,
 		"RWTestCapn",
@@ -1142,6 +1154,7 @@ func TestReadNestedListOfStructWithList(t *testing.T) {
 }
 
 func TestDataVersioningAvoidsUnnecessaryTruncation(t *testing.T) {
+	t.Parallel()
 	in := mustEncodeTestMessage(t, "VerTwoDataTwoPtr", "(val = 9, duo = 8, ptr1 = (val = 77), ptr2 = (val = 55))", []byte{
 		0, 0, 0, 0, 7, 0, 0, 0,
 		0, 0, 0, 0, 2, 0, 2, 0,
@@ -1199,6 +1212,7 @@ func TestDataVersioningAvoidsUnnecessaryTruncation(t *testing.T) {
 }
 
 func TestZserverAccessors(t *testing.T) {
+	t.Parallel()
 	in := mustEncodeTestMessage(t, "Zserver", `(waitingjobs = [(cmd = "abc"), (cmd = "xyz")])`, []byte{
 		0, 0, 0, 0, 9, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 1, 0,
@@ -1243,6 +1257,7 @@ func TestZserverAccessors(t *testing.T) {
 }
 
 func TestEnumFromString(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		s  string
 		ap air.Airport
@@ -1258,6 +1273,7 @@ func TestEnumFromString(t *testing.T) {
 }
 
 func TestDefaultStructField(t *testing.T) {
+	t.Parallel()
 	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	if err != nil {
 		t.Fatal(err)
@@ -1278,6 +1294,7 @@ func TestDefaultStructField(t *testing.T) {
 }
 
 func TestDataTextCopyOptimization(t *testing.T) {
+	t.Parallel()
 	_, seg1, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	if err != nil {
 		t.Fatal(err)
@@ -1328,7 +1345,6 @@ func TestDataTextCopyOptimization(t *testing.T) {
 // run this test with capnp.go:1334-1341 commented in/out to compare.
 //
 func BenchmarkTextMovementBetweenSegments(b *testing.B) {
-
 	buf := make([]byte, 1<<21)
 	buf2 := make([]byte, 1<<21)
 
@@ -1336,8 +1352,6 @@ func BenchmarkTextMovementBetweenSegments(b *testing.B) {
 	for i := range text {
 		text[i] = byte(65 + rand.Int()%26)
 	}
-	//stext := string(text)
-	//fmt.Printf("text = %#v\n", stext)
 
 	astr := make([]string, 1000)
 	for i := range astr {
@@ -1357,11 +1371,11 @@ func BenchmarkTextMovementBetweenSegments(b *testing.B) {
 		}
 
 		ht.SetLst(tl)
-
 	}
 }
 
 func TestV1DataVersioningBiggerToEmpty(t *testing.T) {
+	t.Parallel()
 	in := mustEncodeTestMessage(t, "HoldsVerTwoDataList", "(mylist = [(val = 27, duo = 26), (val = 42, duo = 41)])", []byte{
 		0, 0, 0, 0, 7, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 1, 0,
@@ -1451,6 +1465,7 @@ func TestV1DataVersioningBiggerToEmpty(t *testing.T) {
 }
 
 func TestV1DataVersioningEmptyToBigger(t *testing.T) {
+	t.Parallel()
 	in := mustEncodeTestMessage(t, "HoldsVerEmptyList", "(mylist = [(),()])", []byte{
 		0, 0, 0, 0, 3, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 1, 0,
@@ -1509,6 +1524,7 @@ func TestV1DataVersioningEmptyToBigger(t *testing.T) {
 }
 
 func TestDataVersioningZeroPointersToMore(t *testing.T) {
+	t.Parallel()
 	in := mustEncodeTestMessage(t, "HoldsVerEmptyList", "(mylist = [(),()])", []byte{
 		0, 0, 0, 0, 3, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 1, 0,
@@ -1553,6 +1569,7 @@ func TestDataVersioningZeroPointersToMore(t *testing.T) {
 }
 
 func TestDataVersioningZeroPointersToTwo(t *testing.T) {
+	t.Parallel()
 	in := mustEncodeTestMessage(
 		t,
 		"HoldsVerTwoTwoList",
@@ -1664,6 +1681,7 @@ func TestDataVersioningZeroPointersToTwo(t *testing.T) {
 }
 
 func TestVoidUnionSetters(t *testing.T) {
+	t.Parallel()
 	want := mustEncodeTestMessage(t, "VoidUnion", "(b = void)", []byte{
 		0, 0, 0, 0, 2, 0, 0, 0,
 		0, 0, 0, 0, 1, 0, 0, 0,
