@@ -4,15 +4,11 @@ import (
 	"bytes"
 	"encoding/hex"
 	"errors"
-	"fmt"
-	"io"
 	"math/rand"
-	"reflect"
 	"strings"
 	"testing"
 
-	cv "github.com/smartystreets/goconvey/convey"
-	capnp "zombiezen.com/go/capnproto2"
+	"zombiezen.com/go/capnproto2"
 	air "zombiezen.com/go/capnproto2/internal/aircraftlib"
 )
 
@@ -677,6 +673,108 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 		})
 	}
 
+	{
+		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		if err != nil {
+			t.Fatal(err)
+		}
+		holder, err := air.NewRootNester1Capn(seg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		initNester(t, holder, "furiosa", "max")
+
+		tests = append(tests, marshalTest{
+			name: "list inside a struct",
+			msg:  msg,
+			typ:  "Nester1Capn",
+			text: "(strs = [\"furiosa\", \"max\"])\n",
+			data: []byte{
+				0, 0, 0, 0, 6, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 1, 0,
+				1, 0, 0, 0, 22, 0, 0, 0,
+				5, 0, 0, 0, 66, 0, 0, 0,
+				5, 0, 0, 0, 34, 0, 0, 0,
+				102, 117, 114, 105, 111, 115, 97, 0,
+				109, 97, 120, 0, 0, 0, 0, 0,
+			},
+		})
+	}
+
+	{
+		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		if err != nil {
+			t.Fatal(err)
+		}
+		holder, err := air.NewRootRWTestCapn(seg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		mat, err := capnp.NewPointerList(seg, 2)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := holder.SetNestMatrix(mat); err != nil {
+			t.Fatal(err)
+		}
+
+		row0, err := air.NewNester1Capn_List(seg, 2)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := mat.Set(0, row0); err != nil {
+			t.Fatal(err)
+		}
+		initNester(t, row0.At(0), "z", "w")
+		initNester(t, row0.At(1), "q", "r")
+
+		row1, err := air.NewNester1Capn_List(seg, 2)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := mat.Set(1, row1); err != nil {
+			t.Fatal(err)
+		}
+		initNester(t, row1.At(0), "zebra", "wally")
+		initNester(t, row1.At(1), "qubert", "rocks")
+
+		tests = append(tests, marshalTest{
+			name: "doubly-nested list of struct that has a list field",
+			msg:  msg,
+			typ:  "RWTestCapn",
+			text: `(nestMatrix = [[(strs = ["z", "w"]), (strs = ["q", "r"])], [(strs = ["zebra", "wally"]), (strs = ["qubert", "rocks"])]])` + "\n",
+			data: []byte{
+				0, 0, 0, 0, 26, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 1, 0,
+				1, 0, 0, 0, 22, 0, 0, 0,
+				5, 0, 0, 0, 23, 0, 0, 0,
+				45, 0, 0, 0, 23, 0, 0, 0,
+				8, 0, 0, 0, 0, 0, 1, 0,
+				5, 0, 0, 0, 22, 0, 0, 0,
+				17, 0, 0, 0, 22, 0, 0, 0,
+				5, 0, 0, 0, 18, 0, 0, 0,
+				5, 0, 0, 0, 18, 0, 0, 0,
+				122, 0, 0, 0, 0, 0, 0, 0,
+				119, 0, 0, 0, 0, 0, 0, 0,
+				5, 0, 0, 0, 18, 0, 0, 0,
+				5, 0, 0, 0, 18, 0, 0, 0,
+				113, 0, 0, 0, 0, 0, 0, 0,
+				114, 0, 0, 0, 0, 0, 0, 0,
+				8, 0, 0, 0, 0, 0, 1, 0,
+				5, 0, 0, 0, 22, 0, 0, 0,
+				17, 0, 0, 0, 22, 0, 0, 0,
+				5, 0, 0, 0, 50, 0, 0, 0,
+				5, 0, 0, 0, 50, 0, 0, 0,
+				122, 101, 98, 114, 97, 0, 0, 0,
+				119, 97, 108, 108, 121, 0, 0, 0,
+				5, 0, 0, 0, 58, 0, 0, 0,
+				5, 0, 0, 0, 50, 0, 0, 0,
+				113, 117, 98, 101, 114, 116, 0, 0,
+				114, 111, 99, 107, 115, 0, 0, 0,
+			},
+		})
+	}
+
 	return tests
 }
 
@@ -895,243 +993,130 @@ func TestInterfaceCopyToOtherMessageWithCaps(t *testing.T) {
 	}
 }
 
-// demonstrate and test serialization to List(List(Struct(List))), nested lists.
-
-// start with smaller Struct(List)
-func Test001StructList(t *testing.T) {
-
-	cv.Convey("Given type Nester1 struct { Strs []string } in go, where Nester1 is a struct, and a mirror/parallel capnp struct air.Nester1Capn { strs @0: List(Text); } defined in the aircraftlib schema", t, func() {
-		cv.Convey("When we Save() Nester to capn and then Load() it back, the data should match, so that we have working Struct(List) serialization and deserializatoin in go-capnproto", func() {
-
-			// Does Nester1 alone serialization and deser okay?
-			rw := Nester1{Strs: []string{"xenophilia", "watchowski"}}
-
-			var o bytes.Buffer
-			rw.Save(&o)
-
-			msg, err := capnp.Unmarshal(o.Bytes())
-			cv.So(err, cv.ShouldEqual, nil)
-			seg, err := msg.Segment(0)
-			cv.So(err, cv.ShouldEqual, nil)
-
-			text := CapnpDecodeSegment(seg, "", schemaPath, "Nester1Capn")
-			if false {
-				fmt.Printf("text = '%s'\n", text)
-			}
-			rw2 := &Nester1{}
-			rw2.Load(&o)
-
-			//fmt.Printf("rw = '%#v'\n", rw)
-			//fmt.Printf("rw2 = '%#v'\n", rw2)
-
-			same := reflect.DeepEqual(&rw, rw2)
-			cv.So(same, cv.ShouldEqual, true)
-		})
+func TestReadListInStruct(t *testing.T) {
+	in := mustEncodeTestMessage(t, "Nester1Capn", "(strs = [\"furiosa\", \"max\"])", []byte{
+		0, 0, 0, 0, 6, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 1, 0,
+		1, 0, 0, 0, 22, 0, 0, 0,
+		5, 0, 0, 0, 66, 0, 0, 0,
+		5, 0, 0, 0, 34, 0, 0, 0,
+		102, 117, 114, 105, 111, 115, 97, 0,
+		109, 97, 120, 0, 0, 0, 0, 0,
 	})
-}
-
-func Test002ListListStructList(t *testing.T) {
-
-	cv.Convey("Given type RWTest struct { NestMatrix [][]Nester1; } in go, where Nester1 is a struct, and a mirror/parallel capnp struct air.RWTestCapn { nestMatrix @0: List(List(Nester1Capn)); } defined in the aircraftlib schema", t, func() {
-		cv.Convey("When we Save() RWTest to capn and then Load() it back, the data should match, so that we have working List(List(Struct)) serialization and deserializatoin in go-capnproto", func() {
-
-			// full RWTest
-			rw := RWTest{
-				NestMatrix: [][]Nester1{
-					[]Nester1{
-						Nester1{Strs: []string{"z", "w"}},
-						Nester1{Strs: []string{"q", "r"}},
-					},
-					[]Nester1{
-						Nester1{Strs: []string{"zebra", "wally"}},
-						Nester1{Strs: []string{"qubert", "rocks"}},
-					},
-				},
-			}
-
-			var o bytes.Buffer
-			rw.Save(&o)
-
-			msg, err := capnp.Unmarshal(o.Bytes())
-			cv.So(err, cv.ShouldEqual, nil)
-			seg, err := msg.Segment(0)
-			cv.So(err, cv.ShouldEqual, nil)
-
-			text := CapnpDecodeSegment(seg, "", schemaPath, "RWTestCapn")
-
-			if false {
-				fmt.Printf("text = '%s'\n", text)
-			}
-
-			rw2 := &RWTest{}
-			rw2.Load(&o)
-
-			//fmt.Printf("rw = '%#v'\n", rw)
-			//fmt.Printf("rw2 = '%#v'\n", rw2)
-
-			same := reflect.DeepEqual(&rw, rw2)
-			cv.So(same, cv.ShouldEqual, true)
-		})
-	})
-}
-
-type Nester1 struct {
-	Strs []string
-}
-
-type RWTest struct {
-	NestMatrix [][]Nester1
-}
-
-func (s *Nester1) Save(w io.Writer) {
-	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	msg, err := capnp.Unmarshal(in)
 	if err != nil {
-		panic(err)
+		t.Fatal("Unmarshal:", err)
 	}
-	msg.SetRoot(Nester1GoToCapn(seg, s))
-	data, err := msg.Marshal()
+	holder, err := air.ReadRootNester1Capn(msg)
 	if err != nil {
-		panic(err)
+		t.Fatal("ReadRootNester1Capn:", err)
 	}
-	w.Write(data)
-}
-
-func Nester1GoToCapn(seg *capnp.Segment, src *Nester1) air.Nester1Capn {
-	//fmt.Printf("\n\n   Nester1GoToCapn sees seg = '%#v'\n", seg)
-	dest, _ := air.NewNester1Capn(seg)
-
-	mylist1, _ := capnp.NewTextList(seg, int32(len(src.Strs)))
-	for i := range src.Strs {
-		mylist1.Set(i, string(src.Strs[i]))
-	}
-	dest.SetStrs(mylist1)
-
-	//fmt.Printf("after Nester1GoToCapn setting\n")
-	return dest
-}
-
-func Nester1CapnToGo(src air.Nester1Capn, dest *Nester1) *Nester1 {
-	if dest == nil {
-		dest = &Nester1{}
-	}
-	srcStrs, _ := src.Strs()
-	dest.Strs = make([]string, srcStrs.Len())
-	for i := range dest.Strs {
-		dest.Strs[i], _ = srcStrs.At(i)
-	}
-
-	return dest
-}
-
-func (s *Nester1) Load(r io.Reader) {
-	capMsg, err := capnp.NewDecoder(r).Decode()
+	strs, err := holder.Strs()
 	if err != nil {
-		panic(fmt.Errorf("capnp.ReadFromStream error: %s", err))
+		t.Fatal("Nester1Capn.strs:", err)
 	}
-	z, _ := air.ReadRootNester1Capn(capMsg)
-	Nester1CapnToGo(z, s)
-}
-
-func (s *RWTest) Save(w io.Writer) {
-	msg, seg, _ := capnp.NewMessage(capnp.SingleSegment(nil))
-	msg.SetRoot(RWTestGoToCapn(seg, s))
-	data, _ := msg.Marshal()
-	w.Write(data)
-}
-
-func (s *RWTest) Load(r io.Reader) {
-	capMsg, err := capnp.NewDecoder(r).Decode()
-	if err != nil {
-		panic(fmt.Errorf("capnp.ReadFromStream error: %s", err))
-	}
-	z, _ := air.ReadRootRWTestCapn(capMsg)
-	RWTestCapnToGo(z, s)
-}
-
-func RWTestCapnToGo(src air.RWTestCapn, dest *RWTest) *RWTest {
-	if dest == nil {
-		dest = &RWTest{}
-	}
-	var n int
-	srcMatrix, _ := src.NestMatrix()
-	// NestMatrix
-	n = srcMatrix.Len()
-	dest.NestMatrix = make([][]Nester1, n)
-	for i := 0; i < n; i++ {
-		sm, _ := srcMatrix.At(i)
-		dest.NestMatrix[i] = Nester1CapnListToSliceNester1(air.Nester1Capn_List{List: capnp.ToList(sm)})
-	}
-
-	return dest
-}
-
-func RWTestGoToCapn(seg *capnp.Segment, src *RWTest) air.RWTestCapn {
-	dest, err := air.NewRWTestCapn(seg)
-	if err != nil {
-		panic(err)
-	}
-
-	// NestMatrix -> Nester1Capn (go slice to capn list)
-	if len(src.NestMatrix) > 0 {
-		plist, err := capnp.NewPointerList(seg, int32(len(src.NestMatrix)))
-		if err != nil {
-			panic(err)
-		}
-		for i, ele := range src.NestMatrix {
-			err := plist.Set(i, SliceNester1ToNester1CapnList(seg, ele))
+	if strs.Len() == 2 {
+		check := func(i int, want string) {
+			s, err := strs.At(i)
 			if err != nil {
-				panic(err)
+				t.Errorf("Nester1Capn.strs[%d] error: %v", i, err)
+			}
+			if s != want {
+				t.Errorf("Nester1Capn.strs[%d] = %q; want %q", i, s, want)
 			}
 		}
-		dest.SetNestMatrix(plist)
+		check(0, "furiosa")
+		check(1, "max")
+	} else {
+		t.Errorf("len(Nester1Capn.strs) = %d; want 2", strs.Len())
 	}
-
-	return dest
 }
 
-func Nester1CapnListToSliceNester1(p air.Nester1Capn_List) []Nester1 {
-	v := make([]Nester1, p.Len())
-	for i := range v {
-		Nester1CapnToGo(p.At(i), &v[i])
-	}
-	return v
-}
-
-func SliceNester1ToNester1CapnList(seg *capnp.Segment, m []Nester1) air.Nester1Capn_List {
-	lst, err := air.NewNester1Capn_List(seg, int32(len(m)))
+func TestReadNestedListOfStructWithList(t *testing.T) {
+	in := mustEncodeTestMessage(
+		t,
+		"RWTestCapn",
+		`(nestMatrix = [[(strs = ["z", "w"]), (strs = ["q", "r"])], [(strs = ["zebra", "wally"]), (strs = ["qubert", "rocks"])]])`,
+		[]byte{
+			0, 0, 0, 0, 26, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 1, 0,
+			1, 0, 0, 0, 22, 0, 0, 0,
+			5, 0, 0, 0, 23, 0, 0, 0,
+			45, 0, 0, 0, 23, 0, 0, 0,
+			8, 0, 0, 0, 0, 0, 1, 0,
+			5, 0, 0, 0, 22, 0, 0, 0,
+			17, 0, 0, 0, 22, 0, 0, 0,
+			5, 0, 0, 0, 18, 0, 0, 0,
+			5, 0, 0, 0, 18, 0, 0, 0,
+			122, 0, 0, 0, 0, 0, 0, 0,
+			119, 0, 0, 0, 0, 0, 0, 0,
+			5, 0, 0, 0, 18, 0, 0, 0,
+			5, 0, 0, 0, 18, 0, 0, 0,
+			113, 0, 0, 0, 0, 0, 0, 0,
+			114, 0, 0, 0, 0, 0, 0, 0,
+			8, 0, 0, 0, 0, 0, 1, 0,
+			5, 0, 0, 0, 22, 0, 0, 0,
+			17, 0, 0, 0, 22, 0, 0, 0,
+			5, 0, 0, 0, 50, 0, 0, 0,
+			5, 0, 0, 0, 50, 0, 0, 0,
+			122, 101, 98, 114, 97, 0, 0, 0,
+			119, 97, 108, 108, 121, 0, 0, 0,
+			5, 0, 0, 0, 58, 0, 0, 0,
+			5, 0, 0, 0, 50, 0, 0, 0,
+			113, 117, 98, 101, 114, 116, 0, 0,
+			114, 111, 99, 107, 115, 0, 0, 0,
+		})
+	msg, err := capnp.Unmarshal(in)
 	if err != nil {
-		panic(err)
+		t.Fatal("Unmarshal:", err)
 	}
-	for i := range m {
-		err := lst.Set(i, Nester1GoToCapn(seg, &m[i]))
+	holder, err := air.ReadRootRWTestCapn(msg)
+	if err != nil {
+		t.Fatal("ReadRootRWTestCapn:", err)
+	}
+	mat, err := holder.NestMatrix()
+	if err != nil {
+		t.Fatal("RWTestCapn:", err)
+	}
+	check := func(i, j int, want ...string) {
+		if i >= mat.Len() {
+			t.Errorf("len(RWTestCapn.nestMatrix) = %d; tried to index %d", mat.Len(), i)
+			return
+		}
+		row, err := mat.At(i)
 		if err != nil {
-			panic(err)
+			t.Errorf("RWTestCapn.nestMatrix[%d]: %v", i, err)
+			return
+		}
+		rowList := air.Nester1Capn_List{List: capnp.ToList(row)}
+		if j >= rowList.Len() {
+			t.Errorf("len(RWTestCapn.nestMatrix[%d]) = %d; tried to index %d", i, rowList.Len(), j)
+			return
+		}
+		strs, err := rowList.At(j).Strs()
+		if err != nil {
+			t.Errorf("RWTestCapn.nestMatrix[%d][%d].strs: %v", i, j, err)
+			return
+		}
+		if strs.Len() != len(want) {
+			t.Errorf("len(RWTestCapn.nestMatrix[%d][%d].strs) = %d; want %d", i, j, strs.Len(), len(want))
+			return
+		}
+		for k := 0; k < strs.Len(); k++ {
+			s, err := strs.At(k)
+			if err != nil {
+				t.Errorf("RWTestCapn.nestMatrix[%d][%d].strs[%d]: %v", i, j, k, err)
+				continue
+			}
+			if s != want[k] {
+				t.Errorf("RWTestCapn.nestMatrix[%d][%d].strs[%d] = %q; want %q", i, j, k, s, want[k])
+			}
 		}
 	}
-	return lst
-}
-
-func SliceStringToTextList(seg *capnp.Segment, m []string) capnp.TextList {
-	lst, err := capnp.NewTextList(seg, int32(len(m)))
-	if err != nil {
-		panic(err)
-	}
-	for i := range m {
-		lst.Set(i, string(m[i]))
-	}
-	return lst
-}
-
-func TextListToSliceString(p capnp.TextList) []string {
-	v := make([]string, p.Len())
-	for i := range v {
-		s, err := p.At(i)
-		if err != nil {
-			panic(err)
-		}
-		v[i] = s
-	}
-	return v
+	check(0, 0, "z", "w")
+	check(0, 1, "q", "r")
+	check(1, 0, "zebra", "wally")
+	check(1, 1, "qubert", "rocks")
 }
 
 func TestDataVersioningAvoidsUnnecessaryTruncation(t *testing.T) {
@@ -1248,17 +1233,6 @@ func TestEnumFromString(t *testing.T) {
 			t.Errorf("air.AirportFromString(%q) = %v; want %v", test.s, ap, test.ap)
 		}
 	}
-}
-
-func ShowSeg(msg string, seg *capnp.Segment) []byte {
-	b, err := seg.Message().Marshal()
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Printf("%s\n", msg)
-	ShowBytes(b, 10)
-	return b
 }
 
 func TestDefaultStructField(t *testing.T) {

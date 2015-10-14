@@ -20,6 +20,21 @@ import (
 
 const schemaPath = "internal/aircraftlib/aircraft.capnp"
 
+func initNester(t *testing.T, n air.Nester1Capn, strs ...string) {
+	tl, err := capnp.NewTextList(n.Segment(), int32(len(strs)))
+	if err != nil {
+		t.Fatalf("initNester(..., %q): NewTextList: %v", strs, err)
+	}
+	if err := n.SetStrs(tl); err != nil {
+		t.Fatalf("initNester(..., %q): SetStrs: %v", strs, err)
+	}
+	for i, s := range strs {
+		if err := tl.Set(i, s); err != nil {
+			t.Fatalf("initNester(..., %q): set strs[%d]: %v", strs, i, err)
+		}
+	}
+}
+
 func zdateFilledMessage(t testing.TB, n int32) *capnp.Message {
 	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	if err != nil {
