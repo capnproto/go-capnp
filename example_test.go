@@ -84,18 +84,6 @@ func Example() {
 	if err != nil {
 		panic(err)
 	}
-
-	// Read back and view that file in human readable format. Defined in util_test.go
-	text, err := CapnFileToText(file.Name(), schemaPath, "")
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("here is our aircraft:\n")
-	fmt.Printf("%s\n", text)
-
-	// Output:
-	// here is our aircraft:
-	// (aircraft = (b737 = (base = (name = "Henrietta", homes = [jfk, lax], rating = 100, canFly = true, capacity = 0, maxSpeed = 876))))
 }
 
 func ExampleUnmarshal() {
