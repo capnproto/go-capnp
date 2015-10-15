@@ -11,141 +11,6 @@ import (
 	air "zombiezen.com/go/capnproto2/internal/aircraftlib"
 )
 
-type bitListTest struct {
-	list []bool
-	text string
-}
-
-var bitListTests = []bitListTest{
-	{
-		[]bool{true, false, true},
-		"(boolvec = [true, false, true])\n",
-	},
-	{
-		[]bool{false},
-		"(boolvec = [false])\n",
-	},
-	{
-		[]bool{true},
-		"(boolvec = [true])\n",
-	},
-	{
-		[]bool{false, true},
-		"(boolvec = [false, true])\n",
-	},
-	{
-		[]bool{true, true},
-		"(boolvec = [true, true])\n",
-	},
-	{
-		[]bool{false, false, true},
-		"(boolvec = [false, false, true])\n",
-	},
-	{
-		[]bool{true, false, true, false, true},
-		"(boolvec = [true, false, true, false, true])\n",
-	},
-	{
-		[]bool{
-			false, false, false, false, false, false, false, false,
-			false, false, false, false, false, false, false, false,
-			false, false, false, false, false, false, false, false,
-			false, false, false, false, false, false, false, false,
-			false, false, false, false, false, false, false, false,
-			false, false, false, false, false, false, false, false,
-			false, false, false, false, false, false, false, false,
-			false, false, false, false, false, false, false, false,
-			true, true,
-		},
-		"(boolvec = [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, true])\n",
-	},
-}
-
-func (blt bitListTest) makeMessage() (*capnp.Message, error) {
-	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		return nil, err
-	}
-	z, err := air.NewRootZ(seg)
-	if err != nil {
-		return nil, err
-	}
-	list, err := capnp.NewBitList(seg, int32(len(blt.list)))
-	if err != nil {
-		return nil, err
-	}
-	for i := range blt.list {
-		list.Set(i, blt.list[i])
-	}
-	if err := z.SetBoolvec(list); err != nil {
-		return nil, err
-	}
-	return msg, nil
-}
-
-func TestBitList(t *testing.T) {
-	t.Parallel()
-	for _, test := range bitListTests {
-		msg, err := test.makeMessage()
-		if err != nil {
-			t.Errorf("%v: make message: %v", test.list, err)
-			continue
-		}
-
-		z, err := air.ReadRootZ(msg)
-		if err != nil {
-			t.Errorf("%v: read root Z: %v", test.list, err)
-			continue
-		}
-		if w := z.Which(); w != air.Z_Which_boolvec {
-			t.Errorf("%v: root.Which() = %v; want boolvec", test.list, w)
-			continue
-		}
-		list, err := z.Boolvec()
-		if err != nil {
-			t.Errorf("%v: read Z.boolvec: %v", test.list, err)
-			continue
-		}
-		if n := list.Len(); n != len(test.list) {
-			t.Errorf("%v: len(Z.boolvec) = %d; want %d", test.list, n, len(test.list))
-			continue
-		}
-		for i := range test.list {
-			if li := list.At(i); li != test.list[i] {
-				t.Errorf("%v: Z.boolvec[%d] = %t; want %t", test.list, i, li, test.list[i])
-			}
-		}
-	}
-}
-
-func TestBitList_Decode(t *testing.T) {
-	t.Parallel()
-	tool, err := findCapnpTool()
-	if err != nil {
-		t.Skip("capnp tool not found:", err)
-	}
-	for _, test := range bitListTests {
-		msg, err := test.makeMessage()
-		if err != nil {
-			t.Errorf("%v: make message: %v", test.list, err)
-			continue
-		}
-		out, err := msg.Marshal()
-		if err != nil {
-			t.Errorf("%v: marshal: %v", test.list, err)
-			continue
-		}
-		text, err := tool.decode("Z", bytes.NewReader(out))
-		if err != nil {
-			t.Errorf("%v: capnp decode: %v", test.list, err)
-			continue
-		}
-		if text != test.text {
-			t.Errorf("%v: capnp decode = %q; want %q", test.list, text, test.text)
-		}
-	}
-}
-
 // A marshalTest tests whether a message can be encoded then read by the
 // reference capnp implementation.
 type marshalTest struct {
@@ -854,6 +719,141 @@ func TestMarshalPackedShouldMatchTextWhenDecoded(t *testing.T) {
 		}
 		if text != test.text {
 			t.Errorf("%s: decoded to:\n%q; want:\n%q", test.name, text, test.text)
+		}
+	}
+}
+
+type bitListTest struct {
+	list []bool
+	text string
+}
+
+var bitListTests = []bitListTest{
+	{
+		[]bool{true, false, true},
+		"(boolvec = [true, false, true])\n",
+	},
+	{
+		[]bool{false},
+		"(boolvec = [false])\n",
+	},
+	{
+		[]bool{true},
+		"(boolvec = [true])\n",
+	},
+	{
+		[]bool{false, true},
+		"(boolvec = [false, true])\n",
+	},
+	{
+		[]bool{true, true},
+		"(boolvec = [true, true])\n",
+	},
+	{
+		[]bool{false, false, true},
+		"(boolvec = [false, false, true])\n",
+	},
+	{
+		[]bool{true, false, true, false, true},
+		"(boolvec = [true, false, true, false, true])\n",
+	},
+	{
+		[]bool{
+			false, false, false, false, false, false, false, false,
+			false, false, false, false, false, false, false, false,
+			false, false, false, false, false, false, false, false,
+			false, false, false, false, false, false, false, false,
+			false, false, false, false, false, false, false, false,
+			false, false, false, false, false, false, false, false,
+			false, false, false, false, false, false, false, false,
+			false, false, false, false, false, false, false, false,
+			true, true,
+		},
+		"(boolvec = [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, true])\n",
+	},
+}
+
+func (blt bitListTest) makeMessage() (*capnp.Message, error) {
+	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		return nil, err
+	}
+	z, err := air.NewRootZ(seg)
+	if err != nil {
+		return nil, err
+	}
+	list, err := capnp.NewBitList(seg, int32(len(blt.list)))
+	if err != nil {
+		return nil, err
+	}
+	for i := range blt.list {
+		list.Set(i, blt.list[i])
+	}
+	if err := z.SetBoolvec(list); err != nil {
+		return nil, err
+	}
+	return msg, nil
+}
+
+func TestBitList(t *testing.T) {
+	t.Parallel()
+	for _, test := range bitListTests {
+		msg, err := test.makeMessage()
+		if err != nil {
+			t.Errorf("%v: make message: %v", test.list, err)
+			continue
+		}
+
+		z, err := air.ReadRootZ(msg)
+		if err != nil {
+			t.Errorf("%v: read root Z: %v", test.list, err)
+			continue
+		}
+		if w := z.Which(); w != air.Z_Which_boolvec {
+			t.Errorf("%v: root.Which() = %v; want boolvec", test.list, w)
+			continue
+		}
+		list, err := z.Boolvec()
+		if err != nil {
+			t.Errorf("%v: read Z.boolvec: %v", test.list, err)
+			continue
+		}
+		if n := list.Len(); n != len(test.list) {
+			t.Errorf("%v: len(Z.boolvec) = %d; want %d", test.list, n, len(test.list))
+			continue
+		}
+		for i := range test.list {
+			if li := list.At(i); li != test.list[i] {
+				t.Errorf("%v: Z.boolvec[%d] = %t; want %t", test.list, i, li, test.list[i])
+			}
+		}
+	}
+}
+
+func TestBitList_Decode(t *testing.T) {
+	t.Parallel()
+	tool, err := findCapnpTool()
+	if err != nil {
+		t.Skip("capnp tool not found:", err)
+	}
+	for _, test := range bitListTests {
+		msg, err := test.makeMessage()
+		if err != nil {
+			t.Errorf("%v: make message: %v", test.list, err)
+			continue
+		}
+		out, err := msg.Marshal()
+		if err != nil {
+			t.Errorf("%v: marshal: %v", test.list, err)
+			continue
+		}
+		text, err := tool.decode("Z", bytes.NewReader(out))
+		if err != nil {
+			t.Errorf("%v: capnp decode: %v", test.list, err)
+			continue
+		}
+		if text != test.text {
+			t.Errorf("%v: capnp decode = %q; want %q", test.list, text, test.text)
 		}
 	}
 }
