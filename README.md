@@ -22,7 +22,7 @@ $ go get -u -t zombiezen.com/go/capnproto2/...
 $ go test -v zombiezen.com/go/capnproto2/...
 ```
 
-Then read [the Getting Started guide][https://github.com/zombiezen/go-capnproto2/wiki/Getting-Started].
+Then read [the Getting Started guide](https://github.com/zombiezen/go-capnproto2/wiki/Getting-Started).
 
 ## API Compatibility
 
