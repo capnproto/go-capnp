@@ -1711,8 +1711,8 @@ func TestPointerDepthDefense(t *testing.T) {
 	t.Parallel()
 	const limit = 64
 	msg := &capnp.Message{Arena: capnp.SingleSegment([]byte{
-		0, 0, 0, 0, 0, 0, 1, 0,
-		0xfc, 0xff, 0xff, 0xff, 0, 0, 1, 0,
+		0, 0, 0, 0, 0, 0, 1, 0, // root 1-pointer struct pointer to next word
+		0xfc, 0xff, 0xff, 0xff, 0, 0, 1, 0, // root struct pointer that points back to itself
 	})}
 	root, err := msg.Root()
 	if err != nil {
@@ -1747,9 +1747,9 @@ func TestPointerDepthDefenseAcrossStructsAndLists(t *testing.T) {
 	t.Parallel()
 	const limit = 64
 	msg := &capnp.Message{Arena: capnp.SingleSegment([]byte{
-		0, 0, 0, 0, 0, 0, 2, 0,
-		5, 0, 0, 0, 14, 0, 0, 0,
-		0xf8, 0xff, 0xff, 0xff, 0, 0, 1, 0,
+		0, 0, 0, 0, 0, 0, 1, 0, // root 1-pointer struct pointer to next word
+		0x01, 0, 0, 0, 0x0e, 0, 0, 0, // list pointer to 1-element list of pointer (next word)
+		0xf8, 0xff, 0xff, 0xff, 0, 0, 1, 0, // struct pointer to previous word
 	})}
 
 	toStruct := func(p capnp.Pointer, err error) (capnp.Struct, error) {
@@ -1767,14 +1767,14 @@ func TestPointerDepthDefenseAcrossStructsAndLists(t *testing.T) {
 	}
 	toList := func(p capnp.Pointer, err error) (capnp.List, error) {
 		if err != nil {
-			return capnp.Struct{}, err
+			return capnp.List{}, err
 		}
 		if !capnp.IsValid(p) {
-			return capnp.Struct{}, errors.New("invalid pointer")
+			return capnp.List{}, errors.New("invalid pointer")
 		}
 		l := capnp.ToList(p)
 		if !capnp.IsValid(l) {
-			return capnp.Struct{}, errors.New("not a list")
+			return capnp.List{}, errors.New("not a list")
 		}
 		return l, nil
 	}
@@ -1790,7 +1790,7 @@ func TestPointerDepthDefenseAcrossStructsAndLists(t *testing.T) {
 		i--
 		curr, err = toStruct(capnp.PointerList{List: l}.At(0))
 		if err != nil {
-			t.Fatalf("deref %d (for list): %v", limit-i+1, err)
+			t.Fatalf("deref %d (for struct): %v", limit-i+1, err)
 		}
 		i--
 	}
