@@ -6,7 +6,7 @@
 go-capnproto consists of:
 - a Go code generator for [Cap'n Proto][capnproto]
 - a Go package that provides runtime support
-- a Go package that implements the RPC protocol
+- a Go package that implements Level 1 of the RPC protocol
 
 ## Getting started
 
