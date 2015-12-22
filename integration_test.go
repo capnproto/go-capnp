@@ -1706,3 +1706,97 @@ func TestVoidUnionSetters(t *testing.T) {
 		t.Errorf("msg.Marshal() =\n%s\n; want:\n%s", hex.Dump(act), hex.Dump(want))
 	}
 }
+
+func TestPointerDepthDefense(t *testing.T) {
+	t.Parallel()
+	const limit = 64
+	msg := &capnp.Message{Arena: capnp.SingleSegment([]byte{
+		0, 0, 0, 0, 0, 0, 1, 0,
+		0xfc, 0xff, 0xff, 0xff, 0, 0, 1, 0,
+	})}
+	root, err := msg.Root()
+	if err != nil {
+		t.Fatal("Root:", err)
+	}
+
+	curr := capnp.ToStruct(root)
+	if !capnp.IsValid(curr) {
+		t.Fatal("Root is not a struct")
+	}
+	for i := 0; i < limit-1; i++ {
+		p, err := curr.Pointer(0)
+		if err != nil {
+			t.Fatalf("deref %d fail: %v", i+1, err)
+		}
+		if !capnp.IsValid(p) {
+			t.Fatalf("deref %d is invalid", i+1)
+		}
+		curr = capnp.ToStruct(p)
+		if !capnp.IsValid(curr) {
+			t.Fatalf("deref %d is not a struct", i+1)
+		}
+	}
+
+	_, err = curr.Pointer(0)
+	if err == nil {
+		t.Fatalf("deref %d did not fail as expected", limit)
+	}
+}
+
+func TestPointerDepthDefenseAcrossStructsAndLists(t *testing.T) {
+	t.Parallel()
+	const limit = 64
+	msg := &capnp.Message{Arena: capnp.SingleSegment([]byte{
+		0, 0, 0, 0, 0, 0, 2, 0,
+		5, 0, 0, 0, 14, 0, 0, 0,
+		0xf8, 0xff, 0xff, 0xff, 0, 0, 1, 0,
+	})}
+
+	toStruct := func(p capnp.Pointer, err error) (capnp.Struct, error) {
+		if err != nil {
+			return capnp.Struct{}, err
+		}
+		if !capnp.IsValid(p) {
+			return capnp.Struct{}, errors.New("invalid pointer")
+		}
+		s := capnp.ToStruct(p)
+		if !capnp.IsValid(s) {
+			return capnp.Struct{}, errors.New("not a struct")
+		}
+		return s, nil
+	}
+	toList := func(p capnp.Pointer, err error) (capnp.List, error) {
+		if err != nil {
+			return capnp.Struct{}, err
+		}
+		if !capnp.IsValid(p) {
+			return capnp.Struct{}, errors.New("invalid pointer")
+		}
+		l := capnp.ToList(p)
+		if !capnp.IsValid(l) {
+			return capnp.Struct{}, errors.New("not a list")
+		}
+		return l, nil
+	}
+	curr, err := toStruct(msg.Root())
+	if err != nil {
+		t.Fatal("Root:", err)
+	}
+	for i := limit; i > 2; {
+		l, err := toList(curr.Pointer(0))
+		if err != nil {
+			t.Fatalf("deref %d (for list): %v", limit-i+1, err)
+		}
+		i--
+		curr, err = toStruct(capnp.PointerList{List: l}.At(0))
+		if err != nil {
+			t.Fatalf("deref %d (for list): %v", limit-i+1, err)
+		}
+		i--
+	}
+
+	_, err = curr.Pointer(0)
+	if err == nil {
+		t.Fatalf("deref %d did not fail as expected", limit)
+	}
+}
