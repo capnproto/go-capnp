@@ -273,6 +273,16 @@ func (l TextList) At(i int) (string, error) {
 	return ToText(p), nil
 }
 
+// At returns the i'th string in the list, but as []byte, to avoid copying.
+func (l TextList) AtBytes(i int) ([]byte, error) {
+	addr, _ := l.elem(i)
+	p, err := l.seg.readPtr(addr)
+	if err != nil {
+		return nil, err
+	}
+	return ToData(p), nil
+}
+
 // Set sets the i'th string in the list to v.
 func (l TextList) Set(i int, v string) error {
 	addr, _ := l.elem(i)
