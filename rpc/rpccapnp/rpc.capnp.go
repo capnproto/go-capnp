@@ -2394,6 +2394,14 @@ func (s Exception) Reason() (string, error) {
 
 }
 
+func (s Exception) ReasonBytes() ([]byte, error) {
+	p, err := s.Struct.Pointer(0)
+	if err != nil {
+		return nil, err
+	}
+	return capnp.ToData(p), nil
+}
+
 func (s Exception) SetReason(v string) error {
 
 	t, err := capnp.NewText(s.Struct.Segment(), v)

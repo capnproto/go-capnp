@@ -43,6 +43,14 @@ func (s Book) Title() (string, error) {
 
 }
 
+func (s Book) TitleBytes() ([]byte, error) {
+	p, err := s.Struct.Pointer(0)
+	if err != nil {
+		return nil, err
+	}
+	return capnp.ToData(p), nil
+}
+
 func (s Book) SetTitle(v string) error {
 
 	t, err := capnp.NewText(s.Struct.Segment(), v)

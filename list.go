@@ -273,6 +273,17 @@ func (l TextList) At(i int) (string, error) {
 	return ToText(p), nil
 }
 
+// BytesAt returns the i'th element in the list as a byte slice.
+// The underlying array of the slice is the segment data.
+func (l TextList) BytesAt(i int) ([]byte, error) {
+	addr, _ := l.elem(i)
+	p, err := l.seg.readPtr(addr)
+	if err != nil {
+		return nil, err
+	}
+	return ToData(p), nil
+}
+
 // Set sets the i'th string in the list to v.
 func (l TextList) Set(i int, v string) error {
 	addr, _ := l.elem(i)

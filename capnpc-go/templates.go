@@ -191,6 +191,14 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() (string, error) {
 	{{end}}
 }
 
+func (s {{.Node.Name}}) {{.Field.Name|title}}Bytes() ([]byte, error) {
+	p, err := s.Struct.Pointer({{.Field.Slot.Offset}})
+	if err != nil {
+		return nil, err
+	}
+	return {{capnp}}.ToData(p), nil
+}
+
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v string) error {
 	{{template "settag" .}}
 	t, err := {{capnp}}.NewText(s.Struct.Segment(), v)
