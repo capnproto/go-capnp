@@ -273,8 +273,9 @@ func (l TextList) At(i int) (string, error) {
 	return ToText(p), nil
 }
 
-// At returns the i'th string in the list, but as []byte, to avoid copying.
-func (l TextList) AtBytes(i int) ([]byte, error) {
+// BytesAt returns the i'th element in the list as a byte slice.
+// The underlying array of the slice is the segment data.
+func (l TextList) BytesAt(i int) ([]byte, error) {
 	addr, _ := l.elem(i)
 	p, err := l.seg.readPtr(addr)
 	if err != nil {
