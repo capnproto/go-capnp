@@ -282,6 +282,14 @@ func (s PlaneBase) Name() (string, error) {
 
 }
 
+func (s PlaneBase) NameBytes() ([]byte, error) {
+	p, err := s.Struct.Pointer(0)
+	if err != nil {
+		return nil, err
+	}
+	return capnp.ToData(p), nil
+}
+
 func (s PlaneBase) SetName(v string) error {
 
 	t, err := capnp.NewText(s.Struct.Segment(), v)
@@ -1235,6 +1243,14 @@ func (s Z) Text() (string, error) {
 
 }
 
+func (s Z) TextBytes() ([]byte, error) {
+	p, err := s.Struct.Pointer(0)
+	if err != nil {
+		return nil, err
+	}
+	return capnp.ToData(p), nil
+}
+
 func (s Z) SetText(v string) error {
 	s.Struct.SetUint16(0, 13)
 	t, err := capnp.NewText(s.Struct.Segment(), v)
@@ -1857,6 +1873,14 @@ func (s Counter) Words() (string, error) {
 
 }
 
+func (s Counter) WordsBytes() ([]byte, error) {
+	p, err := s.Struct.Pointer(0)
+	if err != nil {
+		return nil, err
+	}
+	return capnp.ToData(p), nil
+}
+
 func (s Counter) SetWords(v string) error {
 
 	t, err := capnp.NewText(s.Struct.Segment(), v)
@@ -2088,6 +2112,14 @@ func (s Zjob) Cmd() (string, error) {
 
 	return capnp.ToText(p), nil
 
+}
+
+func (s Zjob) CmdBytes() ([]byte, error) {
+	p, err := s.Struct.Pointer(0)
+	if err != nil {
+		return nil, err
+	}
+	return capnp.ToData(p), nil
 }
 
 func (s Zjob) SetCmd(v string) error {
@@ -3329,6 +3361,14 @@ func (s HoldsText) Txt() (string, error) {
 
 }
 
+func (s HoldsText) TxtBytes() ([]byte, error) {
+	p, err := s.Struct.Pointer(0)
+	if err != nil {
+		return nil, err
+	}
+	return capnp.ToData(p), nil
+}
+
 func (s HoldsText) SetTxt(v string) error {
 
 	t, err := capnp.NewText(s.Struct.Segment(), v)
@@ -4018,6 +4058,14 @@ func (s Echo_echo_Params) In() (string, error) {
 
 }
 
+func (s Echo_echo_Params) InBytes() ([]byte, error) {
+	p, err := s.Struct.Pointer(0)
+	if err != nil {
+		return nil, err
+	}
+	return capnp.ToData(p), nil
+}
+
 func (s Echo_echo_Params) SetIn(v string) error {
 
 	t, err := capnp.NewText(s.Struct.Segment(), v)
@@ -4087,6 +4135,14 @@ func (s Echo_echo_Results) Out() (string, error) {
 
 	return capnp.ToText(p), nil
 
+}
+
+func (s Echo_echo_Results) OutBytes() ([]byte, error) {
+	p, err := s.Struct.Pointer(0)
+	if err != nil {
+		return nil, err
+	}
+	return capnp.ToData(p), nil
 }
 
 func (s Echo_echo_Results) SetOut(v string) error {
