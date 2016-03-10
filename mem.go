@@ -247,9 +247,10 @@ func MultiSegment(b [][]byte) Arena {
 }
 
 // demuxArena slices b into a multi-segment arena.
-func demuxArena(sizes []Size, data []byte) Arena {
-	segs := make([][]byte, len(sizes))
-	for i, sz := range sizes {
+func demuxArena(hdr streamHeader, data []byte) Arena {
+	segs := make([][]byte, int(hdr.maxSegment())+1)
+	for i := range segs {
+		sz := hdr.segmentSize(uint32(i))
 		segs[i], data = data[:sz:sz], data[sz:]
 	}
 	return MultiSegment(segs)
@@ -313,22 +314,22 @@ func (d *Decoder) Decode() (*Message, error) {
 	}
 	maxSeg := binary.LittleEndian.Uint32(maxSegBuf[:])
 	hdrSize := streamHeaderSize(maxSeg)
-	hdr := make([]byte, hdrSize)
-	copy(hdr, maxSegBuf[:])
-	if _, err := io.ReadFull(d.r, hdr[msgHeaderSize:]); err != nil {
+	hdrBuf := make([]byte, hdrSize)
+	copy(hdrBuf, maxSegBuf[:])
+	if _, err := io.ReadFull(d.r, hdrBuf[msgHeaderSize:]); err != nil {
 		return nil, err
 	}
-	sizes, _, err := unmarshalStreamHeader(hdr)
+	hdr, _, err := parseStreamHeader(hdrBuf)
 	if err != nil {
 		return nil, err
 	}
-	total := totalSize(sizes)
+	total := hdr.totalSize()
 	// TODO(light): size check
 	buf := make([]byte, int(total))
 	if _, err := io.ReadFull(d.r, buf); err != nil {
 		return nil, err
 	}
-	return &Message{Arena: demuxArena(sizes, buf)}, nil
+	return &Message{Arena: demuxArena(hdr, buf)}, nil
 }
 
 // Unmarshal reads an unpacked serialized stream into a message.  No
@@ -338,14 +339,14 @@ func Unmarshal(data []byte) (*Message, error) {
 	if len(data) == 0 {
 		return nil, io.EOF
 	}
-	sizes, data, err := unmarshalStreamHeader(data)
+	hdr, data, err := parseStreamHeader(data)
 	if err != nil {
 		return nil, err
 	}
-	if tot := totalSize(sizes); tot > uint64(len(data)) {
+	if tot := hdr.totalSize(); tot > uint64(len(data)) {
 		return nil, io.ErrUnexpectedEOF
 	}
-	return &Message{Arena: demuxArena(sizes, data)}, nil
+	return &Message{Arena: demuxArena(hdr, data)}, nil
 }
 
 // MustUnmarshalRoot reads an unpacked serialized stream and returns its
@@ -507,24 +508,39 @@ func marshalStreamHeader(b []byte, sizes []Size) {
 	}
 }
 
-// unmarshalStreamHeader parses the header of the stream framing format.
-func unmarshalStreamHeader(data []byte) (sizes []Size, tail []byte, err error) {
+type streamHeader struct {
+	b []byte
+}
+
+// parseStreamHeader parses the header of the stream framing format.
+func parseStreamHeader(data []byte) (h streamHeader, tail []byte, err error) {
 	if len(data) < streamHeaderSize(0) {
-		return nil, nil, io.ErrUnexpectedEOF
+		return streamHeader{}, nil, io.ErrUnexpectedEOF
 	}
 	maxSeg := binary.LittleEndian.Uint32(data)
 	// TODO(light): check int
 	hdrSize := streamHeaderSize(maxSeg)
 	if len(data) < hdrSize {
-		return nil, nil, io.ErrUnexpectedEOF
+		return streamHeader{}, nil, io.ErrUnexpectedEOF
 	}
-	n := int(maxSeg + 1)
-	sizes = make([]Size, n)
-	for i := 0; i < n; i++ {
-		s := binary.LittleEndian.Uint32(data[msgHeaderSize+i*segHeaderSize:])
-		sizes[i] = wordSize.times(int32(s))
+	return streamHeader{b: data}, data[hdrSize:], nil
+}
+
+func (h streamHeader) maxSegment() uint32 {
+	return binary.LittleEndian.Uint32(h.b)
+}
+
+func (h streamHeader) segmentSize(i uint32) Size {
+	s := binary.LittleEndian.Uint32(h.b[msgHeaderSize+i*segHeaderSize:])
+	return wordSize.times(int32(s))
+}
+
+func (h streamHeader) totalSize() uint64 {
+	var sum uint64
+	for i := uint64(0); i <= uint64(h.maxSegment()); i++ {
+		sum += uint64(h.segmentSize(uint32(i)))
 	}
-	return sizes, data[hdrSize:], nil
+	return sum
 }
 
 func hasCapacity(b []byte, sz Size) bool {
