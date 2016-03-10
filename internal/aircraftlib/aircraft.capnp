@@ -305,3 +305,12 @@ struct StackingB {
 interface CallSequence {
   getNumber @0 () -> (n :UInt32);
 }
+
+struct BenchmarkA {
+  name     @0 :Text;
+  birthDay @1 :Int64;
+  phone    @2 :Text;
+  siblings @3 :Int32;
+  spouse   @4 :Bool;
+  money    @5 :Float64;
+}
