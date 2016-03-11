@@ -4,13 +4,25 @@ package capnp
 type Address uint32
 
 // addSize returns the address a+sz.
-func (a Address) addSize(sz Size) Address {
-	return a.element(1, sz)
+func (a Address) addSize(sz Size) (b Address, ok bool) {
+	x := int64(a) + int64(sz)
+	if x > int64(maxSize) {
+		return 0, false
+	}
+	return Address(x), true
 }
 
 // element returns the address a+i*sz.
-func (a Address) element(i int32, sz Size) Address {
-	return a + Address(sz.times(i))
+func (a Address) element(i int32, sz Size) (b Address, ok bool) {
+	x := int64(i) * int64(sz)
+	if x > int64(maxSize) {
+		return 0, false
+	}
+	x += int64(a)
+	if x > int64(maxSize) {
+		return 0, false
+	}
+	return Address(x), true
 }
 
 // addOffset returns the address a+o.
@@ -28,12 +40,12 @@ const wordSize Size = 8
 const maxSize Size = 1<<32 - 1
 
 // times returns the size sz*n.
-func (sz Size) times(n int32) Size {
-	result := int64(sz) * int64(n)
-	if result > int64(maxSize) {
-		panic(errOverlarge)
+func (sz Size) times(n int32) (ns Size, ok bool) {
+	x := int64(sz) * int64(n)
+	if x > int64(maxSize) {
+		return 0, false
 	}
-	return Size(result)
+	return Size(x), true
 }
 
 // padToWord adds padding to sz to make it divisible by wordSize.
@@ -68,7 +80,8 @@ func (sz ObjectSize) isValid() bool {
 
 // pointerSize returns the number of bytes the pointer section occupies.
 func (sz ObjectSize) pointerSize() Size {
-	return wordSize.times(int32(sz.PointerCount))
+	// Guaranteed not to overflow
+	return wordSize * Size(sz.PointerCount)
 }
 
 // totalSize returns the number of bytes that the object occupies.

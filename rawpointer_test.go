@@ -195,38 +195,40 @@ func TestRawPointerTotalListSize(t *testing.T) {
 		typ int
 		n   int32
 		sz  Size
+		ok  bool
 	}{
-		{voidList, 0, 0},
-		{voidList, 5, 0},
-		{bit1List, 0, 0},
-		{bit1List, 1, 1},
-		{bit1List, 2, 1},
-		{bit1List, 7, 1},
-		{bit1List, 8, 1},
-		{bit1List, 9, 2},
-		{compositeList, 0, 8},
-		{compositeList, 1, 16},
-		{compositeList, 2, 24},
-		{byte1List, 0, 0},
-		{byte1List, 1, 1},
-		{byte1List, 2, 2},
-		{byte2List, 0, 0},
-		{byte2List, 1, 2},
-		{byte2List, 2, 4},
-		{byte4List, 0, 0},
-		{byte4List, 1, 4},
-		{byte4List, 2, 8},
-		{byte8List, 0, 0},
-		{byte8List, 1, 8},
-		{byte8List, 2, 16},
-		{pointerList, 0, 0},
-		{pointerList, 1, 8},
-		{pointerList, 2, 16},
+		{voidList, 0, 0, true},
+		{voidList, 5, 0, true},
+		{bit1List, 0, 0, true},
+		{bit1List, 1, 1, true},
+		{bit1List, 2, 1, true},
+		{bit1List, 7, 1, true},
+		{bit1List, 8, 1, true},
+		{bit1List, 9, 2, true},
+		{compositeList, 0, 8, true},
+		{compositeList, 1, 16, true},
+		{compositeList, 2, 24, true},
+		{byte1List, 0, 0, true},
+		{byte1List, 1, 1, true},
+		{byte1List, 2, 2, true},
+		{byte2List, 0, 0, true},
+		{byte2List, 1, 2, true},
+		{byte2List, 2, 4, true},
+		{byte4List, 0, 0, true},
+		{byte4List, 1, 4, true},
+		{byte4List, 2, 8, true},
+		{byte8List, 0, 0, true},
+		{byte8List, 1, 8, true},
+		{byte8List, 2, 16, true},
+		{pointerList, 0, 0, true},
+		{pointerList, 1, 8, true},
+		{pointerList, 2, 16, true},
 	}
 	for _, test := range tests {
 		p := rawListPointer(0, test.typ, test.n)
-		if sz := p.totalListSize(); sz != test.sz {
-			t.Errorf("rawListPointer(0, %d, %d).totalListSize() = %d; want %d", test.typ, test.n, sz, test.sz)
+		sz, ok := p.totalListSize()
+		if ok != test.ok || (ok && sz != test.sz) {
+			t.Errorf("rawListPointer(0, %d, %d).totalListSize() = %d, %t; want %d, %t", test.typ, test.n, sz, ok, test.sz, test.ok)
 		}
 	}
 }

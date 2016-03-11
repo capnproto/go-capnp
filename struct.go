@@ -124,8 +124,10 @@ func (p Struct) SetPtr(i uint16, src Ptr) error {
 }
 
 func (p Struct) pointerAddress(i uint16) Address {
-	ptrStart := p.off.addSize(p.size.DataSize)
-	return ptrStart.element(int32(i), wordSize)
+	// Struct already had bounds check
+	ptrStart, _ := p.off.addSize(p.size.DataSize)
+	a, _ := ptrStart.element(int32(i), wordSize)
+	return a
 }
 
 // bitInData reports whether bit is inside p's data section.
@@ -275,13 +277,13 @@ func copyStruct(cc copyContext, dst, src Struct) error {
 	// version handling: we ignore any extra-newer-pointers in src,
 	// i.e. the case when srcPtrSize > dstPtrSize, by only
 	// running j over the size of dstPtrSize, the destination size.
-	srcPtrSect := src.off.addSize(src.size.DataSize)
-	dstPtrSect := dst.off.addSize(dst.size.DataSize)
+	srcPtrSect, _ := src.off.addSize(src.size.DataSize)
+	dstPtrSect, _ := dst.off.addSize(dst.size.DataSize)
 	numSrcPtrs := src.size.PointerCount
 	numDstPtrs := dst.size.PointerCount
 	for j := uint16(0); j < numSrcPtrs && j < numDstPtrs; j++ {
-		srcAddr := srcPtrSect.element(int32(j), wordSize)
-		dstAddr := dstPtrSect.element(int32(j), wordSize)
+		srcAddr, _ := srcPtrSect.element(int32(j), wordSize)
+		dstAddr, _ := dstPtrSect.element(int32(j), wordSize)
 		m, err := src.seg.readPtr(srcAddr)
 		if err != nil {
 			return err
@@ -293,7 +295,7 @@ func copyStruct(cc copyContext, dst, src Struct) error {
 	}
 	for j := numSrcPtrs; j < numDstPtrs; j++ {
 		// destination p is a newer version than source so these extra new pointer fields in p must be zeroed.
-		addr := dstPtrSect.element(int32(j), wordSize)
+		addr, _ := dstPtrSect.element(int32(j), wordSize)
 		dst.seg.writeRawPointer(addr, 0)
 	}
 	// Nothing more here: so any other pointers in srcPtrSize beyond
