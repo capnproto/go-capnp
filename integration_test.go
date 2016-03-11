@@ -5,7 +5,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"math/rand"
+	"reflect"
 	"testing"
+	"time"
+	"unsafe"
 
 	"zombiezen.com/go/capnproto2"
 	air "zombiezen.com/go/capnproto2/internal/aircraftlib"
@@ -1704,5 +1707,99 @@ func TestVoidUnionSetters(t *testing.T) {
 	}
 	if !bytes.Equal(act, want) {
 		t.Errorf("msg.Marshal() =\n%s\n; want:\n%s", hex.Dump(act), hex.Dump(want))
+	}
+}
+
+type A struct {
+	Name     string
+	BirthDay time.Time
+	Phone    string
+	Siblings int
+	Spouse   bool
+	Money    float64
+}
+
+func generateA(r *rand.Rand) *A {
+	return &A{
+		Name:     randString(r, 16),
+		BirthDay: time.Unix(r.Int63(), 0),
+		Phone:    randString(r, 10),
+		Siblings: r.Intn(5),
+		Spouse:   r.Intn(2) == 1,
+		Money:    r.Float64(),
+	}
+}
+
+func unmarshalA(aa air.BenchmarkA) A {
+	name, _ := aa.NameBytes()
+	phone, _ := aa.PhoneBytes()
+	return A{
+		Name:     unsafeBytesToString(name),
+		BirthDay: time.Unix(aa.BirthDay(), 0),
+		Phone:    unsafeBytesToString(phone),
+		Siblings: int(aa.Siblings()),
+		Spouse:   aa.Spouse(),
+		Money:    aa.Money(),
+	}
+}
+
+func (a *A) fill(aa air.BenchmarkA) {
+	aa.SetName(a.Name)
+	aa.SetBirthDay(a.BirthDay.Unix())
+	aa.SetPhone(a.Phone)
+	aa.SetSiblings(int32(a.Siblings))
+	aa.SetSpouse(a.Spouse)
+	aa.SetMoney(a.Money)
+}
+
+func randString(r *rand.Rand, n int) string {
+	b := make([]byte, (n+1)/2)
+	// Go 1.6 adds a Rand.Read method, but since we want to be compatible with Go 1.4...
+	for i := range b {
+		b[i] = byte(r.Intn(255))
+	}
+	return hex.EncodeToString(b)[:n]
+}
+
+func unsafeBytesToString(b []byte) string {
+	slice := *(*reflect.SliceHeader)(unsafe.Pointer(&b))
+	hdr := reflect.StringHeader{Data: slice.Data, Len: slice.Len}
+	return *(*string)(unsafe.Pointer(&hdr))
+}
+
+func BenchmarkMarshal(b *testing.B) {
+	r := rand.New(rand.NewSource(12345))
+	data := make([]*A, 1000)
+	for i := range data {
+		data[i] = generateA(r)
+	}
+	arena := make([]byte, 0, 512)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		a := data[r.Intn(len(data))]
+		msg, seg, _ := capnp.NewMessage(capnp.SingleSegment(arena[:0]))
+		root, _ := air.NewRootBenchmarkA(seg)
+		a.fill(root)
+		msg.Marshal()
+	}
+}
+
+func BenchmarkUnmarshal(b *testing.B) {
+	r := rand.New(rand.NewSource(12345))
+	data := make([][]byte, 1000)
+	for i := range data {
+		a := generateA(r)
+		msg, seg, _ := capnp.NewMessage(capnp.SingleSegment(nil))
+		root, _ := air.NewRootBenchmarkA(seg)
+		a.fill(root)
+		data[i], _ = msg.Marshal()
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		msg, _ := capnp.Unmarshal(data[r.Intn(len(data))])
+		a, _ := air.ReadRootBenchmarkA(msg)
+		unmarshalA(a)
 	}
 }

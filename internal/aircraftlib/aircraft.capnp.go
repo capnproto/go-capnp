@@ -4789,6 +4789,146 @@ func (p CallSequence_getNumber_Results_Promise) Struct() (CallSequence_getNumber
 	return CallSequence_getNumber_Results{s}, err
 }
 
+type BenchmarkA struct{ capnp.Struct }
+
+func NewBenchmarkA(s *capnp.Segment) (BenchmarkA, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 2})
+	if err != nil {
+		return BenchmarkA{}, err
+	}
+	return BenchmarkA{st}, nil
+}
+
+func NewRootBenchmarkA(s *capnp.Segment) (BenchmarkA, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 2})
+	if err != nil {
+		return BenchmarkA{}, err
+	}
+	return BenchmarkA{st}, nil
+}
+
+func ReadRootBenchmarkA(msg *capnp.Message) (BenchmarkA, error) {
+	root, err := msg.Root()
+	if err != nil {
+		return BenchmarkA{}, err
+	}
+	st := capnp.ToStruct(root)
+	return BenchmarkA{st}, nil
+}
+
+func (s BenchmarkA) Name() (string, error) {
+	p, err := s.Struct.Pointer(0)
+	if err != nil {
+		return "", err
+	}
+
+	return capnp.ToText(p), nil
+
+}
+
+func (s BenchmarkA) NameBytes() ([]byte, error) {
+	p, err := s.Struct.Pointer(0)
+	if err != nil {
+		return nil, err
+	}
+	return capnp.ToData(p), nil
+}
+
+func (s BenchmarkA) SetName(v string) error {
+
+	t, err := capnp.NewText(s.Struct.Segment(), v)
+	if err != nil {
+		return err
+	}
+	return s.Struct.SetPointer(0, t)
+}
+
+func (s BenchmarkA) BirthDay() int64 {
+	return int64(s.Struct.Uint64(0))
+}
+
+func (s BenchmarkA) SetBirthDay(v int64) {
+
+	s.Struct.SetUint64(0, uint64(v))
+}
+
+func (s BenchmarkA) Phone() (string, error) {
+	p, err := s.Struct.Pointer(1)
+	if err != nil {
+		return "", err
+	}
+
+	return capnp.ToText(p), nil
+
+}
+
+func (s BenchmarkA) PhoneBytes() ([]byte, error) {
+	p, err := s.Struct.Pointer(1)
+	if err != nil {
+		return nil, err
+	}
+	return capnp.ToData(p), nil
+}
+
+func (s BenchmarkA) SetPhone(v string) error {
+
+	t, err := capnp.NewText(s.Struct.Segment(), v)
+	if err != nil {
+		return err
+	}
+	return s.Struct.SetPointer(1, t)
+}
+
+func (s BenchmarkA) Siblings() int32 {
+	return int32(s.Struct.Uint32(8))
+}
+
+func (s BenchmarkA) SetSiblings(v int32) {
+
+	s.Struct.SetUint32(8, uint32(v))
+}
+
+func (s BenchmarkA) Spouse() bool {
+	return s.Struct.Bit(96)
+}
+
+func (s BenchmarkA) SetSpouse(v bool) {
+
+	s.Struct.SetBit(96, v)
+}
+
+func (s BenchmarkA) Money() float64 {
+	return math.Float64frombits(s.Struct.Uint64(16))
+}
+
+func (s BenchmarkA) SetMoney(v float64) {
+
+	s.Struct.SetUint64(16, math.Float64bits(v))
+}
+
+// BenchmarkA_List is a list of BenchmarkA.
+type BenchmarkA_List struct{ capnp.List }
+
+// NewBenchmarkA creates a new list of BenchmarkA.
+func NewBenchmarkA_List(s *capnp.Segment, sz int32) (BenchmarkA_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 24, PointerCount: 2}, sz)
+	if err != nil {
+		return BenchmarkA_List{}, err
+	}
+	return BenchmarkA_List{l}, nil
+}
+
+func (s BenchmarkA_List) At(i int) BenchmarkA           { return BenchmarkA{s.List.Struct(i)} }
+func (s BenchmarkA_List) Set(i int, v BenchmarkA) error { return s.List.SetStruct(i, v.Struct) }
+
+// BenchmarkA_Promise is a wrapper for a BenchmarkA promised by a client call.
+type BenchmarkA_Promise struct{ *capnp.Pipeline }
+
+func (p BenchmarkA_Promise) Struct() (BenchmarkA, error) {
+	s, err := p.Pipeline.Struct()
+	return BenchmarkA{s}, err
+}
+
 var x_832bcc6686a26d56 = []byte{
 	0, 0, 0, 0, 2, 0, 0, 0,
 	0, 0, 0, 0, 1, 0, 0, 0,
