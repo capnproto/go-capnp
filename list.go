@@ -50,17 +50,20 @@ func NewCompositeList(s *Segment, sz ObjectSize, n int32) (List, error) {
 	}, nil
 }
 
-// ToList attempts to convert p into a list.  If p is not a valid
-// list, then it returns an invalid List.
+// ToList is deprecated in favor of Ptr.List.
 func ToList(p Pointer) List {
-	l, _ := ToListDefault(p, nil)
-	return l
+	return toPtr(p).List
 }
 
-// ToListDefault attempts to convert p into a struct, reading the
-// default value from def if p is not a struct.
+// ToListDefault is deprecated in favor of PtrToListDefault.
 func ToListDefault(p Pointer, def []byte) (List, error) {
-	fallback := func() (List, error) {
+	return PtrToListDefault(toPtr(p), def)
+}
+
+// PtrToListDefault attempts to convert p into a struct, reading the
+// default value from def if p is not a struct.
+func PtrToListDefault(p Ptr, def []byte) (List, error) {
+	if p.List.seg == nil {
 		if def == nil {
 			return List{}, nil
 		}
@@ -68,16 +71,9 @@ func ToListDefault(p Pointer, def []byte) (List, error) {
 		if err != nil {
 			return List{}, err
 		}
-		return ToList(defp), nil
+		return defp.List, nil
 	}
-	if !IsValid(p) {
-		return fallback()
-	}
-	l, ok := p.underlying().(List)
-	if !ok {
-		return fallback()
-	}
-	return l, nil
+	return p.List, nil
 }
 
 // Segment returns the segment this pointer references.
@@ -239,14 +235,25 @@ func NewPointerList(s *Segment, n int32) (PointerList, error) {
 	}}, nil
 }
 
-// At returns the i'th pointer in the list.
+// At is deprecated in favor of PtrAt.
 func (p PointerList) At(i int) (Pointer, error) {
+	pi, err := p.PtrAt(i)
+	return pi.toPointer(), err
+}
+
+// PtrAt returns the i'th pointer in the list.
+func (p PointerList) PtrAt(i int) (Ptr, error) {
 	addr, _ := p.elem(i)
 	return p.seg.readPtr(addr)
 }
 
-// Set sets the i'th pointer in the list to v.
+// Set is deprecated in favor of SetPtr.
 func (p PointerList) Set(i int, v Pointer) error {
+	return p.SetPtr(i, toPtr(v))
+}
+
+// SetPtr sets the i'th pointer in the list to v.
+func (p PointerList) SetPtr(i int, v Ptr) error {
 	addr, _ := p.elem(i)
 	return p.seg.writePtr(copyContext{}, addr, v)
 }
@@ -270,7 +277,7 @@ func (l TextList) At(i int) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return ToText(p), nil
+	return PtrToText(p), nil
 }
 
 // BytesAt returns the i'th element in the list as a byte slice.
@@ -281,7 +288,7 @@ func (l TextList) BytesAt(i int) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ToData(p), nil
+	return PtrToData(p), nil
 }
 
 // Set sets the i'th string in the list to v.
@@ -291,7 +298,7 @@ func (l TextList) Set(i int, v string) error {
 	if err != nil {
 		return err
 	}
-	return p.seg.writePtr(copyContext{}, addr, p)
+	return p.seg.writePtr(copyContext{}, addr, Ptr{List: p.List})
 }
 
 // DataList is an array of pointers to data.
@@ -313,7 +320,7 @@ func (l DataList) At(i int) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ToData(p), nil
+	return PtrToData(p), nil
 }
 
 // Set sets the i'th data in the list to v.
@@ -323,7 +330,7 @@ func (l DataList) Set(i int, v []byte) error {
 	if err != nil {
 		return err
 	}
-	return p.seg.writePtr(copyContext{}, addr, p)
+	return p.seg.writePtr(copyContext{}, addr, Ptr{List: p.List})
 }
 
 // A VoidList is a list of zero-sized elements.
@@ -372,20 +379,29 @@ func NewData(s *Segment, v []byte) (UInt8List, error) {
 	return l, nil
 }
 
-// ToText attempts to convert p into Text, returning an empty string if
-// p is not a valid 1-byte list pointer.
+// ToText is deprecated in favor of PtrToText.
 func ToText(p Pointer) string {
-	return ToTextDefault(p, "")
+	return PtrToTextDefault(toPtr(p), "")
 }
 
-// ToTextDefault attempts to convert p into Text, returning def if p is
-// not a valid 1-byte list pointer.
+// PtrToText attempts to convert p into Text, returning an empty string if
+// p is not a valid 1-byte list pointer.
+func PtrToText(p Ptr) string {
+	return PtrToTextDefault(p, "")
+}
+
+// ToTextDefault is deprecated in favor of PtrToTextDefault.
 func ToTextDefault(p Pointer, def string) string {
-	l, ok := toOneByteList(p)
-	if !ok {
+	return PtrToTextDefault(toPtr(p), def)
+}
+
+// PtrToTextDefault attempts to convert p into Text, returning def if p is
+// not a valid 1-byte list pointer.
+func PtrToTextDefault(p Ptr, def string) string {
+	if !isOneByteList(p) {
 		return def
 	}
-	b := l.seg.slice(l.off, l.size.totalSize().times(l.length))
+	b := p.List.seg.slice(p.List.off, p.List.size.totalSize().times(p.List.length))
 	if len(b) == 0 || b[len(b)-1] != 0 {
 		// Text must be null-terminated.
 		return def
@@ -393,32 +409,37 @@ func ToTextDefault(p Pointer, def string) string {
 	return string(b[:len(b)-1])
 }
 
-// ToData attempts to convert p into Data, returning nil if p is not a
-// valid 1-byte list pointer.
+// ToData is deprecated in favor of PtrToData.
 func ToData(p Pointer) []byte {
-	return ToDataDefault(p, nil)
+	return PtrToDataDefault(toPtr(p), nil)
 }
 
-// ToDataDefault attempts to convert p into Data, returning def if p is
-// not a valid 1-byte list pointer.
+// PtrToData attempts to convert p into Data, returning nil if p is not a
+// valid 1-byte list pointer.
+func PtrToData(p Ptr) []byte {
+	return PtrToDataDefault(p, nil)
+}
+
+// ToDataDefault is deprecated in favor of PtrToDataDefault.
 func ToDataDefault(p Pointer, def []byte) []byte {
-	l, ok := toOneByteList(p)
-	if !ok {
+	return PtrToDataDefault(toPtr(p), def)
+}
+
+// PtrToDataDefault attempts to convert p into Data, returning def if p is
+// not a valid 1-byte list pointer.
+func PtrToDataDefault(p Ptr, def []byte) []byte {
+	if !isOneByteList(p) {
 		return def
 	}
-	b := l.seg.slice(l.off, l.size.totalSize().times(l.length))
+	b := p.List.seg.slice(p.List.off, p.List.size.totalSize().times(p.List.length))
 	if b == nil {
 		return def
 	}
 	return b
 }
 
-func toOneByteList(p Pointer) (l List, ok bool) {
-	if !IsValid(p) {
-		return List{}, false
-	}
-	l, ok = p.underlying().(List)
-	return l, ok && l.size.isOneByte() && l.flags&isCompositeList == 0
+func isOneByteList(p Ptr) bool {
+	return p.List.seg != nil && p.List.size.isOneByte() && p.List.flags&isCompositeList == 0
 }
 
 // At returns the i'th element.

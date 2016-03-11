@@ -447,113 +447,113 @@ func TestSegmentWriteUint64(t *testing.T) {
 func TestMakeOffsetKey(t *testing.T) {
 	seg42 := &Segment{id: 42}
 	tests := []struct {
-		p          Pointer
+		p          Ptr
 		id         SegmentID
 		boff, bend int64
 	}{
 		{
-			p: Struct{
+			p: Ptr{Struct: Struct{
 				seg:  seg42,
 				off:  0,
 				size: ObjectSize{0, 0},
-			},
+			}},
 			id:   42,
 			boff: 0,
 			bend: 0,
 		},
 		{
-			p: Struct{
+			p: Ptr{Struct: Struct{
 				seg:  seg42,
 				off:  8,
 				size: ObjectSize{0, 0},
-			},
+			}},
 			id:   42,
 			boff: 64,
 			bend: 64,
 		},
 		{
-			p: Struct{
+			p: Ptr{Struct: Struct{
 				seg:  seg42,
 				off:  8,
 				size: ObjectSize{1, 0},
-			},
+			}},
 			id:   42,
 			boff: 64,
 			bend: 72,
 		},
 		{
-			p: Struct{
+			p: Ptr{Struct: Struct{
 				seg:  seg42,
 				off:  8,
 				size: ObjectSize{0, 1},
-			},
+			}},
 			id:   42,
 			boff: 64,
 			bend: 128,
 		},
 		{
-			p: List{
+			p: Ptr{List: List{
 				seg:    seg42,
 				off:    0,
 				size:   ObjectSize{},
 				length: 0,
-			},
+			}},
 			id:   42,
 			boff: 0,
 			bend: 0,
 		},
 		{
-			p: List{
+			p: Ptr{List: List{
 				seg:    seg42,
 				off:    0,
 				size:   ObjectSize{},
 				length: 1,
-			},
+			}},
 			id:   42,
 			boff: 0,
 			bend: 0,
 		},
 		{
-			p: List{
+			p: Ptr{List: List{
 				seg:    seg42,
 				off:    0,
 				size:   ObjectSize{0, 1},
 				length: 1,
-			},
+			}},
 			id:   42,
 			boff: 0,
 			bend: 64,
 		},
 		{
-			p: List{
+			p: Ptr{List: List{
 				seg:    seg42,
 				off:    8,
 				size:   ObjectSize{0, 1},
 				length: 1,
-			},
+			}},
 			id:   42,
 			boff: 64,
 			bend: 128,
 		},
 		{
-			p: List{
+			p: Ptr{List: List{
 				seg:    seg42,
 				off:    8,
 				size:   ObjectSize{0, 1},
 				length: 1,
 				flags:  isCompositeList,
-			},
+			}},
 			id:   42,
 			boff: 0,
 			bend: 128,
 		},
 		{
-			p: List{
+			p: Ptr{List: List{
 				seg:    seg42,
 				off:    8,
 				size:   ObjectSize{0, 1},
 				length: 2,
-			},
+			}},
 			id:   42,
 			boff: 64,
 			bend: 192,

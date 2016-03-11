@@ -95,12 +95,11 @@ func NewRoot{{.Node.Name}}(s *{{capnp}}.Segment) ({{.Node.Name}}, error) {
 }
 
 func ReadRoot{{.Node.Name}}(msg *{{capnp}}.Message) ({{.Node.Name}}, error) {
-	root, err := msg.Root()
+	root, err := msg.RootPtr()
 	if err != nil {
 		return {{.Node.Name}}{}, err
 	}
-	st := {{capnp}}.ToStruct(root)
-	return {{.Node.Name}}{st}, nil
+	return {{.Node.Name}}{root.Struct}, nil
 }
 {{end}}
 
@@ -180,23 +179,23 @@ func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v float{{.Bits}}) {
 
 {{define "structTextField"}}
 func (s {{.Node.Name}}) {{.Field.Name|title}}() (string, error) {
-	p, err := s.Struct.Pointer({{.Field.Slot.Offset}})
+	p, err := s.Struct.Ptr({{.Field.Slot.Offset}})
 	if err != nil {
 		return "", err
 	}
 	{{with .Default}}
-	return {{capnp}}.ToTextDefault(p, {{printf "%q" .}})
+	return {{capnp}}.PtrToTextDefault(p, {{printf "%q" .}})
 	{{else}}
-	return {{capnp}}.ToText(p), nil
+	return {{capnp}}.PtrToText(p), nil
 	{{end}}
 }
 
 func (s {{.Node.Name}}) {{.Field.Name|title}}Bytes() ([]byte, error) {
-	p, err := s.Struct.Pointer({{.Field.Slot.Offset}})
+	p, err := s.Struct.Ptr({{.Field.Slot.Offset}})
 	if err != nil {
 		return nil, err
 	}
-	return {{capnp}}.ToData(p), nil
+	return {{capnp}}.PtrToData(p), nil
 }
 
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v string) error {
@@ -205,22 +204,22 @@ func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v string) error {
 	if err != nil {
 		return err
 	}
-	return s.Struct.SetPointer({{.Field.Slot.Offset}}, t)
+	return s.Struct.SetPtr({{.Field.Slot.Offset}}, {{capnp}}.Ptr{List: t.List})
 }
 {{end}}
 
 
 {{define "structDataField"}}
 func (s {{.Node.Name}}) {{.Field.Name|title}}() ({{.FieldType}}, error) {
-	p, err := s.Struct.Pointer({{.Field.Slot.Offset}})
+	p, err := s.Struct.Ptr({{.Field.Slot.Offset}})
 	if err != nil {
 		return nil, err
 	}
 	{{with .Default}}
-	v, err := {{capnp}}.ToDataDefault(p, {{printf "%#v" .}})
+	v, err := {{capnp}}.PtrToDataDefault(p, {{printf "%#v" .}})
 	return {{.FieldType}}(v), err
 	{{else}}
-	return {{.FieldType}}({{capnp}}.ToData(p)), nil
+	return {{.FieldType}}({{capnp}}.PtrToData(p)), nil
 	{{end}}
 }
 
@@ -230,31 +229,31 @@ func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.FieldType}}) error {
 	if err != nil {
 		return err
 	}
-	return s.Struct.SetPointer({{.Field.Slot.Offset}}, d)
+	return s.Struct.SetPtr({{.Field.Slot.Offset}}, {{capnp}}.Ptr{List: d.List})
 }
 {{end}}
 
 
 {{define "structStructField"}}
 func (s {{.Node.Name}}) {{.Field.Name|title}}() ({{.FieldType}}, error) {
-	p, err := s.Struct.Pointer({{.Field.Slot.Offset}})
+	p, err := s.Struct.Ptr({{.Field.Slot.Offset}})
 	if err != nil {
 		return {{.FieldType}}{}, err
 	}
 	{{if .Default.IsValid}}
-	ss, err := {{capnp}}.ToStructDefault(p, {{.Default}})
+	ss, err := {{capnp}}.PtrToStructDefault(p, {{.Default}})
 	if err != nil {
 		return {{.FieldType}}{}, err
 	}
-	{{else}}
-	ss := {{capnp}}.ToStruct(p)
-	{{end}}
 	return {{.FieldType}}{Struct: ss}, nil
+	{{else}}
+	return {{.FieldType}}{Struct: p.Struct}, nil
+	{{end}}
 }
 
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.FieldType}}) error {
 	{{template "settag" .}}
-	return s.Struct.SetPointer({{.Field.Slot.Offset}}, v.Struct)
+	return s.Struct.SetPtr({{.Field.Slot.Offset}}, {{capnp}}.Ptr{Struct: v.Struct})
 }
 
 // New{{.Field.Name|title}} sets the {{.Field.Name}} field to a newly
@@ -265,7 +264,7 @@ func (s {{.Node.Name}}) New{{.Field.Name|title}}() ({{.FieldType}}, error) {
 	if err != nil {
 		return {{.FieldType}}{}, err
 	}
-	err = s.Struct.SetPointer({{.Field.Slot.Offset}}, ss)
+	err = s.Struct.SetPtr({{.Field.Slot.Offset}}, {{capnp}}.Ptr{Struct: ss.Struct})
 	return ss, err
 }
 {{end}}
@@ -293,37 +292,36 @@ func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{capnp}}.Pointer) error {
 
 {{define "structListField"}}
 func (s {{.Node.Name}}) {{.Field.Name|title}}() ({{.FieldType}}, error) {
-	p, err := s.Struct.Pointer({{.Field.Slot.Offset}})
+	p, err := s.Struct.Ptr({{.Field.Slot.Offset}})
 	if err != nil {
 		return {{.FieldType}}{}, err
 	}
 	{{if .Default.IsValid}}
-	l, err := {{capnp}}.ToListDefault(p, {{.Default}})
+	l, err := {{capnp}}.PtrToListDefault(p, {{.Default}})
 	if err != nil {
 		return {{.FieldType}}{}, err
 	}
-	{{else}}
-	l := {{capnp}}.ToList(p)
-	{{end}}
 	return {{.FieldType}}{List: l}, nil
+	{{else}}
+	return {{.FieldType}}{List: p.List}, nil
+	{{end}}
 }
 
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.FieldType}}) error {
 	{{template "settag" .}}
-	return s.Struct.SetPointer({{.Field.Slot.Offset}}, v.List)
+	return s.Struct.SetPtr({{.Field.Slot.Offset}}, {{capnp}}.Ptr{List: v.List})
 }
 {{end}}
 
 
 {{define "structInterfaceField"}}
 func (s {{.Node.Name}}) {{.Field.Name|title}}() {{.FieldType}} {
-	p, err := s.Struct.Pointer({{.Field.Slot.Offset}})
+	p, err := s.Struct.Ptr({{.Field.Slot.Offset}})
 	if err != nil {
 		{{/* Valid interface pointers never return errors. */}}
 		return {{.FieldType}}{}
 	}
-	c := {{capnp}}.ToInterface(p).Client()
-	return {{.FieldType}}{Client: c}
+	return {{.FieldType}}{Client: p.Interface.Client()}
 }
 
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.FieldType}}) error {
@@ -337,7 +335,7 @@ func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.FieldType}}) error {
 	if v.Client != nil {
 		in = {{capnp}}.NewInterface(seg, seg.Message().AddCap(v.Client))
 	}
-	return s.Struct.SetPointer({{.Field.Slot.Offset}}, in)
+	return s.Struct.SetPtr({{.Field.Slot.Offset}}, {{capnp}}.Ptr{Interface: in})
 }
 {{end}}
 

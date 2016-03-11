@@ -54,22 +54,33 @@ func NewMessage(arena Arena) (msg *Message, first *Segment, err error) {
 	return msg, first, nil
 }
 
-// Root returns the pointer to the message's root object.
+// Root is deprecated in favor of RootPtr.
 func (m *Message) Root() (Pointer, error) {
-	s, err := m.Segment(0)
-	if err != nil {
-		return nil, err
-	}
-	return s.root().At(0)
+	p, err := m.RootPtr()
+	return p.toPointer(), err
 }
 
-// SetRoot sets the message's root object to p.
+// RootPtr returns the pointer to the message's root object.
+func (m *Message) RootPtr() (Ptr, error) {
+	s, err := m.Segment(0)
+	if err != nil {
+		return Ptr{}, err
+	}
+	return s.root().PtrAt(0)
+}
+
+// SetRoot is deprecated in favor of SetRootPtr.
 func (m *Message) SetRoot(p Pointer) error {
+	return m.SetRootPtr(toPtr(p))
+}
+
+// SetRootPtr sets the message's root object to p.
+func (m *Message) SetRootPtr(p Ptr) error {
 	s, err := m.Segment(0)
 	if err != nil {
 		return err
 	}
-	return s.root().Set(0, p)
+	return s.root().SetPtr(0, p)
 }
 
 // AddCap appends a capability to the message's capability table and
@@ -349,14 +360,27 @@ func Unmarshal(data []byte) (*Message, error) {
 	return &Message{Arena: demuxArena(hdr, data)}, nil
 }
 
-// MustUnmarshalRoot reads an unpacked serialized stream and returns its
-// root pointer.  If there is any error, it panics.
+// MustUnmarshalRoot is deprecated in favor of MustUnmarshalRootPtr.
 func MustUnmarshalRoot(data []byte) Pointer {
 	msg, err := Unmarshal(data)
 	if err != nil {
 		panic(err)
 	}
 	p, err := msg.Root()
+	if err != nil {
+		panic(err)
+	}
+	return p
+}
+
+// MustUnmarshalRootPtr reads an unpacked serialized stream and returns
+// its root pointer.  If there is any error, it panics.
+func MustUnmarshalRootPtr(data []byte) Ptr {
+	msg, err := Unmarshal(data)
+	if err != nil {
+		panic(err)
+	}
+	p, err := msg.RootPtr()
 	if err != nil {
 		panic(err)
 	}

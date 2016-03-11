@@ -66,12 +66,11 @@ func NewRootNode(s *capnp.Segment) (Node, error) {
 }
 
 func ReadRootNode(msg *capnp.Message) (Node, error) {
-	root, err := msg.Root()
+	root, err := msg.RootPtr()
 	if err != nil {
 		return Node{}, err
 	}
-	st := capnp.ToStruct(root)
-	return Node{st}, nil
+	return Node{root.Struct}, nil
 }
 
 func (s Node) Which() Node_Which {
@@ -88,21 +87,21 @@ func (s Node) SetId(v uint64) {
 }
 
 func (s Node) DisplayName() (string, error) {
-	p, err := s.Struct.Pointer(0)
+	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return "", err
 	}
 
-	return capnp.ToText(p), nil
+	return capnp.PtrToText(p), nil
 
 }
 
 func (s Node) DisplayNameBytes() ([]byte, error) {
-	p, err := s.Struct.Pointer(0)
+	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return nil, err
 	}
-	return capnp.ToData(p), nil
+	return capnp.PtrToData(p), nil
 }
 
 func (s Node) SetDisplayName(v string) error {
@@ -111,7 +110,7 @@ func (s Node) SetDisplayName(v string) error {
 	if err != nil {
 		return err
 	}
-	return s.Struct.SetPointer(0, t)
+	return s.Struct.SetPtr(0, capnp.Ptr{List: t.List})
 }
 
 func (s Node) DisplayNamePrefixLength() uint32 {
@@ -133,19 +132,18 @@ func (s Node) SetScopeId(v uint64) {
 }
 
 func (s Node) Parameters() (Node_Parameter_List, error) {
-	p, err := s.Struct.Pointer(5)
+	p, err := s.Struct.Ptr(5)
 	if err != nil {
 		return Node_Parameter_List{}, err
 	}
 
-	l := capnp.ToList(p)
+	return Node_Parameter_List{List: p.List}, nil
 
-	return Node_Parameter_List{List: l}, nil
 }
 
 func (s Node) SetParameters(v Node_Parameter_List) error {
 
-	return s.Struct.SetPointer(5, v.List)
+	return s.Struct.SetPtr(5, capnp.Ptr{List: v.List})
 }
 
 func (s Node) IsGeneric() bool {
@@ -158,35 +156,33 @@ func (s Node) SetIsGeneric(v bool) {
 }
 
 func (s Node) NestedNodes() (Node_NestedNode_List, error) {
-	p, err := s.Struct.Pointer(1)
+	p, err := s.Struct.Ptr(1)
 	if err != nil {
 		return Node_NestedNode_List{}, err
 	}
 
-	l := capnp.ToList(p)
+	return Node_NestedNode_List{List: p.List}, nil
 
-	return Node_NestedNode_List{List: l}, nil
 }
 
 func (s Node) SetNestedNodes(v Node_NestedNode_List) error {
 
-	return s.Struct.SetPointer(1, v.List)
+	return s.Struct.SetPtr(1, capnp.Ptr{List: v.List})
 }
 
 func (s Node) Annotations() (Annotation_List, error) {
-	p, err := s.Struct.Pointer(2)
+	p, err := s.Struct.Ptr(2)
 	if err != nil {
 		return Annotation_List{}, err
 	}
 
-	l := capnp.ToList(p)
+	return Annotation_List{List: p.List}, nil
 
-	return Annotation_List{List: l}, nil
 }
 
 func (s Node) SetAnnotations(v Annotation_List) error {
 
-	return s.Struct.SetPointer(2, v.List)
+	return s.Struct.SetPtr(2, capnp.Ptr{List: v.List})
 }
 
 func (s Node) SetFile() {
@@ -251,92 +247,87 @@ func (s Node_structGroup) SetDiscriminantOffset(v uint32) {
 }
 
 func (s Node_structGroup) Fields() (Field_List, error) {
-	p, err := s.Struct.Pointer(3)
+	p, err := s.Struct.Ptr(3)
 	if err != nil {
 		return Field_List{}, err
 	}
 
-	l := capnp.ToList(p)
+	return Field_List{List: p.List}, nil
 
-	return Field_List{List: l}, nil
 }
 
 func (s Node_structGroup) SetFields(v Field_List) error {
 
-	return s.Struct.SetPointer(3, v.List)
+	return s.Struct.SetPtr(3, capnp.Ptr{List: v.List})
 }
 func (s Node) Enum() Node_enum { return Node_enum(s) }
 
 func (s Node) SetEnum() { s.Struct.SetUint16(12, 2) }
 
 func (s Node_enum) Enumerants() (Enumerant_List, error) {
-	p, err := s.Struct.Pointer(3)
+	p, err := s.Struct.Ptr(3)
 	if err != nil {
 		return Enumerant_List{}, err
 	}
 
-	l := capnp.ToList(p)
+	return Enumerant_List{List: p.List}, nil
 
-	return Enumerant_List{List: l}, nil
 }
 
 func (s Node_enum) SetEnumerants(v Enumerant_List) error {
 
-	return s.Struct.SetPointer(3, v.List)
+	return s.Struct.SetPtr(3, capnp.Ptr{List: v.List})
 }
 func (s Node) Interface() Node_interface { return Node_interface(s) }
 
 func (s Node) SetInterface() { s.Struct.SetUint16(12, 3) }
 
 func (s Node_interface) Methods() (Method_List, error) {
-	p, err := s.Struct.Pointer(3)
+	p, err := s.Struct.Ptr(3)
 	if err != nil {
 		return Method_List{}, err
 	}
 
-	l := capnp.ToList(p)
+	return Method_List{List: p.List}, nil
 
-	return Method_List{List: l}, nil
 }
 
 func (s Node_interface) SetMethods(v Method_List) error {
 
-	return s.Struct.SetPointer(3, v.List)
+	return s.Struct.SetPtr(3, capnp.Ptr{List: v.List})
 }
 
 func (s Node_interface) Superclasses() (Superclass_List, error) {
-	p, err := s.Struct.Pointer(4)
+	p, err := s.Struct.Ptr(4)
 	if err != nil {
 		return Superclass_List{}, err
 	}
 
-	l := capnp.ToList(p)
+	return Superclass_List{List: p.List}, nil
 
-	return Superclass_List{List: l}, nil
 }
 
 func (s Node_interface) SetSuperclasses(v Superclass_List) error {
 
-	return s.Struct.SetPointer(4, v.List)
+	return s.Struct.SetPtr(4, capnp.Ptr{List: v.List})
 }
 func (s Node) Const() Node_const { return Node_const(s) }
 
 func (s Node) SetConst() { s.Struct.SetUint16(12, 4) }
 
 func (s Node_const) Type() (Type, error) {
-	p, err := s.Struct.Pointer(3)
+	p, err := s.Struct.Ptr(3)
 	if err != nil {
 		return Type{}, err
 	}
 
-	ss := capnp.ToStruct(p)
+	return Type{Struct: p.Struct}, nil
 
-	return Type{Struct: ss}, nil
 }
 
 func (s Node_const) SetType(v Type) error {
 
-	return s.Struct.SetPointer(3, v.Struct)
+	return s.Struct.SetPtr(3, capnp.Ptr{Struct: v.Struct})
 }
 
 // NewType sets the type field to a newly
@@ -347,24 +338,23 @@ func (s Node_const) NewType() (Type, error) {
 	if err != nil {
 		return Type{}, err
 	}
-	err = s.Struct.SetPointer(3, ss)
+	err = s.Struct.SetPtr(3, capnp.Ptr{Struct: ss.Struct})
 	return ss, err
 }
 
 func (s Node_const) Value() (Value, error) {
-	p, err := s.Struct.Pointer(4)
+	p, err := s.Struct.Ptr(4)
 	if err != nil {
 		return Value{}, err
 	}
 
-	ss := capnp.ToStruct(p)
+	return Value{Struct: p.Struct}, nil
 
-	return Value{Struct: ss}, nil
 }
 
 func (s Node_const) SetValue(v Value) error {
 
-	return s.Struct.SetPointer(4, v.Struct)
+	return s.Struct.SetPtr(4, capnp.Ptr{Struct: v.Struct})
 }
 
 // NewValue sets the value field to a newly
@@ -375,7 +365,7 @@ func (s Node_const) NewValue() (Value, error) {
 	if err != nil {
 		return Value{}, err
 	}
-	err = s.Struct.SetPointer(4, ss)
+	err = s.Struct.SetPtr(4, capnp.Ptr{Struct: ss.Struct})
 	return ss, err
 }
 func (s Node) Annotation() Node_annotation { return Node_annotation(s) }
@@ -383,19 +373,18 @@ func (s Node) Annotation() Node_annotation { return Node_annotation(s) }
 func (s Node) SetAnnotation() { s.Struct.SetUint16(12, 5) }
 
 func (s Node_annotation) Type() (Type, error) {
-	p, err := s.Struct.Pointer(3)
+	p, err := s.Struct.Ptr(3)
 	if err != nil {
 		return Type{}, err
 	}
 
-	ss := capnp.ToStruct(p)
+	return Type{Struct: p.Struct}, nil
 
-	return Type{Struct: ss}, nil
 }
 
 func (s Node_annotation) SetType(v Type) error {
 
-	return s.Struct.SetPointer(3, v.Struct)
+	return s.Struct.SetPtr(3, capnp.Ptr{Struct: v.Struct})
 }
 
 // NewType sets the type field to a newly
@@ -406,7 +395,7 @@ func (s Node_annotation) NewType() (Type, error) {
 	if err != nil {
 		return Type{}, err
 	}
-	err = s.Struct.SetPointer(3, ss)
+	err = s.Struct.SetPtr(3, capnp.Ptr{Struct: ss.Struct})
 	return ss, err
 }
 
@@ -552,30 +541,29 @@ func NewRootNode_Parameter(s *capnp.Segment) (Node_Parameter, error) {
 }
 
 func ReadRootNode_Parameter(msg *capnp.Message) (Node_Parameter, error) {
-	root, err := msg.Root()
+	root, err := msg.RootPtr()
 	if err != nil {
 		return Node_Parameter{}, err
 	}
-	st := capnp.ToStruct(root)
-	return Node_Parameter{st}, nil
+	return Node_Parameter{root.Struct}, nil
 }
 
 func (s Node_Parameter) Name() (string, error) {
-	p, err := s.Struct.Pointer(0)
+	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return "", err
 	}
 
-	return capnp.ToText(p), nil
+	return capnp.PtrToText(p), nil
 
 }
 
 func (s Node_Parameter) NameBytes() ([]byte, error) {
-	p, err := s.Struct.Pointer(0)
+	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return nil, err
 	}
-	return capnp.ToData(p), nil
+	return capnp.PtrToData(p), nil
 }
 
 func (s Node_Parameter) SetName(v string) error {
@@ -584,7 +572,7 @@ func (s Node_Parameter) SetName(v string) error {
 	if err != nil {
 		return err
 	}
-	return s.Struct.SetPointer(0, t)
+	return s.Struct.SetPtr(0, capnp.Ptr{List: t.List})
 }
 
 // Node_Parameter_List is a list of Node_Parameter.
@@ -621,30 +609,29 @@ func NewRootNode_NestedNode(s *capnp.Segment) (Node_NestedNode, error) {
 }
 
 func ReadRootNode_NestedNode(msg *capnp.Message) (Node_NestedNode, error) {
-	root, err := msg.Root()
+	root, err := msg.RootPtr()
 	if err != nil {
 		return Node_NestedNode{}, err
 	}
-	st := capnp.ToStruct(root)
-	return Node_NestedNode{st}, nil
+	return Node_NestedNode{root.Struct}, nil
 }
 
 func (s Node_NestedNode) Name() (string, error) {
-	p, err := s.Struct.Pointer(0)
+	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return "", err
 	}
 
-	return capnp.ToText(p), nil
+	return capnp.PtrToText(p), nil
 
 }
 
 func (s Node_NestedNode) NameBytes() ([]byte, error) {
-	p, err := s.Struct.Pointer(0)
+	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return nil, err
 	}
-	return capnp.ToData(p), nil
+	return capnp.PtrToData(p), nil
 }
 
 func (s Node_NestedNode) SetName(v string) error {
@@ -653,7 +640,7 @@ func (s Node_NestedNode) SetName(v string) error {
 	if err != nil {
 		return err
 	}
-	return s.Struct.SetPointer(0, t)
+	return s.Struct.SetPtr(0, capnp.Ptr{List: t.List})
 }
 
 func (s Node_NestedNode) Id() uint64 {
@@ -741,12 +728,11 @@ func NewRootField(s *capnp.Segment) (Field, error) {
 }
 
 func ReadRootField(msg *capnp.Message) (Field, error) {
-	root, err := msg.Root()
+	root, err := msg.RootPtr()
 	if err != nil {
 		return Field{}, err
 	}
-	st := capnp.ToStruct(root)
-	return Field{st}, nil
+	return Field{root.Struct}, nil
 }
 
 func (s Field) Which() Field_Which {
@@ -754,21 +740,21 @@ func (s Field) Which() Field_Which {
 }
 
 func (s Field) Name() (string, error) {
-	p, err := s.Struct.Pointer(0)
+	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return "", err
 	}
 
-	return capnp.ToText(p), nil
+	return capnp.PtrToText(p), nil
 
 }
 
 func (s Field) NameBytes() ([]byte, error) {
-	p, err := s.Struct.Pointer(0)
+	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return nil, err
 	}
-	return capnp.ToData(p), nil
+	return capnp.PtrToData(p), nil
 }
 
 func (s Field) SetName(v string) error {
@@ -777,7 +763,7 @@ func (s Field) SetName(v string) error {
 	if err != nil {
 		return err
 	}
-	return s.Struct.SetPointer(0, t)
+	return s.Struct.SetPtr(0, capnp.Ptr{List: t.List})
 }
 
 func (s Field) CodeOrder() uint16 {
@@ -790,19 +776,18 @@ func (s Field) SetCodeOrder(v uint16) {
 }
 
 func (s Field) Annotations() (Annotation_List, error) {
-	p, err := s.Struct.Pointer(1)
+	p, err := s.Struct.Ptr(1)
 	if err != nil {
 		return Annotation_List{}, err
 	}
 
-	l := capnp.ToList(p)
+	return Annotation_List{List: p.List}, nil
 
-	return Annotation_List{List: l}, nil
 }
 
 func (s Field) SetAnnotations(v Annotation_List) error {
 
-	return s.Struct.SetPointer(1, v.List)
+	return s.Struct.SetPtr(1, capnp.Ptr{List: v.List})
 }
 
 func (s Field) DiscriminantValue() uint16 {
@@ -827,19 +812,18 @@ func (s Field_slot) SetOffset(v uint32) {
 }
 
 func (s Field_slot) Type() (Type, error) {
-	p, err := s.Struct.Pointer(2)
+	p, err := s.Struct.Ptr(2)
 	if err != nil {
 		return Type{}, err
 	}
 
-	ss := capnp.ToStruct(p)
+	return Type{Struct: p.Struct}, nil
 
-	return Type{Struct: ss}, nil
 }
 
 func (s Field_slot) SetType(v Type) error {
 
-	return s.Struct.SetPointer(2, v.Struct)
+	return s.Struct.SetPtr(2, capnp.Ptr{Struct: v.Struct})
 }
 
 // NewType sets the type field to a newly
@@ -850,24 +834,23 @@ func (s Field_slot) NewType() (Type, error) {
 	if err != nil {
 		return Type{}, err
 	}
-	err = s.Struct.SetPointer(2, ss)
+	err = s.Struct.SetPtr(2, capnp.Ptr{Struct: ss.Struct})
 	return ss, err
 }
 
 func (s Field_slot) DefaultValue() (Value, error) {
-	p, err := s.Struct.Pointer(3)
+	p, err := s.Struct.Ptr(3)
 	if err != nil {
 		return Value{}, err
 	}
 
-	ss := capnp.ToStruct(p)
+	return Value{Struct: p.Struct}, nil
 
-	return Value{Struct: ss}, nil
 }
 
 func (s Field_slot) SetDefaultValue(v Value) error {
 
-	return s.Struct.SetPointer(3, v.Struct)
+	return s.Struct.SetPtr(3, capnp.Ptr{Struct: v.Struct})
 }
 
 // NewDefaultValue sets the defaultValue field to a newly
@@ -878,7 +861,7 @@ func (s Field_slot) NewDefaultValue() (Value, error) {
 	if err != nil {
 		return Value{}, err
 	}
-	err = s.Struct.SetPointer(3, ss)
+	err = s.Struct.SetPtr(3, capnp.Ptr{Struct: ss.Struct})
 	return ss, err
 }
 
@@ -955,30 +938,29 @@ func NewRootEnumerant(s *capnp.Segment) (Enumerant, error) {
 }
 
 func ReadRootEnumerant(msg *capnp.Message) (Enumerant, error) {
-	root, err := msg.Root()
+	root, err := msg.RootPtr()
 	if err != nil {
 		return Enumerant{}, err
 	}
-	st := capnp.ToStruct(root)
-	return Enumerant{st}, nil
+	return Enumerant{root.Struct}, nil
 }
 
 func (s Enumerant) Name() (string, error) {
-	p, err := s.Struct.Pointer(0)
+	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return "", err
 	}
 
-	return capnp.ToText(p), nil
+	return capnp.PtrToText(p), nil
 
 }
 
 func (s Enumerant) NameBytes() ([]byte, error) {
-	p, err := s.Struct.Pointer(0)
+	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return nil, err
 	}
-	return capnp.ToData(p), nil
+	return capnp.PtrToData(p), nil
 }
 
 func (s Enumerant) SetName(v string) error {
@@ -987,7 +969,7 @@ func (s Enumerant) SetName(v string) error {
 	if err != nil {
 		return err
 	}
-	return s.Struct.SetPointer(0, t)
+	return s.Struct.SetPtr(0, capnp.Ptr{List: t.List})
 }
 
 func (s Enumerant) CodeOrder() uint16 {
@@ -1000,19 +982,18 @@ func (s Enumerant) SetCodeOrder(v uint16) {
 }
 
 func (s Enumerant) Annotations() (Annotation_List, error) {
-	p, err := s.Struct.Pointer(1)
+	p, err := s.Struct.Ptr(1)
 	if err != nil {
 		return Annotation_List{}, err
 	}
 
-	l := capnp.ToList(p)
+	return Annotation_List{List: p.List}, nil
 
-	return Annotation_List{List: l}, nil
 }
 
 func (s Enumerant) SetAnnotations(v Annotation_List) error {
 
-	return s.Struct.SetPointer(1, v.List)
+	return s.Struct.SetPtr(1, capnp.Ptr{List: v.List})
 }
 
 // Enumerant_List is a list of Enumerant.
@@ -1049,12 +1030,11 @@ func NewRootSuperclass(s *capnp.Segment) (Superclass, error) {
 }
 
 func ReadRootSuperclass(msg *capnp.Message) (Superclass, error) {
-	root, err := msg.Root()
+	root, err := msg.RootPtr()
 	if err != nil {
 		return Superclass{}, err
 	}
-	st := capnp.ToStruct(root)
-	return Superclass{st}, nil
+	return Superclass{root.Struct}, nil
 }
 
 func (s Superclass) Id() uint64 {
@@ -1067,19 +1047,18 @@ func (s Superclass) SetId(v uint64) {
 }
 
 func (s Superclass) Brand() (Brand, error) {
-	p, err := s.Struct.Pointer(0)
+	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return Brand{}, err
 	}
 
-	ss := capnp.ToStruct(p)
+	return Brand{Struct: p.Struct}, nil
 
-	return Brand{Struct: ss}, nil
 }
 
 func (s Superclass) SetBrand(v Brand) error {
 
-	return s.Struct.SetPointer(0, v.Struct)
+	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
 }
 
 // NewBrand sets the brand field to a newly
@@ -1090,7 +1069,7 @@ func (s Superclass) NewBrand() (Brand, error) {
 	if err != nil {
 		return Brand{}, err
 	}
-	err = s.Struct.SetPointer(0, ss)
+	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
 	return ss, err
 }
 
@@ -1128,30 +1107,29 @@ func NewRootMethod(s *capnp.Segment) (Method, error) {
 }
 
 func ReadRootMethod(msg *capnp.Message) (Method, error) {
-	root, err := msg.Root()
+	root, err := msg.RootPtr()
 	if err != nil {
 		return Method{}, err
 	}
-	st := capnp.ToStruct(root)
-	return Method{st}, nil
+	return Method{root.Struct}, nil
 }
 
 func (s Method) Name() (string, error) {
-	p, err := s.Struct.Pointer(0)
+	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return "", err
 	}
 
-	return capnp.ToText(p), nil
+	return capnp.PtrToText(p), nil
 
 }
 
 func (s Method) NameBytes() ([]byte, error) {
-	p, err := s.Struct.Pointer(0)
+	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return nil, err
 	}
-	return capnp.ToData(p), nil
+	return capnp.PtrToData(p), nil
 }
 
 func (s Method) SetName(v string) error {
@@ -1160,7 +1138,7 @@ func (s Method) SetName(v string) error {
 	if err != nil {
 		return err
 	}
-	return s.Struct.SetPointer(0, t)
+	return s.Struct.SetPtr(0, capnp.Ptr{List: t.List})
 }
 
 func (s Method) CodeOrder() uint16 {
@@ -1173,19 +1151,18 @@ func (s Method) SetCodeOrder(v uint16) {
 }
 
 func (s Method) ImplicitParameters() (Node_Parameter_List, error) {
-	p, err := s.Struct.Pointer(4)
+	p, err := s.Struct.Ptr(4)
 	if err != nil {
 		return Node_Parameter_List{}, err
 	}
 
-	l := capnp.ToList(p)
+	return Node_Parameter_List{List: p.List}, nil
 
-	return Node_Parameter_List{List: l}, nil
 }
 
 func (s Method) SetImplicitParameters(v Node_Parameter_List) error {
 
-	return s.Struct.SetPointer(4, v.List)
+	return s.Struct.SetPtr(4, capnp.Ptr{List: v.List})
 }
 
 func (s Method) ParamStructType() uint64 {
@@ -1198,19 +1175,18 @@ func (s Method) SetParamStructType(v uint64) {
 }
 
 func (s Method) ParamBrand() (Brand, error) {
-	p, err := s.Struct.Pointer(2)
+	p, err := s.Struct.Ptr(2)
 	if err != nil {
 		return Brand{}, err
 	}
 
-	ss := capnp.ToStruct(p)
+	return Brand{Struct: p.Struct}, nil
 
-	return Brand{Struct: ss}, nil
 }
 
 func (s Method) SetParamBrand(v Brand) error {
 
-	return s.Struct.SetPointer(2, v.Struct)
+	return s.Struct.SetPtr(2, capnp.Ptr{Struct: v.Struct})
 }
 
 // NewParamBrand sets the paramBrand field to a newly
@@ -1221,7 +1197,7 @@ func (s Method) NewParamBrand() (Brand, error) {
 	if err != nil {
 		return Brand{}, err
 	}
-	err = s.Struct.SetPointer(2, ss)
+	err = s.Struct.SetPtr(2, capnp.Ptr{Struct: ss.Struct})
 	return ss, err
 }
 
@@ -1235,19 +1211,18 @@ func (s Method) SetResultStructType(v uint64) {
 }
 
 func (s Method) ResultBrand() (Brand, error) {
-	p, err := s.Struct.Pointer(3)
+	p, err := s.Struct.Ptr(3)
 	if err != nil {
 		return Brand{}, err
 	}
 
-	ss := capnp.ToStruct(p)
+	return Brand{Struct: p.Struct}, nil
 
-	return Brand{Struct: ss}, nil
 }
 
 func (s Method) SetResultBrand(v Brand) error {
 
-	return s.Struct.SetPointer(3, v.Struct)
+	return s.Struct.SetPtr(3, capnp.Ptr{Struct: v.Struct})
 }
 
 // NewResultBrand sets the resultBrand field to a newly
@@ -1258,24 +1233,23 @@ func (s Method) NewResultBrand() (Brand, error) {
 	if err != nil {
 		return Brand{}, err
 	}
-	err = s.Struct.SetPointer(3, ss)
+	err = s.Struct.SetPtr(3, capnp.Ptr{Struct: ss.Struct})
 	return ss, err
 }
 
 func (s Method) Annotations() (Annotation_List, error) {
-	p, err := s.Struct.Pointer(1)
+	p, err := s.Struct.Ptr(1)
 	if err != nil {
 		return Annotation_List{}, err
 	}
 
-	l := capnp.ToList(p)
+	return Annotation_List{List: p.List}, nil
 
-	return Annotation_List{List: l}, nil
 }
 
 func (s Method) SetAnnotations(v Annotation_List) error {
 
-	return s.Struct.SetPointer(1, v.List)
+	return s.Struct.SetPtr(1, capnp.Ptr{List: v.List})
 }
 
 // Method_List is a list of Method.
@@ -1410,12 +1384,11 @@ func NewRootType(s *capnp.Segment) (Type, error) {
 }
 
 func ReadRootType(msg *capnp.Message) (Type, error) {
-	root, err := msg.Root()
+	root, err := msg.RootPtr()
 	if err != nil {
 		return Type{}, err
 	}
-	st := capnp.ToStruct(root)
-	return Type{st}, nil
+	return Type{root.Struct}, nil
 }
 
 func (s Type) Which() Type_Which {
@@ -1482,19 +1455,18 @@ func (s Type) List() Type_list { return Type_list(s) }
 func (s Type) SetList() { s.Struct.SetUint16(0, 14) }
 
 func (s Type_list) ElementType() (Type, error) {
-	p, err := s.Struct.Pointer(0)
+	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return Type{}, err
 	}
 
-	ss := capnp.ToStruct(p)
+	return Type{Struct: p.Struct}, nil
 
-	return Type{Struct: ss}, nil
 }
 
 func (s Type_list) SetElementType(v Type) error {
 
-	return s.Struct.SetPointer(0, v.Struct)
+	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
 }
 
 // NewElementType sets the elementType field to a newly
@@ -1505,7 +1477,7 @@ func (s Type_list) NewElementType() (Type, error) {
 	if err != nil {
 		return Type{}, err
 	}
-	err = s.Struct.SetPointer(0, ss)
+	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
 	return ss, err
 }
 func (s Type) Enum() Type_enum { return Type_enum(s) }
@@ -1522,19 +1494,18 @@ func (s Type_enum) SetTypeId(v uint64) {
 }
 
 func (s Type_enum) Brand() (Brand, error) {
-	p, err := s.Struct.Pointer(0)
+	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return Brand{}, err
 	}
 
-	ss := capnp.ToStruct(p)
+	return Brand{Struct: p.Struct}, nil
 
-	return Brand{Struct: ss}, nil
 }
 
 func (s Type_enum) SetBrand(v Brand) error {
 
-	return s.Struct.SetPointer(0, v.Struct)
+	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
 }
 
 // NewBrand sets the brand field to a newly
@@ -1545,7 +1516,7 @@ func (s Type_enum) NewBrand() (Brand, error) {
 	if err != nil {
 		return Brand{}, err
 	}
-	err = s.Struct.SetPointer(0, ss)
+	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
 	return ss, err
 }
 func (s Type) StructGroup() Type_structGroup { return Type_structGroup(s) }
@@ -1562,19 +1533,18 @@ func (s Type_structGroup) SetTypeId(v uint64) {
 }
 
 func (s Type_structGroup) Brand() (Brand, error) {
-	p, err := s.Struct.Pointer(0)
+	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return Brand{}, err
 	}
 
-	ss := capnp.ToStruct(p)
+	return Brand{Struct: p.Struct}, nil
 
-	return Brand{Struct: ss}, nil
 }
 
 func (s Type_structGroup) SetBrand(v Brand) error {
 
-	return s.Struct.SetPointer(0, v.Struct)
+	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
 }
 
 // NewBrand sets the brand field to a newly
@@ -1585,7 +1555,7 @@ func (s Type_structGroup) NewBrand() (Brand, error) {
 	if err != nil {
 		return Brand{}, err
 	}
-	err = s.Struct.SetPointer(0, ss)
+	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
 	return ss, err
 }
 func (s Type) Interface() Type_interface { return Type_interface(s) }
@@ -1602,19 +1572,18 @@ func (s Type_interface) SetTypeId(v uint64) {
 }
 
 func (s Type_interface) Brand() (Brand, error) {
-	p, err := s.Struct.Pointer(0)
+	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return Brand{}, err
 	}
 
-	ss := capnp.ToStruct(p)
+	return Brand{Struct: p.Struct}, nil
 
-	return Brand{Struct: ss}, nil
 }
 
 func (s Type_interface) SetBrand(v Brand) error {
 
-	return s.Struct.SetPointer(0, v.Struct)
+	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
 }
 
 // NewBrand sets the brand field to a newly
@@ -1625,7 +1594,7 @@ func (s Type_interface) NewBrand() (Brand, error) {
 	if err != nil {
 		return Brand{}, err
 	}
-	err = s.Struct.SetPointer(0, ss)
+	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
 	return ss, err
 }
 func (s Type) AnyPointer() Type_anyPointer { return Type_anyPointer(s) }
@@ -1709,28 +1678,26 @@ func NewRootBrand(s *capnp.Segment) (Brand, error) {
 }
 
 func ReadRootBrand(msg *capnp.Message) (Brand, error) {
-	root, err := msg.Root()
+	root, err := msg.RootPtr()
 	if err != nil {
 		return Brand{}, err
 	}
-	st := capnp.ToStruct(root)
-	return Brand{st}, nil
+	return Brand{root.Struct}, nil
 }
 
 func (s Brand) Scopes() (Brand_Scope_List, error) {
-	p, err := s.Struct.Pointer(0)
+	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return Brand_Scope_List{}, err
 	}
 
-	l := capnp.ToList(p)
+	return Brand_Scope_List{List: p.List}, nil
 
-	return Brand_Scope_List{List: l}, nil
 }
 
 func (s Brand) SetScopes(v Brand_Scope_List) error {
 
-	return s.Struct.SetPointer(0, v.List)
+	return s.Struct.SetPtr(0, capnp.Ptr{List: v.List})
 }
 
 // Brand_List is a list of Brand.
@@ -1785,12 +1752,11 @@ func NewRootBrand_Scope(s *capnp.Segment) (Brand_Scope, error) {
 }
 
 func ReadRootBrand_Scope(msg *capnp.Message) (Brand_Scope, error) {
-	root, err := msg.Root()
+	root, err := msg.RootPtr()
 	if err != nil {
 		return Brand_Scope{}, err
 	}
-	st := capnp.ToStruct(root)
-	return Brand_Scope{st}, nil
+	return Brand_Scope{root.Struct}, nil
 }
 
 func (s Brand_Scope) Which() Brand_Scope_Which {
@@ -1807,19 +1773,18 @@ func (s Brand_Scope) SetScopeId(v uint64) {
 }
 
 func (s Brand_Scope) Bind() (Brand_Binding_List, error) {
-	p, err := s.Struct.Pointer(0)
+	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return Brand_Binding_List{}, err
 	}
 
-	l := capnp.ToList(p)
+	return Brand_Binding_List{List: p.List}, nil
 
-	return Brand_Binding_List{List: l}, nil
 }
 
 func (s Brand_Scope) SetBind(v Brand_Binding_List) error {
 	s.Struct.SetUint16(8, 0)
-	return s.Struct.SetPointer(0, v.List)
+	return s.Struct.SetPtr(0, capnp.Ptr{List: v.List})
 }
 
 func (s Brand_Scope) SetInherit() {
@@ -1878,12 +1843,11 @@ func NewRootBrand_Binding(s *capnp.Segment) (Brand_Binding, error) {
 }
 
 func ReadRootBrand_Binding(msg *capnp.Message) (Brand_Binding, error) {
-	root, err := msg.Root()
+	root, err := msg.RootPtr()
 	if err != nil {
 		return Brand_Binding{}, err
 	}
-	st := capnp.ToStruct(root)
-	return Brand_Binding{st}, nil
+	return Brand_Binding{root.Struct}, nil
 }
 
 func (s Brand_Binding) Which() Brand_Binding_Which {
@@ -1895,19 +1859,18 @@ func (s Brand_Binding) SetUnbound() {
 }
 
 func (s Brand_Binding) Type() (Type, error) {
-	p, err := s.Struct.Pointer(0)
+	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return Type{}, err
 	}
 
-	ss := capnp.ToStruct(p)
+	return Type{Struct: p.Struct}, nil
 
-	return Type{Struct: ss}, nil
 }
 
 func (s Brand_Binding) SetType(v Type) error {
 	s.Struct.SetUint16(0, 1)
-	return s.Struct.SetPointer(0, v.Struct)
+	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
 }
 
 // NewType sets the type field to a newly
@@ -1918,7 +1881,7 @@ func (s Brand_Binding) NewType() (Type, error) {
 	if err != nil {
 		return Type{}, err
 	}
-	err = s.Struct.SetPointer(0, ss)
+	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
 	return ss, err
 }
 
@@ -2025,12 +1988,11 @@ func NewRootValue(s *capnp.Segment) (Value, error) {
 }
 
 func ReadRootValue(msg *capnp.Message) (Value, error) {
-	root, err := msg.Root()
+	root, err := msg.RootPtr()
 	if err != nil {
 		return Value{}, err
 	}
-	st := capnp.ToStruct(root)
-	return Value{st}, nil
+	return Value{root.Struct}, nil
 }
 
 func (s Value) Which() Value_Which {
@@ -2141,21 +2103,21 @@ func (s Value) SetFloat64(v float64) {
 }
 
 func (s Value) Text() (string, error) {
-	p, err := s.Struct.Pointer(0)
+	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return "", err
 	}
 
-	return capnp.ToText(p), nil
+	return capnp.PtrToText(p), nil
 
 }
 
 func (s Value) TextBytes() ([]byte, error) {
-	p, err := s.Struct.Pointer(0)
+	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return nil, err
 	}
-	return capnp.ToData(p), nil
+	return capnp.PtrToData(p), nil
 }
 
 func (s Value) SetText(v string) error {
@@ -2164,16 +2126,16 @@ func (s Value) SetText(v string) error {
 	if err != nil {
 		return err
 	}
-	return s.Struct.SetPointer(0, t)
+	return s.Struct.SetPtr(0, capnp.Ptr{List: t.List})
 }
 
 func (s Value) Data() ([]byte, error) {
-	p, err := s.Struct.Pointer(0)
+	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return nil, err
 	}
 
-	return []byte(capnp.ToData(p)), nil
+	return []byte(capnp.PtrToData(p)), nil
 
 }
 
@@ -2183,7 +2145,7 @@ func (s Value) SetData(v []byte) error {
 	if err != nil {
 		return err
 	}
-	return s.Struct.SetPointer(0, d)
+	return s.Struct.SetPtr(0, capnp.Ptr{List: d.List})
 }
 
 func (s Value) List() (capnp.Pointer, error) {
@@ -2266,12 +2228,11 @@ func NewRootAnnotation(s *capnp.Segment) (Annotation, error) {
 }
 
 func ReadRootAnnotation(msg *capnp.Message) (Annotation, error) {
-	root, err := msg.Root()
+	root, err := msg.RootPtr()
 	if err != nil {
 		return Annotation{}, err
 	}
-	st := capnp.ToStruct(root)
-	return Annotation{st}, nil
+	return Annotation{root.Struct}, nil
 }
 
 func (s Annotation) Id() uint64 {
@@ -2284,19 +2245,18 @@ func (s Annotation) SetId(v uint64) {
 }
 
 func (s Annotation) Brand() (Brand, error) {
-	p, err := s.Struct.Pointer(1)
+	p, err := s.Struct.Ptr(1)
 	if err != nil {
 		return Brand{}, err
 	}
 
-	ss := capnp.ToStruct(p)
+	return Brand{Struct: p.Struct}, nil
 
-	return Brand{Struct: ss}, nil
 }
 
 func (s Annotation) SetBrand(v Brand) error {
 
-	return s.Struct.SetPointer(1, v.Struct)
+	return s.Struct.SetPtr(1, capnp.Ptr{Struct: v.Struct})
 }
 
 // NewBrand sets the brand field to a newly
@@ -2307,24 +2267,23 @@ func (s Annotation) NewBrand() (Brand, error) {
 	if err != nil {
 		return Brand{}, err
 	}
-	err = s.Struct.SetPointer(1, ss)
+	err = s.Struct.SetPtr(1, capnp.Ptr{Struct: ss.Struct})
 	return ss, err
 }
 
 func (s Annotation) Value() (Value, error) {
-	p, err := s.Struct.Pointer(0)
+	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return Value{}, err
 	}
 
-	ss := capnp.ToStruct(p)
+	return Value{Struct: p.Struct}, nil
 
-	return Value{Struct: ss}, nil
 }
 
 func (s Annotation) SetValue(v Value) error {
 
-	return s.Struct.SetPointer(0, v.Struct)
+	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
 }
 
 // NewValue sets the value field to a newly
@@ -2335,7 +2294,7 @@ func (s Annotation) NewValue() (Value, error) {
 	if err != nil {
 		return Value{}, err
 	}
-	err = s.Struct.SetPointer(0, ss)
+	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
 	return ss, err
 }
 
@@ -2458,44 +2417,41 @@ func NewRootCodeGeneratorRequest(s *capnp.Segment) (CodeGeneratorRequest, error)
 }
 
 func ReadRootCodeGeneratorRequest(msg *capnp.Message) (CodeGeneratorRequest, error) {
-	root, err := msg.Root()
+	root, err := msg.RootPtr()
 	if err != nil {
 		return CodeGeneratorRequest{}, err
 	}
-	st := capnp.ToStruct(root)
-	return CodeGeneratorRequest{st}, nil
+	return CodeGeneratorRequest{root.Struct}, nil
 }
 
 func (s CodeGeneratorRequest) Nodes() (Node_List, error) {
-	p, err := s.Struct.Pointer(0)
+	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return Node_List{}, err
 	}
 
-	l := capnp.ToList(p)
+	return Node_List{List: p.List}, nil
 
-	return Node_List{List: l}, nil
 }
 
 func (s CodeGeneratorRequest) SetNodes(v Node_List) error {
 
-	return s.Struct.SetPointer(0, v.List)
+	return s.Struct.SetPtr(0, capnp.Ptr{List: v.List})
 }
 
 func (s CodeGeneratorRequest) RequestedFiles() (CodeGeneratorRequest_RequestedFile_List, error) {
-	p, err := s.Struct.Pointer(1)
+	p, err := s.Struct.Ptr(1)
 	if err != nil {
 		return CodeGeneratorRequest_RequestedFile_List{}, err
 	}
 
-	l := capnp.ToList(p)
+	return CodeGeneratorRequest_RequestedFile_List{List: p.List}, nil
 
-	return CodeGeneratorRequest_RequestedFile_List{List: l}, nil
 }
 
 func (s CodeGeneratorRequest) SetRequestedFiles(v CodeGeneratorRequest_RequestedFile_List) error {
 
-	return s.Struct.SetPointer(1, v.List)
+	return s.Struct.SetPtr(1, capnp.Ptr{List: v.List})
 }
 
 // CodeGeneratorRequest_List is a list of CodeGeneratorRequest.
@@ -2536,12 +2492,11 @@ func NewRootCodeGeneratorRequest_RequestedFile(s *capnp.Segment) (CodeGeneratorR
 }
 
 func ReadRootCodeGeneratorRequest_RequestedFile(msg *capnp.Message) (CodeGeneratorRequest_RequestedFile, error) {
-	root, err := msg.Root()
+	root, err := msg.RootPtr()
 	if err != nil {
 		return CodeGeneratorRequest_RequestedFile{}, err
 	}
-	st := capnp.ToStruct(root)
-	return CodeGeneratorRequest_RequestedFile{st}, nil
+	return CodeGeneratorRequest_RequestedFile{root.Struct}, nil
 }
 
 func (s CodeGeneratorRequest_RequestedFile) Id() uint64 {
@@ -2554,21 +2509,21 @@ func (s CodeGeneratorRequest_RequestedFile) SetId(v uint64) {
 }
 
 func (s CodeGeneratorRequest_RequestedFile) Filename() (string, error) {
-	p, err := s.Struct.Pointer(0)
+	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return "", err
 	}
 
-	return capnp.ToText(p), nil
+	return capnp.PtrToText(p), nil
 
 }
 
 func (s CodeGeneratorRequest_RequestedFile) FilenameBytes() ([]byte, error) {
-	p, err := s.Struct.Pointer(0)
+	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return nil, err
 	}
-	return capnp.ToData(p), nil
+	return capnp.PtrToData(p), nil
 }
 
 func (s CodeGeneratorRequest_RequestedFile) SetFilename(v string) error {
@@ -2577,23 +2532,22 @@ func (s CodeGeneratorRequest_RequestedFile) SetFilename(v string) error {
 	if err != nil {
 		return err
 	}
-	return s.Struct.SetPointer(0, t)
+	return s.Struct.SetPtr(0, capnp.Ptr{List: t.List})
 }
 
 func (s CodeGeneratorRequest_RequestedFile) Imports() (CodeGeneratorRequest_RequestedFile_Import_List, error) {
-	p, err := s.Struct.Pointer(1)
+	p, err := s.Struct.Ptr(1)
 	if err != nil {
 		return CodeGeneratorRequest_RequestedFile_Import_List{}, err
 	}
 
-	l := capnp.ToList(p)
+	return CodeGeneratorRequest_RequestedFile_Import_List{List: p.List}, nil
 
-	return CodeGeneratorRequest_RequestedFile_Import_List{List: l}, nil
 }
 
 func (s CodeGeneratorRequest_RequestedFile) SetImports(v CodeGeneratorRequest_RequestedFile_Import_List) error {
 
-	return s.Struct.SetPointer(1, v.List)
+	return s.Struct.SetPtr(1, capnp.Ptr{List: v.List})
 }
 
 // CodeGeneratorRequest_RequestedFile_List is a list of CodeGeneratorRequest_RequestedFile.
@@ -2634,12 +2588,11 @@ func NewRootCodeGeneratorRequest_RequestedFile_Import(s *capnp.Segment) (CodeGen
 }
 
 func ReadRootCodeGeneratorRequest_RequestedFile_Import(msg *capnp.Message) (CodeGeneratorRequest_RequestedFile_Import, error) {
-	root, err := msg.Root()
+	root, err := msg.RootPtr()
 	if err != nil {
 		return CodeGeneratorRequest_RequestedFile_Import{}, err
 	}
-	st := capnp.ToStruct(root)
-	return CodeGeneratorRequest_RequestedFile_Import{st}, nil
+	return CodeGeneratorRequest_RequestedFile_Import{root.Struct}, nil
 }
 
 func (s CodeGeneratorRequest_RequestedFile_Import) Id() uint64 {
@@ -2652,21 +2605,21 @@ func (s CodeGeneratorRequest_RequestedFile_Import) SetId(v uint64) {
 }
 
 func (s CodeGeneratorRequest_RequestedFile_Import) Name() (string, error) {
-	p, err := s.Struct.Pointer(0)
+	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return "", err
 	}
 
-	return capnp.ToText(p), nil
+	return capnp.PtrToText(p), nil
 
 }
 
 func (s CodeGeneratorRequest_RequestedFile_Import) NameBytes() ([]byte, error) {
-	p, err := s.Struct.Pointer(0)
+	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return nil, err
 	}
-	return capnp.ToData(p), nil
+	return capnp.PtrToData(p), nil
 }
 
 func (s CodeGeneratorRequest_RequestedFile_Import) SetName(v string) error {
@@ -2675,7 +2628,7 @@ func (s CodeGeneratorRequest_RequestedFile_Import) SetName(v string) error {
 	if err != nil {
 		return err
 	}
-	return s.Struct.SetPointer(0, t)
+	return s.Struct.SetPtr(0, capnp.Ptr{List: t.List})
 }
 
 // CodeGeneratorRequest_RequestedFile_Import_List is a list of CodeGeneratorRequest_RequestedFile_Import.
