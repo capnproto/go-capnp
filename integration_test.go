@@ -1730,10 +1730,10 @@ func generateA(r *rand.Rand) *A {
 	}
 }
 
-func unmarshalA(aa air.BenchmarkA) *A {
+func unmarshalA(aa air.BenchmarkA) A {
 	name, _ := aa.NameBytes()
 	phone, _ := aa.PhoneBytes()
-	return &A{
+	return A{
 		Name:     unsafeBytesToString(name),
 		BirthDay: time.Unix(aa.BirthDay(), 0),
 		Phone:    unsafeBytesToString(phone),
