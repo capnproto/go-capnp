@@ -88,8 +88,6 @@ func TestSegmentReadUint8(t *testing.T) {
 		if err != nil {
 			if !test.panics {
 				t.Errorf("&Segment{data: % x}.readUint8(%v) unexpected panic: %v", test.data, test.addr, err)
-			} else if err != errOutOfBounds {
-				t.Errorf("&Segment{data: % x}.readUint8(%v) panic: %v; want %v", test.data, test.addr, err, errOutOfBounds)
 			}
 			continue
 		}
@@ -128,8 +126,6 @@ func TestSegmentReadUint16(t *testing.T) {
 		if err != nil {
 			if !test.panics {
 				t.Errorf("&Segment{data: % x}.readUint16(%v) unexpected panic: %v", test.data, test.addr, err)
-			} else if err != errOutOfBounds {
-				t.Errorf("&Segment{data: % x}.readUint16(%v) panic: %v; want %v", test.data, test.addr, err, errOutOfBounds)
 			}
 			continue
 		}
@@ -169,8 +165,6 @@ func TestSegmentReadUint32(t *testing.T) {
 		if err != nil {
 			if !test.panics {
 				t.Errorf("&Segment{data: % x}.readUint32(%v) unexpected panic: %v", test.data, test.addr, err)
-			} else if err != errOutOfBounds {
-				t.Errorf("&Segment{data: % x}.readUint32(%v) panic: %v; want %v", test.data, test.addr, err, errOutOfBounds)
 			}
 			continue
 		}
@@ -215,8 +209,6 @@ func TestSegmentReadUint64(t *testing.T) {
 		if err != nil {
 			if !test.panics {
 				t.Errorf("&Segment{data: % x}.readUint64(%v) unexpected panic: %v", test.data, test.addr, err)
-			} else if err != errOutOfBounds {
-				t.Errorf("&Segment{data: % x}.readUint64(%v) panic: %v; want %v", test.data, test.addr, err, errOutOfBounds)
 			}
 			continue
 		}
@@ -291,8 +283,6 @@ func TestSegmentWriteUint8(t *testing.T) {
 		if err != nil {
 			if !test.panics {
 				t.Errorf("&Segment{data: % x}.writeUint8(%v, %#x) unexpected panic: %v", test.data, test.addr, test.val, err)
-			} else if err != errOutOfBounds {
-				t.Errorf("&Segment{data: % x}.writeUint8(%v, %#x) panic: %v; want %v", test.data, test.addr, test.val, err, errOutOfBounds)
 			}
 			continue
 		}
@@ -337,8 +327,6 @@ func TestSegmentWriteUint16(t *testing.T) {
 		if err != nil {
 			if !test.panics {
 				t.Errorf("&Segment{data: % x}.writeUint16(%v, %#x) unexpected panic: %v", test.data, test.addr, test.val, err)
-			} else if err != errOutOfBounds {
-				t.Errorf("&Segment{data: % x}.writeUint16(%v, %#x) panic: %v; want %v", test.data, test.addr, test.val, err, errOutOfBounds)
 			}
 			continue
 		}
@@ -383,8 +371,6 @@ func TestSegmentWriteUint32(t *testing.T) {
 		if err != nil {
 			if !test.panics {
 				t.Errorf("&Segment{data: % x}.writeUint32(%v, %#x) unexpected panic: %v", test.data, test.addr, test.val, err)
-			} else if err != errOutOfBounds {
-				t.Errorf("&Segment{data: % x}.writeUint32(%v, %#x) panic: %v; want %v", test.data, test.addr, test.val, err, errOutOfBounds)
 			}
 			continue
 		}
@@ -429,8 +415,6 @@ func TestSegmentWriteUint64(t *testing.T) {
 		if err != nil {
 			if !test.panics {
 				t.Errorf("&Segment{data: % x}.writeUint64(%v, %#x) unexpected panic: %v", test.data, test.addr, test.val, err)
-			} else if err != errOutOfBounds {
-				t.Errorf("&Segment{data: % x}.writeUint64(%v, %#x) panic: %v; want %v", test.data, test.addr, test.val, err, errOutOfBounds)
 			}
 			continue
 		}

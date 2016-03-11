@@ -39,15 +39,17 @@ func (s *Segment) inBounds(addr Address) bool {
 }
 
 func (s *Segment) regionInBounds(base Address, sz Size) bool {
-	return base.addSize(sz) <= Address(len(s.data))
+	end, ok := base.addSize(sz)
+	if !ok {
+		return false
+	}
+	return end <= Address(len(s.data))
 }
 
 // slice returns the segment of data from base to base+sz.
 func (s *Segment) slice(base Address, sz Size) []byte {
-	if !s.regionInBounds(base, sz) {
-		panic(errOutOfBounds)
-	}
-	return s.data[base:base.addSize(sz)]
+	// Bounds check should have happened before calling slice.
+	return s.data[base : base+Address(sz)]
 }
 
 func (s *Segment) readUint8(addr Address) uint8 {
@@ -145,20 +147,30 @@ func (s *Segment) readPtr(off Address) (Pointer, error) {
 		if !ok {
 			return nil, errPointerAddress
 		}
-		lt, lsize := val.listType(), val.totalListSize()
+		lt := val.listType()
+		lsize, ok := val.totalListSize()
+		if !ok {
+			return nil, errOverflow
+		}
 		if !s.regionInBounds(addr, lsize) {
 			return nil, errPointerAddress
 		}
 		if lt == compositeList {
 			hdr := s.readRawPointer(addr)
-			addr = addr.addSize(wordSize)
+			var ok bool
+			addr, ok = addr.addSize(wordSize)
+			if !ok {
+				return nil, errOverflow
+			}
 			if hdr.pointerType() != structPointer {
 				return nil, errBadTag
 			}
 			sz := hdr.structSize()
 			n := int32(hdr.offset())
 			// TODO(light): check that this has the same end address
-			if !s.regionInBounds(addr, sz.totalSize().times(n)) {
+			if tsize, ok := sz.totalSize().times(n); !ok {
+				return nil, errOverflow
+			} else if !s.regionInBounds(addr, tsize) {
 				return nil, errPointerAddress
 			}
 			return List{
@@ -210,11 +222,15 @@ func (s *Segment) resolveFarPointer(off Address, val rawPointer) (*Segment, Addr
 		if err != nil {
 			return nil, 0, 0, err
 		}
-		if !s.regionInBounds(faroff, wordSize.times(2)) {
+		if !s.regionInBounds(faroff, wordSize*2) {
 			return nil, 0, 0, errPointerAddress
 		}
 		far := s.readRawPointer(faroff)
-		tag := s.readRawPointer(faroff.addSize(wordSize))
+		tagStart, ok := faroff.addSize(wordSize)
+		if !ok {
+			return nil, 0, 0, errOverflow
+		}
+		tag := s.readRawPointer(tagStart)
 		if far.pointerType() != farPointer || tag.offset() != 0 {
 			return nil, 0, 0, errPointerAddress
 		}
@@ -246,12 +262,13 @@ type offset struct {
 }
 
 func makeOffsetKey(p Pointer) offset {
+	// Since this is used for copying, the address boundaries should already be clamped.
 	switch p := p.underlying().(type) {
 	case Struct:
 		return offset{
 			id:   p.seg.id,
 			boff: int64(p.off) * 8,
-			bend: int64(p.off.addSize(p.size.totalSize())) * 8,
+			bend: (int64(p.off) + int64(p.size.totalSize())) * 8,
 		}
 	case List:
 		key := offset{
@@ -261,7 +278,7 @@ func makeOffsetKey(p Pointer) offset {
 		if p.flags&isBitList != 0 {
 			key.bend = int64(p.off)*8 + int64(p.length)
 		} else {
-			key.bend = int64(p.off.addSize(p.size.totalSize().times(p.length))) * 8
+			key.bend = (int64(p.off) + int64(p.size.totalSize())*int64(p.length)) * 8
 		}
 		if p.flags&isCompositeList != 0 {
 			// Composite lists' offsets are after the tag word.
@@ -329,7 +346,8 @@ func (destSeg *Segment) writePtr(cc copyContext, off Address, src Pointer) error
 
 			srcAddr := pointerAddress(src)
 			t.writeRawPointer(dstAddr, rawFarPointer(srcSeg.id, srcAddr))
-			t.writeRawPointer(dstAddr.addSize(wordSize), src.value(srcAddr-Address(wordSize)))
+			// alloc guarantees that two words are available.
+			t.writeRawPointer(dstAddr+Address(wordSize), src.value(srcAddr-Address(wordSize)))
 			destSeg.writeRawPointer(off, rawDoubleFarPointer(t.id, dstAddr))
 			return nil
 		}
@@ -402,7 +420,11 @@ func copyPointer(cc copyContext, dstSeg *Segment, dstAddr Address, src Pointer) 
 		if dst.flags&isCompositeList != 0 {
 			// Copy tag word
 			newSeg.writeRawPointer(newAddr, src.seg.readRawPointer(src.off-Address(wordSize)))
-			dst.off = dst.off.addSize(wordSize)
+			var ok bool
+			dst.off, ok = dst.off.addSize(wordSize)
+			if !ok {
+				return errOverflow
+			}
 		}
 		key.newval = dst
 		cc.copies.Insert(key)
@@ -453,7 +475,7 @@ var (
 )
 
 var (
-	errOverlarge   = errors.New("capnp: overlarge struct/list")
+	errOverflow    = errors.New("capnp: address or size overflow")
 	errOutOfBounds = errors.New("capnp: address out of bounds")
 	errCopyDepth   = errors.New("capnp: copy depth too large")
 	errOverlap     = errors.New("capnp: overlapping data on copy")

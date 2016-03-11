@@ -92,7 +92,7 @@ func (p rawPointer) structSize() ObjectSize {
 	c := uint16(p >> 32)
 	d := uint16(p >> 48)
 	return ObjectSize{
-		DataSize:     wordSize.times(int32(c)),
+		DataSize:     Size(c) * wordSize,
 		PointerCount: d,
 	}
 }
@@ -129,13 +129,13 @@ func (p rawPointer) elementSize() ObjectSize {
 }
 
 // totalListSize returns the total size of the list referenced by p.
-func (p rawPointer) totalListSize() Size {
+func (p rawPointer) totalListSize() (sz Size, ok bool) {
 	n := p.numListElements()
 	switch p.listType() {
 	case voidList:
-		return 0
+		return 0, true
 	case bit1List:
-		return Size((n + 7) / 8)
+		return Size((n + 7) / 8), true
 	case compositeList:
 		// For a composite list, n represents the number of words (excluding the tag word).
 		return wordSize.times(n + 1)
@@ -188,7 +188,8 @@ func (p rawPointer) otherPointerType() uint32 {
 
 // farAddress returns the address of the landing pad pointer.
 func (p rawPointer) farAddress() Address {
-	return Address(0).element(int32(p&(1<<32-1)>>3), wordSize)
+	// 29-bit*8 < 32-bits, so overflow is impossible.
+	return Address(p&(1<<32-1)>>3) * Address(wordSize)
 }
 
 // farSegment returns the segment ID that the far pointer references.

@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
-	"math"
 
 	"zombiezen.com/go/capnproto2/internal/packed"
 )
@@ -144,8 +143,8 @@ func (m *Message) allocSegment(sz Size) (*Segment, error) {
 // capacity.
 func alloc(s *Segment, sz Size) (*Segment, Address, error) {
 	sz = sz.padToWord()
-	if sz > Size(math.MaxUint32)-wordSize {
-		return nil, 0, errOverlarge
+	if sz > maxSize-wordSize {
+		return nil, 0, errOverflow
 	}
 
 	if !hasCapacity(s.data, sz) {
@@ -157,7 +156,10 @@ func alloc(s *Segment, sz Size) (*Segment, Address, error) {
 	}
 
 	addr := Address(len(s.data))
-	end := addr.addSize(sz)
+	end, ok := addr.addSize(sz)
+	if !ok {
+		return nil, 0, errOverflow
+	}
 	s.data = s.data[:end]
 	for i := addr; i < end; i++ {
 		s.data[i] = 0
@@ -247,13 +249,16 @@ func MultiSegment(b [][]byte) Arena {
 }
 
 // demuxArena slices b into a multi-segment arena.
-func demuxArena(hdr streamHeader, data []byte) Arena {
+func demuxArena(hdr streamHeader, data []byte) (Arena, error) {
 	segs := make([][]byte, int(hdr.maxSegment())+1)
 	for i := range segs {
-		sz := hdr.segmentSize(uint32(i))
+		sz, err := hdr.segmentSize(uint32(i))
+		if err != nil {
+			return nil, err
+		}
 		segs[i], data = data[:sz:sz], data[sz:]
 	}
-	return MultiSegment(segs)
+	return MultiSegment(segs), nil
 }
 
 func (msa *multiSegmentArena) NumSegments() int64 {
@@ -323,13 +328,20 @@ func (d *Decoder) Decode() (*Message, error) {
 	if err != nil {
 		return nil, err
 	}
-	total := hdr.totalSize()
+	total, err := hdr.totalSize()
+	if err != nil {
+		return nil, err
+	}
 	// TODO(light): size check
 	buf := make([]byte, int(total))
 	if _, err := io.ReadFull(d.r, buf); err != nil {
 		return nil, err
 	}
-	return &Message{Arena: demuxArena(hdr, buf)}, nil
+	arena, err := demuxArena(hdr, buf)
+	if err != nil {
+		return nil, err
+	}
+	return &Message{Arena: arena}, nil
 }
 
 // Unmarshal reads an unpacked serialized stream into a message.  No
@@ -343,10 +355,16 @@ func Unmarshal(data []byte) (*Message, error) {
 	if err != nil {
 		return nil, err
 	}
-	if tot := hdr.totalSize(); tot > uint64(len(data)) {
+	if tot, err := hdr.totalSize(); err != nil {
+		return nil, err
+	} else if tot > uint64(len(data)) {
 		return nil, io.ErrUnexpectedEOF
 	}
-	return &Message{Arena: demuxArena(hdr, data)}, nil
+	arena, err := demuxArena(hdr, data)
+	if err != nil {
+		return nil, err
+	}
+	return &Message{Arena: arena}, nil
 }
 
 // MustUnmarshalRoot reads an unpacked serialized stream and returns its
@@ -437,7 +455,7 @@ func (m *Message) segmentSizes() ([]Size, error) {
 		}
 		n := len(s.data)
 		if int64(n) > int64(maxSize) {
-			return sizes[:i], errOverlarge
+			return sizes[:i], errSegmentTooLarge
 		}
 		sizes[i] = Size(n)
 	}
@@ -530,17 +548,25 @@ func (h streamHeader) maxSegment() uint32 {
 	return binary.LittleEndian.Uint32(h.b)
 }
 
-func (h streamHeader) segmentSize(i uint32) Size {
+func (h streamHeader) segmentSize(i uint32) (Size, error) {
 	s := binary.LittleEndian.Uint32(h.b[msgHeaderSize+i*segHeaderSize:])
-	return wordSize.times(int32(s))
+	sz, ok := wordSize.times(int32(s))
+	if !ok {
+		return 0, errSegmentTooLarge
+	}
+	return sz, nil
 }
 
-func (h streamHeader) totalSize() uint64 {
+func (h streamHeader) totalSize() (uint64, error) {
 	var sum uint64
 	for i := uint64(0); i <= uint64(h.maxSegment()); i++ {
-		sum += uint64(h.segmentSize(uint32(i)))
+		x, err := h.segmentSize(uint32(i))
+		if err != nil {
+			return sum, err
+		}
+		sum += uint64(x)
 	}
-	return sum
+	return sum, nil
 }
 
 func hasCapacity(b []byte, sz Size) bool {
@@ -571,5 +597,6 @@ var (
 	errHasData            = errors.New("capnp: NewMessage called on arena with data")
 	errTooMuchData        = errors.New("capnp: too much data in stream")
 	errSegmentTooSmall    = errors.New("capnp: segment too small")
+	errSegmentTooLarge    = errors.New("capnp: segment too large")
 	errStreamHeader       = errors.New("capnp: invalid stream header")
 )

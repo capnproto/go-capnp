@@ -16,7 +16,11 @@ type List struct {
 
 // newPrimitiveList allocates a new list of primitive values, preferring placement in s.
 func newPrimitiveList(s *Segment, sz Size, n int32) (List, error) {
-	s, addr, err := alloc(s, sz.times(n))
+	total, ok := sz.times(n)
+	if !ok {
+		return List{}, errOverflow
+	}
+	s, addr, err := alloc(s, total)
 	if err != nil {
 		return List{}, err
 	}
@@ -35,7 +39,11 @@ func NewCompositeList(s *Segment, sz ObjectSize, n int32) (List, error) {
 		return List{}, errObjectSize
 	}
 	sz.DataSize = sz.DataSize.padToWord()
-	s, addr, err := alloc(s, wordSize+sz.totalSize().times(n))
+	total, ok := sz.totalSize().times(n)
+	if !ok || total > maxSize-wordSize {
+		return List{}, errOverflow
+	}
+	s, addr, err := alloc(s, wordSize+total)
 	if err != nil {
 		return List{}, err
 	}
@@ -43,7 +51,7 @@ func NewCompositeList(s *Segment, sz ObjectSize, n int32) (List, error) {
 	s.writeRawPointer(addr, rawStructPointer(pointerOffset(n), sz))
 	return List{
 		seg:    s,
-		off:    addr.addSize(wordSize),
+		off:    addr + Address(wordSize),
 		length: n,
 		size:   sz,
 		flags:  isCompositeList,
@@ -87,7 +95,11 @@ func (p List) Segment() *Segment {
 
 // HasData reports whether the list's total size is non-zero.
 func (p List) HasData() bool {
-	return p.size.totalSize().times(p.length) > 0
+	sz, ok := p.size.totalSize().times(p.length)
+	if !ok {
+		return false
+	}
+	return sz > 0
 }
 
 // value returns the equivalent raw list pointer.
@@ -151,7 +163,9 @@ func (p List) elem(i int) (addr Address, sz Size) {
 		addr = p.off.addOffset(BitOffset(i).offset())
 		return addr, 1
 	}
-	return p.off.element(int32(i), p.size.totalSize()), p.size.totalSize()
+	sz = p.size.totalSize()
+	addr, _ = p.off.element(int32(i), sz)
+	return addr, sz
 }
 
 func (p List) slice(i int) []byte {
@@ -186,7 +200,7 @@ type BitList struct{ List }
 
 // NewBitList creates a new bit list, preferring placement in s.
 func NewBitList(s *Segment, n int32) (BitList, error) {
-	s, addr, err := alloc(s, Size(1).times((n+7)&^7))
+	s, addr, err := alloc(s, Size(int64(n+7)/8))
 	if err != nil {
 		return BitList{}, err
 	}
@@ -227,7 +241,11 @@ type PointerList struct{ List }
 
 // NewPointerList allocates a new list of pointers, preferring placement in s.
 func NewPointerList(s *Segment, n int32) (PointerList, error) {
-	s, addr, err := alloc(s, wordSize.times(n))
+	total, ok := wordSize.times(n)
+	if !ok {
+		return PointerList{}, errOverflow
+	}
+	s, addr, err := alloc(s, total)
 	if err != nil {
 		return PointerList{}, err
 	}
@@ -385,7 +403,7 @@ func ToTextDefault(p Pointer, def string) string {
 	if !ok {
 		return def
 	}
-	b := l.seg.slice(l.off, l.size.totalSize().times(l.length))
+	b := l.seg.slice(l.off, Size(l.length))
 	if len(b) == 0 || b[len(b)-1] != 0 {
 		// Text must be null-terminated.
 		return def
@@ -406,7 +424,7 @@ func ToDataDefault(p Pointer, def []byte) []byte {
 	if !ok {
 		return def
 	}
-	b := l.seg.slice(l.off, l.size.totalSize().times(l.length))
+	b := l.seg.slice(l.off, Size(l.length))
 	if b == nil {
 		return def
 	}
