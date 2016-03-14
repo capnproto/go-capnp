@@ -1803,3 +1803,41 @@ func BenchmarkUnmarshal(b *testing.B) {
 		unmarshalA(a)
 	}
 }
+
+func BenchmarkUnmarshal_Reuse(b *testing.B) {
+	r := rand.New(rand.NewSource(12345))
+	data := make([][]byte, 1000)
+	for i := range data {
+		a := generateA(r)
+		msg, seg, _ := capnp.NewMessage(capnp.SingleSegment(nil))
+		root, _ := air.NewRootBenchmarkA(seg)
+		a.fill(root)
+		data[i], _ = msg.Marshal()
+	}
+	msg := new(capnp.Message)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		ta := testArena(data[r.Intn(len(data))][8:])
+		*msg = capnp.Message{Arena: ta}
+		a, _ := air.ReadRootBenchmarkA(msg)
+		unmarshalA(a)
+	}
+}
+
+type testArena []byte
+
+func (ta testArena) NumSegments() int64 {
+	return 1
+}
+
+func (ta testArena) Data(id capnp.SegmentID) ([]byte, error) {
+	if id != 0 {
+		return nil, errors.New("test arena: requested non-zero segment")
+	}
+	return []byte(ta), nil
+}
+
+func (ta testArena) Allocate(capnp.Size, map[capnp.SegmentID]*capnp.Segment) (capnp.SegmentID, []byte, error) {
+	return 0, nil, errors.New("test arena: can't allocate")
+}
