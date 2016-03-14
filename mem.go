@@ -23,6 +23,9 @@ type Message struct {
 	CapTable []Client
 
 	segs map[SegmentID]*Segment
+
+	// Preallocated first segment. msg is non-nil once initialized.
+	firstSeg Segment
 }
 
 // NewMessage creates a message with a new root and returns the first
@@ -104,6 +107,9 @@ func (m *Message) Segment(id SegmentID) (*Segment, error) {
 
 func (m *Message) segment(id SegmentID) *Segment {
 	if m.segs == nil {
+		if id == 0 && m.firstSeg.msg != nil {
+			return &m.firstSeg
+		}
 		return nil
 	}
 	return m.segs[id]
@@ -111,7 +117,18 @@ func (m *Message) segment(id SegmentID) *Segment {
 
 func (m *Message) setSegment(id SegmentID, data []byte) *Segment {
 	if m.segs == nil {
+		if id == 0 {
+			m.firstSeg = Segment{
+				id:   id,
+				msg:  m,
+				data: data,
+			}
+			return &m.firstSeg
+		}
 		m.segs = make(map[SegmentID]*Segment)
+		if m.firstSeg.msg != nil {
+			m.segs[0] = &m.firstSeg
+		}
 	} else if seg := m.segs[id]; seg != nil {
 		seg.data = data
 		return seg
@@ -128,6 +145,10 @@ func (m *Message) setSegment(id SegmentID, data []byte) *Segment {
 // allocSegment creates or resizes an existing segment such that
 // cap(seg.Data) - len(seg.Data) >= sz.
 func (m *Message) allocSegment(sz Size) (*Segment, error) {
+	if m.segs == nil && m.firstSeg.msg != nil {
+		m.segs = make(map[SegmentID]*Segment)
+		m.segs[0] = &m.firstSeg
+	}
 	id, data, err := m.Arena.Allocate(sz, m.segs)
 	if err != nil {
 		return nil, err
