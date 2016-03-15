@@ -42,7 +42,7 @@ func ReadRootZdate(msg *capnp.Message) (Zdate, error) {
 	if err != nil {
 		return Zdate{}, err
 	}
-	return Zdate{root.Struct}, nil
+	return Zdate{root.Struct()}, nil
 }
 
 func (s Zdate) Year() int16 {
@@ -118,7 +118,7 @@ func ReadRootZdata(msg *capnp.Message) (Zdata, error) {
 	if err != nil {
 		return Zdata{}, err
 	}
-	return Zdata{root.Struct}, nil
+	return Zdata{root.Struct()}, nil
 }
 
 func (s Zdata) Data() ([]byte, error) {
@@ -137,7 +137,7 @@ func (s Zdata) SetData(v []byte) error {
 	if err != nil {
 		return err
 	}
-	return s.Struct.SetPtr(0, capnp.Ptr{List: d.List})
+	return s.Struct.SetPtr(0, d.List.ToPtr())
 }
 
 // Zdata_List is a list of Zdata.
@@ -266,7 +266,7 @@ func ReadRootPlaneBase(msg *capnp.Message) (PlaneBase, error) {
 	if err != nil {
 		return PlaneBase{}, err
 	}
-	return PlaneBase{root.Struct}, nil
+	return PlaneBase{root.Struct()}, nil
 }
 
 func (s PlaneBase) Name() (string, error) {
@@ -293,7 +293,7 @@ func (s PlaneBase) SetName(v string) error {
 	if err != nil {
 		return err
 	}
-	return s.Struct.SetPtr(0, capnp.Ptr{List: t.List})
+	return s.Struct.SetPtr(0, t.List.ToPtr())
 }
 
 func (s PlaneBase) Homes() (Airport_List, error) {
@@ -302,13 +302,13 @@ func (s PlaneBase) Homes() (Airport_List, error) {
 		return Airport_List{}, err
 	}
 
-	return Airport_List{List: p.List}, nil
+	return Airport_List{List: p.List()}, nil
 
 }
 
 func (s PlaneBase) SetHomes(v Airport_List) error {
 
-	return s.Struct.SetPtr(1, capnp.Ptr{List: v.List})
+	return s.Struct.SetPtr(1, v.List.ToPtr())
 }
 
 func (s PlaneBase) Rating() int64 {
@@ -393,7 +393,7 @@ func ReadRootB737(msg *capnp.Message) (B737, error) {
 	if err != nil {
 		return B737{}, err
 	}
-	return B737{root.Struct}, nil
+	return B737{root.Struct()}, nil
 }
 
 func (s B737) Base() (PlaneBase, error) {
@@ -402,13 +402,13 @@ func (s B737) Base() (PlaneBase, error) {
 		return PlaneBase{}, err
 	}
 
-	return PlaneBase{Struct: p.Struct}, nil
+	return PlaneBase{Struct: p.Struct()}, nil
 
 }
 
 func (s B737) SetBase(v PlaneBase) error {
 
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewBase sets the base field to a newly
@@ -419,7 +419,7 @@ func (s B737) NewBase() (PlaneBase, error) {
 	if err != nil {
 		return PlaneBase{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -473,7 +473,7 @@ func ReadRootA320(msg *capnp.Message) (A320, error) {
 	if err != nil {
 		return A320{}, err
 	}
-	return A320{root.Struct}, nil
+	return A320{root.Struct()}, nil
 }
 
 func (s A320) Base() (PlaneBase, error) {
@@ -482,13 +482,13 @@ func (s A320) Base() (PlaneBase, error) {
 		return PlaneBase{}, err
 	}
 
-	return PlaneBase{Struct: p.Struct}, nil
+	return PlaneBase{Struct: p.Struct()}, nil
 
 }
 
 func (s A320) SetBase(v PlaneBase) error {
 
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewBase sets the base field to a newly
@@ -499,7 +499,7 @@ func (s A320) NewBase() (PlaneBase, error) {
 	if err != nil {
 		return PlaneBase{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -553,7 +553,7 @@ func ReadRootF16(msg *capnp.Message) (F16, error) {
 	if err != nil {
 		return F16{}, err
 	}
-	return F16{root.Struct}, nil
+	return F16{root.Struct()}, nil
 }
 
 func (s F16) Base() (PlaneBase, error) {
@@ -562,13 +562,13 @@ func (s F16) Base() (PlaneBase, error) {
 		return PlaneBase{}, err
 	}
 
-	return PlaneBase{Struct: p.Struct}, nil
+	return PlaneBase{Struct: p.Struct()}, nil
 
 }
 
 func (s F16) SetBase(v PlaneBase) error {
 
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewBase sets the base field to a newly
@@ -579,7 +579,7 @@ func (s F16) NewBase() (PlaneBase, error) {
 	if err != nil {
 		return PlaneBase{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -633,7 +633,7 @@ func ReadRootRegression(msg *capnp.Message) (Regression, error) {
 	if err != nil {
 		return Regression{}, err
 	}
-	return Regression{root.Struct}, nil
+	return Regression{root.Struct()}, nil
 }
 
 func (s Regression) Base() (PlaneBase, error) {
@@ -642,13 +642,13 @@ func (s Regression) Base() (PlaneBase, error) {
 		return PlaneBase{}, err
 	}
 
-	return PlaneBase{Struct: p.Struct}, nil
+	return PlaneBase{Struct: p.Struct()}, nil
 
 }
 
 func (s Regression) SetBase(v PlaneBase) error {
 
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewBase sets the base field to a newly
@@ -659,7 +659,7 @@ func (s Regression) NewBase() (PlaneBase, error) {
 	if err != nil {
 		return PlaneBase{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -678,13 +678,13 @@ func (s Regression) Beta() (capnp.Float64List, error) {
 		return capnp.Float64List{}, err
 	}
 
-	return capnp.Float64List{List: p.List}, nil
+	return capnp.Float64List{List: p.List()}, nil
 
 }
 
 func (s Regression) SetBeta(v capnp.Float64List) error {
 
-	return s.Struct.SetPtr(1, capnp.Ptr{List: v.List})
+	return s.Struct.SetPtr(1, v.List.ToPtr())
 }
 
 func (s Regression) Planes() (Aircraft_List, error) {
@@ -693,13 +693,13 @@ func (s Regression) Planes() (Aircraft_List, error) {
 		return Aircraft_List{}, err
 	}
 
-	return Aircraft_List{List: p.List}, nil
+	return Aircraft_List{List: p.List()}, nil
 
 }
 
 func (s Regression) SetPlanes(v Aircraft_List) error {
 
-	return s.Struct.SetPtr(2, capnp.Ptr{List: v.List})
+	return s.Struct.SetPtr(2, v.List.ToPtr())
 }
 
 func (s Regression) Ymu() float64 {
@@ -794,7 +794,7 @@ func ReadRootAircraft(msg *capnp.Message) (Aircraft, error) {
 	if err != nil {
 		return Aircraft{}, err
 	}
-	return Aircraft{root.Struct}, nil
+	return Aircraft{root.Struct()}, nil
 }
 
 func (s Aircraft) Which() Aircraft_Which {
@@ -811,13 +811,13 @@ func (s Aircraft) B737() (B737, error) {
 		return B737{}, err
 	}
 
-	return B737{Struct: p.Struct}, nil
+	return B737{Struct: p.Struct()}, nil
 
 }
 
 func (s Aircraft) SetB737(v B737) error {
 	s.Struct.SetUint16(0, 1)
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewB737 sets the b737 field to a newly
@@ -828,7 +828,7 @@ func (s Aircraft) NewB737() (B737, error) {
 	if err != nil {
 		return B737{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -838,13 +838,13 @@ func (s Aircraft) A320() (A320, error) {
 		return A320{}, err
 	}
 
-	return A320{Struct: p.Struct}, nil
+	return A320{Struct: p.Struct()}, nil
 
 }
 
 func (s Aircraft) SetA320(v A320) error {
 	s.Struct.SetUint16(0, 2)
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewA320 sets the a320 field to a newly
@@ -855,7 +855,7 @@ func (s Aircraft) NewA320() (A320, error) {
 	if err != nil {
 		return A320{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -865,13 +865,13 @@ func (s Aircraft) F16() (F16, error) {
 		return F16{}, err
 	}
 
-	return F16{Struct: p.Struct}, nil
+	return F16{Struct: p.Struct()}, nil
 
 }
 
 func (s Aircraft) SetF16(v F16) error {
 	s.Struct.SetUint16(0, 3)
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewF16 sets the f16 field to a newly
@@ -882,7 +882,7 @@ func (s Aircraft) NewF16() (F16, error) {
 	if err != nil {
 		return F16{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -1076,7 +1076,7 @@ func ReadRootZ(msg *capnp.Message) (Z, error) {
 	if err != nil {
 		return Z{}, err
 	}
-	return Z{root.Struct}, nil
+	return Z{root.Struct()}, nil
 }
 
 func (s Z) Which() Z_Which {
@@ -1093,13 +1093,13 @@ func (s Z) Zz() (Z, error) {
 		return Z{}, err
 	}
 
-	return Z{Struct: p.Struct}, nil
+	return Z{Struct: p.Struct()}, nil
 
 }
 
 func (s Z) SetZz(v Z) error {
 	s.Struct.SetUint16(0, 1)
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewZz sets the zz field to a newly
@@ -1110,7 +1110,7 @@ func (s Z) NewZz() (Z, error) {
 	if err != nil {
 		return Z{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -1237,7 +1237,7 @@ func (s Z) SetText(v string) error {
 	if err != nil {
 		return err
 	}
-	return s.Struct.SetPtr(0, capnp.Ptr{List: t.List})
+	return s.Struct.SetPtr(0, t.List.ToPtr())
 }
 
 func (s Z) Blob() ([]byte, error) {
@@ -1256,7 +1256,7 @@ func (s Z) SetBlob(v []byte) error {
 	if err != nil {
 		return err
 	}
-	return s.Struct.SetPtr(0, capnp.Ptr{List: d.List})
+	return s.Struct.SetPtr(0, d.List.ToPtr())
 }
 
 func (s Z) F64vec() (capnp.Float64List, error) {
@@ -1265,13 +1265,13 @@ func (s Z) F64vec() (capnp.Float64List, error) {
 		return capnp.Float64List{}, err
 	}
 
-	return capnp.Float64List{List: p.List}, nil
+	return capnp.Float64List{List: p.List()}, nil
 
 }
 
 func (s Z) SetF64vec(v capnp.Float64List) error {
 	s.Struct.SetUint16(0, 15)
-	return s.Struct.SetPtr(0, capnp.Ptr{List: v.List})
+	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
 func (s Z) F32vec() (capnp.Float32List, error) {
@@ -1280,13 +1280,13 @@ func (s Z) F32vec() (capnp.Float32List, error) {
 		return capnp.Float32List{}, err
 	}
 
-	return capnp.Float32List{List: p.List}, nil
+	return capnp.Float32List{List: p.List()}, nil
 
 }
 
 func (s Z) SetF32vec(v capnp.Float32List) error {
 	s.Struct.SetUint16(0, 16)
-	return s.Struct.SetPtr(0, capnp.Ptr{List: v.List})
+	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
 func (s Z) I64vec() (capnp.Int64List, error) {
@@ -1295,13 +1295,13 @@ func (s Z) I64vec() (capnp.Int64List, error) {
 		return capnp.Int64List{}, err
 	}
 
-	return capnp.Int64List{List: p.List}, nil
+	return capnp.Int64List{List: p.List()}, nil
 
 }
 
 func (s Z) SetI64vec(v capnp.Int64List) error {
 	s.Struct.SetUint16(0, 17)
-	return s.Struct.SetPtr(0, capnp.Ptr{List: v.List})
+	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
 func (s Z) I32vec() (capnp.Int32List, error) {
@@ -1310,13 +1310,13 @@ func (s Z) I32vec() (capnp.Int32List, error) {
 		return capnp.Int32List{}, err
 	}
 
-	return capnp.Int32List{List: p.List}, nil
+	return capnp.Int32List{List: p.List()}, nil
 
 }
 
 func (s Z) SetI32vec(v capnp.Int32List) error {
 	s.Struct.SetUint16(0, 18)
-	return s.Struct.SetPtr(0, capnp.Ptr{List: v.List})
+	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
 func (s Z) I16vec() (capnp.Int16List, error) {
@@ -1325,13 +1325,13 @@ func (s Z) I16vec() (capnp.Int16List, error) {
 		return capnp.Int16List{}, err
 	}
 
-	return capnp.Int16List{List: p.List}, nil
+	return capnp.Int16List{List: p.List()}, nil
 
 }
 
 func (s Z) SetI16vec(v capnp.Int16List) error {
 	s.Struct.SetUint16(0, 19)
-	return s.Struct.SetPtr(0, capnp.Ptr{List: v.List})
+	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
 func (s Z) I8vec() (capnp.Int8List, error) {
@@ -1340,13 +1340,13 @@ func (s Z) I8vec() (capnp.Int8List, error) {
 		return capnp.Int8List{}, err
 	}
 
-	return capnp.Int8List{List: p.List}, nil
+	return capnp.Int8List{List: p.List()}, nil
 
 }
 
 func (s Z) SetI8vec(v capnp.Int8List) error {
 	s.Struct.SetUint16(0, 20)
-	return s.Struct.SetPtr(0, capnp.Ptr{List: v.List})
+	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
 func (s Z) U64vec() (capnp.UInt64List, error) {
@@ -1355,13 +1355,13 @@ func (s Z) U64vec() (capnp.UInt64List, error) {
 		return capnp.UInt64List{}, err
 	}
 
-	return capnp.UInt64List{List: p.List}, nil
+	return capnp.UInt64List{List: p.List()}, nil
 
 }
 
 func (s Z) SetU64vec(v capnp.UInt64List) error {
 	s.Struct.SetUint16(0, 21)
-	return s.Struct.SetPtr(0, capnp.Ptr{List: v.List})
+	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
 func (s Z) U32vec() (capnp.UInt32List, error) {
@@ -1370,13 +1370,13 @@ func (s Z) U32vec() (capnp.UInt32List, error) {
 		return capnp.UInt32List{}, err
 	}
 
-	return capnp.UInt32List{List: p.List}, nil
+	return capnp.UInt32List{List: p.List()}, nil
 
 }
 
 func (s Z) SetU32vec(v capnp.UInt32List) error {
 	s.Struct.SetUint16(0, 22)
-	return s.Struct.SetPtr(0, capnp.Ptr{List: v.List})
+	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
 func (s Z) U16vec() (capnp.UInt16List, error) {
@@ -1385,13 +1385,13 @@ func (s Z) U16vec() (capnp.UInt16List, error) {
 		return capnp.UInt16List{}, err
 	}
 
-	return capnp.UInt16List{List: p.List}, nil
+	return capnp.UInt16List{List: p.List()}, nil
 
 }
 
 func (s Z) SetU16vec(v capnp.UInt16List) error {
 	s.Struct.SetUint16(0, 23)
-	return s.Struct.SetPtr(0, capnp.Ptr{List: v.List})
+	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
 func (s Z) U8vec() (capnp.UInt8List, error) {
@@ -1400,13 +1400,13 @@ func (s Z) U8vec() (capnp.UInt8List, error) {
 		return capnp.UInt8List{}, err
 	}
 
-	return capnp.UInt8List{List: p.List}, nil
+	return capnp.UInt8List{List: p.List()}, nil
 
 }
 
 func (s Z) SetU8vec(v capnp.UInt8List) error {
 	s.Struct.SetUint16(0, 24)
-	return s.Struct.SetPtr(0, capnp.Ptr{List: v.List})
+	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
 func (s Z) Zvec() (Z_List, error) {
@@ -1415,13 +1415,13 @@ func (s Z) Zvec() (Z_List, error) {
 		return Z_List{}, err
 	}
 
-	return Z_List{List: p.List}, nil
+	return Z_List{List: p.List()}, nil
 
 }
 
 func (s Z) SetZvec(v Z_List) error {
 	s.Struct.SetUint16(0, 25)
-	return s.Struct.SetPtr(0, capnp.Ptr{List: v.List})
+	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
 func (s Z) Zvecvec() (capnp.PointerList, error) {
@@ -1430,13 +1430,13 @@ func (s Z) Zvecvec() (capnp.PointerList, error) {
 		return capnp.PointerList{}, err
 	}
 
-	return capnp.PointerList{List: p.List}, nil
+	return capnp.PointerList{List: p.List()}, nil
 
 }
 
 func (s Z) SetZvecvec(v capnp.PointerList) error {
 	s.Struct.SetUint16(0, 26)
-	return s.Struct.SetPtr(0, capnp.Ptr{List: v.List})
+	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
 func (s Z) Zdate() (Zdate, error) {
@@ -1445,13 +1445,13 @@ func (s Z) Zdate() (Zdate, error) {
 		return Zdate{}, err
 	}
 
-	return Zdate{Struct: p.Struct}, nil
+	return Zdate{Struct: p.Struct()}, nil
 
 }
 
 func (s Z) SetZdate(v Zdate) error {
 	s.Struct.SetUint16(0, 27)
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewZdate sets the zdate field to a newly
@@ -1462,7 +1462,7 @@ func (s Z) NewZdate() (Zdate, error) {
 	if err != nil {
 		return Zdate{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -1472,13 +1472,13 @@ func (s Z) Zdata() (Zdata, error) {
 		return Zdata{}, err
 	}
 
-	return Zdata{Struct: p.Struct}, nil
+	return Zdata{Struct: p.Struct()}, nil
 
 }
 
 func (s Z) SetZdata(v Zdata) error {
 	s.Struct.SetUint16(0, 28)
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewZdata sets the zdata field to a newly
@@ -1489,7 +1489,7 @@ func (s Z) NewZdata() (Zdata, error) {
 	if err != nil {
 		return Zdata{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -1499,13 +1499,13 @@ func (s Z) Aircraftvec() (Aircraft_List, error) {
 		return Aircraft_List{}, err
 	}
 
-	return Aircraft_List{List: p.List}, nil
+	return Aircraft_List{List: p.List()}, nil
 
 }
 
 func (s Z) SetAircraftvec(v Aircraft_List) error {
 	s.Struct.SetUint16(0, 29)
-	return s.Struct.SetPtr(0, capnp.Ptr{List: v.List})
+	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
 func (s Z) Aircraft() (Aircraft, error) {
@@ -1514,13 +1514,13 @@ func (s Z) Aircraft() (Aircraft, error) {
 		return Aircraft{}, err
 	}
 
-	return Aircraft{Struct: p.Struct}, nil
+	return Aircraft{Struct: p.Struct()}, nil
 
 }
 
 func (s Z) SetAircraft(v Aircraft) error {
 	s.Struct.SetUint16(0, 30)
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewAircraft sets the aircraft field to a newly
@@ -1531,7 +1531,7 @@ func (s Z) NewAircraft() (Aircraft, error) {
 	if err != nil {
 		return Aircraft{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -1541,13 +1541,13 @@ func (s Z) Regression() (Regression, error) {
 		return Regression{}, err
 	}
 
-	return Regression{Struct: p.Struct}, nil
+	return Regression{Struct: p.Struct()}, nil
 
 }
 
 func (s Z) SetRegression(v Regression) error {
 	s.Struct.SetUint16(0, 31)
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewRegression sets the regression field to a newly
@@ -1558,7 +1558,7 @@ func (s Z) NewRegression() (Regression, error) {
 	if err != nil {
 		return Regression{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -1568,13 +1568,13 @@ func (s Z) Planebase() (PlaneBase, error) {
 		return PlaneBase{}, err
 	}
 
-	return PlaneBase{Struct: p.Struct}, nil
+	return PlaneBase{Struct: p.Struct()}, nil
 
 }
 
 func (s Z) SetPlanebase(v PlaneBase) error {
 	s.Struct.SetUint16(0, 32)
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewPlanebase sets the planebase field to a newly
@@ -1585,7 +1585,7 @@ func (s Z) NewPlanebase() (PlaneBase, error) {
 	if err != nil {
 		return PlaneBase{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -1604,13 +1604,13 @@ func (s Z) B737() (B737, error) {
 		return B737{}, err
 	}
 
-	return B737{Struct: p.Struct}, nil
+	return B737{Struct: p.Struct()}, nil
 
 }
 
 func (s Z) SetB737(v B737) error {
 	s.Struct.SetUint16(0, 34)
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewB737 sets the b737 field to a newly
@@ -1621,7 +1621,7 @@ func (s Z) NewB737() (B737, error) {
 	if err != nil {
 		return B737{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -1631,13 +1631,13 @@ func (s Z) A320() (A320, error) {
 		return A320{}, err
 	}
 
-	return A320{Struct: p.Struct}, nil
+	return A320{Struct: p.Struct()}, nil
 
 }
 
 func (s Z) SetA320(v A320) error {
 	s.Struct.SetUint16(0, 35)
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewA320 sets the a320 field to a newly
@@ -1648,7 +1648,7 @@ func (s Z) NewA320() (A320, error) {
 	if err != nil {
 		return A320{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -1658,13 +1658,13 @@ func (s Z) F16() (F16, error) {
 		return F16{}, err
 	}
 
-	return F16{Struct: p.Struct}, nil
+	return F16{Struct: p.Struct()}, nil
 
 }
 
 func (s Z) SetF16(v F16) error {
 	s.Struct.SetUint16(0, 36)
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewF16 sets the f16 field to a newly
@@ -1675,7 +1675,7 @@ func (s Z) NewF16() (F16, error) {
 	if err != nil {
 		return F16{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -1685,13 +1685,13 @@ func (s Z) Zdatevec() (Zdate_List, error) {
 		return Zdate_List{}, err
 	}
 
-	return Zdate_List{List: p.List}, nil
+	return Zdate_List{List: p.List()}, nil
 
 }
 
 func (s Z) SetZdatevec(v Zdate_List) error {
 	s.Struct.SetUint16(0, 37)
-	return s.Struct.SetPtr(0, capnp.Ptr{List: v.List})
+	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
 func (s Z) Zdatavec() (Zdata_List, error) {
@@ -1700,13 +1700,13 @@ func (s Z) Zdatavec() (Zdata_List, error) {
 		return Zdata_List{}, err
 	}
 
-	return Zdata_List{List: p.List}, nil
+	return Zdata_List{List: p.List()}, nil
 
 }
 
 func (s Z) SetZdatavec(v Zdata_List) error {
 	s.Struct.SetUint16(0, 38)
-	return s.Struct.SetPtr(0, capnp.Ptr{List: v.List})
+	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
 func (s Z) Boolvec() (capnp.BitList, error) {
@@ -1715,13 +1715,13 @@ func (s Z) Boolvec() (capnp.BitList, error) {
 		return capnp.BitList{}, err
 	}
 
-	return capnp.BitList{List: p.List}, nil
+	return capnp.BitList{List: p.List()}, nil
 
 }
 
 func (s Z) SetBoolvec(v capnp.BitList) error {
 	s.Struct.SetUint16(0, 39)
-	return s.Struct.SetPtr(0, capnp.Ptr{List: v.List})
+	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
 // Z_List is a list of Z.
@@ -1806,7 +1806,7 @@ func ReadRootCounter(msg *capnp.Message) (Counter, error) {
 	if err != nil {
 		return Counter{}, err
 	}
-	return Counter{root.Struct}, nil
+	return Counter{root.Struct()}, nil
 }
 
 func (s Counter) Size() int64 {
@@ -1842,7 +1842,7 @@ func (s Counter) SetWords(v string) error {
 	if err != nil {
 		return err
 	}
-	return s.Struct.SetPtr(0, capnp.Ptr{List: t.List})
+	return s.Struct.SetPtr(0, t.List.ToPtr())
 }
 
 func (s Counter) Wordlist() (capnp.TextList, error) {
@@ -1851,13 +1851,13 @@ func (s Counter) Wordlist() (capnp.TextList, error) {
 		return capnp.TextList{}, err
 	}
 
-	return capnp.TextList{List: p.List}, nil
+	return capnp.TextList{List: p.List()}, nil
 
 }
 
 func (s Counter) SetWordlist(v capnp.TextList) error {
 
-	return s.Struct.SetPtr(1, capnp.Ptr{List: v.List})
+	return s.Struct.SetPtr(1, v.List.ToPtr())
 }
 
 // Counter_List is a list of Counter.
@@ -1906,7 +1906,7 @@ func ReadRootBag(msg *capnp.Message) (Bag, error) {
 	if err != nil {
 		return Bag{}, err
 	}
-	return Bag{root.Struct}, nil
+	return Bag{root.Struct()}, nil
 }
 
 func (s Bag) Counter() (Counter, error) {
@@ -1915,13 +1915,13 @@ func (s Bag) Counter() (Counter, error) {
 		return Counter{}, err
 	}
 
-	return Counter{Struct: p.Struct}, nil
+	return Counter{Struct: p.Struct()}, nil
 
 }
 
 func (s Bag) SetCounter(v Counter) error {
 
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewCounter sets the counter field to a newly
@@ -1932,7 +1932,7 @@ func (s Bag) NewCounter() (Counter, error) {
 	if err != nil {
 		return Counter{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -1986,7 +1986,7 @@ func ReadRootZserver(msg *capnp.Message) (Zserver, error) {
 	if err != nil {
 		return Zserver{}, err
 	}
-	return Zserver{root.Struct}, nil
+	return Zserver{root.Struct()}, nil
 }
 
 func (s Zserver) Waitingjobs() (Zjob_List, error) {
@@ -1995,13 +1995,13 @@ func (s Zserver) Waitingjobs() (Zjob_List, error) {
 		return Zjob_List{}, err
 	}
 
-	return Zjob_List{List: p.List}, nil
+	return Zjob_List{List: p.List()}, nil
 
 }
 
 func (s Zserver) SetWaitingjobs(v Zjob_List) error {
 
-	return s.Struct.SetPtr(0, capnp.Ptr{List: v.List})
+	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
 // Zserver_List is a list of Zserver.
@@ -2050,7 +2050,7 @@ func ReadRootZjob(msg *capnp.Message) (Zjob, error) {
 	if err != nil {
 		return Zjob{}, err
 	}
-	return Zjob{root.Struct}, nil
+	return Zjob{root.Struct()}, nil
 }
 
 func (s Zjob) Cmd() (string, error) {
@@ -2077,7 +2077,7 @@ func (s Zjob) SetCmd(v string) error {
 	if err != nil {
 		return err
 	}
-	return s.Struct.SetPtr(0, capnp.Ptr{List: t.List})
+	return s.Struct.SetPtr(0, t.List.ToPtr())
 }
 
 func (s Zjob) Args() (capnp.TextList, error) {
@@ -2086,13 +2086,13 @@ func (s Zjob) Args() (capnp.TextList, error) {
 		return capnp.TextList{}, err
 	}
 
-	return capnp.TextList{List: p.List}, nil
+	return capnp.TextList{List: p.List()}, nil
 
 }
 
 func (s Zjob) SetArgs(v capnp.TextList) error {
 
-	return s.Struct.SetPtr(1, capnp.Ptr{List: v.List})
+	return s.Struct.SetPtr(1, v.List.ToPtr())
 }
 
 // Zjob_List is a list of Zjob.
@@ -2141,7 +2141,7 @@ func ReadRootVerEmpty(msg *capnp.Message) (VerEmpty, error) {
 	if err != nil {
 		return VerEmpty{}, err
 	}
-	return VerEmpty{root.Struct}, nil
+	return VerEmpty{root.Struct()}, nil
 }
 
 // VerEmpty_List is a list of VerEmpty.
@@ -2190,7 +2190,7 @@ func ReadRootVerOneData(msg *capnp.Message) (VerOneData, error) {
 	if err != nil {
 		return VerOneData{}, err
 	}
-	return VerOneData{root.Struct}, nil
+	return VerOneData{root.Struct()}, nil
 }
 
 func (s VerOneData) Val() int16 {
@@ -2248,7 +2248,7 @@ func ReadRootVerTwoData(msg *capnp.Message) (VerTwoData, error) {
 	if err != nil {
 		return VerTwoData{}, err
 	}
-	return VerTwoData{root.Struct}, nil
+	return VerTwoData{root.Struct()}, nil
 }
 
 func (s VerTwoData) Val() int16 {
@@ -2315,7 +2315,7 @@ func ReadRootVerOnePtr(msg *capnp.Message) (VerOnePtr, error) {
 	if err != nil {
 		return VerOnePtr{}, err
 	}
-	return VerOnePtr{root.Struct}, nil
+	return VerOnePtr{root.Struct()}, nil
 }
 
 func (s VerOnePtr) Ptr() (VerOneData, error) {
@@ -2324,13 +2324,13 @@ func (s VerOnePtr) Ptr() (VerOneData, error) {
 		return VerOneData{}, err
 	}
 
-	return VerOneData{Struct: p.Struct}, nil
+	return VerOneData{Struct: p.Struct()}, nil
 
 }
 
 func (s VerOnePtr) SetPtr(v VerOneData) error {
 
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewPtr sets the ptr field to a newly
@@ -2341,7 +2341,7 @@ func (s VerOnePtr) NewPtr() (VerOneData, error) {
 	if err != nil {
 		return VerOneData{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -2395,7 +2395,7 @@ func ReadRootVerTwoPtr(msg *capnp.Message) (VerTwoPtr, error) {
 	if err != nil {
 		return VerTwoPtr{}, err
 	}
-	return VerTwoPtr{root.Struct}, nil
+	return VerTwoPtr{root.Struct()}, nil
 }
 
 func (s VerTwoPtr) Ptr1() (VerOneData, error) {
@@ -2404,13 +2404,13 @@ func (s VerTwoPtr) Ptr1() (VerOneData, error) {
 		return VerOneData{}, err
 	}
 
-	return VerOneData{Struct: p.Struct}, nil
+	return VerOneData{Struct: p.Struct()}, nil
 
 }
 
 func (s VerTwoPtr) SetPtr1(v VerOneData) error {
 
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewPtr1 sets the ptr1 field to a newly
@@ -2421,7 +2421,7 @@ func (s VerTwoPtr) NewPtr1() (VerOneData, error) {
 	if err != nil {
 		return VerOneData{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -2431,13 +2431,13 @@ func (s VerTwoPtr) Ptr2() (VerOneData, error) {
 		return VerOneData{}, err
 	}
 
-	return VerOneData{Struct: p.Struct}, nil
+	return VerOneData{Struct: p.Struct()}, nil
 
 }
 
 func (s VerTwoPtr) SetPtr2(v VerOneData) error {
 
-	return s.Struct.SetPtr(1, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(1, v.Struct.ToPtr())
 }
 
 // NewPtr2 sets the ptr2 field to a newly
@@ -2448,7 +2448,7 @@ func (s VerTwoPtr) NewPtr2() (VerOneData, error) {
 	if err != nil {
 		return VerOneData{}, err
 	}
-	err = s.Struct.SetPtr(1, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(1, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -2506,7 +2506,7 @@ func ReadRootVerTwoDataTwoPtr(msg *capnp.Message) (VerTwoDataTwoPtr, error) {
 	if err != nil {
 		return VerTwoDataTwoPtr{}, err
 	}
-	return VerTwoDataTwoPtr{root.Struct}, nil
+	return VerTwoDataTwoPtr{root.Struct()}, nil
 }
 
 func (s VerTwoDataTwoPtr) Val() int16 {
@@ -2533,13 +2533,13 @@ func (s VerTwoDataTwoPtr) Ptr1() (VerOneData, error) {
 		return VerOneData{}, err
 	}
 
-	return VerOneData{Struct: p.Struct}, nil
+	return VerOneData{Struct: p.Struct()}, nil
 
 }
 
 func (s VerTwoDataTwoPtr) SetPtr1(v VerOneData) error {
 
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewPtr1 sets the ptr1 field to a newly
@@ -2550,7 +2550,7 @@ func (s VerTwoDataTwoPtr) NewPtr1() (VerOneData, error) {
 	if err != nil {
 		return VerOneData{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -2560,13 +2560,13 @@ func (s VerTwoDataTwoPtr) Ptr2() (VerOneData, error) {
 		return VerOneData{}, err
 	}
 
-	return VerOneData{Struct: p.Struct}, nil
+	return VerOneData{Struct: p.Struct()}, nil
 
 }
 
 func (s VerTwoDataTwoPtr) SetPtr2(v VerOneData) error {
 
-	return s.Struct.SetPtr(1, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(1, v.Struct.ToPtr())
 }
 
 // NewPtr2 sets the ptr2 field to a newly
@@ -2577,7 +2577,7 @@ func (s VerTwoDataTwoPtr) NewPtr2() (VerOneData, error) {
 	if err != nil {
 		return VerOneData{}, err
 	}
-	err = s.Struct.SetPtr(1, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(1, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -2637,7 +2637,7 @@ func ReadRootHoldsVerEmptyList(msg *capnp.Message) (HoldsVerEmptyList, error) {
 	if err != nil {
 		return HoldsVerEmptyList{}, err
 	}
-	return HoldsVerEmptyList{root.Struct}, nil
+	return HoldsVerEmptyList{root.Struct()}, nil
 }
 
 func (s HoldsVerEmptyList) Mylist() (VerEmpty_List, error) {
@@ -2646,13 +2646,13 @@ func (s HoldsVerEmptyList) Mylist() (VerEmpty_List, error) {
 		return VerEmpty_List{}, err
 	}
 
-	return VerEmpty_List{List: p.List}, nil
+	return VerEmpty_List{List: p.List()}, nil
 
 }
 
 func (s HoldsVerEmptyList) SetMylist(v VerEmpty_List) error {
 
-	return s.Struct.SetPtr(0, capnp.Ptr{List: v.List})
+	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
 // HoldsVerEmptyList_List is a list of HoldsVerEmptyList.
@@ -2705,7 +2705,7 @@ func ReadRootHoldsVerOneDataList(msg *capnp.Message) (HoldsVerOneDataList, error
 	if err != nil {
 		return HoldsVerOneDataList{}, err
 	}
-	return HoldsVerOneDataList{root.Struct}, nil
+	return HoldsVerOneDataList{root.Struct()}, nil
 }
 
 func (s HoldsVerOneDataList) Mylist() (VerOneData_List, error) {
@@ -2714,13 +2714,13 @@ func (s HoldsVerOneDataList) Mylist() (VerOneData_List, error) {
 		return VerOneData_List{}, err
 	}
 
-	return VerOneData_List{List: p.List}, nil
+	return VerOneData_List{List: p.List()}, nil
 
 }
 
 func (s HoldsVerOneDataList) SetMylist(v VerOneData_List) error {
 
-	return s.Struct.SetPtr(0, capnp.Ptr{List: v.List})
+	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
 // HoldsVerOneDataList_List is a list of HoldsVerOneDataList.
@@ -2773,7 +2773,7 @@ func ReadRootHoldsVerTwoDataList(msg *capnp.Message) (HoldsVerTwoDataList, error
 	if err != nil {
 		return HoldsVerTwoDataList{}, err
 	}
-	return HoldsVerTwoDataList{root.Struct}, nil
+	return HoldsVerTwoDataList{root.Struct()}, nil
 }
 
 func (s HoldsVerTwoDataList) Mylist() (VerTwoData_List, error) {
@@ -2782,13 +2782,13 @@ func (s HoldsVerTwoDataList) Mylist() (VerTwoData_List, error) {
 		return VerTwoData_List{}, err
 	}
 
-	return VerTwoData_List{List: p.List}, nil
+	return VerTwoData_List{List: p.List()}, nil
 
 }
 
 func (s HoldsVerTwoDataList) SetMylist(v VerTwoData_List) error {
 
-	return s.Struct.SetPtr(0, capnp.Ptr{List: v.List})
+	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
 // HoldsVerTwoDataList_List is a list of HoldsVerTwoDataList.
@@ -2841,7 +2841,7 @@ func ReadRootHoldsVerOnePtrList(msg *capnp.Message) (HoldsVerOnePtrList, error) 
 	if err != nil {
 		return HoldsVerOnePtrList{}, err
 	}
-	return HoldsVerOnePtrList{root.Struct}, nil
+	return HoldsVerOnePtrList{root.Struct()}, nil
 }
 
 func (s HoldsVerOnePtrList) Mylist() (VerOnePtr_List, error) {
@@ -2850,13 +2850,13 @@ func (s HoldsVerOnePtrList) Mylist() (VerOnePtr_List, error) {
 		return VerOnePtr_List{}, err
 	}
 
-	return VerOnePtr_List{List: p.List}, nil
+	return VerOnePtr_List{List: p.List()}, nil
 
 }
 
 func (s HoldsVerOnePtrList) SetMylist(v VerOnePtr_List) error {
 
-	return s.Struct.SetPtr(0, capnp.Ptr{List: v.List})
+	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
 // HoldsVerOnePtrList_List is a list of HoldsVerOnePtrList.
@@ -2909,7 +2909,7 @@ func ReadRootHoldsVerTwoPtrList(msg *capnp.Message) (HoldsVerTwoPtrList, error) 
 	if err != nil {
 		return HoldsVerTwoPtrList{}, err
 	}
-	return HoldsVerTwoPtrList{root.Struct}, nil
+	return HoldsVerTwoPtrList{root.Struct()}, nil
 }
 
 func (s HoldsVerTwoPtrList) Mylist() (VerTwoPtr_List, error) {
@@ -2918,13 +2918,13 @@ func (s HoldsVerTwoPtrList) Mylist() (VerTwoPtr_List, error) {
 		return VerTwoPtr_List{}, err
 	}
 
-	return VerTwoPtr_List{List: p.List}, nil
+	return VerTwoPtr_List{List: p.List()}, nil
 
 }
 
 func (s HoldsVerTwoPtrList) SetMylist(v VerTwoPtr_List) error {
 
-	return s.Struct.SetPtr(0, capnp.Ptr{List: v.List})
+	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
 // HoldsVerTwoPtrList_List is a list of HoldsVerTwoPtrList.
@@ -2977,7 +2977,7 @@ func ReadRootHoldsVerTwoTwoList(msg *capnp.Message) (HoldsVerTwoTwoList, error) 
 	if err != nil {
 		return HoldsVerTwoTwoList{}, err
 	}
-	return HoldsVerTwoTwoList{root.Struct}, nil
+	return HoldsVerTwoTwoList{root.Struct()}, nil
 }
 
 func (s HoldsVerTwoTwoList) Mylist() (VerTwoDataTwoPtr_List, error) {
@@ -2986,13 +2986,13 @@ func (s HoldsVerTwoTwoList) Mylist() (VerTwoDataTwoPtr_List, error) {
 		return VerTwoDataTwoPtr_List{}, err
 	}
 
-	return VerTwoDataTwoPtr_List{List: p.List}, nil
+	return VerTwoDataTwoPtr_List{List: p.List()}, nil
 
 }
 
 func (s HoldsVerTwoTwoList) SetMylist(v VerTwoDataTwoPtr_List) error {
 
-	return s.Struct.SetPtr(0, capnp.Ptr{List: v.List})
+	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
 // HoldsVerTwoTwoList_List is a list of HoldsVerTwoTwoList.
@@ -3045,7 +3045,7 @@ func ReadRootHoldsVerTwoTwoPlus(msg *capnp.Message) (HoldsVerTwoTwoPlus, error) 
 	if err != nil {
 		return HoldsVerTwoTwoPlus{}, err
 	}
-	return HoldsVerTwoTwoPlus{root.Struct}, nil
+	return HoldsVerTwoTwoPlus{root.Struct()}, nil
 }
 
 func (s HoldsVerTwoTwoPlus) Mylist() (VerTwoTwoPlus_List, error) {
@@ -3054,13 +3054,13 @@ func (s HoldsVerTwoTwoPlus) Mylist() (VerTwoTwoPlus_List, error) {
 		return VerTwoTwoPlus_List{}, err
 	}
 
-	return VerTwoTwoPlus_List{List: p.List}, nil
+	return VerTwoTwoPlus_List{List: p.List()}, nil
 
 }
 
 func (s HoldsVerTwoTwoPlus) SetMylist(v VerTwoTwoPlus_List) error {
 
-	return s.Struct.SetPtr(0, capnp.Ptr{List: v.List})
+	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
 // HoldsVerTwoTwoPlus_List is a list of HoldsVerTwoTwoPlus.
@@ -3113,7 +3113,7 @@ func ReadRootVerTwoTwoPlus(msg *capnp.Message) (VerTwoTwoPlus, error) {
 	if err != nil {
 		return VerTwoTwoPlus{}, err
 	}
-	return VerTwoTwoPlus{root.Struct}, nil
+	return VerTwoTwoPlus{root.Struct()}, nil
 }
 
 func (s VerTwoTwoPlus) Val() int16 {
@@ -3140,13 +3140,13 @@ func (s VerTwoTwoPlus) Ptr1() (VerTwoDataTwoPtr, error) {
 		return VerTwoDataTwoPtr{}, err
 	}
 
-	return VerTwoDataTwoPtr{Struct: p.Struct}, nil
+	return VerTwoDataTwoPtr{Struct: p.Struct()}, nil
 
 }
 
 func (s VerTwoTwoPlus) SetPtr1(v VerTwoDataTwoPtr) error {
 
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewPtr1 sets the ptr1 field to a newly
@@ -3157,7 +3157,7 @@ func (s VerTwoTwoPlus) NewPtr1() (VerTwoDataTwoPtr, error) {
 	if err != nil {
 		return VerTwoDataTwoPtr{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -3167,13 +3167,13 @@ func (s VerTwoTwoPlus) Ptr2() (VerTwoDataTwoPtr, error) {
 		return VerTwoDataTwoPtr{}, err
 	}
 
-	return VerTwoDataTwoPtr{Struct: p.Struct}, nil
+	return VerTwoDataTwoPtr{Struct: p.Struct()}, nil
 
 }
 
 func (s VerTwoTwoPlus) SetPtr2(v VerTwoDataTwoPtr) error {
 
-	return s.Struct.SetPtr(1, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(1, v.Struct.ToPtr())
 }
 
 // NewPtr2 sets the ptr2 field to a newly
@@ -3184,7 +3184,7 @@ func (s VerTwoTwoPlus) NewPtr2() (VerTwoDataTwoPtr, error) {
 	if err != nil {
 		return VerTwoDataTwoPtr{}, err
 	}
-	err = s.Struct.SetPtr(1, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(1, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -3203,13 +3203,13 @@ func (s VerTwoTwoPlus) Lst3() (capnp.Int64List, error) {
 		return capnp.Int64List{}, err
 	}
 
-	return capnp.Int64List{List: p.List}, nil
+	return capnp.Int64List{List: p.List()}, nil
 
 }
 
 func (s VerTwoTwoPlus) SetLst3(v capnp.Int64List) error {
 
-	return s.Struct.SetPtr(2, capnp.Ptr{List: v.List})
+	return s.Struct.SetPtr(2, v.List.ToPtr())
 }
 
 // VerTwoTwoPlus_List is a list of VerTwoTwoPlus.
@@ -3266,7 +3266,7 @@ func ReadRootHoldsText(msg *capnp.Message) (HoldsText, error) {
 	if err != nil {
 		return HoldsText{}, err
 	}
-	return HoldsText{root.Struct}, nil
+	return HoldsText{root.Struct()}, nil
 }
 
 func (s HoldsText) Txt() (string, error) {
@@ -3293,7 +3293,7 @@ func (s HoldsText) SetTxt(v string) error {
 	if err != nil {
 		return err
 	}
-	return s.Struct.SetPtr(0, capnp.Ptr{List: t.List})
+	return s.Struct.SetPtr(0, t.List.ToPtr())
 }
 
 func (s HoldsText) Lst() (capnp.TextList, error) {
@@ -3302,13 +3302,13 @@ func (s HoldsText) Lst() (capnp.TextList, error) {
 		return capnp.TextList{}, err
 	}
 
-	return capnp.TextList{List: p.List}, nil
+	return capnp.TextList{List: p.List()}, nil
 
 }
 
 func (s HoldsText) SetLst(v capnp.TextList) error {
 
-	return s.Struct.SetPtr(1, capnp.Ptr{List: v.List})
+	return s.Struct.SetPtr(1, v.List.ToPtr())
 }
 
 func (s HoldsText) Lstlst() (capnp.PointerList, error) {
@@ -3317,13 +3317,13 @@ func (s HoldsText) Lstlst() (capnp.PointerList, error) {
 		return capnp.PointerList{}, err
 	}
 
-	return capnp.PointerList{List: p.List}, nil
+	return capnp.PointerList{List: p.List()}, nil
 
 }
 
 func (s HoldsText) SetLstlst(v capnp.PointerList) error {
 
-	return s.Struct.SetPtr(2, capnp.Ptr{List: v.List})
+	return s.Struct.SetPtr(2, v.List.ToPtr())
 }
 
 // HoldsText_List is a list of HoldsText.
@@ -3372,7 +3372,7 @@ func ReadRootWrapEmpty(msg *capnp.Message) (WrapEmpty, error) {
 	if err != nil {
 		return WrapEmpty{}, err
 	}
-	return WrapEmpty{root.Struct}, nil
+	return WrapEmpty{root.Struct()}, nil
 }
 
 func (s WrapEmpty) MightNotBeReallyEmpty() (VerEmpty, error) {
@@ -3381,13 +3381,13 @@ func (s WrapEmpty) MightNotBeReallyEmpty() (VerEmpty, error) {
 		return VerEmpty{}, err
 	}
 
-	return VerEmpty{Struct: p.Struct}, nil
+	return VerEmpty{Struct: p.Struct()}, nil
 
 }
 
 func (s WrapEmpty) SetMightNotBeReallyEmpty(v VerEmpty) error {
 
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewMightNotBeReallyEmpty sets the mightNotBeReallyEmpty field to a newly
@@ -3398,7 +3398,7 @@ func (s WrapEmpty) NewMightNotBeReallyEmpty() (VerEmpty, error) {
 	if err != nil {
 		return VerEmpty{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -3452,7 +3452,7 @@ func ReadRootWrap2x2(msg *capnp.Message) (Wrap2x2, error) {
 	if err != nil {
 		return Wrap2x2{}, err
 	}
-	return Wrap2x2{root.Struct}, nil
+	return Wrap2x2{root.Struct()}, nil
 }
 
 func (s Wrap2x2) MightNotBeReallyEmpty() (VerTwoDataTwoPtr, error) {
@@ -3461,13 +3461,13 @@ func (s Wrap2x2) MightNotBeReallyEmpty() (VerTwoDataTwoPtr, error) {
 		return VerTwoDataTwoPtr{}, err
 	}
 
-	return VerTwoDataTwoPtr{Struct: p.Struct}, nil
+	return VerTwoDataTwoPtr{Struct: p.Struct()}, nil
 
 }
 
 func (s Wrap2x2) SetMightNotBeReallyEmpty(v VerTwoDataTwoPtr) error {
 
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewMightNotBeReallyEmpty sets the mightNotBeReallyEmpty field to a newly
@@ -3478,7 +3478,7 @@ func (s Wrap2x2) NewMightNotBeReallyEmpty() (VerTwoDataTwoPtr, error) {
 	if err != nil {
 		return VerTwoDataTwoPtr{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -3532,7 +3532,7 @@ func ReadRootWrap2x2plus(msg *capnp.Message) (Wrap2x2plus, error) {
 	if err != nil {
 		return Wrap2x2plus{}, err
 	}
-	return Wrap2x2plus{root.Struct}, nil
+	return Wrap2x2plus{root.Struct()}, nil
 }
 
 func (s Wrap2x2plus) MightNotBeReallyEmpty() (VerTwoTwoPlus, error) {
@@ -3541,13 +3541,13 @@ func (s Wrap2x2plus) MightNotBeReallyEmpty() (VerTwoTwoPlus, error) {
 		return VerTwoTwoPlus{}, err
 	}
 
-	return VerTwoTwoPlus{Struct: p.Struct}, nil
+	return VerTwoTwoPlus{Struct: p.Struct()}, nil
 
 }
 
 func (s Wrap2x2plus) SetMightNotBeReallyEmpty(v VerTwoTwoPlus) error {
 
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewMightNotBeReallyEmpty sets the mightNotBeReallyEmpty field to a newly
@@ -3558,7 +3558,7 @@ func (s Wrap2x2plus) NewMightNotBeReallyEmpty() (VerTwoTwoPlus, error) {
 	if err != nil {
 		return VerTwoTwoPlus{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -3630,7 +3630,7 @@ func ReadRootVoidUnion(msg *capnp.Message) (VoidUnion, error) {
 	if err != nil {
 		return VoidUnion{}, err
 	}
-	return VoidUnion{root.Struct}, nil
+	return VoidUnion{root.Struct()}, nil
 }
 
 func (s VoidUnion) Which() VoidUnion_Which {
@@ -3691,7 +3691,7 @@ func ReadRootNester1Capn(msg *capnp.Message) (Nester1Capn, error) {
 	if err != nil {
 		return Nester1Capn{}, err
 	}
-	return Nester1Capn{root.Struct}, nil
+	return Nester1Capn{root.Struct()}, nil
 }
 
 func (s Nester1Capn) Strs() (capnp.TextList, error) {
@@ -3700,13 +3700,13 @@ func (s Nester1Capn) Strs() (capnp.TextList, error) {
 		return capnp.TextList{}, err
 	}
 
-	return capnp.TextList{List: p.List}, nil
+	return capnp.TextList{List: p.List()}, nil
 
 }
 
 func (s Nester1Capn) SetStrs(v capnp.TextList) error {
 
-	return s.Struct.SetPtr(0, capnp.Ptr{List: v.List})
+	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
 // Nester1Capn_List is a list of Nester1Capn.
@@ -3755,7 +3755,7 @@ func ReadRootRWTestCapn(msg *capnp.Message) (RWTestCapn, error) {
 	if err != nil {
 		return RWTestCapn{}, err
 	}
-	return RWTestCapn{root.Struct}, nil
+	return RWTestCapn{root.Struct()}, nil
 }
 
 func (s RWTestCapn) NestMatrix() (capnp.PointerList, error) {
@@ -3764,13 +3764,13 @@ func (s RWTestCapn) NestMatrix() (capnp.PointerList, error) {
 		return capnp.PointerList{}, err
 	}
 
-	return capnp.PointerList{List: p.List}, nil
+	return capnp.PointerList{List: p.List()}, nil
 
 }
 
 func (s RWTestCapn) SetNestMatrix(v capnp.PointerList) error {
 
-	return s.Struct.SetPtr(0, capnp.Ptr{List: v.List})
+	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
 // RWTestCapn_List is a list of RWTestCapn.
@@ -3819,7 +3819,7 @@ func ReadRootListStructCapn(msg *capnp.Message) (ListStructCapn, error) {
 	if err != nil {
 		return ListStructCapn{}, err
 	}
-	return ListStructCapn{root.Struct}, nil
+	return ListStructCapn{root.Struct()}, nil
 }
 
 func (s ListStructCapn) Vec() (Nester1Capn_List, error) {
@@ -3828,13 +3828,13 @@ func (s ListStructCapn) Vec() (Nester1Capn_List, error) {
 		return Nester1Capn_List{}, err
 	}
 
-	return Nester1Capn_List{List: p.List}, nil
+	return Nester1Capn_List{List: p.List()}, nil
 
 }
 
 func (s ListStructCapn) SetVec(v Nester1Capn_List) error {
 
-	return s.Struct.SetPtr(0, capnp.Ptr{List: v.List})
+	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
 // ListStructCapn_List is a list of ListStructCapn.
@@ -3947,7 +3947,7 @@ func ReadRootEcho_echo_Params(msg *capnp.Message) (Echo_echo_Params, error) {
 	if err != nil {
 		return Echo_echo_Params{}, err
 	}
-	return Echo_echo_Params{root.Struct}, nil
+	return Echo_echo_Params{root.Struct()}, nil
 }
 
 func (s Echo_echo_Params) In() (string, error) {
@@ -3974,7 +3974,7 @@ func (s Echo_echo_Params) SetIn(v string) error {
 	if err != nil {
 		return err
 	}
-	return s.Struct.SetPtr(0, capnp.Ptr{List: t.List})
+	return s.Struct.SetPtr(0, t.List.ToPtr())
 }
 
 // Echo_echo_Params_List is a list of Echo_echo_Params.
@@ -4025,7 +4025,7 @@ func ReadRootEcho_echo_Results(msg *capnp.Message) (Echo_echo_Results, error) {
 	if err != nil {
 		return Echo_echo_Results{}, err
 	}
-	return Echo_echo_Results{root.Struct}, nil
+	return Echo_echo_Results{root.Struct()}, nil
 }
 
 func (s Echo_echo_Results) Out() (string, error) {
@@ -4052,7 +4052,7 @@ func (s Echo_echo_Results) SetOut(v string) error {
 	if err != nil {
 		return err
 	}
-	return s.Struct.SetPtr(0, capnp.Ptr{List: t.List})
+	return s.Struct.SetPtr(0, t.List.ToPtr())
 }
 
 // Echo_echo_Results_List is a list of Echo_echo_Results.
@@ -4105,7 +4105,7 @@ func ReadRootHoth(msg *capnp.Message) (Hoth, error) {
 	if err != nil {
 		return Hoth{}, err
 	}
-	return Hoth{root.Struct}, nil
+	return Hoth{root.Struct()}, nil
 }
 
 func (s Hoth) Base() (EchoBase, error) {
@@ -4114,13 +4114,13 @@ func (s Hoth) Base() (EchoBase, error) {
 		return EchoBase{}, err
 	}
 
-	return EchoBase{Struct: p.Struct}, nil
+	return EchoBase{Struct: p.Struct()}, nil
 
 }
 
 func (s Hoth) SetBase(v EchoBase) error {
 
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewBase sets the base field to a newly
@@ -4131,7 +4131,7 @@ func (s Hoth) NewBase() (EchoBase, error) {
 	if err != nil {
 		return EchoBase{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -4185,7 +4185,7 @@ func ReadRootEchoBase(msg *capnp.Message) (EchoBase, error) {
 	if err != nil {
 		return EchoBase{}, err
 	}
-	return EchoBase{root.Struct}, nil
+	return EchoBase{root.Struct()}, nil
 }
 
 func (s EchoBase) Echo() Echo {
@@ -4194,7 +4194,7 @@ func (s EchoBase) Echo() Echo {
 
 		return Echo{}
 	}
-	return Echo{Client: p.Interface.Client()}
+	return Echo{Client: p.Interface().Client()}
 }
 
 func (s EchoBase) SetEcho(v Echo) error {
@@ -4208,7 +4208,7 @@ func (s EchoBase) SetEcho(v Echo) error {
 	if v.Client != nil {
 		in = capnp.NewInterface(seg, seg.Message().AddCap(v.Client))
 	}
-	return s.Struct.SetPtr(0, capnp.Ptr{Interface: in})
+	return s.Struct.SetPtr(0, in.ToPtr())
 }
 
 // EchoBase_List is a list of EchoBase.
@@ -4261,7 +4261,7 @@ func ReadRootStackingRoot(msg *capnp.Message) (StackingRoot, error) {
 	if err != nil {
 		return StackingRoot{}, err
 	}
-	return StackingRoot{root.Struct}, nil
+	return StackingRoot{root.Struct()}, nil
 }
 
 func (s StackingRoot) A() (StackingA, error) {
@@ -4270,13 +4270,13 @@ func (s StackingRoot) A() (StackingA, error) {
 		return StackingA{}, err
 	}
 
-	return StackingA{Struct: p.Struct}, nil
+	return StackingA{Struct: p.Struct()}, nil
 
 }
 
 func (s StackingRoot) SetA(v StackingA) error {
 
-	return s.Struct.SetPtr(1, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(1, v.Struct.ToPtr())
 }
 
 // NewA sets the a field to a newly
@@ -4287,7 +4287,7 @@ func (s StackingRoot) NewA() (StackingA, error) {
 	if err != nil {
 		return StackingA{}, err
 	}
-	err = s.Struct.SetPtr(1, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(1, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -4307,7 +4307,7 @@ func (s StackingRoot) AWithDefault() (StackingA, error) {
 
 func (s StackingRoot) SetAWithDefault(v StackingA) error {
 
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewAWithDefault sets the aWithDefault field to a newly
@@ -4318,7 +4318,7 @@ func (s StackingRoot) NewAWithDefault() (StackingA, error) {
 	if err != nil {
 		return StackingA{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -4376,7 +4376,7 @@ func ReadRootStackingA(msg *capnp.Message) (StackingA, error) {
 	if err != nil {
 		return StackingA{}, err
 	}
-	return StackingA{root.Struct}, nil
+	return StackingA{root.Struct()}, nil
 }
 
 func (s StackingA) Num() int32 {
@@ -4394,13 +4394,13 @@ func (s StackingA) B() (StackingB, error) {
 		return StackingB{}, err
 	}
 
-	return StackingB{Struct: p.Struct}, nil
+	return StackingB{Struct: p.Struct()}, nil
 
 }
 
 func (s StackingA) SetB(v StackingB) error {
 
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewB sets the b field to a newly
@@ -4411,7 +4411,7 @@ func (s StackingA) NewB() (StackingB, error) {
 	if err != nil {
 		return StackingB{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -4465,7 +4465,7 @@ func ReadRootStackingB(msg *capnp.Message) (StackingB, error) {
 	if err != nil {
 		return StackingB{}, err
 	}
-	return StackingB{root.Struct}, nil
+	return StackingB{root.Struct()}, nil
 }
 
 func (s StackingB) Num() int32 {
@@ -4587,7 +4587,7 @@ func ReadRootCallSequence_getNumber_Params(msg *capnp.Message) (CallSequence_get
 	if err != nil {
 		return CallSequence_getNumber_Params{}, err
 	}
-	return CallSequence_getNumber_Params{root.Struct}, nil
+	return CallSequence_getNumber_Params{root.Struct()}, nil
 }
 
 // CallSequence_getNumber_Params_List is a list of CallSequence_getNumber_Params.
@@ -4640,7 +4640,7 @@ func ReadRootCallSequence_getNumber_Results(msg *capnp.Message) (CallSequence_ge
 	if err != nil {
 		return CallSequence_getNumber_Results{}, err
 	}
-	return CallSequence_getNumber_Results{root.Struct}, nil
+	return CallSequence_getNumber_Results{root.Struct()}, nil
 }
 
 func (s CallSequence_getNumber_Results) N() uint32 {
@@ -4702,7 +4702,7 @@ func ReadRootBenchmarkA(msg *capnp.Message) (BenchmarkA, error) {
 	if err != nil {
 		return BenchmarkA{}, err
 	}
-	return BenchmarkA{root.Struct}, nil
+	return BenchmarkA{root.Struct()}, nil
 }
 
 func (s BenchmarkA) Name() (string, error) {
@@ -4729,7 +4729,7 @@ func (s BenchmarkA) SetName(v string) error {
 	if err != nil {
 		return err
 	}
-	return s.Struct.SetPtr(0, capnp.Ptr{List: t.List})
+	return s.Struct.SetPtr(0, t.List.ToPtr())
 }
 
 func (s BenchmarkA) BirthDay() int64 {
@@ -4765,7 +4765,7 @@ func (s BenchmarkA) SetPhone(v string) error {
 	if err != nil {
 		return err
 	}
-	return s.Struct.SetPtr(1, capnp.Ptr{List: t.List})
+	return s.Struct.SetPtr(1, t.List.ToPtr())
 }
 
 func (s BenchmarkA) Siblings() int32 {

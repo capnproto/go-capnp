@@ -60,7 +60,7 @@ func NewCompositeList(s *Segment, sz ObjectSize, n int32) (List, error) {
 
 // ToList is deprecated in favor of Ptr.List.
 func ToList(p Pointer) List {
-	return toPtr(p).List
+	return toPtr(p).List()
 }
 
 // ToListDefault is deprecated in favor of PtrToListDefault.
@@ -71,7 +71,8 @@ func ToListDefault(p Pointer, def []byte) (List, error) {
 // PtrToListDefault attempts to convert p into a struct, reading the
 // default value from def if p is not a struct.
 func PtrToListDefault(p Ptr, def []byte) (List, error) {
-	if p.List.seg == nil {
+	l := p.List()
+	if l.seg == nil {
 		if def == nil {
 			return List{}, nil
 		}
@@ -79,9 +80,20 @@ func PtrToListDefault(p Ptr, def []byte) (List, error) {
 		if err != nil {
 			return List{}, err
 		}
-		return defp.List, nil
+		return defp.List(), nil
 	}
-	return p.List, nil
+	return l, nil
+}
+
+// ToPtr converts the list to a generic pointer.
+func (p List) ToPtr() Ptr {
+	return Ptr{
+		seg:      p.seg,
+		off:      p.off,
+		lenOrCap: uint32(p.length),
+		size:     p.size,
+		flags:    listPtrFlag(p.flags),
+	}
 }
 
 // Segment returns the segment this pointer references.
@@ -316,7 +328,7 @@ func (l TextList) Set(i int, v string) error {
 	if err != nil {
 		return err
 	}
-	return p.seg.writePtr(copyContext{}, addr, Ptr{List: p.List})
+	return p.seg.writePtr(copyContext{}, addr, p.List.ToPtr())
 }
 
 // DataList is an array of pointers to data.
@@ -348,7 +360,7 @@ func (l DataList) Set(i int, v []byte) error {
 	if err != nil {
 		return err
 	}
-	return p.seg.writePtr(copyContext{}, addr, Ptr{List: p.List})
+	return p.seg.writePtr(copyContext{}, addr, p.List.ToPtr())
 }
 
 // A VoidList is a list of zero-sized elements.
@@ -419,7 +431,8 @@ func PtrToTextDefault(p Ptr, def string) string {
 	if !isOneByteList(p) {
 		return def
 	}
-	b := p.List.seg.slice(p.List.off, Size(p.List.length))
+	l := p.List()
+	b := l.seg.slice(l.off, Size(l.length))
 	if len(b) == 0 || b[len(b)-1] != 0 {
 		// Text must be null-terminated.
 		return def
@@ -449,7 +462,8 @@ func PtrToDataDefault(p Ptr, def []byte) []byte {
 	if !isOneByteList(p) {
 		return def
 	}
-	b := p.List.seg.slice(p.List.off, Size(p.List.length))
+	l := p.List()
+	b := l.seg.slice(l.off, Size(l.length))
 	if b == nil {
 		return def
 	}
@@ -457,7 +471,7 @@ func PtrToDataDefault(p Ptr, def []byte) []byte {
 }
 
 func isOneByteList(p Ptr) bool {
-	return p.List.seg != nil && p.List.size.isOneByte() && p.List.flags&isCompositeList == 0
+	return p.seg != nil && p.flags.ptrType() == listPtrType && p.size.isOneByte() && p.flags.listFlags()&isCompositeList == 0
 }
 
 // At returns the i'th element.

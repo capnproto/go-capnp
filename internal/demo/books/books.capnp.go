@@ -29,7 +29,7 @@ func ReadRootBook(msg *capnp.Message) (Book, error) {
 	if err != nil {
 		return Book{}, err
 	}
-	return Book{root.Struct}, nil
+	return Book{root.Struct()}, nil
 }
 
 func (s Book) Title() (string, error) {
@@ -56,7 +56,7 @@ func (s Book) SetTitle(v string) error {
 	if err != nil {
 		return err
 	}
-	return s.Struct.SetPtr(0, capnp.Ptr{List: t.List})
+	return s.Struct.SetPtr(0, t.List.ToPtr())
 }
 
 func (s Book) PageCount() int32 {

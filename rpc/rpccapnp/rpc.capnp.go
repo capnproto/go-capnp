@@ -84,7 +84,7 @@ func ReadRootMessage(msg *capnp.Message) (Message, error) {
 	if err != nil {
 		return Message{}, err
 	}
-	return Message{root.Struct}, nil
+	return Message{root.Struct()}, nil
 }
 
 func (s Message) Which() Message_Which {
@@ -97,13 +97,13 @@ func (s Message) Unimplemented() (Message, error) {
 		return Message{}, err
 	}
 
-	return Message{Struct: p.Struct}, nil
+	return Message{Struct: p.Struct()}, nil
 
 }
 
 func (s Message) SetUnimplemented(v Message) error {
 	s.Struct.SetUint16(0, 0)
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewUnimplemented sets the unimplemented field to a newly
@@ -114,7 +114,7 @@ func (s Message) NewUnimplemented() (Message, error) {
 	if err != nil {
 		return Message{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -124,13 +124,13 @@ func (s Message) Abort() (Exception, error) {
 		return Exception{}, err
 	}
 
-	return Exception{Struct: p.Struct}, nil
+	return Exception{Struct: p.Struct()}, nil
 
 }
 
 func (s Message) SetAbort(v Exception) error {
 	s.Struct.SetUint16(0, 1)
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewAbort sets the abort field to a newly
@@ -141,7 +141,7 @@ func (s Message) NewAbort() (Exception, error) {
 	if err != nil {
 		return Exception{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -151,13 +151,13 @@ func (s Message) Bootstrap() (Bootstrap, error) {
 		return Bootstrap{}, err
 	}
 
-	return Bootstrap{Struct: p.Struct}, nil
+	return Bootstrap{Struct: p.Struct()}, nil
 
 }
 
 func (s Message) SetBootstrap(v Bootstrap) error {
 	s.Struct.SetUint16(0, 8)
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewBootstrap sets the bootstrap field to a newly
@@ -168,7 +168,7 @@ func (s Message) NewBootstrap() (Bootstrap, error) {
 	if err != nil {
 		return Bootstrap{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -178,13 +178,13 @@ func (s Message) Call() (Call, error) {
 		return Call{}, err
 	}
 
-	return Call{Struct: p.Struct}, nil
+	return Call{Struct: p.Struct()}, nil
 
 }
 
 func (s Message) SetCall(v Call) error {
 	s.Struct.SetUint16(0, 2)
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewCall sets the call field to a newly
@@ -195,7 +195,7 @@ func (s Message) NewCall() (Call, error) {
 	if err != nil {
 		return Call{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -205,13 +205,13 @@ func (s Message) Return() (Return, error) {
 		return Return{}, err
 	}
 
-	return Return{Struct: p.Struct}, nil
+	return Return{Struct: p.Struct()}, nil
 
 }
 
 func (s Message) SetReturn(v Return) error {
 	s.Struct.SetUint16(0, 3)
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewReturn sets the return field to a newly
@@ -222,7 +222,7 @@ func (s Message) NewReturn() (Return, error) {
 	if err != nil {
 		return Return{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -232,13 +232,13 @@ func (s Message) Finish() (Finish, error) {
 		return Finish{}, err
 	}
 
-	return Finish{Struct: p.Struct}, nil
+	return Finish{Struct: p.Struct()}, nil
 
 }
 
 func (s Message) SetFinish(v Finish) error {
 	s.Struct.SetUint16(0, 4)
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewFinish sets the finish field to a newly
@@ -249,7 +249,7 @@ func (s Message) NewFinish() (Finish, error) {
 	if err != nil {
 		return Finish{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -259,13 +259,13 @@ func (s Message) Resolve() (Resolve, error) {
 		return Resolve{}, err
 	}
 
-	return Resolve{Struct: p.Struct}, nil
+	return Resolve{Struct: p.Struct()}, nil
 
 }
 
 func (s Message) SetResolve(v Resolve) error {
 	s.Struct.SetUint16(0, 5)
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewResolve sets the resolve field to a newly
@@ -276,7 +276,7 @@ func (s Message) NewResolve() (Resolve, error) {
 	if err != nil {
 		return Resolve{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -286,13 +286,13 @@ func (s Message) Release() (Release, error) {
 		return Release{}, err
 	}
 
-	return Release{Struct: p.Struct}, nil
+	return Release{Struct: p.Struct()}, nil
 
 }
 
 func (s Message) SetRelease(v Release) error {
 	s.Struct.SetUint16(0, 6)
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewRelease sets the release field to a newly
@@ -303,7 +303,7 @@ func (s Message) NewRelease() (Release, error) {
 	if err != nil {
 		return Release{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -313,13 +313,13 @@ func (s Message) Disembargo() (Disembargo, error) {
 		return Disembargo{}, err
 	}
 
-	return Disembargo{Struct: p.Struct}, nil
+	return Disembargo{Struct: p.Struct()}, nil
 
 }
 
 func (s Message) SetDisembargo(v Disembargo) error {
 	s.Struct.SetUint16(0, 13)
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewDisembargo sets the disembargo field to a newly
@@ -330,7 +330,7 @@ func (s Message) NewDisembargo() (Disembargo, error) {
 	if err != nil {
 		return Disembargo{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -362,13 +362,13 @@ func (s Message) Provide() (Provide, error) {
 		return Provide{}, err
 	}
 
-	return Provide{Struct: p.Struct}, nil
+	return Provide{Struct: p.Struct()}, nil
 
 }
 
 func (s Message) SetProvide(v Provide) error {
 	s.Struct.SetUint16(0, 10)
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewProvide sets the provide field to a newly
@@ -379,7 +379,7 @@ func (s Message) NewProvide() (Provide, error) {
 	if err != nil {
 		return Provide{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -389,13 +389,13 @@ func (s Message) Accept() (Accept, error) {
 		return Accept{}, err
 	}
 
-	return Accept{Struct: p.Struct}, nil
+	return Accept{Struct: p.Struct()}, nil
 
 }
 
 func (s Message) SetAccept(v Accept) error {
 	s.Struct.SetUint16(0, 11)
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewAccept sets the accept field to a newly
@@ -406,7 +406,7 @@ func (s Message) NewAccept() (Accept, error) {
 	if err != nil {
 		return Accept{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -416,13 +416,13 @@ func (s Message) Join() (Join, error) {
 		return Join{}, err
 	}
 
-	return Join{Struct: p.Struct}, nil
+	return Join{Struct: p.Struct()}, nil
 
 }
 
 func (s Message) SetJoin(v Join) error {
 	s.Struct.SetUint16(0, 12)
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewJoin sets the join field to a newly
@@ -433,7 +433,7 @@ func (s Message) NewJoin() (Join, error) {
 	if err != nil {
 		return Join{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -539,7 +539,7 @@ func ReadRootBootstrap(msg *capnp.Message) (Bootstrap, error) {
 	if err != nil {
 		return Bootstrap{}, err
 	}
-	return Bootstrap{root.Struct}, nil
+	return Bootstrap{root.Struct()}, nil
 }
 
 func (s Bootstrap) QuestionId() uint32 {
@@ -634,7 +634,7 @@ func ReadRootCall(msg *capnp.Message) (Call, error) {
 	if err != nil {
 		return Call{}, err
 	}
-	return Call{root.Struct}, nil
+	return Call{root.Struct()}, nil
 }
 
 func (s Call) QuestionId() uint32 {
@@ -652,13 +652,13 @@ func (s Call) Target() (MessageTarget, error) {
 		return MessageTarget{}, err
 	}
 
-	return MessageTarget{Struct: p.Struct}, nil
+	return MessageTarget{Struct: p.Struct()}, nil
 
 }
 
 func (s Call) SetTarget(v MessageTarget) error {
 
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewTarget sets the target field to a newly
@@ -669,7 +669,7 @@ func (s Call) NewTarget() (MessageTarget, error) {
 	if err != nil {
 		return MessageTarget{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -706,13 +706,13 @@ func (s Call) Params() (Payload, error) {
 		return Payload{}, err
 	}
 
-	return Payload{Struct: p.Struct}, nil
+	return Payload{Struct: p.Struct()}, nil
 
 }
 
 func (s Call) SetParams(v Payload) error {
 
-	return s.Struct.SetPtr(1, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(1, v.Struct.ToPtr())
 }
 
 // NewParams sets the params field to a newly
@@ -723,7 +723,7 @@ func (s Call) NewParams() (Payload, error) {
 	if err != nil {
 		return Payload{}, err
 	}
-	err = s.Struct.SetPtr(1, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(1, ss.Struct.ToPtr())
 	return ss, err
 }
 func (s Call) SendResultsTo() Call_sendResultsTo { return Call_sendResultsTo(s) }
@@ -850,7 +850,7 @@ func ReadRootReturn(msg *capnp.Message) (Return, error) {
 	if err != nil {
 		return Return{}, err
 	}
-	return Return{root.Struct}, nil
+	return Return{root.Struct()}, nil
 }
 
 func (s Return) Which() Return_Which {
@@ -881,13 +881,13 @@ func (s Return) Results() (Payload, error) {
 		return Payload{}, err
 	}
 
-	return Payload{Struct: p.Struct}, nil
+	return Payload{Struct: p.Struct()}, nil
 
 }
 
 func (s Return) SetResults(v Payload) error {
 	s.Struct.SetUint16(6, 0)
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewResults sets the results field to a newly
@@ -898,7 +898,7 @@ func (s Return) NewResults() (Payload, error) {
 	if err != nil {
 		return Payload{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -908,13 +908,13 @@ func (s Return) Exception() (Exception, error) {
 		return Exception{}, err
 	}
 
-	return Exception{Struct: p.Struct}, nil
+	return Exception{Struct: p.Struct()}, nil
 
 }
 
 func (s Return) SetException(v Exception) error {
 	s.Struct.SetUint16(6, 1)
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewException sets the exception field to a newly
@@ -925,7 +925,7 @@ func (s Return) NewException() (Exception, error) {
 	if err != nil {
 		return Exception{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -1015,7 +1015,7 @@ func ReadRootFinish(msg *capnp.Message) (Finish, error) {
 	if err != nil {
 		return Finish{}, err
 	}
-	return Finish{root.Struct}, nil
+	return Finish{root.Struct()}, nil
 }
 
 func (s Finish) QuestionId() uint32 {
@@ -1100,7 +1100,7 @@ func ReadRootResolve(msg *capnp.Message) (Resolve, error) {
 	if err != nil {
 		return Resolve{}, err
 	}
-	return Resolve{root.Struct}, nil
+	return Resolve{root.Struct()}, nil
 }
 
 func (s Resolve) Which() Resolve_Which {
@@ -1122,13 +1122,13 @@ func (s Resolve) Cap() (CapDescriptor, error) {
 		return CapDescriptor{}, err
 	}
 
-	return CapDescriptor{Struct: p.Struct}, nil
+	return CapDescriptor{Struct: p.Struct()}, nil
 
 }
 
 func (s Resolve) SetCap(v CapDescriptor) error {
 	s.Struct.SetUint16(4, 0)
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewCap sets the cap field to a newly
@@ -1139,7 +1139,7 @@ func (s Resolve) NewCap() (CapDescriptor, error) {
 	if err != nil {
 		return CapDescriptor{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -1149,13 +1149,13 @@ func (s Resolve) Exception() (Exception, error) {
 		return Exception{}, err
 	}
 
-	return Exception{Struct: p.Struct}, nil
+	return Exception{Struct: p.Struct()}, nil
 
 }
 
 func (s Resolve) SetException(v Exception) error {
 	s.Struct.SetUint16(4, 1)
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewException sets the exception field to a newly
@@ -1166,7 +1166,7 @@ func (s Resolve) NewException() (Exception, error) {
 	if err != nil {
 		return Exception{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -1224,7 +1224,7 @@ func ReadRootRelease(msg *capnp.Message) (Release, error) {
 	if err != nil {
 		return Release{}, err
 	}
-	return Release{root.Struct}, nil
+	return Release{root.Struct()}, nil
 }
 
 func (s Release) Id() uint32 {
@@ -1316,7 +1316,7 @@ func ReadRootDisembargo(msg *capnp.Message) (Disembargo, error) {
 	if err != nil {
 		return Disembargo{}, err
 	}
-	return Disembargo{root.Struct}, nil
+	return Disembargo{root.Struct()}, nil
 }
 
 func (s Disembargo) Target() (MessageTarget, error) {
@@ -1325,13 +1325,13 @@ func (s Disembargo) Target() (MessageTarget, error) {
 		return MessageTarget{}, err
 	}
 
-	return MessageTarget{Struct: p.Struct}, nil
+	return MessageTarget{Struct: p.Struct()}, nil
 
 }
 
 func (s Disembargo) SetTarget(v MessageTarget) error {
 
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewTarget sets the target field to a newly
@@ -1342,7 +1342,7 @@ func (s Disembargo) NewTarget() (MessageTarget, error) {
 	if err != nil {
 		return MessageTarget{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 func (s Disembargo) Context() Disembargo_context { return Disembargo_context(s) }
@@ -1443,7 +1443,7 @@ func ReadRootProvide(msg *capnp.Message) (Provide, error) {
 	if err != nil {
 		return Provide{}, err
 	}
-	return Provide{root.Struct}, nil
+	return Provide{root.Struct()}, nil
 }
 
 func (s Provide) QuestionId() uint32 {
@@ -1461,13 +1461,13 @@ func (s Provide) Target() (MessageTarget, error) {
 		return MessageTarget{}, err
 	}
 
-	return MessageTarget{Struct: p.Struct}, nil
+	return MessageTarget{Struct: p.Struct()}, nil
 
 }
 
 func (s Provide) SetTarget(v MessageTarget) error {
 
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewTarget sets the target field to a newly
@@ -1478,7 +1478,7 @@ func (s Provide) NewTarget() (MessageTarget, error) {
 	if err != nil {
 		return MessageTarget{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -1547,7 +1547,7 @@ func ReadRootAccept(msg *capnp.Message) (Accept, error) {
 	if err != nil {
 		return Accept{}, err
 	}
-	return Accept{root.Struct}, nil
+	return Accept{root.Struct()}, nil
 }
 
 func (s Accept) QuestionId() uint32 {
@@ -1629,7 +1629,7 @@ func ReadRootJoin(msg *capnp.Message) (Join, error) {
 	if err != nil {
 		return Join{}, err
 	}
-	return Join{root.Struct}, nil
+	return Join{root.Struct()}, nil
 }
 
 func (s Join) QuestionId() uint32 {
@@ -1647,13 +1647,13 @@ func (s Join) Target() (MessageTarget, error) {
 		return MessageTarget{}, err
 	}
 
-	return MessageTarget{Struct: p.Struct}, nil
+	return MessageTarget{Struct: p.Struct()}, nil
 
 }
 
 func (s Join) SetTarget(v MessageTarget) error {
 
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewTarget sets the target field to a newly
@@ -1664,7 +1664,7 @@ func (s Join) NewTarget() (MessageTarget, error) {
 	if err != nil {
 		return MessageTarget{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -1751,7 +1751,7 @@ func ReadRootMessageTarget(msg *capnp.Message) (MessageTarget, error) {
 	if err != nil {
 		return MessageTarget{}, err
 	}
-	return MessageTarget{root.Struct}, nil
+	return MessageTarget{root.Struct()}, nil
 }
 
 func (s MessageTarget) Which() MessageTarget_Which {
@@ -1773,13 +1773,13 @@ func (s MessageTarget) PromisedAnswer() (PromisedAnswer, error) {
 		return PromisedAnswer{}, err
 	}
 
-	return PromisedAnswer{Struct: p.Struct}, nil
+	return PromisedAnswer{Struct: p.Struct()}, nil
 
 }
 
 func (s MessageTarget) SetPromisedAnswer(v PromisedAnswer) error {
 	s.Struct.SetUint16(4, 1)
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewPromisedAnswer sets the promisedAnswer field to a newly
@@ -1790,7 +1790,7 @@ func (s MessageTarget) NewPromisedAnswer() (PromisedAnswer, error) {
 	if err != nil {
 		return PromisedAnswer{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -1844,7 +1844,7 @@ func ReadRootPayload(msg *capnp.Message) (Payload, error) {
 	if err != nil {
 		return Payload{}, err
 	}
-	return Payload{root.Struct}, nil
+	return Payload{root.Struct()}, nil
 }
 
 func (s Payload) Content() (capnp.Pointer, error) {
@@ -1864,13 +1864,13 @@ func (s Payload) CapTable() (CapDescriptor_List, error) {
 		return CapDescriptor_List{}, err
 	}
 
-	return CapDescriptor_List{List: p.List}, nil
+	return CapDescriptor_List{List: p.List()}, nil
 
 }
 
 func (s Payload) SetCapTable(v CapDescriptor_List) error {
 
-	return s.Struct.SetPtr(1, capnp.Ptr{List: v.List})
+	return s.Struct.SetPtr(1, v.List.ToPtr())
 }
 
 // Payload_List is a list of Payload.
@@ -1953,7 +1953,7 @@ func ReadRootCapDescriptor(msg *capnp.Message) (CapDescriptor, error) {
 	if err != nil {
 		return CapDescriptor{}, err
 	}
-	return CapDescriptor{root.Struct}, nil
+	return CapDescriptor{root.Struct()}, nil
 }
 
 func (s CapDescriptor) Which() CapDescriptor_Which {
@@ -1997,13 +1997,13 @@ func (s CapDescriptor) ReceiverAnswer() (PromisedAnswer, error) {
 		return PromisedAnswer{}, err
 	}
 
-	return PromisedAnswer{Struct: p.Struct}, nil
+	return PromisedAnswer{Struct: p.Struct()}, nil
 
 }
 
 func (s CapDescriptor) SetReceiverAnswer(v PromisedAnswer) error {
 	s.Struct.SetUint16(0, 4)
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewReceiverAnswer sets the receiverAnswer field to a newly
@@ -2014,7 +2014,7 @@ func (s CapDescriptor) NewReceiverAnswer() (PromisedAnswer, error) {
 	if err != nil {
 		return PromisedAnswer{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -2024,13 +2024,13 @@ func (s CapDescriptor) ThirdPartyHosted() (ThirdPartyCapDescriptor, error) {
 		return ThirdPartyCapDescriptor{}, err
 	}
 
-	return ThirdPartyCapDescriptor{Struct: p.Struct}, nil
+	return ThirdPartyCapDescriptor{Struct: p.Struct()}, nil
 
 }
 
 func (s CapDescriptor) SetThirdPartyHosted(v ThirdPartyCapDescriptor) error {
 	s.Struct.SetUint16(0, 5)
-	return s.Struct.SetPtr(0, capnp.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewThirdPartyHosted sets the thirdPartyHosted field to a newly
@@ -2041,7 +2041,7 @@ func (s CapDescriptor) NewThirdPartyHosted() (ThirdPartyCapDescriptor, error) {
 	if err != nil {
 		return ThirdPartyCapDescriptor{}, err
 	}
-	err = s.Struct.SetPtr(0, capnp.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -2099,7 +2099,7 @@ func ReadRootPromisedAnswer(msg *capnp.Message) (PromisedAnswer, error) {
 	if err != nil {
 		return PromisedAnswer{}, err
 	}
-	return PromisedAnswer{root.Struct}, nil
+	return PromisedAnswer{root.Struct()}, nil
 }
 
 func (s PromisedAnswer) QuestionId() uint32 {
@@ -2117,13 +2117,13 @@ func (s PromisedAnswer) Transform() (PromisedAnswer_Op_List, error) {
 		return PromisedAnswer_Op_List{}, err
 	}
 
-	return PromisedAnswer_Op_List{List: p.List}, nil
+	return PromisedAnswer_Op_List{List: p.List()}, nil
 
 }
 
 func (s PromisedAnswer) SetTransform(v PromisedAnswer_Op_List) error {
 
-	return s.Struct.SetPtr(0, capnp.Ptr{List: v.List})
+	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
 // PromisedAnswer_List is a list of PromisedAnswer.
@@ -2190,7 +2190,7 @@ func ReadRootPromisedAnswer_Op(msg *capnp.Message) (PromisedAnswer_Op, error) {
 	if err != nil {
 		return PromisedAnswer_Op{}, err
 	}
-	return PromisedAnswer_Op{root.Struct}, nil
+	return PromisedAnswer_Op{root.Struct()}, nil
 }
 
 func (s PromisedAnswer_Op) Which() PromisedAnswer_Op_Which {
@@ -2260,7 +2260,7 @@ func ReadRootThirdPartyCapDescriptor(msg *capnp.Message) (ThirdPartyCapDescripto
 	if err != nil {
 		return ThirdPartyCapDescriptor{}, err
 	}
-	return ThirdPartyCapDescriptor{root.Struct}, nil
+	return ThirdPartyCapDescriptor{root.Struct()}, nil
 }
 
 func (s ThirdPartyCapDescriptor) Id() (capnp.Pointer, error) {
@@ -2337,7 +2337,7 @@ func ReadRootException(msg *capnp.Message) (Exception, error) {
 	if err != nil {
 		return Exception{}, err
 	}
-	return Exception{root.Struct}, nil
+	return Exception{root.Struct()}, nil
 }
 
 func (s Exception) Reason() (string, error) {
@@ -2364,7 +2364,7 @@ func (s Exception) SetReason(v string) error {
 	if err != nil {
 		return err
 	}
-	return s.Struct.SetPtr(0, capnp.Ptr{List: t.List})
+	return s.Struct.SetPtr(0, t.List.ToPtr())
 }
 
 func (s Exception) Type() Exception_Type {

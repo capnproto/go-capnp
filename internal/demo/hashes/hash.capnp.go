@@ -95,7 +95,7 @@ func ReadRootHashFactory_newSha1_Params(msg *capnp.Message) (HashFactory_newSha1
 	if err != nil {
 		return HashFactory_newSha1_Params{}, err
 	}
-	return HashFactory_newSha1_Params{root.Struct}, nil
+	return HashFactory_newSha1_Params{root.Struct()}, nil
 }
 
 // HashFactory_newSha1_Params_List is a list of HashFactory_newSha1_Params.
@@ -148,7 +148,7 @@ func ReadRootHashFactory_newSha1_Results(msg *capnp.Message) (HashFactory_newSha
 	if err != nil {
 		return HashFactory_newSha1_Results{}, err
 	}
-	return HashFactory_newSha1_Results{root.Struct}, nil
+	return HashFactory_newSha1_Results{root.Struct()}, nil
 }
 
 func (s HashFactory_newSha1_Results) Hash() Hash {
@@ -157,7 +157,7 @@ func (s HashFactory_newSha1_Results) Hash() Hash {
 
 		return Hash{}
 	}
-	return Hash{Client: p.Interface.Client()}
+	return Hash{Client: p.Interface().Client()}
 }
 
 func (s HashFactory_newSha1_Results) SetHash(v Hash) error {
@@ -171,7 +171,7 @@ func (s HashFactory_newSha1_Results) SetHash(v Hash) error {
 	if v.Client != nil {
 		in = capnp.NewInterface(seg, seg.Message().AddCap(v.Client))
 	}
-	return s.Struct.SetPtr(0, capnp.Ptr{Interface: in})
+	return s.Struct.SetPtr(0, in.ToPtr())
 }
 
 // HashFactory_newSha1_Results_List is a list of HashFactory_newSha1_Results.
@@ -339,7 +339,7 @@ func ReadRootHash_write_Params(msg *capnp.Message) (Hash_write_Params, error) {
 	if err != nil {
 		return Hash_write_Params{}, err
 	}
-	return Hash_write_Params{root.Struct}, nil
+	return Hash_write_Params{root.Struct()}, nil
 }
 
 func (s Hash_write_Params) Data() ([]byte, error) {
@@ -358,7 +358,7 @@ func (s Hash_write_Params) SetData(v []byte) error {
 	if err != nil {
 		return err
 	}
-	return s.Struct.SetPtr(0, capnp.Ptr{List: d.List})
+	return s.Struct.SetPtr(0, d.List.ToPtr())
 }
 
 // Hash_write_Params_List is a list of Hash_write_Params.
@@ -411,7 +411,7 @@ func ReadRootHash_write_Results(msg *capnp.Message) (Hash_write_Results, error) 
 	if err != nil {
 		return Hash_write_Results{}, err
 	}
-	return Hash_write_Results{root.Struct}, nil
+	return Hash_write_Results{root.Struct()}, nil
 }
 
 // Hash_write_Results_List is a list of Hash_write_Results.
@@ -464,7 +464,7 @@ func ReadRootHash_sum_Params(msg *capnp.Message) (Hash_sum_Params, error) {
 	if err != nil {
 		return Hash_sum_Params{}, err
 	}
-	return Hash_sum_Params{root.Struct}, nil
+	return Hash_sum_Params{root.Struct()}, nil
 }
 
 // Hash_sum_Params_List is a list of Hash_sum_Params.
@@ -515,7 +515,7 @@ func ReadRootHash_sum_Results(msg *capnp.Message) (Hash_sum_Results, error) {
 	if err != nil {
 		return Hash_sum_Results{}, err
 	}
-	return Hash_sum_Results{root.Struct}, nil
+	return Hash_sum_Results{root.Struct()}, nil
 }
 
 func (s Hash_sum_Results) Hash() ([]byte, error) {
@@ -534,7 +534,7 @@ func (s Hash_sum_Results) SetHash(v []byte) error {
 	if err != nil {
 		return err
 	}
-	return s.Struct.SetPtr(0, capnp.Ptr{List: d.List})
+	return s.Struct.SetPtr(0, d.List.ToPtr())
 }
 
 // Hash_sum_Results_List is a list of Hash_sum_Results.

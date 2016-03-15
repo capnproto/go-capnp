@@ -113,7 +113,7 @@ func ReadRootHandleFactory_newHandle_Params(msg *capnp.Message) (HandleFactory_n
 	if err != nil {
 		return HandleFactory_newHandle_Params{}, err
 	}
-	return HandleFactory_newHandle_Params{root.Struct}, nil
+	return HandleFactory_newHandle_Params{root.Struct()}, nil
 }
 
 // HandleFactory_newHandle_Params_List is a list of HandleFactory_newHandle_Params.
@@ -166,7 +166,7 @@ func ReadRootHandleFactory_newHandle_Results(msg *capnp.Message) (HandleFactory_
 	if err != nil {
 		return HandleFactory_newHandle_Results{}, err
 	}
-	return HandleFactory_newHandle_Results{root.Struct}, nil
+	return HandleFactory_newHandle_Results{root.Struct()}, nil
 }
 
 func (s HandleFactory_newHandle_Results) Handle() Handle {
@@ -175,7 +175,7 @@ func (s HandleFactory_newHandle_Results) Handle() Handle {
 
 		return Handle{}
 	}
-	return Handle{Client: p.Interface.Client()}
+	return Handle{Client: p.Interface().Client()}
 }
 
 func (s HandleFactory_newHandle_Results) SetHandle(v Handle) error {
@@ -189,7 +189,7 @@ func (s HandleFactory_newHandle_Results) SetHandle(v Handle) error {
 	if v.Client != nil {
 		in = capnp.NewInterface(seg, seg.Message().AddCap(v.Client))
 	}
-	return s.Struct.SetPtr(0, capnp.Ptr{Interface: in})
+	return s.Struct.SetPtr(0, in.ToPtr())
 }
 
 // HandleFactory_newHandle_Results_List is a list of HandleFactory_newHandle_Results.
@@ -310,7 +310,7 @@ func ReadRootHanger_hang_Params(msg *capnp.Message) (Hanger_hang_Params, error) 
 	if err != nil {
 		return Hanger_hang_Params{}, err
 	}
-	return Hanger_hang_Params{root.Struct}, nil
+	return Hanger_hang_Params{root.Struct()}, nil
 }
 
 // Hanger_hang_Params_List is a list of Hanger_hang_Params.
@@ -363,7 +363,7 @@ func ReadRootHanger_hang_Results(msg *capnp.Message) (Hanger_hang_Results, error
 	if err != nil {
 		return Hanger_hang_Results{}, err
 	}
-	return Hanger_hang_Results{root.Struct}, nil
+	return Hanger_hang_Results{root.Struct()}, nil
 }
 
 // Hanger_hang_Results_List is a list of Hanger_hang_Results.
@@ -480,7 +480,7 @@ func ReadRootCallOrder_getCallSequence_Params(msg *capnp.Message) (CallOrder_get
 	if err != nil {
 		return CallOrder_getCallSequence_Params{}, err
 	}
-	return CallOrder_getCallSequence_Params{root.Struct}, nil
+	return CallOrder_getCallSequence_Params{root.Struct()}, nil
 }
 
 func (s CallOrder_getCallSequence_Params) Expected() uint32 {
@@ -542,7 +542,7 @@ func ReadRootCallOrder_getCallSequence_Results(msg *capnp.Message) (CallOrder_ge
 	if err != nil {
 		return CallOrder_getCallSequence_Results{}, err
 	}
-	return CallOrder_getCallSequence_Results{root.Struct}, nil
+	return CallOrder_getCallSequence_Results{root.Struct()}, nil
 }
 
 func (s CallOrder_getCallSequence_Results) N() uint32 {
@@ -707,7 +707,7 @@ func ReadRootEchoer_echo_Params(msg *capnp.Message) (Echoer_echo_Params, error) 
 	if err != nil {
 		return Echoer_echo_Params{}, err
 	}
-	return Echoer_echo_Params{root.Struct}, nil
+	return Echoer_echo_Params{root.Struct()}, nil
 }
 
 func (s Echoer_echo_Params) Cap() CallOrder {
@@ -716,7 +716,7 @@ func (s Echoer_echo_Params) Cap() CallOrder {
 
 		return CallOrder{}
 	}
-	return CallOrder{Client: p.Interface.Client()}
+	return CallOrder{Client: p.Interface().Client()}
 }
 
 func (s Echoer_echo_Params) SetCap(v CallOrder) error {
@@ -730,7 +730,7 @@ func (s Echoer_echo_Params) SetCap(v CallOrder) error {
 	if v.Client != nil {
 		in = capnp.NewInterface(seg, seg.Message().AddCap(v.Client))
 	}
-	return s.Struct.SetPtr(0, capnp.Ptr{Interface: in})
+	return s.Struct.SetPtr(0, in.ToPtr())
 }
 
 // Echoer_echo_Params_List is a list of Echoer_echo_Params.
@@ -787,7 +787,7 @@ func ReadRootEchoer_echo_Results(msg *capnp.Message) (Echoer_echo_Results, error
 	if err != nil {
 		return Echoer_echo_Results{}, err
 	}
-	return Echoer_echo_Results{root.Struct}, nil
+	return Echoer_echo_Results{root.Struct()}, nil
 }
 
 func (s Echoer_echo_Results) Cap() CallOrder {
@@ -796,7 +796,7 @@ func (s Echoer_echo_Results) Cap() CallOrder {
 
 		return CallOrder{}
 	}
-	return CallOrder{Client: p.Interface.Client()}
+	return CallOrder{Client: p.Interface().Client()}
 }
 
 func (s Echoer_echo_Results) SetCap(v CallOrder) error {
@@ -810,7 +810,7 @@ func (s Echoer_echo_Results) SetCap(v CallOrder) error {
 	if v.Client != nil {
 		in = capnp.NewInterface(seg, seg.Message().AddCap(v.Client))
 	}
-	return s.Struct.SetPtr(0, capnp.Ptr{Interface: in})
+	return s.Struct.SetPtr(0, in.ToPtr())
 }
 
 // Echoer_echo_Results_List is a list of Echoer_echo_Results.
@@ -931,7 +931,7 @@ func ReadRootAdder_add_Params(msg *capnp.Message) (Adder_add_Params, error) {
 	if err != nil {
 		return Adder_add_Params{}, err
 	}
-	return Adder_add_Params{root.Struct}, nil
+	return Adder_add_Params{root.Struct()}, nil
 }
 
 func (s Adder_add_Params) A() int32 {
@@ -1000,7 +1000,7 @@ func ReadRootAdder_add_Results(msg *capnp.Message) (Adder_add_Results, error) {
 	if err != nil {
 		return Adder_add_Results{}, err
 	}
-	return Adder_add_Results{root.Struct}, nil
+	return Adder_add_Results{root.Struct()}, nil
 }
 
 func (s Adder_add_Results) Result() int32 {

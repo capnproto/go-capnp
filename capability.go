@@ -34,6 +34,15 @@ func ToInterface(p Pointer) Interface {
 	return i
 }
 
+// ToPtr converts the interface to a generic pointer.
+func (p Interface) ToPtr() Ptr {
+	return Ptr{
+		seg:      p.seg,
+		lenOrCap: uint32(p.cap),
+		flags:    interfacePtrFlag,
+	}
+}
+
 // Segment returns the segment this pointer came from.
 func (i Interface) Segment() *Segment {
 	return i.seg
@@ -380,7 +389,7 @@ func TransformPtr(p Ptr, transform []PipelineOp) (Ptr, error) {
 	if n == 0 {
 		return p, nil
 	}
-	s := p.Struct
+	s := p.Struct()
 	for _, op := range transform[:n-1] {
 		field, err := s.Ptr(op.Field)
 		if err != nil {
@@ -413,11 +422,11 @@ func (ans immediateAnswer) Struct() (Struct, error) {
 }
 
 func (ans immediateAnswer) findClient(transform []PipelineOp) Client {
-	p, err := TransformPtr(Ptr{Struct: ans.s}, transform)
+	p, err := TransformPtr(ans.s.ToPtr(), transform)
 	if err != nil {
 		return ErrorClient(err)
 	}
-	return p.Interface.Client()
+	return p.Interface().Client()
 }
 
 func (ans immediateAnswer) PipelineCall(transform []PipelineOp, call *Call) Answer {

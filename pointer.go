@@ -2,9 +2,11 @@ package capnp
 
 // A Ptr is a reference to a Cap'n Proto struct, list, or interface.
 type Ptr struct {
-	Struct    Struct
-	List      List
-	Interface Interface
+	seg      *Segment
+	off      Address
+	lenOrCap uint32
+	size     ObjectSize
+	flags    ptrFlags
 }
 
 func toPtr(p Pointer) Ptr {
@@ -13,68 +15,95 @@ func toPtr(p Pointer) Ptr {
 	}
 	switch p := p.underlying().(type) {
 	case Struct:
-		return Ptr{Struct: p}
+		return p.ToPtr()
 	case List:
-		return Ptr{List: p}
+		return p.ToPtr()
 	case Interface:
-		return Ptr{Interface: p}
+		return p.ToPtr()
 	}
 	return Ptr{}
 }
 
+// Struct converts p to a Struct. If p does not hold a Struct pointer,
+// the zero value is returned.
+func (p Ptr) Struct() Struct {
+	if p.flags.ptrType() != structPtrType {
+		return Struct{}
+	}
+	return Struct{
+		seg:   p.seg,
+		off:   p.off,
+		size:  p.size,
+		flags: p.flags.structFlags(),
+	}
+}
+
+func (p Ptr) List() List {
+	if p.flags.ptrType() != listPtrType {
+		return List{}
+	}
+	return List{
+		seg:    p.seg,
+		off:    p.off,
+		length: int32(p.lenOrCap),
+		size:   p.size,
+		flags:  p.flags.listFlags(),
+	}
+}
+
+func (p Ptr) Interface() Interface {
+	if p.flags.ptrType() != interfacePtrType {
+		return Interface{}
+	}
+	return Interface{
+		seg: p.seg,
+		cap: CapabilityID(p.lenOrCap),
+	}
+}
+
 func (p Ptr) toPointer() Pointer {
-	switch {
-	case p.Struct.seg != nil:
-		return p.Struct
-	case p.List.seg != nil:
-		return p.List
-	case p.Interface.seg != nil:
-		return p.Interface
+	if p.seg == nil {
+		return nil
+	}
+	switch p.flags.ptrType() {
+	case structPtrType:
+		return p.Struct()
+	case listPtrType:
+		return p.List()
+	case interfacePtrType:
+		return p.Interface()
 	}
 	return nil
 }
 
 // IsValid reports whether p is valid.
 func (p Ptr) IsValid() bool {
-	return p.Struct.seg != nil || p.List.seg != nil || p.Interface.seg != nil
+	return p.seg != nil
 }
 
 func (p Ptr) Segment() *Segment {
-	switch {
-	case p.Struct.seg != nil:
-		return p.Struct.seg
-	case p.List.seg != nil:
-		return p.List.seg
-	case p.Interface.seg != nil:
-		return p.Interface.seg
-	}
-	return nil
-}
-
-// HasData returns true if the pointer is valid and has non-zero size.
-func (p Ptr) HasData() bool {
-	return p.Struct.HasData() || p.List.HasData() || p.Interface.HasData()
+	return p.seg
 }
 
 func (p Ptr) value(paddr Address) rawPointer {
-	switch {
-	case p.Struct.seg != nil:
-		return p.Struct.value(paddr)
-	case p.List.seg != nil:
-		return p.List.value(paddr)
-	case p.Interface.seg != nil:
-		return p.Interface.value(paddr)
+	switch p.flags.ptrType() {
+	case structPtrType:
+		return p.Struct().value(paddr)
+	case listPtrType:
+		return p.List().value(paddr)
+	case interfacePtrType:
+		return p.Interface().value(paddr)
 	}
 	return 0
 }
 
 // address returns the pointer's address.  It panics if p is not a valid Struct or List.
 func (p Ptr) address() Address {
-	switch {
-	case p.Struct.seg != nil:
-		return p.Struct.Address()
-	case p.List.seg != nil:
-		return p.List.Address()
+	switch p.flags.ptrType() {
+	case structPtrType:
+		return p.Struct().Address()
+	case listPtrType:
+		return p.List().Address()
 	}
 	panic("ptr not a valid struct or list")
 }
@@ -131,4 +160,36 @@ func unmarshalDefault(def []byte) (Ptr, error) {
 		return Ptr{}, err
 	}
 	return p, nil
+}
+
+type ptrFlags uint8
+
+const interfacePtrFlag ptrFlags = interfacePtrType << 6
+
+func structPtrFlag(f structFlags) ptrFlags {
+	return structPtrType<<6 | ptrFlags(f)&ptrLowerMask
+}
+
+func listPtrFlag(f listFlags) ptrFlags {
+	return listPtrType<<6 | ptrFlags(f)&ptrLowerMask
+}
+
+const (
+	structPtrType = iota
+	listPtrType
+	interfacePtrType
+)
+
+func (f ptrFlags) ptrType() int {
+	return int(f >> 6)
+}
+
+const ptrLowerMask ptrFlags = 0x3f
+
+func (f ptrFlags) listFlags() listFlags {
+	return listFlags(f & ptrLowerMask)
+}
+
+func (f ptrFlags) structFlags() structFlags {
+	return structFlags(f & ptrLowerMask)
 }

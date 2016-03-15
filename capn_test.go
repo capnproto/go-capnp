@@ -436,108 +436,108 @@ func TestMakeOffsetKey(t *testing.T) {
 		boff, bend int64
 	}{
 		{
-			p: Ptr{Struct: Struct{
+			p: Struct{
 				seg:  seg42,
 				off:  0,
 				size: ObjectSize{0, 0},
-			}},
+			}.ToPtr(),
 			id:   42,
 			boff: 0,
 			bend: 0,
 		},
 		{
-			p: Ptr{Struct: Struct{
+			p: Struct{
 				seg:  seg42,
 				off:  8,
 				size: ObjectSize{0, 0},
-			}},
+			}.ToPtr(),
 			id:   42,
 			boff: 64,
 			bend: 64,
 		},
 		{
-			p: Ptr{Struct: Struct{
+			p: Struct{
 				seg:  seg42,
 				off:  8,
 				size: ObjectSize{1, 0},
-			}},
+			}.ToPtr(),
 			id:   42,
 			boff: 64,
 			bend: 72,
 		},
 		{
-			p: Ptr{Struct: Struct{
+			p: Struct{
 				seg:  seg42,
 				off:  8,
 				size: ObjectSize{0, 1},
-			}},
+			}.ToPtr(),
 			id:   42,
 			boff: 64,
 			bend: 128,
 		},
 		{
-			p: Ptr{List: List{
+			p: List{
 				seg:    seg42,
 				off:    0,
 				size:   ObjectSize{},
 				length: 0,
-			}},
+			}.ToPtr(),
 			id:   42,
 			boff: 0,
 			bend: 0,
 		},
 		{
-			p: Ptr{List: List{
+			p: List{
 				seg:    seg42,
 				off:    0,
 				size:   ObjectSize{},
 				length: 1,
-			}},
+			}.ToPtr(),
 			id:   42,
 			boff: 0,
 			bend: 0,
 		},
 		{
-			p: Ptr{List: List{
+			p: List{
 				seg:    seg42,
 				off:    0,
 				size:   ObjectSize{0, 1},
 				length: 1,
-			}},
+			}.ToPtr(),
 			id:   42,
 			boff: 0,
 			bend: 64,
 		},
 		{
-			p: Ptr{List: List{
+			p: List{
 				seg:    seg42,
 				off:    8,
 				size:   ObjectSize{0, 1},
 				length: 1,
-			}},
+			}.ToPtr(),
 			id:   42,
 			boff: 64,
 			bend: 128,
 		},
 		{
-			p: Ptr{List: List{
+			p: List{
 				seg:    seg42,
 				off:    8,
 				size:   ObjectSize{0, 1},
 				length: 1,
 				flags:  isCompositeList,
-			}},
+			}.ToPtr(),
 			id:   42,
 			boff: 0,
 			bend: 128,
 		},
 		{
-			p: Ptr{List: List{
+			p: List{
 				seg:    seg42,
 				off:    8,
 				size:   ObjectSize{0, 1},
 				length: 2,
-			}},
+			}.ToPtr(),
 			id:   42,
 			boff: 64,
 			bend: 192,

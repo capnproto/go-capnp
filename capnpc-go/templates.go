@@ -99,7 +99,7 @@ func ReadRoot{{.Node.Name}}(msg *{{capnp}}.Message) ({{.Node.Name}}, error) {
 	if err != nil {
 		return {{.Node.Name}}{}, err
 	}
-	return {{.Node.Name}}{root.Struct}, nil
+	return {{.Node.Name}}{root.Struct()}, nil
 }
 {{end}}
 
@@ -204,7 +204,7 @@ func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v string) error {
 	if err != nil {
 		return err
 	}
-	return s.Struct.SetPtr({{.Field.Slot.Offset}}, {{capnp}}.Ptr{List: t.List})
+	return s.Struct.SetPtr({{.Field.Slot.Offset}}, t.List.ToPtr())
 }
 {{end}}
 
@@ -229,7 +229,7 @@ func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.FieldType}}) error {
 	if err != nil {
 		return err
 	}
-	return s.Struct.SetPtr({{.Field.Slot.Offset}}, {{capnp}}.Ptr{List: d.List})
+	return s.Struct.SetPtr({{.Field.Slot.Offset}}, d.List.ToPtr())
 }
 {{end}}
 
@@ -247,13 +247,13 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() ({{.FieldType}}, error) {
 	}
 	return {{.FieldType}}{Struct: ss}, nil
 	{{else}}
-	return {{.FieldType}}{Struct: p.Struct}, nil
+	return {{.FieldType}}{Struct: p.Struct()}, nil
 	{{end}}
 }
 
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.FieldType}}) error {
 	{{template "settag" .}}
-	return s.Struct.SetPtr({{.Field.Slot.Offset}}, {{capnp}}.Ptr{Struct: v.Struct})
+	return s.Struct.SetPtr({{.Field.Slot.Offset}}, v.Struct.ToPtr())
 }
 
 // New{{.Field.Name|title}} sets the {{.Field.Name}} field to a newly
@@ -264,7 +264,7 @@ func (s {{.Node.Name}}) New{{.Field.Name|title}}() ({{.FieldType}}, error) {
 	if err != nil {
 		return {{.FieldType}}{}, err
 	}
-	err = s.Struct.SetPtr({{.Field.Slot.Offset}}, {{capnp}}.Ptr{Struct: ss.Struct})
+	err = s.Struct.SetPtr({{.Field.Slot.Offset}}, ss.Struct.ToPtr())
 	return ss, err
 }
 {{end}}
@@ -303,13 +303,13 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() ({{.FieldType}}, error) {
 	}
 	return {{.FieldType}}{List: l}, nil
 	{{else}}
-	return {{.FieldType}}{List: p.List}, nil
+	return {{.FieldType}}{List: p.List()}, nil
 	{{end}}
 }
 
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.FieldType}}) error {
 	{{template "settag" .}}
-	return s.Struct.SetPtr({{.Field.Slot.Offset}}, {{capnp}}.Ptr{List: v.List})
+	return s.Struct.SetPtr({{.Field.Slot.Offset}}, v.List.ToPtr())
 }
 {{end}}
 
@@ -321,7 +321,7 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() {{.FieldType}} {
 		{{/* Valid interface pointers never return errors. */}}
 		return {{.FieldType}}{}
 	}
-	return {{.FieldType}}{Client: p.Interface.Client()}
+	return {{.FieldType}}{Client: p.Interface().Client()}
 }
 
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.FieldType}}) error {
@@ -335,7 +335,7 @@ func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.FieldType}}) error {
 	if v.Client != nil {
 		in = {{capnp}}.NewInterface(seg, seg.Message().AddCap(v.Client))
 	}
-	return s.Struct.SetPtr({{.Field.Slot.Offset}}, {{capnp}}.Ptr{Interface: in})
+	return s.Struct.SetPtr({{.Field.Slot.Offset}}, in.ToPtr())
 }
 {{end}}
 

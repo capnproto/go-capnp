@@ -58,7 +58,8 @@ func ToStructDefault(p Pointer, def []byte) (Struct, error) {
 // PtrToStructDefault attempts to convert p into a struct, reading the
 // default value from def if p is not a struct.
 func PtrToStructDefault(p Ptr, def []byte) (Struct, error) {
-	if p.Struct.seg == nil {
+	s := p.Struct()
+	if s.seg == nil {
 		if def == nil {
 			return Struct{}, nil
 		}
@@ -66,9 +67,19 @@ func PtrToStructDefault(p Ptr, def []byte) (Struct, error) {
 		if err != nil {
 			return Struct{}, err
 		}
-		return defp.Struct, nil
+		return defp.Struct(), nil
 	}
-	return p.Struct, nil
+	return s, nil
+}
+
+// ToPtr converts the struct to a generic pointer.
+func (p Struct) ToPtr() Ptr {
+	return Ptr{
+		seg:   p.seg,
+		off:   p.off,
+		size:  p.size,
+		flags: structPtrFlag(p.flags),
+	}
 }
 
 // Segment returns the segment this pointer came from.
