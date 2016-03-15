@@ -1815,11 +1815,13 @@ func BenchmarkUnmarshal_Reuse(b *testing.B) {
 		data[i], _ = msg.Marshal()
 	}
 	msg := new(capnp.Message)
+	ta := new(testArena)
+	arena := capnp.Arena(ta)
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ta := testArena(data[r.Intn(len(data))][8:])
-		*msg = capnp.Message{Arena: ta}
+		*ta = testArena(data[r.Intn(len(data))][8:])
+		*msg = capnp.Message{Arena: arena}
 		a, _ := air.ReadRootBenchmarkA(msg)
 		unmarshalA(a)
 	}
