@@ -218,7 +218,7 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() ({{.FieldType}}, error) {
 	}
 	{{with .Default}}
 	v, err := {{capnp}}.ToDataDefault(p, {{printf "%#v" .}})
-	return {{.FieldType}}(v), err
+	return {{$.FieldType}}(v), err
 	{{else}}
 	return {{.FieldType}}({{capnp}}.ToData(p)), nil
 	{{end}}
