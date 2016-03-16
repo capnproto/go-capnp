@@ -2399,7 +2399,9 @@ func (s Exception) ReasonBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return capnp.ToData(p), nil
+
 }
 
 func (s Exception) SetReason(v string) error {

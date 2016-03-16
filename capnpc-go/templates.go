@@ -161,7 +161,7 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() {{.ReturnType}} {
 
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.ReturnType}}) {
 	{{template "settag" .}}
-	s.Struct.SetUint{{.Bits}}({{.Offset}}, uint{{.Bits}}(v{{with .Default}}^{{.}}{{end}}))
+	s.Struct.SetUint{{.Bits}}({{.Offset}}, uint{{.Bits}}(v){{with .Default}}^{{.}}{{end}})
 }
 {{end}}
 
@@ -196,7 +196,11 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}Bytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	{{with .Default}}
+	return {{capnp}}.ToDataDefault(p, []byte({{printf "%q" .}})), nil
+	{{else}}
 	return {{capnp}}.ToData(p), nil
+	{{end}}
 }
 
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v string) error {
@@ -539,7 +543,7 @@ type structBoolFieldParams struct {
 
 type structUintFieldParams struct {
 	structFieldParams
-	Bits    int
+	Bits    uint
 	Default uint64
 }
 

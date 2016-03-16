@@ -1710,6 +1710,52 @@ func TestVoidUnionSetters(t *testing.T) {
 	}
 }
 
+func TestReadDefaults(t *testing.T) {
+	t.Parallel()
+	data := mustEncodeTestMessage(t, "Defaults", "()", []byte{
+		0, 0, 0, 0, 5, 0, 0, 0,
+		0, 0, 0, 0, 2, 0, 2, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,
+	})
+
+	msg, err := capnp.Unmarshal(data)
+	if err != nil {
+		t.Fatal("Unmarshal:", err)
+	}
+	d, err := air.ReadRootDefaults(msg)
+	if err != nil {
+		t.Fatal("ReadRootDefaults:", err)
+	}
+
+	if s, err := d.Text(); err != nil {
+		t.Errorf("d.Text() error: %v", err)
+	} else if s != "foo" {
+		t.Errorf("d.Text() = %q; want \"foo\"", s)
+	}
+	if b, err := d.TextBytes(); err != nil {
+		t.Errorf("d.TextBytes() error: %v", err)
+	} else if !bytes.Equal(b, []byte("foo")) {
+		t.Errorf("d.TextBytes() = %q; want \"foo\"", b)
+	}
+	if b, err := d.Data(); err != nil {
+		t.Errorf("d.Data() error: %v", err)
+	} else if !bytes.Equal(b, []byte("bar")) {
+		t.Errorf("d.Data() = %q; want \"bar\"", b)
+	}
+	if f := d.Float(); f != 3.14 {
+		t.Errorf("d.Float() = %g; want 3.14", f)
+	}
+	if i := d.Int(); i != -123 {
+		t.Errorf("d.Int() = %d; want -123", i)
+	}
+	if i := d.Uint(); i != 42 {
+		t.Errorf("d.Uint() = %d; want 42", i)
+	}
+}
+
 type A struct {
 	Name     string
 	BirthDay time.Time

@@ -48,7 +48,9 @@ func (s Book) TitleBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return capnp.ToData(p), nil
+
 }
 
 func (s Book) SetTitle(v string) error {

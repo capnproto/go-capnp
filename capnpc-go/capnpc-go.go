@@ -583,7 +583,7 @@ func (n *node) defineField(w io.Writer, f field) {
 			structUintFieldParams: structUintFieldParams{
 				structFieldParams: params,
 				Bits:              intbits(t.Which()),
-				Default:           uint64(intFieldDefault(t, def)),
+				Default:           uint64(intFieldDefaultMask(t, def)),
 			},
 		})
 
@@ -775,11 +775,13 @@ func (n *node) fieldType(t Type, ann *annotations) string {
 	return ""
 }
 
-func intFieldDefault(t Type, def Value) int64 {
+func intFieldDefaultMask(t Type, def Value) uint64 {
 	if def.Which() == Value_Which_void {
 		return 0
 	}
-	return intValue(t, def)
+	v := intValue(t, def)
+	mask := uint64(1)<<intbits(t.Which()) - 1
+	return uint64(v) & mask
 }
 
 func intValue(t Type, v Value) int64 {
@@ -825,7 +827,7 @@ func uintValue(t Type, v Value) uint64 {
 	panic("unreachable")
 }
 
-func intbits(t Type_Which) int {
+func intbits(t Type_Which) uint {
 	switch t {
 	case Type_Which_uint8, Type_Which_int8:
 		return 8
