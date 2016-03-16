@@ -348,7 +348,7 @@ func (s Hash_write_Params) Data() ([]byte, error) {
 		return nil, err
 	}
 
-	return []byte(capnp.PtrToData(p)), nil
+	return []byte(p.Data()), nil
 
 }
 
@@ -524,7 +524,7 @@ func (s Hash_sum_Results) Hash() ([]byte, error) {
 		return nil, err
 	}
 
-	return []byte(capnp.PtrToData(p)), nil
+	return []byte(p.Data()), nil
 
 }
 

@@ -2346,7 +2346,7 @@ func (s Exception) Reason() (string, error) {
 		return "", err
 	}
 
-	return capnp.PtrToText(p), nil
+	return p.Text(), nil
 
 }
 
@@ -2355,7 +2355,7 @@ func (s Exception) ReasonBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return capnp.PtrToData(p), nil
+	return p.Data(), nil
 }
 
 func (s Exception) SetReason(v string) error {

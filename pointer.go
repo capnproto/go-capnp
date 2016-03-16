@@ -38,6 +38,25 @@ func (p Ptr) Struct() Struct {
 	}
 }
 
+// StructDefault attempts to convert p into a struct, reading the
+// default value from def if p is not a struct.
+func (p Ptr) StructDefault(def []byte) (Struct, error) {
+	s := p.Struct()
+	if s.seg == nil {
+		if def == nil {
+			return Struct{}, nil
+		}
+		defp, err := unmarshalDefault(def)
+		if err != nil {
+			return Struct{}, err
+		}
+		return defp.Struct(), nil
+	}
+	return s, nil
+}
+
+// List converts p to a List. If p does not hold a List pointer,
+// the zero value is returned.
 func (p Ptr) List() List {
 	if p.flags.ptrType() != listPtrType {
 		return List{}
@@ -51,6 +70,25 @@ func (p Ptr) List() List {
 	}
 }
 
+// ListDefault attempts to convert p into a list, reading the default
+// value from def if p is not a list.
+func (p Ptr) ListDefault(def []byte) (List, error) {
+	l := p.List()
+	if l.seg == nil {
+		if def == nil {
+			return List{}, nil
+		}
+		defp, err := unmarshalDefault(def)
+		if err != nil {
+			return List{}, err
+		}
+		return defp.List(), nil
+	}
+	return l, nil
+}
+
+// Interface converts p to an Interface. If p does not hold a List
+// pointer, the zero value is returned.
 func (p Ptr) Interface() Interface {
 	if p.flags.ptrType() != interfacePtrType {
 		return Interface{}
@@ -59,6 +97,47 @@ func (p Ptr) Interface() Interface {
 		seg: p.seg,
 		cap: CapabilityID(p.lenOrCap),
 	}
+}
+
+// Text attempts to convert p into Text, returning an empty string if
+// p is not a valid 1-byte list pointer.
+func (p Ptr) Text() string {
+	return p.TextDefault("")
+}
+
+// TextDefault attempts to convert p into Text, returning def if p is
+// not a valid 1-byte list pointer.
+func (p Ptr) TextDefault(def string) string {
+	if !isOneByteList(p) {
+		return def
+	}
+	l := p.List()
+	b := l.seg.slice(l.off, Size(l.length))
+	if len(b) == 0 || b[len(b)-1] != 0 {
+		// Text must be null-terminated.
+		return def
+	}
+	return string(b[:len(b)-1])
+}
+
+// Data attempts to convert p into Data, returning nil if p is not a
+// valid 1-byte list pointer.
+func (p Ptr) Data() []byte {
+	return p.DataDefault(nil)
+}
+
+// DataDefault attempts to convert p into Data, returning def if p is
+// not a valid 1-byte list pointer.
+func (p Ptr) DataDefault(def []byte) []byte {
+	if !isOneByteList(p) {
+		return def
+	}
+	l := p.List()
+	b := l.seg.slice(l.off, Size(l.length))
+	if b == nil {
+		return def
+	}
+	return b
 }
 
 func (p Ptr) toPointer() Pointer {
@@ -81,8 +160,18 @@ func (p Ptr) IsValid() bool {
 	return p.seg != nil
 }
 
+// Segment returns the segment this pointer points into.
+// If nil, then this is an invalid pointer.
 func (p Ptr) Segment() *Segment {
 	return p.seg
+}
+
+// Default returns p if it is valid, otherwise it unmarshals def.
+func (p Ptr) Default(def []byte) (Ptr, error) {
+	if !p.IsValid() {
+		return unmarshalDefault(def)
+	}
+	return p, nil
 }
 
 func (p Ptr) value(paddr Address) rawPointer {
@@ -126,7 +215,7 @@ type Pointer interface {
 	underlying() Pointer
 }
 
-// IsValid is deprecated.
+// IsValid is deprecated in favor of Ptr.IsValid.
 func IsValid(p Pointer) bool {
 	return p != nil && p.Segment() != nil
 }
@@ -136,18 +225,10 @@ func HasData(p Pointer) bool {
 	return IsValid(p) && p.HasData()
 }
 
-// PointerDefault is deprecated in favor of PtrDefault.
+// PointerDefault is deprecated in favor of Ptr.Default.
 func PointerDefault(p Pointer, def []byte) (Pointer, error) {
-	pp, err := PtrDefault(toPtr(p), def)
+	pp, err := toPtr(p).Default(def)
 	return pp.toPointer(), err
-}
-
-// PtrDefault returns p if it is valid, otherwise it unmarshals def.
-func PtrDefault(p Ptr, def []byte) (Ptr, error) {
-	if !p.IsValid() {
-		return unmarshalDefault(def)
-	}
-	return p, nil
 }
 
 func unmarshalDefault(def []byte) (Ptr, error) {

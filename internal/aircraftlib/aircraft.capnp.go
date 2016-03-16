@@ -127,7 +127,7 @@ func (s Zdata) Data() ([]byte, error) {
 		return nil, err
 	}
 
-	return []byte(capnp.PtrToData(p)), nil
+	return []byte(p.Data()), nil
 
 }
 
@@ -275,7 +275,7 @@ func (s PlaneBase) Name() (string, error) {
 		return "", err
 	}
 
-	return capnp.PtrToText(p), nil
+	return p.Text(), nil
 
 }
 
@@ -284,7 +284,7 @@ func (s PlaneBase) NameBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return capnp.PtrToData(p), nil
+	return p.Data(), nil
 }
 
 func (s PlaneBase) SetName(v string) error {
@@ -1219,7 +1219,7 @@ func (s Z) Text() (string, error) {
 		return "", err
 	}
 
-	return capnp.PtrToText(p), nil
+	return p.Text(), nil
 
 }
 
@@ -1228,7 +1228,7 @@ func (s Z) TextBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return capnp.PtrToData(p), nil
+	return p.Data(), nil
 }
 
 func (s Z) SetText(v string) error {
@@ -1246,7 +1246,7 @@ func (s Z) Blob() ([]byte, error) {
 		return nil, err
 	}
 
-	return []byte(capnp.PtrToData(p)), nil
+	return []byte(p.Data()), nil
 
 }
 
@@ -1824,7 +1824,7 @@ func (s Counter) Words() (string, error) {
 		return "", err
 	}
 
-	return capnp.PtrToText(p), nil
+	return p.Text(), nil
 
 }
 
@@ -1833,7 +1833,7 @@ func (s Counter) WordsBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return capnp.PtrToData(p), nil
+	return p.Data(), nil
 }
 
 func (s Counter) SetWords(v string) error {
@@ -2059,7 +2059,7 @@ func (s Zjob) Cmd() (string, error) {
 		return "", err
 	}
 
-	return capnp.PtrToText(p), nil
+	return p.Text(), nil
 
 }
 
@@ -2068,7 +2068,7 @@ func (s Zjob) CmdBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return capnp.PtrToData(p), nil
+	return p.Data(), nil
 }
 
 func (s Zjob) SetCmd(v string) error {
@@ -3275,7 +3275,7 @@ func (s HoldsText) Txt() (string, error) {
 		return "", err
 	}
 
-	return capnp.PtrToText(p), nil
+	return p.Text(), nil
 
 }
 
@@ -3284,7 +3284,7 @@ func (s HoldsText) TxtBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return capnp.PtrToData(p), nil
+	return p.Data(), nil
 }
 
 func (s HoldsText) SetTxt(v string) error {
@@ -3956,7 +3956,7 @@ func (s Echo_echo_Params) In() (string, error) {
 		return "", err
 	}
 
-	return capnp.PtrToText(p), nil
+	return p.Text(), nil
 
 }
 
@@ -3965,7 +3965,7 @@ func (s Echo_echo_Params) InBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return capnp.PtrToData(p), nil
+	return p.Data(), nil
 }
 
 func (s Echo_echo_Params) SetIn(v string) error {
@@ -4034,7 +4034,7 @@ func (s Echo_echo_Results) Out() (string, error) {
 		return "", err
 	}
 
-	return capnp.PtrToText(p), nil
+	return p.Text(), nil
 
 }
 
@@ -4043,7 +4043,7 @@ func (s Echo_echo_Results) OutBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return capnp.PtrToData(p), nil
+	return p.Data(), nil
 }
 
 func (s Echo_echo_Results) SetOut(v string) error {
@@ -4297,7 +4297,7 @@ func (s StackingRoot) AWithDefault() (StackingA, error) {
 		return StackingA{}, err
 	}
 
-	ss, err := capnp.PtrToStructDefault(p, x_832bcc6686a26d56[64:96])
+	ss, err := p.StructDefault(x_832bcc6686a26d56[64:96])
 	if err != nil {
 		return StackingA{}, err
 	}
@@ -4711,7 +4711,7 @@ func (s BenchmarkA) Name() (string, error) {
 		return "", err
 	}
 
-	return capnp.PtrToText(p), nil
+	return p.Text(), nil
 
 }
 
@@ -4720,7 +4720,7 @@ func (s BenchmarkA) NameBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return capnp.PtrToData(p), nil
+	return p.Data(), nil
 }
 
 func (s BenchmarkA) SetName(v string) error {
@@ -4747,7 +4747,7 @@ func (s BenchmarkA) Phone() (string, error) {
 		return "", err
 	}
 
-	return capnp.PtrToText(p), nil
+	return p.Text(), nil
 
 }
 
@@ -4756,7 +4756,7 @@ func (s BenchmarkA) PhoneBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return capnp.PtrToData(p), nil
+	return p.Data(), nil
 }
 
 func (s BenchmarkA) SetPhone(v string) error {

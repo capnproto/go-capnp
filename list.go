@@ -63,26 +63,9 @@ func ToList(p Pointer) List {
 	return toPtr(p).List()
 }
 
-// ToListDefault is deprecated in favor of PtrToListDefault.
+// ToListDefault is deprecated in favor of Ptr.ListDefault.
 func ToListDefault(p Pointer, def []byte) (List, error) {
-	return PtrToListDefault(toPtr(p), def)
-}
-
-// PtrToListDefault attempts to convert p into a struct, reading the
-// default value from def if p is not a struct.
-func PtrToListDefault(p Ptr, def []byte) (List, error) {
-	l := p.List()
-	if l.seg == nil {
-		if def == nil {
-			return List{}, nil
-		}
-		defp, err := unmarshalDefault(def)
-		if err != nil {
-			return List{}, err
-		}
-		return defp.List(), nil
-	}
-	return l, nil
+	return toPtr(p).ListDefault(def)
 }
 
 // ToPtr converts the list to a generic pointer.
@@ -307,7 +290,7 @@ func (l TextList) At(i int) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return PtrToText(p), nil
+	return p.Text(), nil
 }
 
 // BytesAt returns the i'th element in the list as a byte slice.
@@ -318,7 +301,7 @@ func (l TextList) BytesAt(i int) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return PtrToData(p), nil
+	return p.Data(), nil
 }
 
 // Set sets the i'th string in the list to v.
@@ -350,7 +333,7 @@ func (l DataList) At(i int) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return PtrToData(p), nil
+	return p.Data(), nil
 }
 
 // Set sets the i'th data in the list to v.
@@ -409,65 +392,24 @@ func NewData(s *Segment, v []byte) (UInt8List, error) {
 	return l, nil
 }
 
-// ToText is deprecated in favor of PtrToText.
+// ToText is deprecated in favor of Ptr.Text.
 func ToText(p Pointer) string {
-	return PtrToTextDefault(toPtr(p), "")
+	return toPtr(p).TextDefault("")
 }
 
-// PtrToText attempts to convert p into Text, returning an empty string if
-// p is not a valid 1-byte list pointer.
-func PtrToText(p Ptr) string {
-	return PtrToTextDefault(p, "")
-}
-
-// ToTextDefault is deprecated in favor of PtrToTextDefault.
+// ToTextDefault is deprecated in favor of Ptr.TextDefault.
 func ToTextDefault(p Pointer, def string) string {
-	return PtrToTextDefault(toPtr(p), def)
+	return toPtr(p).TextDefault(def)
 }
 
-// PtrToTextDefault attempts to convert p into Text, returning def if p is
-// not a valid 1-byte list pointer.
-func PtrToTextDefault(p Ptr, def string) string {
-	if !isOneByteList(p) {
-		return def
-	}
-	l := p.List()
-	b := l.seg.slice(l.off, Size(l.length))
-	if len(b) == 0 || b[len(b)-1] != 0 {
-		// Text must be null-terminated.
-		return def
-	}
-	return string(b[:len(b)-1])
-}
-
-// ToData is deprecated in favor of PtrToData.
+// ToData is deprecated in favor of Ptr.Data.
 func ToData(p Pointer) []byte {
-	return PtrToDataDefault(toPtr(p), nil)
+	return toPtr(p).DataDefault(nil)
 }
 
-// PtrToData attempts to convert p into Data, returning nil if p is not a
-// valid 1-byte list pointer.
-func PtrToData(p Ptr) []byte {
-	return PtrToDataDefault(p, nil)
-}
-
-// ToDataDefault is deprecated in favor of PtrToDataDefault.
+// ToDataDefault is deprecated in favor of Ptr.DataDefault.
 func ToDataDefault(p Pointer, def []byte) []byte {
-	return PtrToDataDefault(toPtr(p), def)
-}
-
-// PtrToDataDefault attempts to convert p into Data, returning def if p is
-// not a valid 1-byte list pointer.
-func PtrToDataDefault(p Ptr, def []byte) []byte {
-	if !isOneByteList(p) {
-		return def
-	}
-	l := p.List()
-	b := l.seg.slice(l.off, Size(l.length))
-	if b == nil {
-		return def
-	}
-	return b
+	return toPtr(p).DataDefault(def)
 }
 
 func isOneByteList(p Ptr) bool {

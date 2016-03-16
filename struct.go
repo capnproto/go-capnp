@@ -50,26 +50,9 @@ func ToStruct(p Pointer) Struct {
 	return s
 }
 
-// ToStructDefault is deprecated in favor of PtrToStructDefault.
+// ToStructDefault is deprecated in favor of Ptr.StructDefault.
 func ToStructDefault(p Pointer, def []byte) (Struct, error) {
-	return PtrToStructDefault(toPtr(p), def)
-}
-
-// PtrToStructDefault attempts to convert p into a struct, reading the
-// default value from def if p is not a struct.
-func PtrToStructDefault(p Ptr, def []byte) (Struct, error) {
-	s := p.Struct()
-	if s.seg == nil {
-		if def == nil {
-			return Struct{}, nil
-		}
-		defp, err := unmarshalDefault(def)
-		if err != nil {
-			return Struct{}, err
-		}
-		return defp.Struct(), nil
-	}
-	return s, nil
+	return toPtr(p).StructDefault(def)
 }
 
 // ToPtr converts the struct to a generic pointer.
@@ -126,7 +109,7 @@ func (p Struct) SetPointer(i uint16, src Pointer) error {
 	return p.SetPtr(i, toPtr(src))
 }
 
-// SetPptr sets the i'th pointer in the struct to src.
+// SetPtr sets the i'th pointer in the struct to src.
 func (p Struct) SetPtr(i uint16, src Ptr) error {
 	if p.seg == nil || i >= p.size.PointerCount {
 		panic(errOutOfBounds)

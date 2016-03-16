@@ -22,7 +22,7 @@ func NewInterface(s *Segment, cap CapabilityID) Interface {
 	}
 }
 
-// ToInterface is deprecated. Use Ptr.Interface.
+// ToInterface is deprecated in favor of Ptr.Interface.
 func ToInterface(p Pointer) Interface {
 	if !IsValid(p) {
 		return Interface{}
@@ -395,7 +395,7 @@ func TransformPtr(p Ptr, transform []PipelineOp) (Ptr, error) {
 		if err != nil {
 			return Ptr{}, err
 		}
-		s, err = PtrToStructDefault(field, op.DefaultValue)
+		s, err = field.StructDefault(op.DefaultValue)
 	}
 	op := transform[n-1]
 	p, err := s.Ptr(op.Field)
@@ -403,7 +403,7 @@ func TransformPtr(p Ptr, transform []PipelineOp) (Ptr, error) {
 		return Ptr{}, err
 	}
 	if op.DefaultValue != nil {
-		p, err = PtrDefault(p, op.DefaultValue)
+		p, err = p.Default(op.DefaultValue)
 	}
 	return p, err
 }

@@ -38,7 +38,7 @@ func (s Book) Title() (string, error) {
 		return "", err
 	}
 
-	return capnp.PtrToText(p), nil
+	return p.Text(), nil
 
 }
 
@@ -47,7 +47,7 @@ func (s Book) TitleBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return capnp.PtrToData(p), nil
+	return p.Data(), nil
 }
 
 func (s Book) SetTitle(v string) error {

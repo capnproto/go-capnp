@@ -184,9 +184,9 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() (string, error) {
 		return "", err
 	}
 	{{with .Default}}
-	return {{capnp}}.PtrToTextDefault(p, {{printf "%q" .}})
+	return p.TextDefault({{printf "%q" .}})
 	{{else}}
-	return {{capnp}}.PtrToText(p), nil
+	return p.Text(), nil
 	{{end}}
 }
 
@@ -195,7 +195,7 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}Bytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return {{capnp}}.PtrToData(p), nil
+	return p.Data(), nil
 }
 
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v string) error {
@@ -216,10 +216,10 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() ({{.FieldType}}, error) {
 		return nil, err
 	}
 	{{with .Default}}
-	v, err := {{capnp}}.PtrToDataDefault(p, {{printf "%#v" .}})
+	v, err := p.DataDefault({{printf "%#v" .}})
 	return {{.FieldType}}(v), err
 	{{else}}
-	return {{.FieldType}}({{capnp}}.PtrToData(p)), nil
+	return {{.FieldType}}(p.Data()), nil
 	{{end}}
 }
 
@@ -241,7 +241,7 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() ({{.FieldType}}, error) {
 		return {{.FieldType}}{}, err
 	}
 	{{if .Default.IsValid}}
-	ss, err := {{capnp}}.PtrToStructDefault(p, {{.Default}})
+	ss, err := p.StructDefault({{.Default}})
 	if err != nil {
 		return {{.FieldType}}{}, err
 	}
@@ -297,7 +297,7 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() ({{.FieldType}}, error) {
 		return {{.FieldType}}{}, err
 	}
 	{{if .Default.IsValid}}
-	l, err := {{capnp}}.PtrToListDefault(p, {{.Default}})
+	l, err := p.ListDefault({{.Default}})
 	if err != nil {
 		return {{.FieldType}}{}, err
 	}
