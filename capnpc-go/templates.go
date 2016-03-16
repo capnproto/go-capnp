@@ -185,7 +185,7 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() (string, error) {
 		return "", err
 	}
 	{{with .Default}}
-	return {{capnp}}.ToTextDefault(p, {{printf "%q" .}})
+	return {{capnp}}.ToTextDefault(p, {{printf "%q" .}}), nil
 	{{else}}
 	return {{capnp}}.ToText(p), nil
 	{{end}}
@@ -217,8 +217,7 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() ({{.FieldType}}, error) {
 		return nil, err
 	}
 	{{with .Default}}
-	v, err := {{capnp}}.ToDataDefault(p, {{printf "%#v" .}})
-	return {{$.FieldType}}(v), err
+	return {{$.FieldType}}({{capnp}}.ToDataDefault(p, {{printf "%#v" .}})), nil
 	{{else}}
 	return {{.FieldType}}({{capnp}}.ToData(p)), nil
 	{{end}}
