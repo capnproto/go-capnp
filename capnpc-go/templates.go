@@ -160,7 +160,7 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() {{.ReturnType}} {
 
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.ReturnType}}) {
 	{{template "settag" .}}
-	s.Struct.SetUint{{.Bits}}({{.Offset}}, uint{{.Bits}}(v{{with .Default}}^{{.}}{{end}}))
+	s.Struct.SetUint{{.Bits}}({{.Offset}}, uint{{.Bits}}(v){{with .Default}}^{{.}}{{end}})
 }
 {{end}}
 
@@ -184,7 +184,7 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() (string, error) {
 		return "", err
 	}
 	{{with .Default}}
-	return p.TextDefault({{printf "%q" .}})
+	return p.TextDefault({{printf "%q" .}}), nil
 	{{else}}
 	return p.Text(), nil
 	{{end}}
@@ -195,7 +195,11 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}Bytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	{{with .Default}}
+	return p.DataDefault([]byte({{printf "%q" .}})), nil
+	{{else}}
 	return p.Data(), nil
+	{{end}}
 }
 
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v string) error {
@@ -216,8 +220,7 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() ({{.FieldType}}, error) {
 		return nil, err
 	}
 	{{with .Default}}
-	v, err := p.DataDefault({{printf "%#v" .}})
-	return {{.FieldType}}(v), err
+	return {{$.FieldType}}(p.DataDefault({{printf "%#v" .}})), nil
 	{{else}}
 	return {{.FieldType}}(p.Data()), nil
 	{{end}}
@@ -538,7 +541,7 @@ type structBoolFieldParams struct {
 
 type structUintFieldParams struct {
 	structFieldParams
-	Bits    int
+	Bits    uint
 	Default uint64
 }
 

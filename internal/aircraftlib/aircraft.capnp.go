@@ -284,7 +284,9 @@ func (s PlaneBase) NameBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return p.Data(), nil
+
 }
 
 func (s PlaneBase) SetName(v string) error {
@@ -1228,7 +1230,9 @@ func (s Z) TextBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return p.Data(), nil
+
 }
 
 func (s Z) SetText(v string) error {
@@ -1833,7 +1837,9 @@ func (s Counter) WordsBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return p.Data(), nil
+
 }
 
 func (s Counter) SetWords(v string) error {
@@ -2068,7 +2074,9 @@ func (s Zjob) CmdBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return p.Data(), nil
+
 }
 
 func (s Zjob) SetCmd(v string) error {
@@ -3284,7 +3292,9 @@ func (s HoldsText) TxtBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return p.Data(), nil
+
 }
 
 func (s HoldsText) SetTxt(v string) error {
@@ -3965,7 +3975,9 @@ func (s Echo_echo_Params) InBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return p.Data(), nil
+
 }
 
 func (s Echo_echo_Params) SetIn(v string) error {
@@ -4043,7 +4055,9 @@ func (s Echo_echo_Results) OutBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return p.Data(), nil
+
 }
 
 func (s Echo_echo_Results) SetOut(v string) error {
@@ -4679,6 +4693,130 @@ func (p CallSequence_getNumber_Results_Promise) Struct() (CallSequence_getNumber
 	return CallSequence_getNumber_Results{s}, err
 }
 
+type Defaults struct{ capnp.Struct }
+
+func NewDefaults(s *capnp.Segment) (Defaults, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 2})
+	if err != nil {
+		return Defaults{}, err
+	}
+	return Defaults{st}, nil
+}
+
+func NewRootDefaults(s *capnp.Segment) (Defaults, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 2})
+	if err != nil {
+		return Defaults{}, err
+	}
+	return Defaults{st}, nil
+}
+
+func ReadRootDefaults(msg *capnp.Message) (Defaults, error) {
+	root, err := msg.RootPtr()
+	if err != nil {
+		return Defaults{}, err
+	}
+	return Defaults{root.Struct()}, nil
+}
+
+func (s Defaults) Text() (string, error) {
+	p, err := s.Struct.Ptr(0)
+	if err != nil {
+		return "", err
+	}
+
+	return p.TextDefault("foo"), nil
+
+}
+
+func (s Defaults) TextBytes() ([]byte, error) {
+	p, err := s.Struct.Ptr(0)
+	if err != nil {
+		return nil, err
+	}
+
+	return p.DataDefault([]byte("foo")), nil
+
+}
+
+func (s Defaults) SetText(v string) error {
+
+	t, err := capnp.NewText(s.Struct.Segment(), v)
+	if err != nil {
+		return err
+	}
+	return s.Struct.SetPtr(0, t.List.ToPtr())
+}
+
+func (s Defaults) Data() ([]byte, error) {
+	p, err := s.Struct.Ptr(1)
+	if err != nil {
+		return nil, err
+	}
+
+	return []byte(p.DataDefault([]byte{0x62, 0x61, 0x72})), nil
+
+}
+
+func (s Defaults) SetData(v []byte) error {
+
+	d, err := capnp.NewData(s.Struct.Segment(), []byte(v))
+	if err != nil {
+		return err
+	}
+	return s.Struct.SetPtr(1, d.List.ToPtr())
+}
+
+func (s Defaults) Float() float32 {
+	return math.Float32frombits(s.Struct.Uint32(0) ^ 0x4048f5c3)
+}
+
+func (s Defaults) SetFloat(v float32) {
+
+	s.Struct.SetUint32(0, math.Float32bits(v)^0x4048f5c3)
+}
+
+func (s Defaults) Int() int32 {
+	return int32(s.Struct.Uint32(4) ^ 4294967173)
+}
+
+func (s Defaults) SetInt(v int32) {
+
+	s.Struct.SetUint32(4, uint32(v)^4294967173)
+}
+
+func (s Defaults) Uint() uint32 {
+	return s.Struct.Uint32(8) ^ 42
+}
+
+func (s Defaults) SetUint(v uint32) {
+
+	s.Struct.SetUint32(8, v^42)
+}
+
+// Defaults_List is a list of Defaults.
+type Defaults_List struct{ capnp.List }
+
+// NewDefaults creates a new list of Defaults.
+func NewDefaults_List(s *capnp.Segment, sz int32) (Defaults_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 2}, sz)
+	if err != nil {
+		return Defaults_List{}, err
+	}
+	return Defaults_List{l}, nil
+}
+
+func (s Defaults_List) At(i int) Defaults           { return Defaults{s.List.Struct(i)} }
+func (s Defaults_List) Set(i int, v Defaults) error { return s.List.SetStruct(i, v.Struct) }
+
+// Defaults_Promise is a wrapper for a Defaults promised by a client call.
+type Defaults_Promise struct{ *capnp.Pipeline }
+
+func (p Defaults_Promise) Struct() (Defaults, error) {
+	s, err := p.Pipeline.Struct()
+	return Defaults{s}, err
+}
+
 type BenchmarkA struct{ capnp.Struct }
 
 func NewBenchmarkA(s *capnp.Segment) (BenchmarkA, error) {
@@ -4720,7 +4858,9 @@ func (s BenchmarkA) NameBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return p.Data(), nil
+
 }
 
 func (s BenchmarkA) SetName(v string) error {
@@ -4756,7 +4896,9 @@ func (s BenchmarkA) PhoneBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return p.Data(), nil
+
 }
 
 func (s BenchmarkA) SetPhone(v string) error {

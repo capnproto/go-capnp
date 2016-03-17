@@ -47,7 +47,9 @@ func (s Book) TitleBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return p.Data(), nil
+
 }
 
 func (s Book) SetTitle(v string) error {
