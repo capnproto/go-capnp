@@ -340,9 +340,20 @@ func (s Message) ObsoleteSave() (capnp.Pointer, error) {
 
 }
 
+func (s Message) ObsoleteSavePtr() (capnp.Ptr, error) {
+
+	return s.Struct.Ptr(0)
+
+}
+
 func (s Message) SetObsoleteSave(v capnp.Pointer) error {
 	s.Struct.SetUint16(0, 7)
 	return s.Struct.SetPointer(0, v)
+}
+
+func (s Message) SetObsoleteSavePtr(v capnp.Ptr) error {
+	s.Struct.SetUint16(0, 7)
+	return s.Struct.SetPtr(0, v)
 }
 
 func (s Message) ObsoleteDelete() (capnp.Pointer, error) {
@@ -351,9 +362,20 @@ func (s Message) ObsoleteDelete() (capnp.Pointer, error) {
 
 }
 
+func (s Message) ObsoleteDeletePtr() (capnp.Ptr, error) {
+
+	return s.Struct.Ptr(0)
+
+}
+
 func (s Message) SetObsoleteDelete(v capnp.Pointer) error {
 	s.Struct.SetUint16(0, 9)
 	return s.Struct.SetPointer(0, v)
+}
+
+func (s Message) SetObsoleteDeletePtr(v capnp.Ptr) error {
+	s.Struct.SetUint16(0, 9)
+	return s.Struct.SetPtr(0, v)
 }
 
 func (s Message) Provide() (Provide, error) {
@@ -557,9 +579,20 @@ func (s Bootstrap) DeprecatedObjectId() (capnp.Pointer, error) {
 
 }
 
+func (s Bootstrap) DeprecatedObjectIdPtr() (capnp.Ptr, error) {
+
+	return s.Struct.Ptr(0)
+
+}
+
 func (s Bootstrap) SetDeprecatedObjectId(v capnp.Pointer) error {
 
 	return s.Struct.SetPointer(0, v)
+}
+
+func (s Bootstrap) SetDeprecatedObjectIdPtr(v capnp.Ptr) error {
+
+	return s.Struct.SetPtr(0, v)
 }
 
 // Bootstrap_List is a list of Bootstrap.
@@ -746,9 +779,20 @@ func (s Call_sendResultsTo) ThirdParty() (capnp.Pointer, error) {
 
 }
 
+func (s Call_sendResultsTo) ThirdPartyPtr() (capnp.Ptr, error) {
+
+	return s.Struct.Ptr(2)
+
+}
+
 func (s Call_sendResultsTo) SetThirdParty(v capnp.Pointer) error {
 	s.Struct.SetUint16(6, 2)
 	return s.Struct.SetPointer(2, v)
+}
+
+func (s Call_sendResultsTo) SetThirdPartyPtr(v capnp.Ptr) error {
+	s.Struct.SetUint16(6, 2)
+	return s.Struct.SetPtr(2, v)
 }
 
 // Call_List is a list of Call.
@@ -952,9 +996,20 @@ func (s Return) AcceptFromThirdParty() (capnp.Pointer, error) {
 
 }
 
+func (s Return) AcceptFromThirdPartyPtr() (capnp.Ptr, error) {
+
+	return s.Struct.Ptr(0)
+
+}
+
 func (s Return) SetAcceptFromThirdParty(v capnp.Pointer) error {
 	s.Struct.SetUint16(6, 5)
 	return s.Struct.SetPointer(0, v)
+}
+
+func (s Return) SetAcceptFromThirdPartyPtr(v capnp.Ptr) error {
+	s.Struct.SetUint16(6, 5)
+	return s.Struct.SetPtr(0, v)
 }
 
 // Return_List is a list of Return.
@@ -1488,9 +1543,20 @@ func (s Provide) Recipient() (capnp.Pointer, error) {
 
 }
 
+func (s Provide) RecipientPtr() (capnp.Ptr, error) {
+
+	return s.Struct.Ptr(1)
+
+}
+
 func (s Provide) SetRecipient(v capnp.Pointer) error {
 
 	return s.Struct.SetPointer(1, v)
+}
+
+func (s Provide) SetRecipientPtr(v capnp.Ptr) error {
+
+	return s.Struct.SetPtr(1, v)
 }
 
 // Provide_List is a list of Provide.
@@ -1565,9 +1631,20 @@ func (s Accept) Provision() (capnp.Pointer, error) {
 
 }
 
+func (s Accept) ProvisionPtr() (capnp.Ptr, error) {
+
+	return s.Struct.Ptr(0)
+
+}
+
 func (s Accept) SetProvision(v capnp.Pointer) error {
 
 	return s.Struct.SetPointer(0, v)
+}
+
+func (s Accept) SetProvisionPtr(v capnp.Ptr) error {
+
+	return s.Struct.SetPtr(0, v)
 }
 
 func (s Accept) Embargo() bool {
@@ -1674,9 +1751,20 @@ func (s Join) KeyPart() (capnp.Pointer, error) {
 
 }
 
+func (s Join) KeyPartPtr() (capnp.Ptr, error) {
+
+	return s.Struct.Ptr(1)
+
+}
+
 func (s Join) SetKeyPart(v capnp.Pointer) error {
 
 	return s.Struct.SetPointer(1, v)
+}
+
+func (s Join) SetKeyPartPtr(v capnp.Ptr) error {
+
+	return s.Struct.SetPtr(1, v)
 }
 
 // Join_List is a list of Join.
@@ -1853,9 +1941,20 @@ func (s Payload) Content() (capnp.Pointer, error) {
 
 }
 
+func (s Payload) ContentPtr() (capnp.Ptr, error) {
+
+	return s.Struct.Ptr(0)
+
+}
+
 func (s Payload) SetContent(v capnp.Pointer) error {
 
 	return s.Struct.SetPointer(0, v)
+}
+
+func (s Payload) SetContentPtr(v capnp.Ptr) error {
+
+	return s.Struct.SetPtr(0, v)
 }
 
 func (s Payload) CapTable() (CapDescriptor_List, error) {
@@ -2269,9 +2368,20 @@ func (s ThirdPartyCapDescriptor) Id() (capnp.Pointer, error) {
 
 }
 
+func (s ThirdPartyCapDescriptor) IdPtr() (capnp.Ptr, error) {
+
+	return s.Struct.Ptr(0)
+
+}
+
 func (s ThirdPartyCapDescriptor) SetId(v capnp.Pointer) error {
 
 	return s.Struct.SetPointer(0, v)
+}
+
+func (s ThirdPartyCapDescriptor) SetIdPtr(v capnp.Ptr) error {
+
+	return s.Struct.SetPtr(0, v)
 }
 
 func (s ThirdPartyCapDescriptor) VineId() uint32 {

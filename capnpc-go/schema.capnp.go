@@ -2168,9 +2168,20 @@ func (s Value) List() (capnp.Pointer, error) {
 
 }
 
+func (s Value) ListPtr() (capnp.Ptr, error) {
+
+	return s.Struct.Ptr(0)
+
+}
+
 func (s Value) SetList(v capnp.Pointer) error {
 	s.Struct.SetUint16(0, 14)
 	return s.Struct.SetPointer(0, v)
+}
+
+func (s Value) SetListPtr(v capnp.Ptr) error {
+	s.Struct.SetUint16(0, 14)
+	return s.Struct.SetPtr(0, v)
 }
 
 func (s Value) Enum() uint16 {
@@ -2188,9 +2199,20 @@ func (s Value) StructField() (capnp.Pointer, error) {
 
 }
 
+func (s Value) StructFieldPtr() (capnp.Ptr, error) {
+
+	return s.Struct.Ptr(0)
+
+}
+
 func (s Value) SetStructField(v capnp.Pointer) error {
 	s.Struct.SetUint16(0, 16)
 	return s.Struct.SetPointer(0, v)
+}
+
+func (s Value) SetStructFieldPtr(v capnp.Ptr) error {
+	s.Struct.SetUint16(0, 16)
+	return s.Struct.SetPtr(0, v)
 }
 
 func (s Value) SetInterface() {
@@ -2203,9 +2225,20 @@ func (s Value) AnyPointer() (capnp.Pointer, error) {
 
 }
 
+func (s Value) AnyPointerPtr() (capnp.Ptr, error) {
+
+	return s.Struct.Ptr(0)
+
+}
+
 func (s Value) SetAnyPointer(v capnp.Pointer) error {
 	s.Struct.SetUint16(0, 18)
 	return s.Struct.SetPointer(0, v)
+}
+
+func (s Value) SetAnyPointerPtr(v capnp.Ptr) error {
+	s.Struct.SetUint16(0, 18)
+	return s.Struct.SetPtr(0, v)
 }
 
 // Value_List is a list of Value.

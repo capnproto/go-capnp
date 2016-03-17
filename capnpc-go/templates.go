@@ -286,9 +286,26 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() ({{capnp}}.Pointer, error) {
 	{{end}}
 }
 
+func (s {{.Node.Name}}) {{.Field.Name|title}}Ptr() ({{capnp}}.Ptr, error) {
+	{{if .Default.IsValid}}
+	p, err := s.Struct.Ptr({{.Field.Slot.Offset}})
+	if err != nil {
+		return nil, err
+	}
+	return p.Default({{.Default}})
+	{{else}}
+	return s.Struct.Ptr({{.Field.Slot.Offset}})
+	{{end}}
+}
+
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{capnp}}.Pointer) error {
 	{{template "settag" .}}
 	return s.Struct.SetPointer({{.Field.Slot.Offset}}, v)
+}
+
+func (s {{.Node.Name}}) Set{{.Field.Name|title}}Ptr(v {{capnp}}.Ptr) error {
+	{{template "settag" .}}
+	return s.Struct.SetPtr({{.Field.Slot.Offset}}, v)
 }
 {{end}}
 
