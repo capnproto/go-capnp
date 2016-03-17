@@ -48,6 +48,11 @@ func (i Interface) Segment() *Segment {
 	return i.seg
 }
 
+// IsValid returns whether the interface is valid.
+func (i Interface) IsValid() bool {
+	return i.seg != nil
+}
+
 // HasData is always true.
 func (i Interface) HasData() bool {
 	return true

@@ -70,6 +70,11 @@ func (p Struct) Segment() *Segment {
 	return p.seg
 }
 
+// IsValid returns whether the struct is valid.
+func (p Struct) IsValid() bool {
+	return p.seg != nil
+}
+
 // Address returns the address the pointer references.
 func (p Struct) Address() Address {
 	return p.off

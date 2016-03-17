@@ -84,6 +84,11 @@ func (p List) Segment() *Segment {
 	return p.seg
 }
 
+// IsValid returns whether the list is valid.
+func (p List) IsValid() bool {
+	return p.seg != nil
+}
+
 // HasData reports whether the list's total size is non-zero.
 func (p List) HasData() bool {
 	sz, ok := p.size.totalSize().times(p.length)
