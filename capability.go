@@ -284,11 +284,11 @@ func (p *Pipeline) Struct() (Struct, error) {
 	if err != nil {
 		return Struct{}, err
 	}
-	ptr, err := Transform(s, p.Transform())
+	ptr, err := TransformPtr(s.ToPtr(), p.Transform())
 	if err != nil {
 		return Struct{}, err
 	}
-	return ToStruct(ptr), nil
+	return ptr.Struct(), nil
 }
 
 // Client returns the client version of p.

@@ -32,7 +32,7 @@ func NewRootStruct(s *Segment, sz ObjectSize) (Struct, error) {
 	if err != nil {
 		return st, err
 	}
-	if err := s.msg.SetRoot(st); err != nil {
+	if err := s.msg.SetRootPtr(st.ToPtr()); err != nil {
 		return st, err
 	}
 	return st, nil

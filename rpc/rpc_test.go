@@ -300,12 +300,12 @@ func bootstrapRoundtrip(t *testing.T, p rpc.Transport) (importID, questionID uin
 	if err != nil {
 		t.Fatal("return.results error:", err)
 	}
-	content, err := payload.Content()
+	content, err := payload.ContentPtr()
 	if err != nil {
 		t.Fatal("return.results.content error:", err)
 	}
-	in := capnp.ToInterface(content)
-	if !capnp.IsValid(in) {
+	in := content.Interface()
+	if !in.IsValid() {
 		t.Fatalf("Result payload contains %v; want interface", content)
 	}
 	capIdx := int(in.Capability())

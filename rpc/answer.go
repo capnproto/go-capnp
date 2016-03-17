@@ -74,7 +74,7 @@ type answer struct {
 	resolved    chan struct{}
 
 	mu    sync.RWMutex
-	obj   capnp.Pointer
+	obj   capnp.Ptr
 	err   error
 	done  bool
 	queue []pcall
@@ -83,7 +83,7 @@ type answer struct {
 // fulfill is called to resolve an answer succesfully and returns a list
 // of return messages to send.
 // It must be called from the coordinate goroutine.
-func (a *answer) fulfill(msgs []rpccapnp.Message, obj capnp.Pointer, makeCapTable capTableMaker) []rpccapnp.Message {
+func (a *answer) fulfill(msgs []rpccapnp.Message, obj capnp.Ptr, makeCapTable capTableMaker) []rpccapnp.Message {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.done {
@@ -95,7 +95,7 @@ func (a *answer) fulfill(msgs []rpccapnp.Message, obj capnp.Pointer, makeCapTabl
 	retmsg := newReturnMessage(nil, a.id)
 	ret, _ := retmsg.Return()
 	payload, _ := ret.NewResults()
-	payload.SetContent(obj)
+	payload.SetContentPtr(obj)
 	payloadTab, err := makeCapTable(ret.Segment())
 	if err != nil {
 		// TODO(light): handle this more gracefully
@@ -141,16 +141,16 @@ func (a *answer) reject(msgs []rpccapnp.Message, err error) []rpccapnp.Message {
 // emptyQueue splits the queue by which capability it targets
 // and drops any invalid calls.  Once this function returns, a.queue
 // will be nil.
-func (a *answer) emptyQueue(msgs []rpccapnp.Message, obj capnp.Pointer) (map[capnp.CapabilityID][]qcall, []rpccapnp.Message) {
+func (a *answer) emptyQueue(msgs []rpccapnp.Message, obj capnp.Ptr) (map[capnp.CapabilityID][]qcall, []rpccapnp.Message) {
 	qs := make(map[capnp.CapabilityID][]qcall, len(a.queue))
 	for i, pc := range a.queue {
-		c, err := capnp.Transform(obj, pc.transform)
+		c, err := capnp.TransformPtr(obj, pc.transform)
 		if err != nil {
 			msgs = pc.a.reject(msgs, err)
 			continue
 		}
-		ci := capnp.ToInterface(c)
-		if !capnp.IsValid(ci) {
+		ci := c.Interface()
+		if !ci.IsValid() {
 			msgs = pc.a.reject(msgs, capnp.ErrNullClient)
 			continue
 		}
@@ -164,7 +164,7 @@ func (a *answer) emptyQueue(msgs []rpccapnp.Message, obj capnp.Pointer) (map[cap
 	return qs, msgs
 }
 
-func (a *answer) peek() (obj capnp.Pointer, err error, ok bool) {
+func (a *answer) peek() (obj capnp.Ptr, err error, ok bool) {
 	a.mu.RLock()
 	obj, err, ok = a.obj, a.err, a.done
 	a.mu.RUnlock()
@@ -207,11 +207,11 @@ func (a *answer) queueDisembargo(transform []capnp.PipelineOp, id embargoID, tar
 	if a.err != nil {
 		return false, errDisembargoNonImport
 	}
-	targetPtr, err := capnp.Transform(a.obj, transform)
+	targetPtr, err := capnp.TransformPtr(a.obj, transform)
 	if err != nil {
 		return false, err
 	}
-	client := capnp.ToInterface(targetPtr).Client()
+	client := targetPtr.Interface().Client()
 	qc, ok := client.(*queueClient)
 	if !ok {
 		// No need to embargo, disembargo immediately.
@@ -242,7 +242,7 @@ func joinAnswer(a *answer, ca capnp.Answer) {
 	s, err := ca.Struct()
 	r := &outgoingReturn{
 		a:   a,
-		obj: capnp.Pointer(s),
+		obj: s.ToPtr(),
 		err: err,
 	}
 	select {
@@ -269,7 +269,7 @@ func joinFulfiller(f *fulfiller.Fulfiller, ca capnp.Answer) {
 // return message's capability table.
 type outgoingReturn struct {
 	a   *answer
-	obj capnp.Pointer
+	obj capnp.Ptr
 	err error
 }
 
@@ -472,7 +472,7 @@ func (c *qcall) which() int {
 		return qcallRemoteCall
 	} else if c.f != nil {
 		return qcallLocalCall
-	} else if capnp.IsValid(c.embargoTarget) {
+	} else if c.embargoTarget.IsValid() {
 		return qcallDisembargo
 	} else {
 		return qcallInvalid
