@@ -15,8 +15,8 @@ const (
 )
 
 var (
-	ConstDate = Zdate{Struct: capnp.ToStruct(capnp.MustUnmarshalRoot(x_832bcc6686a26d56[0:24]))}
-	ConstList = Zdate_List{List: capnp.ToList(capnp.MustUnmarshalRoot(x_832bcc6686a26d56[24:64]))}
+	ConstDate = Zdate{Struct: capnp.MustUnmarshalRootPtr(x_832bcc6686a26d56[0:24]).Struct()}
+	ConstList = Zdate_List{List: capnp.MustUnmarshalRootPtr(x_832bcc6686a26d56[24:64]).List()}
 )
 
 type Zdate struct{ capnp.Struct }

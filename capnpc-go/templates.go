@@ -508,6 +508,12 @@ type {{$.Node.Name}}_{{.Name}} struct {
 			InterfaceName: {{.Interface.DisplayName|printf "%q"}},
 			MethodName: {{.OriginalName|printf "%q"}},
 {{end}}
+
+{{define "structValue"}}{{.Typ.RemoteName .Node}}{Struct: {{capnp}}.MustUnmarshalRootPtr({{.Value}}).Struct()}{{end}}
+
+{{define "pointerValue"}}{{capnp}}.MustUnmarshalRootPtr({{.Value}}){{end}}
+
+{{define "listValue"}}{{.Typ}}{List: {{capnp}}.MustUnmarshalRootPtr({{.Value}}).List()}{{end}}
 `))
 
 type annotationParams struct {
@@ -643,4 +649,19 @@ type interfaceServerTemplateParams struct {
 	Node        *node
 	Annotations *annotations
 	Methods     []interfaceMethod
+}
+
+type structValueTemplateParams struct {
+	Node  *node
+	Typ   *node
+	Value staticDataRef
+}
+
+type pointerValueTemplateParams struct {
+	Value staticDataRef
+}
+
+type listValueTemplateParams struct {
+	Typ   string
+	Value staticDataRef
 }
