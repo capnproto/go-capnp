@@ -384,6 +384,9 @@ func Transform(p Pointer, transform []PipelineOp) (Pointer, error) {
 			return nil, err
 		}
 		s, err = ToStructDefault(field, op.DefaultValue)
+		if err != nil {
+			return nil, err
+		}
 	}
 	op := transform[n-1]
 	p, err := s.Pointer(op.Field)
