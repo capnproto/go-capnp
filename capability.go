@@ -401,6 +401,9 @@ func TransformPtr(p Ptr, transform []PipelineOp) (Ptr, error) {
 			return Ptr{}, err
 		}
 		s, err = field.StructDefault(op.DefaultValue)
+		if err != nil {
+			return Ptr{}, err
+		}
 	}
 	op := transform[n-1]
 	p, err := s.Ptr(op.Field)
