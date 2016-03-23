@@ -45,6 +45,12 @@ organized in a tree of objects, with the root always being a struct (as
 opposed to a list or primitive).  Messages can be read from and written
 to a stream.
 
+The Message and Segment types are the main types that application code
+will use from this package.  The Message type has methods for marshaling
+and unmarshaling its segments to the wire format.  If the application
+needs to read or write from a stream, it should use the Encoder and
+Decoder types.
+
 Pointers
 
 The interface for accessing a Cap'n Proto object is Pointer.  This can
