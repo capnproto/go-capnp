@@ -44,17 +44,23 @@ to a stream.
 
 Pointers
 
-The interface for accessing a Cap'n Proto object is Pointer.  This can
-refer to a struct, a list, or an interface.  Pointers have value
-semantics and refer to data in a single segment.  All of the concrete
-pointer types have a notion of "valid".  An invalid pointer will return
-the default value from any accessor and panic when any setter is called.
+The type for a generic reference to a Cap'n Proto object is Ptr.  A Ptr
+can refer to a struct, a list, or an interface.  Ptr, Struct, List, and
+Interface (the pointer types) have value semantics and refer to data in
+a single segment.  All of the pointer types have a notion of "valid".
+An invalid pointer will return the default value from any accessor and
+panic when any setter is called.
+
+In previous versions of this package, the Pointer interface was used
+instead of the Ptr struct.  This interface and functions that use it are
+now deprecated.  See https://github.com/zombiezen/go-capnproto2/wiki/New-Ptr-Type
+for details about this API change.
 
 Data accessors and setters (i.e. struct primitive fields and list
 elements) do not return errors, but pointer accessors and setters do.
-There are a reasons that a read or write of a pointer can fail, but the
-most common are bad pointers or allocation failures.  For accessors, an
-invalid object will be returned in case of an error.
+There are a few reasons that a read or write of a pointer can fail, but
+the most common are bad pointers or allocation failures.  For accessors,
+an invalid object will be returned in case of an error.
 
 Since Go doesn't have generics, wrapper types provide type safety on
 lists.  This package provides lists of basic types, and capnpc-go
