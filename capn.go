@@ -293,13 +293,14 @@ func makeOffsetKey(p Pointer) offset {
 func compare(a, b rbtree.Item) int {
 	ao := a.(offset)
 	bo := b.(offset)
-	if ao.id != bo.id {
+	switch {
+	case ao.id != bo.id:
 		return int(ao.id) - int(bo.id)
-	} else if ao.boff > bo.boff {
+	case ao.boff > bo.boff:
 		return 1
-	} else if ao.boff < bo.boff {
+	case ao.boff < bo.boff:
 		return -1
-	} else {
+	default:
 		return 0
 	}
 }
@@ -315,31 +316,31 @@ func needsCopy(dest *Segment, src Pointer) bool {
 	return false
 }
 
-func (destSeg *Segment) writePtr(cc copyContext, off Address, src Pointer) error {
+func (s *Segment) writePtr(cc copyContext, off Address, src Pointer) error {
 	// handle nulls
 	if !IsValid(src) {
-		destSeg.writeRawPointer(off, 0)
+		s.writeRawPointer(off, 0)
 		return nil
 	}
 	srcSeg := src.Segment()
 
 	if i := ToInterface(src); IsValid(i) {
-		if destSeg.msg != srcSeg.msg {
-			c := destSeg.msg.AddCap(i.Client())
-			src = Pointer(NewInterface(destSeg, c))
+		if s.msg != srcSeg.msg {
+			c := s.msg.AddCap(i.Client())
+			src = Pointer(NewInterface(s, c))
 		}
-		destSeg.writeRawPointer(off, src.value(off))
+		s.writeRawPointer(off, src.value(off))
 		return nil
 	}
-	if destSeg != srcSeg {
+	if s != srcSeg {
 		// Different segments
-		if needsCopy(destSeg, src) {
-			return copyPointer(cc, destSeg, off, src)
+		if needsCopy(s, src) {
+			return copyPointer(cc, s, off, src)
 		}
 		if !hasCapacity(srcSeg.data, wordSize) {
 			// Double far pointer needed.
 			const landingSize = wordSize * 2
-			t, dstAddr, err := alloc(destSeg, landingSize)
+			t, dstAddr, err := alloc(s, landingSize)
 			if err != nil {
 				return err
 			}
@@ -348,16 +349,16 @@ func (destSeg *Segment) writePtr(cc copyContext, off Address, src Pointer) error
 			t.writeRawPointer(dstAddr, rawFarPointer(srcSeg.id, srcAddr))
 			// alloc guarantees that two words are available.
 			t.writeRawPointer(dstAddr+Address(wordSize), src.value(srcAddr-Address(wordSize)))
-			destSeg.writeRawPointer(off, rawDoubleFarPointer(t.id, dstAddr))
+			s.writeRawPointer(off, rawDoubleFarPointer(t.id, dstAddr))
 			return nil
 		}
 		// Have room in the target for a tag
 		_, srcAddr, _ := alloc(srcSeg, wordSize)
 		srcSeg.writeRawPointer(srcAddr, src.value(srcAddr))
-		destSeg.writeRawPointer(off, rawFarPointer(srcSeg.id, srcAddr))
+		s.writeRawPointer(off, rawFarPointer(srcSeg.id, srcAddr))
 		return nil
 	}
-	destSeg.writeRawPointer(off, src.value(off))
+	s.writeRawPointer(off, src.value(off))
 	return nil
 }
 

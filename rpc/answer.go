@@ -468,13 +468,14 @@ const (
 )
 
 func (c *qcall) which() int {
-	if c.a != nil {
+	switch {
+	case c.a != nil:
 		return qcallRemoteCall
-	} else if c.f != nil {
+	case c.f != nil:
 		return qcallLocalCall
-	} else if capnp.IsValid(c.embargoTarget) {
+	case capnp.IsValid(c.embargoTarget):
 		return qcallDisembargo
-	} else {
+	default:
 		return qcallInvalid
 	}
 }

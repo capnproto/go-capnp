@@ -308,10 +308,12 @@ func (pc *PipelineClient) transform() []PipelineOp {
 	return (*Pipeline)(pc).Transform()
 }
 
+// Call calls Answer.PipelineCall with the pipeline's transform.
 func (pc *PipelineClient) Call(call *Call) Answer {
 	return pc.answer.PipelineCall(pc.transform(), call)
 }
 
+// Close calls Answer.PipelineClose with the pipeline's transform.
 func (pc *PipelineClient) Close() error {
 	return pc.answer.PipelineClose(pc.transform())
 }
@@ -495,8 +497,8 @@ type MethodError struct {
 }
 
 // Error returns the method name concatenated with the error string.
-func (me *MethodError) Error() string {
-	return me.Method.String() + ": " + me.Err.Error()
+func (e *MethodError) Error() string {
+	return e.Method.String() + ": " + e.Err.Error()
 }
 
 // ErrUnimplemented is the error returned when a method is called on
