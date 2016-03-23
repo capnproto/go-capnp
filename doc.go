@@ -2,6 +2,9 @@
 Package capnp is a Cap'n Proto library for Go.
 https://capnproto.org/
 
+Read the Getting Started guide for a tutorial on how to use this
+package. https://github.com/zombiezen/go-capnproto2/wiki/Getting-Started
+
 Generating code
 
 capnpc-go provides the compiler backend for capnp.
