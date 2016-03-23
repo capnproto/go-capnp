@@ -102,7 +102,7 @@ func (q *question) start() {
 	}()
 }
 
-// fulfill is called to resolve a question succesfully and returns the disembargoes.
+// fulfill is called to resolve a question successfully and returns the disembargoes.
 // It must be called from the coordinate goroutine.
 func (q *question) fulfill(obj capnp.Pointer, makeDisembargo func() (embargoID, embargo)) []rpccapnp.Message {
 	q.mu.Lock()

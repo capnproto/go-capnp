@@ -80,7 +80,7 @@ type answer struct {
 	queue []pcall
 }
 
-// fulfill is called to resolve an answer succesfully and returns a list
+// fulfill is called to resolve an answer successfully and returns a list
 // of return messages to send.
 // It must be called from the coordinate goroutine.
 func (a *answer) fulfill(msgs []rpccapnp.Message, obj capnp.Pointer, makeCapTable capTableMaker) []rpccapnp.Message {

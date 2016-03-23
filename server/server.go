@@ -42,7 +42,7 @@ type server struct {
 // New returns a client that makes calls to a set of methods.
 // If closer is nil then the client's Close is a no-op.  The server
 // guarantees message delivery order by blocking each call on the
-// return or acknowledgement of the previous call.  See the Ack function
+// return or acknowledgment of the previous call.  See the Ack function
 // for more details.
 func New(methods []Method, closer Closer) capnp.Client {
 	s := &server{
@@ -158,7 +158,7 @@ func (s *server) Close() error {
 //	}
 //
 // Ack need not be the first call in a function nor is it required.
-// Since the function's return is also an acknowledgement of delivery,
+// Since the function's return is also an acknowledgment of delivery,
 // short functions can return without calling Ack.  However, since
 // clients will not return an Answer until the delivery is acknowledged,
 // it is advisable to ack early.
