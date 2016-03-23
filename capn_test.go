@@ -571,14 +571,14 @@ func catchPanic(f func()) (err error) {
 func TestCompare(t *testing.T) {
 	// Offsets are in ascending order.
 	data := []offset{
-		offset{id: 0, boff: 10},
-		offset{id: 0, boff: 20},
-		offset{id: 0, boff: 30},
-		offset{id: 0, boff: 65535},
-		offset{id: 0, boff: 65536},
-		offset{id: 1, boff: 0},
-		offset{id: 1, boff: 5},
-		offset{id: 1, boff: 65536},
+		{id: 0, boff: 10},
+		{id: 0, boff: 20},
+		{id: 0, boff: 30},
+		{id: 0, boff: 65535},
+		{id: 0, boff: 65536},
+		{id: 1, boff: 0},
+		{id: 1, boff: 5},
+		{id: 1, boff: 65536},
 	}
 	formatOffset := func(o offset) string {
 		return fmt.Sprintf("{id: %d, boff: %d}", o.id, o.boff)
