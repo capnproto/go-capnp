@@ -416,7 +416,7 @@ func (c *Conn) handleReturnMessage(m rpccapnp.Message) error {
 			c.abort(err)
 			return err
 		}
-		content, err := results.Content()
+		content, err := results.ContentPtr()
 		if err != nil {
 			return err
 		}
@@ -562,7 +562,7 @@ func (c *Conn) handleBootstrapMessage(id answerID) error {
 	}
 	s, _ := m.Segment(0)
 	in := capnp.NewInterface(s, 0)
-	msgs = a.fulfill(msgs, in, c.makeCapTable)
+	msgs = a.fulfill(msgs, in.ToPtr(), c.makeCapTable)
 	for _, m := range msgs {
 		if err := c.sendMessage(m); err != nil {
 			return err
@@ -610,14 +610,14 @@ func (c *Conn) handleCallMessage(m rpccapnp.Message) error {
 		InterfaceID: mcall.InterfaceId(),
 		MethodID:    mcall.MethodId(),
 	}
-	paramContent, err := mparams.Content()
+	paramContent, err := mparams.ContentPtr()
 	if err != nil {
 		return err
 	}
 	cl := &capnp.Call{
 		Ctx:    ctx,
 		Method: meth,
-		Params: capnp.ToStruct(paramContent),
+		Params: paramContent.Struct(),
 	}
 	if err := c.routeCallMessage(a, mt, cl); err != nil {
 		msgs := a.reject(nil, err)
@@ -826,15 +826,15 @@ func setReturnException(ret rpccapnp.Return, err error) rpccapnp.Exception {
 
 // clientFromResolution retrieves a client from a resolved question or
 // answer by applying a transform.
-func clientFromResolution(transform []capnp.PipelineOp, obj capnp.Pointer, err error) capnp.Client {
+func clientFromResolution(transform []capnp.PipelineOp, obj capnp.Ptr, err error) capnp.Client {
 	if err != nil {
 		return capnp.ErrorClient(err)
 	}
-	out, err := capnp.Transform(obj, transform)
+	out, err := capnp.TransformPtr(obj, transform)
 	if err != nil {
 		return capnp.ErrorClient(err)
 	}
-	c := capnp.ToInterface(out).Client()
+	c := out.Interface().Client()
 	if c == nil {
 		return capnp.ErrorClient(capnp.ErrNullClient)
 	}

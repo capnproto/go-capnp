@@ -114,15 +114,15 @@ func (s *Segment) lookupSegment(id SegmentID) (*Segment, error) {
 	return s.msg.Segment(id)
 }
 
-func (s *Segment) readPtr(off Address) (Pointer, error) {
+func (s *Segment) readPtr(off Address) (Ptr, error) {
 	var err error
 	val := s.readRawPointer(off)
 	s, off, val, err = s.resolveFarPointer(off, val)
 	if err != nil {
-		return nil, err
+		return Ptr{}, err
 	}
 	if val == 0 {
-		return nil, nil
+		return Ptr{}, nil
 	}
 	// Be wary of overflow. Offset is 30 bits signed. List size is 29 bits
 	// unsigned. For both of these we need to check in terms of words if
@@ -131,47 +131,47 @@ func (s *Segment) readPtr(off Address) (Pointer, error) {
 	case structPointer:
 		addr, ok := val.offset().resolve(off)
 		if !ok {
-			return nil, errPointerAddress
+			return Ptr{}, errPointerAddress
 		}
 		sz := val.structSize()
 		if !s.regionInBounds(addr, sz.totalSize()) {
-			return nil, errPointerAddress
+			return Ptr{}, errPointerAddress
 		}
 		return Struct{
 			seg:  s,
 			off:  addr,
 			size: sz,
-		}, nil
+		}.ToPtr(), nil
 	case listPointer:
 		addr, ok := val.offset().resolve(off)
 		if !ok {
-			return nil, errPointerAddress
+			return Ptr{}, errPointerAddress
 		}
 		lt := val.listType()
 		lsize, ok := val.totalListSize()
 		if !ok {
-			return nil, errOverflow
+			return Ptr{}, errOverflow
 		}
 		if !s.regionInBounds(addr, lsize) {
-			return nil, errPointerAddress
+			return Ptr{}, errPointerAddress
 		}
 		if lt == compositeList {
 			hdr := s.readRawPointer(addr)
 			var ok bool
 			addr, ok = addr.addSize(wordSize)
 			if !ok {
-				return nil, errOverflow
+				return Ptr{}, errOverflow
 			}
 			if hdr.pointerType() != structPointer {
-				return nil, errBadTag
+				return Ptr{}, errBadTag
 			}
 			sz := hdr.structSize()
 			n := int32(hdr.offset())
 			// TODO(light): check that this has the same end address
 			if tsize, ok := sz.totalSize().times(n); !ok {
-				return nil, errOverflow
+				return Ptr{}, errOverflow
 			} else if !s.regionInBounds(addr, tsize) {
-				return nil, errPointerAddress
+				return Ptr{}, errPointerAddress
 			}
 			return List{
 				seg:    s,
@@ -179,7 +179,7 @@ func (s *Segment) readPtr(off Address) (Pointer, error) {
 				off:    addr,
 				length: n,
 				flags:  isCompositeList,
-			}, nil
+			}.ToPtr(), nil
 		}
 		if lt == bit1List {
 			return List{
@@ -187,25 +187,25 @@ func (s *Segment) readPtr(off Address) (Pointer, error) {
 				off:    addr,
 				length: val.numListElements(),
 				flags:  isBitList,
-			}, nil
+			}.ToPtr(), nil
 		}
 		return List{
 			seg:    s,
 			size:   val.elementSize(),
 			off:    addr,
 			length: val.numListElements(),
-		}, nil
+		}.ToPtr(), nil
 	case otherPointer:
 		if val.otherPointerType() != 0 {
-			return nil, errOtherPointer
+			return Ptr{}, errOtherPointer
 		}
 		return Interface{
 			seg: s,
 			cap: val.capabilityIndex(),
-		}, nil
+		}.ToPtr(), nil
 	default:
 		// Only other types are far pointers.
-		return nil, errBadLandingPad
+		return Ptr{}, errBadLandingPad
 	}
 }
 
@@ -258,29 +258,31 @@ func (s *Segment) resolveFarPointer(off Address, val rawPointer) (*Segment, Addr
 type offset struct {
 	id         SegmentID
 	boff, bend int64 // in bits
-	newval     Pointer
+	newval     Ptr
 }
 
-func makeOffsetKey(p Pointer) offset {
+func makeOffsetKey(p Ptr) offset {
 	// Since this is used for copying, the address boundaries should already be clamped.
-	switch p := p.underlying().(type) {
-	case Struct:
+	switch p.flags.ptrType() {
+	case structPtrType:
+		s := p.Struct()
 		return offset{
-			id:   p.seg.id,
-			boff: int64(p.off) * 8,
-			bend: (int64(p.off) + int64(p.size.totalSize())) * 8,
+			id:   s.seg.id,
+			boff: int64(s.off) * 8,
+			bend: (int64(s.off) + int64(s.size.totalSize())) * 8,
 		}
-	case List:
+	case listPtrType:
+		l := p.List()
 		key := offset{
-			id:   p.seg.id,
-			boff: int64(p.off) * 8,
+			id:   l.seg.id,
+			boff: int64(l.off) * 8,
 		}
-		if p.flags&isBitList != 0 {
-			key.bend = int64(p.off)*8 + int64(p.length)
+		if l.flags&isBitList != 0 {
+			key.bend = int64(l.off)*8 + int64(l.length)
 		} else {
-			key.bend = (int64(p.off) + int64(p.size.totalSize())*int64(p.length)) * 8
+			key.bend = (int64(l.off) + int64(l.size.totalSize())*int64(l.length)) * 8
 		}
-		if p.flags&isCompositeList != 0 {
+		if l.flags&isCompositeList != 0 {
 			// Composite lists' offsets are after the tag word.
 			key.boff -= int64(wordSize) * 8
 		}
@@ -305,31 +307,32 @@ func compare(a, b rbtree.Item) int {
 	}
 }
 
-func needsCopy(dest *Segment, src Pointer) bool {
-	if src.Segment().msg != dest.msg {
+func needsCopy(dest *Segment, src Ptr) bool {
+	if src.seg.msg != dest.msg {
 		return true
 	}
-	if s := ToStruct(src); IsValid(s) {
-		// Structs can only be referenced if they're not list members.
-		return s.flags&isListMember != 0
+	s := src.Struct()
+	if s.seg == nil {
+		return false
 	}
-	return false
+	// Structs can only be referenced if they're not list members.
+	return s.flags&isListMember != 0
 }
 
-func (s *Segment) writePtr(cc copyContext, off Address, src Pointer) error {
+func (s *Segment) writePtr(cc copyContext, off Address, src Ptr) error {
 	// handle nulls
-	if !IsValid(src) {
+	if !src.IsValid() {
 		s.writeRawPointer(off, 0)
 		return nil
 	}
 	srcSeg := src.Segment()
 
-	if i := ToInterface(src); IsValid(i) {
+	if i := src.Interface(); i.Segment() != nil {
 		if s.msg != srcSeg.msg {
 			c := s.msg.AddCap(i.Client())
-			src = Pointer(NewInterface(s, c))
+			i = NewInterface(s, c)
 		}
-		s.writeRawPointer(off, src.value(off))
+		s.writeRawPointer(off, i.value(off))
 		return nil
 	}
 	if s != srcSeg {
@@ -345,7 +348,7 @@ func (s *Segment) writePtr(cc copyContext, off Address, src Pointer) error {
 				return err
 			}
 
-			srcAddr := pointerAddress(src)
+			srcAddr := src.address()
 			t.writeRawPointer(dstAddr, rawFarPointer(srcSeg.id, srcAddr))
 			// alloc guarantees that two words are available.
 			t.writeRawPointer(dstAddr+Address(wordSize), src.value(srcAddr-Address(wordSize)))
@@ -362,7 +365,7 @@ func (s *Segment) writePtr(cc copyContext, off Address, src Pointer) error {
 	return nil
 }
 
-func copyPointer(cc copyContext, dstSeg *Segment, dstAddr Address, src Pointer) error {
+func copyPointer(cc copyContext, dstSeg *Segment, dstAddr Address, src Ptr) error {
 	if cc.depth >= 32 {
 		return errCopyDepth
 	}
@@ -397,44 +400,46 @@ func copyPointer(cc copyContext, dstSeg *Segment, dstAddr Address, src Pointer) 
 	if err != nil {
 		return err
 	}
-	switch src := src.underlying().(type) {
-	case Struct:
+	switch src.flags.ptrType() {
+	case structPtrType:
+		s := src.Struct()
 		dst := Struct{
 			seg:  newSeg,
 			off:  newAddr,
-			size: src.size,
+			size: s.size,
 			// clear flags
 		}
-		key.newval = dst
+		key.newval = dst.ToPtr()
 		cc.copies.Insert(key)
-		if err := copyStruct(cc, dst, src); err != nil {
+		if err := copyStruct(cc, dst, s); err != nil {
 			return err
 		}
-	case List:
+	case listPtrType:
+		l := src.List()
 		dst := List{
 			seg:    newSeg,
 			off:    newAddr,
-			length: src.length,
-			size:   src.size,
-			flags:  src.flags,
+			length: l.length,
+			size:   l.size,
+			flags:  l.flags,
 		}
 		if dst.flags&isCompositeList != 0 {
 			// Copy tag word
-			newSeg.writeRawPointer(newAddr, src.seg.readRawPointer(src.off-Address(wordSize)))
+			newSeg.writeRawPointer(newAddr, l.seg.readRawPointer(l.off-Address(wordSize)))
 			var ok bool
 			dst.off, ok = dst.off.addSize(wordSize)
 			if !ok {
 				return errOverflow
 			}
 		}
-		key.newval = dst
+		key.newval = dst.ToPtr()
 		cc.copies.Insert(key)
 		// TODO(light): fast path for copying text/data
 		if dst.flags&isBitList != 0 {
-			copy(newSeg.data[newAddr:], src.seg.data[src.off:src.length+7/8])
+			copy(newSeg.data[newAddr:], l.seg.data[l.off:l.length+7/8])
 		} else {
-			for i := 0; i < src.Len(); i++ {
-				err := copyStruct(cc, dst.Struct(i), src.Struct(i))
+			for i := 0; i < l.Len(); i++ {
+				err := copyStruct(cc, dst.Struct(i), l.Struct(i))
 				if err != nil {
 					return err
 				}

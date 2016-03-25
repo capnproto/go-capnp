@@ -22,8 +22,7 @@ func NewInterface(s *Segment, cap CapabilityID) Interface {
 	}
 }
 
-// ToInterface attempts to convert p into an interface.  If p is not a
-// valid interface, then ToInterface returns an invalid Interface.
+// ToInterface is deprecated in favor of Ptr.Interface.
 func ToInterface(p Pointer) Interface {
 	if !IsValid(p) {
 		return Interface{}
@@ -35,9 +34,23 @@ func ToInterface(p Pointer) Interface {
 	return i
 }
 
+// ToPtr converts the interface to a generic pointer.
+func (p Interface) ToPtr() Ptr {
+	return Ptr{
+		seg:      p.seg,
+		lenOrCap: uint32(p.cap),
+		flags:    interfacePtrFlag,
+	}
+}
+
 // Segment returns the segment this pointer came from.
 func (i Interface) Segment() *Segment {
 	return i.seg
+}
+
+// IsValid returns whether the interface is valid.
+func (i Interface) IsValid() bool {
+	return i.seg != nil
 }
 
 // HasData is always true.
@@ -271,11 +284,11 @@ func (p *Pipeline) Struct() (Struct, error) {
 	if err != nil {
 		return Struct{}, err
 	}
-	ptr, err := Transform(s, p.Transform())
+	ptr, err := TransformPtr(s.ToPtr(), p.Transform())
 	if err != nil {
 		return Struct{}, err
 	}
-	return ToStruct(ptr), nil
+	return ptr.Struct(), nil
 }
 
 // Client returns the client version of p.
@@ -370,31 +383,37 @@ func (m *Method) String() string {
 	return string(buf)
 }
 
-// Transform applies a sequence of pipeline operations to a pointer
-// and returns the result.
+// Transform is deprecated in favor of TransformPtr.
 func Transform(p Pointer, transform []PipelineOp) (Pointer, error) {
+	pp, err := TransformPtr(toPtr(p), transform)
+	return pp.toPointer(), err
+}
+
+// TransformPtr applies a sequence of pipeline operations to a pointer
+// and returns the result.
+func TransformPtr(p Ptr, transform []PipelineOp) (Ptr, error) {
 	n := len(transform)
 	if n == 0 {
 		return p, nil
 	}
-	s := ToStruct(p)
+	s := p.Struct()
 	for _, op := range transform[:n-1] {
-		field, err := s.Pointer(op.Field)
+		field, err := s.Ptr(op.Field)
 		if err != nil {
-			return nil, err
+			return Ptr{}, err
 		}
-		s, err = ToStructDefault(field, op.DefaultValue)
+		s, err = field.StructDefault(op.DefaultValue)
 		if err != nil {
-			return nil, err
+			return Ptr{}, err
 		}
 	}
 	op := transform[n-1]
-	p, err := s.Pointer(op.Field)
+	p, err := s.Ptr(op.Field)
 	if err != nil {
-		return nil, err
+		return Ptr{}, err
 	}
 	if op.DefaultValue != nil {
-		p, err = PointerDefault(p, op.DefaultValue)
+		p, err = p.Default(op.DefaultValue)
 	}
 	return p, err
 }
@@ -413,11 +432,11 @@ func (ans immediateAnswer) Struct() (Struct, error) {
 }
 
 func (ans immediateAnswer) findClient(transform []PipelineOp) Client {
-	p, err := Transform(ans.s, transform)
+	p, err := TransformPtr(ans.s.ToPtr(), transform)
 	if err != nil {
 		return ErrorClient(err)
 	}
-	return ToInterface(p).Client()
+	return p.Interface().Client()
 }
 
 func (ans immediateAnswer) PipelineCall(transform []PipelineOp, call *Call) Answer {

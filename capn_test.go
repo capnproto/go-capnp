@@ -431,7 +431,7 @@ func TestSegmentWriteUint64(t *testing.T) {
 func TestMakeOffsetKey(t *testing.T) {
 	seg42 := &Segment{id: 42}
 	tests := []struct {
-		p          Pointer
+		p          Ptr
 		id         SegmentID
 		boff, bend int64
 	}{
@@ -440,7 +440,7 @@ func TestMakeOffsetKey(t *testing.T) {
 				seg:  seg42,
 				off:  0,
 				size: ObjectSize{0, 0},
-			},
+			}.ToPtr(),
 			id:   42,
 			boff: 0,
 			bend: 0,
@@ -450,7 +450,7 @@ func TestMakeOffsetKey(t *testing.T) {
 				seg:  seg42,
 				off:  8,
 				size: ObjectSize{0, 0},
-			},
+			}.ToPtr(),
 			id:   42,
 			boff: 64,
 			bend: 64,
@@ -460,7 +460,7 @@ func TestMakeOffsetKey(t *testing.T) {
 				seg:  seg42,
 				off:  8,
 				size: ObjectSize{1, 0},
-			},
+			}.ToPtr(),
 			id:   42,
 			boff: 64,
 			bend: 72,
@@ -470,7 +470,7 @@ func TestMakeOffsetKey(t *testing.T) {
 				seg:  seg42,
 				off:  8,
 				size: ObjectSize{0, 1},
-			},
+			}.ToPtr(),
 			id:   42,
 			boff: 64,
 			bend: 128,
@@ -481,7 +481,7 @@ func TestMakeOffsetKey(t *testing.T) {
 				off:    0,
 				size:   ObjectSize{},
 				length: 0,
-			},
+			}.ToPtr(),
 			id:   42,
 			boff: 0,
 			bend: 0,
@@ -492,7 +492,7 @@ func TestMakeOffsetKey(t *testing.T) {
 				off:    0,
 				size:   ObjectSize{},
 				length: 1,
-			},
+			}.ToPtr(),
 			id:   42,
 			boff: 0,
 			bend: 0,
@@ -503,7 +503,7 @@ func TestMakeOffsetKey(t *testing.T) {
 				off:    0,
 				size:   ObjectSize{0, 1},
 				length: 1,
-			},
+			}.ToPtr(),
 			id:   42,
 			boff: 0,
 			bend: 64,
@@ -514,7 +514,7 @@ func TestMakeOffsetKey(t *testing.T) {
 				off:    8,
 				size:   ObjectSize{0, 1},
 				length: 1,
-			},
+			}.ToPtr(),
 			id:   42,
 			boff: 64,
 			bend: 128,
@@ -526,7 +526,7 @@ func TestMakeOffsetKey(t *testing.T) {
 				size:   ObjectSize{0, 1},
 				length: 1,
 				flags:  isCompositeList,
-			},
+			}.ToPtr(),
 			id:   42,
 			boff: 0,
 			bend: 128,
@@ -537,7 +537,7 @@ func TestMakeOffsetKey(t *testing.T) {
 				off:    8,
 				size:   ObjectSize{0, 1},
 				length: 2,
-			},
+			}.ToPtr(),
 			id:   42,
 			boff: 64,
 			bend: 192,

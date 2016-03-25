@@ -70,7 +70,7 @@ type question struct {
 	// Fields below are protected by mu.
 	mu      sync.RWMutex
 	id      questionID
-	obj     capnp.Pointer
+	obj     capnp.Ptr
 	err     error
 	state   questionState
 	derived [][]capnp.PipelineOp
@@ -104,7 +104,7 @@ func (q *question) start() {
 
 // fulfill is called to resolve a question successfully and returns the disembargoes.
 // It must be called from the coordinate goroutine.
-func (q *question) fulfill(obj capnp.Pointer, makeDisembargo func() (embargoID, embargo)) []rpccapnp.Message {
+func (q *question) fulfill(obj capnp.Ptr, makeDisembargo func() (embargoID, embargo)) []rpccapnp.Message {
 	q.mu.Lock()
 	if q.state != questionInProgress {
 		q.mu.Unlock()
@@ -114,12 +114,12 @@ func (q *question) fulfill(obj capnp.Pointer, makeDisembargo func() (embargoID, 
 	visited := make([]bool, len(ctab))
 	msgs := make([]rpccapnp.Message, 0, len(q.derived))
 	for _, d := range q.derived {
-		tgt, err := capnp.Transform(obj, d)
+		tgt, err := capnp.TransformPtr(obj, d)
 		if err != nil {
 			continue
 		}
-		in := capnp.ToInterface(tgt)
-		if !capnp.IsValid(in) {
+		in := tgt.Interface()
+		if !in.IsValid() {
 			continue
 		}
 		client := extractRPCClient(in.Client())
@@ -163,7 +163,7 @@ func (q *question) reject(state questionState, err error) {
 	q.mu.Unlock()
 }
 
-func (q *question) peek() (id questionID, obj capnp.Pointer, err error, ok bool) {
+func (q *question) peek() (id questionID, obj capnp.Ptr, err error, ok bool) {
 	q.mu.RLock()
 	id, obj, err, ok = q.id, q.obj, q.err, q.state != questionInProgress
 	q.mu.RUnlock()
@@ -196,7 +196,7 @@ func transformsEqual(t, u []capnp.PipelineOp) bool {
 func (q *question) Struct() (capnp.Struct, error) {
 	<-q.resolved
 	_, obj, err, _ := q.peek()
-	return capnp.ToStruct(obj), err
+	return obj.Struct(), err
 }
 
 func (q *question) PipelineCall(transform []capnp.PipelineOp, ccall *capnp.Call) capnp.Answer {
@@ -224,11 +224,11 @@ func (q *question) PipelineClose(transform []capnp.PipelineOp) error {
 	if err != nil {
 		return err
 	}
-	x, err := capnp.Transform(obj, transform)
+	x, err := capnp.TransformPtr(obj, transform)
 	if err != nil {
 		return err
 	}
-	c := capnp.ToInterface(x).Client()
+	c := x.Interface().Client()
 	if c == nil {
 		return capnp.ErrNullClient
 	}

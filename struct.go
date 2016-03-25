@@ -32,14 +32,13 @@ func NewRootStruct(s *Segment, sz ObjectSize) (Struct, error) {
 	if err != nil {
 		return st, err
 	}
-	if err := s.msg.SetRoot(st); err != nil {
+	if err := s.msg.SetRootPtr(st.ToPtr()); err != nil {
 		return st, err
 	}
 	return st, nil
 }
 
-// ToStruct attempts to convert p into a struct.  If p is not a valid
-// struct, then it returns an invalid Struct.
+// ToStruct is deprecated in favor of Ptr.Struct.
 func ToStruct(p Pointer) Struct {
 	if !IsValid(p) {
 		return Struct{}
@@ -51,32 +50,29 @@ func ToStruct(p Pointer) Struct {
 	return s
 }
 
-// ToStructDefault attempts to convert p into a struct, reading the
-// default value from def if p is not a struct.
+// ToStructDefault is deprecated in favor of Ptr.StructDefault.
 func ToStructDefault(p Pointer, def []byte) (Struct, error) {
-	fallback := func() (Struct, error) {
-		if def == nil {
-			return Struct{}, nil
-		}
-		defp, err := unmarshalDefault(def)
-		if err != nil {
-			return Struct{}, err
-		}
-		return ToStruct(defp), nil
+	return toPtr(p).StructDefault(def)
+}
+
+// ToPtr converts the struct to a generic pointer.
+func (p Struct) ToPtr() Ptr {
+	return Ptr{
+		seg:   p.seg,
+		off:   p.off,
+		size:  p.size,
+		flags: structPtrFlag(p.flags),
 	}
-	if !IsValid(p) {
-		return fallback()
-	}
-	s, ok := p.underlying().(Struct)
-	if !ok {
-		return fallback()
-	}
-	return s, nil
 }
 
 // Segment returns the segment this pointer came from.
 func (p Struct) Segment() *Segment {
 	return p.seg
+}
+
+// IsValid returns whether the struct is valid.
+func (p Struct) IsValid() bool {
+	return p.seg != nil
 }
 
 // Address returns the address the pointer references.
@@ -99,16 +95,27 @@ func (p Struct) underlying() Pointer {
 	return p
 }
 
-// Pointer returns the i'th pointer in the struct.
+// Pointer is deprecated in favor of Ptr.
 func (p Struct) Pointer(i uint16) (Pointer, error) {
+	pp, err := p.Ptr(i)
+	return pp.toPointer(), err
+}
+
+// Ptr returns the i'th pointer in the struct.
+func (p Struct) Ptr(i uint16) (Ptr, error) {
 	if p.seg == nil || i >= p.size.PointerCount {
-		return nil, nil
+		return Ptr{}, nil
 	}
 	return p.seg.readPtr(p.pointerAddress(i))
 }
 
-// SetPointer sets the i'th pointer in the struct to src.
+// SetPointer is deprecated in favor of SetPtr.
 func (p Struct) SetPointer(i uint16, src Pointer) error {
+	return p.SetPtr(i, toPtr(src))
+}
+
+// SetPtr sets the i'th pointer in the struct to src.
+func (p Struct) SetPtr(i uint16, src Ptr) error {
 	if p.seg == nil || i >= p.size.PointerCount {
 		panic(errOutOfBounds)
 	}

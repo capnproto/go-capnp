@@ -25,31 +25,30 @@ func NewRootBook(s *capnp.Segment) (Book, error) {
 }
 
 func ReadRootBook(msg *capnp.Message) (Book, error) {
-	root, err := msg.Root()
+	root, err := msg.RootPtr()
 	if err != nil {
 		return Book{}, err
 	}
-	st := capnp.ToStruct(root)
-	return Book{st}, nil
+	return Book{root.Struct()}, nil
 }
 
 func (s Book) Title() (string, error) {
-	p, err := s.Struct.Pointer(0)
+	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return "", err
 	}
 
-	return capnp.ToText(p), nil
+	return p.Text(), nil
 
 }
 
 func (s Book) TitleBytes() ([]byte, error) {
-	p, err := s.Struct.Pointer(0)
+	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return nil, err
 	}
 
-	return capnp.ToData(p), nil
+	return p.Data(), nil
 
 }
 
@@ -59,7 +58,7 @@ func (s Book) SetTitle(v string) error {
 	if err != nil {
 		return err
 	}
-	return s.Struct.SetPointer(0, t)
+	return s.Struct.SetPtr(0, t.List.ToPtr())
 }
 
 func (s Book) PageCount() int32 {
