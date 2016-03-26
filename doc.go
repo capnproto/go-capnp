@@ -119,6 +119,9 @@ capnpc-go will generate:
 	// to load, or the pointer recursion limit has been reached.
 	func (s Foo) Bar() (Foo, error)
 
+	// HasBar reports whether the bar field was initialized (non-null).
+	func (s Foo) HasBar() bool
+
 	// SetBar sets the value of the bar field to v.
 	func (s Foo) SetBar(v Foo) error
 

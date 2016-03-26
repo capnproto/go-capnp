@@ -116,6 +116,14 @@ func (s {{.Node.Name}}) Which() {{.Node.Name}}_Which {
 {{define "settag"}}{{if hasDiscriminant .Field}}s.Struct.SetUint16({{discriminantOffset .Node}}, {{.Field.DiscriminantValue}}){{end}}{{end}}
 
 
+{{define "hasfield"}}
+func (s {{.Node.Name}}) Has{{.Field.Name|title}}() bool {
+	p, err := s.Struct.Ptr({{.Field.Slot.Offset}})
+	return p.IsValid() || err != nil 
+}
+{{end}}
+
+
 {{define "structGroup"}}func (s {{.Node.Name}}) {{.Field.Name|title}}() {{.Group.Name}} { return {{.Group.Name}}(s) }
 {{if hasDiscriminant .Field}}
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}() { {{template "settag" .}} }
@@ -190,6 +198,8 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() (string, error) {
 	{{end}}
 }
 
+{{template "hasfield" .}}
+
 func (s {{.Node.Name}}) {{.Field.Name|title}}Bytes() ([]byte, error) {
 	p, err := s.Struct.Ptr({{.Field.Slot.Offset}})
 	if err != nil {
@@ -226,6 +236,8 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() ({{.FieldType}}, error) {
 	{{end}}
 }
 
+{{template "hasfield" .}}
+
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.FieldType}}) error {
 	{{template "settag" .}}
 	d, err := {{capnp}}.NewData(s.Struct.Segment(), []byte(v))
@@ -253,6 +265,8 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() ({{.FieldType}}, error) {
 	return {{.FieldType}}{Struct: p.Struct()}, nil
 	{{end}}
 }
+
+{{template "hasfield" .}}
 
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.FieldType}}) error {
 	{{template "settag" .}}
@@ -285,6 +299,8 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() ({{capnp}}.Pointer, error) {
 	return s.Struct.Pointer({{.Field.Slot.Offset}})
 	{{end}}
 }
+
+{{template "hasfield" .}}
 
 func (s {{.Node.Name}}) {{.Field.Name|title}}Ptr() ({{capnp}}.Ptr, error) {
 	{{if .Default.IsValid}}
@@ -327,6 +343,8 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() ({{.FieldType}}, error) {
 	{{end}}
 }
 
+{{template "hasfield" .}}
+
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.FieldType}}) error {
 	{{template "settag" .}}
 	return s.Struct.SetPtr({{.Field.Slot.Offset}}, v.List.ToPtr())
@@ -343,6 +361,8 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() {{.FieldType}} {
 	}
 	return {{.FieldType}}{Client: p.Interface().Client()}
 }
+
+{{template "hasfield" .}}
 
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.FieldType}}) error {
 	{{template "settag" .}}

@@ -178,6 +178,11 @@ func (s HandleFactory_newHandle_Results) Handle() Handle {
 	return Handle{Client: p.Interface().Client()}
 }
 
+func (s HandleFactory_newHandle_Results) HasHandle() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s HandleFactory_newHandle_Results) SetHandle(v Handle) error {
 
 	seg := s.Segment()
@@ -719,6 +724,11 @@ func (s Echoer_echo_Params) Cap() CallOrder {
 	return CallOrder{Client: p.Interface().Client()}
 }
 
+func (s Echoer_echo_Params) HasCap() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s Echoer_echo_Params) SetCap(v CallOrder) error {
 
 	seg := s.Segment()
@@ -797,6 +807,11 @@ func (s Echoer_echo_Results) Cap() CallOrder {
 		return CallOrder{}
 	}
 	return CallOrder{Client: p.Interface().Client()}
+}
+
+func (s Echoer_echo_Results) HasCap() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
 }
 
 func (s Echoer_echo_Results) SetCap(v CallOrder) error {

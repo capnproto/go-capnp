@@ -42,6 +42,11 @@ func (s Book) Title() (string, error) {
 
 }
 
+func (s Book) HasTitle() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s Book) TitleBytes() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
 	if err != nil {

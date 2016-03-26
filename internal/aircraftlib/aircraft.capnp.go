@@ -131,6 +131,11 @@ func (s Zdata) Data() ([]byte, error) {
 
 }
 
+func (s Zdata) HasData() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s Zdata) SetData(v []byte) error {
 
 	d, err := capnp.NewData(s.Struct.Segment(), []byte(v))
@@ -279,6 +284,11 @@ func (s PlaneBase) Name() (string, error) {
 
 }
 
+func (s PlaneBase) HasName() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s PlaneBase) NameBytes() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
 	if err != nil {
@@ -306,6 +316,11 @@ func (s PlaneBase) Homes() (Airport_List, error) {
 
 	return Airport_List{List: p.List()}, nil
 
+}
+
+func (s PlaneBase) HasHomes() bool {
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
 }
 
 func (s PlaneBase) SetHomes(v Airport_List) error {
@@ -408,6 +423,11 @@ func (s B737) Base() (PlaneBase, error) {
 
 }
 
+func (s B737) HasBase() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s B737) SetBase(v PlaneBase) error {
 
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
@@ -486,6 +506,11 @@ func (s A320) Base() (PlaneBase, error) {
 
 	return PlaneBase{Struct: p.Struct()}, nil
 
+}
+
+func (s A320) HasBase() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
 }
 
 func (s A320) SetBase(v PlaneBase) error {
@@ -568,6 +593,11 @@ func (s F16) Base() (PlaneBase, error) {
 
 }
 
+func (s F16) HasBase() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s F16) SetBase(v PlaneBase) error {
 
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
@@ -648,6 +678,11 @@ func (s Regression) Base() (PlaneBase, error) {
 
 }
 
+func (s Regression) HasBase() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s Regression) SetBase(v PlaneBase) error {
 
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
@@ -684,6 +719,11 @@ func (s Regression) Beta() (capnp.Float64List, error) {
 
 }
 
+func (s Regression) HasBeta() bool {
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
+}
+
 func (s Regression) SetBeta(v capnp.Float64List) error {
 
 	return s.Struct.SetPtr(1, v.List.ToPtr())
@@ -697,6 +737,11 @@ func (s Regression) Planes() (Aircraft_List, error) {
 
 	return Aircraft_List{List: p.List()}, nil
 
+}
+
+func (s Regression) HasPlanes() bool {
+	p, err := s.Struct.Ptr(2)
+	return p.IsValid() || err != nil
 }
 
 func (s Regression) SetPlanes(v Aircraft_List) error {
@@ -817,6 +862,11 @@ func (s Aircraft) B737() (B737, error) {
 
 }
 
+func (s Aircraft) HasB737() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s Aircraft) SetB737(v B737) error {
 	s.Struct.SetUint16(0, 1)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
@@ -844,6 +894,11 @@ func (s Aircraft) A320() (A320, error) {
 
 }
 
+func (s Aircraft) HasA320() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s Aircraft) SetA320(v A320) error {
 	s.Struct.SetUint16(0, 2)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
@@ -869,6 +924,11 @@ func (s Aircraft) F16() (F16, error) {
 
 	return F16{Struct: p.Struct()}, nil
 
+}
+
+func (s Aircraft) HasF16() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
 }
 
 func (s Aircraft) SetF16(v F16) error {
@@ -1099,6 +1159,11 @@ func (s Z) Zz() (Z, error) {
 
 }
 
+func (s Z) HasZz() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s Z) SetZz(v Z) error {
 	s.Struct.SetUint16(0, 1)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
@@ -1225,6 +1290,11 @@ func (s Z) Text() (string, error) {
 
 }
 
+func (s Z) HasText() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s Z) TextBytes() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
 	if err != nil {
@@ -1254,6 +1324,11 @@ func (s Z) Blob() ([]byte, error) {
 
 }
 
+func (s Z) HasBlob() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s Z) SetBlob(v []byte) error {
 	s.Struct.SetUint16(0, 14)
 	d, err := capnp.NewData(s.Struct.Segment(), []byte(v))
@@ -1273,6 +1348,11 @@ func (s Z) F64vec() (capnp.Float64List, error) {
 
 }
 
+func (s Z) HasF64vec() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s Z) SetF64vec(v capnp.Float64List) error {
 	s.Struct.SetUint16(0, 15)
 	return s.Struct.SetPtr(0, v.List.ToPtr())
@@ -1286,6 +1366,11 @@ func (s Z) F32vec() (capnp.Float32List, error) {
 
 	return capnp.Float32List{List: p.List()}, nil
 
+}
+
+func (s Z) HasF32vec() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
 }
 
 func (s Z) SetF32vec(v capnp.Float32List) error {
@@ -1303,6 +1388,11 @@ func (s Z) I64vec() (capnp.Int64List, error) {
 
 }
 
+func (s Z) HasI64vec() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s Z) SetI64vec(v capnp.Int64List) error {
 	s.Struct.SetUint16(0, 17)
 	return s.Struct.SetPtr(0, v.List.ToPtr())
@@ -1316,6 +1406,11 @@ func (s Z) I32vec() (capnp.Int32List, error) {
 
 	return capnp.Int32List{List: p.List()}, nil
 
+}
+
+func (s Z) HasI32vec() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
 }
 
 func (s Z) SetI32vec(v capnp.Int32List) error {
@@ -1333,6 +1428,11 @@ func (s Z) I16vec() (capnp.Int16List, error) {
 
 }
 
+func (s Z) HasI16vec() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s Z) SetI16vec(v capnp.Int16List) error {
 	s.Struct.SetUint16(0, 19)
 	return s.Struct.SetPtr(0, v.List.ToPtr())
@@ -1346,6 +1446,11 @@ func (s Z) I8vec() (capnp.Int8List, error) {
 
 	return capnp.Int8List{List: p.List()}, nil
 
+}
+
+func (s Z) HasI8vec() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
 }
 
 func (s Z) SetI8vec(v capnp.Int8List) error {
@@ -1363,6 +1468,11 @@ func (s Z) U64vec() (capnp.UInt64List, error) {
 
 }
 
+func (s Z) HasU64vec() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s Z) SetU64vec(v capnp.UInt64List) error {
 	s.Struct.SetUint16(0, 21)
 	return s.Struct.SetPtr(0, v.List.ToPtr())
@@ -1376,6 +1486,11 @@ func (s Z) U32vec() (capnp.UInt32List, error) {
 
 	return capnp.UInt32List{List: p.List()}, nil
 
+}
+
+func (s Z) HasU32vec() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
 }
 
 func (s Z) SetU32vec(v capnp.UInt32List) error {
@@ -1393,6 +1508,11 @@ func (s Z) U16vec() (capnp.UInt16List, error) {
 
 }
 
+func (s Z) HasU16vec() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s Z) SetU16vec(v capnp.UInt16List) error {
 	s.Struct.SetUint16(0, 23)
 	return s.Struct.SetPtr(0, v.List.ToPtr())
@@ -1406,6 +1526,11 @@ func (s Z) U8vec() (capnp.UInt8List, error) {
 
 	return capnp.UInt8List{List: p.List()}, nil
 
+}
+
+func (s Z) HasU8vec() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
 }
 
 func (s Z) SetU8vec(v capnp.UInt8List) error {
@@ -1423,6 +1548,11 @@ func (s Z) Zvec() (Z_List, error) {
 
 }
 
+func (s Z) HasZvec() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s Z) SetZvec(v Z_List) error {
 	s.Struct.SetUint16(0, 25)
 	return s.Struct.SetPtr(0, v.List.ToPtr())
@@ -1438,6 +1568,11 @@ func (s Z) Zvecvec() (capnp.PointerList, error) {
 
 }
 
+func (s Z) HasZvecvec() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s Z) SetZvecvec(v capnp.PointerList) error {
 	s.Struct.SetUint16(0, 26)
 	return s.Struct.SetPtr(0, v.List.ToPtr())
@@ -1451,6 +1586,11 @@ func (s Z) Zdate() (Zdate, error) {
 
 	return Zdate{Struct: p.Struct()}, nil
 
+}
+
+func (s Z) HasZdate() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
 }
 
 func (s Z) SetZdate(v Zdate) error {
@@ -1480,6 +1620,11 @@ func (s Z) Zdata() (Zdata, error) {
 
 }
 
+func (s Z) HasZdata() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s Z) SetZdata(v Zdata) error {
 	s.Struct.SetUint16(0, 28)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
@@ -1507,6 +1652,11 @@ func (s Z) Aircraftvec() (Aircraft_List, error) {
 
 }
 
+func (s Z) HasAircraftvec() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s Z) SetAircraftvec(v Aircraft_List) error {
 	s.Struct.SetUint16(0, 29)
 	return s.Struct.SetPtr(0, v.List.ToPtr())
@@ -1520,6 +1670,11 @@ func (s Z) Aircraft() (Aircraft, error) {
 
 	return Aircraft{Struct: p.Struct()}, nil
 
+}
+
+func (s Z) HasAircraft() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
 }
 
 func (s Z) SetAircraft(v Aircraft) error {
@@ -1549,6 +1704,11 @@ func (s Z) Regression() (Regression, error) {
 
 }
 
+func (s Z) HasRegression() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s Z) SetRegression(v Regression) error {
 	s.Struct.SetUint16(0, 31)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
@@ -1574,6 +1734,11 @@ func (s Z) Planebase() (PlaneBase, error) {
 
 	return PlaneBase{Struct: p.Struct()}, nil
 
+}
+
+func (s Z) HasPlanebase() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
 }
 
 func (s Z) SetPlanebase(v PlaneBase) error {
@@ -1612,6 +1777,11 @@ func (s Z) B737() (B737, error) {
 
 }
 
+func (s Z) HasB737() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s Z) SetB737(v B737) error {
 	s.Struct.SetUint16(0, 34)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
@@ -1637,6 +1807,11 @@ func (s Z) A320() (A320, error) {
 
 	return A320{Struct: p.Struct()}, nil
 
+}
+
+func (s Z) HasA320() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
 }
 
 func (s Z) SetA320(v A320) error {
@@ -1666,6 +1841,11 @@ func (s Z) F16() (F16, error) {
 
 }
 
+func (s Z) HasF16() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s Z) SetF16(v F16) error {
 	s.Struct.SetUint16(0, 36)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
@@ -1693,6 +1873,11 @@ func (s Z) Zdatevec() (Zdate_List, error) {
 
 }
 
+func (s Z) HasZdatevec() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s Z) SetZdatevec(v Zdate_List) error {
 	s.Struct.SetUint16(0, 37)
 	return s.Struct.SetPtr(0, v.List.ToPtr())
@@ -1708,6 +1893,11 @@ func (s Z) Zdatavec() (Zdata_List, error) {
 
 }
 
+func (s Z) HasZdatavec() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s Z) SetZdatavec(v Zdata_List) error {
 	s.Struct.SetUint16(0, 38)
 	return s.Struct.SetPtr(0, v.List.ToPtr())
@@ -1721,6 +1911,11 @@ func (s Z) Boolvec() (capnp.BitList, error) {
 
 	return capnp.BitList{List: p.List()}, nil
 
+}
+
+func (s Z) HasBoolvec() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
 }
 
 func (s Z) SetBoolvec(v capnp.BitList) error {
@@ -1832,6 +2027,11 @@ func (s Counter) Words() (string, error) {
 
 }
 
+func (s Counter) HasWords() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s Counter) WordsBytes() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
 	if err != nil {
@@ -1859,6 +2059,11 @@ func (s Counter) Wordlist() (capnp.TextList, error) {
 
 	return capnp.TextList{List: p.List()}, nil
 
+}
+
+func (s Counter) HasWordlist() bool {
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
 }
 
 func (s Counter) SetWordlist(v capnp.TextList) error {
@@ -1923,6 +2128,11 @@ func (s Bag) Counter() (Counter, error) {
 
 	return Counter{Struct: p.Struct()}, nil
 
+}
+
+func (s Bag) HasCounter() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
 }
 
 func (s Bag) SetCounter(v Counter) error {
@@ -2005,6 +2215,11 @@ func (s Zserver) Waitingjobs() (Zjob_List, error) {
 
 }
 
+func (s Zserver) HasWaitingjobs() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s Zserver) SetWaitingjobs(v Zjob_List) error {
 
 	return s.Struct.SetPtr(0, v.List.ToPtr())
@@ -2069,6 +2284,11 @@ func (s Zjob) Cmd() (string, error) {
 
 }
 
+func (s Zjob) HasCmd() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s Zjob) CmdBytes() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
 	if err != nil {
@@ -2096,6 +2316,11 @@ func (s Zjob) Args() (capnp.TextList, error) {
 
 	return capnp.TextList{List: p.List()}, nil
 
+}
+
+func (s Zjob) HasArgs() bool {
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
 }
 
 func (s Zjob) SetArgs(v capnp.TextList) error {
@@ -2336,6 +2561,11 @@ func (s VerOnePtr) Ptr() (VerOneData, error) {
 
 }
 
+func (s VerOnePtr) HasPtr() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s VerOnePtr) SetPtr(v VerOneData) error {
 
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
@@ -2416,6 +2646,11 @@ func (s VerTwoPtr) Ptr1() (VerOneData, error) {
 
 }
 
+func (s VerTwoPtr) HasPtr1() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s VerTwoPtr) SetPtr1(v VerOneData) error {
 
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
@@ -2441,6 +2676,11 @@ func (s VerTwoPtr) Ptr2() (VerOneData, error) {
 
 	return VerOneData{Struct: p.Struct()}, nil
 
+}
+
+func (s VerTwoPtr) HasPtr2() bool {
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
 }
 
 func (s VerTwoPtr) SetPtr2(v VerOneData) error {
@@ -2545,6 +2785,11 @@ func (s VerTwoDataTwoPtr) Ptr1() (VerOneData, error) {
 
 }
 
+func (s VerTwoDataTwoPtr) HasPtr1() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s VerTwoDataTwoPtr) SetPtr1(v VerOneData) error {
 
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
@@ -2570,6 +2815,11 @@ func (s VerTwoDataTwoPtr) Ptr2() (VerOneData, error) {
 
 	return VerOneData{Struct: p.Struct()}, nil
 
+}
+
+func (s VerTwoDataTwoPtr) HasPtr2() bool {
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
 }
 
 func (s VerTwoDataTwoPtr) SetPtr2(v VerOneData) error {
@@ -2658,6 +2908,11 @@ func (s HoldsVerEmptyList) Mylist() (VerEmpty_List, error) {
 
 }
 
+func (s HoldsVerEmptyList) HasMylist() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s HoldsVerEmptyList) SetMylist(v VerEmpty_List) error {
 
 	return s.Struct.SetPtr(0, v.List.ToPtr())
@@ -2724,6 +2979,11 @@ func (s HoldsVerOneDataList) Mylist() (VerOneData_List, error) {
 
 	return VerOneData_List{List: p.List()}, nil
 
+}
+
+func (s HoldsVerOneDataList) HasMylist() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
 }
 
 func (s HoldsVerOneDataList) SetMylist(v VerOneData_List) error {
@@ -2794,6 +3054,11 @@ func (s HoldsVerTwoDataList) Mylist() (VerTwoData_List, error) {
 
 }
 
+func (s HoldsVerTwoDataList) HasMylist() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s HoldsVerTwoDataList) SetMylist(v VerTwoData_List) error {
 
 	return s.Struct.SetPtr(0, v.List.ToPtr())
@@ -2860,6 +3125,11 @@ func (s HoldsVerOnePtrList) Mylist() (VerOnePtr_List, error) {
 
 	return VerOnePtr_List{List: p.List()}, nil
 
+}
+
+func (s HoldsVerOnePtrList) HasMylist() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
 }
 
 func (s HoldsVerOnePtrList) SetMylist(v VerOnePtr_List) error {
@@ -2930,6 +3200,11 @@ func (s HoldsVerTwoPtrList) Mylist() (VerTwoPtr_List, error) {
 
 }
 
+func (s HoldsVerTwoPtrList) HasMylist() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s HoldsVerTwoPtrList) SetMylist(v VerTwoPtr_List) error {
 
 	return s.Struct.SetPtr(0, v.List.ToPtr())
@@ -2998,6 +3273,11 @@ func (s HoldsVerTwoTwoList) Mylist() (VerTwoDataTwoPtr_List, error) {
 
 }
 
+func (s HoldsVerTwoTwoList) HasMylist() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s HoldsVerTwoTwoList) SetMylist(v VerTwoDataTwoPtr_List) error {
 
 	return s.Struct.SetPtr(0, v.List.ToPtr())
@@ -3064,6 +3344,11 @@ func (s HoldsVerTwoTwoPlus) Mylist() (VerTwoTwoPlus_List, error) {
 
 	return VerTwoTwoPlus_List{List: p.List()}, nil
 
+}
+
+func (s HoldsVerTwoTwoPlus) HasMylist() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
 }
 
 func (s HoldsVerTwoTwoPlus) SetMylist(v VerTwoTwoPlus_List) error {
@@ -3152,6 +3437,11 @@ func (s VerTwoTwoPlus) Ptr1() (VerTwoDataTwoPtr, error) {
 
 }
 
+func (s VerTwoTwoPlus) HasPtr1() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s VerTwoTwoPlus) SetPtr1(v VerTwoDataTwoPtr) error {
 
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
@@ -3177,6 +3467,11 @@ func (s VerTwoTwoPlus) Ptr2() (VerTwoDataTwoPtr, error) {
 
 	return VerTwoDataTwoPtr{Struct: p.Struct()}, nil
 
+}
+
+func (s VerTwoTwoPlus) HasPtr2() bool {
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
 }
 
 func (s VerTwoTwoPlus) SetPtr2(v VerTwoDataTwoPtr) error {
@@ -3213,6 +3508,11 @@ func (s VerTwoTwoPlus) Lst3() (capnp.Int64List, error) {
 
 	return capnp.Int64List{List: p.List()}, nil
 
+}
+
+func (s VerTwoTwoPlus) HasLst3() bool {
+	p, err := s.Struct.Ptr(2)
+	return p.IsValid() || err != nil
 }
 
 func (s VerTwoTwoPlus) SetLst3(v capnp.Int64List) error {
@@ -3287,6 +3587,11 @@ func (s HoldsText) Txt() (string, error) {
 
 }
 
+func (s HoldsText) HasTxt() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s HoldsText) TxtBytes() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
 	if err != nil {
@@ -3316,6 +3621,11 @@ func (s HoldsText) Lst() (capnp.TextList, error) {
 
 }
 
+func (s HoldsText) HasLst() bool {
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
+}
+
 func (s HoldsText) SetLst(v capnp.TextList) error {
 
 	return s.Struct.SetPtr(1, v.List.ToPtr())
@@ -3329,6 +3639,11 @@ func (s HoldsText) Lstlst() (capnp.PointerList, error) {
 
 	return capnp.PointerList{List: p.List()}, nil
 
+}
+
+func (s HoldsText) HasLstlst() bool {
+	p, err := s.Struct.Ptr(2)
+	return p.IsValid() || err != nil
 }
 
 func (s HoldsText) SetLstlst(v capnp.PointerList) error {
@@ -3393,6 +3708,11 @@ func (s WrapEmpty) MightNotBeReallyEmpty() (VerEmpty, error) {
 
 	return VerEmpty{Struct: p.Struct()}, nil
 
+}
+
+func (s WrapEmpty) HasMightNotBeReallyEmpty() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
 }
 
 func (s WrapEmpty) SetMightNotBeReallyEmpty(v VerEmpty) error {
@@ -3475,6 +3795,11 @@ func (s Wrap2x2) MightNotBeReallyEmpty() (VerTwoDataTwoPtr, error) {
 
 }
 
+func (s Wrap2x2) HasMightNotBeReallyEmpty() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s Wrap2x2) SetMightNotBeReallyEmpty(v VerTwoDataTwoPtr) error {
 
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
@@ -3553,6 +3878,11 @@ func (s Wrap2x2plus) MightNotBeReallyEmpty() (VerTwoTwoPlus, error) {
 
 	return VerTwoTwoPlus{Struct: p.Struct()}, nil
 
+}
+
+func (s Wrap2x2plus) HasMightNotBeReallyEmpty() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
 }
 
 func (s Wrap2x2plus) SetMightNotBeReallyEmpty(v VerTwoTwoPlus) error {
@@ -3714,6 +4044,11 @@ func (s Nester1Capn) Strs() (capnp.TextList, error) {
 
 }
 
+func (s Nester1Capn) HasStrs() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s Nester1Capn) SetStrs(v capnp.TextList) error {
 
 	return s.Struct.SetPtr(0, v.List.ToPtr())
@@ -3778,6 +4113,11 @@ func (s RWTestCapn) NestMatrix() (capnp.PointerList, error) {
 
 }
 
+func (s RWTestCapn) HasNestMatrix() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s RWTestCapn) SetNestMatrix(v capnp.PointerList) error {
 
 	return s.Struct.SetPtr(0, v.List.ToPtr())
@@ -3840,6 +4180,11 @@ func (s ListStructCapn) Vec() (Nester1Capn_List, error) {
 
 	return Nester1Capn_List{List: p.List()}, nil
 
+}
+
+func (s ListStructCapn) HasVec() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
 }
 
 func (s ListStructCapn) SetVec(v Nester1Capn_List) error {
@@ -3970,6 +4315,11 @@ func (s Echo_echo_Params) In() (string, error) {
 
 }
 
+func (s Echo_echo_Params) HasIn() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s Echo_echo_Params) InBytes() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
 	if err != nil {
@@ -4048,6 +4398,11 @@ func (s Echo_echo_Results) Out() (string, error) {
 
 	return p.Text(), nil
 
+}
+
+func (s Echo_echo_Results) HasOut() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
 }
 
 func (s Echo_echo_Results) OutBytes() ([]byte, error) {
@@ -4132,6 +4487,11 @@ func (s Hoth) Base() (EchoBase, error) {
 
 }
 
+func (s Hoth) HasBase() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s Hoth) SetBase(v EchoBase) error {
 
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
@@ -4211,6 +4571,11 @@ func (s EchoBase) Echo() Echo {
 	return Echo{Client: p.Interface().Client()}
 }
 
+func (s EchoBase) HasEcho() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s EchoBase) SetEcho(v Echo) error {
 
 	seg := s.Segment()
@@ -4288,6 +4653,11 @@ func (s StackingRoot) A() (StackingA, error) {
 
 }
 
+func (s StackingRoot) HasA() bool {
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
+}
+
 func (s StackingRoot) SetA(v StackingA) error {
 
 	return s.Struct.SetPtr(1, v.Struct.ToPtr())
@@ -4317,6 +4687,11 @@ func (s StackingRoot) AWithDefault() (StackingA, error) {
 	}
 	return StackingA{Struct: ss}, nil
 
+}
+
+func (s StackingRoot) HasAWithDefault() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
 }
 
 func (s StackingRoot) SetAWithDefault(v StackingA) error {
@@ -4410,6 +4785,11 @@ func (s StackingA) B() (StackingB, error) {
 
 	return StackingB{Struct: p.Struct()}, nil
 
+}
+
+func (s StackingA) HasB() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
 }
 
 func (s StackingA) SetB(v StackingB) error {
@@ -4729,6 +5109,11 @@ func (s Defaults) Text() (string, error) {
 
 }
 
+func (s Defaults) HasText() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s Defaults) TextBytes() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
 	if err != nil {
@@ -4756,6 +5141,11 @@ func (s Defaults) Data() ([]byte, error) {
 
 	return []byte(p.DataDefault([]byte{0x62, 0x61, 0x72})), nil
 
+}
+
+func (s Defaults) HasData() bool {
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
 }
 
 func (s Defaults) SetData(v []byte) error {
@@ -4853,6 +5243,11 @@ func (s BenchmarkA) Name() (string, error) {
 
 }
 
+func (s BenchmarkA) HasName() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s BenchmarkA) NameBytes() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
 	if err != nil {
@@ -4889,6 +5284,11 @@ func (s BenchmarkA) Phone() (string, error) {
 
 	return p.Text(), nil
 
+}
+
+func (s BenchmarkA) HasPhone() bool {
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
 }
 
 func (s BenchmarkA) PhoneBytes() ([]byte, error) {

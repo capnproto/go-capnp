@@ -160,6 +160,11 @@ func (s HashFactory_newSha1_Results) Hash() Hash {
 	return Hash{Client: p.Interface().Client()}
 }
 
+func (s HashFactory_newSha1_Results) HasHash() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s HashFactory_newSha1_Results) SetHash(v Hash) error {
 
 	seg := s.Segment()
@@ -352,6 +357,11 @@ func (s Hash_write_Params) Data() ([]byte, error) {
 
 }
 
+func (s Hash_write_Params) HasData() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
 func (s Hash_write_Params) SetData(v []byte) error {
 
 	d, err := capnp.NewData(s.Struct.Segment(), []byte(v))
@@ -526,6 +536,11 @@ func (s Hash_sum_Results) Hash() ([]byte, error) {
 
 	return []byte(p.Data()), nil
 
+}
+
+func (s Hash_sum_Results) HasHash() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
 }
 
 func (s Hash_sum_Results) SetHash(v []byte) error {
