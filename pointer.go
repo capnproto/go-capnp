@@ -2,11 +2,12 @@ package capnp
 
 // A Ptr is a reference to a Cap'n Proto struct, list, or interface.
 type Ptr struct {
-	seg      *Segment
-	off      Address
-	lenOrCap uint32
-	size     ObjectSize
-	flags    ptrFlags
+	seg        *Segment
+	off        Address
+	lenOrCap   uint32
+	size       ObjectSize
+	depthLimit uint
+	flags      ptrFlags
 }
 
 func toPtr(p Pointer) Ptr {
@@ -31,10 +32,11 @@ func (p Ptr) Struct() Struct {
 		return Struct{}
 	}
 	return Struct{
-		seg:   p.seg,
-		off:   p.off,
-		size:  p.size,
-		flags: p.flags.structFlags(),
+		seg:        p.seg,
+		off:        p.off,
+		size:       p.size,
+		flags:      p.flags.structFlags(),
+		depthLimit: p.depthLimit,
 	}
 }
 
@@ -62,11 +64,12 @@ func (p Ptr) List() List {
 		return List{}
 	}
 	return List{
-		seg:    p.seg,
-		off:    p.off,
-		length: int32(p.lenOrCap),
-		size:   p.size,
-		flags:  p.flags.listFlags(),
+		seg:        p.seg,
+		off:        p.off,
+		length:     int32(p.lenOrCap),
+		size:       p.size,
+		flags:      p.flags.listFlags(),
+		depthLimit: p.depthLimit,
 	}
 }
 

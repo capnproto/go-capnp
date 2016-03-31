@@ -2,10 +2,11 @@ package capnp
 
 // Struct is a pointer to a struct.
 type Struct struct {
-	seg   *Segment
-	off   Address
-	size  ObjectSize
-	flags structFlags
+	seg        *Segment
+	off        Address
+	size       ObjectSize
+	depthLimit uint
+	flags      structFlags
 }
 
 // NewStruct creates a new struct, preferring placement in s.
@@ -19,9 +20,10 @@ func NewStruct(s *Segment, sz ObjectSize) (Struct, error) {
 		return Struct{}, err
 	}
 	return Struct{
-		seg:  seg,
-		off:  addr,
-		size: sz,
+		seg:        seg,
+		off:        addr,
+		size:       sz,
+		depthLimit: maxDepth,
 	}, nil
 }
 
@@ -58,10 +60,11 @@ func ToStructDefault(p Pointer, def []byte) (Struct, error) {
 // ToPtr converts the struct to a generic pointer.
 func (p Struct) ToPtr() Ptr {
 	return Ptr{
-		seg:   p.seg,
-		off:   p.off,
-		size:  p.size,
-		flags: structPtrFlag(p.flags),
+		seg:        p.seg,
+		off:        p.off,
+		size:       p.size,
+		depthLimit: p.depthLimit,
+		flags:      structPtrFlag(p.flags),
 	}
 }
 
@@ -106,7 +109,7 @@ func (p Struct) Ptr(i uint16) (Ptr, error) {
 	if p.seg == nil || i >= p.size.PointerCount {
 		return Ptr{}, nil
 	}
-	return p.seg.readPtr(p.pointerAddress(i))
+	return p.seg.readPtr(p.pointerAddress(i), p.depthLimit)
 }
 
 // SetPointer is deprecated in favor of SetPtr.
@@ -283,7 +286,7 @@ func copyStruct(cc copyContext, dst, src Struct) error {
 	for j := uint16(0); j < numSrcPtrs && j < numDstPtrs; j++ {
 		srcAddr, _ := srcPtrSect.element(int32(j), wordSize)
 		dstAddr, _ := dstPtrSect.element(int32(j), wordSize)
-		m, err := src.seg.readPtr(srcAddr)
+		m, err := src.seg.readPtr(srcAddr, maxDepth) // copy already handles depth-limiting
 		if err != nil {
 			return err
 		}

@@ -1954,7 +1954,7 @@ func TestPointerDepthDefense(t *testing.T) {
 
 func TestPointerDepthDefenseAcrossStructsAndLists(t *testing.T) {
 	t.Parallel()
-	const limit = 64
+	const limit = 63
 	msg := &capnp.Message{
 		Arena: capnp.SingleSegment([]byte{
 			0, 0, 0, 0, 0, 0, 1, 0, // root 1-pointer struct pointer to next word

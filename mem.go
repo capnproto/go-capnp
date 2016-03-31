@@ -15,6 +15,8 @@ const (
 	defaultDepthLimit    = 64
 )
 
+const maxDepth = ^uint(0)
+
 // A Message is a tree of Cap'n Proto objects, split into one or more
 // segments of contiguous memory.  The only required field is Arena.
 // A Message is safe to read from multiple goroutines.
@@ -145,6 +147,13 @@ func (m *Message) ReadLimiter() *ReadLimiter {
 		}
 	})
 	return &m.rlimit
+}
+
+func (m *Message) depthLimit() uint {
+	if m.DepthLimit != 0 {
+		return m.DepthLimit
+	}
+	return defaultDepthLimit
 }
 
 // NumSegments returns the number of segments in the message.

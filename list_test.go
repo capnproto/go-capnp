@@ -20,20 +20,22 @@ func TestToListDefault(t *testing.T) {
 	}{
 		{nil, nil, List{}},
 		{Struct{}, nil, List{}},
-		{Struct{seg: seg, off: 0}, nil, List{}},
+		{Struct{seg: seg, off: 0, depthLimit: maxDepth}, nil, List{}},
 		{List{}, nil, List{}},
 		{
 			ptr: List{
-				seg:    seg,
-				off:    8,
-				length: 1,
-				size:   ObjectSize{DataSize: 8},
+				seg:        seg,
+				off:        8,
+				length:     1,
+				size:       ObjectSize{DataSize: 8},
+				depthLimit: maxDepth,
 			},
 			list: List{
-				seg:    seg,
-				off:    8,
-				length: 1,
-				size:   ObjectSize{DataSize: 8},
+				seg:        seg,
+				off:        8,
+				length:     1,
+				size:       ObjectSize{DataSize: 8},
+				depthLimit: maxDepth,
 			},
 		},
 	}

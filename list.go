@@ -7,11 +7,12 @@ import (
 
 // A List is a reference to an array of values.
 type List struct {
-	seg    *Segment
-	off    Address
-	length int32
-	size   ObjectSize
-	flags  listFlags
+	seg        *Segment
+	off        Address
+	length     int32
+	size       ObjectSize
+	depthLimit uint
+	flags      listFlags
 }
 
 // newPrimitiveList allocates a new list of primitive values, preferring placement in s.
@@ -25,10 +26,11 @@ func newPrimitiveList(s *Segment, sz Size, n int32) (List, error) {
 		return List{}, err
 	}
 	return List{
-		seg:    s,
-		off:    addr,
-		length: n,
-		size:   ObjectSize{DataSize: sz},
+		seg:        s,
+		off:        addr,
+		length:     n,
+		size:       ObjectSize{DataSize: sz},
+		depthLimit: maxDepth,
 	}, nil
 }
 
@@ -50,11 +52,12 @@ func NewCompositeList(s *Segment, sz ObjectSize, n int32) (List, error) {
 	// Add tag word
 	s.writeRawPointer(addr, rawStructPointer(pointerOffset(n), sz))
 	return List{
-		seg:    s,
-		off:    addr + Address(wordSize),
-		length: n,
-		size:   sz,
-		flags:  isCompositeList,
+		seg:        s,
+		off:        addr + Address(wordSize),
+		length:     n,
+		size:       sz,
+		flags:      isCompositeList,
+		depthLimit: maxDepth,
 	}, nil
 }
 
@@ -71,11 +74,12 @@ func ToListDefault(p Pointer, def []byte) (List, error) {
 // ToPtr converts the list to a generic pointer.
 func (p List) ToPtr() Ptr {
 	return Ptr{
-		seg:      p.seg,
-		off:      p.off,
-		lenOrCap: uint32(p.length),
-		size:     p.size,
-		flags:    listPtrFlag(p.flags),
+		seg:        p.seg,
+		off:        p.off,
+		lenOrCap:   uint32(p.length),
+		size:       p.size,
+		depthLimit: p.depthLimit,
+		flags:      listPtrFlag(p.flags),
 	}
 }
 
@@ -176,10 +180,11 @@ func (p List) Struct(i int) Struct {
 	}
 	addr, _ := p.elem(i)
 	return Struct{
-		seg:   p.seg,
-		off:   addr,
-		size:  p.size,
-		flags: isListMember,
+		seg:        p.seg,
+		off:        addr,
+		size:       p.size,
+		flags:      isListMember,
+		depthLimit: p.depthLimit - 1,
 	}
 }
 
@@ -201,10 +206,11 @@ func NewBitList(s *Segment, n int32) (BitList, error) {
 		return BitList{}, err
 	}
 	return BitList{List{
-		seg:    s,
-		off:    addr,
-		length: n,
-		flags:  isBitList,
+		seg:        s,
+		off:        addr,
+		length:     n,
+		flags:      isBitList,
+		depthLimit: maxDepth,
 	}}, nil
 }
 
@@ -246,10 +252,11 @@ func NewPointerList(s *Segment, n int32) (PointerList, error) {
 		return PointerList{}, err
 	}
 	return PointerList{List{
-		seg:    s,
-		off:    addr,
-		length: n,
-		size:   ObjectSize{PointerCount: 1},
+		seg:        s,
+		off:        addr,
+		length:     n,
+		size:       ObjectSize{PointerCount: 1},
+		depthLimit: maxDepth,
 	}}, nil
 }
 
@@ -262,7 +269,7 @@ func (p PointerList) At(i int) (Pointer, error) {
 // PtrAt returns the i'th pointer in the list.
 func (p PointerList) PtrAt(i int) (Ptr, error) {
 	addr, _ := p.elem(i)
-	return p.seg.readPtr(addr)
+	return p.seg.readPtr(addr, p.depthLimit)
 }
 
 // Set is deprecated in favor of SetPtr.
@@ -291,7 +298,7 @@ func NewTextList(s *Segment, n int32) (TextList, error) {
 // At returns the i'th string in the list.
 func (l TextList) At(i int) (string, error) {
 	addr, _ := l.elem(i)
-	p, err := l.seg.readPtr(addr)
+	p, err := l.seg.readPtr(addr, l.depthLimit)
 	if err != nil {
 		return "", err
 	}
@@ -302,7 +309,7 @@ func (l TextList) At(i int) (string, error) {
 // The underlying array of the slice is the segment data.
 func (l TextList) BytesAt(i int) ([]byte, error) {
 	addr, _ := l.elem(i)
-	p, err := l.seg.readPtr(addr)
+	p, err := l.seg.readPtr(addr, l.depthLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -334,7 +341,7 @@ func NewDataList(s *Segment, n int32) (DataList, error) {
 // At returns the i'th data in the list.
 func (l DataList) At(i int) ([]byte, error) {
 	addr, _ := l.elem(i)
-	p, err := l.seg.readPtr(addr)
+	p, err := l.seg.readPtr(addr, l.depthLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -358,8 +365,9 @@ type VoidList struct{ List }
 // s is only used for Segment()'s return value.
 func NewVoidList(s *Segment, n int32) VoidList {
 	return VoidList{List{
-		seg:    s,
-		length: n,
+		seg:        s,
+		length:     n,
+		depthLimit: maxDepth,
 	}}
 }
 

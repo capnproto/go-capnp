@@ -101,9 +101,10 @@ func (s *Segment) root() PointerList {
 		return PointerList{}
 	}
 	return PointerList{List{
-		seg:    s,
-		length: 1,
-		size:   sz,
+		seg:        s,
+		length:     1,
+		size:       sz,
+		depthLimit: s.msg.depthLimit(),
 	}}
 }
 
@@ -114,7 +115,7 @@ func (s *Segment) lookupSegment(id SegmentID) (*Segment, error) {
 	return s.msg.Segment(id)
 }
 
-func (s *Segment) readPtr(off Address) (ptr Ptr, err error) {
+func (s *Segment) readPtr(off Address, depthLimit uint) (ptr Ptr, err error) {
 	defer func(orig *Message) {
 		if !ptr.IsValid() || s.msg != orig {
 			return
@@ -133,6 +134,9 @@ func (s *Segment) readPtr(off Address) (ptr Ptr, err error) {
 	if val == 0 {
 		return Ptr{}, nil
 	}
+	if depthLimit == 0 {
+		return Ptr{}, errDepthLimit
+	}
 	// Be wary of overflow. Offset is 30 bits signed. List size is 29 bits
 	// unsigned. For both of these we need to check in terms of words if
 	// using 32 bit maths as bits or bytes will overflow.
@@ -147,9 +151,10 @@ func (s *Segment) readPtr(off Address) (ptr Ptr, err error) {
 			return Ptr{}, errPointerAddress
 		}
 		return Struct{
-			seg:  s,
-			off:  addr,
-			size: sz,
+			seg:        s,
+			off:        addr,
+			size:       sz,
+			depthLimit: depthLimit - 1,
 		}.ToPtr(), nil
 	case listPointer:
 		addr, ok := val.offset().resolve(off)
@@ -183,26 +188,29 @@ func (s *Segment) readPtr(off Address) (ptr Ptr, err error) {
 				return Ptr{}, errPointerAddress
 			}
 			return List{
-				seg:    s,
-				size:   sz,
-				off:    addr,
-				length: n,
-				flags:  isCompositeList,
+				seg:        s,
+				size:       sz,
+				off:        addr,
+				length:     n,
+				flags:      isCompositeList,
+				depthLimit: depthLimit - 1,
 			}.ToPtr(), nil
 		}
 		if lt == bit1List {
 			return List{
-				seg:    s,
-				off:    addr,
-				length: val.numListElements(),
-				flags:  isBitList,
+				seg:        s,
+				off:        addr,
+				length:     val.numListElements(),
+				flags:      isBitList,
+				depthLimit: depthLimit - 1,
 			}.ToPtr(), nil
 		}
 		return List{
-			seg:    s,
-			size:   val.elementSize(),
-			off:    addr,
-			length: val.numListElements(),
+			seg:        s,
+			size:       val.elementSize(),
+			off:        addr,
+			length:     val.numListElements(),
+			depthLimit: depthLimit - 1,
 		}.ToPtr(), nil
 	case otherPointer:
 		if val.otherPointerType() != 0 {
@@ -413,9 +421,10 @@ func copyPointer(cc copyContext, dstSeg *Segment, dstAddr Address, src Ptr) erro
 	case structPtrType:
 		s := src.Struct()
 		dst := Struct{
-			seg:  newSeg,
-			off:  newAddr,
-			size: s.size,
+			seg:        newSeg,
+			off:        newAddr,
+			size:       s.size,
+			depthLimit: maxDepth,
 			// clear flags
 		}
 		key.newval = dst.ToPtr()
@@ -426,11 +435,12 @@ func copyPointer(cc copyContext, dstSeg *Segment, dstAddr Address, src Ptr) erro
 	case listPtrType:
 		l := src.List()
 		dst := List{
-			seg:    newSeg,
-			off:    newAddr,
-			length: l.length,
-			size:   l.size,
-			flags:  l.flags,
+			seg:        newSeg,
+			off:        newAddr,
+			length:     l.length,
+			size:       l.size,
+			flags:      l.flags,
+			depthLimit: maxDepth,
 		}
 		if dst.flags&isCompositeList != 0 {
 			// Copy tag word
@@ -488,6 +498,7 @@ var (
 	errOtherPointer   = errors.New("capnp: unknown pointer type")
 	errObjectSize     = errors.New("capnp: invalid object size")
 	errReadLimit      = errors.New("capnp: read traversal limit reached")
+	errDepthLimit     = errors.New("capnp: depth limit reached")
 )
 
 var (
