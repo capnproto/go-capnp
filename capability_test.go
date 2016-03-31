@@ -17,7 +17,7 @@ func TestToInterface(t *testing.T) {
 	}{
 		{nil, Interface{}},
 		{Struct{}, Interface{}},
-		{Struct{seg: seg, off: 0}, Interface{}},
+		{Struct{seg: seg, off: 0, depthLimit: maxDepth}, Interface{}},
 		{Interface{}, Interface{}},
 		{Interface{seg, 42}, Interface{seg, 42}},
 	}

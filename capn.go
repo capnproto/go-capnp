@@ -101,9 +101,10 @@ func (s *Segment) root() PointerList {
 		return PointerList{}
 	}
 	return PointerList{List{
-		seg:    s,
-		length: 1,
-		size:   sz,
+		seg:        s,
+		length:     1,
+		size:       sz,
+		depthLimit: s.msg.depthLimit(),
 	}}
 }
 
@@ -114,8 +115,7 @@ func (s *Segment) lookupSegment(id SegmentID) (*Segment, error) {
 	return s.msg.Segment(id)
 }
 
-func (s *Segment) readPtr(off Address) (Ptr, error) {
-	var err error
+func (s *Segment) readPtr(off Address, depthLimit uint) (ptr Ptr, err error) {
 	val := s.readRawPointer(off)
 	s, off, val, err = s.resolveFarPointer(off, val)
 	if err != nil {
@@ -124,77 +124,33 @@ func (s *Segment) readPtr(off Address) (Ptr, error) {
 	if val == 0 {
 		return Ptr{}, nil
 	}
+	if depthLimit == 0 {
+		return Ptr{}, errDepthLimit
+	}
 	// Be wary of overflow. Offset is 30 bits signed. List size is 29 bits
 	// unsigned. For both of these we need to check in terms of words if
 	// using 32 bit maths as bits or bytes will overflow.
 	switch val.pointerType() {
 	case structPointer:
-		addr, ok := val.offset().resolve(off)
-		if !ok {
-			return Ptr{}, errPointerAddress
+		sp, err := s.readStructPtr(off, val)
+		if err != nil {
+			return Ptr{}, err
 		}
-		sz := val.structSize()
-		if !s.regionInBounds(addr, sz.totalSize()) {
-			return Ptr{}, errPointerAddress
+		if !s.msg.ReadLimiter().canRead(sp.readSize()) {
+			return Ptr{}, errReadLimit
 		}
-		return Struct{
-			seg:  s,
-			off:  addr,
-			size: sz,
-		}.ToPtr(), nil
+		sp.depthLimit = depthLimit - 1
+		return sp.ToPtr(), nil
 	case listPointer:
-		addr, ok := val.offset().resolve(off)
-		if !ok {
-			return Ptr{}, errPointerAddress
+		lp, err := s.readListPtr(off, val)
+		if err != nil {
+			return Ptr{}, err
 		}
-		lt := val.listType()
-		lsize, ok := val.totalListSize()
-		if !ok {
-			return Ptr{}, errOverflow
+		if !s.msg.ReadLimiter().canRead(lp.readSize()) {
+			return Ptr{}, errReadLimit
 		}
-		if !s.regionInBounds(addr, lsize) {
-			return Ptr{}, errPointerAddress
-		}
-		if lt == compositeList {
-			hdr := s.readRawPointer(addr)
-			var ok bool
-			addr, ok = addr.addSize(wordSize)
-			if !ok {
-				return Ptr{}, errOverflow
-			}
-			if hdr.pointerType() != structPointer {
-				return Ptr{}, errBadTag
-			}
-			sz := hdr.structSize()
-			n := int32(hdr.offset())
-			// TODO(light): check that this has the same end address
-			if tsize, ok := sz.totalSize().times(n); !ok {
-				return Ptr{}, errOverflow
-			} else if !s.regionInBounds(addr, tsize) {
-				return Ptr{}, errPointerAddress
-			}
-			return List{
-				seg:    s,
-				size:   sz,
-				off:    addr,
-				length: n,
-				flags:  isCompositeList,
-			}.ToPtr(), nil
-		}
-		if lt == bit1List {
-			return List{
-				seg:    s,
-				off:    addr,
-				length: val.numListElements(),
-				flags:  isBitList,
-			}.ToPtr(), nil
-		}
-		return List{
-			seg:    s,
-			size:   val.elementSize(),
-			off:    addr,
-			length: val.numListElements(),
-		}.ToPtr(), nil
+		lp.depthLimit = depthLimit - 1
+		return lp.ToPtr(), nil
 	case otherPointer:
 		if val.otherPointerType() != 0 {
 			return Ptr{}, errOtherPointer
@@ -207,6 +163,81 @@ func (s *Segment) readPtr(off Address) (Ptr, error) {
 		// Only other types are far pointers.
 		return Ptr{}, errBadLandingPad
 	}
+}
+
+func (s *Segment) readStructPtr(off Address, val rawPointer) (Struct, error) {
+	addr, ok := val.offset().resolve(off)
+	if !ok {
+		return Struct{}, errPointerAddress
+	}
+	sz := val.structSize()
+	if !s.regionInBounds(addr, sz.totalSize()) {
+		return Struct{}, errPointerAddress
+	}
+	return Struct{
+		seg:  s,
+		off:  addr,
+		size: sz,
+	}, nil
+}
+
+func (s *Segment) readListPtr(off Address, val rawPointer) (List, error) {
+	addr, ok := val.offset().resolve(off)
+	if !ok {
+		return List{}, errPointerAddress
+	}
+	lt := val.listType()
+	lsize, ok := val.totalListSize()
+	if !ok {
+		return List{}, errOverflow
+	}
+	if !s.regionInBounds(addr, lsize) {
+		return List{}, errPointerAddress
+	}
+	limitSize := lsize
+	if limitSize == 0 {
+
+	}
+	if lt == compositeList {
+		hdr := s.readRawPointer(addr)
+		var ok bool
+		addr, ok = addr.addSize(wordSize)
+		if !ok {
+			return List{}, errOverflow
+		}
+		if hdr.pointerType() != structPointer {
+			return List{}, errBadTag
+		}
+		sz := hdr.structSize()
+		n := int32(hdr.offset())
+		// TODO(light): check that this has the same end address
+		if tsize, ok := sz.totalSize().times(n); !ok {
+			return List{}, errOverflow
+		} else if !s.regionInBounds(addr, tsize) {
+			return List{}, errPointerAddress
+		}
+		return List{
+			seg:    s,
+			size:   sz,
+			off:    addr,
+			length: n,
+			flags:  isCompositeList,
+		}, nil
+	}
+	if lt == bit1List {
+		return List{
+			seg:    s,
+			off:    addr,
+			length: val.numListElements(),
+			flags:  isBitList,
+		}, nil
+	}
+	return List{
+		seg:    s,
+		size:   val.elementSize(),
+		off:    addr,
+		length: val.numListElements(),
+	}, nil
 }
 
 func (s *Segment) resolveFarPointer(off Address, val rawPointer) (*Segment, Address, rawPointer, error) {
@@ -404,9 +435,10 @@ func copyPointer(cc copyContext, dstSeg *Segment, dstAddr Address, src Ptr) erro
 	case structPtrType:
 		s := src.Struct()
 		dst := Struct{
-			seg:  newSeg,
-			off:  newAddr,
-			size: s.size,
+			seg:        newSeg,
+			off:        newAddr,
+			size:       s.size,
+			depthLimit: maxDepth,
 			// clear flags
 		}
 		key.newval = dst.ToPtr()
@@ -417,11 +449,12 @@ func copyPointer(cc copyContext, dstSeg *Segment, dstAddr Address, src Ptr) erro
 	case listPtrType:
 		l := src.List()
 		dst := List{
-			seg:    newSeg,
-			off:    newAddr,
-			length: l.length,
-			size:   l.size,
-			flags:  l.flags,
+			seg:        newSeg,
+			off:        newAddr,
+			length:     l.length,
+			size:       l.size,
+			flags:      l.flags,
+			depthLimit: maxDepth,
 		}
 		if dst.flags&isCompositeList != 0 {
 			// Copy tag word
@@ -478,6 +511,8 @@ var (
 	errBadTag         = errors.New("capnp: invalid tag word")
 	errOtherPointer   = errors.New("capnp: unknown pointer type")
 	errObjectSize     = errors.New("capnp: invalid object size")
+	errReadLimit      = errors.New("capnp: read traversal limit reached")
+	errDepthLimit     = errors.New("capnp: depth limit reached")
 )
 
 var (

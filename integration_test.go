@@ -1867,7 +1867,7 @@ func BenchmarkUnmarshal_Reuse(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		*ta = testArena(data[r.Intn(len(data))][8:])
-		*msg = capnp.Message{Arena: arena}
+		msg.Reset(arena)
 		a, _ := air.ReadRootBenchmarkA(msg)
 		unmarshalA(a)
 	}
@@ -1888,4 +1888,127 @@ func (ta testArena) Data(id capnp.SegmentID) ([]byte, error) {
 
 func (ta testArena) Allocate(capnp.Size, map[capnp.SegmentID]*capnp.Segment) (capnp.SegmentID, []byte, error) {
 	return 0, nil, errors.New("test arena: can't allocate")
+}
+
+func TestPointerTraverseDefense(t *testing.T) {
+	t.Parallel()
+	const limit = 128
+	msg := &capnp.Message{
+		Arena: capnp.SingleSegment([]byte{
+			0, 0, 0, 0, 1, 0, 0, 0, // root 1-word struct pointer to next word
+			0, 0, 0, 0, 0, 0, 0, 0, // struct's data
+		}),
+		TraverseLimit: limit * 8,
+	}
+
+	for i := 0; i < limit; i++ {
+		_, err := msg.RootPtr()
+		if err != nil {
+			t.Fatalf("iteration %d RootPtr: %v", i, err)
+		}
+	}
+
+	if _, err := msg.RootPtr(); err == nil {
+		t.Fatalf("deref %d did not fail as expected", limit+1)
+	}
+}
+
+func TestPointerDepthDefense(t *testing.T) {
+	t.Parallel()
+	const limit = 64
+	msg := &capnp.Message{
+		Arena: capnp.SingleSegment([]byte{
+			0, 0, 0, 0, 0, 0, 1, 0, // root 1-pointer struct pointer to next word
+			0xfc, 0xff, 0xff, 0xff, 0, 0, 1, 0, // root struct pointer that points back to itself
+		}),
+		DepthLimit: limit,
+	}
+	root, err := msg.Root()
+	if err != nil {
+		t.Fatal("Root:", err)
+	}
+
+	curr := capnp.ToStruct(root)
+	if !capnp.IsValid(curr) {
+		t.Fatal("Root is not a struct")
+	}
+	for i := 0; i < limit-1; i++ {
+		p, err := curr.Pointer(0)
+		if err != nil {
+			t.Fatalf("deref %d fail: %v", i+1, err)
+		}
+		if !capnp.IsValid(p) {
+			t.Fatalf("deref %d is invalid", i+1)
+		}
+		curr = capnp.ToStruct(p)
+		if !capnp.IsValid(curr) {
+			t.Fatalf("deref %d is not a struct", i+1)
+		}
+	}
+
+	_, err = curr.Pointer(0)
+	if err == nil {
+		t.Fatalf("deref %d did not fail as expected", limit)
+	}
+}
+
+func TestPointerDepthDefenseAcrossStructsAndLists(t *testing.T) {
+	t.Parallel()
+	const limit = 63
+	msg := &capnp.Message{
+		Arena: capnp.SingleSegment([]byte{
+			0, 0, 0, 0, 0, 0, 1, 0, // root 1-pointer struct pointer to next word
+			0x01, 0, 0, 0, 0x0e, 0, 0, 0, // list pointer to 1-element list of pointer (next word)
+			0xf8, 0xff, 0xff, 0xff, 0, 0, 1, 0, // struct pointer to previous word
+		}),
+		DepthLimit: limit,
+	}
+
+	toStruct := func(p capnp.Pointer, err error) (capnp.Struct, error) {
+		if err != nil {
+			return capnp.Struct{}, err
+		}
+		if !capnp.IsValid(p) {
+			return capnp.Struct{}, errors.New("invalid pointer")
+		}
+		s := capnp.ToStruct(p)
+		if !capnp.IsValid(s) {
+			return capnp.Struct{}, errors.New("not a struct")
+		}
+		return s, nil
+	}
+	toList := func(p capnp.Pointer, err error) (capnp.List, error) {
+		if err != nil {
+			return capnp.List{}, err
+		}
+		if !capnp.IsValid(p) {
+			return capnp.List{}, errors.New("invalid pointer")
+		}
+		l := capnp.ToList(p)
+		if !capnp.IsValid(l) {
+			return capnp.List{}, errors.New("not a list")
+		}
+		return l, nil
+	}
+	curr, err := toStruct(msg.Root())
+	if err != nil {
+		t.Fatal("Root:", err)
+	}
+	for i := limit; i > 2; {
+		l, err := toList(curr.Pointer(0))
+		if err != nil {
+			t.Fatalf("deref %d (for list): %v", limit-i+1, err)
+		}
+		i--
+		curr, err = toStruct(capnp.PointerList{List: l}.At(0))
+		if err != nil {
+			t.Fatalf("deref %d (for struct): %v", limit-i+1, err)
+		}
+		i--
+	}
+
+	_, err = curr.Pointer(0)
+	if err == nil {
+		t.Fatalf("deref %d did not fail as expected", limit)
+	}
 }

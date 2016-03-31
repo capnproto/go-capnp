@@ -9,10 +9,23 @@ import (
 	"zombiezen.com/go/capnproto2/internal/packed"
 )
 
+// Default security limits.
+const (
+	defaultTraverseLimit = 64 << 20
+	defaultDepthLimit    = 64
+)
+
+const maxDepth = ^uint(0)
+
 // A Message is a tree of Cap'n Proto objects, split into one or more
 // segments of contiguous memory.  The only required field is Arena.
 // A Message is safe to read from multiple goroutines.
 type Message struct {
+	// rlimit must be first so that it is 64-bit aligned.
+	// See sync/atomic docs.
+	rlimit     ReadLimiter
+	rlimitInit sync.Once
+
 	Arena Arena
 
 	// CapTable is the indexed list of the clients referenced in the
@@ -23,6 +36,21 @@ type Message struct {
 	// See https://capnproto.org/encoding.html#capabilities-interfaces for
 	// more details on the capability table.
 	CapTable []Client
+
+	// TraverseLimit limits how many total bytes of data are allowed to be
+	// traversed while reading.  Traversal is counted when a Struct or
+	// List is obtained.  This means that calling a getter for the same
+	// sub-struct multiple times will cause it to be double-counted.  Once
+	// the traversal limit is reached, pointer accessors will report
+	// errors. See https://capnproto.org/encoding.html#amplification-attack
+	// for more details on this security measure.
+	//
+	// If not set, this defaults to 64 MiB.
+	TraverseLimit uint64
+
+	// DepthLimit limits how deeply-nested a message structure can be.
+	// If not set, this defaults to 64.
+	DepthLimit uint
 
 	// mu protects the following fields:
 	mu       sync.Mutex
@@ -56,6 +84,19 @@ func NewMessage(arena Arena) (msg *Message, first *Segment, err error) {
 	}
 	alloc(first, wordSize) // allocate root
 	return msg, first, nil
+}
+
+// Reset resets a message to use a different arena, allowing a single
+// Message to be reused for reading multiple messages.  This invalidates
+// any existing pointers in the Message, so use with caution.
+func (m *Message) Reset(arena Arena) {
+	m.mu.Lock()
+	m.Arena = arena
+	m.CapTable = nil
+	m.segs = nil
+	m.firstSeg = Segment{}
+	m.mu.Unlock()
+	m.ReadLimiter().Reset(m.TraverseLimit)
 }
 
 // Root is deprecated in favor of RootPtr.
@@ -93,6 +134,26 @@ func (m *Message) AddCap(c Client) CapabilityID {
 	n := CapabilityID(len(m.CapTable))
 	m.CapTable = append(m.CapTable, c)
 	return n
+}
+
+// ReadLimiter returns the message's read limiter.  Useful if you want
+// to reset the traversal limit while reading.
+func (m *Message) ReadLimiter() *ReadLimiter {
+	m.rlimitInit.Do(func() {
+		if m.TraverseLimit == 0 {
+			m.rlimit.limit = defaultTraverseLimit
+		} else {
+			m.rlimit.limit = m.TraverseLimit
+		}
+	})
+	return &m.rlimit
+}
+
+func (m *Message) depthLimit() uint {
+	if m.DepthLimit != 0 {
+		return m.DepthLimit
+	}
+	return defaultDepthLimit
 }
 
 // NumSegments returns the number of segments in the message.
