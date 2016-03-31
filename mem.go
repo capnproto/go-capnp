@@ -4,12 +4,14 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"sync"
 
 	"zombiezen.com/go/capnproto2/internal/packed"
 )
 
 // A Message is a tree of Cap'n Proto objects, split into one or more
 // segments of contiguous memory.  The only required field is Arena.
+// A Message is safe to read from multiple goroutines.
 type Message struct {
 	Arena Arena
 
@@ -22,10 +24,10 @@ type Message struct {
 	// more details on the capability table.
 	CapTable []Client
 
-	segs map[SegmentID]*Segment
-
-	// Preallocated first segment. msg is non-nil once initialized.
-	firstSeg Segment
+	// mu protects the following fields:
+	mu       sync.Mutex
+	segs     map[SegmentID]*Segment
+	firstSeg Segment // Preallocated first segment. msg is non-nil once initialized.
 }
 
 // NewMessage creates a message with a new root and returns the first
@@ -100,6 +102,8 @@ func (m *Message) NumSegments() int64 {
 
 // Segment returns the segment with the given ID.
 func (m *Message) Segment(id SegmentID) (*Segment, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if isInt32Bit() && id > maxInt32 {
 		return nil, errSegment32Bit
 	}
@@ -116,6 +120,8 @@ func (m *Message) Segment(id SegmentID) (*Segment, error) {
 	return m.setSegment(id, data), nil
 }
 
+// segment returns the segment with the given ID.
+// The caller must be holding m.mu.
 func (m *Message) segment(id SegmentID) *Segment {
 	if m.segs == nil {
 		if id == 0 && m.firstSeg.msg != nil {
@@ -126,6 +132,8 @@ func (m *Message) segment(id SegmentID) *Segment {
 	return m.segs[id]
 }
 
+// setSegment creates or updates the Segment with the given ID.
+// The caller must be holding m.mu.
 func (m *Message) setSegment(id SegmentID, data []byte) *Segment {
 	if m.segs == nil {
 		if id == 0 {
@@ -156,6 +164,8 @@ func (m *Message) setSegment(id SegmentID, data []byte) *Segment {
 // allocSegment creates or resizes an existing segment such that
 // cap(seg.Data) - len(seg.Data) >= sz.
 func (m *Message) allocSegment(sz Size) (*Segment, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if m.segs == nil && m.firstSeg.msg != nil {
 		m.segs = make(map[SegmentID]*Segment)
 		m.segs[0] = &m.firstSeg
