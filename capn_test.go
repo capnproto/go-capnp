@@ -88,8 +88,6 @@ func TestSegmentReadUint8(t *testing.T) {
 		if err != nil {
 			if !test.panics {
 				t.Errorf("&Segment{data: % x}.readUint8(%v) unexpected panic: %v", test.data, test.addr, err)
-			} else if err != errOutOfBounds {
-				t.Errorf("&Segment{data: % x}.readUint8(%v) panic: %v; want %v", test.data, test.addr, err, errOutOfBounds)
 			}
 			continue
 		}
@@ -128,8 +126,6 @@ func TestSegmentReadUint16(t *testing.T) {
 		if err != nil {
 			if !test.panics {
 				t.Errorf("&Segment{data: % x}.readUint16(%v) unexpected panic: %v", test.data, test.addr, err)
-			} else if err != errOutOfBounds {
-				t.Errorf("&Segment{data: % x}.readUint16(%v) panic: %v; want %v", test.data, test.addr, err, errOutOfBounds)
 			}
 			continue
 		}
@@ -169,8 +165,6 @@ func TestSegmentReadUint32(t *testing.T) {
 		if err != nil {
 			if !test.panics {
 				t.Errorf("&Segment{data: % x}.readUint32(%v) unexpected panic: %v", test.data, test.addr, err)
-			} else if err != errOutOfBounds {
-				t.Errorf("&Segment{data: % x}.readUint32(%v) panic: %v; want %v", test.data, test.addr, err, errOutOfBounds)
 			}
 			continue
 		}
@@ -215,8 +209,6 @@ func TestSegmentReadUint64(t *testing.T) {
 		if err != nil {
 			if !test.panics {
 				t.Errorf("&Segment{data: % x}.readUint64(%v) unexpected panic: %v", test.data, test.addr, err)
-			} else if err != errOutOfBounds {
-				t.Errorf("&Segment{data: % x}.readUint64(%v) panic: %v; want %v", test.data, test.addr, err, errOutOfBounds)
 			}
 			continue
 		}
@@ -291,8 +283,6 @@ func TestSegmentWriteUint8(t *testing.T) {
 		if err != nil {
 			if !test.panics {
 				t.Errorf("&Segment{data: % x}.writeUint8(%v, %#x) unexpected panic: %v", test.data, test.addr, test.val, err)
-			} else if err != errOutOfBounds {
-				t.Errorf("&Segment{data: % x}.writeUint8(%v, %#x) panic: %v; want %v", test.data, test.addr, test.val, err, errOutOfBounds)
 			}
 			continue
 		}
@@ -337,8 +327,6 @@ func TestSegmentWriteUint16(t *testing.T) {
 		if err != nil {
 			if !test.panics {
 				t.Errorf("&Segment{data: % x}.writeUint16(%v, %#x) unexpected panic: %v", test.data, test.addr, test.val, err)
-			} else if err != errOutOfBounds {
-				t.Errorf("&Segment{data: % x}.writeUint16(%v, %#x) panic: %v; want %v", test.data, test.addr, test.val, err, errOutOfBounds)
 			}
 			continue
 		}
@@ -383,8 +371,6 @@ func TestSegmentWriteUint32(t *testing.T) {
 		if err != nil {
 			if !test.panics {
 				t.Errorf("&Segment{data: % x}.writeUint32(%v, %#x) unexpected panic: %v", test.data, test.addr, test.val, err)
-			} else if err != errOutOfBounds {
-				t.Errorf("&Segment{data: % x}.writeUint32(%v, %#x) panic: %v; want %v", test.data, test.addr, test.val, err, errOutOfBounds)
 			}
 			continue
 		}
@@ -429,8 +415,6 @@ func TestSegmentWriteUint64(t *testing.T) {
 		if err != nil {
 			if !test.panics {
 				t.Errorf("&Segment{data: % x}.writeUint64(%v, %#x) unexpected panic: %v", test.data, test.addr, test.val, err)
-			} else if err != errOutOfBounds {
-				t.Errorf("&Segment{data: % x}.writeUint64(%v, %#x) panic: %v; want %v", test.data, test.addr, test.val, err, errOutOfBounds)
 			}
 			continue
 		}
@@ -447,7 +431,7 @@ func TestSegmentWriteUint64(t *testing.T) {
 func TestMakeOffsetKey(t *testing.T) {
 	seg42 := &Segment{id: 42}
 	tests := []struct {
-		p          Pointer
+		p          Ptr
 		id         SegmentID
 		boff, bend int64
 	}{
@@ -456,7 +440,7 @@ func TestMakeOffsetKey(t *testing.T) {
 				seg:  seg42,
 				off:  0,
 				size: ObjectSize{0, 0},
-			},
+			}.ToPtr(),
 			id:   42,
 			boff: 0,
 			bend: 0,
@@ -466,7 +450,7 @@ func TestMakeOffsetKey(t *testing.T) {
 				seg:  seg42,
 				off:  8,
 				size: ObjectSize{0, 0},
-			},
+			}.ToPtr(),
 			id:   42,
 			boff: 64,
 			bend: 64,
@@ -476,7 +460,7 @@ func TestMakeOffsetKey(t *testing.T) {
 				seg:  seg42,
 				off:  8,
 				size: ObjectSize{1, 0},
-			},
+			}.ToPtr(),
 			id:   42,
 			boff: 64,
 			bend: 72,
@@ -486,7 +470,7 @@ func TestMakeOffsetKey(t *testing.T) {
 				seg:  seg42,
 				off:  8,
 				size: ObjectSize{0, 1},
-			},
+			}.ToPtr(),
 			id:   42,
 			boff: 64,
 			bend: 128,
@@ -497,7 +481,7 @@ func TestMakeOffsetKey(t *testing.T) {
 				off:    0,
 				size:   ObjectSize{},
 				length: 0,
-			},
+			}.ToPtr(),
 			id:   42,
 			boff: 0,
 			bend: 0,
@@ -508,7 +492,7 @@ func TestMakeOffsetKey(t *testing.T) {
 				off:    0,
 				size:   ObjectSize{},
 				length: 1,
-			},
+			}.ToPtr(),
 			id:   42,
 			boff: 0,
 			bend: 0,
@@ -519,7 +503,7 @@ func TestMakeOffsetKey(t *testing.T) {
 				off:    0,
 				size:   ObjectSize{0, 1},
 				length: 1,
-			},
+			}.ToPtr(),
 			id:   42,
 			boff: 0,
 			bend: 64,
@@ -530,7 +514,7 @@ func TestMakeOffsetKey(t *testing.T) {
 				off:    8,
 				size:   ObjectSize{0, 1},
 				length: 1,
-			},
+			}.ToPtr(),
 			id:   42,
 			boff: 64,
 			bend: 128,
@@ -542,7 +526,7 @@ func TestMakeOffsetKey(t *testing.T) {
 				size:   ObjectSize{0, 1},
 				length: 1,
 				flags:  isCompositeList,
-			},
+			}.ToPtr(),
 			id:   42,
 			boff: 0,
 			bend: 128,
@@ -553,7 +537,7 @@ func TestMakeOffsetKey(t *testing.T) {
 				off:    8,
 				size:   ObjectSize{0, 1},
 				length: 2,
-			},
+			}.ToPtr(),
 			id:   42,
 			boff: 64,
 			bend: 192,
@@ -587,14 +571,14 @@ func catchPanic(f func()) (err error) {
 func TestCompare(t *testing.T) {
 	// Offsets are in ascending order.
 	data := []offset{
-		offset{id: 0, boff: 10},
-		offset{id: 0, boff: 20},
-		offset{id: 0, boff: 30},
-		offset{id: 0, boff: 65535},
-		offset{id: 0, boff: 65536},
-		offset{id: 1, boff: 0},
-		offset{id: 1, boff: 5},
-		offset{id: 1, boff: 65536},
+		{id: 0, boff: 10},
+		{id: 0, boff: 20},
+		{id: 0, boff: 30},
+		{id: 0, boff: 65535},
+		{id: 0, boff: 65536},
+		{id: 1, boff: 0},
+		{id: 1, boff: 5},
+		{id: 1, boff: 65536},
 	}
 	formatOffset := func(o offset) string {
 		return fmt.Sprintf("{id: %d, boff: %d}", o.id, o.boff)

@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
-	"math"
 
 	"zombiezen.com/go/capnproto2/internal/packed"
 )
@@ -24,6 +23,9 @@ type Message struct {
 	CapTable []Client
 
 	segs map[SegmentID]*Segment
+
+	// Preallocated first segment. msg is non-nil once initialized.
+	firstSeg Segment
 }
 
 // NewMessage creates a message with a new root and returns the first
@@ -54,22 +56,33 @@ func NewMessage(arena Arena) (msg *Message, first *Segment, err error) {
 	return msg, first, nil
 }
 
-// Root returns the pointer to the message's root object.
+// Root is deprecated in favor of RootPtr.
 func (m *Message) Root() (Pointer, error) {
-	s, err := m.Segment(0)
-	if err != nil {
-		return nil, err
-	}
-	return s.root().At(0)
+	p, err := m.RootPtr()
+	return p.toPointer(), err
 }
 
-// SetRoot sets the message's root object to p.
+// RootPtr returns the pointer to the message's root object.
+func (m *Message) RootPtr() (Ptr, error) {
+	s, err := m.Segment(0)
+	if err != nil {
+		return Ptr{}, err
+	}
+	return s.root().PtrAt(0)
+}
+
+// SetRoot is deprecated in favor of SetRootPtr.
 func (m *Message) SetRoot(p Pointer) error {
+	return m.SetRootPtr(toPtr(p))
+}
+
+// SetRootPtr sets the message's root object to p.
+func (m *Message) SetRootPtr(p Ptr) error {
 	s, err := m.Segment(0)
 	if err != nil {
 		return err
 	}
-	return s.root().Set(0, p)
+	return s.root().SetPtr(0, p)
 }
 
 // AddCap appends a capability to the message's capability table and
@@ -105,6 +118,9 @@ func (m *Message) Segment(id SegmentID) (*Segment, error) {
 
 func (m *Message) segment(id SegmentID) *Segment {
 	if m.segs == nil {
+		if id == 0 && m.firstSeg.msg != nil {
+			return &m.firstSeg
+		}
 		return nil
 	}
 	return m.segs[id]
@@ -112,7 +128,18 @@ func (m *Message) segment(id SegmentID) *Segment {
 
 func (m *Message) setSegment(id SegmentID, data []byte) *Segment {
 	if m.segs == nil {
+		if id == 0 {
+			m.firstSeg = Segment{
+				id:   id,
+				msg:  m,
+				data: data,
+			}
+			return &m.firstSeg
+		}
 		m.segs = make(map[SegmentID]*Segment)
+		if m.firstSeg.msg != nil {
+			m.segs[0] = &m.firstSeg
+		}
 	} else if seg := m.segs[id]; seg != nil {
 		seg.data = data
 		return seg
@@ -129,6 +156,10 @@ func (m *Message) setSegment(id SegmentID, data []byte) *Segment {
 // allocSegment creates or resizes an existing segment such that
 // cap(seg.Data) - len(seg.Data) >= sz.
 func (m *Message) allocSegment(sz Size) (*Segment, error) {
+	if m.segs == nil && m.firstSeg.msg != nil {
+		m.segs = make(map[SegmentID]*Segment)
+		m.segs[0] = &m.firstSeg
+	}
 	id, data, err := m.Arena.Allocate(sz, m.segs)
 	if err != nil {
 		return nil, err
@@ -144,8 +175,8 @@ func (m *Message) allocSegment(sz Size) (*Segment, error) {
 // capacity.
 func alloc(s *Segment, sz Size) (*Segment, Address, error) {
 	sz = sz.padToWord()
-	if sz > Size(math.MaxUint32)-wordSize {
-		return nil, 0, errOverlarge
+	if sz > maxSize-wordSize {
+		return nil, 0, errOverflow
 	}
 
 	if !hasCapacity(s.data, sz) {
@@ -157,7 +188,10 @@ func alloc(s *Segment, sz Size) (*Segment, Address, error) {
 	}
 
 	addr := Address(len(s.data))
-	end := addr.addSize(sz)
+	end, ok := addr.addSize(sz)
+	if !ok {
+		return nil, 0, errOverflow
+	}
 	s.data = s.data[:end]
 	for i := addr; i < end; i++ {
 		s.data[i] = 0
@@ -247,12 +281,16 @@ func MultiSegment(b [][]byte) Arena {
 }
 
 // demuxArena slices b into a multi-segment arena.
-func demuxArena(sizes []Size, data []byte) Arena {
-	segs := make([][]byte, len(sizes))
-	for i, sz := range sizes {
+func demuxArena(hdr streamHeader, data []byte) (Arena, error) {
+	segs := make([][]byte, int(hdr.maxSegment())+1)
+	for i := range segs {
+		sz, err := hdr.segmentSize(uint32(i))
+		if err != nil {
+			return nil, err
+		}
 		segs[i], data = data[:sz:sz], data[sz:]
 	}
-	return MultiSegment(segs)
+	return MultiSegment(segs), nil
 }
 
 func (msa *multiSegmentArena) NumSegments() int64 {
@@ -313,22 +351,29 @@ func (d *Decoder) Decode() (*Message, error) {
 	}
 	maxSeg := binary.LittleEndian.Uint32(maxSegBuf[:])
 	hdrSize := streamHeaderSize(maxSeg)
-	hdr := make([]byte, hdrSize)
-	copy(hdr, maxSegBuf[:])
-	if _, err := io.ReadFull(d.r, hdr[msgHeaderSize:]); err != nil {
+	hdrBuf := make([]byte, hdrSize)
+	copy(hdrBuf, maxSegBuf[:])
+	if _, err := io.ReadFull(d.r, hdrBuf[msgHeaderSize:]); err != nil {
 		return nil, err
 	}
-	sizes, _, err := unmarshalStreamHeader(hdr)
+	hdr, _, err := parseStreamHeader(hdrBuf)
 	if err != nil {
 		return nil, err
 	}
-	total := totalSize(sizes)
+	total, err := hdr.totalSize()
+	if err != nil {
+		return nil, err
+	}
 	// TODO(light): size check
 	buf := make([]byte, int(total))
 	if _, err := io.ReadFull(d.r, buf); err != nil {
 		return nil, err
 	}
-	return &Message{Arena: demuxArena(sizes, buf)}, nil
+	arena, err := demuxArena(hdr, buf)
+	if err != nil {
+		return nil, err
+	}
+	return &Message{Arena: arena}, nil
 }
 
 // Unmarshal reads an unpacked serialized stream into a message.  No
@@ -338,24 +383,43 @@ func Unmarshal(data []byte) (*Message, error) {
 	if len(data) == 0 {
 		return nil, io.EOF
 	}
-	sizes, data, err := unmarshalStreamHeader(data)
+	hdr, data, err := parseStreamHeader(data)
 	if err != nil {
 		return nil, err
 	}
-	if tot := totalSize(sizes); tot > uint64(len(data)) {
+	if tot, err := hdr.totalSize(); err != nil {
+		return nil, err
+	} else if tot > uint64(len(data)) {
 		return nil, io.ErrUnexpectedEOF
 	}
-	return &Message{Arena: demuxArena(sizes, data)}, nil
+	arena, err := demuxArena(hdr, data)
+	if err != nil {
+		return nil, err
+	}
+	return &Message{Arena: arena}, nil
 }
 
-// MustUnmarshalRoot reads an unpacked serialized stream and returns its
-// root pointer.  If there is any error, it panics.
+// MustUnmarshalRoot is deprecated in favor of MustUnmarshalRootPtr.
 func MustUnmarshalRoot(data []byte) Pointer {
 	msg, err := Unmarshal(data)
 	if err != nil {
 		panic(err)
 	}
 	p, err := msg.Root()
+	if err != nil {
+		panic(err)
+	}
+	return p
+}
+
+// MustUnmarshalRootPtr reads an unpacked serialized stream and returns
+// its root pointer.  If there is any error, it panics.
+func MustUnmarshalRootPtr(data []byte) Ptr {
+	msg, err := Unmarshal(data)
+	if err != nil {
+		panic(err)
+	}
+	p, err := msg.RootPtr()
 	if err != nil {
 		panic(err)
 	}
@@ -436,7 +500,7 @@ func (m *Message) segmentSizes() ([]Size, error) {
 		}
 		n := len(s.data)
 		if int64(n) > int64(maxSize) {
-			return sizes[:i], errOverlarge
+			return sizes[:i], errSegmentTooLarge
 		}
 		sizes[i] = Size(n)
 	}
@@ -507,24 +571,47 @@ func marshalStreamHeader(b []byte, sizes []Size) {
 	}
 }
 
-// unmarshalStreamHeader parses the header of the stream framing format.
-func unmarshalStreamHeader(data []byte) (sizes []Size, tail []byte, err error) {
+type streamHeader struct {
+	b []byte
+}
+
+// parseStreamHeader parses the header of the stream framing format.
+func parseStreamHeader(data []byte) (h streamHeader, tail []byte, err error) {
 	if len(data) < streamHeaderSize(0) {
-		return nil, nil, io.ErrUnexpectedEOF
+		return streamHeader{}, nil, io.ErrUnexpectedEOF
 	}
 	maxSeg := binary.LittleEndian.Uint32(data)
 	// TODO(light): check int
 	hdrSize := streamHeaderSize(maxSeg)
 	if len(data) < hdrSize {
-		return nil, nil, io.ErrUnexpectedEOF
+		return streamHeader{}, nil, io.ErrUnexpectedEOF
 	}
-	n := int(maxSeg + 1)
-	sizes = make([]Size, n)
-	for i := 0; i < n; i++ {
-		s := binary.LittleEndian.Uint32(data[msgHeaderSize+i*segHeaderSize:])
-		sizes[i] = wordSize.times(int32(s))
+	return streamHeader{b: data}, data[hdrSize:], nil
+}
+
+func (h streamHeader) maxSegment() uint32 {
+	return binary.LittleEndian.Uint32(h.b)
+}
+
+func (h streamHeader) segmentSize(i uint32) (Size, error) {
+	s := binary.LittleEndian.Uint32(h.b[msgHeaderSize+i*segHeaderSize:])
+	sz, ok := wordSize.times(int32(s))
+	if !ok {
+		return 0, errSegmentTooLarge
 	}
-	return sizes, data[hdrSize:], nil
+	return sz, nil
+}
+
+func (h streamHeader) totalSize() (uint64, error) {
+	var sum uint64
+	for i := uint64(0); i <= uint64(h.maxSegment()); i++ {
+		x, err := h.segmentSize(uint32(i))
+		if err != nil {
+			return sum, err
+		}
+		sum += uint64(x)
+	}
+	return sum, nil
 }
 
 func hasCapacity(b []byte, sz Size) bool {
@@ -555,5 +642,6 @@ var (
 	errHasData            = errors.New("capnp: NewMessage called on arena with data")
 	errTooMuchData        = errors.New("capnp: too much data in stream")
 	errSegmentTooSmall    = errors.New("capnp: segment too small")
+	errSegmentTooLarge    = errors.New("capnp: segment too large")
 	errStreamHeader       = errors.New("capnp: invalid stream header")
 )

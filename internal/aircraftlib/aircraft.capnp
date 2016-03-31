@@ -305,3 +305,24 @@ struct StackingB {
 interface CallSequence {
   getNumber @0 () -> (n :UInt32);
 }
+
+# test defaults
+
+struct Defaults {
+  text @0 :Text = "foo";
+  data @1 :Data = "bar";
+  float @2 :Float32 = 3.14;
+  int @3 :Int32 = -123;
+  uint @4 :UInt32 = 42;
+}
+
+# benchmarks
+
+struct BenchmarkA {
+  name     @0 :Text;
+  birthDay @1 :Int64;
+  phone    @2 :Text;
+  siblings @3 :Int32;
+  spouse   @4 :Bool;
+  money    @5 :Float64;
+}

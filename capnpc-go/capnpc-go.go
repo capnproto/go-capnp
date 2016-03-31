@@ -471,21 +471,27 @@ func (n *node) writeValue(w io.Writer, t Type, v Value) {
 
 	case Type_Which_structGroup:
 		assert(v.Which() == Value_Which_structField, "expected struct value")
-		c := g_imports.capnp()
 		data, _ := v.StructField()
-		fmt.Fprintf(w, "%s{Struct: %s.ToStruct(%s.MustUnmarshalRoot(%v))}", findNode(t.StructGroup().TypeId()).RemoteName(n), c, c, copyData(data))
+		templates.ExecuteTemplate(w, "structValue", structValueTemplateParams{
+			Node:  n,
+			Typ:   findNode(t.StructGroup().TypeId()),
+			Value: copyData(data),
+		})
 
 	case Type_Which_anyPointer:
 		assert(v.Which() == Value_Which_anyPointer, "expected pointer value")
 		data, _ := v.AnyPointer()
-		fmt.Fprintf(w, "%s.MustUnmarshalRoot(%v)", g_imports.capnp(), copyData(data))
+		templates.ExecuteTemplate(w, "pointerValue", structValueTemplateParams{
+			Value: copyData(data),
+		})
 
 	case Type_Which_list:
 		assert(v.Which() == Value_Which_list, "expected list value")
-		c := g_imports.capnp()
-		typ := n.fieldType(t, new(annotations))
 		data, _ := v.List()
-		fmt.Fprintf(w, "%s{List: %s.ToList(%s.MustUnmarshalRoot(%v))}", typ, c, c, copyData(data))
+		templates.ExecuteTemplate(w, "listValue", listValueTemplateParams{
+			Typ:   n.fieldType(t, new(annotations)),
+			Value: copyData(data),
+		})
 	}
 }
 
@@ -583,7 +589,7 @@ func (n *node) defineField(w io.Writer, f field) {
 			structUintFieldParams: structUintFieldParams{
 				structFieldParams: params,
 				Bits:              intbits(t.Which()),
-				Default:           uint64(intFieldDefault(t, def)),
+				Default:           uint64(intFieldDefaultMask(t, def)),
 			},
 		})
 
@@ -775,11 +781,13 @@ func (n *node) fieldType(t Type, ann *annotations) string {
 	return ""
 }
 
-func intFieldDefault(t Type, def Value) int64 {
+func intFieldDefaultMask(t Type, def Value) uint64 {
 	if def.Which() == Value_Which_void {
 		return 0
 	}
-	return intValue(t, def)
+	v := intValue(t, def)
+	mask := uint64(1)<<intbits(t.Which()) - 1
+	return uint64(v) & mask
 }
 
 func intValue(t Type, v Value) int64 {
@@ -825,7 +833,7 @@ func uintValue(t Type, v Value) uint64 {
 	panic("unreachable")
 }
 
-func intbits(t Type_Which) int {
+func intbits(t Type_Which) uint {
 	switch t {
 	case Type_Which_uint8, Type_Which_int8:
 		return 8

@@ -2,6 +2,9 @@
 Package capnp is a Cap'n Proto library for Go.
 https://capnproto.org/
 
+Read the Getting Started guide for a tutorial on how to use this
+package. https://github.com/zombiezen/go-capnproto2/wiki/Getting-Started
+
 Generating code
 
 capnpc-go provides the compiler backend for capnp.
@@ -42,19 +45,31 @@ organized in a tree of objects, with the root always being a struct (as
 opposed to a list or primitive).  Messages can be read from and written
 to a stream.
 
+The Message and Segment types are the main types that application code
+will use from this package.  The Message type has methods for marshaling
+and unmarshaling its segments to the wire format.  If the application
+needs to read or write from a stream, it should use the Encoder and
+Decoder types.
+
 Pointers
 
-The interface for accessing a Cap'n Proto object is Pointer.  This can
-refer to a struct, a list, or an interface.  Pointers have value
-semantics and refer to data in a single segment.  All of the concrete
-pointer types have a notion of "valid".  An invalid pointer will return
-the default value from any accessor and panic when any setter is called.
+The type for a generic reference to a Cap'n Proto object is Ptr.  A Ptr
+can refer to a struct, a list, or an interface.  Ptr, Struct, List, and
+Interface (the pointer types) have value semantics and refer to data in
+a single segment.  All of the pointer types have a notion of "valid".
+An invalid pointer will return the default value from any accessor and
+panic when any setter is called.
+
+In previous versions of this package, the Pointer interface was used
+instead of the Ptr struct.  This interface and functions that use it are
+now deprecated.  See https://github.com/zombiezen/go-capnproto2/wiki/New-Ptr-Type
+for details about this API change.
 
 Data accessors and setters (i.e. struct primitive fields and list
 elements) do not return errors, but pointer accessors and setters do.
-There are a reasons that a read or write of a pointer can fail, but the
-most common are bad pointers or allocation failures.  For accessors, an
-invalid object will be returned in case of an error.
+There are a few reasons that a read or write of a pointer can fail, but
+the most common are bad pointers or allocation failures.  For accessors,
+an invalid object will be returned in case of an error.
 
 Since Go doesn't have generics, wrapper types provide type safety on
 lists.  This package provides lists of basic types, and capnpc-go
@@ -103,6 +118,9 @@ capnpc-go will generate:
 	// if the pointer goes beyond the segment's range, the segment fails
 	// to load, or the pointer recursion limit has been reached.
 	func (s Foo) Bar() (Foo, error)
+
+	// HasBar reports whether the bar field was initialized (non-null).
+	func (s Foo) HasBar() bool
 
 	// SetBar sets the value of the bar field to v.
 	func (s Foo) SetBar(v Foo) error

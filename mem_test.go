@@ -228,7 +228,7 @@ func TestSingleSegmentAllocate(t *testing.T) {
 				buf := incrementingData(24)
 				buf = buf[:16]
 				segs := map[SegmentID]*Segment{
-					0: &Segment{id: 0, data: buf},
+					0: {id: 0, data: buf},
 				}
 				return SingleSegment(buf), segs
 			},
@@ -241,7 +241,7 @@ func TestSingleSegmentAllocate(t *testing.T) {
 			init: func() (Arena, map[SegmentID]*Segment) {
 				buf := incrementingData(32)
 				segs := map[SegmentID]*Segment{
-					0: &Segment{id: 0, data: buf[:24]},
+					0: {id: 0, data: buf[:24]},
 				}
 				return SingleSegment(buf[:16]), segs
 			},
@@ -254,7 +254,7 @@ func TestSingleSegmentAllocate(t *testing.T) {
 			init: func() (Arena, map[SegmentID]*Segment) {
 				buf := incrementingData(24)
 				segs := map[SegmentID]*Segment{
-					0: &Segment{id: 0, data: buf},
+					0: {id: 0, data: buf},
 				}
 				return SingleSegment(buf[:16]), segs
 			},
@@ -335,7 +335,7 @@ func TestMultiSegmentAllocate(t *testing.T) {
 				buf := incrementingData(24)
 				buf = buf[:16]
 				segs := map[SegmentID]*Segment{
-					0: &Segment{id: 0, data: buf},
+					0: {id: 0, data: buf},
 				}
 				return MultiSegment([][]byte{buf}), segs
 			},
@@ -348,7 +348,7 @@ func TestMultiSegmentAllocate(t *testing.T) {
 			init: func() (Arena, map[SegmentID]*Segment) {
 				buf := incrementingData(32)
 				segs := map[SegmentID]*Segment{
-					0: &Segment{id: 0, data: buf[:24]},
+					0: {id: 0, data: buf[:24]},
 				}
 				return MultiSegment([][]byte{buf[:16]}), segs
 			},
@@ -361,7 +361,7 @@ func TestMultiSegmentAllocate(t *testing.T) {
 			init: func() (Arena, map[SegmentID]*Segment) {
 				buf := incrementingData(24)
 				segs := map[SegmentID]*Segment{
-					0: &Segment{id: 0, data: buf},
+					0: {id: 0, data: buf},
 				}
 				return MultiSegment([][]byte{buf[:16]}), segs
 			},

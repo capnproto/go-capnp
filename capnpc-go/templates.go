@@ -95,12 +95,11 @@ func NewRoot{{.Node.Name}}(s *{{capnp}}.Segment) ({{.Node.Name}}, error) {
 }
 
 func ReadRoot{{.Node.Name}}(msg *{{capnp}}.Message) ({{.Node.Name}}, error) {
-	root, err := msg.Root()
+	root, err := msg.RootPtr()
 	if err != nil {
 		return {{.Node.Name}}{}, err
 	}
-	st := {{capnp}}.ToStruct(root)
-	return {{.Node.Name}}{st}, nil
+	return {{.Node.Name}}{root.Struct()}, nil
 }
 {{end}}
 
@@ -115,6 +114,14 @@ func (s {{.Node.Name}}) Which() {{.Node.Name}}_Which {
 
 
 {{define "settag"}}{{if hasDiscriminant .Field}}s.Struct.SetUint16({{discriminantOffset .Node}}, {{.Field.DiscriminantValue}}){{end}}{{end}}
+
+
+{{define "hasfield"}}
+func (s {{.Node.Name}}) Has{{.Field.Name|title}}() bool {
+	p, err := s.Struct.Ptr({{.Field.Slot.Offset}})
+	return p.IsValid() || err != nil 
+}
+{{end}}
 
 
 {{define "structGroup"}}func (s {{.Node.Name}}) {{.Field.Name|title}}() {{.Group.Name}} { return {{.Group.Name}}(s) }
@@ -161,7 +168,7 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() {{.ReturnType}} {
 
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.ReturnType}}) {
 	{{template "settag" .}}
-	s.Struct.SetUint{{.Bits}}({{.Offset}}, uint{{.Bits}}(v{{with .Default}}^{{.}}{{end}}))
+	s.Struct.SetUint{{.Bits}}({{.Offset}}, uint{{.Bits}}(v){{with .Default}}^{{.}}{{end}})
 }
 {{end}}
 
@@ -180,14 +187,28 @@ func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v float{{.Bits}}) {
 
 {{define "structTextField"}}
 func (s {{.Node.Name}}) {{.Field.Name|title}}() (string, error) {
-	p, err := s.Struct.Pointer({{.Field.Slot.Offset}})
+	p, err := s.Struct.Ptr({{.Field.Slot.Offset}})
 	if err != nil {
 		return "", err
 	}
 	{{with .Default}}
-	return {{capnp}}.ToTextDefault(p, {{printf "%q" .}})
+	return p.TextDefault({{printf "%q" .}}), nil
 	{{else}}
-	return {{capnp}}.ToText(p), nil
+	return p.Text(), nil
+	{{end}}
+}
+
+{{template "hasfield" .}}
+
+func (s {{.Node.Name}}) {{.Field.Name|title}}Bytes() ([]byte, error) {
+	p, err := s.Struct.Ptr({{.Field.Slot.Offset}})
+	if err != nil {
+		return nil, err
+	}
+	{{with .Default}}
+	return p.DataDefault([]byte({{printf "%q" .}})), nil
+	{{else}}
+	return p.Data(), nil
 	{{end}}
 }
 
@@ -197,24 +218,25 @@ func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v string) error {
 	if err != nil {
 		return err
 	}
-	return s.Struct.SetPointer({{.Field.Slot.Offset}}, t)
+	return s.Struct.SetPtr({{.Field.Slot.Offset}}, t.List.ToPtr())
 }
 {{end}}
 
 
 {{define "structDataField"}}
 func (s {{.Node.Name}}) {{.Field.Name|title}}() ({{.FieldType}}, error) {
-	p, err := s.Struct.Pointer({{.Field.Slot.Offset}})
+	p, err := s.Struct.Ptr({{.Field.Slot.Offset}})
 	if err != nil {
 		return nil, err
 	}
 	{{with .Default}}
-	v, err := {{capnp}}.ToDataDefault(p, {{printf "%#v" .}})
-	return {{.FieldType}}(v), err
+	return {{$.FieldType}}(p.DataDefault({{printf "%#v" .}})), nil
 	{{else}}
-	return {{.FieldType}}({{capnp}}.ToData(p)), nil
+	return {{.FieldType}}(p.Data()), nil
 	{{end}}
 }
+
+{{template "hasfield" .}}
 
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.FieldType}}) error {
 	{{template "settag" .}}
@@ -222,31 +244,33 @@ func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.FieldType}}) error {
 	if err != nil {
 		return err
 	}
-	return s.Struct.SetPointer({{.Field.Slot.Offset}}, d)
+	return s.Struct.SetPtr({{.Field.Slot.Offset}}, d.List.ToPtr())
 }
 {{end}}
 
 
 {{define "structStructField"}}
 func (s {{.Node.Name}}) {{.Field.Name|title}}() ({{.FieldType}}, error) {
-	p, err := s.Struct.Pointer({{.Field.Slot.Offset}})
+	p, err := s.Struct.Ptr({{.Field.Slot.Offset}})
 	if err != nil {
 		return {{.FieldType}}{}, err
 	}
 	{{if .Default.IsValid}}
-	ss, err := {{capnp}}.ToStructDefault(p, {{.Default}})
+	ss, err := p.StructDefault({{.Default}})
 	if err != nil {
 		return {{.FieldType}}{}, err
 	}
-	{{else}}
-	ss := {{capnp}}.ToStruct(p)
-	{{end}}
 	return {{.FieldType}}{Struct: ss}, nil
+	{{else}}
+	return {{.FieldType}}{Struct: p.Struct()}, nil
+	{{end}}
 }
+
+{{template "hasfield" .}}
 
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.FieldType}}) error {
 	{{template "settag" .}}
-	return s.Struct.SetPointer({{.Field.Slot.Offset}}, v.Struct)
+	return s.Struct.SetPtr({{.Field.Slot.Offset}}, v.Struct.ToPtr())
 }
 
 // New{{.Field.Name|title}} sets the {{.Field.Name}} field to a newly
@@ -257,7 +281,7 @@ func (s {{.Node.Name}}) New{{.Field.Name|title}}() ({{.FieldType}}, error) {
 	if err != nil {
 		return {{.FieldType}}{}, err
 	}
-	err = s.Struct.SetPointer({{.Field.Slot.Offset}}, ss)
+	err = s.Struct.SetPtr({{.Field.Slot.Offset}}, ss.Struct.ToPtr())
 	return ss, err
 }
 {{end}}
@@ -276,47 +300,69 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() ({{capnp}}.Pointer, error) {
 	{{end}}
 }
 
+{{template "hasfield" .}}
+
+func (s {{.Node.Name}}) {{.Field.Name|title}}Ptr() ({{capnp}}.Ptr, error) {
+	{{if .Default.IsValid}}
+	p, err := s.Struct.Ptr({{.Field.Slot.Offset}})
+	if err != nil {
+		return nil, err
+	}
+	return p.Default({{.Default}})
+	{{else}}
+	return s.Struct.Ptr({{.Field.Slot.Offset}})
+	{{end}}
+}
+
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{capnp}}.Pointer) error {
 	{{template "settag" .}}
 	return s.Struct.SetPointer({{.Field.Slot.Offset}}, v)
+}
+
+func (s {{.Node.Name}}) Set{{.Field.Name|title}}Ptr(v {{capnp}}.Ptr) error {
+	{{template "settag" .}}
+	return s.Struct.SetPtr({{.Field.Slot.Offset}}, v)
 }
 {{end}}
 
 
 {{define "structListField"}}
 func (s {{.Node.Name}}) {{.Field.Name|title}}() ({{.FieldType}}, error) {
-	p, err := s.Struct.Pointer({{.Field.Slot.Offset}})
+	p, err := s.Struct.Ptr({{.Field.Slot.Offset}})
 	if err != nil {
 		return {{.FieldType}}{}, err
 	}
 	{{if .Default.IsValid}}
-	l, err := {{capnp}}.ToListDefault(p, {{.Default}})
+	l, err := p.ListDefault({{.Default}})
 	if err != nil {
 		return {{.FieldType}}{}, err
 	}
-	{{else}}
-	l := {{capnp}}.ToList(p)
-	{{end}}
 	return {{.FieldType}}{List: l}, nil
+	{{else}}
+	return {{.FieldType}}{List: p.List()}, nil
+	{{end}}
 }
+
+{{template "hasfield" .}}
 
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.FieldType}}) error {
 	{{template "settag" .}}
-	return s.Struct.SetPointer({{.Field.Slot.Offset}}, v.List)
+	return s.Struct.SetPtr({{.Field.Slot.Offset}}, v.List.ToPtr())
 }
 {{end}}
 
 
 {{define "structInterfaceField"}}
 func (s {{.Node.Name}}) {{.Field.Name|title}}() {{.FieldType}} {
-	p, err := s.Struct.Pointer({{.Field.Slot.Offset}})
+	p, err := s.Struct.Ptr({{.Field.Slot.Offset}})
 	if err != nil {
 		{{/* Valid interface pointers never return errors. */}}
 		return {{.FieldType}}{}
 	}
-	c := {{capnp}}.ToInterface(p).Client()
-	return {{.FieldType}}{Client: c}
+	return {{.FieldType}}{Client: p.Interface().Client()}
 }
+
+{{template "hasfield" .}}
 
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.FieldType}}) error {
 	{{template "settag" .}}
@@ -329,7 +375,7 @@ func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.FieldType}}) error {
 	if v.Client != nil {
 		in = {{capnp}}.NewInterface(seg, seg.Message().AddCap(v.Client))
 	}
-	return s.Struct.SetPointer({{.Field.Slot.Offset}}, in)
+	return s.Struct.SetPtr({{.Field.Slot.Offset}}, in.ToPtr())
 }
 {{end}}
 
@@ -482,6 +528,12 @@ type {{$.Node.Name}}_{{.Name}} struct {
 			InterfaceName: {{.Interface.DisplayName|printf "%q"}},
 			MethodName: {{.OriginalName|printf "%q"}},
 {{end}}
+
+{{define "structValue"}}{{.Typ.RemoteName .Node}}{Struct: {{capnp}}.MustUnmarshalRootPtr({{.Value}}).Struct()}{{end}}
+
+{{define "pointerValue"}}{{capnp}}.MustUnmarshalRootPtr({{.Value}}){{end}}
+
+{{define "listValue"}}{{.Typ}}{List: {{capnp}}.MustUnmarshalRootPtr({{.Value}}).List()}{{end}}
 `))
 
 type annotationParams struct {
@@ -532,7 +584,7 @@ type structBoolFieldParams struct {
 
 type structUintFieldParams struct {
 	structFieldParams
-	Bits    int
+	Bits    uint
 	Default uint64
 }
 
@@ -617,4 +669,19 @@ type interfaceServerTemplateParams struct {
 	Node        *node
 	Annotations *annotations
 	Methods     []interfaceMethod
+}
+
+type structValueTemplateParams struct {
+	Node  *node
+	Typ   *node
+	Value staticDataRef
+}
+
+type pointerValueTemplateParams struct {
+	Value staticDataRef
+}
+
+type listValueTemplateParams struct {
+	Typ   string
+	Value staticDataRef
 }

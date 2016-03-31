@@ -111,7 +111,7 @@ func extractRPCClient(client capnp.Client) capnp.Client {
 func extractRPCClientFromPipeline(ans capnp.Answer, transform []capnp.PipelineOp) capnp.Client {
 	if capnp.IsFixedAnswer(ans) {
 		s, err := ans.Struct()
-		return clientFromResolution(transform, capnp.Pointer(s), err)
+		return clientFromResolution(transform, s.ToPtr(), err)
 	}
 	switch a := ans.(type) {
 	case *fulfiller.Fulfiller:
@@ -121,7 +121,7 @@ func extractRPCClientFromPipeline(ans capnp.Answer, transform []capnp.PipelineOp
 			return nil
 		}
 		s, err := ap.Struct()
-		return clientFromResolution(transform, capnp.Pointer(s), err)
+		return clientFromResolution(transform, s.ToPtr(), err)
 	case *question:
 		_, obj, err, ok := a.peek()
 		if !ok {

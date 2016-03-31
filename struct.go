@@ -32,14 +32,13 @@ func NewRootStruct(s *Segment, sz ObjectSize) (Struct, error) {
 	if err != nil {
 		return st, err
 	}
-	if err := s.msg.SetRoot(st); err != nil {
+	if err := s.msg.SetRootPtr(st.ToPtr()); err != nil {
 		return st, err
 	}
 	return st, nil
 }
 
-// ToStruct attempts to convert p into a struct.  If p is not a valid
-// struct, then it returns an invalid Struct.
+// ToStruct is deprecated in favor of Ptr.Struct.
 func ToStruct(p Pointer) Struct {
 	if !IsValid(p) {
 		return Struct{}
@@ -51,32 +50,29 @@ func ToStruct(p Pointer) Struct {
 	return s
 }
 
-// ToStructDefault attempts to convert p into a struct, reading the
-// default value from def if p is not a struct.
+// ToStructDefault is deprecated in favor of Ptr.StructDefault.
 func ToStructDefault(p Pointer, def []byte) (Struct, error) {
-	fallback := func() (Struct, error) {
-		if def == nil {
-			return Struct{}, nil
-		}
-		defp, err := unmarshalDefault(def)
-		if err != nil {
-			return Struct{}, err
-		}
-		return ToStruct(defp), nil
+	return toPtr(p).StructDefault(def)
+}
+
+// ToPtr converts the struct to a generic pointer.
+func (p Struct) ToPtr() Ptr {
+	return Ptr{
+		seg:   p.seg,
+		off:   p.off,
+		size:  p.size,
+		flags: structPtrFlag(p.flags),
 	}
-	if !IsValid(p) {
-		return fallback()
-	}
-	s, ok := p.underlying().(Struct)
-	if !ok {
-		return fallback()
-	}
-	return s, nil
 }
 
 // Segment returns the segment this pointer came from.
 func (p Struct) Segment() *Segment {
 	return p.seg
+}
+
+// IsValid returns whether the struct is valid.
+func (p Struct) IsValid() bool {
+	return p.seg != nil
 }
 
 // Address returns the address the pointer references.
@@ -99,16 +95,27 @@ func (p Struct) underlying() Pointer {
 	return p
 }
 
-// Pointer returns the i'th pointer in the struct.
+// Pointer is deprecated in favor of Ptr.
 func (p Struct) Pointer(i uint16) (Pointer, error) {
+	pp, err := p.Ptr(i)
+	return pp.toPointer(), err
+}
+
+// Ptr returns the i'th pointer in the struct.
+func (p Struct) Ptr(i uint16) (Ptr, error) {
 	if p.seg == nil || i >= p.size.PointerCount {
-		return nil, nil
+		return Ptr{}, nil
 	}
 	return p.seg.readPtr(p.pointerAddress(i))
 }
 
-// SetPointer sets the i'th pointer in the struct to src.
+// SetPointer is deprecated in favor of SetPtr.
 func (p Struct) SetPointer(i uint16, src Pointer) error {
+	return p.SetPtr(i, toPtr(src))
+}
+
+// SetPtr sets the i'th pointer in the struct to src.
+func (p Struct) SetPtr(i uint16, src Ptr) error {
 	if p.seg == nil || i >= p.size.PointerCount {
 		panic(errOutOfBounds)
 	}
@@ -116,8 +123,10 @@ func (p Struct) SetPointer(i uint16, src Pointer) error {
 }
 
 func (p Struct) pointerAddress(i uint16) Address {
-	ptrStart := p.off.addSize(p.size.DataSize)
-	return ptrStart.element(int32(i), wordSize)
+	// Struct already had bounds check
+	ptrStart, _ := p.off.addSize(p.size.DataSize)
+	a, _ := ptrStart.element(int32(i), wordSize)
+	return a
 }
 
 // bitInData reports whether bit is inside p's data section.
@@ -267,13 +276,13 @@ func copyStruct(cc copyContext, dst, src Struct) error {
 	// version handling: we ignore any extra-newer-pointers in src,
 	// i.e. the case when srcPtrSize > dstPtrSize, by only
 	// running j over the size of dstPtrSize, the destination size.
-	srcPtrSect := src.off.addSize(src.size.DataSize)
-	dstPtrSect := dst.off.addSize(dst.size.DataSize)
+	srcPtrSect, _ := src.off.addSize(src.size.DataSize)
+	dstPtrSect, _ := dst.off.addSize(dst.size.DataSize)
 	numSrcPtrs := src.size.PointerCount
 	numDstPtrs := dst.size.PointerCount
 	for j := uint16(0); j < numSrcPtrs && j < numDstPtrs; j++ {
-		srcAddr := srcPtrSect.element(int32(j), wordSize)
-		dstAddr := dstPtrSect.element(int32(j), wordSize)
+		srcAddr, _ := srcPtrSect.element(int32(j), wordSize)
+		dstAddr, _ := dstPtrSect.element(int32(j), wordSize)
 		m, err := src.seg.readPtr(srcAddr)
 		if err != nil {
 			return err
@@ -285,7 +294,7 @@ func copyStruct(cc copyContext, dst, src Struct) error {
 	}
 	for j := numSrcPtrs; j < numDstPtrs; j++ {
 		// destination p is a newer version than source so these extra new pointer fields in p must be zeroed.
-		addr := dstPtrSect.element(int32(j), wordSize)
+		addr, _ := dstPtrSect.element(int32(j), wordSize)
 		dst.seg.writeRawPointer(addr, 0)
 	}
 	// Nothing more here: so any other pointers in srcPtrSize beyond
