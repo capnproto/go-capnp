@@ -1867,7 +1867,7 @@ func BenchmarkUnmarshal_Reuse(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		*ta = testArena(data[r.Intn(len(data))][8:])
-		*msg = capnp.Message{Arena: arena}
+		msg.Reset(arena)
 		a, _ := air.ReadRootBenchmarkA(msg)
 		unmarshalA(a)
 	}
@@ -1901,7 +1901,7 @@ func TestPointerTraverseDefense(t *testing.T) {
 		TraverseLimit: limit * 8,
 	}
 
-	for i := 0; i < limit-1; i++ {
+	for i := 0; i < limit; i++ {
 		_, err := msg.RootPtr()
 		if err != nil {
 			t.Fatal("RootPtr:", err)
@@ -1909,7 +1909,7 @@ func TestPointerTraverseDefense(t *testing.T) {
 	}
 
 	if _, err := msg.RootPtr(); err == nil {
-		t.Fatalf("deref %d did not fail as expected", limit)
+		t.Fatalf("deref %d did not fail as expected", limit+1)
 	}
 }
 

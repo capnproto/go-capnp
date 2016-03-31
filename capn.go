@@ -114,8 +114,17 @@ func (s *Segment) lookupSegment(id SegmentID) (*Segment, error) {
 	return s.msg.Segment(id)
 }
 
-func (s *Segment) readPtr(off Address) (Ptr, error) {
-	var err error
+func (s *Segment) readPtr(off Address) (ptr Ptr, err error) {
+	defer func(orig *Message) {
+		if !ptr.IsValid() || s.msg != orig {
+			return
+		}
+		if !s.msg.ReadLimiter().canRead(ptr.limitSize()) {
+			if err == nil {
+				ptr, err = Ptr{}, errReadLimit
+			}
+		}
+	}(s.msg)
 	val := s.readRawPointer(off)
 	s, off, val, err = s.resolveFarPointer(off, val)
 	if err != nil {
@@ -478,6 +487,7 @@ var (
 	errBadTag         = errors.New("capnp: invalid tag word")
 	errOtherPointer   = errors.New("capnp: unknown pointer type")
 	errObjectSize     = errors.New("capnp: invalid object size")
+	errReadLimit      = errors.New("capnp: read traversal limit reached")
 )
 
 var (

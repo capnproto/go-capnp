@@ -9,10 +9,21 @@ import (
 	"zombiezen.com/go/capnproto2/internal/packed"
 )
 
+// Default security limits.
+const (
+	defaultTraverseLimit = 64 << 20
+	defaultDepthLimit    = 64
+)
+
 // A Message is a tree of Cap'n Proto objects, split into one or more
 // segments of contiguous memory.  The only required field is Arena.
 // A Message is safe to read from multiple goroutines.
 type Message struct {
+	// rlimit must be first so that it is 64-bit aligned.
+	// See sync/atomic docs.
+	rlimit     ReadLimiter
+	rlimitInit sync.Once
+
 	Arena Arena
 
 	// CapTable is the indexed list of the clients referenced in the
@@ -73,6 +84,19 @@ func NewMessage(arena Arena) (msg *Message, first *Segment, err error) {
 	return msg, first, nil
 }
 
+// Reset resets a message to use a different arena, allowing a single
+// Message to be reused for reading multiple messages.  This invalidates
+// any existing pointers in the Message, so use with caution.
+func (m *Message) Reset(arena Arena) {
+	m.mu.Lock()
+	m.Arena = arena
+	m.CapTable = nil
+	m.segs = nil
+	m.firstSeg = Segment{}
+	m.mu.Unlock()
+	m.ReadLimiter().Reset(m.TraverseLimit)
+}
+
 // Root is deprecated in favor of RootPtr.
 func (m *Message) Root() (Pointer, error) {
 	p, err := m.RootPtr()
@@ -108,6 +132,19 @@ func (m *Message) AddCap(c Client) CapabilityID {
 	n := CapabilityID(len(m.CapTable))
 	m.CapTable = append(m.CapTable, c)
 	return n
+}
+
+// ReadLimiter returns the message's read limiter.  Useful if you want
+// to reset the traversal limit while reading.
+func (m *Message) ReadLimiter() *ReadLimiter {
+	m.rlimitInit.Do(func() {
+		if m.TraverseLimit == 0 {
+			m.rlimit.limit = defaultTraverseLimit
+		} else {
+			m.rlimit.limit = m.TraverseLimit
+		}
+	})
+	return &m.rlimit
 }
 
 // NumSegments returns the number of segments in the message.
