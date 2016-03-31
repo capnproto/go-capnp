@@ -1904,7 +1904,7 @@ func TestPointerTraverseDefense(t *testing.T) {
 	for i := 0; i < limit; i++ {
 		_, err := msg.RootPtr()
 		if err != nil {
-			t.Fatal("RootPtr:", err)
+			t.Fatalf("iteration %d RootPtr: %v", i, err)
 		}
 	}
 

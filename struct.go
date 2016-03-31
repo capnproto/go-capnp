@@ -88,6 +88,15 @@ func (p Struct) HasData() bool {
 	return !p.size.isZero()
 }
 
+// readSize returns the struct's size for the purposes of read limit
+// accounting.
+func (p Struct) readSize() Size {
+	if p.seg == nil {
+		return 0
+	}
+	return p.size.totalSize()
+}
+
 // value returns a raw struct pointer.
 func (p Struct) value(paddr Address) rawPointer {
 	off := makePointerOffset(paddr, p.off)

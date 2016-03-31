@@ -200,27 +200,6 @@ func (p Ptr) address() Address {
 	panic("ptr not a valid struct or list")
 }
 
-// limitSize returns the pointer's size for the purposes of read limit
-// accounting.
-func (p Ptr) limitSize() Size {
-	switch p.flags.ptrType() {
-	case structPtrType:
-		return p.size.totalSize()
-	case listPtrType:
-		elem := p.size.totalSize()
-		if elem == 0 {
-			elem = wordSize
-		}
-		sz, ok := elem.times(int32(p.lenOrCap))
-		if !ok {
-			return maxSize
-		}
-		return sz
-	default:
-		return 0
-	}
-}
-
 // Pointer is deprecated in favor of Ptr.
 type Pointer interface {
 	// Segment returns the segment this pointer points into.

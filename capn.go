@@ -116,16 +116,6 @@ func (s *Segment) lookupSegment(id SegmentID) (*Segment, error) {
 }
 
 func (s *Segment) readPtr(off Address, depthLimit uint) (ptr Ptr, err error) {
-	defer func(orig *Message) {
-		if !ptr.IsValid() || s.msg != orig {
-			return
-		}
-		if !s.msg.ReadLimiter().canRead(ptr.limitSize()) {
-			if err == nil {
-				ptr, err = Ptr{}, errReadLimit
-			}
-		}
-	}(s.msg)
 	val := s.readRawPointer(off)
 	s, off, val, err = s.resolveFarPointer(off, val)
 	if err != nil {
@@ -142,76 +132,25 @@ func (s *Segment) readPtr(off Address, depthLimit uint) (ptr Ptr, err error) {
 	// using 32 bit maths as bits or bytes will overflow.
 	switch val.pointerType() {
 	case structPointer:
-		addr, ok := val.offset().resolve(off)
-		if !ok {
-			return Ptr{}, errPointerAddress
+		sp, err := s.readStructPtr(off, val)
+		if err != nil {
+			return Ptr{}, err
 		}
-		sz := val.structSize()
-		if !s.regionInBounds(addr, sz.totalSize()) {
-			return Ptr{}, errPointerAddress
+		if !s.msg.ReadLimiter().canRead(sp.readSize()) {
+			return Ptr{}, errReadLimit
 		}
-		return Struct{
-			seg:        s,
-			off:        addr,
-			size:       sz,
-			depthLimit: depthLimit - 1,
-		}.ToPtr(), nil
+		sp.depthLimit = depthLimit - 1
+		return sp.ToPtr(), nil
 	case listPointer:
-		addr, ok := val.offset().resolve(off)
-		if !ok {
-			return Ptr{}, errPointerAddress
+		lp, err := s.readListPtr(off, val)
+		if err != nil {
+			return Ptr{}, err
 		}
-		lt := val.listType()
-		lsize, ok := val.totalListSize()
-		if !ok {
-			return Ptr{}, errOverflow
+		if !s.msg.ReadLimiter().canRead(lp.readSize()) {
+			return Ptr{}, errReadLimit
 		}
-		if !s.regionInBounds(addr, lsize) {
-			return Ptr{}, errPointerAddress
-		}
-		if lt == compositeList {
-			hdr := s.readRawPointer(addr)
-			var ok bool
-			addr, ok = addr.addSize(wordSize)
-			if !ok {
-				return Ptr{}, errOverflow
-			}
-			if hdr.pointerType() != structPointer {
-				return Ptr{}, errBadTag
-			}
-			sz := hdr.structSize()
-			n := int32(hdr.offset())
-			// TODO(light): check that this has the same end address
-			if tsize, ok := sz.totalSize().times(n); !ok {
-				return Ptr{}, errOverflow
-			} else if !s.regionInBounds(addr, tsize) {
-				return Ptr{}, errPointerAddress
-			}
-			return List{
-				seg:        s,
-				size:       sz,
-				off:        addr,
-				length:     n,
-				flags:      isCompositeList,
-				depthLimit: depthLimit - 1,
-			}.ToPtr(), nil
-		}
-		if lt == bit1List {
-			return List{
-				seg:        s,
-				off:        addr,
-				length:     val.numListElements(),
-				flags:      isBitList,
-				depthLimit: depthLimit - 1,
-			}.ToPtr(), nil
-		}
-		return List{
-			seg:        s,
-			size:       val.elementSize(),
-			off:        addr,
-			length:     val.numListElements(),
-			depthLimit: depthLimit - 1,
-		}.ToPtr(), nil
+		lp.depthLimit = depthLimit - 1
+		return lp.ToPtr(), nil
 	case otherPointer:
 		if val.otherPointerType() != 0 {
 			return Ptr{}, errOtherPointer
@@ -224,6 +163,81 @@ func (s *Segment) readPtr(off Address, depthLimit uint) (ptr Ptr, err error) {
 		// Only other types are far pointers.
 		return Ptr{}, errBadLandingPad
 	}
+}
+
+func (s *Segment) readStructPtr(off Address, val rawPointer) (Struct, error) {
+	addr, ok := val.offset().resolve(off)
+	if !ok {
+		return Struct{}, errPointerAddress
+	}
+	sz := val.structSize()
+	if !s.regionInBounds(addr, sz.totalSize()) {
+		return Struct{}, errPointerAddress
+	}
+	return Struct{
+		seg:  s,
+		off:  addr,
+		size: sz,
+	}, nil
+}
+
+func (s *Segment) readListPtr(off Address, val rawPointer) (List, error) {
+	addr, ok := val.offset().resolve(off)
+	if !ok {
+		return List{}, errPointerAddress
+	}
+	lt := val.listType()
+	lsize, ok := val.totalListSize()
+	if !ok {
+		return List{}, errOverflow
+	}
+	if !s.regionInBounds(addr, lsize) {
+		return List{}, errPointerAddress
+	}
+	limitSize := lsize
+	if limitSize == 0 {
+
+	}
+	if lt == compositeList {
+		hdr := s.readRawPointer(addr)
+		var ok bool
+		addr, ok = addr.addSize(wordSize)
+		if !ok {
+			return List{}, errOverflow
+		}
+		if hdr.pointerType() != structPointer {
+			return List{}, errBadTag
+		}
+		sz := hdr.structSize()
+		n := int32(hdr.offset())
+		// TODO(light): check that this has the same end address
+		if tsize, ok := sz.totalSize().times(n); !ok {
+			return List{}, errOverflow
+		} else if !s.regionInBounds(addr, tsize) {
+			return List{}, errPointerAddress
+		}
+		return List{
+			seg:    s,
+			size:   sz,
+			off:    addr,
+			length: n,
+			flags:  isCompositeList,
+		}, nil
+	}
+	if lt == bit1List {
+		return List{
+			seg:    s,
+			off:    addr,
+			length: val.numListElements(),
+			flags:  isBitList,
+		}, nil
+	}
+	return List{
+		seg:    s,
+		size:   val.elementSize(),
+		off:    addr,
+		length: val.numListElements(),
+	}, nil
 }
 
 func (s *Segment) resolveFarPointer(off Address, val rawPointer) (*Segment, Address, rawPointer, error) {

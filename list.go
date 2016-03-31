@@ -102,6 +102,23 @@ func (p List) HasData() bool {
 	return sz > 0
 }
 
+// readSize returns the list's size for the purposes of read limit
+// accounting.
+func (p List) readSize() Size {
+	if p.seg == nil {
+		return 0
+	}
+	e := p.size.totalSize()
+	if e == 0 {
+		e = wordSize
+	}
+	sz, ok := e.times(p.length)
+	if !ok {
+		return maxSize
+	}
+	return sz
+}
+
 // value returns the equivalent raw list pointer.
 func (p List) value(paddr Address) rawPointer {
 	if p.seg == nil {
