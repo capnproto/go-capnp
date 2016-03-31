@@ -10,6 +10,7 @@ import (
 
 // A Message is a tree of Cap'n Proto objects, split into one or more
 // segments of contiguous memory.  The only required field is Arena.
+// A Message is safe to read from multiple goroutines.
 type Message struct {
 	Arena Arena
 
@@ -21,6 +22,21 @@ type Message struct {
 	// See https://capnproto.org/encoding.html#capabilities-interfaces for
 	// more details on the capability table.
 	CapTable []Client
+
+	// TraverseLimit limits how many total bytes of data are allowed to be
+	// traversed while reading.  Traversal is counted when a Struct or
+	// List is obtained.  This means that calling a getter for the same
+	// sub-struct multiple times will cause it to be double-counted.  Once
+	// the traversal limit is reached, pointer accessors will report
+	// errors. See https://capnproto.org/encoding.html#amplification-attack
+	// for more details on this security measure.
+	//
+	// If not set, this defaults to 64 MiB.
+	TraverseLimit uint64
+
+	// DepthLimit limits how deeply-nested a message structure can be.
+	// If not set, this defaults to 64.
+	DepthLimit uint
 
 	segs map[SegmentID]*Segment
 

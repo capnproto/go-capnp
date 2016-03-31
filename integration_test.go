@@ -1890,13 +1890,39 @@ func (ta testArena) Allocate(capnp.Size, map[capnp.SegmentID]*capnp.Segment) (ca
 	return 0, nil, errors.New("test arena: can't allocate")
 }
 
+func TestPointerTraverseDefense(t *testing.T) {
+	t.Parallel()
+	const limit = 128
+	msg := &capnp.Message{
+		Arena: capnp.SingleSegment([]byte{
+			0, 0, 0, 0, 1, 0, 0, 0, // root 1-word struct pointer to next word
+			0, 0, 0, 0, 0, 0, 0, 0, // struct's data
+		}),
+		TraverseLimit: limit * 8,
+	}
+
+	for i := 0; i < limit-1; i++ {
+		_, err := msg.RootPtr()
+		if err != nil {
+			t.Fatal("RootPtr:", err)
+		}
+	}
+
+	if _, err := msg.RootPtr(); err == nil {
+		t.Fatalf("deref %d did not fail as expected", limit)
+	}
+}
+
 func TestPointerDepthDefense(t *testing.T) {
 	t.Parallel()
 	const limit = 64
-	msg := &capnp.Message{Arena: capnp.SingleSegment([]byte{
-		0, 0, 0, 0, 0, 0, 1, 0, // root 1-pointer struct pointer to next word
-		0xfc, 0xff, 0xff, 0xff, 0, 0, 1, 0, // root struct pointer that points back to itself
-	})}
+	msg := &capnp.Message{
+		Arena: capnp.SingleSegment([]byte{
+			0, 0, 0, 0, 0, 0, 1, 0, // root 1-pointer struct pointer to next word
+			0xfc, 0xff, 0xff, 0xff, 0, 0, 1, 0, // root struct pointer that points back to itself
+		}),
+		DepthLimit: limit,
+	}
 	root, err := msg.Root()
 	if err != nil {
 		t.Fatal("Root:", err)
@@ -1929,11 +1955,14 @@ func TestPointerDepthDefense(t *testing.T) {
 func TestPointerDepthDefenseAcrossStructsAndLists(t *testing.T) {
 	t.Parallel()
 	const limit = 64
-	msg := &capnp.Message{Arena: capnp.SingleSegment([]byte{
-		0, 0, 0, 0, 0, 0, 1, 0, // root 1-pointer struct pointer to next word
-		0x01, 0, 0, 0, 0x0e, 0, 0, 0, // list pointer to 1-element list of pointer (next word)
-		0xf8, 0xff, 0xff, 0xff, 0, 0, 1, 0, // struct pointer to previous word
-	})}
+	msg := &capnp.Message{
+		Arena: capnp.SingleSegment([]byte{
+			0, 0, 0, 0, 0, 0, 1, 0, // root 1-pointer struct pointer to next word
+			0x01, 0, 0, 0, 0x0e, 0, 0, 0, // list pointer to 1-element list of pointer (next word)
+			0xf8, 0xff, 0xff, 0xff, 0, 0, 1, 0, // struct pointer to previous word
+		}),
+		DepthLimit: limit,
+	}
 
 	toStruct := func(p capnp.Pointer, err error) (capnp.Struct, error) {
 		if err != nil {
