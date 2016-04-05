@@ -497,6 +497,16 @@ var serializeTests = []serializeTest{
 		},
 		decodeFails: true,
 	},
+	{
+		name:        "HTTP traffic should not panic on GOARCH=386",
+		out:         []byte("GET / HTTP/1.1\r\n\r\n"),
+		decodeFails: true,
+	},
+	{
+		name:        "max segment should not panic",
+		out:         bytes.Repeat([]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}, 16),
+		decodeFails: true,
+	},
 }
 
 func TestMarshal(t *testing.T) {

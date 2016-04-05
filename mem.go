@@ -13,6 +13,8 @@ import (
 const (
 	defaultTraverseLimit = 64 << 20
 	defaultDepthLimit    = 64
+
+	maxStreamSegments = 1<<29 - 1
 )
 
 const maxDepth = ^uint(0)
@@ -421,6 +423,9 @@ func (d *Decoder) Decode() (*Message, error) {
 		return nil, err
 	}
 	maxSeg := binary.LittleEndian.Uint32(maxSegBuf[:])
+	if maxSeg > maxStreamSegments {
+		return nil, errTooManySegments
+	}
 	hdrSize := streamHeaderSize(maxSeg)
 	hdrBuf := make([]byte, hdrSize)
 	copy(hdrBuf, maxSegBuf[:])
@@ -531,7 +536,7 @@ func (e *Encoder) Encode(m *Message) error {
 	}
 	maxSeg := uint32(nsegs - 1)
 	hdrSize := streamHeaderSize(maxSeg)
-	if cap(e.hdrbuf) < hdrSize {
+	if uint64(cap(e.hdrbuf)) < hdrSize {
 		e.hdrbuf = make([]byte, hdrSize)
 	} else {
 		e.hdrbuf = e.hdrbuf[:hdrSize]
@@ -628,8 +633,8 @@ const (
 
 // streamHeaderSize returns the size of the header, given the
 // first 32-bit number.
-func streamHeaderSize(n uint32) int {
-	return (msgHeaderSize + segHeaderSize*(int(n)+1) + 7) &^ 7
+func streamHeaderSize(n uint32) uint64 {
+	return (msgHeaderSize + segHeaderSize*(uint64(n)+1) + 7) &^ 7
 }
 
 // marshalStreamHeader marshals the sizes into the byte slice, which
@@ -648,13 +653,13 @@ type streamHeader struct {
 
 // parseStreamHeader parses the header of the stream framing format.
 func parseStreamHeader(data []byte) (h streamHeader, tail []byte, err error) {
-	if len(data) < streamHeaderSize(0) {
+	if uint64(len(data)) < streamHeaderSize(0) {
 		return streamHeader{}, nil, io.ErrUnexpectedEOF
 	}
 	maxSeg := binary.LittleEndian.Uint32(data)
 	// TODO(light): check int
 	hdrSize := streamHeaderSize(maxSeg)
-	if len(data) < hdrSize {
+	if uint64(len(data)) < hdrSize {
 		return streamHeader{}, nil, io.ErrUnexpectedEOF
 	}
 	return streamHeader{b: data}, data[hdrSize:], nil
@@ -715,4 +720,5 @@ var (
 	errSegmentTooSmall    = errors.New("capnp: segment too small")
 	errSegmentTooLarge    = errors.New("capnp: segment too large")
 	errStreamHeader       = errors.New("capnp: invalid stream header")
+	errTooManySegments    = errors.New("capnp: too many segments to decode")
 )
