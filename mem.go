@@ -9,12 +9,14 @@ import (
 	"zombiezen.com/go/capnproto2/internal/packed"
 )
 
-// Default security limits.
+// Security limits. Matches C++ implementation.
 const (
-	defaultTraverseLimit = 64 << 20
+	defaultTraverseLimit = 64 << 20 // 64 MiB
 	defaultDepthLimit    = 64
 
-	maxStreamSegments = 1<<29 - 1
+	maxStreamSegments = 512
+
+	defaultDecodeLimit = 64 << 20 // 64 MiB
 )
 
 const maxDepth = ^uint(0)
@@ -403,6 +405,10 @@ func (msa *multiSegmentArena) Allocate(sz Size, segs map[SegmentID]*Segment) (Se
 // Proto input stream.
 type Decoder struct {
 	r io.Reader
+
+	// Maximum number of bytes that can be read per call to Decode.
+	// If not set, a reasonable default is used.
+	MaxMessageSize uint64
 }
 
 // NewDecoder creates a new Cap'n Proto framer that reads from r.
@@ -418,6 +424,10 @@ func NewPackedDecoder(r io.Reader) *Decoder {
 
 // Decode reads a message from the decoder stream.
 func (d *Decoder) Decode() (*Message, error) {
+	maxSize := d.MaxMessageSize
+	if maxSize == 0 {
+		maxSize = defaultDecodeLimit
+	}
 	var maxSegBuf [msgHeaderSize]byte
 	if _, err := io.ReadFull(d.r, maxSegBuf[:]); err != nil {
 		return nil, err
@@ -427,6 +437,9 @@ func (d *Decoder) Decode() (*Message, error) {
 		return nil, errTooManySegments
 	}
 	hdrSize := streamHeaderSize(maxSeg)
+	if hdrSize > maxSize {
+		return nil, errDecodeLimit
+	}
 	hdrBuf := make([]byte, hdrSize)
 	copy(hdrBuf, maxSegBuf[:])
 	if _, err := io.ReadFull(d.r, hdrBuf[msgHeaderSize:]); err != nil {
@@ -440,7 +453,9 @@ func (d *Decoder) Decode() (*Message, error) {
 	if err != nil {
 		return nil, err
 	}
-	// TODO(light): size check
+	if total > maxSize-hdrSize {
+		return nil, errDecodeLimit
+	}
 	buf := make([]byte, int(total))
 	if _, err := io.ReadFull(d.r, buf); err != nil {
 		return nil, err
@@ -721,4 +736,5 @@ var (
 	errSegmentTooLarge    = errors.New("capnp: segment too large")
 	errStreamHeader       = errors.New("capnp: invalid stream header")
 	errTooManySegments    = errors.New("capnp: too many segments to decode")
+	errDecodeLimit        = errors.New("capnp: message too large")
 )

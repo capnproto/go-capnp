@@ -630,6 +630,84 @@ func TestDecoder(t *testing.T) {
 	}
 }
 
+func TestDecoder_MaxMessageSize(t *testing.T) {
+	t.Parallel()
+	zeroWord := []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+	tests := []struct {
+		name    string
+		maxSize uint64
+		r       io.Reader
+		ok      bool
+	}{
+		{
+			name:    "header too big",
+			maxSize: 15,
+			r: bytes.NewReader([]byte{
+				0x02, 0x00, 0x00, 0x00,
+				0x00, 0x00, 0x00, 0x00,
+				0x00, 0x00, 0x00, 0x00,
+				0x00, 0x00, 0x00, 0x00,
+			}),
+		},
+		{
+			name:    "header at limit",
+			maxSize: 16,
+			r: bytes.NewReader([]byte{
+				0x02, 0x00, 0x00, 0x00,
+				0x00, 0x00, 0x00, 0x00,
+				0x00, 0x00, 0x00, 0x00,
+				0x00, 0x00, 0x00, 0x00,
+			}),
+			ok: true,
+		},
+		{
+			name:    "body too large",
+			maxSize: 64,
+			r: io.MultiReader(
+				bytes.NewReader([]byte{
+					0x00, 0x00, 0x00, 0x00,
+					0x09, 0x00, 0x00, 0x00,
+				}),
+				bytes.NewReader(bytes.Repeat(zeroWord, 9)),
+			),
+		},
+		{
+			name:    "body plus header too large",
+			maxSize: 64,
+			r: io.MultiReader(
+				bytes.NewReader([]byte{
+					0x00, 0x00, 0x00, 0x00,
+					0x08, 0x00, 0x00, 0x00,
+				}),
+				bytes.NewReader(bytes.Repeat(zeroWord, 8)),
+			),
+		},
+		{
+			name:    "body plus header at limit",
+			maxSize: 72,
+			r: io.MultiReader(
+				bytes.NewReader([]byte{
+					0x00, 0x00, 0x00, 0x00,
+					0x08, 0x00, 0x00, 0x00,
+				}),
+				bytes.NewReader(bytes.Repeat(zeroWord, 8)),
+			),
+			ok: true,
+		},
+	}
+	for _, test := range tests {
+		d := NewDecoder(test.r)
+		d.MaxMessageSize = test.maxSize
+		_, err := d.Decode()
+		switch {
+		case err != nil && test.ok:
+			t.Errorf("%s test: Decode error: %v", test.name, err)
+		case err == nil && !test.ok:
+			t.Errorf("%s test: Decode success; want error", test.name)
+		}
+	}
+}
+
 type arenaAllocTest struct {
 	name string
 
