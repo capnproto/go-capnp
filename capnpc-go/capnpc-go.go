@@ -29,10 +29,11 @@ var (
 	genPromises = flag.Bool("promises", true, "generate code for promises")
 )
 
+// Non-stdlib import paths.
 const (
-	go_capnproto_import = "zombiezen.com/go/capnproto2"
-	server_import       = go_capnproto_import + "/server"
-	context_import      = "golang.org/x/net/context"
+	capnpImport   = "zombiezen.com/go/capnproto2"
+	serverImport  = capnpImport + "/server"
+	contextImport = "golang.org/x/net/context"
 )
 
 type nodeMap map[uint64]*node

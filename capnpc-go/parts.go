@@ -61,9 +61,9 @@ func (i *imports) init() {
 	i.specs = nil
 	i.used = make(map[string]bool)
 
-	i.reserve(importSpec{path: go_capnproto_import, name: "capnp"})
-	i.reserve(importSpec{path: server_import, name: "server"})
-	i.reserve(importSpec{path: context_import, name: "context"})
+	i.reserve(importSpec{path: capnpImport, name: "capnp"})
+	i.reserve(importSpec{path: serverImport, name: "server"})
+	i.reserve(importSpec{path: contextImport, name: "context"})
 
 	i.reserve(importSpec{path: "bufio", name: "bufio"})
 	i.reserve(importSpec{path: "bytes", name: "bytes"})
@@ -73,15 +73,15 @@ func (i *imports) init() {
 }
 
 func (i *imports) Capnp() string {
-	return i.add(importSpec{path: go_capnproto_import, name: "capnp"})
+	return i.add(importSpec{path: capnpImport, name: "capnp"})
 }
 
 func (i *imports) Server() string {
-	return i.add(importSpec{path: server_import, name: "server"})
+	return i.add(importSpec{path: serverImport, name: "server"})
 }
 
 func (i *imports) Context() string {
-	return i.add(importSpec{path: context_import, name: "context"})
+	return i.add(importSpec{path: contextImport, name: "context"})
 }
 
 func (i *imports) Math() string {
