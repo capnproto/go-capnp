@@ -1,5 +1,3 @@
-//go:generate bash -c "capnp compile -o- schema.capnp | capnpc-go -promises=false"
-
 /*
 capnpc-go is the Cap'n proto code generator for Go.  It reads a
 CodeGeneratorRequest from stdin and for a file foo.capnp it writes
@@ -25,6 +23,7 @@ import (
 	"unicode"
 
 	"zombiezen.com/go/capnproto2"
+	"zombiezen.com/go/capnproto2/internal/schema"
 )
 
 var (
@@ -52,7 +51,7 @@ var templates = template.New("").Funcs(template.FuncMap{
 	"strconv": g_imports.strconv,
 	"title":   strings.Title,
 	"hasDiscriminant": func(f field) bool {
-		return f.DiscriminantValue() != Field_noDiscriminant
+		return f.DiscriminantValue() != schema.Field_noDiscriminant
 	},
 	"discriminantOffset": func(n *node) uint32 {
 		return n.StructGroup().DiscriminantOffset() * 2
@@ -192,7 +191,7 @@ func (spec importSpec) String() string {
 }
 
 type node struct {
-	Node
+	schema.Node
 	pkg   string
 	imp   string
 	nodes []*node
@@ -200,7 +199,7 @@ type node struct {
 }
 
 type field struct {
-	Field
+	schema.Field
 	Name string
 }
 
@@ -258,7 +257,7 @@ type annotations struct {
 	Name      string
 }
 
-func parseAnnotations(list Annotation_List) *annotations {
+func parseAnnotations(list schema.Annotation_List) *annotations {
 	ann := new(annotations)
 	for i, n := 0, list.Len(); i < n; i++ {
 		a := list.At(i)
@@ -347,7 +346,7 @@ func (n *node) resolveName(base, name string, file *node) {
 	n.pkg = file.pkg
 	n.imp = file.imp
 
-	if n.Which() != Node_Which_structGroup || !n.StructGroup().IsGroup() {
+	if n.Which() != schema.Node_Which_structGroup || !n.StructGroup().IsGroup() {
 		file.nodes = append(file.nodes, n)
 	}
 
@@ -360,18 +359,18 @@ func (n *node) resolveName(base, name string, file *node) {
 		}
 	}
 
-	if n.Which() == Node_Which_structGroup {
+	if n.Which() == schema.Node_Which_structGroup {
 		fields, _ := n.StructGroup().Fields()
 		for i := 0; i < fields.Len(); i++ {
 			f := fields.At(i)
-			if f.Which() == Field_Which_group {
+			if f.Which() == schema.Field_Which_group {
 				fa, _ := f.Annotations()
 				fname, _ := f.Name()
 				fname = parseAnnotations(fa).Rename(fname)
 				findNode(f.Group().TypeId()).resolveName(n.Name, fname, file)
 			}
 		}
-	} else if n.Which() == Node_Which_interface {
+	} else if n.Which() == schema.Node_Which_interface {
 		m, _ := n.Interface().Methods()
 		for i := 0; i < m.Len(); i++ {
 			mm := m.At(i)
@@ -390,14 +389,14 @@ func (n *node) resolveName(base, name string, file *node) {
 }
 
 type enumval struct {
-	Enumerant
+	schema.Enumerant
 	Name   string
 	Val    int
 	Tag    string
 	parent *node
 }
 
-func makeEnumval(enum *node, i int, e Enumerant) enumval {
+func makeEnumval(enum *node, i int, e schema.Enumerant) enumval {
 	eann, _ := e.Annotations()
 	ann := parseAnnotations(eann)
 	name, _ := e.Name()
@@ -425,44 +424,44 @@ func (n *node) defineEnum(w io.Writer) {
 	})
 }
 
-func (n *node) writeValue(w io.Writer, t Type, v Value) {
+func (n *node) writeValue(w io.Writer, t schema.Type, v schema.Value) {
 	switch t.Which() {
-	case Type_Which_void:
+	case schema.Type_Which_void:
 		fmt.Fprintf(w, "struct{}{}")
 
-	case Type_Which_interface:
+	case schema.Type_Which_interface:
 		// The only statically representable interface value is null.
 		fmt.Fprintf(w, "%s.Client(nil)", g_imports.capnp())
 
-	case Type_Which_bool:
-		assert(v.Which() == Value_Which_bool, "expected bool value")
+	case schema.Type_Which_bool:
+		assert(v.Which() == schema.Value_Which_bool, "expected bool value")
 		if v.Bool() {
 			fmt.Fprint(w, "true")
 		} else {
 			fmt.Fprint(w, "false")
 		}
 
-	case Type_Which_uint8, Type_Which_uint16, Type_Which_uint32, Type_Which_uint64:
+	case schema.Type_Which_uint8, schema.Type_Which_uint16, schema.Type_Which_uint32, schema.Type_Which_uint64:
 		fmt.Fprintf(w, "uint%d(%d)", intbits(t.Which()), uintValue(t, v))
 
-	case Type_Which_int8, Type_Which_int16, Type_Which_int32, Type_Which_int64:
+	case schema.Type_Which_int8, schema.Type_Which_int16, schema.Type_Which_int32, schema.Type_Which_int64:
 		fmt.Fprintf(w, "int%d(%d)", intbits(t.Which()), intValue(t, v))
 
-	case Type_Which_float32:
-		assert(v.Which() == Value_Which_float32, "expected float32 value")
+	case schema.Type_Which_float32:
+		assert(v.Which() == schema.Value_Which_float32, "expected float32 value")
 		fmt.Fprintf(w, "%s.Float32frombits(0x%x)", g_imports.math(), math.Float32bits(v.Float32()))
 
-	case Type_Which_float64:
-		assert(v.Which() == Value_Which_float64, "expected float64 value")
+	case schema.Type_Which_float64:
+		assert(v.Which() == schema.Value_Which_float64, "expected float64 value")
 		fmt.Fprintf(w, "%s.Float64frombits(0x%x)", g_imports.math(), math.Float64bits(v.Float64()))
 
-	case Type_Which_text:
-		assert(v.Which() == Value_Which_text, "expected text value")
+	case schema.Type_Which_text:
+		assert(v.Which() == schema.Value_Which_text, "expected text value")
 		text, _ := v.Text()
 		fmt.Fprintf(w, "%q", text)
 
-	case Type_Which_data:
-		assert(v.Which() == Value_Which_data, "expected data value")
+	case schema.Type_Which_data:
+		assert(v.Which() == schema.Value_Which_data, "expected data value")
 		fmt.Fprint(w, "[]byte{")
 		data, _ := v.Data()
 		for i, b := range data {
@@ -473,10 +472,10 @@ func (n *node) writeValue(w io.Writer, t Type, v Value) {
 		}
 		fmt.Fprint(w, "}")
 
-	case Type_Which_enum:
-		assert(v.Which() == Value_Which_enum, "expected enum value")
+	case schema.Type_Which_enum:
+		assert(v.Which() == schema.Value_Which_enum, "expected enum value")
 		en := findNode(t.Enum().TypeId())
-		assert(en.Which() == Node_Which_enum, "expected enum type ID")
+		assert(en.Which() == schema.Node_Which_enum, "expected enum type ID")
 		enums, _ := en.Enum().Enumerants()
 		if val := int(v.Enum()); val >= enums.Len() {
 			fmt.Fprintf(w, "%s(%d)", en.RemoteName(n), val)
@@ -485,8 +484,8 @@ func (n *node) writeValue(w io.Writer, t Type, v Value) {
 			fmt.Fprintf(w, "%s%s", en.remoteScope(n), ev.FullName())
 		}
 
-	case Type_Which_structGroup:
-		assert(v.Which() == Value_Which_structField, "expected struct value")
+	case schema.Type_Which_structGroup:
+		assert(v.Which() == schema.Value_Which_structField, "expected struct value")
 		data, _ := v.StructField()
 		templates.ExecuteTemplate(w, "structValue", structValueTemplateParams{
 			Node:  n,
@@ -494,15 +493,15 @@ func (n *node) writeValue(w io.Writer, t Type, v Value) {
 			Value: copyData(data),
 		})
 
-	case Type_Which_anyPointer:
-		assert(v.Which() == Value_Which_anyPointer, "expected pointer value")
+	case schema.Type_Which_anyPointer:
+		assert(v.Which() == schema.Value_Which_anyPointer, "expected pointer value")
 		data, _ := v.AnyPointer()
 		templates.ExecuteTemplate(w, "pointerValue", structValueTemplateParams{
 			Value: copyData(data),
 		})
 
-	case Type_Which_list:
-		assert(v.Which() == Value_Which_list, "expected list value")
+	case schema.Type_Which_list:
+		assert(v.Which() == schema.Value_Which_list, "expected list value")
 		data, _ := v.List()
 		templates.ExecuteTemplate(w, "listValue", listValueTemplateParams{
 			Typ:   n.fieldType(t, new(annotations)),
@@ -520,9 +519,9 @@ func (n *node) defineAnnotation(w io.Writer) {
 func constIsVar(n *node) bool {
 	t, _ := n.Const().Type()
 	switch t.Which() {
-	case Type_Which_bool, Type_Which_int8, Type_Which_uint8, Type_Which_int16,
-		Type_Which_uint16, Type_Which_int32, Type_Which_uint32, Type_Which_int64,
-		Type_Which_uint64, Type_Which_text, Type_Which_enum:
+	case schema.Type_Which_bool, schema.Type_Which_int8, schema.Type_Which_uint8, schema.Type_Which_int16,
+		schema.Type_Which_uint16, schema.Type_Which_int32, schema.Type_Which_uint32, schema.Type_Which_int64,
+		schema.Type_Which_uint64, schema.Type_Which_text, schema.Type_Which_enum:
 		return false
 	default:
 		return true
@@ -534,7 +533,7 @@ func defineConstNodes(w io.Writer, nodes []*node) {
 	any := false
 
 	for _, n := range nodes {
-		if n.Which() == Node_Which_const && !constIsVar(n) {
+		if n.Which() == schema.Node_Which_const && !constIsVar(n) {
 			if !any {
 				fmt.Fprintf(w, "const (\n")
 				any = true
@@ -554,7 +553,7 @@ func defineConstNodes(w io.Writer, nodes []*node) {
 	any = false
 
 	for _, n := range nodes {
-		if n.Which() == Node_Which_const && constIsVar(n) {
+		if n.Which() == schema.Node_Which_const && constIsVar(n) {
 			if !any {
 				fmt.Fprintf(w, "var (\n")
 				any = true
@@ -584,23 +583,23 @@ func (n *node) defineField(w io.Writer, f field) {
 		FieldType:   n.fieldType(t, ann),
 	}
 	switch t.Which() {
-	case Type_Which_void:
+	case schema.Type_Which_void:
 		templates.ExecuteTemplate(w, "structVoidField", params)
-	case Type_Which_bool:
-		assert(def.Which() == Value_Which_void || def.Which() == Value_Which_bool, "expected bool default")
+	case schema.Type_Which_bool:
+		assert(def.Which() == schema.Value_Which_void || def.Which() == schema.Value_Which_bool, "expected bool default")
 		templates.ExecuteTemplate(w, "structBoolField", structBoolFieldParams{
 			structFieldParams: params,
-			Default:           def.Which() == Value_Which_bool && def.Bool(),
+			Default:           def.Which() == schema.Value_Which_bool && def.Bool(),
 		})
 
-	case Type_Which_uint8, Type_Which_uint16, Type_Which_uint32, Type_Which_uint64:
+	case schema.Type_Which_uint8, schema.Type_Which_uint16, schema.Type_Which_uint32, schema.Type_Which_uint64:
 		templates.ExecuteTemplate(w, "structUintField", structUintFieldParams{
 			structFieldParams: params,
 			Bits:              intbits(t.Which()),
 			Default:           uintFieldDefault(t, def),
 		})
 
-	case Type_Which_int8, Type_Which_int16, Type_Which_int32, Type_Which_int64:
+	case schema.Type_Which_int8, schema.Type_Which_int16, schema.Type_Which_int32, schema.Type_Which_int64:
 		templates.ExecuteTemplate(w, "structIntField", structIntFieldParams{
 			structUintFieldParams: structUintFieldParams{
 				structFieldParams: params,
@@ -609,11 +608,11 @@ func (n *node) defineField(w io.Writer, f field) {
 			},
 		})
 
-	case Type_Which_enum:
-		assert(def.Which() == Value_Which_void || def.Which() == Value_Which_enum, "expected enum default")
+	case schema.Type_Which_enum:
+		assert(def.Which() == schema.Value_Which_void || def.Which() == schema.Value_Which_enum, "expected enum default")
 		ni := findNode(t.Enum().TypeId())
 		var d uint64
-		if def.Which() == Value_Which_enum {
+		if def.Which() == schema.Value_Which_enum {
 			d = uint64(def.Enum())
 		}
 		templates.ExecuteTemplate(w, "structIntField", structIntFieldParams{
@@ -624,10 +623,10 @@ func (n *node) defineField(w io.Writer, f field) {
 			},
 			EnumName: ni.RemoteName(n),
 		})
-	case Type_Which_float32:
-		assert(def.Which() == Value_Which_void || def.Which() == Value_Which_float32, "expected float32 default")
+	case schema.Type_Which_float32:
+		assert(def.Which() == schema.Value_Which_void || def.Which() == schema.Value_Which_float32, "expected float32 default")
 		var d uint64
-		if def.Which() == Value_Which_float32 && def.Float32() != 0 {
+		if def.Which() == schema.Value_Which_float32 && def.Float32() != 0 {
 			d = uint64(math.Float32bits(def.Float32()))
 		}
 		templates.ExecuteTemplate(w, "structFloatField", structUintFieldParams{
@@ -636,10 +635,10 @@ func (n *node) defineField(w io.Writer, f field) {
 			Default:           d,
 		})
 
-	case Type_Which_float64:
-		assert(def.Which() == Value_Which_void || def.Which() == Value_Which_float64, "expected float64 default")
+	case schema.Type_Which_float64:
+		assert(def.Which() == schema.Value_Which_void || def.Which() == schema.Value_Which_float64, "expected float64 default")
 		var d uint64
-		if def.Which() == Value_Which_float64 && def.Float64() != 0 {
+		if def.Which() == schema.Value_Which_float64 && def.Float64() != 0 {
 			d = math.Float64bits(def.Float64())
 		}
 		templates.ExecuteTemplate(w, "structFloatField", structUintFieldParams{
@@ -648,10 +647,10 @@ func (n *node) defineField(w io.Writer, f field) {
 			Default:           d,
 		})
 
-	case Type_Which_text:
-		assert(def.Which() == Value_Which_void || def.Which() == Value_Which_text, "expected text default")
+	case schema.Type_Which_text:
+		assert(def.Which() == schema.Value_Which_void || def.Which() == schema.Value_Which_text, "expected text default")
 		var d string
-		if def.Which() == Value_Which_text {
+		if def.Which() == schema.Value_Which_text {
 			d, _ = def.Text()
 		}
 		templates.ExecuteTemplate(w, "structTextField", structTextFieldParams{
@@ -659,10 +658,10 @@ func (n *node) defineField(w io.Writer, f field) {
 			Default:           d,
 		})
 
-	case Type_Which_data:
-		assert(def.Which() == Value_Which_void || def.Which() == Value_Which_data, "expected data default")
+	case schema.Type_Which_data:
+		assert(def.Which() == schema.Value_Which_void || def.Which() == schema.Value_Which_data, "expected data default")
 		var d []byte
-		if def.Which() == Value_Which_data {
+		if def.Which() == schema.Value_Which_data {
 			d, _ = def.Data()
 		}
 		templates.ExecuteTemplate(w, "structDataField", structDataFieldParams{
@@ -670,10 +669,10 @@ func (n *node) defineField(w io.Writer, f field) {
 			Default:           d,
 		})
 
-	case Type_Which_structGroup:
-		assert(def.Which() == Value_Which_void || def.Which() == Value_Which_structField, "expected struct default")
+	case schema.Type_Which_structGroup:
+		assert(def.Which() == schema.Value_Which_void || def.Which() == schema.Value_Which_structField, "expected struct default")
 		var defref staticDataRef
-		if def.Which() == Value_Which_structField {
+		if def.Which() == schema.Value_Which_structField {
 			if sf, _ := def.StructField(); capnp.HasData(sf) {
 				defref = copyData(sf)
 			}
@@ -684,10 +683,10 @@ func (n *node) defineField(w io.Writer, f field) {
 			Default:           defref,
 		})
 
-	case Type_Which_anyPointer:
-		assert(def.Which() == Value_Which_void || def.Which() == Value_Which_anyPointer, "expected object default")
+	case schema.Type_Which_anyPointer:
+		assert(def.Which() == schema.Value_Which_void || def.Which() == schema.Value_Which_anyPointer, "expected object default")
 		var defref staticDataRef
-		if def.Which() == Value_Which_anyPointer {
+		if def.Which() == schema.Value_Which_anyPointer {
 			if p, _ := def.AnyPointer(); capnp.HasData(p) {
 				defref = copyData(p)
 			}
@@ -697,10 +696,10 @@ func (n *node) defineField(w io.Writer, f field) {
 			Default:           defref,
 		})
 
-	case Type_Which_list:
-		assert(def.Which() == Value_Which_void || def.Which() == Value_Which_list, "expected list default")
+	case schema.Type_Which_list:
+		assert(def.Which() == schema.Value_Which_void || def.Which() == schema.Value_Which_list, "expected list default")
 		var defref staticDataRef
-		if def.Which() == Value_Which_list {
+		if def.Which() == schema.Value_Which_list {
 			if l, _ := def.List(); capnp.HasData(l) {
 				defref = copyData(l)
 			}
@@ -710,95 +709,95 @@ func (n *node) defineField(w io.Writer, f field) {
 			Default:           defref,
 		})
 
-	case Type_Which_interface:
+	case schema.Type_Which_interface:
 		templates.ExecuteTemplate(w, "structInterfaceField", params)
 	}
 }
 
-func (n *node) fieldType(t Type, ann *annotations) string {
+func (n *node) fieldType(t schema.Type, ann *annotations) string {
 	switch t.Which() {
-	case Type_Which_bool:
+	case schema.Type_Which_bool:
 		return "bool"
-	case Type_Which_int8:
+	case schema.Type_Which_int8:
 		return "int8"
-	case Type_Which_int16:
+	case schema.Type_Which_int16:
 		return "int16"
-	case Type_Which_int32:
+	case schema.Type_Which_int32:
 		return "int32"
-	case Type_Which_int64:
+	case schema.Type_Which_int64:
 		return "int64"
-	case Type_Which_uint8:
+	case schema.Type_Which_uint8:
 		return "uint8"
-	case Type_Which_uint16:
+	case schema.Type_Which_uint16:
 		return "uint16"
-	case Type_Which_uint32:
+	case schema.Type_Which_uint32:
 		return "uint32"
-	case Type_Which_uint64:
+	case schema.Type_Which_uint64:
 		return "uint64"
-	case Type_Which_float32:
+	case schema.Type_Which_float32:
 		return "float32"
-	case Type_Which_float64:
+	case schema.Type_Which_float64:
 		return "float64"
-	case Type_Which_text:
+	case schema.Type_Which_text:
 		return "string"
-	case Type_Which_data:
+	case schema.Type_Which_data:
 		return "[]byte"
-	case Type_Which_enum:
+	case schema.Type_Which_enum:
 		ni := findNode(t.Enum().TypeId())
 		return ni.RemoteName(n)
-	case Type_Which_structGroup:
+	case schema.Type_Which_structGroup:
 		ni := findNode(t.StructGroup().TypeId())
 		return ni.RemoteName(n)
-	case Type_Which_interface:
+	case schema.Type_Which_interface:
 		ni := findNode(t.Interface().TypeId())
 		return ni.RemoteName(n)
-	case Type_Which_anyPointer:
+	case schema.Type_Which_anyPointer:
 		return g_imports.capnp() + ".Pointer"
-	case Type_Which_list:
+	case schema.Type_Which_list:
 		switch lt, _ := t.List().ElementType(); lt.Which() {
-		case Type_Which_void:
+		case schema.Type_Which_void:
 			return g_imports.capnp() + ".VoidList"
-		case Type_Which_bool:
+		case schema.Type_Which_bool:
 			return g_imports.capnp() + ".BitList"
-		case Type_Which_int8:
+		case schema.Type_Which_int8:
 			return g_imports.capnp() + ".Int8List"
-		case Type_Which_uint8:
+		case schema.Type_Which_uint8:
 			return g_imports.capnp() + ".UInt8List"
-		case Type_Which_int16:
+		case schema.Type_Which_int16:
 			return g_imports.capnp() + ".Int16List"
-		case Type_Which_uint16:
+		case schema.Type_Which_uint16:
 			return g_imports.capnp() + ".UInt16List"
-		case Type_Which_int32:
+		case schema.Type_Which_int32:
 			return g_imports.capnp() + ".Int32List"
-		case Type_Which_uint32:
+		case schema.Type_Which_uint32:
 			return g_imports.capnp() + ".UInt32List"
-		case Type_Which_int64:
+		case schema.Type_Which_int64:
 			return g_imports.capnp() + ".Int64List"
-		case Type_Which_uint64:
+		case schema.Type_Which_uint64:
 			return g_imports.capnp() + ".UInt64List"
-		case Type_Which_float32:
+		case schema.Type_Which_float32:
 			return g_imports.capnp() + ".Float32List"
-		case Type_Which_float64:
+		case schema.Type_Which_float64:
 			return g_imports.capnp() + ".Float64List"
-		case Type_Which_text:
+		case schema.Type_Which_text:
 			return g_imports.capnp() + ".TextList"
-		case Type_Which_data:
+		case schema.Type_Which_data:
 			return g_imports.capnp() + ".DataList"
-		case Type_Which_enum:
+		case schema.Type_Which_enum:
 			ni := findNode(lt.Enum().TypeId())
 			return ni.RemoteName(n) + "_List"
-		case Type_Which_structGroup:
+		case schema.Type_Which_structGroup:
 			ni := findNode(lt.StructGroup().TypeId())
 			return ni.RemoteName(n) + "_List"
-		case Type_Which_anyPointer, Type_Which_list, Type_Which_interface:
+		case schema.Type_Which_anyPointer, schema.Type_Which_list, schema.Type_Which_interface:
 			return g_imports.capnp() + ".PointerList"
 		}
 	}
 	return ""
 }
 
-func intFieldDefaultMask(t Type, def Value) uint64 {
-	if def.Which() == Value_Which_void {
+func intFieldDefaultMask(t schema.Type, def schema.Value) uint64 {
+	if def.Which() == schema.Value_Which_void {
 		return 0
 	}
 	v := intValue(t, def)
@@ -806,58 +805,58 @@ func intFieldDefaultMask(t Type, def Value) uint64 {
 	return uint64(v) & mask
 }
 
-func intValue(t Type, v Value) int64 {
+func intValue(t schema.Type, v schema.Value) int64 {
 	switch t.Which() {
-	case Type_Which_int8:
-		assert(v.Which() == Value_Which_int8, "expected int8 value")
+	case schema.Type_Which_int8:
+		assert(v.Which() == schema.Value_Which_int8, "expected int8 value")
 		return int64(v.Int8())
-	case Type_Which_int16:
-		assert(v.Which() == Value_Which_int16, "expected int16 value")
+	case schema.Type_Which_int16:
+		assert(v.Which() == schema.Value_Which_int16, "expected int16 value")
 		return int64(v.Int16())
-	case Type_Which_int32:
-		assert(v.Which() == Value_Which_int32, "expected int32 value")
+	case schema.Type_Which_int32:
+		assert(v.Which() == schema.Value_Which_int32, "expected int32 value")
 		return int64(v.Int32())
-	case Type_Which_int64:
-		assert(v.Which() == Value_Which_int64, "expected int64 value")
+	case schema.Type_Which_int64:
+		assert(v.Which() == schema.Value_Which_int64, "expected int64 value")
 		return v.Int64()
 	}
 	panic("unreachable")
 }
 
-func uintFieldDefault(t Type, def Value) uint64 {
-	if def.Which() == Value_Which_void {
+func uintFieldDefault(t schema.Type, def schema.Value) uint64 {
+	if def.Which() == schema.Value_Which_void {
 		return 0
 	}
 	return uintValue(t, def)
 }
 
-func uintValue(t Type, v Value) uint64 {
+func uintValue(t schema.Type, v schema.Value) uint64 {
 	switch t.Which() {
-	case Type_Which_uint8:
-		assert(v.Which() == Value_Which_uint8, "expected uint8 value")
+	case schema.Type_Which_uint8:
+		assert(v.Which() == schema.Value_Which_uint8, "expected uint8 value")
 		return uint64(v.Uint8())
-	case Type_Which_uint16:
-		assert(v.Which() == Value_Which_uint16, "expected uint16 value")
+	case schema.Type_Which_uint16:
+		assert(v.Which() == schema.Value_Which_uint16, "expected uint16 value")
 		return uint64(v.Uint16())
-	case Type_Which_uint32:
-		assert(v.Which() == Value_Which_uint32, "expected uint32 value")
+	case schema.Type_Which_uint32:
+		assert(v.Which() == schema.Value_Which_uint32, "expected uint32 value")
 		return uint64(v.Uint32())
-	case Type_Which_uint64:
-		assert(v.Which() == Value_Which_uint64, "expected uint64 value")
+	case schema.Type_Which_uint64:
+		assert(v.Which() == schema.Value_Which_uint64, "expected uint64 value")
 		return v.Uint64()
 	}
 	panic("unreachable")
 }
 
-func intbits(t Type_Which) uint {
+func intbits(t schema.Type_Which) uint {
 	switch t {
-	case Type_Which_uint8, Type_Which_int8:
+	case schema.Type_Which_uint8, schema.Type_Which_int8:
 		return 8
-	case Type_Which_uint16, Type_Which_int16:
+	case schema.Type_Which_uint16, schema.Type_Which_int16:
 		return 16
-	case Type_Which_uint32, Type_Which_int32:
+	case schema.Type_Which_uint32, schema.Type_Which_int32:
 		return 32
-	case Type_Which_uint64, Type_Which_int64:
+	case schema.Type_Which_uint64, schema.Type_Which_int64:
 		return 64
 	}
 	return 0
@@ -878,7 +877,7 @@ func (n *node) codeOrderFields() []field {
 }
 
 func (n *node) defineStructTypes(w io.Writer, baseNode *node) {
-	assert(n.Which() == Node_Which_structGroup, "invalid struct node")
+	assert(n.Which() == schema.Node_Which_structGroup, "invalid struct node")
 
 	nann, _ := n.Annotations()
 	ann := parseAnnotations(nann)
@@ -889,19 +888,19 @@ func (n *node) defineStructTypes(w io.Writer, baseNode *node) {
 	})
 
 	for _, f := range n.codeOrderFields() {
-		if f.Which() == Field_Which_group {
+		if f.Which() == schema.Field_Which_group {
 			findNode(f.Group().TypeId()).defineStructTypes(w, baseNode)
 		}
 	}
 }
 
 func (n *node) defineStructEnums(w io.Writer) {
-	assert(n.Which() == Node_Which_structGroup, "invalid struct node")
+	assert(n.Which() == schema.Node_Which_structGroup, "invalid struct node")
 	fields := n.codeOrderFields()
 	members := make([]field, 0, len(fields))
 	es := make(enumString, 0, len(fields))
 	for _, f := range fields {
-		if f.DiscriminantValue() != Field_noDiscriminant {
+		if f.DiscriminantValue() != schema.Field_noDiscriminant {
 			members = append(members, f)
 			es = append(es, f.Name)
 		}
@@ -914,14 +913,14 @@ func (n *node) defineStructEnums(w io.Writer) {
 		})
 	}
 	for _, f := range fields {
-		if f.Which() == Field_Which_group {
+		if f.Which() == schema.Field_Which_group {
 			findNode(f.Group().TypeId()).defineStructEnums(w)
 		}
 	}
 }
 
 func (n *node) defineStructFuncs(w io.Writer) {
-	assert(n.Which() == Node_Which_structGroup, "invalid struct node")
+	assert(n.Which() == schema.Node_Which_structGroup, "invalid struct node")
 
 	templates.ExecuteTemplate(w, "structFuncs", structFuncsParams{
 		Node: n,
@@ -929,9 +928,9 @@ func (n *node) defineStructFuncs(w io.Writer) {
 
 	for _, f := range n.codeOrderFields() {
 		switch f.Which() {
-		case Field_Which_slot:
+		case schema.Field_Which_slot:
 			n.defineField(w, f)
-		case Field_Which_group:
+		case schema.Field_Which_group:
 			g := findNode(f.Group().TypeId())
 			templates.ExecuteTemplate(w, "structGroup", structGroupParams{
 				Node:  n,
@@ -944,12 +943,12 @@ func (n *node) defineStructFuncs(w io.Writer) {
 }
 
 func (n *node) ObjectSize() string {
-	assert(n.Which() == Node_Which_structGroup, "ObjectSize for invalid struct node")
+	assert(n.Which() == schema.Node_Which_structGroup, "ObjectSize for invalid struct node")
 	return fmt.Sprintf("%s.ObjectSize{DataSize: %d, PointerCount: %d}", g_imports.capnp(), int(n.StructGroup().DataWordCount())*8, n.StructGroup().PointerCount())
 }
 
 func (n *node) defineNewStructFunc(w io.Writer) {
-	assert(n.Which() == Node_Which_structGroup, "invalid struct node")
+	assert(n.Which() == schema.Node_Which_structGroup, "invalid struct node")
 
 	templates.ExecuteTemplate(w, "newStructFunc", newStructParams{
 		Node: n,
@@ -957,7 +956,7 @@ func (n *node) defineNewStructFunc(w io.Writer) {
 }
 
 func (n *node) defineStructList(w io.Writer) {
-	assert(n.Which() == Node_Which_structGroup, "invalid struct node")
+	assert(n.Which() == schema.Node_Which_structGroup, "invalid struct node")
 
 	templates.ExecuteTemplate(w, "structList", structListParams{
 		Node: n,
@@ -972,12 +971,12 @@ func (n *node) defineStructPromise(w io.Writer) {
 
 	for _, f := range n.codeOrderFields() {
 		switch f.Which() {
-		case Field_Which_slot:
+		case schema.Field_Which_slot:
 			t, _ := f.Slot().Type()
-			if tw := t.Which(); tw == Type_Which_structGroup || tw == Type_Which_interface || tw == Type_Which_anyPointer {
+			if tw := t.Which(); tw == schema.Type_Which_structGroup || tw == schema.Type_Which_interface || tw == schema.Type_Which_anyPointer {
 				n.definePromiseField(w, f)
 			}
-		case Field_Which_group:
+		case schema.Field_Which_group:
 			g := findNode(f.Group().TypeId())
 			templates.ExecuteTemplate(w, "promiseGroup", promiseGroupTemplateParams{
 				Node:  n,
@@ -992,25 +991,25 @@ func (n *node) defineStructPromise(w io.Writer) {
 func (n *node) definePromiseField(w io.Writer, f field) {
 	slot := f.Slot()
 	switch t, _ := slot.Type(); t.Which() {
-	case Type_Which_structGroup:
+	case schema.Type_Which_structGroup:
 		ni := findNode(t.StructGroup().TypeId())
 		params := promiseFieldStructTemplateParams{
 			Node:   n,
 			Field:  f,
 			Struct: ni,
 		}
-		if def, _ := slot.DefaultValue(); def.Which() == Value_Which_structField {
+		if def, _ := slot.DefaultValue(); def.Which() == schema.Value_Which_structField {
 			if sf, _ := def.StructField(); capnp.HasData(sf) {
 				params.Default = copyData(sf)
 			}
 		}
 		templates.ExecuteTemplate(w, "promiseFieldStruct", params)
-	case Type_Which_anyPointer:
+	case schema.Type_Which_anyPointer:
 		templates.ExecuteTemplate(w, "promiseFieldAnyPointer", promiseFieldAnyPointerTemplateParams{
 			Node:  n,
 			Field: f,
 		})
-	case Type_Which_interface:
+	case schema.Type_Which_interface:
 		templates.ExecuteTemplate(w, "promiseFieldInterface", promiseFieldInterfaceTemplateParams{
 			Node:      n,
 			Field:     f,
@@ -1020,7 +1019,7 @@ func (n *node) definePromiseField(w io.Writer, f field) {
 }
 
 type interfaceMethod struct {
-	Method
+	schema.Method
 	Interface    *node
 	ID           int
 	Name         string
@@ -1089,7 +1088,7 @@ func (es enumString) SliceFor(i int) string {
 	return fmt.Sprintf("[%d:%d]", n, n+len(es[i]))
 }
 
-func generateFile(reqf CodeGeneratorRequest_RequestedFile) (generr error) {
+func generateFile(reqf schema.CodeGeneratorRequest_RequestedFile) (generr error) {
 	defer func() {
 		e := recover()
 		if ae, ok := e.(assertionError); ok {
@@ -1106,7 +1105,7 @@ func generateFile(reqf CodeGeneratorRequest_RequestedFile) (generr error) {
 	g_bufname = fmt.Sprintf("x_%x", f.Id())
 
 	for _, n := range f.nodes {
-		if n.Which() == Node_Which_annotation {
+		if n.Which() == schema.Node_Which_annotation {
 			n.defineAnnotation(&buf)
 		}
 	}
@@ -1115,9 +1114,9 @@ func generateFile(reqf CodeGeneratorRequest_RequestedFile) (generr error) {
 
 	for _, n := range f.nodes {
 		switch n.Which() {
-		case Node_Which_enum:
+		case schema.Node_Which_enum:
 			n.defineEnum(&buf)
-		case Node_Which_structGroup:
+		case schema.Node_Which_structGroup:
 			if !n.StructGroup().IsGroup() {
 				n.defineStructTypes(&buf, n)
 				n.defineStructEnums(&buf)
@@ -1128,7 +1127,7 @@ func generateFile(reqf CodeGeneratorRequest_RequestedFile) (generr error) {
 					n.defineStructPromise(&buf)
 				}
 			}
-		case Node_Which_interface:
+		case schema.Node_Which_interface:
 			n.defineInterfaceClient(&buf)
 			n.defineInterfaceServer(&buf)
 		}
@@ -1195,7 +1194,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	req, err := ReadRootCodeGeneratorRequest(msg)
+	req, err := schema.ReadRootCodeGeneratorRequest(msg)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "capnpc-go: Reading input:", err)
 		os.Exit(1)
@@ -1208,7 +1207,7 @@ func main() {
 		n := &node{Node: ni}
 		g_nodes[n.Id()] = n
 
-		if n.Which() == Node_Which_file {
+		if n.Which() == schema.Node_Which_file {
 			allfiles = append(allfiles, n)
 		}
 	}

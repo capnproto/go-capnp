@@ -1,4 +1,4 @@
-package main
+package schema
 
 // AUTO GENERATED - DO NOT EDIT
 

@@ -19,11 +19,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-using Go = import "../go.capnp";
+using Go = import "../../go.capnp";
 
 @0xa93fc509624c72d9;
-$Go.package("main");
-$Go.import("zombiezen.com/go/capnproto2/capnpc-go");
+$Go.package("schema");
+$Go.import("zombiezen.com/go/capnproto2/internal/schema");
 
 using Id = UInt64;
 # The globally-unique ID of a file, type, or annotation.
