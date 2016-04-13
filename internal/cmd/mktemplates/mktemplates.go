@@ -162,11 +162,6 @@ var funcStubs = map[string]interface{}{
 	"urlquery": escaperStub,
 
 	// App-specific
-	"capnp":              importStub,
-	"math":               importStub,
-	"server":             importStub,
-	"context":            importStub,
-	"strconv":            importStub,
 	"title":              strings.Title,
 	"hasDiscriminant":    func(interface{}) bool { return false },
 	"discriminantOffset": func(interface{}) uint32 { return 0 },

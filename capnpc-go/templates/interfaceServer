@@ -1,28 +1,28 @@
 type {{.Node.Name}}_Server interface {
 	{{range .Methods}}
-	{{.Name|title}}({{.Interface.RemoteName $.Node}}_{{.Name}}) error
+	{{.Name|title}}({{$.G.RemoteName .Interface $.Node}}_{{.Name}}) error
 	{{end}}
 }
 
 func {{.Node.Name}}_ServerToClient(s {{.Node.Name}}_Server) {{.Node.Name}} {
-	c, _ := s.({{server}}.Closer)
-	return {{.Node.Name}}{Client: {{server}}.New({{.Node.Name}}_Methods(nil, s), c)}
+	c, _ := s.({{.G.Imports.Server}}.Closer)
+	return {{.Node.Name}}{Client: {{.G.Imports.Server}}.New({{.Node.Name}}_Methods(nil, s), c)}
 }
 
-func {{.Node.Name}}_Methods(methods []{{server}}.Method, s {{.Node.Name}}_Server) []{{server}}.Method {
+func {{.Node.Name}}_Methods(methods []{{.G.Imports.Server}}.Method, s {{.Node.Name}}_Server) []{{.G.Imports.Server}}.Method {
 	if cap(methods) == 0 {
-		methods = make([]{{server}}.Method, 0, {{len .Methods}})
+		methods = make([]{{.G.Imports.Server}}.Method, 0, {{len .Methods}})
 	}
 	{{range .Methods}}
-	methods = append(methods, {{server}}.Method{
-		Method: {{capnp}}.Method{
+	methods = append(methods, {{$.G.Imports.Server}}.Method{
+		Method: {{$.G.Capnp}}.Method{
 			{{template "_interfaceMethod" .}}
 		},
-		Impl: func(c {{context}}.Context, opts {{capnp}}.CallOptions, p, r {{capnp}}.Struct) error {
-			call := {{.Interface.RemoteName $.Node}}_{{.Name}}{c, opts, {{.Params.RemoteName $.Node}}{Struct: p}, {{.Results.RemoteName $.Node}}{Struct: r} }
+		Impl: func(c {{$.G.Imports.Context}}.Context, opts {{$.G.Capnp}}.CallOptions, p, r {{$.G.Capnp}}.Struct) error {
+			call := {{$.G.RemoteName .Interface $.Node}}_{{.Name}}{c, opts, {{$.G.RemoteName .Params $.Node}}{Struct: p}, {{$.G.RemoteName .Results $.Node}}{Struct: r} }
 			return s.{{.Name|title}}(call)
 		},
-		ResultsSize: {{.Results.ObjectSize}},
+		ResultsSize: {{$.G.ObjectSize .Results}},
 	})
 	{{end}}
 	return methods
@@ -31,10 +31,10 @@ func {{.Node.Name}}_Methods(methods []{{server}}.Method, s {{.Node.Name}}_Server
 {{if eq .Interface.Id $.Node.Id}}
 // {{$.Node.Name}}_{{.Name}} holds the arguments for a server call to {{$.Node.Name}}.{{.Name}}.
 type {{$.Node.Name}}_{{.Name}} struct {
-	Ctx     {{context}}.Context
-	Options {{capnp}}.CallOptions
-	Params  {{.Params.RemoteName $.Node}}
-	Results {{.Results.RemoteName $.Node}}
+	Ctx     {{$.G.Imports.Context}}.Context
+	Options {{$.G.Capnp}}.CallOptions
+	Params  {{$.G.RemoteName .Params $.Node}}
+	Results {{$.G.RemoteName .Results $.Node}}
 }
 {{end}}
 {{- end}}

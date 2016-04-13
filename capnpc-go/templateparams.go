@@ -3,16 +3,19 @@ package main
 import "fmt"
 
 type annotationParams struct {
+	G    *generator
 	Node *node
 }
 
 type enumParams struct {
+	G           *generator
 	Node        *node
 	Annotations *annotations
 	EnumValues  []enumval
 }
 
 type structTypesParams struct {
+	G           *generator
 	Node        *node
 	Annotations *annotations
 	BaseNode    *node
@@ -23,20 +26,24 @@ func (p structTypesParams) IsBase() bool {
 }
 
 type newStructParams struct {
+	G    *generator
 	Node *node
 }
 
 type structFuncsParams struct {
+	G    *generator
 	Node *node
 }
 
 type structGroupParams struct {
+	G     *generator
 	Node  *node
 	Group *node
 	Field field
 }
 
 type structFieldParams struct {
+	G           *generator
 	Node        *node
 	Field       field
 	Annotations *annotations
@@ -87,27 +94,32 @@ type structObjectFieldParams struct {
 }
 
 type structListParams struct {
+	G    *generator
 	Node *node
 }
 
 type structEnumsParams struct {
+	G          *generator
 	Node       *node
 	Fields     []field
 	EnumString enumString
 }
 
 type promiseTemplateParams struct {
+	G      *generator
 	Node   *node
 	Fields []field
 }
 
 type promiseGroupTemplateParams struct {
+	G     *generator
 	Node  *node
 	Field field
 	Group *node
 }
 
 type promiseFieldStructTemplateParams struct {
+	G       *generator
 	Node    *node
 	Field   field
 	Struct  *node
@@ -115,39 +127,46 @@ type promiseFieldStructTemplateParams struct {
 }
 
 type promiseFieldAnyPointerTemplateParams struct {
+	G     *generator
 	Node  *node
 	Field field
 }
 
 type promiseFieldInterfaceTemplateParams struct {
+	G         *generator
 	Node      *node
 	Field     field
 	Interface *node
 }
 
 type interfaceClientTemplateParams struct {
+	G           *generator
 	Node        *node
 	Annotations *annotations
 	Methods     []interfaceMethod
 }
 
 type interfaceServerTemplateParams struct {
+	G           *generator
 	Node        *node
 	Annotations *annotations
 	Methods     []interfaceMethod
 }
 
 type structValueTemplateParams struct {
+	G     *generator
 	Node  *node
 	Typ   *node
 	Value staticDataRef
 }
 
 type pointerValueTemplateParams struct {
+	G     *generator
 	Value staticDataRef
 }
 
 type listValueTemplateParams struct {
+	G     *generator
 	Typ   string
 	Value staticDataRef
 }

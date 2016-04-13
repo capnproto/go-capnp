@@ -12,6 +12,6 @@ func (w {{.Node.Name}}_Which) String() string {
 		return s{{$.EnumString.SliceFor $i}}
 	{{end}}
 	}
-	return "{{.Node.Name}}_Which(" + {{strconv}}.FormatUint(uint64(w), 10) + ")"
+	return "{{.Node.Name}}_Which(" + {{.G.Imports.Strconv}}.FormatUint(uint64(w), 10) + ")"
 }
 

@@ -1,20 +1,20 @@
-func New{{.Node.Name}}(s *{{capnp}}.Segment) ({{.Node.Name}}, error) {
-	st, err := {{capnp}}.NewStruct(s, {{.Node.ObjectSize}})
+func New{{.Node.Name}}(s *{{.G.Capnp}}.Segment) ({{.Node.Name}}, error) {
+	st, err := {{$.G.Capnp}}.NewStruct(s, {{.G.ObjectSize .Node}})
 	if err != nil {
 		return {{.Node.Name}}{}, err
 	}
 	return {{.Node.Name}}{st}, nil
 }
 
-func NewRoot{{.Node.Name}}(s *{{capnp}}.Segment) ({{.Node.Name}}, error) {
-	st, err := {{capnp}}.NewRootStruct(s, {{.Node.ObjectSize}})
+func NewRoot{{.Node.Name}}(s *{{.G.Capnp}}.Segment) ({{.Node.Name}}, error) {
+	st, err := {{.G.Capnp}}.NewRootStruct(s, {{.G.ObjectSize .Node}})
 	if err != nil {
 		return {{.Node.Name}}{}, err
 	}
 	return {{.Node.Name}}{st}, nil
 }
 
-func ReadRoot{{.Node.Name}}(msg *{{capnp}}.Message) ({{.Node.Name}}, error) {
+func ReadRoot{{.Node.Name}}(msg *{{.G.Capnp}}.Message) ({{.Node.Name}}, error) {
 	root, err := msg.RootPtr()
 	if err != nil {
 		return {{.Node.Name}}{}, err
