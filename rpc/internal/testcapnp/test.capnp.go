@@ -166,7 +166,6 @@ func ReadRootHandleFactory_newHandle_Results(msg *capnp.Message) (HandleFactory_
 	}
 	return HandleFactory_newHandle_Results{root.Struct()}, nil
 }
-
 func (s HandleFactory_newHandle_Results) Handle() Handle {
 	p, err := s.Struct.Ptr(0)
 	if err != nil {
@@ -182,7 +181,6 @@ func (s HandleFactory_newHandle_Results) HasHandle() bool {
 }
 
 func (s HandleFactory_newHandle_Results) SetHandle(v Handle) error {
-
 	seg := s.Segment()
 	if seg == nil {
 
@@ -481,13 +479,11 @@ func ReadRootCallOrder_getCallSequence_Params(msg *capnp.Message) (CallOrder_get
 	}
 	return CallOrder_getCallSequence_Params{root.Struct()}, nil
 }
-
 func (s CallOrder_getCallSequence_Params) Expected() uint32 {
 	return s.Struct.Uint32(0)
 }
 
 func (s CallOrder_getCallSequence_Params) SetExpected(v uint32) {
-
 	s.Struct.SetUint32(0, v)
 }
 
@@ -543,13 +539,11 @@ func ReadRootCallOrder_getCallSequence_Results(msg *capnp.Message) (CallOrder_ge
 	}
 	return CallOrder_getCallSequence_Results{root.Struct()}, nil
 }
-
 func (s CallOrder_getCallSequence_Results) N() uint32 {
 	return s.Struct.Uint32(0)
 }
 
 func (s CallOrder_getCallSequence_Results) SetN(v uint32) {
-
 	s.Struct.SetUint32(0, v)
 }
 
@@ -602,7 +596,6 @@ func (c Echoer) Echo(ctx context.Context, params func(Echoer_echo_Params) error,
 	}
 	return Echoer_echo_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
 }
-
 func (c Echoer) GetCallSequence(ctx context.Context, params func(CallOrder_getCallSequence_Params) error, opts ...capnp.CallOption) CallOrder_getCallSequence_Results_Promise {
 	if c.Client == nil {
 		return CallOrder_getCallSequence_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
@@ -704,7 +697,6 @@ func ReadRootEchoer_echo_Params(msg *capnp.Message) (Echoer_echo_Params, error) 
 	}
 	return Echoer_echo_Params{root.Struct()}, nil
 }
-
 func (s Echoer_echo_Params) Cap() CallOrder {
 	p, err := s.Struct.Ptr(0)
 	if err != nil {
@@ -720,7 +712,6 @@ func (s Echoer_echo_Params) HasCap() bool {
 }
 
 func (s Echoer_echo_Params) SetCap(v CallOrder) error {
-
 	seg := s.Segment()
 	if seg == nil {
 
@@ -789,7 +780,6 @@ func ReadRootEchoer_echo_Results(msg *capnp.Message) (Echoer_echo_Results, error
 	}
 	return Echoer_echo_Results{root.Struct()}, nil
 }
-
 func (s Echoer_echo_Results) Cap() CallOrder {
 	p, err := s.Struct.Ptr(0)
 	if err != nil {
@@ -805,7 +795,6 @@ func (s Echoer_echo_Results) HasCap() bool {
 }
 
 func (s Echoer_echo_Results) SetCap(v CallOrder) error {
-
 	seg := s.Segment()
 	if seg == nil {
 
@@ -936,13 +925,11 @@ func ReadRootAdder_add_Params(msg *capnp.Message) (Adder_add_Params, error) {
 	}
 	return Adder_add_Params{root.Struct()}, nil
 }
-
 func (s Adder_add_Params) A() int32 {
 	return int32(s.Struct.Uint32(0))
 }
 
 func (s Adder_add_Params) SetA(v int32) {
-
 	s.Struct.SetUint32(0, uint32(v))
 }
 
@@ -951,7 +938,6 @@ func (s Adder_add_Params) B() int32 {
 }
 
 func (s Adder_add_Params) SetB(v int32) {
-
 	s.Struct.SetUint32(4, uint32(v))
 }
 
@@ -1005,13 +991,11 @@ func ReadRootAdder_add_Results(msg *capnp.Message) (Adder_add_Results, error) {
 	}
 	return Adder_add_Results{root.Struct()}, nil
 }
-
 func (s Adder_add_Results) Result() int32 {
 	return int32(s.Struct.Uint32(0))
 }
 
 func (s Adder_add_Results) SetResult(v int32) {
-
 	s.Struct.SetUint32(0, uint32(v))
 }
 

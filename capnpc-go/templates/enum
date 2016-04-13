@@ -1,18 +1,23 @@
-{{with .Annotations.Doc}}// {{.}}
-{{end}}type {{.Node.Name}} uint16
+{{with .Annotations.Doc -}}
+// {{.}}
+{{end -}}
+type {{.Node.Name}} uint16
 
-{{with .EnumValues}}
+{{with .EnumValues -}}
 // Values of {{$.Node.Name}}.
 const (
-{{range .}}{{.FullName}} {{$.Node.Name}} = {{.Val}}
+{{range . -}}
+{{.FullName}} {{$.Node.Name}} = {{.Val}}
 {{end}}
 )
 
 // String returns the enum's constant name.
 func (c {{$.Node.Name}}) String() string {
 	switch c {
-	{{range .}}{{if .Tag}}case {{.FullName}}: return {{printf "%q" .Tag}}
-	{{end}}{{end}}
+	{{range . -}}
+        {{if .Tag}}case {{.FullName}}: return {{printf "%q" .Tag}}
+	{{end}}
+        {{- end}}
 	default: return ""
 	}
 }
@@ -21,8 +26,10 @@ func (c {{$.Node.Name}}) String() string {
 // or the zero value if there's no such value.
 func {{$.Node.Name}}FromString(c string) {{$.Node.Name}} {
 	switch c {
-	{{range .}}{{if .Tag}}case {{printf "%q" .Tag}}: return {{.FullName}}
-	{{end}}{{end}}
+	{{range . -}}
+        {{if .Tag}}case {{printf "%q" .Tag}}: return {{.FullName}}
+	{{end}}
+        {{- end}}
 	default: return 0
 	}
 }

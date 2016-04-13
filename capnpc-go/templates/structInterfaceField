@@ -10,7 +10,7 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() {{.FieldType}} {
 {{template "hasfield" .}}
 
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.FieldType}}) error {
-	{{template "settag" .}}
+	{{template "settag" . -}}
 	seg := s.Segment()
 	if seg == nil {
 		{{/* TODO(light): error? */}}

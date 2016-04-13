@@ -27,7 +27,8 @@ func {{.Node.Name}}_Methods(methods []{{server}}.Method, s {{.Node.Name}}_Server
 	{{end}}
 	return methods
 }
-{{range .Methods}}{{if eq .Interface.Id $.Node.Id}}
+{{range .Methods -}}
+{{if eq .Interface.Id $.Node.Id}}
 // {{$.Node.Name}}_{{.Name}} holds the arguments for a server call to {{$.Node.Name}}.{{.Name}}.
 type {{$.Node.Name}}_{{.Name}} struct {
 	Ctx     {{context}}.Context
@@ -35,4 +36,5 @@ type {{$.Node.Name}}_{{.Name}} struct {
 	Params  {{.Params.RemoteName $.Node}}
 	Results {{.Results.RemoteName $.Node}}
 }
-{{end}}{{end}}
+{{end}}
+{{- end}}

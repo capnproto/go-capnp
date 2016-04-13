@@ -1,2 +1,8 @@
-{{with .Annotations.Doc}}// {{.}}
-{{end}}type {{.Node.Name}} {{if .IsBase}}struct{ {{capnp}}.Struct }{{else}}{{.BaseNode.Name}}{{end}}
+{{with .Annotations.Doc -}}
+// {{.}}
+{{end -}}
+type {{.Node.Name}} {{if .IsBase -}}
+struct{ {{capnp}}.Struct }
+{{- else -}}
+{{.BaseNode.Name}}
+{{- end}}

@@ -3,7 +3,7 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() bool {
 }
 
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v bool) {
-	{{template "settag" .}}
+	{{template "settag" . -}}
 	s.Struct.SetBit({{.Field.Slot.Offset}}, {{if .Default}}!{{end}}v)
 }
 

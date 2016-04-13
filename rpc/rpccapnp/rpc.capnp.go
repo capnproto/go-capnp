@@ -90,15 +90,12 @@ func ReadRootMessage(msg *capnp.Message) (Message, error) {
 func (s Message) Which() Message_Which {
 	return Message_Which(s.Struct.Uint16(0))
 }
-
 func (s Message) Unimplemented() (Message, error) {
 	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return Message{}, err
 	}
-
 	return Message{Struct: p.Struct()}, nil
-
 }
 
 func (s Message) HasUnimplemented() bool {
@@ -128,9 +125,7 @@ func (s Message) Abort() (Exception, error) {
 	if err != nil {
 		return Exception{}, err
 	}
-
 	return Exception{Struct: p.Struct()}, nil
-
 }
 
 func (s Message) HasAbort() bool {
@@ -160,9 +155,7 @@ func (s Message) Bootstrap() (Bootstrap, error) {
 	if err != nil {
 		return Bootstrap{}, err
 	}
-
 	return Bootstrap{Struct: p.Struct()}, nil
-
 }
 
 func (s Message) HasBootstrap() bool {
@@ -192,9 +185,7 @@ func (s Message) Call() (Call, error) {
 	if err != nil {
 		return Call{}, err
 	}
-
 	return Call{Struct: p.Struct()}, nil
-
 }
 
 func (s Message) HasCall() bool {
@@ -224,9 +215,7 @@ func (s Message) Return() (Return, error) {
 	if err != nil {
 		return Return{}, err
 	}
-
 	return Return{Struct: p.Struct()}, nil
-
 }
 
 func (s Message) HasReturn() bool {
@@ -256,9 +245,7 @@ func (s Message) Finish() (Finish, error) {
 	if err != nil {
 		return Finish{}, err
 	}
-
 	return Finish{Struct: p.Struct()}, nil
-
 }
 
 func (s Message) HasFinish() bool {
@@ -288,9 +275,7 @@ func (s Message) Resolve() (Resolve, error) {
 	if err != nil {
 		return Resolve{}, err
 	}
-
 	return Resolve{Struct: p.Struct()}, nil
-
 }
 
 func (s Message) HasResolve() bool {
@@ -320,9 +305,7 @@ func (s Message) Release() (Release, error) {
 	if err != nil {
 		return Release{}, err
 	}
-
 	return Release{Struct: p.Struct()}, nil
-
 }
 
 func (s Message) HasRelease() bool {
@@ -352,9 +335,7 @@ func (s Message) Disembargo() (Disembargo, error) {
 	if err != nil {
 		return Disembargo{}, err
 	}
-
 	return Disembargo{Struct: p.Struct()}, nil
-
 }
 
 func (s Message) HasDisembargo() bool {
@@ -380,9 +361,7 @@ func (s Message) NewDisembargo() (Disembargo, error) {
 }
 
 func (s Message) ObsoleteSave() (capnp.Pointer, error) {
-
 	return s.Struct.Pointer(0)
-
 }
 
 func (s Message) HasObsoleteSave() bool {
@@ -391,9 +370,7 @@ func (s Message) HasObsoleteSave() bool {
 }
 
 func (s Message) ObsoleteSavePtr() (capnp.Ptr, error) {
-
 	return s.Struct.Ptr(0)
-
 }
 
 func (s Message) SetObsoleteSave(v capnp.Pointer) error {
@@ -407,9 +384,7 @@ func (s Message) SetObsoleteSavePtr(v capnp.Ptr) error {
 }
 
 func (s Message) ObsoleteDelete() (capnp.Pointer, error) {
-
 	return s.Struct.Pointer(0)
-
 }
 
 func (s Message) HasObsoleteDelete() bool {
@@ -418,9 +393,7 @@ func (s Message) HasObsoleteDelete() bool {
 }
 
 func (s Message) ObsoleteDeletePtr() (capnp.Ptr, error) {
-
 	return s.Struct.Ptr(0)
-
 }
 
 func (s Message) SetObsoleteDelete(v capnp.Pointer) error {
@@ -438,9 +411,7 @@ func (s Message) Provide() (Provide, error) {
 	if err != nil {
 		return Provide{}, err
 	}
-
 	return Provide{Struct: p.Struct()}, nil
-
 }
 
 func (s Message) HasProvide() bool {
@@ -470,9 +441,7 @@ func (s Message) Accept() (Accept, error) {
 	if err != nil {
 		return Accept{}, err
 	}
-
 	return Accept{Struct: p.Struct()}, nil
-
 }
 
 func (s Message) HasAccept() bool {
@@ -502,9 +471,7 @@ func (s Message) Join() (Join, error) {
 	if err != nil {
 		return Join{}, err
 	}
-
 	return Join{Struct: p.Struct()}, nil
-
 }
 
 func (s Message) HasJoin() bool {
@@ -633,20 +600,16 @@ func ReadRootBootstrap(msg *capnp.Message) (Bootstrap, error) {
 	}
 	return Bootstrap{root.Struct()}, nil
 }
-
 func (s Bootstrap) QuestionId() uint32 {
 	return s.Struct.Uint32(0)
 }
 
 func (s Bootstrap) SetQuestionId(v uint32) {
-
 	s.Struct.SetUint32(0, v)
 }
 
 func (s Bootstrap) DeprecatedObjectId() (capnp.Pointer, error) {
-
 	return s.Struct.Pointer(0)
-
 }
 
 func (s Bootstrap) HasDeprecatedObjectId() bool {
@@ -655,18 +618,14 @@ func (s Bootstrap) HasDeprecatedObjectId() bool {
 }
 
 func (s Bootstrap) DeprecatedObjectIdPtr() (capnp.Ptr, error) {
-
 	return s.Struct.Ptr(0)
-
 }
 
 func (s Bootstrap) SetDeprecatedObjectId(v capnp.Pointer) error {
-
 	return s.Struct.SetPointer(0, v)
 }
 
 func (s Bootstrap) SetDeprecatedObjectIdPtr(v capnp.Ptr) error {
-
 	return s.Struct.SetPtr(0, v)
 }
 
@@ -744,13 +703,11 @@ func ReadRootCall(msg *capnp.Message) (Call, error) {
 	}
 	return Call{root.Struct()}, nil
 }
-
 func (s Call) QuestionId() uint32 {
 	return s.Struct.Uint32(0)
 }
 
 func (s Call) SetQuestionId(v uint32) {
-
 	s.Struct.SetUint32(0, v)
 }
 
@@ -759,9 +716,7 @@ func (s Call) Target() (MessageTarget, error) {
 	if err != nil {
 		return MessageTarget{}, err
 	}
-
 	return MessageTarget{Struct: p.Struct()}, nil
-
 }
 
 func (s Call) HasTarget() bool {
@@ -770,14 +725,12 @@ func (s Call) HasTarget() bool {
 }
 
 func (s Call) SetTarget(v MessageTarget) error {
-
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewTarget sets the target field to a newly
 // allocated MessageTarget struct, preferring placement in s's segment.
 func (s Call) NewTarget() (MessageTarget, error) {
-
 	ss, err := NewMessageTarget(s.Struct.Segment())
 	if err != nil {
 		return MessageTarget{}, err
@@ -791,7 +744,6 @@ func (s Call) InterfaceId() uint64 {
 }
 
 func (s Call) SetInterfaceId(v uint64) {
-
 	s.Struct.SetUint64(8, v)
 }
 
@@ -800,7 +752,6 @@ func (s Call) MethodId() uint16 {
 }
 
 func (s Call) SetMethodId(v uint16) {
-
 	s.Struct.SetUint16(4, v)
 }
 
@@ -809,7 +760,6 @@ func (s Call) AllowThirdPartyTailCall() bool {
 }
 
 func (s Call) SetAllowThirdPartyTailCall(v bool) {
-
 	s.Struct.SetBit(128, v)
 }
 
@@ -818,9 +768,7 @@ func (s Call) Params() (Payload, error) {
 	if err != nil {
 		return Payload{}, err
 	}
-
 	return Payload{Struct: p.Struct()}, nil
-
 }
 
 func (s Call) HasParams() bool {
@@ -829,14 +777,12 @@ func (s Call) HasParams() bool {
 }
 
 func (s Call) SetParams(v Payload) error {
-
 	return s.Struct.SetPtr(1, v.Struct.ToPtr())
 }
 
 // NewParams sets the params field to a newly
 // allocated Payload struct, preferring placement in s's segment.
 func (s Call) NewParams() (Payload, error) {
-
 	ss, err := NewPayload(s.Struct.Segment())
 	if err != nil {
 		return Payload{}, err
@@ -846,23 +792,21 @@ func (s Call) NewParams() (Payload, error) {
 }
 
 func (s Call) SendResultsTo() Call_sendResultsTo { return Call_sendResultsTo(s) }
-
 func (s Call_sendResultsTo) Which() Call_sendResultsTo_Which {
 	return Call_sendResultsTo_Which(s.Struct.Uint16(6))
 }
-
 func (s Call_sendResultsTo) SetCaller() {
 	s.Struct.SetUint16(6, 0)
+
 }
 
 func (s Call_sendResultsTo) SetYourself() {
 	s.Struct.SetUint16(6, 1)
+
 }
 
 func (s Call_sendResultsTo) ThirdParty() (capnp.Pointer, error) {
-
 	return s.Struct.Pointer(2)
-
 }
 
 func (s Call_sendResultsTo) HasThirdParty() bool {
@@ -871,9 +815,7 @@ func (s Call_sendResultsTo) HasThirdParty() bool {
 }
 
 func (s Call_sendResultsTo) ThirdPartyPtr() (capnp.Ptr, error) {
-
 	return s.Struct.Ptr(2)
-
 }
 
 func (s Call_sendResultsTo) SetThirdParty(v capnp.Pointer) error {
@@ -992,13 +934,11 @@ func ReadRootReturn(msg *capnp.Message) (Return, error) {
 func (s Return) Which() Return_Which {
 	return Return_Which(s.Struct.Uint16(6))
 }
-
 func (s Return) AnswerId() uint32 {
 	return s.Struct.Uint32(0)
 }
 
 func (s Return) SetAnswerId(v uint32) {
-
 	s.Struct.SetUint32(0, v)
 }
 
@@ -1007,7 +947,6 @@ func (s Return) ReleaseParamCaps() bool {
 }
 
 func (s Return) SetReleaseParamCaps(v bool) {
-
 	s.Struct.SetBit(32, !v)
 }
 
@@ -1016,9 +955,7 @@ func (s Return) Results() (Payload, error) {
 	if err != nil {
 		return Payload{}, err
 	}
-
 	return Payload{Struct: p.Struct()}, nil
-
 }
 
 func (s Return) HasResults() bool {
@@ -1048,9 +985,7 @@ func (s Return) Exception() (Exception, error) {
 	if err != nil {
 		return Exception{}, err
 	}
-
 	return Exception{Struct: p.Struct()}, nil
-
 }
 
 func (s Return) HasException() bool {
@@ -1077,10 +1012,12 @@ func (s Return) NewException() (Exception, error) {
 
 func (s Return) SetCanceled() {
 	s.Struct.SetUint16(6, 2)
+
 }
 
 func (s Return) SetResultsSentElsewhere() {
 	s.Struct.SetUint16(6, 3)
+
 }
 
 func (s Return) TakeFromOtherQuestion() uint32 {
@@ -1093,9 +1030,7 @@ func (s Return) SetTakeFromOtherQuestion(v uint32) {
 }
 
 func (s Return) AcceptFromThirdParty() (capnp.Pointer, error) {
-
 	return s.Struct.Pointer(0)
-
 }
 
 func (s Return) HasAcceptFromThirdParty() bool {
@@ -1104,9 +1039,7 @@ func (s Return) HasAcceptFromThirdParty() bool {
 }
 
 func (s Return) AcceptFromThirdPartyPtr() (capnp.Ptr, error) {
-
 	return s.Struct.Ptr(0)
-
 }
 
 func (s Return) SetAcceptFromThirdParty(v capnp.Pointer) error {
@@ -1179,13 +1112,11 @@ func ReadRootFinish(msg *capnp.Message) (Finish, error) {
 	}
 	return Finish{root.Struct()}, nil
 }
-
 func (s Finish) QuestionId() uint32 {
 	return s.Struct.Uint32(0)
 }
 
 func (s Finish) SetQuestionId(v uint32) {
-
 	s.Struct.SetUint32(0, v)
 }
 
@@ -1194,7 +1125,6 @@ func (s Finish) ReleaseResultCaps() bool {
 }
 
 func (s Finish) SetReleaseResultCaps(v bool) {
-
 	s.Struct.SetBit(32, !v)
 }
 
@@ -1268,13 +1198,11 @@ func ReadRootResolve(msg *capnp.Message) (Resolve, error) {
 func (s Resolve) Which() Resolve_Which {
 	return Resolve_Which(s.Struct.Uint16(4))
 }
-
 func (s Resolve) PromiseId() uint32 {
 	return s.Struct.Uint32(0)
 }
 
 func (s Resolve) SetPromiseId(v uint32) {
-
 	s.Struct.SetUint32(0, v)
 }
 
@@ -1283,9 +1211,7 @@ func (s Resolve) Cap() (CapDescriptor, error) {
 	if err != nil {
 		return CapDescriptor{}, err
 	}
-
 	return CapDescriptor{Struct: p.Struct()}, nil
-
 }
 
 func (s Resolve) HasCap() bool {
@@ -1315,9 +1241,7 @@ func (s Resolve) Exception() (Exception, error) {
 	if err != nil {
 		return Exception{}, err
 	}
-
 	return Exception{Struct: p.Struct()}, nil
-
 }
 
 func (s Resolve) HasException() bool {
@@ -1398,13 +1322,11 @@ func ReadRootRelease(msg *capnp.Message) (Release, error) {
 	}
 	return Release{root.Struct()}, nil
 }
-
 func (s Release) Id() uint32 {
 	return s.Struct.Uint32(0)
 }
 
 func (s Release) SetId(v uint32) {
-
 	s.Struct.SetUint32(0, v)
 }
 
@@ -1413,7 +1335,6 @@ func (s Release) ReferenceCount() uint32 {
 }
 
 func (s Release) SetReferenceCount(v uint32) {
-
 	s.Struct.SetUint32(4, v)
 }
 
@@ -1490,15 +1411,12 @@ func ReadRootDisembargo(msg *capnp.Message) (Disembargo, error) {
 	}
 	return Disembargo{root.Struct()}, nil
 }
-
 func (s Disembargo) Target() (MessageTarget, error) {
 	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return MessageTarget{}, err
 	}
-
 	return MessageTarget{Struct: p.Struct()}, nil
-
 }
 
 func (s Disembargo) HasTarget() bool {
@@ -1507,14 +1425,12 @@ func (s Disembargo) HasTarget() bool {
 }
 
 func (s Disembargo) SetTarget(v MessageTarget) error {
-
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewTarget sets the target field to a newly
 // allocated MessageTarget struct, preferring placement in s's segment.
 func (s Disembargo) NewTarget() (MessageTarget, error) {
-
 	ss, err := NewMessageTarget(s.Struct.Segment())
 	if err != nil {
 		return MessageTarget{}, err
@@ -1524,11 +1440,9 @@ func (s Disembargo) NewTarget() (MessageTarget, error) {
 }
 
 func (s Disembargo) Context() Disembargo_context { return Disembargo_context(s) }
-
 func (s Disembargo_context) Which() Disembargo_context_Which {
 	return Disembargo_context_Which(s.Struct.Uint16(4))
 }
-
 func (s Disembargo_context) SenderLoopback() uint32 {
 	return s.Struct.Uint32(0)
 }
@@ -1549,6 +1463,7 @@ func (s Disembargo_context) SetReceiverLoopback(v uint32) {
 
 func (s Disembargo_context) SetAccept() {
 	s.Struct.SetUint16(4, 2)
+
 }
 
 func (s Disembargo_context) Provide() uint32 {
@@ -1624,13 +1539,11 @@ func ReadRootProvide(msg *capnp.Message) (Provide, error) {
 	}
 	return Provide{root.Struct()}, nil
 }
-
 func (s Provide) QuestionId() uint32 {
 	return s.Struct.Uint32(0)
 }
 
 func (s Provide) SetQuestionId(v uint32) {
-
 	s.Struct.SetUint32(0, v)
 }
 
@@ -1639,9 +1552,7 @@ func (s Provide) Target() (MessageTarget, error) {
 	if err != nil {
 		return MessageTarget{}, err
 	}
-
 	return MessageTarget{Struct: p.Struct()}, nil
-
 }
 
 func (s Provide) HasTarget() bool {
@@ -1650,14 +1561,12 @@ func (s Provide) HasTarget() bool {
 }
 
 func (s Provide) SetTarget(v MessageTarget) error {
-
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewTarget sets the target field to a newly
 // allocated MessageTarget struct, preferring placement in s's segment.
 func (s Provide) NewTarget() (MessageTarget, error) {
-
 	ss, err := NewMessageTarget(s.Struct.Segment())
 	if err != nil {
 		return MessageTarget{}, err
@@ -1667,9 +1576,7 @@ func (s Provide) NewTarget() (MessageTarget, error) {
 }
 
 func (s Provide) Recipient() (capnp.Pointer, error) {
-
 	return s.Struct.Pointer(1)
-
 }
 
 func (s Provide) HasRecipient() bool {
@@ -1678,18 +1585,14 @@ func (s Provide) HasRecipient() bool {
 }
 
 func (s Provide) RecipientPtr() (capnp.Ptr, error) {
-
 	return s.Struct.Ptr(1)
-
 }
 
 func (s Provide) SetRecipient(v capnp.Pointer) error {
-
 	return s.Struct.SetPointer(1, v)
 }
 
 func (s Provide) SetRecipientPtr(v capnp.Ptr) error {
-
 	return s.Struct.SetPtr(1, v)
 }
 
@@ -1749,20 +1652,16 @@ func ReadRootAccept(msg *capnp.Message) (Accept, error) {
 	}
 	return Accept{root.Struct()}, nil
 }
-
 func (s Accept) QuestionId() uint32 {
 	return s.Struct.Uint32(0)
 }
 
 func (s Accept) SetQuestionId(v uint32) {
-
 	s.Struct.SetUint32(0, v)
 }
 
 func (s Accept) Provision() (capnp.Pointer, error) {
-
 	return s.Struct.Pointer(0)
-
 }
 
 func (s Accept) HasProvision() bool {
@@ -1771,18 +1670,14 @@ func (s Accept) HasProvision() bool {
 }
 
 func (s Accept) ProvisionPtr() (capnp.Ptr, error) {
-
 	return s.Struct.Ptr(0)
-
 }
 
 func (s Accept) SetProvision(v capnp.Pointer) error {
-
 	return s.Struct.SetPointer(0, v)
 }
 
 func (s Accept) SetProvisionPtr(v capnp.Ptr) error {
-
 	return s.Struct.SetPtr(0, v)
 }
 
@@ -1791,7 +1686,6 @@ func (s Accept) Embargo() bool {
 }
 
 func (s Accept) SetEmbargo(v bool) {
-
 	s.Struct.SetBit(32, v)
 }
 
@@ -1847,13 +1741,11 @@ func ReadRootJoin(msg *capnp.Message) (Join, error) {
 	}
 	return Join{root.Struct()}, nil
 }
-
 func (s Join) QuestionId() uint32 {
 	return s.Struct.Uint32(0)
 }
 
 func (s Join) SetQuestionId(v uint32) {
-
 	s.Struct.SetUint32(0, v)
 }
 
@@ -1862,9 +1754,7 @@ func (s Join) Target() (MessageTarget, error) {
 	if err != nil {
 		return MessageTarget{}, err
 	}
-
 	return MessageTarget{Struct: p.Struct()}, nil
-
 }
 
 func (s Join) HasTarget() bool {
@@ -1873,14 +1763,12 @@ func (s Join) HasTarget() bool {
 }
 
 func (s Join) SetTarget(v MessageTarget) error {
-
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewTarget sets the target field to a newly
 // allocated MessageTarget struct, preferring placement in s's segment.
 func (s Join) NewTarget() (MessageTarget, error) {
-
 	ss, err := NewMessageTarget(s.Struct.Segment())
 	if err != nil {
 		return MessageTarget{}, err
@@ -1890,9 +1778,7 @@ func (s Join) NewTarget() (MessageTarget, error) {
 }
 
 func (s Join) KeyPart() (capnp.Pointer, error) {
-
 	return s.Struct.Pointer(1)
-
 }
 
 func (s Join) HasKeyPart() bool {
@@ -1901,18 +1787,14 @@ func (s Join) HasKeyPart() bool {
 }
 
 func (s Join) KeyPartPtr() (capnp.Ptr, error) {
-
 	return s.Struct.Ptr(1)
-
 }
 
 func (s Join) SetKeyPart(v capnp.Pointer) error {
-
 	return s.Struct.SetPointer(1, v)
 }
 
 func (s Join) SetKeyPartPtr(v capnp.Ptr) error {
-
 	return s.Struct.SetPtr(1, v)
 }
 
@@ -1994,7 +1876,6 @@ func ReadRootMessageTarget(msg *capnp.Message) (MessageTarget, error) {
 func (s MessageTarget) Which() MessageTarget_Which {
 	return MessageTarget_Which(s.Struct.Uint16(4))
 }
-
 func (s MessageTarget) ImportedCap() uint32 {
 	return s.Struct.Uint32(0)
 }
@@ -2009,9 +1890,7 @@ func (s MessageTarget) PromisedAnswer() (PromisedAnswer, error) {
 	if err != nil {
 		return PromisedAnswer{}, err
 	}
-
 	return PromisedAnswer{Struct: p.Struct()}, nil
-
 }
 
 func (s MessageTarget) HasPromisedAnswer() bool {
@@ -2088,11 +1967,8 @@ func ReadRootPayload(msg *capnp.Message) (Payload, error) {
 	}
 	return Payload{root.Struct()}, nil
 }
-
 func (s Payload) Content() (capnp.Pointer, error) {
-
 	return s.Struct.Pointer(0)
-
 }
 
 func (s Payload) HasContent() bool {
@@ -2101,18 +1977,14 @@ func (s Payload) HasContent() bool {
 }
 
 func (s Payload) ContentPtr() (capnp.Ptr, error) {
-
 	return s.Struct.Ptr(0)
-
 }
 
 func (s Payload) SetContent(v capnp.Pointer) error {
-
 	return s.Struct.SetPointer(0, v)
 }
 
 func (s Payload) SetContentPtr(v capnp.Ptr) error {
-
 	return s.Struct.SetPtr(0, v)
 }
 
@@ -2121,9 +1993,7 @@ func (s Payload) CapTable() (CapDescriptor_List, error) {
 	if err != nil {
 		return CapDescriptor_List{}, err
 	}
-
 	return CapDescriptor_List{List: p.List()}, nil
-
 }
 
 func (s Payload) HasCapTable() bool {
@@ -2132,7 +2002,6 @@ func (s Payload) HasCapTable() bool {
 }
 
 func (s Payload) SetCapTable(v CapDescriptor_List) error {
-
 	return s.Struct.SetPtr(1, v.List.ToPtr())
 }
 
@@ -2222,9 +2091,9 @@ func ReadRootCapDescriptor(msg *capnp.Message) (CapDescriptor, error) {
 func (s CapDescriptor) Which() CapDescriptor_Which {
 	return CapDescriptor_Which(s.Struct.Uint16(0))
 }
-
 func (s CapDescriptor) SetNone() {
 	s.Struct.SetUint16(0, 0)
+
 }
 
 func (s CapDescriptor) SenderHosted() uint32 {
@@ -2259,9 +2128,7 @@ func (s CapDescriptor) ReceiverAnswer() (PromisedAnswer, error) {
 	if err != nil {
 		return PromisedAnswer{}, err
 	}
-
 	return PromisedAnswer{Struct: p.Struct()}, nil
-
 }
 
 func (s CapDescriptor) HasReceiverAnswer() bool {
@@ -2291,9 +2158,7 @@ func (s CapDescriptor) ThirdPartyHosted() (ThirdPartyCapDescriptor, error) {
 	if err != nil {
 		return ThirdPartyCapDescriptor{}, err
 	}
-
 	return ThirdPartyCapDescriptor{Struct: p.Struct()}, nil
-
 }
 
 func (s CapDescriptor) HasThirdPartyHosted() bool {
@@ -2374,13 +2239,11 @@ func ReadRootPromisedAnswer(msg *capnp.Message) (PromisedAnswer, error) {
 	}
 	return PromisedAnswer{root.Struct()}, nil
 }
-
 func (s PromisedAnswer) QuestionId() uint32 {
 	return s.Struct.Uint32(0)
 }
 
 func (s PromisedAnswer) SetQuestionId(v uint32) {
-
 	s.Struct.SetUint32(0, v)
 }
 
@@ -2389,9 +2252,7 @@ func (s PromisedAnswer) Transform() (PromisedAnswer_Op_List, error) {
 	if err != nil {
 		return PromisedAnswer_Op_List{}, err
 	}
-
 	return PromisedAnswer_Op_List{List: p.List()}, nil
-
 }
 
 func (s PromisedAnswer) HasTransform() bool {
@@ -2400,7 +2261,6 @@ func (s PromisedAnswer) HasTransform() bool {
 }
 
 func (s PromisedAnswer) SetTransform(v PromisedAnswer_Op_List) error {
-
 	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
@@ -2474,9 +2334,9 @@ func ReadRootPromisedAnswer_Op(msg *capnp.Message) (PromisedAnswer_Op, error) {
 func (s PromisedAnswer_Op) Which() PromisedAnswer_Op_Which {
 	return PromisedAnswer_Op_Which(s.Struct.Uint16(0))
 }
-
 func (s PromisedAnswer_Op) SetNoop() {
 	s.Struct.SetUint16(0, 0)
+
 }
 
 func (s PromisedAnswer_Op) GetPointerField() uint16 {
@@ -2540,11 +2400,8 @@ func ReadRootThirdPartyCapDescriptor(msg *capnp.Message) (ThirdPartyCapDescripto
 	}
 	return ThirdPartyCapDescriptor{root.Struct()}, nil
 }
-
 func (s ThirdPartyCapDescriptor) Id() (capnp.Pointer, error) {
-
 	return s.Struct.Pointer(0)
-
 }
 
 func (s ThirdPartyCapDescriptor) HasId() bool {
@@ -2553,18 +2410,14 @@ func (s ThirdPartyCapDescriptor) HasId() bool {
 }
 
 func (s ThirdPartyCapDescriptor) IdPtr() (capnp.Ptr, error) {
-
 	return s.Struct.Ptr(0)
-
 }
 
 func (s ThirdPartyCapDescriptor) SetId(v capnp.Pointer) error {
-
 	return s.Struct.SetPointer(0, v)
 }
 
 func (s ThirdPartyCapDescriptor) SetIdPtr(v capnp.Ptr) error {
-
 	return s.Struct.SetPtr(0, v)
 }
 
@@ -2573,7 +2426,6 @@ func (s ThirdPartyCapDescriptor) VineId() uint32 {
 }
 
 func (s ThirdPartyCapDescriptor) SetVineId(v uint32) {
-
 	s.Struct.SetUint32(0, v)
 }
 
@@ -2633,15 +2485,12 @@ func ReadRootException(msg *capnp.Message) (Exception, error) {
 	}
 	return Exception{root.Struct()}, nil
 }
-
 func (s Exception) Reason() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return "", err
 	}
-
 	return p.Text(), nil
-
 }
 
 func (s Exception) HasReason() bool {
@@ -2654,13 +2503,10 @@ func (s Exception) ReasonBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return p.Data(), nil
-
 }
 
 func (s Exception) SetReason(v string) error {
-
 	t, err := capnp.NewText(s.Struct.Segment(), v)
 	if err != nil {
 		return err
@@ -2673,7 +2519,6 @@ func (s Exception) Type() Exception_Type {
 }
 
 func (s Exception) SetType(v Exception_Type) {
-
 	s.Struct.SetUint16(4, uint16(v))
 }
 
@@ -2682,7 +2527,6 @@ func (s Exception) ObsoleteIsCallersFault() bool {
 }
 
 func (s Exception) SetObsoleteIsCallersFault(v bool) {
-
 	s.Struct.SetBit(0, v)
 }
 
@@ -2691,7 +2535,6 @@ func (s Exception) ObsoleteDurability() uint16 {
 }
 
 func (s Exception) SetObsoleteDurability(v uint16) {
-
 	s.Struct.SetUint16(2, v)
 }
 

@@ -148,7 +148,6 @@ func ReadRootHashFactory_newSha1_Results(msg *capnp.Message) (HashFactory_newSha
 	}
 	return HashFactory_newSha1_Results{root.Struct()}, nil
 }
-
 func (s HashFactory_newSha1_Results) Hash() Hash {
 	p, err := s.Struct.Ptr(0)
 	if err != nil {
@@ -164,7 +163,6 @@ func (s HashFactory_newSha1_Results) HasHash() bool {
 }
 
 func (s HashFactory_newSha1_Results) SetHash(v Hash) error {
-
 	seg := s.Segment()
 	if seg == nil {
 
@@ -230,7 +228,6 @@ func (c Hash) Write(ctx context.Context, params func(Hash_write_Params) error, o
 	}
 	return Hash_write_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
 }
-
 func (c Hash) Sum(ctx context.Context, params func(Hash_sum_Params) error, opts ...capnp.CallOption) Hash_sum_Results_Promise {
 	if c.Client == nil {
 		return Hash_sum_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
@@ -340,15 +337,12 @@ func ReadRootHash_write_Params(msg *capnp.Message) (Hash_write_Params, error) {
 	}
 	return Hash_write_Params{root.Struct()}, nil
 }
-
 func (s Hash_write_Params) Data() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return nil, err
 	}
-
 	return []byte(p.Data()), nil
-
 }
 
 func (s Hash_write_Params) HasData() bool {
@@ -357,7 +351,6 @@ func (s Hash_write_Params) HasData() bool {
 }
 
 func (s Hash_write_Params) SetData(v []byte) error {
-
 	d, err := capnp.NewData(s.Struct.Segment(), []byte(v))
 	if err != nil {
 		return err
@@ -521,15 +514,12 @@ func ReadRootHash_sum_Results(msg *capnp.Message) (Hash_sum_Results, error) {
 	}
 	return Hash_sum_Results{root.Struct()}, nil
 }
-
 func (s Hash_sum_Results) Hash() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return nil, err
 	}
-
 	return []byte(p.Data()), nil
-
 }
 
 func (s Hash_sum_Results) HasHash() bool {
@@ -538,7 +528,6 @@ func (s Hash_sum_Results) HasHash() bool {
 }
 
 func (s Hash_sum_Results) SetHash(v []byte) error {
-
 	d, err := capnp.NewData(s.Struct.Segment(), []byte(v))
 	if err != nil {
 		return err

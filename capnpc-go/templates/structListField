@@ -3,21 +3,21 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() ({{.FieldType}}, error) {
 	if err != nil {
 		return {{.FieldType}}{}, err
 	}
-	{{if .Default.IsValid}}
+	{{if .Default.IsValid -}}
 	l, err := p.ListDefault({{.Default}})
 	if err != nil {
 		return {{.FieldType}}{}, err
 	}
 	return {{.FieldType}}{List: l}, nil
-	{{else}}
+	{{- else -}}
 	return {{.FieldType}}{List: p.List()}, nil
-	{{end}}
+	{{- end}}
 }
 
 {{template "hasfield" .}}
 
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.FieldType}}) error {
-	{{template "settag" .}}
+	{{template "settag" . -}}
 	return s.Struct.SetPtr({{.Field.Slot.Offset}}, v.List.ToPtr())
 }
 

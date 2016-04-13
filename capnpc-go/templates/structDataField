@@ -3,17 +3,17 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() ({{.FieldType}}, error) {
 	if err != nil {
 		return nil, err
 	}
-	{{with .Default}}
+	{{with .Default -}}
 	return {{$.FieldType}}(p.DataDefault({{printf "%#v" .}})), nil
-	{{else}}
+	{{- else -}}
 	return {{.FieldType}}(p.Data()), nil
-	{{end}}
+	{{- end}}
 }
 
 {{template "hasfield" .}}
 
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.FieldType}}) error {
-	{{template "settag" .}}
+	{{template "settag" . -}}
 	d, err := {{capnp}}.NewData(s.Struct.Segment(), []byte(v))
 	if err != nil {
 		return err
