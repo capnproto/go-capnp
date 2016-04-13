@@ -844,6 +844,7 @@ func (s Call) NewParams() (Payload, error) {
 	err = s.Struct.SetPtr(1, ss.Struct.ToPtr())
 	return ss, err
 }
+
 func (s Call) SendResultsTo() Call_sendResultsTo { return Call_sendResultsTo(s) }
 
 func (s Call_sendResultsTo) Which() Call_sendResultsTo_Which {
@@ -915,6 +916,7 @@ func (p Call_Promise) Target() MessageTarget_Promise {
 func (p Call_Promise) Params() Payload_Promise {
 	return Payload_Promise{Pipeline: p.Pipeline.GetPipeline(1)}
 }
+
 func (p Call_Promise) SendResultsTo() Call_sendResultsTo_Promise {
 	return Call_sendResultsTo_Promise{p.Pipeline}
 }
@@ -1520,6 +1522,7 @@ func (s Disembargo) NewTarget() (MessageTarget, error) {
 	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
+
 func (s Disembargo) Context() Disembargo_context { return Disembargo_context(s) }
 
 func (s Disembargo_context) Which() Disembargo_context_Which {
@@ -1583,6 +1586,7 @@ func (p Disembargo_Promise) Struct() (Disembargo, error) {
 func (p Disembargo_Promise) Target() MessageTarget_Promise {
 	return MessageTarget_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
+
 func (p Disembargo_Promise) Context() Disembargo_context_Promise {
 	return Disembargo_context_Promise{p.Pipeline}
 }

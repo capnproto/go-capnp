@@ -1,0 +1,4 @@
+func (s {{.Node.Name}}) {{.Field.Name|title}}() {{.Group.Name}} { return {{.Group.Name}}(s) }
+{{if hasDiscriminant .Field}}
+func (s {{.Node.Name}}) Set{{.Field.Name|title}}() { {{template "settag" .}} }
+{{end}}

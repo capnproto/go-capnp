@@ -1,0 +1,23 @@
+func New{{.Node.Name}}(s *{{capnp}}.Segment) ({{.Node.Name}}, error) {
+	st, err := {{capnp}}.NewStruct(s, {{.Node.ObjectSize}})
+	if err != nil {
+		return {{.Node.Name}}{}, err
+	}
+	return {{.Node.Name}}{st}, nil
+}
+
+func NewRoot{{.Node.Name}}(s *{{capnp}}.Segment) ({{.Node.Name}}, error) {
+	st, err := {{capnp}}.NewRootStruct(s, {{.Node.ObjectSize}})
+	if err != nil {
+		return {{.Node.Name}}{}, err
+	}
+	return {{.Node.Name}}{st}, nil
+}
+
+func ReadRoot{{.Node.Name}}(msg *{{capnp}}.Message) ({{.Node.Name}}, error) {
+	root, err := msg.RootPtr()
+	if err != nil {
+		return {{.Node.Name}}{}, err
+	}
+	return {{.Node.Name}}{root.Struct()}, nil
+}

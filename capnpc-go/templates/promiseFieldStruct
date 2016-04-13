@@ -1,0 +1,4 @@
+func (p {{.Node.Name}}_Promise) {{.Field.Name|title}}() {{.Struct.RemoteName .Node}}_Promise {
+	return {{.Struct.RemoteName .Node}}_Promise{Pipeline: p.Pipeline.{{if .Default.IsValid}}GetPipelineDefault({{.Field.Slot.Offset}}, {{.Default}}){{else}}GetPipeline({{.Field.Slot.Offset}}){{end}} }
+}
+

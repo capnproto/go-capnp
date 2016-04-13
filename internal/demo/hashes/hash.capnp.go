@@ -17,7 +17,6 @@ func (c HashFactory) NewSha1(ctx context.Context, params func(HashFactory_newSha
 	call := &capnp.Call{
 		Ctx: ctx,
 		Method: capnp.Method{
-
 			InterfaceID:   0xaead580f97fddabc,
 			MethodID:      0,
 			InterfaceName: "hash.capnp:HashFactory",
@@ -48,7 +47,6 @@ func HashFactory_Methods(methods []server.Method, s HashFactory_Server) []server
 
 	methods = append(methods, server.Method{
 		Method: capnp.Method{
-
 			InterfaceID:   0xaead580f97fddabc,
 			MethodID:      0,
 			InterfaceName: "hash.capnp:HashFactory",
@@ -219,7 +217,6 @@ func (c Hash) Write(ctx context.Context, params func(Hash_write_Params) error, o
 	call := &capnp.Call{
 		Ctx: ctx,
 		Method: capnp.Method{
-
 			InterfaceID:   0xf29f97dd675a9431,
 			MethodID:      0,
 			InterfaceName: "hash.capnp:Hash",
@@ -241,7 +238,6 @@ func (c Hash) Sum(ctx context.Context, params func(Hash_sum_Params) error, opts 
 	call := &capnp.Call{
 		Ctx: ctx,
 		Method: capnp.Method{
-
 			InterfaceID:   0xf29f97dd675a9431,
 			MethodID:      1,
 			InterfaceName: "hash.capnp:Hash",
@@ -274,7 +270,6 @@ func Hash_Methods(methods []server.Method, s Hash_Server) []server.Method {
 
 	methods = append(methods, server.Method{
 		Method: capnp.Method{
-
 			InterfaceID:   0xf29f97dd675a9431,
 			MethodID:      0,
 			InterfaceName: "hash.capnp:Hash",
@@ -289,7 +284,6 @@ func Hash_Methods(methods []server.Method, s Hash_Server) []server.Method {
 
 	methods = append(methods, server.Method{
 		Method: capnp.Method{
-
 			InterfaceID:   0xf29f97dd675a9431,
 			MethodID:      1,
 			InterfaceName: "hash.capnp:Hash",

@@ -1,0 +1,23 @@
+func (s {{.Node.Name}}) {{.Field.Name|title}}() ({{.FieldType}}, error) {
+	p, err := s.Struct.Ptr({{.Field.Slot.Offset}})
+	if err != nil {
+		return {{.FieldType}}{}, err
+	}
+	{{if .Default.IsValid}}
+	l, err := p.ListDefault({{.Default}})
+	if err != nil {
+		return {{.FieldType}}{}, err
+	}
+	return {{.FieldType}}{List: l}, nil
+	{{else}}
+	return {{.FieldType}}{List: p.List()}, nil
+	{{end}}
+}
+
+{{template "hasfield" .}}
+
+func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.FieldType}}) error {
+	{{template "settag" .}}
+	return s.Struct.SetPtr({{.Field.Slot.Offset}}, v.List.ToPtr())
+}
+

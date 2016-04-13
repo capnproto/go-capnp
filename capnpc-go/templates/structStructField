@@ -1,0 +1,35 @@
+func (s {{.Node.Name}}) {{.Field.Name|title}}() ({{.FieldType}}, error) {
+	p, err := s.Struct.Ptr({{.Field.Slot.Offset}})
+	if err != nil {
+		return {{.FieldType}}{}, err
+	}
+	{{if .Default.IsValid}}
+	ss, err := p.StructDefault({{.Default}})
+	if err != nil {
+		return {{.FieldType}}{}, err
+	}
+	return {{.FieldType}}{Struct: ss}, nil
+	{{else}}
+	return {{.FieldType}}{Struct: p.Struct()}, nil
+	{{end}}
+}
+
+{{template "hasfield" .}}
+
+func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.FieldType}}) error {
+	{{template "settag" .}}
+	return s.Struct.SetPtr({{.Field.Slot.Offset}}, v.Struct.ToPtr())
+}
+
+// New{{.Field.Name|title}} sets the {{.Field.Name}} field to a newly
+// allocated {{.FieldType}} struct, preferring placement in s's segment.
+func (s {{.Node.Name}}) New{{.Field.Name|title}}() ({{.FieldType}}, error) {
+	{{template "settag" .}}
+	ss, err := {{.TypeNode.RemoteNew .Node}}(s.Struct.Segment())
+	if err != nil {
+		return {{.FieldType}}{}, err
+	}
+	err = s.Struct.SetPtr({{.Field.Slot.Offset}}, ss.Struct.ToPtr())
+	return ss, err
+}
+

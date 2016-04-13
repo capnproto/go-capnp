@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"text/template"
 	"unicode"
 
 	"zombiezen.com/go/capnproto2"
@@ -42,6 +43,21 @@ var (
 	g_segment []byte
 	g_bufname string
 )
+
+var templates = template.New("").Funcs(template.FuncMap{
+	"capnp":   g_imports.capnp,
+	"math":    g_imports.math,
+	"server":  g_imports.server,
+	"context": g_imports.context,
+	"strconv": g_imports.strconv,
+	"title":   strings.Title,
+	"hasDiscriminant": func(f field) bool {
+		return f.DiscriminantValue() != Field_noDiscriminant
+	},
+	"discriminantOffset": func(n *node) uint32 {
+		return n.StructGroup().DiscriminantOffset() * 2
+	},
+})
 
 type imports struct {
 	specs []importSpec

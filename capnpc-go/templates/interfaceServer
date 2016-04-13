@@ -1,0 +1,38 @@
+type {{.Node.Name}}_Server interface {
+	{{range .Methods}}
+	{{.Name|title}}({{.Interface.RemoteName $.Node}}_{{.Name}}) error
+	{{end}}
+}
+
+func {{.Node.Name}}_ServerToClient(s {{.Node.Name}}_Server) {{.Node.Name}} {
+	c, _ := s.({{server}}.Closer)
+	return {{.Node.Name}}{Client: {{server}}.New({{.Node.Name}}_Methods(nil, s), c)}
+}
+
+func {{.Node.Name}}_Methods(methods []{{server}}.Method, s {{.Node.Name}}_Server) []{{server}}.Method {
+	if cap(methods) == 0 {
+		methods = make([]{{server}}.Method, 0, {{len .Methods}})
+	}
+	{{range .Methods}}
+	methods = append(methods, {{server}}.Method{
+		Method: {{capnp}}.Method{
+			{{template "_interfaceMethod" .}}
+		},
+		Impl: func(c {{context}}.Context, opts {{capnp}}.CallOptions, p, r {{capnp}}.Struct) error {
+			call := {{.Interface.RemoteName $.Node}}_{{.Name}}{c, opts, {{.Params.RemoteName $.Node}}{Struct: p}, {{.Results.RemoteName $.Node}}{Struct: r} }
+			return s.{{.Name|title}}(call)
+		},
+		ResultsSize: {{.Results.ObjectSize}},
+	})
+	{{end}}
+	return methods
+}
+{{range .Methods}}{{if eq .Interface.Id $.Node.Id}}
+// {{$.Node.Name}}_{{.Name}} holds the arguments for a server call to {{$.Node.Name}}.{{.Name}}.
+type {{$.Node.Name}}_{{.Name}} struct {
+	Ctx     {{context}}.Context
+	Options {{capnp}}.CallOptions
+	Params  {{.Params.RemoteName $.Node}}
+	Results {{.Results.RemoteName $.Node}}
+}
+{{end}}{{end}}

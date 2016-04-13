@@ -210,6 +210,7 @@ func (s Node) SetAnnotations(v Annotation_List) error {
 func (s Node) SetFile() {
 	s.Struct.SetUint16(12, 0)
 }
+
 func (s Node) StructGroup() Node_structGroup { return Node_structGroup(s) }
 
 func (s Node) SetStructGroup() { s.Struct.SetUint16(12, 1) }
@@ -287,6 +288,7 @@ func (s Node_structGroup) SetFields(v Field_List) error {
 
 	return s.Struct.SetPtr(3, v.List.ToPtr())
 }
+
 func (s Node) Enum() Node_enum { return Node_enum(s) }
 
 func (s Node) SetEnum() { s.Struct.SetUint16(12, 2) }
@@ -310,6 +312,7 @@ func (s Node_enum) SetEnumerants(v Enumerant_List) error {
 
 	return s.Struct.SetPtr(3, v.List.ToPtr())
 }
+
 func (s Node) Interface() Node_interface { return Node_interface(s) }
 
 func (s Node) SetInterface() { s.Struct.SetUint16(12, 3) }
@@ -353,6 +356,7 @@ func (s Node_interface) SetSuperclasses(v Superclass_List) error {
 
 	return s.Struct.SetPtr(4, v.List.ToPtr())
 }
+
 func (s Node) Const() Node_const { return Node_const(s) }
 
 func (s Node) SetConst() { s.Struct.SetUint16(12, 4) }
@@ -420,6 +424,7 @@ func (s Node_const) NewValue() (Value, error) {
 	err = s.Struct.SetPtr(4, ss.Struct.ToPtr())
 	return ss, err
 }
+
 func (s Node) Annotation() Node_annotation { return Node_annotation(s) }
 
 func (s Node) SetAnnotation() { s.Struct.SetUint16(12, 5) }
@@ -881,6 +886,7 @@ func (s Field) SetDiscriminantValue(v uint16) {
 
 	s.Struct.SetUint16(2, v^65535)
 }
+
 func (s Field) Slot() Field_slot { return Field_slot(s) }
 
 func (s Field) SetSlot() { s.Struct.SetUint16(8, 0) }
@@ -966,6 +972,7 @@ func (s Field_slot) SetHadExplicitDefault(v bool) {
 
 	s.Struct.SetBit(128, v)
 }
+
 func (s Field) Group() Field_group { return Field_group(s) }
 
 func (s Field) SetGroup() { s.Struct.SetUint16(8, 1) }
@@ -978,6 +985,7 @@ func (s Field_group) SetTypeId(v uint64) {
 
 	s.Struct.SetUint64(16, v)
 }
+
 func (s Field) Ordinal() Field_ordinal { return Field_ordinal(s) }
 
 func (s Field_ordinal) Which() Field_ordinal_Which {
@@ -1587,6 +1595,7 @@ func (s Type) SetText() {
 func (s Type) SetData() {
 	s.Struct.SetUint16(0, 13)
 }
+
 func (s Type) List() Type_list { return Type_list(s) }
 
 func (s Type) SetList() { s.Struct.SetUint16(0, 14) }
@@ -1622,6 +1631,7 @@ func (s Type_list) NewElementType() (Type, error) {
 	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
+
 func (s Type) Enum() Type_enum { return Type_enum(s) }
 
 func (s Type) SetEnum() { s.Struct.SetUint16(0, 15) }
@@ -1666,6 +1676,7 @@ func (s Type_enum) NewBrand() (Brand, error) {
 	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
+
 func (s Type) StructGroup() Type_structGroup { return Type_structGroup(s) }
 
 func (s Type) SetStructGroup() { s.Struct.SetUint16(0, 16) }
@@ -1710,6 +1721,7 @@ func (s Type_structGroup) NewBrand() (Brand, error) {
 	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
+
 func (s Type) Interface() Type_interface { return Type_interface(s) }
 
 func (s Type) SetInterface() { s.Struct.SetUint16(0, 17) }
@@ -1754,6 +1766,7 @@ func (s Type_interface) NewBrand() (Brand, error) {
 	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
+
 func (s Type) AnyPointer() Type_anyPointer { return Type_anyPointer(s) }
 
 func (s Type) SetAnyPointer() { s.Struct.SetUint16(0, 18) }
@@ -1765,6 +1778,7 @@ func (s Type_anyPointer) Which() Type_anyPointer_Which {
 func (s Type_anyPointer) SetUnconstrained() {
 	s.Struct.SetUint16(8, 0)
 }
+
 func (s Type_anyPointer) Parameter() Type_anyPointer_parameter { return Type_anyPointer_parameter(s) }
 
 func (s Type_anyPointer) SetParameter() { s.Struct.SetUint16(8, 1) }
@@ -1786,6 +1800,7 @@ func (s Type_anyPointer_parameter) SetParameterIndex(v uint16) {
 
 	s.Struct.SetUint16(10, v)
 }
+
 func (s Type_anyPointer) ImplicitMethodParameter() Type_anyPointer_implicitMethodParameter {
 	return Type_anyPointer_implicitMethodParameter(s)
 }

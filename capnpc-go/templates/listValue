@@ -1,0 +1,1 @@
+{{.Typ}}{List: {{capnp}}.MustUnmarshalRootPtr({{.Value}}).List()}

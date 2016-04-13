@@ -4224,7 +4224,6 @@ func (c Echo) Echo(ctx context.Context, params func(Echo_echo_Params) error, opt
 	call := &capnp.Call{
 		Ctx: ctx,
 		Method: capnp.Method{
-
 			InterfaceID:   0x8e5322c1e9282534,
 			MethodID:      0,
 			InterfaceName: "aircraft.capnp:Echo",
@@ -4255,7 +4254,6 @@ func Echo_Methods(methods []server.Method, s Echo_Server) []server.Method {
 
 	methods = append(methods, server.Method{
 		Method: capnp.Method{
-
 			InterfaceID:   0x8e5322c1e9282534,
 			MethodID:      0,
 			InterfaceName: "aircraft.capnp:Echo",
@@ -4903,7 +4901,6 @@ func (c CallSequence) GetNumber(ctx context.Context, params func(CallSequence_ge
 	call := &capnp.Call{
 		Ctx: ctx,
 		Method: capnp.Method{
-
 			InterfaceID:   0xabaedf5f7817c820,
 			MethodID:      0,
 			InterfaceName: "aircraft.capnp:CallSequence",
@@ -4934,7 +4931,6 @@ func CallSequence_Methods(methods []server.Method, s CallSequence_Server) []serv
 
 	methods = append(methods, server.Method{
 		Method: capnp.Method{
-
 			InterfaceID:   0xabaedf5f7817c820,
 			MethodID:      0,
 			InterfaceName: "aircraft.capnp:CallSequence",

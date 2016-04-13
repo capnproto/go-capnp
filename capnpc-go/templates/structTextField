@@ -1,0 +1,35 @@
+func (s {{.Node.Name}}) {{.Field.Name|title}}() (string, error) {
+	p, err := s.Struct.Ptr({{.Field.Slot.Offset}})
+	if err != nil {
+		return "", err
+	}
+	{{with .Default}}
+	return p.TextDefault({{printf "%q" .}}), nil
+	{{else}}
+	return p.Text(), nil
+	{{end}}
+}
+
+{{template "hasfield" .}}
+
+func (s {{.Node.Name}}) {{.Field.Name|title}}Bytes() ([]byte, error) {
+	p, err := s.Struct.Ptr({{.Field.Slot.Offset}})
+	if err != nil {
+		return nil, err
+	}
+	{{with .Default}}
+	return p.DataDefault([]byte({{printf "%q" .}})), nil
+	{{else}}
+	return p.Data(), nil
+	{{end}}
+}
+
+func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v string) error {
+	{{template "settag" .}}
+	t, err := {{capnp}}.NewText(s.Struct.Segment(), v)
+	if err != nil {
+		return err
+	}
+	return s.Struct.SetPtr({{.Field.Slot.Offset}}, t.List.ToPtr())
+}
+

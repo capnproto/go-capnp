@@ -35,7 +35,6 @@ func (c HandleFactory) NewHandle(ctx context.Context, params func(HandleFactory_
 	call := &capnp.Call{
 		Ctx: ctx,
 		Method: capnp.Method{
-
 			InterfaceID:   0x8491a7fe75fe0bce,
 			MethodID:      0,
 			InterfaceName: "test.capnp:HandleFactory",
@@ -66,7 +65,6 @@ func HandleFactory_Methods(methods []server.Method, s HandleFactory_Server) []se
 
 	methods = append(methods, server.Method{
 		Method: capnp.Method{
-
 			InterfaceID:   0x8491a7fe75fe0bce,
 			MethodID:      0,
 			InterfaceName: "test.capnp:HandleFactory",
@@ -237,7 +235,6 @@ func (c Hanger) Hang(ctx context.Context, params func(Hanger_hang_Params) error,
 	call := &capnp.Call{
 		Ctx: ctx,
 		Method: capnp.Method{
-
 			InterfaceID:   0x8ae08044aae8a26e,
 			MethodID:      0,
 			InterfaceName: "test.capnp:Hanger",
@@ -268,7 +265,6 @@ func Hanger_Methods(methods []server.Method, s Hanger_Server) []server.Method {
 
 	methods = append(methods, server.Method{
 		Method: capnp.Method{
-
 			InterfaceID:   0x8ae08044aae8a26e,
 			MethodID:      0,
 			InterfaceName: "test.capnp:Hanger",
@@ -407,7 +403,6 @@ func (c CallOrder) GetCallSequence(ctx context.Context, params func(CallOrder_ge
 	call := &capnp.Call{
 		Ctx: ctx,
 		Method: capnp.Method{
-
 			InterfaceID:   0x92c5ca8314cdd2a5,
 			MethodID:      0,
 			InterfaceName: "test.capnp:CallOrder",
@@ -438,7 +433,6 @@ func CallOrder_Methods(methods []server.Method, s CallOrder_Server) []server.Met
 
 	methods = append(methods, server.Method{
 		Method: capnp.Method{
-
 			InterfaceID:   0x92c5ca8314cdd2a5,
 			MethodID:      0,
 			InterfaceName: "test.capnp:CallOrder",
@@ -595,7 +589,6 @@ func (c Echoer) Echo(ctx context.Context, params func(Echoer_echo_Params) error,
 	call := &capnp.Call{
 		Ctx: ctx,
 		Method: capnp.Method{
-
 			InterfaceID:   0x841756c6a41b2a45,
 			MethodID:      0,
 			InterfaceName: "test.capnp:Echoer",
@@ -617,7 +610,6 @@ func (c Echoer) GetCallSequence(ctx context.Context, params func(CallOrder_getCa
 	call := &capnp.Call{
 		Ctx: ctx,
 		Method: capnp.Method{
-
 			InterfaceID:   0x92c5ca8314cdd2a5,
 			MethodID:      0,
 			InterfaceName: "test.capnp:CallOrder",
@@ -650,7 +642,6 @@ func Echoer_Methods(methods []server.Method, s Echoer_Server) []server.Method {
 
 	methods = append(methods, server.Method{
 		Method: capnp.Method{
-
 			InterfaceID:   0x841756c6a41b2a45,
 			MethodID:      0,
 			InterfaceName: "test.capnp:Echoer",
@@ -665,7 +656,6 @@ func Echoer_Methods(methods []server.Method, s Echoer_Server) []server.Method {
 
 	methods = append(methods, server.Method{
 		Method: capnp.Method{
-
 			InterfaceID:   0x92c5ca8314cdd2a5,
 			MethodID:      0,
 			InterfaceName: "test.capnp:CallOrder",
@@ -868,7 +858,6 @@ func (c Adder) Add(ctx context.Context, params func(Adder_add_Params) error, opt
 	call := &capnp.Call{
 		Ctx: ctx,
 		Method: capnp.Method{
-
 			InterfaceID:   0x8f9cac550b1bf41f,
 			MethodID:      0,
 			InterfaceName: "test.capnp:Adder",
@@ -899,7 +888,6 @@ func Adder_Methods(methods []server.Method, s Adder_Server) []server.Method {
 
 	methods = append(methods, server.Method{
 		Method: capnp.Method{
-
 			InterfaceID:   0x8f9cac550b1bf41f,
 			MethodID:      0,
 			InterfaceName: "test.capnp:Adder",
