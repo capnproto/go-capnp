@@ -7,6 +7,12 @@ type annotationParams struct {
 	Node *node
 }
 
+type constantsParams struct {
+	G      *generator
+	Consts []*node
+	Vars   []*node
+}
+
 type enumParams struct {
 	G           *generator
 	Node        *node

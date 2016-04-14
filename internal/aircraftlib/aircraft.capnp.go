@@ -10,10 +10,12 @@ import (
 	server "zombiezen.com/go/capnproto2/server"
 )
 
+// Constants defined in aircraft.capnp.
 const (
 	ConstEnum = Airport_jfk
 )
 
+// Constants defined in aircraft.capnp.
 var (
 	ConstDate = Zdate{Struct: capnp.MustUnmarshalRootPtr(x_832bcc6686a26d56[0:24]).Struct()}
 	ConstList = Zdate_List{List: capnp.MustUnmarshalRootPtr(x_832bcc6686a26d56[24:64]).List()}

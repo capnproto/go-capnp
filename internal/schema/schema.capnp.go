@@ -8,6 +8,7 @@ import (
 	capnp "zombiezen.com/go/capnproto2"
 )
 
+// Constants defined in schema.capnp.
 const (
 	Field_noDiscriminant = uint16(65535)
 )

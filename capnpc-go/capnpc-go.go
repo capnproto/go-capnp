@@ -16,6 +16,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"text/template"
 
@@ -43,16 +44,27 @@ func (m nodeMap) mustFind(id uint64) *node {
 
 type generator struct {
 	buf     bytes.Buffer
+	fileID  uint64
 	nodes   nodeMap
 	imports imports
 	data    staticData
 }
 
 func newGenerator(fileID uint64, nodes nodeMap) *generator {
-	g := &generator{nodes: nodes}
+	g := &generator{
+		fileID: fileID,
+		nodes:  nodes,
+	}
 	g.imports.init()
 	g.data.init(fileID)
 	return g
+}
+
+// Basename returns the name of the schema file with the directory name removed.
+func (g *generator) Basename() string {
+	f := g.nodes.mustFind(g.fileID)
+	n, _ := f.DisplayName()
+	return filepath.Base(n)
 }
 
 func (g *generator) Imports() *imports {
@@ -307,53 +319,56 @@ func (g *generator) defineEnum(n *node) {
 	})
 }
 
-func (g *generator) writeValue(n *node, t schema.Type, v schema.Value) {
+// Value formats a value from a schema (like a field default) as Go source.
+func (g *generator) Value(n *node, t schema.Type, v schema.Value) string {
 	switch t.Which() {
 	case schema.Type_Which_void:
-		fmt.Fprintf(&g.buf, "struct{}{}")
+		return "struct{}{}"
 
 	case schema.Type_Which_interface:
 		// The only statically representable interface value is null.
-		fmt.Fprintf(&g.buf, "%s.Client(nil)", g.imports.Capnp())
+		return g.imports.Capnp() + ".Client(nil)"
 
 	case schema.Type_Which_bool:
 		assert(v.Which() == schema.Value_Which_bool, "expected bool value")
 		if v.Bool() {
-			fmt.Fprint(&g.buf, "true")
+			return "true"
 		} else {
-			fmt.Fprint(&g.buf, "false")
+			return "false"
 		}
 
 	case schema.Type_Which_uint8, schema.Type_Which_uint16, schema.Type_Which_uint32, schema.Type_Which_uint64:
-		fmt.Fprintf(&g.buf, "uint%d(%d)", intbits(t.Which()), uintValue(t, v))
+		return fmt.Sprintf("uint%d(%d)", intbits(t.Which()), uintValue(t, v))
 
 	case schema.Type_Which_int8, schema.Type_Which_int16, schema.Type_Which_int32, schema.Type_Which_int64:
-		fmt.Fprintf(&g.buf, "int%d(%d)", intbits(t.Which()), intValue(t, v))
+		return fmt.Sprintf("int%d(%d)", intbits(t.Which()), intValue(t, v))
 
 	case schema.Type_Which_float32:
 		assert(v.Which() == schema.Value_Which_float32, "expected float32 value")
-		fmt.Fprintf(&g.buf, "%s.Float32frombits(0x%x)", g.imports.Math(), math.Float32bits(v.Float32()))
+		return fmt.Sprintf("%s.Float32frombits(0x%x)", g.imports.Math(), math.Float32bits(v.Float32()))
 
 	case schema.Type_Which_float64:
 		assert(v.Which() == schema.Value_Which_float64, "expected float64 value")
-		fmt.Fprintf(&g.buf, "%s.Float64frombits(0x%x)", g.imports.Math(), math.Float64bits(v.Float64()))
+		return fmt.Sprintf("%s.Float64frombits(0x%x)", g.imports.Math(), math.Float64bits(v.Float64()))
 
 	case schema.Type_Which_text:
 		assert(v.Which() == schema.Value_Which_text, "expected text value")
 		text, _ := v.Text()
-		fmt.Fprintf(&g.buf, "%q", text)
+		return strconv.Quote(text)
 
 	case schema.Type_Which_data:
 		assert(v.Which() == schema.Value_Which_data, "expected data value")
-		fmt.Fprint(&g.buf, "[]byte{")
+		var buf bytes.Buffer
+		buf.WriteString("[]byte{")
 		data, _ := v.Data()
 		for i, b := range data {
 			if i > 0 {
-				fmt.Fprint(&g.buf, ", ")
+				buf.WriteString(", ")
 			}
-			fmt.Fprintf(&g.buf, "%d", b)
+			fmt.Fprintf(&buf, "%d", b)
 		}
-		fmt.Fprint(&g.buf, "}")
+		buf.WriteString("}")
+		return buf.String()
 
 	case schema.Type_Which_enum:
 		assert(v.Which() == schema.Value_Which_enum, "expected enum value")
@@ -361,38 +376,46 @@ func (g *generator) writeValue(n *node, t schema.Type, v schema.Value) {
 		assert(en.Which() == schema.Node_Which_enum, "expected enum type ID")
 		enums, _ := en.Enum().Enumerants()
 		if val := int(v.Enum()); val >= enums.Len() {
-			fmt.Fprintf(&g.buf, "%s(%d)", g.RemoteName(en, n), val)
+			return fmt.Sprintf("%s(%d)", g.RemoteName(en, n), val)
 		} else {
 			ev := makeEnumval(en, val, enums.At(val))
-			fmt.Fprintf(&g.buf, "%s%s", g.remoteScope(en, n), ev.FullName())
+			return g.remoteScope(en, n) + ev.FullName()
 		}
 
 	case schema.Type_Which_structGroup:
 		assert(v.Which() == schema.Value_Which_structField, "expected struct value")
 		data, _ := v.StructFieldPtr()
-		templates.ExecuteTemplate(&g.buf, "structValue", structValueTemplateParams{
+		var buf bytes.Buffer
+		templates.ExecuteTemplate(&buf, "structValue", structValueTemplateParams{
 			G:     g,
 			Node:  n,
 			Typ:   g.nodes.mustFind(t.StructGroup().TypeId()),
 			Value: g.data.copyData(data),
 		})
+		return buf.String()
 
 	case schema.Type_Which_anyPointer:
 		assert(v.Which() == schema.Value_Which_anyPointer, "expected pointer value")
 		data, _ := v.AnyPointerPtr()
-		templates.ExecuteTemplate(&g.buf, "pointerValue", structValueTemplateParams{
+		var buf bytes.Buffer
+		templates.ExecuteTemplate(&buf, "pointerValue", structValueTemplateParams{
 			G:     g,
 			Value: g.data.copyData(data),
 		})
+		return buf.String()
 
 	case schema.Type_Which_list:
 		assert(v.Which() == schema.Value_Which_list, "expected list value")
 		data, _ := v.ListPtr()
-		templates.ExecuteTemplate(&g.buf, "listValue", listValueTemplateParams{
+		var buf bytes.Buffer
+		templates.ExecuteTemplate(&buf, "listValue", listValueTemplateParams{
 			G:     g,
 			Typ:   g.fieldType(n, t, new(annotations)),
 			Value: g.data.copyData(data),
 		})
+		return buf.String()
+	default:
+		panic(assertionError("unreachable"))
 	}
 }
 
@@ -403,59 +426,48 @@ func (g *generator) defineAnnotation(n *node) {
 	})
 }
 
-func constIsVar(n *node) bool {
-	t, _ := n.Const().Type()
-	switch t.Which() {
-	case schema.Type_Which_bool, schema.Type_Which_int8, schema.Type_Which_uint8, schema.Type_Which_int16,
-		schema.Type_Which_uint16, schema.Type_Which_int32, schema.Type_Which_uint32, schema.Type_Which_int64,
-		schema.Type_Which_uint64, schema.Type_Which_text, schema.Type_Which_enum:
-		return false
-	default:
-		return true
-	}
+func isGoConstType(t schema.Type) bool {
+	w := t.Which()
+	return w == schema.Type_Which_bool ||
+		w == schema.Type_Which_int8 ||
+		w == schema.Type_Which_uint8 ||
+		w == schema.Type_Which_int16 ||
+		w == schema.Type_Which_uint16 ||
+		w == schema.Type_Which_int32 ||
+		w == schema.Type_Which_uint32 ||
+		w == schema.Type_Which_int64 ||
+		w == schema.Type_Which_uint64 ||
+		w == schema.Type_Which_text ||
+		w == schema.Type_Which_enum
 }
 
 func (g *generator) defineConstNodes(nodes []*node) {
-
-	any := false
-
+	constNodes := make([]*node, 0, len(nodes))
 	for _, n := range nodes {
-		if n.Which() == schema.Node_Which_const && !constIsVar(n) {
-			if !any {
-				fmt.Fprintf(&g.buf, "const (\n")
-				any = true
-			}
-			fmt.Fprintf(&g.buf, "%s = ", n.Name)
-			kt, _ := n.Const().Type()
-			kv, _ := n.Const().Value()
-			g.writeValue(n, kt, kv)
-			fmt.Fprintf(&g.buf, "\n")
+		if n.Which() != schema.Node_Which_const {
+			continue
+		}
+		t, _ := n.Const().Type()
+		if isGoConstType(t) {
+			constNodes = append(constNodes, n)
 		}
 	}
-
-	if any {
-		fmt.Fprintf(&g.buf, ")\n")
-	}
-
-	any = false
-
+	nc := len(constNodes)
 	for _, n := range nodes {
-		if n.Which() == schema.Node_Which_const && constIsVar(n) {
-			if !any {
-				fmt.Fprintf(&g.buf, "var (\n")
-				any = true
-			}
-			fmt.Fprintf(&g.buf, "%s = ", n.Name)
-			kt, _ := n.Const().Type()
-			kv, _ := n.Const().Value()
-			g.writeValue(n, kt, kv)
-			fmt.Fprintf(&g.buf, "\n")
+		if n.Which() != schema.Node_Which_const {
+			continue
+		}
+		t, _ := n.Const().Type()
+		if !isGoConstType(t) {
+			constNodes = append(constNodes, n)
 		}
 	}
-
-	if any {
-		fmt.Fprintf(&g.buf, ")\n")
-	}
+	err := templates.ExecuteTemplate(&g.buf, "constants", constantsParams{
+		G:      g,
+		Consts: constNodes[:nc],
+		Vars:   constNodes[nc:],
+	})
+	assertSuccess(err)
 }
 
 func (g *generator) defineField(n *node, f field) {
