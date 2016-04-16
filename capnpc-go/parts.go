@@ -19,18 +19,24 @@ func (sd *staticData) init(fileID uint64) {
 	sd.buf = make([]byte, 0, 4096)
 }
 
-func (sd *staticData) copyData(obj capnp.Ptr) staticDataRef {
+func (sd *staticData) copyData(obj capnp.Ptr) (staticDataRef, error) {
 	m, _, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	assertSuccess(err)
+	if err != nil {
+		return staticDataRef{}, err
+	}
 	err = m.SetRootPtr(obj)
-	assertSuccess(err)
+	if err != nil {
+		return staticDataRef{}, err
+	}
 	data, err := m.Marshal()
-	assertSuccess(err)
+	if err != nil {
+		return staticDataRef{}, err
+	}
 	ref := staticDataRef{data: sd}
 	ref.Start = len(sd.buf)
 	sd.buf = append(sd.buf, data...)
 	ref.End = len(sd.buf)
-	return ref
+	return ref, nil
 }
 
 type staticDataRef struct {
