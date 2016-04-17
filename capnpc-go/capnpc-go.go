@@ -234,10 +234,10 @@ func (g *generator) Value(n *node, t schema.Type, v schema.Value) (string, error
 		name = append(name, ev.FullName()...)
 		return string(name), nil
 
-	case schema.Type_Which_structGroup:
-		data, _ := v.StructFieldPtr()
+	case schema.Type_Which_structType:
+		data, _ := v.StructValuePtr()
 		var buf bytes.Buffer
-		tn, err := g.nodes.mustFind(t.StructGroup().TypeId())
+		tn, err := g.nodes.mustFind(t.StructType().TypeId())
 		if err != nil {
 			return "", err
 		}
@@ -451,9 +451,9 @@ func (g *generator) defineField(n *node, f field) (err error) {
 			Default:           d,
 		})
 
-	case schema.Type_Which_structGroup:
+	case schema.Type_Which_structType:
 		var defref staticDataRef
-		if sf, err := def.StructFieldPtr(); err != nil {
+		if sf, err := def.StructValuePtr(); err != nil {
 			return err
 		} else if sf.IsValid() {
 			defref, err = g.data.copyData(sf)
@@ -461,7 +461,7 @@ func (g *generator) defineField(n *node, f field) (err error) {
 				return err
 			}
 		}
-		tn, err := g.nodes.mustFind(t.StructGroup().TypeId())
+		tn, err := g.nodes.mustFind(t.StructType().TypeId())
 		if err != nil {
 			return err
 		}
@@ -544,8 +544,8 @@ func (g *generator) fieldType(n *node, t schema.Type, ann *annotations) (string,
 			return "", err
 		}
 		return g.RemoteName(ni, n)
-	case schema.Type_Which_structGroup:
-		ni, err := g.nodes.mustFind(t.StructGroup().TypeId())
+	case schema.Type_Which_structType:
+		ni, err := g.nodes.mustFind(t.StructType().TypeId())
 		if err != nil {
 			return "", err
 		}
@@ -598,8 +598,8 @@ func (g *generator) fieldType(n *node, t schema.Type, ann *annotations) (string,
 				return "", err
 			}
 			return rn + "_List", nil
-		case schema.Type_Which_structGroup:
-			ni, err := g.nodes.mustFind(lt.StructGroup().TypeId())
+		case schema.Type_Which_structType:
+			ni, err := g.nodes.mustFind(lt.StructType().TypeId())
 			if err != nil {
 				return "", err
 			}
@@ -740,7 +740,7 @@ func (g *generator) defineStructEnums(n *node) error {
 			es = append(es, f.Name)
 		}
 	}
-	if n.StructGroup().DiscriminantCount() > 0 {
+	if n.StructNode().DiscriminantCount() > 0 {
 		err := templates.ExecuteTemplate(&g.buf, "structEnums", structEnumsParams{
 			G:          g,
 			Node:       n,
@@ -803,10 +803,13 @@ func (g *generator) defineStructFuncs(n *node) error {
 }
 
 func (g *generator) ObjectSize(n *node) (string, error) {
-	if n.Which() != schema.Node_Which_structGroup {
+	if n.Which() != schema.Node_Which_structNode {
 		return "", fmt.Errorf("object size called for %v node", n.Which())
 	}
-	return fmt.Sprintf("%s.ObjectSize{DataSize: %d, PointerCount: %d}", g.imports.Capnp(), int(n.StructGroup().DataWordCount())*8, n.StructGroup().PointerCount()), nil
+	return fmt.Sprintf("%s.ObjectSize{DataSize: %d, PointerCount: %d}",
+		g.imports.Capnp(),
+		int(n.StructNode().DataWordCount())*8,
+		n.StructNode().PointerCount()), nil
 }
 
 func (g *generator) defineNewStructFunc(n *node) error {
@@ -845,7 +848,7 @@ func (g *generator) defineStructPromise(n *node) error {
 		switch f.Which() {
 		case schema.Field_Which_slot:
 			t, _ := f.Slot().Type()
-			if tw := t.Which(); tw != schema.Type_Which_structGroup && tw != schema.Type_Which_interface && tw != schema.Type_Which_anyPointer {
+			if tw := t.Which(); tw != schema.Type_Which_structType && tw != schema.Type_Which_interface && tw != schema.Type_Which_anyPointer {
 				continue
 			}
 			if err := g.definePromiseField(n, f); err != nil {
@@ -876,8 +879,8 @@ func (g *generator) defineStructPromise(n *node) error {
 func (g *generator) definePromiseField(n *node, f field) error {
 	slot := f.Slot()
 	switch t, _ := slot.Type(); t.Which() {
-	case schema.Type_Which_structGroup:
-		ni, err := g.nodes.mustFind(t.StructGroup().TypeId())
+	case schema.Type_Which_structType:
+		ni, err := g.nodes.mustFind(t.StructType().TypeId())
 		if err != nil {
 			return err
 		}
@@ -887,8 +890,8 @@ func (g *generator) definePromiseField(n *node, f field) error {
 			Field:  f,
 			Struct: ni,
 		}
-		if def, _ := slot.DefaultValue(); def.IsValid() && def.Which() == schema.Value_Which_structField {
-			if sf, _ := def.StructFieldPtr(); sf.IsValid() {
+		if def, _ := slot.DefaultValue(); def.IsValid() && def.Which() == schema.Value_Which_structValue {
+			if sf, _ := def.StructValuePtr(); sf.IsValid() {
 				params.Default, err = g.data.copyData(sf)
 				if err != nil {
 					return err
@@ -986,8 +989,8 @@ func generateFile(reqf schema.CodeGeneratorRequest_RequestedFile, nodes nodeMap)
 		switch n.Which() {
 		case schema.Node_Which_enum:
 			err = g.defineEnum(n)
-		case schema.Node_Which_structGroup:
-			if !n.StructGroup().IsGroup() {
+		case schema.Node_Which_structNode:
+			if !n.StructNode().IsGroup() {
 				err = g.defineStruct(n)
 			}
 		case schema.Node_Which_interface:

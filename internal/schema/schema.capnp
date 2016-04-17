@@ -83,7 +83,7 @@ struct Node {
 
     file @6 :Void;
 
-    struct :group $Go.name("structGroup") {
+    struct :group $Go.name("structNode") {
       dataWordCount @7 :UInt16;
       # Size of the data section, in words.
 
@@ -310,7 +310,7 @@ struct Type {
       typeId @15 :Id;
       brand @21 :Brand;
     }
-    struct :group $Go.name("structGroup") {
+    struct :group $Go.name("structType") {
       typeId @16 :Id;
       brand @22 :Brand;
     }
@@ -401,7 +401,7 @@ struct Value {
     list @14 :AnyPointer;
 
     enum @15 :UInt16;
-    struct @16 :AnyPointer $Go.name("structField");
+    struct @16 :AnyPointer $Go.name("structValue");
 
     interface @17 :Void;
     # The only interface value that can be represented statically is "null", whose methods always

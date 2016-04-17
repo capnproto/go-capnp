@@ -14,7 +14,7 @@ const (
 )
 
 type Node struct{ capnp.Struct }
-type Node_structGroup Node
+type Node_structNode Node
 type Node_enum Node
 type Node_interface Node
 type Node_const Node
@@ -22,29 +22,29 @@ type Node_annotation Node
 type Node_Which uint16
 
 const (
-	Node_Which_file        Node_Which = 0
-	Node_Which_structGroup Node_Which = 1
-	Node_Which_enum        Node_Which = 2
-	Node_Which_interface   Node_Which = 3
-	Node_Which_const       Node_Which = 4
-	Node_Which_annotation  Node_Which = 5
+	Node_Which_file       Node_Which = 0
+	Node_Which_structNode Node_Which = 1
+	Node_Which_enum       Node_Which = 2
+	Node_Which_interface  Node_Which = 3
+	Node_Which_const      Node_Which = 4
+	Node_Which_annotation Node_Which = 5
 )
 
 func (w Node_Which) String() string {
-	const s = "filestructGroupenuminterfaceconstannotation"
+	const s = "filestructNodeenuminterfaceconstannotation"
 	switch w {
 	case Node_Which_file:
 		return s[0:4]
-	case Node_Which_structGroup:
-		return s[4:15]
+	case Node_Which_structNode:
+		return s[4:14]
 	case Node_Which_enum:
-		return s[15:19]
+		return s[14:18]
 	case Node_Which_interface:
-		return s[19:28]
+		return s[18:27]
 	case Node_Which_const:
-		return s[28:33]
+		return s[27:32]
 	case Node_Which_annotation:
-		return s[33:43]
+		return s[32:42]
 
 	}
 	return "Node_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
@@ -194,59 +194,59 @@ func (s Node) SetFile() {
 
 }
 
-func (s Node) StructGroup() Node_structGroup { return Node_structGroup(s) }
-func (s Node) SetStructGroup() {
+func (s Node) StructNode() Node_structNode { return Node_structNode(s) }
+func (s Node) SetStructNode() {
 	s.Struct.SetUint16(12, 1)
 }
-func (s Node_structGroup) DataWordCount() uint16 {
+func (s Node_structNode) DataWordCount() uint16 {
 	return s.Struct.Uint16(14)
 }
 
-func (s Node_structGroup) SetDataWordCount(v uint16) {
+func (s Node_structNode) SetDataWordCount(v uint16) {
 	s.Struct.SetUint16(14, v)
 }
 
-func (s Node_structGroup) PointerCount() uint16 {
+func (s Node_structNode) PointerCount() uint16 {
 	return s.Struct.Uint16(24)
 }
 
-func (s Node_structGroup) SetPointerCount(v uint16) {
+func (s Node_structNode) SetPointerCount(v uint16) {
 	s.Struct.SetUint16(24, v)
 }
 
-func (s Node_structGroup) PreferredListEncoding() ElementSize {
+func (s Node_structNode) PreferredListEncoding() ElementSize {
 	return ElementSize(s.Struct.Uint16(26))
 }
 
-func (s Node_structGroup) SetPreferredListEncoding(v ElementSize) {
+func (s Node_structNode) SetPreferredListEncoding(v ElementSize) {
 	s.Struct.SetUint16(26, uint16(v))
 }
 
-func (s Node_structGroup) IsGroup() bool {
+func (s Node_structNode) IsGroup() bool {
 	return s.Struct.Bit(224)
 }
 
-func (s Node_structGroup) SetIsGroup(v bool) {
+func (s Node_structNode) SetIsGroup(v bool) {
 	s.Struct.SetBit(224, v)
 }
 
-func (s Node_structGroup) DiscriminantCount() uint16 {
+func (s Node_structNode) DiscriminantCount() uint16 {
 	return s.Struct.Uint16(30)
 }
 
-func (s Node_structGroup) SetDiscriminantCount(v uint16) {
+func (s Node_structNode) SetDiscriminantCount(v uint16) {
 	s.Struct.SetUint16(30, v)
 }
 
-func (s Node_structGroup) DiscriminantOffset() uint32 {
+func (s Node_structNode) DiscriminantOffset() uint32 {
 	return s.Struct.Uint32(32)
 }
 
-func (s Node_structGroup) SetDiscriminantOffset(v uint32) {
+func (s Node_structNode) SetDiscriminantOffset(v uint32) {
 	s.Struct.SetUint32(32, v)
 }
 
-func (s Node_structGroup) Fields() (Field_List, error) {
+func (s Node_structNode) Fields() (Field_List, error) {
 	p, err := s.Struct.Ptr(3)
 	if err != nil {
 		return Field_List{}, err
@@ -254,12 +254,12 @@ func (s Node_structGroup) Fields() (Field_List, error) {
 	return Field_List{List: p.List()}, nil
 }
 
-func (s Node_structGroup) HasFields() bool {
+func (s Node_structNode) HasFields() bool {
 	p, err := s.Struct.Ptr(3)
 	return p.IsValid() || err != nil
 }
 
-func (s Node_structGroup) SetFields(v Field_List) error {
+func (s Node_structNode) SetFields(v Field_List) error {
 	return s.Struct.SetPtr(3, v.List.ToPtr())
 }
 
@@ -1281,7 +1281,7 @@ func (s Method_List) Set(i int, v Method) error { return s.List.SetStruct(i, v.S
 type Type struct{ capnp.Struct }
 type Type_list Type
 type Type_enum Type
-type Type_structGroup Type
+type Type_structType Type
 type Type_interface Type
 type Type_anyPointer Type
 type Type_anyPointer_parameter Type
@@ -1289,29 +1289,29 @@ type Type_anyPointer_implicitMethodParameter Type
 type Type_Which uint16
 
 const (
-	Type_Which_void        Type_Which = 0
-	Type_Which_bool        Type_Which = 1
-	Type_Which_int8        Type_Which = 2
-	Type_Which_int16       Type_Which = 3
-	Type_Which_int32       Type_Which = 4
-	Type_Which_int64       Type_Which = 5
-	Type_Which_uint8       Type_Which = 6
-	Type_Which_uint16      Type_Which = 7
-	Type_Which_uint32      Type_Which = 8
-	Type_Which_uint64      Type_Which = 9
-	Type_Which_float32     Type_Which = 10
-	Type_Which_float64     Type_Which = 11
-	Type_Which_text        Type_Which = 12
-	Type_Which_data        Type_Which = 13
-	Type_Which_list        Type_Which = 14
-	Type_Which_enum        Type_Which = 15
-	Type_Which_structGroup Type_Which = 16
-	Type_Which_interface   Type_Which = 17
-	Type_Which_anyPointer  Type_Which = 18
+	Type_Which_void       Type_Which = 0
+	Type_Which_bool       Type_Which = 1
+	Type_Which_int8       Type_Which = 2
+	Type_Which_int16      Type_Which = 3
+	Type_Which_int32      Type_Which = 4
+	Type_Which_int64      Type_Which = 5
+	Type_Which_uint8      Type_Which = 6
+	Type_Which_uint16     Type_Which = 7
+	Type_Which_uint32     Type_Which = 8
+	Type_Which_uint64     Type_Which = 9
+	Type_Which_float32    Type_Which = 10
+	Type_Which_float64    Type_Which = 11
+	Type_Which_text       Type_Which = 12
+	Type_Which_data       Type_Which = 13
+	Type_Which_list       Type_Which = 14
+	Type_Which_enum       Type_Which = 15
+	Type_Which_structType Type_Which = 16
+	Type_Which_interface  Type_Which = 17
+	Type_Which_anyPointer Type_Which = 18
 )
 
 func (w Type_Which) String() string {
-	const s = "voidboolint8int16int32int64uint8uint16uint32uint64float32float64textdatalistenumstructGroupinterfaceanyPointer"
+	const s = "voidboolint8int16int32int64uint8uint16uint32uint64float32float64textdatalistenumstructTypeinterfaceanyPointer"
 	switch w {
 	case Type_Which_void:
 		return s[0:4]
@@ -1345,12 +1345,12 @@ func (w Type_Which) String() string {
 		return s[72:76]
 	case Type_Which_enum:
 		return s[76:80]
-	case Type_Which_structGroup:
-		return s[80:91]
+	case Type_Which_structType:
+		return s[80:90]
 	case Type_Which_interface:
-		return s[91:100]
+		return s[90:99]
 	case Type_Which_anyPointer:
-		return s[100:110]
+		return s[99:109]
 
 	}
 	return "Type_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
@@ -1547,19 +1547,19 @@ func (s Type_enum) NewBrand() (Brand, error) {
 	return ss, err
 }
 
-func (s Type) StructGroup() Type_structGroup { return Type_structGroup(s) }
-func (s Type) SetStructGroup() {
+func (s Type) StructType() Type_structType { return Type_structType(s) }
+func (s Type) SetStructType() {
 	s.Struct.SetUint16(0, 16)
 }
-func (s Type_structGroup) TypeId() uint64 {
+func (s Type_structType) TypeId() uint64 {
 	return s.Struct.Uint64(8)
 }
 
-func (s Type_structGroup) SetTypeId(v uint64) {
+func (s Type_structType) SetTypeId(v uint64) {
 	s.Struct.SetUint64(8, v)
 }
 
-func (s Type_structGroup) Brand() (Brand, error) {
+func (s Type_structType) Brand() (Brand, error) {
 	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return Brand{}, err
@@ -1567,18 +1567,18 @@ func (s Type_structGroup) Brand() (Brand, error) {
 	return Brand{Struct: p.Struct()}, nil
 }
 
-func (s Type_structGroup) HasBrand() bool {
+func (s Type_structType) HasBrand() bool {
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
 
-func (s Type_structGroup) SetBrand(v Brand) error {
+func (s Type_structType) SetBrand(v Brand) error {
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewBrand sets the brand field to a newly
 // allocated Brand struct, preferring placement in s's segment.
-func (s Type_structGroup) NewBrand() (Brand, error) {
+func (s Type_structType) NewBrand() (Brand, error) {
 	ss, err := NewBrand(s.Struct.Segment())
 	if err != nil {
 		return Brand{}, err
@@ -1956,13 +1956,13 @@ const (
 	Value_Which_data        Value_Which = 13
 	Value_Which_list        Value_Which = 14
 	Value_Which_enum        Value_Which = 15
-	Value_Which_structField Value_Which = 16
+	Value_Which_structValue Value_Which = 16
 	Value_Which_interface   Value_Which = 17
 	Value_Which_anyPointer  Value_Which = 18
 )
 
 func (w Value_Which) String() string {
-	const s = "voidboolint8int16int32int64uint8uint16uint32uint64float32float64textdatalistenumstructFieldinterfaceanyPointer"
+	const s = "voidboolint8int16int32int64uint8uint16uint32uint64float32float64textdatalistenumstructValueinterfaceanyPointer"
 	switch w {
 	case Value_Which_void:
 		return s[0:4]
@@ -1996,7 +1996,7 @@ func (w Value_Which) String() string {
 		return s[72:76]
 	case Value_Which_enum:
 		return s[76:80]
-	case Value_Which_structField:
+	case Value_Which_structValue:
 		return s[80:91]
 	case Value_Which_interface:
 		return s[91:100]
@@ -2222,25 +2222,25 @@ func (s Value) SetEnum(v uint16) {
 	s.Struct.SetUint16(2, v)
 }
 
-func (s Value) StructField() (capnp.Pointer, error) {
+func (s Value) StructValue() (capnp.Pointer, error) {
 	return s.Struct.Pointer(0)
 }
 
-func (s Value) HasStructField() bool {
+func (s Value) HasStructValue() bool {
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
 
-func (s Value) StructFieldPtr() (capnp.Ptr, error) {
+func (s Value) StructValuePtr() (capnp.Ptr, error) {
 	return s.Struct.Ptr(0)
 }
 
-func (s Value) SetStructField(v capnp.Pointer) error {
+func (s Value) SetStructValue(v capnp.Pointer) error {
 	s.Struct.SetUint16(0, 16)
 	return s.Struct.SetPointer(0, v)
 }
 
-func (s Value) SetStructFieldPtr(v capnp.Ptr) error {
+func (s Value) SetStructValuePtr(v capnp.Ptr) error {
 	s.Struct.SetUint16(0, 16)
 	return s.Struct.SetPtr(0, v)
 }

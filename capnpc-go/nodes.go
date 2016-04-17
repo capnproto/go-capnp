@@ -18,7 +18,7 @@ type node struct {
 }
 
 func (n *node) codeOrderFields() []field {
-	fields, _ := n.StructGroup().Fields()
+	fields, _ := n.StructNode().Fields()
 	numFields := fields.Len()
 	mbrs := make([]field, numFields)
 	for i := 0; i < numFields; i++ {
@@ -36,10 +36,10 @@ func (n *node) DiscriminantOffset() (uint32, error) {
 	if n == nil {
 		return 0, errors.New("discriminant offset called on nil node")
 	}
-	if n.Which() != schema.Node_Which_structGroup {
+	if n.Which() != schema.Node_Which_structNode {
 		return 0, fmt.Errorf("discriminant offset called on %v node", n.Which())
 	}
-	return n.StructGroup().DiscriminantOffset() * 2, nil
+	return n.StructNode().DiscriminantOffset() * 2, nil
 }
 
 func (n *node) shortDisplayName() string {
@@ -260,7 +260,7 @@ func resolveName(nodes nodeMap, n *node, base, name string, file *node) error {
 	n.pkg = file.pkg
 	n.imp = file.imp
 
-	if n.Which() != schema.Node_Which_structGroup || !n.StructGroup().IsGroup() {
+	if n.Which() != schema.Node_Which_structNode || !n.StructNode().IsGroup() {
 		file.nodes = append(file.nodes, n)
 	}
 
@@ -284,8 +284,8 @@ func resolveName(nodes nodeMap, n *node, base, name string, file *node) error {
 	}
 
 	switch n.Which() {
-	case schema.Node_Which_structGroup:
-		fields, _ := n.StructGroup().Fields()
+	case schema.Node_Which_structNode:
+		fields, _ := n.StructNode().Fields()
 		for i := 0; i < fields.Len(); i++ {
 			f := fields.At(i)
 			if f.Which() != schema.Field_Which_group {
