@@ -367,7 +367,7 @@ func resolveName(nodes nodeMap, n *node, base, name string, file *node) error {
 			if err := methodResolve(mm.ParamStructType(), mname, base, "Params"); err != nil {
 				return err
 			}
-			if err := methodResolve(mm.ParamStructType(), mname, base, "Results"); err != nil {
+			if err := methodResolve(mm.ResultStructType(), mname, base, "Results"); err != nil {
 				return err
 			}
 		}
@@ -951,6 +951,30 @@ func (n *node) codeOrderFields() []field {
 	return mbrs
 }
 
+func (g *generator) defineStruct(n *node) error {
+	if err := g.defineStructTypes(n, n); err != nil {
+		return err
+	}
+	if err := g.defineStructEnums(n); err != nil {
+		return err
+	}
+	if err := g.defineNewStructFunc(n); err != nil {
+		return err
+	}
+	if err := g.defineStructFuncs(n); err != nil {
+		return err
+	}
+	if err := g.defineStructList(n); err != nil {
+		return err
+	}
+	if *genPromises {
+		if err := g.defineStructPromise(n); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (g *generator) defineStructTypes(n, baseNode *node) error {
 	nann, _ := n.Annotations()
 	ann := parseAnnotations(nann)
@@ -1026,7 +1050,9 @@ func (g *generator) defineStructFuncs(n *node) error {
 	for _, f := range n.codeOrderFields() {
 		switch f.Which() {
 		case schema.Field_Which_slot:
-			return g.defineField(n, f)
+			if err := g.defineField(n, f); err != nil {
+				return err
+			}
 		case schema.Field_Which_group:
 			grp, err := g.nodes.mustFind(f.Group().TypeId())
 			if err != nil {
@@ -1257,16 +1283,6 @@ func (es enumString) SliceFor(i int) string {
 	return fmt.Sprintf("[%d:%d]", n, n+len(es[i]))
 }
 
-type errCollector struct {
-	err error
-}
-
-func (ec *errCollector) collect(e error) {
-	if ec.err == nil {
-		ec.err = e
-	}
-}
-
 func generateFile(reqf schema.CodeGeneratorRequest_RequestedFile, nodes nodeMap) error {
 	id := reqf.Id()
 	fname, _ := reqf.Filename()
@@ -1279,37 +1295,31 @@ func generateFile(reqf schema.CodeGeneratorRequest_RequestedFile, nodes nodeMap)
 		return fmt.Errorf("missing package annotation for %s", fname)
 	}
 
-	var ec errCollector
 	for _, n := range f.nodes {
 		if n.Which() == schema.Node_Which_annotation {
-			ec.collect(g.defineAnnotation(n))
+			if err := g.defineAnnotation(n); err != nil {
+				return err
+			}
 		}
 	}
-	ec.collect(g.defineConstNodes(f.nodes))
+	if err := g.defineConstNodes(f.nodes); err != nil {
+		return err
+	}
 	for _, n := range f.nodes {
+		var err error
 		switch n.Which() {
 		case schema.Node_Which_enum:
-			ec.collect(g.defineEnum(n))
+			err = g.defineEnum(n)
 		case schema.Node_Which_structGroup:
 			if !n.StructGroup().IsGroup() {
-				ec.collect(g.defineStructTypes(n, n))
-				ec.collect(g.defineStructEnums(n))
-				ec.collect(g.defineNewStructFunc(n))
-				ec.collect(g.defineStructFuncs(n))
-				ec.collect(g.defineStructList(n))
-				if *genPromises {
-					ec.collect(g.defineStructPromise(n))
-				}
+				err = g.defineStruct(n)
 			}
 		case schema.Node_Which_interface:
-			ec.collect(g.defineInterface(n))
+			err = g.defineInterface(n)
 		}
-		if ec.err != nil {
-			break
+		if err != nil {
+			return err
 		}
-	}
-	if ec.err != nil {
-		return ec.err
 	}
 
 	if dirPath, _ := filepath.Split(fname); dirPath != "" {
