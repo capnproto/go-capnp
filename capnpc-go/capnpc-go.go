@@ -24,10 +24,6 @@ import (
 	"zombiezen.com/go/capnproto2/internal/schema"
 )
 
-var (
-	genPromises = flag.Bool("promises", true, "generate code for promises")
-)
-
 // Non-stdlib import paths.
 const (
 	capnpImport   = "zombiezen.com/go/capnproto2"
@@ -35,18 +31,27 @@ const (
 	contextImport = "golang.org/x/net/context"
 )
 
+// genoptions are parameters that control code generation.
+// Usually passed on the command line.
+type genoptions struct {
+	promises bool
+}
+
+// generator builds up the generated code for a single file.
 type generator struct {
 	buf     bytes.Buffer
 	fileID  uint64
 	nodes   nodeMap
 	imports imports
 	data    staticData
+	opts    genoptions
 }
 
-func newGenerator(fileID uint64, nodes nodeMap) *generator {
+func newGenerator(fileID uint64, nodes nodeMap, opts genoptions) *generator {
 	g := &generator{
 		fileID: fileID,
 		nodes:  nodes,
+		opts:   opts,
 	}
 	g.imports.init()
 	g.data.init(fileID)
@@ -694,7 +699,7 @@ func (g *generator) defineStruct(n *node) error {
 	if err := g.defineStructList(n); err != nil {
 		return err
 	}
-	if *genPromises {
+	if g.opts.promises {
 		if err := g.defineStructPromise(n); err != nil {
 			return err
 		}
@@ -962,10 +967,10 @@ func (es enumString) SliceFor(i int) string {
 	return fmt.Sprintf("[%d:%d]", n, n+len(es[i]))
 }
 
-func generateFile(reqf schema.CodeGeneratorRequest_RequestedFile, nodes nodeMap) error {
+func generateFile(reqf schema.CodeGeneratorRequest_RequestedFile, nodes nodeMap, opts genoptions) error {
 	id := reqf.Id()
 	fname, _ := reqf.Filename()
-	g := newGenerator(id, nodes)
+	g := newGenerator(id, nodes, opts)
 	f := nodes[id]
 	if f == nil {
 		return fmt.Errorf("no node in schema matches %#x", id)
@@ -1033,6 +1038,8 @@ func generateFile(reqf schema.CodeGeneratorRequest_RequestedFile, nodes nodeMap)
 }
 
 func main() {
+	var opts genoptions
+	flag.BoolVar(&opts.promises, "promises", true, "generate code for promises")
 	flag.Parse()
 
 	msg, err := capnp.NewDecoder(os.Stdin).Decode()
@@ -1054,7 +1061,7 @@ func main() {
 	reqFiles, _ := req.RequestedFiles()
 	for i := 0; i < reqFiles.Len(); i++ {
 		reqf := reqFiles.At(i)
-		err := generateFile(reqf, nodes)
+		err := generateFile(reqf, nodes, opts)
 		if err != nil {
 			fname, _ := reqf.Filename()
 			fmt.Fprintf(os.Stderr, "capnpc-go: generating %s: %v\n", fname, err)
