@@ -10,7 +10,7 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() ({{.G.Capnp}}.Pointer, error) {
 	{{- end}}
 }
 
-{{template "hasfield" .}}
+{{template "_hasfield" .}}
 
 func (s {{.Node.Name}}) {{.Field.Name|title}}Ptr() ({{.G.Capnp}}.Ptr, error) {
 	{{if .Default.IsValid -}}
@@ -25,12 +25,12 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}Ptr() ({{.G.Capnp}}.Ptr, error) {
 }
 
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.G.Capnp}}.Pointer) error {
-	{{template "settag" . -}}
+	{{template "_settag" . -}}
 	return s.Struct.SetPointer({{.Field.Slot.Offset}}, v)
 }
 
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}Ptr(v {{.G.Capnp}}.Ptr) error {
-	{{template "settag" . -}}
+	{{template "_settag" . -}}
 	return s.Struct.SetPtr({{.Field.Slot.Offset}}, v)
 }
 

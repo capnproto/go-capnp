@@ -1,6 +1,6 @@
 {{if .Field.HasDiscriminant -}}
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}() {
-	{{template "settag" .}}
+	{{template "_settag" .}}
 }
 
 {{end -}}

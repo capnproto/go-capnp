@@ -31,7 +31,7 @@ func (p structTypesParams) IsBase() bool {
 	return p.Node == p.BaseNode
 }
 
-type newStructParams struct {
+type newStructFuncParams struct {
 	G    *generator
 	Node *node
 }
@@ -56,6 +56,15 @@ type structFieldParams struct {
 	FieldType   string
 }
 
+type (
+	structFloatFieldParams     structUintFieldParams
+	structInterfaceFieldParams structFieldParams
+	structVoidFieldParams      structFieldParams
+	structListFieldParams      structObjectFieldParams
+	structPointerFieldParams   structObjectFieldParams
+	structStructFieldParams    structObjectFieldParams
+)
+
 type structBoolFieldParams struct {
 	structFieldParams
 	Default bool
@@ -69,6 +78,10 @@ type structUintFieldParams struct {
 
 func (p structUintFieldParams) Offset() uint32 {
 	return p.Field.Slot().Offset() * uint32(p.Bits/8)
+}
+
+func (p structFloatFieldParams) Offset() uint32 {
+	return structUintFieldParams(p).Offset()
 }
 
 type structIntFieldParams struct {
@@ -111,20 +124,20 @@ type structEnumsParams struct {
 	EnumString enumString
 }
 
-type promiseTemplateParams struct {
+type promiseParams struct {
 	G      *generator
 	Node   *node
 	Fields []field
 }
 
-type promiseGroupTemplateParams struct {
+type promiseGroupParams struct {
 	G     *generator
 	Node  *node
 	Field field
 	Group *node
 }
 
-type promiseFieldStructTemplateParams struct {
+type promiseFieldStructParams struct {
 	G       *generator
 	Node    *node
 	Field   field
@@ -132,46 +145,46 @@ type promiseFieldStructTemplateParams struct {
 	Default staticDataRef
 }
 
-type promiseFieldAnyPointerTemplateParams struct {
+type promiseFieldAnyPointerParams struct {
 	G     *generator
 	Node  *node
 	Field field
 }
 
-type promiseFieldInterfaceTemplateParams struct {
+type promiseFieldInterfaceParams struct {
 	G         *generator
 	Node      *node
 	Field     field
 	Interface *node
 }
 
-type interfaceClientTemplateParams struct {
+type interfaceClientParams struct {
 	G           *generator
 	Node        *node
 	Annotations *annotations
 	Methods     []interfaceMethod
 }
 
-type interfaceServerTemplateParams struct {
+type interfaceServerParams struct {
 	G           *generator
 	Node        *node
 	Annotations *annotations
 	Methods     []interfaceMethod
 }
 
-type structValueTemplateParams struct {
+type structValueParams struct {
 	G     *generator
 	Node  *node
 	Typ   *node
 	Value staticDataRef
 }
 
-type pointerValueTemplateParams struct {
+type pointerValueParams struct {
 	G     *generator
 	Value staticDataRef
 }
 
-type listValueTemplateParams struct {
+type listValueParams struct {
 	G     *generator
 	Typ   string
 	Value staticDataRef

@@ -10,10 +10,10 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() ({{.FieldType}}, error) {
 	{{- end}}
 }
 
-{{template "hasfield" .}}
+{{template "_hasfield" .}}
 
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.FieldType}}) error {
-	{{template "settag" . -}}
+	{{template "_settag" . -}}
 	d, err := {{.G.Capnp}}.NewData(s.Struct.Segment(), []byte(v))
 	if err != nil {
 		return err

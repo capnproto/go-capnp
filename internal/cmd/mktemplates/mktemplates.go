@@ -88,12 +88,19 @@ func generateGo(w io.Writer, args []string, ts []template) error {
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "package main")
 	fmt.Fprintln(w, "import (")
+	fmt.Fprintln(w, "\t\"io\"")
 	fmt.Fprintln(w, "\t\"strings\"")
 	fmt.Fprintln(w, "\t\"text/template\"")
 	fmt.Fprintln(w, ")")
 	fmt.Fprintln(w, "var templates = template.Must(template.New(\"\").Funcs(template.FuncMap{")
 	fmt.Fprintln(w, "\t\"title\": strings.Title,")
 	fmt.Fprintf(w, "}).Parse(\n\t%q))\n", src.Bytes())
+	for _, t := range ts {
+		if strings.HasPrefix(t.name, "_") {
+			continue
+		}
+		fmt.Fprintf(w, "func render%s(w io.Writer, p %sParams) error {\n\treturn templates.ExecuteTemplate(w, %[2]q, p)\n}\n", strings.Title(t.name), t.name)
+	}
 	return nil
 }
 
