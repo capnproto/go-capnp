@@ -1,4 +1,4 @@
-{{if hasDiscriminant .Field -}}
+{{if .Field.HasDiscriminant -}}
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}() {
 	{{template "settag" .}}
 }

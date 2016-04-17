@@ -87,10 +87,13 @@ func generateGo(w io.Writer, args []string, ts []template) error {
 	fmt.Fprintln(w, "//go:generate", strings.Join(args, " "))
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "package main")
-	fmt.Fprintln(w, "import \"text/template\"")
-	fmt.Fprintln(w, "func init() {")
-	fmt.Fprintf(w, "\ttemplate.Must(templates.Parse(%q))\n", src.Bytes())
-	fmt.Fprintln(w, "}")
+	fmt.Fprintln(w, "import (")
+	fmt.Fprintln(w, "\t\"strings\"")
+	fmt.Fprintln(w, "\t\"text/template\"")
+	fmt.Fprintln(w, ")")
+	fmt.Fprintln(w, "var templates = template.Must(template.New(\"\").Funcs(template.FuncMap{")
+	fmt.Fprintln(w, "\t\"title\": strings.Title,")
+	fmt.Fprintf(w, "}).Parse(\n\t%q))\n", src.Bytes())
 	return nil
 }
 
@@ -162,9 +165,7 @@ var funcStubs = map[string]interface{}{
 	"urlquery": escaperStub,
 
 	// App-specific
-	"title":              strings.Title,
-	"hasDiscriminant":    func(interface{}) bool { return false },
-	"discriminantOffset": func(interface{}) uint32 { return 0 },
+	"title": strings.Title,
 }
 
 func variadicBoolStub(arg0 interface{}, args ...interface{}) interface{} {

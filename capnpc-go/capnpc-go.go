@@ -19,7 +19,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"text/template"
 
 	"zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/internal/schema"
@@ -35,16 +34,6 @@ const (
 	serverImport  = capnpImport + "/server"
 	contextImport = "golang.org/x/net/context"
 )
-
-var templates = template.New("").Funcs(template.FuncMap{
-	"title": strings.Title,
-	"hasDiscriminant": func(f field) bool {
-		return f.DiscriminantValue() != schema.Field_noDiscriminant
-	},
-	"discriminantOffset": func(n *node) uint32 {
-		return n.StructGroup().DiscriminantOffset() * 2
-	},
-})
 
 type generator struct {
 	buf     bytes.Buffer

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -30,6 +31,17 @@ func (n *node) codeOrderFields() []field {
 	return mbrs
 }
 
+// DiscriminantOffset returns the byte offset of the struct union discriminant.
+func (n *node) DiscriminantOffset() (uint32, error) {
+	if n == nil {
+		return 0, errors.New("discriminant offset called on nil node")
+	}
+	if n.Which() != schema.Node_Which_structGroup {
+		return 0, fmt.Errorf("discriminant offset called on %v node", n.Which())
+	}
+	return n.StructGroup().DiscriminantOffset() * 2, nil
+}
+
 func (n *node) shortDisplayName() string {
 	dn, _ := n.DisplayName()
 	return dn[n.DisplayNamePrefixLength():]
@@ -50,6 +62,11 @@ func displayName(n interface {
 type field struct {
 	schema.Field
 	Name string
+}
+
+// HasDiscriminant reports whether the field is in a union.
+func (f field) HasDiscriminant() bool {
+	return f.DiscriminantValue() != schema.Field_noDiscriminant
 }
 
 type enumval struct {
