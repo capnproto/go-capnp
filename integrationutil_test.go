@@ -4,77 +4,16 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
-	"io"
-	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strings"
-	"sync"
 	"testing"
 
 	"zombiezen.com/go/capnproto2"
 	air "zombiezen.com/go/capnproto2/internal/aircraftlib"
+	"zombiezen.com/go/capnproto2/internal/capnptool"
 )
 
 const schemaPath = "internal/aircraftlib/aircraft.capnp"
-
-// capnpTool is the path to the capnp command-line tool.
-type capnpTool string
-
-var toolCache struct {
-	init sync.Once
-	tool capnpTool
-	err  error
-}
-
-// findCapnpTool searches the PATH for the capnp tool.
-func findCapnpTool() (capnpTool, error) {
-	toolCache.init.Do(func() {
-		path, err := exec.LookPath("capnp")
-		if err != nil {
-			toolCache.err = err
-			return
-		}
-		toolCache.tool = capnpTool(path)
-	})
-	return toolCache.tool, toolCache.err
-}
-
-// run executes the tool with the given stdin and arguments returns the stdout.
-func (tool capnpTool) run(stdin io.Reader, args ...string) ([]byte, error) {
-	c := exec.Command(string(tool), args...)
-	c.Stdin = stdin
-	stderr := new(bytes.Buffer)
-	c.Stderr = stderr
-	out, err := c.Output()
-	if err != nil {
-		return nil, fmt.Errorf("run `%s`: %v; stderr:\n%s", strings.Join(c.Args, " "), err, stderr)
-	}
-	return out, nil
-}
-
-// encode encodes Cap'n Proto text into the binary representation.
-func (tool capnpTool) encode(typ string, text string) ([]byte, error) {
-	return tool.run(strings.NewReader(text), "encode", schemaPath, typ)
-}
-
-// decode decodes a Cap'n Proto message into text.
-func (tool capnpTool) decode(typ string, r io.Reader) (string, error) {
-	out, err := tool.run(r, "decode", "--short", schemaPath, typ)
-	if err != nil {
-		return "", err
-	}
-	return string(out), nil
-}
-
-// decodePacked decodes a packed Cap'n Proto message into text.
-func (tool capnpTool) decodePacked(typ string, r io.Reader) (string, error) {
-	out, err := tool.run(r, "decode", "--short", "--packed", schemaPath, typ)
-	if err != nil {
-		return "", err
-	}
-	return string(out), nil
-}
 
 func initNester(t *testing.T, n air.Nester1Capn, strs ...string) {
 	tl, err := capnp.NewTextList(n.Segment(), int32(len(strs)))
@@ -145,12 +84,12 @@ func zdataFilledMessage(t testing.TB, n int) *capnp.Message {
 // encodeTestMessage encodes the textual Cap'n Proto message to unpacked
 // binary using the capnp tool, or returns the fallback if the tool fails.
 func encodeTestMessage(typ string, text string, fallback []byte) ([]byte, error) {
-	tool, err := findCapnpTool()
+	tool, err := capnptool.Find()
 	if err != nil {
 		// TODO(light): log tool missing
 		return fallback, nil
 	}
-	b, err := tool.encode(typ, text)
+	b, err := tool.Encode(capnptool.Type{SchemaPath: schemaPath, Name: typ}, text)
 	if err != nil {
 		return nil, fmt.Errorf("%s value %q encode failed: %v", typ, text, err)
 	}

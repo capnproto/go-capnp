@@ -12,6 +12,7 @@ import (
 
 	"zombiezen.com/go/capnproto2"
 	air "zombiezen.com/go/capnproto2/internal/aircraftlib"
+	"zombiezen.com/go/capnproto2/internal/capnptool"
 )
 
 // A marshalTest tests whether a message can be encoded then read by the
@@ -682,7 +683,7 @@ func TestMarshalShouldMatchData(t *testing.T) {
 
 func TestMarshalShouldMatchTextWhenDecoded(t *testing.T) {
 	t.Parallel()
-	tool, err := findCapnpTool()
+	tool, err := capnptool.Find()
 	if err != nil {
 		t.Skip("capnp tool not found:", err)
 	}
@@ -692,7 +693,7 @@ func TestMarshalShouldMatchTextWhenDecoded(t *testing.T) {
 			t.Errorf("%s: marshal error: %v", test.name, err)
 			continue
 		}
-		text, err := tool.decode(test.typ, bytes.NewReader(data))
+		text, err := tool.Decode(capnptool.Type{SchemaPath: schemaPath, Name: test.typ}, bytes.NewReader(data))
 		if err != nil {
 			t.Errorf("%s: capnp decode: %v", test.name, err)
 			continue
@@ -705,7 +706,7 @@ func TestMarshalShouldMatchTextWhenDecoded(t *testing.T) {
 
 func TestMarshalPackedShouldMatchTextWhenDecoded(t *testing.T) {
 	t.Parallel()
-	tool, err := findCapnpTool()
+	tool, err := capnptool.Find()
 	if err != nil {
 		t.Skip("capnp tool not found:", err)
 	}
@@ -715,7 +716,7 @@ func TestMarshalPackedShouldMatchTextWhenDecoded(t *testing.T) {
 			t.Errorf("%s: marshal error: %v", test.name, err)
 			continue
 		}
-		text, err := tool.decodePacked(test.typ, bytes.NewReader(data))
+		text, err := tool.DecodePacked(capnptool.Type{SchemaPath: schemaPath, Name: test.typ}, bytes.NewReader(data))
 		if err != nil {
 			t.Errorf("%s: capnp decode: %v", test.name, err)
 			continue
@@ -835,7 +836,7 @@ func TestBitList(t *testing.T) {
 
 func TestBitList_Decode(t *testing.T) {
 	t.Parallel()
-	tool, err := findCapnpTool()
+	tool, err := capnptool.Find()
 	if err != nil {
 		t.Skip("capnp tool not found:", err)
 	}
@@ -850,7 +851,7 @@ func TestBitList_Decode(t *testing.T) {
 			t.Errorf("%v: marshal: %v", test.list, err)
 			continue
 		}
-		text, err := tool.decode("Z", bytes.NewReader(out))
+		text, err := tool.Decode(capnptool.Type{SchemaPath: schemaPath, Name: "Z"}, bytes.NewReader(out))
 		if err != nil {
 			t.Errorf("%v: capnp decode: %v", test.list, err)
 			continue
