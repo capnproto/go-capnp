@@ -60,7 +60,7 @@ func TestGoCapnpNodeMap(t *testing.T) {
 func TestRemoteScope(t *testing.T) {
 	type scopeTest struct {
 		name        string
-		varID       uint64
+		constID     uint64
 		initImports []importSpec
 
 		remoteName string
@@ -70,13 +70,13 @@ func TestRemoteScope(t *testing.T) {
 	tests := []scopeTest{
 		{
 			name:       "same-file struct",
-			varID:      0x84efedc75e99768d, // scopes.fooVar
+			constID:    0x84efedc75e99768d, // scopes.fooVar
 			remoteName: "Foo",
 			remoteNew:  "NewFoo",
 		},
 		{
 			name:       "different file struct",
-			varID:      0x836faf1834d91729, // scopes.otherFooVar
+			constID:    0x836faf1834d91729, // scopes.otherFooVar
 			remoteName: "otherscopes.Foo",
 			remoteNew:  "otherscopes.NewFoo",
 			imports: []importSpec{
@@ -91,22 +91,22 @@ func TestRemoteScope(t *testing.T) {
 	}
 	collect := func(test scopeTest) (g *generator, n *node, from *node, ok bool) {
 		g = newGenerator(0xd68755941d99d05e, nodes, genoptions{})
-		v := nodes[test.varID]
+		v := nodes[test.constID]
 		if v == nil {
-			t.Errorf("Can't find const @%#x for %s test", test.varID, test.name)
+			t.Errorf("Can't find const @%#x for %s test", test.constID, test.name)
 			return nil, nil, nil, false
 		}
 		if v.Which() != schema.Node_Which_const {
-			t.Errorf("Type of const @%#x in %s test is a %v node; want const. Check the test.", test.varID, test.name, v.Which())
+			t.Errorf("Type of node @%#x in %s test is a %v node; want const. Check the test.", test.constID, test.name, v.Which())
 			return nil, nil, nil, false
 		}
-		varType, _ := v.Const().Type()
+		constType, _ := v.Const().Type()
 		// TODO(light): just use the type
-		varTypeNode := nodes[varType.StructType().TypeId()]
+		constTypeNode := nodes[constType.StructType().TypeId()]
 		for _, i := range test.initImports {
 			g.imports.add(i)
 		}
-		return g, varTypeNode, v, true
+		return g, constTypeNode, v, true
 	}
 	for _, test := range tests {
 		g, n, from, ok := collect(test)
@@ -115,19 +115,37 @@ func TestRemoteScope(t *testing.T) {
 		}
 		rn, err := g.RemoteName(n, from)
 		if err != nil {
-			t.Errorf("%s: g.RemoteName(nodes[%#x].Const().Type(), nodes[%#x]) error: %v", test.name, test.varID, test.varID, err)
+			t.Errorf("%s: g.RemoteName(nodes[%#x].Const().Type(), nodes[%#x]) error: %v", test.name, test.constID, test.constID, err)
 			continue
 		}
 		if rn != test.remoteName {
-			t.Errorf("%s: g.RemoteName(nodes[%#x].Const().Type(), nodes[%#x]) = %q; want %q", test.name, test.varID, test.varID, rn, test.remoteName)
+			t.Errorf("%s: g.RemoteName(nodes[%#x].Const().Type(), nodes[%#x]) = %q; want %q", test.name, test.constID, test.constID, rn, test.remoteName)
 			continue
 		}
 		if !hasExactImports(test.imports, g.imports) {
-			t.Errorf("%s: g.RemoteName(nodes[%#x].Const().Type(), nodes[%#x]); g.imports = %s; want %s", test.name, test.varID, test.varID, formatImportSpecs(g.imports.usedImports()), formatImportSpecs(test.imports))
+			t.Errorf("%s: g.RemoteName(nodes[%#x].Const().Type(), nodes[%#x]); g.imports = %s; want %s", test.name, test.constID, test.constID, formatImportSpecs(g.imports.usedImports()), formatImportSpecs(test.imports))
 			continue
 		}
 	}
-	// TODO(light): add RemoteNew tests
+	for _, test := range tests {
+		g, n, from, ok := collect(test)
+		if !ok {
+			continue
+		}
+		rn, err := g.RemoteNew(n, from)
+		if err != nil {
+			t.Errorf("%s: g.RemoteNew(nodes[%#x].Const().Type(), nodes[%#x]) error: %v", test.name, test.constID, test.constID, err)
+			continue
+		}
+		if rn != test.remoteNew {
+			t.Errorf("%s: g.RemoteNew(nodes[%#x].Const().Type(), nodes[%#x]) = %q; want %q", test.name, test.constID, test.constID, rn, test.remoteNew)
+			continue
+		}
+		if !hasExactImports(test.imports, g.imports) {
+			t.Errorf("%s: g.RemoteNew(nodes[%#x].Const().Type(), nodes[%#x]); g.imports = %s; want %s", test.name, test.constID, test.constID, formatImportSpecs(g.imports.usedImports()), formatImportSpecs(test.imports))
+			continue
+		}
+	}
 }
 
 func hasExactImports(specs []importSpec, imp imports) bool {
