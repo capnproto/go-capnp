@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"text/template"
 
 	"zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/internal/schema"
@@ -37,9 +38,29 @@ type genoptions struct {
 	promises bool
 }
 
+type renderer interface {
+	Render(name string, params interface{}) error
+	Bytes() []byte
+}
+
+type templateRenderer struct {
+	buf bytes.Buffer
+	t   *template.Template
+}
+
+// Render calls ExecuteTemplate to render to its buffer.
+func (tr *templateRenderer) Render(name string, params interface{}) error {
+	return tr.t.ExecuteTemplate(&tr.buf, name, params)
+}
+
+// Bytes returns the accumulated bytes.
+func (tr *templateRenderer) Bytes() []byte {
+	return tr.buf.Bytes()
+}
+
 // generator builds up the generated code for a single file.
 type generator struct {
-	buf     bytes.Buffer
+	r       renderer
 	fileID  uint64
 	nodes   nodeMap
 	imports imports
@@ -49,6 +70,7 @@ type generator struct {
 
 func newGenerator(fileID uint64, nodes nodeMap, opts genoptions) *generator {
 	g := &generator{
+		r:      &templateRenderer{t: templates},
 		fileID: fileID,
 		nodes:  nodes,
 		opts:   opts,
@@ -89,7 +111,7 @@ func (g *generator) generate(pkg string) []byte {
 		fmt.Fprintf(&out, "%v\n", imp)
 	}
 	out.WriteString(")\n")
-	out.Write(g.buf.Bytes())
+	out.Write(g.r.Bytes())
 	if len(g.data.buf) > 0 {
 		fmt.Fprintf(&out, "var %s = []byte{", g.data.name)
 		for i, b := range g.data.buf {
@@ -150,7 +172,7 @@ func (g *generator) defineEnum(n *node) error {
 		ev[e.CodeOrder()] = makeEnumval(n, i, e)
 	}
 	nann, _ := n.Annotations()
-	err := renderEnum(&g.buf, enumParams{
+	err := renderEnum(g.r, enumParams{
 		G:           g,
 		Node:        n,
 		Annotations: parseAnnotations(nann),
@@ -250,7 +272,7 @@ func (g *generator) Value(n *node, t schema.Type, v schema.Value) (string, error
 		if err != nil {
 			return "", err
 		}
-		err = renderStructValue(&buf, structValueParams{
+		err = templates.ExecuteTemplate(&buf, "structValue", structValueParams{
 			G:     g,
 			Node:  n,
 			Typ:   tn,
@@ -265,7 +287,7 @@ func (g *generator) Value(n *node, t schema.Type, v schema.Value) (string, error
 		if err != nil {
 			return "", err
 		}
-		err = renderPointerValue(&buf, pointerValueParams{
+		err = templates.ExecuteTemplate(&buf, "pointerValue", pointerValueParams{
 			G:     g,
 			Value: sd,
 		})
@@ -282,7 +304,7 @@ func (g *generator) Value(n *node, t schema.Type, v schema.Value) (string, error
 		if err != nil {
 			return "", err
 		}
-		err = renderListValue(&buf, listValueParams{
+		err = templates.ExecuteTemplate(&buf, "listValue", listValueParams{
 			G:     g,
 			Typ:   ftyp,
 			Value: sd,
@@ -294,7 +316,7 @@ func (g *generator) Value(n *node, t schema.Type, v schema.Value) (string, error
 }
 
 func (g *generator) defineAnnotation(n *node) error {
-	err := renderAnnotation(&g.buf, annotationParams{
+	err := renderAnnotation(g.r, annotationParams{
 		G:    g,
 		Node: n,
 	})
@@ -344,7 +366,7 @@ func (g *generator) defineConstNodes(nodes []*node) error {
 		// short path
 		return nil
 	}
-	err := renderConstants(&g.buf, constantsParams{
+	err := renderConstants(g.r, constantsParams{
 		G:      g,
 		Consts: constNodes[:nc],
 		Vars:   constNodes[nc:],
@@ -382,22 +404,22 @@ func (g *generator) defineField(n *node, f field) (err error) {
 	}
 	switch t.Which() {
 	case schema.Type_Which_void:
-		return renderStructVoidField(&g.buf, structVoidFieldParams(params))
+		return renderStructVoidField(g.r, structVoidFieldParams(params))
 	case schema.Type_Which_bool:
-		return renderStructBoolField(&g.buf, structBoolFieldParams{
+		return renderStructBoolField(g.r, structBoolFieldParams{
 			structFieldParams: params,
 			Default:           def.Bool(),
 		})
 
 	case schema.Type_Which_uint8, schema.Type_Which_uint16, schema.Type_Which_uint32, schema.Type_Which_uint64:
-		return renderStructUintField(&g.buf, structUintFieldParams{
+		return renderStructUintField(g.r, structUintFieldParams{
 			structFieldParams: params,
 			Bits:              intbits(t.Which()),
 			Default:           uintValue(def),
 		})
 
 	case schema.Type_Which_int8, schema.Type_Which_int16, schema.Type_Which_int32, schema.Type_Which_int64:
-		return renderStructIntField(&g.buf, structIntFieldParams{
+		return renderStructIntField(g.r, structIntFieldParams{
 			structUintFieldParams: structUintFieldParams{
 				structFieldParams: params,
 				Bits:              intbits(t.Which()),
@@ -414,7 +436,7 @@ func (g *generator) defineField(n *node, f field) (err error) {
 		if err != nil {
 			return err
 		}
-		return renderStructIntField(&g.buf, structIntFieldParams{
+		return renderStructIntField(g.r, structIntFieldParams{
 			structUintFieldParams: structUintFieldParams{
 				structFieldParams: params,
 				Bits:              16,
@@ -423,14 +445,14 @@ func (g *generator) defineField(n *node, f field) (err error) {
 			EnumName: rn,
 		})
 	case schema.Type_Which_float32:
-		return renderStructFloatField(&g.buf, structFloatFieldParams{
+		return renderStructFloatField(g.r, structFloatFieldParams{
 			structFieldParams: params,
 			Bits:              32,
 			Default:           uint64(math.Float32bits(def.Float32())),
 		})
 
 	case schema.Type_Which_float64:
-		return renderStructFloatField(&g.buf, structFloatFieldParams{
+		return renderStructFloatField(g.r, structFloatFieldParams{
 			structFieldParams: params,
 			Bits:              64,
 			Default:           math.Float64bits(def.Float64()),
@@ -441,7 +463,7 @@ func (g *generator) defineField(n *node, f field) (err error) {
 		if err != nil {
 			return err
 		}
-		return renderStructTextField(&g.buf, structTextFieldParams{
+		return renderStructTextField(g.r, structTextFieldParams{
 			structFieldParams: params,
 			Default:           d,
 		})
@@ -451,7 +473,7 @@ func (g *generator) defineField(n *node, f field) (err error) {
 		if err != nil {
 			return err
 		}
-		return renderStructDataField(&g.buf, structDataFieldParams{
+		return renderStructDataField(g.r, structDataFieldParams{
 			structFieldParams: params,
 			Default:           d,
 		})
@@ -470,7 +492,7 @@ func (g *generator) defineField(n *node, f field) (err error) {
 		if err != nil {
 			return err
 		}
-		return renderStructStructField(&g.buf, structStructFieldParams{
+		return renderStructStructField(g.r, structStructFieldParams{
 			structFieldParams: params,
 			TypeNode:          tn,
 			Default:           defref,
@@ -486,7 +508,7 @@ func (g *generator) defineField(n *node, f field) (err error) {
 				return err
 			}
 		}
-		return renderStructPointerField(&g.buf, structPointerFieldParams{
+		return renderStructPointerField(g.r, structPointerFieldParams{
 			structFieldParams: params,
 			Default:           defref,
 		})
@@ -501,13 +523,13 @@ func (g *generator) defineField(n *node, f field) (err error) {
 				return err
 			}
 		}
-		return renderStructListField(&g.buf, structListFieldParams{
+		return renderStructListField(g.r, structListFieldParams{
 			structFieldParams: params,
 			Default:           defref,
 		})
 
 	case schema.Type_Which_interface:
-		return renderStructInterfaceField(&g.buf, structInterfaceFieldParams(params))
+		return renderStructInterfaceField(g.r, structInterfaceFieldParams(params))
 	default:
 		return fmt.Errorf("defining unhandled field type %v", t.Which())
 	}
@@ -710,7 +732,7 @@ func (g *generator) defineStruct(n *node) error {
 func (g *generator) defineStructTypes(n, baseNode *node) error {
 	nann, _ := n.Annotations()
 	ann := parseAnnotations(nann)
-	err := renderStructTypes(&g.buf, structTypesParams{
+	err := renderStructTypes(g.r, structTypesParams{
 		G:           g,
 		Node:        n,
 		Annotations: ann,
@@ -746,7 +768,7 @@ func (g *generator) defineStructEnums(n *node) error {
 		}
 	}
 	if n.StructNode().DiscriminantCount() > 0 {
-		err := renderStructEnums(&g.buf, structEnumsParams{
+		err := renderStructEnums(g.r, structEnumsParams{
 			G:          g,
 			Node:       n,
 			Fields:     members,
@@ -771,7 +793,7 @@ func (g *generator) defineStructEnums(n *node) error {
 }
 
 func (g *generator) defineStructFuncs(n *node) error {
-	err := renderStructFuncs(&g.buf, structFuncsParams{
+	err := renderStructFuncs(g.r, structFuncsParams{
 		G:    g,
 		Node: n,
 	})
@@ -790,7 +812,7 @@ func (g *generator) defineStructFuncs(n *node) error {
 			if err != nil {
 				return err
 			}
-			err = renderStructGroup(&g.buf, structGroupParams{
+			err = renderStructGroup(g.r, structGroupParams{
 				G:     g,
 				Node:  n,
 				Group: grp,
@@ -818,7 +840,7 @@ func (g *generator) ObjectSize(n *node) (string, error) {
 }
 
 func (g *generator) defineNewStructFunc(n *node) error {
-	err := renderNewStructFunc(&g.buf, newStructFuncParams{
+	err := renderNewStructFunc(g.r, newStructFuncParams{
 		G:    g,
 		Node: n,
 	})
@@ -829,7 +851,7 @@ func (g *generator) defineNewStructFunc(n *node) error {
 }
 
 func (g *generator) defineStructList(n *node) error {
-	err := renderStructList(&g.buf, structListParams{
+	err := renderStructList(g.r, structListParams{
 		G:    g,
 		Node: n,
 	})
@@ -840,7 +862,7 @@ func (g *generator) defineStructList(n *node) error {
 }
 
 func (g *generator) defineStructPromise(n *node) error {
-	err := renderPromise(&g.buf, promiseParams{
+	err := renderPromise(g.r, promiseParams{
 		G:      g,
 		Node:   n,
 		Fields: n.codeOrderFields(),
@@ -864,7 +886,7 @@ func (g *generator) defineStructPromise(n *node) error {
 			if err != nil {
 				return fmt.Errorf("promise group %s.%s: %v", n.shortDisplayName(), f.Name, err)
 			}
-			err = renderPromiseGroup(&g.buf, promiseGroupParams{
+			err = renderPromiseGroup(g.r, promiseGroupParams{
 				G:     g,
 				Node:  n,
 				Field: f,
@@ -903,9 +925,9 @@ func (g *generator) definePromiseField(n *node, f field) error {
 				}
 			}
 		}
-		return renderPromiseFieldStruct(&g.buf, params)
+		return renderPromiseFieldStruct(g.r, params)
 	case schema.Type_Which_anyPointer:
-		return renderPromiseFieldAnyPointer(&g.buf, promiseFieldAnyPointerParams{
+		return renderPromiseFieldAnyPointer(g.r, promiseFieldAnyPointerParams{
 			G:     g,
 			Node:  n,
 			Field: f,
@@ -915,7 +937,7 @@ func (g *generator) definePromiseField(n *node, f field) error {
 		if err != nil {
 			return err
 		}
-		return renderPromiseFieldInterface(&g.buf, promiseFieldInterfaceParams{
+		return renderPromiseFieldInterface(g.r, promiseFieldInterfaceParams{
 			G:         g,
 			Node:      n,
 			Field:     f,
@@ -932,7 +954,7 @@ func (g *generator) defineInterface(n *node) error {
 		return fmt.Errorf("building method set of interface %s: %v", n, err)
 	}
 	nann, _ := n.Annotations()
-	err = renderInterfaceClient(&g.buf, interfaceClientParams{
+	err = renderInterfaceClient(g.r, interfaceClientParams{
 		G:           g,
 		Node:        n,
 		Annotations: parseAnnotations(nann),
@@ -941,7 +963,7 @@ func (g *generator) defineInterface(n *node) error {
 	if err != nil {
 		return fmt.Errorf("interface client %s: %v", n, err)
 	}
-	err = renderInterfaceServer(&g.buf, interfaceServerParams{
+	err = renderInterfaceServer(g.r, interfaceServerParams{
 		G:           g,
 		Node:        n,
 		Annotations: parseAnnotations(nann),

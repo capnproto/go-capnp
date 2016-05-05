@@ -2,8 +2,10 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"sort"
 	"testing"
 
 	"zombiezen.com/go/capnproto2"
@@ -154,4 +156,93 @@ func formatImportSpecs(specs []importSpec) string {
 		buf.WriteString(s.String())
 	}
 	return buf.String()
+}
+
+func TestDefineConstNodes(t *testing.T) {
+	req := mustReadGeneratorRequest(t, "const.capnp.out")
+	nodes, err := buildNodeMap(req)
+	if err != nil {
+		t.Fatal("buildNodeMap:", err)
+	}
+	g := newGenerator(0xc260cb50ae622e10, nodes, genoptions{})
+	getCalls := traceGenerator(g)
+	err = g.defineConstNodes(nodes[0xc260cb50ae622e10].nodes)
+	if err != nil {
+		t.Fatal("defineConstNodes:", err)
+	}
+	calls := getCalls()
+	if len(calls) != 1 {
+		t.Fatalf("defineConstNodes called %d templates; want 1", len(calls))
+	}
+	p, ok := calls[0].params.(constantsParams)
+	if calls[0].name != "constants" || !ok {
+		t.Fatalf("defineConstNodes rendered %v; want render of constants template", calls[0])
+	}
+	if !containsExactlyIDs(p.Consts, 0xda96e2255811b258) {
+		// TODO(#20): print nodes better
+		t.Errorf("defineConstNodes rendered Consts %v", p.Consts)
+	}
+	if !containsExactlyIDs(p.Vars, 0xe0a385c7be1fea4d) {
+		// TODO(#20): print nodes better
+		t.Errorf("defineConstNodes rendered Vars %v", p.Vars)
+	}
+}
+
+type traceRenderer struct {
+	renderer
+	calls []renderCall
+}
+
+func traceGenerator(g *generator) (getCalls func() []renderCall) {
+	tr := &traceRenderer{renderer: g.r}
+	g.r = tr
+	return func() []renderCall { return tr.calls }
+}
+
+func (tr *traceRenderer) Render(name string, params interface{}) error {
+	tr.calls = append(tr.calls, renderCall{name, params})
+	return tr.renderer.Render(name, params)
+}
+
+type renderCall struct {
+	name   string
+	params interface{}
+}
+
+func (rc renderCall) String() string {
+	return fmt.Sprintf("{%q %#v}", rc.name, rc.params)
+}
+
+func containsExactlyIDs(nodes []*node, ids ...uint64) bool {
+	if len(nodes) != len(ids) {
+		return false
+	}
+	sorted := make([]uint64, len(ids))
+	copy(sorted, ids)
+	sort.Sort(uint64Slice(sorted))
+	actual := make([]uint64, len(nodes))
+	for i := range nodes {
+		actual[i] = nodes[i].Id()
+	}
+	sort.Sort(uint64Slice(actual))
+	for i := range sorted {
+		if actual[i] != sorted[i] {
+			return false
+		}
+	}
+	return true
+}
+
+type uint64Slice []uint64
+
+func (a uint64Slice) Len() int {
+	return len(a)
+}
+
+func (a uint64Slice) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
+}
+
+func (a uint64Slice) Less(i, j int) bool {
+	return a[i] < a[j]
 }

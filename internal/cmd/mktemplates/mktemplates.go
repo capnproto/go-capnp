@@ -88,7 +88,6 @@ func generateGo(w io.Writer, args []string, ts []template) error {
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "package main")
 	fmt.Fprintln(w, "import (")
-	fmt.Fprintln(w, "\t\"io\"")
 	fmt.Fprintln(w, "\t\"strings\"")
 	fmt.Fprintln(w, "\t\"text/template\"")
 	fmt.Fprintln(w, ")")
@@ -99,7 +98,7 @@ func generateGo(w io.Writer, args []string, ts []template) error {
 		if strings.HasPrefix(t.name, "_") {
 			continue
 		}
-		fmt.Fprintf(w, "func render%s(w io.Writer, p %sParams) error {\n\treturn templates.ExecuteTemplate(w, %[2]q, p)\n}\n", strings.Title(t.name), t.name)
+		fmt.Fprintf(w, "func render%s(r renderer, p %sParams) error {\n\treturn r.Render(%[2]q, p)\n}\n", strings.Title(t.name), t.name)
 	}
 	return nil
 }
