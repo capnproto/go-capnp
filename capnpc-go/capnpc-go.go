@@ -144,7 +144,7 @@ func importForNode(n, rel *node) (importSpec, error) {
 	return importSpec{path: n.imp, name: n.pkg}, nil
 }
 
-func (g *generator) RemoteNew(n, rel *node) (string, error) {
+func (g *generator) RemoteNodeNew(n, rel *node) (string, error) {
 	ref, err := makeNodeTypeRef(n, rel)
 	if err != nil {
 		return "", err
@@ -159,7 +159,7 @@ func (g *generator) RemoteNew(n, rel *node) (string, error) {
 	return qname + "." + ref.newfunc, nil
 }
 
-func (g *generator) RemoteName(n, rel *node) (string, error) {
+func (g *generator) RemoteNodeName(n, rel *node) (string, error) {
 	ref, err := makeNodeTypeRef(n, rel)
 	if err != nil {
 		return "", err
@@ -281,7 +281,7 @@ func (g *generator) Value(rel *node, t schema.Type, v schema.Value) (string, err
 		enums, _ := en.Enum().Enumerants()
 		val := int(v.Enum())
 		if val >= enums.Len() {
-			rn, err := g.RemoteName(en, rel)
+			rn, err := g.RemoteNodeName(en, rel)
 			if err != nil {
 				return "", err
 			}

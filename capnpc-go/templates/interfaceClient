@@ -4,9 +4,9 @@
 type {{.Node.Name}} struct { Client {{.G.Capnp}}.Client }
 
 {{range .Methods -}}
-func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{$.G.Imports.Context}}.Context, params func({{$.G.RemoteName .Params $.Node}}) error, opts ...{{$.G.Capnp}}.CallOption) {{$.G.RemoteName .Results $.Node}}_Promise {
+func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{$.G.Imports.Context}}.Context, params func({{$.G.RemoteNodeName .Params $.Node}}) error, opts ...{{$.G.Capnp}}.CallOption) {{$.G.RemoteName .Results $.Node}}_Promise {
 	if c.Client == nil {
-		return {{$.G.RemoteName .Results $.Node}}_Promise{Pipeline: {{$.G.Capnp}}.NewPipeline({{$.G.Capnp}}.ErrorAnswer({{$.G.Capnp}}.ErrNullClient))}
+		return {{$.G.RemoteNodeName .Results $.Node}}_Promise{Pipeline: {{$.G.Capnp}}.NewPipeline({{$.G.Capnp}}.ErrorAnswer({{$.G.Capnp}}.ErrNullClient))}
 	}
 	call := &{{$.G.Capnp}}.Call{
 		Ctx: ctx,
@@ -17,8 +17,8 @@ func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{$.G.Imports.Context}}.Context, pa
 	}
 	if params != nil {
 		call.ParamsSize = {{$.G.ObjectSize .Params}}
-		call.ParamsFunc = func(s {{$.G.Capnp}}.Struct) error { return params({{$.G.RemoteName .Params $.Node}}{Struct: s}) }
+		call.ParamsFunc = func(s {{$.G.Capnp}}.Struct) error { return params({{$.G.RemoteNodeName .Params $.Node}}{Struct: s}) }
 	}
-	return {{$.G.RemoteName .Results $.Node}}_Promise{Pipeline: {{$.G.Capnp}}.NewPipeline(c.Client.Call(call))}
+	return {{$.G.RemoteNodeName .Results $.Node}}_Promise{Pipeline: {{$.G.Capnp}}.NewPipeline(c.Client.Call(call))}
 }
 {{end}}

@@ -1,4 +1,4 @@
-func (p {{.Node.Name}}_Promise) {{.Field.Name|title}}() {{.G.RemoteName .Interface .Node}} {
-	return {{.G.RemoteName .Interface .Node}}{Client: p.Pipeline.GetPipeline({{.Field.Slot.Offset}}).Client()}
+func (p {{.Node.Name}}_Promise) {{.Field.Name|title}}() {{.G.RemoteNodeName .Interface .Node}} {
+	return {{.G.RemoteNodeName .Interface .Node}}{Client: p.Pipeline.GetPipeline({{.Field.Slot.Offset}}).Client()}
 }
 

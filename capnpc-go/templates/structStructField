@@ -25,7 +25,7 @@ func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.FieldType}}) error {
 // allocated {{.FieldType}} struct, preferring placement in s's segment.
 func (s {{.Node.Name}}) New{{.Field.Name|title}}() ({{.FieldType}}, error) {
 	{{template "_settag" . -}}
-	ss, err := {{.G.RemoteNew .TypeNode .Node}}(s.Struct.Segment())
+	ss, err := {{.G.RemoteNodeNew .TypeNode .Node}}(s.Struct.Segment())
 	if err != nil {
 		return {{.FieldType}}{}, err
 	}
