@@ -92,12 +92,11 @@ func bootstrapAndFulfill(t *testing.T, ctx context.Context, conn *rpc.Conn, p rp
 			return err
 		}
 		payload.SetContent(capnp.NewInterface(msg.Segment(), 0))
-		capTable, err := rpccapnp.NewCapDescriptor_List(msg.Segment(), 1)
+		capTable, err := payload.NewCapTable(1)
 		if err != nil {
 			return err
 		}
 		capTable.At(0).SetSenderHosted(bootstrapExportID)
-		payload.SetCapTable(capTable)
 		return nil
 	})
 	if err != nil {

@@ -1,5 +1,4 @@
-/capnp-go/capnp-go
-/example/example
-/example/*.capnp.go
+/capnpc-go/capnpc-go
+/internal/cmd/mktemplates/mktemplates
 TAGS
 *~

@@ -1,4 +1,4 @@
-package main
+package schema
 
 // AUTO GENERATED - DO NOT EDIT
 
@@ -8,12 +8,13 @@ import (
 	capnp "zombiezen.com/go/capnproto2"
 )
 
+// Constants defined in schema.capnp.
 const (
 	Field_noDiscriminant = uint16(65535)
 )
 
 type Node struct{ capnp.Struct }
-type Node_structGroup Node
+type Node_structNode Node
 type Node_enum Node
 type Node_interface Node
 type Node_const Node
@@ -21,29 +22,29 @@ type Node_annotation Node
 type Node_Which uint16
 
 const (
-	Node_Which_file        Node_Which = 0
-	Node_Which_structGroup Node_Which = 1
-	Node_Which_enum        Node_Which = 2
-	Node_Which_interface   Node_Which = 3
-	Node_Which_const       Node_Which = 4
-	Node_Which_annotation  Node_Which = 5
+	Node_Which_file       Node_Which = 0
+	Node_Which_structNode Node_Which = 1
+	Node_Which_enum       Node_Which = 2
+	Node_Which_interface  Node_Which = 3
+	Node_Which_const      Node_Which = 4
+	Node_Which_annotation Node_Which = 5
 )
 
 func (w Node_Which) String() string {
-	const s = "filestructGroupenuminterfaceconstannotation"
+	const s = "filestructNodeenuminterfaceconstannotation"
 	switch w {
 	case Node_Which_file:
 		return s[0:4]
-	case Node_Which_structGroup:
-		return s[4:15]
+	case Node_Which_structNode:
+		return s[4:14]
 	case Node_Which_enum:
-		return s[15:19]
+		return s[14:18]
 	case Node_Which_interface:
-		return s[19:28]
+		return s[18:27]
 	case Node_Which_const:
-		return s[28:33]
+		return s[27:32]
 	case Node_Which_annotation:
-		return s[33:43]
+		return s[32:42]
 
 	}
 	return "Node_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
@@ -76,13 +77,11 @@ func ReadRootNode(msg *capnp.Message) (Node, error) {
 func (s Node) Which() Node_Which {
 	return Node_Which(s.Struct.Uint16(12))
 }
-
 func (s Node) Id() uint64 {
 	return s.Struct.Uint64(0)
 }
 
 func (s Node) SetId(v uint64) {
-
 	s.Struct.SetUint64(0, v)
 }
 
@@ -91,9 +90,7 @@ func (s Node) DisplayName() (string, error) {
 	if err != nil {
 		return "", err
 	}
-
 	return p.Text(), nil
-
 }
 
 func (s Node) HasDisplayName() bool {
@@ -106,13 +103,10 @@ func (s Node) DisplayNameBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return p.Data(), nil
-
 }
 
 func (s Node) SetDisplayName(v string) error {
-
 	t, err := capnp.NewText(s.Struct.Segment(), v)
 	if err != nil {
 		return err
@@ -125,7 +119,6 @@ func (s Node) DisplayNamePrefixLength() uint32 {
 }
 
 func (s Node) SetDisplayNamePrefixLength(v uint32) {
-
 	s.Struct.SetUint32(8, v)
 }
 
@@ -134,7 +127,6 @@ func (s Node) ScopeId() uint64 {
 }
 
 func (s Node) SetScopeId(v uint64) {
-
 	s.Struct.SetUint64(16, v)
 }
 
@@ -143,9 +135,7 @@ func (s Node) Parameters() (Node_Parameter_List, error) {
 	if err != nil {
 		return Node_Parameter_List{}, err
 	}
-
 	return Node_Parameter_List{List: p.List()}, nil
-
 }
 
 func (s Node) HasParameters() bool {
@@ -154,8 +144,18 @@ func (s Node) HasParameters() bool {
 }
 
 func (s Node) SetParameters(v Node_Parameter_List) error {
-
 	return s.Struct.SetPtr(5, v.List.ToPtr())
+}
+
+// NewParameters sets the parameters field to a newly
+// allocated Node_Parameter_List, preferring placement in s's segment.
+func (s Node) NewParameters(n int32) (Node_Parameter_List, error) {
+	l, err := NewNode_Parameter_List(s.Struct.Segment(), n)
+	if err != nil {
+		return Node_Parameter_List{}, err
+	}
+	err = s.Struct.SetPtr(5, l.List.ToPtr())
+	return l, err
 }
 
 func (s Node) IsGeneric() bool {
@@ -163,7 +163,6 @@ func (s Node) IsGeneric() bool {
 }
 
 func (s Node) SetIsGeneric(v bool) {
-
 	s.Struct.SetBit(288, v)
 }
 
@@ -172,9 +171,7 @@ func (s Node) NestedNodes() (Node_NestedNode_List, error) {
 	if err != nil {
 		return Node_NestedNode_List{}, err
 	}
-
 	return Node_NestedNode_List{List: p.List()}, nil
-
 }
 
 func (s Node) HasNestedNodes() bool {
@@ -183,8 +180,18 @@ func (s Node) HasNestedNodes() bool {
 }
 
 func (s Node) SetNestedNodes(v Node_NestedNode_List) error {
-
 	return s.Struct.SetPtr(1, v.List.ToPtr())
+}
+
+// NewNestedNodes sets the nestedNodes field to a newly
+// allocated Node_NestedNode_List, preferring placement in s's segment.
+func (s Node) NewNestedNodes(n int32) (Node_NestedNode_List, error) {
+	l, err := NewNode_NestedNode_List(s.Struct.Segment(), n)
+	if err != nil {
+		return Node_NestedNode_List{}, err
+	}
+	err = s.Struct.SetPtr(1, l.List.ToPtr())
+	return l, err
 }
 
 func (s Node) Annotations() (Annotation_List, error) {
@@ -192,9 +199,7 @@ func (s Node) Annotations() (Annotation_List, error) {
 	if err != nil {
 		return Annotation_List{}, err
 	}
-
 	return Annotation_List{List: p.List()}, nil
-
 }
 
 func (s Node) HasAnnotations() bool {
@@ -203,102 +208,115 @@ func (s Node) HasAnnotations() bool {
 }
 
 func (s Node) SetAnnotations(v Annotation_List) error {
-
 	return s.Struct.SetPtr(2, v.List.ToPtr())
+}
+
+// NewAnnotations sets the annotations field to a newly
+// allocated Annotation_List, preferring placement in s's segment.
+func (s Node) NewAnnotations(n int32) (Annotation_List, error) {
+	l, err := NewAnnotation_List(s.Struct.Segment(), n)
+	if err != nil {
+		return Annotation_List{}, err
+	}
+	err = s.Struct.SetPtr(2, l.List.ToPtr())
+	return l, err
 }
 
 func (s Node) SetFile() {
 	s.Struct.SetUint16(12, 0)
+
 }
-func (s Node) StructGroup() Node_structGroup { return Node_structGroup(s) }
 
-func (s Node) SetStructGroup() { s.Struct.SetUint16(12, 1) }
-
-func (s Node_structGroup) DataWordCount() uint16 {
+func (s Node) StructNode() Node_structNode { return Node_structNode(s) }
+func (s Node) SetStructNode() {
+	s.Struct.SetUint16(12, 1)
+}
+func (s Node_structNode) DataWordCount() uint16 {
 	return s.Struct.Uint16(14)
 }
 
-func (s Node_structGroup) SetDataWordCount(v uint16) {
-
+func (s Node_structNode) SetDataWordCount(v uint16) {
 	s.Struct.SetUint16(14, v)
 }
 
-func (s Node_structGroup) PointerCount() uint16 {
+func (s Node_structNode) PointerCount() uint16 {
 	return s.Struct.Uint16(24)
 }
 
-func (s Node_structGroup) SetPointerCount(v uint16) {
-
+func (s Node_structNode) SetPointerCount(v uint16) {
 	s.Struct.SetUint16(24, v)
 }
 
-func (s Node_structGroup) PreferredListEncoding() ElementSize {
+func (s Node_structNode) PreferredListEncoding() ElementSize {
 	return ElementSize(s.Struct.Uint16(26))
 }
 
-func (s Node_structGroup) SetPreferredListEncoding(v ElementSize) {
-
+func (s Node_structNode) SetPreferredListEncoding(v ElementSize) {
 	s.Struct.SetUint16(26, uint16(v))
 }
 
-func (s Node_structGroup) IsGroup() bool {
+func (s Node_structNode) IsGroup() bool {
 	return s.Struct.Bit(224)
 }
 
-func (s Node_structGroup) SetIsGroup(v bool) {
-
+func (s Node_structNode) SetIsGroup(v bool) {
 	s.Struct.SetBit(224, v)
 }
 
-func (s Node_structGroup) DiscriminantCount() uint16 {
+func (s Node_structNode) DiscriminantCount() uint16 {
 	return s.Struct.Uint16(30)
 }
 
-func (s Node_structGroup) SetDiscriminantCount(v uint16) {
-
+func (s Node_structNode) SetDiscriminantCount(v uint16) {
 	s.Struct.SetUint16(30, v)
 }
 
-func (s Node_structGroup) DiscriminantOffset() uint32 {
+func (s Node_structNode) DiscriminantOffset() uint32 {
 	return s.Struct.Uint32(32)
 }
 
-func (s Node_structGroup) SetDiscriminantOffset(v uint32) {
-
+func (s Node_structNode) SetDiscriminantOffset(v uint32) {
 	s.Struct.SetUint32(32, v)
 }
 
-func (s Node_structGroup) Fields() (Field_List, error) {
+func (s Node_structNode) Fields() (Field_List, error) {
 	p, err := s.Struct.Ptr(3)
 	if err != nil {
 		return Field_List{}, err
 	}
-
 	return Field_List{List: p.List()}, nil
-
 }
 
-func (s Node_structGroup) HasFields() bool {
+func (s Node_structNode) HasFields() bool {
 	p, err := s.Struct.Ptr(3)
 	return p.IsValid() || err != nil
 }
 
-func (s Node_structGroup) SetFields(v Field_List) error {
-
+func (s Node_structNode) SetFields(v Field_List) error {
 	return s.Struct.SetPtr(3, v.List.ToPtr())
 }
+
+// NewFields sets the fields field to a newly
+// allocated Field_List, preferring placement in s's segment.
+func (s Node_structNode) NewFields(n int32) (Field_List, error) {
+	l, err := NewField_List(s.Struct.Segment(), n)
+	if err != nil {
+		return Field_List{}, err
+	}
+	err = s.Struct.SetPtr(3, l.List.ToPtr())
+	return l, err
+}
+
 func (s Node) Enum() Node_enum { return Node_enum(s) }
-
-func (s Node) SetEnum() { s.Struct.SetUint16(12, 2) }
-
+func (s Node) SetEnum() {
+	s.Struct.SetUint16(12, 2)
+}
 func (s Node_enum) Enumerants() (Enumerant_List, error) {
 	p, err := s.Struct.Ptr(3)
 	if err != nil {
 		return Enumerant_List{}, err
 	}
-
 	return Enumerant_List{List: p.List()}, nil
-
 }
 
 func (s Node_enum) HasEnumerants() bool {
@@ -307,21 +325,30 @@ func (s Node_enum) HasEnumerants() bool {
 }
 
 func (s Node_enum) SetEnumerants(v Enumerant_List) error {
-
 	return s.Struct.SetPtr(3, v.List.ToPtr())
 }
+
+// NewEnumerants sets the enumerants field to a newly
+// allocated Enumerant_List, preferring placement in s's segment.
+func (s Node_enum) NewEnumerants(n int32) (Enumerant_List, error) {
+	l, err := NewEnumerant_List(s.Struct.Segment(), n)
+	if err != nil {
+		return Enumerant_List{}, err
+	}
+	err = s.Struct.SetPtr(3, l.List.ToPtr())
+	return l, err
+}
+
 func (s Node) Interface() Node_interface { return Node_interface(s) }
-
-func (s Node) SetInterface() { s.Struct.SetUint16(12, 3) }
-
+func (s Node) SetInterface() {
+	s.Struct.SetUint16(12, 3)
+}
 func (s Node_interface) Methods() (Method_List, error) {
 	p, err := s.Struct.Ptr(3)
 	if err != nil {
 		return Method_List{}, err
 	}
-
 	return Method_List{List: p.List()}, nil
-
 }
 
 func (s Node_interface) HasMethods() bool {
@@ -330,8 +357,18 @@ func (s Node_interface) HasMethods() bool {
 }
 
 func (s Node_interface) SetMethods(v Method_List) error {
-
 	return s.Struct.SetPtr(3, v.List.ToPtr())
+}
+
+// NewMethods sets the methods field to a newly
+// allocated Method_List, preferring placement in s's segment.
+func (s Node_interface) NewMethods(n int32) (Method_List, error) {
+	l, err := NewMethod_List(s.Struct.Segment(), n)
+	if err != nil {
+		return Method_List{}, err
+	}
+	err = s.Struct.SetPtr(3, l.List.ToPtr())
+	return l, err
 }
 
 func (s Node_interface) Superclasses() (Superclass_List, error) {
@@ -339,9 +376,7 @@ func (s Node_interface) Superclasses() (Superclass_List, error) {
 	if err != nil {
 		return Superclass_List{}, err
 	}
-
 	return Superclass_List{List: p.List()}, nil
-
 }
 
 func (s Node_interface) HasSuperclasses() bool {
@@ -350,21 +385,30 @@ func (s Node_interface) HasSuperclasses() bool {
 }
 
 func (s Node_interface) SetSuperclasses(v Superclass_List) error {
-
 	return s.Struct.SetPtr(4, v.List.ToPtr())
 }
+
+// NewSuperclasses sets the superclasses field to a newly
+// allocated Superclass_List, preferring placement in s's segment.
+func (s Node_interface) NewSuperclasses(n int32) (Superclass_List, error) {
+	l, err := NewSuperclass_List(s.Struct.Segment(), n)
+	if err != nil {
+		return Superclass_List{}, err
+	}
+	err = s.Struct.SetPtr(4, l.List.ToPtr())
+	return l, err
+}
+
 func (s Node) Const() Node_const { return Node_const(s) }
-
-func (s Node) SetConst() { s.Struct.SetUint16(12, 4) }
-
+func (s Node) SetConst() {
+	s.Struct.SetUint16(12, 4)
+}
 func (s Node_const) Type() (Type, error) {
 	p, err := s.Struct.Ptr(3)
 	if err != nil {
 		return Type{}, err
 	}
-
 	return Type{Struct: p.Struct()}, nil
-
 }
 
 func (s Node_const) HasType() bool {
@@ -373,14 +417,12 @@ func (s Node_const) HasType() bool {
 }
 
 func (s Node_const) SetType(v Type) error {
-
 	return s.Struct.SetPtr(3, v.Struct.ToPtr())
 }
 
 // NewType sets the type field to a newly
 // allocated Type struct, preferring placement in s's segment.
 func (s Node_const) NewType() (Type, error) {
-
 	ss, err := NewType(s.Struct.Segment())
 	if err != nil {
 		return Type{}, err
@@ -394,9 +436,7 @@ func (s Node_const) Value() (Value, error) {
 	if err != nil {
 		return Value{}, err
 	}
-
 	return Value{Struct: p.Struct()}, nil
-
 }
 
 func (s Node_const) HasValue() bool {
@@ -405,14 +445,12 @@ func (s Node_const) HasValue() bool {
 }
 
 func (s Node_const) SetValue(v Value) error {
-
 	return s.Struct.SetPtr(4, v.Struct.ToPtr())
 }
 
 // NewValue sets the value field to a newly
 // allocated Value struct, preferring placement in s's segment.
 func (s Node_const) NewValue() (Value, error) {
-
 	ss, err := NewValue(s.Struct.Segment())
 	if err != nil {
 		return Value{}, err
@@ -420,18 +458,17 @@ func (s Node_const) NewValue() (Value, error) {
 	err = s.Struct.SetPtr(4, ss.Struct.ToPtr())
 	return ss, err
 }
+
 func (s Node) Annotation() Node_annotation { return Node_annotation(s) }
-
-func (s Node) SetAnnotation() { s.Struct.SetUint16(12, 5) }
-
+func (s Node) SetAnnotation() {
+	s.Struct.SetUint16(12, 5)
+}
 func (s Node_annotation) Type() (Type, error) {
 	p, err := s.Struct.Ptr(3)
 	if err != nil {
 		return Type{}, err
 	}
-
 	return Type{Struct: p.Struct()}, nil
-
 }
 
 func (s Node_annotation) HasType() bool {
@@ -440,14 +477,12 @@ func (s Node_annotation) HasType() bool {
 }
 
 func (s Node_annotation) SetType(v Type) error {
-
 	return s.Struct.SetPtr(3, v.Struct.ToPtr())
 }
 
 // NewType sets the type field to a newly
 // allocated Type struct, preferring placement in s's segment.
 func (s Node_annotation) NewType() (Type, error) {
-
 	ss, err := NewType(s.Struct.Segment())
 	if err != nil {
 		return Type{}, err
@@ -461,7 +496,6 @@ func (s Node_annotation) TargetsFile() bool {
 }
 
 func (s Node_annotation) SetTargetsFile(v bool) {
-
 	s.Struct.SetBit(112, v)
 }
 
@@ -470,7 +504,6 @@ func (s Node_annotation) TargetsConst() bool {
 }
 
 func (s Node_annotation) SetTargetsConst(v bool) {
-
 	s.Struct.SetBit(113, v)
 }
 
@@ -479,7 +512,6 @@ func (s Node_annotation) TargetsEnum() bool {
 }
 
 func (s Node_annotation) SetTargetsEnum(v bool) {
-
 	s.Struct.SetBit(114, v)
 }
 
@@ -488,7 +520,6 @@ func (s Node_annotation) TargetsEnumerant() bool {
 }
 
 func (s Node_annotation) SetTargetsEnumerant(v bool) {
-
 	s.Struct.SetBit(115, v)
 }
 
@@ -497,7 +528,6 @@ func (s Node_annotation) TargetsStruct() bool {
 }
 
 func (s Node_annotation) SetTargetsStruct(v bool) {
-
 	s.Struct.SetBit(116, v)
 }
 
@@ -506,7 +536,6 @@ func (s Node_annotation) TargetsField() bool {
 }
 
 func (s Node_annotation) SetTargetsField(v bool) {
-
 	s.Struct.SetBit(117, v)
 }
 
@@ -515,7 +544,6 @@ func (s Node_annotation) TargetsUnion() bool {
 }
 
 func (s Node_annotation) SetTargetsUnion(v bool) {
-
 	s.Struct.SetBit(118, v)
 }
 
@@ -524,7 +552,6 @@ func (s Node_annotation) TargetsGroup() bool {
 }
 
 func (s Node_annotation) SetTargetsGroup(v bool) {
-
 	s.Struct.SetBit(119, v)
 }
 
@@ -533,7 +560,6 @@ func (s Node_annotation) TargetsInterface() bool {
 }
 
 func (s Node_annotation) SetTargetsInterface(v bool) {
-
 	s.Struct.SetBit(120, v)
 }
 
@@ -542,7 +568,6 @@ func (s Node_annotation) TargetsMethod() bool {
 }
 
 func (s Node_annotation) SetTargetsMethod(v bool) {
-
 	s.Struct.SetBit(121, v)
 }
 
@@ -551,7 +576,6 @@ func (s Node_annotation) TargetsParam() bool {
 }
 
 func (s Node_annotation) SetTargetsParam(v bool) {
-
 	s.Struct.SetBit(122, v)
 }
 
@@ -560,7 +584,6 @@ func (s Node_annotation) TargetsAnnotation() bool {
 }
 
 func (s Node_annotation) SetTargetsAnnotation(v bool) {
-
 	s.Struct.SetBit(123, v)
 }
 
@@ -604,15 +627,12 @@ func ReadRootNode_Parameter(msg *capnp.Message) (Node_Parameter, error) {
 	}
 	return Node_Parameter{root.Struct()}, nil
 }
-
 func (s Node_Parameter) Name() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return "", err
 	}
-
 	return p.Text(), nil
-
 }
 
 func (s Node_Parameter) HasName() bool {
@@ -625,13 +645,10 @@ func (s Node_Parameter) NameBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return p.Data(), nil
-
 }
 
 func (s Node_Parameter) SetName(v string) error {
-
 	t, err := capnp.NewText(s.Struct.Segment(), v)
 	if err != nil {
 		return err
@@ -679,15 +696,12 @@ func ReadRootNode_NestedNode(msg *capnp.Message) (Node_NestedNode, error) {
 	}
 	return Node_NestedNode{root.Struct()}, nil
 }
-
 func (s Node_NestedNode) Name() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return "", err
 	}
-
 	return p.Text(), nil
-
 }
 
 func (s Node_NestedNode) HasName() bool {
@@ -700,13 +714,10 @@ func (s Node_NestedNode) NameBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return p.Data(), nil
-
 }
 
 func (s Node_NestedNode) SetName(v string) error {
-
 	t, err := capnp.NewText(s.Struct.Segment(), v)
 	if err != nil {
 		return err
@@ -719,7 +730,6 @@ func (s Node_NestedNode) Id() uint64 {
 }
 
 func (s Node_NestedNode) SetId(v uint64) {
-
 	s.Struct.SetUint64(0, v)
 }
 
@@ -809,15 +819,12 @@ func ReadRootField(msg *capnp.Message) (Field, error) {
 func (s Field) Which() Field_Which {
 	return Field_Which(s.Struct.Uint16(8))
 }
-
 func (s Field) Name() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return "", err
 	}
-
 	return p.Text(), nil
-
 }
 
 func (s Field) HasName() bool {
@@ -830,13 +837,10 @@ func (s Field) NameBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return p.Data(), nil
-
 }
 
 func (s Field) SetName(v string) error {
-
 	t, err := capnp.NewText(s.Struct.Segment(), v)
 	if err != nil {
 		return err
@@ -849,7 +853,6 @@ func (s Field) CodeOrder() uint16 {
 }
 
 func (s Field) SetCodeOrder(v uint16) {
-
 	s.Struct.SetUint16(0, v)
 }
 
@@ -858,9 +861,7 @@ func (s Field) Annotations() (Annotation_List, error) {
 	if err != nil {
 		return Annotation_List{}, err
 	}
-
 	return Annotation_List{List: p.List()}, nil
-
 }
 
 func (s Field) HasAnnotations() bool {
@@ -869,8 +870,18 @@ func (s Field) HasAnnotations() bool {
 }
 
 func (s Field) SetAnnotations(v Annotation_List) error {
-
 	return s.Struct.SetPtr(1, v.List.ToPtr())
+}
+
+// NewAnnotations sets the annotations field to a newly
+// allocated Annotation_List, preferring placement in s's segment.
+func (s Field) NewAnnotations(n int32) (Annotation_List, error) {
+	l, err := NewAnnotation_List(s.Struct.Segment(), n)
+	if err != nil {
+		return Annotation_List{}, err
+	}
+	err = s.Struct.SetPtr(1, l.List.ToPtr())
+	return l, err
 }
 
 func (s Field) DiscriminantValue() uint16 {
@@ -878,19 +889,18 @@ func (s Field) DiscriminantValue() uint16 {
 }
 
 func (s Field) SetDiscriminantValue(v uint16) {
-
 	s.Struct.SetUint16(2, v^65535)
 }
+
 func (s Field) Slot() Field_slot { return Field_slot(s) }
-
-func (s Field) SetSlot() { s.Struct.SetUint16(8, 0) }
-
+func (s Field) SetSlot() {
+	s.Struct.SetUint16(8, 0)
+}
 func (s Field_slot) Offset() uint32 {
 	return s.Struct.Uint32(4)
 }
 
 func (s Field_slot) SetOffset(v uint32) {
-
 	s.Struct.SetUint32(4, v)
 }
 
@@ -899,9 +909,7 @@ func (s Field_slot) Type() (Type, error) {
 	if err != nil {
 		return Type{}, err
 	}
-
 	return Type{Struct: p.Struct()}, nil
-
 }
 
 func (s Field_slot) HasType() bool {
@@ -910,14 +918,12 @@ func (s Field_slot) HasType() bool {
 }
 
 func (s Field_slot) SetType(v Type) error {
-
 	return s.Struct.SetPtr(2, v.Struct.ToPtr())
 }
 
 // NewType sets the type field to a newly
 // allocated Type struct, preferring placement in s's segment.
 func (s Field_slot) NewType() (Type, error) {
-
 	ss, err := NewType(s.Struct.Segment())
 	if err != nil {
 		return Type{}, err
@@ -931,9 +937,7 @@ func (s Field_slot) DefaultValue() (Value, error) {
 	if err != nil {
 		return Value{}, err
 	}
-
 	return Value{Struct: p.Struct()}, nil
-
 }
 
 func (s Field_slot) HasDefaultValue() bool {
@@ -942,14 +946,12 @@ func (s Field_slot) HasDefaultValue() bool {
 }
 
 func (s Field_slot) SetDefaultValue(v Value) error {
-
 	return s.Struct.SetPtr(3, v.Struct.ToPtr())
 }
 
 // NewDefaultValue sets the defaultValue field to a newly
 // allocated Value struct, preferring placement in s's segment.
 func (s Field_slot) NewDefaultValue() (Value, error) {
-
 	ss, err := NewValue(s.Struct.Segment())
 	if err != nil {
 		return Value{}, err
@@ -963,29 +965,28 @@ func (s Field_slot) HadExplicitDefault() bool {
 }
 
 func (s Field_slot) SetHadExplicitDefault(v bool) {
-
 	s.Struct.SetBit(128, v)
 }
+
 func (s Field) Group() Field_group { return Field_group(s) }
-
-func (s Field) SetGroup() { s.Struct.SetUint16(8, 1) }
-
+func (s Field) SetGroup() {
+	s.Struct.SetUint16(8, 1)
+}
 func (s Field_group) TypeId() uint64 {
 	return s.Struct.Uint64(16)
 }
 
 func (s Field_group) SetTypeId(v uint64) {
-
 	s.Struct.SetUint64(16, v)
 }
-func (s Field) Ordinal() Field_ordinal { return Field_ordinal(s) }
 
+func (s Field) Ordinal() Field_ordinal { return Field_ordinal(s) }
 func (s Field_ordinal) Which() Field_ordinal_Which {
 	return Field_ordinal_Which(s.Struct.Uint16(10))
 }
-
 func (s Field_ordinal) SetImplicit() {
 	s.Struct.SetUint16(10, 0)
+
 }
 
 func (s Field_ordinal) Explicit() uint16 {
@@ -1037,15 +1038,12 @@ func ReadRootEnumerant(msg *capnp.Message) (Enumerant, error) {
 	}
 	return Enumerant{root.Struct()}, nil
 }
-
 func (s Enumerant) Name() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return "", err
 	}
-
 	return p.Text(), nil
-
 }
 
 func (s Enumerant) HasName() bool {
@@ -1058,13 +1056,10 @@ func (s Enumerant) NameBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return p.Data(), nil
-
 }
 
 func (s Enumerant) SetName(v string) error {
-
 	t, err := capnp.NewText(s.Struct.Segment(), v)
 	if err != nil {
 		return err
@@ -1077,7 +1072,6 @@ func (s Enumerant) CodeOrder() uint16 {
 }
 
 func (s Enumerant) SetCodeOrder(v uint16) {
-
 	s.Struct.SetUint16(0, v)
 }
 
@@ -1086,9 +1080,7 @@ func (s Enumerant) Annotations() (Annotation_List, error) {
 	if err != nil {
 		return Annotation_List{}, err
 	}
-
 	return Annotation_List{List: p.List()}, nil
-
 }
 
 func (s Enumerant) HasAnnotations() bool {
@@ -1097,8 +1089,18 @@ func (s Enumerant) HasAnnotations() bool {
 }
 
 func (s Enumerant) SetAnnotations(v Annotation_List) error {
-
 	return s.Struct.SetPtr(1, v.List.ToPtr())
+}
+
+// NewAnnotations sets the annotations field to a newly
+// allocated Annotation_List, preferring placement in s's segment.
+func (s Enumerant) NewAnnotations(n int32) (Annotation_List, error) {
+	l, err := NewAnnotation_List(s.Struct.Segment(), n)
+	if err != nil {
+		return Annotation_List{}, err
+	}
+	err = s.Struct.SetPtr(1, l.List.ToPtr())
+	return l, err
 }
 
 // Enumerant_List is a list of Enumerant.
@@ -1141,13 +1143,11 @@ func ReadRootSuperclass(msg *capnp.Message) (Superclass, error) {
 	}
 	return Superclass{root.Struct()}, nil
 }
-
 func (s Superclass) Id() uint64 {
 	return s.Struct.Uint64(0)
 }
 
 func (s Superclass) SetId(v uint64) {
-
 	s.Struct.SetUint64(0, v)
 }
 
@@ -1156,9 +1156,7 @@ func (s Superclass) Brand() (Brand, error) {
 	if err != nil {
 		return Brand{}, err
 	}
-
 	return Brand{Struct: p.Struct()}, nil
-
 }
 
 func (s Superclass) HasBrand() bool {
@@ -1167,14 +1165,12 @@ func (s Superclass) HasBrand() bool {
 }
 
 func (s Superclass) SetBrand(v Brand) error {
-
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewBrand sets the brand field to a newly
 // allocated Brand struct, preferring placement in s's segment.
 func (s Superclass) NewBrand() (Brand, error) {
-
 	ss, err := NewBrand(s.Struct.Segment())
 	if err != nil {
 		return Brand{}, err
@@ -1223,15 +1219,12 @@ func ReadRootMethod(msg *capnp.Message) (Method, error) {
 	}
 	return Method{root.Struct()}, nil
 }
-
 func (s Method) Name() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return "", err
 	}
-
 	return p.Text(), nil
-
 }
 
 func (s Method) HasName() bool {
@@ -1244,13 +1237,10 @@ func (s Method) NameBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return p.Data(), nil
-
 }
 
 func (s Method) SetName(v string) error {
-
 	t, err := capnp.NewText(s.Struct.Segment(), v)
 	if err != nil {
 		return err
@@ -1263,7 +1253,6 @@ func (s Method) CodeOrder() uint16 {
 }
 
 func (s Method) SetCodeOrder(v uint16) {
-
 	s.Struct.SetUint16(0, v)
 }
 
@@ -1272,9 +1261,7 @@ func (s Method) ImplicitParameters() (Node_Parameter_List, error) {
 	if err != nil {
 		return Node_Parameter_List{}, err
 	}
-
 	return Node_Parameter_List{List: p.List()}, nil
-
 }
 
 func (s Method) HasImplicitParameters() bool {
@@ -1283,8 +1270,18 @@ func (s Method) HasImplicitParameters() bool {
 }
 
 func (s Method) SetImplicitParameters(v Node_Parameter_List) error {
-
 	return s.Struct.SetPtr(4, v.List.ToPtr())
+}
+
+// NewImplicitParameters sets the implicitParameters field to a newly
+// allocated Node_Parameter_List, preferring placement in s's segment.
+func (s Method) NewImplicitParameters(n int32) (Node_Parameter_List, error) {
+	l, err := NewNode_Parameter_List(s.Struct.Segment(), n)
+	if err != nil {
+		return Node_Parameter_List{}, err
+	}
+	err = s.Struct.SetPtr(4, l.List.ToPtr())
+	return l, err
 }
 
 func (s Method) ParamStructType() uint64 {
@@ -1292,7 +1289,6 @@ func (s Method) ParamStructType() uint64 {
 }
 
 func (s Method) SetParamStructType(v uint64) {
-
 	s.Struct.SetUint64(8, v)
 }
 
@@ -1301,9 +1297,7 @@ func (s Method) ParamBrand() (Brand, error) {
 	if err != nil {
 		return Brand{}, err
 	}
-
 	return Brand{Struct: p.Struct()}, nil
-
 }
 
 func (s Method) HasParamBrand() bool {
@@ -1312,14 +1306,12 @@ func (s Method) HasParamBrand() bool {
 }
 
 func (s Method) SetParamBrand(v Brand) error {
-
 	return s.Struct.SetPtr(2, v.Struct.ToPtr())
 }
 
 // NewParamBrand sets the paramBrand field to a newly
 // allocated Brand struct, preferring placement in s's segment.
 func (s Method) NewParamBrand() (Brand, error) {
-
 	ss, err := NewBrand(s.Struct.Segment())
 	if err != nil {
 		return Brand{}, err
@@ -1333,7 +1325,6 @@ func (s Method) ResultStructType() uint64 {
 }
 
 func (s Method) SetResultStructType(v uint64) {
-
 	s.Struct.SetUint64(16, v)
 }
 
@@ -1342,9 +1333,7 @@ func (s Method) ResultBrand() (Brand, error) {
 	if err != nil {
 		return Brand{}, err
 	}
-
 	return Brand{Struct: p.Struct()}, nil
-
 }
 
 func (s Method) HasResultBrand() bool {
@@ -1353,14 +1342,12 @@ func (s Method) HasResultBrand() bool {
 }
 
 func (s Method) SetResultBrand(v Brand) error {
-
 	return s.Struct.SetPtr(3, v.Struct.ToPtr())
 }
 
 // NewResultBrand sets the resultBrand field to a newly
 // allocated Brand struct, preferring placement in s's segment.
 func (s Method) NewResultBrand() (Brand, error) {
-
 	ss, err := NewBrand(s.Struct.Segment())
 	if err != nil {
 		return Brand{}, err
@@ -1374,9 +1361,7 @@ func (s Method) Annotations() (Annotation_List, error) {
 	if err != nil {
 		return Annotation_List{}, err
 	}
-
 	return Annotation_List{List: p.List()}, nil
-
 }
 
 func (s Method) HasAnnotations() bool {
@@ -1385,8 +1370,18 @@ func (s Method) HasAnnotations() bool {
 }
 
 func (s Method) SetAnnotations(v Annotation_List) error {
-
 	return s.Struct.SetPtr(1, v.List.ToPtr())
+}
+
+// NewAnnotations sets the annotations field to a newly
+// allocated Annotation_List, preferring placement in s's segment.
+func (s Method) NewAnnotations(n int32) (Annotation_List, error) {
+	l, err := NewAnnotation_List(s.Struct.Segment(), n)
+	if err != nil {
+		return Annotation_List{}, err
+	}
+	err = s.Struct.SetPtr(1, l.List.ToPtr())
+	return l, err
 }
 
 // Method_List is a list of Method.
@@ -1407,7 +1402,7 @@ func (s Method_List) Set(i int, v Method) error { return s.List.SetStruct(i, v.S
 type Type struct{ capnp.Struct }
 type Type_list Type
 type Type_enum Type
-type Type_structGroup Type
+type Type_structType Type
 type Type_interface Type
 type Type_anyPointer Type
 type Type_anyPointer_parameter Type
@@ -1415,29 +1410,29 @@ type Type_anyPointer_implicitMethodParameter Type
 type Type_Which uint16
 
 const (
-	Type_Which_void        Type_Which = 0
-	Type_Which_bool        Type_Which = 1
-	Type_Which_int8        Type_Which = 2
-	Type_Which_int16       Type_Which = 3
-	Type_Which_int32       Type_Which = 4
-	Type_Which_int64       Type_Which = 5
-	Type_Which_uint8       Type_Which = 6
-	Type_Which_uint16      Type_Which = 7
-	Type_Which_uint32      Type_Which = 8
-	Type_Which_uint64      Type_Which = 9
-	Type_Which_float32     Type_Which = 10
-	Type_Which_float64     Type_Which = 11
-	Type_Which_text        Type_Which = 12
-	Type_Which_data        Type_Which = 13
-	Type_Which_list        Type_Which = 14
-	Type_Which_enum        Type_Which = 15
-	Type_Which_structGroup Type_Which = 16
-	Type_Which_interface   Type_Which = 17
-	Type_Which_anyPointer  Type_Which = 18
+	Type_Which_void       Type_Which = 0
+	Type_Which_bool       Type_Which = 1
+	Type_Which_int8       Type_Which = 2
+	Type_Which_int16      Type_Which = 3
+	Type_Which_int32      Type_Which = 4
+	Type_Which_int64      Type_Which = 5
+	Type_Which_uint8      Type_Which = 6
+	Type_Which_uint16     Type_Which = 7
+	Type_Which_uint32     Type_Which = 8
+	Type_Which_uint64     Type_Which = 9
+	Type_Which_float32    Type_Which = 10
+	Type_Which_float64    Type_Which = 11
+	Type_Which_text       Type_Which = 12
+	Type_Which_data       Type_Which = 13
+	Type_Which_list       Type_Which = 14
+	Type_Which_enum       Type_Which = 15
+	Type_Which_structType Type_Which = 16
+	Type_Which_interface  Type_Which = 17
+	Type_Which_anyPointer Type_Which = 18
 )
 
 func (w Type_Which) String() string {
-	const s = "voidboolint8int16int32int64uint8uint16uint32uint64float32float64textdatalistenumstructGroupinterfaceanyPointer"
+	const s = "voidboolint8int16int32int64uint8uint16uint32uint64float32float64textdatalistenumstructTypeinterfaceanyPointer"
 	switch w {
 	case Type_Which_void:
 		return s[0:4]
@@ -1471,12 +1466,12 @@ func (w Type_Which) String() string {
 		return s[72:76]
 	case Type_Which_enum:
 		return s[76:80]
-	case Type_Which_structGroup:
-		return s[80:91]
+	case Type_Which_structType:
+		return s[80:90]
 	case Type_Which_interface:
-		return s[91:100]
+		return s[90:99]
 	case Type_Which_anyPointer:
-		return s[100:110]
+		return s[99:109]
 
 	}
 	return "Type_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
@@ -1531,74 +1526,86 @@ func ReadRootType(msg *capnp.Message) (Type, error) {
 func (s Type) Which() Type_Which {
 	return Type_Which(s.Struct.Uint16(0))
 }
-
 func (s Type) SetVoid() {
 	s.Struct.SetUint16(0, 0)
+
 }
 
 func (s Type) SetBool() {
 	s.Struct.SetUint16(0, 1)
+
 }
 
 func (s Type) SetInt8() {
 	s.Struct.SetUint16(0, 2)
+
 }
 
 func (s Type) SetInt16() {
 	s.Struct.SetUint16(0, 3)
+
 }
 
 func (s Type) SetInt32() {
 	s.Struct.SetUint16(0, 4)
+
 }
 
 func (s Type) SetInt64() {
 	s.Struct.SetUint16(0, 5)
+
 }
 
 func (s Type) SetUint8() {
 	s.Struct.SetUint16(0, 6)
+
 }
 
 func (s Type) SetUint16() {
 	s.Struct.SetUint16(0, 7)
+
 }
 
 func (s Type) SetUint32() {
 	s.Struct.SetUint16(0, 8)
+
 }
 
 func (s Type) SetUint64() {
 	s.Struct.SetUint16(0, 9)
+
 }
 
 func (s Type) SetFloat32() {
 	s.Struct.SetUint16(0, 10)
+
 }
 
 func (s Type) SetFloat64() {
 	s.Struct.SetUint16(0, 11)
+
 }
 
 func (s Type) SetText() {
 	s.Struct.SetUint16(0, 12)
+
 }
 
 func (s Type) SetData() {
 	s.Struct.SetUint16(0, 13)
+
 }
+
 func (s Type) List() Type_list { return Type_list(s) }
-
-func (s Type) SetList() { s.Struct.SetUint16(0, 14) }
-
+func (s Type) SetList() {
+	s.Struct.SetUint16(0, 14)
+}
 func (s Type_list) ElementType() (Type, error) {
 	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return Type{}, err
 	}
-
 	return Type{Struct: p.Struct()}, nil
-
 }
 
 func (s Type_list) HasElementType() bool {
@@ -1607,14 +1614,12 @@ func (s Type_list) HasElementType() bool {
 }
 
 func (s Type_list) SetElementType(v Type) error {
-
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewElementType sets the elementType field to a newly
 // allocated Type struct, preferring placement in s's segment.
 func (s Type_list) NewElementType() (Type, error) {
-
 	ss, err := NewType(s.Struct.Segment())
 	if err != nil {
 		return Type{}, err
@@ -1622,16 +1627,16 @@ func (s Type_list) NewElementType() (Type, error) {
 	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
+
 func (s Type) Enum() Type_enum { return Type_enum(s) }
-
-func (s Type) SetEnum() { s.Struct.SetUint16(0, 15) }
-
+func (s Type) SetEnum() {
+	s.Struct.SetUint16(0, 15)
+}
 func (s Type_enum) TypeId() uint64 {
 	return s.Struct.Uint64(8)
 }
 
 func (s Type_enum) SetTypeId(v uint64) {
-
 	s.Struct.SetUint64(8, v)
 }
 
@@ -1640,9 +1645,7 @@ func (s Type_enum) Brand() (Brand, error) {
 	if err != nil {
 		return Brand{}, err
 	}
-
 	return Brand{Struct: p.Struct()}, nil
-
 }
 
 func (s Type_enum) HasBrand() bool {
@@ -1651,14 +1654,12 @@ func (s Type_enum) HasBrand() bool {
 }
 
 func (s Type_enum) SetBrand(v Brand) error {
-
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewBrand sets the brand field to a newly
 // allocated Brand struct, preferring placement in s's segment.
 func (s Type_enum) NewBrand() (Brand, error) {
-
 	ss, err := NewBrand(s.Struct.Segment())
 	if err != nil {
 		return Brand{}, err
@@ -1666,43 +1667,39 @@ func (s Type_enum) NewBrand() (Brand, error) {
 	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
-func (s Type) StructGroup() Type_structGroup { return Type_structGroup(s) }
 
-func (s Type) SetStructGroup() { s.Struct.SetUint16(0, 16) }
-
-func (s Type_structGroup) TypeId() uint64 {
+func (s Type) StructType() Type_structType { return Type_structType(s) }
+func (s Type) SetStructType() {
+	s.Struct.SetUint16(0, 16)
+}
+func (s Type_structType) TypeId() uint64 {
 	return s.Struct.Uint64(8)
 }
 
-func (s Type_structGroup) SetTypeId(v uint64) {
-
+func (s Type_structType) SetTypeId(v uint64) {
 	s.Struct.SetUint64(8, v)
 }
 
-func (s Type_structGroup) Brand() (Brand, error) {
+func (s Type_structType) Brand() (Brand, error) {
 	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return Brand{}, err
 	}
-
 	return Brand{Struct: p.Struct()}, nil
-
 }
 
-func (s Type_structGroup) HasBrand() bool {
+func (s Type_structType) HasBrand() bool {
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
 
-func (s Type_structGroup) SetBrand(v Brand) error {
-
+func (s Type_structType) SetBrand(v Brand) error {
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewBrand sets the brand field to a newly
 // allocated Brand struct, preferring placement in s's segment.
-func (s Type_structGroup) NewBrand() (Brand, error) {
-
+func (s Type_structType) NewBrand() (Brand, error) {
 	ss, err := NewBrand(s.Struct.Segment())
 	if err != nil {
 		return Brand{}, err
@@ -1710,16 +1707,16 @@ func (s Type_structGroup) NewBrand() (Brand, error) {
 	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
+
 func (s Type) Interface() Type_interface { return Type_interface(s) }
-
-func (s Type) SetInterface() { s.Struct.SetUint16(0, 17) }
-
+func (s Type) SetInterface() {
+	s.Struct.SetUint16(0, 17)
+}
 func (s Type_interface) TypeId() uint64 {
 	return s.Struct.Uint64(8)
 }
 
 func (s Type_interface) SetTypeId(v uint64) {
-
 	s.Struct.SetUint64(8, v)
 }
 
@@ -1728,9 +1725,7 @@ func (s Type_interface) Brand() (Brand, error) {
 	if err != nil {
 		return Brand{}, err
 	}
-
 	return Brand{Struct: p.Struct()}, nil
-
 }
 
 func (s Type_interface) HasBrand() bool {
@@ -1739,14 +1734,12 @@ func (s Type_interface) HasBrand() bool {
 }
 
 func (s Type_interface) SetBrand(v Brand) error {
-
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewBrand sets the brand field to a newly
 // allocated Brand struct, preferring placement in s's segment.
 func (s Type_interface) NewBrand() (Brand, error) {
-
 	ss, err := NewBrand(s.Struct.Segment())
 	if err != nil {
 		return Brand{}, err
@@ -1754,27 +1747,29 @@ func (s Type_interface) NewBrand() (Brand, error) {
 	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
-func (s Type) AnyPointer() Type_anyPointer { return Type_anyPointer(s) }
 
-func (s Type) SetAnyPointer() { s.Struct.SetUint16(0, 18) }
+func (s Type) AnyPointer() Type_anyPointer { return Type_anyPointer(s) }
+func (s Type) SetAnyPointer() {
+	s.Struct.SetUint16(0, 18)
+}
 
 func (s Type_anyPointer) Which() Type_anyPointer_Which {
 	return Type_anyPointer_Which(s.Struct.Uint16(8))
 }
-
 func (s Type_anyPointer) SetUnconstrained() {
 	s.Struct.SetUint16(8, 0)
+
 }
+
 func (s Type_anyPointer) Parameter() Type_anyPointer_parameter { return Type_anyPointer_parameter(s) }
-
-func (s Type_anyPointer) SetParameter() { s.Struct.SetUint16(8, 1) }
-
+func (s Type_anyPointer) SetParameter() {
+	s.Struct.SetUint16(8, 1)
+}
 func (s Type_anyPointer_parameter) ScopeId() uint64 {
 	return s.Struct.Uint64(16)
 }
 
 func (s Type_anyPointer_parameter) SetScopeId(v uint64) {
-
 	s.Struct.SetUint64(16, v)
 }
 
@@ -1783,21 +1778,20 @@ func (s Type_anyPointer_parameter) ParameterIndex() uint16 {
 }
 
 func (s Type_anyPointer_parameter) SetParameterIndex(v uint16) {
-
 	s.Struct.SetUint16(10, v)
 }
+
 func (s Type_anyPointer) ImplicitMethodParameter() Type_anyPointer_implicitMethodParameter {
 	return Type_anyPointer_implicitMethodParameter(s)
 }
-
-func (s Type_anyPointer) SetImplicitMethodParameter() { s.Struct.SetUint16(8, 2) }
-
+func (s Type_anyPointer) SetImplicitMethodParameter() {
+	s.Struct.SetUint16(8, 2)
+}
 func (s Type_anyPointer_implicitMethodParameter) ParameterIndex() uint16 {
 	return s.Struct.Uint16(10)
 }
 
 func (s Type_anyPointer_implicitMethodParameter) SetParameterIndex(v uint16) {
-
 	s.Struct.SetUint16(10, v)
 }
 
@@ -1841,15 +1835,12 @@ func ReadRootBrand(msg *capnp.Message) (Brand, error) {
 	}
 	return Brand{root.Struct()}, nil
 }
-
 func (s Brand) Scopes() (Brand_Scope_List, error) {
 	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return Brand_Scope_List{}, err
 	}
-
 	return Brand_Scope_List{List: p.List()}, nil
-
 }
 
 func (s Brand) HasScopes() bool {
@@ -1858,8 +1849,18 @@ func (s Brand) HasScopes() bool {
 }
 
 func (s Brand) SetScopes(v Brand_Scope_List) error {
-
 	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewScopes sets the scopes field to a newly
+// allocated Brand_Scope_List, preferring placement in s's segment.
+func (s Brand) NewScopes(n int32) (Brand_Scope_List, error) {
+	l, err := NewBrand_Scope_List(s.Struct.Segment(), n)
+	if err != nil {
+		return Brand_Scope_List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
 }
 
 // Brand_List is a list of Brand.
@@ -1924,13 +1925,11 @@ func ReadRootBrand_Scope(msg *capnp.Message) (Brand_Scope, error) {
 func (s Brand_Scope) Which() Brand_Scope_Which {
 	return Brand_Scope_Which(s.Struct.Uint16(8))
 }
-
 func (s Brand_Scope) ScopeId() uint64 {
 	return s.Struct.Uint64(0)
 }
 
 func (s Brand_Scope) SetScopeId(v uint64) {
-
 	s.Struct.SetUint64(0, v)
 }
 
@@ -1939,9 +1938,7 @@ func (s Brand_Scope) Bind() (Brand_Binding_List, error) {
 	if err != nil {
 		return Brand_Binding_List{}, err
 	}
-
 	return Brand_Binding_List{List: p.List()}, nil
-
 }
 
 func (s Brand_Scope) HasBind() bool {
@@ -1954,8 +1951,21 @@ func (s Brand_Scope) SetBind(v Brand_Binding_List) error {
 	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
+// NewBind sets the bind field to a newly
+// allocated Brand_Binding_List, preferring placement in s's segment.
+func (s Brand_Scope) NewBind(n int32) (Brand_Binding_List, error) {
+	s.Struct.SetUint16(8, 0)
+	l, err := NewBrand_Binding_List(s.Struct.Segment(), n)
+	if err != nil {
+		return Brand_Binding_List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
 func (s Brand_Scope) SetInherit() {
 	s.Struct.SetUint16(8, 1)
+
 }
 
 // Brand_Scope_List is a list of Brand_Scope.
@@ -2020,9 +2030,9 @@ func ReadRootBrand_Binding(msg *capnp.Message) (Brand_Binding, error) {
 func (s Brand_Binding) Which() Brand_Binding_Which {
 	return Brand_Binding_Which(s.Struct.Uint16(0))
 }
-
 func (s Brand_Binding) SetUnbound() {
 	s.Struct.SetUint16(0, 0)
+
 }
 
 func (s Brand_Binding) Type() (Type, error) {
@@ -2030,9 +2040,7 @@ func (s Brand_Binding) Type() (Type, error) {
 	if err != nil {
 		return Type{}, err
 	}
-
 	return Type{Struct: p.Struct()}, nil
-
 }
 
 func (s Brand_Binding) HasType() bool {
@@ -2092,13 +2100,13 @@ const (
 	Value_Which_data        Value_Which = 13
 	Value_Which_list        Value_Which = 14
 	Value_Which_enum        Value_Which = 15
-	Value_Which_structField Value_Which = 16
+	Value_Which_structValue Value_Which = 16
 	Value_Which_interface   Value_Which = 17
 	Value_Which_anyPointer  Value_Which = 18
 )
 
 func (w Value_Which) String() string {
-	const s = "voidboolint8int16int32int64uint8uint16uint32uint64float32float64textdatalistenumstructFieldinterfaceanyPointer"
+	const s = "voidboolint8int16int32int64uint8uint16uint32uint64float32float64textdatalistenumstructValueinterfaceanyPointer"
 	switch w {
 	case Value_Which_void:
 		return s[0:4]
@@ -2132,7 +2140,7 @@ func (w Value_Which) String() string {
 		return s[72:76]
 	case Value_Which_enum:
 		return s[76:80]
-	case Value_Which_structField:
+	case Value_Which_structValue:
 		return s[80:91]
 	case Value_Which_interface:
 		return s[91:100]
@@ -2170,9 +2178,9 @@ func ReadRootValue(msg *capnp.Message) (Value, error) {
 func (s Value) Which() Value_Which {
 	return Value_Which(s.Struct.Uint16(0))
 }
-
 func (s Value) SetVoid() {
 	s.Struct.SetUint16(0, 0)
+
 }
 
 func (s Value) Bool() bool {
@@ -2279,9 +2287,7 @@ func (s Value) Text() (string, error) {
 	if err != nil {
 		return "", err
 	}
-
 	return p.Text(), nil
-
 }
 
 func (s Value) HasText() bool {
@@ -2294,9 +2300,7 @@ func (s Value) TextBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return p.Data(), nil
-
 }
 
 func (s Value) SetText(v string) error {
@@ -2313,9 +2317,7 @@ func (s Value) Data() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return []byte(p.Data()), nil
-
 }
 
 func (s Value) HasData() bool {
@@ -2333,9 +2335,7 @@ func (s Value) SetData(v []byte) error {
 }
 
 func (s Value) List() (capnp.Pointer, error) {
-
 	return s.Struct.Pointer(0)
-
 }
 
 func (s Value) HasList() bool {
@@ -2344,9 +2344,7 @@ func (s Value) HasList() bool {
 }
 
 func (s Value) ListPtr() (capnp.Ptr, error) {
-
 	return s.Struct.Ptr(0)
-
 }
 
 func (s Value) SetList(v capnp.Pointer) error {
@@ -2368,41 +2366,36 @@ func (s Value) SetEnum(v uint16) {
 	s.Struct.SetUint16(2, v)
 }
 
-func (s Value) StructField() (capnp.Pointer, error) {
-
+func (s Value) StructValue() (capnp.Pointer, error) {
 	return s.Struct.Pointer(0)
-
 }
 
-func (s Value) HasStructField() bool {
+func (s Value) HasStructValue() bool {
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
 
-func (s Value) StructFieldPtr() (capnp.Ptr, error) {
-
+func (s Value) StructValuePtr() (capnp.Ptr, error) {
 	return s.Struct.Ptr(0)
-
 }
 
-func (s Value) SetStructField(v capnp.Pointer) error {
+func (s Value) SetStructValue(v capnp.Pointer) error {
 	s.Struct.SetUint16(0, 16)
 	return s.Struct.SetPointer(0, v)
 }
 
-func (s Value) SetStructFieldPtr(v capnp.Ptr) error {
+func (s Value) SetStructValuePtr(v capnp.Ptr) error {
 	s.Struct.SetUint16(0, 16)
 	return s.Struct.SetPtr(0, v)
 }
 
 func (s Value) SetInterface() {
 	s.Struct.SetUint16(0, 17)
+
 }
 
 func (s Value) AnyPointer() (capnp.Pointer, error) {
-
 	return s.Struct.Pointer(0)
-
 }
 
 func (s Value) HasAnyPointer() bool {
@@ -2411,9 +2404,7 @@ func (s Value) HasAnyPointer() bool {
 }
 
 func (s Value) AnyPointerPtr() (capnp.Ptr, error) {
-
 	return s.Struct.Ptr(0)
-
 }
 
 func (s Value) SetAnyPointer(v capnp.Pointer) error {
@@ -2466,13 +2457,11 @@ func ReadRootAnnotation(msg *capnp.Message) (Annotation, error) {
 	}
 	return Annotation{root.Struct()}, nil
 }
-
 func (s Annotation) Id() uint64 {
 	return s.Struct.Uint64(0)
 }
 
 func (s Annotation) SetId(v uint64) {
-
 	s.Struct.SetUint64(0, v)
 }
 
@@ -2481,9 +2470,7 @@ func (s Annotation) Brand() (Brand, error) {
 	if err != nil {
 		return Brand{}, err
 	}
-
 	return Brand{Struct: p.Struct()}, nil
-
 }
 
 func (s Annotation) HasBrand() bool {
@@ -2492,14 +2479,12 @@ func (s Annotation) HasBrand() bool {
 }
 
 func (s Annotation) SetBrand(v Brand) error {
-
 	return s.Struct.SetPtr(1, v.Struct.ToPtr())
 }
 
 // NewBrand sets the brand field to a newly
 // allocated Brand struct, preferring placement in s's segment.
 func (s Annotation) NewBrand() (Brand, error) {
-
 	ss, err := NewBrand(s.Struct.Segment())
 	if err != nil {
 		return Brand{}, err
@@ -2513,9 +2498,7 @@ func (s Annotation) Value() (Value, error) {
 	if err != nil {
 		return Value{}, err
 	}
-
 	return Value{Struct: p.Struct()}, nil
-
 }
 
 func (s Annotation) HasValue() bool {
@@ -2524,14 +2507,12 @@ func (s Annotation) HasValue() bool {
 }
 
 func (s Annotation) SetValue(v Value) error {
-
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewValue sets the value field to a newly
 // allocated Value struct, preferring placement in s's segment.
 func (s Annotation) NewValue() (Value, error) {
-
 	ss, err := NewValue(s.Struct.Segment())
 	if err != nil {
 		return Value{}, err
@@ -2665,15 +2646,12 @@ func ReadRootCodeGeneratorRequest(msg *capnp.Message) (CodeGeneratorRequest, err
 	}
 	return CodeGeneratorRequest{root.Struct()}, nil
 }
-
 func (s CodeGeneratorRequest) Nodes() (Node_List, error) {
 	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return Node_List{}, err
 	}
-
 	return Node_List{List: p.List()}, nil
-
 }
 
 func (s CodeGeneratorRequest) HasNodes() bool {
@@ -2682,8 +2660,18 @@ func (s CodeGeneratorRequest) HasNodes() bool {
 }
 
 func (s CodeGeneratorRequest) SetNodes(v Node_List) error {
-
 	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewNodes sets the nodes field to a newly
+// allocated Node_List, preferring placement in s's segment.
+func (s CodeGeneratorRequest) NewNodes(n int32) (Node_List, error) {
+	l, err := NewNode_List(s.Struct.Segment(), n)
+	if err != nil {
+		return Node_List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
 }
 
 func (s CodeGeneratorRequest) RequestedFiles() (CodeGeneratorRequest_RequestedFile_List, error) {
@@ -2691,9 +2679,7 @@ func (s CodeGeneratorRequest) RequestedFiles() (CodeGeneratorRequest_RequestedFi
 	if err != nil {
 		return CodeGeneratorRequest_RequestedFile_List{}, err
 	}
-
 	return CodeGeneratorRequest_RequestedFile_List{List: p.List()}, nil
-
 }
 
 func (s CodeGeneratorRequest) HasRequestedFiles() bool {
@@ -2702,8 +2688,18 @@ func (s CodeGeneratorRequest) HasRequestedFiles() bool {
 }
 
 func (s CodeGeneratorRequest) SetRequestedFiles(v CodeGeneratorRequest_RequestedFile_List) error {
-
 	return s.Struct.SetPtr(1, v.List.ToPtr())
+}
+
+// NewRequestedFiles sets the requestedFiles field to a newly
+// allocated CodeGeneratorRequest_RequestedFile_List, preferring placement in s's segment.
+func (s CodeGeneratorRequest) NewRequestedFiles(n int32) (CodeGeneratorRequest_RequestedFile_List, error) {
+	l, err := NewCodeGeneratorRequest_RequestedFile_List(s.Struct.Segment(), n)
+	if err != nil {
+		return CodeGeneratorRequest_RequestedFile_List{}, err
+	}
+	err = s.Struct.SetPtr(1, l.List.ToPtr())
+	return l, err
 }
 
 // CodeGeneratorRequest_List is a list of CodeGeneratorRequest.
@@ -2750,13 +2746,11 @@ func ReadRootCodeGeneratorRequest_RequestedFile(msg *capnp.Message) (CodeGenerat
 	}
 	return CodeGeneratorRequest_RequestedFile{root.Struct()}, nil
 }
-
 func (s CodeGeneratorRequest_RequestedFile) Id() uint64 {
 	return s.Struct.Uint64(0)
 }
 
 func (s CodeGeneratorRequest_RequestedFile) SetId(v uint64) {
-
 	s.Struct.SetUint64(0, v)
 }
 
@@ -2765,9 +2759,7 @@ func (s CodeGeneratorRequest_RequestedFile) Filename() (string, error) {
 	if err != nil {
 		return "", err
 	}
-
 	return p.Text(), nil
-
 }
 
 func (s CodeGeneratorRequest_RequestedFile) HasFilename() bool {
@@ -2780,13 +2772,10 @@ func (s CodeGeneratorRequest_RequestedFile) FilenameBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return p.Data(), nil
-
 }
 
 func (s CodeGeneratorRequest_RequestedFile) SetFilename(v string) error {
-
 	t, err := capnp.NewText(s.Struct.Segment(), v)
 	if err != nil {
 		return err
@@ -2799,9 +2788,7 @@ func (s CodeGeneratorRequest_RequestedFile) Imports() (CodeGeneratorRequest_Requ
 	if err != nil {
 		return CodeGeneratorRequest_RequestedFile_Import_List{}, err
 	}
-
 	return CodeGeneratorRequest_RequestedFile_Import_List{List: p.List()}, nil
-
 }
 
 func (s CodeGeneratorRequest_RequestedFile) HasImports() bool {
@@ -2810,8 +2797,18 @@ func (s CodeGeneratorRequest_RequestedFile) HasImports() bool {
 }
 
 func (s CodeGeneratorRequest_RequestedFile) SetImports(v CodeGeneratorRequest_RequestedFile_Import_List) error {
-
 	return s.Struct.SetPtr(1, v.List.ToPtr())
+}
+
+// NewImports sets the imports field to a newly
+// allocated CodeGeneratorRequest_RequestedFile_Import_List, preferring placement in s's segment.
+func (s CodeGeneratorRequest_RequestedFile) NewImports(n int32) (CodeGeneratorRequest_RequestedFile_Import_List, error) {
+	l, err := NewCodeGeneratorRequest_RequestedFile_Import_List(s.Struct.Segment(), n)
+	if err != nil {
+		return CodeGeneratorRequest_RequestedFile_Import_List{}, err
+	}
+	err = s.Struct.SetPtr(1, l.List.ToPtr())
+	return l, err
 }
 
 // CodeGeneratorRequest_RequestedFile_List is a list of CodeGeneratorRequest_RequestedFile.
@@ -2858,13 +2855,11 @@ func ReadRootCodeGeneratorRequest_RequestedFile_Import(msg *capnp.Message) (Code
 	}
 	return CodeGeneratorRequest_RequestedFile_Import{root.Struct()}, nil
 }
-
 func (s CodeGeneratorRequest_RequestedFile_Import) Id() uint64 {
 	return s.Struct.Uint64(0)
 }
 
 func (s CodeGeneratorRequest_RequestedFile_Import) SetId(v uint64) {
-
 	s.Struct.SetUint64(0, v)
 }
 
@@ -2873,9 +2868,7 @@ func (s CodeGeneratorRequest_RequestedFile_Import) Name() (string, error) {
 	if err != nil {
 		return "", err
 	}
-
 	return p.Text(), nil
-
 }
 
 func (s CodeGeneratorRequest_RequestedFile_Import) HasName() bool {
@@ -2888,13 +2881,10 @@ func (s CodeGeneratorRequest_RequestedFile_Import) NameBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return p.Data(), nil
-
 }
 
 func (s CodeGeneratorRequest_RequestedFile_Import) SetName(v string) error {
-
 	t, err := capnp.NewText(s.Struct.Segment(), v)
 	if err != nil {
 		return err

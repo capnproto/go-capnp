@@ -55,14 +55,12 @@ func Example() {
 	//planebase.SetCapacity(26020) // Liters fuel
 
 	// Creating a list
-	homes, err := air.NewAirport_List(seg, 2)
+	homes, err := planebase.NewHomes(2)
 	if err != nil {
 		panic(err)
 	}
 	homes.Set(0, air.Airport_jfk)
 	homes.Set(1, air.Airport_lax)
-	// Setting a list field
-	planebase.SetHomes(homes)
 
 	// Ready to write!
 

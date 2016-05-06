@@ -1,0 +1,25 @@
+func (s {{.Node.Name}}) {{.Field.Name|title}}() {{.FieldType}} {
+	p, err := s.Struct.Ptr({{.Field.Slot.Offset}})
+	if err != nil {
+		{{/* Valid interface pointers never return errors. */}}
+		return {{.FieldType}}{}
+	}
+	return {{.FieldType}}{Client: p.Interface().Client()}
+}
+
+{{template "_hasfield" .}}
+
+func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.FieldType}}) error {
+	{{template "_settag" . -}}
+	seg := s.Segment()
+	if seg == nil {
+		{{/* TODO(light): error? */}}
+		return nil
+	}
+	var in capnp.Interface
+	if v.Client != nil {
+		in = {{.G.Capnp}}.NewInterface(seg, seg.Message().AddCap(v.Client))
+	}
+	return s.Struct.SetPtr({{.Field.Slot.Offset}}, in.ToPtr())
+}
+

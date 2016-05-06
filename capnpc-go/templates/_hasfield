@@ -1,0 +1,4 @@
+func (s {{.Node.Name}}) Has{{.Field.Name|title}}() bool {
+	p, err := s.Struct.Ptr({{.Field.Slot.Offset}})
+	return p.IsValid() || err != nil 
+}
