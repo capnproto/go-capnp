@@ -57,11 +57,13 @@ type imports struct {
 	used  map[string]bool // keyed on import path
 }
 
+var capnpImportSpec = importSpec{path: capnpImport, name: "capnp"}
+
 func (i *imports) init() {
 	i.specs = nil
 	i.used = make(map[string]bool)
 
-	i.reserve(importSpec{path: capnpImport, name: "capnp"})
+	i.reserve(capnpImportSpec)
 	i.reserve(importSpec{path: serverImport, name: "server"})
 	i.reserve(importSpec{path: contextImport, name: "context"})
 

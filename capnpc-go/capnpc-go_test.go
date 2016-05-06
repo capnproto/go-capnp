@@ -83,66 +83,88 @@ func TestRemoteScope(t *testing.T) {
 				{name: "otherscopes", path: "zombiezen.com/go/capnproto2/capnpc-go/testdata/otherscopes"},
 			},
 		},
+		{
+			name:       "same-file struct list",
+			constID:    0xcda2680ec5c921e0, // scopes.fooListVar
+			remoteName: "Foo_List",
+			remoteNew:  "NewFoo_List",
+		},
+		{
+			name:       "different file struct list",
+			constID:    0x83e7e1b3cd1be338, // scopes.otherFooListVar
+			remoteName: "otherscopes.Foo_List",
+			remoteNew:  "otherscopes.NewFoo_List",
+			imports: []importSpec{
+				{name: "otherscopes", path: "zombiezen.com/go/capnproto2/capnpc-go/testdata/otherscopes"},
+			},
+		},
+		{
+			name:       "built-in Int32 list",
+			constID:    0xacf3d9917d0bb0f0, // scopes.intList
+			remoteName: "capnp.Int32List",
+			remoteNew:  "capnp.NewInt32List",
+			imports: []importSpec{
+				{name: "capnp", path: "zombiezen.com/go/capnproto2"},
+			},
+		},
 	}
 	req := mustReadGeneratorRequest(t, "scopes.capnp.out")
 	nodes, err := buildNodeMap(req)
 	if err != nil {
 		t.Fatal("buildNodeMap:", err)
 	}
-	collect := func(test scopeTest) (g *generator, n *node, from *node, ok bool) {
+	collect := func(test scopeTest) (g *generator, typ schema.Type, from *node, ok bool) {
 		g = newGenerator(0xd68755941d99d05e, nodes, genoptions{})
 		v := nodes[test.constID]
 		if v == nil {
 			t.Errorf("Can't find const @%#x for %s test", test.constID, test.name)
-			return nil, nil, nil, false
+			return nil, schema.Type{}, nil, false
 		}
 		if v.Which() != schema.Node_Which_const {
 			t.Errorf("Type of node @%#x in %s test is a %v node; want const. Check the test.", test.constID, test.name, v.Which())
-			return nil, nil, nil, false
+			return nil, schema.Type{}, nil, false
 		}
 		constType, _ := v.Const().Type()
-		// TODO(light): just use the type
-		constTypeNode := nodes[constType.StructType().TypeId()]
 		for _, i := range test.initImports {
 			g.imports.add(i)
 		}
-		return g, constTypeNode, v, true
+		return g, constType, v, true
 	}
 	for _, test := range tests {
-		g, n, from, ok := collect(test)
+		g, typ, from, ok := collect(test)
 		if !ok {
 			continue
 		}
-		rn, err := g.RemoteName(n, from)
+		rn, err := g.RemoteTypeName(typ, from)
 		if err != nil {
-			t.Errorf("%s: g.RemoteName(nodes[%#x].Const().Type(), nodes[%#x]) error: %v", test.name, test.constID, test.constID, err)
+			t.Errorf("%s: g.RemoteTypeName(nodes[%#x].Const().Type(), nodes[%#x]) error: %v", test.name, test.constID, test.constID, err)
 			continue
 		}
 		if rn != test.remoteName {
-			t.Errorf("%s: g.RemoteName(nodes[%#x].Const().Type(), nodes[%#x]) = %q; want %q", test.name, test.constID, test.constID, rn, test.remoteName)
+			t.Errorf("%s: g.RemoteTypeName(nodes[%#x].Const().Type(), nodes[%#x]) = %q; want %q", test.name, test.constID, test.constID, rn, test.remoteName)
 			continue
 		}
 		if !hasExactImports(test.imports, g.imports) {
-			t.Errorf("%s: g.RemoteName(nodes[%#x].Const().Type(), nodes[%#x]); g.imports = %s; want %s", test.name, test.constID, test.constID, formatImportSpecs(g.imports.usedImports()), formatImportSpecs(test.imports))
+			t.Errorf("%s: g.RemoteTypeName(nodes[%#x].Const().Type(), nodes[%#x]); g.imports = %s; want %s", test.name, test.constID, test.constID, formatImportSpecs(g.imports.usedImports()), formatImportSpecs(test.imports))
 			continue
 		}
 	}
 	for _, test := range tests {
-		g, n, from, ok := collect(test)
+		g, typ, from, ok := collect(test)
 		if !ok {
 			continue
 		}
-		rn, err := g.RemoteNew(n, from)
+		rn, err := g.RemoteTypeNew(typ, from)
 		if err != nil {
-			t.Errorf("%s: g.RemoteNew(nodes[%#x].Const().Type(), nodes[%#x]) error: %v", test.name, test.constID, test.constID, err)
+			t.Errorf("%s: g.RemoteTypeNew(nodes[%#x].Const().Type(), nodes[%#x]) error: %v", test.name, test.constID, test.constID, err)
 			continue
 		}
 		if rn != test.remoteNew {
-			t.Errorf("%s: g.RemoteNew(nodes[%#x].Const().Type(), nodes[%#x]) = %q; want %q", test.name, test.constID, test.constID, rn, test.remoteNew)
+			t.Errorf("%s: g.RemoteTypeNew(nodes[%#x].Const().Type(), nodes[%#x]) = %q; want %q", test.name, test.constID, test.constID, rn, test.remoteNew)
 			continue
 		}
 		if !hasExactImports(test.imports, g.imports) {
-			t.Errorf("%s: g.RemoteNew(nodes[%#x].Const().Type(), nodes[%#x]); g.imports = %s; want %s", test.name, test.constID, test.constID, formatImportSpecs(g.imports.usedImports()), formatImportSpecs(test.imports))
+			t.Errorf("%s: g.RemoteTypeNew(nodes[%#x].Const().Type(), nodes[%#x]); g.imports = %s; want %s", test.name, test.constID, test.constID, formatImportSpecs(g.imports.usedImports()), formatImportSpecs(test.imports))
 			continue
 		}
 	}

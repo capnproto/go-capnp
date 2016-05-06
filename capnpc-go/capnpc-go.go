@@ -125,43 +125,77 @@ func (g *generator) generate(pkg string) []byte {
 	return out.Bytes()
 }
 
-func (g *generator) appendRemoteScope(b []byte, n, from *node) ([]byte, error) {
+// importForNode returns the import spec needed to reference n from
+// rel's scope.  If none is needed (they are in the same package), then
+// the zero importSpec is returned.
+func importForNode(n, rel *node) (importSpec, error) {
 	if n.pkg == "" {
-		return b, fmt.Errorf("internal error (bad schema?): missing package declaration for %s", n)
+		return importSpec{}, fmt.Errorf("internal error (bad schema?): missing package declaration for %s", n)
 	}
 	if n.imp == "" {
-		return b, fmt.Errorf("internal error (bad schema?): missing import declaration for %s", n)
+		return importSpec{}, fmt.Errorf("internal error (bad schema?): missing import declaration for %s", n)
 	}
-	if from.imp == "" {
-		return b, fmt.Errorf("internal error (bad schema?): missing import declaration for %s", from)
+	if rel.imp == "" {
+		return importSpec{}, fmt.Errorf("internal error (bad schema?): missing import declaration for %s", rel)
 	}
-
-	if n.imp == from.imp {
-		return b, nil
+	if n.imp == rel.imp {
+		return importSpec{}, nil
 	}
-	name := g.imports.add(importSpec{path: n.imp, name: n.pkg})
-	b = append(b, name...)
-	b = append(b, '.')
-	return b, nil
+	return importSpec{path: n.imp, name: n.pkg}, nil
 }
 
-func (g *generator) RemoteNew(n, from *node) (string, error) {
-	buf, err := g.appendRemoteScope(nil, n, from)
+func (g *generator) RemoteNew(n, rel *node) (string, error) {
+	ref, err := makeNodeTypeRef(n, rel)
 	if err != nil {
 		return "", err
 	}
-	buf = append(buf, "New"...)
-	buf = append(buf, n.Name...)
-	return string(buf), nil
+	if ref.newfunc == "" {
+		return "", fmt.Errorf("no new function for %s", ref.name)
+	}
+	if ref.imp.path == "" {
+		return ref.newfunc, nil
+	}
+	qname := g.imports.add(ref.imp)
+	return qname + "." + ref.newfunc, nil
 }
 
-func (g *generator) RemoteName(n, from *node) (string, error) {
-	buf, err := g.appendRemoteScope(nil, n, from)
+func (g *generator) RemoteName(n, rel *node) (string, error) {
+	ref, err := makeNodeTypeRef(n, rel)
 	if err != nil {
 		return "", err
 	}
-	buf = append(buf, n.Name...)
-	return string(buf), nil
+	if ref.imp.path == "" {
+		return ref.name, nil
+	}
+	qname := g.imports.add(ref.imp)
+	return qname + "." + ref.name, nil
+}
+
+func (g *generator) RemoteTypeNew(t schema.Type, rel *node) (string, error) {
+	ref, err := makeTypeRef(t, rel, g.nodes)
+	if err != nil {
+		return "", err
+	}
+	if ref.newfunc == "" {
+		return "", fmt.Errorf("no new function for %s", ref.name)
+	}
+	if ref.imp.path == "" {
+		return ref.newfunc, nil
+	}
+	qname := g.imports.add(ref.imp)
+	return qname + "." + ref.newfunc, nil
+}
+
+func (g *generator) RemoteTypeName(t schema.Type, rel *node) (string, error) {
+	ref, err := makeTypeRef(t, rel, g.nodes)
+	if err != nil {
+		return "", err
+	}
+	if ref.imp.path == "" {
+		return ref.name, nil
+	}
+	qname := g.imports.add(ref.imp)
+	return qname + "." + ref.name, nil
 }
 
 func (g *generator) defineEnum(n *node) error {
@@ -190,7 +224,7 @@ func isValueOfType(v schema.Value, t schema.Type) bool {
 }
 
 // Value formats a value from a schema (like a field default) as Go source.
-func (g *generator) Value(n *node, t schema.Type, v schema.Value) (string, error) {
+func (g *generator) Value(rel *node, t schema.Type, v schema.Value) (string, error) {
 	if !isValueOfType(v, t) {
 		return "", fmt.Errorf("value type is %v, but found %v value", t.Which(), v.Which())
 	}
@@ -247,19 +281,22 @@ func (g *generator) Value(n *node, t schema.Type, v schema.Value) (string, error
 		enums, _ := en.Enum().Enumerants()
 		val := int(v.Enum())
 		if val >= enums.Len() {
-			rn, err := g.RemoteName(en, n)
+			rn, err := g.RemoteName(en, rel)
 			if err != nil {
 				return "", err
 			}
 			return fmt.Sprintf("%s(%d)", rn, val), nil
 		}
 		ev := makeEnumval(en, val, enums.At(val))
-		name, err := g.appendRemoteScope(nil, en, n)
+		imp, err := importForNode(en, rel)
 		if err != nil {
 			return "", err
 		}
-		name = append(name, ev.FullName()...)
-		return string(name), nil
+		if imp.path == "" {
+			return ev.FullName(), nil
+		}
+		qname := g.imports.add(imp)
+		return qname + "." + ev.FullName(), nil
 
 	case schema.Type_Which_structType:
 		data, _ := v.StructValuePtr()
@@ -274,7 +311,7 @@ func (g *generator) Value(n *node, t schema.Type, v schema.Value) (string, error
 		}
 		err = templates.ExecuteTemplate(&buf, "structValue", structValueParams{
 			G:     g,
-			Node:  n,
+			Node:  rel,
 			Typ:   tn,
 			Value: sd,
 		})
@@ -296,7 +333,7 @@ func (g *generator) Value(n *node, t schema.Type, v schema.Value) (string, error
 	case schema.Type_Which_list:
 		data, _ := v.ListPtr()
 		var buf bytes.Buffer
-		ftyp, err := g.fieldType(n, t, new(annotations))
+		ftyp, err := g.RemoteTypeName(t, rel)
 		if err != nil {
 			return "", err
 		}
@@ -391,7 +428,7 @@ func (g *generator) defineField(n *node, f field) (err error) {
 	if !isValueOfType(def, t) {
 		return fmt.Errorf("default value type is %v, but found %v value", t.Which(), def.Which())
 	}
-	ftyp, err := g.fieldType(n, t, ann)
+	ftyp, err := g.RemoteTypeName(t, n)
 	if err != nil {
 		return err
 	}
@@ -428,11 +465,7 @@ func (g *generator) defineField(n *node, f field) (err error) {
 		})
 
 	case schema.Type_Which_enum:
-		ni, err := g.nodes.mustFind(t.Enum().TypeId())
-		if err != nil {
-			return err
-		}
-		rn, err := g.RemoteName(ni, n)
+		rn, err := g.RemoteTypeName(t, n)
 		if err != nil {
 			return err
 		}
@@ -535,111 +568,131 @@ func (g *generator) defineField(n *node, f field) (err error) {
 	}
 }
 
-func (g *generator) fieldType(n *node, t schema.Type, ann *annotations) (string, error) {
+// typeRef is a Go reference to a Cap'n Proto type.
+type typeRef struct {
+	name    string
+	newfunc string     // if absent, there is no New function for this type.
+	imp     importSpec // optional
+}
+
+func makeNodeTypeRef(n, rel *node) (typeRef, error) {
+	imp, err := importForNode(n, rel)
+	if err != nil {
+		return typeRef{}, err
+	}
+	switch n.Which() {
+	case schema.Node_Which_structNode:
+		return typeRef{
+			name:    n.Name,
+			newfunc: "New" + n.Name,
+			imp:     imp,
+		}, nil
+	case schema.Node_Which_enum, schema.Node_Which_interface:
+		return typeRef{
+			name: n.Name,
+			imp:  imp,
+		}, nil
+	}
+	return typeRef{}, fmt.Errorf("unable to reference type of node %v", n.Which())
+}
+
+func makeTypeRef(t schema.Type, rel *node, nodes nodeMap) (typeRef, error) {
+	nodeRef := func(id uint64) (typeRef, error) {
+		ni, err := nodes.mustFind(id)
+		if err != nil {
+			return typeRef{}, err
+		}
+		return makeNodeTypeRef(ni, rel)
+	}
 	switch t.Which() {
 	case schema.Type_Which_void:
-		return "", nil
+		return typeRef{}, nil
 	case schema.Type_Which_bool:
-		return "bool", nil
+		return typeRef{name: "bool"}, nil
 	case schema.Type_Which_int8:
-		return "int8", nil
+		return typeRef{name: "int8"}, nil
 	case schema.Type_Which_int16:
-		return "int16", nil
+		return typeRef{name: "int16"}, nil
 	case schema.Type_Which_int32:
-		return "int32", nil
+		return typeRef{name: "int32"}, nil
 	case schema.Type_Which_int64:
-		return "int64", nil
+		return typeRef{name: "int64"}, nil
 	case schema.Type_Which_uint8:
-		return "uint8", nil
+		return typeRef{name: "uint8"}, nil
 	case schema.Type_Which_uint16:
-		return "uint16", nil
+		return typeRef{name: "uint16"}, nil
 	case schema.Type_Which_uint32:
-		return "uint32", nil
+		return typeRef{name: "uint32"}, nil
 	case schema.Type_Which_uint64:
-		return "uint64", nil
+		return typeRef{name: "uint64"}, nil
 	case schema.Type_Which_float32:
-		return "float32", nil
+		return typeRef{name: "float32"}, nil
 	case schema.Type_Which_float64:
-		return "float64", nil
+		return typeRef{name: "float64"}, nil
 	case schema.Type_Which_text:
-		return "string", nil
+		return typeRef{name: "string"}, nil
 	case schema.Type_Which_data:
-		return "[]byte", nil
+		return typeRef{name: "[]byte"}, nil
 	case schema.Type_Which_enum:
-		ni, err := g.nodes.mustFind(t.Enum().TypeId())
-		if err != nil {
-			return "", err
-		}
-		return g.RemoteName(ni, n)
+		return nodeRef(t.Enum().TypeId())
 	case schema.Type_Which_structType:
-		ni, err := g.nodes.mustFind(t.StructType().TypeId())
-		if err != nil {
-			return "", err
-		}
-		return g.RemoteName(ni, n)
+		return nodeRef(t.StructType().TypeId())
 	case schema.Type_Which_interface:
-		ni, err := g.nodes.mustFind(t.Interface().TypeId())
-		if err != nil {
-			return "", err
-		}
-		return g.RemoteName(ni, n)
+		return nodeRef(t.Interface().TypeId())
 	case schema.Type_Which_anyPointer:
-		return g.imports.Capnp() + ".Pointer", nil
+		return typeRef{name: "Pointer", imp: capnpImportSpec}, nil
 	case schema.Type_Which_list:
 		switch lt, _ := t.List().ElementType(); lt.Which() {
 		case schema.Type_Which_void:
-			return g.imports.Capnp() + ".VoidList", nil
+			// TODO(light): omitting newfunc since it doesn't have a similar type signature (no errors).
+			return typeRef{name: "VoidList", imp: capnpImportSpec}, nil
 		case schema.Type_Which_bool:
-			return g.imports.Capnp() + ".BitList", nil
+			return typeRef{name: "BitList", newfunc: "NewBitList", imp: capnpImportSpec}, nil
 		case schema.Type_Which_int8:
-			return g.imports.Capnp() + ".Int8List", nil
+			return typeRef{name: "Int8List", newfunc: "NewInt8List", imp: capnpImportSpec}, nil
 		case schema.Type_Which_uint8:
-			return g.imports.Capnp() + ".UInt8List", nil
+			return typeRef{name: "UInt8List", newfunc: "NewUInt8List", imp: capnpImportSpec}, nil
 		case schema.Type_Which_int16:
-			return g.imports.Capnp() + ".Int16List", nil
+			return typeRef{name: "Int16List", newfunc: "NewInt16List", imp: capnpImportSpec}, nil
 		case schema.Type_Which_uint16:
-			return g.imports.Capnp() + ".UInt16List", nil
+			return typeRef{name: "UInt16List", newfunc: "NewUInt16List", imp: capnpImportSpec}, nil
 		case schema.Type_Which_int32:
-			return g.imports.Capnp() + ".Int32List", nil
+			return typeRef{name: "Int32List", newfunc: "NewInt32List", imp: capnpImportSpec}, nil
 		case schema.Type_Which_uint32:
-			return g.imports.Capnp() + ".UInt32List", nil
+			return typeRef{name: "UInt32List", newfunc: "NewUInt32List", imp: capnpImportSpec}, nil
 		case schema.Type_Which_int64:
-			return g.imports.Capnp() + ".Int64List", nil
+			return typeRef{name: "Int64List", newfunc: "NewInt64List", imp: capnpImportSpec}, nil
 		case schema.Type_Which_uint64:
-			return g.imports.Capnp() + ".UInt64List", nil
+			return typeRef{name: "UInt64List", newfunc: "NewUInt64List", imp: capnpImportSpec}, nil
 		case schema.Type_Which_float32:
-			return g.imports.Capnp() + ".Float32List", nil
+			return typeRef{name: "Float32List", newfunc: "NewFloat32List", imp: capnpImportSpec}, nil
 		case schema.Type_Which_float64:
-			return g.imports.Capnp() + ".Float64List", nil
+			return typeRef{name: "Float64List", newfunc: "NewFloat64List", imp: capnpImportSpec}, nil
 		case schema.Type_Which_text:
-			return g.imports.Capnp() + ".TextList", nil
+			return typeRef{name: "TextList", newfunc: "NewTextList", imp: capnpImportSpec}, nil
 		case schema.Type_Which_data:
-			return g.imports.Capnp() + ".DataList", nil
+			return typeRef{name: "DataList", newfunc: "NewDataList", imp: capnpImportSpec}, nil
 		case schema.Type_Which_enum:
-			ni, err := g.nodes.mustFind(lt.Enum().TypeId())
+			ref, err := nodeRef(lt.Enum().TypeId())
 			if err != nil {
-				return "", err
+				return ref, err
 			}
-			rn, err := g.RemoteName(ni, n)
-			if err != nil {
-				return "", err
-			}
-			return rn + "_List", nil
+			ref.name = ref.name + "_List"
+			ref.newfunc = "New" + ref.name
+			return ref, nil
 		case schema.Type_Which_structType:
-			ni, err := g.nodes.mustFind(lt.StructType().TypeId())
+			ref, err := nodeRef(lt.StructType().TypeId())
 			if err != nil {
-				return "", err
+				return ref, err
 			}
-			rn, err := g.RemoteName(ni, n)
-			if err != nil {
-				return "", err
-			}
-			return rn + "_List", nil
+			ref.name = ref.name + "_List"
+			ref.newfunc = "New" + ref.name
+			return ref, nil
 		case schema.Type_Which_anyPointer, schema.Type_Which_list, schema.Type_Which_interface:
-			return g.imports.Capnp() + ".PointerList", nil
+			return typeRef{name: "PointerList", newfunc: "NewPointerList", imp: capnpImportSpec}, nil
 		}
 	}
-	return "", fmt.Errorf("unhandled field type %v", t.Which())
+	return typeRef{}, fmt.Errorf("unable to reference type %v", t.Which())
 }
 
 // intFieldDefaultMask returns the XOR mask used when getting or setting

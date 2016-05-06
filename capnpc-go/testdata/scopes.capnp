@@ -15,3 +15,6 @@ struct Foo @0xc8d7b3b4e07f8bd9 {
 
 const fooVar @0x84efedc75e99768d :Foo = ();
 const otherFooVar @0x836faf1834d91729 :Other.Foo = ();
+const fooListVar @0xcda2680ec5c921e0 :List(Foo) = [];
+const otherFooListVar @0x83e7e1b3cd1be338 :List(Other.Foo) = [];
+const intList @0xacf3d9917d0bb0f0 :List(Int32) = [];
