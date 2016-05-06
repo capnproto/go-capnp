@@ -147,6 +147,17 @@ func (s Node) SetParameters(v Node_Parameter_List) error {
 	return s.Struct.SetPtr(5, v.List.ToPtr())
 }
 
+// NewParameters sets the parameters field to a newly
+// allocated Node_Parameter_List, preferring placement in s's segment.
+func (s Node) NewParameters(n int32) (Node_Parameter_List, error) {
+	l, err := NewNode_Parameter_List(s.Struct.Segment(), n)
+	if err != nil {
+		return Node_Parameter_List{}, err
+	}
+	err = s.Struct.SetPtr(5, l.List.ToPtr())
+	return l, err
+}
+
 func (s Node) IsGeneric() bool {
 	return s.Struct.Bit(288)
 }
@@ -172,6 +183,17 @@ func (s Node) SetNestedNodes(v Node_NestedNode_List) error {
 	return s.Struct.SetPtr(1, v.List.ToPtr())
 }
 
+// NewNestedNodes sets the nestedNodes field to a newly
+// allocated Node_NestedNode_List, preferring placement in s's segment.
+func (s Node) NewNestedNodes(n int32) (Node_NestedNode_List, error) {
+	l, err := NewNode_NestedNode_List(s.Struct.Segment(), n)
+	if err != nil {
+		return Node_NestedNode_List{}, err
+	}
+	err = s.Struct.SetPtr(1, l.List.ToPtr())
+	return l, err
+}
+
 func (s Node) Annotations() (Annotation_List, error) {
 	p, err := s.Struct.Ptr(2)
 	if err != nil {
@@ -187,6 +209,17 @@ func (s Node) HasAnnotations() bool {
 
 func (s Node) SetAnnotations(v Annotation_List) error {
 	return s.Struct.SetPtr(2, v.List.ToPtr())
+}
+
+// NewAnnotations sets the annotations field to a newly
+// allocated Annotation_List, preferring placement in s's segment.
+func (s Node) NewAnnotations(n int32) (Annotation_List, error) {
+	l, err := NewAnnotation_List(s.Struct.Segment(), n)
+	if err != nil {
+		return Annotation_List{}, err
+	}
+	err = s.Struct.SetPtr(2, l.List.ToPtr())
+	return l, err
 }
 
 func (s Node) SetFile() {
@@ -263,6 +296,17 @@ func (s Node_structNode) SetFields(v Field_List) error {
 	return s.Struct.SetPtr(3, v.List.ToPtr())
 }
 
+// NewFields sets the fields field to a newly
+// allocated Field_List, preferring placement in s's segment.
+func (s Node_structNode) NewFields(n int32) (Field_List, error) {
+	l, err := NewField_List(s.Struct.Segment(), n)
+	if err != nil {
+		return Field_List{}, err
+	}
+	err = s.Struct.SetPtr(3, l.List.ToPtr())
+	return l, err
+}
+
 func (s Node) Enum() Node_enum { return Node_enum(s) }
 func (s Node) SetEnum() {
 	s.Struct.SetUint16(12, 2)
@@ -282,6 +326,17 @@ func (s Node_enum) HasEnumerants() bool {
 
 func (s Node_enum) SetEnumerants(v Enumerant_List) error {
 	return s.Struct.SetPtr(3, v.List.ToPtr())
+}
+
+// NewEnumerants sets the enumerants field to a newly
+// allocated Enumerant_List, preferring placement in s's segment.
+func (s Node_enum) NewEnumerants(n int32) (Enumerant_List, error) {
+	l, err := NewEnumerant_List(s.Struct.Segment(), n)
+	if err != nil {
+		return Enumerant_List{}, err
+	}
+	err = s.Struct.SetPtr(3, l.List.ToPtr())
+	return l, err
 }
 
 func (s Node) Interface() Node_interface { return Node_interface(s) }
@@ -305,6 +360,17 @@ func (s Node_interface) SetMethods(v Method_List) error {
 	return s.Struct.SetPtr(3, v.List.ToPtr())
 }
 
+// NewMethods sets the methods field to a newly
+// allocated Method_List, preferring placement in s's segment.
+func (s Node_interface) NewMethods(n int32) (Method_List, error) {
+	l, err := NewMethod_List(s.Struct.Segment(), n)
+	if err != nil {
+		return Method_List{}, err
+	}
+	err = s.Struct.SetPtr(3, l.List.ToPtr())
+	return l, err
+}
+
 func (s Node_interface) Superclasses() (Superclass_List, error) {
 	p, err := s.Struct.Ptr(4)
 	if err != nil {
@@ -320,6 +386,17 @@ func (s Node_interface) HasSuperclasses() bool {
 
 func (s Node_interface) SetSuperclasses(v Superclass_List) error {
 	return s.Struct.SetPtr(4, v.List.ToPtr())
+}
+
+// NewSuperclasses sets the superclasses field to a newly
+// allocated Superclass_List, preferring placement in s's segment.
+func (s Node_interface) NewSuperclasses(n int32) (Superclass_List, error) {
+	l, err := NewSuperclass_List(s.Struct.Segment(), n)
+	if err != nil {
+		return Superclass_List{}, err
+	}
+	err = s.Struct.SetPtr(4, l.List.ToPtr())
+	return l, err
 }
 
 func (s Node) Const() Node_const { return Node_const(s) }
@@ -796,6 +873,17 @@ func (s Field) SetAnnotations(v Annotation_List) error {
 	return s.Struct.SetPtr(1, v.List.ToPtr())
 }
 
+// NewAnnotations sets the annotations field to a newly
+// allocated Annotation_List, preferring placement in s's segment.
+func (s Field) NewAnnotations(n int32) (Annotation_List, error) {
+	l, err := NewAnnotation_List(s.Struct.Segment(), n)
+	if err != nil {
+		return Annotation_List{}, err
+	}
+	err = s.Struct.SetPtr(1, l.List.ToPtr())
+	return l, err
+}
+
 func (s Field) DiscriminantValue() uint16 {
 	return s.Struct.Uint16(2) ^ 65535
 }
@@ -1004,6 +1092,17 @@ func (s Enumerant) SetAnnotations(v Annotation_List) error {
 	return s.Struct.SetPtr(1, v.List.ToPtr())
 }
 
+// NewAnnotations sets the annotations field to a newly
+// allocated Annotation_List, preferring placement in s's segment.
+func (s Enumerant) NewAnnotations(n int32) (Annotation_List, error) {
+	l, err := NewAnnotation_List(s.Struct.Segment(), n)
+	if err != nil {
+		return Annotation_List{}, err
+	}
+	err = s.Struct.SetPtr(1, l.List.ToPtr())
+	return l, err
+}
+
 // Enumerant_List is a list of Enumerant.
 type Enumerant_List struct{ capnp.List }
 
@@ -1174,6 +1273,17 @@ func (s Method) SetImplicitParameters(v Node_Parameter_List) error {
 	return s.Struct.SetPtr(4, v.List.ToPtr())
 }
 
+// NewImplicitParameters sets the implicitParameters field to a newly
+// allocated Node_Parameter_List, preferring placement in s's segment.
+func (s Method) NewImplicitParameters(n int32) (Node_Parameter_List, error) {
+	l, err := NewNode_Parameter_List(s.Struct.Segment(), n)
+	if err != nil {
+		return Node_Parameter_List{}, err
+	}
+	err = s.Struct.SetPtr(4, l.List.ToPtr())
+	return l, err
+}
+
 func (s Method) ParamStructType() uint64 {
 	return s.Struct.Uint64(8)
 }
@@ -1261,6 +1371,17 @@ func (s Method) HasAnnotations() bool {
 
 func (s Method) SetAnnotations(v Annotation_List) error {
 	return s.Struct.SetPtr(1, v.List.ToPtr())
+}
+
+// NewAnnotations sets the annotations field to a newly
+// allocated Annotation_List, preferring placement in s's segment.
+func (s Method) NewAnnotations(n int32) (Annotation_List, error) {
+	l, err := NewAnnotation_List(s.Struct.Segment(), n)
+	if err != nil {
+		return Annotation_List{}, err
+	}
+	err = s.Struct.SetPtr(1, l.List.ToPtr())
+	return l, err
 }
 
 // Method_List is a list of Method.
@@ -1731,6 +1852,17 @@ func (s Brand) SetScopes(v Brand_Scope_List) error {
 	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
+// NewScopes sets the scopes field to a newly
+// allocated Brand_Scope_List, preferring placement in s's segment.
+func (s Brand) NewScopes(n int32) (Brand_Scope_List, error) {
+	l, err := NewBrand_Scope_List(s.Struct.Segment(), n)
+	if err != nil {
+		return Brand_Scope_List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
 // Brand_List is a list of Brand.
 type Brand_List struct{ capnp.List }
 
@@ -1817,6 +1949,18 @@ func (s Brand_Scope) HasBind() bool {
 func (s Brand_Scope) SetBind(v Brand_Binding_List) error {
 	s.Struct.SetUint16(8, 0)
 	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewBind sets the bind field to a newly
+// allocated Brand_Binding_List, preferring placement in s's segment.
+func (s Brand_Scope) NewBind(n int32) (Brand_Binding_List, error) {
+	s.Struct.SetUint16(8, 0)
+	l, err := NewBrand_Binding_List(s.Struct.Segment(), n)
+	if err != nil {
+		return Brand_Binding_List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
 }
 
 func (s Brand_Scope) SetInherit() {
@@ -2519,6 +2663,17 @@ func (s CodeGeneratorRequest) SetNodes(v Node_List) error {
 	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
+// NewNodes sets the nodes field to a newly
+// allocated Node_List, preferring placement in s's segment.
+func (s CodeGeneratorRequest) NewNodes(n int32) (Node_List, error) {
+	l, err := NewNode_List(s.Struct.Segment(), n)
+	if err != nil {
+		return Node_List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
 func (s CodeGeneratorRequest) RequestedFiles() (CodeGeneratorRequest_RequestedFile_List, error) {
 	p, err := s.Struct.Ptr(1)
 	if err != nil {
@@ -2534,6 +2689,17 @@ func (s CodeGeneratorRequest) HasRequestedFiles() bool {
 
 func (s CodeGeneratorRequest) SetRequestedFiles(v CodeGeneratorRequest_RequestedFile_List) error {
 	return s.Struct.SetPtr(1, v.List.ToPtr())
+}
+
+// NewRequestedFiles sets the requestedFiles field to a newly
+// allocated CodeGeneratorRequest_RequestedFile_List, preferring placement in s's segment.
+func (s CodeGeneratorRequest) NewRequestedFiles(n int32) (CodeGeneratorRequest_RequestedFile_List, error) {
+	l, err := NewCodeGeneratorRequest_RequestedFile_List(s.Struct.Segment(), n)
+	if err != nil {
+		return CodeGeneratorRequest_RequestedFile_List{}, err
+	}
+	err = s.Struct.SetPtr(1, l.List.ToPtr())
+	return l, err
 }
 
 // CodeGeneratorRequest_List is a list of CodeGeneratorRequest.
@@ -2632,6 +2798,17 @@ func (s CodeGeneratorRequest_RequestedFile) HasImports() bool {
 
 func (s CodeGeneratorRequest_RequestedFile) SetImports(v CodeGeneratorRequest_RequestedFile_Import_List) error {
 	return s.Struct.SetPtr(1, v.List.ToPtr())
+}
+
+// NewImports sets the imports field to a newly
+// allocated CodeGeneratorRequest_RequestedFile_Import_List, preferring placement in s's segment.
+func (s CodeGeneratorRequest_RequestedFile) NewImports(n int32) (CodeGeneratorRequest_RequestedFile_Import_List, error) {
+	l, err := NewCodeGeneratorRequest_RequestedFile_Import_List(s.Struct.Segment(), n)
+	if err != nil {
+		return CodeGeneratorRequest_RequestedFile_Import_List{}, err
+	}
+	err = s.Struct.SetPtr(1, l.List.ToPtr())
+	return l, err
 }
 
 // CodeGeneratorRequest_RequestedFile_List is a list of CodeGeneratorRequest_RequestedFile.

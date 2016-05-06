@@ -118,14 +118,11 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 		if err != nil {
 			t.Fatal(err)
 		}
-		tl, err := capnp.NewTextList(seg, 1)
+		args, err := zjob.NewArgs(1)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := tl.Set(0, "xyz"); err != nil {
-			t.Fatal(err)
-		}
-		if err := zjob.SetArgs(tl); err != nil {
+		if err := args.Set(0, "xyz"); err != nil {
 			t.Fatal(err)
 		}
 		tests = append(tests, marshalTest{
@@ -156,14 +153,11 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 		if err := zjob.SetCmd("abc"); err != nil {
 			t.Fatal(err)
 		}
-		tl, err := capnp.NewTextList(seg, 1)
+		args, err := zjob.NewArgs(1)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := tl.Set(0, "xyz"); err != nil {
-			t.Fatal(err)
-		}
-		if err := zjob.SetArgs(tl); err != nil {
+		if err := args.Set(0, "xyz"); err != nil {
 			t.Fatal(err)
 		}
 		tests = append(tests, marshalTest{
@@ -192,11 +186,7 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 		if err != nil {
 			t.Fatal(err)
 		}
-		joblist, err := air.NewZjob_List(seg, 1)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if err := server.SetWaitingjobs(joblist); err != nil {
+		if _, err := server.NewWaitingjobs(1); err != nil {
 			t.Fatal(err)
 		}
 
@@ -225,22 +215,18 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 		if err != nil {
 			t.Fatal(err)
 		}
-		joblist, err := air.NewZjob_List(seg, 1)
+		joblist, err := server.NewWaitingjobs(1)
 		if err != nil {
 			t.Fatal(err)
 		}
-		server.SetWaitingjobs(joblist)
 		if err := joblist.At(0).SetCmd("abc"); err != nil {
 			t.Fatal(err)
 		}
-		tl, err := capnp.NewTextList(seg, 1)
+		args, err := joblist.At(0).NewArgs(1)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := tl.Set(0, "xyz"); err != nil {
-			t.Fatal(err)
-		}
-		if err := joblist.At(0).SetArgs(tl); err != nil {
+		if err := args.Set(0, "xyz"); err != nil {
 			t.Fatal(err)
 		}
 
@@ -272,11 +258,10 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 		if err != nil {
 			t.Fatal(err)
 		}
-		joblist, err := air.NewZjob_List(seg, 2)
+		joblist, err := server.NewWaitingjobs(2)
 		if err != nil {
 			t.Fatal(err)
 		}
-		server.SetWaitingjobs(joblist)
 		if err := joblist.At(0).SetCmd("abc"); err != nil {
 			t.Fatal(err)
 		}
@@ -418,17 +403,14 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 			t.Fatal(err)
 		}
 		xc.SetSize(9)
-		tl, err := capnp.NewTextList(scratch, 2)
+		wl, err := xc.NewWordlist(2)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := tl.Set(0, "hello"); err != nil {
+		if err := wl.Set(0, "hello"); err != nil {
 			t.Fatal(err)
 		}
-		if err := tl.Set(1, "bye"); err != nil {
-			t.Fatal(err)
-		}
-		if err := xc.SetWordlist(tl); err != nil {
+		if err := wl.Set(1, "bye"); err != nil {
 			t.Fatal(err)
 		}
 
@@ -482,17 +464,14 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 		if err := xc.SetWords("abc"); err != nil {
 			t.Fatal(err)
 		}
-		tl, err := capnp.NewTextList(scratch, 2)
+		wl, err := xc.NewWordlist(2)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := tl.Set(0, "hello"); err != nil {
+		if err := wl.Set(0, "hello"); err != nil {
 			t.Fatal(err)
 		}
-		if err := tl.Set(1, "byenow"); err != nil {
-			t.Fatal(err)
-		}
-		if err := xc.SetWordlist(tl); err != nil {
+		if err := wl.Set(1, "byenow"); err != nil {
 			t.Fatal(err)
 		}
 
@@ -1368,8 +1347,8 @@ func BenchmarkTextMovementBetweenSegments(b *testing.B) {
 		_, scratch, _ := capnp.NewMessage(capnp.SingleSegment(buf2[:0]))
 
 		ht, _ := air.NewRootHoldsText(seg)
+		// Purposefully created in another segment.
 		tl, _ := capnp.NewTextList(scratch, 1000)
-
 		for j := 0; j < 1000; j++ {
 			tl.Set(j, astr[j])
 		}

@@ -2005,6 +2005,17 @@ func (s Payload) SetCapTable(v CapDescriptor_List) error {
 	return s.Struct.SetPtr(1, v.List.ToPtr())
 }
 
+// NewCapTable sets the capTable field to a newly
+// allocated CapDescriptor_List, preferring placement in s's segment.
+func (s Payload) NewCapTable(n int32) (CapDescriptor_List, error) {
+	l, err := NewCapDescriptor_List(s.Struct.Segment(), n)
+	if err != nil {
+		return CapDescriptor_List{}, err
+	}
+	err = s.Struct.SetPtr(1, l.List.ToPtr())
+	return l, err
+}
+
 // Payload_List is a list of Payload.
 type Payload_List struct{ capnp.List }
 
@@ -2262,6 +2273,17 @@ func (s PromisedAnswer) HasTransform() bool {
 
 func (s PromisedAnswer) SetTransform(v PromisedAnswer_Op_List) error {
 	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewTransform sets the transform field to a newly
+// allocated PromisedAnswer_Op_List, preferring placement in s's segment.
+func (s PromisedAnswer) NewTransform(n int32) (PromisedAnswer_Op_List, error) {
+	l, err := NewPromisedAnswer_Op_List(s.Struct.Segment(), n)
+	if err != nil {
+		return PromisedAnswer_Op_List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
 }
 
 // PromisedAnswer_List is a list of PromisedAnswer.

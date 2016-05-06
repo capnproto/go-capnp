@@ -16,12 +16,9 @@ import (
 const schemaPath = "internal/aircraftlib/aircraft.capnp"
 
 func initNester(t *testing.T, n air.Nester1Capn, strs ...string) {
-	tl, err := capnp.NewTextList(n.Segment(), int32(len(strs)))
+	tl, err := n.NewStrs(int32(len(strs)))
 	if err != nil {
-		t.Fatalf("initNester(..., %q): NewTextList: %v", strs, err)
-	}
-	if err := n.SetStrs(tl); err != nil {
-		t.Fatalf("initNester(..., %q): SetStrs: %v", strs, err)
+		t.Fatalf("initNester(..., %q): NewStrs: %v", strs, err)
 	}
 	for i, s := range strs {
 		if err := tl.Set(i, s); err != nil {
@@ -39,7 +36,7 @@ func zdateFilledMessage(t testing.TB, n int32) *capnp.Message {
 	if err != nil {
 		t.Fatal(err)
 	}
-	list, err := air.NewZdate_List(seg, n)
+	list, err := z.NewZdatevec(n)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +51,6 @@ func zdateFilledMessage(t testing.TB, n int32) *capnp.Message {
 		d.SetYear(int16(2004 + i))
 		list.Set(i, d)
 	}
-	z.SetZdatevec(list)
 
 	return msg
 }

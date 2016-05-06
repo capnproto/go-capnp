@@ -313,6 +313,17 @@ func (s PlaneBase) SetHomes(v Airport_List) error {
 	return s.Struct.SetPtr(1, v.List.ToPtr())
 }
 
+// NewHomes sets the homes field to a newly
+// allocated Airport_List, preferring placement in s's segment.
+func (s PlaneBase) NewHomes(n int32) (Airport_List, error) {
+	l, err := NewAirport_List(s.Struct.Segment(), n)
+	if err != nil {
+		return Airport_List{}, err
+	}
+	err = s.Struct.SetPtr(1, l.List.ToPtr())
+	return l, err
+}
+
 func (s PlaneBase) Rating() int64 {
 	return int64(s.Struct.Uint64(0))
 }
@@ -686,6 +697,17 @@ func (s Regression) SetBeta(v capnp.Float64List) error {
 	return s.Struct.SetPtr(1, v.List.ToPtr())
 }
 
+// NewBeta sets the beta field to a newly
+// allocated capnp.Float64List, preferring placement in s's segment.
+func (s Regression) NewBeta(n int32) (capnp.Float64List, error) {
+	l, err := capnp.NewFloat64List(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.Float64List{}, err
+	}
+	err = s.Struct.SetPtr(1, l.List.ToPtr())
+	return l, err
+}
+
 func (s Regression) Planes() (Aircraft_List, error) {
 	p, err := s.Struct.Ptr(2)
 	if err != nil {
@@ -701,6 +723,17 @@ func (s Regression) HasPlanes() bool {
 
 func (s Regression) SetPlanes(v Aircraft_List) error {
 	return s.Struct.SetPtr(2, v.List.ToPtr())
+}
+
+// NewPlanes sets the planes field to a newly
+// allocated Aircraft_List, preferring placement in s's segment.
+func (s Regression) NewPlanes(n int32) (Aircraft_List, error) {
+	l, err := NewAircraft_List(s.Struct.Segment(), n)
+	if err != nil {
+		return Aircraft_List{}, err
+	}
+	err = s.Struct.SetPtr(2, l.List.ToPtr())
+	return l, err
 }
 
 func (s Regression) Ymu() float64 {
@@ -1294,6 +1327,18 @@ func (s Z) SetF64vec(v capnp.Float64List) error {
 	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
+// NewF64vec sets the f64vec field to a newly
+// allocated capnp.Float64List, preferring placement in s's segment.
+func (s Z) NewF64vec(n int32) (capnp.Float64List, error) {
+	s.Struct.SetUint16(0, 15)
+	l, err := capnp.NewFloat64List(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.Float64List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
 func (s Z) F32vec() (capnp.Float32List, error) {
 	p, err := s.Struct.Ptr(0)
 	if err != nil {
@@ -1310,6 +1355,18 @@ func (s Z) HasF32vec() bool {
 func (s Z) SetF32vec(v capnp.Float32List) error {
 	s.Struct.SetUint16(0, 16)
 	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewF32vec sets the f32vec field to a newly
+// allocated capnp.Float32List, preferring placement in s's segment.
+func (s Z) NewF32vec(n int32) (capnp.Float32List, error) {
+	s.Struct.SetUint16(0, 16)
+	l, err := capnp.NewFloat32List(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.Float32List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
 }
 
 func (s Z) I64vec() (capnp.Int64List, error) {
@@ -1330,6 +1387,18 @@ func (s Z) SetI64vec(v capnp.Int64List) error {
 	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
+// NewI64vec sets the i64vec field to a newly
+// allocated capnp.Int64List, preferring placement in s's segment.
+func (s Z) NewI64vec(n int32) (capnp.Int64List, error) {
+	s.Struct.SetUint16(0, 17)
+	l, err := capnp.NewInt64List(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.Int64List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
 func (s Z) I32vec() (capnp.Int32List, error) {
 	p, err := s.Struct.Ptr(0)
 	if err != nil {
@@ -1346,6 +1415,18 @@ func (s Z) HasI32vec() bool {
 func (s Z) SetI32vec(v capnp.Int32List) error {
 	s.Struct.SetUint16(0, 18)
 	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewI32vec sets the i32vec field to a newly
+// allocated capnp.Int32List, preferring placement in s's segment.
+func (s Z) NewI32vec(n int32) (capnp.Int32List, error) {
+	s.Struct.SetUint16(0, 18)
+	l, err := capnp.NewInt32List(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.Int32List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
 }
 
 func (s Z) I16vec() (capnp.Int16List, error) {
@@ -1366,6 +1447,18 @@ func (s Z) SetI16vec(v capnp.Int16List) error {
 	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
+// NewI16vec sets the i16vec field to a newly
+// allocated capnp.Int16List, preferring placement in s's segment.
+func (s Z) NewI16vec(n int32) (capnp.Int16List, error) {
+	s.Struct.SetUint16(0, 19)
+	l, err := capnp.NewInt16List(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.Int16List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
 func (s Z) I8vec() (capnp.Int8List, error) {
 	p, err := s.Struct.Ptr(0)
 	if err != nil {
@@ -1382,6 +1475,18 @@ func (s Z) HasI8vec() bool {
 func (s Z) SetI8vec(v capnp.Int8List) error {
 	s.Struct.SetUint16(0, 20)
 	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewI8vec sets the i8vec field to a newly
+// allocated capnp.Int8List, preferring placement in s's segment.
+func (s Z) NewI8vec(n int32) (capnp.Int8List, error) {
+	s.Struct.SetUint16(0, 20)
+	l, err := capnp.NewInt8List(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.Int8List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
 }
 
 func (s Z) U64vec() (capnp.UInt64List, error) {
@@ -1402,6 +1507,18 @@ func (s Z) SetU64vec(v capnp.UInt64List) error {
 	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
+// NewU64vec sets the u64vec field to a newly
+// allocated capnp.UInt64List, preferring placement in s's segment.
+func (s Z) NewU64vec(n int32) (capnp.UInt64List, error) {
+	s.Struct.SetUint16(0, 21)
+	l, err := capnp.NewUInt64List(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.UInt64List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
 func (s Z) U32vec() (capnp.UInt32List, error) {
 	p, err := s.Struct.Ptr(0)
 	if err != nil {
@@ -1418,6 +1535,18 @@ func (s Z) HasU32vec() bool {
 func (s Z) SetU32vec(v capnp.UInt32List) error {
 	s.Struct.SetUint16(0, 22)
 	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewU32vec sets the u32vec field to a newly
+// allocated capnp.UInt32List, preferring placement in s's segment.
+func (s Z) NewU32vec(n int32) (capnp.UInt32List, error) {
+	s.Struct.SetUint16(0, 22)
+	l, err := capnp.NewUInt32List(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.UInt32List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
 }
 
 func (s Z) U16vec() (capnp.UInt16List, error) {
@@ -1438,6 +1567,18 @@ func (s Z) SetU16vec(v capnp.UInt16List) error {
 	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
+// NewU16vec sets the u16vec field to a newly
+// allocated capnp.UInt16List, preferring placement in s's segment.
+func (s Z) NewU16vec(n int32) (capnp.UInt16List, error) {
+	s.Struct.SetUint16(0, 23)
+	l, err := capnp.NewUInt16List(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.UInt16List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
 func (s Z) U8vec() (capnp.UInt8List, error) {
 	p, err := s.Struct.Ptr(0)
 	if err != nil {
@@ -1454,6 +1595,18 @@ func (s Z) HasU8vec() bool {
 func (s Z) SetU8vec(v capnp.UInt8List) error {
 	s.Struct.SetUint16(0, 24)
 	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewU8vec sets the u8vec field to a newly
+// allocated capnp.UInt8List, preferring placement in s's segment.
+func (s Z) NewU8vec(n int32) (capnp.UInt8List, error) {
+	s.Struct.SetUint16(0, 24)
+	l, err := capnp.NewUInt8List(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.UInt8List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
 }
 
 func (s Z) Zvec() (Z_List, error) {
@@ -1474,6 +1627,18 @@ func (s Z) SetZvec(v Z_List) error {
 	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
+// NewZvec sets the zvec field to a newly
+// allocated Z_List, preferring placement in s's segment.
+func (s Z) NewZvec(n int32) (Z_List, error) {
+	s.Struct.SetUint16(0, 25)
+	l, err := NewZ_List(s.Struct.Segment(), n)
+	if err != nil {
+		return Z_List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
 func (s Z) Zvecvec() (capnp.PointerList, error) {
 	p, err := s.Struct.Ptr(0)
 	if err != nil {
@@ -1490,6 +1655,18 @@ func (s Z) HasZvecvec() bool {
 func (s Z) SetZvecvec(v capnp.PointerList) error {
 	s.Struct.SetUint16(0, 26)
 	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewZvecvec sets the zvecvec field to a newly
+// allocated capnp.PointerList, preferring placement in s's segment.
+func (s Z) NewZvecvec(n int32) (capnp.PointerList, error) {
+	s.Struct.SetUint16(0, 26)
+	l, err := capnp.NewPointerList(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.PointerList{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
 }
 
 func (s Z) Zdate() (Zdate, error) {
@@ -1568,6 +1745,18 @@ func (s Z) HasAircraftvec() bool {
 func (s Z) SetAircraftvec(v Aircraft_List) error {
 	s.Struct.SetUint16(0, 29)
 	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewAircraftvec sets the aircraftvec field to a newly
+// allocated Aircraft_List, preferring placement in s's segment.
+func (s Z) NewAircraftvec(n int32) (Aircraft_List, error) {
+	s.Struct.SetUint16(0, 29)
+	l, err := NewAircraft_List(s.Struct.Segment(), n)
+	if err != nil {
+		return Aircraft_List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
 }
 
 func (s Z) Aircraft() (Aircraft, error) {
@@ -1777,6 +1966,18 @@ func (s Z) SetZdatevec(v Zdate_List) error {
 	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
+// NewZdatevec sets the zdatevec field to a newly
+// allocated Zdate_List, preferring placement in s's segment.
+func (s Z) NewZdatevec(n int32) (Zdate_List, error) {
+	s.Struct.SetUint16(0, 37)
+	l, err := NewZdate_List(s.Struct.Segment(), n)
+	if err != nil {
+		return Zdate_List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
 func (s Z) Zdatavec() (Zdata_List, error) {
 	p, err := s.Struct.Ptr(0)
 	if err != nil {
@@ -1795,6 +1996,18 @@ func (s Z) SetZdatavec(v Zdata_List) error {
 	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
+// NewZdatavec sets the zdatavec field to a newly
+// allocated Zdata_List, preferring placement in s's segment.
+func (s Z) NewZdatavec(n int32) (Zdata_List, error) {
+	s.Struct.SetUint16(0, 38)
+	l, err := NewZdata_List(s.Struct.Segment(), n)
+	if err != nil {
+		return Zdata_List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
 func (s Z) Boolvec() (capnp.BitList, error) {
 	p, err := s.Struct.Ptr(0)
 	if err != nil {
@@ -1811,6 +2024,18 @@ func (s Z) HasBoolvec() bool {
 func (s Z) SetBoolvec(v capnp.BitList) error {
 	s.Struct.SetUint16(0, 39)
 	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewBoolvec sets the boolvec field to a newly
+// allocated capnp.BitList, preferring placement in s's segment.
+func (s Z) NewBoolvec(n int32) (capnp.BitList, error) {
+	s.Struct.SetUint16(0, 39)
+	l, err := capnp.NewBitList(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.BitList{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
 }
 
 // Z_List is a list of Z.
@@ -1949,6 +2174,17 @@ func (s Counter) HasWordlist() bool {
 
 func (s Counter) SetWordlist(v capnp.TextList) error {
 	return s.Struct.SetPtr(1, v.List.ToPtr())
+}
+
+// NewWordlist sets the wordlist field to a newly
+// allocated capnp.TextList, preferring placement in s's segment.
+func (s Counter) NewWordlist(n int32) (capnp.TextList, error) {
+	l, err := capnp.NewTextList(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.TextList{}, err
+	}
+	err = s.Struct.SetPtr(1, l.List.ToPtr())
+	return l, err
 }
 
 // Counter_List is a list of Counter.
@@ -2096,6 +2332,17 @@ func (s Zserver) SetWaitingjobs(v Zjob_List) error {
 	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
+// NewWaitingjobs sets the waitingjobs field to a newly
+// allocated Zjob_List, preferring placement in s's segment.
+func (s Zserver) NewWaitingjobs(n int32) (Zjob_List, error) {
+	l, err := NewZjob_List(s.Struct.Segment(), n)
+	if err != nil {
+		return Zjob_List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
 // Zserver_List is a list of Zserver.
 type Zserver_List struct{ capnp.List }
 
@@ -2188,6 +2435,17 @@ func (s Zjob) HasArgs() bool {
 
 func (s Zjob) SetArgs(v capnp.TextList) error {
 	return s.Struct.SetPtr(1, v.List.ToPtr())
+}
+
+// NewArgs sets the args field to a newly
+// allocated capnp.TextList, preferring placement in s's segment.
+func (s Zjob) NewArgs(n int32) (capnp.TextList, error) {
+	l, err := capnp.NewTextList(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.TextList{}, err
+	}
+	err = s.Struct.SetPtr(1, l.List.ToPtr())
+	return l, err
 }
 
 // Zjob_List is a list of Zjob.
@@ -2746,6 +3004,17 @@ func (s HoldsVerEmptyList) SetMylist(v VerEmpty_List) error {
 	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
+// NewMylist sets the mylist field to a newly
+// allocated VerEmpty_List, preferring placement in s's segment.
+func (s HoldsVerEmptyList) NewMylist(n int32) (VerEmpty_List, error) {
+	l, err := NewVerEmpty_List(s.Struct.Segment(), n)
+	if err != nil {
+		return VerEmpty_List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
 // HoldsVerEmptyList_List is a list of HoldsVerEmptyList.
 type HoldsVerEmptyList_List struct{ capnp.List }
 
@@ -2813,6 +3082,17 @@ func (s HoldsVerOneDataList) HasMylist() bool {
 
 func (s HoldsVerOneDataList) SetMylist(v VerOneData_List) error {
 	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewMylist sets the mylist field to a newly
+// allocated VerOneData_List, preferring placement in s's segment.
+func (s HoldsVerOneDataList) NewMylist(n int32) (VerOneData_List, error) {
+	l, err := NewVerOneData_List(s.Struct.Segment(), n)
+	if err != nil {
+		return VerOneData_List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
 }
 
 // HoldsVerOneDataList_List is a list of HoldsVerOneDataList.
@@ -2884,6 +3164,17 @@ func (s HoldsVerTwoDataList) SetMylist(v VerTwoData_List) error {
 	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
+// NewMylist sets the mylist field to a newly
+// allocated VerTwoData_List, preferring placement in s's segment.
+func (s HoldsVerTwoDataList) NewMylist(n int32) (VerTwoData_List, error) {
+	l, err := NewVerTwoData_List(s.Struct.Segment(), n)
+	if err != nil {
+		return VerTwoData_List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
 // HoldsVerTwoDataList_List is a list of HoldsVerTwoDataList.
 type HoldsVerTwoDataList_List struct{ capnp.List }
 
@@ -2951,6 +3242,17 @@ func (s HoldsVerOnePtrList) HasMylist() bool {
 
 func (s HoldsVerOnePtrList) SetMylist(v VerOnePtr_List) error {
 	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewMylist sets the mylist field to a newly
+// allocated VerOnePtr_List, preferring placement in s's segment.
+func (s HoldsVerOnePtrList) NewMylist(n int32) (VerOnePtr_List, error) {
+	l, err := NewVerOnePtr_List(s.Struct.Segment(), n)
+	if err != nil {
+		return VerOnePtr_List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
 }
 
 // HoldsVerOnePtrList_List is a list of HoldsVerOnePtrList.
@@ -3022,6 +3324,17 @@ func (s HoldsVerTwoPtrList) SetMylist(v VerTwoPtr_List) error {
 	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
+// NewMylist sets the mylist field to a newly
+// allocated VerTwoPtr_List, preferring placement in s's segment.
+func (s HoldsVerTwoPtrList) NewMylist(n int32) (VerTwoPtr_List, error) {
+	l, err := NewVerTwoPtr_List(s.Struct.Segment(), n)
+	if err != nil {
+		return VerTwoPtr_List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
 // HoldsVerTwoPtrList_List is a list of HoldsVerTwoPtrList.
 type HoldsVerTwoPtrList_List struct{ capnp.List }
 
@@ -3091,6 +3404,17 @@ func (s HoldsVerTwoTwoList) SetMylist(v VerTwoDataTwoPtr_List) error {
 	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
+// NewMylist sets the mylist field to a newly
+// allocated VerTwoDataTwoPtr_List, preferring placement in s's segment.
+func (s HoldsVerTwoTwoList) NewMylist(n int32) (VerTwoDataTwoPtr_List, error) {
+	l, err := NewVerTwoDataTwoPtr_List(s.Struct.Segment(), n)
+	if err != nil {
+		return VerTwoDataTwoPtr_List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
 // HoldsVerTwoTwoList_List is a list of HoldsVerTwoTwoList.
 type HoldsVerTwoTwoList_List struct{ capnp.List }
 
@@ -3158,6 +3482,17 @@ func (s HoldsVerTwoTwoPlus) HasMylist() bool {
 
 func (s HoldsVerTwoTwoPlus) SetMylist(v VerTwoTwoPlus_List) error {
 	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewMylist sets the mylist field to a newly
+// allocated VerTwoTwoPlus_List, preferring placement in s's segment.
+func (s HoldsVerTwoTwoPlus) NewMylist(n int32) (VerTwoTwoPlus_List, error) {
+	l, err := NewVerTwoTwoPlus_List(s.Struct.Segment(), n)
+	if err != nil {
+		return VerTwoTwoPlus_List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
 }
 
 // HoldsVerTwoTwoPlus_List is a list of HoldsVerTwoTwoPlus.
@@ -3309,6 +3644,17 @@ func (s VerTwoTwoPlus) SetLst3(v capnp.Int64List) error {
 	return s.Struct.SetPtr(2, v.List.ToPtr())
 }
 
+// NewLst3 sets the lst3 field to a newly
+// allocated capnp.Int64List, preferring placement in s's segment.
+func (s VerTwoTwoPlus) NewLst3(n int32) (capnp.Int64List, error) {
+	l, err := capnp.NewInt64List(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.Int64List{}, err
+	}
+	err = s.Struct.SetPtr(2, l.List.ToPtr())
+	return l, err
+}
+
 // VerTwoTwoPlus_List is a list of VerTwoTwoPlus.
 type VerTwoTwoPlus_List struct{ capnp.List }
 
@@ -3411,6 +3757,17 @@ func (s HoldsText) SetLst(v capnp.TextList) error {
 	return s.Struct.SetPtr(1, v.List.ToPtr())
 }
 
+// NewLst sets the lst field to a newly
+// allocated capnp.TextList, preferring placement in s's segment.
+func (s HoldsText) NewLst(n int32) (capnp.TextList, error) {
+	l, err := capnp.NewTextList(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.TextList{}, err
+	}
+	err = s.Struct.SetPtr(1, l.List.ToPtr())
+	return l, err
+}
+
 func (s HoldsText) Lstlst() (capnp.PointerList, error) {
 	p, err := s.Struct.Ptr(2)
 	if err != nil {
@@ -3426,6 +3783,17 @@ func (s HoldsText) HasLstlst() bool {
 
 func (s HoldsText) SetLstlst(v capnp.PointerList) error {
 	return s.Struct.SetPtr(2, v.List.ToPtr())
+}
+
+// NewLstlst sets the lstlst field to a newly
+// allocated capnp.PointerList, preferring placement in s's segment.
+func (s HoldsText) NewLstlst(n int32) (capnp.PointerList, error) {
+	l, err := capnp.NewPointerList(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.PointerList{}, err
+	}
+	err = s.Struct.SetPtr(2, l.List.ToPtr())
+	return l, err
 }
 
 // HoldsText_List is a list of HoldsText.
@@ -3813,6 +4181,17 @@ func (s Nester1Capn) SetStrs(v capnp.TextList) error {
 	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
+// NewStrs sets the strs field to a newly
+// allocated capnp.TextList, preferring placement in s's segment.
+func (s Nester1Capn) NewStrs(n int32) (capnp.TextList, error) {
+	l, err := capnp.NewTextList(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.TextList{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
 // Nester1Capn_List is a list of Nester1Capn.
 type Nester1Capn_List struct{ capnp.List }
 
@@ -3878,6 +4257,17 @@ func (s RWTestCapn) SetNestMatrix(v capnp.PointerList) error {
 	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
+// NewNestMatrix sets the nestMatrix field to a newly
+// allocated capnp.PointerList, preferring placement in s's segment.
+func (s RWTestCapn) NewNestMatrix(n int32) (capnp.PointerList, error) {
+	l, err := capnp.NewPointerList(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.PointerList{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
 // RWTestCapn_List is a list of RWTestCapn.
 type RWTestCapn_List struct{ capnp.List }
 
@@ -3941,6 +4331,17 @@ func (s ListStructCapn) HasVec() bool {
 
 func (s ListStructCapn) SetVec(v Nester1Capn_List) error {
 	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewVec sets the vec field to a newly
+// allocated Nester1Capn_List, preferring placement in s's segment.
+func (s ListStructCapn) NewVec(n int32) (Nester1Capn_List, error) {
+	l, err := NewNester1Capn_List(s.Struct.Segment(), n)
+	if err != nil {
+		return Nester1Capn_List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
 }
 
 // ListStructCapn_List is a list of ListStructCapn.
