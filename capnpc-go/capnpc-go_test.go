@@ -240,6 +240,8 @@ func TestDefineFile(t *testing.T) {
 		fname  string
 		opts   genoptions
 	}{
+		{0x832bcc6686a26d56, "aircraft.capnp.out", genoptions{promises: true}},
+		{0xb312981b2552a250, "rpc.capnp.out", genoptions{promises: true}},
 		{0xd68755941d99d05e, "scopes.capnp.out", genoptions{promises: true}},
 		{0xecd50d792c3d9992, "util.capnp.out", genoptions{promises: true}},
 	}
