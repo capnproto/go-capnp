@@ -4,7 +4,7 @@
 type {{.Node.Name}} struct { Client {{.G.Capnp}}.Client }
 
 {{range .Methods -}}
-func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{$.G.Imports.Context}}.Context, params func({{$.G.RemoteNodeName .Params $.Node}}) error, opts ...{{$.G.Capnp}}.CallOption) {{$.G.RemoteName .Results $.Node}}_Promise {
+func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{$.G.Imports.Context}}.Context, params func({{$.G.RemoteNodeName .Params $.Node}}) error, opts ...{{$.G.Capnp}}.CallOption) {{$.G.RemoteNodeName .Results $.Node}}_Promise {
 	if c.Client == nil {
 		return {{$.G.RemoteNodeName .Results $.Node}}_Promise{Pipeline: {{$.G.Capnp}}.NewPipeline({{$.G.Capnp}}.ErrorAnswer({{$.G.Capnp}}.ErrNullClient))}
 	}

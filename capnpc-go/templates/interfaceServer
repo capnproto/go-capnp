@@ -19,7 +19,7 @@ func {{.Node.Name}}_Methods(methods []{{.G.Imports.Server}}.Method, s {{.Node.Na
 			{{template "_interfaceMethod" .}}
 		},
 		Impl: func(c {{$.G.Imports.Context}}.Context, opts {{$.G.Capnp}}.CallOptions, p, r {{$.G.Capnp}}.Struct) error {
-			call := {{$.G.RemoteNodeName .Interface $.Node}}_{{.Name}}{c, opts, {{$.G.RemoteName .Params $.Node}}{Struct: p}, {{$.G.RemoteName .Results $.Node}}{Struct: r} }
+			call := {{$.G.RemoteNodeName .Interface $.Node}}_{{.Name}}{c, opts, {{$.G.RemoteNodeName .Params $.Node}}{Struct: p}, {{$.G.RemoteNodeName .Results $.Node}}{Struct: r} }
 			return s.{{.Name|title}}(call)
 		},
 		ResultsSize: {{$.G.ObjectSize .Results}},

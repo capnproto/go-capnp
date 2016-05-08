@@ -12,9 +12,13 @@ import (
 	"zombiezen.com/go/capnproto2/internal/schema"
 )
 
-func mustReadTestFile(t *testing.T, name string) []byte {
+func readTestFile(name string) ([]byte, error) {
 	path := filepath.Join("testdata", name)
-	data, err := ioutil.ReadFile(path)
+	return ioutil.ReadFile(path)
+}
+
+func mustReadTestFile(t *testing.T, name string) []byte {
+	data, err := readTestFile(name)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -225,6 +229,46 @@ func TestDefineConstNodes(t *testing.T) {
 	if !containsExactlyIDs(p.Vars, 0xe0a385c7be1fea4d) {
 		// TODO(#20): print nodes better
 		t.Errorf("defineConstNodes rendered Vars %v", p.Vars)
+	}
+}
+
+func TestDefineFile(t *testing.T) {
+	// Sanity check to make sure schemas don't error on generation.
+
+	tests := []struct {
+		fileID uint64
+		fname  string
+		opts   genoptions
+	}{
+		{0xd68755941d99d05e, "scopes.capnp.out", genoptions{promises: true}},
+		{0xecd50d792c3d9992, "util.capnp.out", genoptions{promises: true}},
+	}
+	for _, test := range tests {
+		data, err := readTestFile(test.fname)
+		if err != nil {
+			t.Errorf("reading %s: %v", test.fname, err)
+			continue
+		}
+		msg, err := capnp.Unmarshal(data)
+		if err != nil {
+			t.Errorf("Unmarshaling %s: %v", test.fname, err)
+			continue
+		}
+		req, err := schema.ReadRootCodeGeneratorRequest(msg)
+		if err != nil {
+			t.Errorf("Reading code generator request %s: %v", test.fname, err)
+			continue
+		}
+		nodes, err := buildNodeMap(req)
+		if err != nil {
+			t.Errorf("buildNodeMap %s: %v", test.fname, err)
+			continue
+		}
+		g := newGenerator(test.fileID, nodes, test.opts)
+		if err := g.defineFile(); err != nil {
+			t.Errorf("defineFile %s: %v", test.fname, err)
+			continue
+		}
 	}
 }
 

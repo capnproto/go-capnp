@@ -102,9 +102,9 @@ func (g *generator) Capnp() string {
 }
 
 // generate produces unformatted Go source code from the nodes defined in it.
-func (g *generator) generate(pkg string) []byte {
+func (g *generator) generate() []byte {
 	var out bytes.Buffer
-	fmt.Fprintf(&out, "package %s\n\n", pkg)
+	fmt.Fprintf(&out, "package %s\n\n", g.nodes[g.fileID].pkg)
 	out.WriteString("// AUTO GENERATED - DO NOT EDIT\n\n")
 	out.WriteString("import (\n")
 	for _, imp := range g.imports.usedImports() {
@@ -1042,16 +1042,13 @@ func (es enumString) SliceFor(i int) string {
 	return fmt.Sprintf("[%d:%d]", n, n+len(es[i]))
 }
 
-func generateFile(reqf schema.CodeGeneratorRequest_RequestedFile, nodes nodeMap, opts genoptions) error {
-	id := reqf.Id()
-	fname, _ := reqf.Filename()
-	g := newGenerator(id, nodes, opts)
-	f := nodes[id]
+func (g *generator) defineFile() error {
+	f := g.nodes[g.fileID]
 	if f == nil {
-		return fmt.Errorf("no node in schema matches %#x", id)
+		return fmt.Errorf("no node in schema matches %#x", g.fileID)
 	}
 	if f.pkg == "" {
-		return fmt.Errorf("missing package annotation for %s", fname)
+		return errors.New("missing package annotation")
 	}
 
 	for _, n := range f.nodes {
@@ -1080,6 +1077,16 @@ func generateFile(reqf schema.CodeGeneratorRequest_RequestedFile, nodes nodeMap,
 			return err
 		}
 	}
+	return nil
+}
+
+func generateFile(reqf schema.CodeGeneratorRequest_RequestedFile, nodes nodeMap, opts genoptions) error {
+	id := reqf.Id()
+	fname, _ := reqf.Filename()
+	g := newGenerator(id, nodes, opts)
+	if err := g.defineFile(); err != nil {
+		return err
+	}
 
 	if dirPath, _ := filepath.Split(fname); dirPath != "" {
 		err := os.MkdirAll(dirPath, os.ModePerm)
@@ -1088,7 +1095,7 @@ func generateFile(reqf schema.CodeGeneratorRequest_RequestedFile, nodes nodeMap,
 		}
 	}
 
-	unformatted := g.generate(f.pkg)
+	unformatted := g.generate()
 	formatted, fmtErr := format.Source(unformatted)
 	if fmtErr != nil {
 		formatted = unformatted
