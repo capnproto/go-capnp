@@ -285,7 +285,11 @@ func (s PlaneBase) NameBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return p.Data(), nil
+	d := p.Data()
+	if len(d) == 0 {
+		return d, nil
+	}
+	return d[:len(d)-1], nil
 }
 
 func (s PlaneBase) SetName(v string) error {
@@ -1275,7 +1279,11 @@ func (s Z) TextBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return p.Data(), nil
+	d := p.Data()
+	if len(d) == 0 {
+		return d, nil
+	}
+	return d[:len(d)-1], nil
 }
 
 func (s Z) SetText(v string) error {
@@ -2148,7 +2156,11 @@ func (s Counter) WordsBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return p.Data(), nil
+	d := p.Data()
+	if len(d) == 0 {
+		return d, nil
+	}
+	return d[:len(d)-1], nil
 }
 
 func (s Counter) SetWords(v string) error {
@@ -2409,7 +2421,11 @@ func (s Zjob) CmdBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return p.Data(), nil
+	d := p.Data()
+	if len(d) == 0 {
+		return d, nil
+	}
+	return d[:len(d)-1], nil
 }
 
 func (s Zjob) SetCmd(v string) error {
@@ -3729,7 +3745,11 @@ func (s HoldsText) TxtBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return p.Data(), nil
+	d := p.Data()
+	if len(d) == 0 {
+		return d, nil
+	}
+	return d[:len(d)-1], nil
 }
 
 func (s HoldsText) SetTxt(v string) error {
@@ -4472,7 +4492,11 @@ func (s Echo_echo_Params) InBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return p.Data(), nil
+	d := p.Data()
+	if len(d) == 0 {
+		return d, nil
+	}
+	return d[:len(d)-1], nil
 }
 
 func (s Echo_echo_Params) SetIn(v string) error {
@@ -4551,7 +4575,11 @@ func (s Echo_echo_Results) OutBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return p.Data(), nil
+	d := p.Data()
+	if len(d) == 0 {
+		return d, nil
+	}
+	return d[:len(d)-1], nil
 }
 
 func (s Echo_echo_Results) SetOut(v string) error {
@@ -5226,7 +5254,11 @@ func (s Defaults) TextBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return p.DataDefault([]byte("foo")), nil
+	d := p.DataDefault([]byte("foo"))
+	if len(d) == 0 {
+		return d, nil
+	}
+	return d[:len(d)-1], nil
 }
 
 func (s Defaults) SetText(v string) error {
@@ -5348,7 +5380,11 @@ func (s BenchmarkA) NameBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return p.Data(), nil
+	d := p.Data()
+	if len(d) == 0 {
+		return d, nil
+	}
+	return d[:len(d)-1], nil
 }
 
 func (s BenchmarkA) SetName(v string) error {
@@ -5385,7 +5421,11 @@ func (s BenchmarkA) PhoneBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return p.Data(), nil
+	d := p.Data()
+	if len(d) == 0 {
+		return d, nil
+	}
+	return d[:len(d)-1], nil
 }
 
 func (s BenchmarkA) SetPhone(v string) error {
