@@ -5254,7 +5254,7 @@ func (s Defaults) TextBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	d := p.DataDefault([]byte("foo"))
+	d := p.DataDefault([]byte("foo" + "\x00"))
 	if len(d) == 0 {
 		return d, nil
 	}
