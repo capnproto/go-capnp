@@ -103,7 +103,11 @@ func (s Node) DisplayNameBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return p.Data(), nil
+	d := p.Data()
+	if len(d) == 0 {
+		return d, nil
+	}
+	return d[:len(d)-1], nil
 }
 
 func (s Node) SetDisplayName(v string) error {
@@ -645,7 +649,11 @@ func (s Node_Parameter) NameBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return p.Data(), nil
+	d := p.Data()
+	if len(d) == 0 {
+		return d, nil
+	}
+	return d[:len(d)-1], nil
 }
 
 func (s Node_Parameter) SetName(v string) error {
@@ -714,7 +722,11 @@ func (s Node_NestedNode) NameBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return p.Data(), nil
+	d := p.Data()
+	if len(d) == 0 {
+		return d, nil
+	}
+	return d[:len(d)-1], nil
 }
 
 func (s Node_NestedNode) SetName(v string) error {
@@ -837,7 +849,11 @@ func (s Field) NameBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return p.Data(), nil
+	d := p.Data()
+	if len(d) == 0 {
+		return d, nil
+	}
+	return d[:len(d)-1], nil
 }
 
 func (s Field) SetName(v string) error {
@@ -1056,7 +1072,11 @@ func (s Enumerant) NameBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return p.Data(), nil
+	d := p.Data()
+	if len(d) == 0 {
+		return d, nil
+	}
+	return d[:len(d)-1], nil
 }
 
 func (s Enumerant) SetName(v string) error {
@@ -1237,7 +1257,11 @@ func (s Method) NameBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return p.Data(), nil
+	d := p.Data()
+	if len(d) == 0 {
+		return d, nil
+	}
+	return d[:len(d)-1], nil
 }
 
 func (s Method) SetName(v string) error {
@@ -2300,7 +2324,11 @@ func (s Value) TextBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return p.Data(), nil
+	d := p.Data()
+	if len(d) == 0 {
+		return d, nil
+	}
+	return d[:len(d)-1], nil
 }
 
 func (s Value) SetText(v string) error {
@@ -2772,7 +2800,11 @@ func (s CodeGeneratorRequest_RequestedFile) FilenameBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return p.Data(), nil
+	d := p.Data()
+	if len(d) == 0 {
+		return d, nil
+	}
+	return d[:len(d)-1], nil
 }
 
 func (s CodeGeneratorRequest_RequestedFile) SetFilename(v string) error {
@@ -2881,7 +2913,11 @@ func (s CodeGeneratorRequest_RequestedFile_Import) NameBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return p.Data(), nil
+	d := p.Data()
+	if len(d) == 0 {
+		return d, nil
+	}
+	return d[:len(d)-1], nil
 }
 
 func (s CodeGeneratorRequest_RequestedFile_Import) SetName(v string) error {

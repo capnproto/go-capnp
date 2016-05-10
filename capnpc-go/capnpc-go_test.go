@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"go/parser"
+	"go/token"
 	"io/ioutil"
 	"path/filepath"
 	"sort"
@@ -233,7 +235,7 @@ func TestDefineConstNodes(t *testing.T) {
 }
 
 func TestDefineFile(t *testing.T) {
-	// Sanity check to make sure schemas don't error on generation.
+	// Sanity check to make sure codegen produces parseable Go.
 
 	tests := []struct {
 		fileID uint64
@@ -269,6 +271,12 @@ func TestDefineFile(t *testing.T) {
 		g := newGenerator(test.fileID, nodes, test.opts)
 		if err := g.defineFile(); err != nil {
 			t.Errorf("defineFile %s: %v", test.fname, err)
+			continue
+		}
+		src := g.generate()
+		if _, err := parser.ParseFile(token.NewFileSet(), test.fname+".go", src, 0); err != nil {
+			// TODO(light): log src
+			t.Errorf("generate %s failed to parse: %v", test.fname, err)
 			continue
 		}
 	}

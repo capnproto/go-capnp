@@ -2525,7 +2525,11 @@ func (s Exception) ReasonBytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return p.Data(), nil
+	d := p.Data()
+	if len(d) == 0 {
+		return d, nil
+	}
+	return d[:len(d)-1], nil
 }
 
 func (s Exception) SetReason(v string) error {
