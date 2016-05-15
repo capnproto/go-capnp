@@ -12,4 +12,5 @@ echo "** capnpc-go"
 (cd capnpc-go && go generate && go test && go install)
 
 echo "** schemas"
+(cd std/capnp; ./gen.sh compile)
 go generate ./...
