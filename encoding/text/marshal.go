@@ -190,6 +190,22 @@ func (m *marshaller) marshalFieldValue(s capnp.Struct, f schema.Field) error {
 		v := s.Uint64(capnp.DataOffset(f.Slot().Offset() * 8))
 		d := uint64(dv.Int64())
 		m.marshalInt(int64(v ^ d))
+	case schema.Type_Which_uint8:
+		v := s.Uint8(capnp.DataOffset(f.Slot().Offset()))
+		d := dv.Uint8()
+		m.marshalUint(uint64(v ^ d))
+	case schema.Type_Which_uint16:
+		v := s.Uint16(capnp.DataOffset(f.Slot().Offset() * 2))
+		d := dv.Uint16()
+		m.marshalUint(uint64(v ^ d))
+	case schema.Type_Which_uint32:
+		v := s.Uint32(capnp.DataOffset(f.Slot().Offset() * 4))
+		d := dv.Uint32()
+		m.marshalUint(uint64(v ^ d))
+	case schema.Type_Which_int64:
+		v := s.Uint64(capnp.DataOffset(f.Slot().Offset() * 8))
+		d := dv.Uint64()
+		m.marshalUint(v ^ d)
 	case schema.Type_Which_structType:
 		p, err := s.Ptr(uint16(f.Slot().Offset()))
 		if err != nil {
