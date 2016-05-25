@@ -1,3 +1,3 @@
-//go:generate capnp compile -ogo hash.capnp
+//go:generate capnp compile -I ../../../std -ogo hash.capnp
 
 package hashes

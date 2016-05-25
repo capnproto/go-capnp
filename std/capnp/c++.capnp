@@ -24,6 +24,6 @@ $namespace("capnp::annotations");
 
 annotation namespace(file): Text;
 annotation name(field, enumerant, struct, enum, interface, method, param, group, union): Text;
-using Go = import "../../go.capnp";
+using Go = import "../go.capnp";
 $Go.package("cxx");
 $Go.import("zombiezen.com/go/capnproto2/std/capnp/cxx");

@@ -1,4 +1,4 @@
-using Go = import "../../go.capnp";
+using Go = import "/go.capnp";
 
 $Go.package("aircraftlib");
 $Go.import("zombiezen.com/go/capnproto2/internal/aircraftlib");
@@ -27,7 +27,7 @@ enum Airport {
   sfo @3;
   luv @4;
   dfw @5;
-  test @6; 
+  test @6;
   # test must be last because we use it to count
   # the number of elements in the Airport enum.
 }
@@ -260,16 +260,16 @@ struct VoidUnion {
 
 # test List(List(Struct(List)))
 
-struct Nester1Capn { 
-   strs  @0:   List(Text); 
-} 
+struct Nester1Capn {
+   strs  @0:   List(Text);
+}
 
-struct RWTestCapn { 
-   nestMatrix  @0:   List(List(Nester1Capn)); 
-} 
+struct RWTestCapn {
+   nestMatrix  @0:   List(List(Nester1Capn));
+}
 
-struct ListStructCapn { 
-   vec  @0:   List(Nester1Capn); 
+struct ListStructCapn {
+   vec  @0:   List(Nester1Capn);
 }
 
 # test interfaces
