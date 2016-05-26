@@ -1,3 +1,3 @@
 package aircraftlib
 
-//go:generate capnp compile -ogo aircraft.capnp
+//go:generate capnp compile -I ../../std -ogo aircraft.capnp

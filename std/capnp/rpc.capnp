@@ -109,9 +109,8 @@
 # bother implementing any other vat network protocol -- just use the correct container type and get
 # it for free.
 
-using Go = import "../../go.capnp";
-$Go.package("rpccapnp");
-$Go.import("zombiezen.com/go/capnproto2/rpc/rpccapnp");
+using Cxx = import "/capnp/c++.capnp";
+$Cxx.namespace("capnp::rpc");
 
 # ========================================================================================
 # The Four Tables
@@ -432,7 +431,7 @@ struct Call {
     # Don't actually return the results to the sender.  Instead, hold on to them and await
     # instructions from the sender regarding what to do with them.  In particular, the sender
     # may subsequently send a `Return` for some other call (which the receiver had previously made
-    # to the sender) with `takeFromOtherAnswer` set.  The results from this call are then used
+    # to the sender) with `takeFromOtherQuestion` set.  The results from this call are then used
     # as the results of the other call.
     #
     # When `yourself` is used, the receiver must still send a `Return` for the call, but sets the
@@ -493,7 +492,7 @@ struct Return {
   # must not send separate `Release` messages for them.  Level 0 implementations in particular
   # should always set this true.  This defaults true because if level 0 implementations forget to
   # set it they'll never notice (just silently leak caps), but if level >=1 implementations forget
-  # set it false they'll quickly get errors.
+  # to set it to false they'll quickly get errors.
 
   union {
     results @2 :Payload;
@@ -1255,7 +1254,7 @@ using ThirdPartyCapId = AnyPointer;
 #
 # In a network where each vat has a public/private key pair, this could be a combination of the
 # third party's public key fingerprint, hints on how to connect to the third party (e.g. an IP
-# address), and the question ID used in the corresponding `Provide` mesasge sent to that third party
+# address), and the question ID used in the corresponding `Provide` message sent to that third party
 # (used to identify which capability to pick up).
 
 using JoinKeyPart = AnyPointer;
@@ -1398,3 +1397,6 @@ using JoinResult = AnyPointer;
 #   provision :ProvisionId;
 #   # `ProvisionId` to send in the `Accept` message.
 # }
+using Go = import "../go.capnp";
+$Go.package("rpc");
+$Go.import("zombiezen.com/go/capnproto2/std/capnp/rpc");

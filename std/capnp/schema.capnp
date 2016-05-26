@@ -19,11 +19,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-using Go = import "../../go.capnp";
+using Cxx = import "/capnp/c++.capnp";
 
 @0xa93fc509624c72d9;
-$Go.package("schema");
-$Go.import("zombiezen.com/go/capnproto2/internal/schema");
+$Cxx.namespace("capnp::schema");
 
 using Id = UInt64;
 # The globally-unique ID of a file, type, or annotation.
@@ -320,8 +319,18 @@ struct Type {
     }
 
     anyPointer :union {
-      unconstrained @18 :Void;
-      # A regular AnyPointer.
+      unconstrained :union {
+        # A regular AnyPointer.
+        #
+        # The name "unconstained" means as opposed to constraining it to match a type parameter.
+        # In retrospect this name is probably a poor choice given that it may still be constrained
+        # to be a struct, list, or capability.
+
+        anyKind @18 :Void;       # truly AnyPointer
+        struct @25 :Void;        # AnyStruct
+        list @26 :Void;          # AnyList
+        capability @27 :Void;    # Capability
+      }
 
       parameter :group {
         # This is actually a reference to a type parameter defined within this scope.
@@ -473,3 +482,6 @@ struct CodeGeneratorRequest {
     }
   }
 }
+using Go = import "../go.capnp";
+$Go.package("schema");
+$Go.import("zombiezen.com/go/capnproto2/std/capnp/schema");

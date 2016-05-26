@@ -606,6 +606,76 @@ func NewNode_List(s *capnp.Segment, sz int32) (Node_List, error) {
 func (s Node_List) At(i int) Node           { return Node{s.List.Struct(i)} }
 func (s Node_List) Set(i int, v Node) error { return s.List.SetStruct(i, v.Struct) }
 
+// Node_Promise is a wrapper for a Node promised by a client call.
+type Node_Promise struct{ *capnp.Pipeline }
+
+func (p Node_Promise) Struct() (Node, error) {
+	s, err := p.Pipeline.Struct()
+	return Node{s}, err
+}
+
+func (p Node_Promise) StructNode() Node_structNode_Promise { return Node_structNode_Promise{p.Pipeline} }
+
+// Node_structNode_Promise is a wrapper for a Node_structNode promised by a client call.
+type Node_structNode_Promise struct{ *capnp.Pipeline }
+
+func (p Node_structNode_Promise) Struct() (Node_structNode, error) {
+	s, err := p.Pipeline.Struct()
+	return Node_structNode{s}, err
+}
+
+func (p Node_Promise) Enum() Node_enum_Promise { return Node_enum_Promise{p.Pipeline} }
+
+// Node_enum_Promise is a wrapper for a Node_enum promised by a client call.
+type Node_enum_Promise struct{ *capnp.Pipeline }
+
+func (p Node_enum_Promise) Struct() (Node_enum, error) {
+	s, err := p.Pipeline.Struct()
+	return Node_enum{s}, err
+}
+
+func (p Node_Promise) Interface() Node_interface_Promise { return Node_interface_Promise{p.Pipeline} }
+
+// Node_interface_Promise is a wrapper for a Node_interface promised by a client call.
+type Node_interface_Promise struct{ *capnp.Pipeline }
+
+func (p Node_interface_Promise) Struct() (Node_interface, error) {
+	s, err := p.Pipeline.Struct()
+	return Node_interface{s}, err
+}
+
+func (p Node_Promise) Const() Node_const_Promise { return Node_const_Promise{p.Pipeline} }
+
+// Node_const_Promise is a wrapper for a Node_const promised by a client call.
+type Node_const_Promise struct{ *capnp.Pipeline }
+
+func (p Node_const_Promise) Struct() (Node_const, error) {
+	s, err := p.Pipeline.Struct()
+	return Node_const{s}, err
+}
+
+func (p Node_const_Promise) Type() Type_Promise {
+	return Type_Promise{Pipeline: p.Pipeline.GetPipeline(3)}
+}
+
+func (p Node_const_Promise) Value() Value_Promise {
+	return Value_Promise{Pipeline: p.Pipeline.GetPipeline(4)}
+}
+
+func (p Node_Promise) Annotation() Node_annotation_Promise { return Node_annotation_Promise{p.Pipeline} }
+
+// Node_annotation_Promise is a wrapper for a Node_annotation promised by a client call.
+type Node_annotation_Promise struct{ *capnp.Pipeline }
+
+func (p Node_annotation_Promise) Struct() (Node_annotation, error) {
+	s, err := p.Pipeline.Struct()
+	return Node_annotation{s}, err
+}
+
+func (p Node_annotation_Promise) Type() Type_Promise {
+	return Type_Promise{Pipeline: p.Pipeline.GetPipeline(3)}
+}
+
 type Node_Parameter struct{ capnp.Struct }
 
 func NewNode_Parameter(s *capnp.Segment) (Node_Parameter, error) {
@@ -678,6 +748,14 @@ func NewNode_Parameter_List(s *capnp.Segment, sz int32) (Node_Parameter_List, er
 
 func (s Node_Parameter_List) At(i int) Node_Parameter           { return Node_Parameter{s.List.Struct(i)} }
 func (s Node_Parameter_List) Set(i int, v Node_Parameter) error { return s.List.SetStruct(i, v.Struct) }
+
+// Node_Parameter_Promise is a wrapper for a Node_Parameter promised by a client call.
+type Node_Parameter_Promise struct{ *capnp.Pipeline }
+
+func (p Node_Parameter_Promise) Struct() (Node_Parameter, error) {
+	s, err := p.Pipeline.Struct()
+	return Node_Parameter{s}, err
+}
 
 type Node_NestedNode struct{ capnp.Struct }
 
@@ -760,6 +838,14 @@ func NewNode_NestedNode_List(s *capnp.Segment, sz int32) (Node_NestedNode_List, 
 func (s Node_NestedNode_List) At(i int) Node_NestedNode { return Node_NestedNode{s.List.Struct(i)} }
 func (s Node_NestedNode_List) Set(i int, v Node_NestedNode) error {
 	return s.List.SetStruct(i, v.Struct)
+}
+
+// Node_NestedNode_Promise is a wrapper for a Node_NestedNode promised by a client call.
+type Node_NestedNode_Promise struct{ *capnp.Pipeline }
+
+func (p Node_NestedNode_Promise) Struct() (Node_NestedNode, error) {
+	s, err := p.Pipeline.Struct()
+	return Node_NestedNode{s}, err
 }
 
 type Field struct{ capnp.Struct }
@@ -1029,6 +1115,52 @@ func NewField_List(s *capnp.Segment, sz int32) (Field_List, error) {
 func (s Field_List) At(i int) Field           { return Field{s.List.Struct(i)} }
 func (s Field_List) Set(i int, v Field) error { return s.List.SetStruct(i, v.Struct) }
 
+// Field_Promise is a wrapper for a Field promised by a client call.
+type Field_Promise struct{ *capnp.Pipeline }
+
+func (p Field_Promise) Struct() (Field, error) {
+	s, err := p.Pipeline.Struct()
+	return Field{s}, err
+}
+
+func (p Field_Promise) Slot() Field_slot_Promise { return Field_slot_Promise{p.Pipeline} }
+
+// Field_slot_Promise is a wrapper for a Field_slot promised by a client call.
+type Field_slot_Promise struct{ *capnp.Pipeline }
+
+func (p Field_slot_Promise) Struct() (Field_slot, error) {
+	s, err := p.Pipeline.Struct()
+	return Field_slot{s}, err
+}
+
+func (p Field_slot_Promise) Type() Type_Promise {
+	return Type_Promise{Pipeline: p.Pipeline.GetPipeline(2)}
+}
+
+func (p Field_slot_Promise) DefaultValue() Value_Promise {
+	return Value_Promise{Pipeline: p.Pipeline.GetPipeline(3)}
+}
+
+func (p Field_Promise) Group() Field_group_Promise { return Field_group_Promise{p.Pipeline} }
+
+// Field_group_Promise is a wrapper for a Field_group promised by a client call.
+type Field_group_Promise struct{ *capnp.Pipeline }
+
+func (p Field_group_Promise) Struct() (Field_group, error) {
+	s, err := p.Pipeline.Struct()
+	return Field_group{s}, err
+}
+
+func (p Field_Promise) Ordinal() Field_ordinal_Promise { return Field_ordinal_Promise{p.Pipeline} }
+
+// Field_ordinal_Promise is a wrapper for a Field_ordinal promised by a client call.
+type Field_ordinal_Promise struct{ *capnp.Pipeline }
+
+func (p Field_ordinal_Promise) Struct() (Field_ordinal, error) {
+	s, err := p.Pipeline.Struct()
+	return Field_ordinal{s}, err
+}
+
 type Enumerant struct{ capnp.Struct }
 
 func NewEnumerant(s *capnp.Segment) (Enumerant, error) {
@@ -1138,6 +1270,14 @@ func NewEnumerant_List(s *capnp.Segment, sz int32) (Enumerant_List, error) {
 func (s Enumerant_List) At(i int) Enumerant           { return Enumerant{s.List.Struct(i)} }
 func (s Enumerant_List) Set(i int, v Enumerant) error { return s.List.SetStruct(i, v.Struct) }
 
+// Enumerant_Promise is a wrapper for a Enumerant promised by a client call.
+type Enumerant_Promise struct{ *capnp.Pipeline }
+
+func (p Enumerant_Promise) Struct() (Enumerant, error) {
+	s, err := p.Pipeline.Struct()
+	return Enumerant{s}, err
+}
+
 type Superclass struct{ capnp.Struct }
 
 func NewSuperclass(s *capnp.Segment) (Superclass, error) {
@@ -1213,6 +1353,18 @@ func NewSuperclass_List(s *capnp.Segment, sz int32) (Superclass_List, error) {
 
 func (s Superclass_List) At(i int) Superclass           { return Superclass{s.List.Struct(i)} }
 func (s Superclass_List) Set(i int, v Superclass) error { return s.List.SetStruct(i, v.Struct) }
+
+// Superclass_Promise is a wrapper for a Superclass promised by a client call.
+type Superclass_Promise struct{ *capnp.Pipeline }
+
+func (p Superclass_Promise) Struct() (Superclass, error) {
+	s, err := p.Pipeline.Struct()
+	return Superclass{s}, err
+}
+
+func (p Superclass_Promise) Brand() Brand_Promise {
+	return Brand_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
 
 type Method struct{ capnp.Struct }
 
@@ -1423,12 +1575,29 @@ func NewMethod_List(s *capnp.Segment, sz int32) (Method_List, error) {
 func (s Method_List) At(i int) Method           { return Method{s.List.Struct(i)} }
 func (s Method_List) Set(i int, v Method) error { return s.List.SetStruct(i, v.Struct) }
 
+// Method_Promise is a wrapper for a Method promised by a client call.
+type Method_Promise struct{ *capnp.Pipeline }
+
+func (p Method_Promise) Struct() (Method, error) {
+	s, err := p.Pipeline.Struct()
+	return Method{s}, err
+}
+
+func (p Method_Promise) ParamBrand() Brand_Promise {
+	return Brand_Promise{Pipeline: p.Pipeline.GetPipeline(2)}
+}
+
+func (p Method_Promise) ResultBrand() Brand_Promise {
+	return Brand_Promise{Pipeline: p.Pipeline.GetPipeline(3)}
+}
+
 type Type struct{ capnp.Struct }
 type Type_list Type
 type Type_enum Type
 type Type_structType Type
 type Type_interface Type
 type Type_anyPointer Type
+type Type_anyPointer_unconstrained Type
 type Type_anyPointer_parameter Type
 type Type_anyPointer_implicitMethodParameter Type
 type Type_Which uint16
@@ -1521,6 +1690,31 @@ func (w Type_anyPointer_Which) String() string {
 
 	}
 	return "Type_anyPointer_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
+}
+
+type Type_anyPointer_unconstrained_Which uint16
+
+const (
+	Type_anyPointer_unconstrained_Which_anyKind    Type_anyPointer_unconstrained_Which = 0
+	Type_anyPointer_unconstrained_Which_struct     Type_anyPointer_unconstrained_Which = 1
+	Type_anyPointer_unconstrained_Which_list       Type_anyPointer_unconstrained_Which = 2
+	Type_anyPointer_unconstrained_Which_capability Type_anyPointer_unconstrained_Which = 3
+)
+
+func (w Type_anyPointer_unconstrained_Which) String() string {
+	const s = "anyKindstructlistcapability"
+	switch w {
+	case Type_anyPointer_unconstrained_Which_anyKind:
+		return s[0:7]
+	case Type_anyPointer_unconstrained_Which_struct:
+		return s[7:13]
+	case Type_anyPointer_unconstrained_Which_list:
+		return s[13:17]
+	case Type_anyPointer_unconstrained_Which_capability:
+		return s[17:27]
+
+	}
+	return "Type_anyPointer_unconstrained_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
 }
 
 func NewType(s *capnp.Segment) (Type, error) {
@@ -1780,8 +1974,33 @@ func (s Type) SetAnyPointer() {
 func (s Type_anyPointer) Which() Type_anyPointer_Which {
 	return Type_anyPointer_Which(s.Struct.Uint16(8))
 }
+func (s Type_anyPointer) Unconstrained() Type_anyPointer_unconstrained {
+	return Type_anyPointer_unconstrained(s)
+}
 func (s Type_anyPointer) SetUnconstrained() {
 	s.Struct.SetUint16(8, 0)
+}
+
+func (s Type_anyPointer_unconstrained) Which() Type_anyPointer_unconstrained_Which {
+	return Type_anyPointer_unconstrained_Which(s.Struct.Uint16(10))
+}
+func (s Type_anyPointer_unconstrained) SetAnyKind() {
+	s.Struct.SetUint16(10, 0)
+
+}
+
+func (s Type_anyPointer_unconstrained) SetStruct() {
+	s.Struct.SetUint16(10, 1)
+
+}
+
+func (s Type_anyPointer_unconstrained) SetList() {
+	s.Struct.SetUint16(10, 2)
+
+}
+
+func (s Type_anyPointer_unconstrained) SetCapability() {
+	s.Struct.SetUint16(10, 3)
 
 }
 
@@ -1833,6 +2052,116 @@ func NewType_List(s *capnp.Segment, sz int32) (Type_List, error) {
 
 func (s Type_List) At(i int) Type           { return Type{s.List.Struct(i)} }
 func (s Type_List) Set(i int, v Type) error { return s.List.SetStruct(i, v.Struct) }
+
+// Type_Promise is a wrapper for a Type promised by a client call.
+type Type_Promise struct{ *capnp.Pipeline }
+
+func (p Type_Promise) Struct() (Type, error) {
+	s, err := p.Pipeline.Struct()
+	return Type{s}, err
+}
+
+func (p Type_Promise) List() Type_list_Promise { return Type_list_Promise{p.Pipeline} }
+
+// Type_list_Promise is a wrapper for a Type_list promised by a client call.
+type Type_list_Promise struct{ *capnp.Pipeline }
+
+func (p Type_list_Promise) Struct() (Type_list, error) {
+	s, err := p.Pipeline.Struct()
+	return Type_list{s}, err
+}
+
+func (p Type_list_Promise) ElementType() Type_Promise {
+	return Type_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
+
+func (p Type_Promise) Enum() Type_enum_Promise { return Type_enum_Promise{p.Pipeline} }
+
+// Type_enum_Promise is a wrapper for a Type_enum promised by a client call.
+type Type_enum_Promise struct{ *capnp.Pipeline }
+
+func (p Type_enum_Promise) Struct() (Type_enum, error) {
+	s, err := p.Pipeline.Struct()
+	return Type_enum{s}, err
+}
+
+func (p Type_enum_Promise) Brand() Brand_Promise {
+	return Brand_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
+
+func (p Type_Promise) StructType() Type_structType_Promise { return Type_structType_Promise{p.Pipeline} }
+
+// Type_structType_Promise is a wrapper for a Type_structType promised by a client call.
+type Type_structType_Promise struct{ *capnp.Pipeline }
+
+func (p Type_structType_Promise) Struct() (Type_structType, error) {
+	s, err := p.Pipeline.Struct()
+	return Type_structType{s}, err
+}
+
+func (p Type_structType_Promise) Brand() Brand_Promise {
+	return Brand_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
+
+func (p Type_Promise) Interface() Type_interface_Promise { return Type_interface_Promise{p.Pipeline} }
+
+// Type_interface_Promise is a wrapper for a Type_interface promised by a client call.
+type Type_interface_Promise struct{ *capnp.Pipeline }
+
+func (p Type_interface_Promise) Struct() (Type_interface, error) {
+	s, err := p.Pipeline.Struct()
+	return Type_interface{s}, err
+}
+
+func (p Type_interface_Promise) Brand() Brand_Promise {
+	return Brand_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
+
+func (p Type_Promise) AnyPointer() Type_anyPointer_Promise { return Type_anyPointer_Promise{p.Pipeline} }
+
+// Type_anyPointer_Promise is a wrapper for a Type_anyPointer promised by a client call.
+type Type_anyPointer_Promise struct{ *capnp.Pipeline }
+
+func (p Type_anyPointer_Promise) Struct() (Type_anyPointer, error) {
+	s, err := p.Pipeline.Struct()
+	return Type_anyPointer{s}, err
+}
+
+func (p Type_anyPointer_Promise) Unconstrained() Type_anyPointer_unconstrained_Promise {
+	return Type_anyPointer_unconstrained_Promise{p.Pipeline}
+}
+
+// Type_anyPointer_unconstrained_Promise is a wrapper for a Type_anyPointer_unconstrained promised by a client call.
+type Type_anyPointer_unconstrained_Promise struct{ *capnp.Pipeline }
+
+func (p Type_anyPointer_unconstrained_Promise) Struct() (Type_anyPointer_unconstrained, error) {
+	s, err := p.Pipeline.Struct()
+	return Type_anyPointer_unconstrained{s}, err
+}
+
+func (p Type_anyPointer_Promise) Parameter() Type_anyPointer_parameter_Promise {
+	return Type_anyPointer_parameter_Promise{p.Pipeline}
+}
+
+// Type_anyPointer_parameter_Promise is a wrapper for a Type_anyPointer_parameter promised by a client call.
+type Type_anyPointer_parameter_Promise struct{ *capnp.Pipeline }
+
+func (p Type_anyPointer_parameter_Promise) Struct() (Type_anyPointer_parameter, error) {
+	s, err := p.Pipeline.Struct()
+	return Type_anyPointer_parameter{s}, err
+}
+
+func (p Type_anyPointer_Promise) ImplicitMethodParameter() Type_anyPointer_implicitMethodParameter_Promise {
+	return Type_anyPointer_implicitMethodParameter_Promise{p.Pipeline}
+}
+
+// Type_anyPointer_implicitMethodParameter_Promise is a wrapper for a Type_anyPointer_implicitMethodParameter promised by a client call.
+type Type_anyPointer_implicitMethodParameter_Promise struct{ *capnp.Pipeline }
+
+func (p Type_anyPointer_implicitMethodParameter_Promise) Struct() (Type_anyPointer_implicitMethodParameter, error) {
+	s, err := p.Pipeline.Struct()
+	return Type_anyPointer_implicitMethodParameter{s}, err
+}
 
 type Brand struct{ capnp.Struct }
 
@@ -1901,6 +2230,14 @@ func NewBrand_List(s *capnp.Segment, sz int32) (Brand_List, error) {
 
 func (s Brand_List) At(i int) Brand           { return Brand{s.List.Struct(i)} }
 func (s Brand_List) Set(i int, v Brand) error { return s.List.SetStruct(i, v.Struct) }
+
+// Brand_Promise is a wrapper for a Brand promised by a client call.
+type Brand_Promise struct{ *capnp.Pipeline }
+
+func (p Brand_Promise) Struct() (Brand, error) {
+	s, err := p.Pipeline.Struct()
+	return Brand{s}, err
+}
 
 type Brand_Scope struct{ capnp.Struct }
 type Brand_Scope_Which uint16
@@ -2007,6 +2344,14 @@ func NewBrand_Scope_List(s *capnp.Segment, sz int32) (Brand_Scope_List, error) {
 func (s Brand_Scope_List) At(i int) Brand_Scope           { return Brand_Scope{s.List.Struct(i)} }
 func (s Brand_Scope_List) Set(i int, v Brand_Scope) error { return s.List.SetStruct(i, v.Struct) }
 
+// Brand_Scope_Promise is a wrapper for a Brand_Scope promised by a client call.
+type Brand_Scope_Promise struct{ *capnp.Pipeline }
+
+func (p Brand_Scope_Promise) Struct() (Brand_Scope, error) {
+	s, err := p.Pipeline.Struct()
+	return Brand_Scope{s}, err
+}
+
 type Brand_Binding struct{ capnp.Struct }
 type Brand_Binding_Which uint16
 
@@ -2103,6 +2448,18 @@ func NewBrand_Binding_List(s *capnp.Segment, sz int32) (Brand_Binding_List, erro
 
 func (s Brand_Binding_List) At(i int) Brand_Binding           { return Brand_Binding{s.List.Struct(i)} }
 func (s Brand_Binding_List) Set(i int, v Brand_Binding) error { return s.List.SetStruct(i, v.Struct) }
+
+// Brand_Binding_Promise is a wrapper for a Brand_Binding promised by a client call.
+type Brand_Binding_Promise struct{ *capnp.Pipeline }
+
+func (p Brand_Binding_Promise) Struct() (Brand_Binding, error) {
+	s, err := p.Pipeline.Struct()
+	return Brand_Binding{s}, err
+}
+
+func (p Brand_Binding_Promise) Type() Type_Promise {
+	return Type_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
 
 type Value struct{ capnp.Struct }
 type Value_Which uint16
@@ -2460,6 +2817,26 @@ func NewValue_List(s *capnp.Segment, sz int32) (Value_List, error) {
 func (s Value_List) At(i int) Value           { return Value{s.List.Struct(i)} }
 func (s Value_List) Set(i int, v Value) error { return s.List.SetStruct(i, v.Struct) }
 
+// Value_Promise is a wrapper for a Value promised by a client call.
+type Value_Promise struct{ *capnp.Pipeline }
+
+func (p Value_Promise) Struct() (Value, error) {
+	s, err := p.Pipeline.Struct()
+	return Value{s}, err
+}
+
+func (p Value_Promise) List() *capnp.Pipeline {
+	return p.Pipeline.GetPipeline(0)
+}
+
+func (p Value_Promise) StructValue() *capnp.Pipeline {
+	return p.Pipeline.GetPipeline(0)
+}
+
+func (p Value_Promise) AnyPointer() *capnp.Pipeline {
+	return p.Pipeline.GetPipeline(0)
+}
+
 type Annotation struct{ capnp.Struct }
 
 func NewAnnotation(s *capnp.Segment) (Annotation, error) {
@@ -2563,6 +2940,22 @@ func NewAnnotation_List(s *capnp.Segment, sz int32) (Annotation_List, error) {
 
 func (s Annotation_List) At(i int) Annotation           { return Annotation{s.List.Struct(i)} }
 func (s Annotation_List) Set(i int, v Annotation) error { return s.List.SetStruct(i, v.Struct) }
+
+// Annotation_Promise is a wrapper for a Annotation promised by a client call.
+type Annotation_Promise struct{ *capnp.Pipeline }
+
+func (p Annotation_Promise) Struct() (Annotation, error) {
+	s, err := p.Pipeline.Struct()
+	return Annotation{s}, err
+}
+
+func (p Annotation_Promise) Brand() Brand_Promise {
+	return Brand_Promise{Pipeline: p.Pipeline.GetPipeline(1)}
+}
+
+func (p Annotation_Promise) Value() Value_Promise {
+	return Value_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
 
 type ElementSize uint16
 
@@ -2749,6 +3142,14 @@ func (s CodeGeneratorRequest_List) Set(i int, v CodeGeneratorRequest) error {
 	return s.List.SetStruct(i, v.Struct)
 }
 
+// CodeGeneratorRequest_Promise is a wrapper for a CodeGeneratorRequest promised by a client call.
+type CodeGeneratorRequest_Promise struct{ *capnp.Pipeline }
+
+func (p CodeGeneratorRequest_Promise) Struct() (CodeGeneratorRequest, error) {
+	s, err := p.Pipeline.Struct()
+	return CodeGeneratorRequest{s}, err
+}
+
 type CodeGeneratorRequest_RequestedFile struct{ capnp.Struct }
 
 func NewCodeGeneratorRequest_RequestedFile(s *capnp.Segment) (CodeGeneratorRequest_RequestedFile, error) {
@@ -2862,6 +3263,14 @@ func (s CodeGeneratorRequest_RequestedFile_List) Set(i int, v CodeGeneratorReque
 	return s.List.SetStruct(i, v.Struct)
 }
 
+// CodeGeneratorRequest_RequestedFile_Promise is a wrapper for a CodeGeneratorRequest_RequestedFile promised by a client call.
+type CodeGeneratorRequest_RequestedFile_Promise struct{ *capnp.Pipeline }
+
+func (p CodeGeneratorRequest_RequestedFile_Promise) Struct() (CodeGeneratorRequest_RequestedFile, error) {
+	s, err := p.Pipeline.Struct()
+	return CodeGeneratorRequest_RequestedFile{s}, err
+}
+
 type CodeGeneratorRequest_RequestedFile_Import struct{ capnp.Struct }
 
 func NewCodeGeneratorRequest_RequestedFile_Import(s *capnp.Segment) (CodeGeneratorRequest_RequestedFile_Import, error) {
@@ -2945,4 +3354,12 @@ func (s CodeGeneratorRequest_RequestedFile_Import_List) At(i int) CodeGeneratorR
 }
 func (s CodeGeneratorRequest_RequestedFile_Import_List) Set(i int, v CodeGeneratorRequest_RequestedFile_Import) error {
 	return s.List.SetStruct(i, v.Struct)
+}
+
+// CodeGeneratorRequest_RequestedFile_Import_Promise is a wrapper for a CodeGeneratorRequest_RequestedFile_Import promised by a client call.
+type CodeGeneratorRequest_RequestedFile_Import_Promise struct{ *capnp.Pipeline }
+
+func (p CodeGeneratorRequest_RequestedFile_Import_Promise) Struct() (CodeGeneratorRequest_RequestedFile_Import, error) {
+	s, err := p.Pipeline.Struct()
+	return CodeGeneratorRequest_RequestedFile_Import{s}, err
 }

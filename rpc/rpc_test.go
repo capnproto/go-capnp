@@ -10,7 +10,7 @@ import (
 	"zombiezen.com/go/capnproto2/rpc"
 	"zombiezen.com/go/capnproto2/rpc/internal/logtransport"
 	"zombiezen.com/go/capnproto2/rpc/internal/pipetransport"
-	"zombiezen.com/go/capnproto2/rpc/rpccapnp"
+	rpccapnp "zombiezen.com/go/capnproto2/std/capnp/rpc"
 )
 
 const (

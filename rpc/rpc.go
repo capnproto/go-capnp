@@ -7,7 +7,7 @@ import (
 
 	"golang.org/x/net/context"
 	"zombiezen.com/go/capnproto2"
-	"zombiezen.com/go/capnproto2/rpc/rpccapnp"
+	rpccapnp "zombiezen.com/go/capnproto2/std/capnp/rpc"
 )
 
 // A Conn is a connection to another Cap'n Proto vat.
