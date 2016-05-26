@@ -52,7 +52,20 @@ schemas.
 
 # Directory Structure
 
-The schema themselves are stored in this directory, rather than in the
-individual package directories, since it makes it makes the imports in
-the schema "just work" with no modifications. This directory is called
-`capnp` for the same reason.
+The directory structure of this repository is designed such that when
+compiling other schema, it should be sufficient to execute:
+
+    capnp compile -I ${path_to_this_repository}/std -ogo ${schama_name}.capnp
+
+And have the `$import` statements in existing schema "just work."
+
+To achieve this, the base schemas themselves are stored as
+`/std/capnp/${schema_name}.capnp`. The generated go source files are
+stored in  a subdirectory, to make them their own package:
+`/std/capnp/${mangled_schema_name}/${mangled_schema_name}.capnp.go`.
+
+In addition to the upstream base schemas, we also ship a schema
+`/std/go.capnp`, which contains annotations used by `go-capnpc`. Its
+usage is described in the top-level README. The generated source is
+placed in the root of the repository, making it part of the go package
+`zombiezen.com/go/capnproto2`.
