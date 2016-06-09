@@ -1397,6 +1397,6 @@ using JoinResult = AnyPointer;
 #   provision :ProvisionId;
 #   # `ProvisionId` to send in the `Accept` message.
 # }
-using Go = import "../go.capnp";
+using Go = import "/go.capnp";
 $Go.package("rpc");
 $Go.import("zombiezen.com/go/capnproto2/std/capnp/rpc");

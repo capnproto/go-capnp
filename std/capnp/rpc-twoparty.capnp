@@ -167,6 +167,6 @@ struct JoinResult {
   #
   # TODO(cleanup):  Change `AnyPointer` to `Capability` when that is supported.
 }
-using Go = import "../go.capnp";
+using Go = import "/go.capnp";
 $Go.package("rpctwoparty");
 $Go.import("zombiezen.com/go/capnproto2/std/capnp/rpctwoparty");

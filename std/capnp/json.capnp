@@ -56,6 +56,6 @@ struct JsonValue {
     params @1 :List(JsonValue);
   }
 }
-using Go = import "../go.capnp";
+using Go = import "/go.capnp";
 $Go.package("json");
 $Go.import("zombiezen.com/go/capnproto2/std/capnp/json");

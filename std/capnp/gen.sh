@@ -18,7 +18,7 @@ gen_annotated_schema() {
 	cp "$infile" "$outfile"
 	package_name="$(infer_package_name $outfile)"
 	cat >> "$outfile" << EOF
-using Go = import "../go.capnp";
+using Go = import "/go.capnp";
 \$Go.package("$package_name");
 \$Go.import("zombiezen.com/go/capnproto2/std/capnp/$package_name");
 EOF
@@ -30,7 +30,7 @@ gen_go_src() {
 	file="$1"
 	package_name="$(infer_package_name $file)"
 	[ -d $package_name ] || mkdir $package_name
-	capnp compile -ogo:$package_name $file
+	capnp compile -I"$(dirname $PWD)" -ogo:$package_name $file
 }
 
 usage() {
