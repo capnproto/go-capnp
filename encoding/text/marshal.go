@@ -202,7 +202,7 @@ func (m *marshaller) marshalFieldValue(s capnp.Struct, f schema.Field) error {
 		v := s.Uint32(capnp.DataOffset(f.Slot().Offset() * 4))
 		d := dv.Uint32()
 		m.marshalUint(uint64(v ^ d))
-	case schema.Type_Which_int64:
+	case schema.Type_Which_uint64:
 		v := s.Uint64(capnp.DataOffset(f.Slot().Offset() * 8))
 		d := dv.Uint64()
 		m.marshalUint(v ^ d)
