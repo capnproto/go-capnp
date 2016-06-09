@@ -18,6 +18,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"text/template"
@@ -116,8 +117,6 @@ func (g *generator) generate() []byte {
 	if len(g.data.buf) > 0 {
 		writeByteLiteral(&out, g.data.name, g.data.buf)
 	}
-	sb := g.schemaBytes()
-	writeByteLiteral(&out, fmt.Sprintf("schema_%x", g.fileID), sb)
 	return out.Bytes()
 }
 
@@ -132,22 +131,37 @@ func writeByteLiteral(out *bytes.Buffer, name string, data []byte) {
 	fmt.Fprintf(out, "\n}\n")
 }
 
-func (g *generator) schemaBytes() []byte {
+func (g *generator) defineSchemaVar() error {
 	msg, seg, _ := capnp.NewMessage(capnp.SingleSegment(nil))
 	req, _ := schema.NewRootCodeGeneratorRequest(seg)
-	// TODO(light): find largest object size and use that to allocate list
 	// TODO(light): only include nodes in transitive deps
+	ids := make([]uint64, 0, len(g.nodes))
+	for id := range g.nodes {
+		ids = append(ids, id)
+	}
+	sort.Sort(uint64Slice(ids))
+	// TODO(light): find largest object size and use that to allocate list
 	nodes, _ := req.NewNodes(int32(len(g.nodes)))
 	i := 0
-	for _, n := range g.nodes {
-		nodes.Set(i, n.Node)
+	for _, id := range ids {
+		n := g.nodes[id]
+		if err := nodes.Set(i, n.Node); err != nil {
+			return err
+		}
 		i++
 	}
 	var buf bytes.Buffer
 	z, _ := zlib.NewWriterLevel(&buf, zlib.BestCompression)
-	capnp.NewPackedEncoder(z).Encode(msg)
-	z.Close()
-	return buf.Bytes()
+	if err := capnp.NewPackedEncoder(z).Encode(msg); err != nil {
+		return err
+	}
+	if err := z.Close(); err != nil {
+		return err
+	}
+	return renderSchemaVar(g.r, schemaVarParams{
+		FileID: g.fileID,
+		schema: buf.Bytes(),
+	})
 }
 
 // importForNode returns the import spec needed to reference n from
@@ -1102,6 +1116,9 @@ func (g *generator) defineFile() error {
 			return err
 		}
 	}
+	if err := g.defineSchemaVar(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -1179,3 +1196,9 @@ func main() {
 		os.Exit(1)
 	}
 }
+
+type uint64Slice []uint64
+
+func (p uint64Slice) Len() int           { return len(p) }
+func (p uint64Slice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+func (p uint64Slice) Less(i, j int) bool { return p[i] < p[j] }

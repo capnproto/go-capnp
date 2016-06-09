@@ -8,6 +8,8 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"sort"
+	"strconv"
+	"strings"
 	"testing"
 
 	"zombiezen.com/go/capnproto2"
@@ -282,6 +284,65 @@ func TestDefineFile(t *testing.T) {
 	}
 }
 
+func TestDefineSchemaVarDeterminism(t *testing.T) {
+	// TODO(light): convert this into testing defineFile
+
+	const iterations = 100
+	req := mustReadGeneratorRequest(t, "aircraft.capnp.out")
+	nodes, err := buildNodeMap(req)
+	if err != nil {
+		t.Fatalf("buildNodeMap aircraft.capnp.out: %v", err)
+	}
+	g := newGenerator(0x832bcc6686a26d56, nodes, genoptions{})
+	getCalls := traceGenerator(g)
+	for i := 0; i < iterations; i++ {
+		if err := g.defineSchemaVar(); err != nil {
+			t.Fatalf("defineSchema call #%d: %v", i+1, err)
+		}
+	}
+	calls := getCalls()
+	if len(calls) != iterations {
+		t.Fatalf("defineSchemaVar called %d templates; want 1", len(calls)/iterations)
+	}
+	p0, ok := calls[0].params.(schemaVarParams)
+	if calls[0].name != "schemaVar" || !ok {
+		t.Fatalf("defineSchemaVar rendered %v; want render of schemaVar template", calls[0])
+	}
+	for i, c := range calls {
+		p, ok := c.params.(schemaVarParams)
+		if c.name != "schemaVar" || !ok {
+			t.Errorf("defineSchemaVar call #%d rendered %v; want render of schemaVar template", i+1, c)
+			continue
+		}
+		if !bytes.Equal(p0.schema, p.schema) {
+			t.Fatal("defineSchemaVar schema data is not deterministic between calls")
+		}
+	}
+}
+
+func TestSchemaVarLiteral(t *testing.T) {
+	tests := []string{
+		"",
+		"foo",
+		"deadbeefdeadbeef",
+		"deadbeefdeadbeefdeadbeef",
+		"\x00\x00",
+		"\xff\xff",
+		"\n",
+		" ~\"\\",
+		"\xff\xff\x27\xa1\xe3\xf1",
+	}
+	for _, test := range tests {
+		got := schemaVarParams{schema: []byte(test)}.SchemaLiteral()
+		u, err := strconv.Unquote(strings.Replace(got, "\" +\n\t\"", "", -1))
+		if err != nil {
+			t.Errorf("schema literal of %q does not parse: %v\n\tproduced: %s", test, err, got)
+		} else if u != test {
+			t.Errorf("schema literal of %q != %s", test, got)
+		}
+	}
+}
+
 type traceRenderer struct {
 	renderer
 	calls []renderCall
@@ -325,18 +386,4 @@ func containsExactlyIDs(nodes []*node, ids ...uint64) bool {
 		}
 	}
 	return true
-}
-
-type uint64Slice []uint64
-
-func (a uint64Slice) Len() int {
-	return len(a)
-}
-
-func (a uint64Slice) Swap(i, j int) {
-	a[i], a[j] = a[j], a[i]
-}
-
-func (a uint64Slice) Less(i, j int) bool {
-	return a[i] < a[j]
 }

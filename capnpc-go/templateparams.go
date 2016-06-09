@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"bytes"
+	"fmt"
+)
 
 type annotationParams struct {
 	G    *generator
@@ -188,4 +191,42 @@ type listValueParams struct {
 	G     *generator
 	Typ   string
 	Value staticDataRef
+}
+
+type schemaVarParams struct {
+	FileID uint64
+	schema []byte
+}
+
+func (p schemaVarParams) SchemaLiteral() string {
+	const width = 16
+	var out bytes.Buffer
+	out.WriteByte('"')
+	for i, b := range p.schema {
+		if i > 0 && i%width == 0 {
+			out.WriteString("\" +\n\t\"")
+		}
+		switch {
+		case b < ' ' || b > '~':
+			// unprintable
+			out.WriteString("\\x")
+			out.WriteByte(hexdigit(b >> 4))
+			out.WriteByte(hexdigit(b & 0xf))
+		case b == '"':
+			out.WriteString("\\\"")
+		case b == '\\':
+			out.WriteString("\\\\")
+		default:
+			out.WriteByte(b)
+		}
+	}
+	out.WriteByte('"')
+	return out.String()
+}
+
+func hexdigit(b byte) byte {
+	if b < 10 {
+		return b + '0'
+	}
+	return (b - 10) + 'a'
 }
