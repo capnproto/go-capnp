@@ -10,6 +10,7 @@ package main
 
 import (
 	"bytes"
+	"compress/zlib"
 	"errors"
 	"flag"
 	"fmt"
@@ -113,16 +114,40 @@ func (g *generator) generate() []byte {
 	out.WriteString(")\n")
 	out.Write(g.r.Bytes())
 	if len(g.data.buf) > 0 {
-		fmt.Fprintf(&out, "var %s = []byte{", g.data.name)
-		for i, b := range g.data.buf {
-			if i%8 == 0 {
-				out.WriteByte('\n')
-			}
-			fmt.Fprintf(&out, "%d,", b)
-		}
-		fmt.Fprintf(&out, "\n}\n")
+		writeByteLiteral(&out, g.data.name, g.data.buf)
 	}
+	sb := g.schemaBytes()
+	writeByteLiteral(&out, fmt.Sprintf("schema_%x", g.fileID), sb)
 	return out.Bytes()
+}
+
+func writeByteLiteral(out *bytes.Buffer, name string, data []byte) {
+	fmt.Fprintf(out, "var %s = []byte{", name)
+	for i, b := range data {
+		if i%8 == 0 {
+			out.WriteByte('\n')
+		}
+		fmt.Fprintf(out, "%d,", b)
+	}
+	fmt.Fprintf(out, "\n}\n")
+}
+
+func (g *generator) schemaBytes() []byte {
+	msg, seg, _ := capnp.NewMessage(capnp.SingleSegment(nil))
+	req, _ := schema.NewRootCodeGeneratorRequest(seg)
+	// TODO(light): find largest object size and use that to allocate list
+	// TODO(light): only include nodes in transitive deps
+	nodes, _ := req.NewNodes(int32(len(g.nodes)))
+	i := 0
+	for _, n := range g.nodes {
+		nodes.Set(i, n.Node)
+		i++
+	}
+	var buf bytes.Buffer
+	z, _ := zlib.NewWriterLevel(&buf, zlib.BestCompression)
+	capnp.NewPackedEncoder(z).Encode(msg)
+	z.Close()
+	return buf.Bytes()
 }
 
 // importForNode returns the import spec needed to reference n from
