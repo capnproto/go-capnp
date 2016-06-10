@@ -13,7 +13,7 @@ type node struct {
 	schema.Node
 	pkg   string
 	imp   string
-	nodes []*node
+	nodes []*node // only for file nodes
 	Name  string
 }
 

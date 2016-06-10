@@ -134,10 +134,10 @@ func writeByteLiteral(out *bytes.Buffer, name string, data []byte) {
 func (g *generator) defineSchemaVar() error {
 	msg, seg, _ := capnp.NewMessage(capnp.SingleSegment(nil))
 	req, _ := schema.NewRootCodeGeneratorRequest(seg)
-	// TODO(light): only include nodes in transitive deps
-	ids := make([]uint64, 0, len(g.nodes))
-	for id := range g.nodes {
-		ids = append(ids, id)
+	fnodes := g.nodes[g.fileID].nodes
+	ids := make([]uint64, len(fnodes))
+	for i, n := range fnodes {
+		ids[i] = n.Id()
 	}
 	sort.Sort(uint64Slice(ids))
 	// TODO(light): find largest object size and use that to allocate list
