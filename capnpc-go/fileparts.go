@@ -64,12 +64,10 @@ func (i *imports) init() {
 	i.used = make(map[string]bool)
 
 	i.reserve(capnpImportSpec)
+	i.reserve(importSpec{path: schemasImport, name: "schemas"})
 	i.reserve(importSpec{path: serverImport, name: "server"})
 	i.reserve(importSpec{path: contextImport, name: "context"})
 
-	i.reserve(importSpec{path: "bufio", name: "bufio"})
-	i.reserve(importSpec{path: "bytes", name: "bytes"})
-	i.reserve(importSpec{path: "io", name: "io"})
 	i.reserve(importSpec{path: "math", name: "math"})
 	i.reserve(importSpec{path: "strconv", name: "strconv"})
 }
