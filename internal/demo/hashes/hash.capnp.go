@@ -5,6 +5,7 @@ package hashes
 import (
 	context "golang.org/x/net/context"
 	capnp "zombiezen.com/go/capnproto2"
+	schemas "zombiezen.com/go/capnproto2/schemas"
 	server "zombiezen.com/go/capnproto2/server"
 )
 
@@ -589,3 +590,15 @@ const schema_db8274f9144abc7e = "x\xda\x12\xf8\xed\xc0d\xc8\xaa\xce\xc2\xc0\x10h
 	"\x1a\x01\x83N\x95\x9d\x11\x91N\x18a\x09NPR\x09" +
 	"(\xc7\xcb.\x0f\xf6\xb6\x03#;\xd0\xed\xe0\xa0\x05\x04" +
 	"\x00\x00\xff\xff<.\xe3\xa6"
+
+func init() {
+	schemas.Register(schema_db8274f9144abc7e,
+		0x80ac741ec7fb8f65,
+		0x92b20ad1a58ca0ca,
+		0xaead580f97fddabc,
+		0xd093963b95a4e107,
+		0xdffe94ae546cdee3,
+		0xe74bb2d0190cf89c,
+		0xea3e50f7663f7bdf,
+		0xf29f97dd675a9431)
+}

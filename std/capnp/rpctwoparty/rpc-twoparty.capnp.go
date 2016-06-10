@@ -4,6 +4,7 @@ package rpctwoparty
 
 import (
 	capnp "zombiezen.com/go/capnproto2"
+	schemas "zombiezen.com/go/capnproto2/schemas"
 )
 
 type Side uint16
@@ -466,3 +467,14 @@ const schema_a184c7885cdaf2a1 = "x\xda|\x92\xcfk\x13A\x14\xc7\xdf\x9bIL\x82\x96"
 	"\xdc\x941\x0b\xdbs\x8f\xa8\xb9\xcb4Nmx\x9c," +
 	"\xa7\xab\x1dzu\x80\x01\x93#}\x93jH\x03a\xb5" +
 	"\xff\x81\xd38U\xc0?\x01\x00\x00\xff\xff+!\xf3\xa9"
+
+func init() {
+	schemas.Register(schema_a184c7885cdaf2a1,
+		0x89f389b6fd4082c1,
+		0x95b29059097fca83,
+		0x9d263a3630b7ebee,
+		0x9fd69ebc87b9719c,
+		0xb47f4979672cb59d,
+		0xb88d09a9c5f39817,
+		0xd20b909fee733a8e)
+}

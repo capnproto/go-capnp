@@ -4,6 +4,7 @@ package books
 
 import (
 	capnp "zombiezen.com/go/capnproto2"
+	schemas "zombiezen.com/go/capnproto2/schemas"
 )
 
 type Book struct{ capnp.Struct }
@@ -105,3 +106,8 @@ const schema_85d3acc39d94e0f8 = "x\xda\x12\x88w`2d\xdd\xcf\xc8\xc0\x10(\xc2\xca"
 	"\x0b&F\xf9\x92\xcc\x92\x9cTF\x1e\x06& f\xfc" +
 	"_\x90\x98\x9e\xea\x9c_\x9a\xc7\xc0X\xc2\xc8\x02\x14c" +
 	"a`\x04\x04\x00\x00\xff\xffF\xa9$\xae"
+
+func init() {
+	schemas.Register(schema_85d3acc39d94e0f8,
+		0x8100cc88d7d4d47c)
+}

@@ -6,6 +6,7 @@ import (
 	math "math"
 	strconv "strconv"
 	capnp "zombiezen.com/go/capnproto2"
+	schemas "zombiezen.com/go/capnproto2/schemas"
 )
 
 type JsonValue struct{ capnp.Struct }
@@ -499,3 +500,10 @@ const schema_8ef99297a43a5e34 = "x\xdat\x91\xcdk\x13A\x18\xc6\xe7\x99\xc9\xa6\x9
 	"^\xb3\xbd\xed\xd4\xdb\xb4\xe7C\xaa`vK\x7f+p" +
 	"\x98\xadJ}\xfd\x0f\x96{Ce\xb4\xd7\xf4\xbb\xb6." +
 	"\xd9\x8b\xb64d\xde\xbf\x01\x00\x00\xff\xff\xaa\x8f\xc0\x9e"
+
+func init() {
+	schemas.Register(schema_8ef99297a43a5e34,
+		0x8825ffaa852cda72,
+		0x9bbf84153dd4bb60,
+		0xc27855d853a937cc)
+}

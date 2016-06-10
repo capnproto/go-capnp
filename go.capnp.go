@@ -2,7 +2,9 @@ package capnp
 
 // AUTO GENERATED - DO NOT EDIT
 
-import ()
+import (
+	schemas "zombiezen.com/go/capnproto2/schemas"
+)
 
 const Package = uint64(0xbea97f1023792be0)
 const Import = uint64(0xe130b601260e44b5)
@@ -30,3 +32,14 @@ const schema_d12a1c51fedd6c88 = "x\xda\x12\x98\xe2\xc0d\xc8z\x9c\x89\x81!P\x81\x
 	"\xe6\xc4t\xa0\x1c\x033\x9aLfn\x01{~Q\x09" +
 	"\xba6&\xb0driqI~nIeA*\xcc" +
 	"\\@\x00\x00\x00\xff\xff\x89\xff\x94\xdf"
+
+func init() {
+	schemas.Register(schema_d12a1c51fedd6c88,
+		0xa574b41924caefc7,
+		0xbea97f1023792be0,
+		0xc2b96012172f8df1,
+		0xc58ad6bd519f935e,
+		0xc8768679ec52e012,
+		0xe130b601260e44b5,
+		0xfa10659ae02f2093)
+}

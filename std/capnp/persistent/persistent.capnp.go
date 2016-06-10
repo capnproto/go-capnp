@@ -5,6 +5,7 @@ package persistent
 import (
 	context "golang.org/x/net/context"
 	capnp "zombiezen.com/go/capnproto2"
+	schemas "zombiezen.com/go/capnproto2/schemas"
 	server "zombiezen.com/go/capnproto2/server"
 )
 
@@ -609,3 +610,14 @@ const schema_b8630836983feed7 = "x\xda\xbcSMH\x14o\x18\x7f\x9e\xf9\xd8\xd9\xfd\x
 	"\xa7s&H\xe5W\xc5\xad\xb67\x96\xcc#\xdb\xb0\xbc" +
 	"CD-\xcd\xaf\xd5\x0bx\xd9!\x89\x8e\xe6\xec\x02Q" +
 	"\x1b6\xf7W\x00\x00\x00\xff\xff\x1ar\xf0\xc2"
+
+func init() {
+	schemas.Register(schema_b8630836983feed7,
+		0x84ff286cd00a3ed4,
+		0xb76848c18c40efbf,
+		0xc8cb212fcd9f5691,
+		0xecafa18b482da3aa,
+		0xf0c2cc1d3909574d,
+		0xf622595091cafb67,
+		0xf76fba59183073a5)
+}

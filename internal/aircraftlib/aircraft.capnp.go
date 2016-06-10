@@ -7,6 +7,7 @@ import (
 	math "math"
 	strconv "strconv"
 	capnp "zombiezen.com/go/capnproto2"
+	schemas "zombiezen.com/go/capnproto2/schemas"
 	server "zombiezen.com/go/capnproto2/server"
 )
 
@@ -5736,6 +5737,62 @@ const schema_832bcc6686a26d56 = "x\xda\xacY\x0dpTU\x96~\xb7\x7f\xf2:\xe9t" +
 	".a\xa6C'\x13\x01\x9e\xdb\x04)\xce\xd8\x83\x83\x19" +
 	"\x01{\xb9kL\xed\xfa\x96\x08\x97x}1(\xfc\x7f" +
 	"\x01\x00\x00\xff\xff;\x92\x03\xf8"
+
+func init() {
+	schemas.Register(schema_832bcc6686a26d56,
+		0x85257b30d6edf8c5,
+		0x8748bc095e10cb5d,
+		0x87c33f2330feb3d8,
+		0x8821cdb23640783a,
+		0x8a165fb4d71bf3a2,
+		0x8e5322c1e9282534,
+		0x8fae7b41c61fc890,
+		0x93c99951eacc72ff,
+		0x9430ab12c496d40c,
+		0x94bf7df83408218d,
+		0x95befe3f14606e6b,
+		0x97e38948c61f878d,
+		0x9ab599979b02ac59,
+		0x9b37d729b9dd7b9d,
+		0x9b8f27ba05e255c8,
+		0x9d3032ff86043b75,
+		0xa465f9502fd11e97,
+		0xa8bf13fef2674866,
+		0xabaedf5f7817c820,
+		0xabd055422a4d7df1,
+		0xad87da456fb0ebb9,
+		0xb1ac056ed7647011,
+		0xb1f0385d845e367f,
+		0xb61ee2ecff34ca73,
+		0xc7da65f9a2f20ba2,
+		0xc95babe3bd394d2d,
+		0xcbdc765fd5dff7ba,
+		0xcc4411e60ba9c498,
+		0xccb3b2e3603826e0,
+		0xce44aee2d9e25049,
+		0xcf9beaca1cc180c8,
+		0xd636fba4f188dabe,
+		0xd8bccf6e60a73791,
+		0xd98c608877d9cb8d,
+		0xddd1416669fb7613,
+		0xde2a1a960863c11c,
+		0xde50aebbad57549d,
+		0xde9ed43cfaa83093,
+		0xe1a2d1d51107bead,
+		0xe1c9eac512335361,
+		0xe508a29c83a059f8,
+		0xe54e10aede55c7b1,
+		0xe55d85fc1bf82f21,
+		0xe5817f849ff906dc,
+		0xe684eb3aef1a6859,
+		0xe7711aada4bed56b,
+		0xea26e9973bd6a0d9,
+		0xf14fad09425d081c,
+		0xf58782f48a121998,
+		0xf705dc45c94766fd,
+		0xf7ff4414476c186a,
+		0xfca3742893be4cde)
+}
 
 var x_832bcc6686a26d56 = []byte{
 	0, 0, 0, 0, 2, 0, 0, 0,

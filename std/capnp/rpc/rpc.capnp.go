@@ -5,6 +5,7 @@ package rpc
 import (
 	strconv "strconv"
 	capnp "zombiezen.com/go/capnproto2"
+	schemas "zombiezen.com/go/capnproto2/schemas"
 )
 
 type Message struct{ capnp.Struct }
@@ -2795,3 +2796,26 @@ const schema_b312981b2552a250 = "x\xda\x9cW\x7f\x8c\x14W\x1d\x7fof\xf7\xf6\xb8\x
 	"\x11\x87\xcde\xd2\x98\xca\xea\xbf\x09\xd6:#~J>" +
 	"\x0e?\xfe_\x8d\x9f\x1b\xf5\xd9\x17\xd3\xf8\xf5+\xc5\x10" +
 	"\xcd\xaaR\x9c\xff\x17\x00\x00\xff\xff\x03\xe1\x99\x85"
+
+func init() {
+	schemas.Register(schema_b312981b2552a250,
+		0x836a53ce789d4cd4,
+		0x8523ddc40b86b8b0,
+		0x91b79f1f808db032,
+		0x95bc14545813fbc1,
+		0x9a0e61223d96743b,
+		0x9c6a046bfbc1ac5a,
+		0x9e19b28d3db3573a,
+		0xad1a6c0d7dd07497,
+		0xb28c96e23f4cbd58,
+		0xbbc29655fa89086e,
+		0xd37007fde1f0027d,
+		0xd37d2eb2c2f80e63,
+		0xd4c9b56290554016,
+		0xd625b7063acf691a,
+		0xd800b1d6cd6f1ca0,
+		0xe94ccf8031176ec4,
+		0xf316944415569081,
+		0xf964368b0fbd3711,
+		0xfbe1980490e001af)
+}

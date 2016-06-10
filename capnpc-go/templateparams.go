@@ -194,8 +194,10 @@ type listValueParams struct {
 }
 
 type schemaVarParams struct {
-	FileID uint64
-	schema []byte
+	G       *generator
+	FileID  uint64
+	NodeIDs []uint64
+	schema  []byte
 }
 
 func (p schemaVarParams) SchemaLiteral() string {

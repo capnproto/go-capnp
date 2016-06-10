@@ -2,7 +2,9 @@ package cxx
 
 // AUTO GENERATED - DO NOT EDIT
 
-import ()
+import (
+	schemas "zombiezen.com/go/capnproto2/schemas"
+)
 
 const Namespace = uint64(0xb9c6f99ebf805f2c)
 const Name = uint64(0xf264a779fef191ce)
@@ -15,3 +17,9 @@ const schema_bdf87d7bb8304e81 = "x\xda\x12\x08u`2d\x15gb`\x08\x94`e" +
 	"\x02\xab\xbc\xc4\xdc\xd4\xe2\x02\xf6\xc4\xe4\xd4\x00FFF" +
 	"\x1e\x06&\xb8$\x83=D\x16*\x0e\x08\x00\x00\xff\xff" +
 	"E\x881\xaa"
+
+func init() {
+	schemas.Register(schema_bdf87d7bb8304e81,
+		0xb9c6f99ebf805f2c,
+		0xf264a779fef191ce)
+}

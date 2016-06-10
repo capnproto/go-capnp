@@ -30,6 +30,7 @@ import (
 // Non-stdlib import paths.
 const (
 	capnpImport   = "zombiezen.com/go/capnproto2"
+	schemasImport = capnpImport + "/schemas"
 	serverImport  = capnpImport + "/server"
 	contextImport = "golang.org/x/net/context"
 )
@@ -159,8 +160,10 @@ func (g *generator) defineSchemaVar() error {
 		return err
 	}
 	return renderSchemaVar(g.r, schemaVarParams{
-		FileID: g.fileID,
-		schema: buf.Bytes(),
+		G:       g,
+		FileID:  g.fileID,
+		NodeIDs: ids,
+		schema:  buf.Bytes(),
 	})
 }
 

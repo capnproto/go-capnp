@@ -5,6 +5,7 @@ package testcapnp
 import (
 	context "golang.org/x/net/context"
 	capnp "zombiezen.com/go/capnproto2"
+	schemas "zombiezen.com/go/capnproto2/schemas"
 	server "zombiezen.com/go/capnproto2/server"
 )
 
@@ -1078,3 +1079,23 @@ const schema_ef12a34b9807e19c = "x\xda\x94U]HlU\x14\xde\xeb\xec=\xf7x\x99" +
 	"B2#\x81\xc8U\xa9!sf]\xc7\xe4\xba\xfc\x88" +
 	"I,={\xa6>\x05\xc3X\x15\xfe;\x94\xc4\xaa4" +
 	"\xa4\xc7\xd3\x9d+\xa3\xff\x07\x00\x00\xff\xff\xa4\xec\xd8\xcd"
+
+func init() {
+	schemas.Register(schema_ef12a34b9807e19c,
+		0x8161ddf3e74bd0d1,
+		0x841756c6a41b2a45,
+		0x8491a7fe75fe0bce,
+		0x88f809ef7f873e58,
+		0x8ae08044aae8a26e,
+		0x8b45b4847bd839c8,
+		0x8f9cac550b1bf41f,
+		0x92c5ca8314cdd2a5,
+		0x993e61d6a54c166f,
+		0x99821793f0a50b5e,
+		0x9ed99eb5024ed6ef,
+		0xa74428796527f253,
+		0xb4512d1c0c85f06f,
+		0xb9c9455b55ed47b0,
+		0xd57b5111c59d048c,
+		0xe96a45cad5d1a1d3)
+}

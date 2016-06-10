@@ -6,6 +6,7 @@ import (
 	math "math"
 	strconv "strconv"
 	capnp "zombiezen.com/go/capnproto2"
+	schemas "zombiezen.com/go/capnproto2/schemas"
 )
 
 // Constants defined in schema.capnp.
@@ -3533,3 +3534,25 @@ const schema_a93fc509624c72d9 = "x\xda\xacXkl\x1c\xd5\x15\xbewf\x1f\xde\xf5\x8e"
 	"\xd0\xa9\x0c,\xef\xa8\x1c\x9e\xc1\x1b\xd9\xf5\xb8\x08R;" +
 	"\xec\xff\xddVj\x87OuS\xfbo\x00\x00\x00\xff\xff" +
 	"\x15\x015\xa8"
+
+func init() {
+	schemas.Register(schema_a93fc509624c72d9,
+		0x903455f06065422b,
+		0x9500cce23b334d80,
+		0x978a7cebdc549a4d,
+		0x97b14cbe7cfec712,
+		0x9aad50a41f4af45f,
+		0xa9962a9ed0a4d7f8,
+		0xabd73485a9636bc9,
+		0xae504193122357e5,
+		0xb9521bccf10fa3b1,
+		0xbfc546f6210ad7ce,
+		0xc863cd16969ee7fc,
+		0xce23dcd2d7b00c9b,
+		0xcfea0eb02e810062,
+		0xd07378ede1f9cc60,
+		0xd1958f7dba521926,
+		0xdebf55bbfa0fc242,
+		0xe682ab4cf923a417,
+		0xf1c8950dab257542)
+}

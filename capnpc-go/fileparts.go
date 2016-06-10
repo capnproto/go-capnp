@@ -78,6 +78,10 @@ func (i *imports) Capnp() string {
 	return i.add(importSpec{path: capnpImport, name: "capnp"})
 }
 
+func (i *imports) Schemas() string {
+	return i.add(importSpec{path: schemasImport, name: "schemas"})
+}
+
 func (i *imports) Server() string {
 	return i.add(importSpec{path: serverImport, name: "server"})
 }
