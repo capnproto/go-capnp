@@ -39,6 +39,7 @@ const (
 // Usually passed on the command line.
 type genoptions struct {
 	promises bool
+	schemas  bool
 }
 
 type renderer interface {
@@ -1119,8 +1120,10 @@ func (g *generator) defineFile() error {
 			return err
 		}
 	}
-	if err := g.defineSchemaVar(); err != nil {
-		return err
+	if g.opts.schemas {
+		if err := g.defineSchemaVar(); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -1167,6 +1170,7 @@ func generateFile(reqf schema.CodeGeneratorRequest_RequestedFile, nodes nodeMap,
 func main() {
 	var opts genoptions
 	flag.BoolVar(&opts.promises, "promises", true, "generate code for promises")
+	flag.BoolVar(&opts.schemas, "schemas", true, "embed schema information in generated code")
 	flag.Parse()
 
 	msg, err := capnp.NewDecoder(os.Stdin).Decode()
