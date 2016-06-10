@@ -45,10 +45,7 @@ type Side_List struct{ capnp.List }
 
 func NewSide_List(s *capnp.Segment, sz int32) (Side_List, error) {
 	l, err := capnp.NewUInt16List(s, sz)
-	if err != nil {
-		return Side_List{}, err
-	}
-	return Side_List{l.List}, nil
+	return Side_List{l.List}, err
 }
 
 func (l Side_List) At(i int) Side {
@@ -65,26 +62,17 @@ type VatId struct{ capnp.Struct }
 
 func NewVatId(s *capnp.Segment) (VatId, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	if err != nil {
-		return VatId{}, err
-	}
-	return VatId{st}, nil
+	return VatId{st}, err
 }
 
 func NewRootVatId(s *capnp.Segment) (VatId, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	if err != nil {
-		return VatId{}, err
-	}
-	return VatId{st}, nil
+	return VatId{st}, err
 }
 
 func ReadRootVatId(msg *capnp.Message) (VatId, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return VatId{}, err
-	}
-	return VatId{root.Struct()}, nil
+	return VatId{root.Struct()}, err
 }
 func (s VatId) Side() Side {
 	return Side(s.Struct.Uint16(0))
@@ -100,10 +88,7 @@ type VatId_List struct{ capnp.List }
 // NewVatId creates a new list of VatId.
 func NewVatId_List(s *capnp.Segment, sz int32) (VatId_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	if err != nil {
-		return VatId_List{}, err
-	}
-	return VatId_List{l}, nil
+	return VatId_List{l}, err
 }
 
 func (s VatId_List) At(i int) VatId           { return VatId{s.List.Struct(i)} }
@@ -121,26 +106,17 @@ type ProvisionId struct{ capnp.Struct }
 
 func NewProvisionId(s *capnp.Segment) (ProvisionId, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	if err != nil {
-		return ProvisionId{}, err
-	}
-	return ProvisionId{st}, nil
+	return ProvisionId{st}, err
 }
 
 func NewRootProvisionId(s *capnp.Segment) (ProvisionId, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	if err != nil {
-		return ProvisionId{}, err
-	}
-	return ProvisionId{st}, nil
+	return ProvisionId{st}, err
 }
 
 func ReadRootProvisionId(msg *capnp.Message) (ProvisionId, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return ProvisionId{}, err
-	}
-	return ProvisionId{root.Struct()}, nil
+	return ProvisionId{root.Struct()}, err
 }
 func (s ProvisionId) JoinId() uint32 {
 	return s.Struct.Uint32(0)
@@ -156,10 +132,7 @@ type ProvisionId_List struct{ capnp.List }
 // NewProvisionId creates a new list of ProvisionId.
 func NewProvisionId_List(s *capnp.Segment, sz int32) (ProvisionId_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	if err != nil {
-		return ProvisionId_List{}, err
-	}
-	return ProvisionId_List{l}, nil
+	return ProvisionId_List{l}, err
 }
 
 func (s ProvisionId_List) At(i int) ProvisionId           { return ProvisionId{s.List.Struct(i)} }
@@ -177,26 +150,17 @@ type RecipientId struct{ capnp.Struct }
 
 func NewRecipientId(s *capnp.Segment) (RecipientId, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	if err != nil {
-		return RecipientId{}, err
-	}
-	return RecipientId{st}, nil
+	return RecipientId{st}, err
 }
 
 func NewRootRecipientId(s *capnp.Segment) (RecipientId, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	if err != nil {
-		return RecipientId{}, err
-	}
-	return RecipientId{st}, nil
+	return RecipientId{st}, err
 }
 
 func ReadRootRecipientId(msg *capnp.Message) (RecipientId, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return RecipientId{}, err
-	}
-	return RecipientId{root.Struct()}, nil
+	return RecipientId{root.Struct()}, err
 }
 
 // RecipientId_List is a list of RecipientId.
@@ -205,10 +169,7 @@ type RecipientId_List struct{ capnp.List }
 // NewRecipientId creates a new list of RecipientId.
 func NewRecipientId_List(s *capnp.Segment, sz int32) (RecipientId_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
-	if err != nil {
-		return RecipientId_List{}, err
-	}
-	return RecipientId_List{l}, nil
+	return RecipientId_List{l}, err
 }
 
 func (s RecipientId_List) At(i int) RecipientId           { return RecipientId{s.List.Struct(i)} }
@@ -226,26 +187,17 @@ type ThirdPartyCapId struct{ capnp.Struct }
 
 func NewThirdPartyCapId(s *capnp.Segment) (ThirdPartyCapId, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	if err != nil {
-		return ThirdPartyCapId{}, err
-	}
-	return ThirdPartyCapId{st}, nil
+	return ThirdPartyCapId{st}, err
 }
 
 func NewRootThirdPartyCapId(s *capnp.Segment) (ThirdPartyCapId, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	if err != nil {
-		return ThirdPartyCapId{}, err
-	}
-	return ThirdPartyCapId{st}, nil
+	return ThirdPartyCapId{st}, err
 }
 
 func ReadRootThirdPartyCapId(msg *capnp.Message) (ThirdPartyCapId, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return ThirdPartyCapId{}, err
-	}
-	return ThirdPartyCapId{root.Struct()}, nil
+	return ThirdPartyCapId{root.Struct()}, err
 }
 
 // ThirdPartyCapId_List is a list of ThirdPartyCapId.
@@ -254,10 +206,7 @@ type ThirdPartyCapId_List struct{ capnp.List }
 // NewThirdPartyCapId creates a new list of ThirdPartyCapId.
 func NewThirdPartyCapId_List(s *capnp.Segment, sz int32) (ThirdPartyCapId_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
-	if err != nil {
-		return ThirdPartyCapId_List{}, err
-	}
-	return ThirdPartyCapId_List{l}, nil
+	return ThirdPartyCapId_List{l}, err
 }
 
 func (s ThirdPartyCapId_List) At(i int) ThirdPartyCapId { return ThirdPartyCapId{s.List.Struct(i)} }
@@ -277,26 +226,17 @@ type JoinKeyPart struct{ capnp.Struct }
 
 func NewJoinKeyPart(s *capnp.Segment) (JoinKeyPart, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	if err != nil {
-		return JoinKeyPart{}, err
-	}
-	return JoinKeyPart{st}, nil
+	return JoinKeyPart{st}, err
 }
 
 func NewRootJoinKeyPart(s *capnp.Segment) (JoinKeyPart, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	if err != nil {
-		return JoinKeyPart{}, err
-	}
-	return JoinKeyPart{st}, nil
+	return JoinKeyPart{st}, err
 }
 
 func ReadRootJoinKeyPart(msg *capnp.Message) (JoinKeyPart, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return JoinKeyPart{}, err
-	}
-	return JoinKeyPart{root.Struct()}, nil
+	return JoinKeyPart{root.Struct()}, err
 }
 func (s JoinKeyPart) JoinId() uint32 {
 	return s.Struct.Uint32(0)
@@ -328,10 +268,7 @@ type JoinKeyPart_List struct{ capnp.List }
 // NewJoinKeyPart creates a new list of JoinKeyPart.
 func NewJoinKeyPart_List(s *capnp.Segment, sz int32) (JoinKeyPart_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	if err != nil {
-		return JoinKeyPart_List{}, err
-	}
-	return JoinKeyPart_List{l}, nil
+	return JoinKeyPart_List{l}, err
 }
 
 func (s JoinKeyPart_List) At(i int) JoinKeyPart           { return JoinKeyPart{s.List.Struct(i)} }
@@ -349,26 +286,17 @@ type JoinResult struct{ capnp.Struct }
 
 func NewJoinResult(s *capnp.Segment) (JoinResult, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	if err != nil {
-		return JoinResult{}, err
-	}
-	return JoinResult{st}, nil
+	return JoinResult{st}, err
 }
 
 func NewRootJoinResult(s *capnp.Segment) (JoinResult, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	if err != nil {
-		return JoinResult{}, err
-	}
-	return JoinResult{st}, nil
+	return JoinResult{st}, err
 }
 
 func ReadRootJoinResult(msg *capnp.Message) (JoinResult, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return JoinResult{}, err
-	}
-	return JoinResult{root.Struct()}, nil
+	return JoinResult{root.Struct()}, err
 }
 func (s JoinResult) JoinId() uint32 {
 	return s.Struct.Uint32(0)
@@ -413,10 +341,7 @@ type JoinResult_List struct{ capnp.List }
 // NewJoinResult creates a new list of JoinResult.
 func NewJoinResult_List(s *capnp.Segment, sz int32) (JoinResult_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	if err != nil {
-		return JoinResult_List{}, err
-	}
-	return JoinResult_List{l}, nil
+	return JoinResult_List{l}, err
 }
 
 func (s JoinResult_List) At(i int) JoinResult           { return JoinResult{s.List.Struct(i)} }

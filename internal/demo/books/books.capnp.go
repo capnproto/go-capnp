@@ -10,33 +10,21 @@ type Book struct{ capnp.Struct }
 
 func NewBook(s *capnp.Segment) (Book, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	if err != nil {
-		return Book{}, err
-	}
-	return Book{st}, nil
+	return Book{st}, err
 }
 
 func NewRootBook(s *capnp.Segment) (Book, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	if err != nil {
-		return Book{}, err
-	}
-	return Book{st}, nil
+	return Book{st}, err
 }
 
 func ReadRootBook(msg *capnp.Message) (Book, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return Book{}, err
-	}
-	return Book{root.Struct()}, nil
+	return Book{root.Struct()}, err
 }
 func (s Book) Title() (string, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return "", err
-	}
-	return p.Text(), nil
+	return p.Text(), err
 }
 
 func (s Book) HasTitle() bool {
@@ -78,10 +66,7 @@ type Book_List struct{ capnp.List }
 // NewBook creates a new list of Book.
 func NewBook_List(s *capnp.Segment, sz int32) (Book_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	if err != nil {
-		return Book_List{}, err
-	}
-	return Book_List{l}, nil
+	return Book_List{l}, err
 }
 
 func (s Book_List) At(i int) Book           { return Book{s.List.Struct(i)} }

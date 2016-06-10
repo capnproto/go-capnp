@@ -1,12 +1,9 @@
 func (s {{.Node.Name}}) {{.Field.Name|title}}() (string, error) {
 	p, err := s.Struct.Ptr({{.Field.Slot.Offset}})
-	if err != nil {
-		return "", err
-	}
 	{{with .Default -}}
-	return p.TextDefault({{printf "%q" .}}), nil
+	return p.TextDefault({{printf "%q" .}}), err
 	{{- else -}}
-	return p.Text(), nil
+	return p.Text(), err
 	{{- end}}
 }
 

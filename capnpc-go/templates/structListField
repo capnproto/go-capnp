@@ -1,16 +1,13 @@
 func (s {{.Node.Name}}) {{.Field.Name|title}}() ({{.FieldType}}, error) {
 	p, err := s.Struct.Ptr({{.Field.Slot.Offset}})
-	if err != nil {
-		return {{.FieldType}}{}, err
-	}
 	{{if .Default.IsValid -}}
-	l, err := p.ListDefault({{.Default}})
 	if err != nil {
 		return {{.FieldType}}{}, err
 	}
-	return {{.FieldType}}{List: l}, nil
+	l, err := p.ListDefault({{.Default}})
+	return {{.FieldType}}{List: l}, err
 	{{- else -}}
-	return {{.FieldType}}{List: p.List()}, nil
+	return {{.FieldType}}{List: p.List()}, err
 	{{- end}}
 }
 

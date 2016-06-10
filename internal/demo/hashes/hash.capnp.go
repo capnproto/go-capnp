@@ -74,26 +74,17 @@ type HashFactory_newSha1_Params struct{ capnp.Struct }
 
 func NewHashFactory_newSha1_Params(s *capnp.Segment) (HashFactory_newSha1_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	if err != nil {
-		return HashFactory_newSha1_Params{}, err
-	}
-	return HashFactory_newSha1_Params{st}, nil
+	return HashFactory_newSha1_Params{st}, err
 }
 
 func NewRootHashFactory_newSha1_Params(s *capnp.Segment) (HashFactory_newSha1_Params, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	if err != nil {
-		return HashFactory_newSha1_Params{}, err
-	}
-	return HashFactory_newSha1_Params{st}, nil
+	return HashFactory_newSha1_Params{st}, err
 }
 
 func ReadRootHashFactory_newSha1_Params(msg *capnp.Message) (HashFactory_newSha1_Params, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return HashFactory_newSha1_Params{}, err
-	}
-	return HashFactory_newSha1_Params{root.Struct()}, nil
+	return HashFactory_newSha1_Params{root.Struct()}, err
 }
 
 // HashFactory_newSha1_Params_List is a list of HashFactory_newSha1_Params.
@@ -102,10 +93,7 @@ type HashFactory_newSha1_Params_List struct{ capnp.List }
 // NewHashFactory_newSha1_Params creates a new list of HashFactory_newSha1_Params.
 func NewHashFactory_newSha1_Params_List(s *capnp.Segment, sz int32) (HashFactory_newSha1_Params_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
-	if err != nil {
-		return HashFactory_newSha1_Params_List{}, err
-	}
-	return HashFactory_newSha1_Params_List{l}, nil
+	return HashFactory_newSha1_Params_List{l}, err
 }
 
 func (s HashFactory_newSha1_Params_List) At(i int) HashFactory_newSha1_Params {
@@ -127,33 +115,20 @@ type HashFactory_newSha1_Results struct{ capnp.Struct }
 
 func NewHashFactory_newSha1_Results(s *capnp.Segment) (HashFactory_newSha1_Results, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return HashFactory_newSha1_Results{}, err
-	}
-	return HashFactory_newSha1_Results{st}, nil
+	return HashFactory_newSha1_Results{st}, err
 }
 
 func NewRootHashFactory_newSha1_Results(s *capnp.Segment) (HashFactory_newSha1_Results, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return HashFactory_newSha1_Results{}, err
-	}
-	return HashFactory_newSha1_Results{st}, nil
+	return HashFactory_newSha1_Results{st}, err
 }
 
 func ReadRootHashFactory_newSha1_Results(msg *capnp.Message) (HashFactory_newSha1_Results, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return HashFactory_newSha1_Results{}, err
-	}
-	return HashFactory_newSha1_Results{root.Struct()}, nil
+	return HashFactory_newSha1_Results{root.Struct()}, err
 }
 func (s HashFactory_newSha1_Results) Hash() Hash {
-	p, err := s.Struct.Ptr(0)
-	if err != nil {
-
-		return Hash{}
-	}
+	p, _ := s.Struct.Ptr(0)
 	return Hash{Client: p.Interface().Client()}
 }
 
@@ -163,15 +138,11 @@ func (s HashFactory_newSha1_Results) HasHash() bool {
 }
 
 func (s HashFactory_newSha1_Results) SetHash(v Hash) error {
+	if v.Client == nil {
+		return s.Struct.SetPtr(0, capnp.Ptr{})
+	}
 	seg := s.Segment()
-	if seg == nil {
-
-		return nil
-	}
-	var in capnp.Interface
-	if v.Client != nil {
-		in = capnp.NewInterface(seg, seg.Message().AddCap(v.Client))
-	}
+	in := capnp.NewInterface(seg, seg.Message().AddCap(v.Client))
 	return s.Struct.SetPtr(0, in.ToPtr())
 }
 
@@ -181,10 +152,7 @@ type HashFactory_newSha1_Results_List struct{ capnp.List }
 // NewHashFactory_newSha1_Results creates a new list of HashFactory_newSha1_Results.
 func NewHashFactory_newSha1_Results_List(s *capnp.Segment, sz int32) (HashFactory_newSha1_Results_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	if err != nil {
-		return HashFactory_newSha1_Results_List{}, err
-	}
-	return HashFactory_newSha1_Results_List{l}, nil
+	return HashFactory_newSha1_Results_List{l}, err
 }
 
 func (s HashFactory_newSha1_Results_List) At(i int) HashFactory_newSha1_Results {
@@ -316,33 +284,21 @@ type Hash_write_Params struct{ capnp.Struct }
 
 func NewHash_write_Params(s *capnp.Segment) (Hash_write_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return Hash_write_Params{}, err
-	}
-	return Hash_write_Params{st}, nil
+	return Hash_write_Params{st}, err
 }
 
 func NewRootHash_write_Params(s *capnp.Segment) (Hash_write_Params, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return Hash_write_Params{}, err
-	}
-	return Hash_write_Params{st}, nil
+	return Hash_write_Params{st}, err
 }
 
 func ReadRootHash_write_Params(msg *capnp.Message) (Hash_write_Params, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return Hash_write_Params{}, err
-	}
-	return Hash_write_Params{root.Struct()}, nil
+	return Hash_write_Params{root.Struct()}, err
 }
 func (s Hash_write_Params) Data() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return nil, err
-	}
-	return []byte(p.Data()), nil
+	return []byte(p.Data()), err
 }
 
 func (s Hash_write_Params) HasData() bool {
@@ -364,10 +320,7 @@ type Hash_write_Params_List struct{ capnp.List }
 // NewHash_write_Params creates a new list of Hash_write_Params.
 func NewHash_write_Params_List(s *capnp.Segment, sz int32) (Hash_write_Params_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	if err != nil {
-		return Hash_write_Params_List{}, err
-	}
-	return Hash_write_Params_List{l}, nil
+	return Hash_write_Params_List{l}, err
 }
 
 func (s Hash_write_Params_List) At(i int) Hash_write_Params {
@@ -389,26 +342,17 @@ type Hash_write_Results struct{ capnp.Struct }
 
 func NewHash_write_Results(s *capnp.Segment) (Hash_write_Results, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	if err != nil {
-		return Hash_write_Results{}, err
-	}
-	return Hash_write_Results{st}, nil
+	return Hash_write_Results{st}, err
 }
 
 func NewRootHash_write_Results(s *capnp.Segment) (Hash_write_Results, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	if err != nil {
-		return Hash_write_Results{}, err
-	}
-	return Hash_write_Results{st}, nil
+	return Hash_write_Results{st}, err
 }
 
 func ReadRootHash_write_Results(msg *capnp.Message) (Hash_write_Results, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return Hash_write_Results{}, err
-	}
-	return Hash_write_Results{root.Struct()}, nil
+	return Hash_write_Results{root.Struct()}, err
 }
 
 // Hash_write_Results_List is a list of Hash_write_Results.
@@ -417,10 +361,7 @@ type Hash_write_Results_List struct{ capnp.List }
 // NewHash_write_Results creates a new list of Hash_write_Results.
 func NewHash_write_Results_List(s *capnp.Segment, sz int32) (Hash_write_Results_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
-	if err != nil {
-		return Hash_write_Results_List{}, err
-	}
-	return Hash_write_Results_List{l}, nil
+	return Hash_write_Results_List{l}, err
 }
 
 func (s Hash_write_Results_List) At(i int) Hash_write_Results {
@@ -442,26 +383,17 @@ type Hash_sum_Params struct{ capnp.Struct }
 
 func NewHash_sum_Params(s *capnp.Segment) (Hash_sum_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	if err != nil {
-		return Hash_sum_Params{}, err
-	}
-	return Hash_sum_Params{st}, nil
+	return Hash_sum_Params{st}, err
 }
 
 func NewRootHash_sum_Params(s *capnp.Segment) (Hash_sum_Params, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	if err != nil {
-		return Hash_sum_Params{}, err
-	}
-	return Hash_sum_Params{st}, nil
+	return Hash_sum_Params{st}, err
 }
 
 func ReadRootHash_sum_Params(msg *capnp.Message) (Hash_sum_Params, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return Hash_sum_Params{}, err
-	}
-	return Hash_sum_Params{root.Struct()}, nil
+	return Hash_sum_Params{root.Struct()}, err
 }
 
 // Hash_sum_Params_List is a list of Hash_sum_Params.
@@ -470,10 +402,7 @@ type Hash_sum_Params_List struct{ capnp.List }
 // NewHash_sum_Params creates a new list of Hash_sum_Params.
 func NewHash_sum_Params_List(s *capnp.Segment, sz int32) (Hash_sum_Params_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
-	if err != nil {
-		return Hash_sum_Params_List{}, err
-	}
-	return Hash_sum_Params_List{l}, nil
+	return Hash_sum_Params_List{l}, err
 }
 
 func (s Hash_sum_Params_List) At(i int) Hash_sum_Params { return Hash_sum_Params{s.List.Struct(i)} }
@@ -493,33 +422,21 @@ type Hash_sum_Results struct{ capnp.Struct }
 
 func NewHash_sum_Results(s *capnp.Segment) (Hash_sum_Results, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return Hash_sum_Results{}, err
-	}
-	return Hash_sum_Results{st}, nil
+	return Hash_sum_Results{st}, err
 }
 
 func NewRootHash_sum_Results(s *capnp.Segment) (Hash_sum_Results, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return Hash_sum_Results{}, err
-	}
-	return Hash_sum_Results{st}, nil
+	return Hash_sum_Results{st}, err
 }
 
 func ReadRootHash_sum_Results(msg *capnp.Message) (Hash_sum_Results, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return Hash_sum_Results{}, err
-	}
-	return Hash_sum_Results{root.Struct()}, nil
+	return Hash_sum_Results{root.Struct()}, err
 }
 func (s Hash_sum_Results) Hash() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return nil, err
-	}
-	return []byte(p.Data()), nil
+	return []byte(p.Data()), err
 }
 
 func (s Hash_sum_Results) HasHash() bool {
@@ -541,10 +458,7 @@ type Hash_sum_Results_List struct{ capnp.List }
 // NewHash_sum_Results creates a new list of Hash_sum_Results.
 func NewHash_sum_Results_List(s *capnp.Segment, sz int32) (Hash_sum_Results_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	if err != nil {
-		return Hash_sum_Results_List{}, err
-	}
-	return Hash_sum_Results_List{l}, nil
+	return Hash_sum_Results_List{l}, err
 }
 
 func (s Hash_sum_Results_List) At(i int) Hash_sum_Results { return Hash_sum_Results{s.List.Struct(i)} }

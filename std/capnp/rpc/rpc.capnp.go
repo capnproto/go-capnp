@@ -65,26 +65,17 @@ func (w Message_Which) String() string {
 
 func NewMessage(s *capnp.Segment) (Message, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	if err != nil {
-		return Message{}, err
-	}
-	return Message{st}, nil
+	return Message{st}, err
 }
 
 func NewRootMessage(s *capnp.Segment) (Message, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	if err != nil {
-		return Message{}, err
-	}
-	return Message{st}, nil
+	return Message{st}, err
 }
 
 func ReadRootMessage(msg *capnp.Message) (Message, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return Message{}, err
-	}
-	return Message{root.Struct()}, nil
+	return Message{root.Struct()}, err
 }
 
 func (s Message) Which() Message_Which {
@@ -92,10 +83,7 @@ func (s Message) Which() Message_Which {
 }
 func (s Message) Unimplemented() (Message, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return Message{}, err
-	}
-	return Message{Struct: p.Struct()}, nil
+	return Message{Struct: p.Struct()}, err
 }
 
 func (s Message) HasUnimplemented() bool {
@@ -122,10 +110,7 @@ func (s Message) NewUnimplemented() (Message, error) {
 
 func (s Message) Abort() (Exception, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return Exception{}, err
-	}
-	return Exception{Struct: p.Struct()}, nil
+	return Exception{Struct: p.Struct()}, err
 }
 
 func (s Message) HasAbort() bool {
@@ -152,10 +137,7 @@ func (s Message) NewAbort() (Exception, error) {
 
 func (s Message) Bootstrap() (Bootstrap, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return Bootstrap{}, err
-	}
-	return Bootstrap{Struct: p.Struct()}, nil
+	return Bootstrap{Struct: p.Struct()}, err
 }
 
 func (s Message) HasBootstrap() bool {
@@ -182,10 +164,7 @@ func (s Message) NewBootstrap() (Bootstrap, error) {
 
 func (s Message) Call() (Call, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return Call{}, err
-	}
-	return Call{Struct: p.Struct()}, nil
+	return Call{Struct: p.Struct()}, err
 }
 
 func (s Message) HasCall() bool {
@@ -212,10 +191,7 @@ func (s Message) NewCall() (Call, error) {
 
 func (s Message) Return() (Return, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return Return{}, err
-	}
-	return Return{Struct: p.Struct()}, nil
+	return Return{Struct: p.Struct()}, err
 }
 
 func (s Message) HasReturn() bool {
@@ -242,10 +218,7 @@ func (s Message) NewReturn() (Return, error) {
 
 func (s Message) Finish() (Finish, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return Finish{}, err
-	}
-	return Finish{Struct: p.Struct()}, nil
+	return Finish{Struct: p.Struct()}, err
 }
 
 func (s Message) HasFinish() bool {
@@ -272,10 +245,7 @@ func (s Message) NewFinish() (Finish, error) {
 
 func (s Message) Resolve() (Resolve, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return Resolve{}, err
-	}
-	return Resolve{Struct: p.Struct()}, nil
+	return Resolve{Struct: p.Struct()}, err
 }
 
 func (s Message) HasResolve() bool {
@@ -302,10 +272,7 @@ func (s Message) NewResolve() (Resolve, error) {
 
 func (s Message) Release() (Release, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return Release{}, err
-	}
-	return Release{Struct: p.Struct()}, nil
+	return Release{Struct: p.Struct()}, err
 }
 
 func (s Message) HasRelease() bool {
@@ -332,10 +299,7 @@ func (s Message) NewRelease() (Release, error) {
 
 func (s Message) Disembargo() (Disembargo, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return Disembargo{}, err
-	}
-	return Disembargo{Struct: p.Struct()}, nil
+	return Disembargo{Struct: p.Struct()}, err
 }
 
 func (s Message) HasDisembargo() bool {
@@ -408,10 +372,7 @@ func (s Message) SetObsoleteDeletePtr(v capnp.Ptr) error {
 
 func (s Message) Provide() (Provide, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return Provide{}, err
-	}
-	return Provide{Struct: p.Struct()}, nil
+	return Provide{Struct: p.Struct()}, err
 }
 
 func (s Message) HasProvide() bool {
@@ -438,10 +399,7 @@ func (s Message) NewProvide() (Provide, error) {
 
 func (s Message) Accept() (Accept, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return Accept{}, err
-	}
-	return Accept{Struct: p.Struct()}, nil
+	return Accept{Struct: p.Struct()}, err
 }
 
 func (s Message) HasAccept() bool {
@@ -468,10 +426,7 @@ func (s Message) NewAccept() (Accept, error) {
 
 func (s Message) Join() (Join, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return Join{}, err
-	}
-	return Join{Struct: p.Struct()}, nil
+	return Join{Struct: p.Struct()}, err
 }
 
 func (s Message) HasJoin() bool {
@@ -502,10 +457,7 @@ type Message_List struct{ capnp.List }
 // NewMessage creates a new list of Message.
 func NewMessage_List(s *capnp.Segment, sz int32) (Message_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	if err != nil {
-		return Message_List{}, err
-	}
-	return Message_List{l}, nil
+	return Message_List{l}, err
 }
 
 func (s Message_List) At(i int) Message           { return Message{s.List.Struct(i)} }
@@ -579,26 +531,17 @@ type Bootstrap struct{ capnp.Struct }
 
 func NewBootstrap(s *capnp.Segment) (Bootstrap, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	if err != nil {
-		return Bootstrap{}, err
-	}
-	return Bootstrap{st}, nil
+	return Bootstrap{st}, err
 }
 
 func NewRootBootstrap(s *capnp.Segment) (Bootstrap, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	if err != nil {
-		return Bootstrap{}, err
-	}
-	return Bootstrap{st}, nil
+	return Bootstrap{st}, err
 }
 
 func ReadRootBootstrap(msg *capnp.Message) (Bootstrap, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return Bootstrap{}, err
-	}
-	return Bootstrap{root.Struct()}, nil
+	return Bootstrap{root.Struct()}, err
 }
 func (s Bootstrap) QuestionId() uint32 {
 	return s.Struct.Uint32(0)
@@ -635,10 +578,7 @@ type Bootstrap_List struct{ capnp.List }
 // NewBootstrap creates a new list of Bootstrap.
 func NewBootstrap_List(s *capnp.Segment, sz int32) (Bootstrap_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	if err != nil {
-		return Bootstrap_List{}, err
-	}
-	return Bootstrap_List{l}, nil
+	return Bootstrap_List{l}, err
 }
 
 func (s Bootstrap_List) At(i int) Bootstrap           { return Bootstrap{s.List.Struct(i)} }
@@ -682,26 +622,17 @@ func (w Call_sendResultsTo_Which) String() string {
 
 func NewCall(s *capnp.Segment) (Call, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 3})
-	if err != nil {
-		return Call{}, err
-	}
-	return Call{st}, nil
+	return Call{st}, err
 }
 
 func NewRootCall(s *capnp.Segment) (Call, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 3})
-	if err != nil {
-		return Call{}, err
-	}
-	return Call{st}, nil
+	return Call{st}, err
 }
 
 func ReadRootCall(msg *capnp.Message) (Call, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return Call{}, err
-	}
-	return Call{root.Struct()}, nil
+	return Call{root.Struct()}, err
 }
 func (s Call) QuestionId() uint32 {
 	return s.Struct.Uint32(0)
@@ -713,10 +644,7 @@ func (s Call) SetQuestionId(v uint32) {
 
 func (s Call) Target() (MessageTarget, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return MessageTarget{}, err
-	}
-	return MessageTarget{Struct: p.Struct()}, nil
+	return MessageTarget{Struct: p.Struct()}, err
 }
 
 func (s Call) HasTarget() bool {
@@ -765,10 +693,7 @@ func (s Call) SetAllowThirdPartyTailCall(v bool) {
 
 func (s Call) Params() (Payload, error) {
 	p, err := s.Struct.Ptr(1)
-	if err != nil {
-		return Payload{}, err
-	}
-	return Payload{Struct: p.Struct()}, nil
+	return Payload{Struct: p.Struct()}, err
 }
 
 func (s Call) HasParams() bool {
@@ -834,10 +759,7 @@ type Call_List struct{ capnp.List }
 // NewCall creates a new list of Call.
 func NewCall_List(s *capnp.Segment, sz int32) (Call_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 24, PointerCount: 3}, sz)
-	if err != nil {
-		return Call_List{}, err
-	}
-	return Call_List{l}, nil
+	return Call_List{l}, err
 }
 
 func (s Call_List) At(i int) Call           { return Call{s.List.Struct(i)} }
@@ -909,26 +831,17 @@ func (w Return_Which) String() string {
 
 func NewReturn(s *capnp.Segment) (Return, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1})
-	if err != nil {
-		return Return{}, err
-	}
-	return Return{st}, nil
+	return Return{st}, err
 }
 
 func NewRootReturn(s *capnp.Segment) (Return, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1})
-	if err != nil {
-		return Return{}, err
-	}
-	return Return{st}, nil
+	return Return{st}, err
 }
 
 func ReadRootReturn(msg *capnp.Message) (Return, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return Return{}, err
-	}
-	return Return{root.Struct()}, nil
+	return Return{root.Struct()}, err
 }
 
 func (s Return) Which() Return_Which {
@@ -952,10 +865,7 @@ func (s Return) SetReleaseParamCaps(v bool) {
 
 func (s Return) Results() (Payload, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return Payload{}, err
-	}
-	return Payload{Struct: p.Struct()}, nil
+	return Payload{Struct: p.Struct()}, err
 }
 
 func (s Return) HasResults() bool {
@@ -982,10 +892,7 @@ func (s Return) NewResults() (Payload, error) {
 
 func (s Return) Exception() (Exception, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return Exception{}, err
-	}
-	return Exception{Struct: p.Struct()}, nil
+	return Exception{Struct: p.Struct()}, err
 }
 
 func (s Return) HasException() bool {
@@ -1058,10 +965,7 @@ type Return_List struct{ capnp.List }
 // NewReturn creates a new list of Return.
 func NewReturn_List(s *capnp.Segment, sz int32) (Return_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1}, sz)
-	if err != nil {
-		return Return_List{}, err
-	}
-	return Return_List{l}, nil
+	return Return_List{l}, err
 }
 
 func (s Return_List) At(i int) Return           { return Return{s.List.Struct(i)} }
@@ -1091,26 +995,17 @@ type Finish struct{ capnp.Struct }
 
 func NewFinish(s *capnp.Segment) (Finish, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	if err != nil {
-		return Finish{}, err
-	}
-	return Finish{st}, nil
+	return Finish{st}, err
 }
 
 func NewRootFinish(s *capnp.Segment) (Finish, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	if err != nil {
-		return Finish{}, err
-	}
-	return Finish{st}, nil
+	return Finish{st}, err
 }
 
 func ReadRootFinish(msg *capnp.Message) (Finish, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return Finish{}, err
-	}
-	return Finish{root.Struct()}, nil
+	return Finish{root.Struct()}, err
 }
 func (s Finish) QuestionId() uint32 {
 	return s.Struct.Uint32(0)
@@ -1134,10 +1029,7 @@ type Finish_List struct{ capnp.List }
 // NewFinish creates a new list of Finish.
 func NewFinish_List(s *capnp.Segment, sz int32) (Finish_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	if err != nil {
-		return Finish_List{}, err
-	}
-	return Finish_List{l}, nil
+	return Finish_List{l}, err
 }
 
 func (s Finish_List) At(i int) Finish           { return Finish{s.List.Struct(i)} }
@@ -1173,26 +1065,17 @@ func (w Resolve_Which) String() string {
 
 func NewResolve(s *capnp.Segment) (Resolve, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	if err != nil {
-		return Resolve{}, err
-	}
-	return Resolve{st}, nil
+	return Resolve{st}, err
 }
 
 func NewRootResolve(s *capnp.Segment) (Resolve, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	if err != nil {
-		return Resolve{}, err
-	}
-	return Resolve{st}, nil
+	return Resolve{st}, err
 }
 
 func ReadRootResolve(msg *capnp.Message) (Resolve, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return Resolve{}, err
-	}
-	return Resolve{root.Struct()}, nil
+	return Resolve{root.Struct()}, err
 }
 
 func (s Resolve) Which() Resolve_Which {
@@ -1208,10 +1091,7 @@ func (s Resolve) SetPromiseId(v uint32) {
 
 func (s Resolve) Cap() (CapDescriptor, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return CapDescriptor{}, err
-	}
-	return CapDescriptor{Struct: p.Struct()}, nil
+	return CapDescriptor{Struct: p.Struct()}, err
 }
 
 func (s Resolve) HasCap() bool {
@@ -1238,10 +1118,7 @@ func (s Resolve) NewCap() (CapDescriptor, error) {
 
 func (s Resolve) Exception() (Exception, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return Exception{}, err
-	}
-	return Exception{Struct: p.Struct()}, nil
+	return Exception{Struct: p.Struct()}, err
 }
 
 func (s Resolve) HasException() bool {
@@ -1272,10 +1149,7 @@ type Resolve_List struct{ capnp.List }
 // NewResolve creates a new list of Resolve.
 func NewResolve_List(s *capnp.Segment, sz int32) (Resolve_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	if err != nil {
-		return Resolve_List{}, err
-	}
-	return Resolve_List{l}, nil
+	return Resolve_List{l}, err
 }
 
 func (s Resolve_List) At(i int) Resolve           { return Resolve{s.List.Struct(i)} }
@@ -1301,26 +1175,17 @@ type Release struct{ capnp.Struct }
 
 func NewRelease(s *capnp.Segment) (Release, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	if err != nil {
-		return Release{}, err
-	}
-	return Release{st}, nil
+	return Release{st}, err
 }
 
 func NewRootRelease(s *capnp.Segment) (Release, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	if err != nil {
-		return Release{}, err
-	}
-	return Release{st}, nil
+	return Release{st}, err
 }
 
 func ReadRootRelease(msg *capnp.Message) (Release, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return Release{}, err
-	}
-	return Release{root.Struct()}, nil
+	return Release{root.Struct()}, err
 }
 func (s Release) Id() uint32 {
 	return s.Struct.Uint32(0)
@@ -1344,10 +1209,7 @@ type Release_List struct{ capnp.List }
 // NewRelease creates a new list of Release.
 func NewRelease_List(s *capnp.Segment, sz int32) (Release_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	if err != nil {
-		return Release_List{}, err
-	}
-	return Release_List{l}, nil
+	return Release_List{l}, err
 }
 
 func (s Release_List) At(i int) Release           { return Release{s.List.Struct(i)} }
@@ -1390,33 +1252,21 @@ func (w Disembargo_context_Which) String() string {
 
 func NewDisembargo(s *capnp.Segment) (Disembargo, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	if err != nil {
-		return Disembargo{}, err
-	}
-	return Disembargo{st}, nil
+	return Disembargo{st}, err
 }
 
 func NewRootDisembargo(s *capnp.Segment) (Disembargo, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	if err != nil {
-		return Disembargo{}, err
-	}
-	return Disembargo{st}, nil
+	return Disembargo{st}, err
 }
 
 func ReadRootDisembargo(msg *capnp.Message) (Disembargo, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return Disembargo{}, err
-	}
-	return Disembargo{root.Struct()}, nil
+	return Disembargo{root.Struct()}, err
 }
 func (s Disembargo) Target() (MessageTarget, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return MessageTarget{}, err
-	}
-	return MessageTarget{Struct: p.Struct()}, nil
+	return MessageTarget{Struct: p.Struct()}, err
 }
 
 func (s Disembargo) HasTarget() bool {
@@ -1481,10 +1331,7 @@ type Disembargo_List struct{ capnp.List }
 // NewDisembargo creates a new list of Disembargo.
 func NewDisembargo_List(s *capnp.Segment, sz int32) (Disembargo_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	if err != nil {
-		return Disembargo_List{}, err
-	}
-	return Disembargo_List{l}, nil
+	return Disembargo_List{l}, err
 }
 
 func (s Disembargo_List) At(i int) Disembargo           { return Disembargo{s.List.Struct(i)} }
@@ -1518,26 +1365,17 @@ type Provide struct{ capnp.Struct }
 
 func NewProvide(s *capnp.Segment) (Provide, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2})
-	if err != nil {
-		return Provide{}, err
-	}
-	return Provide{st}, nil
+	return Provide{st}, err
 }
 
 func NewRootProvide(s *capnp.Segment) (Provide, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2})
-	if err != nil {
-		return Provide{}, err
-	}
-	return Provide{st}, nil
+	return Provide{st}, err
 }
 
 func ReadRootProvide(msg *capnp.Message) (Provide, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return Provide{}, err
-	}
-	return Provide{root.Struct()}, nil
+	return Provide{root.Struct()}, err
 }
 func (s Provide) QuestionId() uint32 {
 	return s.Struct.Uint32(0)
@@ -1549,10 +1387,7 @@ func (s Provide) SetQuestionId(v uint32) {
 
 func (s Provide) Target() (MessageTarget, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return MessageTarget{}, err
-	}
-	return MessageTarget{Struct: p.Struct()}, nil
+	return MessageTarget{Struct: p.Struct()}, err
 }
 
 func (s Provide) HasTarget() bool {
@@ -1602,10 +1437,7 @@ type Provide_List struct{ capnp.List }
 // NewProvide creates a new list of Provide.
 func NewProvide_List(s *capnp.Segment, sz int32) (Provide_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2}, sz)
-	if err != nil {
-		return Provide_List{}, err
-	}
-	return Provide_List{l}, nil
+	return Provide_List{l}, err
 }
 
 func (s Provide_List) At(i int) Provide           { return Provide{s.List.Struct(i)} }
@@ -1631,26 +1463,17 @@ type Accept struct{ capnp.Struct }
 
 func NewAccept(s *capnp.Segment) (Accept, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	if err != nil {
-		return Accept{}, err
-	}
-	return Accept{st}, nil
+	return Accept{st}, err
 }
 
 func NewRootAccept(s *capnp.Segment) (Accept, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	if err != nil {
-		return Accept{}, err
-	}
-	return Accept{st}, nil
+	return Accept{st}, err
 }
 
 func ReadRootAccept(msg *capnp.Message) (Accept, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return Accept{}, err
-	}
-	return Accept{root.Struct()}, nil
+	return Accept{root.Struct()}, err
 }
 func (s Accept) QuestionId() uint32 {
 	return s.Struct.Uint32(0)
@@ -1695,10 +1518,7 @@ type Accept_List struct{ capnp.List }
 // NewAccept creates a new list of Accept.
 func NewAccept_List(s *capnp.Segment, sz int32) (Accept_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	if err != nil {
-		return Accept_List{}, err
-	}
-	return Accept_List{l}, nil
+	return Accept_List{l}, err
 }
 
 func (s Accept_List) At(i int) Accept           { return Accept{s.List.Struct(i)} }
@@ -1720,26 +1540,17 @@ type Join struct{ capnp.Struct }
 
 func NewJoin(s *capnp.Segment) (Join, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2})
-	if err != nil {
-		return Join{}, err
-	}
-	return Join{st}, nil
+	return Join{st}, err
 }
 
 func NewRootJoin(s *capnp.Segment) (Join, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2})
-	if err != nil {
-		return Join{}, err
-	}
-	return Join{st}, nil
+	return Join{st}, err
 }
 
 func ReadRootJoin(msg *capnp.Message) (Join, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return Join{}, err
-	}
-	return Join{root.Struct()}, nil
+	return Join{root.Struct()}, err
 }
 func (s Join) QuestionId() uint32 {
 	return s.Struct.Uint32(0)
@@ -1751,10 +1562,7 @@ func (s Join) SetQuestionId(v uint32) {
 
 func (s Join) Target() (MessageTarget, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return MessageTarget{}, err
-	}
-	return MessageTarget{Struct: p.Struct()}, nil
+	return MessageTarget{Struct: p.Struct()}, err
 }
 
 func (s Join) HasTarget() bool {
@@ -1804,10 +1612,7 @@ type Join_List struct{ capnp.List }
 // NewJoin creates a new list of Join.
 func NewJoin_List(s *capnp.Segment, sz int32) (Join_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2}, sz)
-	if err != nil {
-		return Join_List{}, err
-	}
-	return Join_List{l}, nil
+	return Join_List{l}, err
 }
 
 func (s Join_List) At(i int) Join           { return Join{s.List.Struct(i)} }
@@ -1851,26 +1656,17 @@ func (w MessageTarget_Which) String() string {
 
 func NewMessageTarget(s *capnp.Segment) (MessageTarget, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	if err != nil {
-		return MessageTarget{}, err
-	}
-	return MessageTarget{st}, nil
+	return MessageTarget{st}, err
 }
 
 func NewRootMessageTarget(s *capnp.Segment) (MessageTarget, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	if err != nil {
-		return MessageTarget{}, err
-	}
-	return MessageTarget{st}, nil
+	return MessageTarget{st}, err
 }
 
 func ReadRootMessageTarget(msg *capnp.Message) (MessageTarget, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return MessageTarget{}, err
-	}
-	return MessageTarget{root.Struct()}, nil
+	return MessageTarget{root.Struct()}, err
 }
 
 func (s MessageTarget) Which() MessageTarget_Which {
@@ -1887,10 +1683,7 @@ func (s MessageTarget) SetImportedCap(v uint32) {
 
 func (s MessageTarget) PromisedAnswer() (PromisedAnswer, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return PromisedAnswer{}, err
-	}
-	return PromisedAnswer{Struct: p.Struct()}, nil
+	return PromisedAnswer{Struct: p.Struct()}, err
 }
 
 func (s MessageTarget) HasPromisedAnswer() bool {
@@ -1921,10 +1714,7 @@ type MessageTarget_List struct{ capnp.List }
 // NewMessageTarget creates a new list of MessageTarget.
 func NewMessageTarget_List(s *capnp.Segment, sz int32) (MessageTarget_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	if err != nil {
-		return MessageTarget_List{}, err
-	}
-	return MessageTarget_List{l}, nil
+	return MessageTarget_List{l}, err
 }
 
 func (s MessageTarget_List) At(i int) MessageTarget           { return MessageTarget{s.List.Struct(i)} }
@@ -1946,26 +1736,17 @@ type Payload struct{ capnp.Struct }
 
 func NewPayload(s *capnp.Segment) (Payload, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
-	if err != nil {
-		return Payload{}, err
-	}
-	return Payload{st}, nil
+	return Payload{st}, err
 }
 
 func NewRootPayload(s *capnp.Segment) (Payload, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
-	if err != nil {
-		return Payload{}, err
-	}
-	return Payload{st}, nil
+	return Payload{st}, err
 }
 
 func ReadRootPayload(msg *capnp.Message) (Payload, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return Payload{}, err
-	}
-	return Payload{root.Struct()}, nil
+	return Payload{root.Struct()}, err
 }
 func (s Payload) Content() (capnp.Pointer, error) {
 	return s.Struct.Pointer(0)
@@ -1990,10 +1771,7 @@ func (s Payload) SetContentPtr(v capnp.Ptr) error {
 
 func (s Payload) CapTable() (CapDescriptor_List, error) {
 	p, err := s.Struct.Ptr(1)
-	if err != nil {
-		return CapDescriptor_List{}, err
-	}
-	return CapDescriptor_List{List: p.List()}, nil
+	return CapDescriptor_List{List: p.List()}, err
 }
 
 func (s Payload) HasCapTable() bool {
@@ -2022,10 +1800,7 @@ type Payload_List struct{ capnp.List }
 // NewPayload creates a new list of Payload.
 func NewPayload_List(s *capnp.Segment, sz int32) (Payload_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
-	if err != nil {
-		return Payload_List{}, err
-	}
-	return Payload_List{l}, nil
+	return Payload_List{l}, err
 }
 
 func (s Payload_List) At(i int) Payload           { return Payload{s.List.Struct(i)} }
@@ -2077,26 +1852,17 @@ func (w CapDescriptor_Which) String() string {
 
 func NewCapDescriptor(s *capnp.Segment) (CapDescriptor, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	if err != nil {
-		return CapDescriptor{}, err
-	}
-	return CapDescriptor{st}, nil
+	return CapDescriptor{st}, err
 }
 
 func NewRootCapDescriptor(s *capnp.Segment) (CapDescriptor, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	if err != nil {
-		return CapDescriptor{}, err
-	}
-	return CapDescriptor{st}, nil
+	return CapDescriptor{st}, err
 }
 
 func ReadRootCapDescriptor(msg *capnp.Message) (CapDescriptor, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return CapDescriptor{}, err
-	}
-	return CapDescriptor{root.Struct()}, nil
+	return CapDescriptor{root.Struct()}, err
 }
 
 func (s CapDescriptor) Which() CapDescriptor_Which {
@@ -2136,10 +1902,7 @@ func (s CapDescriptor) SetReceiverHosted(v uint32) {
 
 func (s CapDescriptor) ReceiverAnswer() (PromisedAnswer, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return PromisedAnswer{}, err
-	}
-	return PromisedAnswer{Struct: p.Struct()}, nil
+	return PromisedAnswer{Struct: p.Struct()}, err
 }
 
 func (s CapDescriptor) HasReceiverAnswer() bool {
@@ -2166,10 +1929,7 @@ func (s CapDescriptor) NewReceiverAnswer() (PromisedAnswer, error) {
 
 func (s CapDescriptor) ThirdPartyHosted() (ThirdPartyCapDescriptor, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return ThirdPartyCapDescriptor{}, err
-	}
-	return ThirdPartyCapDescriptor{Struct: p.Struct()}, nil
+	return ThirdPartyCapDescriptor{Struct: p.Struct()}, err
 }
 
 func (s CapDescriptor) HasThirdPartyHosted() bool {
@@ -2200,10 +1960,7 @@ type CapDescriptor_List struct{ capnp.List }
 // NewCapDescriptor creates a new list of CapDescriptor.
 func NewCapDescriptor_List(s *capnp.Segment, sz int32) (CapDescriptor_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	if err != nil {
-		return CapDescriptor_List{}, err
-	}
-	return CapDescriptor_List{l}, nil
+	return CapDescriptor_List{l}, err
 }
 
 func (s CapDescriptor_List) At(i int) CapDescriptor           { return CapDescriptor{s.List.Struct(i)} }
@@ -2229,26 +1986,17 @@ type PromisedAnswer struct{ capnp.Struct }
 
 func NewPromisedAnswer(s *capnp.Segment) (PromisedAnswer, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	if err != nil {
-		return PromisedAnswer{}, err
-	}
-	return PromisedAnswer{st}, nil
+	return PromisedAnswer{st}, err
 }
 
 func NewRootPromisedAnswer(s *capnp.Segment) (PromisedAnswer, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	if err != nil {
-		return PromisedAnswer{}, err
-	}
-	return PromisedAnswer{st}, nil
+	return PromisedAnswer{st}, err
 }
 
 func ReadRootPromisedAnswer(msg *capnp.Message) (PromisedAnswer, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return PromisedAnswer{}, err
-	}
-	return PromisedAnswer{root.Struct()}, nil
+	return PromisedAnswer{root.Struct()}, err
 }
 func (s PromisedAnswer) QuestionId() uint32 {
 	return s.Struct.Uint32(0)
@@ -2260,10 +2008,7 @@ func (s PromisedAnswer) SetQuestionId(v uint32) {
 
 func (s PromisedAnswer) Transform() (PromisedAnswer_Op_List, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return PromisedAnswer_Op_List{}, err
-	}
-	return PromisedAnswer_Op_List{List: p.List()}, nil
+	return PromisedAnswer_Op_List{List: p.List()}, err
 }
 
 func (s PromisedAnswer) HasTransform() bool {
@@ -2292,10 +2037,7 @@ type PromisedAnswer_List struct{ capnp.List }
 // NewPromisedAnswer creates a new list of PromisedAnswer.
 func NewPromisedAnswer_List(s *capnp.Segment, sz int32) (PromisedAnswer_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	if err != nil {
-		return PromisedAnswer_List{}, err
-	}
-	return PromisedAnswer_List{l}, nil
+	return PromisedAnswer_List{l}, err
 }
 
 func (s PromisedAnswer_List) At(i int) PromisedAnswer           { return PromisedAnswer{s.List.Struct(i)} }
@@ -2331,26 +2073,17 @@ func (w PromisedAnswer_Op_Which) String() string {
 
 func NewPromisedAnswer_Op(s *capnp.Segment) (PromisedAnswer_Op, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	if err != nil {
-		return PromisedAnswer_Op{}, err
-	}
-	return PromisedAnswer_Op{st}, nil
+	return PromisedAnswer_Op{st}, err
 }
 
 func NewRootPromisedAnswer_Op(s *capnp.Segment) (PromisedAnswer_Op, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	if err != nil {
-		return PromisedAnswer_Op{}, err
-	}
-	return PromisedAnswer_Op{st}, nil
+	return PromisedAnswer_Op{st}, err
 }
 
 func ReadRootPromisedAnswer_Op(msg *capnp.Message) (PromisedAnswer_Op, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return PromisedAnswer_Op{}, err
-	}
-	return PromisedAnswer_Op{root.Struct()}, nil
+	return PromisedAnswer_Op{root.Struct()}, err
 }
 
 func (s PromisedAnswer_Op) Which() PromisedAnswer_Op_Which {
@@ -2376,10 +2109,7 @@ type PromisedAnswer_Op_List struct{ capnp.List }
 // NewPromisedAnswer_Op creates a new list of PromisedAnswer_Op.
 func NewPromisedAnswer_Op_List(s *capnp.Segment, sz int32) (PromisedAnswer_Op_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	if err != nil {
-		return PromisedAnswer_Op_List{}, err
-	}
-	return PromisedAnswer_Op_List{l}, nil
+	return PromisedAnswer_Op_List{l}, err
 }
 
 func (s PromisedAnswer_Op_List) At(i int) PromisedAnswer_Op {
@@ -2401,26 +2131,17 @@ type ThirdPartyCapDescriptor struct{ capnp.Struct }
 
 func NewThirdPartyCapDescriptor(s *capnp.Segment) (ThirdPartyCapDescriptor, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	if err != nil {
-		return ThirdPartyCapDescriptor{}, err
-	}
-	return ThirdPartyCapDescriptor{st}, nil
+	return ThirdPartyCapDescriptor{st}, err
 }
 
 func NewRootThirdPartyCapDescriptor(s *capnp.Segment) (ThirdPartyCapDescriptor, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	if err != nil {
-		return ThirdPartyCapDescriptor{}, err
-	}
-	return ThirdPartyCapDescriptor{st}, nil
+	return ThirdPartyCapDescriptor{st}, err
 }
 
 func ReadRootThirdPartyCapDescriptor(msg *capnp.Message) (ThirdPartyCapDescriptor, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return ThirdPartyCapDescriptor{}, err
-	}
-	return ThirdPartyCapDescriptor{root.Struct()}, nil
+	return ThirdPartyCapDescriptor{root.Struct()}, err
 }
 func (s ThirdPartyCapDescriptor) Id() (capnp.Pointer, error) {
 	return s.Struct.Pointer(0)
@@ -2457,10 +2178,7 @@ type ThirdPartyCapDescriptor_List struct{ capnp.List }
 // NewThirdPartyCapDescriptor creates a new list of ThirdPartyCapDescriptor.
 func NewThirdPartyCapDescriptor_List(s *capnp.Segment, sz int32) (ThirdPartyCapDescriptor_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	if err != nil {
-		return ThirdPartyCapDescriptor_List{}, err
-	}
-	return ThirdPartyCapDescriptor_List{l}, nil
+	return ThirdPartyCapDescriptor_List{l}, err
 }
 
 func (s ThirdPartyCapDescriptor_List) At(i int) ThirdPartyCapDescriptor {
@@ -2486,33 +2204,21 @@ type Exception struct{ capnp.Struct }
 
 func NewException(s *capnp.Segment) (Exception, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	if err != nil {
-		return Exception{}, err
-	}
-	return Exception{st}, nil
+	return Exception{st}, err
 }
 
 func NewRootException(s *capnp.Segment) (Exception, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	if err != nil {
-		return Exception{}, err
-	}
-	return Exception{st}, nil
+	return Exception{st}, err
 }
 
 func ReadRootException(msg *capnp.Message) (Exception, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return Exception{}, err
-	}
-	return Exception{root.Struct()}, nil
+	return Exception{root.Struct()}, err
 }
 func (s Exception) Reason() (string, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return "", err
-	}
-	return p.Text(), nil
+	return p.Text(), err
 }
 
 func (s Exception) HasReason() bool {
@@ -2570,10 +2276,7 @@ type Exception_List struct{ capnp.List }
 // NewException creates a new list of Exception.
 func NewException_List(s *capnp.Segment, sz int32) (Exception_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	if err != nil {
-		return Exception_List{}, err
-	}
-	return Exception_List{l}, nil
+	return Exception_List{l}, err
 }
 
 func (s Exception_List) At(i int) Exception           { return Exception{s.List.Struct(i)} }
@@ -2636,10 +2339,7 @@ type Exception_Type_List struct{ capnp.List }
 
 func NewException_Type_List(s *capnp.Segment, sz int32) (Exception_Type_List, error) {
 	l, err := capnp.NewUInt16List(s, sz)
-	if err != nil {
-		return Exception_Type_List{}, err
-	}
-	return Exception_Type_List{l.List}, nil
+	return Exception_Type_List{l.List}, err
 }
 
 func (l Exception_Type_List) At(i int) Exception_Type {
