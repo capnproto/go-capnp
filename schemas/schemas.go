@@ -26,6 +26,9 @@ type record struct {
 func Register(data string, ids ...uint64) {
 	r := &record{c: data}
 	for _, id := range ids {
+		if _, dup := registry[id]; dup {
+			panic(errors.New("schemas: registered ID @0x" + strconv.FormatUint(id, 16) + " twice"))
+		}
 		registry[id] = r
 	}
 }
