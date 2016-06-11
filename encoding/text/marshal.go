@@ -4,6 +4,7 @@ package text
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"strconv"
 
 	"zombiezen.com/go/capnproto2"
@@ -58,6 +59,16 @@ func (m *marshaller) marshalInt(i int64) {
 
 func (m *marshaller) marshalUint(i uint64) {
 	m.tmp = strconv.AppendUint(m.tmp[:0], i, 10)
+	m.buf.Write(m.tmp)
+}
+
+func (m *marshaller) marshalFloat32(f float32) {
+	m.tmp = strconv.AppendFloat(m.tmp[:0], float64(f), 'g', -1, 32)
+	m.buf.Write(m.tmp)
+}
+
+func (m *marshaller) marshalFloat64(f float64) {
+	m.tmp = strconv.AppendFloat(m.tmp[:0], f, 'g', -1, 64)
 	m.buf.Write(m.tmp)
 }
 
@@ -206,6 +217,14 @@ func (m *marshaller) marshalFieldValue(s capnp.Struct, f schema.Field) error {
 		v := s.Uint64(capnp.DataOffset(f.Slot().Offset() * 8))
 		d := dv.Uint64()
 		m.marshalUint(v ^ d)
+	case schema.Type_Which_float32:
+		v := s.Uint32(capnp.DataOffset(f.Slot().Offset() * 4))
+		d := dv.Uint32()
+		m.marshalFloat32(math.Float32frombits(v ^ d))
+	case schema.Type_Which_float64:
+		v := s.Uint64(capnp.DataOffset(f.Slot().Offset() * 8))
+		d := dv.Uint64()
+		m.marshalFloat64(math.Float64frombits(v ^ d))
 	case schema.Type_Which_structType:
 		p, err := s.Ptr(uint16(f.Slot().Offset()))
 		if err != nil {
