@@ -12,3 +12,4 @@ func ReadRoot{{.Node.Name}}(msg *{{.G.Capnp}}.Message) ({{.Node.Name}}, error) {
 	root, err := msg.RootPtr()
 	return {{.Node.Name}}{root.Struct()}, err
 }
+
