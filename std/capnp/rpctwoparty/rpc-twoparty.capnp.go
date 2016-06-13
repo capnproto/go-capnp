@@ -74,6 +74,7 @@ func ReadRootVatId(msg *capnp.Message) (VatId, error) {
 	root, err := msg.RootPtr()
 	return VatId{root.Struct()}, err
 }
+
 func (s VatId) Side() Side {
 	return Side(s.Struct.Uint16(0))
 }
@@ -91,7 +92,8 @@ func NewVatId_List(s *capnp.Segment, sz int32) (VatId_List, error) {
 	return VatId_List{l}, err
 }
 
-func (s VatId_List) At(i int) VatId           { return VatId{s.List.Struct(i)} }
+func (s VatId_List) At(i int) VatId { return VatId{s.List.Struct(i)} }
+
 func (s VatId_List) Set(i int, v VatId) error { return s.List.SetStruct(i, v.Struct) }
 
 // VatId_Promise is a wrapper for a VatId promised by a client call.
@@ -118,6 +120,7 @@ func ReadRootProvisionId(msg *capnp.Message) (ProvisionId, error) {
 	root, err := msg.RootPtr()
 	return ProvisionId{root.Struct()}, err
 }
+
 func (s ProvisionId) JoinId() uint32 {
 	return s.Struct.Uint32(0)
 }
@@ -135,7 +138,8 @@ func NewProvisionId_List(s *capnp.Segment, sz int32) (ProvisionId_List, error) {
 	return ProvisionId_List{l}, err
 }
 
-func (s ProvisionId_List) At(i int) ProvisionId           { return ProvisionId{s.List.Struct(i)} }
+func (s ProvisionId_List) At(i int) ProvisionId { return ProvisionId{s.List.Struct(i)} }
+
 func (s ProvisionId_List) Set(i int, v ProvisionId) error { return s.List.SetStruct(i, v.Struct) }
 
 // ProvisionId_Promise is a wrapper for a ProvisionId promised by a client call.
@@ -172,7 +176,8 @@ func NewRecipientId_List(s *capnp.Segment, sz int32) (RecipientId_List, error) {
 	return RecipientId_List{l}, err
 }
 
-func (s RecipientId_List) At(i int) RecipientId           { return RecipientId{s.List.Struct(i)} }
+func (s RecipientId_List) At(i int) RecipientId { return RecipientId{s.List.Struct(i)} }
+
 func (s RecipientId_List) Set(i int, v RecipientId) error { return s.List.SetStruct(i, v.Struct) }
 
 // RecipientId_Promise is a wrapper for a RecipientId promised by a client call.
@@ -210,6 +215,7 @@ func NewThirdPartyCapId_List(s *capnp.Segment, sz int32) (ThirdPartyCapId_List, 
 }
 
 func (s ThirdPartyCapId_List) At(i int) ThirdPartyCapId { return ThirdPartyCapId{s.List.Struct(i)} }
+
 func (s ThirdPartyCapId_List) Set(i int, v ThirdPartyCapId) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -238,6 +244,7 @@ func ReadRootJoinKeyPart(msg *capnp.Message) (JoinKeyPart, error) {
 	root, err := msg.RootPtr()
 	return JoinKeyPart{root.Struct()}, err
 }
+
 func (s JoinKeyPart) JoinId() uint32 {
 	return s.Struct.Uint32(0)
 }
@@ -271,7 +278,8 @@ func NewJoinKeyPart_List(s *capnp.Segment, sz int32) (JoinKeyPart_List, error) {
 	return JoinKeyPart_List{l}, err
 }
 
-func (s JoinKeyPart_List) At(i int) JoinKeyPart           { return JoinKeyPart{s.List.Struct(i)} }
+func (s JoinKeyPart_List) At(i int) JoinKeyPart { return JoinKeyPart{s.List.Struct(i)} }
+
 func (s JoinKeyPart_List) Set(i int, v JoinKeyPart) error { return s.List.SetStruct(i, v.Struct) }
 
 // JoinKeyPart_Promise is a wrapper for a JoinKeyPart promised by a client call.
@@ -298,6 +306,7 @@ func ReadRootJoinResult(msg *capnp.Message) (JoinResult, error) {
 	root, err := msg.RootPtr()
 	return JoinResult{root.Struct()}, err
 }
+
 func (s JoinResult) JoinId() uint32 {
 	return s.Struct.Uint32(0)
 }
@@ -344,7 +353,8 @@ func NewJoinResult_List(s *capnp.Segment, sz int32) (JoinResult_List, error) {
 	return JoinResult_List{l}, err
 }
 
-func (s JoinResult_List) At(i int) JoinResult           { return JoinResult{s.List.Struct(i)} }
+func (s JoinResult_List) At(i int) JoinResult { return JoinResult{s.List.Struct(i)} }
+
 func (s JoinResult_List) Set(i int, v JoinResult) error { return s.List.SetStruct(i, v.Struct) }
 
 // JoinResult_Promise is a wrapper for a JoinResult promised by a client call.

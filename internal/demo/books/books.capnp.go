@@ -22,6 +22,7 @@ func ReadRootBook(msg *capnp.Message) (Book, error) {
 	root, err := msg.RootPtr()
 	return Book{root.Struct()}, err
 }
+
 func (s Book) Title() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -69,7 +70,8 @@ func NewBook_List(s *capnp.Segment, sz int32) (Book_List, error) {
 	return Book_List{l}, err
 }
 
-func (s Book_List) At(i int) Book           { return Book{s.List.Struct(i)} }
+func (s Book_List) At(i int) Book { return Book{s.List.Struct(i)} }
+
 func (s Book_List) Set(i int, v Book) error { return s.List.SetStruct(i, v.Struct) }
 
 // Book_Promise is a wrapper for a Book promised by a client call.

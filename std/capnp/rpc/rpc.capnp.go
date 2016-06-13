@@ -460,7 +460,8 @@ func NewMessage_List(s *capnp.Segment, sz int32) (Message_List, error) {
 	return Message_List{l}, err
 }
 
-func (s Message_List) At(i int) Message           { return Message{s.List.Struct(i)} }
+func (s Message_List) At(i int) Message { return Message{s.List.Struct(i)} }
+
 func (s Message_List) Set(i int, v Message) error { return s.List.SetStruct(i, v.Struct) }
 
 // Message_Promise is a wrapper for a Message promised by a client call.
@@ -543,6 +544,7 @@ func ReadRootBootstrap(msg *capnp.Message) (Bootstrap, error) {
 	root, err := msg.RootPtr()
 	return Bootstrap{root.Struct()}, err
 }
+
 func (s Bootstrap) QuestionId() uint32 {
 	return s.Struct.Uint32(0)
 }
@@ -581,7 +583,8 @@ func NewBootstrap_List(s *capnp.Segment, sz int32) (Bootstrap_List, error) {
 	return Bootstrap_List{l}, err
 }
 
-func (s Bootstrap_List) At(i int) Bootstrap           { return Bootstrap{s.List.Struct(i)} }
+func (s Bootstrap_List) At(i int) Bootstrap { return Bootstrap{s.List.Struct(i)} }
+
 func (s Bootstrap_List) Set(i int, v Bootstrap) error { return s.List.SetStruct(i, v.Struct) }
 
 // Bootstrap_Promise is a wrapper for a Bootstrap promised by a client call.
@@ -634,6 +637,7 @@ func ReadRootCall(msg *capnp.Message) (Call, error) {
 	root, err := msg.RootPtr()
 	return Call{root.Struct()}, err
 }
+
 func (s Call) QuestionId() uint32 {
 	return s.Struct.Uint32(0)
 }
@@ -717,6 +721,7 @@ func (s Call) NewParams() (Payload, error) {
 }
 
 func (s Call) SendResultsTo() Call_sendResultsTo { return Call_sendResultsTo(s) }
+
 func (s Call_sendResultsTo) Which() Call_sendResultsTo_Which {
 	return Call_sendResultsTo_Which(s.Struct.Uint16(6))
 }
@@ -762,7 +767,8 @@ func NewCall_List(s *capnp.Segment, sz int32) (Call_List, error) {
 	return Call_List{l}, err
 }
 
-func (s Call_List) At(i int) Call           { return Call{s.List.Struct(i)} }
+func (s Call_List) At(i int) Call { return Call{s.List.Struct(i)} }
+
 func (s Call_List) Set(i int, v Call) error { return s.List.SetStruct(i, v.Struct) }
 
 // Call_Promise is a wrapper for a Call promised by a client call.
@@ -968,7 +974,8 @@ func NewReturn_List(s *capnp.Segment, sz int32) (Return_List, error) {
 	return Return_List{l}, err
 }
 
-func (s Return_List) At(i int) Return           { return Return{s.List.Struct(i)} }
+func (s Return_List) At(i int) Return { return Return{s.List.Struct(i)} }
+
 func (s Return_List) Set(i int, v Return) error { return s.List.SetStruct(i, v.Struct) }
 
 // Return_Promise is a wrapper for a Return promised by a client call.
@@ -1007,6 +1014,7 @@ func ReadRootFinish(msg *capnp.Message) (Finish, error) {
 	root, err := msg.RootPtr()
 	return Finish{root.Struct()}, err
 }
+
 func (s Finish) QuestionId() uint32 {
 	return s.Struct.Uint32(0)
 }
@@ -1032,7 +1040,8 @@ func NewFinish_List(s *capnp.Segment, sz int32) (Finish_List, error) {
 	return Finish_List{l}, err
 }
 
-func (s Finish_List) At(i int) Finish           { return Finish{s.List.Struct(i)} }
+func (s Finish_List) At(i int) Finish { return Finish{s.List.Struct(i)} }
+
 func (s Finish_List) Set(i int, v Finish) error { return s.List.SetStruct(i, v.Struct) }
 
 // Finish_Promise is a wrapper for a Finish promised by a client call.
@@ -1152,7 +1161,8 @@ func NewResolve_List(s *capnp.Segment, sz int32) (Resolve_List, error) {
 	return Resolve_List{l}, err
 }
 
-func (s Resolve_List) At(i int) Resolve           { return Resolve{s.List.Struct(i)} }
+func (s Resolve_List) At(i int) Resolve { return Resolve{s.List.Struct(i)} }
+
 func (s Resolve_List) Set(i int, v Resolve) error { return s.List.SetStruct(i, v.Struct) }
 
 // Resolve_Promise is a wrapper for a Resolve promised by a client call.
@@ -1187,6 +1197,7 @@ func ReadRootRelease(msg *capnp.Message) (Release, error) {
 	root, err := msg.RootPtr()
 	return Release{root.Struct()}, err
 }
+
 func (s Release) Id() uint32 {
 	return s.Struct.Uint32(0)
 }
@@ -1212,7 +1223,8 @@ func NewRelease_List(s *capnp.Segment, sz int32) (Release_List, error) {
 	return Release_List{l}, err
 }
 
-func (s Release_List) At(i int) Release           { return Release{s.List.Struct(i)} }
+func (s Release_List) At(i int) Release { return Release{s.List.Struct(i)} }
+
 func (s Release_List) Set(i int, v Release) error { return s.List.SetStruct(i, v.Struct) }
 
 // Release_Promise is a wrapper for a Release promised by a client call.
@@ -1264,6 +1276,7 @@ func ReadRootDisembargo(msg *capnp.Message) (Disembargo, error) {
 	root, err := msg.RootPtr()
 	return Disembargo{root.Struct()}, err
 }
+
 func (s Disembargo) Target() (MessageTarget, error) {
 	p, err := s.Struct.Ptr(0)
 	return MessageTarget{Struct: p.Struct()}, err
@@ -1290,6 +1303,7 @@ func (s Disembargo) NewTarget() (MessageTarget, error) {
 }
 
 func (s Disembargo) Context() Disembargo_context { return Disembargo_context(s) }
+
 func (s Disembargo_context) Which() Disembargo_context_Which {
 	return Disembargo_context_Which(s.Struct.Uint16(4))
 }
@@ -1334,7 +1348,8 @@ func NewDisembargo_List(s *capnp.Segment, sz int32) (Disembargo_List, error) {
 	return Disembargo_List{l}, err
 }
 
-func (s Disembargo_List) At(i int) Disembargo           { return Disembargo{s.List.Struct(i)} }
+func (s Disembargo_List) At(i int) Disembargo { return Disembargo{s.List.Struct(i)} }
+
 func (s Disembargo_List) Set(i int, v Disembargo) error { return s.List.SetStruct(i, v.Struct) }
 
 // Disembargo_Promise is a wrapper for a Disembargo promised by a client call.
@@ -1377,6 +1392,7 @@ func ReadRootProvide(msg *capnp.Message) (Provide, error) {
 	root, err := msg.RootPtr()
 	return Provide{root.Struct()}, err
 }
+
 func (s Provide) QuestionId() uint32 {
 	return s.Struct.Uint32(0)
 }
@@ -1440,7 +1456,8 @@ func NewProvide_List(s *capnp.Segment, sz int32) (Provide_List, error) {
 	return Provide_List{l}, err
 }
 
-func (s Provide_List) At(i int) Provide           { return Provide{s.List.Struct(i)} }
+func (s Provide_List) At(i int) Provide { return Provide{s.List.Struct(i)} }
+
 func (s Provide_List) Set(i int, v Provide) error { return s.List.SetStruct(i, v.Struct) }
 
 // Provide_Promise is a wrapper for a Provide promised by a client call.
@@ -1475,6 +1492,7 @@ func ReadRootAccept(msg *capnp.Message) (Accept, error) {
 	root, err := msg.RootPtr()
 	return Accept{root.Struct()}, err
 }
+
 func (s Accept) QuestionId() uint32 {
 	return s.Struct.Uint32(0)
 }
@@ -1521,7 +1539,8 @@ func NewAccept_List(s *capnp.Segment, sz int32) (Accept_List, error) {
 	return Accept_List{l}, err
 }
 
-func (s Accept_List) At(i int) Accept           { return Accept{s.List.Struct(i)} }
+func (s Accept_List) At(i int) Accept { return Accept{s.List.Struct(i)} }
+
 func (s Accept_List) Set(i int, v Accept) error { return s.List.SetStruct(i, v.Struct) }
 
 // Accept_Promise is a wrapper for a Accept promised by a client call.
@@ -1552,6 +1571,7 @@ func ReadRootJoin(msg *capnp.Message) (Join, error) {
 	root, err := msg.RootPtr()
 	return Join{root.Struct()}, err
 }
+
 func (s Join) QuestionId() uint32 {
 	return s.Struct.Uint32(0)
 }
@@ -1615,7 +1635,8 @@ func NewJoin_List(s *capnp.Segment, sz int32) (Join_List, error) {
 	return Join_List{l}, err
 }
 
-func (s Join_List) At(i int) Join           { return Join{s.List.Struct(i)} }
+func (s Join_List) At(i int) Join { return Join{s.List.Struct(i)} }
+
 func (s Join_List) Set(i int, v Join) error { return s.List.SetStruct(i, v.Struct) }
 
 // Join_Promise is a wrapper for a Join promised by a client call.
@@ -1717,7 +1738,8 @@ func NewMessageTarget_List(s *capnp.Segment, sz int32) (MessageTarget_List, erro
 	return MessageTarget_List{l}, err
 }
 
-func (s MessageTarget_List) At(i int) MessageTarget           { return MessageTarget{s.List.Struct(i)} }
+func (s MessageTarget_List) At(i int) MessageTarget { return MessageTarget{s.List.Struct(i)} }
+
 func (s MessageTarget_List) Set(i int, v MessageTarget) error { return s.List.SetStruct(i, v.Struct) }
 
 // MessageTarget_Promise is a wrapper for a MessageTarget promised by a client call.
@@ -1748,6 +1770,7 @@ func ReadRootPayload(msg *capnp.Message) (Payload, error) {
 	root, err := msg.RootPtr()
 	return Payload{root.Struct()}, err
 }
+
 func (s Payload) Content() (capnp.Pointer, error) {
 	return s.Struct.Pointer(0)
 }
@@ -1803,7 +1826,8 @@ func NewPayload_List(s *capnp.Segment, sz int32) (Payload_List, error) {
 	return Payload_List{l}, err
 }
 
-func (s Payload_List) At(i int) Payload           { return Payload{s.List.Struct(i)} }
+func (s Payload_List) At(i int) Payload { return Payload{s.List.Struct(i)} }
+
 func (s Payload_List) Set(i int, v Payload) error { return s.List.SetStruct(i, v.Struct) }
 
 // Payload_Promise is a wrapper for a Payload promised by a client call.
@@ -1963,7 +1987,8 @@ func NewCapDescriptor_List(s *capnp.Segment, sz int32) (CapDescriptor_List, erro
 	return CapDescriptor_List{l}, err
 }
 
-func (s CapDescriptor_List) At(i int) CapDescriptor           { return CapDescriptor{s.List.Struct(i)} }
+func (s CapDescriptor_List) At(i int) CapDescriptor { return CapDescriptor{s.List.Struct(i)} }
+
 func (s CapDescriptor_List) Set(i int, v CapDescriptor) error { return s.List.SetStruct(i, v.Struct) }
 
 // CapDescriptor_Promise is a wrapper for a CapDescriptor promised by a client call.
@@ -1998,6 +2023,7 @@ func ReadRootPromisedAnswer(msg *capnp.Message) (PromisedAnswer, error) {
 	root, err := msg.RootPtr()
 	return PromisedAnswer{root.Struct()}, err
 }
+
 func (s PromisedAnswer) QuestionId() uint32 {
 	return s.Struct.Uint32(0)
 }
@@ -2040,7 +2066,8 @@ func NewPromisedAnswer_List(s *capnp.Segment, sz int32) (PromisedAnswer_List, er
 	return PromisedAnswer_List{l}, err
 }
 
-func (s PromisedAnswer_List) At(i int) PromisedAnswer           { return PromisedAnswer{s.List.Struct(i)} }
+func (s PromisedAnswer_List) At(i int) PromisedAnswer { return PromisedAnswer{s.List.Struct(i)} }
+
 func (s PromisedAnswer_List) Set(i int, v PromisedAnswer) error { return s.List.SetStruct(i, v.Struct) }
 
 // PromisedAnswer_Promise is a wrapper for a PromisedAnswer promised by a client call.
@@ -2115,6 +2142,7 @@ func NewPromisedAnswer_Op_List(s *capnp.Segment, sz int32) (PromisedAnswer_Op_Li
 func (s PromisedAnswer_Op_List) At(i int) PromisedAnswer_Op {
 	return PromisedAnswer_Op{s.List.Struct(i)}
 }
+
 func (s PromisedAnswer_Op_List) Set(i int, v PromisedAnswer_Op) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -2143,6 +2171,7 @@ func ReadRootThirdPartyCapDescriptor(msg *capnp.Message) (ThirdPartyCapDescripto
 	root, err := msg.RootPtr()
 	return ThirdPartyCapDescriptor{root.Struct()}, err
 }
+
 func (s ThirdPartyCapDescriptor) Id() (capnp.Pointer, error) {
 	return s.Struct.Pointer(0)
 }
@@ -2184,6 +2213,7 @@ func NewThirdPartyCapDescriptor_List(s *capnp.Segment, sz int32) (ThirdPartyCapD
 func (s ThirdPartyCapDescriptor_List) At(i int) ThirdPartyCapDescriptor {
 	return ThirdPartyCapDescriptor{s.List.Struct(i)}
 }
+
 func (s ThirdPartyCapDescriptor_List) Set(i int, v ThirdPartyCapDescriptor) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -2216,6 +2246,7 @@ func ReadRootException(msg *capnp.Message) (Exception, error) {
 	root, err := msg.RootPtr()
 	return Exception{root.Struct()}, err
 }
+
 func (s Exception) Reason() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -2279,7 +2310,8 @@ func NewException_List(s *capnp.Segment, sz int32) (Exception_List, error) {
 	return Exception_List{l}, err
 }
 
-func (s Exception_List) At(i int) Exception           { return Exception{s.List.Struct(i)} }
+func (s Exception_List) At(i int) Exception { return Exception{s.List.Struct(i)} }
+
 func (s Exception_List) Set(i int, v Exception) error { return s.List.SetStruct(i, v.Struct) }
 
 // Exception_Promise is a wrapper for a Exception promised by a client call.

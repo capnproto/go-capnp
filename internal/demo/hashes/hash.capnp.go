@@ -99,6 +99,7 @@ func NewHashFactory_newSha1_Params_List(s *capnp.Segment, sz int32) (HashFactory
 func (s HashFactory_newSha1_Params_List) At(i int) HashFactory_newSha1_Params {
 	return HashFactory_newSha1_Params{s.List.Struct(i)}
 }
+
 func (s HashFactory_newSha1_Params_List) Set(i int, v HashFactory_newSha1_Params) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -127,6 +128,7 @@ func ReadRootHashFactory_newSha1_Results(msg *capnp.Message) (HashFactory_newSha
 	root, err := msg.RootPtr()
 	return HashFactory_newSha1_Results{root.Struct()}, err
 }
+
 func (s HashFactory_newSha1_Results) Hash() Hash {
 	p, _ := s.Struct.Ptr(0)
 	return Hash{Client: p.Interface().Client()}
@@ -158,6 +160,7 @@ func NewHashFactory_newSha1_Results_List(s *capnp.Segment, sz int32) (HashFactor
 func (s HashFactory_newSha1_Results_List) At(i int) HashFactory_newSha1_Results {
 	return HashFactory_newSha1_Results{s.List.Struct(i)}
 }
+
 func (s HashFactory_newSha1_Results_List) Set(i int, v HashFactory_newSha1_Results) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -296,6 +299,7 @@ func ReadRootHash_write_Params(msg *capnp.Message) (Hash_write_Params, error) {
 	root, err := msg.RootPtr()
 	return Hash_write_Params{root.Struct()}, err
 }
+
 func (s Hash_write_Params) Data() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
 	return []byte(p.Data()), err
@@ -326,6 +330,7 @@ func NewHash_write_Params_List(s *capnp.Segment, sz int32) (Hash_write_Params_Li
 func (s Hash_write_Params_List) At(i int) Hash_write_Params {
 	return Hash_write_Params{s.List.Struct(i)}
 }
+
 func (s Hash_write_Params_List) Set(i int, v Hash_write_Params) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -367,6 +372,7 @@ func NewHash_write_Results_List(s *capnp.Segment, sz int32) (Hash_write_Results_
 func (s Hash_write_Results_List) At(i int) Hash_write_Results {
 	return Hash_write_Results{s.List.Struct(i)}
 }
+
 func (s Hash_write_Results_List) Set(i int, v Hash_write_Results) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -406,6 +412,7 @@ func NewHash_sum_Params_List(s *capnp.Segment, sz int32) (Hash_sum_Params_List, 
 }
 
 func (s Hash_sum_Params_List) At(i int) Hash_sum_Params { return Hash_sum_Params{s.List.Struct(i)} }
+
 func (s Hash_sum_Params_List) Set(i int, v Hash_sum_Params) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -434,6 +441,7 @@ func ReadRootHash_sum_Results(msg *capnp.Message) (Hash_sum_Results, error) {
 	root, err := msg.RootPtr()
 	return Hash_sum_Results{root.Struct()}, err
 }
+
 func (s Hash_sum_Results) Hash() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
 	return []byte(p.Data()), err
@@ -462,6 +470,7 @@ func NewHash_sum_Results_List(s *capnp.Segment, sz int32) (Hash_sum_Results_List
 }
 
 func (s Hash_sum_Results_List) At(i int) Hash_sum_Results { return Hash_sum_Results{s.List.Struct(i)} }
+
 func (s Hash_sum_Results_List) Set(i int, v Hash_sum_Results) error {
 	return s.List.SetStruct(i, v.Struct)
 }

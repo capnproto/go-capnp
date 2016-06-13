@@ -205,7 +205,8 @@ func NewJsonValue_List(s *capnp.Segment, sz int32) (JsonValue_List, error) {
 	return JsonValue_List{l}, err
 }
 
-func (s JsonValue_List) At(i int) JsonValue           { return JsonValue{s.List.Struct(i)} }
+func (s JsonValue_List) At(i int) JsonValue { return JsonValue{s.List.Struct(i)} }
+
 func (s JsonValue_List) Set(i int, v JsonValue) error { return s.List.SetStruct(i, v.Struct) }
 
 // JsonValue_Promise is a wrapper for a JsonValue promised by a client call.
@@ -236,6 +237,7 @@ func ReadRootJsonValue_Field(msg *capnp.Message) (JsonValue_Field, error) {
 	root, err := msg.RootPtr()
 	return JsonValue_Field{root.Struct()}, err
 }
+
 func (s JsonValue_Field) Name() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -301,6 +303,7 @@ func NewJsonValue_Field_List(s *capnp.Segment, sz int32) (JsonValue_Field_List, 
 }
 
 func (s JsonValue_Field_List) At(i int) JsonValue_Field { return JsonValue_Field{s.List.Struct(i)} }
+
 func (s JsonValue_Field_List) Set(i int, v JsonValue_Field) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -333,6 +336,7 @@ func ReadRootJsonValue_Call(msg *capnp.Message) (JsonValue_Call, error) {
 	root, err := msg.RootPtr()
 	return JsonValue_Call{root.Struct()}, err
 }
+
 func (s JsonValue_Call) Function() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -397,7 +401,8 @@ func NewJsonValue_Call_List(s *capnp.Segment, sz int32) (JsonValue_Call_List, er
 	return JsonValue_Call_List{l}, err
 }
 
-func (s JsonValue_Call_List) At(i int) JsonValue_Call           { return JsonValue_Call{s.List.Struct(i)} }
+func (s JsonValue_Call_List) At(i int) JsonValue_Call { return JsonValue_Call{s.List.Struct(i)} }
+
 func (s JsonValue_Call_List) Set(i int, v JsonValue_Call) error { return s.List.SetStruct(i, v.Struct) }
 
 // JsonValue_Call_Promise is a wrapper for a JsonValue_Call promised by a client call.
