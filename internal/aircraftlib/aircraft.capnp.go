@@ -37,6 +37,7 @@ func ReadRootZdate(msg *capnp.Message) (Zdate, error) {
 	root, err := msg.RootPtr()
 	return Zdate{root.Struct()}, err
 }
+
 func (s Zdate) Year() int16 {
 	return int16(s.Struct.Uint16(0))
 }
@@ -70,7 +71,8 @@ func NewZdate_List(s *capnp.Segment, sz int32) (Zdate_List, error) {
 	return Zdate_List{l}, err
 }
 
-func (s Zdate_List) At(i int) Zdate           { return Zdate{s.List.Struct(i)} }
+func (s Zdate_List) At(i int) Zdate { return Zdate{s.List.Struct(i)} }
+
 func (s Zdate_List) Set(i int, v Zdate) error { return s.List.SetStruct(i, v.Struct) }
 
 // Zdate_Promise is a wrapper for a Zdate promised by a client call.
@@ -97,6 +99,7 @@ func ReadRootZdata(msg *capnp.Message) (Zdata, error) {
 	root, err := msg.RootPtr()
 	return Zdata{root.Struct()}, err
 }
+
 func (s Zdata) Data() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
 	return []byte(p.Data()), err
@@ -124,7 +127,8 @@ func NewZdata_List(s *capnp.Segment, sz int32) (Zdata_List, error) {
 	return Zdata_List{l}, err
 }
 
-func (s Zdata_List) At(i int) Zdata           { return Zdata{s.List.Struct(i)} }
+func (s Zdata_List) At(i int) Zdata { return Zdata{s.List.Struct(i)} }
+
 func (s Zdata_List) Set(i int, v Zdata) error { return s.List.SetStruct(i, v.Struct) }
 
 // Zdata_Promise is a wrapper for a Zdata promised by a client call.
@@ -228,6 +232,7 @@ func ReadRootPlaneBase(msg *capnp.Message) (PlaneBase, error) {
 	root, err := msg.RootPtr()
 	return PlaneBase{root.Struct()}, err
 }
+
 func (s PlaneBase) Name() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -324,7 +329,8 @@ func NewPlaneBase_List(s *capnp.Segment, sz int32) (PlaneBase_List, error) {
 	return PlaneBase_List{l}, err
 }
 
-func (s PlaneBase_List) At(i int) PlaneBase           { return PlaneBase{s.List.Struct(i)} }
+func (s PlaneBase_List) At(i int) PlaneBase { return PlaneBase{s.List.Struct(i)} }
+
 func (s PlaneBase_List) Set(i int, v PlaneBase) error { return s.List.SetStruct(i, v.Struct) }
 
 // PlaneBase_Promise is a wrapper for a PlaneBase promised by a client call.
@@ -351,6 +357,7 @@ func ReadRootB737(msg *capnp.Message) (B737, error) {
 	root, err := msg.RootPtr()
 	return B737{root.Struct()}, err
 }
+
 func (s B737) Base() (PlaneBase, error) {
 	p, err := s.Struct.Ptr(0)
 	return PlaneBase{Struct: p.Struct()}, err
@@ -385,7 +392,8 @@ func NewB737_List(s *capnp.Segment, sz int32) (B737_List, error) {
 	return B737_List{l}, err
 }
 
-func (s B737_List) At(i int) B737           { return B737{s.List.Struct(i)} }
+func (s B737_List) At(i int) B737 { return B737{s.List.Struct(i)} }
+
 func (s B737_List) Set(i int, v B737) error { return s.List.SetStruct(i, v.Struct) }
 
 // B737_Promise is a wrapper for a B737 promised by a client call.
@@ -416,6 +424,7 @@ func ReadRootA320(msg *capnp.Message) (A320, error) {
 	root, err := msg.RootPtr()
 	return A320{root.Struct()}, err
 }
+
 func (s A320) Base() (PlaneBase, error) {
 	p, err := s.Struct.Ptr(0)
 	return PlaneBase{Struct: p.Struct()}, err
@@ -450,7 +459,8 @@ func NewA320_List(s *capnp.Segment, sz int32) (A320_List, error) {
 	return A320_List{l}, err
 }
 
-func (s A320_List) At(i int) A320           { return A320{s.List.Struct(i)} }
+func (s A320_List) At(i int) A320 { return A320{s.List.Struct(i)} }
+
 func (s A320_List) Set(i int, v A320) error { return s.List.SetStruct(i, v.Struct) }
 
 // A320_Promise is a wrapper for a A320 promised by a client call.
@@ -481,6 +491,7 @@ func ReadRootF16(msg *capnp.Message) (F16, error) {
 	root, err := msg.RootPtr()
 	return F16{root.Struct()}, err
 }
+
 func (s F16) Base() (PlaneBase, error) {
 	p, err := s.Struct.Ptr(0)
 	return PlaneBase{Struct: p.Struct()}, err
@@ -515,7 +526,8 @@ func NewF16_List(s *capnp.Segment, sz int32) (F16_List, error) {
 	return F16_List{l}, err
 }
 
-func (s F16_List) At(i int) F16           { return F16{s.List.Struct(i)} }
+func (s F16_List) At(i int) F16 { return F16{s.List.Struct(i)} }
+
 func (s F16_List) Set(i int, v F16) error { return s.List.SetStruct(i, v.Struct) }
 
 // F16_Promise is a wrapper for a F16 promised by a client call.
@@ -546,6 +558,7 @@ func ReadRootRegression(msg *capnp.Message) (Regression, error) {
 	root, err := msg.RootPtr()
 	return Regression{root.Struct()}, err
 }
+
 func (s Regression) Base() (PlaneBase, error) {
 	p, err := s.Struct.Ptr(0)
 	return PlaneBase{Struct: p.Struct()}, err
@@ -654,7 +667,8 @@ func NewRegression_List(s *capnp.Segment, sz int32) (Regression_List, error) {
 	return Regression_List{l}, err
 }
 
-func (s Regression_List) At(i int) Regression           { return Regression{s.List.Struct(i)} }
+func (s Regression_List) At(i int) Regression { return Regression{s.List.Struct(i)} }
+
 func (s Regression_List) Set(i int, v Regression) error { return s.List.SetStruct(i, v.Struct) }
 
 // Regression_Promise is a wrapper for a Regression promised by a client call.
@@ -808,7 +822,8 @@ func NewAircraft_List(s *capnp.Segment, sz int32) (Aircraft_List, error) {
 	return Aircraft_List{l}, err
 }
 
-func (s Aircraft_List) At(i int) Aircraft           { return Aircraft{s.List.Struct(i)} }
+func (s Aircraft_List) At(i int) Aircraft { return Aircraft{s.List.Struct(i)} }
+
 func (s Aircraft_List) Set(i int, v Aircraft) error { return s.List.SetStruct(i, v.Struct) }
 
 // Aircraft_Promise is a wrapper for a Aircraft promised by a client call.
@@ -1830,7 +1845,8 @@ func NewZ_List(s *capnp.Segment, sz int32) (Z_List, error) {
 	return Z_List{l}, err
 }
 
-func (s Z_List) At(i int) Z           { return Z{s.List.Struct(i)} }
+func (s Z_List) At(i int) Z { return Z{s.List.Struct(i)} }
+
 func (s Z_List) Set(i int, v Z) error { return s.List.SetStruct(i, v.Struct) }
 
 // Z_Promise is a wrapper for a Z promised by a client call.
@@ -1893,6 +1909,7 @@ func ReadRootCounter(msg *capnp.Message) (Counter, error) {
 	root, err := msg.RootPtr()
 	return Counter{root.Struct()}, err
 }
+
 func (s Counter) Size() int64 {
 	return int64(s.Struct.Uint64(0))
 }
@@ -1965,7 +1982,8 @@ func NewCounter_List(s *capnp.Segment, sz int32) (Counter_List, error) {
 	return Counter_List{l}, err
 }
 
-func (s Counter_List) At(i int) Counter           { return Counter{s.List.Struct(i)} }
+func (s Counter_List) At(i int) Counter { return Counter{s.List.Struct(i)} }
+
 func (s Counter_List) Set(i int, v Counter) error { return s.List.SetStruct(i, v.Struct) }
 
 // Counter_Promise is a wrapper for a Counter promised by a client call.
@@ -1992,6 +2010,7 @@ func ReadRootBag(msg *capnp.Message) (Bag, error) {
 	root, err := msg.RootPtr()
 	return Bag{root.Struct()}, err
 }
+
 func (s Bag) Counter() (Counter, error) {
 	p, err := s.Struct.Ptr(0)
 	return Counter{Struct: p.Struct()}, err
@@ -2026,7 +2045,8 @@ func NewBag_List(s *capnp.Segment, sz int32) (Bag_List, error) {
 	return Bag_List{l}, err
 }
 
-func (s Bag_List) At(i int) Bag           { return Bag{s.List.Struct(i)} }
+func (s Bag_List) At(i int) Bag { return Bag{s.List.Struct(i)} }
+
 func (s Bag_List) Set(i int, v Bag) error { return s.List.SetStruct(i, v.Struct) }
 
 // Bag_Promise is a wrapper for a Bag promised by a client call.
@@ -2057,6 +2077,7 @@ func ReadRootZserver(msg *capnp.Message) (Zserver, error) {
 	root, err := msg.RootPtr()
 	return Zserver{root.Struct()}, err
 }
+
 func (s Zserver) Waitingjobs() (Zjob_List, error) {
 	p, err := s.Struct.Ptr(0)
 	return Zjob_List{List: p.List()}, err
@@ -2091,7 +2112,8 @@ func NewZserver_List(s *capnp.Segment, sz int32) (Zserver_List, error) {
 	return Zserver_List{l}, err
 }
 
-func (s Zserver_List) At(i int) Zserver           { return Zserver{s.List.Struct(i)} }
+func (s Zserver_List) At(i int) Zserver { return Zserver{s.List.Struct(i)} }
+
 func (s Zserver_List) Set(i int, v Zserver) error { return s.List.SetStruct(i, v.Struct) }
 
 // Zserver_Promise is a wrapper for a Zserver promised by a client call.
@@ -2118,6 +2140,7 @@ func ReadRootZjob(msg *capnp.Message) (Zjob, error) {
 	root, err := msg.RootPtr()
 	return Zjob{root.Struct()}, err
 }
+
 func (s Zjob) Cmd() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -2182,7 +2205,8 @@ func NewZjob_List(s *capnp.Segment, sz int32) (Zjob_List, error) {
 	return Zjob_List{l}, err
 }
 
-func (s Zjob_List) At(i int) Zjob           { return Zjob{s.List.Struct(i)} }
+func (s Zjob_List) At(i int) Zjob { return Zjob{s.List.Struct(i)} }
+
 func (s Zjob_List) Set(i int, v Zjob) error { return s.List.SetStruct(i, v.Struct) }
 
 // Zjob_Promise is a wrapper for a Zjob promised by a client call.
@@ -2219,7 +2243,8 @@ func NewVerEmpty_List(s *capnp.Segment, sz int32) (VerEmpty_List, error) {
 	return VerEmpty_List{l}, err
 }
 
-func (s VerEmpty_List) At(i int) VerEmpty           { return VerEmpty{s.List.Struct(i)} }
+func (s VerEmpty_List) At(i int) VerEmpty { return VerEmpty{s.List.Struct(i)} }
+
 func (s VerEmpty_List) Set(i int, v VerEmpty) error { return s.List.SetStruct(i, v.Struct) }
 
 // VerEmpty_Promise is a wrapper for a VerEmpty promised by a client call.
@@ -2246,6 +2271,7 @@ func ReadRootVerOneData(msg *capnp.Message) (VerOneData, error) {
 	root, err := msg.RootPtr()
 	return VerOneData{root.Struct()}, err
 }
+
 func (s VerOneData) Val() int16 {
 	return int16(s.Struct.Uint16(0))
 }
@@ -2263,7 +2289,8 @@ func NewVerOneData_List(s *capnp.Segment, sz int32) (VerOneData_List, error) {
 	return VerOneData_List{l}, err
 }
 
-func (s VerOneData_List) At(i int) VerOneData           { return VerOneData{s.List.Struct(i)} }
+func (s VerOneData_List) At(i int) VerOneData { return VerOneData{s.List.Struct(i)} }
+
 func (s VerOneData_List) Set(i int, v VerOneData) error { return s.List.SetStruct(i, v.Struct) }
 
 // VerOneData_Promise is a wrapper for a VerOneData promised by a client call.
@@ -2290,6 +2317,7 @@ func ReadRootVerTwoData(msg *capnp.Message) (VerTwoData, error) {
 	root, err := msg.RootPtr()
 	return VerTwoData{root.Struct()}, err
 }
+
 func (s VerTwoData) Val() int16 {
 	return int16(s.Struct.Uint16(0))
 }
@@ -2315,7 +2343,8 @@ func NewVerTwoData_List(s *capnp.Segment, sz int32) (VerTwoData_List, error) {
 	return VerTwoData_List{l}, err
 }
 
-func (s VerTwoData_List) At(i int) VerTwoData           { return VerTwoData{s.List.Struct(i)} }
+func (s VerTwoData_List) At(i int) VerTwoData { return VerTwoData{s.List.Struct(i)} }
+
 func (s VerTwoData_List) Set(i int, v VerTwoData) error { return s.List.SetStruct(i, v.Struct) }
 
 // VerTwoData_Promise is a wrapper for a VerTwoData promised by a client call.
@@ -2342,6 +2371,7 @@ func ReadRootVerOnePtr(msg *capnp.Message) (VerOnePtr, error) {
 	root, err := msg.RootPtr()
 	return VerOnePtr{root.Struct()}, err
 }
+
 func (s VerOnePtr) Ptr() (VerOneData, error) {
 	p, err := s.Struct.Ptr(0)
 	return VerOneData{Struct: p.Struct()}, err
@@ -2376,7 +2406,8 @@ func NewVerOnePtr_List(s *capnp.Segment, sz int32) (VerOnePtr_List, error) {
 	return VerOnePtr_List{l}, err
 }
 
-func (s VerOnePtr_List) At(i int) VerOnePtr           { return VerOnePtr{s.List.Struct(i)} }
+func (s VerOnePtr_List) At(i int) VerOnePtr { return VerOnePtr{s.List.Struct(i)} }
+
 func (s VerOnePtr_List) Set(i int, v VerOnePtr) error { return s.List.SetStruct(i, v.Struct) }
 
 // VerOnePtr_Promise is a wrapper for a VerOnePtr promised by a client call.
@@ -2407,6 +2438,7 @@ func ReadRootVerTwoPtr(msg *capnp.Message) (VerTwoPtr, error) {
 	root, err := msg.RootPtr()
 	return VerTwoPtr{root.Struct()}, err
 }
+
 func (s VerTwoPtr) Ptr1() (VerOneData, error) {
 	p, err := s.Struct.Ptr(0)
 	return VerOneData{Struct: p.Struct()}, err
@@ -2466,7 +2498,8 @@ func NewVerTwoPtr_List(s *capnp.Segment, sz int32) (VerTwoPtr_List, error) {
 	return VerTwoPtr_List{l}, err
 }
 
-func (s VerTwoPtr_List) At(i int) VerTwoPtr           { return VerTwoPtr{s.List.Struct(i)} }
+func (s VerTwoPtr_List) At(i int) VerTwoPtr { return VerTwoPtr{s.List.Struct(i)} }
+
 func (s VerTwoPtr_List) Set(i int, v VerTwoPtr) error { return s.List.SetStruct(i, v.Struct) }
 
 // VerTwoPtr_Promise is a wrapper for a VerTwoPtr promised by a client call.
@@ -2501,6 +2534,7 @@ func ReadRootVerTwoDataTwoPtr(msg *capnp.Message) (VerTwoDataTwoPtr, error) {
 	root, err := msg.RootPtr()
 	return VerTwoDataTwoPtr{root.Struct()}, err
 }
+
 func (s VerTwoDataTwoPtr) Val() int16 {
 	return int16(s.Struct.Uint16(0))
 }
@@ -2577,6 +2611,7 @@ func NewVerTwoDataTwoPtr_List(s *capnp.Segment, sz int32) (VerTwoDataTwoPtr_List
 }
 
 func (s VerTwoDataTwoPtr_List) At(i int) VerTwoDataTwoPtr { return VerTwoDataTwoPtr{s.List.Struct(i)} }
+
 func (s VerTwoDataTwoPtr_List) Set(i int, v VerTwoDataTwoPtr) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -2613,6 +2648,7 @@ func ReadRootHoldsVerEmptyList(msg *capnp.Message) (HoldsVerEmptyList, error) {
 	root, err := msg.RootPtr()
 	return HoldsVerEmptyList{root.Struct()}, err
 }
+
 func (s HoldsVerEmptyList) Mylist() (VerEmpty_List, error) {
 	p, err := s.Struct.Ptr(0)
 	return VerEmpty_List{List: p.List()}, err
@@ -2650,6 +2686,7 @@ func NewHoldsVerEmptyList_List(s *capnp.Segment, sz int32) (HoldsVerEmptyList_Li
 func (s HoldsVerEmptyList_List) At(i int) HoldsVerEmptyList {
 	return HoldsVerEmptyList{s.List.Struct(i)}
 }
+
 func (s HoldsVerEmptyList_List) Set(i int, v HoldsVerEmptyList) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -2678,6 +2715,7 @@ func ReadRootHoldsVerOneDataList(msg *capnp.Message) (HoldsVerOneDataList, error
 	root, err := msg.RootPtr()
 	return HoldsVerOneDataList{root.Struct()}, err
 }
+
 func (s HoldsVerOneDataList) Mylist() (VerOneData_List, error) {
 	p, err := s.Struct.Ptr(0)
 	return VerOneData_List{List: p.List()}, err
@@ -2715,6 +2753,7 @@ func NewHoldsVerOneDataList_List(s *capnp.Segment, sz int32) (HoldsVerOneDataLis
 func (s HoldsVerOneDataList_List) At(i int) HoldsVerOneDataList {
 	return HoldsVerOneDataList{s.List.Struct(i)}
 }
+
 func (s HoldsVerOneDataList_List) Set(i int, v HoldsVerOneDataList) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -2743,6 +2782,7 @@ func ReadRootHoldsVerTwoDataList(msg *capnp.Message) (HoldsVerTwoDataList, error
 	root, err := msg.RootPtr()
 	return HoldsVerTwoDataList{root.Struct()}, err
 }
+
 func (s HoldsVerTwoDataList) Mylist() (VerTwoData_List, error) {
 	p, err := s.Struct.Ptr(0)
 	return VerTwoData_List{List: p.List()}, err
@@ -2780,6 +2820,7 @@ func NewHoldsVerTwoDataList_List(s *capnp.Segment, sz int32) (HoldsVerTwoDataLis
 func (s HoldsVerTwoDataList_List) At(i int) HoldsVerTwoDataList {
 	return HoldsVerTwoDataList{s.List.Struct(i)}
 }
+
 func (s HoldsVerTwoDataList_List) Set(i int, v HoldsVerTwoDataList) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -2808,6 +2849,7 @@ func ReadRootHoldsVerOnePtrList(msg *capnp.Message) (HoldsVerOnePtrList, error) 
 	root, err := msg.RootPtr()
 	return HoldsVerOnePtrList{root.Struct()}, err
 }
+
 func (s HoldsVerOnePtrList) Mylist() (VerOnePtr_List, error) {
 	p, err := s.Struct.Ptr(0)
 	return VerOnePtr_List{List: p.List()}, err
@@ -2845,6 +2887,7 @@ func NewHoldsVerOnePtrList_List(s *capnp.Segment, sz int32) (HoldsVerOnePtrList_
 func (s HoldsVerOnePtrList_List) At(i int) HoldsVerOnePtrList {
 	return HoldsVerOnePtrList{s.List.Struct(i)}
 }
+
 func (s HoldsVerOnePtrList_List) Set(i int, v HoldsVerOnePtrList) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -2873,6 +2916,7 @@ func ReadRootHoldsVerTwoPtrList(msg *capnp.Message) (HoldsVerTwoPtrList, error) 
 	root, err := msg.RootPtr()
 	return HoldsVerTwoPtrList{root.Struct()}, err
 }
+
 func (s HoldsVerTwoPtrList) Mylist() (VerTwoPtr_List, error) {
 	p, err := s.Struct.Ptr(0)
 	return VerTwoPtr_List{List: p.List()}, err
@@ -2910,6 +2954,7 @@ func NewHoldsVerTwoPtrList_List(s *capnp.Segment, sz int32) (HoldsVerTwoPtrList_
 func (s HoldsVerTwoPtrList_List) At(i int) HoldsVerTwoPtrList {
 	return HoldsVerTwoPtrList{s.List.Struct(i)}
 }
+
 func (s HoldsVerTwoPtrList_List) Set(i int, v HoldsVerTwoPtrList) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -2938,6 +2983,7 @@ func ReadRootHoldsVerTwoTwoList(msg *capnp.Message) (HoldsVerTwoTwoList, error) 
 	root, err := msg.RootPtr()
 	return HoldsVerTwoTwoList{root.Struct()}, err
 }
+
 func (s HoldsVerTwoTwoList) Mylist() (VerTwoDataTwoPtr_List, error) {
 	p, err := s.Struct.Ptr(0)
 	return VerTwoDataTwoPtr_List{List: p.List()}, err
@@ -2975,6 +3021,7 @@ func NewHoldsVerTwoTwoList_List(s *capnp.Segment, sz int32) (HoldsVerTwoTwoList_
 func (s HoldsVerTwoTwoList_List) At(i int) HoldsVerTwoTwoList {
 	return HoldsVerTwoTwoList{s.List.Struct(i)}
 }
+
 func (s HoldsVerTwoTwoList_List) Set(i int, v HoldsVerTwoTwoList) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -3003,6 +3050,7 @@ func ReadRootHoldsVerTwoTwoPlus(msg *capnp.Message) (HoldsVerTwoTwoPlus, error) 
 	root, err := msg.RootPtr()
 	return HoldsVerTwoTwoPlus{root.Struct()}, err
 }
+
 func (s HoldsVerTwoTwoPlus) Mylist() (VerTwoTwoPlus_List, error) {
 	p, err := s.Struct.Ptr(0)
 	return VerTwoTwoPlus_List{List: p.List()}, err
@@ -3040,6 +3088,7 @@ func NewHoldsVerTwoTwoPlus_List(s *capnp.Segment, sz int32) (HoldsVerTwoTwoPlus_
 func (s HoldsVerTwoTwoPlus_List) At(i int) HoldsVerTwoTwoPlus {
 	return HoldsVerTwoTwoPlus{s.List.Struct(i)}
 }
+
 func (s HoldsVerTwoTwoPlus_List) Set(i int, v HoldsVerTwoTwoPlus) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -3068,6 +3117,7 @@ func ReadRootVerTwoTwoPlus(msg *capnp.Message) (VerTwoTwoPlus, error) {
 	root, err := msg.RootPtr()
 	return VerTwoTwoPlus{root.Struct()}, err
 }
+
 func (s VerTwoTwoPlus) Val() int16 {
 	return int16(s.Struct.Uint16(0))
 }
@@ -3176,7 +3226,8 @@ func NewVerTwoTwoPlus_List(s *capnp.Segment, sz int32) (VerTwoTwoPlus_List, erro
 	return VerTwoTwoPlus_List{l}, err
 }
 
-func (s VerTwoTwoPlus_List) At(i int) VerTwoTwoPlus           { return VerTwoTwoPlus{s.List.Struct(i)} }
+func (s VerTwoTwoPlus_List) At(i int) VerTwoTwoPlus { return VerTwoTwoPlus{s.List.Struct(i)} }
+
 func (s VerTwoTwoPlus_List) Set(i int, v VerTwoTwoPlus) error { return s.List.SetStruct(i, v.Struct) }
 
 // VerTwoTwoPlus_Promise is a wrapper for a VerTwoTwoPlus promised by a client call.
@@ -3211,6 +3262,7 @@ func ReadRootHoldsText(msg *capnp.Message) (HoldsText, error) {
 	root, err := msg.RootPtr()
 	return HoldsText{root.Struct()}, err
 }
+
 func (s HoldsText) Txt() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -3300,7 +3352,8 @@ func NewHoldsText_List(s *capnp.Segment, sz int32) (HoldsText_List, error) {
 	return HoldsText_List{l}, err
 }
 
-func (s HoldsText_List) At(i int) HoldsText           { return HoldsText{s.List.Struct(i)} }
+func (s HoldsText_List) At(i int) HoldsText { return HoldsText{s.List.Struct(i)} }
+
 func (s HoldsText_List) Set(i int, v HoldsText) error { return s.List.SetStruct(i, v.Struct) }
 
 // HoldsText_Promise is a wrapper for a HoldsText promised by a client call.
@@ -3327,6 +3380,7 @@ func ReadRootWrapEmpty(msg *capnp.Message) (WrapEmpty, error) {
 	root, err := msg.RootPtr()
 	return WrapEmpty{root.Struct()}, err
 }
+
 func (s WrapEmpty) MightNotBeReallyEmpty() (VerEmpty, error) {
 	p, err := s.Struct.Ptr(0)
 	return VerEmpty{Struct: p.Struct()}, err
@@ -3361,7 +3415,8 @@ func NewWrapEmpty_List(s *capnp.Segment, sz int32) (WrapEmpty_List, error) {
 	return WrapEmpty_List{l}, err
 }
 
-func (s WrapEmpty_List) At(i int) WrapEmpty           { return WrapEmpty{s.List.Struct(i)} }
+func (s WrapEmpty_List) At(i int) WrapEmpty { return WrapEmpty{s.List.Struct(i)} }
+
 func (s WrapEmpty_List) Set(i int, v WrapEmpty) error { return s.List.SetStruct(i, v.Struct) }
 
 // WrapEmpty_Promise is a wrapper for a WrapEmpty promised by a client call.
@@ -3392,6 +3447,7 @@ func ReadRootWrap2x2(msg *capnp.Message) (Wrap2x2, error) {
 	root, err := msg.RootPtr()
 	return Wrap2x2{root.Struct()}, err
 }
+
 func (s Wrap2x2) MightNotBeReallyEmpty() (VerTwoDataTwoPtr, error) {
 	p, err := s.Struct.Ptr(0)
 	return VerTwoDataTwoPtr{Struct: p.Struct()}, err
@@ -3426,7 +3482,8 @@ func NewWrap2x2_List(s *capnp.Segment, sz int32) (Wrap2x2_List, error) {
 	return Wrap2x2_List{l}, err
 }
 
-func (s Wrap2x2_List) At(i int) Wrap2x2           { return Wrap2x2{s.List.Struct(i)} }
+func (s Wrap2x2_List) At(i int) Wrap2x2 { return Wrap2x2{s.List.Struct(i)} }
+
 func (s Wrap2x2_List) Set(i int, v Wrap2x2) error { return s.List.SetStruct(i, v.Struct) }
 
 // Wrap2x2_Promise is a wrapper for a Wrap2x2 promised by a client call.
@@ -3457,6 +3514,7 @@ func ReadRootWrap2x2plus(msg *capnp.Message) (Wrap2x2plus, error) {
 	root, err := msg.RootPtr()
 	return Wrap2x2plus{root.Struct()}, err
 }
+
 func (s Wrap2x2plus) MightNotBeReallyEmpty() (VerTwoTwoPlus, error) {
 	p, err := s.Struct.Ptr(0)
 	return VerTwoTwoPlus{Struct: p.Struct()}, err
@@ -3491,7 +3549,8 @@ func NewWrap2x2plus_List(s *capnp.Segment, sz int32) (Wrap2x2plus_List, error) {
 	return Wrap2x2plus_List{l}, err
 }
 
-func (s Wrap2x2plus_List) At(i int) Wrap2x2plus           { return Wrap2x2plus{s.List.Struct(i)} }
+func (s Wrap2x2plus_List) At(i int) Wrap2x2plus { return Wrap2x2plus{s.List.Struct(i)} }
+
 func (s Wrap2x2plus_List) Set(i int, v Wrap2x2plus) error { return s.List.SetStruct(i, v.Struct) }
 
 // Wrap2x2plus_Promise is a wrapper for a Wrap2x2plus promised by a client call.
@@ -3563,7 +3622,8 @@ func NewVoidUnion_List(s *capnp.Segment, sz int32) (VoidUnion_List, error) {
 	return VoidUnion_List{l}, err
 }
 
-func (s VoidUnion_List) At(i int) VoidUnion           { return VoidUnion{s.List.Struct(i)} }
+func (s VoidUnion_List) At(i int) VoidUnion { return VoidUnion{s.List.Struct(i)} }
+
 func (s VoidUnion_List) Set(i int, v VoidUnion) error { return s.List.SetStruct(i, v.Struct) }
 
 // VoidUnion_Promise is a wrapper for a VoidUnion promised by a client call.
@@ -3590,6 +3650,7 @@ func ReadRootNester1Capn(msg *capnp.Message) (Nester1Capn, error) {
 	root, err := msg.RootPtr()
 	return Nester1Capn{root.Struct()}, err
 }
+
 func (s Nester1Capn) Strs() (capnp.TextList, error) {
 	p, err := s.Struct.Ptr(0)
 	return capnp.TextList{List: p.List()}, err
@@ -3624,7 +3685,8 @@ func NewNester1Capn_List(s *capnp.Segment, sz int32) (Nester1Capn_List, error) {
 	return Nester1Capn_List{l}, err
 }
 
-func (s Nester1Capn_List) At(i int) Nester1Capn           { return Nester1Capn{s.List.Struct(i)} }
+func (s Nester1Capn_List) At(i int) Nester1Capn { return Nester1Capn{s.List.Struct(i)} }
+
 func (s Nester1Capn_List) Set(i int, v Nester1Capn) error { return s.List.SetStruct(i, v.Struct) }
 
 // Nester1Capn_Promise is a wrapper for a Nester1Capn promised by a client call.
@@ -3651,6 +3713,7 @@ func ReadRootRWTestCapn(msg *capnp.Message) (RWTestCapn, error) {
 	root, err := msg.RootPtr()
 	return RWTestCapn{root.Struct()}, err
 }
+
 func (s RWTestCapn) NestMatrix() (capnp.PointerList, error) {
 	p, err := s.Struct.Ptr(0)
 	return capnp.PointerList{List: p.List()}, err
@@ -3685,7 +3748,8 @@ func NewRWTestCapn_List(s *capnp.Segment, sz int32) (RWTestCapn_List, error) {
 	return RWTestCapn_List{l}, err
 }
 
-func (s RWTestCapn_List) At(i int) RWTestCapn           { return RWTestCapn{s.List.Struct(i)} }
+func (s RWTestCapn_List) At(i int) RWTestCapn { return RWTestCapn{s.List.Struct(i)} }
+
 func (s RWTestCapn_List) Set(i int, v RWTestCapn) error { return s.List.SetStruct(i, v.Struct) }
 
 // RWTestCapn_Promise is a wrapper for a RWTestCapn promised by a client call.
@@ -3712,6 +3776,7 @@ func ReadRootListStructCapn(msg *capnp.Message) (ListStructCapn, error) {
 	root, err := msg.RootPtr()
 	return ListStructCapn{root.Struct()}, err
 }
+
 func (s ListStructCapn) Vec() (Nester1Capn_List, error) {
 	p, err := s.Struct.Ptr(0)
 	return Nester1Capn_List{List: p.List()}, err
@@ -3746,7 +3811,8 @@ func NewListStructCapn_List(s *capnp.Segment, sz int32) (ListStructCapn_List, er
 	return ListStructCapn_List{l}, err
 }
 
-func (s ListStructCapn_List) At(i int) ListStructCapn           { return ListStructCapn{s.List.Struct(i)} }
+func (s ListStructCapn_List) At(i int) ListStructCapn { return ListStructCapn{s.List.Struct(i)} }
+
 func (s ListStructCapn_List) Set(i int, v ListStructCapn) error { return s.List.SetStruct(i, v.Struct) }
 
 // ListStructCapn_Promise is a wrapper for a ListStructCapn promised by a client call.
@@ -3835,6 +3901,7 @@ func ReadRootEcho_echo_Params(msg *capnp.Message) (Echo_echo_Params, error) {
 	root, err := msg.RootPtr()
 	return Echo_echo_Params{root.Struct()}, err
 }
+
 func (s Echo_echo_Params) In() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -3875,6 +3942,7 @@ func NewEcho_echo_Params_List(s *capnp.Segment, sz int32) (Echo_echo_Params_List
 }
 
 func (s Echo_echo_Params_List) At(i int) Echo_echo_Params { return Echo_echo_Params{s.List.Struct(i)} }
+
 func (s Echo_echo_Params_List) Set(i int, v Echo_echo_Params) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -3903,6 +3971,7 @@ func ReadRootEcho_echo_Results(msg *capnp.Message) (Echo_echo_Results, error) {
 	root, err := msg.RootPtr()
 	return Echo_echo_Results{root.Struct()}, err
 }
+
 func (s Echo_echo_Results) Out() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -3945,6 +4014,7 @@ func NewEcho_echo_Results_List(s *capnp.Segment, sz int32) (Echo_echo_Results_Li
 func (s Echo_echo_Results_List) At(i int) Echo_echo_Results {
 	return Echo_echo_Results{s.List.Struct(i)}
 }
+
 func (s Echo_echo_Results_List) Set(i int, v Echo_echo_Results) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -3973,6 +4043,7 @@ func ReadRootHoth(msg *capnp.Message) (Hoth, error) {
 	root, err := msg.RootPtr()
 	return Hoth{root.Struct()}, err
 }
+
 func (s Hoth) Base() (EchoBase, error) {
 	p, err := s.Struct.Ptr(0)
 	return EchoBase{Struct: p.Struct()}, err
@@ -4007,7 +4078,8 @@ func NewHoth_List(s *capnp.Segment, sz int32) (Hoth_List, error) {
 	return Hoth_List{l}, err
 }
 
-func (s Hoth_List) At(i int) Hoth           { return Hoth{s.List.Struct(i)} }
+func (s Hoth_List) At(i int) Hoth { return Hoth{s.List.Struct(i)} }
+
 func (s Hoth_List) Set(i int, v Hoth) error { return s.List.SetStruct(i, v.Struct) }
 
 // Hoth_Promise is a wrapper for a Hoth promised by a client call.
@@ -4038,6 +4110,7 @@ func ReadRootEchoBase(msg *capnp.Message) (EchoBase, error) {
 	root, err := msg.RootPtr()
 	return EchoBase{root.Struct()}, err
 }
+
 func (s EchoBase) Echo() Echo {
 	p, _ := s.Struct.Ptr(0)
 	return Echo{Client: p.Interface().Client()}
@@ -4066,7 +4139,8 @@ func NewEchoBase_List(s *capnp.Segment, sz int32) (EchoBase_List, error) {
 	return EchoBase_List{l}, err
 }
 
-func (s EchoBase_List) At(i int) EchoBase           { return EchoBase{s.List.Struct(i)} }
+func (s EchoBase_List) At(i int) EchoBase { return EchoBase{s.List.Struct(i)} }
+
 func (s EchoBase_List) Set(i int, v EchoBase) error { return s.List.SetStruct(i, v.Struct) }
 
 // EchoBase_Promise is a wrapper for a EchoBase promised by a client call.
@@ -4097,6 +4171,7 @@ func ReadRootStackingRoot(msg *capnp.Message) (StackingRoot, error) {
 	root, err := msg.RootPtr()
 	return StackingRoot{root.Struct()}, err
 }
+
 func (s StackingRoot) A() (StackingA, error) {
 	p, err := s.Struct.Ptr(1)
 	return StackingA{Struct: p.Struct()}, err
@@ -4160,7 +4235,8 @@ func NewStackingRoot_List(s *capnp.Segment, sz int32) (StackingRoot_List, error)
 	return StackingRoot_List{l}, err
 }
 
-func (s StackingRoot_List) At(i int) StackingRoot           { return StackingRoot{s.List.Struct(i)} }
+func (s StackingRoot_List) At(i int) StackingRoot { return StackingRoot{s.List.Struct(i)} }
+
 func (s StackingRoot_List) Set(i int, v StackingRoot) error { return s.List.SetStruct(i, v.Struct) }
 
 // StackingRoot_Promise is a wrapper for a StackingRoot promised by a client call.
@@ -4195,6 +4271,7 @@ func ReadRootStackingA(msg *capnp.Message) (StackingA, error) {
 	root, err := msg.RootPtr()
 	return StackingA{root.Struct()}, err
 }
+
 func (s StackingA) Num() int32 {
 	return int32(s.Struct.Uint32(0))
 }
@@ -4237,7 +4314,8 @@ func NewStackingA_List(s *capnp.Segment, sz int32) (StackingA_List, error) {
 	return StackingA_List{l}, err
 }
 
-func (s StackingA_List) At(i int) StackingA           { return StackingA{s.List.Struct(i)} }
+func (s StackingA_List) At(i int) StackingA { return StackingA{s.List.Struct(i)} }
+
 func (s StackingA_List) Set(i int, v StackingA) error { return s.List.SetStruct(i, v.Struct) }
 
 // StackingA_Promise is a wrapper for a StackingA promised by a client call.
@@ -4268,6 +4346,7 @@ func ReadRootStackingB(msg *capnp.Message) (StackingB, error) {
 	root, err := msg.RootPtr()
 	return StackingB{root.Struct()}, err
 }
+
 func (s StackingB) Num() int32 {
 	return int32(s.Struct.Uint32(0))
 }
@@ -4285,7 +4364,8 @@ func NewStackingB_List(s *capnp.Segment, sz int32) (StackingB_List, error) {
 	return StackingB_List{l}, err
 }
 
-func (s StackingB_List) At(i int) StackingB           { return StackingB{s.List.Struct(i)} }
+func (s StackingB_List) At(i int) StackingB { return StackingB{s.List.Struct(i)} }
+
 func (s StackingB_List) Set(i int, v StackingB) error { return s.List.SetStruct(i, v.Struct) }
 
 // StackingB_Promise is a wrapper for a StackingB promised by a client call.
@@ -4387,6 +4467,7 @@ func NewCallSequence_getNumber_Params_List(s *capnp.Segment, sz int32) (CallSequ
 func (s CallSequence_getNumber_Params_List) At(i int) CallSequence_getNumber_Params {
 	return CallSequence_getNumber_Params{s.List.Struct(i)}
 }
+
 func (s CallSequence_getNumber_Params_List) Set(i int, v CallSequence_getNumber_Params) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -4415,6 +4496,7 @@ func ReadRootCallSequence_getNumber_Results(msg *capnp.Message) (CallSequence_ge
 	root, err := msg.RootPtr()
 	return CallSequence_getNumber_Results{root.Struct()}, err
 }
+
 func (s CallSequence_getNumber_Results) N() uint32 {
 	return s.Struct.Uint32(0)
 }
@@ -4435,6 +4517,7 @@ func NewCallSequence_getNumber_Results_List(s *capnp.Segment, sz int32) (CallSeq
 func (s CallSequence_getNumber_Results_List) At(i int) CallSequence_getNumber_Results {
 	return CallSequence_getNumber_Results{s.List.Struct(i)}
 }
+
 func (s CallSequence_getNumber_Results_List) Set(i int, v CallSequence_getNumber_Results) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -4463,6 +4546,7 @@ func ReadRootDefaults(msg *capnp.Message) (Defaults, error) {
 	root, err := msg.RootPtr()
 	return Defaults{root.Struct()}, err
 }
+
 func (s Defaults) Text() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.TextDefault("foo"), err
@@ -4544,7 +4628,8 @@ func NewDefaults_List(s *capnp.Segment, sz int32) (Defaults_List, error) {
 	return Defaults_List{l}, err
 }
 
-func (s Defaults_List) At(i int) Defaults           { return Defaults{s.List.Struct(i)} }
+func (s Defaults_List) At(i int) Defaults { return Defaults{s.List.Struct(i)} }
+
 func (s Defaults_List) Set(i int, v Defaults) error { return s.List.SetStruct(i, v.Struct) }
 
 // Defaults_Promise is a wrapper for a Defaults promised by a client call.
@@ -4571,6 +4656,7 @@ func ReadRootBenchmarkA(msg *capnp.Message) (BenchmarkA, error) {
 	root, err := msg.RootPtr()
 	return BenchmarkA{root.Struct()}, err
 }
+
 func (s BenchmarkA) Name() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -4672,7 +4758,8 @@ func NewBenchmarkA_List(s *capnp.Segment, sz int32) (BenchmarkA_List, error) {
 	return BenchmarkA_List{l}, err
 }
 
-func (s BenchmarkA_List) At(i int) BenchmarkA           { return BenchmarkA{s.List.Struct(i)} }
+func (s BenchmarkA_List) At(i int) BenchmarkA { return BenchmarkA{s.List.Struct(i)} }
+
 func (s BenchmarkA_List) Set(i int, v BenchmarkA) error { return s.List.SetStruct(i, v.Struct) }
 
 // BenchmarkA_Promise is a wrapper for a BenchmarkA promised by a client call.

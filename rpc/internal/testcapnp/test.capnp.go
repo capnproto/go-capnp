@@ -117,6 +117,7 @@ func NewHandleFactory_newHandle_Params_List(s *capnp.Segment, sz int32) (HandleF
 func (s HandleFactory_newHandle_Params_List) At(i int) HandleFactory_newHandle_Params {
 	return HandleFactory_newHandle_Params{s.List.Struct(i)}
 }
+
 func (s HandleFactory_newHandle_Params_List) Set(i int, v HandleFactory_newHandle_Params) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -145,6 +146,7 @@ func ReadRootHandleFactory_newHandle_Results(msg *capnp.Message) (HandleFactory_
 	root, err := msg.RootPtr()
 	return HandleFactory_newHandle_Results{root.Struct()}, err
 }
+
 func (s HandleFactory_newHandle_Results) Handle() Handle {
 	p, _ := s.Struct.Ptr(0)
 	return Handle{Client: p.Interface().Client()}
@@ -176,6 +178,7 @@ func NewHandleFactory_newHandle_Results_List(s *capnp.Segment, sz int32) (Handle
 func (s HandleFactory_newHandle_Results_List) At(i int) HandleFactory_newHandle_Results {
 	return HandleFactory_newHandle_Results{s.List.Struct(i)}
 }
+
 func (s HandleFactory_newHandle_Results_List) Set(i int, v HandleFactory_newHandle_Results) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -283,6 +286,7 @@ func NewHanger_hang_Params_List(s *capnp.Segment, sz int32) (Hanger_hang_Params_
 func (s Hanger_hang_Params_List) At(i int) Hanger_hang_Params {
 	return Hanger_hang_Params{s.List.Struct(i)}
 }
+
 func (s Hanger_hang_Params_List) Set(i int, v Hanger_hang_Params) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -324,6 +328,7 @@ func NewHanger_hang_Results_List(s *capnp.Segment, sz int32) (Hanger_hang_Result
 func (s Hanger_hang_Results_List) At(i int) Hanger_hang_Results {
 	return Hanger_hang_Results{s.List.Struct(i)}
 }
+
 func (s Hanger_hang_Results_List) Set(i int, v Hanger_hang_Results) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -414,6 +419,7 @@ func ReadRootCallOrder_getCallSequence_Params(msg *capnp.Message) (CallOrder_get
 	root, err := msg.RootPtr()
 	return CallOrder_getCallSequence_Params{root.Struct()}, err
 }
+
 func (s CallOrder_getCallSequence_Params) Expected() uint32 {
 	return s.Struct.Uint32(0)
 }
@@ -434,6 +440,7 @@ func NewCallOrder_getCallSequence_Params_List(s *capnp.Segment, sz int32) (CallO
 func (s CallOrder_getCallSequence_Params_List) At(i int) CallOrder_getCallSequence_Params {
 	return CallOrder_getCallSequence_Params{s.List.Struct(i)}
 }
+
 func (s CallOrder_getCallSequence_Params_List) Set(i int, v CallOrder_getCallSequence_Params) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -462,6 +469,7 @@ func ReadRootCallOrder_getCallSequence_Results(msg *capnp.Message) (CallOrder_ge
 	root, err := msg.RootPtr()
 	return CallOrder_getCallSequence_Results{root.Struct()}, err
 }
+
 func (s CallOrder_getCallSequence_Results) N() uint32 {
 	return s.Struct.Uint32(0)
 }
@@ -482,6 +490,7 @@ func NewCallOrder_getCallSequence_Results_List(s *capnp.Segment, sz int32) (Call
 func (s CallOrder_getCallSequence_Results_List) At(i int) CallOrder_getCallSequence_Results {
 	return CallOrder_getCallSequence_Results{s.List.Struct(i)}
 }
+
 func (s CallOrder_getCallSequence_Results_List) Set(i int, v CallOrder_getCallSequence_Results) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -608,6 +617,7 @@ func ReadRootEchoer_echo_Params(msg *capnp.Message) (Echoer_echo_Params, error) 
 	root, err := msg.RootPtr()
 	return Echoer_echo_Params{root.Struct()}, err
 }
+
 func (s Echoer_echo_Params) Cap() CallOrder {
 	p, _ := s.Struct.Ptr(0)
 	return CallOrder{Client: p.Interface().Client()}
@@ -639,6 +649,7 @@ func NewEchoer_echo_Params_List(s *capnp.Segment, sz int32) (Echoer_echo_Params_
 func (s Echoer_echo_Params_List) At(i int) Echoer_echo_Params {
 	return Echoer_echo_Params{s.List.Struct(i)}
 }
+
 func (s Echoer_echo_Params_List) Set(i int, v Echoer_echo_Params) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -671,6 +682,7 @@ func ReadRootEchoer_echo_Results(msg *capnp.Message) (Echoer_echo_Results, error
 	root, err := msg.RootPtr()
 	return Echoer_echo_Results{root.Struct()}, err
 }
+
 func (s Echoer_echo_Results) Cap() CallOrder {
 	p, _ := s.Struct.Ptr(0)
 	return CallOrder{Client: p.Interface().Client()}
@@ -702,6 +714,7 @@ func NewEchoer_echo_Results_List(s *capnp.Segment, sz int32) (Echoer_echo_Result
 func (s Echoer_echo_Results_List) At(i int) Echoer_echo_Results {
 	return Echoer_echo_Results{s.List.Struct(i)}
 }
+
 func (s Echoer_echo_Results_List) Set(i int, v Echoer_echo_Results) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -796,6 +809,7 @@ func ReadRootAdder_add_Params(msg *capnp.Message) (Adder_add_Params, error) {
 	root, err := msg.RootPtr()
 	return Adder_add_Params{root.Struct()}, err
 }
+
 func (s Adder_add_Params) A() int32 {
 	return int32(s.Struct.Uint32(0))
 }
@@ -822,6 +836,7 @@ func NewAdder_add_Params_List(s *capnp.Segment, sz int32) (Adder_add_Params_List
 }
 
 func (s Adder_add_Params_List) At(i int) Adder_add_Params { return Adder_add_Params{s.List.Struct(i)} }
+
 func (s Adder_add_Params_List) Set(i int, v Adder_add_Params) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -850,6 +865,7 @@ func ReadRootAdder_add_Results(msg *capnp.Message) (Adder_add_Results, error) {
 	root, err := msg.RootPtr()
 	return Adder_add_Results{root.Struct()}, err
 }
+
 func (s Adder_add_Results) Result() int32 {
 	return int32(s.Struct.Uint32(0))
 }
@@ -870,6 +886,7 @@ func NewAdder_add_Results_List(s *capnp.Segment, sz int32) (Adder_add_Results_Li
 func (s Adder_add_Results_List) At(i int) Adder_add_Results {
 	return Adder_add_Results{s.List.Struct(i)}
 }
+
 func (s Adder_add_Results_List) Set(i int, v Adder_add_Results) error {
 	return s.List.SetStruct(i, v.Struct)
 }

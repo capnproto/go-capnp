@@ -211,9 +211,11 @@ func (s Node) SetFile() {
 }
 
 func (s Node) StructNode() Node_structNode { return Node_structNode(s) }
+
 func (s Node) SetStructNode() {
 	s.Struct.SetUint16(12, 1)
 }
+
 func (s Node_structNode) DataWordCount() uint16 {
 	return s.Struct.Uint16(14)
 }
@@ -288,9 +290,11 @@ func (s Node_structNode) NewFields(n int32) (Field_List, error) {
 }
 
 func (s Node) Enum() Node_enum { return Node_enum(s) }
+
 func (s Node) SetEnum() {
 	s.Struct.SetUint16(12, 2)
 }
+
 func (s Node_enum) Enumerants() (Enumerant_List, error) {
 	p, err := s.Struct.Ptr(3)
 	return Enumerant_List{List: p.List()}, err
@@ -317,9 +321,11 @@ func (s Node_enum) NewEnumerants(n int32) (Enumerant_List, error) {
 }
 
 func (s Node) Interface() Node_interface { return Node_interface(s) }
+
 func (s Node) SetInterface() {
 	s.Struct.SetUint16(12, 3)
 }
+
 func (s Node_interface) Methods() (Method_List, error) {
 	p, err := s.Struct.Ptr(3)
 	return Method_List{List: p.List()}, err
@@ -371,9 +377,11 @@ func (s Node_interface) NewSuperclasses(n int32) (Superclass_List, error) {
 }
 
 func (s Node) Const() Node_const { return Node_const(s) }
+
 func (s Node) SetConst() {
 	s.Struct.SetUint16(12, 4)
 }
+
 func (s Node_const) Type() (Type, error) {
 	p, err := s.Struct.Ptr(3)
 	return Type{Struct: p.Struct()}, err
@@ -425,9 +433,11 @@ func (s Node_const) NewValue() (Value, error) {
 }
 
 func (s Node) Annotation() Node_annotation { return Node_annotation(s) }
+
 func (s Node) SetAnnotation() {
 	s.Struct.SetUint16(12, 5)
 }
+
 func (s Node_annotation) Type() (Type, error) {
 	p, err := s.Struct.Ptr(3)
 	return Type{Struct: p.Struct()}, err
@@ -558,7 +568,8 @@ func NewNode_List(s *capnp.Segment, sz int32) (Node_List, error) {
 	return Node_List{l}, err
 }
 
-func (s Node_List) At(i int) Node           { return Node{s.List.Struct(i)} }
+func (s Node_List) At(i int) Node { return Node{s.List.Struct(i)} }
+
 func (s Node_List) Set(i int, v Node) error { return s.List.SetStruct(i, v.Struct) }
 
 // Node_Promise is a wrapper for a Node promised by a client call.
@@ -647,6 +658,7 @@ func ReadRootNode_Parameter(msg *capnp.Message) (Node_Parameter, error) {
 	root, err := msg.RootPtr()
 	return Node_Parameter{root.Struct()}, err
 }
+
 func (s Node_Parameter) Name() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -686,7 +698,8 @@ func NewNode_Parameter_List(s *capnp.Segment, sz int32) (Node_Parameter_List, er
 	return Node_Parameter_List{l}, err
 }
 
-func (s Node_Parameter_List) At(i int) Node_Parameter           { return Node_Parameter{s.List.Struct(i)} }
+func (s Node_Parameter_List) At(i int) Node_Parameter { return Node_Parameter{s.List.Struct(i)} }
+
 func (s Node_Parameter_List) Set(i int, v Node_Parameter) error { return s.List.SetStruct(i, v.Struct) }
 
 // Node_Parameter_Promise is a wrapper for a Node_Parameter promised by a client call.
@@ -713,6 +726,7 @@ func ReadRootNode_NestedNode(msg *capnp.Message) (Node_NestedNode, error) {
 	root, err := msg.RootPtr()
 	return Node_NestedNode{root.Struct()}, err
 }
+
 func (s Node_NestedNode) Name() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -761,6 +775,7 @@ func NewNode_NestedNode_List(s *capnp.Segment, sz int32) (Node_NestedNode_List, 
 }
 
 func (s Node_NestedNode_List) At(i int) Node_NestedNode { return Node_NestedNode{s.List.Struct(i)} }
+
 func (s Node_NestedNode_List) Set(i int, v Node_NestedNode) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -905,9 +920,11 @@ func (s Field) SetDiscriminantValue(v uint16) {
 }
 
 func (s Field) Slot() Field_slot { return Field_slot(s) }
+
 func (s Field) SetSlot() {
 	s.Struct.SetUint16(8, 0)
 }
+
 func (s Field_slot) Offset() uint32 {
 	return s.Struct.Uint32(4)
 }
@@ -975,9 +992,11 @@ func (s Field_slot) SetHadExplicitDefault(v bool) {
 }
 
 func (s Field) Group() Field_group { return Field_group(s) }
+
 func (s Field) SetGroup() {
 	s.Struct.SetUint16(8, 1)
 }
+
 func (s Field_group) TypeId() uint64 {
 	return s.Struct.Uint64(16)
 }
@@ -987,6 +1006,7 @@ func (s Field_group) SetTypeId(v uint64) {
 }
 
 func (s Field) Ordinal() Field_ordinal { return Field_ordinal(s) }
+
 func (s Field_ordinal) Which() Field_ordinal_Which {
 	return Field_ordinal_Which(s.Struct.Uint16(10))
 }
@@ -1013,7 +1033,8 @@ func NewField_List(s *capnp.Segment, sz int32) (Field_List, error) {
 	return Field_List{l}, err
 }
 
-func (s Field_List) At(i int) Field           { return Field{s.List.Struct(i)} }
+func (s Field_List) At(i int) Field { return Field{s.List.Struct(i)} }
+
 func (s Field_List) Set(i int, v Field) error { return s.List.SetStruct(i, v.Struct) }
 
 // Field_Promise is a wrapper for a Field promised by a client call.
@@ -1078,6 +1099,7 @@ func ReadRootEnumerant(msg *capnp.Message) (Enumerant, error) {
 	root, err := msg.RootPtr()
 	return Enumerant{root.Struct()}, err
 }
+
 func (s Enumerant) Name() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -1150,7 +1172,8 @@ func NewEnumerant_List(s *capnp.Segment, sz int32) (Enumerant_List, error) {
 	return Enumerant_List{l}, err
 }
 
-func (s Enumerant_List) At(i int) Enumerant           { return Enumerant{s.List.Struct(i)} }
+func (s Enumerant_List) At(i int) Enumerant { return Enumerant{s.List.Struct(i)} }
+
 func (s Enumerant_List) Set(i int, v Enumerant) error { return s.List.SetStruct(i, v.Struct) }
 
 // Enumerant_Promise is a wrapper for a Enumerant promised by a client call.
@@ -1177,6 +1200,7 @@ func ReadRootSuperclass(msg *capnp.Message) (Superclass, error) {
 	root, err := msg.RootPtr()
 	return Superclass{root.Struct()}, err
 }
+
 func (s Superclass) Id() uint64 {
 	return s.Struct.Uint64(0)
 }
@@ -1219,7 +1243,8 @@ func NewSuperclass_List(s *capnp.Segment, sz int32) (Superclass_List, error) {
 	return Superclass_List{l}, err
 }
 
-func (s Superclass_List) At(i int) Superclass           { return Superclass{s.List.Struct(i)} }
+func (s Superclass_List) At(i int) Superclass { return Superclass{s.List.Struct(i)} }
+
 func (s Superclass_List) Set(i int, v Superclass) error { return s.List.SetStruct(i, v.Struct) }
 
 // Superclass_Promise is a wrapper for a Superclass promised by a client call.
@@ -1250,6 +1275,7 @@ func ReadRootMethod(msg *capnp.Message) (Method, error) {
 	root, err := msg.RootPtr()
 	return Method{root.Struct()}, err
 }
+
 func (s Method) Name() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -1413,7 +1439,8 @@ func NewMethod_List(s *capnp.Segment, sz int32) (Method_List, error) {
 	return Method_List{l}, err
 }
 
-func (s Method_List) At(i int) Method           { return Method{s.List.Struct(i)} }
+func (s Method_List) At(i int) Method { return Method{s.List.Struct(i)} }
+
 func (s Method_List) Set(i int, v Method) error { return s.List.SetStruct(i, v.Struct) }
 
 // Method_Promise is a wrapper for a Method promised by a client call.
@@ -1647,9 +1674,11 @@ func (s Type) SetData() {
 }
 
 func (s Type) List() Type_list { return Type_list(s) }
+
 func (s Type) SetList() {
 	s.Struct.SetUint16(0, 14)
 }
+
 func (s Type_list) ElementType() (Type, error) {
 	p, err := s.Struct.Ptr(0)
 	return Type{Struct: p.Struct()}, err
@@ -1676,9 +1705,11 @@ func (s Type_list) NewElementType() (Type, error) {
 }
 
 func (s Type) Enum() Type_enum { return Type_enum(s) }
+
 func (s Type) SetEnum() {
 	s.Struct.SetUint16(0, 15)
 }
+
 func (s Type_enum) TypeId() uint64 {
 	return s.Struct.Uint64(8)
 }
@@ -1713,9 +1744,11 @@ func (s Type_enum) NewBrand() (Brand, error) {
 }
 
 func (s Type) StructType() Type_structType { return Type_structType(s) }
+
 func (s Type) SetStructType() {
 	s.Struct.SetUint16(0, 16)
 }
+
 func (s Type_structType) TypeId() uint64 {
 	return s.Struct.Uint64(8)
 }
@@ -1750,9 +1783,11 @@ func (s Type_structType) NewBrand() (Brand, error) {
 }
 
 func (s Type) Interface() Type_interface { return Type_interface(s) }
+
 func (s Type) SetInterface() {
 	s.Struct.SetUint16(0, 17)
 }
+
 func (s Type_interface) TypeId() uint64 {
 	return s.Struct.Uint64(8)
 }
@@ -1787,6 +1822,7 @@ func (s Type_interface) NewBrand() (Brand, error) {
 }
 
 func (s Type) AnyPointer() Type_anyPointer { return Type_anyPointer(s) }
+
 func (s Type) SetAnyPointer() {
 	s.Struct.SetUint16(0, 18)
 }
@@ -1797,6 +1833,7 @@ func (s Type_anyPointer) Which() Type_anyPointer_Which {
 func (s Type_anyPointer) Unconstrained() Type_anyPointer_unconstrained {
 	return Type_anyPointer_unconstrained(s)
 }
+
 func (s Type_anyPointer) SetUnconstrained() {
 	s.Struct.SetUint16(8, 0)
 }
@@ -1825,9 +1862,11 @@ func (s Type_anyPointer_unconstrained) SetCapability() {
 }
 
 func (s Type_anyPointer) Parameter() Type_anyPointer_parameter { return Type_anyPointer_parameter(s) }
+
 func (s Type_anyPointer) SetParameter() {
 	s.Struct.SetUint16(8, 1)
 }
+
 func (s Type_anyPointer_parameter) ScopeId() uint64 {
 	return s.Struct.Uint64(16)
 }
@@ -1847,9 +1886,11 @@ func (s Type_anyPointer_parameter) SetParameterIndex(v uint16) {
 func (s Type_anyPointer) ImplicitMethodParameter() Type_anyPointer_implicitMethodParameter {
 	return Type_anyPointer_implicitMethodParameter(s)
 }
+
 func (s Type_anyPointer) SetImplicitMethodParameter() {
 	s.Struct.SetUint16(8, 2)
 }
+
 func (s Type_anyPointer_implicitMethodParameter) ParameterIndex() uint16 {
 	return s.Struct.Uint16(10)
 }
@@ -1867,7 +1908,8 @@ func NewType_List(s *capnp.Segment, sz int32) (Type_List, error) {
 	return Type_List{l}, err
 }
 
-func (s Type_List) At(i int) Type           { return Type{s.List.Struct(i)} }
+func (s Type_List) At(i int) Type { return Type{s.List.Struct(i)} }
+
 func (s Type_List) Set(i int, v Type) error { return s.List.SetStruct(i, v.Struct) }
 
 // Type_Promise is a wrapper for a Type promised by a client call.
@@ -1996,6 +2038,7 @@ func ReadRootBrand(msg *capnp.Message) (Brand, error) {
 	root, err := msg.RootPtr()
 	return Brand{root.Struct()}, err
 }
+
 func (s Brand) Scopes() (Brand_Scope_List, error) {
 	p, err := s.Struct.Ptr(0)
 	return Brand_Scope_List{List: p.List()}, err
@@ -2030,7 +2073,8 @@ func NewBrand_List(s *capnp.Segment, sz int32) (Brand_List, error) {
 	return Brand_List{l}, err
 }
 
-func (s Brand_List) At(i int) Brand           { return Brand{s.List.Struct(i)} }
+func (s Brand_List) At(i int) Brand { return Brand{s.List.Struct(i)} }
+
 func (s Brand_List) Set(i int, v Brand) error { return s.List.SetStruct(i, v.Struct) }
 
 // Brand_Promise is a wrapper for a Brand promised by a client call.
@@ -2128,7 +2172,8 @@ func NewBrand_Scope_List(s *capnp.Segment, sz int32) (Brand_Scope_List, error) {
 	return Brand_Scope_List{l}, err
 }
 
-func (s Brand_Scope_List) At(i int) Brand_Scope           { return Brand_Scope{s.List.Struct(i)} }
+func (s Brand_Scope_List) At(i int) Brand_Scope { return Brand_Scope{s.List.Struct(i)} }
+
 func (s Brand_Scope_List) Set(i int, v Brand_Scope) error { return s.List.SetStruct(i, v.Struct) }
 
 // Brand_Scope_Promise is a wrapper for a Brand_Scope promised by a client call.
@@ -2218,7 +2263,8 @@ func NewBrand_Binding_List(s *capnp.Segment, sz int32) (Brand_Binding_List, erro
 	return Brand_Binding_List{l}, err
 }
 
-func (s Brand_Binding_List) At(i int) Brand_Binding           { return Brand_Binding{s.List.Struct(i)} }
+func (s Brand_Binding_List) At(i int) Brand_Binding { return Brand_Binding{s.List.Struct(i)} }
+
 func (s Brand_Binding_List) Set(i int, v Brand_Binding) error { return s.List.SetStruct(i, v.Struct) }
 
 // Brand_Binding_Promise is a wrapper for a Brand_Binding promised by a client call.
@@ -2568,7 +2614,8 @@ func NewValue_List(s *capnp.Segment, sz int32) (Value_List, error) {
 	return Value_List{l}, err
 }
 
-func (s Value_List) At(i int) Value           { return Value{s.List.Struct(i)} }
+func (s Value_List) At(i int) Value { return Value{s.List.Struct(i)} }
+
 func (s Value_List) Set(i int, v Value) error { return s.List.SetStruct(i, v.Struct) }
 
 // Value_Promise is a wrapper for a Value promised by a client call.
@@ -2607,6 +2654,7 @@ func ReadRootAnnotation(msg *capnp.Message) (Annotation, error) {
 	root, err := msg.RootPtr()
 	return Annotation{root.Struct()}, err
 }
+
 func (s Annotation) Id() uint64 {
 	return s.Struct.Uint64(0)
 }
@@ -2674,7 +2722,8 @@ func NewAnnotation_List(s *capnp.Segment, sz int32) (Annotation_List, error) {
 	return Annotation_List{l}, err
 }
 
-func (s Annotation_List) At(i int) Annotation           { return Annotation{s.List.Struct(i)} }
+func (s Annotation_List) At(i int) Annotation { return Annotation{s.List.Struct(i)} }
+
 func (s Annotation_List) Set(i int, v Annotation) error { return s.List.SetStruct(i, v.Struct) }
 
 // Annotation_Promise is a wrapper for a Annotation promised by a client call.
@@ -2791,6 +2840,7 @@ func ReadRootCodeGeneratorRequest(msg *capnp.Message) (CodeGeneratorRequest, err
 	root, err := msg.RootPtr()
 	return CodeGeneratorRequest{root.Struct()}, err
 }
+
 func (s CodeGeneratorRequest) Nodes() (Node_List, error) {
 	p, err := s.Struct.Ptr(0)
 	return Node_List{List: p.List()}, err
@@ -2853,6 +2903,7 @@ func NewCodeGeneratorRequest_List(s *capnp.Segment, sz int32) (CodeGeneratorRequ
 func (s CodeGeneratorRequest_List) At(i int) CodeGeneratorRequest {
 	return CodeGeneratorRequest{s.List.Struct(i)}
 }
+
 func (s CodeGeneratorRequest_List) Set(i int, v CodeGeneratorRequest) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -2881,6 +2932,7 @@ func ReadRootCodeGeneratorRequest_RequestedFile(msg *capnp.Message) (CodeGenerat
 	root, err := msg.RootPtr()
 	return CodeGeneratorRequest_RequestedFile{root.Struct()}, err
 }
+
 func (s CodeGeneratorRequest_RequestedFile) Id() uint64 {
 	return s.Struct.Uint64(0)
 }
@@ -2956,6 +3008,7 @@ func NewCodeGeneratorRequest_RequestedFile_List(s *capnp.Segment, sz int32) (Cod
 func (s CodeGeneratorRequest_RequestedFile_List) At(i int) CodeGeneratorRequest_RequestedFile {
 	return CodeGeneratorRequest_RequestedFile{s.List.Struct(i)}
 }
+
 func (s CodeGeneratorRequest_RequestedFile_List) Set(i int, v CodeGeneratorRequest_RequestedFile) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -2984,6 +3037,7 @@ func ReadRootCodeGeneratorRequest_RequestedFile_Import(msg *capnp.Message) (Code
 	root, err := msg.RootPtr()
 	return CodeGeneratorRequest_RequestedFile_Import{root.Struct()}, err
 }
+
 func (s CodeGeneratorRequest_RequestedFile_Import) Id() uint64 {
 	return s.Struct.Uint64(0)
 }
@@ -3034,6 +3088,7 @@ func NewCodeGeneratorRequest_RequestedFile_Import_List(s *capnp.Segment, sz int3
 func (s CodeGeneratorRequest_RequestedFile_Import_List) At(i int) CodeGeneratorRequest_RequestedFile_Import {
 	return CodeGeneratorRequest_RequestedFile_Import{s.List.Struct(i)}
 }
+
 func (s CodeGeneratorRequest_RequestedFile_Import_List) Set(i int, v CodeGeneratorRequest_RequestedFile_Import) error {
 	return s.List.SetStruct(i, v.Struct)
 }

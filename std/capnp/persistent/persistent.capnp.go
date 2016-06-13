@@ -88,6 +88,7 @@ func ReadRootPersistent_SaveParams(msg *capnp.Message) (Persistent_SaveParams, e
 	root, err := msg.RootPtr()
 	return Persistent_SaveParams{root.Struct()}, err
 }
+
 func (s Persistent_SaveParams) SealFor() (capnp.Pointer, error) {
 	return s.Struct.Pointer(0)
 }
@@ -121,6 +122,7 @@ func NewPersistent_SaveParams_List(s *capnp.Segment, sz int32) (Persistent_SaveP
 func (s Persistent_SaveParams_List) At(i int) Persistent_SaveParams {
 	return Persistent_SaveParams{s.List.Struct(i)}
 }
+
 func (s Persistent_SaveParams_List) Set(i int, v Persistent_SaveParams) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -153,6 +155,7 @@ func ReadRootPersistent_SaveResults(msg *capnp.Message) (Persistent_SaveResults,
 	root, err := msg.RootPtr()
 	return Persistent_SaveResults{root.Struct()}, err
 }
+
 func (s Persistent_SaveResults) SturdyRef() (capnp.Pointer, error) {
 	return s.Struct.Pointer(0)
 }
@@ -186,6 +189,7 @@ func NewPersistent_SaveResults_List(s *capnp.Segment, sz int32) (Persistent_Save
 func (s Persistent_SaveResults_List) At(i int) Persistent_SaveResults {
 	return Persistent_SaveResults{s.List.Struct(i)}
 }
+
 func (s Persistent_SaveResults_List) Set(i int, v Persistent_SaveResults) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -324,6 +328,7 @@ func ReadRootRealmGateway_import_Params(msg *capnp.Message) (RealmGateway_import
 	root, err := msg.RootPtr()
 	return RealmGateway_import_Params{root.Struct()}, err
 }
+
 func (s RealmGateway_import_Params) Cap() Persistent {
 	p, _ := s.Struct.Ptr(0)
 	return Persistent{Client: p.Interface().Client()}
@@ -380,6 +385,7 @@ func NewRealmGateway_import_Params_List(s *capnp.Segment, sz int32) (RealmGatewa
 func (s RealmGateway_import_Params_List) At(i int) RealmGateway_import_Params {
 	return RealmGateway_import_Params{s.List.Struct(i)}
 }
+
 func (s RealmGateway_import_Params_List) Set(i int, v RealmGateway_import_Params) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -416,6 +422,7 @@ func ReadRootRealmGateway_export_Params(msg *capnp.Message) (RealmGateway_export
 	root, err := msg.RootPtr()
 	return RealmGateway_export_Params{root.Struct()}, err
 }
+
 func (s RealmGateway_export_Params) Cap() Persistent {
 	p, _ := s.Struct.Ptr(0)
 	return Persistent{Client: p.Interface().Client()}
@@ -472,6 +479,7 @@ func NewRealmGateway_export_Params_List(s *capnp.Segment, sz int32) (RealmGatewa
 func (s RealmGateway_export_Params_List) At(i int) RealmGateway_export_Params {
 	return RealmGateway_export_Params{s.List.Struct(i)}
 }
+
 func (s RealmGateway_export_Params_List) Set(i int, v RealmGateway_export_Params) error {
 	return s.List.SetStruct(i, v.Struct)
 }
