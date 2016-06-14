@@ -8,7 +8,10 @@ import (
 	"zombiezen.com/go/capnproto2/std/capnp/schema"
 )
 
-func TestFind(t *testing.T) {
+func TestDefaultFind(t *testing.T) {
+	if s := schemas.Find(0xdeadbeef); s != nil {
+		t.Errorf("schemas.Find(0xdeadbeef) = %d-byte slice; want nil", len(s))
+	}
 	s := schemas.Find(capnp.Package)
 	if s == nil {
 		t.Fatalf("schemas.Find(%#x) = nil", capnp.Package)
