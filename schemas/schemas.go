@@ -11,9 +11,9 @@ import (
 	"bytes"
 	"compress/zlib"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -56,7 +56,7 @@ func (reg *Registry) Register(s *Schema) error {
 	}
 	for _, id := range s.Nodes {
 		if _, dup := reg.m[id]; dup {
-			return errors.New("schemas: registered ID @0x" + strconv.FormatUint(id, 16) + " twice")
+			return &dupeError{id: id}
 		}
 		reg.m[id] = r
 	}
@@ -65,7 +65,8 @@ func (reg *Registry) Register(s *Schema) error {
 
 // Find returns the CodeGeneratorRequest message for the given ID,
 // suitable for capnp.Unmarshal.  If the ID is not found, Find returns
-// nil, nil.  The returned byte slice should not be modified.
+// an error that can be identified with IsNotFound.  The returned byte
+// slice should not be modified.
 func (reg *Registry) Find(id uint64) ([]byte, error) {
 	r := reg.m[id]
 	if r == nil {
@@ -73,7 +74,7 @@ func (reg *Registry) Find(id uint64) ([]byte, error) {
 	}
 	b, err := r.read()
 	if err != nil {
-		return nil, decompressError(id, err)
+		return nil, &decompressError{id, err}
 	}
 	return b, nil
 }
@@ -142,12 +143,42 @@ func Register(data string, ids ...uint64) {
 // call Find concurrently with Register.
 func Find(id uint64) []byte {
 	b, err := DefaultRegistry.Find(id)
+	if IsNotFound(err) {
+		return nil
+	}
 	if err != nil {
 		panic(err)
 	}
 	return b
 }
 
-func decompressError(id uint64, e error) error {
-	return errors.New("schemas: decompressing schema for @0x" + strconv.FormatUint(id, 16) + ": " + e.Error())
+// IsNotFound reports whether e indicates a failure to find a schema.
+func IsNotFound(e error) bool {
+	_, ok := e.(*notFoundError)
+	return ok
+}
+
+type dupeError struct {
+	id uint64
+}
+
+func (e *dupeError) Error() string {
+	return fmt.Sprintf("schemas: registered @%#x twice", e.id)
+}
+
+type notFoundError struct {
+	id uint64
+}
+
+func (e *notFoundError) Error() string {
+	return fmt.Sprintf("schemas: could not find @%#x", e.id)
+}
+
+type decompressError struct {
+	id  uint64
+	err error
+}
+
+func (e *decompressError) Error() string {
+	return fmt.Sprintf("schemas: decompressing schema for @%#x: %v", e.id, e.err)
 }
