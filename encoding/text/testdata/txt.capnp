@@ -1,11 +1,11 @@
 @0x8ae03d633330d781;
 
-struct KeyValue {
+struct KeyValue @0x8df8bc5abdc060a6 {
   key @0 :Text;
   value @1 :Value;
 }
 
-struct Value {
+struct Value @0xd3602730c572a43b {
   union {
     void @0 :Void;
     bool @1 :Bool;

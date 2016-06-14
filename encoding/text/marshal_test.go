@@ -1,12 +1,14 @@
 package text
 
 import (
+	"bytes"
 	"io/ioutil"
 	"path/filepath"
 	"testing"
 
 	"zombiezen.com/go/capnproto2"
-	"zombiezen.com/go/capnproto2/internal/schema"
+	"zombiezen.com/go/capnproto2/schemas"
+	"zombiezen.com/go/capnproto2/std/capnp/schema"
 )
 
 func readTestFile(name string) ([]byte, error) {
@@ -14,7 +16,7 @@ func readTestFile(name string) ([]byte, error) {
 	return ioutil.ReadFile(path)
 }
 
-func TestAppendStruct(t *testing.T) {
+func TestEncode(t *testing.T) {
 	tests := []struct {
 		constID uint64
 		text    string
@@ -27,6 +29,17 @@ func TestAppendStruct(t *testing.T) {
 	data, err := readTestFile("txt.capnp.out")
 	if err != nil {
 		t.Fatal(err)
+	}
+	reg := new(schemas.Registry)
+	err = reg.Register(&schemas.Schema{
+		Bytes: data,
+		Nodes: []uint64{
+			0x8df8bc5abdc060a6,
+			0xd3602730c572a43b,
+		},
+	})
+	if err != nil {
+		t.Fatal("Adding to registry: %v", err)
 	}
 	msg, err := capnp.Unmarshal(data)
 	if err != nil {
@@ -84,13 +97,15 @@ func TestAppendStruct(t *testing.T) {
 			continue
 		}
 
-		textData, err := AppendStruct(nil, sv.Struct(), tid, data)
-		if err != nil {
-			t.Errorf("AppendStruct(nil, (%s @%#x).const.value.struct, %#x): %v", dn, test.constID, tid, err)
+		buf := new(bytes.Buffer)
+		enc := NewEncoder(buf)
+		enc.UseRegistry(reg)
+		if err := enc.Encode(tid, sv.Struct()); err != nil {
+			t.Errorf("Encode(%#x, (%s @%#x).const.value.struct): %v", tid, dn, test.constID, err)
 			continue
 		}
-		if text := string(textData); text != test.text {
-			t.Errorf("AppendStruct(nil, (%s @%#x).const.value.struct, %#x) = %q; want %q", dn, test.constID, tid, text, test.text)
+		if text := buf.String(); text != test.text {
+			t.Errorf("Encode(%#x, (%s @%#x).const.value.struct) = %q; want %q", tid, dn, test.constID, text, test.text)
 			continue
 		}
 	}
