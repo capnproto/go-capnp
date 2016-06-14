@@ -1,3 +1,3 @@
 package testcapnp
 
-//go:generate capnp compile -ogo test.capnp
+//go:generate capnp compile -I ../../../std -ogo test.capnp

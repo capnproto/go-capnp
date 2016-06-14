@@ -8,7 +8,7 @@ import (
 	"zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/internal/fulfiller"
 	"zombiezen.com/go/capnproto2/internal/queue"
-	"zombiezen.com/go/capnproto2/rpc/rpccapnp"
+	rpccapnp "zombiezen.com/go/capnproto2/std/capnp/rpc"
 )
 
 // callQueueSize is the maximum number of calls that can be queued per answer or client.

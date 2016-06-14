@@ -10,6 +10,7 @@ package main
 
 import (
 	"bytes"
+	"compress/zlib"
 	"errors"
 	"flag"
 	"fmt"
@@ -17,17 +18,19 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"text/template"
 
 	"zombiezen.com/go/capnproto2"
-	"zombiezen.com/go/capnproto2/internal/schema"
+	"zombiezen.com/go/capnproto2/std/capnp/schema"
 )
 
 // Non-stdlib import paths.
 const (
 	capnpImport   = "zombiezen.com/go/capnproto2"
+	schemasImport = capnpImport + "/schemas"
 	serverImport  = capnpImport + "/server"
 	contextImport = "golang.org/x/net/context"
 )
@@ -36,6 +39,7 @@ const (
 // Usually passed on the command line.
 type genoptions struct {
 	promises bool
+	schemas  bool
 }
 
 type renderer interface {
@@ -113,16 +117,55 @@ func (g *generator) generate() []byte {
 	out.WriteString(")\n")
 	out.Write(g.r.Bytes())
 	if len(g.data.buf) > 0 {
-		fmt.Fprintf(&out, "var %s = []byte{", g.data.name)
-		for i, b := range g.data.buf {
-			if i%8 == 0 {
-				out.WriteByte('\n')
-			}
-			fmt.Fprintf(&out, "%d,", b)
-		}
-		fmt.Fprintf(&out, "\n}\n")
+		writeByteLiteral(&out, g.data.name, g.data.buf)
 	}
 	return out.Bytes()
+}
+
+func writeByteLiteral(out *bytes.Buffer, name string, data []byte) {
+	fmt.Fprintf(out, "var %s = []byte{", name)
+	for i, b := range data {
+		if i%8 == 0 {
+			out.WriteByte('\n')
+		}
+		fmt.Fprintf(out, "%d,", b)
+	}
+	fmt.Fprintf(out, "\n}\n")
+}
+
+func (g *generator) defineSchemaVar() error {
+	msg, seg, _ := capnp.NewMessage(capnp.SingleSegment(nil))
+	req, _ := schema.NewRootCodeGeneratorRequest(seg)
+	fnodes := g.nodes[g.fileID].nodes
+	ids := make([]uint64, len(fnodes))
+	for i, n := range fnodes {
+		ids[i] = n.Id()
+	}
+	sort.Sort(uint64Slice(ids))
+	// TODO(light): find largest object size and use that to allocate list
+	nodes, _ := req.NewNodes(int32(len(g.nodes)))
+	i := 0
+	for _, id := range ids {
+		n := g.nodes[id]
+		if err := nodes.Set(i, n.Node); err != nil {
+			return err
+		}
+		i++
+	}
+	var buf bytes.Buffer
+	z, _ := zlib.NewWriterLevel(&buf, zlib.BestCompression)
+	if err := capnp.NewPackedEncoder(z).Encode(msg); err != nil {
+		return err
+	}
+	if err := z.Close(); err != nil {
+		return err
+	}
+	return renderSchemaVar(g.r, schemaVarParams{
+		G:       g,
+		FileID:  g.fileID,
+		NodeIDs: ids,
+		schema:  buf.Bytes(),
+	})
 }
 
 // importForNode returns the import spec needed to reference n from
@@ -1077,6 +1120,11 @@ func (g *generator) defineFile() error {
 			return err
 		}
 	}
+	if g.opts.schemas {
+		if err := g.defineSchemaVar(); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -1122,6 +1170,7 @@ func generateFile(reqf schema.CodeGeneratorRequest_RequestedFile, nodes nodeMap,
 func main() {
 	var opts genoptions
 	flag.BoolVar(&opts.promises, "promises", true, "generate code for promises")
+	flag.BoolVar(&opts.schemas, "schemas", true, "embed schema information in generated code")
 	flag.Parse()
 
 	msg, err := capnp.NewDecoder(os.Stdin).Decode()
@@ -1154,3 +1203,9 @@ func main() {
 		os.Exit(1)
 	}
 }
+
+type uint64Slice []uint64
+
+func (p uint64Slice) Len() int           { return len(p) }
+func (p uint64Slice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+func (p uint64Slice) Less(i, j int) bool { return p[i] < p[j] }

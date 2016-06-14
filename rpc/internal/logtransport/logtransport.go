@@ -10,7 +10,7 @@ import (
 	"golang.org/x/net/context"
 	"zombiezen.com/go/capnproto2/rpc"
 	"zombiezen.com/go/capnproto2/rpc/internal/logutil"
-	"zombiezen.com/go/capnproto2/rpc/rpccapnp"
+	rpccapnp "zombiezen.com/go/capnproto2/std/capnp/rpc"
 )
 
 type transport struct {

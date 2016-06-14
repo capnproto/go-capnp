@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"zombiezen.com/go/capnproto2"
-	"zombiezen.com/go/capnproto2/rpc/rpccapnp"
+	rpccapnp "zombiezen.com/go/capnproto2/std/capnp/rpc"
 )
 
 // An Exception is a Cap'n Proto RPC error.
