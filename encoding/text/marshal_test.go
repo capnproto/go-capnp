@@ -24,6 +24,8 @@ func TestEncode(t *testing.T) {
 		{0xc0b634e19e5a9a4e, `(key = "42", value = (int32 = -123))`},
 		{0x967c8fe21790b0fb, `(key = "float", value = (float64 = 3.14))`},
 		{0xdf35cb2e1f5ea087, `(key = "bool", value = (bool = false))`},
+		{0xb167974479102805, `(map = [(key = "foo", value = (void = void)), (key = "bar", value = (void = void))])`},
+		{0x81fdbfdc91779421, `(map = [])`},
 	}
 
 	data, err := readTestFile("txt.capnp.out")

@@ -307,6 +307,19 @@ func (enc *Encoder) marshalFieldValue(s capnp.Struct, f schema.Field) error {
 			b = b[:len(b)-1]
 		}
 		enc.marshalText(b)
+	case schema.Type_Which_list:
+		elem, err := typ.List().ElementType()
+		if err != nil {
+			return err
+		}
+		p, err := s.Ptr(uint16(f.Slot().Offset()))
+		if err != nil {
+			return err
+		}
+		if !p.IsValid() {
+			p, _ = dv.ListPtr()
+		}
+		return enc.marshalList(elem, p.List())
 	}
 	return nil
 }
@@ -320,6 +333,35 @@ func codeOrderFields(s schema.Node_structNode) []schema.Field {
 		fields[f.CodeOrder()] = f
 	}
 	return fields
+}
+
+func (enc *Encoder) marshalList(elem schema.Type, l capnp.List) error {
+	enc.w.WriteByte('[')
+	switch elem.Which() {
+	case schema.Type_Which_bool:
+		bl := capnp.BitList{l}
+		for i := 0; i < bl.Len(); i++ {
+			if i > 0 {
+				enc.w.WriteString(", ")
+			}
+			enc.marshalBool(bl.At(i))
+		}
+	// TODO(light): other types
+	case schema.Type_Which_structType:
+		for i := 0; i < l.Len(); i++ {
+			if i > 0 {
+				enc.w.WriteString(", ")
+			}
+			err := enc.marshalStruct(elem.StructType().TypeId(), l.Struct(i))
+			if err != nil {
+				return err
+			}
+		}
+	default:
+		return fmt.Errorf("unknown list type %v", elem.Which())
+	}
+	enc.w.WriteByte(']')
+	return nil
 }
 
 type errWriter struct {
