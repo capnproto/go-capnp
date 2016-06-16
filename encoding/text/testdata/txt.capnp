@@ -39,6 +39,7 @@ struct Value @0xd3602730c572a43b {
     textList @27 :List(Text);
     dataList @28 :List(Data);
     cheeseList @30 :List(Cheese);
+    matrix @31 :List(List(Int32));
   }
 }
 
@@ -67,3 +68,4 @@ const textList @0xf16c386c66d492e2 :Value = (textList = ["foo", "bar", "baz"]);
 const dataList @0xe14f4d42aa55de8c :Value = (dataList = [0x"deadbeef", 0x"cafe"]);
 const cheese @0xe88c91698f7f0b73 :Value = (cheese = gouda);
 const cheeseList @0x9c51b843b337490b :Value = (cheeseList = [gouda, cheddar]);
+const matrix @0x81e2aadb8bfb237b :Value = (matrix = [[1, 2, 3], [4, 5, 6]]);

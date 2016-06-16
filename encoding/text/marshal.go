@@ -471,6 +471,24 @@ func (enc *Encoder) marshalList(elem schema.Type, l capnp.List) error {
 				return err
 			}
 		}
+	case schema.Type_Which_list:
+		ee, err := elem.List().ElementType()
+		if err != nil {
+			return err
+		}
+		for i := 0; i < l.Len(); i++ {
+			if i > 0 {
+				enc.w.WriteString(", ")
+			}
+			p, err := capnp.PointerList{List: l}.PtrAt(i)
+			if err != nil {
+				return err
+			}
+			err = enc.marshalList(ee, p.List())
+			if err != nil {
+				return err
+			}
+		}
 	case schema.Type_Which_enum:
 		il := capnp.UInt16List{List: l}
 		typ := elem.Enum().TypeId()
