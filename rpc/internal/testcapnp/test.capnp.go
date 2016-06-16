@@ -5,6 +5,7 @@ package testcapnp
 import (
 	context "golang.org/x/net/context"
 	capnp "zombiezen.com/go/capnproto2"
+	text "zombiezen.com/go/capnproto2/encoding/text"
 	schemas "zombiezen.com/go/capnproto2/schemas"
 	server "zombiezen.com/go/capnproto2/server"
 )
@@ -106,6 +107,11 @@ func ReadRootHandleFactory_newHandle_Params(msg *capnp.Message) (HandleFactory_n
 	return HandleFactory_newHandle_Params{root.Struct()}, err
 }
 
+func (s HandleFactory_newHandle_Params) String() string {
+	str, _ := text.Marshal(0x99821793f0a50b5e, s.Struct)
+	return str
+}
+
 // HandleFactory_newHandle_Params_List is a list of HandleFactory_newHandle_Params.
 type HandleFactory_newHandle_Params_List struct{ capnp.List }
 
@@ -146,6 +152,11 @@ func NewRootHandleFactory_newHandle_Results(s *capnp.Segment) (HandleFactory_new
 func ReadRootHandleFactory_newHandle_Results(msg *capnp.Message) (HandleFactory_newHandle_Results, error) {
 	root, err := msg.RootPtr()
 	return HandleFactory_newHandle_Results{root.Struct()}, err
+}
+
+func (s HandleFactory_newHandle_Results) String() string {
+	str, _ := text.Marshal(0xd57b5111c59d048c, s.Struct)
+	return str
 }
 
 func (s HandleFactory_newHandle_Results) Handle() Handle {
@@ -275,6 +286,11 @@ func ReadRootHanger_hang_Params(msg *capnp.Message) (Hanger_hang_Params, error) 
 	return Hanger_hang_Params{root.Struct()}, err
 }
 
+func (s Hanger_hang_Params) String() string {
+	str, _ := text.Marshal(0xb4512d1c0c85f06f, s.Struct)
+	return str
+}
+
 // Hanger_hang_Params_List is a list of Hanger_hang_Params.
 type Hanger_hang_Params_List struct{ capnp.List }
 
@@ -315,6 +331,11 @@ func NewRootHanger_hang_Results(s *capnp.Segment) (Hanger_hang_Results, error) {
 func ReadRootHanger_hang_Results(msg *capnp.Message) (Hanger_hang_Results, error) {
 	root, err := msg.RootPtr()
 	return Hanger_hang_Results{root.Struct()}, err
+}
+
+func (s Hanger_hang_Results) String() string {
+	str, _ := text.Marshal(0xb9c9455b55ed47b0, s.Struct)
+	return str
 }
 
 // Hanger_hang_Results_List is a list of Hanger_hang_Results.
@@ -421,6 +442,11 @@ func ReadRootCallOrder_getCallSequence_Params(msg *capnp.Message) (CallOrder_get
 	return CallOrder_getCallSequence_Params{root.Struct()}, err
 }
 
+func (s CallOrder_getCallSequence_Params) String() string {
+	str, _ := text.Marshal(0x993e61d6a54c166f, s.Struct)
+	return str
+}
+
 func (s CallOrder_getCallSequence_Params) Expected() uint32 {
 	return s.Struct.Uint32(0)
 }
@@ -469,6 +495,11 @@ func NewRootCallOrder_getCallSequence_Results(s *capnp.Segment) (CallOrder_getCa
 func ReadRootCallOrder_getCallSequence_Results(msg *capnp.Message) (CallOrder_getCallSequence_Results, error) {
 	root, err := msg.RootPtr()
 	return CallOrder_getCallSequence_Results{root.Struct()}, err
+}
+
+func (s CallOrder_getCallSequence_Results) String() string {
+	str, _ := text.Marshal(0x88f809ef7f873e58, s.Struct)
+	return str
 }
 
 func (s CallOrder_getCallSequence_Results) N() uint32 {
@@ -619,6 +650,11 @@ func ReadRootEchoer_echo_Params(msg *capnp.Message) (Echoer_echo_Params, error) 
 	return Echoer_echo_Params{root.Struct()}, err
 }
 
+func (s Echoer_echo_Params) String() string {
+	str, _ := text.Marshal(0xe96a45cad5d1a1d3, s.Struct)
+	return str
+}
+
 func (s Echoer_echo_Params) Cap() CallOrder {
 	p, _ := s.Struct.Ptr(0)
 	return CallOrder{Client: p.Interface().Client()}
@@ -682,6 +718,11 @@ func NewRootEchoer_echo_Results(s *capnp.Segment) (Echoer_echo_Results, error) {
 func ReadRootEchoer_echo_Results(msg *capnp.Message) (Echoer_echo_Results, error) {
 	root, err := msg.RootPtr()
 	return Echoer_echo_Results{root.Struct()}, err
+}
+
+func (s Echoer_echo_Results) String() string {
+	str, _ := text.Marshal(0x8b45b4847bd839c8, s.Struct)
+	return str
 }
 
 func (s Echoer_echo_Results) Cap() CallOrder {
@@ -811,6 +852,11 @@ func ReadRootAdder_add_Params(msg *capnp.Message) (Adder_add_Params, error) {
 	return Adder_add_Params{root.Struct()}, err
 }
 
+func (s Adder_add_Params) String() string {
+	str, _ := text.Marshal(0x9ed99eb5024ed6ef, s.Struct)
+	return str
+}
+
 func (s Adder_add_Params) A() int32 {
 	return int32(s.Struct.Uint32(0))
 }
@@ -865,6 +911,11 @@ func NewRootAdder_add_Results(s *capnp.Segment) (Adder_add_Results, error) {
 func ReadRootAdder_add_Results(msg *capnp.Message) (Adder_add_Results, error) {
 	root, err := msg.RootPtr()
 	return Adder_add_Results{root.Struct()}, err
+}
+
+func (s Adder_add_Results) String() string {
+	str, _ := text.Marshal(0xa74428796527f253, s.Struct)
+	return str
 }
 
 func (s Adder_add_Results) Result() int32 {

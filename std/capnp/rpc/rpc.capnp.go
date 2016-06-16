@@ -5,6 +5,7 @@ package rpc
 import (
 	strconv "strconv"
 	capnp "zombiezen.com/go/capnproto2"
+	text "zombiezen.com/go/capnproto2/encoding/text"
 	schemas "zombiezen.com/go/capnproto2/schemas"
 )
 
@@ -77,6 +78,11 @@ func NewRootMessage(s *capnp.Segment) (Message, error) {
 func ReadRootMessage(msg *capnp.Message) (Message, error) {
 	root, err := msg.RootPtr()
 	return Message{root.Struct()}, err
+}
+
+func (s Message) String() string {
+	str, _ := text.Marshal(0x91b79f1f808db032, s.Struct)
+	return str
 }
 
 func (s Message) Which() Message_Which {
@@ -546,6 +552,11 @@ func ReadRootBootstrap(msg *capnp.Message) (Bootstrap, error) {
 	return Bootstrap{root.Struct()}, err
 }
 
+func (s Bootstrap) String() string {
+	str, _ := text.Marshal(0xe94ccf8031176ec4, s.Struct)
+	return str
+}
+
 func (s Bootstrap) QuestionId() uint32 {
 	return s.Struct.Uint32(0)
 }
@@ -637,6 +648,11 @@ func NewRootCall(s *capnp.Segment) (Call, error) {
 func ReadRootCall(msg *capnp.Message) (Call, error) {
 	root, err := msg.RootPtr()
 	return Call{root.Struct()}, err
+}
+
+func (s Call) String() string {
+	str, _ := text.Marshal(0x836a53ce789d4cd4, s.Struct)
+	return str
 }
 
 func (s Call) QuestionId() uint32 {
@@ -851,6 +867,11 @@ func ReadRootReturn(msg *capnp.Message) (Return, error) {
 	return Return{root.Struct()}, err
 }
 
+func (s Return) String() string {
+	str, _ := text.Marshal(0x9e19b28d3db3573a, s.Struct)
+	return str
+}
+
 func (s Return) Which() Return_Which {
 	return Return_Which(s.Struct.Uint16(6))
 }
@@ -1016,6 +1037,11 @@ func ReadRootFinish(msg *capnp.Message) (Finish, error) {
 	return Finish{root.Struct()}, err
 }
 
+func (s Finish) String() string {
+	str, _ := text.Marshal(0xd37d2eb2c2f80e63, s.Struct)
+	return str
+}
+
 func (s Finish) QuestionId() uint32 {
 	return s.Struct.Uint32(0)
 }
@@ -1086,6 +1112,11 @@ func NewRootResolve(s *capnp.Segment) (Resolve, error) {
 func ReadRootResolve(msg *capnp.Message) (Resolve, error) {
 	root, err := msg.RootPtr()
 	return Resolve{root.Struct()}, err
+}
+
+func (s Resolve) String() string {
+	str, _ := text.Marshal(0xbbc29655fa89086e, s.Struct)
+	return str
 }
 
 func (s Resolve) Which() Resolve_Which {
@@ -1199,6 +1230,11 @@ func ReadRootRelease(msg *capnp.Message) (Release, error) {
 	return Release{root.Struct()}, err
 }
 
+func (s Release) String() string {
+	str, _ := text.Marshal(0xad1a6c0d7dd07497, s.Struct)
+	return str
+}
+
 func (s Release) Id() uint32 {
 	return s.Struct.Uint32(0)
 }
@@ -1276,6 +1312,11 @@ func NewRootDisembargo(s *capnp.Segment) (Disembargo, error) {
 func ReadRootDisembargo(msg *capnp.Message) (Disembargo, error) {
 	root, err := msg.RootPtr()
 	return Disembargo{root.Struct()}, err
+}
+
+func (s Disembargo) String() string {
+	str, _ := text.Marshal(0xf964368b0fbd3711, s.Struct)
+	return str
 }
 
 func (s Disembargo) Target() (MessageTarget, error) {
@@ -1394,6 +1435,11 @@ func ReadRootProvide(msg *capnp.Message) (Provide, error) {
 	return Provide{root.Struct()}, err
 }
 
+func (s Provide) String() string {
+	str, _ := text.Marshal(0x9c6a046bfbc1ac5a, s.Struct)
+	return str
+}
+
 func (s Provide) QuestionId() uint32 {
 	return s.Struct.Uint32(0)
 }
@@ -1494,6 +1540,11 @@ func ReadRootAccept(msg *capnp.Message) (Accept, error) {
 	return Accept{root.Struct()}, err
 }
 
+func (s Accept) String() string {
+	str, _ := text.Marshal(0xd4c9b56290554016, s.Struct)
+	return str
+}
+
 func (s Accept) QuestionId() uint32 {
 	return s.Struct.Uint32(0)
 }
@@ -1571,6 +1622,11 @@ func NewRootJoin(s *capnp.Segment) (Join, error) {
 func ReadRootJoin(msg *capnp.Message) (Join, error) {
 	root, err := msg.RootPtr()
 	return Join{root.Struct()}, err
+}
+
+func (s Join) String() string {
+	str, _ := text.Marshal(0xfbe1980490e001af, s.Struct)
+	return str
 }
 
 func (s Join) QuestionId() uint32 {
@@ -1691,6 +1747,11 @@ func ReadRootMessageTarget(msg *capnp.Message) (MessageTarget, error) {
 	return MessageTarget{root.Struct()}, err
 }
 
+func (s MessageTarget) String() string {
+	str, _ := text.Marshal(0x95bc14545813fbc1, s.Struct)
+	return str
+}
+
 func (s MessageTarget) Which() MessageTarget_Which {
 	return MessageTarget_Which(s.Struct.Uint16(4))
 }
@@ -1770,6 +1831,11 @@ func NewRootPayload(s *capnp.Segment) (Payload, error) {
 func ReadRootPayload(msg *capnp.Message) (Payload, error) {
 	root, err := msg.RootPtr()
 	return Payload{root.Struct()}, err
+}
+
+func (s Payload) String() string {
+	str, _ := text.Marshal(0x9a0e61223d96743b, s.Struct)
+	return str
 }
 
 func (s Payload) Content() (capnp.Pointer, error) {
@@ -1888,6 +1954,11 @@ func NewRootCapDescriptor(s *capnp.Segment) (CapDescriptor, error) {
 func ReadRootCapDescriptor(msg *capnp.Message) (CapDescriptor, error) {
 	root, err := msg.RootPtr()
 	return CapDescriptor{root.Struct()}, err
+}
+
+func (s CapDescriptor) String() string {
+	str, _ := text.Marshal(0x8523ddc40b86b8b0, s.Struct)
+	return str
 }
 
 func (s CapDescriptor) Which() CapDescriptor_Which {
@@ -2025,6 +2096,11 @@ func ReadRootPromisedAnswer(msg *capnp.Message) (PromisedAnswer, error) {
 	return PromisedAnswer{root.Struct()}, err
 }
 
+func (s PromisedAnswer) String() string {
+	str, _ := text.Marshal(0xd800b1d6cd6f1ca0, s.Struct)
+	return str
+}
+
 func (s PromisedAnswer) QuestionId() uint32 {
 	return s.Struct.Uint32(0)
 }
@@ -2114,6 +2190,11 @@ func ReadRootPromisedAnswer_Op(msg *capnp.Message) (PromisedAnswer_Op, error) {
 	return PromisedAnswer_Op{root.Struct()}, err
 }
 
+func (s PromisedAnswer_Op) String() string {
+	str, _ := text.Marshal(0xf316944415569081, s.Struct)
+	return str
+}
+
 func (s PromisedAnswer_Op) Which() PromisedAnswer_Op_Which {
 	return PromisedAnswer_Op_Which(s.Struct.Uint16(0))
 }
@@ -2171,6 +2252,11 @@ func NewRootThirdPartyCapDescriptor(s *capnp.Segment) (ThirdPartyCapDescriptor, 
 func ReadRootThirdPartyCapDescriptor(msg *capnp.Message) (ThirdPartyCapDescriptor, error) {
 	root, err := msg.RootPtr()
 	return ThirdPartyCapDescriptor{root.Struct()}, err
+}
+
+func (s ThirdPartyCapDescriptor) String() string {
+	str, _ := text.Marshal(0xd37007fde1f0027d, s.Struct)
+	return str
 }
 
 func (s ThirdPartyCapDescriptor) Id() (capnp.Pointer, error) {
@@ -2246,6 +2332,11 @@ func NewRootException(s *capnp.Segment) (Exception, error) {
 func ReadRootException(msg *capnp.Message) (Exception, error) {
 	root, err := msg.RootPtr()
 	return Exception{root.Struct()}, err
+}
+
+func (s Exception) String() string {
+	str, _ := text.Marshal(0xd625b7063acf691a, s.Struct)
+	return str
 }
 
 func (s Exception) Reason() (string, error) {

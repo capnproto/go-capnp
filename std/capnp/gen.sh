@@ -1,4 +1,4 @@
-#!/bin/sh -e
+#!/bin/bash -e
 
 infer_package_name() {
 	# Convert the filename $1 to a package name. We munge the name as follows:
@@ -30,7 +30,12 @@ gen_go_src() {
 	file="$1"
 	package_name="$(infer_package_name $file)"
 	[ -d $package_name ] || mkdir $package_name
-	capnp compile -I"$(dirname $PWD)" -ogo:$package_name $file
+	if [[ "$(basename "$file")" = "schema.capnp" ]]; then
+		# Omit String methods in schema: it causes an import loop.
+		capnp compile -I"$(dirname $PWD)" -o- $file | (cd $package_name && capnpc-go -structstrings=false)
+	else
+		capnp compile -I"$(dirname $PWD)" -ogo:$package_name $file
+	fi
 }
 
 usage() {

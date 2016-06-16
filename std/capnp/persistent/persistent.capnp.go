@@ -5,6 +5,7 @@ package persistent
 import (
 	context "golang.org/x/net/context"
 	capnp "zombiezen.com/go/capnproto2"
+	text "zombiezen.com/go/capnproto2/encoding/text"
 	schemas "zombiezen.com/go/capnproto2/schemas"
 	server "zombiezen.com/go/capnproto2/server"
 )
@@ -90,6 +91,11 @@ func ReadRootPersistent_SaveParams(msg *capnp.Message) (Persistent_SaveParams, e
 	return Persistent_SaveParams{root.Struct()}, err
 }
 
+func (s Persistent_SaveParams) String() string {
+	str, _ := text.Marshal(0xf76fba59183073a5, s.Struct)
+	return str
+}
+
 func (s Persistent_SaveParams) SealFor() (capnp.Pointer, error) {
 	return s.Struct.Pointer(0)
 }
@@ -155,6 +161,11 @@ func NewRootPersistent_SaveResults(s *capnp.Segment) (Persistent_SaveResults, er
 func ReadRootPersistent_SaveResults(msg *capnp.Message) (Persistent_SaveResults, error) {
 	root, err := msg.RootPtr()
 	return Persistent_SaveResults{root.Struct()}, err
+}
+
+func (s Persistent_SaveResults) String() string {
+	str, _ := text.Marshal(0xb76848c18c40efbf, s.Struct)
+	return str
 }
 
 func (s Persistent_SaveResults) SturdyRef() (capnp.Pointer, error) {
@@ -330,6 +341,11 @@ func ReadRootRealmGateway_import_Params(msg *capnp.Message) (RealmGateway_import
 	return RealmGateway_import_Params{root.Struct()}, err
 }
 
+func (s RealmGateway_import_Params) String() string {
+	str, _ := text.Marshal(0xf0c2cc1d3909574d, s.Struct)
+	return str
+}
+
 func (s RealmGateway_import_Params) Cap() Persistent {
 	p, _ := s.Struct.Ptr(0)
 	return Persistent{Client: p.Interface().Client()}
@@ -422,6 +438,11 @@ func NewRootRealmGateway_export_Params(s *capnp.Segment) (RealmGateway_export_Pa
 func ReadRootRealmGateway_export_Params(msg *capnp.Message) (RealmGateway_export_Params, error) {
 	root, err := msg.RootPtr()
 	return RealmGateway_export_Params{root.Struct()}, err
+}
+
+func (s RealmGateway_export_Params) String() string {
+	str, _ := text.Marshal(0xecafa18b482da3aa, s.Struct)
+	return str
 }
 
 func (s RealmGateway_export_Params) Cap() Persistent {

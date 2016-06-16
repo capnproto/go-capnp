@@ -30,6 +30,7 @@ import (
 // Non-stdlib import paths.
 const (
 	capnpImport   = "zombiezen.com/go/capnproto2"
+	textImport    = capnpImport + "/encoding/text"
 	schemasImport = capnpImport + "/schemas"
 	serverImport  = capnpImport + "/server"
 	contextImport = "golang.org/x/net/context"
@@ -38,8 +39,9 @@ const (
 // genoptions are parameters that control code generation.
 // Usually passed on the command line.
 type genoptions struct {
-	promises bool
-	schemas  bool
+	promises      bool
+	schemas       bool
+	structStrings bool
 }
 
 type renderer interface {
@@ -808,7 +810,7 @@ func (g *generator) defineStruct(n *node) error {
 	if err := g.defineStructEnums(n); err != nil {
 		return err
 	}
-	if err := g.defineNewStructFunc(n); err != nil {
+	if err := g.defineBaseStructFuncs(n); err != nil {
 		return err
 	}
 	if err := g.defineStructFuncs(n); err != nil {
@@ -935,13 +937,14 @@ func (g *generator) ObjectSize(n *node) (string, error) {
 		n.StructNode().PointerCount()), nil
 }
 
-func (g *generator) defineNewStructFunc(n *node) error {
-	err := renderNewStructFunc(g.r, newStructFuncParams{
-		G:    g,
-		Node: n,
+func (g *generator) defineBaseStructFuncs(n *node) error {
+	err := renderBaseStructFuncs(g.r, baseStructFuncsParams{
+		G:            g,
+		Node:         n,
+		StringMethod: g.opts.structStrings,
 	})
 	if err != nil {
-		return fmt.Errorf("new struct function for %s: %v", n, err)
+		return fmt.Errorf("base struct functions for %s: %v", n, err)
 	}
 	return nil
 }
@@ -1129,6 +1132,9 @@ func (g *generator) defineFile() error {
 }
 
 func generateFile(reqf schema.CodeGeneratorRequest_RequestedFile, nodes nodeMap, opts genoptions) error {
+	if opts.structStrings && !opts.schemas {
+		return errors.New("cannot generate struct String() methods without embedding schemas")
+	}
 	id := reqf.Id()
 	fname, _ := reqf.Filename()
 	g := newGenerator(id, nodes, opts)
@@ -1171,6 +1177,7 @@ func main() {
 	var opts genoptions
 	flag.BoolVar(&opts.promises, "promises", true, "generate code for promises")
 	flag.BoolVar(&opts.schemas, "schemas", true, "embed schema information in generated code")
+	flag.BoolVar(&opts.structStrings, "structstrings", true, "generate String() methods for structs (-schemas must be true)")
 	flag.Parse()
 
 	msg, err := capnp.NewDecoder(os.Stdin).Decode()

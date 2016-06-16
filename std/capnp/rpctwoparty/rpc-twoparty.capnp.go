@@ -4,6 +4,7 @@ package rpctwoparty
 
 import (
 	capnp "zombiezen.com/go/capnproto2"
+	text "zombiezen.com/go/capnproto2/encoding/text"
 	schemas "zombiezen.com/go/capnproto2/schemas"
 )
 
@@ -76,6 +77,11 @@ func ReadRootVatId(msg *capnp.Message) (VatId, error) {
 	return VatId{root.Struct()}, err
 }
 
+func (s VatId) String() string {
+	str, _ := text.Marshal(0xd20b909fee733a8e, s.Struct)
+	return str
+}
+
 func (s VatId) Side() Side {
 	return Side(s.Struct.Uint16(0))
 }
@@ -120,6 +126,11 @@ func NewRootProvisionId(s *capnp.Segment) (ProvisionId, error) {
 func ReadRootProvisionId(msg *capnp.Message) (ProvisionId, error) {
 	root, err := msg.RootPtr()
 	return ProvisionId{root.Struct()}, err
+}
+
+func (s ProvisionId) String() string {
+	str, _ := text.Marshal(0xb88d09a9c5f39817, s.Struct)
+	return str
 }
 
 func (s ProvisionId) JoinId() uint32 {
@@ -168,6 +179,11 @@ func ReadRootRecipientId(msg *capnp.Message) (RecipientId, error) {
 	return RecipientId{root.Struct()}, err
 }
 
+func (s RecipientId) String() string {
+	str, _ := text.Marshal(0x89f389b6fd4082c1, s.Struct)
+	return str
+}
+
 // RecipientId_List is a list of RecipientId.
 type RecipientId_List struct{ capnp.List }
 
@@ -204,6 +220,11 @@ func NewRootThirdPartyCapId(s *capnp.Segment) (ThirdPartyCapId, error) {
 func ReadRootThirdPartyCapId(msg *capnp.Message) (ThirdPartyCapId, error) {
 	root, err := msg.RootPtr()
 	return ThirdPartyCapId{root.Struct()}, err
+}
+
+func (s ThirdPartyCapId) String() string {
+	str, _ := text.Marshal(0xb47f4979672cb59d, s.Struct)
+	return str
 }
 
 // ThirdPartyCapId_List is a list of ThirdPartyCapId.
@@ -244,6 +265,11 @@ func NewRootJoinKeyPart(s *capnp.Segment) (JoinKeyPart, error) {
 func ReadRootJoinKeyPart(msg *capnp.Message) (JoinKeyPart, error) {
 	root, err := msg.RootPtr()
 	return JoinKeyPart{root.Struct()}, err
+}
+
+func (s JoinKeyPart) String() string {
+	str, _ := text.Marshal(0x95b29059097fca83, s.Struct)
+	return str
 }
 
 func (s JoinKeyPart) JoinId() uint32 {
@@ -306,6 +332,11 @@ func NewRootJoinResult(s *capnp.Segment) (JoinResult, error) {
 func ReadRootJoinResult(msg *capnp.Message) (JoinResult, error) {
 	root, err := msg.RootPtr()
 	return JoinResult{root.Struct()}, err
+}
+
+func (s JoinResult) String() string {
+	str, _ := text.Marshal(0x9d263a3630b7ebee, s.Struct)
+	return str
 }
 
 func (s JoinResult) JoinId() uint32 {

@@ -4,6 +4,7 @@ package books
 
 import (
 	capnp "zombiezen.com/go/capnproto2"
+	text "zombiezen.com/go/capnproto2/encoding/text"
 	schemas "zombiezen.com/go/capnproto2/schemas"
 )
 
@@ -22,6 +23,11 @@ func NewRootBook(s *capnp.Segment) (Book, error) {
 func ReadRootBook(msg *capnp.Message) (Book, error) {
 	root, err := msg.RootPtr()
 	return Book{root.Struct()}, err
+}
+
+func (s Book) String() string {
+	str, _ := text.Marshal(0x8100cc88d7d4d47c, s.Struct)
+	return str
 }
 
 func (s Book) Title() (string, error) {

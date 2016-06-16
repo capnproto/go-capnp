@@ -34,9 +34,10 @@ func (p structTypesParams) IsBase() bool {
 	return p.Node == p.BaseNode
 }
 
-type newStructFuncParams struct {
-	G    *generator
-	Node *node
+type baseStructFuncsParams struct {
+	G            *generator
+	Node         *node
+	StringMethod bool
 }
 
 type structFuncsParams struct {

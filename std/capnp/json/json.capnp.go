@@ -6,6 +6,7 @@ import (
 	math "math"
 	strconv "strconv"
 	capnp "zombiezen.com/go/capnproto2"
+	text "zombiezen.com/go/capnproto2/encoding/text"
 	schemas "zombiezen.com/go/capnproto2/schemas"
 )
 
@@ -16,14 +17,14 @@ const (
 	JsonValue_Which_null    JsonValue_Which = 0
 	JsonValue_Which_boolean JsonValue_Which = 1
 	JsonValue_Which_number  JsonValue_Which = 2
-	JsonValue_Which_string  JsonValue_Which = 3
+	JsonValue_Which_string_ JsonValue_Which = 3
 	JsonValue_Which_array   JsonValue_Which = 4
 	JsonValue_Which_object  JsonValue_Which = 5
 	JsonValue_Which_call    JsonValue_Which = 6
 )
 
 func (w JsonValue_Which) String() string {
-	const s = "nullbooleannumberstringarrayobjectcall"
+	const s = "nullbooleannumberstring_arrayobjectcall"
 	switch w {
 	case JsonValue_Which_null:
 		return s[0:4]
@@ -31,14 +32,14 @@ func (w JsonValue_Which) String() string {
 		return s[4:11]
 	case JsonValue_Which_number:
 		return s[11:17]
-	case JsonValue_Which_string:
-		return s[17:23]
+	case JsonValue_Which_string_:
+		return s[17:24]
 	case JsonValue_Which_array:
-		return s[23:28]
+		return s[24:29]
 	case JsonValue_Which_object:
-		return s[28:34]
+		return s[29:35]
 	case JsonValue_Which_call:
-		return s[34:38]
+		return s[35:39]
 
 	}
 	return "JsonValue_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
@@ -57,6 +58,11 @@ func NewRootJsonValue(s *capnp.Segment) (JsonValue, error) {
 func ReadRootJsonValue(msg *capnp.Message) (JsonValue, error) {
 	root, err := msg.RootPtr()
 	return JsonValue{root.Struct()}, err
+}
+
+func (s JsonValue) String() string {
+	str, _ := text.Marshal(0x8825ffaa852cda72, s.Struct)
+	return str
 }
 
 func (s JsonValue) Which() JsonValue_Which {
@@ -85,17 +91,17 @@ func (s JsonValue) SetNumber(v float64) {
 	s.Struct.SetUint64(8, math.Float64bits(v))
 }
 
-func (s JsonValue) String() (string, error) {
+func (s JsonValue) String_() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
 }
 
-func (s JsonValue) HasString() bool {
+func (s JsonValue) HasString_() bool {
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
 
-func (s JsonValue) StringBytes() ([]byte, error) {
+func (s JsonValue) String_Bytes() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
 	if err != nil {
 		return nil, err
@@ -107,7 +113,7 @@ func (s JsonValue) StringBytes() ([]byte, error) {
 	return d[:len(d)-1], nil
 }
 
-func (s JsonValue) SetString(v string) error {
+func (s JsonValue) SetString_(v string) error {
 	s.Struct.SetUint16(0, 3)
 	t, err := capnp.NewText(s.Struct.Segment(), v)
 	if err != nil {
@@ -239,6 +245,11 @@ func ReadRootJsonValue_Field(msg *capnp.Message) (JsonValue_Field, error) {
 	return JsonValue_Field{root.Struct()}, err
 }
 
+func (s JsonValue_Field) String() string {
+	str, _ := text.Marshal(0xc27855d853a937cc, s.Struct)
+	return str
+}
+
 func (s JsonValue_Field) Name() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -338,6 +349,11 @@ func ReadRootJsonValue_Call(msg *capnp.Message) (JsonValue_Call, error) {
 	return JsonValue_Call{root.Struct()}, err
 }
 
+func (s JsonValue_Call) String() string {
+	str, _ := text.Marshal(0x9bbf84153dd4bb60, s.Struct)
+	return str
+}
+
 func (s JsonValue_Call) Function() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -414,37 +430,40 @@ func (p JsonValue_Call_Promise) Struct() (JsonValue_Call, error) {
 	return JsonValue_Call{s}, err
 }
 
-const schema_8ef99297a43a5e34 = "x\xdat\x91\xcdk\x13A\x18\xc6\xe7\x99\xc9\xa6\x95D" +
-	"\x93\x90\xf4\xa6\xe4RQK-i,\x88\x01\x89Z*" +
-	"\xd2S\x17\xd1\xa3\xb8IWI\xd9\xcc\x86M\xd6\x8f\x83" +
-	"xQ\xf0\xa4\xe8\xc5\x83W/\xf6\xa4\xa0`\xb1\xc5*" +
-	"\x0a\x1e<I\x0fZ\xfc\x03\xbc\x08\x1e\xbc\xd4\xaf\xf1\x99" +
-	"\xd6&\xa1\xd8\xc3\xc2\xcco\xde\x9d\xf7}~S*\xe1" +
-	"\x98\x1cw\x8aJ\x08w\xd8I\x9ahu\xf4\xe6\xbc\xd9" +
-	"{K\xb8)H3q\xae\xf2\xf0\xfe\xbd\xb5\xdbb\x0a" +
-	"\x03\x03B\xe4c\xcc\xe7\xafa\x9f\x10\x87\xee\xe2\x0e\x04" +
-	"\xcc\xf9\x17+G\x87n\xbc| rC\xe8\xfd\xebH" +
-	"[|D}\xc8O)\xbb:\xae.\xb3\xf6\xfd\xe1G" +
-	"\xa7?\x9e\xb9\xf2\xfa\x7f\xb5O\xd4j~i\xbdv\x81" +
-	"\xb5\x93f\xae\x1d\xea\xb1\xba\xd7\x82nU\xa6\xb9>\x9b" +
-	"\xf1\x82\xd8w\x07\xd1\x7f\xcd\x8er_\x7fg\xa4x\xb2" +
-	"\xe1\x07\xb3\x99I/\x08\xdc\xdd*\x916&\x01!r" +
-	"\xcfF\x18\xed\xb1\x82\xbb(\xb1\x07\x7fL\xb6\x00\x8b\x17" +
-	"N\x10?%^&\x96\xbf\x0d\x0a\x90\xc4K\x15\xe2\xe7" +
-	"\xc4o$v\xaa_\xa6\x00\x9a\xc9\xbd\xb2t\x91\xf4\x1d" +
-	"i\xe2'i\x82\xf4m\x99t\x99\xf43\xa9\xf3\x83\xd4" +
-	"!\xfddkWH\xbf\x91&\xd7H\x93\xa4_\xed\x14" +
-	"_H\xbfKdt\x1c\x04\"y\xbd\x16\x86\x81\xefi" +
-	"\x8e#\xf9\xa1\xaa\xe3f\xcd\x8f\x90\xe26\xc5m\xbb\x13" +
-	"5\xf4E\xa4\xb9M\x0b\x14\xbd(\xf2\xaeb\x97\xc0\x8c" +
-	"\x02\xb2=\x81\x02\x16V\xc3\xda\x9c_\xef\xf4\xce\xbb\x9a" +
-	"6\xce3uj!\xee\x0a#\xce\xf2Q6E\xcbM" +
-	"\xd1\xd6\xf3\x18\x1d\"\x98\x01\xdcA\xc5\xa0\xeb\x1a\x0fL" +
-	"3\xc0~\x06\x98\x90\xc8\x01\x1b\x12\xc7m\xd6Q\xc2S" +
-	"\x12\xe6B\xac\xeb\x9dF\xa8\x05\xef\xfe7t\xb5\xe5E" +
-	"^\xb3\xbd\xed\xd4\xdb\xb4\xe7C\xaa`vK\x7f+p" +
-	"\x98\xadJ}\xfd\x0f\x96{Ce\xb4\xd7\xf4\xbb\xb6." +
-	"\xd9\x8b\xb64d\xde\xbf\x01\x00\x00\xff\xff\xaa\x8f\xc0\x9e"
+const schema_8ef99297a43a5e34 = "x\xdat\x92?hSQ\x18\xc5\xef\xb9\xf7\xbd\xb4\xa5" +
+	"\xad\xc93):(]\x14\xb5\xd4\xda\xc6\x82\x10\x90h" +
+	"\xfd\x83t\x90>\x83\x8e\xda\x97\xf4))//\xe1%" +
+	"1:uQ\xd0AEA\x1c\x9c\x04\x97vrP\xb0" +
+	"h\xd1\x16G'q\x90N\x0e.\x82\x8b\x9bU\xeb\xf5" +
+	"\\C\x93P\xecp\xe1\xde\xdf\xf7\xbd{\xbe{\xce\x1b" +
+	"=\x89cr\xccn(!\xdc\xfdvLG\xab\xc37" +
+	"\x17\xf4\xde[\xc2\xed\x85\xd4\xe3\x173O\x1f=X\xbb" +
+	"+N\xa1\xabK\x88\xe4\x13,$\xe7\xb1O\x88\xc3K" +
+	"\xb8\x07\x01=\xfd\xea\xe3\xd1\x81\x1bo\x1e\x0bg\x00\xed" +
+	"omi\x9ao\xab\x0f\xc9\x87\xca\xec\xee\xab\x06{\xdf" +
+	"\x1f\x99\xcf}:\x7fm\xe5\x7f\xbd\xb0V\x93\xfd\x96\xd9" +
+	"\xf5X\x0dqV\xcfV\xcb\xe1H\xc1\xab \xacd&" +
+	"\xb9\xbf\x10\xf7\x82\xba\xefv\xa3\xf3\x9a\x9et\x87\xbe=" +
+	"4x\xba\xe8\x073\xf1\x13^\x10\xb8\xbb\x94\xd5\xa7\xb5" +
+	"\x05!\x9c\x17C|\xda3\x05\xf7\xb5\xc4n\xfc\xd1\x89" +
+	"\x14\x0c^\x9c ~N\xfc\x96X\xaek\xa4 \x89\x97" +
+	"2\xc4/\x89\xdfI\xf4\xab\xdf:\x05:\xe3,g\x9c" +
+	"\xe5A\xf73\xf17b\xeb\x17\xb1E\xfc5\xcd\xe6/" +
+	"\x0a\xe7@j\xff$\xb5I\xd7\xcd\x15?\x14r)\x83" +
+	"ck\xc41>\xcc\x01\x07\xc9\xf5\x81\x85\x9d,\xc4\xc3" +
+	"z\x10\x88\xd8\\\xbe\\\x0e|/\xe4L\x92\x0b\xd9\xb0" +
+	"^\xca\xfb\x11zy\xec\xe5\xb1Z\x8b\x8a\xe1\x15\xd7b" +
+	"\x18\xdf\xef\x1c\xda\xb1}zqE\xb8\x96\xc4\xf1\x04\xd0" +
+	"G1L\xcc5[.\x09A \xb90\xe8E\x91w" +
+	"\x1d\xdb\x04\xa6\x14\x90h{-``\xb6\x9c\x9f\xf5\x0b" +
+	"\xb5v\xbd\xe5h\xb3\x1e/\xd0A\xe2\x96\xb7\xc4\x09\xe6" +
+	"\xb7\x91\x89\xdc\xc8\xc4D2B\xbb\x11L\x01n\xb7\xa2" +
+	"%\xff\x1c?0i~&\x9a5.\xe1\x00M\xbf\xc7" +
+	"\x8c+\xc3\x84g$\xf4\xe5zX\xa8\x15\xcb\xa1h\x0f" +
+	"\x9d\xadx\x91W\xaan9\xf5\x16\xf2\xcc\\\x053\x9b" +
+	"\xf4M\xe2{(5\xda\xa1\x7f0\xdd\x1e*\x1ez%" +
+	"\xbf\xe5\xd6Us\xd1&A\xbe\xf7o\x00\x00\x00\xff\xff" +
+	"\x9f\xdb\xc7\x93"
 
 func init() {
 	schemas.Register(schema_8ef99297a43a5e34,
