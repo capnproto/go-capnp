@@ -36,6 +36,8 @@ func TestEncode(t *testing.T) {
 		{0xd012128a1a9cb7fc, `(float32List = [0.5, 3.14, -2])`},
 		{0xf16c386c66d492e2, `(textList = ["foo", "bar", "baz"])`},
 		{0xe14f4d42aa55de8c, `(dataList = ["\xde\xad\xbe\xef", "\xca\xfe"])`},
+		{0xe88c91698f7f0b73, `(cheese = gouda)`},
+		{0x9c51b843b337490b, `(cheeseList = [gouda, cheddar])`},
 	}
 
 	data, err := readTestFile("txt.capnp.out")

@@ -320,6 +320,10 @@ func (enc *Encoder) marshalFieldValue(s capnp.Struct, f schema.Field) error {
 			p, _ = dv.ListPtr()
 		}
 		return enc.marshalList(elem, p.List())
+	case schema.Type_Which_enum:
+		v := s.Uint16(capnp.DataOffset(f.Slot().Offset() * 2))
+		d := dv.Uint16()
+		return enc.marshalEnum(typ.Enum().TypeId(), v^d)
 	}
 	return nil
 }
@@ -467,10 +471,44 @@ func (enc *Encoder) marshalList(elem schema.Type, l capnp.List) error {
 				return err
 			}
 		}
+	case schema.Type_Which_enum:
+		il := capnp.UInt16List{l}
+		typ := elem.Enum().TypeId()
+		// TODO(light): only search for node once
+		for i := 0; i < il.Len(); i++ {
+			if i > 0 {
+				enc.w.WriteString(", ")
+			}
+			enc.marshalEnum(typ, il.At(i))
+		}
 	default:
 		return fmt.Errorf("unknown list type %v", elem.Which())
 	}
 	enc.w.WriteByte(']')
+	return nil
+}
+
+func (enc *Encoder) marshalEnum(typ uint64, val uint16) error {
+	n, err := enc.findNode(typ)
+	if err != nil {
+		return err
+	}
+	if n.Which() != schema.Node_Which_enum {
+		return fmt.Errorf("marshaling enum of type @%#x: type is not an enum", typ)
+	}
+	enums, err := n.Enum().Enumerants()
+	if err != nil {
+		return err
+	}
+	if int(val) >= enums.Len() {
+		enc.marshalUint(uint64(val))
+		return nil
+	}
+	name, err := enums.At(int(val)).NameBytes()
+	if err != nil {
+		return err
+	}
+	enc.w.Write(name)
 	return nil
 }
 

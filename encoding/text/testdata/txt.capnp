@@ -21,6 +21,7 @@ struct Value @0xd3602730c572a43b {
     float64 @11 :Float64;
     text @12 :Text;
     data @13 :Data;
+    cheese @29 :Cheese;
 
     map @14 :List(KeyValue);
     voidList @15 :List(Void);
@@ -37,7 +38,13 @@ struct Value @0xd3602730c572a43b {
     float64List @26 :List(Float64);
     textList @27 :List(Text);
     dataList @28 :List(Data);
+    cheeseList @30 :List(Cheese);
   }
+}
+
+enum Cheese {
+  cheddar @0;
+  gouda @1;
 }
 
 const kv @0xc0b634e19e5a9a4e :KeyValue = (key = "42", value = (int32 = -123));
@@ -58,3 +65,5 @@ const uint64List @0x9246c307e46ad03b :Value = (uint64List = [1, 2, 3]);
 const floatList @0xd012128a1a9cb7fc :Value = (float32List = [0.5, 3.14, -2.0]);
 const textList @0xf16c386c66d492e2 :Value = (textList = ["foo", "bar", "baz"]);
 const dataList @0xe14f4d42aa55de8c :Value = (dataList = [0x"deadbeef", 0x"cafe"]);
+const cheese @0xe88c91698f7f0b73 :Value = (cheese = gouda);
+const cheeseList @0x9c51b843b337490b :Value = (cheeseList = [gouda, cheddar]);
