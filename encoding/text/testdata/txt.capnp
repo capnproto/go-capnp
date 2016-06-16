@@ -20,9 +20,23 @@ struct Value @0xd3602730c572a43b {
     float32 @10 :Float32;
     float64 @11 :Float64;
     text @12 :Text;
-    textDefault @15 :Text = "hello";
     data @13 :Data;
+
     map @14 :List(KeyValue);
+    voidList @15 :List(Void);
+    boolList @16 :List(Bool);
+    int8List @17 :List(Int8);
+    int16List @18 :List(Int16);
+    int32List @19 :List(Int32);
+    int64List @20 :List(Int64);
+    uint8List @21 :List(UInt8);
+    uint16List @22 :List(UInt16);
+    uint32List @23 :List(UInt32);
+    uint64List @24 :List(UInt64);
+    float32List @25 :List(Float32);
+    float64List @26 :List(Float64);
+    textList @27 :List(Text);
+    dataList @28 :List(Data);
   }
 }
 
@@ -33,4 +47,14 @@ const mapVal @0xb167974479102805 :Value = (map = [
   (key = "foo", value = (void = void)),
   (key = "bar", value = (void = void)),
 ]);
+const data @0x8e85252144f61858 :Value = (data = 0x"4869 dead beef cafe");
 const emptyMap @0x81fdbfdc91779421 :Value = (map = []);
+const voidList @0xc21398a8474837ba :Value = (voidList = [void, void]);
+const boolList @0xde82c2eeb3a4b07c :Value = (boolList = [true, false, true, false]);
+const int8List @0xf9e3ffc179272aa2 :Value = (int8List = [1, -2, 3]);
+const int64List @0xfc421b96ec6ad2b6 :Value = (int64List = [1, -2, 3]);
+const uint8List @0xb3034b89d02775a5 :Value = (uint8List = [255, 0, 1]);
+const uint64List @0x9246c307e46ad03b :Value = (uint64List = [1, 2, 3]);
+const floatList @0xd012128a1a9cb7fc :Value = (float32List = [0.5, 3.14, -2.0]);
+const textList @0xf16c386c66d492e2 :Value = (textList = ["foo", "bar", "baz"]);
+const dataList @0xe14f4d42aa55de8c :Value = (dataList = [0x"deadbeef", 0x"cafe"]);

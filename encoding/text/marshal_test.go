@@ -26,6 +26,16 @@ func TestEncode(t *testing.T) {
 		{0xdf35cb2e1f5ea087, `(key = "bool", value = (bool = false))`},
 		{0xb167974479102805, `(map = [(key = "foo", value = (void = void)), (key = "bar", value = (void = void))])`},
 		{0x81fdbfdc91779421, `(map = [])`},
+		{0x8e85252144f61858, `(data = "Hi\xde\xad\xbe\xef\xca\xfe")`},
+		{0xc21398a8474837ba, `(voidList = [void, void])`},
+		{0xde82c2eeb3a4b07c, `(boolList = [true, false, true, false])`},
+		{0xf9e3ffc179272aa2, `(int8List = [1, -2, 3])`},
+		{0xfc421b96ec6ad2b6, `(int64List = [1, -2, 3])`},
+		{0xb3034b89d02775a5, `(uint8List = [255, 0, 1])`},
+		{0x9246c307e46ad03b, `(uint64List = [1, 2, 3])`},
+		{0xd012128a1a9cb7fc, `(float32List = [0.5, 3.14, -2])`},
+		{0xf16c386c66d492e2, `(textList = ["foo", "bar", "baz"])`},
+		{0xe14f4d42aa55de8c, `(dataList = ["\xde\xad\xbe\xef", "\xca\xfe"])`},
 	}
 
 	data, err := readTestFile("txt.capnp.out")

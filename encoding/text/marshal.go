@@ -338,6 +338,13 @@ func codeOrderFields(s schema.Node_structNode) []schema.Field {
 func (enc *Encoder) marshalList(elem schema.Type, l capnp.List) error {
 	enc.w.WriteByte('[')
 	switch elem.Which() {
+	case schema.Type_Which_void:
+		for i := 0; i < l.Len(); i++ {
+			if i > 0 {
+				enc.w.WriteString(", ")
+			}
+			enc.w.WriteString("void")
+		}
 	case schema.Type_Which_bool:
 		bl := capnp.BitList{l}
 		for i := 0; i < bl.Len(); i++ {
@@ -346,7 +353,110 @@ func (enc *Encoder) marshalList(elem schema.Type, l capnp.List) error {
 			}
 			enc.marshalBool(bl.At(i))
 		}
-	// TODO(light): other types
+	case schema.Type_Which_int8:
+		il := capnp.Int8List{l}
+		for i := 0; i < il.Len(); i++ {
+			if i > 0 {
+				enc.w.WriteString(", ")
+			}
+			enc.marshalInt(int64(il.At(i)))
+		}
+	case schema.Type_Which_int16:
+		il := capnp.Int16List{l}
+		for i := 0; i < il.Len(); i++ {
+			if i > 0 {
+				enc.w.WriteString(", ")
+			}
+			enc.marshalInt(int64(il.At(i)))
+		}
+	case schema.Type_Which_int32:
+		il := capnp.Int32List{l}
+		for i := 0; i < il.Len(); i++ {
+			if i > 0 {
+				enc.w.WriteString(", ")
+			}
+			enc.marshalInt(int64(il.At(i)))
+		}
+	case schema.Type_Which_int64:
+		il := capnp.Int64List{l}
+		for i := 0; i < il.Len(); i++ {
+			if i > 0 {
+				enc.w.WriteString(", ")
+			}
+			enc.marshalInt(il.At(i))
+		}
+	case schema.Type_Which_uint8:
+		il := capnp.UInt8List{l}
+		for i := 0; i < il.Len(); i++ {
+			if i > 0 {
+				enc.w.WriteString(", ")
+			}
+			enc.marshalUint(uint64(il.At(i)))
+		}
+	case schema.Type_Which_uint16:
+		il := capnp.UInt16List{l}
+		for i := 0; i < il.Len(); i++ {
+			if i > 0 {
+				enc.w.WriteString(", ")
+			}
+			enc.marshalUint(uint64(il.At(i)))
+		}
+	case schema.Type_Which_uint32:
+		il := capnp.UInt32List{l}
+		for i := 0; i < il.Len(); i++ {
+			if i > 0 {
+				enc.w.WriteString(", ")
+			}
+			enc.marshalUint(uint64(il.At(i)))
+		}
+	case schema.Type_Which_uint64:
+		il := capnp.UInt64List{l}
+		for i := 0; i < il.Len(); i++ {
+			if i > 0 {
+				enc.w.WriteString(", ")
+			}
+			enc.marshalUint(il.At(i))
+		}
+	case schema.Type_Which_float32:
+		fl := capnp.Float32List{l}
+		for i := 0; i < fl.Len(); i++ {
+			if i > 0 {
+				enc.w.WriteString(", ")
+			}
+			enc.marshalFloat32(fl.At(i))
+		}
+	case schema.Type_Which_float64:
+		fl := capnp.Float64List{l}
+		for i := 0; i < fl.Len(); i++ {
+			if i > 0 {
+				enc.w.WriteString(", ")
+			}
+			enc.marshalFloat64(fl.At(i))
+		}
+	case schema.Type_Which_data:
+		dl := capnp.DataList{l}
+		for i := 0; i < dl.Len(); i++ {
+			if i > 0 {
+				enc.w.WriteString(", ")
+			}
+			d, err := dl.At(i)
+			if err != nil {
+				return err
+			}
+			enc.marshalText(d)
+		}
+	case schema.Type_Which_text:
+		tl := capnp.TextList{l}
+		for i := 0; i < tl.Len(); i++ {
+			if i > 0 {
+				enc.w.WriteString(", ")
+			}
+			t, err := tl.BytesAt(i)
+			if err != nil {
+				return err
+			}
+			enc.marshalText(t)
+		}
 	case schema.Type_Which_structType:
 		for i := 0; i < l.Len(); i++ {
 			if i > 0 {
