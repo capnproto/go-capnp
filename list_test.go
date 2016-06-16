@@ -1,6 +1,7 @@
 package capnp
 
 import (
+	"bytes"
 	"testing"
 )
 
@@ -49,6 +50,32 @@ func TestToListDefault(t *testing.T) {
 		if !deepPointerEqual(list, test.list) {
 			t.Errorf("ToListDefault(%#v, % 02x) = %#v; want %#v", test.ptr, test.def, list, test.list)
 		}
+	}
+}
+
+func TestTextListBytesAt(t *testing.T) {
+	msg := &Message{Arena: SingleSegment([]byte{
+		0, 0, 0, 0, 0, 0, 0, 0,
+		0x01, 0, 0, 0, 0x22, 0, 0, 0,
+		'f', 'o', 'o', 0, 0, 0, 0, 0,
+	})}
+	seg, err := msg.Segment(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	list := TextList{List{
+		seg:        seg,
+		off:        8,
+		length:     1,
+		size:       ObjectSize{DataSize: 1},
+		depthLimit: maxDepth,
+	}}
+	b, err := list.BytesAt(0)
+	if err != nil {
+		t.Errorf("list.BytesAt(0) error: %v", err)
+	}
+	if !bytes.Equal(b, []byte("foo")) {
+		t.Errorf("list.BytesAt(0) = %q; want \"foo\"", b)
 	}
 }
 

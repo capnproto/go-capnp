@@ -26,27 +26,19 @@ type Zdate struct{ capnp.Struct }
 
 func NewZdate(s *capnp.Segment) (Zdate, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	if err != nil {
-		return Zdate{}, err
-	}
-	return Zdate{st}, nil
+	return Zdate{st}, err
 }
 
 func NewRootZdate(s *capnp.Segment) (Zdate, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	if err != nil {
-		return Zdate{}, err
-	}
-	return Zdate{st}, nil
+	return Zdate{st}, err
 }
 
 func ReadRootZdate(msg *capnp.Message) (Zdate, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return Zdate{}, err
-	}
-	return Zdate{root.Struct()}, nil
+	return Zdate{root.Struct()}, err
 }
+
 func (s Zdate) Year() int16 {
 	return int16(s.Struct.Uint16(0))
 }
@@ -77,13 +69,11 @@ type Zdate_List struct{ capnp.List }
 // NewZdate creates a new list of Zdate.
 func NewZdate_List(s *capnp.Segment, sz int32) (Zdate_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	if err != nil {
-		return Zdate_List{}, err
-	}
-	return Zdate_List{l}, nil
+	return Zdate_List{l}, err
 }
 
-func (s Zdate_List) At(i int) Zdate           { return Zdate{s.List.Struct(i)} }
+func (s Zdate_List) At(i int) Zdate { return Zdate{s.List.Struct(i)} }
+
 func (s Zdate_List) Set(i int, v Zdate) error { return s.List.SetStruct(i, v.Struct) }
 
 // Zdate_Promise is a wrapper for a Zdate promised by a client call.
@@ -98,33 +88,22 @@ type Zdata struct{ capnp.Struct }
 
 func NewZdata(s *capnp.Segment) (Zdata, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return Zdata{}, err
-	}
-	return Zdata{st}, nil
+	return Zdata{st}, err
 }
 
 func NewRootZdata(s *capnp.Segment) (Zdata, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return Zdata{}, err
-	}
-	return Zdata{st}, nil
+	return Zdata{st}, err
 }
 
 func ReadRootZdata(msg *capnp.Message) (Zdata, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return Zdata{}, err
-	}
-	return Zdata{root.Struct()}, nil
+	return Zdata{root.Struct()}, err
 }
+
 func (s Zdata) Data() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return nil, err
-	}
-	return []byte(p.Data()), nil
+	return []byte(p.Data()), err
 }
 
 func (s Zdata) HasData() bool {
@@ -146,13 +125,11 @@ type Zdata_List struct{ capnp.List }
 // NewZdata creates a new list of Zdata.
 func NewZdata_List(s *capnp.Segment, sz int32) (Zdata_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	if err != nil {
-		return Zdata_List{}, err
-	}
-	return Zdata_List{l}, nil
+	return Zdata_List{l}, err
 }
 
-func (s Zdata_List) At(i int) Zdata           { return Zdata{s.List.Struct(i)} }
+func (s Zdata_List) At(i int) Zdata { return Zdata{s.List.Struct(i)} }
+
 func (s Zdata_List) Set(i int, v Zdata) error { return s.List.SetStruct(i, v.Struct) }
 
 // Zdata_Promise is a wrapper for a Zdata promised by a client call.
@@ -227,10 +204,7 @@ type Airport_List struct{ capnp.List }
 
 func NewAirport_List(s *capnp.Segment, sz int32) (Airport_List, error) {
 	l, err := capnp.NewUInt16List(s, sz)
-	if err != nil {
-		return Airport_List{}, err
-	}
-	return Airport_List{l.List}, nil
+	return Airport_List{l.List}, err
 }
 
 func (l Airport_List) At(i int) Airport {
@@ -247,33 +221,22 @@ type PlaneBase struct{ capnp.Struct }
 
 func NewPlaneBase(s *capnp.Segment) (PlaneBase, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 32, PointerCount: 2})
-	if err != nil {
-		return PlaneBase{}, err
-	}
-	return PlaneBase{st}, nil
+	return PlaneBase{st}, err
 }
 
 func NewRootPlaneBase(s *capnp.Segment) (PlaneBase, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 32, PointerCount: 2})
-	if err != nil {
-		return PlaneBase{}, err
-	}
-	return PlaneBase{st}, nil
+	return PlaneBase{st}, err
 }
 
 func ReadRootPlaneBase(msg *capnp.Message) (PlaneBase, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return PlaneBase{}, err
-	}
-	return PlaneBase{root.Struct()}, nil
+	return PlaneBase{root.Struct()}, err
 }
+
 func (s PlaneBase) Name() (string, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return "", err
-	}
-	return p.Text(), nil
+	return p.Text(), err
 }
 
 func (s PlaneBase) HasName() bool {
@@ -303,10 +266,7 @@ func (s PlaneBase) SetName(v string) error {
 
 func (s PlaneBase) Homes() (Airport_List, error) {
 	p, err := s.Struct.Ptr(1)
-	if err != nil {
-		return Airport_List{}, err
-	}
-	return Airport_List{List: p.List()}, nil
+	return Airport_List{List: p.List()}, err
 }
 
 func (s PlaneBase) HasHomes() bool {
@@ -367,13 +327,11 @@ type PlaneBase_List struct{ capnp.List }
 // NewPlaneBase creates a new list of PlaneBase.
 func NewPlaneBase_List(s *capnp.Segment, sz int32) (PlaneBase_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 32, PointerCount: 2}, sz)
-	if err != nil {
-		return PlaneBase_List{}, err
-	}
-	return PlaneBase_List{l}, nil
+	return PlaneBase_List{l}, err
 }
 
-func (s PlaneBase_List) At(i int) PlaneBase           { return PlaneBase{s.List.Struct(i)} }
+func (s PlaneBase_List) At(i int) PlaneBase { return PlaneBase{s.List.Struct(i)} }
+
 func (s PlaneBase_List) Set(i int, v PlaneBase) error { return s.List.SetStruct(i, v.Struct) }
 
 // PlaneBase_Promise is a wrapper for a PlaneBase promised by a client call.
@@ -388,33 +346,22 @@ type B737 struct{ capnp.Struct }
 
 func NewB737(s *capnp.Segment) (B737, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return B737{}, err
-	}
-	return B737{st}, nil
+	return B737{st}, err
 }
 
 func NewRootB737(s *capnp.Segment) (B737, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return B737{}, err
-	}
-	return B737{st}, nil
+	return B737{st}, err
 }
 
 func ReadRootB737(msg *capnp.Message) (B737, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return B737{}, err
-	}
-	return B737{root.Struct()}, nil
+	return B737{root.Struct()}, err
 }
+
 func (s B737) Base() (PlaneBase, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return PlaneBase{}, err
-	}
-	return PlaneBase{Struct: p.Struct()}, nil
+	return PlaneBase{Struct: p.Struct()}, err
 }
 
 func (s B737) HasBase() bool {
@@ -443,13 +390,11 @@ type B737_List struct{ capnp.List }
 // NewB737 creates a new list of B737.
 func NewB737_List(s *capnp.Segment, sz int32) (B737_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	if err != nil {
-		return B737_List{}, err
-	}
-	return B737_List{l}, nil
+	return B737_List{l}, err
 }
 
-func (s B737_List) At(i int) B737           { return B737{s.List.Struct(i)} }
+func (s B737_List) At(i int) B737 { return B737{s.List.Struct(i)} }
+
 func (s B737_List) Set(i int, v B737) error { return s.List.SetStruct(i, v.Struct) }
 
 // B737_Promise is a wrapper for a B737 promised by a client call.
@@ -468,33 +413,22 @@ type A320 struct{ capnp.Struct }
 
 func NewA320(s *capnp.Segment) (A320, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return A320{}, err
-	}
-	return A320{st}, nil
+	return A320{st}, err
 }
 
 func NewRootA320(s *capnp.Segment) (A320, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return A320{}, err
-	}
-	return A320{st}, nil
+	return A320{st}, err
 }
 
 func ReadRootA320(msg *capnp.Message) (A320, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return A320{}, err
-	}
-	return A320{root.Struct()}, nil
+	return A320{root.Struct()}, err
 }
+
 func (s A320) Base() (PlaneBase, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return PlaneBase{}, err
-	}
-	return PlaneBase{Struct: p.Struct()}, nil
+	return PlaneBase{Struct: p.Struct()}, err
 }
 
 func (s A320) HasBase() bool {
@@ -523,13 +457,11 @@ type A320_List struct{ capnp.List }
 // NewA320 creates a new list of A320.
 func NewA320_List(s *capnp.Segment, sz int32) (A320_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	if err != nil {
-		return A320_List{}, err
-	}
-	return A320_List{l}, nil
+	return A320_List{l}, err
 }
 
-func (s A320_List) At(i int) A320           { return A320{s.List.Struct(i)} }
+func (s A320_List) At(i int) A320 { return A320{s.List.Struct(i)} }
+
 func (s A320_List) Set(i int, v A320) error { return s.List.SetStruct(i, v.Struct) }
 
 // A320_Promise is a wrapper for a A320 promised by a client call.
@@ -548,33 +480,22 @@ type F16 struct{ capnp.Struct }
 
 func NewF16(s *capnp.Segment) (F16, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return F16{}, err
-	}
-	return F16{st}, nil
+	return F16{st}, err
 }
 
 func NewRootF16(s *capnp.Segment) (F16, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return F16{}, err
-	}
-	return F16{st}, nil
+	return F16{st}, err
 }
 
 func ReadRootF16(msg *capnp.Message) (F16, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return F16{}, err
-	}
-	return F16{root.Struct()}, nil
+	return F16{root.Struct()}, err
 }
+
 func (s F16) Base() (PlaneBase, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return PlaneBase{}, err
-	}
-	return PlaneBase{Struct: p.Struct()}, nil
+	return PlaneBase{Struct: p.Struct()}, err
 }
 
 func (s F16) HasBase() bool {
@@ -603,13 +524,11 @@ type F16_List struct{ capnp.List }
 // NewF16 creates a new list of F16.
 func NewF16_List(s *capnp.Segment, sz int32) (F16_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	if err != nil {
-		return F16_List{}, err
-	}
-	return F16_List{l}, nil
+	return F16_List{l}, err
 }
 
-func (s F16_List) At(i int) F16           { return F16{s.List.Struct(i)} }
+func (s F16_List) At(i int) F16 { return F16{s.List.Struct(i)} }
+
 func (s F16_List) Set(i int, v F16) error { return s.List.SetStruct(i, v.Struct) }
 
 // F16_Promise is a wrapper for a F16 promised by a client call.
@@ -628,33 +547,22 @@ type Regression struct{ capnp.Struct }
 
 func NewRegression(s *capnp.Segment) (Regression, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 3})
-	if err != nil {
-		return Regression{}, err
-	}
-	return Regression{st}, nil
+	return Regression{st}, err
 }
 
 func NewRootRegression(s *capnp.Segment) (Regression, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 3})
-	if err != nil {
-		return Regression{}, err
-	}
-	return Regression{st}, nil
+	return Regression{st}, err
 }
 
 func ReadRootRegression(msg *capnp.Message) (Regression, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return Regression{}, err
-	}
-	return Regression{root.Struct()}, nil
+	return Regression{root.Struct()}, err
 }
+
 func (s Regression) Base() (PlaneBase, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return PlaneBase{}, err
-	}
-	return PlaneBase{Struct: p.Struct()}, nil
+	return PlaneBase{Struct: p.Struct()}, err
 }
 
 func (s Regression) HasBase() bool {
@@ -687,10 +595,7 @@ func (s Regression) SetB0(v float64) {
 
 func (s Regression) Beta() (capnp.Float64List, error) {
 	p, err := s.Struct.Ptr(1)
-	if err != nil {
-		return capnp.Float64List{}, err
-	}
-	return capnp.Float64List{List: p.List()}, nil
+	return capnp.Float64List{List: p.List()}, err
 }
 
 func (s Regression) HasBeta() bool {
@@ -715,10 +620,7 @@ func (s Regression) NewBeta(n int32) (capnp.Float64List, error) {
 
 func (s Regression) Planes() (Aircraft_List, error) {
 	p, err := s.Struct.Ptr(2)
-	if err != nil {
-		return Aircraft_List{}, err
-	}
-	return Aircraft_List{List: p.List()}, nil
+	return Aircraft_List{List: p.List()}, err
 }
 
 func (s Regression) HasPlanes() bool {
@@ -763,13 +665,11 @@ type Regression_List struct{ capnp.List }
 // NewRegression creates a new list of Regression.
 func NewRegression_List(s *capnp.Segment, sz int32) (Regression_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 24, PointerCount: 3}, sz)
-	if err != nil {
-		return Regression_List{}, err
-	}
-	return Regression_List{l}, nil
+	return Regression_List{l}, err
 }
 
-func (s Regression_List) At(i int) Regression           { return Regression{s.List.Struct(i)} }
+func (s Regression_List) At(i int) Regression { return Regression{s.List.Struct(i)} }
+
 func (s Regression_List) Set(i int, v Regression) error { return s.List.SetStruct(i, v.Struct) }
 
 // Regression_Promise is a wrapper for a Regression promised by a client call.
@@ -812,26 +712,17 @@ func (w Aircraft_Which) String() string {
 
 func NewAircraft(s *capnp.Segment) (Aircraft, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	if err != nil {
-		return Aircraft{}, err
-	}
-	return Aircraft{st}, nil
+	return Aircraft{st}, err
 }
 
 func NewRootAircraft(s *capnp.Segment) (Aircraft, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	if err != nil {
-		return Aircraft{}, err
-	}
-	return Aircraft{st}, nil
+	return Aircraft{st}, err
 }
 
 func ReadRootAircraft(msg *capnp.Message) (Aircraft, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return Aircraft{}, err
-	}
-	return Aircraft{root.Struct()}, nil
+	return Aircraft{root.Struct()}, err
 }
 
 func (s Aircraft) Which() Aircraft_Which {
@@ -844,10 +735,7 @@ func (s Aircraft) SetVoid() {
 
 func (s Aircraft) B737() (B737, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return B737{}, err
-	}
-	return B737{Struct: p.Struct()}, nil
+	return B737{Struct: p.Struct()}, err
 }
 
 func (s Aircraft) HasB737() bool {
@@ -874,10 +762,7 @@ func (s Aircraft) NewB737() (B737, error) {
 
 func (s Aircraft) A320() (A320, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return A320{}, err
-	}
-	return A320{Struct: p.Struct()}, nil
+	return A320{Struct: p.Struct()}, err
 }
 
 func (s Aircraft) HasA320() bool {
@@ -904,10 +789,7 @@ func (s Aircraft) NewA320() (A320, error) {
 
 func (s Aircraft) F16() (F16, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return F16{}, err
-	}
-	return F16{Struct: p.Struct()}, nil
+	return F16{Struct: p.Struct()}, err
 }
 
 func (s Aircraft) HasF16() bool {
@@ -938,13 +820,11 @@ type Aircraft_List struct{ capnp.List }
 // NewAircraft creates a new list of Aircraft.
 func NewAircraft_List(s *capnp.Segment, sz int32) (Aircraft_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	if err != nil {
-		return Aircraft_List{}, err
-	}
-	return Aircraft_List{l}, nil
+	return Aircraft_List{l}, err
 }
 
-func (s Aircraft_List) At(i int) Aircraft           { return Aircraft{s.List.Struct(i)} }
+func (s Aircraft_List) At(i int) Aircraft { return Aircraft{s.List.Struct(i)} }
+
 func (s Aircraft_List) Set(i int, v Aircraft) error { return s.List.SetStruct(i, v.Struct) }
 
 // Aircraft_Promise is a wrapper for a Aircraft promised by a client call.
@@ -1103,26 +983,17 @@ func (w Z_Which) String() string {
 
 func NewZ(s *capnp.Segment) (Z, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1})
-	if err != nil {
-		return Z{}, err
-	}
-	return Z{st}, nil
+	return Z{st}, err
 }
 
 func NewRootZ(s *capnp.Segment) (Z, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1})
-	if err != nil {
-		return Z{}, err
-	}
-	return Z{st}, nil
+	return Z{st}, err
 }
 
 func ReadRootZ(msg *capnp.Message) (Z, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return Z{}, err
-	}
-	return Z{root.Struct()}, nil
+	return Z{root.Struct()}, err
 }
 
 func (s Z) Which() Z_Which {
@@ -1135,10 +1006,7 @@ func (s Z) SetVoid() {
 
 func (s Z) Zz() (Z, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return Z{}, err
-	}
-	return Z{Struct: p.Struct()}, nil
+	return Z{Struct: p.Struct()}, err
 }
 
 func (s Z) HasZz() bool {
@@ -1264,10 +1132,7 @@ func (s Z) SetBool(v bool) {
 
 func (s Z) Text() (string, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return "", err
-	}
-	return p.Text(), nil
+	return p.Text(), err
 }
 
 func (s Z) HasText() bool {
@@ -1298,10 +1163,7 @@ func (s Z) SetText(v string) error {
 
 func (s Z) Blob() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return nil, err
-	}
-	return []byte(p.Data()), nil
+	return []byte(p.Data()), err
 }
 
 func (s Z) HasBlob() bool {
@@ -1320,10 +1182,7 @@ func (s Z) SetBlob(v []byte) error {
 
 func (s Z) F64vec() (capnp.Float64List, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return capnp.Float64List{}, err
-	}
-	return capnp.Float64List{List: p.List()}, nil
+	return capnp.Float64List{List: p.List()}, err
 }
 
 func (s Z) HasF64vec() bool {
@@ -1350,10 +1209,7 @@ func (s Z) NewF64vec(n int32) (capnp.Float64List, error) {
 
 func (s Z) F32vec() (capnp.Float32List, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return capnp.Float32List{}, err
-	}
-	return capnp.Float32List{List: p.List()}, nil
+	return capnp.Float32List{List: p.List()}, err
 }
 
 func (s Z) HasF32vec() bool {
@@ -1380,10 +1236,7 @@ func (s Z) NewF32vec(n int32) (capnp.Float32List, error) {
 
 func (s Z) I64vec() (capnp.Int64List, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return capnp.Int64List{}, err
-	}
-	return capnp.Int64List{List: p.List()}, nil
+	return capnp.Int64List{List: p.List()}, err
 }
 
 func (s Z) HasI64vec() bool {
@@ -1410,10 +1263,7 @@ func (s Z) NewI64vec(n int32) (capnp.Int64List, error) {
 
 func (s Z) I32vec() (capnp.Int32List, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return capnp.Int32List{}, err
-	}
-	return capnp.Int32List{List: p.List()}, nil
+	return capnp.Int32List{List: p.List()}, err
 }
 
 func (s Z) HasI32vec() bool {
@@ -1440,10 +1290,7 @@ func (s Z) NewI32vec(n int32) (capnp.Int32List, error) {
 
 func (s Z) I16vec() (capnp.Int16List, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return capnp.Int16List{}, err
-	}
-	return capnp.Int16List{List: p.List()}, nil
+	return capnp.Int16List{List: p.List()}, err
 }
 
 func (s Z) HasI16vec() bool {
@@ -1470,10 +1317,7 @@ func (s Z) NewI16vec(n int32) (capnp.Int16List, error) {
 
 func (s Z) I8vec() (capnp.Int8List, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return capnp.Int8List{}, err
-	}
-	return capnp.Int8List{List: p.List()}, nil
+	return capnp.Int8List{List: p.List()}, err
 }
 
 func (s Z) HasI8vec() bool {
@@ -1500,10 +1344,7 @@ func (s Z) NewI8vec(n int32) (capnp.Int8List, error) {
 
 func (s Z) U64vec() (capnp.UInt64List, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return capnp.UInt64List{}, err
-	}
-	return capnp.UInt64List{List: p.List()}, nil
+	return capnp.UInt64List{List: p.List()}, err
 }
 
 func (s Z) HasU64vec() bool {
@@ -1530,10 +1371,7 @@ func (s Z) NewU64vec(n int32) (capnp.UInt64List, error) {
 
 func (s Z) U32vec() (capnp.UInt32List, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return capnp.UInt32List{}, err
-	}
-	return capnp.UInt32List{List: p.List()}, nil
+	return capnp.UInt32List{List: p.List()}, err
 }
 
 func (s Z) HasU32vec() bool {
@@ -1560,10 +1398,7 @@ func (s Z) NewU32vec(n int32) (capnp.UInt32List, error) {
 
 func (s Z) U16vec() (capnp.UInt16List, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return capnp.UInt16List{}, err
-	}
-	return capnp.UInt16List{List: p.List()}, nil
+	return capnp.UInt16List{List: p.List()}, err
 }
 
 func (s Z) HasU16vec() bool {
@@ -1590,10 +1425,7 @@ func (s Z) NewU16vec(n int32) (capnp.UInt16List, error) {
 
 func (s Z) U8vec() (capnp.UInt8List, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return capnp.UInt8List{}, err
-	}
-	return capnp.UInt8List{List: p.List()}, nil
+	return capnp.UInt8List{List: p.List()}, err
 }
 
 func (s Z) HasU8vec() bool {
@@ -1620,10 +1452,7 @@ func (s Z) NewU8vec(n int32) (capnp.UInt8List, error) {
 
 func (s Z) Zvec() (Z_List, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return Z_List{}, err
-	}
-	return Z_List{List: p.List()}, nil
+	return Z_List{List: p.List()}, err
 }
 
 func (s Z) HasZvec() bool {
@@ -1650,10 +1479,7 @@ func (s Z) NewZvec(n int32) (Z_List, error) {
 
 func (s Z) Zvecvec() (capnp.PointerList, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return capnp.PointerList{}, err
-	}
-	return capnp.PointerList{List: p.List()}, nil
+	return capnp.PointerList{List: p.List()}, err
 }
 
 func (s Z) HasZvecvec() bool {
@@ -1680,10 +1506,7 @@ func (s Z) NewZvecvec(n int32) (capnp.PointerList, error) {
 
 func (s Z) Zdate() (Zdate, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return Zdate{}, err
-	}
-	return Zdate{Struct: p.Struct()}, nil
+	return Zdate{Struct: p.Struct()}, err
 }
 
 func (s Z) HasZdate() bool {
@@ -1710,10 +1533,7 @@ func (s Z) NewZdate() (Zdate, error) {
 
 func (s Z) Zdata() (Zdata, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return Zdata{}, err
-	}
-	return Zdata{Struct: p.Struct()}, nil
+	return Zdata{Struct: p.Struct()}, err
 }
 
 func (s Z) HasZdata() bool {
@@ -1740,10 +1560,7 @@ func (s Z) NewZdata() (Zdata, error) {
 
 func (s Z) Aircraftvec() (Aircraft_List, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return Aircraft_List{}, err
-	}
-	return Aircraft_List{List: p.List()}, nil
+	return Aircraft_List{List: p.List()}, err
 }
 
 func (s Z) HasAircraftvec() bool {
@@ -1770,10 +1587,7 @@ func (s Z) NewAircraftvec(n int32) (Aircraft_List, error) {
 
 func (s Z) Aircraft() (Aircraft, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return Aircraft{}, err
-	}
-	return Aircraft{Struct: p.Struct()}, nil
+	return Aircraft{Struct: p.Struct()}, err
 }
 
 func (s Z) HasAircraft() bool {
@@ -1800,10 +1614,7 @@ func (s Z) NewAircraft() (Aircraft, error) {
 
 func (s Z) Regression() (Regression, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return Regression{}, err
-	}
-	return Regression{Struct: p.Struct()}, nil
+	return Regression{Struct: p.Struct()}, err
 }
 
 func (s Z) HasRegression() bool {
@@ -1830,10 +1641,7 @@ func (s Z) NewRegression() (Regression, error) {
 
 func (s Z) Planebase() (PlaneBase, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return PlaneBase{}, err
-	}
-	return PlaneBase{Struct: p.Struct()}, nil
+	return PlaneBase{Struct: p.Struct()}, err
 }
 
 func (s Z) HasPlanebase() bool {
@@ -1869,10 +1677,7 @@ func (s Z) SetAirport(v Airport) {
 
 func (s Z) B737() (B737, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return B737{}, err
-	}
-	return B737{Struct: p.Struct()}, nil
+	return B737{Struct: p.Struct()}, err
 }
 
 func (s Z) HasB737() bool {
@@ -1899,10 +1704,7 @@ func (s Z) NewB737() (B737, error) {
 
 func (s Z) A320() (A320, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return A320{}, err
-	}
-	return A320{Struct: p.Struct()}, nil
+	return A320{Struct: p.Struct()}, err
 }
 
 func (s Z) HasA320() bool {
@@ -1929,10 +1731,7 @@ func (s Z) NewA320() (A320, error) {
 
 func (s Z) F16() (F16, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return F16{}, err
-	}
-	return F16{Struct: p.Struct()}, nil
+	return F16{Struct: p.Struct()}, err
 }
 
 func (s Z) HasF16() bool {
@@ -1959,10 +1758,7 @@ func (s Z) NewF16() (F16, error) {
 
 func (s Z) Zdatevec() (Zdate_List, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return Zdate_List{}, err
-	}
-	return Zdate_List{List: p.List()}, nil
+	return Zdate_List{List: p.List()}, err
 }
 
 func (s Z) HasZdatevec() bool {
@@ -1989,10 +1785,7 @@ func (s Z) NewZdatevec(n int32) (Zdate_List, error) {
 
 func (s Z) Zdatavec() (Zdata_List, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return Zdata_List{}, err
-	}
-	return Zdata_List{List: p.List()}, nil
+	return Zdata_List{List: p.List()}, err
 }
 
 func (s Z) HasZdatavec() bool {
@@ -2019,10 +1812,7 @@ func (s Z) NewZdatavec(n int32) (Zdata_List, error) {
 
 func (s Z) Boolvec() (capnp.BitList, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return capnp.BitList{}, err
-	}
-	return capnp.BitList{List: p.List()}, nil
+	return capnp.BitList{List: p.List()}, err
 }
 
 func (s Z) HasBoolvec() bool {
@@ -2053,13 +1843,11 @@ type Z_List struct{ capnp.List }
 // NewZ creates a new list of Z.
 func NewZ_List(s *capnp.Segment, sz int32) (Z_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1}, sz)
-	if err != nil {
-		return Z_List{}, err
-	}
-	return Z_List{l}, nil
+	return Z_List{l}, err
 }
 
-func (s Z_List) At(i int) Z           { return Z{s.List.Struct(i)} }
+func (s Z_List) At(i int) Z { return Z{s.List.Struct(i)} }
+
 func (s Z_List) Set(i int, v Z) error { return s.List.SetStruct(i, v.Struct) }
 
 // Z_Promise is a wrapper for a Z promised by a client call.
@@ -2110,27 +1898,19 @@ type Counter struct{ capnp.Struct }
 
 func NewCounter(s *capnp.Segment) (Counter, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2})
-	if err != nil {
-		return Counter{}, err
-	}
-	return Counter{st}, nil
+	return Counter{st}, err
 }
 
 func NewRootCounter(s *capnp.Segment) (Counter, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2})
-	if err != nil {
-		return Counter{}, err
-	}
-	return Counter{st}, nil
+	return Counter{st}, err
 }
 
 func ReadRootCounter(msg *capnp.Message) (Counter, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return Counter{}, err
-	}
-	return Counter{root.Struct()}, nil
+	return Counter{root.Struct()}, err
 }
+
 func (s Counter) Size() int64 {
 	return int64(s.Struct.Uint64(0))
 }
@@ -2141,10 +1921,7 @@ func (s Counter) SetSize(v int64) {
 
 func (s Counter) Words() (string, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return "", err
-	}
-	return p.Text(), nil
+	return p.Text(), err
 }
 
 func (s Counter) HasWords() bool {
@@ -2174,10 +1951,7 @@ func (s Counter) SetWords(v string) error {
 
 func (s Counter) Wordlist() (capnp.TextList, error) {
 	p, err := s.Struct.Ptr(1)
-	if err != nil {
-		return capnp.TextList{}, err
-	}
-	return capnp.TextList{List: p.List()}, nil
+	return capnp.TextList{List: p.List()}, err
 }
 
 func (s Counter) HasWordlist() bool {
@@ -2206,13 +1980,11 @@ type Counter_List struct{ capnp.List }
 // NewCounter creates a new list of Counter.
 func NewCounter_List(s *capnp.Segment, sz int32) (Counter_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2}, sz)
-	if err != nil {
-		return Counter_List{}, err
-	}
-	return Counter_List{l}, nil
+	return Counter_List{l}, err
 }
 
-func (s Counter_List) At(i int) Counter           { return Counter{s.List.Struct(i)} }
+func (s Counter_List) At(i int) Counter { return Counter{s.List.Struct(i)} }
+
 func (s Counter_List) Set(i int, v Counter) error { return s.List.SetStruct(i, v.Struct) }
 
 // Counter_Promise is a wrapper for a Counter promised by a client call.
@@ -2227,33 +1999,22 @@ type Bag struct{ capnp.Struct }
 
 func NewBag(s *capnp.Segment) (Bag, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return Bag{}, err
-	}
-	return Bag{st}, nil
+	return Bag{st}, err
 }
 
 func NewRootBag(s *capnp.Segment) (Bag, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return Bag{}, err
-	}
-	return Bag{st}, nil
+	return Bag{st}, err
 }
 
 func ReadRootBag(msg *capnp.Message) (Bag, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return Bag{}, err
-	}
-	return Bag{root.Struct()}, nil
+	return Bag{root.Struct()}, err
 }
+
 func (s Bag) Counter() (Counter, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return Counter{}, err
-	}
-	return Counter{Struct: p.Struct()}, nil
+	return Counter{Struct: p.Struct()}, err
 }
 
 func (s Bag) HasCounter() bool {
@@ -2282,13 +2043,11 @@ type Bag_List struct{ capnp.List }
 // NewBag creates a new list of Bag.
 func NewBag_List(s *capnp.Segment, sz int32) (Bag_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	if err != nil {
-		return Bag_List{}, err
-	}
-	return Bag_List{l}, nil
+	return Bag_List{l}, err
 }
 
-func (s Bag_List) At(i int) Bag           { return Bag{s.List.Struct(i)} }
+func (s Bag_List) At(i int) Bag { return Bag{s.List.Struct(i)} }
+
 func (s Bag_List) Set(i int, v Bag) error { return s.List.SetStruct(i, v.Struct) }
 
 // Bag_Promise is a wrapper for a Bag promised by a client call.
@@ -2307,33 +2066,22 @@ type Zserver struct{ capnp.Struct }
 
 func NewZserver(s *capnp.Segment) (Zserver, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return Zserver{}, err
-	}
-	return Zserver{st}, nil
+	return Zserver{st}, err
 }
 
 func NewRootZserver(s *capnp.Segment) (Zserver, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return Zserver{}, err
-	}
-	return Zserver{st}, nil
+	return Zserver{st}, err
 }
 
 func ReadRootZserver(msg *capnp.Message) (Zserver, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return Zserver{}, err
-	}
-	return Zserver{root.Struct()}, nil
+	return Zserver{root.Struct()}, err
 }
+
 func (s Zserver) Waitingjobs() (Zjob_List, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return Zjob_List{}, err
-	}
-	return Zjob_List{List: p.List()}, nil
+	return Zjob_List{List: p.List()}, err
 }
 
 func (s Zserver) HasWaitingjobs() bool {
@@ -2362,13 +2110,11 @@ type Zserver_List struct{ capnp.List }
 // NewZserver creates a new list of Zserver.
 func NewZserver_List(s *capnp.Segment, sz int32) (Zserver_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	if err != nil {
-		return Zserver_List{}, err
-	}
-	return Zserver_List{l}, nil
+	return Zserver_List{l}, err
 }
 
-func (s Zserver_List) At(i int) Zserver           { return Zserver{s.List.Struct(i)} }
+func (s Zserver_List) At(i int) Zserver { return Zserver{s.List.Struct(i)} }
+
 func (s Zserver_List) Set(i int, v Zserver) error { return s.List.SetStruct(i, v.Struct) }
 
 // Zserver_Promise is a wrapper for a Zserver promised by a client call.
@@ -2383,33 +2129,22 @@ type Zjob struct{ capnp.Struct }
 
 func NewZjob(s *capnp.Segment) (Zjob, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
-	if err != nil {
-		return Zjob{}, err
-	}
-	return Zjob{st}, nil
+	return Zjob{st}, err
 }
 
 func NewRootZjob(s *capnp.Segment) (Zjob, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
-	if err != nil {
-		return Zjob{}, err
-	}
-	return Zjob{st}, nil
+	return Zjob{st}, err
 }
 
 func ReadRootZjob(msg *capnp.Message) (Zjob, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return Zjob{}, err
-	}
-	return Zjob{root.Struct()}, nil
+	return Zjob{root.Struct()}, err
 }
+
 func (s Zjob) Cmd() (string, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return "", err
-	}
-	return p.Text(), nil
+	return p.Text(), err
 }
 
 func (s Zjob) HasCmd() bool {
@@ -2439,10 +2174,7 @@ func (s Zjob) SetCmd(v string) error {
 
 func (s Zjob) Args() (capnp.TextList, error) {
 	p, err := s.Struct.Ptr(1)
-	if err != nil {
-		return capnp.TextList{}, err
-	}
-	return capnp.TextList{List: p.List()}, nil
+	return capnp.TextList{List: p.List()}, err
 }
 
 func (s Zjob) HasArgs() bool {
@@ -2471,13 +2203,11 @@ type Zjob_List struct{ capnp.List }
 // NewZjob creates a new list of Zjob.
 func NewZjob_List(s *capnp.Segment, sz int32) (Zjob_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
-	if err != nil {
-		return Zjob_List{}, err
-	}
-	return Zjob_List{l}, nil
+	return Zjob_List{l}, err
 }
 
-func (s Zjob_List) At(i int) Zjob           { return Zjob{s.List.Struct(i)} }
+func (s Zjob_List) At(i int) Zjob { return Zjob{s.List.Struct(i)} }
+
 func (s Zjob_List) Set(i int, v Zjob) error { return s.List.SetStruct(i, v.Struct) }
 
 // Zjob_Promise is a wrapper for a Zjob promised by a client call.
@@ -2492,26 +2222,17 @@ type VerEmpty struct{ capnp.Struct }
 
 func NewVerEmpty(s *capnp.Segment) (VerEmpty, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	if err != nil {
-		return VerEmpty{}, err
-	}
-	return VerEmpty{st}, nil
+	return VerEmpty{st}, err
 }
 
 func NewRootVerEmpty(s *capnp.Segment) (VerEmpty, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	if err != nil {
-		return VerEmpty{}, err
-	}
-	return VerEmpty{st}, nil
+	return VerEmpty{st}, err
 }
 
 func ReadRootVerEmpty(msg *capnp.Message) (VerEmpty, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return VerEmpty{}, err
-	}
-	return VerEmpty{root.Struct()}, nil
+	return VerEmpty{root.Struct()}, err
 }
 
 // VerEmpty_List is a list of VerEmpty.
@@ -2520,13 +2241,11 @@ type VerEmpty_List struct{ capnp.List }
 // NewVerEmpty creates a new list of VerEmpty.
 func NewVerEmpty_List(s *capnp.Segment, sz int32) (VerEmpty_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
-	if err != nil {
-		return VerEmpty_List{}, err
-	}
-	return VerEmpty_List{l}, nil
+	return VerEmpty_List{l}, err
 }
 
-func (s VerEmpty_List) At(i int) VerEmpty           { return VerEmpty{s.List.Struct(i)} }
+func (s VerEmpty_List) At(i int) VerEmpty { return VerEmpty{s.List.Struct(i)} }
+
 func (s VerEmpty_List) Set(i int, v VerEmpty) error { return s.List.SetStruct(i, v.Struct) }
 
 // VerEmpty_Promise is a wrapper for a VerEmpty promised by a client call.
@@ -2541,27 +2260,19 @@ type VerOneData struct{ capnp.Struct }
 
 func NewVerOneData(s *capnp.Segment) (VerOneData, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	if err != nil {
-		return VerOneData{}, err
-	}
-	return VerOneData{st}, nil
+	return VerOneData{st}, err
 }
 
 func NewRootVerOneData(s *capnp.Segment) (VerOneData, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	if err != nil {
-		return VerOneData{}, err
-	}
-	return VerOneData{st}, nil
+	return VerOneData{st}, err
 }
 
 func ReadRootVerOneData(msg *capnp.Message) (VerOneData, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return VerOneData{}, err
-	}
-	return VerOneData{root.Struct()}, nil
+	return VerOneData{root.Struct()}, err
 }
+
 func (s VerOneData) Val() int16 {
 	return int16(s.Struct.Uint16(0))
 }
@@ -2576,13 +2287,11 @@ type VerOneData_List struct{ capnp.List }
 // NewVerOneData creates a new list of VerOneData.
 func NewVerOneData_List(s *capnp.Segment, sz int32) (VerOneData_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	if err != nil {
-		return VerOneData_List{}, err
-	}
-	return VerOneData_List{l}, nil
+	return VerOneData_List{l}, err
 }
 
-func (s VerOneData_List) At(i int) VerOneData           { return VerOneData{s.List.Struct(i)} }
+func (s VerOneData_List) At(i int) VerOneData { return VerOneData{s.List.Struct(i)} }
+
 func (s VerOneData_List) Set(i int, v VerOneData) error { return s.List.SetStruct(i, v.Struct) }
 
 // VerOneData_Promise is a wrapper for a VerOneData promised by a client call.
@@ -2597,27 +2306,19 @@ type VerTwoData struct{ capnp.Struct }
 
 func NewVerTwoData(s *capnp.Segment) (VerTwoData, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0})
-	if err != nil {
-		return VerTwoData{}, err
-	}
-	return VerTwoData{st}, nil
+	return VerTwoData{st}, err
 }
 
 func NewRootVerTwoData(s *capnp.Segment) (VerTwoData, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0})
-	if err != nil {
-		return VerTwoData{}, err
-	}
-	return VerTwoData{st}, nil
+	return VerTwoData{st}, err
 }
 
 func ReadRootVerTwoData(msg *capnp.Message) (VerTwoData, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return VerTwoData{}, err
-	}
-	return VerTwoData{root.Struct()}, nil
+	return VerTwoData{root.Struct()}, err
 }
+
 func (s VerTwoData) Val() int16 {
 	return int16(s.Struct.Uint16(0))
 }
@@ -2640,13 +2341,11 @@ type VerTwoData_List struct{ capnp.List }
 // NewVerTwoData creates a new list of VerTwoData.
 func NewVerTwoData_List(s *capnp.Segment, sz int32) (VerTwoData_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0}, sz)
-	if err != nil {
-		return VerTwoData_List{}, err
-	}
-	return VerTwoData_List{l}, nil
+	return VerTwoData_List{l}, err
 }
 
-func (s VerTwoData_List) At(i int) VerTwoData           { return VerTwoData{s.List.Struct(i)} }
+func (s VerTwoData_List) At(i int) VerTwoData { return VerTwoData{s.List.Struct(i)} }
+
 func (s VerTwoData_List) Set(i int, v VerTwoData) error { return s.List.SetStruct(i, v.Struct) }
 
 // VerTwoData_Promise is a wrapper for a VerTwoData promised by a client call.
@@ -2661,33 +2360,22 @@ type VerOnePtr struct{ capnp.Struct }
 
 func NewVerOnePtr(s *capnp.Segment) (VerOnePtr, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return VerOnePtr{}, err
-	}
-	return VerOnePtr{st}, nil
+	return VerOnePtr{st}, err
 }
 
 func NewRootVerOnePtr(s *capnp.Segment) (VerOnePtr, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return VerOnePtr{}, err
-	}
-	return VerOnePtr{st}, nil
+	return VerOnePtr{st}, err
 }
 
 func ReadRootVerOnePtr(msg *capnp.Message) (VerOnePtr, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return VerOnePtr{}, err
-	}
-	return VerOnePtr{root.Struct()}, nil
+	return VerOnePtr{root.Struct()}, err
 }
+
 func (s VerOnePtr) Ptr() (VerOneData, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return VerOneData{}, err
-	}
-	return VerOneData{Struct: p.Struct()}, nil
+	return VerOneData{Struct: p.Struct()}, err
 }
 
 func (s VerOnePtr) HasPtr() bool {
@@ -2716,13 +2404,11 @@ type VerOnePtr_List struct{ capnp.List }
 // NewVerOnePtr creates a new list of VerOnePtr.
 func NewVerOnePtr_List(s *capnp.Segment, sz int32) (VerOnePtr_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	if err != nil {
-		return VerOnePtr_List{}, err
-	}
-	return VerOnePtr_List{l}, nil
+	return VerOnePtr_List{l}, err
 }
 
-func (s VerOnePtr_List) At(i int) VerOnePtr           { return VerOnePtr{s.List.Struct(i)} }
+func (s VerOnePtr_List) At(i int) VerOnePtr { return VerOnePtr{s.List.Struct(i)} }
+
 func (s VerOnePtr_List) Set(i int, v VerOnePtr) error { return s.List.SetStruct(i, v.Struct) }
 
 // VerOnePtr_Promise is a wrapper for a VerOnePtr promised by a client call.
@@ -2741,33 +2427,22 @@ type VerTwoPtr struct{ capnp.Struct }
 
 func NewVerTwoPtr(s *capnp.Segment) (VerTwoPtr, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
-	if err != nil {
-		return VerTwoPtr{}, err
-	}
-	return VerTwoPtr{st}, nil
+	return VerTwoPtr{st}, err
 }
 
 func NewRootVerTwoPtr(s *capnp.Segment) (VerTwoPtr, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
-	if err != nil {
-		return VerTwoPtr{}, err
-	}
-	return VerTwoPtr{st}, nil
+	return VerTwoPtr{st}, err
 }
 
 func ReadRootVerTwoPtr(msg *capnp.Message) (VerTwoPtr, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return VerTwoPtr{}, err
-	}
-	return VerTwoPtr{root.Struct()}, nil
+	return VerTwoPtr{root.Struct()}, err
 }
+
 func (s VerTwoPtr) Ptr1() (VerOneData, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return VerOneData{}, err
-	}
-	return VerOneData{Struct: p.Struct()}, nil
+	return VerOneData{Struct: p.Struct()}, err
 }
 
 func (s VerTwoPtr) HasPtr1() bool {
@@ -2792,10 +2467,7 @@ func (s VerTwoPtr) NewPtr1() (VerOneData, error) {
 
 func (s VerTwoPtr) Ptr2() (VerOneData, error) {
 	p, err := s.Struct.Ptr(1)
-	if err != nil {
-		return VerOneData{}, err
-	}
-	return VerOneData{Struct: p.Struct()}, nil
+	return VerOneData{Struct: p.Struct()}, err
 }
 
 func (s VerTwoPtr) HasPtr2() bool {
@@ -2824,13 +2496,11 @@ type VerTwoPtr_List struct{ capnp.List }
 // NewVerTwoPtr creates a new list of VerTwoPtr.
 func NewVerTwoPtr_List(s *capnp.Segment, sz int32) (VerTwoPtr_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
-	if err != nil {
-		return VerTwoPtr_List{}, err
-	}
-	return VerTwoPtr_List{l}, nil
+	return VerTwoPtr_List{l}, err
 }
 
-func (s VerTwoPtr_List) At(i int) VerTwoPtr           { return VerTwoPtr{s.List.Struct(i)} }
+func (s VerTwoPtr_List) At(i int) VerTwoPtr { return VerTwoPtr{s.List.Struct(i)} }
+
 func (s VerTwoPtr_List) Set(i int, v VerTwoPtr) error { return s.List.SetStruct(i, v.Struct) }
 
 // VerTwoPtr_Promise is a wrapper for a VerTwoPtr promised by a client call.
@@ -2853,27 +2523,19 @@ type VerTwoDataTwoPtr struct{ capnp.Struct }
 
 func NewVerTwoDataTwoPtr(s *capnp.Segment) (VerTwoDataTwoPtr, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 2})
-	if err != nil {
-		return VerTwoDataTwoPtr{}, err
-	}
-	return VerTwoDataTwoPtr{st}, nil
+	return VerTwoDataTwoPtr{st}, err
 }
 
 func NewRootVerTwoDataTwoPtr(s *capnp.Segment) (VerTwoDataTwoPtr, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 2})
-	if err != nil {
-		return VerTwoDataTwoPtr{}, err
-	}
-	return VerTwoDataTwoPtr{st}, nil
+	return VerTwoDataTwoPtr{st}, err
 }
 
 func ReadRootVerTwoDataTwoPtr(msg *capnp.Message) (VerTwoDataTwoPtr, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return VerTwoDataTwoPtr{}, err
-	}
-	return VerTwoDataTwoPtr{root.Struct()}, nil
+	return VerTwoDataTwoPtr{root.Struct()}, err
 }
+
 func (s VerTwoDataTwoPtr) Val() int16 {
 	return int16(s.Struct.Uint16(0))
 }
@@ -2892,10 +2554,7 @@ func (s VerTwoDataTwoPtr) SetDuo(v int64) {
 
 func (s VerTwoDataTwoPtr) Ptr1() (VerOneData, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return VerOneData{}, err
-	}
-	return VerOneData{Struct: p.Struct()}, nil
+	return VerOneData{Struct: p.Struct()}, err
 }
 
 func (s VerTwoDataTwoPtr) HasPtr1() bool {
@@ -2920,10 +2579,7 @@ func (s VerTwoDataTwoPtr) NewPtr1() (VerOneData, error) {
 
 func (s VerTwoDataTwoPtr) Ptr2() (VerOneData, error) {
 	p, err := s.Struct.Ptr(1)
-	if err != nil {
-		return VerOneData{}, err
-	}
-	return VerOneData{Struct: p.Struct()}, nil
+	return VerOneData{Struct: p.Struct()}, err
 }
 
 func (s VerTwoDataTwoPtr) HasPtr2() bool {
@@ -2952,13 +2608,11 @@ type VerTwoDataTwoPtr_List struct{ capnp.List }
 // NewVerTwoDataTwoPtr creates a new list of VerTwoDataTwoPtr.
 func NewVerTwoDataTwoPtr_List(s *capnp.Segment, sz int32) (VerTwoDataTwoPtr_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 2}, sz)
-	if err != nil {
-		return VerTwoDataTwoPtr_List{}, err
-	}
-	return VerTwoDataTwoPtr_List{l}, nil
+	return VerTwoDataTwoPtr_List{l}, err
 }
 
 func (s VerTwoDataTwoPtr_List) At(i int) VerTwoDataTwoPtr { return VerTwoDataTwoPtr{s.List.Struct(i)} }
+
 func (s VerTwoDataTwoPtr_List) Set(i int, v VerTwoDataTwoPtr) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -2983,33 +2637,22 @@ type HoldsVerEmptyList struct{ capnp.Struct }
 
 func NewHoldsVerEmptyList(s *capnp.Segment) (HoldsVerEmptyList, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return HoldsVerEmptyList{}, err
-	}
-	return HoldsVerEmptyList{st}, nil
+	return HoldsVerEmptyList{st}, err
 }
 
 func NewRootHoldsVerEmptyList(s *capnp.Segment) (HoldsVerEmptyList, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return HoldsVerEmptyList{}, err
-	}
-	return HoldsVerEmptyList{st}, nil
+	return HoldsVerEmptyList{st}, err
 }
 
 func ReadRootHoldsVerEmptyList(msg *capnp.Message) (HoldsVerEmptyList, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return HoldsVerEmptyList{}, err
-	}
-	return HoldsVerEmptyList{root.Struct()}, nil
+	return HoldsVerEmptyList{root.Struct()}, err
 }
+
 func (s HoldsVerEmptyList) Mylist() (VerEmpty_List, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return VerEmpty_List{}, err
-	}
-	return VerEmpty_List{List: p.List()}, nil
+	return VerEmpty_List{List: p.List()}, err
 }
 
 func (s HoldsVerEmptyList) HasMylist() bool {
@@ -3038,15 +2681,13 @@ type HoldsVerEmptyList_List struct{ capnp.List }
 // NewHoldsVerEmptyList creates a new list of HoldsVerEmptyList.
 func NewHoldsVerEmptyList_List(s *capnp.Segment, sz int32) (HoldsVerEmptyList_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	if err != nil {
-		return HoldsVerEmptyList_List{}, err
-	}
-	return HoldsVerEmptyList_List{l}, nil
+	return HoldsVerEmptyList_List{l}, err
 }
 
 func (s HoldsVerEmptyList_List) At(i int) HoldsVerEmptyList {
 	return HoldsVerEmptyList{s.List.Struct(i)}
 }
+
 func (s HoldsVerEmptyList_List) Set(i int, v HoldsVerEmptyList) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -3063,33 +2704,22 @@ type HoldsVerOneDataList struct{ capnp.Struct }
 
 func NewHoldsVerOneDataList(s *capnp.Segment) (HoldsVerOneDataList, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return HoldsVerOneDataList{}, err
-	}
-	return HoldsVerOneDataList{st}, nil
+	return HoldsVerOneDataList{st}, err
 }
 
 func NewRootHoldsVerOneDataList(s *capnp.Segment) (HoldsVerOneDataList, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return HoldsVerOneDataList{}, err
-	}
-	return HoldsVerOneDataList{st}, nil
+	return HoldsVerOneDataList{st}, err
 }
 
 func ReadRootHoldsVerOneDataList(msg *capnp.Message) (HoldsVerOneDataList, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return HoldsVerOneDataList{}, err
-	}
-	return HoldsVerOneDataList{root.Struct()}, nil
+	return HoldsVerOneDataList{root.Struct()}, err
 }
+
 func (s HoldsVerOneDataList) Mylist() (VerOneData_List, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return VerOneData_List{}, err
-	}
-	return VerOneData_List{List: p.List()}, nil
+	return VerOneData_List{List: p.List()}, err
 }
 
 func (s HoldsVerOneDataList) HasMylist() bool {
@@ -3118,15 +2748,13 @@ type HoldsVerOneDataList_List struct{ capnp.List }
 // NewHoldsVerOneDataList creates a new list of HoldsVerOneDataList.
 func NewHoldsVerOneDataList_List(s *capnp.Segment, sz int32) (HoldsVerOneDataList_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	if err != nil {
-		return HoldsVerOneDataList_List{}, err
-	}
-	return HoldsVerOneDataList_List{l}, nil
+	return HoldsVerOneDataList_List{l}, err
 }
 
 func (s HoldsVerOneDataList_List) At(i int) HoldsVerOneDataList {
 	return HoldsVerOneDataList{s.List.Struct(i)}
 }
+
 func (s HoldsVerOneDataList_List) Set(i int, v HoldsVerOneDataList) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -3143,33 +2771,22 @@ type HoldsVerTwoDataList struct{ capnp.Struct }
 
 func NewHoldsVerTwoDataList(s *capnp.Segment) (HoldsVerTwoDataList, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return HoldsVerTwoDataList{}, err
-	}
-	return HoldsVerTwoDataList{st}, nil
+	return HoldsVerTwoDataList{st}, err
 }
 
 func NewRootHoldsVerTwoDataList(s *capnp.Segment) (HoldsVerTwoDataList, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return HoldsVerTwoDataList{}, err
-	}
-	return HoldsVerTwoDataList{st}, nil
+	return HoldsVerTwoDataList{st}, err
 }
 
 func ReadRootHoldsVerTwoDataList(msg *capnp.Message) (HoldsVerTwoDataList, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return HoldsVerTwoDataList{}, err
-	}
-	return HoldsVerTwoDataList{root.Struct()}, nil
+	return HoldsVerTwoDataList{root.Struct()}, err
 }
+
 func (s HoldsVerTwoDataList) Mylist() (VerTwoData_List, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return VerTwoData_List{}, err
-	}
-	return VerTwoData_List{List: p.List()}, nil
+	return VerTwoData_List{List: p.List()}, err
 }
 
 func (s HoldsVerTwoDataList) HasMylist() bool {
@@ -3198,15 +2815,13 @@ type HoldsVerTwoDataList_List struct{ capnp.List }
 // NewHoldsVerTwoDataList creates a new list of HoldsVerTwoDataList.
 func NewHoldsVerTwoDataList_List(s *capnp.Segment, sz int32) (HoldsVerTwoDataList_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	if err != nil {
-		return HoldsVerTwoDataList_List{}, err
-	}
-	return HoldsVerTwoDataList_List{l}, nil
+	return HoldsVerTwoDataList_List{l}, err
 }
 
 func (s HoldsVerTwoDataList_List) At(i int) HoldsVerTwoDataList {
 	return HoldsVerTwoDataList{s.List.Struct(i)}
 }
+
 func (s HoldsVerTwoDataList_List) Set(i int, v HoldsVerTwoDataList) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -3223,33 +2838,22 @@ type HoldsVerOnePtrList struct{ capnp.Struct }
 
 func NewHoldsVerOnePtrList(s *capnp.Segment) (HoldsVerOnePtrList, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return HoldsVerOnePtrList{}, err
-	}
-	return HoldsVerOnePtrList{st}, nil
+	return HoldsVerOnePtrList{st}, err
 }
 
 func NewRootHoldsVerOnePtrList(s *capnp.Segment) (HoldsVerOnePtrList, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return HoldsVerOnePtrList{}, err
-	}
-	return HoldsVerOnePtrList{st}, nil
+	return HoldsVerOnePtrList{st}, err
 }
 
 func ReadRootHoldsVerOnePtrList(msg *capnp.Message) (HoldsVerOnePtrList, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return HoldsVerOnePtrList{}, err
-	}
-	return HoldsVerOnePtrList{root.Struct()}, nil
+	return HoldsVerOnePtrList{root.Struct()}, err
 }
+
 func (s HoldsVerOnePtrList) Mylist() (VerOnePtr_List, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return VerOnePtr_List{}, err
-	}
-	return VerOnePtr_List{List: p.List()}, nil
+	return VerOnePtr_List{List: p.List()}, err
 }
 
 func (s HoldsVerOnePtrList) HasMylist() bool {
@@ -3278,15 +2882,13 @@ type HoldsVerOnePtrList_List struct{ capnp.List }
 // NewHoldsVerOnePtrList creates a new list of HoldsVerOnePtrList.
 func NewHoldsVerOnePtrList_List(s *capnp.Segment, sz int32) (HoldsVerOnePtrList_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	if err != nil {
-		return HoldsVerOnePtrList_List{}, err
-	}
-	return HoldsVerOnePtrList_List{l}, nil
+	return HoldsVerOnePtrList_List{l}, err
 }
 
 func (s HoldsVerOnePtrList_List) At(i int) HoldsVerOnePtrList {
 	return HoldsVerOnePtrList{s.List.Struct(i)}
 }
+
 func (s HoldsVerOnePtrList_List) Set(i int, v HoldsVerOnePtrList) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -3303,33 +2905,22 @@ type HoldsVerTwoPtrList struct{ capnp.Struct }
 
 func NewHoldsVerTwoPtrList(s *capnp.Segment) (HoldsVerTwoPtrList, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return HoldsVerTwoPtrList{}, err
-	}
-	return HoldsVerTwoPtrList{st}, nil
+	return HoldsVerTwoPtrList{st}, err
 }
 
 func NewRootHoldsVerTwoPtrList(s *capnp.Segment) (HoldsVerTwoPtrList, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return HoldsVerTwoPtrList{}, err
-	}
-	return HoldsVerTwoPtrList{st}, nil
+	return HoldsVerTwoPtrList{st}, err
 }
 
 func ReadRootHoldsVerTwoPtrList(msg *capnp.Message) (HoldsVerTwoPtrList, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return HoldsVerTwoPtrList{}, err
-	}
-	return HoldsVerTwoPtrList{root.Struct()}, nil
+	return HoldsVerTwoPtrList{root.Struct()}, err
 }
+
 func (s HoldsVerTwoPtrList) Mylist() (VerTwoPtr_List, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return VerTwoPtr_List{}, err
-	}
-	return VerTwoPtr_List{List: p.List()}, nil
+	return VerTwoPtr_List{List: p.List()}, err
 }
 
 func (s HoldsVerTwoPtrList) HasMylist() bool {
@@ -3358,15 +2949,13 @@ type HoldsVerTwoPtrList_List struct{ capnp.List }
 // NewHoldsVerTwoPtrList creates a new list of HoldsVerTwoPtrList.
 func NewHoldsVerTwoPtrList_List(s *capnp.Segment, sz int32) (HoldsVerTwoPtrList_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	if err != nil {
-		return HoldsVerTwoPtrList_List{}, err
-	}
-	return HoldsVerTwoPtrList_List{l}, nil
+	return HoldsVerTwoPtrList_List{l}, err
 }
 
 func (s HoldsVerTwoPtrList_List) At(i int) HoldsVerTwoPtrList {
 	return HoldsVerTwoPtrList{s.List.Struct(i)}
 }
+
 func (s HoldsVerTwoPtrList_List) Set(i int, v HoldsVerTwoPtrList) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -3383,33 +2972,22 @@ type HoldsVerTwoTwoList struct{ capnp.Struct }
 
 func NewHoldsVerTwoTwoList(s *capnp.Segment) (HoldsVerTwoTwoList, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return HoldsVerTwoTwoList{}, err
-	}
-	return HoldsVerTwoTwoList{st}, nil
+	return HoldsVerTwoTwoList{st}, err
 }
 
 func NewRootHoldsVerTwoTwoList(s *capnp.Segment) (HoldsVerTwoTwoList, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return HoldsVerTwoTwoList{}, err
-	}
-	return HoldsVerTwoTwoList{st}, nil
+	return HoldsVerTwoTwoList{st}, err
 }
 
 func ReadRootHoldsVerTwoTwoList(msg *capnp.Message) (HoldsVerTwoTwoList, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return HoldsVerTwoTwoList{}, err
-	}
-	return HoldsVerTwoTwoList{root.Struct()}, nil
+	return HoldsVerTwoTwoList{root.Struct()}, err
 }
+
 func (s HoldsVerTwoTwoList) Mylist() (VerTwoDataTwoPtr_List, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return VerTwoDataTwoPtr_List{}, err
-	}
-	return VerTwoDataTwoPtr_List{List: p.List()}, nil
+	return VerTwoDataTwoPtr_List{List: p.List()}, err
 }
 
 func (s HoldsVerTwoTwoList) HasMylist() bool {
@@ -3438,15 +3016,13 @@ type HoldsVerTwoTwoList_List struct{ capnp.List }
 // NewHoldsVerTwoTwoList creates a new list of HoldsVerTwoTwoList.
 func NewHoldsVerTwoTwoList_List(s *capnp.Segment, sz int32) (HoldsVerTwoTwoList_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	if err != nil {
-		return HoldsVerTwoTwoList_List{}, err
-	}
-	return HoldsVerTwoTwoList_List{l}, nil
+	return HoldsVerTwoTwoList_List{l}, err
 }
 
 func (s HoldsVerTwoTwoList_List) At(i int) HoldsVerTwoTwoList {
 	return HoldsVerTwoTwoList{s.List.Struct(i)}
 }
+
 func (s HoldsVerTwoTwoList_List) Set(i int, v HoldsVerTwoTwoList) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -3463,33 +3039,22 @@ type HoldsVerTwoTwoPlus struct{ capnp.Struct }
 
 func NewHoldsVerTwoTwoPlus(s *capnp.Segment) (HoldsVerTwoTwoPlus, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return HoldsVerTwoTwoPlus{}, err
-	}
-	return HoldsVerTwoTwoPlus{st}, nil
+	return HoldsVerTwoTwoPlus{st}, err
 }
 
 func NewRootHoldsVerTwoTwoPlus(s *capnp.Segment) (HoldsVerTwoTwoPlus, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return HoldsVerTwoTwoPlus{}, err
-	}
-	return HoldsVerTwoTwoPlus{st}, nil
+	return HoldsVerTwoTwoPlus{st}, err
 }
 
 func ReadRootHoldsVerTwoTwoPlus(msg *capnp.Message) (HoldsVerTwoTwoPlus, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return HoldsVerTwoTwoPlus{}, err
-	}
-	return HoldsVerTwoTwoPlus{root.Struct()}, nil
+	return HoldsVerTwoTwoPlus{root.Struct()}, err
 }
+
 func (s HoldsVerTwoTwoPlus) Mylist() (VerTwoTwoPlus_List, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return VerTwoTwoPlus_List{}, err
-	}
-	return VerTwoTwoPlus_List{List: p.List()}, nil
+	return VerTwoTwoPlus_List{List: p.List()}, err
 }
 
 func (s HoldsVerTwoTwoPlus) HasMylist() bool {
@@ -3518,15 +3083,13 @@ type HoldsVerTwoTwoPlus_List struct{ capnp.List }
 // NewHoldsVerTwoTwoPlus creates a new list of HoldsVerTwoTwoPlus.
 func NewHoldsVerTwoTwoPlus_List(s *capnp.Segment, sz int32) (HoldsVerTwoTwoPlus_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	if err != nil {
-		return HoldsVerTwoTwoPlus_List{}, err
-	}
-	return HoldsVerTwoTwoPlus_List{l}, nil
+	return HoldsVerTwoTwoPlus_List{l}, err
 }
 
 func (s HoldsVerTwoTwoPlus_List) At(i int) HoldsVerTwoTwoPlus {
 	return HoldsVerTwoTwoPlus{s.List.Struct(i)}
 }
+
 func (s HoldsVerTwoTwoPlus_List) Set(i int, v HoldsVerTwoTwoPlus) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -3543,27 +3106,19 @@ type VerTwoTwoPlus struct{ capnp.Struct }
 
 func NewVerTwoTwoPlus(s *capnp.Segment) (VerTwoTwoPlus, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 3})
-	if err != nil {
-		return VerTwoTwoPlus{}, err
-	}
-	return VerTwoTwoPlus{st}, nil
+	return VerTwoTwoPlus{st}, err
 }
 
 func NewRootVerTwoTwoPlus(s *capnp.Segment) (VerTwoTwoPlus, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 3})
-	if err != nil {
-		return VerTwoTwoPlus{}, err
-	}
-	return VerTwoTwoPlus{st}, nil
+	return VerTwoTwoPlus{st}, err
 }
 
 func ReadRootVerTwoTwoPlus(msg *capnp.Message) (VerTwoTwoPlus, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return VerTwoTwoPlus{}, err
-	}
-	return VerTwoTwoPlus{root.Struct()}, nil
+	return VerTwoTwoPlus{root.Struct()}, err
 }
+
 func (s VerTwoTwoPlus) Val() int16 {
 	return int16(s.Struct.Uint16(0))
 }
@@ -3582,10 +3137,7 @@ func (s VerTwoTwoPlus) SetDuo(v int64) {
 
 func (s VerTwoTwoPlus) Ptr1() (VerTwoDataTwoPtr, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return VerTwoDataTwoPtr{}, err
-	}
-	return VerTwoDataTwoPtr{Struct: p.Struct()}, nil
+	return VerTwoDataTwoPtr{Struct: p.Struct()}, err
 }
 
 func (s VerTwoTwoPlus) HasPtr1() bool {
@@ -3610,10 +3162,7 @@ func (s VerTwoTwoPlus) NewPtr1() (VerTwoDataTwoPtr, error) {
 
 func (s VerTwoTwoPlus) Ptr2() (VerTwoDataTwoPtr, error) {
 	p, err := s.Struct.Ptr(1)
-	if err != nil {
-		return VerTwoDataTwoPtr{}, err
-	}
-	return VerTwoDataTwoPtr{Struct: p.Struct()}, nil
+	return VerTwoDataTwoPtr{Struct: p.Struct()}, err
 }
 
 func (s VerTwoTwoPlus) HasPtr2() bool {
@@ -3646,10 +3195,7 @@ func (s VerTwoTwoPlus) SetTre(v int64) {
 
 func (s VerTwoTwoPlus) Lst3() (capnp.Int64List, error) {
 	p, err := s.Struct.Ptr(2)
-	if err != nil {
-		return capnp.Int64List{}, err
-	}
-	return capnp.Int64List{List: p.List()}, nil
+	return capnp.Int64List{List: p.List()}, err
 }
 
 func (s VerTwoTwoPlus) HasLst3() bool {
@@ -3678,13 +3224,11 @@ type VerTwoTwoPlus_List struct{ capnp.List }
 // NewVerTwoTwoPlus creates a new list of VerTwoTwoPlus.
 func NewVerTwoTwoPlus_List(s *capnp.Segment, sz int32) (VerTwoTwoPlus_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 24, PointerCount: 3}, sz)
-	if err != nil {
-		return VerTwoTwoPlus_List{}, err
-	}
-	return VerTwoTwoPlus_List{l}, nil
+	return VerTwoTwoPlus_List{l}, err
 }
 
-func (s VerTwoTwoPlus_List) At(i int) VerTwoTwoPlus           { return VerTwoTwoPlus{s.List.Struct(i)} }
+func (s VerTwoTwoPlus_List) At(i int) VerTwoTwoPlus { return VerTwoTwoPlus{s.List.Struct(i)} }
+
 func (s VerTwoTwoPlus_List) Set(i int, v VerTwoTwoPlus) error { return s.List.SetStruct(i, v.Struct) }
 
 // VerTwoTwoPlus_Promise is a wrapper for a VerTwoTwoPlus promised by a client call.
@@ -3707,33 +3251,22 @@ type HoldsText struct{ capnp.Struct }
 
 func NewHoldsText(s *capnp.Segment) (HoldsText, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 3})
-	if err != nil {
-		return HoldsText{}, err
-	}
-	return HoldsText{st}, nil
+	return HoldsText{st}, err
 }
 
 func NewRootHoldsText(s *capnp.Segment) (HoldsText, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 3})
-	if err != nil {
-		return HoldsText{}, err
-	}
-	return HoldsText{st}, nil
+	return HoldsText{st}, err
 }
 
 func ReadRootHoldsText(msg *capnp.Message) (HoldsText, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return HoldsText{}, err
-	}
-	return HoldsText{root.Struct()}, nil
+	return HoldsText{root.Struct()}, err
 }
+
 func (s HoldsText) Txt() (string, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return "", err
-	}
-	return p.Text(), nil
+	return p.Text(), err
 }
 
 func (s HoldsText) HasTxt() bool {
@@ -3763,10 +3296,7 @@ func (s HoldsText) SetTxt(v string) error {
 
 func (s HoldsText) Lst() (capnp.TextList, error) {
 	p, err := s.Struct.Ptr(1)
-	if err != nil {
-		return capnp.TextList{}, err
-	}
-	return capnp.TextList{List: p.List()}, nil
+	return capnp.TextList{List: p.List()}, err
 }
 
 func (s HoldsText) HasLst() bool {
@@ -3791,10 +3321,7 @@ func (s HoldsText) NewLst(n int32) (capnp.TextList, error) {
 
 func (s HoldsText) Lstlst() (capnp.PointerList, error) {
 	p, err := s.Struct.Ptr(2)
-	if err != nil {
-		return capnp.PointerList{}, err
-	}
-	return capnp.PointerList{List: p.List()}, nil
+	return capnp.PointerList{List: p.List()}, err
 }
 
 func (s HoldsText) HasLstlst() bool {
@@ -3823,13 +3350,11 @@ type HoldsText_List struct{ capnp.List }
 // NewHoldsText creates a new list of HoldsText.
 func NewHoldsText_List(s *capnp.Segment, sz int32) (HoldsText_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 3}, sz)
-	if err != nil {
-		return HoldsText_List{}, err
-	}
-	return HoldsText_List{l}, nil
+	return HoldsText_List{l}, err
 }
 
-func (s HoldsText_List) At(i int) HoldsText           { return HoldsText{s.List.Struct(i)} }
+func (s HoldsText_List) At(i int) HoldsText { return HoldsText{s.List.Struct(i)} }
+
 func (s HoldsText_List) Set(i int, v HoldsText) error { return s.List.SetStruct(i, v.Struct) }
 
 // HoldsText_Promise is a wrapper for a HoldsText promised by a client call.
@@ -3844,33 +3369,22 @@ type WrapEmpty struct{ capnp.Struct }
 
 func NewWrapEmpty(s *capnp.Segment) (WrapEmpty, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return WrapEmpty{}, err
-	}
-	return WrapEmpty{st}, nil
+	return WrapEmpty{st}, err
 }
 
 func NewRootWrapEmpty(s *capnp.Segment) (WrapEmpty, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return WrapEmpty{}, err
-	}
-	return WrapEmpty{st}, nil
+	return WrapEmpty{st}, err
 }
 
 func ReadRootWrapEmpty(msg *capnp.Message) (WrapEmpty, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return WrapEmpty{}, err
-	}
-	return WrapEmpty{root.Struct()}, nil
+	return WrapEmpty{root.Struct()}, err
 }
+
 func (s WrapEmpty) MightNotBeReallyEmpty() (VerEmpty, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return VerEmpty{}, err
-	}
-	return VerEmpty{Struct: p.Struct()}, nil
+	return VerEmpty{Struct: p.Struct()}, err
 }
 
 func (s WrapEmpty) HasMightNotBeReallyEmpty() bool {
@@ -3899,13 +3413,11 @@ type WrapEmpty_List struct{ capnp.List }
 // NewWrapEmpty creates a new list of WrapEmpty.
 func NewWrapEmpty_List(s *capnp.Segment, sz int32) (WrapEmpty_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	if err != nil {
-		return WrapEmpty_List{}, err
-	}
-	return WrapEmpty_List{l}, nil
+	return WrapEmpty_List{l}, err
 }
 
-func (s WrapEmpty_List) At(i int) WrapEmpty           { return WrapEmpty{s.List.Struct(i)} }
+func (s WrapEmpty_List) At(i int) WrapEmpty { return WrapEmpty{s.List.Struct(i)} }
+
 func (s WrapEmpty_List) Set(i int, v WrapEmpty) error { return s.List.SetStruct(i, v.Struct) }
 
 // WrapEmpty_Promise is a wrapper for a WrapEmpty promised by a client call.
@@ -3924,33 +3436,22 @@ type Wrap2x2 struct{ capnp.Struct }
 
 func NewWrap2x2(s *capnp.Segment) (Wrap2x2, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return Wrap2x2{}, err
-	}
-	return Wrap2x2{st}, nil
+	return Wrap2x2{st}, err
 }
 
 func NewRootWrap2x2(s *capnp.Segment) (Wrap2x2, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return Wrap2x2{}, err
-	}
-	return Wrap2x2{st}, nil
+	return Wrap2x2{st}, err
 }
 
 func ReadRootWrap2x2(msg *capnp.Message) (Wrap2x2, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return Wrap2x2{}, err
-	}
-	return Wrap2x2{root.Struct()}, nil
+	return Wrap2x2{root.Struct()}, err
 }
+
 func (s Wrap2x2) MightNotBeReallyEmpty() (VerTwoDataTwoPtr, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return VerTwoDataTwoPtr{}, err
-	}
-	return VerTwoDataTwoPtr{Struct: p.Struct()}, nil
+	return VerTwoDataTwoPtr{Struct: p.Struct()}, err
 }
 
 func (s Wrap2x2) HasMightNotBeReallyEmpty() bool {
@@ -3979,13 +3480,11 @@ type Wrap2x2_List struct{ capnp.List }
 // NewWrap2x2 creates a new list of Wrap2x2.
 func NewWrap2x2_List(s *capnp.Segment, sz int32) (Wrap2x2_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	if err != nil {
-		return Wrap2x2_List{}, err
-	}
-	return Wrap2x2_List{l}, nil
+	return Wrap2x2_List{l}, err
 }
 
-func (s Wrap2x2_List) At(i int) Wrap2x2           { return Wrap2x2{s.List.Struct(i)} }
+func (s Wrap2x2_List) At(i int) Wrap2x2 { return Wrap2x2{s.List.Struct(i)} }
+
 func (s Wrap2x2_List) Set(i int, v Wrap2x2) error { return s.List.SetStruct(i, v.Struct) }
 
 // Wrap2x2_Promise is a wrapper for a Wrap2x2 promised by a client call.
@@ -4004,33 +3503,22 @@ type Wrap2x2plus struct{ capnp.Struct }
 
 func NewWrap2x2plus(s *capnp.Segment) (Wrap2x2plus, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return Wrap2x2plus{}, err
-	}
-	return Wrap2x2plus{st}, nil
+	return Wrap2x2plus{st}, err
 }
 
 func NewRootWrap2x2plus(s *capnp.Segment) (Wrap2x2plus, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return Wrap2x2plus{}, err
-	}
-	return Wrap2x2plus{st}, nil
+	return Wrap2x2plus{st}, err
 }
 
 func ReadRootWrap2x2plus(msg *capnp.Message) (Wrap2x2plus, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return Wrap2x2plus{}, err
-	}
-	return Wrap2x2plus{root.Struct()}, nil
+	return Wrap2x2plus{root.Struct()}, err
 }
+
 func (s Wrap2x2plus) MightNotBeReallyEmpty() (VerTwoTwoPlus, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return VerTwoTwoPlus{}, err
-	}
-	return VerTwoTwoPlus{Struct: p.Struct()}, nil
+	return VerTwoTwoPlus{Struct: p.Struct()}, err
 }
 
 func (s Wrap2x2plus) HasMightNotBeReallyEmpty() bool {
@@ -4059,13 +3547,11 @@ type Wrap2x2plus_List struct{ capnp.List }
 // NewWrap2x2plus creates a new list of Wrap2x2plus.
 func NewWrap2x2plus_List(s *capnp.Segment, sz int32) (Wrap2x2plus_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	if err != nil {
-		return Wrap2x2plus_List{}, err
-	}
-	return Wrap2x2plus_List{l}, nil
+	return Wrap2x2plus_List{l}, err
 }
 
-func (s Wrap2x2plus_List) At(i int) Wrap2x2plus           { return Wrap2x2plus{s.List.Struct(i)} }
+func (s Wrap2x2plus_List) At(i int) Wrap2x2plus { return Wrap2x2plus{s.List.Struct(i)} }
+
 func (s Wrap2x2plus_List) Set(i int, v Wrap2x2plus) error { return s.List.SetStruct(i, v.Struct) }
 
 // Wrap2x2plus_Promise is a wrapper for a Wrap2x2plus promised by a client call.
@@ -4102,26 +3588,17 @@ func (w VoidUnion_Which) String() string {
 
 func NewVoidUnion(s *capnp.Segment) (VoidUnion, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	if err != nil {
-		return VoidUnion{}, err
-	}
-	return VoidUnion{st}, nil
+	return VoidUnion{st}, err
 }
 
 func NewRootVoidUnion(s *capnp.Segment) (VoidUnion, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	if err != nil {
-		return VoidUnion{}, err
-	}
-	return VoidUnion{st}, nil
+	return VoidUnion{st}, err
 }
 
 func ReadRootVoidUnion(msg *capnp.Message) (VoidUnion, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return VoidUnion{}, err
-	}
-	return VoidUnion{root.Struct()}, nil
+	return VoidUnion{root.Struct()}, err
 }
 
 func (s VoidUnion) Which() VoidUnion_Which {
@@ -4143,13 +3620,11 @@ type VoidUnion_List struct{ capnp.List }
 // NewVoidUnion creates a new list of VoidUnion.
 func NewVoidUnion_List(s *capnp.Segment, sz int32) (VoidUnion_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	if err != nil {
-		return VoidUnion_List{}, err
-	}
-	return VoidUnion_List{l}, nil
+	return VoidUnion_List{l}, err
 }
 
-func (s VoidUnion_List) At(i int) VoidUnion           { return VoidUnion{s.List.Struct(i)} }
+func (s VoidUnion_List) At(i int) VoidUnion { return VoidUnion{s.List.Struct(i)} }
+
 func (s VoidUnion_List) Set(i int, v VoidUnion) error { return s.List.SetStruct(i, v.Struct) }
 
 // VoidUnion_Promise is a wrapper for a VoidUnion promised by a client call.
@@ -4164,33 +3639,22 @@ type Nester1Capn struct{ capnp.Struct }
 
 func NewNester1Capn(s *capnp.Segment) (Nester1Capn, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return Nester1Capn{}, err
-	}
-	return Nester1Capn{st}, nil
+	return Nester1Capn{st}, err
 }
 
 func NewRootNester1Capn(s *capnp.Segment) (Nester1Capn, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return Nester1Capn{}, err
-	}
-	return Nester1Capn{st}, nil
+	return Nester1Capn{st}, err
 }
 
 func ReadRootNester1Capn(msg *capnp.Message) (Nester1Capn, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return Nester1Capn{}, err
-	}
-	return Nester1Capn{root.Struct()}, nil
+	return Nester1Capn{root.Struct()}, err
 }
+
 func (s Nester1Capn) Strs() (capnp.TextList, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return capnp.TextList{}, err
-	}
-	return capnp.TextList{List: p.List()}, nil
+	return capnp.TextList{List: p.List()}, err
 }
 
 func (s Nester1Capn) HasStrs() bool {
@@ -4219,13 +3683,11 @@ type Nester1Capn_List struct{ capnp.List }
 // NewNester1Capn creates a new list of Nester1Capn.
 func NewNester1Capn_List(s *capnp.Segment, sz int32) (Nester1Capn_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	if err != nil {
-		return Nester1Capn_List{}, err
-	}
-	return Nester1Capn_List{l}, nil
+	return Nester1Capn_List{l}, err
 }
 
-func (s Nester1Capn_List) At(i int) Nester1Capn           { return Nester1Capn{s.List.Struct(i)} }
+func (s Nester1Capn_List) At(i int) Nester1Capn { return Nester1Capn{s.List.Struct(i)} }
+
 func (s Nester1Capn_List) Set(i int, v Nester1Capn) error { return s.List.SetStruct(i, v.Struct) }
 
 // Nester1Capn_Promise is a wrapper for a Nester1Capn promised by a client call.
@@ -4240,33 +3702,22 @@ type RWTestCapn struct{ capnp.Struct }
 
 func NewRWTestCapn(s *capnp.Segment) (RWTestCapn, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return RWTestCapn{}, err
-	}
-	return RWTestCapn{st}, nil
+	return RWTestCapn{st}, err
 }
 
 func NewRootRWTestCapn(s *capnp.Segment) (RWTestCapn, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return RWTestCapn{}, err
-	}
-	return RWTestCapn{st}, nil
+	return RWTestCapn{st}, err
 }
 
 func ReadRootRWTestCapn(msg *capnp.Message) (RWTestCapn, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return RWTestCapn{}, err
-	}
-	return RWTestCapn{root.Struct()}, nil
+	return RWTestCapn{root.Struct()}, err
 }
+
 func (s RWTestCapn) NestMatrix() (capnp.PointerList, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return capnp.PointerList{}, err
-	}
-	return capnp.PointerList{List: p.List()}, nil
+	return capnp.PointerList{List: p.List()}, err
 }
 
 func (s RWTestCapn) HasNestMatrix() bool {
@@ -4295,13 +3746,11 @@ type RWTestCapn_List struct{ capnp.List }
 // NewRWTestCapn creates a new list of RWTestCapn.
 func NewRWTestCapn_List(s *capnp.Segment, sz int32) (RWTestCapn_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	if err != nil {
-		return RWTestCapn_List{}, err
-	}
-	return RWTestCapn_List{l}, nil
+	return RWTestCapn_List{l}, err
 }
 
-func (s RWTestCapn_List) At(i int) RWTestCapn           { return RWTestCapn{s.List.Struct(i)} }
+func (s RWTestCapn_List) At(i int) RWTestCapn { return RWTestCapn{s.List.Struct(i)} }
+
 func (s RWTestCapn_List) Set(i int, v RWTestCapn) error { return s.List.SetStruct(i, v.Struct) }
 
 // RWTestCapn_Promise is a wrapper for a RWTestCapn promised by a client call.
@@ -4316,33 +3765,22 @@ type ListStructCapn struct{ capnp.Struct }
 
 func NewListStructCapn(s *capnp.Segment) (ListStructCapn, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return ListStructCapn{}, err
-	}
-	return ListStructCapn{st}, nil
+	return ListStructCapn{st}, err
 }
 
 func NewRootListStructCapn(s *capnp.Segment) (ListStructCapn, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return ListStructCapn{}, err
-	}
-	return ListStructCapn{st}, nil
+	return ListStructCapn{st}, err
 }
 
 func ReadRootListStructCapn(msg *capnp.Message) (ListStructCapn, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return ListStructCapn{}, err
-	}
-	return ListStructCapn{root.Struct()}, nil
+	return ListStructCapn{root.Struct()}, err
 }
+
 func (s ListStructCapn) Vec() (Nester1Capn_List, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return Nester1Capn_List{}, err
-	}
-	return Nester1Capn_List{List: p.List()}, nil
+	return Nester1Capn_List{List: p.List()}, err
 }
 
 func (s ListStructCapn) HasVec() bool {
@@ -4371,13 +3809,11 @@ type ListStructCapn_List struct{ capnp.List }
 // NewListStructCapn creates a new list of ListStructCapn.
 func NewListStructCapn_List(s *capnp.Segment, sz int32) (ListStructCapn_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	if err != nil {
-		return ListStructCapn_List{}, err
-	}
-	return ListStructCapn_List{l}, nil
+	return ListStructCapn_List{l}, err
 }
 
-func (s ListStructCapn_List) At(i int) ListStructCapn           { return ListStructCapn{s.List.Struct(i)} }
+func (s ListStructCapn_List) At(i int) ListStructCapn { return ListStructCapn{s.List.Struct(i)} }
+
 func (s ListStructCapn_List) Set(i int, v ListStructCapn) error { return s.List.SetStruct(i, v.Struct) }
 
 // ListStructCapn_Promise is a wrapper for a ListStructCapn promised by a client call.
@@ -4454,33 +3890,22 @@ type Echo_echo_Params struct{ capnp.Struct }
 
 func NewEcho_echo_Params(s *capnp.Segment) (Echo_echo_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return Echo_echo_Params{}, err
-	}
-	return Echo_echo_Params{st}, nil
+	return Echo_echo_Params{st}, err
 }
 
 func NewRootEcho_echo_Params(s *capnp.Segment) (Echo_echo_Params, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return Echo_echo_Params{}, err
-	}
-	return Echo_echo_Params{st}, nil
+	return Echo_echo_Params{st}, err
 }
 
 func ReadRootEcho_echo_Params(msg *capnp.Message) (Echo_echo_Params, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return Echo_echo_Params{}, err
-	}
-	return Echo_echo_Params{root.Struct()}, nil
+	return Echo_echo_Params{root.Struct()}, err
 }
+
 func (s Echo_echo_Params) In() (string, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return "", err
-	}
-	return p.Text(), nil
+	return p.Text(), err
 }
 
 func (s Echo_echo_Params) HasIn() bool {
@@ -4514,13 +3939,11 @@ type Echo_echo_Params_List struct{ capnp.List }
 // NewEcho_echo_Params creates a new list of Echo_echo_Params.
 func NewEcho_echo_Params_List(s *capnp.Segment, sz int32) (Echo_echo_Params_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	if err != nil {
-		return Echo_echo_Params_List{}, err
-	}
-	return Echo_echo_Params_List{l}, nil
+	return Echo_echo_Params_List{l}, err
 }
 
 func (s Echo_echo_Params_List) At(i int) Echo_echo_Params { return Echo_echo_Params{s.List.Struct(i)} }
+
 func (s Echo_echo_Params_List) Set(i int, v Echo_echo_Params) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -4537,33 +3960,22 @@ type Echo_echo_Results struct{ capnp.Struct }
 
 func NewEcho_echo_Results(s *capnp.Segment) (Echo_echo_Results, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return Echo_echo_Results{}, err
-	}
-	return Echo_echo_Results{st}, nil
+	return Echo_echo_Results{st}, err
 }
 
 func NewRootEcho_echo_Results(s *capnp.Segment) (Echo_echo_Results, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return Echo_echo_Results{}, err
-	}
-	return Echo_echo_Results{st}, nil
+	return Echo_echo_Results{st}, err
 }
 
 func ReadRootEcho_echo_Results(msg *capnp.Message) (Echo_echo_Results, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return Echo_echo_Results{}, err
-	}
-	return Echo_echo_Results{root.Struct()}, nil
+	return Echo_echo_Results{root.Struct()}, err
 }
+
 func (s Echo_echo_Results) Out() (string, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return "", err
-	}
-	return p.Text(), nil
+	return p.Text(), err
 }
 
 func (s Echo_echo_Results) HasOut() bool {
@@ -4597,15 +4009,13 @@ type Echo_echo_Results_List struct{ capnp.List }
 // NewEcho_echo_Results creates a new list of Echo_echo_Results.
 func NewEcho_echo_Results_List(s *capnp.Segment, sz int32) (Echo_echo_Results_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	if err != nil {
-		return Echo_echo_Results_List{}, err
-	}
-	return Echo_echo_Results_List{l}, nil
+	return Echo_echo_Results_List{l}, err
 }
 
 func (s Echo_echo_Results_List) At(i int) Echo_echo_Results {
 	return Echo_echo_Results{s.List.Struct(i)}
 }
+
 func (s Echo_echo_Results_List) Set(i int, v Echo_echo_Results) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -4622,33 +4032,22 @@ type Hoth struct{ capnp.Struct }
 
 func NewHoth(s *capnp.Segment) (Hoth, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return Hoth{}, err
-	}
-	return Hoth{st}, nil
+	return Hoth{st}, err
 }
 
 func NewRootHoth(s *capnp.Segment) (Hoth, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return Hoth{}, err
-	}
-	return Hoth{st}, nil
+	return Hoth{st}, err
 }
 
 func ReadRootHoth(msg *capnp.Message) (Hoth, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return Hoth{}, err
-	}
-	return Hoth{root.Struct()}, nil
+	return Hoth{root.Struct()}, err
 }
+
 func (s Hoth) Base() (EchoBase, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return EchoBase{}, err
-	}
-	return EchoBase{Struct: p.Struct()}, nil
+	return EchoBase{Struct: p.Struct()}, err
 }
 
 func (s Hoth) HasBase() bool {
@@ -4677,13 +4076,11 @@ type Hoth_List struct{ capnp.List }
 // NewHoth creates a new list of Hoth.
 func NewHoth_List(s *capnp.Segment, sz int32) (Hoth_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	if err != nil {
-		return Hoth_List{}, err
-	}
-	return Hoth_List{l}, nil
+	return Hoth_List{l}, err
 }
 
-func (s Hoth_List) At(i int) Hoth           { return Hoth{s.List.Struct(i)} }
+func (s Hoth_List) At(i int) Hoth { return Hoth{s.List.Struct(i)} }
+
 func (s Hoth_List) Set(i int, v Hoth) error { return s.List.SetStruct(i, v.Struct) }
 
 // Hoth_Promise is a wrapper for a Hoth promised by a client call.
@@ -4702,33 +4099,21 @@ type EchoBase struct{ capnp.Struct }
 
 func NewEchoBase(s *capnp.Segment) (EchoBase, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return EchoBase{}, err
-	}
-	return EchoBase{st}, nil
+	return EchoBase{st}, err
 }
 
 func NewRootEchoBase(s *capnp.Segment) (EchoBase, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return EchoBase{}, err
-	}
-	return EchoBase{st}, nil
+	return EchoBase{st}, err
 }
 
 func ReadRootEchoBase(msg *capnp.Message) (EchoBase, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return EchoBase{}, err
-	}
-	return EchoBase{root.Struct()}, nil
+	return EchoBase{root.Struct()}, err
 }
-func (s EchoBase) Echo() Echo {
-	p, err := s.Struct.Ptr(0)
-	if err != nil {
 
-		return Echo{}
-	}
+func (s EchoBase) Echo() Echo {
+	p, _ := s.Struct.Ptr(0)
 	return Echo{Client: p.Interface().Client()}
 }
 
@@ -4738,15 +4123,11 @@ func (s EchoBase) HasEcho() bool {
 }
 
 func (s EchoBase) SetEcho(v Echo) error {
+	if v.Client == nil {
+		return s.Struct.SetPtr(0, capnp.Ptr{})
+	}
 	seg := s.Segment()
-	if seg == nil {
-
-		return nil
-	}
-	var in capnp.Interface
-	if v.Client != nil {
-		in = capnp.NewInterface(seg, seg.Message().AddCap(v.Client))
-	}
+	in := capnp.NewInterface(seg, seg.Message().AddCap(v.Client))
 	return s.Struct.SetPtr(0, in.ToPtr())
 }
 
@@ -4756,13 +4137,11 @@ type EchoBase_List struct{ capnp.List }
 // NewEchoBase creates a new list of EchoBase.
 func NewEchoBase_List(s *capnp.Segment, sz int32) (EchoBase_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	if err != nil {
-		return EchoBase_List{}, err
-	}
-	return EchoBase_List{l}, nil
+	return EchoBase_List{l}, err
 }
 
-func (s EchoBase_List) At(i int) EchoBase           { return EchoBase{s.List.Struct(i)} }
+func (s EchoBase_List) At(i int) EchoBase { return EchoBase{s.List.Struct(i)} }
+
 func (s EchoBase_List) Set(i int, v EchoBase) error { return s.List.SetStruct(i, v.Struct) }
 
 // EchoBase_Promise is a wrapper for a EchoBase promised by a client call.
@@ -4781,33 +4160,22 @@ type StackingRoot struct{ capnp.Struct }
 
 func NewStackingRoot(s *capnp.Segment) (StackingRoot, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
-	if err != nil {
-		return StackingRoot{}, err
-	}
-	return StackingRoot{st}, nil
+	return StackingRoot{st}, err
 }
 
 func NewRootStackingRoot(s *capnp.Segment) (StackingRoot, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
-	if err != nil {
-		return StackingRoot{}, err
-	}
-	return StackingRoot{st}, nil
+	return StackingRoot{st}, err
 }
 
 func ReadRootStackingRoot(msg *capnp.Message) (StackingRoot, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return StackingRoot{}, err
-	}
-	return StackingRoot{root.Struct()}, nil
+	return StackingRoot{root.Struct()}, err
 }
+
 func (s StackingRoot) A() (StackingA, error) {
 	p, err := s.Struct.Ptr(1)
-	if err != nil {
-		return StackingA{}, err
-	}
-	return StackingA{Struct: p.Struct()}, nil
+	return StackingA{Struct: p.Struct()}, err
 }
 
 func (s StackingRoot) HasA() bool {
@@ -4836,10 +4204,7 @@ func (s StackingRoot) AWithDefault() (StackingA, error) {
 		return StackingA{}, err
 	}
 	ss, err := p.StructDefault(x_832bcc6686a26d56[64:96])
-	if err != nil {
-		return StackingA{}, err
-	}
-	return StackingA{Struct: ss}, nil
+	return StackingA{Struct: ss}, err
 }
 
 func (s StackingRoot) HasAWithDefault() bool {
@@ -4868,13 +4233,11 @@ type StackingRoot_List struct{ capnp.List }
 // NewStackingRoot creates a new list of StackingRoot.
 func NewStackingRoot_List(s *capnp.Segment, sz int32) (StackingRoot_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
-	if err != nil {
-		return StackingRoot_List{}, err
-	}
-	return StackingRoot_List{l}, nil
+	return StackingRoot_List{l}, err
 }
 
-func (s StackingRoot_List) At(i int) StackingRoot           { return StackingRoot{s.List.Struct(i)} }
+func (s StackingRoot_List) At(i int) StackingRoot { return StackingRoot{s.List.Struct(i)} }
+
 func (s StackingRoot_List) Set(i int, v StackingRoot) error { return s.List.SetStruct(i, v.Struct) }
 
 // StackingRoot_Promise is a wrapper for a StackingRoot promised by a client call.
@@ -4897,27 +4260,19 @@ type StackingA struct{ capnp.Struct }
 
 func NewStackingA(s *capnp.Segment) (StackingA, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	if err != nil {
-		return StackingA{}, err
-	}
-	return StackingA{st}, nil
+	return StackingA{st}, err
 }
 
 func NewRootStackingA(s *capnp.Segment) (StackingA, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	if err != nil {
-		return StackingA{}, err
-	}
-	return StackingA{st}, nil
+	return StackingA{st}, err
 }
 
 func ReadRootStackingA(msg *capnp.Message) (StackingA, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return StackingA{}, err
-	}
-	return StackingA{root.Struct()}, nil
+	return StackingA{root.Struct()}, err
 }
+
 func (s StackingA) Num() int32 {
 	return int32(s.Struct.Uint32(0))
 }
@@ -4928,10 +4283,7 @@ func (s StackingA) SetNum(v int32) {
 
 func (s StackingA) B() (StackingB, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return StackingB{}, err
-	}
-	return StackingB{Struct: p.Struct()}, nil
+	return StackingB{Struct: p.Struct()}, err
 }
 
 func (s StackingA) HasB() bool {
@@ -4960,13 +4312,11 @@ type StackingA_List struct{ capnp.List }
 // NewStackingA creates a new list of StackingA.
 func NewStackingA_List(s *capnp.Segment, sz int32) (StackingA_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	if err != nil {
-		return StackingA_List{}, err
-	}
-	return StackingA_List{l}, nil
+	return StackingA_List{l}, err
 }
 
-func (s StackingA_List) At(i int) StackingA           { return StackingA{s.List.Struct(i)} }
+func (s StackingA_List) At(i int) StackingA { return StackingA{s.List.Struct(i)} }
+
 func (s StackingA_List) Set(i int, v StackingA) error { return s.List.SetStruct(i, v.Struct) }
 
 // StackingA_Promise is a wrapper for a StackingA promised by a client call.
@@ -4985,27 +4335,19 @@ type StackingB struct{ capnp.Struct }
 
 func NewStackingB(s *capnp.Segment) (StackingB, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	if err != nil {
-		return StackingB{}, err
-	}
-	return StackingB{st}, nil
+	return StackingB{st}, err
 }
 
 func NewRootStackingB(s *capnp.Segment) (StackingB, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	if err != nil {
-		return StackingB{}, err
-	}
-	return StackingB{st}, nil
+	return StackingB{st}, err
 }
 
 func ReadRootStackingB(msg *capnp.Message) (StackingB, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return StackingB{}, err
-	}
-	return StackingB{root.Struct()}, nil
+	return StackingB{root.Struct()}, err
 }
+
 func (s StackingB) Num() int32 {
 	return int32(s.Struct.Uint32(0))
 }
@@ -5020,13 +4362,11 @@ type StackingB_List struct{ capnp.List }
 // NewStackingB creates a new list of StackingB.
 func NewStackingB_List(s *capnp.Segment, sz int32) (StackingB_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	if err != nil {
-		return StackingB_List{}, err
-	}
-	return StackingB_List{l}, nil
+	return StackingB_List{l}, err
 }
 
-func (s StackingB_List) At(i int) StackingB           { return StackingB{s.List.Struct(i)} }
+func (s StackingB_List) At(i int) StackingB { return StackingB{s.List.Struct(i)} }
+
 func (s StackingB_List) Set(i int, v StackingB) error { return s.List.SetStruct(i, v.Struct) }
 
 // StackingB_Promise is a wrapper for a StackingB promised by a client call.
@@ -5103,26 +4443,17 @@ type CallSequence_getNumber_Params struct{ capnp.Struct }
 
 func NewCallSequence_getNumber_Params(s *capnp.Segment) (CallSequence_getNumber_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	if err != nil {
-		return CallSequence_getNumber_Params{}, err
-	}
-	return CallSequence_getNumber_Params{st}, nil
+	return CallSequence_getNumber_Params{st}, err
 }
 
 func NewRootCallSequence_getNumber_Params(s *capnp.Segment) (CallSequence_getNumber_Params, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	if err != nil {
-		return CallSequence_getNumber_Params{}, err
-	}
-	return CallSequence_getNumber_Params{st}, nil
+	return CallSequence_getNumber_Params{st}, err
 }
 
 func ReadRootCallSequence_getNumber_Params(msg *capnp.Message) (CallSequence_getNumber_Params, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return CallSequence_getNumber_Params{}, err
-	}
-	return CallSequence_getNumber_Params{root.Struct()}, nil
+	return CallSequence_getNumber_Params{root.Struct()}, err
 }
 
 // CallSequence_getNumber_Params_List is a list of CallSequence_getNumber_Params.
@@ -5131,15 +4462,13 @@ type CallSequence_getNumber_Params_List struct{ capnp.List }
 // NewCallSequence_getNumber_Params creates a new list of CallSequence_getNumber_Params.
 func NewCallSequence_getNumber_Params_List(s *capnp.Segment, sz int32) (CallSequence_getNumber_Params_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
-	if err != nil {
-		return CallSequence_getNumber_Params_List{}, err
-	}
-	return CallSequence_getNumber_Params_List{l}, nil
+	return CallSequence_getNumber_Params_List{l}, err
 }
 
 func (s CallSequence_getNumber_Params_List) At(i int) CallSequence_getNumber_Params {
 	return CallSequence_getNumber_Params{s.List.Struct(i)}
 }
+
 func (s CallSequence_getNumber_Params_List) Set(i int, v CallSequence_getNumber_Params) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -5156,27 +4485,19 @@ type CallSequence_getNumber_Results struct{ capnp.Struct }
 
 func NewCallSequence_getNumber_Results(s *capnp.Segment) (CallSequence_getNumber_Results, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	if err != nil {
-		return CallSequence_getNumber_Results{}, err
-	}
-	return CallSequence_getNumber_Results{st}, nil
+	return CallSequence_getNumber_Results{st}, err
 }
 
 func NewRootCallSequence_getNumber_Results(s *capnp.Segment) (CallSequence_getNumber_Results, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	if err != nil {
-		return CallSequence_getNumber_Results{}, err
-	}
-	return CallSequence_getNumber_Results{st}, nil
+	return CallSequence_getNumber_Results{st}, err
 }
 
 func ReadRootCallSequence_getNumber_Results(msg *capnp.Message) (CallSequence_getNumber_Results, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return CallSequence_getNumber_Results{}, err
-	}
-	return CallSequence_getNumber_Results{root.Struct()}, nil
+	return CallSequence_getNumber_Results{root.Struct()}, err
 }
+
 func (s CallSequence_getNumber_Results) N() uint32 {
 	return s.Struct.Uint32(0)
 }
@@ -5191,15 +4512,13 @@ type CallSequence_getNumber_Results_List struct{ capnp.List }
 // NewCallSequence_getNumber_Results creates a new list of CallSequence_getNumber_Results.
 func NewCallSequence_getNumber_Results_List(s *capnp.Segment, sz int32) (CallSequence_getNumber_Results_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	if err != nil {
-		return CallSequence_getNumber_Results_List{}, err
-	}
-	return CallSequence_getNumber_Results_List{l}, nil
+	return CallSequence_getNumber_Results_List{l}, err
 }
 
 func (s CallSequence_getNumber_Results_List) At(i int) CallSequence_getNumber_Results {
 	return CallSequence_getNumber_Results{s.List.Struct(i)}
 }
+
 func (s CallSequence_getNumber_Results_List) Set(i int, v CallSequence_getNumber_Results) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -5216,33 +4535,22 @@ type Defaults struct{ capnp.Struct }
 
 func NewDefaults(s *capnp.Segment) (Defaults, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 2})
-	if err != nil {
-		return Defaults{}, err
-	}
-	return Defaults{st}, nil
+	return Defaults{st}, err
 }
 
 func NewRootDefaults(s *capnp.Segment) (Defaults, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 2})
-	if err != nil {
-		return Defaults{}, err
-	}
-	return Defaults{st}, nil
+	return Defaults{st}, err
 }
 
 func ReadRootDefaults(msg *capnp.Message) (Defaults, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return Defaults{}, err
-	}
-	return Defaults{root.Struct()}, nil
+	return Defaults{root.Struct()}, err
 }
+
 func (s Defaults) Text() (string, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return "", err
-	}
-	return p.TextDefault("foo"), nil
+	return p.TextDefault("foo"), err
 }
 
 func (s Defaults) HasText() bool {
@@ -5272,10 +4580,7 @@ func (s Defaults) SetText(v string) error {
 
 func (s Defaults) Data() ([]byte, error) {
 	p, err := s.Struct.Ptr(1)
-	if err != nil {
-		return nil, err
-	}
-	return []byte(p.DataDefault([]byte{0x62, 0x61, 0x72})), nil
+	return []byte(p.DataDefault([]byte{0x62, 0x61, 0x72})), err
 }
 
 func (s Defaults) HasData() bool {
@@ -5321,13 +4626,11 @@ type Defaults_List struct{ capnp.List }
 // NewDefaults creates a new list of Defaults.
 func NewDefaults_List(s *capnp.Segment, sz int32) (Defaults_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 2}, sz)
-	if err != nil {
-		return Defaults_List{}, err
-	}
-	return Defaults_List{l}, nil
+	return Defaults_List{l}, err
 }
 
-func (s Defaults_List) At(i int) Defaults           { return Defaults{s.List.Struct(i)} }
+func (s Defaults_List) At(i int) Defaults { return Defaults{s.List.Struct(i)} }
+
 func (s Defaults_List) Set(i int, v Defaults) error { return s.List.SetStruct(i, v.Struct) }
 
 // Defaults_Promise is a wrapper for a Defaults promised by a client call.
@@ -5342,33 +4645,22 @@ type BenchmarkA struct{ capnp.Struct }
 
 func NewBenchmarkA(s *capnp.Segment) (BenchmarkA, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 2})
-	if err != nil {
-		return BenchmarkA{}, err
-	}
-	return BenchmarkA{st}, nil
+	return BenchmarkA{st}, err
 }
 
 func NewRootBenchmarkA(s *capnp.Segment) (BenchmarkA, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 2})
-	if err != nil {
-		return BenchmarkA{}, err
-	}
-	return BenchmarkA{st}, nil
+	return BenchmarkA{st}, err
 }
 
 func ReadRootBenchmarkA(msg *capnp.Message) (BenchmarkA, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return BenchmarkA{}, err
-	}
-	return BenchmarkA{root.Struct()}, nil
+	return BenchmarkA{root.Struct()}, err
 }
+
 func (s BenchmarkA) Name() (string, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return "", err
-	}
-	return p.Text(), nil
+	return p.Text(), err
 }
 
 func (s BenchmarkA) HasName() bool {
@@ -5406,10 +4698,7 @@ func (s BenchmarkA) SetBirthDay(v int64) {
 
 func (s BenchmarkA) Phone() (string, error) {
 	p, err := s.Struct.Ptr(1)
-	if err != nil {
-		return "", err
-	}
-	return p.Text(), nil
+	return p.Text(), err
 }
 
 func (s BenchmarkA) HasPhone() bool {
@@ -5467,13 +4756,11 @@ type BenchmarkA_List struct{ capnp.List }
 // NewBenchmarkA creates a new list of BenchmarkA.
 func NewBenchmarkA_List(s *capnp.Segment, sz int32) (BenchmarkA_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 24, PointerCount: 2}, sz)
-	if err != nil {
-		return BenchmarkA_List{}, err
-	}
-	return BenchmarkA_List{l}, nil
+	return BenchmarkA_List{l}, err
 }
 
-func (s BenchmarkA_List) At(i int) BenchmarkA           { return BenchmarkA{s.List.Struct(i)} }
+func (s BenchmarkA_List) At(i int) BenchmarkA { return BenchmarkA{s.List.Struct(i)} }
+
 func (s BenchmarkA_List) Set(i int, v BenchmarkA) error { return s.List.SetStruct(i, v.Struct) }
 
 // BenchmarkA_Promise is a wrapper for a BenchmarkA promised by a client call.

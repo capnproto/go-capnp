@@ -77,27 +77,19 @@ type Persistent_SaveParams struct{ capnp.Struct }
 
 func NewPersistent_SaveParams(s *capnp.Segment) (Persistent_SaveParams, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return Persistent_SaveParams{}, err
-	}
-	return Persistent_SaveParams{st}, nil
+	return Persistent_SaveParams{st}, err
 }
 
 func NewRootPersistent_SaveParams(s *capnp.Segment) (Persistent_SaveParams, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return Persistent_SaveParams{}, err
-	}
-	return Persistent_SaveParams{st}, nil
+	return Persistent_SaveParams{st}, err
 }
 
 func ReadRootPersistent_SaveParams(msg *capnp.Message) (Persistent_SaveParams, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return Persistent_SaveParams{}, err
-	}
-	return Persistent_SaveParams{root.Struct()}, nil
+	return Persistent_SaveParams{root.Struct()}, err
 }
+
 func (s Persistent_SaveParams) SealFor() (capnp.Pointer, error) {
 	return s.Struct.Pointer(0)
 }
@@ -125,15 +117,13 @@ type Persistent_SaveParams_List struct{ capnp.List }
 // NewPersistent_SaveParams creates a new list of Persistent_SaveParams.
 func NewPersistent_SaveParams_List(s *capnp.Segment, sz int32) (Persistent_SaveParams_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	if err != nil {
-		return Persistent_SaveParams_List{}, err
-	}
-	return Persistent_SaveParams_List{l}, nil
+	return Persistent_SaveParams_List{l}, err
 }
 
 func (s Persistent_SaveParams_List) At(i int) Persistent_SaveParams {
 	return Persistent_SaveParams{s.List.Struct(i)}
 }
+
 func (s Persistent_SaveParams_List) Set(i int, v Persistent_SaveParams) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -154,27 +144,19 @@ type Persistent_SaveResults struct{ capnp.Struct }
 
 func NewPersistent_SaveResults(s *capnp.Segment) (Persistent_SaveResults, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return Persistent_SaveResults{}, err
-	}
-	return Persistent_SaveResults{st}, nil
+	return Persistent_SaveResults{st}, err
 }
 
 func NewRootPersistent_SaveResults(s *capnp.Segment) (Persistent_SaveResults, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	if err != nil {
-		return Persistent_SaveResults{}, err
-	}
-	return Persistent_SaveResults{st}, nil
+	return Persistent_SaveResults{st}, err
 }
 
 func ReadRootPersistent_SaveResults(msg *capnp.Message) (Persistent_SaveResults, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return Persistent_SaveResults{}, err
-	}
-	return Persistent_SaveResults{root.Struct()}, nil
+	return Persistent_SaveResults{root.Struct()}, err
 }
+
 func (s Persistent_SaveResults) SturdyRef() (capnp.Pointer, error) {
 	return s.Struct.Pointer(0)
 }
@@ -202,15 +184,13 @@ type Persistent_SaveResults_List struct{ capnp.List }
 // NewPersistent_SaveResults creates a new list of Persistent_SaveResults.
 func NewPersistent_SaveResults_List(s *capnp.Segment, sz int32) (Persistent_SaveResults_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	if err != nil {
-		return Persistent_SaveResults_List{}, err
-	}
-	return Persistent_SaveResults_List{l}, nil
+	return Persistent_SaveResults_List{l}, err
 }
 
 func (s Persistent_SaveResults_List) At(i int) Persistent_SaveResults {
 	return Persistent_SaveResults{s.List.Struct(i)}
 }
+
 func (s Persistent_SaveResults_List) Set(i int, v Persistent_SaveResults) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -337,33 +317,21 @@ type RealmGateway_import_Params struct{ capnp.Struct }
 
 func NewRealmGateway_import_Params(s *capnp.Segment) (RealmGateway_import_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
-	if err != nil {
-		return RealmGateway_import_Params{}, err
-	}
-	return RealmGateway_import_Params{st}, nil
+	return RealmGateway_import_Params{st}, err
 }
 
 func NewRootRealmGateway_import_Params(s *capnp.Segment) (RealmGateway_import_Params, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
-	if err != nil {
-		return RealmGateway_import_Params{}, err
-	}
-	return RealmGateway_import_Params{st}, nil
+	return RealmGateway_import_Params{st}, err
 }
 
 func ReadRootRealmGateway_import_Params(msg *capnp.Message) (RealmGateway_import_Params, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return RealmGateway_import_Params{}, err
-	}
-	return RealmGateway_import_Params{root.Struct()}, nil
+	return RealmGateway_import_Params{root.Struct()}, err
 }
-func (s RealmGateway_import_Params) Cap() Persistent {
-	p, err := s.Struct.Ptr(0)
-	if err != nil {
 
-		return Persistent{}
-	}
+func (s RealmGateway_import_Params) Cap() Persistent {
+	p, _ := s.Struct.Ptr(0)
 	return Persistent{Client: p.Interface().Client()}
 }
 
@@ -373,24 +341,17 @@ func (s RealmGateway_import_Params) HasCap() bool {
 }
 
 func (s RealmGateway_import_Params) SetCap(v Persistent) error {
+	if v.Client == nil {
+		return s.Struct.SetPtr(0, capnp.Ptr{})
+	}
 	seg := s.Segment()
-	if seg == nil {
-
-		return nil
-	}
-	var in capnp.Interface
-	if v.Client != nil {
-		in = capnp.NewInterface(seg, seg.Message().AddCap(v.Client))
-	}
+	in := capnp.NewInterface(seg, seg.Message().AddCap(v.Client))
 	return s.Struct.SetPtr(0, in.ToPtr())
 }
 
 func (s RealmGateway_import_Params) Params() (Persistent_SaveParams, error) {
 	p, err := s.Struct.Ptr(1)
-	if err != nil {
-		return Persistent_SaveParams{}, err
-	}
-	return Persistent_SaveParams{Struct: p.Struct()}, nil
+	return Persistent_SaveParams{Struct: p.Struct()}, err
 }
 
 func (s RealmGateway_import_Params) HasParams() bool {
@@ -419,15 +380,13 @@ type RealmGateway_import_Params_List struct{ capnp.List }
 // NewRealmGateway_import_Params creates a new list of RealmGateway_import_Params.
 func NewRealmGateway_import_Params_List(s *capnp.Segment, sz int32) (RealmGateway_import_Params_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
-	if err != nil {
-		return RealmGateway_import_Params_List{}, err
-	}
-	return RealmGateway_import_Params_List{l}, nil
+	return RealmGateway_import_Params_List{l}, err
 }
 
 func (s RealmGateway_import_Params_List) At(i int) RealmGateway_import_Params {
 	return RealmGateway_import_Params{s.List.Struct(i)}
 }
+
 func (s RealmGateway_import_Params_List) Set(i int, v RealmGateway_import_Params) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -452,33 +411,21 @@ type RealmGateway_export_Params struct{ capnp.Struct }
 
 func NewRealmGateway_export_Params(s *capnp.Segment) (RealmGateway_export_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
-	if err != nil {
-		return RealmGateway_export_Params{}, err
-	}
-	return RealmGateway_export_Params{st}, nil
+	return RealmGateway_export_Params{st}, err
 }
 
 func NewRootRealmGateway_export_Params(s *capnp.Segment) (RealmGateway_export_Params, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
-	if err != nil {
-		return RealmGateway_export_Params{}, err
-	}
-	return RealmGateway_export_Params{st}, nil
+	return RealmGateway_export_Params{st}, err
 }
 
 func ReadRootRealmGateway_export_Params(msg *capnp.Message) (RealmGateway_export_Params, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return RealmGateway_export_Params{}, err
-	}
-	return RealmGateway_export_Params{root.Struct()}, nil
+	return RealmGateway_export_Params{root.Struct()}, err
 }
-func (s RealmGateway_export_Params) Cap() Persistent {
-	p, err := s.Struct.Ptr(0)
-	if err != nil {
 
-		return Persistent{}
-	}
+func (s RealmGateway_export_Params) Cap() Persistent {
+	p, _ := s.Struct.Ptr(0)
 	return Persistent{Client: p.Interface().Client()}
 }
 
@@ -488,24 +435,17 @@ func (s RealmGateway_export_Params) HasCap() bool {
 }
 
 func (s RealmGateway_export_Params) SetCap(v Persistent) error {
+	if v.Client == nil {
+		return s.Struct.SetPtr(0, capnp.Ptr{})
+	}
 	seg := s.Segment()
-	if seg == nil {
-
-		return nil
-	}
-	var in capnp.Interface
-	if v.Client != nil {
-		in = capnp.NewInterface(seg, seg.Message().AddCap(v.Client))
-	}
+	in := capnp.NewInterface(seg, seg.Message().AddCap(v.Client))
 	return s.Struct.SetPtr(0, in.ToPtr())
 }
 
 func (s RealmGateway_export_Params) Params() (Persistent_SaveParams, error) {
 	p, err := s.Struct.Ptr(1)
-	if err != nil {
-		return Persistent_SaveParams{}, err
-	}
-	return Persistent_SaveParams{Struct: p.Struct()}, nil
+	return Persistent_SaveParams{Struct: p.Struct()}, err
 }
 
 func (s RealmGateway_export_Params) HasParams() bool {
@@ -534,15 +474,13 @@ type RealmGateway_export_Params_List struct{ capnp.List }
 // NewRealmGateway_export_Params creates a new list of RealmGateway_export_Params.
 func NewRealmGateway_export_Params_List(s *capnp.Segment, sz int32) (RealmGateway_export_Params_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
-	if err != nil {
-		return RealmGateway_export_Params_List{}, err
-	}
-	return RealmGateway_export_Params_List{l}, nil
+	return RealmGateway_export_Params_List{l}, err
 }
 
 func (s RealmGateway_export_Params_List) At(i int) RealmGateway_export_Params {
 	return RealmGateway_export_Params{s.List.Struct(i)}
 }
+
 func (s RealmGateway_export_Params_List) Set(i int, v RealmGateway_export_Params) error {
 	return s.List.SetStruct(i, v.Struct)
 }

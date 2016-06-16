@@ -46,26 +46,17 @@ func (w JsonValue_Which) String() string {
 
 func NewJsonValue(s *capnp.Segment) (JsonValue, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1})
-	if err != nil {
-		return JsonValue{}, err
-	}
-	return JsonValue{st}, nil
+	return JsonValue{st}, err
 }
 
 func NewRootJsonValue(s *capnp.Segment) (JsonValue, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1})
-	if err != nil {
-		return JsonValue{}, err
-	}
-	return JsonValue{st}, nil
+	return JsonValue{st}, err
 }
 
 func ReadRootJsonValue(msg *capnp.Message) (JsonValue, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return JsonValue{}, err
-	}
-	return JsonValue{root.Struct()}, nil
+	return JsonValue{root.Struct()}, err
 }
 
 func (s JsonValue) Which() JsonValue_Which {
@@ -96,10 +87,7 @@ func (s JsonValue) SetNumber(v float64) {
 
 func (s JsonValue) String() (string, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return "", err
-	}
-	return p.Text(), nil
+	return p.Text(), err
 }
 
 func (s JsonValue) HasString() bool {
@@ -130,10 +118,7 @@ func (s JsonValue) SetString(v string) error {
 
 func (s JsonValue) Array() (JsonValue_List, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return JsonValue_List{}, err
-	}
-	return JsonValue_List{List: p.List()}, nil
+	return JsonValue_List{List: p.List()}, err
 }
 
 func (s JsonValue) HasArray() bool {
@@ -160,10 +145,7 @@ func (s JsonValue) NewArray(n int32) (JsonValue_List, error) {
 
 func (s JsonValue) Object() (JsonValue_Field_List, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return JsonValue_Field_List{}, err
-	}
-	return JsonValue_Field_List{List: p.List()}, nil
+	return JsonValue_Field_List{List: p.List()}, err
 }
 
 func (s JsonValue) HasObject() bool {
@@ -190,10 +172,7 @@ func (s JsonValue) NewObject(n int32) (JsonValue_Field_List, error) {
 
 func (s JsonValue) Call() (JsonValue_Call, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return JsonValue_Call{}, err
-	}
-	return JsonValue_Call{Struct: p.Struct()}, nil
+	return JsonValue_Call{Struct: p.Struct()}, err
 }
 
 func (s JsonValue) HasCall() bool {
@@ -224,13 +203,11 @@ type JsonValue_List struct{ capnp.List }
 // NewJsonValue creates a new list of JsonValue.
 func NewJsonValue_List(s *capnp.Segment, sz int32) (JsonValue_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1}, sz)
-	if err != nil {
-		return JsonValue_List{}, err
-	}
-	return JsonValue_List{l}, nil
+	return JsonValue_List{l}, err
 }
 
-func (s JsonValue_List) At(i int) JsonValue           { return JsonValue{s.List.Struct(i)} }
+func (s JsonValue_List) At(i int) JsonValue { return JsonValue{s.List.Struct(i)} }
+
 func (s JsonValue_List) Set(i int, v JsonValue) error { return s.List.SetStruct(i, v.Struct) }
 
 // JsonValue_Promise is a wrapper for a JsonValue promised by a client call.
@@ -249,33 +226,22 @@ type JsonValue_Field struct{ capnp.Struct }
 
 func NewJsonValue_Field(s *capnp.Segment) (JsonValue_Field, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
-	if err != nil {
-		return JsonValue_Field{}, err
-	}
-	return JsonValue_Field{st}, nil
+	return JsonValue_Field{st}, err
 }
 
 func NewRootJsonValue_Field(s *capnp.Segment) (JsonValue_Field, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
-	if err != nil {
-		return JsonValue_Field{}, err
-	}
-	return JsonValue_Field{st}, nil
+	return JsonValue_Field{st}, err
 }
 
 func ReadRootJsonValue_Field(msg *capnp.Message) (JsonValue_Field, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return JsonValue_Field{}, err
-	}
-	return JsonValue_Field{root.Struct()}, nil
+	return JsonValue_Field{root.Struct()}, err
 }
+
 func (s JsonValue_Field) Name() (string, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return "", err
-	}
-	return p.Text(), nil
+	return p.Text(), err
 }
 
 func (s JsonValue_Field) HasName() bool {
@@ -305,10 +271,7 @@ func (s JsonValue_Field) SetName(v string) error {
 
 func (s JsonValue_Field) Value() (JsonValue, error) {
 	p, err := s.Struct.Ptr(1)
-	if err != nil {
-		return JsonValue{}, err
-	}
-	return JsonValue{Struct: p.Struct()}, nil
+	return JsonValue{Struct: p.Struct()}, err
 }
 
 func (s JsonValue_Field) HasValue() bool {
@@ -337,13 +300,11 @@ type JsonValue_Field_List struct{ capnp.List }
 // NewJsonValue_Field creates a new list of JsonValue_Field.
 func NewJsonValue_Field_List(s *capnp.Segment, sz int32) (JsonValue_Field_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
-	if err != nil {
-		return JsonValue_Field_List{}, err
-	}
-	return JsonValue_Field_List{l}, nil
+	return JsonValue_Field_List{l}, err
 }
 
 func (s JsonValue_Field_List) At(i int) JsonValue_Field { return JsonValue_Field{s.List.Struct(i)} }
+
 func (s JsonValue_Field_List) Set(i int, v JsonValue_Field) error {
 	return s.List.SetStruct(i, v.Struct)
 }
@@ -364,33 +325,22 @@ type JsonValue_Call struct{ capnp.Struct }
 
 func NewJsonValue_Call(s *capnp.Segment) (JsonValue_Call, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
-	if err != nil {
-		return JsonValue_Call{}, err
-	}
-	return JsonValue_Call{st}, nil
+	return JsonValue_Call{st}, err
 }
 
 func NewRootJsonValue_Call(s *capnp.Segment) (JsonValue_Call, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
-	if err != nil {
-		return JsonValue_Call{}, err
-	}
-	return JsonValue_Call{st}, nil
+	return JsonValue_Call{st}, err
 }
 
 func ReadRootJsonValue_Call(msg *capnp.Message) (JsonValue_Call, error) {
 	root, err := msg.RootPtr()
-	if err != nil {
-		return JsonValue_Call{}, err
-	}
-	return JsonValue_Call{root.Struct()}, nil
+	return JsonValue_Call{root.Struct()}, err
 }
+
 func (s JsonValue_Call) Function() (string, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return "", err
-	}
-	return p.Text(), nil
+	return p.Text(), err
 }
 
 func (s JsonValue_Call) HasFunction() bool {
@@ -420,10 +370,7 @@ func (s JsonValue_Call) SetFunction(v string) error {
 
 func (s JsonValue_Call) Params() (JsonValue_List, error) {
 	p, err := s.Struct.Ptr(1)
-	if err != nil {
-		return JsonValue_List{}, err
-	}
-	return JsonValue_List{List: p.List()}, nil
+	return JsonValue_List{List: p.List()}, err
 }
 
 func (s JsonValue_Call) HasParams() bool {
@@ -452,13 +399,11 @@ type JsonValue_Call_List struct{ capnp.List }
 // NewJsonValue_Call creates a new list of JsonValue_Call.
 func NewJsonValue_Call_List(s *capnp.Segment, sz int32) (JsonValue_Call_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
-	if err != nil {
-		return JsonValue_Call_List{}, err
-	}
-	return JsonValue_Call_List{l}, nil
+	return JsonValue_Call_List{l}, err
 }
 
-func (s JsonValue_Call_List) At(i int) JsonValue_Call           { return JsonValue_Call{s.List.Struct(i)} }
+func (s JsonValue_Call_List) At(i int) JsonValue_Call { return JsonValue_Call{s.List.Struct(i)} }
+
 func (s JsonValue_Call_List) Set(i int, v JsonValue_Call) error { return s.List.SetStruct(i, v.Struct) }
 
 // JsonValue_Call_Promise is a wrapper for a JsonValue_Call promised by a client call.
