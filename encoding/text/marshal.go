@@ -1,4 +1,4 @@
-// Package text supports marshalling Cap'n Proto as text based on a schema.
+// Package text supports marshaling Cap'n Proto messages as text based on a schema.
 package text
 
 import (
@@ -11,6 +11,13 @@ import (
 	"zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/schemas"
 	"zombiezen.com/go/capnproto2/std/capnp/schema"
+)
+
+// Marker strings.
+const (
+	voidMarker       = "void"
+	interfaceMarker  = "<external capability>"
+	anyPointerMarker = "<opaque pointer>"
 )
 
 // Marshal returns the text representation of a struct.
@@ -226,7 +233,7 @@ func (enc *Encoder) marshalFieldValue(s capnp.Struct, f schema.Field) error {
 	}
 	switch typ.Which() {
 	case schema.Type_Which_void:
-		enc.w.WriteString("void")
+		enc.w.WriteString(voidMarker)
 	case schema.Type_Which_bool:
 		v := s.Bit(capnp.BitOffset(f.Slot().Offset()))
 		d := dv.Bool()
@@ -324,6 +331,12 @@ func (enc *Encoder) marshalFieldValue(s capnp.Struct, f schema.Field) error {
 		v := s.Uint16(capnp.DataOffset(f.Slot().Offset() * 2))
 		d := dv.Uint16()
 		return enc.marshalEnum(typ.Enum().TypeId(), v^d)
+	case schema.Type_Which_interface:
+		enc.w.WriteString(interfaceMarker)
+	case schema.Type_Which_anyPointer:
+		enc.w.WriteString(anyPointerMarker)
+	default:
+		return fmt.Errorf("unknown field type %v", typ.Which())
 	}
 	return nil
 }
@@ -347,7 +360,7 @@ func (enc *Encoder) marshalList(elem schema.Type, l capnp.List) error {
 			if i > 0 {
 				enc.w.WriteString(", ")
 			}
-			enc.w.WriteString("void")
+			enc.w.WriteString(voidMarker)
 		}
 	case schema.Type_Which_bool:
 		bl := capnp.BitList{List: l}
@@ -498,6 +511,20 @@ func (enc *Encoder) marshalList(elem schema.Type, l capnp.List) error {
 				enc.w.WriteString(", ")
 			}
 			enc.marshalEnum(typ, il.At(i))
+		}
+	case schema.Type_Which_interface:
+		for i := 0; i < l.Len(); i++ {
+			if i > 0 {
+				enc.w.WriteString(", ")
+			}
+			enc.w.WriteString(interfaceMarker)
+		}
+	case schema.Type_Which_anyPointer:
+		for i := 0; i < l.Len(); i++ {
+			if i > 0 {
+				enc.w.WriteString(", ")
+			}
+			enc.w.WriteString(anyPointerMarker)
 		}
 	default:
 		return fmt.Errorf("unknown list type %v", elem.Which())
