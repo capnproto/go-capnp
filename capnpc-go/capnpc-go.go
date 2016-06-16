@@ -596,6 +596,44 @@ func makeNodeTypeRef(n, rel *node) (typeRef, error) {
 	return typeRef{}, fmt.Errorf("unable to reference type of node %v", n.Which())
 }
 
+var (
+	staticTypeRefs = map[schema.Type_Which]typeRef{
+		schema.Type_Which_void:       {},
+		schema.Type_Which_bool:       {name: "bool"},
+		schema.Type_Which_int8:       {name: "int8"},
+		schema.Type_Which_int16:      {name: "int16"},
+		schema.Type_Which_int32:      {name: "int32"},
+		schema.Type_Which_int64:      {name: "int64"},
+		schema.Type_Which_uint8:      {name: "uint8"},
+		schema.Type_Which_uint16:     {name: "uint16"},
+		schema.Type_Which_uint32:     {name: "uint32"},
+		schema.Type_Which_uint64:     {name: "uint64"},
+		schema.Type_Which_float32:    {name: "float32"},
+		schema.Type_Which_float64:    {name: "float64"},
+		schema.Type_Which_text:       {name: "string"},
+		schema.Type_Which_data:       {name: "[]byte"},
+		schema.Type_Which_anyPointer: {name: "Pointer", imp: capnpImportSpec},
+	}
+	staticListTypeRefs = map[schema.Type_Which]typeRef{
+		// TODO(light): omitting newfunc since it doesn't have a similar type signature (no errors).
+		schema.Type_Which_void: typeRef{name: "VoidList", imp: capnpImportSpec},
+
+		schema.Type_Which_bool:    typeRef{name: "BitList", newfunc: "NewBitList", imp: capnpImportSpec},
+		schema.Type_Which_int8:    typeRef{name: "Int8List", newfunc: "NewInt8List", imp: capnpImportSpec},
+		schema.Type_Which_uint8:   typeRef{name: "UInt8List", newfunc: "NewUInt8List", imp: capnpImportSpec},
+		schema.Type_Which_int16:   typeRef{name: "Int16List", newfunc: "NewInt16List", imp: capnpImportSpec},
+		schema.Type_Which_uint16:  typeRef{name: "UInt16List", newfunc: "NewUInt16List", imp: capnpImportSpec},
+		schema.Type_Which_int32:   typeRef{name: "Int32List", newfunc: "NewInt32List", imp: capnpImportSpec},
+		schema.Type_Which_uint32:  typeRef{name: "UInt32List", newfunc: "NewUInt32List", imp: capnpImportSpec},
+		schema.Type_Which_int64:   typeRef{name: "Int64List", newfunc: "NewInt64List", imp: capnpImportSpec},
+		schema.Type_Which_uint64:  typeRef{name: "UInt64List", newfunc: "NewUInt64List", imp: capnpImportSpec},
+		schema.Type_Which_float32: typeRef{name: "Float32List", newfunc: "NewFloat32List", imp: capnpImportSpec},
+		schema.Type_Which_float64: typeRef{name: "Float64List", newfunc: "NewFloat64List", imp: capnpImportSpec},
+		schema.Type_Which_text:    typeRef{name: "TextList", newfunc: "NewTextList", imp: capnpImportSpec},
+		schema.Type_Which_data:    typeRef{name: "DataList", newfunc: "NewDataList", imp: capnpImportSpec},
+	}
+)
+
 func makeTypeRef(t schema.Type, rel *node, nodes nodeMap) (typeRef, error) {
 	nodeRef := func(id uint64) (typeRef, error) {
 		ni, err := nodes.mustFind(id)
@@ -604,74 +642,22 @@ func makeTypeRef(t schema.Type, rel *node, nodes nodeMap) (typeRef, error) {
 		}
 		return makeNodeTypeRef(ni, rel)
 	}
+	if ref, ok := staticTypeRefs[t.Which()]; ok {
+		return ref, nil
+	}
 	switch t.Which() {
-	case schema.Type_Which_void:
-		return typeRef{}, nil
-	case schema.Type_Which_bool:
-		return typeRef{name: "bool"}, nil
-	case schema.Type_Which_int8:
-		return typeRef{name: "int8"}, nil
-	case schema.Type_Which_int16:
-		return typeRef{name: "int16"}, nil
-	case schema.Type_Which_int32:
-		return typeRef{name: "int32"}, nil
-	case schema.Type_Which_int64:
-		return typeRef{name: "int64"}, nil
-	case schema.Type_Which_uint8:
-		return typeRef{name: "uint8"}, nil
-	case schema.Type_Which_uint16:
-		return typeRef{name: "uint16"}, nil
-	case schema.Type_Which_uint32:
-		return typeRef{name: "uint32"}, nil
-	case schema.Type_Which_uint64:
-		return typeRef{name: "uint64"}, nil
-	case schema.Type_Which_float32:
-		return typeRef{name: "float32"}, nil
-	case schema.Type_Which_float64:
-		return typeRef{name: "float64"}, nil
-	case schema.Type_Which_text:
-		return typeRef{name: "string"}, nil
-	case schema.Type_Which_data:
-		return typeRef{name: "[]byte"}, nil
 	case schema.Type_Which_enum:
 		return nodeRef(t.Enum().TypeId())
 	case schema.Type_Which_structType:
 		return nodeRef(t.StructType().TypeId())
 	case schema.Type_Which_interface:
 		return nodeRef(t.Interface().TypeId())
-	case schema.Type_Which_anyPointer:
-		return typeRef{name: "Pointer", imp: capnpImportSpec}, nil
 	case schema.Type_Which_list:
-		switch lt, _ := t.List().ElementType(); lt.Which() {
-		case schema.Type_Which_void:
-			// TODO(light): omitting newfunc since it doesn't have a similar type signature (no errors).
-			return typeRef{name: "VoidList", imp: capnpImportSpec}, nil
-		case schema.Type_Which_bool:
-			return typeRef{name: "BitList", newfunc: "NewBitList", imp: capnpImportSpec}, nil
-		case schema.Type_Which_int8:
-			return typeRef{name: "Int8List", newfunc: "NewInt8List", imp: capnpImportSpec}, nil
-		case schema.Type_Which_uint8:
-			return typeRef{name: "UInt8List", newfunc: "NewUInt8List", imp: capnpImportSpec}, nil
-		case schema.Type_Which_int16:
-			return typeRef{name: "Int16List", newfunc: "NewInt16List", imp: capnpImportSpec}, nil
-		case schema.Type_Which_uint16:
-			return typeRef{name: "UInt16List", newfunc: "NewUInt16List", imp: capnpImportSpec}, nil
-		case schema.Type_Which_int32:
-			return typeRef{name: "Int32List", newfunc: "NewInt32List", imp: capnpImportSpec}, nil
-		case schema.Type_Which_uint32:
-			return typeRef{name: "UInt32List", newfunc: "NewUInt32List", imp: capnpImportSpec}, nil
-		case schema.Type_Which_int64:
-			return typeRef{name: "Int64List", newfunc: "NewInt64List", imp: capnpImportSpec}, nil
-		case schema.Type_Which_uint64:
-			return typeRef{name: "UInt64List", newfunc: "NewUInt64List", imp: capnpImportSpec}, nil
-		case schema.Type_Which_float32:
-			return typeRef{name: "Float32List", newfunc: "NewFloat32List", imp: capnpImportSpec}, nil
-		case schema.Type_Which_float64:
-			return typeRef{name: "Float64List", newfunc: "NewFloat64List", imp: capnpImportSpec}, nil
-		case schema.Type_Which_text:
-			return typeRef{name: "TextList", newfunc: "NewTextList", imp: capnpImportSpec}, nil
-		case schema.Type_Which_data:
-			return typeRef{name: "DataList", newfunc: "NewDataList", imp: capnpImportSpec}, nil
+		lt, _ := t.List().ElementType()
+		if ref, ok := staticListTypeRefs[lt.Which()]; ok {
+			return ref, nil
+		}
+		switch lt.Which() {
 		case schema.Type_Which_enum:
 			ref, err := nodeRef(lt.Enum().TypeId())
 			if err != nil {
