@@ -53,7 +53,7 @@ func TestEncode(t *testing.T) {
 		},
 	})
 	if err != nil {
-		t.Fatal("Adding to registry: %v", err)
+		t.Fatalf("Adding to registry: %v", err)
 	}
 	msg, err := capnp.Unmarshal(data)
 	if err != nil {
@@ -87,7 +87,7 @@ func TestEncode(t *testing.T) {
 
 		typ, err := c.Const().Type()
 		if err != nil {
-			t.Errorf("(%s @%#x - %s).const.value: %v", dn, test.constID, err)
+			t.Errorf("(%s @%#x).const.type: %v", dn, test.constID, err)
 			continue
 		}
 		if typ.Which() != schema.Type_Which_structType {

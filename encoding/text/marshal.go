@@ -350,7 +350,7 @@ func (enc *Encoder) marshalList(elem schema.Type, l capnp.List) error {
 			enc.w.WriteString("void")
 		}
 	case schema.Type_Which_bool:
-		bl := capnp.BitList{l}
+		bl := capnp.BitList{List: l}
 		for i := 0; i < bl.Len(); i++ {
 			if i > 0 {
 				enc.w.WriteString(", ")
@@ -358,7 +358,7 @@ func (enc *Encoder) marshalList(elem schema.Type, l capnp.List) error {
 			enc.marshalBool(bl.At(i))
 		}
 	case schema.Type_Which_int8:
-		il := capnp.Int8List{l}
+		il := capnp.Int8List{List: l}
 		for i := 0; i < il.Len(); i++ {
 			if i > 0 {
 				enc.w.WriteString(", ")
@@ -366,7 +366,7 @@ func (enc *Encoder) marshalList(elem schema.Type, l capnp.List) error {
 			enc.marshalInt(int64(il.At(i)))
 		}
 	case schema.Type_Which_int16:
-		il := capnp.Int16List{l}
+		il := capnp.Int16List{List: l}
 		for i := 0; i < il.Len(); i++ {
 			if i > 0 {
 				enc.w.WriteString(", ")
@@ -374,7 +374,7 @@ func (enc *Encoder) marshalList(elem schema.Type, l capnp.List) error {
 			enc.marshalInt(int64(il.At(i)))
 		}
 	case schema.Type_Which_int32:
-		il := capnp.Int32List{l}
+		il := capnp.Int32List{List: l}
 		for i := 0; i < il.Len(); i++ {
 			if i > 0 {
 				enc.w.WriteString(", ")
@@ -382,7 +382,7 @@ func (enc *Encoder) marshalList(elem schema.Type, l capnp.List) error {
 			enc.marshalInt(int64(il.At(i)))
 		}
 	case schema.Type_Which_int64:
-		il := capnp.Int64List{l}
+		il := capnp.Int64List{List: l}
 		for i := 0; i < il.Len(); i++ {
 			if i > 0 {
 				enc.w.WriteString(", ")
@@ -390,7 +390,7 @@ func (enc *Encoder) marshalList(elem schema.Type, l capnp.List) error {
 			enc.marshalInt(il.At(i))
 		}
 	case schema.Type_Which_uint8:
-		il := capnp.UInt8List{l}
+		il := capnp.UInt8List{List: l}
 		for i := 0; i < il.Len(); i++ {
 			if i > 0 {
 				enc.w.WriteString(", ")
@@ -398,7 +398,7 @@ func (enc *Encoder) marshalList(elem schema.Type, l capnp.List) error {
 			enc.marshalUint(uint64(il.At(i)))
 		}
 	case schema.Type_Which_uint16:
-		il := capnp.UInt16List{l}
+		il := capnp.UInt16List{List: l}
 		for i := 0; i < il.Len(); i++ {
 			if i > 0 {
 				enc.w.WriteString(", ")
@@ -406,7 +406,7 @@ func (enc *Encoder) marshalList(elem schema.Type, l capnp.List) error {
 			enc.marshalUint(uint64(il.At(i)))
 		}
 	case schema.Type_Which_uint32:
-		il := capnp.UInt32List{l}
+		il := capnp.UInt32List{List: l}
 		for i := 0; i < il.Len(); i++ {
 			if i > 0 {
 				enc.w.WriteString(", ")
@@ -414,7 +414,7 @@ func (enc *Encoder) marshalList(elem schema.Type, l capnp.List) error {
 			enc.marshalUint(uint64(il.At(i)))
 		}
 	case schema.Type_Which_uint64:
-		il := capnp.UInt64List{l}
+		il := capnp.UInt64List{List: l}
 		for i := 0; i < il.Len(); i++ {
 			if i > 0 {
 				enc.w.WriteString(", ")
@@ -422,7 +422,7 @@ func (enc *Encoder) marshalList(elem schema.Type, l capnp.List) error {
 			enc.marshalUint(il.At(i))
 		}
 	case schema.Type_Which_float32:
-		fl := capnp.Float32List{l}
+		fl := capnp.Float32List{List: l}
 		for i := 0; i < fl.Len(); i++ {
 			if i > 0 {
 				enc.w.WriteString(", ")
@@ -430,7 +430,7 @@ func (enc *Encoder) marshalList(elem schema.Type, l capnp.List) error {
 			enc.marshalFloat32(fl.At(i))
 		}
 	case schema.Type_Which_float64:
-		fl := capnp.Float64List{l}
+		fl := capnp.Float64List{List: l}
 		for i := 0; i < fl.Len(); i++ {
 			if i > 0 {
 				enc.w.WriteString(", ")
@@ -438,7 +438,7 @@ func (enc *Encoder) marshalList(elem schema.Type, l capnp.List) error {
 			enc.marshalFloat64(fl.At(i))
 		}
 	case schema.Type_Which_data:
-		dl := capnp.DataList{l}
+		dl := capnp.DataList{List: l}
 		for i := 0; i < dl.Len(); i++ {
 			if i > 0 {
 				enc.w.WriteString(", ")
@@ -450,7 +450,7 @@ func (enc *Encoder) marshalList(elem schema.Type, l capnp.List) error {
 			enc.marshalText(d)
 		}
 	case schema.Type_Which_text:
-		tl := capnp.TextList{l}
+		tl := capnp.TextList{List: l}
 		for i := 0; i < tl.Len(); i++ {
 			if i > 0 {
 				enc.w.WriteString(", ")
@@ -472,7 +472,7 @@ func (enc *Encoder) marshalList(elem schema.Type, l capnp.List) error {
 			}
 		}
 	case schema.Type_Which_enum:
-		il := capnp.UInt16List{l}
+		il := capnp.UInt16List{List: l}
 		typ := elem.Enum().TypeId()
 		// TODO(light): only search for node once
 		for i := 0; i < il.Len(); i++ {
