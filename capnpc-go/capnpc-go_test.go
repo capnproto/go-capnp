@@ -8,6 +8,8 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"sort"
+	"strconv"
+	"strings"
 	"testing"
 
 	"zombiezen.com/go/capnproto2"
@@ -237,16 +239,21 @@ func TestDefineConstNodes(t *testing.T) {
 func TestDefineFile(t *testing.T) {
 	// Sanity check to make sure codegen produces parseable Go.
 
+	const iterations = 3
+
 	tests := []struct {
 		fileID uint64
 		fname  string
 		opts   genoptions
 	}{
-		{0x832bcc6686a26d56, "aircraft.capnp.out", genoptions{promises: true}},
+		{0x832bcc6686a26d56, "aircraft.capnp.out", genoptions{promises: false, schemas: false}},
+		{0x832bcc6686a26d56, "aircraft.capnp.out", genoptions{promises: false, schemas: true}},
+		{0x832bcc6686a26d56, "aircraft.capnp.out", genoptions{promises: true, schemas: false}},
+		{0x832bcc6686a26d56, "aircraft.capnp.out", genoptions{promises: true, schemas: true}},
 		{0x83c2b5818e83ab19, "group.capnp.out", genoptions{promises: true}},
-		{0xb312981b2552a250, "rpc.capnp.out", genoptions{promises: true}},
-		{0xd68755941d99d05e, "scopes.capnp.out", genoptions{promises: true}},
-		{0xecd50d792c3d9992, "util.capnp.out", genoptions{promises: true}},
+		{0xb312981b2552a250, "rpc.capnp.out", genoptions{promises: true, schemas: true}},
+		{0xd68755941d99d05e, "scopes.capnp.out", genoptions{promises: true, schemas: true}},
+		{0xecd50d792c3d9992, "util.capnp.out", genoptions{promises: true, schemas: true}},
 	}
 	for _, test := range tests {
 		data, err := readTestFile(test.fname)
@@ -271,14 +278,49 @@ func TestDefineFile(t *testing.T) {
 		}
 		g := newGenerator(test.fileID, nodes, test.opts)
 		if err := g.defineFile(); err != nil {
-			t.Errorf("defineFile %s: %v", test.fname, err)
+			t.Errorf("defineFile %s %+v: %v", test.fname, test.opts, err)
 			continue
 		}
 		src := g.generate()
 		if _, err := parser.ParseFile(token.NewFileSet(), test.fname+".go", src, 0); err != nil {
 			// TODO(light): log src
-			t.Errorf("generate %s failed to parse: %v", test.fname, err)
-			continue
+			t.Errorf("generate %s %+v failed to parse: %v", test.fname, test.opts, err)
+		}
+
+		// Generation should be deterministic between runs.
+		for i := 0; i < iterations-1; i++ {
+			g := newGenerator(test.fileID, nodes, test.opts)
+			if err := g.defineFile(); err != nil {
+				t.Errorf("defineFile %s %+v [iteration %d]: %v", test.fname, test.opts, i+2, err)
+				continue
+			}
+			src2 := g.generate()
+			if !bytes.Equal(src, src2) {
+				t.Errorf("defineFile %s %+v [iteration %d] did not match iteration 1: non-deterministic", test.fname, test.opts, i+2)
+			}
+		}
+	}
+}
+
+func TestSchemaVarLiteral(t *testing.T) {
+	tests := []string{
+		"",
+		"foo",
+		"deadbeefdeadbeef",
+		"deadbeefdeadbeefdeadbeef",
+		"\x00\x00",
+		"\xff\xff",
+		"\n",
+		" ~\"\\",
+		"\xff\xff\x27\xa1\xe3\xf1",
+	}
+	for _, test := range tests {
+		got := schemaVarParams{schema: []byte(test)}.SchemaLiteral()
+		u, err := strconv.Unquote(strings.Replace(got, "\" +\n\t\"", "", -1))
+		if err != nil {
+			t.Errorf("schema literal of %q does not parse: %v\n\tproduced: %s", test, err, got)
+		} else if u != test {
+			t.Errorf("schema literal of %q != %s", test, got)
 		}
 	}
 }
@@ -326,18 +368,4 @@ func containsExactlyIDs(nodes []*node, ids ...uint64) bool {
 		}
 	}
 	return true
-}
-
-type uint64Slice []uint64
-
-func (a uint64Slice) Len() int {
-	return len(a)
-}
-
-func (a uint64Slice) Swap(i, j int) {
-	a[i], a[j] = a[j], a[i]
-}
-
-func (a uint64Slice) Less(i, j int) bool {
-	return a[i] < a[j]
 }
