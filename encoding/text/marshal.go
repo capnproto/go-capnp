@@ -272,11 +272,11 @@ func (enc *Encoder) marshalFieldValue(s capnp.Struct, f schema.Field) error {
 		enc.marshalUint(v ^ d)
 	case schema.Type_Which_float32:
 		v := s.Uint32(capnp.DataOffset(f.Slot().Offset() * 4))
-		d := dv.Uint32()
+		d := math.Float32bits(dv.Float32())
 		enc.marshalFloat32(math.Float32frombits(v ^ d))
 	case schema.Type_Which_float64:
 		v := s.Uint64(capnp.DataOffset(f.Slot().Offset() * 8))
-		d := dv.Uint64()
+		d := math.Float64bits(dv.Float64())
 		enc.marshalFloat64(math.Float64frombits(v ^ d))
 	case schema.Type_Which_structType:
 		p, err := s.Ptr(uint16(f.Slot().Offset()))
