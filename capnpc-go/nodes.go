@@ -259,10 +259,7 @@ func resolveName(nodes nodeMap, n *node, base, name string, file *node) error {
 	}
 	n.pkg = file.pkg
 	n.imp = file.imp
-
-	if n.Which() != schema.Node_Which_structNode || !n.StructNode().IsGroup() {
-		file.nodes = append(file.nodes, n)
-	}
+	file.nodes = append(file.nodes, n)
 
 	nnodes, err := n.NestedNodes()
 	if err != nil {

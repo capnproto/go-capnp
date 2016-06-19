@@ -43,25 +43,85 @@ func mustReadGeneratorRequest(t *testing.T, name string) schema.CodeGeneratorReq
 	return req
 }
 
-func TestGoCapnpNodeMap(t *testing.T) {
-	req := mustReadGeneratorRequest(t, "go.capnp.out")
-	nodes, err := buildNodeMap(req)
-	if err != nil {
-		t.Error("buildNodeMap:", err)
+func TestBuildNodeMap(t *testing.T) {
+	tests := []struct {
+		name      string
+		fileID    uint64
+		fileNodes []uint64
+	}{
+		{
+			name:   "go.capnp.out",
+			fileID: 0xd12a1c51fedd6c88,
+			fileNodes: []uint64{
+				0xbea97f1023792be0,
+				0xe130b601260e44b5,
+				0xc58ad6bd519f935e,
+				0xa574b41924caefc7,
+				0xc8768679ec52e012,
+				0xfa10659ae02f2093,
+				0xc2b96012172f8df1,
+			},
+		},
+		{
+			name:   "group.capnp.out",
+			fileID: 0x83c2b5818e83ab19,
+			fileNodes: []uint64{
+				0xd119fd352d8ea888, // the struct
+				0x822357857e5925d4, // the group
+			},
+		},
 	}
-	want := []uint64{
-		0xd12a1c51fedd6c88,
-		0xbea97f1023792be0,
-		0xe130b601260e44b5,
-		0xc58ad6bd519f935e,
-		0xa574b41924caefc7,
-		0xc8768679ec52e012,
-		0xfa10659ae02f2093,
-		0xc2b96012172f8df1,
-	}
-	for _, k := range want {
-		if nodes[k] == nil {
-			t.Errorf("missing @%#x from node map", k)
+	for _, test := range tests {
+		data, err := readTestFile(test.name)
+		if err != nil {
+			t.Errorf("readTestFile(%q): %v", test.name, err)
+			continue
+		}
+		msg, err := capnp.Unmarshal(data)
+		if err != nil {
+			t.Errorf("Unmarshaling %s: %v", test.name, err)
+			continue
+		}
+		req, err := schema.ReadRootCodeGeneratorRequest(msg)
+		if err != nil {
+			t.Errorf("Reading code generator request %s: %v", test.name, err)
+			continue
+		}
+		nodes, err := buildNodeMap(req)
+		if err != nil {
+			t.Errorf("%s: buildNodeMap: %v", test.name, err)
+		}
+		f := nodes[test.fileID]
+		if f == nil {
+			t.Errorf("%s: node map is missing file node @%#x", test.name, test.fileID)
+			continue
+		}
+		if f.Id() != test.fileID {
+			t.Errorf("%s: node map has ID @%#x for lookup of @%#x", test.name, f.Id(), test.fileID)
+		}
+
+		// Test node.nodes collection
+		for _, id := range test.fileNodes {
+			found := false
+			for _, fn := range f.nodes {
+				if fn.Id() == id {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("%s: missing @%#x from file nodes", test.name, id)
+			}
+		}
+		// Test map lookup
+		for _, k := range test.fileNodes {
+			n := nodes[k]
+			if n == nil {
+				t.Errorf("%s: missing @%#x from node map", test.name, k)
+			}
+			if n.Id() != k {
+				t.Errorf("%s: node map has ID @%#x for lookup of @%#x", test.name, n.Id(), k)
+			}
 		}
 	}
 }
