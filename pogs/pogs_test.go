@@ -1,6 +1,7 @@
 package pogs
 
 import (
+	"bytes"
 	"fmt"
 	"reflect"
 	"testing"
@@ -28,6 +29,8 @@ type Z struct {
 	U8  uint8
 
 	Bool bool
+	Text string
+	Blob []byte
 
 	Airport air.Airport
 }
@@ -59,6 +62,18 @@ func zequal(g *Z, c air.Z) (bool, error) {
 		return g.U8 == c.U8(), nil
 	case air.Z_Which_bool:
 		return g.Bool == c.Bool(), nil
+	case air.Z_Which_text:
+		text, err := c.Text()
+		if err != nil {
+			return false, err
+		}
+		return g.Text == text, nil
+	case air.Z_Which_blob:
+		blob, err := c.Blob()
+		if err != nil {
+			return false, err
+		}
+		return bytes.Equal(g.Blob, blob), nil
 	case air.Z_Which_airport:
 		return g.Airport == c.Airport(), nil
 	default:
@@ -90,6 +105,10 @@ func zfill(c air.Z, g *Z) error {
 		c.SetU8(g.U8)
 	case air.Z_Which_bool:
 		c.SetBool(g.Bool)
+	case air.Z_Which_text:
+		return c.SetText(g.Text)
+	case air.Z_Which_blob:
+		return c.SetBlob(g.Blob)
 	case air.Z_Which_airport:
 		c.SetAirport(g.Airport)
 	default:
@@ -98,23 +117,26 @@ func zfill(c air.Z, g *Z) error {
 	return nil
 }
 
+var goodTests = []Z{
+	{Which: air.Z_Which_f64, F64: 3.5},
+	{Which: air.Z_Which_f32, F32: 3.5},
+	{Which: air.Z_Which_i64, I64: -123},
+	{Which: air.Z_Which_i32, I32: -123},
+	{Which: air.Z_Which_i16, I16: -123},
+	{Which: air.Z_Which_i8, I8: -123},
+	{Which: air.Z_Which_u64, U64: 123},
+	{Which: air.Z_Which_u32, U32: 123},
+	{Which: air.Z_Which_u16, U16: 123},
+	{Which: air.Z_Which_u8, U8: 123},
+	{Which: air.Z_Which_bool, Bool: true},
+	{Which: air.Z_Which_bool, Bool: false},
+	{Which: air.Z_Which_text, Text: "Hello, World!"},
+	{Which: air.Z_Which_blob, Blob: []byte("Hello, World!")},
+	{Which: air.Z_Which_airport, Airport: air.Airport_lax},
+}
+
 func TestExtract(t *testing.T) {
-	tests := []Z{
-		{Which: air.Z_Which_f64, F64: 3.5},
-		{Which: air.Z_Which_f32, F32: 3.5},
-		{Which: air.Z_Which_i64, I64: -123},
-		{Which: air.Z_Which_i32, I32: -123},
-		{Which: air.Z_Which_i16, I16: -123},
-		{Which: air.Z_Which_i8, I8: -123},
-		{Which: air.Z_Which_u64, U64: 123},
-		{Which: air.Z_Which_u32, U32: 123},
-		{Which: air.Z_Which_u16, U16: 123},
-		{Which: air.Z_Which_u8, U8: 123},
-		{Which: air.Z_Which_bool, Bool: true},
-		{Which: air.Z_Which_bool, Bool: false},
-		{Which: air.Z_Which_airport, Airport: air.Airport_lax},
-	}
-	for _, test := range tests {
+	for _, test := range goodTests {
 		_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
 		if err != nil {
 			t.Errorf("NewMessage for %+v: %v", test, err)
@@ -140,22 +162,7 @@ func TestExtract(t *testing.T) {
 }
 
 func TestInsert(t *testing.T) {
-	tests := []Z{
-		{Which: air.Z_Which_f64, F64: 3.5},
-		{Which: air.Z_Which_f32, F32: 3.5},
-		{Which: air.Z_Which_i64, I64: -123},
-		{Which: air.Z_Which_i32, I32: -123},
-		{Which: air.Z_Which_i16, I16: -123},
-		{Which: air.Z_Which_i8, I8: -123},
-		{Which: air.Z_Which_u64, U64: 123},
-		{Which: air.Z_Which_u32, U32: 123},
-		{Which: air.Z_Which_u16, U16: 123},
-		{Which: air.Z_Which_u8, U8: 123},
-		{Which: air.Z_Which_bool, Bool: true},
-		{Which: air.Z_Which_bool, Bool: false},
-		{Which: air.Z_Which_airport, Airport: air.Airport_lax},
-	}
-	for _, test := range tests {
+	for _, test := range goodTests {
 		_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
 		if err != nil {
 			t.Errorf("NewMessage for %+v: %v", test, err)
@@ -175,5 +182,55 @@ func TestInsert(t *testing.T) {
 		} else if !equal {
 			t.Errorf("Insert(%+v) produced %v", test, z)
 		}
+	}
+}
+
+type BytesZ struct {
+	Which air.Z_Which
+	Text  []byte
+}
+
+func TestExtract_StringBytes(t *testing.T) {
+	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		t.Fatalf("NewMessage: %v", err)
+	}
+	z, err := air.NewRootZ(seg)
+	if err != nil {
+		t.Fatalf("NewRootZ: %v", err)
+	}
+	err = zfill(z, &Z{Which: air.Z_Which_text, Text: "Hello, World!"})
+	if err != nil {
+		t.Fatalf("zfill: %v", err)
+	}
+	out := new(BytesZ)
+	if err := Extract(out, zTypeID, z.Struct); err != nil {
+		t.Errorf("Extract(%v) error: %v", z, err)
+	}
+	want := &BytesZ{Which: air.Z_Which_text, Text: []byte("Hello, World!")}
+	if !reflect.DeepEqual(out, want) {
+		t.Errorf("Extract(%v) produced %+v; want %+v", z, out, want)
+	}
+}
+
+func TestInsert_StringBytes(t *testing.T) {
+	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		t.Fatalf("NewMessage: %v", err)
+	}
+	z, err := air.NewRootZ(seg)
+	if err != nil {
+		t.Fatalf("NewRootZ: %v", err)
+	}
+	bz := &BytesZ{Which: air.Z_Which_text, Text: []byte("Hello, World!")}
+	err = Insert(zTypeID, z.Struct, bz)
+	if err != nil {
+		t.Errorf("Insert(%+v) error: %v", bz, err)
+	}
+	want := &Z{Which: air.Z_Which_text, Text: "Hello, World!"}
+	if equal, err := zequal(want, z); err != nil {
+		t.Errorf("Insert(%+v) compare err: %v", bz, err)
+	} else if !equal {
+		t.Errorf("Insert(%+v) produced %v", bz, z)
 	}
 }

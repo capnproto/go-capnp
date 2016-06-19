@@ -152,6 +152,29 @@ func (ins *inserter) insertField(s capnp.Struct, f schema.Field, val reflect.Val
 		v := math.Float64bits(val.Float())
 		d := uint64(math.Float64bits(dv.Float64()))
 		s.SetUint64(capnp.DataOffset(f.Slot().Offset()*8), v^d)
+	case schema.Type_Which_text:
+		// TODO(light): don't set if nil or empty. Need to consult default value.
+		off := uint16(f.Slot().Offset())
+		data, err := capnp.NewUInt8List(s.Segment(), int32(val.Len())+1)
+		if err != nil {
+			return err
+		}
+		b := data.ToPtr().TextBytes()
+		if val.Kind() == reflect.String {
+			copy(b, val.String())
+		} else {
+			copy(b, val.Bytes())
+		}
+		return s.SetPtr(off, data.ToPtr())
+	case schema.Type_Which_data:
+		// TODO(light): don't set if nil or empty. Need to consult default value.
+		b := val.Bytes()
+		off := uint16(f.Slot().Offset())
+		data, err := capnp.NewData(s.Segment(), b)
+		if err != nil {
+			return err
+		}
+		return s.SetPtr(off, data.ToPtr())
 	default:
 		return fmt.Errorf("unknown field type %v", typ.Which())
 	}

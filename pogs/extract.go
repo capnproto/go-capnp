@@ -156,6 +156,35 @@ func (e *extracter) extractField(val reflect.Value, s capnp.Struct, f schema.Fie
 		v := s.Uint64(capnp.DataOffset(f.Slot().Offset() * 8))
 		d := math.Float64bits(dv.Float64())
 		val.SetFloat(math.Float64frombits(v ^ d))
+	case schema.Type_Which_text:
+		p, err := s.Ptr(uint16(f.Slot().Offset()))
+		if err != nil {
+			return err
+		}
+		var b []byte
+		if p.IsValid() {
+			b = p.TextBytes()
+		} else {
+			b, _ = dv.TextBytes()
+		}
+		if val.Kind() == reflect.String {
+			val.SetString(string(b))
+		} else {
+			// byte slice, as guaranteed by isTypeMatch
+			val.SetBytes(b)
+		}
+	case schema.Type_Which_data:
+		p, err := s.Ptr(uint16(f.Slot().Offset()))
+		if err != nil {
+			return err
+		}
+		var b []byte
+		if p.IsValid() {
+			b = p.Data()
+		} else {
+			b, _ = dv.Data()
+		}
+		val.SetBytes(b)
 	default:
 		return fmt.Errorf("unknown field type %v", typ.Which())
 	}
@@ -178,7 +207,14 @@ var typeMap = map[schema.Type_Which]reflect.Kind{
 }
 
 func isTypeMatch(r reflect.Type, s schema.Type) bool {
-	return typeMap[s.Which()] == r.Kind()
+	switch s.Which() {
+	case schema.Type_Which_text:
+		return r.Kind() == reflect.String || r.Kind() == reflect.Slice && r.Elem().Kind() == reflect.Uint8
+	case schema.Type_Which_data:
+		return r.Kind() == reflect.Slice && r.Elem().Kind() == reflect.Uint8
+	}
+	k, ok := typeMap[s.Which()]
+	return ok && k == r.Kind()
 }
 
 func fieldName(s string) string {
