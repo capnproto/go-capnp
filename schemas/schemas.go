@@ -70,7 +70,7 @@ func (reg *Registry) Register(s *Schema) error {
 func (reg *Registry) Find(id uint64) ([]byte, error) {
 	r := reg.m[id]
 	if r == nil {
-		return nil, nil
+		return nil, &notFoundError{id: id}
 	}
 	b, err := r.read()
 	if err != nil {
