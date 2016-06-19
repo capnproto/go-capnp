@@ -308,12 +308,7 @@ func (enc *Encoder) marshalFieldValue(s capnp.Struct, f schema.Field) error {
 			enc.marshalText(b)
 			return nil
 		}
-		b := p.Data()
-		if len(b) > 0 {
-			// Trim NUL byte
-			b = b[:len(b)-1]
-		}
-		enc.marshalText(b)
+		enc.marshalText(p.TextBytes())
 	case schema.Type_Which_list:
 		elem, err := typ.List().ElementType()
 		if err != nil {
