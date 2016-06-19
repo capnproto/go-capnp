@@ -40,3 +40,14 @@ func TestDefaultFind(t *testing.T) {
 	}
 	t.Fatalf("could not find node %#x in registry", capnp.Package)
 }
+
+func TestNotFound(t *testing.T) {
+	reg := new(schemas.Registry)
+	_, err := reg.Find(0)
+	if err == nil {
+		t.Error("new(schemas.Registry).Find(0) = nil; want not found error")
+	}
+	if !schemas.IsNotFound(err) {
+		t.Errorf("new(schemas.Registry).Find(0) = %v; want not found error", err)
+	}
+}
