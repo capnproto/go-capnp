@@ -42,14 +42,7 @@ func (s Book) HasTitle() bool {
 
 func (s Book) TitleBytes() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return nil, err
-	}
-	d := p.Data()
-	if len(d) == 0 {
-		return d, nil
-	}
-	return d[:len(d)-1], nil
+	return p.TextBytes(), err
 }
 
 func (s Book) SetTitle(v string) error {

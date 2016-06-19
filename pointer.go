@@ -105,22 +105,56 @@ func (p Ptr) Interface() Interface {
 // Text attempts to convert p into Text, returning an empty string if
 // p is not a valid 1-byte list pointer.
 func (p Ptr) Text() string {
-	return p.TextDefault("")
+	b, ok := p.text()
+	if !ok {
+		return ""
+	}
+	return string(b)
 }
 
 // TextDefault attempts to convert p into Text, returning def if p is
 // not a valid 1-byte list pointer.
 func (p Ptr) TextDefault(def string) string {
-	if !isOneByteList(p) {
+	b, ok := p.text()
+	if !ok {
 		return def
+	}
+	return string(b)
+}
+
+// TextBytes attempts to convert p into Text, returning nil if p is not
+// a valid 1-byte list pointer.  It returns a slice directly into the
+// segment.
+func (p Ptr) TextBytes() []byte {
+	b, ok := p.text()
+	if !ok {
+		return nil
+	}
+	return b
+}
+
+// TextBytesDefault attempts to convert p into Text, returning def if p
+// is not a valid 1-byte list pointer.  It returns a slice directly into
+// the segment.
+func (p Ptr) TextBytesDefault(def string) []byte {
+	b, ok := p.text()
+	if !ok {
+		return []byte(def)
+	}
+	return b
+}
+
+func (p Ptr) text() (b []byte, ok bool) {
+	if !isOneByteList(p) {
+		return nil, false
 	}
 	l := p.List()
-	b := l.seg.slice(l.off, Size(l.length))
+	b = l.seg.slice(l.off, Size(l.length))
 	if len(b) == 0 || b[len(b)-1] != 0 {
 		// Text must be null-terminated.
-		return def
+		return nil, false
 	}
-	return string(b[:len(b)-1])
+	return b[:len(b)-1 : len(b)], true
 }
 
 // Data attempts to convert p into Data, returning nil if p is not a
