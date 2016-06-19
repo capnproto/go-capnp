@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"zombiezen.com/go/capnproto2"
+	"zombiezen.com/go/capnproto2/encoding/text"
 	"zombiezen.com/go/capnproto2/std/capnp/schema"
 )
 
@@ -227,12 +228,10 @@ func TestDefineConstNodes(t *testing.T) {
 		t.Fatalf("defineConstNodes rendered %v; want render of constants template", calls[0])
 	}
 	if !containsExactlyIDs(p.Consts, 0xda96e2255811b258) {
-		// TODO(#20): print nodes better
-		t.Errorf("defineConstNodes rendered Consts %v", p.Consts)
+		t.Errorf("defineConstNodes rendered Consts %s", nodeListString(p.Consts))
 	}
 	if !containsExactlyIDs(p.Vars, 0xe0a385c7be1fea4d) {
-		// TODO(#20): print nodes better
-		t.Errorf("defineConstNodes rendered Vars %v", p.Vars)
+		t.Errorf("defineConstNodes rendered Vars %s", nodeListString(p.Vars))
 	}
 }
 
@@ -395,4 +394,23 @@ func containsExactlyIDs(nodes []*node, ids ...uint64) bool {
 		}
 	}
 	return true
+}
+
+func nodeString(n *node) string {
+	str, _ := text.Marshal(0xe682ab4cf923a417, n.Struct)
+	return str
+}
+
+func nodeListString(n []*node) string {
+	b := new(bytes.Buffer)
+	e := text.NewEncoder(b)
+	b.WriteByte('[')
+	for i, nn := range n {
+		if i > 0 {
+			b.WriteByte(' ')
+		}
+		e.Encode(0xe682ab4cf923a417, nn.Struct)
+	}
+	b.WriteByte(']')
+	return b.String()
 }
