@@ -7,13 +7,13 @@ import (
 	"reflect"
 
 	"zombiezen.com/go/capnproto2"
-	"zombiezen.com/go/capnproto2/schemas"
+	"zombiezen.com/go/capnproto2/internal/nodemap"
 	"zombiezen.com/go/capnproto2/std/capnp/schema"
 )
 
 // Extract copies s into val, a pointer to a Go struct.
 func Extract(val interface{}, typeID uint64, s capnp.Struct) error {
-	e := &extracter{reg: &schemas.DefaultRegistry}
+	e := new(extracter)
 	err := e.extractStruct(reflect.ValueOf(val), typeID, s)
 	if err != nil {
 		return fmt.Errorf("pogs: extract @%#x: %v", typeID, err)
@@ -22,8 +22,7 @@ func Extract(val interface{}, typeID uint64, s capnp.Struct) error {
 }
 
 type extracter struct {
-	reg   *schemas.Registry
-	nodes map[uint64]schema.Node
+	nodes nodemap.Map
 }
 
 func (e *extracter) extractStruct(val reflect.Value, typeID uint64, s capnp.Struct) error {
@@ -36,7 +35,7 @@ func (e *extracter) extractStruct(val reflect.Value, typeID uint64, s capnp.Stru
 	if !val.CanSet() {
 		return errors.New("can't modify struct, did you pass in a pointer to your struct?")
 	}
-	n, err := e.findNode(typeID)
+	n, err := e.nodes.Find(typeID)
 	if err != nil {
 		return err
 	}
@@ -140,34 +139,4 @@ func fieldName(s string) string {
 	// TODO(light): check it's lowercase.
 	x := s[0] - 'a' + 'A'
 	return string(x) + s[1:]
-}
-
-func (e *extracter) findNode(id uint64) (schema.Node, error) {
-	if n := e.nodes[id]; n.IsValid() {
-		return n, nil
-	}
-	data, err := e.reg.Find(id)
-	if err != nil {
-		return schema.Node{}, err
-	}
-	msg, err := capnp.Unmarshal(data)
-	if err != nil {
-		return schema.Node{}, err
-	}
-	req, err := schema.ReadRootCodeGeneratorRequest(msg)
-	if err != nil {
-		return schema.Node{}, err
-	}
-	nodes, err := req.Nodes()
-	if err != nil {
-		return schema.Node{}, err
-	}
-	if e.nodes == nil {
-		e.nodes = make(map[uint64]schema.Node)
-	}
-	for i := 0; i < nodes.Len(); i++ {
-		n := nodes.At(i)
-		e.nodes[n.Id()] = n
-	}
-	return e.nodes[id], nil
 }
