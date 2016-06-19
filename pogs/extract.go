@@ -108,13 +108,53 @@ func (e *extracter) extractField(val reflect.Value, s capnp.Struct, f schema.Fie
 		return fmt.Errorf("can't extract field %s of type %v into a Go %v", name, typ.Which(), val.Type())
 	}
 	switch typ.Which() {
-	case schema.Type_Which_int64:
-		v := s.Uint64(capnp.DataOffset(f.Slot().Offset() * 8))
-		d := uint64(dv.Int64())
+	case schema.Type_Which_bool:
+		v := s.Bit(capnp.BitOffset(f.Slot().Offset()))
+		d := dv.Bool()
+		val.SetBool(v != d) // != acts as XOR
+	case schema.Type_Which_int8:
+		v := int8(s.Uint8(capnp.DataOffset(f.Slot().Offset())))
+		d := dv.Int8()
 		val.SetInt(int64(v ^ d))
+	case schema.Type_Which_int16:
+		v := int16(s.Uint16(capnp.DataOffset(f.Slot().Offset() * 2)))
+		d := dv.Int16()
+		val.SetInt(int64(v ^ d))
+	case schema.Type_Which_int32:
+		v := int32(s.Uint32(capnp.DataOffset(f.Slot().Offset() * 4)))
+		d := dv.Int32()
+		val.SetInt(int64(v ^ d))
+	case schema.Type_Which_int64:
+		v := int64(s.Uint64(capnp.DataOffset(f.Slot().Offset() * 8)))
+		d := dv.Int64()
+		val.SetInt(v ^ d)
+	case schema.Type_Which_uint8:
+		v := s.Uint8(capnp.DataOffset(f.Slot().Offset()))
+		d := dv.Uint8()
+		val.SetUint(uint64(v ^ d))
+	case schema.Type_Which_uint16:
+		v := s.Uint16(capnp.DataOffset(f.Slot().Offset() * 2))
+		d := dv.Uint16()
+		val.SetUint(uint64(v ^ d))
+	case schema.Type_Which_enum:
+		v := s.Uint16(capnp.DataOffset(f.Slot().Offset() * 2))
+		d := dv.Enum()
+		val.SetUint(uint64(v ^ d))
+	case schema.Type_Which_uint32:
+		v := s.Uint32(capnp.DataOffset(f.Slot().Offset() * 4))
+		d := dv.Uint32()
+		val.SetUint(uint64(v ^ d))
+	case schema.Type_Which_uint64:
+		v := s.Uint64(capnp.DataOffset(f.Slot().Offset() * 8))
+		d := dv.Uint64()
+		val.SetUint(v ^ d)
+	case schema.Type_Which_float32:
+		v := s.Uint32(capnp.DataOffset(f.Slot().Offset() * 4))
+		d := math.Float32bits(dv.Float32())
+		val.SetFloat(float64(math.Float32frombits(v ^ d)))
 	case schema.Type_Which_float64:
 		v := s.Uint64(capnp.DataOffset(f.Slot().Offset() * 8))
-		d := uint64(math.Float64bits(dv.Float64()))
+		d := math.Float64bits(dv.Float64())
 		val.SetFloat(math.Float64frombits(v ^ d))
 	default:
 		return fmt.Errorf("unknown field type %v", typ.Which())
@@ -124,7 +164,15 @@ func (e *extracter) extractField(val reflect.Value, s capnp.Struct, f schema.Fie
 
 var typeMap = map[schema.Type_Which]reflect.Kind{
 	schema.Type_Which_bool:    reflect.Bool,
+	schema.Type_Which_int8:    reflect.Int8,
+	schema.Type_Which_int16:   reflect.Int16,
+	schema.Type_Which_int32:   reflect.Int32,
 	schema.Type_Which_int64:   reflect.Int64,
+	schema.Type_Which_uint8:   reflect.Uint8,
+	schema.Type_Which_uint16:  reflect.Uint16,
+	schema.Type_Which_uint32:  reflect.Uint32,
+	schema.Type_Which_uint64:  reflect.Uint64,
+	schema.Type_Which_float32: reflect.Float32,
 	schema.Type_Which_float64: reflect.Float64,
 	schema.Type_Which_enum:    reflect.Uint16,
 }

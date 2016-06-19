@@ -104,10 +104,50 @@ func (ins *inserter) insertField(s capnp.Struct, f schema.Field, val reflect.Val
 		return fmt.Errorf("can't insert field %s of type Go %v into a %v", name, val.Type(), typ.Which())
 	}
 	switch typ.Which() {
+	case schema.Type_Which_bool:
+		v := val.Bool()
+		d := dv.Bool()
+		s.SetBit(capnp.BitOffset(f.Slot().Offset()), v != d) // != acts as XOR
+	case schema.Type_Which_int8:
+		v := int8(val.Int())
+		d := dv.Int8()
+		s.SetUint8(capnp.DataOffset(f.Slot().Offset()), uint8(v^d))
+	case schema.Type_Which_int16:
+		v := int16(val.Int())
+		d := dv.Int16()
+		s.SetUint16(capnp.DataOffset(f.Slot().Offset()*2), uint16(v^d))
+	case schema.Type_Which_int32:
+		v := int32(val.Int())
+		d := dv.Int32()
+		s.SetUint32(capnp.DataOffset(f.Slot().Offset()*4), uint32(v^d))
 	case schema.Type_Which_int64:
-		v := uint64(val.Int())
-		d := uint64(dv.Int64())
+		v := val.Int()
+		d := dv.Int64()
+		s.SetUint64(capnp.DataOffset(f.Slot().Offset()*8), uint64(v^d))
+	case schema.Type_Which_uint8:
+		v := uint8(val.Uint())
+		d := dv.Uint8()
+		s.SetUint8(capnp.DataOffset(f.Slot().Offset()), v^d)
+	case schema.Type_Which_uint16:
+		v := uint16(val.Uint())
+		d := dv.Uint16()
+		s.SetUint16(capnp.DataOffset(f.Slot().Offset()*2), v^d)
+	case schema.Type_Which_enum:
+		v := uint16(val.Uint())
+		d := dv.Enum()
+		s.SetUint16(capnp.DataOffset(f.Slot().Offset()*2), v^d)
+	case schema.Type_Which_uint32:
+		v := uint32(val.Uint())
+		d := dv.Uint32()
+		s.SetUint32(capnp.DataOffset(f.Slot().Offset()*4), v^d)
+	case schema.Type_Which_uint64:
+		v := val.Uint()
+		d := dv.Uint64()
 		s.SetUint64(capnp.DataOffset(f.Slot().Offset()*8), v^d)
+	case schema.Type_Which_float32:
+		v := math.Float32bits(float32(val.Float()))
+		d := math.Float32bits(dv.Float32())
+		s.SetUint32(capnp.DataOffset(f.Slot().Offset()*4), v^d)
 	case schema.Type_Which_float64:
 		v := math.Float64bits(val.Float())
 		d := uint64(math.Float64bits(dv.Float64()))
