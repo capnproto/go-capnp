@@ -97,14 +97,7 @@ func (s JsonValue) HasString() bool {
 
 func (s JsonValue) StringBytes() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return nil, err
-	}
-	d := p.Data()
-	if len(d) == 0 {
-		return d, nil
-	}
-	return d[:len(d)-1], nil
+	return p.TextBytes(), err
 }
 
 func (s JsonValue) SetString(v string) error {
@@ -251,14 +244,7 @@ func (s JsonValue_Field) HasName() bool {
 
 func (s JsonValue_Field) NameBytes() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return nil, err
-	}
-	d := p.Data()
-	if len(d) == 0 {
-		return d, nil
-	}
-	return d[:len(d)-1], nil
+	return p.TextBytes(), err
 }
 
 func (s JsonValue_Field) SetName(v string) error {
@@ -350,14 +336,7 @@ func (s JsonValue_Call) HasFunction() bool {
 
 func (s JsonValue_Call) FunctionBytes() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return nil, err
-	}
-	d := p.Data()
-	if len(d) == 0 {
-		return d, nil
-	}
-	return d[:len(d)-1], nil
+	return p.TextBytes(), err
 }
 
 func (s JsonValue_Call) SetFunction(v string) error {

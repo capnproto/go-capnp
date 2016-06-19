@@ -89,14 +89,7 @@ func (s Node) HasDisplayName() bool {
 
 func (s Node) DisplayNameBytes() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return nil, err
-	}
-	d := p.Data()
-	if len(d) == 0 {
-		return d, nil
-	}
-	return d[:len(d)-1], nil
+	return p.TextBytes(), err
 }
 
 func (s Node) SetDisplayName(v string) error {
@@ -672,14 +665,7 @@ func (s Node_Parameter) HasName() bool {
 
 func (s Node_Parameter) NameBytes() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return nil, err
-	}
-	d := p.Data()
-	if len(d) == 0 {
-		return d, nil
-	}
-	return d[:len(d)-1], nil
+	return p.TextBytes(), err
 }
 
 func (s Node_Parameter) SetName(v string) error {
@@ -740,14 +726,7 @@ func (s Node_NestedNode) HasName() bool {
 
 func (s Node_NestedNode) NameBytes() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return nil, err
-	}
-	d := p.Data()
-	if len(d) == 0 {
-		return d, nil
-	}
-	return d[:len(d)-1], nil
+	return p.TextBytes(), err
 }
 
 func (s Node_NestedNode) SetName(v string) error {
@@ -861,14 +840,7 @@ func (s Field) HasName() bool {
 
 func (s Field) NameBytes() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return nil, err
-	}
-	d := p.Data()
-	if len(d) == 0 {
-		return d, nil
-	}
-	return d[:len(d)-1], nil
+	return p.TextBytes(), err
 }
 
 func (s Field) SetName(v string) error {
@@ -1113,14 +1085,7 @@ func (s Enumerant) HasName() bool {
 
 func (s Enumerant) NameBytes() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return nil, err
-	}
-	d := p.Data()
-	if len(d) == 0 {
-		return d, nil
-	}
-	return d[:len(d)-1], nil
+	return p.TextBytes(), err
 }
 
 func (s Enumerant) SetName(v string) error {
@@ -1289,14 +1254,7 @@ func (s Method) HasName() bool {
 
 func (s Method) NameBytes() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return nil, err
-	}
-	d := p.Data()
-	if len(d) == 0 {
-		return d, nil
-	}
-	return d[:len(d)-1], nil
+	return p.TextBytes(), err
 }
 
 func (s Method) SetName(v string) error {
@@ -2485,14 +2443,7 @@ func (s Value) HasText() bool {
 
 func (s Value) TextBytes() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return nil, err
-	}
-	d := p.Data()
-	if len(d) == 0 {
-		return d, nil
-	}
-	return d[:len(d)-1], nil
+	return p.TextBytes(), err
 }
 
 func (s Value) SetText(v string) error {
@@ -2954,14 +2905,7 @@ func (s CodeGeneratorRequest_RequestedFile) HasFilename() bool {
 
 func (s CodeGeneratorRequest_RequestedFile) FilenameBytes() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return nil, err
-	}
-	d := p.Data()
-	if len(d) == 0 {
-		return d, nil
-	}
-	return d[:len(d)-1], nil
+	return p.TextBytes(), err
 }
 
 func (s CodeGeneratorRequest_RequestedFile) SetFilename(v string) error {
@@ -3059,14 +3003,7 @@ func (s CodeGeneratorRequest_RequestedFile_Import) HasName() bool {
 
 func (s CodeGeneratorRequest_RequestedFile_Import) NameBytes() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return nil, err
-	}
-	d := p.Data()
-	if len(d) == 0 {
-		return d, nil
-	}
-	return d[:len(d)-1], nil
+	return p.TextBytes(), err
 }
 
 func (s CodeGeneratorRequest_RequestedFile_Import) SetName(v string) error {

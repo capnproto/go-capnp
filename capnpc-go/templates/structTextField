@@ -11,18 +11,11 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() (string, error) {
 
 func (s {{.Node.Name}}) {{.Field.Name|title}}Bytes() ([]byte, error) {
 	p, err := s.Struct.Ptr({{.Field.Slot.Offset}})
-	if err != nil {
-		return nil, err
-	}
 	{{with .Default -}}
-	d := p.DataDefault([]byte({{printf "%q" .}} + "\x00"))
+	return p.TextBytesDefault({{printf "%q" .}}), err
 	{{- else -}}
-	d := p.Data()
+	return p.TextBytes(), err
 	{{- end}}
-	if len(d) == 0 {
-		return d, nil
-	}
-	return d[:len(d)-1], nil
 }
 
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v string) error {

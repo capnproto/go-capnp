@@ -246,14 +246,7 @@ func (s PlaneBase) HasName() bool {
 
 func (s PlaneBase) NameBytes() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return nil, err
-	}
-	d := p.Data()
-	if len(d) == 0 {
-		return d, nil
-	}
-	return d[:len(d)-1], nil
+	return p.TextBytes(), err
 }
 
 func (s PlaneBase) SetName(v string) error {
@@ -1142,14 +1135,7 @@ func (s Z) HasText() bool {
 
 func (s Z) TextBytes() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return nil, err
-	}
-	d := p.Data()
-	if len(d) == 0 {
-		return d, nil
-	}
-	return d[:len(d)-1], nil
+	return p.TextBytes(), err
 }
 
 func (s Z) SetText(v string) error {
@@ -1931,14 +1917,7 @@ func (s Counter) HasWords() bool {
 
 func (s Counter) WordsBytes() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return nil, err
-	}
-	d := p.Data()
-	if len(d) == 0 {
-		return d, nil
-	}
-	return d[:len(d)-1], nil
+	return p.TextBytes(), err
 }
 
 func (s Counter) SetWords(v string) error {
@@ -2154,14 +2133,7 @@ func (s Zjob) HasCmd() bool {
 
 func (s Zjob) CmdBytes() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return nil, err
-	}
-	d := p.Data()
-	if len(d) == 0 {
-		return d, nil
-	}
-	return d[:len(d)-1], nil
+	return p.TextBytes(), err
 }
 
 func (s Zjob) SetCmd(v string) error {
@@ -3276,14 +3248,7 @@ func (s HoldsText) HasTxt() bool {
 
 func (s HoldsText) TxtBytes() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return nil, err
-	}
-	d := p.Data()
-	if len(d) == 0 {
-		return d, nil
-	}
-	return d[:len(d)-1], nil
+	return p.TextBytes(), err
 }
 
 func (s HoldsText) SetTxt(v string) error {
@@ -3915,14 +3880,7 @@ func (s Echo_echo_Params) HasIn() bool {
 
 func (s Echo_echo_Params) InBytes() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return nil, err
-	}
-	d := p.Data()
-	if len(d) == 0 {
-		return d, nil
-	}
-	return d[:len(d)-1], nil
+	return p.TextBytes(), err
 }
 
 func (s Echo_echo_Params) SetIn(v string) error {
@@ -3985,14 +3943,7 @@ func (s Echo_echo_Results) HasOut() bool {
 
 func (s Echo_echo_Results) OutBytes() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return nil, err
-	}
-	d := p.Data()
-	if len(d) == 0 {
-		return d, nil
-	}
-	return d[:len(d)-1], nil
+	return p.TextBytes(), err
 }
 
 func (s Echo_echo_Results) SetOut(v string) error {
@@ -4560,14 +4511,7 @@ func (s Defaults) HasText() bool {
 
 func (s Defaults) TextBytes() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return nil, err
-	}
-	d := p.DataDefault([]byte("foo" + "\x00"))
-	if len(d) == 0 {
-		return d, nil
-	}
-	return d[:len(d)-1], nil
+	return p.TextBytesDefault("foo"), err
 }
 
 func (s Defaults) SetText(v string) error {
@@ -4670,14 +4614,7 @@ func (s BenchmarkA) HasName() bool {
 
 func (s BenchmarkA) NameBytes() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
-	if err != nil {
-		return nil, err
-	}
-	d := p.Data()
-	if len(d) == 0 {
-		return d, nil
-	}
-	return d[:len(d)-1], nil
+	return p.TextBytes(), err
 }
 
 func (s BenchmarkA) SetName(v string) error {
@@ -4708,14 +4645,7 @@ func (s BenchmarkA) HasPhone() bool {
 
 func (s BenchmarkA) PhoneBytes() ([]byte, error) {
 	p, err := s.Struct.Ptr(1)
-	if err != nil {
-		return nil, err
-	}
-	d := p.Data()
-	if len(d) == 0 {
-		return d, nil
-	}
-	return d[:len(d)-1], nil
+	return p.TextBytes(), err
 }
 
 func (s BenchmarkA) SetPhone(v string) error {

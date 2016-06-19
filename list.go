@@ -330,11 +330,7 @@ func (l TextList) BytesAt(i int) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	b := p.Data()
-	if len(b) == 0 {
-		return b, nil
-	}
-	return b[:len(b)-1 : len(b)], nil
+	return p.TextBytes(), nil
 }
 
 // Set sets the i'th string in the list to v.
