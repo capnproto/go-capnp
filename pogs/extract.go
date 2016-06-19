@@ -27,6 +27,7 @@ type extracter struct {
 
 func (e *extracter) extractStruct(val reflect.Value, typeID uint64, s capnp.Struct) error {
 	if val.Kind() == reflect.Ptr {
+		// TODO(light): create if nil
 		val = val.Elem()
 	}
 	if val.Kind() != reflect.Struct {
