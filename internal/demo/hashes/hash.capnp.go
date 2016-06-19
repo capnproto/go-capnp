@@ -5,6 +5,7 @@ package hashes
 import (
 	context "golang.org/x/net/context"
 	capnp "zombiezen.com/go/capnproto2"
+	text "zombiezen.com/go/capnproto2/encoding/text"
 	schemas "zombiezen.com/go/capnproto2/schemas"
 	server "zombiezen.com/go/capnproto2/server"
 )
@@ -88,6 +89,11 @@ func ReadRootHashFactory_newSha1_Params(msg *capnp.Message) (HashFactory_newSha1
 	return HashFactory_newSha1_Params{root.Struct()}, err
 }
 
+func (s HashFactory_newSha1_Params) String() string {
+	str, _ := text.Marshal(0x92b20ad1a58ca0ca, s.Struct)
+	return str
+}
+
 // HashFactory_newSha1_Params_List is a list of HashFactory_newSha1_Params.
 type HashFactory_newSha1_Params_List struct{ capnp.List }
 
@@ -128,6 +134,11 @@ func NewRootHashFactory_newSha1_Results(s *capnp.Segment) (HashFactory_newSha1_R
 func ReadRootHashFactory_newSha1_Results(msg *capnp.Message) (HashFactory_newSha1_Results, error) {
 	root, err := msg.RootPtr()
 	return HashFactory_newSha1_Results{root.Struct()}, err
+}
+
+func (s HashFactory_newSha1_Results) String() string {
+	str, _ := text.Marshal(0xea3e50f7663f7bdf, s.Struct)
+	return str
 }
 
 func (s HashFactory_newSha1_Results) Hash() Hash {
@@ -301,6 +312,11 @@ func ReadRootHash_write_Params(msg *capnp.Message) (Hash_write_Params, error) {
 	return Hash_write_Params{root.Struct()}, err
 }
 
+func (s Hash_write_Params) String() string {
+	str, _ := text.Marshal(0xdffe94ae546cdee3, s.Struct)
+	return str
+}
+
 func (s Hash_write_Params) Data() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
 	return []byte(p.Data()), err
@@ -361,6 +377,11 @@ func ReadRootHash_write_Results(msg *capnp.Message) (Hash_write_Results, error) 
 	return Hash_write_Results{root.Struct()}, err
 }
 
+func (s Hash_write_Results) String() string {
+	str, _ := text.Marshal(0x80ac741ec7fb8f65, s.Struct)
+	return str
+}
+
 // Hash_write_Results_List is a list of Hash_write_Results.
 type Hash_write_Results_List struct{ capnp.List }
 
@@ -403,6 +424,11 @@ func ReadRootHash_sum_Params(msg *capnp.Message) (Hash_sum_Params, error) {
 	return Hash_sum_Params{root.Struct()}, err
 }
 
+func (s Hash_sum_Params) String() string {
+	str, _ := text.Marshal(0xe74bb2d0190cf89c, s.Struct)
+	return str
+}
+
 // Hash_sum_Params_List is a list of Hash_sum_Params.
 type Hash_sum_Params_List struct{ capnp.List }
 
@@ -441,6 +467,11 @@ func NewRootHash_sum_Results(s *capnp.Segment) (Hash_sum_Results, error) {
 func ReadRootHash_sum_Results(msg *capnp.Message) (Hash_sum_Results, error) {
 	root, err := msg.RootPtr()
 	return Hash_sum_Results{root.Struct()}, err
+}
+
+func (s Hash_sum_Results) String() string {
+	str, _ := text.Marshal(0xd093963b95a4e107, s.Struct)
+	return str
 }
 
 func (s Hash_sum_Results) Hash() ([]byte, error) {

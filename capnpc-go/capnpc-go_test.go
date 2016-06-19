@@ -241,19 +241,46 @@ func TestDefineFile(t *testing.T) {
 
 	const iterations = 3
 
+	defaultOptions := genoptions{
+		promises:      true,
+		schemas:       true,
+		structStrings: true,
+	}
 	tests := []struct {
 		fileID uint64
 		fname  string
 		opts   genoptions
 	}{
-		{0x832bcc6686a26d56, "aircraft.capnp.out", genoptions{promises: false, schemas: false}},
-		{0x832bcc6686a26d56, "aircraft.capnp.out", genoptions{promises: false, schemas: true}},
-		{0x832bcc6686a26d56, "aircraft.capnp.out", genoptions{promises: true, schemas: false}},
-		{0x832bcc6686a26d56, "aircraft.capnp.out", genoptions{promises: true, schemas: true}},
-		{0x83c2b5818e83ab19, "group.capnp.out", genoptions{promises: true}},
-		{0xb312981b2552a250, "rpc.capnp.out", genoptions{promises: true, schemas: true}},
-		{0xd68755941d99d05e, "scopes.capnp.out", genoptions{promises: true, schemas: true}},
-		{0xecd50d792c3d9992, "util.capnp.out", genoptions{promises: true, schemas: true}},
+		{0x832bcc6686a26d56, "aircraft.capnp.out", defaultOptions},
+		{0x832bcc6686a26d56, "aircraft.capnp.out", genoptions{
+			promises:      false,
+			schemas:       false,
+			structStrings: false,
+		}},
+		{0x832bcc6686a26d56, "aircraft.capnp.out", genoptions{
+			promises:      true,
+			schemas:       false,
+			structStrings: false,
+		}},
+		{0x832bcc6686a26d56, "aircraft.capnp.out", genoptions{
+			promises:      false,
+			schemas:       true,
+			structStrings: false,
+		}},
+		{0x832bcc6686a26d56, "aircraft.capnp.out", genoptions{
+			promises:      true,
+			schemas:       true,
+			structStrings: false,
+		}},
+		{0x832bcc6686a26d56, "aircraft.capnp.out", genoptions{
+			promises:      false,
+			schemas:       true,
+			structStrings: true,
+		}},
+		{0x83c2b5818e83ab19, "group.capnp.out", defaultOptions},
+		{0xb312981b2552a250, "rpc.capnp.out", defaultOptions},
+		{0xd68755941d99d05e, "scopes.capnp.out", defaultOptions},
+		{0xecd50d792c3d9992, "util.capnp.out", defaultOptions},
 	}
 	for _, test := range tests {
 		data, err := readTestFile(test.fname)

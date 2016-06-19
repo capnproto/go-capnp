@@ -7,6 +7,7 @@ import (
 	math "math"
 	strconv "strconv"
 	capnp "zombiezen.com/go/capnproto2"
+	text "zombiezen.com/go/capnproto2/encoding/text"
 	schemas "zombiezen.com/go/capnproto2/schemas"
 	server "zombiezen.com/go/capnproto2/server"
 )
@@ -37,6 +38,11 @@ func NewRootZdate(s *capnp.Segment) (Zdate, error) {
 func ReadRootZdate(msg *capnp.Message) (Zdate, error) {
 	root, err := msg.RootPtr()
 	return Zdate{root.Struct()}, err
+}
+
+func (s Zdate) String() string {
+	str, _ := text.Marshal(0xde50aebbad57549d, s.Struct)
+	return str
 }
 
 func (s Zdate) Year() int16 {
@@ -99,6 +105,11 @@ func NewRootZdata(s *capnp.Segment) (Zdata, error) {
 func ReadRootZdata(msg *capnp.Message) (Zdata, error) {
 	root, err := msg.RootPtr()
 	return Zdata{root.Struct()}, err
+}
+
+func (s Zdata) String() string {
+	str, _ := text.Marshal(0xc7da65f9a2f20ba2, s.Struct)
+	return str
 }
 
 func (s Zdata) Data() ([]byte, error) {
@@ -234,6 +245,11 @@ func ReadRootPlaneBase(msg *capnp.Message) (PlaneBase, error) {
 	return PlaneBase{root.Struct()}, err
 }
 
+func (s PlaneBase) String() string {
+	str, _ := text.Marshal(0xd8bccf6e60a73791, s.Struct)
+	return str
+}
+
 func (s PlaneBase) Name() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -352,6 +368,11 @@ func ReadRootB737(msg *capnp.Message) (B737, error) {
 	return B737{root.Struct()}, err
 }
 
+func (s B737) String() string {
+	str, _ := text.Marshal(0xccb3b2e3603826e0, s.Struct)
+	return str
+}
+
 func (s B737) Base() (PlaneBase, error) {
 	p, err := s.Struct.Ptr(0)
 	return PlaneBase{Struct: p.Struct()}, err
@@ -417,6 +438,11 @@ func NewRootA320(s *capnp.Segment) (A320, error) {
 func ReadRootA320(msg *capnp.Message) (A320, error) {
 	root, err := msg.RootPtr()
 	return A320{root.Struct()}, err
+}
+
+func (s A320) String() string {
+	str, _ := text.Marshal(0xd98c608877d9cb8d, s.Struct)
+	return str
 }
 
 func (s A320) Base() (PlaneBase, error) {
@@ -486,6 +512,11 @@ func ReadRootF16(msg *capnp.Message) (F16, error) {
 	return F16{root.Struct()}, err
 }
 
+func (s F16) String() string {
+	str, _ := text.Marshal(0xe1c9eac512335361, s.Struct)
+	return str
+}
+
 func (s F16) Base() (PlaneBase, error) {
 	p, err := s.Struct.Ptr(0)
 	return PlaneBase{Struct: p.Struct()}, err
@@ -551,6 +582,11 @@ func NewRootRegression(s *capnp.Segment) (Regression, error) {
 func ReadRootRegression(msg *capnp.Message) (Regression, error) {
 	root, err := msg.RootPtr()
 	return Regression{root.Struct()}, err
+}
+
+func (s Regression) String() string {
+	str, _ := text.Marshal(0xb1f0385d845e367f, s.Struct)
+	return str
 }
 
 func (s Regression) Base() (PlaneBase, error) {
@@ -716,6 +752,11 @@ func NewRootAircraft(s *capnp.Segment) (Aircraft, error) {
 func ReadRootAircraft(msg *capnp.Message) (Aircraft, error) {
 	root, err := msg.RootPtr()
 	return Aircraft{root.Struct()}, err
+}
+
+func (s Aircraft) String() string {
+	str, _ := text.Marshal(0xe54e10aede55c7b1, s.Struct)
+	return str
 }
 
 func (s Aircraft) Which() Aircraft_Which {
@@ -987,6 +1028,11 @@ func NewRootZ(s *capnp.Segment) (Z, error) {
 func ReadRootZ(msg *capnp.Message) (Z, error) {
 	root, err := msg.RootPtr()
 	return Z{root.Struct()}, err
+}
+
+func (s Z) String() string {
+	str, _ := text.Marshal(0xea26e9973bd6a0d9, s.Struct)
+	return str
 }
 
 func (s Z) Which() Z_Which {
@@ -1897,6 +1943,11 @@ func ReadRootCounter(msg *capnp.Message) (Counter, error) {
 	return Counter{root.Struct()}, err
 }
 
+func (s Counter) String() string {
+	str, _ := text.Marshal(0x8748bc095e10cb5d, s.Struct)
+	return str
+}
+
 func (s Counter) Size() int64 {
 	return int64(s.Struct.Uint64(0))
 }
@@ -1991,6 +2042,11 @@ func ReadRootBag(msg *capnp.Message) (Bag, error) {
 	return Bag{root.Struct()}, err
 }
 
+func (s Bag) String() string {
+	str, _ := text.Marshal(0xd636fba4f188dabe, s.Struct)
+	return str
+}
+
 func (s Bag) Counter() (Counter, error) {
 	p, err := s.Struct.Ptr(0)
 	return Counter{Struct: p.Struct()}, err
@@ -2058,6 +2114,11 @@ func ReadRootZserver(msg *capnp.Message) (Zserver, error) {
 	return Zserver{root.Struct()}, err
 }
 
+func (s Zserver) String() string {
+	str, _ := text.Marshal(0xcc4411e60ba9c498, s.Struct)
+	return str
+}
+
 func (s Zserver) Waitingjobs() (Zjob_List, error) {
 	p, err := s.Struct.Ptr(0)
 	return Zjob_List{List: p.List()}, err
@@ -2119,6 +2180,11 @@ func NewRootZjob(s *capnp.Segment) (Zjob, error) {
 func ReadRootZjob(msg *capnp.Message) (Zjob, error) {
 	root, err := msg.RootPtr()
 	return Zjob{root.Struct()}, err
+}
+
+func (s Zjob) String() string {
+	str, _ := text.Marshal(0xddd1416669fb7613, s.Struct)
+	return str
 }
 
 func (s Zjob) Cmd() (string, error) {
@@ -2207,6 +2273,11 @@ func ReadRootVerEmpty(msg *capnp.Message) (VerEmpty, error) {
 	return VerEmpty{root.Struct()}, err
 }
 
+func (s VerEmpty) String() string {
+	str, _ := text.Marshal(0x93c99951eacc72ff, s.Struct)
+	return str
+}
+
 // VerEmpty_List is a list of VerEmpty.
 type VerEmpty_List struct{ capnp.List }
 
@@ -2243,6 +2314,11 @@ func NewRootVerOneData(s *capnp.Segment) (VerOneData, error) {
 func ReadRootVerOneData(msg *capnp.Message) (VerOneData, error) {
 	root, err := msg.RootPtr()
 	return VerOneData{root.Struct()}, err
+}
+
+func (s VerOneData) String() string {
+	str, _ := text.Marshal(0xfca3742893be4cde, s.Struct)
+	return str
 }
 
 func (s VerOneData) Val() int16 {
@@ -2289,6 +2365,11 @@ func NewRootVerTwoData(s *capnp.Segment) (VerTwoData, error) {
 func ReadRootVerTwoData(msg *capnp.Message) (VerTwoData, error) {
 	root, err := msg.RootPtr()
 	return VerTwoData{root.Struct()}, err
+}
+
+func (s VerTwoData) String() string {
+	str, _ := text.Marshal(0xf705dc45c94766fd, s.Struct)
+	return str
 }
 
 func (s VerTwoData) Val() int16 {
@@ -2343,6 +2424,11 @@ func NewRootVerOnePtr(s *capnp.Segment) (VerOnePtr, error) {
 func ReadRootVerOnePtr(msg *capnp.Message) (VerOnePtr, error) {
 	root, err := msg.RootPtr()
 	return VerOnePtr{root.Struct()}, err
+}
+
+func (s VerOnePtr) String() string {
+	str, _ := text.Marshal(0x94bf7df83408218d, s.Struct)
+	return str
 }
 
 func (s VerOnePtr) Ptr() (VerOneData, error) {
@@ -2410,6 +2496,11 @@ func NewRootVerTwoPtr(s *capnp.Segment) (VerTwoPtr, error) {
 func ReadRootVerTwoPtr(msg *capnp.Message) (VerTwoPtr, error) {
 	root, err := msg.RootPtr()
 	return VerTwoPtr{root.Struct()}, err
+}
+
+func (s VerTwoPtr) String() string {
+	str, _ := text.Marshal(0xc95babe3bd394d2d, s.Struct)
+	return str
 }
 
 func (s VerTwoPtr) Ptr1() (VerOneData, error) {
@@ -2506,6 +2597,11 @@ func NewRootVerTwoDataTwoPtr(s *capnp.Segment) (VerTwoDataTwoPtr, error) {
 func ReadRootVerTwoDataTwoPtr(msg *capnp.Message) (VerTwoDataTwoPtr, error) {
 	root, err := msg.RootPtr()
 	return VerTwoDataTwoPtr{root.Struct()}, err
+}
+
+func (s VerTwoDataTwoPtr) String() string {
+	str, _ := text.Marshal(0xb61ee2ecff34ca73, s.Struct)
+	return str
 }
 
 func (s VerTwoDataTwoPtr) Val() int16 {
@@ -2622,6 +2718,11 @@ func ReadRootHoldsVerEmptyList(msg *capnp.Message) (HoldsVerEmptyList, error) {
 	return HoldsVerEmptyList{root.Struct()}, err
 }
 
+func (s HoldsVerEmptyList) String() string {
+	str, _ := text.Marshal(0xde9ed43cfaa83093, s.Struct)
+	return str
+}
+
 func (s HoldsVerEmptyList) Mylist() (VerEmpty_List, error) {
 	p, err := s.Struct.Ptr(0)
 	return VerEmpty_List{List: p.List()}, err
@@ -2687,6 +2788,11 @@ func NewRootHoldsVerOneDataList(s *capnp.Segment) (HoldsVerOneDataList, error) {
 func ReadRootHoldsVerOneDataList(msg *capnp.Message) (HoldsVerOneDataList, error) {
 	root, err := msg.RootPtr()
 	return HoldsVerOneDataList{root.Struct()}, err
+}
+
+func (s HoldsVerOneDataList) String() string {
+	str, _ := text.Marshal(0xabd055422a4d7df1, s.Struct)
+	return str
 }
 
 func (s HoldsVerOneDataList) Mylist() (VerOneData_List, error) {
@@ -2756,6 +2862,11 @@ func ReadRootHoldsVerTwoDataList(msg *capnp.Message) (HoldsVerTwoDataList, error
 	return HoldsVerTwoDataList{root.Struct()}, err
 }
 
+func (s HoldsVerTwoDataList) String() string {
+	str, _ := text.Marshal(0xcbdc765fd5dff7ba, s.Struct)
+	return str
+}
+
 func (s HoldsVerTwoDataList) Mylist() (VerTwoData_List, error) {
 	p, err := s.Struct.Ptr(0)
 	return VerTwoData_List{List: p.List()}, err
@@ -2821,6 +2932,11 @@ func NewRootHoldsVerOnePtrList(s *capnp.Segment) (HoldsVerOnePtrList, error) {
 func ReadRootHoldsVerOnePtrList(msg *capnp.Message) (HoldsVerOnePtrList, error) {
 	root, err := msg.RootPtr()
 	return HoldsVerOnePtrList{root.Struct()}, err
+}
+
+func (s HoldsVerOnePtrList) String() string {
+	str, _ := text.Marshal(0xe508a29c83a059f8, s.Struct)
+	return str
 }
 
 func (s HoldsVerOnePtrList) Mylist() (VerOnePtr_List, error) {
@@ -2890,6 +3006,11 @@ func ReadRootHoldsVerTwoPtrList(msg *capnp.Message) (HoldsVerTwoPtrList, error) 
 	return HoldsVerTwoPtrList{root.Struct()}, err
 }
 
+func (s HoldsVerTwoPtrList) String() string {
+	str, _ := text.Marshal(0xcf9beaca1cc180c8, s.Struct)
+	return str
+}
+
 func (s HoldsVerTwoPtrList) Mylist() (VerTwoPtr_List, error) {
 	p, err := s.Struct.Ptr(0)
 	return VerTwoPtr_List{List: p.List()}, err
@@ -2955,6 +3076,11 @@ func NewRootHoldsVerTwoTwoList(s *capnp.Segment) (HoldsVerTwoTwoList, error) {
 func ReadRootHoldsVerTwoTwoList(msg *capnp.Message) (HoldsVerTwoTwoList, error) {
 	root, err := msg.RootPtr()
 	return HoldsVerTwoTwoList{root.Struct()}, err
+}
+
+func (s HoldsVerTwoTwoList) String() string {
+	str, _ := text.Marshal(0x95befe3f14606e6b, s.Struct)
+	return str
 }
 
 func (s HoldsVerTwoTwoList) Mylist() (VerTwoDataTwoPtr_List, error) {
@@ -3024,6 +3150,11 @@ func ReadRootHoldsVerTwoTwoPlus(msg *capnp.Message) (HoldsVerTwoTwoPlus, error) 
 	return HoldsVerTwoTwoPlus{root.Struct()}, err
 }
 
+func (s HoldsVerTwoTwoPlus) String() string {
+	str, _ := text.Marshal(0x87c33f2330feb3d8, s.Struct)
+	return str
+}
+
 func (s HoldsVerTwoTwoPlus) Mylist() (VerTwoTwoPlus_List, error) {
 	p, err := s.Struct.Ptr(0)
 	return VerTwoTwoPlus_List{List: p.List()}, err
@@ -3089,6 +3220,11 @@ func NewRootVerTwoTwoPlus(s *capnp.Segment) (VerTwoTwoPlus, error) {
 func ReadRootVerTwoTwoPlus(msg *capnp.Message) (VerTwoTwoPlus, error) {
 	root, err := msg.RootPtr()
 	return VerTwoTwoPlus{root.Struct()}, err
+}
+
+func (s VerTwoTwoPlus) String() string {
+	str, _ := text.Marshal(0xce44aee2d9e25049, s.Struct)
+	return str
 }
 
 func (s VerTwoTwoPlus) Val() int16 {
@@ -3236,6 +3372,11 @@ func ReadRootHoldsText(msg *capnp.Message) (HoldsText, error) {
 	return HoldsText{root.Struct()}, err
 }
 
+func (s HoldsText) String() string {
+	str, _ := text.Marshal(0xe5817f849ff906dc, s.Struct)
+	return str
+}
+
 func (s HoldsText) Txt() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -3347,6 +3488,11 @@ func ReadRootWrapEmpty(msg *capnp.Message) (WrapEmpty, error) {
 	return WrapEmpty{root.Struct()}, err
 }
 
+func (s WrapEmpty) String() string {
+	str, _ := text.Marshal(0x9ab599979b02ac59, s.Struct)
+	return str
+}
+
 func (s WrapEmpty) MightNotBeReallyEmpty() (VerEmpty, error) {
 	p, err := s.Struct.Ptr(0)
 	return VerEmpty{Struct: p.Struct()}, err
@@ -3414,6 +3560,11 @@ func ReadRootWrap2x2(msg *capnp.Message) (Wrap2x2, error) {
 	return Wrap2x2{root.Struct()}, err
 }
 
+func (s Wrap2x2) String() string {
+	str, _ := text.Marshal(0xe1a2d1d51107bead, s.Struct)
+	return str
+}
+
 func (s Wrap2x2) MightNotBeReallyEmpty() (VerTwoDataTwoPtr, error) {
 	p, err := s.Struct.Ptr(0)
 	return VerTwoDataTwoPtr{Struct: p.Struct()}, err
@@ -3479,6 +3630,11 @@ func NewRootWrap2x2plus(s *capnp.Segment) (Wrap2x2plus, error) {
 func ReadRootWrap2x2plus(msg *capnp.Message) (Wrap2x2plus, error) {
 	root, err := msg.RootPtr()
 	return Wrap2x2plus{root.Struct()}, err
+}
+
+func (s Wrap2x2plus) String() string {
+	str, _ := text.Marshal(0xe684eb3aef1a6859, s.Struct)
+	return str
 }
 
 func (s Wrap2x2plus) MightNotBeReallyEmpty() (VerTwoTwoPlus, error) {
@@ -3566,6 +3722,11 @@ func ReadRootVoidUnion(msg *capnp.Message) (VoidUnion, error) {
 	return VoidUnion{root.Struct()}, err
 }
 
+func (s VoidUnion) String() string {
+	str, _ := text.Marshal(0x8821cdb23640783a, s.Struct)
+	return str
+}
+
 func (s VoidUnion) Which() VoidUnion_Which {
 	return VoidUnion_Which(s.Struct.Uint16(0))
 }
@@ -3615,6 +3776,11 @@ func NewRootNester1Capn(s *capnp.Segment) (Nester1Capn, error) {
 func ReadRootNester1Capn(msg *capnp.Message) (Nester1Capn, error) {
 	root, err := msg.RootPtr()
 	return Nester1Capn{root.Struct()}, err
+}
+
+func (s Nester1Capn) String() string {
+	str, _ := text.Marshal(0xf14fad09425d081c, s.Struct)
+	return str
 }
 
 func (s Nester1Capn) Strs() (capnp.TextList, error) {
@@ -3680,6 +3846,11 @@ func ReadRootRWTestCapn(msg *capnp.Message) (RWTestCapn, error) {
 	return RWTestCapn{root.Struct()}, err
 }
 
+func (s RWTestCapn) String() string {
+	str, _ := text.Marshal(0xf7ff4414476c186a, s.Struct)
+	return str
+}
+
 func (s RWTestCapn) NestMatrix() (capnp.PointerList, error) {
 	p, err := s.Struct.Ptr(0)
 	return capnp.PointerList{List: p.List()}, err
@@ -3741,6 +3912,11 @@ func NewRootListStructCapn(s *capnp.Segment) (ListStructCapn, error) {
 func ReadRootListStructCapn(msg *capnp.Message) (ListStructCapn, error) {
 	root, err := msg.RootPtr()
 	return ListStructCapn{root.Struct()}, err
+}
+
+func (s ListStructCapn) String() string {
+	str, _ := text.Marshal(0xb1ac056ed7647011, s.Struct)
+	return str
 }
 
 func (s ListStructCapn) Vec() (Nester1Capn_List, error) {
@@ -3868,6 +4044,11 @@ func ReadRootEcho_echo_Params(msg *capnp.Message) (Echo_echo_Params, error) {
 	return Echo_echo_Params{root.Struct()}, err
 }
 
+func (s Echo_echo_Params) String() string {
+	str, _ := text.Marshal(0x8a165fb4d71bf3a2, s.Struct)
+	return str
+}
+
 func (s Echo_echo_Params) In() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -3929,6 +4110,11 @@ func NewRootEcho_echo_Results(s *capnp.Segment) (Echo_echo_Results, error) {
 func ReadRootEcho_echo_Results(msg *capnp.Message) (Echo_echo_Results, error) {
 	root, err := msg.RootPtr()
 	return Echo_echo_Results{root.Struct()}, err
+}
+
+func (s Echo_echo_Results) String() string {
+	str, _ := text.Marshal(0x9b37d729b9dd7b9d, s.Struct)
+	return str
 }
 
 func (s Echo_echo_Results) Out() (string, error) {
@@ -3994,6 +4180,11 @@ func NewRootHoth(s *capnp.Segment) (Hoth, error) {
 func ReadRootHoth(msg *capnp.Message) (Hoth, error) {
 	root, err := msg.RootPtr()
 	return Hoth{root.Struct()}, err
+}
+
+func (s Hoth) String() string {
+	str, _ := text.Marshal(0xad87da456fb0ebb9, s.Struct)
+	return str
 }
 
 func (s Hoth) Base() (EchoBase, error) {
@@ -4063,6 +4254,11 @@ func ReadRootEchoBase(msg *capnp.Message) (EchoBase, error) {
 	return EchoBase{root.Struct()}, err
 }
 
+func (s EchoBase) String() string {
+	str, _ := text.Marshal(0xa8bf13fef2674866, s.Struct)
+	return str
+}
+
 func (s EchoBase) Echo() Echo {
 	p, _ := s.Struct.Ptr(0)
 	return Echo{Client: p.Interface().Client()}
@@ -4122,6 +4318,11 @@ func NewRootStackingRoot(s *capnp.Segment) (StackingRoot, error) {
 func ReadRootStackingRoot(msg *capnp.Message) (StackingRoot, error) {
 	root, err := msg.RootPtr()
 	return StackingRoot{root.Struct()}, err
+}
+
+func (s StackingRoot) String() string {
+	str, _ := text.Marshal(0x8fae7b41c61fc890, s.Struct)
+	return str
 }
 
 func (s StackingRoot) A() (StackingA, error) {
@@ -4224,6 +4425,11 @@ func ReadRootStackingA(msg *capnp.Message) (StackingA, error) {
 	return StackingA{root.Struct()}, err
 }
 
+func (s StackingA) String() string {
+	str, _ := text.Marshal(0x9d3032ff86043b75, s.Struct)
+	return str
+}
+
 func (s StackingA) Num() int32 {
 	return int32(s.Struct.Uint32(0))
 }
@@ -4297,6 +4503,11 @@ func NewRootStackingB(s *capnp.Segment) (StackingB, error) {
 func ReadRootStackingB(msg *capnp.Message) (StackingB, error) {
 	root, err := msg.RootPtr()
 	return StackingB{root.Struct()}, err
+}
+
+func (s StackingB) String() string {
+	str, _ := text.Marshal(0x85257b30d6edf8c5, s.Struct)
+	return str
 }
 
 func (s StackingB) Num() int32 {
@@ -4407,6 +4618,11 @@ func ReadRootCallSequence_getNumber_Params(msg *capnp.Message) (CallSequence_get
 	return CallSequence_getNumber_Params{root.Struct()}, err
 }
 
+func (s CallSequence_getNumber_Params) String() string {
+	str, _ := text.Marshal(0xf58782f48a121998, s.Struct)
+	return str
+}
+
 // CallSequence_getNumber_Params_List is a list of CallSequence_getNumber_Params.
 type CallSequence_getNumber_Params_List struct{ capnp.List }
 
@@ -4447,6 +4663,11 @@ func NewRootCallSequence_getNumber_Results(s *capnp.Segment) (CallSequence_getNu
 func ReadRootCallSequence_getNumber_Results(msg *capnp.Message) (CallSequence_getNumber_Results, error) {
 	root, err := msg.RootPtr()
 	return CallSequence_getNumber_Results{root.Struct()}, err
+}
+
+func (s CallSequence_getNumber_Results) String() string {
+	str, _ := text.Marshal(0xa465f9502fd11e97, s.Struct)
+	return str
 }
 
 func (s CallSequence_getNumber_Results) N() uint32 {
@@ -4497,6 +4718,11 @@ func NewRootDefaults(s *capnp.Segment) (Defaults, error) {
 func ReadRootDefaults(msg *capnp.Message) (Defaults, error) {
 	root, err := msg.RootPtr()
 	return Defaults{root.Struct()}, err
+}
+
+func (s Defaults) String() string {
+	str, _ := text.Marshal(0x97e38948c61f878d, s.Struct)
+	return str
 }
 
 func (s Defaults) Text() (string, error) {
@@ -4600,6 +4826,11 @@ func NewRootBenchmarkA(s *capnp.Segment) (BenchmarkA, error) {
 func ReadRootBenchmarkA(msg *capnp.Message) (BenchmarkA, error) {
 	root, err := msg.RootPtr()
 	return BenchmarkA{root.Struct()}, err
+}
+
+func (s BenchmarkA) String() string {
+	str, _ := text.Marshal(0xde2a1a960863c11c, s.Struct)
+	return str
 }
 
 func (s BenchmarkA) Name() (string, error) {

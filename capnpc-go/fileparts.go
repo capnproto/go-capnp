@@ -66,6 +66,7 @@ func (i *imports) init() {
 	i.reserve(capnpImportSpec)
 	i.reserve(importSpec{path: schemasImport, name: "schemas"})
 	i.reserve(importSpec{path: serverImport, name: "server"})
+	i.reserve(importSpec{path: textImport, name: "text"})
 	i.reserve(importSpec{path: contextImport, name: "context"})
 
 	i.reserve(importSpec{path: "math", name: "math"})
@@ -82,6 +83,10 @@ func (i *imports) Schemas() string {
 
 func (i *imports) Server() string {
 	return i.add(importSpec{path: serverImport, name: "server"})
+}
+
+func (i *imports) Text() string {
+	return i.add(importSpec{path: textImport, name: "text"})
 }
 
 func (i *imports) Context() string {

@@ -12,4 +12,10 @@ func ReadRoot{{.Node.Name}}(msg *{{.G.Capnp}}.Message) ({{.Node.Name}}, error) {
 	root, err := msg.RootPtr()
 	return {{.Node.Name}}{root.Struct()}, err
 }
+{{if .StringMethod}}
+func (s {{.Node.Name}}) String() string {
+	str, _ := {{.G.Imports.Text}}.Marshal({{.Node.Id|printf "%#x"}}, s.Struct)
+	return str
+}
+{{end}}
 
