@@ -32,7 +32,17 @@ type Z struct {
 	Text string
 	Blob []byte
 
-	Airport air.Airport
+	Planebase *PlaneBase
+	Airport   air.Airport
+}
+
+type PlaneBase struct {
+	Name string
+	// TODO(light): Homes []air.Airport
+	Rating   int64
+	CanFly   bool
+	Capacity int64
+	MaxSpeed float64
 }
 
 func zequal(g *Z, c air.Z) (bool, error) {
@@ -74,6 +84,19 @@ func zequal(g *Z, c air.Z) (bool, error) {
 			return false, err
 		}
 		return bytes.Equal(g.Blob, blob), nil
+	case air.Z_Which_planebase:
+		pb, err := c.Planebase()
+		if err != nil {
+			return false, err
+		}
+		if (g.Planebase != nil) != pb.IsValid() {
+			return false, nil
+		}
+		if g.Planebase == nil {
+			return true, nil
+		}
+		name, _ := pb.Name()
+		return g.Planebase.Name == name && g.Planebase.Rating == pb.Rating() && g.Planebase.CanFly == pb.CanFly() && g.Planebase.Capacity == pb.Capacity() && g.Planebase.MaxSpeed == pb.MaxSpeed(), nil
 	case air.Z_Which_airport:
 		return g.Airport == c.Airport(), nil
 	default:
@@ -109,6 +132,22 @@ func zfill(c air.Z, g *Z) error {
 		return c.SetText(g.Text)
 	case air.Z_Which_blob:
 		return c.SetBlob(g.Blob)
+	case air.Z_Which_planebase:
+		if g.Planebase == nil {
+			return c.SetPlanebase(air.PlaneBase{})
+		}
+		pb, err := c.NewPlanebase()
+		if err != nil {
+			return err
+		}
+		if err := pb.SetName(g.Planebase.Name); err != nil {
+			return err
+		}
+		pb.SetRating(g.Planebase.Rating)
+		pb.SetCanFly(g.Planebase.CanFly)
+		pb.SetCapacity(g.Planebase.Capacity)
+		pb.SetMaxSpeed(g.Planebase.MaxSpeed)
+		return nil
 	case air.Z_Which_airport:
 		c.SetAirport(g.Airport)
 	default:
@@ -132,6 +171,14 @@ var goodTests = []Z{
 	{Which: air.Z_Which_bool, Bool: false},
 	{Which: air.Z_Which_text, Text: "Hello, World!"},
 	{Which: air.Z_Which_blob, Blob: []byte("Hello, World!")},
+	{Which: air.Z_Which_planebase, Planebase: nil},
+	{Which: air.Z_Which_planebase, Planebase: &PlaneBase{
+		Name:     "Boeing",
+		Rating:   123,
+		CanFly:   true,
+		Capacity: 100,
+		MaxSpeed: 9001.0,
+	}},
 	{Which: air.Z_Which_airport, Airport: air.Airport_lax},
 }
 

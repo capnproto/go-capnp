@@ -185,6 +185,27 @@ func (e *extracter) extractField(val reflect.Value, s capnp.Struct, f schema.Fie
 			b, _ = dv.Data()
 		}
 		val.SetBytes(b)
+	case schema.Type_Which_structType:
+		p, err := s.Ptr(uint16(f.Slot().Offset()))
+		if err != nil {
+			return err
+		}
+		ss := p.Struct()
+		if !ss.IsValid() {
+			p, _ = dv.StructValuePtr()
+			ss = p.Struct()
+		}
+		if val.Kind() == reflect.Struct {
+			return e.extractStruct(val, typ.StructType().TypeId(), ss)
+		}
+		// Pointer to struct otherwise.
+		if !ss.IsValid() {
+			val.Set(reflect.Zero(val.Type()))
+			return nil
+		}
+		newval := reflect.New(val.Type().Elem())
+		val.Set(newval)
+		return e.extractStruct(newval, typ.StructType().TypeId(), ss)
 	default:
 		return fmt.Errorf("unknown field type %v", typ.Which())
 	}
@@ -212,6 +233,8 @@ func isTypeMatch(r reflect.Type, s schema.Type) bool {
 		return r.Kind() == reflect.String || r.Kind() == reflect.Slice && r.Elem().Kind() == reflect.Uint8
 	case schema.Type_Which_data:
 		return r.Kind() == reflect.Slice && r.Elem().Kind() == reflect.Uint8
+	case schema.Type_Which_structType:
+		return r.Kind() == reflect.Struct || r.Kind() == reflect.Ptr && r.Elem().Kind() == reflect.Struct
 	}
 	k, ok := typeMap[s.Which()]
 	return ok && k == r.Kind()

@@ -175,6 +175,32 @@ func (ins *inserter) insertField(s capnp.Struct, f schema.Field, val reflect.Val
 			return err
 		}
 		return s.SetPtr(off, data.ToPtr())
+	case schema.Type_Which_structType:
+		off := uint16(f.Slot().Offset())
+		sval := val
+		if val.Kind() == reflect.Ptr {
+			if val.IsNil() {
+				return s.SetPtr(off, capnp.Ptr{})
+			}
+			sval = val.Elem()
+		}
+		id := typ.StructType().TypeId()
+		snode, err := ins.nodes.Find(id)
+		if err != nil {
+			return err
+		}
+		sz := capnp.ObjectSize{
+			DataSize:     capnp.Size(snode.StructNode().DataWordCount()) * 8,
+			PointerCount: snode.StructNode().PointerCount(),
+		}
+		ss, err := capnp.NewStruct(s.Segment(), sz)
+		if err != nil {
+			return err
+		}
+		if err := s.SetPtr(off, ss.ToPtr()); err != nil {
+			return err
+		}
+		return ins.insertStruct(id, ss, sval)
 	default:
 		return fmt.Errorf("unknown field type %v", typ.Which())
 	}
