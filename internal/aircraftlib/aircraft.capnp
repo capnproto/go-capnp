@@ -118,6 +118,10 @@ struct Z {
     u16vec            @23: List(UInt16);
     u8vec             @24: List(UInt8);
 
+    boolvec           @39: List(Bool);
+    datavec           @40: List(Data);
+    textvec           @41: List(Text);
+
     zvec              @25: List(Z);
     zvecvec           @26: List(List(Z));
 
@@ -134,8 +138,6 @@ struct Z {
     f16               @36: F16;
     zdatevec          @37: List(Zdate);
     zdatavec          @38: List(Zdata);
-
-    boolvec           @39: List(Bool);
   }
 }
 
