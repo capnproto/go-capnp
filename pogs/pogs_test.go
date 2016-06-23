@@ -58,6 +58,196 @@ type PlaneBase struct {
 	MaxSpeed float64
 }
 
+var goodTests = []Z{
+	{Which: air.Z_Which_f64, F64: 3.5},
+	{Which: air.Z_Which_f32, F32: 3.5},
+	{Which: air.Z_Which_i64, I64: -123},
+	{Which: air.Z_Which_i32, I32: -123},
+	{Which: air.Z_Which_i16, I16: -123},
+	{Which: air.Z_Which_i8, I8: -123},
+	{Which: air.Z_Which_u64, U64: 123},
+	{Which: air.Z_Which_u32, U32: 123},
+	{Which: air.Z_Which_u16, U16: 123},
+	{Which: air.Z_Which_u8, U8: 123},
+	{Which: air.Z_Which_bool, Bool: true},
+	{Which: air.Z_Which_bool, Bool: false},
+	{Which: air.Z_Which_text, Text: "Hello, World!"},
+	{Which: air.Z_Which_blob, Blob: []byte("Hello, World!")},
+	{Which: air.Z_Which_f64vec, F64vec: nil},
+	{Which: air.Z_Which_f64vec, F64vec: []float64{-2.0, 4.5}},
+	{Which: air.Z_Which_f32vec, F32vec: nil},
+	{Which: air.Z_Which_f32vec, F32vec: []float32{-2.0, 4.5}},
+	{Which: air.Z_Which_i64vec, I64vec: nil},
+	{Which: air.Z_Which_i64vec, I64vec: []int64{-123, 0, 123}},
+	{Which: air.Z_Which_i8vec, I8vec: nil},
+	{Which: air.Z_Which_i8vec, I8vec: []int8{-123, 0, 123}},
+	{Which: air.Z_Which_u64vec, U64vec: nil},
+	{Which: air.Z_Which_u64vec, U64vec: []uint64{0, 123}},
+	{Which: air.Z_Which_u8vec, U8vec: nil},
+	{Which: air.Z_Which_u8vec, U8vec: []uint8{0, 123}},
+	{Which: air.Z_Which_boolvec, Boolvec: nil},
+	{Which: air.Z_Which_boolvec, Boolvec: []bool{false, true, false}},
+	{Which: air.Z_Which_datavec, Datavec: nil},
+	{Which: air.Z_Which_datavec, Datavec: [][]byte{[]byte("hi"), []byte("bye")}},
+	{Which: air.Z_Which_textvec, Textvec: nil},
+	{Which: air.Z_Which_textvec, Textvec: []string{"John", "Paul", "George", "Ringo"}},
+	{Which: air.Z_Which_planebase, Planebase: nil},
+	{Which: air.Z_Which_planebase, Planebase: &PlaneBase{
+		Name:     "Boeing",
+		Rating:   123,
+		CanFly:   true,
+		Capacity: 100,
+		MaxSpeed: 9001.0,
+	}},
+	{Which: air.Z_Which_airport, Airport: air.Airport_lax},
+}
+
+func TestExtract(t *testing.T) {
+	for _, test := range goodTests {
+		_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		if err != nil {
+			t.Errorf("NewMessage for %+v: %v", test, err)
+			continue
+		}
+		z, err := air.NewRootZ(seg)
+		if err != nil {
+			t.Errorf("NewRootZ for %+v: %v", test, err)
+			continue
+		}
+		if err := zfill(z, &test); err != nil {
+			t.Errorf("zfill for %+v: %v", test, err)
+			continue
+		}
+		out := new(Z)
+		if err := Extract(out, zTypeID, z.Struct); err != nil {
+			t.Errorf("Extract(%v) error: %v", z, err)
+		}
+		if !reflect.DeepEqual(out, &test) {
+			t.Errorf("Extract(%v) produced %+v; want %+v", z, out, &test)
+		}
+	}
+}
+
+func TestInsert(t *testing.T) {
+	for _, test := range goodTests {
+		_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		if err != nil {
+			t.Errorf("NewMessage for %+v: %v", test, err)
+			continue
+		}
+		z, err := air.NewRootZ(seg)
+		if err != nil {
+			t.Errorf("NewRootZ for %+v: %v", test, err)
+			continue
+		}
+		err = Insert(zTypeID, z.Struct, &test)
+		if err != nil {
+			t.Errorf("Insert(%+v) error: %v", test, err)
+		}
+		if equal, err := zequal(&test, z); err != nil {
+			t.Errorf("Insert(%+v) compare err: %v", test, err)
+		} else if !equal {
+			t.Errorf("Insert(%+v) produced %v", test, z)
+		}
+	}
+}
+
+type BytesZ struct {
+	Which   air.Z_Which
+	Text    []byte
+	Textvec [][]byte
+}
+
+func TestExtract_StringBytes(t *testing.T) {
+	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		t.Fatalf("NewMessage: %v", err)
+	}
+	z, err := air.NewRootZ(seg)
+	if err != nil {
+		t.Fatalf("NewRootZ: %v", err)
+	}
+	err = zfill(z, &Z{Which: air.Z_Which_text, Text: "Hello, World!"})
+	if err != nil {
+		t.Fatalf("zfill: %v", err)
+	}
+	out := new(BytesZ)
+	if err := Extract(out, zTypeID, z.Struct); err != nil {
+		t.Errorf("Extract(%v) error: %v", z, err)
+	}
+	want := &BytesZ{Which: air.Z_Which_text, Text: []byte("Hello, World!")}
+	if !reflect.DeepEqual(out, want) {
+		t.Errorf("Extract(%v) produced %+v; want %+v", z, out, want)
+	}
+}
+
+func TestExtract_StringListBytes(t *testing.T) {
+	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		t.Fatalf("NewMessage: %v", err)
+	}
+	z, err := air.NewRootZ(seg)
+	if err != nil {
+		t.Fatalf("NewRootZ: %v", err)
+	}
+	err = zfill(z, &Z{Which: air.Z_Which_textvec, Textvec: []string{"Holmes", "Watson"}})
+	if err != nil {
+		t.Fatalf("zfill: %v", err)
+	}
+	out := new(BytesZ)
+	if err := Extract(out, zTypeID, z.Struct); err != nil {
+		t.Errorf("Extract(%v) error: %v", z, err)
+	}
+	want := &BytesZ{Which: air.Z_Which_textvec, Textvec: [][]byte{[]byte("Holmes"), []byte("Watson")}}
+	if !reflect.DeepEqual(out, want) {
+		t.Errorf("Extract(%v) produced %+v; want %+v", z, out, want)
+	}
+}
+
+func TestInsert_StringBytes(t *testing.T) {
+	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		t.Fatalf("NewMessage: %v", err)
+	}
+	z, err := air.NewRootZ(seg)
+	if err != nil {
+		t.Fatalf("NewRootZ: %v", err)
+	}
+	bz := &BytesZ{Which: air.Z_Which_text, Text: []byte("Hello, World!")}
+	err = Insert(zTypeID, z.Struct, bz)
+	if err != nil {
+		t.Errorf("Insert(%+v) error: %v", bz, err)
+	}
+	want := &Z{Which: air.Z_Which_text, Text: "Hello, World!"}
+	if equal, err := zequal(want, z); err != nil {
+		t.Errorf("Insert(%+v) compare err: %v", bz, err)
+	} else if !equal {
+		t.Errorf("Insert(%+v) produced %v", bz, z)
+	}
+}
+
+func TestInsert_StringListBytes(t *testing.T) {
+	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		t.Fatalf("NewMessage: %v", err)
+	}
+	z, err := air.NewRootZ(seg)
+	if err != nil {
+		t.Fatalf("NewRootZ: %v", err)
+	}
+	bz := &BytesZ{Which: air.Z_Which_textvec, Textvec: [][]byte{[]byte("Holmes"), []byte("Watson")}}
+	err = Insert(zTypeID, z.Struct, bz)
+	if err != nil {
+		t.Errorf("Insert(%+v) error: %v", bz, err)
+	}
+	want := &Z{Which: air.Z_Which_textvec, Textvec: []string{"Holmes", "Watson"}}
+	if equal, err := zequal(want, z); err != nil {
+		t.Errorf("Insert(%+v) compare err: %v", bz, err)
+	} else if !equal {
+		t.Errorf("Insert(%+v) produced %v", bz, z)
+	}
+}
+
 func zequal(g *Z, c air.Z) (bool, error) {
 	if g.Which != c.Which() {
 		return false, nil
@@ -362,194 +552,4 @@ func zfill(c air.Z, g *Z) error {
 		return fmt.Errorf("zfill: unknown type: %v", g.Which)
 	}
 	return nil
-}
-
-var goodTests = []Z{
-	{Which: air.Z_Which_f64, F64: 3.5},
-	{Which: air.Z_Which_f32, F32: 3.5},
-	{Which: air.Z_Which_i64, I64: -123},
-	{Which: air.Z_Which_i32, I32: -123},
-	{Which: air.Z_Which_i16, I16: -123},
-	{Which: air.Z_Which_i8, I8: -123},
-	{Which: air.Z_Which_u64, U64: 123},
-	{Which: air.Z_Which_u32, U32: 123},
-	{Which: air.Z_Which_u16, U16: 123},
-	{Which: air.Z_Which_u8, U8: 123},
-	{Which: air.Z_Which_bool, Bool: true},
-	{Which: air.Z_Which_bool, Bool: false},
-	{Which: air.Z_Which_text, Text: "Hello, World!"},
-	{Which: air.Z_Which_blob, Blob: []byte("Hello, World!")},
-	{Which: air.Z_Which_f64vec, F64vec: nil},
-	{Which: air.Z_Which_f64vec, F64vec: []float64{-2.0, 4.5}},
-	{Which: air.Z_Which_f32vec, F32vec: nil},
-	{Which: air.Z_Which_f32vec, F32vec: []float32{-2.0, 4.5}},
-	{Which: air.Z_Which_i64vec, I64vec: nil},
-	{Which: air.Z_Which_i64vec, I64vec: []int64{-123, 0, 123}},
-	{Which: air.Z_Which_i8vec, I8vec: nil},
-	{Which: air.Z_Which_i8vec, I8vec: []int8{-123, 0, 123}},
-	{Which: air.Z_Which_u64vec, U64vec: nil},
-	{Which: air.Z_Which_u64vec, U64vec: []uint64{0, 123}},
-	{Which: air.Z_Which_u8vec, U8vec: nil},
-	{Which: air.Z_Which_u8vec, U8vec: []uint8{0, 123}},
-	{Which: air.Z_Which_boolvec, Boolvec: nil},
-	{Which: air.Z_Which_boolvec, Boolvec: []bool{false, true, false}},
-	{Which: air.Z_Which_datavec, Datavec: nil},
-	{Which: air.Z_Which_datavec, Datavec: [][]byte{[]byte("hi"), []byte("bye")}},
-	{Which: air.Z_Which_textvec, Textvec: nil},
-	{Which: air.Z_Which_textvec, Textvec: []string{"John", "Paul", "George", "Ringo"}},
-	{Which: air.Z_Which_planebase, Planebase: nil},
-	{Which: air.Z_Which_planebase, Planebase: &PlaneBase{
-		Name:     "Boeing",
-		Rating:   123,
-		CanFly:   true,
-		Capacity: 100,
-		MaxSpeed: 9001.0,
-	}},
-	{Which: air.Z_Which_airport, Airport: air.Airport_lax},
-}
-
-func TestExtract(t *testing.T) {
-	for _, test := range goodTests {
-		_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-		if err != nil {
-			t.Errorf("NewMessage for %+v: %v", test, err)
-			continue
-		}
-		z, err := air.NewRootZ(seg)
-		if err != nil {
-			t.Errorf("NewRootZ for %+v: %v", test, err)
-			continue
-		}
-		if err := zfill(z, &test); err != nil {
-			t.Errorf("zfill for %+v: %v", test, err)
-			continue
-		}
-		out := new(Z)
-		if err := Extract(out, zTypeID, z.Struct); err != nil {
-			t.Errorf("Extract(%v) error: %v", z, err)
-		}
-		if !reflect.DeepEqual(out, &test) {
-			t.Errorf("Extract(%v) produced %+v; want %+v", z, out, &test)
-		}
-	}
-}
-
-func TestInsert(t *testing.T) {
-	for _, test := range goodTests {
-		_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-		if err != nil {
-			t.Errorf("NewMessage for %+v: %v", test, err)
-			continue
-		}
-		z, err := air.NewRootZ(seg)
-		if err != nil {
-			t.Errorf("NewRootZ for %+v: %v", test, err)
-			continue
-		}
-		err = Insert(zTypeID, z.Struct, &test)
-		if err != nil {
-			t.Errorf("Insert(%+v) error: %v", test, err)
-		}
-		if equal, err := zequal(&test, z); err != nil {
-			t.Errorf("Insert(%+v) compare err: %v", test, err)
-		} else if !equal {
-			t.Errorf("Insert(%+v) produced %v", test, z)
-		}
-	}
-}
-
-type BytesZ struct {
-	Which   air.Z_Which
-	Text    []byte
-	Textvec [][]byte
-}
-
-func TestExtract_StringBytes(t *testing.T) {
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatalf("NewMessage: %v", err)
-	}
-	z, err := air.NewRootZ(seg)
-	if err != nil {
-		t.Fatalf("NewRootZ: %v", err)
-	}
-	err = zfill(z, &Z{Which: air.Z_Which_text, Text: "Hello, World!"})
-	if err != nil {
-		t.Fatalf("zfill: %v", err)
-	}
-	out := new(BytesZ)
-	if err := Extract(out, zTypeID, z.Struct); err != nil {
-		t.Errorf("Extract(%v) error: %v", z, err)
-	}
-	want := &BytesZ{Which: air.Z_Which_text, Text: []byte("Hello, World!")}
-	if !reflect.DeepEqual(out, want) {
-		t.Errorf("Extract(%v) produced %+v; want %+v", z, out, want)
-	}
-}
-
-func TestExtract_StringListBytes(t *testing.T) {
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatalf("NewMessage: %v", err)
-	}
-	z, err := air.NewRootZ(seg)
-	if err != nil {
-		t.Fatalf("NewRootZ: %v", err)
-	}
-	err = zfill(z, &Z{Which: air.Z_Which_textvec, Textvec: []string{"Holmes", "Watson"}})
-	if err != nil {
-		t.Fatalf("zfill: %v", err)
-	}
-	out := new(BytesZ)
-	if err := Extract(out, zTypeID, z.Struct); err != nil {
-		t.Errorf("Extract(%v) error: %v", z, err)
-	}
-	want := &BytesZ{Which: air.Z_Which_textvec, Textvec: [][]byte{[]byte("Holmes"), []byte("Watson")}}
-	if !reflect.DeepEqual(out, want) {
-		t.Errorf("Extract(%v) produced %+v; want %+v", z, out, want)
-	}
-}
-
-func TestInsert_StringBytes(t *testing.T) {
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatalf("NewMessage: %v", err)
-	}
-	z, err := air.NewRootZ(seg)
-	if err != nil {
-		t.Fatalf("NewRootZ: %v", err)
-	}
-	bz := &BytesZ{Which: air.Z_Which_text, Text: []byte("Hello, World!")}
-	err = Insert(zTypeID, z.Struct, bz)
-	if err != nil {
-		t.Errorf("Insert(%+v) error: %v", bz, err)
-	}
-	want := &Z{Which: air.Z_Which_text, Text: "Hello, World!"}
-	if equal, err := zequal(want, z); err != nil {
-		t.Errorf("Insert(%+v) compare err: %v", bz, err)
-	} else if !equal {
-		t.Errorf("Insert(%+v) produced %v", bz, z)
-	}
-}
-
-func TestInsert_StringListBytes(t *testing.T) {
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatalf("NewMessage: %v", err)
-	}
-	z, err := air.NewRootZ(seg)
-	if err != nil {
-		t.Fatalf("NewRootZ: %v", err)
-	}
-	bz := &BytesZ{Which: air.Z_Which_textvec, Textvec: [][]byte{[]byte("Holmes"), []byte("Watson")}}
-	err = Insert(zTypeID, z.Struct, bz)
-	if err != nil {
-		t.Errorf("Insert(%+v) error: %v", bz, err)
-	}
-	want := &Z{Which: air.Z_Which_textvec, Textvec: []string{"Holmes", "Watson"}}
-	if equal, err := zequal(want, z); err != nil {
-		t.Errorf("Insert(%+v) compare err: %v", bz, err)
-	} else if !equal {
-		t.Errorf("Insert(%+v) produced %v", bz, z)
-	}
 }
