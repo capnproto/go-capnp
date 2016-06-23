@@ -41,6 +41,10 @@ type Z struct {
 	U64vec []uint64
 	U8vec  []uint8
 
+	Boolvec []bool
+	Datavec [][]byte
+	Textvec []string
+
 	Planebase *PlaneBase
 	Airport   air.Airport
 }
@@ -158,6 +162,34 @@ func zequal(g *Z, c air.Z) (bool, error) {
 		return listeq(g.U8vec != nil, len(g.U8vec), uv.List, func(i int) bool {
 			return uv.At(i) == g.U8vec[i]
 		}), nil
+	case air.Z_Which_boolvec:
+		bv, err := c.Boolvec()
+		if err != nil {
+			return false, err
+		}
+		return listeq(g.Boolvec != nil, len(g.Boolvec), bv.List, func(i int) bool {
+			return bv.At(i) == g.Boolvec[i]
+		}), nil
+	case air.Z_Which_datavec:
+		dv, err := c.Datavec()
+		if err != nil {
+			return false, err
+		}
+		return listeq(g.Datavec != nil, len(g.Datavec), dv.List, func(i int) bool {
+			var di []byte
+			di, err = dv.At(i)
+			return err == nil && bytes.Equal(di, g.Datavec[i])
+		}), err
+	case air.Z_Which_textvec:
+		tv, err := c.Textvec()
+		if err != nil {
+			return false, err
+		}
+		return listeq(g.Textvec != nil, len(g.Textvec), tv.List, func(i int) bool {
+			var s string
+			s, err = tv.At(i)
+			return err == nil && s == g.Textvec[i]
+		}), err
 	case air.Z_Which_planebase:
 		pb, err := c.Planebase()
 		if err != nil {
@@ -272,6 +304,43 @@ func zfill(c air.Z, g *Z) error {
 		for i, n := range g.U8vec {
 			uv.Set(i, n)
 		}
+	case air.Z_Which_boolvec:
+		if g.Boolvec == nil {
+			return c.SetBoolvec(capnp.BitList{})
+		}
+		vec, err := c.NewBoolvec(int32(len(g.Boolvec)))
+		if err != nil {
+			return err
+		}
+		for i, v := range g.Boolvec {
+			vec.Set(i, v)
+		}
+	case air.Z_Which_datavec:
+		if g.Datavec == nil {
+			return c.SetDatavec(capnp.DataList{})
+		}
+		vec, err := c.NewDatavec(int32(len(g.Datavec)))
+		if err != nil {
+			return err
+		}
+		for i, v := range g.Datavec {
+			if err := vec.Set(i, v); err != nil {
+				return err
+			}
+		}
+	case air.Z_Which_textvec:
+		if g.Textvec == nil {
+			return c.SetTextvec(capnp.TextList{})
+		}
+		vec, err := c.NewTextvec(int32(len(g.Textvec)))
+		if err != nil {
+			return err
+		}
+		for i, v := range g.Textvec {
+			if err := vec.Set(i, v); err != nil {
+				return err
+			}
+		}
 	case air.Z_Which_planebase:
 		if g.Planebase == nil {
 			return c.SetPlanebase(air.PlaneBase{})
@@ -322,6 +391,12 @@ var goodTests = []Z{
 	{Which: air.Z_Which_u64vec, U64vec: []uint64{0, 123}},
 	{Which: air.Z_Which_u8vec, U8vec: nil},
 	{Which: air.Z_Which_u8vec, U8vec: []uint8{0, 123}},
+	{Which: air.Z_Which_boolvec, Boolvec: nil},
+	{Which: air.Z_Which_boolvec, Boolvec: []bool{false, true, false}},
+	{Which: air.Z_Which_datavec, Datavec: nil},
+	{Which: air.Z_Which_datavec, Datavec: [][]byte{[]byte("hi"), []byte("bye")}},
+	{Which: air.Z_Which_textvec, Textvec: nil},
+	{Which: air.Z_Which_textvec, Textvec: []string{"John", "Paul", "George", "Ringo"}},
 	{Which: air.Z_Which_planebase, Planebase: nil},
 	{Which: air.Z_Which_planebase, Planebase: &PlaneBase{
 		Name:     "Boeing",
@@ -384,8 +459,9 @@ func TestInsert(t *testing.T) {
 }
 
 type BytesZ struct {
-	Which air.Z_Which
-	Text  []byte
+	Which   air.Z_Which
+	Text    []byte
+	Textvec [][]byte
 }
 
 func TestExtract_StringBytes(t *testing.T) {
@@ -411,6 +487,29 @@ func TestExtract_StringBytes(t *testing.T) {
 	}
 }
 
+func TestExtract_StringListBytes(t *testing.T) {
+	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		t.Fatalf("NewMessage: %v", err)
+	}
+	z, err := air.NewRootZ(seg)
+	if err != nil {
+		t.Fatalf("NewRootZ: %v", err)
+	}
+	err = zfill(z, &Z{Which: air.Z_Which_textvec, Textvec: []string{"Holmes", "Watson"}})
+	if err != nil {
+		t.Fatalf("zfill: %v", err)
+	}
+	out := new(BytesZ)
+	if err := Extract(out, zTypeID, z.Struct); err != nil {
+		t.Errorf("Extract(%v) error: %v", z, err)
+	}
+	want := &BytesZ{Which: air.Z_Which_textvec, Textvec: [][]byte{[]byte("Holmes"), []byte("Watson")}}
+	if !reflect.DeepEqual(out, want) {
+		t.Errorf("Extract(%v) produced %+v; want %+v", z, out, want)
+	}
+}
+
 func TestInsert_StringBytes(t *testing.T) {
 	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	if err != nil {
@@ -426,6 +525,28 @@ func TestInsert_StringBytes(t *testing.T) {
 		t.Errorf("Insert(%+v) error: %v", bz, err)
 	}
 	want := &Z{Which: air.Z_Which_text, Text: "Hello, World!"}
+	if equal, err := zequal(want, z); err != nil {
+		t.Errorf("Insert(%+v) compare err: %v", bz, err)
+	} else if !equal {
+		t.Errorf("Insert(%+v) produced %v", bz, z)
+	}
+}
+
+func TestInsert_StringListBytes(t *testing.T) {
+	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		t.Fatalf("NewMessage: %v", err)
+	}
+	z, err := air.NewRootZ(seg)
+	if err != nil {
+		t.Fatalf("NewRootZ: %v", err)
+	}
+	bz := &BytesZ{Which: air.Z_Which_textvec, Textvec: [][]byte{[]byte("Holmes"), []byte("Watson")}}
+	err = Insert(zTypeID, z.Struct, bz)
+	if err != nil {
+		t.Errorf("Insert(%+v) error: %v", bz, err)
+	}
+	want := &Z{Which: air.Z_Which_textvec, Textvec: []string{"Holmes", "Watson"}}
 	if equal, err := zequal(want, z); err != nil {
 		t.Errorf("Insert(%+v) compare err: %v", bz, err)
 	} else if !equal {

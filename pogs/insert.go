@@ -276,6 +276,37 @@ func (ins *inserter) insertList(l capnp.List, typ schema.Type, val reflect.Value
 		for i := 0; i < n; i++ {
 			capnp.Float64List{List: l}.Set(i, val.Index(i).Float())
 		}
+	case schema.Type_Which_text:
+		if val.Type().Elem().Kind() == reflect.String {
+			for i := 0; i < n; i++ {
+				err := capnp.TextList{List: l}.Set(i, val.Index(i).String())
+				if err != nil {
+					// TODO(light): collect errors and finish
+					return err
+				}
+			}
+		} else {
+			for i := 0; i < n; i++ {
+				t, err := capnp.NewTextFromBytes(l.Segment(), val.Index(i).Bytes())
+				if err != nil {
+					// TODO(light): collect errors and finish
+					return err
+				}
+				err = capnp.PointerList{List: l}.SetPtr(i, t.ToPtr())
+				if err != nil {
+					// TODO(light): collect errors and finish
+					return err
+				}
+			}
+		}
+	case schema.Type_Which_data:
+		for i := 0; i < n; i++ {
+			err := capnp.DataList{List: l}.Set(i, val.Index(i).Bytes())
+			if err != nil {
+				// TODO(light): collect errors and finish
+				return err
+			}
+		}
 	default:
 		return fmt.Errorf("unknown list type %v", elem.Which())
 	}

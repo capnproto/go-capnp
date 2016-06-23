@@ -284,6 +284,35 @@ func (e *extracter) extractList(val reflect.Value, typ schema.Type, l capnp.List
 		for i := 0; i < n; i++ {
 			val.Index(i).SetFloat(capnp.Float64List{List: l}.At(i))
 		}
+	case schema.Type_Which_text:
+		if val.Type().Elem().Kind() == reflect.String {
+			for i := 0; i < n; i++ {
+				s, err := capnp.TextList{List: l}.At(i)
+				if err != nil {
+					// TODO(light): collect errors and finish
+					return err
+				}
+				val.Index(i).SetString(s)
+			}
+		} else {
+			for i := 0; i < n; i++ {
+				b, err := capnp.TextList{List: l}.BytesAt(i)
+				if err != nil {
+					// TODO(light): collect errors and finish
+					return err
+				}
+				val.Index(i).SetBytes(b)
+			}
+		}
+	case schema.Type_Which_data:
+		for i := 0; i < n; i++ {
+			b, err := capnp.DataList{List: l}.At(i)
+			if err != nil {
+				// TODO(light): collect errors and finish
+				return err
+			}
+			val.Index(i).SetBytes(b)
+		}
 	default:
 		return fmt.Errorf("unknown list type %v", elem.Which())
 	}
