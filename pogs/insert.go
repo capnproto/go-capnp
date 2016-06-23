@@ -185,13 +185,9 @@ func (ins *inserter) insertField(s capnp.Struct, f schema.Field, val reflect.Val
 			sval = val.Elem()
 		}
 		id := typ.StructType().TypeId()
-		snode, err := ins.nodes.Find(id)
+		sz, err := ins.structSize(id)
 		if err != nil {
 			return err
-		}
-		sz := capnp.ObjectSize{
-			DataSize:     capnp.Size(snode.StructNode().DataWordCount()) * 8,
-			PointerCount: snode.StructNode().PointerCount(),
 		}
 		ss, err := capnp.NewStruct(s.Segment(), sz)
 		if err != nil {
@@ -201,8 +197,135 @@ func (ins *inserter) insertField(s capnp.Struct, f schema.Field, val reflect.Val
 			return err
 		}
 		return ins.insertStruct(id, ss, sval)
+	case schema.Type_Which_list:
+		off := uint16(f.Slot().Offset())
+		if val.IsNil() {
+			return s.SetPtr(off, capnp.Ptr{})
+		}
+		elem, err := typ.List().ElementType()
+		if err != nil {
+			return err
+		}
+		l, err := ins.newList(s.Segment(), elem, int32(val.Len()))
+		if err != nil {
+			return err
+		}
+		if err := s.SetPtr(off, l.ToPtr()); err != nil {
+			return err
+		}
+		return ins.insertList(l, typ, val)
 	default:
 		return fmt.Errorf("unknown field type %v", typ.Which())
 	}
 	return nil
+}
+
+func (ins *inserter) insertList(l capnp.List, typ schema.Type, val reflect.Value) error {
+	elem, err := typ.List().ElementType()
+	if err != nil {
+		return err
+	}
+	if !isTypeMatch(val.Type(), typ) {
+		// TODO(light): the error won't be that useful for nested lists.
+		return fmt.Errorf("can't insert Go %v into a %v list", val.Type(), elem.Which())
+	}
+	n := val.Len()
+	switch elem.Which() {
+	case schema.Type_Which_void:
+	case schema.Type_Which_bool:
+		for i := 0; i < n; i++ {
+			capnp.BitList{List: l}.Set(i, val.Index(i).Bool())
+		}
+	case schema.Type_Which_int8:
+		for i := 0; i < n; i++ {
+			capnp.Int8List{List: l}.Set(i, int8(val.Index(i).Int()))
+		}
+	case schema.Type_Which_int16:
+		for i := 0; i < n; i++ {
+			capnp.Int16List{List: l}.Set(i, int16(val.Index(i).Int()))
+		}
+	case schema.Type_Which_int32:
+		for i := 0; i < n; i++ {
+			capnp.Int32List{List: l}.Set(i, int32(val.Index(i).Int()))
+		}
+	case schema.Type_Which_int64:
+		for i := 0; i < n; i++ {
+			capnp.Int64List{List: l}.Set(i, val.Index(i).Int())
+		}
+	case schema.Type_Which_uint8:
+		for i := 0; i < n; i++ {
+			capnp.UInt8List{List: l}.Set(i, uint8(val.Index(i).Uint()))
+		}
+	case schema.Type_Which_uint16:
+		for i := 0; i < n; i++ {
+			capnp.UInt16List{List: l}.Set(i, uint16(val.Index(i).Uint()))
+		}
+	case schema.Type_Which_uint32:
+		for i := 0; i < n; i++ {
+			capnp.UInt32List{List: l}.Set(i, uint32(val.Index(i).Uint()))
+		}
+	case schema.Type_Which_uint64:
+		for i := 0; i < n; i++ {
+			capnp.UInt64List{List: l}.Set(i, val.Index(i).Uint())
+		}
+	case schema.Type_Which_float32:
+		for i := 0; i < n; i++ {
+			capnp.Float32List{List: l}.Set(i, float32(val.Index(i).Float()))
+		}
+	case schema.Type_Which_float64:
+		for i := 0; i < n; i++ {
+			capnp.Float64List{List: l}.Set(i, val.Index(i).Float())
+		}
+	default:
+		return fmt.Errorf("unknown list type %v", elem.Which())
+	}
+	return nil
+}
+
+func (ins *inserter) newList(s *capnp.Segment, t schema.Type, len int32) (capnp.List, error) {
+	switch t.Which() {
+	case schema.Type_Which_void:
+		l := capnp.NewVoidList(s, len)
+		return l.List, nil
+	case schema.Type_Which_bool:
+		l, err := capnp.NewBitList(s, len)
+		return l.List, err
+	case schema.Type_Which_int8, schema.Type_Which_uint8:
+		l, err := capnp.NewUInt8List(s, len)
+		return l.List, err
+	case schema.Type_Which_int16, schema.Type_Which_uint16, schema.Type_Which_enum:
+		l, err := capnp.NewUInt16List(s, len)
+		return l.List, err
+	case schema.Type_Which_int32, schema.Type_Which_uint32, schema.Type_Which_float32:
+		l, err := capnp.NewUInt32List(s, len)
+		return l.List, err
+	case schema.Type_Which_int64, schema.Type_Which_uint64, schema.Type_Which_float64:
+		l, err := capnp.NewUInt64List(s, len)
+		return l.List, err
+	case schema.Type_Which_text, schema.Type_Which_data, schema.Type_Which_list, schema.Type_Which_interface, schema.Type_Which_anyPointer:
+		l, err := capnp.NewPointerList(s, len)
+		return l.List, err
+	case schema.Type_Which_structType:
+		sz, err := ins.structSize(t.StructType().TypeId())
+		if err != nil {
+			return capnp.List{}, err
+		}
+		return capnp.NewCompositeList(s, sz, len)
+	default:
+		return capnp.List{}, fmt.Errorf("new list: unknown element type: %v", t.Which())
+	}
+}
+
+func (ins *inserter) structSize(id uint64) (capnp.ObjectSize, error) {
+	n, err := ins.nodes.Find(id)
+	if err != nil {
+		return capnp.ObjectSize{}, err
+	}
+	if n.Which() != schema.Node_Which_structNode {
+		return capnp.ObjectSize{}, fmt.Errorf("insert struct: sizing: node @%#x is not a struct", id)
+	}
+	return capnp.ObjectSize{
+		DataSize:     capnp.Size(n.StructNode().DataWordCount()) * 8,
+		PointerCount: n.StructNode().PointerCount(),
+	}, nil
 }

@@ -206,8 +206,86 @@ func (e *extracter) extractField(val reflect.Value, s capnp.Struct, f schema.Fie
 		newval := reflect.New(val.Type().Elem())
 		val.Set(newval)
 		return e.extractStruct(newval, typ.StructType().TypeId(), ss)
+	case schema.Type_Which_list:
+		p, err := s.Ptr(uint16(f.Slot().Offset()))
+		if err != nil {
+			return err
+		}
+		l := p.List()
+		if !l.IsValid() {
+			p, _ = dv.ListPtr()
+			l = p.List()
+		}
+		return e.extractList(val, typ, l)
 	default:
 		return fmt.Errorf("unknown field type %v", typ.Which())
+	}
+	return nil
+}
+
+func (e *extracter) extractList(val reflect.Value, typ schema.Type, l capnp.List) error {
+	vt := val.Type()
+	elem, err := typ.List().ElementType()
+	if err != nil {
+		return err
+	}
+	if !isTypeMatch(vt, typ) {
+		// TODO(light): the error won't be that useful for nested lists.
+		return fmt.Errorf("can't extract %v list into a Go %v", elem.Which(), vt)
+	}
+	if !l.IsValid() {
+		val.Set(reflect.Zero(vt))
+		return nil
+	}
+	n := l.Len()
+	val.Set(reflect.MakeSlice(vt, n, n))
+	switch elem.Which() {
+	case schema.Type_Which_bool:
+		for i := 0; i < n; i++ {
+			val.Index(i).SetBool(capnp.BitList{List: l}.At(i))
+		}
+	case schema.Type_Which_int8:
+		for i := 0; i < n; i++ {
+			val.Index(i).SetInt(int64(capnp.Int8List{List: l}.At(i)))
+		}
+	case schema.Type_Which_int16:
+		for i := 0; i < n; i++ {
+			val.Index(i).SetInt(int64(capnp.Int16List{List: l}.At(i)))
+		}
+	case schema.Type_Which_int32:
+		for i := 0; i < n; i++ {
+			val.Index(i).SetInt(int64(capnp.Int32List{List: l}.At(i)))
+		}
+	case schema.Type_Which_int64:
+		for i := 0; i < n; i++ {
+			val.Index(i).SetInt(capnp.Int64List{List: l}.At(i))
+		}
+	case schema.Type_Which_uint8:
+		for i := 0; i < n; i++ {
+			val.Index(i).SetUint(uint64(capnp.UInt8List{List: l}.At(i)))
+		}
+	case schema.Type_Which_uint16:
+		for i := 0; i < n; i++ {
+			val.Index(i).SetUint(uint64(capnp.UInt16List{List: l}.At(i)))
+		}
+	case schema.Type_Which_uint32:
+		for i := 0; i < n; i++ {
+			val.Index(i).SetUint(uint64(capnp.UInt32List{List: l}.At(i)))
+		}
+	case schema.Type_Which_uint64:
+		for i := 0; i < n; i++ {
+			val.Index(i).SetUint(capnp.UInt64List{List: l}.At(i))
+		}
+	case schema.Type_Which_float32:
+		for i := 0; i < n; i++ {
+			val.Index(i).SetFloat(float64(capnp.Float32List{List: l}.At(i)))
+		}
+	case schema.Type_Which_float64:
+		for i := 0; i < n; i++ {
+			val.Index(i).SetFloat(capnp.Float64List{List: l}.At(i))
+		}
+	default:
+		return fmt.Errorf("unknown list type %v", elem.Which())
 	}
 	return nil
 }
@@ -235,6 +313,9 @@ func isTypeMatch(r reflect.Type, s schema.Type) bool {
 		return r.Kind() == reflect.Slice && r.Elem().Kind() == reflect.Uint8
 	case schema.Type_Which_structType:
 		return r.Kind() == reflect.Struct || r.Kind() == reflect.Ptr && r.Elem().Kind() == reflect.Struct
+	case schema.Type_Which_list:
+		e, _ := s.List().ElementType()
+		return r.Kind() == reflect.Slice && isTypeMatch(r.Elem(), e)
 	}
 	k, ok := typeMap[s.Which()]
 	return ok && k == r.Kind()

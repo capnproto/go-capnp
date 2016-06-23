@@ -32,6 +32,15 @@ type Z struct {
 	Text string
 	Blob []byte
 
+	F64vec []float64
+	F32vec []float32
+
+	I64vec []int64
+	I8vec  []int8
+
+	U64vec []uint64
+	U8vec  []uint8
+
 	Planebase *PlaneBase
 	Airport   air.Airport
 }
@@ -48,6 +57,23 @@ type PlaneBase struct {
 func zequal(g *Z, c air.Z) (bool, error) {
 	if g.Which != c.Which() {
 		return false, nil
+	}
+	listeq := func(has bool, n int, l capnp.List, f func(i int) bool) bool {
+		if has != l.IsValid() {
+			return false
+		}
+		if !has {
+			return true
+		}
+		if l.Len() != n {
+			return false
+		}
+		for i := 0; i < l.Len(); i++ {
+			if !f(i) {
+				return false
+			}
+		}
+		return true
 	}
 	switch g.Which {
 	case air.Z_Which_f64:
@@ -84,6 +110,54 @@ func zequal(g *Z, c air.Z) (bool, error) {
 			return false, err
 		}
 		return bytes.Equal(g.Blob, blob), nil
+	case air.Z_Which_f64vec:
+		fv, err := c.F64vec()
+		if err != nil {
+			return false, err
+		}
+		return listeq(g.F64vec != nil, len(g.F64vec), fv.List, func(i int) bool {
+			return fv.At(i) == g.F64vec[i]
+		}), nil
+	case air.Z_Which_f32vec:
+		fv, err := c.F32vec()
+		if err != nil {
+			return false, err
+		}
+		return listeq(g.F32vec != nil, len(g.F32vec), fv.List, func(i int) bool {
+			return fv.At(i) == g.F32vec[i]
+		}), nil
+	case air.Z_Which_i64vec:
+		iv, err := c.I64vec()
+		if err != nil {
+			return false, err
+		}
+		return listeq(g.I64vec != nil, len(g.I64vec), iv.List, func(i int) bool {
+			return iv.At(i) == g.I64vec[i]
+		}), nil
+	case air.Z_Which_i8vec:
+		iv, err := c.I8vec()
+		if err != nil {
+			return false, err
+		}
+		return listeq(g.I8vec != nil, len(g.I8vec), iv.List, func(i int) bool {
+			return iv.At(i) == g.I8vec[i]
+		}), nil
+	case air.Z_Which_u64vec:
+		uv, err := c.U64vec()
+		if err != nil {
+			return false, err
+		}
+		return listeq(g.U64vec != nil, len(g.U64vec), uv.List, func(i int) bool {
+			return uv.At(i) == g.U64vec[i]
+		}), nil
+	case air.Z_Which_u8vec:
+		uv, err := c.U8vec()
+		if err != nil {
+			return false, err
+		}
+		return listeq(g.U8vec != nil, len(g.U8vec), uv.List, func(i int) bool {
+			return uv.At(i) == g.U8vec[i]
+		}), nil
 	case air.Z_Which_planebase:
 		pb, err := c.Planebase()
 		if err != nil {
@@ -132,6 +206,72 @@ func zfill(c air.Z, g *Z) error {
 		return c.SetText(g.Text)
 	case air.Z_Which_blob:
 		return c.SetBlob(g.Blob)
+	case air.Z_Which_f64vec:
+		if g.F64vec == nil {
+			return c.SetF64vec(capnp.Float64List{})
+		}
+		fv, err := c.NewF64vec(int32(len(g.F64vec)))
+		if err != nil {
+			return err
+		}
+		for i, f := range g.F64vec {
+			fv.Set(i, f)
+		}
+	case air.Z_Which_f32vec:
+		if g.F32vec == nil {
+			return c.SetF32vec(capnp.Float32List{})
+		}
+		fv, err := c.NewF32vec(int32(len(g.F32vec)))
+		if err != nil {
+			return err
+		}
+		for i, f := range g.F32vec {
+			fv.Set(i, f)
+		}
+	case air.Z_Which_i64vec:
+		if g.I64vec == nil {
+			return c.SetI64vec(capnp.Int64List{})
+		}
+		iv, err := c.NewI64vec(int32(len(g.I64vec)))
+		if err != nil {
+			return err
+		}
+		for i, n := range g.I64vec {
+			iv.Set(i, n)
+		}
+	case air.Z_Which_i8vec:
+		if g.I8vec == nil {
+			return c.SetI8vec(capnp.Int8List{})
+		}
+		iv, err := c.NewI8vec(int32(len(g.I8vec)))
+		if err != nil {
+			return err
+		}
+		for i, n := range g.I8vec {
+			iv.Set(i, n)
+		}
+	case air.Z_Which_u64vec:
+		if g.U64vec == nil {
+			return c.SetU64vec(capnp.UInt64List{})
+		}
+		uv, err := c.NewU64vec(int32(len(g.U64vec)))
+		if err != nil {
+			return err
+		}
+		for i, n := range g.U64vec {
+			uv.Set(i, n)
+		}
+	case air.Z_Which_u8vec:
+		if g.U8vec == nil {
+			return c.SetU8vec(capnp.UInt8List{})
+		}
+		uv, err := c.NewU8vec(int32(len(g.U8vec)))
+		if err != nil {
+			return err
+		}
+		for i, n := range g.U8vec {
+			uv.Set(i, n)
+		}
 	case air.Z_Which_planebase:
 		if g.Planebase == nil {
 			return c.SetPlanebase(air.PlaneBase{})
@@ -147,7 +287,6 @@ func zfill(c air.Z, g *Z) error {
 		pb.SetCanFly(g.Planebase.CanFly)
 		pb.SetCapacity(g.Planebase.Capacity)
 		pb.SetMaxSpeed(g.Planebase.MaxSpeed)
-		return nil
 	case air.Z_Which_airport:
 		c.SetAirport(g.Airport)
 	default:
@@ -171,6 +310,18 @@ var goodTests = []Z{
 	{Which: air.Z_Which_bool, Bool: false},
 	{Which: air.Z_Which_text, Text: "Hello, World!"},
 	{Which: air.Z_Which_blob, Blob: []byte("Hello, World!")},
+	{Which: air.Z_Which_f64vec, F64vec: nil},
+	{Which: air.Z_Which_f64vec, F64vec: []float64{-2.0, 4.5}},
+	{Which: air.Z_Which_f32vec, F32vec: nil},
+	{Which: air.Z_Which_f32vec, F32vec: []float32{-2.0, 4.5}},
+	{Which: air.Z_Which_i64vec, I64vec: nil},
+	{Which: air.Z_Which_i64vec, I64vec: []int64{-123, 0, 123}},
+	{Which: air.Z_Which_i8vec, I8vec: nil},
+	{Which: air.Z_Which_i8vec, I8vec: []int8{-123, 0, 123}},
+	{Which: air.Z_Which_u64vec, U64vec: nil},
+	{Which: air.Z_Which_u64vec, U64vec: []uint64{0, 123}},
+	{Which: air.Z_Which_u8vec, U8vec: nil},
+	{Which: air.Z_Which_u8vec, U8vec: []uint8{0, 123}},
 	{Which: air.Z_Which_planebase, Planebase: nil},
 	{Which: air.Z_Which_planebase, Planebase: &PlaneBase{
 		Name:     "Boeing",
