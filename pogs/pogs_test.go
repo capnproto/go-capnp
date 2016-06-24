@@ -45,6 +45,8 @@ type Z struct {
 	Datavec [][]byte
 	Textvec []string
 
+	Zvec []*Z
+
 	Planebase *PlaneBase
 	Airport   air.Airport
 }
@@ -91,6 +93,10 @@ var goodTests = []Z{
 	{Which: air.Z_Which_datavec, Datavec: [][]byte{[]byte("hi"), []byte("bye")}},
 	{Which: air.Z_Which_textvec, Textvec: nil},
 	{Which: air.Z_Which_textvec, Textvec: []string{"John", "Paul", "George", "Ringo"}},
+	{Which: air.Z_Which_zvec, Zvec: []*Z{
+		{Which: air.Z_Which_i64, I64: -123},
+		{Which: air.Z_Which_text, Text: "Hi"},
+	}},
 	{Which: air.Z_Which_planebase, Planebase: nil},
 	{Which: air.Z_Which_planebase, Planebase: &PlaneBase{
 		Name:     "Boeing",
@@ -248,6 +254,111 @@ func TestInsert_StringListBytes(t *testing.T) {
 	}
 }
 
+// StructZ is a variant of Z that has direct structs instead of pointers.
+type StructZ struct {
+	Which     air.Z_Which
+	Zvec      []Z
+	Planebase PlaneBase
+}
+
+func TestExtract_StructNoPtr(t *testing.T) {
+	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		t.Fatalf("NewMessage: %v", err)
+	}
+	z, err := air.NewRootZ(seg)
+	if err != nil {
+		t.Fatalf("NewRootZ: %v", err)
+	}
+	err = zfill(z, &Z{Which: air.Z_Which_planebase, Planebase: &PlaneBase{Name: "foo"}})
+	if err != nil {
+		t.Fatalf("zfill: %v", err)
+	}
+	out := new(StructZ)
+	if err := Extract(out, zTypeID, z.Struct); err != nil {
+		t.Errorf("Extract(%v) error: %v", z, err)
+	}
+	want := &StructZ{Which: air.Z_Which_planebase, Planebase: PlaneBase{Name: "foo"}}
+	if !reflect.DeepEqual(out, want) {
+		t.Errorf("Extract(%v) produced %+v; want %+v", z, out, want)
+	}
+}
+
+func TestExtract_StructListNoPtr(t *testing.T) {
+	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		t.Fatalf("NewMessage: %v", err)
+	}
+	z, err := air.NewRootZ(seg)
+	if err != nil {
+		t.Fatalf("NewRootZ: %v", err)
+	}
+	err = zfill(z, &Z{Which: air.Z_Which_zvec, Zvec: []*Z{
+		{Which: air.Z_Which_i64, I64: 123},
+	}})
+	if err != nil {
+		t.Fatalf("zfill: %v", err)
+	}
+	out := new(StructZ)
+	if err := Extract(out, zTypeID, z.Struct); err != nil {
+		t.Errorf("Extract(%v) error: %v", z, err)
+	}
+	want := &StructZ{Which: air.Z_Which_zvec, Zvec: []Z{
+		{Which: air.Z_Which_i64, I64: 123},
+	}}
+	if !reflect.DeepEqual(out, want) {
+		t.Errorf("Extract(%v) produced %+v; want %+v", z, out, want)
+	}
+}
+
+func TestInsert_StructNoPtr(t *testing.T) {
+	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		t.Fatalf("NewMessage: %v", err)
+	}
+	z, err := air.NewRootZ(seg)
+	if err != nil {
+		t.Fatalf("NewRootZ: %v", err)
+	}
+	bz := &StructZ{Which: air.Z_Which_planebase, Planebase: PlaneBase{Name: "foo"}}
+	err = Insert(zTypeID, z.Struct, bz)
+	if err != nil {
+		t.Errorf("Insert(%+v) error: %v", bz, err)
+	}
+	want := &Z{Which: air.Z_Which_planebase, Planebase: &PlaneBase{Name: "foo"}}
+	if equal, err := zequal(want, z); err != nil {
+		t.Errorf("Insert(%+v) compare err: %v", bz, err)
+	} else if !equal {
+		t.Errorf("Insert(%+v) produced %v", bz, z)
+	}
+}
+
+func TestInsert_StructListNoPtr(t *testing.T) {
+	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		t.Fatalf("NewMessage: %v", err)
+	}
+	z, err := air.NewRootZ(seg)
+	if err != nil {
+		t.Fatalf("NewRootZ: %v", err)
+	}
+	bz := &StructZ{Which: air.Z_Which_zvec, Zvec: []Z{
+		{Which: air.Z_Which_i64, I64: 123},
+	}}
+	err = Insert(zTypeID, z.Struct, bz)
+	if err != nil {
+		t.Errorf("Insert(%+v) error: %v", bz, err)
+	}
+	want := &Z{Which: air.Z_Which_zvec, Zvec: []*Z{
+		{Which: air.Z_Which_i64, I64: 123},
+	}}
+	if equal, err := zequal(want, z); err != nil {
+		t.Errorf("Insert(%+v) compare err: %v", bz, err)
+	} else if !equal {
+		t.Errorf("Insert(%+v) produced %v", bz, z)
+	}
+}
+
 func zequal(g *Z, c air.Z) (bool, error) {
 	if g.Which != c.Which() {
 		return false, nil
@@ -379,6 +490,16 @@ func zequal(g *Z, c air.Z) (bool, error) {
 			var s string
 			s, err = tv.At(i)
 			return err == nil && s == g.Textvec[i]
+		}), err
+	case air.Z_Which_zvec:
+		vec, err := c.Zvec()
+		if err != nil {
+			return false, err
+		}
+		return listeq(g.Zvec != nil, len(g.Zvec), vec.List, func(i int) bool {
+			var eq bool
+			eq, err = zequal(g.Zvec[i], vec.At(i))
+			return eq
 		}), err
 	case air.Z_Which_planebase:
 		pb, err := c.Planebase()
@@ -528,6 +649,19 @@ func zfill(c air.Z, g *Z) error {
 		}
 		for i, v := range g.Textvec {
 			if err := vec.Set(i, v); err != nil {
+				return err
+			}
+		}
+	case air.Z_Which_zvec:
+		if g.Zvec == nil {
+			return c.SetZvec(air.Z_List{})
+		}
+		vec, err := c.NewZvec(int32(len(g.Zvec)))
+		if err != nil {
+			return err
+		}
+		for i, z := range g.Zvec {
+			if err := zfill(vec.At(i), z); err != nil {
 				return err
 			}
 		}

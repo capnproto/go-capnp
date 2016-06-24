@@ -313,6 +313,24 @@ func (e *extracter) extractList(val reflect.Value, typ schema.Type, l capnp.List
 			}
 			val.Index(i).SetBytes(b)
 		}
+	case schema.Type_Which_structType:
+		if val.Type().Elem().Kind() == reflect.Struct {
+			for i := 0; i < n; i++ {
+				err := e.extractStruct(val.Index(i), elem.StructType().TypeId(), l.Struct(i))
+				if err != nil {
+					return err
+				}
+			}
+		} else {
+			for i := 0; i < n; i++ {
+				newval := reflect.New(val.Type().Elem().Elem())
+				val.Index(i).Set(newval)
+				err := e.extractStruct(newval, elem.StructType().TypeId(), l.Struct(i))
+				if err != nil {
+					return err
+				}
+			}
+		}
 	default:
 		return fmt.Errorf("unknown list type %v", elem.Which())
 	}

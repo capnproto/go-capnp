@@ -307,6 +307,15 @@ func (ins *inserter) insertList(l capnp.List, typ schema.Type, val reflect.Value
 				return err
 			}
 		}
+	case schema.Type_Which_structType:
+		id := elem.StructType().TypeId()
+		for i := 0; i < n; i++ {
+			err := ins.insertStruct(id, l.Struct(i), val.Index(i))
+			if err != nil {
+				// TODO(light): collect errors and finish
+				return err
+			}
+		}
 	default:
 		return fmt.Errorf("unknown list type %v", elem.Which())
 	}
