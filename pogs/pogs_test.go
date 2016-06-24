@@ -45,7 +45,8 @@ type Z struct {
 	Datavec [][]byte
 	Textvec []string
 
-	Zvec []*Z
+	Zvec    []*Z
+	Zvecvec [][]*Z
 
 	Planebase *PlaneBase
 	Airport   air.Airport
@@ -96,6 +97,16 @@ var goodTests = []Z{
 	{Which: air.Z_Which_zvec, Zvec: []*Z{
 		{Which: air.Z_Which_i64, I64: -123},
 		{Which: air.Z_Which_text, Text: "Hi"},
+	}},
+	{Which: air.Z_Which_zvecvec, Zvecvec: [][]*Z{
+		{
+			{Which: air.Z_Which_i64, I64: 1},
+			{Which: air.Z_Which_i64, I64: 2},
+		},
+		{
+			{Which: air.Z_Which_i64, I64: 3},
+			{Which: air.Z_Which_i64, I64: 4},
+		},
 	}},
 	{Which: air.Z_Which_planebase, Planebase: nil},
 	{Which: air.Z_Which_planebase, Planebase: &PlaneBase{
@@ -363,22 +374,22 @@ func zequal(g *Z, c air.Z) (bool, error) {
 	if g.Which != c.Which() {
 		return false, nil
 	}
-	listeq := func(has bool, n int, l capnp.List, f func(i int) bool) bool {
+	listeq := func(has bool, n int, l capnp.List, f func(i int) (bool, error)) (bool, error) {
 		if has != l.IsValid() {
-			return false
+			return false, nil
 		}
 		if !has {
-			return true
+			return true, nil
 		}
 		if l.Len() != n {
-			return false
+			return false, nil
 		}
 		for i := 0; i < l.Len(); i++ {
-			if !f(i) {
-				return false
+			if ok, err := f(i); !ok || err != nil {
+				return ok, err
 			}
 		}
-		return true
+		return true, nil
 	}
 	switch g.Which {
 	case air.Z_Which_f64:
@@ -420,87 +431,98 @@ func zequal(g *Z, c air.Z) (bool, error) {
 		if err != nil {
 			return false, err
 		}
-		return listeq(g.F64vec != nil, len(g.F64vec), fv.List, func(i int) bool {
-			return fv.At(i) == g.F64vec[i]
-		}), nil
+		return listeq(g.F64vec != nil, len(g.F64vec), fv.List, func(i int) (bool, error) {
+			return fv.At(i) == g.F64vec[i], nil
+		})
 	case air.Z_Which_f32vec:
 		fv, err := c.F32vec()
 		if err != nil {
 			return false, err
 		}
-		return listeq(g.F32vec != nil, len(g.F32vec), fv.List, func(i int) bool {
-			return fv.At(i) == g.F32vec[i]
-		}), nil
+		return listeq(g.F32vec != nil, len(g.F32vec), fv.List, func(i int) (bool, error) {
+			return fv.At(i) == g.F32vec[i], nil
+		})
 	case air.Z_Which_i64vec:
 		iv, err := c.I64vec()
 		if err != nil {
 			return false, err
 		}
-		return listeq(g.I64vec != nil, len(g.I64vec), iv.List, func(i int) bool {
-			return iv.At(i) == g.I64vec[i]
-		}), nil
+		return listeq(g.I64vec != nil, len(g.I64vec), iv.List, func(i int) (bool, error) {
+			return iv.At(i) == g.I64vec[i], nil
+		})
 	case air.Z_Which_i8vec:
 		iv, err := c.I8vec()
 		if err != nil {
 			return false, err
 		}
-		return listeq(g.I8vec != nil, len(g.I8vec), iv.List, func(i int) bool {
-			return iv.At(i) == g.I8vec[i]
-		}), nil
+		return listeq(g.I8vec != nil, len(g.I8vec), iv.List, func(i int) (bool, error) {
+			return iv.At(i) == g.I8vec[i], nil
+		})
 	case air.Z_Which_u64vec:
 		uv, err := c.U64vec()
 		if err != nil {
 			return false, err
 		}
-		return listeq(g.U64vec != nil, len(g.U64vec), uv.List, func(i int) bool {
-			return uv.At(i) == g.U64vec[i]
-		}), nil
+		return listeq(g.U64vec != nil, len(g.U64vec), uv.List, func(i int) (bool, error) {
+			return uv.At(i) == g.U64vec[i], nil
+		})
 	case air.Z_Which_u8vec:
 		uv, err := c.U8vec()
 		if err != nil {
 			return false, err
 		}
-		return listeq(g.U8vec != nil, len(g.U8vec), uv.List, func(i int) bool {
-			return uv.At(i) == g.U8vec[i]
-		}), nil
+		return listeq(g.U8vec != nil, len(g.U8vec), uv.List, func(i int) (bool, error) {
+			return uv.At(i) == g.U8vec[i], nil
+		})
 	case air.Z_Which_boolvec:
 		bv, err := c.Boolvec()
 		if err != nil {
 			return false, err
 		}
-		return listeq(g.Boolvec != nil, len(g.Boolvec), bv.List, func(i int) bool {
-			return bv.At(i) == g.Boolvec[i]
-		}), nil
+		return listeq(g.Boolvec != nil, len(g.Boolvec), bv.List, func(i int) (bool, error) {
+			return bv.At(i) == g.Boolvec[i], nil
+		})
 	case air.Z_Which_datavec:
 		dv, err := c.Datavec()
 		if err != nil {
 			return false, err
 		}
-		return listeq(g.Datavec != nil, len(g.Datavec), dv.List, func(i int) bool {
-			var di []byte
-			di, err = dv.At(i)
-			return err == nil && bytes.Equal(di, g.Datavec[i])
-		}), err
+		return listeq(g.Datavec != nil, len(g.Datavec), dv.List, func(i int) (bool, error) {
+			di, err := dv.At(i)
+			return bytes.Equal(di, g.Datavec[i]), err
+		})
 	case air.Z_Which_textvec:
 		tv, err := c.Textvec()
 		if err != nil {
 			return false, err
 		}
-		return listeq(g.Textvec != nil, len(g.Textvec), tv.List, func(i int) bool {
-			var s string
-			s, err = tv.At(i)
-			return err == nil && s == g.Textvec[i]
-		}), err
+		return listeq(g.Textvec != nil, len(g.Textvec), tv.List, func(i int) (bool, error) {
+			s, err := tv.At(i)
+			return s == g.Textvec[i], err
+		})
 	case air.Z_Which_zvec:
 		vec, err := c.Zvec()
 		if err != nil {
 			return false, err
 		}
-		return listeq(g.Zvec != nil, len(g.Zvec), vec.List, func(i int) bool {
-			var eq bool
-			eq, err = zequal(g.Zvec[i], vec.At(i))
-			return eq
-		}), err
+		return listeq(g.Zvec != nil, len(g.Zvec), vec.List, func(i int) (bool, error) {
+			return zequal(g.Zvec[i], vec.At(i))
+		})
+	case air.Z_Which_zvecvec:
+		vv, err := c.Zvecvec()
+		if err != nil {
+			return false, err
+		}
+		return listeq(g.Zvecvec != nil, len(g.Zvecvec), vv.List, func(i int) (bool, error) {
+			p, err := vv.PtrAt(i)
+			if err != nil {
+				return false, err
+			}
+			v := air.Z_List{List: p.List()}
+			return listeq(g.Zvecvec[i] != nil, len(g.Zvecvec[i]), v.List, func(j int) (bool, error) {
+				return zequal(g.Zvecvec[i][j], v.At(j))
+			})
+		})
 	case air.Z_Which_planebase:
 		pb, err := c.Planebase()
 		if err != nil {
@@ -663,6 +685,28 @@ func zfill(c air.Z, g *Z) error {
 		for i, z := range g.Zvec {
 			if err := zfill(vec.At(i), z); err != nil {
 				return err
+			}
+		}
+	case air.Z_Which_zvecvec:
+		if g.Zvecvec == nil {
+			return c.SetZvecvec(capnp.PointerList{})
+		}
+		vv, err := c.NewZvecvec(int32(len(g.Zvecvec)))
+		if err != nil {
+			return err
+		}
+		for i, zz := range g.Zvecvec {
+			v, err := air.NewZ_List(vv.Segment(), int32(len(zz)))
+			if err != nil {
+				return err
+			}
+			if err := vv.SetPtr(i, v.ToPtr()); err != nil {
+				return err
+			}
+			for j, z := range zz {
+				if err := zfill(v.At(j), z); err != nil {
+					return err
+				}
 			}
 		}
 	case air.Z_Which_planebase:

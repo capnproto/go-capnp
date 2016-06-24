@@ -313,6 +313,17 @@ func (e *extracter) extractList(val reflect.Value, typ schema.Type, l capnp.List
 			}
 			val.Index(i).SetBytes(b)
 		}
+	case schema.Type_Which_list:
+		for i := 0; i < n; i++ {
+			p, err := capnp.PointerList{List: l}.PtrAt(i)
+			// TODO(light): collect errors and finish
+			if err != nil {
+				return err
+			}
+			if err := e.extractList(val.Index(i), elem, p.List()); err != nil {
+				return err
+			}
+		}
 	case schema.Type_Which_structType:
 		if val.Type().Elem().Kind() == reflect.Struct {
 			for i := 0; i < n; i++ {

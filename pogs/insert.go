@@ -307,6 +307,31 @@ func (ins *inserter) insertList(l capnp.List, typ schema.Type, val reflect.Value
 				return err
 			}
 		}
+	case schema.Type_Which_list:
+		pl := capnp.PointerList{List: l}
+		for i := 0; i < n; i++ {
+			vi := val.Index(i)
+			if vi.IsNil() {
+				if err := pl.SetPtr(i, capnp.Ptr{}); err != nil {
+					return err
+				}
+				continue
+			}
+			ee, err := elem.List().ElementType()
+			if err != nil {
+				return err
+			}
+			li, err := ins.newList(l.Segment(), ee, int32(vi.Len()))
+			if err != nil {
+				return err
+			}
+			if err := pl.SetPtr(i, li.ToPtr()); err != nil {
+				return err
+			}
+			if err := ins.insertList(li, elem, vi); err != nil {
+				return err
+			}
+		}
 	case schema.Type_Which_structType:
 		id := elem.StructType().TypeId()
 		for i := 0; i < n; i++ {
