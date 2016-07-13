@@ -43,13 +43,18 @@ func (e *extracter) extractStruct(val reflect.Value, typeID uint64, s capnp.Stru
 	if !n.IsValid() || n.Which() != schema.Node_Which_structNode {
 		return fmt.Errorf("cannot find struct type %#x", typeID)
 	}
+	stMap := mapStruct(val.Type(), n.StructNode().DiscriminantCount() > 0)
 	var discriminant uint16
-	var hasWhichField bool
 	if n.StructNode().DiscriminantCount() > 0 {
 		discriminant = s.Uint16(capnp.DataOffset(n.StructNode().DiscriminantOffset() * 2))
-		f := val.FieldByName("Which")
-		if f.IsValid() && f.Kind() == reflect.Uint16 {
-			hasWhichField = true
+		path := stMap[fieldProps{which: true}]
+		if len(path) > 0 {
+			f := val.FieldByIndex(path)
+			if f.Kind() != reflect.Uint16 {
+				dn, _ := n.DisplayNameBytes()
+				dn = dn[n.DisplayNamePrefixLength():]
+				return fmt.Errorf("can't extract %s into %v: which field is of type %v, not uint16", dn, val.Type(), f.Type())
+			}
 			f.SetUint(uint64(discriminant))
 		}
 	}
@@ -67,14 +72,17 @@ func (e *extracter) extractStruct(val reflect.Value, typeID uint64, s capnp.Stru
 		if err != nil {
 			return err
 		}
-		fname := fieldName(sname)
-		vf := val.FieldByName(fname)
+		path := stMap[fieldProps{schemaName: sname}]
+		if len(path) == 0 {
+			continue
+		}
+		vf := val.FieldByIndex(path)
 		if !vf.IsValid() {
 			// Don't have a field for this.
 			continue
 		}
 		if dv := f.DiscriminantValue(); dv != schema.Field_noDiscriminant {
-			if !hasWhichField {
+			if len(stMap[fieldProps{which: true}]) == 0 {
 				dn, _ := n.DisplayNameBytes()
 				dn = dn[n.DisplayNamePrefixLength():]
 				return fmt.Errorf("can't extract %s into %v: has union field but no Which field", dn, val.Type())
@@ -377,13 +385,4 @@ func isTypeMatch(r reflect.Type, s schema.Type) bool {
 	}
 	k, ok := typeMap[s.Which()]
 	return ok && k == r.Kind()
-}
-
-func fieldName(s string) string {
-	if len(s) == 0 {
-		return ""
-	}
-	// TODO(light): check it's lowercase.
-	x := s[0] - 'a' + 'A'
-	return string(x) + s[1:]
 }

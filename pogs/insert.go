@@ -39,12 +39,16 @@ func (ins *inserter) insertStruct(typeID uint64, s capnp.Struct, val reflect.Val
 	if !n.IsValid() || n.Which() != schema.Node_Which_structNode {
 		return fmt.Errorf("cannot find struct type %#x", typeID)
 	}
+	stMap := mapStruct(val.Type(), n.StructNode().DiscriminantCount() > 0)
 	var discriminant uint16
-	var hasWhich bool
 	if n.StructNode().DiscriminantCount() > 0 {
-		f := val.FieldByName("Which")
-		if f.IsValid() && f.Kind() == reflect.Uint16 {
-			hasWhich = true
+		f := fieldByIndex(val, stMap[fieldProps{which: true}])
+		if f.IsValid() {
+			if f.Kind() != reflect.Uint16 {
+				dn, _ := n.DisplayNameBytes()
+				dn = dn[n.DisplayNamePrefixLength():]
+				return fmt.Errorf("can't insert %s from %v: which field is of type %v, not uint16", dn, val.Type(), f.Type())
+			}
 			discriminant = uint16(f.Uint())
 			s.SetUint16(capnp.DataOffset(n.StructNode().DiscriminantOffset()*2), discriminant)
 		}
@@ -63,17 +67,16 @@ func (ins *inserter) insertStruct(typeID uint64, s capnp.Struct, val reflect.Val
 		if err != nil {
 			return err
 		}
-		fname := fieldName(sname)
-		vf := val.FieldByName(fname)
+		vf := fieldByIndex(val, stMap[fieldProps{schemaName: sname}])
 		if !vf.IsValid() {
 			// Don't have a field for this.
 			continue
 		}
 		if dv := f.DiscriminantValue(); dv != schema.Field_noDiscriminant {
-			if !hasWhich {
+			if len(stMap[fieldProps{which: true}]) == 0 {
 				dn, _ := n.DisplayNameBytes()
 				dn = dn[n.DisplayNamePrefixLength():]
-				return fmt.Errorf("can't insert %s from %v: has union field %s but no Which field", dn, val.Type(), fname)
+				return fmt.Errorf("can't insert %s from %v: has union field %s but no Which field", dn, val.Type(), sname)
 			}
 			if dv != discriminant {
 				continue
@@ -393,4 +396,28 @@ func (ins *inserter) structSize(id uint64) (capnp.ObjectSize, error) {
 		DataSize:     capnp.Size(n.StructNode().DataWordCount()) * 8,
 		PointerCount: n.StructNode().PointerCount(),
 	}, nil
+}
+
+func fieldByIndex(v reflect.Value, idx []int) reflect.Value {
+	switch len(idx) {
+	case 0:
+		return reflect.Value{}
+	case 1:
+		return v.Field(idx[0])
+	}
+	for i, x := range idx {
+		if !v.IsValid() {
+			return reflect.Value{}
+		}
+		if i > 0 {
+			if v.Kind() == reflect.Ptr && v.Type().Elem().Kind() == reflect.Struct {
+				if v.IsNil() {
+					return reflect.Value{}
+				}
+				v = v.Elem()
+			}
+		}
+		v = v.Field(x)
+	}
+	return v
 }

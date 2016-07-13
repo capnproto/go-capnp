@@ -370,6 +370,95 @@ func TestInsert_StructListNoPtr(t *testing.T) {
 	}
 }
 
+// TagZ is a variant of Z that has tags.
+type TagZ struct {
+	Which   air.Z_Which
+	Float64 float64 `capnp:"f64"`
+	I64     int64   `capnp:"-"`
+}
+
+func TestExtract_Tags(t *testing.T) {
+	tests := []struct {
+		name string
+		z    Z
+		tagz TagZ
+	}{
+		{
+			name: "renamed field",
+			z:    Z{Which: air.Z_Which_f64, F64: 3.5},
+			tagz: TagZ{Which: air.Z_Which_f64, Float64: 3.5},
+		},
+		{
+			name: "omitted field",
+			z:    Z{Which: air.Z_Which_i64, I64: 42},
+			tagz: TagZ{Which: air.Z_Which_i64},
+		},
+	}
+	for _, test := range tests {
+		_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		if err != nil {
+			t.Errorf("%s: NewMessage: %v", test.name, err)
+			continue
+		}
+		z, err := air.NewRootZ(seg)
+		if err != nil {
+			t.Errorf("%s: NewRootZ: %v", test.name, err)
+			continue
+		}
+		if err := zfill(z, &test.z); err != nil {
+			t.Errorf("%s: zfill: %v", test.name, err)
+			continue
+		}
+		out := new(TagZ)
+		if err := Extract(out, zTypeID, z.Struct); err != nil {
+			t.Errorf("%s: Extract error: %v", test.name, err)
+		}
+		if !reflect.DeepEqual(out, &test.tagz) {
+			t.Errorf("%s: Extract produced %+v; want %+v", test.name, out, &test.tagz)
+		}
+	}
+}
+
+func TestInsert_Tags(t *testing.T) {
+	tests := []struct {
+		name string
+		tagz TagZ
+		z    Z
+	}{
+		{
+			name: "renamed field",
+			tagz: TagZ{Which: air.Z_Which_f64, Float64: 3.5},
+			z:    Z{Which: air.Z_Which_f64, F64: 3.5},
+		},
+		{
+			name: "omitted field",
+			tagz: TagZ{Which: air.Z_Which_i64, I64: 42},
+			z:    Z{Which: air.Z_Which_i64, I64: 0},
+		},
+	}
+	for _, test := range tests {
+		_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		if err != nil {
+			t.Errorf("%s: NewMessage: %v", test.name, err)
+			continue
+		}
+		z, err := air.NewRootZ(seg)
+		if err != nil {
+			t.Errorf("%s: NewRootZ: %v", test.name, err)
+			continue
+		}
+		err = Insert(zTypeID, z.Struct, &test.tagz)
+		if err != nil {
+			t.Errorf("%s: Insert(%+v) error: %v", test.name, test.tagz, err)
+		}
+		if equal, err := zequal(&test.z, z); err != nil {
+			t.Errorf("%s: Insert(%+v) compare err: %v", test.name, test.tagz, err)
+		} else if !equal {
+			t.Errorf("%s: Insert(%+v) produced %v", test.name, test.tagz, z)
+		}
+	}
+}
+
 func zequal(g *Z, c air.Z) (bool, error) {
 	if g.Which != c.Which() {
 		return false, nil
