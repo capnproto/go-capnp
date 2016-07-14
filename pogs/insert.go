@@ -65,9 +65,7 @@ func (ins *inserter) insertStruct(typeID uint64, s capnp.Struct, val reflect.Val
 		}
 		if dv := f.DiscriminantValue(); dv != schema.Field_noDiscriminant {
 			if !hasWhich {
-				dn, _ := n.DisplayNameBytes()
-				dn = dn[n.DisplayNamePrefixLength():]
-				return fmt.Errorf("can't insert %s from %v: has union field %s but no Which field", dn, val.Type(), sname)
+				return fmt.Errorf("can't insert %s from %v: has union field %s but no Which field", shortDisplayName(n), val.Type(), sname)
 			}
 			if dv != discriminant {
 				continue

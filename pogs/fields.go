@@ -105,3 +105,8 @@ func (sp structProps) field(val reflect.Value, k fieldKey, mkparents bool) refle
 func hasDiscriminant(n schema.Node) bool {
 	return n.Which() == schema.Node_Which_structNode && n.StructNode().DiscriminantCount() > 0
 }
+
+func shortDisplayName(n schema.Node) []byte {
+	dn, _ := n.DisplayNameBytes()
+	return dn[n.DisplayNamePrefixLength():]
+}

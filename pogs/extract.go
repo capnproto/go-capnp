@@ -57,9 +57,7 @@ func (e *extracter) extractStruct(val reflect.Value, typeID uint64, s capnp.Stru
 	}
 	props, err := mapStruct(val.Type(), hasDiscriminant(n))
 	if err != nil {
-		dn, _ := n.DisplayNameBytes()
-		dn = dn[n.DisplayNamePrefixLength():]
-		return fmt.Errorf("can't extract %s: %v", dn, val.Type(), err)
+		return fmt.Errorf("can't extract %s: %v", shortDisplayName(n), val.Type(), err)
 	}
 	var discriminant uint16
 	hasWhich := false
@@ -84,9 +82,7 @@ func (e *extracter) extractStruct(val reflect.Value, typeID uint64, s capnp.Stru
 		}
 		if dv := f.DiscriminantValue(); dv != schema.Field_noDiscriminant {
 			if !hasWhich {
-				dn, _ := n.DisplayNameBytes()
-				dn = dn[n.DisplayNamePrefixLength():]
-				return fmt.Errorf("can't extract %s into %v: has union field but no Which field", dn, val.Type())
+				return fmt.Errorf("can't extract %s into %v: has union field but no Which field", shortDisplayName(n), val.Type())
 			}
 			if dv != discriminant {
 				continue
