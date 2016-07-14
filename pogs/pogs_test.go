@@ -524,6 +524,72 @@ func TestInsert_Tags(t *testing.T) {
 	}
 }
 
+type ZBool struct {
+	Which struct{} `capnp:",which=bool"`
+	Bool  bool
+}
+
+func TestExtract_WhichTag(t *testing.T) {
+	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		t.Fatalf("NewMessage: %v", err)
+	}
+	z, err := air.NewRootZ(seg)
+	if err != nil {
+		t.Fatalf("NewRootZ: %v", err)
+	}
+	if err := zfill(z, &Z{Which: air.Z_Which_bool, Bool: true}); err != nil {
+		t.Fatalf("zfill: %v", err)
+	}
+	out := new(ZBool)
+	if err := Extract(out, air.Z_TypeID, z.Struct); err != nil {
+		t.Errorf("Extract error: %v", err)
+	}
+	if !out.Bool {
+		t.Errorf("Extract produced %s; want %s", zpretty.Sprint(out), zpretty.Sprint(&ZBool{Bool: true}))
+	}
+}
+
+func TestExtract_WhichTagMismatch(t *testing.T) {
+	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		t.Fatalf("NewMessage: %v", err)
+	}
+	z, err := air.NewRootZ(seg)
+	if err != nil {
+		t.Fatalf("NewRootZ: %v", err)
+	}
+	if err := zfill(z, &Z{Which: air.Z_Which_i64, I64: 42}); err != nil {
+		t.Fatalf("zfill: %v", err)
+	}
+	out := new(ZBool)
+	if err := Extract(out, air.Z_TypeID, z.Struct); err == nil {
+		t.Error("Extract did not return an error")
+	}
+}
+
+func TestInsert_WhichTag(t *testing.T) {
+	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		t.Fatalf("NewMessage: %v", err)
+	}
+	z, err := air.NewRootZ(seg)
+	if err != nil {
+		t.Fatalf("NewRootZ: %v", err)
+	}
+	zb := &ZBool{Bool: true}
+	err = Insert(air.Z_TypeID, z.Struct, zb)
+	if err != nil {
+		t.Errorf("Insert(%s) error: %v", zpretty.Sprint(zb), err)
+	}
+	want := &Z{Which: air.Z_Which_bool, Bool: true}
+	if equal, err := zequal(want, z); err != nil {
+		t.Errorf("Insert(%s) compare err: %v", zpretty.Sprint(zb), err)
+	} else if !equal {
+		t.Errorf("Insert(%s) produced %v", zpretty.Sprint(zb), z)
+	}
+}
+
 func zequal(g *Z, c air.Z) (bool, error) {
 	if g.Which != c.Which() {
 		return false, nil

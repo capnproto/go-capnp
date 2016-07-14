@@ -55,7 +55,7 @@ func (e *extracter) extractStruct(val reflect.Value, typeID uint64, s capnp.Stru
 	if !n.IsValid() || n.Which() != schema.Node_Which_structNode {
 		return fmt.Errorf("cannot find struct type %#x", typeID)
 	}
-	props, err := mapStruct(val.Type(), hasDiscriminant(n))
+	props, err := mapStruct(val.Type(), n)
 	if err != nil {
 		return fmt.Errorf("can't extract %s: %v", shortDisplayName(n), val.Type(), err)
 	}
@@ -63,7 +63,11 @@ func (e *extracter) extractStruct(val reflect.Value, typeID uint64, s capnp.Stru
 	hasWhich := false
 	if hasDiscriminant(n) {
 		discriminant = s.Uint16(capnp.DataOffset(n.StructNode().DiscriminantOffset() * 2))
-		hasWhich = props.setWhich(val, discriminant)
+		if err := props.setWhich(val, discriminant); err == nil {
+			hasWhich = true
+		} else if !isNoWhichError(err) {
+			return err
+		}
 	}
 	fields, err := n.StructNode().Fields()
 	if err != nil {
@@ -71,11 +75,7 @@ func (e *extracter) extractStruct(val reflect.Value, typeID uint64, s capnp.Stru
 	}
 	for i := 0; i < fields.Len(); i++ {
 		f := fields.At(i)
-		sname, err := f.Name()
-		if err != nil {
-			return err
-		}
-		vf := props.makeFieldBySchemaName(val, sname)
+		vf := props.makeFieldByOrdinal(val, i)
 		if !vf.IsValid() {
 			// Don't have a field for this.
 			continue

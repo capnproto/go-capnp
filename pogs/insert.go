@@ -39,7 +39,7 @@ func (ins *inserter) insertStruct(typeID uint64, s capnp.Struct, val reflect.Val
 	if !n.IsValid() || n.Which() != schema.Node_Which_structNode {
 		return fmt.Errorf("cannot find struct type %#x", typeID)
 	}
-	props, err := mapStruct(val.Type(), hasDiscriminant(n))
+	props, err := mapStruct(val.Type(), n)
 	var discriminant uint16
 	hasWhich := false
 	if hasDiscriminant(n) {
@@ -54,17 +54,14 @@ func (ins *inserter) insertStruct(typeID uint64, s capnp.Struct, val reflect.Val
 	}
 	for i := 0; i < fields.Len(); i++ {
 		f := fields.At(i)
-		sname, err := f.Name()
-		if err != nil {
-			return err
-		}
-		vf := props.fieldBySchemaName(val, sname)
+		vf := props.fieldByOrdinal(val, i)
 		if !vf.IsValid() {
 			// Don't have a field for this.
 			continue
 		}
 		if dv := f.DiscriminantValue(); dv != schema.Field_noDiscriminant {
 			if !hasWhich {
+				sname, _ := f.NameBytes()
 				return fmt.Errorf("can't insert %s from %v: has union field %s but no Which field", shortDisplayName(n), val.Type(), sname)
 			}
 			if dv != discriminant {

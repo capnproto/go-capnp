@@ -3,78 +3,133 @@ package pogs
 import (
 	"fmt"
 	"reflect"
+	"strings"
 
 	"zombiezen.com/go/capnproto2/std/capnp/schema"
 )
 
-type fieldKey struct {
+type fieldProps struct {
 	schemaName string // empty if doesn't map to schema
 	which      bool
+	fixedWhich string
 }
 
-func (p fieldKey) isZero() bool {
-	return p.schemaName == "" && p.which == false
-}
-
-func parseField(f reflect.StructField, hasDiscrim bool) fieldKey {
+func parseField(f reflect.StructField, hasDiscrim bool) fieldProps {
 	if f.PkgPath != "" {
 		// unexported field
-		return fieldKey{}
+		return fieldProps{}
 	}
-	switch tag := f.Tag.Get("capnp"); tag {
+	tname, opts := nextOpt(f.Tag.Get("capnp"))
+	switch tname {
 	case "":
 		if hasDiscrim && f.Name == "Which" {
-			return fieldKey{which: true}
+			p := fieldProps{which: true}
+			for len(opts) > 0 {
+				var curr string
+				curr, opts = nextOpt(opts)
+				if strings.HasPrefix(curr, "which=") {
+					p.fixedWhich = strings.TrimPrefix(curr, "which=")
+					break
+				}
+			}
+			return p
 		}
 		// TODO(light): check it's uppercase.
 		x := f.Name[0] - 'A' + 'a'
-		return fieldKey{schemaName: string(x) + f.Name[1:]}
+		return fieldProps{schemaName: string(x) + f.Name[1:]}
 	case "-":
-		return fieldKey{}
+		return fieldProps{}
 	default:
-		return fieldKey{schemaName: tag}
+		return fieldProps{schemaName: tname}
 	}
 }
 
-type fieldProps struct {
+func nextOpt(opts string) (head, tail string) {
+	i := strings.Index(opts, ",")
+	if i == -1 {
+		return opts, ""
+	}
+	return opts[:i], opts[i+1:]
+}
+
+type fieldLoc struct {
 	i int
 }
 
-type structProps map[fieldKey]fieldProps
+func (loc fieldLoc) isValid() bool {
+	return loc.i >= 0
+}
 
-func mapStruct(t reflect.Type, hasDiscrim bool) (structProps, error) {
-	m := make(structProps)
+type structProps struct {
+	fields     []fieldLoc
+	whichLoc   fieldLoc // i == -1: none; i == -2: fixed
+	fixedWhich uint16
+}
+
+func mapStruct(t reflect.Type, n schema.Node) (structProps, error) {
+	fields, err := n.StructNode().Fields()
+	if err != nil {
+		return structProps{}, err
+	}
+	sp := structProps{
+		fields:   make([]fieldLoc, fields.Len()),
+		whichLoc: fieldLoc{i: -1},
+	}
+	for i := range sp.fields {
+		sp.fields[i] = fieldLoc{i: -1}
+	}
 	for i := 0; i < t.NumField(); i++ {
 		// TODO(light): anonymous fields
 		f := t.Field(i)
-		k := parseField(f, hasDiscrim)
-		if k.which && f.Type.Kind() != reflect.Uint16 {
-			return nil, fmt.Errorf("%v.Which is type %v, not uint16", t, f.Type)
+		p := parseField(f, hasDiscriminant(n))
+		if p.which {
+			switch {
+			case p.fixedWhich != "":
+				fi := fieldIndex(fields, p.fixedWhich)
+				if fi < 0 {
+					return structProps{}, fmt.Errorf("%v.Which is tagged with unknown field %s", t, p.fixedWhich)
+				}
+				dv := fields.At(fi).DiscriminantValue()
+				if dv == schema.Field_noDiscriminant {
+					return structProps{}, fmt.Errorf("%v.Which is tagged with non-union field %s", t, p.fixedWhich)
+				}
+				sp.whichLoc = fieldLoc{i: -2}
+				sp.fixedWhich = dv
+			case f.Type.Kind() != reflect.Uint16:
+				return structProps{}, fmt.Errorf("%v.Which is type %v, not uint16", t, f.Type)
+			default:
+				sp.whichLoc = fieldLoc{i: i}
+			}
+			continue
 		}
-		if !k.isZero() {
-			m[k] = fieldProps{i: i}
+		if p.schemaName != "" {
+			fi := fieldIndex(fields, p.schemaName)
+			sp.fields[fi] = fieldLoc{i: i}
 		}
 	}
-	return m, nil
+	return sp, nil
 }
 
 // fieldBySchemaName returns the field for the given name.
 // Returns an invalid value if the field was not found or it is
 // contained inside a nil anonymous struct pointer.
-func (sp structProps) fieldBySchemaName(val reflect.Value, name string) reflect.Value {
-	return sp.field(val, fieldKey{schemaName: name}, false)
+func (sp structProps) fieldByOrdinal(val reflect.Value, i int) reflect.Value {
+	return fieldByLoc(val, sp.fields[i], false)
 }
 
 // makeFieldBySchemaName returns the field for the given name, creating
 // its parent anonymous structs if necessary.  Returns an invalid value
 // if the field was not found.
-func (sp structProps) makeFieldBySchemaName(val reflect.Value, name string) reflect.Value {
-	return sp.field(val, fieldKey{schemaName: name}, true)
+func (sp structProps) makeFieldByOrdinal(val reflect.Value, i int) reflect.Value {
+	return fieldByLoc(val, sp.fields[i], true)
 }
 
 // which returns the value of the discriminator field.
 func (sp structProps) which(val reflect.Value) (discrim uint16, ok bool) {
-	f := sp.field(val, fieldKey{which: true}, false)
+	if sp.whichLoc.i == -2 {
+		return sp.fixedWhich, true
+	}
+	f := fieldByLoc(val, sp.whichLoc, false)
 	if !f.IsValid() {
 		return 0, false
 	}
@@ -84,22 +139,40 @@ func (sp structProps) which(val reflect.Value) (discrim uint16, ok bool) {
 // setWhich sets the value of the discriminator field, creating its
 // parent anonymous structs if necessary.  Returns whether the struct
 // had a field to set.
-func (sp structProps) setWhich(val reflect.Value, discrim uint16) bool {
-	f := sp.field(val, fieldKey{which: true}, true)
+func (sp structProps) setWhich(val reflect.Value, discrim uint16) error {
+	if sp.whichLoc.i == -2 {
+		if discrim != sp.fixedWhich {
+			return fmt.Errorf("extract union field @%d into %v; expected @%d", discrim, val.Type(), sp.fixedWhich)
+		}
+		return nil
+	}
+	f := fieldByLoc(val, sp.whichLoc, true)
 	if !f.IsValid() {
-		return false
+		return noWhichError{val.Type()}
 	}
 	f.SetUint(uint64(discrim))
-	return true
+	return nil
 }
 
-func (sp structProps) field(val reflect.Value, k fieldKey, mkparents bool) reflect.Value {
-	p, ok := sp[k]
-	if !ok {
+type noWhichError struct {
+	t reflect.Type
+}
+
+func (e noWhichError) Error() string {
+	return fmt.Sprintf("%v has no field Which", e.t)
+}
+
+func isNoWhichError(e error) bool {
+	_, ok := e.(noWhichError)
+	return ok
+}
+
+func fieldByLoc(val reflect.Value, loc fieldLoc, mkparents bool) reflect.Value {
+	if !loc.isValid() {
 		return reflect.Value{}
 	}
 	// TODO(light): mkparents
-	return val.Field(p.i)
+	return val.Field(loc.i)
 }
 
 func hasDiscriminant(n schema.Node) bool {
@@ -109,4 +182,26 @@ func hasDiscriminant(n schema.Node) bool {
 func shortDisplayName(n schema.Node) []byte {
 	dn, _ := n.DisplayNameBytes()
 	return dn[n.DisplayNamePrefixLength():]
+}
+
+func fieldIndex(fields schema.Field_List, name string) int {
+	for i := 0; i < fields.Len(); i++ {
+		b, _ := fields.At(i).NameBytes()
+		if bytesStrEqual(b, name) {
+			return i
+		}
+	}
+	return -1
+}
+
+func bytesStrEqual(b []byte, s string) bool {
+	if len(b) != len(s) {
+		return false
+	}
+	for i := range b {
+		if b[i] != s[i] {
+			return false
+		}
+	}
+	return true
 }
