@@ -59,10 +59,6 @@ func (ins *inserter) insertStruct(typeID uint64, s capnp.Struct, val reflect.Val
 	}
 	for i := 0; i < fields.Len(); i++ {
 		f := fields.At(i)
-		// TODO(light): groups
-		if f.Which() != schema.Field_Which_slot {
-			continue
-		}
 		sname, err := f.Name()
 		if err != nil {
 			return err
@@ -82,8 +78,15 @@ func (ins *inserter) insertStruct(typeID uint64, s capnp.Struct, val reflect.Val
 				continue
 			}
 		}
-		if err := ins.insertField(s, f, vf); err != nil {
-			return err
+		switch f.Which() {
+		case schema.Field_Which_slot:
+			if err := ins.insertField(s, f, vf); err != nil {
+				return err
+			}
+		case schema.Field_Which_group:
+			if err := ins.insertStruct(f.Group().TypeId(), s, vf); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

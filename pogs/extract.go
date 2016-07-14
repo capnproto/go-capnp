@@ -27,11 +27,23 @@ type extracter struct {
 
 func (e *extracter) extractStruct(val reflect.Value, typeID uint64, s capnp.Struct) error {
 	if val.Kind() == reflect.Ptr {
-		// TODO(light): create if nil
+		if val.Type().Elem().Kind() != reflect.Struct {
+			return fmt.Errorf("can't extract struct into %v", val.Type())
+		}
+		switch {
+		case !val.CanSet() && val.IsNil():
+			// Even if the Cap'n Proto pointer isn't valid, this is probably
+			// the caller's fault and will be a bug at some point.
+			return errors.New("can't extract struct into nil")
+		case !s.IsValid() && val.CanSet():
+			val.Set(reflect.Zero(val.Type()))
+			return nil
+		case s.IsValid() && val.CanSet() && val.IsNil():
+			val.Set(reflect.New(val.Type().Elem()))
+		}
 		val = val.Elem()
-	}
-	if val.Kind() != reflect.Struct {
-		return fmt.Errorf("can't extract struct into %v", val.Kind())
+	} else if val.Kind() != reflect.Struct {
+		return fmt.Errorf("can't extract struct into %v", val.Type())
 	}
 	if !val.CanSet() {
 		return errors.New("can't modify struct, did you pass in a pointer to your struct?")
@@ -64,10 +76,6 @@ func (e *extracter) extractStruct(val reflect.Value, typeID uint64, s capnp.Stru
 	}
 	for i := 0; i < fields.Len(); i++ {
 		f := fields.At(i)
-		// TODO(light): groups
-		if f.Which() != schema.Field_Which_slot {
-			continue
-		}
 		sname, err := f.Name()
 		if err != nil {
 			return err
@@ -91,8 +99,15 @@ func (e *extracter) extractStruct(val reflect.Value, typeID uint64, s capnp.Stru
 				continue
 			}
 		}
-		if err := e.extractField(vf, s, f); err != nil {
-			return err
+		switch f.Which() {
+		case schema.Field_Which_slot:
+			if err := e.extractField(vf, s, f); err != nil {
+				return err
+			}
+		case schema.Field_Which_group:
+			if err := e.extractStruct(vf, f.Group().TypeId(), s); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -203,17 +218,7 @@ func (e *extracter) extractField(val reflect.Value, s capnp.Struct, f schema.Fie
 			p, _ = dv.StructValuePtr()
 			ss = p.Struct()
 		}
-		if val.Kind() == reflect.Struct {
-			return e.extractStruct(val, typ.StructType().TypeId(), ss)
-		}
-		// Pointer to struct otherwise.
-		if !ss.IsValid() {
-			val.Set(reflect.Zero(val.Type()))
-			return nil
-		}
-		newval := reflect.New(val.Type().Elem())
-		val.Set(newval)
-		return e.extractStruct(newval, typ.StructType().TypeId(), ss)
+		return e.extractStruct(val, typ.StructType().TypeId(), ss)
 	case schema.Type_Which_list:
 		p, err := s.Ptr(uint16(f.Slot().Offset()))
 		if err != nil {

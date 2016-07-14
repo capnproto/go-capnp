@@ -51,6 +51,8 @@ type Z struct {
 
 	Planebase *PlaneBase
 	Airport   air.Airport
+
+	Grp *ZGroup
 }
 
 type PlaneBase struct {
@@ -60,6 +62,11 @@ type PlaneBase struct {
 	CanFly   bool
 	Capacity int64
 	MaxSpeed float64
+}
+
+type ZGroup struct {
+	First  uint64
+	Second uint64
 }
 
 var goodTests = []Z{
@@ -118,6 +125,7 @@ var goodTests = []Z{
 		MaxSpeed: 9001.0,
 	}},
 	{Which: air.Z_Which_airport, Airport: air.Airport_lax},
+	{Which: air.Z_Which_grp, Grp: &ZGroup{First: 123, Second: 456}},
 }
 
 func TestExtract(t *testing.T) {
@@ -271,6 +279,7 @@ type StructZ struct {
 	Which     air.Z_Which
 	Zvec      []Z
 	Planebase PlaneBase
+	Grp       ZGroup
 }
 
 func TestExtract_StructNoPtr(t *testing.T) {
@@ -323,6 +332,29 @@ func TestExtract_StructListNoPtr(t *testing.T) {
 	}
 }
 
+func TestExtract_GroupNoPtr(t *testing.T) {
+	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		t.Fatalf("NewMessage: %v", err)
+	}
+	z, err := air.NewRootZ(seg)
+	if err != nil {
+		t.Fatalf("NewRootZ: %v", err)
+	}
+	err = zfill(z, &Z{Which: air.Z_Which_grp, Grp: &ZGroup{First: 123, Second: 456}})
+	if err != nil {
+		t.Fatalf("zfill: %v", err)
+	}
+	out := new(StructZ)
+	if err := Extract(out, zTypeID, z.Struct); err != nil {
+		t.Errorf("Extract(%v) error: %v", z, err)
+	}
+	want := &StructZ{Which: air.Z_Which_grp, Grp: ZGroup{First: 123, Second: 456}}
+	if !reflect.DeepEqual(out, want) {
+		t.Errorf("Extract(%v) produced %s; want %s", z, zpretty.Sprint(out), zpretty.Sprint(want))
+	}
+}
+
 func TestInsert_StructNoPtr(t *testing.T) {
 	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	if err != nil {
@@ -364,6 +396,28 @@ func TestInsert_StructListNoPtr(t *testing.T) {
 	want := &Z{Which: air.Z_Which_zvec, Zvec: []*Z{
 		{Which: air.Z_Which_i64, I64: 123},
 	}}
+	if equal, err := zequal(want, z); err != nil {
+		t.Errorf("Insert(%s) compare err: %v", zpretty.Sprint(bz), err)
+	} else if !equal {
+		t.Errorf("Insert(%s) produced %v", zpretty.Sprint(bz), z)
+	}
+}
+
+func TestInsert_GroupNoPtr(t *testing.T) {
+	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		t.Fatalf("NewMessage: %v", err)
+	}
+	z, err := air.NewRootZ(seg)
+	if err != nil {
+		t.Fatalf("NewRootZ: %v", err)
+	}
+	bz := &StructZ{Which: air.Z_Which_grp, Grp: ZGroup{First: 123, Second: 456}}
+	err = Insert(zTypeID, z.Struct, bz)
+	if err != nil {
+		t.Errorf("Insert(%s) error: %v", zpretty.Sprint(bz), err)
+	}
+	want := &Z{Which: air.Z_Which_grp, Grp: &ZGroup{First: 123, Second: 456}}
 	if equal, err := zequal(want, z); err != nil {
 		t.Errorf("Insert(%s) compare err: %v", zpretty.Sprint(bz), err)
 	} else if !equal {
@@ -628,6 +682,11 @@ func zequal(g *Z, c air.Z) (bool, error) {
 		return g.Planebase.Name == name && g.Planebase.Rating == pb.Rating() && g.Planebase.CanFly == pb.CanFly() && g.Planebase.Capacity == pb.Capacity() && g.Planebase.MaxSpeed == pb.MaxSpeed(), nil
 	case air.Z_Which_airport:
 		return g.Airport == c.Airport(), nil
+	case air.Z_Which_grp:
+		if g.Grp == nil {
+			return false, nil
+		}
+		return g.Grp.First == c.Grp().First() && g.Grp.Second == c.Grp().Second(), nil
 	default:
 		return false, fmt.Errorf("zequal: unknown type: %v", g.Which)
 	}
@@ -816,6 +875,12 @@ func zfill(c air.Z, g *Z) error {
 		pb.SetMaxSpeed(g.Planebase.MaxSpeed)
 	case air.Z_Which_airport:
 		c.SetAirport(g.Airport)
+	case air.Z_Which_grp:
+		c.SetGrp()
+		if g.Grp != nil {
+			c.Grp().SetFirst(g.Grp.First)
+			c.Grp().SetSecond(g.Grp.Second)
+		}
 	default:
 		return fmt.Errorf("zfill: unknown type: %v", g.Which)
 	}
