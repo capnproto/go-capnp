@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/kylelemons/godebug/pretty"
 	"zombiezen.com/go/capnproto2"
 	air "zombiezen.com/go/capnproto2/internal/aircraftlib"
 )
@@ -123,16 +124,16 @@ func TestExtract(t *testing.T) {
 	for _, test := range goodTests {
 		_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
 		if err != nil {
-			t.Errorf("NewMessage for %+v: %v", test, err)
+			t.Errorf("NewMessage for %s: %v", zpretty.Sprint(test), err)
 			continue
 		}
 		z, err := air.NewRootZ(seg)
 		if err != nil {
-			t.Errorf("NewRootZ for %+v: %v", test, err)
+			t.Errorf("NewRootZ for %s: %v", zpretty.Sprint(test), err)
 			continue
 		}
 		if err := zfill(z, &test); err != nil {
-			t.Errorf("zfill for %+v: %v", test, err)
+			t.Errorf("zfill for %s: %v", zpretty.Sprint(test), err)
 			continue
 		}
 		out := new(Z)
@@ -140,7 +141,7 @@ func TestExtract(t *testing.T) {
 			t.Errorf("Extract(%v) error: %v", z, err)
 		}
 		if !reflect.DeepEqual(out, &test) {
-			t.Errorf("Extract(%v) produced %+v; want %+v", z, out, &test)
+			t.Errorf("Extract(%v) produced %s; want %s", z, zpretty.Sprint(out), zpretty.Sprint(test))
 		}
 	}
 }
@@ -149,22 +150,22 @@ func TestInsert(t *testing.T) {
 	for _, test := range goodTests {
 		_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
 		if err != nil {
-			t.Errorf("NewMessage for %+v: %v", test, err)
+			t.Errorf("NewMessage for %s: %v", zpretty.Sprint(test), err)
 			continue
 		}
 		z, err := air.NewRootZ(seg)
 		if err != nil {
-			t.Errorf("NewRootZ for %+v: %v", test, err)
+			t.Errorf("NewRootZ for %s: %v", zpretty.Sprint(test), err)
 			continue
 		}
 		err = Insert(zTypeID, z.Struct, &test)
 		if err != nil {
-			t.Errorf("Insert(%+v) error: %v", test, err)
+			t.Errorf("Insert(%s) error: %v", zpretty.Sprint(test), err)
 		}
 		if equal, err := zequal(&test, z); err != nil {
-			t.Errorf("Insert(%+v) compare err: %v", test, err)
+			t.Errorf("Insert(%s) compare err: %v", zpretty.Sprint(test), err)
 		} else if !equal {
-			t.Errorf("Insert(%+v) produced %v", test, z)
+			t.Errorf("Insert(%s) produced %v", zpretty.Sprint(test), z)
 		}
 	}
 }
@@ -194,7 +195,7 @@ func TestExtract_StringBytes(t *testing.T) {
 	}
 	want := &BytesZ{Which: air.Z_Which_text, Text: []byte("Hello, World!")}
 	if !reflect.DeepEqual(out, want) {
-		t.Errorf("Extract(%v) produced %+v; want %+v", z, out, want)
+		t.Errorf("Extract(%v) produced %s; want %s", z, zpretty.Sprint(out), zpretty.Sprint(want))
 	}
 }
 
@@ -217,7 +218,7 @@ func TestExtract_StringListBytes(t *testing.T) {
 	}
 	want := &BytesZ{Which: air.Z_Which_textvec, Textvec: [][]byte{[]byte("Holmes"), []byte("Watson")}}
 	if !reflect.DeepEqual(out, want) {
-		t.Errorf("Extract(%v) produced %+v; want %+v", z, out, want)
+		t.Errorf("Extract(%v) produced %s; want %s", z, zpretty.Sprint(out), zpretty.Sprint(want))
 	}
 }
 
@@ -233,13 +234,13 @@ func TestInsert_StringBytes(t *testing.T) {
 	bz := &BytesZ{Which: air.Z_Which_text, Text: []byte("Hello, World!")}
 	err = Insert(zTypeID, z.Struct, bz)
 	if err != nil {
-		t.Errorf("Insert(%+v) error: %v", bz, err)
+		t.Errorf("Insert(%s) error: %v", zpretty.Sprint(bz), err)
 	}
 	want := &Z{Which: air.Z_Which_text, Text: "Hello, World!"}
 	if equal, err := zequal(want, z); err != nil {
-		t.Errorf("Insert(%+v) compare err: %v", bz, err)
+		t.Errorf("Insert(%s) compare err: %v", zpretty.Sprint(bz), err)
 	} else if !equal {
-		t.Errorf("Insert(%+v) produced %v", bz, z)
+		t.Errorf("Insert(%s) produced %v", zpretty.Sprint(bz), z)
 	}
 }
 
@@ -255,13 +256,13 @@ func TestInsert_StringListBytes(t *testing.T) {
 	bz := &BytesZ{Which: air.Z_Which_textvec, Textvec: [][]byte{[]byte("Holmes"), []byte("Watson")}}
 	err = Insert(zTypeID, z.Struct, bz)
 	if err != nil {
-		t.Errorf("Insert(%+v) error: %v", bz, err)
+		t.Errorf("Insert(%s) error: %v", zpretty.Sprint(bz), err)
 	}
 	want := &Z{Which: air.Z_Which_textvec, Textvec: []string{"Holmes", "Watson"}}
 	if equal, err := zequal(want, z); err != nil {
-		t.Errorf("Insert(%+v) compare err: %v", bz, err)
+		t.Errorf("Insert(%s) compare err: %v", zpretty.Sprint(bz), err)
 	} else if !equal {
-		t.Errorf("Insert(%+v) produced %v", bz, z)
+		t.Errorf("Insert(%s) produced %v", zpretty.Sprint(bz), z)
 	}
 }
 
@@ -291,7 +292,7 @@ func TestExtract_StructNoPtr(t *testing.T) {
 	}
 	want := &StructZ{Which: air.Z_Which_planebase, Planebase: PlaneBase{Name: "foo"}}
 	if !reflect.DeepEqual(out, want) {
-		t.Errorf("Extract(%v) produced %+v; want %+v", z, out, want)
+		t.Errorf("Extract(%v) produced %s; want %s", z, zpretty.Sprint(out), zpretty.Sprint(want))
 	}
 }
 
@@ -318,7 +319,7 @@ func TestExtract_StructListNoPtr(t *testing.T) {
 		{Which: air.Z_Which_i64, I64: 123},
 	}}
 	if !reflect.DeepEqual(out, want) {
-		t.Errorf("Extract(%v) produced %+v; want %+v", z, out, want)
+		t.Errorf("Extract(%v) produced %s; want %s", z, zpretty.Sprint(out), zpretty.Sprint(want))
 	}
 }
 
@@ -334,13 +335,13 @@ func TestInsert_StructNoPtr(t *testing.T) {
 	bz := &StructZ{Which: air.Z_Which_planebase, Planebase: PlaneBase{Name: "foo"}}
 	err = Insert(zTypeID, z.Struct, bz)
 	if err != nil {
-		t.Errorf("Insert(%+v) error: %v", bz, err)
+		t.Errorf("Insert(%s) error: %v", zpretty.Sprint(bz), err)
 	}
 	want := &Z{Which: air.Z_Which_planebase, Planebase: &PlaneBase{Name: "foo"}}
 	if equal, err := zequal(want, z); err != nil {
-		t.Errorf("Insert(%+v) compare err: %v", bz, err)
+		t.Errorf("Insert(%s) compare err: %v", zpretty.Sprint(bz), err)
 	} else if !equal {
-		t.Errorf("Insert(%+v) produced %v", bz, z)
+		t.Errorf("Insert(%s) produced %v", zpretty.Sprint(bz), z)
 	}
 }
 
@@ -358,15 +359,15 @@ func TestInsert_StructListNoPtr(t *testing.T) {
 	}}
 	err = Insert(zTypeID, z.Struct, bz)
 	if err != nil {
-		t.Errorf("Insert(%+v) error: %v", bz, err)
+		t.Errorf("Insert(%s) error: %v", zpretty.Sprint(bz), err)
 	}
 	want := &Z{Which: air.Z_Which_zvec, Zvec: []*Z{
 		{Which: air.Z_Which_i64, I64: 123},
 	}}
 	if equal, err := zequal(want, z); err != nil {
-		t.Errorf("Insert(%+v) compare err: %v", bz, err)
+		t.Errorf("Insert(%s) compare err: %v", zpretty.Sprint(bz), err)
 	} else if !equal {
-		t.Errorf("Insert(%+v) produced %v", bz, z)
+		t.Errorf("Insert(%s) produced %v", zpretty.Sprint(bz), z)
 	}
 }
 
@@ -414,7 +415,7 @@ func TestExtract_Tags(t *testing.T) {
 			t.Errorf("%s: Extract error: %v", test.name, err)
 		}
 		if !reflect.DeepEqual(out, &test.tagz) {
-			t.Errorf("%s: Extract produced %+v; want %+v", test.name, out, &test.tagz)
+			t.Errorf("%s: Extract produced %s; want %s", test.name, zpretty.Sprint(out), zpretty.Sprint(test.tagz))
 		}
 	}
 }
@@ -449,12 +450,12 @@ func TestInsert_Tags(t *testing.T) {
 		}
 		err = Insert(zTypeID, z.Struct, &test.tagz)
 		if err != nil {
-			t.Errorf("%s: Insert(%+v) error: %v", test.name, test.tagz, err)
+			t.Errorf("%s: Insert(%s) error: %v", test.name, zpretty.Sprint(test.tagz), err)
 		}
 		if equal, err := zequal(&test.z, z); err != nil {
-			t.Errorf("%s: Insert(%+v) compare err: %v", test.name, test.tagz, err)
+			t.Errorf("%s: Insert(%s) compare err: %v", test.name, zpretty.Sprint(test.tagz), err)
 		} else if !equal {
-			t.Errorf("%s: Insert(%+v) produced %v", test.name, test.tagz, z)
+			t.Errorf("%s: Insert(%s) produced %v", test.name, zpretty.Sprint(test.tagz), z)
 		}
 	}
 }
@@ -819,4 +820,9 @@ func zfill(c air.Z, g *Z) error {
 		return fmt.Errorf("zfill: unknown type: %v", g.Which)
 	}
 	return nil
+}
+
+var zpretty = &pretty.Config{
+	Compact:        true,
+	SkipZeroFields: true,
 }
