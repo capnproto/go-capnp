@@ -9,8 +9,6 @@ import (
 	air "zombiezen.com/go/capnproto2/internal/aircraftlib"
 )
 
-const benchmarkATypeID = 0xde2a1a960863c11c
-
 type A struct {
 	Name     string
 	BirthDay int64
@@ -38,7 +36,7 @@ func BenchmarkExtract(b *testing.B) {
 		a := generateA(r)
 		msg, seg, _ := capnp.NewMessage(capnp.SingleSegment(nil))
 		root, _ := air.NewRootBenchmarkA(seg)
-		Insert(benchmarkATypeID, root.Struct, a)
+		Insert(air.BenchmarkA_TypeID, root.Struct, a)
 		data[i], _ = msg.Marshal()
 	}
 	b.ReportAllocs()
@@ -47,7 +45,7 @@ func BenchmarkExtract(b *testing.B) {
 		msg, _ := capnp.Unmarshal(data[r.Intn(len(data))])
 		root, _ := msg.RootPtr()
 		var a A
-		Extract(&a, benchmarkATypeID, root.Struct())
+		Extract(&a, air.BenchmarkA_TypeID, root.Struct())
 	}
 }
 
@@ -64,7 +62,7 @@ func BenchmarkInsert(b *testing.B) {
 		a := data[r.Intn(len(data))]
 		msg, seg, _ := capnp.NewMessage(capnp.SingleSegment(arena[:0]))
 		root, _ := air.NewRootBenchmarkA(seg)
-		Insert(benchmarkATypeID, root.Struct, a)
+		Insert(air.BenchmarkA_TypeID, root.Struct, a)
 		msg.Marshal()
 	}
 }
