@@ -65,6 +65,9 @@ func (w Message_Which) String() string {
 	return "Message_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
 }
 
+// Message_TypeID is the unique identifier for the type Message.
+const Message_TypeID = 0x91b79f1f808db032
+
 func NewMessage(s *capnp.Segment) (Message, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
 	return Message{st}, err
@@ -537,6 +540,9 @@ func (p Message_Promise) Join() Join_Promise {
 
 type Bootstrap struct{ capnp.Struct }
 
+// Bootstrap_TypeID is the unique identifier for the type Bootstrap.
+const Bootstrap_TypeID = 0xe94ccf8031176ec4
+
 func NewBootstrap(s *capnp.Segment) (Bootstrap, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
 	return Bootstrap{st}, err
@@ -634,6 +640,9 @@ func (w Call_sendResultsTo_Which) String() string {
 	}
 	return "Call_sendResultsTo_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
 }
+
+// Call_TypeID is the unique identifier for the type Call.
+const Call_TypeID = 0x836a53ce789d4cd4
 
 func NewCall(s *capnp.Segment) (Call, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 3})
@@ -852,6 +861,9 @@ func (w Return_Which) String() string {
 	return "Return_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
 }
 
+// Return_TypeID is the unique identifier for the type Return.
+const Return_TypeID = 0x9e19b28d3db3573a
+
 func NewReturn(s *capnp.Segment) (Return, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1})
 	return Return{st}, err
@@ -1022,6 +1034,9 @@ func (p Return_Promise) AcceptFromThirdParty() *capnp.Pipeline {
 
 type Finish struct{ capnp.Struct }
 
+// Finish_TypeID is the unique identifier for the type Finish.
+const Finish_TypeID = 0xd37d2eb2c2f80e63
+
 func NewFinish(s *capnp.Segment) (Finish, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
 	return Finish{st}, err
@@ -1098,6 +1113,9 @@ func (w Resolve_Which) String() string {
 	}
 	return "Resolve_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
 }
+
+// Resolve_TypeID is the unique identifier for the type Resolve.
+const Resolve_TypeID = 0xbbc29655fa89086e
 
 func NewResolve(s *capnp.Segment) (Resolve, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
@@ -1215,6 +1233,9 @@ func (p Resolve_Promise) Exception() Exception_Promise {
 
 type Release struct{ capnp.Struct }
 
+// Release_TypeID is the unique identifier for the type Release.
+const Release_TypeID = 0xad1a6c0d7dd07497
+
 func NewRelease(s *capnp.Segment) (Release, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
 	return Release{st}, err
@@ -1298,6 +1319,9 @@ func (w Disembargo_context_Which) String() string {
 	}
 	return "Disembargo_context_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
 }
+
+// Disembargo_TypeID is the unique identifier for the type Disembargo.
+const Disembargo_TypeID = 0xf964368b0fbd3711
 
 func NewDisembargo(s *capnp.Segment) (Disembargo, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
@@ -1420,6 +1444,9 @@ func (p Disembargo_context_Promise) Struct() (Disembargo_context, error) {
 
 type Provide struct{ capnp.Struct }
 
+// Provide_TypeID is the unique identifier for the type Provide.
+const Provide_TypeID = 0x9c6a046bfbc1ac5a
+
 func NewProvide(s *capnp.Segment) (Provide, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2})
 	return Provide{st}, err
@@ -1525,6 +1552,9 @@ func (p Provide_Promise) Recipient() *capnp.Pipeline {
 
 type Accept struct{ capnp.Struct }
 
+// Accept_TypeID is the unique identifier for the type Accept.
+const Accept_TypeID = 0xd4c9b56290554016
+
 func NewAccept(s *capnp.Segment) (Accept, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
 	return Accept{st}, err
@@ -1608,6 +1638,9 @@ func (p Accept_Promise) Provision() *capnp.Pipeline {
 }
 
 type Join struct{ capnp.Struct }
+
+// Join_TypeID is the unique identifier for the type Join.
+const Join_TypeID = 0xfbe1980490e001af
 
 func NewJoin(s *capnp.Segment) (Join, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2})
@@ -1732,6 +1765,9 @@ func (w MessageTarget_Which) String() string {
 	return "MessageTarget_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
 }
 
+// MessageTarget_TypeID is the unique identifier for the type MessageTarget.
+const MessageTarget_TypeID = 0x95bc14545813fbc1
+
 func NewMessageTarget(s *capnp.Segment) (MessageTarget, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
 	return MessageTarget{st}, err
@@ -1817,6 +1853,9 @@ func (p MessageTarget_Promise) PromisedAnswer() PromisedAnswer_Promise {
 }
 
 type Payload struct{ capnp.Struct }
+
+// Payload_TypeID is the unique identifier for the type Payload.
+const Payload_TypeID = 0x9a0e61223d96743b
 
 func NewPayload(s *capnp.Segment) (Payload, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
@@ -1940,6 +1979,9 @@ func (w CapDescriptor_Which) String() string {
 	}
 	return "CapDescriptor_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
 }
+
+// CapDescriptor_TypeID is the unique identifier for the type CapDescriptor.
+const CapDescriptor_TypeID = 0x8523ddc40b86b8b0
 
 func NewCapDescriptor(s *capnp.Segment) (CapDescriptor, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
@@ -2081,6 +2123,9 @@ func (p CapDescriptor_Promise) ThirdPartyHosted() ThirdPartyCapDescriptor_Promis
 
 type PromisedAnswer struct{ capnp.Struct }
 
+// PromisedAnswer_TypeID is the unique identifier for the type PromisedAnswer.
+const PromisedAnswer_TypeID = 0xd800b1d6cd6f1ca0
+
 func NewPromisedAnswer(s *capnp.Segment) (PromisedAnswer, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
 	return PromisedAnswer{st}, err
@@ -2175,6 +2220,9 @@ func (w PromisedAnswer_Op_Which) String() string {
 	return "PromisedAnswer_Op_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
 }
 
+// PromisedAnswer_Op_TypeID is the unique identifier for the type PromisedAnswer_Op.
+const PromisedAnswer_Op_TypeID = 0xf316944415569081
+
 func NewPromisedAnswer_Op(s *capnp.Segment) (PromisedAnswer_Op, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
 	return PromisedAnswer_Op{st}, err
@@ -2238,6 +2286,9 @@ func (p PromisedAnswer_Op_Promise) Struct() (PromisedAnswer_Op, error) {
 }
 
 type ThirdPartyCapDescriptor struct{ capnp.Struct }
+
+// ThirdPartyCapDescriptor_TypeID is the unique identifier for the type ThirdPartyCapDescriptor.
+const ThirdPartyCapDescriptor_TypeID = 0xd37007fde1f0027d
 
 func NewThirdPartyCapDescriptor(s *capnp.Segment) (ThirdPartyCapDescriptor, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
@@ -2318,6 +2369,9 @@ func (p ThirdPartyCapDescriptor_Promise) Id() *capnp.Pipeline {
 }
 
 type Exception struct{ capnp.Struct }
+
+// Exception_TypeID is the unique identifier for the type Exception.
+const Exception_TypeID = 0xd625b7063acf691a
 
 func NewException(s *capnp.Segment) (Exception, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})

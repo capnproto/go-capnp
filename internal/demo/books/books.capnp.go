@@ -10,6 +10,9 @@ import (
 
 type Book struct{ capnp.Struct }
 
+// Book_TypeID is the unique identifier for the type Book.
+const Book_TypeID = 0x8100cc88d7d4d47c
+
 func NewBook(s *capnp.Segment) (Book, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
 	return Book{st}, err

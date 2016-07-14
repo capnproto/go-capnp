@@ -62,6 +62,9 @@ func (l Side_List) Set(i int, v Side) {
 
 type VatId struct{ capnp.Struct }
 
+// VatId_TypeID is the unique identifier for the type VatId.
+const VatId_TypeID = 0xd20b909fee733a8e
+
 func NewVatId(s *capnp.Segment) (VatId, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
 	return VatId{st}, err
@@ -112,6 +115,9 @@ func (p VatId_Promise) Struct() (VatId, error) {
 }
 
 type ProvisionId struct{ capnp.Struct }
+
+// ProvisionId_TypeID is the unique identifier for the type ProvisionId.
+const ProvisionId_TypeID = 0xb88d09a9c5f39817
 
 func NewProvisionId(s *capnp.Segment) (ProvisionId, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
@@ -164,6 +170,9 @@ func (p ProvisionId_Promise) Struct() (ProvisionId, error) {
 
 type RecipientId struct{ capnp.Struct }
 
+// RecipientId_TypeID is the unique identifier for the type RecipientId.
+const RecipientId_TypeID = 0x89f389b6fd4082c1
+
 func NewRecipientId(s *capnp.Segment) (RecipientId, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
 	return RecipientId{st}, err
@@ -206,6 +215,9 @@ func (p RecipientId_Promise) Struct() (RecipientId, error) {
 }
 
 type ThirdPartyCapId struct{ capnp.Struct }
+
+// ThirdPartyCapId_TypeID is the unique identifier for the type ThirdPartyCapId.
+const ThirdPartyCapId_TypeID = 0xb47f4979672cb59d
 
 func NewThirdPartyCapId(s *capnp.Segment) (ThirdPartyCapId, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
@@ -251,6 +263,9 @@ func (p ThirdPartyCapId_Promise) Struct() (ThirdPartyCapId, error) {
 }
 
 type JoinKeyPart struct{ capnp.Struct }
+
+// JoinKeyPart_TypeID is the unique identifier for the type JoinKeyPart.
+const JoinKeyPart_TypeID = 0x95b29059097fca83
 
 func NewJoinKeyPart(s *capnp.Segment) (JoinKeyPart, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
@@ -318,6 +333,9 @@ func (p JoinKeyPart_Promise) Struct() (JoinKeyPart, error) {
 }
 
 type JoinResult struct{ capnp.Struct }
+
+// JoinResult_TypeID is the unique identifier for the type JoinResult.
+const JoinResult_TypeID = 0x9d263a3630b7ebee
 
 func NewJoinResult(s *capnp.Segment) (JoinResult, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})

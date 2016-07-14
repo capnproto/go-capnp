@@ -25,6 +25,9 @@ var (
 
 type Zdate struct{ capnp.Struct }
 
+// Zdate_TypeID is the unique identifier for the type Zdate.
+const Zdate_TypeID = 0xde50aebbad57549d
+
 func NewZdate(s *capnp.Segment) (Zdate, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
 	return Zdate{st}, err
@@ -91,6 +94,9 @@ func (p Zdate_Promise) Struct() (Zdate, error) {
 }
 
 type Zdata struct{ capnp.Struct }
+
+// Zdata_TypeID is the unique identifier for the type Zdata.
+const Zdata_TypeID = 0xc7da65f9a2f20ba2
 
 func NewZdata(s *capnp.Segment) (Zdata, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
@@ -230,6 +236,9 @@ func (l Airport_List) Set(i int, v Airport) {
 
 type PlaneBase struct{ capnp.Struct }
 
+// PlaneBase_TypeID is the unique identifier for the type PlaneBase.
+const PlaneBase_TypeID = 0xd8bccf6e60a73791
+
 func NewPlaneBase(s *capnp.Segment) (PlaneBase, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 32, PointerCount: 2})
 	return PlaneBase{st}, err
@@ -353,6 +362,9 @@ func (p PlaneBase_Promise) Struct() (PlaneBase, error) {
 
 type B737 struct{ capnp.Struct }
 
+// B737_TypeID is the unique identifier for the type B737.
+const B737_TypeID = 0xccb3b2e3603826e0
+
 func NewB737(s *capnp.Segment) (B737, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	return B737{st}, err
@@ -424,6 +436,9 @@ func (p B737_Promise) Base() PlaneBase_Promise {
 }
 
 type A320 struct{ capnp.Struct }
+
+// A320_TypeID is the unique identifier for the type A320.
+const A320_TypeID = 0xd98c608877d9cb8d
 
 func NewA320(s *capnp.Segment) (A320, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
@@ -497,6 +512,9 @@ func (p A320_Promise) Base() PlaneBase_Promise {
 
 type F16 struct{ capnp.Struct }
 
+// F16_TypeID is the unique identifier for the type F16.
+const F16_TypeID = 0xe1c9eac512335361
+
 func NewF16(s *capnp.Segment) (F16, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	return F16{st}, err
@@ -568,6 +586,9 @@ func (p F16_Promise) Base() PlaneBase_Promise {
 }
 
 type Regression struct{ capnp.Struct }
+
+// Regression_TypeID is the unique identifier for the type Regression.
+const Regression_TypeID = 0xb1f0385d845e367f
 
 func NewRegression(s *capnp.Segment) (Regression, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 3})
@@ -738,6 +759,9 @@ func (w Aircraft_Which) String() string {
 	}
 	return "Aircraft_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
 }
+
+// Aircraft_TypeID is the unique identifier for the type Aircraft.
+const Aircraft_TypeID = 0xe54e10aede55c7b1
 
 func NewAircraft(s *capnp.Segment) (Aircraft, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
@@ -1024,6 +1048,9 @@ func (w Z_Which) String() string {
 	}
 	return "Z_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
 }
+
+// Z_TypeID is the unique identifier for the type Z.
+const Z_TypeID = 0xea26e9973bd6a0d9
 
 func NewZ(s *capnp.Segment) (Z, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 1})
@@ -2024,6 +2051,9 @@ func (p Z_grp_Promise) Struct() (Z_grp, error) {
 
 type Counter struct{ capnp.Struct }
 
+// Counter_TypeID is the unique identifier for the type Counter.
+const Counter_TypeID = 0x8748bc095e10cb5d
+
 func NewCounter(s *capnp.Segment) (Counter, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2})
 	return Counter{st}, err
@@ -2123,6 +2153,9 @@ func (p Counter_Promise) Struct() (Counter, error) {
 
 type Bag struct{ capnp.Struct }
 
+// Bag_TypeID is the unique identifier for the type Bag.
+const Bag_TypeID = 0xd636fba4f188dabe
+
 func NewBag(s *capnp.Segment) (Bag, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	return Bag{st}, err
@@ -2195,6 +2228,9 @@ func (p Bag_Promise) Counter() Counter_Promise {
 
 type Zserver struct{ capnp.Struct }
 
+// Zserver_TypeID is the unique identifier for the type Zserver.
+const Zserver_TypeID = 0xcc4411e60ba9c498
+
 func NewZserver(s *capnp.Segment) (Zserver, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	return Zserver{st}, err
@@ -2262,6 +2298,9 @@ func (p Zserver_Promise) Struct() (Zserver, error) {
 }
 
 type Zjob struct{ capnp.Struct }
+
+// Zjob_TypeID is the unique identifier for the type Zjob.
+const Zjob_TypeID = 0xddd1416669fb7613
 
 func NewZjob(s *capnp.Segment) (Zjob, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
@@ -2354,6 +2393,9 @@ func (p Zjob_Promise) Struct() (Zjob, error) {
 
 type VerEmpty struct{ capnp.Struct }
 
+// VerEmpty_TypeID is the unique identifier for the type VerEmpty.
+const VerEmpty_TypeID = 0x93c99951eacc72ff
+
 func NewVerEmpty(s *capnp.Segment) (VerEmpty, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
 	return VerEmpty{st}, err
@@ -2396,6 +2438,9 @@ func (p VerEmpty_Promise) Struct() (VerEmpty, error) {
 }
 
 type VerOneData struct{ capnp.Struct }
+
+// VerOneData_TypeID is the unique identifier for the type VerOneData.
+const VerOneData_TypeID = 0xfca3742893be4cde
 
 func NewVerOneData(s *capnp.Segment) (VerOneData, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
@@ -2447,6 +2492,9 @@ func (p VerOneData_Promise) Struct() (VerOneData, error) {
 }
 
 type VerTwoData struct{ capnp.Struct }
+
+// VerTwoData_TypeID is the unique identifier for the type VerTwoData.
+const VerTwoData_TypeID = 0xf705dc45c94766fd
 
 func NewVerTwoData(s *capnp.Segment) (VerTwoData, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0})
@@ -2506,6 +2554,9 @@ func (p VerTwoData_Promise) Struct() (VerTwoData, error) {
 }
 
 type VerOnePtr struct{ capnp.Struct }
+
+// VerOnePtr_TypeID is the unique identifier for the type VerOnePtr.
+const VerOnePtr_TypeID = 0x94bf7df83408218d
 
 func NewVerOnePtr(s *capnp.Segment) (VerOnePtr, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
@@ -2578,6 +2629,9 @@ func (p VerOnePtr_Promise) Ptr() VerOneData_Promise {
 }
 
 type VerTwoPtr struct{ capnp.Struct }
+
+// VerTwoPtr_TypeID is the unique identifier for the type VerTwoPtr.
+const VerTwoPtr_TypeID = 0xc95babe3bd394d2d
 
 func NewVerTwoPtr(s *capnp.Segment) (VerTwoPtr, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
@@ -2679,6 +2733,9 @@ func (p VerTwoPtr_Promise) Ptr2() VerOneData_Promise {
 }
 
 type VerTwoDataTwoPtr struct{ capnp.Struct }
+
+// VerTwoDataTwoPtr_TypeID is the unique identifier for the type VerTwoDataTwoPtr.
+const VerTwoDataTwoPtr_TypeID = 0xb61ee2ecff34ca73
 
 func NewVerTwoDataTwoPtr(s *capnp.Segment) (VerTwoDataTwoPtr, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 2})
@@ -2799,6 +2856,9 @@ func (p VerTwoDataTwoPtr_Promise) Ptr2() VerOneData_Promise {
 
 type HoldsVerEmptyList struct{ capnp.Struct }
 
+// HoldsVerEmptyList_TypeID is the unique identifier for the type HoldsVerEmptyList.
+const HoldsVerEmptyList_TypeID = 0xde9ed43cfaa83093
+
 func NewHoldsVerEmptyList(s *capnp.Segment) (HoldsVerEmptyList, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	return HoldsVerEmptyList{st}, err
@@ -2870,6 +2930,9 @@ func (p HoldsVerEmptyList_Promise) Struct() (HoldsVerEmptyList, error) {
 }
 
 type HoldsVerOneDataList struct{ capnp.Struct }
+
+// HoldsVerOneDataList_TypeID is the unique identifier for the type HoldsVerOneDataList.
+const HoldsVerOneDataList_TypeID = 0xabd055422a4d7df1
 
 func NewHoldsVerOneDataList(s *capnp.Segment) (HoldsVerOneDataList, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
@@ -2943,6 +3006,9 @@ func (p HoldsVerOneDataList_Promise) Struct() (HoldsVerOneDataList, error) {
 
 type HoldsVerTwoDataList struct{ capnp.Struct }
 
+// HoldsVerTwoDataList_TypeID is the unique identifier for the type HoldsVerTwoDataList.
+const HoldsVerTwoDataList_TypeID = 0xcbdc765fd5dff7ba
+
 func NewHoldsVerTwoDataList(s *capnp.Segment) (HoldsVerTwoDataList, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	return HoldsVerTwoDataList{st}, err
@@ -3014,6 +3080,9 @@ func (p HoldsVerTwoDataList_Promise) Struct() (HoldsVerTwoDataList, error) {
 }
 
 type HoldsVerOnePtrList struct{ capnp.Struct }
+
+// HoldsVerOnePtrList_TypeID is the unique identifier for the type HoldsVerOnePtrList.
+const HoldsVerOnePtrList_TypeID = 0xe508a29c83a059f8
 
 func NewHoldsVerOnePtrList(s *capnp.Segment) (HoldsVerOnePtrList, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
@@ -3087,6 +3156,9 @@ func (p HoldsVerOnePtrList_Promise) Struct() (HoldsVerOnePtrList, error) {
 
 type HoldsVerTwoPtrList struct{ capnp.Struct }
 
+// HoldsVerTwoPtrList_TypeID is the unique identifier for the type HoldsVerTwoPtrList.
+const HoldsVerTwoPtrList_TypeID = 0xcf9beaca1cc180c8
+
 func NewHoldsVerTwoPtrList(s *capnp.Segment) (HoldsVerTwoPtrList, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	return HoldsVerTwoPtrList{st}, err
@@ -3158,6 +3230,9 @@ func (p HoldsVerTwoPtrList_Promise) Struct() (HoldsVerTwoPtrList, error) {
 }
 
 type HoldsVerTwoTwoList struct{ capnp.Struct }
+
+// HoldsVerTwoTwoList_TypeID is the unique identifier for the type HoldsVerTwoTwoList.
+const HoldsVerTwoTwoList_TypeID = 0x95befe3f14606e6b
 
 func NewHoldsVerTwoTwoList(s *capnp.Segment) (HoldsVerTwoTwoList, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
@@ -3231,6 +3306,9 @@ func (p HoldsVerTwoTwoList_Promise) Struct() (HoldsVerTwoTwoList, error) {
 
 type HoldsVerTwoTwoPlus struct{ capnp.Struct }
 
+// HoldsVerTwoTwoPlus_TypeID is the unique identifier for the type HoldsVerTwoTwoPlus.
+const HoldsVerTwoTwoPlus_TypeID = 0x87c33f2330feb3d8
+
 func NewHoldsVerTwoTwoPlus(s *capnp.Segment) (HoldsVerTwoTwoPlus, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	return HoldsVerTwoTwoPlus{st}, err
@@ -3302,6 +3380,9 @@ func (p HoldsVerTwoTwoPlus_Promise) Struct() (HoldsVerTwoTwoPlus, error) {
 }
 
 type VerTwoTwoPlus struct{ capnp.Struct }
+
+// VerTwoTwoPlus_TypeID is the unique identifier for the type VerTwoTwoPlus.
+const VerTwoTwoPlus_TypeID = 0xce44aee2d9e25049
 
 func NewVerTwoTwoPlus(s *capnp.Segment) (VerTwoTwoPlus, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 3})
@@ -3453,6 +3534,9 @@ func (p VerTwoTwoPlus_Promise) Ptr2() VerTwoDataTwoPtr_Promise {
 
 type HoldsText struct{ capnp.Struct }
 
+// HoldsText_TypeID is the unique identifier for the type HoldsText.
+const HoldsText_TypeID = 0xe5817f849ff906dc
+
 func NewHoldsText(s *capnp.Segment) (HoldsText, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 3})
 	return HoldsText{st}, err
@@ -3569,6 +3653,9 @@ func (p HoldsText_Promise) Struct() (HoldsText, error) {
 
 type WrapEmpty struct{ capnp.Struct }
 
+// WrapEmpty_TypeID is the unique identifier for the type WrapEmpty.
+const WrapEmpty_TypeID = 0x9ab599979b02ac59
+
 func NewWrapEmpty(s *capnp.Segment) (WrapEmpty, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	return WrapEmpty{st}, err
@@ -3641,6 +3728,9 @@ func (p WrapEmpty_Promise) MightNotBeReallyEmpty() VerEmpty_Promise {
 
 type Wrap2x2 struct{ capnp.Struct }
 
+// Wrap2x2_TypeID is the unique identifier for the type Wrap2x2.
+const Wrap2x2_TypeID = 0xe1a2d1d51107bead
+
 func NewWrap2x2(s *capnp.Segment) (Wrap2x2, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	return Wrap2x2{st}, err
@@ -3712,6 +3802,9 @@ func (p Wrap2x2_Promise) MightNotBeReallyEmpty() VerTwoDataTwoPtr_Promise {
 }
 
 type Wrap2x2plus struct{ capnp.Struct }
+
+// Wrap2x2plus_TypeID is the unique identifier for the type Wrap2x2plus.
+const Wrap2x2plus_TypeID = 0xe684eb3aef1a6859
 
 func NewWrap2x2plus(s *capnp.Segment) (Wrap2x2plus, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
@@ -3803,6 +3896,9 @@ func (w VoidUnion_Which) String() string {
 	return "VoidUnion_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
 }
 
+// VoidUnion_TypeID is the unique identifier for the type VoidUnion.
+const VoidUnion_TypeID = 0x8821cdb23640783a
+
 func NewVoidUnion(s *capnp.Segment) (VoidUnion, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
 	return VoidUnion{st}, err
@@ -3858,6 +3954,9 @@ func (p VoidUnion_Promise) Struct() (VoidUnion, error) {
 }
 
 type Nester1Capn struct{ capnp.Struct }
+
+// Nester1Capn_TypeID is the unique identifier for the type Nester1Capn.
+const Nester1Capn_TypeID = 0xf14fad09425d081c
 
 func NewNester1Capn(s *capnp.Segment) (Nester1Capn, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
@@ -3927,6 +4026,9 @@ func (p Nester1Capn_Promise) Struct() (Nester1Capn, error) {
 
 type RWTestCapn struct{ capnp.Struct }
 
+// RWTestCapn_TypeID is the unique identifier for the type RWTestCapn.
+const RWTestCapn_TypeID = 0xf7ff4414476c186a
+
 func NewRWTestCapn(s *capnp.Segment) (RWTestCapn, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	return RWTestCapn{st}, err
@@ -3994,6 +4096,9 @@ func (p RWTestCapn_Promise) Struct() (RWTestCapn, error) {
 }
 
 type ListStructCapn struct{ capnp.Struct }
+
+// ListStructCapn_TypeID is the unique identifier for the type ListStructCapn.
+const ListStructCapn_TypeID = 0xb1ac056ed7647011
 
 func NewListStructCapn(s *capnp.Segment) (ListStructCapn, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
@@ -4125,6 +4230,9 @@ type Echo_echo struct {
 
 type Echo_echo_Params struct{ capnp.Struct }
 
+// Echo_echo_Params_TypeID is the unique identifier for the type Echo_echo_Params.
+const Echo_echo_Params_TypeID = 0x8a165fb4d71bf3a2
+
 func NewEcho_echo_Params(s *capnp.Segment) (Echo_echo_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	return Echo_echo_Params{st}, err
@@ -4192,6 +4300,9 @@ func (p Echo_echo_Params_Promise) Struct() (Echo_echo_Params, error) {
 }
 
 type Echo_echo_Results struct{ capnp.Struct }
+
+// Echo_echo_Results_TypeID is the unique identifier for the type Echo_echo_Results.
+const Echo_echo_Results_TypeID = 0x9b37d729b9dd7b9d
 
 func NewEcho_echo_Results(s *capnp.Segment) (Echo_echo_Results, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
@@ -4262,6 +4373,9 @@ func (p Echo_echo_Results_Promise) Struct() (Echo_echo_Results, error) {
 }
 
 type Hoth struct{ capnp.Struct }
+
+// Hoth_TypeID is the unique identifier for the type Hoth.
+const Hoth_TypeID = 0xad87da456fb0ebb9
 
 func NewHoth(s *capnp.Segment) (Hoth, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
@@ -4335,6 +4449,9 @@ func (p Hoth_Promise) Base() EchoBase_Promise {
 
 type EchoBase struct{ capnp.Struct }
 
+// EchoBase_TypeID is the unique identifier for the type EchoBase.
+const EchoBase_TypeID = 0xa8bf13fef2674866
+
 func NewEchoBase(s *capnp.Segment) (EchoBase, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	return EchoBase{st}, err
@@ -4400,6 +4517,9 @@ func (p EchoBase_Promise) Echo() Echo {
 }
 
 type StackingRoot struct{ capnp.Struct }
+
+// StackingRoot_TypeID is the unique identifier for the type StackingRoot.
+const StackingRoot_TypeID = 0x8fae7b41c61fc890
 
 func NewStackingRoot(s *capnp.Segment) (StackingRoot, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
@@ -4506,6 +4626,9 @@ func (p StackingRoot_Promise) AWithDefault() StackingA_Promise {
 
 type StackingA struct{ capnp.Struct }
 
+// StackingA_TypeID is the unique identifier for the type StackingA.
+const StackingA_TypeID = 0x9d3032ff86043b75
+
 func NewStackingA(s *capnp.Segment) (StackingA, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
 	return StackingA{st}, err
@@ -4585,6 +4708,9 @@ func (p StackingA_Promise) B() StackingB_Promise {
 }
 
 type StackingB struct{ capnp.Struct }
+
+// StackingB_TypeID is the unique identifier for the type StackingB.
+const StackingB_TypeID = 0x85257b30d6edf8c5
 
 func NewStackingB(s *capnp.Segment) (StackingB, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
@@ -4699,6 +4825,9 @@ type CallSequence_getNumber struct {
 
 type CallSequence_getNumber_Params struct{ capnp.Struct }
 
+// CallSequence_getNumber_Params_TypeID is the unique identifier for the type CallSequence_getNumber_Params.
+const CallSequence_getNumber_Params_TypeID = 0xf58782f48a121998
+
 func NewCallSequence_getNumber_Params(s *capnp.Segment) (CallSequence_getNumber_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
 	return CallSequence_getNumber_Params{st}, err
@@ -4745,6 +4874,9 @@ func (p CallSequence_getNumber_Params_Promise) Struct() (CallSequence_getNumber_
 }
 
 type CallSequence_getNumber_Results struct{ capnp.Struct }
+
+// CallSequence_getNumber_Results_TypeID is the unique identifier for the type CallSequence_getNumber_Results.
+const CallSequence_getNumber_Results_TypeID = 0xa465f9502fd11e97
 
 func NewCallSequence_getNumber_Results(s *capnp.Segment) (CallSequence_getNumber_Results, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
@@ -4800,6 +4932,9 @@ func (p CallSequence_getNumber_Results_Promise) Struct() (CallSequence_getNumber
 }
 
 type Defaults struct{ capnp.Struct }
+
+// Defaults_TypeID is the unique identifier for the type Defaults.
+const Defaults_TypeID = 0x97e38948c61f878d
 
 func NewDefaults(s *capnp.Segment) (Defaults, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 2})
@@ -4908,6 +5043,9 @@ func (p Defaults_Promise) Struct() (Defaults, error) {
 }
 
 type BenchmarkA struct{ capnp.Struct }
+
+// BenchmarkA_TypeID is the unique identifier for the type BenchmarkA.
+const BenchmarkA_TypeID = 0xde2a1a960863c11c
 
 func NewBenchmarkA(s *capnp.Segment) (BenchmarkA, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 2})

@@ -51,6 +51,9 @@ func (w Node_Which) String() string {
 	return "Node_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
 }
 
+// Node_TypeID is the unique identifier for the type Node.
+const Node_TypeID = 0xe682ab4cf923a417
+
 func NewNode(s *capnp.Segment) (Node, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 40, PointerCount: 6})
 	return Node{st}, err
@@ -638,6 +641,9 @@ func (p Node_annotation_Promise) Type() Type_Promise {
 
 type Node_Parameter struct{ capnp.Struct }
 
+// Node_Parameter_TypeID is the unique identifier for the type Node_Parameter.
+const Node_Parameter_TypeID = 0xb9521bccf10fa3b1
+
 func NewNode_Parameter(s *capnp.Segment) (Node_Parameter, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	return Node_Parameter{st}, err
@@ -698,6 +704,9 @@ func (p Node_Parameter_Promise) Struct() (Node_Parameter, error) {
 }
 
 type Node_NestedNode struct{ capnp.Struct }
+
+// Node_NestedNode_TypeID is the unique identifier for the type Node_NestedNode.
+const Node_NestedNode_TypeID = 0xdebf55bbfa0fc242
 
 func NewNode_NestedNode(s *capnp.Segment) (Node_NestedNode, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
@@ -809,6 +818,9 @@ func (w Field_ordinal_Which) String() string {
 	}
 	return "Field_ordinal_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
 }
+
+// Field_TypeID is the unique identifier for the type Field.
+const Field_TypeID = 0x9aad50a41f4af45f
 
 func NewField(s *capnp.Segment) (Field, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 4})
@@ -1058,6 +1070,9 @@ func (p Field_ordinal_Promise) Struct() (Field_ordinal, error) {
 
 type Enumerant struct{ capnp.Struct }
 
+// Enumerant_TypeID is the unique identifier for the type Enumerant.
+const Enumerant_TypeID = 0x978a7cebdc549a4d
+
 func NewEnumerant(s *capnp.Segment) (Enumerant, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2})
 	return Enumerant{st}, err
@@ -1152,6 +1167,9 @@ func (p Enumerant_Promise) Struct() (Enumerant, error) {
 
 type Superclass struct{ capnp.Struct }
 
+// Superclass_TypeID is the unique identifier for the type Superclass.
+const Superclass_TypeID = 0xa9962a9ed0a4d7f8
+
 func NewSuperclass(s *capnp.Segment) (Superclass, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
 	return Superclass{st}, err
@@ -1226,6 +1244,9 @@ func (p Superclass_Promise) Brand() Brand_Promise {
 }
 
 type Method struct{ capnp.Struct }
+
+// Method_TypeID is the unique identifier for the type Method.
+const Method_TypeID = 0x9500cce23b334d80
 
 func NewMethod(s *capnp.Segment) (Method, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 5})
@@ -1543,6 +1564,9 @@ func (w Type_anyPointer_unconstrained_Which) String() string {
 	}
 	return "Type_anyPointer_unconstrained_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
 }
+
+// Type_TypeID is the unique identifier for the type Type.
+const Type_TypeID = 0xd07378ede1f9cc60
 
 func NewType(s *capnp.Segment) (Type, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 1})
@@ -1983,6 +2007,9 @@ func (p Type_anyPointer_implicitMethodParameter_Promise) Struct() (Type_anyPoint
 
 type Brand struct{ capnp.Struct }
 
+// Brand_TypeID is the unique identifier for the type Brand.
+const Brand_TypeID = 0x903455f06065422b
+
 func NewBrand(s *capnp.Segment) (Brand, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	return Brand{st}, err
@@ -2063,6 +2090,9 @@ func (w Brand_Scope_Which) String() string {
 	}
 	return "Brand_Scope_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
 }
+
+// Brand_Scope_TypeID is the unique identifier for the type Brand_Scope.
+const Brand_Scope_TypeID = 0xabd73485a9636bc9
 
 func NewBrand_Scope(s *capnp.Segment) (Brand_Scope, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1})
@@ -2162,6 +2192,9 @@ func (w Brand_Binding_Which) String() string {
 	}
 	return "Brand_Binding_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
 }
+
+// Brand_Binding_TypeID is the unique identifier for the type Brand_Binding.
+const Brand_Binding_TypeID = 0xc863cd16969ee7fc
 
 func NewBrand_Binding(s *capnp.Segment) (Brand_Binding, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
@@ -2308,6 +2341,9 @@ func (w Value_Which) String() string {
 	}
 	return "Value_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
 }
+
+// Value_TypeID is the unique identifier for the type Value.
+const Value_TypeID = 0xce23dcd2d7b00c9b
 
 func NewValue(s *capnp.Segment) (Value, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1})
@@ -2592,6 +2628,9 @@ func (p Value_Promise) AnyPointer() *capnp.Pipeline {
 
 type Annotation struct{ capnp.Struct }
 
+// Annotation_TypeID is the unique identifier for the type Annotation.
+const Annotation_TypeID = 0xf1c8950dab257542
+
 func NewAnnotation(s *capnp.Segment) (Annotation, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2})
 	return Annotation{st}, err
@@ -2778,6 +2817,9 @@ func (l ElementSize_List) Set(i int, v ElementSize) {
 
 type CodeGeneratorRequest struct{ capnp.Struct }
 
+// CodeGeneratorRequest_TypeID is the unique identifier for the type CodeGeneratorRequest.
+const CodeGeneratorRequest_TypeID = 0xbfc546f6210ad7ce
+
 func NewCodeGeneratorRequest(s *capnp.Segment) (CodeGeneratorRequest, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
 	return CodeGeneratorRequest{st}, err
@@ -2869,6 +2911,9 @@ func (p CodeGeneratorRequest_Promise) Struct() (CodeGeneratorRequest, error) {
 }
 
 type CodeGeneratorRequest_RequestedFile struct{ capnp.Struct }
+
+// CodeGeneratorRequest_RequestedFile_TypeID is the unique identifier for the type CodeGeneratorRequest_RequestedFile.
+const CodeGeneratorRequest_RequestedFile_TypeID = 0xcfea0eb02e810062
 
 func NewCodeGeneratorRequest_RequestedFile(s *capnp.Segment) (CodeGeneratorRequest_RequestedFile, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2})
@@ -2967,6 +3012,9 @@ func (p CodeGeneratorRequest_RequestedFile_Promise) Struct() (CodeGeneratorReque
 }
 
 type CodeGeneratorRequest_RequestedFile_Import struct{ capnp.Struct }
+
+// CodeGeneratorRequest_RequestedFile_Import_TypeID is the unique identifier for the type CodeGeneratorRequest_RequestedFile_Import.
+const CodeGeneratorRequest_RequestedFile_Import_TypeID = 0xae504193122357e5
 
 func NewCodeGeneratorRequest_RequestedFile_Import(s *capnp.Segment) (CodeGeneratorRequest_RequestedFile_Import, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
