@@ -138,6 +138,11 @@ struct Z {
     f16               @36: F16;
     zdatevec          @37: List(Zdate);
     zdatavec          @38: List(Zdata);
+
+    grp               :group {
+      first           @42 :UInt64;
+      second          @43 :UInt64;
+    }
   }
 }
 
