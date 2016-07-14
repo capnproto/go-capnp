@@ -262,7 +262,7 @@ func (ins *inserter) insertList(l capnp.List, typ schema.Type, val reflect.Value
 		for i := 0; i < n; i++ {
 			capnp.UInt8List{List: l}.Set(i, uint8(val.Index(i).Uint()))
 		}
-	case schema.Type_Which_uint16:
+	case schema.Type_Which_uint16, schema.Type_Which_enum:
 		for i := 0; i < n; i++ {
 			capnp.UInt16List{List: l}.Set(i, uint16(val.Index(i).Uint()))
 		}

@@ -56,8 +56,8 @@ type Z struct {
 }
 
 type PlaneBase struct {
-	Name string
-	// TODO(light): Homes []air.Airport
+	Name     string
+	Homes    []air.Airport
 	Rating   int64
 	CanFly   bool
 	Capacity int64
@@ -119,6 +119,7 @@ var goodTests = []Z{
 	{Which: air.Z_Which_planebase, Planebase: nil},
 	{Which: air.Z_Which_planebase, Planebase: &PlaneBase{
 		Name:     "Boeing",
+		Homes:    []air.Airport{air.Airport_lax, air.Airport_dfw},
 		Rating:   123,
 		CanFly:   true,
 		Capacity: 100,
@@ -678,8 +679,24 @@ func zequal(g *Z, c air.Z) (bool, error) {
 		if g.Planebase == nil {
 			return true, nil
 		}
-		name, _ := pb.Name()
-		return g.Planebase.Name == name && g.Planebase.Rating == pb.Rating() && g.Planebase.CanFly == pb.CanFly() && g.Planebase.Capacity == pb.Capacity() && g.Planebase.MaxSpeed == pb.MaxSpeed(), nil
+		name, err := pb.Name()
+		if err != nil {
+			return false, err
+		}
+		if g.Planebase.Name != name {
+			return false, nil
+		}
+		homes, err := pb.Homes()
+		if err != nil {
+			return false, err
+		}
+		homeseq, _ := listeq(g.Planebase.Homes != nil, len(g.Planebase.Homes), homes.List, func(i int) (bool, error) {
+			return g.Planebase.Homes[i] == homes.At(i), nil
+		})
+		if !homeseq {
+			return false, nil
+		}
+		return g.Planebase.Rating == pb.Rating() && g.Planebase.CanFly == pb.CanFly() && g.Planebase.Capacity == pb.Capacity() && g.Planebase.MaxSpeed == pb.MaxSpeed(), nil
 	case air.Z_Which_airport:
 		return g.Airport == c.Airport(), nil
 	case air.Z_Which_grp:
@@ -868,6 +885,15 @@ func zfill(c air.Z, g *Z) error {
 		}
 		if err := pb.SetName(g.Planebase.Name); err != nil {
 			return err
+		}
+		if g.Planebase.Homes != nil {
+			homes, err := pb.NewHomes(int32(len(g.Planebase.Homes)))
+			if err != nil {
+				return err
+			}
+			for i := range g.Planebase.Homes {
+				homes.Set(i, g.Planebase.Homes[i])
+			}
 		}
 		pb.SetRating(g.Planebase.Rating)
 		pb.SetCanFly(g.Planebase.CanFly)

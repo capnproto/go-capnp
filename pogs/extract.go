@@ -277,7 +277,7 @@ func (e *extracter) extractList(val reflect.Value, typ schema.Type, l capnp.List
 		for i := 0; i < n; i++ {
 			val.Index(i).SetUint(uint64(capnp.UInt8List{List: l}.At(i)))
 		}
-	case schema.Type_Which_uint16:
+	case schema.Type_Which_uint16, schema.Type_Which_enum:
 		for i := 0; i < n; i++ {
 			val.Index(i).SetUint(uint64(capnp.UInt16List{List: l}.At(i)))
 		}
