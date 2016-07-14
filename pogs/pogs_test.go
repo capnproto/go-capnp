@@ -431,6 +431,7 @@ type TagZ struct {
 	Which   air.Z_Which
 	Float64 float64 `capnp:"f64"`
 	I64     int64   `capnp:"-"`
+	U8      bool    `capnp:"bool"`
 }
 
 func TestExtract_Tags(t *testing.T) {
@@ -448,6 +449,11 @@ func TestExtract_Tags(t *testing.T) {
 			name: "omitted field",
 			z:    Z{Which: air.Z_Which_i64, I64: 42},
 			tagz: TagZ{Which: air.Z_Which_i64},
+		},
+		{
+			name: "field with overlapping name",
+			z:    Z{Which: air.Z_Which_bool, Bool: true},
+			tagz: TagZ{Which: air.Z_Which_bool, U8: true},
 		},
 	}
 	for _, test := range tests {
@@ -490,6 +496,11 @@ func TestInsert_Tags(t *testing.T) {
 			name: "omitted field",
 			tagz: TagZ{Which: air.Z_Which_i64, I64: 42},
 			z:    Z{Which: air.Z_Which_i64, I64: 0},
+		},
+		{
+			name: "field with overlapping name",
+			tagz: TagZ{Which: air.Z_Which_bool, U8: true},
+			z:    Z{Which: air.Z_Which_bool, Bool: true},
 		},
 	}
 	for _, test := range tests {
