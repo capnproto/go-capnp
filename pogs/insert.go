@@ -39,17 +39,12 @@ func (ins *inserter) insertStruct(typeID uint64, s capnp.Struct, val reflect.Val
 	if !n.IsValid() || n.Which() != schema.Node_Which_structNode {
 		return fmt.Errorf("cannot find struct type %#x", typeID)
 	}
-	stMap := mapStruct(val.Type(), n.StructNode().DiscriminantCount() > 0)
+	props, err := mapStruct(val.Type(), hasDiscriminant(n))
 	var discriminant uint16
-	if n.StructNode().DiscriminantCount() > 0 {
-		f := fieldByIndex(val, stMap[fieldProps{which: true}])
-		if f.IsValid() {
-			if f.Kind() != reflect.Uint16 {
-				dn, _ := n.DisplayNameBytes()
-				dn = dn[n.DisplayNamePrefixLength():]
-				return fmt.Errorf("can't insert %s from %v: which field is of type %v, not uint16", dn, val.Type(), f.Type())
-			}
-			discriminant = uint16(f.Uint())
+	hasWhich := false
+	if hasDiscriminant(n) {
+		discriminant, hasWhich = props.which(val)
+		if hasWhich {
 			s.SetUint16(capnp.DataOffset(n.StructNode().DiscriminantOffset()*2), discriminant)
 		}
 	}
@@ -63,13 +58,13 @@ func (ins *inserter) insertStruct(typeID uint64, s capnp.Struct, val reflect.Val
 		if err != nil {
 			return err
 		}
-		vf := fieldByIndex(val, stMap[fieldProps{schemaName: sname}])
+		vf := props.fieldBySchemaName(val, sname)
 		if !vf.IsValid() {
 			// Don't have a field for this.
 			continue
 		}
 		if dv := f.DiscriminantValue(); dv != schema.Field_noDiscriminant {
-			if len(stMap[fieldProps{which: true}]) == 0 {
+			if !hasWhich {
 				dn, _ := n.DisplayNameBytes()
 				dn = dn[n.DisplayNamePrefixLength():]
 				return fmt.Errorf("can't insert %s from %v: has union field %s but no Which field", dn, val.Type(), sname)
