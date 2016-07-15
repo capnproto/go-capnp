@@ -372,7 +372,7 @@ func isTypeMatch(r reflect.Type, s schema.Type) bool {
 	case schema.Type_Which_data:
 		return r.Kind() == reflect.Slice && r.Elem().Kind() == reflect.Uint8
 	case schema.Type_Which_structType:
-		return r.Kind() == reflect.Struct || r.Kind() == reflect.Ptr && r.Elem().Kind() == reflect.Struct
+		return isStructOrStructPtr(r)
 	case schema.Type_Which_list:
 		e, _ := s.List().ElementType()
 		return r.Kind() == reflect.Slice && isTypeMatch(r.Elem(), e)

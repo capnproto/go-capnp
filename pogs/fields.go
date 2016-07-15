@@ -15,10 +15,6 @@ type fieldProps struct {
 }
 
 func parseField(f reflect.StructField, hasDiscrim bool) fieldProps {
-	if f.PkgPath != "" {
-		// unexported field
-		return fieldProps{}
-	}
 	tname, opts := nextOpt(f.Tag.Get("capnp"))
 	switch tname {
 	case "":
@@ -53,7 +49,25 @@ func nextOpt(opts string) (head, tail string) {
 }
 
 type fieldLoc struct {
-	i int
+	i    int
+	path []int
+}
+
+func (loc fieldLoc) depth() int {
+	if len(loc.path) >= 0 {
+		return len(loc.path)
+	}
+	return 1
+}
+
+func (loc fieldLoc) sub(i int) fieldLoc {
+	if n := len(loc.path); n >= 0 {
+		p := make([]int, n+1)
+		copy(p, loc.path)
+		p[n] = i
+		return fieldLoc{path: p}
+	}
+	return fieldLoc{path: []int{loc.i, i}}
 }
 
 func (loc fieldLoc) isValid() bool {
@@ -79,35 +93,61 @@ func mapStruct(t reflect.Type, n schema.Node) (structProps, error) {
 		sp.fields[i] = fieldLoc{i: -1}
 	}
 	for i := 0; i < t.NumField(); i++ {
-		// TODO(light): anonymous fields
-		f := t.Field(i)
-		p := parseField(f, hasDiscriminant(n))
-		if p.which {
-			switch {
-			case p.fixedWhich != "":
-				fi := fieldIndex(fields, p.fixedWhich)
-				if fi < 0 {
-					return structProps{}, fmt.Errorf("%v.Which is tagged with unknown field %s", t, p.fixedWhich)
-				}
-				dv := fields.At(fi).DiscriminantValue()
-				if dv == schema.Field_noDiscriminant {
-					return structProps{}, fmt.Errorf("%v.Which is tagged with non-union field %s", t, p.fixedWhich)
-				}
-				sp.whichLoc = fieldLoc{i: -2}
-				sp.fixedWhich = dv
-			case f.Type.Kind() != reflect.Uint16:
-				return structProps{}, fmt.Errorf("%v.Which is type %v, not uint16", t, f.Type)
-			default:
-				sp.whichLoc = fieldLoc{i: i}
-			}
-			continue
-		}
-		if p.schemaName != "" {
-			fi := fieldIndex(fields, p.schemaName)
-			sp.fields[fi] = fieldLoc{i: i}
+		if err := mapStructField(&sp, t, n, fields, fieldLoc{i: i}); err != nil {
+			return structProps{}, err
 		}
 	}
 	return sp, nil
+}
+
+func mapStructField(sp *structProps, t reflect.Type, n schema.Node, fields schema.Field_List, loc fieldLoc) error {
+	f := typeFieldByLoc(t, loc)
+	if f.PkgPath != "" && !f.Anonymous {
+		// unexported field
+		return nil
+	}
+	if f.Anonymous && isStructOrStructPtr(f.Type) {
+		ft := f.Type
+		if f.Type.Kind() == reflect.Ptr {
+			ft = ft.Elem()
+		}
+		for i := 0; i < ft.NumField(); i++ {
+			if err := mapStructField(sp, t, n, fields, loc.sub(i)); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	p := parseField(f, hasDiscriminant(n))
+	if p.which {
+		if sp.whichLoc.i != -1 {
+			return fmt.Errorf("%v embeds multiple Which fields", t)
+		}
+		switch {
+		case p.fixedWhich != "":
+			fi := fieldIndex(fields, p.fixedWhich)
+			if fi < 0 {
+				return fmt.Errorf("%v.Which is tagged with unknown field %s", t, p.fixedWhich)
+			}
+			dv := fields.At(fi).DiscriminantValue()
+			if dv == schema.Field_noDiscriminant {
+				return fmt.Errorf("%v.Which is tagged with non-union field %s", t, p.fixedWhich)
+			}
+			sp.whichLoc = fieldLoc{i: -2}
+			sp.fixedWhich = dv
+		case f.Type.Kind() != reflect.Uint16:
+			return fmt.Errorf("%v.Which is type %v, not uint16", t, f.Type)
+		default:
+			sp.whichLoc = loc
+		}
+		return nil
+	}
+	if p.schemaName == "" {
+		return nil
+	}
+	fi := fieldIndex(fields, p.schemaName)
+	sp.fields[fi] = loc
+	return nil
 }
 
 // fieldBySchemaName returns the field for the given name.
@@ -171,8 +211,31 @@ func fieldByLoc(val reflect.Value, loc fieldLoc, mkparents bool) reflect.Value {
 	if !loc.isValid() {
 		return reflect.Value{}
 	}
-	// TODO(light): mkparents
+	if len(loc.path) > 0 {
+		for i, x := range loc.path {
+			if i > 0 {
+				if val.Kind() == reflect.Ptr {
+					if val.IsNil() {
+						if !mkparents {
+							return reflect.Value{}
+						}
+						val.Set(reflect.New(val.Type().Elem()))
+					}
+					val = val.Elem()
+				}
+			}
+			val = val.Field(x)
+		}
+		return val
+	}
 	return val.Field(loc.i)
+}
+
+func typeFieldByLoc(t reflect.Type, loc fieldLoc) reflect.StructField {
+	if len(loc.path) > 0 {
+		return t.FieldByIndex(loc.path)
+	}
+	return t.Field(loc.i)
 }
 
 func hasDiscriminant(n schema.Node) bool {
@@ -204,4 +267,8 @@ func bytesStrEqual(b []byte, s string) bool {
 		}
 	}
 	return true
+}
+
+func isStructOrStructPtr(t reflect.Type) bool {
+	return t.Kind() == reflect.Struct || t.Kind() == reflect.Ptr && t.Elem().Kind() == reflect.Struct
 }
