@@ -390,27 +390,3 @@ func (ins *inserter) structSize(id uint64) (capnp.ObjectSize, error) {
 		PointerCount: n.StructNode().PointerCount(),
 	}, nil
 }
-
-func fieldByIndex(v reflect.Value, idx []int) reflect.Value {
-	switch len(idx) {
-	case 0:
-		return reflect.Value{}
-	case 1:
-		return v.Field(idx[0])
-	}
-	for i, x := range idx {
-		if !v.IsValid() {
-			return reflect.Value{}
-		}
-		if i > 0 {
-			if v.Kind() == reflect.Ptr && v.Type().Elem().Kind() == reflect.Struct {
-				if v.IsNil() {
-					return reflect.Value{}
-				}
-				v = v.Elem()
-			}
-		}
-		v = v.Field(x)
-	}
-	return v
-}
