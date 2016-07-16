@@ -395,7 +395,7 @@ func TestInsert_Size(t *testing.T) {
 		}
 		st, err := capnp.NewRootStruct(seg, test.sz)
 		if err != nil {
-			t.Errorf("%s: NewRootStruct(seg, %v): %v", test.name, err)
+			t.Errorf("%s: NewRootStruct(seg, %v): %v", test.name, test.sz, err)
 			continue
 		}
 		err = Insert(air.Z_TypeID, st, &test.z)

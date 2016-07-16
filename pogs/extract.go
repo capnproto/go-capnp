@@ -57,7 +57,7 @@ func (e *extracter) extractStruct(val reflect.Value, typeID uint64, s capnp.Stru
 	}
 	props, err := mapStruct(val.Type(), n)
 	if err != nil {
-		return fmt.Errorf("can't extract %s: %v", shortDisplayName(n), val.Type(), err)
+		return fmt.Errorf("can't extract %s: %v", val.Type(), err)
 	}
 	var discriminant uint16
 	hasWhich := false
