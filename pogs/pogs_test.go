@@ -177,6 +177,237 @@ func TestInsert(t *testing.T) {
 	}
 }
 
+func TestInsert_Size(t *testing.T) {
+	const baseSize = 8
+	tests := []struct {
+		name string
+		sz   capnp.ObjectSize
+		z    Z
+		ok   bool
+	}{
+		{
+			name: "void into empty",
+			z:    Z{Which: air.Z_Which_void},
+		},
+		{
+			name: "void into 0-byte",
+			sz:   capnp.ObjectSize{DataSize: baseSize},
+			z:    Z{Which: air.Z_Which_void},
+			ok:   true,
+		},
+		{
+			name: "void into 1-byte",
+			sz:   capnp.ObjectSize{DataSize: baseSize + 1},
+			z:    Z{Which: air.Z_Which_void},
+			ok:   true,
+		},
+		{
+			name: "bool into empty",
+			z:    Z{Which: air.Z_Which_bool, Bool: true},
+		},
+		{
+			name: "bool into 0 byte",
+			sz:   capnp.ObjectSize{DataSize: baseSize},
+			z:    Z{Which: air.Z_Which_bool, Bool: true},
+		},
+		{
+			name: "bool into 1 byte",
+			sz:   capnp.ObjectSize{DataSize: baseSize + 1},
+			z:    Z{Which: air.Z_Which_bool, Bool: true},
+			ok:   true,
+		},
+		{
+			name: "bool into 0 byte, 1-pointer",
+			sz:   capnp.ObjectSize{DataSize: baseSize, PointerCount: 1},
+			z:    Z{Which: air.Z_Which_bool, Bool: true},
+		},
+		{
+			name: "int8 into 0-byte",
+			sz:   capnp.ObjectSize{DataSize: baseSize},
+			z:    Z{Which: air.Z_Which_i8, I8: 123},
+		},
+		{
+			name: "int8 into 1-byte",
+			sz:   capnp.ObjectSize{DataSize: baseSize + 1},
+			z:    Z{Which: air.Z_Which_i8, I8: 123},
+			ok:   true,
+		},
+		{
+			name: "uint8 into 0-byte",
+			sz:   capnp.ObjectSize{DataSize: baseSize},
+			z:    Z{Which: air.Z_Which_u8, U8: 123},
+		},
+		{
+			name: "uint8 into 1-byte",
+			sz:   capnp.ObjectSize{DataSize: baseSize + 1},
+			z:    Z{Which: air.Z_Which_u8, U8: 123},
+			ok:   true,
+		},
+		{
+			name: "int16 into 0-byte",
+			sz:   capnp.ObjectSize{DataSize: baseSize},
+			z:    Z{Which: air.Z_Which_i16, I16: 123},
+		},
+		{
+			name: "int16 into 2-byte",
+			sz:   capnp.ObjectSize{DataSize: baseSize + 2},
+			z:    Z{Which: air.Z_Which_i16, I16: 123},
+			ok:   true,
+		},
+		{
+			name: "uint16 into 0-byte",
+			sz:   capnp.ObjectSize{DataSize: baseSize},
+			z:    Z{Which: air.Z_Which_u16, U16: 123},
+		},
+		{
+			name: "uint16 into 2-byte",
+			sz:   capnp.ObjectSize{DataSize: baseSize + 2},
+			z:    Z{Which: air.Z_Which_u16, U16: 123},
+			ok:   true,
+		},
+		{
+			name: "enum into 0-byte",
+			sz:   capnp.ObjectSize{DataSize: baseSize},
+			z:    Z{Which: air.Z_Which_airport, Airport: air.Airport_jfk},
+		},
+		{
+			name: "enum into 2-byte",
+			sz:   capnp.ObjectSize{DataSize: baseSize + 2},
+			z:    Z{Which: air.Z_Which_airport, Airport: air.Airport_jfk},
+			ok:   true,
+		},
+		{
+			name: "int32 into 0-byte",
+			sz:   capnp.ObjectSize{DataSize: baseSize},
+			z:    Z{Which: air.Z_Which_i32, I32: 123},
+		},
+		{
+			name: "int32 into 4-byte",
+			sz:   capnp.ObjectSize{DataSize: baseSize + 4},
+			z:    Z{Which: air.Z_Which_i32, I32: 123},
+			ok:   true,
+		},
+		{
+			name: "uint32 into 0-byte",
+			sz:   capnp.ObjectSize{DataSize: baseSize},
+			z:    Z{Which: air.Z_Which_u32, U32: 123},
+		},
+		{
+			name: "uint32 into 4-byte",
+			sz:   capnp.ObjectSize{DataSize: baseSize + 4},
+			z:    Z{Which: air.Z_Which_u32, U32: 123},
+			ok:   true,
+		},
+		{
+			name: "float32 into 0-byte",
+			sz:   capnp.ObjectSize{DataSize: baseSize},
+			z:    Z{Which: air.Z_Which_f32, F32: 123},
+		},
+		{
+			name: "float32 into 4-byte",
+			sz:   capnp.ObjectSize{DataSize: baseSize + 4},
+			z:    Z{Which: air.Z_Which_f32, F32: 123},
+			ok:   true,
+		},
+		{
+			name: "int64 into 0-byte",
+			sz:   capnp.ObjectSize{DataSize: baseSize},
+			z:    Z{Which: air.Z_Which_i64, I64: 123},
+		},
+		{
+			name: "int64 into 8-byte",
+			sz:   capnp.ObjectSize{DataSize: baseSize + 8},
+			z:    Z{Which: air.Z_Which_i64, I64: 123},
+			ok:   true,
+		},
+		{
+			name: "uint64 into 0-byte",
+			sz:   capnp.ObjectSize{DataSize: baseSize},
+			z:    Z{Which: air.Z_Which_u64, U64: 123},
+		},
+		{
+			name: "uint64 into 8-byte",
+			sz:   capnp.ObjectSize{DataSize: baseSize + 8},
+			z:    Z{Which: air.Z_Which_u64, U64: 123},
+			ok:   true,
+		},
+		{
+			name: "float64 into 0-byte",
+			sz:   capnp.ObjectSize{DataSize: baseSize},
+			z:    Z{Which: air.Z_Which_f64, F64: 123},
+		},
+		{
+			name: "float64 into 8-byte",
+			sz:   capnp.ObjectSize{DataSize: baseSize + 8},
+			z:    Z{Which: air.Z_Which_f64, F64: 123},
+			ok:   true,
+		},
+		{
+			name: "text into 0 pointer",
+			sz:   capnp.ObjectSize{DataSize: baseSize, PointerCount: 0},
+			z:    Z{Which: air.Z_Which_text, Text: "hi"},
+		},
+		{
+			name: "text into 1 pointer",
+			sz:   capnp.ObjectSize{DataSize: baseSize, PointerCount: 1},
+			z:    Z{Which: air.Z_Which_text, Text: "hi"},
+			ok:   true,
+		},
+		{
+			name: "data into 0 pointer",
+			sz:   capnp.ObjectSize{DataSize: baseSize, PointerCount: 0},
+			z:    Z{Which: air.Z_Which_blob, Blob: []byte("hi")},
+		},
+		{
+			name: "data into 1 pointer",
+			sz:   capnp.ObjectSize{DataSize: baseSize, PointerCount: 1},
+			z:    Z{Which: air.Z_Which_blob, Blob: []byte("hi")},
+			ok:   true,
+		},
+		{
+			name: "list into 0 pointer",
+			sz:   capnp.ObjectSize{DataSize: baseSize, PointerCount: 0},
+			z:    Z{Which: air.Z_Which_f64vec, F64vec: []float64{123}},
+		},
+		{
+			name: "list into 1 pointer",
+			sz:   capnp.ObjectSize{DataSize: baseSize, PointerCount: 1},
+			z:    Z{Which: air.Z_Which_f64vec, F64vec: []float64{123}},
+			ok:   true,
+		},
+		{
+			name: "struct into 0 pointer",
+			sz:   capnp.ObjectSize{DataSize: baseSize, PointerCount: 0},
+			z:    Z{Which: air.Z_Which_planebase, Planebase: new(PlaneBase)},
+		},
+		{
+			name: "struct into 1 pointer",
+			sz:   capnp.ObjectSize{DataSize: baseSize, PointerCount: 1},
+			z:    Z{Which: air.Z_Which_planebase, Planebase: new(PlaneBase)},
+			ok:   true,
+		},
+	}
+	for _, test := range tests {
+		_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		if err != nil {
+			t.Errorf("%s: NewMessage: %v", test.name, err)
+			continue
+		}
+		st, err := capnp.NewRootStruct(seg, test.sz)
+		if err != nil {
+			t.Errorf("%s: NewRootStruct(seg, %v): %v", test.name, err)
+			continue
+		}
+		err = Insert(air.Z_TypeID, st, &test.z)
+		if test.ok && err != nil {
+			t.Errorf("%s: Insert(%#x, capnp.NewStruct(seg, %v), %s) = %v; want nil", test.name, uint64(air.Z_TypeID), test.sz, zpretty.Sprint(test.z), err)
+		}
+		if !test.ok && err == nil {
+			t.Errorf("%s: Insert(%#x, capnp.NewStruct(seg, %v), %s) = nil; want error about not fitting", test.name, uint64(air.Z_TypeID), test.sz, zpretty.Sprint(test.z))
+		}
+	}
+}
+
 type BytesZ struct {
 	Which   air.Z_Which
 	Text    []byte

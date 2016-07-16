@@ -45,7 +45,11 @@ func (ins *inserter) insertStruct(typeID uint64, s capnp.Struct, val reflect.Val
 	if hasDiscriminant(n) {
 		discriminant, hasWhich = props.which(val)
 		if hasWhich {
-			s.SetUint16(capnp.DataOffset(n.StructNode().DiscriminantOffset()*2), discriminant)
+			off := capnp.DataOffset(n.StructNode().DiscriminantOffset() * 2)
+			if s.Size().DataSize < capnp.Size(off+2) {
+				return fmt.Errorf("can't set discriminant for %s: allocated struct is too small", shortDisplayName(n))
+			}
+			s.SetUint16(off, discriminant)
 		}
 	}
 	fields, err := n.StructNode().Fields()
@@ -98,6 +102,10 @@ func (ins *inserter) insertField(s capnp.Struct, f schema.Field, val reflect.Val
 	if !isTypeMatch(val.Type(), typ) {
 		name, _ := f.NameBytes()
 		return fmt.Errorf("can't insert field %s of type Go %v into a %v", name, val.Type(), typ.Which())
+	}
+	if !isFieldInBounds(s.Size(), f.Slot().Offset(), typ) {
+		name, _ := f.NameBytes()
+		return fmt.Errorf("can't insert field %s: allocated struct is too small", name)
 	}
 	switch typ.Which() {
 	case schema.Type_Which_bool:
@@ -389,4 +397,25 @@ func (ins *inserter) structSize(id uint64) (capnp.ObjectSize, error) {
 		DataSize:     capnp.Size(n.StructNode().DataWordCount()) * 8,
 		PointerCount: n.StructNode().PointerCount(),
 	}, nil
+}
+
+func isFieldInBounds(sz capnp.ObjectSize, off uint32, t schema.Type) bool {
+	switch t.Which() {
+	case schema.Type_Which_void:
+		return true
+	case schema.Type_Which_bool:
+		return sz.DataSize >= capnp.Size(off/8+1)
+	case schema.Type_Which_int8, schema.Type_Which_uint8:
+		return sz.DataSize >= capnp.Size(off+1)
+	case schema.Type_Which_int16, schema.Type_Which_uint16, schema.Type_Which_enum:
+		return sz.DataSize >= capnp.Size(off+1)*2
+	case schema.Type_Which_int32, schema.Type_Which_uint32, schema.Type_Which_float32:
+		return sz.DataSize >= capnp.Size(off+1)*4
+	case schema.Type_Which_int64, schema.Type_Which_uint64, schema.Type_Which_float64:
+		return sz.DataSize >= capnp.Size(off+1)*8
+	case schema.Type_Which_text, schema.Type_Which_data, schema.Type_Which_list, schema.Type_Which_structType, schema.Type_Which_interface, schema.Type_Which_anyPointer:
+		return sz.PointerCount >= uint16(off+1)
+	default:
+		return false
+	}
 }
