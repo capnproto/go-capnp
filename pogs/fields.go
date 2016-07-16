@@ -10,16 +10,27 @@ import (
 
 type fieldProps struct {
 	schemaName string // empty if doesn't map to schema
-	which      bool
+	typ        fieldType
 	fixedWhich string
 }
+
+type fieldType int
+
+const (
+	mappedField fieldType = iota
+	whichField
+	embedField
+)
 
 func parseField(f reflect.StructField, hasDiscrim bool) fieldProps {
 	tname, opts := nextOpt(f.Tag.Get("capnp"))
 	switch tname {
 	case "":
+		if f.Anonymous && isStructOrStructPtr(f.Type) {
+			return fieldProps{typ: embedField}
+		}
 		if hasDiscrim && f.Name == "Which" {
-			p := fieldProps{which: true}
+			p := fieldProps{typ: whichField}
 			for len(opts) > 0 {
 				var curr string
 				curr, opts = nextOpt(opts)
@@ -106,20 +117,17 @@ func mapStructField(sp *structProps, t reflect.Type, n schema.Node, fields schem
 		// unexported field
 		return nil
 	}
-	if f.Anonymous && isStructOrStructPtr(f.Type) {
-		ft := f.Type
-		if f.Type.Kind() == reflect.Ptr {
-			ft = ft.Elem()
+	switch p := parseField(f, hasDiscriminant(n)); p.typ {
+	case mappedField:
+		if p.schemaName == "" {
+			return nil
 		}
-		for i := 0; i < ft.NumField(); i++ {
-			if err := mapStructField(sp, t, n, fields, loc.sub(i)); err != nil {
-				return err
-			}
+		fi := fieldIndex(fields, p.schemaName)
+		if fi < 0 {
+			return fmt.Errorf("%v has unknown field %s, maps to %s", t, f.Name, p.schemaName)
 		}
-		return nil
-	}
-	p := parseField(f, hasDiscriminant(n))
-	if p.which {
+		sp.fields[fi] = loc
+	case whichField:
 		if sp.whichLoc.i != -1 {
 			return fmt.Errorf("%v embeds multiple Which fields", t)
 		}
@@ -140,16 +148,17 @@ func mapStructField(sp *structProps, t reflect.Type, n schema.Node, fields schem
 		default:
 			sp.whichLoc = loc
 		}
-		return nil
+	case embedField:
+		ft := f.Type
+		if f.Type.Kind() == reflect.Ptr {
+			ft = ft.Elem()
+		}
+		for i := 0; i < ft.NumField(); i++ {
+			if err := mapStructField(sp, t, n, fields, loc.sub(i)); err != nil {
+				return err
+			}
+		}
 	}
-	if p.schemaName == "" {
-		return nil
-	}
-	fi := fieldIndex(fields, p.schemaName)
-	if fi < 0 {
-		return fmt.Errorf("%v has unknown field %s, maps to %s", t, f.Name, p.schemaName)
-	}
-	sp.fields[fi] = loc
 	return nil
 }
 
