@@ -40,6 +40,9 @@ func (ins *inserter) insertStruct(typeID uint64, s capnp.Struct, val reflect.Val
 		return fmt.Errorf("cannot find struct type %#x", typeID)
 	}
 	props, err := mapStruct(val.Type(), n)
+	if err != nil {
+		return fmt.Errorf("can't insert into %v: %v", val.Type(), err)
+	}
 	var discriminant uint16
 	hasWhich := false
 	if hasDiscriminant(n) {

@@ -821,6 +821,35 @@ func TestInsert_WhichTag(t *testing.T) {
 	}
 }
 
+type ZBoolWithExtra struct {
+	Which      struct{} `capnp:",which=bool"`
+	Bool       bool
+	ExtraField uint16
+}
+
+func TestExtraFields(t *testing.T) {
+	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		t.Fatalf("NewMessage: %v", err)
+	}
+	z, err := air.NewRootZ(seg)
+	if err != nil {
+		t.Fatalf("NewRootZ: %v", err)
+	}
+	zb := &ZBoolWithExtra{Bool: true, ExtraField: 42}
+	err = Insert(air.Z_TypeID, z.Struct, zb)
+	if err == nil {
+		t.Errorf("Insert(%s) did not return error", zpretty.Sprint(zb))
+	}
+	err = Extract(zb, air.Z_TypeID, z.Struct)
+	if err == nil {
+		t.Errorf("Extract(%v) did not return error", z)
+	}
+	if zb.ExtraField != 42 {
+		t.Errorf("zb.ExtraField modified to %d; want 42", zb.ExtraField)
+	}
+}
+
 type VerVal struct {
 	Val int16
 }

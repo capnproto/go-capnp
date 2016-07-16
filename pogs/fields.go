@@ -146,6 +146,9 @@ func mapStructField(sp *structProps, t reflect.Type, n schema.Node, fields schem
 		return nil
 	}
 	fi := fieldIndex(fields, p.schemaName)
+	if fi < 0 {
+		return fmt.Errorf("%v has unknown field %s, maps to %s", t, f.Name, p.schemaName)
+	}
 	sp.fields[fi] = loc
 	return nil
 }
