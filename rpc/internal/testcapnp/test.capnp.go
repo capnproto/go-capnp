@@ -92,6 +92,9 @@ type HandleFactory_newHandle struct {
 
 type HandleFactory_newHandle_Params struct{ capnp.Struct }
 
+// HandleFactory_newHandle_Params_TypeID is the unique identifier for the type HandleFactory_newHandle_Params.
+const HandleFactory_newHandle_Params_TypeID = 0x99821793f0a50b5e
+
 func NewHandleFactory_newHandle_Params(s *capnp.Segment) (HandleFactory_newHandle_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
 	return HandleFactory_newHandle_Params{st}, err
@@ -138,6 +141,9 @@ func (p HandleFactory_newHandle_Params_Promise) Struct() (HandleFactory_newHandl
 }
 
 type HandleFactory_newHandle_Results struct{ capnp.Struct }
+
+// HandleFactory_newHandle_Results_TypeID is the unique identifier for the type HandleFactory_newHandle_Results.
+const HandleFactory_newHandle_Results_TypeID = 0xd57b5111c59d048c
 
 func NewHandleFactory_newHandle_Results(s *capnp.Segment) (HandleFactory_newHandle_Results, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
@@ -271,6 +277,9 @@ type Hanger_hang struct {
 
 type Hanger_hang_Params struct{ capnp.Struct }
 
+// Hanger_hang_Params_TypeID is the unique identifier for the type Hanger_hang_Params.
+const Hanger_hang_Params_TypeID = 0xb4512d1c0c85f06f
+
 func NewHanger_hang_Params(s *capnp.Segment) (Hanger_hang_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
 	return Hanger_hang_Params{st}, err
@@ -317,6 +326,9 @@ func (p Hanger_hang_Params_Promise) Struct() (Hanger_hang_Params, error) {
 }
 
 type Hanger_hang_Results struct{ capnp.Struct }
+
+// Hanger_hang_Results_TypeID is the unique identifier for the type Hanger_hang_Results.
+const Hanger_hang_Results_TypeID = 0xb9c9455b55ed47b0
 
 func NewHanger_hang_Results(s *capnp.Segment) (Hanger_hang_Results, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
@@ -427,6 +439,9 @@ type CallOrder_getCallSequence struct {
 
 type CallOrder_getCallSequence_Params struct{ capnp.Struct }
 
+// CallOrder_getCallSequence_Params_TypeID is the unique identifier for the type CallOrder_getCallSequence_Params.
+const CallOrder_getCallSequence_Params_TypeID = 0x993e61d6a54c166f
+
 func NewCallOrder_getCallSequence_Params(s *capnp.Segment) (CallOrder_getCallSequence_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
 	return CallOrder_getCallSequence_Params{st}, err
@@ -481,6 +496,9 @@ func (p CallOrder_getCallSequence_Params_Promise) Struct() (CallOrder_getCallSeq
 }
 
 type CallOrder_getCallSequence_Results struct{ capnp.Struct }
+
+// CallOrder_getCallSequence_Results_TypeID is the unique identifier for the type CallOrder_getCallSequence_Results.
+const CallOrder_getCallSequence_Results_TypeID = 0x88f809ef7f873e58
 
 func NewCallOrder_getCallSequence_Results(s *capnp.Segment) (CallOrder_getCallSequence_Results, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
@@ -635,6 +653,9 @@ type Echoer_echo struct {
 
 type Echoer_echo_Params struct{ capnp.Struct }
 
+// Echoer_echo_Params_TypeID is the unique identifier for the type Echoer_echo_Params.
+const Echoer_echo_Params_TypeID = 0xe96a45cad5d1a1d3
+
 func NewEchoer_echo_Params(s *capnp.Segment) (Echoer_echo_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	return Echoer_echo_Params{st}, err
@@ -704,6 +725,9 @@ func (p Echoer_echo_Params_Promise) Cap() CallOrder {
 }
 
 type Echoer_echo_Results struct{ capnp.Struct }
+
+// Echoer_echo_Results_TypeID is the unique identifier for the type Echoer_echo_Results.
+const Echoer_echo_Results_TypeID = 0x8b45b4847bd839c8
 
 func NewEchoer_echo_Results(s *capnp.Segment) (Echoer_echo_Results, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
@@ -837,6 +861,9 @@ type Adder_add struct {
 
 type Adder_add_Params struct{ capnp.Struct }
 
+// Adder_add_Params_TypeID is the unique identifier for the type Adder_add_Params.
+const Adder_add_Params_TypeID = 0x9ed99eb5024ed6ef
+
 func NewAdder_add_Params(s *capnp.Segment) (Adder_add_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
 	return Adder_add_Params{st}, err
@@ -897,6 +924,9 @@ func (p Adder_add_Params_Promise) Struct() (Adder_add_Params, error) {
 }
 
 type Adder_add_Results struct{ capnp.Struct }
+
+// Adder_add_Results_TypeID is the unique identifier for the type Adder_add_Results.
+const Adder_add_Results_TypeID = 0xa74428796527f253
 
 func NewAdder_add_Results(s *capnp.Segment) (Adder_add_Results, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})

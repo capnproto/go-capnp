@@ -83,6 +83,11 @@ func (p Struct) Address() Address {
 	return p.off
 }
 
+// Size returns the size of the struct.
+func (p Struct) Size() ObjectSize {
+	return p.size
+}
+
 // HasData reports whether the struct has a non-zero size.
 func (p Struct) HasData() bool {
 	return !p.size.isZero()

@@ -47,9 +47,10 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 			typ:  "Z",
 			text: `(zdata = (data = "\x00\x01\x02\x03\x04\x05\x06\a\b\t\n\v\f\r\x0e\x0f\x10\x11\x12\x13"))` + "\n",
 			data: []byte{
-				0, 0, 0, 0, 8, 0, 0, 0,
-				0, 0, 0, 0, 2, 0, 1, 0,
+				0, 0, 0, 0, 9, 0, 0, 0,
+				0, 0, 0, 0, 3, 0, 1, 0,
 				28, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 1, 0,
 				1, 0, 0, 0, 162, 0, 0, 0,
@@ -844,9 +845,10 @@ func TestBitList_Decode(t *testing.T) {
 func TestZDataAccessors(t *testing.T) {
 	t.Parallel()
 	data := mustEncodeTestMessage(t, "Z", `(zdata = (data = "\x00\x01\x02\x03\x04\x05\x06\a\b\t\n\v\f\r\x0e\x0f\x10\x11\x12\x13"))`, []byte{
-		0, 0, 0, 0, 8, 0, 0, 0,
-		0, 0, 0, 0, 2, 0, 1, 0,
+		0, 0, 0, 0, 9, 0, 0, 0,
+		0, 0, 0, 0, 3, 0, 1, 0,
 		28, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 1, 0,
 		1, 0, 0, 0, 162, 0, 0, 0,

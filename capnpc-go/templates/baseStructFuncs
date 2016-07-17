@@ -1,3 +1,6 @@
+// {{.Node.Name}}_TypeID is the unique identifier for the type {{.Node.Name}}.
+const {{.Node.Name}}_TypeID = {{.Node.Id|printf "%#x"}}
+
 func New{{.Node.Name}}(s *{{.G.Capnp}}.Segment) ({{.Node.Name}}, error) {
 	st, err := {{$.G.Capnp}}.NewStruct(s, {{.G.ObjectSize .Node}})
 	return {{.Node.Name}}{st}, err

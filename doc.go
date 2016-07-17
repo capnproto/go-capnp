@@ -81,7 +81,7 @@ Structs
 
 For the following schema:
 
-struct Foo {
+struct Foo @0x8423424e9b01c0af {
   num @0 :UInt32;
   bar @1 :Foo;
 }
@@ -92,6 +92,10 @@ capnpc-go will generate:
 	// Member functions are provided to get/set members in the
 	// struct.
 	type Foo struct{ capnp.Struct }
+
+	// Foo_TypeID is the unique identifier for the type Foo.
+	// It remains the same across languages and schema changes.
+	const Foo_TypeID = 0x8423424e9b01c0af
 
 	// NewFoo creates a new orphaned Foo struct, preferring placement in
 	// s.  If there isn't enough space, then another segment in the

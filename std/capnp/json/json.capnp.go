@@ -45,6 +45,9 @@ func (w JsonValue_Which) String() string {
 	return "JsonValue_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
 }
 
+// JsonValue_TypeID is the unique identifier for the type JsonValue.
+const JsonValue_TypeID = 0x8825ffaa852cda72
+
 func NewJsonValue(s *capnp.Segment) (JsonValue, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1})
 	return JsonValue{st}, err
@@ -223,6 +226,9 @@ func (p JsonValue_Promise) Call() JsonValue_Call_Promise {
 
 type JsonValue_Field struct{ capnp.Struct }
 
+// JsonValue_Field_TypeID is the unique identifier for the type JsonValue_Field.
+const JsonValue_Field_TypeID = 0xc27855d853a937cc
+
 func NewJsonValue_Field(s *capnp.Segment) (JsonValue_Field, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
 	return JsonValue_Field{st}, err
@@ -319,6 +325,9 @@ func (p JsonValue_Field_Promise) Value() JsonValue_Promise {
 }
 
 type JsonValue_Call struct{ capnp.Struct }
+
+// JsonValue_Call_TypeID is the unique identifier for the type JsonValue_Call.
+const JsonValue_Call_TypeID = 0x9bbf84153dd4bb60
 
 func NewJsonValue_Call(s *capnp.Segment) (JsonValue_Call, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})

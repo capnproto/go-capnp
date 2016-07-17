@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"zombiezen.com/go/capnproto2"
+	"zombiezen.com/go/capnproto2/internal/nodemap"
 	"zombiezen.com/go/capnproto2/schemas"
 	"zombiezen.com/go/capnproto2/std/capnp/schema"
 )
@@ -33,23 +34,18 @@ func Marshal(typeID uint64, s capnp.Struct) (string, error) {
 type Encoder struct {
 	w     errWriter
 	tmp   []byte
-	reg   *schemas.Registry
-	nodes map[uint64]schema.Node
+	nodes nodemap.Map
 }
 
 // NewEncoder returns a new encoder that writes to w.
 func NewEncoder(w io.Writer) *Encoder {
-	return &Encoder{
-		w:   errWriter{w: w},
-		reg: &schemas.DefaultRegistry,
-	}
+	return &Encoder{w: errWriter{w: w}}
 }
 
 // UseRegistry changes the registry that the encoder consults for
 // schemas from the default registry.
 func (enc *Encoder) UseRegistry(reg *schemas.Registry) {
-	enc.reg = reg
-	enc.nodes = nil
+	enc.nodes.UseRegistry(reg)
 }
 
 // Encode writes the text representation of s to the stream.
@@ -62,36 +58,6 @@ func (enc *Encoder) Encode(typeID uint64, s capnp.Struct) error {
 		return err
 	}
 	return enc.w.err
-}
-
-func (enc *Encoder) findNode(id uint64) (schema.Node, error) {
-	if n := enc.nodes[id]; n.IsValid() {
-		return n, nil
-	}
-	data, err := enc.reg.Find(id)
-	if err != nil {
-		return schema.Node{}, err
-	}
-	msg, err := capnp.Unmarshal(data)
-	if err != nil {
-		return schema.Node{}, err
-	}
-	req, err := schema.ReadRootCodeGeneratorRequest(msg)
-	if err != nil {
-		return schema.Node{}, err
-	}
-	nodes, err := req.Nodes()
-	if err != nil {
-		return schema.Node{}, err
-	}
-	if enc.nodes == nil {
-		enc.nodes = make(map[uint64]schema.Node)
-	}
-	for i := 0; i < nodes.Len(); i++ {
-		n := nodes.At(i)
-		enc.nodes[n.Id()] = n
-	}
-	return enc.nodes[id], nil
 }
 
 func (enc *Encoder) marshalBool(v bool) {
@@ -172,7 +138,7 @@ func hexDigit(b byte) byte {
 }
 
 func (enc *Encoder) marshalStruct(typeID uint64, s capnp.Struct) error {
-	n, err := enc.findNode(typeID)
+	n, err := enc.nodes.Find(typeID)
 	if err != nil {
 		return err
 	}
@@ -529,7 +495,7 @@ func (enc *Encoder) marshalList(elem schema.Type, l capnp.List) error {
 }
 
 func (enc *Encoder) marshalEnum(typ uint64, val uint16) error {
-	n, err := enc.findNode(typ)
+	n, err := enc.nodes.Find(typ)
 	if err != nil {
 		return err
 	}

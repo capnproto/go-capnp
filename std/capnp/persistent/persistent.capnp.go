@@ -76,6 +76,9 @@ type Persistent_save struct {
 
 type Persistent_SaveParams struct{ capnp.Struct }
 
+// Persistent_SaveParams_TypeID is the unique identifier for the type Persistent_SaveParams.
+const Persistent_SaveParams_TypeID = 0xf76fba59183073a5
+
 func NewPersistent_SaveParams(s *capnp.Segment) (Persistent_SaveParams, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	return Persistent_SaveParams{st}, err
@@ -147,6 +150,9 @@ func (p Persistent_SaveParams_Promise) SealFor() *capnp.Pipeline {
 }
 
 type Persistent_SaveResults struct{ capnp.Struct }
+
+// Persistent_SaveResults_TypeID is the unique identifier for the type Persistent_SaveResults.
+const Persistent_SaveResults_TypeID = 0xb76848c18c40efbf
 
 func NewPersistent_SaveResults(s *capnp.Segment) (Persistent_SaveResults, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
@@ -326,6 +332,9 @@ type RealmGateway_export struct {
 
 type RealmGateway_import_Params struct{ capnp.Struct }
 
+// RealmGateway_import_Params_TypeID is the unique identifier for the type RealmGateway_import_Params.
+const RealmGateway_import_Params_TypeID = 0xf0c2cc1d3909574d
+
 func NewRealmGateway_import_Params(s *capnp.Segment) (RealmGateway_import_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
 	return RealmGateway_import_Params{st}, err
@@ -424,6 +433,9 @@ func (p RealmGateway_import_Params_Promise) Params() Persistent_SaveParams_Promi
 }
 
 type RealmGateway_export_Params struct{ capnp.Struct }
+
+// RealmGateway_export_Params_TypeID is the unique identifier for the type RealmGateway_export_Params.
+const RealmGateway_export_Params_TypeID = 0xecafa18b482da3aa
 
 func NewRealmGateway_export_Params(s *capnp.Segment) (RealmGateway_export_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})

@@ -74,6 +74,9 @@ type HashFactory_newSha1 struct {
 
 type HashFactory_newSha1_Params struct{ capnp.Struct }
 
+// HashFactory_newSha1_Params_TypeID is the unique identifier for the type HashFactory_newSha1_Params.
+const HashFactory_newSha1_Params_TypeID = 0x92b20ad1a58ca0ca
+
 func NewHashFactory_newSha1_Params(s *capnp.Segment) (HashFactory_newSha1_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
 	return HashFactory_newSha1_Params{st}, err
@@ -120,6 +123,9 @@ func (p HashFactory_newSha1_Params_Promise) Struct() (HashFactory_newSha1_Params
 }
 
 type HashFactory_newSha1_Results struct{ capnp.Struct }
+
+// HashFactory_newSha1_Results_TypeID is the unique identifier for the type HashFactory_newSha1_Results.
+const HashFactory_newSha1_Results_TypeID = 0xea3e50f7663f7bdf
 
 func NewHashFactory_newSha1_Results(s *capnp.Segment) (HashFactory_newSha1_Results, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
@@ -297,6 +303,9 @@ type Hash_sum struct {
 
 type Hash_write_Params struct{ capnp.Struct }
 
+// Hash_write_Params_TypeID is the unique identifier for the type Hash_write_Params.
+const Hash_write_Params_TypeID = 0xdffe94ae546cdee3
+
 func NewHash_write_Params(s *capnp.Segment) (Hash_write_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	return Hash_write_Params{st}, err
@@ -362,6 +371,9 @@ func (p Hash_write_Params_Promise) Struct() (Hash_write_Params, error) {
 
 type Hash_write_Results struct{ capnp.Struct }
 
+// Hash_write_Results_TypeID is the unique identifier for the type Hash_write_Results.
+const Hash_write_Results_TypeID = 0x80ac741ec7fb8f65
+
 func NewHash_write_Results(s *capnp.Segment) (Hash_write_Results, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
 	return Hash_write_Results{st}, err
@@ -409,6 +421,9 @@ func (p Hash_write_Results_Promise) Struct() (Hash_write_Results, error) {
 
 type Hash_sum_Params struct{ capnp.Struct }
 
+// Hash_sum_Params_TypeID is the unique identifier for the type Hash_sum_Params.
+const Hash_sum_Params_TypeID = 0xe74bb2d0190cf89c
+
 func NewHash_sum_Params(s *capnp.Segment) (Hash_sum_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
 	return Hash_sum_Params{st}, err
@@ -453,6 +468,9 @@ func (p Hash_sum_Params_Promise) Struct() (Hash_sum_Params, error) {
 }
 
 type Hash_sum_Results struct{ capnp.Struct }
+
+// Hash_sum_Results_TypeID is the unique identifier for the type Hash_sum_Results.
+const Hash_sum_Results_TypeID = 0xd093963b95a4e107
 
 func NewHash_sum_Results(s *capnp.Segment) (Hash_sum_Results, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})

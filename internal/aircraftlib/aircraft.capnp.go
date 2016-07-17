@@ -25,6 +25,9 @@ var (
 
 type Zdate struct{ capnp.Struct }
 
+// Zdate_TypeID is the unique identifier for the type Zdate.
+const Zdate_TypeID = 0xde50aebbad57549d
+
 func NewZdate(s *capnp.Segment) (Zdate, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
 	return Zdate{st}, err
@@ -91,6 +94,9 @@ func (p Zdate_Promise) Struct() (Zdate, error) {
 }
 
 type Zdata struct{ capnp.Struct }
+
+// Zdata_TypeID is the unique identifier for the type Zdata.
+const Zdata_TypeID = 0xc7da65f9a2f20ba2
 
 func NewZdata(s *capnp.Segment) (Zdata, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
@@ -230,6 +236,9 @@ func (l Airport_List) Set(i int, v Airport) {
 
 type PlaneBase struct{ capnp.Struct }
 
+// PlaneBase_TypeID is the unique identifier for the type PlaneBase.
+const PlaneBase_TypeID = 0xd8bccf6e60a73791
+
 func NewPlaneBase(s *capnp.Segment) (PlaneBase, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 32, PointerCount: 2})
 	return PlaneBase{st}, err
@@ -353,6 +362,9 @@ func (p PlaneBase_Promise) Struct() (PlaneBase, error) {
 
 type B737 struct{ capnp.Struct }
 
+// B737_TypeID is the unique identifier for the type B737.
+const B737_TypeID = 0xccb3b2e3603826e0
+
 func NewB737(s *capnp.Segment) (B737, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	return B737{st}, err
@@ -424,6 +436,9 @@ func (p B737_Promise) Base() PlaneBase_Promise {
 }
 
 type A320 struct{ capnp.Struct }
+
+// A320_TypeID is the unique identifier for the type A320.
+const A320_TypeID = 0xd98c608877d9cb8d
 
 func NewA320(s *capnp.Segment) (A320, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
@@ -497,6 +512,9 @@ func (p A320_Promise) Base() PlaneBase_Promise {
 
 type F16 struct{ capnp.Struct }
 
+// F16_TypeID is the unique identifier for the type F16.
+const F16_TypeID = 0xe1c9eac512335361
+
 func NewF16(s *capnp.Segment) (F16, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	return F16{st}, err
@@ -568,6 +586,9 @@ func (p F16_Promise) Base() PlaneBase_Promise {
 }
 
 type Regression struct{ capnp.Struct }
+
+// Regression_TypeID is the unique identifier for the type Regression.
+const Regression_TypeID = 0xb1f0385d845e367f
 
 func NewRegression(s *capnp.Segment) (Regression, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 3})
@@ -739,6 +760,9 @@ func (w Aircraft_Which) String() string {
 	return "Aircraft_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
 }
 
+// Aircraft_TypeID is the unique identifier for the type Aircraft.
+const Aircraft_TypeID = 0xe54e10aede55c7b1
+
 func NewAircraft(s *capnp.Segment) (Aircraft, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
 	return Aircraft{st}, err
@@ -882,6 +906,7 @@ func (p Aircraft_Promise) F16() F16_Promise {
 }
 
 type Z struct{ capnp.Struct }
+type Z_grp Z
 type Z_Which uint16
 
 const (
@@ -910,6 +935,9 @@ const (
 	Z_Which_u32vec      Z_Which = 22
 	Z_Which_u16vec      Z_Which = 23
 	Z_Which_u8vec       Z_Which = 24
+	Z_Which_boolvec     Z_Which = 39
+	Z_Which_datavec     Z_Which = 40
+	Z_Which_textvec     Z_Which = 41
 	Z_Which_zvec        Z_Which = 25
 	Z_Which_zvecvec     Z_Which = 26
 	Z_Which_zdate       Z_Which = 27
@@ -924,11 +952,11 @@ const (
 	Z_Which_f16         Z_Which = 36
 	Z_Which_zdatevec    Z_Which = 37
 	Z_Which_zdatavec    Z_Which = 38
-	Z_Which_boolvec     Z_Which = 39
+	Z_Which_grp         Z_Which = 42
 )
 
 func (w Z_Which) String() string {
-	const s = "voidzzf64f32i64i32i16i8u64u32u16u8booltextblobf64vecf32veci64veci32veci16veci8vecu64vecu32vecu16vecu8veczveczvecveczdatezdataaircraftvecaircraftregressionplanebaseairportb737a320f16zdateveczdatavecboolvec"
+	const s = "voidzzf64f32i64i32i16i8u64u32u16u8booltextblobf64vecf32veci64veci32veci16veci8vecu64vecu32vecu16vecu8vecboolvecdatavectextveczveczvecveczdatezdataaircraftvecaircraftregressionplanebaseairportb737a320f16zdateveczdatavecgrp"
 	switch w {
 	case Z_Which_void:
 		return s[0:4]
@@ -980,48 +1008,57 @@ func (w Z_Which) String() string {
 		return s[93:99]
 	case Z_Which_u8vec:
 		return s[99:104]
-	case Z_Which_zvec:
-		return s[104:108]
-	case Z_Which_zvecvec:
-		return s[108:115]
-	case Z_Which_zdate:
-		return s[115:120]
-	case Z_Which_zdata:
-		return s[120:125]
-	case Z_Which_aircraftvec:
-		return s[125:136]
-	case Z_Which_aircraft:
-		return s[136:144]
-	case Z_Which_regression:
-		return s[144:154]
-	case Z_Which_planebase:
-		return s[154:163]
-	case Z_Which_airport:
-		return s[163:170]
-	case Z_Which_b737:
-		return s[170:174]
-	case Z_Which_a320:
-		return s[174:178]
-	case Z_Which_f16:
-		return s[178:181]
-	case Z_Which_zdatevec:
-		return s[181:189]
-	case Z_Which_zdatavec:
-		return s[189:197]
 	case Z_Which_boolvec:
-		return s[197:204]
+		return s[104:111]
+	case Z_Which_datavec:
+		return s[111:118]
+	case Z_Which_textvec:
+		return s[118:125]
+	case Z_Which_zvec:
+		return s[125:129]
+	case Z_Which_zvecvec:
+		return s[129:136]
+	case Z_Which_zdate:
+		return s[136:141]
+	case Z_Which_zdata:
+		return s[141:146]
+	case Z_Which_aircraftvec:
+		return s[146:157]
+	case Z_Which_aircraft:
+		return s[157:165]
+	case Z_Which_regression:
+		return s[165:175]
+	case Z_Which_planebase:
+		return s[175:184]
+	case Z_Which_airport:
+		return s[184:191]
+	case Z_Which_b737:
+		return s[191:195]
+	case Z_Which_a320:
+		return s[195:199]
+	case Z_Which_f16:
+		return s[199:202]
+	case Z_Which_zdatevec:
+		return s[202:210]
+	case Z_Which_zdatavec:
+		return s[210:218]
+	case Z_Which_grp:
+		return s[218:221]
 
 	}
 	return "Z_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
 }
 
+// Z_TypeID is the unique identifier for the type Z.
+const Z_TypeID = 0xea26e9973bd6a0d9
+
 func NewZ(s *capnp.Segment) (Z, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1})
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 1})
 	return Z{st}, err
 }
 
 func NewRootZ(s *capnp.Segment) (Z, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1})
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 1})
 	return Z{st}, err
 }
 
@@ -1482,6 +1519,87 @@ func (s Z) NewU8vec(n int32) (capnp.UInt8List, error) {
 	return l, err
 }
 
+func (s Z) Boolvec() (capnp.BitList, error) {
+	p, err := s.Struct.Ptr(0)
+	return capnp.BitList{List: p.List()}, err
+}
+
+func (s Z) HasBoolvec() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s Z) SetBoolvec(v capnp.BitList) error {
+	s.Struct.SetUint16(0, 39)
+	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewBoolvec sets the boolvec field to a newly
+// allocated capnp.BitList, preferring placement in s's segment.
+func (s Z) NewBoolvec(n int32) (capnp.BitList, error) {
+	s.Struct.SetUint16(0, 39)
+	l, err := capnp.NewBitList(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.BitList{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
+func (s Z) Datavec() (capnp.DataList, error) {
+	p, err := s.Struct.Ptr(0)
+	return capnp.DataList{List: p.List()}, err
+}
+
+func (s Z) HasDatavec() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s Z) SetDatavec(v capnp.DataList) error {
+	s.Struct.SetUint16(0, 40)
+	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewDatavec sets the datavec field to a newly
+// allocated capnp.DataList, preferring placement in s's segment.
+func (s Z) NewDatavec(n int32) (capnp.DataList, error) {
+	s.Struct.SetUint16(0, 40)
+	l, err := capnp.NewDataList(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.DataList{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
+func (s Z) Textvec() (capnp.TextList, error) {
+	p, err := s.Struct.Ptr(0)
+	return capnp.TextList{List: p.List()}, err
+}
+
+func (s Z) HasTextvec() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s Z) SetTextvec(v capnp.TextList) error {
+	s.Struct.SetUint16(0, 41)
+	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewTextvec sets the textvec field to a newly
+// allocated capnp.TextList, preferring placement in s's segment.
+func (s Z) NewTextvec(n int32) (capnp.TextList, error) {
+	s.Struct.SetUint16(0, 41)
+	l, err := capnp.NewTextList(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.TextList{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
 func (s Z) Zvec() (Z_List, error) {
 	p, err := s.Struct.Ptr(0)
 	return Z_List{List: p.List()}, err
@@ -1842,31 +1960,26 @@ func (s Z) NewZdatavec(n int32) (Zdata_List, error) {
 	return l, err
 }
 
-func (s Z) Boolvec() (capnp.BitList, error) {
-	p, err := s.Struct.Ptr(0)
-	return capnp.BitList{List: p.List()}, err
+func (s Z) Grp() Z_grp { return Z_grp(s) }
+
+func (s Z) SetGrp() {
+	s.Struct.SetUint16(0, 42)
 }
 
-func (s Z) HasBoolvec() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+func (s Z_grp) First() uint64 {
+	return s.Struct.Uint64(8)
 }
 
-func (s Z) SetBoolvec(v capnp.BitList) error {
-	s.Struct.SetUint16(0, 39)
-	return s.Struct.SetPtr(0, v.List.ToPtr())
+func (s Z_grp) SetFirst(v uint64) {
+	s.Struct.SetUint64(8, v)
 }
 
-// NewBoolvec sets the boolvec field to a newly
-// allocated capnp.BitList, preferring placement in s's segment.
-func (s Z) NewBoolvec(n int32) (capnp.BitList, error) {
-	s.Struct.SetUint16(0, 39)
-	l, err := capnp.NewBitList(s.Struct.Segment(), n)
-	if err != nil {
-		return capnp.BitList{}, err
-	}
-	err = s.Struct.SetPtr(0, l.List.ToPtr())
-	return l, err
+func (s Z_grp) Second() uint64 {
+	return s.Struct.Uint64(16)
+}
+
+func (s Z_grp) SetSecond(v uint64) {
+	s.Struct.SetUint64(16, v)
 }
 
 // Z_List is a list of Z.
@@ -1874,7 +1987,7 @@ type Z_List struct{ capnp.List }
 
 // NewZ creates a new list of Z.
 func NewZ_List(s *capnp.Segment, sz int32) (Z_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1}, sz)
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 24, PointerCount: 1}, sz)
 	return Z_List{l}, err
 }
 
@@ -1926,7 +2039,20 @@ func (p Z_Promise) F16() F16_Promise {
 	return F16_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
+func (p Z_Promise) Grp() Z_grp_Promise { return Z_grp_Promise{p.Pipeline} }
+
+// Z_grp_Promise is a wrapper for a Z_grp promised by a client call.
+type Z_grp_Promise struct{ *capnp.Pipeline }
+
+func (p Z_grp_Promise) Struct() (Z_grp, error) {
+	s, err := p.Pipeline.Struct()
+	return Z_grp{s}, err
+}
+
 type Counter struct{ capnp.Struct }
+
+// Counter_TypeID is the unique identifier for the type Counter.
+const Counter_TypeID = 0x8748bc095e10cb5d
 
 func NewCounter(s *capnp.Segment) (Counter, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2})
@@ -2027,6 +2153,9 @@ func (p Counter_Promise) Struct() (Counter, error) {
 
 type Bag struct{ capnp.Struct }
 
+// Bag_TypeID is the unique identifier for the type Bag.
+const Bag_TypeID = 0xd636fba4f188dabe
+
 func NewBag(s *capnp.Segment) (Bag, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	return Bag{st}, err
@@ -2099,6 +2228,9 @@ func (p Bag_Promise) Counter() Counter_Promise {
 
 type Zserver struct{ capnp.Struct }
 
+// Zserver_TypeID is the unique identifier for the type Zserver.
+const Zserver_TypeID = 0xcc4411e60ba9c498
+
 func NewZserver(s *capnp.Segment) (Zserver, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	return Zserver{st}, err
@@ -2166,6 +2298,9 @@ func (p Zserver_Promise) Struct() (Zserver, error) {
 }
 
 type Zjob struct{ capnp.Struct }
+
+// Zjob_TypeID is the unique identifier for the type Zjob.
+const Zjob_TypeID = 0xddd1416669fb7613
 
 func NewZjob(s *capnp.Segment) (Zjob, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
@@ -2258,6 +2393,9 @@ func (p Zjob_Promise) Struct() (Zjob, error) {
 
 type VerEmpty struct{ capnp.Struct }
 
+// VerEmpty_TypeID is the unique identifier for the type VerEmpty.
+const VerEmpty_TypeID = 0x93c99951eacc72ff
+
 func NewVerEmpty(s *capnp.Segment) (VerEmpty, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
 	return VerEmpty{st}, err
@@ -2300,6 +2438,9 @@ func (p VerEmpty_Promise) Struct() (VerEmpty, error) {
 }
 
 type VerOneData struct{ capnp.Struct }
+
+// VerOneData_TypeID is the unique identifier for the type VerOneData.
+const VerOneData_TypeID = 0xfca3742893be4cde
 
 func NewVerOneData(s *capnp.Segment) (VerOneData, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
@@ -2351,6 +2492,9 @@ func (p VerOneData_Promise) Struct() (VerOneData, error) {
 }
 
 type VerTwoData struct{ capnp.Struct }
+
+// VerTwoData_TypeID is the unique identifier for the type VerTwoData.
+const VerTwoData_TypeID = 0xf705dc45c94766fd
 
 func NewVerTwoData(s *capnp.Segment) (VerTwoData, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0})
@@ -2410,6 +2554,9 @@ func (p VerTwoData_Promise) Struct() (VerTwoData, error) {
 }
 
 type VerOnePtr struct{ capnp.Struct }
+
+// VerOnePtr_TypeID is the unique identifier for the type VerOnePtr.
+const VerOnePtr_TypeID = 0x94bf7df83408218d
 
 func NewVerOnePtr(s *capnp.Segment) (VerOnePtr, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
@@ -2482,6 +2629,9 @@ func (p VerOnePtr_Promise) Ptr() VerOneData_Promise {
 }
 
 type VerTwoPtr struct{ capnp.Struct }
+
+// VerTwoPtr_TypeID is the unique identifier for the type VerTwoPtr.
+const VerTwoPtr_TypeID = 0xc95babe3bd394d2d
 
 func NewVerTwoPtr(s *capnp.Segment) (VerTwoPtr, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
@@ -2583,6 +2733,9 @@ func (p VerTwoPtr_Promise) Ptr2() VerOneData_Promise {
 }
 
 type VerTwoDataTwoPtr struct{ capnp.Struct }
+
+// VerTwoDataTwoPtr_TypeID is the unique identifier for the type VerTwoDataTwoPtr.
+const VerTwoDataTwoPtr_TypeID = 0xb61ee2ecff34ca73
 
 func NewVerTwoDataTwoPtr(s *capnp.Segment) (VerTwoDataTwoPtr, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 2})
@@ -2703,6 +2856,9 @@ func (p VerTwoDataTwoPtr_Promise) Ptr2() VerOneData_Promise {
 
 type HoldsVerEmptyList struct{ capnp.Struct }
 
+// HoldsVerEmptyList_TypeID is the unique identifier for the type HoldsVerEmptyList.
+const HoldsVerEmptyList_TypeID = 0xde9ed43cfaa83093
+
 func NewHoldsVerEmptyList(s *capnp.Segment) (HoldsVerEmptyList, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	return HoldsVerEmptyList{st}, err
@@ -2774,6 +2930,9 @@ func (p HoldsVerEmptyList_Promise) Struct() (HoldsVerEmptyList, error) {
 }
 
 type HoldsVerOneDataList struct{ capnp.Struct }
+
+// HoldsVerOneDataList_TypeID is the unique identifier for the type HoldsVerOneDataList.
+const HoldsVerOneDataList_TypeID = 0xabd055422a4d7df1
 
 func NewHoldsVerOneDataList(s *capnp.Segment) (HoldsVerOneDataList, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
@@ -2847,6 +3006,9 @@ func (p HoldsVerOneDataList_Promise) Struct() (HoldsVerOneDataList, error) {
 
 type HoldsVerTwoDataList struct{ capnp.Struct }
 
+// HoldsVerTwoDataList_TypeID is the unique identifier for the type HoldsVerTwoDataList.
+const HoldsVerTwoDataList_TypeID = 0xcbdc765fd5dff7ba
+
 func NewHoldsVerTwoDataList(s *capnp.Segment) (HoldsVerTwoDataList, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	return HoldsVerTwoDataList{st}, err
@@ -2918,6 +3080,9 @@ func (p HoldsVerTwoDataList_Promise) Struct() (HoldsVerTwoDataList, error) {
 }
 
 type HoldsVerOnePtrList struct{ capnp.Struct }
+
+// HoldsVerOnePtrList_TypeID is the unique identifier for the type HoldsVerOnePtrList.
+const HoldsVerOnePtrList_TypeID = 0xe508a29c83a059f8
 
 func NewHoldsVerOnePtrList(s *capnp.Segment) (HoldsVerOnePtrList, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
@@ -2991,6 +3156,9 @@ func (p HoldsVerOnePtrList_Promise) Struct() (HoldsVerOnePtrList, error) {
 
 type HoldsVerTwoPtrList struct{ capnp.Struct }
 
+// HoldsVerTwoPtrList_TypeID is the unique identifier for the type HoldsVerTwoPtrList.
+const HoldsVerTwoPtrList_TypeID = 0xcf9beaca1cc180c8
+
 func NewHoldsVerTwoPtrList(s *capnp.Segment) (HoldsVerTwoPtrList, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	return HoldsVerTwoPtrList{st}, err
@@ -3062,6 +3230,9 @@ func (p HoldsVerTwoPtrList_Promise) Struct() (HoldsVerTwoPtrList, error) {
 }
 
 type HoldsVerTwoTwoList struct{ capnp.Struct }
+
+// HoldsVerTwoTwoList_TypeID is the unique identifier for the type HoldsVerTwoTwoList.
+const HoldsVerTwoTwoList_TypeID = 0x95befe3f14606e6b
 
 func NewHoldsVerTwoTwoList(s *capnp.Segment) (HoldsVerTwoTwoList, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
@@ -3135,6 +3306,9 @@ func (p HoldsVerTwoTwoList_Promise) Struct() (HoldsVerTwoTwoList, error) {
 
 type HoldsVerTwoTwoPlus struct{ capnp.Struct }
 
+// HoldsVerTwoTwoPlus_TypeID is the unique identifier for the type HoldsVerTwoTwoPlus.
+const HoldsVerTwoTwoPlus_TypeID = 0x87c33f2330feb3d8
+
 func NewHoldsVerTwoTwoPlus(s *capnp.Segment) (HoldsVerTwoTwoPlus, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	return HoldsVerTwoTwoPlus{st}, err
@@ -3206,6 +3380,9 @@ func (p HoldsVerTwoTwoPlus_Promise) Struct() (HoldsVerTwoTwoPlus, error) {
 }
 
 type VerTwoTwoPlus struct{ capnp.Struct }
+
+// VerTwoTwoPlus_TypeID is the unique identifier for the type VerTwoTwoPlus.
+const VerTwoTwoPlus_TypeID = 0xce44aee2d9e25049
 
 func NewVerTwoTwoPlus(s *capnp.Segment) (VerTwoTwoPlus, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 3})
@@ -3357,6 +3534,9 @@ func (p VerTwoTwoPlus_Promise) Ptr2() VerTwoDataTwoPtr_Promise {
 
 type HoldsText struct{ capnp.Struct }
 
+// HoldsText_TypeID is the unique identifier for the type HoldsText.
+const HoldsText_TypeID = 0xe5817f849ff906dc
+
 func NewHoldsText(s *capnp.Segment) (HoldsText, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 3})
 	return HoldsText{st}, err
@@ -3473,6 +3653,9 @@ func (p HoldsText_Promise) Struct() (HoldsText, error) {
 
 type WrapEmpty struct{ capnp.Struct }
 
+// WrapEmpty_TypeID is the unique identifier for the type WrapEmpty.
+const WrapEmpty_TypeID = 0x9ab599979b02ac59
+
 func NewWrapEmpty(s *capnp.Segment) (WrapEmpty, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	return WrapEmpty{st}, err
@@ -3545,6 +3728,9 @@ func (p WrapEmpty_Promise) MightNotBeReallyEmpty() VerEmpty_Promise {
 
 type Wrap2x2 struct{ capnp.Struct }
 
+// Wrap2x2_TypeID is the unique identifier for the type Wrap2x2.
+const Wrap2x2_TypeID = 0xe1a2d1d51107bead
+
 func NewWrap2x2(s *capnp.Segment) (Wrap2x2, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	return Wrap2x2{st}, err
@@ -3616,6 +3802,9 @@ func (p Wrap2x2_Promise) MightNotBeReallyEmpty() VerTwoDataTwoPtr_Promise {
 }
 
 type Wrap2x2plus struct{ capnp.Struct }
+
+// Wrap2x2plus_TypeID is the unique identifier for the type Wrap2x2plus.
+const Wrap2x2plus_TypeID = 0xe684eb3aef1a6859
 
 func NewWrap2x2plus(s *capnp.Segment) (Wrap2x2plus, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
@@ -3707,6 +3896,9 @@ func (w VoidUnion_Which) String() string {
 	return "VoidUnion_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
 }
 
+// VoidUnion_TypeID is the unique identifier for the type VoidUnion.
+const VoidUnion_TypeID = 0x8821cdb23640783a
+
 func NewVoidUnion(s *capnp.Segment) (VoidUnion, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
 	return VoidUnion{st}, err
@@ -3762,6 +3954,9 @@ func (p VoidUnion_Promise) Struct() (VoidUnion, error) {
 }
 
 type Nester1Capn struct{ capnp.Struct }
+
+// Nester1Capn_TypeID is the unique identifier for the type Nester1Capn.
+const Nester1Capn_TypeID = 0xf14fad09425d081c
 
 func NewNester1Capn(s *capnp.Segment) (Nester1Capn, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
@@ -3831,6 +4026,9 @@ func (p Nester1Capn_Promise) Struct() (Nester1Capn, error) {
 
 type RWTestCapn struct{ capnp.Struct }
 
+// RWTestCapn_TypeID is the unique identifier for the type RWTestCapn.
+const RWTestCapn_TypeID = 0xf7ff4414476c186a
+
 func NewRWTestCapn(s *capnp.Segment) (RWTestCapn, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	return RWTestCapn{st}, err
@@ -3898,6 +4096,9 @@ func (p RWTestCapn_Promise) Struct() (RWTestCapn, error) {
 }
 
 type ListStructCapn struct{ capnp.Struct }
+
+// ListStructCapn_TypeID is the unique identifier for the type ListStructCapn.
+const ListStructCapn_TypeID = 0xb1ac056ed7647011
 
 func NewListStructCapn(s *capnp.Segment) (ListStructCapn, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
@@ -4029,6 +4230,9 @@ type Echo_echo struct {
 
 type Echo_echo_Params struct{ capnp.Struct }
 
+// Echo_echo_Params_TypeID is the unique identifier for the type Echo_echo_Params.
+const Echo_echo_Params_TypeID = 0x8a165fb4d71bf3a2
+
 func NewEcho_echo_Params(s *capnp.Segment) (Echo_echo_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	return Echo_echo_Params{st}, err
@@ -4096,6 +4300,9 @@ func (p Echo_echo_Params_Promise) Struct() (Echo_echo_Params, error) {
 }
 
 type Echo_echo_Results struct{ capnp.Struct }
+
+// Echo_echo_Results_TypeID is the unique identifier for the type Echo_echo_Results.
+const Echo_echo_Results_TypeID = 0x9b37d729b9dd7b9d
 
 func NewEcho_echo_Results(s *capnp.Segment) (Echo_echo_Results, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
@@ -4166,6 +4373,9 @@ func (p Echo_echo_Results_Promise) Struct() (Echo_echo_Results, error) {
 }
 
 type Hoth struct{ capnp.Struct }
+
+// Hoth_TypeID is the unique identifier for the type Hoth.
+const Hoth_TypeID = 0xad87da456fb0ebb9
 
 func NewHoth(s *capnp.Segment) (Hoth, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
@@ -4239,6 +4449,9 @@ func (p Hoth_Promise) Base() EchoBase_Promise {
 
 type EchoBase struct{ capnp.Struct }
 
+// EchoBase_TypeID is the unique identifier for the type EchoBase.
+const EchoBase_TypeID = 0xa8bf13fef2674866
+
 func NewEchoBase(s *capnp.Segment) (EchoBase, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	return EchoBase{st}, err
@@ -4304,6 +4517,9 @@ func (p EchoBase_Promise) Echo() Echo {
 }
 
 type StackingRoot struct{ capnp.Struct }
+
+// StackingRoot_TypeID is the unique identifier for the type StackingRoot.
+const StackingRoot_TypeID = 0x8fae7b41c61fc890
 
 func NewStackingRoot(s *capnp.Segment) (StackingRoot, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
@@ -4410,6 +4626,9 @@ func (p StackingRoot_Promise) AWithDefault() StackingA_Promise {
 
 type StackingA struct{ capnp.Struct }
 
+// StackingA_TypeID is the unique identifier for the type StackingA.
+const StackingA_TypeID = 0x9d3032ff86043b75
+
 func NewStackingA(s *capnp.Segment) (StackingA, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
 	return StackingA{st}, err
@@ -4489,6 +4708,9 @@ func (p StackingA_Promise) B() StackingB_Promise {
 }
 
 type StackingB struct{ capnp.Struct }
+
+// StackingB_TypeID is the unique identifier for the type StackingB.
+const StackingB_TypeID = 0x85257b30d6edf8c5
 
 func NewStackingB(s *capnp.Segment) (StackingB, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
@@ -4603,6 +4825,9 @@ type CallSequence_getNumber struct {
 
 type CallSequence_getNumber_Params struct{ capnp.Struct }
 
+// CallSequence_getNumber_Params_TypeID is the unique identifier for the type CallSequence_getNumber_Params.
+const CallSequence_getNumber_Params_TypeID = 0xf58782f48a121998
+
 func NewCallSequence_getNumber_Params(s *capnp.Segment) (CallSequence_getNumber_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
 	return CallSequence_getNumber_Params{st}, err
@@ -4649,6 +4874,9 @@ func (p CallSequence_getNumber_Params_Promise) Struct() (CallSequence_getNumber_
 }
 
 type CallSequence_getNumber_Results struct{ capnp.Struct }
+
+// CallSequence_getNumber_Results_TypeID is the unique identifier for the type CallSequence_getNumber_Results.
+const CallSequence_getNumber_Results_TypeID = 0xa465f9502fd11e97
 
 func NewCallSequence_getNumber_Results(s *capnp.Segment) (CallSequence_getNumber_Results, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
@@ -4704,6 +4932,9 @@ func (p CallSequence_getNumber_Results_Promise) Struct() (CallSequence_getNumber
 }
 
 type Defaults struct{ capnp.Struct }
+
+// Defaults_TypeID is the unique identifier for the type Defaults.
+const Defaults_TypeID = 0x97e38948c61f878d
 
 func NewDefaults(s *capnp.Segment) (Defaults, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 2})
@@ -4812,6 +5043,9 @@ func (p Defaults_Promise) Struct() (Defaults, error) {
 }
 
 type BenchmarkA struct{ capnp.Struct }
+
+// BenchmarkA_TypeID is the unique identifier for the type BenchmarkA.
+const BenchmarkA_TypeID = 0xde2a1a960863c11c
 
 func NewBenchmarkA(s *capnp.Segment) (BenchmarkA, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 2})
@@ -4932,259 +5166,267 @@ func (p BenchmarkA_Promise) Struct() (BenchmarkA, error) {
 	return BenchmarkA{s}, err
 }
 
-const schema_832bcc6686a26d56 = "x\xda\xacY\x0dpTU\x96~\xb7\x7f\xf2:\xe9t" +
-	":/\xaf\x03\xf9\xc3\x98H\x10\xb2\x15'?\x0c\xa23" +
-	"VHL\x06\xb4\xd0I\xd2 \xe2\x9a1\xaf\x93\x17\xd2" +
-	"\xd8\x7ft\xbf\x86\x04\xc7\xc2\xd9\x81\x01,\xd8\x91\x12F" +
-	"P\xd9e\xb2X+#\xb0\xe0\xc8\x96a\x85\x11\x07F" +
-	"\x88\xb8\xa3\x16(\xb0\x8a\x8a\x8b\x8e(;\xc6\xd1\x15\xfc" +
-	"\xeb=\xe7\xbe\xdf~\xfd\x1a\x94\xda*B^\xcew\xee" +
-	"\xb9\xe7\x9e\xbf{\xee\xbd\xf5\x7fq\xcf\xb058g\xf2" +
-	"\x0c\xd3\xf9\x8e3'u\xe8\xc2\xf9\xd7\xeb\xef\xabY\xc1" +
-	"tz\x09I\xdd\x11\x1e\xfeU\xff\xd1\xbf\xfb%\xe3`" +
-	"\x19\x86_\x9d;\xcao\xc8\xc5\xafu\xb9\xcd\x0cIu" +
-	"\xbfT\xf8\xb3\xdc\xe7f\xad4\xf1:m\xc8\xb2;w" +
-	"/?B\x99\xf7\xe4\xfe\x1b0\x9f\xf8\xfd\xb7\xf5\xd74" +
-	"\xffq%\xc3y\x8d\xbc\x048\x9a\x84\xbc\"\xc2/\xca" +
-	"C\xe6p\x1eJ\xbeqp\xc6\xb4\xa7_\xaeZe\x92" +
-	"\xdc\xc6\xda\x80es\xde(\xbf\x8d2?\x91\xb7\x04\x98" +
-	"\x87\xffV\xfe\xc63\xf7\x8c{\x90\xe1|\x84Q$\x12" +
-	"\xb7\x8d0\x84w\xbaQ\xda\xd4\x9a\xc9\x1f\x1e\xa8\xf6\xff" +
-	"#Lm\xd7\x85\x01\\\xe3\x1e\xe6\xeb\xdc(i\x8a{" +
-	"&\xdf\x89_\xa9\x87\x0eW\xfe\xa9\xe5\xbe\x9d\xbf6\xe9" +
-	"I\xd7t\x83\xfb\x0c\xdfN\xf9[\xdc8s*~\xf4" +
-	"\\\xe7\xa6#\x0f\xa7\xf3R[ms\xbf\xc0\xef\x06V" +
-	"{*\xff\xd8o\x0e\x16=U\xbf\x1e\x98\x1ci\xb3\xaf" +
-	"u\x8f\xf2\x9bP\x9a\x7f\xbd\xdbN\xfc\xbbPe&\xb5" +
-	"\xb6\xca5\xf5\xc2\xfd\x7fXoa'~\x07\x8c\x18\xa1" +
-	"\xf3\xef\xa1\x0b\xbb7\xd2\xe3k\xfev\xff\x06+\x9b\x1e" +
-	"w\x83M\xcfR\xe6w)\xf3\xda\x95\x95\x7f\x9a\xb5\xfa" +
-	"\xbdG\xd0\xa66\xf3\xca\xb8\xfc\x17\xf8\xd2|\x1cW\x9c" +
-	"_\x09\x96K\xcd\xdfn{\xec\x91M{\x1e\xb5R\xa3" +
-	"\xce3\xca\xdf\xe0\xc1\xaf\x1fzP\xf2\xe6\xfb\xde\x1a\x99" +
-	"\xf2\xc6\xf5\x8f\x19\x1d\xd0\xed\xc9C\x07\x88\x94\xe1\xf0\xdc" +
-	"3\xce\xbd\xd7\xfe\xfa\xb1\x0c\x13\xac\x00I\xebP\x92\x7f" +
-	"\x8d\x07L\xb0\xd1CM\x90\xfc\x91\xe3W\xa9\xc6\xfa\xcd" +
-	"\xe6\xb8\xa2\x93\xaf\x86!\x1b\xe8\xe4\xeb<\xe8\x83G\xae" +
-	"z\xf5\x07\x1d\x17\xc5\xadLg\x05\x81\xc1h\xfc\xa6\xf3" +
-	"\x9e8N~\x91N\xde?k\xc1\xa7\xdf\xf2\x7fx\xd2" +
-	"j%\xa5\x05/\xf0U\x05\xf85\xa1\x00y\xaf><" +
-	"~\xf0\x9e\xb7w>\x95\x11)7\x15\x9c\xe1o\xa1\x8c" +
-	"\xed\x053\xf9E\xf8\x95\x1a\xbb\xff\xb6\xda\xd6\xb9\xaf<" +
-	"ee\xfd\xf9\x05e\x84\x0f\xd2\x01\"\x95<\xf2\xd1\xae" +
-	"h\xfb\xa9\x95;\xac\xb4\xd8P0\xcco\xa6\xbc\x9b(" +
-	"/\x17\xeb{#\xe2\xdc\xbe\xdb\x8aw\xa4\xe0S\xfe\x10" +
-	"\xe5=@y\x97M\xfb\xd9\xf2\xee\xe9\x9f\xecF[\x19" +
-	"Tv\xda\x91e\xac\xe05\xfe\x1bdn\xbaX0\x0f" +
-	"\xbd\x9a\x18\x9d\x9a\xfa\xf8\xccU\xffn\x15\x03Mb\xa1" +
-	"\x0d\xb2\xb0\x90fa\xe1\x07\x98X\xeeO\x87/\x8a\xa7" +
-	"^\xb4\xd2\xa3\x85\xfb\x1d\x7f\x0bG\x0d\xc2\xa1\x1eu\xb7" +
-	"\xdd\xb0\xef\xbd\xa7\xfe\xfe\x88U\xda\x88\xdc(\xbf\x88\xf2" +
-	"\x869t\xd9\xde/\xde>~\xcf\xe27_\xb22\xdc" +
-	"\x11\x0e\x0cw\x922\x1f\xa7\x827\x1e\xdc\xe6~\x9fk" +
-	";j\xa5\x84\xb3h/\xef)\xc2\xaf\xdc\"\xe4}g" +
-	"\xd2\xf4\x9e\xf7\x9e\xfe\xbd%\xefME\xc3|;\xe5m" +
-	"\xa1\xbc\xb7t\x9c9yfg\xdb\x7fZ\x1aN(:" +
-	"\xc7\x87\x91\xb9)XD\x0dw\xf8\x81\x03\x15\xa3\xe7\x1e" +
-	"\xfb\xb3\x95\xca\x87x\xc8\xb4\xe3<\x8e{\x95G\xd1\xfb" +
-	"O\xad\x1a\xdb\xfa\xd5\xb4\xd7\xad\xd4 \xbeG\xf9\\\x1f" +
-	"U\xde\x87\xbc\xeb\xae\xff\xd7\x9e\xc8\x9f\x9f;\x81j8" +
-	"\xcc\x86\xab\xf1\x8d\xf2\x0d\xc8\xdcT\xe7\xa3j\xac}\xe9" +
-	"\xe4\x92U=kNZI^W<\xcco*\xa6\xf1" +
-	"T\x8c\x92\xf9\xc5_\x05\xfb[^}\xcb\xca#{\x80" +
-	"w\x1f\xe5\x1d)F\x8fT\x1c\xe8u\xfd\xa6\xac\xf6\xb4" +
-	"\xd9\x18\xb2\x16\xe3^\xe3\x1b\xc6Q-\xc6Q-6\xcf" +
-	"\x99\xb7\xe3?vv\x9c\xb6\xda#~1\xfew\xfc\xea" +
-	"\xf1\xf8\xb5b<\x96\xfd\x87\xeb\x9f\xfc\xf2\xc7\xc7\xfe\xe9" +
-	"\xb4\x95\xe1&\x94\xe4\x11\xbe\xae\x84\xd6\xdf\x12Ty\xc7" +
-	"~\x96;\xfe\xea\xf0\xbbV\xcb\x9b_\xb2\x97\x17(o" +
-	"7\xe5\x15\xfcME\x87\xce\x1d\xb1\xe4]Q\xf2(\xbf" +
-	"\x96\xf2\xae\xa6\xbc\x17\xe6o\xf9\xe5\xe3\xc3\xae\xb3VJ" +
-	"l+\x01\xef\x8dP\xe6=\x94y\xf7\x8bsO\xef," +
-	"\xbc\xfd\xaciu\xed\x84u\x00\xcf\xd9\x92\x17\xf8\xf3\x94" +
-	"\xfb\xc3\x12\xcc\x91\xaa\x1f\\(\xffzE7\x8a\xb6\xa5" +
-	"U\x8c}\xa5{\xf9C\xa54QK\xd1\x10o\xe6\\" +
-	"\xfc\xe7\xe5\xcb~a\xd6\x81\x86[q\xd9(_UF" +
-	"\xcbP\x19\xf2\xce\x1f(\xfb\xeb\x8d\x1f-\x7f\xdfjm" +
-	"g\xcbN\xf1c\x94\xf7|\x19\xdd\x03\x8e\xef\xdf\xba\xa3" +
-	"l\xd1\x07\x19\xb5\xb5\xb8\x1c\x84\x96cm\xad(\x87\xda" +
-	":\xb9\x9c\xd6\xd6\x93[^\xff\xd1#\x1fN:g\xaa" +
-	"\x00\xb0\xba\xc98}\xf9\x83|\x0d\x8ei\xaa*\x7f\xd1" +
-	"\x85\x81\xe1\xean\xcd\xdd\xf1\xd31+M\xd6\xd6\x9c\xe2" +
-	"7\xd5\xd0\x80\xab\xa1\x99ZZ\xf4\xe0g\xff\xb0\xf2s" +
-	"\x86\xabP\x0b\xf1\xa1\x9a\x85\x84q\xa4\xbe\xe9\x9fy\xa4" +
-	"\xfdM\xe7\x17\xa6Ii\xc0\xec\xaey\x8d\xdfG\xa5\x8c" +
-	"\xd4`(.,\x09\xcd\xf4\xb5\xa5\xbe\xb0\x9a\xb1x\xd2" +
-	"k|\xd5$j\xa7I8\xe3\xe9\xd9\xfb\x1f\x9e,\xfd" +
-	"\xcb\xd7V\x81(\x00o\x98\xf2\x06\x81\xb7.%\x04\xe3" +
-	"\xbdq\xa1_\xb2]\xd7+\xc4\"\xb1\x1b\xfd\x92\xd0{" +
-	"o0\xb2\xa0\x95a:\x08\xe9t\xd8\xc1\xbb\x0e\xd0\x9b" +
-	"\xf3TC+\xe4\xb2\x93N\x9f\x8d\xb0\x91d\x988\x18" +
-	"\x1b\xfc\x10M\x02Q$\xdc\xdc\x1cMF$1\x8e\xc3" +
-	"\xf3\xb5\xe1\xed\xb50|\x06\x0c\x9fm#\x84\xf8pO" +
-	"\xe2ni\x04Z\x1b\xd0:l\x84\xb3\x01\x11\xda\x18\xee" +
-	"\xb6[\x818\x1b\x88\x036\xe2M\x04\x97\x8a\xc4\x09\x13" +
-	"9\x19R\xb9$\x1a\xefK\x90|\xf8+\x1f\xa6\xc5\xbf" +
-	"B\xc1\x84\xc4\x80S\x0b\x18\xd2a'\x14*0hd" +
-	"W4\x9a\x15\x0d\xf5%\xee\x10\xe3s\x96D\xe1_G" +
-	"(I\x12\xa6\xb5\xdd\xa8\xacm\xa2\x8d4\x87\x87P\xac" +
-	"*\xb3P\xaf\x88\x0cI\x93\xaeZ\xec\x8eh\xb0on" +
-	"$\x18\x8d\xc8\x16s\xd9\x1d\xf9\xa9\x14\x15;\xa5\x08\xc4" +
-	"N\x04\xb1\xf56\xe2!\xdf\xa6\xe4U\xd7!u2P" +
-	"\xa7\x82%\x04&\x87\x04\x98\x9c\x0c\x95\xdb{\x07\xa2\xd7" +
-	"\x89\xf0\xdf\xc4\x0e!.\x84\x13\x8cQ\xdb2\xdd\x13\xf6" +
-	"`D\xb3\x88\xd9\x11\xed,\x8c\x97\x17\xea\x84\x10W\xfb" +
-	"A\xa2\xf6%\x1cW\xcb\xd88'\xeb\xc5yf\x10\xe0" +
-	"\xcc\x1a\x0d]l4*)\xab#\x04\xfe\x11n\xcaB" +
-	"}\x19\x85\x8aCo\xc0\xa5M\x05\xda\x0c\x1b\xc8\x9a\x17" +
-	"\x94\x06\xda\xc4~\xc6+$C\x12\x18R\xeb_\xc0\x90" +
-	"\x85\xd4X\x04\x82\x82\x08\x19\x90\x85\x8d\xc5x{8&" +
-	"\x0d1VJ\xf6F#\x09i6\x0d\x05\x94\xa99N" +
-	"\xab\xc7\xd4q\x0cG\xc6s.\xe2}\x9bu\x95\xe3\x7f" +
-	"\x15V\x93\xfc4\"vH\xf1K\x86~L\x8a\x83l" +
-	"-\xc5L\x0a[\x87\x1c(G\xa4\xef\x11rZ?\x92" +
-	"%\xe4\xc0\xaah\xd3\x04\xd5\xd3'\xcb\x04\x97\xdc\x8f9" +
-	"6\x082\x97C>\xd1$\x03\xe2\x0a$>\x00\xc45" +
-	"\x10n6\xc81\xa0\xad\xc5\xc4[\x05\xb4\xf5\xc0h\x07" +
-	"F\x98\x95[\x87\xab\\\x03\xc4\x8d@t\x00'\xc8\xe4" +
-	"6\xe0\xe8\x87\x80\xf88d\xa3$\x0eJJ\xb4\x815" +
-	"\xab\xd9\xfeh\xd4\xdb'H\x02\xf1\x00\xcd\x83\xb426" +
-	" \xc4+\xfbCQA\"y\x8cm,\xef\x8f\x9f\xcf" +
-	"\x9a\xc1\x106\x18\x91\xb0^\x8c9V\xa4R)\x86x" +
-	"\x93HpA\xf4\xb9j-\x967/.\xc4dw\x9b" +
-	"\x1d\xf14hS\x08\xdaT@|\x85\x83\x0b\x06\xa4\xdb" +
-	"\xa3\x12i\x15\xbbD!\x14\x1a\xaa\xa4c\xc0|\xda\xf9" +
-	"#\x8bs\xf4\xe4\xea\x12\x13\xd4\x8eL6oG\x93R" +
-	"F~\xa5\xc5];\x94B9\xee\xbc\xfa\xa6\xc7\x10\xa7" +
-	"\x970\xd9\xd3\xa9E+\x15\xca\x9cS\xaa\xf5J\xa1V" +
-	"Gc\x9d0\x16\\\x12\x80%j\xe7Q\xd3\x12\x1dj" +
-	"\x11\x06\x83\xf8\xc5EI1\xd2+^\xb7@\x94nO" +
-	"\x86\x03b\x1c\xd6[I\x17l\\n\x91\xbe\\\x12A" +
-	"\xa7\x10\x97\x85\xeah\xb3V!!\x9a=R\xab\x8f\xa6" +
-	"u\x84p\xfa\xb9\x12t\xe3,Di\xba\xb1\xa0\x9c^" +
-	"\x9f\xd4}\x92\xa8G\x17\x8e\xeb\x82\x08\xc9eS\xaa\xfe" +
-	"\x0c\x89\xa7\x97)s\xb6A\xfa\xb6A<\xce\x0e\xda\x13" +
-	"\xdf'\xdd\x8c\xc9\\`QHg\xb1Qi\xe0\x12\xeb" +
-	"\x0e\x80]@\x8cv\xa2\xcaR\xc4\xb0D\xf9\xa5x\xb2" +
-	"\xb7R\xba\x19\x08Yj\x0c(\xc8.\x16{u\xed\xb4" +
-	"^#K1\xe8\x12\x17\xc4\xc5D\"\x18%Td\x89" +
-	"&r\x13\xea\xb8\x1eDn\xd1\x83j3\xee\x1d\x1b\x81" +
-	"\xb6\xd5\xb0\xe5\xfe\x16\x19\x1f\x07\xe2\xb3X\x0e \xf3\xed" +
-	"@\xdc\x83\x16\xdb\x05\xc4\xa3X\x0e\x80\x13\xc4rGP" +
-	"\xcb\x83@|\x05\x88N\xe0\x04\xc7q/#\xf10\x10" +
-	"\x8f\xe9\xb6\xd0\xfaw\xd9\x16\xf6@=qCd\xb9!" +
-	"\xf7\x03\"T\x0ceuny\xc7n\x8e\x85\x84\x88\x98" +
-	"\xd0\xd7\xac5\x9b\xf2\x9a\xd9\xa1pR\x1d\xcf\x0e%\xfa" +
-	"\xd4\xef\x8c@\x90+.\xc6\x00n\xf4P\xc9\xd1\"\x85" +
-	"\x9aE\x04\xd4\xf4n\xb9\xb7\xe0T\x93\x88H\xec\x01b" +
-	"H)\x90@\x0b\xa2E\xfa\x80\x16S\x0b$\x10\xc3H" +
-	"\x1c\x00\xa2\x84.\x12B@\x84\x0d\x184\xeaKF\xd5" +
-	"&\xc5\x0b\xdbCC\xe6\xfe\x80\xe4\xc6Kl\x1bj\xa4" +
-	"\xddE\xeb\xe9%B\xcdPn-wIe\xd9\xe6\xf2" +
-	"R\xab\x97\x17m\xddu\xb5z}\xb9B\xb5-v\xbb" +
-	"+\xc9?\xad\x0f\xce\x92\x7fw5'\xc4\xf8b\xb9\xa3" +
-	"4\x88\x0c\x80\xc8|\x109\x196\x83%BP\x82\xc2" +
-	"\xba\x90a\xa3\x01C\x1ci\x87\xbd,\x92[\xd9\xeb\x9b" +
-	"\xae\xbf|f\x9b\xa29\x8b\xe1\xe1\x9f\x17\x9a\xcb\x84)" +
-	"\x0b\xab\xf5,\xd4l\xbf\xb9ZOC5\xe6\xb4,|" +
-	"\xd2\x10sO q\x0b\x10\xb7\xab\x9b2\x10\xb7\xe1\xe8" +
-	"\xad@\xdce\xc8\xc2\x1d\xc8\xf9$\x10\x0f^>:\x8d" +
-	"\xfd\x85\xc1\xcd&2+\xc5\xb5\xe6\xdb\x1bJHM\xaa" +
-	"]\x9d\x97\xef\xb3!\x08\xbfo\xd3\xa3]\x95d\xf3\x95" +
-	"]X`\x12\xd7\xaa\xbbjY\xaf|\xea\x00A\xda\xfd" +
-	"k\x16ou`\xb1\xa1{\x19\x93\xbd`\xea\xaejT" +
-	"\\\xf5\x8c\xee\xaa\xdd\xb8\x8e\xedj\xc1\x9ca*\x98\xcf" +
-	"\x19\\5\x82\xa7\x99ge\xafpN\xbb\xec\xaa\x03H" +
-	"|^.\xad\xde\x88\x10\x16\xd5\x16\xa3r \x1a\xd6\xcb" +
-	"`ZCA\xcbd\\\xc0 W}\xd2\xdc+D~" +
-	"\x12\x1a\x02-A3X'\xacN\xe8\x0db\xd7\xc4\xa8" +
-	",\xa9\xb00\xe8\x8f\x89b\x1f\xd2\xccES5l\x0b" +
-	"\xdb\xd4X\x7f\xe5I\xa0e)\xbb0\x1a\xc8\xde\xd6d" +
-	"\xd6\x9d6\x08\xd4\xdep\x9f\xbax\xaf\x10_\x90\xc8v" +
-	"\x94S}\xd7\x0a\x0d\xcd@X\x88\xdfKZ\xbe\xc3f" +
-	"w\xab!\xa3\xd4\xcd\xee\x89FCF\xa9\x9b\xdd\xb6[" +
-	"\x95\xe4y\x06}\xd7#\xfb.\xcd\xcbj\x9a\xedi\xd4" +
-	"\xbd\x9c\xe6\xbbT \x18\x87\xf3\x8e`4\x7fel " +
-	"\x1a\xd19\x12\xc1@\x08\xfc\x97@\x0e\xa5\x99kN\xc4" +
-	"\xa2I0\xaf\xe2\xc3\xca0\xf0\x0fe\xf5\x14\xdd\x1e\xc4" +
-	"\xec\x07k\x0e\x034\xf3dmWN\xd6\xe8\x8dY@" +
-	"\x9c\x03\xaa\x0f\x89B\\-\x118\xab4@r\xe0\xaf" +
-	"\x1c,\x18\xc2\x90\xfa\x9d5\xc5i\xab\xad\x9d\xb9\xbek" +
-	"\x8a\x1b\x1bs\xab\x14\x9f\x07\x11\x1ek\x1cl\xbc\xa2\xae" +
-	"\xdfT\xbd2\x84\xff\xc4\xde0\xed\xca\xa3\xdc\xa2\xd5\xbc" +
-	"\x82\x1a\xa7\xbdbd\xe9\xe5Z\x94\xbf\xd5\xbeE\xbdI" +
-	"\x10j\xf5\xc6E\xbfI\x10k\xf5\xce\xc5c\xfb&\x95" +
-	"\xd9\xbbx\xec_\xa7\x94\xe6\xa5Zo^\xbc\x8b\xa3\xc1" +
-	">&\xc7\x1b\x80\xcd\x0f\x94\xd2\xae\x87\x95\xdd@\x80r" +
-	"\x80\xba\xaa\x97\xaa\xcan\xd0\xdf0\x0d\xa8\xda\xfdb\x16" +
-	"+\xb74\x07\xe3\xb1h\x9c\x1a\xa5B\x0e\xbbZz\x10" +
-	"h\x07\x05\x88\x8d\xbb\x09\x7f\xd9\xb9\x1f\xe2/\x07W\x87" +
-	"\xbf\x9c\\\x0d\xfe\xca\xe1&\x00\xa77\x02\x19\xc0.\xec" +
-	"\xbf\x97\x0d\x09\x83l\xa2?\xca\x86\x92\x8b\xd9\xbe\xfe%" +
-	"p\xfaLH\x19\x06\xa3\xee\x98\x03\xe7R9\x0e\x0di" +
-	"QmL\x0b\xf5\xc2\xa9ZI\x8b\x1eL\x0b\xa5\x98w" +
-	"\xa3\xc3\xee\x94O\xcd\xac\xa4\x9dp\x09\x1b\xd2=\xa7\x94" +
-	"\xa3f \x19\xa8\x97\xa9U\xf3\xe4`\x8e\x85\xec\xc9\xc4" +
-	"\x15E\xb4\xf1\xe6\xa90\xdb\x01\x14\x1a.y#3\xdd" +
-	"x\x142L\xa1|\xdb\x91YFdcm\xd1\xe2\x8b" +
-	"\xeft\x80\xe9\xfd\xb3\x1dv\xe2\xbf\xd3a\x081~\xae" +
-	"\x03\x0e\x0c\xfe\x0e\x04\xee\x06`\x02D\x99\\G\xf9\xf9" +
-	"\x0e0\xa6\x7f\x0e\"=\x88@\xa4\xc9\xc5\x94\xef\xa6\xc8" +
-	"\x9d\x88\xf4!\xe2\xf8*%\x1f\x1fx\x81\"w#2" +
-	"\x80\x88\xf3\xcb\x94\\Vy\x91\"=\x88\x84\x10\xc9\xb9" +
-	"\x98r\xf8\xa0\x021|\x90\"}\x88\xc4\x10a/\xa4" +
-	"\\>z\xed\x19\xa6\xba\x0d \"!\xe2\xfa\x02\xe7q" +
-	"\x01\xb2\x88\x8e\x09!2\x88H\xee\xff\xe2<\xb9\x80$" +
-	")\x12C\xe4\xe7\x88\xe4}\x8e\xf3\xe4\x012D\x11\x09" +
-	"\x91\x07\x10q\x7f\x86\xf3\xb8\x01\xb9\x9f\xce3\x88\xc8r" +
-	"D\xf2\xff\x96\x82-?\x1fo\xf5\xa9\xd9~\x8e\xc8*" +
-	"4\x9b\xe7S0\x9b\x07o\xda)\xf0\x00\x02k\x10(" +
-	"\x18\x03\xa0\x00/\xde)\xb0\x1c\x81\x87\x10\xf0~\x02\x80" +
-	"\x17o\x8d\x1d\x10\x86 \x05\x80\xad\x08\x14\xfe\x15\x00\xf0" +
-	"!\xff[\x0a<\x8e\xc0\xb3\x08p\xff\x03\x00\x87\xd7\xf2" +
-	"\x14\xd8\x85\xc0Q\x04\x8a\xce\x03\x00\x87y\xfe\x08\x05\x0e" +
-	"\"\xf0\x0e\x02\xfc\xc7\x00\xf0\x00\xbcE\x81\x13\x08|\x86" +
-	"\x80\xef#\x00|\xf8 \xe6\x80\xfd\xc2\xff1\x02.'" +
-	"\x00\xc5\xe7\x00(\xc6\xc7\x18'\x8c\xe8r\x02\xbd\x02\xe9" +
-	"\xe3>\x04\xfa8| D\xba\xdf\x87@=\x02\xe3\xff" +
-	"\x02\xc0x|\x03\xa5\xc0d\x04\xda\x10(\xf9\x00\x80\x12" +
-	"|]r\xe2\x14?F\xe0N\x04J\xdf\x07\xa0\x14#" +
-	"\xcc\x89\x16\xe9@ \x84@\xd9Y\x00\xca\xd0\xf1\xceV" +
-	"t<\x02\x0f!P\xfe\xdf\x00\x94\xa3\xa9\xa8\xa8U\x08" +
-	"\xacG\xa0\xe2=\x00*\xf0\xa9\x87\x02k\x10\xd8\x88\xc0" +
-	"\x843\x00L\xc0\x8bxg\x00\x9f\x93\x11\xd8\x85\xc0U" +
-	"\xef\x02p\x15\xbe\x1c;a\xe3\xf7oG\xe0Y\x04*" +
-	"\xdf\x01\xa0\x12\x8d\xeb\x84$\xf1?\x83\xc0\xf3\x08\\\xfd" +
-	"6\x00W\x03\xb0\xcf\xd9\x05\xc0s\x08\x1c\x06`B\xd5" +
-	"i\x0c\xa0*@\x0eQ}\x9fG\xe4(\x0e\xa9~\x0b" +
-	"\x86T\xa3?\xe8\x0a\x0f\"\xf0\x0a\x02\xd7\xbc\x09\xc05" +
-	"\x00\xbcL\x81\xc3\x08\x1cC`\xe2\x7f\x010\x11\xdf\xcb" +
-	"\x9c\x18\x8bG\x118\x81@\xcd)\x00j\xf0\xed\x8f\xea" +
-	"{\x0c\x81O\x10\x98t\x12\x80I\xf8\xe8A\x81\x8f\x11" +
-	"p\xe5\x00p\xed\x09\x00\xaeE\x0f\xe6\x80V]9\xe8" +
-	"\xc1\x1c\xad\xf2\xdb\x97.\x85j\xa1\xbdy\xa8\x05~\xda" +
-	"T\xed\x90\xdd\xdf\xd4\x88\x17x\xf0C\xd8 \xd0\x95\x86" +
-	"\x86\x0d\x02]i]\xd8 l\x08J\x07a\x0fN\x87" +
-	"\xa2`\x83\x1f\xc2&\x81=\x17\xbes\xf1\x1b\xd8\x95\x1b" +
-	"%6\x09\xec,|\xb3\xc0\x9e\x9c\xaev\x18\xde@4" +
-	"\x1aR\xdb\x1f\xe3\x0d# \xa1h@=\xeb6\x83r" +
-	"\x86[\x11\xf5\xde\x00\xd44P\xf3\x14j0\x8d\xd7\xa9" +
-	"R\xd3x\x1d*\xb5a\x9a\x81j\x97\xa9\x95\xc1\xe9\x06" +
-	"\xa2MaM\xa6\x89\xcdU\xa9ib]*5M," +
-	"\xab\x88M\x1a\xc5\xe6\xc8D\xef\xd2\xb4\xdb\x1e\xa3S\x80" +
-	"\xb8\x0cQ\x03C6\xbe\xca\xa5\xd8\x19fl\x012\x1d" +
-	"o\xd8\xb5Gk\xd3^\xc2\xa4_6\x99.^t6" +
-	" \xa4\xa3($\xae\\=1\xf6h\x04`\xed\xd1]" +
-	"\x81\xe9\xad\x0e\xf4U\x0c\xb1\xe8\xac\x96\x09r\xa3`:" +
-	"\xe6x\xd1\xf1\xff\x0f}\x09\xb5\x07,\xcd\xf0<d~" +
-	"\x11\x90\x99\x043\x93\xd1R\xe8\x01\x0cP\x83\x8dH\x96" +
-	"\xdd\xfevhO\xc4x\xc3\xcd\x82=\xe3j\xafV\xef" +
-	"\x08\xbd\x09)\x9e\xf5\x90s\x99\xcb\xdb\x0e\xc1\x8bOA" +
-	"Yn\x1f\xa0\x0f \xc2w9~U\x1b\xae\x95\xb3\xdc" +
-	"\x13d\xde1\xce\x9b\x03\xcb\xbbY\x88\x11\xf3\xda\xeeR" +
-	".a\xa6C'\x13\x01\x9e\xdb\x04)\xce\xd8\x83\x83\x19" +
-	"\x01{\xb9kL\xed\xfa\x96\x08\x97x}1(\xfc\x7f" +
-	"\x01\x00\x00\xff\xff;\x92\x03\xf8"
+const schema_832bcc6686a26d56 = "x\xda\xacZ\x0btU\xd5\x99>\xfb\xbeN\x92\x9b\x9b" +
+	"\x9b\x93s\x8dya \x92\x00\xb1\xd8<\x18\xa4t\\" +
+	"y\x90Tt\x81M\x08\xc8\xe0H\xe5$9I.\xde" +
+	"\x17\xe7\x9e\x0b\x04\xeb\xa2\x9dBQ\x97Le)\x15\x1f" +
+	"\x99\xd2\x0c\xcc\x80\x12\x06,\xcc\x00\x03\x14,X\x12a" +
+	"*.P`\x00\x05E\x0b\xea\xd4\xd82BU\xee\xfc" +
+	"\xff>\xcf{\xef\xb9\xa0\xacY\x8b\x98\x93\xff\xfb\xf7\xbf" +
+	"\xff\xfd\xbf\xf6\xbf\xf7\xb6jJv\xbd\xad\xda\xf9+\x9e" +
+	"aZ?p\xba\xe2\x07\xaf|\xfav\xd5\xa3\xe5\xcb\x99" +
+	"V/!\xf1\x07\x82\xfd?\xef:|\xc7\xcf\x18\x07\xcb" +
+	"0\xfc\xf6\xcc!~\x7f&~\xed\xc9\xaccH|\xee" +
+	"\x1b\xb9?\xca\xdc=uE\x12\xaf\xd3\x86,g2w" +
+	"\xf1\x17(\xf3\xb9\xcc\x7f\x03\xe6\x13\xbf\xb9Vu{\xdd" +
+	"\xefV0\x9c\xd7\xccK\x80\xa3veV\x1e\xe1\xfb\xb2" +
+	"\x90\xf9\xf9,\x94<yq\xfd\xc4W\x8f\x8cz<I" +
+	"r\x13k\x03\x96\xc1\xac!\xfe8e>\x9a\xb5\x08\x98" +
+	"\xfb\xff\\\xfc\xce\xb6\x87\xf3\x9fd8\x1faT\x89\xe3" +
+	"\xdd6\xc2\x10\xbe\xda\x8d\xd2&\x94\x8f\xbd\xb8\xbf\xac\xed" +
+	"\x1faj\xbb!\x0c\xe0Vw??\xc7\x8d\x92f\xb9" +
+	"\xef\xe1\x1f\xc3\xaf\xf8\xd3\x87J_oxt\xf3/\x92" +
+	"\xf4\xa4k\x12\xdd\xe7\xf9\x05\x94?\xe8\xc6\x99\xe3\xd2\xe1" +
+	"K\xad\xcf\x0f>\x93\xc8Kmu\xdc\xfd\x1a\x7f\x06X" +
+	"\xed\xf1\xecc\xbf<\x90\xf7J\xd5\xb3\xc0\xe4H\x98}" +
+	"\xa7{\x88?\x88\xd2\xda\xf6\xb9\xed\xa4\xed4\xaa\xcc\xc4" +
+	"W\x8e\xca\x98p\xe5\xb1\xdf>ka'\xfe$\x8c\xb8" +
+	"@\xe7?G\x17\xf6Hh\x9e\xaf\xee\xda\xde\xd5V6" +
+	"%\xd9`S.\x1b\x99=\xd9\xc8\xbcrE\xe9\xebS" +
+	"\x9fx\xff9\xb4\xa9-yewg\xbf\xc67#s" +
+	"mCv)X.>g\x93\xed\xc5\xe7\x9e\xdf\xfe\x82" +
+	"\x95\x1as<C\xbc\xe8\xc1/\xc1\x83\x92\xfb\x1e=\xb3" +
+	"s\xdc;w\xbdhv\xc0\x13\x9e,t\xc0*\xcap" +
+	"h\xd6y\xe7\xae1\xbfx1\xc5\x04[A\xd2\x1e\x94" +
+	"\xd4\xb6\xc3\x03&8\xe0\xa1&\x88}\xdf\xf1\xf3xM" +
+	"U_r\\\xd1\xc9\xb7\xc3\x90\xfdt\xf2=\x1e\xf4\xc1" +
+	"s\xb7\x1d\xfdn\xcbUq\x1d\xd3ZB`0\x1a\xbf" +
+	"\xb60G\xc2\xc9\xcbsp\xf2\xae\xa9\xdd\x9f_\xe3\x7f" +
+	"\xbb\xc1j%\xcd9\xaf\xf1\xd3s\xf0\xeb^\xca;\xf2" +
+	"\xd0\xad\x8b\x1f~w\xf3+)\x91\xe2\xcf9\xcf\xc7(" +
+	"\xe3\x82\x9c{\xf8>\xfc\x8a\x0f?6\xbd\xb2q\xd6\x9b" +
+	"\xafXY\x7fyN\x11\xe1W\xd3\x01\xab\xa8\xe4\x9d\x1f" +
+	"o\x097\x9fZ1`\xa5\xc5\xfe\x9c~~\x90\xf2\x1e" +
+	"\xa4\xbc\\\xa4\xf3\x9d\x90s\xd3V+\xde\x0b9\x9f\xf3" +
+	"\xc3\x94\xf7S\xca\xbbt\xe2\x8f\x96\xcd\x9d\xf4\xd9V\xb4" +
+	"\x95Ie\xa7\x1dYFx\xdf\xe2\xc7yQ\x9fr\xef" +
+	"l\xf4jthB\xfc\x93\xf3\xb7\xfd\xbbU\x0c\xd4\xae" +
+	"\xca\xb5A\x16\xe6\xd2,\xcc\xfd\x08\xb8\xd7\xfd\xcb\xae\xf2" +
+	"\xd7\x83w\xfc\x07\xd3\xca\x81\xec\x93k\xdf\xfe\xfes\x17" +
+	"+.1\xb7\x10\x96`\x0ap/\x83a\x82\x1cMA" +
+	"\xf7\xe7\xfdW\xc5S\xbf\xb7\xd2x\x90{\x99?\xca\xe1" +
+	"\xd7\x11\x0e5\x1e?\xfd{{\xde\x7f\xe5\xef\x07\xad\x12" +
+	"\xecSn\x88\xbfJy/S\xb9\xbb\xbex\xf7\xf8\xc3" +
+	"\x0bO\xbfae\xe2\xd6<0\xb1\x90\x87\xccs\xf3P" +
+	"\xf0\x9a\x03\x1b\xdd\x1frM\x87\xad\x94X\x99\xb7\x8b_" +
+	"MyWQ\xde\xf7*&\xcd{\xff\xd5\xdfX\xf2\x1e" +
+	"\xcc\xeb\xe7\x8fP\xdeA\xca{o\xcb\xf9\x93\xe777" +
+	"\xfd\x97\xa5\x89/\xe6]\xe2/#s\xedp\x1e5\xf1" +
+	"\xa1\x9f\xec/\x19\xba\xf4\xe2\x1f\xacT\x9e\xee\x83\x9c\x9c" +
+	"\xeb\xa39\xe4C\xd1{O=>\xbc\xee\xcb\x89o[" +
+	"\xa9\xf1\x84\xef\x05~\x15\xe5]IyW\xdd\xf5\xaf\xf3" +
+	"B\x7f\xd8}\x02\xd5p$\x1bn\xc07\xc4\xefD\xe6" +
+	"\xda\xed>\xaa\xc6\xca7N.z|\xdeS'\xad$" +
+	"\x17\xe6\xf7\xf3\xa3\xf2i\x80\xe4\xa3d~\xe1\x97\xfe\xae" +
+	"\x86\xa3g\xac<r7\xf06S\xde\x86|\xf4H\xc9" +
+	"\xfe\x8e\x8c_\x16U\x9eM6\x86\xa2E\xfe[\xfc\xce" +
+	"|\xaaE>\xd5\xa2o\xe6\xec\x81\xff\xdc\xdcr\xd6j" +
+	"7\xc9,x\x99\xe7\x0ah}*\xc0\x0d\xe2\x99\xaa\x0d" +
+	"\x7f\xfd\xdbc\xfft\xd6\xcap\xeb\x0b\xb2\x08\xbf\x9d2" +
+	"o-@\x95\x07\xf6\xb2\xdc\xf1\xa3\xfd\xe7\xac\x96w\xae" +
+	"`\x17\x7f\x91\xf2^\xa0\xbcB[m\xde\xc1K\x83\x96" +
+	"\xbc\x9e\xc2\x17\xf8[\x0a\xf1\x8b+D\xde+s\xd6\xfe" +
+	"\xec\xa5\xfe\x8c\x0bVJT\x17\x82\xf7\x1a(\xf3\xdd\x94" +
+	"y\xeb\xefg\x9d\xdd\x9c{\xff\x85\xa4\xd55\x13\xd6\x81" +
+	"\xf9Q\xf8\x1a\x1f\xa3\xdc\x0b\x0a1\x9bF}\xf7J\xf1" +
+	"W\xcb\xe7\xa2h[Bmi.\xda\xc5O/\xa2E" +
+	"\xa8\x08\x0dq\xdau\xf5W\xcb\x96\xfe4Y\x07\x1an" +
+	"}EC\xfcF\xca\xbb\x9e\xf2\xce\xe9)\xfa\xd3\xe4\x8f" +
+	"\x97}h\xb5\xb6`\xf1)\xbe\xb7\x18\xbfb\xc5t\xb7" +
+	"8\xbew\xdd@\xd1\x82\x8fR\xaap_1\x08E\xc6" +
+	"\xb6u\xc5P\x85\xb7\x14\xd3*\xac\xe7{\xa2\xa7au" +
+	"w\xe0\xf4\xc5O\xf2\x038\xa6vcq8\x13\x03#" +
+	"cnc\xe6\xc0\x0f\x87\xad49Rq\x8a?YA" +
+	"\xb7\xc5\x0a\x9a\xa9\x85yO\xfe\xe5\x1fV\\f\xb8\x12" +
+	"\xadd;\xc7\xcc'\x8c#\xfeu\xd7=\x83\xcd\xa7\x9d" +
+	"_$\x15(\x1a0\xc3\x15o\xf1_S)W+0" +
+	"\x14\xe7\x17\x04\xee\xf15\xc5\xbf\xb0\x9aq\xd6\x98\xb7x" +
+	"a\x0c\xad\x0dcp\xc6\xb3\xd3\xf6>3V\xfe\xe7\xaf" +
+	"\xac\x02\xf1\xd7\xc0;@y7\x02\xef\xf8\xb8\xe0\x97:" +
+	"$\xa1K\xb6\xdd\xd9!DB\x91\xc9m\xb2\xd0\xf1\x88" +
+	"?\xd4\xdd\xc80-\x84\xb4:\xec\xe0]\x07\xe8\xcdy" +
+	"\xca\xa0i\xca\xb0\x93V\x9f\x8d\xb0\xa1X\x908\x18\x1b" +
+	"\xfc\x10]\x02Q%L\xa9\x0b\xc7B\xb2(\xe1\xf0l" +
+	"}xs%\x0c\xaf\x87\xe1\xd3l\x84\x10\x1f\xee^\xdc" +
+	"\xbd5@k\x02Z\x8b\x8dp6 B\xc3\xc3M\xbf" +
+	"\x0f\x88\xd3\x80\xd8c#\xde\xa8\x7f\x89H\x9c0\x91\x93" +
+	"!\xa5\x8b\xc2Rg\x94d\xc3_\xd90-\xfe\x15\xf0" +
+	"Ge\x06\x9c\x9a\xc3\x90\x16;\xa1P\x8eI#\xbb\xaa" +
+	"\xd1\xd4p\xa03\xfa\x80(\xcd\\\x14\x86\x7f-\x81\x18" +
+	"\x89&\xadm\xb2\xba\xb6\xd16R\x17\xecE\xb1\x9a\xcc" +
+	"\\\xa3\"2$A\xbaf\xb1\x07\xc2\xfe\xceY!\x7f" +
+	"8\xa4X,\xc3\xee\xc8\x8e\xc7\xa9\xd8qy v4" +
+	"\x88\xad\xb2\x11\x0f\xb9\x16WV=\x1e\xa9c\x81:\x01" +
+	",!0.\xd2\xce\xb8RTn\xee\xe8\x09\xdf)\xc2" +
+	"\x7fF\xb7\x08\x92\x10\x8c2fm\x8b\x0cO\xd8\xfd!" +
+	"\xdd\"\xc9\x8ehfa\xbc\xb2P'\x84\xb8\xd69\x12" +
+	"\xad\x83\xe1\xb8J\xc6\xc69Y/\xceSO\x803m" +
+	"4\xcc`\xc3aY]\x1d!\xf0\x8fp\xe3\xe6\x1b\xcb" +
+	"\xc8U\x1d\xfa=\\\xda\x04\xa0\xd5\xdb@\xd6l\xbf\xdc" +
+	"\xd3$v1^!\x16\x90\xc1\x90z\xa7\x03\x86\xcc\xa5" +
+	"\xc6\"\x10\x14DH\x81,l,J\xcd\xc1\x88\xdc\xcb" +
+	"X)\xd9\x11\x0eE\xe5i4\x14P\xa6\xee8\xbd\x1e" +
+	"S\xc71\x1c\xb9\x95\xcb \xdew\xd9\x8cb\xfcO\x89" +
+	"\xd5$?\x0c\x89-\xb2t\xdd\xd0\x8f\xc8\x12\xc8\xd6S" +
+	",Ia\xeb\x90\x03\xe5\x88\xfc-BN\xef\\\xd2\x84" +
+	"\x1cX\x15m\x1a\xa5z\xfa\x14\x99\xe0\x92\xc70\xc7\x16" +
+	"\x83\xcce\x90O4\xc9\x80\xb8\x1c\x89?\x01\xe2S\x10" +
+	"n6\xc81\xa0\xad\xc4\xc4{\x1ch\xcf\x02\xa3\x1d\x18" +
+	"aVn\x15\xae\xf2) \xae\x01\xa2\x038A&\xb7" +
+	"\x1aG?\x0d\xc4\x97 \x1beq\xb1\xacF\x1bX\xb3" +
+	"\x8c\xed\x0a\x87\xbd\x9d\x82,\x10\x0f\xd0<H+b\xdb" +
+	"\x05\xa9\xb4+\x10\x16d\x92\xc5\xd8\x86\xb3~wyj" +
+	"=CX\x7fH\xc6z1\xecX\x1e\x8f\xc7\x19\xe2\x8d" +
+	"!!\x03\xa2/\xa3\xd2by\xb3%!\xa2\xb8;\xd9" +
+	"\x11\xaf\x826\xb9\xa0M\x09\xc4W\xd0\xdf\xdd#\xdf\x1f" +
+	"\x96I\xa38C\x14\x02\x81\xdeR:\x06\xcc\xa7\x9fT" +
+	"\xd28\xc7H\xae\x19b\x94\xda\x91I\xe7\xedpLN" +
+	"\xc9\xaf\x84\xb8k\x86R\xa8\xc4\x9d\xd7\xd8\xf4\x18\xe2\xf4" +
+	"\x12&}:5\xe8\xa5B\x9ds\\\x99Q)\xb4\xea" +
+	"h\xae\x13\xe6\x82K\xdaa\x89\xfa\xc95i\x89\x0e\xad" +
+	"\x08\x83A\xda\xc4\x0511\xd4!\xde\xd9-\xca\xf7\xc7" +
+	"\x82\xed\xa2\x04\xeb-\xa5\x0b6/7\xcfX.\x09\xa1" +
+	"S\xe0'Uu\xb4Y\xa3\x10\x15\x93=Ri\x8c\xa6" +
+	"u\x84p\xc6\x09\x14t\xe3,D\xe9\xba\xb1\xa0\x9cQ" +
+	"\x9f\xb4}\x92h\x87\x1c\x8e\x9b\x01\x11\x92\xc9\xc65\xfd" +
+	"\x19\"%\x96\xa9\xe4l\x83\xf4m\x82x\x9c\xe6\xb7G" +
+	"\xbfM\xba\x99\x939\xc7\xa2\x90Ne\xc3r\xcfu\xd6" +
+	"\xdd\x0ev\x011\xfa\xd9+M\x11\xc3\x12\xd5&K\xb1" +
+	"\x8eRy\x0a\x10\xd2\xd4\x18P\x90](v\x18\xda\xe9" +
+	"\xbdF\x9ab0C\xec\x96\xc4h\xd4\x1f&Td\x81" +
+	".\xf2y\xd4\xf1Y\x10\xb9\xd6\x08\xaa>\xdc;\xd6\x00" +
+	"m\x9di\xcb\xfd52\xbe\x04\xc4\x1dX\x0e \xf3\xed" +
+	"@\xdc\x8e\x16\xdb\x02\xc4\xc3X\x0e\x80\x13\xc4r\x83\xa8" +
+	"\xe5\x01 \xbe\x09D'p\x82\xe3\xb8#H<\x04\xc4" +
+	"c\x86-\xf4\xfe]\xb1\x85\xbd\xbd\x8a\xb8!\xb2\xdc\x90" +
+	"\xfb\xed\"T\x0cuune\xc7\xae\x8b\x04\x84\x90\x18" +
+	"5\xd6\xac7\x9b\xca\x9a\xd9\xde`L\x1b\xcf\xf6F;" +
+	"\xb5\xef\x94@P*.\xc6\x00n\xf4P\xc9\xd1\"\xb9" +
+	"\xbaE\x04\xd4\xf4!\xa5\xb7\xe04\x93\x88H\x9c\x07\xc4" +
+	"\x80Z \x81\xe6G\x8bt\x02-\xa2\x15H \x06\x91" +
+	"\xd8\x03D\x19]$\x04\x80\x08\x1b0h\xd4\x19\x0bk" +
+	"M\x8a\x17\xb6\x87\xea\xd4\xfd\x01\xc95\xd7\xd96\xb4H" +
+	"{\xd0{g\xb7\x14\xc1\xc2\x80[j%V\x86\x1a\xa3" +
+	"2p\xa8\xde\x1dX\x1a&\x1b\xa5\xa1\xb4\xcb/A0" +
+	"g\xc2\xfc\xd0\x99\xd6EE(K\x9d\xda\x9f\x16\x13`" +
+	"\xc1\xbeN,\x9b\xea\xb9\xe56\xac\xda5\xb9~U\x9a" +
+	"\xb5\xd4\x0aX\xa5\xa1\xe5M\xda\xc5b;\xbd\x99\x04\xd7" +
+	"\x1b\xed4\x09\xfe \x98MZ\xa8\xb4\xac&\x91\xed " +
+	"2\x1bD\x8e\x85\xddf\x91\xe0\x97\xa1r\xcfg\xd8p" +
+	"\xbb)P\xf5\xd3d\x1a\xc9\x8d\xec]\xb5w\xdd\xb8t" +
+	"$\xa5K\x1a\xc3\xc3?/t\xaf\xd1\xa44/3\xd2" +
+	"\\\xb7}_\x99\x91\xe7ZP\xebi\xbe\xc1\x14\xd4\xeb" +
+	"\x91\xb8\x16\x88\x9b\xb4]\x1f\x88\x1bq\xf4: n1" +
+	"\xa5\xf9\x00rn\x00\xe2\x81\x1b\x87\xbf\xb9\x811\xb99" +
+	"\x89\xcc\xca\x92\xde\xdd{\x03Q\xb9V\xb3\xab\xf3\xc6\x8d" +
+	"<\x04\xe1\xb7\xed\xaa\xf4\xbb\x98t\xbe\xb2\x0b\xddI\xe2" +
+	"\x1a\x0dW-\xedP\x8e5 H\xbf\x0aN\xe3\xad\x16" +
+	"\xacft\xb3d\xd2Wd\xc3U5\xaa\xab\xb6\x19\xae" +
+	"\xda\x8a\xeb\xd8\xa4U\xe4\xfa\xa4\x8a\xbc\xdb\xe4\xaa\x9dx" +
+	"\\\xda\xa1x\x85s\xda\x15W\xedG\xe2>\xa5v{" +
+	"CBP\xd4z\x98\xd2\x9ep\xd0\xa8\xb3\x09\x1d\x0b\xad" +
+	"\xc3\x92\x80A\xae\xf9\xa4\xaeC\x08\xfd \xd0\x0bZ\x82" +
+	"f\xb0NX\x9d\xd0\xe1\xc7\xb6\x8c\xd1X\xe2Aaq" +
+	"[D\x14;\x91\x96\\\x955\xc36\xb0\xb55U7" +
+	"\x9f\x04z\x96\xb2\xf3\xc3\xed\xe9\xfb\xa6\xd4\xba\xd3\x04\x81" +
+	"\xda\x11\xec\xd4\x16\xef\x15\xa4\xeeh\xba\xb3\xa2\xe6\xbbF" +
+	"\xe8\x98z\x82\x82\xf4\x08i\xf8\x06\xbb\xe9}\xa6\x8c\xd2" +
+	"v\xd3\xf55\xa6\x8c\xd2v\xd3\x8d\xf7\xa9\xc9\xb3\x0d}" +
+	"7O\xf1]\x82\x97\xb54\xdb^cx9\xc1w\xf1" +
+	"v\xbf\x04\x07*\xc1l\xfe\xd2HO8dpD\xfd" +
+	"\xed\x01\xf0_\x149\xd4n\xb1.\x1a\x09\xc7\xc0\xbc\xaa" +
+	"\x0fK\x83\xc0\xdf\x9b\xd6St{\x10\xd3\x9f\xdc\xe9\x0e" +
+	"\x94zt\xb7\xabGw\xf4\xc6T \xce\x04\xd5{E" +
+	"A\xd2J\x04\xce*\xf7\x10\x17\xfc\xe5\xc2\x82!\xf4j" +
+	"\xdfiS\x9c\xf6\xf2\xfa\xa1\xee\x9b\xa6\xb8\xb9\xf3\xb7J" +
+	"\xf1\xd9\x10\xe1\x91\x9a\xc557u\xacH\xaa^)\xc2" +
+	"\x7f`\xaf\x9ex\xf3Qn\xd1\xcb\xdeD\x8d\xd3\x1fT" +
+	"\xd24\x8b\x0d\xea\xdfZc\xa4]U\x08\x95Fgd" +
+	"\\U\x88\x95Fk\xe4\xb1}\x1dOm\x8e<\xf6\xaf" +
+	"\xe2jwTftG\xde\x85a\x7f'\xe3\xf2\xb6\xc3" +
+	"\xe6\x07J\xe9\xf7\xcf\xean @9@]\xb5[[" +
+	"u7\xe8\xaa\x9e\x08T\xfd\x023\x8d\x95\x1b\xea\xfcR" +
+	"$,Q\xa3\x94(aWIO\x1a\xcd\xa0\x00\xb1q" +
+	"w\xe3/;\xf77\xf8\xcb\xc1\x8d\xc7_N\xae\x1c\x7f" +
+	"\xb9\xb8\x11\xc0\xe9\x0dA\x06\xb0\xf3\xbb\x1ea\x03\xc2b" +
+	"6\xda\x15f\x03\xb1\x85lg\xd7\"8\xdeF\xe5\x14" +
+	"\x83Qw\xcc\x84\x83\xaf\x12\x87\xa6\xb4(3\xa7\x85v" +
+	"\xa3U\xa6\xa6\xc5<L\x0b\xb5\x98\xcfE\x87\xfd\x9dr" +
+	",ge\xfd\x08M\xd8\x80\xe19\xb5\x1c\xd5\x01\xc9D" +
+	"\xbdA\xad\x9a\xad\x04s$`\x8fEo*\xa2\xcdW" +
+	"[\xb9\xe9N\xb8\xd0p)\x1bY\xd2\x95J.\xc3\xe4" +
+	"*\xd7)\xa9eD1\xd6&=\xbe\xf8\xf5\x0e0}" +
+	"\xdbZ\x87\x9d\xb4mr\x98B\x8c\xdf\xe8(\xc2\xabX" +
+	"\x04\xb6\x000\x02\xa2L\xa9\xa3\xfc\x80\x03\x8c\xd9\xb6\x01" +
+	"\x91m\x88@\xa4)\xc5\x94\xdfJ\x91M\x88\xec@\xc4" +
+	"\xf1e\\9\x9f\xf0\xdb)\xb2\x05\x91\xdd\x888\xff\x1a" +
+	"W\xca*\xbf\x93\"\xdb\x10\xd9\x87\x88\xebj\xdc\xe1\x83" +
+	"\x0a\xc4\xf0{(\xb2\x03\x91\x03\x88\xb0W\xe2\x19>\xe5" +
+	"\xa9\x8a\xea\xb6\x1b\x91C\x88d|\x81\xf3d\xe0\xab\x09" +
+	"\x1d\xb3\x0f\x91\xc3\x88d\xfe/\xce\x93\x89\xaf(\x149" +
+	"\x80\xc8\x9b\x88d]\xc6y\xb2\xf0^\x98\"\x87\x109" +
+	"\x86\x88\xfb/8\x8f\x1b_v\xe9<\x87\x119\x81H" +
+	"\xf6\x9f\xe3\xb0\xe5g\xe3\x0d25\xdb\x9b\x88\x9cF\xb3" +
+	"y>\x07\xb3y\xf0q\x94\x02\xc7\x10x\x0f\x81\x9ca" +
+	"\x00r\xf0%\x9a\x02'\x10\xf8\x00\x01\xefg\x00x\xf1" +
+	"\xa1\xc0\x01a\x08R\x00\xb8\x82@\xee\x9f\x00\xc8\xc5\xc7" +
+	"'\x0a|\x86@\xb6\x13\x00\xee\x7f\x00\xe0\xf0\xcd\xc2\x89" +
+	"\x80\xc3\x09\xc0H\x04\xf2>\x05 \x0f\x1fR(P\x80" +
+	"\xc0\x04\x04\xf8O\x00\xe0\x01\xa8\xa6\xc0w\x10\x98\x8a\x80" +
+	"\xefc\x00|\xf8\xf4\xe8\x84\xfd\xa2\xad\x1e\x81\x87\x10\xb8" +
+	"\xe5\x12\x00\xb7\xe0\xcb\x10\x1d1\x13\x81\x08\x02\xf9\x17\x01" +
+	"\xc8\xc7\xfb|\x0a\xf4 \xb0\x0c\x81[\xff\x08\xc0\xad\x00" +
+	"\xfc\x94\x02?F`\x0d\x02\x05\x1f\x01P\x00\xc0j:" +
+	"\xc7\xd3\x08lB\xa0\xe4C\x00\x0a1\xc4\x9ch\x92u" +
+	"\x08\xecC`\xc4\x05\x00\x8a\xd0\xf3\xceF\xf4<\x02\x1f" +
+	" p\xdb\x07\x00\x14\xa3\xad\xa8\xa8\xd3\x08\xfc\x11\x81\xd2" +
+	"\xf7\x01(\xc17\x16\x0a\xbc\x87\xc0'\x08\x8c<\x0f\xc0" +
+	"\x08|\x19s\xc2a\x01\x98\x01p\xb8\x00\x18u\x0e\x80" +
+	"\xdb\x00 .\xd8\xf9g\xb8\xd0\xb8H/{\x0f\xe8\xa5" +
+	"h\\\x17$I[\x06\x02>\x04n\x7f\x17\x80\x91\xf8" +
+	"4\xe3\x9a\x01@.\x02%\x00\x8c\x18}\x16\x03h\x14" +
+	"\xbed\xb9P]\x1f\"#qH\xf9\x19\x18R\x86\xfe" +
+	"p\xe1\x02\x0b\x10\x18\x8d@\xc5i\x00n\x07`\x14\x05" +
+	"J\x10\x18\x8b\xc0\x98\xff\x06`4\x00\xe5.\x8c\xc5\x91" +
+	"\x08|\x07\x81\xb1\xa7\x00(\x07`\x1c\xaa\x0b\xcc\x004" +
+	"!0\xee$\x00\x15\xf8 F\x81z\x04\x1eB\xa0\xf0" +
+	"\x04\x00c\xd0\x83T\xab\x99\x08D\x10(z\x07\x80\xb1" +
+	"\xe8A\x0a\xf4 \xb0\x0c\x81\xe2\xb7\x01\x18\x87\x1e\xa4\xc0" +
+	"\x8f\x11X\x83@\xe5\xf181\xbd\xbf\xf2\xabA9\x9b" +
+	"\xba\x85\xd8\x97,\x81\xb2\xa3\xbf\xceh;\xc5\xc4\x09\xfa" +
+	"u@Wm\x0d^5\xc2\x0fa\xfd@W;#\xd6" +
+	"\x0ft\xb5\x07b\xfd\xb0\xb3\xa8\xad\x88\xdd?\x09\xaa\x8b" +
+	"\x0d~\x08\x1b\x03v\xf5\xa0\xcc\xc6\x80]\xbd\xfbbc" +
+	"\xc0\xce\xc27\x0b\xec\xb1IZ\xab\xe2m\x0f\x87\x03Z" +
+	"\x1fe\xbe\x0b\x05$\x10n\xd7\x0e\xcdu\xa0\x9c\xe9\xfe" +
+	"F\xbb\xe1\x005M\xd4,\x95\xeaO\xe0uj\xd4\x04" +
+	"^\x87F\xad\x9eh\xa2\xda\x15j\xa9\x7f\x92\x89hS" +
+	"Yc\x09b35j\x82\xd8\x0c\x8d\x9a \x96U\xc5" +
+	"\xc6\xccb]\x0a\xd1\xbb$\xe1^\xca\xec\x14 .E" +
+	"\xd4\xc4\x90\x8e\xaft\x09\xb6\x98){\x89B\xc7\xb7\x00" +
+	"\xfdy=iSb\x12\xaf\xc5\x92\xae\x88\x0c6 $" +
+	"\xa2(DR/\xc9\x18{8\x04\xb0\xfe?\x12\xa80" +
+	"\xbd\x7f\x82\x06\x8d!\x16-\xdaRA\xe98\x92\xceK" +
+	"^t\xfc\xffC\x83C\xed\x01K3=d%\xbf]" +
+	"(LB2\x93\xd9R\xe8\x01\x0cP\x93\x8d\x88\xe2\xb6" +
+	"\xa5\xeaP\x8d\xecQ\xc9\x18\xc1&\xb2\xdad\xb0\xddR" +
+	"$\xa5\x0f\xb8\x1f:#Q\xaa\x9e\"\xd8S\xae-+" +
+	"\x8df\xd4\x1b\x95\xa5\xb4\xe7\xab\x1b\\L\xb7\x08^|" +
+	"\xe6Js\xf1\x01-\x08\x11\xbe\xc9\xc9\xaf\xccte\x9e" +
+	"\xe6\x8a\"\xf5\xfet\xf6LX\xde\x14!B\x92\xd7\xf6" +
+	"\xa0z\xff3\x09\x9a\xa8\x10\xf0L\x17d\x89\xb1\xfb\x17" +
+	"\xa7\x84\xf8\x8d\xaeh\xf5\xabi\"\\\xe7e\xc9\xa4\xf0" +
+	"\xff\x05\x00\x00\xff\xffYgL\xc7"
 
 func init() {
 	schemas.Register(schema_832bcc6686a26d56,
@@ -5212,6 +5454,7 @@ func init() {
 		0xb1ac056ed7647011,
 		0xb1f0385d845e367f,
 		0xb61ee2ecff34ca73,
+		0xb72b6dc625baa6a4,
 		0xc7da65f9a2f20ba2,
 		0xc95babe3bd394d2d,
 		0xcbdc765fd5dff7ba,
