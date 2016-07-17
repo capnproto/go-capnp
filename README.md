@@ -34,6 +34,9 @@ The major cases where I reserve the right to make breaking changes are:
 - Changes in the Cap'n Proto specification.
 - Bugs.
 
+The `pogs` package is relatively new and may change over time.
+However, its functionality has been well-tested and will probably only relax restrictions.
+
 [gocompat]: https://golang.org/doc/go1compat
 
 ## Documentation
