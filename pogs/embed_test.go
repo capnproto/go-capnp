@@ -12,22 +12,6 @@ type VerVal struct {
 	Val int16
 }
 
-type VerValNoTag struct {
-	Val int16
-}
-
-type VerValTag1 struct {
-	Val int16 `capnp:"val"`
-}
-
-type VerValTag2 struct {
-	Val int16 `capnp:"val"`
-}
-
-type VerValTag3 struct {
-	Val int16 `capnp:"val"`
-}
-
 type VerOneData struct {
 	VerVal
 }
@@ -35,49 +19,6 @@ type VerOneData struct {
 type VerTwoData struct {
 	*VerVal
 	Duo int64
-}
-
-type VerTwoDataOmit struct {
-	VerVal `capnp:"-"`
-	Duo    int64
-}
-
-type VerOneDataTop struct {
-	Val int16
-	VerVal
-}
-
-type VerOneDataTopWithLowerCollision struct {
-	Val int16
-	VerVal
-	VerValNoTag
-}
-
-type VerOneDataNoTags struct {
-	VerVal
-	VerValNoTag
-}
-
-type VerOneData1Tag struct {
-	VerVal
-	VerValTag1
-}
-
-type VerOneData1TagWithUntagged struct {
-	VerVal
-	VerValTag1
-	VerValNoTag
-}
-
-type VerOneData2Tags struct {
-	VerValTag1
-	VerValTag2
-}
-
-type VerOneData3Tags struct {
-	VerValTag1
-	VerValTag2
-	VerValTag3
 }
 
 type F16 struct {
@@ -168,40 +109,6 @@ func TestExtract_EmbedName(t *testing.T) {
 	}
 	if out.Name != "ALL YOUR BASE" || out.Rating != 5 || !out.CanFly {
 		t.Errorf("Extract produced %s; want %s", zpretty.Sprint(out), zpretty.Sprint(&F16{PlaneBase{Name: "ALL YOUR BASE", Rating: 5, CanFly: true}}))
-	}
-}
-
-func TestExtract_EmbedCollide(t *testing.T) {
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatalf("NewMessage: %v", err)
-	}
-	v1, err := air.NewRootVerOneData(seg)
-	if err != nil {
-		t.Fatalf("NewRootVerOneData: %v", err)
-	}
-	v1.SetVal(123)
-
-	tests := []struct {
-		name string
-		want interface{}
-	}{
-		{"top", &VerOneDataTop{Val: 123}},
-		{"no tags", &VerOneDataNoTags{}},
-		{"1 tag", &VerOneData1Tag{VerValTag1: VerValTag1{123}}},
-		{"1 tag with untagged", &VerOneData1TagWithUntagged{VerValTag1: VerValTag1{123}}},
-		{"2 tags", &VerOneData2Tags{}},
-		{"3 tags", &VerOneData3Tags{}},
-		{"top with lower collision", &VerOneDataTopWithLowerCollision{Val: 123}},
-	}
-	for _, test := range tests {
-		out := reflect.New(reflect.TypeOf(test.want).Elem()).Interface()
-		if err := Extract(out, air.VerOneData_TypeID, v1.Struct); err != nil {
-			t.Errorf("%s: Extract error: %v", test.name, err)
-		}
-		if !reflect.DeepEqual(out, test.want) {
-			t.Errorf("%s: Extract produced %s; want %s", test.name, zpretty.Sprint(out), zpretty.Sprint(test.want))
-		}
 	}
 }
 
@@ -305,6 +212,99 @@ func TestInsert_EmbedNamed(t *testing.T) {
 	}
 	if name != "ALL YOUR BASE" || base.Rating() != 5 || !base.CanFly() {
 		t.Errorf("Insert(%s) produced %v", zpretty.Sprint(in), f16)
+	}
+}
+
+type VerValNoTag struct {
+	Val int16
+}
+
+type VerValTag1 struct {
+	Val int16 `capnp:"val"`
+}
+
+type VerValTag2 struct {
+	Val int16 `capnp:"val"`
+}
+
+type VerValTag3 struct {
+	Val int16 `capnp:"val"`
+}
+
+type VerTwoDataOmit struct {
+	VerVal `capnp:"-"`
+	Duo    int64
+}
+
+type VerOneDataTop struct {
+	Val int16
+	VerVal
+}
+
+type VerOneDataTopWithLowerCollision struct {
+	Val int16
+	VerVal
+	VerValNoTag
+}
+
+type VerOneDataNoTags struct {
+	VerVal
+	VerValNoTag
+}
+
+type VerOneData1Tag struct {
+	VerVal
+	VerValTag1
+}
+
+type VerOneData1TagWithUntagged struct {
+	VerVal
+	VerValTag1
+	VerValNoTag
+}
+
+type VerOneData2Tags struct {
+	VerValTag1
+	VerValTag2
+}
+
+type VerOneData3Tags struct {
+	VerValTag1
+	VerValTag2
+	VerValTag3
+}
+
+func TestExtract_EmbedCollide(t *testing.T) {
+	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		t.Fatalf("NewMessage: %v", err)
+	}
+	v1, err := air.NewRootVerOneData(seg)
+	if err != nil {
+		t.Fatalf("NewRootVerOneData: %v", err)
+	}
+	v1.SetVal(123)
+
+	tests := []struct {
+		name string
+		want interface{}
+	}{
+		{"top", &VerOneDataTop{Val: 123}},
+		{"no tags", &VerOneDataNoTags{}},
+		{"1 tag", &VerOneData1Tag{VerValTag1: VerValTag1{123}}},
+		{"1 tag with untagged", &VerOneData1TagWithUntagged{VerValTag1: VerValTag1{123}}},
+		{"2 tags", &VerOneData2Tags{}},
+		{"3 tags", &VerOneData3Tags{}},
+		{"top with lower collision", &VerOneDataTopWithLowerCollision{Val: 123}},
+	}
+	for _, test := range tests {
+		out := reflect.New(reflect.TypeOf(test.want).Elem()).Interface()
+		if err := Extract(out, air.VerOneData_TypeID, v1.Struct); err != nil {
+			t.Errorf("%s: Extract error: %v", test.name, err)
+		}
+		if !reflect.DeepEqual(out, test.want) {
+			t.Errorf("%s: Extract produced %s; want %s", test.name, zpretty.Sprint(out), zpretty.Sprint(test.want))
+		}
 	}
 }
 
