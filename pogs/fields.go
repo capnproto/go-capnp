@@ -12,6 +12,7 @@ type fieldProps struct {
 	schemaName string // empty if doesn't map to schema
 	typ        fieldType
 	fixedWhich string
+	tagged     bool
 }
 
 type fieldType int
@@ -23,14 +24,20 @@ const (
 )
 
 func parseField(f reflect.StructField, hasDiscrim bool) fieldProps {
-	tname, opts := nextOpt(f.Tag.Get("capnp"))
+	var p fieldProps
+	tag := f.Tag.Get("capnp")
+	p.tagged = tag != ""
+	tname, opts := nextOpt(tag)
 	switch tname {
+	case "-":
+		// omitted field
 	case "":
 		if f.Anonymous && isStructOrStructPtr(f.Type) {
-			return fieldProps{typ: embedField}
+			p.typ = embedField
+			return p
 		}
 		if hasDiscrim && f.Name == "Which" {
-			p := fieldProps{typ: whichField}
+			p.typ = whichField
 			for len(opts) > 0 {
 				var curr string
 				curr, opts = nextOpt(opts)
@@ -43,12 +50,11 @@ func parseField(f reflect.StructField, hasDiscrim bool) fieldProps {
 		}
 		// TODO(light): check it's uppercase.
 		x := f.Name[0] - 'A' + 'a'
-		return fieldProps{schemaName: string(x) + f.Name[1:]}
-	case "-":
-		return fieldProps{}
+		p.schemaName = string(x) + f.Name[1:]
 	default:
-		return fieldProps{schemaName: tname}
+		p.schemaName = tname
 	}
+	return p
 }
 
 func nextOpt(opts string) (head, tail string) {
@@ -65,20 +71,25 @@ type fieldLoc struct {
 }
 
 func (loc fieldLoc) depth() int {
-	if len(loc.path) >= 0 {
+	if len(loc.path) > 0 {
 		return len(loc.path)
 	}
 	return 1
 }
 
 func (loc fieldLoc) sub(i int) fieldLoc {
-	if n := len(loc.path); n >= 0 {
+	n := len(loc.path)
+	switch {
+	case !loc.isValid():
+		return fieldLoc{i: i}
+	case n > 0:
 		p := make([]int, n+1)
 		copy(p, loc.path)
 		p[n] = i
 		return fieldLoc{path: p}
+	default:
+		return fieldLoc{path: []int{loc.i, i}}
 	}
-	return fieldLoc{path: []int{loc.i, i}}
 }
 
 func (loc fieldLoc) isValid() bool {
@@ -103,60 +114,113 @@ func mapStruct(t reflect.Type, n schema.Node) (structProps, error) {
 	for i := range sp.fields {
 		sp.fields[i] = fieldLoc{i: -1}
 	}
-	for i := 0; i < t.NumField(); i++ {
-		if err := mapStructField(&sp, t, n, fields, fieldLoc{i: i}); err != nil {
+	sm := structMapper{
+		sp:         &sp,
+		t:          t,
+		hasDiscrim: hasDiscriminant(n),
+		fields:     fields,
+	}
+	if err := sm.visit(fieldLoc{i: -1}); err != nil {
+		return structProps{}, err
+	}
+	for len(sm.embedQueue) > 0 {
+		loc := sm.embedQueue[0]
+		copy(sm.embedQueue, sm.embedQueue[1:])
+		sm.embedQueue = sm.embedQueue[:len(sm.embedQueue)-1]
+		if err := sm.visit(loc); err != nil {
 			return structProps{}, err
 		}
 	}
 	return sp, nil
 }
 
-func mapStructField(sp *structProps, t reflect.Type, n schema.Node, fields schema.Field_List, loc fieldLoc) error {
-	f := typeFieldByLoc(t, loc)
-	if f.PkgPath != "" && !f.Anonymous {
-		// unexported field
-		return nil
+type structMapper struct {
+	sp         *structProps
+	t          reflect.Type
+	hasDiscrim bool
+	fields     schema.Field_List
+	embedQueue []fieldLoc
+}
+
+func (sm *structMapper) visit(base fieldLoc) error {
+	t := sm.t
+	if base.isValid() {
+		t = typeFieldByLoc(t, base).Type
+		if t.Kind() == reflect.Ptr {
+			t = t.Elem()
+		}
 	}
-	switch p := parseField(f, hasDiscriminant(n)); p.typ {
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+		if f.PkgPath != "" && !f.Anonymous {
+			// unexported field
+			continue
+		}
+		loc := base.sub(i)
+		p := parseField(f, sm.hasDiscrim)
+		if p.typ == embedField {
+			sm.embedQueue = append(sm.embedQueue, loc)
+			continue
+		}
+		if err := sm.visitField(loc, f, p); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (sm *structMapper) visitField(loc fieldLoc, f reflect.StructField, p fieldProps) error {
+	switch p.typ {
 	case mappedField:
 		if p.schemaName == "" {
 			return nil
 		}
-		fi := fieldIndex(fields, p.schemaName)
+		fi := fieldIndex(sm.fields, p.schemaName)
 		if fi < 0 {
-			return fmt.Errorf("%v has unknown field %s, maps to %s", t, f.Name, p.schemaName)
+			return fmt.Errorf("%v has unknown field %s, maps to %s", sm.t, f.Name, p.schemaName)
 		}
-		sp.fields[fi] = loc
+		switch oldloc := sm.sp.fields[fi]; {
+		case oldloc.i == -2:
+			// Prior tag collision, do nothing.
+		case oldloc.i == -3 && p.tagged && loc.depth() == len(oldloc.path):
+			// A tagged field wins over untagged fields.
+			sm.sp.fields[fi] = loc
+		case oldloc.isValid() && oldloc.depth() < loc.depth():
+			// This is deeper, don't override.
+		case oldloc.isValid() && oldloc.depth() == loc.depth():
+			oldp := parseField(typeFieldByLoc(sm.t, oldloc), sm.hasDiscrim)
+			if oldp.tagged && p.tagged {
+				// Tag collision
+				sm.sp.fields[fi] = fieldLoc{i: -2}
+			} else if p.tagged {
+				sm.sp.fields[fi] = loc
+			} else if !oldp.tagged {
+				// Multiple untagged fields.  Keep path, because we need it for depth.
+				sm.sp.fields[fi].i = -3
+			}
+		default:
+			sm.sp.fields[fi] = loc
+		}
 	case whichField:
-		if sp.whichLoc.i != -1 {
-			return fmt.Errorf("%v embeds multiple Which fields", t)
+		if sm.sp.whichLoc.i != -1 {
+			return fmt.Errorf("%v embeds multiple Which fields", sm.t)
 		}
 		switch {
 		case p.fixedWhich != "":
-			fi := fieldIndex(fields, p.fixedWhich)
+			fi := fieldIndex(sm.fields, p.fixedWhich)
 			if fi < 0 {
-				return fmt.Errorf("%v.Which is tagged with unknown field %s", t, p.fixedWhich)
+				return fmt.Errorf("%v.Which is tagged with unknown field %s", sm.t, p.fixedWhich)
 			}
-			dv := fields.At(fi).DiscriminantValue()
+			dv := sm.fields.At(fi).DiscriminantValue()
 			if dv == schema.Field_noDiscriminant {
-				return fmt.Errorf("%v.Which is tagged with non-union field %s", t, p.fixedWhich)
+				return fmt.Errorf("%v.Which is tagged with non-union field %s", sm.t, p.fixedWhich)
 			}
-			sp.whichLoc = fieldLoc{i: -2}
-			sp.fixedWhich = dv
+			sm.sp.whichLoc = fieldLoc{i: -2}
+			sm.sp.fixedWhich = dv
 		case f.Type.Kind() != reflect.Uint16:
-			return fmt.Errorf("%v.Which is type %v, not uint16", t, f.Type)
+			return fmt.Errorf("%v.Which is type %v, not uint16", sm.t, f.Type)
 		default:
-			sp.whichLoc = loc
-		}
-	case embedField:
-		ft := f.Type
-		if f.Type.Kind() == reflect.Ptr {
-			ft = ft.Elem()
-		}
-		for i := 0; i < ft.NumField(); i++ {
-			if err := mapStructField(sp, t, n, fields, loc.sub(i)); err != nil {
-				return err
-			}
+			sm.sp.whichLoc = loc
 		}
 	}
 	return nil
