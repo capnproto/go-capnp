@@ -78,15 +78,57 @@ func TestBootstrapFulfilled(t *testing.T) {
 	bootstrapAndFulfill(t, clientCtx, conn, p)
 }
 
-func bootstrapAndFulfill(t *testing.T, ctx context.Context, conn *rpc.Conn, p rpc.Transport) capnp.Client {
-	client, bootstrapID := readBootstrap(t, ctx, conn, p)
+// Receive a Finish message for the given question ID.
+//
+// Immediately releases any capabilities in the message.
+//
+// The test fails if any of the following occur:
+//
+// * An error occurs when reading the message
+// * The message is not of type `Finish`
+// * The message's question ID is not equal to `questionID`.
+//
+// Parameters:
+//
+// t: the *testing.T object for the test in which we're running.
+// ctx: The context to be used when sending the message.
+// p: The rpc.Transport to send the message on.
+// questionID: The expected question ID.
+func recvFinish(t *testing.T, ctx context.Context, p rpc.Transport, questionID uint32) {
+	if finish, err := p.RecvMessage(ctx); err != nil {
+		t.Fatal("error reading Finish:", err)
+	} else if finish.Which() != rpccapnp.Message_Which_finish {
+		t.Fatalf("message sent is %v; want Message_Which_finish", finish.Which())
+	} else {
+		f, err := finish.Finish()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if id := f.QuestionId(); id != questionID {
+			t.Fatalf("finish question ID is %d; want %d", id, questionID)
+		}
+		if f.ReleaseResultCaps() {
+			t.Fatal("finish released bootstrap capability")
+		}
+	}
+}
 
+// Send a Return message with a single capability of type senderHosted to a
+// bootstrap interface in its payload. Fails the test immediately on any error.
+//
+// Parameters:
+//
+// t: the *testing.T object for the test in which we're running.
+// ctx: The context to be used when sending the message.
+// p: The rpc.Transport to send the message on.
+// answerId: The message's answerId.
+func sendBootstrapReturn(t *testing.T, ctx context.Context, p rpc.Transport, answerId uint32) {
 	err := sendMessage(ctx, p, func(msg rpccapnp.Message) error {
 		ret, err := msg.NewReturn()
 		if err != nil {
 			return err
 		}
-		ret.SetAnswerId(bootstrapID)
+		ret.SetAnswerId(answerId)
 		payload, err := ret.NewResults()
 		if err != nil {
 			return err
@@ -102,23 +144,12 @@ func bootstrapAndFulfill(t *testing.T, ctx context.Context, conn *rpc.Conn, p rp
 	if err != nil {
 		t.Fatal("error writing Return:", err)
 	}
+}
 
-	if finish, err := p.RecvMessage(ctx); err != nil {
-		t.Fatal("error reading Finish:", err)
-	} else if finish.Which() != rpccapnp.Message_Which_finish {
-		t.Fatalf("message sent is %v; want Message_Which_finish", finish.Which())
-	} else {
-		f, err := finish.Finish()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if id := f.QuestionId(); id != bootstrapID {
-			t.Fatalf("finish question ID is %d; want %d", id, bootstrapID)
-		}
-		if f.ReleaseResultCaps() {
-			t.Fatal("finish released bootstrap capability")
-		}
-	}
+func bootstrapAndFulfill(t *testing.T, ctx context.Context, conn *rpc.Conn, p rpc.Transport) capnp.Client {
+	client, bootstrapID := readBootstrap(t, ctx, conn, p)
+	sendBootstrapReturn(t, ctx, p, bootstrapID)
+	recvFinish(t, ctx, p, bootstrapID)
 	return client
 }
 
