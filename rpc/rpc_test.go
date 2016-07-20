@@ -67,7 +67,15 @@ func readBootstrap(t *testing.T, ctx context.Context, conn *rpc.Conn, p rpc.Tran
 	return
 }
 
-func TestBootstrapFulfilled(t *testing.T) {
+func TestBootstrapFulfilledSenderHosted(t *testing.T) {
+	testBootstrapFulfilled(t, false)
+}
+
+func TestBootstrapFulfilledSenderPromise(t *testing.T) {
+	testBootstrapFulfilled(t, true)
+}
+
+func testBootstrapFulfilled(t *testing.T, resultIsPromise bool) {
 	ctx := context.Background()
 	conn, p := newTestConn(t)
 	defer conn.Close()
@@ -75,7 +83,7 @@ func TestBootstrapFulfilled(t *testing.T) {
 
 	clientCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	bootstrapAndFulfill(t, clientCtx, conn, p)
+	bootstrapAndFulfill(t, clientCtx, conn, p, resultIsPromise)
 }
 
 // Receive a Finish message for the given question ID.
@@ -113,8 +121,8 @@ func recvFinish(t *testing.T, ctx context.Context, p rpc.Transport, questionID u
 	}
 }
 
-// Send a Return message with a single capability of type senderHosted to a
-// bootstrap interface in its payload. Fails the test immediately on any error.
+// Send a Return message with a single capability to a bootstrap interface in
+// its payload. Fails the test immediately on any error.
 //
 // Parameters:
 //
@@ -122,7 +130,9 @@ func recvFinish(t *testing.T, ctx context.Context, p rpc.Transport, questionID u
 // ctx: The context to be used when sending the message.
 // p: The rpc.Transport to send the message on.
 // answerId: The message's answerId.
-func sendBootstrapReturn(t *testing.T, ctx context.Context, p rpc.Transport, answerId uint32) {
+// isPromise: If this is true, the capability in the response will be of type
+//   senderPromise, otherwise it will be of type senderHosted.
+func sendBootstrapReturn(t *testing.T, ctx context.Context, p rpc.Transport, answerId uint32, isPromise bool) {
 	err := sendMessage(ctx, p, func(msg rpccapnp.Message) error {
 		ret, err := msg.NewReturn()
 		if err != nil {
@@ -138,7 +148,11 @@ func sendBootstrapReturn(t *testing.T, ctx context.Context, p rpc.Transport, ans
 		if err != nil {
 			return err
 		}
-		capTable.At(0).SetSenderHosted(bootstrapExportID)
+		if isPromise {
+			capTable.At(0).SetSenderPromise(bootstrapExportID)
+		} else {
+			capTable.At(0).SetSenderHosted(bootstrapExportID)
+		}
 		return nil
 	})
 	if err != nil {
@@ -146,9 +160,9 @@ func sendBootstrapReturn(t *testing.T, ctx context.Context, p rpc.Transport, ans
 	}
 }
 
-func bootstrapAndFulfill(t *testing.T, ctx context.Context, conn *rpc.Conn, p rpc.Transport) capnp.Client {
+func bootstrapAndFulfill(t *testing.T, ctx context.Context, conn *rpc.Conn, p rpc.Transport, resultIsPromise bool) capnp.Client {
 	client, bootstrapID := readBootstrap(t, ctx, conn, p)
-	sendBootstrapReturn(t, ctx, p, bootstrapID)
+	sendBootstrapReturn(t, ctx, p, bootstrapID, resultIsPromise)
 	recvFinish(t, ctx, p, bootstrapID)
 	return client
 }
@@ -225,12 +239,20 @@ func TestCallOnPromisedAnswer(t *testing.T) {
 	}
 }
 
-func TestCallOnExportId(t *testing.T) {
+func TestCallOnExportId_BootstrapIsPromise(t *testing.T) {
+	testCallOnExportId(t, true)
+}
+
+func TestCallOnExportId_BootstrapIsHosted(t *testing.T) {
+	testCallOnExportId(t, false)
+}
+
+func testCallOnExportId(t *testing.T, bootstrapIsPromise bool) {
 	ctx := context.Background()
 	conn, p := newTestConn(t)
 	defer conn.Close()
 	defer p.Close()
-	client := bootstrapAndFulfill(t, ctx, conn, p)
+	client := bootstrapAndFulfill(t, ctx, conn, p, bootstrapIsPromise)
 
 	readDone := startRecvMessage(p)
 	client.Call(&capnp.Call{
