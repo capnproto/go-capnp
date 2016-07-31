@@ -486,6 +486,20 @@ func (c *Conn) populateMessageCapTable(payload rpccapnp.Payload) error {
 			id := importID(desc.SenderHosted())
 			client := c.imports.addRef(id)
 			msg.AddCap(client)
+		case rpccapnp.CapDescriptor_Which_senderPromise:
+			// We do the same thing as senderHosted, above. @kentonv suggested this on
+			// issue #2; this let's messages be delivered properly, although it's a bit
+			// of a hack, and as Kenton describes, it has some disadvantages:
+			//
+			// > * Apps sometimes want to wait for promise resolution, and to find out if
+			// >   it resolved to an exception. You won't be able to provide that API. But,
+			// >   usually, it isn't needed.
+			// > * If the promise resolves to a capability hosted on the receiver,
+			// >   messages sent to it will uselessly round-trip over the network
+			// >   rather than being delivered locally.
+			id := importID(desc.SenderPromise())
+			client := c.imports.addRef(id)
+			msg.AddCap(client)
 		case rpccapnp.CapDescriptor_Which_receiverHosted:
 			id := exportID(desc.ReceiverHosted())
 			e := c.exports.get(id)
