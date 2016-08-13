@@ -14,7 +14,7 @@ import (
 // It is safe to use from multiple goroutines.
 type Conn struct {
 	transport Transport
-	main      capnp.Client
+	mainFunc  func(context.Context) (capnp.Client, error)
 
 	manager     manager
 	in          <-chan rpccapnp.Message
@@ -34,7 +34,7 @@ type Conn struct {
 }
 
 type connParams struct {
-	main           capnp.Client
+	mainFunc       func(context.Context) (capnp.Client, error)
 	sendBufferSize int
 }
 
@@ -48,7 +48,18 @@ type ConnOption struct {
 // fail.
 func MainInterface(client capnp.Client) ConnOption {
 	return ConnOption{func(c *connParams) {
-		c.main = client
+		c.mainFunc = func(ctx context.Context) (capnp.Client, error) {
+			return client, nil
+		}
+	}}
+}
+
+// BootstrapFunc specifies the function to call to create a capability
+// for handling bootstrap messages.  This function should not make any
+// RPCs or block.
+func BootstrapFunc(f func(context.Context) (capnp.Client, error)) ConnOption {
+	return ConnOption{func(c *connParams) {
+		c.mainFunc = f
 	}}
 }
 
@@ -72,7 +83,7 @@ func NewConn(t Transport, options ...ConnOption) *Conn {
 	for _, o := range options {
 		o.f(p)
 	}
-	conn.main = p.main
+	conn.mainFunc = p.mainFunc
 	i := make(chan rpccapnp.Message)
 	o := make(chan rpccapnp.Message, p.sendBufferSize)
 	calls := make(chan *appCall)
@@ -552,7 +563,9 @@ func (c *Conn) makeCapTable(s *capnp.Segment) (rpccapnp.CapDescriptor_List, erro
 // handleBootstrapMessage is run in the coordinate goroutine to handle
 // a received bootstrap message.
 func (c *Conn) handleBootstrapMessage(id answerID) error {
-	a := c.answers.insert(id, func() {})
+	ctx, cancel := c.newContext()
+	defer cancel()
+	a := c.answers.insert(id, cancel)
 	if a == nil {
 		// Question ID reused, error out.
 		retmsg := newReturnMessage(nil, id)
@@ -561,7 +574,17 @@ func (c *Conn) handleBootstrapMessage(id answerID) error {
 		return c.sendMessage(retmsg)
 	}
 	msgs := make([]rpccapnp.Message, 0, 1)
-	if c.main == nil {
+	if c.mainFunc == nil {
+		msgs = a.reject(msgs, errNoMainInterface)
+		for _, m := range msgs {
+			if err := c.sendMessage(m); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	main, err := c.mainFunc(ctx)
+	if err != nil {
 		msgs = a.reject(msgs, errNoMainInterface)
 		for _, m := range msgs {
 			if err := c.sendMessage(m); err != nil {
@@ -572,7 +595,7 @@ func (c *Conn) handleBootstrapMessage(id answerID) error {
 	}
 	m := &capnp.Message{
 		Arena:    capnp.SingleSegment(make([]byte, 0)),
-		CapTable: []capnp.Client{c.main},
+		CapTable: []capnp.Client{main},
 	}
 	s, _ := m.Segment(0)
 	in := capnp.NewInterface(s, 0)
