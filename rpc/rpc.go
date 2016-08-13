@@ -3,18 +3,21 @@ package rpc // import "zombiezen.com/go/capnproto2/rpc"
 
 import (
 	"fmt"
+	"io"
 	"log"
 
 	"golang.org/x/net/context"
 	"zombiezen.com/go/capnproto2"
+	"zombiezen.com/go/capnproto2/rpc/internal/refcount"
 	rpccapnp "zombiezen.com/go/capnproto2/std/capnp/rpc"
 )
 
 // A Conn is a connection to another Cap'n Proto vat.
 // It is safe to use from multiple goroutines.
 type Conn struct {
-	transport Transport
-	mainFunc  func(context.Context) (capnp.Client, error)
+	transport  Transport
+	mainFunc   func(context.Context) (capnp.Client, error)
+	mainCloser io.Closer
 
 	manager     manager
 	in          <-chan rpccapnp.Message
@@ -35,6 +38,7 @@ type Conn struct {
 
 type connParams struct {
 	mainFunc       func(context.Context) (capnp.Client, error)
+	mainCloser     io.Closer
 	sendBufferSize int
 }
 
@@ -45,12 +49,15 @@ type ConnOption struct {
 
 // MainInterface specifies that the connection should use client when
 // receiving bootstrap messages.  By default, all bootstrap messages will
-// fail.
+// fail.  The client will be closed when the connection is closed.
 func MainInterface(client capnp.Client) ConnOption {
+	rc, ref1 := refcount.New(client)
+	ref2 := rc.Ref()
 	return ConnOption{func(c *connParams) {
 		c.mainFunc = func(ctx context.Context) (capnp.Client, error) {
-			return client, nil
+			return ref1, nil
 		}
+		c.mainCloser = ref2
 	}}
 }
 
@@ -84,6 +91,7 @@ func NewConn(t Transport, options ...ConnOption) *Conn {
 		o.f(p)
 	}
 	conn.mainFunc = p.mainFunc
+	conn.mainCloser = p.mainCloser
 	i := make(chan rpccapnp.Message)
 	o := make(chan rpccapnp.Message, p.sendBufferSize)
 	calls := make(chan *appCall)
@@ -170,6 +178,11 @@ func (c *Conn) coordinate() {
 		case qcc := <-c.queueCloses:
 			c.handleQueueClose(qcc)
 		case <-c.manager.finish:
+			if c.mainCloser != nil {
+				if err := c.mainCloser.Close(); err != nil {
+					log.Println("rpc: closing main interface:", err)
+				}
+			}
 			return
 		}
 	}
