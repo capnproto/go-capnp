@@ -22,6 +22,11 @@ func (echoImpl) Echo(call air.Echo_echo) error {
 
 func TestServerCall(t *testing.T) {
 	echo := air.Echo_ServerToClient(echoImpl{})
+	defer func() {
+		if err := echo.Client.Close(); err != nil {
+			t.Error("Close:", err)
+		}
+	}()
 
 	result, err := echo.Echo(context.Background(), func(p air.Echo_echo_Params) error {
 		err := p.SetIn("foo")
@@ -62,11 +67,19 @@ func (seq *lockCallSeq) GetNumber(call air.CallSequence_getNumber) error {
 }
 
 func TestServerCallOrder(t *testing.T) {
-	testCallOrder(t, air.CallSequence_ServerToClient(new(callSeq)))
+	seq := air.CallSequence_ServerToClient(new(callSeq))
+	testCallOrder(t, seq)
+	if err := seq.Client.Close(); err != nil {
+		t.Error("Close:", err)
+	}
 }
 
 func TestServerCallOrderWithCustomLocks(t *testing.T) {
-	testCallOrder(t, air.CallSequence_ServerToClient(new(lockCallSeq)))
+	seq := air.CallSequence_ServerToClient(new(lockCallSeq))
+	testCallOrder(t, seq)
+	if err := seq.Client.Close(); err != nil {
+		t.Error("Close:", err)
+	}
 }
 
 func testCallOrder(t *testing.T, seq air.CallSequence) {

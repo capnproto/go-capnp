@@ -27,16 +27,13 @@ type Closer interface {
 	Close() error
 }
 
-// queueSize is the number of calls that can be made on a server
-// before Call blocks returning an answer.
-const queueSize = 64
-
 // A server is a locally implemented interface.
 type server struct {
 	methods sortedMethods
 	closer  Closer
 	queue   chan *call
 	stop    chan struct{}
+	done    chan struct{}
 }
 
 // New returns a client that makes calls to a set of methods.
@@ -48,8 +45,9 @@ func New(methods []Method, closer Closer) capnp.Client {
 	s := &server{
 		methods: make(sortedMethods, len(methods)),
 		closer:  closer,
-		queue:   make(chan *call, 64),
+		queue:   make(chan *call),
 		stop:    make(chan struct{}),
+		done:    make(chan struct{}),
 	}
 	copy(s.methods, methods)
 	sort.Sort(s.methods)
@@ -59,26 +57,17 @@ func New(methods []Method, closer Closer) capnp.Client {
 
 // dispatch runs in its own goroutine.
 func (s *server) dispatch() {
-dispatch:
+	defer close(s.done)
 	for {
 		select {
-		case cl, ok := <-s.queue:
-			if !ok {
-				return
-			}
+		case cl := <-s.queue:
 			err := s.startCall(cl)
 			if err != nil {
 				cl.ans.Reject(err)
-				continue dispatch
 			}
 		case <-s.stop:
-			break dispatch
+			return
 		}
-	}
-
-	// Close() has been called, flush the queue.
-	for cl := range s.queue {
-		cl.ans.Reject(errClosed)
 	}
 }
 
@@ -130,6 +119,8 @@ func (s *server) Call(cl *capnp.Call) capnp.Answer {
 	select {
 	case s.queue <- scall:
 		return &scall.ans
+	case <-s.stop:
+		return capnp.ErrorAnswer(errClosed)
 	case <-cl.Ctx.Done():
 		return capnp.ErrorAnswer(cl.Ctx.Err())
 	}
@@ -137,7 +128,7 @@ func (s *server) Call(cl *capnp.Call) capnp.Answer {
 
 func (s *server) Close() error {
 	close(s.stop)
-	close(s.queue)
+	<-s.done
 	if s.closer == nil {
 		return nil
 	}
