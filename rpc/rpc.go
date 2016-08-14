@@ -178,6 +178,7 @@ func (c *Conn) coordinate() {
 		case qcc := <-c.queueCloses:
 			c.handleQueueClose(qcc)
 		case <-c.manager.finish:
+			c.exports.releaseAll()
 			if c.mainCloser != nil {
 				if err := c.mainCloser.Close(); err != nil {
 					log.Println("rpc: closing main interface:", err)

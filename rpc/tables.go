@@ -182,6 +182,19 @@ func (et *exportTable) release(id exportID, refs int) {
 	et.gen.remove(uint32(id))
 }
 
+func (et *exportTable) releaseAll() {
+	for id, e := range et.tab {
+		if e == nil {
+			continue
+		}
+		if err := e.client.Close(); err != nil {
+			log.Printf("rpc: export %v close: %v", id, err)
+		}
+		et.tab[id] = nil
+		et.gen.remove(uint32(id))
+	}
+}
+
 // releaseList decrements the reference count of each of the given exports by 1.
 func (et *exportTable) releaseList(ids []exportID) {
 	for _, id := range ids {
