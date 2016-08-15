@@ -52,9 +52,9 @@ func (m *manager) do(f func()) {
 	}
 }
 
-// shutdown closes the finish channel and sets the error.
-// The first call to shutdown returns true; subsequent calls are no-ops
-// and return false.
+// shutdown closes the finish channel and sets the error.  The first
+// call to shutdown returns true; subsequent calls are no-ops and return
+// false.  This will not wait for the manager's goroutines to finish.
 func (m *manager) shutdown(e error) bool {
 	m.mu.Lock()
 	ok := !m.done
@@ -64,10 +64,14 @@ func (m *manager) shutdown(e error) bool {
 		m.e = e
 	}
 	m.mu.Unlock()
-	if ok {
-		m.wg.Wait()
-	}
 	return ok
+}
+
+// wait blocks until the manager is shut down and all of its goroutines
+// are finished.
+func (m *manager) wait() {
+	<-m.finish
+	m.wg.Wait()
 }
 
 // err returns the error passed to shutdown.

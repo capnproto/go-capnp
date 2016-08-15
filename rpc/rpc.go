@@ -129,7 +129,7 @@ func NewConn(t Transport, options ...ConnOption) *Conn {
 // Wait waits until the connection is closed or aborted by the remote vat.
 // Wait will always return an error, usually ErrConnClosed or of type Abort.
 func (c *Conn) Wait() error {
-	<-c.manager.finish
+	c.manager.wait()
 	return c.manager.err()
 }
 
@@ -139,6 +139,7 @@ func (c *Conn) Close() error {
 	if !c.manager.shutdown(ErrConnClosed) {
 		return ErrConnClosed
 	}
+	c.manager.wait()
 	// Hang up.
 	// TODO(light): add timeout to write.
 	ctx := context.Background()
