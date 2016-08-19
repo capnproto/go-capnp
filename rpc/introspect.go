@@ -1,25 +1,27 @@
 package rpc
 
 import (
-	"log"
-
 	"zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/internal/fulfiller"
 	rpccapnp "zombiezen.com/go/capnproto2/std/capnp/rpc"
 )
 
-// nestedCall is called from the coordinate goroutine to make a client call.
-// Since the client may point
-func (c *Conn) nestedCall(client capnp.Client, cl *capnp.Call) capnp.Answer {
+// lockedCall is used to make a call to an arbitrary client while
+// holding onto c.mu.  Since the client could point back to c, naively
+// calling c.Call could deadlock.
+func (c *Conn) lockedCall(client capnp.Client, cl *capnp.Call) capnp.Answer {
 	client = extractRPCClient(client)
-	ac := appCallFromClientCall(c, client, cl)
-	if ac != nil {
-		ans, err := c.handleCall(ac)
-		if err != nil {
-			log.Println("rpc: failed to handle call:", err)
-			return capnp.ErrorAnswer(err)
+	switch client := client.(type) {
+	case *importClient:
+		if client.conn != c {
+			return client.Call(cl)
 		}
-		return ans
+		return client.lockedCall(cl)
+	case *capnp.PipelineClient:
+		p := (*capnp.Pipeline)(client)
+		if q, ok := p.Answer().(*question); ok && q.conn == c {
+			return q.lockedPipelineCall(p.Transform(), cl)
+		}
 	}
 	// TODO(light): Add a CallOption that signals to bypass sync.
 	// The above hack works in *most* cases.
@@ -30,10 +32,10 @@ func (c *Conn) nestedCall(client capnp.Client, cl *capnp.Call) capnp.Answer {
 	// 2) Arbitrary implementations of Client may exist
 	// 3) Local E-order must be preserved
 	//
-	// #3 is the one that creates a goroutine send cycle, since
-	// application code must synchronize with the coordinate goroutine
-	// to preserve order of delivery.  You can't really overcome this
-	// without breaking one of the first two constraints.
+	// #3 is the one that creates a deadlock, since application code must
+	// acquire the connection mutex to preserve order of delivery.  You
+	// can't really overcome this without breaking one of the first two
+	// constraints.
 	//
 	// To avoid #2 as much as possible, implementing Client is discouraged
 	// by several docs.
@@ -42,13 +44,13 @@ func (c *Conn) nestedCall(client capnp.Client, cl *capnp.Call) capnp.Answer {
 
 func (c *Conn) descriptorForClient(desc rpccapnp.CapDescriptor, client capnp.Client) error {
 	client = extractRPCClient(client)
-	if ic, ok := client.(*importClient); ok && isImportFromConn(ic, c) {
+	if ic, ok := client.(*importClient); ok && ic.conn == c {
 		desc.SetReceiverHosted(uint32(ic.id))
 		return nil
 	}
 	if pc, ok := client.(*capnp.PipelineClient); ok {
 		p := (*capnp.Pipeline)(pc)
-		if q, ok := p.Answer().(*question); ok && isQuestionFromConn(q, c) {
+		if q, ok := p.Answer().(*question); ok && q.conn == c {
 			a, err := desc.NewReceiverAnswer()
 			if err != nil {
 				return err
@@ -63,21 +65,6 @@ func (c *Conn) descriptorForClient(desc rpccapnp.CapDescriptor, client capnp.Cli
 	}
 	id := c.addExport(client)
 	desc.SetSenderHosted(uint32(id))
-	return nil
-}
-
-func appCallFromClientCall(c *Conn, client capnp.Client, cl *capnp.Call) *appCall {
-	if ic, ok := client.(*importClient); ok && isImportFromConn(ic, c) {
-		ac, _ := newAppImportCall(ic.id, cl)
-		return ac
-	}
-	if pc, ok := client.(*capnp.PipelineClient); ok {
-		p := (*capnp.Pipeline)(pc)
-		if q, ok := p.Answer().(*question); ok && isQuestionFromConn(q, c) {
-			ac, _ := newAppPipelineCall(q, p.Transform(), cl)
-			return ac
-		}
-	}
 	return nil
 }
 
@@ -117,15 +104,17 @@ func extractRPCClientFromPipeline(ans capnp.Answer, transform []capnp.PipelineOp
 	case *fulfiller.Fulfiller:
 		ap := a.Peek()
 		if ap == nil {
-			// This can race, see TODO in nestedCall.
+			// This can race, see TODO in lockedCall.
 			return nil
 		}
 		s, err := ap.Struct()
 		return clientFromResolution(transform, s.ToPtr(), err)
 	case *question:
-		_, obj, err, ok := a.peek()
-		if !ok {
-			// This can race, see TODO in nestedCall.
+		a.mu.RLock()
+		obj, err, state := a.obj, a.err, a.state
+		a.mu.RUnlock()
+		if state == questionInProgress {
+			// This can race, see TODO in lockedCall.
 			return nil
 		}
 		return clientFromResolution(transform, obj, err)
@@ -140,14 +129,4 @@ func extractRPCClientFromPipeline(ans capnp.Answer, transform []capnp.PipelineOp
 // TODO(light): this should probably be exported at some point.
 type clientWrapper interface {
 	WrappedClient() capnp.Client
-}
-
-func isQuestionFromConn(q *question, c *Conn) bool {
-	// TODO(light): ideally there would be better ways to check.
-	return q.manager == &c.manager
-}
-
-func isImportFromConn(ic *importClient, c *Conn) bool {
-	// TODO(light): ideally there would be better ways to check.
-	return ic.manager == &c.manager
 }

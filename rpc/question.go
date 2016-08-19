@@ -15,10 +15,8 @@ func (c *Conn) newQuestion(ctx context.Context, method *capnp.Method) *question 
 	id := questionID(c.questionID.next())
 	q := &question{
 		ctx:      ctx,
+		conn:     c,
 		method:   method,
-		manager:  &c.manager,
-		calls:    c.calls,
-		cancels:  c.cancels,
 		resolved: make(chan struct{}),
 		id:       id,
 	}
@@ -49,21 +47,21 @@ func (c *Conn) popQuestion(id questionID) *question {
 }
 
 type question struct {
+	id        questionID
 	ctx       context.Context
+	conn      *Conn
 	method    *capnp.Method // nil if this is bootstrap
 	paramCaps []exportID
-	calls     chan<- *appCall
-	cancels   chan<- *question
-	manager   *manager
 	resolved  chan struct{}
 
-	// Fields below are protected by mu.
-	mu      sync.RWMutex
-	id      questionID
-	obj     capnp.Ptr
-	err     error
-	state   questionState
+	// Protected by conn.mu
 	derived [][]capnp.PipelineOp
+
+	// Fields below are protected by mu.
+	mu    sync.RWMutex
+	obj   capnp.Ptr
+	err   error
+	state questionState
 }
 
 type questionState uint8
@@ -80,29 +78,28 @@ func (q *question) start() {
 	go func() {
 		select {
 		case <-q.resolved:
+			// Resolved naturally, nothing to do.
 		case <-q.ctx.Done():
 			select {
-			case q.cancels <- q:
+			case <-q.conn.mu:
+				q.reject(questionCanceled, q.ctx.Err())
+				// TODO(light): timeout?
+				q.conn.sendMessage(newFinishMessage(nil, q.id, true /* release */))
+				q.conn.mu.Unlock()
 			case <-q.resolved:
-			case <-q.manager.finish:
+			case <-q.conn.manager.finish:
 			}
-		case <-q.manager.finish:
+		case <-q.conn.manager.finish:
 			// TODO(light): connection should reject all questions on shutdown.
 		}
 	}()
 }
 
-// fulfill is called to resolve a question successfully and returns the disembargoes.
-// It must be called from the coordinate goroutine.
-func (q *question) fulfill(obj capnp.Ptr, makeDisembargo func() (embargoID, embargo)) []rpccapnp.Message {
-	q.mu.Lock()
-	if q.state != questionInProgress {
-		q.mu.Unlock()
-		panic("question.fulfill called more than once")
-	}
+// fulfill is called to resolve a question successfully.
+// The caller must be holding onto q.conn.mu.
+func (q *question) fulfill(obj capnp.Ptr) {
 	ctab := obj.Segment().Message().CapTable
 	visited := make([]bool, len(ctab))
-	msgs := make([]rpccapnp.Message, 0, len(q.derived))
 	for _, d := range q.derived {
 		tgt, err := capnp.TransformPtr(obj, d)
 		if err != nil {
@@ -113,39 +110,49 @@ func (q *question) fulfill(obj capnp.Ptr, makeDisembargo func() (embargoID, emba
 			continue
 		}
 		client := extractRPCClient(in.Client())
-		if ic, ok := client.(*importClient); ok && ic.manager == q.manager {
+		if ic, ok := client.(*importClient); ok && ic.conn == q.conn {
 			// Imported from remote vat.  Don't need to disembargo.
 			continue
 		}
-		if cn := in.Capability(); !visited[cn] {
-			id, e := makeDisembargo()
-			ctab[cn] = newEmbargoClient(q.manager, ctab[cn], e)
-			m := newDisembargoMessage(nil, rpccapnp.Disembargo_context_Which_senderLoopback, id)
-			dis, _ := m.Disembargo()
-			mt, _ := dis.NewTarget()
-			pa, _ := mt.NewPromisedAnswer()
-			pa.SetQuestionId(uint32(q.id))
-			transformToPromisedAnswer(m.Segment(), pa, d)
-			mt.SetPromisedAnswer(pa)
-			msgs = append(msgs, m)
-			visited[cn] = true
+		cn := in.Capability()
+		if visited[cn] {
+			continue
 		}
+		visited[cn] = true
+		id, e := q.conn.newEmbargo()
+		ctab[cn] = newEmbargoClient(&q.conn.manager, ctab[cn], e)
+		m := newDisembargoMessage(nil, rpccapnp.Disembargo_context_Which_senderLoopback, id)
+		dis, _ := m.Disembargo()
+		mt, _ := dis.NewTarget()
+		pa, _ := mt.NewPromisedAnswer()
+		pa.SetQuestionId(uint32(q.id))
+		transformToPromisedAnswer(m.Segment(), pa, d)
+		mt.SetPromisedAnswer(pa)
+
+		select {
+		case q.conn.out <- m:
+		case <-q.conn.manager.finish:
+			// TODO(soon): perhaps just drop all embargoes in this case?
+		}
+	}
+
+	q.mu.Lock()
+	if q.state != questionInProgress {
+		panic("question.fulfill called more than once")
 	}
 	q.obj, q.state = obj, questionResolved
 	close(q.resolved)
 	q.mu.Unlock()
-	return msgs
 }
 
 // reject is called to resolve a question with failure.
-// It must be called from the coordinate goroutine.
+// The caller must be holding onto q.conn.mu.
 func (q *question) reject(state questionState, err error) {
 	if err == nil {
 		panic("question.reject called with nil")
 	}
 	q.mu.Lock()
 	if q.state != questionInProgress {
-		q.mu.Unlock()
 		panic("question.reject called more than once")
 	}
 	q.err, q.state = err, state
@@ -153,16 +160,10 @@ func (q *question) reject(state questionState, err error) {
 	q.mu.Unlock()
 }
 
-func (q *question) peek() (id questionID, obj capnp.Ptr, err error, ok bool) {
-	q.mu.RLock()
-	id, obj, err, ok = q.id, q.obj, q.err, q.state != questionInProgress
-	q.mu.RUnlock()
-	return
-}
-
+// addPromise records a returned capability as being used for a call.
+// This is needed for determining embargoes upon resolution.  The
+// caller must be holding onto q.conn.mu.
 func (q *question) addPromise(transform []capnp.PipelineOp) {
-	q.mu.Lock()
-	defer q.mu.Unlock()
 	for _, d := range q.derived {
 		if transformsEqual(transform, d) {
 			return
@@ -184,33 +185,85 @@ func transformsEqual(t, u []capnp.PipelineOp) bool {
 }
 
 func (q *question) Struct() (capnp.Struct, error) {
-	<-q.resolved
-	_, obj, err, _ := q.peek()
-	return obj.Struct(), err
+	select {
+	case <-q.resolved:
+	case <-q.conn.manager.finish:
+		return capnp.Struct{}, q.conn.manager.err()
+	}
+	q.mu.RLock()
+	s, err := q.obj.Struct(), q.err
+	q.mu.RUnlock()
+	return s, err
 }
 
 func (q *question) PipelineCall(transform []capnp.PipelineOp, ccall *capnp.Call) capnp.Answer {
-	ac, achan := newAppPipelineCall(q, transform, ccall)
 	select {
-	case q.calls <- ac:
+	case <-q.conn.mu:
 	case <-ccall.Ctx.Done():
 		return capnp.ErrorAnswer(ccall.Ctx.Err())
-	case <-q.manager.finish:
-		return capnp.ErrorAnswer(q.manager.err())
+	case <-q.conn.manager.finish:
+		return capnp.ErrorAnswer(q.conn.manager.err())
 	}
+	ans := q.lockedPipelineCall(transform, ccall)
+	q.conn.mu.Unlock()
+	return ans
+}
+
+// lockedPipelineCall is equivalent to PipelineCall but assumes that the
+// caller is already holding onto q.conn.mu.
+func (q *question) lockedPipelineCall(transform []capnp.PipelineOp, ccall *capnp.Call) capnp.Answer {
+	if q.conn.findQuestion(q.id) != q {
+		// Question has been finished.  The call should happen as if it is
+		// back in application code.
+		q.mu.RLock()
+		obj, err, state := q.obj, q.err, q.state
+		q.mu.RUnlock()
+		if state == questionInProgress {
+			panic("question popped but not done")
+		}
+		client := clientFromResolution(transform, obj, err)
+		return q.conn.lockedCall(client, ccall)
+	}
+
+	pipeq := q.conn.newQuestion(ccall.Ctx, &ccall.Method)
+	msg := newMessage(nil)
+	msgCall, _ := msg.NewCall()
+	msgCall.SetQuestionId(uint32(pipeq.id))
+	msgCall.SetInterfaceId(ccall.Method.InterfaceID)
+	msgCall.SetMethodId(ccall.Method.MethodID)
+	target, _ := msgCall.NewTarget()
+	a, _ := target.NewPromisedAnswer()
+	a.SetQuestionId(uint32(q.id))
+	err := transformToPromisedAnswer(a.Segment(), a, transform)
+	if err != nil {
+		q.conn.popQuestion(pipeq.id)
+		return capnp.ErrorAnswer(err)
+	}
+	payload, _ := msgCall.NewParams()
+	if err := q.conn.fillParams(payload, ccall); err != nil {
+		q.conn.popQuestion(q.id)
+		return capnp.ErrorAnswer(err)
+	}
+
 	select {
-	case a := <-achan:
-		return a
+	case q.conn.out <- msg:
 	case <-ccall.Ctx.Done():
+		q.conn.popQuestion(pipeq.id)
 		return capnp.ErrorAnswer(ccall.Ctx.Err())
-	case <-q.manager.finish:
-		return capnp.ErrorAnswer(q.manager.err())
+	case <-q.conn.manager.finish:
+		q.conn.popQuestion(pipeq.id)
+		return capnp.ErrorAnswer(q.conn.manager.err())
 	}
+	q.addPromise(transform)
+	pipeq.start()
+	return pipeq
 }
 
 func (q *question) PipelineClose(transform []capnp.PipelineOp) error {
 	<-q.resolved
-	_, obj, err, _ := q.peek()
+	q.mu.RLock()
+	obj, err := q.obj, q.err
+	q.mu.RUnlock()
 	if err != nil {
 		return err
 	}

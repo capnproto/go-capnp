@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"errors"
 	"log"
 
 	"zombiezen.com/go/capnproto2"
@@ -31,10 +32,8 @@ func (c *Conn) addImport(id importID) capnp.Client {
 	var ref capnp.Client
 	if ent == nil {
 		client := &importClient{
-			id:       id,
-			manager:  &c.manager,
-			calls:    c.calls,
-			releases: c.releases,
+			id:   id,
+			conn: c,
 		}
 		var rc *refcount.RefCount
 		rc, ref = refcount.New(client)
@@ -62,53 +61,88 @@ func (c *Conn) popImport(id importID) (refs int) {
 	return refs
 }
 
-// An outgoingRelease is a message sent to the coordinate goroutine to
-// indicate that an import should be released.
-type outgoingRelease struct {
-	id    importID
-	echan chan<- error
-}
-
 // An importClient implements capnp.Client for a remote capability.
 type importClient struct {
-	id       importID
-	manager  *manager
-	calls    chan<- *appCall
-	releases chan<- *outgoingRelease
+	id     importID
+	conn   *Conn
+	closed bool // protected by conn.mu
 }
 
 func (ic *importClient) Call(cl *capnp.Call) capnp.Answer {
-	// TODO(light): don't send if closed.
-	ac, achan := newAppImportCall(ic.id, cl)
 	select {
-	case ic.calls <- ac:
-		select {
-		case a := <-achan:
-			return a
-		case <-ic.manager.finish:
-			return capnp.ErrorAnswer(ic.manager.err())
-		}
-	case <-ic.manager.finish:
-		return capnp.ErrorAnswer(ic.manager.err())
+	case <-ic.conn.mu:
+	case <-cl.Ctx.Done():
+		return capnp.ErrorAnswer(cl.Ctx.Err())
+	case <-ic.conn.manager.finish:
+		return capnp.ErrorAnswer(ic.conn.manager.err())
 	}
+	ans := ic.lockedCall(cl)
+	ic.conn.mu.Unlock()
+	return ans
+}
+
+// lockedCall is equivalent to Call but assumes that the caller is
+// already holding onto ic.conn.mu.
+func (ic *importClient) lockedCall(cl *capnp.Call) capnp.Answer {
+	if ic.closed {
+		return capnp.ErrorAnswer(errImportClosed)
+	}
+
+	q := ic.conn.newQuestion(cl.Ctx, &cl.Method)
+	msg := newMessage(nil)
+	msgCall, _ := msg.NewCall()
+	msgCall.SetQuestionId(uint32(q.id))
+	msgCall.SetInterfaceId(cl.Method.InterfaceID)
+	msgCall.SetMethodId(cl.Method.MethodID)
+	target, _ := msgCall.NewTarget()
+	target.SetImportedCap(uint32(ic.id))
+	payload, _ := msgCall.NewParams()
+	if err := ic.conn.fillParams(payload, cl); err != nil {
+		ic.conn.popQuestion(q.id)
+		return capnp.ErrorAnswer(err)
+	}
+
+	select {
+	case ic.conn.out <- msg:
+	case <-cl.Ctx.Done():
+		ic.conn.popQuestion(q.id)
+		return capnp.ErrorAnswer(cl.Ctx.Err())
+	case <-ic.conn.manager.finish:
+		ic.conn.popQuestion(q.id)
+		return capnp.ErrorAnswer(ic.conn.manager.err())
+	}
+	q.start()
+	return q
 }
 
 func (ic *importClient) Close() error {
-	echan := make(chan error, 1)
-	r := &outgoingRelease{
-		id:    ic.id,
-		echan: echan,
+	ic.conn.mu.Lock()
+	closed := ic.closed
+	var i int
+	if !closed {
+		i = ic.conn.popImport(ic.id)
+		ic.closed = true
 	}
+	ic.conn.mu.Unlock()
+
+	if closed {
+		return errImportClosed
+	}
+	if i == 0 {
+		return nil
+	}
+	msg := newMessage(nil)
+	mr, err := msg.NewRelease()
+	if err != nil {
+		return err
+	}
+	mr.SetId(uint32(ic.id))
+	mr.SetReferenceCount(uint32(i))
 	select {
-	case ic.releases <- r:
-		select {
-		case err := <-echan:
-			return err
-		case <-ic.manager.finish:
-			return ic.manager.err()
-		}
-	case <-ic.manager.finish:
-		return ic.manager.err()
+	case ic.conn.out <- msg:
+		return nil
+	case <-ic.conn.manager.finish:
+		return ic.conn.manager.err()
 	}
 }
 
@@ -230,3 +264,5 @@ func (gen *idgen) next() uint32 {
 func (gen *idgen) remove(i uint32) {
 	gen.free = append(gen.free, i)
 }
+
+var errImportClosed = errors.New("rpc: call on closed import")
