@@ -232,8 +232,9 @@ type embargoClient struct {
 	client  capnp.Client
 	embargo embargo
 
-	mu sync.RWMutex
-	q  queue.Queue
+	mu    sync.RWMutex
+	q     queue.Queue
+	calls ecallList
 }
 
 func newEmbargoClient(manager *manager, client capnp.Client, e embargo) *embargoClient {
@@ -241,8 +242,9 @@ func newEmbargoClient(manager *manager, client capnp.Client, e embargo) *embargo
 		manager: manager,
 		client:  client,
 		embargo: e,
+		calls:   make(ecallList, callQueueSize),
 	}
-	ec.q.Init(make(ecallList, callQueueSize), 0)
+	ec.q.Init(ec.calls, 0)
 	go ec.flushQueue()
 	return ec
 }
@@ -253,24 +255,12 @@ func (ec *embargoClient) push(cl *capnp.Call) capnp.Answer {
 	if err != nil {
 		return capnp.ErrorAnswer(err)
 	}
-	if ok := ec.q.Push(ecall{cl, f}); !ok {
+	i := ec.q.Push()
+	if i == -1 {
 		return capnp.ErrorAnswer(errQueueFull)
 	}
+	ec.calls[i] = ecall{cl, f}
 	return f
-}
-
-func (ec *embargoClient) peek() ecall {
-	if ec.q.Len() == 0 {
-		return ecall{}
-	}
-	return ec.q.Peek().(ecall)
-}
-
-func (ec *embargoClient) pop() ecall {
-	if ec.q.Len() == 0 {
-		return ecall{}
-	}
-	return ec.q.Pop().(ecall)
 }
 
 func (ec *embargoClient) Call(cl *capnp.Call) capnp.Answer {
@@ -313,11 +303,8 @@ func (ec *embargoClient) isPassthrough() bool {
 
 func (ec *embargoClient) Close() error {
 	ec.mu.Lock()
-	for {
-		c := ec.pop()
-		if c.call == nil {
-			break
-		}
+	for ; ec.q.Len() > 0; ec.q.Pop() {
+		c := ec.calls[ec.q.Front()]
 		c.f.Reject(errQueueCallCancel)
 	}
 	ec.mu.Unlock()
@@ -331,15 +318,23 @@ func (ec *embargoClient) flushQueue() {
 	case <-ec.manager.finish:
 		return
 	}
+	var c ecall
 	ec.mu.RLock()
-	c := ec.peek()
+	if i := ec.q.Front(); i != -1 {
+		c = ec.calls[i]
+	}
 	ec.mu.RUnlock()
 	for c.call != nil {
 		ans := ec.client.Call(c.call)
 		go joinFulfiller(c.f, ans)
+
 		ec.mu.Lock()
-		ec.pop()
-		c = ec.peek()
+		ec.q.Pop()
+		if i := ec.q.Front(); i != -1 {
+			c = ec.calls[i]
+		} else {
+			c = ecall{}
+		}
 		ec.mu.Unlock()
 	}
 }
@@ -355,14 +350,6 @@ func (el ecallList) Len() int {
 	return len(el)
 }
 
-func (el ecallList) At(i int) interface{} {
-	return el[i]
-}
-
-func (el ecallList) Set(i int, x interface{}) {
-	if x == nil {
-		el[i] = ecall{}
-	} else {
-		el[i] = x.(ecall)
-	}
+func (el ecallList) Clear(i int) {
+	el[i] = ecall{}
 }

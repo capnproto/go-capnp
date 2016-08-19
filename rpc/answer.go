@@ -262,8 +262,9 @@ type queueClient struct {
 	out     chan<- rpccapnp.Message
 	closes  chan<- queueClientClose
 
-	mu sync.RWMutex
-	q  queue.Queue
+	mu    sync.RWMutex
+	q     queue.Queue
+	calls qcallList
 }
 
 func newQueueClient(m *manager, client capnp.Client, queue []qcall, out chan<- rpccapnp.Message, closes chan<- queueClientClose) *queueClient {
@@ -272,10 +273,9 @@ func newQueueClient(m *manager, client capnp.Client, queue []qcall, out chan<- r
 		client:  client,
 		out:     out,
 		closes:  closes,
+		calls:   make(qcallList, callQueueSize),
 	}
-	qq := make(qcallList, callQueueSize)
-	n := copy(qq, queue)
-	qc.q.Init(qq, n)
+	qc.q.Init(qc.calls, copy(qc.calls, queue))
 	go qc.flushQueue()
 	return qc
 }
@@ -286,45 +286,41 @@ func (qc *queueClient) pushCall(cl *capnp.Call) capnp.Answer {
 	if err != nil {
 		return capnp.ErrorAnswer(err)
 	}
-	if ok := qc.q.Push(qcall{call: cl, f: f}); !ok {
+	i := qc.q.Push()
+	if i == -1 {
 		return capnp.ErrorAnswer(errQueueFull)
 	}
+	qc.calls[i] = qcall{call: cl, f: f}
 	return f
 }
 
 func (qc *queueClient) pushEmbargo(id embargoID, tgt rpccapnp.MessageTarget) error {
-	ok := qc.q.Push(qcall{embargoID: id, embargoTarget: tgt})
-	if !ok {
+	i := qc.q.Push()
+	if i == -1 {
 		return errQueueFull
 	}
+	qc.calls[i] = qcall{embargoID: id, embargoTarget: tgt}
 	return nil
-}
-
-func (qc *queueClient) peek() qcall {
-	if qc.q.Len() == 0 {
-		return qcall{}
-	}
-	return qc.q.Peek().(qcall)
-}
-
-func (qc *queueClient) pop() qcall {
-	if qc.q.Len() == 0 {
-		return qcall{}
-	}
-	return qc.q.Pop().(qcall)
 }
 
 // flushQueue is run in its own goroutine.
 func (qc *queueClient) flushQueue() {
+	var c qcall
 	qc.mu.RLock()
-	c := qc.peek()
+	if i := qc.q.Front(); i != -1 {
+		c = qc.calls[i]
+	}
 	qc.mu.RUnlock()
 	for c.which() != qcallInvalid {
 		qc.handle(&c)
 
 		qc.mu.Lock()
-		qc.pop()
-		c = qc.peek()
+		qc.q.Pop()
+		if i := qc.q.Front(); i != -1 {
+			c = qc.calls[i]
+		} else {
+			c = qcall{}
+		}
 		qc.mu.Unlock()
 	}
 }
@@ -398,8 +394,8 @@ func (qc *queueClient) Close() error {
 // rejectQueue is called from the coordinate goroutine to close out a queueClient.
 func (qc *queueClient) rejectQueue(msgs []rpccapnp.Message) []rpccapnp.Message {
 	qc.mu.Lock()
-	for {
-		c := qc.pop()
+	for ; qc.q.Len() > 0; qc.q.Pop() {
+		c := qc.calls[qc.q.Front()]
 		if w := c.which(); w == qcallRemoteCall {
 			msgs = c.a.reject(msgs, errQueueCallCancel)
 		} else if w == qcallLocalCall {
@@ -409,8 +405,6 @@ func (qc *queueClient) rejectQueue(msgs []rpccapnp.Message) []rpccapnp.Message {
 			d, _ := m.Disembargo()
 			d.SetTarget(c.embargoTarget)
 			msgs = append(msgs, m)
-		} else {
-			break
 		}
 	}
 	qc.mu.Unlock()
@@ -469,16 +463,8 @@ func (ql qcallList) Len() int {
 	return len(ql)
 }
 
-func (ql qcallList) At(i int) interface{} {
-	return ql[i]
-}
-
-func (ql qcallList) Set(i int, x interface{}) {
-	if x == nil {
-		ql[i] = qcall{}
-	} else {
-		ql[i] = x.(qcall)
-	}
+func (ql qcallList) Clear(i int) {
+	ql[i] = qcall{}
 }
 
 // A localAnswerClient is used to provide a pipelined client of an answer.
