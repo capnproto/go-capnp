@@ -61,7 +61,7 @@ func (c *Conn) descriptorForClient(desc rpccapnp.CapDescriptor, client capnp.Cli
 			return nil
 		}
 	}
-	id := c.exports.add(client)
+	id := c.addExport(client)
 	desc.SetSenderHosted(uint32(id))
 	return nil
 }

@@ -23,17 +23,20 @@ type Conn struct {
 	in          <-chan rpccapnp.Message
 	out         chan<- rpccapnp.Message
 	calls       chan *appCall
-	cancels     <-chan *question
+	cancels     chan *question
 	releases    chan *outgoingRelease
-	returns     <-chan *outgoingReturn
-	queueCloses <-chan queueClientClose
+	returns     chan *outgoingReturn
+	queueCloses chan queueClientClose
 
 	// Mutable state. Only accessed from coordinate goroutine.
-	questions questionTable
-	answers   answerTable
-	imports   importTable
-	exports   exportTable
-	embargoes embargoTable
+	questions  []*question
+	questionID idgen
+	exports    []*export
+	exportID   idgen
+	embargoes  []chan<- struct{}
+	embargoID  idgen
+	answers    map[answerID]*answer
+	imports    map[importID]*impent
 }
 
 type connParams struct {
@@ -82,40 +85,28 @@ func SendBufferSize(numMsgs int) ConnOption {
 // NewConn creates a new connection that communicates on c.
 // Closing the connection will cause c to be closed.
 func NewConn(t Transport, options ...ConnOption) *Conn {
-	conn := &Conn{transport: t}
 	p := &connParams{
 		sendBufferSize: 4,
 	}
-	conn.manager.init()
 	for _, o := range options {
 		o.f(p)
 	}
-	conn.mainFunc = p.mainFunc
-	conn.mainCloser = p.mainCloser
+
 	i := make(chan rpccapnp.Message)
 	o := make(chan rpccapnp.Message, p.sendBufferSize)
-	calls := make(chan *appCall)
-	cancels := make(chan *question)
-	rets := make(chan *outgoingReturn)
-	queueCloses := make(chan queueClientClose)
-	releases := make(chan *outgoingRelease)
-	conn.in, conn.out = i, o
-	conn.calls = calls
-	conn.cancels = cancels
-	conn.releases = releases
-	conn.returns = rets
-	conn.queueCloses = queueCloses
-	conn.questions.manager = &conn.manager
-	conn.questions.calls = calls
-	conn.questions.cancels = cancels
-	conn.answers.manager = &conn.manager
-	conn.answers.out = o
-	conn.answers.returns = rets
-	conn.answers.queueCloses = queueCloses
-	conn.imports.manager = &conn.manager
-	conn.imports.calls = calls
-	conn.imports.releases = releases
-
+	conn := &Conn{
+		transport:   t,
+		mainFunc:    p.mainFunc,
+		mainCloser:  p.mainCloser,
+		in:          i,
+		out:         o,
+		calls:       make(chan *appCall),
+		cancels:     make(chan *question),
+		returns:     make(chan *outgoingReturn),
+		queueCloses: make(chan queueClientClose),
+		releases:    make(chan *outgoingRelease),
+	}
+	conn.manager.init()
 	conn.manager.do(conn.coordinate)
 	conn.manager.do(func() {
 		dispatchRecv(&conn.manager, t, i)
@@ -179,7 +170,7 @@ func (c *Conn) coordinate() {
 		case qcc := <-c.queueCloses:
 			c.handleQueueClose(qcc)
 		case <-c.manager.finish:
-			c.exports.releaseAll()
+			c.releaseAllExports()
 			if c.mainCloser != nil {
 				if err := c.mainCloser.Close(); err != nil {
 					log.Println("rpc: closing main interface:", err)
@@ -238,10 +229,12 @@ func (c *Conn) handleMessage(m rpccapnp.Message) {
 			return
 		}
 		id := answerID(mfin.QuestionId())
-		a := c.answers.pop(id)
+		a := c.popAnswer(id)
 		a.cancel()
 		if mfin.ReleaseResultCaps() {
-			c.exports.releaseList(a.resultCaps)
+			for _, id := range a.resultCaps {
+				c.releaseExport(id, 1)
+			}
 		}
 	case rpccapnp.Message_Which_bootstrap:
 		boot, err := m.Bootstrap()
@@ -265,7 +258,7 @@ func (c *Conn) handleMessage(m rpccapnp.Message) {
 		}
 		id := exportID(rel.Id())
 		refs := int(rel.ReferenceCount())
-		c.exports.release(id, refs)
+		c.releaseExport(id, refs)
 	case rpccapnp.Message_Which_disembargo:
 		if err := c.handleDisembargoMessage(m); err != nil {
 			// Any failure in a disembargo is a protocol violation.
@@ -286,7 +279,7 @@ func newUnimplementedMessage(buf []byte, m rpccapnp.Message) rpccapnp.Message {
 
 // handleCall is run from the coordinate goroutine to send a question to a remote vat.
 func (c *Conn) handleCall(ac *appCall) (capnp.Answer, error) {
-	if ac.kind == appPipelineCall && c.questions.get(ac.question.id) != ac.question {
+	if ac.kind == appPipelineCall && c.findQuestion(ac.question.id) != ac.question {
 		// Question has been finished.  The call should happen as if it is
 		// back in application code.
 		_, obj, err, done := ac.question.peek()
@@ -296,9 +289,9 @@ func (c *Conn) handleCall(ac *appCall) (capnp.Answer, error) {
 		client := clientFromResolution(ac.transform, obj, err)
 		return c.nestedCall(client, ac.Call), nil
 	}
-	q := c.questions.new(ac.Ctx, &ac.Method)
+	q := c.newQuestion(ac.Ctx, &ac.Method)
 	if ac.kind == appPipelineCall {
-		pq := c.questions.get(ac.question.id)
+		pq := c.findQuestion(ac.question.id)
 		pq.addPromise(ac.transform)
 	}
 	msg, err := c.newCallMessage(nil, q.id, ac)
@@ -310,10 +303,10 @@ func (c *Conn) handleCall(ac *appCall) (capnp.Answer, error) {
 		q.start()
 		return q, nil
 	case <-ac.Ctx.Done():
-		c.questions.pop(q.id)
+		c.popQuestion(q.id)
 		return nil, ac.Ctx.Err()
 	case <-c.manager.finish:
-		c.questions.pop(q.id)
+		c.popQuestion(q.id)
 		return nil, c.manager.err()
 	}
 }
@@ -392,7 +385,7 @@ func (c *Conn) handleCancel(q *question) {
 // handleRelease is run in the coordinate goroutine to handle an import
 // client's release request.  It sends a release message for an import ID.
 func (c *Conn) handleRelease(id importID) error {
-	i := c.imports.pop(id)
+	i := c.popImport(id)
 	if i == 0 {
 		return nil
 	}
@@ -414,12 +407,14 @@ func (c *Conn) handleReturnMessage(m rpccapnp.Message) error {
 		return err
 	}
 	id := questionID(ret.AnswerId())
-	q := c.questions.pop(id)
+	q := c.popQuestion(id)
 	if q == nil {
 		return fmt.Errorf("received return for unknown question id=%d", id)
 	}
 	if ret.ReleaseParamCaps() {
-		c.exports.releaseList(q.paramCaps)
+		for _, id := range q.paramCaps {
+			c.releaseExport(id, 1)
+		}
 	}
 	if _, _, _, resolved := q.peek(); resolved {
 		// If the question was already resolved, that means it was canceled,
@@ -446,7 +441,7 @@ func (c *Conn) handleReturnMessage(m rpccapnp.Message) error {
 		if err != nil {
 			return err
 		}
-		disembargoes := q.fulfill(content, c.embargoes.new)
+		disembargoes := q.fulfill(content, c.newEmbargo)
 		for _, d := range disembargoes {
 			if err := c.sendMessage(d); err != nil {
 				// shutdown
@@ -510,7 +505,7 @@ func (c *Conn) populateMessageCapTable(payload rpccapnp.Payload) error {
 			msg.AddCap(nil)
 		case rpccapnp.CapDescriptor_Which_senderHosted:
 			id := importID(desc.SenderHosted())
-			client := c.imports.addRef(id)
+			client := c.addImport(id)
 			msg.AddCap(client)
 		case rpccapnp.CapDescriptor_Which_senderPromise:
 			// We do the same thing as senderHosted, above. @kentonv suggested this on
@@ -524,11 +519,11 @@ func (c *Conn) populateMessageCapTable(payload rpccapnp.Payload) error {
 			// >   messages sent to it will uselessly round-trip over the network
 			// >   rather than being delivered locally.
 			id := importID(desc.SenderPromise())
-			client := c.imports.addRef(id)
+			client := c.addImport(id)
 			msg.AddCap(client)
 		case rpccapnp.CapDescriptor_Which_receiverHosted:
 			id := exportID(desc.ReceiverHosted())
-			e := c.exports.get(id)
+			e := c.findExport(id)
 			if e == nil {
 				return fmt.Errorf("rpc: capability table references unknown export ID %d", id)
 			}
@@ -539,7 +534,7 @@ func (c *Conn) populateMessageCapTable(payload rpccapnp.Payload) error {
 				return err
 			}
 			id := answerID(recvAns.QuestionId())
-			a := c.answers.get(id)
+			a := c.answers[id]
 			if a == nil {
 				return fmt.Errorf("rpc: capability table references unknown answer ID %d", id)
 			}
@@ -580,7 +575,7 @@ func (c *Conn) makeCapTable(s *capnp.Segment) (rpccapnp.CapDescriptor_List, erro
 func (c *Conn) handleBootstrapMessage(id answerID) error {
 	ctx, cancel := c.newContext()
 	defer cancel()
-	a := c.answers.insert(id, cancel)
+	a := c.insertAnswer(id, cancel)
 	if a == nil {
 		// Question ID reused, error out.
 		retmsg := newReturnMessage(nil, id)
@@ -652,7 +647,7 @@ func (c *Conn) handleCallMessage(m rpccapnp.Message) error {
 	}
 	ctx, cancel := c.newContext()
 	id := answerID(mcall.QuestionId())
-	a := c.answers.insert(id, cancel)
+	a := c.insertAnswer(id, cancel)
 	if a == nil {
 		// Question ID reused, error out.
 		c.abort(errQuestionReused)
@@ -687,7 +682,7 @@ func (c *Conn) routeCallMessage(result *answer, mt rpccapnp.MessageTarget, cl *c
 	switch mt.Which() {
 	case rpccapnp.MessageTarget_Which_importedCap:
 		id := exportID(mt.ImportedCap())
-		e := c.exports.get(id)
+		e := c.findExport(id)
 		if e == nil {
 			return errBadTarget
 		}
@@ -703,7 +698,7 @@ func (c *Conn) routeCallMessage(result *answer, mt rpccapnp.MessageTarget, cl *c
 			// Grandfather paradox.
 			return errBadTarget
 		}
-		pa := c.answers.get(id)
+		pa := c.answers[id]
 		if pa == nil {
 			return errBadTarget
 		}
@@ -747,7 +742,7 @@ func (c *Conn) handleDisembargoMessage(msg rpccapnp.Message) error {
 			return err
 		}
 		aid := answerID(dpa.QuestionId())
-		a := c.answers.get(aid)
+		a := c.answers[aid]
 		if a == nil {
 			return errDisembargoMissingAnswer
 		}
@@ -771,7 +766,7 @@ func (c *Conn) handleDisembargoMessage(msg rpccapnp.Message) error {
 		}
 	case rpccapnp.Disembargo_context_Which_receiverLoopback:
 		id := embargoID(d.Context().ReceiverLoopback())
-		c.embargoes.disembargo(id)
+		c.disembargo(id)
 	default:
 		um := newUnimplementedMessage(nil, msg)
 		c.sendMessage(um)

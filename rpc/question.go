@@ -10,51 +10,41 @@ import (
 	rpccapnp "zombiezen.com/go/capnproto2/std/capnp/rpc"
 )
 
-type questionTable struct {
-	tab []*question
-	gen idgen
-
-	manager *manager
-	calls   chan<- *appCall
-	cancels chan<- *question
-}
-
-// new creates a new question with an unassigned ID.
-func (qt *questionTable) new(ctx context.Context, method *capnp.Method) *question {
-	id := questionID(qt.gen.next())
+// newQuestion creates a new question with an unassigned ID.
+func (c *Conn) newQuestion(ctx context.Context, method *capnp.Method) *question {
+	id := questionID(c.questionID.next())
 	q := &question{
 		ctx:      ctx,
 		method:   method,
-		manager:  qt.manager,
-		calls:    qt.calls,
-		cancels:  qt.cancels,
+		manager:  &c.manager,
+		calls:    c.calls,
+		cancels:  c.cancels,
 		resolved: make(chan struct{}),
 		id:       id,
 	}
 	// TODO(light): populate paramCaps
-	if int(id) == len(qt.tab) {
-		qt.tab = append(qt.tab, q)
+	if int(id) == len(c.questions) {
+		c.questions = append(c.questions, q)
 	} else {
-		qt.tab[id] = q
+		c.questions[id] = q
 	}
 	return q
 }
 
-func (qt *questionTable) get(id questionID) *question {
-	var q *question
-	if int(id) < len(qt.tab) {
-		q = qt.tab[id]
+func (c *Conn) findQuestion(id questionID) *question {
+	if int(id) >= len(c.questions) {
+		return nil
 	}
-	return q
+	return c.questions[id]
 }
 
-func (qt *questionTable) pop(id questionID) *question {
-	var q *question
-	if int(id) < len(qt.tab) {
-		q = qt.tab[id]
-		qt.tab[id] = nil
-		qt.gen.remove(uint32(id))
+func (c *Conn) popQuestion(id questionID) *question {
+	q := c.findQuestion(id)
+	if q == nil {
+		return nil
 	}
+	c.questions[id] = nil
+	c.questionID.remove(uint32(id))
 	return q
 }
 

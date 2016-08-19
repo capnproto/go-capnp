@@ -15,51 +15,34 @@ import (
 // TODO(light): make this a ConnOption
 const callQueueSize = 64
 
-type answerTable struct {
-	tab         map[answerID]*answer
-	manager     *manager
-	out         chan<- rpccapnp.Message
-	returns     chan<- *outgoingReturn
-	queueCloses chan<- queueClientClose
-}
-
-func (at *answerTable) get(id answerID) *answer {
-	var a *answer
-	if at.tab != nil {
-		a = at.tab[id]
-	}
-	return a
-}
-
-// insert creates a new question with the given ID, returning nil
+// insertAnswer creates a new answer with the given ID, returning nil
 // if the ID is already in use.
-func (at *answerTable) insert(id answerID, cancel context.CancelFunc) *answer {
-	if at.tab == nil {
-		at.tab = make(map[answerID]*answer)
+func (c *Conn) insertAnswer(id answerID, cancel context.CancelFunc) *answer {
+	if c.answers == nil {
+		c.answers = make(map[answerID]*answer)
+	} else if _, exists := c.answers[id]; exists {
+		return nil
 	}
-	var a *answer
-	if _, ok := at.tab[id]; !ok {
-		a = &answer{
-			id:          id,
-			cancel:      cancel,
-			manager:     at.manager,
-			out:         at.out,
-			returns:     at.returns,
-			queueCloses: at.queueCloses,
-			resolved:    make(chan struct{}),
-			queue:       make([]pcall, 0, callQueueSize),
-		}
-		at.tab[id] = a
+	a := &answer{
+		id:          id,
+		cancel:      cancel,
+		manager:     &c.manager,
+		out:         c.out,
+		returns:     c.returns,
+		queueCloses: c.queueCloses,
+		resolved:    make(chan struct{}),
+		queue:       make([]pcall, 0, callQueueSize),
 	}
+	c.answers[id] = a
 	return a
 }
 
-func (at *answerTable) pop(id answerID) *answer {
-	var a *answer
-	if at.tab != nil {
-		a = at.tab[id]
-		delete(at.tab, id)
+func (c *Conn) popAnswer(id answerID) *answer {
+	if c.answers == nil {
+		return nil
 	}
+	a := c.answers[id]
+	delete(c.answers, id)
 	return a
 }
 

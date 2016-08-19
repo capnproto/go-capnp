@@ -22,31 +22,24 @@ type impent struct {
 	refs int
 }
 
-type importTable struct {
-	tab      map[importID]*impent
-	manager  *manager
-	calls    chan<- *appCall
-	releases chan<- *outgoingRelease
-}
-
-// addRef increases the counter of the times the import ID was sent to this vat.
-func (it *importTable) addRef(id importID) capnp.Client {
-	if it.tab == nil {
-		it.tab = make(map[importID]*impent)
+// addImport increases the counter of the times the import ID was sent to this vat.
+func (c *Conn) addImport(id importID) capnp.Client {
+	if c.imports == nil {
+		c.imports = make(map[importID]*impent)
 	}
-	ent := it.tab[id]
+	ent := c.imports[id]
 	var ref capnp.Client
 	if ent == nil {
 		client := &importClient{
 			id:       id,
-			manager:  it.manager,
-			calls:    it.calls,
-			releases: it.releases,
+			manager:  &c.manager,
+			calls:    c.calls,
+			releases: c.releases,
 		}
 		var rc *refcount.RefCount
 		rc, ref = refcount.New(client)
 		ent = &impent{rc: rc, refs: 0}
-		it.tab[id] = ent
+		c.imports[id] = ent
 	}
 	if ref == nil {
 		ref = ent.rc.Ref()
@@ -55,15 +48,18 @@ func (it *importTable) addRef(id importID) capnp.Client {
 	return ref
 }
 
-// pop removes the import ID and returns the number of times the import ID was sent to this vat.
-func (it *importTable) pop(id importID) (refs int) {
-	if it.tab != nil {
-		if ent := it.tab[id]; ent != nil {
-			refs = ent.refs
-		}
-		delete(it.tab, id)
+// popImport removes the import ID and returns the number of times the import ID was sent to this vat.
+func (c *Conn) popImport(id importID) (refs int) {
+	if c.imports == nil {
+		return 0
 	}
-	return
+	ent := c.imports[id]
+	if ent == nil {
+		return 0
+	}
+	refs = ent.refs
+	delete(c.imports, id)
+	return refs
 }
 
 // An outgoingRelease is a message sent to the coordinate goroutine to
@@ -124,47 +120,38 @@ type export struct {
 	refs int
 }
 
-type exportTable struct {
-	tab []*export
-	gen idgen
-}
-
-func (et *exportTable) get(id exportID) *export {
-	var e *export
-	if int(id) < len(et.tab) {
-		e = et.tab[id]
+func (c *Conn) findExport(id exportID) *export {
+	if int(id) >= len(c.exports) {
+		return nil
 	}
-	return e
+	return c.exports[id]
 }
 
-// add ensures that the client is present in the table, returning its ID.
+// addExport ensures that the client is present in the table, returning its ID.
 // If the client is already in the table, the previous ID is returned.
-func (et *exportTable) add(client capnp.Client) exportID {
-	for i, e := range et.tab {
+func (c *Conn) addExport(client capnp.Client) exportID {
+	for i, e := range c.exports {
 		if e != nil && e.client == client {
 			e.refs++
 			return exportID(i)
 		}
 	}
-	id := exportID(et.gen.next())
+	id := exportID(c.exportID.next())
 	export := &export{
 		id:     id,
 		client: client,
 		refs:   1,
 	}
-	if int(id) == len(et.tab) {
-		et.tab = append(et.tab, export)
+	if int(id) == len(c.exports) {
+		c.exports = append(c.exports, export)
 	} else {
-		et.tab[id] = export
+		c.exports[id] = export
 	}
 	return id
 }
 
-func (et *exportTable) release(id exportID, refs int) {
-	if int(id) >= len(et.tab) {
-		return
-	}
-	e := et.tab[id]
+func (c *Conn) releaseExport(id exportID, refs int) {
+	e := c.findExport(id)
 	if e == nil {
 		return
 	}
@@ -178,59 +165,47 @@ func (et *exportTable) release(id exportID, refs int) {
 	if err := e.client.Close(); err != nil {
 		log.Printf("rpc: export %v close: %v", id, err)
 	}
-	et.tab[id] = nil
-	et.gen.remove(uint32(id))
+	c.exports[id] = nil
+	c.exportID.remove(uint32(id))
 }
 
-func (et *exportTable) releaseAll() {
-	for id, e := range et.tab {
+func (c *Conn) releaseAllExports() {
+	for id, e := range c.exports {
 		if e == nil {
 			continue
 		}
 		if err := e.client.Close(); err != nil {
 			log.Printf("rpc: export %v close: %v", id, err)
 		}
-		et.tab[id] = nil
-		et.gen.remove(uint32(id))
+		c.exports[id] = nil
+		c.exportID.remove(uint32(id))
 	}
-}
-
-// releaseList decrements the reference count of each of the given exports by 1.
-func (et *exportTable) releaseList(ids []exportID) {
-	for _, id := range ids {
-		et.release(id, 1)
-	}
-}
-
-type embargoTable struct {
-	tab []chan<- struct{}
-	gen idgen
 }
 
 type embargo <-chan struct{}
 
-func (et *embargoTable) new() (embargoID, embargo) {
-	id := embargoID(et.gen.next())
+func (c *Conn) newEmbargo() (embargoID, embargo) {
+	id := embargoID(c.embargoID.next())
 	e := make(chan struct{})
-	if int(id) == len(et.tab) {
-		et.tab = append(et.tab, e)
+	if int(id) == len(c.embargoes) {
+		c.embargoes = append(c.embargoes, e)
 	} else {
-		et.tab[id] = e
+		c.embargoes[id] = e
 	}
 	return id, e
 }
 
-func (et *embargoTable) disembargo(id embargoID) {
-	if int(id) >= len(et.tab) {
+func (c *Conn) disembargo(id embargoID) {
+	if int(id) >= len(c.embargoes) {
 		return
 	}
-	e := et.tab[id]
+	e := c.embargoes[id]
 	if e == nil {
 		return
 	}
 	close(e)
-	et.tab[id] = nil
-	et.gen.remove(uint32(id))
+	c.embargoes[id] = nil
+	c.embargoID.remove(uint32(id))
 }
 
 // idgen returns a sequence of monotonically increasing IDs with
