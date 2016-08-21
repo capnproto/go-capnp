@@ -13,6 +13,7 @@ type manager struct {
 	finish chan struct{}
 	wg     sync.WaitGroup
 	ctx    context.Context
+	cancel context.CancelFunc // should only be called by shutdown
 
 	mu   sync.RWMutex
 	done bool
@@ -21,12 +22,7 @@ type manager struct {
 
 func (m *manager) init() {
 	m.finish = make(chan struct{})
-	var cancel context.CancelFunc
-	m.ctx, cancel = context.WithCancel(context.Background())
-	go func() {
-		<-m.finish
-		cancel()
-	}()
+	m.ctx, m.cancel = context.WithCancel(context.Background())
 }
 
 // context returns a context that is cancelled when the manager shuts down.
@@ -60,6 +56,7 @@ func (m *manager) shutdown(e error) bool {
 	ok := !m.done
 	if ok {
 		close(m.finish)
+		m.cancel()
 		m.done = true
 		m.e = e
 	}
