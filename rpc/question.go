@@ -83,7 +83,6 @@ func (q *question) start() {
 			select {
 			case <-q.conn.mu:
 				q.reject(questionCanceled, q.ctx.Err())
-				// TODO(light): timeout?
 				q.conn.sendMessage(newFinishMessage(nil, q.id, true /* release */))
 				q.conn.mu.Unlock()
 			case <-q.resolved:

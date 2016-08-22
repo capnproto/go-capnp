@@ -200,7 +200,6 @@ func (c *Conn) handleMessage(m rpccapnp.Message) {
 		}
 	case rpccapnp.Message_Which_finish:
 		// TODO(light): what if answers never had this ID?
-		// TODO(light): return if cancelled
 		mfin, err := m.Finish()
 		if err != nil {
 			log.Println("rpc: decode finish:", err)
