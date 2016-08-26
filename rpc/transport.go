@@ -98,14 +98,15 @@ type writeDeadlineSetter interface {
 
 // dispatchSend runs in its own goroutine and sends messages on a transport.
 func (c *Conn) dispatchSend() {
+	defer c.workers.Done()
 	for {
 		select {
 		case msg := <-c.out:
-			err := c.transport.SendMessage(c.manager.context(), msg)
+			err := c.transport.SendMessage(c.bg, msg)
 			if err != nil {
 				log.Printf("rpc: writing %v: %v", msg.Which(), err)
 			}
-		case <-c.manager.finish:
+		case <-c.bg.Done():
 			return
 		}
 	}
@@ -118,21 +119,22 @@ func (c *Conn) sendMessage(msg rpccapnp.Message) error {
 	select {
 	case c.out <- msg:
 		return nil
-	case <-c.manager.finish:
-		return c.manager.err()
+	case <-c.bg.Done():
+		return ErrConnClosed
 	}
 }
 
 // dispatchRecv runs in its own goroutine and receives messages from a transport.
 func (c *Conn) dispatchRecv() {
+	defer c.workers.Done()
 	for {
-		msg, err := c.transport.RecvMessage(c.manager.context())
+		msg, err := c.transport.RecvMessage(c.bg)
 		if err == nil {
 			c.handleMessage(msg)
 		} else if isTemporaryError(err) {
 			log.Println("rpc: read temporary error:", err)
 		} else {
-			c.manager.shutdown(err)
+			c.shutdown(err)
 			return
 		}
 	}

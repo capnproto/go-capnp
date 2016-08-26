@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"sync"
 
 	"golang.org/x/net/context"
 	"zombiezen.com/go/capnproto2"
@@ -19,8 +20,17 @@ type Conn struct {
 	mainFunc   func(context.Context) (capnp.Client, error)
 	mainCloser io.Closer
 
-	manager manager
-	out     chan rpccapnp.Message
+	out chan rpccapnp.Message
+
+	bg       context.Context
+	bgCancel context.CancelFunc
+	workers  sync.WaitGroup
+
+	// Mutable state protected by stateMu
+	stateMu   sync.RWMutex
+	stateCond sync.Cond // broadcasts when state changes
+	state     connState
+	closeErr  error
 
 	// Mutable state protected by mu
 	mu         chanMutex
@@ -94,51 +104,112 @@ func NewConn(t Transport, options ...ConnOption) *Conn {
 		mainCloser: p.mainCloser,
 		mu:         newChanMutex(),
 	}
-	conn.manager.init()
-	conn.manager.do(conn.dispatchRecv)
-	conn.manager.do(conn.dispatchSend)
-	conn.manager.do(func() {
-		// TODO(soon): make this run after the dispatches return.
-		<-conn.manager.finish
-		conn.mu.Lock()
-		conn.releaseAllExports()
-		if conn.mainCloser != nil {
-			if err := conn.mainCloser.Close(); err != nil {
-				log.Println("rpc: closing main interface:", err)
-			}
-		}
-		conn.mu.Unlock()
-	})
+	conn.stateCond.L = conn.stateMu.RLocker()
+	conn.bg, conn.bgCancel = context.WithCancel(context.Background())
+	conn.workers.Add(2)
+	go conn.dispatchRecv()
+	go conn.dispatchSend()
 	return conn
 }
 
 // Wait waits until the connection is closed or aborted by the remote vat.
 // Wait will always return an error, usually ErrConnClosed or of type Abort.
 func (c *Conn) Wait() error {
-	c.manager.wait()
-	return c.manager.err()
+	c.stateMu.RLock()
+	for c.state != connDead {
+		c.stateCond.Wait()
+	}
+	err := c.closeErr
+	c.stateMu.RUnlock()
+	return err
 }
 
-// Close closes the connection.
+// Close closes the connection and the underlying transport.
 func (c *Conn) Close() error {
-	// Stop helper goroutines.
-	if !c.manager.shutdown(ErrConnClosed) {
+	c.stateMu.Lock()
+	alive := c.state == connAlive
+	if alive {
+		c.bgCancel()
+		c.closeErr = ErrConnClosed
+		c.state = connDying
+		c.stateCond.Broadcast()
+	}
+	c.stateMu.Unlock()
+	if !alive {
 		return ErrConnClosed
 	}
-	c.manager.wait()
-	// Hang up.
-	// TODO(light): add timeout to write.
-	ctx := context.Background()
-	n := newAbortMessage(nil, errShutdown)
-	werr := c.transport.SendMessage(ctx, n)
-	cerr := c.transport.Close()
-	if werr != nil {
-		return werr
-	}
-	if cerr != nil {
-		return cerr
+	c.teardown(newAbortMessage(nil, errShutdown))
+	c.stateMu.RLock()
+	err := c.closeErr
+	c.stateMu.RUnlock()
+	if err != ErrConnClosed {
+		return err
 	}
 	return nil
+}
+
+// shutdown cancels the background context and sets closeErr to e.
+// No abort message will be sent on the transport.  After shutdown
+// returns, the Conn will be in the dying or dead state.  Calling
+// shutdown on a dying or dead Conn is a no-op.
+func (c *Conn) shutdown(e error) {
+	c.stateMu.Lock()
+	if c.state == connAlive {
+		c.bgCancel()
+		c.closeErr = e
+		c.state = connDying
+		c.stateCond.Broadcast()
+		go c.teardown(rpccapnp.Message{})
+	}
+	c.stateMu.Unlock()
+}
+
+// abort cancels the background context, sets closeErr to e, and queues
+// an abort message to be sent on the transport before the Conn goes
+// into the dead state.  After abort returns, the Conn will be in the
+// dying or dead state.  Calling abort on a dying or dead Conn is a
+// no-op.
+func (c *Conn) abort(e error) {
+	c.stateMu.Lock()
+	if c.state == connAlive {
+		c.bgCancel()
+		c.closeErr = e
+		c.state = connDying
+		c.stateCond.Broadcast()
+		go c.teardown(newAbortMessage(nil, e))
+	}
+	c.stateMu.Unlock()
+}
+
+// teardown moves the connection from the dying to the dead state.
+func (c *Conn) teardown(abort rpccapnp.Message) {
+	c.workers.Wait()
+
+	c.mu.Lock()
+	c.releaseAllExports()
+	if c.mainCloser != nil {
+		if err := c.mainCloser.Close(); err != nil {
+			log.Println("rpc: closing main interface:", err)
+		}
+	}
+	c.mu.Unlock()
+	var werr error
+	if abort.IsValid() {
+		werr = c.transport.SendMessage(context.Background(), abort)
+	}
+	cerr := c.transport.Close()
+
+	c.stateMu.Lock()
+	if c.closeErr == ErrConnClosed {
+		if cerr != nil {
+			c.closeErr = cerr
+		} else if werr != nil {
+			c.closeErr = werr
+		}
+	}
+	c.state = connDead
+	c.stateCond.Broadcast()
+	c.stateMu.Unlock()
 }
 
 // Bootstrap returns the receiver's main interface.
@@ -150,8 +221,8 @@ func (c *Conn) Bootstrap(ctx context.Context) capnp.Client {
 		defer c.mu.Unlock()
 	case <-ctx.Done():
 		return capnp.ErrorClient(ctx.Err())
-	case <-c.manager.finish:
-		return capnp.ErrorClient(c.manager.err())
+	case <-c.bg.Done():
+		return capnp.ErrorClient(ErrConnClosed)
 	}
 
 	q := c.newQuestion(ctx, nil /* method */)
@@ -168,9 +239,9 @@ func (c *Conn) Bootstrap(ctx context.Context) capnp.Client {
 	case <-ctx.Done():
 		c.popQuestion(q.id)
 		return capnp.ErrorClient(ctx.Err())
-	case <-c.manager.finish:
+	case <-c.bg.Done():
 		c.popQuestion(q.id)
-		return capnp.ErrorClient(c.manager.err())
+		return capnp.ErrorClient(ErrConnClosed)
 	}
 }
 
@@ -188,7 +259,7 @@ func (c *Conn) handleMessage(m rpccapnp.Message) {
 			// Keep going, since we're trying to abort anyway.
 		}
 		log.Print(a)
-		c.manager.shutdown(a)
+		c.shutdown(a)
 	case rpccapnp.Message_Which_return:
 		m = copyRPCMessage(m)
 		c.mu.Lock()
@@ -664,7 +735,7 @@ func newDisembargoMessage(buf []byte, which rpccapnp.Disembargo_context_Which, i
 
 // newContext creates a new context for a local call.
 func (c *Conn) newContext() (context.Context, context.CancelFunc) {
-	return context.WithCancel(c.manager.context())
+	return context.WithCancel(c.bg)
 }
 
 func promisedAnswerOpsToTransform(list rpccapnp.PromisedAnswer_Op_List) []capnp.PipelineOp {
@@ -682,13 +753,6 @@ func promisedAnswerOpsToTransform(list rpccapnp.PromisedAnswer_Op_List) []capnp.
 		}
 	}
 	return transform
-}
-
-func (c *Conn) abort(err error) {
-	// TODO(light): ensure that the message is sent before shutting down?
-	am := newAbortMessage(nil, err)
-	c.sendMessage(am)
-	c.manager.shutdown(err)
 }
 
 func newAbortMessage(buf []byte, err error) rpccapnp.Message {
@@ -745,6 +809,14 @@ func newMessage(buf []byte) rpccapnp.Message {
 // chanMutex is a mutex backed by a channel so that it can be used in a select.
 // A receive is a lock and a send is an unlock.
 type chanMutex chan struct{}
+
+type connState int
+
+const (
+	connAlive connState = iota
+	connDying
+	connDead
+)
 
 func newChanMutex() chanMutex {
 	mu := make(chanMutex, 1)

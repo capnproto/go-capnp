@@ -235,7 +235,7 @@ func joinAnswer(a *answer, ca capnp.Answer) {
 	select {
 	case <-a.conn.mu:
 		// Locked.
-	case <-a.conn.manager.finish:
+	case <-a.conn.bg.Done():
 		return
 	}
 	if err == nil {
@@ -376,8 +376,8 @@ func (qc *queueClient) Close() error {
 	select {
 	case <-qc.conn.mu:
 		// Locked.
-	case <-qc.conn.manager.finish:
-		return qc.conn.manager.err()
+	case <-qc.conn.bg.Done():
+		return ErrConnClosed
 	}
 	rejErr := qc.rejectQueue()
 	qc.conn.mu.Unlock()

@@ -73,8 +73,8 @@ func (ic *importClient) Call(cl *capnp.Call) capnp.Answer {
 	case <-ic.conn.mu:
 	case <-cl.Ctx.Done():
 		return capnp.ErrorAnswer(cl.Ctx.Err())
-	case <-ic.conn.manager.finish:
-		return capnp.ErrorAnswer(ic.conn.manager.err())
+	case <-ic.conn.bg.Done():
+		return capnp.ErrorAnswer(ErrConnClosed)
 	}
 	ans := ic.lockedCall(cl)
 	ic.conn.mu.Unlock()
@@ -107,9 +107,9 @@ func (ic *importClient) lockedCall(cl *capnp.Call) capnp.Answer {
 	case <-cl.Ctx.Done():
 		ic.conn.popQuestion(q.id)
 		return capnp.ErrorAnswer(cl.Ctx.Err())
-	case <-ic.conn.manager.finish:
+	case <-ic.conn.bg.Done():
 		ic.conn.popQuestion(q.id)
-		return capnp.ErrorAnswer(ic.conn.manager.err())
+		return capnp.ErrorAnswer(ErrConnClosed)
 	}
 	q.start()
 	return q
@@ -141,8 +141,8 @@ func (ic *importClient) Close() error {
 	select {
 	case ic.conn.out <- msg:
 		return nil
-	case <-ic.conn.manager.finish:
-		return ic.conn.manager.err()
+	case <-ic.conn.bg.Done():
+		return ErrConnClosed
 	}
 }
 

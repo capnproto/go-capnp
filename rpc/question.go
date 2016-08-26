@@ -86,9 +86,9 @@ func (q *question) start() {
 				q.conn.sendMessage(newFinishMessage(nil, q.id, true /* release */))
 				q.conn.mu.Unlock()
 			case <-q.resolved:
-			case <-q.conn.manager.finish:
+			case <-q.conn.bg.Done():
 			}
-		case <-q.conn.manager.finish:
+		case <-q.conn.bg.Done():
 			// TODO(light): connection should reject all questions on shutdown.
 		}
 	}()
@@ -119,7 +119,7 @@ func (q *question) fulfill(obj capnp.Ptr) {
 		}
 		visited[cn] = true
 		id, e := q.conn.newEmbargo()
-		ctab[cn] = newEmbargoClient(&q.conn.manager, ctab[cn], e)
+		ctab[cn] = newEmbargoClient(ctab[cn], e, q.conn.bg.Done())
 		m := newDisembargoMessage(nil, rpccapnp.Disembargo_context_Which_senderLoopback, id)
 		dis, _ := m.Disembargo()
 		mt, _ := dis.NewTarget()
@@ -130,7 +130,7 @@ func (q *question) fulfill(obj capnp.Ptr) {
 
 		select {
 		case q.conn.out <- m:
-		case <-q.conn.manager.finish:
+		case <-q.conn.bg.Done():
 			// TODO(soon): perhaps just drop all embargoes in this case?
 		}
 	}
@@ -186,8 +186,8 @@ func transformsEqual(t, u []capnp.PipelineOp) bool {
 func (q *question) Struct() (capnp.Struct, error) {
 	select {
 	case <-q.resolved:
-	case <-q.conn.manager.finish:
-		return capnp.Struct{}, q.conn.manager.err()
+	case <-q.conn.bg.Done():
+		return capnp.Struct{}, ErrConnClosed
 	}
 	q.mu.RLock()
 	s, err := q.obj.Struct(), q.err
@@ -200,8 +200,8 @@ func (q *question) PipelineCall(transform []capnp.PipelineOp, ccall *capnp.Call)
 	case <-q.conn.mu:
 	case <-ccall.Ctx.Done():
 		return capnp.ErrorAnswer(ccall.Ctx.Err())
-	case <-q.conn.manager.finish:
-		return capnp.ErrorAnswer(q.conn.manager.err())
+	case <-q.conn.bg.Done():
+		return capnp.ErrorAnswer(ErrConnClosed)
 	}
 	ans := q.lockedPipelineCall(transform, ccall)
 	q.conn.mu.Unlock()
@@ -249,9 +249,9 @@ func (q *question) lockedPipelineCall(transform []capnp.PipelineOp, ccall *capnp
 	case <-ccall.Ctx.Done():
 		q.conn.popQuestion(pipeq.id)
 		return capnp.ErrorAnswer(ccall.Ctx.Err())
-	case <-q.conn.manager.finish:
+	case <-q.conn.bg.Done():
 		q.conn.popQuestion(pipeq.id)
-		return capnp.ErrorAnswer(q.conn.manager.err())
+		return capnp.ErrorAnswer(ErrConnClosed)
 	}
 	q.addPromise(transform)
 	pipeq.start()
@@ -280,7 +280,7 @@ func (q *question) PipelineClose(transform []capnp.PipelineOp) error {
 // embargoClient is a client that waits until an embargo signal is
 // received to deliver calls.
 type embargoClient struct {
-	manager *manager
+	cancel  <-chan struct{}
 	client  capnp.Client
 	embargo embargo
 
@@ -289,11 +289,11 @@ type embargoClient struct {
 	calls ecallList
 }
 
-func newEmbargoClient(manager *manager, client capnp.Client, e embargo) *embargoClient {
+func newEmbargoClient(client capnp.Client, e embargo, cancel <-chan struct{}) *embargoClient {
 	ec := &embargoClient{
-		manager: manager,
 		client:  client,
 		embargo: e,
+		cancel:  cancel,
 		calls:   make(ecallList, callQueueSize),
 	}
 	ec.q.Init(ec.calls, 0)
@@ -367,7 +367,12 @@ func (ec *embargoClient) Close() error {
 func (ec *embargoClient) flushQueue() {
 	select {
 	case <-ec.embargo:
-	case <-ec.manager.finish:
+	case <-ec.cancel:
+		ec.mu.Lock()
+		for ec.q.Len() > 0 {
+			ec.q.Pop()
+		}
+		ec.mu.Unlock()
 		return
 	}
 	var c ecall
