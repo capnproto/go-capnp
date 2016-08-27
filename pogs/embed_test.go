@@ -351,7 +351,7 @@ func TestInsert_EmbedCollide(t *testing.T) {
 		}
 		err = Insert(air.VerOneData_TypeID, v1.Struct, test.in)
 		if err != nil {
-			t.Errorf("%s: Insert(..., %s): %v", test.name, zpretty.Sprint(test.in))
+			t.Errorf("%s: Insert(..., %s): %v", test.name, zpretty.Sprint(test.in), err)
 		}
 		if v1.Val() != test.val {
 			t.Errorf("%s: Insert(..., %s) produced %v; want (val = %d)", test.name, zpretty.Sprint(test.in), v1, test.val)
