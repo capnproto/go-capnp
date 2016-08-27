@@ -3,4 +3,5 @@ go_import_path: zombiezen.com/go/capnproto2
 go:
 - 1.4.3
 - 1.5.3
-- 1.6.2
+- 1.6.3
+- 1.7
