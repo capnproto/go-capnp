@@ -8,22 +8,27 @@ import (
 )
 
 var compressionTests = []struct {
+	name       string
 	original   []byte
 	compressed []byte
 }{
 	{
+		"empty",
 		[]byte{},
 		[]byte{},
 	},
 	{
+		"one zero word",
 		[]byte{0, 0, 0, 0, 0, 0, 0, 0},
 		[]byte{0, 0},
 	},
 	{
+		"one word with mixed zero bytes",
 		[]byte{0, 0, 12, 0, 0, 34, 0, 0},
 		[]byte{0x24, 12, 34},
 	},
 	{
+		"two words with mixed zero bytes",
 		[]byte{
 			0x08, 0x00, 0x00, 0x00, 0x03, 0x00, 0x02, 0x00,
 			0x19, 0x00, 0x00, 0x00, 0xaa, 0x01, 0x00, 0x00,
@@ -31,10 +36,12 @@ var compressionTests = []struct {
 		[]byte{0x51, 0x08, 0x03, 0x02, 0x31, 0x19, 0xaa, 0x01},
 	},
 	{
+		"two words with mixed zero bytes",
 		[]byte{0x8, 0, 0, 0, 0x3, 0, 0x2, 0, 0x19, 0, 0, 0, 0xaa, 0x1, 0, 0},
 		[]byte{0x51, 0x08, 0x03, 0x02, 0x31, 0x19, 0xaa, 0x01},
 	},
 	{
+		"four zero words",
 		[]byte{
 			0, 0, 0, 0, 0, 0, 0, 0,
 			0, 0, 0, 0, 0, 0, 0, 0,
@@ -44,6 +51,7 @@ var compressionTests = []struct {
 		[]byte{0x00, 0x03},
 	},
 	{
+		"four words without zero bytes",
 		[]byte{
 			0x8a, 0x8a, 0x8a, 0x8a, 0x8a, 0x8a, 0x8a, 0x8a,
 			0x8a, 0x8a, 0x8a, 0x8a, 0x8a, 0x8a, 0x8a, 0x8a,
@@ -60,22 +68,27 @@ var compressionTests = []struct {
 		},
 	},
 	{
+		"one word without zero bytes",
 		[]byte{1, 3, 2, 4, 5, 7, 6, 8},
 		[]byte{0xff, 1, 3, 2, 4, 5, 7, 6, 8, 0},
 	},
 	{
+		"one zero word followed by one word without zero bytes",
 		[]byte{0, 0, 0, 0, 0, 0, 0, 0, 1, 3, 2, 4, 5, 7, 6, 8},
 		[]byte{0, 0, 0xff, 1, 3, 2, 4, 5, 7, 6, 8, 0},
 	},
 	{
+		"one word with mixed zero bytes followed by one word without zero bytes",
 		[]byte{0, 0, 12, 0, 0, 34, 0, 0, 1, 3, 2, 4, 5, 7, 6, 8},
 		[]byte{0x24, 12, 34, 0xff, 1, 3, 2, 4, 5, 7, 6, 8, 0},
 	},
 	{
+		"two words with no zero bytes",
 		[]byte{1, 3, 2, 4, 5, 7, 6, 8, 8, 6, 7, 4, 5, 2, 3, 1},
 		[]byte{0xff, 1, 3, 2, 4, 5, 7, 6, 8, 1, 8, 6, 7, 4, 5, 2, 3, 1},
 	},
 	{
+		"five words, with only the last containing zero bytes",
 		[]byte{
 			1, 2, 3, 4, 5, 6, 7, 8,
 			1, 2, 3, 4, 5, 6, 7, 8,
@@ -93,6 +106,7 @@ var compressionTests = []struct {
 		},
 	},
 	{
+		"five words, with the middle and last words containing zero bytes",
 		[]byte{
 			1, 2, 3, 4, 5, 6, 7, 8,
 			1, 2, 3, 4, 5, 6, 7, 8,
@@ -110,6 +124,7 @@ var compressionTests = []struct {
 		},
 	},
 	{
+		"words with mixed zeroes sandwiching zero words",
 		[]byte{
 			8, 0, 100, 6, 0, 1, 1, 2,
 			0, 0, 0, 0, 0, 0, 0, 0,
@@ -124,6 +139,7 @@ var compressionTests = []struct {
 		},
 	},
 	{
+		"real-world Cap'n Proto data",
 		[]byte{
 			0x0, 0x0, 0x0, 0x0, 0x5, 0x0, 0x0, 0x0,
 			0x0, 0x0, 0x0, 0x0, 0x2, 0x0, 0x1, 0x0,
@@ -149,13 +165,13 @@ func TestPack(t *testing.T) {
 		copy(orig, test.original)
 		compressed := Pack(nil, orig)
 		if !bytes.Equal(compressed, test.compressed) {
-			t.Errorf("Pack(nil,\n%s\n) =\n%s\n; want\n%s", hex.Dump(test.original), hex.Dump(compressed), hex.Dump(test.compressed))
+			t.Errorf("%s: Pack(nil,\n%s\n) =\n%s\n; want\n%s", test.name, hex.Dump(test.original), hex.Dump(compressed), hex.Dump(test.compressed))
 		}
 	}
 }
 
 func TestReader(t *testing.T) {
-	for i, test := range compressionTests {
+	for _, test := range compressionTests {
 		for readSize := 1; readSize <= 8+2*len(test.original); readSize++ {
 			r := bytes.NewReader(test.compressed)
 			d := NewReader(r)
@@ -173,13 +189,12 @@ func TestReader(t *testing.T) {
 			}
 
 			if len(test.original) != len(actual) {
-				t.Errorf("test:%d readSize:%d expected %d bytes, got %d",
-					i, readSize, len(test.original), len(actual))
+				t.Errorf("%s: readSize=%d: expected %d bytes, got %d", test.name, readSize, len(test.original), len(actual))
 				continue
 			}
 
 			if !bytes.Equal(test.original, actual) {
-				t.Errorf("test:%d readSize:%d: bytes not equal", i, readSize)
+				t.Errorf("%s: readSize=%d: bytes not equal", test.name, readSize)
 			}
 		}
 	}
