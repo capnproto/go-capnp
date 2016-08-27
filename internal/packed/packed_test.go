@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"io"
 	"testing"
+	"testing/iotest"
 )
 
 var compressionTests = []struct {
@@ -196,6 +197,35 @@ func TestReader(t *testing.T) {
 			if !bytes.Equal(test.original, actual) {
 				t.Errorf("%s: readSize=%d: bytes not equal", test.name, readSize)
 			}
+		}
+	}
+}
+
+func TestReader_DataErr(t *testing.T) {
+	const readSize = 3
+	for _, test := range compressionTests {
+		r := iotest.DataErrReader(bytes.NewReader(test.compressed))
+		d := NewReader(r)
+		buf := make([]byte, readSize)
+		var actual []byte
+		for {
+			n, err := d.Read(buf)
+			actual = append(actual, buf[:n]...)
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+				t.Fatalf("Read: %v", err)
+			}
+		}
+
+		if len(test.original) != len(actual) {
+			t.Errorf("%s: expected %d bytes, got %d", test.name, len(test.original), len(actual))
+			continue
+		}
+
+		if !bytes.Equal(test.original, actual) {
+			t.Errorf("%s: bytes not equal", test.name)
 		}
 	}
 }
