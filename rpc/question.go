@@ -82,8 +82,9 @@ func (q *question) start() {
 		case <-q.ctx.Done():
 			select {
 			case <-q.conn.mu:
-				q.reject(questionCanceled, q.ctx.Err())
-				q.conn.sendMessage(newFinishMessage(nil, q.id, true /* release */))
+				if q.cancel(q.ctx.Err()) {
+					q.conn.sendMessage(newFinishMessage(nil, q.id, true /* release */))
+				}
 				q.conn.mu.Unlock()
 			case <-q.resolved:
 			case <-q.conn.bg.Done():
@@ -146,7 +147,7 @@ func (q *question) fulfill(obj capnp.Ptr) {
 
 // reject is called to resolve a question with failure.
 // The caller must be holding onto q.conn.mu.
-func (q *question) reject(state questionState, err error) {
+func (q *question) reject(err error) {
 	if err == nil {
 		panic("question.reject called with nil")
 	}
@@ -154,9 +155,27 @@ func (q *question) reject(state questionState, err error) {
 	if q.state != questionInProgress {
 		panic("question.reject called more than once")
 	}
-	q.err, q.state = err, state
+	q.err = err
+	q.state = questionResolved
 	close(q.resolved)
 	q.mu.Unlock()
+}
+
+// cancel is called to resolve a question with cancellation.
+// The caller must be holding onto q.conn.mu.
+func (q *question) cancel(err error) bool {
+	if err == nil {
+		panic("question.cancel called with nil")
+	}
+	q.mu.Lock()
+	canceled := q.state == questionInProgress
+	if canceled {
+		q.err = err
+		q.state = questionCanceled
+		close(q.resolved)
+	}
+	q.mu.Unlock()
+	return canceled
 }
 
 // addPromise records a returned capability as being used for a call.

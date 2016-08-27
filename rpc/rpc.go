@@ -186,13 +186,38 @@ func (c *Conn) teardown(abort rpccapnp.Message) {
 	c.workers.Wait()
 
 	c.mu.Lock()
-	c.releaseAllExports()
+	for _, q := range c.questions {
+		if q != nil {
+			q.cancel(ErrConnClosed)
+		}
+	}
+	c.questions = nil
+	exps := c.exports
+	c.exports = nil
+	c.embargoes = nil
+	for _, a := range c.answers {
+		a.cancel()
+	}
+	c.answers = nil
+	c.imports = nil
+	c.mu.Unlock()
+
 	if c.mainCloser != nil {
 		if err := c.mainCloser.Close(); err != nil {
 			log.Println("rpc: closing main interface:", err)
 		}
 	}
-	c.mu.Unlock()
+	// Closing an export may try to lock the Conn, so run it outside
+	// critical section.
+	for id, e := range exps {
+		if e == nil {
+			continue
+		}
+		if err := e.client.Close(); err != nil {
+			log.Printf("rpc: export %v close: %v", id, err)
+		}
+	}
+
 	var werr error
 	if abort.IsValid() {
 		werr = c.transport.SendMessage(context.Background(), abort)
@@ -434,7 +459,7 @@ func (c *Conn) handleReturnMessage(m rpccapnp.Message) error {
 		} else {
 			e = bootstrapError{e}
 		}
-		q.reject(questionResolved, e)
+		q.reject(e)
 	case rpccapnp.Return_Which_canceled:
 		err := &questionError{
 			id:     id,
@@ -442,7 +467,7 @@ func (c *Conn) handleReturnMessage(m rpccapnp.Message) error {
 			err:    fmt.Errorf("receiver reported canceled"),
 		}
 		log.Println(err)
-		q.reject(questionResolved, err)
+		q.reject(err)
 		return nil
 	default:
 		um := newUnimplementedMessage(nil, m)

@@ -203,19 +203,6 @@ func (c *Conn) releaseExport(id exportID, refs int) {
 	c.exportID.remove(uint32(id))
 }
 
-func (c *Conn) releaseAllExports() {
-	for id, e := range c.exports {
-		if e == nil {
-			continue
-		}
-		if err := e.client.Close(); err != nil {
-			log.Printf("rpc: export %v close: %v", id, err)
-		}
-		c.exports[id] = nil
-		c.exportID.remove(uint32(id))
-	}
-}
-
 type embargo <-chan struct{}
 
 func (c *Conn) newEmbargo() (embargoID, embargo) {
