@@ -18,7 +18,7 @@ func TestDefaultFind(t *testing.T) {
 	}
 	msg, err := capnp.Unmarshal(s)
 	if err != nil {
-		t.Fatalf("capnp.Unmarshal(schemas.Find(%#x)) error: %v", err)
+		t.Fatalf("capnp.Unmarshal(schemas.Find(%#x)) error: %v", capnp.Package, err)
 	}
 	req, err := schema.ReadRootCodeGeneratorRequest(msg)
 	if err != nil {
