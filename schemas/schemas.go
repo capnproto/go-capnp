@@ -8,6 +8,7 @@
 package schemas
 
 import (
+	"bufio"
 	"bytes"
 	"compress/zlib"
 	"errors"
@@ -109,7 +110,7 @@ func (r *record) read() ([]byte, error) {
 			r.data, r.err = nil, err
 			return
 		}
-		p := packed.NewReader(z)
+		p := packed.NewReader(bufio.NewReader(z))
 		r.data, r.err = ioutil.ReadAll(p)
 		if err != nil {
 			r.data = nil

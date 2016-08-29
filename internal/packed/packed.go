@@ -2,7 +2,11 @@
 // compression scheme described at https://capnproto.org/encoding.html#packing.
 package packed
 
-import "io"
+import (
+	"bufio"
+	"errors"
+	"io"
+)
 
 const wordSize = 8
 
@@ -74,24 +78,22 @@ func numZeroWords(b []byte) int {
 	return len(b) / wordSize
 }
 
-type decompressor struct {
-	r     io.Reader
-	buf   [wordSize]byte
-	bufsz int
+// A Reader decompresses a packed byte stream.
+type Reader struct {
+	// ReadWord state
+	rd      *bufio.Reader
+	err     error
+	zeroes  int
+	literal int
 
-	// track the bytes after a 0xff raw tag
-	ffBuf          [wordSize]byte
-	ffBufLoadCount int // count of bytes loaded from r into ffBuf (max wordSize)
-	ffBufUsedCount int // count of bytes supplied to v during Read().
-
-	zeros int
-	raw   int // number of raw bytes left to copy through
-	state decompressorState
+	// Read state
+	word    [wordSize]byte
+	wordIdx int
 }
 
 // NewReader returns a reader that decompresses a packed stream from r.
-func NewReader(r io.Reader) io.Reader {
-	return &decompressor{r: r}
+func NewReader(r *bufio.Reader) *Reader {
+	return &Reader{rd: r, wordIdx: wordSize}
 }
 
 func min(a, b int) int {
@@ -101,187 +103,135 @@ func min(a, b int) int {
 	return a
 }
 
-func (c *decompressor) Read(v []byte) (n int, err error) {
-
-	var b [1]byte
-	var bytesRead int
-
-	for {
-		if len(v) == 0 {
-			return
+// ReadWord decompresses the next word from the underlying stream.
+func (r *Reader) ReadWord(p []byte) error {
+	if len(p) < wordSize {
+		return errors.New("packed: read word buffer too small")
+	}
+	r.wordIdx = wordSize // if the caller tries to call ReadWord and Read, don't give them partial words.
+	if r.err != nil {
+		err := r.err
+		r.err = nil
+		return err
+	}
+	p = p[:wordSize]
+	switch {
+	case r.zeroes > 0:
+		r.zeroes--
+		for i := range p {
+			p[i] = 0
 		}
+		return nil
+	case r.literal > 0:
+		r.literal--
+		_, err := io.ReadFull(r.rd, p)
+		return err
+	}
 
-		switch c.state {
-
-		case rawState:
-			if c.raw > 0 {
-				bytesRead, err = c.r.Read(v[:min(len(v), c.raw)])
-				c.raw -= bytesRead
-				v = v[bytesRead:]
-				n += bytesRead
-
+	var tag byte
+	if r.rd.Buffered() < wordSize+1 {
+		var err error
+		tag, err = r.rd.ReadByte()
+		if err != nil {
+			return err
+		}
+		for i := range p {
+			p[i] = 0
+		}
+		for i := uint(0); i < wordSize; i++ {
+			if tag&(1<<i) != 0 {
+				p[i], err = r.rd.ReadByte()
 				if err != nil {
-					return
+					if err == io.EOF {
+						err = io.ErrUnexpectedEOF
+					}
+					return err
 				}
 			} else {
-				c.state = normalState
-			}
-
-		case postFFState:
-			if c.ffBufUsedCount >= wordSize {
-				c.state = readnState
-				continue
-			}
-			// invar: c.ffBufUsedCount < wordSize
-
-			// before reading more from r, first empty any residual in buffer. Such
-			// bytes were already read from r, are now
-			// waiting in c.ffBuf, and have not yet been given to v: so
-			// these bytes are first in line to go.
-			if c.ffBufUsedCount < c.ffBufLoadCount {
-				br := copy(v, c.ffBuf[c.ffBufUsedCount:c.ffBufLoadCount])
-				c.ffBufUsedCount += br
-				v = v[br:]
-				n += br
-			}
-			if c.ffBufUsedCount >= wordSize {
-				c.state = readnState
-				continue
-			}
-			// invar: c.ffBufUsedCount < wordSize
-
-			// io.ReadFull, try to read exactly (wordSize - cc.ffBufLoadCount) bytes
-			// io.ReadFull returns EOF only if no bytes were read
-			if c.ffBufLoadCount < wordSize {
-				bytesRead, err = io.ReadFull(c.r, c.ffBuf[c.ffBufLoadCount:]) // read up to wordSize bytes into c.buf
-				if bytesRead > 0 {
-					c.ffBufLoadCount += bytesRead
-				} else {
-					return
-				}
-				if err != nil {
-					return
-				}
-			}
-			// stay in postFFState
-
-		case readnState:
-			if bytesRead, err = c.r.Read(b[:]); err != nil {
-				return
-			}
-			if bytesRead == 0 {
-				return
-			}
-			c.raw = int(b[0]) * wordSize
-			c.state = rawState
-
-		case normalState:
-
-			if c.zeros > 0 {
-				num0 := min(len(v), c.zeros)
-				x := v[:num0]
-				for i := range x {
-					x[i] = 0
-				}
-				c.zeros -= num0
-				n += num0
-				if c.zeros > 0 {
-					return n, nil
-				}
-				v = v[num0:]
-				if len(v) == 0 {
-					return n, nil
-				}
-			}
-			// INVAR: c.zeros == 0
-
-			if c.bufsz > 0 {
-				nc := copy(v, c.buf[wordSize-c.bufsz:])
-				c.bufsz -= nc
-				n += nc
-				v = v[nc:]
-				if c.bufsz > 0 {
-					return n, nil
-				}
-			}
-			// INVAR: c.bufz == 0
-
-			for c.state == normalState && len(v) > 0 {
-
-				if _, err = c.r.Read(b[:]); err != nil {
-					return
-				}
-
-				switch b[0] {
-				case unpackedTag:
-					c.ffBufLoadCount = 0
-					c.ffBufUsedCount = 0
-					c.state = postFFState
-
-					break
-
-				case zeroTag:
-					if _, err = c.r.Read(b[:]); err != nil {
-						return
-					}
-
-					requestedZeroBytes := (int(b[0]) + 1) * wordSize
-					zeros := min(requestedZeroBytes, len(v))
-
-					for i := 0; i < zeros; i++ {
-						v[i] = 0
-					}
-					v = v[zeros:]
-					n += zeros
-					// remember the leftover zeros to write
-					c.zeros = requestedZeroBytes - zeros
-
-				default:
-					ones := 0
-					var buf [wordSize]byte
-					for i := 0; i < wordSize; i++ {
-						if (b[0] & (1 << uint(i))) != 0 {
-							ones++
-						}
-					}
-
-					_, err = io.ReadFull(c.r, buf[:ones])
-					if err != nil {
-						return
-					}
-
-					for i, j := 0, 0; i < wordSize; i++ {
-						if (b[0] & (1 << uint(i))) != 0 {
-							c.buf[i] = buf[j]
-							j++
-						} else {
-							c.buf[i] = 0
-						}
-					}
-
-					use := copy(v, c.buf[:])
-					v = v[use:]
-					n += use
-					c.bufsz = wordSize - use
-				}
+				p[i] = 0
 			}
 		}
-
+	} else {
+		b, _ := r.rd.Peek(wordSize + 1)
+		tag = b[0]
+		i := 1
+		nz := tag & 1
+		p[0] = b[i] & -nz
+		i += int(nz)
+		nz = tag >> 1 & 1
+		p[1] = b[i] & -nz
+		i += int(nz)
+		nz = tag >> 2 & 1
+		p[2] = b[i] & -nz
+		i += int(nz)
+		nz = tag >> 3 & 1
+		p[3] = b[i] & -nz
+		i += int(nz)
+		nz = tag >> 4 & 1
+		p[4] = b[i] & -nz
+		i += int(nz)
+		nz = tag >> 5 & 1
+		p[5] = b[i] & -nz
+		i += int(nz)
+		nz = tag >> 6 & 1
+		p[6] = b[i] & -nz
+		i += int(nz)
+		nz = tag >> 7 & 1
+		p[7] = b[i] & -nz
+		i += int(nz)
+		r.rd.Discard(i)
 	}
-	return
+	switch tag {
+	case zeroTag:
+		z, err := r.rd.ReadByte()
+		if err == io.EOF {
+			r.err = io.ErrUnexpectedEOF
+			return nil
+		} else if err != nil {
+			r.err = err
+			return nil
+		}
+		r.zeroes = int(z)
+	case unpackedTag:
+		l, err := r.rd.ReadByte()
+		if err == io.EOF {
+			r.err = io.ErrUnexpectedEOF
+			return nil
+		} else if err != nil {
+			r.err = err
+			return nil
+		}
+		r.literal = int(l)
+	}
+	return nil
 }
 
-// decompressorState is the state of a decompressor.
-type decompressorState uint8
-
-// Decompressor states
-const (
-	normalState decompressorState = iota
-
-	// These states are for dealing with the 0xFF tag and the raw bytes that follow.
-	// They tell us where to pick up if we are interrupted in the middle of anything
-	// after the 0xFF tag, until we are done with the raw read.
-	postFFState
-	readnState
-	rawState
-)
+// Read reads up to len(p) bytes into p.  This will decompress whole
+// words at a time, so mixing calls to Read and ReadWord may lead to
+// bytes missing.
+func (r *Reader) Read(p []byte) (n int, err error) {
+	if r.wordIdx < wordSize {
+		n = copy(p, r.word[r.wordIdx:])
+		r.wordIdx += n
+	}
+	for n < len(p) {
+		if r.rd.Buffered() < wordSize+1 && n > 0 {
+			return n, nil
+		}
+		if len(p)-n >= wordSize {
+			err := r.ReadWord(p[n:])
+			if err != nil {
+				return n, err
+			}
+			n += wordSize
+		} else {
+			err := r.ReadWord(r.word[:])
+			if err != nil {
+				return n, err
+			}
+			r.wordIdx = copy(p[n:], r.word[:])
+			n += r.wordIdx
+		}
+	}
+	return n, nil
+}

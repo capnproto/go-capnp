@@ -1,6 +1,7 @@
 package packed
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/hex"
 	"io"
@@ -172,10 +173,11 @@ func TestPack(t *testing.T) {
 }
 
 func TestReader(t *testing.T) {
+testing:
 	for _, test := range compressionTests {
 		for readSize := 1; readSize <= 8+2*len(test.original); readSize++ {
 			r := bytes.NewReader(test.compressed)
-			d := NewReader(r)
+			d := NewReader(bufio.NewReader(r))
 			buf := make([]byte, readSize)
 			var actual []byte
 			for {
@@ -185,7 +187,8 @@ func TestReader(t *testing.T) {
 					if err == io.EOF {
 						break
 					}
-					t.Fatalf("Read: %v", err)
+					t.Errorf("%s: Read: %v", test.name, err)
+					continue testing
 				}
 			}
 
@@ -195,7 +198,7 @@ func TestReader(t *testing.T) {
 			}
 
 			if !bytes.Equal(test.original, actual) {
-				t.Errorf("%s: readSize=%d: bytes not equal", test.name, readSize)
+				t.Errorf("%s: readSize=%d: bytes = %v; want %v", test.name, readSize, actual, test.original)
 			}
 		}
 	}
@@ -203,9 +206,10 @@ func TestReader(t *testing.T) {
 
 func TestReader_DataErr(t *testing.T) {
 	const readSize = 3
+testing:
 	for _, test := range compressionTests {
 		r := iotest.DataErrReader(bytes.NewReader(test.compressed))
-		d := NewReader(r)
+		d := NewReader(bufio.NewReader(r))
 		buf := make([]byte, readSize)
 		var actual []byte
 		for {
@@ -215,7 +219,8 @@ func TestReader_DataErr(t *testing.T) {
 				if err == io.EOF {
 					break
 				}
-				t.Fatalf("Read: %v", err)
+				t.Errorf("%s: Read: %v", test.name, err)
+				continue testing
 			}
 		}
 
@@ -269,14 +274,16 @@ func BenchmarkDecompressor(b *testing.B) {
 	}, multiplier)
 	b.SetBytes(int64(len(src)))
 	r := bytes.NewReader(src)
+	br := bufio.NewReader(r)
 
 	dst := make([]byte, 10*8*multiplier)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		r.Seek(0, 0)
-		d := NewReader(r)
-		_, err := d.Read(dst)
+		br.Reset(r)
+		d := NewReader(br)
+		_, err := io.ReadFull(d, dst)
 		if err != nil {
 			b.Fatal(err)
 		}

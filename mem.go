@@ -1,6 +1,7 @@
 package capnp
 
 import (
+	"bufio"
 	"encoding/binary"
 	"errors"
 	"io"
@@ -419,7 +420,7 @@ func NewDecoder(r io.Reader) *Decoder {
 // NewPackedDecoder creates a new Cap'n Proto framer that reads from a
 // packed stream r.
 func NewPackedDecoder(r io.Reader) *Decoder {
-	return NewDecoder(packed.NewReader(r))
+	return NewDecoder(packed.NewReader(bufio.NewReader(r)))
 }
 
 // Decode reads a message from the decoder stream.
