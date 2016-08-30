@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"io"
+	"io/ioutil"
 	"testing"
 	"testing/iotest"
 )
@@ -159,6 +160,57 @@ var compressionTests = []struct {
 			0xf, 0xd4, 0x7, 0xc, 0x7,
 		},
 	},
+	{
+		"shortened benchmark data",
+		[]byte{
+			8, 100, 6, 0, 1, 1, 0, 2,
+			8, 100, 6, 0, 1, 1, 0, 2,
+			0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0,
+			0, 1, 0, 2, 0, 3, 0, 0,
+			'H', 'e', 'l', 'l', 'o', ',', ' ', 'W',
+			'o', 'r', 'l', 'd', '!', ' ', ' ', 'P',
+			'a', 'd', ' ', 't', 'e', 'x', 't', '.',
+		},
+		[]byte{
+			0xb7, 8, 100, 6, 1, 1, 2,
+			0xb7, 8, 100, 6, 1, 1, 2,
+			0x00, 3,
+			0x2a, 1, 2, 3,
+			0xff, 'H', 'e', 'l', 'l', 'o', ',', ' ', 'W',
+			2,
+			'o', 'r', 'l', 'd', '!', ' ', ' ', 'P',
+			'a', 'd', ' ', 't', 'e', 'x', 't', '.',
+		},
+	},
+}
+
+var badDecompressionTests = []struct {
+	name  string
+	input []byte
+}{
+	{
+		"wrong tag",
+		[]byte{
+			0xa7, 8, 100, 6, 1, 1, 2,
+			0xa7, 8, 100, 6, 1, 1, 2,
+		},
+	},
+	{
+		"badly written decompression benchmark",
+		bytes.Repeat([]byte{
+			0xa7, 8, 100, 6, 1, 1, 2,
+			0xa7, 8, 100, 6, 1, 1, 2,
+			0x00, 3,
+			0x2a,
+			0xff, 'H', 'e', 'l', 'l', 'o', ',', ' ', 'W',
+			2,
+			'o', 'r', 'l', 'd', '!', ' ', ' ', 'P',
+			'a', 'd', ' ', 't', 'e', 'x', 't', '.',
+		}, 128),
+	},
 }
 
 func TestPack(t *testing.T) {
@@ -235,6 +287,16 @@ testing:
 	}
 }
 
+func TestReader_Fail(t *testing.T) {
+	for _, test := range badDecompressionTests {
+		d := NewReader(bufio.NewReader(bytes.NewReader(test.input)))
+		_, err := ioutil.ReadAll(d)
+		if err == nil {
+			t.Errorf("%s: did not return error", test.name)
+		}
+	}
+}
+
 var result []byte
 
 func BenchmarkPack(b *testing.B) {
@@ -245,7 +307,7 @@ func BenchmarkPack(b *testing.B) {
 		0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 1, 0, 2, 0, 3, 1,
+		0, 1, 0, 2, 0, 3, 0, 0,
 		'H', 'e', 'l', 'l', 'o', ',', ' ', 'W',
 		'o', 'r', 'l', 'd', '!', ' ', ' ', 'P',
 		'a', 'd', ' ', 't', 'e', 'x', 't', '.',
@@ -255,7 +317,7 @@ func BenchmarkPack(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		Pack(dst, src)
+		dst = Pack(dst[:0], src)
 	}
 	result = dst
 }
@@ -263,10 +325,10 @@ func BenchmarkPack(b *testing.B) {
 func BenchmarkDecompressor(b *testing.B) {
 	const multiplier = 128
 	src := bytes.Repeat([]byte{
-		0xa7, 8, 100, 6, 1, 1, 2,
-		0xa7, 8, 100, 6, 1, 1, 2,
+		0xb7, 8, 100, 6, 1, 1, 2,
+		0xb7, 8, 100, 6, 1, 1, 2,
 		0x00, 3,
-		0x2a,
+		0x2a, 1, 2, 3,
 		0xff, 'H', 'e', 'l', 'l', 'o', ',', ' ', 'W',
 		2,
 		'o', 'r', 'l', 'd', '!', ' ', ' ', 'P',
@@ -276,17 +338,18 @@ func BenchmarkDecompressor(b *testing.B) {
 	r := bytes.NewReader(src)
 	br := bufio.NewReader(r)
 
-	dst := make([]byte, 10*8*multiplier)
+	dst := bytes.NewBuffer(make([]byte, 0, 10*8*multiplier))
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
+		dst.Reset()
 		r.Seek(0, 0)
 		br.Reset(r)
-		d := NewReader(br)
-		_, err := io.ReadFull(d, dst)
+		pr := NewReader(br)
+		_, err := dst.ReadFrom(pr)
 		if err != nil {
 			b.Fatal(err)
 		}
 	}
-	result = dst
+	result = dst.Bytes()
 }
