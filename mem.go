@@ -491,6 +491,18 @@ func Unmarshal(data []byte) (*Message, error) {
 	return &Message{Arena: arena}, nil
 }
 
+// UnmarshalPacked reads a packed serialized stream into a message.
+func UnmarshalPacked(data []byte) (*Message, error) {
+	if len(data) == 0 {
+		return nil, io.EOF
+	}
+	data, err := packed.Unpack(nil, data)
+	if err != nil {
+		return nil, err
+	}
+	return Unmarshal(data)
+}
+
 // MustUnmarshalRoot is deprecated in favor of MustUnmarshalRootPtr.
 func MustUnmarshalRoot(data []byte) Pointer {
 	msg, err := Unmarshal(data)

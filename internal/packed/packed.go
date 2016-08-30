@@ -78,6 +78,106 @@ func numZeroWords(b []byte) int {
 	return len(b) / wordSize
 }
 
+// Unpack appends the unpacked version of src to dst and returns the
+// resulting slice.
+func Unpack(dst, src []byte) ([]byte, error) {
+	for len(src) > 0 {
+		tag := src[0]
+		src = src[1:]
+
+		pstart := len(dst)
+		dst = allocWords(dst, 1)
+		p := dst[pstart : pstart+wordSize]
+		if len(src) >= wordSize {
+			i := 0
+			nz := tag & 1
+			p[0] = src[i] & -nz
+			i += int(nz)
+			nz = tag >> 1 & 1
+			p[1] = src[i] & -nz
+			i += int(nz)
+			nz = tag >> 2 & 1
+			p[2] = src[i] & -nz
+			i += int(nz)
+			nz = tag >> 3 & 1
+			p[3] = src[i] & -nz
+			i += int(nz)
+			nz = tag >> 4 & 1
+			p[4] = src[i] & -nz
+			i += int(nz)
+			nz = tag >> 5 & 1
+			p[5] = src[i] & -nz
+			i += int(nz)
+			nz = tag >> 6 & 1
+			p[6] = src[i] & -nz
+			i += int(nz)
+			nz = tag >> 7 & 1
+			p[7] = src[i] & -nz
+			i += int(nz)
+			src = src[i:]
+		} else {
+			for i := uint(0); i < wordSize; i++ {
+				if tag&(1<<i) == 0 {
+					continue
+				}
+				if len(src) == 0 {
+					//return dst, io.ErrUnexpectedEOF
+					return dst, errors.New("content EOF")
+				}
+				p[i] = src[0]
+				src = src[1:]
+			}
+		}
+		switch tag {
+		case zeroTag:
+			if len(src) == 0 {
+				//return dst, io.ErrUnexpectedEOF
+				return dst, errors.New("zero EOF")
+			}
+			dst = allocWords(dst, int(src[0]))
+			src = src[1:]
+		case unpackedTag:
+			if len(src) == 0 {
+				//return dst, io.ErrUnexpectedEOF
+				return dst, errors.New("unpacked EOF")
+			}
+			start := len(dst)
+			dst = allocWords(dst, int(src[0]))
+			src = src[1:]
+			n := copy(dst[start:], src)
+			src = src[n:]
+		}
+	}
+	return dst, nil
+}
+
+func allocWords(p []byte, n int) []byte {
+	target := len(p) + n*wordSize
+	if cap(p) >= target {
+		pp := p[len(p):target]
+		for i := range pp {
+			pp[i] = 0
+		}
+		return p[:target]
+	}
+	newcap := cap(p)
+	doublecap := newcap + newcap
+	if target > doublecap {
+		newcap = target
+	} else {
+		if len(p) < 1024 {
+			newcap = doublecap
+		} else {
+			for newcap < target {
+				newcap += newcap / 4
+			}
+		}
+	}
+	pp := make([]byte, target, newcap)
+	copy(pp, p)
+	return pp
+}
+
 // A Reader decompresses a packed byte stream.
 type Reader struct {
 	// ReadWord state

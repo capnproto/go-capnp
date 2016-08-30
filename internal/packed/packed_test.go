@@ -224,6 +224,30 @@ func TestPack(t *testing.T) {
 	}
 }
 
+func TestUnpack(t *testing.T) {
+	for _, test := range compressionTests {
+		compressed := make([]byte, len(test.compressed))
+		copy(compressed, test.compressed)
+		orig, err := Unpack(nil, compressed)
+		if err != nil {
+			t.Errorf("%s: Unpack(nil,\n%s\n) error: %v", test.name, hex.Dump(test.compressed), err)
+		} else if !bytes.Equal(orig, test.original) {
+			t.Errorf("%s: Unpack(nil,\n%s\n) =\n%s\n; want\n%s", test.name, hex.Dump(test.compressed), hex.Dump(orig), hex.Dump(test.original))
+		}
+	}
+}
+
+func TestUnpack_Fail(t *testing.T) {
+	for _, test := range badDecompressionTests {
+		compressed := make([]byte, len(test.input))
+		copy(compressed, test.input)
+		_, err := Unpack(nil, compressed)
+		if err == nil {
+			t.Errorf("%s: did not return error", test.name)
+		}
+	}
+}
+
 func TestReader(t *testing.T) {
 testing:
 	for _, test := range compressionTests {
@@ -322,7 +346,34 @@ func BenchmarkPack(b *testing.B) {
 	result = dst
 }
 
-func BenchmarkDecompressor(b *testing.B) {
+func BenchmarkUnpack(b *testing.B) {
+	const multiplier = 128
+	src := bytes.Repeat([]byte{
+		0xb7, 8, 100, 6, 1, 1, 2,
+		0xb7, 8, 100, 6, 1, 1, 2,
+		0x00, 3,
+		0x2a, 1, 2, 3,
+		0xff, 'H', 'e', 'l', 'l', 'o', ',', ' ', 'W',
+		2,
+		'o', 'r', 'l', 'd', '!', ' ', ' ', 'P',
+		'a', 'd', ' ', 't', 'e', 'x', 't', '.',
+	}, multiplier)
+	b.SetBytes(int64(len(src)))
+
+	dst := make([]byte, 0, 10*8*multiplier)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		var err error
+		dst, err = Unpack(dst[:0], src)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+	result = dst
+}
+
+func BenchmarkReader(b *testing.B) {
 	const multiplier = 128
 	src := bytes.Repeat([]byte{
 		0xb7, 8, 100, 6, 1, 1, 2,
