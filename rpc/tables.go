@@ -27,23 +27,16 @@ type impent struct {
 func (c *Conn) addImport(id importID) capnp.Client {
 	if c.imports == nil {
 		c.imports = make(map[importID]*impent)
+	} else if ent := c.imports[id]; ent != nil {
+		ent.refs++
+		return ent.rc.Ref()
 	}
-	ent := c.imports[id]
-	var ref capnp.Client
-	if ent == nil {
-		client := &importClient{
-			id:   id,
-			conn: c,
-		}
-		var rc *refcount.RefCount
-		rc, ref = refcount.New(client)
-		ent = &impent{rc: rc, refs: 0}
-		c.imports[id] = ent
+	client := &importClient{
+		id:   id,
+		conn: c,
 	}
-	if ref == nil {
-		ref = ent.rc.Ref()
-	}
-	ent.refs++
+	rc, ref := refcount.New(client)
+	c.imports[id] = &impent{rc: rc, refs: 1}
 	return ref
 }
 
