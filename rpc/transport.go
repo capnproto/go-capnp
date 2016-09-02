@@ -3,7 +3,6 @@ package rpc
 import (
 	"bytes"
 	"io"
-	"log"
 	"time"
 
 	"golang.org/x/net/context"
@@ -104,7 +103,7 @@ func (c *Conn) dispatchSend() {
 		case msg := <-c.out:
 			err := c.transport.SendMessage(c.bg, msg)
 			if err != nil {
-				log.Printf("rpc: writing %v: %v", msg.Which(), err)
+				c.errorf("writing %v: %v", msg.Which(), err)
 			}
 		case <-c.bg.Done():
 			return
@@ -132,7 +131,7 @@ func (c *Conn) dispatchRecv() {
 		if err == nil {
 			c.handleMessage(msg)
 		} else if isTemporaryError(err) {
-			log.Println("rpc: read temporary error:", err)
+			c.errorf("read temporary error: %v", err)
 		} else {
 			c.shutdown(err)
 			return

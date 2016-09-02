@@ -4,7 +4,6 @@ package rpc // import "zombiezen.com/go/capnproto2/rpc"
 import (
 	"fmt"
 	"io"
-	"log"
 	"sync"
 
 	"golang.org/x/net/context"
@@ -17,6 +16,7 @@ import (
 // It is safe to use from multiple goroutines.
 type Conn struct {
 	transport  Transport
+	log        Logger
 	mainFunc   func(context.Context) (capnp.Client, error)
 	mainCloser io.Closer
 
@@ -45,6 +45,7 @@ type Conn struct {
 }
 
 type connParams struct {
+	log            Logger
 	mainFunc       func(context.Context) (capnp.Client, error)
 	mainCloser     io.Closer
 	sendBufferSize int
@@ -91,6 +92,7 @@ func SendBufferSize(numMsgs int) ConnOption {
 // Closing the connection will cause c to be closed.
 func NewConn(t Transport, options ...ConnOption) *Conn {
 	p := &connParams{
+		log:            defaultLogger{},
 		sendBufferSize: 4,
 	}
 	for _, o := range options {
@@ -102,6 +104,7 @@ func NewConn(t Transport, options ...ConnOption) *Conn {
 		out:        make(chan rpccapnp.Message, p.sendBufferSize),
 		mainFunc:   p.mainFunc,
 		mainCloser: p.mainCloser,
+		log:        p.log,
 		mu:         newChanMutex(),
 	}
 	conn.stateCond.L = conn.stateMu.RLocker()
@@ -204,7 +207,7 @@ func (c *Conn) teardown(abort rpccapnp.Message) {
 
 	if c.mainCloser != nil {
 		if err := c.mainCloser.Close(); err != nil {
-			log.Println("rpc: closing main interface:", err)
+			c.errorf("closing main interface: %v", err)
 		}
 	}
 	// Closing an export may try to lock the Conn, so run it outside
@@ -214,7 +217,7 @@ func (c *Conn) teardown(abort rpccapnp.Message) {
 			continue
 		}
 		if err := e.client.Close(); err != nil {
-			log.Printf("rpc: export %v close: %v", id, err)
+			c.errorf("export %v close: %v", id, err)
 		}
 	}
 
@@ -280,10 +283,10 @@ func (c *Conn) handleMessage(m rpccapnp.Message) {
 	case rpccapnp.Message_Which_abort:
 		a, err := copyAbort(m)
 		if err != nil {
-			log.Println("rpc: decode abort:", err)
+			c.errorf("decode abort: %v", err)
 			// Keep going, since we're trying to abort anyway.
 		}
-		log.Print(a)
+		c.infof("abort: %v", a)
 		c.shutdown(a)
 	case rpccapnp.Message_Which_return:
 		m = copyRPCMessage(m)
@@ -292,13 +295,13 @@ func (c *Conn) handleMessage(m rpccapnp.Message) {
 		c.mu.Unlock()
 
 		if err != nil {
-			log.Println("rpc: handle return:", err)
+			c.errorf("handle return: %v", err)
 		}
 	case rpccapnp.Message_Which_finish:
 		// TODO(light): what if answers never had this ID?
 		mfin, err := m.Finish()
 		if err != nil {
-			log.Println("rpc: decode finish:", err)
+			c.errorf("decode finish: %v", err)
 			return
 		}
 		id := answerID(mfin.QuestionId())
@@ -315,7 +318,7 @@ func (c *Conn) handleMessage(m rpccapnp.Message) {
 	case rpccapnp.Message_Which_bootstrap:
 		boot, err := m.Bootstrap()
 		if err != nil {
-			log.Println("rpc: decode bootstrap:", err)
+			c.errorf("decode bootstrap: %v", err)
 			return
 		}
 		id := answerID(boot.QuestionId())
@@ -325,7 +328,7 @@ func (c *Conn) handleMessage(m rpccapnp.Message) {
 		c.mu.Unlock()
 
 		if err != nil {
-			log.Println("rpc: handle bootstrap:", err)
+			c.errorf("handle bootstrap: %v", err)
 		}
 	case rpccapnp.Message_Which_call:
 		m = copyRPCMessage(m)
@@ -334,12 +337,12 @@ func (c *Conn) handleMessage(m rpccapnp.Message) {
 		c.mu.Unlock()
 
 		if err != nil {
-			log.Println("rpc: handle call:", err)
+			c.errorf("handle call: %v", err)
 		}
 	case rpccapnp.Message_Which_release:
 		rel, err := m.Release()
 		if err != nil {
-			log.Println("rpc: decode release:", err)
+			c.errorf("decode release: %v", err)
 			return
 		}
 		id := exportID(rel.Id())
@@ -358,7 +361,7 @@ func (c *Conn) handleMessage(m rpccapnp.Message) {
 			c.abort(err)
 		}
 	default:
-		log.Printf("rpc: received unimplemented message, which = %v", m.Which())
+		c.infof("received unimplemented message, which = %v", m.Which())
 		um := newUnimplementedMessage(nil, m)
 		c.sendMessage(um)
 	}
@@ -466,7 +469,7 @@ func (c *Conn) handleReturnMessage(m rpccapnp.Message) error {
 			method: q.method,
 			err:    fmt.Errorf("receiver reported canceled"),
 		}
-		log.Println(err)
+		c.errorf("%v", err)
 		q.reject(err)
 		return nil
 	default:
@@ -542,7 +545,7 @@ func (c *Conn) populateMessageCapTable(payload rpccapnp.Payload) error {
 			transform := promisedAnswerOpsToTransform(recvTransform)
 			msg.AddCap(a.pipelineClient(transform))
 		default:
-			log.Println("rpc: unknown capability type", desc.Which())
+			c.errorf("unknown capability type %v", desc.Which())
 			return errUnimplemented
 		}
 	}

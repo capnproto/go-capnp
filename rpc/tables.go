@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"errors"
-	"log"
 
 	"zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/rpc/internal/refcount"
@@ -187,10 +186,10 @@ func (c *Conn) releaseExport(id exportID, refs int) {
 		return
 	}
 	if e.refs < 0 {
-		log.Printf("rpc: warning: export %v has negative refcount (%d)", id, e.refs)
+		c.errorf("warning: export %v has negative refcount (%d)", id, e.refs)
 	}
 	if err := e.client.Close(); err != nil {
-		log.Printf("rpc: export %v close: %v", id, err)
+		c.errorf("export %v close: %v", id, err)
 	}
 	c.exports[id] = nil
 	c.exportID.remove(uint32(id))
