@@ -203,12 +203,14 @@ func (c *Conn) teardown(abort rpccapnp.Message) {
 	}
 	c.answers = nil
 	c.imports = nil
+	c.mainFunc = nil
 	c.mu.Unlock()
 
 	if c.mainCloser != nil {
 		if err := c.mainCloser.Close(); err != nil {
 			c.errorf("closing main interface: %v", err)
 		}
+		c.mainCloser = nil
 	}
 	// Closing an export may try to lock the Conn, so run it outside
 	// critical section.
