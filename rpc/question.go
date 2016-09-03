@@ -109,8 +109,7 @@ func (q *question) fulfill(obj capnp.Ptr) {
 		if !in.IsValid() {
 			continue
 		}
-		client := extractRPCClient(in.Client())
-		if ic, ok := client.(*importClient); ok && ic.conn == q.conn {
+		if ic := isImport(in.Client()); ic != nil && ic.conn == q.conn {
 			// Imported from remote vat.  Don't need to disembargo.
 			continue
 		}
@@ -353,14 +352,15 @@ func (ec *embargoClient) Call(cl *capnp.Call) capnp.Answer {
 	return ans
 }
 
-func (ec *embargoClient) WrappedClient() capnp.Client {
-	ec.mu.RLock()
-	ok := ec.isPassthrough()
-	ec.mu.RUnlock()
-	if !ok {
+func (ec *embargoClient) tryQueue(cl *capnp.Call) capnp.Answer {
+	ec.mu.Lock()
+	if ec.isPassthrough() {
+		ec.mu.Unlock()
 		return nil
 	}
-	return ec.client
+	ans := ec.push(cl)
+	ec.mu.Unlock()
+	return ans
 }
 
 func (ec *embargoClient) isPassthrough() bool {

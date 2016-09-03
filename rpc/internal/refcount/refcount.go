@@ -19,7 +19,7 @@ type RefCount struct {
 
 // New creates a reference counter and the first client reference.
 func New(c capnp.Client) (rc *RefCount, ref1 capnp.Client) {
-	if rr, ok := c.(*ref); ok {
+	if rr, ok := c.(*Ref); ok {
 		return rr.rc, rr.rc.Ref()
 	}
 	rc = &RefCount{Client: c, refs: 1}
@@ -39,9 +39,9 @@ func (rc *RefCount) Ref() capnp.Client {
 	return rc.newRef()
 }
 
-func (rc *RefCount) newRef() capnp.Client {
-	r := &ref{rc: rc}
-	runtime.SetFinalizer(r, (*ref).Close)
+func (rc *RefCount) newRef() *Ref {
+	r := &Ref{rc: rc}
+	runtime.SetFinalizer(r, (*Ref).Close)
 	return r
 }
 
@@ -84,20 +84,25 @@ var (
 	errClosed  = errors.New("rpc: Close() called on closed client")
 )
 
-type ref struct {
+// A Ref is a single reference to a client wrapped by RefCount.
+type Ref struct {
 	rc   *RefCount
 	once sync.Once
 }
 
-func (r *ref) Call(cl *capnp.Call) capnp.Answer {
+// Call makes a call on the underlying client.
+func (r *Ref) Call(cl *capnp.Call) capnp.Answer {
 	return r.rc.call(cl)
 }
 
-func (r *ref) WrappedClient() capnp.Client {
+// Client returns the underlying client.
+func (r *Ref) Client() capnp.Client {
 	return r.rc.Client
 }
 
-func (r *ref) Close() error {
+// Close decrements the reference count.  Close will be called on
+// finalization (i.e. garbage collection).
+func (r *Ref) Close() error {
 	var err error
 	closed := false
 	r.once.Do(func() {

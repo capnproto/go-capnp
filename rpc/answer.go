@@ -210,7 +210,7 @@ func (a *answer) queueDisembargo(transform []capnp.PipelineOp, id embargoID, tar
 		// No need to embargo, disembargo immediately.
 		return false, nil
 	}
-	if ic, ok := extractRPCClient(qc.client).(*importClient); !ok || a.conn != ic.conn {
+	if ic := isImport(qc.client); ic == nil || a.conn != ic.conn {
 		return false, errDisembargoNonImport
 	}
 	qc.mu.Lock()
@@ -362,14 +362,15 @@ func (qc *queueClient) Call(cl *capnp.Call) capnp.Answer {
 	return ans
 }
 
-func (qc *queueClient) WrappedClient() capnp.Client {
-	qc.mu.RLock()
-	ok := qc.isPassthrough()
-	qc.mu.RUnlock()
-	if !ok {
+func (qc *queueClient) tryQueue(cl *capnp.Call) capnp.Answer {
+	qc.mu.Lock()
+	if qc.isPassthrough() {
+		qc.mu.Unlock()
 		return nil
 	}
-	return qc.client
+	ans := qc.pushCallLocked(cl)
+	qc.mu.Unlock()
+	return ans
 }
 
 func (qc *queueClient) Close() error {
@@ -479,6 +480,24 @@ func (lac *localAnswerClient) Call(call *capnp.Call) capnp.Answer {
 	}
 	f := new(fulfiller.Fulfiller)
 	err := lac.a.queueCallLocked(call, pcall{
+		transform: lac.transform,
+		qcall:     qcall{f: f},
+	})
+	lac.a.mu.Unlock()
+	if err != nil {
+		return capnp.ErrorAnswer(errQueueFull)
+	}
+	return f
+}
+
+func (lac *localAnswerClient) tryQueue(cl *capnp.Call) capnp.Answer {
+	lac.a.mu.Lock()
+	if lac.a.done {
+		lac.a.mu.Unlock()
+		return nil
+	}
+	f := new(fulfiller.Fulfiller)
+	err := lac.a.queueCallLocked(cl, pcall{
 		transform: lac.transform,
 		qcall:     qcall{f: f},
 	})

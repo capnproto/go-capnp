@@ -178,8 +178,11 @@ type pcall struct {
 	ecall
 }
 
-// embargoClient is a client that flushes a queue of calls.
-type embargoClient struct {
+// EmbargoClient is a client that flushes a queue of calls.
+// Fulfiller will create these automatically when pipelined calls are
+// made on unresolved answers.  EmbargoClient is exported so that rpc
+// can avoid making calls on its own Conn.
+type EmbargoClient struct {
 	client capnp.Client
 
 	mu    sync.RWMutex
@@ -188,7 +191,7 @@ type embargoClient struct {
 }
 
 func newEmbargoClient(client capnp.Client, queue []ecall) capnp.Client {
-	ec := &embargoClient{
+	ec := &EmbargoClient{
 		client: client,
 		calls:  make(ecallList, callQueueSize),
 	}
@@ -197,7 +200,7 @@ func newEmbargoClient(client capnp.Client, queue []ecall) capnp.Client {
 	return ec
 }
 
-func (ec *embargoClient) push(cl *capnp.Call) capnp.Answer {
+func (ec *EmbargoClient) push(cl *capnp.Call) capnp.Answer {
 	f := new(Fulfiller)
 	cl, err := cl.Copy(nil)
 	if err != nil {
@@ -212,7 +215,7 @@ func (ec *embargoClient) push(cl *capnp.Call) capnp.Answer {
 }
 
 // flushQueue is run in its own goroutine.
-func (ec *embargoClient) flushQueue() {
+func (ec *EmbargoClient) flushQueue() {
 	var c ecall
 	ec.mu.Lock()
 	if i := ec.q.Front(); i != -1 {
@@ -240,7 +243,9 @@ func (ec *embargoClient) flushQueue() {
 	}
 }
 
-func (ec *embargoClient) WrappedClient() capnp.Client {
+// Client returns the underlying client if the embargo has been lifted
+// and nil otherwise.
+func (ec *EmbargoClient) Client() capnp.Client {
 	ec.mu.RLock()
 	ok := ec.isPassthrough()
 	ec.mu.RUnlock()
@@ -250,11 +255,13 @@ func (ec *embargoClient) WrappedClient() capnp.Client {
 	return ec.client
 }
 
-func (ec *embargoClient) isPassthrough() bool {
+func (ec *EmbargoClient) isPassthrough() bool {
 	return ec.q.Len() == 0
 }
 
-func (ec *embargoClient) Call(cl *capnp.Call) capnp.Answer {
+// Call either queues a call to the underlying client or starts a call
+// if the embargo has been lifted.
+func (ec *EmbargoClient) Call(cl *capnp.Call) capnp.Answer {
 	// Fast path: queue is flushed.
 	ec.mu.RLock()
 	ok := ec.isPassthrough()
@@ -275,7 +282,21 @@ func (ec *embargoClient) Call(cl *capnp.Call) capnp.Answer {
 	return ans
 }
 
-func (ec *embargoClient) Close() error {
+// TryQueue will attempt to queue a call or return nil if the embargo
+// has been lifted.
+func (ec *EmbargoClient) TryQueue(cl *capnp.Call) capnp.Answer {
+	ec.mu.Lock()
+	if ec.isPassthrough() {
+		ec.mu.Unlock()
+		return nil
+	}
+	ans := ec.push(cl)
+	ec.mu.Unlock()
+	return ans
+}
+
+// Close closes the underlying client, rejecting any queued calls.
+func (ec *EmbargoClient) Close() error {
 	ec.mu.Lock()
 	// reject all queued calls
 	for ec.q.Len() > 0 {
