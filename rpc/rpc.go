@@ -354,6 +354,7 @@ func (c *Conn) handleMessage(m rpccapnp.Message) {
 		c.releaseExport(id, refs)
 		c.mu.Unlock()
 	case rpccapnp.Message_Which_disembargo:
+		m = copyRPCMessage(m)
 		c.mu.Lock()
 		err := c.handleDisembargoMessage(m)
 		c.mu.Unlock()
