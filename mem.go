@@ -167,25 +167,23 @@ func (m *Message) NumSegments() int64 {
 
 // Segment returns the segment with the given ID.
 func (m *Message) Segment(id SegmentID) (*Segment, error) {
-	var seg *Segment
 	if isInt32Bit() && id > maxInt32 {
 		return nil, errSegment32Bit
 	}
+	if int64(id) >= m.Arena.NumSegments() {
+		return nil, errSegmentOutOfBounds
+	}
 	m.mu.Lock()
-	if seg = m.segment(id); seg != nil {
+	if seg := m.segment(id); seg != nil {
 		m.mu.Unlock()
 		return seg, nil
-	}
-	if int64(id) >= m.Arena.NumSegments() {
-		m.mu.Unlock()
-		return nil, errSegmentOutOfBounds
 	}
 	data, err := m.Arena.Data(id)
 	if err != nil {
 		m.mu.Unlock()
 		return nil, err
 	}
-	seg = m.setSegment(id, data)
+	seg := m.setSegment(id, data)
 	m.mu.Unlock()
 	return seg, nil
 }
@@ -235,7 +233,6 @@ func (m *Message) setSegment(id SegmentID, data []byte) *Segment {
 // cap(seg.Data) - len(seg.Data) >= sz.
 func (m *Message) allocSegment(sz Size) (*Segment, error) {
 	m.mu.Lock()
-	var seg *Segment
 	if m.segs == nil && m.firstSeg.msg != nil {
 		m.segs = make(map[SegmentID]*Segment)
 		m.segs[0] = &m.firstSeg
@@ -249,7 +246,7 @@ func (m *Message) allocSegment(sz Size) (*Segment, error) {
 		m.mu.Unlock()
 		return nil, errSegment32Bit
 	}
-	seg = m.setSegment(id, data)
+	seg := m.setSegment(id, data)
 	m.mu.Unlock()
 	return seg, nil
 }
