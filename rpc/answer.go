@@ -156,13 +156,6 @@ func (a *answer) emptyQueue(obj capnp.Ptr) (map[capnp.CapabilityID][]qcall, erro
 	return qs, firstErr
 }
 
-func (a *answer) peek() (obj capnp.Ptr, err error, ok bool) {
-	a.mu.RLock()
-	obj, err, ok = a.obj, a.err, a.done
-	a.mu.RUnlock()
-	return
-}
-
 // queueCall enqueues a call to be made after the answer has been
 // resolved.  The answer must not be resolved yet.  pc should have
 // transform and one of pc.a or pc.f to be set.
@@ -490,27 +483,11 @@ func (lac *localAnswerClient) Call(call *capnp.Call) capnp.Answer {
 	return f
 }
 
-func (lac *localAnswerClient) tryQueue(cl *capnp.Call) capnp.Answer {
-	lac.a.mu.Lock()
-	if lac.a.done {
-		lac.a.mu.Unlock()
-		return nil
-	}
-	f := new(fulfiller.Fulfiller)
-	err := lac.a.queueCallLocked(cl, pcall{
-		transform: lac.transform,
-		qcall:     qcall{f: f},
-	})
-	lac.a.mu.Unlock()
-	if err != nil {
-		return capnp.ErrorAnswer(errQueueFull)
-	}
-	return f
-}
-
 func (lac *localAnswerClient) Close() error {
-	obj, err, ok := lac.a.peek()
-	if !ok {
+	lac.a.mu.RLock()
+	obj, err, done := lac.a.obj, lac.a.err, lac.a.done
+	lac.a.mu.RUnlock()
+	if !done {
 		return nil
 	}
 	client := clientFromResolution(lac.transform, obj, err)

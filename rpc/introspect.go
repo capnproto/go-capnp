@@ -43,11 +43,23 @@ dig:
 			}
 			client = curr.client
 		case *localAnswerClient:
-			if ans := curr.tryQueue(cl); ans != nil {
-				return ans
+			curr.a.mu.Lock()
+			if curr.a.done {
+				obj, err := curr.a.obj, curr.a.err
+				curr.a.mu.Unlock()
+				client = clientFromResolution(curr.transform, obj, err)
+			} else {
+				f := new(fulfiller.Fulfiller)
+				err := curr.a.queueCallLocked(cl, pcall{
+					transform: curr.transform,
+					qcall:     qcall{f: f},
+				})
+				curr.a.mu.Unlock()
+				if err != nil {
+					return capnp.ErrorAnswer(err)
+				}
+				return f
 			}
-			obj, err, _ := curr.a.peek()
-			client = clientFromResolution(curr.transform, obj, err)
 		case *capnp.PipelineClient:
 			p := (*capnp.Pipeline)(curr)
 			ans := p.Answer()
@@ -134,8 +146,10 @@ dig:
 			}
 			client = ct.client
 		case *localAnswerClient:
-			obj, err, ok := ct.a.peek()
-			if !ok {
+			ct.a.mu.RLock()
+			obj, err, done := ct.a.obj, ct.a.err, ct.a.done
+			ct.a.mu.RUnlock()
+			if !done {
 				break dig
 			}
 			client = clientFromResolution(ct.transform, obj, err)
@@ -221,8 +235,10 @@ func isImport(client capnp.Client) *importClient {
 			}
 			client = curr.client
 		case *localAnswerClient:
-			obj, err, ok := curr.a.peek()
-			if !ok {
+			curr.a.mu.RLock()
+			obj, err, done := curr.a.obj, curr.a.err, curr.a.done
+			curr.a.mu.RUnlock()
+			if !done {
 				return nil
 			}
 			client = clientFromResolution(curr.transform, obj, err)
