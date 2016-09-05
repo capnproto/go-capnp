@@ -222,6 +222,7 @@ func (c *Conn) teardown(abort rpccapnp.Message) {
 			c.errorf("export %v close: %v", id, err)
 		}
 	}
+	exps = nil
 
 	var werr error
 	if abort.IsValid() {
@@ -534,7 +535,7 @@ func (c *Conn) populateMessageCapTable(payload rpccapnp.Payload) error {
 			if e == nil {
 				return fmt.Errorf("rpc: capability table references unknown export ID %d", id)
 			}
-			msg.AddCap(e.client)
+			msg.AddCap(e.rc.Ref())
 		case rpccapnp.CapDescriptor_Which_receiverAnswer:
 			recvAns, err := desc.ReceiverAnswer()
 			if err != nil {

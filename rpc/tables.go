@@ -139,11 +139,10 @@ func (ic *importClient) Close() error {
 }
 
 type export struct {
-	id     exportID
-	client capnp.Client
-
-	// for use by the table only
-	refs int
+	id       exportID
+	rc       *refcount.RefCount
+	client   capnp.Client
+	wireRefs int
 }
 
 func (c *Conn) findExport(id exportID) *export {
@@ -157,16 +156,19 @@ func (c *Conn) findExport(id exportID) *export {
 // If the client is already in the table, the previous ID is returned.
 func (c *Conn) addExport(client capnp.Client) exportID {
 	for i, e := range c.exports {
-		if e != nil && e.client == client {
-			e.refs++
+		// TODO(now): better deduping here
+		if e != nil && e.rc.Client == client {
+			e.wireRefs++
 			return exportID(i)
 		}
 	}
 	id := exportID(c.exportID.next())
+	rc, client := refcount.New(client)
 	export := &export{
-		id:     id,
-		client: client,
-		refs:   1,
+		id:       id,
+		rc:       rc,
+		client:   client,
+		wireRefs: 1,
 	}
 	if int(id) == len(c.exports) {
 		c.exports = append(c.exports, export)
@@ -181,12 +183,12 @@ func (c *Conn) releaseExport(id exportID, refs int) {
 	if e == nil {
 		return
 	}
-	e.refs -= refs
-	if e.refs > 0 {
+	e.wireRefs -= refs
+	if e.wireRefs > 0 {
 		return
 	}
-	if e.refs < 0 {
-		c.errorf("warning: export %v has negative refcount (%d)", id, e.refs)
+	if e.wireRefs < 0 {
+		c.errorf("warning: export %v has negative refcount (%d)", id, e.wireRefs)
 	}
 	if err := e.client.Close(); err != nil {
 		c.errorf("export %v close: %v", id, err)
