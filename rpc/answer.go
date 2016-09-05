@@ -508,14 +508,6 @@ func (lac *localAnswerClient) tryQueue(cl *capnp.Call) capnp.Answer {
 	return f
 }
 
-func (lac *localAnswerClient) WrappedClient() capnp.Client {
-	obj, err, ok := lac.a.peek()
-	if !ok {
-		return nil
-	}
-	return clientFromResolution(lac.transform, obj, err)
-}
-
 func (lac *localAnswerClient) Close() error {
 	obj, err, ok := lac.a.peek()
 	if !ok {
@@ -524,9 +516,6 @@ func (lac *localAnswerClient) Close() error {
 	client := clientFromResolution(lac.transform, obj, err)
 	return client.Close()
 }
-
-// A capTableMaker converts the clients in a segment's message into capability descriptors.
-type capTableMaker func(*capnp.Segment) (rpccapnp.CapDescriptor_List, error)
 
 var (
 	errQueueFull       = errors.New("rpc: pipeline queue full")
