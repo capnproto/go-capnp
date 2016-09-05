@@ -456,11 +456,6 @@ func containsExactlyIDs(nodes []*node, ids ...uint64) bool {
 	return true
 }
 
-func nodeString(n *node) string {
-	str, _ := text.Marshal(0xe682ab4cf923a417, n.Struct)
-	return str
-}
-
 func nodeListString(n []*node) string {
 	b := new(bytes.Buffer)
 	e := text.NewEncoder(b)

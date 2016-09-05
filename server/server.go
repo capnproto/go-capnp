@@ -225,8 +225,7 @@ type callOptionKey int
 
 // Predefined call options
 const (
-	invalidOptionKey callOptionKey = iota
-	ackSignalKey
+	ackSignalKey callOptionKey = iota + 1
 )
 
 var errClosed = errors.New("capnp: server closed")

@@ -61,7 +61,6 @@ var (
 	errNoMainInterface = errors.New("rpc: no bootstrap interface")
 	errBadTarget       = errors.New("rpc: target not found")
 	errShutdown        = errors.New("rpc: shutdown")
-	errCallCanceled    = errors.New("rpc: call canceled")
 	errUnimplemented   = errors.New("rpc: remote used unimplemented protocol feature")
 )
 

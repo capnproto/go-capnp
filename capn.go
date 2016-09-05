@@ -521,5 +521,4 @@ var (
 	errCopyDepth   = errors.New("capnp: copy depth too large")
 	errOverlap     = errors.New("capnp: overlapping data on copy")
 	errListSize    = errors.New("capnp: invalid list size")
-	errObjectType  = errors.New("capnp: invalid object type")
 )
