@@ -29,6 +29,10 @@ interface Echoer extends(CallOrder) {
   # Just returns the input cap.
 }
 
+interface PingPong {
+  echoNum @0 (n :Int32) -> (n :Int32);
+}
+
 # Example interfaces
 
 interface Adder {

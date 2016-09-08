@@ -797,6 +797,184 @@ func (p Echoer_echo_Results_Promise) Cap() CallOrder {
 	return CallOrder{Client: p.Pipeline.GetPipeline(0).Client()}
 }
 
+type PingPong struct{ Client capnp.Client }
+
+func (c PingPong) EchoNum(ctx context.Context, params func(PingPong_echoNum_Params) error, opts ...capnp.CallOption) PingPong_echoNum_Results_Promise {
+	if c.Client == nil {
+		return PingPong_echoNum_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
+	}
+	call := &capnp.Call{
+		Ctx: ctx,
+		Method: capnp.Method{
+			InterfaceID:   0xf004c474c2f8ee7a,
+			MethodID:      0,
+			InterfaceName: "test.capnp:PingPong",
+			MethodName:    "echoNum",
+		},
+		Options: capnp.NewCallOptions(opts),
+	}
+	if params != nil {
+		call.ParamsSize = capnp.ObjectSize{DataSize: 8, PointerCount: 0}
+		call.ParamsFunc = func(s capnp.Struct) error { return params(PingPong_echoNum_Params{Struct: s}) }
+	}
+	return PingPong_echoNum_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
+}
+
+type PingPong_Server interface {
+	EchoNum(PingPong_echoNum) error
+}
+
+func PingPong_ServerToClient(s PingPong_Server) PingPong {
+	c, _ := s.(server.Closer)
+	return PingPong{Client: server.New(PingPong_Methods(nil, s), c)}
+}
+
+func PingPong_Methods(methods []server.Method, s PingPong_Server) []server.Method {
+	if cap(methods) == 0 {
+		methods = make([]server.Method, 0, 1)
+	}
+
+	methods = append(methods, server.Method{
+		Method: capnp.Method{
+			InterfaceID:   0xf004c474c2f8ee7a,
+			MethodID:      0,
+			InterfaceName: "test.capnp:PingPong",
+			MethodName:    "echoNum",
+		},
+		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
+			call := PingPong_echoNum{c, opts, PingPong_echoNum_Params{Struct: p}, PingPong_echoNum_Results{Struct: r}}
+			return s.EchoNum(call)
+		},
+		ResultsSize: capnp.ObjectSize{DataSize: 8, PointerCount: 0},
+	})
+
+	return methods
+}
+
+// PingPong_echoNum holds the arguments for a server call to PingPong.echoNum.
+type PingPong_echoNum struct {
+	Ctx     context.Context
+	Options capnp.CallOptions
+	Params  PingPong_echoNum_Params
+	Results PingPong_echoNum_Results
+}
+
+type PingPong_echoNum_Params struct{ capnp.Struct }
+
+// PingPong_echoNum_Params_TypeID is the unique identifier for the type PingPong_echoNum_Params.
+const PingPong_echoNum_Params_TypeID = 0xd797e0a99edf0921
+
+func NewPingPong_echoNum_Params(s *capnp.Segment) (PingPong_echoNum_Params, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return PingPong_echoNum_Params{st}, err
+}
+
+func NewRootPingPong_echoNum_Params(s *capnp.Segment) (PingPong_echoNum_Params, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return PingPong_echoNum_Params{st}, err
+}
+
+func ReadRootPingPong_echoNum_Params(msg *capnp.Message) (PingPong_echoNum_Params, error) {
+	root, err := msg.RootPtr()
+	return PingPong_echoNum_Params{root.Struct()}, err
+}
+
+func (s PingPong_echoNum_Params) String() string {
+	str, _ := text.Marshal(0xd797e0a99edf0921, s.Struct)
+	return str
+}
+
+func (s PingPong_echoNum_Params) N() int32 {
+	return int32(s.Struct.Uint32(0))
+}
+
+func (s PingPong_echoNum_Params) SetN(v int32) {
+	s.Struct.SetUint32(0, uint32(v))
+}
+
+// PingPong_echoNum_Params_List is a list of PingPong_echoNum_Params.
+type PingPong_echoNum_Params_List struct{ capnp.List }
+
+// NewPingPong_echoNum_Params creates a new list of PingPong_echoNum_Params.
+func NewPingPong_echoNum_Params_List(s *capnp.Segment, sz int32) (PingPong_echoNum_Params_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	return PingPong_echoNum_Params_List{l}, err
+}
+
+func (s PingPong_echoNum_Params_List) At(i int) PingPong_echoNum_Params {
+	return PingPong_echoNum_Params{s.List.Struct(i)}
+}
+
+func (s PingPong_echoNum_Params_List) Set(i int, v PingPong_echoNum_Params) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+// PingPong_echoNum_Params_Promise is a wrapper for a PingPong_echoNum_Params promised by a client call.
+type PingPong_echoNum_Params_Promise struct{ *capnp.Pipeline }
+
+func (p PingPong_echoNum_Params_Promise) Struct() (PingPong_echoNum_Params, error) {
+	s, err := p.Pipeline.Struct()
+	return PingPong_echoNum_Params{s}, err
+}
+
+type PingPong_echoNum_Results struct{ capnp.Struct }
+
+// PingPong_echoNum_Results_TypeID is the unique identifier for the type PingPong_echoNum_Results.
+const PingPong_echoNum_Results_TypeID = 0x85ddfd96db252600
+
+func NewPingPong_echoNum_Results(s *capnp.Segment) (PingPong_echoNum_Results, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return PingPong_echoNum_Results{st}, err
+}
+
+func NewRootPingPong_echoNum_Results(s *capnp.Segment) (PingPong_echoNum_Results, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return PingPong_echoNum_Results{st}, err
+}
+
+func ReadRootPingPong_echoNum_Results(msg *capnp.Message) (PingPong_echoNum_Results, error) {
+	root, err := msg.RootPtr()
+	return PingPong_echoNum_Results{root.Struct()}, err
+}
+
+func (s PingPong_echoNum_Results) String() string {
+	str, _ := text.Marshal(0x85ddfd96db252600, s.Struct)
+	return str
+}
+
+func (s PingPong_echoNum_Results) N() int32 {
+	return int32(s.Struct.Uint32(0))
+}
+
+func (s PingPong_echoNum_Results) SetN(v int32) {
+	s.Struct.SetUint32(0, uint32(v))
+}
+
+// PingPong_echoNum_Results_List is a list of PingPong_echoNum_Results.
+type PingPong_echoNum_Results_List struct{ capnp.List }
+
+// NewPingPong_echoNum_Results creates a new list of PingPong_echoNum_Results.
+func NewPingPong_echoNum_Results_List(s *capnp.Segment, sz int32) (PingPong_echoNum_Results_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	return PingPong_echoNum_Results_List{l}, err
+}
+
+func (s PingPong_echoNum_Results_List) At(i int) PingPong_echoNum_Results {
+	return PingPong_echoNum_Results{s.List.Struct(i)}
+}
+
+func (s PingPong_echoNum_Results_List) Set(i int, v PingPong_echoNum_Results) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+// PingPong_echoNum_Results_Promise is a wrapper for a PingPong_echoNum_Results promised by a client call.
+type PingPong_echoNum_Results_Promise struct{ *capnp.Pipeline }
+
+func (p PingPong_echoNum_Results_Promise) Struct() (PingPong_echoNum_Results, error) {
+	s, err := p.Pipeline.Struct()
+	return PingPong_echoNum_Results{s}, err
+}
+
 type Adder struct{ Client capnp.Client }
 
 func (c Adder) Add(ctx context.Context, params func(Adder_add_Params) error, opts ...capnp.CallOption) Adder_add_Results_Promise {
@@ -981,64 +1159,74 @@ func (p Adder_add_Results_Promise) Struct() (Adder_add_Results, error) {
 	return Adder_add_Results{s}, err
 }
 
-const schema_ef12a34b9807e19c = "x\xda\x94U]HlU\x14\xde\xeb\xec=\xf7x\x99" +
-	"+\xb2=\x96]np\xe12\x91\x0a3\x18\xf6\x92\x90" +
-	"\x1a9Y\xd9\xcf\xcc\x88\xd1\x0f\x05\xc7\x99\x8d&\xe3\x8c" +
-	"\x9e\x99\xc1D\xa24\xa3\xb4\"4\x82\x04\x13\xac\x06I" +
-	"\x12\x0a\xec\xa1\x87\x1ez0J(\xb2P\xea!\xc8 " +
-	"\xcc\"\x14+(!Oko\xdd\xe3\x99\x19\x85\xeb\xc3" +
-	"\x11\xdd\xeb\xdb\xdfZ\xdf\xb7\xbe\x8d\x8d\xbfC\x9bq\x9b" +
-	"o\xfb\x02!\xd1\x88\xef\x82\xbb\xfeM\xe7\xf6\x9f?\xda" +
-	"c\x84\xfb\xa9;\xb7e\xbe\xd5\xf9n\xf5.!`=" +
-	"Fg,\x9b\x9a\x84XORS~\x84\xb8\xe1\x86+" +
-	"\xef}\xfeH\xedD\x198\x8c\xe0\x07\x15\xf8>\xdaa" +
-	"\x0d\xd1Z\x04\x7f\xed?\xcc\x1d.N\x97\x83m\xbaf" +
-	"\x0d(\xf0\xd3\x08~S1?\xda\xf2\xd2s\xbb\x17\xff" +
-	"y\x99Do\x00 \x84\xe1Y\xd3\xb3\xb4\x1f\x10>I" +
-	"[\x09\xb8\xa9w~]j\x7f\xfe\xa7\xa92\xb6\xf7\xb1" +
-	"\xf5G\x8am\x19\xd96\x14\xdb\x17w|?:\xb1\x12" +
-	"~\x85\xf0j$\xf3\x81\xac~J\x0f\x10\xfd\x99\"\xbb" +
-	"\xfa\xd7\x15\x7f\xf7\x07s\xaf\x97\x91m\xd1)kG\x91" +
-	"\xfd\x82d\x95r\x0c7\xff\xedW5/\xac\xad\xce\x94" +
-	"\x81\xff\xa6K\xd6\x7f\x0a\xfc/\x82oQ\xe0\xf4\x8d\x0f" +
-	"\xe47\xed\x96Y\xaf\x8eJ\xd6#u\\f\xb2\xf5S" +
-	"\xfe\xfc\xde\x1b\xb5\xe3\xb3\x84_\xd6\xf5;Y\x0c\x08s" +
-	"w7\x1f2>\x9e\xffa\x9eD\xb9\xbej\xd5\xb3\x9f" +
-	"\xf1f\x90\x0d\xe3\xcd\xae\xfd[\xc5H]\xfb\xa2\xb7>" +
-	"\xc9~\xc3\xfak\x8a9\xbd\xf7\xe2\xa5\x9b\x83\xd1\x95#" +
-	"\xd1\xaa\xbc\xcc\xf6\x91\xf8\xc3\x8e?\xba\x9f\x08\x7f\xf9\x89" +
-	"\xa70\xcd\x0e\xb0\xf0*{{\x95GG7\x8efQ" +
-	"65\xe5\xd8\xe3r\xd81E\xf9\xdd\xc2\xfa\xc6Z\xb8" +
-	"\x7f\xc7\xeb\xe3\x02r\x82\x95\xc7z\xd0\xcd\x8aL6\x14" +
-	"\xb7\x07!5\xd8|\xaf\x9dJ$AD\x00\"\xd4\x87" +
-	"?\x8b\x8a\xe1x_Z\x80\x83\xc7QF}\xe8\x93f" +
-	"\x06\xbd*\xce\x1b\x88\xc1}f\x95@h\x1b\xc2\x90\xa1" +
-	"\xe0<^\xd0l\x86n%\xee\xb1\xe3\xd9\xb43B\xc8" +
-	"\x09\xab6\x17\xb42\xcec\xc8z\xd1tSbX\xdd" +
-	"\" \xda\xc0;\x1dC\xbe\xbb\xedd\xf2a'!\x9c" +
-	"P\xaf\xc8\xca?\xba\xc4PN\xa4\xe2\"\x10\x13\x99\xaa" +
-	"\\2\x9bA~\x86\xd6\xa1\x09\xbc\xb2\x1a_N\x05\x85" +
-	"h\x8d\x01\x90\x82\x0ab\xe0\x07\xa5V\xf4\x16\xa9\xd5\xab" +
-	"\x01\xbd\x8a\x82\xda>\x84\x16\x0fdh\xbb\x9c\x90\xb4\"" +
-	"\x10k\x15\x99\xd2\x11\xae\x9d\x8c`\xca\x9e\xdcc\x15\x00" +
-	"/\x19\xe7\xae\x04J\xf3\xda\xa4\x93\x06:R\x9c_S" +
-	"\xe3\x98v\"Q<\x0dh{\xaa\xa4?\x1eE\xc79" +
-	"\x07\xfdp9\x1f?rZ[\x08\xc7\x1e\x92\xf3\xf8\x1d" +
-	"\xb1\x1d\xd3\x1e(\xd2z?j\xbd\x84Zo2\xc0\x15" +
-	"\xcf\x0c\x8axV$0\x10e\xc6\xb3\xd2`\x84\xf4\xce" +
-	"\x15\xad=\x00\x99\"\x8f\x95+!\x14\\hZQh" +
-	"Z/w\x1c\xc0\xa6\x8d\x06\xe0c\xab\x91\xef\x8d\x07\xe5" +
-	"a\x1d\x1e\xde\x8e\x8b\xb7\x81a\x7f\x86n\xf7\xe8\xdf\xce" +
-	"`?-B\xcd'\xfbku\xd4zO%Q9r" +
-	"B2#\x81\xc8U\xa9!sf]\xc7\xe4\xba\xfc\x88" +
-	"I,={\xa6>\x05\xc3X\x15\xfe;\x94\xc4\xaa4" +
-	"\xa4\xc7\xd3\x9d+\xa3\xff\x07\x00\x00\xff\xff\xa4\xec\xd8\xcd"
+const schema_ef12a34b9807e19c = "x\xda\x9cU_h\x1c\xd5\x17>g\xee\xbd\xbfIH" +
+	"\x7f\x84\x9b\x1b\x8d\xb5Bi\x88\xda\x16\xb3Tj\x1f\x1a" +
+	"\xb0\x89\xda\xed\x8a\xd5\xba\x93\x12\xf1?Lw.\x9b\x96" +
+	"\xdd\xd9uv\x97\x1a\xfbP[[\x94\xaaH#\xfe\x09" +
+	"\xb4\x81TCi\xf1\xc1\x87\xfa\x90W1b\x03\x15\xa3" +
+	"\xa4Z$\xd8\x0aE+\xd4\xc4\xa8P\x0af\xe4\xde\xec" +
+	"\xdd\x9d\xddM\x8b\xfa\xb0\xb03\xe7\x9b\xef|\xe7;\xdf" +
+	"\x9d\xd9\xb0\xcd\xea\xb3\xeees6\x80\xf3,\xfb_8" +
+	"\xfd\xd5\xf6\x9f~\x9fu\x0f\x00o!\xe1\xb1K\xf6\xfb" +
+	"\xdb?h\x9b\x03@1K\x86\xc5eb\x03\x88K\xc4" +
+	"V?\x800\xbe~\xd5\x87\x9f?\xd1q\xa8\x01|\x96" +
+	"\x0c\x8bi\x0d>G\x12\xe2O\xd2\x01\x10~\xd9\xb2X" +
+	"Z<y\xb4\x11|\x99L\x89\xdf4\xf8*I\x88\x95" +
+	"\xd4\x06X\xbc\xeb\xce\xef\xdf\xfdk\xf6\xb0\xd3\x8e\x08\xa0" +
+	"\xeelD\xda\x89\x80\xa2\x99\xf6\x02\x86Onyu\xff" +
+	"\\\xf3\xb5\xd7\xc0\xb9\xa5\x02XG\xf7(\xc0&\x0d\xf0" +
+	"O\xfc|z\xeb\xcb\x17\x8f44\x1b\xa0\xc3\xe29\x85" +
+	"\x17O\xd1\x848\xa0\xfe\x85_l\xfen\xdf\xa13\xf1" +
+	"\xd7\x81\xb7!\x00CU\xddM\xaf\x03\x8a\xac&[\xfd" +
+	"\xc7\xaa\x96\x81\x8f\x8e\xbd\xd5@\xf6&=\"\xde\xd1d" +
+	"GiBLh\xb2\xf1\xaf\xcf\xb5\xbf259\xdc\x00" +
+	"\x1e\xa3\xa7\xc5)\x0d\x1e\xa7\x091\xad\xc1\xb9[\x1f\x1d" +
+	"?\xefn\x19\x89\xce1Aw\xa99&u\xeb\xe7[" +
+	"\xc6\xe7\xdf\xee88\x02|\xa5\xa9_\xa1\xfd\x084\x9c" +
+	";\xbf\xc3\xfad\xf4\xc2(8\xdc<*f\xe8\x8f\x80" +
+	"\xe2\x02\xdd\x0b\x18\xee\\\xb8[\x0e\xad\xddz2Z\xdf" +
+	"\xc4~\x01\x14\x9b\x99b\xce\xcd\x1f^qG\xb7sf" +
+	"i\xe8%G\xd8\x02\xd0\xf0\xe3\xc4\xd5\x81g\xe2g'" +
+	"\"\x85\xfb\xd9u\xa0\xe1\x1b\xf4\xf8$w\xf6\xcd,i" +
+	"\xd16m\\\xc3\x9eVb\xbb5\xe5\x9a\xe6\x1fFO" +
+	"]|\xef[\x88\xac\xed1v\xbb\x02\x0ch\xc07c" +
+	"\xd33S\xf1=W\xa2F\x97\xd8\x02\xa0\x18\xd2\xf5\x97" +
+	"~\xbd\xf6i\xf13:\xdf\xe0\xdd\x08;!\xc6\x98\x82" +
+	"\x1fg\x091\xc9l\xb8',\xcaB1\x96r\xf3\xe8" +
+	"\xe7{\x1ev}/\x832\x89\x98$,\x89XS\x8c" +
+	"\xa7\x06s\x12\x83$\xa2C\x09\x03\xa8\xc8@\xb3x\xce" +
+	"\xd7\x83\xc5\x99\xdd*S\x83\xb9>t(bu\x8f\x00" +
+	"\x156\xcb\xb4\x92\xdb\xdcT1\x17\x0c\x01TY\xcd\xaa" +
+	"\xd0\xf8\xc4y?X\xbc\xd9\x0e}\xb9W?\x05(\xfb" +
+	"0\xaa\x8e\xf8\xf9\x9e\xe4n?\x9d\xcc\xf9\xe9\x98\xea\xbd" +
+	"\xa3\x94\xed\xea\x97\x85\x92\x9d)\x16\x1cJ(\x00E\x00" +
+	"\xfe\xff6\x00\xa7\x89\xa0\xd3n!\xfaH\xc1B\x0aU" +
+	"\x1a\xea\xe7{\x1er3\x99\xc7\x03O\x06\xb1\xb4,\xaa" +
+	"\x8b\x9d\xf2\x85\x92\xf4SR\xf1\xb5\x96n\xca\xd7\x04\x16" +
+	"6\x01\xd6;\x9a\xae1\xcd\xe4\x05M>*\xa6\x0d\xba" +
+	"~\xbav.\xcb\xb8\x1e\xe8\xa9\xba\xfa{e\xa1^B" +
+	"gU\x82\xadz\xf2\x88\xe3\x88\xbcN\xce\x03\x9e'\x83" +
+	"\xa8\xdb&\xfehr\xcey\xa7\x96c\xbb\x9eW\xab\x06" +
+	"\x8d=\xad\xca\x9f\xc8D\xe5\xc3\x87\xe6m\xc2\xf9\xc1\xa5" +
+	"\x85\x19\x0b\xb1\xec!\xd4\x12\xde\xdc\xef\xa4\x1b\xd8n\xb6" +
+	"f\xd6G\x00\x9c\x15\x04\x9d\xdb,\x0c\xe5\x8by\x99*" +
+	"J\x0f\x00\x1a\x8c\xa7\xf5\xf9\x8a\x99\xe8hZ7\x8b\x85" +
+	"\x1a\x8f\xb5+1\xd7\xf3*M\x9b*M\xd7\xa9\x1dw" +
+	"\x11t6X\xc8\x11\xf5\x89\xe4\xdd\xea\xe6Z\x82\xce}" +
+	"\x16\xa2k\x82\x84\xbb\x1a\"U\xcb\xbe\\\x84z\xaa\xfb" +
+	"\xeb\x0d\xf4z\x97%\xd19\x0ab*#]\xc9\xd5j" +
+	"\x86\xc2\x0d\xeb&&\xff\xc8\x0fuL2\xe4\xc6\x9a\x06" +
+	"5\x0cy\xf5\x8bV\x17\xabe\x0f\x9fr\x99d\xff\xc5" +
+	"\xd9\xab\x8fzy\xc6\xff\x9et-\xc9\xce\xf9\xe9jP" +
+	"\xcd{\x15\xa1\xfcY\xe4\xfcA\x9d\xf5\xfde\xd9:\x9e" +
+	"\x7f\x07\x00\x00\xff\xff<\xf6/\x9f"
 
 func init() {
 	schemas.Register(schema_ef12a34b9807e19c,
 		0x8161ddf3e74bd0d1,
 		0x841756c6a41b2a45,
 		0x8491a7fe75fe0bce,
+		0x85ddfd96db252600,
 		0x88f809ef7f873e58,
 		0x8ae08044aae8a26e,
 		0x8b45b4847bd839c8,
@@ -1051,5 +1239,7 @@ func init() {
 		0xb4512d1c0c85f06f,
 		0xb9c9455b55ed47b0,
 		0xd57b5111c59d048c,
-		0xe96a45cad5d1a1d3)
+		0xd797e0a99edf0921,
+		0xe96a45cad5d1a1d3,
+		0xf004c474c2f8ee7a)
 }
