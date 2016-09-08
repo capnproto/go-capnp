@@ -300,7 +300,6 @@ func (c *Conn) handleMessage(m rpccapnp.Message) {
 			c.errorf("handle return: %v", err)
 		}
 	case rpccapnp.Message_Which_finish:
-		// TODO(light): what if answers never had this ID?
 		mfin, err := m.Finish()
 		if err != nil {
 			c.errorf("decode finish: %v", err)
@@ -310,6 +309,11 @@ func (c *Conn) handleMessage(m rpccapnp.Message) {
 
 		c.mu.Lock()
 		a := c.popAnswer(id)
+		if a == nil {
+			c.mu.Unlock()
+			c.errorf("finish called for unknown answer %d", id)
+			return
+		}
 		a.cancel()
 		if mfin.ReleaseResultCaps() {
 			for _, id := range a.resultCaps {
