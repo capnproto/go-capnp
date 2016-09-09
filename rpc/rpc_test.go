@@ -28,11 +28,11 @@ type testLogger struct {
 	}
 }
 
-func (l testLogger) Infof(format string, args ...interface{}) {
+func (l testLogger) Infof(ctx context.Context, format string, args ...interface{}) {
 	l.t.Logf("conn log: "+format, args...)
 }
 
-func (l testLogger) Errorf(format string, args ...interface{}) {
+func (l testLogger) Errorf(ctx context.Context, format string, args ...interface{}) {
 	l.t.Logf("conn log: "+format, args...)
 }
 
