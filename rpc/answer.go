@@ -156,20 +156,10 @@ func (a *answer) emptyQueue(obj capnp.Ptr) (map[capnp.CapabilityID][]qcall, erro
 	return qs, firstErr
 }
 
-// queueCall enqueues a call to be made after the answer has been
+// queueCallLocked enqueues a call to be made after the answer has been
 // resolved.  The answer must not be resolved yet.  pc should have
-// transform and one of pc.a or pc.f to be set.
-func (a *answer) queueCall(call *capnp.Call, pc pcall) error {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	if a.done {
-		panic("answer.queueCall called on resolved answer")
-	}
-	return a.queueCallLocked(call, pc)
-}
-
-// queueCallLocked is like queueCall but assumes the caller is holding
-// onto a.mu.
+// transform and one of pc.a or pc.f to be set.  The caller must be
+// holding onto a.mu.
 func (a *answer) queueCallLocked(call *capnp.Call, pc pcall) error {
 	if len(a.queue) == cap(a.queue) {
 		return errQueueFull
