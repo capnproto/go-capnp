@@ -156,8 +156,7 @@ func (c *Conn) findExport(id exportID) *export {
 // If the client is already in the table, the previous ID is returned.
 func (c *Conn) addExport(client capnp.Client) exportID {
 	for i, e := range c.exports {
-		// TODO(now): better deduping here
-		if e != nil && e.rc.Client == client {
+		if e != nil && isSameClient(e.rc.Client, client) {
 			e.wireRefs++
 			return exportID(i)
 		}

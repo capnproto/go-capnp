@@ -204,6 +204,77 @@ dig:
 	return nil
 }
 
+// isSameClient reports whether c and d refer to the same capability.
+func isSameClient(c, d capnp.Client) bool {
+	norm := func(client capnp.Client) capnp.Client {
+		for {
+			switch curr := client.(type) {
+			case *fulfiller.EmbargoClient:
+				client = curr.Client()
+				if client == nil {
+					return curr
+				}
+			case *refcount.Ref:
+				client = curr.Client()
+			case *embargoClient:
+				curr.mu.RLock()
+				ok := curr.isPassthrough()
+				curr.mu.RUnlock()
+				if !ok {
+					return curr
+				}
+				client = curr.client
+			case *queueClient:
+				curr.mu.RLock()
+				ok := curr.isPassthrough()
+				curr.mu.RUnlock()
+				if !ok {
+					return curr
+				}
+				client = curr.client
+			case *localAnswerClient:
+				curr.a.mu.RLock()
+				obj, err, done := curr.a.obj, curr.a.err, curr.a.done
+				curr.a.mu.RUnlock()
+				if !done {
+					return curr
+				}
+				client = clientFromResolution(curr.transform, obj, err)
+			case *capnp.PipelineClient:
+				p := (*capnp.Pipeline)(curr)
+				ans := p.Answer()
+				if capnp.IsFixedAnswer(ans) {
+					s, err := ans.Struct()
+					client = clientFromResolution(p.Transform(), s.ToPtr(), err)
+					continue
+				}
+				switch ans := ans.(type) {
+				case *fulfiller.Fulfiller:
+					ap := ans.Peek()
+					if ap == nil {
+						return curr
+					}
+					s, err := ap.Struct()
+					client = clientFromResolution(p.Transform(), s.ToPtr(), err)
+				case *question:
+					ans.mu.RLock()
+					obj, err, state := ans.obj, ans.err, ans.state
+					ans.mu.RUnlock()
+					if state != questionResolved {
+						return curr
+					}
+					client = clientFromResolution(p.Transform(), obj, err)
+				default:
+					return curr
+				}
+			default:
+				return curr
+			}
+		}
+	}
+	return norm(c) == norm(d)
+}
+
 // isImport returns the underlying import if client represents an import
 // or nil otherwise.
 func isImport(client capnp.Client) *importClient {
