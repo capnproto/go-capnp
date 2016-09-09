@@ -690,13 +690,15 @@ func (c *Conn) routeCallMessage(result *answer, mt rpccapnp.MessageTarget, cl *c
 		transform := promisedAnswerOpsToTransform(mtrans)
 		pa.mu.Lock()
 		if pa.done {
-			client := clientFromResolution(transform, pa.obj, pa.err)
+			obj, err := pa.obj, pa.err
+			pa.mu.Unlock()
+			client := clientFromResolution(transform, obj, err)
 			answer := c.lockedCall(client, cl)
 			go joinAnswer(result, answer)
 		} else {
 			err = pa.queueCallLocked(cl, pcall{transform: transform, qcall: qcall{a: result}})
+			pa.mu.Unlock()
 		}
-		pa.mu.Unlock()
 		return err
 	default:
 		panic("unreachable")
