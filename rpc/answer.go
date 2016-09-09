@@ -15,63 +15,40 @@ import (
 // TODO(light): make this a ConnOption
 const callQueueSize = 64
 
-type answerTable struct {
-	tab         map[answerID]*answer
-	manager     *manager
-	out         chan<- rpccapnp.Message
-	returns     chan<- *outgoingReturn
-	queueCloses chan<- queueClientClose
-}
-
-func (at *answerTable) get(id answerID) *answer {
-	var a *answer
-	if at.tab != nil {
-		a = at.tab[id]
-	}
-	return a
-}
-
-// insert creates a new question with the given ID, returning nil
+// insertAnswer creates a new answer with the given ID, returning nil
 // if the ID is already in use.
-func (at *answerTable) insert(id answerID, cancel context.CancelFunc) *answer {
-	if at.tab == nil {
-		at.tab = make(map[answerID]*answer)
+func (c *Conn) insertAnswer(id answerID, cancel context.CancelFunc) *answer {
+	if c.answers == nil {
+		c.answers = make(map[answerID]*answer)
+	} else if _, exists := c.answers[id]; exists {
+		return nil
 	}
-	var a *answer
-	if _, ok := at.tab[id]; !ok {
-		a = &answer{
-			id:          id,
-			cancel:      cancel,
-			manager:     at.manager,
-			out:         at.out,
-			returns:     at.returns,
-			queueCloses: at.queueCloses,
-			resolved:    make(chan struct{}),
-			queue:       make([]pcall, 0, callQueueSize),
-		}
-		at.tab[id] = a
+	a := &answer{
+		id:       id,
+		cancel:   cancel,
+		conn:     c,
+		resolved: make(chan struct{}),
+		queue:    make([]pcall, 0, callQueueSize),
 	}
+	c.answers[id] = a
 	return a
 }
 
-func (at *answerTable) pop(id answerID) *answer {
-	var a *answer
-	if at.tab != nil {
-		a = at.tab[id]
-		delete(at.tab, id)
+func (c *Conn) popAnswer(id answerID) *answer {
+	if c.answers == nil {
+		return nil
 	}
+	a := c.answers[id]
+	delete(c.answers, id)
 	return a
 }
 
 type answer struct {
-	id          answerID
-	cancel      context.CancelFunc
-	resultCaps  []exportID
-	manager     *manager
-	out         chan<- rpccapnp.Message
-	returns     chan<- *outgoingReturn
-	queueCloses chan<- queueClientClose
-	resolved    chan struct{}
+	id         answerID
+	cancel     context.CancelFunc
+	resultCaps []exportID
+	conn       *Conn
+	resolved   chan struct{}
 
 	mu    sync.RWMutex
 	obj   capnp.Ptr
@@ -80,12 +57,11 @@ type answer struct {
 	queue []pcall
 }
 
-// fulfill is called to resolve an answer successfully and returns a list
-// of return messages to send.
-// It must be called from the coordinate goroutine.
-func (a *answer) fulfill(msgs []rpccapnp.Message, obj capnp.Ptr, makeCapTable capTableMaker) []rpccapnp.Message {
+// fulfill is called to resolve an answer successfully.  It returns an
+// error if its connection is shut down while sending messages.  The
+// caller must be holding onto a.conn.mu.
+func (a *answer) fulfill(obj capnp.Ptr) error {
 	a.mu.Lock()
-	defer a.mu.Unlock()
 	if a.done {
 		panic("answer.fulfill called more than once")
 	}
@@ -96,32 +72,37 @@ func (a *answer) fulfill(msgs []rpccapnp.Message, obj capnp.Ptr, makeCapTable ca
 	ret, _ := retmsg.Return()
 	payload, _ := ret.NewResults()
 	payload.SetContentPtr(obj)
-	payloadTab, err := makeCapTable(ret.Segment())
-	if err != nil {
-		// TODO(light): handle this more gracefully
-		panic(err)
+	var firstErr error
+	if payloadTab, err := a.conn.makeCapTable(ret.Segment()); err == nil {
+		payload.SetCapTable(payloadTab)
+		if err := a.conn.sendMessage(retmsg); err != nil {
+			firstErr = err
+		}
+	} else {
+		firstErr = err
 	}
-	payload.SetCapTable(payloadTab)
-	msgs = append(msgs, retmsg)
 
-	queues, msgs := a.emptyQueue(msgs, obj)
+	queues, err := a.emptyQueue(obj)
+	if err != nil && firstErr == nil {
+		firstErr = err
+	}
 	ctab := obj.Segment().Message().CapTable
 	for capIdx, q := range queues {
-		ctab[capIdx] = newQueueClient(a.manager, ctab[capIdx], q, a.out, a.queueCloses)
+		ctab[capIdx] = newQueueClient(a.conn, ctab[capIdx], q)
 	}
 	close(a.resolved)
-	return msgs
+	a.mu.Unlock()
+	return firstErr
 }
 
-// reject is called to resolve an answer with failure and returns a list
-// of return messages to send.
-// It must be called from the coordinate goroutine.
-func (a *answer) reject(msgs []rpccapnp.Message, err error) []rpccapnp.Message {
+// reject is called to resolve an answer with failure.  It returns an
+// error if its connection is shut down while sending messages.  The
+// caller must be holding onto a.conn.mu.
+func (a *answer) reject(err error) error {
 	if err == nil {
 		panic("answer.reject called with nil")
 	}
 	a.mu.Lock()
-	defer a.mu.Unlock()
 	if a.done {
 		panic("answer.reject called more than once")
 	}
@@ -129,29 +110,40 @@ func (a *answer) reject(msgs []rpccapnp.Message, err error) []rpccapnp.Message {
 	m := newReturnMessage(nil, a.id)
 	mret, _ := m.Return()
 	setReturnException(mret, err)
-	msgs = append(msgs, m)
-	for i := range a.queue {
-		msgs = a.queue[i].a.reject(msgs, err)
-		a.queue[i] = pcall{}
+	var firstErr error
+	if err := a.conn.sendMessage(m); err != nil {
+		firstErr = err
 	}
+	for i := range a.queue {
+		if err := a.queue[i].a.reject(err); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	a.queue = nil
 	close(a.resolved)
-	return msgs
+	a.mu.Unlock()
+	return firstErr
 }
 
 // emptyQueue splits the queue by which capability it targets
 // and drops any invalid calls.  Once this function returns, a.queue
 // will be nil.
-func (a *answer) emptyQueue(msgs []rpccapnp.Message, obj capnp.Ptr) (map[capnp.CapabilityID][]qcall, []rpccapnp.Message) {
+func (a *answer) emptyQueue(obj capnp.Ptr) (map[capnp.CapabilityID][]qcall, error) {
+	var firstErr error
 	qs := make(map[capnp.CapabilityID][]qcall, len(a.queue))
 	for i, pc := range a.queue {
 		c, err := capnp.TransformPtr(obj, pc.transform)
 		if err != nil {
-			msgs = pc.a.reject(msgs, err)
+			if err := pc.a.reject(err); err != nil && firstErr == nil {
+				firstErr = err
+			}
 			continue
 		}
 		ci := c.Interface()
 		if !ci.IsValid() {
-			msgs = pc.a.reject(msgs, capnp.ErrNullClient)
+			if err := pc.a.reject(capnp.ErrNullClient); err != nil && firstErr == nil {
+				firstErr = err
+			}
 			continue
 		}
 		cn := ci.Capability()
@@ -161,43 +153,27 @@ func (a *answer) emptyQueue(msgs []rpccapnp.Message, obj capnp.Ptr) (map[capnp.C
 		qs[cn] = append(qs[cn], pc.qcall)
 	}
 	a.queue = nil
-	return qs, msgs
+	return qs, firstErr
 }
 
-func (a *answer) peek() (obj capnp.Ptr, err error, ok bool) {
-	a.mu.RLock()
-	obj, err, ok = a.obj, a.err, a.done
-	a.mu.RUnlock()
-	return
-}
-
-// queueCall is called from the coordinate goroutine to add a call to
-// the queue.
-func (a *answer) queueCall(result *answer, transform []capnp.PipelineOp, call *capnp.Call) error {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	if a.done {
-		panic("answer.queueCall called on resolved answer")
-	}
+// queueCallLocked enqueues a call to be made after the answer has been
+// resolved.  The answer must not be resolved yet.  pc should have
+// transform and one of pc.a or pc.f to be set.  The caller must be
+// holding onto a.mu.
+func (a *answer) queueCallLocked(call *capnp.Call, pc pcall) error {
 	if len(a.queue) == cap(a.queue) {
 		return errQueueFull
 	}
-	cc, err := call.Copy(nil)
+	var err error
+	pc.call, err = call.Copy(nil)
 	if err != nil {
 		return err
 	}
-	a.queue = append(a.queue, pcall{
-		transform: transform,
-		qcall: qcall{
-			a:    result,
-			call: cc,
-		},
-	})
+	a.queue = append(a.queue, pc)
 	return nil
 }
 
-// queueDisembargo is called from the coordinate goroutine to add a
-// disembargo message to the queue.
+// queueDisembargo enqueues a disembargo message.
 func (a *answer) queueDisembargo(transform []capnp.PipelineOp, id embargoID, target rpccapnp.MessageTarget) (queued bool, err error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -217,12 +193,12 @@ func (a *answer) queueDisembargo(transform []capnp.PipelineOp, id embargoID, tar
 		// No need to embargo, disembargo immediately.
 		return false, nil
 	}
-	if ic, ok := extractRPCClient(qc.client).(*importClient); !(ok && a.manager == ic.manager) {
+	if ic := isImport(qc.client); ic == nil || a.conn != ic.conn {
 		return false, errDisembargoNonImport
 	}
 	qc.mu.Lock()
 	if !qc.isPassthrough() {
-		err = qc.pushEmbargo(id, target)
+		err = qc.pushEmbargoLocked(id, target)
 		if err == nil {
 			queued = true
 		}
@@ -236,24 +212,24 @@ func (a *answer) pipelineClient(transform []capnp.PipelineOp) capnp.Client {
 }
 
 // joinAnswer resolves an RPC answer by waiting on a generic answer.
-// It waits until the generic answer is finished, so it should be run
-// in its own goroutine.
+// The caller must not be holding onto a.conn.mu.
 func joinAnswer(a *answer, ca capnp.Answer) {
 	s, err := ca.Struct()
-	r := &outgoingReturn{
-		a:   a,
-		obj: s.ToPtr(),
-		err: err,
-	}
 	select {
-	case a.returns <- r:
-	case <-a.manager.finish:
+	case <-a.conn.mu:
+		// Locked.
+	case <-a.conn.bg.Done():
+		return
 	}
+	if err == nil {
+		a.fulfill(s.ToPtr())
+	} else {
+		a.reject(err)
+	}
+	a.conn.mu.Unlock()
 }
 
 // joinFulfiller resolves a fulfiller by waiting on a generic answer.
-// It waits until the generic answer is finished, so it should be run
-// in its own goroutine.
 func joinFulfiller(f *fulfiller.Fulfiller, ca capnp.Answer) {
 	s, err := ca.Struct()
 	if err != nil {
@@ -263,85 +239,67 @@ func joinFulfiller(f *fulfiller.Fulfiller, ca capnp.Answer) {
 	}
 }
 
-// outgoingReturn is a message sent to the coordinate goroutine to
-// indicate that a call started by an answer has completed.  A simple
-// message is insufficient, since the connection needs to populate the
-// return message's capability table.
-type outgoingReturn struct {
-	a   *answer
-	obj capnp.Ptr
-	err error
-}
-
 type queueClient struct {
-	manager *manager
-	client  capnp.Client
-	out     chan<- rpccapnp.Message
-	closes  chan<- queueClientClose
+	client capnp.Client
+	conn   *Conn
 
-	mu sync.RWMutex
-	q  queue.Queue
+	mu    sync.RWMutex
+	q     queue.Queue
+	calls qcallList
 }
 
-func newQueueClient(m *manager, client capnp.Client, queue []qcall, out chan<- rpccapnp.Message, closes chan<- queueClientClose) *queueClient {
+func newQueueClient(c *Conn, client capnp.Client, queue []qcall) *queueClient {
 	qc := &queueClient{
-		manager: m,
-		client:  client,
-		out:     out,
-		closes:  closes,
+		client: client,
+		conn:   c,
+		calls:  make(qcallList, callQueueSize),
 	}
-	qq := make(qcallList, callQueueSize)
-	n := copy(qq, queue)
-	qc.q.Init(qq, n)
+	qc.q.Init(qc.calls, copy(qc.calls, queue))
 	go qc.flushQueue()
 	return qc
 }
 
-func (qc *queueClient) pushCall(cl *capnp.Call) capnp.Answer {
+func (qc *queueClient) pushCallLocked(cl *capnp.Call) capnp.Answer {
 	f := new(fulfiller.Fulfiller)
 	cl, err := cl.Copy(nil)
 	if err != nil {
 		return capnp.ErrorAnswer(err)
 	}
-	if ok := qc.q.Push(qcall{call: cl, f: f}); !ok {
+	i := qc.q.Push()
+	if i == -1 {
 		return capnp.ErrorAnswer(errQueueFull)
 	}
+	qc.calls[i] = qcall{call: cl, f: f}
 	return f
 }
 
-func (qc *queueClient) pushEmbargo(id embargoID, tgt rpccapnp.MessageTarget) error {
-	ok := qc.q.Push(qcall{embargoID: id, embargoTarget: tgt})
-	if !ok {
+func (qc *queueClient) pushEmbargoLocked(id embargoID, tgt rpccapnp.MessageTarget) error {
+	i := qc.q.Push()
+	if i == -1 {
 		return errQueueFull
 	}
+	qc.calls[i] = qcall{embargoID: id, embargoTarget: tgt}
 	return nil
-}
-
-func (qc *queueClient) peek() qcall {
-	if qc.q.Len() == 0 {
-		return qcall{}
-	}
-	return qc.q.Peek().(qcall)
-}
-
-func (qc *queueClient) pop() qcall {
-	if qc.q.Len() == 0 {
-		return qcall{}
-	}
-	return qc.q.Pop().(qcall)
 }
 
 // flushQueue is run in its own goroutine.
 func (qc *queueClient) flushQueue() {
+	var c qcall
 	qc.mu.RLock()
-	c := qc.peek()
+	if i := qc.q.Front(); i != -1 {
+		c = qc.calls[i]
+	}
 	qc.mu.RUnlock()
 	for c.which() != qcallInvalid {
 		qc.handle(&c)
 
 		qc.mu.Lock()
-		qc.pop()
-		c = qc.peek()
+		qc.q.Pop()
+		if i := qc.q.Front(); i != -1 {
+			c = qc.calls[i]
+		} else {
+			c = qcall{}
+		}
 		qc.mu.Unlock()
 	}
 }
@@ -358,7 +316,7 @@ func (qc *queueClient) handle(c *qcall) {
 		msg := newDisembargoMessage(nil, rpccapnp.Disembargo_context_Which_receiverLoopback, c.embargoID)
 		d, _ := msg.Disembargo()
 		d.SetTarget(c.embargoTarget)
-		sendMessage(qc.manager, qc.out, msg)
+		qc.conn.sendMessage(msg)
 	}
 }
 
@@ -382,63 +340,63 @@ func (qc *queueClient) Call(cl *capnp.Call) capnp.Answer {
 		qc.mu.Unlock()
 		return qc.client.Call(cl)
 	}
-	ans := qc.pushCall(cl)
+	ans := qc.pushCallLocked(cl)
 	qc.mu.Unlock()
 	return ans
 }
 
-func (qc *queueClient) WrappedClient() capnp.Client {
-	qc.mu.RLock()
-	ok := qc.isPassthrough()
-	qc.mu.RUnlock()
-	if !ok {
+func (qc *queueClient) tryQueue(cl *capnp.Call) capnp.Answer {
+	qc.mu.Lock()
+	if qc.isPassthrough() {
+		qc.mu.Unlock()
 		return nil
 	}
-	return qc.client
+	ans := qc.pushCallLocked(cl)
+	qc.mu.Unlock()
+	return ans
 }
 
 func (qc *queueClient) Close() error {
-	done := make(chan struct{})
 	select {
-	case qc.closes <- queueClientClose{qc, done}:
-	case <-qc.manager.finish:
-		return qc.manager.err()
+	case <-qc.conn.mu:
+		// Locked.
+	case <-qc.conn.bg.Done():
+		return ErrConnClosed
 	}
-	select {
-	case <-done:
-	case <-qc.manager.finish:
-		return qc.manager.err()
+	rejErr := qc.rejectQueue()
+	qc.conn.mu.Unlock()
+	if err := qc.client.Close(); err != nil {
+		return err
 	}
-	return qc.client.Close()
+	return rejErr
 }
 
-// rejectQueue is called from the coordinate goroutine to close out a queueClient.
-func (qc *queueClient) rejectQueue(msgs []rpccapnp.Message) []rpccapnp.Message {
+// rejectQueue drains the client's queue.  It returns an error if the
+// connection was shut down while messages are sent.  The caller must be
+// holding onto qc.conn.mu.
+func (qc *queueClient) rejectQueue() error {
+	var firstErr error
 	qc.mu.Lock()
-	for {
-		c := qc.pop()
-		if w := c.which(); w == qcallRemoteCall {
-			msgs = c.a.reject(msgs, errQueueCallCancel)
-		} else if w == qcallLocalCall {
+	for ; qc.q.Len() > 0; qc.q.Pop() {
+		c := qc.calls[qc.q.Front()]
+		switch c.which() {
+		case qcallRemoteCall:
+			if err := c.a.reject(errQueueCallCancel); err != nil && firstErr == nil {
+				firstErr = err
+			}
+		case qcallLocalCall:
 			c.f.Reject(errQueueCallCancel)
-		} else if w == qcallDisembargo {
+		case qcallDisembargo:
 			m := newDisembargoMessage(nil, rpccapnp.Disembargo_context_Which_receiverLoopback, c.embargoID)
 			d, _ := m.Disembargo()
 			d.SetTarget(c.embargoTarget)
-			msgs = append(msgs, m)
-		} else {
-			break
+			if err := qc.conn.sendMessage(m); err != nil && firstErr == nil {
+				firstErr = err
+			}
 		}
 	}
 	qc.mu.Unlock()
-	return msgs
-}
-
-// queueClientClose is a message sent to the coordinate goroutine to
-// handle rejecting a queue.
-type queueClientClose struct {
-	qc   *queueClient
-	done chan<- struct{}
+	return firstErr
 }
 
 // pcall is a queued pipeline call.
@@ -486,16 +444,8 @@ func (ql qcallList) Len() int {
 	return len(ql)
 }
 
-func (ql qcallList) At(i int) interface{} {
-	return ql[i]
-}
-
-func (ql qcallList) Set(i int, x interface{}) {
-	if x == nil {
-		ql[i] = qcall{}
-	} else {
-		ql[i] = x.(qcall)
-	}
+func (ql qcallList) Clear(i int) {
+	ql[i] = qcall{}
 }
 
 // A localAnswerClient is used to provide a pipelined client of an answer.
@@ -511,44 +461,28 @@ func (lac *localAnswerClient) Call(call *capnp.Call) capnp.Answer {
 		lac.a.mu.Unlock()
 		return clientFromResolution(lac.transform, obj, err).Call(call)
 	}
-	defer lac.a.mu.Unlock()
-	if len(lac.a.queue) == cap(lac.a.queue) {
+	f := new(fulfiller.Fulfiller)
+	err := lac.a.queueCallLocked(call, pcall{
+		transform: lac.transform,
+		qcall:     qcall{f: f},
+	})
+	lac.a.mu.Unlock()
+	if err != nil {
 		return capnp.ErrorAnswer(errQueueFull)
 	}
-	f := new(fulfiller.Fulfiller)
-	cc, err := call.Copy(nil)
-	if err != nil {
-		return capnp.ErrorAnswer(err)
-	}
-	lac.a.queue = append(lac.a.queue, pcall{
-		transform: lac.transform,
-		qcall: qcall{
-			f:    f,
-			call: cc,
-		},
-	})
 	return f
 }
 
-func (lac *localAnswerClient) WrappedClient() capnp.Client {
-	obj, err, ok := lac.a.peek()
-	if !ok {
-		return nil
-	}
-	return clientFromResolution(lac.transform, obj, err)
-}
-
 func (lac *localAnswerClient) Close() error {
-	obj, err, ok := lac.a.peek()
-	if !ok {
+	lac.a.mu.RLock()
+	obj, err, done := lac.a.obj, lac.a.err, lac.a.done
+	lac.a.mu.RUnlock()
+	if !done {
 		return nil
 	}
 	client := clientFromResolution(lac.transform, obj, err)
 	return client.Close()
 }
-
-// A capTableMaker converts the clients in a segment's message into capability descriptors.
-type capTableMaker func(*capnp.Segment) (rpccapnp.CapDescriptor_List, error)
 
 var (
 	errQueueFull       = errors.New("rpc: pipeline queue full")

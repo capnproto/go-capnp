@@ -20,9 +20,10 @@ func TestRelease(t *testing.T) {
 	if *logMessages {
 		p = logtransport.New(nil, p)
 	}
-	c := rpc.NewConn(p)
+	log := testLogger{t}
+	c := rpc.NewConn(p, rpc.ConnLog(log))
 	hf := new(HandleFactory)
-	d := rpc.NewConn(q, rpc.MainInterface(testcapnp.HandleFactory_ServerToClient(hf).Client))
+	d := rpc.NewConn(q, rpc.MainInterface(testcapnp.HandleFactory_ServerToClient(hf).Client), rpc.ConnLog(log))
 	defer d.Wait()
 	defer c.Close()
 	client := testcapnp.HandleFactory{Client: c.Bootstrap(ctx)}
@@ -52,9 +53,10 @@ func TestReleaseAlias(t *testing.T) {
 	if *logMessages {
 		p = logtransport.New(nil, p)
 	}
-	c := rpc.NewConn(p)
+	log := testLogger{t}
+	c := rpc.NewConn(p, rpc.ConnLog(log))
 	hf := singletonHandleFactory()
-	d := rpc.NewConn(q, rpc.MainInterface(testcapnp.HandleFactory_ServerToClient(hf).Client))
+	d := rpc.NewConn(q, rpc.MainInterface(testcapnp.HandleFactory_ServerToClient(hf).Client), rpc.ConnLog(log))
 	defer d.Wait()
 	defer c.Close()
 	client := testcapnp.HandleFactory{Client: c.Bootstrap(ctx)}

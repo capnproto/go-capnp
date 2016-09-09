@@ -1,7 +1,7 @@
 package rpc
 
 import (
-	"log"
+	"errors"
 
 	"zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/rpc/internal/refcount"
@@ -22,97 +22,119 @@ type impent struct {
 	refs int
 }
 
-type importTable struct {
-	tab      map[importID]*impent
-	manager  *manager
-	calls    chan<- *appCall
-	releases chan<- *outgoingRelease
-}
-
-// addRef increases the counter of the times the import ID was sent to this vat.
-func (it *importTable) addRef(id importID) capnp.Client {
-	if it.tab == nil {
-		it.tab = make(map[importID]*impent)
+// addImport increases the counter of the times the import ID was sent to this vat.
+func (c *Conn) addImport(id importID) capnp.Client {
+	if c.imports == nil {
+		c.imports = make(map[importID]*impent)
+	} else if ent := c.imports[id]; ent != nil {
+		ent.refs++
+		return ent.rc.Ref()
 	}
-	ent := it.tab[id]
-	var ref capnp.Client
-	if ent == nil {
-		client := &importClient{
-			id:       id,
-			manager:  it.manager,
-			calls:    it.calls,
-			releases: it.releases,
-		}
-		var rc *refcount.RefCount
-		rc, ref = refcount.New(client)
-		ent = &impent{rc: rc, refs: 0}
-		it.tab[id] = ent
+	client := &importClient{
+		id:   id,
+		conn: c,
 	}
-	if ref == nil {
-		ref = ent.rc.Ref()
-	}
-	ent.refs++
+	rc, ref := refcount.New(client)
+	c.imports[id] = &impent{rc: rc, refs: 1}
 	return ref
 }
 
-// pop removes the import ID and returns the number of times the import ID was sent to this vat.
-func (it *importTable) pop(id importID) (refs int) {
-	if it.tab != nil {
-		if ent := it.tab[id]; ent != nil {
-			refs = ent.refs
-		}
-		delete(it.tab, id)
+// popImport removes the import ID and returns the number of times the import ID was sent to this vat.
+func (c *Conn) popImport(id importID) (refs int) {
+	if c.imports == nil {
+		return 0
 	}
-	return
-}
-
-// An outgoingRelease is a message sent to the coordinate goroutine to
-// indicate that an import should be released.
-type outgoingRelease struct {
-	id    importID
-	echan chan<- error
+	ent := c.imports[id]
+	if ent == nil {
+		return 0
+	}
+	refs = ent.refs
+	delete(c.imports, id)
+	return refs
 }
 
 // An importClient implements capnp.Client for a remote capability.
 type importClient struct {
-	id       importID
-	manager  *manager
-	calls    chan<- *appCall
-	releases chan<- *outgoingRelease
+	id     importID
+	conn   *Conn
+	closed bool // protected by conn.mu
 }
 
 func (ic *importClient) Call(cl *capnp.Call) capnp.Answer {
-	// TODO(light): don't send if closed.
-	ac, achan := newAppImportCall(ic.id, cl)
 	select {
-	case ic.calls <- ac:
-		select {
-		case a := <-achan:
-			return a
-		case <-ic.manager.finish:
-			return capnp.ErrorAnswer(ic.manager.err())
-		}
-	case <-ic.manager.finish:
-		return capnp.ErrorAnswer(ic.manager.err())
+	case <-ic.conn.mu:
+	case <-cl.Ctx.Done():
+		return capnp.ErrorAnswer(cl.Ctx.Err())
+	case <-ic.conn.bg.Done():
+		return capnp.ErrorAnswer(ErrConnClosed)
 	}
+	ans := ic.lockedCall(cl)
+	ic.conn.mu.Unlock()
+	return ans
+}
+
+// lockedCall is equivalent to Call but assumes that the caller is
+// already holding onto ic.conn.mu.
+func (ic *importClient) lockedCall(cl *capnp.Call) capnp.Answer {
+	if ic.closed {
+		return capnp.ErrorAnswer(errImportClosed)
+	}
+
+	q := ic.conn.newQuestion(cl.Ctx, &cl.Method)
+	msg := newMessage(nil)
+	msgCall, _ := msg.NewCall()
+	msgCall.SetQuestionId(uint32(q.id))
+	msgCall.SetInterfaceId(cl.Method.InterfaceID)
+	msgCall.SetMethodId(cl.Method.MethodID)
+	target, _ := msgCall.NewTarget()
+	target.SetImportedCap(uint32(ic.id))
+	payload, _ := msgCall.NewParams()
+	if err := ic.conn.fillParams(payload, cl); err != nil {
+		ic.conn.popQuestion(q.id)
+		return capnp.ErrorAnswer(err)
+	}
+
+	select {
+	case ic.conn.out <- msg:
+	case <-cl.Ctx.Done():
+		ic.conn.popQuestion(q.id)
+		return capnp.ErrorAnswer(cl.Ctx.Err())
+	case <-ic.conn.bg.Done():
+		ic.conn.popQuestion(q.id)
+		return capnp.ErrorAnswer(ErrConnClosed)
+	}
+	q.start()
+	return q
 }
 
 func (ic *importClient) Close() error {
-	echan := make(chan error, 1)
-	r := &outgoingRelease{
-		id:    ic.id,
-		echan: echan,
+	ic.conn.mu.Lock()
+	closed := ic.closed
+	var i int
+	if !closed {
+		i = ic.conn.popImport(ic.id)
+		ic.closed = true
 	}
+	ic.conn.mu.Unlock()
+
+	if closed {
+		return errImportClosed
+	}
+	if i == 0 {
+		return nil
+	}
+	msg := newMessage(nil)
+	mr, err := msg.NewRelease()
+	if err != nil {
+		return err
+	}
+	mr.SetId(uint32(ic.id))
+	mr.SetReferenceCount(uint32(i))
 	select {
-	case ic.releases <- r:
-		select {
-		case err := <-echan:
-			return err
-		case <-ic.manager.finish:
-			return ic.manager.err()
-		}
-	case <-ic.manager.finish:
-		return ic.manager.err()
+	case ic.conn.out <- msg:
+		return nil
+	case <-ic.conn.bg.Done():
+		return ErrConnClosed
 	}
 }
 
@@ -124,47 +146,38 @@ type export struct {
 	refs int
 }
 
-type exportTable struct {
-	tab []*export
-	gen idgen
-}
-
-func (et *exportTable) get(id exportID) *export {
-	var e *export
-	if int(id) < len(et.tab) {
-		e = et.tab[id]
+func (c *Conn) findExport(id exportID) *export {
+	if int(id) >= len(c.exports) {
+		return nil
 	}
-	return e
+	return c.exports[id]
 }
 
-// add ensures that the client is present in the table, returning its ID.
+// addExport ensures that the client is present in the table, returning its ID.
 // If the client is already in the table, the previous ID is returned.
-func (et *exportTable) add(client capnp.Client) exportID {
-	for i, e := range et.tab {
+func (c *Conn) addExport(client capnp.Client) exportID {
+	for i, e := range c.exports {
 		if e != nil && e.client == client {
 			e.refs++
 			return exportID(i)
 		}
 	}
-	id := exportID(et.gen.next())
+	id := exportID(c.exportID.next())
 	export := &export{
 		id:     id,
 		client: client,
 		refs:   1,
 	}
-	if int(id) == len(et.tab) {
-		et.tab = append(et.tab, export)
+	if int(id) == len(c.exports) {
+		c.exports = append(c.exports, export)
 	} else {
-		et.tab[id] = export
+		c.exports[id] = export
 	}
 	return id
 }
 
-func (et *exportTable) release(id exportID, refs int) {
-	if int(id) >= len(et.tab) {
-		return
-	}
-	e := et.tab[id]
+func (c *Conn) releaseExport(id exportID, refs int) {
+	e := c.findExport(id)
 	if e == nil {
 		return
 	}
@@ -173,64 +186,39 @@ func (et *exportTable) release(id exportID, refs int) {
 		return
 	}
 	if e.refs < 0 {
-		log.Printf("rpc: warning: export %v has negative refcount (%d)", id, e.refs)
+		c.errorf("warning: export %v has negative refcount (%d)", id, e.refs)
 	}
 	if err := e.client.Close(); err != nil {
-		log.Printf("rpc: export %v close: %v", id, err)
+		c.errorf("export %v close: %v", id, err)
 	}
-	et.tab[id] = nil
-	et.gen.remove(uint32(id))
-}
-
-func (et *exportTable) releaseAll() {
-	for id, e := range et.tab {
-		if e == nil {
-			continue
-		}
-		if err := e.client.Close(); err != nil {
-			log.Printf("rpc: export %v close: %v", id, err)
-		}
-		et.tab[id] = nil
-		et.gen.remove(uint32(id))
-	}
-}
-
-// releaseList decrements the reference count of each of the given exports by 1.
-func (et *exportTable) releaseList(ids []exportID) {
-	for _, id := range ids {
-		et.release(id, 1)
-	}
-}
-
-type embargoTable struct {
-	tab []chan<- struct{}
-	gen idgen
+	c.exports[id] = nil
+	c.exportID.remove(uint32(id))
 }
 
 type embargo <-chan struct{}
 
-func (et *embargoTable) new() (embargoID, embargo) {
-	id := embargoID(et.gen.next())
+func (c *Conn) newEmbargo() (embargoID, embargo) {
+	id := embargoID(c.embargoID.next())
 	e := make(chan struct{})
-	if int(id) == len(et.tab) {
-		et.tab = append(et.tab, e)
+	if int(id) == len(c.embargoes) {
+		c.embargoes = append(c.embargoes, e)
 	} else {
-		et.tab[id] = e
+		c.embargoes[id] = e
 	}
 	return id, e
 }
 
-func (et *embargoTable) disembargo(id embargoID) {
-	if int(id) >= len(et.tab) {
+func (c *Conn) disembargo(id embargoID) {
+	if int(id) >= len(c.embargoes) {
 		return
 	}
-	e := et.tab[id]
+	e := c.embargoes[id]
 	if e == nil {
 		return
 	}
 	close(e)
-	et.tab[id] = nil
-	et.gen.remove(uint32(id))
+	c.embargoes[id] = nil
+	c.embargoID.remove(uint32(id))
 }
 
 // idgen returns a sequence of monotonically increasing IDs with
@@ -255,3 +243,5 @@ func (gen *idgen) next() uint32 {
 func (gen *idgen) remove(i uint32) {
 	gen.free = append(gen.free, i)
 }
+
+var errImportClosed = errors.New("rpc: call on closed import")

@@ -22,18 +22,35 @@ const (
 
 var logMessages = flag.Bool("logmessages", false, "whether to log the transport in tests.  Messages are always from client to server.")
 
-func newTestConn(t *testing.T, options ...rpc.ConnOption) (*rpc.Conn, rpc.Transport) {
+type testLogger struct {
+	t interface {
+		Logf(format string, args ...interface{})
+	}
+}
+
+func (l testLogger) Infof(ctx context.Context, format string, args ...interface{}) {
+	l.t.Logf("conn log: "+format, args...)
+}
+
+func (l testLogger) Errorf(ctx context.Context, format string, args ...interface{}) {
+	l.t.Logf("conn log: "+format, args...)
+}
+
+func newUnpairedConn(t *testing.T, options ...rpc.ConnOption) (*rpc.Conn, rpc.Transport) {
 	p, q := pipetransport.New()
 	if *logMessages {
 		p = logtransport.New(nil, p)
 	}
-	c := rpc.NewConn(p, options...)
+	newopts := make([]rpc.ConnOption, len(options), len(options)+1)
+	copy(newopts, options)
+	newopts = append(newopts, rpc.ConnLog(testLogger{t}))
+	c := rpc.NewConn(p, newopts...)
 	return c, q
 }
 
 func TestBootstrap(t *testing.T) {
 	ctx := context.Background()
-	conn, p := newTestConn(t)
+	conn, p := newUnpairedConn(t)
 	defer conn.Close()
 	defer p.Close()
 
@@ -78,7 +95,7 @@ func TestBootstrapFulfilledSenderPromise(t *testing.T) {
 
 func testBootstrapFulfilled(t *testing.T, resultIsPromise bool) {
 	ctx := context.Background()
-	conn, p := newTestConn(t)
+	conn, p := newUnpairedConn(t)
 	defer conn.Close()
 	defer p.Close()
 
@@ -170,7 +187,7 @@ func bootstrapAndFulfill(t *testing.T, ctx context.Context, conn *rpc.Conn, p rp
 
 func TestCallOnPromisedAnswer(t *testing.T) {
 	ctx := context.Background()
-	conn, p := newTestConn(t)
+	conn, p := newUnpairedConn(t)
 	defer conn.Close()
 	defer p.Close()
 	client, bootstrapID := readBootstrap(t, ctx, conn, p)
@@ -250,7 +267,7 @@ func TestCallOnExportId_BootstrapIsHosted(t *testing.T) {
 
 func testCallOnExportId(t *testing.T, bootstrapIsPromise bool) {
 	ctx := context.Background()
-	conn, p := newTestConn(t)
+	conn, p := newUnpairedConn(t)
 	defer conn.Close()
 	defer p.Close()
 	client := bootstrapAndFulfill(t, ctx, conn, p, bootstrapIsPromise)
@@ -311,7 +328,7 @@ func testCallOnExportId(t *testing.T, bootstrapIsPromise bool) {
 
 func TestMainInterface(t *testing.T) {
 	main := mockClient()
-	conn, p := newTestConn(t, rpc.MainInterface(main))
+	conn, p := newUnpairedConn(t, rpc.MainInterface(main))
 	defer conn.Close()
 	defer p.Close()
 
@@ -393,7 +410,7 @@ func TestReceiveCallOnPromisedAnswer(t *testing.T) {
 		}
 		return result, nil
 	})
-	conn, p := newTestConn(t, rpc.MainInterface(main))
+	conn, p := newUnpairedConn(t, rpc.MainInterface(main))
 	defer conn.Close()
 	defer p.Close()
 	_, bootqID := bootstrapRoundtrip(t, p)
@@ -476,7 +493,7 @@ func TestReceiveCallOnExport(t *testing.T) {
 		}
 		return result, nil
 	})
-	conn, p := newTestConn(t, rpc.MainInterface(main))
+	conn, p := newUnpairedConn(t, rpc.MainInterface(main))
 	defer conn.Close()
 	defer p.Close()
 	importID := sendBootstrapAndFinish(t, p)

@@ -1,26 +1,96 @@
 package rpc
 
 import (
-	"log"
-
 	"zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/internal/fulfiller"
+	"zombiezen.com/go/capnproto2/rpc/internal/refcount"
 	rpccapnp "zombiezen.com/go/capnproto2/std/capnp/rpc"
 )
 
-// nestedCall is called from the coordinate goroutine to make a client call.
-// Since the client may point
-func (c *Conn) nestedCall(client capnp.Client, cl *capnp.Call) capnp.Answer {
-	client = extractRPCClient(client)
-	ac := appCallFromClientCall(c, client, cl)
-	if ac != nil {
-		ans, err := c.handleCall(ac)
-		if err != nil {
-			log.Println("rpc: failed to handle call:", err)
-			return capnp.ErrorAnswer(err)
+// While the code below looks repetitive, resist the urge to refactor.
+// Each operation is distinct in assumptions it can make about
+// particular cases, and there isn't a convenient type signature that
+// fits all cases.
+
+// lockedCall is used to make a call to an arbitrary client while
+// holding onto c.mu.  Since the client could point back to c, naively
+// calling c.Call could deadlock.
+func (c *Conn) lockedCall(client capnp.Client, cl *capnp.Call) capnp.Answer {
+dig:
+	for client := client; ; {
+		switch curr := client.(type) {
+		case *importClient:
+			if curr.conn != c {
+				// This doesn't use our conn's lock, so it is safe to call.
+				return curr.Call(cl)
+			}
+			return curr.lockedCall(cl)
+		case *fulfiller.EmbargoClient:
+			if ans := curr.TryQueue(cl); ans != nil {
+				return ans
+			}
+			client = curr.Client()
+		case *refcount.Ref:
+			client = curr.Client()
+		case *embargoClient:
+			if ans := curr.tryQueue(cl); ans != nil {
+				return ans
+			}
+			client = curr.client
+		case *queueClient:
+			if ans := curr.tryQueue(cl); ans != nil {
+				return ans
+			}
+			client = curr.client
+		case *localAnswerClient:
+			curr.a.mu.Lock()
+			if curr.a.done {
+				obj, err := curr.a.obj, curr.a.err
+				curr.a.mu.Unlock()
+				client = clientFromResolution(curr.transform, obj, err)
+			} else {
+				f := new(fulfiller.Fulfiller)
+				err := curr.a.queueCallLocked(cl, pcall{
+					transform: curr.transform,
+					qcall:     qcall{f: f},
+				})
+				curr.a.mu.Unlock()
+				if err != nil {
+					return capnp.ErrorAnswer(err)
+				}
+				return f
+			}
+		case *capnp.PipelineClient:
+			p := (*capnp.Pipeline)(curr)
+			ans := p.Answer()
+			transform := p.Transform()
+			if capnp.IsFixedAnswer(ans) {
+				s, err := ans.Struct()
+				client = clientFromResolution(transform, s.ToPtr(), err)
+				continue
+			}
+			switch ans := ans.(type) {
+			case *fulfiller.Fulfiller:
+				ap := ans.Peek()
+				if ap == nil {
+					break dig
+				}
+				s, err := ap.Struct()
+				client = clientFromResolution(transform, s.ToPtr(), err)
+			case *question:
+				if ans.conn != c {
+					// This doesn't use our conn's lock, so it is safe to call.
+					return ans.PipelineCall(transform, cl)
+				}
+				return ans.lockedPipelineCall(transform, cl)
+			default:
+				break dig
+			}
+		default:
+			break dig
 		}
-		return ans
 	}
+
 	// TODO(light): Add a CallOption that signals to bypass sync.
 	// The above hack works in *most* cases.
 	//
@@ -30,124 +100,177 @@ func (c *Conn) nestedCall(client capnp.Client, cl *capnp.Call) capnp.Answer {
 	// 2) Arbitrary implementations of Client may exist
 	// 3) Local E-order must be preserved
 	//
-	// #3 is the one that creates a goroutine send cycle, since
-	// application code must synchronize with the coordinate goroutine
-	// to preserve order of delivery.  You can't really overcome this
-	// without breaking one of the first two constraints.
+	// #3 is the one that creates a deadlock, since application code must
+	// acquire the connection mutex to preserve order of delivery.  You
+	// can't really overcome this without breaking one of the first two
+	// constraints.
 	//
 	// To avoid #2 as much as possible, implementing Client is discouraged
 	// by several docs.
 	return client.Call(cl)
 }
 
+// descriptorForClient fills desc for client, adding it to the export
+// table if necessary.  The caller must be holding onto c.mu.
 func (c *Conn) descriptorForClient(desc rpccapnp.CapDescriptor, client capnp.Client) error {
-	client = extractRPCClient(client)
-	if ic, ok := client.(*importClient); ok && isImportFromConn(ic, c) {
-		desc.SetReceiverHosted(uint32(ic.id))
-		return nil
-	}
-	if pc, ok := client.(*capnp.PipelineClient); ok {
-		p := (*capnp.Pipeline)(pc)
-		if q, ok := p.Answer().(*question); ok && isQuestionFromConn(q, c) {
-			a, err := desc.NewReceiverAnswer()
-			if err != nil {
-				return err
+dig:
+	for client := client; ; {
+		switch ct := client.(type) {
+		case *importClient:
+			if ct.conn != c {
+				break dig
 			}
-			a.SetQuestionId(uint32(q.id))
-			err = transformToPromisedAnswer(desc.Segment(), a, p.Transform())
-			if err != nil {
-				return err
-			}
+			desc.SetReceiverHosted(uint32(ct.id))
 			return nil
+		case *fulfiller.EmbargoClient:
+			client = ct.Client()
+			if client == nil {
+				break dig
+			}
+		case *refcount.Ref:
+			client = ct.Client()
+		case *embargoClient:
+			ct.mu.RLock()
+			ok := ct.isPassthrough()
+			ct.mu.RUnlock()
+			if !ok {
+				break dig
+			}
+			client = ct.client
+		case *queueClient:
+			ct.mu.RLock()
+			ok := ct.isPassthrough()
+			ct.mu.RUnlock()
+			if !ok {
+				break dig
+			}
+			client = ct.client
+		case *localAnswerClient:
+			ct.a.mu.RLock()
+			obj, err, done := ct.a.obj, ct.a.err, ct.a.done
+			ct.a.mu.RUnlock()
+			if !done {
+				break dig
+			}
+			client = clientFromResolution(ct.transform, obj, err)
+		case *capnp.PipelineClient:
+			p := (*capnp.Pipeline)(ct)
+			ans := p.Answer()
+			transform := p.Transform()
+			if capnp.IsFixedAnswer(ans) {
+				s, err := ans.Struct()
+				client = clientFromResolution(transform, s.ToPtr(), err)
+				continue
+			}
+			switch ans := ans.(type) {
+			case *fulfiller.Fulfiller:
+				ap := ans.Peek()
+				if ap == nil {
+					break dig
+				}
+				s, err := ap.Struct()
+				client = clientFromResolution(transform, s.ToPtr(), err)
+			case *question:
+				ans.mu.RLock()
+				obj, err, state := ans.obj, ans.err, ans.state
+				ans.mu.RUnlock()
+				if state != questionInProgress {
+					client = clientFromResolution(transform, obj, err)
+					continue
+				}
+				if ans.conn != c {
+					break dig
+				}
+				a, err := desc.NewReceiverAnswer()
+				if err != nil {
+					return err
+				}
+				a.SetQuestionId(uint32(ans.id))
+				err = transformToPromisedAnswer(desc.Segment(), a, p.Transform())
+				if err != nil {
+					return err
+				}
+				return nil
+			default:
+				break dig
+			}
+		default:
+			break dig
 		}
 	}
-	id := c.exports.add(client)
+
+	id := c.addExport(client)
 	desc.SetSenderHosted(uint32(id))
 	return nil
 }
 
-func appCallFromClientCall(c *Conn, client capnp.Client, cl *capnp.Call) *appCall {
-	if ic, ok := client.(*importClient); ok && isImportFromConn(ic, c) {
-		ac, _ := newAppImportCall(ic.id, cl)
-		return ac
-	}
-	if pc, ok := client.(*capnp.PipelineClient); ok {
-		p := (*capnp.Pipeline)(pc)
-		if q, ok := p.Answer().(*question); ok && isQuestionFromConn(q, c) {
-			ac, _ := newAppPipelineCall(q, p.Transform(), cl)
-			return ac
-		}
-	}
-	return nil
-}
-
-// extractRPCClient attempts to extract the client that is the most
-// meaningful for further processing of RPCs.  For example, instead of a
-// PipelineClient on a resolved answer, the client's capability.
-func extractRPCClient(client capnp.Client) capnp.Client {
+// isImport returns the underlying import if client represents an import
+// or nil otherwise.
+func isImport(client capnp.Client) *importClient {
 	for {
-		switch c := client.(type) {
+		switch curr := client.(type) {
 		case *importClient:
-			return c
+			return curr
+		case *fulfiller.EmbargoClient:
+			client = curr.Client()
+			if client == nil {
+				return nil
+			}
+		case *refcount.Ref:
+			client = curr.Client()
+		case *embargoClient:
+			curr.mu.RLock()
+			ok := curr.isPassthrough()
+			curr.mu.RUnlock()
+			if !ok {
+				return nil
+			}
+			client = curr.client
+		case *queueClient:
+			curr.mu.RLock()
+			ok := curr.isPassthrough()
+			curr.mu.RUnlock()
+			if !ok {
+				return nil
+			}
+			client = curr.client
+		case *localAnswerClient:
+			curr.a.mu.RLock()
+			obj, err, done := curr.a.obj, curr.a.err, curr.a.done
+			curr.a.mu.RUnlock()
+			if !done {
+				return nil
+			}
+			client = clientFromResolution(curr.transform, obj, err)
 		case *capnp.PipelineClient:
-			p := (*capnp.Pipeline)(c)
-			next := extractRPCClientFromPipeline(p.Answer(), p.Transform())
-			if next == nil {
-				return client
+			p := (*capnp.Pipeline)(curr)
+			ans := p.Answer()
+			if capnp.IsFixedAnswer(ans) {
+				s, err := ans.Struct()
+				client = clientFromResolution(p.Transform(), s.ToPtr(), err)
+				continue
 			}
-			client = next
-		case clientWrapper:
-			wc := c.WrappedClient()
-			if wc == nil {
-				return client
+			switch ans := ans.(type) {
+			case *fulfiller.Fulfiller:
+				ap := ans.Peek()
+				if ap == nil {
+					return nil
+				}
+				s, err := ap.Struct()
+				client = clientFromResolution(p.Transform(), s.ToPtr(), err)
+			case *question:
+				ans.mu.RLock()
+				obj, err, state := ans.obj, ans.err, ans.state
+				ans.mu.RUnlock()
+				if state != questionResolved {
+					return nil
+				}
+				client = clientFromResolution(p.Transform(), obj, err)
+			default:
+				return nil
 			}
-			client = wc
 		default:
-			return client
-		}
-	}
-}
-
-func extractRPCClientFromPipeline(ans capnp.Answer, transform []capnp.PipelineOp) capnp.Client {
-	if capnp.IsFixedAnswer(ans) {
-		s, err := ans.Struct()
-		return clientFromResolution(transform, s.ToPtr(), err)
-	}
-	switch a := ans.(type) {
-	case *fulfiller.Fulfiller:
-		ap := a.Peek()
-		if ap == nil {
-			// This can race, see TODO in nestedCall.
 			return nil
 		}
-		s, err := ap.Struct()
-		return clientFromResolution(transform, s.ToPtr(), err)
-	case *question:
-		_, obj, err, ok := a.peek()
-		if !ok {
-			// This can race, see TODO in nestedCall.
-			return nil
-		}
-		return clientFromResolution(transform, obj, err)
-	default:
-		return nil
 	}
-}
-
-// clientWrapper is an interface for types that wrap clients.
-// If WrappedClient returns a non-nil value, that means that a Call to
-// the wrapper passes through to the returned client.
-// TODO(light): this should probably be exported at some point.
-type clientWrapper interface {
-	WrappedClient() capnp.Client
-}
-
-func isQuestionFromConn(q *question, c *Conn) bool {
-	// TODO(light): ideally there would be better ways to check.
-	return q.manager == &c.manager
-}
-
-func isImportFromConn(ic *importClient, c *Conn) bool {
-	// TODO(light): ideally there would be better ways to check.
-	return ic.manager == &c.manager
 }

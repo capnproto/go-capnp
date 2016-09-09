@@ -25,6 +25,22 @@ func (e Exception) Error() string {
 // An Abort is a hang-up by a remote vat.
 type Abort Exception
 
+func copyAbort(m rpccapnp.Message) (Abort, error) {
+	ma, err := m.Abort()
+	if err != nil {
+		return Abort{}, err
+	}
+	msg, _, _ := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err := msg.SetRootPtr(ma.ToPtr()); err != nil {
+		return Abort{}, err
+	}
+	p, err := msg.RootPtr()
+	if err != nil {
+		return Abort{}, err
+	}
+	return Abort{rpccapnp.Exception{Struct: p.Struct()}}, nil
+}
+
 // Error returns the exception's reason.
 func (a Abort) Error() string {
 	r, err := a.Reason()

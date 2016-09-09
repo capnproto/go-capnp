@@ -16,10 +16,9 @@ func BenchmarkPingPong(b *testing.B) {
 	if *logMessages {
 		p = logtransport.New(nil, p)
 	}
-	c := rpc.NewConn(p)
-	d := rpc.NewConn(q, rpc.BootstrapFunc(func(ctx context.Context) (capnp.Client, error) {
-		return testcapnp.PingPong_ServerToClient(pingPongServer{}).Client, nil
-	}))
+	log := testLogger{b}
+	c := rpc.NewConn(p, rpc.ConnLog(log))
+	d := rpc.NewConn(q, rpc.ConnLog(log), rpc.BootstrapFunc(bootstrapPingPong))
 	defer d.Wait()
 	defer c.Close()
 
@@ -42,6 +41,10 @@ func BenchmarkPingPong(b *testing.B) {
 			break
 		}
 	}
+}
+
+func bootstrapPingPong(ctx context.Context) (capnp.Client, error) {
+	return testcapnp.PingPong_ServerToClient(pingPongServer{}).Client, nil
 }
 
 type pingPongServer struct{}

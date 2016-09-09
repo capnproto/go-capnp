@@ -18,9 +18,10 @@ func TestEmbargo(t *testing.T) {
 	if *logMessages {
 		p = logtransport.New(nil, p)
 	}
-	c := rpc.NewConn(p)
+	log := testLogger{t}
+	c := rpc.NewConn(p, rpc.ConnLog(log))
 	echoSrv := testcapnp.Echoer_ServerToClient(new(Echoer))
-	d := rpc.NewConn(q, rpc.MainInterface(echoSrv.Client))
+	d := rpc.NewConn(q, rpc.MainInterface(echoSrv.Client), rpc.ConnLog(log))
 	defer d.Wait()
 	defer c.Close()
 	client := testcapnp.Echoer{Client: c.Bootstrap(ctx)}

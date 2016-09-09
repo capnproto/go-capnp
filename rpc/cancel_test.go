@@ -14,14 +14,15 @@ import (
 func TestCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	log := testLogger{t}
 	p, q := pipetransport.New()
 	if *logMessages {
 		p = logtransport.New(nil, p)
 	}
-	c := rpc.NewConn(p)
+	c := rpc.NewConn(p, rpc.ConnLog(log))
 	notify := make(chan struct{})
 	hanger := testcapnp.Hanger_ServerToClient(Hanger{notify: notify})
-	d := rpc.NewConn(q, rpc.MainInterface(hanger.Client))
+	d := rpc.NewConn(q, rpc.MainInterface(hanger.Client), rpc.ConnLog(log))
 	defer d.Wait()
 	defer c.Close()
 	client := testcapnp.Hanger{Client: c.Bootstrap(ctx)}

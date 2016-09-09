@@ -3,7 +3,6 @@ package rpc
 import (
 	"bytes"
 	"io"
-	"log"
 	"time"
 
 	"golang.org/x/net/context"
@@ -97,46 +96,44 @@ type writeDeadlineSetter interface {
 }
 
 // dispatchSend runs in its own goroutine and sends messages on a transport.
-func dispatchSend(m *manager, transport Transport, msgs <-chan rpccapnp.Message) {
+func (c *Conn) dispatchSend() {
+	defer c.workers.Done()
 	for {
 		select {
-		case msg := <-msgs:
-			err := transport.SendMessage(m.context(), msg)
+		case msg := <-c.out:
+			err := c.transport.SendMessage(c.bg, msg)
 			if err != nil {
-				log.Printf("rpc: writing %v: %v", msg.Which(), err)
+				c.errorf("writing %v: %v", msg.Which(), err)
 			}
-		case <-m.finish:
+		case <-c.bg.Done():
 			return
 		}
 	}
 }
 
-// sendMessage sends a message to out to be sent.  It returns an error
-// if the manager finished.
-func sendMessage(m *manager, out chan<- rpccapnp.Message, msg rpccapnp.Message) error {
+// sendMessage enqueues a message to be sent or returns an error if the
+// connection is shut down before the message is queued.  It is safe to
+// call from multiple goroutines and does not require holding c.mu.
+func (c *Conn) sendMessage(msg rpccapnp.Message) error {
 	select {
-	case out <- msg:
+	case c.out <- msg:
 		return nil
-	case <-m.finish:
-		return m.err()
+	case <-c.bg.Done():
+		return ErrConnClosed
 	}
 }
 
 // dispatchRecv runs in its own goroutine and receives messages from a transport.
-func dispatchRecv(m *manager, transport Transport, msgs chan<- rpccapnp.Message) {
+func (c *Conn) dispatchRecv() {
+	defer c.workers.Done()
 	for {
-		msg, err := transport.RecvMessage(m.context())
-		if err != nil {
-			if isTemporaryError(err) {
-				log.Println("rpc: read temporary error:", err)
-				continue
-			}
-			m.shutdown(err)
-			return
-		}
-		select {
-		case msgs <- copyRPCMessage(msg):
-		case <-m.finish:
+		msg, err := c.transport.RecvMessage(c.bg)
+		if err == nil {
+			c.handleMessage(msg)
+		} else if isTemporaryError(err) {
+			c.errorf("read temporary error: %v", err)
+		} else {
+			c.shutdown(err)
 			return
 		}
 	}
