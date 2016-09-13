@@ -130,7 +130,7 @@ which field in the union is set.
 	switch shape.Which() {
 	case myschema.Shape_Which_square:
 		sq := new(Square)
-		err = pogs.Extract(shape, myschema.Square_TypeID, shape.Struct)
+		err = pogs.Extract(sq, myschema.Square_TypeID, shape.Struct)
 		return sq, err
 	case myschema.Shape_Which_circle:
 		// ...
