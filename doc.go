@@ -12,7 +12,7 @@ capnpc-go provides the compiler backend for capnp.
 	# First, install capnpc-go to $PATH.
 	go install zombiezen.com/go/capnproto2/capnpc-go
 	# Then, generate Go files.
-	capnp compile -ogo *.capnp
+	capnp compile -I$GOPATH/src/zombiezen.com/go/capnproto2/std -ogo *.capnp
 
 capnpc-go requires two annotations for all files: package and import.
 package is needed to know what package to place at the head of the
@@ -21,7 +21,7 @@ from another package.  import should be the fully qualified import path
 and is used to generate import statement from other packages and to
 detect when two types are in the same package.  For example:
 
-	using Go = import "zombiezen.com/go/capnproto2/go.capnp";
+	using Go = import "/go.capnp";
 	$Go.package("main");
 	$Go.import("zombiezen.com/go/capnproto2/example");
 
