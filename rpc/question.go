@@ -98,7 +98,10 @@ func (q *question) start() {
 // fulfill is called to resolve a question successfully.
 // The caller must be holding onto q.conn.mu.
 func (q *question) fulfill(obj capnp.Ptr) {
-	ctab := obj.Segment().Message().CapTable
+	var ctab []capnp.Client
+	if obj.IsValid() {
+		ctab = obj.Segment().Message().CapTable
+	}
 	visited := make([]bool, len(ctab))
 	for _, d := range q.derived {
 		tgt, err := capnp.TransformPtr(obj, d)
