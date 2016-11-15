@@ -97,6 +97,9 @@ func (s Message) Unimplemented() (Message, error) {
 }
 
 func (s Message) HasUnimplemented() bool {
+	if s.Struct.Uint16(0) != 0 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -124,6 +127,9 @@ func (s Message) Abort() (Exception, error) {
 }
 
 func (s Message) HasAbort() bool {
+	if s.Struct.Uint16(0) != 1 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -151,6 +157,9 @@ func (s Message) Bootstrap() (Bootstrap, error) {
 }
 
 func (s Message) HasBootstrap() bool {
+	if s.Struct.Uint16(0) != 8 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -178,6 +187,9 @@ func (s Message) Call() (Call, error) {
 }
 
 func (s Message) HasCall() bool {
+	if s.Struct.Uint16(0) != 2 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -205,6 +217,9 @@ func (s Message) Return() (Return, error) {
 }
 
 func (s Message) HasReturn() bool {
+	if s.Struct.Uint16(0) != 3 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -232,6 +247,9 @@ func (s Message) Finish() (Finish, error) {
 }
 
 func (s Message) HasFinish() bool {
+	if s.Struct.Uint16(0) != 4 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -259,6 +277,9 @@ func (s Message) Resolve() (Resolve, error) {
 }
 
 func (s Message) HasResolve() bool {
+	if s.Struct.Uint16(0) != 5 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -286,6 +307,9 @@ func (s Message) Release() (Release, error) {
 }
 
 func (s Message) HasRelease() bool {
+	if s.Struct.Uint16(0) != 6 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -313,6 +337,9 @@ func (s Message) Disembargo() (Disembargo, error) {
 }
 
 func (s Message) HasDisembargo() bool {
+	if s.Struct.Uint16(0) != 13 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -339,6 +366,9 @@ func (s Message) ObsoleteSave() (capnp.Pointer, error) {
 }
 
 func (s Message) HasObsoleteSave() bool {
+	if s.Struct.Uint16(0) != 7 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -362,6 +392,9 @@ func (s Message) ObsoleteDelete() (capnp.Pointer, error) {
 }
 
 func (s Message) HasObsoleteDelete() bool {
+	if s.Struct.Uint16(0) != 9 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -386,6 +419,9 @@ func (s Message) Provide() (Provide, error) {
 }
 
 func (s Message) HasProvide() bool {
+	if s.Struct.Uint16(0) != 10 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -413,6 +449,9 @@ func (s Message) Accept() (Accept, error) {
 }
 
 func (s Message) HasAccept() bool {
+	if s.Struct.Uint16(0) != 11 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -440,6 +479,9 @@ func (s Message) Join() (Join, error) {
 }
 
 func (s Message) HasJoin() bool {
+	if s.Struct.Uint16(0) != 12 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -766,6 +808,9 @@ func (s Call_sendResultsTo) ThirdParty() (capnp.Pointer, error) {
 }
 
 func (s Call_sendResultsTo) HasThirdParty() bool {
+	if s.Struct.Uint16(6) != 2 {
+		return false
+	}
 	p, err := s.Struct.Ptr(2)
 	return p.IsValid() || err != nil
 }
@@ -909,6 +954,9 @@ func (s Return) Results() (Payload, error) {
 }
 
 func (s Return) HasResults() bool {
+	if s.Struct.Uint16(6) != 0 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -936,6 +984,9 @@ func (s Return) Exception() (Exception, error) {
 }
 
 func (s Return) HasException() bool {
+	if s.Struct.Uint16(6) != 1 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -981,6 +1032,9 @@ func (s Return) AcceptFromThirdParty() (capnp.Pointer, error) {
 }
 
 func (s Return) HasAcceptFromThirdParty() bool {
+	if s.Struct.Uint16(6) != 5 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -1154,6 +1208,9 @@ func (s Resolve) Cap() (CapDescriptor, error) {
 }
 
 func (s Resolve) HasCap() bool {
+	if s.Struct.Uint16(4) != 0 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -1181,6 +1238,9 @@ func (s Resolve) Exception() (Exception, error) {
 }
 
 func (s Resolve) HasException() bool {
+	if s.Struct.Uint16(4) != 1 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -1806,6 +1866,9 @@ func (s MessageTarget) PromisedAnswer() (PromisedAnswer, error) {
 }
 
 func (s MessageTarget) HasPromisedAnswer() bool {
+	if s.Struct.Uint16(4) != 1 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -2044,6 +2107,9 @@ func (s CapDescriptor) ReceiverAnswer() (PromisedAnswer, error) {
 }
 
 func (s CapDescriptor) HasReceiverAnswer() bool {
+	if s.Struct.Uint16(0) != 4 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -2071,6 +2137,9 @@ func (s CapDescriptor) ThirdPartyHosted() (ThirdPartyCapDescriptor, error) {
 }
 
 func (s CapDescriptor) HasThirdPartyHosted() bool {
+	if s.Struct.Uint16(0) != 5 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }

@@ -1994,3 +1994,28 @@ func TestPointerDepthDefenseAcrossStructsAndLists(t *testing.T) {
 		t.Fatalf("deref %d did not fail as expected", limit)
 	}
 }
+
+func TestHasPointerInUnion(t *testing.T) {
+	t.Parallel()
+	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		t.Fatal("NewMessage:", err)
+	}
+	craft, err := air.NewRootAircraft(seg)
+	if err != nil {
+		t.Fatal("NewRootAircraft:", err)
+	}
+	t.Log("NewB737")
+	_, err = craft.NewB737()
+	if err != nil {
+		t.Fatal("NewB737:", err)
+	}
+
+	// These pointers are at the same offset.
+	if !craft.HasB737() {
+		t.Errorf("HasB737 = false; want true")
+	}
+	if craft.HasA320() {
+		t.Errorf("HasA320 = true; want false")
+	}
+}

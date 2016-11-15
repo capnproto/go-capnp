@@ -797,6 +797,9 @@ func (s Aircraft) B737() (B737, error) {
 }
 
 func (s Aircraft) HasB737() bool {
+	if s.Struct.Uint16(0) != 1 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -824,6 +827,9 @@ func (s Aircraft) A320() (A320, error) {
 }
 
 func (s Aircraft) HasA320() bool {
+	if s.Struct.Uint16(0) != 2 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -851,6 +857,9 @@ func (s Aircraft) F16() (F16, error) {
 }
 
 func (s Aircraft) HasF16() bool {
+	if s.Struct.Uint16(0) != 3 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -1086,6 +1095,9 @@ func (s Z) Zz() (Z, error) {
 }
 
 func (s Z) HasZz() bool {
+	if s.Struct.Uint16(0) != 1 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -1212,6 +1224,9 @@ func (s Z) Text() (string, error) {
 }
 
 func (s Z) HasText() bool {
+	if s.Struct.Uint16(0) != 13 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -1236,6 +1251,9 @@ func (s Z) Blob() ([]byte, error) {
 }
 
 func (s Z) HasBlob() bool {
+	if s.Struct.Uint16(0) != 14 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -1255,6 +1273,9 @@ func (s Z) F64vec() (capnp.Float64List, error) {
 }
 
 func (s Z) HasF64vec() bool {
+	if s.Struct.Uint16(0) != 15 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -1282,6 +1303,9 @@ func (s Z) F32vec() (capnp.Float32List, error) {
 }
 
 func (s Z) HasF32vec() bool {
+	if s.Struct.Uint16(0) != 16 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -1309,6 +1333,9 @@ func (s Z) I64vec() (capnp.Int64List, error) {
 }
 
 func (s Z) HasI64vec() bool {
+	if s.Struct.Uint16(0) != 17 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -1336,6 +1363,9 @@ func (s Z) I32vec() (capnp.Int32List, error) {
 }
 
 func (s Z) HasI32vec() bool {
+	if s.Struct.Uint16(0) != 18 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -1363,6 +1393,9 @@ func (s Z) I16vec() (capnp.Int16List, error) {
 }
 
 func (s Z) HasI16vec() bool {
+	if s.Struct.Uint16(0) != 19 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -1390,6 +1423,9 @@ func (s Z) I8vec() (capnp.Int8List, error) {
 }
 
 func (s Z) HasI8vec() bool {
+	if s.Struct.Uint16(0) != 20 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -1417,6 +1453,9 @@ func (s Z) U64vec() (capnp.UInt64List, error) {
 }
 
 func (s Z) HasU64vec() bool {
+	if s.Struct.Uint16(0) != 21 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -1444,6 +1483,9 @@ func (s Z) U32vec() (capnp.UInt32List, error) {
 }
 
 func (s Z) HasU32vec() bool {
+	if s.Struct.Uint16(0) != 22 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -1471,6 +1513,9 @@ func (s Z) U16vec() (capnp.UInt16List, error) {
 }
 
 func (s Z) HasU16vec() bool {
+	if s.Struct.Uint16(0) != 23 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -1498,6 +1543,9 @@ func (s Z) U8vec() (capnp.UInt8List, error) {
 }
 
 func (s Z) HasU8vec() bool {
+	if s.Struct.Uint16(0) != 24 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -1525,6 +1573,9 @@ func (s Z) Boolvec() (capnp.BitList, error) {
 }
 
 func (s Z) HasBoolvec() bool {
+	if s.Struct.Uint16(0) != 39 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -1552,6 +1603,9 @@ func (s Z) Datavec() (capnp.DataList, error) {
 }
 
 func (s Z) HasDatavec() bool {
+	if s.Struct.Uint16(0) != 40 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -1579,6 +1633,9 @@ func (s Z) Textvec() (capnp.TextList, error) {
 }
 
 func (s Z) HasTextvec() bool {
+	if s.Struct.Uint16(0) != 41 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -1606,6 +1663,9 @@ func (s Z) Zvec() (Z_List, error) {
 }
 
 func (s Z) HasZvec() bool {
+	if s.Struct.Uint16(0) != 25 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -1633,6 +1693,9 @@ func (s Z) Zvecvec() (capnp.PointerList, error) {
 }
 
 func (s Z) HasZvecvec() bool {
+	if s.Struct.Uint16(0) != 26 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -1660,6 +1723,9 @@ func (s Z) Zdate() (Zdate, error) {
 }
 
 func (s Z) HasZdate() bool {
+	if s.Struct.Uint16(0) != 27 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -1687,6 +1753,9 @@ func (s Z) Zdata() (Zdata, error) {
 }
 
 func (s Z) HasZdata() bool {
+	if s.Struct.Uint16(0) != 28 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -1714,6 +1783,9 @@ func (s Z) Aircraftvec() (Aircraft_List, error) {
 }
 
 func (s Z) HasAircraftvec() bool {
+	if s.Struct.Uint16(0) != 29 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -1741,6 +1813,9 @@ func (s Z) Aircraft() (Aircraft, error) {
 }
 
 func (s Z) HasAircraft() bool {
+	if s.Struct.Uint16(0) != 30 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -1768,6 +1843,9 @@ func (s Z) Regression() (Regression, error) {
 }
 
 func (s Z) HasRegression() bool {
+	if s.Struct.Uint16(0) != 31 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -1795,6 +1873,9 @@ func (s Z) Planebase() (PlaneBase, error) {
 }
 
 func (s Z) HasPlanebase() bool {
+	if s.Struct.Uint16(0) != 32 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -1831,6 +1912,9 @@ func (s Z) B737() (B737, error) {
 }
 
 func (s Z) HasB737() bool {
+	if s.Struct.Uint16(0) != 34 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -1858,6 +1942,9 @@ func (s Z) A320() (A320, error) {
 }
 
 func (s Z) HasA320() bool {
+	if s.Struct.Uint16(0) != 35 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -1885,6 +1972,9 @@ func (s Z) F16() (F16, error) {
 }
 
 func (s Z) HasF16() bool {
+	if s.Struct.Uint16(0) != 36 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -1912,6 +2002,9 @@ func (s Z) Zdatevec() (Zdate_List, error) {
 }
 
 func (s Z) HasZdatevec() bool {
+	if s.Struct.Uint16(0) != 37 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -1939,6 +2032,9 @@ func (s Z) Zdatavec() (Zdata_List, error) {
 }
 
 func (s Z) HasZdatavec() bool {
+	if s.Struct.Uint16(0) != 38 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }

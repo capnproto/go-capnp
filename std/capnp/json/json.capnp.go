@@ -100,6 +100,9 @@ func (s JsonValue) String_() (string, error) {
 }
 
 func (s JsonValue) HasString_() bool {
+	if s.Struct.Uint16(0) != 3 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -124,6 +127,9 @@ func (s JsonValue) Array() (JsonValue_List, error) {
 }
 
 func (s JsonValue) HasArray() bool {
+	if s.Struct.Uint16(0) != 4 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -151,6 +157,9 @@ func (s JsonValue) Object() (JsonValue_Field_List, error) {
 }
 
 func (s JsonValue) HasObject() bool {
+	if s.Struct.Uint16(0) != 5 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -178,6 +187,9 @@ func (s JsonValue) Call() (JsonValue_Call, error) {
 }
 
 func (s JsonValue) HasCall() bool {
+	if s.Struct.Uint16(0) != 6 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }

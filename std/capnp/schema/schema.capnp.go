@@ -2126,6 +2126,9 @@ func (s Brand_Scope) Bind() (Brand_Binding_List, error) {
 }
 
 func (s Brand_Scope) HasBind() bool {
+	if s.Struct.Uint16(8) != 0 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -2225,6 +2228,9 @@ func (s Brand_Binding) Type() (Type, error) {
 }
 
 func (s Brand_Binding) HasType() bool {
+	if s.Struct.Uint16(0) != 1 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -2473,6 +2479,9 @@ func (s Value) Text() (string, error) {
 }
 
 func (s Value) HasText() bool {
+	if s.Struct.Uint16(0) != 12 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -2497,6 +2506,9 @@ func (s Value) Data() ([]byte, error) {
 }
 
 func (s Value) HasData() bool {
+	if s.Struct.Uint16(0) != 13 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -2515,6 +2527,9 @@ func (s Value) List() (capnp.Pointer, error) {
 }
 
 func (s Value) HasList() bool {
+	if s.Struct.Uint16(0) != 14 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -2547,6 +2562,9 @@ func (s Value) StructValue() (capnp.Pointer, error) {
 }
 
 func (s Value) HasStructValue() bool {
+	if s.Struct.Uint16(0) != 16 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
@@ -2575,6 +2593,9 @@ func (s Value) AnyPointer() (capnp.Pointer, error) {
 }
 
 func (s Value) HasAnyPointer() bool {
+	if s.Struct.Uint16(0) != 18 {
+		return false
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
