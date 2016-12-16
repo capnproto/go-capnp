@@ -340,7 +340,7 @@ func (l TextList) Set(i int, v string) error {
 	if err != nil {
 		return err
 	}
-	return p.seg.writePtr(copyContext{}, addr, p.List.ToPtr())
+	return l.seg.writePtr(copyContext{}, addr, p.List.ToPtr())
 }
 
 // DataList is an array of pointers to data.
@@ -372,7 +372,7 @@ func (l DataList) Set(i int, v []byte) error {
 	if err != nil {
 		return err
 	}
-	return p.seg.writePtr(copyContext{}, addr, p.List.ToPtr())
+	return l.seg.writePtr(copyContext{}, addr, p.List.ToPtr())
 }
 
 // A VoidList is a list of zero-sized elements.
