@@ -129,11 +129,7 @@ func (s Zdata) HasData() bool {
 }
 
 func (s Zdata) SetData(v []byte) error {
-	d, err := capnp.NewData(s.Struct.Segment(), []byte(v))
-	if err != nil {
-		return err
-	}
-	return s.Struct.SetPtr(0, d.List.ToPtr())
+	return s.Struct.SetData(0, v)
 }
 
 // Zdata_List is a list of Zdata.
@@ -275,11 +271,7 @@ func (s PlaneBase) NameBytes() ([]byte, error) {
 }
 
 func (s PlaneBase) SetName(v string) error {
-	t, err := capnp.NewText(s.Struct.Segment(), v)
-	if err != nil {
-		return err
-	}
-	return s.Struct.SetPtr(0, t.List.ToPtr())
+	return s.Struct.SetText(0, v)
 }
 
 func (s PlaneBase) Homes() (Airport_List, error) {
@@ -1238,11 +1230,7 @@ func (s Z) TextBytes() ([]byte, error) {
 
 func (s Z) SetText(v string) error {
 	s.Struct.SetUint16(0, 13)
-	t, err := capnp.NewText(s.Struct.Segment(), v)
-	if err != nil {
-		return err
-	}
-	return s.Struct.SetPtr(0, t.List.ToPtr())
+	return s.Struct.SetText(0, v)
 }
 
 func (s Z) Blob() ([]byte, error) {
@@ -1260,11 +1248,7 @@ func (s Z) HasBlob() bool {
 
 func (s Z) SetBlob(v []byte) error {
 	s.Struct.SetUint16(0, 14)
-	d, err := capnp.NewData(s.Struct.Segment(), []byte(v))
-	if err != nil {
-		return err
-	}
-	return s.Struct.SetPtr(0, d.List.ToPtr())
+	return s.Struct.SetData(0, v)
 }
 
 func (s Z) F64vec() (capnp.Float64List, error) {
@@ -2194,11 +2178,7 @@ func (s Counter) WordsBytes() ([]byte, error) {
 }
 
 func (s Counter) SetWords(v string) error {
-	t, err := capnp.NewText(s.Struct.Segment(), v)
-	if err != nil {
-		return err
-	}
-	return s.Struct.SetPtr(0, t.List.ToPtr())
+	return s.Struct.SetText(0, v)
 }
 
 func (s Counter) Wordlist() (capnp.TextList, error) {
@@ -2434,11 +2414,7 @@ func (s Zjob) CmdBytes() ([]byte, error) {
 }
 
 func (s Zjob) SetCmd(v string) error {
-	t, err := capnp.NewText(s.Struct.Segment(), v)
-	if err != nil {
-		return err
-	}
-	return s.Struct.SetPtr(0, t.List.ToPtr())
+	return s.Struct.SetText(0, v)
 }
 
 func (s Zjob) Args() (capnp.TextList, error) {
@@ -3669,11 +3645,7 @@ func (s HoldsText) TxtBytes() ([]byte, error) {
 }
 
 func (s HoldsText) SetTxt(v string) error {
-	t, err := capnp.NewText(s.Struct.Segment(), v)
-	if err != nil {
-		return err
-	}
-	return s.Struct.SetPtr(0, t.List.ToPtr())
+	return s.Struct.SetText(0, v)
 }
 
 func (s HoldsText) Lst() (capnp.TextList, error) {
@@ -4365,11 +4337,7 @@ func (s Echo_echo_Params) InBytes() ([]byte, error) {
 }
 
 func (s Echo_echo_Params) SetIn(v string) error {
-	t, err := capnp.NewText(s.Struct.Segment(), v)
-	if err != nil {
-		return err
-	}
-	return s.Struct.SetPtr(0, t.List.ToPtr())
+	return s.Struct.SetText(0, v)
 }
 
 // Echo_echo_Params_List is a list of Echo_echo_Params.
@@ -4436,11 +4404,7 @@ func (s Echo_echo_Results) OutBytes() ([]byte, error) {
 }
 
 func (s Echo_echo_Results) SetOut(v string) error {
-	t, err := capnp.NewText(s.Struct.Segment(), v)
-	if err != nil {
-		return err
-	}
-	return s.Struct.SetPtr(0, t.List.ToPtr())
+	return s.Struct.SetText(0, v)
 }
 
 // Echo_echo_Results_List is a list of Echo_echo_Results.
@@ -5068,11 +5032,7 @@ func (s Defaults) TextBytes() ([]byte, error) {
 }
 
 func (s Defaults) SetText(v string) error {
-	t, err := capnp.NewText(s.Struct.Segment(), v)
-	if err != nil {
-		return err
-	}
-	return s.Struct.SetPtr(0, t.List.ToPtr())
+	return s.Struct.SetNewText(0, v)
 }
 
 func (s Defaults) Data() ([]byte, error) {
@@ -5086,11 +5046,10 @@ func (s Defaults) HasData() bool {
 }
 
 func (s Defaults) SetData(v []byte) error {
-	d, err := capnp.NewData(s.Struct.Segment(), []byte(v))
-	if err != nil {
-		return err
+	if v == nil {
+		v = []byte{}
 	}
-	return s.Struct.SetPtr(1, d.List.ToPtr())
+	return s.Struct.SetData(1, v)
 }
 
 func (s Defaults) Float() float32 {
@@ -5179,11 +5138,7 @@ func (s BenchmarkA) NameBytes() ([]byte, error) {
 }
 
 func (s BenchmarkA) SetName(v string) error {
-	t, err := capnp.NewText(s.Struct.Segment(), v)
-	if err != nil {
-		return err
-	}
-	return s.Struct.SetPtr(0, t.List.ToPtr())
+	return s.Struct.SetText(0, v)
 }
 
 func (s BenchmarkA) BirthDay() int64 {
@@ -5210,11 +5165,7 @@ func (s BenchmarkA) PhoneBytes() ([]byte, error) {
 }
 
 func (s BenchmarkA) SetPhone(v string) error {
-	t, err := capnp.NewText(s.Struct.Segment(), v)
-	if err != nil {
-		return err
-	}
-	return s.Struct.SetPtr(1, t.List.ToPtr())
+	return s.Struct.SetText(1, v)
 }
 
 func (s BenchmarkA) Siblings() int32 {

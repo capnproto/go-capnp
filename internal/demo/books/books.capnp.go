@@ -49,11 +49,7 @@ func (s Book) TitleBytes() ([]byte, error) {
 }
 
 func (s Book) SetTitle(v string) error {
-	t, err := capnp.NewText(s.Struct.Segment(), v)
-	if err != nil {
-		return err
-	}
-	return s.Struct.SetPtr(0, t.List.ToPtr())
+	return s.Struct.SetText(0, v)
 }
 
 func (s Book) PageCount() int32 {

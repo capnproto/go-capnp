@@ -96,11 +96,7 @@ func (s Node) DisplayNameBytes() ([]byte, error) {
 }
 
 func (s Node) SetDisplayName(v string) error {
-	t, err := capnp.NewText(s.Struct.Segment(), v)
-	if err != nil {
-		return err
-	}
-	return s.Struct.SetPtr(0, t.List.ToPtr())
+	return s.Struct.SetText(0, v)
 }
 
 func (s Node) DisplayNamePrefixLength() uint32 {
@@ -675,11 +671,7 @@ func (s Node_Parameter) NameBytes() ([]byte, error) {
 }
 
 func (s Node_Parameter) SetName(v string) error {
-	t, err := capnp.NewText(s.Struct.Segment(), v)
-	if err != nil {
-		return err
-	}
-	return s.Struct.SetPtr(0, t.List.ToPtr())
+	return s.Struct.SetText(0, v)
 }
 
 // Node_Parameter_List is a list of Node_Parameter.
@@ -739,11 +731,7 @@ func (s Node_NestedNode) NameBytes() ([]byte, error) {
 }
 
 func (s Node_NestedNode) SetName(v string) error {
-	t, err := capnp.NewText(s.Struct.Segment(), v)
-	if err != nil {
-		return err
-	}
-	return s.Struct.SetPtr(0, t.List.ToPtr())
+	return s.Struct.SetText(0, v)
 }
 
 func (s Node_NestedNode) Id() uint64 {
@@ -856,11 +844,7 @@ func (s Field) NameBytes() ([]byte, error) {
 }
 
 func (s Field) SetName(v string) error {
-	t, err := capnp.NewText(s.Struct.Segment(), v)
-	if err != nil {
-		return err
-	}
-	return s.Struct.SetPtr(0, t.List.ToPtr())
+	return s.Struct.SetText(0, v)
 }
 
 func (s Field) CodeOrder() uint16 {
@@ -1104,11 +1088,7 @@ func (s Enumerant) NameBytes() ([]byte, error) {
 }
 
 func (s Enumerant) SetName(v string) error {
-	t, err := capnp.NewText(s.Struct.Segment(), v)
-	if err != nil {
-		return err
-	}
-	return s.Struct.SetPtr(0, t.List.ToPtr())
+	return s.Struct.SetText(0, v)
 }
 
 func (s Enumerant) CodeOrder() uint16 {
@@ -1279,11 +1259,7 @@ func (s Method) NameBytes() ([]byte, error) {
 }
 
 func (s Method) SetName(v string) error {
-	t, err := capnp.NewText(s.Struct.Segment(), v)
-	if err != nil {
-		return err
-	}
-	return s.Struct.SetPtr(0, t.List.ToPtr())
+	return s.Struct.SetText(0, v)
 }
 
 func (s Method) CodeOrder() uint16 {
@@ -2493,11 +2469,7 @@ func (s Value) TextBytes() ([]byte, error) {
 
 func (s Value) SetText(v string) error {
 	s.Struct.SetUint16(0, 12)
-	t, err := capnp.NewText(s.Struct.Segment(), v)
-	if err != nil {
-		return err
-	}
-	return s.Struct.SetPtr(0, t.List.ToPtr())
+	return s.Struct.SetText(0, v)
 }
 
 func (s Value) Data() ([]byte, error) {
@@ -2515,11 +2487,7 @@ func (s Value) HasData() bool {
 
 func (s Value) SetData(v []byte) error {
 	s.Struct.SetUint16(0, 13)
-	d, err := capnp.NewData(s.Struct.Segment(), []byte(v))
-	if err != nil {
-		return err
-	}
-	return s.Struct.SetPtr(0, d.List.ToPtr())
+	return s.Struct.SetData(0, v)
 }
 
 func (s Value) List() (capnp.Pointer, error) {
@@ -2975,11 +2943,7 @@ func (s CodeGeneratorRequest_RequestedFile) FilenameBytes() ([]byte, error) {
 }
 
 func (s CodeGeneratorRequest_RequestedFile) SetFilename(v string) error {
-	t, err := capnp.NewText(s.Struct.Segment(), v)
-	if err != nil {
-		return err
-	}
-	return s.Struct.SetPtr(0, t.List.ToPtr())
+	return s.Struct.SetText(0, v)
 }
 
 func (s CodeGeneratorRequest_RequestedFile) Imports() (CodeGeneratorRequest_RequestedFile_Import_List, error) {
@@ -3076,11 +3040,7 @@ func (s CodeGeneratorRequest_RequestedFile_Import) NameBytes() ([]byte, error) {
 }
 
 func (s CodeGeneratorRequest_RequestedFile_Import) SetName(v string) error {
-	t, err := capnp.NewText(s.Struct.Segment(), v)
-	if err != nil {
-		return err
-	}
-	return s.Struct.SetPtr(0, t.List.ToPtr())
+	return s.Struct.SetText(0, v)
 }
 
 // CodeGeneratorRequest_RequestedFile_Import_List is a list of CodeGeneratorRequest_RequestedFile_Import.

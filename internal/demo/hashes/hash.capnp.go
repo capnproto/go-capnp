@@ -337,11 +337,7 @@ func (s Hash_write_Params) HasData() bool {
 }
 
 func (s Hash_write_Params) SetData(v []byte) error {
-	d, err := capnp.NewData(s.Struct.Segment(), []byte(v))
-	if err != nil {
-		return err
-	}
-	return s.Struct.SetPtr(0, d.List.ToPtr())
+	return s.Struct.SetData(0, v)
 }
 
 // Hash_write_Params_List is a list of Hash_write_Params.
@@ -503,11 +499,7 @@ func (s Hash_sum_Results) HasHash() bool {
 }
 
 func (s Hash_sum_Results) SetHash(v []byte) error {
-	d, err := capnp.NewData(s.Struct.Segment(), []byte(v))
-	if err != nil {
-		return err
-	}
-	return s.Struct.SetPtr(0, d.List.ToPtr())
+	return s.Struct.SetData(0, v)
 }
 
 // Hash_sum_Results_List is a list of Hash_sum_Results.

@@ -139,6 +139,35 @@ func (p Struct) SetPtr(i uint16, src Ptr) error {
 	return p.seg.writePtr(copyContext{}, p.pointerAddress(i), src)
 }
 
+// SetText sets the i'th pointer to a newly allocated text or null if v is empty.
+func (p Struct) SetText(i uint16, v string) error {
+	if v == "" {
+		return p.SetPtr(i, Ptr{})
+	}
+	return p.SetNewText(i, v)
+}
+
+// SetNewText sets the i'th pointer to a newly allocated text.
+func (p Struct) SetNewText(i uint16, v string) error {
+	t, err := NewText(p.seg, v)
+	if err != nil {
+		return err
+	}
+	return p.SetPtr(i, t.List.ToPtr())
+}
+
+// SetData sets the i'th pointer to a newly allocated data or null if v is nil.
+func (p Struct) SetData(i uint16, v []byte) error {
+	if v == nil {
+		return p.SetPtr(i, Ptr{})
+	}
+	d, err := NewData(p.seg, v)
+	if err != nil {
+		return err
+	}
+	return p.SetPtr(i, d.List.ToPtr())
+}
+
 func (p Struct) pointerAddress(i uint16) Address {
 	// Struct already had bounds check
 	ptrStart, _ := p.off.addSize(p.size.DataSize)

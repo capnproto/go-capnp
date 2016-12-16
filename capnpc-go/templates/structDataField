@@ -11,10 +11,11 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() ({{.FieldType}}, error) {
 
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.FieldType}}) error {
 	{{template "_settag" . -}}
-	d, err := {{.G.Capnp}}.NewData(s.Struct.Segment(), []byte(v))
-	if err != nil {
-		return err
+	{{if .Default -}}
+	if v == nil {
+		v = []byte{}
 	}
-	return s.Struct.SetPtr({{.Field.Slot.Offset}}, d.List.ToPtr())
+	{{end -}}
+	return s.Struct.SetData({{.Field.Slot.Offset}}, v)
 }
 

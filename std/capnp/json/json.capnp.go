@@ -114,11 +114,7 @@ func (s JsonValue) String_Bytes() ([]byte, error) {
 
 func (s JsonValue) SetString_(v string) error {
 	s.Struct.SetUint16(0, 3)
-	t, err := capnp.NewText(s.Struct.Segment(), v)
-	if err != nil {
-		return err
-	}
-	return s.Struct.SetPtr(0, t.List.ToPtr())
+	return s.Struct.SetText(0, v)
 }
 
 func (s JsonValue) Array() (JsonValue_List, error) {
@@ -277,11 +273,7 @@ func (s JsonValue_Field) NameBytes() ([]byte, error) {
 }
 
 func (s JsonValue_Field) SetName(v string) error {
-	t, err := capnp.NewText(s.Struct.Segment(), v)
-	if err != nil {
-		return err
-	}
-	return s.Struct.SetPtr(0, t.List.ToPtr())
+	return s.Struct.SetText(0, v)
 }
 
 func (s JsonValue_Field) Value() (JsonValue, error) {
@@ -377,11 +369,7 @@ func (s JsonValue_Call) FunctionBytes() ([]byte, error) {
 }
 
 func (s JsonValue_Call) SetFunction(v string) error {
-	t, err := capnp.NewText(s.Struct.Segment(), v)
-	if err != nil {
-		return err
-	}
-	return s.Struct.SetPtr(0, t.List.ToPtr())
+	return s.Struct.SetText(0, v)
 }
 
 func (s JsonValue_Call) Params() (JsonValue_List, error) {

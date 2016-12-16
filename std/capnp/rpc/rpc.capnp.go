@@ -2478,11 +2478,7 @@ func (s Exception) ReasonBytes() ([]byte, error) {
 }
 
 func (s Exception) SetReason(v string) error {
-	t, err := capnp.NewText(s.Struct.Segment(), v)
-	if err != nil {
-		return err
-	}
-	return s.Struct.SetPtr(0, t.List.ToPtr())
+	return s.Struct.SetText(0, v)
 }
 
 func (s Exception) Type() Exception_Type {

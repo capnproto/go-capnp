@@ -2019,3 +2019,122 @@ func TestHasPointerInUnion(t *testing.T) {
 		t.Errorf("HasA320 = true; want false")
 	}
 }
+
+func TestSetNilBlob(t *testing.T) {
+	t.Parallel()
+	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		t.Fatal("NewMessage:", err)
+	}
+	z, err := air.NewRootZ(seg)
+	if err != nil {
+		t.Fatal("NewRootZ:", err)
+	}
+	if err := z.SetBlob(nil); err != nil {
+		t.Fatal("z.SetBlob(nil):", err)
+	}
+
+	if z.HasBlob() {
+		t.Error("z.HasBlob() = true; want false")
+	}
+	blob, err := z.Blob()
+	if err != nil {
+		t.Errorf("z.Blob(): %v", err)
+	}
+	if blob != nil {
+		t.Errorf("z.Blob() = %v; want nil", blob)
+	}
+}
+
+func TestSetEmptyText(t *testing.T) {
+	t.Parallel()
+	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		t.Fatal("NewMessage:", err)
+	}
+	z, err := air.NewRootZ(seg)
+	if err != nil {
+		t.Fatal("NewRootZ:", err)
+	}
+	if err := z.SetText(""); err != nil {
+		t.Fatal("z.SetText(\"\"):", err)
+	}
+
+	if z.HasText() {
+		t.Error("z.HasText() = true; want false")
+	}
+	text, err := z.Text()
+	if err != nil {
+		t.Errorf("z.Text(): %v", err)
+	}
+	if text != "" {
+		t.Errorf("z.Text() = %q; want \"\"", text)
+	}
+	b, err := z.TextBytes()
+	if err != nil {
+		t.Errorf("z.TextBytes(): %v", err)
+	}
+	if b != nil {
+		t.Errorf("z.TextBytes() = %v; want nil", b)
+	}
+}
+
+func TestSetNilBlobWithDefault(t *testing.T) {
+	t.Parallel()
+	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		t.Fatal("NewMessage:", err)
+	}
+	d, err := air.NewRootDefaults(seg)
+	if err != nil {
+		t.Fatal("NewRootDefaults:", err)
+	}
+	if err := d.SetData(nil); err != nil {
+		t.Fatal("d.SetData(nil):", err)
+	}
+
+	if !d.HasData() {
+		t.Error("d.HasData() = false; want true")
+	}
+	blob, err := d.Data()
+	if err != nil {
+		t.Errorf("d.Data(): %v", err)
+	}
+	if len(blob) != 0 {
+		t.Errorf("d.Data() = %v; want zero length", blob)
+	}
+	// Specifically not checking for nil.  Anything zero-length is appropriate here.
+}
+
+func TestSetEmptyTextWithDefault(t *testing.T) {
+	t.Parallel()
+	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		t.Fatal("NewMessage:", err)
+	}
+	d, err := air.NewRootDefaults(seg)
+	if err != nil {
+		t.Fatal("NewRootDefaults:", err)
+	}
+	if err := d.SetText(""); err != nil {
+		t.Fatal("d.SetData(\"\"):", err)
+	}
+
+	if !d.HasText() {
+		t.Error("d.HasText() = false; want true")
+	}
+	text, err := d.Text()
+	if err != nil {
+		t.Errorf("d.Text(): %v", err)
+	}
+	if text != "" {
+		t.Errorf("d.Text() = %v; want zero length", text)
+	}
+	b, err := d.TextBytes()
+	if err != nil {
+		t.Errorf("d.TextBytes(): %v", err)
+	}
+	if len(b) != 0 {
+		t.Errorf("d.TextBytes() = %v; want zero length", b)
+	}
+}

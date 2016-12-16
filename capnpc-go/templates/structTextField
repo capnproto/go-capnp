@@ -20,10 +20,10 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}Bytes() ([]byte, error) {
 
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v string) error {
 	{{template "_settag" . -}}
-	t, err := {{.G.Capnp}}.NewText(s.Struct.Segment(), v)
-	if err != nil {
-		return err
-	}
-	return s.Struct.SetPtr({{.Field.Slot.Offset}}, t.List.ToPtr())
+	{{if .Default -}}
+	return s.Struct.SetNewText({{.Field.Slot.Offset}}, v)
+	{{- else -}}
+	return s.Struct.SetText({{.Field.Slot.Offset}}, v)
+	{{- end}}
 }
 
