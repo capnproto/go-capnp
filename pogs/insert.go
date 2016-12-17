@@ -160,28 +160,25 @@ func (ins *inserter) insertField(s capnp.Struct, f schema.Field, val reflect.Val
 		d := uint64(math.Float64bits(dv.Float64()))
 		s.SetUint64(capnp.DataOffset(f.Slot().Offset()*8), v^d)
 	case schema.Type_Which_text:
-		// TODO(light): don't set if nil or empty. Need to consult default value.
 		off := uint16(f.Slot().Offset())
-		data, err := capnp.NewUInt8List(s.Segment(), int32(val.Len())+1)
-		if err != nil {
-			return err
+		if val.Len() == 0 {
+			if !isEmptyValue(dv) {
+				return s.SetNewText(off, "")
+			}
+			return s.SetText(off, "")
 		}
-		b := data.ToPtr().TextBytes()
 		if val.Kind() == reflect.String {
-			copy(b, val.String())
+			return s.SetText(off, val.String())
 		} else {
-			copy(b, val.Bytes())
+			return s.SetTextFromBytes(off, val.Bytes())
 		}
-		return s.SetPtr(off, data.ToPtr())
 	case schema.Type_Which_data:
-		// TODO(light): don't set if nil or empty. Need to consult default value.
 		b := val.Bytes()
-		off := uint16(f.Slot().Offset())
-		data, err := capnp.NewData(s.Segment(), b)
-		if err != nil {
-			return err
+		if b == nil && !isEmptyValue(dv) {
+			b = []byte{}
 		}
-		return s.SetPtr(off, data.ToPtr())
+		off := uint16(f.Slot().Offset())
+		return s.SetData(off, b)
 	case schema.Type_Which_structType:
 		off := uint16(f.Slot().Offset())
 		sval := val
@@ -206,7 +203,7 @@ func (ins *inserter) insertField(s capnp.Struct, f schema.Field, val reflect.Val
 		return ins.insertStruct(id, ss, sval)
 	case schema.Type_Which_list:
 		off := uint16(f.Slot().Offset())
-		if val.IsNil() {
+		if val.IsNil() && isEmptyValue(dv) {
 			return s.SetPtr(off, capnp.Ptr{})
 		}
 		elem, err := typ.List().ElementType()
@@ -294,7 +291,15 @@ func (ins *inserter) insertList(l capnp.List, typ schema.Type, val reflect.Value
 			}
 		} else {
 			for i := 0; i < n; i++ {
-				t, err := capnp.NewTextFromBytes(l.Segment(), val.Index(i).Bytes())
+				b := val.Index(i).Bytes()
+				if len(b) == 0 {
+					err := capnp.PointerList{List: l}.SetPtr(i, capnp.Ptr{})
+					if err != nil {
+						// TODO(light): collect errors and finish
+						return err
+					}
+				}
+				t, err := capnp.NewTextFromBytes(l.Segment(), b)
 				if err != nil {
 					// TODO(light): collect errors and finish
 					return err
@@ -308,7 +313,15 @@ func (ins *inserter) insertList(l capnp.List, typ schema.Type, val reflect.Value
 		}
 	case schema.Type_Which_data:
 		for i := 0; i < n; i++ {
-			err := capnp.DataList{List: l}.Set(i, val.Index(i).Bytes())
+			b := val.Index(i).Bytes()
+			if len(b) == 0 {
+				err := capnp.PointerList{List: l}.SetPtr(i, capnp.Ptr{})
+				if err != nil {
+					// TODO(light): collect errors and finish
+					return err
+				}
+			}
+			err := capnp.DataList{List: l}.Set(i, b)
 			if err != nil {
 				// TODO(light): collect errors and finish
 				return err
@@ -418,6 +431,25 @@ func isFieldInBounds(sz capnp.ObjectSize, off uint32, t schema.Type) bool {
 		return sz.DataSize >= capnp.Size(off+1)*8
 	case schema.Type_Which_text, schema.Type_Which_data, schema.Type_Which_list, schema.Type_Which_structType, schema.Type_Which_interface, schema.Type_Which_anyPointer:
 		return sz.PointerCount >= uint16(off+1)
+	default:
+		return false
+	}
+}
+
+func isEmptyValue(v schema.Value) bool {
+	if !v.IsValid() {
+		return false
+	}
+	switch v.Which() {
+	case schema.Value_Which_text:
+		b, _ := v.TextBytes()
+		return len(b) == 0
+	case schema.Value_Which_data:
+		b, _ := v.Data()
+		return len(b) == 0
+	case schema.Value_Which_list:
+		p, _ := v.ListPtr()
+		return p.List().Len() == 0
 	default:
 		return false
 	}

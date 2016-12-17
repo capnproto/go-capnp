@@ -156,6 +156,18 @@ func (p Struct) SetNewText(i uint16, v string) error {
 	return p.SetPtr(i, t.List.ToPtr())
 }
 
+// SetTextFromBytes sets the i'th pointer to a newly allocated text or null if v is nil.
+func (p Struct) SetTextFromBytes(i uint16, v []byte) error {
+	if v == nil {
+		return p.SetPtr(i, Ptr{})
+	}
+	t, err := NewTextFromBytes(p.seg, v)
+	if err != nil {
+		return err
+	}
+	return p.SetPtr(i, t.List.ToPtr())
+}
+
 // SetData sets the i'th pointer to a newly allocated data or null if v is nil.
 func (p Struct) SetData(i uint16, v []byte) error {
 	if v == nil {

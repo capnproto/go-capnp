@@ -81,6 +81,8 @@ var goodTests = []Z{
 	{Which: air.Z_Which_bool, Bool: true},
 	{Which: air.Z_Which_bool, Bool: false},
 	{Which: air.Z_Which_text, Text: "Hello, World!"},
+	{Which: air.Z_Which_blob, Blob: nil},
+	{Which: air.Z_Which_blob, Blob: []byte{}},
 	{Which: air.Z_Which_blob, Blob: []byte("Hello, World!")},
 	{Which: air.Z_Which_f64vec, F64vec: nil},
 	{Which: air.Z_Which_f64vec, F64vec: []float64{-2.0, 4.5}},
@@ -98,8 +100,10 @@ var goodTests = []Z{
 	{Which: air.Z_Which_boolvec, Boolvec: []bool{false, true, false}},
 	{Which: air.Z_Which_datavec, Datavec: nil},
 	{Which: air.Z_Which_datavec, Datavec: [][]byte{[]byte("hi"), []byte("bye")}},
+	{Which: air.Z_Which_datavec, Datavec: [][]byte{nil, nil, nil}},
 	{Which: air.Z_Which_textvec, Textvec: nil},
 	{Which: air.Z_Which_textvec, Textvec: []string{"John", "Paul", "George", "Ringo"}},
+	{Which: air.Z_Which_textvec, Textvec: []string{"", "", ""}},
 	{Which: air.Z_Which_zvec, Zvec: []*Z{
 		{Which: air.Z_Which_i64, I64: -123},
 		{Which: air.Z_Which_text, Text: "Hi"},
@@ -904,6 +908,9 @@ func zequal(g *Z, c air.Z) (bool, error) {
 		blob, err := c.Blob()
 		if err != nil {
 			return false, err
+		}
+		if (blob == nil) != (g.Blob == nil) {
+			return false, nil
 		}
 		return bytes.Equal(g.Blob, blob), nil
 	case air.Z_Which_f64vec:
