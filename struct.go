@@ -40,7 +40,9 @@ func NewRootStruct(s *Segment, sz ObjectSize) (Struct, error) {
 	return st, nil
 }
 
-// ToStruct is deprecated in favor of Ptr.Struct.
+// ToStruct converts p to a Struct.
+//
+// Deprecated: Use Ptr.Struct.
 func ToStruct(p Pointer) Struct {
 	if !IsValid(p) {
 		return Struct{}
@@ -52,7 +54,10 @@ func ToStruct(p Pointer) Struct {
 	return s
 }
 
-// ToStructDefault is deprecated in favor of Ptr.StructDefault.
+// ToStructDefault attempts to convert p into a struct, reading the
+// default value from def if p is not a struct.
+//
+// Deprecated: Use Ptr.StructDefault.
 func ToStructDefault(p Pointer, def []byte) (Struct, error) {
 	return toPtr(p).StructDefault(def)
 }
@@ -112,7 +117,9 @@ func (p Struct) underlying() Pointer {
 	return p
 }
 
-// Pointer is deprecated in favor of Ptr.
+// Pointer returns the i'th pointer in the struct.
+//
+// Deprecated: Use Ptr.
 func (p Struct) Pointer(i uint16) (Pointer, error) {
 	pp, err := p.Ptr(i)
 	return pp.toPointer(), err
@@ -126,7 +133,9 @@ func (p Struct) Ptr(i uint16) (Ptr, error) {
 	return p.seg.readPtr(p.pointerAddress(i), p.depthLimit)
 }
 
-// SetPointer is deprecated in favor of SetPtr.
+// SetPointer sets the i'th pointer in the struct to src.
+//
+// Deprecated: Use SetPtr.
 func (p Struct) SetPointer(i uint16, src Pointer) error {
 	return p.SetPtr(i, toPtr(src))
 }

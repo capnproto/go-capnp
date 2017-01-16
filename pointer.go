@@ -235,7 +235,10 @@ func (p Ptr) address() Address {
 	panic("ptr not a valid struct or list")
 }
 
-// Pointer is deprecated in favor of Ptr.
+// A value that implements Pointer is a reference to a Cap'n Proto object.
+//
+// Deprecated: Using this type introduces an unnecessary allocation.
+// Use Ptr instead.
 type Pointer interface {
 	// Segment returns the segment this pointer points into.
 	// If nil, then this is an invalid pointer.
@@ -253,17 +256,25 @@ type Pointer interface {
 	underlying() Pointer
 }
 
-// IsValid is deprecated in favor of Ptr.IsValid.
+// IsValid reports whether p is valid.
+//
+// Deprecated: Use Ptr.IsValid instead.
 func IsValid(p Pointer) bool {
 	return p != nil && p.Segment() != nil
 }
 
-// HasData is deprecated.
+// HasData reports whether p has non-zero size.
+//
+// Deprecated: There are usually better ways to determine this
+// information: length of a list, checking fields, or using HasFoo
+// accessors.
 func HasData(p Pointer) bool {
 	return IsValid(p) && p.HasData()
 }
 
-// PointerDefault is deprecated in favor of Ptr.Default.
+// PointerDefault returns p if it is valid, otherwise it unmarshals def.
+//
+// Deprecated: Use Ptr.Default.
 func PointerDefault(p Pointer, def []byte) (Pointer, error) {
 	pp, err := toPtr(p).Default(def)
 	return pp.toPointer(), err

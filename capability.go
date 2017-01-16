@@ -22,7 +22,9 @@ func NewInterface(s *Segment, cap CapabilityID) Interface {
 	}
 }
 
-// ToInterface is deprecated in favor of Ptr.Interface.
+// ToInterface converts p to an Interface.
+//
+// Deprecated: Use Ptr.Interface.
 func ToInterface(p Pointer) Interface {
 	if !IsValid(p) {
 		return Interface{}
@@ -383,7 +385,10 @@ func (m *Method) String() string {
 	return string(buf)
 }
 
-// Transform is deprecated in favor of TransformPtr.
+// Transform applies a sequence of pipeline operations to a pointer
+// and returns the result.
+//
+// Deprecated: Use TransformPtr.
 func Transform(p Pointer, transform []PipelineOp) (Pointer, error) {
 	pp, err := TransformPtr(toPtr(p), transform)
 	return pp.toPointer(), err

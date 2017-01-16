@@ -61,12 +61,17 @@ func NewCompositeList(s *Segment, sz ObjectSize, n int32) (List, error) {
 	}, nil
 }
 
-// ToList is deprecated in favor of Ptr.List.
+// ToList converts p to a List.
+//
+// Deprecated: Use Ptr.List.
 func ToList(p Pointer) List {
 	return toPtr(p).List()
 }
 
-// ToListDefault is deprecated in favor of Ptr.ListDefault.
+// ToListDefault attempts to convert p into a list, reading the default
+// value from def if p is not a list.
+//
+// Deprecated: Use Ptr.ListDefault.
 func ToListDefault(p Pointer, def []byte) (List, error) {
 	return toPtr(p).ListDefault(def)
 }
@@ -277,7 +282,9 @@ func NewPointerList(s *Segment, n int32) (PointerList, error) {
 	}}, nil
 }
 
-// At is deprecated in favor of PtrAt.
+// At returns the i'th pointer in the list.
+//
+// Deprecated: Use PtrAt.
 func (p PointerList) At(i int) (Pointer, error) {
 	pi, err := p.PtrAt(i)
 	return pi.toPointer(), err
@@ -289,7 +296,9 @@ func (p PointerList) PtrAt(i int) (Ptr, error) {
 	return p.seg.readPtr(addr, p.depthLimit)
 }
 
-// Set is deprecated in favor of SetPtr.
+// Set sets the i'th pointer in the list to v.
+//
+// Deprecated: Use SetPtr.
 func (p PointerList) Set(i int, v Pointer) error {
 	return p.SetPtr(i, toPtr(v))
 }
@@ -439,22 +448,30 @@ func NewData(s *Segment, v []byte) (UInt8List, error) {
 	return l, nil
 }
 
-// ToText is deprecated in favor of Ptr.Text.
+// ToText attempts to convert p into Text.
+//
+// Deprecated: Use Ptr.Text.
 func ToText(p Pointer) string {
 	return toPtr(p).TextDefault("")
 }
 
-// ToTextDefault is deprecated in favor of Ptr.TextDefault.
+// ToTextDefault attempts to convert p into Text, returning def on failure.
+//
+// Deprecated: Use Ptr.TextDefault.
 func ToTextDefault(p Pointer, def string) string {
 	return toPtr(p).TextDefault(def)
 }
 
-// ToData is deprecated in favor of Ptr.Data.
+// ToData attempts to convert p into Data.
+//
+// Deprecated: Use Ptr.Data.
 func ToData(p Pointer) []byte {
 	return toPtr(p).DataDefault(nil)
 }
 
-// ToDataDefault is deprecated in favor of Ptr.DataDefault.
+// ToDataDefault attempts to convert p into Data, returning def on failure.
+//
+// Deprecated: Use Ptr.DataDefault.
 func ToDataDefault(p Pointer, def []byte) []byte {
 	return toPtr(p).DataDefault(def)
 }

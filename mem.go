@@ -104,7 +104,9 @@ func (m *Message) Reset(arena Arena) {
 	m.ReadLimiter().Reset(m.TraverseLimit)
 }
 
-// Root is deprecated in favor of RootPtr.
+// Root returns the pointer to the message's root object.
+//
+// Deprecated: Use RootPtr.
 func (m *Message) Root() (Pointer, error) {
 	p, err := m.RootPtr()
 	return p.toPointer(), err
@@ -119,7 +121,9 @@ func (m *Message) RootPtr() (Ptr, error) {
 	return s.root().PtrAt(0)
 }
 
-// SetRoot is deprecated in favor of SetRootPtr.
+// SetRoot sets the message's root object to p.
+//
+// Deprecated: Use SetRootPtr.
 func (m *Message) SetRoot(p Pointer) error {
 	return m.SetRootPtr(toPtr(p))
 }
@@ -509,7 +513,10 @@ func UnmarshalPacked(data []byte) (*Message, error) {
 	return Unmarshal(data)
 }
 
-// MustUnmarshalRoot is deprecated in favor of MustUnmarshalRootPtr.
+// MustUnmarshalRoot reads an unpacked serialized stream and returns
+// its root pointer.  If there is any error, it panics.
+//
+// Deprecated: Use MustUnmarshalRootPtr.
 func MustUnmarshalRoot(data []byte) Pointer {
 	msg, err := Unmarshal(data)
 	if err != nil {
