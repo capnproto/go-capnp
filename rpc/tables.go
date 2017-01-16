@@ -63,12 +63,14 @@ type importClient struct {
 func (ic *importClient) Call(cl *capnp.Call) capnp.Answer {
 	select {
 	case <-ic.conn.mu:
+		if err := ic.conn.startWork(); err != nil {
+			return capnp.ErrorAnswer(err)
+		}
 	case <-cl.Ctx.Done():
 		return capnp.ErrorAnswer(cl.Ctx.Err())
-	case <-ic.conn.bg.Done():
-		return capnp.ErrorAnswer(ErrConnClosed)
 	}
 	ans := ic.lockedCall(cl)
+	ic.conn.workers.Done()
 	ic.conn.mu.Unlock()
 	return ans
 }
@@ -109,12 +111,17 @@ func (ic *importClient) lockedCall(cl *capnp.Call) capnp.Answer {
 
 func (ic *importClient) Close() error {
 	ic.conn.mu.Lock()
+	if err := ic.conn.startWork(); err != nil {
+		ic.conn.mu.Unlock()
+		return err
+	}
 	closed := ic.closed
 	var i int
 	if !closed {
 		i = ic.conn.popImport(ic.id)
 		ic.closed = true
 	}
+	ic.conn.workers.Done()
 	ic.conn.mu.Unlock()
 
 	if closed {

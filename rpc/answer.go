@@ -68,27 +68,36 @@ func (a *answer) fulfill(obj capnp.Ptr) error {
 	a.obj, a.done = obj, true
 	// TODO(light): populate resultCaps
 
-	retmsg := newReturnMessage(nil, a.id)
-	ret, _ := retmsg.Return()
-	payload, _ := ret.NewResults()
-	payload.SetContentPtr(obj)
 	var firstErr error
-	if payloadTab, err := a.conn.makeCapTable(ret.Segment()); err == nil {
-		payload.SetCapTable(payloadTab)
-		if err := a.conn.sendMessage(retmsg); err != nil {
+	if err := a.conn.startWork(); err != nil {
+		firstErr = err
+		for i := range a.queue {
+			a.queue[i].a.reject(err)
+		}
+		a.queue = nil
+	} else {
+		retmsg := newReturnMessage(nil, a.id)
+		ret, _ := retmsg.Return()
+		payload, _ := ret.NewResults()
+		payload.SetContentPtr(obj)
+		if payloadTab, err := a.conn.makeCapTable(ret.Segment()); err != nil {
+			firstErr = err
+		} else {
+			payload.SetCapTable(payloadTab)
+			if err := a.conn.sendMessage(retmsg); err != nil {
+				firstErr = err
+			}
+		}
+
+		queues, err := a.emptyQueue(obj)
+		if err != nil && firstErr == nil {
 			firstErr = err
 		}
-	} else {
-		firstErr = err
-	}
-
-	queues, err := a.emptyQueue(obj)
-	if err != nil && firstErr == nil {
-		firstErr = err
-	}
-	ctab := obj.Segment().Message().CapTable
-	for capIdx, q := range queues {
-		ctab[capIdx] = newQueueClient(a.conn, ctab[capIdx], q)
+		ctab := obj.Segment().Message().CapTable
+		for capIdx, q := range queues {
+			ctab[capIdx] = newQueueClient(a.conn, ctab[capIdx], q)
+		}
+		a.conn.workers.Done()
 	}
 	close(a.resolved)
 	a.mu.Unlock()
@@ -215,12 +224,7 @@ func (a *answer) pipelineClient(transform []capnp.PipelineOp) capnp.Client {
 // The caller must not be holding onto a.conn.mu.
 func joinAnswer(a *answer, ca capnp.Answer) {
 	s, err := ca.Struct()
-	select {
-	case <-a.conn.mu:
-		// Locked.
-	case <-a.conn.bg.Done():
-		return
-	}
+	a.conn.mu.Lock()
 	if err == nil {
 		a.fulfill(s.ToPtr())
 	} else {
@@ -357,13 +361,13 @@ func (qc *queueClient) tryQueue(cl *capnp.Call) capnp.Answer {
 }
 
 func (qc *queueClient) Close() error {
-	select {
-	case <-qc.conn.mu:
-		// Locked.
-	case <-qc.conn.bg.Done():
-		return ErrConnClosed
+	qc.conn.mu.Lock()
+	if err := qc.conn.startWork(); err != nil {
+		qc.conn.mu.Unlock()
+		return err
 	}
 	rejErr := qc.rejectQueue()
+	qc.conn.workers.Done()
 	qc.conn.mu.Unlock()
 	if err := qc.client.Close(); err != nil {
 		return err

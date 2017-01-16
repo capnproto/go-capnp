@@ -27,6 +27,7 @@ type Conn struct {
 	workers  sync.WaitGroup
 
 	// Mutable state protected by stateMu
+	// If you need to acquire both mu and stateMu, acquire mu first.
 	stateMu   sync.RWMutex
 	stateCond sync.Cond // broadcasts when state changes
 	state     connState
@@ -184,6 +185,22 @@ func (c *Conn) abort(e error) {
 	c.stateMu.Unlock()
 }
 
+// startWork adds a new worker if c is not dying or dead.
+// Otherwise, it returns the close error.
+// The caller is responsible for calling c.workers.Done().
+// The caller must not be holding onto c.stateMu.
+func (c *Conn) startWork() error {
+	var err error
+	c.stateMu.RLock()
+	if c.state == connAlive {
+		c.workers.Add(1)
+	} else {
+		err = c.closeErr
+	}
+	c.stateMu.RUnlock()
+	return err
+}
+
 // teardown moves the connection from the dying to the dead state.
 func (c *Conn) teardown(abort rpccapnp.Message) {
 	c.workers.Wait()
@@ -250,6 +267,10 @@ func (c *Conn) Bootstrap(ctx context.Context) capnp.Client {
 	case <-c.mu:
 		// Locked.
 		defer c.mu.Unlock()
+		if err := c.startWork(); err != nil {
+			return capnp.ErrorClient(err)
+		}
+		defer c.workers.Done()
 	case <-ctx.Done():
 		return capnp.ErrorClient(ctx.Err())
 	case <-c.bg.Done():
