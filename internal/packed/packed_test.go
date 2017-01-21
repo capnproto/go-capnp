@@ -3,18 +3,23 @@ package packed
 import (
 	"bufio"
 	"bytes"
+	"compress/gzip"
 	"encoding/hex"
 	"io"
 	"io/ioutil"
+	"math"
+	"strings"
 	"testing"
 	"testing/iotest"
 )
 
-var compressionTests = []struct {
+type testCase struct {
 	name       string
 	original   []byte
 	compressed []byte
-}{
+}
+
+var compressionTests = []testCase{
 	{
 		"empty",
 		[]byte{},
@@ -187,6 +192,32 @@ var compressionTests = []struct {
 	},
 }
 
+var decompressionTests = []testCase{
+	{
+		"fuzz hang #1",
+		mustGunzip("\x1f\x8b\b\x00\x00\tn\x88\x00\xff\xec\xce!\x11\x000\f\x04\xc1G\xd5Q\xff\x02\x8b" +
+			"\xab!(\xc9\xcc.>p\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\xf5^" +
+			"\xf7\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" +
+			"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x000\xc8\xc9" +
+			"-\xf5?\x00\x00\xff\xff6\xe2l*\x90\xcc\x00\x00"),
+		[]byte("\x00\xff\x00\xf6\x00\xff\x00\xf6\x00\xff\x00\xf6\x00\xff@\xf6\x00\xff\x00\xf6" +
+			"\x00\xff\x00\xf6\x00\xff\x00\xf6\x00\xff\x00\xf6\x00\xff\x00\xf6\x00\xff\x00\xf6" +
+			"\x00\xff\x00\xf6\x00\xf6\x00\xff\x00\xf6\x00\xff\x00\xf6\x05\x06 \x00\x04"),
+	},
+	{
+		"fuzz hang #2",
+		mustGunzip("\x1f\x8b\b\x00\x00\tn\x88\x00\xff\xec\xceA\r\x00\x00\b\x04\xa0\xeb\x1fد\xc6p:H@" +
+			"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" +
+			"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00ު\xa4\xb7\x0f\x00\x00\x00\x00\x00\x00\x00" +
+			"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" +
+			"\\5\x01\x00\x00\xff\xff\r\xfb\xbac\xe0\xe8\x00\x00"),
+		[]byte("\x00\xf6\x00\xff\x00\u007f\x00\xf6\x00\xff\x00\xf6\x00\xff\x00\xf6\x00\xff\x00\xf6" +
+			"\x00\xff\x00\xf6\x00\xff\x00\xf6\x00\xff\x00\xf6\x00\x005\x00\xf6\x00\xff\x00" +
+			"\xf6\x00\xff\x00\xf6\x00\xff\x00 \x00\xff\x00\xf6\x00\xff\x00\xf6\x00\xff\x00" +
+			"\xf6\x00\xff\x00\xf6\x00\xff\x00\xf6"),
+	},
+}
+
 var badDecompressionTests = []struct {
 	name  string
 	input []byte
@@ -225,7 +256,10 @@ func TestPack(t *testing.T) {
 }
 
 func TestUnpack(t *testing.T) {
-	for _, test := range compressionTests {
+	tests := make([]testCase, 0, len(compressionTests)+len(decompressionTests))
+	tests = append(tests, compressionTests...)
+	tests = append(tests, decompressionTests...)
+	for _, test := range tests {
 		compressed := make([]byte, len(test.compressed))
 		copy(compressed, test.compressed)
 		orig, err := Unpack(nil, compressed)
@@ -249,9 +283,12 @@ func TestUnpack_Fail(t *testing.T) {
 }
 
 func TestReader(t *testing.T) {
+	tests := make([]testCase, 0, len(compressionTests)+len(decompressionTests))
+	tests = append(tests, compressionTests...)
+	tests = append(tests, decompressionTests...)
 testing:
-	for _, test := range compressionTests {
-		for readSize := 1; readSize <= 8+2*len(test.original); readSize++ {
+	for _, test := range tests {
+		for readSize := 1; readSize <= 8+2*len(test.original); readSize = nextPrime(readSize) {
 			r := bytes.NewReader(test.compressed)
 			d := NewReader(bufio.NewReader(r))
 			buf := make([]byte, readSize)
@@ -282,8 +319,11 @@ testing:
 
 func TestReader_DataErr(t *testing.T) {
 	const readSize = 3
+	tests := make([]testCase, 0, len(compressionTests)+len(decompressionTests))
+	tests = append(tests, compressionTests...)
+	tests = append(tests, decompressionTests...)
 testing:
-	for _, test := range compressionTests {
+	for _, test := range tests {
 		r := iotest.DataErrReader(bytes.NewReader(test.compressed))
 		d := NewReader(bufio.NewReader(r))
 		buf := make([]byte, readSize)
@@ -403,4 +443,30 @@ func BenchmarkReader(b *testing.B) {
 		}
 	}
 	result = dst.Bytes()
+}
+
+func nextPrime(n int) int {
+inc:
+	for {
+		n++
+		root := int(math.Sqrt(float64(n)))
+		for f := 2; f <= root; f++ {
+			if n%f == 0 {
+				continue inc
+			}
+		}
+		return n
+	}
+}
+
+func mustGunzip(s string) []byte {
+	r, err := gzip.NewReader(strings.NewReader(s))
+	if err != nil {
+		panic(err)
+	}
+	data, err := ioutil.ReadAll(r)
+	if err != nil {
+		panic(err)
+	}
+	return data
 }
