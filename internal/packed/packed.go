@@ -121,8 +121,7 @@ func Unpack(dst, src []byte) ([]byte, error) {
 					continue
 				}
 				if len(src) == 0 {
-					//return dst, io.ErrUnexpectedEOF
-					return dst, errors.New("content EOF")
+					return dst, io.ErrUnexpectedEOF
 				}
 				p[i] = src[0]
 				src = src[1:]
@@ -131,15 +130,13 @@ func Unpack(dst, src []byte) ([]byte, error) {
 		switch tag {
 		case zeroTag:
 			if len(src) == 0 {
-				//return dst, io.ErrUnexpectedEOF
-				return dst, errors.New("zero EOF")
+				return dst, io.ErrUnexpectedEOF
 			}
 			dst = allocWords(dst, int(src[0]))
 			src = src[1:]
 		case unpackedTag:
 			if len(src) == 0 {
-				//return dst, io.ErrUnexpectedEOF
-				return dst, errors.New("unpacked EOF")
+				return dst, io.ErrUnexpectedEOF
 			}
 			start := len(dst)
 			dst = allocWords(dst, int(src[0]))
