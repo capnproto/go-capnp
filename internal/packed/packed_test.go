@@ -386,21 +386,17 @@ func BenchmarkPack(b *testing.B) {
 	result = dst
 }
 
-func BenchmarkUnpack(b *testing.B) {
-	const multiplier = 128
-	src := bytes.Repeat([]byte{
-		0xb7, 8, 100, 6, 1, 1, 2,
-		0xb7, 8, 100, 6, 1, 1, 2,
-		0x00, 3,
-		0x2a, 1, 2, 3,
-		0xff, 'H', 'e', 'l', 'l', 'o', ',', ' ', 'W',
-		2,
-		'o', 'r', 'l', 'd', '!', ' ', ' ', 'P',
-		'a', 'd', ' ', 't', 'e', 'x', 't', '.',
-	}, multiplier)
-	b.SetBytes(int64(len(src)))
-
-	dst := make([]byte, 0, 10*8*multiplier)
+func benchUnpack(b *testing.B, src []byte) {
+	var unpackedSize int
+	{
+		tmp, err := Unpack(nil, src)
+		if err != nil {
+			b.Fatal(err)
+		}
+		unpackedSize = len(tmp)
+	}
+	b.SetBytes(int64(unpackedSize))
+	dst := make([]byte, 0, unpackedSize)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -413,9 +409,8 @@ func BenchmarkUnpack(b *testing.B) {
 	result = dst
 }
 
-func BenchmarkReader(b *testing.B) {
-	const multiplier = 128
-	src := bytes.Repeat([]byte{
+func BenchmarkUnpack(b *testing.B) {
+	benchUnpack(b, bytes.Repeat([]byte{
 		0xb7, 8, 100, 6, 1, 1, 2,
 		0xb7, 8, 100, 6, 1, 1, 2,
 		0x00, 3,
@@ -424,12 +419,29 @@ func BenchmarkReader(b *testing.B) {
 		2,
 		'o', 'r', 'l', 'd', '!', ' ', ' ', 'P',
 		'a', 'd', ' ', 't', 'e', 'x', 't', '.',
-	}, multiplier)
-	b.SetBytes(int64(len(src)))
+	}, 128))
+}
+
+func BenchmarkUnpack_Large(b *testing.B) {
+	benchUnpack(b, []byte("\x00\xff\x00\xf6\x00\xff\x00\xf6\x00\xff\x00\xf6\x00\xff@\xf6\x00\xff\x00\xf6"+
+		"\x00\xff\x00\xf6\x00\xff\x00\xf6\x00\xff\x00\xf6\x00\xff\x00\xf6\x00\xff\x00\xf6"+
+		"\x00\xff\x00\xf6\x00\xf6\x00\xff\x00\xf6\x00\xff\x00\xf6\x05\x06 \x00\x04"))
+}
+
+func benchReader(b *testing.B, src []byte) {
+	var unpackedSize int
+	{
+		tmp, err := Unpack(nil, src)
+		if err != nil {
+			b.Fatal(err)
+		}
+		unpackedSize = len(tmp)
+	}
+	b.SetBytes(int64(unpackedSize))
 	r := bytes.NewReader(src)
 	br := bufio.NewReader(r)
 
-	dst := bytes.NewBuffer(make([]byte, 0, 10*8*multiplier))
+	dst := bytes.NewBuffer(make([]byte, 0, unpackedSize))
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -443,6 +455,25 @@ func BenchmarkReader(b *testing.B) {
 		}
 	}
 	result = dst.Bytes()
+}
+
+func BenchmarkReader(b *testing.B) {
+	benchReader(b, bytes.Repeat([]byte{
+		0xb7, 8, 100, 6, 1, 1, 2,
+		0xb7, 8, 100, 6, 1, 1, 2,
+		0x00, 3,
+		0x2a, 1, 2, 3,
+		0xff, 'H', 'e', 'l', 'l', 'o', ',', ' ', 'W',
+		2,
+		'o', 'r', 'l', 'd', '!', ' ', ' ', 'P',
+		'a', 'd', ' ', 't', 'e', 'x', 't', '.',
+	}, 128))
+}
+
+func BenchmarkReader_Large(b *testing.B) {
+	benchReader(b, []byte("\x00\xff\x00\xf6\x00\xff\x00\xf6\x00\xff\x00\xf6\x00\xff@\xf6\x00\xff\x00\xf6"+
+		"\x00\xff\x00\xf6\x00\xff\x00\xf6\x00\xff\x00\xf6\x00\xff\x00\xf6\x00\xff\x00\xf6"+
+		"\x00\xff\x00\xf6\x00\xf6\x00\xff\x00\xf6\x00\xff\x00\xf6\x05\x06 \x00\x04"))
 }
 
 func nextPrime(n int) int {
