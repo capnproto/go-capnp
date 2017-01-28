@@ -2138,3 +2138,28 @@ func TestSetEmptyTextWithDefault(t *testing.T) {
 		t.Errorf("d.TextBytes() = %v; want zero length", b)
 	}
 }
+
+func TestFuzzedListOutOfBounds(t *testing.T) {
+	t.Parallel()
+	msg := &capnp.Message{
+		Arena: capnp.SingleSegment([]byte(
+			"\x00\x00\x00\x00\x03\x00\x01\x00\x0f\x000000000000" +
+				"000000000000\x01\x00\x00\x00\x13\x00\x00\x000\x00\x00\x00\x00\x00\x00\x00")),
+	}
+	z, err := air.ReadRootZ(msg)
+	if err != nil {
+		t.Fatal("ReadRootZ:", err)
+	}
+	if z.Which() != air.Z_Which_f64vec {
+		t.Fatalf("z.Which() = %v; want Z_Which_f64vec", z.Which())
+	}
+	v, err := z.F64vec()
+	if err != nil {
+		t.Fatal("z.F64vec:", err)
+	}
+	for i := 0; i < v.Len(); i++ {
+		// This should not crash.
+		t.Logf("v.At(%d); v.Len() = %d", i, v.Len())
+		v.At(i)
+	}
+}

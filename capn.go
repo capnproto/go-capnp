@@ -186,7 +186,6 @@ func (s *Segment) readListPtr(off Address, val rawPointer) (List, error) {
 	if !ok {
 		return List{}, errPointerAddress
 	}
-	lt := val.listType()
 	lsize, ok := val.totalListSize()
 	if !ok {
 		return List{}, errOverflow
@@ -194,10 +193,7 @@ func (s *Segment) readListPtr(off Address, val rawPointer) (List, error) {
 	if !s.regionInBounds(addr, lsize) {
 		return List{}, errPointerAddress
 	}
-	limitSize := lsize
-	if limitSize == 0 {
-
-	}
+	lt := val.listType()
 	if lt == compositeList {
 		hdr := s.readRawPointer(addr)
 		var ok bool
@@ -511,6 +507,7 @@ var (
 	errBadTag         = errors.New("capnp: invalid tag word")
 	errOtherPointer   = errors.New("capnp: unknown pointer type")
 	errObjectSize     = errors.New("capnp: invalid object size")
+	errElementSize    = errors.New("capnp: mismatched list element size")
 	errReadLimit      = errors.New("capnp: read traversal limit reached")
 	errDepthLimit     = errors.New("capnp: depth limit reached")
 )

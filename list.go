@@ -176,31 +176,36 @@ func (p List) Len() int {
 	return int(p.length)
 }
 
-// elem returns the slice of segment data for a list element.
-func (p List) elem(i int) (addr Address, sz Size) {
+// primitiveElem returns the address of the segment data for a list element.
+// Calling this on a bit list returns an error.
+func (p List) primitiveElem(i int, expectedSize ObjectSize) (Address, error) {
 	if p.seg == nil || i < 0 || i >= int(p.length) {
+		// This is programmer error, not input error.
 		panic(errOutOfBounds)
 	}
-	if p.flags&isBitList != 0 {
-		addr = p.off.addOffset(BitOffset(i).offset())
-		return addr, 1
+	if p.flags&isBitList != 0 || p.flags&compositeList == 0 && p.size != expectedSize || p.flags&compositeList != 0 && (p.size.DataSize < expectedSize.DataSize || p.size.PointerCount < expectedSize.PointerCount) {
+		return 0, errElementSize
 	}
-	sz = p.size.totalSize()
-	addr, _ = p.off.element(int32(i), sz)
-	return addr, sz
-}
-
-func (p List) slice(i int) []byte {
-	addr, sz := p.elem(i)
-	return p.seg.slice(addr, sz)
+	addr, ok := p.off.element(int32(i), p.size.totalSize())
+	if !ok {
+		return 0, errOverflow
+	}
+	return addr, nil
 }
 
 // Struct returns the i'th element as a struct.
 func (p List) Struct(i int) Struct {
+	if p.seg == nil || i < 0 || i >= int(p.length) {
+		// This is programmer error, not input error.
+		panic(errOutOfBounds)
+	}
 	if p.flags&isBitList != 0 {
 		return Struct{}
 	}
-	addr, _ := p.elem(i)
+	addr, ok := p.off.element(int32(i), p.size.totalSize())
+	if !ok {
+		return Struct{}
+	}
 	return Struct{
 		seg:        p.seg,
 		off:        addr,
@@ -238,21 +243,31 @@ func NewBitList(s *Segment, n int32) (BitList, error) {
 
 // At returns the i'th bit.
 func (p BitList) At(i int) bool {
-	b := p.slice(i)
-	if b == nil {
+	if p.seg == nil || i < 0 || i >= int(p.length) {
+		// This is programmer error, not input error.
+		panic(errOutOfBounds)
+	}
+	if p.flags&isBitList == 0 {
 		return false
 	}
 	bit := BitOffset(i)
-	return b[0]&bit.mask() != 0
+	addr := p.off.addOffset(bit.offset())
+	return p.seg.readUint8(addr)&bit.mask() != 0
 }
 
 // Set sets the i'th bit to v.
 func (p BitList) Set(i int, v bool) {
-	b := p.slice(i)
-	if b == nil {
+	if p.seg == nil || i < 0 || i >= int(p.length) {
+		// This is programmer error, not input error.
 		panic(errOutOfBounds)
 	}
+	if p.flags&isBitList == 0 {
+		// Again, programmer error.  Should have used NewBitList.
+		panic(errElementSize)
+	}
 	bit := BitOffset(i)
+	addr := p.off.addOffset(bit.offset())
+	b := p.seg.slice(addr, 1)
 	if v {
 		b[0] |= bit.mask()
 	} else {
@@ -292,7 +307,10 @@ func (p PointerList) At(i int) (Pointer, error) {
 
 // PtrAt returns the i'th pointer in the list.
 func (p PointerList) PtrAt(i int) (Ptr, error) {
-	addr, _ := p.elem(i)
+	addr, err := p.primitiveElem(i, ObjectSize{PointerCount: 1})
+	if err != nil {
+		return Ptr{}, err
+	}
 	return p.seg.readPtr(addr, p.depthLimit)
 }
 
@@ -305,7 +323,10 @@ func (p PointerList) Set(i int, v Pointer) error {
 
 // SetPtr sets the i'th pointer in the list to v.
 func (p PointerList) SetPtr(i int, v Ptr) error {
-	addr, _ := p.elem(i)
+	addr, err := p.primitiveElem(i, ObjectSize{PointerCount: 1})
+	if err != nil {
+		return err
+	}
 	return p.seg.writePtr(copyContext{}, addr, v)
 }
 
@@ -323,7 +344,10 @@ func NewTextList(s *Segment, n int32) (TextList, error) {
 
 // At returns the i'th string in the list.
 func (l TextList) At(i int) (string, error) {
-	addr, _ := l.elem(i)
+	addr, err := l.primitiveElem(i, ObjectSize{PointerCount: 1})
+	if err != nil {
+		return "", err
+	}
 	p, err := l.seg.readPtr(addr, l.depthLimit)
 	if err != nil {
 		return "", err
@@ -334,7 +358,10 @@ func (l TextList) At(i int) (string, error) {
 // BytesAt returns the i'th element in the list as a byte slice.
 // The underlying array of the slice is the segment data.
 func (l TextList) BytesAt(i int) ([]byte, error) {
-	addr, _ := l.elem(i)
+	addr, err := l.primitiveElem(i, ObjectSize{PointerCount: 1})
+	if err != nil {
+		return nil, err
+	}
 	p, err := l.seg.readPtr(addr, l.depthLimit)
 	if err != nil {
 		return nil, err
@@ -344,7 +371,10 @@ func (l TextList) BytesAt(i int) ([]byte, error) {
 
 // Set sets the i'th string in the list to v.
 func (l TextList) Set(i int, v string) error {
-	addr, _ := l.elem(i)
+	addr, err := l.primitiveElem(i, ObjectSize{PointerCount: 1})
+	if err != nil {
+		return err
+	}
 	if v == "" {
 		return l.seg.writePtr(copyContext{}, addr, Ptr{})
 	}
@@ -369,7 +399,10 @@ func NewDataList(s *Segment, n int32) (DataList, error) {
 
 // At returns the i'th data in the list.
 func (l DataList) At(i int) ([]byte, error) {
-	addr, _ := l.elem(i)
+	addr, err := l.primitiveElem(i, ObjectSize{PointerCount: 1})
+	if err != nil {
+		return nil, err
+	}
 	p, err := l.seg.readPtr(addr, l.depthLimit)
 	if err != nil {
 		return nil, err
@@ -379,7 +412,10 @@ func (l DataList) At(i int) ([]byte, error) {
 
 // Set sets the i'th data in the list to v.
 func (l DataList) Set(i int, v []byte) error {
-	addr, _ := l.elem(i)
+	addr, err := l.primitiveElem(i, ObjectSize{PointerCount: 1})
+	if err != nil {
+		return err
+	}
 	if len(v) == 0 {
 		return l.seg.writePtr(copyContext{}, addr, Ptr{})
 	}
@@ -482,20 +518,20 @@ func isOneByteList(p Ptr) bool {
 
 // At returns the i'th element.
 func (l UInt8List) At(i int) uint8 {
-	b := l.slice(i)
-	if b == nil {
-		panic(errOutOfBounds)
+	addr, err := l.primitiveElem(i, ObjectSize{DataSize: 1})
+	if err != nil {
+		return 0
 	}
-	return b[0]
+	return l.seg.readUint8(addr)
 }
 
 // Set sets the i'th element to v.
 func (l UInt8List) Set(i int, v uint8) {
-	b := l.slice(i)
-	if b == nil {
-		panic(errOutOfBounds)
+	addr, err := l.primitiveElem(i, ObjectSize{DataSize: 1})
+	if err != nil {
+		panic(err)
 	}
-	b[0] = v
+	l.seg.writeUint8(addr, v)
 }
 
 // Int8List is an array of Int8 values.
@@ -512,20 +548,20 @@ func NewInt8List(s *Segment, n int32) (Int8List, error) {
 
 // At returns the i'th element.
 func (l Int8List) At(i int) int8 {
-	b := l.slice(i)
-	if b == nil {
-		panic(errOutOfBounds)
+	addr, err := l.primitiveElem(i, ObjectSize{DataSize: 1})
+	if err != nil {
+		return 0
 	}
-	return int8(b[0])
+	return int8(l.seg.readUint8(addr))
 }
 
 // Set sets the i'th element to v.
 func (l Int8List) Set(i int, v int8) {
-	b := l.slice(i)
-	if b == nil {
-		panic(errOutOfBounds)
+	addr, err := l.primitiveElem(i, ObjectSize{DataSize: 1})
+	if err != nil {
+		panic(err)
 	}
-	b[0] = uint8(v)
+	l.seg.writeUint8(addr, uint8(v))
 }
 
 // A UInt16List is an array of UInt16 values.
@@ -542,13 +578,19 @@ func NewUInt16List(s *Segment, n int32) (UInt16List, error) {
 
 // At returns the i'th element.
 func (l UInt16List) At(i int) uint16 {
-	addr, _ := l.elem(i)
+	addr, err := l.primitiveElem(i, ObjectSize{DataSize: 2})
+	if err != nil {
+		return 0
+	}
 	return l.seg.readUint16(addr)
 }
 
 // Set sets the i'th element to v.
 func (l UInt16List) Set(i int, v uint16) {
-	addr, _ := l.elem(i)
+	addr, err := l.primitiveElem(i, ObjectSize{DataSize: 2})
+	if err != nil {
+		panic(err)
+	}
 	l.seg.writeUint16(addr, v)
 }
 
@@ -566,13 +608,19 @@ func NewInt16List(s *Segment, n int32) (Int16List, error) {
 
 // At returns the i'th element.
 func (l Int16List) At(i int) int16 {
-	addr, _ := l.elem(i)
+	addr, err := l.primitiveElem(i, ObjectSize{DataSize: 2})
+	if err != nil {
+		return 0
+	}
 	return int16(l.seg.readUint16(addr))
 }
 
 // Set sets the i'th element to v.
 func (l Int16List) Set(i int, v int16) {
-	addr, _ := l.elem(i)
+	addr, err := l.primitiveElem(i, ObjectSize{DataSize: 2})
+	if err != nil {
+		panic(err)
+	}
 	l.seg.writeUint16(addr, uint16(v))
 }
 
@@ -590,13 +638,19 @@ func NewUInt32List(s *Segment, n int32) (UInt32List, error) {
 
 // At returns the i'th element.
 func (l UInt32List) At(i int) uint32 {
-	addr, _ := l.elem(i)
+	addr, err := l.primitiveElem(i, ObjectSize{DataSize: 4})
+	if err != nil {
+		return 0
+	}
 	return l.seg.readUint32(addr)
 }
 
 // Set sets the i'th element to v.
 func (l UInt32List) Set(i int, v uint32) {
-	addr, _ := l.elem(i)
+	addr, err := l.primitiveElem(i, ObjectSize{DataSize: 4})
+	if err != nil {
+		panic(err)
+	}
 	l.seg.writeUint32(addr, v)
 }
 
@@ -614,13 +668,19 @@ func NewInt32List(s *Segment, n int32) (Int32List, error) {
 
 // At returns the i'th element.
 func (l Int32List) At(i int) int32 {
-	addr, _ := l.elem(i)
+	addr, err := l.primitiveElem(i, ObjectSize{DataSize: 4})
+	if err != nil {
+		return 0
+	}
 	return int32(l.seg.readUint32(addr))
 }
 
 // Set sets the i'th element to v.
 func (l Int32List) Set(i int, v int32) {
-	addr, _ := l.elem(i)
+	addr, err := l.primitiveElem(i, ObjectSize{DataSize: 4})
+	if err != nil {
+		panic(err)
+	}
 	l.seg.writeUint32(addr, uint32(v))
 }
 
@@ -638,13 +698,19 @@ func NewUInt64List(s *Segment, n int32) (UInt64List, error) {
 
 // At returns the i'th element.
 func (l UInt64List) At(i int) uint64 {
-	addr, _ := l.elem(i)
+	addr, err := l.primitiveElem(i, ObjectSize{DataSize: 8})
+	if err != nil {
+		return 0
+	}
 	return l.seg.readUint64(addr)
 }
 
 // Set sets the i'th element to v.
 func (l UInt64List) Set(i int, v uint64) {
-	addr, _ := l.elem(i)
+	addr, err := l.primitiveElem(i, ObjectSize{DataSize: 8})
+	if err != nil {
+		panic(err)
+	}
 	l.seg.writeUint64(addr, v)
 }
 
@@ -662,13 +728,19 @@ func NewInt64List(s *Segment, n int32) (Int64List, error) {
 
 // At returns the i'th element.
 func (l Int64List) At(i int) int64 {
-	addr, _ := l.elem(i)
+	addr, err := l.primitiveElem(i, ObjectSize{DataSize: 8})
+	if err != nil {
+		return 0
+	}
 	return int64(l.seg.readUint64(addr))
 }
 
 // Set sets the i'th element to v.
 func (l Int64List) Set(i int, v int64) {
-	addr, _ := l.elem(i)
+	addr, err := l.primitiveElem(i, ObjectSize{DataSize: 8})
+	if err != nil {
+		panic(err)
+	}
 	l.seg.writeUint64(addr, uint64(v))
 }
 
@@ -686,13 +758,19 @@ func NewFloat32List(s *Segment, n int32) (Float32List, error) {
 
 // At returns the i'th element.
 func (l Float32List) At(i int) float32 {
-	addr, _ := l.elem(i)
+	addr, err := l.primitiveElem(i, ObjectSize{DataSize: 4})
+	if err != nil {
+		return 0
+	}
 	return math.Float32frombits(l.seg.readUint32(addr))
 }
 
 // Set sets the i'th element to v.
 func (l Float32List) Set(i int, v float32) {
-	addr, _ := l.elem(i)
+	addr, err := l.primitiveElem(i, ObjectSize{DataSize: 4})
+	if err != nil {
+		panic(err)
+	}
 	l.seg.writeUint32(addr, math.Float32bits(v))
 }
 
@@ -710,13 +788,19 @@ func NewFloat64List(s *Segment, n int32) (Float64List, error) {
 
 // At returns the i'th element.
 func (l Float64List) At(i int) float64 {
-	addr, _ := l.elem(i)
+	addr, err := l.primitiveElem(i, ObjectSize{DataSize: 8})
+	if err != nil {
+		return 0
+	}
 	return math.Float64frombits(l.seg.readUint64(addr))
 }
 
 // Set sets the i'th element to v.
 func (l Float64List) Set(i int, v float64) {
-	addr, _ := l.elem(i)
+	addr, err := l.primitiveElem(i, ObjectSize{DataSize: 8})
+	if err != nil {
+		panic(err)
+	}
 	l.seg.writeUint64(addr, math.Float64bits(v))
 }
 
