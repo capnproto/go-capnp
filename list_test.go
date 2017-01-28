@@ -67,7 +67,7 @@ func TestTextListBytesAt(t *testing.T) {
 		seg:        seg,
 		off:        8,
 		length:     1,
-		size:       ObjectSize{DataSize: 1},
+		size:       ObjectSize{PointerCount: 1},
 		depthLimit: maxDepth,
 	}}
 	b, err := list.BytesAt(0)
