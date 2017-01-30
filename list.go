@@ -749,7 +749,7 @@ type Float32List struct{ List }
 
 // NewFloat32List creates a new list of Float32, preferring placement in s.
 func NewFloat32List(s *Segment, n int32) (Float32List, error) {
-	l, err := newPrimitiveList(s, 8, n)
+	l, err := newPrimitiveList(s, 4, n)
 	if err != nil {
 		return Float32List{}, err
 	}
