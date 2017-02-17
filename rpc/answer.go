@@ -76,7 +76,7 @@ func (a *answer) fulfill(obj capnp.Ptr) error {
 		}
 		a.queue = nil
 	} else {
-		retmsg := newReturnMessage(nil, a.id)
+		retmsg := newReturnMessage(a.id)
 		ret, _ := retmsg.Return()
 		payload, _ := ret.NewResults()
 		payload.SetContentPtr(obj)
@@ -116,7 +116,7 @@ func (a *answer) reject(err error) error {
 		panic("answer.reject called more than once")
 	}
 	a.err, a.done = err, true
-	m := newReturnMessage(nil, a.id)
+	m := newReturnMessage(a.id)
 	mret, _ := m.Return()
 	setReturnException(mret, err)
 	var firstErr error
@@ -317,7 +317,7 @@ func (qc *queueClient) handle(c *qcall) {
 		answer := qc.client.Call(c.call)
 		go joinFulfiller(c.f, answer)
 	case qcallDisembargo:
-		msg := newDisembargoMessage(nil, rpccapnp.Disembargo_context_Which_receiverLoopback, c.embargoID)
+		msg := newDisembargoMessage(rpccapnp.Disembargo_context_Which_receiverLoopback, c.embargoID)
 		d, _ := msg.Disembargo()
 		d.SetTarget(c.embargoTarget)
 		qc.conn.sendMessage(msg)
@@ -391,7 +391,7 @@ func (qc *queueClient) rejectQueue() error {
 		case qcallLocalCall:
 			c.f.Reject(errQueueCallCancel)
 		case qcallDisembargo:
-			m := newDisembargoMessage(nil, rpccapnp.Disembargo_context_Which_receiverLoopback, c.embargoID)
+			m := newDisembargoMessage(rpccapnp.Disembargo_context_Which_receiverLoopback, c.embargoID)
 			d, _ := m.Disembargo()
 			d.SetTarget(c.embargoTarget)
 			if err := qc.conn.sendMessage(m); err != nil && firstErr == nil {

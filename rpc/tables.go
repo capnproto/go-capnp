@@ -83,7 +83,7 @@ func (ic *importClient) lockedCall(cl *capnp.Call) capnp.Answer {
 	}
 
 	q := ic.conn.newQuestion(cl.Ctx, &cl.Method)
-	msg := newMessage(nil)
+	msg := newMessage()
 	msgCall, _ := msg.NewCall()
 	msgCall.SetQuestionId(uint32(q.id))
 	msgCall.SetInterfaceId(cl.Method.InterfaceID)
@@ -130,7 +130,7 @@ func (ic *importClient) Close() error {
 	if i == 0 {
 		return nil
 	}
-	msg := newMessage(nil)
+	msg := newMessage()
 	mr, err := msg.NewRelease()
 	if err != nil {
 		return err

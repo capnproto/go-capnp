@@ -142,7 +142,7 @@ func (c *Conn) Close() error {
 	if !alive {
 		return ErrConnClosed
 	}
-	c.teardown(newAbortMessage(nil, errShutdown))
+	c.teardown(newAbortMessage(errShutdown))
 	c.stateMu.RLock()
 	err := c.closeErr
 	c.stateMu.RUnlock()
@@ -180,7 +180,7 @@ func (c *Conn) abort(e error) {
 		c.closeErr = e
 		c.state = connDying
 		c.stateCond.Broadcast()
-		go c.teardown(newAbortMessage(nil, e))
+		go c.teardown(newAbortMessage(e))
 	}
 	c.stateMu.Unlock()
 }
@@ -278,7 +278,7 @@ func (c *Conn) Bootstrap(ctx context.Context) capnp.Client {
 	}
 
 	q := c.newQuestion(ctx, nil /* method */)
-	msg := newMessage(nil)
+	msg := newMessage()
 	boot, _ := msg.NewBootstrap()
 	boot.SetQuestionId(uint32(q.id))
 	// The mutex must be held while sending so that call order is preserved.
@@ -391,13 +391,13 @@ func (c *Conn) handleMessage(m rpccapnp.Message) {
 		}
 	default:
 		c.infof("received unimplemented message, which = %v", m.Which())
-		um := newUnimplementedMessage(nil, m)
+		um := newUnimplementedMessage(m)
 		c.sendMessage(um)
 	}
 }
 
-func newUnimplementedMessage(buf []byte, m rpccapnp.Message) rpccapnp.Message {
-	n := newMessage(buf)
+func newUnimplementedMessage(m rpccapnp.Message) rpccapnp.Message {
+	n := newMessage()
 	n.SetUnimplemented(m)
 	return n
 }
@@ -465,7 +465,7 @@ func (c *Conn) handleReturnMessage(m rpccapnp.Message) error {
 			return err
 		}
 		if err := c.populateMessageCapTable(results); err == errUnimplemented {
-			um := newUnimplementedMessage(nil, m)
+			um := newUnimplementedMessage(m)
 			c.sendMessage(um)
 			return errUnimplemented
 		} else if err != nil {
@@ -502,17 +502,17 @@ func (c *Conn) handleReturnMessage(m rpccapnp.Message) error {
 		q.reject(err)
 		return nil
 	default:
-		um := newUnimplementedMessage(nil, m)
+		um := newUnimplementedMessage(m)
 		c.sendMessage(um)
 		return errUnimplemented
 	}
-	fin := newFinishMessage(nil, id, releaseResultCaps)
+	fin := newFinishMessage(id, releaseResultCaps)
 	c.sendMessage(fin)
 	return nil
 }
 
-func newFinishMessage(buf []byte, questionID questionID, release bool) rpccapnp.Message {
-	m := newMessage(buf)
+func newFinishMessage(questionID questionID, release bool) rpccapnp.Message {
+	m := newMessage()
 	f, _ := m.NewFinish()
 	f.SetQuestionId(uint32(questionID))
 	f.SetReleaseResultCaps(release)
@@ -607,7 +607,7 @@ func (c *Conn) handleBootstrapMessage(id answerID) error {
 	a := c.insertAnswer(id, cancel)
 	if a == nil {
 		// Question ID reused, error out.
-		retmsg := newReturnMessage(nil, id)
+		retmsg := newReturnMessage(id)
 		r, _ := retmsg.Return()
 		setReturnException(r, errQuestionReused)
 		return c.sendMessage(retmsg)
@@ -640,7 +640,7 @@ func (c *Conn) handleCallMessage(m rpccapnp.Message) error {
 		return err
 	}
 	if mt.Which() != rpccapnp.MessageTarget_Which_importedCap && mt.Which() != rpccapnp.MessageTarget_Which_promisedAnswer {
-		um := newUnimplementedMessage(nil, m)
+		um := newUnimplementedMessage(m)
 		return c.sendMessage(um)
 	}
 	mparams, err := mcall.Params()
@@ -648,7 +648,7 @@ func (c *Conn) handleCallMessage(m rpccapnp.Message) error {
 		return err
 	}
 	if err := c.populateMessageCapTable(mparams); err == errUnimplemented {
-		um := newUnimplementedMessage(nil, m)
+		um := newUnimplementedMessage(m)
 		return c.sendMessage(um)
 	} else if err != nil {
 		c.abort(err)
@@ -763,7 +763,7 @@ func (c *Conn) handleDisembargoMessage(msg rpccapnp.Message) error {
 		}
 		if !queued {
 			// There's nothing to embargo; everything's been delivered.
-			resp := newDisembargoMessage(nil, rpccapnp.Disembargo_context_Which_receiverLoopback, id)
+			resp := newDisembargoMessage(rpccapnp.Disembargo_context_Which_receiverLoopback, id)
 			rd, _ := resp.Disembargo()
 			if err := rd.SetTarget(dtarget); err != nil {
 				return err
@@ -774,15 +774,15 @@ func (c *Conn) handleDisembargoMessage(msg rpccapnp.Message) error {
 		id := embargoID(d.Context().ReceiverLoopback())
 		c.disembargo(id)
 	default:
-		um := newUnimplementedMessage(nil, msg)
+		um := newUnimplementedMessage(msg)
 		c.sendMessage(um)
 	}
 	return nil
 }
 
 // newDisembargoMessage creates a disembargo message.  Its target will be left blank.
-func newDisembargoMessage(buf []byte, which rpccapnp.Disembargo_context_Which, id embargoID) rpccapnp.Message {
-	msg := newMessage(buf)
+func newDisembargoMessage(which rpccapnp.Disembargo_context_Which, id embargoID) rpccapnp.Message {
+	msg := newMessage()
 	d, _ := msg.NewDisembargo()
 	switch which {
 	case rpccapnp.Disembargo_context_Which_senderLoopback:
@@ -817,15 +817,15 @@ func promisedAnswerOpsToTransform(list rpccapnp.PromisedAnswer_Op_List) []capnp.
 	return transform
 }
 
-func newAbortMessage(buf []byte, err error) rpccapnp.Message {
-	n := newMessage(buf)
+func newAbortMessage(err error) rpccapnp.Message {
+	n := newMessage()
 	e, _ := n.NewAbort()
 	toException(e, err)
 	return n
 }
 
-func newReturnMessage(buf []byte, id answerID) rpccapnp.Message {
-	retmsg := newMessage(buf)
+func newReturnMessage(id answerID) rpccapnp.Message {
+	retmsg := newMessage()
 	ret, _ := retmsg.NewReturn()
 	ret.SetAnswerId(uint32(id))
 	ret.SetReleaseParamCaps(false)
@@ -856,8 +856,8 @@ func clientFromResolution(transform []capnp.PipelineOp, obj capnp.Ptr, err error
 	return c
 }
 
-func newMessage(buf []byte) rpccapnp.Message {
-	_, s, err := capnp.NewMessage(capnp.SingleSegment(buf))
+func newMessage() rpccapnp.Message {
+	_, s, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	if err != nil {
 		panic(err)
 	}

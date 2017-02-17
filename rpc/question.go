@@ -91,7 +91,7 @@ func (q *question) start() {
 					return
 				}
 				if q.cancel(q.ctx.Err()) {
-					q.conn.sendMessage(newFinishMessage(nil, q.id, true /* release */))
+					q.conn.sendMessage(newFinishMessage(q.id, true /* release */))
 				}
 				q.conn.workers.Done()
 				q.conn.mu.Unlock()
@@ -128,7 +128,7 @@ func (q *question) fulfill(obj capnp.Ptr) {
 		visited[cn] = true
 		id, e := q.conn.newEmbargo()
 		ctab[cn] = newEmbargoClient(ctab[cn], e, q.conn.bg.Done())
-		m := newDisembargoMessage(nil, rpccapnp.Disembargo_context_Which_senderLoopback, id)
+		m := newDisembargoMessage(rpccapnp.Disembargo_context_Which_senderLoopback, id)
 		dis, _ := m.Disembargo()
 		mt, _ := dis.NewTarget()
 		pa, _ := mt.NewPromisedAnswer()
@@ -254,7 +254,7 @@ func (q *question) lockedPipelineCall(transform []capnp.PipelineOp, ccall *capnp
 	}
 
 	pipeq := q.conn.newQuestion(ccall.Ctx, &ccall.Method)
-	msg := newMessage(nil)
+	msg := newMessage()
 	msgCall, _ := msg.NewCall()
 	msgCall.SetQuestionId(uint32(pipeq.id))
 	msgCall.SetInterfaceId(ccall.Method.InterfaceID)
