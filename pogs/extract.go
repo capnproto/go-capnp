@@ -376,6 +376,16 @@ func isTypeMatch(r reflect.Type, s schema.Type) bool {
 	case schema.Type_Which_list:
 		e, _ := s.List().ElementType()
 		return r.Kind() == reflect.Slice && isTypeMatch(r.Elem(), e)
+	case schema.Type_Which_interface:
+		clientType := reflect.TypeOf(capnp.Client(nil))
+		if !r.Implements(clientType) && r.Kind() == reflect.Struct {
+			field, ok := r.FieldByName("Client")
+			if !ok {
+				return false
+			}
+			r = field.Type
+		}
+		return r.Implements(clientType)
 	}
 	k, ok := typeMap[s.Which()]
 	return ok && k == r.Kind()
