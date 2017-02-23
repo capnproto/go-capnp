@@ -377,7 +377,12 @@ func isTypeMatch(r reflect.Type, s schema.Type) bool {
 		e, _ := s.List().ElementType()
 		return r.Kind() == reflect.Slice && isTypeMatch(r.Elem(), e)
 	case schema.Type_Which_interface:
-		clientType := reflect.TypeOf(capnp.Client(nil))
+		// We need a reflect.Type for capnp.Client. We can't pass a
+		// value of type capnp.Client to reflect.TypeOf, since that
+		// will give us a Type representing the *concrete* type, so
+		// we work around this as follows:
+		clientType := reflect.TypeOf([]capnp.Client{}).Elem()
+
 		if !r.Implements(clientType) && r.Kind() == reflect.Struct {
 			field, ok := r.FieldByName("Client")
 			if !ok {
