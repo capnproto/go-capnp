@@ -293,6 +293,12 @@ struct EchoBase {
   echo @0 :Echo;
 }
 
+# test List(Struct(Interface))
+
+struct EchoBases {
+	bases @0 :List(EchoBase);
+}
+
 # test transforms
 
 struct StackingRoot {

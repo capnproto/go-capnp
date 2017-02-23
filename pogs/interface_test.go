@@ -28,6 +28,10 @@ type EchoBase struct {
 	Echo air.Echo
 }
 
+type EchoBases struct {
+	Bases []EchoBase
+}
+
 type Hoth struct {
 	Base EchoBase
 }
@@ -46,6 +50,26 @@ func TestInsertIFace(t *testing.T) {
 	echo := base.Echo()
 
 	testEcho(t, echo)
+}
+
+func TestInsertListIFace(t *testing.T) {
+	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	checkFatal(t, "NewMessage", err)
+	wrapper, err := air.NewEchoBases(seg)
+	checkFatal(t, "NewEchoBases", err)
+	err = Insert(air.EchoBases_TypeID, wrapper.Struct, EchoBases{
+		Bases: []EchoBase{
+			{Echo: air.Echo_ServerToClient(simpleEcho{})},
+			{Echo: air.Echo_ServerToClient(simpleEcho{})},
+		},
+	})
+	checkFatal(t, "Insert", err)
+	bases, err := wrapper.Bases()
+	checkFatal(t, "Bases", err)
+	for i := 0; i < bases.Len(); i++ {
+		testEcho(t, bases.At(i).Echo())
+	}
+
 }
 
 func TestExtractIFace(t *testing.T) {
