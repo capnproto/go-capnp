@@ -233,11 +233,13 @@ func (e *extracter) extractField(val reflect.Value, s capnp.Struct, f schema.Fie
 			return err
 		}
 		client := p.Interface().Client()
-		if !val.Type().Implements(clientType) {
-			// Must be a struct wrapper.
-			val = val.FieldByName("Client")
+		if client != nil {
+			if !val.Type().Implements(clientType) {
+				// Must be a struct wrapper.
+				val = val.FieldByName("Client")
+			}
+			val.Set(reflect.ValueOf(client))
 		}
-		val.Set(reflect.ValueOf(client))
 	default:
 		return fmt.Errorf("unknown field type %v", typ.Which())
 	}

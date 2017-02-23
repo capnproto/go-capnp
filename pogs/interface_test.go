@@ -65,6 +65,21 @@ func TestExtractIFace(t *testing.T) {
 	testEcho(t, extractedHoth.Base.Echo)
 }
 
+// Make sure extract doesn't choke if we don't fill in an interface
+func TestExtractMissingIFace(t *testing.T) {
+	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+
+	base, err := air.NewRootEchoBase(seg)
+	checkFatal(t, "NewRootEchoBase", err)
+
+	extractedBase := EchoBase{}
+	err = Extract(&extractedBase, air.EchoBase_TypeID, base.Struct)
+	checkFatal(t, "Extract", err)
+	if extractedBase.Echo.Client != nil {
+		t.Fatalf("Expected nil client but got %v", extractedBase.Echo.Client)
+	}
+}
+
 func testEcho(t *testing.T, echo air.Echo) {
 	expected := "Hello!"
 	result, err := echo.Echo(context.TODO(), func(p air.Echo_echo_Params) error {
