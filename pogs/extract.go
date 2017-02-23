@@ -25,6 +25,14 @@ type extracter struct {
 	nodes nodemap.Map
 }
 
+var (
+	// We need a reflect.Type for capnp.Client. We can't pass a
+	// value of type capnp.Client to reflect.TypeOf, since that
+	// will give us a Type representing the *concrete* type, so
+	// we work around this as follows:
+	clientType = reflect.TypeOf([]capnp.Client{}).Elem()
+)
+
 func (e *extracter) extractStruct(val reflect.Value, typeID uint64, s capnp.Struct) error {
 	if val.Kind() == reflect.Ptr {
 		if val.Type().Elem().Kind() != reflect.Struct {
@@ -219,6 +227,17 @@ func (e *extracter) extractField(val reflect.Value, s capnp.Struct, f schema.Fie
 			l = p.List()
 		}
 		return e.extractList(val, typ, l)
+	case schema.Type_Which_interface:
+		p, err := s.Ptr(uint16(f.Slot().Offset()))
+		if err != nil {
+			return err
+		}
+		client := p.Interface().Client()
+		if !val.Type().Implements(clientType) {
+			// Must be a struct wrapper.
+			val = val.FieldByName("Client")
+		}
+		val.Set(reflect.ValueOf(client))
 	default:
 		return fmt.Errorf("unknown field type %v", typ.Which())
 	}
@@ -377,12 +396,6 @@ func isTypeMatch(r reflect.Type, s schema.Type) bool {
 		e, _ := s.List().ElementType()
 		return r.Kind() == reflect.Slice && isTypeMatch(r.Elem(), e)
 	case schema.Type_Which_interface:
-		// We need a reflect.Type for capnp.Client. We can't pass a
-		// value of type capnp.Client to reflect.TypeOf, since that
-		// will give us a Type representing the *concrete* type, so
-		// we work around this as follows:
-		clientType := reflect.TypeOf([]capnp.Client{}).Elem()
-
 		if !r.Implements(clientType) && r.Kind() == reflect.Struct {
 			field, ok := r.FieldByName("Client")
 			if !ok {
