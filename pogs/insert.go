@@ -233,7 +233,11 @@ func (ins *inserter) insertField(s capnp.Struct, f schema.Field, val reflect.Val
 func getCapPtr(seg *capnp.Segment, val reflect.Value) capnp.Ptr {
 	client, ok := val.Interface().(capnp.Client)
 	if !ok {
-		client = val.FieldByName("Client").Interface().(capnp.Client)
+		client, ok = val.FieldByName("Client").Interface().(capnp.Client)
+		if !ok {
+			// interface is nil.
+			return capnp.Ptr{}
+		}
 	}
 	cap := seg.Message().AddCap(client)
 	iface := capnp.NewInterface(seg, cap)

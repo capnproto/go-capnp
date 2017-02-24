@@ -72,6 +72,23 @@ func TestInsertListIFace(t *testing.T) {
 
 }
 
+func TestInsertNilInterface(t *testing.T) {
+	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	checkFatal(t, "NewMessage", err)
+	h, err := air.NewRootHoth(seg)
+	checkFatal(t, "NewRootHoth", err)
+	err = Insert(air.Hoth_TypeID, h.Struct, Hoth{
+		Base: EchoBase{Echo: air.Echo{Client: nil}},
+	})
+	checkFatal(t, "Insert", err)
+	base, err := h.Base()
+	checkFatal(t, "h.Base", err)
+	echo := base.Echo()
+	if echo.Client != nil {
+		t.Fatalf("Expected nil client, but got %v", echo.Client)
+	}
+}
+
 func TestExtractIFace(t *testing.T) {
 	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	checkFatal(t, "NewMessage", err)
