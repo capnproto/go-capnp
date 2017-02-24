@@ -89,6 +89,37 @@ func TestExtractIFace(t *testing.T) {
 	testEcho(t, extractedHoth.Base.Echo)
 }
 
+func TestExtractListIFace(t *testing.T) {
+	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	checkFatal(t, "NewMessage", err)
+	wrapper, err := air.NewEchoBases(seg)
+	checkFatal(t, "NewEchoBases", err)
+	length := 2
+	list, err := air.NewEchoBase_List(seg, int32(length))
+	checkFatal(t, "NewEchoBase_List", err)
+	for i := 0; i < length; i++ {
+		base, err := air.NewEchoBase(seg)
+		base.SetEcho(air.Echo_ServerToClient(simpleEcho{}))
+		checkFatal(t, "NewEchoBase", err)
+		list.Set(i, base)
+	}
+	wrapper.SetBases(list)
+
+	extractedBases := EchoBases{}
+	err = Extract(&extractedBases, air.EchoBases_TypeID, wrapper.Struct)
+	checkFatal(t, "Extract", err)
+	if extractedBases.Bases == nil {
+		t.Fatal("Bases is nil")
+	}
+	if len(extractedBases.Bases) != length {
+		t.Fatalf("Bases has Wrong length: got %d but wanted %d.",
+			len(extractedBases.Bases), length)
+	}
+	for _, v := range extractedBases.Bases {
+		testEcho(t, v.Echo)
+	}
+}
+
 // Make sure extract doesn't choke if we don't fill in an interface
 func TestExtractMissingIFace(t *testing.T) {
 	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
