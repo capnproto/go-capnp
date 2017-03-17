@@ -4,7 +4,7 @@ package capnp
 
 import "net"
 
-func (e *Encoder) write(bufs net.Buffers) error {
-	_, err := bufs.WriteTo(e.w)
+func (e *Encoder) write(bufs [][]byte) error {
+	_, err := (*net.Buffers)(&bufs).WriteTo(e.w)
 	return err
 }
