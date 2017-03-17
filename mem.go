@@ -548,6 +548,7 @@ func MustUnmarshalRootPtr(data []byte) Ptr {
 type Encoder struct {
 	w      io.Writer
 	hdrbuf []byte
+	bufs   [][]byte
 
 	packed  bool
 	packbuf []byte
@@ -583,19 +584,23 @@ func (e *Encoder) Encode(m *Message) error {
 		e.hdrbuf = e.hdrbuf[:hdrSize]
 	}
 	marshalStreamHeader(e.hdrbuf, sizes)
-	bufs := make([][]byte, 1+nsegs)
-	bufs[0] = e.hdrbuf
+	if int64(cap(e.bufs)) < 1+nsegs {
+		e.bufs = make([][]byte, 1+nsegs)
+	} else {
+		e.bufs = e.bufs[:1+nsegs]
+	}
+	e.bufs[0] = e.hdrbuf
 	for i := int64(0); i < nsegs; i++ {
 		s, err := m.Segment(SegmentID(i))
 		if err != nil {
 			return err
 		}
-		bufs[1+i] = s.data
+		e.bufs[1+i] = s.data
 	}
 	if e.packed {
-		return e.writePacked(bufs)
+		return e.writePacked(e.bufs)
 	}
-	return e.write(bufs)
+	return e.write(e.bufs)
 }
 
 func (e *Encoder) writePacked(bufs [][]byte) error {
