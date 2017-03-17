@@ -592,7 +592,20 @@ func (e *Encoder) Encode(m *Message) error {
 		}
 		bufs[1+i] = s.data
 	}
+	if e.packed {
+		return e.writePacked(bufs)
+	}
 	return e.write(bufs)
+}
+
+func (e *Encoder) writePacked(bufs [][]byte) error {
+	for _, b := range bufs {
+		e.packbuf = packed.Pack(e.packbuf[:0], b)
+		if _, err := e.w.Write(e.packbuf); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (m *Message) segmentSizes() ([]Size, error) {
