@@ -583,28 +583,16 @@ func (e *Encoder) Encode(m *Message) error {
 		e.hdrbuf = e.hdrbuf[:hdrSize]
 	}
 	marshalStreamHeader(e.hdrbuf, sizes)
-	if err := e.write(e.hdrbuf); err != nil {
-		return err
-	}
+	bufs := make([][]byte, 1+nsegs)
+	bufs[0] = e.hdrbuf
 	for i := int64(0); i < nsegs; i++ {
 		s, err := m.Segment(SegmentID(i))
 		if err != nil {
 			return err
 		}
-		if err := e.write(s.data); err != nil {
-			return err
-		}
+		bufs[1+i] = s.data
 	}
-	return nil
-}
-
-func (e *Encoder) write(b []byte) error {
-	if e.packed {
-		e.packbuf = packed.Pack(e.packbuf[:0], b)
-		b = e.packbuf
-	}
-	_, err := e.w.Write(b)
-	return err
+	return e.write(bufs)
 }
 
 func (m *Message) segmentSizes() ([]Size, error) {
