@@ -549,6 +549,7 @@ type Encoder struct {
 	w      io.Writer
 	hdrbuf []byte
 	bufs   [][]byte
+	sizes  []Size
 
 	packed  bool
 	packbuf []byte
@@ -577,7 +578,11 @@ func (e *Encoder) Encode(m *Message) error {
 	} else {
 		e.bufs = e.bufs[:1+nsegs]
 	}
-	sizes := make([]Size, nsegs)
+	if int64(cap(e.sizes)) < nsegs {
+		e.sizes = make([]Size, nsegs)
+	} else {
+		e.sizes = e.sizes[:nsegs]
+	}
 	for i := int64(0); i < nsegs; i++ {
 		s, err := m.Segment(SegmentID(i))
 		if err != nil {
@@ -587,7 +592,7 @@ func (e *Encoder) Encode(m *Message) error {
 		if int64(n) > int64(maxSize) {
 			return errSegmentTooLarge
 		}
-		sizes[i] = Size(n)
+		e.sizes[i] = Size(n)
 		e.bufs[1+i] = s.data
 	}
 	maxSeg := uint32(nsegs - 1)
@@ -597,7 +602,7 @@ func (e *Encoder) Encode(m *Message) error {
 	} else {
 		e.hdrbuf = e.hdrbuf[:hdrSize]
 	}
-	marshalStreamHeader(e.hdrbuf, sizes)
+	marshalStreamHeader(e.hdrbuf, e.sizes)
 	e.bufs[0] = e.hdrbuf
 	if e.packed {
 		return e.writePacked(e.bufs)
