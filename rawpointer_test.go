@@ -232,3 +232,39 @@ func TestRawPointerTotalListSize(t *testing.T) {
 		}
 	}
 }
+
+func TestLandingPadNearPointer(t *testing.T) {
+	testRawFarPointer := struct {
+		ptr  rawPointer
+		typ  int
+		addr Address
+		seg  SegmentID
+	}{
+		0x0000000000000002, farPointer, 256, 10,
+	}
+
+	testRawTagPointer := struct {
+		ptr    rawPointer
+		offset pointerOffset
+		size   ObjectSize
+	}{
+		0x0403020100000000, 0, ObjectSize{DataSize: 0x0201 * 8, PointerCount: 0x0403},
+	}
+
+	testFarPointer := rawFarPointer(testRawFarPointer.seg, testRawFarPointer.addr)
+	testTagPointer := rawStructPointer(testRawTagPointer.offset, testRawTagPointer.size)
+
+	testNearPointer := landingPadNearPointer(testFarPointer, testTagPointer)
+
+	// get the absolute address
+	absolute, ok := testNearPointer.offset().resolve(0)
+
+	if !ok {
+		t.Error("Failed to resolve address")
+	}
+
+	if absolute != testRawFarPointer.addr {
+		t.Errorf("The resolved address: %v is not the same as the far pointer: %v", absolute, testRawFarPointer.addr)
+	}
+
+}
