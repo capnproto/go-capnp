@@ -240,7 +240,7 @@ func TestLandingPadNearPointer(t *testing.T) {
 		addr Address
 		seg  SegmentID
 	}{
-		0x0000000000000002, farPointer, 256, 10,
+		0x0, farPointer, 256, 0,
 	}
 
 	testRawTagPointer := struct {
@@ -248,7 +248,7 @@ func TestLandingPadNearPointer(t *testing.T) {
 		offset pointerOffset
 		size   ObjectSize
 	}{
-		0x0403020100000000, 0, ObjectSize{DataSize: 0x0201 * 8, PointerCount: 0x0403},
+		0x0, 0, ObjectSize{DataSize: 0x0, PointerCount: 0x0},
 	}
 
 	testFarPointer := rawFarPointer(testRawFarPointer.seg, testRawFarPointer.addr)
