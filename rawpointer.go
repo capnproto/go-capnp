@@ -56,7 +56,15 @@ func rawDoubleFarPointer(segID SegmentID, off Address) rawPointer {
 // a near pointer in the destination segment.  Its offset will be
 // relative to the beginning of the segment.
 func landingPadNearPointer(far, tag rawPointer) rawPointer {
-	return tag | rawPointer(far.farAddress()-Address(wordSize))<<2
+	farFarAddrress := far.farAddress() / Address(wordSize)
+
+	// remove 1 word and we'll get the offset from the end of the pointer to the
+	// start of the struct's data section
+	rawFarFarPointer := rawPointer(farFarAddrress - 1)
+
+	// move 2 bits to make rawFarFarPointer like a struct pointer (2 lsb's are zero),
+	// finally to get a struct pointer do an OR with the tag
+	return tag | rawFarFarPointer << 2
 }
 
 // Raw pointer types.
