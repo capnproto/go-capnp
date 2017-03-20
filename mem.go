@@ -568,7 +568,6 @@ func NewPackedEncoder(w io.Writer) *Encoder {
 
 // Encode writes a message to the encoder stream.
 func (e *Encoder) Encode(m *Message) error {
-	// TODO(light): Lazily load from arena, don't necessarily need to fit in memory.
 	nsegs := m.NumSegments()
 	if nsegs == 0 {
 		return errMessageEmpty
