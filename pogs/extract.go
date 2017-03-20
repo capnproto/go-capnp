@@ -25,13 +25,7 @@ type extracter struct {
 	nodes nodemap.Map
 }
 
-var (
-	// We need a reflect.Type for capnp.Client. We can't pass a
-	// value of type capnp.Client to reflect.TypeOf, since that
-	// will give us a Type representing the *concrete* type, so
-	// we work around this as follows:
-	clientType = reflect.TypeOf([]capnp.Client{}).Elem()
-)
+var clientType = reflect.TypeOf((*capnp.Client)(nil)).Elem()
 
 func (e *extracter) extractStruct(val reflect.Value, typeID uint64, s capnp.Struct) error {
 	if val.Kind() == reflect.Ptr {
@@ -234,7 +228,7 @@ func (e *extracter) extractField(val reflect.Value, s capnp.Struct, f schema.Fie
 		}
 		client := p.Interface().Client()
 		if client != nil {
-			if !val.Type().Implements(clientType) {
+			if val.Type() != clientType {
 				// Must be a struct wrapper.
 				val = val.FieldByName("Client")
 			}
@@ -398,14 +392,23 @@ func isTypeMatch(r reflect.Type, s schema.Type) bool {
 		e, _ := s.List().ElementType()
 		return r.Kind() == reflect.Slice && isTypeMatch(r.Elem(), e)
 	case schema.Type_Which_interface:
-		if !r.Implements(clientType) && r.Kind() == reflect.Struct {
-			field, ok := r.FieldByName("Client")
-			if !ok {
-				return false
-			}
-			r = field.Type
+		if r.Implements(clientType) {
+			return true
 		}
-		return r.Implements(clientType)
+
+		// Otherwise, the type must be a struct with one element named
+		// "Client" of type capnp.Client.
+		if r.Kind() != reflect.Struct {
+			return false
+		}
+		if r.NumField() != 1 {
+			return false
+		}
+		field, ok := r.FieldByName("Client")
+		if !ok {
+			return false
+		}
+		return field.Type == clientType
 	}
 	k, ok := typeMap[s.Which()]
 	return ok && k == r.Kind()
