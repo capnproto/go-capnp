@@ -2,6 +2,7 @@ package capnp
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"io"
@@ -610,64 +611,27 @@ func (e *Encoder) writePacked(bufs [][]byte) error {
 	return nil
 }
 
-func (m *Message) segmentSizes() ([]Size, error) {
-	nsegs := m.NumSegments()
-	sizes := make([]Size, nsegs)
-	for i := int64(0); i < nsegs; i++ {
-		s, err := m.Segment(SegmentID(i))
-		if err != nil {
-			return sizes[:i], err
-		}
-		n := len(s.data)
-		if int64(n) > int64(maxSize) {
-			return sizes[:i], errSegmentTooLarge
-		}
-		sizes[i] = Size(n)
-	}
-	return sizes, nil
-}
-
 // Marshal concatenates the segments in the message into a single byte
 // slice including framing.
 func (m *Message) Marshal() ([]byte, error) {
-	// Compute buffer size.
-	// TODO(light): error out if too many segments
-	nsegs := m.NumSegments()
-	if nsegs == 0 {
-		return nil, errMessageEmpty
-	}
-	maxSeg := uint32(nsegs - 1)
-	hdrSize := streamHeaderSize(maxSeg)
-	sizes, err := m.segmentSizes()
+	var buf bytes.Buffer
+	enc := NewEncoder(&buf)
+	err := enc.Encode(m)
 	if err != nil {
 		return nil, err
 	}
-	// TODO(light): error out if too large
-	total := uint64(hdrSize) + totalSize(sizes)
-
-	// Fill in buffer.
-	buf := make([]byte, hdrSize, total)
-	// TODO: remove marshalStreamHeader and inline.
-	marshalStreamHeader(buf, sizes)
-	for i := int64(0); i < nsegs; i++ {
-		s, err := m.Segment(SegmentID(i))
-		if err != nil {
-			return nil, err
-		}
-		buf = append(buf, s.data...)
-	}
-	return buf, nil
+	return buf.Bytes(), nil
 }
 
 // MarshalPacked marshals the message in packed form.
 func (m *Message) MarshalPacked() ([]byte, error) {
-	data, err := m.Marshal()
+	var buf bytes.Buffer
+	enc := NewPackedEncoder(&buf)
+	err := enc.Encode(m)
 	if err != nil {
 		return nil, err
 	}
-	buf := make([]byte, 0, len(data))
-	buf = packed.Pack(buf, data)
-	return buf, nil
+	return buf.Bytes(), nil
 }
 
 // Stream header sizes.
@@ -680,18 +644,6 @@ const (
 // first 32-bit number.
 func streamHeaderSize(n uint32) uint64 {
 	return (msgHeaderSize + segHeaderSize*(uint64(n)+1) + 7) &^ 7
-}
-
-// marshalStreamHeader marshals the sizes into the byte slice, which
-// must be of size streamHeaderSize(len(sizes) - 1).
-//
-// TODO: remove marshalStreamHeader and inline.
-func marshalStreamHeader(b []byte, sizes []Size) {
-	binary.LittleEndian.PutUint32(b, uint32(len(sizes)-1))
-	for i, sz := range sizes {
-		loc := msgHeaderSize + i*segHeaderSize
-		binary.LittleEndian.PutUint32(b[loc:], uint32(sz/Size(wordSize)))
-	}
 }
 
 // appendUint32 appends a uint32 to a byte slice and returns the
