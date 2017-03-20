@@ -708,6 +708,47 @@ func TestDecoder_MaxMessageSize(t *testing.T) {
 	}
 }
 
+func TestStreamHeaderPadding(t *testing.T) {
+	msg := &Message{
+		Arena: MultiSegment([][]byte{
+			incrementingData(8),
+			incrementingData(8),
+			incrementingData(8),
+		}),
+	}
+	var buf bytes.Buffer
+	enc := NewEncoder(&buf)
+	err := enc.Encode(msg)
+	buf.Reset()
+	if err != nil {
+		t.Fatalf("Encode error: %v", err)
+	}
+	msg = &Message{
+		Arena: MultiSegment([][]byte{
+			incrementingData(8),
+			incrementingData(8),
+		}),
+	}
+	err = enc.Encode(msg)
+	out := buf.Bytes()
+	if err != nil {
+		t.Fatalf("Encode error: %v", err)
+	}
+	want := []byte{
+		0x01, 0x00, 0x00, 0x00,
+		0x01, 0x00, 0x00, 0x00,
+		0x01, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00,
+		0x00, 0x01, 0x02, 0x03,
+		0x04, 0x05, 0x06, 0x07,
+		0x00, 0x01, 0x02, 0x03,
+		0x04, 0x05, 0x06, 0x07,
+	}
+	if !bytes.Equal(out, want) {
+		t.Errorf("Encode = % 02x; want % 02x", out, want)
+	}
+}
+
 type arenaAllocTest struct {
 	name string
 
