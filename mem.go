@@ -549,7 +549,6 @@ type Encoder struct {
 	w      io.Writer
 	hdrbuf []byte
 	bufs   [][]byte
-	sizes  []Size
 
 	packed  bool
 	packbuf []byte
@@ -573,7 +572,12 @@ func (e *Encoder) Encode(m *Message) error {
 		return errMessageEmpty
 	}
 	e.bufs = append(e.bufs[:0], nil) // first element is placeholder for header
-	e.sizes = e.sizes[:0]
+	maxSeg := uint32(nsegs - 1)
+	hdrSize := streamHeaderSize(maxSeg)
+	if uint64(cap(e.hdrbuf)) < hdrSize {
+		e.hdrbuf = make([]byte, 0, hdrSize)
+	}
+	e.hdrbuf = appendUint32(e.hdrbuf[:0], maxSeg)
 	for i := int64(0); i < nsegs; i++ {
 		s, err := m.Segment(SegmentID(i))
 		if err != nil {
@@ -583,17 +587,12 @@ func (e *Encoder) Encode(m *Message) error {
 		if int64(n) > int64(maxSize) {
 			return errSegmentTooLarge
 		}
-		e.sizes = append(e.sizes, Size(n))
+		e.hdrbuf = appendUint32(e.hdrbuf, uint32(Size(n)/wordSize))
 		e.bufs = append(e.bufs, s.data)
 	}
-	maxSeg := uint32(nsegs - 1)
-	hdrSize := streamHeaderSize(maxSeg)
-	if uint64(cap(e.hdrbuf)) < hdrSize {
-		e.hdrbuf = make([]byte, hdrSize)
-	} else {
-		e.hdrbuf = e.hdrbuf[:hdrSize]
+	if len(e.hdrbuf)%int(wordSize) != 0 {
+		e.hdrbuf = appendUint32(e.hdrbuf, 0)
 	}
-	marshalStreamHeader(e.hdrbuf, e.sizes)
 	e.bufs[0] = e.hdrbuf
 	if e.packed {
 		return e.writePacked(e.bufs)
@@ -648,6 +647,7 @@ func (m *Message) Marshal() ([]byte, error) {
 
 	// Fill in buffer.
 	buf := make([]byte, hdrSize, total)
+	// TODO: remove marshalStreamHeader and inline.
 	marshalStreamHeader(buf, sizes)
 	for i := int64(0); i < nsegs; i++ {
 		s, err := m.Segment(SegmentID(i))
@@ -684,12 +684,22 @@ func streamHeaderSize(n uint32) uint64 {
 
 // marshalStreamHeader marshals the sizes into the byte slice, which
 // must be of size streamHeaderSize(len(sizes) - 1).
+//
+// TODO: remove marshalStreamHeader and inline.
 func marshalStreamHeader(b []byte, sizes []Size) {
 	binary.LittleEndian.PutUint32(b, uint32(len(sizes)-1))
 	for i, sz := range sizes {
 		loc := msgHeaderSize + i*segHeaderSize
 		binary.LittleEndian.PutUint32(b[loc:], uint32(sz/Size(wordSize)))
 	}
+}
+
+// appendUint32 appends a uint32 to a byte slice and returns the
+// new slice.
+func appendUint32(b []byte, v uint32) []byte {
+	b = append(b, 0, 0, 0, 0)
+	binary.LittleEndian.PutUint32(b[len(b)-4:], v)
+	return b
 }
 
 type streamHeader struct {
