@@ -572,16 +572,8 @@ func (e *Encoder) Encode(m *Message) error {
 	if nsegs == 0 {
 		return errMessageEmpty
 	}
-	if int64(cap(e.bufs)) < 1+nsegs {
-		e.bufs = make([][]byte, 1+nsegs)
-	} else {
-		e.bufs = e.bufs[:1+nsegs]
-	}
-	if int64(cap(e.sizes)) < nsegs {
-		e.sizes = make([]Size, nsegs)
-	} else {
-		e.sizes = e.sizes[:nsegs]
-	}
+	e.bufs = append(e.bufs[:0], nil) // first element is placeholder for header
+	e.sizes = e.sizes[:0]
 	for i := int64(0); i < nsegs; i++ {
 		s, err := m.Segment(SegmentID(i))
 		if err != nil {
@@ -591,8 +583,8 @@ func (e *Encoder) Encode(m *Message) error {
 		if int64(n) > int64(maxSize) {
 			return errSegmentTooLarge
 		}
-		e.sizes[i] = Size(n)
-		e.bufs[1+i] = s.data
+		e.sizes = append(e.sizes, Size(n))
+		e.bufs = append(e.bufs, s.data)
 	}
 	maxSeg := uint32(nsegs - 1)
 	hdrSize := streamHeaderSize(maxSeg)
