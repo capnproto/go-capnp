@@ -239,7 +239,7 @@ func TestLandingPadNearPointer(t *testing.T) {
 		tag     rawPointer
 		landing rawPointer
 	}{
-		{0x00, 0x2000200000000, 0x20003fffffffc},
+		{0x08, 0x2000200000000, 0x2000200000000},
 		{0xa0, 0x2000200000000, 0x200020000004c},
 		{0xb12, 0x2000200000000, 0x2000200000584}, // struct pointer
 		{0xb12, 0x2000200000001, 0x2000200000585}, // list pointer
