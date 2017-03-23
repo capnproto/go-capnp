@@ -3,7 +3,6 @@ package pogs
 import (
 	"bytes"
 	"fmt"
-	"reflect"
 	"testing"
 
 	"github.com/kylelemons/godebug/pretty"
@@ -60,6 +59,28 @@ type PlaneBase struct {
 	CanFly   bool
 	Capacity int64
 	MaxSpeed float64
+}
+
+func (p *PlaneBase) equal(q *PlaneBase) bool {
+	if p == nil && q == nil {
+		return true
+	}
+	if (p == nil) != (q == nil) {
+		return false
+	}
+	if len(p.Homes) != len(q.Homes) {
+		return false
+	}
+	for i := range p.Homes {
+		if p.Homes[i] != q.Homes[i] {
+			return false
+		}
+	}
+	return p.Name == q.Name &&
+		p.Rating == q.Rating &&
+		p.CanFly == q.CanFly &&
+		p.Capacity == q.Capacity &&
+		p.MaxSpeed == q.MaxSpeed
 }
 
 type ZGroup struct {
@@ -151,7 +172,7 @@ func TestExtract(t *testing.T) {
 		if err := Extract(out, air.Z_TypeID, z.Struct); err != nil {
 			t.Errorf("Extract(%v) error: %v", z, err)
 		}
-		if !reflect.DeepEqual(out, &test) {
+		if !test.equal(out) {
 			t.Errorf("Extract(%v) produced %s; want %s", z, zpretty.Sprint(out), zpretty.Sprint(test))
 		}
 	}
@@ -436,7 +457,7 @@ func TestExtract_StringBytes(t *testing.T) {
 		t.Errorf("Extract(%v) error: %v", z, err)
 	}
 	want := &BytesZ{Which: air.Z_Which_text, Text: []byte("Hello, World!")}
-	if !reflect.DeepEqual(out, want) {
+	if out.Which != want.Which || !bytes.Equal(out.Text, want.Text) {
 		t.Errorf("Extract(%v) produced %s; want %s", z, zpretty.Sprint(out), zpretty.Sprint(want))
 	}
 }
@@ -459,7 +480,10 @@ func TestExtract_StringListBytes(t *testing.T) {
 		t.Errorf("Extract(%v) error: %v", z, err)
 	}
 	want := &BytesZ{Which: air.Z_Which_textvec, Textvec: [][]byte{[]byte("Holmes"), []byte("Watson")}}
-	if !reflect.DeepEqual(out, want) {
+	eq := sliceeq(len(out.Textvec), len(want.Textvec), func(i int) bool {
+		return bytes.Equal(out.Textvec[i], want.Textvec[i])
+	})
+	if out.Which != want.Which || !eq {
 		t.Errorf("Extract(%v) produced %s; want %s", z, zpretty.Sprint(out), zpretty.Sprint(want))
 	}
 }
@@ -516,6 +540,24 @@ type StructZ struct {
 	Grp       ZGroup
 }
 
+func (z *StructZ) equal(y *StructZ) bool {
+	if z.Which != y.Which {
+		return false
+	}
+	switch z.Which {
+	case air.Z_Which_zvec:
+		return sliceeq(len(z.Zvec), len(y.Zvec), func(i int) bool {
+			return z.Zvec[i].equal(&y.Zvec[i])
+		})
+	case air.Z_Which_planebase:
+		return z.Planebase.equal(&y.Planebase)
+	case air.Z_Which_grp:
+		return z.Grp.First == y.Grp.First && z.Grp.Second == y.Grp.Second
+	default:
+		panic("unknown Z which")
+	}
+}
+
 func TestExtract_StructNoPtr(t *testing.T) {
 	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	if err != nil {
@@ -534,7 +576,7 @@ func TestExtract_StructNoPtr(t *testing.T) {
 		t.Errorf("Extract(%v) error: %v", z, err)
 	}
 	want := &StructZ{Which: air.Z_Which_planebase, Planebase: PlaneBase{Name: "foo"}}
-	if !reflect.DeepEqual(out, want) {
+	if !out.equal(want) {
 		t.Errorf("Extract(%v) produced %s; want %s", z, zpretty.Sprint(out), zpretty.Sprint(want))
 	}
 }
@@ -561,7 +603,7 @@ func TestExtract_StructListNoPtr(t *testing.T) {
 	want := &StructZ{Which: air.Z_Which_zvec, Zvec: []Z{
 		{Which: air.Z_Which_i64, I64: 123},
 	}}
-	if !reflect.DeepEqual(out, want) {
+	if !out.equal(want) {
 		t.Errorf("Extract(%v) produced %s; want %s", z, zpretty.Sprint(out), zpretty.Sprint(want))
 	}
 }
@@ -584,7 +626,7 @@ func TestExtract_GroupNoPtr(t *testing.T) {
 		t.Errorf("Extract(%v) error: %v", z, err)
 	}
 	want := &StructZ{Which: air.Z_Which_grp, Grp: ZGroup{First: 123, Second: 456}}
-	if !reflect.DeepEqual(out, want) {
+	if !out.equal(want) {
 		t.Errorf("Extract(%v) produced %s; want %s", z, zpretty.Sprint(out), zpretty.Sprint(want))
 	}
 }
@@ -708,7 +750,7 @@ func TestExtract_Tags(t *testing.T) {
 		if err := Extract(out, air.Z_TypeID, z.Struct); err != nil {
 			t.Errorf("%s: Extract error: %v", test.name, err)
 		}
-		if !reflect.DeepEqual(out, &test.tagz) {
+		if *out != test.tagz {
 			t.Errorf("%s: Extract produced %s; want %s", test.name, zpretty.Sprint(out), zpretty.Sprint(test.tagz))
 		}
 	}
@@ -1051,6 +1093,94 @@ func zequal(g *Z, c air.Z) (bool, error) {
 	}
 }
 
+func (z *Z) equal(y *Z) bool {
+	if z.Which != y.Which {
+		return false
+	}
+	switch z.Which {
+	case air.Z_Which_f64:
+		return z.F64 == y.F64
+	case air.Z_Which_f32:
+		return z.F32 == y.F32
+	case air.Z_Which_i64:
+		return z.I64 == y.I64
+	case air.Z_Which_i32:
+		return z.I32 == y.I32
+	case air.Z_Which_i16:
+		return z.I16 == y.I16
+	case air.Z_Which_i8:
+		return z.I8 == y.I8
+	case air.Z_Which_u64:
+		return z.U64 == y.U64
+	case air.Z_Which_u32:
+		return z.U32 == y.U32
+	case air.Z_Which_u16:
+		return z.U16 == y.U16
+	case air.Z_Which_u8:
+		return z.U8 == y.U8
+	case air.Z_Which_bool:
+		return z.Bool == y.Bool
+	case air.Z_Which_text:
+		return z.Text == y.Text
+	case air.Z_Which_blob:
+		return bytes.Equal(z.Blob, y.Blob)
+	case air.Z_Which_f64vec:
+		return sliceeq(len(z.F64vec), len(y.F64vec), func(i int) bool {
+			return z.F64vec[i] == y.F64vec[i]
+		})
+	case air.Z_Which_f32vec:
+		return sliceeq(len(z.F32vec), len(y.F32vec), func(i int) bool {
+			return z.F32vec[i] == y.F32vec[i]
+		})
+	case air.Z_Which_i64vec:
+		return sliceeq(len(z.I64vec), len(y.I64vec), func(i int) bool {
+			return z.I64vec[i] == y.I64vec[i]
+		})
+	case air.Z_Which_i8vec:
+		return sliceeq(len(z.I8vec), len(y.I8vec), func(i int) bool {
+			return z.I8vec[i] == y.I8vec[i]
+		})
+	case air.Z_Which_u64vec:
+		return sliceeq(len(z.U64vec), len(y.U64vec), func(i int) bool {
+			return z.U64vec[i] == y.U64vec[i]
+		})
+	case air.Z_Which_u8vec:
+		return sliceeq(len(z.U8vec), len(y.U8vec), func(i int) bool {
+			return z.U8vec[i] == y.U8vec[i]
+		})
+	case air.Z_Which_boolvec:
+		return sliceeq(len(z.Boolvec), len(y.Boolvec), func(i int) bool {
+			return z.Boolvec[i] == y.Boolvec[i]
+		})
+	case air.Z_Which_datavec:
+		return sliceeq(len(z.Datavec), len(y.Datavec), func(i int) bool {
+			return bytes.Equal(z.Datavec[i], y.Datavec[i])
+		})
+	case air.Z_Which_textvec:
+		return sliceeq(len(z.Textvec), len(y.Textvec), func(i int) bool {
+			return z.Textvec[i] == y.Textvec[i]
+		})
+	case air.Z_Which_zvec:
+		return sliceeq(len(z.Zvec), len(y.Zvec), func(i int) bool {
+			return z.Zvec[i].equal(y.Zvec[i])
+		})
+	case air.Z_Which_zvecvec:
+		return sliceeq(len(z.Zvecvec), len(y.Zvecvec), func(i int) bool {
+			return sliceeq(len(z.Zvecvec[i]), len(y.Zvecvec[i]), func(j int) bool {
+				return z.Zvecvec[i][j].equal(y.Zvecvec[i][j])
+			})
+		})
+	case air.Z_Which_planebase:
+		return z.Planebase.equal(y.Planebase)
+	case air.Z_Which_airport:
+		return z.Airport == y.Airport
+	case air.Z_Which_grp:
+		return z.Grp.First == y.Grp.First && z.Grp.Second == y.Grp.Second
+	default:
+		panic("unknown Z which")
+	}
+}
+
 func zfill(c air.Z, g *Z) error {
 	switch g.Which {
 	case air.Z_Which_f64:
@@ -1258,4 +1388,16 @@ func zfill(c air.Z, g *Z) error {
 var zpretty = &pretty.Config{
 	Compact:        true,
 	SkipZeroFields: true,
+}
+
+func sliceeq(na, nb int, f func(i int) bool) bool {
+	if na != nb {
+		return false
+	}
+	for i := 0; i < na; i++ {
+		if !f(i) {
+			return false
+		}
+	}
+	return true
 }
