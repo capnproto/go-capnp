@@ -708,6 +708,13 @@ func TestDecoder_MaxMessageSize(t *testing.T) {
 	}
 }
 
+// TestStreamHeaderPadding is a regression test for
+// stream header padding.
+//
+// Encoder reuses a buffer for stream header marshalling,
+// this test ensures that the padding is explicitly
+// zeroed. This was not done in previous versions and
+// resulted in the padding being garbage.
 func TestStreamHeaderPadding(t *testing.T) {
 	msg := &Message{
 		Arena: MultiSegment([][]byte{
