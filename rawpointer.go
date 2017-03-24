@@ -56,10 +56,8 @@ func rawDoubleFarPointer(segID SegmentID, off Address) rawPointer {
 // a near pointer in the destination segment.  Its offset will be
 // relative to the beginning of the segment.
 func landingPadNearPointer(far, tag rawPointer) rawPointer {
-	farFarAddress := far.farAddress() / Address(wordSize)
-
 	// remove 1 word and we'll get the offset to the start of the data section
-	rawFarFarPointer := rawPointer(farFarAddress - 1)
+	rawFarFarPointer := rawPointer(far.farAddress() / Address(wordSize) - 1)
 	
 	// finally to get an actual pointer do an OR with the tag after moving rawFarFarPointer
 	// by 2 bits which are the type indicator bits

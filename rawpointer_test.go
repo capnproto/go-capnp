@@ -239,17 +239,16 @@ func TestLandingPadNearPointer(t *testing.T) {
 		tag     rawPointer
 		landing rawPointer
 	}{
-		{0x08, 0x2000200000000, 0x2000200000000},
-		{0xa0, 0x2000200000000, 0x200020000004c},
-		{0xb12, 0x2000200000000, 0x2000200000584}, // struct pointer
-		{0xb12, 0x2000200000001, 0x2000200000585}, // list pointer
-		{0xb12, 0x2000200000003, 0x2000200000587}, // capability pointer
+		{rawFarPointer(0, 8), rawStructPointer(0, ObjectSize{16, 2}), rawStructPointer(0, ObjectSize{16, 2})},
+		{rawFarPointer(0, 160), rawStructPointer(0, ObjectSize{16, 2}), rawStructPointer(19, ObjectSize{16, 2})},
+		{rawFarPointer(0, 2834), rawStructPointer(0, ObjectSize{16, 2}), rawStructPointer(353, ObjectSize{16, 2})},
+		{rawFarPointer(0, 2834), rawListPointer(0, 0, 10), rawListPointer(353, 0, 10)},
 	}
 
 	for _, test := range tests {
-		testNearPointer := landingPadNearPointer(test.far, test.tag)
-		if testNearPointer != test.landing {
-			t.Errorf("rawPointer(%#016x).pointerType() = %d; want rawPointer(%#016x).pointerType() = %d", testNearPointer, testNearPointer.pointerType(), test.landing, test.landing.pointerType())
+		landing := landingPadNearPointer(test.far, test.tag)
+		if landing != test.landing {
+			t.Errorf("landingPadNearPointer(%v, %v) = %v; want %v", test.far, test.tag, landing, test.landing)
 		}
 	}
 }
