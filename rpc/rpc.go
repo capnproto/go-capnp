@@ -19,6 +19,7 @@ type Conn struct {
 	log        Logger
 	mainFunc   func(context.Context) (capnp.Client, error)
 	mainCloser io.Closer
+	death      chan struct{} // closed after state is connDead
 
 	out chan rpccapnp.Message
 
@@ -28,10 +29,9 @@ type Conn struct {
 
 	// Mutable state protected by stateMu
 	// If you need to acquire both mu and stateMu, acquire mu first.
-	stateMu   sync.RWMutex
-	stateCond sync.Cond // broadcasts when state changes
-	state     connState
-	closeErr  error
+	stateMu  sync.RWMutex
+	state    connState
+	closeErr error
 
 	// Mutable state protected by mu
 	mu         chanMutex
@@ -106,9 +106,9 @@ func NewConn(t Transport, options ...ConnOption) *Conn {
 		mainFunc:   p.mainFunc,
 		mainCloser: p.mainCloser,
 		log:        p.log,
+		death:      make(chan struct{}),
 		mu:         newChanMutex(),
 	}
-	conn.stateCond.L = conn.stateMu.RLocker()
 	conn.bg, conn.bgCancel = context.WithCancel(context.Background())
 	conn.workers.Add(2)
 	go conn.dispatchRecv()
@@ -119,11 +119,23 @@ func NewConn(t Transport, options ...ConnOption) *Conn {
 // Wait waits until the connection is closed or aborted by the remote vat.
 // Wait will always return an error, usually ErrConnClosed or of type Abort.
 func (c *Conn) Wait() error {
+	<-c.Done()
+	return c.Err()
+}
+
+// Done is a channel that is closed once the connection is fully shut down.
+func (c *Conn) Done() <-chan struct{} {
+	return c.death
+}
+
+// Err returns the error that caused the connection to close.
+// Err returns nil before Done is closed.
+func (c *Conn) Err() error {
 	c.stateMu.RLock()
-	for c.state != connDead {
-		c.stateCond.Wait()
+	var err error
+	if c.state != connDead {
+		err = c.closeErr
 	}
-	err := c.closeErr
 	c.stateMu.RUnlock()
 	return err
 }
@@ -136,7 +148,6 @@ func (c *Conn) Close() error {
 		c.bgCancel()
 		c.closeErr = ErrConnClosed
 		c.state = connDying
-		c.stateCond.Broadcast()
 	}
 	c.stateMu.Unlock()
 	if !alive {
@@ -162,7 +173,6 @@ func (c *Conn) shutdown(e error) {
 		c.bgCancel()
 		c.closeErr = e
 		c.state = connDying
-		c.stateCond.Broadcast()
 		go c.teardown(rpccapnp.Message{})
 	}
 	c.stateMu.Unlock()
@@ -179,7 +189,6 @@ func (c *Conn) abort(e error) {
 		c.bgCancel()
 		c.closeErr = e
 		c.state = connDying
-		c.stateCond.Broadcast()
 		go c.teardown(newAbortMessage(nil, e))
 	}
 	c.stateMu.Unlock()
@@ -256,7 +265,7 @@ func (c *Conn) teardown(abort rpccapnp.Message) {
 		}
 	}
 	c.state = connDead
-	c.stateCond.Broadcast()
+	close(c.death)
 	c.stateMu.Unlock()
 }
 
