@@ -232,3 +232,23 @@ func TestRawPointerTotalListSize(t *testing.T) {
 		}
 	}
 }
+
+func TestLandingPadNearPointer(t *testing.T) {
+	tests := []struct {
+		far     rawPointer
+		tag     rawPointer
+		landing rawPointer
+	}{
+		{rawFarPointer(0, 8), rawStructPointer(0, ObjectSize{16, 2}), rawStructPointer(0, ObjectSize{16, 2})},
+		{rawFarPointer(0, 160), rawStructPointer(0, ObjectSize{16, 2}), rawStructPointer(19, ObjectSize{16, 2})},
+		{rawFarPointer(0, 2834), rawStructPointer(0, ObjectSize{16, 2}), rawStructPointer(353, ObjectSize{16, 2})},
+		{rawFarPointer(0, 2834), rawListPointer(0, 0, 10), rawListPointer(353, 0, 10)},
+	}
+
+	for _, test := range tests {
+		landing := landingPadNearPointer(test.far, test.tag)
+		if landing != test.landing {
+			t.Errorf("landingPadNearPointer(%v, %v) = %v; want %v", test.far, test.tag, landing, test.landing)
+		}
+	}
+}
