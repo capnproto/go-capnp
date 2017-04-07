@@ -3,6 +3,8 @@
 {{end -}}
 type {{.Node.Name}} uint16
 
+{{ template "_typeid" .Node }}
+
 {{with .EnumValues -}}
 // Values of {{$.Node.Name}}.
 const (

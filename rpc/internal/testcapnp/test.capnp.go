@@ -14,6 +14,9 @@ import (
 
 type Handle struct{ Client capnp.Client }
 
+// Handle_TypeID is the unique identifier for the type Handle.
+const Handle_TypeID = 0x8161ddf3e74bd0d1
+
 type Handle_Server interface {
 }
 
@@ -31,6 +34,9 @@ func Handle_Methods(methods []server.Method, s Handle_Server) []server.Method {
 }
 
 type HandleFactory struct{ Client capnp.Client }
+
+// HandleFactory_TypeID is the unique identifier for the type HandleFactory.
+const HandleFactory_TypeID = 0x8491a7fe75fe0bce
 
 func (c HandleFactory) NewHandle(ctx context.Context, params func(HandleFactory_newHandle_Params) error, opts ...capnp.CallOption) HandleFactory_newHandle_Results_Promise {
 	if c.Client == nil {
@@ -217,6 +223,9 @@ func (p HandleFactory_newHandle_Results_Promise) Handle() Handle {
 
 type Hanger struct{ Client capnp.Client }
 
+// Hanger_TypeID is the unique identifier for the type Hanger.
+const Hanger_TypeID = 0x8ae08044aae8a26e
+
 func (c Hanger) Hang(ctx context.Context, params func(Hanger_hang_Params) error, opts ...capnp.CallOption) Hanger_hang_Results_Promise {
 	if c.Client == nil {
 		return Hanger_hang_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
@@ -378,6 +387,9 @@ func (p Hanger_hang_Results_Promise) Struct() (Hanger_hang_Results, error) {
 }
 
 type CallOrder struct{ Client capnp.Client }
+
+// CallOrder_TypeID is the unique identifier for the type CallOrder.
+const CallOrder_TypeID = 0x92c5ca8314cdd2a5
 
 func (c CallOrder) GetCallSequence(ctx context.Context, params func(CallOrder_getCallSequence_Params) error, opts ...capnp.CallOption) CallOrder_getCallSequence_Results_Promise {
 	if c.Client == nil {
@@ -556,6 +568,9 @@ func (p CallOrder_getCallSequence_Results_Promise) Struct() (CallOrder_getCallSe
 }
 
 type Echoer struct{ Client capnp.Client }
+
+// Echoer_TypeID is the unique identifier for the type Echoer.
+const Echoer_TypeID = 0x841756c6a41b2a45
 
 func (c Echoer) Echo(ctx context.Context, params func(Echoer_echo_Params) error, opts ...capnp.CallOption) Echoer_echo_Results_Promise {
 	if c.Client == nil {
@@ -801,6 +816,9 @@ func (p Echoer_echo_Results_Promise) Cap() CallOrder {
 
 type PingPong struct{ Client capnp.Client }
 
+// PingPong_TypeID is the unique identifier for the type PingPong.
+const PingPong_TypeID = 0xf004c474c2f8ee7a
+
 func (c PingPong) EchoNum(ctx context.Context, params func(PingPong_echoNum_Params) error, opts ...capnp.CallOption) PingPong_echoNum_Results_Promise {
 	if c.Client == nil {
 		return PingPong_echoNum_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
@@ -978,6 +996,9 @@ func (p PingPong_echoNum_Results_Promise) Struct() (PingPong_echoNum_Results, er
 }
 
 type Adder struct{ Client capnp.Client }
+
+// Adder_TypeID is the unique identifier for the type Adder.
+const Adder_TypeID = 0x8f9cac550b1bf41f
 
 func (c Adder) Add(ctx context.Context, params func(Adder_add_Params) error, opts ...capnp.CallOption) Adder_add_Results_Promise {
 	if c.Client == nil {

@@ -14,6 +14,9 @@ import (
 
 type HashFactory struct{ Client capnp.Client }
 
+// HashFactory_TypeID is the unique identifier for the type HashFactory.
+const HashFactory_TypeID = 0xaead580f97fddabc
+
 func (c HashFactory) NewSha1(ctx context.Context, params func(HashFactory_newSha1_Params) error, opts ...capnp.CallOption) HashFactory_newSha1_Results_Promise {
 	if c.Client == nil {
 		return HashFactory_newSha1_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
@@ -198,6 +201,9 @@ func (p HashFactory_newSha1_Results_Promise) Hash() Hash {
 }
 
 type Hash struct{ Client capnp.Client }
+
+// Hash_TypeID is the unique identifier for the type Hash.
+const Hash_TypeID = 0xf29f97dd675a9431
 
 func (c Hash) Write(ctx context.Context, params func(Hash_write_Params) error, opts ...capnp.CallOption) Hash_write_Results_Promise {
 	if c.Client == nil {

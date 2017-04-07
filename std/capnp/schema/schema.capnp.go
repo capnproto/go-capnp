@@ -2726,6 +2726,9 @@ func (p Annotation_Promise) Value() Value_Promise {
 
 type ElementSize uint16
 
+// ElementSize_TypeID is the unique identifier for the type ElementSize.
+const ElementSize_TypeID = 0xd1958f7dba521926
+
 // Values of ElementSize.
 const (
 	ElementSize_empty           ElementSize = 0
