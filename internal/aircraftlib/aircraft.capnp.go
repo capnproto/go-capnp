@@ -157,6 +157,9 @@ func (p Zdata_Promise) Struct() (Zdata, error) {
 
 type Airport uint16
 
+// Airport_TypeID is the unique identifier for the type Airport.
+const Airport_TypeID = 0xe55d85fc1bf82f21
+
 // Values of Airport.
 const (
 	Airport_none Airport = 0
@@ -4238,6 +4241,9 @@ func (p ListStructCapn_Promise) Struct() (ListStructCapn, error) {
 
 type Echo struct{ Client capnp.Client }
 
+// Echo_TypeID is the unique identifier for the type Echo.
+const Echo_TypeID = 0x8e5322c1e9282534
+
 func (c Echo) Echo(ctx context.Context, params func(Echo_echo_Params) error, opts ...capnp.CallOption) Echo_echo_Results_Promise {
 	if c.Client == nil {
 		return Echo_echo_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
@@ -4824,6 +4830,9 @@ func (p StackingB_Promise) Struct() (StackingB, error) {
 }
 
 type CallSequence struct{ Client capnp.Client }
+
+// CallSequence_TypeID is the unique identifier for the type CallSequence.
+const CallSequence_TypeID = 0xabaedf5f7817c820
 
 func (c CallSequence) GetNumber(ctx context.Context, params func(CallSequence_getNumber_Params) error, opts ...capnp.CallOption) CallSequence_getNumber_Results_Promise {
 	if c.Client == nil {

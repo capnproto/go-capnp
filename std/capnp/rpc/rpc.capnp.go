@@ -2530,6 +2530,9 @@ func (p Exception_Promise) Struct() (Exception, error) {
 
 type Exception_Type uint16
 
+// Exception_Type_TypeID is the unique identifier for the type Exception_Type.
+const Exception_Type_TypeID = 0xb28c96e23f4cbd58
+
 // Values of Exception_Type.
 const (
 	Exception_Type_failed        Exception_Type = 0

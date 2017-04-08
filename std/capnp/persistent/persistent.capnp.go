@@ -16,6 +16,9 @@ const PersistentAnnotation = uint64(0xf622595091cafb67)
 
 type Persistent struct{ Client capnp.Client }
 
+// Persistent_TypeID is the unique identifier for the type Persistent.
+const Persistent_TypeID = 0xc8cb212fcd9f5691
+
 func (c Persistent) Save(ctx context.Context, params func(Persistent_SaveParams) error, opts ...capnp.CallOption) Persistent_SaveResults_Promise {
 	if c.Client == nil {
 		return Persistent_SaveResults_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
@@ -227,6 +230,9 @@ func (p Persistent_SaveResults_Promise) SturdyRef() *capnp.Pipeline {
 }
 
 type RealmGateway struct{ Client capnp.Client }
+
+// RealmGateway_TypeID is the unique identifier for the type RealmGateway.
+const RealmGateway_TypeID = 0x84ff286cd00a3ed4
 
 func (c RealmGateway) Import(ctx context.Context, params func(RealmGateway_import_Params) error, opts ...capnp.CallOption) Persistent_SaveResults_Promise {
 	if c.Client == nil {

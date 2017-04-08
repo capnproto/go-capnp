@@ -3,6 +3,8 @@
 {{end -}}
 type {{.Node.Name}} struct { Client {{.G.Capnp}}.Client }
 
+{{ template "_typeid" .Node }}
+
 {{range .Methods -}}
 func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{$.G.Imports.Context}}.Context, params func({{$.G.RemoteNodeName .Params $.Node}}) error, opts ...{{$.G.Capnp}}.CallOption) {{$.G.RemoteNodeName .Results $.Node}}_Promise {
 	if c.Client == nil {

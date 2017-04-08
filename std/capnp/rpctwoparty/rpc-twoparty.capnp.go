@@ -12,6 +12,9 @@ import (
 
 type Side uint16
 
+// Side_TypeID is the unique identifier for the type Side.
+const Side_TypeID = 0x9fd69ebc87b9719c
+
 // Values of Side.
 const (
 	Side_server Side = 0
