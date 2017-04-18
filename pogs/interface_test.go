@@ -138,14 +138,17 @@ func TestExtractListIFace(t *testing.T) {
 	}
 }
 
-// Make sure extract doesn't choke if we don't fill in an interface
+// Make sure extract correctly handles missing interfaces.
 func TestExtractMissingIFace(t *testing.T) {
 	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
 
 	base, err := air.NewRootEchoBase(seg)
 	checkFatal(t, "NewRootEchoBase", err)
 
-	extractedBase := EchoBase{}
+	// Fill the client in, so we know that after extracting, if
+	// it's nil it's because it was *set*, not just left over:
+	extractedBase := EchoBase{Echo: air.Echo_ServerToClient(simpleEcho{})}
+
 	err = Extract(&extractedBase, air.EchoBase_TypeID, base.Struct)
 	checkFatal(t, "Extract", err)
 	if extractedBase.Echo.Client != nil {

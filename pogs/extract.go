@@ -226,12 +226,15 @@ func (e *extracter) extractField(val reflect.Value, s capnp.Struct, f schema.Fie
 		if err != nil {
 			return err
 		}
+		if val.Type() != clientType {
+			// Must be a struct wrapper.
+			val = val.FieldByName("Client")
+		}
+
 		client := p.Interface().Client()
-		if client != nil {
-			if val.Type() != clientType {
-				// Must be a struct wrapper.
-				val = val.FieldByName("Client")
-			}
+		if client == nil {
+			val.Set(reflect.Zero(val.Type()))
+		} else {
 			val.Set(reflect.ValueOf(client))
 		}
 	default:
