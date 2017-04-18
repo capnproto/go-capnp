@@ -392,7 +392,7 @@ func isTypeMatch(r reflect.Type, s schema.Type) bool {
 		e, _ := s.List().ElementType()
 		return r.Kind() == reflect.Slice && isTypeMatch(r.Elem(), e)
 	case schema.Type_Which_interface:
-		if r.Implements(clientType) {
+		if r == clientType {
 			return true
 		}
 
