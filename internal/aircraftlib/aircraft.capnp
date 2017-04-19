@@ -143,6 +143,9 @@ struct Z {
       first           @42 :UInt64;
       second          @43 :UInt64;
     }
+
+    echo              @44 :Echo;
+    echoBases         @45 :EchoBases;
   }
 }
 
