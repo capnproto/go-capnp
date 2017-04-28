@@ -1132,16 +1132,9 @@ func zequal(g *Z, c air.Z) (bool, error) {
 		if err != nil {
 			return false, err
 		}
-		if len(g.EchoBases.Bases) != list.Len() {
-			return false, nil
-		}
-		for i, v := range g.EchoBases.Bases {
-			if v.Echo.Client != nil && list.At(i).HasEcho() ||
-				v.Echo.Client == nil && !list.At(i).HasEcho() {
-				return false, nil
-			}
-		}
-		return true, nil
+		return listeq(g.EchoBases.Bases != nil, len(g.EchoBases.Bases), list.List, func(i int) (bool, error) {
+			return (g.EchoBases.Bases[i].Echo.Client == nil) == !list.At(i).HasEcho(), nil
+		})
 	default:
 		return false, fmt.Errorf("zequal: unknown type: %v", g.Which)
 	}
