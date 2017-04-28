@@ -50,6 +50,10 @@ type Z struct {
 	Airport   air.Airport
 
 	Grp *ZGroup
+
+	Echo air.Echo
+
+	EchoBases EchoBases
 }
 
 type PlaneBase struct {
@@ -150,6 +154,17 @@ var goodTests = []Z{
 	}},
 	{Which: air.Z_Which_airport, Airport: air.Airport_lax},
 	{Which: air.Z_Which_grp, Grp: &ZGroup{First: 123, Second: 456}},
+	{Which: air.Z_Which_echo, Echo: air.Echo_ServerToClient(simpleEcho{})},
+	{Which: air.Z_Which_echo, Echo: air.Echo{Client: nil}},
+	{Which: air.Z_Which_echoBases, EchoBases: EchoBases{
+		Bases: []EchoBase{
+			{Echo: air.Echo{Client: nil}},
+			{Echo: air.Echo_ServerToClient(simpleEcho{})},
+			{Echo: air.Echo{Client: nil}},
+			{Echo: air.Echo_ServerToClient(simpleEcho{})},
+			{Echo: air.Echo{Client: nil}},
+		},
+	}},
 }
 
 func TestExtract(t *testing.T) {
@@ -410,6 +425,23 @@ func TestInsert_Size(t *testing.T) {
 			sz:   capnp.ObjectSize{DataSize: baseSize, PointerCount: 1},
 			z:    Z{Which: air.Z_Which_planebase, Planebase: new(PlaneBase)},
 			ok:   true,
+		},
+		{
+			name: "interface into 0 pointer",
+			sz:   capnp.ObjectSize{DataSize: baseSize, PointerCount: 0},
+			z: Z{
+				Which: air.Z_Which_echo,
+				Echo:  air.Echo_ServerToClient(simpleEcho{}),
+			},
+		},
+		{
+			name: "interface into 1 pointer",
+			sz:   capnp.ObjectSize{DataSize: baseSize, PointerCount: 1},
+			z: Z{
+				Which: air.Z_Which_echo,
+				Echo:  air.Echo_ServerToClient(simpleEcho{}),
+			},
+			ok: true,
 		},
 	}
 	for _, test := range tests {
@@ -1088,6 +1120,21 @@ func zequal(g *Z, c air.Z) (bool, error) {
 			return false, nil
 		}
 		return g.Grp.First == c.Grp().First() && g.Grp.Second == c.Grp().Second(), nil
+	case air.Z_Which_echo:
+		return g.Echo.Client == nil && !c.HasEcho() ||
+			g.Echo.Client != nil && c.HasEcho(), nil
+	case air.Z_Which_echoBases:
+		echoBases, err := c.EchoBases()
+		if err != nil {
+			return false, err
+		}
+		list, err := echoBases.Bases()
+		if err != nil {
+			return false, err
+		}
+		return listeq(g.EchoBases.Bases != nil, len(g.EchoBases.Bases), list.List, func(i int) (bool, error) {
+			return (g.EchoBases.Bases[i].Echo.Client == nil) == !list.At(i).HasEcho(), nil
+		})
 	default:
 		return false, fmt.Errorf("zequal: unknown type: %v", g.Which)
 	}
@@ -1176,6 +1223,13 @@ func (z *Z) equal(y *Z) bool {
 		return z.Airport == y.Airport
 	case air.Z_Which_grp:
 		return z.Grp.First == y.Grp.First && z.Grp.Second == y.Grp.Second
+	case air.Z_Which_echo:
+		return (z.Echo.Client == nil) == (y.Echo.Client == nil)
+	case air.Z_Which_echoBases:
+		return sliceeq(len(z.EchoBases.Bases), len(y.EchoBases.Bases), func(i int) bool {
+			return (z.EchoBases.Bases[i].Echo.Client == nil) ==
+				(y.EchoBases.Bases[i].Echo.Client == nil)
+		})
 	default:
 		panic("unknown Z which")
 	}
@@ -1378,6 +1432,21 @@ func zfill(c air.Z, g *Z) error {
 		if g.Grp != nil {
 			c.Grp().SetFirst(g.Grp.First)
 			c.Grp().SetSecond(g.Grp.Second)
+		}
+	case air.Z_Which_echo:
+		c.SetEcho(g.Echo)
+	case air.Z_Which_echoBases:
+		echoBases, err := c.NewEchoBases()
+		if err != nil {
+			return err
+		}
+		list, err := echoBases.NewBases(int32(len(g.EchoBases.Bases)))
+		if err != nil {
+			return err
+		}
+		for i, v := range g.EchoBases.Bases {
+			base := list.At(i)
+			base.SetEcho(v.Echo)
 		}
 	default:
 		return fmt.Errorf("zfill: unknown type: %v", g.Which)

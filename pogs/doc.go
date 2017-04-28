@@ -56,6 +56,9 @@ follows:
 	List                          -> slice
 	enum                          -> uint16
 	struct                        -> a struct or pointer to struct
+	interface                     -> a capnp.Client or struct with
+                                         exactly one field, named
+					 "Client", of type capnp.Client
 
 Note that the unsized int and uint type can't be used: int and float
 types must match in size.  For Data and Text fields using []byte, the

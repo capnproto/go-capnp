@@ -143,6 +143,9 @@ struct Z {
       first           @42 :UInt64;
       second          @43 :UInt64;
     }
+
+    echo              @44 :Echo;
+    echoBases         @45 :EchoBases;
   }
 }
 
@@ -291,6 +294,12 @@ struct Hoth {
 
 struct EchoBase {
   echo @0 :Echo;
+}
+
+# test List(Struct(Interface))
+
+struct EchoBases {
+	bases @0 :List(EchoBase);
 }
 
 # test transforms

@@ -218,10 +218,30 @@ func (ins *inserter) insertField(s capnp.Struct, f schema.Field, val reflect.Val
 			return err
 		}
 		return ins.insertList(l, typ, val)
+	case schema.Type_Which_interface:
+		off := uint16(f.Slot().Offset())
+		ptr := capPtr(s.Segment(), val)
+		if err := s.SetPtr(off, ptr); err != nil {
+			return err
+		}
 	default:
 		return fmt.Errorf("unknown field type %v", typ.Which())
 	}
 	return nil
+}
+
+func capPtr(seg *capnp.Segment, val reflect.Value) capnp.Ptr {
+	client, ok := val.Interface().(capnp.Client)
+	if !ok {
+		client, ok = val.FieldByName("Client").Interface().(capnp.Client)
+		if !ok {
+			// interface is nil.
+			return capnp.Ptr{}
+		}
+	}
+	cap := seg.Message().AddCap(client)
+	iface := capnp.NewInterface(seg, cap)
+	return iface.ToPtr()
 }
 
 func (ins *inserter) insertList(l capnp.List, typ schema.Type, val reflect.Value) error {
@@ -358,6 +378,15 @@ func (ins *inserter) insertList(l capnp.List, typ schema.Type, val reflect.Value
 			err := ins.insertStruct(id, l.Struct(i), val.Index(i))
 			if err != nil {
 				// TODO(light): collect errors and finish
+				return err
+			}
+		}
+	case schema.Type_Which_interface:
+		pl := capnp.PointerList{List: l}
+		for i := 0; i < n; i++ {
+			ptr := capPtr(l.Segment(), val.Index(i))
+			if err := pl.SetPtr(i, ptr); err != nil {
+				// TODO(zenhack): collect errors and finish
 				return err
 			}
 		}
