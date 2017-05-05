@@ -26,7 +26,7 @@ func NewRootBook(s *capnp.Segment) (Book, error) {
 }
 
 func ReadRootBook(msg *capnp.Message) (Book, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Book{root.Struct()}, err
 }
 

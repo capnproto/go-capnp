@@ -93,7 +93,7 @@ func NewRootHashFactory_newSha1_Params(s *capnp.Segment) (HashFactory_newSha1_Pa
 }
 
 func ReadRootHashFactory_newSha1_Params(msg *capnp.Message) (HashFactory_newSha1_Params, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return HashFactory_newSha1_Params{root.Struct()}, err
 }
 
@@ -143,7 +143,7 @@ func NewRootHashFactory_newSha1_Results(s *capnp.Segment) (HashFactory_newSha1_R
 }
 
 func ReadRootHashFactory_newSha1_Results(msg *capnp.Message) (HashFactory_newSha1_Results, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return HashFactory_newSha1_Results{root.Struct()}, err
 }
 
@@ -325,7 +325,7 @@ func NewRootHash_write_Params(s *capnp.Segment) (Hash_write_Params, error) {
 }
 
 func ReadRootHash_write_Params(msg *capnp.Message) (Hash_write_Params, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Hash_write_Params{root.Struct()}, err
 }
 
@@ -389,7 +389,7 @@ func NewRootHash_write_Results(s *capnp.Segment) (Hash_write_Results, error) {
 }
 
 func ReadRootHash_write_Results(msg *capnp.Message) (Hash_write_Results, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Hash_write_Results{root.Struct()}, err
 }
 
@@ -439,7 +439,7 @@ func NewRootHash_sum_Params(s *capnp.Segment) (Hash_sum_Params, error) {
 }
 
 func ReadRootHash_sum_Params(msg *capnp.Message) (Hash_sum_Params, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Hash_sum_Params{root.Struct()}, err
 }
 
@@ -487,7 +487,7 @@ func NewRootHash_sum_Results(s *capnp.Segment) (Hash_sum_Results, error) {
 }
 
 func ReadRootHash_sum_Results(msg *capnp.Message) (Hash_sum_Results, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Hash_sum_Results{root.Struct()}, err
 }
 

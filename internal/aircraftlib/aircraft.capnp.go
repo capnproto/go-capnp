@@ -21,8 +21,8 @@ const (
 
 // Constants defined in aircraft.capnp.
 var (
-	ConstDate = Zdate{Struct: capnp.MustUnmarshalRootPtr(x_832bcc6686a26d56[0:24]).Struct()}
-	ConstList = Zdate_List{List: capnp.MustUnmarshalRootPtr(x_832bcc6686a26d56[24:64]).List()}
+	ConstDate = Zdate{Struct: capnp.MustUnmarshalRoot(x_832bcc6686a26d56[0:24]).Struct()}
+	ConstList = Zdate_List{List: capnp.MustUnmarshalRoot(x_832bcc6686a26d56[24:64]).List()}
 )
 
 type Zdate struct{ capnp.Struct }
@@ -41,7 +41,7 @@ func NewRootZdate(s *capnp.Segment) (Zdate, error) {
 }
 
 func ReadRootZdate(msg *capnp.Message) (Zdate, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Zdate{root.Struct()}, err
 }
 
@@ -111,7 +111,7 @@ func NewRootZdata(s *capnp.Segment) (Zdata, error) {
 }
 
 func ReadRootZdata(msg *capnp.Message) (Zdata, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Zdata{root.Struct()}, err
 }
 
@@ -251,7 +251,7 @@ func NewRootPlaneBase(s *capnp.Segment) (PlaneBase, error) {
 }
 
 func ReadRootPlaneBase(msg *capnp.Message) (PlaneBase, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return PlaneBase{root.Struct()}, err
 }
 
@@ -373,7 +373,7 @@ func NewRootB737(s *capnp.Segment) (B737, error) {
 }
 
 func ReadRootB737(msg *capnp.Message) (B737, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return B737{root.Struct()}, err
 }
 
@@ -448,7 +448,7 @@ func NewRootA320(s *capnp.Segment) (A320, error) {
 }
 
 func ReadRootA320(msg *capnp.Message) (A320, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return A320{root.Struct()}, err
 }
 
@@ -523,7 +523,7 @@ func NewRootF16(s *capnp.Segment) (F16, error) {
 }
 
 func ReadRootF16(msg *capnp.Message) (F16, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return F16{root.Struct()}, err
 }
 
@@ -598,7 +598,7 @@ func NewRootRegression(s *capnp.Segment) (Regression, error) {
 }
 
 func ReadRootRegression(msg *capnp.Message) (Regression, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Regression{root.Struct()}, err
 }
 
@@ -771,7 +771,7 @@ func NewRootAircraft(s *capnp.Segment) (Aircraft, error) {
 }
 
 func ReadRootAircraft(msg *capnp.Message) (Aircraft, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Aircraft{root.Struct()}, err
 }
 
@@ -1075,7 +1075,7 @@ func NewRootZ(s *capnp.Segment) (Z, error) {
 }
 
 func ReadRootZ(msg *capnp.Message) (Z, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Z{root.Struct()}, err
 }
 
@@ -2217,7 +2217,7 @@ func NewRootCounter(s *capnp.Segment) (Counter, error) {
 }
 
 func ReadRootCounter(msg *capnp.Message) (Counter, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Counter{root.Struct()}, err
 }
 
@@ -2315,7 +2315,7 @@ func NewRootBag(s *capnp.Segment) (Bag, error) {
 }
 
 func ReadRootBag(msg *capnp.Message) (Bag, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Bag{root.Struct()}, err
 }
 
@@ -2390,7 +2390,7 @@ func NewRootZserver(s *capnp.Segment) (Zserver, error) {
 }
 
 func ReadRootZserver(msg *capnp.Message) (Zserver, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Zserver{root.Struct()}, err
 }
 
@@ -2461,7 +2461,7 @@ func NewRootZjob(s *capnp.Segment) (Zjob, error) {
 }
 
 func ReadRootZjob(msg *capnp.Message) (Zjob, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Zjob{root.Struct()}, err
 }
 
@@ -2551,7 +2551,7 @@ func NewRootVerEmpty(s *capnp.Segment) (VerEmpty, error) {
 }
 
 func ReadRootVerEmpty(msg *capnp.Message) (VerEmpty, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return VerEmpty{root.Struct()}, err
 }
 
@@ -2597,7 +2597,7 @@ func NewRootVerOneData(s *capnp.Segment) (VerOneData, error) {
 }
 
 func ReadRootVerOneData(msg *capnp.Message) (VerOneData, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return VerOneData{root.Struct()}, err
 }
 
@@ -2651,7 +2651,7 @@ func NewRootVerTwoData(s *capnp.Segment) (VerTwoData, error) {
 }
 
 func ReadRootVerTwoData(msg *capnp.Message) (VerTwoData, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return VerTwoData{root.Struct()}, err
 }
 
@@ -2713,7 +2713,7 @@ func NewRootVerOnePtr(s *capnp.Segment) (VerOnePtr, error) {
 }
 
 func ReadRootVerOnePtr(msg *capnp.Message) (VerOnePtr, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return VerOnePtr{root.Struct()}, err
 }
 
@@ -2788,7 +2788,7 @@ func NewRootVerTwoPtr(s *capnp.Segment) (VerTwoPtr, error) {
 }
 
 func ReadRootVerTwoPtr(msg *capnp.Message) (VerTwoPtr, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return VerTwoPtr{root.Struct()}, err
 }
 
@@ -2892,7 +2892,7 @@ func NewRootVerTwoDataTwoPtr(s *capnp.Segment) (VerTwoDataTwoPtr, error) {
 }
 
 func ReadRootVerTwoDataTwoPtr(msg *capnp.Message) (VerTwoDataTwoPtr, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return VerTwoDataTwoPtr{root.Struct()}, err
 }
 
@@ -3014,7 +3014,7 @@ func NewRootHoldsVerEmptyList(s *capnp.Segment) (HoldsVerEmptyList, error) {
 }
 
 func ReadRootHoldsVerEmptyList(msg *capnp.Message) (HoldsVerEmptyList, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return HoldsVerEmptyList{root.Struct()}, err
 }
 
@@ -3089,7 +3089,7 @@ func NewRootHoldsVerOneDataList(s *capnp.Segment) (HoldsVerOneDataList, error) {
 }
 
 func ReadRootHoldsVerOneDataList(msg *capnp.Message) (HoldsVerOneDataList, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return HoldsVerOneDataList{root.Struct()}, err
 }
 
@@ -3164,7 +3164,7 @@ func NewRootHoldsVerTwoDataList(s *capnp.Segment) (HoldsVerTwoDataList, error) {
 }
 
 func ReadRootHoldsVerTwoDataList(msg *capnp.Message) (HoldsVerTwoDataList, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return HoldsVerTwoDataList{root.Struct()}, err
 }
 
@@ -3239,7 +3239,7 @@ func NewRootHoldsVerOnePtrList(s *capnp.Segment) (HoldsVerOnePtrList, error) {
 }
 
 func ReadRootHoldsVerOnePtrList(msg *capnp.Message) (HoldsVerOnePtrList, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return HoldsVerOnePtrList{root.Struct()}, err
 }
 
@@ -3314,7 +3314,7 @@ func NewRootHoldsVerTwoPtrList(s *capnp.Segment) (HoldsVerTwoPtrList, error) {
 }
 
 func ReadRootHoldsVerTwoPtrList(msg *capnp.Message) (HoldsVerTwoPtrList, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return HoldsVerTwoPtrList{root.Struct()}, err
 }
 
@@ -3389,7 +3389,7 @@ func NewRootHoldsVerTwoTwoList(s *capnp.Segment) (HoldsVerTwoTwoList, error) {
 }
 
 func ReadRootHoldsVerTwoTwoList(msg *capnp.Message) (HoldsVerTwoTwoList, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return HoldsVerTwoTwoList{root.Struct()}, err
 }
 
@@ -3464,7 +3464,7 @@ func NewRootHoldsVerTwoTwoPlus(s *capnp.Segment) (HoldsVerTwoTwoPlus, error) {
 }
 
 func ReadRootHoldsVerTwoTwoPlus(msg *capnp.Message) (HoldsVerTwoTwoPlus, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return HoldsVerTwoTwoPlus{root.Struct()}, err
 }
 
@@ -3539,7 +3539,7 @@ func NewRootVerTwoTwoPlus(s *capnp.Segment) (VerTwoTwoPlus, error) {
 }
 
 func ReadRootVerTwoTwoPlus(msg *capnp.Message) (VerTwoTwoPlus, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return VerTwoTwoPlus{root.Struct()}, err
 }
 
@@ -3692,7 +3692,7 @@ func NewRootHoldsText(s *capnp.Segment) (HoldsText, error) {
 }
 
 func ReadRootHoldsText(msg *capnp.Message) (HoldsText, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return HoldsText{root.Struct()}, err
 }
 
@@ -3807,7 +3807,7 @@ func NewRootWrapEmpty(s *capnp.Segment) (WrapEmpty, error) {
 }
 
 func ReadRootWrapEmpty(msg *capnp.Message) (WrapEmpty, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return WrapEmpty{root.Struct()}, err
 }
 
@@ -3882,7 +3882,7 @@ func NewRootWrap2x2(s *capnp.Segment) (Wrap2x2, error) {
 }
 
 func ReadRootWrap2x2(msg *capnp.Message) (Wrap2x2, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Wrap2x2{root.Struct()}, err
 }
 
@@ -3957,7 +3957,7 @@ func NewRootWrap2x2plus(s *capnp.Segment) (Wrap2x2plus, error) {
 }
 
 func ReadRootWrap2x2plus(msg *capnp.Message) (Wrap2x2plus, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Wrap2x2plus{root.Struct()}, err
 }
 
@@ -4050,7 +4050,7 @@ func NewRootVoidUnion(s *capnp.Segment) (VoidUnion, error) {
 }
 
 func ReadRootVoidUnion(msg *capnp.Message) (VoidUnion, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return VoidUnion{root.Struct()}, err
 }
 
@@ -4109,7 +4109,7 @@ func NewRootNester1Capn(s *capnp.Segment) (Nester1Capn, error) {
 }
 
 func ReadRootNester1Capn(msg *capnp.Message) (Nester1Capn, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Nester1Capn{root.Struct()}, err
 }
 
@@ -4180,7 +4180,7 @@ func NewRootRWTestCapn(s *capnp.Segment) (RWTestCapn, error) {
 }
 
 func ReadRootRWTestCapn(msg *capnp.Message) (RWTestCapn, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return RWTestCapn{root.Struct()}, err
 }
 
@@ -4251,7 +4251,7 @@ func NewRootListStructCapn(s *capnp.Segment) (ListStructCapn, error) {
 }
 
 func ReadRootListStructCapn(msg *capnp.Message) (ListStructCapn, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return ListStructCapn{root.Struct()}, err
 }
 
@@ -4387,7 +4387,7 @@ func NewRootEcho_echo_Params(s *capnp.Segment) (Echo_echo_Params, error) {
 }
 
 func ReadRootEcho_echo_Params(msg *capnp.Message) (Echo_echo_Params, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Echo_echo_Params{root.Struct()}, err
 }
 
@@ -4454,7 +4454,7 @@ func NewRootEcho_echo_Results(s *capnp.Segment) (Echo_echo_Results, error) {
 }
 
 func ReadRootEcho_echo_Results(msg *capnp.Message) (Echo_echo_Results, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Echo_echo_Results{root.Struct()}, err
 }
 
@@ -4523,7 +4523,7 @@ func NewRootHoth(s *capnp.Segment) (Hoth, error) {
 }
 
 func ReadRootHoth(msg *capnp.Message) (Hoth, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Hoth{root.Struct()}, err
 }
 
@@ -4598,7 +4598,7 @@ func NewRootEchoBase(s *capnp.Segment) (EchoBase, error) {
 }
 
 func ReadRootEchoBase(msg *capnp.Message) (EchoBase, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return EchoBase{root.Struct()}, err
 }
 
@@ -4667,7 +4667,7 @@ func NewRootEchoBases(s *capnp.Segment) (EchoBases, error) {
 }
 
 func ReadRootEchoBases(msg *capnp.Message) (EchoBases, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return EchoBases{root.Struct()}, err
 }
 
@@ -4738,7 +4738,7 @@ func NewRootStackingRoot(s *capnp.Segment) (StackingRoot, error) {
 }
 
 func ReadRootStackingRoot(msg *capnp.Message) (StackingRoot, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return StackingRoot{root.Struct()}, err
 }
 
@@ -4846,7 +4846,7 @@ func NewRootStackingA(s *capnp.Segment) (StackingA, error) {
 }
 
 func ReadRootStackingA(msg *capnp.Message) (StackingA, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return StackingA{root.Struct()}, err
 }
 
@@ -4929,7 +4929,7 @@ func NewRootStackingB(s *capnp.Segment) (StackingB, error) {
 }
 
 func ReadRootStackingB(msg *capnp.Message) (StackingB, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return StackingB{root.Struct()}, err
 }
 
@@ -5048,7 +5048,7 @@ func NewRootCallSequence_getNumber_Params(s *capnp.Segment) (CallSequence_getNum
 }
 
 func ReadRootCallSequence_getNumber_Params(msg *capnp.Message) (CallSequence_getNumber_Params, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return CallSequence_getNumber_Params{root.Struct()}, err
 }
 
@@ -5098,7 +5098,7 @@ func NewRootCallSequence_getNumber_Results(s *capnp.Segment) (CallSequence_getNu
 }
 
 func ReadRootCallSequence_getNumber_Results(msg *capnp.Message) (CallSequence_getNumber_Results, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return CallSequence_getNumber_Results{root.Struct()}, err
 }
 
@@ -5156,7 +5156,7 @@ func NewRootDefaults(s *capnp.Segment) (Defaults, error) {
 }
 
 func ReadRootDefaults(msg *capnp.Message) (Defaults, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Defaults{root.Struct()}, err
 }
 
@@ -5262,7 +5262,7 @@ func NewRootBenchmarkA(s *capnp.Segment) (BenchmarkA, error) {
 }
 
 func ReadRootBenchmarkA(msg *capnp.Message) (BenchmarkA, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return BenchmarkA{root.Struct()}, err
 }
 

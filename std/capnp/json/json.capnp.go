@@ -61,7 +61,7 @@ func NewRootJsonValue(s *capnp.Segment) (JsonValue, error) {
 }
 
 func ReadRootJsonValue(msg *capnp.Message) (JsonValue, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return JsonValue{root.Struct()}, err
 }
 
@@ -250,7 +250,7 @@ func NewRootJsonValue_Field(s *capnp.Segment) (JsonValue_Field, error) {
 }
 
 func ReadRootJsonValue_Field(msg *capnp.Message) (JsonValue_Field, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return JsonValue_Field{root.Struct()}, err
 }
 
@@ -346,7 +346,7 @@ func NewRootJsonValue_Call(s *capnp.Segment) (JsonValue_Call, error) {
 }
 
 func ReadRootJsonValue_Call(msg *capnp.Message) (JsonValue_Call, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return JsonValue_Call{root.Struct()}, err
 }
 

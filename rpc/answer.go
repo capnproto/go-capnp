@@ -79,7 +79,7 @@ func (a *answer) fulfill(obj capnp.Ptr) error {
 		retmsg := newReturnMessage(nil, a.id)
 		ret, _ := retmsg.Return()
 		payload, _ := ret.NewResults()
-		payload.SetContentPtr(obj)
+		payload.SetContent(obj)
 		if payloadTab, err := a.conn.makeCapTable(ret.Segment()); err != nil {
 			firstErr = err
 		} else {
@@ -141,7 +141,7 @@ func (a *answer) emptyQueue(obj capnp.Ptr) (map[capnp.CapabilityID][]qcall, erro
 	var firstErr error
 	qs := make(map[capnp.CapabilityID][]qcall, len(a.queue))
 	for i, pc := range a.queue {
-		c, err := capnp.TransformPtr(obj, pc.transform)
+		c, err := capnp.Transform(obj, pc.transform)
 		if err != nil {
 			if err := pc.a.reject(err); err != nil && firstErr == nil {
 				firstErr = err
@@ -192,7 +192,7 @@ func (a *answer) queueDisembargo(transform []capnp.PipelineOp, id embargoID, tar
 	if a.err != nil {
 		return false, errDisembargoNonImport
 	}
-	targetPtr, err := capnp.TransformPtr(a.obj, transform)
+	targetPtr, err := capnp.Transform(a.obj, transform)
 	if err != nil {
 		return false, err
 	}

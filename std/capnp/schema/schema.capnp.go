@@ -67,7 +67,7 @@ func NewRootNode(s *capnp.Segment) (Node, error) {
 }
 
 func ReadRootNode(msg *capnp.Message) (Node, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Node{root.Struct()}, err
 }
 
@@ -653,7 +653,7 @@ func NewRootNode_Parameter(s *capnp.Segment) (Node_Parameter, error) {
 }
 
 func ReadRootNode_Parameter(msg *capnp.Message) (Node_Parameter, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Node_Parameter{root.Struct()}, err
 }
 
@@ -713,7 +713,7 @@ func NewRootNode_NestedNode(s *capnp.Segment) (Node_NestedNode, error) {
 }
 
 func ReadRootNode_NestedNode(msg *capnp.Message) (Node_NestedNode, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Node_NestedNode{root.Struct()}, err
 }
 
@@ -823,7 +823,7 @@ func NewRootField(s *capnp.Segment) (Field, error) {
 }
 
 func ReadRootField(msg *capnp.Message) (Field, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Field{root.Struct()}, err
 }
 
@@ -1070,7 +1070,7 @@ func NewRootEnumerant(s *capnp.Segment) (Enumerant, error) {
 }
 
 func ReadRootEnumerant(msg *capnp.Message) (Enumerant, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Enumerant{root.Struct()}, err
 }
 
@@ -1163,7 +1163,7 @@ func NewRootSuperclass(s *capnp.Segment) (Superclass, error) {
 }
 
 func ReadRootSuperclass(msg *capnp.Message) (Superclass, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Superclass{root.Struct()}, err
 }
 
@@ -1241,7 +1241,7 @@ func NewRootMethod(s *capnp.Segment) (Method, error) {
 }
 
 func ReadRootMethod(msg *capnp.Message) (Method, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Method{root.Struct()}, err
 }
 
@@ -1557,7 +1557,7 @@ func NewRootType(s *capnp.Segment) (Type, error) {
 }
 
 func ReadRootType(msg *capnp.Message) (Type, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Type{root.Struct()}, err
 }
 
@@ -1999,7 +1999,7 @@ func NewRootBrand(s *capnp.Segment) (Brand, error) {
 }
 
 func ReadRootBrand(msg *capnp.Message) (Brand, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Brand{root.Struct()}, err
 }
 
@@ -2083,7 +2083,7 @@ func NewRootBrand_Scope(s *capnp.Segment) (Brand_Scope, error) {
 }
 
 func ReadRootBrand_Scope(msg *capnp.Message) (Brand_Scope, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Brand_Scope{root.Struct()}, err
 }
 
@@ -2188,7 +2188,7 @@ func NewRootBrand_Binding(s *capnp.Segment) (Brand_Binding, error) {
 }
 
 func ReadRootBrand_Binding(msg *capnp.Message) (Brand_Binding, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Brand_Binding{root.Struct()}, err
 }
 
@@ -2340,7 +2340,7 @@ func NewRootValue(s *capnp.Segment) (Value, error) {
 }
 
 func ReadRootValue(msg *capnp.Message) (Value, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Value{root.Struct()}, err
 }
 
@@ -2492,8 +2492,8 @@ func (s Value) SetData(v []byte) error {
 	return s.Struct.SetData(0, v)
 }
 
-func (s Value) List() (capnp.Pointer, error) {
-	return s.Struct.Pointer(0)
+func (s Value) List() (capnp.Ptr, error) {
+	return s.Struct.Ptr(0)
 }
 
 func (s Value) HasList() bool {
@@ -2504,16 +2504,7 @@ func (s Value) HasList() bool {
 	return p.IsValid() || err != nil
 }
 
-func (s Value) ListPtr() (capnp.Ptr, error) {
-	return s.Struct.Ptr(0)
-}
-
-func (s Value) SetList(v capnp.Pointer) error {
-	s.Struct.SetUint16(0, 14)
-	return s.Struct.SetPointer(0, v)
-}
-
-func (s Value) SetListPtr(v capnp.Ptr) error {
+func (s Value) SetList(v capnp.Ptr) error {
 	s.Struct.SetUint16(0, 14)
 	return s.Struct.SetPtr(0, v)
 }
@@ -2527,8 +2518,8 @@ func (s Value) SetEnum(v uint16) {
 	s.Struct.SetUint16(2, v)
 }
 
-func (s Value) StructValue() (capnp.Pointer, error) {
-	return s.Struct.Pointer(0)
+func (s Value) StructValue() (capnp.Ptr, error) {
+	return s.Struct.Ptr(0)
 }
 
 func (s Value) HasStructValue() bool {
@@ -2539,16 +2530,7 @@ func (s Value) HasStructValue() bool {
 	return p.IsValid() || err != nil
 }
 
-func (s Value) StructValuePtr() (capnp.Ptr, error) {
-	return s.Struct.Ptr(0)
-}
-
-func (s Value) SetStructValue(v capnp.Pointer) error {
-	s.Struct.SetUint16(0, 16)
-	return s.Struct.SetPointer(0, v)
-}
-
-func (s Value) SetStructValuePtr(v capnp.Ptr) error {
+func (s Value) SetStructValue(v capnp.Ptr) error {
 	s.Struct.SetUint16(0, 16)
 	return s.Struct.SetPtr(0, v)
 }
@@ -2558,8 +2540,8 @@ func (s Value) SetInterface() {
 
 }
 
-func (s Value) AnyPointer() (capnp.Pointer, error) {
-	return s.Struct.Pointer(0)
+func (s Value) AnyPointer() (capnp.Ptr, error) {
+	return s.Struct.Ptr(0)
 }
 
 func (s Value) HasAnyPointer() bool {
@@ -2570,16 +2552,7 @@ func (s Value) HasAnyPointer() bool {
 	return p.IsValid() || err != nil
 }
 
-func (s Value) AnyPointerPtr() (capnp.Ptr, error) {
-	return s.Struct.Ptr(0)
-}
-
-func (s Value) SetAnyPointer(v capnp.Pointer) error {
-	s.Struct.SetUint16(0, 18)
-	return s.Struct.SetPointer(0, v)
-}
-
-func (s Value) SetAnyPointerPtr(v capnp.Ptr) error {
+func (s Value) SetAnyPointer(v capnp.Ptr) error {
 	s.Struct.SetUint16(0, 18)
 	return s.Struct.SetPtr(0, v)
 }
@@ -2633,7 +2606,7 @@ func NewRootAnnotation(s *capnp.Segment) (Annotation, error) {
 }
 
 func ReadRootAnnotation(msg *capnp.Message) (Annotation, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Annotation{root.Struct()}, err
 }
 
@@ -2825,7 +2798,7 @@ func NewRootCodeGeneratorRequest(s *capnp.Segment) (CodeGeneratorRequest, error)
 }
 
 func ReadRootCodeGeneratorRequest(msg *capnp.Message) (CodeGeneratorRequest, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return CodeGeneratorRequest{root.Struct()}, err
 }
 
@@ -2920,7 +2893,7 @@ func NewRootCodeGeneratorRequest_RequestedFile(s *capnp.Segment) (CodeGeneratorR
 }
 
 func ReadRootCodeGeneratorRequest_RequestedFile(msg *capnp.Message) (CodeGeneratorRequest_RequestedFile, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return CodeGeneratorRequest_RequestedFile{root.Struct()}, err
 }
 
@@ -3017,7 +2990,7 @@ func NewRootCodeGeneratorRequest_RequestedFile_Import(s *capnp.Segment) (CodeGen
 }
 
 func ReadRootCodeGeneratorRequest_RequestedFile_Import(msg *capnp.Message) (CodeGeneratorRequest_RequestedFile_Import, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return CodeGeneratorRequest_RequestedFile_Import{root.Struct()}, err
 }
 

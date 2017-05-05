@@ -12,17 +12,17 @@ func TestToInterface(t *testing.T) {
 		t.Fatal(err)
 	}
 	tests := []struct {
-		ptr Pointer
+		ptr Ptr
 		in  Interface
 	}{
-		{nil, Interface{}},
-		{Struct{}, Interface{}},
-		{Struct{seg: seg, off: 0, depthLimit: maxDepth}, Interface{}},
-		{Interface{}, Interface{}},
-		{Interface{seg, 42}, Interface{seg, 42}},
+		{Ptr{}, Interface{}},
+		{Struct{}.ToPtr(), Interface{}},
+		{Struct{seg: seg, off: 0, depthLimit: maxDepth}.ToPtr(), Interface{}},
+		{Interface{}.ToPtr(), Interface{}},
+		{Interface{seg, 42}.ToPtr(), Interface{seg, 42}},
 	}
 	for _, test := range tests {
-		if in := ToInterface(test.ptr); in != test.in {
+		if in := test.ptr.Interface(); in != test.in {
 			t.Errorf("ToInterface(%#v) = %#v; want %#v", test.ptr, in, test.in)
 		}
 	}
@@ -63,14 +63,14 @@ func TestTransform(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	root.SetPointer(1, a)
+	root.SetPtr(1, a.ToPtr())
 	a.SetUint64(0, 1)
 	b, err := NewStruct(s, ObjectSize{DataSize: 8})
 	if err != nil {
 		t.Fatal(err)
 	}
 	b.SetUint64(0, 2)
-	a.SetPointer(0, b)
+	a.SetPtr(0, b.ToPtr())
 
 	dmsg, d, err := NewMessage(SingleSegment(nil))
 	if err != nil {
@@ -80,7 +80,7 @@ func TestTransform(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := dmsg.SetRoot(da); err != nil {
+	if err := dmsg.SetRoot(da.ToPtr()); err != nil {
 		t.Fatal(err)
 	}
 	da.SetUint64(0, 56)
@@ -89,90 +89,90 @@ func TestTransform(t *testing.T) {
 		t.Fatal(err)
 	}
 	db.SetUint64(0, 78)
-	da.SetPointer(0, db)
+	da.SetPtr(0, db.ToPtr())
 
 	tests := []struct {
-		p         Pointer
+		p         Ptr
 		transform []PipelineOp
-		out       Pointer
+		out       Ptr
 	}{
 		{
-			root,
+			root.ToPtr(),
 			nil,
-			root,
+			root.ToPtr(),
 		},
 		{
-			root,
+			root.ToPtr(),
 			[]PipelineOp{},
-			root,
+			root.ToPtr(),
 		},
 		{
-			root,
+			root.ToPtr(),
 			[]PipelineOp{
 				{Field: 0},
 			},
-			nil,
+			Ptr{},
 		},
 		{
-			root,
+			root.ToPtr(),
 			[]PipelineOp{
 				{Field: 0, DefaultValue: mustMarshal(t, dmsg)},
 			},
-			da,
+			da.ToPtr(),
 		},
 		{
-			root,
+			root.ToPtr(),
 			[]PipelineOp{
 				{Field: 1},
 			},
-			a,
+			a.ToPtr(),
 		},
 		{
-			root,
+			root.ToPtr(),
 			[]PipelineOp{
 				{Field: 1, DefaultValue: mustMarshal(t, dmsg)},
 			},
-			a,
+			a.ToPtr(),
 		},
 		{
-			root,
+			root.ToPtr(),
 			[]PipelineOp{
 				{Field: 1},
 				{Field: 0},
 			},
-			b,
+			b.ToPtr(),
 		},
 		{
-			root,
+			root.ToPtr(),
 			[]PipelineOp{
 				{Field: 0},
 				{Field: 0},
 			},
-			nil,
+			Ptr{},
 		},
 		{
-			root,
+			root.ToPtr(),
 			[]PipelineOp{
 				{Field: 0, DefaultValue: mustMarshal(t, dmsg)},
 				{Field: 0},
 			},
-			db,
+			db.ToPtr(),
 		},
 		{
-			root,
+			root.ToPtr(),
 			[]PipelineOp{
 				{Field: 0},
 				{Field: 0, DefaultValue: mustMarshal(t, dmsg)},
 			},
-			da,
+			da.ToPtr(),
 		},
 		{
-			root,
+			root.ToPtr(),
 			[]PipelineOp{
 				{Field: 0, DefaultValue: mustMarshal(t, dmsg)},
 				{Field: 1, DefaultValue: mustMarshal(t, dmsg)},
 			},
-			da,
+			da.ToPtr(),
 		},
 	}
 
@@ -263,11 +263,11 @@ func mustMarshal(t *testing.T, msg *Message) []byte {
 	return data
 }
 
-func deepPointerEqual(a, b Pointer) bool {
-	if a == nil && b == nil {
+func deepPointerEqual(a, b Ptr) bool {
+	if !a.IsValid() && !b.IsValid() {
 		return true
 	}
-	if a == nil || b == nil {
+	if !a.IsValid() || !b.IsValid() {
 		return false
 	}
 	msgA, _, _ := NewMessage(SingleSegment(nil))

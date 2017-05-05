@@ -22,20 +22,6 @@ func NewInterface(s *Segment, cap CapabilityID) Interface {
 	}
 }
 
-// ToInterface converts p to an Interface.
-//
-// Deprecated: Use Ptr.Interface.
-func ToInterface(p Pointer) Interface {
-	if !IsValid(p) {
-		return Interface{}
-	}
-	i, ok := p.underlying().(Interface)
-	if !ok {
-		return Interface{}
-	}
-	return i
-}
-
 // ToPtr converts the interface to a generic pointer.
 func (p Interface) ToPtr() Ptr {
 	return Ptr{
@@ -71,10 +57,6 @@ func (i Interface) value(paddr Address) rawPointer {
 		return 0
 	}
 	return rawInterfacePointer(i.cap)
-}
-
-func (i Interface) underlying() Pointer {
-	return i
 }
 
 // Client returns the client stored in the message's capability table
@@ -286,7 +268,7 @@ func (p *Pipeline) Struct() (Struct, error) {
 	if err != nil {
 		return Struct{}, err
 	}
-	ptr, err := TransformPtr(s.ToPtr(), p.Transform())
+	ptr, err := Transform(s.ToPtr(), p.Transform())
 	if err != nil {
 		return Struct{}, err
 	}
@@ -387,16 +369,7 @@ func (m *Method) String() string {
 
 // Transform applies a sequence of pipeline operations to a pointer
 // and returns the result.
-//
-// Deprecated: Use TransformPtr.
-func Transform(p Pointer, transform []PipelineOp) (Pointer, error) {
-	pp, err := TransformPtr(toPtr(p), transform)
-	return pp.toPointer(), err
-}
-
-// TransformPtr applies a sequence of pipeline operations to a pointer
-// and returns the result.
-func TransformPtr(p Ptr, transform []PipelineOp) (Ptr, error) {
+func Transform(p Ptr, transform []PipelineOp) (Ptr, error) {
 	n := len(transform)
 	if n == 0 {
 		return p, nil
@@ -437,7 +410,7 @@ func (ans immediateAnswer) Struct() (Struct, error) {
 }
 
 func (ans immediateAnswer) findClient(transform []PipelineOp) Client {
-	p, err := TransformPtr(ans.s.ToPtr(), transform)
+	p, err := Transform(ans.s.ToPtr(), transform)
 	if err != nil {
 		return ErrorClient(err)
 	}

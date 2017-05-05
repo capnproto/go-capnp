@@ -34,7 +34,7 @@ func ExampleExtract() {
 	if err != nil {
 		panic(err)
 	}
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	if err != nil {
 		panic(err)
 	}

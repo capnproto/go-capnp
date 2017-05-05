@@ -24,7 +24,7 @@ func (sd *staticData) copyData(obj capnp.Ptr) (staticDataRef, error) {
 	if err != nil {
 		return staticDataRef{}, err
 	}
-	err = m.SetRootPtr(obj)
+	err = m.SetRoot(obj)
 	if err != nil {
 		return staticDataRef{}, err
 	}

@@ -11,7 +11,7 @@ func NewRoot{{.Node.Name}}(s *{{.G.Capnp}}.Segment) ({{.Node.Name}}, error) {
 }
 
 func ReadRoot{{.Node.Name}}(msg *{{.G.Capnp}}.Message) ({{.Node.Name}}, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return {{.Node.Name}}{root.Struct()}, err
 }
 {{if .StringMethod}}

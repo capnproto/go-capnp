@@ -345,7 +345,7 @@ func (g *generator) Value(rel *node, t schema.Type, v schema.Value) (string, err
 		return qname + "." + ev.FullName(), nil
 
 	case schema.Type_Which_structType:
-		data, _ := v.StructValuePtr()
+		data, _ := v.StructValue()
 		var buf bytes.Buffer
 		tn, err := g.nodes.mustFind(t.StructType().TypeId())
 		if err != nil {
@@ -364,7 +364,7 @@ func (g *generator) Value(rel *node, t schema.Type, v schema.Value) (string, err
 		return buf.String(), err
 
 	case schema.Type_Which_anyPointer:
-		data, _ := v.AnyPointerPtr()
+		data, _ := v.AnyPointer()
 		var buf bytes.Buffer
 		sd, err := g.data.copyData(data)
 		if err != nil {
@@ -377,7 +377,7 @@ func (g *generator) Value(rel *node, t schema.Type, v schema.Value) (string, err
 		return buf.String(), err
 
 	case schema.Type_Which_list:
-		data, _ := v.ListPtr()
+		data, _ := v.List()
 		var buf bytes.Buffer
 		ftyp, err := g.RemoteTypeName(t, rel)
 		if err != nil {
@@ -559,7 +559,7 @@ func (g *generator) defineField(n *node, f field) (err error) {
 
 	case schema.Type_Which_structType:
 		var defref staticDataRef
-		if sf, err := def.StructValuePtr(); err != nil {
+		if sf, err := def.StructValue(); err != nil {
 			return err
 		} else if sf.IsValid() {
 			defref, err = g.data.copyData(sf)
@@ -579,7 +579,7 @@ func (g *generator) defineField(n *node, f field) (err error) {
 
 	case schema.Type_Which_anyPointer:
 		var defref staticDataRef
-		if p, err := def.AnyPointerPtr(); err != nil {
+		if p, err := def.AnyPointer(); err != nil {
 			return err
 		} else if p.IsValid() {
 			defref, err = g.data.copyData(p)
@@ -594,7 +594,7 @@ func (g *generator) defineField(n *node, f field) (err error) {
 
 	case schema.Type_Which_list:
 		var defref staticDataRef
-		if l, err := def.ListPtr(); err != nil {
+		if l, err := def.List(); err != nil {
 			return err
 		} else if l.IsValid() {
 			defref, err = g.data.copyData(l)
@@ -1004,7 +1004,7 @@ func (g *generator) definePromiseField(n *node, f field) error {
 			Struct: ni,
 		}
 		if def, _ := slot.DefaultValue(); def.IsValid() && def.Which() == schema.Value_Which_structValue {
-			if sf, _ := def.StructValuePtr(); sf.IsValid() {
+			if sf, _ := def.StructValue(); sf.IsValid() {
 				params.Default, err = g.data.copyData(sf)
 				if err != nil {
 					return err

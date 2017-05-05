@@ -582,7 +582,7 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := mat.Set(0, row0); err != nil {
+		if err := mat.Set(0, row0.ToPtr()); err != nil {
 			t.Fatal(err)
 		}
 		initNester(t, row0.At(0), "z", "w")
@@ -592,7 +592,7 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := mat.Set(1, row1); err != nil {
+		if err := mat.Set(1, row1.ToPtr()); err != nil {
 			t.Fatal(err)
 		}
 		initNester(t, row1.At(0), "zebra", "wally")
@@ -1107,7 +1107,7 @@ func TestReadNestedListOfStructWithList(t *testing.T) {
 			t.Errorf("RWTestCapn.nestMatrix[%d]: %v", i, err)
 			return
 		}
-		rowList := air.Nester1Capn_List{List: capnp.ToList(row)}
+		rowList := air.Nester1Capn_List{List: row.List()}
 		if j >= rowList.Len() {
 			t.Errorf("len(RWTestCapn.nestMatrix[%d]) = %d; tried to index %d", i, rowList.Len(), j)
 			return
@@ -1542,12 +1542,12 @@ func TestDataVersioningZeroPointersToMore(t *testing.T) {
 		}
 		if ptr1, err := ele.Ptr1(); err != nil {
 			t.Errorf("HoldsVerTwoTwoList.mylist[%d].ptr1: %v", i, err)
-		} else if capnp.IsValid(ptr1) {
+		} else if ptr1.IsValid() {
 			t.Errorf("HoldsVerTwoTwoList.mylist[%d].ptr1 = %#v; want invalid (nil)", i, ptr1)
 		}
 		if ptr2, err := ele.Ptr2(); err != nil {
 			t.Errorf("HoldsVerTwoTwoList.mylist[%d].ptr2: %v", i, err)
-		} else if capnp.IsValid(ptr2) {
+		} else if ptr2.IsValid() {
 			t.Errorf("HoldsVerTwoTwoList.mylist[%d].ptr2 = %#v; want invalid (nil)", i, ptr2)
 		}
 	}
@@ -1884,13 +1884,13 @@ func TestPointerTraverseDefense(t *testing.T) {
 	}
 
 	for i := 0; i < limit; i++ {
-		_, err := msg.RootPtr()
+		_, err := msg.Root()
 		if err != nil {
 			t.Fatalf("iteration %d RootPtr: %v", i, err)
 		}
 	}
 
-	if _, err := msg.RootPtr(); err == nil {
+	if _, err := msg.Root(); err == nil {
 		t.Fatalf("deref %d did not fail as expected", limit+1)
 	}
 }
@@ -1910,25 +1910,25 @@ func TestPointerDepthDefense(t *testing.T) {
 		t.Fatal("Root:", err)
 	}
 
-	curr := capnp.ToStruct(root)
-	if !capnp.IsValid(curr) {
+	curr := root.Struct()
+	if !curr.IsValid() {
 		t.Fatal("Root is not a struct")
 	}
 	for i := 0; i < limit-1; i++ {
-		p, err := curr.Pointer(0)
+		p, err := curr.Ptr(0)
 		if err != nil {
 			t.Fatalf("deref %d fail: %v", i+1, err)
 		}
-		if !capnp.IsValid(p) {
+		if !p.IsValid() {
 			t.Fatalf("deref %d is invalid", i+1)
 		}
-		curr = capnp.ToStruct(p)
-		if !capnp.IsValid(curr) {
+		curr = p.Struct()
+		if !curr.IsValid() {
 			t.Fatalf("deref %d is not a struct", i+1)
 		}
 	}
 
-	_, err = curr.Pointer(0)
+	_, err = curr.Ptr(0)
 	if err == nil {
 		t.Fatalf("deref %d did not fail as expected", limit)
 	}
@@ -1946,28 +1946,28 @@ func TestPointerDepthDefenseAcrossStructsAndLists(t *testing.T) {
 		DepthLimit: limit,
 	}
 
-	toStruct := func(p capnp.Pointer, err error) (capnp.Struct, error) {
+	toStruct := func(p capnp.Ptr, err error) (capnp.Struct, error) {
 		if err != nil {
 			return capnp.Struct{}, err
 		}
-		if !capnp.IsValid(p) {
+		if !p.IsValid() {
 			return capnp.Struct{}, errors.New("invalid pointer")
 		}
-		s := capnp.ToStruct(p)
-		if !capnp.IsValid(s) {
+		s := p.Struct()
+		if !s.IsValid() {
 			return capnp.Struct{}, errors.New("not a struct")
 		}
 		return s, nil
 	}
-	toList := func(p capnp.Pointer, err error) (capnp.List, error) {
+	toList := func(p capnp.Ptr, err error) (capnp.List, error) {
 		if err != nil {
 			return capnp.List{}, err
 		}
-		if !capnp.IsValid(p) {
+		if !p.IsValid() {
 			return capnp.List{}, errors.New("invalid pointer")
 		}
-		l := capnp.ToList(p)
-		if !capnp.IsValid(l) {
+		l := p.List()
+		if !l.IsValid() {
 			return capnp.List{}, errors.New("not a list")
 		}
 		return l, nil
@@ -1977,7 +1977,7 @@ func TestPointerDepthDefenseAcrossStructsAndLists(t *testing.T) {
 		t.Fatal("Root:", err)
 	}
 	for i := limit; i > 2; {
-		l, err := toList(curr.Pointer(0))
+		l, err := toList(curr.Ptr(0))
 		if err != nil {
 			t.Fatalf("deref %d (for list): %v", limit-i+1, err)
 		}
@@ -1989,7 +1989,7 @@ func TestPointerDepthDefenseAcrossStructsAndLists(t *testing.T) {
 		i--
 	}
 
-	_, err = curr.Pointer(0)
+	_, err = curr.Ptr(0)
 	if err == nil {
 		t.Fatalf("deref %d did not fail as expected", limit)
 	}

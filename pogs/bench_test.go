@@ -43,7 +43,7 @@ func BenchmarkExtract(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		msg, _ := capnp.Unmarshal(data[r.Intn(len(data))])
-		root, _ := msg.RootPtr()
+		root, _ := msg.Root()
 		var a A
 		Extract(&a, air.BenchmarkA_TypeID, root.Struct())
 	}

@@ -81,7 +81,7 @@ func NewRootVatId(s *capnp.Segment) (VatId, error) {
 }
 
 func ReadRootVatId(msg *capnp.Message) (VatId, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return VatId{root.Struct()}, err
 }
 
@@ -135,7 +135,7 @@ func NewRootProvisionId(s *capnp.Segment) (ProvisionId, error) {
 }
 
 func ReadRootProvisionId(msg *capnp.Message) (ProvisionId, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return ProvisionId{root.Struct()}, err
 }
 
@@ -189,7 +189,7 @@ func NewRootRecipientId(s *capnp.Segment) (RecipientId, error) {
 }
 
 func ReadRootRecipientId(msg *capnp.Message) (RecipientId, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return RecipientId{root.Struct()}, err
 }
 
@@ -235,7 +235,7 @@ func NewRootThirdPartyCapId(s *capnp.Segment) (ThirdPartyCapId, error) {
 }
 
 func ReadRootThirdPartyCapId(msg *capnp.Message) (ThirdPartyCapId, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return ThirdPartyCapId{root.Struct()}, err
 }
 
@@ -283,7 +283,7 @@ func NewRootJoinKeyPart(s *capnp.Segment) (JoinKeyPart, error) {
 }
 
 func ReadRootJoinKeyPart(msg *capnp.Message) (JoinKeyPart, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return JoinKeyPart{root.Struct()}, err
 }
 
@@ -353,7 +353,7 @@ func NewRootJoinResult(s *capnp.Segment) (JoinResult, error) {
 }
 
 func ReadRootJoinResult(msg *capnp.Message) (JoinResult, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return JoinResult{root.Struct()}, err
 }
 
@@ -378,8 +378,8 @@ func (s JoinResult) SetSucceeded(v bool) {
 	s.Struct.SetBit(32, v)
 }
 
-func (s JoinResult) Cap() (capnp.Pointer, error) {
-	return s.Struct.Pointer(0)
+func (s JoinResult) Cap() (capnp.Ptr, error) {
+	return s.Struct.Ptr(0)
 }
 
 func (s JoinResult) HasCap() bool {
@@ -387,15 +387,7 @@ func (s JoinResult) HasCap() bool {
 	return p.IsValid() || err != nil
 }
 
-func (s JoinResult) CapPtr() (capnp.Ptr, error) {
-	return s.Struct.Ptr(0)
-}
-
-func (s JoinResult) SetCap(v capnp.Pointer) error {
-	return s.Struct.SetPointer(0, v)
-}
-
-func (s JoinResult) SetCapPtr(v capnp.Ptr) error {
+func (s JoinResult) SetCap(v capnp.Ptr) error {
 	return s.Struct.SetPtr(0, v)
 }
 

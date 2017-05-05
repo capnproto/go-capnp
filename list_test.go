@@ -15,14 +15,14 @@ func TestToListDefault(t *testing.T) {
 		t.Fatal(err)
 	}
 	tests := []struct {
-		ptr  Pointer
+		ptr  Ptr
 		def  []byte
 		list List
 	}{
-		{nil, nil, List{}},
-		{Struct{}, nil, List{}},
-		{Struct{seg: seg, off: 0, depthLimit: maxDepth}, nil, List{}},
-		{List{}, nil, List{}},
+		{Ptr{}, nil, List{}},
+		{Struct{}.ToPtr(), nil, List{}},
+		{Struct{seg: seg, off: 0, depthLimit: maxDepth}.ToPtr(), nil, List{}},
+		{List{}.ToPtr(), nil, List{}},
 		{
 			ptr: List{
 				seg:        seg,
@@ -30,7 +30,7 @@ func TestToListDefault(t *testing.T) {
 				length:     1,
 				size:       ObjectSize{DataSize: 8},
 				depthLimit: maxDepth,
-			},
+			}.ToPtr(),
 			list: List{
 				seg:        seg,
 				off:        8,
@@ -42,13 +42,13 @@ func TestToListDefault(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		list, err := ToListDefault(test.ptr, test.def)
+		list, err := test.ptr.ListDefault(test.def)
 		if err != nil {
-			t.Errorf("ToListDefault(%#v, % 02x) error: %v", test.ptr, test.def, err)
+			t.Errorf("%#v.ListDefault(% 02x) error: %v", test.ptr, test.def, err)
 			continue
 		}
-		if !deepPointerEqual(list, test.list) {
-			t.Errorf("ToListDefault(%#v, % 02x) = %#v; want %#v", test.ptr, test.def, list, test.list)
+		if !deepPointerEqual(list.ToPtr(), test.list.ToPtr()) {
+			t.Errorf("%#v.ListDefault(% 02x) = %#v; want %#v", test.ptr, test.def, list, test.list)
 		}
 	}
 }

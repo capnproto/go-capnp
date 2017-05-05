@@ -63,7 +63,7 @@ func (f *Fulfiller) Fulfill(s capnp.Struct) {
 func (f *Fulfiller) emptyQueue(s capnp.Struct) map[capnp.CapabilityID][]ecall {
 	qs := make(map[capnp.CapabilityID][]ecall, len(f.queue))
 	for i, pc := range f.queue {
-		c, err := capnp.TransformPtr(s.ToPtr(), pc.transform)
+		c, err := capnp.Transform(s.ToPtr(), pc.transform)
 		if err != nil {
 			pc.f.Reject(err)
 			continue

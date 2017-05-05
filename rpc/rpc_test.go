@@ -160,7 +160,7 @@ func sendBootstrapReturn(ctx context.Context, p rpc.Transport, answerId uint32, 
 		if err != nil {
 			return err
 		}
-		payload.SetContent(capnp.NewInterface(msg.Segment(), 0))
+		payload.SetContent(capnp.NewInterface(msg.Segment(), 0).ToPtr())
 		capTable, err := payload.NewCapTable(1)
 		if err != nil {
 			return err
@@ -247,7 +247,7 @@ func TestCallOnPromisedAnswer(t *testing.T) {
 	} else {
 		if content, err := params.Content(); err != nil {
 			t.Error("call.params.content error:", err)
-		} else if x := capnp.ToStruct(content).Uint64(0); x != 42 {
+		} else if x := content.Struct().Uint64(0); x != 42 {
 			t.Errorf("Params content value = %d; want %d", x, 42)
 		}
 	}
@@ -316,7 +316,7 @@ func testCallOnExportId(t *testing.T, bootstrapIsPromise bool) {
 		t.Error("call.params error:", err)
 	} else if content, err := params.Content(); err != nil {
 		t.Error("call.params.content error:", err)
-	} else if x := capnp.ToStruct(content).Uint64(0); x != 42 {
+	} else if x := content.Struct().Uint64(0); x != 42 {
 		t.Errorf("Params content value = %d; want %d", x, 42)
 	}
 	if sendResultsTo := call.SendResultsTo(); err != nil {
@@ -370,7 +370,7 @@ func bootstrapRoundtrip(t *testing.T, p rpc.Transport) (importID, questionID uin
 	if err != nil {
 		t.Fatal("return.results error:", err)
 	}
-	content, err := payload.ContentPtr()
+	content, err := payload.Content()
 	if err != nil {
 		t.Fatal("return.results.content error:", err)
 	}
@@ -405,7 +405,7 @@ func TestReceiveCallOnPromisedAnswer(t *testing.T) {
 			return capnp.Struct{}, err
 		}
 		called = true
-		if err := msg.SetRoot(result); err != nil {
+		if err := msg.SetRoot(result.ToPtr()); err != nil {
 			return capnp.Struct{}, err
 		}
 		return result, nil
@@ -440,7 +440,7 @@ func TestReceiveCallOnPromisedAnswer(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		payload.SetContent(content)
+		payload.SetContent(content.ToPtr())
 		return nil
 	})
 	if err != nil {
@@ -488,7 +488,7 @@ func TestReceiveCallOnExport(t *testing.T) {
 			return capnp.Struct{}, err
 		}
 		called = true
-		if err := msg.SetRoot(result); err != nil {
+		if err := msg.SetRoot(result.ToPtr()); err != nil {
 			return capnp.Struct{}, err
 		}
 		return result, nil
@@ -520,7 +520,7 @@ func TestReceiveCallOnExport(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		payload.SetContent(content)
+		payload.SetContent(content.ToPtr())
 		return nil
 	})
 	if err != nil {

@@ -206,7 +206,7 @@ func (e *extracter) extractField(val reflect.Value, s capnp.Struct, f schema.Fie
 		}
 		ss := p.Struct()
 		if !ss.IsValid() {
-			p, _ = dv.StructValuePtr()
+			p, _ = dv.StructValue()
 			ss = p.Struct()
 		}
 		return e.extractStruct(val, typ.StructType().TypeId(), ss)
@@ -217,7 +217,7 @@ func (e *extracter) extractField(val reflect.Value, s capnp.Struct, f schema.Fie
 		}
 		l := p.List()
 		if !l.IsValid() {
-			p, _ = dv.ListPtr()
+			p, _ = dv.List()
 			l = p.List()
 		}
 		return e.extractList(val, typ, l)
@@ -335,7 +335,7 @@ func (e *extracter) extractList(val reflect.Value, typ schema.Type, l capnp.List
 		}
 	case schema.Type_Which_list:
 		for i := 0; i < n; i++ {
-			p, err := capnp.PointerList{List: l}.PtrAt(i)
+			p, err := capnp.PointerList{List: l}.At(i)
 			// TODO(light): collect errors and finish
 			if err != nil {
 				return err

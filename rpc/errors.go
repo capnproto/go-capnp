@@ -31,10 +31,10 @@ func copyAbort(m rpccapnp.Message) (Abort, error) {
 		return Abort{}, err
 	}
 	msg, _, _ := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err := msg.SetRootPtr(ma.ToPtr()); err != nil {
+	if err := msg.SetRoot(ma.ToPtr()); err != nil {
 		return Abort{}, err
 	}
-	p, err := msg.RootPtr()
+	p, err := msg.Root()
 	if err != nil {
 		return Abort{}, err
 	}

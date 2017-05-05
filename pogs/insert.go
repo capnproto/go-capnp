@@ -313,7 +313,7 @@ func (ins *inserter) insertList(l capnp.List, typ schema.Type, val reflect.Value
 			for i := 0; i < n; i++ {
 				b := val.Index(i).Bytes()
 				if len(b) == 0 {
-					err := capnp.PointerList{List: l}.SetPtr(i, capnp.Ptr{})
+					err := capnp.PointerList{List: l}.Set(i, capnp.Ptr{})
 					if err != nil {
 						// TODO(light): collect errors and finish
 						return err
@@ -324,7 +324,7 @@ func (ins *inserter) insertList(l capnp.List, typ schema.Type, val reflect.Value
 					// TODO(light): collect errors and finish
 					return err
 				}
-				err = capnp.PointerList{List: l}.SetPtr(i, t.ToPtr())
+				err = capnp.PointerList{List: l}.Set(i, t.ToPtr())
 				if err != nil {
 					// TODO(light): collect errors and finish
 					return err
@@ -335,7 +335,7 @@ func (ins *inserter) insertList(l capnp.List, typ schema.Type, val reflect.Value
 		for i := 0; i < n; i++ {
 			b := val.Index(i).Bytes()
 			if len(b) == 0 {
-				err := capnp.PointerList{List: l}.SetPtr(i, capnp.Ptr{})
+				err := capnp.PointerList{List: l}.Set(i, capnp.Ptr{})
 				if err != nil {
 					// TODO(light): collect errors and finish
 					return err
@@ -352,7 +352,7 @@ func (ins *inserter) insertList(l capnp.List, typ schema.Type, val reflect.Value
 		for i := 0; i < n; i++ {
 			vi := val.Index(i)
 			if vi.IsNil() {
-				if err := pl.SetPtr(i, capnp.Ptr{}); err != nil {
+				if err := pl.Set(i, capnp.Ptr{}); err != nil {
 					return err
 				}
 				continue
@@ -365,7 +365,7 @@ func (ins *inserter) insertList(l capnp.List, typ schema.Type, val reflect.Value
 			if err != nil {
 				return err
 			}
-			if err := pl.SetPtr(i, li.ToPtr()); err != nil {
+			if err := pl.Set(i, li.ToPtr()); err != nil {
 				return err
 			}
 			if err := ins.insertList(li, elem, vi); err != nil {
@@ -385,7 +385,7 @@ func (ins *inserter) insertList(l capnp.List, typ schema.Type, val reflect.Value
 		pl := capnp.PointerList{List: l}
 		for i := 0; i < n; i++ {
 			ptr := capPtr(l.Segment(), val.Index(i))
-			if err := pl.SetPtr(i, ptr); err != nil {
+			if err := pl.Set(i, ptr); err != nil {
 				// TODO(zenhack): collect errors and finish
 				return err
 			}
@@ -477,7 +477,7 @@ func isEmptyValue(v schema.Value) bool {
 		b, _ := v.Data()
 		return len(b) == 0
 	case schema.Value_Which_list:
-		p, _ := v.ListPtr()
+		p, _ := v.List()
 		return p.List().Len() == 0
 	default:
 		return false

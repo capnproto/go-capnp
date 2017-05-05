@@ -416,7 +416,7 @@ func (c *Conn) fillParams(payload rpccapnp.Payload, cl *capnp.Call) error {
 	if err != nil {
 		return err
 	}
-	if err := payload.SetContent(params); err != nil {
+	if err := payload.SetContent(params.ToPtr()); err != nil {
 		return err
 	}
 	ctab, err := c.makeCapTable(payload.Segment())
@@ -481,7 +481,7 @@ func (c *Conn) handleReturnMessage(m rpccapnp.Message) error {
 			c.abort(err)
 			return err
 		}
-		content, err := results.ContentPtr()
+		content, err := results.Content()
 		if err != nil {
 			return err
 		}
@@ -675,7 +675,7 @@ func (c *Conn) handleCallMessage(m rpccapnp.Message) error {
 		InterfaceID: mcall.InterfaceId(),
 		MethodID:    mcall.MethodId(),
 	}
-	paramContent, err := mparams.ContentPtr()
+	paramContent, err := mparams.Content()
 	if err != nil {
 		return err
 	}
@@ -854,7 +854,7 @@ func clientFromResolution(transform []capnp.PipelineOp, obj capnp.Ptr, err error
 	if err != nil {
 		return capnp.ErrorClient(err)
 	}
-	out, err := capnp.TransformPtr(obj, transform)
+	out, err := capnp.Transform(obj, transform)
 	if err != nil {
 		return capnp.ErrorClient(err)
 	}

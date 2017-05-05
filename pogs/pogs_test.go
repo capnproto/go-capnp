@@ -1075,7 +1075,7 @@ func zequal(g *Z, c air.Z) (bool, error) {
 			return false, err
 		}
 		return listeq(g.Zvecvec != nil, len(g.Zvecvec), vv.List, func(i int) (bool, error) {
-			p, err := vv.PtrAt(i)
+			p, err := vv.At(i)
 			if err != nil {
 				return false, err
 			}
@@ -1392,7 +1392,7 @@ func zfill(c air.Z, g *Z) error {
 			if err != nil {
 				return err
 			}
-			if err := vv.SetPtr(i, v.ToPtr()); err != nil {
+			if err := vv.Set(i, v.ToPtr()); err != nil {
 				return err
 			}
 			for j, z := range zz {

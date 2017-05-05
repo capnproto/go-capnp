@@ -109,7 +109,7 @@ func (q *question) fulfill(obj capnp.Ptr) {
 	}
 	visited := make([]bool, len(ctab))
 	for _, d := range q.derived {
-		tgt, err := capnp.TransformPtr(obj, d)
+		tgt, err := capnp.Transform(obj, d)
 		if err != nil {
 			continue
 		}
@@ -295,7 +295,7 @@ func (q *question) PipelineClose(transform []capnp.PipelineOp) error {
 	if err != nil {
 		return err
 	}
-	x, err := capnp.TransformPtr(obj, transform)
+	x, err := capnp.Transform(obj, transform)
 	if err != nil {
 		return err
 	}

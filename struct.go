@@ -34,32 +34,10 @@ func NewRootStruct(s *Segment, sz ObjectSize) (Struct, error) {
 	if err != nil {
 		return st, err
 	}
-	if err := s.msg.SetRootPtr(st.ToPtr()); err != nil {
+	if err := s.msg.SetRoot(st.ToPtr()); err != nil {
 		return st, err
 	}
 	return st, nil
-}
-
-// ToStruct converts p to a Struct.
-//
-// Deprecated: Use Ptr.Struct.
-func ToStruct(p Pointer) Struct {
-	if !IsValid(p) {
-		return Struct{}
-	}
-	s, ok := p.underlying().(Struct)
-	if !ok {
-		return Struct{}
-	}
-	return s
-}
-
-// ToStructDefault attempts to convert p into a struct, reading the
-// default value from def if p is not a struct.
-//
-// Deprecated: Use Ptr.StructDefault.
-func ToStructDefault(p Pointer, def []byte) (Struct, error) {
-	return toPtr(p).StructDefault(def)
 }
 
 // ToPtr converts the struct to a generic pointer.
@@ -113,31 +91,12 @@ func (p Struct) value(paddr Address) rawPointer {
 	return rawStructPointer(off, p.size)
 }
 
-func (p Struct) underlying() Pointer {
-	return p
-}
-
-// Pointer returns the i'th pointer in the struct.
-//
-// Deprecated: Use Ptr.
-func (p Struct) Pointer(i uint16) (Pointer, error) {
-	pp, err := p.Ptr(i)
-	return pp.toPointer(), err
-}
-
 // Ptr returns the i'th pointer in the struct.
 func (p Struct) Ptr(i uint16) (Ptr, error) {
 	if p.seg == nil || i >= p.size.PointerCount {
 		return Ptr{}, nil
 	}
 	return p.seg.readPtr(p.pointerAddress(i), p.depthLimit)
-}
-
-// SetPointer sets the i'th pointer in the struct to src.
-//
-// Deprecated: Use SetPtr.
-func (p Struct) SetPointer(i uint16, src Pointer) error {
-	return p.SetPtr(i, toPtr(src))
 }
 
 // SetPtr sets the i'th pointer in the struct to src.

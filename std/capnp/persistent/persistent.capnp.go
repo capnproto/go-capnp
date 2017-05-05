@@ -95,7 +95,7 @@ func NewRootPersistent_SaveParams(s *capnp.Segment) (Persistent_SaveParams, erro
 }
 
 func ReadRootPersistent_SaveParams(msg *capnp.Message) (Persistent_SaveParams, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Persistent_SaveParams{root.Struct()}, err
 }
 
@@ -104,8 +104,8 @@ func (s Persistent_SaveParams) String() string {
 	return str
 }
 
-func (s Persistent_SaveParams) SealFor() (capnp.Pointer, error) {
-	return s.Struct.Pointer(0)
+func (s Persistent_SaveParams) SealFor() (capnp.Ptr, error) {
+	return s.Struct.Ptr(0)
 }
 
 func (s Persistent_SaveParams) HasSealFor() bool {
@@ -113,15 +113,7 @@ func (s Persistent_SaveParams) HasSealFor() bool {
 	return p.IsValid() || err != nil
 }
 
-func (s Persistent_SaveParams) SealForPtr() (capnp.Ptr, error) {
-	return s.Struct.Ptr(0)
-}
-
-func (s Persistent_SaveParams) SetSealFor(v capnp.Pointer) error {
-	return s.Struct.SetPointer(0, v)
-}
-
-func (s Persistent_SaveParams) SetSealForPtr(v capnp.Ptr) error {
+func (s Persistent_SaveParams) SetSealFor(v capnp.Ptr) error {
 	return s.Struct.SetPtr(0, v)
 }
 
@@ -170,7 +162,7 @@ func NewRootPersistent_SaveResults(s *capnp.Segment) (Persistent_SaveResults, er
 }
 
 func ReadRootPersistent_SaveResults(msg *capnp.Message) (Persistent_SaveResults, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Persistent_SaveResults{root.Struct()}, err
 }
 
@@ -179,8 +171,8 @@ func (s Persistent_SaveResults) String() string {
 	return str
 }
 
-func (s Persistent_SaveResults) SturdyRef() (capnp.Pointer, error) {
-	return s.Struct.Pointer(0)
+func (s Persistent_SaveResults) SturdyRef() (capnp.Ptr, error) {
+	return s.Struct.Ptr(0)
 }
 
 func (s Persistent_SaveResults) HasSturdyRef() bool {
@@ -188,15 +180,7 @@ func (s Persistent_SaveResults) HasSturdyRef() bool {
 	return p.IsValid() || err != nil
 }
 
-func (s Persistent_SaveResults) SturdyRefPtr() (capnp.Ptr, error) {
-	return s.Struct.Ptr(0)
-}
-
-func (s Persistent_SaveResults) SetSturdyRef(v capnp.Pointer) error {
-	return s.Struct.SetPointer(0, v)
-}
-
-func (s Persistent_SaveResults) SetSturdyRefPtr(v capnp.Ptr) error {
+func (s Persistent_SaveResults) SetSturdyRef(v capnp.Ptr) error {
 	return s.Struct.SetPtr(0, v)
 }
 
@@ -354,7 +338,7 @@ func NewRootRealmGateway_import_Params(s *capnp.Segment) (RealmGateway_import_Pa
 }
 
 func ReadRootRealmGateway_import_Params(msg *capnp.Message) (RealmGateway_import_Params, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return RealmGateway_import_Params{root.Struct()}, err
 }
 
@@ -456,7 +440,7 @@ func NewRootRealmGateway_export_Params(s *capnp.Segment) (RealmGateway_export_Pa
 }
 
 func ReadRootRealmGateway_export_Params(msg *capnp.Message) (RealmGateway_export_Params, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return RealmGateway_export_Params{root.Struct()}, err
 }
 

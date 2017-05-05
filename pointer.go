@@ -11,21 +11,6 @@ type Ptr struct {
 	flags      ptrFlags
 }
 
-func toPtr(p Pointer) Ptr {
-	if p == nil {
-		return Ptr{}
-	}
-	switch p := p.underlying().(type) {
-	case Struct:
-		return p.ToPtr()
-	case List:
-		return p.ToPtr()
-	case Interface:
-		return p.ToPtr()
-	}
-	return Ptr{}
-}
-
 // Struct converts p to a Struct. If p does not hold a Struct pointer,
 // the zero value is returned.
 func (p Ptr) Struct() Struct {
@@ -178,21 +163,6 @@ func (p Ptr) DataDefault(def []byte) []byte {
 	return b
 }
 
-func (p Ptr) toPointer() Pointer {
-	if p.seg == nil {
-		return nil
-	}
-	switch p.flags.ptrType() {
-	case structPtrType:
-		return p.Struct()
-	case listPtrType:
-		return p.List()
-	case interfacePtrType:
-		return p.Interface()
-	}
-	return nil
-}
-
 // IsValid reports whether p is valid.
 func (p Ptr) IsValid() bool {
 	return p.seg != nil
@@ -235,57 +205,12 @@ func (p Ptr) address() Address {
 	panic("ptr not a valid struct or list")
 }
 
-// A value that implements Pointer is a reference to a Cap'n Proto object.
-//
-// Deprecated: Using this type introduces an unnecessary allocation.
-// Use Ptr instead.
-type Pointer interface {
-	// Segment returns the segment this pointer points into.
-	// If nil, then this is an invalid pointer.
-	Segment() *Segment
-
-	// HasData reports whether the object referenced by the pointer has
-	// non-zero size.
-	HasData() bool
-
-	// value converts the pointer into a raw value.
-	value(paddr Address) rawPointer
-
-	// underlying returns a Pointer that is one of a Struct, a List, or an
-	// Interface.
-	underlying() Pointer
-}
-
-// IsValid reports whether p is valid.
-//
-// Deprecated: Use Ptr.IsValid instead.
-func IsValid(p Pointer) bool {
-	return p != nil && p.Segment() != nil
-}
-
-// HasData reports whether p has non-zero size.
-//
-// Deprecated: There are usually better ways to determine this
-// information: length of a list, checking fields, or using HasFoo
-// accessors.
-func HasData(p Pointer) bool {
-	return IsValid(p) && p.HasData()
-}
-
-// PointerDefault returns p if it is valid, otherwise it unmarshals def.
-//
-// Deprecated: Use Ptr.Default.
-func PointerDefault(p Pointer, def []byte) (Pointer, error) {
-	pp, err := toPtr(p).Default(def)
-	return pp.toPointer(), err
-}
-
 func unmarshalDefault(def []byte) (Ptr, error) {
 	msg, err := Unmarshal(def)
 	if err != nil {
 		return Ptr{}, err
 	}
-	p, err := msg.RootPtr()
+	p, err := msg.Root()
 	if err != nil {
 		return Ptr{}, err
 	}

@@ -106,7 +106,7 @@ func TestEncode(t *testing.T) {
 			t.Errorf("(%s @%#x).const.value is a %v; want struct", dn, test.constID, v.Which())
 			continue
 		}
-		sv, err := v.StructValuePtr()
+		sv, err := v.StructValue()
 		if err != nil {
 			t.Errorf("(%s @%#x).const.value.struct: %v", dn, test.constID, err)
 			continue

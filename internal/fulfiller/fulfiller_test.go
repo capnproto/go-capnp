@@ -56,7 +56,7 @@ func TestFulfiller_RejectShouldResolve(t *testing.T) {
 	if err != e {
 		t.Errorf("f.Struct() error = %v; want %v", err, e)
 	}
-	if capnp.IsValid(ret) {
+	if ret.IsValid() {
 		t.Errorf("f.Struct() = %v; want null", ret)
 	}
 }
@@ -66,7 +66,7 @@ func TestFulfiller_QueuedCallsDeliveredInOrder(t *testing.T) {
 	oc := new(orderClient)
 	result := newStruct(t, capnp.ObjectSize{PointerCount: 1})
 	in := result.Segment().Message().AddCap(oc)
-	result.SetPointer(0, capnp.NewInterface(result.Segment(), in))
+	result.SetPtr(0, capnp.NewInterface(result.Segment(), in).ToPtr())
 
 	ans1 := f.PipelineCall([]capnp.PipelineOp{{Field: 0}}, new(capnp.Call))
 	ans2 := f.PipelineCall([]capnp.PipelineOp{{Field: 0}}, new(capnp.Call))

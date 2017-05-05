@@ -250,7 +250,7 @@ func (enc *Encoder) marshalFieldValue(s capnp.Struct, f schema.Field) error {
 			return err
 		}
 		if !p.IsValid() {
-			p, _ = dv.StructValuePtr()
+			p, _ = dv.StructValue()
 		}
 		return enc.marshalStruct(typ.StructType().TypeId(), p.Struct())
 	case schema.Type_Which_data:
@@ -285,7 +285,7 @@ func (enc *Encoder) marshalFieldValue(s capnp.Struct, f schema.Field) error {
 			return err
 		}
 		if !p.IsValid() {
-			p, _ = dv.ListPtr()
+			p, _ = dv.List()
 		}
 		return enc.marshalList(elem, p.List())
 	case schema.Type_Which_enum:
@@ -454,7 +454,7 @@ func (enc *Encoder) marshalList(elem schema.Type, l capnp.List) error {
 			if i > 0 {
 				enc.w.WriteString(", ")
 			}
-			p, err := capnp.PointerList{List: l}.PtrAt(i)
+			p, err := capnp.PointerList{List: l}.At(i)
 			if err != nil {
 				return err
 			}

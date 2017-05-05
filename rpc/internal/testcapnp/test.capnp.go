@@ -114,7 +114,7 @@ func NewRootHandleFactory_newHandle_Params(s *capnp.Segment) (HandleFactory_newH
 }
 
 func ReadRootHandleFactory_newHandle_Params(msg *capnp.Message) (HandleFactory_newHandle_Params, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return HandleFactory_newHandle_Params{root.Struct()}, err
 }
 
@@ -164,7 +164,7 @@ func NewRootHandleFactory_newHandle_Results(s *capnp.Segment) (HandleFactory_new
 }
 
 func ReadRootHandleFactory_newHandle_Results(msg *capnp.Message) (HandleFactory_newHandle_Results, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return HandleFactory_newHandle_Results{root.Struct()}, err
 }
 
@@ -302,7 +302,7 @@ func NewRootHanger_hang_Params(s *capnp.Segment) (Hanger_hang_Params, error) {
 }
 
 func ReadRootHanger_hang_Params(msg *capnp.Message) (Hanger_hang_Params, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Hanger_hang_Params{root.Struct()}, err
 }
 
@@ -352,7 +352,7 @@ func NewRootHanger_hang_Results(s *capnp.Segment) (Hanger_hang_Results, error) {
 }
 
 func ReadRootHanger_hang_Results(msg *capnp.Message) (Hanger_hang_Results, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Hanger_hang_Results{root.Struct()}, err
 }
 
@@ -467,7 +467,7 @@ func NewRootCallOrder_getCallSequence_Params(s *capnp.Segment) (CallOrder_getCal
 }
 
 func ReadRootCallOrder_getCallSequence_Params(msg *capnp.Message) (CallOrder_getCallSequence_Params, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return CallOrder_getCallSequence_Params{root.Struct()}, err
 }
 
@@ -525,7 +525,7 @@ func NewRootCallOrder_getCallSequence_Results(s *capnp.Segment) (CallOrder_getCa
 }
 
 func ReadRootCallOrder_getCallSequence_Results(msg *capnp.Message) (CallOrder_getCallSequence_Results, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return CallOrder_getCallSequence_Results{root.Struct()}, err
 }
 
@@ -684,7 +684,7 @@ func NewRootEchoer_echo_Params(s *capnp.Segment) (Echoer_echo_Params, error) {
 }
 
 func ReadRootEchoer_echo_Params(msg *capnp.Message) (Echoer_echo_Params, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Echoer_echo_Params{root.Struct()}, err
 }
 
@@ -757,7 +757,7 @@ func NewRootEchoer_echo_Results(s *capnp.Segment) (Echoer_echo_Results, error) {
 }
 
 func ReadRootEchoer_echo_Results(msg *capnp.Message) (Echoer_echo_Results, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Echoer_echo_Results{root.Struct()}, err
 }
 
@@ -895,7 +895,7 @@ func NewRootPingPong_echoNum_Params(s *capnp.Segment) (PingPong_echoNum_Params, 
 }
 
 func ReadRootPingPong_echoNum_Params(msg *capnp.Message) (PingPong_echoNum_Params, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return PingPong_echoNum_Params{root.Struct()}, err
 }
 
@@ -953,7 +953,7 @@ func NewRootPingPong_echoNum_Results(s *capnp.Segment) (PingPong_echoNum_Results
 }
 
 func ReadRootPingPong_echoNum_Results(msg *capnp.Message) (PingPong_echoNum_Results, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return PingPong_echoNum_Results{root.Struct()}, err
 }
 
@@ -1076,7 +1076,7 @@ func NewRootAdder_add_Params(s *capnp.Segment) (Adder_add_Params, error) {
 }
 
 func ReadRootAdder_add_Params(msg *capnp.Message) (Adder_add_Params, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Adder_add_Params{root.Struct()}, err
 }
 
@@ -1140,7 +1140,7 @@ func NewRootAdder_add_Results(s *capnp.Segment) (Adder_add_Results, error) {
 }
 
 func ReadRootAdder_add_Results(msg *capnp.Message) (Adder_add_Results, error) {
-	root, err := msg.RootPtr()
+	root, err := msg.Root()
 	return Adder_add_Results{root.Struct()}, err
 }
 
