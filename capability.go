@@ -41,11 +41,6 @@ func (i Interface) IsValid() bool {
 	return i.seg != nil
 }
 
-// HasData is always true.
-func (i Interface) HasData() bool {
-	return true
-}
-
 // Capability returns the capability ID of the interface.
 func (i Interface) Capability() CapabilityID {
 	return i.cap

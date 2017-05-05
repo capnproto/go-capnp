@@ -71,11 +71,6 @@ func (p Struct) Size() ObjectSize {
 	return p.size
 }
 
-// HasData reports whether the struct has a non-zero size.
-func (p Struct) HasData() bool {
-	return !p.size.isZero()
-}
-
 // readSize returns the struct's size for the purposes of read limit
 // accounting.
 func (p Struct) readSize() Size {

@@ -83,15 +83,6 @@ func (p List) IsValid() bool {
 	return p.seg != nil
 }
 
-// HasData reports whether the list's total size is non-zero.
-func (p List) HasData() bool {
-	sz, ok := p.size.totalSize().times(p.length)
-	if !ok {
-		return false
-	}
-	return sz > 0
-}
-
 // readSize returns the list's size for the purposes of read limit
 // accounting.
 func (p List) readSize() Size {
