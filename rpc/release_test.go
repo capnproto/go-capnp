@@ -92,8 +92,7 @@ func TestReleaseAlias(t *testing.T) {
 
 func flushConn(ctx context.Context, c *rpc.Conn) {
 	// discard result
-	c.Bootstrap(ctx).Call(&capnp.Call{
-		Ctx:    ctx,
+	c.Bootstrap(ctx).Call(ctx, &capnp.Call{
 		Method: capnp.Method{InterfaceID: 0xdeadbeef, MethodID: 42},
 	}).Struct()
 }

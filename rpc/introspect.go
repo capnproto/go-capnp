@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"golang.org/x/net/context"
 	"zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/internal/fulfiller"
 	"zombiezen.com/go/capnproto2/rpc/internal/refcount"
@@ -15,30 +16,30 @@ import (
 // lockedCall is used to make a call to an arbitrary client while
 // holding onto c.mu.  Since the client could point back to c, naively
 // calling c.Call could deadlock.
-func (c *Conn) lockedCall(client capnp.Client, cl *capnp.Call) capnp.Answer {
+func (c *Conn) lockedCall(ctx context.Context, client capnp.Client, cl *capnp.Call) capnp.Answer {
 dig:
 	for client := client; ; {
 		switch curr := client.(type) {
 		case *importClient:
 			if curr.conn != c {
 				// This doesn't use our conn's lock, so it is safe to call.
-				return curr.Call(cl)
+				return curr.Call(ctx, cl)
 			}
-			return curr.lockedCall(cl)
+			return curr.lockedCall(ctx, cl)
 		case *fulfiller.EmbargoClient:
-			if ans := curr.TryQueue(cl); ans != nil {
+			if ans := curr.TryQueue(ctx, cl); ans != nil {
 				return ans
 			}
 			client = curr.Client()
 		case *refcount.Ref:
 			client = curr.Client()
 		case *embargoClient:
-			if ans := curr.tryQueue(cl); ans != nil {
+			if ans := curr.tryQueue(ctx, cl); ans != nil {
 				return ans
 			}
 			client = curr.client
 		case *queueClient:
-			if ans := curr.tryQueue(cl); ans != nil {
+			if ans := curr.tryQueue(ctx, cl); ans != nil {
 				return ans
 			}
 			client = curr.client
@@ -52,7 +53,7 @@ dig:
 				f := new(fulfiller.Fulfiller)
 				err := curr.a.queueCallLocked(cl, pcall{
 					transform: curr.transform,
-					qcall:     qcall{f: f},
+					qcall:     qcall{ctx: ctx, f: f},
 				})
 				curr.a.mu.Unlock()
 				if err != nil {
@@ -80,9 +81,9 @@ dig:
 			case *question:
 				if ans.conn != c {
 					// This doesn't use our conn's lock, so it is safe to call.
-					return ans.PipelineCall(transform, cl)
+					return ans.PipelineCall(ctx, transform, cl)
 				}
-				return ans.lockedPipelineCall(transform, cl)
+				return ans.lockedPipelineCall(ctx, transform, cl)
 			default:
 				break dig
 			}
@@ -107,7 +108,7 @@ dig:
 	//
 	// To avoid #2 as much as possible, implementing Client is discouraged
 	// by several docs.
-	return client.Call(cl)
+	return client.Call(ctx, cl)
 }
 
 // descriptorForClient fills desc for client, adding it to the export

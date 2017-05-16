@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"golang.org/x/net/context"
 	"zombiezen.com/go/capnproto2"
 )
 
@@ -67,13 +68,14 @@ func TestFulfiller_QueuedCallsDeliveredInOrder(t *testing.T) {
 	result := newStruct(t, capnp.ObjectSize{PointerCount: 1})
 	in := result.Segment().Message().AddCap(oc)
 	result.SetPtr(0, capnp.NewInterface(result.Segment(), in).ToPtr())
+	ctx := context.Background()
 
-	ans1 := f.PipelineCall([]capnp.PipelineOp{{Field: 0}}, new(capnp.Call))
-	ans2 := f.PipelineCall([]capnp.PipelineOp{{Field: 0}}, new(capnp.Call))
+	ans1 := f.PipelineCall(ctx, []capnp.PipelineOp{{Field: 0}}, new(capnp.Call))
+	ans2 := f.PipelineCall(ctx, []capnp.PipelineOp{{Field: 0}}, new(capnp.Call))
 	f.Fulfill(result)
-	ans3 := f.PipelineCall([]capnp.PipelineOp{{Field: 0}}, new(capnp.Call))
+	ans3 := f.PipelineCall(ctx, []capnp.PipelineOp{{Field: 0}}, new(capnp.Call))
 	ans3.Struct()
-	ans4 := f.PipelineCall([]capnp.PipelineOp{{Field: 0}}, new(capnp.Call))
+	ans4 := f.PipelineCall(ctx, []capnp.PipelineOp{{Field: 0}}, new(capnp.Call))
 
 	check := func(a capnp.Answer, n uint64) {
 		r, err := a.Struct()
@@ -104,7 +106,7 @@ func newStruct(t *testing.T, sz capnp.ObjectSize) capnp.Struct {
 
 type orderClient int
 
-func (oc *orderClient) Call(cl *capnp.Call) capnp.Answer {
+func (oc *orderClient) Call(ctx context.Context, cl *capnp.Call) capnp.Answer {
 	_, s, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	if err != nil {
 		return capnp.ErrorAnswer(err)

@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"sync"
 
+	"golang.org/x/net/context"
 	"zombiezen.com/go/capnproto2"
 )
 
@@ -45,7 +46,7 @@ func (rc *RefCount) newRef() *Ref {
 	return r
 }
 
-func (rc *RefCount) call(cl *capnp.Call) capnp.Answer {
+func (rc *RefCount) call(ctx context.Context, cl *capnp.Call) capnp.Answer {
 	// We lock here so that we can prevent the client from being closed
 	// while we start the call.
 	rc.mu.Lock()
@@ -53,7 +54,7 @@ func (rc *RefCount) call(cl *capnp.Call) capnp.Answer {
 		rc.mu.Unlock()
 		return capnp.ErrorAnswer(errClosed)
 	}
-	ans := rc.Client.Call(cl)
+	ans := rc.Client.Call(ctx, cl)
 	rc.mu.Unlock()
 	return ans
 }
@@ -91,8 +92,8 @@ type Ref struct {
 }
 
 // Call makes a call on the underlying client.
-func (r *Ref) Call(cl *capnp.Call) capnp.Answer {
-	return r.rc.call(cl)
+func (r *Ref) Call(ctx context.Context, cl *capnp.Call) capnp.Answer {
+	return r.rc.call(ctx, cl)
 }
 
 // Client returns the underlying client.

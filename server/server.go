@@ -84,7 +84,7 @@ func (s *server) startCall(cl *call) error {
 	acksig := newAckSignal()
 	opts := cl.Options.With([]capnp.CallOption{capnp.SetOptionValue(ackSignalKey, acksig)})
 	go func() {
-		err := cl.method.Impl(cl.Ctx, opts, cl.Params, results)
+		err := cl.method.Impl(cl.ctx, opts, cl.Params, results)
 		if err == nil {
 			cl.ans.Fulfill(results)
 		} else {
@@ -96,14 +96,14 @@ func (s *server) startCall(cl *call) error {
 	case <-cl.ans.Done():
 		// Implementation functions may not call Ack, which is fine for
 		// smaller functions.
-	case <-cl.Ctx.Done():
+	case <-cl.ctx.Done():
 		// Ideally, this would reject the answer immediately, but then you
 		// would race with the implementation function.
 	}
 	return nil
 }
 
-func (s *server) Call(cl *capnp.Call) capnp.Answer {
+func (s *server) Call(ctx context.Context, cl *capnp.Call) capnp.Answer {
 	sm := s.methods.find(&cl.Method)
 	if sm == nil {
 		return capnp.ErrorAnswer(&capnp.MethodError{
@@ -115,14 +115,14 @@ func (s *server) Call(cl *capnp.Call) capnp.Answer {
 	if err != nil {
 		return capnp.ErrorAnswer(err)
 	}
-	scall := newCall(cl, sm)
+	scall := newCall(ctx, cl, sm)
 	select {
 	case s.queue <- scall:
 		return &scall.ans
 	case <-s.stop:
 		return capnp.ErrorAnswer(errClosed)
-	case <-cl.Ctx.Done():
-		return capnp.ErrorAnswer(cl.Ctx.Err())
+	case <-ctx.Done():
+		return capnp.ErrorAnswer(ctx.Err())
 	}
 }
 
@@ -161,12 +161,13 @@ func Ack(opts capnp.CallOptions) {
 
 type call struct {
 	*capnp.Call
+	ctx    context.Context
 	ans    fulfiller.Fulfiller
 	method *Method
 }
 
-func newCall(cl *capnp.Call, sm *Method) *call {
-	return &call{Call: cl, method: sm}
+func newCall(ctx context.Context, cl *capnp.Call, sm *Method) *call {
+	return &call{ctx: ctx, Call: cl, method: sm}
 }
 
 type sortedMethods []Method

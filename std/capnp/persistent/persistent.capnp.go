@@ -24,7 +24,6 @@ func (c Persistent) Save(ctx context.Context, params func(Persistent_SaveParams)
 		return Persistent_SaveResults_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
 	}
 	call := &capnp.Call{
-		Ctx: ctx,
 		Method: capnp.Method{
 			InterfaceID:   0xc8cb212fcd9f5691,
 			MethodID:      0,
@@ -37,7 +36,7 @@ func (c Persistent) Save(ctx context.Context, params func(Persistent_SaveParams)
 		call.ParamsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 1}
 		call.ParamsFunc = func(s capnp.Struct) error { return params(Persistent_SaveParams{Struct: s}) }
 	}
-	return Persistent_SaveResults_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
+	return Persistent_SaveResults_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(ctx, call))}
 }
 
 type Persistent_Server interface {
@@ -223,7 +222,6 @@ func (c RealmGateway) Import(ctx context.Context, params func(RealmGateway_impor
 		return Persistent_SaveResults_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
 	}
 	call := &capnp.Call{
-		Ctx: ctx,
 		Method: capnp.Method{
 			InterfaceID:   0x84ff286cd00a3ed4,
 			MethodID:      0,
@@ -236,14 +234,13 @@ func (c RealmGateway) Import(ctx context.Context, params func(RealmGateway_impor
 		call.ParamsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 2}
 		call.ParamsFunc = func(s capnp.Struct) error { return params(RealmGateway_import_Params{Struct: s}) }
 	}
-	return Persistent_SaveResults_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
+	return Persistent_SaveResults_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(ctx, call))}
 }
 func (c RealmGateway) Export(ctx context.Context, params func(RealmGateway_export_Params) error, opts ...capnp.CallOption) Persistent_SaveResults_Promise {
 	if c.Client == nil {
 		return Persistent_SaveResults_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
 	}
 	call := &capnp.Call{
-		Ctx: ctx,
 		Method: capnp.Method{
 			InterfaceID:   0x84ff286cd00a3ed4,
 			MethodID:      1,
@@ -256,7 +253,7 @@ func (c RealmGateway) Export(ctx context.Context, params func(RealmGateway_expor
 		call.ParamsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 2}
 		call.ParamsFunc = func(s capnp.Struct) error { return params(RealmGateway_export_Params{Struct: s}) }
 	}
-	return Persistent_SaveResults_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
+	return Persistent_SaveResults_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(ctx, call))}
 }
 
 type RealmGateway_Server interface {

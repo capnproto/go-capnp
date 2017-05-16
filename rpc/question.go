@@ -221,17 +221,17 @@ func (q *question) Struct() (capnp.Struct, error) {
 	return s, err
 }
 
-func (q *question) PipelineCall(transform []capnp.PipelineOp, ccall *capnp.Call) capnp.Answer {
+func (q *question) PipelineCall(ctx context.Context, transform []capnp.PipelineOp, ccall *capnp.Call) capnp.Answer {
 	select {
 	case <-q.conn.mu:
 		if err := q.conn.startWork(); err != nil {
 			q.conn.mu.Unlock()
 			return capnp.ErrorAnswer(err)
 		}
-	case <-ccall.Ctx.Done():
-		return capnp.ErrorAnswer(ccall.Ctx.Err())
+	case <-ctx.Done():
+		return capnp.ErrorAnswer(ctx.Err())
 	}
-	ans := q.lockedPipelineCall(transform, ccall)
+	ans := q.lockedPipelineCall(ctx, transform, ccall)
 	q.conn.workers.Done()
 	q.conn.mu.Unlock()
 	return ans
@@ -239,7 +239,7 @@ func (q *question) PipelineCall(transform []capnp.PipelineOp, ccall *capnp.Call)
 
 // lockedPipelineCall is equivalent to PipelineCall but assumes that the
 // caller is already holding onto q.conn.mu.
-func (q *question) lockedPipelineCall(transform []capnp.PipelineOp, ccall *capnp.Call) capnp.Answer {
+func (q *question) lockedPipelineCall(ctx context.Context, transform []capnp.PipelineOp, ccall *capnp.Call) capnp.Answer {
 	if q.conn.findQuestion(q.id) != q {
 		// Question has been finished.  The call should happen as if it is
 		// back in application code.
@@ -250,10 +250,10 @@ func (q *question) lockedPipelineCall(transform []capnp.PipelineOp, ccall *capnp
 			panic("question popped but not done")
 		}
 		client := clientFromResolution(transform, obj, err)
-		return q.conn.lockedCall(client, ccall)
+		return q.conn.lockedCall(ctx, client, ccall)
 	}
 
-	pipeq := q.conn.newQuestion(ccall.Ctx, &ccall.Method)
+	pipeq := q.conn.newQuestion(ctx, &ccall.Method)
 	msg := newMessage(nil)
 	msgCall, _ := msg.NewCall()
 	msgCall.SetQuestionId(uint32(pipeq.id))
@@ -275,9 +275,9 @@ func (q *question) lockedPipelineCall(transform []capnp.PipelineOp, ccall *capnp
 
 	select {
 	case q.conn.out <- msg:
-	case <-ccall.Ctx.Done():
+	case <-ctx.Done():
 		q.conn.popQuestion(pipeq.id)
-		return capnp.ErrorAnswer(ccall.Ctx.Err())
+		return capnp.ErrorAnswer(ctx.Err())
 	case <-q.conn.bg.Done():
 		q.conn.popQuestion(pipeq.id)
 		return capnp.ErrorAnswer(ErrConnClosed)
@@ -311,7 +311,7 @@ func newEmbargoClient(client capnp.Client, e embargo, cancel <-chan struct{}) *e
 	return ec
 }
 
-func (ec *embargoClient) push(cl *capnp.Call) capnp.Answer {
+func (ec *embargoClient) push(ctx context.Context, cl *capnp.Call) capnp.Answer {
 	f := new(fulfiller.Fulfiller)
 	cl, err := cl.Copy(nil)
 	if err != nil {
@@ -321,36 +321,36 @@ func (ec *embargoClient) push(cl *capnp.Call) capnp.Answer {
 	if i == -1 {
 		return capnp.ErrorAnswer(errQueueFull)
 	}
-	ec.calls[i] = ecall{cl, f}
+	ec.calls[i] = ecall{ctx, cl, f}
 	return f
 }
 
-func (ec *embargoClient) Call(cl *capnp.Call) capnp.Answer {
+func (ec *embargoClient) Call(ctx context.Context, cl *capnp.Call) capnp.Answer {
 	// Fast path: queue is flushed.
 	ec.mu.RLock()
 	ok := ec.isPassthrough()
 	ec.mu.RUnlock()
 	if ok {
-		return ec.client.Call(cl)
+		return ec.client.Call(ctx, cl)
 	}
 
 	ec.mu.Lock()
 	if ec.isPassthrough() {
 		ec.mu.Unlock()
-		return ec.client.Call(cl)
+		return ec.client.Call(ctx, cl)
 	}
-	ans := ec.push(cl)
+	ans := ec.push(ctx, cl)
 	ec.mu.Unlock()
 	return ans
 }
 
-func (ec *embargoClient) tryQueue(cl *capnp.Call) capnp.Answer {
+func (ec *embargoClient) tryQueue(ctx context.Context, cl *capnp.Call) capnp.Answer {
 	ec.mu.Lock()
 	if ec.isPassthrough() {
 		ec.mu.Unlock()
 		return nil
 	}
-	ans := ec.push(cl)
+	ans := ec.push(ctx, cl)
 	ec.mu.Unlock()
 	return ans
 }
@@ -393,7 +393,7 @@ func (ec *embargoClient) flushQueue() {
 	}
 	ec.mu.RUnlock()
 	for c.call != nil {
-		ans := ec.client.Call(c.call)
+		ans := ec.client.Call(c.ctx, c.call)
 		go joinFulfiller(c.f, ans)
 
 		ec.mu.Lock()
@@ -408,6 +408,7 @@ func (ec *embargoClient) flushQueue() {
 }
 
 type ecall struct {
+	ctx  context.Context
 	call *capnp.Call
 	f    *fulfiller.Fulfiller
 }

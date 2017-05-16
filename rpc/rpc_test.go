@@ -193,8 +193,7 @@ func TestCallOnPromisedAnswer(t *testing.T) {
 	client, bootstrapID := readBootstrap(t, ctx, conn, p)
 
 	readDone := startRecvMessage(p)
-	client.Call(&capnp.Call{
-		Ctx: ctx,
+	client.Call(ctx, &capnp.Call{
 		Method: capnp.Method{
 			InterfaceID: interfaceID,
 			MethodID:    methodID,
@@ -273,8 +272,7 @@ func testCallOnExportId(t *testing.T, bootstrapIsPromise bool) {
 	client := bootstrapAndFulfill(t, ctx, conn, p, bootstrapIsPromise)
 
 	readDone := startRecvMessage(p)
-	client.Call(&capnp.Call{
-		Ctx: ctx,
+	client.Call(ctx, &capnp.Call{
 		Method: capnp.Method{
 			InterfaceID: interfaceID,
 			MethodID:    methodID,
@@ -604,7 +602,7 @@ func mockClient() capnp.Client {
 
 type stubClient func(ctx context.Context, params capnp.Struct) (capnp.Struct, error)
 
-func (stub stubClient) Call(call *capnp.Call) capnp.Answer {
+func (stub stubClient) Call(ctx context.Context, call *capnp.Call) capnp.Answer {
 	if call.Method.InterfaceID != interfaceID || call.Method.MethodID != methodID {
 		return capnp.ErrorAnswer(errNotImplemented)
 	}
@@ -612,7 +610,7 @@ func (stub stubClient) Call(call *capnp.Call) capnp.Answer {
 	if err != nil {
 		return capnp.ErrorAnswer(err)
 	}
-	s, err := stub(call.Ctx, cc)
+	s, err := stub(ctx, cc)
 	if err != nil {
 		return capnp.ErrorAnswer(err)
 	}

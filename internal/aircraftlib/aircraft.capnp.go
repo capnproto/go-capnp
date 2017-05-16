@@ -4316,7 +4316,6 @@ func (c Echo) Echo(ctx context.Context, params func(Echo_echo_Params) error, opt
 		return Echo_echo_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
 	}
 	call := &capnp.Call{
-		Ctx: ctx,
 		Method: capnp.Method{
 			InterfaceID:   0x8e5322c1e9282534,
 			MethodID:      0,
@@ -4329,7 +4328,7 @@ func (c Echo) Echo(ctx context.Context, params func(Echo_echo_Params) error, opt
 		call.ParamsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 1}
 		call.ParamsFunc = func(s capnp.Struct) error { return params(Echo_echo_Params{Struct: s}) }
 	}
-	return Echo_echo_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
+	return Echo_echo_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(ctx, call))}
 }
 
 type Echo_Server interface {
@@ -4977,7 +4976,6 @@ func (c CallSequence) GetNumber(ctx context.Context, params func(CallSequence_ge
 		return CallSequence_getNumber_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
 	}
 	call := &capnp.Call{
-		Ctx: ctx,
 		Method: capnp.Method{
 			InterfaceID:   0xabaedf5f7817c820,
 			MethodID:      0,
@@ -4990,7 +4988,7 @@ func (c CallSequence) GetNumber(ctx context.Context, params func(CallSequence_ge
 		call.ParamsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
 		call.ParamsFunc = func(s capnp.Struct) error { return params(CallSequence_getNumber_Params{Struct: s}) }
 	}
-	return CallSequence_getNumber_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
+	return CallSequence_getNumber_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(ctx, call))}
 }
 
 type CallSequence_Server interface {

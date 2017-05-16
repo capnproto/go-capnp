@@ -3,6 +3,7 @@ package refcount
 import (
 	"testing"
 
+	"golang.org/x/net/context"
 	"zombiezen.com/go/capnproto2"
 )
 
@@ -79,7 +80,7 @@ type fakeClient struct {
 	closed int
 }
 
-func (c *fakeClient) Call(cl *capnp.Call) capnp.Answer {
+func (c *fakeClient) Call(ctx context.Context, cl *capnp.Call) capnp.Answer {
 	panic("not implemented")
 }
 

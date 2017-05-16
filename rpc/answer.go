@@ -167,7 +167,7 @@ func (a *answer) emptyQueue(obj capnp.Ptr) (map[capnp.CapabilityID][]qcall, erro
 
 // queueCallLocked enqueues a call to be made after the answer has been
 // resolved.  The answer must not be resolved yet.  pc should have
-// transform and one of pc.a or pc.f to be set.  The caller must be
+// transform, ctx, and one of pc.a or pc.f to be set.  The caller must be
 // holding onto a.mu.
 func (a *answer) queueCallLocked(call *capnp.Call, pc pcall) error {
 	if len(a.queue) == cap(a.queue) {
@@ -263,7 +263,7 @@ func newQueueClient(c *Conn, client capnp.Client, queue []qcall) *queueClient {
 	return qc
 }
 
-func (qc *queueClient) pushCallLocked(cl *capnp.Call) capnp.Answer {
+func (qc *queueClient) pushCallLocked(ctx context.Context, cl *capnp.Call) capnp.Answer {
 	f := new(fulfiller.Fulfiller)
 	cl, err := cl.Copy(nil)
 	if err != nil {
@@ -273,7 +273,7 @@ func (qc *queueClient) pushCallLocked(cl *capnp.Call) capnp.Answer {
 	if i == -1 {
 		return capnp.ErrorAnswer(errQueueFull)
 	}
-	qc.calls[i] = qcall{call: cl, f: f}
+	qc.calls[i] = qcall{ctx: ctx, call: cl, f: f}
 	return f
 }
 
@@ -311,10 +311,10 @@ func (qc *queueClient) flushQueue() {
 func (qc *queueClient) handle(c *qcall) {
 	switch c.which() {
 	case qcallRemoteCall:
-		answer := qc.client.Call(c.call)
+		answer := qc.client.Call(c.ctx, c.call)
 		go joinAnswer(c.a, answer)
 	case qcallLocalCall:
-		answer := qc.client.Call(c.call)
+		answer := qc.client.Call(c.ctx, c.call)
 		go joinFulfiller(c.f, answer)
 	case qcallDisembargo:
 		msg := newDisembargoMessage(nil, rpccapnp.Disembargo_context_Which_receiverLoopback, c.embargoID)
@@ -328,13 +328,13 @@ func (qc *queueClient) isPassthrough() bool {
 	return qc.q.Len() == 0
 }
 
-func (qc *queueClient) Call(cl *capnp.Call) capnp.Answer {
+func (qc *queueClient) Call(ctx context.Context, cl *capnp.Call) capnp.Answer {
 	// Fast path: queue is flushed.
 	qc.mu.RLock()
 	ok := qc.isPassthrough()
 	qc.mu.RUnlock()
 	if ok {
-		return qc.client.Call(cl)
+		return qc.client.Call(ctx, cl)
 	}
 
 	// Add to queue.
@@ -342,20 +342,20 @@ func (qc *queueClient) Call(cl *capnp.Call) capnp.Answer {
 	// Since we released the lock, check that the queue hasn't been flushed.
 	if qc.isPassthrough() {
 		qc.mu.Unlock()
-		return qc.client.Call(cl)
+		return qc.client.Call(ctx, cl)
 	}
-	ans := qc.pushCallLocked(cl)
+	ans := qc.pushCallLocked(ctx, cl)
 	qc.mu.Unlock()
 	return ans
 }
 
-func (qc *queueClient) tryQueue(cl *capnp.Call) capnp.Answer {
+func (qc *queueClient) tryQueue(ctx context.Context, cl *capnp.Call) capnp.Answer {
 	qc.mu.Lock()
 	if qc.isPassthrough() {
 		qc.mu.Unlock()
 		return nil
 	}
-	ans := qc.pushCallLocked(cl)
+	ans := qc.pushCallLocked(ctx, cl)
 	qc.mu.Unlock()
 	return ans
 }
@@ -414,6 +414,7 @@ type qcall struct {
 	// Calls
 	a    *answer              // non-nil if remote call
 	f    *fulfiller.Fulfiller // non-nil if local call
+	ctx  context.Context
 	call *capnp.Call
 
 	// Disembargo
@@ -458,17 +459,17 @@ type localAnswerClient struct {
 	transform []capnp.PipelineOp
 }
 
-func (lac *localAnswerClient) Call(call *capnp.Call) capnp.Answer {
+func (lac *localAnswerClient) Call(ctx context.Context, call *capnp.Call) capnp.Answer {
 	lac.a.mu.Lock()
 	if lac.a.done {
 		obj, err := lac.a.obj, lac.a.err
 		lac.a.mu.Unlock()
-		return clientFromResolution(lac.transform, obj, err).Call(call)
+		return clientFromResolution(lac.transform, obj, err).Call(ctx, call)
 	}
 	f := new(fulfiller.Fulfiller)
 	err := lac.a.queueCallLocked(call, pcall{
 		transform: lac.transform,
-		qcall:     qcall{f: f},
+		qcall:     qcall{ctx: ctx, f: f},
 	})
 	lac.a.mu.Unlock()
 	if err != nil {

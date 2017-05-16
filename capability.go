@@ -91,7 +91,7 @@ type Client interface {
 	// implementation of Client.  A type that implements Client must
 	// guarantee that if foo() then bar() is called on a client, that
 	// acknowledging foo() happens before acknowledging bar().
-	Call(call *Call) Answer
+	Call(ctx context.Context, call *Call) Answer
 
 	// Close releases any resources associated with this client.
 	// No further calls to the client should be made after calling Close.
@@ -100,9 +100,6 @@ type Client interface {
 
 // The Call type holds the record for an outgoing interface call.
 type Call struct {
-	// Ctx is the context of the call.
-	Ctx context.Context
-
 	// Method is the interface ID and method ID, along with the optional name,
 	// of the method to call.
 	Method Method
@@ -135,7 +132,6 @@ func (call *Call) Copy(s *Segment) (*Call, error) {
 		return nil, err
 	}
 	return &Call{
-		Ctx:     call.Ctx,
 		Method:  call.Method,
 		Params:  p,
 		Options: call.Options,
@@ -221,7 +217,7 @@ type Answer interface {
 	// PipelineCall sends a call to the Client identified by the transform.
 	// Answers may have a more efficient way of doing this than waiting
 	// for the call to be finished (promise pipelining).
-	PipelineCall(transform []PipelineOp, call *Call) Answer
+	PipelineCall(ctx context.Context, transform []PipelineOp, call *Call) Answer
 }
 
 // A Pipeline is a generic wrapper for an answer.
@@ -300,8 +296,8 @@ func (pc *PipelineClient) transform() []PipelineOp {
 }
 
 // Call calls Answer.PipelineCall with the pipeline's transform.
-func (pc *PipelineClient) Call(call *Call) Answer {
-	return pc.answer.PipelineCall(pc.transform(), call)
+func (pc *PipelineClient) Call(ctx context.Context, call *Call) Answer {
+	return pc.answer.PipelineCall(ctx, pc.transform(), call)
 }
 
 // Close waits until the call is completed and calls Close on the client
@@ -424,12 +420,12 @@ func (ans immediateAnswer) findClient(transform []PipelineOp) Client {
 	return p.Interface().Client()
 }
 
-func (ans immediateAnswer) PipelineCall(transform []PipelineOp, call *Call) Answer {
+func (ans immediateAnswer) PipelineCall(ctx context.Context, transform []PipelineOp, call *Call) Answer {
 	c := ans.findClient(transform)
 	if c == nil {
 		return ErrorAnswer(ErrNullClient)
 	}
-	return c.Call(call)
+	return c.Call(ctx, call)
 }
 
 type errorAnswer struct {
@@ -445,7 +441,7 @@ func (ans errorAnswer) Struct() (Struct, error) {
 	return Struct{}, ans.e
 }
 
-func (ans errorAnswer) PipelineCall([]PipelineOp, *Call) Answer {
+func (ans errorAnswer) PipelineCall(context.Context, []PipelineOp, *Call) Answer {
 	return ans
 }
 
@@ -471,7 +467,7 @@ func ErrorClient(e error) Client {
 	return errorClient{e}
 }
 
-func (ec errorClient) Call(*Call) Answer {
+func (ec errorClient) Call(context.Context, *Call) Answer {
 	return ErrorAnswer(ec.e)
 }
 

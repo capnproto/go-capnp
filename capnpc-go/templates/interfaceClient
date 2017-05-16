@@ -11,7 +11,6 @@ func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{$.G.Imports.Context}}.Context, pa
 		return {{$.G.RemoteNodeName .Results $.Node}}_Promise{Pipeline: {{$.G.Capnp}}.NewPipeline({{$.G.Capnp}}.ErrorAnswer({{$.G.Capnp}}.ErrNullClient))}
 	}
 	call := &{{$.G.Capnp}}.Call{
-		Ctx: ctx,
 		Method: {{$.G.Capnp}}.Method{
 			{{template "_interfaceMethod" .}}
 		},
@@ -21,6 +20,6 @@ func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{$.G.Imports.Context}}.Context, pa
 		call.ParamsSize = {{$.G.ObjectSize .Params}}
 		call.ParamsFunc = func(s {{$.G.Capnp}}.Struct) error { return params({{$.G.RemoteNodeName .Params $.Node}}{Struct: s}) }
 	}
-	return {{$.G.RemoteNodeName .Results $.Node}}_Promise{Pipeline: {{$.G.Capnp}}.NewPipeline(c.Client.Call(call))}
+	return {{$.G.RemoteNodeName .Results $.Node}}_Promise{Pipeline: {{$.G.Capnp}}.NewPipeline(c.Client.Call(ctx, call))}
 }
 {{end}}

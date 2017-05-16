@@ -680,17 +680,16 @@ func (c *Conn) handleCallMessage(m rpccapnp.Message) error {
 		return err
 	}
 	cl := &capnp.Call{
-		Ctx:    ctx,
 		Method: meth,
 		Params: paramContent.Struct(),
 	}
-	if err := c.routeCallMessage(a, mt, cl); err != nil {
+	if err := c.routeCallMessage(ctx, a, mt, cl); err != nil {
 		return a.reject(err)
 	}
 	return nil
 }
 
-func (c *Conn) routeCallMessage(result *answer, mt rpccapnp.MessageTarget, cl *capnp.Call) error {
+func (c *Conn) routeCallMessage(ctx context.Context, result *answer, mt rpccapnp.MessageTarget, cl *capnp.Call) error {
 	switch mt.Which() {
 	case rpccapnp.MessageTarget_Which_importedCap:
 		id := exportID(mt.ImportedCap())
@@ -698,7 +697,7 @@ func (c *Conn) routeCallMessage(result *answer, mt rpccapnp.MessageTarget, cl *c
 		if e == nil {
 			return errBadTarget
 		}
-		answer := c.lockedCall(e.client, cl)
+		answer := c.lockedCall(ctx, e.client, cl)
 		go joinAnswer(result, answer)
 	case rpccapnp.MessageTarget_Which_promisedAnswer:
 		mpromise, err := mt.PromisedAnswer()
@@ -724,10 +723,10 @@ func (c *Conn) routeCallMessage(result *answer, mt rpccapnp.MessageTarget, cl *c
 			obj, err := pa.obj, pa.err
 			pa.mu.Unlock()
 			client := clientFromResolution(transform, obj, err)
-			answer := c.lockedCall(client, cl)
+			answer := c.lockedCall(ctx, client, cl)
 			go joinAnswer(result, answer)
 		} else {
-			err = pa.queueCallLocked(cl, pcall{transform: transform, qcall: qcall{a: result}})
+			err = pa.queueCallLocked(cl, pcall{transform: transform, qcall: qcall{ctx: ctx, a: result}})
 			pa.mu.Unlock()
 		}
 		return err

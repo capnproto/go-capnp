@@ -6,6 +6,7 @@ import (
 	"errors"
 	"sync"
 
+	"golang.org/x/net/context"
 	"zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/internal/queue"
 )
@@ -130,19 +131,19 @@ func (f *Fulfiller) Struct() (capnp.Struct, error) {
 
 // PipelineCall calls PipelineCall on the fulfilled answer or queues the
 // call if f has not been fulfilled.
-func (f *Fulfiller) PipelineCall(transform []capnp.PipelineOp, call *capnp.Call) capnp.Answer {
+func (f *Fulfiller) PipelineCall(ctx context.Context, transform []capnp.PipelineOp, call *capnp.Call) capnp.Answer {
 	f.init()
 
 	// Fast path: pass-through after fulfilled.
 	if a := f.Peek(); a != nil {
-		return a.PipelineCall(transform, call)
+		return a.PipelineCall(ctx, transform, call)
 	}
 
 	f.mu.Lock()
 	// Make sure that f wasn't fulfilled.
 	if a := f.answer; a != nil {
 		f.mu.Unlock()
-		return a.PipelineCall(transform, call)
+		return a.PipelineCall(ctx, transform, call)
 	}
 	if len(f.queue) == cap(f.queue) {
 		f.mu.Unlock()
@@ -157,6 +158,7 @@ func (f *Fulfiller) PipelineCall(transform []capnp.PipelineOp, call *capnp.Call)
 	f.queue = append(f.queue, pcall{
 		transform: transform,
 		ecall: ecall{
+			ctx:  ctx,
 			call: cc,
 			f:    g,
 		},
@@ -193,7 +195,7 @@ func newEmbargoClient(client capnp.Client, queue []ecall) capnp.Client {
 	return ec
 }
 
-func (ec *EmbargoClient) push(cl *capnp.Call) capnp.Answer {
+func (ec *EmbargoClient) push(ctx context.Context, cl *capnp.Call) capnp.Answer {
 	f := new(Fulfiller)
 	cl, err := cl.Copy(nil)
 	if err != nil {
@@ -203,7 +205,7 @@ func (ec *EmbargoClient) push(cl *capnp.Call) capnp.Answer {
 	if i == -1 {
 		return capnp.ErrorAnswer(errCallQueueFull)
 	}
-	ec.calls[i] = ecall{cl, f}
+	ec.calls[i] = ecall{ctx, cl, f}
 	return f
 }
 
@@ -216,7 +218,7 @@ func (ec *EmbargoClient) flushQueue() {
 	}
 	ec.mu.Unlock()
 	for c.call != nil {
-		ans := ec.client.Call(c.call)
+		ans := ec.client.Call(c.ctx, c.call)
 		go func(f *Fulfiller, ans capnp.Answer) {
 			s, err := ans.Struct()
 			if err == nil {
@@ -254,13 +256,13 @@ func (ec *EmbargoClient) isPassthrough() bool {
 
 // Call either queues a call to the underlying client or starts a call
 // if the embargo has been lifted.
-func (ec *EmbargoClient) Call(cl *capnp.Call) capnp.Answer {
+func (ec *EmbargoClient) Call(ctx context.Context, cl *capnp.Call) capnp.Answer {
 	// Fast path: queue is flushed.
 	ec.mu.RLock()
 	ok := ec.isPassthrough()
 	ec.mu.RUnlock()
 	if ok {
-		return ec.client.Call(cl)
+		return ec.client.Call(ctx, cl)
 	}
 
 	// Add to queue.
@@ -268,22 +270,22 @@ func (ec *EmbargoClient) Call(cl *capnp.Call) capnp.Answer {
 	// Since we released the lock, check that the queue hasn't been flushed.
 	if ec.isPassthrough() {
 		ec.mu.Unlock()
-		return ec.client.Call(cl)
+		return ec.client.Call(ctx, cl)
 	}
-	ans := ec.push(cl)
+	ans := ec.push(ctx, cl)
 	ec.mu.Unlock()
 	return ans
 }
 
 // TryQueue will attempt to queue a call or return nil if the embargo
 // has been lifted.
-func (ec *EmbargoClient) TryQueue(cl *capnp.Call) capnp.Answer {
+func (ec *EmbargoClient) TryQueue(ctx context.Context, cl *capnp.Call) capnp.Answer {
 	ec.mu.Lock()
 	if ec.isPassthrough() {
 		ec.mu.Unlock()
 		return nil
 	}
-	ans := ec.push(cl)
+	ans := ec.push(ctx, cl)
 	ec.mu.Unlock()
 	return ans
 }
@@ -302,6 +304,7 @@ func (ec *EmbargoClient) Close() error {
 
 // ecall is an queued embargoed call.
 type ecall struct {
+	ctx  context.Context
 	call *capnp.Call
 	f    *Fulfiller
 }

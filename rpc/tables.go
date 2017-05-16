@@ -3,6 +3,7 @@ package rpc
 import (
 	"errors"
 
+	"golang.org/x/net/context"
 	"zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/rpc/internal/refcount"
 )
@@ -60,16 +61,16 @@ type importClient struct {
 	closed bool // protected by conn.mu
 }
 
-func (ic *importClient) Call(cl *capnp.Call) capnp.Answer {
+func (ic *importClient) Call(ctx context.Context, cl *capnp.Call) capnp.Answer {
 	select {
 	case <-ic.conn.mu:
 		if err := ic.conn.startWork(); err != nil {
 			return capnp.ErrorAnswer(err)
 		}
-	case <-cl.Ctx.Done():
-		return capnp.ErrorAnswer(cl.Ctx.Err())
+	case <-ctx.Done():
+		return capnp.ErrorAnswer(ctx.Err())
 	}
-	ans := ic.lockedCall(cl)
+	ans := ic.lockedCall(ctx, cl)
 	ic.conn.workers.Done()
 	ic.conn.mu.Unlock()
 	return ans
@@ -77,12 +78,12 @@ func (ic *importClient) Call(cl *capnp.Call) capnp.Answer {
 
 // lockedCall is equivalent to Call but assumes that the caller is
 // already holding onto ic.conn.mu.
-func (ic *importClient) lockedCall(cl *capnp.Call) capnp.Answer {
+func (ic *importClient) lockedCall(ctx context.Context, cl *capnp.Call) capnp.Answer {
 	if ic.closed {
 		return capnp.ErrorAnswer(errImportClosed)
 	}
 
-	q := ic.conn.newQuestion(cl.Ctx, &cl.Method)
+	q := ic.conn.newQuestion(ctx, &cl.Method)
 	msg := newMessage(nil)
 	msgCall, _ := msg.NewCall()
 	msgCall.SetQuestionId(uint32(q.id))
@@ -98,9 +99,9 @@ func (ic *importClient) lockedCall(cl *capnp.Call) capnp.Answer {
 
 	select {
 	case ic.conn.out <- msg:
-	case <-cl.Ctx.Done():
+	case <-ctx.Done():
 		ic.conn.popQuestion(q.id)
-		return capnp.ErrorAnswer(cl.Ctx.Err())
+		return capnp.ErrorAnswer(ctx.Err())
 	case <-ic.conn.bg.Done():
 		ic.conn.popQuestion(q.id)
 		return capnp.ErrorAnswer(ErrConnClosed)
