@@ -287,25 +287,6 @@ func (q *question) lockedPipelineCall(transform []capnp.PipelineOp, ccall *capnp
 	return pipeq
 }
 
-func (q *question) PipelineClose(transform []capnp.PipelineOp) error {
-	<-q.resolved
-	q.mu.RLock()
-	obj, err := q.obj, q.err
-	q.mu.RUnlock()
-	if err != nil {
-		return err
-	}
-	x, err := capnp.Transform(obj, transform)
-	if err != nil {
-		return err
-	}
-	c := x.Interface().Client()
-	if c == nil {
-		return capnp.ErrNullClient
-	}
-	return c.Close()
-}
-
 // embargoClient is a client that waits until an embargo signal is
 // received to deliver calls.
 type embargoClient struct {

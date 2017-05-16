@@ -165,13 +165,6 @@ func (f *Fulfiller) PipelineCall(transform []capnp.PipelineOp, call *capnp.Call)
 	return g
 }
 
-// PipelineClose waits until f is resolved and then calls PipelineClose
-// on the fulfilled answer.
-func (f *Fulfiller) PipelineClose(transform []capnp.PipelineOp) error {
-	<-f.Done()
-	return f.Peek().PipelineClose(transform)
-}
-
 // pcall is a queued pipeline call.
 type pcall struct {
 	transform []capnp.PipelineOp

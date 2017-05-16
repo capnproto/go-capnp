@@ -218,11 +218,10 @@ type Answer interface {
 	// Struct waits until the call is finished and returns the result.
 	Struct() (Struct, error)
 
-	// The following methods are the same as in Client except with
-	// an added transform parameter -- a path to the interface to use.
-
+	// PipelineCall sends a call to the Client identified by the transform.
+	// Answers may have a more efficient way of doing this than waiting
+	// for the call to be finished (promise pipelining).
 	PipelineCall(transform []PipelineOp, call *Call) Answer
-	PipelineClose(transform []PipelineOp) error
 }
 
 // A Pipeline is a generic wrapper for an answer.
@@ -305,9 +304,22 @@ func (pc *PipelineClient) Call(call *Call) Answer {
 	return pc.answer.PipelineCall(pc.transform(), call)
 }
 
-// Close calls Answer.PipelineClose with the pipeline's transform.
+// Close waits until the call is completed and calls Close on the client
+// found at the pipeline's transform.
 func (pc *PipelineClient) Close() error {
-	return pc.answer.PipelineClose(pc.transform())
+	s, err := pc.answer.Struct()
+	if err != nil {
+		return err
+	}
+	p, err := Transform(s.ToPtr(), pc.transform())
+	if err != nil {
+		return err
+	}
+	c := p.Interface().Client()
+	if c == nil {
+		return ErrNullClient
+	}
+	return c.Close()
 }
 
 // A PipelineOp describes a step in transforming a pipeline.
@@ -420,14 +432,6 @@ func (ans immediateAnswer) PipelineCall(transform []PipelineOp, call *Call) Answ
 	return c.Call(call)
 }
 
-func (ans immediateAnswer) PipelineClose(transform []PipelineOp) error {
-	c := ans.findClient(transform)
-	if c == nil {
-		return ErrNullClient
-	}
-	return c.Close()
-}
-
 type errorAnswer struct {
 	e error
 }
@@ -443,10 +447,6 @@ func (ans errorAnswer) Struct() (Struct, error) {
 
 func (ans errorAnswer) PipelineCall([]PipelineOp, *Call) Answer {
 	return ans
-}
-
-func (ans errorAnswer) PipelineClose([]PipelineOp) error {
-	return ans.e
 }
 
 // IsFixedAnswer reports whether an answer was created by
