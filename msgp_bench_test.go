@@ -3,7 +3,6 @@ package capnp_test
 import (
 	"bytes"
 	"io"
-	"log"
 	"math/rand"
 	"testing"
 	"time"
@@ -58,7 +57,7 @@ func BenchmarkUnmarshalMsgpReader(b *testing.B) {
 		event := (*Event)(generateA(r))
 		err := event.EncodeMsg(w)
 		if err != nil {
-			log.Fatal(err)
+			b.Fatal(err)
 		}
 	}
 
@@ -81,7 +80,7 @@ func BenchmarkUnmarshalMsgpReader(b *testing.B) {
 			}
 
 			if err != nil {
-				log.Fatal(err)
+				b.Fatal(err)
 			}
 		}
 	}
@@ -120,7 +119,7 @@ func BenchmarkUnmarshalDecoder(b *testing.B) {
 
 			_, err = air.ReadRootBenchmarkA(msg)
 			if err != nil {
-				log.Fatal(err)
+				b.Fatal(err)
 			}
 		}
 	}
