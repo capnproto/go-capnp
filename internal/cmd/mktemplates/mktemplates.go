@@ -84,6 +84,8 @@ func generateGo(w io.Writer, args []string, ts []template) error {
 	}
 
 	// TODO(light): collect errors
+	fmt.Fprintln(w, "// Code generated from templates directory. DO NOT EDIT.")
+	fmt.Fprintln(w)
 	fmt.Fprintln(w, "//go:generate", strings.Join(args, " "))
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "package main")

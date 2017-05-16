@@ -1,3 +1,5 @@
+// Code generated from templates directory. DO NOT EDIT.
+
 //go:generate ../internal/cmd/mktemplates/mktemplates templates.go templates
 
 package main
