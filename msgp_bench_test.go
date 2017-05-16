@@ -8,6 +8,9 @@ import (
 	"testing"
 	"time"
 
+	capnp "zombiezen.com/go/capnproto2"
+	air "zombiezen.com/go/capnproto2/internal/aircraftlib"
+
 	"github.com/tinylib/msgp/msgp"
 )
 
@@ -77,6 +80,45 @@ func BenchmarkUnmarshalMsgpReader(b *testing.B) {
 				break
 			}
 
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+	}
+}
+
+func BenchmarkUnmarshalDecoder(b *testing.B) {
+	var buf bytes.Buffer
+
+	r := rand.New(rand.NewSource(12345))
+	enc := capnp.NewEncoder(&buf)
+	count := 10000
+
+	for i := 0; i < count; i++ {
+		a := generateA(r)
+		msg, seg, _ := capnp.NewMessage(capnp.SingleSegment(nil))
+		root, _ := air.NewRootBenchmarkA(seg)
+		a.fill(root)
+		enc.Encode(msg)
+	}
+
+	blob := buf.Bytes()
+
+	b.ReportAllocs()
+	b.SetBytes(int64(buf.Len()))
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		dec := capnp.NewDecoder(bytes.NewReader(blob))
+
+		for {
+			msg, err := dec.Decode()
+
+			if err == io.EOF {
+				break
+			}
+
+			_, err = air.ReadRootBenchmarkA(msg)
 			if err != nil {
 				log.Fatal(err)
 			}
