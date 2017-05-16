@@ -86,7 +86,7 @@ func BenchmarkUnmarshalMsgpReader(b *testing.B) {
 	}
 }
 
-func BenchmarkUnmarshalDecoder(b *testing.B) {
+func BenchmarkDecode(b *testing.B) {
 	var buf bytes.Buffer
 
 	r := rand.New(rand.NewSource(12345))
