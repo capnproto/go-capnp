@@ -1,3 +1,5 @@
+// +build msgp
+
 package capnp_test
 
 // NOTE: THIS FILE WAS PRODUCED BY THE
