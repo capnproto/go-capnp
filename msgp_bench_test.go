@@ -117,6 +117,10 @@ func BenchmarkDecode(b *testing.B) {
 				break
 			}
 
+			if err != nil {
+				b.Fatal(err)
+			}
+
 			_, err = air.ReadRootBenchmarkA(msg)
 			if err != nil {
 				b.Fatal(err)
