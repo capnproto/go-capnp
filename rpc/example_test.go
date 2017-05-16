@@ -59,7 +59,7 @@ func Example() {
 type AdderServer struct{}
 
 // Add implements a method
-func (AdderServer) Add(call testcapnp.Adder_add) error {
+func (AdderServer) Add(ctx context.Context, call testcapnp.Adder_add) error {
 	// Acknowledging the call allows other calls to be made (it returns the Answer
 	// to the caller).
 	server.Ack(call.Options)

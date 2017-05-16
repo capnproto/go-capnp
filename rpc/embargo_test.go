@@ -75,7 +75,7 @@ type CallOrder struct {
 	n uint32
 }
 
-func (co *CallOrder) GetCallSequence(call testcapnp.CallOrder_getCallSequence) error {
+func (co *CallOrder) GetCallSequence(ctx context.Context, call testcapnp.CallOrder_getCallSequence) error {
 	call.Results.SetN(co.n)
 	co.n++
 	return nil
@@ -85,7 +85,7 @@ type Echoer struct {
 	CallOrder
 }
 
-func (*Echoer) Echo(call testcapnp.Echoer_echo) error {
+func (*Echoer) Echo(ctx context.Context, call testcapnp.Echoer_echo) error {
 	call.Results.SetCap(call.Params.Cap())
 	return nil
 }

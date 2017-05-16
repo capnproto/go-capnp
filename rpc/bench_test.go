@@ -49,7 +49,7 @@ func bootstrapPingPong(ctx context.Context) (capnp.Client, error) {
 
 type pingPongServer struct{}
 
-func (pingPongServer) EchoNum(call testcapnp.PingPong_echoNum) error {
+func (pingPongServer) EchoNum(ctx context.Context, call testcapnp.PingPong_echoNum) error {
 	call.Results.SetN(call.Params.N())
 	return nil
 }

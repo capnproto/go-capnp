@@ -342,15 +342,14 @@ capnpc-go also generates code to implement the interface:
 
 	// A Calculator_Server implements the Calculator interface.
 	type Calculator_Server interface {
-		Evaluate(Calculator_evaluate_Call) error
+		Evaluate(context.Context, Calculator_evaluate_Call) error
 	}
 
 	// Calculator_evaluate_Call holds the arguments for a Calculator.evaluate server call.
 	type Calculator_evaluate_Call struct {
-		Ctx     context.Context
-		Options capnp.CallOptions
 		Params  Calculator_evaluate_Params
 		Results Calculator_evaluate_Results
+		Options capnp.CallOptions
 	}
 
 	// Calculator_ServerToClient is equivalent to calling:

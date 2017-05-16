@@ -43,10 +43,10 @@ type Hanger struct {
 	notify chan struct{}
 }
 
-func (h Hanger) Hang(call testcapnp.Hanger_hang) error {
+func (h Hanger) Hang(ctx context.Context, call testcapnp.Hanger_hang) error {
 	server.Ack(call.Options)
 	h.notify <- struct{}{}
-	<-call.Ctx.Done()
+	<-ctx.Done()
 	close(h.notify)
 	return nil
 }

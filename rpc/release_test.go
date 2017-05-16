@@ -120,7 +120,7 @@ func singletonHandleFactory() *HandleFactory {
 	return hf
 }
 
-func (hf *HandleFactory) NewHandle(call testcapnp.HandleFactory_newHandle) error {
+func (hf *HandleFactory) NewHandle(ctx context.Context, call testcapnp.HandleFactory_newHandle) error {
 	server.Ack(call.Options)
 	if hf.singleton.Client == nil {
 		hf.mu.Lock()

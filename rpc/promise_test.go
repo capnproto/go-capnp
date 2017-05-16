@@ -53,8 +53,8 @@ type DelayEchoer struct {
 	delay chan struct{}
 }
 
-func (de *DelayEchoer) Echo(call testcapnp.Echoer_echo) error {
+func (de *DelayEchoer) Echo(ctx context.Context, call testcapnp.Echoer_echo) error {
 	server.Ack(call.Options)
 	<-de.delay
-	return de.Echoer.Echo(call)
+	return de.Echoer.Echo(ctx, call)
 }

@@ -59,7 +59,7 @@ func (c HandleFactory) NewHandle(ctx context.Context, params func(HandleFactory_
 }
 
 type HandleFactory_Server interface {
-	NewHandle(HandleFactory_newHandle) error
+	NewHandle(context.Context, HandleFactory_newHandle) error
 }
 
 func HandleFactory_ServerToClient(s HandleFactory_Server) HandleFactory {
@@ -79,9 +79,12 @@ func HandleFactory_Methods(methods []server.Method, s HandleFactory_Server) []se
 			InterfaceName: "test.capnp:HandleFactory",
 			MethodName:    "newHandle",
 		},
-		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
-			call := HandleFactory_newHandle{c, opts, HandleFactory_newHandle_Params{Struct: p}, HandleFactory_newHandle_Results{Struct: r}}
-			return s.NewHandle(call)
+		Impl: func(ctx context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
+			return s.NewHandle(ctx, HandleFactory_newHandle{
+				Params:  HandleFactory_newHandle_Params{Struct: p},
+				Results: HandleFactory_newHandle_Results{Struct: r},
+				Options: opts,
+			})
 		},
 		ResultsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 1},
 	})
@@ -91,10 +94,9 @@ func HandleFactory_Methods(methods []server.Method, s HandleFactory_Server) []se
 
 // HandleFactory_newHandle holds the arguments for a server call to HandleFactory.newHandle.
 type HandleFactory_newHandle struct {
-	Ctx     context.Context
-	Options capnp.CallOptions
 	Params  HandleFactory_newHandle_Params
 	Results HandleFactory_newHandle_Results
+	Options capnp.CallOptions
 }
 
 type HandleFactory_newHandle_Params struct{ capnp.Struct }
@@ -246,7 +248,7 @@ func (c Hanger) Hang(ctx context.Context, params func(Hanger_hang_Params) error,
 }
 
 type Hanger_Server interface {
-	Hang(Hanger_hang) error
+	Hang(context.Context, Hanger_hang) error
 }
 
 func Hanger_ServerToClient(s Hanger_Server) Hanger {
@@ -266,9 +268,12 @@ func Hanger_Methods(methods []server.Method, s Hanger_Server) []server.Method {
 			InterfaceName: "test.capnp:Hanger",
 			MethodName:    "hang",
 		},
-		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
-			call := Hanger_hang{c, opts, Hanger_hang_Params{Struct: p}, Hanger_hang_Results{Struct: r}}
-			return s.Hang(call)
+		Impl: func(ctx context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
+			return s.Hang(ctx, Hanger_hang{
+				Params:  Hanger_hang_Params{Struct: p},
+				Results: Hanger_hang_Results{Struct: r},
+				Options: opts,
+			})
 		},
 		ResultsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 0},
 	})
@@ -278,10 +283,9 @@ func Hanger_Methods(methods []server.Method, s Hanger_Server) []server.Method {
 
 // Hanger_hang holds the arguments for a server call to Hanger.hang.
 type Hanger_hang struct {
-	Ctx     context.Context
-	Options capnp.CallOptions
 	Params  Hanger_hang_Params
 	Results Hanger_hang_Results
+	Options capnp.CallOptions
 }
 
 type Hanger_hang_Params struct{ capnp.Struct }
@@ -410,7 +414,7 @@ func (c CallOrder) GetCallSequence(ctx context.Context, params func(CallOrder_ge
 }
 
 type CallOrder_Server interface {
-	GetCallSequence(CallOrder_getCallSequence) error
+	GetCallSequence(context.Context, CallOrder_getCallSequence) error
 }
 
 func CallOrder_ServerToClient(s CallOrder_Server) CallOrder {
@@ -430,9 +434,12 @@ func CallOrder_Methods(methods []server.Method, s CallOrder_Server) []server.Met
 			InterfaceName: "test.capnp:CallOrder",
 			MethodName:    "getCallSequence",
 		},
-		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
-			call := CallOrder_getCallSequence{c, opts, CallOrder_getCallSequence_Params{Struct: p}, CallOrder_getCallSequence_Results{Struct: r}}
-			return s.GetCallSequence(call)
+		Impl: func(ctx context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
+			return s.GetCallSequence(ctx, CallOrder_getCallSequence{
+				Params:  CallOrder_getCallSequence_Params{Struct: p},
+				Results: CallOrder_getCallSequence_Results{Struct: r},
+				Options: opts,
+			})
 		},
 		ResultsSize: capnp.ObjectSize{DataSize: 8, PointerCount: 0},
 	})
@@ -442,10 +449,9 @@ func CallOrder_Methods(methods []server.Method, s CallOrder_Server) []server.Met
 
 // CallOrder_getCallSequence holds the arguments for a server call to CallOrder.getCallSequence.
 type CallOrder_getCallSequence struct {
-	Ctx     context.Context
-	Options capnp.CallOptions
 	Params  CallOrder_getCallSequence_Params
 	Results CallOrder_getCallSequence_Results
+	Options capnp.CallOptions
 }
 
 type CallOrder_getCallSequence_Params struct{ capnp.Struct }
@@ -609,9 +615,9 @@ func (c Echoer) GetCallSequence(ctx context.Context, params func(CallOrder_getCa
 }
 
 type Echoer_Server interface {
-	Echo(Echoer_echo) error
+	Echo(context.Context, Echoer_echo) error
 
-	GetCallSequence(CallOrder_getCallSequence) error
+	GetCallSequence(context.Context, CallOrder_getCallSequence) error
 }
 
 func Echoer_ServerToClient(s Echoer_Server) Echoer {
@@ -631,9 +637,12 @@ func Echoer_Methods(methods []server.Method, s Echoer_Server) []server.Method {
 			InterfaceName: "test.capnp:Echoer",
 			MethodName:    "echo",
 		},
-		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
-			call := Echoer_echo{c, opts, Echoer_echo_Params{Struct: p}, Echoer_echo_Results{Struct: r}}
-			return s.Echo(call)
+		Impl: func(ctx context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
+			return s.Echo(ctx, Echoer_echo{
+				Params:  Echoer_echo_Params{Struct: p},
+				Results: Echoer_echo_Results{Struct: r},
+				Options: opts,
+			})
 		},
 		ResultsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 1},
 	})
@@ -645,9 +654,12 @@ func Echoer_Methods(methods []server.Method, s Echoer_Server) []server.Method {
 			InterfaceName: "test.capnp:CallOrder",
 			MethodName:    "getCallSequence",
 		},
-		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
-			call := CallOrder_getCallSequence{c, opts, CallOrder_getCallSequence_Params{Struct: p}, CallOrder_getCallSequence_Results{Struct: r}}
-			return s.GetCallSequence(call)
+		Impl: func(ctx context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
+			return s.GetCallSequence(ctx, CallOrder_getCallSequence{
+				Params:  CallOrder_getCallSequence_Params{Struct: p},
+				Results: CallOrder_getCallSequence_Results{Struct: r},
+				Options: opts,
+			})
 		},
 		ResultsSize: capnp.ObjectSize{DataSize: 8, PointerCount: 0},
 	})
@@ -657,10 +669,9 @@ func Echoer_Methods(methods []server.Method, s Echoer_Server) []server.Method {
 
 // Echoer_echo holds the arguments for a server call to Echoer.echo.
 type Echoer_echo struct {
-	Ctx     context.Context
-	Options capnp.CallOptions
 	Params  Echoer_echo_Params
 	Results Echoer_echo_Results
+	Options capnp.CallOptions
 }
 
 type Echoer_echo_Params struct{ capnp.Struct }
@@ -835,7 +846,7 @@ func (c PingPong) EchoNum(ctx context.Context, params func(PingPong_echoNum_Para
 }
 
 type PingPong_Server interface {
-	EchoNum(PingPong_echoNum) error
+	EchoNum(context.Context, PingPong_echoNum) error
 }
 
 func PingPong_ServerToClient(s PingPong_Server) PingPong {
@@ -855,9 +866,12 @@ func PingPong_Methods(methods []server.Method, s PingPong_Server) []server.Metho
 			InterfaceName: "test.capnp:PingPong",
 			MethodName:    "echoNum",
 		},
-		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
-			call := PingPong_echoNum{c, opts, PingPong_echoNum_Params{Struct: p}, PingPong_echoNum_Results{Struct: r}}
-			return s.EchoNum(call)
+		Impl: func(ctx context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
+			return s.EchoNum(ctx, PingPong_echoNum{
+				Params:  PingPong_echoNum_Params{Struct: p},
+				Results: PingPong_echoNum_Results{Struct: r},
+				Options: opts,
+			})
 		},
 		ResultsSize: capnp.ObjectSize{DataSize: 8, PointerCount: 0},
 	})
@@ -867,10 +881,9 @@ func PingPong_Methods(methods []server.Method, s PingPong_Server) []server.Metho
 
 // PingPong_echoNum holds the arguments for a server call to PingPong.echoNum.
 type PingPong_echoNum struct {
-	Ctx     context.Context
-	Options capnp.CallOptions
 	Params  PingPong_echoNum_Params
 	Results PingPong_echoNum_Results
+	Options capnp.CallOptions
 }
 
 type PingPong_echoNum_Params struct{ capnp.Struct }
@@ -1015,7 +1028,7 @@ func (c Adder) Add(ctx context.Context, params func(Adder_add_Params) error, opt
 }
 
 type Adder_Server interface {
-	Add(Adder_add) error
+	Add(context.Context, Adder_add) error
 }
 
 func Adder_ServerToClient(s Adder_Server) Adder {
@@ -1035,9 +1048,12 @@ func Adder_Methods(methods []server.Method, s Adder_Server) []server.Method {
 			InterfaceName: "test.capnp:Adder",
 			MethodName:    "add",
 		},
-		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
-			call := Adder_add{c, opts, Adder_add_Params{Struct: p}, Adder_add_Results{Struct: r}}
-			return s.Add(call)
+		Impl: func(ctx context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
+			return s.Add(ctx, Adder_add{
+				Params:  Adder_add_Params{Struct: p},
+				Results: Adder_add_Results{Struct: r},
+				Options: opts,
+			})
 		},
 		ResultsSize: capnp.ObjectSize{DataSize: 8, PointerCount: 0},
 	})
@@ -1047,10 +1063,9 @@ func Adder_Methods(methods []server.Method, s Adder_Server) []server.Method {
 
 // Adder_add holds the arguments for a server call to Adder.add.
 type Adder_add struct {
-	Ctx     context.Context
-	Options capnp.CallOptions
 	Params  Adder_add_Params
 	Results Adder_add_Results
+	Options capnp.CallOptions
 }
 
 type Adder_add_Params struct{ capnp.Struct }

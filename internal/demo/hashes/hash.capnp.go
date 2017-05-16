@@ -38,7 +38,7 @@ func (c HashFactory) NewSha1(ctx context.Context, params func(HashFactory_newSha
 }
 
 type HashFactory_Server interface {
-	NewSha1(HashFactory_newSha1) error
+	NewSha1(context.Context, HashFactory_newSha1) error
 }
 
 func HashFactory_ServerToClient(s HashFactory_Server) HashFactory {
@@ -58,9 +58,12 @@ func HashFactory_Methods(methods []server.Method, s HashFactory_Server) []server
 			InterfaceName: "hash.capnp:HashFactory",
 			MethodName:    "newSha1",
 		},
-		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
-			call := HashFactory_newSha1{c, opts, HashFactory_newSha1_Params{Struct: p}, HashFactory_newSha1_Results{Struct: r}}
-			return s.NewSha1(call)
+		Impl: func(ctx context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
+			return s.NewSha1(ctx, HashFactory_newSha1{
+				Params:  HashFactory_newSha1_Params{Struct: p},
+				Results: HashFactory_newSha1_Results{Struct: r},
+				Options: opts,
+			})
 		},
 		ResultsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 1},
 	})
@@ -70,10 +73,9 @@ func HashFactory_Methods(methods []server.Method, s HashFactory_Server) []server
 
 // HashFactory_newSha1 holds the arguments for a server call to HashFactory.newSha1.
 type HashFactory_newSha1 struct {
-	Ctx     context.Context
-	Options capnp.CallOptions
 	Params  HashFactory_newSha1_Params
 	Results HashFactory_newSha1_Results
+	Options capnp.CallOptions
 }
 
 type HashFactory_newSha1_Params struct{ capnp.Struct }
@@ -244,9 +246,9 @@ func (c Hash) Sum(ctx context.Context, params func(Hash_sum_Params) error, opts 
 }
 
 type Hash_Server interface {
-	Write(Hash_write) error
+	Write(context.Context, Hash_write) error
 
-	Sum(Hash_sum) error
+	Sum(context.Context, Hash_sum) error
 }
 
 func Hash_ServerToClient(s Hash_Server) Hash {
@@ -266,9 +268,12 @@ func Hash_Methods(methods []server.Method, s Hash_Server) []server.Method {
 			InterfaceName: "hash.capnp:Hash",
 			MethodName:    "write",
 		},
-		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
-			call := Hash_write{c, opts, Hash_write_Params{Struct: p}, Hash_write_Results{Struct: r}}
-			return s.Write(call)
+		Impl: func(ctx context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
+			return s.Write(ctx, Hash_write{
+				Params:  Hash_write_Params{Struct: p},
+				Results: Hash_write_Results{Struct: r},
+				Options: opts,
+			})
 		},
 		ResultsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 0},
 	})
@@ -280,9 +285,12 @@ func Hash_Methods(methods []server.Method, s Hash_Server) []server.Method {
 			InterfaceName: "hash.capnp:Hash",
 			MethodName:    "sum",
 		},
-		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
-			call := Hash_sum{c, opts, Hash_sum_Params{Struct: p}, Hash_sum_Results{Struct: r}}
-			return s.Sum(call)
+		Impl: func(ctx context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
+			return s.Sum(ctx, Hash_sum{
+				Params:  Hash_sum_Params{Struct: p},
+				Results: Hash_sum_Results{Struct: r},
+				Options: opts,
+			})
 		},
 		ResultsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 1},
 	})
@@ -292,18 +300,16 @@ func Hash_Methods(methods []server.Method, s Hash_Server) []server.Method {
 
 // Hash_write holds the arguments for a server call to Hash.write.
 type Hash_write struct {
-	Ctx     context.Context
-	Options capnp.CallOptions
 	Params  Hash_write_Params
 	Results Hash_write_Results
+	Options capnp.CallOptions
 }
 
 // Hash_sum holds the arguments for a server call to Hash.sum.
 type Hash_sum struct {
-	Ctx     context.Context
-	Options capnp.CallOptions
 	Params  Hash_sum_Params
 	Results Hash_sum_Results
+	Options capnp.CallOptions
 }
 
 type Hash_write_Params struct{ capnp.Struct }

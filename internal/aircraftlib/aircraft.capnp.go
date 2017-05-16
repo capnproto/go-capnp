@@ -4332,7 +4332,7 @@ func (c Echo) Echo(ctx context.Context, params func(Echo_echo_Params) error, opt
 }
 
 type Echo_Server interface {
-	Echo(Echo_echo) error
+	Echo(context.Context, Echo_echo) error
 }
 
 func Echo_ServerToClient(s Echo_Server) Echo {
@@ -4352,9 +4352,12 @@ func Echo_Methods(methods []server.Method, s Echo_Server) []server.Method {
 			InterfaceName: "aircraft.capnp:Echo",
 			MethodName:    "echo",
 		},
-		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
-			call := Echo_echo{c, opts, Echo_echo_Params{Struct: p}, Echo_echo_Results{Struct: r}}
-			return s.Echo(call)
+		Impl: func(ctx context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
+			return s.Echo(ctx, Echo_echo{
+				Params:  Echo_echo_Params{Struct: p},
+				Results: Echo_echo_Results{Struct: r},
+				Options: opts,
+			})
 		},
 		ResultsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 1},
 	})
@@ -4364,10 +4367,9 @@ func Echo_Methods(methods []server.Method, s Echo_Server) []server.Method {
 
 // Echo_echo holds the arguments for a server call to Echo.echo.
 type Echo_echo struct {
-	Ctx     context.Context
-	Options capnp.CallOptions
 	Params  Echo_echo_Params
 	Results Echo_echo_Results
+	Options capnp.CallOptions
 }
 
 type Echo_echo_Params struct{ capnp.Struct }
@@ -4992,7 +4994,7 @@ func (c CallSequence) GetNumber(ctx context.Context, params func(CallSequence_ge
 }
 
 type CallSequence_Server interface {
-	GetNumber(CallSequence_getNumber) error
+	GetNumber(context.Context, CallSequence_getNumber) error
 }
 
 func CallSequence_ServerToClient(s CallSequence_Server) CallSequence {
@@ -5012,9 +5014,12 @@ func CallSequence_Methods(methods []server.Method, s CallSequence_Server) []serv
 			InterfaceName: "aircraft.capnp:CallSequence",
 			MethodName:    "getNumber",
 		},
-		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
-			call := CallSequence_getNumber{c, opts, CallSequence_getNumber_Params{Struct: p}, CallSequence_getNumber_Results{Struct: r}}
-			return s.GetNumber(call)
+		Impl: func(ctx context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
+			return s.GetNumber(ctx, CallSequence_getNumber{
+				Params:  CallSequence_getNumber_Params{Struct: p},
+				Results: CallSequence_getNumber_Results{Struct: r},
+				Options: opts,
+			})
 		},
 		ResultsSize: capnp.ObjectSize{DataSize: 8, PointerCount: 0},
 	})
@@ -5024,10 +5029,9 @@ func CallSequence_Methods(methods []server.Method, s CallSequence_Server) []serv
 
 // CallSequence_getNumber holds the arguments for a server call to CallSequence.getNumber.
 type CallSequence_getNumber struct {
-	Ctx     context.Context
-	Options capnp.CallOptions
 	Params  CallSequence_getNumber_Params
 	Results CallSequence_getNumber_Results
+	Options capnp.CallOptions
 }
 
 type CallSequence_getNumber_Params struct{ capnp.Struct }

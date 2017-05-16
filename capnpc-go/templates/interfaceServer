@@ -1,6 +1,6 @@
 type {{.Node.Name}}_Server interface {
 	{{range .Methods}}
-	{{.Name|title}}({{$.G.RemoteNodeName .Interface $.Node}}_{{.Name}}) error
+	{{.Name|title}}({{$.G.Imports.Context}}.Context, {{$.G.RemoteNodeName .Interface $.Node}}_{{.Name}}) error
 	{{end}}
 }
 
@@ -18,9 +18,12 @@ func {{.Node.Name}}_Methods(methods []{{.G.Imports.Server}}.Method, s {{.Node.Na
 		Method: {{$.G.Capnp}}.Method{
 			{{template "_interfaceMethod" .}}
 		},
-		Impl: func(c {{$.G.Imports.Context}}.Context, opts {{$.G.Capnp}}.CallOptions, p, r {{$.G.Capnp}}.Struct) error {
-			call := {{$.G.RemoteNodeName .Interface $.Node}}_{{.Name}}{c, opts, {{$.G.RemoteNodeName .Params $.Node}}{Struct: p}, {{$.G.RemoteNodeName .Results $.Node}}{Struct: r} }
-			return s.{{.Name|title}}(call)
+		Impl: func(ctx {{$.G.Imports.Context}}.Context, opts {{$.G.Capnp}}.CallOptions, p, r {{$.G.Capnp}}.Struct) error {
+			return s.{{.Name|title}}(ctx, {{$.G.RemoteNodeName .Interface $.Node}}_{{.Name}}{
+				Params:  {{$.G.RemoteNodeName .Params $.Node}}{Struct: p},
+				Results: {{$.G.RemoteNodeName .Results $.Node}}{Struct: r},
+				Options: opts,
+			})
 		},
 		ResultsSize: {{$.G.ObjectSize .Results}},
 	})
@@ -31,10 +34,9 @@ func {{.Node.Name}}_Methods(methods []{{.G.Imports.Server}}.Method, s {{.Node.Na
 {{if eq .Interface.Id $.Node.Id}}
 // {{$.Node.Name}}_{{.Name}} holds the arguments for a server call to {{$.Node.Name}}.{{.Name}}.
 type {{$.Node.Name}}_{{.Name}} struct {
-	Ctx     {{$.G.Imports.Context}}.Context
-	Options {{$.G.Capnp}}.CallOptions
 	Params  {{$.G.RemoteNodeName .Params $.Node}}
 	Results {{$.G.RemoteNodeName .Results $.Node}}
+	Options {{$.G.Capnp}}.CallOptions
 }
 {{end}}
 {{- end}}

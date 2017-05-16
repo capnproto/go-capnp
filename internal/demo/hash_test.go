@@ -14,7 +14,7 @@ import (
 // hashFactory is a local implementation of HashFactory.
 type hashFactory struct{}
 
-func (hf hashFactory) NewSha1(call hashes.HashFactory_newSha1) error {
+func (hf hashFactory) NewSha1(ctx context.Context, call hashes.HashFactory_newSha1) error {
 	// Create a new locally implemented Hash capability.
 	hs := hashes.Hash_ServerToClient(hashServer{sha1.New()})
 	// Notice that methods can return other interfaces.
@@ -26,7 +26,7 @@ type hashServer struct {
 	h hash.Hash
 }
 
-func (hs hashServer) Write(call hashes.Hash_write) error {
+func (hs hashServer) Write(ctx context.Context, call hashes.Hash_write) error {
 	data, err := call.Params.Data()
 	if err != nil {
 		return err
@@ -38,7 +38,7 @@ func (hs hashServer) Write(call hashes.Hash_write) error {
 	return nil
 }
 
-func (hs hashServer) Sum(call hashes.Hash_sum) error {
+func (hs hashServer) Sum(ctx context.Context, call hashes.Hash_sum) error {
 	s := hs.h.Sum(nil)
 	return call.Results.SetHash(s)
 }

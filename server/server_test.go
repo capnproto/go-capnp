@@ -11,7 +11,7 @@ import (
 
 type echoImpl struct{}
 
-func (echoImpl) Echo(call air.Echo_echo) error {
+func (echoImpl) Echo(ctx context.Context, call air.Echo_echo) error {
 	in, err := call.Params.In()
 	if err != nil {
 		return err
@@ -45,7 +45,7 @@ func TestServerCall(t *testing.T) {
 
 type callSeq uint32
 
-func (seq *callSeq) GetNumber(call air.CallSequence_getNumber) error {
+func (seq *callSeq) GetNumber(ctx context.Context, call air.CallSequence_getNumber) error {
 	call.Results.SetN(uint32(*seq))
 	*seq++
 	return nil
@@ -56,7 +56,7 @@ type lockCallSeq struct {
 	mu sync.Mutex
 }
 
-func (seq *lockCallSeq) GetNumber(call air.CallSequence_getNumber) error {
+func (seq *lockCallSeq) GetNumber(ctx context.Context, call air.CallSequence_getNumber) error {
 	seq.mu.Lock()
 	defer seq.mu.Unlock()
 	Ack(call.Options)

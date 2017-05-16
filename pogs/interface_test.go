@@ -16,7 +16,7 @@ func checkFatal(t *testing.T, name string, err error) {
 	}
 }
 
-func (s simpleEcho) Echo(p air.Echo_echo) error {
+func (s simpleEcho) Echo(ctx context.Context, p air.Echo_echo) error {
 	text, err := p.Params.In()
 	if err != nil {
 		return err
