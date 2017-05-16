@@ -1,4 +1,6 @@
 // +build msgp
+//go:generate msgp -tests=false -o msgp_bench_gen_test.go
+//msgp:Tuple Event
 
 package capnp_test
 
@@ -14,9 +16,6 @@ import (
 
 	"github.com/tinylib/msgp/msgp"
 )
-
-//go:generate msgp -tests=false -o msgp_bench_gen_test.go
-//msgp:Tuple Event
 
 type Event struct {
 	Name     string
