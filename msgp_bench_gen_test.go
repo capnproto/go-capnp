@@ -1,4 +1,4 @@
-// +build msgp
+// +build msgpbench
 
 package capnp_test
 
