@@ -1082,6 +1082,9 @@ func (g *generator) defineFile() error {
 	if f.pkg == "" {
 		return errors.New("missing package annotation")
 	}
+	if f.imp == "" {
+		return errors.New("missing import annotation")
+	}
 
 	for _, n := range f.nodes {
 		if n.Which() == schema.Node_Which_annotation {
