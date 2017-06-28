@@ -65,25 +65,18 @@ dig:
 			p := (*capnp.Pipeline)(curr)
 			ans := p.Answer()
 			transform := p.Transform()
-			if capnp.IsFixedAnswer(ans) {
+			if q, ok := ans.(*question); ok {
+				if q.conn != c {
+					// This doesn't use our conn's lock, so it is safe to call.
+					return q.PipelineCall(ctx, transform, cl)
+				}
+				return q.lockedPipelineCall(ctx, transform, cl)
+			}
+			select {
+			case <-ans.Done():
 				s, err := ans.Struct()
 				client = clientFromResolution(transform, s.ToPtr(), err)
 				continue
-			}
-			switch ans := ans.(type) {
-			case *fulfiller.Fulfiller:
-				ap := ans.Peek()
-				if ap == nil {
-					break dig
-				}
-				s, err := ap.Struct()
-				client = clientFromResolution(transform, s.ToPtr(), err)
-			case *question:
-				if ans.conn != c {
-					// This doesn't use our conn's lock, so it is safe to call.
-					return ans.PipelineCall(ctx, transform, cl)
-				}
-				return ans.lockedPipelineCall(ctx, transform, cl)
 			default:
 				break dig
 			}
@@ -158,40 +151,29 @@ dig:
 			p := (*capnp.Pipeline)(ct)
 			ans := p.Answer()
 			transform := p.Transform()
-			if capnp.IsFixedAnswer(ans) {
-				s, err := ans.Struct()
-				client = clientFromResolution(transform, s.ToPtr(), err)
-				continue
-			}
-			switch ans := ans.(type) {
-			case *fulfiller.Fulfiller:
-				ap := ans.Peek()
-				if ap == nil {
-					break dig
-				}
-				s, err := ap.Struct()
-				client = clientFromResolution(transform, s.ToPtr(), err)
-			case *question:
-				ans.mu.RLock()
-				obj, err, state := ans.obj, ans.err, ans.state
-				ans.mu.RUnlock()
+			if q, ok := ans.(*question); ok {
+				q.mu.RLock()
+				obj, err, state := q.obj, q.err, q.state
+				q.mu.RUnlock()
 				if state != questionInProgress {
 					client = clientFromResolution(transform, obj, err)
 					continue
 				}
-				if ans.conn != c {
+				if q.conn != c {
 					break dig
 				}
 				a, err := desc.NewReceiverAnswer()
 				if err != nil {
 					return err
 				}
-				a.SetQuestionId(uint32(ans.id))
-				err = transformToPromisedAnswer(desc.Segment(), a, p.Transform())
-				if err != nil {
-					return err
-				}
-				return nil
+				a.SetQuestionId(uint32(q.id))
+				return transformToPromisedAnswer(desc.Segment(), a, p.Transform())
+			}
+			select {
+			case <-ans.Done():
+				s, err := ans.Struct()
+				client = clientFromResolution(transform, s.ToPtr(), err)
+				continue
 			default:
 				break dig
 			}
@@ -244,27 +226,20 @@ func isSameClient(c, d capnp.Client) bool {
 			case *capnp.PipelineClient:
 				p := (*capnp.Pipeline)(curr)
 				ans := p.Answer()
-				if capnp.IsFixedAnswer(ans) {
-					s, err := ans.Struct()
-					client = clientFromResolution(p.Transform(), s.ToPtr(), err)
-					continue
-				}
-				switch ans := ans.(type) {
-				case *fulfiller.Fulfiller:
-					ap := ans.Peek()
-					if ap == nil {
-						return curr
-					}
-					s, err := ap.Struct()
-					client = clientFromResolution(p.Transform(), s.ToPtr(), err)
-				case *question:
-					ans.mu.RLock()
-					obj, err, state := ans.obj, ans.err, ans.state
-					ans.mu.RUnlock()
+				if q, ok := ans.(*question); ok {
+					q.mu.RLock()
+					obj, err, state := q.obj, q.err, q.state
+					q.mu.RUnlock()
 					if state != questionResolved {
 						return curr
 					}
 					client = clientFromResolution(p.Transform(), obj, err)
+					continue
+				}
+				select {
+				case <-ans.Done():
+					s, err := ans.Struct()
+					client = clientFromResolution(p.Transform(), s.ToPtr(), err)
 				default:
 					return curr
 				}
@@ -317,27 +292,20 @@ func isImport(client capnp.Client) *importClient {
 		case *capnp.PipelineClient:
 			p := (*capnp.Pipeline)(curr)
 			ans := p.Answer()
-			if capnp.IsFixedAnswer(ans) {
-				s, err := ans.Struct()
-				client = clientFromResolution(p.Transform(), s.ToPtr(), err)
-				continue
-			}
-			switch ans := ans.(type) {
-			case *fulfiller.Fulfiller:
-				ap := ans.Peek()
-				if ap == nil {
-					return nil
-				}
-				s, err := ap.Struct()
-				client = clientFromResolution(p.Transform(), s.ToPtr(), err)
-			case *question:
-				ans.mu.RLock()
-				obj, err, state := ans.obj, ans.err, ans.state
-				ans.mu.RUnlock()
+			if q, ok := ans.(*question); ok {
+				q.mu.RLock()
+				obj, err, state := q.obj, q.err, q.state
+				q.mu.RUnlock()
 				if state != questionResolved {
 					return nil
 				}
 				client = clientFromResolution(p.Transform(), obj, err)
+				continue
+			}
+			select {
+			case <-ans.Done():
+				s, err := ans.Struct()
+				client = clientFromResolution(p.Transform(), s.ToPtr(), err)
 			default:
 				return nil
 			}

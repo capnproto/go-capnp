@@ -10,10 +10,6 @@ import (
 
 func TestFulfiller_NewShouldBeUnresolved(t *testing.T) {
 	f := new(Fulfiller)
-
-	if a := f.Peek(); a != nil {
-		t.Errorf("f.Peek() = %v; want nil", a)
-	}
 	select {
 	case <-f.Done():
 		t.Error("Done closed early")

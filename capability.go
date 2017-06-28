@@ -214,6 +214,10 @@ type Answer interface {
 	// Struct waits until the call is finished and returns the result.
 	Struct() (Struct, error)
 
+	// Done returns a channel that is closed when call is finished.
+	// Done must always return the same channel.
+	Done() <-chan struct{}
+
 	// PipelineCall sends a call to the Client identified by the transform.
 	// Answers may have a more efficient way of doing this than waiting
 	// for the call to be finished (promise pipelining).
@@ -412,6 +416,10 @@ func (ans immediateAnswer) Struct() (Struct, error) {
 	return ans.s, nil
 }
 
+func (ans immediateAnswer) Done() <-chan struct{} {
+	return closedSignal
+}
+
 func (ans immediateAnswer) findClient(transform []PipelineOp) Client {
 	p, err := Transform(ans.s.ToPtr(), transform)
 	if err != nil {
@@ -441,21 +449,12 @@ func (ans errorAnswer) Struct() (Struct, error) {
 	return Struct{}, ans.e
 }
 
-func (ans errorAnswer) PipelineCall(context.Context, []PipelineOp, *Call) Answer {
-	return ans
+func (ans errorAnswer) Done() <-chan struct{} {
+	return closedSignal
 }
 
-// IsFixedAnswer reports whether an answer was created by
-// ImmediateAnswer or ErrorAnswer.
-func IsFixedAnswer(ans Answer) bool {
-	switch ans.(type) {
-	case immediateAnswer:
-		return true
-	case errorAnswer:
-		return true
-	default:
-		return false
-	}
+func (ans errorAnswer) PipelineCall(context.Context, []PipelineOp, *Call) Answer {
+	return ans
 }
 
 type errorClient struct {
@@ -502,4 +501,12 @@ func IsUnimplemented(e error) bool {
 		e = me.Err
 	}
 	return e == ErrUnimplemented
+}
+
+var closedSignal = newClosedSignal()
+
+func newClosedSignal() <-chan struct{} {
+	c := make(chan struct{})
+	close(c)
+	return c
 }

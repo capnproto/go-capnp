@@ -221,6 +221,10 @@ func (q *question) Struct() (capnp.Struct, error) {
 	return s, err
 }
 
+func (q *question) Done() <-chan struct{} {
+	return q.resolved
+}
+
 func (q *question) PipelineCall(ctx context.Context, transform []capnp.PipelineOp, ccall *capnp.Call) capnp.Answer {
 	select {
 	case <-q.conn.mu:

@@ -112,21 +112,15 @@ func (f *Fulfiller) Done() <-chan struct{} {
 	return f.resolved
 }
 
-// Peek returns f's resolved answer or nil if f has not been resolved.
-// The Struct method of an answer returned from Peek returns immediately.
-func (f *Fulfiller) Peek() capnp.Answer {
-	f.init()
-	f.mu.RLock()
-	a := f.answer
-	f.mu.RUnlock()
-	return a
-}
-
 // Struct waits until f is resolved and returns its struct if fulfilled
 // or an error if rejected.
 func (f *Fulfiller) Struct() (capnp.Struct, error) {
-	<-f.Done()
-	return f.Peek().Struct()
+	f.init()
+	<-f.resolved
+	f.mu.RLock()
+	a := f.answer
+	f.mu.RUnlock()
+	return a.Struct()
 }
 
 // PipelineCall calls PipelineCall on the fulfilled answer or queues the
@@ -135,7 +129,10 @@ func (f *Fulfiller) PipelineCall(ctx context.Context, transform []capnp.Pipeline
 	f.init()
 
 	// Fast path: pass-through after fulfilled.
-	if a := f.Peek(); a != nil {
+	f.mu.RLock()
+	a := f.answer
+	f.mu.RUnlock()
+	if a != nil {
 		return a.PipelineCall(ctx, transform, call)
 	}
 
