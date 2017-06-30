@@ -111,14 +111,6 @@ func (s VatId_List) At(i int) VatId { return VatId{s.List.Struct(i)} }
 
 func (s VatId_List) Set(i int, v VatId) error { return s.List.SetStruct(i, v.Struct) }
 
-// VatId_Promise is a wrapper for a VatId promised by a client call.
-type VatId_Promise struct{ *capnp.Pipeline }
-
-func (p VatId_Promise) Struct() (VatId, error) {
-	s, err := p.Pipeline.Struct()
-	return VatId{s}, err
-}
-
 type ProvisionId struct{ capnp.Struct }
 
 // ProvisionId_TypeID is the unique identifier for the type ProvisionId.
@@ -165,14 +157,6 @@ func (s ProvisionId_List) At(i int) ProvisionId { return ProvisionId{s.List.Stru
 
 func (s ProvisionId_List) Set(i int, v ProvisionId) error { return s.List.SetStruct(i, v.Struct) }
 
-// ProvisionId_Promise is a wrapper for a ProvisionId promised by a client call.
-type ProvisionId_Promise struct{ *capnp.Pipeline }
-
-func (p ProvisionId_Promise) Struct() (ProvisionId, error) {
-	s, err := p.Pipeline.Struct()
-	return ProvisionId{s}, err
-}
-
 type RecipientId struct{ capnp.Struct }
 
 // RecipientId_TypeID is the unique identifier for the type RecipientId.
@@ -210,14 +194,6 @@ func NewRecipientId_List(s *capnp.Segment, sz int32) (RecipientId_List, error) {
 func (s RecipientId_List) At(i int) RecipientId { return RecipientId{s.List.Struct(i)} }
 
 func (s RecipientId_List) Set(i int, v RecipientId) error { return s.List.SetStruct(i, v.Struct) }
-
-// RecipientId_Promise is a wrapper for a RecipientId promised by a client call.
-type RecipientId_Promise struct{ *capnp.Pipeline }
-
-func (p RecipientId_Promise) Struct() (RecipientId, error) {
-	s, err := p.Pipeline.Struct()
-	return RecipientId{s}, err
-}
 
 type ThirdPartyCapId struct{ capnp.Struct }
 
@@ -257,14 +233,6 @@ func (s ThirdPartyCapId_List) At(i int) ThirdPartyCapId { return ThirdPartyCapId
 
 func (s ThirdPartyCapId_List) Set(i int, v ThirdPartyCapId) error {
 	return s.List.SetStruct(i, v.Struct)
-}
-
-// ThirdPartyCapId_Promise is a wrapper for a ThirdPartyCapId promised by a client call.
-type ThirdPartyCapId_Promise struct{ *capnp.Pipeline }
-
-func (p ThirdPartyCapId_Promise) Struct() (ThirdPartyCapId, error) {
-	s, err := p.Pipeline.Struct()
-	return ThirdPartyCapId{s}, err
 }
 
 type JoinKeyPart struct{ capnp.Struct }
@@ -328,14 +296,6 @@ func NewJoinKeyPart_List(s *capnp.Segment, sz int32) (JoinKeyPart_List, error) {
 func (s JoinKeyPart_List) At(i int) JoinKeyPart { return JoinKeyPart{s.List.Struct(i)} }
 
 func (s JoinKeyPart_List) Set(i int, v JoinKeyPart) error { return s.List.SetStruct(i, v.Struct) }
-
-// JoinKeyPart_Promise is a wrapper for a JoinKeyPart promised by a client call.
-type JoinKeyPart_Promise struct{ *capnp.Pipeline }
-
-func (p JoinKeyPart_Promise) Struct() (JoinKeyPart, error) {
-	s, err := p.Pipeline.Struct()
-	return JoinKeyPart{s}, err
-}
 
 type JoinResult struct{ capnp.Struct }
 
@@ -403,18 +363,6 @@ func NewJoinResult_List(s *capnp.Segment, sz int32) (JoinResult_List, error) {
 func (s JoinResult_List) At(i int) JoinResult { return JoinResult{s.List.Struct(i)} }
 
 func (s JoinResult_List) Set(i int, v JoinResult) error { return s.List.SetStruct(i, v.Struct) }
-
-// JoinResult_Promise is a wrapper for a JoinResult promised by a client call.
-type JoinResult_Promise struct{ *capnp.Pipeline }
-
-func (p JoinResult_Promise) Struct() (JoinResult, error) {
-	s, err := p.Pipeline.Struct()
-	return JoinResult{s}, err
-}
-
-func (p JoinResult_Promise) Cap() *capnp.Pipeline {
-	return p.Pipeline.GetPipeline(0)
-}
 
 const schema_a184c7885cdaf2a1 = "x\xda|\x92\xcfk\x13A\x14\xc7\xdfw&1\x09Z" +
 	"\xc2v\"\xa2\x17E\xd0\x83\xa8\xb4(\x0a\x0b\xb2\xc1 " +

@@ -5,80 +5,12 @@ package persistent
 // AUTO GENERATED - DO NOT EDIT
 
 import (
-	context "golang.org/x/net/context"
 	capnp "zombiezen.com/go/capnproto2"
 	text "zombiezen.com/go/capnproto2/encoding/text"
 	schemas "zombiezen.com/go/capnproto2/schemas"
-	server "zombiezen.com/go/capnproto2/server"
 )
 
 const PersistentAnnotation = uint64(0xf622595091cafb67)
-
-type Persistent struct{ Client capnp.Client }
-
-// Persistent_TypeID is the unique identifier for the type Persistent.
-const Persistent_TypeID = 0xc8cb212fcd9f5691
-
-func (c Persistent) Save(ctx context.Context, params func(Persistent_SaveParams) error, opts ...capnp.CallOption) Persistent_SaveResults_Promise {
-	if c.Client == nil {
-		return Persistent_SaveResults_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
-	}
-	call := &capnp.Call{
-		Method: capnp.Method{
-			InterfaceID:   0xc8cb212fcd9f5691,
-			MethodID:      0,
-			InterfaceName: "persistent.capnp:Persistent",
-			MethodName:    "save",
-		},
-		Options: capnp.NewCallOptions(opts),
-	}
-	if params != nil {
-		call.ParamsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 1}
-		call.ParamsFunc = func(s capnp.Struct) error { return params(Persistent_SaveParams{Struct: s}) }
-	}
-	return Persistent_SaveResults_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(ctx, call))}
-}
-
-type Persistent_Server interface {
-	Save(context.Context, Persistent_save) error
-}
-
-func Persistent_ServerToClient(s Persistent_Server) Persistent {
-	c, _ := s.(server.Closer)
-	return Persistent{Client: server.New(Persistent_Methods(nil, s), c)}
-}
-
-func Persistent_Methods(methods []server.Method, s Persistent_Server) []server.Method {
-	if cap(methods) == 0 {
-		methods = make([]server.Method, 0, 1)
-	}
-
-	methods = append(methods, server.Method{
-		Method: capnp.Method{
-			InterfaceID:   0xc8cb212fcd9f5691,
-			MethodID:      0,
-			InterfaceName: "persistent.capnp:Persistent",
-			MethodName:    "save",
-		},
-		Impl: func(ctx context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
-			return s.Save(ctx, Persistent_save{
-				Params:  Persistent_SaveParams{Struct: p},
-				Results: Persistent_SaveResults{Struct: r},
-				Options: opts,
-			})
-		},
-		ResultsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 1},
-	})
-
-	return methods
-}
-
-// Persistent_save holds the arguments for a server call to Persistent.save.
-type Persistent_save struct {
-	Params  Persistent_SaveParams
-	Results Persistent_SaveResults
-	Options capnp.CallOptions
-}
 
 type Persistent_SaveParams struct{ capnp.Struct }
 
@@ -133,18 +65,6 @@ func (s Persistent_SaveParams_List) At(i int) Persistent_SaveParams {
 
 func (s Persistent_SaveParams_List) Set(i int, v Persistent_SaveParams) error {
 	return s.List.SetStruct(i, v.Struct)
-}
-
-// Persistent_SaveParams_Promise is a wrapper for a Persistent_SaveParams promised by a client call.
-type Persistent_SaveParams_Promise struct{ *capnp.Pipeline }
-
-func (p Persistent_SaveParams_Promise) Struct() (Persistent_SaveParams, error) {
-	s, err := p.Pipeline.Struct()
-	return Persistent_SaveParams{s}, err
-}
-
-func (p Persistent_SaveParams_Promise) SealFor() *capnp.Pipeline {
-	return p.Pipeline.GetPipeline(0)
 }
 
 type Persistent_SaveResults struct{ capnp.Struct }
@@ -202,129 +122,6 @@ func (s Persistent_SaveResults_List) Set(i int, v Persistent_SaveResults) error 
 	return s.List.SetStruct(i, v.Struct)
 }
 
-// Persistent_SaveResults_Promise is a wrapper for a Persistent_SaveResults promised by a client call.
-type Persistent_SaveResults_Promise struct{ *capnp.Pipeline }
-
-func (p Persistent_SaveResults_Promise) Struct() (Persistent_SaveResults, error) {
-	s, err := p.Pipeline.Struct()
-	return Persistent_SaveResults{s}, err
-}
-
-func (p Persistent_SaveResults_Promise) SturdyRef() *capnp.Pipeline {
-	return p.Pipeline.GetPipeline(0)
-}
-
-type RealmGateway struct{ Client capnp.Client }
-
-// RealmGateway_TypeID is the unique identifier for the type RealmGateway.
-const RealmGateway_TypeID = 0x84ff286cd00a3ed4
-
-func (c RealmGateway) Import(ctx context.Context, params func(RealmGateway_import_Params) error, opts ...capnp.CallOption) Persistent_SaveResults_Promise {
-	if c.Client == nil {
-		return Persistent_SaveResults_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
-	}
-	call := &capnp.Call{
-		Method: capnp.Method{
-			InterfaceID:   0x84ff286cd00a3ed4,
-			MethodID:      0,
-			InterfaceName: "persistent.capnp:RealmGateway",
-			MethodName:    "import",
-		},
-		Options: capnp.NewCallOptions(opts),
-	}
-	if params != nil {
-		call.ParamsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 2}
-		call.ParamsFunc = func(s capnp.Struct) error { return params(RealmGateway_import_Params{Struct: s}) }
-	}
-	return Persistent_SaveResults_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(ctx, call))}
-}
-func (c RealmGateway) Export(ctx context.Context, params func(RealmGateway_export_Params) error, opts ...capnp.CallOption) Persistent_SaveResults_Promise {
-	if c.Client == nil {
-		return Persistent_SaveResults_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
-	}
-	call := &capnp.Call{
-		Method: capnp.Method{
-			InterfaceID:   0x84ff286cd00a3ed4,
-			MethodID:      1,
-			InterfaceName: "persistent.capnp:RealmGateway",
-			MethodName:    "export",
-		},
-		Options: capnp.NewCallOptions(opts),
-	}
-	if params != nil {
-		call.ParamsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 2}
-		call.ParamsFunc = func(s capnp.Struct) error { return params(RealmGateway_export_Params{Struct: s}) }
-	}
-	return Persistent_SaveResults_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(ctx, call))}
-}
-
-type RealmGateway_Server interface {
-	Import(context.Context, RealmGateway_import) error
-
-	Export(context.Context, RealmGateway_export) error
-}
-
-func RealmGateway_ServerToClient(s RealmGateway_Server) RealmGateway {
-	c, _ := s.(server.Closer)
-	return RealmGateway{Client: server.New(RealmGateway_Methods(nil, s), c)}
-}
-
-func RealmGateway_Methods(methods []server.Method, s RealmGateway_Server) []server.Method {
-	if cap(methods) == 0 {
-		methods = make([]server.Method, 0, 2)
-	}
-
-	methods = append(methods, server.Method{
-		Method: capnp.Method{
-			InterfaceID:   0x84ff286cd00a3ed4,
-			MethodID:      0,
-			InterfaceName: "persistent.capnp:RealmGateway",
-			MethodName:    "import",
-		},
-		Impl: func(ctx context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
-			return s.Import(ctx, RealmGateway_import{
-				Params:  RealmGateway_import_Params{Struct: p},
-				Results: Persistent_SaveResults{Struct: r},
-				Options: opts,
-			})
-		},
-		ResultsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 1},
-	})
-
-	methods = append(methods, server.Method{
-		Method: capnp.Method{
-			InterfaceID:   0x84ff286cd00a3ed4,
-			MethodID:      1,
-			InterfaceName: "persistent.capnp:RealmGateway",
-			MethodName:    "export",
-		},
-		Impl: func(ctx context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
-			return s.Export(ctx, RealmGateway_export{
-				Params:  RealmGateway_export_Params{Struct: p},
-				Results: Persistent_SaveResults{Struct: r},
-				Options: opts,
-			})
-		},
-		ResultsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 1},
-	})
-
-	return methods
-}
-
-// RealmGateway_import holds the arguments for a server call to RealmGateway.import.
-type RealmGateway_import struct {
-	Params  RealmGateway_import_Params
-	Results Persistent_SaveResults
-	Options capnp.CallOptions
-}
-
-// RealmGateway_export holds the arguments for a server call to RealmGateway.export.
-type RealmGateway_export struct {
-	Params  RealmGateway_export_Params
-	Results Persistent_SaveResults
-	Options capnp.CallOptions
-}
-
 type RealmGateway_import_Params struct{ capnp.Struct }
 
 // RealmGateway_import_Params_TypeID is the unique identifier for the type RealmGateway_import_Params.
@@ -348,25 +145,6 @@ func ReadRootRealmGateway_import_Params(msg *capnp.Message) (RealmGateway_import
 func (s RealmGateway_import_Params) String() string {
 	str, _ := text.Marshal(0xf0c2cc1d3909574d, s.Struct)
 	return str
-}
-
-func (s RealmGateway_import_Params) Cap() Persistent {
-	p, _ := s.Struct.Ptr(0)
-	return Persistent{Client: p.Interface().Client()}
-}
-
-func (s RealmGateway_import_Params) HasCap() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
-}
-
-func (s RealmGateway_import_Params) SetCap(v Persistent) error {
-	if v.Client == nil {
-		return s.Struct.SetPtr(0, capnp.Ptr{})
-	}
-	seg := s.Segment()
-	in := capnp.NewInterface(seg, seg.Message().AddCap(v.Client))
-	return s.Struct.SetPtr(0, in.ToPtr())
 }
 
 func (s RealmGateway_import_Params) Params() (Persistent_SaveParams, error) {
@@ -411,22 +189,6 @@ func (s RealmGateway_import_Params_List) Set(i int, v RealmGateway_import_Params
 	return s.List.SetStruct(i, v.Struct)
 }
 
-// RealmGateway_import_Params_Promise is a wrapper for a RealmGateway_import_Params promised by a client call.
-type RealmGateway_import_Params_Promise struct{ *capnp.Pipeline }
-
-func (p RealmGateway_import_Params_Promise) Struct() (RealmGateway_import_Params, error) {
-	s, err := p.Pipeline.Struct()
-	return RealmGateway_import_Params{s}, err
-}
-
-func (p RealmGateway_import_Params_Promise) Cap() Persistent {
-	return Persistent{Client: p.Pipeline.GetPipeline(0).Client()}
-}
-
-func (p RealmGateway_import_Params_Promise) Params() Persistent_SaveParams_Promise {
-	return Persistent_SaveParams_Promise{Pipeline: p.Pipeline.GetPipeline(1)}
-}
-
 type RealmGateway_export_Params struct{ capnp.Struct }
 
 // RealmGateway_export_Params_TypeID is the unique identifier for the type RealmGateway_export_Params.
@@ -450,25 +212,6 @@ func ReadRootRealmGateway_export_Params(msg *capnp.Message) (RealmGateway_export
 func (s RealmGateway_export_Params) String() string {
 	str, _ := text.Marshal(0xecafa18b482da3aa, s.Struct)
 	return str
-}
-
-func (s RealmGateway_export_Params) Cap() Persistent {
-	p, _ := s.Struct.Ptr(0)
-	return Persistent{Client: p.Interface().Client()}
-}
-
-func (s RealmGateway_export_Params) HasCap() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
-}
-
-func (s RealmGateway_export_Params) SetCap(v Persistent) error {
-	if v.Client == nil {
-		return s.Struct.SetPtr(0, capnp.Ptr{})
-	}
-	seg := s.Segment()
-	in := capnp.NewInterface(seg, seg.Message().AddCap(v.Client))
-	return s.Struct.SetPtr(0, in.ToPtr())
 }
 
 func (s RealmGateway_export_Params) Params() (Persistent_SaveParams, error) {
@@ -511,22 +254,6 @@ func (s RealmGateway_export_Params_List) At(i int) RealmGateway_export_Params {
 
 func (s RealmGateway_export_Params_List) Set(i int, v RealmGateway_export_Params) error {
 	return s.List.SetStruct(i, v.Struct)
-}
-
-// RealmGateway_export_Params_Promise is a wrapper for a RealmGateway_export_Params promised by a client call.
-type RealmGateway_export_Params_Promise struct{ *capnp.Pipeline }
-
-func (p RealmGateway_export_Params_Promise) Struct() (RealmGateway_export_Params, error) {
-	s, err := p.Pipeline.Struct()
-	return RealmGateway_export_Params{s}, err
-}
-
-func (p RealmGateway_export_Params_Promise) Cap() Persistent {
-	return Persistent{Client: p.Pipeline.GetPipeline(0).Client()}
-}
-
-func (p RealmGateway_export_Params_Promise) Params() Persistent_SaveParams_Promise {
-	return Persistent_SaveParams_Promise{Pipeline: p.Pipeline.GetPipeline(1)}
 }
 
 const schema_b8630836983feed7 = "x\xda\xbcSKh3U\x14>\xdf\xdcy$\xd2\x9f" +

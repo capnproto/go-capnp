@@ -500,70 +500,6 @@ func (s Message_List) At(i int) Message { return Message{s.List.Struct(i)} }
 
 func (s Message_List) Set(i int, v Message) error { return s.List.SetStruct(i, v.Struct) }
 
-// Message_Promise is a wrapper for a Message promised by a client call.
-type Message_Promise struct{ *capnp.Pipeline }
-
-func (p Message_Promise) Struct() (Message, error) {
-	s, err := p.Pipeline.Struct()
-	return Message{s}, err
-}
-
-func (p Message_Promise) Unimplemented() Message_Promise {
-	return Message_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
-func (p Message_Promise) Abort() Exception_Promise {
-	return Exception_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
-func (p Message_Promise) Bootstrap() Bootstrap_Promise {
-	return Bootstrap_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
-func (p Message_Promise) Call() Call_Promise {
-	return Call_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
-func (p Message_Promise) Return() Return_Promise {
-	return Return_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
-func (p Message_Promise) Finish() Finish_Promise {
-	return Finish_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
-func (p Message_Promise) Resolve() Resolve_Promise {
-	return Resolve_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
-func (p Message_Promise) Release() Release_Promise {
-	return Release_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
-func (p Message_Promise) Disembargo() Disembargo_Promise {
-	return Disembargo_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
-func (p Message_Promise) ObsoleteSave() *capnp.Pipeline {
-	return p.Pipeline.GetPipeline(0)
-}
-
-func (p Message_Promise) ObsoleteDelete() *capnp.Pipeline {
-	return p.Pipeline.GetPipeline(0)
-}
-
-func (p Message_Promise) Provide() Provide_Promise {
-	return Provide_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
-func (p Message_Promise) Accept() Accept_Promise {
-	return Accept_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
-func (p Message_Promise) Join() Join_Promise {
-	return Join_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
 type Bootstrap struct{ capnp.Struct }
 
 // Bootstrap_TypeID is the unique identifier for the type Bootstrap.
@@ -622,18 +558,6 @@ func NewBootstrap_List(s *capnp.Segment, sz int32) (Bootstrap_List, error) {
 func (s Bootstrap_List) At(i int) Bootstrap { return Bootstrap{s.List.Struct(i)} }
 
 func (s Bootstrap_List) Set(i int, v Bootstrap) error { return s.List.SetStruct(i, v.Struct) }
-
-// Bootstrap_Promise is a wrapper for a Bootstrap promised by a client call.
-type Bootstrap_Promise struct{ *capnp.Pipeline }
-
-func (p Bootstrap_Promise) Struct() (Bootstrap, error) {
-	s, err := p.Pipeline.Struct()
-	return Bootstrap{s}, err
-}
-
-func (p Bootstrap_Promise) DeprecatedObjectId() *capnp.Pipeline {
-	return p.Pipeline.GetPipeline(0)
-}
 
 type Call struct{ capnp.Struct }
 type Call_sendResultsTo Call
@@ -808,38 +732,6 @@ func NewCall_List(s *capnp.Segment, sz int32) (Call_List, error) {
 func (s Call_List) At(i int) Call { return Call{s.List.Struct(i)} }
 
 func (s Call_List) Set(i int, v Call) error { return s.List.SetStruct(i, v.Struct) }
-
-// Call_Promise is a wrapper for a Call promised by a client call.
-type Call_Promise struct{ *capnp.Pipeline }
-
-func (p Call_Promise) Struct() (Call, error) {
-	s, err := p.Pipeline.Struct()
-	return Call{s}, err
-}
-
-func (p Call_Promise) Target() MessageTarget_Promise {
-	return MessageTarget_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
-func (p Call_Promise) Params() Payload_Promise {
-	return Payload_Promise{Pipeline: p.Pipeline.GetPipeline(1)}
-}
-
-func (p Call_Promise) SendResultsTo() Call_sendResultsTo_Promise {
-	return Call_sendResultsTo_Promise{p.Pipeline}
-}
-
-// Call_sendResultsTo_Promise is a wrapper for a Call_sendResultsTo promised by a client call.
-type Call_sendResultsTo_Promise struct{ *capnp.Pipeline }
-
-func (p Call_sendResultsTo_Promise) Struct() (Call_sendResultsTo, error) {
-	s, err := p.Pipeline.Struct()
-	return Call_sendResultsTo{s}, err
-}
-
-func (p Call_sendResultsTo_Promise) ThirdParty() *capnp.Pipeline {
-	return p.Pipeline.GetPipeline(2)
-}
 
 type Return struct{ capnp.Struct }
 type Return_Which uint16
@@ -1024,26 +916,6 @@ func (s Return_List) At(i int) Return { return Return{s.List.Struct(i)} }
 
 func (s Return_List) Set(i int, v Return) error { return s.List.SetStruct(i, v.Struct) }
 
-// Return_Promise is a wrapper for a Return promised by a client call.
-type Return_Promise struct{ *capnp.Pipeline }
-
-func (p Return_Promise) Struct() (Return, error) {
-	s, err := p.Pipeline.Struct()
-	return Return{s}, err
-}
-
-func (p Return_Promise) Results() Payload_Promise {
-	return Payload_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
-func (p Return_Promise) Exception() Exception_Promise {
-	return Exception_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
-func (p Return_Promise) AcceptFromThirdParty() *capnp.Pipeline {
-	return p.Pipeline.GetPipeline(0)
-}
-
 type Finish struct{ capnp.Struct }
 
 // Finish_TypeID is the unique identifier for the type Finish.
@@ -1097,14 +969,6 @@ func NewFinish_List(s *capnp.Segment, sz int32) (Finish_List, error) {
 func (s Finish_List) At(i int) Finish { return Finish{s.List.Struct(i)} }
 
 func (s Finish_List) Set(i int, v Finish) error { return s.List.SetStruct(i, v.Struct) }
-
-// Finish_Promise is a wrapper for a Finish promised by a client call.
-type Finish_Promise struct{ *capnp.Pipeline }
-
-func (p Finish_Promise) Struct() (Finish, error) {
-	s, err := p.Pipeline.Struct()
-	return Finish{s}, err
-}
 
 type Resolve struct{ capnp.Struct }
 type Resolve_Which uint16
@@ -1233,22 +1097,6 @@ func (s Resolve_List) At(i int) Resolve { return Resolve{s.List.Struct(i)} }
 
 func (s Resolve_List) Set(i int, v Resolve) error { return s.List.SetStruct(i, v.Struct) }
 
-// Resolve_Promise is a wrapper for a Resolve promised by a client call.
-type Resolve_Promise struct{ *capnp.Pipeline }
-
-func (p Resolve_Promise) Struct() (Resolve, error) {
-	s, err := p.Pipeline.Struct()
-	return Resolve{s}, err
-}
-
-func (p Resolve_Promise) Cap() CapDescriptor_Promise {
-	return CapDescriptor_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
-func (p Resolve_Promise) Exception() Exception_Promise {
-	return Exception_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
 type Release struct{ capnp.Struct }
 
 // Release_TypeID is the unique identifier for the type Release.
@@ -1302,14 +1150,6 @@ func NewRelease_List(s *capnp.Segment, sz int32) (Release_List, error) {
 func (s Release_List) At(i int) Release { return Release{s.List.Struct(i)} }
 
 func (s Release_List) Set(i int, v Release) error { return s.List.SetStruct(i, v.Struct) }
-
-// Release_Promise is a wrapper for a Release promised by a client call.
-type Release_Promise struct{ *capnp.Pipeline }
-
-func (p Release_Promise) Struct() (Release, error) {
-	s, err := p.Pipeline.Struct()
-	return Release{s}, err
-}
 
 type Disembargo struct{ capnp.Struct }
 type Disembargo_context Disembargo
@@ -1436,30 +1276,6 @@ func (s Disembargo_List) At(i int) Disembargo { return Disembargo{s.List.Struct(
 
 func (s Disembargo_List) Set(i int, v Disembargo) error { return s.List.SetStruct(i, v.Struct) }
 
-// Disembargo_Promise is a wrapper for a Disembargo promised by a client call.
-type Disembargo_Promise struct{ *capnp.Pipeline }
-
-func (p Disembargo_Promise) Struct() (Disembargo, error) {
-	s, err := p.Pipeline.Struct()
-	return Disembargo{s}, err
-}
-
-func (p Disembargo_Promise) Target() MessageTarget_Promise {
-	return MessageTarget_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
-func (p Disembargo_Promise) Context() Disembargo_context_Promise {
-	return Disembargo_context_Promise{p.Pipeline}
-}
-
-// Disembargo_context_Promise is a wrapper for a Disembargo_context promised by a client call.
-type Disembargo_context_Promise struct{ *capnp.Pipeline }
-
-func (p Disembargo_context_Promise) Struct() (Disembargo_context, error) {
-	s, err := p.Pipeline.Struct()
-	return Disembargo_context{s}, err
-}
-
 type Provide struct{ capnp.Struct }
 
 // Provide_TypeID is the unique identifier for the type Provide.
@@ -1544,22 +1360,6 @@ func (s Provide_List) At(i int) Provide { return Provide{s.List.Struct(i)} }
 
 func (s Provide_List) Set(i int, v Provide) error { return s.List.SetStruct(i, v.Struct) }
 
-// Provide_Promise is a wrapper for a Provide promised by a client call.
-type Provide_Promise struct{ *capnp.Pipeline }
-
-func (p Provide_Promise) Struct() (Provide, error) {
-	s, err := p.Pipeline.Struct()
-	return Provide{s}, err
-}
-
-func (p Provide_Promise) Target() MessageTarget_Promise {
-	return MessageTarget_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
-func (p Provide_Promise) Recipient() *capnp.Pipeline {
-	return p.Pipeline.GetPipeline(1)
-}
-
 type Accept struct{ capnp.Struct }
 
 // Accept_TypeID is the unique identifier for the type Accept.
@@ -1626,18 +1426,6 @@ func NewAccept_List(s *capnp.Segment, sz int32) (Accept_List, error) {
 func (s Accept_List) At(i int) Accept { return Accept{s.List.Struct(i)} }
 
 func (s Accept_List) Set(i int, v Accept) error { return s.List.SetStruct(i, v.Struct) }
-
-// Accept_Promise is a wrapper for a Accept promised by a client call.
-type Accept_Promise struct{ *capnp.Pipeline }
-
-func (p Accept_Promise) Struct() (Accept, error) {
-	s, err := p.Pipeline.Struct()
-	return Accept{s}, err
-}
-
-func (p Accept_Promise) Provision() *capnp.Pipeline {
-	return p.Pipeline.GetPipeline(0)
-}
 
 type Join struct{ capnp.Struct }
 
@@ -1722,22 +1510,6 @@ func NewJoin_List(s *capnp.Segment, sz int32) (Join_List, error) {
 func (s Join_List) At(i int) Join { return Join{s.List.Struct(i)} }
 
 func (s Join_List) Set(i int, v Join) error { return s.List.SetStruct(i, v.Struct) }
-
-// Join_Promise is a wrapper for a Join promised by a client call.
-type Join_Promise struct{ *capnp.Pipeline }
-
-func (p Join_Promise) Struct() (Join, error) {
-	s, err := p.Pipeline.Struct()
-	return Join{s}, err
-}
-
-func (p Join_Promise) Target() MessageTarget_Promise {
-	return MessageTarget_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
-func (p Join_Promise) KeyPart() *capnp.Pipeline {
-	return p.Pipeline.GetPipeline(1)
-}
 
 type MessageTarget struct{ capnp.Struct }
 type MessageTarget_Which uint16
@@ -1837,18 +1609,6 @@ func (s MessageTarget_List) At(i int) MessageTarget { return MessageTarget{s.Lis
 
 func (s MessageTarget_List) Set(i int, v MessageTarget) error { return s.List.SetStruct(i, v.Struct) }
 
-// MessageTarget_Promise is a wrapper for a MessageTarget promised by a client call.
-type MessageTarget_Promise struct{ *capnp.Pipeline }
-
-func (p MessageTarget_Promise) Struct() (MessageTarget, error) {
-	s, err := p.Pipeline.Struct()
-	return MessageTarget{s}, err
-}
-
-func (p MessageTarget_Promise) PromisedAnswer() PromisedAnswer_Promise {
-	return PromisedAnswer_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
 type Payload struct{ capnp.Struct }
 
 // Payload_TypeID is the unique identifier for the type Payload.
@@ -1924,18 +1684,6 @@ func NewPayload_List(s *capnp.Segment, sz int32) (Payload_List, error) {
 func (s Payload_List) At(i int) Payload { return Payload{s.List.Struct(i)} }
 
 func (s Payload_List) Set(i int, v Payload) error { return s.List.SetStruct(i, v.Struct) }
-
-// Payload_Promise is a wrapper for a Payload promised by a client call.
-type Payload_Promise struct{ *capnp.Pipeline }
-
-func (p Payload_Promise) Struct() (Payload, error) {
-	s, err := p.Pipeline.Struct()
-	return Payload{s}, err
-}
-
-func (p Payload_Promise) Content() *capnp.Pipeline {
-	return p.Pipeline.GetPipeline(0)
-}
 
 type CapDescriptor struct{ capnp.Struct }
 type CapDescriptor_Which uint16
@@ -2100,22 +1848,6 @@ func (s CapDescriptor_List) At(i int) CapDescriptor { return CapDescriptor{s.Lis
 
 func (s CapDescriptor_List) Set(i int, v CapDescriptor) error { return s.List.SetStruct(i, v.Struct) }
 
-// CapDescriptor_Promise is a wrapper for a CapDescriptor promised by a client call.
-type CapDescriptor_Promise struct{ *capnp.Pipeline }
-
-func (p CapDescriptor_Promise) Struct() (CapDescriptor, error) {
-	s, err := p.Pipeline.Struct()
-	return CapDescriptor{s}, err
-}
-
-func (p CapDescriptor_Promise) ReceiverAnswer() PromisedAnswer_Promise {
-	return PromisedAnswer_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
-func (p CapDescriptor_Promise) ThirdPartyHosted() ThirdPartyCapDescriptor_Promise {
-	return ThirdPartyCapDescriptor_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
 type PromisedAnswer struct{ capnp.Struct }
 
 // PromisedAnswer_TypeID is the unique identifier for the type PromisedAnswer.
@@ -2186,14 +1918,6 @@ func NewPromisedAnswer_List(s *capnp.Segment, sz int32) (PromisedAnswer_List, er
 func (s PromisedAnswer_List) At(i int) PromisedAnswer { return PromisedAnswer{s.List.Struct(i)} }
 
 func (s PromisedAnswer_List) Set(i int, v PromisedAnswer) error { return s.List.SetStruct(i, v.Struct) }
-
-// PromisedAnswer_Promise is a wrapper for a PromisedAnswer promised by a client call.
-type PromisedAnswer_Promise struct{ *capnp.Pipeline }
-
-func (p PromisedAnswer_Promise) Struct() (PromisedAnswer, error) {
-	s, err := p.Pipeline.Struct()
-	return PromisedAnswer{s}, err
-}
 
 type PromisedAnswer_Op struct{ capnp.Struct }
 type PromisedAnswer_Op_Which uint16
@@ -2272,14 +1996,6 @@ func (s PromisedAnswer_Op_List) Set(i int, v PromisedAnswer_Op) error {
 	return s.List.SetStruct(i, v.Struct)
 }
 
-// PromisedAnswer_Op_Promise is a wrapper for a PromisedAnswer_Op promised by a client call.
-type PromisedAnswer_Op_Promise struct{ *capnp.Pipeline }
-
-func (p PromisedAnswer_Op_Promise) Struct() (PromisedAnswer_Op, error) {
-	s, err := p.Pipeline.Struct()
-	return PromisedAnswer_Op{s}, err
-}
-
 type ThirdPartyCapDescriptor struct{ capnp.Struct }
 
 // ThirdPartyCapDescriptor_TypeID is the unique identifier for the type ThirdPartyCapDescriptor.
@@ -2341,18 +2057,6 @@ func (s ThirdPartyCapDescriptor_List) At(i int) ThirdPartyCapDescriptor {
 
 func (s ThirdPartyCapDescriptor_List) Set(i int, v ThirdPartyCapDescriptor) error {
 	return s.List.SetStruct(i, v.Struct)
-}
-
-// ThirdPartyCapDescriptor_Promise is a wrapper for a ThirdPartyCapDescriptor promised by a client call.
-type ThirdPartyCapDescriptor_Promise struct{ *capnp.Pipeline }
-
-func (p ThirdPartyCapDescriptor_Promise) Struct() (ThirdPartyCapDescriptor, error) {
-	s, err := p.Pipeline.Struct()
-	return ThirdPartyCapDescriptor{s}, err
-}
-
-func (p ThirdPartyCapDescriptor_Promise) Id() *capnp.Pipeline {
-	return p.Pipeline.GetPipeline(0)
 }
 
 type Exception struct{ capnp.Struct }
@@ -2435,14 +2139,6 @@ func NewException_List(s *capnp.Segment, sz int32) (Exception_List, error) {
 func (s Exception_List) At(i int) Exception { return Exception{s.List.Struct(i)} }
 
 func (s Exception_List) Set(i int, v Exception) error { return s.List.SetStruct(i, v.Struct) }
-
-// Exception_Promise is a wrapper for a Exception promised by a client call.
-type Exception_Promise struct{ *capnp.Pipeline }
-
-func (p Exception_Promise) Struct() (Exception, error) {
-	s, err := p.Pipeline.Struct()
-	return Exception{s}, err
-}
 
 type Exception_Type uint16
 
