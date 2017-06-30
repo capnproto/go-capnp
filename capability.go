@@ -1,10 +1,9 @@
 package capnp
 
 import (
+	"context"
 	"errors"
 	"strconv"
-
-	"golang.org/x/net/context"
 )
 
 // An Interface is a reference to a client in a message's capability table.

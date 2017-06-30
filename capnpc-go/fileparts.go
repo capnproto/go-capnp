@@ -67,8 +67,8 @@ func (i *imports) init() {
 	i.reserve(importSpec{path: schemasImport, name: "schemas"})
 	i.reserve(importSpec{path: serverImport, name: "server"})
 	i.reserve(importSpec{path: textImport, name: "text"})
-	i.reserve(importSpec{path: contextImport, name: "context"})
 
+	i.reserve(importSpec{path: "context", name: "context"})
 	i.reserve(importSpec{path: "math", name: "math"})
 	i.reserve(importSpec{path: "strconv", name: "strconv"})
 }
@@ -90,7 +90,7 @@ func (i *imports) Text() string {
 }
 
 func (i *imports) Context() string {
-	return i.add(importSpec{path: contextImport, name: "context"})
+	return i.add(importSpec{path: "context", name: "context"})
 }
 
 func (i *imports) Math() string {
