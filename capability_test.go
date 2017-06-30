@@ -2,7 +2,6 @@ package capnp
 
 import (
 	"bytes"
-	"errors"
 	"testing"
 )
 
@@ -233,24 +232,6 @@ func TestPipelineOpString(t *testing.T) {
 	for _, test := range tests {
 		if s := test.op.String(); s != test.s {
 			t.Errorf("%#v.String() = %q; want %q", test.op, s, test.s)
-		}
-	}
-}
-
-func TestIsUnimplemented(t *testing.T) {
-	tests := []struct {
-		e  error
-		ok bool
-	}{
-		{nil, false},
-		{ErrUnimplemented, true},
-		{errors.New("foo"), false},
-		{&MethodError{Method: new(Method), Err: ErrUnimplemented}, true},
-		{&MethodError{Method: new(Method), Err: errors.New("foo")}, false},
-	}
-	for _, test := range tests {
-		if ok := IsUnimplemented(test.e); ok != test.ok {
-			t.Errorf("IsUnimplemented(%#v) = %t; want %t", test.e, ok, test.ok)
 		}
 	}
 }

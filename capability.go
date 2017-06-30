@@ -479,27 +479,10 @@ func IsErrorClient(c Client) bool {
 	return ok
 }
 
-// MethodError is an error on an associated method.
-type MethodError struct {
-	Method *Method
-	Err    error
-}
-
-// Error returns the method name concatenated with the error string.
-func (e *MethodError) Error() string {
-	return e.Method.String() + ": " + e.Err.Error()
-}
-
-// ErrUnimplemented is the error returned when a method is called on
-// a server that does not implement the method.
-var ErrUnimplemented = errors.New("capnp: method not implemented")
-
 // IsUnimplemented reports whether e indicates an unimplemented method error.
 func IsUnimplemented(e error) bool {
-	if me, ok := e.(*MethodError); ok {
-		e = me.Err
-	}
-	return e == ErrUnimplemented
+	// TODO(soon)
+	return false
 }
 
 var closedSignal = newClosedSignal()
