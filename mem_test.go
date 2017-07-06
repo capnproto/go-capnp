@@ -756,6 +756,75 @@ func TestStreamHeaderPadding(t *testing.T) {
 	}
 }
 
+func TestClearCaps(t *testing.T) {
+	t.Run("empty", func(t *testing.T) {
+		msg := &Message{
+			Arena:    SingleSegment(make([]byte, 8)),
+			CapTable: nil,
+		}
+		if err := msg.ClearCaps(); err != nil {
+			t.Error("ClearCaps:", err)
+		}
+		if len(msg.CapTable) != 0 {
+			t.Errorf("len(msg.CapTable) = %d; want 0", len(msg.CapTable))
+		}
+	})
+	t.Run("no errors", func(t *testing.T) {
+		hook1 := new(dummyHook)
+		hook2 := new(dummyHook)
+		msg := &Message{Arena: SingleSegment(make([]byte, 8))}
+		msg.AddCap(nil)
+		msg.AddCap(NewClient(hook1))
+		msg.AddCap(nil)
+		msg.AddCap(NewClient(hook2))
+		msg.AddCap(nil)
+		if err := msg.ClearCaps(); err != nil {
+			t.Error("ClearCaps:", err)
+		}
+		if len(msg.CapTable) != 5 {
+			t.Errorf("len(msg.CapTable) = %d; want 5", len(msg.CapTable))
+		}
+		if hook1.closes == 0 {
+			t.Error("hook1 not closed")
+		}
+		if hook2.closes == 0 {
+			t.Error("hook2 not closed")
+		}
+		for i, c := range msg.CapTable {
+			if c != nil {
+				t.Errorf("msg.CapTable[%d] = %v; want <nil>", i, c)
+			}
+		}
+	})
+	t.Run("multiple errors", func(t *testing.T) {
+		hook1 := &dummyHook{closeErr: errors.New("hook1 Close")}
+		hook2 := &dummyHook{closeErr: errors.New("hook2 Close")}
+		msg := &Message{Arena: SingleSegment(make([]byte, 8))}
+		msg.AddCap(nil)
+		msg.AddCap(NewClient(hook1))
+		msg.AddCap(nil)
+		msg.AddCap(NewClient(hook2))
+		msg.AddCap(nil)
+		if err := msg.ClearCaps(); err == nil {
+			t.Error("ClearCaps did not return error")
+		}
+		if len(msg.CapTable) != 5 {
+			t.Errorf("len(msg.CapTable) = %d; want 5", len(msg.CapTable))
+		}
+		if hook1.closes == 0 {
+			t.Error("hook1 not closed")
+		}
+		if hook2.closes == 0 {
+			t.Error("hook2 not closed")
+		}
+		for i, c := range msg.CapTable {
+			if c != nil {
+				t.Errorf("msg.CapTable[%d] = %v; want <nil>", i, c)
+			}
+		}
+	})
+}
+
 type arenaAllocTest struct {
 	name string
 

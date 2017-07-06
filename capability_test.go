@@ -186,9 +186,10 @@ func TestPromisedClient(t *testing.T) {
 }
 
 type dummyHook struct {
-	calls  int
-	brand  interface{}
-	closes int
+	calls    int
+	brand    interface{}
+	closes   int
+	closeErr error
 }
 
 func (dh *dummyHook) Send(context.Context, Method, SendArgs, CallOptions) (*Answer, ReleaseFunc) {
@@ -208,7 +209,7 @@ func (dh *dummyHook) Brand() interface{} {
 
 func (dh *dummyHook) Close() error {
 	dh.closes++
-	return nil
+	return dh.closeErr
 }
 
 func TestToInterface(t *testing.T) {

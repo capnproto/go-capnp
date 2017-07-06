@@ -112,7 +112,8 @@ func (m *Message) Reset(arena Arena) {
 func (m *Message) ClearCaps() error {
 	var first error
 	n := 0
-	for _, c := range m.CapTable {
+	for i, c := range m.CapTable {
+		m.CapTable[i] = nil
 		err := c.Close()
 		if err == nil {
 			continue
