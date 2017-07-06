@@ -144,7 +144,7 @@ func NewPromisedClient(hook ClientHook) (*Client, *ClientPromise) {
 // startCall holds onto a hook to prevent it from closing until finish is called.
 // It resolves the client's hook as much as possible first.
 // The caller must not be holding onto c.mu.
-func (c *Client) startCall() (hook *clientHook, closed bool, finish func()) {
+func (c *Client) startCall() (hook ClientHook, closed bool, finish func()) {
 	if c == nil {
 		return nil, false, func() {}
 	}
@@ -160,33 +160,38 @@ func (c *Client) startCall() (hook *clientHook, closed bool, finish func()) {
 	}
 	c.h.calls++
 	c.h.mu.Unlock()
-	hook = c.h
-	return hook, false, func() {
-		hook.mu.Lock()
-		hook.calls--
-		if hook.refs == 0 && hook.calls == 0 && hook.done != nil {
-			close(hook.done)
+	savedHook := c.h
+	return savedHook.ClientHook, false, func() {
+		savedHook.mu.Lock()
+		savedHook.calls--
+		if savedHook.refs == 0 && savedHook.calls == 0 && savedHook.done != nil {
+			close(savedHook.done)
 		}
-		hook.mu.Unlock()
+		savedHook.mu.Unlock()
 	}
 }
 
-func (c *Client) peek() (hook *clientHook, closed bool) {
+func (c *Client) peek() (hook *clientHook, closed bool, resolved bool) {
 	if c == nil {
-		return nil, false
+		return nil, false, true
 	}
 	defer c.mu.Unlock()
 	c.mu.Lock()
 	if c.h == nil {
-		return nil, c.closed
+		return nil, c.closed, true
 	}
 	c.h.mu.Lock()
 	c.lockedResolve()
 	if c.h == nil {
-		return nil, false
+		return nil, false, true
+	}
+	select {
+	case <-c.h.resolved:
+		resolved = true
+	default:
 	}
 	c.h.mu.Unlock()
-	return c.h, false
+	return c.h, false, resolved
 }
 
 // lockedResolve resolves c.h as much as possible.
@@ -249,7 +254,7 @@ func (c *Client) RecvCall(ctx context.Context, m Method, a RecvArgs, opts CallOp
 // A reference is invalid if it is nil, has resolved to null, or has
 // been closed.
 func (c *Client) IsValid() bool {
-	h, closed := c.peek()
+	h, closed, _ := c.peek()
 	return !closed && h != nil
 }
 
@@ -258,11 +263,11 @@ func (c *Client) IsValid() bool {
 // are not fully resolved: use Resolve if this is an issue.  If either
 // c or c2 are closed, then IsSame panics.
 func (c *Client) IsSame(c2 *Client) bool {
-	h1, closed := c.peek()
+	h1, closed, _ := c.peek()
 	if closed {
 		panic("IsSame on closed client")
 	}
-	h2, closed := c2.peek()
+	h2, closed, _ := c2.peek()
 	if closed {
 		panic("IsSame on closed client")
 	}
@@ -272,11 +277,11 @@ func (c *Client) IsSame(c2 *Client) bool {
 // Resolve blocks until the capability is fully resolved or the Context is Done.
 func (c *Client) Resolve(ctx context.Context) error {
 	for {
-		h, closed := c.peek()
+		h, closed, resolved := c.peek()
 		if closed {
 			return errors.New("capnp: cannot resolve closed client")
 		}
-		if h == nil {
+		if resolved {
 			return nil
 		}
 		select {
@@ -314,7 +319,7 @@ func (c *Client) AddRef() *Client {
 // WeakRef creates a new WeakClient that refers to the same capability
 // as c.  If c is nil or has resolved to null, then WeakRef returns nil.
 func (c *Client) WeakRef() *WeakClient {
-	h, closed := c.peek()
+	h, closed, _ := c.peek()
 	if closed {
 		panic("WeakRef on closed client")
 	}

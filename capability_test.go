@@ -3,11 +3,146 @@ package capnp
 import (
 	"bytes"
 	"context"
-	"errors"
 	"testing"
+	"time"
 )
 
-func TestResolveClient(t *testing.T) {
+func TestClient(t *testing.T) {
+	ctx := context.Background()
+	h := &dummyHook{brand: int(42)}
+	c := NewClient(h)
+
+	if !c.IsSame(c) {
+		t.Error("!c.IsSame(c)")
+	}
+	if !c.IsValid() {
+		t.Error("new client is not valid")
+	}
+	brand := c.Brand()
+	if x, ok := brand.(int); !ok || x != 42 {
+		t.Errorf("c.Brand() = %v; want 42", brand)
+	}
+	args := SendArgs{
+		Place: func(Struct) error {
+			return nil
+		},
+	}
+	ans, finish := c.SendCall(ctx, Method{}, args, CallOptions{})
+	if _, err := ans.Struct(); err != nil {
+		t.Error("SendCall:", err)
+	}
+	finish()
+	if h.calls != 1 {
+		t.Errorf("after SendCall, h.calls = %d; want 1", h.calls)
+	}
+	ans, finish = c.RecvCall(ctx, Method{}, RecvArgs{Release: func() {}}, CallOptions{})
+	if _, err := ans.Struct(); err != nil {
+		t.Error("RecvCall:", err)
+	}
+	finish()
+	if h.calls != 2 {
+		t.Errorf("after RecvCall, h.calls = %d; want 2", h.calls)
+	}
+	rctx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	if err := c.Resolve(rctx); err != nil {
+		t.Error("Resolve failed:", err)
+	}
+	cancel()
+	if err := c.Close(); err != nil {
+		t.Error("Close:", err)
+	}
+	if h.closes == 0 {
+		t.Error("Close did not call ClientHook.Close")
+	} else if h.closes > 1 {
+		t.Error("Close called ClientHook.Close multiple times")
+	}
+}
+
+func TestClosedClient(t *testing.T) {
+	ctx := context.Background()
+	h := &dummyHook{brand: int(42)}
+	c := NewClient(h)
+	if err := c.Close(); err != nil {
+		t.Error("Close:", err)
+	}
+
+	if c.IsValid() {
+		t.Error("closed client is valid")
+	}
+	args := SendArgs{
+		Place: func(Struct) error {
+			return nil
+		},
+	}
+	ans, finish := c.SendCall(ctx, Method{}, args, CallOptions{})
+	if _, err := ans.Struct(); err == nil {
+		t.Error("SendCall did not return error")
+	}
+	finish()
+	if h.calls != 0 {
+		t.Errorf("after SendCall, h.calls = %d; want 0", h.calls)
+	}
+	ans, finish = c.RecvCall(ctx, Method{}, RecvArgs{Release: func() {}}, CallOptions{})
+	if _, err := ans.Struct(); err == nil {
+		t.Error("RecvCall did not return error")
+	}
+	finish()
+	if err := c.Resolve(ctx); err == nil {
+		t.Error("Resolve did not return error")
+	}
+	if h.calls != 0 {
+		t.Errorf("after RecvCall, h.calls = %d; want 0", h.calls)
+	}
+	if err := c.Close(); err == nil {
+		t.Error("second Close did not return error")
+	}
+	if h.closes > 1 {
+		t.Error("second Close made more calls to ClientHook.Close")
+	}
+}
+
+func TestNullClient(t *testing.T) {
+	ctx := context.Background()
+	c := (*Client)(nil)
+
+	if !c.IsSame(c) {
+		t.Error("!<nil>.IsSame(<nil>)")
+	}
+	if c.IsValid() {
+		t.Error("null client is valid")
+	}
+	if b := c.Brand(); b != nil {
+		t.Errorf("c.Brand() = %v; want <nil>", b)
+	}
+	args := SendArgs{
+		Place: func(Struct) error {
+			return nil
+		},
+	}
+	ans, finish := c.SendCall(ctx, Method{}, args, CallOptions{})
+	if _, err := ans.Struct(); err == nil {
+		t.Error("SendCall did not return error")
+	}
+	finish()
+	ans, finish = c.RecvCall(ctx, Method{}, RecvArgs{Release: func() {}}, CallOptions{})
+	if _, err := ans.Struct(); err == nil {
+		t.Error("RecvCall did not return error")
+	}
+	finish()
+	rctx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	if err := c.Resolve(rctx); err != nil {
+		t.Error("Resolve failed:", err)
+	}
+	cancel()
+	if err := c.Close(); err != nil {
+		t.Error("Close #1:", err)
+	}
+	if err := c.Close(); err != nil {
+		t.Error("Close #2:", err)
+	}
+}
+
+func TestPromisedClient(t *testing.T) {
 	a := new(dummyHook)
 	b := new(dummyHook)
 	ca, pa := NewPromisedClient(a)
@@ -31,42 +166,48 @@ func TestResolveClient(t *testing.T) {
 	if !ca.IsSame(cb) {
 		t.Error("after resolution, ca != cb")
 	}
-	if b.closed {
-		t.Error("b.closed = true before closing")
+	if b.closes > 0 {
+		t.Error("b closed before clients closed")
 	}
 	if err := ca.Close(); err != nil {
 		t.Error("ca.Close() =", err)
 	}
-	if b.closed {
-		t.Error("b.closed = true after closing ca, but not cb")
+	if b.closes > 0 {
+		t.Error("b closed after ca.Close but before cb.Close")
 	}
 	if err := cb.Close(); err != nil {
 		t.Error("cb.Close() =", err)
 	}
-	if !b.closed {
-		t.Error("b.closed = false after closing")
+	if b.closes == 0 {
+		t.Error("b not closed after calling ca.Close and cb.Close")
+	} else if b.closes > 1 {
+		t.Error("b closed multiple times")
 	}
 }
 
 type dummyHook struct {
-	closed bool
+	calls  int
+	brand  interface{}
+	closes int
 }
 
 func (dh *dummyHook) Send(context.Context, Method, SendArgs, CallOptions) (*Answer, ReleaseFunc) {
-	return ErrorAnswer(errors.New("dummy hook answer")), func() {}
+	dh.calls++
+	return ImmediateAnswer(newEmptyStruct()), func() {}
 }
 
 func (dh *dummyHook) Recv(_ context.Context, _ Method, a RecvArgs, _ CallOptions) (*Answer, ReleaseFunc) {
 	a.Release()
-	return ErrorAnswer(errors.New("dummy hook answer")), func() {}
+	dh.calls++
+	return ImmediateAnswer(newEmptyStruct()), func() {}
 }
 
 func (dh *dummyHook) Brand() interface{} {
-	return nil
+	return dh.brand
 }
 
 func (dh *dummyHook) Close() error {
-	dh.closed = true
+	dh.closes++
 	return nil
 }
 
@@ -315,13 +456,13 @@ func TestWeakClient(t *testing.T) {
 	if err := c2.Close(); err != nil {
 		t.Errorf("w.AddRef().Close(): %v", err)
 	}
-	if h.closed {
+	if h.closes > 0 {
 		t.Fatal("Closing second reference closed capability")
 	}
 	if err := c1.Close(); err != nil {
 		t.Errorf("w.AddRef().Close(): %v", err)
 	}
-	if !h.closed {
+	if h.closes == 0 {
 		t.Errorf("Closing strong reference with weak reference kept capability open")
 	}
 	if _, ok := w.AddRef(); ok {
@@ -329,7 +470,7 @@ func TestWeakClient(t *testing.T) {
 	}
 }
 
-func TestResolveWeakClient(t *testing.T) {
+func TestWeakPromisedClient(t *testing.T) {
 	a := new(dummyHook)
 	b := new(dummyHook)
 	ca, pa := NewPromisedClient(a)
@@ -361,14 +502,14 @@ func TestResolveWeakClient(t *testing.T) {
 	if err := cb.Close(); err != nil {
 		t.Error("cb.Close() =", err)
 	}
-	if b.closed {
-		t.Error("b.closed = true before closing cb2")
+	if b.closes > 0 {
+		t.Error("b closed before cb2.Close")
 	}
 	if err := cb2.Close(); err != nil {
 		t.Error("cb2.Close() =", err)
 	}
-	if !b.closed {
-		t.Error("b.closed = false after closing cb2")
+	if b.closes == 0 {
+		t.Error("b not closed after cb2.Close")
 	}
 }
 
@@ -394,4 +535,16 @@ func deepPointerEqual(a, b Ptr) bool {
 	msgB.SetRoot(b)
 	bbytes, _ := msgB.Marshal()
 	return bytes.Equal(abytes, bbytes)
+}
+
+func newEmptyStruct() Struct {
+	_, seg, err := NewMessage(SingleSegment(nil))
+	if err != nil {
+		panic(err)
+	}
+	s, err := NewRootStruct(seg, ObjectSize{})
+	if err != nil {
+		panic(err)
+	}
+	return s
 }
