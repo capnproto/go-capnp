@@ -67,9 +67,6 @@ func (i Interface) Client() *Client {
 	return tab[i.cap]
 }
 
-// ErrNullClient is returned from a call made on a null client pointer.
-var ErrNullClient = errors.New("capnp: call on null client")
-
 // A CapabilityID is an index into a message's capability table.
 type CapabilityID uint32
 
@@ -226,7 +223,7 @@ func (c *Client) SendCall(ctx context.Context, m Method, a SendArgs, opts CallOp
 		return ErrorAnswer(errors.New("capnp: call on closed client")), func() {}
 	}
 	if h == nil {
-		return ErrorAnswer(ErrNullClient), func() {}
+		return ErrorAnswer(errors.New("capnp: call on null client")), func() {}
 	}
 	return h.Send(ctx, m, a, opts)
 }
@@ -243,7 +240,7 @@ func (c *Client) RecvCall(ctx context.Context, m Method, a RecvArgs, opts CallOp
 		return ErrorAnswer(errors.New("capnp: call on closed client")), func() {}
 	}
 	if h == nil {
-		return ErrorAnswer(ErrNullClient), func() {}
+		return ErrorAnswer(errors.New("capnp: call on null client")), func() {}
 	}
 	return h.Recv(ctx, m, a, opts)
 }
