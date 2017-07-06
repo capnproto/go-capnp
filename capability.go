@@ -3,6 +3,7 @@ package capnp
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 	"sync"
 )
@@ -338,6 +339,24 @@ func (c *Client) Brand() interface{} {
 		return nil
 	}
 	return h.Brand()
+}
+
+// String returns a string that identifies this capability for debugging
+// purposes.  Its format should not be depended on: in particular, it
+// should not be used to compare clients.  Use IsSame to compare clients
+// for equality.
+func (c *Client) String() string {
+	h, closed, resolved := c.peek()
+	if closed {
+		return "<closed client>"
+	}
+	if h == nil {
+		return "<nil>"
+	}
+	if !resolved {
+		return fmt.Sprintf("<unresolved client %p>", h)
+	}
+	return fmt.Sprintf("<client %p>", h)
 }
 
 // Close releases a capability reference.  If this is the last reference
