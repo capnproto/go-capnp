@@ -25,7 +25,7 @@ type extracter struct {
 	nodes nodemap.Map
 }
 
-var clientType = reflect.TypeOf((*capnp.Client)(nil)).Elem()
+var clientType = reflect.TypeOf((*capnp.Client)(nil))
 
 func (e *extracter) extractStruct(val reflect.Value, typeID uint64, s capnp.Struct) error {
 	if val.Kind() == reflect.Ptr {

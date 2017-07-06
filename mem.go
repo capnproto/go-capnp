@@ -40,7 +40,7 @@ type Message struct {
 	//
 	// See https://capnproto.org/encoding.html#capabilities-interfaces for
 	// more details on the capability table.
-	CapTable []Client
+	CapTable []*Client
 
 	// TraverseLimit limits how many total bytes of data are allowed to be
 	// traversed while reading.  Traversal is counted when a Struct or
@@ -97,6 +97,7 @@ func NewMessage(arena Arena) (msg *Message, first *Segment, err error) {
 func (m *Message) Reset(arena Arena) {
 	m.mu.Lock()
 	m.Arena = arena
+	// TODO(soon): close all caps
 	m.CapTable = nil
 	m.segs = nil
 	m.firstSeg = Segment{}
@@ -124,7 +125,7 @@ func (m *Message) SetRoot(p Ptr) error {
 
 // AddCap appends a capability to the message's capability table and
 // returns its ID.
-func (m *Message) AddCap(c Client) CapabilityID {
+func (m *Message) AddCap(c *Client) CapabilityID {
 	n := CapabilityID(len(m.CapTable))
 	m.CapTable = append(m.CapTable, c)
 	return n

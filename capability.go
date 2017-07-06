@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strconv"
+	"sync"
 )
 
 // An Interface is a reference to a client in a message's capability table.
@@ -55,7 +56,7 @@ func (i Interface) value(paddr Address) rawPointer {
 
 // Client returns the client stored in the message's capability table
 // or nil if the pointer is invalid.
-func (i Interface) Client() Client {
+func (i Interface) Client() *Client {
 	if i.seg == nil {
 		return nil
 	}
@@ -72,92 +73,488 @@ var ErrNullClient = errors.New("capnp: call on null client")
 // A CapabilityID is an index into a message's capability table.
 type CapabilityID uint32
 
-// A Client represents an Cap'n Proto interface type.  It is safe to use
-// from multiple goroutines.
-//
-// Generally, only RPC protocol implementers should provide types that
-// implement Client: call ordering guarantees, promises, and
-// synchronization are tricky to get right.  Prefer creating a server
-// that wraps another interface than trying to implement Client.
-type Client interface {
-	// Call starts executing a method and returns an answer that will hold
-	// the resulting struct.  The call's parameters must be placed before
-	// Call() returns.
-	//
-	// Calls are delivered to the capability in the order they are made.
-	// This guarantee is based on the concept of a capability
-	// acknowledging delivery of a call: this is specific to an
-	// implementation of Client.  A type that implements Client must
-	// guarantee that if foo() then bar() is called on a client, that
-	// acknowledging foo() happens before acknowledging bar().
-	Call(ctx context.Context, call *Call) Answer
+// A Client is a reference to a Cap'n Proto capability.
+// The zero value is a null capability reference.
+// It is safe to use from multiple goroutines.
+type Client struct {
+	mu     sync.Mutex  // protects the struct
+	h      *clientHook // nil if resolved to nil or closed
+	closed bool
+}
 
-	// Close releases any resources associated with this client.
-	// No further calls to the client should be made after calling Close.
+// clientHook is a reference-counted wrapper for a ClientHook.
+// It is assumed that a clientHook's address uniquely identifies a hook,
+// since they are only created in NewClient and NewPromisedClient.
+type clientHook struct {
+	// ClientHook will never be nil and will not change for the lifetime of
+	// a clientHook.
+	ClientHook
+
+	// closer will be non-nil if created by NewClient and will not change
+	// for the lifetime of a clientHook.
+	closer
+
+	// done is closed when refs == 0 and calls == 0.
+	// Only non-nil for clients created by NewClient.
+	done chan struct{}
+
+	// resolved is closed after resolvedHook is set
+	resolved chan struct{}
+
+	mu           sync.Mutex
+	refs         int // how many open Clients reference this clientHook
+	calls        int // number of outstanding ClientHook accesses
+	resolvedHook *clientHook
+}
+
+// NewClient creates the first reference to a capability.
+// If hook is nil, then NewClient returns nil.
+//
+// Typically the RPC system will create a client for the application.
+// Most applications will not need to use this directly.
+func NewClient(hook ClientHookCloser) *Client {
+	if hook == nil {
+		return nil
+	}
+	h := &clientHook{
+		ClientHook: hook,
+		closer:     hook,
+		done:       make(chan struct{}),
+		refs:       1,
+		resolved:   newClosedSignal(),
+	}
+	h.resolvedHook = h
+	return &Client{h: h}
+}
+
+// NewPromisedClient creates the first reference to a capability that
+// can resolve to a different capability.
+//
+// Typically the RPC system will create a client for the application.
+// Most applications will not need to use this directly.
+func NewPromisedClient(hook ClientHook) (*Client, *ClientPromise) {
+	if hook == nil {
+		panic("NewPromisedClient(nil)")
+	}
+	h := &clientHook{
+		ClientHook: hook,
+		refs:       2, // to keep open until resolved
+		resolved:   make(chan struct{}),
+	}
+	return &Client{h: h}, &ClientPromise{h: h}
+}
+
+// startCall holds onto a hook to prevent it from closing until finish is called.
+// It resolves the client's hook as much as possible first.
+// The caller must not be holding onto c.mu.
+func (c *Client) startCall() (hook *clientHook, closed bool, finish func()) {
+	if c == nil {
+		return nil, false, func() {}
+	}
+	defer c.mu.Unlock()
+	c.mu.Lock()
+	if c.h == nil {
+		return nil, c.closed, func() {}
+	}
+	c.h.mu.Lock()
+	c.lockedResolve()
+	if c.h == nil {
+		return nil, false, func() {}
+	}
+	c.h.calls++
+	c.h.mu.Unlock()
+	hook = c.h
+	return hook, false, func() {
+		hook.mu.Lock()
+		hook.calls--
+		if hook.refs == 0 && hook.calls == 0 && hook.done != nil {
+			close(hook.done)
+		}
+		hook.mu.Unlock()
+	}
+}
+
+func (c *Client) peek() (hook *clientHook, closed bool) {
+	if c == nil {
+		return nil, false
+	}
+	defer c.mu.Unlock()
+	c.mu.Lock()
+	if c.h == nil {
+		return nil, c.closed
+	}
+	c.h.mu.Lock()
+	c.lockedResolve()
+	if c.h == nil {
+		return nil, false
+	}
+	c.h.mu.Unlock()
+	return c.h, false
+}
+
+// lockedResolve resolves c.h as much as possible.
+// The caller must be holding onto c.mu and c.h.mu.
+func (c *Client) lockedResolve() {
+	for {
+		select {
+		case <-c.h.resolved:
+		default:
+			return
+		}
+		rh := c.h.resolvedHook
+		if rh == c.h {
+			return
+		}
+		c.h.refs--
+		c.h.mu.Unlock()
+		c.h = rh
+		if rh == nil {
+			return
+		}
+		rh.mu.Lock()
+	}
+}
+
+// SendCall allocates space for parameters, calls a.Place to fill out the
+// parameters, then starts executing a method, returning an answer that
+// will hold the result.  The caller must call the returned release
+// function when it no longer needs the answer's data.
+func (c *Client) SendCall(ctx context.Context, m Method, a SendArgs, opts CallOptions) (*Answer, ReleaseFunc) {
+	h, closed, finish := c.startCall()
+	defer finish()
+	if closed {
+		return ErrorAnswer(errors.New("capnp: call on closed client")), func() {}
+	}
+	if h == nil {
+		return ErrorAnswer(ErrNullClient), func() {}
+	}
+	return h.Send(ctx, m, a, opts)
+}
+
+// RecvCall starts executing a method with the referenced arguments
+// and returns an answer that will hold the result.  The hook will call
+// a.Release when it no longer needs to reference the parameters.  The
+// caller must call the returned release function when it no longer
+// needs the answer's data.
+func (c *Client) RecvCall(ctx context.Context, m Method, a RecvArgs, opts CallOptions) (*Answer, ReleaseFunc) {
+	h, closed, finish := c.startCall()
+	defer finish()
+	if closed {
+		return ErrorAnswer(errors.New("capnp: call on closed client")), func() {}
+	}
+	if h == nil {
+		return ErrorAnswer(ErrNullClient), func() {}
+	}
+	return h.Recv(ctx, m, a, opts)
+}
+
+// IsValid reports whether c is a valid reference to a capability.
+// A reference is invalid if it is nil, has resolved to null, or has
+// been closed.
+func (c *Client) IsValid() bool {
+	h, closed := c.peek()
+	return !closed && h != nil
+}
+
+// IsSame reports whether c and c2 refer to a capability created by the
+// same call to NewClient.  This can return false negatives if c or c2
+// are not fully resolved: use Resolve if this is an issue.  If either
+// c or c2 are closed, then IsSame panics.
+func (c *Client) IsSame(c2 *Client) bool {
+	h1, closed := c.peek()
+	if closed {
+		panic("IsSame on closed client")
+	}
+	h2, closed := c.peek()
+	if closed {
+		panic("IsSame on closed client")
+	}
+	return h1 == h2
+}
+
+// Resolve blocks until the capability is fully resolved or the Context is Done.
+func (c *Client) Resolve(ctx context.Context) error {
+	for {
+		h, closed := c.peek()
+		if closed {
+			return errors.New("capnp: cannot resolve closed client")
+		}
+		if h == nil {
+			return nil
+		}
+		select {
+		case <-h.resolved:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
+// AddRef creates a new Client that refers to the same capability as c.
+// If c is nil or has resolved to null, then AddRef returns nil.
+func (c *Client) AddRef() *Client {
+	if c == nil {
+		return nil
+	}
+	defer c.mu.Unlock()
+	c.mu.Lock()
+	if c.closed {
+		panic("AddRef on closed client")
+	}
+	if c.h == nil {
+		return nil
+	}
+	c.h.mu.Lock()
+	c.lockedResolve()
+	if c.h == nil {
+		return nil
+	}
+	c.h.refs++
+	c.h.mu.Unlock()
+	return &Client{h: c.h}
+}
+
+// WeakRef creates a new WeakClient that refers to the same capability
+// as c.  If c is nil or has resolved to null, then WeakRef returns nil.
+func (c *Client) WeakRef() *WeakClient {
+	h, closed := c.peek()
+	if closed {
+		panic("WeakRef on closed client")
+	}
+	if h == nil {
+		return nil
+	}
+	return &WeakClient{h: h}
+}
+
+// Brand returns the current underlying hook's Brand method or nil if
+// c is nil, has resolved to null, or has been closed.
+func (c *Client) Brand() interface{} {
+	h, _, finish := c.startCall()
+	defer finish()
+	if h == nil {
+		return nil
+	}
+	return h.Brand()
+}
+
+// Close releases a capability reference.  If this is the last reference
+// to the capability, then the underlying resources associated with the
+// capability will be released.  Close returns an error if c has already
+// been closed, but not if c is nil or resolved to null.
+func (c *Client) Close() error {
+	if c == nil {
+		return nil
+	}
+	c.mu.Lock()
+	if c.closed {
+		c.mu.Unlock()
+		return errors.New("capnp: double close on Client")
+	}
+	c.closed = true
+	if c.h == nil {
+		c.mu.Unlock()
+		return nil
+	}
+	c.h.mu.Lock()
+	c.lockedResolve()
+	if c.h == nil {
+		c.mu.Unlock()
+		return nil
+	}
+	h := c.h
+	c.h = nil
+	h.refs--
+	if h.refs > 0 {
+		h.mu.Unlock()
+		c.mu.Unlock()
+		return nil
+	}
+	done := h.done
+	if done == nil {
+		h.mu.Unlock()
+		c.mu.Unlock()
+		return nil
+	}
+	if h.calls == 0 {
+		close(done)
+	}
+	h.mu.Unlock()
+	c.mu.Unlock()
+	<-done
+	return h.closer.Close()
+}
+
+// isResolve reports whether ch has been resolved.
+// The caller must be holding onto ch.mu.
+func (ch *clientHook) isResolved() bool {
+	select {
+	case <-ch.resolved:
+		return true
+	default:
+		return false
+	}
+}
+
+// A ClientPromise resolves the identity of a client created by NewPromisedClient.
+type ClientPromise struct {
+	h *clientHook
+}
+
+// Resolve resolves the client promise to c.  After Resolve returns,
+// then all future calls to the client created by NewPromisedClient will
+// be sent to c.
+func (cp *ClientPromise) Resolve(c *Client) {
+	defer c.mu.Unlock()
+	c.mu.Lock()
+
+	// Obtain next client hook.
+	var rh *clientHook
+	if c != nil {
+		if c.closed {
+			c.mu.Unlock()
+			panic("ClientPromise.Resolve with a closed client")
+		}
+		// TODO(maybe): c.lockedResolve()?
+		rh = c.h
+	}
+
+	// Mark hook as resolved.
+	cp.h.mu.Lock()
+	select {
+	case <-cp.h.resolved:
+		cp.h.mu.Unlock()
+		panic("ClientPromise.Resolve called more than once")
+	default:
+	}
+	cp.h.resolvedHook = rh
+	close(cp.h.resolved)
+	refs := cp.h.refs - 1
+	cp.h.refs = refs
+	if rh == nil || rh == cp.h || refs == 0 {
+		cp.h.mu.Unlock()
+		return
+	}
+
+	// Add refs down resolution chain.
+	rh.mu.Lock()
+	cp.h.mu.Unlock()
+	for rh.isResolved() && rh.resolvedHook != rh {
+		rh.refs += refs
+		rh2 := rh.resolvedHook
+		if rh2 == nil {
+			rh.mu.Unlock()
+			return
+		}
+		rh2.mu.Lock()
+		rh.mu.Unlock()
+		rh = rh2
+	}
+	rh.refs += refs
+	rh.mu.Unlock()
+}
+
+// A WeakClient is a weak reference to a capability: it refers to a
+// capability without preventing it from being closed.  The zero value
+// is a null reference.
+type WeakClient struct {
+	h *clientHook
+}
+
+// AddRef creates a new Client that refers to the same capability as c
+// as long as the capability hasn't already been closed.
+func (wc *WeakClient) AddRef() (c *Client, ok bool) {
+	if wc == nil {
+		return nil, true
+	}
+	for {
+		if wc.h == nil {
+			return nil, true
+		}
+		wc.h.mu.Lock()
+		if wc.h.isResolved() {
+			if r := wc.h.resolvedHook; r != wc.h {
+				wc.h.mu.Unlock()
+				wc.h = r
+				continue
+			}
+		}
+		if wc.h.refs == 0 {
+			wc.h.mu.Unlock()
+			return nil, false
+		}
+		wc.h.refs++
+		wc.h.mu.Unlock()
+		return &Client{h: wc.h}, true
+	}
+}
+
+// A ClientHook represents a Cap'n Proto capability.  Application code
+// should not pass around ClientHooks; applications should pass around
+// Clients.  A ClientHook must be safe to use from multiple goroutines.
+//
+// Calls must be delivered to the capability in the order they are made.
+// This guarantee is based on the concept of a capability
+// acknowledging delivery of a call: this is specific to an
+// implementation of ClientHook.  A type that implements ClientHook
+// must guarantee that if foo() then bar() is called on a client, that
+// acknowledging foo() happens before acknowledging bar().
+type ClientHook interface {
+	// Send allocates space for parameters, calls a.Place to fill out the
+	// parameters, then starts executing a method, returning an answer that
+	// will hold the result.  The caller must call the returned release
+	// function when it no longer needs the answer's data.
+	//
+	// Send is typically used when application code is making a call.
+	Send(ctx context.Context, m Method, a SendArgs, opts CallOptions) (*Answer, ReleaseFunc)
+
+	// Recv starts executing a method with the referenced arguments
+	// and returns an answer that will hold the result.  The hook will call
+	// a.Release when it no longer needs to reference the parameters.  The
+	// caller must call the returned release function when it no longer
+	// needs the answer's data.
+	//
+	// Recv is typically used when the RPC system has received a call.
+	Recv(ctx context.Context, m Method, a RecvArgs, opts CallOptions) (*Answer, ReleaseFunc)
+
+	// Brand returns an implementation-specific value.  This can be used
+	// to introspect and identify kinds of clients.
+	Brand() interface{}
+}
+
+// SendArgs consists of an RPC argument placement size and a function
+// that populates a struct.  Place will be called at most once.
+type SendArgs struct {
+	Place func(Struct) error
+	Size  ObjectSize
+}
+
+// RecvArgs consists of a reference to a struct containing RPC arguments
+// and a release function.
+type RecvArgs struct {
+	Args    Struct
+	Release ReleaseFunc
+}
+
+// ClientHookCloser is the interface that groups the ClientHook and
+// Close methods.
+type ClientHookCloser interface {
+	ClientHook
+
+	// Close releases any resources associated with this capability.
+	// The behavior of calling any methods on the receiver after calling
+	// Close is undefined.
 	Close() error
 }
 
-// The Call type holds the record for an outgoing interface call.
-type Call struct {
-	// Method is the interface ID and method ID, along with the optional name,
-	// of the method to call.
-	Method Method
-
-	// Params is a struct containing parameters for the call.
-	// This should be set when the RPC system receives a call for an
-	// exported interface.  It is mutually exclusive with ParamsFunc
-	// and ParamsSize.
-	Params Struct
-	// ParamsFunc is a function that populates an allocated struct with
-	// the parameters for the call.  ParamsSize determines the size of the
-	// struct to allocate.  This is used when application code is using a
-	// client.  These settings should be set together; they are mutually
-	// exclusive with Params.
-	ParamsFunc func(Struct) error
-	ParamsSize ObjectSize
-
-	// Options passes RPC-specific options for the call.
-	Options CallOptions
+type closer interface {
+	Close() error
 }
 
-// Copy clones a call, ensuring that its Params are placed.
-// If Call.ParamsFunc is nil, then the same Call will be returned.
-func (call *Call) Copy(s *Segment) (*Call, error) {
-	if call.ParamsFunc == nil {
-		return call, nil
-	}
-	p, err := call.PlaceParams(s)
-	if err != nil {
-		return nil, err
-	}
-	return &Call{
-		Method:  call.Method,
-		Params:  p,
-		Options: call.Options,
-	}, nil
-}
-
-// PlaceParams returns the parameters struct, allocating it inside
-// segment s as necessary.  If s is nil, a new single-segment message
-// is allocated.
-func (call *Call) PlaceParams(s *Segment) (Struct, error) {
-	if call.ParamsFunc == nil {
-		return call.Params, nil
-	}
-	if s == nil {
-		var err error
-		_, s, err = NewMessage(SingleSegment(nil))
-		if err != nil {
-			return Struct{}, err
-		}
-	}
-	p, err := NewStruct(s, call.ParamsSize)
-	if err != nil {
-		return Struct{}, nil
-	}
-	err = call.ParamsFunc(p)
-	return p, err
-}
+// A ReleaseFunc tells the RPC system that a parameter or result struct
+// is no longer in use and may be reclaimed.  After the first call,
+// subsequent calls to a ReleaseFunc do nothing.
+type ReleaseFunc func()
 
 // CallOptions holds RPC-specific options for an interface call.
 // Its usage is similar to the values in context.Context, but is only
@@ -208,138 +605,6 @@ func SetOptionValue(key, value interface{}) CallOption {
 	}}
 }
 
-// An Answer is the deferred result of a client call, which is usually wrapped by a Pipeline.
-type Answer interface {
-	// Struct waits until the call is finished and returns the result.
-	Struct() (Struct, error)
-
-	// Done returns a channel that is closed when call is finished.
-	// Done must always return the same channel.
-	Done() <-chan struct{}
-
-	// PipelineCall sends a call to the Client identified by the transform.
-	// Answers may have a more efficient way of doing this than waiting
-	// for the call to be finished (promise pipelining).
-	PipelineCall(ctx context.Context, transform []PipelineOp, call *Call) Answer
-}
-
-// A Pipeline is a generic wrapper for an answer.
-type Pipeline struct {
-	answer Answer
-	parent *Pipeline
-	op     PipelineOp
-}
-
-// NewPipeline returns a new pipeline based on an answer.
-func NewPipeline(ans Answer) *Pipeline {
-	return &Pipeline{answer: ans}
-}
-
-// Answer returns the answer the pipeline is derived from.
-func (p *Pipeline) Answer() Answer {
-	return p.answer
-}
-
-// Transform returns the operations needed to transform the root answer
-// into the value p represents.
-func (p *Pipeline) Transform() []PipelineOp {
-	n := 0
-	for q := p; q.parent != nil; q = q.parent {
-		n++
-	}
-	xform := make([]PipelineOp, n)
-	for i, q := n-1, p; q.parent != nil; i, q = i-1, q.parent {
-		xform[i] = q.op
-	}
-	return xform
-}
-
-// Struct waits until the answer is resolved and returns the struct
-// this pipeline represents.
-func (p *Pipeline) Struct() (Struct, error) {
-	s, err := p.answer.Struct()
-	if err != nil {
-		return Struct{}, err
-	}
-	ptr, err := Transform(s.ToPtr(), p.Transform())
-	if err != nil {
-		return Struct{}, err
-	}
-	return ptr.Struct(), nil
-}
-
-// Client returns the client version of p.
-func (p *Pipeline) Client() *PipelineClient {
-	return (*PipelineClient)(p)
-}
-
-// GetPipeline returns a derived pipeline which yields the pointer field given.
-func (p *Pipeline) GetPipeline(off uint16) *Pipeline {
-	return p.GetPipelineDefault(off, nil)
-}
-
-// GetPipelineDefault returns a derived pipeline which yields the pointer field given,
-// defaulting to the value given.
-func (p *Pipeline) GetPipelineDefault(off uint16, def []byte) *Pipeline {
-	return &Pipeline{
-		answer: p.answer,
-		parent: p,
-		op: PipelineOp{
-			Field:        off,
-			DefaultValue: def,
-		},
-	}
-}
-
-// PipelineClient implements Client by calling to the pipeline's answer.
-type PipelineClient Pipeline
-
-func (pc *PipelineClient) transform() []PipelineOp {
-	return (*Pipeline)(pc).Transform()
-}
-
-// Call calls Answer.PipelineCall with the pipeline's transform.
-func (pc *PipelineClient) Call(ctx context.Context, call *Call) Answer {
-	return pc.answer.PipelineCall(ctx, pc.transform(), call)
-}
-
-// Close waits until the call is completed and calls Close on the client
-// found at the pipeline's transform.
-func (pc *PipelineClient) Close() error {
-	s, err := pc.answer.Struct()
-	if err != nil {
-		return err
-	}
-	p, err := Transform(s.ToPtr(), pc.transform())
-	if err != nil {
-		return err
-	}
-	c := p.Interface().Client()
-	if c == nil {
-		return ErrNullClient
-	}
-	return c.Close()
-}
-
-// A PipelineOp describes a step in transforming a pipeline.
-// It maps closely with the PromisedAnswer.Op struct in rpc.capnp.
-type PipelineOp struct {
-	Field        uint16
-	DefaultValue []byte
-}
-
-// String returns a human-readable description of op.
-func (op PipelineOp) String() string {
-	s := make([]byte, 0, 32)
-	s = append(s, "get field "...)
-	s = strconv.AppendInt(s, int64(op.Field), 10)
-	if op.DefaultValue == nil {
-		return string(s)
-	}
-	s = append(s, " with default"...)
-	return string(s)
-}
-
 // A Method identifies a method along with an optional human-readable
 // description of the method.
 type Method struct {
@@ -373,110 +638,31 @@ func (m *Method) String() string {
 	return string(buf)
 }
 
-// Transform applies a sequence of pipeline operations to a pointer
-// and returns the result.
-func Transform(p Ptr, transform []PipelineOp) (Ptr, error) {
-	n := len(transform)
-	if n == 0 {
-		return p, nil
-	}
-	s := p.Struct()
-	for _, op := range transform[:n-1] {
-		field, err := s.Ptr(op.Field)
-		if err != nil {
-			return Ptr{}, err
-		}
-		s, err = field.StructDefault(op.DefaultValue)
-		if err != nil {
-			return Ptr{}, err
-		}
-	}
-	op := transform[n-1]
-	p, err := s.Ptr(op.Field)
-	if err != nil {
-		return Ptr{}, err
-	}
-	if op.DefaultValue != nil {
-		p, err = p.Default(op.DefaultValue)
-	}
-	return p, err
-}
-
-type immediateAnswer struct {
-	s Struct
-}
-
-// ImmediateAnswer returns an Answer that accesses s.
-func ImmediateAnswer(s Struct) Answer {
-	return immediateAnswer{s}
-}
-
-func (ans immediateAnswer) Struct() (Struct, error) {
-	return ans.s, nil
-}
-
-func (ans immediateAnswer) Done() <-chan struct{} {
-	return closedSignal
-}
-
-func (ans immediateAnswer) findClient(transform []PipelineOp) Client {
-	p, err := Transform(ans.s.ToPtr(), transform)
-	if err != nil {
-		return ErrorClient(err)
-	}
-	return p.Interface().Client()
-}
-
-func (ans immediateAnswer) PipelineCall(ctx context.Context, transform []PipelineOp, call *Call) Answer {
-	c := ans.findClient(transform)
-	if c == nil {
-		return ErrorAnswer(ErrNullClient)
-	}
-	return c.Call(ctx, call)
-}
-
-type errorAnswer struct {
-	e error
-}
-
-// ErrorAnswer returns a Answer that always returns error e.
-func ErrorAnswer(e error) Answer {
-	return errorAnswer{e}
-}
-
-func (ans errorAnswer) Struct() (Struct, error) {
-	return Struct{}, ans.e
-}
-
-func (ans errorAnswer) Done() <-chan struct{} {
-	return closedSignal
-}
-
-func (ans errorAnswer) PipelineCall(context.Context, []PipelineOp, *Call) Answer {
-	return ans
-}
-
 type errorClient struct {
 	e error
 }
 
 // ErrorClient returns a Client that always returns error e.
-func ErrorClient(e error) Client {
-	return errorClient{e}
+// An ErrorClient does not need to be closed: it is a sentinel like a
+// nil Client.
+func ErrorClient(e error) *Client {
+	return NewClient(errorClient{e})
 }
 
-func (ec errorClient) Call(context.Context, *Call) Answer {
-	return ErrorAnswer(ec.e)
+func (ec errorClient) Send(context.Context, Method, SendArgs, CallOptions) (*Answer, ReleaseFunc) {
+	return ErrorAnswer(ec.e), func() {}
+}
+
+func (ec errorClient) Recv(context.Context, Method, RecvArgs, CallOptions) (*Answer, ReleaseFunc) {
+	return ErrorAnswer(ec.e), func() {}
+}
+
+func (ec errorClient) Brand() interface{} {
+	return nil
 }
 
 func (ec errorClient) Close() error {
 	return nil
-}
-
-// IsErrorClient reports whether c was created with ErrorClient.
-func IsErrorClient(c Client) bool {
-	_, ok := c.(errorClient)
-	return ok
 }
 
 // IsUnimplemented reports whether e indicates an unimplemented method error.
@@ -485,9 +671,9 @@ func IsUnimplemented(e error) bool {
 	return false
 }
 
-var closedSignal = newClosedSignal()
+var closedSignal <-chan struct{} = newClosedSignal()
 
-func newClosedSignal() <-chan struct{} {
+func newClosedSignal() chan struct{} {
 	c := make(chan struct{})
 	close(c)
 	return c
