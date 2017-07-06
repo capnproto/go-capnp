@@ -159,7 +159,7 @@ func TestPromisedClient(t *testing.T) {
 	}
 	_, finish := ca.SendCall(ctx, Method{}, args, CallOptions{})
 	finish()
-	pa.Resolve(cb)
+	pa.Fulfill(cb)
 	_, finish = ca.SendCall(ctx, Method{}, args, CallOptions{})
 	finish()
 
@@ -485,7 +485,7 @@ func TestWeakPromisedClient(t *testing.T) {
 	}
 	_, finish := ca.SendCall(ctx, Method{}, args, CallOptions{})
 	finish()
-	pa.Resolve(cb)
+	pa.Fulfill(cb)
 	_, finish = ca.SendCall(ctx, Method{}, args, CallOptions{})
 	finish()
 

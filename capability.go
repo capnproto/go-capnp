@@ -403,10 +403,10 @@ type ClientPromise struct {
 	h *clientHook
 }
 
-// Resolve resolves the client promise to c.  After Resolve returns,
+// Fulfill resolves the client promise to c.  After Fulfill returns,
 // then all future calls to the client created by NewPromisedClient will
 // be sent to c.
-func (cp *ClientPromise) Resolve(c *Client) {
+func (cp *ClientPromise) Fulfill(c *Client) {
 	defer c.mu.Unlock()
 	c.mu.Lock()
 
