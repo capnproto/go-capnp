@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"sync"
 
@@ -96,13 +97,41 @@ func NewMessage(arena Arena) (msg *Message, first *Segment, err error) {
 // any existing pointers in the Message, so use with caution.
 func (m *Message) Reset(arena Arena) {
 	m.mu.Lock()
-	m.Arena = arena
-	// TODO(soon): close all caps
-	m.CapTable = nil
 	m.segs = nil
 	m.firstSeg = Segment{}
 	m.mu.Unlock()
+
+	m.Arena = arena
+	m.ClearCaps()
+	m.CapTable = nil
 	m.ReadLimiter().Reset(m.TraverseLimit)
+}
+
+// ClearCaps closes all capabilities in the message's table and sets
+// them to nil.  This does not change the size of the table.
+func (m *Message) ClearCaps() error {
+	var first error
+	n := 0
+	for _, c := range m.CapTable {
+		err := c.Close()
+		if err == nil {
+			continue
+		}
+		n++
+		if first == nil {
+			first = err
+		}
+	}
+	switch n {
+	case 0:
+		return nil
+	case 1:
+		return fmt.Errorf("capnp: closing capabilities: %v", first)
+	case 2:
+		return fmt.Errorf("capnp: closing capabilities: %v (and 1 other)", first)
+	default:
+		return fmt.Errorf("capnp: closing capabilities: %v (and %d others)", first, n-1)
+	}
 }
 
 // Root returns the pointer to the message's root object.
