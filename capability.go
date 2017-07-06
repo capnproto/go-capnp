@@ -265,7 +265,7 @@ func (c *Client) IsSame(c2 *Client) bool {
 	if closed {
 		panic("IsSame on closed client")
 	}
-	h2, closed := c.peek()
+	h2, closed := c2.peek()
 	if closed {
 		panic("IsSame on closed client")
 	}
@@ -557,6 +557,9 @@ type closer interface {
 type ReleaseFunc func()
 
 // CallOptions holds RPC-specific options for an interface call.
+// The zero value is an empty set of options.  CallOptions is safe to
+// use from multiple goroutines.
+//
 // Its usage is similar to the values in context.Context, but is only
 // used for a single call: its values are not intended to propagate to
 // other callees.  An example of an option would be the

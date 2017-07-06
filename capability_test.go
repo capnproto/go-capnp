@@ -2,8 +2,73 @@ package capnp
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"testing"
 )
+
+func TestResolveClient(t *testing.T) {
+	a := new(dummyHook)
+	b := new(dummyHook)
+	ca, pa := NewPromisedClient(a)
+	cb := NewClient(b)
+	ctx := context.Background()
+
+	if ca.IsSame(cb) {
+		t.Error("before resolution, ca == cb")
+	}
+	args := SendArgs{
+		Place: func(Struct) error {
+			return nil
+		},
+	}
+	_, finish := ca.SendCall(ctx, Method{}, args, CallOptions{})
+	finish()
+	pa.Resolve(cb)
+	_, finish = ca.SendCall(ctx, Method{}, args, CallOptions{})
+	finish()
+
+	if !ca.IsSame(cb) {
+		t.Error("after resolution, ca != cb")
+	}
+	if b.closed {
+		t.Error("b.closed = true before closing")
+	}
+	if err := ca.Close(); err != nil {
+		t.Error("ca.Close() =", err)
+	}
+	if b.closed {
+		t.Error("b.closed = true after closing ca, but not cb")
+	}
+	if err := cb.Close(); err != nil {
+		t.Error("cb.Close() =", err)
+	}
+	if !b.closed {
+		t.Error("b.closed = false after closing")
+	}
+}
+
+type dummyHook struct {
+	closed bool
+}
+
+func (dh *dummyHook) Send(context.Context, Method, SendArgs, CallOptions) (*Answer, ReleaseFunc) {
+	return ErrorAnswer(errors.New("dummy hook answer")), func() {}
+}
+
+func (dh *dummyHook) Recv(_ context.Context, _ Method, a RecvArgs, _ CallOptions) (*Answer, ReleaseFunc) {
+	a.Release()
+	return ErrorAnswer(errors.New("dummy hook answer")), func() {}
+}
+
+func (dh *dummyHook) Brand() interface{} {
+	return nil
+}
+
+func (dh *dummyHook) Close() error {
+	dh.closed = true
+	return nil
+}
 
 func TestToInterface(t *testing.T) {
 	_, seg, err := NewMessage(SingleSegment(nil))
@@ -233,6 +298,77 @@ func TestPipelineOpString(t *testing.T) {
 		if s := test.op.String(); s != test.s {
 			t.Errorf("%#v.String() = %q; want %q", test.op, s, test.s)
 		}
+	}
+}
+
+func TestWeakClient(t *testing.T) {
+	h := new(dummyHook)
+	c1 := NewClient(h)
+	w := c1.WeakRef()
+	c2, ok := w.AddRef()
+	if !ok {
+		t.Fatal("AddRef on open client failed")
+	}
+	if !c1.IsSame(c2) {
+		t.Error("c1 != c2")
+	}
+	if err := c2.Close(); err != nil {
+		t.Errorf("w.AddRef().Close(): %v", err)
+	}
+	if h.closed {
+		t.Fatal("Closing second reference closed capability")
+	}
+	if err := c1.Close(); err != nil {
+		t.Errorf("w.AddRef().Close(): %v", err)
+	}
+	if !h.closed {
+		t.Errorf("Closing strong reference with weak reference kept capability open")
+	}
+	if _, ok := w.AddRef(); ok {
+		t.Error("w.AddRef() after close did not fail")
+	}
+}
+
+func TestResolveWeakClient(t *testing.T) {
+	a := new(dummyHook)
+	b := new(dummyHook)
+	ca, pa := NewPromisedClient(a)
+	cb := NewClient(b)
+	wa := ca.WeakRef()
+	ctx := context.Background()
+
+	args := SendArgs{
+		Place: func(Struct) error {
+			return nil
+		},
+	}
+	_, finish := ca.SendCall(ctx, Method{}, args, CallOptions{})
+	finish()
+	pa.Resolve(cb)
+	_, finish = ca.SendCall(ctx, Method{}, args, CallOptions{})
+	finish()
+
+	if err := ca.Close(); err != nil {
+		t.Error("ca.Close() =", err)
+	}
+	cb2, ok := wa.AddRef()
+	if !ok {
+		t.Error("wa.AddRef() failed after closing ca")
+	}
+	if !cb.IsSame(cb2) {
+		t.Error("cb != cb2")
+	}
+	if err := cb.Close(); err != nil {
+		t.Error("cb.Close() =", err)
+	}
+	if b.closed {
+		t.Error("b.closed = true before closing cb2")
+	}
+	if err := cb2.Close(); err != nil {
+		t.Error("cb2.Close() =", err)
+	}
+	if !b.closed {
+		t.Error("b.closed = false after closing cb2")
 	}
 }
 
