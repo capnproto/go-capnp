@@ -5,12 +5,85 @@ package persistent
 // AUTO GENERATED - DO NOT EDIT
 
 import (
+	context "context"
 	capnp "zombiezen.com/go/capnproto2"
 	text "zombiezen.com/go/capnproto2/encoding/text"
 	schemas "zombiezen.com/go/capnproto2/schemas"
+	server "zombiezen.com/go/capnproto2/server"
 )
 
 const PersistentAnnotation = uint64(0xf622595091cafb67)
+
+type Persistent struct{ Client *capnp.Client }
+
+// Persistent_TypeID is the unique identifier for the type Persistent.
+const Persistent_TypeID = 0xc8cb212fcd9f5691
+
+func (c Persistent) Save(ctx context.Context, params func(Persistent_SaveParams) error, opts ...capnp.CallOption) (Persistent_SaveResults_Answer, capnp.ReleaseFunc) {
+	var args capnp.SendArgs
+	if params != nil {
+		args.Size = capnp.ObjectSize{DataSize: 0, PointerCount: 1}
+		args.Place = func(s capnp.Struct) error { return params(Persistent_SaveParams{Struct: s}) }
+	}
+	ans, release := c.Client.SendCall(ctx, capnp.Method{
+		InterfaceID:   0xc8cb212fcd9f5691,
+		MethodID:      0,
+		InterfaceName: "persistent.capnp:Persistent",
+		MethodName:    "save",
+	}, args, capnp.NewCallOptions(opts))
+	return Persistent_SaveResults_Answer{Answer: ans}, release
+}
+
+// A Persistent_Server is a Persistent with a local implementation.
+type Persistent_Server interface {
+	Save(context.Context, Persistent_save) error
+}
+
+// Persistent_NewServer creates a new Server from an implementation of Persistent_Server.
+func Persistent_NewServer(s Persistent_Server, policy *server.Policy) *server.Server {
+	c, _ := s.(server.Closer)
+	return server.New(Persistent_Methods(nil, s), s, c, policy)
+}
+
+// Persistent_ServerToClient creates a new Client from an implementation of Persistent_Server.
+// The caller is responsible for calling Close on the returned Client.
+func Persistent_ServerToClient(s Persistent_Server, policy *server.Policy) Persistent {
+	return Persistent{Client: capnp.NewClient(Persistent_NewServer(s, policy))}
+}
+
+// Persistent_Methods appends Methods to a slice that invoke the methods on s.
+// This can be used to create a more complicated Server.
+func Persistent_Methods(methods []server.Method, s Persistent_Server) []server.Method {
+	if cap(methods) == 0 {
+		methods = make([]server.Method, 0, 1)
+	}
+
+	methods = append(methods, server.Method{
+		Method: capnp.Method{
+			InterfaceID:   0xc8cb212fcd9f5691,
+			MethodID:      0,
+			InterfaceName: "persistent.capnp:Persistent",
+			MethodName:    "save",
+		},
+		Impl: func(ctx context.Context, p, r capnp.Struct, opts capnp.CallOptions) error {
+			return s.Save(ctx, Persistent_save{
+				Params:  Persistent_SaveParams{Struct: p},
+				Results: Persistent_SaveResults{Struct: r},
+				Options: opts,
+			})
+		},
+		ResultsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 1},
+	})
+
+	return methods
+}
+
+// Persistent_save holds the state for a server call to Persistent.save.
+type Persistent_save struct {
+	Params  Persistent_SaveParams
+	Results Persistent_SaveResults
+	Options capnp.CallOptions
+}
 
 type Persistent_SaveParams struct{ capnp.Struct }
 
@@ -65,6 +138,18 @@ func (s Persistent_SaveParams_List) At(i int) Persistent_SaveParams {
 
 func (s Persistent_SaveParams_List) Set(i int, v Persistent_SaveParams) error {
 	return s.List.SetStruct(i, v.Struct)
+}
+
+// Persistent_SaveParams_Answer is a wrapper for a Persistent_SaveParams promised by a client call.
+type Persistent_SaveParams_Answer struct{ *capnp.Answer }
+
+func (p Persistent_SaveParams_Answer) Struct() (Persistent_SaveParams, error) {
+	s, err := p.Answer.Struct()
+	return Persistent_SaveParams{s}, err
+}
+
+func (p Persistent_SaveParams_Answer) SealFor() *capnp.Answer {
+	return p.Answer.Field(0, nil)
 }
 
 type Persistent_SaveResults struct{ capnp.Struct }
@@ -122,6 +207,129 @@ func (s Persistent_SaveResults_List) Set(i int, v Persistent_SaveResults) error 
 	return s.List.SetStruct(i, v.Struct)
 }
 
+// Persistent_SaveResults_Answer is a wrapper for a Persistent_SaveResults promised by a client call.
+type Persistent_SaveResults_Answer struct{ *capnp.Answer }
+
+func (p Persistent_SaveResults_Answer) Struct() (Persistent_SaveResults, error) {
+	s, err := p.Answer.Struct()
+	return Persistent_SaveResults{s}, err
+}
+
+func (p Persistent_SaveResults_Answer) SturdyRef() *capnp.Answer {
+	return p.Answer.Field(0, nil)
+}
+
+type RealmGateway struct{ Client *capnp.Client }
+
+// RealmGateway_TypeID is the unique identifier for the type RealmGateway.
+const RealmGateway_TypeID = 0x84ff286cd00a3ed4
+
+func (c RealmGateway) Import(ctx context.Context, params func(RealmGateway_import_Params) error, opts ...capnp.CallOption) (Persistent_SaveResults_Answer, capnp.ReleaseFunc) {
+	var args capnp.SendArgs
+	if params != nil {
+		args.Size = capnp.ObjectSize{DataSize: 0, PointerCount: 2}
+		args.Place = func(s capnp.Struct) error { return params(RealmGateway_import_Params{Struct: s}) }
+	}
+	ans, release := c.Client.SendCall(ctx, capnp.Method{
+		InterfaceID:   0x84ff286cd00a3ed4,
+		MethodID:      0,
+		InterfaceName: "persistent.capnp:RealmGateway",
+		MethodName:    "import",
+	}, args, capnp.NewCallOptions(opts))
+	return Persistent_SaveResults_Answer{Answer: ans}, release
+}
+func (c RealmGateway) Export(ctx context.Context, params func(RealmGateway_export_Params) error, opts ...capnp.CallOption) (Persistent_SaveResults_Answer, capnp.ReleaseFunc) {
+	var args capnp.SendArgs
+	if params != nil {
+		args.Size = capnp.ObjectSize{DataSize: 0, PointerCount: 2}
+		args.Place = func(s capnp.Struct) error { return params(RealmGateway_export_Params{Struct: s}) }
+	}
+	ans, release := c.Client.SendCall(ctx, capnp.Method{
+		InterfaceID:   0x84ff286cd00a3ed4,
+		MethodID:      1,
+		InterfaceName: "persistent.capnp:RealmGateway",
+		MethodName:    "export",
+	}, args, capnp.NewCallOptions(opts))
+	return Persistent_SaveResults_Answer{Answer: ans}, release
+}
+
+// A RealmGateway_Server is a RealmGateway with a local implementation.
+type RealmGateway_Server interface {
+	Import(context.Context, RealmGateway_import) error
+
+	Export(context.Context, RealmGateway_export) error
+}
+
+// RealmGateway_NewServer creates a new Server from an implementation of RealmGateway_Server.
+func RealmGateway_NewServer(s RealmGateway_Server, policy *server.Policy) *server.Server {
+	c, _ := s.(server.Closer)
+	return server.New(RealmGateway_Methods(nil, s), s, c, policy)
+}
+
+// RealmGateway_ServerToClient creates a new Client from an implementation of RealmGateway_Server.
+// The caller is responsible for calling Close on the returned Client.
+func RealmGateway_ServerToClient(s RealmGateway_Server, policy *server.Policy) RealmGateway {
+	return RealmGateway{Client: capnp.NewClient(RealmGateway_NewServer(s, policy))}
+}
+
+// RealmGateway_Methods appends Methods to a slice that invoke the methods on s.
+// This can be used to create a more complicated Server.
+func RealmGateway_Methods(methods []server.Method, s RealmGateway_Server) []server.Method {
+	if cap(methods) == 0 {
+		methods = make([]server.Method, 0, 2)
+	}
+
+	methods = append(methods, server.Method{
+		Method: capnp.Method{
+			InterfaceID:   0x84ff286cd00a3ed4,
+			MethodID:      0,
+			InterfaceName: "persistent.capnp:RealmGateway",
+			MethodName:    "import",
+		},
+		Impl: func(ctx context.Context, p, r capnp.Struct, opts capnp.CallOptions) error {
+			return s.Import(ctx, RealmGateway_import{
+				Params:  RealmGateway_import_Params{Struct: p},
+				Results: Persistent_SaveResults{Struct: r},
+				Options: opts,
+			})
+		},
+		ResultsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 1},
+	})
+
+	methods = append(methods, server.Method{
+		Method: capnp.Method{
+			InterfaceID:   0x84ff286cd00a3ed4,
+			MethodID:      1,
+			InterfaceName: "persistent.capnp:RealmGateway",
+			MethodName:    "export",
+		},
+		Impl: func(ctx context.Context, p, r capnp.Struct, opts capnp.CallOptions) error {
+			return s.Export(ctx, RealmGateway_export{
+				Params:  RealmGateway_export_Params{Struct: p},
+				Results: Persistent_SaveResults{Struct: r},
+				Options: opts,
+			})
+		},
+		ResultsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 1},
+	})
+
+	return methods
+}
+
+// RealmGateway_import holds the state for a server call to RealmGateway.import.
+type RealmGateway_import struct {
+	Params  RealmGateway_import_Params
+	Results Persistent_SaveResults
+	Options capnp.CallOptions
+}
+
+// RealmGateway_export holds the state for a server call to RealmGateway.export.
+type RealmGateway_export struct {
+	Params  RealmGateway_export_Params
+	Results Persistent_SaveResults
+	Options capnp.CallOptions
+}
+
 type RealmGateway_import_Params struct{ capnp.Struct }
 
 // RealmGateway_import_Params_TypeID is the unique identifier for the type RealmGateway_import_Params.
@@ -145,6 +353,25 @@ func ReadRootRealmGateway_import_Params(msg *capnp.Message) (RealmGateway_import
 func (s RealmGateway_import_Params) String() string {
 	str, _ := text.Marshal(0xf0c2cc1d3909574d, s.Struct)
 	return str
+}
+
+func (s RealmGateway_import_Params) Cap() Persistent {
+	p, _ := s.Struct.Ptr(0)
+	return Persistent{Client: p.Interface().Client()}
+}
+
+func (s RealmGateway_import_Params) HasCap() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s RealmGateway_import_Params) SetCap(v Persistent) error {
+	if !v.Client.IsValid() {
+		return s.Struct.SetPtr(0, capnp.Ptr{})
+	}
+	seg := s.Segment()
+	in := capnp.NewInterface(seg, seg.Message().AddCap(v.Client))
+	return s.Struct.SetPtr(0, in.ToPtr())
 }
 
 func (s RealmGateway_import_Params) Params() (Persistent_SaveParams, error) {
@@ -189,6 +416,22 @@ func (s RealmGateway_import_Params_List) Set(i int, v RealmGateway_import_Params
 	return s.List.SetStruct(i, v.Struct)
 }
 
+// RealmGateway_import_Params_Answer is a wrapper for a RealmGateway_import_Params promised by a client call.
+type RealmGateway_import_Params_Answer struct{ *capnp.Answer }
+
+func (p RealmGateway_import_Params_Answer) Struct() (RealmGateway_import_Params, error) {
+	s, err := p.Answer.Struct()
+	return RealmGateway_import_Params{s}, err
+}
+
+func (p RealmGateway_import_Params_Answer) Cap() Persistent {
+	return Persistent{Client: p.Answer.Field(0, nil).Client()}
+}
+
+func (p RealmGateway_import_Params_Answer) Params() Persistent_SaveParams_Answer {
+	return Persistent_SaveParams_Answer{Answer: p.Answer.Field(1, nil)}
+}
+
 type RealmGateway_export_Params struct{ capnp.Struct }
 
 // RealmGateway_export_Params_TypeID is the unique identifier for the type RealmGateway_export_Params.
@@ -212,6 +455,25 @@ func ReadRootRealmGateway_export_Params(msg *capnp.Message) (RealmGateway_export
 func (s RealmGateway_export_Params) String() string {
 	str, _ := text.Marshal(0xecafa18b482da3aa, s.Struct)
 	return str
+}
+
+func (s RealmGateway_export_Params) Cap() Persistent {
+	p, _ := s.Struct.Ptr(0)
+	return Persistent{Client: p.Interface().Client()}
+}
+
+func (s RealmGateway_export_Params) HasCap() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s RealmGateway_export_Params) SetCap(v Persistent) error {
+	if !v.Client.IsValid() {
+		return s.Struct.SetPtr(0, capnp.Ptr{})
+	}
+	seg := s.Segment()
+	in := capnp.NewInterface(seg, seg.Message().AddCap(v.Client))
+	return s.Struct.SetPtr(0, in.ToPtr())
 }
 
 func (s RealmGateway_export_Params) Params() (Persistent_SaveParams, error) {
@@ -254,6 +516,22 @@ func (s RealmGateway_export_Params_List) At(i int) RealmGateway_export_Params {
 
 func (s RealmGateway_export_Params_List) Set(i int, v RealmGateway_export_Params) error {
 	return s.List.SetStruct(i, v.Struct)
+}
+
+// RealmGateway_export_Params_Answer is a wrapper for a RealmGateway_export_Params promised by a client call.
+type RealmGateway_export_Params_Answer struct{ *capnp.Answer }
+
+func (p RealmGateway_export_Params_Answer) Struct() (RealmGateway_export_Params, error) {
+	s, err := p.Answer.Struct()
+	return RealmGateway_export_Params{s}, err
+}
+
+func (p RealmGateway_export_Params_Answer) Cap() Persistent {
+	return Persistent{Client: p.Answer.Field(0, nil).Client()}
+}
+
+func (p RealmGateway_export_Params_Answer) Params() Persistent_SaveParams_Answer {
+	return Persistent_SaveParams_Answer{Answer: p.Answer.Field(1, nil)}
 }
 
 const schema_b8630836983feed7 = "x\xda\xbcSKh3U\x14>\xdf\xdcy$\xd2\x9f" +

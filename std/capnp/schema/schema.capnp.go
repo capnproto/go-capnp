@@ -567,6 +567,76 @@ func (s Node_List) At(i int) Node { return Node{s.List.Struct(i)} }
 
 func (s Node_List) Set(i int, v Node) error { return s.List.SetStruct(i, v.Struct) }
 
+// Node_Answer is a wrapper for a Node promised by a client call.
+type Node_Answer struct{ *capnp.Answer }
+
+func (p Node_Answer) Struct() (Node, error) {
+	s, err := p.Answer.Struct()
+	return Node{s}, err
+}
+
+func (p Node_Answer) StructNode() Node_structNode_Answer { return Node_structNode_Answer{p.Answer} }
+
+// Node_structNode_Answer is a wrapper for a Node_structNode promised by a client call.
+type Node_structNode_Answer struct{ *capnp.Answer }
+
+func (p Node_structNode_Answer) Struct() (Node_structNode, error) {
+	s, err := p.Answer.Struct()
+	return Node_structNode{s}, err
+}
+
+func (p Node_Answer) Enum() Node_enum_Answer { return Node_enum_Answer{p.Answer} }
+
+// Node_enum_Answer is a wrapper for a Node_enum promised by a client call.
+type Node_enum_Answer struct{ *capnp.Answer }
+
+func (p Node_enum_Answer) Struct() (Node_enum, error) {
+	s, err := p.Answer.Struct()
+	return Node_enum{s}, err
+}
+
+func (p Node_Answer) Interface() Node_interface_Answer { return Node_interface_Answer{p.Answer} }
+
+// Node_interface_Answer is a wrapper for a Node_interface promised by a client call.
+type Node_interface_Answer struct{ *capnp.Answer }
+
+func (p Node_interface_Answer) Struct() (Node_interface, error) {
+	s, err := p.Answer.Struct()
+	return Node_interface{s}, err
+}
+
+func (p Node_Answer) Const() Node_const_Answer { return Node_const_Answer{p.Answer} }
+
+// Node_const_Answer is a wrapper for a Node_const promised by a client call.
+type Node_const_Answer struct{ *capnp.Answer }
+
+func (p Node_const_Answer) Struct() (Node_const, error) {
+	s, err := p.Answer.Struct()
+	return Node_const{s}, err
+}
+
+func (p Node_const_Answer) Type() Type_Answer {
+	return Type_Answer{Answer: p.Answer.Field(3, nil)}
+}
+
+func (p Node_const_Answer) Value() Value_Answer {
+	return Value_Answer{Answer: p.Answer.Field(4, nil)}
+}
+
+func (p Node_Answer) Annotation() Node_annotation_Answer { return Node_annotation_Answer{p.Answer} }
+
+// Node_annotation_Answer is a wrapper for a Node_annotation promised by a client call.
+type Node_annotation_Answer struct{ *capnp.Answer }
+
+func (p Node_annotation_Answer) Struct() (Node_annotation, error) {
+	s, err := p.Answer.Struct()
+	return Node_annotation{s}, err
+}
+
+func (p Node_annotation_Answer) Type() Type_Answer {
+	return Type_Answer{Answer: p.Answer.Field(3, nil)}
+}
+
 type Node_Parameter struct{ capnp.Struct }
 
 // Node_Parameter_TypeID is the unique identifier for the type Node_Parameter.
@@ -618,6 +688,14 @@ func NewNode_Parameter_List(s *capnp.Segment, sz int32) (Node_Parameter_List, er
 func (s Node_Parameter_List) At(i int) Node_Parameter { return Node_Parameter{s.List.Struct(i)} }
 
 func (s Node_Parameter_List) Set(i int, v Node_Parameter) error { return s.List.SetStruct(i, v.Struct) }
+
+// Node_Parameter_Answer is a wrapper for a Node_Parameter promised by a client call.
+type Node_Parameter_Answer struct{ *capnp.Answer }
+
+func (p Node_Parameter_Answer) Struct() (Node_Parameter, error) {
+	s, err := p.Answer.Struct()
+	return Node_Parameter{s}, err
+}
 
 type Node_NestedNode struct{ capnp.Struct }
 
@@ -679,6 +757,14 @@ func (s Node_NestedNode_List) At(i int) Node_NestedNode { return Node_NestedNode
 
 func (s Node_NestedNode_List) Set(i int, v Node_NestedNode) error {
 	return s.List.SetStruct(i, v.Struct)
+}
+
+// Node_NestedNode_Answer is a wrapper for a Node_NestedNode promised by a client call.
+type Node_NestedNode_Answer struct{ *capnp.Answer }
+
+func (p Node_NestedNode_Answer) Struct() (Node_NestedNode, error) {
+	s, err := p.Answer.Struct()
+	return Node_NestedNode{s}, err
 }
 
 type Field struct{ capnp.Struct }
@@ -922,6 +1008,52 @@ func (s Field_List) At(i int) Field { return Field{s.List.Struct(i)} }
 
 func (s Field_List) Set(i int, v Field) error { return s.List.SetStruct(i, v.Struct) }
 
+// Field_Answer is a wrapper for a Field promised by a client call.
+type Field_Answer struct{ *capnp.Answer }
+
+func (p Field_Answer) Struct() (Field, error) {
+	s, err := p.Answer.Struct()
+	return Field{s}, err
+}
+
+func (p Field_Answer) Slot() Field_slot_Answer { return Field_slot_Answer{p.Answer} }
+
+// Field_slot_Answer is a wrapper for a Field_slot promised by a client call.
+type Field_slot_Answer struct{ *capnp.Answer }
+
+func (p Field_slot_Answer) Struct() (Field_slot, error) {
+	s, err := p.Answer.Struct()
+	return Field_slot{s}, err
+}
+
+func (p Field_slot_Answer) Type() Type_Answer {
+	return Type_Answer{Answer: p.Answer.Field(2, nil)}
+}
+
+func (p Field_slot_Answer) DefaultValue() Value_Answer {
+	return Value_Answer{Answer: p.Answer.Field(3, nil)}
+}
+
+func (p Field_Answer) Group() Field_group_Answer { return Field_group_Answer{p.Answer} }
+
+// Field_group_Answer is a wrapper for a Field_group promised by a client call.
+type Field_group_Answer struct{ *capnp.Answer }
+
+func (p Field_group_Answer) Struct() (Field_group, error) {
+	s, err := p.Answer.Struct()
+	return Field_group{s}, err
+}
+
+func (p Field_Answer) Ordinal() Field_ordinal_Answer { return Field_ordinal_Answer{p.Answer} }
+
+// Field_ordinal_Answer is a wrapper for a Field_ordinal promised by a client call.
+type Field_ordinal_Answer struct{ *capnp.Answer }
+
+func (p Field_ordinal_Answer) Struct() (Field_ordinal, error) {
+	s, err := p.Answer.Struct()
+	return Field_ordinal{s}, err
+}
+
 type Enumerant struct{ capnp.Struct }
 
 // Enumerant_TypeID is the unique identifier for the type Enumerant.
@@ -1007,6 +1139,14 @@ func (s Enumerant_List) At(i int) Enumerant { return Enumerant{s.List.Struct(i)}
 
 func (s Enumerant_List) Set(i int, v Enumerant) error { return s.List.SetStruct(i, v.Struct) }
 
+// Enumerant_Answer is a wrapper for a Enumerant promised by a client call.
+type Enumerant_Answer struct{ *capnp.Answer }
+
+func (p Enumerant_Answer) Struct() (Enumerant, error) {
+	s, err := p.Answer.Struct()
+	return Enumerant{s}, err
+}
+
 type Superclass struct{ capnp.Struct }
 
 // Superclass_TypeID is the unique identifier for the type Superclass.
@@ -1072,6 +1212,18 @@ func NewSuperclass_List(s *capnp.Segment, sz int32) (Superclass_List, error) {
 func (s Superclass_List) At(i int) Superclass { return Superclass{s.List.Struct(i)} }
 
 func (s Superclass_List) Set(i int, v Superclass) error { return s.List.SetStruct(i, v.Struct) }
+
+// Superclass_Answer is a wrapper for a Superclass promised by a client call.
+type Superclass_Answer struct{ *capnp.Answer }
+
+func (p Superclass_Answer) Struct() (Superclass, error) {
+	s, err := p.Answer.Struct()
+	return Superclass{s}, err
+}
+
+func (p Superclass_Answer) Brand() Brand_Answer {
+	return Brand_Answer{Answer: p.Answer.Field(0, nil)}
+}
 
 type Method struct{ capnp.Struct }
 
@@ -1248,6 +1400,22 @@ func NewMethod_List(s *capnp.Segment, sz int32) (Method_List, error) {
 func (s Method_List) At(i int) Method { return Method{s.List.Struct(i)} }
 
 func (s Method_List) Set(i int, v Method) error { return s.List.SetStruct(i, v.Struct) }
+
+// Method_Answer is a wrapper for a Method promised by a client call.
+type Method_Answer struct{ *capnp.Answer }
+
+func (p Method_Answer) Struct() (Method, error) {
+	s, err := p.Answer.Struct()
+	return Method{s}, err
+}
+
+func (p Method_Answer) ParamBrand() Brand_Answer {
+	return Brand_Answer{Answer: p.Answer.Field(2, nil)}
+}
+
+func (p Method_Answer) ResultBrand() Brand_Answer {
+	return Brand_Answer{Answer: p.Answer.Field(3, nil)}
+}
 
 type Type struct{ capnp.Struct }
 type Type_list Type
@@ -1705,6 +1873,116 @@ func (s Type_List) At(i int) Type { return Type{s.List.Struct(i)} }
 
 func (s Type_List) Set(i int, v Type) error { return s.List.SetStruct(i, v.Struct) }
 
+// Type_Answer is a wrapper for a Type promised by a client call.
+type Type_Answer struct{ *capnp.Answer }
+
+func (p Type_Answer) Struct() (Type, error) {
+	s, err := p.Answer.Struct()
+	return Type{s}, err
+}
+
+func (p Type_Answer) List() Type_list_Answer { return Type_list_Answer{p.Answer} }
+
+// Type_list_Answer is a wrapper for a Type_list promised by a client call.
+type Type_list_Answer struct{ *capnp.Answer }
+
+func (p Type_list_Answer) Struct() (Type_list, error) {
+	s, err := p.Answer.Struct()
+	return Type_list{s}, err
+}
+
+func (p Type_list_Answer) ElementType() Type_Answer {
+	return Type_Answer{Answer: p.Answer.Field(0, nil)}
+}
+
+func (p Type_Answer) Enum() Type_enum_Answer { return Type_enum_Answer{p.Answer} }
+
+// Type_enum_Answer is a wrapper for a Type_enum promised by a client call.
+type Type_enum_Answer struct{ *capnp.Answer }
+
+func (p Type_enum_Answer) Struct() (Type_enum, error) {
+	s, err := p.Answer.Struct()
+	return Type_enum{s}, err
+}
+
+func (p Type_enum_Answer) Brand() Brand_Answer {
+	return Brand_Answer{Answer: p.Answer.Field(0, nil)}
+}
+
+func (p Type_Answer) StructType() Type_structType_Answer { return Type_structType_Answer{p.Answer} }
+
+// Type_structType_Answer is a wrapper for a Type_structType promised by a client call.
+type Type_structType_Answer struct{ *capnp.Answer }
+
+func (p Type_structType_Answer) Struct() (Type_structType, error) {
+	s, err := p.Answer.Struct()
+	return Type_structType{s}, err
+}
+
+func (p Type_structType_Answer) Brand() Brand_Answer {
+	return Brand_Answer{Answer: p.Answer.Field(0, nil)}
+}
+
+func (p Type_Answer) Interface() Type_interface_Answer { return Type_interface_Answer{p.Answer} }
+
+// Type_interface_Answer is a wrapper for a Type_interface promised by a client call.
+type Type_interface_Answer struct{ *capnp.Answer }
+
+func (p Type_interface_Answer) Struct() (Type_interface, error) {
+	s, err := p.Answer.Struct()
+	return Type_interface{s}, err
+}
+
+func (p Type_interface_Answer) Brand() Brand_Answer {
+	return Brand_Answer{Answer: p.Answer.Field(0, nil)}
+}
+
+func (p Type_Answer) AnyPointer() Type_anyPointer_Answer { return Type_anyPointer_Answer{p.Answer} }
+
+// Type_anyPointer_Answer is a wrapper for a Type_anyPointer promised by a client call.
+type Type_anyPointer_Answer struct{ *capnp.Answer }
+
+func (p Type_anyPointer_Answer) Struct() (Type_anyPointer, error) {
+	s, err := p.Answer.Struct()
+	return Type_anyPointer{s}, err
+}
+
+func (p Type_anyPointer_Answer) Unconstrained() Type_anyPointer_unconstrained_Answer {
+	return Type_anyPointer_unconstrained_Answer{p.Answer}
+}
+
+// Type_anyPointer_unconstrained_Answer is a wrapper for a Type_anyPointer_unconstrained promised by a client call.
+type Type_anyPointer_unconstrained_Answer struct{ *capnp.Answer }
+
+func (p Type_anyPointer_unconstrained_Answer) Struct() (Type_anyPointer_unconstrained, error) {
+	s, err := p.Answer.Struct()
+	return Type_anyPointer_unconstrained{s}, err
+}
+
+func (p Type_anyPointer_Answer) Parameter() Type_anyPointer_parameter_Answer {
+	return Type_anyPointer_parameter_Answer{p.Answer}
+}
+
+// Type_anyPointer_parameter_Answer is a wrapper for a Type_anyPointer_parameter promised by a client call.
+type Type_anyPointer_parameter_Answer struct{ *capnp.Answer }
+
+func (p Type_anyPointer_parameter_Answer) Struct() (Type_anyPointer_parameter, error) {
+	s, err := p.Answer.Struct()
+	return Type_anyPointer_parameter{s}, err
+}
+
+func (p Type_anyPointer_Answer) ImplicitMethodParameter() Type_anyPointer_implicitMethodParameter_Answer {
+	return Type_anyPointer_implicitMethodParameter_Answer{p.Answer}
+}
+
+// Type_anyPointer_implicitMethodParameter_Answer is a wrapper for a Type_anyPointer_implicitMethodParameter promised by a client call.
+type Type_anyPointer_implicitMethodParameter_Answer struct{ *capnp.Answer }
+
+func (p Type_anyPointer_implicitMethodParameter_Answer) Struct() (Type_anyPointer_implicitMethodParameter, error) {
+	s, err := p.Answer.Struct()
+	return Type_anyPointer_implicitMethodParameter{s}, err
+}
+
 type Brand struct{ capnp.Struct }
 
 // Brand_TypeID is the unique identifier for the type Brand.
@@ -1762,6 +2040,14 @@ func NewBrand_List(s *capnp.Segment, sz int32) (Brand_List, error) {
 func (s Brand_List) At(i int) Brand { return Brand{s.List.Struct(i)} }
 
 func (s Brand_List) Set(i int, v Brand) error { return s.List.SetStruct(i, v.Struct) }
+
+// Brand_Answer is a wrapper for a Brand promised by a client call.
+type Brand_Answer struct{ *capnp.Answer }
+
+func (p Brand_Answer) Struct() (Brand, error) {
+	s, err := p.Answer.Struct()
+	return Brand{s}, err
+}
 
 type Brand_Scope struct{ capnp.Struct }
 type Brand_Scope_Which uint16
@@ -1860,6 +2146,14 @@ func (s Brand_Scope_List) At(i int) Brand_Scope { return Brand_Scope{s.List.Stru
 
 func (s Brand_Scope_List) Set(i int, v Brand_Scope) error { return s.List.SetStruct(i, v.Struct) }
 
+// Brand_Scope_Answer is a wrapper for a Brand_Scope promised by a client call.
+type Brand_Scope_Answer struct{ *capnp.Answer }
+
+func (p Brand_Scope_Answer) Struct() (Brand_Scope, error) {
+	s, err := p.Answer.Struct()
+	return Brand_Scope{s}, err
+}
+
 type Brand_Binding struct{ capnp.Struct }
 type Brand_Binding_Which uint16
 
@@ -1948,6 +2242,18 @@ func NewBrand_Binding_List(s *capnp.Segment, sz int32) (Brand_Binding_List, erro
 func (s Brand_Binding_List) At(i int) Brand_Binding { return Brand_Binding{s.List.Struct(i)} }
 
 func (s Brand_Binding_List) Set(i int, v Brand_Binding) error { return s.List.SetStruct(i, v.Struct) }
+
+// Brand_Binding_Answer is a wrapper for a Brand_Binding promised by a client call.
+type Brand_Binding_Answer struct{ *capnp.Answer }
+
+func (p Brand_Binding_Answer) Struct() (Brand_Binding, error) {
+	s, err := p.Answer.Struct()
+	return Brand_Binding{s}, err
+}
+
+func (p Brand_Binding_Answer) Type() Type_Answer {
+	return Type_Answer{Answer: p.Answer.Field(0, nil)}
+}
 
 type Value struct{ capnp.Struct }
 type Value_Which uint16
@@ -2264,6 +2570,26 @@ func (s Value_List) At(i int) Value { return Value{s.List.Struct(i)} }
 
 func (s Value_List) Set(i int, v Value) error { return s.List.SetStruct(i, v.Struct) }
 
+// Value_Answer is a wrapper for a Value promised by a client call.
+type Value_Answer struct{ *capnp.Answer }
+
+func (p Value_Answer) Struct() (Value, error) {
+	s, err := p.Answer.Struct()
+	return Value{s}, err
+}
+
+func (p Value_Answer) List() *capnp.Answer {
+	return p.Answer.Field(0, nil)
+}
+
+func (p Value_Answer) StructValue() *capnp.Answer {
+	return p.Answer.Field(0, nil)
+}
+
+func (p Value_Answer) AnyPointer() *capnp.Answer {
+	return p.Answer.Field(0, nil)
+}
+
 type Annotation struct{ capnp.Struct }
 
 // Annotation_TypeID is the unique identifier for the type Annotation.
@@ -2354,6 +2680,22 @@ func NewAnnotation_List(s *capnp.Segment, sz int32) (Annotation_List, error) {
 func (s Annotation_List) At(i int) Annotation { return Annotation{s.List.Struct(i)} }
 
 func (s Annotation_List) Set(i int, v Annotation) error { return s.List.SetStruct(i, v.Struct) }
+
+// Annotation_Answer is a wrapper for a Annotation promised by a client call.
+type Annotation_Answer struct{ *capnp.Answer }
+
+func (p Annotation_Answer) Struct() (Annotation, error) {
+	s, err := p.Answer.Struct()
+	return Annotation{s}, err
+}
+
+func (p Annotation_Answer) Brand() Brand_Answer {
+	return Brand_Answer{Answer: p.Answer.Field(1, nil)}
+}
+
+func (p Annotation_Answer) Value() Value_Answer {
+	return Value_Answer{Answer: p.Answer.Field(0, nil)}
+}
 
 type ElementSize uint16
 
@@ -2527,6 +2869,14 @@ func (s CodeGeneratorRequest_List) Set(i int, v CodeGeneratorRequest) error {
 	return s.List.SetStruct(i, v.Struct)
 }
 
+// CodeGeneratorRequest_Answer is a wrapper for a CodeGeneratorRequest promised by a client call.
+type CodeGeneratorRequest_Answer struct{ *capnp.Answer }
+
+func (p CodeGeneratorRequest_Answer) Struct() (CodeGeneratorRequest, error) {
+	s, err := p.Answer.Struct()
+	return CodeGeneratorRequest{s}, err
+}
+
 type CodeGeneratorRequest_RequestedFile struct{ capnp.Struct }
 
 // CodeGeneratorRequest_RequestedFile_TypeID is the unique identifier for the type CodeGeneratorRequest_RequestedFile.
@@ -2616,6 +2966,14 @@ func (s CodeGeneratorRequest_RequestedFile_List) Set(i int, v CodeGeneratorReque
 	return s.List.SetStruct(i, v.Struct)
 }
 
+// CodeGeneratorRequest_RequestedFile_Answer is a wrapper for a CodeGeneratorRequest_RequestedFile promised by a client call.
+type CodeGeneratorRequest_RequestedFile_Answer struct{ *capnp.Answer }
+
+func (p CodeGeneratorRequest_RequestedFile_Answer) Struct() (CodeGeneratorRequest_RequestedFile, error) {
+	s, err := p.Answer.Struct()
+	return CodeGeneratorRequest_RequestedFile{s}, err
+}
+
 type CodeGeneratorRequest_RequestedFile_Import struct{ capnp.Struct }
 
 // CodeGeneratorRequest_RequestedFile_Import_TypeID is the unique identifier for the type CodeGeneratorRequest_RequestedFile_Import.
@@ -2678,6 +3036,14 @@ func (s CodeGeneratorRequest_RequestedFile_Import_List) At(i int) CodeGeneratorR
 
 func (s CodeGeneratorRequest_RequestedFile_Import_List) Set(i int, v CodeGeneratorRequest_RequestedFile_Import) error {
 	return s.List.SetStruct(i, v.Struct)
+}
+
+// CodeGeneratorRequest_RequestedFile_Import_Answer is a wrapper for a CodeGeneratorRequest_RequestedFile_Import promised by a client call.
+type CodeGeneratorRequest_RequestedFile_Import_Answer struct{ *capnp.Answer }
+
+func (p CodeGeneratorRequest_RequestedFile_Import_Answer) Struct() (CodeGeneratorRequest_RequestedFile_Import, error) {
+	s, err := p.Answer.Struct()
+	return CodeGeneratorRequest_RequestedFile_Import{s}, err
 }
 
 const schema_a93fc509624c72d9 = "x\xda\xacY}\x94\x14\xd5\x95\xbf\xf7U\x7f\xccG\x17" +

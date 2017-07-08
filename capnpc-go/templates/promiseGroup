@@ -1,0 +1,1 @@
+func (p {{.Node.Name}}_Answer) {{.Field.Name|title}}() {{.Group.Name}}_Answer { return {{.Group.Name}}_Answer{p.Answer} }

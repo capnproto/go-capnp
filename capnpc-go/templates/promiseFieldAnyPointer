@@ -1,0 +1,4 @@
+func (p {{.Node.Name}}_Answer) {{.Field.Name|title}}() *{{.G.Capnp}}.Answer {
+	return p.Answer.Field({{.Field.Slot.Offset}}, nil)
+}
+

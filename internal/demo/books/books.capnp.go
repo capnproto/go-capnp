@@ -75,6 +75,14 @@ func (s Book_List) At(i int) Book { return Book{s.List.Struct(i)} }
 
 func (s Book_List) Set(i int, v Book) error { return s.List.SetStruct(i, v.Struct) }
 
+// Book_Answer is a wrapper for a Book promised by a client call.
+type Book_Answer struct{ *capnp.Answer }
+
+func (p Book_Answer) Struct() (Book, error) {
+	s, err := p.Answer.Struct()
+	return Book{s}, err
+}
+
 const schema_85d3acc39d94e0f8 = "x\xda\x12\x88w`2d\xdd\xcf\xc8\xc0\x10(\xc2\xca" +
 	"\xb6\xbf\xe6\xca\x95\xeb\x1dg\x1a\x03y\x18\x19\xff\xffx" +
 	"0e\xee\xe15\x97[\x19X\x19\xd9\x19\x18\x04\x8fv" +

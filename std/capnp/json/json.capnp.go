@@ -222,6 +222,18 @@ func (s JsonValue_List) At(i int) JsonValue { return JsonValue{s.List.Struct(i)}
 
 func (s JsonValue_List) Set(i int, v JsonValue) error { return s.List.SetStruct(i, v.Struct) }
 
+// JsonValue_Answer is a wrapper for a JsonValue promised by a client call.
+type JsonValue_Answer struct{ *capnp.Answer }
+
+func (p JsonValue_Answer) Struct() (JsonValue, error) {
+	s, err := p.Answer.Struct()
+	return JsonValue{s}, err
+}
+
+func (p JsonValue_Answer) Call() JsonValue_Call_Answer {
+	return JsonValue_Call_Answer{Answer: p.Answer.Field(0, nil)}
+}
+
 type JsonValue_Field struct{ capnp.Struct }
 
 // JsonValue_Field_TypeID is the unique identifier for the type JsonValue_Field.
@@ -306,6 +318,18 @@ func (s JsonValue_Field_List) Set(i int, v JsonValue_Field) error {
 	return s.List.SetStruct(i, v.Struct)
 }
 
+// JsonValue_Field_Answer is a wrapper for a JsonValue_Field promised by a client call.
+type JsonValue_Field_Answer struct{ *capnp.Answer }
+
+func (p JsonValue_Field_Answer) Struct() (JsonValue_Field, error) {
+	s, err := p.Answer.Struct()
+	return JsonValue_Field{s}, err
+}
+
+func (p JsonValue_Field_Answer) Value() JsonValue_Answer {
+	return JsonValue_Answer{Answer: p.Answer.Field(1, nil)}
+}
+
 type JsonValue_Call struct{ capnp.Struct }
 
 // JsonValue_Call_TypeID is the unique identifier for the type JsonValue_Call.
@@ -387,6 +411,14 @@ func NewJsonValue_Call_List(s *capnp.Segment, sz int32) (JsonValue_Call_List, er
 func (s JsonValue_Call_List) At(i int) JsonValue_Call { return JsonValue_Call{s.List.Struct(i)} }
 
 func (s JsonValue_Call_List) Set(i int, v JsonValue_Call) error { return s.List.SetStruct(i, v.Struct) }
+
+// JsonValue_Call_Answer is a wrapper for a JsonValue_Call promised by a client call.
+type JsonValue_Call_Answer struct{ *capnp.Answer }
+
+func (p JsonValue_Call_Answer) Struct() (JsonValue_Call, error) {
+	s, err := p.Answer.Struct()
+	return JsonValue_Call{s}, err
+}
 
 const schema_8ef99297a43a5e34 = "x\xdat\x92AHTQ\x14\x86\xff\xff\xde7\xa3\xe2" +
 	"L\xf3^\xf3\xa4\x16\x89\x9b\xa2\x1235!\x18\x88)" +

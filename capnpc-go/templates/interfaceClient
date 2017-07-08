@@ -1,0 +1,20 @@
+{{with .Annotations.Doc -}}
+// {{.}}
+{{end -}}
+type {{.Node.Name}} struct { Client *{{.G.Capnp}}.Client }
+
+{{ template "_typeid" .Node }}
+
+{{range .Methods -}}
+func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{$.G.Imports.Context}}.Context, params func({{$.G.RemoteNodeName .Params $.Node}}) error, opts ...{{$.G.Capnp}}.CallOption) ({{$.G.RemoteNodeName .Results $.Node}}_Answer, {{$.G.Capnp}}.ReleaseFunc) {
+	var args {{$.G.Capnp}}.SendArgs
+	if params != nil {
+		args.Size = {{$.G.ObjectSize .Params}}
+		args.Place = func(s {{$.G.Capnp}}.Struct) error { return params({{$.G.RemoteNodeName .Params $.Node}}{Struct: s}) }
+	}
+	ans, release := c.Client.SendCall(ctx, {{$.G.Capnp}}.Method{
+		{{template "_interfaceMethod" .}}
+	}, args, {{$.G.Capnp}}.NewCallOptions(opts))
+	return {{$.G.RemoteNodeName .Results $.Node}}_Answer{Answer: ans}, release
+}
+{{end}}

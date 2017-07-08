@@ -500,6 +500,70 @@ func (s Message_List) At(i int) Message { return Message{s.List.Struct(i)} }
 
 func (s Message_List) Set(i int, v Message) error { return s.List.SetStruct(i, v.Struct) }
 
+// Message_Answer is a wrapper for a Message promised by a client call.
+type Message_Answer struct{ *capnp.Answer }
+
+func (p Message_Answer) Struct() (Message, error) {
+	s, err := p.Answer.Struct()
+	return Message{s}, err
+}
+
+func (p Message_Answer) Unimplemented() Message_Answer {
+	return Message_Answer{Answer: p.Answer.Field(0, nil)}
+}
+
+func (p Message_Answer) Abort() Exception_Answer {
+	return Exception_Answer{Answer: p.Answer.Field(0, nil)}
+}
+
+func (p Message_Answer) Bootstrap() Bootstrap_Answer {
+	return Bootstrap_Answer{Answer: p.Answer.Field(0, nil)}
+}
+
+func (p Message_Answer) Call() Call_Answer {
+	return Call_Answer{Answer: p.Answer.Field(0, nil)}
+}
+
+func (p Message_Answer) Return() Return_Answer {
+	return Return_Answer{Answer: p.Answer.Field(0, nil)}
+}
+
+func (p Message_Answer) Finish() Finish_Answer {
+	return Finish_Answer{Answer: p.Answer.Field(0, nil)}
+}
+
+func (p Message_Answer) Resolve() Resolve_Answer {
+	return Resolve_Answer{Answer: p.Answer.Field(0, nil)}
+}
+
+func (p Message_Answer) Release() Release_Answer {
+	return Release_Answer{Answer: p.Answer.Field(0, nil)}
+}
+
+func (p Message_Answer) Disembargo() Disembargo_Answer {
+	return Disembargo_Answer{Answer: p.Answer.Field(0, nil)}
+}
+
+func (p Message_Answer) ObsoleteSave() *capnp.Answer {
+	return p.Answer.Field(0, nil)
+}
+
+func (p Message_Answer) ObsoleteDelete() *capnp.Answer {
+	return p.Answer.Field(0, nil)
+}
+
+func (p Message_Answer) Provide() Provide_Answer {
+	return Provide_Answer{Answer: p.Answer.Field(0, nil)}
+}
+
+func (p Message_Answer) Accept() Accept_Answer {
+	return Accept_Answer{Answer: p.Answer.Field(0, nil)}
+}
+
+func (p Message_Answer) Join() Join_Answer {
+	return Join_Answer{Answer: p.Answer.Field(0, nil)}
+}
+
 type Bootstrap struct{ capnp.Struct }
 
 // Bootstrap_TypeID is the unique identifier for the type Bootstrap.
@@ -558,6 +622,18 @@ func NewBootstrap_List(s *capnp.Segment, sz int32) (Bootstrap_List, error) {
 func (s Bootstrap_List) At(i int) Bootstrap { return Bootstrap{s.List.Struct(i)} }
 
 func (s Bootstrap_List) Set(i int, v Bootstrap) error { return s.List.SetStruct(i, v.Struct) }
+
+// Bootstrap_Answer is a wrapper for a Bootstrap promised by a client call.
+type Bootstrap_Answer struct{ *capnp.Answer }
+
+func (p Bootstrap_Answer) Struct() (Bootstrap, error) {
+	s, err := p.Answer.Struct()
+	return Bootstrap{s}, err
+}
+
+func (p Bootstrap_Answer) DeprecatedObjectId() *capnp.Answer {
+	return p.Answer.Field(0, nil)
+}
 
 type Call struct{ capnp.Struct }
 type Call_sendResultsTo Call
@@ -732,6 +808,38 @@ func NewCall_List(s *capnp.Segment, sz int32) (Call_List, error) {
 func (s Call_List) At(i int) Call { return Call{s.List.Struct(i)} }
 
 func (s Call_List) Set(i int, v Call) error { return s.List.SetStruct(i, v.Struct) }
+
+// Call_Answer is a wrapper for a Call promised by a client call.
+type Call_Answer struct{ *capnp.Answer }
+
+func (p Call_Answer) Struct() (Call, error) {
+	s, err := p.Answer.Struct()
+	return Call{s}, err
+}
+
+func (p Call_Answer) Target() MessageTarget_Answer {
+	return MessageTarget_Answer{Answer: p.Answer.Field(0, nil)}
+}
+
+func (p Call_Answer) Params() Payload_Answer {
+	return Payload_Answer{Answer: p.Answer.Field(1, nil)}
+}
+
+func (p Call_Answer) SendResultsTo() Call_sendResultsTo_Answer {
+	return Call_sendResultsTo_Answer{p.Answer}
+}
+
+// Call_sendResultsTo_Answer is a wrapper for a Call_sendResultsTo promised by a client call.
+type Call_sendResultsTo_Answer struct{ *capnp.Answer }
+
+func (p Call_sendResultsTo_Answer) Struct() (Call_sendResultsTo, error) {
+	s, err := p.Answer.Struct()
+	return Call_sendResultsTo{s}, err
+}
+
+func (p Call_sendResultsTo_Answer) ThirdParty() *capnp.Answer {
+	return p.Answer.Field(2, nil)
+}
 
 type Return struct{ capnp.Struct }
 type Return_Which uint16
@@ -916,6 +1024,26 @@ func (s Return_List) At(i int) Return { return Return{s.List.Struct(i)} }
 
 func (s Return_List) Set(i int, v Return) error { return s.List.SetStruct(i, v.Struct) }
 
+// Return_Answer is a wrapper for a Return promised by a client call.
+type Return_Answer struct{ *capnp.Answer }
+
+func (p Return_Answer) Struct() (Return, error) {
+	s, err := p.Answer.Struct()
+	return Return{s}, err
+}
+
+func (p Return_Answer) Results() Payload_Answer {
+	return Payload_Answer{Answer: p.Answer.Field(0, nil)}
+}
+
+func (p Return_Answer) Exception() Exception_Answer {
+	return Exception_Answer{Answer: p.Answer.Field(0, nil)}
+}
+
+func (p Return_Answer) AcceptFromThirdParty() *capnp.Answer {
+	return p.Answer.Field(0, nil)
+}
+
 type Finish struct{ capnp.Struct }
 
 // Finish_TypeID is the unique identifier for the type Finish.
@@ -969,6 +1097,14 @@ func NewFinish_List(s *capnp.Segment, sz int32) (Finish_List, error) {
 func (s Finish_List) At(i int) Finish { return Finish{s.List.Struct(i)} }
 
 func (s Finish_List) Set(i int, v Finish) error { return s.List.SetStruct(i, v.Struct) }
+
+// Finish_Answer is a wrapper for a Finish promised by a client call.
+type Finish_Answer struct{ *capnp.Answer }
+
+func (p Finish_Answer) Struct() (Finish, error) {
+	s, err := p.Answer.Struct()
+	return Finish{s}, err
+}
 
 type Resolve struct{ capnp.Struct }
 type Resolve_Which uint16
@@ -1097,6 +1233,22 @@ func (s Resolve_List) At(i int) Resolve { return Resolve{s.List.Struct(i)} }
 
 func (s Resolve_List) Set(i int, v Resolve) error { return s.List.SetStruct(i, v.Struct) }
 
+// Resolve_Answer is a wrapper for a Resolve promised by a client call.
+type Resolve_Answer struct{ *capnp.Answer }
+
+func (p Resolve_Answer) Struct() (Resolve, error) {
+	s, err := p.Answer.Struct()
+	return Resolve{s}, err
+}
+
+func (p Resolve_Answer) Cap() CapDescriptor_Answer {
+	return CapDescriptor_Answer{Answer: p.Answer.Field(0, nil)}
+}
+
+func (p Resolve_Answer) Exception() Exception_Answer {
+	return Exception_Answer{Answer: p.Answer.Field(0, nil)}
+}
+
 type Release struct{ capnp.Struct }
 
 // Release_TypeID is the unique identifier for the type Release.
@@ -1150,6 +1302,14 @@ func NewRelease_List(s *capnp.Segment, sz int32) (Release_List, error) {
 func (s Release_List) At(i int) Release { return Release{s.List.Struct(i)} }
 
 func (s Release_List) Set(i int, v Release) error { return s.List.SetStruct(i, v.Struct) }
+
+// Release_Answer is a wrapper for a Release promised by a client call.
+type Release_Answer struct{ *capnp.Answer }
+
+func (p Release_Answer) Struct() (Release, error) {
+	s, err := p.Answer.Struct()
+	return Release{s}, err
+}
 
 type Disembargo struct{ capnp.Struct }
 type Disembargo_context Disembargo
@@ -1276,6 +1436,30 @@ func (s Disembargo_List) At(i int) Disembargo { return Disembargo{s.List.Struct(
 
 func (s Disembargo_List) Set(i int, v Disembargo) error { return s.List.SetStruct(i, v.Struct) }
 
+// Disembargo_Answer is a wrapper for a Disembargo promised by a client call.
+type Disembargo_Answer struct{ *capnp.Answer }
+
+func (p Disembargo_Answer) Struct() (Disembargo, error) {
+	s, err := p.Answer.Struct()
+	return Disembargo{s}, err
+}
+
+func (p Disembargo_Answer) Target() MessageTarget_Answer {
+	return MessageTarget_Answer{Answer: p.Answer.Field(0, nil)}
+}
+
+func (p Disembargo_Answer) Context() Disembargo_context_Answer {
+	return Disembargo_context_Answer{p.Answer}
+}
+
+// Disembargo_context_Answer is a wrapper for a Disembargo_context promised by a client call.
+type Disembargo_context_Answer struct{ *capnp.Answer }
+
+func (p Disembargo_context_Answer) Struct() (Disembargo_context, error) {
+	s, err := p.Answer.Struct()
+	return Disembargo_context{s}, err
+}
+
 type Provide struct{ capnp.Struct }
 
 // Provide_TypeID is the unique identifier for the type Provide.
@@ -1360,6 +1544,22 @@ func (s Provide_List) At(i int) Provide { return Provide{s.List.Struct(i)} }
 
 func (s Provide_List) Set(i int, v Provide) error { return s.List.SetStruct(i, v.Struct) }
 
+// Provide_Answer is a wrapper for a Provide promised by a client call.
+type Provide_Answer struct{ *capnp.Answer }
+
+func (p Provide_Answer) Struct() (Provide, error) {
+	s, err := p.Answer.Struct()
+	return Provide{s}, err
+}
+
+func (p Provide_Answer) Target() MessageTarget_Answer {
+	return MessageTarget_Answer{Answer: p.Answer.Field(0, nil)}
+}
+
+func (p Provide_Answer) Recipient() *capnp.Answer {
+	return p.Answer.Field(1, nil)
+}
+
 type Accept struct{ capnp.Struct }
 
 // Accept_TypeID is the unique identifier for the type Accept.
@@ -1426,6 +1626,18 @@ func NewAccept_List(s *capnp.Segment, sz int32) (Accept_List, error) {
 func (s Accept_List) At(i int) Accept { return Accept{s.List.Struct(i)} }
 
 func (s Accept_List) Set(i int, v Accept) error { return s.List.SetStruct(i, v.Struct) }
+
+// Accept_Answer is a wrapper for a Accept promised by a client call.
+type Accept_Answer struct{ *capnp.Answer }
+
+func (p Accept_Answer) Struct() (Accept, error) {
+	s, err := p.Answer.Struct()
+	return Accept{s}, err
+}
+
+func (p Accept_Answer) Provision() *capnp.Answer {
+	return p.Answer.Field(0, nil)
+}
 
 type Join struct{ capnp.Struct }
 
@@ -1510,6 +1722,22 @@ func NewJoin_List(s *capnp.Segment, sz int32) (Join_List, error) {
 func (s Join_List) At(i int) Join { return Join{s.List.Struct(i)} }
 
 func (s Join_List) Set(i int, v Join) error { return s.List.SetStruct(i, v.Struct) }
+
+// Join_Answer is a wrapper for a Join promised by a client call.
+type Join_Answer struct{ *capnp.Answer }
+
+func (p Join_Answer) Struct() (Join, error) {
+	s, err := p.Answer.Struct()
+	return Join{s}, err
+}
+
+func (p Join_Answer) Target() MessageTarget_Answer {
+	return MessageTarget_Answer{Answer: p.Answer.Field(0, nil)}
+}
+
+func (p Join_Answer) KeyPart() *capnp.Answer {
+	return p.Answer.Field(1, nil)
+}
 
 type MessageTarget struct{ capnp.Struct }
 type MessageTarget_Which uint16
@@ -1609,6 +1837,18 @@ func (s MessageTarget_List) At(i int) MessageTarget { return MessageTarget{s.Lis
 
 func (s MessageTarget_List) Set(i int, v MessageTarget) error { return s.List.SetStruct(i, v.Struct) }
 
+// MessageTarget_Answer is a wrapper for a MessageTarget promised by a client call.
+type MessageTarget_Answer struct{ *capnp.Answer }
+
+func (p MessageTarget_Answer) Struct() (MessageTarget, error) {
+	s, err := p.Answer.Struct()
+	return MessageTarget{s}, err
+}
+
+func (p MessageTarget_Answer) PromisedAnswer() PromisedAnswer_Answer {
+	return PromisedAnswer_Answer{Answer: p.Answer.Field(0, nil)}
+}
+
 type Payload struct{ capnp.Struct }
 
 // Payload_TypeID is the unique identifier for the type Payload.
@@ -1684,6 +1924,18 @@ func NewPayload_List(s *capnp.Segment, sz int32) (Payload_List, error) {
 func (s Payload_List) At(i int) Payload { return Payload{s.List.Struct(i)} }
 
 func (s Payload_List) Set(i int, v Payload) error { return s.List.SetStruct(i, v.Struct) }
+
+// Payload_Answer is a wrapper for a Payload promised by a client call.
+type Payload_Answer struct{ *capnp.Answer }
+
+func (p Payload_Answer) Struct() (Payload, error) {
+	s, err := p.Answer.Struct()
+	return Payload{s}, err
+}
+
+func (p Payload_Answer) Content() *capnp.Answer {
+	return p.Answer.Field(0, nil)
+}
 
 type CapDescriptor struct{ capnp.Struct }
 type CapDescriptor_Which uint16
@@ -1848,6 +2100,22 @@ func (s CapDescriptor_List) At(i int) CapDescriptor { return CapDescriptor{s.Lis
 
 func (s CapDescriptor_List) Set(i int, v CapDescriptor) error { return s.List.SetStruct(i, v.Struct) }
 
+// CapDescriptor_Answer is a wrapper for a CapDescriptor promised by a client call.
+type CapDescriptor_Answer struct{ *capnp.Answer }
+
+func (p CapDescriptor_Answer) Struct() (CapDescriptor, error) {
+	s, err := p.Answer.Struct()
+	return CapDescriptor{s}, err
+}
+
+func (p CapDescriptor_Answer) ReceiverAnswer() PromisedAnswer_Answer {
+	return PromisedAnswer_Answer{Answer: p.Answer.Field(0, nil)}
+}
+
+func (p CapDescriptor_Answer) ThirdPartyHosted() ThirdPartyCapDescriptor_Answer {
+	return ThirdPartyCapDescriptor_Answer{Answer: p.Answer.Field(0, nil)}
+}
+
 type PromisedAnswer struct{ capnp.Struct }
 
 // PromisedAnswer_TypeID is the unique identifier for the type PromisedAnswer.
@@ -1918,6 +2186,14 @@ func NewPromisedAnswer_List(s *capnp.Segment, sz int32) (PromisedAnswer_List, er
 func (s PromisedAnswer_List) At(i int) PromisedAnswer { return PromisedAnswer{s.List.Struct(i)} }
 
 func (s PromisedAnswer_List) Set(i int, v PromisedAnswer) error { return s.List.SetStruct(i, v.Struct) }
+
+// PromisedAnswer_Answer is a wrapper for a PromisedAnswer promised by a client call.
+type PromisedAnswer_Answer struct{ *capnp.Answer }
+
+func (p PromisedAnswer_Answer) Struct() (PromisedAnswer, error) {
+	s, err := p.Answer.Struct()
+	return PromisedAnswer{s}, err
+}
 
 type PromisedAnswer_Op struct{ capnp.Struct }
 type PromisedAnswer_Op_Which uint16
@@ -1996,6 +2272,14 @@ func (s PromisedAnswer_Op_List) Set(i int, v PromisedAnswer_Op) error {
 	return s.List.SetStruct(i, v.Struct)
 }
 
+// PromisedAnswer_Op_Answer is a wrapper for a PromisedAnswer_Op promised by a client call.
+type PromisedAnswer_Op_Answer struct{ *capnp.Answer }
+
+func (p PromisedAnswer_Op_Answer) Struct() (PromisedAnswer_Op, error) {
+	s, err := p.Answer.Struct()
+	return PromisedAnswer_Op{s}, err
+}
+
 type ThirdPartyCapDescriptor struct{ capnp.Struct }
 
 // ThirdPartyCapDescriptor_TypeID is the unique identifier for the type ThirdPartyCapDescriptor.
@@ -2057,6 +2341,18 @@ func (s ThirdPartyCapDescriptor_List) At(i int) ThirdPartyCapDescriptor {
 
 func (s ThirdPartyCapDescriptor_List) Set(i int, v ThirdPartyCapDescriptor) error {
 	return s.List.SetStruct(i, v.Struct)
+}
+
+// ThirdPartyCapDescriptor_Answer is a wrapper for a ThirdPartyCapDescriptor promised by a client call.
+type ThirdPartyCapDescriptor_Answer struct{ *capnp.Answer }
+
+func (p ThirdPartyCapDescriptor_Answer) Struct() (ThirdPartyCapDescriptor, error) {
+	s, err := p.Answer.Struct()
+	return ThirdPartyCapDescriptor{s}, err
+}
+
+func (p ThirdPartyCapDescriptor_Answer) Id() *capnp.Answer {
+	return p.Answer.Field(0, nil)
 }
 
 type Exception struct{ capnp.Struct }
@@ -2139,6 +2435,14 @@ func NewException_List(s *capnp.Segment, sz int32) (Exception_List, error) {
 func (s Exception_List) At(i int) Exception { return Exception{s.List.Struct(i)} }
 
 func (s Exception_List) Set(i int, v Exception) error { return s.List.SetStruct(i, v.Struct) }
+
+// Exception_Answer is a wrapper for a Exception promised by a client call.
+type Exception_Answer struct{ *capnp.Answer }
+
+func (p Exception_Answer) Struct() (Exception, error) {
+	s, err := p.Answer.Struct()
+	return Exception{s}, err
+}
 
 type Exception_Type uint16
 
