@@ -3,7 +3,7 @@ Package capnp is a Cap'n Proto library for Go.
 https://capnproto.org/
 
 Read the Getting Started guide for a tutorial on how to use this
-package. https://github.com/zombiezen/go-capnproto2/wiki/Getting-Started
+package. https://github.com/capnproto/go-capnproto2/wiki/Getting-Started
 
 Generating code
 
@@ -62,7 +62,7 @@ panic when any setter is called.
 
 In previous versions of this package, the Pointer interface was used
 instead of the Ptr struct.  This interface and functions that use it are
-now deprecated.  See https://github.com/zombiezen/go-capnproto2/wiki/New-Ptr-Type
+now deprecated.  See https://github.com/capnproto/go-capnproto2/wiki/New-Ptr-Type
 for details about this API change.
 
 Data accessors and setters (i.e. struct primitive fields and list
