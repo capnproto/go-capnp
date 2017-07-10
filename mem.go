@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"sync/atomic"
 
 	"zombiezen.com/go/capnproto2/internal/packed"
 )
@@ -29,7 +30,7 @@ const maxDepth = ^uint(0)
 type Message struct {
 	// rlimit must be first so that it is 64-bit aligned.
 	// See sync/atomic docs.
-	rlimit     ReadLimiter
+	rlimit     uint64
 	rlimitInit sync.Once
 
 	Arena Arena
@@ -104,7 +105,46 @@ func (m *Message) Reset(arena Arena) {
 	m.Arena = arena
 	m.ClearCaps()
 	m.CapTable = nil
-	m.ReadLimiter().Reset(m.TraverseLimit)
+	m.rlimitInit.Do(func() {})
+	m.initReadLimit()
+}
+
+func (m *Message) initReadLimit() {
+	if m.TraverseLimit == 0 {
+		atomic.StoreUint64(&m.rlimit, defaultTraverseLimit)
+		return
+	}
+	atomic.StoreUint64(&m.rlimit, m.TraverseLimit)
+}
+
+// canRead reports whether the amount of bytes can be stored safely.
+func (m *Message) canRead(sz Size) bool {
+	m.rlimitInit.Do(m.initReadLimit)
+	for {
+		curr := atomic.LoadUint64(&m.rlimit)
+		ok := curr >= uint64(sz)
+		var new uint64
+		if ok {
+			new = curr - uint64(sz)
+		} else {
+			new = 0
+		}
+		if atomic.CompareAndSwapUint64(&m.rlimit, curr, new) {
+			return ok
+		}
+	}
+}
+
+// ResetReadLimit sets the number of bytes allowed to be read from this message.
+func (m *Message) ResetReadLimit(limit uint64) {
+	m.rlimitInit.Do(func() {})
+	atomic.StoreUint64(&m.rlimit, limit)
+}
+
+// Unread increases the read limit by sz.
+func (m *Message) Unread(sz Size) {
+	m.rlimitInit.Do(m.initReadLimit)
+	atomic.AddUint64(&m.rlimit, uint64(sz))
 }
 
 // ClearCaps closes all capabilities in the message's table and sets
@@ -159,19 +199,6 @@ func (m *Message) AddCap(c *Client) CapabilityID {
 	n := CapabilityID(len(m.CapTable))
 	m.CapTable = append(m.CapTable, c)
 	return n
-}
-
-// ReadLimiter returns the message's read limiter.  Useful if you want
-// to reset the traversal limit while reading.
-func (m *Message) ReadLimiter() *ReadLimiter {
-	m.rlimitInit.Do(func() {
-		if m.TraverseLimit == 0 {
-			m.rlimit.limit = defaultTraverseLimit
-		} else {
-			m.rlimit.limit = m.TraverseLimit
-		}
-	})
-	return &m.rlimit
 }
 
 func (m *Message) depthLimit() uint {

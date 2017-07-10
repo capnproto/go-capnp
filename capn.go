@@ -136,7 +136,7 @@ func (s *Segment) readPtr(off Address, depthLimit uint) (ptr Ptr, err error) {
 		if err != nil {
 			return Ptr{}, err
 		}
-		if !s.msg.ReadLimiter().canRead(sp.readSize()) {
+		if !s.msg.canRead(sp.readSize()) {
 			return Ptr{}, errReadLimit
 		}
 		sp.depthLimit = depthLimit - 1
@@ -146,7 +146,7 @@ func (s *Segment) readPtr(off Address, depthLimit uint) (ptr Ptr, err error) {
 		if err != nil {
 			return Ptr{}, err
 		}
-		if !s.msg.ReadLimiter().canRead(lp.readSize()) {
+		if !s.msg.canRead(lp.readSize()) {
 			return Ptr{}, errReadLimit
 		}
 		lp.depthLimit = depthLimit - 1
