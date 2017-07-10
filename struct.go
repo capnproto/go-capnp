@@ -145,7 +145,7 @@ func (p Struct) SetPtr(i uint16, src Ptr) error {
 	if p.seg == nil || i >= p.size.PointerCount {
 		panic(errOutOfBounds)
 	}
-	return p.seg.writePtr(copyContext{}, p.pointerAddress(i), src)
+	return p.seg.writePtr(p.pointerAddress(i), src)
 }
 
 // SetText sets the i'th pointer to a newly allocated text or null if v is empty.
@@ -313,7 +313,7 @@ const (
 )
 
 // copyStruct makes a deep copy of src into dst.
-func copyStruct(cc copyContext, dst, src Struct) error {
+func copyStruct(dst, src Struct) error {
 	if dst.seg == nil {
 		return nil
 	}
@@ -350,11 +350,11 @@ func copyStruct(cc copyContext, dst, src Struct) error {
 	for j := uint16(0); j < numSrcPtrs && j < numDstPtrs; j++ {
 		srcAddr, _ := srcPtrSect.element(int32(j), wordSize)
 		dstAddr, _ := dstPtrSect.element(int32(j), wordSize)
-		m, err := src.seg.readPtr(srcAddr, maxDepth) // copy already handles depth-limiting
+		m, err := src.seg.readPtr(srcAddr, src.depthLimit)
 		if err != nil {
 			return err
 		}
-		err = dst.seg.writePtr(cc.incDepth(), dstAddr, m)
+		err = dst.seg.writePtr(dstAddr, m)
 		if err != nil {
 			return err
 		}

@@ -124,6 +124,22 @@ func (p List) readSize() Size {
 	return sz
 }
 
+// allocSize returns the list's size for the purpose of copying the list
+// to a different message.
+func (p List) allocSize() Size {
+	if p.seg == nil {
+		return 0
+	}
+	if p.flags&isBitList != 0 {
+		return Size((p.length + 7) / 8)
+	}
+	sz, _ := p.size.totalSize().times(p.length) // size has already been validated
+	if p.flags&isCompositeList == 0 {
+		return sz
+	}
+	return sz + wordSize
+}
+
 // value returns the equivalent raw list pointer.
 func (p List) value(paddr Address) rawPointer {
 	if p.seg == nil {
@@ -220,7 +236,7 @@ func (p List) SetStruct(i int, s Struct) error {
 	if p.flags&isBitList != 0 {
 		return errBitListStruct
 	}
-	return copyStruct(copyContext{}, p.Struct(i), s)
+	return copyStruct(p.Struct(i), s)
 }
 
 // A BitList is a reference to a list of booleans.
@@ -327,7 +343,7 @@ func (p PointerList) SetPtr(i int, v Ptr) error {
 	if err != nil {
 		return err
 	}
-	return p.seg.writePtr(copyContext{}, addr, v)
+	return p.seg.writePtr(addr, v)
 }
 
 // TextList is an array of pointers to strings.
@@ -376,13 +392,13 @@ func (l TextList) Set(i int, v string) error {
 		return err
 	}
 	if v == "" {
-		return l.seg.writePtr(copyContext{}, addr, Ptr{})
+		return l.seg.writePtr(addr, Ptr{})
 	}
 	p, err := NewText(l.seg, v)
 	if err != nil {
 		return err
 	}
-	return l.seg.writePtr(copyContext{}, addr, p.List.ToPtr())
+	return l.seg.writePtr(addr, p.List.ToPtr())
 }
 
 // DataList is an array of pointers to data.
@@ -417,13 +433,13 @@ func (l DataList) Set(i int, v []byte) error {
 		return err
 	}
 	if len(v) == 0 {
-		return l.seg.writePtr(copyContext{}, addr, Ptr{})
+		return l.seg.writePtr(addr, Ptr{})
 	}
 	p, err := NewData(l.seg, v)
 	if err != nil {
 		return err
 	}
-	return l.seg.writePtr(copyContext{}, addr, p.List.ToPtr())
+	return l.seg.writePtr(addr, p.List.ToPtr())
 }
 
 // A VoidList is a list of zero-sized elements.
