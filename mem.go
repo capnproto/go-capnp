@@ -101,7 +101,11 @@ func (m *Message) Reset(arena Arena) {
 	m.segs = nil
 	m.firstSeg = Segment{}
 	m.mu.Unlock()
-	m.ReadLimiter().Reset(m.TraverseLimit)
+	if m.TraverseLimit == 0 {
+		m.ReadLimiter().Reset(defaultTraverseLimit)
+	} else {
+		m.ReadLimiter().Reset(m.TraverseLimit)
+	}
 }
 
 // Root returns the pointer to the message's root object.
