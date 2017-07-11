@@ -343,7 +343,7 @@ func (p PointerList) SetPtr(i int, v Ptr) error {
 	if err != nil {
 		return err
 	}
-	return p.seg.writePtr(addr, v)
+	return p.seg.writePtr(addr, v, false)
 }
 
 // TextList is an array of pointers to strings.
@@ -392,13 +392,13 @@ func (l TextList) Set(i int, v string) error {
 		return err
 	}
 	if v == "" {
-		return l.seg.writePtr(addr, Ptr{})
+		return l.seg.writePtr(addr, Ptr{}, false)
 	}
 	p, err := NewText(l.seg, v)
 	if err != nil {
 		return err
 	}
-	return l.seg.writePtr(addr, p.List.ToPtr())
+	return l.seg.writePtr(addr, p.List.ToPtr(), false)
 }
 
 // DataList is an array of pointers to data.
@@ -433,13 +433,13 @@ func (l DataList) Set(i int, v []byte) error {
 		return err
 	}
 	if len(v) == 0 {
-		return l.seg.writePtr(addr, Ptr{})
+		return l.seg.writePtr(addr, Ptr{}, false)
 	}
 	p, err := NewData(l.seg, v)
 	if err != nil {
 		return err
 	}
-	return l.seg.writePtr(addr, p.List.ToPtr())
+	return l.seg.writePtr(addr, p.List.ToPtr(), false)
 }
 
 // A VoidList is a list of zero-sized elements.

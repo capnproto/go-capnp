@@ -280,7 +280,7 @@ func (s *Segment) resolveFarPointer(off Address, val rawPointer) (*Segment, Addr
 	}
 }
 
-func (s *Segment) writePtr(off Address, src Ptr) error {
+func (s *Segment) writePtr(off Address, src Ptr, forceCopy bool) error {
 	if !src.IsValid() {
 		s.writeRawPointer(off, 0)
 		return nil
@@ -289,7 +289,7 @@ func (s *Segment) writePtr(off Address, src Ptr) error {
 	switch src.flags.ptrType() {
 	case structPtrType:
 		st := src.Struct()
-		if src.seg.msg != s.msg || st.flags&isListMember != 0 {
+		if forceCopy || src.seg.msg != s.msg || st.flags&isListMember != 0 {
 			newSeg, newAddr, err := alloc(s, st.size.totalSize())
 			if err != nil {
 				return err
@@ -307,7 +307,7 @@ func (s *Segment) writePtr(off Address, src Ptr) error {
 			src = dst.ToPtr()
 		}
 	case listPtrType:
-		if src.seg.msg != s.msg {
+		if forceCopy || src.seg.msg != s.msg {
 			l := src.List()
 			sz := l.allocSize()
 			newSeg, newAddr, err := alloc(s, sz)

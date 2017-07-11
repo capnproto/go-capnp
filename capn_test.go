@@ -428,6 +428,63 @@ func TestSegmentWriteUint64(t *testing.T) {
 	}
 }
 
+func TestSetPtrCopyListMember(t *testing.T) {
+	_, seg, err := NewMessage(SingleSegment(nil))
+	if err != nil {
+		t.Fatal("NewMessage:", err)
+	}
+	root, err := NewRootStruct(seg, ObjectSize{PointerCount: 2})
+	if err != nil {
+		t.Fatal("NewRootStruct:", err)
+	}
+	plist, err := NewCompositeList(seg, ObjectSize{PointerCount: 1}, 1)
+	if err != nil {
+		t.Fatal("NewCompositeList:", err)
+	}
+	if err := root.SetPtr(0, plist.ToPtr()); err != nil {
+		t.Fatal("root.SetPtr(0, plist):", err)
+	}
+	sub, err := NewStruct(seg, ObjectSize{DataSize: 8})
+	if err != nil {
+		t.Fatal("NewStruct:", err)
+	}
+	sub.SetUint64(0, 42)
+	pl0 := plist.Struct(0)
+	if err := pl0.SetPtr(0, sub.ToPtr()); err != nil {
+		t.Fatal("pl0.SetPtr(0, sub.ToPtr()):", err)
+	}
+
+	if err := root.SetPtr(1, pl0.ToPtr()); err != nil {
+		t.Error("root.SetPtr(1, pl0):", err)
+	}
+
+	p1, err := root.Ptr(1)
+	if err != nil {
+		t.Error("root.Ptr(1):", err)
+	}
+	s1 := p1.Struct()
+	if !s1.IsValid() {
+		t.Error("root.Ptr(1) is not a valid struct")
+	}
+	if s1.Segment() == pl0.Segment() && s1.Address() == pl0.Address() {
+		t.Error("list member not copied; points to same object")
+	}
+	s1p0, err := s1.Ptr(0)
+	if err != nil {
+		t.Error("root.Ptr(1).Struct().Ptr(0):", err)
+	}
+	s1s0 := s1p0.Struct()
+	if !s1s0.IsValid() {
+		t.Error("root.Ptr(1).Struct().Ptr(0) is not a valid struct")
+	}
+	if s1s0.Segment() == sub.Segment() && s1s0.Address() == sub.Address() {
+		t.Error("sub-object not copied; points to same object")
+	}
+	if got := s1s0.Uint64(0); got != 42 {
+		t.Errorf("sub-object data = %d; want 42", got)
+	}
+}
+
 func catchPanic(f func()) (err error) {
 	defer func() {
 		pval := recover()
