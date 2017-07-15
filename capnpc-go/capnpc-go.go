@@ -937,8 +937,9 @@ func (g *generator) defineBaseStructFuncs(n *node) error {
 
 func (g *generator) defineStructList(n *node) error {
 	err := renderStructList(g.r, structListParams{
-		G:    g,
-		Node: n,
+		G:            g,
+		Node:         n,
+		StringMethod: g.opts.structStrings,
 	})
 	if err != nil {
 		return fmt.Errorf("new struct function for %s: %v", n, err)

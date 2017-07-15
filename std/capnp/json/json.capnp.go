@@ -220,6 +220,11 @@ func (s JsonValue_List) At(i int) JsonValue { return JsonValue{s.List.Struct(i)}
 
 func (s JsonValue_List) Set(i int, v JsonValue) error { return s.List.SetStruct(i, v.Struct) }
 
+func (s JsonValue_List) String() string {
+	str, _ := text.MarshalList(0x8825ffaa852cda72, s.List)
+	return str
+}
+
 // JsonValue_Promise is a wrapper for a JsonValue promised by a client call.
 type JsonValue_Promise struct{ *capnp.Pipeline }
 
@@ -316,6 +321,11 @@ func (s JsonValue_Field_List) Set(i int, v JsonValue_Field) error {
 	return s.List.SetStruct(i, v.Struct)
 }
 
+func (s JsonValue_Field_List) String() string {
+	str, _ := text.MarshalList(0xc27855d853a937cc, s.List)
+	return str
+}
+
 // JsonValue_Field_Promise is a wrapper for a JsonValue_Field promised by a client call.
 type JsonValue_Field_Promise struct{ *capnp.Pipeline }
 
@@ -409,6 +419,11 @@ func NewJsonValue_Call_List(s *capnp.Segment, sz int32) (JsonValue_Call_List, er
 func (s JsonValue_Call_List) At(i int) JsonValue_Call { return JsonValue_Call{s.List.Struct(i)} }
 
 func (s JsonValue_Call_List) Set(i int, v JsonValue_Call) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s JsonValue_Call_List) String() string {
+	str, _ := text.MarshalList(0x9bbf84153dd4bb60, s.List)
+	return str
+}
 
 // JsonValue_Call_Promise is a wrapper for a JsonValue_Call promised by a client call.
 type JsonValue_Call_Promise struct{ *capnp.Pipeline }

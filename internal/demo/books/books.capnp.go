@@ -73,6 +73,11 @@ func (s Book_List) At(i int) Book { return Book{s.List.Struct(i)} }
 
 func (s Book_List) Set(i int, v Book) error { return s.List.SetStruct(i, v.Struct) }
 
+func (s Book_List) String() string {
+	str, _ := text.MarshalList(0x8100cc88d7d4d47c, s.List)
+	return str
+}
+
 // Book_Promise is a wrapper for a Book promised by a client call.
 type Book_Promise struct{ *capnp.Pipeline }
 

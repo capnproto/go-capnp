@@ -516,6 +516,11 @@ func (s Message_List) At(i int) Message { return Message{s.List.Struct(i)} }
 
 func (s Message_List) Set(i int, v Message) error { return s.List.SetStruct(i, v.Struct) }
 
+func (s Message_List) String() string {
+	str, _ := text.MarshalList(0x91b79f1f808db032, s.List)
+	return str
+}
+
 // Message_Promise is a wrapper for a Message promised by a client call.
 type Message_Promise struct{ *capnp.Pipeline }
 
@@ -646,6 +651,11 @@ func NewBootstrap_List(s *capnp.Segment, sz int32) (Bootstrap_List, error) {
 func (s Bootstrap_List) At(i int) Bootstrap { return Bootstrap{s.List.Struct(i)} }
 
 func (s Bootstrap_List) Set(i int, v Bootstrap) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s Bootstrap_List) String() string {
+	str, _ := text.MarshalList(0xe94ccf8031176ec4, s.List)
+	return str
+}
 
 // Bootstrap_Promise is a wrapper for a Bootstrap promised by a client call.
 type Bootstrap_Promise struct{ *capnp.Pipeline }
@@ -841,6 +851,11 @@ func NewCall_List(s *capnp.Segment, sz int32) (Call_List, error) {
 func (s Call_List) At(i int) Call { return Call{s.List.Struct(i)} }
 
 func (s Call_List) Set(i int, v Call) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s Call_List) String() string {
+	str, _ := text.MarshalList(0x836a53ce789d4cd4, s.List)
+	return str
+}
 
 // Call_Promise is a wrapper for a Call promised by a client call.
 type Call_Promise struct{ *capnp.Pipeline }
@@ -1066,6 +1081,11 @@ func (s Return_List) At(i int) Return { return Return{s.List.Struct(i)} }
 
 func (s Return_List) Set(i int, v Return) error { return s.List.SetStruct(i, v.Struct) }
 
+func (s Return_List) String() string {
+	str, _ := text.MarshalList(0x9e19b28d3db3573a, s.List)
+	return str
+}
+
 // Return_Promise is a wrapper for a Return promised by a client call.
 type Return_Promise struct{ *capnp.Pipeline }
 
@@ -1139,6 +1159,11 @@ func NewFinish_List(s *capnp.Segment, sz int32) (Finish_List, error) {
 func (s Finish_List) At(i int) Finish { return Finish{s.List.Struct(i)} }
 
 func (s Finish_List) Set(i int, v Finish) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s Finish_List) String() string {
+	str, _ := text.MarshalList(0xd37d2eb2c2f80e63, s.List)
+	return str
+}
 
 // Finish_Promise is a wrapper for a Finish promised by a client call.
 type Finish_Promise struct{ *capnp.Pipeline }
@@ -1275,6 +1300,11 @@ func (s Resolve_List) At(i int) Resolve { return Resolve{s.List.Struct(i)} }
 
 func (s Resolve_List) Set(i int, v Resolve) error { return s.List.SetStruct(i, v.Struct) }
 
+func (s Resolve_List) String() string {
+	str, _ := text.MarshalList(0xbbc29655fa89086e, s.List)
+	return str
+}
+
 // Resolve_Promise is a wrapper for a Resolve promised by a client call.
 type Resolve_Promise struct{ *capnp.Pipeline }
 
@@ -1344,6 +1374,11 @@ func NewRelease_List(s *capnp.Segment, sz int32) (Release_List, error) {
 func (s Release_List) At(i int) Release { return Release{s.List.Struct(i)} }
 
 func (s Release_List) Set(i int, v Release) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s Release_List) String() string {
+	str, _ := text.MarshalList(0xad1a6c0d7dd07497, s.List)
+	return str
+}
 
 // Release_Promise is a wrapper for a Release promised by a client call.
 type Release_Promise struct{ *capnp.Pipeline }
@@ -1478,6 +1513,11 @@ func (s Disembargo_List) At(i int) Disembargo { return Disembargo{s.List.Struct(
 
 func (s Disembargo_List) Set(i int, v Disembargo) error { return s.List.SetStruct(i, v.Struct) }
 
+func (s Disembargo_List) String() string {
+	str, _ := text.MarshalList(0xf964368b0fbd3711, s.List)
+	return str
+}
+
 // Disembargo_Promise is a wrapper for a Disembargo promised by a client call.
 type Disembargo_Promise struct{ *capnp.Pipeline }
 
@@ -1594,6 +1634,11 @@ func (s Provide_List) At(i int) Provide { return Provide{s.List.Struct(i)} }
 
 func (s Provide_List) Set(i int, v Provide) error { return s.List.SetStruct(i, v.Struct) }
 
+func (s Provide_List) String() string {
+	str, _ := text.MarshalList(0x9c6a046bfbc1ac5a, s.List)
+	return str
+}
+
 // Provide_Promise is a wrapper for a Provide promised by a client call.
 type Provide_Promise struct{ *capnp.Pipeline }
 
@@ -1684,6 +1729,11 @@ func NewAccept_List(s *capnp.Segment, sz int32) (Accept_List, error) {
 func (s Accept_List) At(i int) Accept { return Accept{s.List.Struct(i)} }
 
 func (s Accept_List) Set(i int, v Accept) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s Accept_List) String() string {
+	str, _ := text.MarshalList(0xd4c9b56290554016, s.List)
+	return str
+}
 
 // Accept_Promise is a wrapper for a Accept promised by a client call.
 type Accept_Promise struct{ *capnp.Pipeline }
@@ -1788,6 +1838,11 @@ func NewJoin_List(s *capnp.Segment, sz int32) (Join_List, error) {
 func (s Join_List) At(i int) Join { return Join{s.List.Struct(i)} }
 
 func (s Join_List) Set(i int, v Join) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s Join_List) String() string {
+	str, _ := text.MarshalList(0xfbe1980490e001af, s.List)
+	return str
+}
 
 // Join_Promise is a wrapper for a Join promised by a client call.
 type Join_Promise struct{ *capnp.Pipeline }
@@ -1903,6 +1958,11 @@ func (s MessageTarget_List) At(i int) MessageTarget { return MessageTarget{s.Lis
 
 func (s MessageTarget_List) Set(i int, v MessageTarget) error { return s.List.SetStruct(i, v.Struct) }
 
+func (s MessageTarget_List) String() string {
+	str, _ := text.MarshalList(0x95bc14545813fbc1, s.List)
+	return str
+}
+
 // MessageTarget_Promise is a wrapper for a MessageTarget promised by a client call.
 type MessageTarget_Promise struct{ *capnp.Pipeline }
 
@@ -1998,6 +2058,11 @@ func NewPayload_List(s *capnp.Segment, sz int32) (Payload_List, error) {
 func (s Payload_List) At(i int) Payload { return Payload{s.List.Struct(i)} }
 
 func (s Payload_List) Set(i int, v Payload) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s Payload_List) String() string {
+	str, _ := text.MarshalList(0x9a0e61223d96743b, s.List)
+	return str
+}
 
 // Payload_Promise is a wrapper for a Payload promised by a client call.
 type Payload_Promise struct{ *capnp.Pipeline }
@@ -2174,6 +2239,11 @@ func (s CapDescriptor_List) At(i int) CapDescriptor { return CapDescriptor{s.Lis
 
 func (s CapDescriptor_List) Set(i int, v CapDescriptor) error { return s.List.SetStruct(i, v.Struct) }
 
+func (s CapDescriptor_List) String() string {
+	str, _ := text.MarshalList(0x8523ddc40b86b8b0, s.List)
+	return str
+}
+
 // CapDescriptor_Promise is a wrapper for a CapDescriptor promised by a client call.
 type CapDescriptor_Promise struct{ *capnp.Pipeline }
 
@@ -2261,6 +2331,11 @@ func (s PromisedAnswer_List) At(i int) PromisedAnswer { return PromisedAnswer{s.
 
 func (s PromisedAnswer_List) Set(i int, v PromisedAnswer) error { return s.List.SetStruct(i, v.Struct) }
 
+func (s PromisedAnswer_List) String() string {
+	str, _ := text.MarshalList(0xd800b1d6cd6f1ca0, s.List)
+	return str
+}
+
 // PromisedAnswer_Promise is a wrapper for a PromisedAnswer promised by a client call.
 type PromisedAnswer_Promise struct{ *capnp.Pipeline }
 
@@ -2346,6 +2421,11 @@ func (s PromisedAnswer_Op_List) Set(i int, v PromisedAnswer_Op) error {
 	return s.List.SetStruct(i, v.Struct)
 }
 
+func (s PromisedAnswer_Op_List) String() string {
+	str, _ := text.MarshalList(0xf316944415569081, s.List)
+	return str
+}
+
 // PromisedAnswer_Op_Promise is a wrapper for a PromisedAnswer_Op promised by a client call.
 type PromisedAnswer_Op_Promise struct{ *capnp.Pipeline }
 
@@ -2423,6 +2503,11 @@ func (s ThirdPartyCapDescriptor_List) At(i int) ThirdPartyCapDescriptor {
 
 func (s ThirdPartyCapDescriptor_List) Set(i int, v ThirdPartyCapDescriptor) error {
 	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s ThirdPartyCapDescriptor_List) String() string {
+	str, _ := text.MarshalList(0xd37007fde1f0027d, s.List)
+	return str
 }
 
 // ThirdPartyCapDescriptor_Promise is a wrapper for a ThirdPartyCapDescriptor promised by a client call.
@@ -2517,6 +2602,11 @@ func NewException_List(s *capnp.Segment, sz int32) (Exception_List, error) {
 func (s Exception_List) At(i int) Exception { return Exception{s.List.Struct(i)} }
 
 func (s Exception_List) Set(i int, v Exception) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s Exception_List) String() string {
+	str, _ := text.MarshalList(0xd625b7063acf691a, s.List)
+	return str
+}
 
 // Exception_Promise is a wrapper for a Exception promised by a client call.
 type Exception_Promise struct{ *capnp.Pipeline }

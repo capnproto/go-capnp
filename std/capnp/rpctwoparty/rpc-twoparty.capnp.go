@@ -109,6 +109,11 @@ func (s VatId_List) At(i int) VatId { return VatId{s.List.Struct(i)} }
 
 func (s VatId_List) Set(i int, v VatId) error { return s.List.SetStruct(i, v.Struct) }
 
+func (s VatId_List) String() string {
+	str, _ := text.MarshalList(0xd20b909fee733a8e, s.List)
+	return str
+}
+
 // VatId_Promise is a wrapper for a VatId promised by a client call.
 type VatId_Promise struct{ *capnp.Pipeline }
 
@@ -163,6 +168,11 @@ func (s ProvisionId_List) At(i int) ProvisionId { return ProvisionId{s.List.Stru
 
 func (s ProvisionId_List) Set(i int, v ProvisionId) error { return s.List.SetStruct(i, v.Struct) }
 
+func (s ProvisionId_List) String() string {
+	str, _ := text.MarshalList(0xb88d09a9c5f39817, s.List)
+	return str
+}
+
 // ProvisionId_Promise is a wrapper for a ProvisionId promised by a client call.
 type ProvisionId_Promise struct{ *capnp.Pipeline }
 
@@ -208,6 +218,11 @@ func NewRecipientId_List(s *capnp.Segment, sz int32) (RecipientId_List, error) {
 func (s RecipientId_List) At(i int) RecipientId { return RecipientId{s.List.Struct(i)} }
 
 func (s RecipientId_List) Set(i int, v RecipientId) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s RecipientId_List) String() string {
+	str, _ := text.MarshalList(0x89f389b6fd4082c1, s.List)
+	return str
+}
 
 // RecipientId_Promise is a wrapper for a RecipientId promised by a client call.
 type RecipientId_Promise struct{ *capnp.Pipeline }
@@ -255,6 +270,11 @@ func (s ThirdPartyCapId_List) At(i int) ThirdPartyCapId { return ThirdPartyCapId
 
 func (s ThirdPartyCapId_List) Set(i int, v ThirdPartyCapId) error {
 	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s ThirdPartyCapId_List) String() string {
+	str, _ := text.MarshalList(0xb47f4979672cb59d, s.List)
+	return str
 }
 
 // ThirdPartyCapId_Promise is a wrapper for a ThirdPartyCapId promised by a client call.
@@ -326,6 +346,11 @@ func NewJoinKeyPart_List(s *capnp.Segment, sz int32) (JoinKeyPart_List, error) {
 func (s JoinKeyPart_List) At(i int) JoinKeyPart { return JoinKeyPart{s.List.Struct(i)} }
 
 func (s JoinKeyPart_List) Set(i int, v JoinKeyPart) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s JoinKeyPart_List) String() string {
+	str, _ := text.MarshalList(0x95b29059097fca83, s.List)
+	return str
+}
 
 // JoinKeyPart_Promise is a wrapper for a JoinKeyPart promised by a client call.
 type JoinKeyPart_Promise struct{ *capnp.Pipeline }
@@ -409,6 +434,11 @@ func NewJoinResult_List(s *capnp.Segment, sz int32) (JoinResult_List, error) {
 func (s JoinResult_List) At(i int) JoinResult { return JoinResult{s.List.Struct(i)} }
 
 func (s JoinResult_List) Set(i int, v JoinResult) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s JoinResult_List) String() string {
+	str, _ := text.MarshalList(0x9d263a3630b7ebee, s.List)
+	return str
+}
 
 // JoinResult_Promise is a wrapper for a JoinResult promised by a client call.
 type JoinResult_Promise struct{ *capnp.Pipeline }

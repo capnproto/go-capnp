@@ -117,8 +117,9 @@ type structObjectFieldParams struct {
 }
 
 type structListParams struct {
-	G    *generator
-	Node *node
+	G            *generator
+	Node         *node
+	StringMethod bool
 }
 
 type structEnumsParams struct {

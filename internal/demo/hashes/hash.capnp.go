@@ -117,6 +117,11 @@ func (s HashFactory_newSha1_Params_List) Set(i int, v HashFactory_newSha1_Params
 	return s.List.SetStruct(i, v.Struct)
 }
 
+func (s HashFactory_newSha1_Params_List) String() string {
+	str, _ := text.MarshalList(0x92b20ad1a58ca0ca, s.List)
+	return str
+}
+
 // HashFactory_newSha1_Params_Promise is a wrapper for a HashFactory_newSha1_Params promised by a client call.
 type HashFactory_newSha1_Params_Promise struct{ *capnp.Pipeline }
 
@@ -184,6 +189,11 @@ func (s HashFactory_newSha1_Results_List) At(i int) HashFactory_newSha1_Results 
 
 func (s HashFactory_newSha1_Results_List) Set(i int, v HashFactory_newSha1_Results) error {
 	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s HashFactory_newSha1_Results_List) String() string {
+	str, _ := text.MarshalList(0xea3e50f7663f7bdf, s.List)
+	return str
 }
 
 // HashFactory_newSha1_Results_Promise is a wrapper for a HashFactory_newSha1_Results promised by a client call.
@@ -363,6 +373,11 @@ func (s Hash_write_Params_List) Set(i int, v Hash_write_Params) error {
 	return s.List.SetStruct(i, v.Struct)
 }
 
+func (s Hash_write_Params_List) String() string {
+	str, _ := text.MarshalList(0xdffe94ae546cdee3, s.List)
+	return str
+}
+
 // Hash_write_Params_Promise is a wrapper for a Hash_write_Params promised by a client call.
 type Hash_write_Params_Promise struct{ *capnp.Pipeline }
 
@@ -413,6 +428,11 @@ func (s Hash_write_Results_List) Set(i int, v Hash_write_Results) error {
 	return s.List.SetStruct(i, v.Struct)
 }
 
+func (s Hash_write_Results_List) String() string {
+	str, _ := text.MarshalList(0x80ac741ec7fb8f65, s.List)
+	return str
+}
+
 // Hash_write_Results_Promise is a wrapper for a Hash_write_Results promised by a client call.
 type Hash_write_Results_Promise struct{ *capnp.Pipeline }
 
@@ -459,6 +479,11 @@ func (s Hash_sum_Params_List) At(i int) Hash_sum_Params { return Hash_sum_Params
 
 func (s Hash_sum_Params_List) Set(i int, v Hash_sum_Params) error {
 	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s Hash_sum_Params_List) String() string {
+	str, _ := text.MarshalList(0xe74bb2d0190cf89c, s.List)
+	return str
 }
 
 // Hash_sum_Params_Promise is a wrapper for a Hash_sum_Params promised by a client call.
@@ -521,6 +546,11 @@ func (s Hash_sum_Results_List) At(i int) Hash_sum_Results { return Hash_sum_Resu
 
 func (s Hash_sum_Results_List) Set(i int, v Hash_sum_Results) error {
 	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s Hash_sum_Results_List) String() string {
+	str, _ := text.MarshalList(0xd093963b95a4e107, s.List)
+	return str
 }
 
 // Hash_sum_Results_Promise is a wrapper for a Hash_sum_Results promised by a client call.

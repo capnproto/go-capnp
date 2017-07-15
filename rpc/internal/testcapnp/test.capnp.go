@@ -138,6 +138,11 @@ func (s HandleFactory_newHandle_Params_List) Set(i int, v HandleFactory_newHandl
 	return s.List.SetStruct(i, v.Struct)
 }
 
+func (s HandleFactory_newHandle_Params_List) String() string {
+	str, _ := text.MarshalList(0x99821793f0a50b5e, s.List)
+	return str
+}
+
 // HandleFactory_newHandle_Params_Promise is a wrapper for a HandleFactory_newHandle_Params promised by a client call.
 type HandleFactory_newHandle_Params_Promise struct{ *capnp.Pipeline }
 
@@ -205,6 +210,11 @@ func (s HandleFactory_newHandle_Results_List) At(i int) HandleFactory_newHandle_
 
 func (s HandleFactory_newHandle_Results_List) Set(i int, v HandleFactory_newHandle_Results) error {
 	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s HandleFactory_newHandle_Results_List) String() string {
+	str, _ := text.MarshalList(0xd57b5111c59d048c, s.List)
+	return str
 }
 
 // HandleFactory_newHandle_Results_Promise is a wrapper for a HandleFactory_newHandle_Results promised by a client call.
@@ -326,6 +336,11 @@ func (s Hanger_hang_Params_List) Set(i int, v Hanger_hang_Params) error {
 	return s.List.SetStruct(i, v.Struct)
 }
 
+func (s Hanger_hang_Params_List) String() string {
+	str, _ := text.MarshalList(0xb4512d1c0c85f06f, s.List)
+	return str
+}
+
 // Hanger_hang_Params_Promise is a wrapper for a Hanger_hang_Params promised by a client call.
 type Hanger_hang_Params_Promise struct{ *capnp.Pipeline }
 
@@ -374,6 +389,11 @@ func (s Hanger_hang_Results_List) At(i int) Hanger_hang_Results {
 
 func (s Hanger_hang_Results_List) Set(i int, v Hanger_hang_Results) error {
 	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s Hanger_hang_Results_List) String() string {
+	str, _ := text.MarshalList(0xb9c9455b55ed47b0, s.List)
+	return str
 }
 
 // Hanger_hang_Results_Promise is a wrapper for a Hanger_hang_Results promised by a client call.
@@ -499,6 +519,11 @@ func (s CallOrder_getCallSequence_Params_List) Set(i int, v CallOrder_getCallSeq
 	return s.List.SetStruct(i, v.Struct)
 }
 
+func (s CallOrder_getCallSequence_Params_List) String() string {
+	str, _ := text.MarshalList(0x993e61d6a54c166f, s.List)
+	return str
+}
+
 // CallOrder_getCallSequence_Params_Promise is a wrapper for a CallOrder_getCallSequence_Params promised by a client call.
 type CallOrder_getCallSequence_Params_Promise struct{ *capnp.Pipeline }
 
@@ -555,6 +580,11 @@ func (s CallOrder_getCallSequence_Results_List) At(i int) CallOrder_getCallSeque
 
 func (s CallOrder_getCallSequence_Results_List) Set(i int, v CallOrder_getCallSequence_Results) error {
 	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s CallOrder_getCallSequence_Results_List) String() string {
+	str, _ := text.MarshalList(0x88f809ef7f873e58, s.List)
+	return str
 }
 
 // CallOrder_getCallSequence_Results_Promise is a wrapper for a CallOrder_getCallSequence_Results promised by a client call.
@@ -727,6 +757,11 @@ func (s Echoer_echo_Params_List) Set(i int, v Echoer_echo_Params) error {
 	return s.List.SetStruct(i, v.Struct)
 }
 
+func (s Echoer_echo_Params_List) String() string {
+	str, _ := text.MarshalList(0xe96a45cad5d1a1d3, s.List)
+	return str
+}
+
 // Echoer_echo_Params_Promise is a wrapper for a Echoer_echo_Params promised by a client call.
 type Echoer_echo_Params_Promise struct{ *capnp.Pipeline }
 
@@ -798,6 +833,11 @@ func (s Echoer_echo_Results_List) At(i int) Echoer_echo_Results {
 
 func (s Echoer_echo_Results_List) Set(i int, v Echoer_echo_Results) error {
 	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s Echoer_echo_Results_List) String() string {
+	str, _ := text.MarshalList(0x8b45b4847bd839c8, s.List)
+	return str
 }
 
 // Echoer_echo_Results_Promise is a wrapper for a Echoer_echo_Results promised by a client call.
@@ -927,6 +967,11 @@ func (s PingPong_echoNum_Params_List) Set(i int, v PingPong_echoNum_Params) erro
 	return s.List.SetStruct(i, v.Struct)
 }
 
+func (s PingPong_echoNum_Params_List) String() string {
+	str, _ := text.MarshalList(0xd797e0a99edf0921, s.List)
+	return str
+}
+
 // PingPong_echoNum_Params_Promise is a wrapper for a PingPong_echoNum_Params promised by a client call.
 type PingPong_echoNum_Params_Promise struct{ *capnp.Pipeline }
 
@@ -983,6 +1028,11 @@ func (s PingPong_echoNum_Results_List) At(i int) PingPong_echoNum_Results {
 
 func (s PingPong_echoNum_Results_List) Set(i int, v PingPong_echoNum_Results) error {
 	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s PingPong_echoNum_Results_List) String() string {
+	str, _ := text.MarshalList(0x85ddfd96db252600, s.List)
+	return str
 }
 
 // PingPong_echoNum_Results_Promise is a wrapper for a PingPong_echoNum_Results promised by a client call.
@@ -1114,6 +1164,11 @@ func (s Adder_add_Params_List) Set(i int, v Adder_add_Params) error {
 	return s.List.SetStruct(i, v.Struct)
 }
 
+func (s Adder_add_Params_List) String() string {
+	str, _ := text.MarshalList(0x9ed99eb5024ed6ef, s.List)
+	return str
+}
+
 // Adder_add_Params_Promise is a wrapper for a Adder_add_Params promised by a client call.
 type Adder_add_Params_Promise struct{ *capnp.Pipeline }
 
@@ -1170,6 +1225,11 @@ func (s Adder_add_Results_List) At(i int) Adder_add_Results {
 
 func (s Adder_add_Results_List) Set(i int, v Adder_add_Results) error {
 	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s Adder_add_Results_List) String() string {
+	str, _ := text.MarshalList(0xa74428796527f253, s.List)
+	return str
 }
 
 // Adder_add_Results_Promise is a wrapper for a Adder_add_Results promised by a client call.

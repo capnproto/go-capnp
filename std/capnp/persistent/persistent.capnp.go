@@ -140,6 +140,11 @@ func (s Persistent_SaveParams_List) Set(i int, v Persistent_SaveParams) error {
 	return s.List.SetStruct(i, v.Struct)
 }
 
+func (s Persistent_SaveParams_List) String() string {
+	str, _ := text.MarshalList(0xf76fba59183073a5, s.List)
+	return str
+}
+
 // Persistent_SaveParams_Promise is a wrapper for a Persistent_SaveParams promised by a client call.
 type Persistent_SaveParams_Promise struct{ *capnp.Pipeline }
 
@@ -213,6 +218,11 @@ func (s Persistent_SaveResults_List) At(i int) Persistent_SaveResults {
 
 func (s Persistent_SaveResults_List) Set(i int, v Persistent_SaveResults) error {
 	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s Persistent_SaveResults_List) String() string {
+	str, _ := text.MarshalList(0xb76848c18c40efbf, s.List)
+	return str
 }
 
 // Persistent_SaveResults_Promise is a wrapper for a Persistent_SaveResults promised by a client call.
@@ -422,6 +432,11 @@ func (s RealmGateway_import_Params_List) Set(i int, v RealmGateway_import_Params
 	return s.List.SetStruct(i, v.Struct)
 }
 
+func (s RealmGateway_import_Params_List) String() string {
+	str, _ := text.MarshalList(0xf0c2cc1d3909574d, s.List)
+	return str
+}
+
 // RealmGateway_import_Params_Promise is a wrapper for a RealmGateway_import_Params promised by a client call.
 type RealmGateway_import_Params_Promise struct{ *capnp.Pipeline }
 
@@ -522,6 +537,11 @@ func (s RealmGateway_export_Params_List) At(i int) RealmGateway_export_Params {
 
 func (s RealmGateway_export_Params_List) Set(i int, v RealmGateway_export_Params) error {
 	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s RealmGateway_export_Params_List) String() string {
+	str, _ := text.MarshalList(0xecafa18b482da3aa, s.List)
+	return str
 }
 
 // RealmGateway_export_Params_Promise is a wrapper for a RealmGateway_export_Params promised by a client call.
