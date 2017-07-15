@@ -6,6 +6,7 @@ import (
 	math "math"
 	strconv "strconv"
 	capnp "zombiezen.com/go/capnproto2"
+	text "zombiezen.com/go/capnproto2/encoding/text"
 	schemas "zombiezen.com/go/capnproto2/schemas"
 )
 
@@ -67,6 +68,11 @@ func NewRootNode(s *capnp.Segment) (Node, error) {
 func ReadRootNode(msg *capnp.Message) (Node, error) {
 	root, err := msg.RootPtr()
 	return Node{root.Struct()}, err
+}
+
+func (s Node) String() string {
+	str, _ := text.Marshal(0xe682ab4cf923a417, s.Struct)
+	return str
 }
 
 func (s Node) Which() Node_Which {
@@ -565,6 +571,11 @@ func (s Node_List) At(i int) Node { return Node{s.List.Struct(i)} }
 
 func (s Node_List) Set(i int, v Node) error { return s.List.SetStruct(i, v.Struct) }
 
+func (s Node_List) String() string {
+	str, _ := text.MarshalList(0xe682ab4cf923a417, s.List)
+	return str
+}
+
 // Node_Promise is a wrapper for a Node promised by a client call.
 type Node_Promise struct{ *capnp.Pipeline }
 
@@ -655,6 +666,11 @@ func ReadRootNode_Parameter(msg *capnp.Message) (Node_Parameter, error) {
 	return Node_Parameter{root.Struct()}, err
 }
 
+func (s Node_Parameter) String() string {
+	str, _ := text.Marshal(0xb9521bccf10fa3b1, s.Struct)
+	return str
+}
+
 func (s Node_Parameter) Name() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -687,6 +703,11 @@ func (s Node_Parameter_List) At(i int) Node_Parameter { return Node_Parameter{s.
 
 func (s Node_Parameter_List) Set(i int, v Node_Parameter) error { return s.List.SetStruct(i, v.Struct) }
 
+func (s Node_Parameter_List) String() string {
+	str, _ := text.MarshalList(0xb9521bccf10fa3b1, s.List)
+	return str
+}
+
 // Node_Parameter_Promise is a wrapper for a Node_Parameter promised by a client call.
 type Node_Parameter_Promise struct{ *capnp.Pipeline }
 
@@ -713,6 +734,11 @@ func NewRootNode_NestedNode(s *capnp.Segment) (Node_NestedNode, error) {
 func ReadRootNode_NestedNode(msg *capnp.Message) (Node_NestedNode, error) {
 	root, err := msg.RootPtr()
 	return Node_NestedNode{root.Struct()}, err
+}
+
+func (s Node_NestedNode) String() string {
+	str, _ := text.Marshal(0xdebf55bbfa0fc242, s.Struct)
+	return str
 }
 
 func (s Node_NestedNode) Name() (string, error) {
@@ -755,6 +781,11 @@ func (s Node_NestedNode_List) At(i int) Node_NestedNode { return Node_NestedNode
 
 func (s Node_NestedNode_List) Set(i int, v Node_NestedNode) error {
 	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s Node_NestedNode_List) String() string {
+	str, _ := text.MarshalList(0xdebf55bbfa0fc242, s.List)
+	return str
 }
 
 // Node_NestedNode_Promise is a wrapper for a Node_NestedNode promised by a client call.
@@ -823,6 +854,11 @@ func NewRootField(s *capnp.Segment) (Field, error) {
 func ReadRootField(msg *capnp.Message) (Field, error) {
 	root, err := msg.RootPtr()
 	return Field{root.Struct()}, err
+}
+
+func (s Field) String() string {
+	str, _ := text.Marshal(0x9aad50a41f4af45f, s.Struct)
+	return str
 }
 
 func (s Field) Which() Field_Which {
@@ -1006,6 +1042,11 @@ func (s Field_List) At(i int) Field { return Field{s.List.Struct(i)} }
 
 func (s Field_List) Set(i int, v Field) error { return s.List.SetStruct(i, v.Struct) }
 
+func (s Field_List) String() string {
+	str, _ := text.MarshalList(0x9aad50a41f4af45f, s.List)
+	return str
+}
+
 // Field_Promise is a wrapper for a Field promised by a client call.
 type Field_Promise struct{ *capnp.Pipeline }
 
@@ -1070,6 +1111,11 @@ func NewRootEnumerant(s *capnp.Segment) (Enumerant, error) {
 func ReadRootEnumerant(msg *capnp.Message) (Enumerant, error) {
 	root, err := msg.RootPtr()
 	return Enumerant{root.Struct()}, err
+}
+
+func (s Enumerant) String() string {
+	str, _ := text.Marshal(0x978a7cebdc549a4d, s.Struct)
+	return str
 }
 
 func (s Enumerant) Name() (string, error) {
@@ -1137,6 +1183,11 @@ func (s Enumerant_List) At(i int) Enumerant { return Enumerant{s.List.Struct(i)}
 
 func (s Enumerant_List) Set(i int, v Enumerant) error { return s.List.SetStruct(i, v.Struct) }
 
+func (s Enumerant_List) String() string {
+	str, _ := text.MarshalList(0x978a7cebdc549a4d, s.List)
+	return str
+}
+
 // Enumerant_Promise is a wrapper for a Enumerant promised by a client call.
 type Enumerant_Promise struct{ *capnp.Pipeline }
 
@@ -1163,6 +1214,11 @@ func NewRootSuperclass(s *capnp.Segment) (Superclass, error) {
 func ReadRootSuperclass(msg *capnp.Message) (Superclass, error) {
 	root, err := msg.RootPtr()
 	return Superclass{root.Struct()}, err
+}
+
+func (s Superclass) String() string {
+	str, _ := text.Marshal(0xa9962a9ed0a4d7f8, s.Struct)
+	return str
 }
 
 func (s Superclass) Id() uint64 {
@@ -1211,6 +1267,11 @@ func (s Superclass_List) At(i int) Superclass { return Superclass{s.List.Struct(
 
 func (s Superclass_List) Set(i int, v Superclass) error { return s.List.SetStruct(i, v.Struct) }
 
+func (s Superclass_List) String() string {
+	str, _ := text.MarshalList(0xa9962a9ed0a4d7f8, s.List)
+	return str
+}
+
 // Superclass_Promise is a wrapper for a Superclass promised by a client call.
 type Superclass_Promise struct{ *capnp.Pipeline }
 
@@ -1241,6 +1302,11 @@ func NewRootMethod(s *capnp.Segment) (Method, error) {
 func ReadRootMethod(msg *capnp.Message) (Method, error) {
 	root, err := msg.RootPtr()
 	return Method{root.Struct()}, err
+}
+
+func (s Method) String() string {
+	str, _ := text.Marshal(0x9500cce23b334d80, s.Struct)
+	return str
 }
 
 func (s Method) Name() (string, error) {
@@ -1398,6 +1464,11 @@ func NewMethod_List(s *capnp.Segment, sz int32) (Method_List, error) {
 func (s Method_List) At(i int) Method { return Method{s.List.Struct(i)} }
 
 func (s Method_List) Set(i int, v Method) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s Method_List) String() string {
+	str, _ := text.MarshalList(0x9500cce23b334d80, s.List)
+	return str
+}
 
 // Method_Promise is a wrapper for a Method promised by a client call.
 type Method_Promise struct{ *capnp.Pipeline }
@@ -1557,6 +1628,11 @@ func NewRootType(s *capnp.Segment) (Type, error) {
 func ReadRootType(msg *capnp.Message) (Type, error) {
 	root, err := msg.RootPtr()
 	return Type{root.Struct()}, err
+}
+
+func (s Type) String() string {
+	str, _ := text.Marshal(0xd07378ede1f9cc60, s.Struct)
+	return str
 }
 
 func (s Type) Which() Type_Which {
@@ -1871,6 +1947,11 @@ func (s Type_List) At(i int) Type { return Type{s.List.Struct(i)} }
 
 func (s Type_List) Set(i int, v Type) error { return s.List.SetStruct(i, v.Struct) }
 
+func (s Type_List) String() string {
+	str, _ := text.MarshalList(0xd07378ede1f9cc60, s.List)
+	return str
+}
+
 // Type_Promise is a wrapper for a Type promised by a client call.
 type Type_Promise struct{ *capnp.Pipeline }
 
@@ -2001,6 +2082,11 @@ func ReadRootBrand(msg *capnp.Message) (Brand, error) {
 	return Brand{root.Struct()}, err
 }
 
+func (s Brand) String() string {
+	str, _ := text.Marshal(0x903455f06065422b, s.Struct)
+	return str
+}
+
 func (s Brand) Scopes() (Brand_Scope_List, error) {
 	p, err := s.Struct.Ptr(0)
 	return Brand_Scope_List{List: p.List()}, err
@@ -2038,6 +2124,11 @@ func NewBrand_List(s *capnp.Segment, sz int32) (Brand_List, error) {
 func (s Brand_List) At(i int) Brand { return Brand{s.List.Struct(i)} }
 
 func (s Brand_List) Set(i int, v Brand) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s Brand_List) String() string {
+	str, _ := text.MarshalList(0x903455f06065422b, s.List)
+	return str
+}
 
 // Brand_Promise is a wrapper for a Brand promised by a client call.
 type Brand_Promise struct{ *capnp.Pipeline }
@@ -2083,6 +2174,11 @@ func NewRootBrand_Scope(s *capnp.Segment) (Brand_Scope, error) {
 func ReadRootBrand_Scope(msg *capnp.Message) (Brand_Scope, error) {
 	root, err := msg.RootPtr()
 	return Brand_Scope{root.Struct()}, err
+}
+
+func (s Brand_Scope) String() string {
+	str, _ := text.Marshal(0xabd73485a9636bc9, s.Struct)
+	return str
 }
 
 func (s Brand_Scope) Which() Brand_Scope_Which {
@@ -2144,6 +2240,11 @@ func (s Brand_Scope_List) At(i int) Brand_Scope { return Brand_Scope{s.List.Stru
 
 func (s Brand_Scope_List) Set(i int, v Brand_Scope) error { return s.List.SetStruct(i, v.Struct) }
 
+func (s Brand_Scope_List) String() string {
+	str, _ := text.MarshalList(0xabd73485a9636bc9, s.List)
+	return str
+}
+
 // Brand_Scope_Promise is a wrapper for a Brand_Scope promised by a client call.
 type Brand_Scope_Promise struct{ *capnp.Pipeline }
 
@@ -2188,6 +2289,11 @@ func NewRootBrand_Binding(s *capnp.Segment) (Brand_Binding, error) {
 func ReadRootBrand_Binding(msg *capnp.Message) (Brand_Binding, error) {
 	root, err := msg.RootPtr()
 	return Brand_Binding{root.Struct()}, err
+}
+
+func (s Brand_Binding) String() string {
+	str, _ := text.Marshal(0xc863cd16969ee7fc, s.Struct)
+	return str
 }
 
 func (s Brand_Binding) Which() Brand_Binding_Which {
@@ -2240,6 +2346,11 @@ func NewBrand_Binding_List(s *capnp.Segment, sz int32) (Brand_Binding_List, erro
 func (s Brand_Binding_List) At(i int) Brand_Binding { return Brand_Binding{s.List.Struct(i)} }
 
 func (s Brand_Binding_List) Set(i int, v Brand_Binding) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s Brand_Binding_List) String() string {
+	str, _ := text.MarshalList(0xc863cd16969ee7fc, s.List)
+	return str
+}
 
 // Brand_Binding_Promise is a wrapper for a Brand_Binding promised by a client call.
 type Brand_Binding_Promise struct{ *capnp.Pipeline }
@@ -2340,6 +2451,11 @@ func NewRootValue(s *capnp.Segment) (Value, error) {
 func ReadRootValue(msg *capnp.Message) (Value, error) {
 	root, err := msg.RootPtr()
 	return Value{root.Struct()}, err
+}
+
+func (s Value) String() string {
+	str, _ := text.Marshal(0xce23dcd2d7b00c9b, s.Struct)
+	return str
 }
 
 func (s Value) Which() Value_Which {
@@ -2595,6 +2711,11 @@ func (s Value_List) At(i int) Value { return Value{s.List.Struct(i)} }
 
 func (s Value_List) Set(i int, v Value) error { return s.List.SetStruct(i, v.Struct) }
 
+func (s Value_List) String() string {
+	str, _ := text.MarshalList(0xce23dcd2d7b00c9b, s.List)
+	return str
+}
+
 // Value_Promise is a wrapper for a Value promised by a client call.
 type Value_Promise struct{ *capnp.Pipeline }
 
@@ -2633,6 +2754,11 @@ func NewRootAnnotation(s *capnp.Segment) (Annotation, error) {
 func ReadRootAnnotation(msg *capnp.Message) (Annotation, error) {
 	root, err := msg.RootPtr()
 	return Annotation{root.Struct()}, err
+}
+
+func (s Annotation) String() string {
+	str, _ := text.Marshal(0xf1c8950dab257542, s.Struct)
+	return str
 }
 
 func (s Annotation) Id() uint64 {
@@ -2705,6 +2831,11 @@ func NewAnnotation_List(s *capnp.Segment, sz int32) (Annotation_List, error) {
 func (s Annotation_List) At(i int) Annotation { return Annotation{s.List.Struct(i)} }
 
 func (s Annotation_List) Set(i int, v Annotation) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s Annotation_List) String() string {
+	str, _ := text.MarshalList(0xf1c8950dab257542, s.List)
+	return str
+}
 
 // Annotation_Promise is a wrapper for a Annotation promised by a client call.
 type Annotation_Promise struct{ *capnp.Pipeline }
@@ -2827,6 +2958,11 @@ func ReadRootCodeGeneratorRequest(msg *capnp.Message) (CodeGeneratorRequest, err
 	return CodeGeneratorRequest{root.Struct()}, err
 }
 
+func (s CodeGeneratorRequest) String() string {
+	str, _ := text.Marshal(0xbfc546f6210ad7ce, s.Struct)
+	return str
+}
+
 func (s CodeGeneratorRequest) Nodes() (Node_List, error) {
 	p, err := s.Struct.Ptr(0)
 	return Node_List{List: p.List()}, err
@@ -2894,6 +3030,11 @@ func (s CodeGeneratorRequest_List) Set(i int, v CodeGeneratorRequest) error {
 	return s.List.SetStruct(i, v.Struct)
 }
 
+func (s CodeGeneratorRequest_List) String() string {
+	str, _ := text.MarshalList(0xbfc546f6210ad7ce, s.List)
+	return str
+}
+
 // CodeGeneratorRequest_Promise is a wrapper for a CodeGeneratorRequest promised by a client call.
 type CodeGeneratorRequest_Promise struct{ *capnp.Pipeline }
 
@@ -2920,6 +3061,11 @@ func NewRootCodeGeneratorRequest_RequestedFile(s *capnp.Segment) (CodeGeneratorR
 func ReadRootCodeGeneratorRequest_RequestedFile(msg *capnp.Message) (CodeGeneratorRequest_RequestedFile, error) {
 	root, err := msg.RootPtr()
 	return CodeGeneratorRequest_RequestedFile{root.Struct()}, err
+}
+
+func (s CodeGeneratorRequest_RequestedFile) String() string {
+	str, _ := text.Marshal(0xcfea0eb02e810062, s.Struct)
+	return str
 }
 
 func (s CodeGeneratorRequest_RequestedFile) Id() uint64 {
@@ -2991,6 +3137,11 @@ func (s CodeGeneratorRequest_RequestedFile_List) Set(i int, v CodeGeneratorReque
 	return s.List.SetStruct(i, v.Struct)
 }
 
+func (s CodeGeneratorRequest_RequestedFile_List) String() string {
+	str, _ := text.MarshalList(0xcfea0eb02e810062, s.List)
+	return str
+}
+
 // CodeGeneratorRequest_RequestedFile_Promise is a wrapper for a CodeGeneratorRequest_RequestedFile promised by a client call.
 type CodeGeneratorRequest_RequestedFile_Promise struct{ *capnp.Pipeline }
 
@@ -3017,6 +3168,11 @@ func NewRootCodeGeneratorRequest_RequestedFile_Import(s *capnp.Segment) (CodeGen
 func ReadRootCodeGeneratorRequest_RequestedFile_Import(msg *capnp.Message) (CodeGeneratorRequest_RequestedFile_Import, error) {
 	root, err := msg.RootPtr()
 	return CodeGeneratorRequest_RequestedFile_Import{root.Struct()}, err
+}
+
+func (s CodeGeneratorRequest_RequestedFile_Import) String() string {
+	str, _ := text.Marshal(0xae504193122357e5, s.Struct)
+	return str
 }
 
 func (s CodeGeneratorRequest_RequestedFile_Import) Id() uint64 {
@@ -3061,6 +3217,11 @@ func (s CodeGeneratorRequest_RequestedFile_Import_List) At(i int) CodeGeneratorR
 
 func (s CodeGeneratorRequest_RequestedFile_Import_List) Set(i int, v CodeGeneratorRequest_RequestedFile_Import) error {
 	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s CodeGeneratorRequest_RequestedFile_Import_List) String() string {
+	str, _ := text.MarshalList(0xae504193122357e5, s.List)
+	return str
 }
 
 // CodeGeneratorRequest_RequestedFile_Import_Promise is a wrapper for a CodeGeneratorRequest_RequestedFile_Import promised by a client call.
