@@ -24,7 +24,7 @@ import (
 	"text/template"
 
 	"zombiezen.com/go/capnproto2"
-	"zombiezen.com/go/capnproto2/std/capnp/schema"
+	"zombiezen.com/go/capnproto2/internal/schema"
 )
 
 // Non-stdlib import paths.

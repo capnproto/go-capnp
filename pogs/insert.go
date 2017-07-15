@@ -7,7 +7,7 @@ import (
 
 	"zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/internal/nodemap"
-	"zombiezen.com/go/capnproto2/std/capnp/schema"
+	"zombiezen.com/go/capnproto2/internal/schema"
 )
 
 // Insert copies val, a pointer to a Go struct, into s.

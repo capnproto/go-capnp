@@ -14,7 +14,7 @@ import (
 
 	"zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/encoding/text"
-	"zombiezen.com/go/capnproto2/std/capnp/schema"
+	"zombiezen.com/go/capnproto2/internal/schema"
 )
 
 func readTestFile(name string) ([]byte, error) {

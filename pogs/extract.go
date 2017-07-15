@@ -8,7 +8,7 @@ import (
 
 	"zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/internal/nodemap"
-	"zombiezen.com/go/capnproto2/std/capnp/schema"
+	"zombiezen.com/go/capnproto2/internal/schema"
 )
 
 // Extract copies s into val, a pointer to a Go struct.
