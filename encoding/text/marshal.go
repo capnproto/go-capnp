@@ -30,6 +30,15 @@ func Marshal(typeID uint64, s capnp.Struct) (string, error) {
 	return buf.String(), nil
 }
 
+// MarshalList returns the text representation of a struct list.
+func MarshalList(typeID uint64, l capnp.List) (string, error) {
+	buf := new(bytes.Buffer)
+	if err := NewEncoder(buf).EncodeList(typeID, l); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
+}
+
 // An Encoder writes the text format of Cap'n Proto messages to an output stream.
 type Encoder struct {
 	w     errWriter
@@ -58,6 +67,15 @@ func (enc *Encoder) Encode(typeID uint64, s capnp.Struct) error {
 		return err
 	}
 	return enc.w.err
+}
+
+// EncodeList writes the text representation of struct list l to the stream.
+func (enc *Encoder) EncodeList(typeID uint64, l capnp.List) error {
+	_, seg, _ := capnp.NewMessage(capnp.SingleSegment(nil))
+	typ, _ := schema.NewRootType(seg)
+	typ.SetStructType()
+	typ.StructType().SetTypeId(typeID)
+	return enc.marshalList(typ, l)
 }
 
 func (enc *Encoder) marshalBool(v bool) {
