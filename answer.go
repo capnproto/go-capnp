@@ -6,9 +6,10 @@ import (
 	"sync"
 )
 
-// A Promise holds the result of an RPC call.  Only one result can be
-// written to a promise.  Before the result is written, calls can be
-// queued up using the Answer methods — this is promise pipelining.
+// A Promise holds the result of an RPC call.  Only one of Fulfill,
+// Reject, or Join can be called on a Promise.  Before the result is
+// written, calls can be queued up using the Answer methods — this is
+// promise pipelining.
 //
 // Promise is most useful for implementing ClientHook.
 // Most applications will use Answer, since that what is returned by
@@ -17,10 +18,12 @@ type Promise struct {
 	resolved chan struct{} // can only be closed while holding mu
 	ans      Answer
 
-	mu     sync.RWMutex
-	caller PipelineCaller // nil if resolved
-	result Ptr
-	err    error
+	mu       sync.RWMutex
+	caller   PipelineCaller // nil if resolved
+	children []*Promise
+	joined   bool
+	result   Ptr
+	err      error
 }
 
 // NewPromise creates a new unresolved promise.  The PipelineCaller will
@@ -38,13 +41,14 @@ func NewPromise(pc PipelineCaller) *Promise {
 func (p *Promise) Fulfill(result Ptr) {
 	defer p.mu.Unlock()
 	p.mu.Lock()
+	if p.joined {
+		panic("Promise.Fulfill called after Promise.Join")
+	}
 	select {
 	case <-p.resolved:
 		panic("Promise.Fulfill or Promise.Reject called more than once")
 	default:
-		p.result = result
-		p.caller = nil
-		close(p.resolved)
+		p.lockedResolve(result, nil)
 	}
 }
 
@@ -55,14 +59,77 @@ func (p *Promise) Reject(e error) {
 	}
 	defer p.mu.Unlock()
 	p.mu.Lock()
+	if p.joined {
+		panic("Promise.Reject called after Promise.Join")
+	}
 	select {
 	case <-p.resolved:
 		panic("Promise.Fulfill or Promise.Reject called more than once")
 	default:
-		p.err = e
-		p.caller = nil
-		close(p.resolved)
+		p.lockedResolve(Ptr{}, e)
 	}
+}
+
+// Join ties the outcome of a promise to another promise's outcome.
+func (p *Promise) Join(from *Answer) {
+	parent := from.f.promise
+	parent.mu.Lock()
+	select {
+	case <-parent.resolved:
+		result, err := parent.result, parent.err
+		parent.mu.Unlock()
+
+		p.mu.Lock()
+		if p.joined {
+			panic("double Promise.Join")
+		}
+		select {
+		case <-p.resolved:
+			panic("Promise.Join after resolved")
+		default:
+		}
+		p.lockedResolve(result, err)
+		p.mu.Unlock()
+		return
+	default:
+	}
+	p.mu.Lock()
+	if p.joined {
+		panic("double Promise.Join")
+	}
+	select {
+	case <-p.resolved:
+		panic("Promise.Join after resolved")
+	default:
+	}
+	p.caller = parent.caller
+	children := p.children
+	p.children = nil
+	p.joined = true
+	p.mu.Unlock()
+
+	parent.children = append(parent.children, p)
+	parent.children = append(parent.children, children...)
+	for _, c := range children {
+		c.mu.Lock()
+		c.caller = parent.caller
+		c.mu.Unlock()
+	}
+	parent.mu.Unlock()
+}
+
+func (p *Promise) lockedResolve(r Ptr, e error) {
+	p.result, p.err = r, e
+	p.caller = nil
+	for _, c := range p.children {
+		c.mu.Lock()
+		c.result, c.err = r, e
+		c.caller = nil
+		close(c.resolved)
+		c.mu.Unlock()
+	}
+	p.children = nil
+	close(p.resolved)
 }
 
 // Answer returns a read-only view of the promise.
