@@ -111,11 +111,11 @@ func (s VatId_List) At(i int) VatId { return VatId{s.List.Struct(i)} }
 
 func (s VatId_List) Set(i int, v VatId) error { return s.List.SetStruct(i, v.Struct) }
 
-// VatId_Answer is a wrapper for a VatId promised by a client call.
-type VatId_Answer struct{ *capnp.Answer }
+// VatId_Future is a wrapper for a VatId promised by a client call.
+type VatId_Future struct{ *capnp.Future }
 
-func (p VatId_Answer) Struct() (VatId, error) {
-	s, err := p.Answer.Struct()
+func (p VatId_Future) Struct() (VatId, error) {
+	s, err := p.Future.Struct()
 	return VatId{s}, err
 }
 
@@ -165,11 +165,11 @@ func (s ProvisionId_List) At(i int) ProvisionId { return ProvisionId{s.List.Stru
 
 func (s ProvisionId_List) Set(i int, v ProvisionId) error { return s.List.SetStruct(i, v.Struct) }
 
-// ProvisionId_Answer is a wrapper for a ProvisionId promised by a client call.
-type ProvisionId_Answer struct{ *capnp.Answer }
+// ProvisionId_Future is a wrapper for a ProvisionId promised by a client call.
+type ProvisionId_Future struct{ *capnp.Future }
 
-func (p ProvisionId_Answer) Struct() (ProvisionId, error) {
-	s, err := p.Answer.Struct()
+func (p ProvisionId_Future) Struct() (ProvisionId, error) {
+	s, err := p.Future.Struct()
 	return ProvisionId{s}, err
 }
 
@@ -211,11 +211,11 @@ func (s RecipientId_List) At(i int) RecipientId { return RecipientId{s.List.Stru
 
 func (s RecipientId_List) Set(i int, v RecipientId) error { return s.List.SetStruct(i, v.Struct) }
 
-// RecipientId_Answer is a wrapper for a RecipientId promised by a client call.
-type RecipientId_Answer struct{ *capnp.Answer }
+// RecipientId_Future is a wrapper for a RecipientId promised by a client call.
+type RecipientId_Future struct{ *capnp.Future }
 
-func (p RecipientId_Answer) Struct() (RecipientId, error) {
-	s, err := p.Answer.Struct()
+func (p RecipientId_Future) Struct() (RecipientId, error) {
+	s, err := p.Future.Struct()
 	return RecipientId{s}, err
 }
 
@@ -259,11 +259,11 @@ func (s ThirdPartyCapId_List) Set(i int, v ThirdPartyCapId) error {
 	return s.List.SetStruct(i, v.Struct)
 }
 
-// ThirdPartyCapId_Answer is a wrapper for a ThirdPartyCapId promised by a client call.
-type ThirdPartyCapId_Answer struct{ *capnp.Answer }
+// ThirdPartyCapId_Future is a wrapper for a ThirdPartyCapId promised by a client call.
+type ThirdPartyCapId_Future struct{ *capnp.Future }
 
-func (p ThirdPartyCapId_Answer) Struct() (ThirdPartyCapId, error) {
-	s, err := p.Answer.Struct()
+func (p ThirdPartyCapId_Future) Struct() (ThirdPartyCapId, error) {
+	s, err := p.Future.Struct()
 	return ThirdPartyCapId{s}, err
 }
 
@@ -329,11 +329,11 @@ func (s JoinKeyPart_List) At(i int) JoinKeyPart { return JoinKeyPart{s.List.Stru
 
 func (s JoinKeyPart_List) Set(i int, v JoinKeyPart) error { return s.List.SetStruct(i, v.Struct) }
 
-// JoinKeyPart_Answer is a wrapper for a JoinKeyPart promised by a client call.
-type JoinKeyPart_Answer struct{ *capnp.Answer }
+// JoinKeyPart_Future is a wrapper for a JoinKeyPart promised by a client call.
+type JoinKeyPart_Future struct{ *capnp.Future }
 
-func (p JoinKeyPart_Answer) Struct() (JoinKeyPart, error) {
-	s, err := p.Answer.Struct()
+func (p JoinKeyPart_Future) Struct() (JoinKeyPart, error) {
+	s, err := p.Future.Struct()
 	return JoinKeyPart{s}, err
 }
 
@@ -404,16 +404,16 @@ func (s JoinResult_List) At(i int) JoinResult { return JoinResult{s.List.Struct(
 
 func (s JoinResult_List) Set(i int, v JoinResult) error { return s.List.SetStruct(i, v.Struct) }
 
-// JoinResult_Answer is a wrapper for a JoinResult promised by a client call.
-type JoinResult_Answer struct{ *capnp.Answer }
+// JoinResult_Future is a wrapper for a JoinResult promised by a client call.
+type JoinResult_Future struct{ *capnp.Future }
 
-func (p JoinResult_Answer) Struct() (JoinResult, error) {
-	s, err := p.Answer.Struct()
+func (p JoinResult_Future) Struct() (JoinResult, error) {
+	s, err := p.Future.Struct()
 	return JoinResult{s}, err
 }
 
-func (p JoinResult_Answer) Cap() *capnp.Answer {
-	return p.Answer.Field(0, nil)
+func (p JoinResult_Future) Cap() *capnp.Future {
+	return p.Future.Field(0, nil)
 }
 
 const schema_a184c7885cdaf2a1 = "x\xda|\x92\xcfk\x13A\x14\xc7\xdfw&1\x09Z" +

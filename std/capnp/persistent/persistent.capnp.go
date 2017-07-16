@@ -19,7 +19,7 @@ type Persistent struct{ Client *capnp.Client }
 // Persistent_TypeID is the unique identifier for the type Persistent.
 const Persistent_TypeID = 0xc8cb212fcd9f5691
 
-func (c Persistent) Save(ctx context.Context, params func(Persistent_SaveParams) error, opts ...capnp.CallOption) (Persistent_SaveResults_Answer, capnp.ReleaseFunc) {
+func (c Persistent) Save(ctx context.Context, params func(Persistent_SaveParams) error, opts ...capnp.CallOption) (Persistent_SaveResults_Future, capnp.ReleaseFunc) {
 	var args capnp.SendArgs
 	if params != nil {
 		args.Size = capnp.ObjectSize{DataSize: 0, PointerCount: 1}
@@ -31,7 +31,7 @@ func (c Persistent) Save(ctx context.Context, params func(Persistent_SaveParams)
 		InterfaceName: "persistent.capnp:Persistent",
 		MethodName:    "save",
 	}, args, capnp.NewCallOptions(opts))
-	return Persistent_SaveResults_Answer{Answer: ans}, release
+	return Persistent_SaveResults_Future{Future: ans.Future()}, release
 }
 
 // A Persistent_Server is a Persistent with a local implementation.
@@ -140,16 +140,16 @@ func (s Persistent_SaveParams_List) Set(i int, v Persistent_SaveParams) error {
 	return s.List.SetStruct(i, v.Struct)
 }
 
-// Persistent_SaveParams_Answer is a wrapper for a Persistent_SaveParams promised by a client call.
-type Persistent_SaveParams_Answer struct{ *capnp.Answer }
+// Persistent_SaveParams_Future is a wrapper for a Persistent_SaveParams promised by a client call.
+type Persistent_SaveParams_Future struct{ *capnp.Future }
 
-func (p Persistent_SaveParams_Answer) Struct() (Persistent_SaveParams, error) {
-	s, err := p.Answer.Struct()
+func (p Persistent_SaveParams_Future) Struct() (Persistent_SaveParams, error) {
+	s, err := p.Future.Struct()
 	return Persistent_SaveParams{s}, err
 }
 
-func (p Persistent_SaveParams_Answer) SealFor() *capnp.Answer {
-	return p.Answer.Field(0, nil)
+func (p Persistent_SaveParams_Future) SealFor() *capnp.Future {
+	return p.Future.Field(0, nil)
 }
 
 type Persistent_SaveResults struct{ capnp.Struct }
@@ -207,16 +207,16 @@ func (s Persistent_SaveResults_List) Set(i int, v Persistent_SaveResults) error 
 	return s.List.SetStruct(i, v.Struct)
 }
 
-// Persistent_SaveResults_Answer is a wrapper for a Persistent_SaveResults promised by a client call.
-type Persistent_SaveResults_Answer struct{ *capnp.Answer }
+// Persistent_SaveResults_Future is a wrapper for a Persistent_SaveResults promised by a client call.
+type Persistent_SaveResults_Future struct{ *capnp.Future }
 
-func (p Persistent_SaveResults_Answer) Struct() (Persistent_SaveResults, error) {
-	s, err := p.Answer.Struct()
+func (p Persistent_SaveResults_Future) Struct() (Persistent_SaveResults, error) {
+	s, err := p.Future.Struct()
 	return Persistent_SaveResults{s}, err
 }
 
-func (p Persistent_SaveResults_Answer) SturdyRef() *capnp.Answer {
-	return p.Answer.Field(0, nil)
+func (p Persistent_SaveResults_Future) SturdyRef() *capnp.Future {
+	return p.Future.Field(0, nil)
 }
 
 type RealmGateway struct{ Client *capnp.Client }
@@ -224,7 +224,7 @@ type RealmGateway struct{ Client *capnp.Client }
 // RealmGateway_TypeID is the unique identifier for the type RealmGateway.
 const RealmGateway_TypeID = 0x84ff286cd00a3ed4
 
-func (c RealmGateway) Import(ctx context.Context, params func(RealmGateway_import_Params) error, opts ...capnp.CallOption) (Persistent_SaveResults_Answer, capnp.ReleaseFunc) {
+func (c RealmGateway) Import(ctx context.Context, params func(RealmGateway_import_Params) error, opts ...capnp.CallOption) (Persistent_SaveResults_Future, capnp.ReleaseFunc) {
 	var args capnp.SendArgs
 	if params != nil {
 		args.Size = capnp.ObjectSize{DataSize: 0, PointerCount: 2}
@@ -236,9 +236,9 @@ func (c RealmGateway) Import(ctx context.Context, params func(RealmGateway_impor
 		InterfaceName: "persistent.capnp:RealmGateway",
 		MethodName:    "import",
 	}, args, capnp.NewCallOptions(opts))
-	return Persistent_SaveResults_Answer{Answer: ans}, release
+	return Persistent_SaveResults_Future{Future: ans.Future()}, release
 }
-func (c RealmGateway) Export(ctx context.Context, params func(RealmGateway_export_Params) error, opts ...capnp.CallOption) (Persistent_SaveResults_Answer, capnp.ReleaseFunc) {
+func (c RealmGateway) Export(ctx context.Context, params func(RealmGateway_export_Params) error, opts ...capnp.CallOption) (Persistent_SaveResults_Future, capnp.ReleaseFunc) {
 	var args capnp.SendArgs
 	if params != nil {
 		args.Size = capnp.ObjectSize{DataSize: 0, PointerCount: 2}
@@ -250,7 +250,7 @@ func (c RealmGateway) Export(ctx context.Context, params func(RealmGateway_expor
 		InterfaceName: "persistent.capnp:RealmGateway",
 		MethodName:    "export",
 	}, args, capnp.NewCallOptions(opts))
-	return Persistent_SaveResults_Answer{Answer: ans}, release
+	return Persistent_SaveResults_Future{Future: ans.Future()}, release
 }
 
 // A RealmGateway_Server is a RealmGateway with a local implementation.
@@ -416,20 +416,20 @@ func (s RealmGateway_import_Params_List) Set(i int, v RealmGateway_import_Params
 	return s.List.SetStruct(i, v.Struct)
 }
 
-// RealmGateway_import_Params_Answer is a wrapper for a RealmGateway_import_Params promised by a client call.
-type RealmGateway_import_Params_Answer struct{ *capnp.Answer }
+// RealmGateway_import_Params_Future is a wrapper for a RealmGateway_import_Params promised by a client call.
+type RealmGateway_import_Params_Future struct{ *capnp.Future }
 
-func (p RealmGateway_import_Params_Answer) Struct() (RealmGateway_import_Params, error) {
-	s, err := p.Answer.Struct()
+func (p RealmGateway_import_Params_Future) Struct() (RealmGateway_import_Params, error) {
+	s, err := p.Future.Struct()
 	return RealmGateway_import_Params{s}, err
 }
 
-func (p RealmGateway_import_Params_Answer) Cap() Persistent {
-	return Persistent{Client: p.Answer.Field(0, nil).Client()}
+func (p RealmGateway_import_Params_Future) Cap() Persistent {
+	return Persistent{Client: p.Future.Field(0, nil).Client()}
 }
 
-func (p RealmGateway_import_Params_Answer) Params() Persistent_SaveParams_Answer {
-	return Persistent_SaveParams_Answer{Answer: p.Answer.Field(1, nil)}
+func (p RealmGateway_import_Params_Future) Params() Persistent_SaveParams_Future {
+	return Persistent_SaveParams_Future{Future: p.Future.Field(1, nil)}
 }
 
 type RealmGateway_export_Params struct{ capnp.Struct }
@@ -518,20 +518,20 @@ func (s RealmGateway_export_Params_List) Set(i int, v RealmGateway_export_Params
 	return s.List.SetStruct(i, v.Struct)
 }
 
-// RealmGateway_export_Params_Answer is a wrapper for a RealmGateway_export_Params promised by a client call.
-type RealmGateway_export_Params_Answer struct{ *capnp.Answer }
+// RealmGateway_export_Params_Future is a wrapper for a RealmGateway_export_Params promised by a client call.
+type RealmGateway_export_Params_Future struct{ *capnp.Future }
 
-func (p RealmGateway_export_Params_Answer) Struct() (RealmGateway_export_Params, error) {
-	s, err := p.Answer.Struct()
+func (p RealmGateway_export_Params_Future) Struct() (RealmGateway_export_Params, error) {
+	s, err := p.Future.Struct()
 	return RealmGateway_export_Params{s}, err
 }
 
-func (p RealmGateway_export_Params_Answer) Cap() Persistent {
-	return Persistent{Client: p.Answer.Field(0, nil).Client()}
+func (p RealmGateway_export_Params_Future) Cap() Persistent {
+	return Persistent{Client: p.Future.Field(0, nil).Client()}
 }
 
-func (p RealmGateway_export_Params_Answer) Params() Persistent_SaveParams_Answer {
-	return Persistent_SaveParams_Answer{Answer: p.Answer.Field(1, nil)}
+func (p RealmGateway_export_Params_Future) Params() Persistent_SaveParams_Future {
+	return Persistent_SaveParams_Future{Future: p.Future.Field(1, nil)}
 }
 
 const schema_b8630836983feed7 = "x\xda\xbcSKh3U\x14>\xdf\xdcy$\xd2\x9f" +

@@ -222,16 +222,16 @@ func (s JsonValue_List) At(i int) JsonValue { return JsonValue{s.List.Struct(i)}
 
 func (s JsonValue_List) Set(i int, v JsonValue) error { return s.List.SetStruct(i, v.Struct) }
 
-// JsonValue_Answer is a wrapper for a JsonValue promised by a client call.
-type JsonValue_Answer struct{ *capnp.Answer }
+// JsonValue_Future is a wrapper for a JsonValue promised by a client call.
+type JsonValue_Future struct{ *capnp.Future }
 
-func (p JsonValue_Answer) Struct() (JsonValue, error) {
-	s, err := p.Answer.Struct()
+func (p JsonValue_Future) Struct() (JsonValue, error) {
+	s, err := p.Future.Struct()
 	return JsonValue{s}, err
 }
 
-func (p JsonValue_Answer) Call() JsonValue_Call_Answer {
-	return JsonValue_Call_Answer{Answer: p.Answer.Field(0, nil)}
+func (p JsonValue_Future) Call() JsonValue_Call_Future {
+	return JsonValue_Call_Future{Future: p.Future.Field(0, nil)}
 }
 
 type JsonValue_Field struct{ capnp.Struct }
@@ -318,16 +318,16 @@ func (s JsonValue_Field_List) Set(i int, v JsonValue_Field) error {
 	return s.List.SetStruct(i, v.Struct)
 }
 
-// JsonValue_Field_Answer is a wrapper for a JsonValue_Field promised by a client call.
-type JsonValue_Field_Answer struct{ *capnp.Answer }
+// JsonValue_Field_Future is a wrapper for a JsonValue_Field promised by a client call.
+type JsonValue_Field_Future struct{ *capnp.Future }
 
-func (p JsonValue_Field_Answer) Struct() (JsonValue_Field, error) {
-	s, err := p.Answer.Struct()
+func (p JsonValue_Field_Future) Struct() (JsonValue_Field, error) {
+	s, err := p.Future.Struct()
 	return JsonValue_Field{s}, err
 }
 
-func (p JsonValue_Field_Answer) Value() JsonValue_Answer {
-	return JsonValue_Answer{Answer: p.Answer.Field(1, nil)}
+func (p JsonValue_Field_Future) Value() JsonValue_Future {
+	return JsonValue_Future{Future: p.Future.Field(1, nil)}
 }
 
 type JsonValue_Call struct{ capnp.Struct }
@@ -412,11 +412,11 @@ func (s JsonValue_Call_List) At(i int) JsonValue_Call { return JsonValue_Call{s.
 
 func (s JsonValue_Call_List) Set(i int, v JsonValue_Call) error { return s.List.SetStruct(i, v.Struct) }
 
-// JsonValue_Call_Answer is a wrapper for a JsonValue_Call promised by a client call.
-type JsonValue_Call_Answer struct{ *capnp.Answer }
+// JsonValue_Call_Future is a wrapper for a JsonValue_Call promised by a client call.
+type JsonValue_Call_Future struct{ *capnp.Future }
 
-func (p JsonValue_Call_Answer) Struct() (JsonValue_Call, error) {
-	s, err := p.Answer.Struct()
+func (p JsonValue_Call_Future) Struct() (JsonValue_Call, error) {
+	s, err := p.Future.Struct()
 	return JsonValue_Call{s}, err
 }
 

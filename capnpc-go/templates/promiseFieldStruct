@@ -1,5 +1,5 @@
-func (p {{.Node.Name}}_Answer) {{.Field.Name|title}}() {{.G.RemoteNodeName .Struct .Node}}_Answer {
-	return {{.G.RemoteNodeName .Struct .Node}}_Answer{Answer: p.Answer.Field(
+func (p {{.Node.Name}}_Future) {{.Field.Name|title}}() {{.G.RemoteNodeName .Struct .Node}}_Future {
+	return {{.G.RemoteNodeName .Struct .Node}}_Future{Future: p.Future.Field(
 		{{- .Field.Slot.Offset}}, {{if .Default.IsValid}}{{.Default}}{{else}}nil{{end}})}
 }
 

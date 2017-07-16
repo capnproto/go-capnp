@@ -86,10 +86,10 @@ func TestServerCallOrderWithCustomLocks(t *testing.T) {
 
 func testCallOrder(t *testing.T, seq air.CallSequence) {
 	ctx := context.Background()
-	send := func() (air.CallSequence_getNumber_Results_Answer, capnp.ReleaseFunc) {
+	send := func() (air.CallSequence_getNumber_Results_Future, capnp.ReleaseFunc) {
 		return seq.GetNumber(ctx, nil)
 	}
-	check := func(p air.CallSequence_getNumber_Results_Answer, n uint32) {
+	check := func(p air.CallSequence_getNumber_Results_Future, n uint32) {
 		result, err := p.Struct()
 		if err != nil {
 			t.Errorf("seq.getNumber() error: %v; want %d", err, n)

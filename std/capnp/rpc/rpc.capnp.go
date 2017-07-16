@@ -500,68 +500,68 @@ func (s Message_List) At(i int) Message { return Message{s.List.Struct(i)} }
 
 func (s Message_List) Set(i int, v Message) error { return s.List.SetStruct(i, v.Struct) }
 
-// Message_Answer is a wrapper for a Message promised by a client call.
-type Message_Answer struct{ *capnp.Answer }
+// Message_Future is a wrapper for a Message promised by a client call.
+type Message_Future struct{ *capnp.Future }
 
-func (p Message_Answer) Struct() (Message, error) {
-	s, err := p.Answer.Struct()
+func (p Message_Future) Struct() (Message, error) {
+	s, err := p.Future.Struct()
 	return Message{s}, err
 }
 
-func (p Message_Answer) Unimplemented() Message_Answer {
-	return Message_Answer{Answer: p.Answer.Field(0, nil)}
+func (p Message_Future) Unimplemented() Message_Future {
+	return Message_Future{Future: p.Future.Field(0, nil)}
 }
 
-func (p Message_Answer) Abort() Exception_Answer {
-	return Exception_Answer{Answer: p.Answer.Field(0, nil)}
+func (p Message_Future) Abort() Exception_Future {
+	return Exception_Future{Future: p.Future.Field(0, nil)}
 }
 
-func (p Message_Answer) Bootstrap() Bootstrap_Answer {
-	return Bootstrap_Answer{Answer: p.Answer.Field(0, nil)}
+func (p Message_Future) Bootstrap() Bootstrap_Future {
+	return Bootstrap_Future{Future: p.Future.Field(0, nil)}
 }
 
-func (p Message_Answer) Call() Call_Answer {
-	return Call_Answer{Answer: p.Answer.Field(0, nil)}
+func (p Message_Future) Call() Call_Future {
+	return Call_Future{Future: p.Future.Field(0, nil)}
 }
 
-func (p Message_Answer) Return() Return_Answer {
-	return Return_Answer{Answer: p.Answer.Field(0, nil)}
+func (p Message_Future) Return() Return_Future {
+	return Return_Future{Future: p.Future.Field(0, nil)}
 }
 
-func (p Message_Answer) Finish() Finish_Answer {
-	return Finish_Answer{Answer: p.Answer.Field(0, nil)}
+func (p Message_Future) Finish() Finish_Future {
+	return Finish_Future{Future: p.Future.Field(0, nil)}
 }
 
-func (p Message_Answer) Resolve() Resolve_Answer {
-	return Resolve_Answer{Answer: p.Answer.Field(0, nil)}
+func (p Message_Future) Resolve() Resolve_Future {
+	return Resolve_Future{Future: p.Future.Field(0, nil)}
 }
 
-func (p Message_Answer) Release() Release_Answer {
-	return Release_Answer{Answer: p.Answer.Field(0, nil)}
+func (p Message_Future) Release() Release_Future {
+	return Release_Future{Future: p.Future.Field(0, nil)}
 }
 
-func (p Message_Answer) Disembargo() Disembargo_Answer {
-	return Disembargo_Answer{Answer: p.Answer.Field(0, nil)}
+func (p Message_Future) Disembargo() Disembargo_Future {
+	return Disembargo_Future{Future: p.Future.Field(0, nil)}
 }
 
-func (p Message_Answer) ObsoleteSave() *capnp.Answer {
-	return p.Answer.Field(0, nil)
+func (p Message_Future) ObsoleteSave() *capnp.Future {
+	return p.Future.Field(0, nil)
 }
 
-func (p Message_Answer) ObsoleteDelete() *capnp.Answer {
-	return p.Answer.Field(0, nil)
+func (p Message_Future) ObsoleteDelete() *capnp.Future {
+	return p.Future.Field(0, nil)
 }
 
-func (p Message_Answer) Provide() Provide_Answer {
-	return Provide_Answer{Answer: p.Answer.Field(0, nil)}
+func (p Message_Future) Provide() Provide_Future {
+	return Provide_Future{Future: p.Future.Field(0, nil)}
 }
 
-func (p Message_Answer) Accept() Accept_Answer {
-	return Accept_Answer{Answer: p.Answer.Field(0, nil)}
+func (p Message_Future) Accept() Accept_Future {
+	return Accept_Future{Future: p.Future.Field(0, nil)}
 }
 
-func (p Message_Answer) Join() Join_Answer {
-	return Join_Answer{Answer: p.Answer.Field(0, nil)}
+func (p Message_Future) Join() Join_Future {
+	return Join_Future{Future: p.Future.Field(0, nil)}
 }
 
 type Bootstrap struct{ capnp.Struct }
@@ -623,16 +623,16 @@ func (s Bootstrap_List) At(i int) Bootstrap { return Bootstrap{s.List.Struct(i)}
 
 func (s Bootstrap_List) Set(i int, v Bootstrap) error { return s.List.SetStruct(i, v.Struct) }
 
-// Bootstrap_Answer is a wrapper for a Bootstrap promised by a client call.
-type Bootstrap_Answer struct{ *capnp.Answer }
+// Bootstrap_Future is a wrapper for a Bootstrap promised by a client call.
+type Bootstrap_Future struct{ *capnp.Future }
 
-func (p Bootstrap_Answer) Struct() (Bootstrap, error) {
-	s, err := p.Answer.Struct()
+func (p Bootstrap_Future) Struct() (Bootstrap, error) {
+	s, err := p.Future.Struct()
 	return Bootstrap{s}, err
 }
 
-func (p Bootstrap_Answer) DeprecatedObjectId() *capnp.Answer {
-	return p.Answer.Field(0, nil)
+func (p Bootstrap_Future) DeprecatedObjectId() *capnp.Future {
+	return p.Future.Field(0, nil)
 }
 
 type Call struct{ capnp.Struct }
@@ -809,36 +809,36 @@ func (s Call_List) At(i int) Call { return Call{s.List.Struct(i)} }
 
 func (s Call_List) Set(i int, v Call) error { return s.List.SetStruct(i, v.Struct) }
 
-// Call_Answer is a wrapper for a Call promised by a client call.
-type Call_Answer struct{ *capnp.Answer }
+// Call_Future is a wrapper for a Call promised by a client call.
+type Call_Future struct{ *capnp.Future }
 
-func (p Call_Answer) Struct() (Call, error) {
-	s, err := p.Answer.Struct()
+func (p Call_Future) Struct() (Call, error) {
+	s, err := p.Future.Struct()
 	return Call{s}, err
 }
 
-func (p Call_Answer) Target() MessageTarget_Answer {
-	return MessageTarget_Answer{Answer: p.Answer.Field(0, nil)}
+func (p Call_Future) Target() MessageTarget_Future {
+	return MessageTarget_Future{Future: p.Future.Field(0, nil)}
 }
 
-func (p Call_Answer) Params() Payload_Answer {
-	return Payload_Answer{Answer: p.Answer.Field(1, nil)}
+func (p Call_Future) Params() Payload_Future {
+	return Payload_Future{Future: p.Future.Field(1, nil)}
 }
 
-func (p Call_Answer) SendResultsTo() Call_sendResultsTo_Answer {
-	return Call_sendResultsTo_Answer{p.Answer}
+func (p Call_Future) SendResultsTo() Call_sendResultsTo_Future {
+	return Call_sendResultsTo_Future{p.Future}
 }
 
-// Call_sendResultsTo_Answer is a wrapper for a Call_sendResultsTo promised by a client call.
-type Call_sendResultsTo_Answer struct{ *capnp.Answer }
+// Call_sendResultsTo_Future is a wrapper for a Call_sendResultsTo promised by a client call.
+type Call_sendResultsTo_Future struct{ *capnp.Future }
 
-func (p Call_sendResultsTo_Answer) Struct() (Call_sendResultsTo, error) {
-	s, err := p.Answer.Struct()
+func (p Call_sendResultsTo_Future) Struct() (Call_sendResultsTo, error) {
+	s, err := p.Future.Struct()
 	return Call_sendResultsTo{s}, err
 }
 
-func (p Call_sendResultsTo_Answer) ThirdParty() *capnp.Answer {
-	return p.Answer.Field(2, nil)
+func (p Call_sendResultsTo_Future) ThirdParty() *capnp.Future {
+	return p.Future.Field(2, nil)
 }
 
 type Return struct{ capnp.Struct }
@@ -1024,24 +1024,24 @@ func (s Return_List) At(i int) Return { return Return{s.List.Struct(i)} }
 
 func (s Return_List) Set(i int, v Return) error { return s.List.SetStruct(i, v.Struct) }
 
-// Return_Answer is a wrapper for a Return promised by a client call.
-type Return_Answer struct{ *capnp.Answer }
+// Return_Future is a wrapper for a Return promised by a client call.
+type Return_Future struct{ *capnp.Future }
 
-func (p Return_Answer) Struct() (Return, error) {
-	s, err := p.Answer.Struct()
+func (p Return_Future) Struct() (Return, error) {
+	s, err := p.Future.Struct()
 	return Return{s}, err
 }
 
-func (p Return_Answer) Results() Payload_Answer {
-	return Payload_Answer{Answer: p.Answer.Field(0, nil)}
+func (p Return_Future) Results() Payload_Future {
+	return Payload_Future{Future: p.Future.Field(0, nil)}
 }
 
-func (p Return_Answer) Exception() Exception_Answer {
-	return Exception_Answer{Answer: p.Answer.Field(0, nil)}
+func (p Return_Future) Exception() Exception_Future {
+	return Exception_Future{Future: p.Future.Field(0, nil)}
 }
 
-func (p Return_Answer) AcceptFromThirdParty() *capnp.Answer {
-	return p.Answer.Field(0, nil)
+func (p Return_Future) AcceptFromThirdParty() *capnp.Future {
+	return p.Future.Field(0, nil)
 }
 
 type Finish struct{ capnp.Struct }
@@ -1098,11 +1098,11 @@ func (s Finish_List) At(i int) Finish { return Finish{s.List.Struct(i)} }
 
 func (s Finish_List) Set(i int, v Finish) error { return s.List.SetStruct(i, v.Struct) }
 
-// Finish_Answer is a wrapper for a Finish promised by a client call.
-type Finish_Answer struct{ *capnp.Answer }
+// Finish_Future is a wrapper for a Finish promised by a client call.
+type Finish_Future struct{ *capnp.Future }
 
-func (p Finish_Answer) Struct() (Finish, error) {
-	s, err := p.Answer.Struct()
+func (p Finish_Future) Struct() (Finish, error) {
+	s, err := p.Future.Struct()
 	return Finish{s}, err
 }
 
@@ -1233,20 +1233,20 @@ func (s Resolve_List) At(i int) Resolve { return Resolve{s.List.Struct(i)} }
 
 func (s Resolve_List) Set(i int, v Resolve) error { return s.List.SetStruct(i, v.Struct) }
 
-// Resolve_Answer is a wrapper for a Resolve promised by a client call.
-type Resolve_Answer struct{ *capnp.Answer }
+// Resolve_Future is a wrapper for a Resolve promised by a client call.
+type Resolve_Future struct{ *capnp.Future }
 
-func (p Resolve_Answer) Struct() (Resolve, error) {
-	s, err := p.Answer.Struct()
+func (p Resolve_Future) Struct() (Resolve, error) {
+	s, err := p.Future.Struct()
 	return Resolve{s}, err
 }
 
-func (p Resolve_Answer) Cap() CapDescriptor_Answer {
-	return CapDescriptor_Answer{Answer: p.Answer.Field(0, nil)}
+func (p Resolve_Future) Cap() CapDescriptor_Future {
+	return CapDescriptor_Future{Future: p.Future.Field(0, nil)}
 }
 
-func (p Resolve_Answer) Exception() Exception_Answer {
-	return Exception_Answer{Answer: p.Answer.Field(0, nil)}
+func (p Resolve_Future) Exception() Exception_Future {
+	return Exception_Future{Future: p.Future.Field(0, nil)}
 }
 
 type Release struct{ capnp.Struct }
@@ -1303,11 +1303,11 @@ func (s Release_List) At(i int) Release { return Release{s.List.Struct(i)} }
 
 func (s Release_List) Set(i int, v Release) error { return s.List.SetStruct(i, v.Struct) }
 
-// Release_Answer is a wrapper for a Release promised by a client call.
-type Release_Answer struct{ *capnp.Answer }
+// Release_Future is a wrapper for a Release promised by a client call.
+type Release_Future struct{ *capnp.Future }
 
-func (p Release_Answer) Struct() (Release, error) {
-	s, err := p.Answer.Struct()
+func (p Release_Future) Struct() (Release, error) {
+	s, err := p.Future.Struct()
 	return Release{s}, err
 }
 
@@ -1436,27 +1436,27 @@ func (s Disembargo_List) At(i int) Disembargo { return Disembargo{s.List.Struct(
 
 func (s Disembargo_List) Set(i int, v Disembargo) error { return s.List.SetStruct(i, v.Struct) }
 
-// Disembargo_Answer is a wrapper for a Disembargo promised by a client call.
-type Disembargo_Answer struct{ *capnp.Answer }
+// Disembargo_Future is a wrapper for a Disembargo promised by a client call.
+type Disembargo_Future struct{ *capnp.Future }
 
-func (p Disembargo_Answer) Struct() (Disembargo, error) {
-	s, err := p.Answer.Struct()
+func (p Disembargo_Future) Struct() (Disembargo, error) {
+	s, err := p.Future.Struct()
 	return Disembargo{s}, err
 }
 
-func (p Disembargo_Answer) Target() MessageTarget_Answer {
-	return MessageTarget_Answer{Answer: p.Answer.Field(0, nil)}
+func (p Disembargo_Future) Target() MessageTarget_Future {
+	return MessageTarget_Future{Future: p.Future.Field(0, nil)}
 }
 
-func (p Disembargo_Answer) Context() Disembargo_context_Answer {
-	return Disembargo_context_Answer{p.Answer}
+func (p Disembargo_Future) Context() Disembargo_context_Future {
+	return Disembargo_context_Future{p.Future}
 }
 
-// Disembargo_context_Answer is a wrapper for a Disembargo_context promised by a client call.
-type Disembargo_context_Answer struct{ *capnp.Answer }
+// Disembargo_context_Future is a wrapper for a Disembargo_context promised by a client call.
+type Disembargo_context_Future struct{ *capnp.Future }
 
-func (p Disembargo_context_Answer) Struct() (Disembargo_context, error) {
-	s, err := p.Answer.Struct()
+func (p Disembargo_context_Future) Struct() (Disembargo_context, error) {
+	s, err := p.Future.Struct()
 	return Disembargo_context{s}, err
 }
 
@@ -1544,20 +1544,20 @@ func (s Provide_List) At(i int) Provide { return Provide{s.List.Struct(i)} }
 
 func (s Provide_List) Set(i int, v Provide) error { return s.List.SetStruct(i, v.Struct) }
 
-// Provide_Answer is a wrapper for a Provide promised by a client call.
-type Provide_Answer struct{ *capnp.Answer }
+// Provide_Future is a wrapper for a Provide promised by a client call.
+type Provide_Future struct{ *capnp.Future }
 
-func (p Provide_Answer) Struct() (Provide, error) {
-	s, err := p.Answer.Struct()
+func (p Provide_Future) Struct() (Provide, error) {
+	s, err := p.Future.Struct()
 	return Provide{s}, err
 }
 
-func (p Provide_Answer) Target() MessageTarget_Answer {
-	return MessageTarget_Answer{Answer: p.Answer.Field(0, nil)}
+func (p Provide_Future) Target() MessageTarget_Future {
+	return MessageTarget_Future{Future: p.Future.Field(0, nil)}
 }
 
-func (p Provide_Answer) Recipient() *capnp.Answer {
-	return p.Answer.Field(1, nil)
+func (p Provide_Future) Recipient() *capnp.Future {
+	return p.Future.Field(1, nil)
 }
 
 type Accept struct{ capnp.Struct }
@@ -1627,16 +1627,16 @@ func (s Accept_List) At(i int) Accept { return Accept{s.List.Struct(i)} }
 
 func (s Accept_List) Set(i int, v Accept) error { return s.List.SetStruct(i, v.Struct) }
 
-// Accept_Answer is a wrapper for a Accept promised by a client call.
-type Accept_Answer struct{ *capnp.Answer }
+// Accept_Future is a wrapper for a Accept promised by a client call.
+type Accept_Future struct{ *capnp.Future }
 
-func (p Accept_Answer) Struct() (Accept, error) {
-	s, err := p.Answer.Struct()
+func (p Accept_Future) Struct() (Accept, error) {
+	s, err := p.Future.Struct()
 	return Accept{s}, err
 }
 
-func (p Accept_Answer) Provision() *capnp.Answer {
-	return p.Answer.Field(0, nil)
+func (p Accept_Future) Provision() *capnp.Future {
+	return p.Future.Field(0, nil)
 }
 
 type Join struct{ capnp.Struct }
@@ -1723,20 +1723,20 @@ func (s Join_List) At(i int) Join { return Join{s.List.Struct(i)} }
 
 func (s Join_List) Set(i int, v Join) error { return s.List.SetStruct(i, v.Struct) }
 
-// Join_Answer is a wrapper for a Join promised by a client call.
-type Join_Answer struct{ *capnp.Answer }
+// Join_Future is a wrapper for a Join promised by a client call.
+type Join_Future struct{ *capnp.Future }
 
-func (p Join_Answer) Struct() (Join, error) {
-	s, err := p.Answer.Struct()
+func (p Join_Future) Struct() (Join, error) {
+	s, err := p.Future.Struct()
 	return Join{s}, err
 }
 
-func (p Join_Answer) Target() MessageTarget_Answer {
-	return MessageTarget_Answer{Answer: p.Answer.Field(0, nil)}
+func (p Join_Future) Target() MessageTarget_Future {
+	return MessageTarget_Future{Future: p.Future.Field(0, nil)}
 }
 
-func (p Join_Answer) KeyPart() *capnp.Answer {
-	return p.Answer.Field(1, nil)
+func (p Join_Future) KeyPart() *capnp.Future {
+	return p.Future.Field(1, nil)
 }
 
 type MessageTarget struct{ capnp.Struct }
@@ -1837,16 +1837,16 @@ func (s MessageTarget_List) At(i int) MessageTarget { return MessageTarget{s.Lis
 
 func (s MessageTarget_List) Set(i int, v MessageTarget) error { return s.List.SetStruct(i, v.Struct) }
 
-// MessageTarget_Answer is a wrapper for a MessageTarget promised by a client call.
-type MessageTarget_Answer struct{ *capnp.Answer }
+// MessageTarget_Future is a wrapper for a MessageTarget promised by a client call.
+type MessageTarget_Future struct{ *capnp.Future }
 
-func (p MessageTarget_Answer) Struct() (MessageTarget, error) {
-	s, err := p.Answer.Struct()
+func (p MessageTarget_Future) Struct() (MessageTarget, error) {
+	s, err := p.Future.Struct()
 	return MessageTarget{s}, err
 }
 
-func (p MessageTarget_Answer) PromisedAnswer() PromisedAnswer_Answer {
-	return PromisedAnswer_Answer{Answer: p.Answer.Field(0, nil)}
+func (p MessageTarget_Future) PromisedAnswer() PromisedAnswer_Future {
+	return PromisedAnswer_Future{Future: p.Future.Field(0, nil)}
 }
 
 type Payload struct{ capnp.Struct }
@@ -1925,16 +1925,16 @@ func (s Payload_List) At(i int) Payload { return Payload{s.List.Struct(i)} }
 
 func (s Payload_List) Set(i int, v Payload) error { return s.List.SetStruct(i, v.Struct) }
 
-// Payload_Answer is a wrapper for a Payload promised by a client call.
-type Payload_Answer struct{ *capnp.Answer }
+// Payload_Future is a wrapper for a Payload promised by a client call.
+type Payload_Future struct{ *capnp.Future }
 
-func (p Payload_Answer) Struct() (Payload, error) {
-	s, err := p.Answer.Struct()
+func (p Payload_Future) Struct() (Payload, error) {
+	s, err := p.Future.Struct()
 	return Payload{s}, err
 }
 
-func (p Payload_Answer) Content() *capnp.Answer {
-	return p.Answer.Field(0, nil)
+func (p Payload_Future) Content() *capnp.Future {
+	return p.Future.Field(0, nil)
 }
 
 type CapDescriptor struct{ capnp.Struct }
@@ -2100,20 +2100,20 @@ func (s CapDescriptor_List) At(i int) CapDescriptor { return CapDescriptor{s.Lis
 
 func (s CapDescriptor_List) Set(i int, v CapDescriptor) error { return s.List.SetStruct(i, v.Struct) }
 
-// CapDescriptor_Answer is a wrapper for a CapDescriptor promised by a client call.
-type CapDescriptor_Answer struct{ *capnp.Answer }
+// CapDescriptor_Future is a wrapper for a CapDescriptor promised by a client call.
+type CapDescriptor_Future struct{ *capnp.Future }
 
-func (p CapDescriptor_Answer) Struct() (CapDescriptor, error) {
-	s, err := p.Answer.Struct()
+func (p CapDescriptor_Future) Struct() (CapDescriptor, error) {
+	s, err := p.Future.Struct()
 	return CapDescriptor{s}, err
 }
 
-func (p CapDescriptor_Answer) ReceiverAnswer() PromisedAnswer_Answer {
-	return PromisedAnswer_Answer{Answer: p.Answer.Field(0, nil)}
+func (p CapDescriptor_Future) ReceiverAnswer() PromisedAnswer_Future {
+	return PromisedAnswer_Future{Future: p.Future.Field(0, nil)}
 }
 
-func (p CapDescriptor_Answer) ThirdPartyHosted() ThirdPartyCapDescriptor_Answer {
-	return ThirdPartyCapDescriptor_Answer{Answer: p.Answer.Field(0, nil)}
+func (p CapDescriptor_Future) ThirdPartyHosted() ThirdPartyCapDescriptor_Future {
+	return ThirdPartyCapDescriptor_Future{Future: p.Future.Field(0, nil)}
 }
 
 type PromisedAnswer struct{ capnp.Struct }
@@ -2187,11 +2187,11 @@ func (s PromisedAnswer_List) At(i int) PromisedAnswer { return PromisedAnswer{s.
 
 func (s PromisedAnswer_List) Set(i int, v PromisedAnswer) error { return s.List.SetStruct(i, v.Struct) }
 
-// PromisedAnswer_Answer is a wrapper for a PromisedAnswer promised by a client call.
-type PromisedAnswer_Answer struct{ *capnp.Answer }
+// PromisedAnswer_Future is a wrapper for a PromisedAnswer promised by a client call.
+type PromisedAnswer_Future struct{ *capnp.Future }
 
-func (p PromisedAnswer_Answer) Struct() (PromisedAnswer, error) {
-	s, err := p.Answer.Struct()
+func (p PromisedAnswer_Future) Struct() (PromisedAnswer, error) {
+	s, err := p.Future.Struct()
 	return PromisedAnswer{s}, err
 }
 
@@ -2272,11 +2272,11 @@ func (s PromisedAnswer_Op_List) Set(i int, v PromisedAnswer_Op) error {
 	return s.List.SetStruct(i, v.Struct)
 }
 
-// PromisedAnswer_Op_Answer is a wrapper for a PromisedAnswer_Op promised by a client call.
-type PromisedAnswer_Op_Answer struct{ *capnp.Answer }
+// PromisedAnswer_Op_Future is a wrapper for a PromisedAnswer_Op promised by a client call.
+type PromisedAnswer_Op_Future struct{ *capnp.Future }
 
-func (p PromisedAnswer_Op_Answer) Struct() (PromisedAnswer_Op, error) {
-	s, err := p.Answer.Struct()
+func (p PromisedAnswer_Op_Future) Struct() (PromisedAnswer_Op, error) {
+	s, err := p.Future.Struct()
 	return PromisedAnswer_Op{s}, err
 }
 
@@ -2343,16 +2343,16 @@ func (s ThirdPartyCapDescriptor_List) Set(i int, v ThirdPartyCapDescriptor) erro
 	return s.List.SetStruct(i, v.Struct)
 }
 
-// ThirdPartyCapDescriptor_Answer is a wrapper for a ThirdPartyCapDescriptor promised by a client call.
-type ThirdPartyCapDescriptor_Answer struct{ *capnp.Answer }
+// ThirdPartyCapDescriptor_Future is a wrapper for a ThirdPartyCapDescriptor promised by a client call.
+type ThirdPartyCapDescriptor_Future struct{ *capnp.Future }
 
-func (p ThirdPartyCapDescriptor_Answer) Struct() (ThirdPartyCapDescriptor, error) {
-	s, err := p.Answer.Struct()
+func (p ThirdPartyCapDescriptor_Future) Struct() (ThirdPartyCapDescriptor, error) {
+	s, err := p.Future.Struct()
 	return ThirdPartyCapDescriptor{s}, err
 }
 
-func (p ThirdPartyCapDescriptor_Answer) Id() *capnp.Answer {
-	return p.Answer.Field(0, nil)
+func (p ThirdPartyCapDescriptor_Future) Id() *capnp.Future {
+	return p.Future.Field(0, nil)
 }
 
 type Exception struct{ capnp.Struct }
@@ -2436,11 +2436,11 @@ func (s Exception_List) At(i int) Exception { return Exception{s.List.Struct(i)}
 
 func (s Exception_List) Set(i int, v Exception) error { return s.List.SetStruct(i, v.Struct) }
 
-// Exception_Answer is a wrapper for a Exception promised by a client call.
-type Exception_Answer struct{ *capnp.Answer }
+// Exception_Future is a wrapper for a Exception promised by a client call.
+type Exception_Future struct{ *capnp.Future }
 
-func (p Exception_Answer) Struct() (Exception, error) {
-	s, err := p.Answer.Struct()
+func (p Exception_Future) Struct() (Exception, error) {
+	s, err := p.Future.Struct()
 	return Exception{s}, err
 }
 

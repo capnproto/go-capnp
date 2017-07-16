@@ -6,7 +6,7 @@ type {{.Node.Name}} struct { Client *{{.G.Capnp}}.Client }
 {{ template "_typeid" .Node }}
 
 {{range .Methods -}}
-func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{$.G.Imports.Context}}.Context, params func({{$.G.RemoteNodeName .Params $.Node}}) error, opts ...{{$.G.Capnp}}.CallOption) ({{$.G.RemoteNodeName .Results $.Node}}_Answer, {{$.G.Capnp}}.ReleaseFunc) {
+func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{$.G.Imports.Context}}.Context, params func({{$.G.RemoteNodeName .Params $.Node}}) error, opts ...{{$.G.Capnp}}.CallOption) ({{$.G.RemoteNodeName .Results $.Node}}_Future, {{$.G.Capnp}}.ReleaseFunc) {
 	var args {{$.G.Capnp}}.SendArgs
 	if params != nil {
 		args.Size = {{$.G.ObjectSize .Params}}
@@ -15,6 +15,6 @@ func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{$.G.Imports.Context}}.Context, pa
 	ans, release := c.Client.SendCall(ctx, {{$.G.Capnp}}.Method{
 		{{template "_interfaceMethod" .}}
 	}, args, {{$.G.Capnp}}.NewCallOptions(opts))
-	return {{$.G.RemoteNodeName .Results $.Node}}_Answer{Answer: ans}, release
+	return {{$.G.RemoteNodeName .Results $.Node}}_Future{Future: ans.Future()}, release
 }
 {{end}}

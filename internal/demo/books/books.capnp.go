@@ -75,11 +75,11 @@ func (s Book_List) At(i int) Book { return Book{s.List.Struct(i)} }
 
 func (s Book_List) Set(i int, v Book) error { return s.List.SetStruct(i, v.Struct) }
 
-// Book_Answer is a wrapper for a Book promised by a client call.
-type Book_Answer struct{ *capnp.Answer }
+// Book_Future is a wrapper for a Book promised by a client call.
+type Book_Future struct{ *capnp.Future }
 
-func (p Book_Answer) Struct() (Book, error) {
-	s, err := p.Answer.Struct()
+func (p Book_Future) Struct() (Book, error) {
+	s, err := p.Future.Struct()
 	return Book{s}, err
 }
 

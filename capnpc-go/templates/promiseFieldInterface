@@ -1,4 +1,4 @@
-func (p {{.Node.Name}}_Answer) {{.Field.Name|title}}() {{.G.RemoteNodeName .Interface .Node}} {
-	return {{.G.RemoteNodeName .Interface .Node}}{Client: p.Answer.Field({{.Field.Slot.Offset}}, nil).Client()}
+func (p {{.Node.Name}}_Future) {{.Field.Name|title}}() {{.G.RemoteNodeName .Interface .Node}} {
+	return {{.G.RemoteNodeName .Interface .Node}}{Client: p.Future.Field({{.Field.Slot.Offset}}, nil).Client()}
 }
 

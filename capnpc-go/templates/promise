@@ -1,8 +1,8 @@
-// {{.Node.Name}}_Answer is a wrapper for a {{.Node.Name}} promised by a client call.
-type {{.Node.Name}}_Answer struct { *{{.G.Capnp}}.Answer }
+// {{.Node.Name}}_Future is a wrapper for a {{.Node.Name}} promised by a client call.
+type {{.Node.Name}}_Future struct { *{{.G.Capnp}}.Future }
 
-func (p {{.Node.Name}}_Answer) Struct() ({{.Node.Name}}, error) {
-	s, err := p.Answer.Struct()
+func (p {{.Node.Name}}_Future) Struct() ({{.Node.Name}}, error) {
+	s, err := p.Future.Struct()
 	return {{.Node.Name}}{s}, err
 }
 
