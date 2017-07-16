@@ -136,7 +136,7 @@ func (s *Server) start(ctx context.Context, m *Method, a capnp.RecvArgs, opts ca
 	}
 }
 
-// Brand returns nil.
+// Brand returns a value that will match IsServer.
 func (s *Server) Brand() interface{} {
 	return serverBrand{s.brand}
 }
