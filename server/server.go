@@ -51,66 +51,66 @@ type Policy struct {
 // return or acknowledgment of the previous call.  See the Ack function
 // for more details.
 func New(methods []Method, brand interface{}, closer Closer, policy *Policy) *Server {
-	s := &Server{
+	srv := &Server{
 		methods: make(sortedMethods, len(methods)),
 		brand:   brand,
 		closer:  closer,
 	}
-	copy(s.methods, methods)
-	sort.Sort(s.methods)
-	return s
+	copy(srv.methods, methods)
+	sort.Sort(srv.methods)
+	return srv
 }
 
 // Send starts a method call.
-func (s *Server) Send(ctx context.Context, m capnp.Method, a capnp.SendArgs, opts capnp.CallOptions) (*capnp.Answer, capnp.ReleaseFunc) {
-	mm := s.methods.find(m)
+func (srv *Server) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, capnp.ReleaseFunc) {
+	mm := srv.methods.find(s.Method)
 	if mm == nil {
 		// TODO(soon): signal unimplemented.
 		return capnp.ErrorAnswer(errors.New("unimplemented")), func() {}
 	}
-	args, err := argsToStruct(a)
+	args, err := sendArgsToStruct(s)
 	if err != nil {
 		return capnp.ErrorAnswer(err), func() {}
 	}
-	rargs := capnp.RecvArgs{
+	r := capnp.Recv{
 		Args: args,
-		Release: func() {
+		ReleaseArgs: func() {
 			// TODO(someday): log error from ClearCaps
 			if seg := args.Segment(); seg != nil {
 				seg.Message().Reset(nil)
 			}
 		},
 	}
-	return s.start(ctx, mm, rargs, opts)
+	return srv.start(ctx, mm, r)
 }
 
 // Recv starts a method call.
-func (s *Server) Recv(ctx context.Context, m capnp.Method, a capnp.RecvArgs, opts capnp.CallOptions) (*capnp.Answer, capnp.ReleaseFunc) {
-	mm := s.methods.find(m)
+func (srv *Server) Recv(ctx context.Context, r capnp.Recv) (*capnp.Answer, capnp.ReleaseFunc) {
+	mm := srv.methods.find(r.Method)
 	if mm == nil {
 		// TODO(soon): signal unimplemented.
 		return capnp.ErrorAnswer(errors.New("unimplemented")), func() {}
 	}
-	return s.start(ctx, mm, a, opts)
+	return srv.start(ctx, mm, r)
 }
 
-func (s *Server) start(ctx context.Context, m *Method, a capnp.RecvArgs, opts capnp.CallOptions) (*capnp.Answer, capnp.ReleaseFunc) {
+func (srv *Server) start(ctx context.Context, m *Method, r capnp.Recv) (*capnp.Answer, capnp.ReleaseFunc) {
 	// TODO(someday): Throttle number of concurrent calls.
-	defer s.mu.Unlock()
-	s.calls.Add(1)
-	s.mu.Lock()
+	defer srv.mu.Unlock()
+	srv.calls.Add(1)
+	srv.mu.Lock()
 	results, err := newBlankStruct(m.ResultsSize)
 	if err != nil {
-		a.Release()
+		r.ReleaseArgs()
 		return capnp.ErrorAnswer(err), func() {}
 	}
 	acksig := newAckSignal()
-	opts = opts.With([]capnp.CallOption{capnp.SetOptionValue(ackSignalKey{}, acksig)})
+	opts := r.Options.With([]capnp.CallOption{capnp.SetOptionValue(ackSignalKey{}, acksig)})
 	p := capnp.NewPromise(new(pipelineQueue))
 	go func() {
-		defer s.calls.Done()
-		err := m.Impl(ctx, a.Args, results, opts)
-		a.Release()
+		defer srv.calls.Done()
+		err := m.Impl(ctx, r.Args, results, opts)
+		r.ReleaseArgs()
 		if err != nil {
 			p.Reject(err)
 			// TODO(someday): log error from ClearCaps
@@ -137,18 +137,18 @@ func (s *Server) start(ctx context.Context, m *Method, a capnp.RecvArgs, opts ca
 }
 
 // Brand returns a value that will match IsServer.
-func (s *Server) Brand() interface{} {
-	return serverBrand{s.brand}
+func (srv *Server) Brand() interface{} {
+	return serverBrand{srv.brand}
 }
 
 // Close waits for ongoing calls to finish and calls Close to the Closer.
-func (s *Server) Close() error {
+func (srv *Server) Close() error {
 	// TODO(someday): cancel all outstanding calls.
-	s.calls.Wait()
-	if s.closer == nil {
+	srv.calls.Wait()
+	if srv.closer == nil {
 		return nil
 	}
-	return s.closer.Close()
+	return srv.closer.Close()
 }
 
 // IsServer reports whether a brand returned by capnp.Client.Brand
@@ -190,28 +190,28 @@ func Ack(opts capnp.CallOptions) {
 type pipelineQueue struct {
 }
 
-func (pq *pipelineQueue) PipelineRecv(ctx context.Context, transform []capnp.PipelineOp, m capnp.Method, a capnp.RecvArgs, opts capnp.CallOptions) (*capnp.Answer, capnp.ReleaseFunc) {
-	a.Release()
+func (pq *pipelineQueue) PipelineRecv(ctx context.Context, transform []capnp.PipelineOp, r capnp.Recv) (*capnp.Answer, capnp.ReleaseFunc) {
+	r.ReleaseArgs()
 	return capnp.ErrorAnswer(errors.New("TODO(soon)")), func() {}
 }
 
-func (pq *pipelineQueue) PipelineSend(ctx context.Context, transform []capnp.PipelineOp, m capnp.Method, a capnp.SendArgs, opts capnp.CallOptions) (*capnp.Answer, capnp.ReleaseFunc) {
+func (pq *pipelineQueue) PipelineSend(ctx context.Context, transform []capnp.PipelineOp, s capnp.Send) (*capnp.Answer, capnp.ReleaseFunc) {
 	return capnp.ErrorAnswer(errors.New("TODO(soon)")), func() {}
 }
 
-func argsToStruct(a capnp.SendArgs) (capnp.Struct, error) {
-	if a.Place == nil {
+func sendArgsToStruct(s capnp.Send) (capnp.Struct, error) {
+	if s.PlaceArgs == nil {
 		return capnp.Struct{}, nil
 	}
-	s, err := newBlankStruct(a.Size)
+	st, err := newBlankStruct(s.ArgsSize)
 	if err != nil {
 		return capnp.Struct{}, err
 	}
-	if err := a.Place(s); err != nil {
-		s.Segment().Message().Reset(nil)
+	if err := s.PlaceArgs(st); err != nil {
+		st.Segment().Message().Reset(nil)
 		return capnp.Struct{}, err
 	}
-	return s, nil
+	return st, nil
 }
 
 func newBlankStruct(sz capnp.ObjectSize) (capnp.Struct, error) {
@@ -219,11 +219,11 @@ func newBlankStruct(sz capnp.ObjectSize) (capnp.Struct, error) {
 	if err != nil {
 		return capnp.Struct{}, err
 	}
-	s, err := capnp.NewRootStruct(seg, sz)
+	st, err := capnp.NewRootStruct(seg, sz)
 	if err != nil {
 		return capnp.Struct{}, err
 	}
-	return s, nil
+	return st, nil
 }
 
 type sortedMethods []Method

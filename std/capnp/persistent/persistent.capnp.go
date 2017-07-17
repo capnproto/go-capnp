@@ -20,17 +20,20 @@ type Persistent struct{ Client *capnp.Client }
 const Persistent_TypeID = 0xc8cb212fcd9f5691
 
 func (c Persistent) Save(ctx context.Context, params func(Persistent_SaveParams) error, opts ...capnp.CallOption) (Persistent_SaveResults_Future, capnp.ReleaseFunc) {
-	var args capnp.SendArgs
-	if params != nil {
-		args.Size = capnp.ObjectSize{DataSize: 0, PointerCount: 1}
-		args.Place = func(s capnp.Struct) error { return params(Persistent_SaveParams{Struct: s}) }
+	s := capnp.Send{
+		Method: capnp.Method{
+			InterfaceID:   0xc8cb212fcd9f5691,
+			MethodID:      0,
+			InterfaceName: "persistent.capnp:Persistent",
+			MethodName:    "save",
+		},
+		Options: capnp.NewCallOptions(opts),
 	}
-	ans, release := c.Client.SendCall(ctx, capnp.Method{
-		InterfaceID:   0xc8cb212fcd9f5691,
-		MethodID:      0,
-		InterfaceName: "persistent.capnp:Persistent",
-		MethodName:    "save",
-	}, args, capnp.NewCallOptions(opts))
+	if params != nil {
+		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 1}
+		s.PlaceArgs = func(s capnp.Struct) error { return params(Persistent_SaveParams{Struct: s}) }
+	}
+	ans, release := c.Client.SendCall(ctx, s)
 	return Persistent_SaveResults_Future{Future: ans.Future()}, release
 }
 
@@ -225,31 +228,37 @@ type RealmGateway struct{ Client *capnp.Client }
 const RealmGateway_TypeID = 0x84ff286cd00a3ed4
 
 func (c RealmGateway) Import(ctx context.Context, params func(RealmGateway_import_Params) error, opts ...capnp.CallOption) (Persistent_SaveResults_Future, capnp.ReleaseFunc) {
-	var args capnp.SendArgs
-	if params != nil {
-		args.Size = capnp.ObjectSize{DataSize: 0, PointerCount: 2}
-		args.Place = func(s capnp.Struct) error { return params(RealmGateway_import_Params{Struct: s}) }
+	s := capnp.Send{
+		Method: capnp.Method{
+			InterfaceID:   0x84ff286cd00a3ed4,
+			MethodID:      0,
+			InterfaceName: "persistent.capnp:RealmGateway",
+			MethodName:    "import",
+		},
+		Options: capnp.NewCallOptions(opts),
 	}
-	ans, release := c.Client.SendCall(ctx, capnp.Method{
-		InterfaceID:   0x84ff286cd00a3ed4,
-		MethodID:      0,
-		InterfaceName: "persistent.capnp:RealmGateway",
-		MethodName:    "import",
-	}, args, capnp.NewCallOptions(opts))
+	if params != nil {
+		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 2}
+		s.PlaceArgs = func(s capnp.Struct) error { return params(RealmGateway_import_Params{Struct: s}) }
+	}
+	ans, release := c.Client.SendCall(ctx, s)
 	return Persistent_SaveResults_Future{Future: ans.Future()}, release
 }
 func (c RealmGateway) Export(ctx context.Context, params func(RealmGateway_export_Params) error, opts ...capnp.CallOption) (Persistent_SaveResults_Future, capnp.ReleaseFunc) {
-	var args capnp.SendArgs
-	if params != nil {
-		args.Size = capnp.ObjectSize{DataSize: 0, PointerCount: 2}
-		args.Place = func(s capnp.Struct) error { return params(RealmGateway_export_Params{Struct: s}) }
+	s := capnp.Send{
+		Method: capnp.Method{
+			InterfaceID:   0x84ff286cd00a3ed4,
+			MethodID:      1,
+			InterfaceName: "persistent.capnp:RealmGateway",
+			MethodName:    "export",
+		},
+		Options: capnp.NewCallOptions(opts),
 	}
-	ans, release := c.Client.SendCall(ctx, capnp.Method{
-		InterfaceID:   0x84ff286cd00a3ed4,
-		MethodID:      1,
-		InterfaceName: "persistent.capnp:RealmGateway",
-		MethodName:    "export",
-	}, args, capnp.NewCallOptions(opts))
+	if params != nil {
+		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 2}
+		s.PlaceArgs = func(s capnp.Struct) error { return params(RealmGateway_export_Params{Struct: s}) }
+	}
+	ans, release := c.Client.SendCall(ctx, s)
 	return Persistent_SaveResults_Future{Future: ans.Future()}, release
 }
 

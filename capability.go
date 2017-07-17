@@ -218,11 +218,11 @@ func (c *Client) lockedResolve() {
 	}
 }
 
-// SendCall allocates space for parameters, calls a.Place to fill out the
-// parameters, then starts executing a method, returning an answer that
-// will hold the result.  The caller must call the returned release
+// SendCall allocates space for parameters, calls args.Place to fill out
+// the parameters, then starts executing a method, returning an answer
+// that will hold the result.  The caller must call the returned release
 // function when it no longer needs the answer's data.
-func (c *Client) SendCall(ctx context.Context, m Method, a SendArgs, opts CallOptions) (*Answer, ReleaseFunc) {
+func (c *Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 	h, closed, finish := c.startCall()
 	defer finish()
 	if closed {
@@ -231,7 +231,7 @@ func (c *Client) SendCall(ctx context.Context, m Method, a SendArgs, opts CallOp
 	if h == nil {
 		return ErrorAnswer(errors.New("capnp: call on null client")), func() {}
 	}
-	return h.Send(ctx, m, a, opts)
+	return h.Send(ctx, s)
 }
 
 // RecvCall starts executing a method with the referenced arguments
@@ -239,7 +239,7 @@ func (c *Client) SendCall(ctx context.Context, m Method, a SendArgs, opts CallOp
 // a.Release when it no longer needs to reference the parameters.  The
 // caller must call the returned release function when it no longer
 // needs the answer's data.
-func (c *Client) RecvCall(ctx context.Context, m Method, a RecvArgs, opts CallOptions) (*Answer, ReleaseFunc) {
+func (c *Client) RecvCall(ctx context.Context, r Recv) (*Answer, ReleaseFunc) {
 	h, closed, finish := c.startCall()
 	defer finish()
 	if closed {
@@ -248,7 +248,7 @@ func (c *Client) RecvCall(ctx context.Context, m Method, a RecvArgs, opts CallOp
 	if h == nil {
 		return ErrorAnswer(errors.New("capnp: call on null client")), func() {}
 	}
-	return h.Recv(ctx, m, a, opts)
+	return h.Recv(ctx, r)
 }
 
 // IsValid reports whether c is a valid reference to a capability.
@@ -521,40 +521,58 @@ func (wc *WeakClient) AddRef() (c *Client, ok bool) {
 // must guarantee that if foo() then bar() is called on a client, that
 // acknowledging foo() happens before acknowledging bar().
 type ClientHook interface {
-	// Send allocates space for parameters, calls a.Place to fill out the
-	// parameters, then starts executing a method, returning an answer that
-	// will hold the result.  The caller must call the returned release
-	// function when it no longer needs the answer's data.
+	// Send allocates space for parameters, calls args.Place to fill out
+	// the arguments, then starts executing a method, returning an answer
+	// that will hold the result.  The caller must call the returned
+	// release function when it no longer needs the answer's data.
 	//
 	// Send is typically used when application code is making a call.
-	Send(ctx context.Context, m Method, a SendArgs, opts CallOptions) (*Answer, ReleaseFunc)
+	Send(ctx context.Context, s Send) (*Answer, ReleaseFunc)
 
 	// Recv starts executing a method with the referenced arguments
 	// and returns an answer that will hold the result.  The hook will call
-	// a.Release when it no longer needs to reference the parameters.  The
-	// caller must call the returned release function when it no longer
+	// args.Release when it no longer needs to reference the parameters.
+	// The caller must call the returned release function when it no longer
 	// needs the answer's data.
 	//
 	// Recv is typically used when the RPC system has received a call.
-	Recv(ctx context.Context, m Method, a RecvArgs, opts CallOptions) (*Answer, ReleaseFunc)
+	Recv(ctx context.Context, r Recv) (*Answer, ReleaseFunc)
 
 	// Brand returns an implementation-specific value.  This can be used
 	// to introspect and identify kinds of clients.
 	Brand() interface{}
 }
 
-// SendArgs consists of an RPC argument placement size and a function
-// that populates a struct.  Place will be called at most once.
-type SendArgs struct {
-	Place func(Struct) error
-	Size  ObjectSize
+// Send is the input to ClientHook.Send.
+type Send struct {
+	// Method must have InterfaceID and MethodID filled in.
+	Method Method
+
+	// PlaceArgs is a function that will be called at most once before Send
+	// returns to populate the arguments for the RPC.  PlaceArgs may be nil.
+	PlaceArgs func(Struct) error
+
+	// ArgsSize specifies the size of the struct to pass to PlaceArgs.
+	ArgsSize ObjectSize
+
+	// Options is the set of call options.
+	Options CallOptions
 }
 
-// RecvArgs consists of a reference to a struct containing RPC arguments
-// and a release function.
-type RecvArgs struct {
-	Args    Struct
-	Release ReleaseFunc
+// Recv is the input to ClientHook.Recv.
+type Recv struct {
+	// Method must have InterfaceID and MethodID filled in.
+	Method Method
+
+	// Args is the set of arguments for the RPC.
+	Args Struct
+
+	// ReleaseArgs is called after Args is no longer referenced.
+	// Must not be nil.
+	ReleaseArgs ReleaseFunc
+
+	// Options is the set of call options.
+	Options CallOptions
 }
 
 // ClientHookCloser is the interface that groups the ClientHook and
@@ -673,11 +691,12 @@ func ErrorClient(e error) *Client {
 	return NewClient(errorClient{e})
 }
 
-func (ec errorClient) Send(context.Context, Method, SendArgs, CallOptions) (*Answer, ReleaseFunc) {
+func (ec errorClient) Send(context.Context, Send) (*Answer, ReleaseFunc) {
 	return ErrorAnswer(ec.e), func() {}
 }
 
-func (ec errorClient) Recv(context.Context, Method, RecvArgs, CallOptions) (*Answer, ReleaseFunc) {
+func (ec errorClient) Recv(_ context.Context, r Recv) (*Answer, ReleaseFunc) {
+	r.ReleaseArgs()
 	return ErrorAnswer(ec.e), func() {}
 }
 

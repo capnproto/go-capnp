@@ -4312,17 +4312,20 @@ type Echo struct{ Client *capnp.Client }
 const Echo_TypeID = 0x8e5322c1e9282534
 
 func (c Echo) Echo(ctx context.Context, params func(Echo_echo_Params) error, opts ...capnp.CallOption) (Echo_echo_Results_Future, capnp.ReleaseFunc) {
-	var args capnp.SendArgs
-	if params != nil {
-		args.Size = capnp.ObjectSize{DataSize: 0, PointerCount: 1}
-		args.Place = func(s capnp.Struct) error { return params(Echo_echo_Params{Struct: s}) }
+	s := capnp.Send{
+		Method: capnp.Method{
+			InterfaceID:   0x8e5322c1e9282534,
+			MethodID:      0,
+			InterfaceName: "aircraft.capnp:Echo",
+			MethodName:    "echo",
+		},
+		Options: capnp.NewCallOptions(opts),
 	}
-	ans, release := c.Client.SendCall(ctx, capnp.Method{
-		InterfaceID:   0x8e5322c1e9282534,
-		MethodID:      0,
-		InterfaceName: "aircraft.capnp:Echo",
-		MethodName:    "echo",
-	}, args, capnp.NewCallOptions(opts))
+	if params != nil {
+		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 1}
+		s.PlaceArgs = func(s capnp.Struct) error { return params(Echo_echo_Params{Struct: s}) }
+	}
+	ans, release := c.Client.SendCall(ctx, s)
 	return Echo_echo_Results_Future{Future: ans.Future()}, release
 }
 
@@ -4979,17 +4982,20 @@ type CallSequence struct{ Client *capnp.Client }
 const CallSequence_TypeID = 0xabaedf5f7817c820
 
 func (c CallSequence) GetNumber(ctx context.Context, params func(CallSequence_getNumber_Params) error, opts ...capnp.CallOption) (CallSequence_getNumber_Results_Future, capnp.ReleaseFunc) {
-	var args capnp.SendArgs
-	if params != nil {
-		args.Size = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
-		args.Place = func(s capnp.Struct) error { return params(CallSequence_getNumber_Params{Struct: s}) }
+	s := capnp.Send{
+		Method: capnp.Method{
+			InterfaceID:   0xabaedf5f7817c820,
+			MethodID:      0,
+			InterfaceName: "aircraft.capnp:CallSequence",
+			MethodName:    "getNumber",
+		},
+		Options: capnp.NewCallOptions(opts),
 	}
-	ans, release := c.Client.SendCall(ctx, capnp.Method{
-		InterfaceID:   0xabaedf5f7817c820,
-		MethodID:      0,
-		InterfaceName: "aircraft.capnp:CallSequence",
-		MethodName:    "getNumber",
-	}, args, capnp.NewCallOptions(opts))
+	if params != nil {
+		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
+		s.PlaceArgs = func(s capnp.Struct) error { return params(CallSequence_getNumber_Params{Struct: s}) }
+	}
+	ans, release := c.Client.SendCall(ctx, s)
 	return CallSequence_getNumber_Results_Future{Future: ans.Future()}, release
 }
 

@@ -164,8 +164,8 @@ func (p *Promise) client(t []PipelineOp) *Client {
 //
 // See the counterpart methods in ClientHook for a description.
 type PipelineCaller interface {
-	PipelineSend(ctx context.Context, transform []PipelineOp, m Method, a SendArgs, opts CallOptions) (*Answer, ReleaseFunc)
-	PipelineRecv(ctx context.Context, transform []PipelineOp, m Method, a RecvArgs, opts CallOptions) (*Answer, ReleaseFunc)
+	PipelineSend(ctx context.Context, transform []PipelineOp, s Send) (*Answer, ReleaseFunc)
+	PipelineRecv(ctx context.Context, transform []PipelineOp, r Recv) (*Answer, ReleaseFunc)
 }
 
 // An Answer is a deferred result of a client call.  Conceptually, this is a
@@ -296,24 +296,24 @@ type pipelineClient struct {
 	transform []PipelineOp
 }
 
-func (pc pipelineClient) Send(ctx context.Context, m Method, a SendArgs, opts CallOptions) (*Answer, ReleaseFunc) {
+func (pc pipelineClient) Send(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 	defer pc.p.mu.RUnlock()
 	pc.p.mu.RLock()
 	if pc.p.caller != nil {
-		return pc.p.caller.PipelineSend(ctx, pc.transform, m, a, opts)
+		return pc.p.caller.PipelineSend(ctx, pc.transform, s)
 	}
 	c := clientFromResolution(pc.p.result, pc.p.err, pc.transform)
-	return c.SendCall(ctx, m, a, opts)
+	return c.SendCall(ctx, s)
 }
 
-func (pc pipelineClient) Recv(ctx context.Context, m Method, a RecvArgs, opts CallOptions) (*Answer, ReleaseFunc) {
+func (pc pipelineClient) Recv(ctx context.Context, r Recv) (*Answer, ReleaseFunc) {
 	defer pc.p.mu.RUnlock()
 	pc.p.mu.RLock()
 	if pc.p.caller != nil {
-		return pc.p.caller.PipelineRecv(ctx, pc.transform, m, a, opts)
+		return pc.p.caller.PipelineRecv(ctx, pc.transform, r)
 	}
 	c := clientFromResolution(pc.p.result, pc.p.err, pc.transform)
-	return c.RecvCall(ctx, m, a, opts)
+	return c.RecvCall(ctx, r)
 }
 
 func (pc pipelineClient) Brand() interface{} {

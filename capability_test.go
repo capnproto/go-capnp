@@ -22,12 +22,7 @@ func TestClient(t *testing.T) {
 	if x, ok := brand.(int); !ok || x != 42 {
 		t.Errorf("c.Brand() = %v; want 42", brand)
 	}
-	args := SendArgs{
-		Place: func(Struct) error {
-			return nil
-		},
-	}
-	ans, finish := c.SendCall(ctx, Method{}, args, CallOptions{})
+	ans, finish := c.SendCall(ctx, Send{})
 	if _, err := ans.Struct(); err != nil {
 		t.Error("SendCall:", err)
 	}
@@ -35,7 +30,7 @@ func TestClient(t *testing.T) {
 	if h.calls != 1 {
 		t.Errorf("after SendCall, h.calls = %d; want 1", h.calls)
 	}
-	ans, finish = c.RecvCall(ctx, Method{}, RecvArgs{Release: func() {}}, CallOptions{})
+	ans, finish = c.RecvCall(ctx, Recv{ReleaseArgs: func() {}})
 	if _, err := ans.Struct(); err != nil {
 		t.Error("RecvCall:", err)
 	}
@@ -69,12 +64,7 @@ func TestClosedClient(t *testing.T) {
 	if c.IsValid() {
 		t.Error("closed client is valid")
 	}
-	args := SendArgs{
-		Place: func(Struct) error {
-			return nil
-		},
-	}
-	ans, finish := c.SendCall(ctx, Method{}, args, CallOptions{})
+	ans, finish := c.SendCall(ctx, Send{})
 	if _, err := ans.Struct(); err == nil {
 		t.Error("SendCall did not return error")
 	}
@@ -82,7 +72,7 @@ func TestClosedClient(t *testing.T) {
 	if h.calls != 0 {
 		t.Errorf("after SendCall, h.calls = %d; want 0", h.calls)
 	}
-	ans, finish = c.RecvCall(ctx, Method{}, RecvArgs{Release: func() {}}, CallOptions{})
+	ans, finish = c.RecvCall(ctx, Recv{ReleaseArgs: func() {}})
 	if _, err := ans.Struct(); err == nil {
 		t.Error("RecvCall did not return error")
 	}
@@ -114,17 +104,12 @@ func TestNullClient(t *testing.T) {
 	if b := c.Brand(); b != nil {
 		t.Errorf("c.Brand() = %v; want <nil>", b)
 	}
-	args := SendArgs{
-		Place: func(Struct) error {
-			return nil
-		},
-	}
-	ans, finish := c.SendCall(ctx, Method{}, args, CallOptions{})
+	ans, finish := c.SendCall(ctx, Send{})
 	if _, err := ans.Struct(); err == nil {
 		t.Error("SendCall did not return error")
 	}
 	finish()
-	ans, finish = c.RecvCall(ctx, Method{}, RecvArgs{Release: func() {}}, CallOptions{})
+	ans, finish = c.RecvCall(ctx, Recv{ReleaseArgs: func() {}})
 	if _, err := ans.Struct(); err == nil {
 		t.Error("RecvCall did not return error")
 	}
@@ -152,15 +137,10 @@ func TestPromisedClient(t *testing.T) {
 	if ca.IsSame(cb) {
 		t.Error("before resolution, ca == cb")
 	}
-	args := SendArgs{
-		Place: func(Struct) error {
-			return nil
-		},
-	}
-	_, finish := ca.SendCall(ctx, Method{}, args, CallOptions{})
+	_, finish := ca.SendCall(ctx, Send{})
 	finish()
 	pa.Fulfill(cb)
-	_, finish = ca.SendCall(ctx, Method{}, args, CallOptions{})
+	_, finish = ca.SendCall(ctx, Send{})
 	finish()
 
 	if !ca.IsSame(cb) {
@@ -192,13 +172,13 @@ type dummyHook struct {
 	closeErr error
 }
 
-func (dh *dummyHook) Send(context.Context, Method, SendArgs, CallOptions) (*Answer, ReleaseFunc) {
+func (dh *dummyHook) Send(context.Context, Send) (*Answer, ReleaseFunc) {
 	dh.calls++
 	return ImmediateAnswer(newEmptyStruct()), func() {}
 }
 
-func (dh *dummyHook) Recv(_ context.Context, _ Method, a RecvArgs, _ CallOptions) (*Answer, ReleaseFunc) {
-	a.Release()
+func (dh *dummyHook) Recv(_ context.Context, r Recv) (*Answer, ReleaseFunc) {
+	r.ReleaseArgs()
 	dh.calls++
 	return ImmediateAnswer(newEmptyStruct()), func() {}
 }
@@ -479,15 +459,10 @@ func TestWeakPromisedClient(t *testing.T) {
 	wa := ca.WeakRef()
 	ctx := context.Background()
 
-	args := SendArgs{
-		Place: func(Struct) error {
-			return nil
-		},
-	}
-	_, finish := ca.SendCall(ctx, Method{}, args, CallOptions{})
+	_, finish := ca.SendCall(ctx, Send{})
 	finish()
 	pa.Fulfill(cb)
-	_, finish = ca.SendCall(ctx, Method{}, args, CallOptions{})
+	_, finish = ca.SendCall(ctx, Send{})
 	finish()
 
 	if err := ca.Close(); err != nil {
