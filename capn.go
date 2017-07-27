@@ -354,7 +354,7 @@ func (s *Segment) writePtr(cc copyContext, off Address, src Ptr) error {
 	}
 	srcSeg := src.Segment()
 
-	if i := src.Interface(); i.Segment() != nil {
+	if i := src.Interface(); i.IsValid() {
 		if s.msg != srcSeg.msg {
 			c := s.msg.AddCap(i.Client())
 			i = NewInterface(s, c)

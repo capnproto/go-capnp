@@ -168,10 +168,19 @@ func (p Ptr) IsValid() bool {
 	return p.seg != nil
 }
 
-// Segment returns the segment this pointer points into.
-// If nil, then this is an invalid pointer.
+// Segment returns the segment that the referenced data is stored in
+// or nil if the pointer is invalid.
 func (p Ptr) Segment() *Segment {
 	return p.seg
+}
+
+// Message returns the message the referenced data is stored in or nil
+// if the pointer is invalid.
+func (p Ptr) Message() *Message {
+	if p.seg == nil {
+		return nil
+	}
+	return p.seg.msg
 }
 
 // Default returns p if it is valid, otherwise it unmarshals def.

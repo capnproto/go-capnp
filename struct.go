@@ -51,9 +51,19 @@ func (p Struct) ToPtr() Ptr {
 	}
 }
 
-// Segment returns the segment this pointer came from.
+// Segment returns the segment the referenced struct is stored in or nil
+// if the pointer is invalid.
 func (p Struct) Segment() *Segment {
 	return p.seg
+}
+
+// Message returns the message the referenced struct is stored in or nil
+// if the pointer is invalid.
+func (p Struct) Message() *Message {
+	if p.seg == nil {
+		return nil
+	}
+	return p.seg.msg
 }
 
 // IsValid returns whether the struct is valid.

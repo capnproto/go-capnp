@@ -73,9 +73,19 @@ func (p List) ToPtr() Ptr {
 	}
 }
 
-// Segment returns the segment this pointer references.
+// Segment returns the segment the referenced list is stored in or
+// nil if the pointer is invalid.
 func (p List) Segment() *Segment {
 	return p.seg
+}
+
+// Message returns the message the referenced list is stored in or nil
+// if the pointer is invalid.
+func (p List) Message() *Message {
+	if p.seg == nil {
+		return nil
+	}
+	return p.seg.msg
 }
 
 // IsValid returns whether the list is valid.

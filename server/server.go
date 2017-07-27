@@ -114,7 +114,7 @@ func (srv *Server) start(ctx context.Context, m *Method, r capnp.Recv) (*capnp.A
 		if err != nil {
 			p.Reject(err)
 			// TODO(someday): log error from ClearCaps
-			results.Segment().Message().Reset(nil)
+			results.Message().Reset(nil)
 			return
 		}
 		p.Fulfill(results.ToPtr())
@@ -132,7 +132,7 @@ func (srv *Server) start(ctx context.Context, m *Method, r capnp.Recv) (*capnp.A
 	return ans, func() {
 		<-ans.Done()
 		// TODO(someday): log error from ClearCaps
-		results.Segment().Message().Reset(nil)
+		results.Message().Reset(nil)
 	}
 }
 
@@ -208,7 +208,7 @@ func sendArgsToStruct(s capnp.Send) (capnp.Struct, error) {
 		return capnp.Struct{}, err
 	}
 	if err := s.PlaceArgs(st); err != nil {
-		st.Segment().Message().Reset(nil)
+		st.Message().Reset(nil)
 		return capnp.Struct{}, err
 	}
 	return st, nil

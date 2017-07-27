@@ -14,13 +14,12 @@ type Interface struct {
 	cap CapabilityID
 }
 
-// NewInterface creates a new interface pointer.  No allocation is
-// performed; s is only used for Segment()'s return value.
+// NewInterface creates a new interface pointer.
+//
+// No allocation is performed in the given segment: it is used purely
+// to associate the interface pointer with a message.
 func NewInterface(s *Segment, cap CapabilityID) Interface {
-	return Interface{
-		seg: s,
-		cap: cap,
-	}
+	return Interface{s, cap}
 }
 
 // ToPtr converts the interface to a generic pointer.
@@ -32,9 +31,13 @@ func (p Interface) ToPtr() Ptr {
 	}
 }
 
-// Segment returns the segment this pointer came from.
-func (i Interface) Segment() *Segment {
-	return i.seg
+// Message returns the message whose capability table the interface
+// references or nil if the pointer is invalid.
+func (i Interface) Message() *Message {
+	if i.seg == nil {
+		return nil
+	}
+	return i.seg.msg
 }
 
 // IsValid returns whether the interface is valid.
@@ -58,10 +61,11 @@ func (i Interface) value(paddr Address) rawPointer {
 // Client returns the client stored in the message's capability table
 // or nil if the pointer is invalid.
 func (i Interface) Client() *Client {
-	if i.seg == nil {
+	msg := i.Message()
+	if msg == nil {
 		return nil
 	}
-	tab := i.seg.msg.CapTable
+	tab := msg.CapTable
 	if int64(i.cap) >= int64(len(tab)) {
 		return nil
 	}
