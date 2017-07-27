@@ -7,13 +7,13 @@ import (
 	"context"
 	"zombiezen.com/go/capnproto2"
 	air "zombiezen.com/go/capnproto2/internal/aircraftlib"
-	. "zombiezen.com/go/capnproto2/server"
+	"zombiezen.com/go/capnproto2/server"
 )
 
 type echoImpl struct{}
 
 func (echoImpl) Echo(ctx context.Context, call air.Echo_echo) error {
-	in, err := call.Params.In()
+	in, err := call.Args.In()
 	if err != nil {
 		return err
 	}
@@ -61,7 +61,7 @@ type lockCallSeq struct {
 func (seq *lockCallSeq) GetNumber(ctx context.Context, call air.CallSequence_getNumber) error {
 	seq.mu.Lock()
 	defer seq.mu.Unlock()
-	Ack(call.Options)
+	call.Ack()
 
 	call.Results.SetN(seq.n)
 	seq.n++
@@ -112,4 +112,54 @@ func TestServerCallOrder(t *testing.T) {
 			t.Errorf("Close %s: %v", test.name, err)
 		}
 	}
+}
+
+func TestServerMaxConcurrentCalls(t *testing.T) {
+	wait := make(chan struct{})
+	echo := air.Echo_ServerToClient(blockingEchoImpl{wait}, &server.Policy{
+		MaxConcurrentCalls: 2,
+	})
+	defer func() {
+		if err := echo.Client.Close(); err != nil {
+			t.Error("Close:", err)
+		}
+	}()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	call1, finish := echo.Echo(ctx, nil)
+	defer finish()
+	call2, finish := echo.Echo(ctx, nil)
+	defer finish()
+	call3, finish := echo.Echo(ctx, nil)
+	defer finish()
+	select {
+	case <-call3.Done():
+		if _, err := call3.Struct(); err == nil {
+			t.Error("overload call returned early success")
+		}
+	default:
+		t.Error("overload call not finished; want immediate overload error")
+	}
+	close(wait)
+	call1.Struct()
+	call2.Struct()
+}
+
+type blockingEchoImpl struct {
+	wait <-chan struct{}
+}
+
+func (echo blockingEchoImpl) Echo(ctx context.Context, call air.Echo_echo) error {
+	in, err := call.Args.In()
+	if err != nil {
+		return err
+	}
+	call.Ack()
+	select {
+	case <-echo.wait:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	call.Results.SetOut(in)
+	return nil
 }

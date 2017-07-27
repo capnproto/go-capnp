@@ -68,11 +68,11 @@ func Persistent_Methods(methods []server.Method, s Persistent_Server) []server.M
 			InterfaceName: "persistent.capnp:Persistent",
 			MethodName:    "save",
 		},
-		Impl: func(ctx context.Context, p, r capnp.Struct, opts capnp.CallOptions) error {
+		Impl: func(ctx context.Context, call server.Call) error {
 			return s.Save(ctx, Persistent_save{
-				Params:  Persistent_SaveParams{Struct: p},
-				Results: Persistent_SaveResults{Struct: r},
-				Options: opts,
+				Args:    Persistent_SaveParams{Struct: call.Args},
+				Results: Persistent_SaveResults{Struct: call.Results},
+				Ack:     call.Ack,
 			})
 		},
 		ResultsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 1},
@@ -82,10 +82,11 @@ func Persistent_Methods(methods []server.Method, s Persistent_Server) []server.M
 }
 
 // Persistent_save holds the state for a server call to Persistent.save.
+// See server.Call for documentation.
 type Persistent_save struct {
-	Params  Persistent_SaveParams
+	Args    Persistent_SaveParams
 	Results Persistent_SaveResults
-	Options capnp.CallOptions
+	Ack     func()
 }
 
 type Persistent_SaveParams struct{ capnp.Struct }
@@ -295,11 +296,11 @@ func RealmGateway_Methods(methods []server.Method, s RealmGateway_Server) []serv
 			InterfaceName: "persistent.capnp:RealmGateway",
 			MethodName:    "import",
 		},
-		Impl: func(ctx context.Context, p, r capnp.Struct, opts capnp.CallOptions) error {
+		Impl: func(ctx context.Context, call server.Call) error {
 			return s.Import(ctx, RealmGateway_import{
-				Params:  RealmGateway_import_Params{Struct: p},
-				Results: Persistent_SaveResults{Struct: r},
-				Options: opts,
+				Args:    RealmGateway_import_Params{Struct: call.Args},
+				Results: Persistent_SaveResults{Struct: call.Results},
+				Ack:     call.Ack,
 			})
 		},
 		ResultsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 1},
@@ -312,11 +313,11 @@ func RealmGateway_Methods(methods []server.Method, s RealmGateway_Server) []serv
 			InterfaceName: "persistent.capnp:RealmGateway",
 			MethodName:    "export",
 		},
-		Impl: func(ctx context.Context, p, r capnp.Struct, opts capnp.CallOptions) error {
+		Impl: func(ctx context.Context, call server.Call) error {
 			return s.Export(ctx, RealmGateway_export{
-				Params:  RealmGateway_export_Params{Struct: p},
-				Results: Persistent_SaveResults{Struct: r},
-				Options: opts,
+				Args:    RealmGateway_export_Params{Struct: call.Args},
+				Results: Persistent_SaveResults{Struct: call.Results},
+				Ack:     call.Ack,
 			})
 		},
 		ResultsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 1},
@@ -326,17 +327,19 @@ func RealmGateway_Methods(methods []server.Method, s RealmGateway_Server) []serv
 }
 
 // RealmGateway_import holds the state for a server call to RealmGateway.import.
+// See server.Call for documentation.
 type RealmGateway_import struct {
-	Params  RealmGateway_import_Params
+	Args    RealmGateway_import_Params
 	Results Persistent_SaveResults
-	Options capnp.CallOptions
+	Ack     func()
 }
 
 // RealmGateway_export holds the state for a server call to RealmGateway.export.
+// See server.Call for documentation.
 type RealmGateway_export struct {
-	Params  RealmGateway_export_Params
+	Args    RealmGateway_export_Params
 	Results Persistent_SaveResults
-	Options capnp.CallOptions
+	Ack     func()
 }
 
 type RealmGateway_import_Params struct{ capnp.Struct }

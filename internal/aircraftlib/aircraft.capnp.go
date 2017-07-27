@@ -4360,11 +4360,11 @@ func Echo_Methods(methods []server.Method, s Echo_Server) []server.Method {
 			InterfaceName: "aircraft.capnp:Echo",
 			MethodName:    "echo",
 		},
-		Impl: func(ctx context.Context, p, r capnp.Struct, opts capnp.CallOptions) error {
+		Impl: func(ctx context.Context, call server.Call) error {
 			return s.Echo(ctx, Echo_echo{
-				Params:  Echo_echo_Params{Struct: p},
-				Results: Echo_echo_Results{Struct: r},
-				Options: opts,
+				Args:    Echo_echo_Params{Struct: call.Args},
+				Results: Echo_echo_Results{Struct: call.Results},
+				Ack:     call.Ack,
 			})
 		},
 		ResultsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 1},
@@ -4374,10 +4374,11 @@ func Echo_Methods(methods []server.Method, s Echo_Server) []server.Method {
 }
 
 // Echo_echo holds the state for a server call to Echo.echo.
+// See server.Call for documentation.
 type Echo_echo struct {
-	Params  Echo_echo_Params
+	Args    Echo_echo_Params
 	Results Echo_echo_Results
-	Options capnp.CallOptions
+	Ack     func()
 }
 
 type Echo_echo_Params struct{ capnp.Struct }
@@ -5030,11 +5031,11 @@ func CallSequence_Methods(methods []server.Method, s CallSequence_Server) []serv
 			InterfaceName: "aircraft.capnp:CallSequence",
 			MethodName:    "getNumber",
 		},
-		Impl: func(ctx context.Context, p, r capnp.Struct, opts capnp.CallOptions) error {
+		Impl: func(ctx context.Context, call server.Call) error {
 			return s.GetNumber(ctx, CallSequence_getNumber{
-				Params:  CallSequence_getNumber_Params{Struct: p},
-				Results: CallSequence_getNumber_Results{Struct: r},
-				Options: opts,
+				Args:    CallSequence_getNumber_Params{Struct: call.Args},
+				Results: CallSequence_getNumber_Results{Struct: call.Results},
+				Ack:     call.Ack,
 			})
 		},
 		ResultsSize: capnp.ObjectSize{DataSize: 8, PointerCount: 0},
@@ -5044,10 +5045,11 @@ func CallSequence_Methods(methods []server.Method, s CallSequence_Server) []serv
 }
 
 // CallSequence_getNumber holds the state for a server call to CallSequence.getNumber.
+// See server.Call for documentation.
 type CallSequence_getNumber struct {
-	Params  CallSequence_getNumber_Params
+	Args    CallSequence_getNumber_Params
 	Results CallSequence_getNumber_Results
-	Options capnp.CallOptions
+	Ack     func()
 }
 
 type CallSequence_getNumber_Params struct{ capnp.Struct }

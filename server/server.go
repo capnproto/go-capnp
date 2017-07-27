@@ -9,17 +9,36 @@ import (
 	"sync"
 
 	"zombiezen.com/go/capnproto2"
+	"zombiezen.com/go/capnproto2/internal/chanmu"
 )
 
-// A Method describes a single method on a server object.
+// A Method describes a single RPC method on a server object.
 type Method struct {
 	capnp.Method
-	Impl        Func
+	Impl        func(context.Context, Call) error
 	ResultsSize capnp.ObjectSize
 }
 
-// A Func is a function that implements a single method.
-type Func func(ctx context.Context, params, results capnp.Struct, opts capnp.CallOptions) error
+// Call holds the state of an ongoing RPC method call.
+type Call struct {
+	// Args is a struct holding the call's arguments.
+	Args capnp.Struct
+
+	// Results is a struct that has enough space to hold the call's results.
+	Results capnp.Struct
+
+	// Ack is a function that is called to acknowledge the delivery of the
+	// RPC call, allowing other RPC methods to be called on the server.
+	// After the first call, subsequent calls to Ack do nothing.
+	//
+	// Ack need not be the first call in a function nor is it required.
+	// Since the function's return is also an acknowledgment of delivery,
+	// short functions can return without calling Ack.  However, since
+	// the server will not return an Answer until the delivery is
+	// acknowledged, failure to acknowledge a call before waiting on an
+	// RPC may cause deadlocks.
+	Ack func()
+}
 
 // Closer is the interface that wraps the Close method.
 type Closer interface {
@@ -32,9 +51,17 @@ type Server struct {
 	methods sortedMethods
 	brand   interface{}
 	closer  Closer
+	policy  Policy
 
-	calls sync.WaitGroup
-	mu    sync.Mutex // serializes calls
+	mu      chanmu.Mutex
+	inImpl  <-chan struct{} // non-nil if inside application code, closed when done
+	drain   chan struct{}   // non-nil if draining, closed when drained
+	nextID  uint64
+	ongoing map[uint64]cstate
+}
+
+type cstate struct {
+	cancel context.CancelFunc
 }
 
 // Policy is a set of behavioral parameters for a Server.
@@ -42,7 +69,7 @@ type Server struct {
 // an application level.  Library functions are encouraged to accept a
 // Policy from a caller instead of creating their own.
 type Policy struct {
-	// TODO(soon): Add queue size etc.
+	MaxConcurrentCalls int
 }
 
 // New returns a client that makes calls to a set of methods.
@@ -55,9 +82,17 @@ func New(methods []Method, brand interface{}, closer Closer, policy *Policy) *Se
 		methods: make(sortedMethods, len(methods)),
 		brand:   brand,
 		closer:  closer,
+		mu:      chanmu.New(),
+		ongoing: make(map[uint64]cstate),
 	}
 	copy(srv.methods, methods)
 	sort.Sort(srv.methods)
+	if policy != nil {
+		srv.policy = *policy
+	}
+	if srv.policy.MaxConcurrentCalls < 1 {
+		srv.policy.MaxConcurrentCalls = 1
+	}
 	return srv
 }
 
@@ -95,44 +130,100 @@ func (srv *Server) Recv(ctx context.Context, r capnp.Recv) (*capnp.Answer, capnp
 }
 
 func (srv *Server) start(ctx context.Context, m *Method, r capnp.Recv) (*capnp.Answer, capnp.ReleaseFunc) {
-	// TODO(someday): Throttle number of concurrent calls.
-	defer srv.mu.Unlock()
-	srv.calls.Add(1)
-	srv.mu.Lock()
 	results, err := newBlankStruct(m.ResultsSize)
 	if err != nil {
 		r.ReleaseArgs()
 		return capnp.ErrorAnswer(err), func() {}
 	}
-	acksig := newAckSignal()
-	opts := r.Options.With([]capnp.CallOption{capnp.SetOptionValue(ackSignalKey{}, acksig)})
+	ack := make(chan struct{})
 	p := capnp.NewPromise(new(pipelineQueue))
-	go func() {
-		defer srv.calls.Done()
-		err := m.Impl(ctx, r.Args, results, opts)
+
+	if err := srv.mu.TryLock(ctx); err != nil {
 		r.ReleaseArgs()
-		if err != nil {
+		return capnp.ErrorAnswer(err), func() {}
+	}
+	for {
+		if srv.drain != nil {
+			srv.mu.Unlock()
+			r.ReleaseArgs()
+			return capnp.ErrorAnswer(errors.New("capnp server: call after Close")), func() {}
+		}
+		if srv.inImpl == nil {
+			break
+		}
+		wait := srv.inImpl
+		srv.mu.Unlock()
+		select {
+		case <-wait:
+		case <-ctx.Done():
+			r.ReleaseArgs()
+			return capnp.ErrorAnswer(err), func() {}
+		}
+		if err := srv.mu.TryLock(ctx); err != nil {
+			r.ReleaseArgs()
+			return capnp.ErrorAnswer(err), func() {}
+		}
+	}
+
+	if len(srv.ongoing) >= srv.policy.MaxConcurrentCalls {
+		srv.mu.Unlock()
+		r.ReleaseArgs()
+		// TODO(someday): classify as overloaded
+		return capnp.ErrorAnswer(errors.New("capnp server: too many concurrent calls")), func() {}
+	}
+	id := srv.nextID
+	srv.nextID++
+	ctx, cancel := context.WithCancel(ctx)
+	srv.ongoing[id] = cstate{cancel}
+	done := make(chan struct{})
+	srv.inImpl = done
+	srv.mu.Unlock()
+	defer func() {
+		srv.mu.Lock()
+		srv.inImpl = nil
+		close(done)
+		srv.mu.Unlock()
+	}()
+
+	go func() {
+		once := new(sync.Once)
+		err := m.Impl(ctx, Call{
+			Args:    r.Args,
+			Results: results,
+			Ack: func() {
+				once.Do(func() { close(ack) })
+			},
+		})
+		r.ReleaseArgs()
+		if err == nil {
+			p.Fulfill(results.ToPtr())
+		} else {
 			p.Reject(err)
 			// TODO(someday): log error from ClearCaps
 			results.Message().Reset(nil)
-			return
 		}
-		p.Fulfill(results.ToPtr())
+		srv.mu.Lock()
+		srv.ongoing[id].cancel()
+		delete(srv.ongoing, id)
+		if len(srv.ongoing) == 0 && srv.drain != nil {
+			close(srv.drain)
+		}
+		srv.mu.Unlock()
 	}()
 	ans := p.Answer()
 	select {
-	case <-acksig.c:
+	case <-ack:
 	case <-ans.Done():
 		// Implementation functions may not call Ack, which is fine for
 		// smaller functions.
-	case <-ctx.Done():
-		// Ideally, this would reject the answer immediately, but that
-		// would race with the goroutine.
 	}
+	once := new(sync.Once)
 	return ans, func() {
-		<-ans.Done()
-		// TODO(someday): log error from ClearCaps
-		results.Message().Reset(nil)
+		once.Do(func() {
+			<-ans.Done()
+			// TODO(someday): log error from ClearCaps
+			results.Message().Reset(nil)
+		})
 	}
 }
 
@@ -143,8 +234,22 @@ func (srv *Server) Brand() interface{} {
 
 // Close waits for ongoing calls to finish and calls Close to the Closer.
 func (srv *Server) Close() error {
-	// TODO(someday): cancel all outstanding calls.
-	srv.calls.Wait()
+	srv.mu.Lock()
+	if srv.drain != nil {
+		srv.mu.Unlock()
+		return errors.New("capnp server: Close called multiple times")
+	}
+	srv.drain = make(chan struct{})
+	if len(srv.ongoing) > 0 {
+		for _, cs := range srv.ongoing {
+			cs.cancel()
+		}
+		srv.mu.Unlock()
+		<-srv.drain
+	} else {
+		close(srv.drain)
+		srv.mu.Unlock()
+	}
 	if srv.closer == nil {
 		return nil
 	}
@@ -161,30 +266,6 @@ func IsServer(brand interface{}) (_ interface{}, ok bool) {
 
 type serverBrand struct {
 	x interface{}
-}
-
-// Ack acknowledges delivery of a server call, allowing other methods
-// to be called on the server.  It is intended to be used inside the
-// implementation of a server function.  Calling Ack on options that
-// aren't from a server method implementation is a no-op.
-//
-// Example:
-//
-//	func (my *myServer) MyMethod(call schema.MyServer_myMethod) error {
-//		server.Ack(call.Options)
-//		// ... do long-running operation ...
-//		return nil
-//	}
-//
-// Ack need not be the first call in a function nor is it required.
-// Since the function's return is also an acknowledgment of delivery,
-// short functions can return without calling Ack.  However, since
-// clients will not return an Answer until the delivery is acknowledged,
-// it is advisable to ack early.
-func Ack(opts capnp.CallOptions) {
-	if ack, _ := opts.Value(ackSignalKey{}).(*ackSignal); ack != nil {
-		ack.signal()
-	}
 }
 
 type pipelineQueue struct {
@@ -261,20 +342,3 @@ func (sm sortedMethods) Less(i, j int) bool {
 func (sm sortedMethods) Swap(i, j int) {
 	sm[i], sm[j] = sm[j], sm[i]
 }
-
-type ackSignal struct {
-	c    chan struct{}
-	once sync.Once
-}
-
-func newAckSignal() *ackSignal {
-	return &ackSignal{c: make(chan struct{})}
-}
-
-func (ack *ackSignal) signal() {
-	ack.once.Do(func() {
-		close(ack.c)
-	})
-}
-
-type ackSignalKey struct{}

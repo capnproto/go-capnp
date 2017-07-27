@@ -28,11 +28,11 @@ func {{.Node.Name}}_Methods(methods []{{.G.Imports.Server}}.Method, s {{.Node.Na
 		Method: {{$.G.Capnp}}.Method{
 			{{template "_interfaceMethod" .}}
 		},
-		Impl: func(ctx {{$.G.Imports.Context}}.Context, p, r {{$.G.Capnp}}.Struct, opts {{$.G.Capnp}}.CallOptions) error {
+		Impl: func(ctx {{$.G.Imports.Context}}.Context, call {{$.G.Imports.Server}}.Call) error {
 			return s.{{.Name|title}}(ctx, {{$.G.RemoteNodeName .Interface $.Node}}_{{.Name}}{
-				Params:  {{$.G.RemoteNodeName .Params $.Node}}{Struct: p},
-				Results: {{$.G.RemoteNodeName .Results $.Node}}{Struct: r},
-				Options: opts,
+				Args:    {{$.G.RemoteNodeName .Params $.Node}}{Struct: call.Args},
+				Results: {{$.G.RemoteNodeName .Results $.Node}}{Struct: call.Results},
+				Ack:     call.Ack,
 			})
 		},
 		ResultsSize: {{$.G.ObjectSize .Results}},
@@ -43,10 +43,11 @@ func {{.Node.Name}}_Methods(methods []{{.G.Imports.Server}}.Method, s {{.Node.Na
 {{range .Methods -}}
 {{if eq .Interface.Id $.Node.Id}}
 // {{$.Node.Name}}_{{.Name}} holds the state for a server call to {{$.Node.Name}}.{{.Name}}.
+// See server.Call for documentation.
 type {{$.Node.Name}}_{{.Name}} struct {
-	Params  {{$.G.RemoteNodeName .Params $.Node}}
+	Args    {{$.G.RemoteNodeName .Params $.Node}}
 	Results {{$.G.RemoteNodeName .Results $.Node}}
-	Options {{$.G.Capnp}}.CallOptions
+	Ack     func()
 }
 {{end}}
 {{- end}}
