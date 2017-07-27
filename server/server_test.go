@@ -69,49 +69,47 @@ func (seq *lockCallSeq) GetNumber(ctx context.Context, call air.CallSequence_get
 }
 
 func TestServerCallOrder(t *testing.T) {
-	seq := air.CallSequence_ServerToClient(new(callSeq), nil)
-	testCallOrder(t, seq)
-	if err := seq.Client.Close(); err != nil {
-		t.Error("Close:", err)
+	tests := []struct {
+		name string
+		seq  air.CallSequence
+	}{
+		{"NoAck", air.CallSequence_ServerToClient(new(callSeq), nil)},
+		{"AckWithLocks", air.CallSequence_ServerToClient(new(callSeq), nil)},
 	}
-}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
+			send := func() (air.CallSequence_getNumber_Results_Future, capnp.ReleaseFunc) {
+				return test.seq.GetNumber(ctx, nil)
+			}
+			check := func(p air.CallSequence_getNumber_Results_Future, n uint32) {
+				result, err := p.Struct()
+				if err != nil {
+					t.Errorf("seq.getNumber() error: %v; want %d", err, n)
+				} else if result.N() != n {
+					t.Errorf("seq.getNumber() = %d; want %d", result.N(), n)
+				}
+			}
 
-func TestServerCallOrderWithCustomLocks(t *testing.T) {
-	seq := air.CallSequence_ServerToClient(new(lockCallSeq), nil)
-	testCallOrder(t, seq)
-	if err := seq.Client.Close(); err != nil {
-		t.Error("Close:", err)
-	}
-}
+			call0, finish := send()
+			defer finish()
+			call1, finish := send()
+			defer finish()
+			call2, finish := send()
+			defer finish()
+			call3, finish := send()
+			defer finish()
+			call4, finish := send()
+			defer finish()
 
-func testCallOrder(t *testing.T, seq air.CallSequence) {
-	ctx := context.Background()
-	send := func() (air.CallSequence_getNumber_Results_Future, capnp.ReleaseFunc) {
-		return seq.GetNumber(ctx, nil)
-	}
-	check := func(p air.CallSequence_getNumber_Results_Future, n uint32) {
-		result, err := p.Struct()
-		if err != nil {
-			t.Errorf("seq.getNumber() error: %v; want %d", err, n)
-		} else if result.N() != n {
-			t.Errorf("seq.getNumber() = %d; want %d", result.N(), n)
+			check(call0, 0)
+			check(call1, 1)
+			check(call2, 2)
+			check(call3, 3)
+			check(call4, 4)
+		})
+		if err := test.seq.Client.Close(); err != nil {
+			t.Errorf("Close %s: %v", test.name, err)
 		}
 	}
-
-	call0, finish := send()
-	defer finish()
-	call1, finish := send()
-	defer finish()
-	call2, finish := send()
-	defer finish()
-	call3, finish := send()
-	defer finish()
-	call4, finish := send()
-	defer finish()
-
-	check(call0, 0)
-	check(call1, 1)
-	check(call2, 2)
-	check(call3, 3)
-	check(call4, 4)
 }
