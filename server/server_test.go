@@ -145,6 +145,26 @@ func TestServerMaxConcurrentCalls(t *testing.T) {
 	call2.Struct()
 }
 
+func TestServerClose(t *testing.T) {
+	wait := make(chan struct{})
+	echo := air.Echo_ServerToClient(blockingEchoImpl{wait}, nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	call, finish := echo.Echo(ctx, nil)
+	defer finish()
+	if err := echo.Client.Close(); err != nil {
+		t.Error("Close:", err)
+	}
+	select {
+	case <-call.Done():
+		if _, err := call.Struct(); err == nil {
+			t.Error("call finished without error")
+		}
+	default:
+		t.Error("call not done after Close")
+	}
+}
+
 type blockingEchoImpl struct {
 	wait <-chan struct{}
 }

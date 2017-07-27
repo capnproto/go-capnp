@@ -135,9 +135,11 @@ func (srv *Server) start(ctx context.Context, m *Method, r capnp.Recv) (*capnp.A
 		r.ReleaseArgs()
 		return capnp.ErrorAnswer(err), func() {}
 	}
+	resultMsg := results.Message()
 	ack := make(chan struct{})
 	p := capnp.NewPromise(new(pipelineQueue))
 
+	// Acquire lock and block until all other concurrent calls have acknowledged delivery.
 	if err := srv.mu.TryLock(ctx); err != nil {
 		r.ReleaseArgs()
 		return capnp.ErrorAnswer(err), func() {}
@@ -200,7 +202,7 @@ func (srv *Server) start(ctx context.Context, m *Method, r capnp.Recv) (*capnp.A
 		} else {
 			p.Reject(err)
 			// TODO(someday): log error from ClearCaps
-			results.Message().Reset(nil)
+			resultMsg.Reset(nil)
 		}
 		srv.mu.Lock()
 		srv.ongoing[id].cancel()
@@ -222,7 +224,7 @@ func (srv *Server) start(ctx context.Context, m *Method, r capnp.Recv) (*capnp.A
 		once.Do(func() {
 			<-ans.Done()
 			// TODO(someday): log error from ClearCaps
-			results.Message().Reset(nil)
+			resultMsg.Reset(nil)
 		})
 	}
 }
