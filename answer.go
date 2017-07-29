@@ -223,6 +223,16 @@ func (ans *Answer) Field(off uint16, def []byte) *Future {
 	return ans.f.Field(off, def)
 }
 
+// SendCall starts a pipelined call.
+func (ans *Answer) SendCall(ctx context.Context, transform []PipelineOp, s Send) (*Answer, ReleaseFunc) {
+	return ans.f.promise.client(transform).SendCall(ctx, s)
+}
+
+// RecvCall starts a pipelined call.
+func (ans *Answer) RecvCall(ctx context.Context, transform []PipelineOp, r Recv) (*Answer, ReleaseFunc) {
+	return ans.f.promise.client(transform).RecvCall(ctx, r)
+}
+
 // A Future accesses a portion of an Answer.  It is safe to use from
 // multiple goroutines.
 type Future struct {
