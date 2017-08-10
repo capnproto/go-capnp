@@ -75,6 +75,14 @@ type Policy struct {
 	//
 	// If this is zero, then a reasonably small default is used.
 	MaxConcurrentCalls int
+
+	// AnswerQueueSize is the maximum number of methods allowed to be
+	// enqueued on a single returned Answer while it is unresolved.
+	// Attempts to enqueue more calls than this limit will result in
+	// immediate error answers.
+	//
+	// If this is zero, then a reasonably small default is used.
+	AnswerQueueSize int
 }
 
 // New returns a client that makes calls to a set of methods.
@@ -98,6 +106,8 @@ func New(methods []Method, brand interface{}, closer Closer, policy *Policy) *Se
 	if srv.policy.MaxConcurrentCalls < 1 {
 		srv.policy.MaxConcurrentCalls = 2
 	}
+	if srv.policy.AnswerQueueSize < 1 {
+		srv.policy.AnswerQueueSize = 8
 	}
 	return srv
 }
@@ -143,7 +153,9 @@ func (srv *Server) start(ctx context.Context, m *Method, r capnp.Recv) (*capnp.A
 	}
 	resultMsg := results.Message()
 	ack := make(chan struct{})
-	p := capnp.NewPromise(new(pipelineQueue))
+
+	aq := newAnswerQueue(srv.policy.AnswerQueueSize)
+	p := capnp.NewPromise(aq)
 
 	// Acquire lock and block until all other concurrent calls have acknowledged delivery.
 	if err := srv.mu.TryLock(ctx); err != nil {
@@ -204,9 +216,9 @@ func (srv *Server) start(ctx context.Context, m *Method, r capnp.Recv) (*capnp.A
 		})
 		r.ReleaseArgs()
 		if err == nil {
-			p.Fulfill(results.ToPtr())
+			aq.drain(capnp.ImmediateAnswer(results), p)
 		} else {
-			p.Reject(err)
+			aq.drain(capnp.ErrorAnswer(err), p)
 			// TODO(someday): log error from ClearCaps
 			resultMsg.Reset(nil)
 		}
@@ -274,18 +286,6 @@ func IsServer(brand interface{}) (_ interface{}, ok bool) {
 
 type serverBrand struct {
 	x interface{}
-}
-
-type pipelineQueue struct {
-}
-
-func (pq *pipelineQueue) PipelineRecv(ctx context.Context, transform []capnp.PipelineOp, r capnp.Recv) (*capnp.Answer, capnp.ReleaseFunc) {
-	r.ReleaseArgs()
-	return capnp.ErrorAnswer(errors.New("TODO(soon)")), func() {}
-}
-
-func (pq *pipelineQueue) PipelineSend(ctx context.Context, transform []capnp.PipelineOp, s capnp.Send) (*capnp.Answer, capnp.ReleaseFunc) {
-	return capnp.ErrorAnswer(errors.New("TODO(soon)")), func() {}
 }
 
 func sendArgsToStruct(s capnp.Send) (capnp.Struct, error) {

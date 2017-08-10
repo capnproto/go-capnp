@@ -318,8 +318,14 @@ struct StackingB {
   num @0 :Int32;
 }
 
+# test RPC ordering
+
 interface CallSequence {
   getNumber @0 () -> (n :UInt32);
+}
+
+interface Pipeliner extends (CallSequence) {
+  newPipeliner @0 () -> (pipeliner :Pipeliner);
 }
 
 # test defaults

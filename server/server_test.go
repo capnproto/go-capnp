@@ -1,6 +1,7 @@
 package server_test
 
 import (
+	"errors"
 	"sync"
 	"testing"
 
@@ -181,5 +182,67 @@ func (echo blockingEchoImpl) Echo(ctx context.Context, call air.Echo_echo) error
 		return ctx.Err()
 	}
 	call.Results.SetOut(in)
+	return nil
+}
+
+func TestPipelineCall(t *testing.T) {
+	wait := make(chan struct{})
+	var once sync.Once
+	p := air.Pipeliner_ServerToClient(&pipeliner{
+		factory: func(ctx context.Context) (*pipeliner, error) {
+			first := false
+			once.Do(func() { first = true })
+			if !first {
+				return nil, errors.New("can only create one pipeliner")
+			}
+			select {
+			case <-wait:
+				return new(pipeliner), nil
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		},
+	}, nil)
+
+	ctx := context.Background()
+	baseAns, finish := p.NewPipeliner(ctx, nil)
+	defer finish()
+	qq := baseAns.Pipeliner()
+	ans1, finish := qq.GetNumber(ctx, nil)
+	defer finish()
+	close(wait)
+	<-baseAns.Done()
+	ans2, finish := qq.GetNumber(ctx, nil)
+	defer finish()
+
+	result1, err := ans1.Struct()
+	if err != nil {
+		t.Errorf("GetNumber() #1: %v", err)
+	} else if result1.N() != 0 {
+		t.Errorf("GetNumber() #1 = %d; want 0", result1.N())
+	}
+	result2, err := ans2.Struct()
+	if err != nil {
+		t.Errorf("GetNumber() #2: %v", err)
+	} else if result2.N() != 1 {
+		t.Errorf("GetNumber() #2 = %d; want 1", result2.N())
+	}
+}
+
+type pipeliner struct {
+	callSeq
+	factory func(context.Context) (*pipeliner, error)
+}
+
+func (p *pipeliner) NewPipeliner(ctx context.Context, call air.Pipeliner_newPipeliner) error {
+	if p.factory == nil {
+		return errors.New("no factory present")
+	}
+	call.Ack()
+	q, err := p.factory(ctx)
+	if err != nil {
+		return err
+	}
+	call.Results.SetPipeliner(air.Pipeliner_ServerToClient(q, nil))
 	return nil
 }
