@@ -69,6 +69,11 @@ type cstate struct {
 // an application level.  Library functions are encouraged to accept a
 // Policy from a caller instead of creating their own.
 type Policy struct {
+	// MaxConcurrentCalls is the maximum number of methods allowed to be
+	// executing on a single Server simultaneously.  Attempts to make more
+	// calls than this limit will result in immediate error answers.
+	//
+	// If this is zero, then a reasonably small default is used.
 	MaxConcurrentCalls int
 }
 
@@ -91,7 +96,8 @@ func New(methods []Method, brand interface{}, closer Closer, policy *Policy) *Se
 		srv.policy = *policy
 	}
 	if srv.policy.MaxConcurrentCalls < 1 {
-		srv.policy.MaxConcurrentCalls = 1
+		srv.policy.MaxConcurrentCalls = 2
+	}
 	}
 	return srv
 }
