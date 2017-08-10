@@ -56,12 +56,11 @@ type Server struct {
 	mu      chanmu.Mutex
 	inImpl  <-chan struct{} // non-nil if inside application code, closed when done
 	drain   chan struct{}   // non-nil if draining, closed when drained
-	nextID  uint64
-	ongoing map[uint64]cstate
+	ongoing []cstate
 }
 
 type cstate struct {
-	cancel context.CancelFunc
+	cancel context.CancelFunc // nil if slot free
 }
 
 // Policy is a set of behavioral parameters for a Server.
@@ -96,7 +95,6 @@ func New(methods []Method, brand interface{}, closer Closer, policy *Policy) *Se
 		brand:   brand,
 		closer:  closer,
 		mu:      chanmu.New(),
-		ongoing: make(map[uint64]cstate),
 	}
 	copy(srv.methods, methods)
 	sort.Sort(srv.methods)
@@ -106,6 +104,7 @@ func New(methods []Method, brand interface{}, closer Closer, policy *Policy) *Se
 	if srv.policy.MaxConcurrentCalls < 1 {
 		srv.policy.MaxConcurrentCalls = 2
 	}
+	srv.ongoing = make([]cstate, srv.policy.MaxConcurrentCalls)
 	if srv.policy.AnswerQueueSize < 1 {
 		srv.policy.AnswerQueueSize = 8
 	}
@@ -185,14 +184,13 @@ func (srv *Server) start(ctx context.Context, m *Method, r capnp.Recv) (*capnp.A
 		}
 	}
 
-	if len(srv.ongoing) >= srv.policy.MaxConcurrentCalls {
+	id := srv.nextID()
+	if id == -1 {
 		srv.mu.Unlock()
 		r.ReleaseArgs()
 		// TODO(someday): classify as overloaded
 		return capnp.ErrorAnswer(errors.New("capnp server: too many concurrent calls")), func() {}
 	}
-	id := srv.nextID
-	srv.nextID++
 	ctx, cancel := context.WithCancel(ctx)
 	srv.ongoing[id] = cstate{cancel}
 	done := make(chan struct{})
@@ -224,8 +222,8 @@ func (srv *Server) start(ctx context.Context, m *Method, r capnp.Recv) (*capnp.A
 		}
 		srv.mu.Lock()
 		srv.ongoing[id].cancel()
-		delete(srv.ongoing, id)
-		if len(srv.ongoing) == 0 && srv.drain != nil {
+		srv.ongoing[id] = cstate{}
+		if srv.drain != nil && !srv.hasOngoing() {
 			close(srv.drain)
 		}
 		srv.mu.Unlock()
@@ -247,6 +245,29 @@ func (srv *Server) start(ctx context.Context, m *Method, r capnp.Recv) (*capnp.A
 	}
 }
 
+// nextID returns the next available index in srv.ongoing or -1 if
+// there are too many ongoing calls.  The caller must be holding onto
+// srv.mu.
+func (srv *Server) nextID() int {
+	for i := range srv.ongoing {
+		if srv.ongoing[i].cancel == nil {
+			return i
+		}
+	}
+	return -1
+}
+
+// hasOngoing reports whether there are any ongoing calls.
+// The caller must be holding onto srv.mu.
+func (srv *Server) hasOngoing() bool {
+	for i := range srv.ongoing {
+		if srv.ongoing[i].cancel != nil {
+			return true
+		}
+	}
+	return false
+}
+
 // Brand returns a value that will match IsServer.
 func (srv *Server) Brand() interface{} {
 	return serverBrand{srv.brand}
@@ -260,9 +281,11 @@ func (srv *Server) Close() error {
 		return errors.New("capnp server: Close called multiple times")
 	}
 	srv.drain = make(chan struct{})
-	if len(srv.ongoing) > 0 {
+	if srv.hasOngoing() {
 		for _, cs := range srv.ongoing {
-			cs.cancel()
+			if cs.cancel != nil {
+				cs.cancel()
+			}
 		}
 		srv.mu.Unlock()
 		<-srv.drain
