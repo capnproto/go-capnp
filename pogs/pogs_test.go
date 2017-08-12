@@ -806,7 +806,7 @@ type ZBool struct {
 	Bool  bool
 }
 
-func TestExtract_WhichTag(t *testing.T) {
+func TestExtract_FixedUnion(t *testing.T) {
 	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	if err != nil {
 		t.Fatalf("NewMessage: %v", err)
@@ -827,7 +827,7 @@ func TestExtract_WhichTag(t *testing.T) {
 	}
 }
 
-func TestExtract_WhichTagMismatch(t *testing.T) {
+func TestExtract_FixedUnionMismatch(t *testing.T) {
 	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	if err != nil {
 		t.Fatalf("NewMessage: %v", err)
@@ -845,7 +845,7 @@ func TestExtract_WhichTagMismatch(t *testing.T) {
 	}
 }
 
-func TestInsert_WhichTag(t *testing.T) {
+func TestInsert_FixedUnion(t *testing.T) {
 	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	if err != nil {
 		t.Fatalf("NewMessage: %v", err)
