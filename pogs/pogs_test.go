@@ -3,6 +3,7 @@ package pogs
 import (
 	"bytes"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/kylelemons/godebug/pretty"
@@ -867,9 +868,11 @@ func TestInsert_FixedUnion(t *testing.T) {
 	}
 }
 
-type ZBoolWithExtra struct {
-	Which      struct{} `capnp:",which=bool"`
-	Bool       bool
+type ZDateWithExtra struct {
+	Year  int16
+	Month uint8
+	Day   uint8
+
 	ExtraField uint16
 }
 
@@ -878,21 +881,25 @@ func TestExtraFields(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewMessage: %v", err)
 	}
-	z, err := air.NewRootZ(seg)
+	z, err := air.NewRootZdate(seg)
 	if err != nil {
-		t.Fatalf("NewRootZ: %v", err)
+		t.Fatalf("NewRootZdate: %v", err)
 	}
-	zb := &ZBoolWithExtra{Bool: true, ExtraField: 42}
-	err = Insert(air.Z_TypeID, z.Struct, zb)
+	zd := &ZDateWithExtra{ExtraField: 42}
+	err = Insert(air.Z_TypeID, z.Struct, zd)
 	if err == nil {
-		t.Errorf("Insert(%s) did not return error", zpretty.Sprint(zb))
+		t.Errorf("Insert(%s) did not return error", zpretty.Sprint(zd))
+	} else if s := err.Error(); !strings.Contains(s, "ExtraField") {
+		t.Errorf("Insert(%s): %v; want error about ExtraField", zpretty.Sprint(zd), err)
 	}
-	err = Extract(zb, air.Z_TypeID, z.Struct)
+	err = Extract(zd, air.Zdate_TypeID, z.Struct)
 	if err == nil {
 		t.Errorf("Extract(%v) did not return error", z)
+	} else if s := err.Error(); !strings.Contains(s, "ExtraField") {
+		t.Errorf("Extract(%v): %v; want error about ExtraField", z, err)
 	}
-	if zb.ExtraField != 42 {
-		t.Errorf("zb.ExtraField modified to %d; want 42", zb.ExtraField)
+	if zd.ExtraField != 42 {
+		t.Errorf("zd.ExtraField modified to %d; want 42", zd.ExtraField)
 	}
 }
 
