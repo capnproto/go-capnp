@@ -11,7 +11,6 @@ import (
 type fieldProps struct {
 	schemaName string // empty if doesn't map to schema
 	typ        fieldType
-	fixedWhich string
 	tagged     bool
 }
 
@@ -27,7 +26,7 @@ func parseField(f reflect.StructField, hasDiscrim bool) fieldProps {
 	var p fieldProps
 	tag := f.Tag.Get("capnp")
 	p.tagged = tag != ""
-	tname, opts := nextOpt(tag)
+	tname, _ := nextOpt(tag)
 	switch tname {
 	case "-":
 		// omitted field
@@ -38,14 +37,6 @@ func parseField(f reflect.StructField, hasDiscrim bool) fieldProps {
 		}
 		if hasDiscrim && f.Name == "Which" {
 			p.typ = whichField
-			for len(opts) > 0 {
-				var curr string
-				curr, opts = nextOpt(opts)
-				if strings.HasPrefix(curr, "which=") {
-					p.fixedWhich = strings.TrimPrefix(curr, "which=")
-					break
-				}
-			}
 			return p
 		}
 		// TODO(light): check it's uppercase.
@@ -131,6 +122,26 @@ func mapStruct(t reflect.Type, n schema.Node) (structProps, error) {
 			return structProps{}, err
 		}
 	}
+	if sm.hasDiscrim && sp.whichLoc.i == -1 {
+		var prevName []byte
+		for i, loc := range sp.fields {
+			if !loc.isValid() {
+				continue
+			}
+			f := sm.fields.At(i)
+			dv := f.DiscriminantValue()
+			if dv == schema.Field_noDiscriminant {
+				continue
+			}
+			if sp.whichLoc.i == -2 {
+				name, _ := f.NameBytes()
+				return structProps{}, fmt.Errorf("%v has multiple union fields (%s and %s) but no Which field", sm.t, prevName, name)
+			}
+			sp.whichLoc = fieldLoc{i: -2}
+			sp.fixedWhich = dv
+			prevName, _ = f.NameBytes()
+		}
+	}
 	return sp, nil
 }
 
@@ -205,23 +216,10 @@ func (sm *structMapper) visitField(loc fieldLoc, f reflect.StructField, p fieldP
 		if sm.sp.whichLoc.i != -1 {
 			return fmt.Errorf("%v embeds multiple Which fields", sm.t)
 		}
-		switch {
-		case p.fixedWhich != "":
-			fi := fieldIndex(sm.fields, p.fixedWhich)
-			if fi < 0 {
-				return fmt.Errorf("%v.Which is tagged with unknown field %s", sm.t, p.fixedWhich)
-			}
-			dv := sm.fields.At(fi).DiscriminantValue()
-			if dv == schema.Field_noDiscriminant {
-				return fmt.Errorf("%v.Which is tagged with non-union field %s", sm.t, p.fixedWhich)
-			}
-			sm.sp.whichLoc = fieldLoc{i: -2}
-			sm.sp.fixedWhich = dv
-		case f.Type.Kind() != reflect.Uint16:
+		if f.Type.Kind() != reflect.Uint16 {
 			return fmt.Errorf("%v.Which is type %v, not uint16", sm.t, f.Type)
-		default:
-			sm.sp.whichLoc = loc
 		}
+		sm.sp.whichLoc = loc
 	}
 	return nil
 }

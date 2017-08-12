@@ -803,8 +803,7 @@ func TestInsert_Tags(t *testing.T) {
 }
 
 type ZBool struct {
-	Which struct{} `capnp:",which=bool"`
-	Bool  bool
+	Bool bool
 }
 
 func TestExtract_FixedUnion(t *testing.T) {
@@ -865,6 +864,31 @@ func TestInsert_FixedUnion(t *testing.T) {
 		t.Errorf("Insert(%s) compare err: %v", zpretty.Sprint(zb), err)
 	} else if !equal {
 		t.Errorf("Insert(%s) produced %v", zpretty.Sprint(zb), z)
+	}
+}
+
+type ZBoolU8 struct {
+	Bool bool
+	U8   uint8
+}
+
+func TestMissingWhich(t *testing.T) {
+	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		t.Fatalf("NewMessage: %v", err)
+	}
+	z, err := air.NewRootZ(seg)
+	if err != nil {
+		t.Fatalf("NewRootZ: %v", err)
+	}
+	zz := &ZBoolU8{Bool: true, U8: 42}
+	err = Insert(air.Z_TypeID, z.Struct, zz)
+	if err == nil {
+		t.Errorf("Insert(%s) did not return error", zpretty.Sprint(zz))
+	}
+	err = Extract(zz, air.Z_TypeID, z.Struct)
+	if err == nil {
+		t.Errorf("Extract(%v) did not return error", zz)
 	}
 }
 

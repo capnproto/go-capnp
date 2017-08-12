@@ -56,9 +56,9 @@ follows:
 	List                          -> slice
 	enum                          -> uint16
 	struct                        -> a struct or pointer to struct
-	interface                     -> a capnp.Client or struct with
-                                         exactly one field, named
-					 "Client", of type capnp.Client
+	interface                     -> a *capnp.Client or struct with
+	                                 exactly one field, named
+	                                 "Client", of type *capnp.Client
 
 Note that the unsized int and uint type can't be used: int and float
 types must match in size.  For Data and Text fields using []byte, the
@@ -114,11 +114,11 @@ the Go struct should look like this:
 	}
 
 Attempting to use fields in a union without a uint16 Which field will
-result in an error.  There is one exception: we can declare our Which
-field to be fixed to one particular union value by using a field tag.
+result in an error.  There is one exception: if only one union field
+exists in the struct, then the union will always be fixed to that
+particular field.
 
 	type Square struct {
-		Which struct{} `capnp:",which=square"`
 		Area  float64
 		Width float64  `capnp:"square"`
 	}
