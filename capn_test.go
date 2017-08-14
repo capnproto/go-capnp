@@ -485,6 +485,31 @@ func TestSetPtrCopyListMember(t *testing.T) {
 	}
 }
 
+func TestSetPtrToZeroSizeStruct(t *testing.T) {
+	_, seg, err := NewMessage(SingleSegment(nil))
+	if err != nil {
+		t.Fatal("NewMessage:", err)
+	}
+	root, err := NewRootStruct(seg, ObjectSize{PointerCount: 1})
+	if err != nil {
+		t.Fatal("NewRootStruct:", err)
+	}
+	sub, err := NewStruct(seg, ObjectSize{})
+	if err != nil {
+		t.Fatal("NewStruct:", err)
+	}
+	if err := root.SetPtr(0, sub.ToPtr()); err != nil {
+		t.Fatal("root.SetPtr(0, sub.ToPtr()):", err)
+	}
+	addr := root.Address()
+	end, _ := addr.addSize(wordSize)
+	ptrSlice := seg.Data()[addr:end]
+	want := []byte{0xfc, 0xff, 0xff, 0xff, 0, 0, 0, 0}
+	if !bytes.Equal(ptrSlice, want) {
+		t.Errorf("SetPtr wrote % 02x; want % 02x", ptrSlice, want)
+	}
+}
+
 func catchPanic(f func()) (err error) {
 	defer func() {
 		pval := recover()

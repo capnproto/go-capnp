@@ -285,10 +285,17 @@ func (s *Segment) writePtr(off Address, src Ptr, forceCopy bool) error {
 		s.writeRawPointer(off, 0)
 		return nil
 	}
+
 	// Copy src, if needed.  This is type-dependent.
 	switch src.flags.ptrType() {
 	case structPtrType:
 		st := src.Struct()
+		if st.size.isZero() {
+			// Zero-sized structs should always be encoded with offset -1 in
+			// order to avoid conflating with null.  No allocation needed.
+			s.writeRawPointer(off, rawStructPointer(-1, ObjectSize{}))
+			return nil
+		}
 		if forceCopy || src.seg.msg != s.msg || st.flags&isListMember != 0 {
 			newSeg, newAddr, err := alloc(s, st.size.totalSize())
 			if err != nil {
