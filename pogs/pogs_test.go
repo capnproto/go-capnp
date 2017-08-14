@@ -910,7 +910,7 @@ func TestExtraFields(t *testing.T) {
 		t.Fatalf("NewRootZdate: %v", err)
 	}
 	zd := &ZDateWithExtra{ExtraField: 42}
-	err = Insert(air.Z_TypeID, z.Struct, zd)
+	err = Insert(air.Zdate_TypeID, z.Struct, zd)
 	if err == nil {
 		t.Errorf("Insert(%s) did not return error", zpretty.Sprint(zd))
 	} else if s := err.Error(); !strings.Contains(s, "ExtraField") {
