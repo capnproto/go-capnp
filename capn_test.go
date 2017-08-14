@@ -428,126 +428,60 @@ func TestSegmentWriteUint64(t *testing.T) {
 	}
 }
 
-func TestMakeOffsetKey(t *testing.T) {
-	seg42 := &Segment{id: 42}
-	tests := []struct {
-		p          Ptr
-		id         SegmentID
-		boff, bend int64
-	}{
-		{
-			p: Struct{
-				seg:  seg42,
-				off:  0,
-				size: ObjectSize{0, 0},
-			}.ToPtr(),
-			id:   42,
-			boff: 0,
-			bend: 0,
-		},
-		{
-			p: Struct{
-				seg:  seg42,
-				off:  8,
-				size: ObjectSize{0, 0},
-			}.ToPtr(),
-			id:   42,
-			boff: 64,
-			bend: 64,
-		},
-		{
-			p: Struct{
-				seg:  seg42,
-				off:  8,
-				size: ObjectSize{1, 0},
-			}.ToPtr(),
-			id:   42,
-			boff: 64,
-			bend: 72,
-		},
-		{
-			p: Struct{
-				seg:  seg42,
-				off:  8,
-				size: ObjectSize{0, 1},
-			}.ToPtr(),
-			id:   42,
-			boff: 64,
-			bend: 128,
-		},
-		{
-			p: List{
-				seg:    seg42,
-				off:    0,
-				size:   ObjectSize{},
-				length: 0,
-			}.ToPtr(),
-			id:   42,
-			boff: 0,
-			bend: 0,
-		},
-		{
-			p: List{
-				seg:    seg42,
-				off:    0,
-				size:   ObjectSize{},
-				length: 1,
-			}.ToPtr(),
-			id:   42,
-			boff: 0,
-			bend: 0,
-		},
-		{
-			p: List{
-				seg:    seg42,
-				off:    0,
-				size:   ObjectSize{0, 1},
-				length: 1,
-			}.ToPtr(),
-			id:   42,
-			boff: 0,
-			bend: 64,
-		},
-		{
-			p: List{
-				seg:    seg42,
-				off:    8,
-				size:   ObjectSize{0, 1},
-				length: 1,
-			}.ToPtr(),
-			id:   42,
-			boff: 64,
-			bend: 128,
-		},
-		{
-			p: List{
-				seg:    seg42,
-				off:    8,
-				size:   ObjectSize{0, 1},
-				length: 1,
-				flags:  isCompositeList,
-			}.ToPtr(),
-			id:   42,
-			boff: 0,
-			bend: 128,
-		},
-		{
-			p: List{
-				seg:    seg42,
-				off:    8,
-				size:   ObjectSize{0, 1},
-				length: 2,
-			}.ToPtr(),
-			id:   42,
-			boff: 64,
-			bend: 192,
-		},
+func TestSetPtrCopyListMember(t *testing.T) {
+	_, seg, err := NewMessage(SingleSegment(nil))
+	if err != nil {
+		t.Fatal("NewMessage:", err)
 	}
-	for _, test := range tests {
-		off := makeOffsetKey(test.p)
-		if off.id != test.id || off.boff != test.boff || off.bend != test.bend {
-			t.Errorf("makeOffsetKey(%#v) = offset{id: %d, boff: %d, bend: %d}; want offset{id: %d, boff: %d, bend: %d}", test.p, off.id, off.boff, off.bend, test.id, test.boff, test.bend)
-		}
+	root, err := NewRootStruct(seg, ObjectSize{PointerCount: 2})
+	if err != nil {
+		t.Fatal("NewRootStruct:", err)
+	}
+	plist, err := NewCompositeList(seg, ObjectSize{PointerCount: 1}, 1)
+	if err != nil {
+		t.Fatal("NewCompositeList:", err)
+	}
+	if err := root.SetPtr(0, plist.ToPtr()); err != nil {
+		t.Fatal("root.SetPtr(0, plist):", err)
+	}
+	sub, err := NewStruct(seg, ObjectSize{DataSize: 8})
+	if err != nil {
+		t.Fatal("NewStruct:", err)
+	}
+	sub.SetUint64(0, 42)
+	pl0 := plist.Struct(0)
+	if err := pl0.SetPtr(0, sub.ToPtr()); err != nil {
+		t.Fatal("pl0.SetPtr(0, sub.ToPtr()):", err)
+	}
+
+	if err := root.SetPtr(1, pl0.ToPtr()); err != nil {
+		t.Error("root.SetPtr(1, pl0):", err)
+	}
+
+	p1, err := root.Ptr(1)
+	if err != nil {
+		t.Error("root.Ptr(1):", err)
+	}
+	s1 := p1.Struct()
+	if !s1.IsValid() {
+		t.Error("root.Ptr(1) is not a valid struct")
+	}
+	if s1.Segment() == pl0.Segment() && s1.Address() == pl0.Address() {
+		t.Error("list member not copied; points to same object")
+	}
+	s1p0, err := s1.Ptr(0)
+	if err != nil {
+		t.Error("root.Ptr(1).Struct().Ptr(0):", err)
+	}
+	s1s0 := s1p0.Struct()
+	if !s1s0.IsValid() {
+		t.Error("root.Ptr(1).Struct().Ptr(0) is not a valid struct")
+	}
+	if s1s0.Segment() == sub.Segment() && s1s0.Address() == sub.Address() {
+		t.Error("sub-object not copied; points to same object")
+	}
+	if got := s1s0.Uint64(0); got != 42 {
+		t.Errorf("sub-object data = %d; want 42", got)
 	}
 }
 
@@ -566,37 +500,4 @@ func catchPanic(f func()) (err error) {
 	}()
 	f()
 	return nil
-}
-
-func TestCompare(t *testing.T) {
-	// Offsets are in ascending order.
-	data := []offset{
-		{id: 0, boff: 10},
-		{id: 0, boff: 20},
-		{id: 0, boff: 30},
-		{id: 0, boff: 65535},
-		{id: 0, boff: 65536},
-		{id: 1, boff: 0},
-		{id: 1, boff: 5},
-		{id: 1, boff: 65536},
-	}
-	formatOffset := func(o offset) string {
-		return fmt.Sprintf("{id: %d, boff: %d}", o.id, o.boff)
-	}
-
-	for i, curr := range data {
-		for _, prev := range data[:i] {
-			if v := compare(curr, prev); v <= 0 {
-				t.Errorf("compare(%s, %s) = %d; want >0", formatOffset(curr), formatOffset(prev), v)
-			}
-		}
-		if v := compare(curr, curr); v != 0 {
-			t.Errorf("compare(%s, %s) = %d; want 0", formatOffset(curr), formatOffset(curr), v)
-		}
-		for _, next := range data[i+1:] {
-			if v := compare(curr, next); v >= 0 {
-				t.Errorf("compare(%s, %s) = %d; want <0", formatOffset(curr), formatOffset(next), v)
-			}
-		}
-	}
 }

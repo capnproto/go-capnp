@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/bash
 
 infer_package_name() {
 	# Convert the filename $1 to a package name. We munge the name as follows:
@@ -15,7 +15,7 @@ gen_annotated_schema() {
 	# appropriate $Go annotations.
 	infile="$1"
 	outfile="$(basename $infile)"
-	cp "$infile" "$outfile"
+	cp "$infile" "$outfile" || return 1
 	package_name="$(infer_package_name $outfile)"
 	cat >> "$outfile" << EOF
 using Go = import "/go.capnp";
@@ -29,13 +29,8 @@ gen_go_src() {
 	# directory if necessary.
 	file="$1"
 	package_name="$(infer_package_name $file)"
-	[ -d $package_name ] || mkdir $package_name
-	if [[ "$(basename "$file")" = "schema.capnp" ]]; then
-		# Omit String methods in schema: it causes an import loop.
-		capnp compile -I"$(dirname $PWD)" -o- $file | (cd $package_name && capnpc-go -structstrings=false)
-	else
-		capnp compile -I"$(dirname $PWD)" -ogo:$package_name $file
-	fi
+	mkdir -p $package_name || return 1
+	capnp compile -I"$(dirname $PWD)" -ogo:$package_name $file
 }
 
 usage() {
@@ -51,13 +46,13 @@ usage() {
 do_import() {
 	input_dir="$1"
 	for file in $input_dir/*.capnp; do
-		gen_annotated_schema "$file"
+		gen_annotated_schema "$file" || return 1
 	done
 }
 
 do_compile() {
 	for file in *.capnp; do
-		gen_go_src "$file"
+		gen_go_src "$file" || return 1
 	done
 }
 

@@ -10,3 +10,10 @@ func New{{.Node.Name}}_List(s *{{.G.Capnp}}.Segment, sz int32) ({{.Node.Name}}_L
 func (s {{.Node.Name}}_List) At(i int) {{.Node.Name}} { return {{.Node.Name}}{ s.List.Struct(i) } }
 
 func (s {{.Node.Name}}_List) Set(i int, v {{.Node.Name}}) error { return s.List.SetStruct(i, v.Struct) }
+{{if .StringMethod}}
+func (s {{.Node.Name}}_List) String() string {
+	str, _ := {{.G.Imports.Text}}.MarshalList({{.Node.Id|printf "%#x"}}, s.List)
+	return str
+}
+{{end}}
+

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"errors"
+	"io"
 	"math/rand"
 	"reflect"
 	"testing"
@@ -284,8 +285,8 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 				0, 0, 0, 0, 0, 0, 0, 0,
 				9, 0, 0, 0, 34, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0,
-				97, 98, 99, 0, 0, 0, 0, 0,
-				120, 121, 122, 0, 0, 0, 0, 0,
+				'a', 'b', 'c', 0, 0, 0, 0, 0,
+				'x', 'y', 'z', 0, 0, 0, 0, 0,
 			},
 		})
 	}
@@ -324,10 +325,11 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 			typ:  "Bag",
 			text: "(counter = (size = 9))\n",
 			data: []byte{
-				0, 0, 0, 0, 5, 0, 0, 0,
+				0, 0, 0, 0, 6, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 1, 0,
-				0, 0, 0, 0, 1, 0, 2, 0,
+				0, 0, 0, 0, 1, 0, 3, 0,
 				9, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0,
 			},
@@ -371,13 +373,14 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 			typ:  "Bag",
 			text: "(counter = (size = 9, words = \"hello\"))\n",
 			data: []byte{
-				0, 0, 0, 0, 6, 0, 0, 0,
+				0, 0, 0, 0, 7, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 1, 0,
-				0, 0, 0, 0, 1, 0, 2, 0,
+				0, 0, 0, 0, 1, 0, 3, 0,
 				9, 0, 0, 0, 0, 0, 0, 0,
-				5, 0, 0, 0, 50, 0, 0, 0,
+				9, 0, 0, 0, 50, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0,
-				104, 101, 108, 108, 111, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				'h', 'e', 'l', 'l', 'o', 0, 0, 0,
 			},
 		})
 	}
@@ -426,16 +429,17 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 			typ:  "Bag",
 			text: "(counter = (size = 9, wordlist = [\"hello\", \"bye\"]))\n",
 			data: []byte{
-				0, 0, 0, 0, 9, 0, 0, 0,
+				0, 0, 0, 0, 10, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 1, 0,
-				0, 0, 0, 0, 1, 0, 2, 0,
+				0, 0, 0, 0, 1, 0, 3, 0,
 				9, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0,
-				1, 0, 0, 0, 22, 0, 0, 0,
+				5, 0, 0, 0, 22, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
 				5, 0, 0, 0, 50, 0, 0, 0,
 				5, 0, 0, 0, 34, 0, 0, 0,
-				104, 101, 108, 108, 111, 0, 0, 0,
-				98, 121, 101, 0, 0, 0, 0, 0,
+				'h', 'e', 'l', 'l', 'o', 0, 0, 0,
+				'b', 'y', 'e', 0, 0, 0, 0, 0,
 			},
 		})
 	}
@@ -487,17 +491,70 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 			typ:  "Bag",
 			text: "(counter = (size = 9, words = \"abc\", wordlist = [\"hello\", \"byenow\"]))\n",
 			data: []byte{
-				0, 0, 0, 0, 10, 0, 0, 0,
+				0, 0, 0, 0, 11, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 1, 0,
-				0, 0, 0, 0, 1, 0, 2, 0,
+				0, 0, 0, 0, 1, 0, 3, 0,
 				9, 0, 0, 0, 0, 0, 0, 0,
-				5, 0, 0, 0, 34, 0, 0, 0,
-				5, 0, 0, 0, 22, 0, 0, 0,
+				9, 0, 0, 0, 34, 0, 0, 0,
+				9, 0, 0, 0, 22, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
 				97, 98, 99, 0, 0, 0, 0, 0,
 				5, 0, 0, 0, 50, 0, 0, 0,
 				5, 0, 0, 0, 58, 0, 0, 0,
-				104, 101, 108, 108, 111, 0, 0, 0,
-				98, 121, 101, 110, 111, 119, 0, 0,
+				'h', 'e', 'l', 'l', 'o', 0, 0, 0,
+				'b', 'y', 'e', 'n', 'o', 'w', 0, 0,
+			},
+		})
+	}
+
+	{
+		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, scratch, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// in seg
+		segbag, err := air.NewRootBag(seg)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// in scratch
+		xc, err := air.NewRootCounter(scratch)
+		if err != nil {
+			t.Fatal(err)
+		}
+		bl, err := xc.NewBitlist(3)
+		if err != nil {
+			t.Fatal(err)
+		}
+		bl.Set(0, true)
+		bl.Set(1, false)
+		bl.Set(2, true)
+
+		// copy from scratch to seg
+		if err = segbag.SetCounter(xc); err != nil {
+			t.Fatal(err)
+		}
+
+		tests = append(tests, marshalTest{
+			name: "copy struct with bit list between messages",
+			msg:  msg,
+			typ:  "Bag",
+			text: "(counter = (size = 0, bitlist = [true, false, true]))\n",
+			data: []byte{
+				0, 0, 0, 0, 7, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 1, 0,
+				0, 0, 0, 0, 1, 0, 3, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				1, 0, 0, 0, 25, 0, 0, 0,
+				5, 0, 0, 0, 0, 0, 0, 0,
 			},
 		})
 	}
@@ -1729,6 +1786,93 @@ func BenchmarkUnmarshal_Reuse(b *testing.B) {
 		msg.Reset(arena)
 		a, _ := air.ReadRootBenchmarkA(msg)
 		unmarshalA(a)
+	}
+}
+
+func BenchmarkDecode(b *testing.B) {
+	var buf bytes.Buffer
+
+	r := rand.New(rand.NewSource(12345))
+	enc := capnp.NewEncoder(&buf)
+	count := 10000
+
+	for i := 0; i < count; i++ {
+		a := generateA(r)
+		msg, seg, _ := capnp.NewMessage(capnp.SingleSegment(nil))
+		root, _ := air.NewRootBenchmarkA(seg)
+		a.fill(root)
+		enc.Encode(msg)
+	}
+
+	blob := buf.Bytes()
+
+	b.ReportAllocs()
+	b.SetBytes(int64(buf.Len()))
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		dec := capnp.NewDecoder(bytes.NewReader(blob))
+
+		for {
+			msg, err := dec.Decode()
+
+			if err == io.EOF {
+				break
+			}
+
+			if err != nil {
+				b.Fatal(err)
+			}
+
+			_, err = air.ReadRootBenchmarkA(msg)
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
+	}
+}
+
+func BenchmarkDecode_Reuse(b *testing.B) {
+	var buf bytes.Buffer
+
+	r := rand.New(rand.NewSource(12345))
+	enc := capnp.NewEncoder(&buf)
+	count := 10000
+
+	for i := 0; i < count; i++ {
+		a := generateA(r)
+		msg, seg, _ := capnp.NewMessage(capnp.SingleSegment(nil))
+		root, _ := air.NewRootBenchmarkA(seg)
+		a.fill(root)
+		enc.Encode(msg)
+	}
+
+	blob := buf.Bytes()
+
+	b.ReportAllocs()
+	b.SetBytes(int64(buf.Len()))
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		dec := capnp.NewDecoder(bytes.NewReader(blob))
+		dec.ReuseBuffer()
+
+		for {
+			msg, err := dec.Decode()
+
+			if err == io.EOF {
+				break
+			}
+
+			if err != nil {
+				b.Fatal(err)
+			}
+
+			_, err = air.ReadRootBenchmarkA(msg)
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
 	}
 }
 

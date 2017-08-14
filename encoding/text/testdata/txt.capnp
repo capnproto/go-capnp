@@ -69,3 +69,8 @@ const dataList @0xe14f4d42aa55de8c :Value = (dataList = [0x"deadbeef", 0x"cafe"]
 const cheese @0xe88c91698f7f0b73 :Value = (cheese = gouda);
 const cheeseList @0x9c51b843b337490b :Value = (cheeseList = [gouda, cheddar]);
 const matrix @0x81e2aadb8bfb237b :Value = (matrix = [[1, 2, 3], [4, 5, 6]]);
+
+const kvList @0x90c9e81e6418df8e :List(KeyValue) = [
+  (key = "foo", value = (void = void)),
+  (key = "bar", value = (void = void)),
+];

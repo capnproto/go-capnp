@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"zombiezen.com/go/capnproto2"
+	"zombiezen.com/go/capnproto2/internal/schema"
 	"zombiezen.com/go/capnproto2/schemas"
-	"zombiezen.com/go/capnproto2/std/capnp/schema"
 )
 
 func TestDefaultFind(t *testing.T) {

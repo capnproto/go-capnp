@@ -94,6 +94,34 @@ func TestMessage_ResetReadLimit(t *testing.T) {
 	}
 	t.Log()
 	{
+		m := &Message{TraverseLimit: 42}
+		t.Log("   m := &Message{TraverseLimit: 42}")
+		ok := m.canRead(42)
+		t.Logf("   m.canRead(42) -> %t", ok)
+		m.ResetReadLimit(8)
+		t.Log("   m.ResetReadLimit(8)")
+		if m.canRead(8) {
+			t.Log("   m.canRead(8) -> true")
+		} else {
+			t.Error("!! m.canRead(8) -> false; want true")
+		}
+	}
+	t.Log()
+	{
+		m := &Message{TraverseLimit: 42}
+		t.Log("   m := &Message{TraverseLimit: 42}")
+		ok := m.canRead(40)
+		t.Logf("   m.canRead(40) -> %t", ok)
+		m.ResetReadLimit(8)
+		t.Log("   m.ResetReadLimit(8)")
+		if m.canRead(9) {
+			t.Error("!! m.canRead(9) -> true; want false")
+		} else {
+			t.Log("   m.canRead(9) -> false")
+		}
+	}
+	t.Log()
+	{
 		m := new(Message)
 		t.Log("   m := new(Message)")
 		m.ResetReadLimit(0)

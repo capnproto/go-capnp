@@ -1,6 +1,6 @@
 # Cap'n Proto bindings for Go
 
-[![Build Status](https://travis-ci.org/zombiezen/go-capnproto2.svg?branch=master)](https://travis-ci.org/zombiezen/go-capnproto2)
+[![Build Status](https://travis-ci.org/capnproto/go-capnproto2.svg?branch=master)](https://travis-ci.org/capnproto/go-capnproto2)
 [![GoDoc](https://godoc.org/zombiezen.com/go/capnproto2?status.svg)][godoc]
 
 go-capnproto consists of:
@@ -22,7 +22,7 @@ $ go get -u -t zombiezen.com/go/capnproto2/...
 $ go test -v zombiezen.com/go/capnproto2/...
 ```
 
-Then read [the Getting Started guide](https://github.com/zombiezen/go-capnproto2/wiki/Getting-Started).
+Then read [the Getting Started guide](https://github.com/capnproto/go-capnproto2/wiki/Getting-Started).
 
 ## API Compatibility
 
@@ -53,4 +53,4 @@ https://capnproto.org/
 
 MIT - see [LICENSE][license] file
 
-[license]: https://github.com/zombiezen/go-capnproto2/blob/master/LICENSE
+[license]: https://github.com/capnproto/go-capnproto2/blob/master/LICENSE

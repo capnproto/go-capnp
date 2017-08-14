@@ -155,6 +155,7 @@ struct Counter {
   size  @0: Int64;
   words @1: Text;
   wordlist @2: List(Text);
+  bitlist @3: List(Bool);
 }
 
 struct Bag {

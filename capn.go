@@ -3,8 +3,6 @@ package capnp
 import (
 	"encoding/binary"
 	"errors"
-
-	"github.com/glycerine/rbtree"
 )
 
 // A SegmentID is a numeric identifier for a Segment.
@@ -282,92 +280,86 @@ func (s *Segment) resolveFarPointer(off Address, val rawPointer) (*Segment, Addr
 	}
 }
 
-type offset struct {
-	id         SegmentID
-	boff, bend int64 // in bits
-	newval     Ptr
-}
-
-func makeOffsetKey(p Ptr) offset {
-	// Since this is used for copying, the address boundaries should already be clamped.
-	switch p.flags.ptrType() {
-	case structPtrType:
-		s := p.Struct()
-		return offset{
-			id:   s.seg.id,
-			boff: int64(s.off) * 8,
-			bend: (int64(s.off) + int64(s.size.totalSize())) * 8,
-		}
-	case listPtrType:
-		l := p.List()
-		key := offset{
-			id:   l.seg.id,
-			boff: int64(l.off) * 8,
-		}
-		if l.flags&isBitList != 0 {
-			key.bend = int64(l.off)*8 + int64(l.length)
-		} else {
-			key.bend = (int64(l.off) + int64(l.size.totalSize())*int64(l.length)) * 8
-		}
-		if l.flags&isCompositeList != 0 {
-			// Composite lists' offsets are after the tag word.
-			key.boff -= int64(wordSize) * 8
-		}
-		return key
-	default:
-		panic("unreachable")
-	}
-}
-
-func compare(a, b rbtree.Item) int {
-	ao := a.(offset)
-	bo := b.(offset)
-	switch {
-	case ao.id != bo.id:
-		return int(ao.id) - int(bo.id)
-	case ao.boff > bo.boff:
-		return 1
-	case ao.boff < bo.boff:
-		return -1
-	default:
-		return 0
-	}
-}
-
-func needsCopy(dest *Segment, src Ptr) bool {
-	if src.seg.msg != dest.msg {
-		return true
-	}
-	s := src.Struct()
-	if s.seg == nil {
-		return false
-	}
-	// Structs can only be referenced if they're not list members.
-	return s.flags&isListMember != 0
-}
-
-func (s *Segment) writePtr(cc copyContext, off Address, src Ptr) error {
-	// handle nulls
+func (s *Segment) writePtr(off Address, src Ptr, forceCopy bool) error {
 	if !src.IsValid() {
 		s.writeRawPointer(off, 0)
 		return nil
 	}
-	srcSeg := src.Segment()
-
-	if i := src.Interface(); i.IsValid() {
-		if s.msg != srcSeg.msg {
+	// Copy src, if needed.  This is type-dependent.
+	switch src.flags.ptrType() {
+	case structPtrType:
+		st := src.Struct()
+		if forceCopy || src.seg.msg != s.msg || st.flags&isListMember != 0 {
+			newSeg, newAddr, err := alloc(s, st.size.totalSize())
+			if err != nil {
+				return err
+			}
+			dst := Struct{
+				seg:        newSeg,
+				off:        newAddr,
+				size:       st.size,
+				depthLimit: maxDepth,
+				// clear flags
+			}
+			if err := copyStruct(dst, st); err != nil {
+				return err
+			}
+			src = dst.ToPtr()
+		}
+	case listPtrType:
+		if forceCopy || src.seg.msg != s.msg {
+			l := src.List()
+			sz := l.allocSize()
+			newSeg, newAddr, err := alloc(s, sz)
+			if err != nil {
+				return err
+			}
+			dst := List{
+				seg:        newSeg,
+				off:        newAddr,
+				length:     l.length,
+				size:       l.size,
+				flags:      l.flags,
+				depthLimit: maxDepth,
+			}
+			if dst.flags&isCompositeList != 0 {
+				// Copy tag word
+				newSeg.writeRawPointer(newAddr, l.seg.readRawPointer(l.off-Address(wordSize)))
+				var ok bool
+				dst.off, ok = dst.off.addSize(wordSize)
+				if !ok {
+					return errOverflow
+				}
+				sz -= wordSize
+			}
+			if dst.flags&isBitList != 0 || dst.size.PointerCount == 0 {
+				end, _ := l.off.addSize(sz) // list has already validated
+				copy(newSeg.data[dst.off:], l.seg.data[l.off:end])
+			} else {
+				for i := 0; i < l.Len(); i++ {
+					err := copyStruct(dst.Struct(i), l.Struct(i))
+					if err != nil {
+						return err
+					}
+				}
+			}
+			src = dst.ToPtr()
+		}
+	case interfacePtrType:
+		i := src.Interface()
+		if src.seg.msg != s.msg {
 			c := s.msg.AddCap(i.Client())
 			i = NewInterface(s, c)
 		}
 		s.writeRawPointer(off, i.value(off))
 		return nil
+	default:
+		panic("unreachable")
 	}
-	if s != srcSeg {
-		// Different segments
-		if needsCopy(s, src) {
-			return copyPointer(cc, s, off, src)
-		}
-		if !hasCapacity(srcSeg.data, wordSize) {
+
+	// Create far pointer if object is in a different segment.
+	if src.seg != s {
+		if !hasCapacity(src.seg.data, wordSize) {
 			// Double far pointer needed.
 			const landingSize = wordSize * 2
 			t, dstAddr, err := alloc(s, landingSize)
@@ -376,129 +368,22 @@ func (s *Segment) writePtr(cc copyContext, off Address, src Ptr) error {
 			}
 
 			srcAddr := src.address()
-			t.writeRawPointer(dstAddr, rawFarPointer(srcSeg.id, srcAddr))
+			t.writeRawPointer(dstAddr, rawFarPointer(src.seg.id, srcAddr))
 			// alloc guarantees that two words are available.
 			t.writeRawPointer(dstAddr+Address(wordSize), src.value(srcAddr-Address(wordSize)))
 			s.writeRawPointer(off, rawDoubleFarPointer(t.id, dstAddr))
 			return nil
 		}
 		// Have room in the target for a tag
-		_, srcAddr, _ := alloc(srcSeg, wordSize)
-		srcSeg.writeRawPointer(srcAddr, src.value(srcAddr))
-		s.writeRawPointer(off, rawFarPointer(srcSeg.id, srcAddr))
+		_, srcAddr, _ := alloc(src.seg, wordSize)
+		src.seg.writeRawPointer(srcAddr, src.value(srcAddr))
+		s.writeRawPointer(off, rawFarPointer(src.seg.id, srcAddr))
 		return nil
 	}
+
+	// Local pointer.
 	s.writeRawPointer(off, src.value(off))
 	return nil
-}
-
-func copyPointer(cc copyContext, dstSeg *Segment, dstAddr Address, src Ptr) error {
-	if cc.depth >= 32 {
-		return errCopyDepth
-	}
-	cc = cc.init()
-	// First, see if the ptr has already been copied.
-	key := makeOffsetKey(src)
-	iter := cc.copies.FindLE(key)
-	if key.bend > key.boff {
-		if !iter.NegativeLimit() {
-			other := iter.Item().(offset)
-			if key.id == other.id {
-				if key.boff == other.boff && key.bend == other.bend {
-					return dstSeg.writePtr(cc.incDepth(), dstAddr, other.newval)
-				} else if other.bend >= key.bend {
-					return errOverlap
-				}
-			}
-		}
-
-		iter = iter.Next()
-
-		if !iter.Limit() {
-			other := iter.Item().(offset)
-			if key.id == other.id && other.boff < key.bend {
-				return errOverlap
-			}
-		}
-	}
-
-	// No copy nor overlap found, so we need to clone the target
-	newSeg, newAddr, err := alloc(dstSeg, Size((key.bend-key.boff)/8))
-	if err != nil {
-		return err
-	}
-	switch src.flags.ptrType() {
-	case structPtrType:
-		s := src.Struct()
-		dst := Struct{
-			seg:        newSeg,
-			off:        newAddr,
-			size:       s.size,
-			depthLimit: maxDepth,
-			// clear flags
-		}
-		key.newval = dst.ToPtr()
-		cc.copies.Insert(key)
-		if err := copyStruct(cc, dst, s); err != nil {
-			return err
-		}
-	case listPtrType:
-		l := src.List()
-		dst := List{
-			seg:        newSeg,
-			off:        newAddr,
-			length:     l.length,
-			size:       l.size,
-			flags:      l.flags,
-			depthLimit: maxDepth,
-		}
-		if dst.flags&isCompositeList != 0 {
-			// Copy tag word
-			newSeg.writeRawPointer(newAddr, l.seg.readRawPointer(l.off-Address(wordSize)))
-			var ok bool
-			dst.off, ok = dst.off.addSize(wordSize)
-			if !ok {
-				return errOverflow
-			}
-		}
-		key.newval = dst.ToPtr()
-		cc.copies.Insert(key)
-		// TODO(light): fast path for copying text/data
-		if dst.flags&isBitList != 0 {
-			copy(newSeg.data[newAddr:], l.seg.data[l.off:l.length+7/8])
-		} else {
-			for i := 0; i < l.Len(); i++ {
-				err := copyStruct(cc, dst.Struct(i), l.Struct(i))
-				if err != nil {
-					return err
-				}
-			}
-		}
-	default:
-		panic("unreachable")
-	}
-	return dstSeg.writePtr(cc.incDepth(), dstAddr, key.newval)
-}
-
-type copyContext struct {
-	copies *rbtree.Tree
-	depth  int
-}
-
-func (cc copyContext) init() copyContext {
-	if cc.copies == nil {
-		return copyContext{
-			copies: rbtree.NewTree(compare),
-		}
-	}
-	return cc
-}
-
-func (cc copyContext) incDepth() copyContext {
-	return copyContext{
-		copies: cc.copies,
-		depth:  cc.depth + 1,
-	}
 }
 
 var (
