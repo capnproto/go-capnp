@@ -2,20 +2,24 @@
 
 ## 2.16.0
 
-- Add BUILD.bazel files (#88)
+- Add BUILD.bazel files ([#88](https://github.com/capnproto/go-capnproto2/issues/88))
 
 ## 2.15.0
 
-- capnpc-go now fails when a file does not include an import annotation. (#41)
-- Remove rbtree dependency (#80)
-- Add option to reduce allocations in <code>capnp.Decoder</code> (#79)
-- Add <code>String()</code> methods for lists (#85)
-- Add <code>String()</code> methods to schema.capnp.go (#83)
+- capnpc-go now fails when a file does not include an import annotation.
+  ([#41](https://github.com/capnproto/go-capnproto2/issues/41))
+- Remove rbtree dependency ([#80](https://github.com/capnproto/go-capnproto2/issues/80))
+- Add option to reduce allocations in `capnp.Decoder`
+  ([#79](https://github.com/capnproto/go-capnproto2/issues/79))
+- Add `String()` methods for lists
+  ([#85](https://github.com/capnproto/go-capnproto2/issues/85))
+- Add `String()` methods to schema.capnp.go
+  ([#83](https://github.com/capnproto/go-capnproto2/issues/83))
 
 ## 2.14.1
 
 - Use [new Go generated code convention](https://golang.org/s/generatedcode) in
-  capnpc-go output (#78)
+  capnpc-go output ([#78](https://github.com/capnproto/go-capnproto2/issues/78))
 
 ## Retroactive Releases
 
