@@ -340,7 +340,7 @@ func (s *Segment) writePtr(off Address, src Ptr, forceCopy bool) error {
 				sz -= wordSize
 			}
 			if dst.flags&isBitList != 0 || dst.size.PointerCount == 0 {
-				end, _ := l.off.addSize(sz) // list has already validated
+				end, _ := l.off.addSize(sz) // list was already validated
 				copy(newSeg.data[dst.off:], l.seg.data[l.off:end])
 			} else {
 				for i := 0; i < l.Len(); i++ {
