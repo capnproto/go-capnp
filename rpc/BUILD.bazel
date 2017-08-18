@@ -1,0 +1,14 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "rpc.go",
+        "transport.go",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//:go_default_library",
+        "//std/capnp/rpc:go_default_library",
+    ],
+)
