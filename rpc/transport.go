@@ -18,8 +18,8 @@ type Sender interface {
 	// cancelation and deadline from ctx.  The returned message should not
 	// be used after calling send or cancel.
 	//
-	// The behavior of calling NewMessage before calling send or cancel on
-	// the previous call of NewMessage is undefined.
+	// The behavior of calling NewMessage or CloseSend before calling send
+	// or cancel on the previous call of NewMessage is undefined.
 	NewMessage(ctx context.Context) (_ rpccapnp.Message, send func() error, cancel func(), _ error)
 
 	// CloseSend releases any resources associated with the sender.
@@ -29,8 +29,8 @@ type Sender interface {
 // A Receiver receives Cap'n Proto RPC messages from another vat.
 type Receiver interface {
 	// RecvMessage waits to receive a message and returns it.
-	// Implementations may re-use buffers between calls, so the message is
-	// only valid until the next call to RecvMessage.
+	// The returned message is only valid until the next call to
+	// RecvMessage or CloseRecv.
 	RecvMessage(ctx context.Context) (rpccapnp.Message, error)
 
 	// CloseRecv releases any resources associated with the receiver and
