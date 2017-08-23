@@ -38,6 +38,14 @@ type Receiver interface {
 	CloseRecv() error
 }
 
+// Transport is a grouping of the Sender and Receiver interfaces.
+//
+// It is safe to call Sender methods concurrently with Receiver methods.
+type Transport interface {
+	Sender
+	Receiver
+}
+
 // StreamTransport serializes and deserializes unpacked Cap'n Proto
 // messages on a byte stream.  StreamTransport adds no buffering beyond
 // what its underlying stream has.
