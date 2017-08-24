@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"zombiezen.com/go/capnproto2"
+	rpccp "zombiezen.com/go/capnproto2/std/capnp/rpc"
 )
 
 // A Conn is a connection to another Cap'n Proto vat.
@@ -116,7 +117,27 @@ func (c *Conn) Close() error {
 		c.mu.Lock()
 	}
 	c.mu.Unlock()
-	// TODO(soon): write an abort message.
+
+	// Send abort message (ignoring error).
+	{
+		msg, send, cancel, err := c.send.NewMessage(context.Background())
+		if err != nil {
+			goto closeSend
+		}
+		abort, err := msg.NewAbort()
+		if err != nil {
+			cancel()
+			goto closeSend
+		}
+		// TODO(soon): allocate an ID
+		abort.SetType(rpccp.Exception_Type_failed)
+		if err := abort.SetReason("connection closed"); err != nil {
+			cancel()
+			goto closeSend
+		}
+		send()
+	}
+closeSend:
 	serr := c.send.CloseSend()
 
 	if rerr != nil {
