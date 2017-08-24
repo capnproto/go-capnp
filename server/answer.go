@@ -3,17 +3,17 @@ package server
 import (
 	"context"
 	"errors"
+	"sync"
 
 	"zombiezen.com/go/capnproto2"
-	"zombiezen.com/go/capnproto2/internal/chanmu"
 )
 
 // answerQueue is a queue of method calls to make after an earlier method call
 // finishes.  The queue is a fixed size, and will return overloaded errors once
 // the queue is full.
 type answerQueue struct {
-	mu chanmu.Mutex
-	q  []qent
+	mu sync.Mutex
+	q  []qent // nil after drained
 
 	// answers is filled in after drain().
 	// The first element is always the answer passed to drain(),
@@ -36,8 +36,7 @@ type qent struct {
 // newAnswerQueue creates a new answer queue of the given size.
 func newAnswerQueue(n int) *answerQueue {
 	return &answerQueue{
-		mu: chanmu.New(),
-		q:  make([]qent, 0, n),
+		q: make([]qent, 0, n),
 	}
 }
 
@@ -52,13 +51,16 @@ func (aq *answerQueue) drain(dst *capnp.Answer, p *capnp.Promise) {
 	if len(aq.answers) > 0 {
 		panic("double call of answerQueue.drain")
 	}
-	aq.answers = make([]*capnp.Answer, len(aq.q)+1)
+	aq.answers = make([]*capnp.Answer, 1, len(aq.q)+1)
 	aq.answers[0] = dst
-	for i := range aq.q {
+	for i := 0; i < len(aq.q); i++ {
 		ent := &aq.q[i]
 		target := aq.answers[ent.basis]
-		// TODO(soon): release lock while calling RecvCall and allow concurrent calls to add to queue.
-		aq.answers[1+i], ent.finish = target.RecvCall(ent.ctx, ent.path.transform(), ent.Recv)
+		aq.mu.Unlock()
+		a, f := target.RecvCall(ent.ctx, ent.path.transform(), ent.Recv)
+		aq.mu.Lock()
+		aq.answers = append(aq.answers, a)
+		ent.finish = f
 
 		// Drop references to arguments as soon as possible.
 		ent.ctx = nil
@@ -92,11 +94,8 @@ type queueCaller struct {
 }
 
 func (qc queueCaller) PipelineRecv(ctx context.Context, transform []capnp.PipelineOp, r capnp.Recv) (*capnp.Answer, capnp.ReleaseFunc) {
-	if err := qc.aq.mu.TryLock(ctx); err != nil {
-		r.ReleaseArgs()
-		return capnp.ErrorAnswer(err), func() {}
-	}
-	if len(qc.aq.answers) > 0 {
+	qc.aq.mu.Lock()
+	if qc.aq.q == nil {
 		// drain finished after PipelineRecv started but before obtaining lock.
 		a := qc.aq.answers[qc.basis]
 		qc.aq.mu.Unlock()

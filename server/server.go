@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	"zombiezen.com/go/capnproto2"
-	"zombiezen.com/go/capnproto2/internal/chanmu"
 )
 
 // A Method describes a single RPC method on a server object.
@@ -53,7 +52,7 @@ type Server struct {
 	closer  Closer
 	policy  Policy
 
-	mu      chanmu.Mutex
+	mu      sync.Mutex      // protects the following fields.  Should never be held while calling application code.
 	inImpl  <-chan struct{} // non-nil if inside application code, closed when done
 	drain   chan struct{}   // non-nil if draining, closed when drained
 	ongoing []cstate
@@ -94,7 +93,6 @@ func New(methods []Method, brand interface{}, closer Closer, policy *Policy) *Se
 		methods: make(sortedMethods, len(methods)),
 		brand:   brand,
 		closer:  closer,
-		mu:      chanmu.New(),
 	}
 	copy(srv.methods, methods)
 	sort.Sort(srv.methods)
@@ -157,10 +155,7 @@ func (srv *Server) start(ctx context.Context, m *Method, r capnp.Recv) (*capnp.A
 	p := capnp.NewPromise(aq)
 
 	// Acquire lock and block until all other concurrent calls have acknowledged delivery.
-	if err := srv.mu.TryLock(ctx); err != nil {
-		r.ReleaseArgs()
-		return capnp.ErrorAnswer(err), func() {}
-	}
+	srv.mu.Lock()
 	for {
 		if srv.drain != nil {
 			srv.mu.Unlock()
@@ -178,10 +173,7 @@ func (srv *Server) start(ctx context.Context, m *Method, r capnp.Recv) (*capnp.A
 			r.ReleaseArgs()
 			return capnp.ErrorAnswer(err), func() {}
 		}
-		if err := srv.mu.TryLock(ctx); err != nil {
-			r.ReleaseArgs()
-			return capnp.ErrorAnswer(err), func() {}
-		}
+		srv.mu.Lock()
 	}
 
 	id := srv.nextID()
