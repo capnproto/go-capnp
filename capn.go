@@ -1,6 +1,7 @@
 package capnp
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 )
@@ -384,6 +385,135 @@ func (s *Segment) writePtr(off Address, src Ptr, forceCopy bool) error {
 	// Local pointer.
 	s.writeRawPointer(off, src.value(off))
 	return nil
+}
+
+// Equal returns true iff p1 and p2 are equal.
+//
+// Equality is defined to be:
+//
+//	- Two structs are equal iff all of their fields are equal.  If one
+//	  struct has more fields than the other, the extra fields must all be
+//		zero.
+//	- Two lists are equal iff they have the same length and their
+//	  corresponding elements are equal.  If one list is a list of
+//	  primitives and the other is a list of structs, then the list of
+//	  primitives is treated as if it was a list of structs with the
+//	  element value as the sole field.
+//	- Two interfaces are equal iff they point to a capability created by
+//	  the same call to NewClient or they are referring to the same
+//	  capability table index in the same message.  The latter is
+//	  significant when the message's capability table has not been
+//	  populated.
+//	- Two null pointers are equal.
+//	- All other combinations of things are not equal.
+func Equal(p1, p2 Ptr) (bool, error) {
+	if !p1.IsValid() && !p2.IsValid() {
+		return true, nil
+	}
+	if !p1.IsValid() || !p2.IsValid() {
+		return false, nil
+	}
+	pt := p1.flags.ptrType()
+	if pt != p2.flags.ptrType() {
+		return false, nil
+	}
+	switch pt {
+	case structPtrType:
+		s1, s2 := p1.Struct(), p2.Struct()
+		data1 := s1.seg.slice(s1.off, s1.size.DataSize)
+		data2 := s2.seg.slice(s2.off, s2.size.DataSize)
+		switch {
+		case len(data1) < len(data2):
+			if !bytes.Equal(data1, data2[:len(data1)]) {
+				return false, nil
+			}
+			if !isZeroFilled(data2[len(data1):]) {
+				return false, nil
+			}
+		case len(data1) > len(data2):
+			if !bytes.Equal(data1[:len(data2)], data2) {
+				return false, nil
+			}
+			if !isZeroFilled(data1[len(data2):]) {
+				return false, nil
+			}
+		default:
+			if !bytes.Equal(data1, data2) {
+				return false, nil
+			}
+		}
+		n := int(s1.size.PointerCount)
+		if n2 := int(s2.size.PointerCount); n2 < n {
+			n = n2
+		}
+		for i := 0; i < n; i++ {
+			sp1, err := s1.Ptr(uint16(i))
+			if err != nil {
+				return false, err
+			}
+			sp2, err := s2.Ptr(uint16(i))
+			if err != nil {
+				return false, err
+			}
+			if ok, err := Equal(sp1, sp2); !ok || err != nil {
+				return false, err
+			}
+		}
+		for i := n; i < int(s1.size.PointerCount); i++ {
+			if s1.HasPtr(uint16(i)) {
+				return false, nil
+			}
+		}
+		for i := n; i < int(s2.size.PointerCount); i++ {
+			if s2.HasPtr(uint16(i)) {
+				return false, nil
+			}
+		}
+		return true, nil
+	case listPtrType:
+		l1, l2 := p1.List(), p2.List()
+		if l1.Len() != l2.Len() {
+			return false, nil
+		}
+		if l1.flags&compositeList == 0 && l2.flags&compositeList == 0 && l1.size != l2.size {
+			return false, nil
+		}
+		if l1.size.PointerCount == 0 && l2.size.PointerCount == 0 && l1.size.DataSize == l2.size.DataSize {
+			// Optimization: pure data lists can be compared bytewise.
+			sz, _ := l1.size.totalSize().times(l1.length) // both list bounds have been validated
+			return bytes.Equal(l1.seg.slice(l1.off, sz), l2.seg.slice(l2.off, sz)), nil
+		}
+		for i := 0; i < l1.Len(); i++ {
+			e1, e2 := l1.Struct(i), l2.Struct(i)
+			if ok, err := Equal(e1.ToPtr(), e2.ToPtr()); !ok || err != nil {
+				return false, err
+			}
+		}
+		return true, nil
+	case interfacePtrType:
+		i1, i2 := p1.Interface(), p2.Interface()
+		if i1.Message() == i2.Message() {
+			if i1.Capability() == i2.Capability() {
+				return true, nil
+			}
+			ntab := len(i1.Message().CapTable)
+			if int64(i1.Capability()) >= int64(ntab) || int64(i2.Capability()) >= int64(ntab) {
+				return false, nil
+			}
+		}
+		return i1.Client().IsSame(i2.Client()), nil
+	default:
+		panic("unreachable")
+	}
+}
+
+func isZeroFilled(b []byte) bool {
+	for _, bb := range b {
+		if bb != 0 {
+			return false
+		}
+	}
+	return true
 }
 
 var (

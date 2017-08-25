@@ -864,15 +864,6 @@ func incrementingData(n int) []byte {
 	return b
 }
 
-func isZeroFilled(b []byte) bool {
-	for _, bb := range b {
-		if bb != 0 {
-			return false
-		}
-	}
-	return true
-}
-
 type readOnlyArena struct {
 	Arena
 }
