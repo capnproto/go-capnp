@@ -14,4 +14,5 @@ echo "** capnpc-go"
 echo "** schemas"
 (cd std/capnp; ./gen.sh compile)
 capnp compile -ogo std/go.capnp && mv std/go.capnp.go ./
+(cd std/capnp; capnp compile --no-standard-import -I.. -o- schema.capnp) | (cd internal/schema && capnpc-go -promises=0 -schemas=0 -structstrings=0)
 go generate ./...
