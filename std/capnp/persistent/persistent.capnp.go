@@ -117,8 +117,7 @@ func (s Persistent_SaveParams) SealFor() (capnp.Ptr, error) {
 }
 
 func (s Persistent_SaveParams) HasSealFor() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Persistent_SaveParams) SetSealFor(v capnp.Ptr) error {
@@ -189,8 +188,7 @@ func (s Persistent_SaveResults) SturdyRef() (capnp.Ptr, error) {
 }
 
 func (s Persistent_SaveResults) HasSturdyRef() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Persistent_SaveResults) SetSturdyRef(v capnp.Ptr) error {
@@ -381,8 +379,7 @@ func (s RealmGateway_import_Params) Cap() Persistent {
 }
 
 func (s RealmGateway_import_Params) HasCap() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s RealmGateway_import_Params) SetCap(v Persistent) error {
@@ -400,8 +397,7 @@ func (s RealmGateway_import_Params) Params() (Persistent_SaveParams, error) {
 }
 
 func (s RealmGateway_import_Params) HasParams() bool {
-	p, err := s.Struct.Ptr(1)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(1)
 }
 
 func (s RealmGateway_import_Params) SetParams(v Persistent_SaveParams) error {
@@ -488,8 +484,7 @@ func (s RealmGateway_export_Params) Cap() Persistent {
 }
 
 func (s RealmGateway_export_Params) HasCap() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s RealmGateway_export_Params) SetCap(v Persistent) error {
@@ -507,8 +502,7 @@ func (s RealmGateway_export_Params) Params() (Persistent_SaveParams, error) {
 }
 
 func (s RealmGateway_export_Params) HasParams() bool {
-	p, err := s.Struct.Ptr(1)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(1)
 }
 
 func (s RealmGateway_export_Params) SetParams(v Persistent_SaveParams) error {

@@ -406,8 +406,7 @@ func (s JoinResult) Cap() (capnp.Ptr, error) {
 }
 
 func (s JoinResult) HasCap() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s JoinResult) SetCap(v capnp.Ptr) error {

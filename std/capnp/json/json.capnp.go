@@ -103,8 +103,7 @@ func (s JsonValue) HasString_() bool {
 	if s.Struct.Uint16(0) != 3 {
 		return false
 	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s JsonValue) String_Bytes() ([]byte, error) {
@@ -126,8 +125,7 @@ func (s JsonValue) HasArray() bool {
 	if s.Struct.Uint16(0) != 4 {
 		return false
 	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s JsonValue) SetArray(v JsonValue_List) error {
@@ -156,8 +154,7 @@ func (s JsonValue) HasObject() bool {
 	if s.Struct.Uint16(0) != 5 {
 		return false
 	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s JsonValue) SetObject(v JsonValue_Field_List) error {
@@ -186,8 +183,7 @@ func (s JsonValue) HasCall() bool {
 	if s.Struct.Uint16(0) != 6 {
 		return false
 	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s JsonValue) SetCall(v JsonValue_Call) error {
@@ -268,8 +264,7 @@ func (s JsonValue_Field) Name() (string, error) {
 }
 
 func (s JsonValue_Field) HasName() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s JsonValue_Field) NameBytes() ([]byte, error) {
@@ -287,8 +282,7 @@ func (s JsonValue_Field) Value() (JsonValue, error) {
 }
 
 func (s JsonValue_Field) HasValue() bool {
-	p, err := s.Struct.Ptr(1)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(1)
 }
 
 func (s JsonValue_Field) SetValue(v JsonValue) error {
@@ -369,8 +363,7 @@ func (s JsonValue_Call) Function() (string, error) {
 }
 
 func (s JsonValue_Call) HasFunction() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s JsonValue_Call) FunctionBytes() ([]byte, error) {
@@ -388,8 +381,7 @@ func (s JsonValue_Call) Params() (JsonValue_List, error) {
 }
 
 func (s JsonValue_Call) HasParams() bool {
-	p, err := s.Struct.Ptr(1)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(1)
 }
 
 func (s JsonValue_Call) SetParams(v JsonValue_List) error {

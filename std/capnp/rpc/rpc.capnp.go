@@ -100,8 +100,7 @@ func (s Message) HasUnimplemented() bool {
 	if s.Struct.Uint16(0) != 0 {
 		return false
 	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Message) SetUnimplemented(v Message) error {
@@ -130,8 +129,7 @@ func (s Message) HasAbort() bool {
 	if s.Struct.Uint16(0) != 1 {
 		return false
 	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Message) SetAbort(v Exception) error {
@@ -160,8 +158,7 @@ func (s Message) HasBootstrap() bool {
 	if s.Struct.Uint16(0) != 8 {
 		return false
 	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Message) SetBootstrap(v Bootstrap) error {
@@ -190,8 +187,7 @@ func (s Message) HasCall() bool {
 	if s.Struct.Uint16(0) != 2 {
 		return false
 	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Message) SetCall(v Call) error {
@@ -220,8 +216,7 @@ func (s Message) HasReturn() bool {
 	if s.Struct.Uint16(0) != 3 {
 		return false
 	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Message) SetReturn(v Return) error {
@@ -250,8 +245,7 @@ func (s Message) HasFinish() bool {
 	if s.Struct.Uint16(0) != 4 {
 		return false
 	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Message) SetFinish(v Finish) error {
@@ -280,8 +274,7 @@ func (s Message) HasResolve() bool {
 	if s.Struct.Uint16(0) != 5 {
 		return false
 	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Message) SetResolve(v Resolve) error {
@@ -310,8 +303,7 @@ func (s Message) HasRelease() bool {
 	if s.Struct.Uint16(0) != 6 {
 		return false
 	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Message) SetRelease(v Release) error {
@@ -340,8 +332,7 @@ func (s Message) HasDisembargo() bool {
 	if s.Struct.Uint16(0) != 13 {
 		return false
 	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Message) SetDisembargo(v Disembargo) error {
@@ -369,8 +360,7 @@ func (s Message) HasObsoleteSave() bool {
 	if s.Struct.Uint16(0) != 7 {
 		return false
 	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Message) SetObsoleteSave(v capnp.Ptr) error {
@@ -386,8 +376,7 @@ func (s Message) HasObsoleteDelete() bool {
 	if s.Struct.Uint16(0) != 9 {
 		return false
 	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Message) SetObsoleteDelete(v capnp.Ptr) error {
@@ -404,8 +393,7 @@ func (s Message) HasProvide() bool {
 	if s.Struct.Uint16(0) != 10 {
 		return false
 	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Message) SetProvide(v Provide) error {
@@ -434,8 +422,7 @@ func (s Message) HasAccept() bool {
 	if s.Struct.Uint16(0) != 11 {
 		return false
 	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Message) SetAccept(v Accept) error {
@@ -464,8 +451,7 @@ func (s Message) HasJoin() bool {
 	if s.Struct.Uint16(0) != 12 {
 		return false
 	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Message) SetJoin(v Join) error {
@@ -605,8 +591,7 @@ func (s Bootstrap) DeprecatedObjectId() (capnp.Ptr, error) {
 }
 
 func (s Bootstrap) HasDeprecatedObjectId() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Bootstrap) SetDeprecatedObjectId(v capnp.Ptr) error {
@@ -704,8 +689,7 @@ func (s Call) Target() (MessageTarget, error) {
 }
 
 func (s Call) HasTarget() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Call) SetTarget(v MessageTarget) error {
@@ -753,8 +737,7 @@ func (s Call) Params() (Payload, error) {
 }
 
 func (s Call) HasParams() bool {
-	p, err := s.Struct.Ptr(1)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(1)
 }
 
 func (s Call) SetParams(v Payload) error {
@@ -795,8 +778,7 @@ func (s Call_sendResultsTo) HasThirdParty() bool {
 	if s.Struct.Uint16(6) != 2 {
 		return false
 	}
-	p, err := s.Struct.Ptr(2)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(2)
 }
 
 func (s Call_sendResultsTo) SetThirdParty(v capnp.Ptr) error {
@@ -937,8 +919,7 @@ func (s Return) HasResults() bool {
 	if s.Struct.Uint16(6) != 0 {
 		return false
 	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Return) SetResults(v Payload) error {
@@ -967,8 +948,7 @@ func (s Return) HasException() bool {
 	if s.Struct.Uint16(6) != 1 {
 		return false
 	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Return) SetException(v Exception) error {
@@ -1015,8 +995,7 @@ func (s Return) HasAcceptFromThirdParty() bool {
 	if s.Struct.Uint16(6) != 5 {
 		return false
 	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Return) SetAcceptFromThirdParty(v capnp.Ptr) error {
@@ -1192,8 +1171,7 @@ func (s Resolve) HasCap() bool {
 	if s.Struct.Uint16(4) != 0 {
 		return false
 	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Resolve) SetCap(v CapDescriptor) error {
@@ -1222,8 +1200,7 @@ func (s Resolve) HasException() bool {
 	if s.Struct.Uint16(4) != 1 {
 		return false
 	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Resolve) SetException(v Exception) error {
@@ -1400,8 +1377,7 @@ func (s Disembargo) Target() (MessageTarget, error) {
 }
 
 func (s Disembargo) HasTarget() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Disembargo) SetTarget(v MessageTarget) error {
@@ -1537,8 +1513,7 @@ func (s Provide) Target() (MessageTarget, error) {
 }
 
 func (s Provide) HasTarget() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Provide) SetTarget(v MessageTarget) error {
@@ -1561,8 +1536,7 @@ func (s Provide) Recipient() (capnp.Ptr, error) {
 }
 
 func (s Provide) HasRecipient() bool {
-	p, err := s.Struct.Ptr(1)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(1)
 }
 
 func (s Provide) SetRecipient(v capnp.Ptr) error {
@@ -1641,8 +1615,7 @@ func (s Accept) Provision() (capnp.Ptr, error) {
 }
 
 func (s Accept) HasProvision() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Accept) SetProvision(v capnp.Ptr) error {
@@ -1726,8 +1699,7 @@ func (s Join) Target() (MessageTarget, error) {
 }
 
 func (s Join) HasTarget() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Join) SetTarget(v MessageTarget) error {
@@ -1750,8 +1722,7 @@ func (s Join) KeyPart() (capnp.Ptr, error) {
 }
 
 func (s Join) HasKeyPart() bool {
-	p, err := s.Struct.Ptr(1)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(1)
 }
 
 func (s Join) SetKeyPart(v capnp.Ptr) error {
@@ -1856,8 +1827,7 @@ func (s MessageTarget) HasPromisedAnswer() bool {
 	if s.Struct.Uint16(4) != 1 {
 		return false
 	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s MessageTarget) SetPromisedAnswer(v PromisedAnswer) error {
@@ -1937,8 +1907,7 @@ func (s Payload) Content() (capnp.Ptr, error) {
 }
 
 func (s Payload) HasContent() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Payload) SetContent(v capnp.Ptr) error {
@@ -1951,8 +1920,7 @@ func (s Payload) CapTable() (CapDescriptor_List, error) {
 }
 
 func (s Payload) HasCapTable() bool {
-	p, err := s.Struct.Ptr(1)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(1)
 }
 
 func (s Payload) SetCapTable(v CapDescriptor_List) error {
@@ -2099,8 +2067,7 @@ func (s CapDescriptor) HasReceiverAnswer() bool {
 	if s.Struct.Uint16(0) != 4 {
 		return false
 	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s CapDescriptor) SetReceiverAnswer(v PromisedAnswer) error {
@@ -2129,8 +2096,7 @@ func (s CapDescriptor) HasThirdPartyHosted() bool {
 	if s.Struct.Uint16(0) != 5 {
 		return false
 	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s CapDescriptor) SetThirdPartyHosted(v ThirdPartyCapDescriptor) error {
@@ -2223,8 +2189,7 @@ func (s PromisedAnswer) Transform() (PromisedAnswer_Op_List, error) {
 }
 
 func (s PromisedAnswer) HasTransform() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s PromisedAnswer) SetTransform(v PromisedAnswer_Op_List) error {
@@ -2388,8 +2353,7 @@ func (s ThirdPartyCapDescriptor) Id() (capnp.Ptr, error) {
 }
 
 func (s ThirdPartyCapDescriptor) HasId() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s ThirdPartyCapDescriptor) SetId(v capnp.Ptr) error {
@@ -2469,8 +2433,7 @@ func (s Exception) Reason() (string, error) {
 }
 
 func (s Exception) HasReason() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Exception) ReasonBytes() ([]byte, error) {

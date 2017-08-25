@@ -104,6 +104,15 @@ func (p Struct) Ptr(i uint16) (Ptr, error) {
 	return p.seg.readPtr(p.pointerAddress(i), p.depthLimit)
 }
 
+// HasPtr reports whether the i'th pointer in the struct is non-null.
+// It does not affect the read limit.
+func (p Struct) HasPtr(i uint16) bool {
+	if p.seg == nil || i >= p.size.PointerCount {
+		return false
+	}
+	return p.seg.readRawPointer(p.pointerAddress(i)) != 0
+}
+
 // SetPtr sets the i'th pointer in the struct to src.
 func (p Struct) SetPtr(i uint16, src Ptr) error {
 	if p.seg == nil || i >= p.size.PointerCount {

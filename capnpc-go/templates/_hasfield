@@ -4,6 +4,5 @@ func (s {{.Node.Name}}) Has{{.Field.Name|title}}() bool {
 		return false
 	}
 	{{end -}}
-	p, err := s.Struct.Ptr({{.Field.Slot.Offset}})
-	return p.IsValid() || err != nil 
+	return s.Struct.HasPtr({{.Field.Slot.Offset}})
 }

@@ -92,8 +92,7 @@ func (s Node) DisplayName() (string, error) {
 }
 
 func (s Node) HasDisplayName() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Node) DisplayNameBytes() ([]byte, error) {
@@ -127,8 +126,7 @@ func (s Node) Parameters() (Node_Parameter_List, error) {
 }
 
 func (s Node) HasParameters() bool {
-	p, err := s.Struct.Ptr(5)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(5)
 }
 
 func (s Node) SetParameters(v Node_Parameter_List) error {
@@ -160,8 +158,7 @@ func (s Node) NestedNodes() (Node_NestedNode_List, error) {
 }
 
 func (s Node) HasNestedNodes() bool {
-	p, err := s.Struct.Ptr(1)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(1)
 }
 
 func (s Node) SetNestedNodes(v Node_NestedNode_List) error {
@@ -185,8 +182,7 @@ func (s Node) Annotations() (Annotation_List, error) {
 }
 
 func (s Node) HasAnnotations() bool {
-	p, err := s.Struct.Ptr(2)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(2)
 }
 
 func (s Node) SetAnnotations(v Annotation_List) error {
@@ -269,8 +265,7 @@ func (s Node_structNode) Fields() (Field_List, error) {
 }
 
 func (s Node_structNode) HasFields() bool {
-	p, err := s.Struct.Ptr(3)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(3)
 }
 
 func (s Node_structNode) SetFields(v Field_List) error {
@@ -300,8 +295,7 @@ func (s Node_enum) Enumerants() (Enumerant_List, error) {
 }
 
 func (s Node_enum) HasEnumerants() bool {
-	p, err := s.Struct.Ptr(3)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(3)
 }
 
 func (s Node_enum) SetEnumerants(v Enumerant_List) error {
@@ -331,8 +325,7 @@ func (s Node_interface) Methods() (Method_List, error) {
 }
 
 func (s Node_interface) HasMethods() bool {
-	p, err := s.Struct.Ptr(3)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(3)
 }
 
 func (s Node_interface) SetMethods(v Method_List) error {
@@ -356,8 +349,7 @@ func (s Node_interface) Superclasses() (Superclass_List, error) {
 }
 
 func (s Node_interface) HasSuperclasses() bool {
-	p, err := s.Struct.Ptr(4)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(4)
 }
 
 func (s Node_interface) SetSuperclasses(v Superclass_List) error {
@@ -387,8 +379,7 @@ func (s Node_const) Type() (Type, error) {
 }
 
 func (s Node_const) HasType() bool {
-	p, err := s.Struct.Ptr(3)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(3)
 }
 
 func (s Node_const) SetType(v Type) error {
@@ -412,8 +403,7 @@ func (s Node_const) Value() (Value, error) {
 }
 
 func (s Node_const) HasValue() bool {
-	p, err := s.Struct.Ptr(4)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(4)
 }
 
 func (s Node_const) SetValue(v Value) error {
@@ -443,8 +433,7 @@ func (s Node_annotation) Type() (Type, error) {
 }
 
 func (s Node_annotation) HasType() bool {
-	p, err := s.Struct.Ptr(3)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(3)
 }
 
 func (s Node_annotation) SetType(v Type) error {
@@ -677,8 +666,7 @@ func (s Node_Parameter) Name() (string, error) {
 }
 
 func (s Node_Parameter) HasName() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Node_Parameter) NameBytes() ([]byte, error) {
@@ -747,8 +735,7 @@ func (s Node_NestedNode) Name() (string, error) {
 }
 
 func (s Node_NestedNode) HasName() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Node_NestedNode) NameBytes() ([]byte, error) {
@@ -870,8 +857,7 @@ func (s Field) Name() (string, error) {
 }
 
 func (s Field) HasName() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Field) NameBytes() ([]byte, error) {
@@ -897,8 +883,7 @@ func (s Field) Annotations() (Annotation_List, error) {
 }
 
 func (s Field) HasAnnotations() bool {
-	p, err := s.Struct.Ptr(1)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(1)
 }
 
 func (s Field) SetAnnotations(v Annotation_List) error {
@@ -944,8 +929,7 @@ func (s Field_slot) Type() (Type, error) {
 }
 
 func (s Field_slot) HasType() bool {
-	p, err := s.Struct.Ptr(2)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(2)
 }
 
 func (s Field_slot) SetType(v Type) error {
@@ -969,8 +953,7 @@ func (s Field_slot) DefaultValue() (Value, error) {
 }
 
 func (s Field_slot) HasDefaultValue() bool {
-	p, err := s.Struct.Ptr(3)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(3)
 }
 
 func (s Field_slot) SetDefaultValue(v Value) error {
@@ -1124,8 +1107,7 @@ func (s Enumerant) Name() (string, error) {
 }
 
 func (s Enumerant) HasName() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Enumerant) NameBytes() ([]byte, error) {
@@ -1151,8 +1133,7 @@ func (s Enumerant) Annotations() (Annotation_List, error) {
 }
 
 func (s Enumerant) HasAnnotations() bool {
-	p, err := s.Struct.Ptr(1)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(1)
 }
 
 func (s Enumerant) SetAnnotations(v Annotation_List) error {
@@ -1235,8 +1216,7 @@ func (s Superclass) Brand() (Brand, error) {
 }
 
 func (s Superclass) HasBrand() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Superclass) SetBrand(v Brand) error {
@@ -1315,8 +1295,7 @@ func (s Method) Name() (string, error) {
 }
 
 func (s Method) HasName() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Method) NameBytes() ([]byte, error) {
@@ -1342,8 +1321,7 @@ func (s Method) ImplicitParameters() (Node_Parameter_List, error) {
 }
 
 func (s Method) HasImplicitParameters() bool {
-	p, err := s.Struct.Ptr(4)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(4)
 }
 
 func (s Method) SetImplicitParameters(v Node_Parameter_List) error {
@@ -1375,8 +1353,7 @@ func (s Method) ParamBrand() (Brand, error) {
 }
 
 func (s Method) HasParamBrand() bool {
-	p, err := s.Struct.Ptr(2)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(2)
 }
 
 func (s Method) SetParamBrand(v Brand) error {
@@ -1408,8 +1385,7 @@ func (s Method) ResultBrand() (Brand, error) {
 }
 
 func (s Method) HasResultBrand() bool {
-	p, err := s.Struct.Ptr(3)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(3)
 }
 
 func (s Method) SetResultBrand(v Brand) error {
@@ -1433,8 +1409,7 @@ func (s Method) Annotations() (Annotation_List, error) {
 }
 
 func (s Method) HasAnnotations() bool {
-	p, err := s.Struct.Ptr(1)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(1)
 }
 
 func (s Method) SetAnnotations(v Annotation_List) error {
@@ -1720,8 +1695,7 @@ func (s Type_list) ElementType() (Type, error) {
 }
 
 func (s Type_list) HasElementType() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Type_list) SetElementType(v Type) error {
@@ -1759,8 +1733,7 @@ func (s Type_enum) Brand() (Brand, error) {
 }
 
 func (s Type_enum) HasBrand() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Type_enum) SetBrand(v Brand) error {
@@ -1798,8 +1771,7 @@ func (s Type_structType) Brand() (Brand, error) {
 }
 
 func (s Type_structType) HasBrand() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Type_structType) SetBrand(v Brand) error {
@@ -1837,8 +1809,7 @@ func (s Type_interface) Brand() (Brand, error) {
 }
 
 func (s Type_interface) HasBrand() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Type_interface) SetBrand(v Brand) error {
@@ -2093,8 +2064,7 @@ func (s Brand) Scopes() (Brand_Scope_List, error) {
 }
 
 func (s Brand) HasScopes() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Brand) SetScopes(v Brand_Scope_List) error {
@@ -2201,8 +2171,7 @@ func (s Brand_Scope) HasBind() bool {
 	if s.Struct.Uint16(8) != 0 {
 		return false
 	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Brand_Scope) SetBind(v Brand_Binding_List) error {
@@ -2313,8 +2282,7 @@ func (s Brand_Binding) HasType() bool {
 	if s.Struct.Uint16(0) != 1 {
 		return false
 	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Brand_Binding) SetType(v Type) error {
@@ -2574,8 +2542,7 @@ func (s Value) HasText() bool {
 	if s.Struct.Uint16(0) != 12 {
 		return false
 	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Value) TextBytes() ([]byte, error) {
@@ -2597,8 +2564,7 @@ func (s Value) HasData() bool {
 	if s.Struct.Uint16(0) != 13 {
 		return false
 	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Value) SetData(v []byte) error {
@@ -2614,8 +2580,7 @@ func (s Value) HasList() bool {
 	if s.Struct.Uint16(0) != 14 {
 		return false
 	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Value) SetList(v capnp.Ptr) error {
@@ -2640,8 +2605,7 @@ func (s Value) HasStructValue() bool {
 	if s.Struct.Uint16(0) != 16 {
 		return false
 	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Value) SetStructValue(v capnp.Ptr) error {
@@ -2662,8 +2626,7 @@ func (s Value) HasAnyPointer() bool {
 	if s.Struct.Uint16(0) != 18 {
 		return false
 	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Value) SetAnyPointer(v capnp.Ptr) error {
@@ -2748,8 +2711,7 @@ func (s Annotation) Brand() (Brand, error) {
 }
 
 func (s Annotation) HasBrand() bool {
-	p, err := s.Struct.Ptr(1)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(1)
 }
 
 func (s Annotation) SetBrand(v Brand) error {
@@ -2773,8 +2735,7 @@ func (s Annotation) Value() (Value, error) {
 }
 
 func (s Annotation) HasValue() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s Annotation) SetValue(v Value) error {
@@ -2942,8 +2903,7 @@ func (s CodeGeneratorRequest) Nodes() (Node_List, error) {
 }
 
 func (s CodeGeneratorRequest) HasNodes() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s CodeGeneratorRequest) SetNodes(v Node_List) error {
@@ -2967,8 +2927,7 @@ func (s CodeGeneratorRequest) RequestedFiles() (CodeGeneratorRequest_RequestedFi
 }
 
 func (s CodeGeneratorRequest) HasRequestedFiles() bool {
-	p, err := s.Struct.Ptr(1)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(1)
 }
 
 func (s CodeGeneratorRequest) SetRequestedFiles(v CodeGeneratorRequest_RequestedFile_List) error {
@@ -3055,8 +3014,7 @@ func (s CodeGeneratorRequest_RequestedFile) Filename() (string, error) {
 }
 
 func (s CodeGeneratorRequest_RequestedFile) HasFilename() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s CodeGeneratorRequest_RequestedFile) FilenameBytes() ([]byte, error) {
@@ -3074,8 +3032,7 @@ func (s CodeGeneratorRequest_RequestedFile) Imports() (CodeGeneratorRequest_Requ
 }
 
 func (s CodeGeneratorRequest_RequestedFile) HasImports() bool {
-	p, err := s.Struct.Ptr(1)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(1)
 }
 
 func (s CodeGeneratorRequest_RequestedFile) SetImports(v CodeGeneratorRequest_RequestedFile_Import_List) error {
@@ -3162,8 +3119,7 @@ func (s CodeGeneratorRequest_RequestedFile_Import) Name() (string, error) {
 }
 
 func (s CodeGeneratorRequest_RequestedFile_Import) HasName() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
+	return s.Struct.HasPtr(0)
 }
 
 func (s CodeGeneratorRequest_RequestedFile_Import) NameBytes() ([]byte, error) {
