@@ -362,6 +362,27 @@ func (e *extracter) extractList(val reflect.Value, typ schema.Type, l capnp.List
 				}
 			}
 		}
+	case schema.Type_Which_interface:
+		if val.Type().Elem() == clientType {
+			for i := 0; i < n; i++ {
+				p, err := capnp.PointerList{List: l}.At(i)
+				// TODO(light): collect errors and finish
+				if err != nil {
+					return err
+				}
+				val.Index(i).Set(reflect.ValueOf(p.Interface().Client()))
+			}
+		} else {
+			// Must be a struct wrapper.
+			for i := 0; i < n; i++ {
+				p, err := capnp.PointerList{List: l}.At(i)
+				// TODO(light): collect errors and finish
+				if err != nil {
+					return err
+				}
+				val.Index(i).FieldByName("Client").Set(reflect.ValueOf(p.Interface().Client()))
+			}
+		}
 	default:
 		return fmt.Errorf("unknown list type %v", elem.Which())
 	}

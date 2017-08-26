@@ -2,6 +2,7 @@ package pogs
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -51,6 +52,9 @@ type Z struct {
 	Airport   air.Airport
 
 	Grp *ZGroup
+
+	Echo   air.Echo
+	Echoes []air.Echo
 }
 
 type PlaneBase struct {
@@ -151,6 +155,15 @@ var goodTests = []Z{
 	}},
 	{Which: air.Z_Which_airport, Airport: air.Airport_lax},
 	{Which: air.Z_Which_grp, Grp: &ZGroup{First: 123, Second: 456}},
+	{Which: air.Z_Which_echo, Echo: air.Echo{}},
+	{Which: air.Z_Which_echo, Echo: air.Echo{Client: capnp.ErrorClient(errors.New("boo"))}},
+	{Which: air.Z_Which_echoes, Echoes: []air.Echo{
+		{Client: nil},
+		{Client: capnp.ErrorClient(errors.New("boo"))},
+		{Client: nil},
+		{Client: capnp.ErrorClient(errors.New("boo"))},
+		{Client: nil},
+	}},
 }
 
 func TestExtract(t *testing.T) {
@@ -1153,6 +1166,22 @@ func zfill(c air.Z, g *Z) error {
 		if g.Grp != nil {
 			c.Grp().SetFirst(g.Grp.First)
 			c.Grp().SetSecond(g.Grp.Second)
+		}
+	case air.Z_Which_echo:
+		c.SetEcho(g.Echo)
+	case air.Z_Which_echoes:
+		e, err := c.NewEchoes(int32(len(g.Echoes)))
+		if err != nil {
+			return err
+		}
+		for i, ee := range g.Echoes {
+			if !ee.Client.IsValid() {
+				continue
+			}
+			err := e.Set(i, capnp.NewInterface(e.Segment(), e.Message().AddCap(ee.Client)).ToPtr())
+			if err != nil {
+				return err
+			}
 		}
 	default:
 		return fmt.Errorf("zfill: unknown type: %v", g.Which)

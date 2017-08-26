@@ -145,7 +145,7 @@ struct Z {
     }
 
     echo              @44 :Echo;
-    echoBases         @45 :EchoBases;
+    echoes            @45 :List(Echo);
   }
 }
 
@@ -295,12 +295,6 @@ struct Hoth {
 
 struct EchoBase {
   echo @0 :Echo;
-}
-
-# test List(Struct(Interface))
-
-struct EchoBases {
-	bases @0 :List(EchoBase);
 }
 
 # test transforms
