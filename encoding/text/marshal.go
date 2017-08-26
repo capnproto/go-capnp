@@ -17,9 +17,10 @@ import (
 
 // Marker strings.
 const (
-	voidMarker       = "void"
-	interfaceMarker  = "<external capability>"
-	anyPointerMarker = "<opaque pointer>"
+	voidMarker          = "void"
+	interfaceMarker     = "<external capability>"
+	interfaceNullMarker = "null"
+	anyPointerMarker    = "<opaque pointer>"
 )
 
 // Marshal returns the text representation of a struct.
@@ -277,7 +278,11 @@ func (enc *Encoder) marshalFieldValue(s capnp.Struct, f schema.Field) error {
 		d := dv.Uint16()
 		return enc.marshalEnum(typ.Enum().TypeId(), v^d)
 	case schema.Type_Which_interface:
-		enc.w.WriteString(interfaceMarker)
+		if s.HasPtr(uint16(f.Slot().Offset())) {
+			enc.w.WriteString(interfaceMarker)
+		} else {
+			enc.w.WriteString(interfaceNullMarker)
+		}
 	case schema.Type_Which_anyPointer:
 		enc.w.WriteString(anyPointerMarker)
 	default:
@@ -377,7 +382,15 @@ func (enc *Encoder) marshalList(elem schema.Type, l capnp.List) error {
 			if i > 0 {
 				enc.w.WriteString(", ")
 			}
-			enc.w.WriteString(interfaceMarker)
+			p, err := capnp.PointerList{List: l}.At(i)
+			if err != nil {
+				return err
+			}
+			if p.IsValid() {
+				enc.w.WriteString(interfaceMarker)
+			} else {
+				enc.w.WriteString(interfaceNullMarker)
+			}
 		}
 		enc.w.WriteByte(']')
 	case schema.Type_Which_anyPointer:
