@@ -1,6 +1,7 @@
 package pogs
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"reflect"
@@ -224,6 +225,25 @@ func (ins *inserter) insertField(s capnp.Struct, f schema.Field, val reflect.Val
 		if err := s.SetPtr(off, ptr); err != nil {
 			return err
 		}
+	case schema.Type_Which_anyPointer:
+		off := uint16(f.Slot().Offset())
+		switch val.Type() {
+		case ptrType:
+			return s.SetPtr(off, val.Interface().(capnp.Ptr))
+		case structType:
+			return s.SetPtr(off, val.Interface().(capnp.Struct).ToPtr())
+		case listType:
+			return s.SetPtr(off, val.Interface().(capnp.List).ToPtr())
+		case clientType:
+			c := val.Interface().(*capnp.Client)
+			if !c.IsValid() {
+				return s.SetPtr(off, capnp.Ptr{})
+			}
+			id := s.Message().AddCap(c)
+			return s.SetPtr(off, capnp.NewInterface(s.Segment(), id).ToPtr())
+		default:
+			panic("unreachable")
+		}
 	default:
 		return fmt.Errorf("unknown field type %v", typ.Which())
 	}
@@ -389,6 +409,10 @@ func (ins *inserter) insertList(l capnp.List, typ schema.Type, val reflect.Value
 				return err
 			}
 		}
+	case schema.Type_Which_anyPointer:
+		// Schemas aren't allowed to have List(AnyPointer).
+		// See https://groups.google.com/d/topic/capnproto/BVk3m7Nc-4s/discussion
+		return errors.New("List(AnyPointer) not allowed in schema")
 	default:
 		return fmt.Errorf("unknown list type %v", elem.Which())
 	}

@@ -25,7 +25,13 @@ type extracter struct {
 	nodes nodemap.Map
 }
 
-var clientType = reflect.TypeOf((*capnp.Client)(nil))
+var (
+	clientType = reflect.TypeOf((*capnp.Client)(nil))
+
+	ptrType    = reflect.TypeOf(capnp.Ptr{})
+	structType = reflect.TypeOf(capnp.Struct{})
+	listType   = reflect.TypeOf(capnp.List{})
+)
 
 func (e *extracter) extractStruct(val reflect.Value, typeID uint64, s capnp.Struct) error {
 	if val.Kind() == reflect.Ptr {
@@ -237,6 +243,29 @@ func (e *extracter) extractField(val reflect.Value, s capnp.Struct, f schema.Fie
 		} else {
 			val.Set(reflect.ValueOf(client))
 		}
+	case schema.Type_Which_anyPointer:
+		p, err := s.Ptr(uint16(f.Slot().Offset()))
+		if err != nil {
+			return err
+		}
+		if !p.IsValid() {
+			p, err = dv.AnyPointer()
+			if err != nil {
+				return err
+			}
+		}
+		switch val.Type() {
+		case ptrType:
+			val.Set(reflect.ValueOf(p))
+		case structType:
+			val.Set(reflect.ValueOf(p.Struct()))
+		case listType:
+			val.Set(reflect.ValueOf(p.List()))
+		case clientType:
+			val.Set(reflect.ValueOf(p.Interface().Client()))
+		default:
+			panic("unreachable")
+		}
 	default:
 		return fmt.Errorf("unknown field type %v", typ.Which())
 	}
@@ -383,6 +412,10 @@ func (e *extracter) extractList(val reflect.Value, typ schema.Type, l capnp.List
 				val.Index(i).FieldByName("Client").Set(reflect.ValueOf(p.Interface().Client()))
 			}
 		}
+	case schema.Type_Which_anyPointer:
+		// Schemas aren't allowed to have List(AnyPointer).
+		// See https://groups.google.com/d/topic/capnproto/BVk3m7Nc-4s/discussion
+		return errors.New("List(AnyPointer) not allowed in schema")
 	default:
 		return fmt.Errorf("unknown list type %v", elem.Which())
 	}
@@ -433,6 +466,25 @@ func isTypeMatch(r reflect.Type, s schema.Type) bool {
 			return false
 		}
 		return field.Type == clientType
+	case schema.Type_Which_anyPointer:
+		if r == ptrType {
+			return true
+		}
+		if s.AnyPointer().Which() != schema.Type_anyPointer_Which_unconstrained {
+			// TODO(someday): handle generic parameters, see
+			// https://github.com/capnproto/go-capnproto2/issues/94
+			return false
+		}
+		switch s.AnyPointer().Unconstrained().Which() {
+		case schema.Type_anyPointer_unconstrained_Which_struct:
+			return r == structType
+		case schema.Type_anyPointer_unconstrained_Which_list:
+			return r == listType
+		case schema.Type_anyPointer_unconstrained_Which_capability:
+			return r == clientType
+		default:
+			return false
+		}
 	}
 	k, ok := typeMap[s.Which()]
 	return ok && k == r.Kind()

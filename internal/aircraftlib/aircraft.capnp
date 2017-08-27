@@ -146,6 +146,14 @@ struct Z {
 
     echo              @44 :Echo;
     echoes            @45 :List(Echo);
+
+    anyPtr            @46 :AnyPointer;
+    anyStruct         @47 :AnyStruct;
+    anyList           @48 :AnyList;
+    anyCapability     @49 :Capability;
+
+    # Schemas aren't allowed to have List(AnyPointer).
+    # See https://groups.google.com/d/topic/capnproto/BVk3m7Nc-4s/discussion
   }
 }
 

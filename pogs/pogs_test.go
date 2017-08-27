@@ -55,6 +55,11 @@ type Z struct {
 
 	Echo   air.Echo
 	Echoes []air.Echo
+
+	AnyPtr        capnp.Ptr
+	AnyStruct     capnp.Struct
+	AnyList       capnp.List
+	AnyCapability *capnp.Client
 }
 
 type PlaneBase struct {
@@ -164,6 +169,38 @@ var goodTests = []Z{
 		{Client: capnp.ErrorClient(errors.New("boo"))},
 		{Client: nil},
 	}},
+	{Which: air.Z_Which_anyPtr, AnyPtr: capnp.Ptr{}},
+	{Which: air.Z_Which_anyPtr, AnyPtr: newTestStruct().ToPtr()},
+	{Which: air.Z_Which_anyPtr, AnyPtr: newTestList().ToPtr()},
+	{Which: air.Z_Which_anyPtr, AnyPtr: newTestInterface().ToPtr()},
+	{Which: air.Z_Which_anyStruct, AnyStruct: capnp.Struct{}},
+	{Which: air.Z_Which_anyStruct, AnyStruct: newTestStruct()},
+	{Which: air.Z_Which_anyList, AnyList: capnp.List{}},
+	{Which: air.Z_Which_anyList, AnyList: newTestList()},
+	{Which: air.Z_Which_anyCapability, AnyCapability: nil},
+	{Which: air.Z_Which_anyCapability, AnyCapability: capnp.ErrorClient(errors.New("boo"))},
+}
+
+func newTestStruct() capnp.Struct {
+	_, seg, _ := capnp.NewMessage(capnp.SingleSegment(nil))
+	s, _ := capnp.NewRootStruct(seg, capnp.ObjectSize{DataSize: 8})
+	s.SetUint32(0, 0xdeadbeef)
+	return s
+}
+
+func newTestList() capnp.List {
+	_, seg, _ := capnp.NewMessage(capnp.SingleSegment(nil))
+	l, _ := capnp.NewInt32List(seg, 3)
+	l.Set(0, 123)
+	l.Set(1, 456)
+	l.Set(2, 789)
+	return l.List
+}
+
+func newTestInterface() capnp.Interface {
+	msg, seg, _ := capnp.NewMessage(capnp.SingleSegment(nil))
+	id := msg.AddCap(capnp.ErrorClient(errors.New("boo")))
+	return capnp.NewInterface(seg, id)
 }
 
 func TestExtract(t *testing.T) {
@@ -1183,6 +1220,18 @@ func zfill(c air.Z, g *Z) error {
 				return err
 			}
 		}
+	case air.Z_Which_anyPtr:
+		return c.SetAnyPtr(g.AnyPtr)
+	case air.Z_Which_anyStruct:
+		return c.SetAnyStruct(g.AnyStruct.ToPtr())
+	case air.Z_Which_anyList:
+		return c.SetAnyList(g.AnyList.ToPtr())
+	case air.Z_Which_anyCapability:
+		if g.AnyCapability == nil {
+			return c.SetAnyCapability(capnp.Ptr{})
+		}
+		cap := capnp.NewInterface(c.Segment(), c.Message().AddCap(g.AnyCapability))
+		return c.SetAnyCapability(cap.ToPtr())
 	default:
 		return fmt.Errorf("zfill: unknown type: %v", g.Which)
 	}
