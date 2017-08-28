@@ -29,9 +29,9 @@ type Sender interface {
 // A Receiver receives Cap'n Proto RPC messages from another vat.
 type Receiver interface {
 	// RecvMessage waits to receive a message and returns it.
-	// The returned message is only valid until the next call to
-	// RecvMessage or CloseRecv.
-	RecvMessage(ctx context.Context) (rpccapnp.Message, error)
+	// The returned message is only valid until the release function is
+	// called or CloseRecv is called.
+	RecvMessage(ctx context.Context) (rpccapnp.Message, capnp.ReleaseFunc, error)
 
 	// CloseRecv releases any resources associated with the receiver and
 	// ends any unfinished RecvMessage call.
@@ -73,7 +73,7 @@ type StreamTransport struct {
 //
 // If rwc has a SetWriteDeadline method, it will be used when a message
 // is sent.  If rwc has CloseRead/CloseWrite methods, those will be used
-// during CloseRecv/CloseSend.  Regardless, Close will be called once
+// during CloseRecv/CloseSend.  Regardless, Close will be called after
 // CloseRecv and CloseSend have both been called.
 func NewStreamTransport(rwc io.ReadWriteCloser) *StreamTransport {
 	d, _ := rwc.(writeDeadlineSetter)
@@ -85,7 +85,7 @@ func NewStreamTransport(rwc io.ReadWriteCloser) *StreamTransport {
 		cw:       cw,
 	}
 	dec := capnp.NewDecoder(rwc)
-	dec.ReuseBuffer()
+	// TODO(someday): reuse buffer as long as release is called before next RecvMessage.
 	if c, ok := rwc.(readCloser); ok {
 		s.recv = closerReceiver{dec, c}
 	} else {
@@ -145,7 +145,7 @@ func (s *StreamTransport) CloseSend() error {
 // RecvMessage reads the next message from the underlying reader.
 // The cancelation and deadline from ctx is ignored, but RecvMessage
 // will return early if CloseRecv is called.
-func (s *StreamTransport) RecvMessage(ctx context.Context) (rpccapnp.Message, error) {
+func (s *StreamTransport) RecvMessage(ctx context.Context) (rpccapnp.Message, capnp.ReleaseFunc, error) {
 	return s.recv.RecvMessage(ctx)
 }
 
@@ -183,12 +183,18 @@ type closerReceiver struct {
 	closer readCloser
 }
 
-func (cr closerReceiver) RecvMessage(ctx context.Context) (rpccapnp.Message, error) {
+func (cr closerReceiver) RecvMessage(ctx context.Context) (rpccapnp.Message, capnp.ReleaseFunc, error) {
 	msg, err := cr.dec.Decode()
 	if err != nil {
-		return rpccapnp.Message{}, err
+		return rpccapnp.Message{}, nil, err
 	}
-	return rpccapnp.ReadRootMessage(msg)
+	rmsg, err := rpccapnp.ReadRootMessage(msg)
+	if err != nil {
+		return rpccapnp.Message{}, nil, err
+	}
+	return rmsg, func() {
+		msg.Reset(nil)
+	}, nil
 }
 
 func (cr closerReceiver) CloseRecv() error {
@@ -204,10 +210,10 @@ type signalReceiver struct {
 	close chan struct{}
 }
 
-func (sr signalReceiver) RecvMessage(ctx context.Context) (rpccapnp.Message, error) {
+func (sr signalReceiver) RecvMessage(ctx context.Context) (rpccapnp.Message, capnp.ReleaseFunc, error) {
 	select {
 	case <-sr.close:
-		return rpccapnp.Message{}, errors.New("RPC stream transport: receive on closed receiver")
+		return rpccapnp.Message{}, nil, errors.New("RPC stream transport: receive on closed receiver")
 	default:
 	}
 	var msg *capnp.Message
@@ -220,12 +226,18 @@ func (sr signalReceiver) RecvMessage(ctx context.Context) (rpccapnp.Message, err
 	select {
 	case <-read:
 	case <-sr.close:
-		return rpccapnp.Message{}, errors.New("RPC stream transport: receive on closed receiver")
+		return rpccapnp.Message{}, nil, errors.New("RPC stream transport: receive on closed receiver")
 	}
 	if err != nil {
-		return rpccapnp.Message{}, err
+		return rpccapnp.Message{}, nil, err
 	}
-	return rpccapnp.ReadRootMessage(msg)
+	rmsg, err := rpccapnp.ReadRootMessage(msg)
+	if err != nil {
+		return rpccapnp.Message{}, nil, err
+	}
+	return rmsg, func() {
+		msg.Reset(nil)
+	}, nil
 }
 
 func (sr signalReceiver) CloseRecv() error {

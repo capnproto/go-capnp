@@ -25,10 +25,11 @@ func TestCloseAbort(t *testing.T) {
 	if err := conn.Close(); err != nil {
 		t.Error("conn.Close():", err)
 	}
-	msg, err := p2.RecvMessage(ctx)
+	msg, release, err := p2.RecvMessage(ctx)
 	if err != nil {
 		t.Fatal("p2.RecvMessage:", err)
 	}
+	defer release()
 	var rmsg rpcMessage
 	if err := pogs.Extract(&rmsg, rpccapnp.Message_TypeID, msg.Struct); err != nil {
 		t.Fatal("pogs.Extract(p2.RecvMessage(ctx)):", err)
@@ -56,10 +57,11 @@ func TestBootstrap(t *testing.T) {
 
 	ctx := context.Background()
 	conn.Bootstrap(ctx)
-	msg, err := p2.RecvMessage(ctx)
+	msg, release, err := p2.RecvMessage(ctx)
 	if err != nil {
 		t.Fatal("p2.RecvMessage:", err)
 	}
+	defer release()
 	var rmsg rpcMessage
 	if err := pogs.Extract(&rmsg, rpccapnp.Message_TypeID, msg.Struct); err != nil {
 		t.Fatal("pogs.Extract(p2.RecvMessage(ctx)):", err)

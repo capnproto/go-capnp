@@ -61,7 +61,7 @@ func testTransport(t *testing.T, makePipe func() (t1, t2 rpc.Transport, err erro
 			t2.CloseRecv()
 			t.Fatal("send():", err)
 		}
-		r, err := t2.RecvMessage(ctx)
+		r, release, err := t2.RecvMessage(ctx)
 		if err != nil {
 			t1.CloseSend()
 			t2.CloseRecv()
@@ -74,6 +74,7 @@ func testTransport(t *testing.T, makePipe func() (t1, t2 rpc.Transport, err erro
 		} else if rboot.QuestionId() != 42 {
 			t.Errorf("t2.RecvMessage(ctx).Bootstrap.QuestionID = %d; want 42", rboot.QuestionId())
 		}
+		release()
 
 		if err := t2.CloseRecv(); err != nil {
 			t.Error("t2.CloseRecv:", err)
@@ -90,8 +91,11 @@ func testTransport(t *testing.T, makePipe func() (t1, t2 rpc.Transport, err erro
 
 		done := make(chan struct{})
 		go func(ctx context.Context) {
-			t1.RecvMessage(ctx)
+			_, release, _ := t1.RecvMessage(ctx)
 			t.Log("t1.RecvMessage returned")
+			if release != nil {
+				release()
+			}
 			close(done)
 		}(context.Background())
 		if err := t1.CloseRecv(); err != nil {

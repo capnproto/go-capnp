@@ -12,9 +12,8 @@ import (
 )
 
 type pipe struct {
-	r       <-chan pipeMsg
-	rc      chan struct{} // close to hang up reads
-	release capnp.ReleaseFunc
+	r  <-chan pipeMsg
+	rc chan struct{} // close to hang up reads
 
 	w  chan<- pipeMsg
 	wc <-chan struct{} // closed when writes are no longer listened to
@@ -60,30 +59,21 @@ func (p *pipe) CloseSend() error {
 	return nil
 }
 
-func (p *pipe) RecvMessage(ctx context.Context) (rpccapnp.Message, error) {
-	if p.release != nil {
-		p.release()
-		p.release = nil
-	}
+func (p *pipe) RecvMessage(ctx context.Context) (rpccapnp.Message, capnp.ReleaseFunc, error) {
 	select {
 	case pm, ok := <-p.r:
 		if !ok {
-			return rpccapnp.Message{}, errors.New("rpc pipe: receive on closed pipe")
+			return rpccapnp.Message{}, nil, errors.New("rpc pipe: receive on closed pipe")
 		}
-		p.release = pm.release
-		return pm.msg, nil
+		return pm.msg, pm.release, nil
 	case <-p.rc:
-		return rpccapnp.Message{}, errors.New("rpc pipe: receive interrupted by close")
+		return rpccapnp.Message{}, nil, errors.New("rpc pipe: receive interrupted by close")
 	case <-ctx.Done():
-		return rpccapnp.Message{}, fmt.Errorf("rpc pipe: %v", ctx.Err())
+		return rpccapnp.Message{}, nil, fmt.Errorf("rpc pipe: %v", ctx.Err())
 	}
 }
 
 func (p *pipe) CloseRecv() error {
-	if p.release != nil {
-		p.release()
-		p.release = nil
-	}
 	close(p.rc)
 	for {
 		select {
