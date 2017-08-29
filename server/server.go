@@ -178,9 +178,9 @@ func (srv *Server) start(ctx context.Context, m *Method, r capnp.Recv) (*capnp.A
 
 	id := srv.nextID()
 	if id == -1 {
+		// TODO(soon): block (backpressure) instead of drop.
 		srv.mu.Unlock()
 		r.ReleaseArgs()
-		// TODO(someday): classify as overloaded
 		return capnp.ErrorAnswer(errors.New("capnp server: too many concurrent calls")), func() {}
 	}
 	ctx, cancel := context.WithCancel(ctx)

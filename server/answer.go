@@ -103,8 +103,8 @@ func (qc queueCaller) PipelineRecv(ctx context.Context, transform []capnp.Pipeli
 	}
 	nq := len(qc.aq.q)
 	if nq >= cap(qc.aq.q) {
+		// TODO(soon): block (backpressure) instead of drop.
 		qc.aq.mu.Unlock()
-		// TODO(someday): classify as overloaded
 		r.ReleaseArgs()
 		return capnp.ErrorAnswer(errors.New("capnp server: too many calls on pipelined answer")), func() {}
 	}
