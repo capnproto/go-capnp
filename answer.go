@@ -337,6 +337,10 @@ func (pc pipelineClient) Brand() interface{} {
 	return c.Brand()
 }
 
+func (pc pipelineClient) Close() error {
+	return nil
+}
+
 // A PipelineOp describes a step in transforming a pipeline.
 // It maps closely with the PromisedAnswer.Op struct in rpc.capnp.
 type PipelineOp struct {

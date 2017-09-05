@@ -92,12 +92,7 @@ type clientHook struct {
 	// a clientHook.
 	ClientHook
 
-	// closer will be non-nil if created by NewClient and will not change
-	// for the lifetime of a clientHook.
-	closer
-
 	// done is closed when refs == 0 and calls == 0.
-	// Only non-nil for clients created by NewClient.
 	done chan struct{}
 
 	// resolved is closed after resolvedHook is set
@@ -114,13 +109,12 @@ type clientHook struct {
 //
 // Typically the RPC system will create a client for the application.
 // Most applications will not need to use this directly.
-func NewClient(hook ClientHookCloser) *Client {
+func NewClient(hook ClientHook) *Client {
 	if hook == nil {
 		return nil
 	}
 	h := &clientHook{
 		ClientHook: hook,
-		closer:     hook,
 		done:       make(chan struct{}),
 		refs:       1,
 		resolved:   newClosedSignal(),
@@ -130,7 +124,9 @@ func NewClient(hook ClientHookCloser) *Client {
 }
 
 // NewPromisedClient creates the first reference to a capability that
-// can resolve to a different capability.
+// can resolve to a different capability.  The hook will be closed when
+// the promise is resolved or the client has no more references,
+// whichever comes first.
 //
 // Typically the RPC system will create a client for the application.
 // Most applications will not need to use this directly.
@@ -140,7 +136,8 @@ func NewPromisedClient(hook ClientHook) (*Client, *ClientPromise) {
 	}
 	h := &clientHook{
 		ClientHook: hook,
-		refs:       2, // to keep open until resolved
+		done:       make(chan struct{}),
+		refs:       1,
 		resolved:   make(chan struct{}),
 	}
 	return &Client{h: h}, &ClientPromise{h: h}
@@ -159,7 +156,7 @@ func (c *Client) startCall() (hook ClientHook, closed bool, finish func()) {
 		return nil, c.closed, func() {}
 	}
 	c.h.mu.Lock()
-	c.lockedResolve()
+	c.h = resolveHook(c.h)
 	if c.h == nil {
 		return nil, false, func() {}
 	}
@@ -169,7 +166,7 @@ func (c *Client) startCall() (hook ClientHook, closed bool, finish func()) {
 	return savedHook.ClientHook, false, func() {
 		savedHook.mu.Lock()
 		savedHook.calls--
-		if savedHook.refs == 0 && savedHook.calls == 0 && savedHook.done != nil {
+		if savedHook.refs == 0 && savedHook.calls == 0 {
 			close(savedHook.done)
 		}
 		savedHook.mu.Unlock()
@@ -186,39 +183,33 @@ func (c *Client) peek() (hook *clientHook, closed bool, resolved bool) {
 		return nil, c.closed, true
 	}
 	c.h.mu.Lock()
-	c.lockedResolve()
+	c.h = resolveHook(c.h)
 	if c.h == nil {
 		return nil, false, true
 	}
-	select {
-	case <-c.h.resolved:
-		resolved = true
-	default:
-	}
+	resolved = c.h.isResolved()
 	c.h.mu.Unlock()
 	return c.h, false, resolved
 }
 
-// lockedResolve resolves c.h as much as possible.
-// The caller must be holding onto c.mu and c.h.mu.
-func (c *Client) lockedResolve() {
+// resolveHook resolves h as much as possible without blocking.
+// The caller must be holding onto h.mu and when resolveHook returns, it
+// will be holding onto the mutex of the returned hook if not nil.
+func resolveHook(h *clientHook) *clientHook {
 	for {
-		select {
-		case <-c.h.resolved:
-		default:
-			return
+		if !h.isResolved() {
+			return h
 		}
-		rh := c.h.resolvedHook
-		if rh == c.h {
-			return
+		r := h.resolvedHook
+		if r == h {
+			return h
 		}
-		c.h.refs--
-		c.h.mu.Unlock()
-		c.h = rh
-		if rh == nil {
-			return
+		h.mu.Unlock()
+		h = r
+		if h == nil {
+			return nil
 		}
-		rh.mu.Lock()
+		h.mu.Lock()
 	}
 }
 
@@ -312,7 +303,7 @@ func (c *Client) AddRef() *Client {
 		return nil
 	}
 	c.h.mu.Lock()
-	c.lockedResolve()
+	c.h = resolveHook(c.h)
 	if c.h == nil {
 		return nil
 	}
@@ -384,7 +375,7 @@ func (c *Client) Close() error {
 	}
 	c.closed = true
 	c.h.mu.Lock()
-	c.lockedResolve()
+	c.h = resolveHook(c.h)
 	if c.h == nil {
 		c.mu.Unlock()
 		return nil
@@ -397,19 +388,13 @@ func (c *Client) Close() error {
 		c.mu.Unlock()
 		return nil
 	}
-	done := h.done
-	if done == nil {
-		h.mu.Unlock()
-		c.mu.Unlock()
-		return nil
-	}
 	if h.calls == 0 {
-		close(done)
+		close(h.done)
 	}
 	h.mu.Unlock()
 	c.mu.Unlock()
-	<-done
-	return h.closer.Close()
+	<-h.done
+	return h.Close()
 }
 
 // isResolve reports whether ch has been resolved.
@@ -430,7 +415,9 @@ type ClientPromise struct {
 
 // Fulfill resolves the client promise to c.  After Fulfill returns,
 // then all future calls to the client created by NewPromisedClient will
-// be sent to c.
+// be sent to c.  It is guaranteed that the hook passed to
+// NewPromisedClient will be closed after Fulfill returns, but the hook
+// may have been closed earlier if the client ran out of references.
 func (cp *ClientPromise) Fulfill(c *Client) {
 	// Obtain next client hook.
 	var rh *clientHook
@@ -440,44 +427,37 @@ func (cp *ClientPromise) Fulfill(c *Client) {
 			c.mu.Unlock()
 			panic("ClientPromise.Resolve with a closed client")
 		}
-		// TODO(maybe): c.lockedResolve()?
+		// TODO(maybe): c.h = resolveHook(c.h)
 		rh = c.h
 		c.mu.Unlock()
 	}
 
 	// Mark hook as resolved.
 	cp.h.mu.Lock()
-	select {
-	case <-cp.h.resolved:
+	if cp.h.isResolved() {
 		cp.h.mu.Unlock()
 		panic("ClientPromise.Resolve called more than once")
-	default:
 	}
 	cp.h.resolvedHook = rh
 	close(cp.h.resolved)
-	refs := cp.h.refs - 1
-	cp.h.refs = refs
-	if rh == nil || rh == cp.h || refs == 0 {
+	refs := cp.h.refs
+	cp.h.refs = 0
+	if refs == 0 {
 		cp.h.mu.Unlock()
 		return
 	}
 
-	// Add refs down resolution chain.
-	rh.mu.Lock()
-	cp.h.mu.Unlock()
-	for rh.isResolved() && rh.resolvedHook != rh {
-		rh.refs += refs
-		rh2 := rh.resolvedHook
-		if rh2 == nil {
-			rh.mu.Unlock()
-			return
-		}
-		rh2.mu.Lock()
-		rh.mu.Unlock()
-		rh = rh2
+	// Client still had references, so we're responsible for closing it.
+	if cp.h.calls == 0 {
+		close(cp.h.done)
 	}
-	rh.refs += refs
-	rh.mu.Unlock()
+	rh = resolveHook(cp.h) // swaps mutex on cp.h for mutex on rh
+	if rh != nil {
+		rh.refs += refs
+		rh.mu.Unlock()
+	}
+	<-cp.h.done
+	cp.h.Close() // error ignored; Fulfill cannot meaningfully fail.
 }
 
 // A WeakClient is a weak reference to a capability: it refers to a
@@ -493,26 +473,21 @@ func (wc *WeakClient) AddRef() (c *Client, ok bool) {
 	if wc == nil {
 		return nil, true
 	}
-	for {
-		if wc.h == nil {
-			return nil, true
-		}
-		wc.h.mu.Lock()
-		if wc.h.isResolved() {
-			if r := wc.h.resolvedHook; r != wc.h {
-				wc.h.mu.Unlock()
-				wc.h = r
-				continue
-			}
-		}
-		if wc.h.refs == 0 {
-			wc.h.mu.Unlock()
-			return nil, false
-		}
-		wc.h.refs++
-		wc.h.mu.Unlock()
-		return &Client{h: wc.h}, true
+	if wc.h == nil {
+		return nil, true
 	}
+	wc.h.mu.Lock()
+	wc.h = resolveHook(wc.h)
+	if wc.h == nil {
+		return nil, true
+	}
+	if wc.h.refs == 0 {
+		wc.h.mu.Unlock()
+		return nil, false
+	}
+	wc.h.refs++
+	wc.h.mu.Unlock()
+	return &Client{h: wc.h}, true
 }
 
 // A ClientHook represents a Cap'n Proto capability.  Application code
@@ -546,6 +521,12 @@ type ClientHook interface {
 	// Brand returns an implementation-specific value.  This can be used
 	// to introspect and identify kinds of clients.
 	Brand() interface{}
+
+	// Close releases any resources associated with this capability.
+	// The behavior of calling any methods on the receiver after calling
+	// Close is undefined.  It is expected for the ClientHook to reject any
+	// outstanding call futures.
+	Close() error
 }
 
 // Send is the input to ClientHook.Send.
@@ -578,18 +559,6 @@ type Recv struct {
 
 	// Options is the set of call options.
 	Options CallOptions
-}
-
-// ClientHookCloser is the interface that groups the ClientHook and
-// Close methods.
-type ClientHookCloser interface {
-	ClientHook
-
-	// Close releases any resources associated with this capability.
-	// The behavior of calling any methods on the receiver after calling
-	// Close is undefined.  It is expected for the ClientHook to reject any
-	// outstanding call futures.
-	Close() error
 }
 
 type closer interface {

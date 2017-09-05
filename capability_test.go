@@ -156,6 +156,11 @@ func TestPromisedClient(t *testing.T) {
 	_, finish := ca.SendCall(ctx, Send{})
 	finish()
 	pa.Fulfill(cb)
+	if a.closes == 0 {
+		t.Error("a not closed after fulfilling ClientPromise")
+	} else if a.closes > 1 {
+		t.Error("a closed multiple times")
+	}
 	_, finish = ca.SendCall(ctx, Send{})
 	finish()
 
@@ -176,6 +181,43 @@ func TestPromisedClient(t *testing.T) {
 	}
 	if b.closes == 0 {
 		t.Error("b not closed after calling ca.Close and cb.Close")
+	} else if b.closes > 1 {
+		t.Error("b closed multiple times")
+	}
+}
+
+func TestPromisedClient_EarlyClose(t *testing.T) {
+	a := new(dummyHook)
+	b := new(dummyHook)
+	ca, p := NewPromisedClient(a)
+	cb := NewClient(b)
+	ctx := context.Background()
+
+	if err := ca.Close(); err != nil {
+		t.Error("ca.Close() =", err)
+	}
+	if a.closes == 0 {
+		t.Error("a not closed after closing only reference")
+	} else if a.closes > 1 {
+		t.Error("a closed multiple times")
+	}
+	p.Fulfill(cb)
+	_, finish := ca.SendCall(ctx, Send{})
+	finish()
+	if a.calls > 0 {
+		t.Error("a called after Close")
+	}
+	if b.calls > 0 {
+		t.Error("b called after Close")
+	}
+	if b.closes > 0 {
+		t.Error("b closed after Fulfill")
+	}
+	if err := cb.Close(); err != nil {
+		t.Error("cb.Close() =", err)
+	}
+	if b.closes == 0 {
+		t.Error("b not closed after closing only reference")
 	} else if b.closes > 1 {
 		t.Error("b closed multiple times")
 	}
