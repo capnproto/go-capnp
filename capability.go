@@ -104,9 +104,9 @@ type clientHook struct {
 	resolved chan struct{}
 
 	mu           sync.Mutex
-	refs         int // how many open Clients reference this clientHook
-	calls        int // number of outstanding ClientHook accesses
-	resolvedHook *clientHook
+	refs         int         // how many open Clients reference this clientHook
+	calls        int         // number of outstanding ClientHook accesses
+	resolvedHook *clientHook // valid only if resolved is closed
 }
 
 // NewClient creates the first reference to a capability.
@@ -365,8 +365,10 @@ func (c *Client) String() string {
 
 // Close releases a capability reference.  If this is the last reference
 // to the capability, then the underlying resources associated with the
-// capability will be released.  Close returns an error if c has already
-// been closed, but not if c is nil or resolved to null.
+// capability will be released and any error will be returned.
+//
+// Close also returns an error if c has already been closed, but not if
+// c is nil or resolved to null.
 func (c *Client) Close() error {
 	if c == nil {
 		return nil
@@ -376,11 +378,11 @@ func (c *Client) Close() error {
 		c.mu.Unlock()
 		return errors.New("capnp: double close on Client")
 	}
-	c.closed = true
 	if c.h == nil {
 		c.mu.Unlock()
 		return nil
 	}
+	c.closed = true
 	c.h.mu.Lock()
 	c.lockedResolve()
 	if c.h == nil {
@@ -430,18 +432,17 @@ type ClientPromise struct {
 // then all future calls to the client created by NewPromisedClient will
 // be sent to c.
 func (cp *ClientPromise) Fulfill(c *Client) {
-	defer c.mu.Unlock()
-	c.mu.Lock()
-
 	// Obtain next client hook.
 	var rh *clientHook
 	if c != nil {
+		c.mu.Lock()
 		if c.closed {
 			c.mu.Unlock()
 			panic("ClientPromise.Resolve with a closed client")
 		}
 		// TODO(maybe): c.lockedResolve()?
 		rh = c.h
+		c.mu.Unlock()
 	}
 
 	// Mark hook as resolved.
@@ -586,7 +587,8 @@ type ClientHookCloser interface {
 
 	// Close releases any resources associated with this capability.
 	// The behavior of calling any methods on the receiver after calling
-	// Close is undefined.
+	// Close is undefined.  It is expected for the ClientHook to reject any
+	// outstanding call futures.
 	Close() error
 }
 

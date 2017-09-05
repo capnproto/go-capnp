@@ -93,37 +93,53 @@ func TestClosedClient(t *testing.T) {
 
 func TestNullClient(t *testing.T) {
 	ctx := context.Background()
-	c := (*Client)(nil)
+	c, p := NewPromisedClient(new(dummyHook))
+	p.Fulfill(nil)
+	tests := []struct {
+		name string
+		c    *Client
+	}{
+		{"nil", nil},
+		{"promised nil", c},
+	}
 
-	if !c.IsSame(c) {
-		t.Error("!<nil>.IsSame(<nil>)")
-	}
-	if c.IsValid() {
-		t.Error("null client is valid")
-	}
-	if b := c.Brand(); b != nil {
-		t.Errorf("c.Brand() = %v; want <nil>", b)
-	}
-	ans, finish := c.SendCall(ctx, Send{})
-	if _, err := ans.Struct(); err == nil {
-		t.Error("SendCall did not return error")
-	}
-	finish()
-	ans, finish = c.RecvCall(ctx, Recv{ReleaseArgs: func() {}})
-	if _, err := ans.Struct(); err == nil {
-		t.Error("RecvCall did not return error")
-	}
-	finish()
-	rctx, cancel := context.WithTimeout(ctx, 1*time.Second)
-	if err := c.Resolve(rctx); err != nil {
-		t.Error("Resolve failed:", err)
-	}
-	cancel()
-	if err := c.Close(); err != nil {
-		t.Error("Close #1:", err)
-	}
-	if err := c.Close(); err != nil {
-		t.Error("Close #2:", err)
+	for _, test := range tests {
+		c := test.c
+		t.Run(test.name, func(t *testing.T) {
+			if NewClient(nil) != nil {
+				t.Error("NewClient(nil) != nil")
+			}
+			if !c.IsSame(c) {
+				t.Error("!<nil>.IsSame(<nil>)")
+			}
+			if c.IsValid() {
+				t.Error("null client is valid")
+			}
+			if b := c.Brand(); b != nil {
+				t.Errorf("c.Brand() = %v; want <nil>", b)
+			}
+			ans, finish := c.SendCall(ctx, Send{})
+			if _, err := ans.Struct(); err == nil {
+				t.Error("SendCall did not return error")
+			}
+			finish()
+			ans, finish = c.RecvCall(ctx, Recv{ReleaseArgs: func() {}})
+			if _, err := ans.Struct(); err == nil {
+				t.Error("RecvCall did not return error")
+			}
+			finish()
+			rctx, cancel := context.WithTimeout(ctx, 1*time.Second)
+			if err := c.Resolve(rctx); err != nil {
+				t.Error("Resolve failed:", err)
+			}
+			cancel()
+			if err := c.Close(); err != nil {
+				t.Error("Close #1:", err)
+			}
+			if err := c.Close(); err != nil {
+				t.Error("Close #2:", err)
+			}
+		})
 	}
 }
 
