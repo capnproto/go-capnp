@@ -42,7 +42,7 @@ func testTransport(t *testing.T, makePipe func() (t1, t2 rpc.Transport, err erro
 			t.Error("t2.CloseSend:", err)
 		}
 
-		m, send, cancel, err := t1.NewMessage(ctx)
+		m, send1, release1, err := t1.NewMessage(ctx)
 		if err != nil {
 			t1.CloseSend()
 			t2.CloseRecv()
@@ -50,17 +50,38 @@ func testTransport(t *testing.T, makePipe func() (t1, t2 rpc.Transport, err erro
 		}
 		boot, err := m.NewBootstrap()
 		if err != nil {
+			release1()
 			t1.CloseSend()
 			t2.CloseRecv()
-			cancel()
 			t.Fatal("NewBootstrap:", err)
 		}
 		boot.SetQuestionId(42)
-		if err := send(); err != nil {
+		m, send2, release2, err := t1.NewMessage(ctx)
+		if err != nil {
+			release1()
 			t1.CloseSend()
 			t2.CloseRecv()
-			t.Fatal("send():", err)
+			t.Fatal("t1.NewMessage:", err)
 		}
+		boot, err = m.NewBootstrap()
+		if err != nil {
+			release1()
+			release2()
+			t1.CloseSend()
+			t2.CloseRecv()
+			t.Fatal("NewBootstrap:", err)
+		}
+		boot.SetQuestionId(123)
+
+		// Send/receive first message
+		if err := send2(); err != nil {
+			release1()
+			release2()
+			t1.CloseSend()
+			t2.CloseRecv()
+			t.Fatal("send2():", err)
+		}
+		release2()
 		r, release, err := t2.RecvMessage(ctx)
 		if err != nil {
 			t1.CloseSend()
@@ -71,8 +92,31 @@ func testTransport(t *testing.T, makePipe func() (t1, t2 rpc.Transport, err erro
 			t.Errorf("t2.RecvMessage(ctx).Which = %v; want bootstrap", r.Which())
 		} else if rboot, err := r.Bootstrap(); err != nil {
 			t.Error("t2.RecvMessage(ctx).Bootstrap:", err)
+		} else if rboot.QuestionId() != 123 {
+			t.Errorf("t2.RecvMessage(ctx).Bootstrap.QuestionID = %d; want 123", rboot.QuestionId())
+		}
+		release()
+
+		// Send/receive second message
+		if err := send1(); err != nil {
+			release1()
+			t1.CloseSend()
+			t2.CloseRecv()
+			t.Fatal("send1():", err)
+		}
+		release1()
+		r, release, err = t2.RecvMessage(ctx)
+		if err != nil {
+			t1.CloseSend()
+			t2.CloseRecv()
+			t.Fatal("t2.RecvMessage:", err)
+		}
+		if r.Which() != rpccapnp.Message_Which_bootstrap {
+			t.Errorf("t2.RecvMessage(ctx).Which = %v; want bootstrap", r.Which())
+		} else if rboot, err := r.Bootstrap(); err != nil {
+			t.Error("t2.RecvMessage(ctx).Bootstrap:", err)
 		} else if rboot.QuestionId() != 42 {
-			t.Errorf("t2.RecvMessage(ctx).Bootstrap.QuestionID = %d; want 42", rboot.QuestionId())
+			t.Errorf("t2.RecvMessage(ctx).Bootstrap.QuestionID = %d; want 123", rboot.QuestionId())
 		}
 		release()
 

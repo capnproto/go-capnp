@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime"
+	"strconv"
 	"testing"
 
 	"zombiezen.com/go/capnproto2"
@@ -15,8 +17,9 @@ type pipe struct {
 	r  <-chan pipeMsg
 	rc chan struct{} // close to hang up reads
 
-	w  chan<- pipeMsg
-	wc <-chan struct{} // closed when writes are no longer listened to
+	w    chan<- pipeMsg
+	wc   <-chan struct{} // closed when writes are no longer listened to
+	msgs map[*newMessageCaller]struct{}
 }
 
 type pipeMsg struct {
@@ -33,10 +36,27 @@ func newPipe(n int) (p1, p2 *pipe) {
 		&pipe{r: ch2, w: ch1, rc: close2, wc: close1}
 }
 
-func (p *pipe) NewMessage(ctx context.Context) (_ rpccapnp.Message, send func() error, cancel func(), _ error) {
+func (p *pipe) NewMessage(ctx context.Context) (_ rpccapnp.Message, send func() error, release capnp.ReleaseFunc, _ error) {
 	msg, seg, _ := capnp.NewMessage(capnp.MultiSegment(nil))
 	rmsg, _ := rpccapnp.NewRootMessage(seg)
+	_, file, line, _ := runtime.Caller(1)
+	caller := &newMessageCaller{file, line}
+	if p.msgs == nil {
+		p.msgs = make(map[*newMessageCaller]struct{})
+	}
+	p.msgs[caller] = struct{}{}
+
+	// Variables don't need to be synchronized, since a Sender must be
+	// used by one goroutine.
+	done, sent := false, false
 	send = func() error {
+		if done {
+			panic("send after release")
+		}
+		if sent {
+			panic("double send")
+		}
+		sent = true
 		pm := pipeMsg{rmsg, func() { msg.Reset(nil) }}
 		select {
 		case p.w <- pm:
@@ -48,13 +68,41 @@ func (p *pipe) NewMessage(ctx context.Context) (_ rpccapnp.Message, send func() 
 			return fmt.Errorf("rpc pipe: %v", ctx.Err())
 		}
 	}
-	cancel = func() {
-		msg.Reset(nil)
+	release = func() {
+		if done {
+			return
+		}
+		done = true
+		delete(p.msgs, caller)
+		if !sent {
+			msg.Reset(nil)
+		}
 	}
-	return rmsg, send, cancel, nil
+	return rmsg, send, release, nil
+}
+
+type newMessageCaller struct {
+	file string
+	line int
 }
 
 func (p *pipe) CloseSend() error {
+	if len(p.msgs) > 0 {
+		var callers []byte
+		for c := range p.msgs {
+			if len(callers) > 0 {
+				callers = append(callers, ", "...)
+			}
+			if c.file == "" && c.line == 0 {
+				callers = append(callers, "<???>"...)
+				continue
+			}
+			callers = append(callers, c.file...)
+			callers = append(callers, ':')
+			callers = strconv.AppendInt(callers, int64(c.line), 10)
+		}
+		panic("CloseSend called before releasing all messages.  Unreleased: " + string(callers))
+	}
 	close(p.w)
 	return nil
 }

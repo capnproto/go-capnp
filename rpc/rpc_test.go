@@ -75,7 +75,7 @@ func TestBootstrap(t *testing.T) {
 	qid := rmsg.Bootstrap.QuestionID
 
 	// 2. Write back a return
-	msg, send, cancel, err := p2.NewMessage(ctx)
+	msg, send, release, err := p2.NewMessage(ctx)
 	if err != nil {
 		t.Fatal("p2.NewMessage():", err)
 	}
@@ -97,10 +97,12 @@ func TestBootstrap(t *testing.T) {
 		},
 	})
 	if err != nil {
-		cancel()
+		release()
 		t.Fatal("pogs.Insert(p2.NewMessage(), &rpcMessage{...}):", err)
 	}
-	if err := send(); err != nil {
+	err = send()
+	release()
+	if err != nil {
 		t.Fatal("send():", err)
 	}
 

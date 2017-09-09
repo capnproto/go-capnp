@@ -28,11 +28,12 @@ type Conn struct {
 		CloseRecv() error
 	}
 
-	// send is protected by sending, a condition channel.
-	// sending is non-nil if a send.NewMessage is being attempted, and
-	// the channel is closed when the message is finished.
-	sending <-chan struct{}
-	send    Sender
+	// sender is protected by sendCond, a condition channel.
+	// sendCond is non-nil if an operation involving sender is in
+	// progress, and the channel is closed when the operation is finished.
+	// Details of this are handled by acquireSender and releaseSender.
+	sendCond chan struct{}
+	sender   Sender
 
 	nextQuestionID uint32
 }
@@ -47,7 +48,7 @@ type Options struct {
 func NewConn(t Transport, opts *Options) *Conn {
 	done := make(chan struct{})
 	c := &Conn{
-		send:       t,
+		sender:     t,
 		recvCloser: t,
 		recvDone:   done,
 	}
@@ -58,17 +59,16 @@ func NewConn(t Transport, opts *Options) *Conn {
 	return c
 }
 
-// newMessage creates a new outgoing message.  The caller must be
-// holding onto c.mu, but if newMessage does not return an error, then
-// c.mu will be released.  Once send or cancel is called, then c.mu
-// will be reacquired.
-func (c *Conn) newMessage(ctx context.Context) (_ rpccp.Message, send func() error, cancel func(), _ error) {
+// acquireSender acquires the send condition.  The caller must be
+// holding onto c.mu, which will be exchanged for holding the sending
+// condition channel.
+func (c *Conn) acquireSender(ctx context.Context) error {
 	for {
 		if c.closed {
 			// TODO(someday): classify as disconnected
-			return rpccp.Message{}, nil, nil, errors.New("connection closed")
+			return errors.New("connection closed")
 		}
-		s := c.sending
+		s := c.sendCond
 		if s == nil {
 			break
 		}
@@ -77,32 +77,24 @@ func (c *Conn) newMessage(ctx context.Context) (_ rpccp.Message, send func() err
 		case <-s:
 		case <-ctx.Done():
 			c.mu.Lock()
-			return rpccp.Message{}, nil, nil, ctx.Err()
+			return ctx.Err()
 		}
 		c.mu.Lock()
 	}
-	sending := make(chan struct{})
-	c.sending = sending
+	c.sendCond = make(chan struct{})
 	c.mu.Unlock()
-	msg, tsend, tcancel, err := c.send.NewMessage(ctx)
-	if err != nil {
-		c.mu.Lock()
-		close(sending)
-		c.sending = nil
-		return rpccp.Message{}, nil, nil, err
-	}
-	return msg, func() error {
-			err := tsend()
-			c.mu.Lock()
-			close(sending)
-			c.sending = nil
-			return err
-		}, func() {
-			tcancel()
-			c.mu.Lock()
-			close(sending)
-			c.sending = nil
-		}, nil
+	return nil
+}
+
+// releaseSender releases the send condition, which the caller must have
+// been holding from a previous call to acquireSender.
+//
+// Note that c may have been closed since the send condition was
+// acquired.
+func (c *Conn) releaseSender() {
+	c.mu.Lock()
+	close(c.sendCond)
+	c.sendCond = nil
 }
 
 // Bootstrap returns the remote vat's bootstrap interface.
@@ -111,17 +103,25 @@ func (c *Conn) Bootstrap(ctx context.Context) *capnp.Client {
 	c.mu.Lock()
 	id := c.nextQuestionID
 	c.nextQuestionID++
-	msg, send, cancel, err := c.newMessage(ctx)
+	if err := c.acquireSender(ctx); err != nil {
+		return capnp.ErrorClient(fmt.Errorf("rpc bootstrap: %v", err))
+	}
+	msg, send, release, err := c.sender.NewMessage(ctx)
 	if err != nil {
+		c.releaseSender()
 		return capnp.ErrorClient(fmt.Errorf("rpc bootstrap: create message: %v", err))
 	}
 	boot, err := msg.NewBootstrap()
 	if err != nil {
-		cancel()
+		release()
+		c.releaseSender()
 		return capnp.ErrorClient(fmt.Errorf("rpc bootstrap: create message: %v", err))
 	}
 	boot.SetQuestionId(id)
-	if err := send(); err != nil {
+	err = send()
+	release()
+	c.releaseSender()
+	if err != nil {
 		return capnp.ErrorClient(fmt.Errorf("rpc bootstrap: send message: %v", err))
 	}
 	return nil
@@ -139,7 +139,7 @@ func (c *Conn) Close() error {
 	// Close Sender after all sends are finished.
 	c.mu.Lock()
 	for {
-		s := c.sending
+		s := c.sendCond
 		if s == nil {
 			break
 		}
@@ -151,25 +151,25 @@ func (c *Conn) Close() error {
 
 	// Send abort message (ignoring error).
 	{
-		msg, send, cancel, err := c.send.NewMessage(context.Background())
+		msg, send, release, err := c.sender.NewMessage(context.Background())
 		if err != nil {
 			goto closeSend
 		}
 		abort, err := msg.NewAbort()
 		if err != nil {
-			cancel()
+			release()
 			goto closeSend
 		}
-		// TODO(soon): allocate an ID
 		abort.SetType(rpccp.Exception_Type_failed)
 		if err := abort.SetReason("connection closed"); err != nil {
-			cancel()
+			release()
 			goto closeSend
 		}
 		send()
+		release()
 	}
 closeSend:
-	serr := c.send.CloseSend()
+	serr := c.sender.CloseSend()
 
 	<-c.recvDone
 	if rerr != nil {
@@ -220,19 +220,27 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 	defer c.mu.Unlock()
 	c.mu.Lock()
 	// TODO(soon): disconnect if return ID not in questions table.
-	msg, send, cancel, err := c.newMessage(ctx)
+	if err := c.acquireSender(ctx); err != nil {
+		return fmt.Errorf("rpc: receive return: %v", err)
+	}
+	msg, send, release, err := c.sender.NewMessage(ctx)
 	if err != nil {
-		return err
+		c.releaseSender()
+		return fmt.Errorf("rpc: receive return: send finish: %v", err)
 	}
 	fin, err := msg.NewFinish()
 	if err != nil {
-		cancel()
-		return err
+		release()
+		c.releaseSender()
+		return fmt.Errorf("rpc: receive return: send finish: %v", err)
 	}
 	fin.SetQuestionId(ret.AnswerId())
 	fin.SetReleaseResultCaps(false)
-	if err := send(); err != nil {
-		return err
+	err = send()
+	release()
+	c.releaseSender()
+	if err != nil {
+		return fmt.Errorf("rpc: receive return: send finish: %v", err)
 	}
 	return nil
 }
@@ -240,14 +248,20 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 func (c *Conn) handleUnimplemented(ctx context.Context, recv rpccp.Message) error {
 	defer c.mu.Unlock()
 	c.mu.Lock()
-	msg, send, cancel, err := c.newMessage(ctx)
+	if err := c.acquireSender(ctx); err != nil {
+		return fmt.Errorf("rpc: send unimplemented: %v", err)
+	}
+	defer c.releaseSender()
+	msg, send, release, err := c.sender.NewMessage(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("rpc: send unimplemented: %v", err)
 	}
+	defer release()
 	if err := msg.SetUnimplemented(recv); err != nil {
-		cancel()
-		return nil
+		return fmt.Errorf("rpc: send unimplemented: %v", err)
 	}
-	err = send()
-	return err
+	if err := send(); err != nil {
+		return fmt.Errorf("rpc: send unimplemented: %v", err)
+	}
+	return nil
 }

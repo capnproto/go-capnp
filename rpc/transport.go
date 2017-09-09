@@ -14,15 +14,15 @@ import (
 // A Sender delivers Cap'n Proto RPC messages to another vat.
 type Sender interface {
 	// NewMessage allocates a new message to be sent over the transport.
-	// The caller must call one of send or cancel.  send will take its
-	// cancelation and deadline from ctx.  The returned message should not
-	// be used after calling send or cancel.
-	//
-	// The behavior of calling NewMessage or CloseSend before calling send
-	// or cancel on the previous call of NewMessage is undefined.
-	NewMessage(ctx context.Context) (_ rpccapnp.Message, send func() error, cancel func(), _ error)
+	// The caller must call the release function when it no longer needs
+	// to reference the message.  Before release is called, send may be
+	// called at most once to send the mssage, taking its cancelation and
+	// deadline from ctx.
+	NewMessage(ctx context.Context) (_ rpccapnp.Message, send func() error, _ capnp.ReleaseFunc, _ error)
 
 	// CloseSend releases any resources associated with the sender.
+	// All messages created with NewMessage must be released before
+	// calling CloseSend.
 	CloseSend() error
 }
 
@@ -96,7 +96,7 @@ func NewStreamTransport(rwc io.ReadWriteCloser) *StreamTransport {
 
 // NewMessage allocates a new message to be sent.  The send function may
 // make multiple calls to Write on the underlying writer.
-func (s *StreamTransport) NewMessage(ctx context.Context) (_ rpccapnp.Message, send func() error, cancel func(), _ error) {
+func (s *StreamTransport) NewMessage(ctx context.Context) (_ rpccapnp.Message, send func() error, release capnp.ReleaseFunc, _ error) {
 	// TODO(soon): reuse memory
 	msg, seg, _ := capnp.NewMessage(capnp.MultiSegment(nil))
 	rmsg, _ := rpccapnp.NewRootMessage(seg)
@@ -111,8 +111,10 @@ func (s *StreamTransport) NewMessage(ctx context.Context) (_ rpccapnp.Message, s
 		}
 		return s.enc.Encode(msg)
 	}
-	cancel = func() {}
-	return rmsg, send, cancel, nil
+	release = func() {
+		msg.Reset(nil)
+	}
+	return rmsg, send, release, nil
 }
 
 // CloseSend calls CloseWrite, if present, on the underlying
