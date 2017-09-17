@@ -329,7 +329,7 @@ func (p *Promise) ReleaseClients() {
 	p.mu.Unlock()
 	for _, row := range clients {
 		for _, cp := range row {
-			cp.client.Close()
+			cp.client.Release()
 		}
 	}
 }
@@ -668,8 +668,7 @@ func (pc pipelineClient) Brand() interface{} {
 	}
 }
 
-func (pc pipelineClient) Close() error {
-	return nil
+func (pc pipelineClient) Shutdown() {
 }
 
 // A PipelineOp describes a step in transforming a pipeline.

@@ -42,12 +42,12 @@ type Persistent_Server interface {
 
 // Persistent_NewServer creates a new Server from an implementation of Persistent_Server.
 func Persistent_NewServer(s Persistent_Server, policy *server.Policy) *server.Server {
-	c, _ := s.(server.Closer)
+	c, _ := s.(server.Shutdowner)
 	return server.New(Persistent_Methods(nil, s), s, c, policy)
 }
 
 // Persistent_ServerToClient creates a new Client from an implementation of Persistent_Server.
-// The caller is responsible for calling Close on the returned Client.
+// The caller is responsible for calling Release on the returned Client.
 func Persistent_ServerToClient(s Persistent_Server, policy *server.Policy) Persistent {
 	return Persistent{Client: capnp.NewClient(Persistent_NewServer(s, policy))}
 }
@@ -278,12 +278,12 @@ type RealmGateway_Server interface {
 
 // RealmGateway_NewServer creates a new Server from an implementation of RealmGateway_Server.
 func RealmGateway_NewServer(s RealmGateway_Server, policy *server.Policy) *server.Server {
-	c, _ := s.(server.Closer)
+	c, _ := s.(server.Shutdowner)
 	return server.New(RealmGateway_Methods(nil, s), s, c, policy)
 }
 
 // RealmGateway_ServerToClient creates a new Client from an implementation of RealmGateway_Server.
-// The caller is responsible for calling Close on the returned Client.
+// The caller is responsible for calling Release on the returned Client.
 func RealmGateway_ServerToClient(s RealmGateway_Server, policy *server.Policy) RealmGateway {
 	return RealmGateway{Client: capnp.NewClient(RealmGateway_NewServer(s, policy))}
 }

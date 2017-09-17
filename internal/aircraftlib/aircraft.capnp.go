@@ -4548,12 +4548,12 @@ type Echo_Server interface {
 
 // Echo_NewServer creates a new Server from an implementation of Echo_Server.
 func Echo_NewServer(s Echo_Server, policy *server.Policy) *server.Server {
-	c, _ := s.(server.Closer)
+	c, _ := s.(server.Shutdowner)
 	return server.New(Echo_Methods(nil, s), s, c, policy)
 }
 
 // Echo_ServerToClient creates a new Client from an implementation of Echo_Server.
-// The caller is responsible for calling Close on the returned Client.
+// The caller is responsible for calling Release on the returned Client.
 func Echo_ServerToClient(s Echo_Server, policy *server.Policy) Echo {
 	return Echo{Client: capnp.NewClient(Echo_NewServer(s, policy))}
 }
@@ -5176,12 +5176,12 @@ type CallSequence_Server interface {
 
 // CallSequence_NewServer creates a new Server from an implementation of CallSequence_Server.
 func CallSequence_NewServer(s CallSequence_Server, policy *server.Policy) *server.Server {
-	c, _ := s.(server.Closer)
+	c, _ := s.(server.Shutdowner)
 	return server.New(CallSequence_Methods(nil, s), s, c, policy)
 }
 
 // CallSequence_ServerToClient creates a new Client from an implementation of CallSequence_Server.
-// The caller is responsible for calling Close on the returned Client.
+// The caller is responsible for calling Release on the returned Client.
 func CallSequence_ServerToClient(s CallSequence_Server, policy *server.Policy) CallSequence {
 	return CallSequence{Client: capnp.NewClient(CallSequence_NewServer(s, policy))}
 }
@@ -5388,12 +5388,12 @@ type Pipeliner_Server interface {
 
 // Pipeliner_NewServer creates a new Server from an implementation of Pipeliner_Server.
 func Pipeliner_NewServer(s Pipeliner_Server, policy *server.Policy) *server.Server {
-	c, _ := s.(server.Closer)
+	c, _ := s.(server.Shutdowner)
 	return server.New(Pipeliner_Methods(nil, s), s, c, policy)
 }
 
 // Pipeliner_ServerToClient creates a new Client from an implementation of Pipeliner_Server.
-// The caller is responsible for calling Close on the returned Client.
+// The caller is responsible for calling Release on the returned Client.
 func Pipeliner_ServerToClient(s Pipeliner_Server, policy *server.Policy) Pipeliner {
 	return Pipeliner{Client: capnp.NewClient(Pipeliner_NewServer(s, policy))}
 }

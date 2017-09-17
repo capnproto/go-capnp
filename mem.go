@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 	"sync"
 	"sync/atomic"
@@ -147,31 +146,12 @@ func (m *Message) Unread(sz Size) {
 	atomic.AddUint64(&m.rlimit, uint64(sz))
 }
 
-// ClearCaps closes all capabilities in the message's table and sets
+// ClearCaps releases all capabilities in the message's table and sets
 // them to nil.  This does not change the size of the table.
-func (m *Message) ClearCaps() error {
-	var first error
-	n := 0
+func (m *Message) ClearCaps() {
 	for i, c := range m.CapTable {
 		m.CapTable[i] = nil
-		err := c.Close()
-		if err == nil {
-			continue
-		}
-		n++
-		if first == nil {
-			first = err
-		}
-	}
-	switch n {
-	case 0:
-		return nil
-	case 1:
-		return fmt.Errorf("capnp: closing capabilities: %v", first)
-	case 2:
-		return fmt.Errorf("capnp: closing capabilities: %v (and 1 other)", first)
-	default:
-		return fmt.Errorf("capnp: closing capabilities: %v (and %d others)", first, n-1)
+		c.Release()
 	}
 }
 

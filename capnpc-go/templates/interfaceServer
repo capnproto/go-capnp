@@ -7,12 +7,12 @@ type {{.Node.Name}}_Server interface {
 
 // {{.Node.Name}}_NewServer creates a new Server from an implementation of {{.Node.Name}}_Server.
 func {{.Node.Name}}_NewServer(s {{.Node.Name}}_Server, policy *{{.G.Imports.Server}}.Policy) *{{.G.Imports.Server}}.Server {
-	c, _ := s.({{.G.Imports.Server}}.Closer)
+	c, _ := s.({{.G.Imports.Server}}.Shutdowner)
   return {{.G.Imports.Server}}.New({{.Node.Name}}_Methods(nil, s), s, c, policy)
 }
 
 // {{.Node.Name}}_ServerToClient creates a new Client from an implementation of {{.Node.Name}}_Server.
-// The caller is responsible for calling Close on the returned Client.
+// The caller is responsible for calling Release on the returned Client.
 func {{.Node.Name}}_ServerToClient(s {{.Node.Name}}_Server, policy *{{.G.Imports.Server}}.Policy) {{.Node.Name}} {
 	return {{.Node.Name}}{Client: {{.G.Capnp}}.NewClient({{.Node.Name}}_NewServer(s, policy))}
 }

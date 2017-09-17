@@ -79,9 +79,9 @@ type CapabilityID uint32
 // The zero value is a null capability reference.
 // It is safe to use from multiple goroutines.
 type Client struct {
-	mu     sync.Mutex  // protects the struct
-	h      *clientHook // nil if resolved to nil or closed
-	closed bool
+	mu       sync.Mutex  // protects the struct
+	h        *clientHook // nil if resolved to nil or released
+	released bool
 }
 
 // clientHook is a reference-counted wrapper for a ClientHook.
@@ -124,8 +124,8 @@ func NewClient(hook ClientHook) *Client {
 }
 
 // NewPromisedClient creates the first reference to a capability that
-// can resolve to a different capability.  The hook will be closed when
-// the promise is resolved or the client has no more references,
+// can resolve to a different capability.  The hook will be shut down
+// when the promise is resolved or the client has no more references,
 // whichever comes first.
 //
 // Typically the RPC system will create a client for the application.
@@ -143,17 +143,17 @@ func NewPromisedClient(hook ClientHook) (*Client, *ClientPromise) {
 	return &Client{h: h}, &ClientPromise{h: h}
 }
 
-// startCall holds onto a hook to prevent it from closing until finish is called.
-// It resolves the client's hook as much as possible first.
-// The caller must not be holding onto c.mu.
-func (c *Client) startCall() (hook ClientHook, closed bool, finish func()) {
+// startCall holds onto a hook to prevent it from shutting down until
+// finish is called.  It resolves the client's hook as much as possible
+// first.  The caller must not be holding onto c.mu.
+func (c *Client) startCall() (hook ClientHook, released bool, finish func()) {
 	if c == nil {
 		return nil, false, func() {}
 	}
 	defer c.mu.Unlock()
 	c.mu.Lock()
 	if c.h == nil {
-		return nil, c.closed, func() {}
+		return nil, c.released, func() {}
 	}
 	c.h.mu.Lock()
 	c.h = resolveHook(c.h)
@@ -173,14 +173,14 @@ func (c *Client) startCall() (hook ClientHook, closed bool, finish func()) {
 	}
 }
 
-func (c *Client) peek() (hook *clientHook, closed bool, resolved bool) {
+func (c *Client) peek() (hook *clientHook, released bool, resolved bool) {
 	if c == nil {
 		return nil, false, true
 	}
 	defer c.mu.Unlock()
 	c.mu.Lock()
 	if c.h == nil {
-		return nil, c.closed, true
+		return nil, c.released, true
 	}
 	c.h.mu.Lock()
 	c.h = resolveHook(c.h)
@@ -218,10 +218,10 @@ func resolveHook(h *clientHook) *clientHook {
 // that will hold the result.  The caller must call the returned release
 // function when it no longer needs the answer's data.
 func (c *Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
-	h, closed, finish := c.startCall()
+	h, released, finish := c.startCall()
 	defer finish()
-	if closed {
-		return ErrorAnswer(errors.New("capnp: call on closed client")), func() {}
+	if released {
+		return ErrorAnswer(errors.New("capnp: call on released client")), func() {}
 	}
 	if h == nil {
 		return ErrorAnswer(errors.New("capnp: call on null client")), func() {}
@@ -235,10 +235,10 @@ func (c *Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 // caller must call the returned release function when it no longer
 // needs the answer's data.
 func (c *Client) RecvCall(ctx context.Context, r Recv) (*Answer, ReleaseFunc) {
-	h, closed, finish := c.startCall()
+	h, released, finish := c.startCall()
 	defer finish()
-	if closed {
-		return ErrorAnswer(errors.New("capnp: call on closed client")), func() {}
+	if released {
+		return ErrorAnswer(errors.New("capnp: call on released client")), func() {}
 	}
 	if h == nil {
 		return ErrorAnswer(errors.New("capnp: call on null client")), func() {}
@@ -248,24 +248,24 @@ func (c *Client) RecvCall(ctx context.Context, r Recv) (*Answer, ReleaseFunc) {
 
 // IsValid reports whether c is a valid reference to a capability.
 // A reference is invalid if it is nil, has resolved to null, or has
-// been closed.
+// been released.
 func (c *Client) IsValid() bool {
-	h, closed, _ := c.peek()
-	return !closed && h != nil
+	h, released, _ := c.peek()
+	return !released && h != nil
 }
 
 // IsSame reports whether c and c2 refer to a capability created by the
 // same call to NewClient.  This can return false negatives if c or c2
 // are not fully resolved: use Resolve if this is an issue.  If either
-// c or c2 are closed, then IsSame panics.
+// c or c2 are released, then IsSame panics.
 func (c *Client) IsSame(c2 *Client) bool {
-	h1, closed, _ := c.peek()
-	if closed {
-		panic("IsSame on closed client")
+	h1, released, _ := c.peek()
+	if released {
+		panic("IsSame on released client")
 	}
-	h2, closed, _ := c2.peek()
-	if closed {
-		panic("IsSame on closed client")
+	h2, released, _ := c2.peek()
+	if released {
+		panic("IsSame on released client")
 	}
 	return h1 == h2
 }
@@ -273,9 +273,9 @@ func (c *Client) IsSame(c2 *Client) bool {
 // Resolve blocks until the capability is fully resolved or the Context is Done.
 func (c *Client) Resolve(ctx context.Context) error {
 	for {
-		h, closed, resolved := c.peek()
-		if closed {
-			return errors.New("capnp: cannot resolve closed client")
+		h, released, resolved := c.peek()
+		if released {
+			return errors.New("capnp: cannot resolve released client")
 		}
 		if resolved {
 			return nil
@@ -296,8 +296,8 @@ func (c *Client) AddRef() *Client {
 	}
 	defer c.mu.Unlock()
 	c.mu.Lock()
-	if c.closed {
-		panic("AddRef on closed client")
+	if c.released {
+		panic("AddRef on released client")
 	}
 	if c.h == nil {
 		return nil
@@ -315,9 +315,9 @@ func (c *Client) AddRef() *Client {
 // WeakRef creates a new WeakClient that refers to the same capability
 // as c.  If c is nil or has resolved to null, then WeakRef returns nil.
 func (c *Client) WeakRef() *WeakClient {
-	h, closed, _ := c.peek()
-	if closed {
-		panic("WeakRef on closed client")
+	h, released, _ := c.peek()
+	if released {
+		panic("WeakRef on released client")
 	}
 	if h == nil {
 		return nil
@@ -326,7 +326,7 @@ func (c *Client) WeakRef() *WeakClient {
 }
 
 // Brand returns the current underlying hook's Brand method or nil if
-// c is nil, has resolved to null, or has been closed.
+// c is nil, has resolved to null, or has been released.
 func (c *Client) Brand() interface{} {
 	h, _, finish := c.startCall()
 	defer finish()
@@ -341,9 +341,9 @@ func (c *Client) Brand() interface{} {
 // should not be used to compare clients.  Use IsSame to compare clients
 // for equality.
 func (c *Client) String() string {
-	h, closed, resolved := c.peek()
-	if closed {
-		return "<closed client>"
+	h, released, resolved := c.peek()
+	if released {
+		return "<released client>"
 	}
 	if h == nil {
 		return "<nil>"
@@ -354,31 +354,31 @@ func (c *Client) String() string {
 	return fmt.Sprintf("<client %p>", h)
 }
 
-// Close releases a capability reference.  If this is the last reference
-// to the capability, then the underlying resources associated with the
-// capability will be released and any error will be returned.
-//
-// Close also returns an error if c has already been closed, but not if
-// c is nil or resolved to null.
-func (c *Client) Close() error {
+// Release releases a capability reference.  If this is the last
+// reference to the capability, then the underlying resources associated
+// with the capability will be released.
+
+// Release will panic if c has already been released, but not if c is
+// nil or resolved to null.
+func (c *Client) Release() {
 	if c == nil {
-		return nil
+		return
 	}
 	c.mu.Lock()
-	if c.closed {
+	if c.released {
 		c.mu.Unlock()
-		return errors.New("capnp: double close on Client")
+		panic("capnp: double Client.Release")
 	}
 	if c.h == nil {
 		c.mu.Unlock()
-		return nil
+		return
 	}
-	c.closed = true
+	c.released = true
 	c.h.mu.Lock()
 	c.h = resolveHook(c.h)
 	if c.h == nil {
 		c.mu.Unlock()
-		return nil
+		return
 	}
 	h := c.h
 	c.h = nil
@@ -386,7 +386,7 @@ func (c *Client) Close() error {
 	if h.refs > 0 {
 		h.mu.Unlock()
 		c.mu.Unlock()
-		return nil
+		return
 	}
 	if h.calls == 0 {
 		close(h.done)
@@ -394,7 +394,7 @@ func (c *Client) Close() error {
 	h.mu.Unlock()
 	c.mu.Unlock()
 	<-h.done
-	return h.Close()
+	h.Shutdown()
 }
 
 // isResolve reports whether ch has been resolved.
@@ -416,16 +416,17 @@ type ClientPromise struct {
 // Fulfill resolves the client promise to c.  After Fulfill returns,
 // then all future calls to the client created by NewPromisedClient will
 // be sent to c.  It is guaranteed that the hook passed to
-// NewPromisedClient will be closed after Fulfill returns, but the hook
-// may have been closed earlier if the client ran out of references.
+// NewPromisedClient will be shut down after Fulfill returns, but the
+// hook may have been shut down earlier if the client ran out of
+// references.
 func (cp *ClientPromise) Fulfill(c *Client) {
 	// Obtain next client hook.
 	var rh *clientHook
 	if c != nil {
 		c.mu.Lock()
-		if c.closed {
+		if c.released {
 			c.mu.Unlock()
-			panic("ClientPromise.Resolve with a closed client")
+			panic("ClientPromise.Resolve with a released client")
 		}
 		// TODO(maybe): c.h = resolveHook(c.h)
 		rh = c.h
@@ -447,7 +448,7 @@ func (cp *ClientPromise) Fulfill(c *Client) {
 		return
 	}
 
-	// Client still had references, so we're responsible for closing it.
+	// Client still had references, so we're responsible for shutting it down.
 	if cp.h.calls == 0 {
 		close(cp.h.done)
 	}
@@ -457,18 +458,18 @@ func (cp *ClientPromise) Fulfill(c *Client) {
 		rh.mu.Unlock()
 	}
 	<-cp.h.done
-	cp.h.Close() // error ignored; Fulfill cannot meaningfully fail.
+	cp.h.Shutdown()
 }
 
 // A WeakClient is a weak reference to a capability: it refers to a
-// capability without preventing it from being closed.  The zero value
-// is a null reference.
+// capability without preventing it from being shut down.  The zero
+// value is a null reference.
 type WeakClient struct {
 	h *clientHook
 }
 
 // AddRef creates a new Client that refers to the same capability as c
-// as long as the capability hasn't already been closed.
+// as long as the capability hasn't already been shut down.
 func (wc *WeakClient) AddRef() (c *Client, ok bool) {
 	if wc == nil {
 		return nil, true
@@ -498,8 +499,9 @@ func (wc *WeakClient) AddRef() (c *Client, ok bool) {
 // This guarantee is based on the concept of a capability
 // acknowledging delivery of a call: this is specific to an
 // implementation of ClientHook.  A type that implements ClientHook
-// must guarantee that if foo() then bar() is called on a client, that
-// acknowledging foo() happens before acknowledging bar().
+// must guarantee that if foo() then bar() is called on a client, then
+// the capability acknowledging foo() happens before the capability
+// observing bar().
 type ClientHook interface {
 	// Send allocates space for parameters, calls args.Place to fill out
 	// the arguments, then starts executing a method, returning an answer
@@ -522,11 +524,11 @@ type ClientHook interface {
 	// to introspect and identify kinds of clients.
 	Brand() interface{}
 
-	// Close releases any resources associated with this capability.
+	// Shutdown releases any resources associated with this capability.
 	// The behavior of calling any methods on the receiver after calling
-	// Close is undefined.  It is expected for the ClientHook to reject any
-	// outstanding call futures.
-	Close() error
+	// Shutdown is undefined.  It is expected for the ClientHook to reject
+	// any outstanding call futures.
+	Shutdown()
 }
 
 // Send is the input to ClientHook.Send.
@@ -559,10 +561,6 @@ type Recv struct {
 
 	// Options is the set of call options.
 	Options CallOptions
-}
-
-type closer interface {
-	Close() error
 }
 
 // A ReleaseFunc tells the RPC system that a parameter or result struct
@@ -660,7 +658,7 @@ type errorClient struct {
 }
 
 // ErrorClient returns a Client that always returns error e.
-// An ErrorClient does not need to be closed: it is a sentinel like a
+// An ErrorClient does not need to be released: it is a sentinel like a
 // nil Client.
 func ErrorClient(e error) *Client {
 	return NewClient(errorClient{e})
@@ -679,8 +677,7 @@ func (ec errorClient) Brand() interface{} {
 	return nil
 }
 
-func (ec errorClient) Close() error {
-	return nil
+func (ec errorClient) Shutdown() {
 }
 
 // IsUnimplemented reports whether e indicates an unimplemented method error.

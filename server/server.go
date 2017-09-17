@@ -39,18 +39,18 @@ type Call struct {
 	Ack func()
 }
 
-// Closer is the interface that wraps the Close method.
-type Closer interface {
-	Close() error
+// Shutdowner is the interface that wraps the Shutdown method.
+type Shutdowner interface {
+	Shutdown()
 }
 
 // A Server is a locally implemented interface.  It implements the
-// capnp.ClientHookCloser interface.
+// capnp.ClientHook interface.
 type Server struct {
-	methods sortedMethods
-	brand   interface{}
-	closer  Closer
-	policy  Policy
+	methods  sortedMethods
+	brand    interface{}
+	shutdown Shutdowner
+	policy   Policy
 
 	mu      sync.Mutex      // protects the following fields.  Should never be held while calling application code.
 	inImpl  <-chan struct{} // non-nil if inside application code, closed when done
@@ -83,16 +83,16 @@ type Policy struct {
 	AnswerQueueSize int
 }
 
-// New returns a client that makes calls to a set of methods.
-// If closer is nil then the client's Close is a no-op.  The server
+// New returns a client hook that makes calls to a set of methods.
+// If shutdown is nil then the server's shutdown is a no-op.  The server
 // guarantees message delivery order by blocking each call on the
 // return or acknowledgment of the previous call.  See the Ack function
 // for more details.
-func New(methods []Method, brand interface{}, closer Closer, policy *Policy) *Server {
+func New(methods []Method, brand interface{}, shutdown Shutdowner, policy *Policy) *Server {
 	srv := &Server{
-		methods: make(sortedMethods, len(methods)),
-		brand:   brand,
-		closer:  closer,
+		methods:  make(sortedMethods, len(methods)),
+		brand:    brand,
+		shutdown: shutdown,
 	}
 	copy(srv.methods, methods)
 	sort.Sort(srv.methods)
@@ -160,7 +160,7 @@ func (srv *Server) start(ctx context.Context, m *Method, r capnp.Recv) (*capnp.A
 		if srv.drain != nil {
 			srv.mu.Unlock()
 			r.ReleaseArgs()
-			return capnp.ErrorAnswer(errors.New("capnp server: call after Close")), func() {}
+			return capnp.ErrorAnswer(errors.New("capnp server: call after shutdown")), func() {}
 		}
 		if srv.inImpl == nil {
 			break
@@ -266,12 +266,13 @@ func (srv *Server) Brand() interface{} {
 	return serverBrand{srv.brand}
 }
 
-// Close waits for ongoing calls to finish and calls Close to the Closer.
-func (srv *Server) Close() error {
+// Shutdown waits for ongoing calls to finish and calls Shutdown on the
+// Shutdowner passed into NewServer.
+func (srv *Server) Shutdown() {
 	srv.mu.Lock()
 	if srv.drain != nil {
 		srv.mu.Unlock()
-		return errors.New("capnp server: Close called multiple times")
+		panic("capnp server: Shutdown called multiple times")
 	}
 	srv.drain = make(chan struct{})
 	if srv.hasOngoing() {
@@ -286,10 +287,9 @@ func (srv *Server) Close() error {
 		close(srv.drain)
 		srv.mu.Unlock()
 	}
-	if srv.closer == nil {
-		return nil
+	if srv.shutdown != nil {
+		srv.shutdown.Shutdown()
 	}
-	return srv.closer.Close()
 }
 
 // IsServer reports whether a brand returned by capnp.Client.Brand

@@ -101,9 +101,7 @@ func TestPromiseFulfill(t *testing.T) {
 		if !pc.IsSame(c) {
 			t.Errorf("pc != c; pc = %v, c = %v", pc, c)
 		}
-		if err := c.Close(); err != nil {
-			t.Error("c.Close:", err)
-		}
+		c.Release()
 		ans, release := pc.SendCall(ctx, Send{})
 		_, err := ans.Struct()
 		release()

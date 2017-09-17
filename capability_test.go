@@ -43,26 +43,22 @@ func TestClient(t *testing.T) {
 		t.Error("Resolve failed:", err)
 	}
 	cancel()
-	if err := c.Close(); err != nil {
-		t.Error("Close:", err)
-	}
-	if h.closes == 0 {
-		t.Error("Close did not call ClientHook.Close")
-	} else if h.closes > 1 {
-		t.Error("Close called ClientHook.Close multiple times")
+	c.Release()
+	if h.shutdowns == 0 {
+		t.Error("Release did not call ClientHook.Shutdown")
+	} else if h.shutdowns > 1 {
+		t.Error("Release called ClientHook.Shutdown multiple times")
 	}
 }
 
-func TestClosedClient(t *testing.T) {
+func TestReleasedClient(t *testing.T) {
 	ctx := context.Background()
 	h := &dummyHook{brand: int(42)}
 	c := NewClient(h)
-	if err := c.Close(); err != nil {
-		t.Error("Close:", err)
-	}
+	c.Release()
 
 	if c.IsValid() {
-		t.Error("closed client is valid")
+		t.Error("released client is valid")
 	}
 	ans, finish := c.SendCall(ctx, Send{})
 	if _, err := ans.Struct(); err == nil {
@@ -83,11 +79,12 @@ func TestClosedClient(t *testing.T) {
 	if h.calls != 0 {
 		t.Errorf("after RecvCall, h.calls = %d; want 0", h.calls)
 	}
-	if err := c.Close(); err == nil {
-		t.Error("second Close did not return error")
+	err := catchPanic(c.Release)
+	if err == nil {
+		t.Error("second Release did not panic")
 	}
-	if h.closes > 1 {
-		t.Error("second Close made more calls to ClientHook.Close")
+	if h.shutdowns > 1 {
+		t.Error("second Release made more calls to ClientHook.Shutdown")
 	}
 }
 
@@ -133,12 +130,8 @@ func TestNullClient(t *testing.T) {
 				t.Error("Resolve failed:", err)
 			}
 			cancel()
-			if err := c.Close(); err != nil {
-				t.Error("Close #1:", err)
-			}
-			if err := c.Close(); err != nil {
-				t.Error("Close #2:", err)
-			}
+			c.Release()
+			c.Release() // should not panic
 		})
 	}
 }
@@ -156,10 +149,10 @@ func TestPromisedClient(t *testing.T) {
 	_, finish := ca.SendCall(ctx, Send{})
 	finish()
 	pa.Fulfill(cb)
-	if a.closes == 0 {
-		t.Error("a not closed after fulfilling ClientPromise")
-	} else if a.closes > 1 {
-		t.Error("a closed multiple times")
+	if a.shutdowns == 0 {
+		t.Error("a not shut down after fulfilling ClientPromise")
+	} else if a.shutdowns > 1 {
+		t.Error("a shut down multiple times")
 	}
 	_, finish = ca.SendCall(ctx, Send{})
 	finish()
@@ -167,22 +160,18 @@ func TestPromisedClient(t *testing.T) {
 	if !ca.IsSame(cb) {
 		t.Error("after resolution, ca != cb")
 	}
-	if b.closes > 0 {
-		t.Error("b closed before clients closed")
+	if b.shutdowns > 0 {
+		t.Error("b shut down before clients released")
 	}
-	if err := ca.Close(); err != nil {
-		t.Error("ca.Close() =", err)
+	ca.Release()
+	if b.shutdowns > 0 {
+		t.Error("b shut down after ca.Release but before cb.Release")
 	}
-	if b.closes > 0 {
-		t.Error("b closed after ca.Close but before cb.Close")
-	}
-	if err := cb.Close(); err != nil {
-		t.Error("cb.Close() =", err)
-	}
-	if b.closes == 0 {
-		t.Error("b not closed after calling ca.Close and cb.Close")
-	} else if b.closes > 1 {
-		t.Error("b closed multiple times")
+	cb.Release()
+	if b.shutdowns == 0 {
+		t.Error("b not shut down after calling ca.Release and cb.Release")
+	} else if b.shutdowns > 1 {
+		t.Error("b shut down multiple times")
 	}
 }
 
@@ -193,41 +182,36 @@ func TestPromisedClient_EarlyClose(t *testing.T) {
 	cb := NewClient(b)
 	ctx := context.Background()
 
-	if err := ca.Close(); err != nil {
-		t.Error("ca.Close() =", err)
-	}
-	if a.closes == 0 {
-		t.Error("a not closed after closing only reference")
-	} else if a.closes > 1 {
-		t.Error("a closed multiple times")
+	ca.Release()
+	if a.shutdowns == 0 {
+		t.Error("a not shut down after releasing only reference")
+	} else if a.shutdowns > 1 {
+		t.Error("a shut down multiple times")
 	}
 	p.Fulfill(cb)
 	_, finish := ca.SendCall(ctx, Send{})
 	finish()
 	if a.calls > 0 {
-		t.Error("a called after Close")
+		t.Error("a called after shut down")
 	}
 	if b.calls > 0 {
-		t.Error("b called after Close")
+		t.Error("b called after shut down")
 	}
-	if b.closes > 0 {
-		t.Error("b closed after Fulfill")
+	if b.shutdowns > 0 {
+		t.Error("b shut down after Fulfill")
 	}
-	if err := cb.Close(); err != nil {
-		t.Error("cb.Close() =", err)
-	}
-	if b.closes == 0 {
-		t.Error("b not closed after closing only reference")
-	} else if b.closes > 1 {
-		t.Error("b closed multiple times")
+	cb.Release()
+	if b.shutdowns == 0 {
+		t.Error("b not shut down after releasing only reference")
+	} else if b.shutdowns > 1 {
+		t.Error("b shut down multiple times")
 	}
 }
 
 type dummyHook struct {
-	calls    int
-	brand    interface{}
-	closes   int
-	closeErr error
+	calls     int
+	brand     interface{}
+	shutdowns int
 }
 
 func (dh *dummyHook) Send(context.Context, Send) (*Answer, ReleaseFunc) {
@@ -245,9 +229,8 @@ func (dh *dummyHook) Brand() interface{} {
 	return dh.brand
 }
 
-func (dh *dummyHook) Close() error {
-	dh.closes++
-	return dh.closeErr
+func (dh *dummyHook) Shutdown() {
+	dh.shutdowns++
 }
 
 func TestToInterface(t *testing.T) {
@@ -492,20 +475,16 @@ func TestWeakClient(t *testing.T) {
 	if !c1.IsSame(c2) {
 		t.Error("c1 != c2")
 	}
-	if err := c2.Close(); err != nil {
-		t.Errorf("w.AddRef().Close(): %v", err)
+	c2.Release()
+	if h.shutdowns > 0 {
+		t.Fatal("Releasing second reference shut down capability")
 	}
-	if h.closes > 0 {
-		t.Fatal("Closing second reference closed capability")
-	}
-	if err := c1.Close(); err != nil {
-		t.Errorf("w.AddRef().Close(): %v", err)
-	}
-	if h.closes == 0 {
-		t.Errorf("Closing strong reference with weak reference kept capability open")
+	c1.Release()
+	if h.shutdowns == 0 {
+		t.Errorf("Releasing strong reference with weak reference kept capability open")
 	}
 	if _, ok := w.AddRef(); ok {
-		t.Error("w.AddRef() after close did not fail")
+		t.Error("w.AddRef() after shut down did not fail")
 	}
 }
 
@@ -523,27 +502,21 @@ func TestWeakPromisedClient(t *testing.T) {
 	_, finish = ca.SendCall(ctx, Send{})
 	finish()
 
-	if err := ca.Close(); err != nil {
-		t.Error("ca.Close() =", err)
-	}
+	ca.Release()
 	cb2, ok := wa.AddRef()
 	if !ok {
-		t.Error("wa.AddRef() failed after closing ca")
+		t.Error("wa.AddRef() failed after releasing ca")
 	}
 	if !cb.IsSame(cb2) {
 		t.Error("cb != cb2")
 	}
-	if err := cb.Close(); err != nil {
-		t.Error("cb.Close() =", err)
+	cb.Release()
+	if b.shutdowns > 0 {
+		t.Error("b shut down before cb2.Release")
 	}
-	if b.closes > 0 {
-		t.Error("b closed before cb2.Close")
-	}
-	if err := cb2.Close(); err != nil {
-		t.Error("cb2.Close() =", err)
-	}
-	if b.closes == 0 {
-		t.Error("b not closed after cb2.Close")
+	cb2.Release()
+	if b.shutdowns == 0 {
+		t.Error("b not shut down after cb2.Release")
 	}
 }
 

@@ -24,11 +24,7 @@ func (echoImpl) Echo(ctx context.Context, call air.Echo_echo) error {
 
 func TestServerCall(t *testing.T) {
 	echo := air.Echo_ServerToClient(echoImpl{}, nil)
-	defer func() {
-		if err := echo.Client.Close(); err != nil {
-			t.Error("Close:", err)
-		}
-	}()
+	defer echo.Client.Release()
 
 	ans, finish := echo.Echo(context.Background(), func(p air.Echo_echo_Params) error {
 		err := p.SetIn("foo")
@@ -109,9 +105,7 @@ func TestServerCallOrder(t *testing.T) {
 			check(call3, 3)
 			check(call4, 4)
 		})
-		if err := test.seq.Client.Close(); err != nil {
-			t.Errorf("Close %s: %v", test.name, err)
-		}
+		test.seq.Client.Release()
 	}
 }
 
@@ -120,11 +114,7 @@ func TestServerMaxConcurrentCalls(t *testing.T) {
 	echo := air.Echo_ServerToClient(blockingEchoImpl{wait}, &server.Policy{
 		MaxConcurrentCalls: 2,
 	})
-	defer func() {
-		if err := echo.Client.Close(); err != nil {
-			t.Error("Close:", err)
-		}
-	}()
+	defer echo.Client.Release()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	call1, finish := echo.Echo(ctx, nil)
@@ -146,23 +136,21 @@ func TestServerMaxConcurrentCalls(t *testing.T) {
 	call2.Struct()
 }
 
-func TestServerClose(t *testing.T) {
+func TestServerShutdown(t *testing.T) {
 	wait := make(chan struct{})
 	echo := air.Echo_ServerToClient(blockingEchoImpl{wait}, nil)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	call, finish := echo.Echo(ctx, nil)
 	defer finish()
-	if err := echo.Client.Close(); err != nil {
-		t.Error("Close:", err)
-	}
+	echo.Client.Release()
 	select {
 	case <-call.Done():
 		if _, err := call.Struct(); err == nil {
 			t.Error("call finished without error")
 		}
 	default:
-		t.Error("call not done after Close")
+		t.Error("call not done after Shutdown")
 	}
 }
 
