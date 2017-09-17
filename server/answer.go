@@ -164,7 +164,7 @@ func clientPathFromTransform(ops []capnp.PipelineOp) clientPath {
 	buf := make([]byte, 0, len(ops)*2)
 	for i := range ops {
 		f := ops[i].Field
-		buf = append(buf, byte(f&0x00ff), byte(f&0xff00))
+		buf = append(buf, byte(f&0x00ff), byte(f&0xff00>>8))
 	}
 	return clientPath(buf)
 }
@@ -172,7 +172,7 @@ func clientPathFromTransform(ops []capnp.PipelineOp) clientPath {
 func (cp clientPath) transform() []capnp.PipelineOp {
 	ops := make([]capnp.PipelineOp, len(cp)/2)
 	for i := range ops {
-		ops[i].Field = uint16(cp[i*2])<<8 | uint16(cp[i*2+1])
+		ops[i].Field = uint16(cp[i*2]) | uint16(cp[i*2+1])<<8
 	}
 	return ops
 }

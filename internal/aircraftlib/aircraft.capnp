@@ -328,7 +328,7 @@ interface CallSequence {
 }
 
 interface Pipeliner extends (CallSequence) {
-  newPipeliner @0 () -> (pipeliner :Pipeliner);
+  newPipeliner @0 () -> (extra :AnyPointer, pipeliner :Pipeliner);
 }
 
 # test defaults
