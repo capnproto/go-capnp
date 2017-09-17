@@ -15,149 +15,323 @@ import (
 // Most applications will use Answer, since that what is returned by
 // a Client.
 type Promise struct {
-	resolved chan struct{} // can only be closed while holding mu
+	resolved <-chan struct{}
 	ans      Answer
 
-	mu       sync.RWMutex
-	caller   PipelineCaller // nil if resolved
-	children []*Promise
-	joined   bool
-	result   Ptr
-	err      error
+	// The promise can be in one of the following states:
+	//
+	//	- Unresolved (initial state).  Can transition to any other state.
+	//	- Pending resolution.  Fulfill or Reject has been called on the
+	//	  Promise, but Fulfill or Reject is waiting on fulfilling the
+	//	  clients and acquiring answers for any ongoing calls to caller.
+	//	  All new pipelined calls will block until the Promise is resolved.
+	//	  Next state is resolved.
+	//	- Resolved.  Fulfill or Reject has finished.
+	//	- Pending join.  Join has been called on the Promise, but it is
+	//	  waiting to acquire answers for ongoing calls to caller or for the
+	//	  other promise to transition out of the pending join state.  Next
+	//	  state is joined or resolved, since the other promise could be
+	//	  resolved while this promise is in this state.
+	//  - Joined.  Join has finished.
+
+	// mu protects the fields below.  When acquiring multiple Promise.mu
+	// mutexes, they must be acquired in traversal order (i.e. p, then
+	// p.next, then p.next.next).
+	mu sync.Mutex
+
+	// next is non-nil if the promise is in the joined state.
+	next *Promise
+
+	// joined is non-nil when the promise is in the pending join state.
+	// It will be closed and set to nil when the promise leaves the pending
+	// join state.
+	joined chan struct{}
+
+	// signals is the set of resolved channels to close on resolution.
+	// Has at least one element if the promise is unresolved or pending,
+	// nil if resolved or joined.
+	signals []chan<- struct{}
+
+	// caller is the hook to make pipelined calls with.  Set to nil once
+	// the promise leaves the unresolved state.
+	caller PipelineCaller
+
+	// ongoingCalls counts the number of calls to caller that have not
+	// yielded an Answer yet (but not necessarily finished).
+	ongoingCalls int
+	// If callsStopped is non-nil, then the promise has entered into one of
+	// the pending states and is waiting for ongoingCalls to drop to zero.
+	// After decrementing ongoingCalls, callsStopped should be closed if
+	// ongoingCalls is zero to wake up the goroutine.
+	//
+	// Only Fulfill, Reject, or Join will set callsStopped.
+	callsStopped chan struct{}
+
+	// clients is a table of promised clients created to proxy the eventual
+	// result's clients.  Even after resolution, this table may still have
+	// entries until the clients are released.  nil if the promise was
+	// joined.  Cannot be read or written in either of the pending states.
+	clients map[clientPath][]clientAndPromise
+	// clientsRefs counts the number of promises that reference this
+	// promise that have not called ReleaseClients.
+	clientsRefs int
+
+	// releasedClients is true after ReleaseClients has been called on this
+	// promise.  Only the receiver of ReleaseClients should set this to true.
+	releasedClients bool
+
+	// result and err are the values from Fulfill or Reject respectively
+	// in the resolved state.
+	result Ptr
+	err    error
+}
+
+type clientAndPromise struct {
+	client  *Client
+	promise *ClientPromise
 }
 
 // NewPromise creates a new unresolved promise.  The PipelineCaller will
 // be used to make pipelined calls before the promise resolves.
 func NewPromise(pc PipelineCaller) *Promise {
+	resolved := make(chan struct{})
 	p := &Promise{
-		caller:   pc,
-		resolved: make(chan struct{}),
+		resolved:    resolved,
+		signals:     []chan<- struct{}{resolved},
+		caller:      pc,
+		clientsRefs: 1,
 	}
 	p.ans.f.promise = p
 	return p
 }
 
+// isUnresolved reports whether p is in the unresolved state.
+// The caller must be holding onto p.mu.
+func (p *Promise) isUnresolved() bool {
+	return p.caller != nil
+}
+
+// isPendingResolution reports whether p is in the pending resolution
+// state.  The caller must be holding onto p.mu.
+func (p *Promise) isPendingResolution() bool {
+	return p.caller == nil && p.next == nil && p.joined == nil && len(p.signals) > 0
+}
+
+// isPendingJoin reports whether p is in the pending join state.
+// The caller must be holding onto p.mu.
+func (p *Promise) isPendingJoin() bool {
+	return p.joined != nil
+}
+
+// isResolved reports whether p is in the resolved state.
+// The caller must be holding onto p.mu.
+func (p *Promise) isResolved() bool {
+	return len(p.signals) == 0 && p.next == nil
+}
+
+// isJoined reports whether p is in the joined state.
+// The caller must be holding onto p.mu.
+func (p *Promise) isJoined() bool {
+	return p.next != nil
+}
+
 // Fulfill resolves the promise with a successful result.
+//
+// Fulfill will wait for any outstanding calls to the underlying
+// PipelineCaller to yield Answers and any pipelined clients to be
+// fulfilled.
 func (p *Promise) Fulfill(result Ptr) {
 	defer p.mu.Unlock()
 	p.mu.Lock()
-	if p.joined {
-		panic("Promise.Fulfill called after Promise.Join")
+	if !p.isUnresolved() {
+		panic("Promise.Fulfill called after Fulfill, Reject, or Join")
 	}
-	select {
-	case <-p.resolved:
-		panic("Promise.Fulfill or Promise.Reject called more than once")
-	default:
-		p.lockedResolve(result, nil)
-	}
+	p.resolve(result, nil)
 }
 
 // Reject resolves the promise with a failure.
+//
+// Reject will wait for any outstanding calls to the underlying
+// PipelineCaller to yield Answers and any pipelined clients to be
+// fulfilled.
 func (p *Promise) Reject(e error) {
 	if e == nil {
 		panic("Promise.Reject(nil)")
 	}
 	defer p.mu.Unlock()
 	p.mu.Lock()
-	if p.joined {
-		panic("Promise.Reject called after Promise.Join")
+	if !p.isUnresolved() {
+		panic("Promise.Reject called after Fulfill, Reject, or Join")
 	}
-	select {
-	case <-p.resolved:
-		panic("Promise.Fulfill or Promise.Reject called more than once")
-	default:
-		p.lockedResolve(Ptr{}, e)
-	}
+	p.resolve(Ptr{}, e)
 }
 
-// Join ties the outcome of a promise to another promise's outcome.
+// resolve moves p into the resolved state from unresolved or pending
+// join.  The caller must be holding onto p.mu.
+func (p *Promise) resolve(r Ptr, e error) {
+	p.caller = nil
+
+	if len(p.clients) > 0 || p.ongoingCalls > 0 {
+		// Pending resolution or join state: wait for clients to be fulfilled
+		// and calls to have answers.  p.clients cannot be touched in the
+		// pending resolution state, so we have exclusive access to the
+		// variable.
+		if p.ongoingCalls > 0 {
+			p.callsStopped = make(chan struct{})
+		}
+		p.mu.Unlock()
+		for path, row := range p.clients {
+			t := path.transform()
+			for i := range row {
+				c := clientFromResolution(r, e, t)
+				row[i].promise.Fulfill(c)
+				row[i].promise = nil
+			}
+		}
+		if p.callsStopped != nil {
+			<-p.callsStopped
+		}
+		p.mu.Lock()
+	}
+
+	// Move p into resolved state.
+	if p.joined != nil {
+		// Transition out of pending join state.
+		close(p.joined)
+		p.joined = nil
+	}
+	p.callsStopped = nil
+	p.result, p.err = r, e
+	for _, ch := range p.signals {
+		close(ch)
+	}
+	p.signals = nil
+}
+
+// Join ties the outcome of a promise to an answer's outcome.  The owner
+// of the Promise is still responsible for ensuring that ReleaseClients
+// is called on the joined promise.
+//
+// Join will wait for any Fulfill, Reject, or Join calls on the answer's
+// underlying promise to complete as well as any outstanding calls to
+// the underlying PipelineCaller to yield an Answer.
 func (p *Promise) Join(from *Answer) {
+	defer p.mu.Unlock()
+	p.mu.Lock()
+	if !p.isUnresolved() {
+		panic("Promise.Join called after Fulfill, Reject, or Join")
+	}
+	p.caller = nil
+
 	parent := from.f.promise
 	parent.mu.Lock()
-	select {
-	case <-parent.resolved:
-		result, err := parent.result, parent.err
-		parent.mu.Unlock()
-
-		p.mu.Lock()
-		if p.joined {
-			panic("double Promise.Join")
-		}
-		select {
-		case <-p.resolved:
-			panic("Promise.Join after resolved")
+traversal:
+	for {
+		switch {
+		case parent.isUnresolved():
+			break traversal
+		case parent.isPendingResolution():
+			// Wait for resolution.  Next traversal iteration will be resolved.
+			r := parent.resolved
+			parent.mu.Unlock()
+			if p.joined == nil {
+				p.joined = make(chan struct{})
+			}
+			p.mu.Unlock()
+			<-r
+			p.mu.Lock()
+			parent.mu.Lock()
+		case parent.isPendingJoin():
+			j := parent.joined
+			parent.mu.Unlock()
+			if p.joined == nil {
+				p.joined = make(chan struct{})
+			}
+			p.mu.Unlock()
+			<-j
+			p.mu.Lock()
+			parent.mu.Lock()
+		case parent.isResolved():
+			r, e := parent.result, parent.err
+			parent.mu.Unlock()
+			p.resolve(r, e)
+			return
+		case parent.isJoined():
+			next := parent.next
+			parent.mu.Unlock()
+			parent = next
+			parent.mu.Lock()
 		default:
+			panic("unreachable")
 		}
-		p.lockedResolve(result, err)
+	}
+	if p.ongoingCalls > 0 {
+		p.callsStopped = make(chan struct{})
+		if p.joined == nil {
+			p.joined = make(chan struct{})
+		}
 		p.mu.Unlock()
-		return
-	default:
+		<-p.callsStopped
+		p.mu.Lock()
+		p.callsStopped = nil
 	}
-	p.mu.Lock()
-	if p.joined {
-		panic("double Promise.Join")
+	if p.joined != nil {
+		// Transition out of pending join state.
+		close(p.joined)
+		p.joined = nil
 	}
-	select {
-	case <-p.resolved:
-		panic("Promise.Join after resolved")
-	default:
+	p.next = parent
+	parent.signals = append(parent.signals, p.signals...)
+	p.signals = nil
+	for path, cp := range p.clients {
+		parent.clients[path] = append(parent.clients[path], cp...)
 	}
-	p.caller = parent.caller
-	children := p.children
-	p.children = nil
-	p.joined = true
-	p.mu.Unlock()
-
-	parent.children = append(parent.children, p)
-	parent.children = append(parent.children, children...)
-	for _, c := range children {
-		c.mu.Lock()
-		c.caller = parent.caller
-		c.mu.Unlock()
-	}
+	p.clients = nil
+	parent.clientsRefs += p.clientsRefs
+	p.clientsRefs = 0
 	parent.mu.Unlock()
 }
 
-func (p *Promise) lockedResolve(r Ptr, e error) {
-	p.result, p.err = r, e
-	p.caller = nil
-	for _, c := range p.children {
-		c.mu.Lock()
-		c.result, c.err = r, e
-		c.caller = nil
-		close(c.resolved)
-		c.mu.Unlock()
-	}
-	p.children = nil
-	close(p.resolved)
-}
-
 // Answer returns a read-only view of the promise.
+// Answer may be called concurrently by multiple goroutines.
 func (p *Promise) Answer() *Answer {
 	return &p.ans
 }
 
-func (p *Promise) client(t []PipelineOp) *Client {
-	p.mu.RLock()
-	if p.caller == nil {
-		c := clientFromResolution(p.result, p.err, t)
-		p.mu.RUnlock()
-		return c
-	}
-	p.mu.RUnlock()
+// ReleaseClients waits until p is resolved and then closes any proxy
+// clients created by the promise's answer.  Failure to call this method
+// will result in capability leaks.  After the first call, subsequent
+// calls to ReleaseClients do nothing.  It is safe to call
+// ReleaseClients concurrently from multiple goroutines.
+//
+// This method is typically used in a ReleaseFunc.
+func (p *Promise) ReleaseClients() {
+	<-p.resolved
 	p.mu.Lock()
-	if p.caller == nil {
-		c := clientFromResolution(p.result, p.err, t)
+	if p.releasedClients {
 		p.mu.Unlock()
-		return c
+		return
 	}
-	// TODO(soon): cache clients in a table.
-	c, _ := NewPromisedClient(pipelineClient{
-		p:         p,
-		transform: t,
-	})
+	p.releasedClients = true // must happen before traversing pointers
+	for p.isJoined() {       // everything in chain will be joined or resolved (leaf)
+		q := p.next
+		p.mu.Unlock()
+		p = q
+		p.mu.Lock()
+	}
+	p.clientsRefs--
+	if p.clientsRefs > 0 {
+		p.mu.Unlock()
+		return
+	}
+	clients := p.clients
+	p.clients = nil
 	p.mu.Unlock()
-	return c
+	for _, row := range clients {
+		for _, cp := range row {
+			cp.client.Close()
+		}
+	}
 }
 
 // A PipelineCaller implements promise pipelining.
@@ -212,7 +386,8 @@ func (ans *Answer) Struct() (Struct, error) {
 
 // Client returns the answer as a client.  If the answer's originating
 // call has not completed, then calls will be queued until the original
-// call's completion.
+// call's completion.  The client reference is borrowed: the caller
+// should not call Close.
 func (ans *Answer) Client() *Client {
 	return ans.f.Client()
 }
@@ -225,12 +400,120 @@ func (ans *Answer) Field(off uint16, def []byte) *Future {
 
 // SendCall starts a pipelined call.
 func (ans *Answer) SendCall(ctx context.Context, transform []PipelineOp, s Send) (*Answer, ReleaseFunc) {
-	return ans.f.promise.client(transform).SendCall(ctx, s)
+	p := ans.f.promise
+	p.mu.Lock()
+traversal:
+	for {
+		switch {
+		case p.isPendingJoin():
+			j := p.joined
+			p.mu.Unlock()
+			select {
+			case <-j:
+			case <-ctx.Done():
+				return ErrorAnswer(ctx.Err()), func() {}
+			}
+			p.mu.Lock()
+		case p.isJoined():
+			q := p.next
+			p.mu.Unlock()
+			p = q
+			p.mu.Lock()
+		default:
+			break traversal
+		}
+	}
+	switch {
+	case p.isUnresolved():
+		p.ongoingCalls++
+		caller := p.caller
+		p.mu.Unlock()
+		ans, release := caller.PipelineSend(ctx, transform, s)
+		p.mu.Lock()
+		p.ongoingCalls--
+		if p.ongoingCalls == 0 && p.callsStopped != nil {
+			close(p.callsStopped)
+		}
+		p.mu.Unlock()
+		return ans, release
+	case p.isPendingResolution():
+		// Block new calls until resolved.
+		p.mu.Unlock()
+		select {
+		case <-p.resolved:
+		case <-ctx.Done():
+			return ErrorAnswer(ctx.Err()), func() {}
+		}
+		p.mu.Lock()
+		fallthrough
+	case p.isResolved():
+		r, e := p.result, p.err
+		p.mu.Unlock()
+		c := clientFromResolution(r, e, transform)
+		return c.SendCall(ctx, s)
+	default:
+		panic("unreachable")
+	}
 }
 
 // RecvCall starts a pipelined call.
 func (ans *Answer) RecvCall(ctx context.Context, transform []PipelineOp, r Recv) (*Answer, ReleaseFunc) {
-	return ans.f.promise.client(transform).RecvCall(ctx, r)
+	p := ans.f.promise
+	p.mu.Lock()
+traversal:
+	for {
+		switch {
+		case p.isPendingJoin():
+			j := p.joined
+			p.mu.Unlock()
+			select {
+			case <-j:
+			case <-ctx.Done():
+				r.ReleaseArgs()
+				return ErrorAnswer(ctx.Err()), func() {}
+			}
+			p.mu.Lock()
+		case p.isJoined():
+			q := p.next
+			p.mu.Unlock()
+			p = q
+			p.mu.Lock()
+		default:
+			break traversal
+		}
+	}
+	switch {
+	case p.isUnresolved():
+		p.ongoingCalls++
+		caller := p.caller
+		p.mu.Unlock()
+		ans, release := caller.PipelineRecv(ctx, transform, r)
+		p.mu.Lock()
+		p.ongoingCalls--
+		if p.ongoingCalls == 0 && p.callsStopped != nil {
+			close(p.callsStopped)
+		}
+		p.mu.Unlock()
+		return ans, release
+	case p.isPendingResolution():
+		// Block new calls until resolved.
+		p.mu.Unlock()
+		select {
+		case <-p.resolved:
+		case <-ctx.Done():
+			r.ReleaseArgs()
+			return ErrorAnswer(ctx.Err()), func() {}
+		}
+		p.mu.Lock()
+		fallthrough
+	case p.isResolved():
+		result, err := p.result, p.err
+		p.mu.Unlock()
+		c := clientFromResolution(result, err, transform)
+		return c.RecvCall(ctx, r)
+	default:
+		panic("unreachable")
+	}
 }
 
 // A Future accesses a portion of an Answer.  It is safe to use from
@@ -266,10 +549,18 @@ func (f *Future) Done() <-chan struct{} {
 // Struct waits until the answer is resolved and returns the struct
 // this future represents.
 func (f *Future) Struct() (Struct, error) {
-	<-f.promise.resolved
-	f.promise.mu.RLock()
-	ptr, err := f.promise.result, f.promise.err
-	f.promise.mu.RUnlock()
+	p := f.promise
+	<-p.resolved
+	p.mu.Lock()
+	for p.isJoined() {
+		q := p.next
+		p.mu.Unlock()
+		p = q
+		p.mu.Lock()
+	}
+	ptr, err := p.result, p.err
+	p.mu.Unlock()
+
 	if err != nil {
 		return Struct{}, err
 	}
@@ -282,9 +573,58 @@ func (f *Future) Struct() (Struct, error) {
 
 // Client returns the future as a client.  If the answer's originating
 // call has not completed, then calls will be queued until the original
-// call's completion.
+// call's completion.  The client reference is borrowed: the caller
+// should not call Close.
 func (f *Future) Client() *Client {
-	return f.promise.client(f.transform())
+	p := f.promise
+	p.mu.Lock()
+traversal:
+	for {
+		switch {
+		case p.isPendingJoin():
+			j := p.joined
+			p.mu.Unlock()
+			<-j
+			p.mu.Lock()
+		case p.isJoined():
+			q := p.next
+			p.mu.Unlock()
+			p = q
+			p.mu.Lock()
+		default:
+			break traversal
+		}
+	}
+	switch {
+	case p.isUnresolved():
+		ft := f.transform()
+		cpath := clientPathFromTransform(ft)
+		if row := p.clients[cpath]; len(row) > 0 {
+			return row[0].client
+		}
+		c, pr := NewPromisedClient(pipelineClient{
+			p:         p,
+			transform: ft,
+		})
+		if p.clients == nil {
+			p.clients = make(map[clientPath][]clientAndPromise)
+		}
+		p.clients[cpath] = []clientAndPromise{{c, pr}}
+		p.mu.Unlock()
+		return c
+	case p.isPendingResolution():
+		p.mu.Unlock()
+		<-p.resolved
+		p.mu.Lock()
+		fallthrough
+	case p.isResolved():
+		result, err := p.result, p.err
+		p.mu.Unlock()
+		c := clientFromResolution(result, err, f.transform())
+		return c
+	default:
+		panic("unreachable")
+	}
 }
 
 // Field returns a derived future which yields the pointer field given,
@@ -307,34 +647,25 @@ type pipelineClient struct {
 }
 
 func (pc pipelineClient) Send(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
-	defer pc.p.mu.RUnlock()
-	pc.p.mu.RLock()
-	if pc.p.caller != nil {
-		return pc.p.caller.PipelineSend(ctx, pc.transform, s)
-	}
-	c := clientFromResolution(pc.p.result, pc.p.err, pc.transform)
-	return c.SendCall(ctx, s)
+	return pc.p.ans.SendCall(ctx, pc.transform, s)
 }
 
 func (pc pipelineClient) Recv(ctx context.Context, r Recv) (*Answer, ReleaseFunc) {
-	defer pc.p.mu.RUnlock()
-	pc.p.mu.RLock()
-	if pc.p.caller != nil {
-		return pc.p.caller.PipelineRecv(ctx, pc.transform, r)
-	}
-	c := clientFromResolution(pc.p.result, pc.p.err, pc.transform)
-	return c.RecvCall(ctx, r)
+	return pc.p.ans.RecvCall(ctx, pc.transform, r)
 }
 
 func (pc pipelineClient) Brand() interface{} {
-	defer pc.p.mu.RUnlock()
-	pc.p.mu.RLock()
-	if pc.p.caller != nil {
+	select {
+	case <-pc.p.resolved:
+		pc.p.mu.Lock()
+		result, err := pc.p.result, pc.p.err
+		pc.p.mu.Unlock()
+		c := clientFromResolution(result, err, pc.transform)
+		return c.Brand()
+	default:
 		// TODO(someday): allow people to obtain the underlying answer.
 		return nil
 	}
-	c := clientFromResolution(pc.p.result, pc.p.err, pc.transform)
-	return c.Brand()
 }
 
 func (pc pipelineClient) Close() error {
@@ -400,4 +731,28 @@ func clientFromResolution(obj Ptr, err error, transform []PipelineOp) *Client {
 		return ErrorClient(err)
 	}
 	return out.Interface().Client()
+}
+
+// clientPath is an encoded version of a list of pipeline operations.
+// It is suitable as a map key.
+//
+// It specifically ignores default values, because a capability can't have a
+// default value other than null.
+type clientPath string
+
+func clientPathFromTransform(ops []PipelineOp) clientPath {
+	buf := make([]byte, 0, len(ops)*2)
+	for i := range ops {
+		f := ops[i].Field
+		buf = append(buf, byte(f&0x00ff), byte(f&0xff00>>8))
+	}
+	return clientPath(buf)
+}
+
+func (cp clientPath) transform() []PipelineOp {
+	ops := make([]PipelineOp, len(cp)/2)
+	for i := range ops {
+		ops[i].Field = uint16(cp[i*2]) | uint16(cp[i*2+1])<<8
+	}
+	return ops
 }

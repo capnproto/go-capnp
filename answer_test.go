@@ -7,6 +7,115 @@ import (
 	"testing"
 )
 
+func TestPromiseReject(t *testing.T) {
+	t.Run("Done", func(t *testing.T) {
+		p := NewPromise(dummyPipelineCaller{})
+		done := p.Answer().Done()
+		p.Reject(errors.New("omg bbq"))
+		select {
+		case <-done:
+			p.ReleaseClients()
+		default:
+			t.Error("answer not resolved")
+		}
+	})
+	t.Run("Struct", func(t *testing.T) {
+		p := NewPromise(dummyPipelineCaller{})
+		defer p.ReleaseClients()
+		ans := p.Answer()
+		p.Reject(errors.New("omg bbq"))
+		if _, err := ans.Struct(); err == nil || !strings.Contains(err.Error(), "omg bbq") {
+			t.Errorf("answer error = %v; want \"omg bbq\"", err)
+		}
+	})
+	t.Run("Client", func(t *testing.T) {
+		p := NewPromise(dummyPipelineCaller{})
+		defer p.ReleaseClients()
+		pc := p.Answer().Field(1, nil).Client()
+		p.Reject(errors.New("omg bbq"))
+		ctx := context.Background()
+		if err := pc.Resolve(ctx); err != nil {
+			t.Error("pc.Resolve:", err)
+		}
+		ans, release := pc.SendCall(ctx, Send{})
+		_, err := ans.Struct()
+		release()
+		if err == nil || !strings.Contains(err.Error(), "omg bbq") {
+			t.Errorf("pc.SendCall error = %v; want \"omg bbq\"", err)
+		}
+	})
+}
+
+func TestPromiseFulfill(t *testing.T) {
+	t.Run("Done", func(t *testing.T) {
+		p := NewPromise(dummyPipelineCaller{})
+		done := p.Answer().Done()
+		msg, seg, _ := NewMessage(SingleSegment(nil))
+		defer msg.Reset(nil)
+		res, _ := NewStruct(seg, ObjectSize{DataSize: 8})
+		p.Fulfill(res.ToPtr())
+		select {
+		case <-done:
+			p.ReleaseClients()
+		default:
+			t.Error("answer not resolved")
+		}
+	})
+	t.Run("Struct", func(t *testing.T) {
+		p := NewPromise(dummyPipelineCaller{})
+		defer p.ReleaseClients()
+		ans := p.Answer()
+		msg, seg, _ := NewMessage(SingleSegment(nil))
+		defer msg.Reset(nil)
+		res, _ := NewStruct(seg, ObjectSize{DataSize: 8})
+		res.SetUint32(0, 0xdeadbeef)
+		p.Fulfill(res.ToPtr())
+		s, err := ans.Struct()
+		if eq, err := Equal(res.ToPtr(), s.ToPtr()); err != nil {
+			t.Error("Equal(p.Answer.Struct(), res):", err)
+		} else if !eq {
+			t.Error("p.Answer().Struct() != res")
+		}
+		if err != nil {
+			t.Error("p.Answer().Struct():", err)
+		}
+	})
+	t.Run("Client", func(t *testing.T) {
+		p := NewPromise(dummyPipelineCaller{})
+		defer p.ReleaseClients()
+		pc := p.Answer().Field(1, nil).Client()
+
+		h := new(dummyHook)
+		c := NewClient(h)
+		msg, seg, _ := NewMessage(SingleSegment(nil))
+		defer msg.Reset(nil)
+		res, _ := NewStruct(seg, ObjectSize{PointerCount: 3})
+		res.SetPtr(1, NewInterface(seg, msg.AddCap(c.AddRef())).ToPtr())
+
+		p.Fulfill(res.ToPtr())
+
+		ctx := context.Background()
+		if err := pc.Resolve(ctx); err != nil {
+			t.Error("pc.Resolve:", err)
+		}
+		if !pc.IsSame(c) {
+			t.Errorf("pc != c; pc = %v, c = %v", pc, c)
+		}
+		if err := c.Close(); err != nil {
+			t.Error("c.Close:", err)
+		}
+		ans, release := pc.SendCall(ctx, Send{})
+		_, err := ans.Struct()
+		release()
+		if err != nil {
+			t.Error("pc.SendCall:", err)
+		}
+		if h.calls == 0 {
+			t.Error("hook never called")
+		}
+	})
+}
+
 func TestPromiseJoin(t *testing.T) {
 	t.Run("BeforeReject", func(t *testing.T) {
 		pa := NewPromise(dummyPipelineCaller{})
@@ -17,11 +126,13 @@ func TestPromiseJoin(t *testing.T) {
 		pa.Reject(errors.New("omg bbq"))
 		select {
 		case <-doneB:
+			if _, err := ansB.Struct(); err == nil || !strings.Contains(err.Error(), "omg bbq") {
+				t.Errorf("joined answer error = %v; want \"omg bbq\"", err)
+			}
+			pa.ReleaseClients()
+			pb.ReleaseClients()
 		default:
-			t.Fatal("joined answer not resolved")
-		}
-		if _, err := ansB.Struct(); err == nil || !strings.Contains(err.Error(), "omg bbq") {
-			t.Errorf("joined answer error = %v; want \"omg bbq\"", err)
+			t.Error("joined answer not resolved")
 		}
 	})
 	t.Run("AfterReject", func(t *testing.T) {
@@ -33,11 +144,13 @@ func TestPromiseJoin(t *testing.T) {
 		pb.Join(pa.Answer())
 		select {
 		case <-doneB:
+			if _, err := ansB.Struct(); err == nil || !strings.Contains(err.Error(), "omg bbq") {
+				t.Errorf("joined answer error = %v; want \"omg bbq\"", err)
+			}
+			pa.ReleaseClients()
+			pb.ReleaseClients()
 		default:
-			t.Fatal("joined answer not resolved")
-		}
-		if _, err := ansB.Struct(); err == nil || !strings.Contains(err.Error(), "omg bbq") {
-			t.Errorf("joined answer error = %v; want \"omg bbq\"", err)
+			t.Error("joined answer not resolved")
 		}
 	})
 	t.Run("MultipleJoinReject", func(t *testing.T) {
@@ -52,6 +165,7 @@ func TestPromiseJoin(t *testing.T) {
 			if _, err := pb.Answer().Struct(); err == nil || !strings.Contains(err.Error(), "omg bbq") {
 				t.Errorf("directly joined answer error = %v; want \"omg bbq\"", err)
 			}
+			pb.ReleaseClients()
 		default:
 			t.Error("directly joined answer not resolved")
 		}
@@ -60,9 +174,11 @@ func TestPromiseJoin(t *testing.T) {
 			if _, err := pc.Answer().Struct(); err == nil || !strings.Contains(err.Error(), "omg bbq") {
 				t.Errorf("transitively joined answer error = %v; want \"omg bbq\"", err)
 			}
+			pc.ReleaseClients()
 		default:
 			t.Error("transitively joined answer not resolved")
 		}
+		pa.ReleaseClients()
 	})
 }
 

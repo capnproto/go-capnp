@@ -231,6 +231,7 @@ func (srv *Server) start(ctx context.Context, m *Method, r capnp.Recv) (*capnp.A
 	return ans, func() {
 		once.Do(func() {
 			<-ans.Done()
+			p.ReleaseClients()
 			// TODO(someday): log error from ClearCaps
 			resultMsg.Reset(nil)
 		})

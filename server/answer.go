@@ -71,7 +71,6 @@ func (aq *answerQueue) drain(dst *capnp.Answer, p *capnp.Promise) {
 	for i := range aq.q {
 		ent := &aq.q[i]
 		ent.p.Join(aq.answers[1+i])
-		ent.p = nil
 		close(ent.settled)
 	}
 	aq.q = nil
@@ -123,6 +122,7 @@ func (qc queueCaller) PipelineRecv(ctx context.Context, transform []capnp.Pipeli
 	qc.aq.mu.Unlock()
 	return ent.p.Answer(), func() {
 		<-ent.settled
+		ent.p.ReleaseClients()
 		ent.finish()
 	}
 }
