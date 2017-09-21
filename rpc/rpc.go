@@ -35,7 +35,9 @@ type Conn struct {
 	sendCond chan struct{}
 	sender   Sender
 
-	nextQuestionID uint32
+	questions  []*question
+	questionID idgen
+	imports    map[importID]*impent
 }
 
 // Options specifies optional parameters for creating a Conn.
@@ -59,10 +61,12 @@ func NewConn(t Transport, opts *Options) *Conn {
 	return c
 }
 
-// acquireSender acquires the send condition.  The caller must be
-// holding onto c.mu, which will be exchanged for holding the sending
-// condition channel.
-func (c *Conn) acquireSender(ctx context.Context) error {
+// sendMessage creates a new message on the Sender, calls f to build it,
+// and sends it if f does not return an error.  The caller must be
+// holding onto c.mu.  However, while f is being called, it will not be
+// holding onto c.mu.
+func (c *Conn) sendMessage(ctx context.Context, f func(msg rpccp.Message) error) error {
+	// Acquire send condition.
 	for {
 		if c.closed {
 			// TODO(someday): classify as disconnected
@@ -83,48 +87,58 @@ func (c *Conn) acquireSender(ctx context.Context) error {
 	}
 	c.sendCond = make(chan struct{})
 	c.mu.Unlock()
+	defer func() {
+		c.mu.Lock()
+		close(c.sendCond)
+		c.sendCond = nil
+	}()
+
+	// Build and send message.
+	msg, send, release, err := c.sender.NewMessage(ctx)
+	if err != nil {
+		return fmt.Errorf("create message: %v", err)
+	}
+	defer release()
+	if err := f(msg); err != nil {
+		return fmt.Errorf("build message: %v", err)
+	}
+	if err := send(); err != nil {
+		return fmt.Errorf("send message: %v", err)
+	}
 	return nil
 }
 
-// releaseSender releases the send condition, which the caller must have
-// been holding from a previous call to acquireSender.
-//
-// Note that c may have been closed since the send condition was
-// acquired.
-func (c *Conn) releaseSender() {
-	c.mu.Lock()
-	close(c.sendCond)
-	c.sendCond = nil
-}
-
-// Bootstrap returns the remote vat's bootstrap interface.
+// Bootstrap returns the remote vat's bootstrap interface.  This creates
+// a new client that the caller is responsible for releasing.
 func (c *Conn) Bootstrap(ctx context.Context) *capnp.Client {
 	defer c.mu.Unlock()
 	c.mu.Lock()
-	id := c.nextQuestionID
-	c.nextQuestionID++
-	if err := c.acquireSender(ctx); err != nil {
+	id := questionID(c.questionID.next())
+	err := c.sendMessage(ctx, func(msg rpccp.Message) error {
+		boot, err := msg.NewBootstrap()
+		if err != nil {
+			return err
+		}
+		boot.SetQuestionId(uint32(id))
+		return nil
+	})
+	if err != nil {
+		c.questionID.remove(uint32(id))
 		return capnp.ErrorClient(fmt.Errorf("rpc bootstrap: %v", err))
 	}
-	msg, send, release, err := c.sender.NewMessage(ctx)
-	if err != nil {
-		c.releaseSender()
-		return capnp.ErrorClient(fmt.Errorf("rpc bootstrap: create message: %v", err))
+	q := &question{
+		id:        id,
+		conn:      c,
+		bootstrap: true,
 	}
-	boot, err := msg.NewBootstrap()
-	if err != nil {
-		release()
-		c.releaseSender()
-		return capnp.ErrorClient(fmt.Errorf("rpc bootstrap: create message: %v", err))
+	if int(id) == len(c.questions) {
+		c.questions = append(c.questions, q)
+	} else {
+		c.questions[id] = q
 	}
-	boot.SetQuestionId(id)
-	err = send()
-	release()
-	c.releaseSender()
-	if err != nil {
-		return capnp.ErrorClient(fmt.Errorf("rpc bootstrap: send message: %v", err))
-	}
-	return nil
+	p := capnp.NewPromise(q)
+	q.p = p
+	return p.Answer().Client().AddRef()
 }
 
 // Close sends an abort to the remote vat and closes the underlying
@@ -137,6 +151,8 @@ func (c *Conn) Close() error {
 	rerr := c.recvCloser.CloseRecv() // will wait on recvDone at the end
 
 	// Close Sender after all sends are finished.
+	// TODO(soon): This assumes that there aren't messages retained past
+	// the release of the send condition.
 	c.mu.Lock()
 	for {
 		s := c.sendCond
@@ -216,51 +232,144 @@ func (c *Conn) receive(ctx context.Context, r Receiver) {
 }
 
 func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet capnp.ReleaseFunc) error {
-	defer releaseRet()
-	defer c.mu.Unlock()
 	c.mu.Lock()
 	// TODO(soon): disconnect if return ID not in questions table.
-	if err := c.acquireSender(ctx); err != nil {
-		return fmt.Errorf("rpc: receive return: %v", err)
+	qid := questionID(ret.AnswerId())
+	if uint32(qid) >= uint32(len(c.questions)) {
+		c.mu.Unlock()
+		releaseRet()
+		return fmt.Errorf("rpc: receive return: question %d does not exist", qid)
 	}
-	msg, send, release, err := c.sender.NewMessage(ctx)
+	q := c.questions[qid]
+	if q == nil {
+		c.mu.Unlock()
+		releaseRet()
+		return fmt.Errorf("rpc: receive return: question %d does not exist", qid)
+	}
+	defer c.mu.Unlock()
+	c.questions[qid] = nil
+
+	pr := c.parseReturn(ret)
+	if pr.err == nil {
+		c.mu.Unlock()
+		q.p.Fulfill(pr.result)
+		if q.bootstrap {
+			q.p.ReleaseClients()
+			releaseRet()
+		} else {
+			q.release = releaseRet
+		}
+		c.mu.Lock()
+	} else {
+		q.release = func() {}
+		c.mu.Unlock()
+		q.p.Reject(pr.err)
+		if q.bootstrap {
+			q.p.ReleaseClients()
+		}
+		releaseRet()
+		c.mu.Lock()
+	}
+	err := c.sendMessage(ctx, func(msg rpccp.Message) error {
+		fin, err := msg.NewFinish()
+		if err != nil {
+			return err
+		}
+		fin.SetQuestionId(uint32(qid))
+		fin.SetReleaseResultCaps(false)
+		return nil
+	})
 	if err != nil {
-		c.releaseSender()
 		return fmt.Errorf("rpc: receive return: send finish: %v", err)
 	}
-	fin, err := msg.NewFinish()
-	if err != nil {
-		release()
-		c.releaseSender()
-		return fmt.Errorf("rpc: receive return: send finish: %v", err)
-	}
-	fin.SetQuestionId(ret.AnswerId())
-	fin.SetReleaseResultCaps(false)
-	err = send()
-	release()
-	c.releaseSender()
-	if err != nil {
-		return fmt.Errorf("rpc: receive return: send finish: %v", err)
+	c.questionID.remove(uint32(qid))
+	if pr.parseFailed {
+		// TODO(soon): remove stutter of "rpc:" prefix
+		return fmt.Errorf("rpc: receive return: %v", pr.err)
 	}
 	return nil
+}
+
+func (c *Conn) parseReturn(ret rpccp.Return) parsedReturn {
+	switch ret.Which() {
+	case rpccp.Return_Which_results:
+		r, err := ret.Results()
+		if err != nil {
+			return parsedReturn{err: fmt.Errorf("rpc: parse return: %v", err), parseFailed: true}
+		}
+		content, err := c.recvPayload(r)
+		if err != nil {
+			return parsedReturn{err: fmt.Errorf("rpc: parse return: %v", err), parseFailed: true}
+		}
+		return parsedReturn{result: content}
+	case rpccp.Return_Which_exception:
+		exc, err := ret.Exception()
+		if err != nil {
+			return parsedReturn{err: fmt.Errorf("rpc: parse return: %v", err), parseFailed: true}
+		}
+		reason, err := exc.Reason()
+		if err != nil {
+			return parsedReturn{err: fmt.Errorf("rpc: parse return: %v", err), parseFailed: true}
+		}
+		return parsedReturn{err: errors.New(reason)}
+	default:
+		w := ret.Which()
+		// TODO(someday): send unimplemented message back to remote
+		return parsedReturn{err: fmt.Errorf("rpc: parse return: unhandled type %v", w), parseFailed: true}
+	}
+}
+
+type parsedReturn struct {
+	result      capnp.Ptr
+	err         error
+	parseFailed bool
+}
+
+// recvCap materializes a client for a given descriptor.  If there is an
+// error reading a descriptor, then the resulting client will return the
+// error whenever it is called.  The caller must be holding onto c.mu.
+func (c *Conn) recvCap(d rpccp.CapDescriptor) *capnp.Client {
+	switch d.Which() {
+	case rpccp.CapDescriptor_Which_none:
+		return nil
+	case rpccp.CapDescriptor_Which_senderHosted:
+		id := importID(d.SenderHosted())
+		return c.addImport(id)
+	default:
+		return capnp.ErrorClient(fmt.Errorf("rpc: unknown CapDescriptor type %v", d.Which()))
+	}
+}
+
+// recvPayload extracts the content pointer after populating the
+// message's capability table.  The caller must be holding onto c.mu.
+func (c *Conn) recvPayload(payload rpccp.Payload) (capnp.Ptr, error) {
+	if payload.Message().CapTable != nil {
+		// RecvMessage likely violated its invariant.
+		return capnp.Ptr{}, errors.New("read payload: capability table already populated")
+	}
+	ptab, err := payload.CapTable()
+	if err != nil {
+		return capnp.Ptr{}, fmt.Errorf("read payload: %v", err)
+	}
+	p, err := payload.Content()
+	if err != nil {
+		return capnp.Ptr{}, fmt.Errorf("read payload: %v", err)
+	}
+	mtab := make([]*capnp.Client, ptab.Len())
+	for i := 0; i < ptab.Len(); i++ {
+		mtab[i] = c.recvCap(ptab.At(i))
+	}
+	payload.Message().CapTable = mtab
+	return p, nil
 }
 
 func (c *Conn) handleUnimplemented(ctx context.Context, recv rpccp.Message) error {
 	defer c.mu.Unlock()
 	c.mu.Lock()
-	if err := c.acquireSender(ctx); err != nil {
-		return fmt.Errorf("rpc: send unimplemented: %v", err)
-	}
-	defer c.releaseSender()
-	msg, send, release, err := c.sender.NewMessage(ctx)
+	err := c.sendMessage(ctx, func(msg rpccp.Message) error {
+		return msg.SetUnimplemented(recv)
+	})
 	if err != nil {
-		return fmt.Errorf("rpc: send unimplemented: %v", err)
-	}
-	defer release()
-	if err := msg.SetUnimplemented(recv); err != nil {
-		return fmt.Errorf("rpc: send unimplemented: %v", err)
-	}
-	if err := send(); err != nil {
 		return fmt.Errorf("rpc: send unimplemented: %v", err)
 	}
 	return nil

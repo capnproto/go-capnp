@@ -31,6 +31,9 @@ type Receiver interface {
 	// RecvMessage waits to receive a message and returns it.
 	// The returned message is only valid until the release function is
 	// called or CloseRecv is called.
+	//
+	// Messages returned by RecvMessage must have a nil CapTable.
+	// The caller may mutate the CapTable.
 	RecvMessage(ctx context.Context) (rpccapnp.Message, capnp.ReleaseFunc, error)
 
 	// CloseRecv releases any resources associated with the receiver and
