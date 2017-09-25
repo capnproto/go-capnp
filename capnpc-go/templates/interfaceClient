@@ -6,12 +6,11 @@ type {{.Node.Name}} struct { Client *{{.G.Capnp}}.Client }
 {{ template "_typeid" .Node }}
 
 {{range .Methods -}}
-func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{$.G.Imports.Context}}.Context, params func({{$.G.RemoteNodeName .Params $.Node}}) error, opts ...{{$.G.Capnp}}.CallOption) ({{$.G.RemoteNodeName .Results $.Node}}_Future, {{$.G.Capnp}}.ReleaseFunc) {
+func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{$.G.Imports.Context}}.Context, params func({{$.G.RemoteNodeName .Params $.Node}}) error) ({{$.G.RemoteNodeName .Results $.Node}}_Future, {{$.G.Capnp}}.ReleaseFunc) {
 	s := {{$.G.Capnp}}.Send{
 		Method: {{$.G.Capnp}}.Method{
 			{{template "_interfaceMethod" .}}
 		},
-		Options: {{$.G.Capnp}}.NewCallOptions(opts),
 	}
 	if params != nil {
 		s.ArgsSize = {{$.G.ObjectSize .Params}}

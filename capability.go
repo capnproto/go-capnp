@@ -357,7 +357,7 @@ func (c *Client) String() string {
 // Release releases a capability reference.  If this is the last
 // reference to the capability, then the underlying resources associated
 // with the capability will be released.
-
+//
 // Release will panic if c has already been released, but not if c is
 // nil or resolved to null.
 func (c *Client) Release() {
@@ -542,9 +542,6 @@ type Send struct {
 
 	// ArgsSize specifies the size of the struct to pass to PlaceArgs.
 	ArgsSize ObjectSize
-
-	// Options is the set of call options.
-	Options CallOptions
 }
 
 // Recv is the input to ClientHook.Recv.
@@ -558,67 +555,12 @@ type Recv struct {
 	// ReleaseArgs is called after Args is no longer referenced.
 	// Must not be nil.
 	ReleaseArgs ReleaseFunc
-
-	// Options is the set of call options.
-	Options CallOptions
 }
 
 // A ReleaseFunc tells the RPC system that a parameter or result struct
 // is no longer in use and may be reclaimed.  After the first call,
 // subsequent calls to a ReleaseFunc do nothing.
 type ReleaseFunc func()
-
-// CallOptions holds RPC-specific options for an interface call.
-// The zero value is an empty set of options.  CallOptions is safe to
-// use from multiple goroutines.
-//
-// Its usage is similar to the values in context.Context, but is only
-// used for a single call: its values are not intended to propagate to
-// other callees.  An example of an option would be the
-// Call.sendResultsTo field in rpc.capnp.
-type CallOptions struct {
-	m map[interface{}]interface{}
-}
-
-// NewCallOptions builds a CallOptions value from a list of individual options.
-func NewCallOptions(opts []CallOption) CallOptions {
-	co := CallOptions{make(map[interface{}]interface{})}
-	for _, o := range opts {
-		o.f(co)
-	}
-	return co
-}
-
-// Value retrieves the value associated with the options for this key,
-// or nil if no value is associated with this key.
-func (co CallOptions) Value(key interface{}) interface{} {
-	return co.m[key]
-}
-
-// With creates a copy of the CallOptions value with other options applied.
-func (co CallOptions) With(opts []CallOption) CallOptions {
-	newopts := CallOptions{make(map[interface{}]interface{})}
-	for k, v := range co.m {
-		newopts.m[k] = v
-	}
-	for _, o := range opts {
-		o.f(newopts)
-	}
-	return newopts
-}
-
-// A CallOption is a function that modifies options on an interface call.
-type CallOption struct {
-	f func(CallOptions)
-}
-
-// SetOptionValue returns a call option that associates a value to an
-// option key.  This can be retrieved later with CallOptions.Value.
-func SetOptionValue(key, value interface{}) CallOption {
-	return CallOption{func(co CallOptions) {
-		co.m[key] = value
-	}}
-}
 
 // A Method identifies a method along with an optional human-readable
 // description of the method.

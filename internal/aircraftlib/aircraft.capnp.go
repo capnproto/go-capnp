@@ -4523,7 +4523,7 @@ type Echo struct{ Client *capnp.Client }
 // Echo_TypeID is the unique identifier for the type Echo.
 const Echo_TypeID = 0x8e5322c1e9282534
 
-func (c Echo) Echo(ctx context.Context, params func(Echo_echo_Params) error, opts ...capnp.CallOption) (Echo_echo_Results_Future, capnp.ReleaseFunc) {
+func (c Echo) Echo(ctx context.Context, params func(Echo_echo_Params) error) (Echo_echo_Results_Future, capnp.ReleaseFunc) {
 	s := capnp.Send{
 		Method: capnp.Method{
 			InterfaceID:   0x8e5322c1e9282534,
@@ -4531,7 +4531,6 @@ func (c Echo) Echo(ctx context.Context, params func(Echo_echo_Params) error, opt
 			InterfaceName: "aircraft.capnp:Echo",
 			MethodName:    "echo",
 		},
-		Options: capnp.NewCallOptions(opts),
 	}
 	if params != nil {
 		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 1}
@@ -5151,7 +5150,7 @@ type CallSequence struct{ Client *capnp.Client }
 // CallSequence_TypeID is the unique identifier for the type CallSequence.
 const CallSequence_TypeID = 0xabaedf5f7817c820
 
-func (c CallSequence) GetNumber(ctx context.Context, params func(CallSequence_getNumber_Params) error, opts ...capnp.CallOption) (CallSequence_getNumber_Results_Future, capnp.ReleaseFunc) {
+func (c CallSequence) GetNumber(ctx context.Context, params func(CallSequence_getNumber_Params) error) (CallSequence_getNumber_Results_Future, capnp.ReleaseFunc) {
 	s := capnp.Send{
 		Method: capnp.Method{
 			InterfaceID:   0xabaedf5f7817c820,
@@ -5159,7 +5158,6 @@ func (c CallSequence) GetNumber(ctx context.Context, params func(CallSequence_ge
 			InterfaceName: "aircraft.capnp:CallSequence",
 			MethodName:    "getNumber",
 		},
-		Options: capnp.NewCallOptions(opts),
 	}
 	if params != nil {
 		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
@@ -5344,7 +5342,7 @@ type Pipeliner struct{ Client *capnp.Client }
 // Pipeliner_TypeID is the unique identifier for the type Pipeliner.
 const Pipeliner_TypeID = 0xd6514008f0f84ebc
 
-func (c Pipeliner) NewPipeliner(ctx context.Context, params func(Pipeliner_newPipeliner_Params) error, opts ...capnp.CallOption) (Pipeliner_newPipeliner_Results_Future, capnp.ReleaseFunc) {
+func (c Pipeliner) NewPipeliner(ctx context.Context, params func(Pipeliner_newPipeliner_Params) error) (Pipeliner_newPipeliner_Results_Future, capnp.ReleaseFunc) {
 	s := capnp.Send{
 		Method: capnp.Method{
 			InterfaceID:   0xd6514008f0f84ebc,
@@ -5352,7 +5350,6 @@ func (c Pipeliner) NewPipeliner(ctx context.Context, params func(Pipeliner_newPi
 			InterfaceName: "aircraft.capnp:Pipeliner",
 			MethodName:    "newPipeliner",
 		},
-		Options: capnp.NewCallOptions(opts),
 	}
 	if params != nil {
 		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
@@ -5361,7 +5358,7 @@ func (c Pipeliner) NewPipeliner(ctx context.Context, params func(Pipeliner_newPi
 	ans, release := c.Client.SendCall(ctx, s)
 	return Pipeliner_newPipeliner_Results_Future{Future: ans.Future()}, release
 }
-func (c Pipeliner) GetNumber(ctx context.Context, params func(CallSequence_getNumber_Params) error, opts ...capnp.CallOption) (CallSequence_getNumber_Results_Future, capnp.ReleaseFunc) {
+func (c Pipeliner) GetNumber(ctx context.Context, params func(CallSequence_getNumber_Params) error) (CallSequence_getNumber_Results_Future, capnp.ReleaseFunc) {
 	s := capnp.Send{
 		Method: capnp.Method{
 			InterfaceID:   0xabaedf5f7817c820,
@@ -5369,7 +5366,6 @@ func (c Pipeliner) GetNumber(ctx context.Context, params func(CallSequence_getNu
 			InterfaceName: "aircraft.capnp:CallSequence",
 			MethodName:    "getNumber",
 		},
-		Options: capnp.NewCallOptions(opts),
 	}
 	if params != nil {
 		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}

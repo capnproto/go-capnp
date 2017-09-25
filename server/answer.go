@@ -131,7 +131,6 @@ func (qc queueCaller) PipelineSend(ctx context.Context, transform []capnp.Pipeli
 	if s.PlaceArgs == nil {
 		return qc.PipelineRecv(ctx, transform, capnp.Recv{
 			Method:      s.Method,
-			Options:     s.Options,
 			ReleaseArgs: func() {},
 		})
 	}
@@ -143,9 +142,8 @@ func (qc queueCaller) PipelineSend(ctx context.Context, transform []capnp.Pipeli
 		return capnp.ErrorAnswer(err), func() {}
 	}
 	return qc.PipelineRecv(ctx, transform, capnp.Recv{
-		Args:    args,
-		Method:  s.Method,
-		Options: s.Options,
+		Args:   args,
+		Method: s.Method,
 		ReleaseArgs: func() {
 			// TODO(someday): log error from ClearCaps
 			args.Message().Reset(nil)
