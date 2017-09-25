@@ -17,11 +17,11 @@ else
   case "$TRAVIS_OS_NAME" in
     linux)
       BAZEL_INSTALLER_URL="https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel-${BAZEL_VERSION}-installer-linux-x86_64.sh"
-      SEDI="sed -i ''"
+      SEDI="sed -i"
       ;;
     osx)
       BAZEL_INSTALLER_URL="https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel-${BAZEL_VERSION}-installer-darwin-x86_64.sh"
-      SEDI="sed -i"
+      SEDI="sed -i ''"
       ;;
     *)
       die "unknown OS $TRAVIS_OS_NAME"
