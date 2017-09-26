@@ -3,7 +3,7 @@ workspace(name = "com_zombiezen_go_capnproto2")
 git_repository(
     name = "io_bazel_rules_go",
     remote = "https://github.com/bazelbuild/rules_go.git",
-    tag = "0.5.5",
+    commit = "43a3bda3eb97e7bcd86f564a1e0a4b008d6c407c",
 )
 
 load("@io_bazel_rules_go//go:def.bzl", "go_repositories", "go_repository")
