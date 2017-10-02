@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"sync"
 
@@ -182,7 +183,7 @@ func (m *Message) NumSegments() int64 {
 
 // Segment returns the segment with the given ID.
 func (m *Message) Segment(id SegmentID) (*Segment, error) {
-	if isInt32Bit() && id > maxInt32 {
+	if isInt32Bit && id > maxInt32 {
 		return nil, errSegment32Bit
 	}
 	if int64(id) >= m.Arena.NumSegments() {
@@ -257,7 +258,7 @@ func (m *Message) allocSegment(sz Size) (*Segment, error) {
 		m.mu.Unlock()
 		return nil, err
 	}
-	if isInt32Bit() && id > maxInt32 {
+	if isInt32Bit && id > maxInt32 {
 		m.mu.Unlock()
 		return nil, errSegment32Bit
 	}
@@ -325,12 +326,6 @@ type Arena interface {
 	Allocate(minsz Size, segs map[SegmentID]*Segment) (SegmentID, []byte, error)
 }
 
-// Arena parameters.  Must be a multiple of wordSize.
-const (
-	defaultBufferSize      = 4096
-	minSingleSegmentGrowth = 4096
-)
-
 type singleSegmentArena []byte
 
 // SingleSegment returns a new arena with an expanding single-segment
@@ -359,16 +354,17 @@ func (ssa *singleSegmentArena) Allocate(sz Size, segs map[SegmentID]*Segment) (S
 	if segs[0] != nil {
 		data = segs[0].data
 	}
+	if len(data)%int(wordSize) != 0 {
+		return 0, nil, errors.New("capnp: segment size is not a multiple of word size")
+	}
 	if hasCapacity(data, sz) {
 		return 0, data, nil
 	}
-	// TODO(light): ensure len(data)+sz is word-aligned
-	if sz < minSingleSegmentGrowth {
-		sz = minSingleSegmentGrowth
-	} else {
-		sz = sz.padToWord()
+	inc, err := nextAlloc(int64(len(data)), int64(maxSegmentSize()), sz)
+	if err != nil {
+		return 0, nil, fmt.Errorf("capnp: alloc %d bytes: %v", sz, err)
 	}
-	buf := make([]byte, len(data), cap(data)+int(sz))
+	buf := make([]byte, len(data), cap(data)+inc)
 	copy(buf, data)
 	*ssa = buf
 	return 0, *ssa, nil
@@ -427,6 +423,7 @@ func (msa *multiSegmentArena) Data(id SegmentID) ([]byte, error) {
 }
 
 func (msa *multiSegmentArena) Allocate(sz Size, segs map[SegmentID]*Segment) (SegmentID, []byte, error) {
+	var total int64
 	for i, data := range *msa {
 		id := SegmentID(i)
 		if s := segs[id]; s != nil {
@@ -435,17 +432,63 @@ func (msa *multiSegmentArena) Allocate(sz Size, segs map[SegmentID]*Segment) (Se
 		if hasCapacity(data, sz) {
 			return id, data, nil
 		}
+		total += int64(cap(data))
+		if total < 0 {
+			// Overflow.
+			return 0, nil, fmt.Errorf("capnp: alloc %d bytes: message too large", sz)
+		}
 	}
-	if sz < defaultBufferSize {
-		sz = defaultBufferSize
-	} else {
-		// TODO(light): check >maxInt
-		sz = sz.padToWord()
+	n, err := nextAlloc(total, 1<<63-1, sz)
+	if err != nil {
+		return 0, nil, fmt.Errorf("capnp: alloc %d bytes: %v", sz, err)
 	}
-	buf := make([]byte, 0, int(sz))
+	buf := make([]byte, 0, n)
 	id := SegmentID(len(*msa))
 	*msa = append(*msa, buf)
 	return id, buf, nil
+}
+
+// nextAlloc computes how much more space to allocate given the number
+// of bytes allocated in the entire message and the requested number of
+// bytes.  It will always return a multiple of wordSize.  max must be a
+// multiple of wordSize.  The sum of curr and the returned size will
+// always be less than max.
+func nextAlloc(curr, max int64, req Size) (int, error) {
+	if req == 0 {
+		return 0, nil
+	}
+	maxinc := int64(1<<32 - 8) // largest word-aligned Size
+	if isInt32Bit {
+		maxinc = 1<<31 - 8 // largest word-aligned int
+	}
+	if int64(req) > maxinc {
+		return 0, errors.New("allocation too large")
+	}
+	req = req.padToWord()
+	want := curr + int64(req)
+	if want <= curr || want > max {
+		return 0, errors.New("allocation overflows message size")
+	}
+	new := curr
+	double := new + new
+	switch {
+	case want > double:
+		return int(req), nil
+	case curr < 1024:
+		return int((curr + 7) &^ 7), nil
+	default:
+		for 0 < new && new < want {
+			new += new / 4
+		}
+		if new <= 0 {
+			return int(req), nil
+		}
+		delta := new - curr
+		if delta > maxinc {
+			return int(maxinc), nil
+		}
+		return int((delta + 7) &^ 7), nil
+	}
 }
 
 // A Decoder represents a framer that deserializes a particular Cap'n
@@ -834,12 +877,25 @@ func totalSize(s []Size) uint64 {
 	return sum
 }
 
-const maxInt32 = 0x7fffffff
+const (
+	maxInt32 = 0x7fffffff
+	maxInt   = int(^uint(0) >> 1)
 
-// isInt32Bit reports whether the built-in int type is 32 bits.
-func isInt32Bit() bool {
-	const maxInt = int(^uint(0) >> 1)
-	return maxInt == maxInt32
+	isInt32Bit = maxInt == maxInt32
+)
+
+// maxSegmentSize returns the maximum permitted size of a single segment
+// on this platform.
+//
+// This is effectively a compile-time constant, but can't be represented
+// as a constant because it requires a conditional.  It is trivially
+// inlinable and optimizable, so should act like one.
+func maxSegmentSize() Size {
+	if isInt32Bit {
+		return Size(maxInt32 - 7)
+	} else {
+		return maxSize - 7
+	}
 }
 
 var (

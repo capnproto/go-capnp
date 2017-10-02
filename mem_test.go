@@ -798,6 +798,63 @@ func TestFirstSegmentMessage_MultiSegment(t *testing.T) {
 	}
 }
 
+func TestNextAlloc(t *testing.T) {
+	const max32 = 1<<31 - 8
+	const max64 = 1<<63 - 8
+	tests := []struct {
+		name string
+		curr int64
+		max  int64
+		req  Size
+		ok   bool
+	}{
+		{name: "zero", curr: 0, max: max64, req: 0, ok: true},
+		{name: "first word", curr: 0, max: max64, req: 8, ok: true},
+		{name: "first word, unaligned curr", curr: 13, max: max64, req: 8, ok: true},
+		{name: "second word", curr: 8, max: max64, req: 8, ok: true},
+		{name: "one byte pads to word", curr: 8, max: max64, req: 1, ok: true},
+		{name: "max size", curr: 0, max: max64, req: 0xfffffff8, ok: true},
+		{name: "max size + 1", curr: 0, max: max64, req: 0xfffffff9, ok: false},
+		{name: "max req", curr: 0, max: max64, req: 0xffffffff, ok: false},
+		{name: "max curr, request 0", curr: max64, max: max64, req: 0, ok: true},
+		{name: "max curr, request 1", curr: max64, max: max64, req: 1, ok: false},
+		{name: "medium curr, request 2 words", curr: 4 << 20, max: max64, req: 16, ok: true},
+		{name: "large curr, request word", curr: 1 << 34, max: max64, req: 8, ok: true},
+		{name: "large unaligned curr, request word", curr: 1<<34 + 13, max: max64, req: 8, ok: true},
+		{name: "2<<31-8 curr, request 0", curr: 2<<31 - 8, max: max64, req: 0, ok: true},
+		{name: "2<<31-8 curr, request 1", curr: 2<<31 - 8, max: max64, req: 1, ok: true},
+		{name: "2<<31-8 curr, 32-bit max, request 0", curr: 2<<31 - 8, max: max32, req: 0, ok: true},
+		{name: "2<<31-8 curr, 32-bit max, request 1", curr: 2<<31 - 8, max: max32, req: 1, ok: false},
+	}
+	for _, test := range tests {
+		if test.max%8 != 0 {
+			t.Errorf("%s: max must be word-aligned. Skipped.", test.name)
+			continue
+		}
+		got, err := nextAlloc(test.curr, test.max, test.req)
+		if err != nil {
+			if test.ok {
+				t.Errorf("%s: nextAlloc(%d, %d, %d) = _, %v; want >=%d, <nil>", test.name, test.curr, test.max, test.req, err, test.req)
+			}
+			continue
+		}
+		if !test.ok {
+			t.Errorf("%s: nextAlloc(%d, %d, %d) = %d, <nil>; want _, <error>", test.name, test.curr, test.max, test.req, got)
+			continue
+		}
+		max := test.max - test.curr
+		if max < 0 {
+			max = 0
+		}
+		if int64(got) < int64(test.req) || int64(got) > max {
+			t.Errorf("%s: nextAlloc(%d, %d, %d) = %d, <nil>; want in range [%d, %d]", test.name, test.curr, test.max, test.req, got, test.req, max)
+		}
+		if got%8 != 0 {
+			t.Errorf("%s: nextAlloc(%d, %d, %d) = %d, <nil>; want divisible by 8 (word size)", test.name, test.curr, test.max, test.req, got)
+		}
+	}
+}
+
 type arenaAllocTest struct {
 	name string
 
