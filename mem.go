@@ -289,21 +289,32 @@ func alloc(s *Segment, sz Size) (*Segment, Address, error) {
 	return s, addr, nil
 }
 
-// An Arena loads and allocates segments for a Message.  Segment IDs
-// must be tightly packed in the range [0, NumSegments()).
+// An Arena loads and allocates segments for a Message.
 type Arena interface {
 	// NumSegments returns the number of segments in the arena.
 	// This must not be larger than 1<<32.
 	NumSegments() int64
 
-	// Data loads the data for the segment with the given ID.
+	// Data loads the data for the segment with the given ID.  IDs are in
+	// the range [0, NumSegments()).
+	// must be tightly packed in the range [0, NumSegments()).
 	Data(id SegmentID) ([]byte, error)
 
-	// Allocate allocates a byte slice such that cap(data) - len(data) >= minsz.
-	// segs is a map of already loaded segments keyed by ID.  The arena may
-	// return an existing segment's ID, in which case the arena is responsible
-	// for copying the existing data to the returned byte slice.  Allocate must
-	// not modify the segments passed into it.
+	// Allocate selects a segment to place a new object in, creating a
+	// segment or growing the capacity of a previously loaded segment if
+	// necessary.  If Allocate does not return an error, then the
+	// difference of the capacity and the length of the returned slice
+	// must be at least minsz.  segs is a map of segment slices returned
+	// by the Data method keyed by ID (although the length of these slices
+	// may have changed by previous allocations).  Allocate must not
+	// modify segs.
+	//
+	// If Allocate creates a new segment, the ID must be one larger than
+	// the last segment's ID or zero if it is the first segment.
+	//
+	// If Allocate returns an previously loaded segment's ID, then the
+	// arena is responsible for preserving the existing data in the
+	// returned byte slice.
 	Allocate(minsz Size, segs map[SegmentID]*Segment) (SegmentID, []byte, error)
 }
 
