@@ -282,9 +282,10 @@ func alloc(s *Segment, sz Size) (*Segment, Address, error) {
 	if !ok {
 		return nil, 0, errOverflow
 	}
+	space := s.data[len(s.data):end]
 	s.data = s.data[:end]
-	for i := addr; i < end; i++ {
-		s.data[i] = 0
+	for i := range space {
+		space[i] = 0
 	}
 	return s, addr, nil
 }
