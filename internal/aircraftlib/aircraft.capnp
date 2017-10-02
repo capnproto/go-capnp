@@ -343,3 +343,11 @@ struct BenchmarkA {
   spouse   @4 :Bool;
   money    @5 :Float64;
 }
+
+struct AllocBenchmark {
+  fields @0 :List(Field);
+
+  struct Field {
+    stringValue @0 :Text;
+  }
+}
