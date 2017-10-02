@@ -69,7 +69,7 @@ func NewMessage(arena Arena) (msg *Message, first *Segment, err error) {
 	msg = &Message{Arena: arena}
 	switch arena.NumSegments() {
 	case 0:
-		first, err = msg.allocSegment(defaultBufferSize)
+		first, err = msg.allocSegment(wordSize)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -81,13 +81,19 @@ func NewMessage(arena Arena) (msg *Message, first *Segment, err error) {
 		if len(first.data) > 0 {
 			return nil, nil, errHasData
 		}
-		if !hasCapacity(first.data, wordSize) {
-			return nil, nil, errSegmentTooSmall
-		}
 	default:
 		return nil, nil, errHasData
 	}
-	alloc(first, wordSize) // allocate root
+	if first.ID() != 0 {
+		return nil, nil, errors.New("capnp: arena allocated first segment with non-zero ID")
+	}
+	seg, _, err := alloc(first, wordSize) // allocate root
+	if err != nil {
+		return nil, nil, err
+	}
+	if seg != first {
+		return nil, nil, errors.New("capnp: arena didn't allocate first word in first segment")
+	}
 	return msg, first, nil
 }
 
@@ -332,9 +338,6 @@ type singleSegmentArena []byte
 // reserve memory of a specific size.  A SingleSegment arena does not
 // return errors unless you attempt to access another segment.
 func SingleSegment(b []byte) Arena {
-	if cap(b) == 0 {
-		b = make([]byte, 0, defaultBufferSize)
-	}
 	ssa := new(singleSegmentArena)
 	*ssa = b
 	return ssa
@@ -844,7 +847,6 @@ var (
 	errSegment32Bit       = errors.New("capnp: segment ID larger than 31 bits")
 	errMessageEmpty       = errors.New("capnp: marshalling an empty message")
 	errHasData            = errors.New("capnp: NewMessage called on arena with data")
-	errSegmentTooSmall    = errors.New("capnp: segment too small")
 	errSegmentTooLarge    = errors.New("capnp: segment too large")
 	errTooManySegments    = errors.New("capnp: too many segments to decode")
 	errDecodeLimit        = errors.New("capnp: message too large")

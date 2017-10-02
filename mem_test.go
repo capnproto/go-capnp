@@ -756,6 +756,48 @@ func TestStreamHeaderPadding(t *testing.T) {
 	}
 }
 
+func TestFirstSegmentMessage_SingleSegment(t *testing.T) {
+	msg, seg, err := NewMessage(SingleSegment(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if msg.NumSegments() != 1 {
+		t.Errorf("msg.NumSegments() = %d; want 1", msg.NumSegments())
+	}
+	if seg.Message() != msg {
+		t.Errorf("seg.Message() = %p; want %p", seg.Message(), msg)
+	}
+	if seg.ID() != 0 {
+		t.Errorf("seg.ID() = %d; want 0", seg.ID())
+	}
+	if seg0, err := msg.Segment(0); err != nil {
+		t.Errorf("msg.Segment(0): %v", err)
+	} else if seg0 != seg {
+		t.Errorf("msg.Segment(0) = %p; want %p", seg0, seg)
+	}
+}
+
+func TestFirstSegmentMessage_MultiSegment(t *testing.T) {
+	msg, seg, err := NewMessage(MultiSegment(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if msg.NumSegments() != 1 {
+		t.Errorf("msg.NumSegments() = %d; want 1", msg.NumSegments())
+	}
+	if seg.Message() != msg {
+		t.Errorf("seg.Message() = %p; want %p", seg.Message(), msg)
+	}
+	if seg.ID() != 0 {
+		t.Errorf("seg.ID() = %d; want 0", seg.ID())
+	}
+	if seg0, err := msg.Segment(0); err != nil {
+		t.Errorf("msg.Segment(0): %v", err)
+	} else if seg0 != seg {
+		t.Errorf("msg.Segment(0) = %p; want %p", seg0, seg)
+	}
+}
+
 type arenaAllocTest struct {
 	name string
 
