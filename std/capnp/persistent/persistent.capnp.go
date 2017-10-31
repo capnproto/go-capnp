@@ -65,14 +65,9 @@ func Persistent_Methods(methods []server.Method, s Persistent_Server) []server.M
 			InterfaceName: "persistent.capnp:Persistent",
 			MethodName:    "save",
 		},
-		Impl: func(ctx context.Context, call server.Call) error {
-			return s.Save(ctx, Persistent_save{
-				Args:    Persistent_SaveParams{Struct: call.Args},
-				Results: Persistent_SaveResults{Struct: call.Results},
-				Ack:     call.Ack,
-			})
+		Impl: func(ctx context.Context, call *server.Call) error {
+			return s.Save(ctx, Persistent_save{call})
 		},
-		ResultsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 1},
 	})
 
 	return methods
@@ -81,9 +76,18 @@ func Persistent_Methods(methods []server.Method, s Persistent_Server) []server.M
 // Persistent_save holds the state for a server call to Persistent.save.
 // See server.Call for documentation.
 type Persistent_save struct {
-	Args    Persistent_SaveParams
-	Results Persistent_SaveResults
-	Ack     func()
+	*server.Call
+}
+
+// Args returns the call's arguments.
+func (c Persistent_save) Args() Persistent_SaveParams {
+	return Persistent_SaveParams{Struct: c.Call.Args()}
+}
+
+// AllocResults allocates the results struct.
+func (c Persistent_save) AllocResults() (Persistent_SaveResults, error) {
+	r, err := c.Call.AllocResults(capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return Persistent_SaveResults{Struct: r}, err
 }
 
 type Persistent_SaveParams struct{ capnp.Struct }
@@ -299,14 +303,9 @@ func RealmGateway_Methods(methods []server.Method, s RealmGateway_Server) []serv
 			InterfaceName: "persistent.capnp:RealmGateway",
 			MethodName:    "import",
 		},
-		Impl: func(ctx context.Context, call server.Call) error {
-			return s.Import(ctx, RealmGateway_import{
-				Args:    RealmGateway_import_Params{Struct: call.Args},
-				Results: Persistent_SaveResults{Struct: call.Results},
-				Ack:     call.Ack,
-			})
+		Impl: func(ctx context.Context, call *server.Call) error {
+			return s.Import(ctx, RealmGateway_import{call})
 		},
-		ResultsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 1},
 	})
 
 	methods = append(methods, server.Method{
@@ -316,14 +315,9 @@ func RealmGateway_Methods(methods []server.Method, s RealmGateway_Server) []serv
 			InterfaceName: "persistent.capnp:RealmGateway",
 			MethodName:    "export",
 		},
-		Impl: func(ctx context.Context, call server.Call) error {
-			return s.Export(ctx, RealmGateway_export{
-				Args:    RealmGateway_export_Params{Struct: call.Args},
-				Results: Persistent_SaveResults{Struct: call.Results},
-				Ack:     call.Ack,
-			})
+		Impl: func(ctx context.Context, call *server.Call) error {
+			return s.Export(ctx, RealmGateway_export{call})
 		},
-		ResultsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 1},
 	})
 
 	return methods
@@ -332,17 +326,35 @@ func RealmGateway_Methods(methods []server.Method, s RealmGateway_Server) []serv
 // RealmGateway_import holds the state for a server call to RealmGateway.import.
 // See server.Call for documentation.
 type RealmGateway_import struct {
-	Args    RealmGateway_import_Params
-	Results Persistent_SaveResults
-	Ack     func()
+	*server.Call
+}
+
+// Args returns the call's arguments.
+func (c RealmGateway_import) Args() RealmGateway_import_Params {
+	return RealmGateway_import_Params{Struct: c.Call.Args()}
+}
+
+// AllocResults allocates the results struct.
+func (c RealmGateway_import) AllocResults() (Persistent_SaveResults, error) {
+	r, err := c.Call.AllocResults(capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return Persistent_SaveResults{Struct: r}, err
 }
 
 // RealmGateway_export holds the state for a server call to RealmGateway.export.
 // See server.Call for documentation.
 type RealmGateway_export struct {
-	Args    RealmGateway_export_Params
-	Results Persistent_SaveResults
-	Ack     func()
+	*server.Call
+}
+
+// Args returns the call's arguments.
+func (c RealmGateway_export) Args() RealmGateway_export_Params {
+	return RealmGateway_export_Params{Struct: c.Call.Args()}
+}
+
+// AllocResults allocates the results struct.
+func (c RealmGateway_export) AllocResults() (Persistent_SaveResults, error) {
+	r, err := c.Call.AllocResults(capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return Persistent_SaveResults{Struct: r}, err
 }
 
 type RealmGateway_import_Params struct{ capnp.Struct }

@@ -2,6 +2,7 @@ package server_test
 
 import (
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 
@@ -14,38 +15,69 @@ import (
 type echoImpl struct{}
 
 func (echoImpl) Echo(ctx context.Context, call air.Echo_echo) error {
-	in, err := call.Args.In()
+	in, err := call.Args().In()
 	if err != nil {
 		return err
 	}
-	call.Results.SetOut(in + in)
+	r, err := call.AllocResults()
+	if err != nil {
+		return err
+	}
+	r.SetOut(in + in)
 	return nil
 }
 
-func TestServerCall(t *testing.T) {
-	echo := air.Echo_ServerToClient(echoImpl{}, nil)
-	defer echo.Client.Release()
+type errorEchoImpl struct{}
 
-	ans, finish := echo.Echo(context.Background(), func(p air.Echo_echo_Params) error {
-		err := p.SetIn("foo")
-		return err
+func (errorEchoImpl) Echo(_ context.Context, call air.Echo_echo) error {
+	call.Ack()
+	return errors.New("reverb stopped")
+}
+
+func TestServerCall(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		echo := air.Echo_ServerToClient(echoImpl{}, nil)
+		defer echo.Client.Release()
+
+		ans, finish := echo.Echo(context.Background(), func(p air.Echo_echo_Params) error {
+			err := p.SetIn("foo")
+			return err
+		})
+		defer finish()
+		result, err := ans.Struct()
+		if err != nil {
+			t.Errorf("echo.Echo() error: %v", err)
+		}
+		if out, err := result.Out(); err != nil {
+			t.Errorf("echo.Echo() error: %v", err)
+		} else if out != "foofoo" {
+			t.Errorf("echo.Echo() = %q; want %q", out, "foofoo")
+		}
 	})
-	defer finish()
-	result, err := ans.Struct()
-	if err != nil {
-		t.Errorf("echo.Echo() error: %v", err)
-	}
-	if out, err := result.Out(); err != nil {
-		t.Errorf("echo.Echo() error: %v", err)
-	} else if out != "foofoo" {
-		t.Errorf("echo.Echo() = %q; want %q", out, "foofoo")
-	}
+	t.Run("Error", func(t *testing.T) {
+		echo := air.Echo_ServerToClient(errorEchoImpl{}, nil)
+		defer echo.Client.Release()
+
+		ans, finish := echo.Echo(context.Background(), func(p air.Echo_echo_Params) error {
+			err := p.SetIn("foo")
+			return err
+		})
+		defer finish()
+		_, err := ans.Struct()
+		if err == nil || !strings.Contains(err.Error(), "reverb stopped") {
+			t.Errorf("echo.Echo() error = %v; want \"reverb stopped\"", err)
+		}
+	})
 }
 
 type callSeq uint32
 
 func (seq *callSeq) GetNumber(ctx context.Context, call air.CallSequence_getNumber) error {
-	call.Results.SetN(uint32(*seq))
+	r, err := call.AllocResults()
+	if err != nil {
+		return err
+	}
+	r.SetN(uint32(*seq))
 	*seq++
 	return nil
 }
@@ -60,7 +92,11 @@ func (seq *lockCallSeq) GetNumber(ctx context.Context, call air.CallSequence_get
 	defer seq.mu.Unlock()
 	call.Ack()
 
-	call.Results.SetN(seq.n)
+	r, err := call.AllocResults()
+	if err != nil {
+		return err
+	}
+	r.SetN(seq.n)
 	seq.n++
 	return nil
 }
@@ -159,7 +195,7 @@ type blockingEchoImpl struct {
 }
 
 func (echo blockingEchoImpl) Echo(ctx context.Context, call air.Echo_echo) error {
-	in, err := call.Args.In()
+	in, err := call.Args().In()
 	if err != nil {
 		return err
 	}
@@ -169,7 +205,11 @@ func (echo blockingEchoImpl) Echo(ctx context.Context, call air.Echo_echo) error
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-	call.Results.SetOut(in)
+	r, err := call.AllocResults()
+	if err != nil {
+		return err
+	}
+	r.SetOut(in)
 	return nil
 }
 
@@ -217,6 +257,29 @@ func TestPipelineCall(t *testing.T) {
 	}
 }
 
+func TestBrokenPipelineCall(t *testing.T) {
+	wait := make(chan struct{})
+	p := air.Pipeliner_ServerToClient(brokenPipeliner{wait}, nil)
+
+	ctx := context.Background()
+	baseAns, finish := p.NewPipeliner(ctx, nil)
+	defer finish()
+	qq := baseAns.Pipeliner()
+	ans1, finish := qq.GetNumber(ctx, nil)
+	defer finish()
+	close(wait)
+	<-baseAns.Done()
+	ans2, finish := qq.GetNumber(ctx, nil)
+	defer finish()
+
+	if _, err := ans1.Struct(); err == nil || !strings.Contains(err.Error(), "got no pipe") {
+		t.Errorf("GetNumber() #1 error = %v; want \"got no pipe\"", err)
+	}
+	if _, err := ans2.Struct(); err == nil || !strings.Contains(err.Error(), "got no pipe") {
+		t.Errorf("GetNumber() #2 error = %v; want \"got no pipe\"", err)
+	}
+}
+
 type pipeliner struct {
 	callSeq
 	factory func(context.Context) (*pipeliner, error)
@@ -231,6 +294,26 @@ func (p *pipeliner) NewPipeliner(ctx context.Context, call air.Pipeliner_newPipe
 	if err != nil {
 		return err
 	}
-	call.Results.SetPipeliner(air.Pipeliner_ServerToClient(q, nil))
+	r, err := call.AllocResults()
+	if err != nil {
+		return err
+	}
+	r.SetPipeliner(air.Pipeliner_ServerToClient(q, nil))
 	return nil
+}
+
+type brokenPipeliner struct {
+	ready chan struct{}
+}
+
+func (p brokenPipeliner) GetNumber(ctx context.Context, call air.CallSequence_getNumber) error {
+	call.Ack()
+	<-p.ready
+	return errors.New("got no number")
+}
+
+func (p brokenPipeliner) NewPipeliner(ctx context.Context, call air.Pipeliner_newPipeliner) error {
+	call.Ack()
+	<-p.ready
+	return errors.New("got no pipe")
 }

@@ -4571,14 +4571,9 @@ func Echo_Methods(methods []server.Method, s Echo_Server) []server.Method {
 			InterfaceName: "aircraft.capnp:Echo",
 			MethodName:    "echo",
 		},
-		Impl: func(ctx context.Context, call server.Call) error {
-			return s.Echo(ctx, Echo_echo{
-				Args:    Echo_echo_Params{Struct: call.Args},
-				Results: Echo_echo_Results{Struct: call.Results},
-				Ack:     call.Ack,
-			})
+		Impl: func(ctx context.Context, call *server.Call) error {
+			return s.Echo(ctx, Echo_echo{call})
 		},
-		ResultsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 1},
 	})
 
 	return methods
@@ -4587,9 +4582,18 @@ func Echo_Methods(methods []server.Method, s Echo_Server) []server.Method {
 // Echo_echo holds the state for a server call to Echo.echo.
 // See server.Call for documentation.
 type Echo_echo struct {
-	Args    Echo_echo_Params
-	Results Echo_echo_Results
-	Ack     func()
+	*server.Call
+}
+
+// Args returns the call's arguments.
+func (c Echo_echo) Args() Echo_echo_Params {
+	return Echo_echo_Params{Struct: c.Call.Args()}
+}
+
+// AllocResults allocates the results struct.
+func (c Echo_echo) AllocResults() (Echo_echo_Results, error) {
+	r, err := c.Call.AllocResults(capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return Echo_echo_Results{Struct: r}, err
 }
 
 type Echo_echo_Params struct{ capnp.Struct }
@@ -5198,14 +5202,9 @@ func CallSequence_Methods(methods []server.Method, s CallSequence_Server) []serv
 			InterfaceName: "aircraft.capnp:CallSequence",
 			MethodName:    "getNumber",
 		},
-		Impl: func(ctx context.Context, call server.Call) error {
-			return s.GetNumber(ctx, CallSequence_getNumber{
-				Args:    CallSequence_getNumber_Params{Struct: call.Args},
-				Results: CallSequence_getNumber_Results{Struct: call.Results},
-				Ack:     call.Ack,
-			})
+		Impl: func(ctx context.Context, call *server.Call) error {
+			return s.GetNumber(ctx, CallSequence_getNumber{call})
 		},
-		ResultsSize: capnp.ObjectSize{DataSize: 8, PointerCount: 0},
 	})
 
 	return methods
@@ -5214,9 +5213,18 @@ func CallSequence_Methods(methods []server.Method, s CallSequence_Server) []serv
 // CallSequence_getNumber holds the state for a server call to CallSequence.getNumber.
 // See server.Call for documentation.
 type CallSequence_getNumber struct {
-	Args    CallSequence_getNumber_Params
-	Results CallSequence_getNumber_Results
-	Ack     func()
+	*server.Call
+}
+
+// Args returns the call's arguments.
+func (c CallSequence_getNumber) Args() CallSequence_getNumber_Params {
+	return CallSequence_getNumber_Params{Struct: c.Call.Args()}
+}
+
+// AllocResults allocates the results struct.
+func (c CallSequence_getNumber) AllocResults() (CallSequence_getNumber_Results, error) {
+	r, err := c.Call.AllocResults(capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return CallSequence_getNumber_Results{Struct: r}, err
 }
 
 type CallSequence_getNumber_Params struct{ capnp.Struct }
@@ -5408,14 +5416,9 @@ func Pipeliner_Methods(methods []server.Method, s Pipeliner_Server) []server.Met
 			InterfaceName: "aircraft.capnp:Pipeliner",
 			MethodName:    "newPipeliner",
 		},
-		Impl: func(ctx context.Context, call server.Call) error {
-			return s.NewPipeliner(ctx, Pipeliner_newPipeliner{
-				Args:    Pipeliner_newPipeliner_Params{Struct: call.Args},
-				Results: Pipeliner_newPipeliner_Results{Struct: call.Results},
-				Ack:     call.Ack,
-			})
+		Impl: func(ctx context.Context, call *server.Call) error {
+			return s.NewPipeliner(ctx, Pipeliner_newPipeliner{call})
 		},
-		ResultsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 2},
 	})
 
 	methods = append(methods, server.Method{
@@ -5425,14 +5428,9 @@ func Pipeliner_Methods(methods []server.Method, s Pipeliner_Server) []server.Met
 			InterfaceName: "aircraft.capnp:CallSequence",
 			MethodName:    "getNumber",
 		},
-		Impl: func(ctx context.Context, call server.Call) error {
-			return s.GetNumber(ctx, CallSequence_getNumber{
-				Args:    CallSequence_getNumber_Params{Struct: call.Args},
-				Results: CallSequence_getNumber_Results{Struct: call.Results},
-				Ack:     call.Ack,
-			})
+		Impl: func(ctx context.Context, call *server.Call) error {
+			return s.GetNumber(ctx, CallSequence_getNumber{call})
 		},
-		ResultsSize: capnp.ObjectSize{DataSize: 8, PointerCount: 0},
 	})
 
 	return methods
@@ -5441,9 +5439,18 @@ func Pipeliner_Methods(methods []server.Method, s Pipeliner_Server) []server.Met
 // Pipeliner_newPipeliner holds the state for a server call to Pipeliner.newPipeliner.
 // See server.Call for documentation.
 type Pipeliner_newPipeliner struct {
-	Args    Pipeliner_newPipeliner_Params
-	Results Pipeliner_newPipeliner_Results
-	Ack     func()
+	*server.Call
+}
+
+// Args returns the call's arguments.
+func (c Pipeliner_newPipeliner) Args() Pipeliner_newPipeliner_Params {
+	return Pipeliner_newPipeliner_Params{Struct: c.Call.Args()}
+}
+
+// AllocResults allocates the results struct.
+func (c Pipeliner_newPipeliner) AllocResults() (Pipeliner_newPipeliner_Results, error) {
+	r, err := c.Call.AllocResults(capnp.ObjectSize{DataSize: 0, PointerCount: 2})
+	return Pipeliner_newPipeliner_Results{Struct: r}, err
 }
 
 type Pipeliner_newPipeliner_Params struct{ capnp.Struct }

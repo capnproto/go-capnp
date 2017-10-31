@@ -11,32 +11,69 @@ import (
 	"zombiezen.com/go/capnproto2"
 )
 
-// A Method describes a single RPC method on a server object.
+// A Method describes a single capability method on a server object.
 type Method struct {
 	capnp.Method
-	Impl        func(context.Context, Call) error
-	ResultsSize capnp.ObjectSize
+	Impl func(context.Context, *Call) error
 }
 
-// Call holds the state of an ongoing RPC method call.
+// Call holds the state of an ongoing capability method call.
+// A Call cannot be used after the server method returns.
 type Call struct {
-	// Args is a struct holding the call's arguments.
-	Args capnp.Struct
+	args capnp.Struct
 
-	// Results is a struct that has enough space to hold the call's results.
-	Results capnp.Struct
+	alloced bool
+	alloc   resultsAllocer
+	results capnp.Struct
 
-	// Ack is a function that is called to acknowledge the delivery of the
-	// RPC call, allowing other RPC methods to be called on the server.
-	// After the first call, subsequent calls to Ack do nothing.
-	//
-	// Ack need not be the first call in a function nor is it required.
-	// Since the function's return is also an acknowledgment of delivery,
-	// short functions can return without calling Ack.  However, since
-	// the server will not return an Answer until the delivery is
-	// acknowledged, failure to acknowledge a call before waiting on an
-	// RPC may cause deadlocks.
-	Ack func()
+	ack   chan<- struct{}
+	acked bool
+}
+
+func newCall(args capnp.Struct, ra resultsAllocer) (*Call, <-chan struct{}) {
+	ack := make(chan struct{})
+	return &Call{
+		args:  args,
+		alloc: ra,
+		ack:   ack,
+	}, ack
+}
+
+// Args returns the call's arguments.  Args is not safe to
+// reference after a method implementation returns.  Args is safe to
+// call and read from multiple goroutines.
+func (c *Call) Args() capnp.Struct {
+	return c.args
+}
+
+// AllocResults allocates the results struct.  It is an error to call
+// AllocResults more than once.
+func (c *Call) AllocResults(sz capnp.ObjectSize) (capnp.Struct, error) {
+	if c.alloced {
+		return capnp.Struct{}, errors.New("capnp server: multiple calls to AllocResults")
+	}
+	var err error
+	c.alloced = true
+	c.results, err = c.alloc.AllocResults(sz)
+	return c.results, err
+}
+
+// Ack is a function that is called to acknowledge the delivery of the
+// RPC call, allowing other RPC methods to be called on the server.
+// After the first call, subsequent calls to Ack do nothing.
+//
+// Ack need not be the first call in a function nor is it required.
+// Since the function's return is also an acknowledgment of delivery,
+// short functions can return without calling Ack.  However, since
+// the server will not return an Answer until the delivery is
+// acknowledged, failure to acknowledge a call before waiting on an
+// RPC may cause deadlocks.
+func (c *Call) Ack() {
+	if c.acked {
+		return
+	}
+	close(c.ack)
+	c.acked = true
 }
 
 // Shutdowner is the interface that wraps the Shutdown method.
@@ -86,8 +123,8 @@ type Policy struct {
 // New returns a client hook that makes calls to a set of methods.
 // If shutdown is nil then the server's shutdown is a no-op.  The server
 // guarantees message delivery order by blocking each call on the
-// return or acknowledgment of the previous call.  See the Ack function
-// for more details.
+// return or acknowledgment of the previous call.  See Call.Ack for more
+// details.
 func New(methods []Method, brand interface{}, shutdown Shutdowner, policy *Policy) *Server {
 	srv := &Server{
 		methods:  make(sortedMethods, len(methods)),
@@ -113,54 +150,46 @@ func New(methods []Method, brand interface{}, shutdown Shutdowner, policy *Polic
 func (srv *Server) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, capnp.ReleaseFunc) {
 	mm := srv.methods.find(s.Method)
 	if mm == nil {
-		// TODO(soon): signal unimplemented.
+		// TODO(soon): classify as unimplemented.
 		return capnp.ErrorAnswer(errors.New("unimplemented")), func() {}
 	}
 	args, err := sendArgsToStruct(s)
 	if err != nil {
 		return capnp.ErrorAnswer(err), func() {}
 	}
-	r := capnp.Recv{
-		Args: args,
+	ret := new(structReturner)
+	return ret.answer(srv.start(ctx, mm, capnp.Recv{
+		Method: mm.Method, // pick up names from server method
+		Args:   args,
 		ReleaseArgs: func() {
-			// TODO(someday): log error from ClearCaps
-			if seg := args.Segment(); seg != nil {
-				seg.Message().Reset(nil)
+			if msg := args.Message(); msg != nil {
+				msg.Reset(nil)
+				args = capnp.Struct{}
 			}
 		},
-	}
-	return srv.start(ctx, mm, r)
+		Returner: ret,
+	}))
 }
 
 // Recv starts a method call.
-func (srv *Server) Recv(ctx context.Context, r capnp.Recv) (*capnp.Answer, capnp.ReleaseFunc) {
+func (srv *Server) Recv(ctx context.Context, r capnp.Recv) capnp.PipelineCaller {
 	mm := srv.methods.find(r.Method)
 	if mm == nil {
-		// TODO(soon): signal unimplemented.
-		return capnp.ErrorAnswer(errors.New("unimplemented")), func() {}
+		// TODO(soon): classify as unimplemented.
+		r.Reject(errors.New("unimplemented"))
+		return nil
 	}
 	return srv.start(ctx, mm, r)
 }
 
-func (srv *Server) start(ctx context.Context, m *Method, r capnp.Recv) (*capnp.Answer, capnp.ReleaseFunc) {
-	results, err := newBlankStruct(m.ResultsSize)
-	if err != nil {
-		r.ReleaseArgs()
-		return capnp.ErrorAnswer(err), func() {}
-	}
-	resultMsg := results.Message()
-	ack := make(chan struct{})
-
-	aq := newAnswerQueue(srv.policy.AnswerQueueSize)
-	p := capnp.NewPromise(aq)
-
+func (srv *Server) start(ctx context.Context, m *Method, r capnp.Recv) capnp.PipelineCaller {
 	// Acquire lock and block until all other concurrent calls have acknowledged delivery.
 	srv.mu.Lock()
 	for {
 		if srv.drain != nil {
 			srv.mu.Unlock()
-			r.ReleaseArgs()
-			return capnp.ErrorAnswer(errors.New("capnp server: call after shutdown")), func() {}
+			r.Reject(errors.New("capnp server: call after shutdown"))
+			return nil
 		}
 		if srv.inImpl == nil {
 			break
@@ -170,47 +199,46 @@ func (srv *Server) start(ctx context.Context, m *Method, r capnp.Recv) (*capnp.A
 		select {
 		case <-wait:
 		case <-ctx.Done():
-			r.ReleaseArgs()
-			return capnp.ErrorAnswer(err), func() {}
+			r.Reject(ctx.Err())
+			return nil
 		}
 		srv.mu.Lock()
 	}
 
+	// Bookkeeping: set inImpl to indicate we're waiting for an ack and
+	// record the cancel function for draining.
 	id := srv.nextID()
 	if id == -1 {
 		// TODO(soon): block (backpressure) instead of drop.
 		srv.mu.Unlock()
-		r.ReleaseArgs()
-		return capnp.ErrorAnswer(errors.New("capnp server: too many concurrent calls")), func() {}
+		r.Reject(errors.New("capnp server: too many concurrent calls"))
+		return nil
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	srv.ongoing[id] = cstate{cancel}
-	done := make(chan struct{})
-	srv.inImpl = done
+	inImpl := make(chan struct{})
+	srv.inImpl = inImpl
 	srv.mu.Unlock()
 	defer func() {
 		srv.mu.Lock()
 		srv.inImpl = nil
-		close(done)
+		close(inImpl)
 		srv.mu.Unlock()
 	}()
 
+	// Call implementation function.
+	call, ack := newCall(r.Args, r.Returner)
+	aq := newAnswerQueue(srv.policy.AnswerQueueSize)
+	done := make(chan struct{})
 	go func() {
-		once := new(sync.Once)
-		err := m.Impl(ctx, Call{
-			Args:    r.Args,
-			Results: results,
-			Ack: func() {
-				once.Do(func() { close(ack) })
-			},
-		})
+		err := m.Impl(ctx, call)
 		r.ReleaseArgs()
 		if err == nil {
-			aq.drain(capnp.ImmediateAnswer(results), p)
+			aq.fulfill(call.results)
+			r.Returner.Return(nil)
 		} else {
-			aq.drain(capnp.ErrorAnswer(err), p)
-			// TODO(someday): log error from ClearCaps
-			resultMsg.Reset(nil)
+			aq.reject(err)
+			r.Returner.Return(err)
 		}
 		srv.mu.Lock()
 		srv.ongoing[id].cancel()
@@ -219,22 +247,15 @@ func (srv *Server) start(ctx context.Context, m *Method, r capnp.Recv) (*capnp.A
 			close(srv.drain)
 		}
 		srv.mu.Unlock()
+		close(done)
 	}()
-	ans := p.Answer()
 	select {
 	case <-ack:
-	case <-ans.Done():
+		return aq
+	case <-done:
 		// Implementation functions may not call Ack, which is fine for
 		// smaller functions.
-	}
-	once := new(sync.Once)
-	return ans, func() {
-		once.Do(func() {
-			<-ans.Done()
-			p.ReleaseClients()
-			// TODO(someday): log error from ClearCaps
-			resultMsg.Reset(nil)
-		})
+		return nil
 	}
 }
 
@@ -267,7 +288,8 @@ func (srv *Server) Brand() interface{} {
 }
 
 // Shutdown waits for ongoing calls to finish and calls Shutdown on the
-// Shutdowner passed into NewServer.
+// Shutdowner passed into NewServer.  Shutdown must not be called more
+// than once.
 func (srv *Server) Shutdown() {
 	srv.mu.Lock()
 	if srv.drain != nil {
@@ -365,4 +387,8 @@ func (sm sortedMethods) Less(i, j int) bool {
 
 func (sm sortedMethods) Swap(i, j int) {
 	sm[i], sm[j] = sm[j], sm[i]
+}
+
+type resultsAllocer interface {
+	AllocResults(capnp.ObjectSize) (capnp.Struct, error)
 }

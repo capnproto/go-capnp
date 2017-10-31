@@ -94,6 +94,9 @@ type clientAndPromise struct {
 // NewPromise creates a new unresolved promise.  The PipelineCaller will
 // be used to make pipelined calls before the promise resolves.
 func NewPromise(pc PipelineCaller) *Promise {
+	if pc == nil {
+		panic("NewPromise(nil)")
+	}
 	resolved := make(chan struct{})
 	p := &Promise{
 		resolved:    resolved,
@@ -339,7 +342,7 @@ func (p *Promise) ReleaseClients() {
 // See the counterpart methods in ClientHook for a description.
 type PipelineCaller interface {
 	PipelineSend(ctx context.Context, transform []PipelineOp, s Send) (*Answer, ReleaseFunc)
-	PipelineRecv(ctx context.Context, transform []PipelineOp, r Recv) (*Answer, ReleaseFunc)
+	PipelineRecv(ctx context.Context, transform []PipelineOp, r Recv) PipelineCaller
 }
 
 // An Answer is a deferred result of a client call.  Conceptually, this is a
@@ -457,7 +460,7 @@ traversal:
 }
 
 // RecvCall starts a pipelined call.
-func (ans *Answer) RecvCall(ctx context.Context, transform []PipelineOp, r Recv) (*Answer, ReleaseFunc) {
+func (ans *Answer) RecvCall(ctx context.Context, transform []PipelineOp, r Recv) PipelineCaller {
 	p := ans.f.promise
 	p.mu.Lock()
 traversal:
@@ -469,8 +472,8 @@ traversal:
 			select {
 			case <-j:
 			case <-ctx.Done():
-				r.ReleaseArgs()
-				return ErrorAnswer(ctx.Err()), func() {}
+				r.Reject(ctx.Err())
+				return nil
 			}
 			p.mu.Lock()
 		case p.isJoined():
@@ -487,22 +490,22 @@ traversal:
 		p.ongoingCalls++
 		caller := p.caller
 		p.mu.Unlock()
-		ans, release := caller.PipelineRecv(ctx, transform, r)
+		pcall := caller.PipelineRecv(ctx, transform, r)
 		p.mu.Lock()
 		p.ongoingCalls--
 		if p.ongoingCalls == 0 && p.callsStopped != nil {
 			close(p.callsStopped)
 		}
 		p.mu.Unlock()
-		return ans, release
+		return pcall
 	case p.isPendingResolution():
 		// Block new calls until resolved.
 		p.mu.Unlock()
 		select {
 		case <-p.resolved:
 		case <-ctx.Done():
-			r.ReleaseArgs()
-			return ErrorAnswer(ctx.Err()), func() {}
+			r.Reject(ctx.Err())
+			return nil
 		}
 		p.mu.Lock()
 		fallthrough
@@ -650,7 +653,7 @@ func (pc pipelineClient) Send(ctx context.Context, s Send) (*Answer, ReleaseFunc
 	return pc.p.ans.SendCall(ctx, pc.transform, s)
 }
 
-func (pc pipelineClient) Recv(ctx context.Context, r Recv) (*Answer, ReleaseFunc) {
+func (pc pipelineClient) Recv(ctx context.Context, r Recv) PipelineCaller {
 	return pc.p.ans.RecvCall(ctx, pc.transform, r)
 }
 

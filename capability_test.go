@@ -3,6 +3,7 @@ package capnp
 import (
 	"bytes"
 	"context"
+	"errors"
 	"testing"
 	"time"
 )
@@ -30,11 +31,21 @@ func TestClient(t *testing.T) {
 	if h.calls != 1 {
 		t.Errorf("after SendCall, h.calls = %d; want 1", h.calls)
 	}
-	ans, finish = c.RecvCall(ctx, Recv{ReleaseArgs: func() {}})
-	if _, err := ans.Struct(); err != nil {
-		t.Error("RecvCall:", err)
+	ret := new(dummyReturner)
+	pcall := c.RecvCall(ctx, Recv{
+		ReleaseArgs: func() {},
+		Returner:    ret,
+	})
+	if !ret.returned {
+		t.Error("RecvCall did not return")
+	} else {
+		if ret.err != nil {
+			t.Error("RecvCall returned error:", ret.err)
+		}
+		if pcall != nil {
+			t.Error("RecvCall returned a PipelineCaller")
+		}
 	}
-	finish()
 	if h.calls != 2 {
 		t.Errorf("after RecvCall, h.calls = %d; want 2", h.calls)
 	}
@@ -68,11 +79,16 @@ func TestReleasedClient(t *testing.T) {
 	if h.calls != 0 {
 		t.Errorf("after SendCall, h.calls = %d; want 0", h.calls)
 	}
-	ans, finish = c.RecvCall(ctx, Recv{ReleaseArgs: func() {}})
-	if _, err := ans.Struct(); err == nil {
+	ret := new(dummyReturner)
+	c.RecvCall(ctx, Recv{
+		ReleaseArgs: func() {},
+		Returner:    ret,
+	})
+	if !ret.returned {
+		t.Error("RecvCall did not return")
+	} else if ret.err == nil {
 		t.Error("RecvCall did not return error")
 	}
-	finish()
 	if err := c.Resolve(ctx); err == nil {
 		t.Error("Resolve did not return error")
 	}
@@ -120,11 +136,16 @@ func TestNullClient(t *testing.T) {
 				t.Error("SendCall did not return error")
 			}
 			finish()
-			ans, finish = c.RecvCall(ctx, Recv{ReleaseArgs: func() {}})
-			if _, err := ans.Struct(); err == nil {
+			ret := new(dummyReturner)
+			c.RecvCall(ctx, Recv{
+				ReleaseArgs: func() {},
+				Returner:    ret,
+			})
+			if !ret.returned {
+				t.Error("RecvCall did not return")
+			} else if ret.err == nil {
 				t.Error("RecvCall did not return error")
 			}
-			finish()
 			rctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 			if err := c.Resolve(rctx); err != nil {
 				t.Error("Resolve failed:", err)
@@ -219,10 +240,11 @@ func (dh *dummyHook) Send(context.Context, Send) (*Answer, ReleaseFunc) {
 	return ImmediateAnswer(newEmptyStruct()), func() {}
 }
 
-func (dh *dummyHook) Recv(_ context.Context, r Recv) (*Answer, ReleaseFunc) {
-	r.ReleaseArgs()
+func (dh *dummyHook) Recv(_ context.Context, r Recv) PipelineCaller {
 	dh.calls++
-	return ImmediateAnswer(newEmptyStruct()), func() {}
+	r.AllocResults(ObjectSize{})
+	r.Return()
+	return nil
 }
 
 func (dh *dummyHook) Brand() interface{} {
@@ -231,6 +253,29 @@ func (dh *dummyHook) Brand() interface{} {
 
 func (dh *dummyHook) Shutdown() {
 	dh.shutdowns++
+}
+
+type dummyReturner struct {
+	s        Struct
+	returned bool
+	err      error
+}
+
+func (dr *dummyReturner) AllocResults(sz ObjectSize) (Struct, error) {
+	if dr.s.IsValid() {
+		return Struct{}, errors.New("AllocResults called multiple times")
+	}
+	_, seg, err := NewMessage(SingleSegment(nil))
+	if err != nil {
+		return Struct{}, err
+	}
+	dr.s, err = NewRootStruct(seg, sz)
+	return dr.s, err
+}
+
+func (dr *dummyReturner) Return(e error) {
+	dr.returned = true
+	dr.err = e
 }
 
 func TestToInterface(t *testing.T) {

@@ -182,9 +182,9 @@ func TestPromiseJoin(t *testing.T) {
 
 type dummyPipelineCaller struct{}
 
-func (dummyPipelineCaller) PipelineRecv(ctx context.Context, transform []PipelineOp, r Recv) (*Answer, ReleaseFunc) {
-	r.ReleaseArgs()
-	return ErrorAnswer(errors.New("dummy call")), func() {}
+func (dummyPipelineCaller) PipelineRecv(ctx context.Context, transform []PipelineOp, r Recv) PipelineCaller {
+	r.Reject(errors.New("dummy call"))
+	return nil
 }
 
 func (dummyPipelineCaller) PipelineSend(ctx context.Context, transform []PipelineOp, s Send) (*Answer, ReleaseFunc) {

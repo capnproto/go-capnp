@@ -151,8 +151,9 @@ func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, 
 	}
 }
 
-func (ic *importClient) Recv(ctx context.Context, r capnp.Recv) (*capnp.Answer, capnp.ReleaseFunc) {
-	return capnp.ErrorAnswer(errors.New("TODO(soon)")), func() {}
+func (ic *importClient) Recv(ctx context.Context, r capnp.Recv) capnp.PipelineCaller {
+	r.Reject(errors.New("TODO(soon)"))
+	return nil
 }
 
 func (ic *importClient) Brand() interface{} {

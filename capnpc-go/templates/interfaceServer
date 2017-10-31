@@ -28,14 +28,9 @@ func {{.Node.Name}}_Methods(methods []{{.G.Imports.Server}}.Method, s {{.Node.Na
 		Method: {{$.G.Capnp}}.Method{
 			{{template "_interfaceMethod" .}}
 		},
-		Impl: func(ctx {{$.G.Imports.Context}}.Context, call {{$.G.Imports.Server}}.Call) error {
-			return s.{{.Name|title}}(ctx, {{$.G.RemoteNodeName .Interface $.Node}}_{{.Name}}{
-				Args:    {{$.G.RemoteNodeName .Params $.Node}}{Struct: call.Args},
-				Results: {{$.G.RemoteNodeName .Results $.Node}}{Struct: call.Results},
-				Ack:     call.Ack,
-			})
+		Impl: func(ctx {{$.G.Imports.Context}}.Context, call *{{$.G.Imports.Server}}.Call) error {
+			return s.{{.Name|title}}(ctx, {{$.G.RemoteNodeName .Interface $.Node}}_{{.Name}}{call})
 		},
-		ResultsSize: {{$.G.ObjectSize .Results}},
 	})
 	{{end}}
 	return methods
@@ -45,9 +40,18 @@ func {{.Node.Name}}_Methods(methods []{{.G.Imports.Server}}.Method, s {{.Node.Na
 // {{$.Node.Name}}_{{.Name}} holds the state for a server call to {{$.Node.Name}}.{{.Name}}.
 // See server.Call for documentation.
 type {{$.Node.Name}}_{{.Name}} struct {
-	Args    {{$.G.RemoteNodeName .Params $.Node}}
-	Results {{$.G.RemoteNodeName .Results $.Node}}
-	Ack     func()
+	*{{$.G.Imports.Server}}.Call
+}
+
+// Args returns the call's arguments.
+func (c {{$.Node.Name}}_{{.Name}}) Args() {{$.G.RemoteNodeName .Params $.Node}} {
+	return {{$.G.RemoteNodeName .Params $.Node}}{Struct: c.Call.Args()}
+}
+
+// AllocResults allocates the results struct.
+func (c {{$.Node.Name}}_{{.Name}}) AllocResults() ({{$.G.RemoteNodeName .Results $.Node}}, error) {
+	r, err := c.Call.AllocResults({{$.G.ObjectSize .Results}})
+	return {{$.G.RemoteNodeName .Results $.Node}}{Struct: r}, err
 }
 {{end}}
 {{- end}}

@@ -234,14 +234,16 @@ func (c *Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 // a.Release when it no longer needs to reference the parameters.  The
 // caller must call the returned release function when it no longer
 // needs the answer's data.
-func (c *Client) RecvCall(ctx context.Context, r Recv) (*Answer, ReleaseFunc) {
+func (c *Client) RecvCall(ctx context.Context, r Recv) PipelineCaller {
 	h, released, finish := c.startCall()
 	defer finish()
 	if released {
-		return ErrorAnswer(errors.New("capnp: call on released client")), func() {}
+		r.Reject(errors.New("capnp: call on released client"))
+		return nil
 	}
 	if h == nil {
-		return ErrorAnswer(errors.New("capnp: call on null client")), func() {}
+		r.Reject(errors.New("capnp: call on null client"))
+		return nil
 	}
 	return h.Recv(ctx, r)
 }
@@ -503,22 +505,25 @@ func (wc *WeakClient) AddRef() (c *Client, ok bool) {
 // the capability acknowledging foo() happens before the capability
 // observing bar().
 type ClientHook interface {
-	// Send allocates space for parameters, calls args.Place to fill out
+	// Send allocates space for parameters, calls s.PlaceArgs to fill out
 	// the arguments, then starts executing a method, returning an answer
-	// that will hold the result.  The caller must call the returned
-	// release function when it no longer needs the answer's data.
+	// that will hold the result.  The hook must call s.PlaceArgs at most
+	// once, and if it does call s.PlaceArgs, it must return before Send
+	// returns.  The caller must call the returned release function when
+	// it no longer needs the answer's data.
 	//
 	// Send is typically used when application code is making a call.
 	Send(ctx context.Context, s Send) (*Answer, ReleaseFunc)
 
 	// Recv starts executing a method with the referenced arguments
-	// and returns an answer that will hold the result.  The hook will call
-	// args.Release when it no longer needs to reference the parameters.
-	// The caller must call the returned release function when it no longer
-	// needs the answer's data.
+	// and places the result in a message controlled by the caller.
+	// The hook will call r.ReleaseArgs when it no longer needs to
+	// reference the parameters and use r.Returner to complete the method
+	// call.  If Recv does not call r.Returner.Return before it returns,
+	// then it must return a non-nil PipelineCaller.
 	//
 	// Recv is typically used when the RPC system has received a call.
-	Recv(ctx context.Context, r Recv) (*Answer, ReleaseFunc)
+	Recv(ctx context.Context, r Recv) PipelineCaller
 
 	// Brand returns an implementation-specific value.  This can be used
 	// to introspect and identify kinds of clients.
@@ -555,6 +560,48 @@ type Recv struct {
 	// ReleaseArgs is called after Args is no longer referenced.
 	// Must not be nil.
 	ReleaseArgs ReleaseFunc
+
+	// Returner manages the results.
+	Returner Returner
+}
+
+// AllocResults allocates a result struct.  It is the same as calling
+// r.Returner.AllocResults(sz).
+func (r Recv) AllocResults(sz ObjectSize) (Struct, error) {
+	return r.Returner.AllocResults(sz)
+}
+
+// Return ends the method call successfully, releasing the arguments.
+func (r Recv) Return() {
+	r.ReleaseArgs()
+	r.Returner.Return(nil)
+}
+
+// Reject ends the method call with an error, releasing the arguments.
+func (r Recv) Reject(e error) {
+	if e == nil {
+		panic("Reject(nil)")
+	}
+	r.ReleaseArgs()
+	r.Returner.Return(e)
+}
+
+// A Returner allocates and sends the results from a received
+// capability method call.
+type Returner interface {
+	// AllocResults is called to allocate the results struct.
+	// It can be called at most once, and only before calling Return.
+	// The struct returned by AllocResults cannot be used after Return is
+	// called.
+	AllocResults(sz ObjectSize) (Struct, error)
+
+	// Return resolves the method call successfully if e is nil, or failure
+	// otherwise.  Return must be called once.
+	//
+	// Return must wait for all ongoing pipelined calls to be delivered,
+	// and after it returns, no new calls can be sent to the PipelineCaller
+	// returned from Recv.
+	Return(e error)
 }
 
 // A ReleaseFunc tells the RPC system that a parameter or result struct
@@ -610,9 +657,9 @@ func (ec errorClient) Send(context.Context, Send) (*Answer, ReleaseFunc) {
 	return ErrorAnswer(ec.e), func() {}
 }
 
-func (ec errorClient) Recv(_ context.Context, r Recv) (*Answer, ReleaseFunc) {
-	r.ReleaseArgs()
-	return ErrorAnswer(ec.e), func() {}
+func (ec errorClient) Recv(_ context.Context, r Recv) PipelineCaller {
+	r.Reject(ec.e)
+	return nil
 }
 
 func (ec errorClient) Brand() interface{} {

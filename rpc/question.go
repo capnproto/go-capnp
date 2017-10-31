@@ -20,6 +20,7 @@ func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineO
 	return capnp.ErrorAnswer(errors.New("TODO(soon)")), func() {}
 }
 
-func (q *question) PipelineRecv(ctx context.Context, transform []capnp.PipelineOp, r capnp.Recv) (*capnp.Answer, capnp.ReleaseFunc) {
-	return capnp.ErrorAnswer(errors.New("TODO(soon)")), func() {}
+func (q *question) PipelineRecv(ctx context.Context, transform []capnp.PipelineOp, r capnp.Recv) capnp.PipelineCaller {
+	r.Reject(errors.New("TODO(soon)"))
+	return nil
 }
