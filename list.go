@@ -11,7 +11,7 @@ import (
 // A List is a reference to an array of values.
 type List struct {
 	seg        *Segment
-	off        Address
+	off        Address // at beginning of elements (past composite list tag word)
 	length     int32
 	size       ObjectSize
 	depthLimit uint
@@ -129,42 +129,43 @@ func (p List) allocSize() Size {
 	return sz + wordSize
 }
 
-// value returns the equivalent raw list pointer.
-func (p List) value(paddr Address) rawPointer {
+// raw returns the equivalent raw list pointer with a zero offset.
+func (p List) raw() rawPointer {
 	if p.seg == nil {
 		return 0
 	}
-	off := makePointerOffset(paddr, p.off)
 	if p.flags&isCompositeList != 0 {
-		// p.off points to the data not the header
-		return rawListPointer(off-1, compositeList, p.length*p.size.totalWordCount())
+		return rawListPointer(0, compositeList, p.length*p.size.totalWordCount())
 	}
 	if p.flags&isBitList != 0 {
-		return rawListPointer(off, bit1List, p.length)
+		return rawListPointer(0, bit1List, p.length)
 	}
 	if p.size.PointerCount == 1 && p.size.DataSize == 0 {
-		return rawListPointer(off, pointerList, p.length)
+		return rawListPointer(0, pointerList, p.length)
 	}
 	if p.size.PointerCount != 0 {
 		panic(errListSize)
 	}
 	switch p.size.DataSize {
 	case 0:
-		return rawListPointer(off, voidList, p.length)
+		return rawListPointer(0, voidList, p.length)
 	case 1:
-		return rawListPointer(off, byte1List, p.length)
+		return rawListPointer(0, byte1List, p.length)
 	case 2:
-		return rawListPointer(off, byte2List, p.length)
+		return rawListPointer(0, byte2List, p.length)
 	case 4:
-		return rawListPointer(off, byte4List, p.length)
+		return rawListPointer(0, byte4List, p.length)
 	case 8:
-		return rawListPointer(off, byte8List, p.length)
+		return rawListPointer(0, byte8List, p.length)
 	default:
 		panic(errListSize)
 	}
 }
 
 // Address returns the address the pointer references.
+//
+// Deprecated: The return value is not well-defined.  Use SamePtr if you
+// need to check whether two pointers refer to the same object.
 func (p List) Address() Address {
 	return p.off
 }
@@ -184,7 +185,7 @@ func (p List) primitiveElem(i int, expectedSize ObjectSize) (Address, error) {
 		// This is programmer error, not input error.
 		panic(errOutOfBounds)
 	}
-	if p.flags&isBitList != 0 || p.flags&compositeList == 0 && p.size != expectedSize || p.flags&compositeList != 0 && (p.size.DataSize < expectedSize.DataSize || p.size.PointerCount < expectedSize.PointerCount) {
+	if p.flags&isBitList != 0 || p.flags&isCompositeList == 0 && p.size != expectedSize || p.flags&isCompositeList != 0 && (p.size.DataSize < expectedSize.DataSize || p.size.PointerCount < expectedSize.PointerCount) {
 		return 0, errElementSize
 	}
 	addr, ok := p.off.element(int32(i), p.size.totalSize())

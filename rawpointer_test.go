@@ -4,6 +4,35 @@ import (
 	"testing"
 )
 
+func TestPointerOffsetResolve(t *testing.T) {
+	tests := []struct {
+		off      pointerOffset
+		base     Address
+		resolved Address
+		ok       bool
+	}{
+		{off: 0, base: 0, resolved: 0, ok: true},
+		{off: 1, base: 0, resolved: 8, ok: true},
+		{off: 1, base: 16, resolved: 24, ok: true},
+		{off: -1, base: 32, resolved: 24, ok: true},
+		{off: -1, base: 0, ok: false},
+		{off: -4, base: 0, ok: false},
+		{off: -4, base: 32, resolved: 0, ok: true},
+		{off: -5, base: 32, ok: false},
+		{off: 0, base: 0xfffffff8, resolved: 0xfffffff8, ok: true},
+		{off: 1, base: 0xfffffff8, ok: false},
+		{off: -1, base: 0xfffffff8, resolved: 0xfffffff0, ok: true},
+	}
+	for _, test := range tests {
+		resolved, ok := test.off.resolve(test.base)
+		if test.ok && (resolved != test.resolved || ok != test.ok) {
+			t.Errorf("%v.resolve(%v) = %v, true; want %v, true", test.off, test.base, resolved, test.resolved)
+		} else if !test.ok && ok {
+			t.Errorf("%v.resolve(%v) = %v, true; want _, false", test.off, test.base, resolved)
+		}
+	}
+}
+
 func TestRawStructPointer(t *testing.T) {
 	tests := []struct {
 		ptr    rawPointer
@@ -45,7 +74,7 @@ func TestRawListPointer(t *testing.T) {
 	tests := []struct {
 		ptr    rawPointer
 		offset pointerOffset
-		lt     int
+		lt     listType
 		n      int32
 	}{
 		{0x0000000000000001, 0, voidList, 0},
@@ -133,7 +162,7 @@ func TestRawOtherPointer(t *testing.T) {
 func TestRawFarPointer(t *testing.T) {
 	tests := []struct {
 		ptr  rawPointer
-		typ  int
+		typ  pointerType
 		addr Address
 		seg  SegmentID
 	}{
@@ -172,7 +201,7 @@ func TestRawFarPointer(t *testing.T) {
 
 func TestRawPointerElementSize(t *testing.T) {
 	tests := []struct {
-		typ int
+		typ listType
 		sz  ObjectSize
 	}{
 		{voidList, ObjectSize{}},
@@ -192,7 +221,7 @@ func TestRawPointerElementSize(t *testing.T) {
 
 func TestRawPointerTotalListSize(t *testing.T) {
 	tests := []struct {
-		typ int
+		typ listType
 		n   int32
 		sz  Size
 		ok  bool
@@ -235,20 +264,136 @@ func TestRawPointerTotalListSize(t *testing.T) {
 
 func TestLandingPadNearPointer(t *testing.T) {
 	tests := []struct {
-		far     rawPointer
-		tag     rawPointer
-		landing rawPointer
+		far  rawPointer
+		tag  rawPointer
+		near rawPointer
 	}{
-		{rawFarPointer(0, 8), rawStructPointer(0, ObjectSize{16, 2}), rawStructPointer(0, ObjectSize{16, 2})},
-		{rawFarPointer(0, 160), rawStructPointer(0, ObjectSize{16, 2}), rawStructPointer(19, ObjectSize{16, 2})},
-		{rawFarPointer(0, 2834), rawStructPointer(0, ObjectSize{16, 2}), rawStructPointer(353, ObjectSize{16, 2})},
-		{rawFarPointer(0, 2834), rawListPointer(0, 0, 10), rawListPointer(353, 0, 10)},
+		{rawFarPointer(0, 0), rawStructPointer(0, ObjectSize{16, 2}), rawStructPointer(0, ObjectSize{16, 2})},
+		{rawFarPointer(0, 8), rawStructPointer(0, ObjectSize{16, 2}), rawStructPointer(1, ObjectSize{16, 2})},
+		{rawFarPointer(0, 160), rawStructPointer(0, ObjectSize{16, 2}), rawStructPointer(20, ObjectSize{16, 2})},
+		{rawFarPointer(0, 2832), rawStructPointer(0, ObjectSize{16, 2}), rawStructPointer(354, ObjectSize{16, 2})},
+		{rawFarPointer(12, 2832), rawStructPointer(0, ObjectSize{16, 2}), rawStructPointer(354, ObjectSize{16, 2})},
+		{rawFarPointer(12, 2832), rawStructPointer(8, ObjectSize{16, 2}), rawStructPointer(354, ObjectSize{16, 2})},
+		{rawFarPointer(0, 2832), rawListPointer(0, 0, 10), rawListPointer(354, 0, 10)},
+		{rawFarPointer(12, 2832), rawListPointer(0, 0, 10), rawListPointer(354, 0, 10)},
 	}
 
 	for _, test := range tests {
-		landing := landingPadNearPointer(test.far, test.tag)
-		if landing != test.landing {
-			t.Errorf("landingPadNearPointer(%v, %v) = %v; want %v", test.far, test.tag, landing, test.landing)
+		near := landingPadNearPointer(test.far, test.tag)
+		if near != test.near {
+			t.Errorf("landingPadNearPointer(%#v, %#v) = %#v; want %#v", test.far, test.tag, near, test.near)
+		}
+	}
+}
+
+func TestRawPointerOffset(t *testing.T) {
+	tests := []struct {
+		p   rawPointer
+		off pointerOffset
+	}{
+		{0x0000000000000000, 0},
+		{0x0000000000000001, 0},
+		{0xffffffff00000000, 0},
+		{0xffffffff00000001, 0},
+
+		{0x0000000000000004, 1},
+		{0x0000000000000005, 1},
+		{0xffffffff00000004, 1},
+		{0xffffffff00000005, 1},
+
+		{0x000000007ffffff8, 0x1ffffffe},
+		{0x000000007ffffff9, 0x1ffffffe},
+		{0xffffffff7ffffff8, 0x1ffffffe},
+		{0xffffffff7ffffff9, 0x1ffffffe},
+
+		{0x000000007ffffffc, 0x1fffffff},
+		{0x000000007ffffffd, 0x1fffffff},
+		{0xffffffff7ffffffc, 0x1fffffff},
+		{0xffffffff7ffffffd, 0x1fffffff},
+
+		{0x00000000fffffffc, -1},
+		{0x00000000fffffffd, -1},
+		{0xfffffffffffffffc, -1},
+		{0xfffffffffffffffd, -1},
+
+		{0x00000000fffffff8, -2},
+		{0x00000000fffffff9, -2},
+		{0xfffffffffffffff8, -2},
+		{0xfffffffffffffff9, -2},
+
+		{0x0000000080000004, -0x1fffffff},
+		{0x0000000080000005, -0x1fffffff},
+		{0xffffffff80000004, -0x1fffffff},
+		{0xffffffff80000005, -0x1fffffff},
+
+		{0x0000000080000000, -0x20000000},
+		{0x0000000080000001, -0x20000000},
+		{0xffffffff80000000, -0x20000000},
+		{0xffffffff80000001, -0x20000000},
+	}
+	for _, test := range tests {
+		off := test.p.offset()
+		if off != test.off {
+			t.Errorf("rawPointer(%#016x).offset() = %d; want %d", test.p, off, test.off)
+		}
+	}
+}
+
+func TestRawPointerWithOffset(t *testing.T) {
+	tests := []struct {
+		p    rawPointer
+		off  pointerOffset
+		want rawPointer
+	}{
+		{
+			p:    rawStructPointer(0, ObjectSize{DataSize: 8, PointerCount: 2}),
+			off:  0,
+			want: rawStructPointer(0, ObjectSize{DataSize: 8, PointerCount: 2}),
+		},
+		{
+			p:    rawStructPointer(0, ObjectSize{DataSize: 8, PointerCount: 2}),
+			off:  1,
+			want: rawStructPointer(1, ObjectSize{DataSize: 8, PointerCount: 2}),
+		},
+		{
+			p:    rawStructPointer(0, ObjectSize{DataSize: 8, PointerCount: 2}),
+			off:  -1,
+			want: rawStructPointer(-1, ObjectSize{DataSize: 8, PointerCount: 2}),
+		},
+		{
+			p:    rawStructPointer(1, ObjectSize{DataSize: 8, PointerCount: 2}),
+			off:  0,
+			want: rawStructPointer(0, ObjectSize{DataSize: 8, PointerCount: 2}),
+		},
+		{
+			p:    rawStructPointer(-1, ObjectSize{DataSize: 8, PointerCount: 2}),
+			off:  0,
+			want: rawStructPointer(0, ObjectSize{DataSize: 8, PointerCount: 2}),
+		},
+		{
+			p:    rawStructPointer(1, ObjectSize{DataSize: 8, PointerCount: 2}),
+			off:  1,
+			want: rawStructPointer(1, ObjectSize{DataSize: 8, PointerCount: 2}),
+		},
+		{
+			p:    rawStructPointer(-1, ObjectSize{DataSize: 8, PointerCount: 2}),
+			off:  -1,
+			want: rawStructPointer(-1, ObjectSize{DataSize: 8, PointerCount: 2}),
+		},
+		{
+			p:    rawStructPointer(-1, ObjectSize{DataSize: 8, PointerCount: 2}),
+			off:  1,
+			want: rawStructPointer(1, ObjectSize{DataSize: 8, PointerCount: 2}),
+		},
+		{
+			p:    rawStructPointer(1, ObjectSize{DataSize: 8, PointerCount: 2}),
+			off:  -1,
+			want: rawStructPointer(-1, ObjectSize{DataSize: 8, PointerCount: 2}),
+		},
+	}
+	for _, test := range tests {
+		if got := test.p.withOffset(test.off); got != test.want {
+			t.Errorf("%#v.withOffset(%d) = %#v; want %#v", test.p, test.off, got, test.want)
 		}
 	}
 }

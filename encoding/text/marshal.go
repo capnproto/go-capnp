@@ -275,7 +275,7 @@ func (enc *Encoder) marshalFieldValue(s capnp.Struct, f schema.Field) error {
 		return enc.marshalList(elem, p.List())
 	case schema.Type_Which_enum:
 		v := s.Uint16(capnp.DataOffset(f.Slot().Offset() * 2))
-		d := dv.Uint16()
+		d := dv.Enum()
 		return enc.marshalEnum(typ.Enum().TypeId(), v^d)
 	case schema.Type_Which_interface:
 		if s.HasPtr(uint16(f.Slot().Offset())) {

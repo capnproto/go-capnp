@@ -2184,3 +2184,90 @@ func TestFuzzedListOutOfBounds(t *testing.T) {
 		v.At(i)
 	}
 }
+
+func benchmarkGrowth(b *testing.B, newArena func() capnp.Arena) {
+	const (
+		fieldValue = "1234567" // carefully chosen to be word-padded
+
+		rootMessageOverhead = 8 * 3 // root pointer, Document struct, composite list tag
+		perFieldOverhead    = 8 * 2 // Field struct, fieldValue + "\0"
+		numElements         = 64 * 1024
+		totalSize           = rootMessageOverhead + perFieldOverhead*numElements
+	)
+	b.SetBytes(totalSize)
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_, seg, err := capnp.NewMessage(newArena())
+		if err != nil {
+			b.Fatal(err)
+		}
+		doc, err := air.NewRootAllocBenchmark(seg)
+		if err != nil {
+			b.Fatal(err)
+		}
+		d, err := doc.NewFields(numElements)
+		if err != nil {
+			b.Fatal(err)
+		}
+		for j := 0; j < numElements; j++ {
+			if err := d.At(j).SetStringValue(fieldValue); err != nil {
+				b.Fatal(err)
+			}
+		}
+	}
+}
+
+func BenchmarkGrowth_SingleSegment(b *testing.B) {
+	benchmarkGrowth(b, func() capnp.Arena { return capnp.SingleSegment(nil) })
+}
+
+func BenchmarkGrowth_MultiSegment(b *testing.B) {
+	benchmarkGrowth(b, func() capnp.Arena { return capnp.MultiSegment(nil) })
+}
+
+func benchmarkSmallMessage(b *testing.B, newArena func() capnp.Arena) {
+	const fieldValue = "1234567" // carefully chosen to be word-padded
+	b.SetBytes(8 * 9)
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_, seg, err := capnp.NewMessage(newArena())
+		if err != nil {
+			b.Fatal(err)
+		}
+		root, err := capnp.NewRootStruct(seg, capnp.ObjectSize{PointerCount: 2})
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		sub1, err := capnp.NewStruct(root.Segment(), capnp.ObjectSize{PointerCount: 1})
+		if err != nil {
+			b.Fatal(err)
+		}
+		if err := root.SetPtr(0, sub1.ToPtr()); err != nil {
+			b.Fatal(err)
+		}
+		text, err := capnp.NewText(sub1.Segment(), fieldValue)
+		if err != nil {
+			b.Fatal(err)
+		}
+		if err := sub1.SetPtr(0, text.ToPtr()); err != nil {
+			b.Fatal(err)
+		}
+
+		sub2, err := capnp.NewStruct(root.Segment(), capnp.ObjectSize{DataSize: 32})
+		if err != nil {
+			b.Fatal(err)
+		}
+		if err := root.SetPtr(0, sub2.ToPtr()); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkSmallMessage_SingleSegment(b *testing.B) {
+	benchmarkSmallMessage(b, func() capnp.Arena { return capnp.SingleSegment(nil) })
+}
+
+func BenchmarkSmallMessage_MultiSegment(b *testing.B) {
+	benchmarkSmallMessage(b, func() capnp.Arena { return capnp.MultiSegment(nil) })
+}

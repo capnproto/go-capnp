@@ -92,6 +92,9 @@ func (s Message) Which() Message_Which {
 	return Message_Which(s.Struct.Uint16(0))
 }
 func (s Message) Unimplemented() (Message, error) {
+	if s.Struct.Uint16(0) != 0 {
+		panic("Which() != unimplemented")
+	}
 	p, err := s.Struct.Ptr(0)
 	return Message{Struct: p.Struct()}, err
 }
@@ -121,6 +124,9 @@ func (s Message) NewUnimplemented() (Message, error) {
 }
 
 func (s Message) Abort() (Exception, error) {
+	if s.Struct.Uint16(0) != 1 {
+		panic("Which() != abort")
+	}
 	p, err := s.Struct.Ptr(0)
 	return Exception{Struct: p.Struct()}, err
 }
@@ -150,6 +156,9 @@ func (s Message) NewAbort() (Exception, error) {
 }
 
 func (s Message) Bootstrap() (Bootstrap, error) {
+	if s.Struct.Uint16(0) != 8 {
+		panic("Which() != bootstrap")
+	}
 	p, err := s.Struct.Ptr(0)
 	return Bootstrap{Struct: p.Struct()}, err
 }
@@ -179,6 +188,9 @@ func (s Message) NewBootstrap() (Bootstrap, error) {
 }
 
 func (s Message) Call() (Call, error) {
+	if s.Struct.Uint16(0) != 2 {
+		panic("Which() != call")
+	}
 	p, err := s.Struct.Ptr(0)
 	return Call{Struct: p.Struct()}, err
 }
@@ -208,6 +220,9 @@ func (s Message) NewCall() (Call, error) {
 }
 
 func (s Message) Return() (Return, error) {
+	if s.Struct.Uint16(0) != 3 {
+		panic("Which() != return")
+	}
 	p, err := s.Struct.Ptr(0)
 	return Return{Struct: p.Struct()}, err
 }
@@ -237,6 +252,9 @@ func (s Message) NewReturn() (Return, error) {
 }
 
 func (s Message) Finish() (Finish, error) {
+	if s.Struct.Uint16(0) != 4 {
+		panic("Which() != finish")
+	}
 	p, err := s.Struct.Ptr(0)
 	return Finish{Struct: p.Struct()}, err
 }
@@ -266,6 +284,9 @@ func (s Message) NewFinish() (Finish, error) {
 }
 
 func (s Message) Resolve() (Resolve, error) {
+	if s.Struct.Uint16(0) != 5 {
+		panic("Which() != resolve")
+	}
 	p, err := s.Struct.Ptr(0)
 	return Resolve{Struct: p.Struct()}, err
 }
@@ -295,6 +316,9 @@ func (s Message) NewResolve() (Resolve, error) {
 }
 
 func (s Message) Release() (Release, error) {
+	if s.Struct.Uint16(0) != 6 {
+		panic("Which() != release")
+	}
 	p, err := s.Struct.Ptr(0)
 	return Release{Struct: p.Struct()}, err
 }
@@ -324,6 +348,9 @@ func (s Message) NewRelease() (Release, error) {
 }
 
 func (s Message) Disembargo() (Disembargo, error) {
+	if s.Struct.Uint16(0) != 13 {
+		panic("Which() != disembargo")
+	}
 	p, err := s.Struct.Ptr(0)
 	return Disembargo{Struct: p.Struct()}, err
 }
@@ -353,6 +380,9 @@ func (s Message) NewDisembargo() (Disembargo, error) {
 }
 
 func (s Message) ObsoleteSave() (capnp.Ptr, error) {
+	if s.Struct.Uint16(0) != 7 {
+		panic("Which() != obsoleteSave")
+	}
 	return s.Struct.Ptr(0)
 }
 
@@ -369,6 +399,9 @@ func (s Message) SetObsoleteSave(v capnp.Ptr) error {
 }
 
 func (s Message) ObsoleteDelete() (capnp.Ptr, error) {
+	if s.Struct.Uint16(0) != 9 {
+		panic("Which() != obsoleteDelete")
+	}
 	return s.Struct.Ptr(0)
 }
 
@@ -385,6 +418,9 @@ func (s Message) SetObsoleteDelete(v capnp.Ptr) error {
 }
 
 func (s Message) Provide() (Provide, error) {
+	if s.Struct.Uint16(0) != 10 {
+		panic("Which() != provide")
+	}
 	p, err := s.Struct.Ptr(0)
 	return Provide{Struct: p.Struct()}, err
 }
@@ -414,6 +450,9 @@ func (s Message) NewProvide() (Provide, error) {
 }
 
 func (s Message) Accept() (Accept, error) {
+	if s.Struct.Uint16(0) != 11 {
+		panic("Which() != accept")
+	}
 	p, err := s.Struct.Ptr(0)
 	return Accept{Struct: p.Struct()}, err
 }
@@ -443,6 +482,9 @@ func (s Message) NewAccept() (Accept, error) {
 }
 
 func (s Message) Join() (Join, error) {
+	if s.Struct.Uint16(0) != 12 {
+		panic("Which() != join")
+	}
 	p, err := s.Struct.Ptr(0)
 	return Join{Struct: p.Struct()}, err
 }
@@ -771,6 +813,9 @@ func (s Call_sendResultsTo) SetYourself() {
 }
 
 func (s Call_sendResultsTo) ThirdParty() (capnp.Ptr, error) {
+	if s.Struct.Uint16(6) != 2 {
+		panic("Which() != thirdParty")
+	}
 	return s.Struct.Ptr(2)
 }
 
@@ -911,6 +956,9 @@ func (s Return) SetReleaseParamCaps(v bool) {
 }
 
 func (s Return) Results() (Payload, error) {
+	if s.Struct.Uint16(6) != 0 {
+		panic("Which() != results")
+	}
 	p, err := s.Struct.Ptr(0)
 	return Payload{Struct: p.Struct()}, err
 }
@@ -940,6 +988,9 @@ func (s Return) NewResults() (Payload, error) {
 }
 
 func (s Return) Exception() (Exception, error) {
+	if s.Struct.Uint16(6) != 1 {
+		panic("Which() != exception")
+	}
 	p, err := s.Struct.Ptr(0)
 	return Exception{Struct: p.Struct()}, err
 }
@@ -979,6 +1030,9 @@ func (s Return) SetResultsSentElsewhere() {
 }
 
 func (s Return) TakeFromOtherQuestion() uint32 {
+	if s.Struct.Uint16(6) != 4 {
+		panic("Which() != takeFromOtherQuestion")
+	}
 	return s.Struct.Uint32(8)
 }
 
@@ -988,6 +1042,9 @@ func (s Return) SetTakeFromOtherQuestion(v uint32) {
 }
 
 func (s Return) AcceptFromThirdParty() (capnp.Ptr, error) {
+	if s.Struct.Uint16(6) != 5 {
+		panic("Which() != acceptFromThirdParty")
+	}
 	return s.Struct.Ptr(0)
 }
 
@@ -1163,6 +1220,9 @@ func (s Resolve) SetPromiseId(v uint32) {
 }
 
 func (s Resolve) Cap() (CapDescriptor, error) {
+	if s.Struct.Uint16(4) != 0 {
+		panic("Which() != cap")
+	}
 	p, err := s.Struct.Ptr(0)
 	return CapDescriptor{Struct: p.Struct()}, err
 }
@@ -1192,6 +1252,9 @@ func (s Resolve) NewCap() (CapDescriptor, error) {
 }
 
 func (s Resolve) Exception() (Exception, error) {
+	if s.Struct.Uint16(4) != 1 {
+		panic("Which() != exception")
+	}
 	p, err := s.Struct.Ptr(0)
 	return Exception{Struct: p.Struct()}, err
 }
@@ -1401,6 +1464,9 @@ func (s Disembargo_context) Which() Disembargo_context_Which {
 	return Disembargo_context_Which(s.Struct.Uint16(4))
 }
 func (s Disembargo_context) SenderLoopback() uint32 {
+	if s.Struct.Uint16(4) != 0 {
+		panic("Which() != senderLoopback")
+	}
 	return s.Struct.Uint32(0)
 }
 
@@ -1410,6 +1476,9 @@ func (s Disembargo_context) SetSenderLoopback(v uint32) {
 }
 
 func (s Disembargo_context) ReceiverLoopback() uint32 {
+	if s.Struct.Uint16(4) != 1 {
+		panic("Which() != receiverLoopback")
+	}
 	return s.Struct.Uint32(0)
 }
 
@@ -1424,6 +1493,9 @@ func (s Disembargo_context) SetAccept() {
 }
 
 func (s Disembargo_context) Provide() uint32 {
+	if s.Struct.Uint16(4) != 3 {
+		panic("Which() != provide")
+	}
 	return s.Struct.Uint32(0)
 }
 
@@ -1810,6 +1882,9 @@ func (s MessageTarget) Which() MessageTarget_Which {
 	return MessageTarget_Which(s.Struct.Uint16(4))
 }
 func (s MessageTarget) ImportedCap() uint32 {
+	if s.Struct.Uint16(4) != 0 {
+		panic("Which() != importedCap")
+	}
 	return s.Struct.Uint32(0)
 }
 
@@ -1819,6 +1894,9 @@ func (s MessageTarget) SetImportedCap(v uint32) {
 }
 
 func (s MessageTarget) PromisedAnswer() (PromisedAnswer, error) {
+	if s.Struct.Uint16(4) != 1 {
+		panic("Which() != promisedAnswer")
+	}
 	p, err := s.Struct.Ptr(0)
 	return PromisedAnswer{Struct: p.Struct()}, err
 }
@@ -2032,6 +2110,9 @@ func (s CapDescriptor) SetNone() {
 }
 
 func (s CapDescriptor) SenderHosted() uint32 {
+	if s.Struct.Uint16(0) != 1 {
+		panic("Which() != senderHosted")
+	}
 	return s.Struct.Uint32(4)
 }
 
@@ -2041,6 +2122,9 @@ func (s CapDescriptor) SetSenderHosted(v uint32) {
 }
 
 func (s CapDescriptor) SenderPromise() uint32 {
+	if s.Struct.Uint16(0) != 2 {
+		panic("Which() != senderPromise")
+	}
 	return s.Struct.Uint32(4)
 }
 
@@ -2050,6 +2134,9 @@ func (s CapDescriptor) SetSenderPromise(v uint32) {
 }
 
 func (s CapDescriptor) ReceiverHosted() uint32 {
+	if s.Struct.Uint16(0) != 3 {
+		panic("Which() != receiverHosted")
+	}
 	return s.Struct.Uint32(4)
 }
 
@@ -2059,6 +2146,9 @@ func (s CapDescriptor) SetReceiverHosted(v uint32) {
 }
 
 func (s CapDescriptor) ReceiverAnswer() (PromisedAnswer, error) {
+	if s.Struct.Uint16(0) != 4 {
+		panic("Which() != receiverAnswer")
+	}
 	p, err := s.Struct.Ptr(0)
 	return PromisedAnswer{Struct: p.Struct()}, err
 }
@@ -2088,6 +2178,9 @@ func (s CapDescriptor) NewReceiverAnswer() (PromisedAnswer, error) {
 }
 
 func (s CapDescriptor) ThirdPartyHosted() (ThirdPartyCapDescriptor, error) {
+	if s.Struct.Uint16(0) != 5 {
+		panic("Which() != thirdPartyHosted")
+	}
 	p, err := s.Struct.Ptr(0)
 	return ThirdPartyCapDescriptor{Struct: p.Struct()}, err
 }
@@ -2285,6 +2378,9 @@ func (s PromisedAnswer_Op) SetNoop() {
 }
 
 func (s PromisedAnswer_Op) GetPointerField() uint16 {
+	if s.Struct.Uint16(0) != 1 {
+		panic("Which() != getPointerField")
+	}
 	return s.Struct.Uint16(2)
 }
 

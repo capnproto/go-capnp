@@ -1,4 +1,5 @@
 func (s {{.Node.Name}}) {{.Field.Name|title}}() uint{{.Bits}} {
+	{{template "_checktag" . -}}
 	return s.Struct.Uint{{.Bits}}({{.Offset}}){{with .Default}} ^ {{.}}{{end}}
 }
 

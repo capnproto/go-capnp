@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"sync"
 	"sync/atomic"
@@ -70,7 +71,7 @@ func NewMessage(arena Arena) (msg *Message, first *Segment, err error) {
 	msg = &Message{Arena: arena}
 	switch arena.NumSegments() {
 	case 0:
-		first, err = msg.allocSegment(defaultBufferSize)
+		first, err = msg.allocSegment(wordSize)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -82,13 +83,19 @@ func NewMessage(arena Arena) (msg *Message, first *Segment, err error) {
 		if len(first.data) > 0 {
 			return nil, nil, errHasData
 		}
-		if !hasCapacity(first.data, wordSize) {
-			return nil, nil, errSegmentTooSmall
-		}
 	default:
 		return nil, nil, errHasData
 	}
-	alloc(first, wordSize) // allocate root
+	if first.ID() != 0 {
+		return nil, nil, errors.New("capnp: arena allocated first segment with non-zero ID")
+	}
+	seg, _, err := alloc(first, wordSize) // allocate root
+	if err != nil {
+		return nil, nil, err
+	}
+	if seg != first {
+		return nil, nil, errors.New("capnp: arena didn't allocate first word in first segment")
+	}
 	return msg, first, nil
 }
 
@@ -195,7 +202,7 @@ func (m *Message) NumSegments() int64 {
 
 // Segment returns the segment with the given ID.
 func (m *Message) Segment(id SegmentID) (*Segment, error) {
-	if isInt32Bit() && id > maxInt32 {
+	if isInt32Bit && id > maxInt32 {
 		return nil, errSegment32Bit
 	}
 	if int64(id) >= m.Arena.NumSegments() {
@@ -270,7 +277,7 @@ func (m *Message) allocSegment(sz Size) (*Segment, error) {
 		m.mu.Unlock()
 		return nil, err
 	}
-	if isInt32Bit() && id > maxInt32 {
+	if isInt32Bit && id > maxInt32 {
 		m.mu.Unlock()
 		return nil, errSegment32Bit
 	}
@@ -301,36 +308,42 @@ func alloc(s *Segment, sz Size) (*Segment, Address, error) {
 	if !ok {
 		return nil, 0, errOverflow
 	}
+	space := s.data[len(s.data):end]
 	s.data = s.data[:end]
-	for i := addr; i < end; i++ {
-		s.data[i] = 0
+	for i := range space {
+		space[i] = 0
 	}
 	return s, addr, nil
 }
 
-// An Arena loads and allocates segments for a Message.  Segment IDs
-// must be tightly packed in the range [0, NumSegments()).
+// An Arena loads and allocates segments for a Message.
 type Arena interface {
 	// NumSegments returns the number of segments in the arena.
 	// This must not be larger than 1<<32.
 	NumSegments() int64
 
-	// Data loads the data for the segment with the given ID.
+	// Data loads the data for the segment with the given ID.  IDs are in
+	// the range [0, NumSegments()).
+	// must be tightly packed in the range [0, NumSegments()).
 	Data(id SegmentID) ([]byte, error)
 
-	// Allocate allocates a byte slice such that cap(data) - len(data) >= minsz.
-	// segs is a map of already loaded segments keyed by ID.  The arena may
-	// return an existing segment's ID, in which case the arena is responsible
-	// for copying the existing data to the returned byte slice.  Allocate must
-	// not modify the segments passed into it.
+	// Allocate selects a segment to place a new object in, creating a
+	// segment or growing the capacity of a previously loaded segment if
+	// necessary.  If Allocate does not return an error, then the
+	// difference of the capacity and the length of the returned slice
+	// must be at least minsz.  segs is a map of segment slices returned
+	// by the Data method keyed by ID (although the length of these slices
+	// may have changed by previous allocations).  Allocate must not
+	// modify segs.
+	//
+	// If Allocate creates a new segment, the ID must be one larger than
+	// the last segment's ID or zero if it is the first segment.
+	//
+	// If Allocate returns an previously loaded segment's ID, then the
+	// arena is responsible for preserving the existing data in the
+	// returned byte slice.
 	Allocate(minsz Size, segs map[SegmentID]*Segment) (SegmentID, []byte, error)
 }
-
-// Arena parameters.  Must be a multiple of wordSize.
-const (
-	defaultBufferSize      = 4096
-	minSingleSegmentGrowth = 4096
-)
 
 type singleSegmentArena []byte
 
@@ -339,9 +352,6 @@ type singleSegmentArena []byte
 // reserve memory of a specific size.  A SingleSegment arena does not
 // return errors unless you attempt to access another segment.
 func SingleSegment(b []byte) Arena {
-	if cap(b) == 0 {
-		b = make([]byte, 0, defaultBufferSize)
-	}
 	ssa := new(singleSegmentArena)
 	*ssa = b
 	return ssa
@@ -363,16 +373,17 @@ func (ssa *singleSegmentArena) Allocate(sz Size, segs map[SegmentID]*Segment) (S
 	if segs[0] != nil {
 		data = segs[0].data
 	}
+	if len(data)%int(wordSize) != 0 {
+		return 0, nil, errors.New("capnp: segment size is not a multiple of word size")
+	}
 	if hasCapacity(data, sz) {
 		return 0, data, nil
 	}
-	// TODO(light): ensure len(data)+sz is word-aligned
-	if sz < minSingleSegmentGrowth {
-		sz = minSingleSegmentGrowth
-	} else {
-		sz = sz.padToWord()
+	inc, err := nextAlloc(int64(len(data)), int64(maxSegmentSize()), sz)
+	if err != nil {
+		return 0, nil, fmt.Errorf("capnp: alloc %d bytes: %v", sz, err)
 	}
-	buf := make([]byte, len(data), cap(data)+int(sz))
+	buf := make([]byte, len(data), cap(data)+inc)
 	copy(buf, data)
 	*ssa = buf
 	return 0, *ssa, nil
@@ -431,6 +442,7 @@ func (msa *multiSegmentArena) Data(id SegmentID) ([]byte, error) {
 }
 
 func (msa *multiSegmentArena) Allocate(sz Size, segs map[SegmentID]*Segment) (SegmentID, []byte, error) {
+	var total int64
 	for i, data := range *msa {
 		id := SegmentID(i)
 		if s := segs[id]; s != nil {
@@ -439,17 +451,67 @@ func (msa *multiSegmentArena) Allocate(sz Size, segs map[SegmentID]*Segment) (Se
 		if hasCapacity(data, sz) {
 			return id, data, nil
 		}
+		total += int64(cap(data))
+		if total < 0 {
+			// Overflow.
+			return 0, nil, fmt.Errorf("capnp: alloc %d bytes: message too large", sz)
+		}
 	}
-	if sz < defaultBufferSize {
-		sz = defaultBufferSize
-	} else {
-		// TODO(light): check >maxInt
-		sz = sz.padToWord()
+	n, err := nextAlloc(total, 1<<63-1, sz)
+	if err != nil {
+		return 0, nil, fmt.Errorf("capnp: alloc %d bytes: %v", sz, err)
 	}
-	buf := make([]byte, 0, int(sz))
+	buf := make([]byte, 0, n)
 	id := SegmentID(len(*msa))
 	*msa = append(*msa, buf)
 	return id, buf, nil
+}
+
+// nextAlloc computes how much more space to allocate given the number
+// of bytes allocated in the entire message and the requested number of
+// bytes.  It will always return a multiple of wordSize.  max must be a
+// multiple of wordSize.  The sum of curr and the returned size will
+// always be less than max.
+func nextAlloc(curr, max int64, req Size) (int, error) {
+	if req == 0 {
+		return 0, nil
+	}
+	maxinc := int64(1<<32 - 8) // largest word-aligned Size
+	if isInt32Bit {
+		maxinc = 1<<31 - 8 // largest word-aligned int
+	}
+	if int64(req) > maxinc {
+		return 0, errors.New("allocation too large")
+	}
+	req = req.padToWord()
+	want := curr + int64(req)
+	if want <= curr || want > max {
+		return 0, errors.New("allocation overflows message size")
+	}
+	new := curr
+	double := new + new
+	switch {
+	case want < 1024:
+		next := (1024 - curr + 7) &^ 7
+		if next < curr {
+			return int((curr + 7) &^ 7), nil
+		}
+		return int(next), nil
+	case want > double:
+		return int(req), nil
+	default:
+		for 0 < new && new < want {
+			new += new / 4
+		}
+		if new <= 0 {
+			return int(req), nil
+		}
+		delta := new - curr
+		if delta > maxinc {
+			return int(maxinc), nil
+		}
+		return int((delta + 7) &^ 7), nil
+	}
 }
 
 // A Decoder represents a framer that deserializes a particular Cap'n
@@ -822,12 +884,25 @@ func totalSize(s []Size) uint64 {
 	return sum
 }
 
-const maxInt32 = 0x7fffffff
+const (
+	maxInt32 = 0x7fffffff
+	maxInt   = int(^uint(0) >> 1)
 
-// isInt32Bit reports whether the built-in int type is 32 bits.
-func isInt32Bit() bool {
-	const maxInt = int(^uint(0) >> 1)
-	return maxInt == maxInt32
+	isInt32Bit = maxInt == maxInt32
+)
+
+// maxSegmentSize returns the maximum permitted size of a single segment
+// on this platform.
+//
+// This is effectively a compile-time constant, but can't be represented
+// as a constant because it requires a conditional.  It is trivially
+// inlinable and optimizable, so should act like one.
+func maxSegmentSize() Size {
+	if isInt32Bit {
+		return Size(maxInt32 - 7)
+	} else {
+		return maxSize - 7
+	}
 }
 
 var (
@@ -835,7 +910,6 @@ var (
 	errSegment32Bit       = errors.New("capnp: segment ID larger than 31 bits")
 	errMessageEmpty       = errors.New("capnp: marshalling an empty message")
 	errHasData            = errors.New("capnp: NewMessage called on arena with data")
-	errSegmentTooSmall    = errors.New("capnp: segment too small")
 	errSegmentTooLarge    = errors.New("capnp: segment too large")
 	errTooManySegments    = errors.New("capnp: too many segments to decode")
 	errDecodeLimit        = errors.New("capnp: message too large")

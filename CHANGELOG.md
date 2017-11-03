@@ -1,5 +1,36 @@
 # Go Cap'n Proto Release Notes
 
+## 2.17.0
+
+- Add `capnp.Canonicalize` function that implements the
+  [canonicalization](https://capnproto.org/encoding.html#canonicalization)
+  algorithm.  ([#92](https://github.com/capnproto/go-capnproto2/issues/92))
+- Zero-sized struct pointers are now written with an offset of
+  -1 to distinguish them from a null pointer.
+  ([#92](https://github.com/capnproto/go-capnproto2/issues/92))
+- Better support for alternate `Arena` implementations
+  - [Document `Arena` contract](https://godoc.org/zombiezen.com/go/capnproto2#Arena)
+    in more detail
+  - Permit an `Arena` to have a single empty segment in `NewMessage`
+- `Arena` allocation optimizations: both `SingleSegment` and
+  `MultiSegment` now gradually ramp up the amount of space allocated in
+  a single allocation as the message grows.  This is similar to how
+  built-in Go `append` function works.  Workloads with medium to large
+  messages should expect a decrease in number of allocations, while
+  small message workloads should remain about the same.  Please file an
+  issue if you encounter any performance regressions.
+  ([#96](https://github.com/capnproto/go-capnproto2/issues/96))
+- Fix double-far pointer logic.  ([#97](https://github.com/capnproto/go-capnproto2/issues/97))
+  This is a long-standing bug with reading and writing multi-segment
+  messages.  I've added broader test coverage for multi-segment messages
+  and far pointers, so it's unlikely that such a failure will persist in
+  the future.
+- Accessing a field in a union when that field is not the one set now
+  results in a panic.  ([#56](https://github.com/capnproto/go-capnproto2/issues/56))
+  This is intended to help uncover programming mistakes where a union
+  field is accessed without checking `Which()`.  Prior to this change,
+  unset union field accessors would silently return garbage.
+
 ## 2.16.0
 
 - Add BUILD.bazel files ([#88](https://github.com/capnproto/go-capnproto2/issues/88))

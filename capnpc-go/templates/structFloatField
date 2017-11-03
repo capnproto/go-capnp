@@ -1,4 +1,5 @@
 func (s {{.Node.Name}}) {{.Field.Name|title}}() float{{.Bits}} {
+	{{template "_checktag" . -}}
 	return {{.G.Imports.Math}}.Float{{.Bits}}frombits(s.Struct.Uint{{.Bits}}({{.Offset}}){{with .Default}} ^ {{printf "%#x" .}}{{end}})
 }
 

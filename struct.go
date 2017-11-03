@@ -72,6 +72,9 @@ func (p Struct) IsValid() bool {
 }
 
 // Address returns the address the pointer references.
+//
+// Deprecated: The return value is not well-defined.  Use SamePtr if you
+// need to check whether two pointers refer to the same object.
 func (p Struct) Address() Address {
 	return p.off
 }
@@ -88,12 +91,6 @@ func (p Struct) readSize() Size {
 		return 0
 	}
 	return p.size.totalSize()
-}
-
-// value returns a raw struct pointer.
-func (p Struct) value(paddr Address) rawPointer {
-	off := makePointerOffset(paddr, p.off)
-	return rawStructPointer(off, p.size)
 }
 
 // Ptr returns the i'th pointer in the struct.

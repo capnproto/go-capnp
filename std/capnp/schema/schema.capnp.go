@@ -1004,6 +1004,9 @@ func (s Field_ordinal) SetImplicit() {
 }
 
 func (s Field_ordinal) Explicit() uint16 {
+	if s.Struct.Uint16(10) != 1 {
+		panic("Which() != explicit")
+	}
 	return s.Struct.Uint16(12)
 }
 
@@ -2163,6 +2166,9 @@ func (s Brand_Scope) SetScopeId(v uint64) {
 }
 
 func (s Brand_Scope) Bind() (Brand_Binding_List, error) {
+	if s.Struct.Uint16(8) != 0 {
+		panic("Which() != bind")
+	}
 	p, err := s.Struct.Ptr(0)
 	return Brand_Binding_List{List: p.List()}, err
 }
@@ -2274,6 +2280,9 @@ func (s Brand_Binding) SetUnbound() {
 }
 
 func (s Brand_Binding) Type() (Type, error) {
+	if s.Struct.Uint16(0) != 1 {
+		panic("Which() != type")
+	}
 	p, err := s.Struct.Ptr(0)
 	return Type{Struct: p.Struct()}, err
 }
@@ -2435,6 +2444,9 @@ func (s Value) SetVoid() {
 }
 
 func (s Value) Bool() bool {
+	if s.Struct.Uint16(0) != 1 {
+		panic("Which() != bool")
+	}
 	return s.Struct.Bit(16)
 }
 
@@ -2444,6 +2456,9 @@ func (s Value) SetBool(v bool) {
 }
 
 func (s Value) Int8() int8 {
+	if s.Struct.Uint16(0) != 2 {
+		panic("Which() != int8")
+	}
 	return int8(s.Struct.Uint8(2))
 }
 
@@ -2453,6 +2468,9 @@ func (s Value) SetInt8(v int8) {
 }
 
 func (s Value) Int16() int16 {
+	if s.Struct.Uint16(0) != 3 {
+		panic("Which() != int16")
+	}
 	return int16(s.Struct.Uint16(2))
 }
 
@@ -2462,6 +2480,9 @@ func (s Value) SetInt16(v int16) {
 }
 
 func (s Value) Int32() int32 {
+	if s.Struct.Uint16(0) != 4 {
+		panic("Which() != int32")
+	}
 	return int32(s.Struct.Uint32(4))
 }
 
@@ -2471,6 +2492,9 @@ func (s Value) SetInt32(v int32) {
 }
 
 func (s Value) Int64() int64 {
+	if s.Struct.Uint16(0) != 5 {
+		panic("Which() != int64")
+	}
 	return int64(s.Struct.Uint64(8))
 }
 
@@ -2480,6 +2504,9 @@ func (s Value) SetInt64(v int64) {
 }
 
 func (s Value) Uint8() uint8 {
+	if s.Struct.Uint16(0) != 6 {
+		panic("Which() != uint8")
+	}
 	return s.Struct.Uint8(2)
 }
 
@@ -2489,6 +2516,9 @@ func (s Value) SetUint8(v uint8) {
 }
 
 func (s Value) Uint16() uint16 {
+	if s.Struct.Uint16(0) != 7 {
+		panic("Which() != uint16")
+	}
 	return s.Struct.Uint16(2)
 }
 
@@ -2498,6 +2528,9 @@ func (s Value) SetUint16(v uint16) {
 }
 
 func (s Value) Uint32() uint32 {
+	if s.Struct.Uint16(0) != 8 {
+		panic("Which() != uint32")
+	}
 	return s.Struct.Uint32(4)
 }
 
@@ -2507,6 +2540,9 @@ func (s Value) SetUint32(v uint32) {
 }
 
 func (s Value) Uint64() uint64 {
+	if s.Struct.Uint16(0) != 9 {
+		panic("Which() != uint64")
+	}
 	return s.Struct.Uint64(8)
 }
 
@@ -2516,6 +2552,9 @@ func (s Value) SetUint64(v uint64) {
 }
 
 func (s Value) Float32() float32 {
+	if s.Struct.Uint16(0) != 10 {
+		panic("Which() != float32")
+	}
 	return math.Float32frombits(s.Struct.Uint32(4))
 }
 
@@ -2525,6 +2564,9 @@ func (s Value) SetFloat32(v float32) {
 }
 
 func (s Value) Float64() float64 {
+	if s.Struct.Uint16(0) != 11 {
+		panic("Which() != float64")
+	}
 	return math.Float64frombits(s.Struct.Uint64(8))
 }
 
@@ -2534,6 +2576,9 @@ func (s Value) SetFloat64(v float64) {
 }
 
 func (s Value) Text() (string, error) {
+	if s.Struct.Uint16(0) != 12 {
+		panic("Which() != text")
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
 }
@@ -2556,6 +2601,9 @@ func (s Value) SetText(v string) error {
 }
 
 func (s Value) Data() ([]byte, error) {
+	if s.Struct.Uint16(0) != 13 {
+		panic("Which() != data")
+	}
 	p, err := s.Struct.Ptr(0)
 	return []byte(p.Data()), err
 }
@@ -2573,6 +2621,9 @@ func (s Value) SetData(v []byte) error {
 }
 
 func (s Value) List() (capnp.Ptr, error) {
+	if s.Struct.Uint16(0) != 14 {
+		panic("Which() != list")
+	}
 	return s.Struct.Ptr(0)
 }
 
@@ -2589,6 +2640,9 @@ func (s Value) SetList(v capnp.Ptr) error {
 }
 
 func (s Value) Enum() uint16 {
+	if s.Struct.Uint16(0) != 15 {
+		panic("Which() != enum")
+	}
 	return s.Struct.Uint16(2)
 }
 
@@ -2598,6 +2652,9 @@ func (s Value) SetEnum(v uint16) {
 }
 
 func (s Value) StructValue() (capnp.Ptr, error) {
+	if s.Struct.Uint16(0) != 16 {
+		panic("Which() != structValue")
+	}
 	return s.Struct.Ptr(0)
 }
 
@@ -2619,6 +2676,9 @@ func (s Value) SetInterface() {
 }
 
 func (s Value) AnyPointer() (capnp.Ptr, error) {
+	if s.Struct.Uint16(0) != 18 {
+		panic("Which() != anyPointer")
+	}
 	return s.Struct.Ptr(0)
 }
 

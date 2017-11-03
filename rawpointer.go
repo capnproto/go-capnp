@@ -3,18 +3,19 @@ package capnp
 // pointerOffset is an address offset in multiples of word size.
 type pointerOffset int32
 
-// resolve returns the absolute address, given that the pointer is located at paddr.
-func (off pointerOffset) resolve(paddr Address) (addr Address, ok bool) {
-	// TODO(light): verify
-	if off < 0 && Address(-off) > paddr {
-		return 0, false
+// resolve returns an absolute address relative to a base address.
+// For near pointers, the base is the end of the near pointer.
+// For far pointers, the base is zero (the beginning of the segment).
+func (off pointerOffset) resolve(base Address) (_ Address, ok bool) {
+	if off == 0 {
+		return base, true
 	}
-	return paddr + Address(off*8) + 8, true
+	addr := base + Address(off*pointerOffset(wordSize))
+	return addr, (addr > base || off < 0) && (addr < base || off > 0)
 }
 
-// makePointerOffset computes the offset for a pointer at paddr to point to addr.
-func makePointerOffset(paddr, addr Address) pointerOffset {
-	// TODO(light): verify
+// nearPointerOffset computes the offset for a pointer at paddr to point to addr.
+func nearPointerOffset(paddr, addr Address) pointerOffset {
 	return pointerOffset(addr/Address(wordSize) - paddr/Address(wordSize) - 1)
 }
 
@@ -24,7 +25,7 @@ type rawPointer uint64
 // rawStructPointer returns a struct pointer.  The offset is from the
 // end of the pointer to the start of the struct.
 func rawStructPointer(off pointerOffset, sz ObjectSize) rawPointer {
-	return structPointer | orable30BitOffsetPart(off) | rawPointer(sz.dataWordCount())<<32 | rawPointer(sz.PointerCount)<<48
+	return rawPointer(structPointer) | rawPointer(uint32(off)<<2) | rawPointer(sz.dataWordCount())<<32 | rawPointer(sz.PointerCount)<<48
 }
 
 // rawListPointer returns a list pointer.  The offset is the number of
@@ -32,65 +33,54 @@ func rawStructPointer(off pointerOffset, sz ObjectSize) rawPointer {
 // listType is compositeList, then length is the number of words
 // that the list occupies, otherwise it is the number of elements in
 // the list.
-func rawListPointer(off pointerOffset, listType int, length int32) rawPointer {
-	return listPointer | orable30BitOffsetPart(off) | rawPointer(listType)<<32 | rawPointer(length)<<35
+func rawListPointer(off pointerOffset, listType listType, length int32) rawPointer {
+	return rawPointer(listPointer) | rawPointer(uint32(off)<<2) | rawPointer(listType)<<32 | rawPointer(length)<<35
 }
 
 // rawInterfacePointer returns an interface pointer that references
 // a capability number.
 func rawInterfacePointer(capability CapabilityID) rawPointer {
-	return otherPointer | rawPointer(capability)<<32
+	return rawPointer(otherPointer) | rawPointer(capability)<<32
 }
 
 // rawFarPointer returns a pointer to a pointer in another segment.
 func rawFarPointer(segID SegmentID, off Address) rawPointer {
-	return farPointer | rawPointer(off&^7) | (rawPointer(segID) << 32)
+	return rawPointer(farPointer) | rawPointer(off&^7) | (rawPointer(segID) << 32)
 }
 
 // rawDoubleFarPointer returns a pointer to a pointer in another segment.
 func rawDoubleFarPointer(segID SegmentID, off Address) rawPointer {
-	return doubleFarPointer | rawPointer(off&^7) | (rawPointer(segID) << 32)
+	return rawPointer(doubleFarPointer) | rawPointer(off&^7) | (rawPointer(segID) << 32)
 }
 
-// landingPadNearPointer converts a far pointer landing pad into
+// landingPadNearPointer converts a double-far pointer landing pad into
 // a near pointer in the destination segment.  Its offset will be
-// relative to the beginning of the segment.
+// relative to the beginning of the segment.  tag must be either a
+// struct or a list pointer.
 func landingPadNearPointer(far, tag rawPointer) rawPointer {
-	// remove 1 word and we'll get the offset to the start of the data section
-	rawFarFarPointer := rawPointer(far.farAddress() / Address(wordSize) - 1)
-	
-	// finally to get an actual pointer do an OR with the tag after moving rawFarFarPointer
-	// by 2 bits which are the type indicator bits
-	return tag | rawFarFarPointer << 2
+	// Replace tag's offset with far's offset.
+	// far's offset (29-bit unsigned) just needs to be shifted down to
+	// make it into a signed 30-bit value.
+	return tag&^0xfffffffc | rawPointer(uint32(far&^3)>>1)
 }
+
+type pointerType int
 
 // Raw pointer types.
 const (
-	structPointer    = 0
-	listPointer      = 1
-	farPointer       = 2
-	doubleFarPointer = 6
-	otherPointer     = 3
+	structPointer    pointerType = 0
+	listPointer      pointerType = 1
+	farPointer       pointerType = 2
+	doubleFarPointer pointerType = 6
+	otherPointer     pointerType = 3
 )
 
-// Raw list pointer types.
-const (
-	voidList      = 0
-	bit1List      = 1
-	byte1List     = 2
-	byte2List     = 3
-	byte4List     = 4
-	byte8List     = 5
-	pointerList   = 6
-	compositeList = 7
-)
-
-func (p rawPointer) pointerType() int {
-	t := p & 3
+func (p rawPointer) pointerType() pointerType {
+	t := pointerType(p & 3)
 	if t == farPointer {
-		return int(p & 7)
+		return pointerType(p & 7)
 	}
-	return int(t)
+	return t
 }
 
 func (p rawPointer) structSize() ObjectSize {
@@ -102,8 +92,22 @@ func (p rawPointer) structSize() ObjectSize {
 	}
 }
 
-func (p rawPointer) listType() int {
-	return int((p >> 32) & 7)
+type listType int
+
+// Raw list pointer types.
+const (
+	voidList      listType = 0
+	bit1List      listType = 1
+	byte1List     listType = 2
+	byte2List     listType = 3
+	byte4List     listType = 4
+	byte8List     listType = 5
+	pointerList   listType = 6
+	compositeList listType = 7
+)
+
+func (p rawPointer) listType() listType {
+	return listType((p >> 32) & 7)
 }
 
 func (p rawPointer) numListElements() int32 {
@@ -149,57 +153,34 @@ func (p rawPointer) totalListSize() (sz Size, ok bool) {
 	}
 }
 
-// used in orable30BitOffsetPart(), rawPointer.offset(), and rawPointer.otherPointerType()
-const zerohi32 rawPointer = ^(^0 << 32)
-
-// orable30BitOffsetPart(): get an or-able value that handles sign
-// conversion. Creates part B in a struct (or list) pointer, leaving
-// parts A, C, and D completely zeroed in the returned uint64.
-//
-// From the spec:
-//
-// lsb                      struct pointer                       msb
-// +-+-----------------------------+---------------+---------------+
-// |A|             B               |       C       |       D       |
-// +-+-----------------------------+---------------+---------------+
-//
-// A (2 bits) = 0, to indicate that this is a struct pointer.
-// B (30 bits) = Offset, in words, from the end of the pointer to the
-//     start of the struct's data section.  Signed.
-// C (16 bits) = Size of the struct's data section, in words.
-// D (16 bits) = Size of the struct's pointer section, in words.
-//
-// (B is the same for list pointers, but C and D have different size
-// and meaning)
-//
-func orable30BitOffsetPart(signedOff pointerOffset) rawPointer {
-	d32 := signedOff << 2
-	return rawPointer(d32) & zerohi32
-}
-
-// and convert in the other direction, extracting the count from
-// the B section into an int
+// offset returns a pointer's offset.  Only valid for struct or list
+// pointers.
 func (p rawPointer) offset() pointerOffset {
-	u64 := p & zerohi32
-	u32 := uint32(u64)
-	s32 := int32(u32) >> 2
-	return pointerOffset(s32)
+	return pointerOffset(int32(p) >> 2)
 }
 
-// otherPointerType returns the type of "other pointer" from p.
-func (p rawPointer) otherPointerType() uint32 {
-	return uint32(p & zerohi32 >> 2)
+// withOffset replaces a pointer's offset.  Only valid for struct or
+// list pointers.
+func (p rawPointer) withOffset(off pointerOffset) rawPointer {
+	return p&^0xfffffffc | rawPointer(uint32(off<<2))
 }
 
 // farAddress returns the address of the landing pad pointer.
 func (p rawPointer) farAddress() Address {
-	// 29-bit*8 < 32-bits, so overflow is impossible.
-	return Address(p&(1<<32-1)>>3) * Address(wordSize)
+	// Far pointer offset is 29 bits, starting after the low 3 bits.
+	// It's an unsigned word offset, which would be equivalent to a
+	// logical left shift by 3.
+	return Address(p) &^ 7
 }
 
 // farSegment returns the segment ID that the far pointer references.
 func (p rawPointer) farSegment() SegmentID {
 	return SegmentID(p >> 32)
+}
+
+// otherPointerType returns the type of "other pointer" from p.
+func (p rawPointer) otherPointerType() uint32 {
+	return uint32(p) >> 2
 }
 
 // capabilityIndex returns the index of the capability in the message's capability table.
