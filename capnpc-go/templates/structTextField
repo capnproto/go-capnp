@@ -1,4 +1,5 @@
 func (s {{.Node.Name}}) {{.Field.Name|title}}() (string, error) {
+	{{template "_checktag" . -}}
 	p, err := s.Struct.Ptr({{.Field.Slot.Offset}})
 	{{with .Default -}}
 	return p.TextDefault({{printf "%q" .}}), err

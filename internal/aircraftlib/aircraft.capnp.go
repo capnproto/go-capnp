@@ -822,6 +822,9 @@ func (s Aircraft) SetVoid() {
 }
 
 func (s Aircraft) B737() (B737, error) {
+	if s.Struct.Uint16(0) != 1 {
+		panic("Which() != b737")
+	}
 	p, err := s.Struct.Ptr(0)
 	return B737{Struct: p.Struct()}, err
 }
@@ -852,6 +855,9 @@ func (s Aircraft) NewB737() (B737, error) {
 }
 
 func (s Aircraft) A320() (A320, error) {
+	if s.Struct.Uint16(0) != 2 {
+		panic("Which() != a320")
+	}
 	p, err := s.Struct.Ptr(0)
 	return A320{Struct: p.Struct()}, err
 }
@@ -882,6 +888,9 @@ func (s Aircraft) NewA320() (A320, error) {
 }
 
 func (s Aircraft) F16() (F16, error) {
+	if s.Struct.Uint16(0) != 3 {
+		panic("Which() != f16")
+	}
 	p, err := s.Struct.Ptr(0)
 	return F16{Struct: p.Struct()}, err
 }
@@ -1131,6 +1140,9 @@ func (s Z) SetVoid() {
 }
 
 func (s Z) Zz() (Z, error) {
+	if s.Struct.Uint16(0) != 1 {
+		panic("Which() != zz")
+	}
 	p, err := s.Struct.Ptr(0)
 	return Z{Struct: p.Struct()}, err
 }
@@ -1161,6 +1173,9 @@ func (s Z) NewZz() (Z, error) {
 }
 
 func (s Z) F64() float64 {
+	if s.Struct.Uint16(0) != 2 {
+		panic("Which() != f64")
+	}
 	return math.Float64frombits(s.Struct.Uint64(8))
 }
 
@@ -1170,6 +1185,9 @@ func (s Z) SetF64(v float64) {
 }
 
 func (s Z) F32() float32 {
+	if s.Struct.Uint16(0) != 3 {
+		panic("Which() != f32")
+	}
 	return math.Float32frombits(s.Struct.Uint32(8))
 }
 
@@ -1179,6 +1197,9 @@ func (s Z) SetF32(v float32) {
 }
 
 func (s Z) I64() int64 {
+	if s.Struct.Uint16(0) != 4 {
+		panic("Which() != i64")
+	}
 	return int64(s.Struct.Uint64(8))
 }
 
@@ -1188,6 +1209,9 @@ func (s Z) SetI64(v int64) {
 }
 
 func (s Z) I32() int32 {
+	if s.Struct.Uint16(0) != 5 {
+		panic("Which() != i32")
+	}
 	return int32(s.Struct.Uint32(8))
 }
 
@@ -1197,6 +1221,9 @@ func (s Z) SetI32(v int32) {
 }
 
 func (s Z) I16() int16 {
+	if s.Struct.Uint16(0) != 6 {
+		panic("Which() != i16")
+	}
 	return int16(s.Struct.Uint16(8))
 }
 
@@ -1206,6 +1233,9 @@ func (s Z) SetI16(v int16) {
 }
 
 func (s Z) I8() int8 {
+	if s.Struct.Uint16(0) != 7 {
+		panic("Which() != i8")
+	}
 	return int8(s.Struct.Uint8(8))
 }
 
@@ -1215,6 +1245,9 @@ func (s Z) SetI8(v int8) {
 }
 
 func (s Z) U64() uint64 {
+	if s.Struct.Uint16(0) != 8 {
+		panic("Which() != u64")
+	}
 	return s.Struct.Uint64(8)
 }
 
@@ -1224,6 +1257,9 @@ func (s Z) SetU64(v uint64) {
 }
 
 func (s Z) U32() uint32 {
+	if s.Struct.Uint16(0) != 9 {
+		panic("Which() != u32")
+	}
 	return s.Struct.Uint32(8)
 }
 
@@ -1233,6 +1269,9 @@ func (s Z) SetU32(v uint32) {
 }
 
 func (s Z) U16() uint16 {
+	if s.Struct.Uint16(0) != 10 {
+		panic("Which() != u16")
+	}
 	return s.Struct.Uint16(8)
 }
 
@@ -1242,6 +1281,9 @@ func (s Z) SetU16(v uint16) {
 }
 
 func (s Z) U8() uint8 {
+	if s.Struct.Uint16(0) != 11 {
+		panic("Which() != u8")
+	}
 	return s.Struct.Uint8(8)
 }
 
@@ -1251,6 +1293,9 @@ func (s Z) SetU8(v uint8) {
 }
 
 func (s Z) Bool() bool {
+	if s.Struct.Uint16(0) != 12 {
+		panic("Which() != bool")
+	}
 	return s.Struct.Bit(64)
 }
 
@@ -1260,6 +1305,9 @@ func (s Z) SetBool(v bool) {
 }
 
 func (s Z) Text() (string, error) {
+	if s.Struct.Uint16(0) != 13 {
+		panic("Which() != text")
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
 }
@@ -1283,6 +1331,9 @@ func (s Z) SetText(v string) error {
 }
 
 func (s Z) Blob() ([]byte, error) {
+	if s.Struct.Uint16(0) != 14 {
+		panic("Which() != blob")
+	}
 	p, err := s.Struct.Ptr(0)
 	return []byte(p.Data()), err
 }
@@ -1301,6 +1352,9 @@ func (s Z) SetBlob(v []byte) error {
 }
 
 func (s Z) F64vec() (capnp.Float64List, error) {
+	if s.Struct.Uint16(0) != 15 {
+		panic("Which() != f64vec")
+	}
 	p, err := s.Struct.Ptr(0)
 	return capnp.Float64List{List: p.List()}, err
 }
@@ -1331,6 +1385,9 @@ func (s Z) NewF64vec(n int32) (capnp.Float64List, error) {
 }
 
 func (s Z) F32vec() (capnp.Float32List, error) {
+	if s.Struct.Uint16(0) != 16 {
+		panic("Which() != f32vec")
+	}
 	p, err := s.Struct.Ptr(0)
 	return capnp.Float32List{List: p.List()}, err
 }
@@ -1361,6 +1418,9 @@ func (s Z) NewF32vec(n int32) (capnp.Float32List, error) {
 }
 
 func (s Z) I64vec() (capnp.Int64List, error) {
+	if s.Struct.Uint16(0) != 17 {
+		panic("Which() != i64vec")
+	}
 	p, err := s.Struct.Ptr(0)
 	return capnp.Int64List{List: p.List()}, err
 }
@@ -1391,6 +1451,9 @@ func (s Z) NewI64vec(n int32) (capnp.Int64List, error) {
 }
 
 func (s Z) I32vec() (capnp.Int32List, error) {
+	if s.Struct.Uint16(0) != 18 {
+		panic("Which() != i32vec")
+	}
 	p, err := s.Struct.Ptr(0)
 	return capnp.Int32List{List: p.List()}, err
 }
@@ -1421,6 +1484,9 @@ func (s Z) NewI32vec(n int32) (capnp.Int32List, error) {
 }
 
 func (s Z) I16vec() (capnp.Int16List, error) {
+	if s.Struct.Uint16(0) != 19 {
+		panic("Which() != i16vec")
+	}
 	p, err := s.Struct.Ptr(0)
 	return capnp.Int16List{List: p.List()}, err
 }
@@ -1451,6 +1517,9 @@ func (s Z) NewI16vec(n int32) (capnp.Int16List, error) {
 }
 
 func (s Z) I8vec() (capnp.Int8List, error) {
+	if s.Struct.Uint16(0) != 20 {
+		panic("Which() != i8vec")
+	}
 	p, err := s.Struct.Ptr(0)
 	return capnp.Int8List{List: p.List()}, err
 }
@@ -1481,6 +1550,9 @@ func (s Z) NewI8vec(n int32) (capnp.Int8List, error) {
 }
 
 func (s Z) U64vec() (capnp.UInt64List, error) {
+	if s.Struct.Uint16(0) != 21 {
+		panic("Which() != u64vec")
+	}
 	p, err := s.Struct.Ptr(0)
 	return capnp.UInt64List{List: p.List()}, err
 }
@@ -1511,6 +1583,9 @@ func (s Z) NewU64vec(n int32) (capnp.UInt64List, error) {
 }
 
 func (s Z) U32vec() (capnp.UInt32List, error) {
+	if s.Struct.Uint16(0) != 22 {
+		panic("Which() != u32vec")
+	}
 	p, err := s.Struct.Ptr(0)
 	return capnp.UInt32List{List: p.List()}, err
 }
@@ -1541,6 +1616,9 @@ func (s Z) NewU32vec(n int32) (capnp.UInt32List, error) {
 }
 
 func (s Z) U16vec() (capnp.UInt16List, error) {
+	if s.Struct.Uint16(0) != 23 {
+		panic("Which() != u16vec")
+	}
 	p, err := s.Struct.Ptr(0)
 	return capnp.UInt16List{List: p.List()}, err
 }
@@ -1571,6 +1649,9 @@ func (s Z) NewU16vec(n int32) (capnp.UInt16List, error) {
 }
 
 func (s Z) U8vec() (capnp.UInt8List, error) {
+	if s.Struct.Uint16(0) != 24 {
+		panic("Which() != u8vec")
+	}
 	p, err := s.Struct.Ptr(0)
 	return capnp.UInt8List{List: p.List()}, err
 }
@@ -1601,6 +1682,9 @@ func (s Z) NewU8vec(n int32) (capnp.UInt8List, error) {
 }
 
 func (s Z) Boolvec() (capnp.BitList, error) {
+	if s.Struct.Uint16(0) != 39 {
+		panic("Which() != boolvec")
+	}
 	p, err := s.Struct.Ptr(0)
 	return capnp.BitList{List: p.List()}, err
 }
@@ -1631,6 +1715,9 @@ func (s Z) NewBoolvec(n int32) (capnp.BitList, error) {
 }
 
 func (s Z) Datavec() (capnp.DataList, error) {
+	if s.Struct.Uint16(0) != 40 {
+		panic("Which() != datavec")
+	}
 	p, err := s.Struct.Ptr(0)
 	return capnp.DataList{List: p.List()}, err
 }
@@ -1661,6 +1748,9 @@ func (s Z) NewDatavec(n int32) (capnp.DataList, error) {
 }
 
 func (s Z) Textvec() (capnp.TextList, error) {
+	if s.Struct.Uint16(0) != 41 {
+		panic("Which() != textvec")
+	}
 	p, err := s.Struct.Ptr(0)
 	return capnp.TextList{List: p.List()}, err
 }
@@ -1691,6 +1781,9 @@ func (s Z) NewTextvec(n int32) (capnp.TextList, error) {
 }
 
 func (s Z) Zvec() (Z_List, error) {
+	if s.Struct.Uint16(0) != 25 {
+		panic("Which() != zvec")
+	}
 	p, err := s.Struct.Ptr(0)
 	return Z_List{List: p.List()}, err
 }
@@ -1721,6 +1814,9 @@ func (s Z) NewZvec(n int32) (Z_List, error) {
 }
 
 func (s Z) Zvecvec() (capnp.PointerList, error) {
+	if s.Struct.Uint16(0) != 26 {
+		panic("Which() != zvecvec")
+	}
 	p, err := s.Struct.Ptr(0)
 	return capnp.PointerList{List: p.List()}, err
 }
@@ -1751,6 +1847,9 @@ func (s Z) NewZvecvec(n int32) (capnp.PointerList, error) {
 }
 
 func (s Z) Zdate() (Zdate, error) {
+	if s.Struct.Uint16(0) != 27 {
+		panic("Which() != zdate")
+	}
 	p, err := s.Struct.Ptr(0)
 	return Zdate{Struct: p.Struct()}, err
 }
@@ -1781,6 +1880,9 @@ func (s Z) NewZdate() (Zdate, error) {
 }
 
 func (s Z) Zdata() (Zdata, error) {
+	if s.Struct.Uint16(0) != 28 {
+		panic("Which() != zdata")
+	}
 	p, err := s.Struct.Ptr(0)
 	return Zdata{Struct: p.Struct()}, err
 }
@@ -1811,6 +1913,9 @@ func (s Z) NewZdata() (Zdata, error) {
 }
 
 func (s Z) Aircraftvec() (Aircraft_List, error) {
+	if s.Struct.Uint16(0) != 29 {
+		panic("Which() != aircraftvec")
+	}
 	p, err := s.Struct.Ptr(0)
 	return Aircraft_List{List: p.List()}, err
 }
@@ -1841,6 +1946,9 @@ func (s Z) NewAircraftvec(n int32) (Aircraft_List, error) {
 }
 
 func (s Z) Aircraft() (Aircraft, error) {
+	if s.Struct.Uint16(0) != 30 {
+		panic("Which() != aircraft")
+	}
 	p, err := s.Struct.Ptr(0)
 	return Aircraft{Struct: p.Struct()}, err
 }
@@ -1871,6 +1979,9 @@ func (s Z) NewAircraft() (Aircraft, error) {
 }
 
 func (s Z) Regression() (Regression, error) {
+	if s.Struct.Uint16(0) != 31 {
+		panic("Which() != regression")
+	}
 	p, err := s.Struct.Ptr(0)
 	return Regression{Struct: p.Struct()}, err
 }
@@ -1901,6 +2012,9 @@ func (s Z) NewRegression() (Regression, error) {
 }
 
 func (s Z) Planebase() (PlaneBase, error) {
+	if s.Struct.Uint16(0) != 32 {
+		panic("Which() != planebase")
+	}
 	p, err := s.Struct.Ptr(0)
 	return PlaneBase{Struct: p.Struct()}, err
 }
@@ -1931,6 +2045,9 @@ func (s Z) NewPlanebase() (PlaneBase, error) {
 }
 
 func (s Z) Airport() Airport {
+	if s.Struct.Uint16(0) != 33 {
+		panic("Which() != airport")
+	}
 	return Airport(s.Struct.Uint16(8))
 }
 
@@ -1940,6 +2057,9 @@ func (s Z) SetAirport(v Airport) {
 }
 
 func (s Z) B737() (B737, error) {
+	if s.Struct.Uint16(0) != 34 {
+		panic("Which() != b737")
+	}
 	p, err := s.Struct.Ptr(0)
 	return B737{Struct: p.Struct()}, err
 }
@@ -1970,6 +2090,9 @@ func (s Z) NewB737() (B737, error) {
 }
 
 func (s Z) A320() (A320, error) {
+	if s.Struct.Uint16(0) != 35 {
+		panic("Which() != a320")
+	}
 	p, err := s.Struct.Ptr(0)
 	return A320{Struct: p.Struct()}, err
 }
@@ -2000,6 +2123,9 @@ func (s Z) NewA320() (A320, error) {
 }
 
 func (s Z) F16() (F16, error) {
+	if s.Struct.Uint16(0) != 36 {
+		panic("Which() != f16")
+	}
 	p, err := s.Struct.Ptr(0)
 	return F16{Struct: p.Struct()}, err
 }
@@ -2030,6 +2156,9 @@ func (s Z) NewF16() (F16, error) {
 }
 
 func (s Z) Zdatevec() (Zdate_List, error) {
+	if s.Struct.Uint16(0) != 37 {
+		panic("Which() != zdatevec")
+	}
 	p, err := s.Struct.Ptr(0)
 	return Zdate_List{List: p.List()}, err
 }
@@ -2060,6 +2189,9 @@ func (s Z) NewZdatevec(n int32) (Zdate_List, error) {
 }
 
 func (s Z) Zdatavec() (Zdata_List, error) {
+	if s.Struct.Uint16(0) != 38 {
+		panic("Which() != zdatavec")
+	}
 	p, err := s.Struct.Ptr(0)
 	return Zdata_List{List: p.List()}, err
 }
@@ -2112,6 +2244,9 @@ func (s Z_grp) SetSecond(v uint64) {
 }
 
 func (s Z) Echo() Echo {
+	if s.Struct.Uint16(0) != 43 {
+		panic("Which() != echo")
+	}
 	p, _ := s.Struct.Ptr(0)
 	return Echo{Client: p.Interface().Client()}
 }
@@ -2135,6 +2270,9 @@ func (s Z) SetEcho(v Echo) error {
 }
 
 func (s Z) EchoBases() (EchoBases, error) {
+	if s.Struct.Uint16(0) != 44 {
+		panic("Which() != echoBases")
+	}
 	p, err := s.Struct.Ptr(0)
 	return EchoBases{Struct: p.Struct()}, err
 }

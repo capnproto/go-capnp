@@ -1,4 +1,5 @@
 func (s {{.Node.Name}}) {{.Field.Name|title}}() ({{.G.Capnp}}.Pointer, error) {
+	{{template "_checktag" . -}}
 	{{if .Default.IsValid -}}
 	p, err := s.Struct.Pointer({{.Field.Slot.Offset}})
 	if err != nil {

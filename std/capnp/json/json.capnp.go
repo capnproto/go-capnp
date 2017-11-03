@@ -77,6 +77,9 @@ func (s JsonValue) SetNull() {
 }
 
 func (s JsonValue) Boolean() bool {
+	if s.Struct.Uint16(0) != 1 {
+		panic("Which() != boolean")
+	}
 	return s.Struct.Bit(16)
 }
 
@@ -86,6 +89,9 @@ func (s JsonValue) SetBoolean(v bool) {
 }
 
 func (s JsonValue) Number() float64 {
+	if s.Struct.Uint16(0) != 2 {
+		panic("Which() != number")
+	}
 	return math.Float64frombits(s.Struct.Uint64(8))
 }
 
@@ -95,6 +101,9 @@ func (s JsonValue) SetNumber(v float64) {
 }
 
 func (s JsonValue) String_() (string, error) {
+	if s.Struct.Uint16(0) != 3 {
+		panic("Which() != string_")
+	}
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
 }
@@ -118,6 +127,9 @@ func (s JsonValue) SetString_(v string) error {
 }
 
 func (s JsonValue) Array() (JsonValue_List, error) {
+	if s.Struct.Uint16(0) != 4 {
+		panic("Which() != array")
+	}
 	p, err := s.Struct.Ptr(0)
 	return JsonValue_List{List: p.List()}, err
 }
@@ -148,6 +160,9 @@ func (s JsonValue) NewArray(n int32) (JsonValue_List, error) {
 }
 
 func (s JsonValue) Object() (JsonValue_Field_List, error) {
+	if s.Struct.Uint16(0) != 5 {
+		panic("Which() != object")
+	}
 	p, err := s.Struct.Ptr(0)
 	return JsonValue_Field_List{List: p.List()}, err
 }
@@ -178,6 +193,9 @@ func (s JsonValue) NewObject(n int32) (JsonValue_Field_List, error) {
 }
 
 func (s JsonValue) Call() (JsonValue_Call, error) {
+	if s.Struct.Uint16(0) != 6 {
+		panic("Which() != call")
+	}
 	p, err := s.Struct.Ptr(0)
 	return JsonValue_Call{Struct: p.Struct()}, err
 }

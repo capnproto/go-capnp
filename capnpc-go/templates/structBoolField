@@ -1,4 +1,5 @@
 func (s {{.Node.Name}}) {{.Field.Name|title}}() bool {
+	{{template "_checktag" . -}}
 	return {{if .Default}}!{{end}}s.Struct.Bit({{.Field.Slot.Offset}})
 }
 
