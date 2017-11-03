@@ -472,10 +472,14 @@ func nextAlloc(curr, max int64, req Size) (int, error) {
 	new := curr
 	double := new + new
 	switch {
+	case want < 1024:
+		next := (1024 - curr + 7) &^ 7
+		if next < curr {
+			return int((curr + 7) &^ 7), nil
+		}
+		return int(next), nil
 	case want > double:
 		return int(req), nil
-	case curr < 1024:
-		return int((curr + 7) &^ 7), nil
 	default:
 		for 0 < new && new < want {
 			new += new / 4
