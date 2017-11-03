@@ -171,7 +171,11 @@ func TestTCPStreamTransport(t *testing.T) {
 		err error
 	}
 	makePipe := func() (t1, t2 rpc.Transport, err error) {
-		l, err := net.ListenTCP("tcp", &net.TCPAddr{IP: net.IPv6loopback})
+		host, err := net.LookupIP("localhost")
+		if err != nil {
+			return nil, nil, err
+		}
+		l, err := net.ListenTCP("tcp", &net.TCPAddr{IP: host[0]})
 		if err != nil {
 			return nil, nil, err
 		}
