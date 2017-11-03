@@ -202,7 +202,7 @@ func (p List) primitiveElem(i int, expectedSize ObjectSize) (Address, error) {
 		// This is programmer error, not input error.
 		panic(errOutOfBounds)
 	}
-	if p.flags&isBitList != 0 || p.flags&compositeList == 0 && p.size != expectedSize || p.flags&compositeList != 0 && (p.size.DataSize < expectedSize.DataSize || p.size.PointerCount < expectedSize.PointerCount) {
+	if p.flags&isBitList != 0 || p.flags&isCompositeList == 0 && p.size != expectedSize || p.flags&isCompositeList != 0 && (p.size.DataSize < expectedSize.DataSize || p.size.PointerCount < expectedSize.PointerCount) {
 		return 0, errElementSize
 	}
 	addr, ok := p.off.element(int32(i), p.size.totalSize())
