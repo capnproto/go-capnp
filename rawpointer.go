@@ -25,7 +25,7 @@ type rawPointer uint64
 // rawStructPointer returns a struct pointer.  The offset is from the
 // end of the pointer to the start of the struct.
 func rawStructPointer(off pointerOffset, sz ObjectSize) rawPointer {
-	return structPointer | rawPointer(uint32(off)<<2) | rawPointer(sz.dataWordCount())<<32 | rawPointer(sz.PointerCount)<<48
+	return rawPointer(structPointer) | rawPointer(uint32(off)<<2) | rawPointer(sz.dataWordCount())<<32 | rawPointer(sz.PointerCount)<<48
 }
 
 // rawListPointer returns a list pointer.  The offset is the number of
@@ -33,24 +33,24 @@ func rawStructPointer(off pointerOffset, sz ObjectSize) rawPointer {
 // listType is compositeList, then length is the number of words
 // that the list occupies, otherwise it is the number of elements in
 // the list.
-func rawListPointer(off pointerOffset, listType int, length int32) rawPointer {
-	return listPointer | rawPointer(uint32(off)<<2) | rawPointer(listType)<<32 | rawPointer(length)<<35
+func rawListPointer(off pointerOffset, listType listType, length int32) rawPointer {
+	return rawPointer(listPointer) | rawPointer(uint32(off)<<2) | rawPointer(listType)<<32 | rawPointer(length)<<35
 }
 
 // rawInterfacePointer returns an interface pointer that references
 // a capability number.
 func rawInterfacePointer(capability CapabilityID) rawPointer {
-	return otherPointer | rawPointer(capability)<<32
+	return rawPointer(otherPointer) | rawPointer(capability)<<32
 }
 
 // rawFarPointer returns a pointer to a pointer in another segment.
 func rawFarPointer(segID SegmentID, off Address) rawPointer {
-	return farPointer | rawPointer(off&^7) | (rawPointer(segID) << 32)
+	return rawPointer(farPointer) | rawPointer(off&^7) | (rawPointer(segID) << 32)
 }
 
 // rawDoubleFarPointer returns a pointer to a pointer in another segment.
 func rawDoubleFarPointer(segID SegmentID, off Address) rawPointer {
-	return doubleFarPointer | rawPointer(off&^7) | (rawPointer(segID) << 32)
+	return rawPointer(doubleFarPointer) | rawPointer(off&^7) | (rawPointer(segID) << 32)
 }
 
 // landingPadNearPointer converts a double-far pointer landing pad into
@@ -64,21 +64,23 @@ func landingPadNearPointer(far, tag rawPointer) rawPointer {
 	return tag&^0xfffffffc | rawPointer(uint32(far&^3)>>1)
 }
 
+type pointerType int
+
 // Raw pointer types.
 const (
-	structPointer    = 0
-	listPointer      = 1
-	farPointer       = 2
-	doubleFarPointer = 6
-	otherPointer     = 3
+	structPointer    pointerType = 0
+	listPointer      pointerType = 1
+	farPointer       pointerType = 2
+	doubleFarPointer pointerType = 6
+	otherPointer     pointerType = 3
 )
 
-func (p rawPointer) pointerType() int {
-	t := p & 3
+func (p rawPointer) pointerType() pointerType {
+	t := pointerType(p & 3)
 	if t == farPointer {
-		return int(p & 7)
+		return pointerType(p & 7)
 	}
-	return int(t)
+	return t
 }
 
 func (p rawPointer) structSize() ObjectSize {
@@ -90,20 +92,22 @@ func (p rawPointer) structSize() ObjectSize {
 	}
 }
 
+type listType int
+
 // Raw list pointer types.
 const (
-	voidList      = 0
-	bit1List      = 1
-	byte1List     = 2
-	byte2List     = 3
-	byte4List     = 4
-	byte8List     = 5
-	pointerList   = 6
-	compositeList = 7
+	voidList      listType = 0
+	bit1List      listType = 1
+	byte1List     listType = 2
+	byte2List     listType = 3
+	byte4List     listType = 4
+	byte8List     listType = 5
+	pointerList   listType = 6
+	compositeList listType = 7
 )
 
-func (p rawPointer) listType() int {
-	return int((p >> 32) & 7)
+func (p rawPointer) listType() listType {
+	return listType((p >> 32) & 7)
 }
 
 func (p rawPointer) numListElements() int32 {

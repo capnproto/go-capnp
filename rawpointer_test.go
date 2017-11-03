@@ -74,7 +74,7 @@ func TestRawListPointer(t *testing.T) {
 	tests := []struct {
 		ptr    rawPointer
 		offset pointerOffset
-		lt     int
+		lt     listType
 		n      int32
 	}{
 		{0x0000000000000001, 0, voidList, 0},
@@ -162,7 +162,7 @@ func TestRawOtherPointer(t *testing.T) {
 func TestRawFarPointer(t *testing.T) {
 	tests := []struct {
 		ptr  rawPointer
-		typ  int
+		typ  pointerType
 		addr Address
 		seg  SegmentID
 	}{
@@ -201,7 +201,7 @@ func TestRawFarPointer(t *testing.T) {
 
 func TestRawPointerElementSize(t *testing.T) {
 	tests := []struct {
-		typ int
+		typ listType
 		sz  ObjectSize
 	}{
 		{voidList, ObjectSize{}},
@@ -221,7 +221,7 @@ func TestRawPointerElementSize(t *testing.T) {
 
 func TestRawPointerTotalListSize(t *testing.T) {
 	tests := []struct {
-		typ int
+		typ listType
 		n   int32
 		sz  Size
 		ok  bool
