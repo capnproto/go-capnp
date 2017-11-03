@@ -113,9 +113,8 @@ func (s *Segment) lookupSegment(id SegmentID) (*Segment, error) {
 	return s.msg.Segment(id)
 }
 
-func (s *Segment) readPtr(off Address, depthLimit uint) (ptr Ptr, err error) {
-	val := s.readRawPointer(off)
-	s, off, val, err = s.resolveFarPointer(off, val)
+func (s *Segment) readPtr(paddr Address, depthLimit uint) (ptr Ptr, err error) {
+	s, base, val, err := s.resolveFarPointer(paddr)
 	if err != nil {
 		return Ptr{}, err
 	}
@@ -125,12 +124,9 @@ func (s *Segment) readPtr(off Address, depthLimit uint) (ptr Ptr, err error) {
 	if depthLimit == 0 {
 		return Ptr{}, errDepthLimit
 	}
-	// Be wary of overflow. Offset is 30 bits signed. List size is 29 bits
-	// unsigned. For both of these we need to check in terms of words if
-	// using 32 bit maths as bits or bytes will overflow.
 	switch val.pointerType() {
 	case structPointer:
-		sp, err := s.readStructPtr(off, val)
+		sp, err := s.readStructPtr(base, val)
 		if err != nil {
 			return Ptr{}, err
 		}
@@ -140,7 +136,7 @@ func (s *Segment) readPtr(off Address, depthLimit uint) (ptr Ptr, err error) {
 		sp.depthLimit = depthLimit - 1
 		return sp.ToPtr(), nil
 	case listPointer:
-		lp, err := s.readListPtr(off, val)
+		lp, err := s.readListPtr(base, val)
 		if err != nil {
 			return Ptr{}, err
 		}
@@ -163,8 +159,8 @@ func (s *Segment) readPtr(off Address, depthLimit uint) (ptr Ptr, err error) {
 	}
 }
 
-func (s *Segment) readStructPtr(off Address, val rawPointer) (Struct, error) {
-	addr, ok := val.offset().resolve(off)
+func (s *Segment) readStructPtr(base Address, val rawPointer) (Struct, error) {
+	addr, ok := val.offset().resolve(base)
 	if !ok {
 		return Struct{}, errPointerAddress
 	}
@@ -179,8 +175,8 @@ func (s *Segment) readStructPtr(off Address, val rawPointer) (Struct, error) {
 	}, nil
 }
 
-func (s *Segment) readListPtr(off Address, val rawPointer) (List, error) {
-	addr, ok := val.offset().resolve(off)
+func (s *Segment) readListPtr(base Address, val rawPointer) (List, error) {
+	addr, ok := val.offset().resolve(base)
 	if !ok {
 		return List{}, errPointerAddress
 	}
@@ -234,49 +230,59 @@ func (s *Segment) readListPtr(off Address, val rawPointer) (List, error) {
 	}, nil
 }
 
-func (s *Segment) resolveFarPointer(off Address, val rawPointer) (*Segment, Address, rawPointer, error) {
+func (s *Segment) resolveFarPointer(paddr Address) (dst *Segment, base Address, resolved rawPointer, err error) {
+	// Encoding details at https://capnproto.org/encoding.html#inter-segment-pointers
+
+	val := s.readRawPointer(paddr)
 	switch val.pointerType() {
 	case doubleFarPointer:
-		// A double far pointer points to a double pointer, where the
-		// first points to the actual data, and the second is the tag
-		// that would normally be placed right before the data (offset
-		// == 0).
-
-		faroff, segid := val.farAddress(), val.farSegment()
-		s, err := s.lookupSegment(segid)
+		padSeg, err := s.lookupSegment(val.farSegment())
 		if err != nil {
 			return nil, 0, 0, err
 		}
-		if !s.regionInBounds(faroff, wordSize*2) {
+		padAddr := val.farAddress()
+		if !padSeg.regionInBounds(padAddr, wordSize*2) {
 			return nil, 0, 0, errPointerAddress
 		}
-		far := s.readRawPointer(faroff)
-		tagStart, ok := faroff.addSize(wordSize)
+		far := padSeg.readRawPointer(padAddr)
+		if far.pointerType() != farPointer {
+			return nil, 0, 0, errBadLandingPad
+		}
+		tagAddr, ok := padAddr.addSize(wordSize)
 		if !ok {
 			return nil, 0, 0, errOverflow
 		}
-		tag := s.readRawPointer(tagStart)
-		if far.pointerType() != farPointer || tag.offset() != 0 {
-			return nil, 0, 0, errPointerAddress
-		}
-		segid = far.farSegment()
-		if s, err = s.lookupSegment(segid); err != nil {
+		tag := padSeg.readRawPointer(tagAddr)
+		if pt := tag.pointerType(); (pt != structPointer && pt != listPointer) || tag.offset() != 0 {
 			return nil, 0, 0, errBadLandingPad
 		}
-		return s, 0, landingPadNearPointer(far, tag), nil
+		if dst, err = s.lookupSegment(far.farSegment()); err != nil {
+			return nil, 0, 0, err
+		}
+		return dst, 0, landingPadNearPointer(far, tag), nil
 	case farPointer:
-		faroff, segid := val.farAddress(), val.farSegment()
-		s, err := s.lookupSegment(segid)
+		var err error
+		dst, err = s.lookupSegment(val.farSegment())
 		if err != nil {
 			return nil, 0, 0, err
 		}
-		if !s.regionInBounds(faroff, wordSize) {
+		padAddr := val.farAddress()
+		if !dst.regionInBounds(padAddr, wordSize) {
 			return nil, 0, 0, errPointerAddress
 		}
-		val = s.readRawPointer(faroff)
-		return s, faroff, val, nil
+		var ok bool
+		base, ok = padAddr.addSize(wordSize)
+		if !ok {
+			return nil, 0, 0, errOverflow
+		}
+		return dst, base, dst.readRawPointer(padAddr), nil
 	default:
-		return s, off, val, nil
+		var ok bool
+		base, ok = paddr.addSize(wordSize)
+		if !ok {
+			return nil, 0, 0, errOverflow
+		}
+		return s, base, val, nil
 	}
 }
 
@@ -286,7 +292,10 @@ func (s *Segment) writePtr(off Address, src Ptr, forceCopy bool) error {
 		return nil
 	}
 
-	// Copy src, if needed.  This is type-dependent.
+	// Copy src, if needed, and process pointers where placement is
+	// irrelevant (capabilities and zero-sized structs).
+	var srcAddr Address
+	var srcRaw rawPointer
 	switch src.flags.ptrType() {
 	case structPtrType:
 		st := src.Struct()
@@ -311,11 +320,14 @@ func (s *Segment) writePtr(off Address, src Ptr, forceCopy bool) error {
 			if err := copyStruct(dst, st); err != nil {
 				return err
 			}
+			st = dst
 			src = dst.ToPtr()
 		}
+		srcAddr = st.off
+		srcRaw = rawStructPointer(0, st.size)
 	case listPtrType:
+		l := src.List()
 		if forceCopy || src.seg.msg != s.msg {
-			l := src.List()
 			sz := l.allocSize()
 			newSeg, newAddr, err := alloc(s, sz)
 			if err != nil {
@@ -350,8 +362,14 @@ func (s *Segment) writePtr(off Address, src Ptr, forceCopy bool) error {
 					}
 				}
 			}
+			l = dst
 			src = dst.ToPtr()
 		}
+		srcAddr = l.off
+		if l.flags&isCompositeList != 0 {
+			srcAddr -= Address(wordSize)
+		}
+		srcRaw = l.raw()
 	case interfacePtrType:
 		i := src.Interface()
 		if src.seg.msg != s.msg {
@@ -364,33 +382,29 @@ func (s *Segment) writePtr(off Address, src Ptr, forceCopy bool) error {
 		panic("unreachable")
 	}
 
-	// Create far pointer if object is in a different segment.
-	if src.seg != s {
-		if !hasCapacity(src.seg.data, wordSize) {
-			// Double far pointer needed.
-			const landingSize = wordSize * 2
-			t, dstAddr, err := alloc(s, landingSize)
-			if err != nil {
-				return err
-			}
-
-			srcAddr := src.address()
-			t.writeRawPointer(dstAddr, rawFarPointer(src.seg.id, srcAddr))
-			// alloc guarantees that two words are available.
-			t.writeRawPointer(dstAddr+Address(wordSize), src.value(srcAddr-Address(wordSize)))
-			s.writeRawPointer(off, rawDoubleFarPointer(t.id, dstAddr))
-			return nil
+	switch {
+	case src.seg == s:
+		// Common case: src is in same segment as pointer.
+		// Use a near pointer.
+		s.writeRawPointer(off, srcRaw.withOffset(nearPointerOffset(off, srcAddr)))
+		return nil
+	case hasCapacity(src.seg.data, wordSize):
+		// Enough room adjacent to src to write a far pointer landing pad.
+		_, padAddr, _ := alloc(src.seg, wordSize)
+		src.seg.writeRawPointer(padAddr, srcRaw.withOffset(nearPointerOffset(padAddr, srcAddr)))
+		s.writeRawPointer(off, rawFarPointer(src.seg.id, padAddr))
+		return nil
+	default:
+		// Not enough room for a landing pad, need to use a double-far pointer.
+		padSeg, padAddr, err := alloc(s, wordSize*2)
+		if err != nil {
+			return err
 		}
-		// Have room in the target for a tag
-		_, srcAddr, _ := alloc(src.seg, wordSize)
-		src.seg.writeRawPointer(srcAddr, src.value(srcAddr))
-		s.writeRawPointer(off, rawFarPointer(src.seg.id, srcAddr))
+		padSeg.writeRawPointer(padAddr, rawFarPointer(src.seg.id, srcAddr))
+		padSeg.writeRawPointer(padAddr+Address(wordSize), srcRaw)
+		s.writeRawPointer(off, rawDoubleFarPointer(padSeg.id, padAddr))
 		return nil
 	}
-
-	// Local pointer.
-	s.writeRawPointer(off, src.value(off))
-	return nil
 }
 
 var (

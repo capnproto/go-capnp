@@ -2,6 +2,7 @@ package capnp
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"testing"
 )
@@ -507,6 +508,221 @@ func TestSetPtrToZeroSizeStruct(t *testing.T) {
 	want := []byte{0xfc, 0xff, 0xff, 0xff, 0, 0, 0, 0}
 	if !bytes.Equal(ptrSlice, want) {
 		t.Errorf("SetPtr wrote % 02x; want % 02x", ptrSlice, want)
+	}
+}
+
+func TestReadFarPointers(t *testing.T) {
+	msg := &Message{
+		// an rpc.capnp Message
+		Arena: MultiSegment([][]byte{
+			// Segment 0
+			{
+				// Double-far pointer: segment 2, offset 0
+				0x06, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00,
+			},
+			// Segment 1
+			{
+				// (Root) Struct data section
+				0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+				// Struct pointer section
+				// Double-far pointer: segment 4, offset 0
+				0x06, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00,
+			},
+			// Segment 2
+			{
+				// Far pointer landing pad: segment 1, offset 0
+				0x02, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+				// Far pointer landing pad tag word: struct with 1 word data and 1 pointer
+				0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00,
+			},
+			// Segment 3
+			{
+				// (Root>0) Struct data section
+				0x00, 0x00, 0x00, 0x00, 0x09, 0x00, 0x00, 0x00,
+				0xaa, 0x70, 0x65, 0x21, 0xd7, 0x7b, 0x31, 0xa7,
+				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+				// Struct pointer section
+				// Far pointer: segment 4, offset 4
+				0x22, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00,
+				// Far pointer: segment 4, offset 7
+				0x3a, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00,
+				// Null
+				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			},
+			// Segment 4
+			{
+				// Far pointer landing pad: segment 3, offset 0
+				0x02, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00,
+				// Far pointer landing pad tag word: struct with 3 word data and 3 pointer
+				0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x03, 0x00,
+				// (Root>0>0) Struct data section
+				0x54, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+				// Struct pointer section
+				// Null
+				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+				// Far pointer landing pad: struct pointer: offset -3, 1 word data, 1 pointer
+				0xf4, 0xff, 0xff, 0xff, 0x01, 0x00, 0x01, 0x00,
+				// (Root>0>1) Struct pointer section
+				// Struct pointer: offset 2, 1 word data
+				0x08, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+				// Null
+				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+				// Far pointer landing pad: struct pointer: offset -3, 2 pointers
+				0xf4, 0xff, 0xff, 0xff, 0x00, 0x00, 0x02, 0x00,
+				// (Root>0>1>0) Struct data section
+				0x2a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			},
+		}),
+	}
+	rootp, err := msg.RootPtr()
+	if err != nil {
+		t.Error("RootPtr:", err)
+	}
+	root := rootp.Struct()
+	if root.Uint16(0) != 2 {
+		t.Errorf("root.Uint16(0) = %d; want 2", root.Uint16(0))
+	}
+	callp, err := root.Ptr(0)
+	if err != nil {
+		t.Error("root.Ptr(0):", err)
+	}
+	call := callp.Struct()
+	targetp, err := call.Ptr(0)
+	if err != nil {
+		t.Error("root.Ptr(0).Ptr(0):", err)
+	}
+	if got := targetp.Struct().Uint32(0); got != 84 {
+		t.Errorf("root.Ptr(0).Ptr(0).Uint32(0) = %d; want 84", got)
+	}
+	paramsp, err := call.Ptr(1)
+	if err != nil {
+		t.Error("root.Ptr(0).Ptr(1):", err)
+	}
+	contentp, err := paramsp.Struct().Ptr(0)
+	if err != nil {
+		t.Error("root.Ptr(0).Ptr(1).Ptr(0):", err)
+	}
+	if got := contentp.Struct().Uint64(0); got != 42 {
+		t.Errorf("root.Ptr(0).Ptr(1).Ptr(0).Uint64(0) = %d; want 42", got)
+	}
+}
+
+func TestWriteFarPointer(t *testing.T) {
+	// TODO(someday): run same test with a two-word list
+
+	msg := &Message{
+		Arena: MultiSegment([][]byte{
+			make([]byte, 8),
+			make([]byte, 0, 24),
+		}),
+	}
+	seg1, err := msg.Segment(1)
+	if err != nil {
+		t.Fatal("msg.Segment(1):", err)
+	}
+	s, err := NewStruct(seg1, ObjectSize{DataSize: 8, PointerCount: 1})
+	if err != nil {
+		t.Fatal("NewStruct(msg.Segment(1), ObjectSize{8, 1}):", err)
+	}
+	if s.Segment() != seg1 {
+		t.Fatalf("struct allocated in segment %d", s.Segment().ID())
+	}
+	if err := msg.SetRootPtr(s.ToPtr()); err != nil {
+		t.Error("msg.SetRootPtr(...):", err)
+	}
+	seg0, err := msg.Segment(0)
+	if err != nil {
+		t.Fatal("msg.Segment(0):", err)
+	}
+
+	root := rawPointer(binary.LittleEndian.Uint64(seg0.Data()))
+	if root.pointerType() != farPointer {
+		t.Fatalf("root (%#016x) type = %v; want %v (farPointer)", root, root.pointerType(), farPointer)
+	}
+	if root.farSegment() != 1 {
+		t.Fatalf("root points to segment %d; want 1", root.farSegment())
+	}
+	padAddr := root.farAddress()
+	if padAddr > Address(len(seg1.Data())-8) {
+		t.Fatalf("root points to out of bounds address %v; size of segment is %d", padAddr, len(seg1.Data()))
+	}
+
+	pad := rawPointer(binary.LittleEndian.Uint64(seg1.Data()[padAddr:]))
+	if pad.pointerType() != structPointer {
+		t.Errorf("landing pad (%#016x) type = %v; want %v (structPointer)", pad, pad.pointerType(), structPointer)
+	}
+	if got, ok := pad.offset().resolve(padAddr + 8); !ok || got != s.Address() {
+		t.Errorf("landing pad (%#016x @ %v) resolved address = %v, %t; want %v, true", pad, padAddr, got, ok, s.Address())
+	}
+	if got, want := pad.structSize(), (ObjectSize{DataSize: 8, PointerCount: 1}); got != want {
+		t.Errorf("landing pad (%#016x) struct size = %v; want %v", pad, got, want)
+	}
+}
+
+func TestWriteDoubleFarPointer(t *testing.T) {
+	// TODO(someday): run same test with a two-word list
+
+	msg := &Message{
+		Arena: MultiSegment([][]byte{
+			make([]byte, 8),
+			make([]byte, 0, 16),
+		}),
+	}
+	seg1, err := msg.Segment(1)
+	if err != nil {
+		t.Fatal("msg.Segment(1):", err)
+	}
+	s, err := NewStruct(seg1, ObjectSize{DataSize: 8, PointerCount: 1})
+	if err != nil {
+		t.Fatal("NewStruct(msg.Segment(1), ObjectSize{8, 1}):", err)
+	}
+	if s.Segment() != seg1 {
+		t.Fatalf("struct allocated in segment %d", s.Segment().ID())
+	}
+	if err := msg.SetRootPtr(s.ToPtr()); err != nil {
+		t.Error("msg.SetRootPtr(...):", err)
+	}
+	seg0, err := msg.Segment(0)
+	if err != nil {
+		t.Fatal("msg.Segment(0):", err)
+	}
+
+	root := rawPointer(binary.LittleEndian.Uint64(seg0.Data()))
+	if root.pointerType() != doubleFarPointer {
+		t.Fatalf("root (%#016x) type = %v; want %v (doubleFarPointer)", root, root.pointerType(), doubleFarPointer)
+	}
+	if root.farSegment() == 0 || root.farSegment() == 1 {
+		t.Fatalf("root points to segment %d; want !=0,1", root.farSegment())
+	}
+	padSeg, err := msg.Segment(root.farSegment())
+	if err != nil {
+		t.Fatalf("msg.Segment(%d): %v", root.farSegment(), err)
+	}
+	padAddr := root.farAddress()
+	if padAddr > Address(len(padSeg.Data())-16) {
+		t.Fatalf("root points to out of bounds address %v; size of segment is %d", padAddr, len(padSeg.Data()))
+	}
+
+	pad1 := rawPointer(binary.LittleEndian.Uint64(padSeg.Data()[padAddr:]))
+	if pad1.pointerType() != farPointer {
+		t.Errorf("landing pad pointer 1 (%#016x) type = %v; want %v (farPointer)", pad1, pad1.pointerType(), farPointer)
+	}
+	if pad1.farSegment() != 1 {
+		t.Fatalf("landing pad pointer 1 (%#016x) points to segment %d; want 1", pad1.farSegment())
+	}
+	if pad1.farAddress() != s.Address() {
+		t.Fatalf("landing pad pointer 1 (%#016x) points to address %v; want %v", pad1.farAddress(), s.Address())
+	}
+
+	pad2 := rawPointer(binary.LittleEndian.Uint64(padSeg.Data()[padAddr+8:]))
+	if pad2.pointerType() != structPointer {
+		t.Errorf("landing pad pointer 2 (%#016x) type = %v; want %v (structPointer)", pad2, pad2.pointerType(), structPointer)
+	}
+	if pad2.offset() != 0 {
+		t.Errorf("landing pad pointer 2 (%#016x) offset = %d; want 0", pad2, pad2.offset())
+	}
+	if got, want := pad2.structSize(), (ObjectSize{DataSize: 8, PointerCount: 1}); got != want {
+		t.Errorf("landing pad pointer 2 (%#016x) struct size = %v; want %v", pad2, got, want)
 	}
 }
 

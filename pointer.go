@@ -212,29 +212,6 @@ func (p Ptr) Default(def []byte) (Ptr, error) {
 	return p, nil
 }
 
-func (p Ptr) value(paddr Address) rawPointer {
-	switch p.flags.ptrType() {
-	case structPtrType:
-		return p.Struct().value(paddr)
-	case listPtrType:
-		return p.List().value(paddr)
-	case interfacePtrType:
-		return p.Interface().value(paddr)
-	}
-	return 0
-}
-
-// address returns the pointer's address.  It panics if p is not a valid Struct or List.
-func (p Ptr) address() Address {
-	switch p.flags.ptrType() {
-	case structPtrType:
-		return p.Struct().Address()
-	case listPtrType:
-		return p.List().Address()
-	}
-	panic("ptr not a valid struct or list")
-}
-
 // A value that implements Pointer is a reference to a Cap'n Proto object.
 //
 // Deprecated: Using this type introduces an unnecessary allocation.
@@ -247,9 +224,6 @@ type Pointer interface {
 	// HasData reports whether the object referenced by the pointer has
 	// non-zero size.
 	HasData() bool
-
-	// value converts the pointer into a raw value.
-	value(paddr Address) rawPointer
 
 	// underlying returns a Pointer that is one of a Struct, a List, or an
 	// Interface.

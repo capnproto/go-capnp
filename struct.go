@@ -107,15 +107,6 @@ func (p Struct) readSize() Size {
 	return p.size.totalSize()
 }
 
-// value returns a raw struct pointer.
-func (p Struct) value(paddr Address) rawPointer {
-	if p.size.isZero() {
-		return rawStructPointer(-1, p.size)
-	}
-	off := makePointerOffset(paddr, p.off)
-	return rawStructPointer(off, p.size)
-}
-
 func (p Struct) underlying() Pointer {
 	return p
 }
