@@ -212,6 +212,11 @@ func (p Ptr) Default(def []byte) (Ptr, error) {
 	return p, nil
 }
 
+// SamePtr reports whether p and q refer to the same object.
+func SamePtr(p, q Ptr) bool {
+	return p.seg == q.seg && p.off == q.off
+}
+
 // A value that implements Pointer is a reference to a Cap'n Proto object.
 //
 // Deprecated: Using this type introduces an unnecessary allocation.

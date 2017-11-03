@@ -84,6 +84,9 @@ func (p Struct) IsValid() bool {
 }
 
 // Address returns the address the pointer references.
+//
+// Deprecated: The return value is not well-defined.  Use SamePtr if you
+// need to check whether two pointers refer to the same object.
 func (p Struct) Address() Address {
 	return p.off
 }

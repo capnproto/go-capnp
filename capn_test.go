@@ -467,7 +467,7 @@ func TestSetPtrCopyListMember(t *testing.T) {
 	if !s1.IsValid() {
 		t.Error("root.Ptr(1) is not a valid struct")
 	}
-	if s1.Segment() == pl0.Segment() && s1.Address() == pl0.Address() {
+	if SamePtr(s1.ToPtr(), pl0.ToPtr()) {
 		t.Error("list member not copied; points to same object")
 	}
 	s1p0, err := s1.Ptr(0)
@@ -478,7 +478,7 @@ func TestSetPtrCopyListMember(t *testing.T) {
 	if !s1s0.IsValid() {
 		t.Error("root.Ptr(1).Struct().Ptr(0) is not a valid struct")
 	}
-	if s1s0.Segment() == sub.Segment() && s1s0.Address() == sub.Address() {
+	if SamePtr(s1s0.ToPtr(), sub.ToPtr()) {
 		t.Error("sub-object not copied; points to same object")
 	}
 	if got := s1s0.Uint64(0); got != 42 {
@@ -502,9 +502,7 @@ func TestSetPtrToZeroSizeStruct(t *testing.T) {
 	if err := root.SetPtr(0, sub.ToPtr()); err != nil {
 		t.Fatal("root.SetPtr(0, sub.ToPtr()):", err)
 	}
-	addr := root.Address()
-	end, _ := addr.addSize(wordSize)
-	ptrSlice := seg.Data()[addr:end]
+	ptrSlice := seg.Data()[root.off : root.off+8]
 	want := []byte{0xfc, 0xff, 0xff, 0xff, 0, 0, 0, 0}
 	if !bytes.Equal(ptrSlice, want) {
 		t.Errorf("SetPtr wrote % 02x; want % 02x", ptrSlice, want)
@@ -651,8 +649,8 @@ func TestWriteFarPointer(t *testing.T) {
 	if pad.pointerType() != structPointer {
 		t.Errorf("landing pad (%#016x) type = %v; want %v (structPointer)", pad, pad.pointerType(), structPointer)
 	}
-	if got, ok := pad.offset().resolve(padAddr + 8); !ok || got != s.Address() {
-		t.Errorf("landing pad (%#016x @ %v) resolved address = %v, %t; want %v, true", pad, padAddr, got, ok, s.Address())
+	if got, ok := pad.offset().resolve(padAddr + 8); !ok || got != s.off {
+		t.Errorf("landing pad (%#016x @ %v) resolved address = %v, %t; want %v, true", pad, padAddr, got, ok, s.off)
 	}
 	if got, want := pad.structSize(), (ObjectSize{DataSize: 8, PointerCount: 1}); got != want {
 		t.Errorf("landing pad (%#016x) struct size = %v; want %v", pad, got, want)
@@ -710,8 +708,8 @@ func TestWriteDoubleFarPointer(t *testing.T) {
 	if pad1.farSegment() != 1 {
 		t.Fatalf("landing pad pointer 1 (%#016x) points to segment %d; want 1", pad1.farSegment())
 	}
-	if pad1.farAddress() != s.Address() {
-		t.Fatalf("landing pad pointer 1 (%#016x) points to address %v; want %v", pad1.farAddress(), s.Address())
+	if pad1.farAddress() != s.off {
+		t.Fatalf("landing pad pointer 1 (%#016x) points to address %v; want %v", pad1.farAddress(), s.off)
 	}
 
 	pad2 := rawPointer(binary.LittleEndian.Uint64(padSeg.Data()[padAddr+8:]))

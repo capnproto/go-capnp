@@ -181,6 +181,9 @@ func (p List) underlying() Pointer {
 }
 
 // Address returns the address the pointer references.
+//
+// Deprecated: The return value is not well-defined.  Use SamePtr if you
+// need to check whether two pointers refer to the same object.
 func (p List) Address() Address {
 	return p.off
 }
