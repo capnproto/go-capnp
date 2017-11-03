@@ -71,14 +71,6 @@ func (p Struct) IsValid() bool {
 	return p.seg != nil
 }
 
-// Address returns the address the pointer references.
-//
-// Deprecated: The return value is not well-defined.  Use SamePtr if you
-// need to check whether two pointers refer to the same object.
-func (p Struct) Address() Address {
-	return p.off
-}
-
 // Size returns the size of the struct.
 func (p Struct) Size() ObjectSize {
 	return p.size
