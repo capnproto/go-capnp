@@ -157,19 +157,19 @@ func TestServerMaxConcurrentCalls(t *testing.T) {
 	defer finish()
 	call2, finish := echo.Echo(ctx, nil)
 	defer finish()
+	go close(wait)
 	call3, finish := echo.Echo(ctx, nil)
 	defer finish()
-	select {
-	case <-call3.Done():
-		if _, err := call3.Struct(); err == nil {
-			t.Error("overload call returned early success")
-		}
-	default:
-		t.Error("overload call not finished; want immediate overload error")
+	<-wait
+	if _, err := call1.Struct(); err != nil {
+		t.Error("Echo #1:", err)
 	}
-	close(wait)
-	call1.Struct()
-	call2.Struct()
+	if _, err := call2.Struct(); err != nil {
+		t.Error("Echo #2:", err)
+	}
+	if _, err := call3.Struct(); err != nil {
+		t.Error("Echo #3:", err)
+	}
 }
 
 func TestServerShutdown(t *testing.T) {

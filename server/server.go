@@ -89,10 +89,26 @@ type Server struct {
 	shutdown Shutdowner
 	policy   Policy
 
-	mu      sync.Mutex      // protects the following fields.  Should never be held while calling application code.
-	inImpl  <-chan struct{} // non-nil if inside application code, closed when done
-	drain   chan struct{}   // non-nil if draining, closed when drained
+	// mu protects the following fields.
+	// mu should never be held while calling application code.
+	mu sync.Mutex
+
+	// ongoing is a fixed-size list of ongoing calls.
+	// It is used as a semaphore: when all elements are set, no new work
+	// can be started until an element is cleared.
 	ongoing []cstate
+
+	// starting is non-nil if start() is waiting for acknowledgement of a
+	// call.  It is closed when the acknowledgement is received.
+	starting <-chan struct{}
+
+	// full is non-nil if a start() is waiting for a space in ongoing to
+	// free up.  It is closed and set to nil when the next call returns.
+	full chan<- struct{}
+
+	// drain is non-nil when Shutdown starts and is closed by the last
+	// call to return.
+	drain chan struct{}
 }
 
 type cstate struct {
@@ -183,7 +199,7 @@ func (srv *Server) Recv(ctx context.Context, r capnp.Recv) capnp.PipelineCaller 
 }
 
 func (srv *Server) start(ctx context.Context, m *Method, r capnp.Recv) capnp.PipelineCaller {
-	// Acquire lock and block until all other concurrent calls have acknowledged delivery.
+	// Acquire "starting" condition variable.
 	srv.mu.Lock()
 	for {
 		if srv.drain != nil {
@@ -191,10 +207,10 @@ func (srv *Server) start(ctx context.Context, m *Method, r capnp.Recv) capnp.Pip
 			r.Reject(errors.New("capnp server: call after shutdown"))
 			return nil
 		}
-		if srv.inImpl == nil {
+		if srv.starting == nil {
 			break
 		}
-		wait := srv.inImpl
+		wait := srv.starting
 		srv.mu.Unlock()
 		select {
 		case <-wait:
@@ -204,27 +220,42 @@ func (srv *Server) start(ctx context.Context, m *Method, r capnp.Recv) capnp.Pip
 		}
 		srv.mu.Lock()
 	}
+	starting := make(chan struct{})
+	srv.starting = starting
 
-	// Bookkeeping: set inImpl to indicate we're waiting for an ack and
-	// record the cancel function for draining.
+	// Acquire an ID (semaphore).
 	id := srv.nextID()
 	if id == -1 {
-		// TODO(soon): block (backpressure) instead of drop.
+		full := make(chan struct{})
+		srv.full = full
 		srv.mu.Unlock()
-		r.Reject(errors.New("capnp server: too many concurrent calls"))
-		return nil
+		select {
+		case <-full:
+		case <-ctx.Done():
+			srv.mu.Lock()
+			srv.starting = nil
+			close(starting)
+			srv.full = nil // full could be nil or non-nil, ensure it is nil.
+			srv.mu.Unlock()
+			r.Reject(ctx.Err())
+			return nil
+		}
+		srv.mu.Lock()
+		id = srv.nextID()
+		if srv.drain != nil {
+			srv.starting = nil
+			close(starting)
+			srv.mu.Unlock()
+			r.Reject(errors.New("capnp server: call after shutdown"))
+			return nil
+		}
 	}
+
+	// Bookkeeping: set starting to indicate we're waiting for an ack and
+	// record the cancel function for draining.
 	ctx, cancel := context.WithCancel(ctx)
 	srv.ongoing[id] = cstate{cancel}
-	inImpl := make(chan struct{})
-	srv.inImpl = inImpl
 	srv.mu.Unlock()
-	defer func() {
-		srv.mu.Lock()
-		srv.inImpl = nil
-		close(inImpl)
-		srv.mu.Unlock()
-	}()
 
 	// Call implementation function.
 	call, ack := newCall(r.Args, r.Returner)
@@ -246,17 +277,26 @@ func (srv *Server) start(ctx context.Context, m *Method, r capnp.Recv) capnp.Pip
 		if srv.drain != nil && !srv.hasOngoing() {
 			close(srv.drain)
 		}
+		if srv.full != nil {
+			close(srv.full)
+			srv.full = nil
+		}
 		srv.mu.Unlock()
 		close(done)
 	}()
+	var pcall capnp.PipelineCaller
 	select {
 	case <-ack:
-		return aq
+		pcall = aq
 	case <-done:
 		// Implementation functions may not call Ack, which is fine for
 		// smaller functions.
-		return nil
 	}
+	srv.mu.Lock()
+	srv.starting = nil
+	close(starting)
+	srv.mu.Unlock()
+	return pcall
 }
 
 // nextID returns the next available index in srv.ongoing or -1 if
