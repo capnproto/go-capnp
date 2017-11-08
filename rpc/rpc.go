@@ -22,8 +22,10 @@ type Conn struct {
 	// exclusive access to resources.
 	mu sync.Mutex
 
-	closed     bool
-	recvDone   <-chan struct{}
+	bgctx    context.Context
+	bgcancel context.CancelFunc
+	bgtasks  sync.WaitGroup
+
 	recvCloser interface {
 		CloseRecv() error
 	}
@@ -48,17 +50,25 @@ type Options struct {
 // transport.  Closing the connection will close the transport.
 // Passing nil for opts is the same as passing the zero value.
 func NewConn(t Transport, opts *Options) *Conn {
-	done := make(chan struct{})
+	bgctx, bgcancel := context.WithCancel(context.Background())
 	c := &Conn{
 		sender:     t,
 		recvCloser: t,
-		recvDone:   done,
+		bgctx:      bgctx,
+		bgcancel:   bgcancel,
 	}
-	go func() {
-		defer close(done)
-		c.receive(context.Background(), t)
-	}()
+	c.runBackground(func(ctx context.Context) {
+		c.receive(ctx, t)
+	})
 	return c
+}
+
+func (c *Conn) runBackground(f func(ctx context.Context)) {
+	c.bgtasks.Add(1)
+	go func() {
+		defer c.bgtasks.Done()
+		f(c.bgctx)
+	}()
 }
 
 // sendMessage creates a new message on the Sender, calls f to build it,
@@ -68,9 +78,11 @@ func NewConn(t Transport, opts *Options) *Conn {
 func (c *Conn) sendMessage(ctx context.Context, f func(msg rpccp.Message) error) error {
 	// Acquire send condition.
 	for {
-		if c.closed {
+		select {
+		case <-c.bgctx.Done():
 			// TODO(someday): classify as disconnected
 			return errors.New("connection closed")
+		default:
 		}
 		s := c.sendCond
 		if s == nil {
@@ -82,6 +94,9 @@ func (c *Conn) sendMessage(ctx context.Context, f func(msg rpccp.Message) error)
 		case <-ctx.Done():
 			c.mu.Lock()
 			return ctx.Err()
+		case <-c.bgctx.Done():
+			c.mu.Lock()
+			return errors.New("connection closed")
 		}
 		c.mu.Lock()
 	}
@@ -126,19 +141,90 @@ func (c *Conn) Bootstrap(ctx context.Context) *capnp.Client {
 		c.questionID.remove(uint32(id))
 		return capnp.ErrorClient(fmt.Errorf("rpc bootstrap: %v", err))
 	}
+	ctx, cancel := context.WithCancel(ctx)
+	q := c.newQuestion(ctx, id, true)
+	// TODO(soon): tie finishing bootstrap to resolving the client
+	return capnp.NewClient(bootstrapClient{
+		c:      q.p.Answer().Client().AddRef(),
+		cancel: cancel,
+	})
+}
+
+// newQuestion adds a new question to c's table.  The caller must be
+// holding onto c.mu.
+func (c *Conn) newQuestion(ctx context.Context, id questionID, bootstrap bool) *question {
+	ctx, cancel := context.WithCancel(ctx)
 	q := &question{
 		id:        id,
 		conn:      c,
-		bootstrap: true,
+		done:      cancel,
+		bootstrap: bootstrap,
 	}
+	q.p = capnp.NewPromise(q)
 	if int(id) == len(c.questions) {
 		c.questions = append(c.questions, q)
 	} else {
 		c.questions[id] = q
 	}
-	p := capnp.NewPromise(q)
-	q.p = p
-	return p.Answer().Client().AddRef()
+	c.runBackground(func(bgctx context.Context) {
+		var rejectErr error
+		select {
+		case <-ctx.Done():
+			rejectErr = ctx.Err()
+		case <-bgctx.Done():
+			rejectErr = bgctx.Err()
+			q.done()
+		}
+		c.mu.Lock()
+		if q.sentFinish() {
+			c.mu.Unlock()
+			return
+		}
+		q.state |= 2 // sending finish
+		q.release = func() {}
+		select {
+		case <-bgctx.Done():
+		default:
+			// TODO(soon): log error
+			c.sendMessage(bgctx, func(msg rpccp.Message) error {
+				fin, err := msg.NewFinish()
+				if err != nil {
+					return err
+				}
+				fin.SetQuestionId(uint32(q.id))
+				fin.SetReleaseResultCaps(true)
+				return nil
+			})
+		}
+		c.mu.Unlock()
+		q.p.Reject(rejectErr)
+		if q.bootstrap {
+			q.p.ReleaseClients()
+		}
+	})
+	return q
+}
+
+type bootstrapClient struct {
+	c      *capnp.Client
+	cancel context.CancelFunc
+}
+
+func (bc bootstrapClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, capnp.ReleaseFunc) {
+	return bc.c.SendCall(ctx, s)
+}
+
+func (bc bootstrapClient) Recv(ctx context.Context, r capnp.Recv) capnp.PipelineCaller {
+	return bc.c.RecvCall(ctx, r)
+}
+
+func (bc bootstrapClient) Brand() interface{} {
+	return bc.c.Brand()
+}
+
+func (bc bootstrapClient) Shutdown() {
+	bc.cancel()
+	bc.c.Release()
 }
 
 // Close sends an abort to the remote vat and closes the underlying
@@ -146,9 +232,9 @@ func (c *Conn) Bootstrap(ctx context.Context) *capnp.Client {
 func (c *Conn) Close() error {
 	// Mark closed and stop receiving messages.
 	c.mu.Lock()
-	c.closed = true
+	c.bgcancel()
 	c.mu.Unlock()
-	rerr := c.recvCloser.CloseRecv() // will wait on recvDone at the end
+	rerr := c.recvCloser.CloseRecv()
 
 	// Close Sender after all sends are finished.
 	// TODO(soon): This assumes that there aren't messages retained past
@@ -187,7 +273,7 @@ func (c *Conn) Close() error {
 closeSend:
 	serr := c.sender.CloseSend()
 
-	<-c.recvDone
+	c.bgtasks.Wait()
 	if rerr != nil {
 		return fmt.Errorf("rpc: close transport: %v", rerr)
 	}
@@ -247,18 +333,24 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 		return fmt.Errorf("rpc: receive return: question %d does not exist", qid)
 	}
 	defer c.mu.Unlock()
+	sentFinish := q.sentFinish()
+	q.state |= 3 // return received and sending finish
 	c.questions[qid] = nil
 
 	pr := c.parseReturn(ret)
 	if pr.err == nil {
+		if q.bootstrap {
+			q.release = func() {}
+		} else {
+			q.release = releaseRet
+		}
 		c.mu.Unlock()
 		q.p.Fulfill(pr.result)
 		if q.bootstrap {
 			q.p.ReleaseClients()
 			releaseRet()
-		} else {
-			q.release = releaseRet
 		}
+		q.done()
 		c.mu.Lock()
 	} else {
 		q.release = func() {}
@@ -268,21 +360,26 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 			q.p.ReleaseClients()
 		}
 		releaseRet()
+		q.done()
 		c.mu.Lock()
 	}
-	err := c.sendMessage(ctx, func(msg rpccp.Message) error {
-		fin, err := msg.NewFinish()
+	if !sentFinish {
+		err := c.sendMessage(ctx, func(msg rpccp.Message) error {
+			fin, err := msg.NewFinish()
+			if err != nil {
+				return err
+			}
+			fin.SetQuestionId(uint32(qid))
+			fin.SetReleaseResultCaps(false)
+			return nil
+		})
+		c.questionID.remove(uint32(qid))
 		if err != nil {
-			return err
+			return fmt.Errorf("rpc: receive return: send finish: %v", err)
 		}
-		fin.SetQuestionId(uint32(qid))
-		fin.SetReleaseResultCaps(false)
-		return nil
-	})
-	if err != nil {
-		return fmt.Errorf("rpc: receive return: send finish: %v", err)
+	} else {
+		c.questionID.remove(uint32(qid))
 	}
-	c.questionID.remove(uint32(qid))
 	if pr.parseFailed {
 		// TODO(soon): remove stutter of "rpc:" prefix
 		return fmt.Errorf("rpc: receive return: %v", pr.err)

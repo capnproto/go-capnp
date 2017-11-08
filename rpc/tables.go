@@ -132,21 +132,11 @@ func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, 
 		ic.conn.questionID.remove(uint32(id))
 		return capnp.ErrorAnswer(fmt.Errorf("rpc: call import: %v", err)), func() {}
 	}
-	q := &question{
-		id:   id,
-		conn: ic.conn,
-	}
-	if int(id) == len(ic.conn.questions) {
-		ic.conn.questions = append(ic.conn.questions, q)
-	} else {
-		ic.conn.questions[id] = q
-	}
-	p := capnp.NewPromise(q)
-	q.p = p
-	ans := p.Answer()
+	q := ic.conn.newQuestion(ctx, id, false)
+	ans := q.p.Answer()
 	return ans, func() {
 		<-ans.Done()
-		p.ReleaseClients()
+		q.p.ReleaseClients()
 		q.release()
 	}
 }
