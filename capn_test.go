@@ -707,10 +707,10 @@ func TestWriteDoubleFarPointer(t *testing.T) {
 		t.Errorf("landing pad pointer 1 (%#016x) type = %v; want %v (farPointer)", pad1, pad1.pointerType(), farPointer)
 	}
 	if pad1.farSegment() != 1 {
-		t.Fatalf("landing pad pointer 1 (%#016x) points to segment %d; want 1", pad1.farSegment())
+		t.Fatalf("landing pad pointer 1 (%#016x) points to segment %d; want 1", pad1, pad1.farSegment())
 	}
 	if pad1.farAddress() != s.off {
-		t.Fatalf("landing pad pointer 1 (%#016x) points to address %v; want %v", pad1.farAddress(), s.off)
+		t.Fatalf("landing pad pointer 1 (%#016x) points to address %v; want %v", pad1, pad1.farAddress(), s.off)
 	}
 
 	pad2 := rawPointer(binary.LittleEndian.Uint64(padSeg.Data()[padAddr+8:]))
