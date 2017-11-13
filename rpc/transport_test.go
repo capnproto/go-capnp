@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"zombiezen.com/go/capnproto2/rpc"
-	rpccapnp "zombiezen.com/go/capnproto2/std/capnp/rpc"
+	rpccp "zombiezen.com/go/capnproto2/std/capnp/rpc"
 )
 
 func testTransport(t *testing.T, makePipe func() (t1, t2 rpc.Transport, err error)) {
@@ -88,7 +88,7 @@ func testTransport(t *testing.T, makePipe func() (t1, t2 rpc.Transport, err erro
 			t2.CloseRecv()
 			t.Fatal("t2.RecvMessage:", err)
 		}
-		if r.Which() != rpccapnp.Message_Which_bootstrap {
+		if r.Which() != rpccp.Message_Which_bootstrap {
 			t.Errorf("t2.RecvMessage(ctx).Which = %v; want bootstrap", r.Which())
 		} else if rboot, err := r.Bootstrap(); err != nil {
 			t.Error("t2.RecvMessage(ctx).Bootstrap:", err)
@@ -111,7 +111,7 @@ func testTransport(t *testing.T, makePipe func() (t1, t2 rpc.Transport, err erro
 			t2.CloseRecv()
 			t.Fatal("t2.RecvMessage:", err)
 		}
-		if r.Which() != rpccapnp.Message_Which_bootstrap {
+		if r.Which() != rpccp.Message_Which_bootstrap {
 			t.Errorf("t2.RecvMessage(ctx).Which = %v; want bootstrap", r.Which())
 		} else if rboot, err := r.Bootstrap(); err != nil {
 			t.Error("t2.RecvMessage(ctx).Bootstrap:", err)

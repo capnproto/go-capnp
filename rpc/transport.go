@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"zombiezen.com/go/capnproto2"
-	rpccapnp "zombiezen.com/go/capnproto2/std/capnp/rpc"
+	rpccp "zombiezen.com/go/capnproto2/std/capnp/rpc"
 )
 
 // A Sender delivers Cap'n Proto RPC messages to another vat.
@@ -18,7 +18,7 @@ type Sender interface {
 	// to reference the message.  Before release is called, send may be
 	// called at most once to send the mssage, taking its cancelation and
 	// deadline from ctx.
-	NewMessage(ctx context.Context) (_ rpccapnp.Message, send func() error, _ capnp.ReleaseFunc, _ error)
+	NewMessage(ctx context.Context) (_ rpccp.Message, send func() error, _ capnp.ReleaseFunc, _ error)
 
 	// CloseSend releases any resources associated with the sender.
 	// All messages created with NewMessage must be released before
@@ -34,7 +34,7 @@ type Receiver interface {
 	//
 	// Messages returned by RecvMessage must have a nil CapTable.
 	// The caller may mutate the CapTable.
-	RecvMessage(ctx context.Context) (rpccapnp.Message, capnp.ReleaseFunc, error)
+	RecvMessage(ctx context.Context) (rpccp.Message, capnp.ReleaseFunc, error)
 
 	// CloseRecv releases any resources associated with the receiver and
 	// ends any unfinished RecvMessage call.
@@ -99,10 +99,10 @@ func NewStreamTransport(rwc io.ReadWriteCloser) *StreamTransport {
 
 // NewMessage allocates a new message to be sent.  The send function may
 // make multiple calls to Write on the underlying writer.
-func (s *StreamTransport) NewMessage(ctx context.Context) (_ rpccapnp.Message, send func() error, release capnp.ReleaseFunc, _ error) {
+func (s *StreamTransport) NewMessage(ctx context.Context) (_ rpccp.Message, send func() error, release capnp.ReleaseFunc, _ error) {
 	// TODO(soon): reuse memory
 	msg, seg, _ := capnp.NewMessage(capnp.MultiSegment(nil))
-	rmsg, _ := rpccapnp.NewRootMessage(seg)
+	rmsg, _ := rpccp.NewRootMessage(seg)
 	send = func() error {
 		if s.deadline != nil {
 			// TODO(someday): log errors
@@ -150,7 +150,7 @@ func (s *StreamTransport) CloseSend() error {
 // RecvMessage reads the next message from the underlying reader.
 // The cancelation and deadline from ctx is ignored, but RecvMessage
 // will return early if CloseRecv is called.
-func (s *StreamTransport) RecvMessage(ctx context.Context) (rpccapnp.Message, capnp.ReleaseFunc, error) {
+func (s *StreamTransport) RecvMessage(ctx context.Context) (rpccp.Message, capnp.ReleaseFunc, error) {
 	return s.recv.RecvMessage(ctx)
 }
 
@@ -188,14 +188,14 @@ type closerReceiver struct {
 	closer readCloser
 }
 
-func (cr closerReceiver) RecvMessage(ctx context.Context) (rpccapnp.Message, capnp.ReleaseFunc, error) {
+func (cr closerReceiver) RecvMessage(ctx context.Context) (rpccp.Message, capnp.ReleaseFunc, error) {
 	msg, err := cr.dec.Decode()
 	if err != nil {
-		return rpccapnp.Message{}, nil, err
+		return rpccp.Message{}, nil, err
 	}
-	rmsg, err := rpccapnp.ReadRootMessage(msg)
+	rmsg, err := rpccp.ReadRootMessage(msg)
 	if err != nil {
-		return rpccapnp.Message{}, nil, err
+		return rpccp.Message{}, nil, err
 	}
 	return rmsg, func() {
 		msg.Reset(nil)
@@ -215,10 +215,10 @@ type signalReceiver struct {
 	close chan struct{}
 }
 
-func (sr signalReceiver) RecvMessage(ctx context.Context) (rpccapnp.Message, capnp.ReleaseFunc, error) {
+func (sr signalReceiver) RecvMessage(ctx context.Context) (rpccp.Message, capnp.ReleaseFunc, error) {
 	select {
 	case <-sr.close:
-		return rpccapnp.Message{}, nil, errors.New("RPC stream transport: receive on closed receiver")
+		return rpccp.Message{}, nil, errors.New("RPC stream transport: receive on closed receiver")
 	default:
 	}
 	var msg *capnp.Message
@@ -231,14 +231,14 @@ func (sr signalReceiver) RecvMessage(ctx context.Context) (rpccapnp.Message, cap
 	select {
 	case <-read:
 	case <-sr.close:
-		return rpccapnp.Message{}, nil, errors.New("RPC stream transport: receive on closed receiver")
+		return rpccp.Message{}, nil, errors.New("RPC stream transport: receive on closed receiver")
 	}
 	if err != nil {
-		return rpccapnp.Message{}, nil, err
+		return rpccp.Message{}, nil, err
 	}
-	rmsg, err := rpccapnp.ReadRootMessage(msg)
+	rmsg, err := rpccp.ReadRootMessage(msg)
 	if err != nil {
-		return rpccapnp.Message{}, nil, err
+		return rpccp.Message{}, nil, err
 	}
 	return rmsg, func() {
 		msg.Reset(nil)

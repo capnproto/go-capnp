@@ -10,7 +10,7 @@ import (
 
 	"zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/rpc"
-	rpccapnp "zombiezen.com/go/capnproto2/std/capnp/rpc"
+	rpccp "zombiezen.com/go/capnproto2/std/capnp/rpc"
 )
 
 type pipe struct {
@@ -23,7 +23,7 @@ type pipe struct {
 }
 
 type pipeMsg struct {
-	msg     rpccapnp.Message
+	msg     rpccp.Message
 	release capnp.ReleaseFunc
 }
 
@@ -36,9 +36,9 @@ func newPipe(n int) (p1, p2 *pipe) {
 		&pipe{r: ch2, w: ch1, rc: close2, wc: close1}
 }
 
-func (p *pipe) NewMessage(ctx context.Context) (_ rpccapnp.Message, send func() error, release capnp.ReleaseFunc, _ error) {
+func (p *pipe) NewMessage(ctx context.Context) (_ rpccp.Message, send func() error, release capnp.ReleaseFunc, _ error) {
 	msg, seg, _ := capnp.NewMessage(capnp.MultiSegment(nil))
-	rmsg, _ := rpccapnp.NewRootMessage(seg)
+	rmsg, _ := rpccp.NewRootMessage(seg)
 	_, file, line, _ := runtime.Caller(1)
 	caller := &newMessageCaller{file, line}
 	if p.msgs == nil {
@@ -107,17 +107,17 @@ func (p *pipe) CloseSend() error {
 	return nil
 }
 
-func (p *pipe) RecvMessage(ctx context.Context) (rpccapnp.Message, capnp.ReleaseFunc, error) {
+func (p *pipe) RecvMessage(ctx context.Context) (rpccp.Message, capnp.ReleaseFunc, error) {
 	select {
 	case pm, ok := <-p.r:
 		if !ok {
-			return rpccapnp.Message{}, nil, errors.New("rpc pipe: receive on closed pipe")
+			return rpccp.Message{}, nil, errors.New("rpc pipe: receive on closed pipe")
 		}
 		return pm.msg, pm.release, nil
 	case <-p.rc:
-		return rpccapnp.Message{}, nil, errors.New("rpc pipe: receive interrupted by close")
+		return rpccp.Message{}, nil, errors.New("rpc pipe: receive interrupted by close")
 	case <-ctx.Done():
-		return rpccapnp.Message{}, nil, fmt.Errorf("rpc pipe: %v", ctx.Err())
+		return rpccp.Message{}, nil, fmt.Errorf("rpc pipe: %v", ctx.Err())
 	}
 }
 

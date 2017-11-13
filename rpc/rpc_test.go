@@ -7,7 +7,7 @@ import (
 	"zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/pogs"
 	"zombiezen.com/go/capnproto2/rpc"
-	rpccapnp "zombiezen.com/go/capnproto2/std/capnp/rpc"
+	rpccp "zombiezen.com/go/capnproto2/std/capnp/rpc"
 )
 
 const (
@@ -32,15 +32,15 @@ func TestCloseAbort(t *testing.T) {
 	}
 	defer release()
 	var rmsg rpcMessage
-	if err := pogs.Extract(&rmsg, rpccapnp.Message_TypeID, msg.Struct); err != nil {
+	if err := pogs.Extract(&rmsg, rpccp.Message_TypeID, msg.Struct); err != nil {
 		t.Fatal("pogs.Extract(p2.RecvMessage(ctx)):", err)
 	}
-	if rmsg.Which != rpccapnp.Message_Which_abort {
+	if rmsg.Which != rpccp.Message_Which_abort {
 		t.Fatalf("Received %v message; want abort", rmsg.Which)
 	}
 	if rmsg.Abort == nil {
 		t.Error("Received null abort message")
-	} else if rmsg.Abort.Type != rpccapnp.Exception_Type_failed {
+	} else if rmsg.Abort.Type != rpccp.Exception_Type_failed {
 		t.Errorf("Received exception type %v; want failed", rmsg.Abort.Type)
 	}
 }
@@ -66,10 +66,10 @@ func TestBootstrapCall(t *testing.T) {
 	}
 	defer release()
 	var rmsg rpcMessage
-	if err := pogs.Extract(&rmsg, rpccapnp.Message_TypeID, msg.Struct); err != nil {
+	if err := pogs.Extract(&rmsg, rpccp.Message_TypeID, msg.Struct); err != nil {
 		t.Fatal("pogs.Extract(p2.RecvMessage(ctx)):", err)
 	}
-	if rmsg.Which != rpccapnp.Message_Which_bootstrap {
+	if rmsg.Which != rpccp.Message_Which_bootstrap {
 		t.Fatalf("Received %v message; want bootstrap", rmsg.Which)
 	}
 	qid := rmsg.Bootstrap.QuestionID
@@ -80,16 +80,16 @@ func TestBootstrapCall(t *testing.T) {
 		t.Fatal("p2.NewMessage():", err)
 	}
 	iptr := capnp.NewInterface(msg.Segment(), 0)
-	err = pogs.Insert(rpccapnp.Message_TypeID, msg.Struct, &rpcMessage{
-		Which: rpccapnp.Message_Which_return,
+	err = pogs.Insert(rpccp.Message_TypeID, msg.Struct, &rpcMessage{
+		Which: rpccp.Message_Which_return,
 		Return: &rpcReturn{
 			AnswerID: qid,
-			Which:    rpccapnp.Return_Which_results,
+			Which:    rpccp.Return_Which_results,
 			Results: &rpcPayload{
 				Content: iptr.ToPtr(),
 				CapTable: []rpcCapDescriptor{
 					{
-						Which:        rpccapnp.CapDescriptor_Which_senderHosted,
+						Which:        rpccp.CapDescriptor_Which_senderHosted,
 						SenderHosted: bootstrapExportID,
 					},
 				},
@@ -116,10 +116,10 @@ func TestBootstrapCall(t *testing.T) {
 	}
 	defer release()
 	rmsg = rpcMessage{}
-	if err := pogs.Extract(&rmsg, rpccapnp.Message_TypeID, msg.Struct); err != nil {
+	if err := pogs.Extract(&rmsg, rpccp.Message_TypeID, msg.Struct); err != nil {
 		t.Fatal("pogs.Extract(p2.RecvMessage(ctx)):", err)
 	}
-	if rmsg.Which != rpccapnp.Message_Which_finish {
+	if rmsg.Which != rpccp.Message_Which_finish {
 		t.Fatalf("Received %v message; want finish", rmsg.Which)
 	}
 	if rmsg.Finish.QuestionID != qid {
@@ -148,10 +148,10 @@ func TestBootstrapCall(t *testing.T) {
 	}
 	defer release()
 	rmsg = rpcMessage{}
-	if err := pogs.Extract(&rmsg, rpccapnp.Message_TypeID, msg.Struct); err != nil {
+	if err := pogs.Extract(&rmsg, rpccp.Message_TypeID, msg.Struct); err != nil {
 		t.Fatal("pogs.Extract(p2.RecvMessage(ctx)):", err)
 	}
-	if rmsg.Which != rpccapnp.Message_Which_call {
+	if rmsg.Which != rpccp.Message_Which_call {
 		t.Fatalf("Received %v message; want call", rmsg.Which)
 	}
 	qid = rmsg.Call.QuestionID
@@ -164,10 +164,10 @@ func TestBootstrapCall(t *testing.T) {
 	if p := rmsg.Call.Params.Content.Struct(); p.Uint64(0) != 42 {
 		t.Errorf("call.params.content = %d; want 42", p.Uint64(0))
 	}
-	if rmsg.Call.SendResultsTo.Which != rpccapnp.Call_sendResultsTo_Which_caller {
+	if rmsg.Call.SendResultsTo.Which != rpccp.Call_sendResultsTo_Which_caller {
 		t.Errorf("call.sentResultsTo which = %v; want caller", rmsg.Call.SendResultsTo.Which)
 	}
-	if rmsg.Call.Target.Which != rpccapnp.MessageTarget_Which_importedCap {
+	if rmsg.Call.Target.Which != rpccp.MessageTarget_Which_importedCap {
 		t.Errorf("call.target which = %v; want importedCap", rmsg.Call.Target.Which)
 	} else if rmsg.Call.Target.ImportedCap != bootstrapExportID {
 		t.Errorf("call.target.importedCap = %d; want %d", rmsg.Call.Target.ImportedCap, bootstrapExportID)
@@ -183,11 +183,11 @@ func TestBootstrapCall(t *testing.T) {
 		t.Fatal("capnp.NewStruct:", err)
 	}
 	resp.SetUint64(0, 0xdeadbeef)
-	err = pogs.Insert(rpccapnp.Message_TypeID, msg.Struct, &rpcMessage{
-		Which: rpccapnp.Message_Which_return,
+	err = pogs.Insert(rpccp.Message_TypeID, msg.Struct, &rpcMessage{
+		Which: rpccp.Message_Which_return,
 		Return: &rpcReturn{
 			AnswerID: qid,
-			Which:    rpccapnp.Return_Which_results,
+			Which:    rpccp.Return_Which_results,
 			Results:  &rpcPayload{Content: resp.ToPtr()},
 		},
 	})
@@ -216,10 +216,10 @@ func TestBootstrapCall(t *testing.T) {
 	}
 	defer release()
 	rmsg = rpcMessage{}
-	if err := pogs.Extract(&rmsg, rpccapnp.Message_TypeID, msg.Struct); err != nil {
+	if err := pogs.Extract(&rmsg, rpccp.Message_TypeID, msg.Struct); err != nil {
 		t.Fatal("pogs.Extract(p2.RecvMessage(ctx)):", err)
 	}
-	if rmsg.Which != rpccapnp.Message_Which_finish {
+	if rmsg.Which != rpccp.Message_Which_finish {
 		t.Fatalf("Received %v message; want finish", rmsg.Which)
 	}
 	if rmsg.Finish.QuestionID != qid {
@@ -239,10 +239,10 @@ func TestBootstrapCall(t *testing.T) {
 	}
 	defer release()
 	rmsg = rpcMessage{}
-	if err := pogs.Extract(&rmsg, rpccapnp.Message_TypeID, msg.Struct); err != nil {
+	if err := pogs.Extract(&rmsg, rpccp.Message_TypeID, msg.Struct); err != nil {
 		t.Fatal("pogs.Extract(p2.RecvMessage(ctx)):", err)
 	}
-	if rmsg.Which != rpccapnp.Message_Which_release {
+	if rmsg.Which != rpccp.Message_Which_release {
 		t.Fatalf("Received %v message; want release", rmsg.Which)
 	}
 	if rmsg.Release.ID != bootstrapExportID {
@@ -274,10 +274,10 @@ func TestBootstrapPipelineCall(t *testing.T) {
 	}
 	defer release()
 	var rmsg rpcMessage
-	if err := pogs.Extract(&rmsg, rpccapnp.Message_TypeID, msg.Struct); err != nil {
+	if err := pogs.Extract(&rmsg, rpccp.Message_TypeID, msg.Struct); err != nil {
 		t.Fatal("pogs.Extract(p2.RecvMessage(ctx)):", err)
 	}
-	if rmsg.Which != rpccapnp.Message_Which_bootstrap {
+	if rmsg.Which != rpccp.Message_Which_bootstrap {
 		t.Fatalf("Received %v message; want bootstrap", rmsg.Which)
 	}
 	bootstrapQID := rmsg.Bootstrap.QuestionID
@@ -301,10 +301,10 @@ func TestBootstrapPipelineCall(t *testing.T) {
 	}
 	defer release()
 	rmsg = rpcMessage{}
-	if err := pogs.Extract(&rmsg, rpccapnp.Message_TypeID, msg.Struct); err != nil {
+	if err := pogs.Extract(&rmsg, rpccp.Message_TypeID, msg.Struct); err != nil {
 		t.Fatal("pogs.Extract(p2.RecvMessage(ctx)):", err)
 	}
-	if rmsg.Which != rpccapnp.Message_Which_call {
+	if rmsg.Which != rpccp.Message_Which_call {
 		t.Fatalf("Received %v message; want call", rmsg.Which)
 	}
 	qid := rmsg.Call.QuestionID
@@ -317,10 +317,10 @@ func TestBootstrapPipelineCall(t *testing.T) {
 	if p := rmsg.Call.Params.Content.Struct(); p.Uint64(0) != 42 {
 		t.Errorf("call.params.content = %d; want 42", p.Uint64(0))
 	}
-	if rmsg.Call.SendResultsTo.Which != rpccapnp.Call_sendResultsTo_Which_caller {
+	if rmsg.Call.SendResultsTo.Which != rpccp.Call_sendResultsTo_Which_caller {
 		t.Errorf("call.sentResultsTo which = %v; want caller", rmsg.Call.SendResultsTo.Which)
 	}
-	if rmsg.Call.Target.Which != rpccapnp.MessageTarget_Which_promisedAnswer {
+	if rmsg.Call.Target.Which != rpccp.MessageTarget_Which_promisedAnswer {
 		t.Errorf("call.target which = %v; want promisedAnswer", rmsg.Call.Target.Which)
 	} else {
 		if rmsg.Call.Target.PromisedAnswer.QuestionID != bootstrapQID {
@@ -341,11 +341,11 @@ func TestBootstrapPipelineCall(t *testing.T) {
 		t.Fatal("capnp.NewStruct:", err)
 	}
 	resp.SetUint64(0, 0xdeadbeef)
-	err = pogs.Insert(rpccapnp.Message_TypeID, msg.Struct, &rpcMessage{
-		Which: rpccapnp.Message_Which_return,
+	err = pogs.Insert(rpccp.Message_TypeID, msg.Struct, &rpcMessage{
+		Which: rpccp.Message_Which_return,
 		Return: &rpcReturn{
 			AnswerID: qid,
-			Which:    rpccapnp.Return_Which_results,
+			Which:    rpccp.Return_Which_results,
 			Results:  &rpcPayload{Content: resp.ToPtr()},
 		},
 	})
@@ -374,10 +374,10 @@ func TestBootstrapPipelineCall(t *testing.T) {
 	}
 	defer release()
 	rmsg = rpcMessage{}
-	if err := pogs.Extract(&rmsg, rpccapnp.Message_TypeID, msg.Struct); err != nil {
+	if err := pogs.Extract(&rmsg, rpccp.Message_TypeID, msg.Struct); err != nil {
 		t.Fatal("pogs.Extract(p2.RecvMessage(ctx)):", err)
 	}
-	if rmsg.Which != rpccapnp.Message_Which_finish {
+	if rmsg.Which != rpccp.Message_Which_finish {
 		t.Fatalf("Received %v message; want finish", rmsg.Which)
 	}
 	if rmsg.Finish.QuestionID != qid {
@@ -397,10 +397,10 @@ func TestBootstrapPipelineCall(t *testing.T) {
 	}
 	defer release()
 	rmsg = rpcMessage{}
-	if err := pogs.Extract(&rmsg, rpccapnp.Message_TypeID, msg.Struct); err != nil {
+	if err := pogs.Extract(&rmsg, rpccp.Message_TypeID, msg.Struct); err != nil {
 		t.Fatal("pogs.Extract(p2.RecvMessage(ctx)):", err)
 	}
-	if rmsg.Which != rpccapnp.Message_Which_finish {
+	if rmsg.Which != rpccp.Message_Which_finish {
 		t.Fatalf("Received %v message; want finish", rmsg.Which)
 	}
 	if rmsg.Finish.QuestionID != bootstrapQID {
@@ -412,7 +412,7 @@ func TestBootstrapPipelineCall(t *testing.T) {
 }
 
 type rpcMessage struct {
-	Which         rpccapnp.Message_Which
+	Which         rpccp.Message_Which
 	Unimplemented *rpcMessage
 	Abort         *rpcException
 	Bootstrap     *rpcBootstrap
@@ -424,7 +424,7 @@ type rpcMessage struct {
 
 type rpcException struct {
 	Reason string
-	Type   rpccapnp.Exception_Type
+	Type   rpccp.Exception_Type
 }
 
 type rpcBootstrap struct {
@@ -442,14 +442,14 @@ type rpcCall struct {
 }
 
 type rpcCallSendResultsTo struct {
-	Which rpccapnp.Call_sendResultsTo_Which
+	Which rpccp.Call_sendResultsTo_Which
 }
 
 type rpcReturn struct {
 	AnswerID         uint32 `capnp:"answerId"`
 	ReleaseParamCaps bool
 
-	Which                 rpccapnp.Return_Which
+	Which                 rpccp.Return_Which
 	Results               *rpcPayload
 	Exception             *rpcException
 	TakeFromOtherQuestion uint32
@@ -466,7 +466,7 @@ type rpcRelease struct {
 }
 
 type rpcMessageTarget struct {
-	Which          rpccapnp.MessageTarget_Which
+	Which          rpccp.MessageTarget_Which
 	ImportedCap    uint32
 	PromisedAnswer *rpcPromisedAnswer
 }
@@ -477,7 +477,7 @@ type rpcPayload struct {
 }
 
 type rpcCapDescriptor struct {
-	Which          rpccapnp.CapDescriptor_Which
+	Which          rpccp.CapDescriptor_Which
 	SenderHosted   uint32
 	SenderPromise  uint32
 	ReceiverHosted uint32
@@ -489,6 +489,6 @@ type rpcPromisedAnswer struct {
 }
 
 type rpcPromisedAnswerOp struct {
-	Which           rpccapnp.PromisedAnswer_Op_Which
+	Which           rpccp.PromisedAnswer_Op_Which
 	GetPointerField uint16
 }
