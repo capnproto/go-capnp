@@ -589,10 +589,10 @@ func (r Recv) Reject(e error) {
 // A Returner allocates and sends the results from a received
 // capability method call.
 type Returner interface {
-	// AllocResults is called to allocate the results struct.
-	// It can be called at most once, and only before calling Return.
-	// The struct returned by AllocResults cannot be used after Return is
-	// called.
+	// AllocResults allocates the results struct that will be sent using
+	// Return.  It can be called at most once, and only before calling
+	// Return.  The struct returned by AllocResults cannot be used after
+	// Return is called.
 	AllocResults(sz ObjectSize) (Struct, error)
 
 	// Return resolves the method call successfully if e is nil, or failure
