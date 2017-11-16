@@ -2,11 +2,14 @@ package rpc_test
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"testing"
 
 	"zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/pogs"
 	"zombiezen.com/go/capnproto2/rpc"
+	"zombiezen.com/go/capnproto2/server"
 	rpccp "zombiezen.com/go/capnproto2/std/capnp/rpc"
 )
 
@@ -16,6 +19,8 @@ const (
 	bootstrapExportID uint32 = 84
 )
 
+// TestCloseAbort calls Close on a new connection, verifying that it
+// sends an Abort message.  Level 0 requirement.
 func TestCloseAbort(t *testing.T) {
 	p1, p2 := newPipe(1)
 	defer p2.CloseSend()
@@ -45,6 +50,10 @@ func TestCloseAbort(t *testing.T) {
 	}
 }
 
+// TestBootstrapCall calls Bootstrap, sends back an export, then makes
+// an RPC on the returned capability.  It checks to see that the correct
+// messages were sent on the wire and that the correct return value came
+// back.  Level 0 requirement.
 func TestBootstrapCall(t *testing.T) {
 	p1, p2 := newPipe(1)
 	defer p2.CloseSend()
@@ -253,6 +262,8 @@ func TestBootstrapCall(t *testing.T) {
 	}
 }
 
+// TestBootstrapPipelineCall calls Bootstrap and makes an RPC on the
+// returned capability without resolving the client.  Level 0 requirement.
 func TestBootstrapPipelineCall(t *testing.T) {
 	p1, p2 := newPipe(1)
 	defer p2.CloseSend()
@@ -411,6 +422,213 @@ func TestBootstrapPipelineCall(t *testing.T) {
 	}
 }
 
+// TestBootstrapClient sets Options.BootstrapClient on NewConn,
+// bootstraps, waits for a return, then sends a call to the RPC
+// connection.  It checks that the correct messages were sent and that
+// the return values are correct.  Level 0 requirement.
+func TestBootstrapClient(t *testing.T) {
+	srvShutdown := make(chan struct{})
+	srv := capnp.NewClient(server.New(
+		[]server.Method{
+			{
+				Method: capnp.Method{
+					InterfaceID: interfaceID,
+					MethodID:    methodID,
+				},
+				Impl: func(ctx context.Context, call *server.Call) error {
+					resp, err := call.AllocResults(capnp.ObjectSize{DataSize: 8})
+					if err != nil {
+						return err
+					}
+					resp.SetUint64(0, 0xdeadbeef|uint64(call.Args().Uint32(0))<<32)
+					return nil
+				},
+			},
+		},
+		nil, /* brand */
+		shutdownFunc(func() { close(srvShutdown) }),
+		nil /* policy */))
+	p1, p2 := newPipe(1)
+	defer p2.CloseSend()
+	defer p2.CloseRecv()
+	conn := rpc.NewConn(p1, &rpc.Options{BootstrapClient: srv})
+	defer func() {
+		if err := conn.Close(); err != nil {
+			t.Error(err)
+		}
+		select {
+		case <-srvShutdown:
+		default:
+			t.Error("Bootstrap client still alive after Close returned")
+		}
+	}()
+
+	ctx := context.Background()
+
+	// 1. Write bootstrap
+	const bootstrapQID = 54
+	{
+		msg := &rpcMessage{
+			Which:     rpccp.Message_Which_bootstrap,
+			Bootstrap: &rpcBootstrap{QuestionID: bootstrapQID},
+		}
+		if err := sendMessage(ctx, p2, msg); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// 2. Read return
+	var bootstrapImportID uint32
+	{
+		msg, release, err := p2.RecvMessage(ctx)
+		if err != nil {
+			t.Fatal("p2.RecvMessage:", err)
+		}
+		defer release()
+		var rmsg rpcMessage
+		if err := pogs.Extract(&rmsg, rpccp.Message_TypeID, msg.Struct); err != nil {
+			t.Fatal("pogs.Extract(p2.RecvMessage(ctx)):", err)
+		}
+		if rmsg.Which != rpccp.Message_Which_return {
+			t.Fatalf("Received %v message; want return", rmsg.Which)
+		}
+		if rmsg.Return.AnswerID != bootstrapQID {
+			t.Errorf("Received return for answer %d; want %d", rmsg.Return.AnswerID, bootstrapQID)
+		}
+		if rmsg.Return.Which != rpccp.Return_Which_results {
+			t.Fatalf("return which = %v; want results", rmsg.Return.Which)
+		}
+		desc, err := payloadCapability(rmsg.Return.Results)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if desc.Which != rpccp.CapDescriptor_Which_senderHosted {
+			t.Fatalf("Received %v capability for bootstrap; want senderHosted", desc.Which)
+		}
+		if len(rmsg.Return.Results.CapTable) > 1 {
+			t.Errorf("Received bootstrap return with %d capability descriptors; want 1", len(rmsg.Return.Results.CapTable))
+		}
+		bootstrapImportID = desc.SenderHosted
+	}
+
+	// 3. Write finish
+	{
+		msg := &rpcMessage{
+			Which: rpccp.Message_Which_finish,
+			Finish: &rpcFinish{
+				QuestionID:        bootstrapQID,
+				ReleaseResultCaps: false,
+			},
+		}
+		if err := sendMessage(ctx, p2, msg); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// 4. Write call
+	const callQID = 55
+	{
+		msg, send, release, err := p2.NewMessage(ctx)
+		if err != nil {
+			t.Fatal("p2.NewMessage():", err)
+		}
+		params, err := capnp.NewStruct(msg.Segment(), capnp.ObjectSize{DataSize: 8})
+		if err != nil {
+			t.Fatal("capnp.NewStruct:", err)
+		}
+		params.SetUint32(0, 0x2a2b)
+		err = pogs.Insert(rpccp.Message_TypeID, msg.Struct, &rpcMessage{
+			Which: rpccp.Message_Which_call,
+			Call: &rpcCall{
+				QuestionID: callQID,
+				Target: rpcMessageTarget{
+					Which:       rpccp.MessageTarget_Which_importedCap,
+					ImportedCap: bootstrapImportID,
+				},
+				InterfaceID: interfaceID,
+				MethodID:    methodID,
+				Params: rpcPayload{
+					Content: params.ToPtr(),
+				},
+			},
+		})
+		if err != nil {
+			release()
+			t.Fatal("pogs.Insert(p2.NewMessage(), &rpcMessage{...}):", err)
+		}
+		err = send()
+		release()
+		if err != nil {
+			t.Fatal("send():", err)
+		}
+	}
+
+	// 5. Read return
+	{
+		msg, release, err := p2.RecvMessage(ctx)
+		if err != nil {
+			t.Fatal("p2.RecvMessage:", err)
+		}
+		defer release()
+		var rmsg rpcMessage
+		if err := pogs.Extract(&rmsg, rpccp.Message_TypeID, msg.Struct); err != nil {
+			t.Fatal("pogs.Extract(p2.RecvMessage(ctx)):", err)
+		}
+		if rmsg.Which != rpccp.Message_Which_return {
+			t.Fatalf("Received %v message; want return", rmsg.Which)
+		}
+		if rmsg.Return.AnswerID != callQID {
+			t.Errorf("Received return for answer %d; want %d", rmsg.Return.AnswerID, callQID)
+		}
+		if rmsg.Return.Which != rpccp.Return_Which_results {
+			t.Fatalf("return which = %v; want results", rmsg.Return.Which)
+		}
+		result := rmsg.Return.Results.Content.Struct()
+		if got, want := result.Uint64(0), uint64(0x00002a2bdeadbeef); got != want {
+			t.Errorf("return results content = %#016x; want %#016x", got, want)
+		}
+	}
+
+	// 6. Write finish
+	{
+		msg := &rpcMessage{
+			Which: rpccp.Message_Which_finish,
+			Finish: &rpcFinish{
+				QuestionID:        callQID,
+				ReleaseResultCaps: false,
+			},
+		}
+		if err := sendMessage(ctx, p2, msg); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// 7. Write release
+	{
+		msg := &rpcMessage{
+			Which: rpccp.Message_Which_release,
+			Release: &rpcRelease{
+				ID:             bootstrapImportID,
+				ReferenceCount: 1,
+			},
+		}
+		if err := sendMessage(ctx, p2, msg); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// 8. srv should not be released (Conn should be holding on).
+	select {
+	case <-srvShutdown:
+		t.Error("Bootstrap client released after release message")
+	default:
+	}
+}
+
+type shutdownFunc func()
+
+func (f shutdownFunc) Shutdown() { f() }
+
 type rpcMessage struct {
 	Which         rpccp.Message_Which
 	Unimplemented *rpcMessage
@@ -420,6 +638,21 @@ type rpcMessage struct {
 	Return        *rpcReturn
 	Finish        *rpcFinish
 	Release       *rpcRelease
+}
+
+func sendMessage(ctx context.Context, t rpc.Transport, msg *rpcMessage) error {
+	s, send, release, err := t.NewMessage(ctx)
+	if err != nil {
+		return fmt.Errorf("send message: %v", err)
+	}
+	defer release()
+	if err := pogs.Insert(rpccp.Message_TypeID, s.Struct, msg); err != nil {
+		return fmt.Errorf("send message: %v", err)
+	}
+	if err := send(); err != nil {
+		return fmt.Errorf("send message: %v", err)
+	}
+	return nil
 }
 
 type rpcException struct {
@@ -481,6 +714,20 @@ type rpcCapDescriptor struct {
 	SenderHosted   uint32
 	SenderPromise  uint32
 	ReceiverHosted uint32
+	ReceiverAnswer *rpcPromisedAnswer
+}
+
+// payloadCapability returns the capability descriptor pointed to by a
+// payload's content.
+func payloadCapability(payload *rpcPayload) (*rpcCapDescriptor, error) {
+	iface := payload.Content.Interface()
+	if !iface.IsValid() {
+		return nil, errors.New("parse payload: content is not an interface pointer")
+	}
+	if int64(iface.Capability()) >= int64(len(payload.CapTable)) {
+		return nil, fmt.Errorf("parse payload: content points to capability %d (table has %d entries)", iface.Capability(), len(payload.CapTable))
+	}
+	return &payload.CapTable[iface.Capability()], nil
 }
 
 type rpcPromisedAnswer struct {

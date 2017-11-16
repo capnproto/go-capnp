@@ -11,11 +11,9 @@ import (
 
 // Table IDs
 type (
-	questionID uint32
-	answerID   uint32
-	exportID   uint32
-	importID   uint32
-	embargoID  uint32
+	exportID  uint32
+	importID  uint32
+	embargoID uint32
 )
 
 // impent is an entry in the import table.  All fields are protected by
@@ -147,7 +145,7 @@ func (ic *importClient) Recv(ctx context.Context, r capnp.Recv) capnp.PipelineCa
 }
 
 func (ic *importClient) Brand() interface{} {
-	return nil
+	return ic
 }
 
 func (ic *importClient) Shutdown() {
@@ -173,6 +171,19 @@ func (ic *importClient) Shutdown() {
 		// TODO(soon): log error
 		return
 	}
+}
+
+// expent is an entry in a Conn's export table.
+type expent struct {
+	client   *capnp.Client
+	wireRefs int
+}
+
+func (c *Conn) findExport(id exportID) *expent {
+	if int64(id) >= int64(len(c.exports)) {
+		return nil
+	}
+	return c.exports[id]
 }
 
 // idgen returns a sequence of monotonically increasing IDs with

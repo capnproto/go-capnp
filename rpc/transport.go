@@ -18,6 +18,12 @@ type Sender interface {
 	// to reference the message.  Before release is called, send may be
 	// called at most once to send the mssage, taking its cancelation and
 	// deadline from ctx.
+	//
+	// Messages returned by NewMessage must have a nil CapTable.  release
+	// must release all clients in the CapTable.
+	//
+	// The Arena in the returned message should be fast at allocating new
+	// segments.
 	NewMessage(ctx context.Context) (_ rpccp.Message, send func() error, _ capnp.ReleaseFunc, _ error)
 
 	// CloseSend releases any resources associated with the sender.
@@ -34,6 +40,9 @@ type Receiver interface {
 	//
 	// Messages returned by RecvMessage must have a nil CapTable.
 	// The caller may mutate the CapTable.
+	//
+	// The Arena in the returned message should not fetch segments lazily;
+	// the Arena should be fast to access other segments.
 	RecvMessage(ctx context.Context) (rpccp.Message, capnp.ReleaseFunc, error)
 
 	// CloseRecv releases any resources associated with the receiver and

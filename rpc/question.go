@@ -9,6 +9,9 @@ import (
 	rpccp "zombiezen.com/go/capnproto2/std/capnp/rpc"
 )
 
+// A questionID is an index into the questions table.
+type questionID uint32
+
 type question struct {
 	id        questionID
 	bootstrap bool

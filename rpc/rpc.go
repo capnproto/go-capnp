@@ -14,12 +14,14 @@ import (
 // A Conn is a connection to another Cap'n Proto vat.
 // It is safe to use from multiple goroutines.
 type Conn struct {
-	// mu protects all fields in the Conn.  However, mu should not be held
-	// while making calls that take indeterminate time (I/O or application
-	// code).  Condition channels protect operations on any field that
-	// take an indeterminate amount of time.  Thus, critical sections
-	// involving mu are quite short, while still ensuring mutually
-	// exclusive access to resources.
+	bootstrap *capnp.Client
+
+	// mu protects all the following fields in the Conn.  mu should not be
+	// held while making calls that take indeterminate time (I/O or
+	// application code).  Condition channels protect operations on any
+	// field that take an indeterminate amount of time.  Thus, critical
+	// sections involving mu are quite short, while still ensuring
+	// mutually exclusive access to resources.
 	mu sync.Mutex
 
 	bgctx    context.Context
@@ -30,20 +32,37 @@ type Conn struct {
 		CloseRecv() error
 	}
 
-	// sender is protected by sendCond, a condition channel.
 	// sendCond is non-nil if an operation involving sender is in
 	// progress, and the channel is closed when the operation is finished.
-	// Details of this are handled by acquireSender and releaseSender.
+	// This is referred to as the "sender lock".  See newMessage to start
+	// an operation on sender.
 	sendCond chan struct{}
-	sender   Sender
 
+	// sender is the send half of the transport.  sender is protected by
+	// sendCond.  sender should not be used after bgctx is canceled (Close
+	// is starting).
+	sender Sender
+
+	// openSends is added to before creating a new message (while holding
+	// c.mu) and subtracted from after releasing the message.
+	openSends sync.WaitGroup
+
+	// Tables
 	questions  []*question
 	questionID idgen
+	answers    map[answerID]*answer
+	exports    []*expent
+	exportID   idgen
 	imports    map[importID]*impent
 }
 
 // Options specifies optional parameters for creating a Conn.
 type Options struct {
+	// BootstrapClient is the capability that will be returned to the
+	// remote peer when receiving a Bootstrap message.  NewConn "steals"
+	// this reference: it will release the client when the connection is
+	// closed.
+	BootstrapClient *capnp.Client
 }
 
 // NewConn creates a new connection that communications on a given
@@ -57,6 +76,9 @@ func NewConn(t Transport, opts *Options) *Conn {
 		bgctx:      bgctx,
 		bgcancel:   bgcancel,
 	}
+	if opts != nil {
+		c.bootstrap = opts.BootstrapClient
+	}
 	c.runBackground(func(ctx context.Context) {
 		c.receive(ctx, t)
 	})
@@ -69,58 +91,6 @@ func (c *Conn) runBackground(f func(ctx context.Context)) {
 		defer c.bgtasks.Done()
 		f(c.bgctx)
 	}()
-}
-
-// sendMessage creates a new message on the Sender, calls f to build it,
-// and sends it if f does not return an error.  The caller must be
-// holding onto c.mu.  However, while f is being called, it will not be
-// holding onto c.mu.
-func (c *Conn) sendMessage(ctx context.Context, f func(msg rpccp.Message) error) error {
-	// Acquire send condition.
-	for {
-		select {
-		case <-c.bgctx.Done():
-			// TODO(someday): classify as disconnected
-			return errors.New("connection closed")
-		default:
-		}
-		s := c.sendCond
-		if s == nil {
-			break
-		}
-		c.mu.Unlock()
-		select {
-		case <-s:
-		case <-ctx.Done():
-			c.mu.Lock()
-			return ctx.Err()
-		case <-c.bgctx.Done():
-			c.mu.Lock()
-			return errors.New("connection closed")
-		}
-		c.mu.Lock()
-	}
-	c.sendCond = make(chan struct{})
-	c.mu.Unlock()
-	defer func() {
-		c.mu.Lock()
-		close(c.sendCond)
-		c.sendCond = nil
-	}()
-
-	// Build and send message.
-	msg, send, release, err := c.sender.NewMessage(ctx)
-	if err != nil {
-		return fmt.Errorf("create message: %v", err)
-	}
-	defer release()
-	if err := f(msg); err != nil {
-		return fmt.Errorf("build message: %v", err)
-	}
-	if err := send(); err != nil {
-		return fmt.Errorf("send message: %v", err)
-	}
-	return nil
 }
 
 // Bootstrap returns the remote vat's bootstrap interface.  This creates
@@ -236,23 +206,13 @@ func (c *Conn) Close() error {
 	c.mu.Unlock()
 	rerr := c.recvCloser.CloseRecv()
 
-	// Close Sender after all sends are finished.
-	// TODO(soon): This assumes that there aren't messages retained past
-	// the release of the send condition.
-	c.mu.Lock()
-	for {
-		s := c.sendCond
-		if s == nil {
-			break
-		}
-		c.mu.Unlock()
-		<-s
-		c.mu.Lock()
-	}
-	c.mu.Unlock()
+	// Wait for all other sends to finish.
+	c.openSends.Wait()
 
-	// Send abort message (ignoring error).
+	// Send abort message (ignoring error).  No locking needed, since
+	// c.startSend will always return errors after closing bgctx.
 	{
+		// TODO(soon): add timeout
 		msg, send, release, err := c.sender.NewMessage(context.Background())
 		if err != nil {
 			goto closeSend
@@ -274,6 +234,21 @@ closeSend:
 	serr := c.sender.CloseSend()
 
 	c.bgtasks.Wait()
+
+	// Release exported clients.
+	c.mu.Lock()
+	c.imports = nil
+	exports := c.exports
+	c.exports = nil
+	c.mu.Unlock()
+	c.bootstrap.Release()
+	c.bootstrap = nil
+	for _, e := range exports {
+		if e != nil {
+			e.client.Release()
+		}
+	}
+
 	if rerr != nil {
 		return fmt.Errorf("rpc: close transport: %v", rerr)
 	}
@@ -295,6 +270,29 @@ func (c *Conn) receive(ctx context.Context, r Receiver) {
 		switch recv.Which() {
 		case rpccp.Message_Which_unimplemented:
 			// no-op for now to avoid feedback loop
+		case rpccp.Message_Which_bootstrap:
+			bootstrap, err := recv.Bootstrap()
+			if err != nil {
+				// TODO(soon): log error
+				continue
+			}
+			qid := answerID(bootstrap.QuestionId())
+			releaseRecv()
+			if err := c.handleBootstrap(ctx, qid); err != nil {
+				// TODO(soon): log error
+				continue
+			}
+		case rpccp.Message_Which_call:
+			call, err := recv.Call()
+			if err != nil {
+				// TODO(soon): log error
+				continue
+			}
+			err = c.handleCall(ctx, call, releaseRecv)
+			if err != nil {
+				// TODO(soon): log error
+				continue
+			}
 		case rpccp.Message_Which_return:
 			ret, err := recv.Return()
 			if err != nil {
@@ -303,6 +301,33 @@ func (c *Conn) receive(ctx context.Context, r Receiver) {
 			}
 			err = c.handleReturn(ctx, ret, releaseRecv)
 			if err != nil {
+				// TODO(soon): log error
+				continue
+			}
+		case rpccp.Message_Which_finish:
+			fin, err := recv.Finish()
+			if err != nil {
+				// TODO(soon): log error
+				continue
+			}
+			qid := answerID(fin.QuestionId())
+			releaseResultCaps := fin.ReleaseResultCaps()
+			releaseRecv()
+			err = c.handleFinish(ctx, qid, releaseResultCaps)
+			if err != nil {
+				// TODO(soon): log error
+				continue
+			}
+		case rpccp.Message_Which_release:
+			rel, err := recv.Release()
+			if err != nil {
+				// TODO(soon): log error
+				continue
+			}
+			id := exportID(rel.Id())
+			count := rel.ReferenceCount()
+			releaseRecv()
+			if err := c.handleRelease(ctx, id, count); err != nil {
 				// TODO(soon): log error
 				continue
 			}
@@ -315,6 +340,68 @@ func (c *Conn) receive(ctx context.Context, r Receiver) {
 			}
 		}
 	}
+}
+
+func (c *Conn) handleBootstrap(ctx context.Context, id answerID) error {
+	defer c.mu.Unlock()
+	c.mu.Lock()
+	ans, err := c.newAnswer(ctx, id, func() {})
+	if err != nil {
+		return err
+	}
+	if c.bootstrap.IsValid() {
+		err := ans.setBootstrap(c.bootstrap.AddRef())
+		ans.lockedReturn(err)
+	} else {
+		ans.lockedReturn(errors.New("vat does not expose a public/bootstrap interface"))
+	}
+	return nil
+}
+
+func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capnp.ReleaseFunc) error {
+	id := answerID(call.QuestionId())
+	if call.SendResultsTo().Which() != rpccp.Call_sendResultsTo_Which_caller {
+		// TODO(someday): handle yourself
+		releaseCall()
+		// TODO(someday): classify as unimplemented
+		return errors.New("call results destination other than caller unimplemented")
+	}
+	tgt, err := call.Target()
+	if err != nil {
+		releaseCall()
+		return fmt.Errorf("read target: %v", err)
+	}
+	argsPayload, err := call.Params()
+	if err != nil {
+		releaseCall()
+		return fmt.Errorf("read params: %v", err)
+	}
+
+	c.mu.Lock()
+	callCtx, cancel := context.WithCancel(c.bgctx)
+	ans, err := c.newAnswer(ctx, id, cancel)
+	if err != nil {
+		c.mu.Unlock()
+		return err
+	}
+	args, err := c.recvPayload(argsPayload)
+	if err != nil {
+		ans.lockedReturn(fmt.Errorf("read params: %v", err))
+		c.mu.Unlock()
+		return nil
+	}
+	c.mu.Unlock()
+	// TODO(soon): store PipelineCaller in answer.
+	c.targetClient(tgt).RecvCall(callCtx, capnp.Recv{
+		Args: args.Struct(),
+		Method: capnp.Method{
+			InterfaceID: call.InterfaceId(),
+			MethodID:    call.MethodId(),
+		},
+		ReleaseArgs: releaseCall,
+		Returner:    ans,
+	})
+	return nil
 }
 
 func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet capnp.ReleaseFunc) error {
@@ -422,6 +509,77 @@ type parsedReturn struct {
 	parseFailed bool
 }
 
+func (c *Conn) handleFinish(ctx context.Context, id answerID, releaseResultCaps bool) error {
+	defer c.mu.Unlock()
+	c.mu.Lock()
+	ans := c.answers[id]
+	if ans == nil {
+		return fmt.Errorf("finish sent for unknown answer ID %d", id)
+	}
+	ans.state |= 2
+	ans.cancel()
+	if !ans.isDone() {
+		// Not returned yet.
+		// TODO(soon): record releaseResultCaps
+		return nil
+	}
+	delete(c.answers, id)
+	if releaseResultCaps {
+		// TODO(soon): release result caps (while not holding c.mu)
+	}
+	return nil
+}
+
+// sendCap writes a client descriptor.  The caller must be holding onto c.mu.
+func (c *Conn) sendCap(d rpccp.CapDescriptor, client *capnp.Client) {
+	if !client.IsValid() {
+		d.SetNone()
+		return
+	}
+
+	brand := client.Brand()
+	if ic, ok := brand.(*importClient); ok && ic.conn == c {
+		if ent := c.imports[ic.id]; ent != nil && ent.generation == ic.generation {
+			d.SetReceiverHosted(uint32(ic.id))
+			return
+		}
+	}
+	// TODO(someday): Check for unresolved client for senderPromise.
+	// TODO(someday): Check for pipeline client on question for receiverAnswer.
+
+	// Default to sender-hosted (export).
+	for i, ent := range c.exports {
+		if ent.client.IsSame(client) {
+			ent.wireRefs++
+			d.SetSenderHosted(uint32(i))
+			return
+		}
+	}
+	c.exports = append(c.exports, &expent{
+		client:   client.AddRef(),
+		wireRefs: 1,
+	})
+	d.SetSenderHosted(uint32(len(c.exports) - 1))
+}
+
+// fillPayloadCapTable adds descriptors of payload's message's
+// capabilities into payload's capability table.  The caller must be
+// holding onto c.mu.
+func (c *Conn) fillPayloadCapTable(payload rpccp.Payload) error {
+	tab := payload.Message().CapTable
+	if len(tab) == 0 {
+		return nil
+	}
+	list, err := payload.NewCapTable(int32(len(tab)))
+	if err != nil {
+		return fmt.Errorf("payload capability table: %v", err)
+	}
+	for i, client := range tab {
+		c.sendCap(list.At(i), client)
+	}
+	return nil
+}
+
 // recvCap materializes a client for a given descriptor.  If there is an
 // error reading a descriptor, then the resulting client will return the
 // error whenever it is called.  The caller must be holding onto c.mu.
@@ -444,13 +602,16 @@ func (c *Conn) recvPayload(payload rpccp.Payload) (capnp.Ptr, error) {
 		// RecvMessage likely violated its invariant.
 		return capnp.Ptr{}, errors.New("read payload: capability table already populated")
 	}
-	ptab, err := payload.CapTable()
-	if err != nil {
-		return capnp.Ptr{}, fmt.Errorf("read payload: %v", err)
-	}
 	p, err := payload.Content()
 	if err != nil {
 		return capnp.Ptr{}, fmt.Errorf("read payload: %v", err)
+	}
+	ptab, err := payload.CapTable()
+	if err != nil {
+		// Don't allow unreadable capability table to stop other results,
+		// just present an empty capability table.
+		// TODO(soon): log errors
+		return p, nil
 	}
 	mtab := make([]*capnp.Client, ptab.Len())
 	for i := 0; i < ptab.Len(); i++ {
@@ -458,6 +619,44 @@ func (c *Conn) recvPayload(payload rpccp.Payload) (capnp.Ptr, error) {
 	}
 	payload.Message().CapTable = mtab
 	return p, nil
+}
+
+// targetClient resolves a message target into a client.  Any error
+// encountered during resolution results in an error client.  The caller
+// must be holding onto c.mu.
+func (c *Conn) targetClient(tgt rpccp.MessageTarget) *capnp.Client {
+	switch tgt.Which() {
+	case rpccp.MessageTarget_Which_importedCap:
+		id := exportID(tgt.ImportedCap())
+		ent := c.findExport(id)
+		if ent == nil {
+			return capnp.ErrorClient(fmt.Errorf("unknown export ID %d", id))
+		}
+		return ent.client
+	default:
+		return capnp.ErrorClient(fmt.Errorf("unhandled message target %v", tgt.Which()))
+	}
+}
+
+func (c *Conn) handleRelease(ctx context.Context, id exportID, count uint32) error {
+	c.mu.Lock()
+	ent := c.findExport(id)
+	if ent == nil {
+		c.mu.Unlock()
+		return fmt.Errorf("unknown export ID %d", id)
+	}
+	ent.wireRefs -= int(count)
+	// TODO(soon): log c.exports[id].wireRefs < 0
+	if ent.wireRefs > 0 {
+		c.mu.Unlock()
+		return nil
+	}
+	client := ent.client
+	c.exports[id] = nil
+	c.exportID.remove(uint32(id))
+	c.mu.Unlock()
+	client.Release()
+	return nil
 }
 
 func (c *Conn) handleUnimplemented(ctx context.Context, recv rpccp.Message) error {
@@ -468,6 +667,101 @@ func (c *Conn) handleUnimplemented(ctx context.Context, recv rpccp.Message) erro
 	})
 	if err != nil {
 		return fmt.Errorf("rpc: send unimplemented: %v", err)
+	}
+	return nil
+}
+
+// sendSession manages the lifecycle of an outbound message.
+type sendSession struct {
+	msg        rpccp.Message
+	send       func() error // can be called directly
+	c          *Conn
+	releaseMsg capnp.ReleaseFunc
+}
+
+// startSend creates a new outbound message.  The caller must be holding
+// c.mu, but importantly, if newMessage does not return an error, then
+// newMessage releases c.mu and acquires the sender lock.
+//
+// startSend will return an error if Close() has been called on c or ctx
+// is canceled or reaches its deadline.
+func (c *Conn) startSend(ctx context.Context) (sendSession, error) {
+	for {
+		select {
+		case <-c.bgctx.Done():
+			// TODO(someday): classify as disconnected
+			return sendSession{}, errors.New("connection closed")
+		default:
+		}
+		s := c.sendCond
+		if s == nil {
+			break
+		}
+		c.mu.Unlock()
+		select {
+		case <-s:
+		case <-ctx.Done():
+			c.mu.Lock()
+			return sendSession{}, ctx.Err()
+		case <-c.bgctx.Done():
+			c.mu.Lock()
+			// TODO(someday): classify as disconnected
+			return sendSession{}, errors.New("connection closed")
+		}
+		c.mu.Lock()
+	}
+	c.openSends.Add(1)
+	c.sendCond = make(chan struct{})
+	c.mu.Unlock()
+	msg, send, release, err := c.sender.NewMessage(ctx)
+	if err != nil {
+		c.mu.Lock()
+		close(c.sendCond)
+		c.sendCond = nil
+		c.openSends.Done()
+		return sendSession{}, fmt.Errorf("create message: %v", err)
+	}
+	return sendSession{msg, send, c, release}, nil
+}
+
+// releaseSender trades the sender lock for s.c.mu.
+func (s sendSession) releaseSender() {
+	s.c.mu.Lock()
+	close(s.c.sendCond)
+	s.c.sendCond = nil
+}
+
+// acquireSender trades back s.c.mu for the sender lock after a call to
+// releaseSender.
+func (s sendSession) acquireSender() {
+	s.c.sendCond = make(chan struct{})
+	s.c.mu.Unlock()
+}
+
+// finish releases the message and unblocks Conn.Close completing,
+// if it is currently being called.  The caller must be holding the
+// sender lock, and it will be traded for s.c.mu.
+func (s sendSession) finish() {
+	s.releaseMsg()
+	s.releaseSender()
+	s.c.openSends.Done()
+}
+
+// sendMessage creates a new message on the Sender, calls f to build it,
+// and sends it if f does not return an error.  The caller must be
+// holding onto c.mu.  While f is being called, it will be holding onto
+// the sender lock, but not c.mu.
+func (c *Conn) sendMessage(ctx context.Context, f func(msg rpccp.Message) error) error {
+	s, err := c.startSend(ctx)
+	if err != nil {
+		return err
+	}
+	defer s.finish()
+	if err := f(s.msg); err != nil {
+		return fmt.Errorf("build message: %v", err)
+	}
+	if err := s.send(); err != nil {
+		return fmt.Errorf("send message: %v", err)
 	}
 	return nil
 }
