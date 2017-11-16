@@ -9,12 +9,8 @@ import (
 	rpccp "zombiezen.com/go/capnproto2/std/capnp/rpc"
 )
 
-// Table IDs
-type (
-	exportID  uint32
-	importID  uint32
-	embargoID uint32
-)
+// An importID is an index into the imports table.
+type importID uint32
 
 // impent is an entry in the import table.  All fields are protected by
 // Conn.mu.
@@ -171,40 +167,4 @@ func (ic *importClient) Shutdown() {
 		// TODO(soon): log error
 		return
 	}
-}
-
-// expent is an entry in a Conn's export table.
-type expent struct {
-	client   *capnp.Client
-	wireRefs int
-}
-
-func (c *Conn) findExport(id exportID) *expent {
-	if int64(id) >= int64(len(c.exports)) {
-		return nil
-	}
-	return c.exports[id]
-}
-
-// idgen returns a sequence of monotonically increasing IDs with
-// support for replacement.  The zero value is a generator that
-// starts at zero.
-type idgen struct {
-	i    uint32
-	free []uint32
-}
-
-func (gen *idgen) next() uint32 {
-	if n := len(gen.free); n > 0 {
-		i := gen.free[n-1]
-		gen.free = gen.free[:n-1]
-		return i
-	}
-	i := gen.i
-	gen.i++
-	return i
-}
-
-func (gen *idgen) remove(i uint32) {
-	gen.free = append(gen.free, i)
 }
