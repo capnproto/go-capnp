@@ -3,9 +3,10 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "go_default_library",
     srcs = [
+        "answer.go",
+        "import.go",
         "question.go",
         "rpc.go",
-        "tables.go",
         "transport.go",
     ],
     visibility = ["//visibility:public"],
@@ -26,6 +27,7 @@ go_test(
         ":go_default_library",
         "//:go_default_library",
         "//pogs:go_default_library",
+        "//server:go_default_library",
         "//std/capnp/rpc:go_default_library",
     ],
 )

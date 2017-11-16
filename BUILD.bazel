@@ -7,6 +7,7 @@ go_library(
     srcs = [
         "address.go",
         "answer.go",
+        "canonical.go",
         "capability.go",
         "capn.go",
         "doc.go",
@@ -33,6 +34,7 @@ go_test(
     srcs = [
         "address_test.go",
         "answer_test.go",
+        "canonical_test.go",
         "capability_test.go",
         "capn_test.go",
         "list_test.go",
