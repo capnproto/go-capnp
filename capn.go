@@ -3,7 +3,9 @@ package capnp
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
+	"fmt"
+
+	"zombiezen.com/go/capnproto2/internal/errors"
 )
 
 // A SegmentID is a numeric identifier for a Segment.
@@ -117,38 +119,38 @@ func (s *Segment) lookupSegment(id SegmentID) (*Segment, error) {
 func (s *Segment) readPtr(paddr Address, depthLimit uint) (ptr Ptr, err error) {
 	s, base, val, err := s.resolveFarPointer(paddr)
 	if err != nil {
-		return Ptr{}, err
+		return Ptr{}, annotate(err).errorf("read pointer")
 	}
 	if val == 0 {
 		return Ptr{}, nil
 	}
 	if depthLimit == 0 {
-		return Ptr{}, errDepthLimit
+		return Ptr{}, newError("read pointer: depth limit reached")
 	}
 	switch val.pointerType() {
 	case structPointer:
 		sp, err := s.readStructPtr(base, val)
 		if err != nil {
-			return Ptr{}, err
+			return Ptr{}, annotate(err).errorf("read pointer")
 		}
 		if !s.msg.canRead(sp.readSize()) {
-			return Ptr{}, errReadLimit
+			return Ptr{}, newError("read pointer: read traversal limit reached")
 		}
 		sp.depthLimit = depthLimit - 1
 		return sp.ToPtr(), nil
 	case listPointer:
 		lp, err := s.readListPtr(base, val)
 		if err != nil {
-			return Ptr{}, err
+			return Ptr{}, annotate(err).errorf("read pointer")
 		}
 		if !s.msg.canRead(lp.readSize()) {
-			return Ptr{}, errReadLimit
+			return Ptr{}, newError("read pointer: read traversal limit reached")
 		}
 		lp.depthLimit = depthLimit - 1
 		return lp.ToPtr(), nil
 	case otherPointer:
 		if val.otherPointerType() != 0 {
-			return Ptr{}, errOtherPointer
+			return Ptr{}, newError("read pointer: unknown pointer type")
 		}
 		return Interface{
 			seg: s,
@@ -156,18 +158,18 @@ func (s *Segment) readPtr(paddr Address, depthLimit uint) (ptr Ptr, err error) {
 		}.ToPtr(), nil
 	default:
 		// Only other types are far pointers.
-		return Ptr{}, errBadLandingPad
+		return Ptr{}, newError("read pointer: far pointer landing pad is a far pointer")
 	}
 }
 
 func (s *Segment) readStructPtr(base Address, val rawPointer) (Struct, error) {
 	addr, ok := val.offset().resolve(base)
 	if !ok {
-		return Struct{}, errPointerAddress
+		return Struct{}, newError("struct pointer: invalid address")
 	}
 	sz := val.structSize()
 	if !s.regionInBounds(addr, sz.totalSize()) {
-		return Struct{}, errPointerAddress
+		return Struct{}, newError("struct pointer: invalid address")
 	}
 	return Struct{
 		seg:  s,
@@ -179,14 +181,14 @@ func (s *Segment) readStructPtr(base Address, val rawPointer) (Struct, error) {
 func (s *Segment) readListPtr(base Address, val rawPointer) (List, error) {
 	addr, ok := val.offset().resolve(base)
 	if !ok {
-		return List{}, errPointerAddress
+		return List{}, newError("list pointer: invalid address")
 	}
 	lsize, ok := val.totalListSize()
 	if !ok {
-		return List{}, errOverflow
+		return List{}, newError("list pointer: size overflow")
 	}
 	if !s.regionInBounds(addr, lsize) {
-		return List{}, errPointerAddress
+		return List{}, newError("list pointer: address out of bounds")
 	}
 	lt := val.listType()
 	if lt == compositeList {
@@ -194,18 +196,18 @@ func (s *Segment) readListPtr(base Address, val rawPointer) (List, error) {
 		var ok bool
 		addr, ok = addr.addSize(wordSize)
 		if !ok {
-			return List{}, errOverflow
+			return List{}, newError("composite list pointer: content address overflow")
 		}
 		if hdr.pointerType() != structPointer {
-			return List{}, errBadTag
+			return List{}, newError("composite list pointer: tag word is not a struct")
 		}
 		sz := hdr.structSize()
 		n := int32(hdr.offset())
 		// TODO(light): check that this has the same end address
 		if tsize, ok := sz.totalSize().times(n); !ok {
-			return List{}, errOverflow
+			return List{}, newError("composite list pointer: size overflow")
 		} else if !s.regionInBounds(addr, tsize) {
-			return List{}, errPointerAddress
+			return List{}, newError("composite list pointer: address out of bounds")
 		}
 		return List{
 			seg:    s,
@@ -239,49 +241,49 @@ func (s *Segment) resolveFarPointer(paddr Address) (dst *Segment, base Address, 
 	case doubleFarPointer:
 		padSeg, err := s.lookupSegment(val.farSegment())
 		if err != nil {
-			return nil, 0, 0, err
+			return nil, 0, 0, annotate(err).errorf("double-far pointer")
 		}
 		padAddr := val.farAddress()
 		if !padSeg.regionInBounds(padAddr, wordSize*2) {
-			return nil, 0, 0, errPointerAddress
+			return nil, 0, 0, newError("double-far pointer: address out of bounds")
 		}
 		far := padSeg.readRawPointer(padAddr)
 		if far.pointerType() != farPointer {
-			return nil, 0, 0, errBadLandingPad
+			return nil, 0, 0, newError("double-far pointer: first word in landing pad is not a far pointer")
 		}
 		tagAddr, ok := padAddr.addSize(wordSize)
 		if !ok {
-			return nil, 0, 0, errOverflow
+			return nil, 0, 0, newError("double-far pointer: landing pad address overflow")
 		}
 		tag := padSeg.readRawPointer(tagAddr)
 		if pt := tag.pointerType(); (pt != structPointer && pt != listPointer) || tag.offset() != 0 {
-			return nil, 0, 0, errBadLandingPad
+			return nil, 0, 0, newError("double-far pointer: second word is not a struct or list with zero offset")
 		}
 		if dst, err = s.lookupSegment(far.farSegment()); err != nil {
-			return nil, 0, 0, err
+			return nil, 0, 0, annotate(err).errorf("double-far pointer")
 		}
 		return dst, 0, landingPadNearPointer(far, tag), nil
 	case farPointer:
 		var err error
 		dst, err = s.lookupSegment(val.farSegment())
 		if err != nil {
-			return nil, 0, 0, err
+			return nil, 0, 0, annotate(err).errorf("far pointer")
 		}
 		padAddr := val.farAddress()
 		if !dst.regionInBounds(padAddr, wordSize) {
-			return nil, 0, 0, errPointerAddress
+			return nil, 0, 0, newError("far pointer: address out of bounds")
 		}
 		var ok bool
 		base, ok = padAddr.addSize(wordSize)
 		if !ok {
-			return nil, 0, 0, errOverflow
+			return nil, 0, 0, newError("far pointer: landing pad address overflow")
 		}
 		return dst, base, dst.readRawPointer(padAddr), nil
 	default:
 		var ok bool
 		base, ok = paddr.addSize(wordSize)
 		if !ok {
-			return nil, 0, 0, errOverflow
+			return nil, 0, 0, newError("pointer base address overflow")
 		}
 		return s, base, val, nil
 	}
@@ -309,7 +311,7 @@ func (s *Segment) writePtr(off Address, src Ptr, forceCopy bool) error {
 		if forceCopy || src.seg.msg != s.msg || st.flags&isListMember != 0 {
 			newSeg, newAddr, err := alloc(s, st.size.totalSize())
 			if err != nil {
-				return err
+				return annotate(err).errorf("write pointer: copy")
 			}
 			dst := Struct{
 				seg:        newSeg,
@@ -319,7 +321,7 @@ func (s *Segment) writePtr(off Address, src Ptr, forceCopy bool) error {
 				// clear flags
 			}
 			if err := copyStruct(dst, st); err != nil {
-				return err
+				return annotate(err).errorf("write pointer")
 			}
 			st = dst
 			src = dst.ToPtr()
@@ -332,7 +334,7 @@ func (s *Segment) writePtr(off Address, src Ptr, forceCopy bool) error {
 			sz := l.allocSize()
 			newSeg, newAddr, err := alloc(s, sz)
 			if err != nil {
-				return err
+				return annotate(err).errorf("write pointer: copy")
 			}
 			dst := List{
 				seg:        newSeg,
@@ -348,7 +350,7 @@ func (s *Segment) writePtr(off Address, src Ptr, forceCopy bool) error {
 				var ok bool
 				dst.off, ok = dst.off.addSize(wordSize)
 				if !ok {
-					return errOverflow
+					return newError("write pointer: copy composite list: content address overflow")
 				}
 				sz -= wordSize
 			}
@@ -359,7 +361,7 @@ func (s *Segment) writePtr(off Address, src Ptr, forceCopy bool) error {
 				for i := 0; i < l.Len(); i++ {
 					err := copyStruct(dst.Struct(i), l.Struct(i))
 					if err != nil {
-						return err
+						return annotate(err).errorf("write pointer: copy list element %d", i)
 					}
 				}
 			}
@@ -399,7 +401,7 @@ func (s *Segment) writePtr(off Address, src Ptr, forceCopy bool) error {
 		// Not enough room for a landing pad, need to use a double-far pointer.
 		padSeg, padAddr, err := alloc(s, wordSize*2)
 		if err != nil {
-			return err
+			return annotate(err).errorf("write pointer: make landing pad")
 		}
 		padSeg.writeRawPointer(padAddr, rawFarPointer(src.seg.id, srcAddr))
 		padSeg.writeRawPointer(padAddr+Address(wordSize), srcRaw)
@@ -470,11 +472,11 @@ func Equal(p1, p2 Ptr) (bool, error) {
 		for i := 0; i < n; i++ {
 			sp1, err := s1.Ptr(uint16(i))
 			if err != nil {
-				return false, err
+				return false, annotate(err).errorf("equal")
 			}
 			sp2, err := s2.Ptr(uint16(i))
 			if err != nil {
-				return false, err
+				return false, annotate(err).errorf("equal")
 			}
 			if ok, err := Equal(sp1, sp2); !ok || err != nil {
 				return false, err
@@ -506,8 +508,10 @@ func Equal(p1, p2 Ptr) (bool, error) {
 		}
 		for i := 0; i < l1.Len(); i++ {
 			e1, e2 := l1.Struct(i), l2.Struct(i)
-			if ok, err := Equal(e1.ToPtr(), e2.ToPtr()); !ok || err != nil {
-				return false, err
+			if ok, err := Equal(e1.ToPtr(), e2.ToPtr()); err != nil {
+				return false, annotate(err).errorf("equal: list element %d", i)
+			} else if !ok {
+				return false, nil
 			}
 		}
 		return true, nil
@@ -537,21 +541,22 @@ func isZeroFilled(b []byte) bool {
 	return true
 }
 
-var (
-	errPointerAddress = errors.New("capnp: invalid pointer address")
-	errBadLandingPad  = errors.New("capnp: invalid far pointer landing pad")
-	errBadTag         = errors.New("capnp: invalid tag word")
-	errOtherPointer   = errors.New("capnp: unknown pointer type")
-	errObjectSize     = errors.New("capnp: invalid object size")
-	errElementSize    = errors.New("capnp: mismatched list element size")
-	errReadLimit      = errors.New("capnp: read traversal limit reached")
-	errDepthLimit     = errors.New("capnp: depth limit reached")
-)
+func newError(msg string) error {
+	return errors.New(errors.Failed, "capnp", msg)
+}
 
-var (
-	errOverflow    = errors.New("capnp: address or size overflow")
-	errOutOfBounds = errors.New("capnp: address out of bounds")
-	errCopyDepth   = errors.New("capnp: copy depth too large")
-	errOverlap     = errors.New("capnp: overlapping data on copy")
-	errListSize    = errors.New("capnp: invalid list size")
-)
+func errorf(format string, args ...interface{}) error {
+	return newError(fmt.Sprintf(format, args...))
+}
+
+type annotater struct {
+	err error
+}
+
+func annotate(err error) annotater {
+	return annotater{err}
+}
+
+func (a annotater) errorf(format string, args ...interface{}) error {
+	return errors.Annotate("capnp", fmt.Sprintf(format, args...), a.err)
+}

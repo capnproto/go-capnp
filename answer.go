@@ -701,25 +701,29 @@ func Transform(p Ptr, transform []PipelineOp) (Ptr, error) {
 		return p, nil
 	}
 	s := p.Struct()
-	for _, op := range transform[:n-1] {
+	for i, op := range transform[:n-1] {
 		field, err := s.Ptr(op.Field)
 		if err != nil {
-			return Ptr{}, err
+			return Ptr{}, errorf("transform: op %d: pointer field %d: %v", i, op.Field, err)
 		}
 		s, err = field.StructDefault(op.DefaultValue)
 		if err != nil {
-			return Ptr{}, err
+			return Ptr{}, errorf("transform: op %d: pointer field %d with default: %v", i, op.Field, err)
 		}
 	}
 	op := transform[n-1]
 	p, err := s.Ptr(op.Field)
 	if err != nil {
-		return Ptr{}, err
+		return Ptr{}, errorf("transform: op %d: pointer field %d: %v", n-1, op.Field, err)
 	}
 	if op.DefaultValue != nil {
 		p, err = p.Default(op.DefaultValue)
+		if err != nil {
+			return Ptr{}, errorf("transform: op %d: pointer field %d with default: %v", n-1, op.Field, err)
+		}
+		return p, nil
 	}
-	return p, err
+	return p, nil
 }
 
 // clientFromResolution retrieves a client from a resolved answer by

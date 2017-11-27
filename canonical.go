@@ -1,10 +1,5 @@
 package capnp
 
-import (
-	"errors"
-	"fmt"
-)
-
 // Canonicalize encodes a struct into its canonical form: a single-
 // segment blob without a segment table.  The result will be identical
 // for equivalent structs, even as the schema evolves.  The blob is
@@ -16,13 +11,13 @@ func Canonicalize(s Struct) ([]byte, error) {
 	}
 	root, err := NewRootStruct(seg, canonicalStructSize(s))
 	if err != nil {
-		return nil, fmt.Errorf("canonicalize: %v", err)
+		return nil, errorf("canonicalize: %v", err)
 	}
 	if err := msg.SetRoot(root.ToPtr()); err != nil {
-		return nil, fmt.Errorf("canonicalize: %v", err)
+		return nil, errorf("canonicalize: %v", err)
 	}
 	if err := fillCanonicalStruct(root, s); err != nil {
-		return nil, fmt.Errorf("canonicalize: %v", err)
+		return nil, annotate(err).errorf("canonicalize")
 	}
 	return seg.Data(), nil
 }
@@ -35,7 +30,7 @@ func canonicalPtr(dst *Segment, p Ptr) (Ptr, error) {
 	case structPtrType:
 		ss, err := NewStruct(dst, canonicalStructSize(p.Struct()))
 		if err != nil {
-			return Ptr{}, err
+			return Ptr{}, errorf("struct: %v", err)
 		}
 		if err := fillCanonicalStruct(ss, p.Struct()); err != nil {
 			return Ptr{}, err
@@ -48,7 +43,7 @@ func canonicalPtr(dst *Segment, p Ptr) (Ptr, error) {
 		}
 		return ll.ToPtr(), nil
 	case interfacePtrType:
-		return Ptr{}, errors.New("cannot canonicalize interface")
+		return Ptr{}, newError("cannot canonicalize interface")
 	default:
 		panic("unreachable")
 	}
@@ -59,14 +54,14 @@ func fillCanonicalStruct(dst, s Struct) error {
 	for i := uint16(0); i < dst.size.PointerCount; i++ {
 		p, err := s.Ptr(i)
 		if err != nil {
-			return fmt.Errorf("pointer %d: %v", i, err)
+			return annotate(err).errorf("struct pointer %d", i)
 		}
 		cp, err := canonicalPtr(dst.seg, p)
 		if err != nil {
-			return fmt.Errorf("pointer %d: %v", i, err)
+			return annotate(err).errorf("struct pointer %d", i)
 		}
 		if err := dst.SetPtr(i, cp); err != nil {
-			return fmt.Errorf("pointer %d: %v", i, err)
+			return annotate(err).errorf("struct pointer %d", i)
 		}
 	}
 	return nil
@@ -102,7 +97,7 @@ func canonicalList(dst *Segment, l List) (List, error) {
 		sz := l.allocSize()
 		_, newAddr, err := alloc(dst, sz)
 		if err != nil {
-			return List{}, err
+			return List{}, errorf("list: %v", err)
 		}
 		cl := List{
 			seg:        dst,
@@ -119,19 +114,19 @@ func canonicalList(dst *Segment, l List) (List, error) {
 	if l.flags&isCompositeList == 0 {
 		cl, err := NewPointerList(dst, l.length)
 		if err != nil {
-			return List{}, err
+			return List{}, errorf("list: %v", err)
 		}
 		for i := 0; i < l.Len(); i++ {
 			p, err := PointerList{l}.At(i)
 			if err != nil {
-				return List{}, fmt.Errorf("element %d: %v", i, err)
+				return List{}, errorf("list element %d: %v", i, err)
 			}
 			cp, err := canonicalPtr(dst, p)
 			if err != nil {
-				return List{}, fmt.Errorf("element %d: %v", i, err)
+				return List{}, annotate(err).errorf("list element %d", i)
 			}
 			if err := cl.Set(i, cp); err != nil {
-				return List{}, fmt.Errorf("element %d: %v", i, err)
+				return List{}, errorf("list element %d: %v", i, err)
 			}
 		}
 		return cl.List, nil
@@ -150,11 +145,11 @@ func canonicalList(dst *Segment, l List) (List, error) {
 	}
 	cl, err := NewCompositeList(dst, elemSize, l.length)
 	if err != nil {
-		return List{}, err
+		return List{}, errorf("list: %v", err)
 	}
 	for i := 0; i < cl.Len(); i++ {
 		if err := fillCanonicalStruct(cl.Struct(i), l.Struct(i)); err != nil {
-			return List{}, fmt.Errorf("element %d: %v", i, err)
+			return List{}, annotate(err).errorf("list element %d", i)
 		}
 	}
 	return cl, nil

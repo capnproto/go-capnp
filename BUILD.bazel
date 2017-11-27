@@ -23,6 +23,7 @@ go_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
+        "//internal/errors:go_default_library",
         "//internal/packed:go_default_library",
         "//internal/strquote:go_default_library",
         "//schemas:go_default_library",

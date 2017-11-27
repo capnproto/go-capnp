@@ -2,7 +2,6 @@ package capnp
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strconv"
 	"sync"
@@ -221,10 +220,10 @@ func (c *Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 	h, released, finish := c.startCall()
 	defer finish()
 	if released {
-		return ErrorAnswer(errors.New("capnp: call on released client")), func() {}
+		return ErrorAnswer(newError("call on released client")), func() {}
 	}
 	if h == nil {
-		return ErrorAnswer(errors.New("capnp: call on null client")), func() {}
+		return ErrorAnswer(newError("call on null client")), func() {}
 	}
 	return h.Send(ctx, s)
 }
@@ -238,11 +237,11 @@ func (c *Client) RecvCall(ctx context.Context, r Recv) PipelineCaller {
 	h, released, finish := c.startCall()
 	defer finish()
 	if released {
-		r.Reject(errors.New("capnp: call on released client"))
+		r.Reject(newError("call on released client"))
 		return nil
 	}
 	if h == nil {
-		r.Reject(errors.New("capnp: call on null client"))
+		r.Reject(newError("call on null client"))
 		return nil
 	}
 	return h.Recv(ctx, r)
@@ -277,7 +276,7 @@ func (c *Client) Resolve(ctx context.Context) error {
 	for {
 		h, released, resolved := c.peek()
 		if released {
-			return errors.New("capnp: cannot resolve released client")
+			return newError("cannot resolve released client")
 		}
 		if resolved {
 			return nil

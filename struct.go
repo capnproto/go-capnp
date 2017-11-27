@@ -12,12 +12,12 @@ type Struct struct {
 // NewStruct creates a new struct, preferring placement in s.
 func NewStruct(s *Segment, sz ObjectSize) (Struct, error) {
 	if !sz.isValid() {
-		return Struct{}, errObjectSize
+		return Struct{}, newError("new struct: invalid size")
 	}
 	sz.DataSize = sz.DataSize.padToWord()
 	seg, addr, err := alloc(s, sz.totalSize())
 	if err != nil {
-		return Struct{}, err
+		return Struct{}, annotate(err).errorf("new struct")
 	}
 	return Struct{
 		seg:        seg,
@@ -105,7 +105,7 @@ func (p Struct) HasPtr(i uint16) bool {
 // SetPtr sets the i'th pointer in the struct to src.
 func (p Struct) SetPtr(i uint16, src Ptr) error {
 	if p.seg == nil || i >= p.size.PointerCount {
-		panic(errOutOfBounds)
+		panic("capnp: set field outside struct boundaries")
 	}
 	return p.seg.writePtr(p.pointerAddress(i), src, false)
 }
@@ -175,7 +175,7 @@ func (p Struct) Bit(n BitOffset) bool {
 // SetBit sets the bit that is n bits from the start of the struct to v.
 func (p Struct) SetBit(n BitOffset, v bool) {
 	if !p.bitInData(n) {
-		panic(errOutOfBounds)
+		panic("capnp: set field outside struct boundaries")
 	}
 	addr := p.off.addOffset(n.offset())
 	b := p.seg.readUint8(addr)
@@ -234,7 +234,7 @@ func (p Struct) Uint64(off DataOffset) uint64 {
 func (p Struct) SetUint8(off DataOffset, v uint8) {
 	addr, ok := p.dataAddress(off, 1)
 	if !ok {
-		panic(errOutOfBounds)
+		panic("capnp: set field outside struct boundaries")
 	}
 	p.seg.writeUint8(addr, v)
 }
@@ -243,7 +243,7 @@ func (p Struct) SetUint8(off DataOffset, v uint8) {
 func (p Struct) SetUint16(off DataOffset, v uint16) {
 	addr, ok := p.dataAddress(off, 2)
 	if !ok {
-		panic(errOutOfBounds)
+		panic("capnp: set field outside struct boundaries")
 	}
 	p.seg.writeUint16(addr, v)
 }
@@ -252,7 +252,7 @@ func (p Struct) SetUint16(off DataOffset, v uint16) {
 func (p Struct) SetUint32(off DataOffset, v uint32) {
 	addr, ok := p.dataAddress(off, 4)
 	if !ok {
-		panic(errOutOfBounds)
+		panic("capnp: set field outside struct boundaries")
 	}
 	p.seg.writeUint32(addr, v)
 }
@@ -261,7 +261,7 @@ func (p Struct) SetUint32(off DataOffset, v uint32) {
 func (p Struct) SetUint64(off DataOffset, v uint64) {
 	addr, ok := p.dataAddress(off, 8)
 	if !ok {
-		panic(errOutOfBounds)
+		panic("capnp: set field outside struct boundaries")
 	}
 	p.seg.writeUint64(addr, v)
 }
@@ -314,11 +314,11 @@ func copyStruct(dst, src Struct) error {
 		dstAddr, _ := dstPtrSect.element(int32(j), wordSize)
 		m, err := src.seg.readPtr(srcAddr, src.depthLimit)
 		if err != nil {
-			return err
+			return annotate(err).errorf("copy struct pointer %d", j)
 		}
 		err = dst.seg.writePtr(dstAddr, m, true)
 		if err != nil {
-			return err
+			return annotate(err).errorf("copy struct pointer %d", j)
 		}
 	}
 	for j := numSrcPtrs; j < numDstPtrs; j++ {

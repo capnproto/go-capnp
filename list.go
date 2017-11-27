@@ -1,7 +1,6 @@
 package capnp
 
 import (
-	"errors"
 	"math"
 	"strconv"
 
@@ -22,11 +21,11 @@ type List struct {
 func newPrimitiveList(s *Segment, sz Size, n int32) (List, error) {
 	total, ok := sz.times(n)
 	if !ok {
-		return List{}, errOverflow
+		return List{}, newError("list size overflow")
 	}
 	s, addr, err := alloc(s, total)
 	if err != nil {
-		return List{}, err
+		return List{}, annotate(err).errorf("new list")
 	}
 	return List{
 		seg:        s,
@@ -41,16 +40,16 @@ func newPrimitiveList(s *Segment, sz Size, n int32) (List, error) {
 // in s.
 func NewCompositeList(s *Segment, sz ObjectSize, n int32) (List, error) {
 	if !sz.isValid() {
-		return List{}, errObjectSize
+		return List{}, newError("new composite list: invalid element size")
 	}
 	sz.DataSize = sz.DataSize.padToWord()
 	total, ok := sz.totalSize().times(n)
 	if !ok || total > maxSize-wordSize {
-		return List{}, errOverflow
+		return List{}, newError("new composite list: size overflow")
 	}
 	s, addr, err := alloc(s, wordSize+total)
 	if err != nil {
-		return List{}, err
+		return List{}, annotate(err).errorf("new composite list")
 	}
 	// Add tag word
 	s.writeRawPointer(addr, rawStructPointer(pointerOffset(n), sz))
@@ -144,7 +143,7 @@ func (p List) raw() rawPointer {
 		return rawListPointer(0, pointerList, p.length)
 	}
 	if p.size.PointerCount != 0 {
-		panic(errListSize)
+		panic("invalid list size")
 	}
 	switch p.size.DataSize {
 	case 0:
@@ -158,7 +157,7 @@ func (p List) raw() rawPointer {
 	case 8:
 		return rawListPointer(0, byte8List, p.length)
 	default:
-		panic(errListSize)
+		panic("invalid list size")
 	}
 }
 
@@ -175,14 +174,14 @@ func (p List) Len() int {
 func (p List) primitiveElem(i int, expectedSize ObjectSize) (Address, error) {
 	if p.seg == nil || i < 0 || i >= int(p.length) {
 		// This is programmer error, not input error.
-		panic(errOutOfBounds)
+		panic("list element out of bounds")
 	}
 	if p.flags&isBitList != 0 || p.flags&isCompositeList == 0 && p.size != expectedSize || p.flags&isCompositeList != 0 && (p.size.DataSize < expectedSize.DataSize || p.size.PointerCount < expectedSize.PointerCount) {
-		return 0, errElementSize
+		return 0, newError("mismatched list element size")
 	}
 	addr, ok := p.off.element(int32(i), p.size.totalSize())
 	if !ok {
-		return 0, errOverflow
+		return 0, errorf("read list element %d: address overflow", i)
 	}
 	return addr, nil
 }
@@ -191,7 +190,7 @@ func (p List) primitiveElem(i int, expectedSize ObjectSize) (Address, error) {
 func (p List) Struct(i int) Struct {
 	if p.seg == nil || i < 0 || i >= int(p.length) {
 		// This is programmer error, not input error.
-		panic(errOutOfBounds)
+		panic("list element out of bounds")
 	}
 	if p.flags&isBitList != 0 {
 		return Struct{}
@@ -212,9 +211,12 @@ func (p List) Struct(i int) Struct {
 // SetStruct set the i'th element to the value in s.
 func (p List) SetStruct(i int, s Struct) error {
 	if p.flags&isBitList != 0 {
-		return errBitListStruct
+		return newError("SetStruct called on bit list")
 	}
-	return copyStruct(p.Struct(i), s)
+	if err := copyStruct(p.Struct(i), s); err != nil {
+		return annotate(err).errorf("set list element %d", i)
+	}
+	return nil
 }
 
 // A BitList is a reference to a list of booleans.
@@ -224,7 +226,7 @@ type BitList struct{ List }
 func NewBitList(s *Segment, n int32) (BitList, error) {
 	s, addr, err := alloc(s, Size(int64(n+7)/8))
 	if err != nil {
-		return BitList{}, err
+		return BitList{}, annotate(err).errorf("new %d-element bit list", n)
 	}
 	return BitList{List{
 		seg:        s,
@@ -239,7 +241,7 @@ func NewBitList(s *Segment, n int32) (BitList, error) {
 func (p BitList) At(i int) bool {
 	if p.seg == nil || i < 0 || i >= int(p.length) {
 		// This is programmer error, not input error.
-		panic(errOutOfBounds)
+		panic("list element out of bounds")
 	}
 	if p.flags&isBitList == 0 {
 		return false
@@ -253,11 +255,11 @@ func (p BitList) At(i int) bool {
 func (p BitList) Set(i int, v bool) {
 	if p.seg == nil || i < 0 || i >= int(p.length) {
 		// This is programmer error, not input error.
-		panic(errOutOfBounds)
+		panic("list element out of bounds")
 	}
 	if p.flags&isBitList == 0 {
 		// Again, programmer error.  Should have used NewBitList.
-		panic(errElementSize)
+		panic("BitList.Set called on a non-bit list")
 	}
 	bit := BitOffset(i)
 	addr := p.off.addOffset(bit.offset())
@@ -294,11 +296,11 @@ type PointerList struct{ List }
 func NewPointerList(s *Segment, n int32) (PointerList, error) {
 	total, ok := wordSize.times(n)
 	if !ok {
-		return PointerList{}, errOverflow
+		return PointerList{}, newError("new pointer list: size overflow")
 	}
 	s, addr, err := alloc(s, total)
 	if err != nil {
-		return PointerList{}, err
+		return PointerList{}, annotate(err).errorf("new %d-element pointer list", n)
 	}
 	return PointerList{List{
 		seg:        s,
@@ -971,5 +973,3 @@ const (
 	isCompositeList listFlags = 1 << iota
 	isBitList
 )
-
-var errBitListStruct = errors.New("capnp: SetStruct called on bit list")

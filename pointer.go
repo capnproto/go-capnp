@@ -199,11 +199,11 @@ func SamePtr(p, q Ptr) bool {
 func unmarshalDefault(def []byte) (Ptr, error) {
 	msg, err := Unmarshal(def)
 	if err != nil {
-		return Ptr{}, err
+		return Ptr{}, annotate(err).errorf("read default")
 	}
 	p, err := msg.Root()
 	if err != nil {
-		return Ptr{}, err
+		return Ptr{}, annotate(err).errorf("read default")
 	}
 	return p, nil
 }
