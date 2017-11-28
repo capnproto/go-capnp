@@ -4,11 +4,12 @@ package server // import "zombiezen.com/go/capnproto2/server"
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"sort"
 	"sync"
 
 	"zombiezen.com/go/capnproto2"
+	"zombiezen.com/go/capnproto2/internal/errors"
 )
 
 // A Method describes a single capability method on a server object.
@@ -50,7 +51,7 @@ func (c *Call) Args() capnp.Struct {
 // AllocResults more than once.
 func (c *Call) AllocResults(sz capnp.ObjectSize) (capnp.Struct, error) {
 	if c.alloced {
-		return capnp.Struct{}, errors.New("capnp server: multiple calls to AllocResults")
+		return capnp.Struct{}, newError("multiple calls to AllocResults")
 	}
 	var err error
 	c.alloced = true
@@ -166,15 +167,14 @@ func New(methods []Method, brand interface{}, shutdown Shutdowner, policy *Polic
 func (srv *Server) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, capnp.ReleaseFunc) {
 	mm := srv.methods.find(s.Method)
 	if mm == nil {
-		// TODO(soon): classify as unimplemented.
-		return capnp.ErrorAnswer(errors.New("unimplemented")), func() {}
+		return capnp.ErrorAnswer(s.Method, capnp.Unimplemented("unimplemented")), func() {}
 	}
 	args, err := sendArgsToStruct(s)
 	if err != nil {
-		return capnp.ErrorAnswer(err), func() {}
+		return capnp.ErrorAnswer(mm.Method, err), func() {}
 	}
 	ret := new(structReturner)
-	return ret.answer(srv.start(ctx, mm, capnp.Recv{
+	return ret.answer(mm.Method, srv.start(ctx, mm, capnp.Recv{
 		Method: mm.Method, // pick up names from server method
 		Args:   args,
 		ReleaseArgs: func() {
@@ -191,8 +191,7 @@ func (srv *Server) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, capnp
 func (srv *Server) Recv(ctx context.Context, r capnp.Recv) capnp.PipelineCaller {
 	mm := srv.methods.find(r.Method)
 	if mm == nil {
-		// TODO(soon): classify as unimplemented.
-		r.Reject(errors.New("unimplemented"))
+		r.Reject(capnp.Unimplemented("unimplemented"))
 		return nil
 	}
 	return srv.start(ctx, mm, r)
@@ -204,7 +203,7 @@ func (srv *Server) start(ctx context.Context, m *Method, r capnp.Recv) capnp.Pip
 	for {
 		if srv.drain != nil {
 			srv.mu.Unlock()
-			r.Reject(errors.New("capnp server: call after shutdown"))
+			r.Reject(errors.New(errors.Failed, "capnp server", "call after shutdown"))
 			return nil
 		}
 		if srv.starting == nil {
@@ -246,7 +245,7 @@ func (srv *Server) start(ctx context.Context, m *Method, r capnp.Recv) capnp.Pip
 			srv.starting = nil
 			close(starting)
 			srv.mu.Unlock()
-			r.Reject(errors.New("capnp server: call after shutdown"))
+			r.Reject(errors.New(errors.Failed, "capnp server", "call after shutdown"))
 			return nil
 		}
 	}
@@ -259,7 +258,7 @@ func (srv *Server) start(ctx context.Context, m *Method, r capnp.Recv) capnp.Pip
 
 	// Call implementation function.
 	call, ack := newCall(r.Args, r.Returner)
-	aq := newAnswerQueue(srv.policy.AnswerQueueSize)
+	aq := newAnswerQueue(r.Method, srv.policy.AnswerQueueSize)
 	done := make(chan struct{})
 	go func() {
 		err := m.Impl(ctx, call)
@@ -376,7 +375,8 @@ func sendArgsToStruct(s capnp.Send) (capnp.Struct, error) {
 	}
 	if err := s.PlaceArgs(st); err != nil {
 		st.Message().Reset(nil)
-		return capnp.Struct{}, err
+		// Using fmt.Errorf to ensure sendArgsToStruct returns a generic error.
+		return capnp.Struct{}, fmt.Errorf("place args: %v", err)
 	}
 	return st, nil
 }
@@ -431,4 +431,12 @@ func (sm sortedMethods) Swap(i, j int) {
 
 type resultsAllocer interface {
 	AllocResults(capnp.ObjectSize) (capnp.Struct, error)
+}
+
+func newError(msg string) error {
+	return errors.New(errors.Failed, "capnp server", msg)
+}
+
+func errorf(format string, args ...interface{}) error {
+	return newError(fmt.Sprintf(format, args...))
 }

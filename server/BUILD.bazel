@@ -8,7 +8,10 @@ go_library(
     ],
     importpath = "zombiezen.com/go/capnproto2/server",
     visibility = ["//visibility:public"],
-    deps = ["//:go_default_library"],
+    deps = [
+        "//:go_default_library",
+        "//internal/errors:go_default_library",
+    ],
 )
 
 go_test(

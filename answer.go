@@ -4,6 +4,8 @@ import (
 	"context"
 	"strconv"
 	"sync"
+
+	"zombiezen.com/go/capnproto2/internal/errors"
 )
 
 // A Promise holds the result of an RPC call.  Only one of Fulfill,
@@ -15,6 +17,7 @@ import (
 // Most applications will use Answer, since that what is returned by
 // a Client.
 type Promise struct {
+	method   Method
 	resolved <-chan struct{}
 	ans      Answer
 
@@ -93,12 +96,13 @@ type clientAndPromise struct {
 
 // NewPromise creates a new unresolved promise.  The PipelineCaller will
 // be used to make pipelined calls before the promise resolves.
-func NewPromise(pc PipelineCaller) *Promise {
+func NewPromise(m Method, pc PipelineCaller) *Promise {
 	if pc == nil {
 		panic("NewPromise(nil)")
 	}
 	resolved := make(chan struct{})
 	p := &Promise{
+		method:      m,
 		resolved:    resolved,
 		signals:     []chan<- struct{}{resolved},
 		caller:      pc,
@@ -136,6 +140,13 @@ func (p *Promise) isResolved() bool {
 // The caller must be holding onto p.mu.
 func (p *Promise) isJoined() bool {
 	return p.next != nil
+}
+
+// resolution returns p's resolution.  The return value is invalid
+// unless p is in the resolved state.  The caller must be holding onto
+// p.mu.
+func (p *Promise) resolution() resolution {
+	return resolution{p.method, p.result, p.err}
 }
 
 // Fulfill resolves the promise with a successful result.
@@ -183,11 +194,11 @@ func (p *Promise) resolve(r Ptr, e error) {
 			p.callsStopped = make(chan struct{})
 		}
 		p.mu.Unlock()
+		res := resolution{p.method, r, e}
 		for path, row := range p.clients {
 			t := path.transform()
 			for i := range row {
-				c := clientFromResolution(r, e, t)
-				row[i].promise.Fulfill(c)
+				row[i].promise.Fulfill(res.client(t))
 				row[i].promise = nil
 			}
 		}
@@ -352,8 +363,9 @@ type Answer struct {
 }
 
 // ErrorAnswer returns a Answer that always returns error e.
-func ErrorAnswer(e error) *Answer {
+func ErrorAnswer(m Method, e error) *Answer {
 	p := &Promise{
+		method:   m,
 		resolved: newClosedSignal(),
 		err:      e,
 	}
@@ -362,8 +374,9 @@ func ErrorAnswer(e error) *Answer {
 }
 
 // ImmediateAnswer returns an Answer that accesses s.
-func ImmediateAnswer(s Struct) *Answer {
+func ImmediateAnswer(m Method, s Struct) *Answer {
 	p := &Promise{
+		method:   m,
 		resolved: newClosedSignal(),
 		result:   s.ToPtr(),
 	}
@@ -414,7 +427,7 @@ traversal:
 			select {
 			case <-j:
 			case <-ctx.Done():
-				return ErrorAnswer(ctx.Err()), func() {}
+				return ErrorAnswer(s.Method, ctx.Err()), func() {}
 			}
 			p.mu.Lock()
 		case p.isJoined():
@@ -445,15 +458,14 @@ traversal:
 		select {
 		case <-p.resolved:
 		case <-ctx.Done():
-			return ErrorAnswer(ctx.Err()), func() {}
+			return ErrorAnswer(s.Method, ctx.Err()), func() {}
 		}
 		p.mu.Lock()
 		fallthrough
 	case p.isResolved():
-		r, e := p.result, p.err
+		r := p.resolution()
 		p.mu.Unlock()
-		c := clientFromResolution(r, e, transform)
-		return c.SendCall(ctx, s)
+		return r.client(transform).SendCall(ctx, s)
 	default:
 		panic("unreachable")
 	}
@@ -510,10 +522,9 @@ traversal:
 		p.mu.Lock()
 		fallthrough
 	case p.isResolved():
-		result, err := p.result, p.err
+		res := p.resolution()
 		p.mu.Unlock()
-		c := clientFromResolution(result, err, transform)
-		return c.RecvCall(ctx, r)
+		return res.client(transform).RecvCall(ctx, r)
 	default:
 		panic("unreachable")
 	}
@@ -561,17 +572,9 @@ func (f *Future) Struct() (Struct, error) {
 		p = q
 		p.mu.Lock()
 	}
-	ptr, err := p.result, p.err
+	r := p.resolution()
 	p.mu.Unlock()
-
-	if err != nil {
-		return Struct{}, err
-	}
-	ptr, err = Transform(ptr, f.transform())
-	if err != nil {
-		return Struct{}, err
-	}
-	return ptr.Struct(), nil
+	return r.struct_(f.transform())
 }
 
 // Client returns the future as a client.  If the answer's originating
@@ -621,10 +624,9 @@ traversal:
 		p.mu.Lock()
 		fallthrough
 	case p.isResolved():
-		result, err := p.result, p.err
+		r := p.resolution()
 		p.mu.Unlock()
-		c := clientFromResolution(result, err, f.transform())
-		return c
+		return r.client(f.transform())
 	default:
 		panic("unreachable")
 	}
@@ -661,10 +663,9 @@ func (pc pipelineClient) Brand() interface{} {
 	select {
 	case <-pc.p.resolved:
 		pc.p.mu.Lock()
-		result, err := pc.p.result, pc.p.err
+		r := pc.p.resolution()
 		pc.p.mu.Unlock()
-		c := clientFromResolution(result, err, pc.transform)
-		return c.Brand()
+		return r.client(pc.transform).Brand()
 	default:
 		// TODO(someday): allow people to obtain the underlying answer.
 		return nil
@@ -726,17 +727,38 @@ func Transform(p Ptr, transform []PipelineOp) (Ptr, error) {
 	return p, nil
 }
 
-// clientFromResolution retrieves a client from a resolved answer by
-// applying a transform.
-func clientFromResolution(obj Ptr, err error, transform []PipelineOp) *Client {
+// A resolution is the outcome of a future.
+type resolution struct {
+	method Method
+	result Ptr
+	err    error
+}
+
+// ptr obtains a Ptr by applying a transform.
+func (r resolution) ptr(transform []PipelineOp) (Ptr, error) {
+	if r.err != nil {
+		return Ptr{}, errors.Annotate("", r.method.String(), r.err)
+	}
+	p, err := Transform(r.result, transform)
+	if err != nil {
+		return Ptr{}, errors.Annotate("", r.method.String(), err)
+	}
+	return p, nil
+}
+
+// struct_ obtains a Struct by applying a transform.
+func (r resolution) struct_(transform []PipelineOp) (Struct, error) {
+	p, err := r.ptr(transform)
+	return p.Struct(), err
+}
+
+// client obtains a Client by applying a transform.
+func (r resolution) client(transform []PipelineOp) *Client {
+	p, err := r.ptr(transform)
 	if err != nil {
 		return ErrorClient(err)
 	}
-	out, err := Transform(obj, transform)
-	if err != nil {
-		return ErrorClient(err)
-	}
-	return out.Interface().Client()
+	return p.Interface().Client()
 }
 
 // clientPath is an encoded version of a list of pipeline operations.

@@ -64,8 +64,29 @@ func TestServerCall(t *testing.T) {
 		})
 		defer finish()
 		_, err := ans.Struct()
-		if err == nil || !strings.Contains(err.Error(), "reverb stopped") {
-			t.Errorf("echo.Echo() error = %v; want \"reverb stopped\"", err)
+		if err == nil || !strings.Contains(err.Error(), "reverb stopped") || !strings.Contains(err.Error(), "echo") {
+			t.Errorf("echo.Echo() error = %v; want error containing \"reverb stopped\" and \"echo\"", err)
+		}
+	})
+	t.Run("Unimplemented", func(t *testing.T) {
+		echo := air.Echo{Client: capnp.NewClient(server.New(nil, nil, nil, nil))}
+		defer echo.Client.Release()
+
+		ans, finish := echo.Echo(context.Background(), func(p air.Echo_echo_Params) error {
+			err := p.SetIn("foo")
+			return err
+		})
+		defer finish()
+		_, err := ans.Struct()
+		if err == nil {
+			t.Error("echo.Echo() error = <nil>; want unimplemented")
+		} else {
+			if !capnp.IsUnimplemented(err) {
+				t.Errorf("echo.Echo() error = %v; want unimplemented", err)
+			}
+			if !strings.Contains(err.Error(), "echo") {
+				t.Errorf("echo.Echo() error = %v; want error containing \"echo\"", err)
+			}
 		}
 	})
 }

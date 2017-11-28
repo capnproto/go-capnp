@@ -7,9 +7,16 @@ import (
 	"testing"
 )
 
+var dummyMethod = Method{
+	InterfaceID:   0xa7317bd7216570aa,
+	InterfaceName: "Foo",
+	MethodID:      9,
+	MethodName:    "bar",
+}
+
 func TestPromiseReject(t *testing.T) {
 	t.Run("Done", func(t *testing.T) {
-		p := NewPromise(dummyPipelineCaller{})
+		p := NewPromise(dummyMethod, dummyPipelineCaller{})
 		done := p.Answer().Done()
 		p.Reject(errors.New("omg bbq"))
 		select {
@@ -20,16 +27,16 @@ func TestPromiseReject(t *testing.T) {
 		}
 	})
 	t.Run("Struct", func(t *testing.T) {
-		p := NewPromise(dummyPipelineCaller{})
+		p := NewPromise(dummyMethod, dummyPipelineCaller{})
 		defer p.ReleaseClients()
 		ans := p.Answer()
 		p.Reject(errors.New("omg bbq"))
-		if _, err := ans.Struct(); err == nil || !strings.Contains(err.Error(), "omg bbq") {
-			t.Errorf("answer error = %v; want \"omg bbq\"", err)
+		if _, err := ans.Struct(); err == nil || !strings.Contains(err.Error(), "omg bbq") || !strings.Contains(err.Error(), "Foo.bar") {
+			t.Errorf("answer error = %v; want message containing \"omg bbq\" and \"Foo.bar\"", err)
 		}
 	})
 	t.Run("Client", func(t *testing.T) {
-		p := NewPromise(dummyPipelineCaller{})
+		p := NewPromise(dummyMethod, dummyPipelineCaller{})
 		defer p.ReleaseClients()
 		pc := p.Answer().Field(1, nil).Client()
 		p.Reject(errors.New("omg bbq"))
@@ -40,15 +47,15 @@ func TestPromiseReject(t *testing.T) {
 		ans, release := pc.SendCall(ctx, Send{})
 		_, err := ans.Struct()
 		release()
-		if err == nil || !strings.Contains(err.Error(), "omg bbq") {
-			t.Errorf("pc.SendCall error = %v; want \"omg bbq\"", err)
+		if err == nil || !strings.Contains(err.Error(), "omg bbq") || !strings.Contains(err.Error(), "Foo.bar") {
+			t.Errorf("pc.SendCall error = %v; want message containing \"omg bbq\"", err)
 		}
 	})
 }
 
 func TestPromiseFulfill(t *testing.T) {
 	t.Run("Done", func(t *testing.T) {
-		p := NewPromise(dummyPipelineCaller{})
+		p := NewPromise(dummyMethod, dummyPipelineCaller{})
 		done := p.Answer().Done()
 		msg, seg, _ := NewMessage(SingleSegment(nil))
 		defer msg.Reset(nil)
@@ -62,7 +69,7 @@ func TestPromiseFulfill(t *testing.T) {
 		}
 	})
 	t.Run("Struct", func(t *testing.T) {
-		p := NewPromise(dummyPipelineCaller{})
+		p := NewPromise(dummyMethod, dummyPipelineCaller{})
 		defer p.ReleaseClients()
 		ans := p.Answer()
 		msg, seg, _ := NewMessage(SingleSegment(nil))
@@ -81,7 +88,7 @@ func TestPromiseFulfill(t *testing.T) {
 		}
 	})
 	t.Run("Client", func(t *testing.T) {
-		p := NewPromise(dummyPipelineCaller{})
+		p := NewPromise(dummyMethod, dummyPipelineCaller{})
 		defer p.ReleaseClients()
 		pc := p.Answer().Field(1, nil).Client()
 
@@ -116,8 +123,8 @@ func TestPromiseFulfill(t *testing.T) {
 
 func TestPromiseJoin(t *testing.T) {
 	t.Run("BeforeReject", func(t *testing.T) {
-		pa := NewPromise(dummyPipelineCaller{})
-		pb := NewPromise(dummyPipelineCaller{})
+		pa := NewPromise(dummyMethod, dummyPipelineCaller{})
+		pb := NewPromise(dummyMethod, dummyPipelineCaller{})
 		ansB := pb.Answer()
 		doneB := ansB.Done()
 		pb.Join(pa.Answer())
@@ -134,8 +141,8 @@ func TestPromiseJoin(t *testing.T) {
 		}
 	})
 	t.Run("AfterReject", func(t *testing.T) {
-		pa := NewPromise(dummyPipelineCaller{})
-		pb := NewPromise(dummyPipelineCaller{})
+		pa := NewPromise(dummyMethod, dummyPipelineCaller{})
+		pb := NewPromise(dummyMethod, dummyPipelineCaller{})
 		ansB := pb.Answer()
 		doneB := ansB.Done()
 		pa.Reject(errors.New("omg bbq"))
@@ -152,9 +159,9 @@ func TestPromiseJoin(t *testing.T) {
 		}
 	})
 	t.Run("MultipleJoinReject", func(t *testing.T) {
-		pa := NewPromise(dummyPipelineCaller{})
-		pb := NewPromise(dummyPipelineCaller{})
-		pc := NewPromise(dummyPipelineCaller{})
+		pa := NewPromise(dummyMethod, dummyPipelineCaller{})
+		pb := NewPromise(dummyMethod, dummyPipelineCaller{})
+		pc := NewPromise(dummyMethod, dummyPipelineCaller{})
 		pc.Join(pb.Answer())
 		pb.Join(pa.Answer())
 		pa.Reject(errors.New("omg bbq"))
@@ -188,5 +195,5 @@ func (dummyPipelineCaller) PipelineRecv(ctx context.Context, transform []Pipelin
 }
 
 func (dummyPipelineCaller) PipelineSend(ctx context.Context, transform []PipelineOp, s Send) (*Answer, ReleaseFunc) {
-	return ErrorAnswer(errors.New("dummy call")), func() {}
+	return ErrorAnswer(s.Method, errors.New("dummy call")), func() {}
 }

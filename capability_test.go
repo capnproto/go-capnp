@@ -235,9 +235,9 @@ type dummyHook struct {
 	shutdowns int
 }
 
-func (dh *dummyHook) Send(context.Context, Send) (*Answer, ReleaseFunc) {
+func (dh *dummyHook) Send(_ context.Context, s Send) (*Answer, ReleaseFunc) {
 	dh.calls++
-	return ImmediateAnswer(newEmptyStruct()), func() {}
+	return ImmediateAnswer(s.Method, newEmptyStruct()), func() {}
 }
 
 func (dh *dummyHook) Recv(_ context.Context, r Recv) PipelineCaller {

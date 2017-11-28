@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"errors"
 	"sync"
 
 	"zombiezen.com/go/capnproto2"
@@ -22,6 +21,7 @@ import (
 //	3) Drained, entered once all queued methods have been delivered.
 //	   Incoming methods are passthrough.
 type answerQueue struct {
+	method   capnp.Method
 	draining chan struct{} // closed while exiting queueing state
 
 	mu    sync.Mutex
@@ -44,8 +44,9 @@ type base struct {
 }
 
 // newAnswerQueue creates a new answer queue of the given size.
-func newAnswerQueue(n int) *answerQueue {
+func newAnswerQueue(m capnp.Method, n int) *answerQueue {
 	return &answerQueue{
+		method:   m,
 		q:        make([]qent, 0, n),
 		draining: make(chan struct{}),
 	}
@@ -65,7 +66,7 @@ func (aq *answerQueue) fulfill(s capnp.Struct) {
 	for i := range aq.bases {
 		aq.bases[i].ready = ready
 	}
-	aq.bases[0].recv = capnp.ImmediateAnswer(s).RecvCall
+	aq.bases[0].recv = capnp.ImmediateAnswer(aq.method, s).RecvCall
 	close(aq.draining)
 	aq.mu.Unlock()
 
@@ -195,10 +196,10 @@ func (qc queueCaller) PipelineSend(ctx context.Context, transform []capnp.Pipeli
 		var err error
 		r.Args, err = newBlankStruct(s.ArgsSize)
 		if err != nil {
-			return capnp.ErrorAnswer(err), func() {}
+			return capnp.ErrorAnswer(s.Method, err), func() {}
 		}
 		if err = s.PlaceArgs(r.Args); err != nil {
-			return capnp.ErrorAnswer(err), func() {}
+			return capnp.ErrorAnswer(s.Method, err), func() {}
 		}
 		r.ReleaseArgs = func() {
 			r.Args.Message().Reset(nil)
@@ -207,7 +208,7 @@ func (qc queueCaller) PipelineSend(ctx context.Context, transform []capnp.Pipeli
 		r.ReleaseArgs = func() {}
 	}
 	pcall := qc.PipelineRecv(ctx, transform, r)
-	return ret.answer(pcall)
+	return ret.answer(s.Method, pcall)
 }
 
 // A structReturner implements Returner by allocating an in-memory
@@ -227,12 +228,12 @@ func (sr *structReturner) AllocResults(sz capnp.ObjectSize) (capnp.Struct, error
 	defer sr.mu.Unlock()
 	sr.mu.Lock()
 	if sr.alloced {
-		return capnp.Struct{}, errors.New("AllocResults called twice")
+		return capnp.Struct{}, newError("multiple calls to AllocResults")
 	}
 	sr.alloced = true
 	s, err := newBlankStruct(sz)
 	if err != nil {
-		return capnp.Struct{}, err
+		return capnp.Struct{}, errorf("alloc results: %v", err)
 	}
 	sr.result = s
 	return s, nil
@@ -266,7 +267,7 @@ func (sr *structReturner) Return(e error) {
 
 // answer returns an Answer that will be resolved when Return is called.
 // answer must only be called once per structReturner.
-func (sr *structReturner) answer(pcall capnp.PipelineCaller) (*capnp.Answer, capnp.ReleaseFunc) {
+func (sr *structReturner) answer(m capnp.Method, pcall capnp.PipelineCaller) (*capnp.Answer, capnp.ReleaseFunc) {
 	defer sr.mu.Unlock()
 	sr.mu.Lock()
 	if sr.p != nil {
@@ -274,9 +275,9 @@ func (sr *structReturner) answer(pcall capnp.PipelineCaller) (*capnp.Answer, cap
 	}
 	if sr.returned {
 		if sr.err != nil {
-			return capnp.ErrorAnswer(sr.err), func() {}
+			return capnp.ErrorAnswer(m, sr.err), func() {}
 		}
-		return capnp.ImmediateAnswer(sr.result), func() {
+		return capnp.ImmediateAnswer(m, sr.result), func() {
 			sr.mu.Lock()
 			msg := sr.result.Message()
 			sr.result = capnp.Struct{}
@@ -286,7 +287,7 @@ func (sr *structReturner) answer(pcall capnp.PipelineCaller) (*capnp.Answer, cap
 			}
 		}
 	}
-	sr.p = capnp.NewPromise(pcall)
+	sr.p = capnp.NewPromise(m, pcall)
 	ans := sr.p.Answer()
 	return ans, func() {
 		<-ans.Done()
@@ -340,7 +341,7 @@ func (re *returnEmbargoer) recv(ctx context.Context, transform []capnp.PipelineO
 			r.Reject(re.err)
 			return nil
 		}
-		return capnp.ImmediateAnswer(re.result).RecvCall(ctx, transform, r)
+		return capnp.ImmediateAnswer(r.Method, re.result).RecvCall(ctx, transform, r)
 	default:
 		re.calls.Add(1)
 		defer re.calls.Done()

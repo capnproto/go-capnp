@@ -2,12 +2,12 @@ package rpc
 
 import (
 	"context"
-	"errors"
 	"io"
 	"sync"
 	"time"
 
 	"zombiezen.com/go/capnproto2"
+	"zombiezen.com/go/capnproto2/internal/errors"
 	rpccp "zombiezen.com/go/capnproto2/std/capnp/rpc"
 )
 
@@ -136,7 +136,7 @@ func (s *StreamTransport) CloseSend() error {
 	s.mu.Lock()
 	if s.closes&1 == 1 {
 		s.mu.Unlock()
-		return errors.New("rpc stream transport: send already closed")
+		return errors.New(errors.Failed, "rpc stream transport", "send already closed")
 	}
 	s.closes |= 1
 	done := s.closes == 3
@@ -170,7 +170,7 @@ func (s *StreamTransport) CloseRecv() error {
 	s.mu.Lock()
 	if s.closes&2 == 2 {
 		s.mu.Unlock()
-		return errors.New("rpc stream transport: receive already closed")
+		return errors.New(errors.Failed, "rpc stream transport", "receive already closed")
 	}
 	s.closes |= 2
 	done := s.closes == 3
@@ -227,7 +227,7 @@ type signalReceiver struct {
 func (sr signalReceiver) RecvMessage(ctx context.Context) (rpccp.Message, capnp.ReleaseFunc, error) {
 	select {
 	case <-sr.close:
-		return rpccp.Message{}, nil, errors.New("RPC stream transport: receive on closed receiver")
+		return rpccp.Message{}, nil, errors.New(errors.Failed, "rpc stream transport", "receive on closed receiver")
 	default:
 	}
 	var msg *capnp.Message
@@ -240,7 +240,7 @@ func (sr signalReceiver) RecvMessage(ctx context.Context) (rpccp.Message, capnp.
 	select {
 	case <-read:
 	case <-sr.close:
-		return rpccp.Message{}, nil, errors.New("RPC stream transport: receive on closed receiver")
+		return rpccp.Message{}, nil, errors.New(errors.Failed, "rpc stream transport", "receive on closed receiver")
 	}
 	if err != nil {
 		return rpccp.Message{}, nil, err

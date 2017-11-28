@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
+
+	"zombiezen.com/go/capnproto2/internal/errors"
 )
 
 // An Interface is a reference to a client in a message's capability table.
@@ -220,10 +222,10 @@ func (c *Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 	h, released, finish := c.startCall()
 	defer finish()
 	if released {
-		return ErrorAnswer(newError("call on released client")), func() {}
+		return ErrorAnswer(s.Method, newError("call on released client")), func() {}
 	}
 	if h == nil {
-		return ErrorAnswer(newError("call on null client")), func() {}
+		return ErrorAnswer(s.Method, newError("call on null client")), func() {}
 	}
 	return h.Send(ctx, s)
 }
@@ -652,8 +654,8 @@ func ErrorClient(e error) *Client {
 	return NewClient(errorClient{e})
 }
 
-func (ec errorClient) Send(context.Context, Send) (*Answer, ReleaseFunc) {
-	return ErrorAnswer(ec.e), func() {}
+func (ec errorClient) Send(_ context.Context, s Send) (*Answer, ReleaseFunc) {
+	return ErrorAnswer(s.Method, ec.e), func() {}
 }
 
 func (ec errorClient) Recv(_ context.Context, r Recv) PipelineCaller {
@@ -668,10 +670,15 @@ func (ec errorClient) Brand() interface{} {
 func (ec errorClient) Shutdown() {
 }
 
-// IsUnimplemented reports whether e indicates an unimplemented method error.
+// Unimplemented returns an error that formats as the given text and
+// will report true when passed to IsUnimplemented.
+func Unimplemented(s string) error {
+	return errors.New(errors.Unimplemented, "", s)
+}
+
+// IsUnimplemented reports whether e indicates that functionality is unimplemented.
 func IsUnimplemented(e error) bool {
-	// TODO(soon)
-	return false
+	return errors.TypeOf(e) == errors.Unimplemented
 }
 
 var closedSignal <-chan struct{} = newClosedSignal()

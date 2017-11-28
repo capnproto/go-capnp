@@ -2,9 +2,9 @@ package rpc
 
 import (
 	"context"
-	"fmt"
 
 	"zombiezen.com/go/capnproto2"
+	"zombiezen.com/go/capnproto2/internal/errors"
 	rpccp "zombiezen.com/go/capnproto2/std/capnp/rpc"
 )
 
@@ -36,7 +36,7 @@ func (c *Conn) newAnswer(ctx context.Context, id answerID, cancel context.Cancel
 		c.answers = make(map[answerID]*answer)
 	} else if c.answers[id] != nil {
 		// TODO(soon): abort
-		return nil, fmt.Errorf("answer ID %d reused", id)
+		return nil, errorf("answer ID %d reused", id)
 	}
 	ans := &answer{
 		id:     id,
@@ -53,7 +53,7 @@ func (c *Conn) newAnswer(ctx context.Context, id answerID, cancel context.Cancel
 	if err != nil {
 		ans.s.finish()
 		ans.s = sendSession{}
-		return ans, err
+		return ans, errorf("create return: %v", err)
 	}
 	ans.ret.SetAnswerId(uint32(id))
 	ans.ret.SetReleaseParamCaps(false)
@@ -66,14 +66,14 @@ func (ans *answer) AllocResults(sz capnp.ObjectSize) (capnp.Struct, error) {
 	var err error
 	ans.results, err = ans.ret.NewResults()
 	if err != nil {
-		return capnp.Struct{}, err
+		return capnp.Struct{}, errorf("alloc results: %v", err)
 	}
 	s, err := capnp.NewStruct(ans.results.Segment(), sz)
 	if err != nil {
-		return capnp.Struct{}, err
+		return capnp.Struct{}, errorf("alloc results: %v", err)
 	}
 	if err := ans.results.SetContent(s.ToPtr()); err != nil {
-		return capnp.Struct{}, err
+		return capnp.Struct{}, errorf("alloc results: %v", err)
 	}
 	return s, nil
 }
@@ -84,12 +84,12 @@ func (ans *answer) setBootstrap(c *capnp.Client) error {
 	var err error
 	ans.results, err = ans.ret.NewResults()
 	if err != nil {
-		return err
+		return errorf("alloc bootstrap results: %v", err)
 	}
 	capID := ans.results.Message().AddCap(c)
 	iface := capnp.NewInterface(ans.results.Segment(), capID)
 	if err := ans.results.SetContent(iface.ToPtr()); err != nil {
-		return err
+		return errorf("alloc bootstrap results: %v", err)
 	}
 	return nil
 }
@@ -116,13 +116,13 @@ func (ans *answer) lockedReturn(e error) {
 			ans.s.finish()
 			return
 		}
+		exc.SetType(rpccp.Exception_Type(errors.TypeOf(e)))
 		if err := exc.SetReason(e.Error()); err != nil {
 			// TODO(soon): log errors
 			ans.s.acquireSender()
 			ans.s.finish()
 			return
 		}
-		// TODO(someday): set exception type
 	}
 	ans.s.acquireSender()
 	ans.s.send() // TODO(soon): log errors

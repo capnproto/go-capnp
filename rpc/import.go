@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"zombiezen.com/go/capnproto2"
@@ -89,7 +88,7 @@ func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, 
 	ic.conn.mu.Lock()
 	ent := ic.conn.imports[ic.id]
 	if ent == nil || ic.generation != ent.generation {
-		return capnp.ErrorAnswer(errors.New("rpc: send on closed import")), func() {}
+		return capnp.ErrorAnswer(s.Method, newError("send on closed import")), func() {}
 	}
 	id := questionID(ic.conn.questionID.next())
 	err := ic.conn.sendMessage(ctx, func(msg rpccp.Message) error {
@@ -117,6 +116,8 @@ func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, 
 			return err
 		}
 		if err := s.PlaceArgs(args); err != nil {
+			// Using fmt.Errorf to annotate to avoid stutter when we wrap the
+			// sendMessage error.
 			return fmt.Errorf("place parameters: %v", err)
 		}
 		// TODO(soon): fill in capability table
@@ -124,9 +125,9 @@ func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, 
 	})
 	if err != nil {
 		ic.conn.questionID.remove(uint32(id))
-		return capnp.ErrorAnswer(fmt.Errorf("rpc: call import: %v", err)), func() {}
+		return capnp.ErrorAnswer(s.Method, errorf("send to import: %v", err)), func() {}
 	}
-	q := ic.conn.newQuestion(ctx, id, false)
+	q := ic.conn.newQuestion(ctx, id, s.Method, false)
 	ans := q.p.Answer()
 	return ans, func() {
 		<-ans.Done()
@@ -136,7 +137,7 @@ func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, 
 }
 
 func (ic *importClient) Recv(ctx context.Context, r capnp.Recv) capnp.PipelineCaller {
-	r.Reject(errors.New("TODO(soon)"))
+	r.Reject(newError("TODO(soon)"))
 	return nil
 }
 

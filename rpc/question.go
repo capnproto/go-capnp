@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"zombiezen.com/go/capnproto2"
@@ -67,6 +66,8 @@ func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineO
 			return err
 		}
 		if err := s.PlaceArgs(args); err != nil {
+			// Using fmt.Errorf to annotate to avoid stutter when we wrap the
+			// sendMessage error.
 			return fmt.Errorf("place args: %v", err)
 		}
 		// TODO(soon): fill in capability table
@@ -74,9 +75,9 @@ func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineO
 	})
 	if err != nil {
 		q.conn.questionID.remove(uint32(id))
-		return capnp.ErrorAnswer(fmt.Errorf("rpc: call promised answer: %v", err)), func() {}
+		return capnp.ErrorAnswer(s.Method, errorf("send to promised answer: %v", err)), func() {}
 	}
-	q2 := q.conn.newQuestion(ctx, id, false)
+	q2 := q.conn.newQuestion(ctx, id, s.Method, false)
 	ans := q2.p.Answer()
 	return ans, func() {
 		<-ans.Done()
@@ -86,7 +87,7 @@ func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineO
 }
 
 func (q *question) PipelineRecv(ctx context.Context, transform []capnp.PipelineOp, r capnp.Recv) capnp.PipelineCaller {
-	r.Reject(errors.New("TODO(soon)"))
+	r.Reject(newError("TODO(soon)"))
 	return nil
 }
 
