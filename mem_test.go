@@ -56,7 +56,7 @@ func TestAlloc(t *testing.T) {
 		size Size
 
 		allocID SegmentID
-		addr    Address
+		addr    address
 	}
 	var tests []allocTest
 

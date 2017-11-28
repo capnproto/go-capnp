@@ -4,7 +4,7 @@ package capnp
 // The zero value is a null pointer.
 type Ptr struct {
 	seg        *Segment
-	off        Address
+	off        address
 	lenOrCap   uint32
 	size       ObjectSize
 	depthLimit uint

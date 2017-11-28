@@ -296,7 +296,7 @@ func (m *Message) allocSegment(sz Size) (*Segment, error) {
 // alloc allocates sz zero-filled bytes.  It prefers using s, but may
 // use a different segment in the same message if there's not sufficient
 // capacity.
-func alloc(s *Segment, sz Size) (*Segment, Address, error) {
+func alloc(s *Segment, sz Size) (*Segment, address, error) {
 	// TODO(soon): check overflow first
 	sz = sz.padToWord()
 	if sz > maxSize-wordSize {
@@ -311,7 +311,7 @@ func alloc(s *Segment, sz Size) (*Segment, Address, error) {
 		}
 	}
 
-	addr := Address(len(s.data))
+	addr := address(len(s.data))
 	end, ok := addr.addSize(sz)
 	if !ok {
 		return nil, 0, newError("allocation: address overflow")

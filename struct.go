@@ -3,7 +3,7 @@ package capnp
 // Struct is a pointer to a struct.
 type Struct struct {
 	seg        *Segment
-	off        Address
+	off        address
 	size       ObjectSize
 	depthLimit uint
 	flags      structFlags
@@ -151,7 +151,7 @@ func (p Struct) SetData(i uint16, v []byte) error {
 	return p.SetPtr(i, d.List.ToPtr())
 }
 
-func (p Struct) pointerAddress(i uint16) Address {
+func (p Struct) pointerAddress(i uint16) address {
 	// Struct already had bounds check
 	ptrStart, _ := p.off.addSize(p.size.DataSize)
 	a, _ := ptrStart.element(int32(i), wordSize)
@@ -187,7 +187,7 @@ func (p Struct) SetBit(n BitOffset, v bool) {
 	p.seg.writeUint8(addr, b)
 }
 
-func (p Struct) dataAddress(off DataOffset, sz Size) (addr Address, ok bool) {
+func (p Struct) dataAddress(off DataOffset, sz Size) (addr address, ok bool) {
 	if p.seg == nil || Size(off)+sz > p.size.DataSize {
 		return 0, false
 	}

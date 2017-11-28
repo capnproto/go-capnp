@@ -6,10 +6,10 @@ import (
 
 func TestAddressElement(t *testing.T) {
 	tests := []struct {
-		a   Address
+		a   address
 		i   int32
 		sz  Size
-		out Address
+		out address
 		ok  bool
 	}{
 		{0, 0, 0, 0, true},

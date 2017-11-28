@@ -7,13 +7,13 @@ import (
 )
 
 // String returns the address in hex format.
-func (addr Address) String() string {
+func (addr address) String() string {
 	return fmt.Sprintf("%#08x", uint64(addr))
 }
 
 // GoString returns the address in hex format.
-func (addr Address) GoString() string {
-	return fmt.Sprintf("capnp.Address(%#08x)", uint64(addr))
+func (addr address) GoString() string {
+	return fmt.Sprintf("capnp.address(%#08x)", uint64(addr))
 }
 
 // String returns the size in the format "X bytes".

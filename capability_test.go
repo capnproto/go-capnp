@@ -314,7 +314,7 @@ func TestInterface_value(t *testing.T) {
 		{NewInterface(seg, 0xdeadbeef), 0xdeadbeef00000003},
 	}
 	for _, test := range tests {
-		for paddr := Address(0); paddr < 16; paddr++ {
+		for paddr := address(0); paddr < 16; paddr++ {
 			if val := test.in.value(paddr); val != test.val {
 				t.Errorf("Interface{seg: %p, cap: %d}.value(%v) = %v; want %v", test.in.seg, test.in.cap, paddr, val, test.val)
 			}

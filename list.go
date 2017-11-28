@@ -10,7 +10,7 @@ import (
 // A List is a reference to an array of values.
 type List struct {
 	seg        *Segment
-	off        Address // at beginning of elements (past composite list tag word)
+	off        address // at beginning of elements (past composite list tag word)
 	length     int32
 	size       ObjectSize
 	depthLimit uint
@@ -55,7 +55,7 @@ func NewCompositeList(s *Segment, sz ObjectSize, n int32) (List, error) {
 	s.writeRawPointer(addr, rawStructPointer(pointerOffset(n), sz))
 	return List{
 		seg:        s,
-		off:        addr + Address(wordSize),
+		off:        addr + address(wordSize),
 		length:     n,
 		size:       sz,
 		flags:      isCompositeList,
@@ -171,7 +171,7 @@ func (p List) Len() int {
 
 // primitiveElem returns the address of the segment data for a list element.
 // Calling this on a bit list returns an error.
-func (p List) primitiveElem(i int, expectedSize ObjectSize) (Address, error) {
+func (p List) primitiveElem(i int, expectedSize ObjectSize) (address, error) {
 	if p.seg == nil || i < 0 || i >= int(p.length) {
 		// This is programmer error, not input error.
 		panic("list element out of bounds")

@@ -1,19 +1,19 @@
 package capnp
 
-// An Address is an index inside a segment's data (in bytes).
-type Address uint32
+// An address is an index inside a segment's data (in bytes).
+type address uint32
 
 // addSize returns the address a+sz.
-func (a Address) addSize(sz Size) (b Address, ok bool) {
+func (a address) addSize(sz Size) (b address, ok bool) {
 	x := int64(a) + int64(sz)
 	if x > int64(maxSize) {
 		return 0, false
 	}
-	return Address(x), true
+	return address(x), true
 }
 
 // element returns the address a+i*sz.
-func (a Address) element(i int32, sz Size) (b Address, ok bool) {
+func (a address) element(i int32, sz Size) (b address, ok bool) {
 	x := int64(i) * int64(sz)
 	if x > int64(maxSize) {
 		return 0, false
@@ -22,12 +22,12 @@ func (a Address) element(i int32, sz Size) (b Address, ok bool) {
 	if x > int64(maxSize) {
 		return 0, false
 	}
-	return Address(x), true
+	return address(x), true
 }
 
 // addOffset returns the address a+o.
-func (a Address) addOffset(o DataOffset) Address {
-	return a + Address(o)
+func (a address) addOffset(o DataOffset) address {
+	return a + address(o)
 }
 
 // A Size is a size (in bytes).

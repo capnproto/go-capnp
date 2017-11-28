@@ -11,7 +11,7 @@ import (
 func TestSegmentInBounds(t *testing.T) {
 	tests := []struct {
 		n    int
-		addr Address
+		addr address
 		ok   bool
 	}{
 		{0, 0, false},
@@ -35,7 +35,7 @@ func TestSegmentInBounds(t *testing.T) {
 func TestSegmentRegionInBounds(t *testing.T) {
 	tests := []struct {
 		n    int
-		addr Address
+		addr address
 		sz   Size
 		ok   bool
 	}{
@@ -69,7 +69,7 @@ func TestSegmentRegionInBounds(t *testing.T) {
 func TestSegmentReadUint8(t *testing.T) {
 	tests := []struct {
 		data   []byte
-		addr   Address
+		addr   address
 		val    uint8
 		panics bool
 	}{
@@ -106,7 +106,7 @@ func TestSegmentReadUint8(t *testing.T) {
 func TestSegmentReadUint16(t *testing.T) {
 	tests := []struct {
 		data   []byte
-		addr   Address
+		addr   address
 		val    uint16
 		panics bool
 	}{
@@ -144,7 +144,7 @@ func TestSegmentReadUint16(t *testing.T) {
 func TestSegmentReadUint32(t *testing.T) {
 	tests := []struct {
 		data   []byte
-		addr   Address
+		addr   address
 		val    uint32
 		panics bool
 	}{
@@ -183,7 +183,7 @@ func TestSegmentReadUint32(t *testing.T) {
 func TestSegmentReadUint64(t *testing.T) {
 	tests := []struct {
 		data   []byte
-		addr   Address
+		addr   address
 		val    uint64
 		panics bool
 	}{
@@ -227,7 +227,7 @@ func TestSegmentReadUint64(t *testing.T) {
 func TestSegmentWriteUint8(t *testing.T) {
 	tests := []struct {
 		data   []byte
-		addr   Address
+		addr   address
 		val    uint8
 		out    []byte
 		panics bool
@@ -301,7 +301,7 @@ func TestSegmentWriteUint8(t *testing.T) {
 func TestSegmentWriteUint16(t *testing.T) {
 	tests := []struct {
 		data   []byte
-		addr   Address
+		addr   address
 		val    uint16
 		out    []byte
 		panics bool
@@ -345,7 +345,7 @@ func TestSegmentWriteUint16(t *testing.T) {
 func TestSegmentWriteUint32(t *testing.T) {
 	tests := []struct {
 		data   []byte
-		addr   Address
+		addr   address
 		val    uint32
 		out    []byte
 		panics bool
@@ -389,7 +389,7 @@ func TestSegmentWriteUint32(t *testing.T) {
 func TestSegmentWriteUint64(t *testing.T) {
 	tests := []struct {
 		data   []byte
-		addr   Address
+		addr   address
 		val    uint64
 		out    []byte
 		panics bool
@@ -642,7 +642,7 @@ func TestWriteFarPointer(t *testing.T) {
 		t.Fatalf("root points to segment %d; want 1", root.farSegment())
 	}
 	padAddr := root.farAddress()
-	if padAddr > Address(len(seg1.Data())-8) {
+	if padAddr > address(len(seg1.Data())-8) {
 		t.Fatalf("root points to out of bounds address %v; size of segment is %d", padAddr, len(seg1.Data()))
 	}
 
@@ -698,7 +698,7 @@ func TestWriteDoubleFarPointer(t *testing.T) {
 		t.Fatalf("msg.Segment(%d): %v", root.farSegment(), err)
 	}
 	padAddr := root.farAddress()
-	if padAddr > Address(len(padSeg.Data())-16) {
+	if padAddr > address(len(padSeg.Data())-16) {
 		t.Fatalf("root points to out of bounds address %v; size of segment is %d", padAddr, len(padSeg.Data()))
 	}
 

@@ -35,61 +35,61 @@ func (s *Segment) Data() []byte {
 	return s.data
 }
 
-func (s *Segment) inBounds(addr Address) bool {
-	return addr < Address(len(s.data))
+func (s *Segment) inBounds(addr address) bool {
+	return addr < address(len(s.data))
 }
 
-func (s *Segment) regionInBounds(base Address, sz Size) bool {
+func (s *Segment) regionInBounds(base address, sz Size) bool {
 	end, ok := base.addSize(sz)
 	if !ok {
 		return false
 	}
-	return end <= Address(len(s.data))
+	return end <= address(len(s.data))
 }
 
 // slice returns the segment of data from base to base+sz.
-func (s *Segment) slice(base Address, sz Size) []byte {
+func (s *Segment) slice(base address, sz Size) []byte {
 	// Bounds check should have happened before calling slice.
-	return s.data[base : base+Address(sz)]
+	return s.data[base : base+address(sz)]
 }
 
-func (s *Segment) readUint8(addr Address) uint8 {
+func (s *Segment) readUint8(addr address) uint8 {
 	return s.slice(addr, 1)[0]
 }
 
-func (s *Segment) readUint16(addr Address) uint16 {
+func (s *Segment) readUint16(addr address) uint16 {
 	return binary.LittleEndian.Uint16(s.slice(addr, 2))
 }
 
-func (s *Segment) readUint32(addr Address) uint32 {
+func (s *Segment) readUint32(addr address) uint32 {
 	return binary.LittleEndian.Uint32(s.slice(addr, 4))
 }
 
-func (s *Segment) readUint64(addr Address) uint64 {
+func (s *Segment) readUint64(addr address) uint64 {
 	return binary.LittleEndian.Uint64(s.slice(addr, 8))
 }
 
-func (s *Segment) readRawPointer(addr Address) rawPointer {
+func (s *Segment) readRawPointer(addr address) rawPointer {
 	return rawPointer(s.readUint64(addr))
 }
 
-func (s *Segment) writeUint8(addr Address, val uint8) {
+func (s *Segment) writeUint8(addr address, val uint8) {
 	s.slice(addr, 1)[0] = val
 }
 
-func (s *Segment) writeUint16(addr Address, val uint16) {
+func (s *Segment) writeUint16(addr address, val uint16) {
 	binary.LittleEndian.PutUint16(s.slice(addr, 2), val)
 }
 
-func (s *Segment) writeUint32(addr Address, val uint32) {
+func (s *Segment) writeUint32(addr address, val uint32) {
 	binary.LittleEndian.PutUint32(s.slice(addr, 4), val)
 }
 
-func (s *Segment) writeUint64(addr Address, val uint64) {
+func (s *Segment) writeUint64(addr address, val uint64) {
 	binary.LittleEndian.PutUint64(s.slice(addr, 8), val)
 }
 
-func (s *Segment) writeRawPointer(addr Address, val rawPointer) {
+func (s *Segment) writeRawPointer(addr address, val rawPointer) {
 	s.writeUint64(addr, uint64(val))
 }
 
@@ -116,7 +116,7 @@ func (s *Segment) lookupSegment(id SegmentID) (*Segment, error) {
 	return s.msg.Segment(id)
 }
 
-func (s *Segment) readPtr(paddr Address, depthLimit uint) (ptr Ptr, err error) {
+func (s *Segment) readPtr(paddr address, depthLimit uint) (ptr Ptr, err error) {
 	s, base, val, err := s.resolveFarPointer(paddr)
 	if err != nil {
 		return Ptr{}, annotate(err).errorf("read pointer")
@@ -162,7 +162,7 @@ func (s *Segment) readPtr(paddr Address, depthLimit uint) (ptr Ptr, err error) {
 	}
 }
 
-func (s *Segment) readStructPtr(base Address, val rawPointer) (Struct, error) {
+func (s *Segment) readStructPtr(base address, val rawPointer) (Struct, error) {
 	addr, ok := val.offset().resolve(base)
 	if !ok {
 		return Struct{}, newError("struct pointer: invalid address")
@@ -178,7 +178,7 @@ func (s *Segment) readStructPtr(base Address, val rawPointer) (Struct, error) {
 	}, nil
 }
 
-func (s *Segment) readListPtr(base Address, val rawPointer) (List, error) {
+func (s *Segment) readListPtr(base address, val rawPointer) (List, error) {
 	addr, ok := val.offset().resolve(base)
 	if !ok {
 		return List{}, newError("list pointer: invalid address")
@@ -233,7 +233,7 @@ func (s *Segment) readListPtr(base Address, val rawPointer) (List, error) {
 	}, nil
 }
 
-func (s *Segment) resolveFarPointer(paddr Address) (dst *Segment, base Address, resolved rawPointer, err error) {
+func (s *Segment) resolveFarPointer(paddr address) (dst *Segment, base address, resolved rawPointer, err error) {
 	// Encoding details at https://capnproto.org/encoding.html#inter-segment-pointers
 
 	val := s.readRawPointer(paddr)
@@ -289,7 +289,7 @@ func (s *Segment) resolveFarPointer(paddr Address) (dst *Segment, base Address, 
 	}
 }
 
-func (s *Segment) writePtr(off Address, src Ptr, forceCopy bool) error {
+func (s *Segment) writePtr(off address, src Ptr, forceCopy bool) error {
 	if !src.IsValid() {
 		s.writeRawPointer(off, 0)
 		return nil
@@ -297,7 +297,7 @@ func (s *Segment) writePtr(off Address, src Ptr, forceCopy bool) error {
 
 	// Copy src, if needed, and process pointers where placement is
 	// irrelevant (capabilities and zero-sized structs).
-	var srcAddr Address
+	var srcAddr address
 	var srcRaw rawPointer
 	switch src.flags.ptrType() {
 	case structPtrType:
@@ -346,7 +346,7 @@ func (s *Segment) writePtr(off Address, src Ptr, forceCopy bool) error {
 			}
 			if dst.flags&isCompositeList != 0 {
 				// Copy tag word
-				newSeg.writeRawPointer(newAddr, l.seg.readRawPointer(l.off-Address(wordSize)))
+				newSeg.writeRawPointer(newAddr, l.seg.readRawPointer(l.off-address(wordSize)))
 				var ok bool
 				dst.off, ok = dst.off.addSize(wordSize)
 				if !ok {
@@ -370,7 +370,7 @@ func (s *Segment) writePtr(off Address, src Ptr, forceCopy bool) error {
 		}
 		srcAddr = l.off
 		if l.flags&isCompositeList != 0 {
-			srcAddr -= Address(wordSize)
+			srcAddr -= address(wordSize)
 		}
 		srcRaw = l.raw()
 	case interfacePtrType:
@@ -404,7 +404,7 @@ func (s *Segment) writePtr(off Address, src Ptr, forceCopy bool) error {
 			return annotate(err).errorf("write pointer: make landing pad")
 		}
 		padSeg.writeRawPointer(padAddr, rawFarPointer(src.seg.id, srcAddr))
-		padSeg.writeRawPointer(padAddr+Address(wordSize), srcRaw)
+		padSeg.writeRawPointer(padAddr+address(wordSize), srcRaw)
 		s.writeRawPointer(off, rawDoubleFarPointer(padSeg.id, padAddr))
 		return nil
 	}
