@@ -49,8 +49,8 @@ go_test(
         "rawpointer_test.go",
         "readlimit_test.go",
     ],
+    embed = [":go_default_library"],
     importpath = "zombiezen.com/go/capnproto2",
-    library = ":go_default_library",
 )
 
 go_test(
