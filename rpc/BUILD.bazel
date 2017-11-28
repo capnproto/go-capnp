@@ -9,6 +9,7 @@ go_library(
         "rpc.go",
         "transport.go",
     ],
+    importpath = "zombiezen.com/go/capnproto2/rpc",
     visibility = ["//visibility:public"],
     deps = [
         "//:go_default_library",
@@ -23,6 +24,7 @@ go_test(
         "rpc_test.go",
         "transport_test.go",
     ],
+    importpath = "zombiezen.com/go/capnproto2/rpc_test",
     deps = [
         ":go_default_library",
         "//:go_default_library",

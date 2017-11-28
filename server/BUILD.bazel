@@ -6,6 +6,7 @@ go_library(
         "answer.go",
         "server.go",
     ],
+    importpath = "zombiezen.com/go/capnproto2/server",
     visibility = ["//visibility:public"],
     deps = ["//:go_default_library"],
 )
@@ -16,6 +17,7 @@ go_test(
         "example_test.go",
         "server_test.go",
     ],
+    importpath = "zombiezen.com/go/capnproto2/server_test",
     deps = [
         ":go_default_library",
         "//:go_default_library",
