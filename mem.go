@@ -3,6 +3,7 @@ package capnp
 import (
 	"bufio"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"sync"
 	"sync/atomic"
@@ -397,6 +398,10 @@ func (ssa *singleSegmentArena) Allocate(sz Size, segs map[SegmentID]*Segment) (S
 	return 0, *ssa, nil
 }
 
+func (ssa *singleSegmentArena) String() string {
+	return fmt.Sprintf("single-segment arena [len=%d cap=%d]", len(*ssa), cap(*ssa))
+}
+
 type roSingleSegment []byte
 
 func (ss roSingleSegment) NumSegments() int64 {
@@ -412,6 +417,10 @@ func (ss roSingleSegment) Data(id SegmentID) ([]byte, error) {
 
 func (ss roSingleSegment) Allocate(sz Size, segs map[SegmentID]*Segment) (SegmentID, []byte, error) {
 	return 0, nil, newError("arena is read-only")
+}
+
+func (ss roSingleSegment) String() string {
+	return fmt.Sprintf("read-only single-segment arena [len=%d]", len(ss))
 }
 
 type multiSegmentArena [][]byte
@@ -473,6 +482,10 @@ func (msa *multiSegmentArena) Allocate(sz Size, segs map[SegmentID]*Segment) (Se
 	id := SegmentID(len(*msa))
 	*msa = append(*msa, buf)
 	return id, buf, nil
+}
+
+func (msa *multiSegmentArena) String() string {
+	return fmt.Sprintf("multi-segment arena [%d segments]", len(*msa))
 }
 
 // nextAlloc computes how much more space to allocate given the number

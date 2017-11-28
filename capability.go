@@ -76,6 +76,16 @@ func (i Interface) Client() *Client {
 // A CapabilityID is an index into a message's capability table.
 type CapabilityID uint32
 
+// String returns the ID in the format "capability X".
+func (id CapabilityID) String() string {
+	return fmt.Sprintf("capability %d", id)
+}
+
+// GoString returns the ID as a Go expression.
+func (id CapabilityID) GoString() string {
+	return fmt.Sprintf("capnp.CapabilityID(%d)", id)
+}
+
 // A Client is a reference to a Cap'n Proto capability.
 // The zero value is a null capability reference.
 // It is safe to use from multiple goroutines.

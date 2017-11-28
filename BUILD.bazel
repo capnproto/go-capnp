@@ -23,7 +23,6 @@ go_library(
         "mem_other.go",
         "pointer.go",
         "rawpointer.go",
-        "strings.go",
         "struct.go",
     ],
     importpath = "zombiezen.com/go/capnproto2",
