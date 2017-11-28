@@ -26,6 +26,61 @@ type question struct {
 	state uint8
 }
 
+// newQuestion adds a new question to c's table.  The caller must be
+// holding onto c.mu.
+func (c *Conn) newQuestion(ctx context.Context, id questionID, method capnp.Method, bootstrap bool) *question {
+	ctx, cancel := context.WithCancel(ctx)
+	q := &question{
+		id:        id,
+		conn:      c,
+		done:      cancel,
+		bootstrap: bootstrap,
+	}
+	q.p = capnp.NewPromise(method, q)
+	if int(id) == len(c.questions) {
+		c.questions = append(c.questions, q)
+	} else {
+		c.questions[id] = q
+	}
+	c.runBackground(func(bgctx context.Context) {
+		var rejectErr error
+		select {
+		case <-ctx.Done():
+			rejectErr = ctx.Err()
+		case <-bgctx.Done():
+			rejectErr = bgctx.Err()
+			q.done()
+		}
+		c.mu.Lock()
+		if q.sentFinish() {
+			c.mu.Unlock()
+			return
+		}
+		q.state |= 2 // sending finish
+		q.release = func() {}
+		select {
+		case <-bgctx.Done():
+		default:
+			// TODO(soon): log error
+			c.sendMessage(bgctx, func(msg rpccp.Message) error {
+				fin, err := msg.NewFinish()
+				if err != nil {
+					return err
+				}
+				fin.SetQuestionId(uint32(q.id))
+				fin.SetReleaseResultCaps(true)
+				return nil
+			})
+		}
+		c.mu.Unlock()
+		q.p.Reject(rejectErr)
+		if q.bootstrap {
+			q.p.ReleaseClients()
+		}
+	})
+	return q
+}
+
 func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineOp, s capnp.Send) (*capnp.Answer, capnp.ReleaseFunc) {
 	defer q.conn.mu.Unlock()
 	q.conn.mu.Lock()
