@@ -5,42 +5,49 @@ import (
 )
 
 // An address is an index inside a segment's data (in bytes).
+// It is bounded to [0, maxSegmentSize).
 type address uint32
 
 // String returns the address in hex format.
-func (addr address) String() string {
-	return fmt.Sprintf("%#08x", uint64(addr))
+func (a address) String() string {
+	return fmt.Sprintf("%#08x", uint64(a))
 }
 
 // GoString returns the address in hex format.
-func (addr address) GoString() string {
-	return fmt.Sprintf("capnp.address(%#08x)", uint64(addr))
+func (a address) GoString() string {
+	return fmt.Sprintf("capnp.address(%#08x)", uint64(a))
 }
 
-// addSize returns the address a+sz.
-func (a address) addSize(sz Size) (b address, ok bool) {
+// addSize returns the address a+sz.  ok is false if the result would
+// be an invalid address.
+func (a address) addSize(sz Size) (_ address, ok bool) {
 	x := int64(a) + int64(sz)
-	if x > int64(maxSize) {
-		return 0, false
+	if x > int64(maxSegmentSize) {
+		return 0xffffffff, false
 	}
 	return address(x), true
 }
 
-// element returns the address a+i*sz.
-func (a address) element(i int32, sz Size) (b address, ok bool) {
-	x := int64(i) * int64(sz)
-	if x > int64(maxSize) {
-		return 0, false
-	}
-	x += int64(a)
-	if x > int64(maxSize) {
-		return 0, false
+// addSizeUnchecked returns a+sz without any overflow checking.
+func (a address) addSizeUnchecked(sz Size) address {
+	return a + address(sz)
+}
+
+// element returns the address a+i*sz.  ok is false if the result would
+// be an invalid address.
+func (a address) element(i int32, sz Size) (_ address, ok bool) {
+	x := int64(a) + int64(i)*int64(sz)
+	if x > int64(maxSegmentSize) || x < 0 {
+		return 0xffffffff, false
 	}
 	return address(x), true
 }
 
-// addOffset returns the address a+o.
+// addOffset returns the address a+o.  It panics if o is invalid.
 func (a address) addOffset(o DataOffset) address {
+	if o >= 1<<19 {
+		panic("data offset overflow")
+	}
 	return a + address(o)
 }
 
@@ -49,9 +56,6 @@ type Size uint32
 
 // wordSize is the number of bytes in a Cap'n Proto word.
 const wordSize Size = 8
-
-// maxSize is the maximum representable size.
-const maxSize Size = 1<<32 - 1
 
 // String returns the size in the format "X bytes".
 func (sz Size) String() string {
@@ -66,22 +70,55 @@ func (sz Size) GoString() string {
 	return fmt.Sprintf("capnp.Size(%d)", sz)
 }
 
-// times returns the size sz*n.
-func (sz Size) times(n int32) (ns Size, ok bool) {
+// times returns the size sz*n.  ok is false if the result would be
+// greater than maxSegmentSize.
+func (sz Size) times(n int32) (_ Size, ok bool) {
 	x := int64(sz) * int64(n)
-	if x > int64(maxSize) {
-		return 0, false
+	if x > int64(maxSegmentSize) || x < 0 {
+		return 0xffffffff, false
 	}
 	return Size(x), true
 }
 
+// timesUnchecked returns sz*n without any overflow or negative checking.
+func (sz Size) timesUnchecked(n int32) Size {
+	return sz * Size(n)
+}
+
 // padToWord adds padding to sz to make it divisible by wordSize.
+// The result is undefined if sz > maxSegmentSize.
 func (sz Size) padToWord() Size {
 	n := Size(wordSize - 1)
 	return (sz + n) &^ n
 }
 
-// DataOffset is an offset in bytes from the beginning of a struct's data section.
+// maxSegmentSize is the largest size representable in the Cap'n Proto
+// encoding.
+const maxSegmentSize Size = 1<<32 - 8
+
+// maxAllocSize returns the largest permitted size of a single segment
+// on this platform.
+//
+// Converting between a Size and an int can overflow both ways: on
+// systems where int is 32 bits, Size to int overflows, and on systems
+// where int is 64 bits, int to Size overflows.  Quantities less than
+// or equal to maxAllocSize() will not overflow.
+//
+// This is effectively a compile-time constant, but can't be represented
+// as a constant because it requires a conditional.  It is trivially
+// inlinable and optimizable, so should act like one.
+func maxAllocSize() Size {
+	if maxInt == 0x7fffffff {
+		return Size(0x7ffffff8)
+	} else {
+		return maxSegmentSize
+	}
+}
+
+const maxInt = int(^uint(0) >> 1)
+
+// DataOffset is an offset in bytes from the beginning of a struct's
+// data section.  It is bounded to [0, 1<<19).
 type DataOffset uint32
 
 // String returns the offset in the format "+X bytes".
@@ -99,7 +136,7 @@ func (off DataOffset) GoString() string {
 
 // ObjectSize records section sizes for a struct or list.
 type ObjectSize struct {
-	DataSize     Size
+	DataSize     Size // must be <= 1<<19 - 8
 	PointerCount uint16
 }
 
@@ -125,6 +162,7 @@ func (sz ObjectSize) pointerSize() Size {
 }
 
 // totalSize returns the number of bytes that the object occupies.
+// The range is [0, 0xffff0].
 func (sz ObjectSize) totalSize() Size {
 	return sz.DataSize + sz.pointerSize()
 }
@@ -153,7 +191,8 @@ func (sz ObjectSize) GoString() string {
 	return fmt.Sprintf("capnp.ObjectSize{DataSize: %d, PointerCount: %d}", sz.DataSize, sz.PointerCount)
 }
 
-// BitOffset is an offset in bits from the beginning of a struct's data section.
+// BitOffset is an offset in bits from the beginning of a struct's data
+// section.  It is bounded to [0, 1<<22).
 type BitOffset uint32
 
 // offset returns the equivalent byte offset.

@@ -274,6 +274,9 @@ func (m *Message) setSegment(id SegmentID, data []byte) *Segment {
 // allocSegment creates or resizes an existing segment such that
 // cap(seg.Data) - len(seg.Data) >= sz.
 func (m *Message) allocSegment(sz Size) (*Segment, error) {
+	if sz > maxAllocSize() {
+		return nil, newError("allocation: too large")
+	}
 	m.mu.Lock()
 	if len(m.segs) == maxInt {
 		m.mu.Unlock()
@@ -298,11 +301,10 @@ func (m *Message) allocSegment(sz Size) (*Segment, error) {
 // use a different segment in the same message if there's not sufficient
 // capacity.
 func alloc(s *Segment, sz Size) (*Segment, address, error) {
-	// TODO(soon): check overflow first
-	sz = sz.padToWord()
-	if sz > maxSize-wordSize {
-		return nil, 0, newError("allocation too large")
+	if sz > maxAllocSize() {
+		return nil, 0, newError("allocation: too large")
 	}
+	sz = sz.padToWord()
 
 	if !hasCapacity(s.data, sz) {
 		var err error
@@ -388,7 +390,7 @@ func (ssa *singleSegmentArena) Allocate(sz Size, segs map[SegmentID]*Segment) (S
 	if hasCapacity(data, sz) {
 		return 0, data, nil
 	}
-	inc, err := nextAlloc(int64(len(data)), int64(maxSegmentSize()), sz)
+	inc, err := nextAlloc(int64(len(data)), int64(maxAllocSize()), sz)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -497,17 +499,13 @@ func nextAlloc(curr, max int64, req Size) (int, error) {
 	if req == 0 {
 		return 0, nil
 	}
-	maxinc := int64(1<<32 - 8) // largest word-aligned Size
-	if isInt32Bit {
-		maxinc = 1<<31 - 8 // largest word-aligned int
-	}
-	if int64(req) > maxinc {
-		return 0, errorf("alloc %d bytes: too large", req)
+	if req > maxAllocSize() {
+		return 0, errorf("alloc %v: too large", req)
 	}
 	padreq := req.padToWord()
 	want := curr + int64(padreq)
 	if want <= curr || want > max {
-		return 0, errorf("alloc %d bytes: message size overflow", req)
+		return 0, errorf("alloc %v: message size overflow", req)
 	}
 	new := curr
 	double := new + new
@@ -528,8 +526,8 @@ func nextAlloc(curr, max int64, req Size) (int, error) {
 			return int(padreq), nil
 		}
 		delta := new - curr
-		if delta > maxinc {
-			return int(maxinc), nil
+		if delta > int64(maxAllocSize()) {
+			return int(maxAllocSize()), nil
 		}
 		return int((delta + 7) &^ 7), nil
 	}
@@ -736,7 +734,7 @@ func (e *Encoder) Encode(m *Message) error {
 			return annotate(err).errorf("encode")
 		}
 		n := len(s.data)
-		if int64(n) > int64(maxSize) {
+		if n > int(maxSegmentSize) {
 			return errorf("encode: segment %d too large", i)
 		}
 		e.hdrbuf = appendUint32(e.hdrbuf, uint32(Size(n)/wordSize))
@@ -777,7 +775,7 @@ func (m *Message) segmentSizes() ([]Size, error) {
 			return sizes[:i], err
 		}
 		n := len(s.data)
-		if int64(n) > int64(maxSize) {
+		if n > int(maxSegmentSize) {
 			return sizes[:i], errorf("segment %d too large", i)
 		}
 		sizes[i] = Size(n)
@@ -886,7 +884,7 @@ func (h streamHeader) segmentSize(i uint32) (Size, error) {
 	s := binary.LittleEndian.Uint32(h.b[msgHeaderSize+i*segHeaderSize:])
 	sz, ok := wordSize.times(int32(s))
 	if !ok {
-		return 0, errorf("segment %d too large", i)
+		return 0, errorf("segment %d: overflow size", i)
 	}
 	return sz, nil
 }
@@ -913,25 +911,4 @@ func totalSize(s []Size) uint64 {
 		sum += uint64(sz)
 	}
 	return sum
-}
-
-const (
-	maxInt32 = 0x7fffffff
-	maxInt   = int(^uint(0) >> 1)
-
-	isInt32Bit = maxInt == maxInt32
-)
-
-// maxSegmentSize returns the maximum permitted size of a single segment
-// on this platform.
-//
-// This is effectively a compile-time constant, but can't be represented
-// as a constant because it requires a conditional.  It is trivially
-// inlinable and optimizable, so should act like one.
-func maxSegmentSize() Size {
-	if isInt32Bit {
-		return Size(maxInt32 - 7)
-	} else {
-		return maxSize - 7
-	}
 }

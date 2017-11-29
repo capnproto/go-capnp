@@ -22,6 +22,7 @@ func TestPointerOffsetResolve(t *testing.T) {
 		{off: 0, base: 0xfffffff8, resolved: 0xfffffff8, ok: true},
 		{off: 1, base: 0xfffffff8, ok: false},
 		{off: -1, base: 0xfffffff8, resolved: 0xfffffff0, ok: true},
+		{off: -0x1fffffff, base: 0xfffffff8, resolved: 0, ok: true},
 	}
 	for _, test := range tests {
 		resolved, ok := test.off.resolve(test.base)

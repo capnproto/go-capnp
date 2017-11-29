@@ -5,17 +5,14 @@ import (
 )
 
 // pointerOffset is an address offset in multiples of word size.
+// It is bounded to [-1<<29, 1<<29).
 type pointerOffset int32
 
 // resolve returns an absolute address relative to a base address.
 // For near pointers, the base is the end of the near pointer.
 // For far pointers, the base is zero (the beginning of the segment).
 func (off pointerOffset) resolve(base address) (_ address, ok bool) {
-	if off == 0 {
-		return base, true
-	}
-	addr := base + address(off*pointerOffset(wordSize))
-	return addr, (addr > base || off < 0) && (addr < base || off > 0)
+	return base.element(int32(off), wordSize)
 }
 
 // nearPointerOffset computes the offset for a pointer at paddr to point to addr.
@@ -91,7 +88,7 @@ func (p rawPointer) structSize() ObjectSize {
 	c := uint16(p >> 32)
 	d := uint16(p >> 48)
 	return ObjectSize{
-		DataSize:     Size(c) * wordSize,
+		DataSize:     wordSize.timesUnchecked(int32(c)),
 		PointerCount: d,
 	}
 }
@@ -114,6 +111,9 @@ func (p rawPointer) listType() listType {
 	return listType((p >> 32) & 7)
 }
 
+// numListElements returns the number of elements in the list or the
+// number of words in the list content if the list is a composite list.
+// It always returns a number in the range [0, 1<<29).
 func (p rawPointer) numListElements() int32 {
 	return int32(p >> 35)
 }
@@ -145,15 +145,16 @@ func (p rawPointer) elementSize() ObjectSize {
 func (p rawPointer) totalListSize() (sz Size, ok bool) {
 	n := p.numListElements()
 	switch p.listType() {
-	case voidList:
-		return 0, true
 	case bit1List:
-		return Size((n + 7) / 8), true
+		return bitListSize(n), true
 	case compositeList:
 		// For a composite list, n represents the number of words (excluding the tag word).
+		// Unless n == maxSegmentSize, ok will be true.
 		return wordSize.times(n + 1)
 	default:
-		return p.elementSize().totalSize().times(n)
+		// totalSize is [0, 8] and n is [0, 1<<29).
+		// Range is [0, maxSegmentSize], thus ok will always be true.
+		return p.elementSize().totalSize().timesUnchecked(n), true
 	}
 }
 

@@ -48,9 +48,9 @@ func (s *Segment) regionInBounds(base address, sz Size) bool {
 }
 
 // slice returns the segment of data from base to base+sz.
+// It panics if the slice is out of bounds.
 func (s *Segment) slice(base address, sz Size) []byte {
-	// Bounds check should have happened before calling slice.
-	return s.data[base : base+address(sz)]
+	return s.data[base:base.addSizeUnchecked(sz)]
 }
 
 func (s *Segment) readUint8(addr address) uint8 {
@@ -203,7 +203,7 @@ func (s *Segment) readListPtr(base address, val rawPointer) (List, error) {
 		}
 		sz := hdr.structSize()
 		n := int32(hdr.offset())
-		// TODO(light): check that this has the same end address
+		// TODO(someday): check that this has the same end address
 		if tsize, ok := sz.totalSize().times(n); !ok {
 			return List{}, newError("composite list pointer: size overflow")
 		} else if !s.regionInBounds(addr, tsize) {
@@ -404,7 +404,7 @@ func (s *Segment) writePtr(off address, src Ptr, forceCopy bool) error {
 			return annotate(err).errorf("write pointer: make landing pad")
 		}
 		padSeg.writeRawPointer(padAddr, rawFarPointer(src.seg.id, srcAddr))
-		padSeg.writeRawPointer(padAddr+address(wordSize), srcRaw)
+		padSeg.writeRawPointer(padAddr.addSizeUnchecked(wordSize), srcRaw)
 		s.writeRawPointer(off, rawDoubleFarPointer(padSeg.id, padAddr))
 		return nil
 	}

@@ -10,19 +10,21 @@ import (
 // A List is a reference to an array of values.
 type List struct {
 	seg        *Segment
-	off        address // at beginning of elements (past composite list tag word)
-	length     int32
-	size       ObjectSize
+	off        address    // at beginning of elements (past composite list tag word)
+	length     int32      // always [0, 1<<29)
+	size       ObjectSize // always valid
 	depthLimit uint
 	flags      listFlags
 }
 
 // newPrimitiveList allocates a new list of primitive values, preferring placement in s.
 func newPrimitiveList(s *Segment, sz Size, n int32) (List, error) {
-	total, ok := sz.times(n)
-	if !ok {
-		return List{}, newError("list size overflow")
+	if n < 0 || n >= 1<<29 {
+		return List{}, newError("new list: length out of range")
 	}
+	// sz is [0, 8] and n is [0, 1<<29).
+	// Range is [0, maxSegmentSize], thus there will never be overflow.
+	total := sz.timesUnchecked(n)
 	s, addr, err := alloc(s, total)
 	if err != nil {
 		return List{}, annotate(err).errorf("new list")
@@ -42,9 +44,12 @@ func NewCompositeList(s *Segment, sz ObjectSize, n int32) (List, error) {
 	if !sz.isValid() {
 		return List{}, newError("new composite list: invalid element size")
 	}
+	if n < 0 || n >= 1<<29 {
+		return List{}, newError("new composite list: length out of range")
+	}
 	sz.DataSize = sz.DataSize.padToWord()
 	total, ok := sz.totalSize().times(n)
-	if !ok || total > maxSize-wordSize {
+	if !ok || total > maxSegmentSize-wordSize {
 		return List{}, newError("new composite list: size overflow")
 	}
 	s, addr, err := alloc(s, wordSize+total)
@@ -55,7 +60,7 @@ func NewCompositeList(s *Segment, sz ObjectSize, n int32) (List, error) {
 	s.writeRawPointer(addr, rawStructPointer(pointerOffset(n), sz))
 	return List{
 		seg:        s,
-		off:        addr + address(wordSize),
+		off:        addr.addSizeUnchecked(wordSize),
 		length:     n,
 		size:       sz,
 		flags:      isCompositeList,
@@ -107,7 +112,7 @@ func (p List) readSize() Size {
 	}
 	sz, ok := e.times(p.length)
 	if !ok {
-		return maxSize
+		return maxSegmentSize
 	}
 	return sz
 }
@@ -119,7 +124,7 @@ func (p List) allocSize() Size {
 		return 0
 	}
 	if p.flags&isBitList != 0 {
-		return Size((p.length + 7) / 8)
+		return bitListSize(p.length)
 	}
 	sz, _ := p.size.totalSize().times(p.length) // size has already been validated
 	if p.flags&isCompositeList == 0 {
@@ -224,7 +229,10 @@ type BitList struct{ List }
 
 // NewBitList creates a new bit list, preferring placement in s.
 func NewBitList(s *Segment, n int32) (BitList, error) {
-	s, addr, err := alloc(s, Size(int64(n+7)/8))
+	if n < 0 || n >= 1<<29 {
+		return BitList{}, newError("new bit list: length out of range")
+	}
+	s, addr, err := alloc(s, bitListSize(n))
 	if err != nil {
 		return BitList{}, annotate(err).errorf("new %d-element bit list", n)
 	}
@@ -235,6 +243,12 @@ func NewBitList(s *Segment, n int32) (BitList, error) {
 		flags:      isBitList,
 		depthLimit: maxDepth,
 	}}, nil
+}
+
+// bitListSize returns the number of bytes needed for a bit list with n
+// elements.  It is only defined for n in [0, 1<<29).
+func bitListSize(n int32) Size {
+	return Size((n + 7) / 8)
 }
 
 // At returns the i'th bit.
@@ -469,6 +483,9 @@ type VoidList struct{ List }
 // NewVoidList creates a list of voids.  No allocation is performed;
 // s is only used for Segment()'s return value.
 func NewVoidList(s *Segment, n int32) VoidList {
+	if n < 0 || n >= 1<<29 {
+		panic("list length overflow")
+	}
 	return VoidList{List{
 		seg:        s,
 		length:     n,
