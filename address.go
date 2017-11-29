@@ -115,8 +115,6 @@ func maxAllocSize() Size {
 	}
 }
 
-const maxInt = int(^uint(0) >> 1)
-
 // DataOffset is an offset in bytes from the beginning of a struct's
 // data section.  It is bounded to [0, 1<<19).
 type DataOffset uint32
