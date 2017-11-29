@@ -691,8 +691,6 @@ func IsUnimplemented(e error) bool {
 	return errors.TypeOf(e) == errors.Unimplemented
 }
 
-var closedSignal <-chan struct{} = newClosedSignal()
-
 func newClosedSignal() chan struct{} {
 	c := make(chan struct{})
 	close(c)
