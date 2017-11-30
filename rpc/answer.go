@@ -106,27 +106,32 @@ func (ans *answer) Return(e error) {
 // onto ans.s.c.mu.
 func (ans *answer) lockedReturn(e error) {
 	if e == nil {
-		// TODO(soon): log errors. Don't fail to send return on not filling cap table.
-		ans.s.c.fillPayloadCapTable(ans.results)
+		if err := ans.s.c.fillPayloadCapTable(ans.results); err != nil {
+			ans.s.c.report(annotate(err).errorf("send return"))
+			// Continue.  Don't fail to send return if cap table isn't fully filled.
+		}
 	} else {
 		exc, err := ans.ret.NewException()
 		if err != nil {
-			// TODO(soon): log errors
 			ans.s.acquireSender()
 			ans.s.finish()
+			ans.s.c.reportf("send exception: %v", err)
 			return
 		}
 		exc.SetType(rpccp.Exception_Type(errors.TypeOf(e)))
 		if err := exc.SetReason(e.Error()); err != nil {
-			// TODO(soon): log errors
 			ans.s.acquireSender()
 			ans.s.finish()
+			ans.s.c.reportf("send exception: %v", err)
 			return
 		}
 	}
 	ans.s.acquireSender()
-	ans.s.send() // TODO(soon): log errors
+	err := ans.s.send()
 	ans.s.finish()
+	if err != nil {
+		ans.s.c.reportf("send return: %v", err)
+	}
 
 	ans.state |= 1
 	if !ans.isDone() {

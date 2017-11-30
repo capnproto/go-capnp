@@ -165,7 +165,7 @@ func (ic *importClient) Shutdown() {
 		return nil
 	})
 	if err != nil {
-		// TODO(soon): log error
+		ic.conn.report(annotate(err).errorf("send release"))
 		return
 	}
 }

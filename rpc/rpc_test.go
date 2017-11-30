@@ -25,7 +25,9 @@ func TestCloseAbort(t *testing.T) {
 	p1, p2 := newPipe(1)
 	defer p2.CloseSend()
 	defer p2.CloseRecv()
-	conn := rpc.NewConn(p1, nil)
+	conn := rpc.NewConn(p1, &rpc.Options{
+		ErrorReporter: testErrorReporter{t},
+	})
 
 	ctx := context.Background()
 	if err := conn.Close(); err != nil {
@@ -58,7 +60,9 @@ func TestBootstrapCall(t *testing.T) {
 	p1, p2 := newPipe(1)
 	defer p2.CloseSend()
 	defer p2.CloseRecv()
-	conn := rpc.NewConn(p1, nil)
+	conn := rpc.NewConn(p1, &rpc.Options{
+		ErrorReporter: testErrorReporter{t},
+	})
 	defer func() {
 		if err := conn.Close(); err != nil {
 			t.Error(err)
@@ -268,7 +272,9 @@ func TestBootstrapPipelineCall(t *testing.T) {
 	p1, p2 := newPipe(1)
 	defer p2.CloseSend()
 	defer p2.CloseRecv()
-	conn := rpc.NewConn(p1, nil)
+	conn := rpc.NewConn(p1, &rpc.Options{
+		ErrorReporter: testErrorReporter{t},
+	})
 	defer func() {
 		if err := conn.Close(); err != nil {
 			t.Error(err)
@@ -451,7 +457,10 @@ func TestBootstrapClient(t *testing.T) {
 	p1, p2 := newPipe(1)
 	defer p2.CloseSend()
 	defer p2.CloseRecv()
-	conn := rpc.NewConn(p1, &rpc.Options{BootstrapClient: srv})
+	conn := rpc.NewConn(p1, &rpc.Options{
+		BootstrapClient: srv,
+		ErrorReporter:   testErrorReporter{t},
+	})
 	defer func() {
 		if err := conn.Close(); err != nil {
 			t.Error(err)
@@ -738,4 +747,12 @@ type rpcPromisedAnswer struct {
 type rpcPromisedAnswerOp struct {
 	Which           rpccp.PromisedAnswer_Op_Which
 	GetPointerField uint16
+}
+
+type testErrorReporter struct {
+	t *testing.T
+}
+
+func (r testErrorReporter) ReportError(e error) {
+	r.t.Log("conn error:", e)
 }

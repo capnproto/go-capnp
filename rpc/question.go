@@ -61,8 +61,7 @@ func (c *Conn) newQuestion(ctx context.Context, id questionID, method capnp.Meth
 		select {
 		case <-bgctx.Done():
 		default:
-			// TODO(soon): log error
-			c.sendMessage(bgctx, func(msg rpccp.Message) error {
+			err := c.sendMessage(bgctx, func(msg rpccp.Message) error {
 				fin, err := msg.NewFinish()
 				if err != nil {
 					return err
@@ -71,6 +70,9 @@ func (c *Conn) newQuestion(ctx context.Context, id questionID, method capnp.Meth
 				fin.SetReleaseResultCaps(true)
 				return nil
 			})
+			if err != nil {
+				c.report(annotate(err).errorf("send finish"))
+			}
 		}
 		c.mu.Unlock()
 		q.p.Reject(rejectErr)

@@ -15,6 +15,7 @@ import (
 // It is safe to use from multiple goroutines.
 type Conn struct {
 	bootstrap *capnp.Client
+	reporter  ErrorReporter
 
 	// mu protects all the following fields in the Conn.  mu should not be
 	// held while making calls that take indeterminate time (I/O or
@@ -63,6 +64,17 @@ type Options struct {
 	// this reference: it will release the client when the connection is
 	// closed.
 	BootstrapClient *capnp.Client
+
+	// ErrorReporter will be called upon when errors occur while the Conn
+	// is receiving messages from the remote vat.
+	ErrorReporter ErrorReporter
+}
+
+// A type that implements ErrorReporter can receive errors from a Conn.
+// ReportError should be quick to return and should not use the Conn
+// that it is attached to.
+type ErrorReporter interface {
+	ReportError(error)
 }
 
 // NewConn creates a new connection that communications on a given
@@ -78,6 +90,7 @@ func NewConn(t Transport, opts *Options) *Conn {
 	}
 	if opts != nil {
 		c.bootstrap = opts.BootstrapClient
+		c.reporter = opts.ErrorReporter
 	}
 	c.runBackground(func(ctx context.Context) {
 		c.receive(ctx, t)
@@ -209,7 +222,7 @@ func (c *Conn) receive(ctx context.Context, r Receiver) {
 	for {
 		recv, releaseRecv, err := r.RecvMessage(ctx)
 		if err != nil {
-			// TODO(soon): log error
+			// TODO(soon): shutdown
 			return
 		}
 		switch recv.Which() {
@@ -218,41 +231,45 @@ func (c *Conn) receive(ctx context.Context, r Receiver) {
 		case rpccp.Message_Which_bootstrap:
 			bootstrap, err := recv.Bootstrap()
 			if err != nil {
-				// TODO(soon): log error
+				releaseRecv()
+				c.reportf("read bootstrap: %v", err)
 				continue
 			}
 			qid := answerID(bootstrap.QuestionId())
 			releaseRecv()
 			if err := c.handleBootstrap(ctx, qid); err != nil {
-				// TODO(soon): log error
+				c.report(annotate(err).errorf("handle bootstrap"))
 				continue
 			}
 		case rpccp.Message_Which_call:
 			call, err := recv.Call()
 			if err != nil {
-				// TODO(soon): log error
+				releaseRecv()
+				c.reportf("read call: %v", err)
 				continue
 			}
 			err = c.handleCall(ctx, call, releaseRecv)
 			if err != nil {
-				// TODO(soon): log error
+				c.report(annotate(err).errorf("handle call"))
 				continue
 			}
 		case rpccp.Message_Which_return:
 			ret, err := recv.Return()
 			if err != nil {
-				// TODO(soon): log error
+				releaseRecv()
+				c.reportf("read return: %v", err)
 				continue
 			}
 			err = c.handleReturn(ctx, ret, releaseRecv)
 			if err != nil {
-				// TODO(soon): log error
+				c.report(annotate(err).errorf("handle return"))
 				continue
 			}
 		case rpccp.Message_Which_finish:
 			fin, err := recv.Finish()
 			if err != nil {
-				// TODO(soon): log error
+				releaseRecv()
+				c.reportf("read finish: %v", err)
 				continue
 			}
 			qid := answerID(fin.QuestionId())
@@ -260,27 +277,28 @@ func (c *Conn) receive(ctx context.Context, r Receiver) {
 			releaseRecv()
 			err = c.handleFinish(ctx, qid, releaseResultCaps)
 			if err != nil {
-				// TODO(soon): log error
+				c.report(annotate(err).errorf("handle finish"))
 				continue
 			}
 		case rpccp.Message_Which_release:
 			rel, err := recv.Release()
 			if err != nil {
-				// TODO(soon): log error
+				releaseRecv()
+				c.reportf("read release: %v", err)
 				continue
 			}
 			id := exportID(rel.Id())
 			count := rel.ReferenceCount()
 			releaseRecv()
 			if err := c.handleRelease(ctx, id, count); err != nil {
-				// TODO(soon): log error
+				c.report(annotate(err).errorf("handle release"))
 				continue
 			}
 		default:
 			err := c.handleUnknownMessage(ctx, recv)
 			releaseRecv()
 			if err != nil {
-				// TODO(soon): log error
+				c.report(annotate(err).errorf("handle unknown message"))
 				continue
 			}
 		}
@@ -554,7 +572,7 @@ func (c *Conn) recvPayload(payload rpccp.Payload) (capnp.Ptr, error) {
 	if err != nil {
 		// Don't allow unreadable capability table to stop other results,
 		// just present an empty capability table.
-		// TODO(soon): log errors
+		c.reportf("read payload: capability table: %v", err)
 		return p, nil
 	}
 	mtab := make([]*capnp.Client, ptab.Len())
@@ -606,6 +624,7 @@ func (c *Conn) handleRelease(ctx context.Context, id exportID, count uint32) err
 func (c *Conn) handleUnknownMessage(ctx context.Context, recv rpccp.Message) error {
 	defer c.mu.Unlock()
 	c.mu.Lock()
+	c.reportf("unknown message type %v from remote", recv.Which())
 	err := c.sendMessage(ctx, func(msg rpccp.Message) error {
 		return msg.SetUnimplemented(recv)
 	})
@@ -724,6 +743,23 @@ func (c *Conn) findExport(id exportID) *expent {
 		return nil
 	}
 	return c.exports[id]
+}
+
+// report sends an error to c's reporter.  The caller does not have to
+// be holding c.mu.
+func (c *Conn) report(err error) {
+	if c.reporter == nil {
+		return
+	}
+	c.reporter.ReportError(err)
+}
+
+// reportf formats an error and sends it to c's reporter.
+func (c *Conn) reportf(format string, args ...interface{}) {
+	if c.reporter == nil {
+		return
+	}
+	c.reporter.ReportError(errorf(format, args...))
 }
 
 // idgen returns a sequence of monotonically increasing IDs with
