@@ -132,7 +132,7 @@ func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineO
 	})
 	if err != nil {
 		q.conn.questionID.remove(uint32(id))
-		return capnp.ErrorAnswer(s.Method, errorf("send to promised answer: %v", err)), func() {}
+		return capnp.ErrorAnswer(s.Method, annotate(err).errorf("send to promised answer")), func() {}
 	}
 	q2 := q.conn.newQuestion(ctx, id, s.Method, false)
 	ans := q2.p.Answer()
@@ -144,7 +144,7 @@ func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineO
 }
 
 func (q *question) PipelineRecv(ctx context.Context, transform []capnp.PipelineOp, r capnp.Recv) capnp.PipelineCaller {
-	r.Reject(newError("TODO(soon)"))
+	r.Reject(fail("TODO(soon)"))
 	return nil
 }
 

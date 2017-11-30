@@ -88,7 +88,7 @@ func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, 
 	ic.conn.mu.Lock()
 	ent := ic.conn.imports[ic.id]
 	if ent == nil || ic.generation != ent.generation {
-		return capnp.ErrorAnswer(s.Method, newError("send on closed import")), func() {}
+		return capnp.ErrorAnswer(s.Method, disconnected("send on closed import")), func() {}
 	}
 	id := questionID(ic.conn.questionID.next())
 	err := ic.conn.sendMessage(ctx, func(msg rpccp.Message) error {
@@ -125,7 +125,7 @@ func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, 
 	})
 	if err != nil {
 		ic.conn.questionID.remove(uint32(id))
-		return capnp.ErrorAnswer(s.Method, errorf("send to import: %v", err)), func() {}
+		return capnp.ErrorAnswer(s.Method, annotate(err).errorf("send to import")), func() {}
 	}
 	q := ic.conn.newQuestion(ctx, id, s.Method, false)
 	ans := q.p.Answer()
@@ -137,7 +137,7 @@ func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, 
 }
 
 func (ic *importClient) Recv(ctx context.Context, r capnp.Recv) capnp.PipelineCaller {
-	r.Reject(newError("TODO(soon)"))
+	r.Reject(fail("TODO(soon)"))
 	return nil
 }
 

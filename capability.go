@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
-
-	"zombiezen.com/go/capnproto2/internal/errors"
 )
 
 // An Interface is a reference to a client in a message's capability table.
@@ -678,17 +676,6 @@ func (ec errorClient) Brand() interface{} {
 }
 
 func (ec errorClient) Shutdown() {
-}
-
-// Unimplemented returns an error that formats as the given text and
-// will report true when passed to IsUnimplemented.
-func Unimplemented(s string) error {
-	return errors.New(errors.Unimplemented, "", s)
-}
-
-// IsUnimplemented reports whether e indicates that functionality is unimplemented.
-func IsUnimplemented(e error) bool {
-	return errors.TypeOf(e) == errors.Unimplemented
 }
 
 func newClosedSignal() chan struct{} {

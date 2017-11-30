@@ -634,6 +634,122 @@ func TestBootstrapClient(t *testing.T) {
 	}
 }
 
+func TestCallOnClosedConn(t *testing.T) {
+	p1, p2 := newPipe(1)
+	defer p2.CloseSend()
+	defer p2.CloseRecv()
+	conn := rpc.NewConn(p1, &rpc.Options{
+		ErrorReporter: testErrorReporter{t},
+	})
+	closed := false
+	defer func() {
+		if closed {
+			return
+		}
+		if err := conn.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
+
+	ctx := context.Background()
+
+	// 1. Read bootstrap
+	client := conn.Bootstrap(ctx)
+	msg, release, err := p2.RecvMessage(ctx)
+	if err != nil {
+		t.Fatal("p2.RecvMessage:", err)
+	}
+	defer release()
+	var rmsg rpcMessage
+	if err := pogs.Extract(&rmsg, rpccp.Message_TypeID, msg.Struct); err != nil {
+		t.Fatal("pogs.Extract(p2.RecvMessage(ctx)):", err)
+	}
+	if rmsg.Which != rpccp.Message_Which_bootstrap {
+		t.Fatalf("Received %v message; want bootstrap", rmsg.Which)
+	}
+	qid := rmsg.Bootstrap.QuestionID
+
+	// 2. Write back a return
+	msg, send, release, err := p2.NewMessage(ctx)
+	if err != nil {
+		t.Fatal("p2.NewMessage():", err)
+	}
+	iptr := capnp.NewInterface(msg.Segment(), 0)
+	err = pogs.Insert(rpccp.Message_TypeID, msg.Struct, &rpcMessage{
+		Which: rpccp.Message_Which_return,
+		Return: &rpcReturn{
+			AnswerID: qid,
+			Which:    rpccp.Return_Which_results,
+			Results: &rpcPayload{
+				Content: iptr.ToPtr(),
+				CapTable: []rpcCapDescriptor{
+					{
+						Which:        rpccp.CapDescriptor_Which_senderHosted,
+						SenderHosted: bootstrapExportID,
+					},
+				},
+			},
+		},
+	})
+	if err != nil {
+		release()
+		t.Fatal("pogs.Insert(p2.NewMessage(), &rpcMessage{...}):", err)
+	}
+	err = send()
+	release()
+	if err != nil {
+		t.Fatal("send():", err)
+	}
+
+	// 3. Read finish after client is resolved.
+	if err := client.Resolve(ctx); err != nil {
+		t.Error("client.Resolve:", err)
+	}
+	msg, release, err = p2.RecvMessage(ctx)
+	if err != nil {
+		t.Fatal("p2.RecvMessage:", err)
+	}
+	defer release()
+	rmsg = rpcMessage{}
+	if err := pogs.Extract(&rmsg, rpccp.Message_TypeID, msg.Struct); err != nil {
+		t.Fatal("pogs.Extract(p2.RecvMessage(ctx)):", err)
+	}
+	if rmsg.Which != rpccp.Message_Which_finish {
+		t.Fatalf("Received %v message; want finish", rmsg.Which)
+	}
+	if rmsg.Finish.QuestionID != qid {
+		t.Errorf("Received finish for question %d; want %d", rmsg.Finish.QuestionID, qid)
+	}
+	if rmsg.Finish.ReleaseResultCaps {
+		t.Error("Received finish that releases bootstrap result capabilities")
+	}
+
+	// 4. Close the Conn.
+	err = conn.Close()
+	closed = true
+	if err != nil {
+		t.Error(err)
+	}
+
+	// 5. Make a call.
+	ans, release := client.SendCall(ctx, capnp.Send{
+		Method: capnp.Method{
+			InterfaceID: interfaceID,
+			MethodID:    methodID,
+		},
+		ArgsSize: capnp.ObjectSize{DataSize: 8},
+		PlaceArgs: func(s capnp.Struct) error {
+			s.SetUint64(0, 42)
+			return nil
+		},
+	})
+	defer release()
+	_, err = ans.Struct()
+	if !capnp.IsDisconnected(err) {
+		t.Errorf("call after Close returned error: %v; want disconnected", err)
+	}
+}
+
 type shutdownFunc func()
 
 func (f shutdownFunc) Shutdown() { f() }

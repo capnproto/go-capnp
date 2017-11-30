@@ -122,7 +122,7 @@ func (c *Conn) Bootstrap(ctx context.Context) *capnp.Client {
 	})
 	if err != nil {
 		c.questionID.remove(uint32(id))
-		return capnp.ErrorClient(errorf("bootstrap: %v", err))
+		return capnp.ErrorClient(annotate(err).errorf("bootstrap"))
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	q := c.newQuestion(ctx, id, capnp.Method{}, true)
@@ -426,7 +426,7 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 		})
 		c.questionID.remove(uint32(qid))
 		if err != nil {
-			return errorf("incoming return: send finish: %v", err)
+			return annotate(err).errorf("incoming return: send finish")
 		}
 	} else {
 		c.questionID.remove(uint32(qid))
@@ -562,7 +562,7 @@ func (c *Conn) recvCap(d rpccp.CapDescriptor) *capnp.Client {
 func (c *Conn) recvPayload(payload rpccp.Payload) (capnp.Ptr, error) {
 	if payload.Message().CapTable != nil {
 		// RecvMessage likely violated its invariant.
-		return capnp.Ptr{}, newError("read payload: capability table already populated")
+		return capnp.Ptr{}, fail("read payload: capability table already populated")
 	}
 	p, err := payload.Content()
 	if err != nil {
@@ -629,7 +629,7 @@ func (c *Conn) handleUnknownMessage(ctx context.Context, recv rpccp.Message) err
 		return msg.SetUnimplemented(recv)
 	})
 	if err != nil {
-		return errorf("send unimplemented: %v", err)
+		return annotate(err).errorf("send unimplemented")
 	}
 	return nil
 }
@@ -652,8 +652,7 @@ func (c *Conn) startSend(ctx context.Context) (sendSession, error) {
 	for {
 		select {
 		case <-c.bgctx.Done():
-			// TODO(someday): classify as disconnected
-			return sendSession{}, newError("connection closed")
+			return sendSession{}, disconnected("connection closed")
 		default:
 		}
 		s := c.sendCond
@@ -668,8 +667,7 @@ func (c *Conn) startSend(ctx context.Context) (sendSession, error) {
 			return sendSession{}, ctx.Err()
 		case <-c.bgctx.Done():
 			c.mu.Lock()
-			// TODO(someday): classify as disconnected
-			return sendSession{}, newError("connection closed")
+			return sendSession{}, disconnected("connection closed")
 		}
 		c.mu.Lock()
 	}
@@ -785,12 +783,16 @@ func (gen *idgen) remove(i uint32) {
 	gen.free = append(gen.free, i)
 }
 
-func newError(msg string) error {
+func fail(msg string) error {
 	return errors.New(errors.Failed, "rpc", msg)
 }
 
+func disconnected(msg string) error {
+	return errors.New(errors.Disconnected, "rpc", msg)
+}
+
 func errorf(format string, args ...interface{}) error {
-	return newError(fmt.Sprintf(format, args...))
+	return fail(fmt.Sprintf(format, args...))
 }
 
 func unimplementedf(format string, args ...interface{}) error {
