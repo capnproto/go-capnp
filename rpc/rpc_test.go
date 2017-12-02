@@ -634,6 +634,167 @@ func TestBootstrapClient(t *testing.T) {
 	}
 }
 
+// TestPromisedBootstrapAnswerCall sets Options.BootstrapClient on
+// NewConn, bootstraps, waits for a return, then sends a call on the
+// promised answer without sending a finish.  It checks that the correct
+// messages were sent and that the return values are correct.  Level 0
+// requirement.
+func TestPromisedBootstrapAnswerCall(t *testing.T) {
+	srvShutdown := make(chan struct{})
+	srv := capnp.NewClient(server.New(
+		[]server.Method{
+			{
+				Method: capnp.Method{
+					InterfaceID: interfaceID,
+					MethodID:    methodID,
+				},
+				Impl: func(ctx context.Context, call *server.Call) error {
+					resp, err := call.AllocResults(capnp.ObjectSize{DataSize: 8})
+					if err != nil {
+						return err
+					}
+					resp.SetUint64(0, 0xdeadbeef|uint64(call.Args().Uint32(0))<<32)
+					return nil
+				},
+			},
+		},
+		nil, /* brand */
+		shutdownFunc(func() { close(srvShutdown) }),
+		nil /* policy */))
+	p1, p2 := newPipe(1)
+	defer p2.CloseSend()
+	defer p2.CloseRecv()
+	conn := rpc.NewConn(p1, &rpc.Options{
+		BootstrapClient: srv,
+		ErrorReporter:   testErrorReporter{t},
+	})
+	defer func() {
+		if err := conn.Close(); err != nil {
+			t.Error(err)
+		}
+		select {
+		case <-srvShutdown:
+		default:
+			t.Error("Bootstrap client still alive after Close returned")
+		}
+	}()
+	ctx := context.Background()
+
+	// 1. Write bootstrap
+	const bootstrapQID = 54
+	{
+		msg := &rpcMessage{
+			Which:     rpccp.Message_Which_bootstrap,
+			Bootstrap: &rpcBootstrap{QuestionID: bootstrapQID},
+		}
+		if err := sendMessage(ctx, p2, msg); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// 2. Read return
+	{
+		msg, release, err := p2.RecvMessage(ctx)
+		if err != nil {
+			t.Fatal("p2.RecvMessage:", err)
+		}
+		defer release()
+		var rmsg rpcMessage
+		if err := pogs.Extract(&rmsg, rpccp.Message_TypeID, msg.Struct); err != nil {
+			t.Fatal("pogs.Extract(p2.RecvMessage(ctx)):", err)
+		}
+		if rmsg.Which != rpccp.Message_Which_return {
+			t.Fatalf("Received %v message; want return", rmsg.Which)
+		}
+		if rmsg.Return.AnswerID != bootstrapQID {
+			t.Errorf("Received return for answer %d; want %d", rmsg.Return.AnswerID, bootstrapQID)
+		}
+		if rmsg.Return.Which != rpccp.Return_Which_results {
+			t.Fatalf("return which = %v; want results", rmsg.Return.Which)
+		}
+		desc, err := payloadCapability(rmsg.Return.Results)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if desc.Which != rpccp.CapDescriptor_Which_senderHosted {
+			t.Fatalf("Received %v capability for bootstrap; want senderHosted", desc.Which)
+		}
+		if len(rmsg.Return.Results.CapTable) > 1 {
+			t.Errorf("Received bootstrap return with %d capability descriptors; want 1", len(rmsg.Return.Results.CapTable))
+		}
+	}
+
+	// 3. Write call
+	const callQID = 55
+	{
+		msg, send, release, err := p2.NewMessage(ctx)
+		if err != nil {
+			t.Fatal("p2.NewMessage():", err)
+		}
+		params, err := capnp.NewStruct(msg.Segment(), capnp.ObjectSize{DataSize: 8})
+		if err != nil {
+			t.Fatal("capnp.NewStruct:", err)
+		}
+		params.SetUint32(0, 0x2a2b)
+		err = pogs.Insert(rpccp.Message_TypeID, msg.Struct, &rpcMessage{
+			Which: rpccp.Message_Which_call,
+			Call: &rpcCall{
+				QuestionID: callQID,
+				Target: rpcMessageTarget{
+					Which: rpccp.MessageTarget_Which_promisedAnswer,
+					PromisedAnswer: &rpcPromisedAnswer{
+						QuestionID: bootstrapQID,
+						Transform:  nil,
+					},
+				},
+				InterfaceID: interfaceID,
+				MethodID:    methodID,
+				Params: rpcPayload{
+					Content: params.ToPtr(),
+				},
+			},
+		})
+		if err != nil {
+			release()
+			t.Fatal("pogs.Insert(p2.NewMessage(), &rpcMessage{...}):", err)
+		}
+		err = send()
+		release()
+		if err != nil {
+			t.Fatal("send():", err)
+		}
+	}
+
+	// 4. Read return
+	{
+		msg, release, err := p2.RecvMessage(ctx)
+		if err != nil {
+			t.Fatal("p2.RecvMessage:", err)
+		}
+		defer release()
+		var rmsg rpcMessage
+		if err := pogs.Extract(&rmsg, rpccp.Message_TypeID, msg.Struct); err != nil {
+			t.Fatal("pogs.Extract(p2.RecvMessage(ctx)):", err)
+		}
+		if rmsg.Which != rpccp.Message_Which_return {
+			t.Fatalf("Received %v message; want return", rmsg.Which)
+		}
+		if rmsg.Return.AnswerID != callQID {
+			t.Errorf("Received return for answer %d; want %d", rmsg.Return.AnswerID, callQID)
+		}
+		if rmsg.Return.Which != rpccp.Return_Which_results {
+			if rmsg.Return.Which == rpccp.Return_Which_exception {
+				t.Logf("returned exception = %q", rmsg.Return.Exception.Reason)
+			}
+			t.Fatalf("return which = %v; want results", rmsg.Return.Which)
+		}
+		result := rmsg.Return.Results.Content.Struct()
+		if got, want := result.Uint64(0), uint64(0x00002a2bdeadbeef); got != want {
+			t.Errorf("return results content = %#016x; want %#016x", got, want)
+		}
+	}
+}
+
 func TestCallOnClosedConn(t *testing.T) {
 	p1, p2 := newPipe(1)
 	defer p2.CloseSend()

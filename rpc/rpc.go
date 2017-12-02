@@ -160,9 +160,43 @@ func (bc bootstrapClient) Shutdown() {
 func (c *Conn) Close() error {
 	// Mark closed and stop receiving messages.
 	c.mu.Lock()
-	c.bgcancel()
-	c.mu.Unlock()
+	select {
+	case <-c.bgctx.Done():
+		c.mu.Unlock()
+		return fail("close on closed Conn")
+	default:
+		c.bgcancel()
+		c.mu.Unlock()
+	}
 	rerr := c.recvCloser.CloseRecv()
+
+	// Wait for other tasks to stop.
+	c.bgtasks.Wait()
+
+	// Release exported clients and ongoing answers.
+	c.mu.Lock()
+	exports := c.exports
+	answers := c.answers
+	c.imports = nil
+	c.exports = nil
+	c.questions = nil
+	c.answers = nil
+	for _, a := range answers {
+		if a != nil {
+			a.cancel()
+			a.s.acquireSender()
+			a.s.finish()
+			// TODO(soon): release result caps (while not holding c.mu)
+		}
+	}
+	c.mu.Unlock()
+	c.bootstrap.Release()
+	c.bootstrap = nil
+	for _, e := range exports {
+		if e != nil {
+			e.client.Release()
+		}
+	}
 
 	// Wait for all other sends to finish.
 	c.openSends.Wait()
@@ -190,22 +224,6 @@ func (c *Conn) Close() error {
 	}
 closeSend:
 	serr := c.sender.CloseSend()
-
-	c.bgtasks.Wait()
-
-	// Release exported clients.
-	c.mu.Lock()
-	c.imports = nil
-	exports := c.exports
-	c.exports = nil
-	c.mu.Unlock()
-	c.bootstrap.Release()
-	c.bootstrap = nil
-	for _, e := range exports {
-		if e != nil {
-			e.client.Release()
-		}
-	}
 
 	if rerr != nil {
 		return errorf("close transport: %v", rerr)
@@ -324,7 +342,7 @@ func (c *Conn) handleBootstrap(ctx context.Context, id answerID) error {
 func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capnp.ReleaseFunc) error {
 	id := answerID(call.QuestionId())
 	if call.SendResultsTo().Which() != rpccp.Call_sendResultsTo_Which_caller {
-		// TODO(someday): handle yourself
+		// TODO(someday): handle SendResultsTo.yourself
 		releaseCall()
 		return errors.New(errors.Unimplemented, "", "call results destination other than caller unimplemented")
 	}
@@ -352,18 +370,125 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 		c.mu.Unlock()
 		return nil
 	}
-	c.mu.Unlock()
-	// TODO(soon): store PipelineCaller in answer.
-	c.targetClient(tgt).RecvCall(callCtx, capnp.Recv{
-		Args: args.Struct(),
-		Method: capnp.Method{
-			InterfaceID: call.InterfaceId(),
-			MethodID:    call.MethodId(),
-		},
-		ReleaseArgs: releaseCall,
-		Returner:    ans,
-	})
-	return nil
+	method := capnp.Method{
+		InterfaceID: call.InterfaceId(),
+		MethodID:    call.MethodId(),
+	}
+	switch tgt.Which() {
+	case rpccp.MessageTarget_Which_importedCap:
+		id := exportID(tgt.ImportedCap())
+		ent := c.findExport(id)
+		if ent == nil {
+			ans.lockedReturn(errorf("unknown export ID %d", id))
+			c.mu.Unlock()
+			return nil
+		}
+		c.mu.Unlock()
+		pcall := ent.client.RecvCall(callCtx, capnp.Recv{
+			Args:        args.Struct(),
+			Method:      method,
+			ReleaseArgs: releaseCall,
+			Returner:    ans,
+		})
+		// Place PipelineCaller into answer.  Since the receive goroutine is
+		// the only one that uses answer.pcall, it's fine that there's a
+		// time gap for this being set.
+		ans.setPipelineCaller(pcall)
+		return nil
+	case rpccp.MessageTarget_Which_promisedAnswer:
+		pa, err := tgt.PromisedAnswer()
+		if err != nil {
+			ans.lockedReturn(errorf("read promised answer: %v", err))
+			c.mu.Unlock()
+			return nil
+		}
+		tgtID := answerID(pa.QuestionId())
+		tgtAns := c.answers[tgtID]
+		if tgtAns == nil {
+			ans.lockedReturn(errorf("unknown answer ID %d", tgtID))
+			c.mu.Unlock()
+			return nil
+		}
+		opList, err := pa.Transform()
+		if err != nil {
+			ans.lockedReturn(errorf("read transform: %v", err))
+			c.mu.Unlock()
+			return nil
+		}
+		xform, err := parseTransform(opList)
+		if err != nil {
+			ans.lockedReturn(annotate(err).errorf("read transform"))
+			c.mu.Unlock()
+			return nil
+		}
+		if tgtAns.state&4 != 0 {
+			// Results ready.
+			if tgtAns.err != nil {
+				ans.lockedReturn(tgtAns.err)
+				c.mu.Unlock()
+				return nil
+			}
+			// tgtAns.results is guaranteed to stay alive because it hasn't
+			// received finish yet (it would have been deleted from the
+			// answers table), and it can't receive a finish because this is
+			// happening on the receive goroutine.
+			content, err := tgtAns.results.Content()
+			if err != nil {
+				ans.lockedReturn(err)
+				c.mu.Unlock()
+				return nil
+			}
+			sub, err := capnp.Transform(content, xform)
+			if err != nil {
+				ans.lockedReturn(err)
+				c.mu.Unlock()
+				return nil
+			}
+			tgt := sub.Interface().Client()
+			c.mu.Unlock()
+			pcall := tgt.RecvCall(callCtx, capnp.Recv{
+				Args:        args.Struct(),
+				Method:      method,
+				ReleaseArgs: releaseCall,
+				Returner:    ans,
+			})
+			ans.setPipelineCaller(pcall)
+		} else {
+			// Results not ready, use pipeline caller.
+			tgtAns.pcalls.Add(1)
+			tgt := tgtAns.pcall
+			c.mu.Unlock()
+			pcall := tgt.PipelineRecv(callCtx, xform, capnp.Recv{
+				Args:        args.Struct(),
+				Method:      method,
+				ReleaseArgs: releaseCall,
+				Returner:    ans,
+			})
+			tgtAns.pcalls.Done()
+			ans.setPipelineCaller(pcall)
+		}
+		return nil
+	default:
+		ans.lockedReturn(unimplementedf("incoming call: unknown message target %v", tgt.Which()))
+		c.mu.Unlock()
+		return nil
+	}
+}
+
+func parseTransform(list rpccp.PromisedAnswer_Op_List) ([]capnp.PipelineOp, error) {
+	ops := make([]capnp.PipelineOp, 0, list.Len())
+	for i := 0; i < list.Len(); i++ {
+		li := list.At(i)
+		switch li.Which() {
+		case rpccp.PromisedAnswer_Op_Which_noop:
+			// do nothing
+		case rpccp.PromisedAnswer_Op_Which_getPointerField:
+			ops = append(ops, capnp.PipelineOp{Field: li.GetPointerField()})
+		default:
+			return nil, errorf("transform element %d: unknown type %v", i, li.Which())
+		}
+	}
+	return ops, nil
 }
 
 func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet capnp.ReleaseFunc) error {
@@ -485,6 +610,8 @@ func (c *Conn) handleFinish(ctx context.Context, id answerID, releaseResultCaps 
 		// TODO(soon): record releaseResultCaps
 		return nil
 	}
+	ans.s.acquireSender()
+	ans.s.finish()
 	delete(c.answers, id)
 	if releaseResultCaps {
 		// TODO(soon): release result caps (while not holding c.mu)
@@ -581,23 +708,6 @@ func (c *Conn) recvPayload(payload rpccp.Payload) (capnp.Ptr, error) {
 	}
 	payload.Message().CapTable = mtab
 	return p, nil
-}
-
-// targetClient resolves a message target into a client.  Any error
-// encountered during resolution results in an error client.  The caller
-// must be holding onto c.mu.
-func (c *Conn) targetClient(tgt rpccp.MessageTarget) *capnp.Client {
-	switch tgt.Which() {
-	case rpccp.MessageTarget_Which_importedCap:
-		id := exportID(tgt.ImportedCap())
-		ent := c.findExport(id)
-		if ent == nil {
-			return capnp.ErrorClient(errorf("unknown export ID %d", id))
-		}
-		return ent.client
-	default:
-		return capnp.ErrorClient(errorf("unhandled message target %v", tgt.Which()))
-	}
 }
 
 func (c *Conn) handleRelease(ctx context.Context, id exportID, count uint32) error {
