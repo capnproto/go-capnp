@@ -144,8 +144,24 @@ func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineO
 }
 
 func (q *question) PipelineRecv(ctx context.Context, transform []capnp.PipelineOp, r capnp.Recv) capnp.PipelineCaller {
-	r.Reject(fail("TODO(soon)"))
-	return nil
+	ans, finish := q.PipelineSend(ctx, transform, capnp.Send{
+		Method:   r.Method,
+		ArgsSize: r.Args.Size(),
+		PlaceArgs: func(s capnp.Struct) error {
+			err := s.CopyFrom(r.Args)
+			r.ReleaseArgs()
+			return err
+		},
+	})
+	r.ReleaseArgs()
+	select {
+	case <-ans.Done():
+		returnAnswer(r.Returner, ans, finish)
+		return nil
+	default:
+		go returnAnswer(r.Returner, ans, finish)
+		return ans
+	}
 }
 
 func (q *question) sentFinish() bool {

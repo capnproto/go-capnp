@@ -66,7 +66,7 @@ func (aq *answerQueue) fulfill(s capnp.Struct) {
 	for i := range aq.bases {
 		aq.bases[i].ready = ready
 	}
-	aq.bases[0].recv = capnp.ImmediateAnswer(aq.method, s).RecvCall
+	aq.bases[0].recv = capnp.ImmediateAnswer(aq.method, s).PipelineRecv
 	close(aq.draining)
 	aq.mu.Unlock()
 
@@ -341,7 +341,7 @@ func (re *returnEmbargoer) recv(ctx context.Context, transform []capnp.PipelineO
 			r.Reject(re.err)
 			return nil
 		}
-		return capnp.ImmediateAnswer(r.Method, re.result).RecvCall(ctx, transform, r)
+		return capnp.ImmediateAnswer(r.Method, re.result).PipelineRecv(ctx, transform, r)
 	default:
 		re.calls.Add(1)
 		defer re.calls.Done()

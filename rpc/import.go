@@ -137,8 +137,43 @@ func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, 
 }
 
 func (ic *importClient) Recv(ctx context.Context, r capnp.Recv) capnp.PipelineCaller {
-	r.Reject(fail("TODO(soon)"))
-	return nil
+	ans, finish := ic.Send(ctx, capnp.Send{
+		Method:   r.Method,
+		ArgsSize: r.Args.Size(),
+		PlaceArgs: func(s capnp.Struct) error {
+			err := s.CopyFrom(r.Args)
+			r.ReleaseArgs()
+			return err
+		},
+	})
+	r.ReleaseArgs()
+	select {
+	case <-ans.Done():
+		returnAnswer(r.Returner, ans, finish)
+		return nil
+	default:
+		go returnAnswer(r.Returner, ans, finish)
+		return ans
+	}
+}
+
+func returnAnswer(ret capnp.Returner, ans *capnp.Answer, finish func()) {
+	defer finish()
+	result, err := ans.Struct()
+	if err != nil {
+		ret.Return(err)
+		return
+	}
+	recvResult, err := ret.AllocResults(result.Size())
+	if err != nil {
+		ret.Return(err)
+		return
+	}
+	if err := recvResult.CopyFrom(result); err != nil {
+		ret.Return(err)
+		return
+	}
+	ret.Return(nil)
 }
 
 func (ic *importClient) Brand() interface{} {

@@ -414,8 +414,8 @@ func (ans *Answer) Field(off uint16, def []byte) *Future {
 	return ans.f.Field(off, def)
 }
 
-// SendCall starts a pipelined call.
-func (ans *Answer) SendCall(ctx context.Context, transform []PipelineOp, s Send) (*Answer, ReleaseFunc) {
+// PipelineSend starts a pipelined call.
+func (ans *Answer) PipelineSend(ctx context.Context, transform []PipelineOp, s Send) (*Answer, ReleaseFunc) {
 	p := ans.f.promise
 	p.mu.Lock()
 traversal:
@@ -471,8 +471,8 @@ traversal:
 	}
 }
 
-// RecvCall starts a pipelined call.
-func (ans *Answer) RecvCall(ctx context.Context, transform []PipelineOp, r Recv) PipelineCaller {
+// PipelineRecv starts a pipelined call.
+func (ans *Answer) PipelineRecv(ctx context.Context, transform []PipelineOp, r Recv) PipelineCaller {
 	p := ans.f.promise
 	p.mu.Lock()
 traversal:
@@ -652,11 +652,11 @@ type pipelineClient struct {
 }
 
 func (pc pipelineClient) Send(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
-	return pc.p.ans.SendCall(ctx, pc.transform, s)
+	return pc.p.ans.PipelineSend(ctx, pc.transform, s)
 }
 
 func (pc pipelineClient) Recv(ctx context.Context, r Recv) PipelineCaller {
-	return pc.p.ans.RecvCall(ctx, pc.transform, r)
+	return pc.p.ans.PipelineRecv(ctx, pc.transform, r)
 }
 
 func (pc pipelineClient) Brand() interface{} {
