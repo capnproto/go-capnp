@@ -76,6 +76,17 @@ func (p Struct) Size() ObjectSize {
 	return p.size
 }
 
+// CopyFrom copies content from another struct.  If the other struct's
+// sections are larger than this struct's, the extra data is not copied,
+// meaning there is a risk of data loss when copying from messages built
+// with future versions of the protocol.
+func (p Struct) CopyFrom(other Struct) error {
+	if err := copyStruct(p, other); err != nil {
+		return annotate(err).errorf("copy struct")
+	}
+	return nil
+}
+
 // readSize returns the struct's size for the purposes of read limit
 // accounting.
 func (p Struct) readSize() Size {
