@@ -125,12 +125,13 @@ func (c *Conn) Bootstrap(ctx context.Context) *capnp.Client {
 		return capnp.ErrorClient(annotate(err).errorf("bootstrap"))
 	}
 	ctx, cancel := context.WithCancel(ctx)
-	q := c.newQuestion(ctx, id, capnp.Method{}, true)
-	// TODO(soon): tie finishing bootstrap to resolving the client
-	return capnp.NewClient(bootstrapClient{
+	q := c.newQuestion(ctx, id, capnp.Method{})
+	bc, cp := capnp.NewPromisedClient(bootstrapClient{
 		c:      q.p.Answer().Client().AddRef(),
 		cancel: cancel,
 	})
+	q.bootstrapPromise = cp // safe to write because we're still holding c.mu
+	return bc
 }
 
 type bootstrapClient struct {
@@ -513,14 +514,15 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 
 	pr := c.parseReturn(ret)
 	if pr.err == nil {
-		if q.bootstrap {
+		if q.bootstrapPromise != nil {
 			q.release = func() {}
 		} else {
 			q.release = releaseRet
 		}
 		c.mu.Unlock()
 		q.p.Fulfill(pr.result)
-		if q.bootstrap {
+		if q.bootstrapPromise != nil {
+			q.bootstrapPromise.Fulfill(q.p.Answer().Client())
 			q.p.ReleaseClients()
 			releaseRet()
 		}
@@ -532,7 +534,8 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 		q.release = func() {}
 		c.mu.Unlock()
 		q.p.Reject(pr.err)
-		if q.bootstrap {
+		if q.bootstrapPromise != nil {
+			q.bootstrapPromise.Fulfill(q.p.Answer().Client())
 			q.p.ReleaseClients()
 		}
 		releaseRet()

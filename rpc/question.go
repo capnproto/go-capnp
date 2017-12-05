@@ -12,9 +12,10 @@ import (
 type questionID uint32
 
 type question struct {
-	id        questionID
-	bootstrap bool
-	conn      *Conn
+	id   questionID
+	conn *Conn
+
+	bootstrapPromise *capnp.ClientPromise
 
 	p       *capnp.Promise
 	release capnp.ReleaseFunc  // written before resolving p
@@ -28,15 +29,14 @@ type question struct {
 
 // newQuestion adds a new question to c's table.  The caller must be
 // holding onto c.mu.
-func (c *Conn) newQuestion(ctx context.Context, id questionID, method capnp.Method, bootstrap bool) *question {
+func (c *Conn) newQuestion(ctx context.Context, id questionID, method capnp.Method) *question {
 	ctx, cancel := context.WithCancel(ctx)
 	q := &question{
-		id:        id,
-		conn:      c,
-		done:      cancel,
-		bootstrap: bootstrap,
+		id:   id,
+		conn: c,
+		done: cancel,
 	}
-	q.p = capnp.NewPromise(method, q)
+	q.p = capnp.NewPromise(method, q) // TODO(someday): customize error message for bootstrap
 	if int(id) == len(c.questions) {
 		c.questions = append(c.questions, q)
 	} else {
@@ -76,7 +76,8 @@ func (c *Conn) newQuestion(ctx context.Context, id questionID, method capnp.Meth
 		}
 		c.mu.Unlock()
 		q.p.Reject(rejectErr)
-		if q.bootstrap {
+		if q.bootstrapPromise != nil {
+			q.bootstrapPromise.Fulfill(q.p.Answer().Client())
 			q.p.ReleaseClients()
 		}
 	})
@@ -134,7 +135,7 @@ func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineO
 		q.conn.questionID.remove(uint32(id))
 		return capnp.ErrorAnswer(s.Method, annotate(err).errorf("send to promised answer")), func() {}
 	}
-	q2 := q.conn.newQuestion(ctx, id, s.Method, false)
+	q2 := q.conn.newQuestion(ctx, id, s.Method)
 	ans := q2.p.Answer()
 	return ans, func() {
 		<-ans.Done()

@@ -73,6 +73,9 @@ func TestBootstrapCall(t *testing.T) {
 
 	// 1. Read bootstrap
 	client := conn.Bootstrap(ctx)
+	if err := client.Resolve(canceledContext(ctx)); err == nil {
+		t.Error("bootstrap client reports resolved before return")
+	}
 	msg, release, err := p2.RecvMessage(ctx)
 	if err != nil {
 		t.Fatal("p2.RecvMessage:", err)
@@ -285,6 +288,9 @@ func TestBootstrapPipelineCall(t *testing.T) {
 
 	// 1. Read bootstrap
 	client := conn.Bootstrap(ctx)
+	if err := client.Resolve(canceledContext(ctx)); err == nil {
+		t.Error("bootstrap client reports resolved before return")
+	}
 	msg, release, err := p2.RecvMessage(ctx)
 	if err != nil {
 		t.Fatal("p2.RecvMessage:", err)
@@ -1024,6 +1030,12 @@ type rpcPromisedAnswer struct {
 type rpcPromisedAnswerOp struct {
 	Which           rpccp.PromisedAnswer_Op_Which
 	GetPointerField uint16
+}
+
+func canceledContext(parent context.Context) context.Context {
+	ctx, cancel := context.WithCancel(parent)
+	cancel()
+	return ctx
 }
 
 type testErrorReporter struct {

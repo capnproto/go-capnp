@@ -127,7 +127,7 @@ func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, 
 		ic.conn.questionID.remove(uint32(id))
 		return capnp.ErrorAnswer(s.Method, annotate(err).errorf("send to import")), func() {}
 	}
-	q := ic.conn.newQuestion(ctx, id, s.Method, false)
+	q := ic.conn.newQuestion(ctx, id, s.Method)
 	ans := q.p.Answer()
 	return ans, func() {
 		<-ans.Done()
