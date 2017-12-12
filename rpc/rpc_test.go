@@ -20,13 +20,13 @@ const (
 )
 
 // TestCloseAbort calls Close on a new connection, verifying that it
-// sends an Abort message.  Level 0 requirement.
+// sends an Abort message and it reports no errors.  Level 0 requirement.
 func TestCloseAbort(t *testing.T) {
 	p1, p2 := newPipe(1)
 	defer p2.CloseSend()
 	defer p2.CloseRecv()
 	conn := rpc.NewConn(p1, &rpc.Options{
-		ErrorReporter: testErrorReporter{t},
+		ErrorReporter: testErrorReporter{t: t, fail: true},
 	})
 
 	ctx := context.Background()
@@ -52,6 +52,56 @@ func TestCloseAbort(t *testing.T) {
 	}
 }
 
+// TestRecvAbort writes an abort message to a connection, waits for
+// bootstrap resolution/disconnect (to acknowledge delivery), and then
+// closes the connection, verifying that Close does not return an error.
+// Level 0 requirement.
+func TestRecvAbort(t *testing.T) {
+	p1, p2 := newPipe(1)
+	defer p2.CloseSend()
+	defer p2.CloseRecv()
+	conn := rpc.NewConn(p1, &rpc.Options{
+		ErrorReporter: testErrorReporter{t: t},
+	})
+
+	ctx := context.Background()
+	err := sendMessage(ctx, p2, &rpcMessage{
+		Which: rpccp.Message_Which_abort,
+		Abort: &rpcException{
+			Type:   rpccp.Exception_Type_failed,
+			Reason: "over it",
+		},
+	})
+	if err != nil {
+		conn.Close()
+		t.Fatal(err)
+	}
+	boot := conn.Bootstrap(ctx)
+	if err := boot.Resolve(ctx); err != nil {
+		t.Error("bootstrap resolution:", err)
+	}
+	ans, finishCall := boot.SendCall(ctx, capnp.Send{
+		Method: capnp.Method{
+			InterfaceID: interfaceID,
+			MethodID:    methodID,
+		},
+		ArgsSize: capnp.ObjectSize{DataSize: 8},
+		PlaceArgs: func(s capnp.Struct) error {
+			s.SetUint64(0, 42)
+			return nil
+		},
+	})
+	_, err = ans.Struct()
+	finishCall()
+	if !capnp.IsDisconnected(err) {
+		t.Errorf("call error = %v; want disconnected", err)
+	}
+	boot.Release()
+	if err := conn.Close(); err != nil {
+		t.Errorf("conn.Close() = %v; want <nil>", err)
+	}
+}
+
 // TestBootstrapCall calls Bootstrap, sends back an export, then makes
 // an RPC on the returned capability.  It checks to see that the correct
 // messages were sent on the wire and that the correct return value came
@@ -61,7 +111,7 @@ func TestBootstrapCall(t *testing.T) {
 	defer p2.CloseSend()
 	defer p2.CloseRecv()
 	conn := rpc.NewConn(p1, &rpc.Options{
-		ErrorReporter: testErrorReporter{t},
+		ErrorReporter: testErrorReporter{t: t},
 	})
 	defer func() {
 		if err := conn.Close(); err != nil {
@@ -276,7 +326,7 @@ func TestBootstrapPipelineCall(t *testing.T) {
 	defer p2.CloseSend()
 	defer p2.CloseRecv()
 	conn := rpc.NewConn(p1, &rpc.Options{
-		ErrorReporter: testErrorReporter{t},
+		ErrorReporter: testErrorReporter{t: t},
 	})
 	defer func() {
 		if err := conn.Close(); err != nil {
@@ -465,7 +515,7 @@ func TestBootstrapClient(t *testing.T) {
 	defer p2.CloseRecv()
 	conn := rpc.NewConn(p1, &rpc.Options{
 		BootstrapClient: srv,
-		ErrorReporter:   testErrorReporter{t},
+		ErrorReporter:   testErrorReporter{t: t},
 	})
 	defer func() {
 		if err := conn.Close(); err != nil {
@@ -672,7 +722,7 @@ func TestPromisedBootstrapAnswerCall(t *testing.T) {
 	defer p2.CloseRecv()
 	conn := rpc.NewConn(p1, &rpc.Options{
 		BootstrapClient: srv,
-		ErrorReporter:   testErrorReporter{t},
+		ErrorReporter:   testErrorReporter{t: t},
 	})
 	defer func() {
 		if err := conn.Close(); err != nil {
@@ -806,7 +856,7 @@ func TestCallOnClosedConn(t *testing.T) {
 	defer p2.CloseSend()
 	defer p2.CloseRecv()
 	conn := rpc.NewConn(p1, &rpc.Options{
-		ErrorReporter: testErrorReporter{t},
+		ErrorReporter: testErrorReporter{t: t},
 	})
 	closed := false
 	defer func() {
@@ -1039,9 +1089,13 @@ func canceledContext(parent context.Context) context.Context {
 }
 
 type testErrorReporter struct {
-	t *testing.T
+	t    *testing.T
+	fail bool
 }
 
 func (r testErrorReporter) ReportError(e error) {
 	r.t.Log("conn error:", e)
+	if r.fail {
+		r.t.Fail()
+	}
 }

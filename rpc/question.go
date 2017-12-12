@@ -42,13 +42,15 @@ func (c *Conn) newQuestion(ctx context.Context, id questionID, method capnp.Meth
 	} else {
 		c.questions[id] = q
 	}
-	c.runBackground(func(bgctx context.Context) {
+	c.bgtasks.Add(1)
+	go func() {
+		defer c.bgtasks.Done()
 		var rejectErr error
 		select {
 		case <-ctx.Done():
 			rejectErr = ctx.Err()
-		case <-bgctx.Done():
-			rejectErr = bgctx.Err()
+		case <-c.bgctx.Done():
+			rejectErr = disconnected("connection closed")
 			q.done()
 		}
 		c.mu.Lock()
@@ -59,9 +61,9 @@ func (c *Conn) newQuestion(ctx context.Context, id questionID, method capnp.Meth
 		q.state |= 2 // sending finish
 		q.release = func() {}
 		select {
-		case <-bgctx.Done():
+		case <-c.bgctx.Done():
 		default:
-			err := c.sendMessage(bgctx, func(msg rpccp.Message) error {
+			err := c.sendMessage(c.bgctx, func(msg rpccp.Message) error {
 				fin, err := msg.NewFinish()
 				if err != nil {
 					return err
@@ -80,7 +82,7 @@ func (c *Conn) newQuestion(ctx context.Context, id questionID, method capnp.Meth
 			q.bootstrapPromise.Fulfill(q.p.Answer().Client())
 			q.p.ReleaseClients()
 		}
-	})
+	}()
 	return q
 }
 

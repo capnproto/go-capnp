@@ -28,6 +28,8 @@ type Conn struct {
 	bgctx    context.Context
 	bgcancel context.CancelFunc
 	bgtasks  sync.WaitGroup
+	closed   bool          // set when Close() is called, used to distinguish user Closing multiple times
+	shut     chan struct{} // closed when shutdown() returns
 
 	recvCloser interface {
 		CloseRecv() error
@@ -85,6 +87,7 @@ func NewConn(t Transport, opts *Options) *Conn {
 	c := &Conn{
 		sender:     t,
 		recvCloser: t,
+		shut:       make(chan struct{}),
 		bgctx:      bgctx,
 		bgcancel:   bgcancel,
 	}
@@ -92,18 +95,26 @@ func NewConn(t Transport, opts *Options) *Conn {
 		c.bootstrap = opts.BootstrapClient
 		c.reporter = opts.ErrorReporter
 	}
-	c.runBackground(func(ctx context.Context) {
-		c.receive(ctx, t)
-	})
-	return c
-}
-
-func (c *Conn) runBackground(f func(ctx context.Context)) {
 	c.bgtasks.Add(1)
 	go func() {
-		defer c.bgtasks.Done()
-		f(c.bgctx)
+		abortErr := c.receive(c.bgctx, t)
+		c.bgtasks.Done()
+
+		c.mu.Lock()
+		select {
+		case <-c.bgctx.Done():
+			c.mu.Unlock()
+		default:
+			if abortErr != nil {
+				c.report(abortErr)
+			}
+			// shutdown unlocks c.mu.
+			if err := c.shutdown(abortErr); err != nil {
+				c.report(err)
+			}
+		}
 	}()
+	return c
 }
 
 // Bootstrap returns the remote vat's bootstrap interface.  This creates
@@ -159,16 +170,31 @@ func (bc bootstrapClient) Shutdown() {
 // Close sends an abort to the remote vat and closes the underlying
 // transport.
 func (c *Conn) Close() error {
-	// Mark closed and stop receiving messages.
 	c.mu.Lock()
+	if c.closed {
+		return fail("close on closed connection")
+	}
+	c.closed = true
 	select {
 	case <-c.bgctx.Done():
 		c.mu.Unlock()
-		return fail("close on closed Conn")
+		<-c.shut
+		return nil
 	default:
-		c.bgcancel()
-		c.mu.Unlock()
+		// shutdown unlocks c.mu.
+		return c.shutdown(errors.New(errors.Failed, "", "connection closed"))
 	}
+}
+
+// shutdown tears down the connection and transport, optionally sending
+// an abort message before closing.  The caller must be holding onto
+// c.mu, although it will be released while shutting down, and c.bgctx
+// must not be Done.
+func (c *Conn) shutdown(abortErr error) error {
+	// Mark closed and stop receiving messages.
+	defer close(c.shut)
+	c.bgcancel()
+	c.mu.Unlock()
 	rerr := c.recvCloser.CloseRecv()
 
 	// Wait for other tasks to stop.
@@ -204,7 +230,7 @@ func (c *Conn) Close() error {
 
 	// Send abort message (ignoring error).  No locking needed, since
 	// c.startSend will always return errors after closing bgctx.
-	{
+	if abortErr != nil {
 		// TODO(soon): add timeout
 		msg, send, release, err := c.sender.NewMessage(context.Background())
 		if err != nil {
@@ -215,8 +241,8 @@ func (c *Conn) Close() error {
 			release()
 			goto closeSend
 		}
-		abort.SetType(rpccp.Exception_Type_failed)
-		if err := abort.SetReason("connection closed"); err != nil {
+		abort.SetType(rpccp.Exception_Type(errors.TypeOf(abortErr)))
+		if err := abort.SetReason(abortErr.Error()); err != nil {
 			release()
 			goto closeSend
 		}
@@ -235,18 +261,37 @@ closeSend:
 	return nil
 }
 
-// receive receives and dispatches messages coming from r.
-// It is intended to run in its own goroutine.
-func (c *Conn) receive(ctx context.Context, r Receiver) {
+// receive receives and dispatches messages coming from r.  receive runs
+// in a background goroutine.
+//
+// After receive returns, the connection is shut down.  If receive
+// returns a non-nil error, it is sent to the remove vat as an abort.
+func (c *Conn) receive(ctx context.Context, r Receiver) error {
 	for {
 		recv, releaseRecv, err := r.RecvMessage(ctx)
 		if err != nil {
-			// TODO(soon): shutdown
-			return
+			return err
 		}
 		switch recv.Which() {
 		case rpccp.Message_Which_unimplemented:
 			// no-op for now to avoid feedback loop
+		case rpccp.Message_Which_abort:
+			exc, err := recv.Abort()
+			if err != nil {
+				releaseRecv()
+				c.reportf("read abort: %v", err)
+				return nil
+			}
+			reason, err := exc.Reason()
+			if err != nil {
+				releaseRecv()
+				c.reportf("read abort reason: %v", err)
+				return nil
+			}
+			ty := exc.Type()
+			releaseRecv()
+			c.report(errors.New(errors.Type(ty), "rpc", "remote abort: "+reason))
+			return nil
 		case rpccp.Message_Which_bootstrap:
 			bootstrap, err := recv.Bootstrap()
 			if err != nil {
