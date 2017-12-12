@@ -55,12 +55,12 @@ func (c *Conn) addImport(id importID) *capnp.Client {
 		ent.wireRefs++
 		client, ok := ent.wc.AddRef()
 		if !ok {
+			ent.generation++
 			client = capnp.NewClient(&importClient{
 				id:         id,
 				conn:       c,
 				generation: ent.generation,
 			})
-			ent.generation++
 			ent.wc = client.WeakRef()
 		}
 		return client
