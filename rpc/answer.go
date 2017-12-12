@@ -117,12 +117,14 @@ func (ans *answer) AllocResults(sz capnp.ObjectSize) (capnp.Struct, error) {
 // setBootstrap sets the results to an interface pointer, stealing the
 // reference.
 func (ans *answer) setBootstrap(c *capnp.Client) error {
+	// Add the capability to the table early to avoid leaks if setBootstrap fails.
+	capID := ans.ret.Message().AddCap(c)
+
 	var err error
 	ans.results, err = ans.ret.NewResults()
 	if err != nil {
 		return errorf("alloc bootstrap results: %v", err)
 	}
-	capID := ans.results.Message().AddCap(c)
 	iface := capnp.NewInterface(ans.results.Segment(), capID)
 	if err := ans.results.SetContent(iface.ToPtr()); err != nil {
 		return errorf("alloc bootstrap results: %v", err)
