@@ -60,9 +60,6 @@ type answer struct {
 func (c *Conn) newAnswer(ctx context.Context, id answerID, cancel context.CancelFunc) (*answer, error) {
 	if c.answers == nil {
 		c.answers = make(map[answerID]*answer)
-	} else if c.answers[id] != nil {
-		// TODO(soon): abort
-		return nil, errorf("answer ID %d reused", id)
 	}
 	ans := &answer{
 		id:     id,
