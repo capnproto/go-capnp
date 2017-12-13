@@ -22,19 +22,14 @@ type answer struct {
 
 	// All fields below are protected by s.c.mu.
 
+	flags answerFlags
+
 	// results is the memoized answer to ret.Results().
 	// Set by AllocResults and setBootstrap, but contents cannot be
 	// used by the rpc package until (*answer).lockedReturn is called
 	// (i.e. once state has bit 2 set).
 	results rpccp.Payload
 
-	// state is a bitmask of which events have occurred in answer's
-	// lifetime:
-	//
-	// bit 0: return sent
-	// bit 1: finish received
-	// bit 2: results ready
-	state uint8
 
 	// cancel is the cancel function for the Context used in the received
 	// method call.
@@ -52,6 +47,16 @@ type answer struct {
 	// err is the error passed to (*answer).lockedReturn.
 	err error
 }
+
+// answerFlags is a bitmask of events that have occurred in an answer's
+// lifetime.
+type answerFlags uint8
+
+const (
+	returnSent answerFlags = 1 << iota
+	finishReceived
+	resultsReady
+)
 
 // newAnswer adds an entry to the answers table and creates a new return
 // message.  newAnswer may return both an answer and an error.  Results
@@ -88,7 +93,7 @@ func (c *Conn) newAnswer(ctx context.Context, id answerID, cancel context.Cancel
 // already returned.  The caller MUST NOT be holding onto ans.s.c.mu.
 func (ans *answer) setPipelineCaller(pcall capnp.PipelineCaller) {
 	ans.s.c.mu.Lock()
-	if ans.state&4 == 0 { // results not ready
+	if ans.flags&resultsReady == 0 {
 		ans.pcall = pcall
 	}
 	ans.s.c.mu.Unlock()
@@ -146,7 +151,7 @@ func (ans *answer) lockedReturn(e error) {
 	// Prepare results struct.
 	ans.err = e
 	ans.pcall = nil
-	ans.state |= 4 // results ready
+	ans.flags |= resultsReady
 	if e == nil {
 		if err := ans.s.c.fillPayloadCapTable(ans.results); err != nil {
 			ans.s.c.report(annotate(err).errorf("send return"))
@@ -170,15 +175,15 @@ func (ans *answer) lockedReturn(e error) {
 	}
 
 	// Send results.
-	recvFinish := ans.state&2 != 0
+	fin := ans.flags&finishReceived != 0
 	ans.s.acquireSender()
 	if err := ans.s.send(); err != nil {
 		ans.s.c.reportf("send return: %v", err)
 	}
-	if !recvFinish {
+	if !fin {
 		ans.s.releaseSender()
-		ans.state |= 1
-		if ans.state&2 == 0 { // still not received finish
+		ans.flags |= returnSent
+		if ans.flags&finishReceived == 0 {
 			return
 		}
 		ans.s.acquireSender()
@@ -188,10 +193,4 @@ func (ans *answer) lockedReturn(e error) {
 	ans.s.finish()
 	delete(ans.s.c.answers, ans.id)
 	// TODO(soon): release result caps (while not holding c.mu)
-}
-
-// isDone reports whether the answer should be removed from the answers
-// table.
-func (ans *answer) isDone() bool {
-	return ans.state&3 == 3
 }

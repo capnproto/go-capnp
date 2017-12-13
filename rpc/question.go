@@ -21,11 +21,19 @@ type question struct {
 	release capnp.ReleaseFunc  // written before resolving p
 	done    context.CancelFunc // called after resolving p
 
-	// state is a bitmask of which events have occurred in question's
-	// lifetime: 1 for return received, 2 for sending finish.
-	// state is protected by conn.mu.
-	state uint8
+	// Protected by conn.mu:
+
+	flags questionFlags
 }
+
+// questionFlags is a bitmask of which events have occurred in a question's
+// lifetime.
+type questionFlags uint8
+
+const (
+	returnReceived questionFlags = 1 << iota
+	finishSent
+)
 
 // newQuestion adds a new question to c's table.  The caller must be
 // holding onto c.mu.
@@ -54,11 +62,11 @@ func (c *Conn) newQuestion(ctx context.Context, id questionID, method capnp.Meth
 			q.done()
 		}
 		c.mu.Lock()
-		if q.sentFinish() {
+		if q.flags&finishSent != 0 {
 			c.mu.Unlock()
 			return
 		}
-		q.state |= 2 // sending finish
+		q.flags |= finishSent
 		q.release = func() {}
 		select {
 		case <-c.bgctx.Done():
@@ -165,8 +173,4 @@ func (q *question) PipelineRecv(ctx context.Context, transform []capnp.PipelineO
 		go returnAnswer(r.Returner, ans, finish)
 		return ans
 	}
-}
-
-func (q *question) sentFinish() bool {
-	return q.state&2 != 0
 }

@@ -505,7 +505,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			c.report(retErr)
 			return nil
 		}
-		if tgtAns.state&4 != 0 {
+		if tgtAns.flags&resultsReady != 0 {
 			// Results ready.
 			if tgtAns.err != nil {
 				ans.lockedReturn(tgtAns.err)
@@ -599,8 +599,8 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 		return errorf("incoming return: question %d does not exist", qid)
 	}
 	defer c.mu.Unlock()
-	sentFinish := q.sentFinish()
-	q.state |= 3 // return received and sending finish
+	fin := q.flags&finishSent != 0
+	q.flags |= returnReceived | finishSent
 	c.questions[qid] = nil
 
 	pr := c.parseReturn(ret)
@@ -636,7 +636,7 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 		q.done()
 		c.mu.Lock()
 	}
-	if !sentFinish {
+	if !fin {
 		err := c.sendMessage(ctx, func(msg rpccp.Message) error {
 			fin, err := msg.NewFinish()
 			if err != nil {
@@ -699,9 +699,12 @@ func (c *Conn) handleFinish(ctx context.Context, id answerID, releaseResultCaps 
 	if ans == nil {
 		return errorf("incoming finish: unknown answer ID %d", id)
 	}
-	ans.state |= 2
+	if ans.flags&finishReceived != 0 {
+		return errorf("incoming finish: answer ID %d already received finish", id)
+	}
+	ans.flags |= finishReceived
 	ans.cancel()
-	if !ans.isDone() {
+	if ans.flags&(finishReceived|returnSent) != finishReceived|returnSent {
 		// Not returned yet.
 		// TODO(soon): record releaseResultCaps
 		return nil
