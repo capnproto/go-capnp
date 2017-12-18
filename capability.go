@@ -3,6 +3,7 @@ package capnp
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"strconv"
 	"sync"
 )
@@ -88,6 +89,10 @@ func (id CapabilityID) GoString() string {
 // The zero value is a null capability reference.
 // It is safe to use from multiple goroutines.
 type Client struct {
+	creatorFunc int
+	creatorFile string
+	creatorLine int
+
 	mu       sync.Mutex  // protects the struct
 	h        *clientHook // nil if resolved to nil or released
 	released bool
@@ -129,7 +134,13 @@ func NewClient(hook ClientHook) *Client {
 		resolved:   newClosedSignal(),
 	}
 	h.resolvedHook = h
-	return &Client{h: h}
+	c := &Client{h: h}
+	if clientLeakFunc != nil {
+		c.creatorFunc = 1
+		_, c.creatorFile, c.creatorLine, _ = runtime.Caller(1)
+		runtime.SetFinalizer(c, finalizeClient)
+	}
+	return c
 }
 
 // NewPromisedClient creates the first reference to a capability that
@@ -149,7 +160,13 @@ func NewPromisedClient(hook ClientHook) (*Client, *ClientPromise) {
 		refs:       1,
 		resolved:   make(chan struct{}),
 	}
-	return &Client{h: h}, &ClientPromise{h: h}
+	c := &Client{h: h}
+	if clientLeakFunc != nil {
+		c.creatorFunc = 2
+		_, c.creatorFile, c.creatorLine, _ = runtime.Caller(1)
+		runtime.SetFinalizer(c, finalizeClient)
+	}
+	return c, &ClientPromise{h: h}
 }
 
 // startCall holds onto a hook to prevent it from shutting down until
@@ -320,7 +337,13 @@ func (c *Client) AddRef() *Client {
 	}
 	c.h.refs++
 	c.h.mu.Unlock()
-	return &Client{h: c.h}
+	d := &Client{h: c.h}
+	if clientLeakFunc != nil {
+		d.creatorFunc = 3
+		_, d.creatorFile, d.creatorLine, _ = runtime.Caller(1)
+		runtime.SetFinalizer(d, finalizeClient)
+	}
+	return d
 }
 
 // WeakRef creates a new WeakClient that refers to the same capability
@@ -419,6 +442,48 @@ func (ch *clientHook) isResolved() bool {
 	}
 }
 
+var clientLeakFunc func(string)
+
+// SetClientLeakFunc sets a callback for reporting Clients that went
+// out of scope without being released.  The callback is not guaranteed
+// to be called and must be safe to call concurrently from multiple
+// goroutines.  The exact format of the message is unspecified.
+//
+// SetClientLeakFunc must not be called after any calls to NewClient or
+// NewPromisedClient.
+func SetClientLeakFunc(f func(msg string)) {
+	clientLeakFunc = f
+}
+
+func finalizeClient(c *Client) {
+	// Since there are no other references to c, then we don't have to
+	// acquire the mutex to read.
+	if c.released {
+		return
+	}
+
+	var fname string
+	switch c.creatorFunc {
+	case 1:
+		fname = "NewClient"
+	case 2:
+		fname = "NewPromisedClient"
+	case 3:
+		fname = "AddRef"
+	default:
+		fname = "<???>"
+	}
+	var msg string
+	if c.creatorFile == "" {
+		msg = fmt.Sprintf("leaked client created by %s", fname)
+	} else {
+		msg = fmt.Sprintf("leaked client created by %s on %s:%d", fname, c.creatorFile, c.creatorLine)
+	}
+
+	// finalizeClient will only be called if clientLeakFunc != nil.
+	go clientLeakFunc(msg)
+}
+
 // A ClientPromise resolves the identity of a client created by NewPromisedClient.
 type ClientPromise struct {
 	h *clientHook
@@ -499,7 +564,13 @@ func (wc *WeakClient) AddRef() (c *Client, ok bool) {
 	}
 	wc.h.refs++
 	wc.h.mu.Unlock()
-	return &Client{h: wc.h}, true
+	c = &Client{h: wc.h}
+	if clientLeakFunc != nil {
+		c.creatorFunc = 3
+		_, c.creatorFile, c.creatorLine, _ = runtime.Caller(1)
+		runtime.SetFinalizer(c, finalizeClient)
+	}
+	return c, true
 }
 
 // A ClientHook represents a Cap'n Proto capability.  Application code
@@ -659,7 +730,19 @@ type errorClient struct {
 // An ErrorClient does not need to be released: it is a sentinel like a
 // nil Client.
 func ErrorClient(e error) *Client {
-	return NewClient(errorClient{e})
+	if e == nil {
+		panic("ErrorClient(nil)")
+	}
+
+	// Avoid NewClient because it can set a finalizer.
+	h := &clientHook{
+		ClientHook: errorClient{e},
+		done:       make(chan struct{}),
+		refs:       1,
+		resolved:   newClosedSignal(),
+	}
+	h.resolvedHook = h
+	return &Client{h: h}
 }
 
 func (ec errorClient) Send(_ context.Context, s Send) (*Answer, ReleaseFunc) {
