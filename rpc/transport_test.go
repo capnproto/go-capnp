@@ -2,10 +2,12 @@ package rpc_test
 
 import (
 	"context"
+	"errors"
 	"net"
 	"testing"
 	"time"
 
+	"zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/rpc"
 	rpccp "zombiezen.com/go/capnproto2/std/capnp/rpc"
 )
@@ -41,91 +43,126 @@ func testTransport(t *testing.T, makePipe func() (t1, t2 rpc.Transport, err erro
 		if err := t2.CloseSend(); err != nil {
 			t.Error("t2.CloseSend:", err)
 		}
+		defer func() {
+			if err := t2.CloseRecv(); err != nil {
+				t.Error("t2.CloseRecv:", err)
+			}
+			if err := t1.CloseSend(); err != nil {
+				t.Error("t1.CloseSend:", err)
+			}
+		}()
 
-		m, send1, release1, err := t1.NewMessage(ctx)
+		// Create messages out of sending order
+		callMsg, sendCall, releaseSendCall, err := t1.NewMessage(ctx)
 		if err != nil {
-			t1.CloseSend()
-			t2.CloseRecv()
-			t.Fatal("t1.NewMessage:", err)
+			t.Fatal("t1.NewMessage #1:", err)
 		}
-		boot, err := m.NewBootstrap()
+		defer releaseSendCall()
+		bootMsg, sendBoot, releaseSendBoot, err := t1.NewMessage(ctx)
 		if err != nil {
-			release1()
-			t1.CloseSend()
-			t2.CloseRecv()
+			t.Fatal("t1.NewMessage #2:", err)
+		}
+		defer releaseSendBoot()
+
+		// Fill in bootstrap message
+		boot, err := bootMsg.NewBootstrap()
+		if err != nil {
 			t.Fatal("NewBootstrap:", err)
 		}
 		boot.SetQuestionId(42)
-		m, send2, release2, err := t1.NewMessage(ctx)
-		if err != nil {
-			release1()
-			t1.CloseSend()
-			t2.CloseRecv()
-			t.Fatal("t1.NewMessage:", err)
-		}
-		boot, err = m.NewBootstrap()
-		if err != nil {
-			release1()
-			release2()
-			t1.CloseSend()
-			t2.CloseRecv()
-			t.Fatal("NewBootstrap:", err)
-		}
-		boot.SetQuestionId(123)
 
-		// Send/receive first message
-		if err := send2(); err != nil {
-			release1()
-			release2()
-			t1.CloseSend()
-			t2.CloseRecv()
-			t.Fatal("send2():", err)
-		}
-		release2()
-		r, release, err := t2.RecvMessage(ctx)
+		// Fill in call message
+		call, err := callMsg.NewCall()
 		if err != nil {
-			t1.CloseSend()
-			t2.CloseRecv()
+			t.Fatal("NewCall:", err)
+		}
+		call.SetQuestionId(123)
+		call.SetInterfaceId(456)
+		call.SetMethodId(7)
+		tgt, err := call.NewTarget()
+		if err != nil {
+			t.Fatal("NewTarget:", err)
+		}
+		pa, err := tgt.NewPromisedAnswer()
+		if err != nil {
+			t.Fatal("NewPromisedAnswer:", err)
+		}
+		pa.SetQuestionId(42)
+		params, err := call.NewParams()
+		if err != nil {
+			t.Fatal("NewParams:", err)
+		}
+		capID := params.Message().AddCap(capnp.ErrorClient(errors.New("foo")))
+		capPtr := capnp.NewInterface(params.Segment(), capID).ToPtr()
+		if err := params.SetContent(capPtr); err != nil {
+			t.Fatal("SetContent:", err)
+		}
+		capTable, err := params.NewCapTable(1)
+		if err != nil {
+			t.Fatal("NewCapTable:", err)
+		}
+		capTable.At(0).SetSenderHosted(777)
+
+		// Send/receive first message (bootstrap)
+		if err := sendBoot(); err != nil {
+			t.Fatal("sendBoot():", err)
+		}
+		releaseSendBoot()
+		r1, release1, err := t2.RecvMessage(ctx)
+		if err != nil {
 			t.Fatal("t2.RecvMessage:", err)
 		}
-		if r.Which() != rpccp.Message_Which_bootstrap {
-			t.Errorf("t2.RecvMessage(ctx).Which = %v; want bootstrap", r.Which())
-		} else if rboot, err := r.Bootstrap(); err != nil {
-			t.Error("t2.RecvMessage(ctx).Bootstrap:", err)
-		} else if rboot.QuestionId() != 123 {
-			t.Errorf("t2.RecvMessage(ctx).Bootstrap.QuestionID = %d; want 123", rboot.QuestionId())
+		if n := len(r1.Message().CapTable); n > 0 {
+			t.Errorf("len(t2.RecvMessage(ctx).Message().CapTable) = %d; want 0", n)
 		}
-		release()
-
-		// Send/receive second message
-		if err := send1(); err != nil {
-			release1()
-			t1.CloseSend()
-			t2.CloseRecv()
-			t.Fatal("send1():", err)
+		if r1.Which() != rpccp.Message_Which_bootstrap {
+			t.Errorf("t2.RecvMessage(ctx).Which = %v; want bootstrap", r1.Which())
+		} else {
+			rboot, _ := r1.Bootstrap()
+			if rboot.QuestionId() != 42 {
+				t.Errorf("t2.RecvMessage(ctx).Bootstrap.QuestionID = %d; want 42", rboot.QuestionId())
+			}
 		}
 		release1()
-		r, release, err = t2.RecvMessage(ctx)
+
+		// Send/receive second message (call)
+		if err := sendCall(); err != nil {
+			t.Fatal("sendCall():", err)
+		}
+		releaseSendCall()
+		// TODO(someday): check that capability was released
+		r2, release2, err := t2.RecvMessage(ctx)
 		if err != nil {
-			t1.CloseSend()
-			t2.CloseRecv()
 			t.Fatal("t2.RecvMessage:", err)
 		}
-		if r.Which() != rpccp.Message_Which_bootstrap {
-			t.Errorf("t2.RecvMessage(ctx).Which = %v; want bootstrap", r.Which())
-		} else if rboot, err := r.Bootstrap(); err != nil {
-			t.Error("t2.RecvMessage(ctx).Bootstrap:", err)
-		} else if rboot.QuestionId() != 42 {
-			t.Errorf("t2.RecvMessage(ctx).Bootstrap.QuestionID = %d; want 123", rboot.QuestionId())
+		if n := len(r2.Message().CapTable); n > 0 {
+			t.Errorf("len(t2.RecvMessage(ctx).Message().CapTable) = %d; want 0", n)
 		}
-		release()
+		if r2.Which() != rpccp.Message_Which_call {
+			t.Errorf("t2.RecvMessage(ctx).Which = %v; want call", r2.Which())
+		} else {
+			rcall, _ := r2.Call()
+			if rcall.QuestionId() != 123 {
+				t.Errorf("t2.RecvMessage(ctx).Call.QuestionID = %d; want 123", rcall.QuestionId())
+			}
+			if rcall.InterfaceId() != 456 {
+				t.Errorf("t2.RecvMessage(ctx).Call.InterfaceID = %d; want 456", rcall.InterfaceId())
+			}
+			if rcall.MethodId() != 7 {
+				t.Errorf("t2.RecvMessage(ctx).Call.MethodID = %d; want 7", rcall.InterfaceId())
+			}
+			rparams, _ := rcall.Params()
+			rctab, _ := rparams.CapTable()
+			if rctab.Len() != 1 {
+				t.Errorf("len(t2.RecvMessage(ctx).Call.Params.CapTable) = %d; want 1", rctab.Len())
+			} else if rctab.At(0).Which() != rpccp.CapDescriptor_Which_senderHosted {
+				t.Errorf("t2.RecvMessage(ctx).Call.Params.CapTable.Which = %v; want senderHosted", rctab.At(0).Which())
+			} else if rctab.At(0).SenderHosted() != 777 {
+				t.Errorf("t2.RecvMessage(ctx).Call.Params.CapTable.SenderHosted = %d; want 777", rctab.At(0).SenderHosted())
+			}
+		}
+		release2()
 
-		if err := t2.CloseRecv(); err != nil {
-			t.Error("t2.CloseRecv:", err)
-		}
-		if err := t1.CloseSend(); err != nil {
-			t.Error("t1.CloseSend:", err)
-		}
 	})
 	t.Run("CloseRecv", func(t *testing.T) {
 		t1, t2, err := makePipe()

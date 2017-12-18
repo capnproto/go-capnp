@@ -57,7 +57,9 @@ func (p *pipe) NewMessage(ctx context.Context) (_ rpccp.Message, send func() err
 			panic("double send")
 		}
 		sent = true
-		pm := pipeMsg{rmsg, func() { msg.Reset(nil) }}
+		recvMsg, _ := cloneMessage(msg)
+		recvRPCMsg, _ := rpccp.ReadRootMessage(recvMsg)
+		pm := pipeMsg{recvRPCMsg, func() { recvMsg.Reset(nil) }}
 		select {
 		case p.w <- pm:
 			return nil
@@ -74,11 +76,26 @@ func (p *pipe) NewMessage(ctx context.Context) (_ rpccp.Message, send func() err
 		}
 		done = true
 		delete(p.msgs, caller)
-		if !sent {
-			msg.Reset(nil)
-		}
+		msg.Reset(nil)
 	}
 	return rmsg, send, release, nil
+}
+
+// cloneMessage creates a new message that points to the same data as
+// another message.
+func cloneMessage(msg *capnp.Message) (*capnp.Message, error) {
+	// Can't just directly use Arena, since it won't have the updated
+	// lengths (just the capacities).  Need to create a new Arena.
+
+	var segs [][]byte
+	for i := int64(0); i < msg.NumSegments(); i++ {
+		s, err := msg.Segment(capnp.SegmentID(i))
+		if err != nil {
+			return nil, err
+		}
+		segs = append(segs, s.Data())
+	}
+	return &capnp.Message{Arena: capnp.MultiSegment(segs)}, nil
 }
 
 type newMessageCaller struct {
