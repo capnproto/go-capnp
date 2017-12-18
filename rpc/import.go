@@ -184,9 +184,10 @@ func (ic *importClient) Shutdown() {
 	defer ic.conn.mu.Unlock()
 	ic.conn.mu.Lock()
 	ent := ic.conn.imports[ic.id]
-	if ic.generation != ent.generation {
-		// A new reference was added concurrently with the Shutdown.
-		// See impent.generation documentation for an explanation.
+	if ent == nil || ic.generation != ent.generation {
+		// If ent == nil, then the Conn was already shut down.  Otherwise,
+		// a new reference was added concurrently with the Shutdown.  See
+		// impent.generation documentation for an explanation.
 		return
 	}
 	delete(ic.conn.imports, ic.id)

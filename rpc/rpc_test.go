@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"runtime"
+	"sync"
 	"testing"
 
 	"zombiezen.com/go/capnproto2"
@@ -18,6 +21,25 @@ const (
 	methodID          uint16 = 9
 	bootstrapExportID uint32 = 84
 )
+
+func TestMain(m *testing.M) {
+	var (
+		mu     sync.Mutex
+		leaked bool
+	)
+	capnp.SetClientLeakFunc(func(msg string) {
+		mu.Lock()
+		leaked = true
+		fmt.Fprintln(os.Stderr, "LEAK:", msg)
+		mu.Unlock()
+	})
+	status := m.Run()
+	runtime.GC() // try to trigger any finalizers
+	if status == 0 && leaked {
+		os.Exit(1)
+	}
+	os.Exit(status)
+}
 
 // TestCloseAbort calls Close on a new connection, verifying that it
 // sends an Abort message and it reports no errors.  Level 0 requirement.
@@ -872,6 +894,7 @@ func TestCallOnClosedConn(t *testing.T) {
 
 	// 1. Read bootstrap
 	client := conn.Bootstrap(ctx)
+	defer client.Release()
 	msg, release, err := p2.RecvMessage(ctx)
 	if err != nil {
 		t.Fatal("p2.RecvMessage:", err)
