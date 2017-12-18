@@ -4,6 +4,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "answer.go",
+        "export.go",
         "import.go",
         "question.go",
         "rpc.go",

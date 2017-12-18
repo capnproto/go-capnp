@@ -965,8 +965,8 @@ func TestCallOnClosedConn(t *testing.T) {
 	}
 
 	// 4. Close the Conn.
-	err = conn.Close()
 	closed = true
+	err = conn.Close()
 	if err != nil {
 		t.Error(err)
 	}
@@ -987,6 +987,197 @@ func TestCallOnClosedConn(t *testing.T) {
 	_, err = ans.Struct()
 	if !capnp.IsDisconnected(err) {
 		t.Errorf("call after Close returned error: %v; want disconnected", err)
+	}
+}
+
+// TestServerCancel makes a call, sends a finish before it returns, then
+// checks to see whether the call's Context was canceled and whether the
+// capability the call returned is released.  Level 0 requirement.
+func TestServerCancel(t *testing.T) {
+	callCancel := make(chan struct{})
+	retcapShutdown := make(chan struct{})
+	srv := capnp.NewClient(server.New([]server.Method{
+		{
+			Method: capnp.Method{
+				InterfaceID: interfaceID,
+				MethodID:    methodID,
+			},
+			Impl: func(ctx context.Context, call *server.Call) error {
+				// Wait until canceled
+				call.Ack()
+				<-ctx.Done()
+				close(callCancel)
+
+				// Return a capability
+				resp, err := call.AllocResults(capnp.ObjectSize{PointerCount: 1})
+				if err != nil {
+					t.Error("alloc results:", err)
+					close(retcapShutdown)
+					return err
+				}
+				retcap := capnp.NewClient(server.New(
+					nil, /* methods */
+					nil, /* brand */
+					shutdownFunc(func() { close(retcapShutdown) }),
+					nil /* policy */))
+				capID := resp.Message().AddCap(retcap)
+				if err := resp.SetPtr(0, capnp.NewInterface(resp.Segment(), capID).ToPtr()); err != nil {
+					t.Error("set pointer:", err)
+					return err
+				}
+				return nil
+			},
+		},
+	}, nil /* brand */, nil /* shutdown */, nil /* policy */))
+	p1, p2 := newPipe(1)
+	defer p2.CloseSend()
+	defer p2.CloseRecv()
+	conn := rpc.NewConn(p1, &rpc.Options{
+		BootstrapClient: srv,
+		ErrorReporter:   testErrorReporter{t: t},
+	})
+	closed := false
+	defer func() {
+		if closed {
+			return
+		}
+		if err := conn.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
+	ctx := context.Background()
+
+	// 1. Write bootstrap
+	const bootstrapQID = 54
+	{
+		msg := &rpcMessage{
+			Which:     rpccp.Message_Which_bootstrap,
+			Bootstrap: &rpcBootstrap{QuestionID: bootstrapQID},
+		}
+		if err := sendMessage(ctx, p2, msg); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// 2. Write call
+	const callQID = 55
+	{
+		msg, send, release, err := p2.NewMessage(ctx)
+		if err != nil {
+			t.Fatal("p2.NewMessage():", err)
+		}
+		err = pogs.Insert(rpccp.Message_TypeID, msg.Struct, &rpcMessage{
+			Which: rpccp.Message_Which_call,
+			Call: &rpcCall{
+				QuestionID: callQID,
+				Target: rpcMessageTarget{
+					Which: rpccp.MessageTarget_Which_promisedAnswer,
+					PromisedAnswer: &rpcPromisedAnswer{
+						QuestionID: bootstrapQID,
+						Transform:  nil,
+					},
+				},
+				InterfaceID: interfaceID,
+				MethodID:    methodID,
+			},
+		})
+		if err != nil {
+			release()
+			t.Fatal("pogs.Insert(p2.NewMessage(), &rpcMessage{...}):", err)
+		}
+		err = send()
+		release()
+		if err != nil {
+			t.Fatal("send():", err)
+		}
+	}
+
+	// 3. Read bootstrap return
+	{
+		msg, release, err := p2.RecvMessage(ctx)
+		if err != nil {
+			t.Fatal("p2.RecvMessage:", err)
+		}
+		defer release()
+		var rmsg rpcMessage
+		if err := pogs.Extract(&rmsg, rpccp.Message_TypeID, msg.Struct); err != nil {
+			t.Fatal("pogs.Extract(p2.RecvMessage(ctx)):", err)
+		}
+		if rmsg.Which != rpccp.Message_Which_return {
+			t.Fatalf("Received %v message; want return", rmsg.Which)
+		}
+		if rmsg.Return.AnswerID != bootstrapQID {
+			t.Errorf("Received return for answer %d; want %d", rmsg.Return.AnswerID, bootstrapQID)
+		}
+	}
+
+	// 4. Write bootstrap finish
+	{
+		msg := &rpcMessage{
+			Which: rpccp.Message_Which_finish,
+			Finish: &rpcFinish{
+				QuestionID:        bootstrapQID,
+				ReleaseResultCaps: false,
+			},
+		}
+		if err := sendMessage(ctx, p2, msg); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// 5. Write call cancel and verify that call's Context was canceled.
+	select {
+	case <-callCancel:
+		t.Error("call context done before cancel written")
+	default:
+	}
+	{
+		msg := &rpcMessage{
+			Which: rpccp.Message_Which_finish,
+			Finish: &rpcFinish{
+				QuestionID:        callQID,
+				ReleaseResultCaps: true,
+			},
+		}
+		if err := sendMessage(ctx, p2, msg); err != nil {
+			t.Fatal(err)
+		}
+	}
+	<-callCancel
+
+	// 6. Read call return
+	{
+		msg, release, err := p2.RecvMessage(ctx)
+		if err != nil {
+			t.Fatal("p2.RecvMessage:", err)
+		}
+		defer release()
+		var rmsg rpcMessage
+		if err := pogs.Extract(&rmsg, rpccp.Message_TypeID, msg.Struct); err != nil {
+			t.Fatal("pogs.Extract(p2.RecvMessage(ctx)):", err)
+		}
+		if rmsg.Which != rpccp.Message_Which_return {
+			t.Fatalf("Received %v message; want return", rmsg.Which)
+		}
+		if rmsg.Return.AnswerID != callQID {
+			t.Errorf("Received return for answer %d; want %d", rmsg.Return.AnswerID, callQID)
+		}
+		// Don't care whether results, exception, or canceled.
+	}
+
+	// 7. Close the Conn
+	closed = true
+	if err := conn.Close(); err != nil {
+		t.Error(err)
+	}
+
+	// 8. Verify that returned capability was shut down.
+	// There's no guarantee when the release/shutdown will happen, other
+	// than it will be released before Close returns.
+	select {
+	case <-retcapShutdown:
+	default:
+		t.Error("returned capability was not shut down")
 	}
 }
 

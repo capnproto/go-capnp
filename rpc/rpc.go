@@ -210,10 +210,10 @@ func (c *Conn) shutdown(abortErr error) error {
 	c.answers = nil
 	for _, a := range answers {
 		if a != nil {
+			a.flags |= finishReceived
 			a.cancel()
 			a.s.acquireSender()
 			a.s.finish()
-			// TODO(soon): release result caps (while not holding c.mu)
 		}
 	}
 	c.mu.Unlock()
@@ -371,11 +371,19 @@ func (c *Conn) handleBootstrap(ctx context.Context, id answerID) error {
 		c.report(annotate(err).errorf("incoming bootstrap"))
 		return nil
 	}
-	if c.bootstrap.IsValid() {
-		err := ans.setBootstrap(c.bootstrap.AddRef())
-		ans.lockedReturn(err)
-	} else {
-		ans.lockedReturn(errors.New(errors.Failed, "", "vat does not expose a public/bootstrap interface"))
+	if !c.bootstrap.IsValid() {
+		ans.sendException(errors.New(errors.Failed, "", "vat does not expose a public/bootstrap interface"))
+		return nil
+	}
+	if err := ans.setBootstrap(c.bootstrap.AddRef()); err != nil {
+		ans.sendException(err)
+		return nil
+	}
+	refs := ans.sendReturn()
+	if len(refs) > 0 {
+		// Answer cannot possibly encounter a Finish, since we still
+		// haven't returned to receive().
+		panic("unreachable")
 	}
 	return nil
 }
@@ -416,52 +424,33 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 		c.mu.Unlock()
 		releaseCall()
 		c.report(annotate(err).errorf("incoming call"))
+		cancel()
 		return nil
 	}
-	tgt, err := call.Target()
-	if err != nil {
-		retErr := errorf("incoming call: read target: %v", err)
-		ans.lockedReturn(retErr)
+	c.bgtasks.Add(1) // will be finished by answer.Return
+	var p parsedCall
+	if err := c.parseCall(&p, call); err != nil {
+		err = annotate(err).errorf("incoming call")
+		ans.sendException(err)
 		c.mu.Unlock()
+		cancel()
 		releaseCall()
-		c.report(retErr)
+		c.report(err)
 		return nil
 	}
-	argsPayload, err := call.Params()
-	if err != nil {
-		retErr := errorf("incoming call: read params: %v", err)
-		ans.lockedReturn(retErr)
-		c.mu.Unlock()
-		releaseCall()
-		c.report(retErr)
-		return nil
-	}
-	args, err := c.recvPayload(argsPayload)
-	if err != nil {
-		retErr := annotate(err).errorf("incoming call: read params")
-		ans.lockedReturn(retErr)
-		c.mu.Unlock()
-		releaseCall()
-		c.report(retErr)
-		return nil
-	}
-	method := capnp.Method{
-		InterfaceID: call.InterfaceId(),
-		MethodID:    call.MethodId(),
-	}
-	switch tgt.Which() {
+	switch p.targetWhich {
 	case rpccp.MessageTarget_Which_importedCap:
-		id := exportID(tgt.ImportedCap())
-		ent := c.findExport(id)
+		ent := c.findExport(p.importedCap)
 		if ent == nil {
 			c.mu.Unlock()
 			releaseCall()
+			cancel()
 			return errorf("incoming call: unknown export ID %d", id)
 		}
 		c.mu.Unlock()
 		pcall := ent.client.RecvCall(callCtx, capnp.Recv{
-			Args:        args.Struct(),
-			Method:      method,
+			Args:        p.args,
+			Method:      p.method,
 			ReleaseArgs: releaseCall,
 			Returner:    ans,
 		})
@@ -471,46 +460,20 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 		ans.setPipelineCaller(pcall)
 		return nil
 	case rpccp.MessageTarget_Which_promisedAnswer:
-		pa, err := tgt.PromisedAnswer()
-		if err != nil {
-			retErr := errorf("incoming call: read target answer: %v", err)
-			ans.lockedReturn(retErr)
-			c.mu.Unlock()
-			releaseCall()
-			c.report(retErr)
-			return nil
-		}
-		tgtID := answerID(pa.QuestionId())
-		tgtAns := c.answers[tgtID]
+		tgtAns := c.answers[p.promisedAnswer]
 		if tgtAns == nil {
 			c.mu.Unlock()
 			releaseCall()
-			return errorf("incoming call: unknown target answer ID %d", tgtID)
-		}
-		opList, err := pa.Transform()
-		if err != nil {
-			retErr := errorf("incoming call: read target transform: %v", err)
-			ans.lockedReturn(retErr)
-			c.mu.Unlock()
-			releaseCall()
-			c.report(retErr)
-			return nil
-		}
-		xform, err := parseTransform(opList)
-		if err != nil {
-			retErr := annotate(err).errorf("incoming call: read target transform")
-			ans.lockedReturn(retErr)
-			c.mu.Unlock()
-			releaseCall()
-			c.report(retErr)
-			return nil
+			cancel()
+			return errorf("incoming call: unknown target answer ID %d", p.promisedAnswer)
 		}
 		if tgtAns.flags&resultsReady != 0 {
 			// Results ready.
 			if tgtAns.err != nil {
-				ans.lockedReturn(tgtAns.err)
+				ans.sendException(tgtAns.err)
 				c.mu.Unlock()
 				releaseCall()
+				cancel()
 				return nil
 			}
 			// tgtAns.results is guaranteed to stay alive because it hasn't
@@ -519,26 +482,28 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			// happening on the receive goroutine.
 			content, err := tgtAns.results.Content()
 			if err != nil {
-				retErr := errorf("incoming call: read results from target answer: %v")
-				ans.lockedReturn(retErr)
+				err = errorf("incoming call: read results from target answer: %v")
+				ans.sendException(err)
 				c.mu.Unlock()
 				releaseCall()
-				c.report(retErr)
+				cancel()
+				c.report(err)
 				return nil
 			}
-			sub, err := capnp.Transform(content, xform)
+			sub, err := capnp.Transform(content, p.transform)
 			if err != nil {
 				// Not reporting, as this is the caller's fault.
-				ans.lockedReturn(err)
+				ans.sendException(err)
 				c.mu.Unlock()
 				releaseCall()
+				cancel()
 				return nil
 			}
 			tgt := sub.Interface().Client()
 			c.mu.Unlock()
 			pcall := tgt.RecvCall(callCtx, capnp.Recv{
-				Args:        args.Struct(),
-				Method:      method,
+				Args:        p.args,
+				Method:      p.method,
 				ReleaseArgs: releaseCall,
 				Returner:    ans,
 			})
@@ -548,9 +513,9 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			tgtAns.pcalls.Add(1)
 			tgt := tgtAns.pcall
 			c.mu.Unlock()
-			pcall := tgt.PipelineRecv(callCtx, xform, capnp.Recv{
-				Args:        args.Struct(),
-				Method:      method,
+			pcall := tgt.PipelineRecv(callCtx, p.transform, capnp.Recv{
+				Args:        p.args,
+				Method:      p.method,
 				ReleaseArgs: releaseCall,
 				Returner:    ans,
 			})
@@ -559,13 +524,60 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 		}
 		return nil
 	default:
-		retErr := unimplementedf("incoming call: unknown message target %v", tgt.Which())
-		ans.lockedReturn(retErr)
-		c.mu.Unlock()
-		releaseCall()
-		c.report(retErr)
-		return nil
+		panic("unreachable")
 	}
+}
+
+type parsedCall struct {
+	method capnp.Method
+	args   capnp.Struct
+
+	targetWhich    rpccp.MessageTarget_Which
+	importedCap    exportID
+	promisedAnswer answerID
+	transform      []capnp.PipelineOp
+}
+
+func (c *Conn) parseCall(p *parsedCall, call rpccp.Call) error {
+	p.method = capnp.Method{
+		InterfaceID: call.InterfaceId(),
+		MethodID:    call.MethodId(),
+	}
+	payload, err := call.Params()
+	if err != nil {
+		return errorf("read params: %v", err)
+	}
+	ptr, err := c.recvPayload(payload)
+	if err != nil {
+		return annotate(err).errorf("read params")
+	}
+	p.args = ptr.Struct()
+	tgt, err := call.Target()
+	if err != nil {
+		return errorf("read target: %v", err)
+	}
+	p.targetWhich = tgt.Which()
+	switch p.targetWhich {
+	case rpccp.MessageTarget_Which_importedCap:
+		p.importedCap = exportID(tgt.ImportedCap())
+	case rpccp.MessageTarget_Which_promisedAnswer:
+		pa, err := tgt.PromisedAnswer()
+		if err != nil {
+			return errorf("read target answer: %v", err)
+		}
+		p.promisedAnswer = answerID(pa.QuestionId())
+		opList, err := pa.Transform()
+		if err != nil {
+			return errorf("read target transform: %v", err)
+		}
+		p.transform, err = parseTransform(opList)
+		if err != nil {
+			return annotate(err).errorf("read target transform")
+		}
+	default:
+		return unimplementedf("unknown message target %v", p.targetWhich)
+	}
+	return nil
 }
 
 func parseTransform(list rpccp.PromisedAnswer_Op_List) ([]capnp.PipelineOp, error) {
@@ -693,77 +705,37 @@ type parsedReturn struct {
 }
 
 func (c *Conn) handleFinish(ctx context.Context, id answerID, releaseResultCaps bool) error {
-	defer c.mu.Unlock()
 	c.mu.Lock()
 	ans := c.answers[id]
 	if ans == nil {
+		c.mu.Unlock()
 		return errorf("incoming finish: unknown answer ID %d", id)
 	}
 	if ans.flags&finishReceived != 0 {
+		c.mu.Unlock()
 		return errorf("incoming finish: answer ID %d already received finish", id)
 	}
 	ans.flags |= finishReceived
 	ans.cancel()
-	if ans.flags&(finishReceived|returnSent) != finishReceived|returnSent {
-		// Not returned yet.
-		// TODO(soon): record releaseResultCaps
+	if ans.flags&returnSent == 0 {
+		if releaseResultCaps {
+			ans.flags |= releaseResultCapsFlag
+		}
+		c.mu.Unlock()
 		return nil
 	}
 	ans.s.acquireSender()
 	ans.s.finish()
 	delete(c.answers, id)
-	if releaseResultCaps {
-		// TODO(soon): release result caps (while not holding c.mu)
-	}
-	return nil
-}
-
-// sendCap writes a client descriptor.  The caller must be holding onto c.mu.
-func (c *Conn) sendCap(d rpccp.CapDescriptor, client *capnp.Client) {
-	if !client.IsValid() {
-		d.SetNone()
-		return
-	}
-
-	brand := client.Brand()
-	if ic, ok := brand.(*importClient); ok && ic.conn == c {
-		if ent := c.imports[ic.id]; ent != nil && ent.generation == ic.generation {
-			d.SetReceiverHosted(uint32(ic.id))
-			return
-		}
-	}
-	// TODO(someday): Check for unresolved client for senderPromise.
-	// TODO(someday): Check for pipeline client on question for receiverAnswer.
-
-	// Default to sender-hosted (export).
-	for i, ent := range c.exports {
-		if ent.client.IsSame(client) {
-			ent.wireRefs++
-			d.SetSenderHosted(uint32(i))
-			return
-		}
-	}
-	c.exports = append(c.exports, &expent{
-		client:   client.AddRef(),
-		wireRefs: 1,
-	})
-	d.SetSenderHosted(uint32(len(c.exports) - 1))
-}
-
-// fillPayloadCapTable adds descriptors of payload's message's
-// capabilities into payload's capability table.  The caller must be
-// holding onto c.mu.
-func (c *Conn) fillPayloadCapTable(payload rpccp.Payload) error {
-	tab := payload.Message().CapTable
-	if len(tab) == 0 {
+	if !releaseResultCaps {
+		c.mu.Unlock()
 		return nil
 	}
-	list, err := payload.NewCapTable(int32(len(tab)))
+	rl, err := c.releaseExports(ans.exportRefs)
+	c.mu.Unlock()
+	rl.release()
 	if err != nil {
-		return errorf("payload capability table: %v", err)
-	}
-	for i, client := range tab {
-		c.sendCap(list.At(i), client)
+		return annotate(err).errorf("incoming finish: release result caps")
 	}
 	return nil
 }
@@ -811,25 +783,12 @@ func (c *Conn) recvPayload(payload rpccp.Payload) (capnp.Ptr, error) {
 
 func (c *Conn) handleRelease(ctx context.Context, id exportID, count uint32) error {
 	c.mu.Lock()
-	ent := c.findExport(id)
-	if ent == nil {
-		c.mu.Unlock()
-		return errorf("incoming release: unknown export ID %d", id)
-	}
-	ent.wireRefs -= int(count)
-	if ent.wireRefs < 0 {
-		c.mu.Unlock()
-		return errorf("incoming release: export ID %d released too many references", id)
-	}
-	if ent.wireRefs > 0 {
-		c.mu.Unlock()
-		return nil
-	}
-	client := ent.client
-	c.exports[id] = nil
-	c.exportID.remove(uint32(id))
+	client, err := c.releaseExport(id, count)
 	c.mu.Unlock()
-	client.Release()
+	if err != nil {
+		return annotate(err).errorf("incoming release")
+	}
+	client.Release() // no-ops for nil
 	return nil
 }
 
@@ -938,22 +897,6 @@ func (c *Conn) sendMessage(ctx context.Context, f func(msg rpccp.Message) error)
 		return errorf("send message: %v", err)
 	}
 	return nil
-}
-
-// An exportID is an index into the exports table.
-type exportID uint32
-
-// expent is an entry in a Conn's export table.
-type expent struct {
-	client   *capnp.Client
-	wireRefs int
-}
-
-func (c *Conn) findExport(id exportID) *expent {
-	if int64(id) >= int64(len(c.exports)) {
-		return nil
-	}
-	return c.exports[id]
 }
 
 // report sends an error to c's reporter.  The caller does not have to

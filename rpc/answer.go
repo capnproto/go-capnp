@@ -26,10 +26,12 @@ type answer struct {
 
 	// results is the memoized answer to ret.Results().
 	// Set by AllocResults and setBootstrap, but contents cannot be
-	// used by the rpc package until (*answer).lockedReturn is called
-	// (i.e. once state has bit 2 set).
+	// used by the rpc package until flags has resultsReady set.
 	results rpccp.Payload
 
+	// exportRefs is the number of references to exports placed in the
+	// results.
+	exportRefs map[exportID]uint32
 
 	// cancel is the cancel function for the Context used in the received
 	// method call.
@@ -44,7 +46,7 @@ type answer struct {
 	// to satisfy the Returner.Return contract.
 	pcalls sync.WaitGroup
 
-	// err is the error passed to (*answer).lockedReturn.
+	// err is the error passed to (*answer).sendException.
 	err error
 }
 
@@ -56,6 +58,7 @@ const (
 	returnSent answerFlags = 1 << iota
 	finishReceived
 	resultsReady
+	releaseResultCapsFlag
 )
 
 // newAnswer adds an entry to the answers table and creates a new return
@@ -134,44 +137,105 @@ func (ans *answer) setBootstrap(c *capnp.Client) error {
 	return nil
 }
 
-// Return sends the return message.  The caller must NOT be holding onto
-// ans.s.c.mu or the sender lock.
+// Return sends the return message.
+//
+// The caller must NOT be holding onto ans.s.c.mu or the sender lock.
 func (ans *answer) Return(e error) {
-	ans.s.c.mu.Lock()
-	ans.lockedReturn(e)
-	ans.s.c.mu.Unlock()
+	c := ans.s.c
+	c.mu.Lock()
+	if e != nil {
+		ans.sendException(e)
+		c.mu.Unlock()
+		ans.pcalls.Wait()
+		c.bgtasks.Done() // added by handleCall
+		return
+	}
+	refs := ans.sendReturn()
+	rl, err := c.releaseExports(refs)
+	if err != nil {
+		select {
+		case <-ans.s.c.bgctx.Done():
+		default:
+			c.bgtasks.Done() // added by handleCall
+			if err := c.shutdown(err); err != nil {
+				c.report(err)
+			}
+			// shutdown released c.mu
+			rl.release()
+			ans.pcalls.Wait()
+			return
+		}
+	}
+	c.mu.Unlock()
+	rl.release()
 	ans.pcalls.Wait()
+	c.bgtasks.Done() // added by handleCall
 }
 
-// lockedReturn sends the return message.  The caller must be holding
-// onto ans.s.c.mu.
+// sendReturn sends the return message with results allocated by a
+// previous call to AllocResults.  If the answer already received a
+// Finish with releaseResultCaps set to true, then sendReturn returns
+// the number of references to be subtracted from each export.
 //
-// lockedReturn does not wait on ans.pcalls.
-func (ans *answer) lockedReturn(e error) {
-	// Prepare results struct.
+// The caller must be holding onto ans.s.c.mu.  Only one of sendReturn
+// or sendException should be called.
+func (ans *answer) sendReturn() map[exportID]uint32 {
+	ans.pcall = nil
+	ans.flags |= resultsReady
+
+	refs, err := ans.s.c.fillPayloadCapTable(ans.results)
+	ans.exportRefs = refs
+	if err != nil {
+		ans.s.c.report(annotate(err).errorf("send return"))
+		// Continue.  Don't fail to send return if cap table isn't fully filled.
+	}
+
+	// Send results.
+	fin := ans.flags&finishReceived != 0
+	ans.s.acquireSender()
+	if err := ans.s.send(); err != nil {
+		ans.s.c.reportf("send return: %v", err)
+	}
+	if !fin {
+		ans.s.releaseSender()
+		ans.flags |= returnSent
+		if ans.flags&finishReceived == 0 {
+			return nil
+		}
+		ans.s.acquireSender()
+	}
+
+	// Already received finish, delete answer.
+	ans.s.finish()
+	delete(ans.s.c.answers, ans.id)
+	if ans.flags&releaseResultCapsFlag != 0 {
+		return ans.exportRefs
+	}
+	return nil
+}
+
+// sendException sends an exception on the answer's return message.
+//
+// The caller must be holding onto ans.s.c.mu.  Only one of sendReturn
+// or sendException should be called.
+func (ans *answer) sendException(e error) {
 	ans.err = e
 	ans.pcall = nil
 	ans.flags |= resultsReady
-	if e == nil {
-		if err := ans.s.c.fillPayloadCapTable(ans.results); err != nil {
-			ans.s.c.report(annotate(err).errorf("send return"))
-			// Continue.  Don't fail to send return if cap table isn't fully filled.
-		}
-	} else {
-		exc, err := ans.ret.NewException()
-		if err != nil {
-			ans.s.acquireSender()
-			ans.s.finish()
-			ans.s.c.reportf("send exception: %v", err)
-			return
-		}
-		exc.SetType(rpccp.Exception_Type(errors.TypeOf(e)))
-		if err := exc.SetReason(e.Error()); err != nil {
-			ans.s.acquireSender()
-			ans.s.finish()
-			ans.s.c.reportf("send exception: %v", err)
-			return
-		}
+
+	exc, err := ans.ret.NewException()
+	if err != nil {
+		ans.s.acquireSender()
+		ans.s.finish() // TODO(now): is this okay?
+		ans.s.c.reportf("send exception: %v", err)
+		return
+	}
+	exc.SetType(rpccp.Exception_Type(errors.TypeOf(e)))
+	if err := exc.SetReason(e.Error()); err != nil {
+		ans.s.acquireSender()
+		ans.s.finish() // TODO(now): is this okay?
+		ans.s.c.reportf("send exception: %v", err)
+		return
 	}
 
 	// Send results.
@@ -192,5 +256,4 @@ func (ans *answer) lockedReturn(e error) {
 	// Already received finish, delete answer.
 	ans.s.finish()
 	delete(ans.s.c.answers, ans.id)
-	// TODO(soon): release result caps (while not holding c.mu)
 }
