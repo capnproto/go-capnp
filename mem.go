@@ -155,9 +155,11 @@ func (m *Message) Unread(sz Size) {
 // ClearCaps releases all capabilities in the message's table and sets
 // them to nil.  This does not change the size of the table.
 func (m *Message) ClearCaps() {
-	for i, c := range m.CapTable {
-		m.CapTable[i] = nil
+	for _, c := range m.CapTable {
 		c.Release()
+	}
+	for i := range m.CapTable {
+		m.CapTable[i] = nil
 	}
 }
 

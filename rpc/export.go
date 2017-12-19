@@ -140,8 +140,10 @@ func (c *Conn) fillPayloadCapTable(payload rpccp.Payload) (map[exportID]uint32, 
 type releaseList []*capnp.Client
 
 func (rl releaseList) release() {
+	for _, c := range rl {
+		c.Release()
+	}
 	for i := range rl {
-		rl[i].Release()
 		rl[i] = nil
 	}
 }
