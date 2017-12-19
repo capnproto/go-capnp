@@ -35,6 +35,7 @@ func TestMain(m *testing.M) {
 	})
 	status := m.Run()
 	runtime.GC() // try to trigger any finalizers
+	mu.Lock()
 	if status == 0 && leaked {
 		os.Exit(1)
 	}
