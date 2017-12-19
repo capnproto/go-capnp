@@ -23,7 +23,8 @@ type question struct {
 
 	// Protected by conn.mu:
 
-	flags questionFlags
+	flags         questionFlags
+	finishMsgSend chan struct{} // closed after attempting to send the Finish message
 }
 
 // questionFlags is a bitmask of which events have occurred in a question's
@@ -31,7 +32,14 @@ type question struct {
 type questionFlags uint8
 
 const (
-	returnReceived questionFlags = 1 << iota
+	// finished is set when the question's Context has been canceled or
+	// its Return message has been received.  The codepath that sets this
+	// flag is responsible for sending the Finish message.
+	finished questionFlags = 1 << iota
+
+	// finishSent indicates whether the Finish message was sent
+	// successfully.  It is only valid to query after finishMsgSend is
+	// closed.
 	finishSent
 )
 
@@ -40,9 +48,10 @@ const (
 func (c *Conn) newQuestion(ctx context.Context, id questionID, method capnp.Method) *question {
 	ctx, cancel := context.WithCancel(ctx)
 	q := &question{
-		id:   id,
-		conn: c,
-		done: cancel,
+		id:            id,
+		conn:          c,
+		done:          cancel,
+		finishMsgSend: make(chan struct{}),
 	}
 	q.p = capnp.NewPromise(method, q) // TODO(someday): customize error message for bootstrap
 	if int(id) == len(c.questions) {
@@ -62,28 +71,31 @@ func (c *Conn) newQuestion(ctx context.Context, id questionID, method capnp.Meth
 			q.done()
 		}
 		c.mu.Lock()
-		if q.flags&finishSent != 0 {
+		if q.flags&finished != 0 {
 			c.mu.Unlock()
 			return
 		}
-		q.flags |= finishSent
+		q.flags |= finished
 		q.release = func() {}
-		select {
-		case <-c.bgctx.Done():
-		default:
-			err := c.sendMessage(c.bgctx, func(msg rpccp.Message) error {
-				fin, err := msg.NewFinish()
-				if err != nil {
-					return err
-				}
-				fin.SetQuestionId(uint32(q.id))
-				fin.SetReleaseResultCaps(true)
-				return nil
-			})
+		err := c.sendMessage(c.bgctx, func(msg rpccp.Message) error {
+			fin, err := msg.NewFinish()
 			if err != nil {
+				return err
+			}
+			fin.SetQuestionId(uint32(q.id))
+			fin.SetReleaseResultCaps(true)
+			return nil
+		})
+		if err == nil {
+			q.flags |= finishSent
+		} else {
+			select {
+			case <-c.bgctx.Done():
+			default:
 				c.report(annotate(err).errorf("send finish"))
 			}
 		}
+		close(q.finishMsgSend)
 		c.mu.Unlock()
 		q.p.Reject(rejectErr)
 		if q.bootstrapPromise != nil {

@@ -115,10 +115,12 @@ func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, 
 		if err := payload.SetContent(args.ToPtr()); err != nil {
 			return err
 		}
-		if err := s.PlaceArgs(args); err != nil {
-			// Using fmt.Errorf to annotate to avoid stutter when we wrap the
-			// sendMessage error.
-			return fmt.Errorf("place parameters: %v", err)
+		if s.PlaceArgs != nil {
+			if err := s.PlaceArgs(args); err != nil {
+				// Using fmt.Errorf to annotate to avoid stutter when we wrap the
+				// sendMessage error.
+				return fmt.Errorf("place parameters: %v", err)
+			}
 		}
 		// TODO(soon): fill in capability table
 		return nil

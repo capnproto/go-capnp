@@ -1184,6 +1184,198 @@ func TestServerCancel(t *testing.T) {
 	}
 }
 
+// TestClientCancel makes a call, cancels the Context, then checks to
+// see whether a finish message was sent.  Level 0 requirement.
+func TestClientCancel(t *testing.T) {
+	p1, p2 := newPipe(1)
+	defer p2.CloseSend()
+	defer p2.CloseRecv()
+	conn := rpc.NewConn(p1, &rpc.Options{
+		ErrorReporter: testErrorReporter{t: t},
+	})
+	defer func() {
+		if err := conn.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
+	ctx := context.Background()
+
+	// 1. Read bootstrap.
+	client := conn.Bootstrap(ctx)
+	defer client.Release()
+	var bootQID uint32
+	{
+		msg, release, err := p2.RecvMessage(ctx)
+		if err != nil {
+			t.Fatal("p2.RecvMessage:", err)
+		}
+		var rmsg rpcMessage
+		err = pogs.Extract(&rmsg, rpccp.Message_TypeID, msg.Struct)
+		release()
+		if err != nil {
+			t.Fatal("pogs.Extract(p2.RecvMessage(ctx)):", err)
+		}
+		if rmsg.Which != rpccp.Message_Which_bootstrap {
+			t.Fatalf("Received %v message; want bootstrap", rmsg.Which)
+		}
+		bootQID = rmsg.Bootstrap.QuestionID
+	}
+
+	// 2. Write back a return.
+	{
+		msg, send, release, err := p2.NewMessage(ctx)
+		if err != nil {
+			t.Fatal("p2.NewMessage():", err)
+		}
+		iptr := capnp.NewInterface(msg.Segment(), 0)
+		err = pogs.Insert(rpccp.Message_TypeID, msg.Struct, &rpcMessage{
+			Which: rpccp.Message_Which_return,
+			Return: &rpcReturn{
+				AnswerID: bootQID,
+				Which:    rpccp.Return_Which_results,
+				Results: &rpcPayload{
+					Content: iptr.ToPtr(),
+					CapTable: []rpcCapDescriptor{
+						{
+							Which:        rpccp.CapDescriptor_Which_senderHosted,
+							SenderHosted: bootstrapExportID,
+						},
+					},
+				},
+			},
+		})
+		if err != nil {
+			release()
+			t.Fatal("pogs.Insert(p2.NewMessage(), &rpcMessage{...}):", err)
+		}
+		err = send()
+		release()
+		if err != nil {
+			t.Fatal("send():", err)
+		}
+	}
+
+	// 3. Read bootstrap finish.
+	{
+		msg, release, err := p2.RecvMessage(ctx)
+		if err != nil {
+			t.Fatal("p2.RecvMessage:", err)
+		}
+		var rmsg rpcMessage
+		err = pogs.Extract(&rmsg, rpccp.Message_TypeID, msg.Struct)
+		release()
+		if err != nil {
+			t.Fatal("pogs.Extract(p2.RecvMessage(ctx)):", err)
+		}
+		if rmsg.Which != rpccp.Message_Which_finish {
+			t.Fatalf("Received %v message; want finish", rmsg.Which)
+		}
+		if rmsg.Finish.QuestionID != bootQID {
+			t.Errorf("Received finish for question %d; want %d", rmsg.Finish.QuestionID, bootQID)
+		}
+	}
+
+	// 4. Make a call.
+	callCtx, cancelCall := context.WithCancel(ctx)
+	ans, releaseCall := client.SendCall(callCtx, capnp.Send{
+		Method: capnp.Method{
+			InterfaceID: interfaceID,
+			MethodID:    methodID,
+		},
+	})
+	defer releaseCall()
+	var callQID uint32
+	{
+		msg, release, err := p2.RecvMessage(ctx)
+		if err != nil {
+			t.Fatal("p2.RecvMessage:", err)
+		}
+		var rmsg rpcMessage
+		err = pogs.Extract(&rmsg, rpccp.Message_TypeID, msg.Struct)
+		release()
+		if err != nil {
+			t.Fatal("pogs.Extract(p2.RecvMessage(ctx)):", err)
+		}
+		if rmsg.Which != rpccp.Message_Which_call {
+			t.Fatalf("Received %v message; want call", rmsg.Which)
+		}
+		callQID = rmsg.Call.QuestionID
+		if rmsg.Call.InterfaceID != interfaceID {
+			t.Errorf("call.interfaceId = %x; want %x", rmsg.Call.InterfaceID, interfaceID)
+		}
+		if rmsg.Call.MethodID != methodID {
+			t.Errorf("call.methodId = %x; want %x", rmsg.Call.MethodID, methodID)
+		}
+	}
+
+	// 5. Cancel the call.
+	cancelCall()
+	{
+		msg, release, err := p2.RecvMessage(ctx)
+		if err != nil {
+			t.Fatal("p2.RecvMessage:", err)
+		}
+		var rmsg rpcMessage
+		err = pogs.Extract(&rmsg, rpccp.Message_TypeID, msg.Struct)
+		release()
+		if err != nil {
+			t.Fatal("pogs.Extract(p2.RecvMessage(ctx)):", err)
+		}
+		if rmsg.Which != rpccp.Message_Which_finish {
+			t.Fatalf("Received %v message; want finish", rmsg.Which)
+		}
+		if rmsg.Finish.QuestionID != callQID {
+			t.Errorf("finish.questionId = %d; want %d", rmsg.Finish.QuestionID, callQID)
+		}
+		if !rmsg.Finish.ReleaseResultCaps {
+			t.Error("finish.releaseResultCaps = false; want true")
+		}
+	}
+
+	// 6. Verify that answer finishes without any other input.
+	<-ans.Done()
+	releaseCall()
+
+	// 7. Write canceled return.
+	{
+		msg := &rpcMessage{
+			Which: rpccp.Message_Which_return,
+			Return: &rpcReturn{
+				AnswerID:         callQID,
+				ReleaseParamCaps: false,
+				Which:            rpccp.Return_Which_canceled,
+			},
+		}
+		if err := sendMessage(ctx, p2, msg); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// 8. Release client (avoid filling pipe buffer).
+	client.Release()
+	{
+		msg, release, err := p2.RecvMessage(ctx)
+		if err != nil {
+			t.Fatal("p2.RecvMessage:", err)
+		}
+		var rmsg rpcMessage
+		err = pogs.Extract(&rmsg, rpccp.Message_TypeID, msg.Struct)
+		release()
+		if err != nil {
+			t.Fatal("pogs.Extract(p2.RecvMessage(ctx)):", err)
+		}
+		if rmsg.Which != rpccp.Message_Which_release {
+			t.Fatalf("Received %v message; want release", rmsg.Which)
+		}
+		if rmsg.Release.ID != bootstrapExportID {
+			t.Errorf("release.id = %d; want %d", rmsg.Release.ID, bootstrapExportID)
+		}
+		if rmsg.Release.ReferenceCount != 1 {
+			t.Errorf("release.id = %d; want 1", rmsg.Release.ReferenceCount)
+		}
+	}
+}
+
 type shutdownFunc func()
 
 func (f shutdownFunc) Shutdown() { f() }

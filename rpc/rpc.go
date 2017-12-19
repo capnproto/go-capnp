@@ -604,68 +604,101 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 		releaseRet()
 		return errorf("incoming return: question %d does not exist", qid)
 	}
+	// Pop the question from the table.  Receiving the Return message
+	// will always remove the question from the table, because it's the
+	// only time the remote vat will use it.
 	q := c.questions[qid]
+	c.questions[qid] = nil
 	if q == nil {
 		c.mu.Unlock()
 		releaseRet()
 		return errorf("incoming return: question %d does not exist", qid)
 	}
-	defer c.mu.Unlock()
-	fin := q.flags&finishSent != 0
-	q.flags |= returnReceived | finishSent
-	c.questions[qid] = nil
-
+	canceled := q.flags&finished != 0
+	q.flags |= finished
+	if canceled {
+		// Wait for cancelation task to write the Finish message.  If the
+		// Finish message could not be sent to the remote vat, we can't
+		// reuse the ID.
+		select {
+		case <-q.finishMsgSend:
+			if q.flags&finishSent != 0 {
+				c.questionID.remove(uint32(qid))
+			}
+			c.mu.Unlock()
+			releaseRet()
+		default:
+			c.mu.Unlock()
+			releaseRet()
+			<-q.finishMsgSend
+			c.mu.Lock()
+			if q.flags&finishSent != 0 {
+				c.questionID.remove(uint32(qid))
+			}
+			c.mu.Unlock()
+		}
+		return nil
+	}
 	pr := c.parseReturn(ret)
 	if pr.parseFailed {
 		c.report(annotate(pr.err).errorf("incoming return"))
 	}
-	if pr.err == nil {
-		if q.bootstrapPromise != nil {
-			q.release = func() {}
-		} else {
-			q.release = releaseRet
-		}
+	switch {
+	case q.bootstrapPromise != nil && pr.err == nil:
+		q.release = func() {}
 		c.mu.Unlock()
 		q.p.Fulfill(pr.result)
-		if q.bootstrapPromise != nil {
-			q.bootstrapPromise.Fulfill(q.p.Answer().Client())
-			q.p.ReleaseClients()
-			releaseRet()
-		}
+		q.bootstrapPromise.Fulfill(q.p.Answer().Client())
+		q.p.ReleaseClients()
+		releaseRet()
 		q.done()
 		c.mu.Lock()
-	} else {
+	case q.bootstrapPromise != nil && pr.err != nil:
 		// TODO(someday): send unimplemented message back to remote if
 		// pr.unimplemented == true.
 		q.release = func() {}
 		c.mu.Unlock()
 		q.p.Reject(pr.err)
-		if q.bootstrapPromise != nil {
-			q.bootstrapPromise.Fulfill(q.p.Answer().Client())
-			q.p.ReleaseClients()
-		}
+		q.bootstrapPromise.Fulfill(q.p.Answer().Client())
+		q.p.ReleaseClients()
 		releaseRet()
 		q.done()
 		c.mu.Lock()
+	case q.bootstrapPromise == nil && pr.err != nil:
+		// TODO(someday): send unimplemented message back to remote if
+		// pr.unimplemented == true.
+		q.release = func() {}
+		c.mu.Unlock()
+		q.p.Reject(pr.err)
+		releaseRet()
+		q.done()
+		c.mu.Lock()
+	default:
+		q.release = releaseRet
+		c.mu.Unlock()
+		q.p.Fulfill(pr.result)
+		q.done()
+		c.mu.Lock()
 	}
-	if !fin {
-		err := c.sendMessage(ctx, func(msg rpccp.Message) error {
-			fin, err := msg.NewFinish()
-			if err != nil {
-				return err
-			}
-			fin.SetQuestionId(uint32(qid))
-			fin.SetReleaseResultCaps(false)
-			return nil
-		})
-		c.questionID.remove(uint32(qid))
+	err := c.sendMessage(ctx, func(msg rpccp.Message) error {
+		fin, err := msg.NewFinish()
 		if err != nil {
-			c.report(annotate(err).errorf("incoming return: send finish"))
-			return nil
+			return err
 		}
-	} else {
-		c.questionID.remove(uint32(qid))
+		fin.SetQuestionId(uint32(qid))
+		fin.SetReleaseResultCaps(false)
+		return nil
+	})
+	if err != nil {
+		close(q.finishMsgSend)
+		c.mu.Unlock()
+		c.report(annotate(err).errorf("incoming return: send finish"))
+		return nil
 	}
+	q.flags |= finishSent
+	c.questionID.remove(uint32(qid))
+	close(q.finishMsgSend)
+	c.mu.Unlock()
 	return nil
 }
 
