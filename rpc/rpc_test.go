@@ -99,6 +99,7 @@ func TestRecvAbort(t *testing.T) {
 		t.Fatal(err)
 	}
 	boot := conn.Bootstrap(ctx)
+	defer boot.Release()
 	if err := boot.Resolve(ctx); err != nil {
 		t.Error("bootstrap resolution:", err)
 	}
@@ -145,6 +146,7 @@ func TestBootstrapCall(t *testing.T) {
 
 	// 1. Read bootstrap
 	client := conn.Bootstrap(ctx)
+	defer client.Release()
 	if err := client.Resolve(canceledContext(ctx)); err == nil {
 		t.Error("bootstrap client reports resolved before return")
 	}

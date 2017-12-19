@@ -196,6 +196,7 @@ func TestServerMaxConcurrentCalls(t *testing.T) {
 func TestServerShutdown(t *testing.T) {
 	wait := make(chan struct{})
 	echo := air.Echo_ServerToClient(blockingEchoImpl{wait}, nil)
+	defer echo.Client.Release()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	call, finish := echo.Echo(ctx, nil)

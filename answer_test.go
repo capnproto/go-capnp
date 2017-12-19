@@ -94,6 +94,7 @@ func TestPromiseFulfill(t *testing.T) {
 
 		h := new(dummyHook)
 		c := NewClient(h)
+		defer c.Release()
 		msg, seg, _ := NewMessage(SingleSegment(nil))
 		defer msg.Reset(nil)
 		res, _ := NewStruct(seg, ObjectSize{PointerCount: 3})

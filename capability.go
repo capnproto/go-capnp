@@ -399,11 +399,7 @@ func (c *Client) Release() {
 		return
 	}
 	c.mu.Lock()
-	if c.released {
-		c.mu.Unlock()
-		panic("capnp: double Client.Release")
-	}
-	if c.h == nil {
+	if c.released || c.h == nil {
 		c.mu.Unlock()
 		return
 	}

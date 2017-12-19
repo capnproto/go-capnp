@@ -12,6 +12,7 @@ func TestClient(t *testing.T) {
 	ctx := context.Background()
 	h := &dummyHook{brand: int(42)}
 	c := NewClient(h)
+	defer c.Release()
 
 	if !c.IsSame(c) {
 		t.Error("!c.IsSame(c)")
@@ -95,10 +96,9 @@ func TestReleasedClient(t *testing.T) {
 	if h.calls != 0 {
 		t.Errorf("after RecvCall, h.calls = %d; want 0", h.calls)
 	}
-	err := catchPanic(c.Release)
-	if err == nil {
-		t.Error("second Release did not panic")
-	}
+
+	// Double release
+	c.Release()
 	if h.shutdowns > 1 {
 		t.Error("second Release made more calls to ClientHook.Shutdown")
 	}
@@ -161,7 +161,9 @@ func TestPromisedClient(t *testing.T) {
 	a := new(dummyHook)
 	b := new(dummyHook)
 	ca, pa := NewPromisedClient(a)
+	defer ca.Release()
 	cb := NewClient(b)
+	defer cb.Release()
 	ctx := context.Background()
 
 	if ca.IsSame(cb) {
@@ -200,7 +202,9 @@ func TestPromisedClient_EarlyClose(t *testing.T) {
 	a := new(dummyHook)
 	b := new(dummyHook)
 	ca, p := NewPromisedClient(a)
+	defer ca.Release()
 	cb := NewClient(b)
+	defer cb.Release()
 	ctx := context.Background()
 
 	ca.Release()
@@ -512,8 +516,10 @@ func TestPipelineOpString(t *testing.T) {
 func TestWeakClient(t *testing.T) {
 	h := new(dummyHook)
 	c1 := NewClient(h)
+	defer c1.Release()
 	w := c1.WeakRef()
 	c2, ok := w.AddRef()
+	defer c2.Release()
 	if !ok {
 		t.Fatal("AddRef on open client failed")
 	}
@@ -548,7 +554,9 @@ func TestWeakPromisedClient(t *testing.T) {
 	finish()
 
 	ca.Release()
+	defer ca.Release()
 	cb2, ok := wa.AddRef()
+	defer cb2.Release()
 	if !ok {
 		t.Error("wa.AddRef() failed after releasing ca")
 	}
@@ -556,6 +564,7 @@ func TestWeakPromisedClient(t *testing.T) {
 		t.Error("cb != cb2")
 	}
 	cb.Release()
+	defer cb.Release()
 	if b.shutdowns > 0 {
 		t.Error("b shut down before cb2.Release")
 	}
