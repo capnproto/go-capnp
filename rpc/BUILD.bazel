@@ -22,8 +22,9 @@ go_library(
 go_test(
     name = "go_default_xtest",
     srcs = [
+        "bench_test.go",
+        "level0_test.go",
         "pipe_test.go",
-        "rpc_test.go",
         "transport_test.go",
     ],
     importpath = "zombiezen.com/go/capnproto2/rpc_test",
