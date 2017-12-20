@@ -59,9 +59,9 @@ func (c *Conn) newQuestion(ctx context.Context, id questionID, method capnp.Meth
 	} else {
 		c.questions[id] = q
 	}
-	c.bgtasks.Add(1)
+	c.tasks.Add(1)
 	go func() {
-		defer c.bgtasks.Done()
+		defer c.tasks.Done()
 		var rejectErr error
 		select {
 		case <-ctx.Done():
@@ -107,8 +107,12 @@ func (c *Conn) newQuestion(ctx context.Context, id questionID, method capnp.Meth
 }
 
 func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineOp, s capnp.Send) (*capnp.Answer, capnp.ReleaseFunc) {
-	defer q.conn.mu.Unlock()
 	q.conn.mu.Lock()
+	if !q.conn.startTask() {
+		q.conn.mu.Unlock()
+		return capnp.ErrorAnswer(s.Method, disconnected("connection closed")), func() {}
+	}
+	defer q.conn.tasks.Done()
 	id := questionID(q.conn.questionID.next())
 	err := q.conn.sendMessage(ctx, func(msg rpccp.Message) error {
 		call, err := msg.NewCall()
@@ -155,10 +159,12 @@ func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineO
 	})
 	if err != nil {
 		q.conn.questionID.remove(uint32(id))
+		q.conn.mu.Unlock()
 		return capnp.ErrorAnswer(s.Method, annotate(err).errorf("send to promised answer")), func() {}
 	}
 	q2 := q.conn.newQuestion(ctx, id, s.Method)
 	ans := q2.p.Answer()
+	q.conn.mu.Unlock()
 	return ans, func() {
 		<-ans.Done()
 		q2.p.ReleaseClients()

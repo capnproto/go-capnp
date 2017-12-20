@@ -147,7 +147,7 @@ func (ans *answer) Return(e error) {
 		ans.sendException(e)
 		c.mu.Unlock()
 		ans.pcalls.Wait()
-		c.bgtasks.Done() // added by handleCall
+		c.tasks.Done() // added by handleCall
 		return
 	}
 	refs := ans.sendReturn()
@@ -156,7 +156,7 @@ func (ans *answer) Return(e error) {
 		select {
 		case <-ans.s.c.bgctx.Done():
 		default:
-			c.bgtasks.Done() // added by handleCall
+			c.tasks.Done() // added by handleCall
 			if err := c.shutdown(err); err != nil {
 				c.report(err)
 			}
@@ -169,7 +169,7 @@ func (ans *answer) Return(e error) {
 	c.mu.Unlock()
 	rl.release()
 	ans.pcalls.Wait()
-	c.bgtasks.Done() // added by handleCall
+	c.tasks.Done() // added by handleCall
 }
 
 // sendReturn sends the return message with results allocated by a

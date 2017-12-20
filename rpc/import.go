@@ -84,10 +84,15 @@ type importClient struct {
 }
 
 func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, capnp.ReleaseFunc) {
-	defer ic.conn.mu.Unlock()
 	ic.conn.mu.Lock()
+	if !ic.conn.startTask() {
+		ic.conn.mu.Unlock()
+		return capnp.ErrorAnswer(s.Method, disconnected("connection closed")), func() {}
+	}
+	defer ic.conn.tasks.Done()
 	ent := ic.conn.imports[ic.id]
 	if ent == nil || ic.generation != ent.generation {
+		ic.conn.mu.Unlock()
 		return capnp.ErrorAnswer(s.Method, disconnected("send on closed import")), func() {}
 	}
 	id := questionID(ic.conn.questionID.next())
@@ -127,10 +132,12 @@ func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, 
 	})
 	if err != nil {
 		ic.conn.questionID.remove(uint32(id))
+		ic.conn.mu.Unlock()
 		return capnp.ErrorAnswer(s.Method, annotate(err).errorf("send to import")), func() {}
 	}
 	q := ic.conn.newQuestion(ctx, id, s.Method)
 	ans := q.p.Answer()
+	ic.conn.mu.Unlock()
 	return ans, func() {
 		<-ans.Done()
 		q.p.ReleaseClients()
@@ -183,13 +190,17 @@ func (ic *importClient) Brand() interface{} {
 }
 
 func (ic *importClient) Shutdown() {
-	defer ic.conn.mu.Unlock()
 	ic.conn.mu.Lock()
+	if !ic.conn.startTask() {
+		ic.conn.mu.Unlock()
+		return
+	}
+	defer ic.conn.tasks.Done()
 	ent := ic.conn.imports[ic.id]
-	if ent == nil || ic.generation != ent.generation {
-		// If ent == nil, then the Conn was already shut down.  Otherwise,
-		// a new reference was added concurrently with the Shutdown.  See
+	if ic.generation != ent.generation {
+		// A new reference was added concurrently with the Shutdown.  See
 		// impent.generation documentation for an explanation.
+		ic.conn.mu.Unlock()
 		return
 	}
 	delete(ic.conn.imports, ic.id)
@@ -202,8 +213,8 @@ func (ic *importClient) Shutdown() {
 		rel.SetReferenceCount(uint32(ent.wireRefs))
 		return nil
 	})
+	ic.conn.mu.Unlock()
 	if err != nil {
 		ic.conn.report(annotate(err).errorf("send release"))
-		return
 	}
 }

@@ -17,6 +17,15 @@ type Conn struct {
 	bootstrap *capnp.Client
 	reporter  ErrorReporter
 
+	// bgctx is a Context that is canceled when shutdown starts.
+	bgctx context.Context
+
+	// bgcancel cancels bgctx.  It must only be called while holding mu.
+	bgcancel context.CancelFunc
+
+	// tasks block shutdown.
+	tasks sync.WaitGroup
+
 	// mu protects all the following fields in the Conn.  mu should not be
 	// held while making calls that take indeterminate time (I/O or
 	// application code).  Condition channels protect operations on any
@@ -25,11 +34,8 @@ type Conn struct {
 	// mutually exclusive access to resources.
 	mu sync.Mutex
 
-	bgctx    context.Context
-	bgcancel context.CancelFunc
-	bgtasks  sync.WaitGroup
-	closed   bool          // set when Close() is called, used to distinguish user Closing multiple times
-	shut     chan struct{} // closed when shutdown() returns
+	closed bool          // set when Close() is called, used to distinguish user Closing multiple times
+	shut   chan struct{} // closed when shutdown() returns
 
 	recvCloser interface {
 		CloseRecv() error
@@ -45,10 +51,6 @@ type Conn struct {
 	// sendCond.  sender should not be used after bgctx is canceled (Close
 	// is starting).
 	sender Sender
-
-	// openSends is added to before creating a new message (while holding
-	// c.mu) and subtracted from after releasing the message.
-	openSends sync.WaitGroup
 
 	// Tables
 	questions  []*question
@@ -82,6 +84,9 @@ type ErrorReporter interface {
 // NewConn creates a new connection that communications on a given
 // transport.  Closing the connection will close the transport.
 // Passing nil for opts is the same as passing the zero value.
+//
+// Once a connection is created, it will immediately start receiving
+// requests from the transport.
 func NewConn(t Transport, opts *Options) *Conn {
 	bgctx, bgcancel := context.WithCancel(context.Background())
 	c := &Conn{
@@ -95,10 +100,10 @@ func NewConn(t Transport, opts *Options) *Conn {
 		c.bootstrap = opts.BootstrapClient
 		c.reporter = opts.ErrorReporter
 	}
-	c.bgtasks.Add(1)
+	c.tasks.Add(1)
 	go func() {
 		abortErr := c.receive(c.bgctx, t)
-		c.bgtasks.Done()
+		c.tasks.Done()
 
 		c.mu.Lock()
 		select {
@@ -120,8 +125,12 @@ func NewConn(t Transport, opts *Options) *Conn {
 // Bootstrap returns the remote vat's bootstrap interface.  This creates
 // a new client that the caller is responsible for releasing.
 func (c *Conn) Bootstrap(ctx context.Context) *capnp.Client {
-	defer c.mu.Unlock()
 	c.mu.Lock()
+	if !c.startTask() {
+		c.mu.Unlock()
+		return capnp.ErrorClient(disconnected("connection closed"))
+	}
+	defer c.tasks.Done()
 	id := questionID(c.questionID.next())
 	err := c.sendMessage(ctx, func(msg rpccp.Message) error {
 		boot, err := msg.NewBootstrap()
@@ -133,6 +142,7 @@ func (c *Conn) Bootstrap(ctx context.Context) *capnp.Client {
 	})
 	if err != nil {
 		c.questionID.remove(uint32(id))
+		c.mu.Unlock()
 		return capnp.ErrorClient(annotate(err).errorf("bootstrap"))
 	}
 	ctx, cancel := context.WithCancel(ctx)
@@ -142,6 +152,7 @@ func (c *Conn) Bootstrap(ctx context.Context) *capnp.Client {
 		cancel: cancel,
 	})
 	q.bootstrapPromise = cp // safe to write because we're still holding c.mu
+	c.mu.Unlock()
 	return bc
 }
 
@@ -197,16 +208,22 @@ func (c *Conn) Done() <-chan struct{} {
 // c.mu, although it will be released while shutting down, and c.bgctx
 // must not be Done.
 func (c *Conn) shutdown(abortErr error) error {
-	// Mark closed and stop receiving messages.
 	defer close(c.shut)
+
+	// Cancel all work.
 	c.bgcancel()
+	for _, a := range c.answers {
+		if a != nil {
+			a.cancel()
+		}
+	}
 	c.mu.Unlock()
 	rerr := c.recvCloser.CloseRecv()
 
-	// Wait for other tasks to stop.
-	c.bgtasks.Wait()
+	// Wait for work to stop.
+	c.tasks.Wait()
 
-	// Release exported clients and ongoing answers.
+	// Clear all tables, releasing exported clients and unfinished answers.
 	c.mu.Lock()
 	exports := c.exports
 	answers := c.answers
@@ -214,15 +231,8 @@ func (c *Conn) shutdown(abortErr error) error {
 	c.exports = nil
 	c.questions = nil
 	c.answers = nil
-	for _, a := range answers {
-		if a != nil {
-			a.flags |= finishReceived
-			a.cancel()
-			a.s.acquireSender()
-			a.s.finish()
-		}
-	}
 	c.mu.Unlock()
+
 	c.bootstrap.Release()
 	c.bootstrap = nil
 	for _, e := range exports {
@@ -230,12 +240,15 @@ func (c *Conn) shutdown(abortErr error) error {
 			e.client.Release()
 		}
 	}
+	for _, a := range answers {
+		if a != nil {
+			// Because shutdown is now the only task running, no need to
+			// acquire sender lock.
+			a.s.releaseMsg()
+		}
+	}
 
-	// Wait for all other sends to finish.
-	c.openSends.Wait()
-
-	// Send abort message (ignoring error).  No locking needed, since
-	// c.startSend will always return errors after closing bgctx.
+	// Send abort message (ignoring error).
 	if abortErr != nil {
 		// TODO(soon): add timeout
 		msg, send, release, err := c.sender.NewMessage(context.Background())
@@ -367,25 +380,29 @@ func (c *Conn) receive(ctx context.Context, r Receiver) error {
 }
 
 func (c *Conn) handleBootstrap(ctx context.Context, id answerID) error {
-	defer c.mu.Unlock()
 	c.mu.Lock()
 	if c.answers[id] != nil {
+		c.mu.Unlock()
 		return errorf("incoming bootstrap: answer ID %d reused", id)
 	}
 	ans, err := c.newAnswer(ctx, id, func() {})
 	if err != nil {
+		c.mu.Unlock()
 		c.report(annotate(err).errorf("incoming bootstrap"))
 		return nil
 	}
 	if !c.bootstrap.IsValid() {
 		ans.sendException(errors.New(errors.Failed, "", "vat does not expose a public/bootstrap interface"))
+		c.mu.Unlock()
 		return nil
 	}
 	if err := ans.setBootstrap(c.bootstrap.AddRef()); err != nil {
 		ans.sendException(err)
+		c.mu.Unlock()
 		return nil
 	}
 	refs := ans.sendReturn()
+	c.mu.Unlock()
 	if len(refs) > 0 {
 		// Answer cannot possibly encounter a Finish, since we still
 		// haven't returned to receive().
@@ -433,7 +450,6 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 		cancel()
 		return nil
 	}
-	c.bgtasks.Add(1) // will be finished by answer.Return
 	var p parsedCall
 	if err := c.parseCall(&p, call); err != nil {
 		err = annotate(err).errorf("incoming call")
@@ -453,6 +469,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			cancel()
 			return errorf("incoming call: unknown export ID %d", id)
 		}
+		c.tasks.Add(1) // will be finished by answer.Return
 		c.mu.Unlock()
 		pcall := ent.client.RecvCall(callCtx, capnp.Recv{
 			Args:        p.args,
@@ -506,6 +523,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 				return nil
 			}
 			tgt := sub.Interface().Client()
+			c.tasks.Add(1) // will be finished by answer.Return
 			c.mu.Unlock()
 			pcall := tgt.RecvCall(callCtx, capnp.Recv{
 				Args:        p.args,
@@ -518,6 +536,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			// Results not ready, use pipeline caller.
 			tgtAns.pcalls.Add(1)
 			tgt := tgtAns.pcall
+			c.tasks.Add(1) // will be finished by answer.Return
 			c.mu.Unlock()
 			pcall := tgt.PipelineRecv(callCtx, p.transform, capnp.Recv{
 				Args:        p.args,
@@ -832,17 +851,30 @@ func (c *Conn) handleRelease(ctx context.Context, id exportID, count uint32) err
 }
 
 func (c *Conn) handleUnknownMessage(ctx context.Context, recv rpccp.Message) error {
-	defer c.mu.Unlock()
-	c.mu.Lock()
 	c.reportf("unknown message type %v from remote", recv.Which())
+	c.mu.Lock()
 	err := c.sendMessage(ctx, func(msg rpccp.Message) error {
 		return msg.SetUnimplemented(recv)
 	})
+	c.mu.Unlock()
 	if err != nil {
 		c.report(annotate(err).errorf("send unimplemented"))
-		return nil
 	}
 	return nil
+}
+
+// startTask increments c.tasks if c is not shutting down.
+// It returns whether c.tasks was incremented.
+//
+// The caller must be holding onto c.mu.
+func (c *Conn) startTask() bool {
+	select {
+	case <-c.bgctx.Done():
+		return false
+	default:
+		c.tasks.Add(1)
+		return true
+	}
 }
 
 // sendSession manages the lifecycle of an outbound message.
@@ -882,7 +914,6 @@ func (c *Conn) startSend(ctx context.Context) (sendSession, error) {
 		}
 		c.mu.Lock()
 	}
-	c.openSends.Add(1)
 	c.sendCond = make(chan struct{})
 	c.mu.Unlock()
 	msg, send, release, err := c.sender.NewMessage(ctx)
@@ -890,7 +921,6 @@ func (c *Conn) startSend(ctx context.Context) (sendSession, error) {
 		c.mu.Lock()
 		close(c.sendCond)
 		c.sendCond = nil
-		c.openSends.Done()
 		return sendSession{}, errorf("create message: %v", err)
 	}
 	return sendSession{msg, send, c, release}, nil
@@ -916,7 +946,6 @@ func (s sendSession) acquireSender() {
 func (s sendSession) finish() {
 	s.releaseMsg()
 	s.releaseSender()
-	s.c.openSends.Done()
 }
 
 // sendMessage creates a new message on the Sender, calls f to build it,
