@@ -12,6 +12,7 @@ import (
 	"zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/pogs"
 	"zombiezen.com/go/capnproto2/rpc"
+	testcp "zombiezen.com/go/capnproto2/rpc/internal/testcapnp"
 	"zombiezen.com/go/capnproto2/server"
 	rpccp "zombiezen.com/go/capnproto2/std/capnp/rpc"
 )
@@ -49,7 +50,7 @@ func TestSendAbort(t *testing.T) {
 	defer p2.CloseSend()
 	defer p2.CloseRecv()
 	conn := rpc.NewConn(p1, &rpc.Options{
-		ErrorReporter: testErrorReporter{t: t, fail: true},
+		ErrorReporter: testErrorReporter{tb: t, fail: true},
 	})
 
 	ctx := context.Background()
@@ -94,7 +95,7 @@ func TestRecvAbort(t *testing.T) {
 	defer p2.CloseSend()
 	defer p2.CloseRecv()
 	conn := rpc.NewConn(p1, &rpc.Options{
-		ErrorReporter: testErrorReporter{t: t},
+		ErrorReporter: testErrorReporter{tb: t},
 	})
 
 	ctx := context.Background()
@@ -151,7 +152,7 @@ func TestSendBootstrapCall(t *testing.T) {
 	defer p2.CloseSend()
 	defer p2.CloseRecv()
 	conn := rpc.NewConn(p1, &rpc.Options{
-		ErrorReporter: testErrorReporter{t: t},
+		ErrorReporter: testErrorReporter{tb: t},
 	})
 	defer func() {
 		if err := conn.Close(); err != nil {
@@ -367,7 +368,7 @@ func TestSendBootstrapPipelineCall(t *testing.T) {
 	defer p2.CloseSend()
 	defer p2.CloseRecv()
 	conn := rpc.NewConn(p1, &rpc.Options{
-		ErrorReporter: testErrorReporter{t: t},
+		ErrorReporter: testErrorReporter{tb: t},
 	})
 	defer func() {
 		if err := conn.Close(); err != nil {
@@ -556,7 +557,7 @@ func TestRecvBootstrapCall(t *testing.T) {
 	defer p2.CloseRecv()
 	conn := rpc.NewConn(p1, &rpc.Options{
 		BootstrapClient: srv,
-		ErrorReporter:   testErrorReporter{t: t},
+		ErrorReporter:   testErrorReporter{tb: t},
 	})
 	defer func() {
 		if err := conn.Close(); err != nil {
@@ -763,7 +764,7 @@ func TestRecvBootstrapPipelineCall(t *testing.T) {
 	defer p2.CloseRecv()
 	conn := rpc.NewConn(p1, &rpc.Options{
 		BootstrapClient: srv,
-		ErrorReporter:   testErrorReporter{t: t},
+		ErrorReporter:   testErrorReporter{tb: t},
 	})
 	defer func() {
 		if err := conn.Close(); err != nil {
@@ -900,7 +901,7 @@ func TestCallOnClosedConn(t *testing.T) {
 	defer p2.CloseSend()
 	defer p2.CloseRecv()
 	conn := rpc.NewConn(p1, &rpc.Options{
-		ErrorReporter: testErrorReporter{t: t},
+		ErrorReporter: testErrorReporter{tb: t},
 	})
 	closed := false
 	defer func() {
@@ -1056,7 +1057,7 @@ func TestRecvCancel(t *testing.T) {
 	defer p2.CloseRecv()
 	conn := rpc.NewConn(p1, &rpc.Options{
 		BootstrapClient: srv,
-		ErrorReporter:   testErrorReporter{t: t},
+		ErrorReporter:   testErrorReporter{tb: t},
 	})
 	closed := false
 	defer func() {
@@ -1210,7 +1211,7 @@ func TestSendCancel(t *testing.T) {
 	defer p2.CloseSend()
 	defer p2.CloseRecv()
 	conn := rpc.NewConn(p1, &rpc.Options{
-		ErrorReporter: testErrorReporter{t: t},
+		ErrorReporter: testErrorReporter{tb: t},
 	})
 	defer func() {
 		if err := conn.Close(); err != nil {
@@ -1395,6 +1396,63 @@ func TestSendCancel(t *testing.T) {
 	}
 }
 
+func BenchmarkPingPong(b *testing.B) {
+	p1, p2 := newPipe(1)
+	srv := testcp.PingPong_ServerToClient(pingPongServer{}, nil)
+	conn1 := rpc.NewConn(p2, &rpc.Options{
+		ErrorReporter:   testErrorReporter{tb: b},
+		BootstrapClient: srv.Client,
+	})
+	defer func() {
+		<-conn1.Done()
+		if err := conn1.Close(); err != nil {
+			b.Error("conn1.Close:", err)
+		}
+	}()
+	conn2 := rpc.NewConn(p1, &rpc.Options{
+		ErrorReporter: testErrorReporter{tb: b},
+	})
+	defer func() {
+		if err := conn2.Close(); err != nil {
+			b.Error("conn2.Close:", err)
+		}
+	}()
+
+	ctx := context.Background()
+	client := testcp.PingPong{Client: conn2.Bootstrap(ctx)}
+	defer client.Client.Release()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		ans, release := client.EchoNum(ctx, func(args testcp.PingPong_echoNum_Params) error {
+			args.SetN(42)
+			return nil
+		})
+		result, err := ans.Struct()
+		if err != nil {
+			release()
+			b.Errorf("call failed on iteration %d: %v", i, err)
+			break
+		}
+		n := result.N()
+		release()
+		if n != 42 {
+			b.Errorf("n = %d; want 42", n)
+			break
+		}
+	}
+}
+
+type pingPongServer struct{}
+
+func (pingPongServer) EchoNum(ctx context.Context, call testcp.PingPong_echoNum) error {
+	out, err := call.AllocResults()
+	if err != nil {
+		return err
+	}
+	out.SetN(call.Args().N())
+	return nil
+}
+
 type shutdownFunc func()
 
 func (f shutdownFunc) Shutdown() { f() }
@@ -1517,13 +1575,16 @@ func canceledContext(parent context.Context) context.Context {
 }
 
 type testErrorReporter struct {
-	t    *testing.T
+	tb interface {
+		Log(...interface{})
+		Fail()
+	}
 	fail bool
 }
 
 func (r testErrorReporter) ReportError(e error) {
-	r.t.Log("conn error:", e)
+	r.tb.Log("conn error:", e)
 	if r.fail {
-		r.t.Fail()
+		r.tb.Fail()
 	}
 }
