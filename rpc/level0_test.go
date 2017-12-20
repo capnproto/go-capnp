@@ -585,36 +585,9 @@ func TestRecvBootstrapCall(t *testing.T) {
 
 	// 2. Read return
 	var bootstrapImportID uint32
-	{
-		msg, release, err := p2.RecvMessage(ctx)
-		if err != nil {
-			t.Fatal("p2.RecvMessage:", err)
-		}
-		defer release()
-		var rmsg rpcMessage
-		if err := pogs.Extract(&rmsg, rpccp.Message_TypeID, msg.Struct); err != nil {
-			t.Fatal("pogs.Extract(p2.RecvMessage(ctx)):", err)
-		}
-		if rmsg.Which != rpccp.Message_Which_return {
-			t.Fatalf("Received %v message; want return", rmsg.Which)
-		}
-		if rmsg.Return.AnswerID != bootstrapQID {
-			t.Errorf("Received return for answer %d; want %d", rmsg.Return.AnswerID, bootstrapQID)
-		}
-		if rmsg.Return.Which != rpccp.Return_Which_results {
-			t.Fatalf("return which = %v; want results", rmsg.Return.Which)
-		}
-		desc, err := payloadCapability(rmsg.Return.Results)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if desc.Which != rpccp.CapDescriptor_Which_senderHosted {
-			t.Fatalf("Received %v capability for bootstrap; want senderHosted", desc.Which)
-		}
-		if len(rmsg.Return.Results.CapTable) > 1 {
-			t.Errorf("Received bootstrap return with %d capability descriptors; want 1", len(rmsg.Return.Results.CapTable))
-		}
-		bootstrapImportID = desc.SenderHosted
+	bootstrapImportID, err := recvBootstrapReturn(ctx, p2, bootstrapQID)
+	if err != nil {
+		t.Fatal("p2.RecvMessage:", err)
 	}
 
 	// 3. Write finish
@@ -790,35 +763,9 @@ func TestRecvBootstrapPipelineCall(t *testing.T) {
 	}
 
 	// 2. Read return
-	{
-		msg, release, err := p2.RecvMessage(ctx)
-		if err != nil {
-			t.Fatal("p2.RecvMessage:", err)
-		}
-		defer release()
-		var rmsg rpcMessage
-		if err := pogs.Extract(&rmsg, rpccp.Message_TypeID, msg.Struct); err != nil {
-			t.Fatal("pogs.Extract(p2.RecvMessage(ctx)):", err)
-		}
-		if rmsg.Which != rpccp.Message_Which_return {
-			t.Fatalf("Received %v message; want return", rmsg.Which)
-		}
-		if rmsg.Return.AnswerID != bootstrapQID {
-			t.Errorf("Received return for answer %d; want %d", rmsg.Return.AnswerID, bootstrapQID)
-		}
-		if rmsg.Return.Which != rpccp.Return_Which_results {
-			t.Fatalf("return which = %v; want results", rmsg.Return.Which)
-		}
-		desc, err := payloadCapability(rmsg.Return.Results)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if desc.Which != rpccp.CapDescriptor_Which_senderHosted {
-			t.Fatalf("Received %v capability for bootstrap; want senderHosted", desc.Which)
-		}
-		if len(rmsg.Return.Results.CapTable) > 1 {
-			t.Errorf("Received bootstrap return with %d capability descriptors; want 1", len(rmsg.Return.Results.CapTable))
-		}
+	_, err := recvBootstrapReturn(ctx, p2, bootstrapQID)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	// 3. Write call
@@ -1487,19 +1434,6 @@ type rpcCapDescriptor struct {
 	ReceiverAnswer *rpcPromisedAnswer
 }
 
-// payloadCapability returns the capability descriptor pointed to by a
-// payload's content.
-func payloadCapability(payload *rpcPayload) (*rpcCapDescriptor, error) {
-	iface := payload.Content.Interface()
-	if !iface.IsValid() {
-		return nil, errors.New("parse payload: content is not an interface pointer")
-	}
-	if int64(iface.Capability()) >= int64(len(payload.CapTable)) {
-		return nil, fmt.Errorf("parse payload: content points to capability %d (table has %d entries)", iface.Capability(), len(payload.CapTable))
-	}
-	return &payload.CapTable[iface.Capability()], nil
-}
-
 type rpcPromisedAnswer struct {
 	QuestionID uint32 `capnp:"questionId"`
 	Transform  []rpcPromisedAnswerOp
@@ -1508,6 +1442,41 @@ type rpcPromisedAnswer struct {
 type rpcPromisedAnswerOp struct {
 	Which           rpccp.PromisedAnswer_Op_Which
 	GetPointerField uint16
+}
+
+func recvBootstrapReturn(ctx context.Context, r rpc.Receiver, qid uint32) (uint32, error) {
+	msg, release, err := r.RecvMessage(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer release()
+	var rmsg rpcMessage
+	if err := pogs.Extract(&rmsg, rpccp.Message_TypeID, msg.Struct); err != nil {
+		return 0, fmt.Errorf("extract received RPC message: %v", err)
+	}
+	if rmsg.Which != rpccp.Message_Which_return {
+		return 0, fmt.Errorf("received %v message; want return", rmsg.Which)
+	}
+	if rmsg.Return.AnswerID != qid {
+		return 0, fmt.Errorf("received return for answer %d; want %d (bootstrap)", rmsg.Return.AnswerID, qid)
+	}
+	if rmsg.Return.Which != rpccp.Return_Which_results {
+		return 0, fmt.Errorf("bootstrap return which = %v; want results", rmsg.Return.Which)
+	}
+	iface := rmsg.Return.Results.Content.Interface()
+	if !iface.IsValid() {
+		return 0, errors.New("parse bootstrap return: content is not an interface pointer")
+	}
+	ctab := rmsg.Return.Results.CapTable
+	if iface.Capability() != 0 || len(ctab) != 1 {
+		// This is a bit more restrictive than necessary, but we don't need
+		// the flexibility.
+		return 0, fmt.Errorf("parse bootstrap return: capability index, table length = %d, %d; want 0, 1", iface.Capability(), len(ctab))
+	}
+	if ctab[0].Which != rpccp.CapDescriptor_Which_senderHosted {
+		return 0, fmt.Errorf("parse bootstrap return: received %v capability; want senderHosted", ctab[0].Which)
+	}
+	return ctab[0].SenderHosted, nil
 }
 
 func canceledContext(parent context.Context) context.Context {
