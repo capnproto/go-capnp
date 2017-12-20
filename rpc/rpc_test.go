@@ -53,8 +53,18 @@ func TestSendAbort(t *testing.T) {
 	})
 
 	ctx := context.Background()
+	select {
+	case <-conn.Done():
+		t.Error("conn.Done closed before Close")
+	default:
+	}
 	if err := conn.Close(); err != nil {
 		t.Error("conn.Close():", err)
+	}
+	select {
+	case <-conn.Done():
+	default:
+		t.Error("conn.Done open after Close")
 	}
 	msg, release, err := p2.RecvMessage(ctx)
 	if err != nil {
@@ -88,6 +98,11 @@ func TestRecvAbort(t *testing.T) {
 	})
 
 	ctx := context.Background()
+	select {
+	case <-conn.Done():
+		t.Error("conn.Done closed before receiving abort")
+	default:
+	}
 	err := sendMessage(ctx, p2, &rpcMessage{
 		Which: rpccp.Message_Which_abort,
 		Abort: &rpcException{
@@ -104,7 +119,7 @@ func TestRecvAbort(t *testing.T) {
 	if err := boot.Resolve(ctx); err != nil {
 		t.Error("bootstrap resolution:", err)
 	}
-	ans, finishCall := boot.SendCall(ctx, capnp.Send{
+	ans, releaseCall := boot.SendCall(ctx, capnp.Send{
 		Method: capnp.Method{
 			InterfaceID: interfaceID,
 			MethodID:    methodID,
@@ -116,11 +131,12 @@ func TestRecvAbort(t *testing.T) {
 		},
 	})
 	_, err = ans.Struct()
-	finishCall()
+	releaseCall()
 	if !capnp.IsDisconnected(err) {
 		t.Errorf("call error = %v; want disconnected", err)
 	}
 	boot.Release()
+	<-conn.Done()
 	if err := conn.Close(); err != nil {
 		t.Errorf("conn.Close() = %v; want <nil>", err)
 	}

@@ -186,6 +186,12 @@ func (c *Conn) Close() error {
 	}
 }
 
+// Done returns a channel that is closed after the connection is
+// shut down.
+func (c *Conn) Done() <-chan struct{} {
+	return c.shut
+}
+
 // shutdown tears down the connection and transport, optionally sending
 // an abort message before closing.  The caller must be holding onto
 // c.mu, although it will be released while shutting down, and c.bgctx
