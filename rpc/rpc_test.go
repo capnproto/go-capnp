@@ -42,9 +42,9 @@ func TestMain(m *testing.M) {
 	os.Exit(status)
 }
 
-// TestCloseAbort calls Close on a new connection, verifying that it
+// TestSendAbort calls Close on a new connection, verifying that it
 // sends an Abort message and it reports no errors.  Level 0 requirement.
-func TestCloseAbort(t *testing.T) {
+func TestSendAbort(t *testing.T) {
 	p1, p2 := newPipe(1)
 	defer p2.CloseSend()
 	defer p2.CloseRecv()
@@ -126,11 +126,11 @@ func TestRecvAbort(t *testing.T) {
 	}
 }
 
-// TestBootstrapCall calls Bootstrap, sends back an export, then makes
-// an RPC on the returned capability.  It checks to see that the correct
-// messages were sent on the wire and that the correct return value came
-// back.  Level 0 requirement.
-func TestBootstrapCall(t *testing.T) {
+// TestSendBootstrapCall calls Bootstrap, sends back an export, then
+// makes an RPC on the returned capability.  It checks to see that the
+// correct messages were sent on the wire and that the correct return
+// value came back.  Level 0 requirement.
+func TestSendBootstrapCall(t *testing.T) {
 	p1, p2 := newPipe(1)
 	defer p2.CloseSend()
 	defer p2.CloseRecv()
@@ -344,9 +344,9 @@ func TestBootstrapCall(t *testing.T) {
 	}
 }
 
-// TestBootstrapPipelineCall calls Bootstrap and makes an RPC on the
+// TestSendBootstrapPipelineCall calls Bootstrap and makes an RPC on the
 // returned capability without resolving the client.  Level 0 requirement.
-func TestBootstrapPipelineCall(t *testing.T) {
+func TestSendBootstrapPipelineCall(t *testing.T) {
 	p1, p2 := newPipe(1)
 	defer p2.CloseSend()
 	defer p2.CloseRecv()
@@ -509,11 +509,11 @@ func TestBootstrapPipelineCall(t *testing.T) {
 	}
 }
 
-// TestBootstrapClient sets Options.BootstrapClient on NewConn,
+// TestRecvBootstrapCall sets Options.BootstrapClient on NewConn,
 // bootstraps, waits for a return, then sends a call to the RPC
 // connection.  It checks that the correct messages were sent and that
 // the return values are correct.  Level 0 requirement.
-func TestBootstrapClient(t *testing.T) {
+func TestRecvBootstrapCall(t *testing.T) {
 	srvShutdown := make(chan struct{})
 	srv := capnp.NewClient(server.New(
 		[]server.Method{
@@ -715,12 +715,12 @@ func TestBootstrapClient(t *testing.T) {
 	}
 }
 
-// TestPromisedBootstrapAnswerCall sets Options.BootstrapClient on
+// TestRecvBootstrapPipelineCall sets Options.BootstrapClient on
 // NewConn, bootstraps, waits for a return, then sends a call on the
 // promised answer without sending a finish.  It checks that the correct
 // messages were sent and that the return values are correct.  Level 0
 // requirement.
-func TestPromisedBootstrapAnswerCall(t *testing.T) {
+func TestRecvBootstrapPipelineCall(t *testing.T) {
 	srvShutdown := make(chan struct{})
 	srv := capnp.NewClient(server.New(
 		[]server.Method{
@@ -876,6 +876,9 @@ func TestPromisedBootstrapAnswerCall(t *testing.T) {
 	}
 }
 
+// TestCallOnClosedConn obtains the bootstrap capability, closes the
+// connection, then attempts to make a call on the capability, verifying
+// that the call returns a disconnected error.  Level 0 requirement.
 func TestCallOnClosedConn(t *testing.T) {
 	p1, p2 := newPipe(1)
 	defer p2.CloseSend()
@@ -993,10 +996,10 @@ func TestCallOnClosedConn(t *testing.T) {
 	}
 }
 
-// TestServerCancel makes a call, sends a finish before it returns, then
+// TestRecvCancel makes a call, sends a finish before it returns, then
 // checks to see whether the call's Context was canceled and whether the
 // capability the call returned is released.  Level 0 requirement.
-func TestServerCancel(t *testing.T) {
+func TestRecvCancel(t *testing.T) {
 	callCancel := make(chan struct{})
 	retcapShutdown := make(chan struct{})
 	srv := capnp.NewClient(server.New([]server.Method{
@@ -1184,9 +1187,9 @@ func TestServerCancel(t *testing.T) {
 	}
 }
 
-// TestClientCancel makes a call, cancels the Context, then checks to
+// TestSendCancel makes a call, cancels the Context, then checks to
 // see whether a finish message was sent.  Level 0 requirement.
-func TestClientCancel(t *testing.T) {
+func TestSendCancel(t *testing.T) {
 	p1, p2 := newPipe(1)
 	defer p2.CloseSend()
 	defer p2.CloseRecv()
