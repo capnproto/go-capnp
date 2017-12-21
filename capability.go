@@ -375,17 +375,33 @@ func (c *Client) Brand() interface{} {
 // should not be used to compare clients.  Use IsSame to compare clients
 // for equality.
 func (c *Client) String() string {
-	h, released, resolved := c.peek()
-	if released {
-		return "<released client>"
-	}
-	if h == nil {
+	if c == nil {
 		return "<nil>"
 	}
-	if !resolved {
-		return fmt.Sprintf("<unresolved client %p>", h)
+	c.mu.Lock()
+	if c.released {
+		c.mu.Unlock()
+		return "<released client>"
 	}
-	return fmt.Sprintf("<client %p>", h)
+	if c.h == nil {
+		c.mu.Unlock()
+		return "<nil>"
+	}
+	c.h.mu.Lock()
+	c.h = resolveHook(c.h)
+	if c.h == nil {
+		c.mu.Unlock()
+		return "<nil>"
+	}
+	var s string
+	if c.h.isResolved() {
+		s = fmt.Sprintf("<client %T@%p>", c.h.ClientHook, c.h)
+	} else {
+		s = fmt.Sprintf("<unresolved client %T@%p>", c.h.ClientHook, c.h)
+	}
+	c.h.mu.Unlock()
+	c.mu.Unlock()
+	return s
 }
 
 // Release releases a capability reference.  If this is the last
