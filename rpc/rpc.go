@@ -522,7 +522,11 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 				cancel()
 				return nil
 			}
-			tgt := sub.Interface().Client()
+			iface := sub.Interface()
+			tgt := iface.Client()
+			if sub.IsValid() && !iface.IsValid() {
+				tgt = capnp.ErrorClient(fail("not a capability"))
+			}
 			c.tasks.Add(1) // will be finished by answer.Return
 			c.mu.Unlock()
 			pcall := tgt.RecvCall(callCtx, capnp.Recv{

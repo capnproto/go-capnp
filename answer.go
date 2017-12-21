@@ -758,7 +758,11 @@ func (r resolution) client(transform []PipelineOp) *Client {
 	if err != nil {
 		return ErrorClient(err)
 	}
-	return p.Interface().Client()
+	iface := p.Interface()
+	if p.IsValid() && !iface.IsValid() {
+		return ErrorClient(newError("not a capability"))
+	}
+	return iface.Client()
 }
 
 // clientPath is an encoded version of a list of pipeline operations.
