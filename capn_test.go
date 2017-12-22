@@ -725,6 +725,112 @@ func TestWriteDoubleFarPointer(t *testing.T) {
 	}
 }
 
+func TestSetInterfacePtr(t *testing.T) {
+	t.Run("SameMessage", func(t *testing.T) {
+		msg, seg, err := NewMessage(SingleSegment(nil))
+		if err != nil {
+			t.Fatal("NewMessage:", err)
+		}
+		msg.AddCap(nil) // just to make the capability ID below non-zero
+		root, err := NewRootStruct(seg, ObjectSize{PointerCount: 2})
+		if err != nil {
+			t.Fatal("NewRootStruct:", err)
+		}
+		hook := new(dummyHook)
+		client := NewClient(hook)
+		id := msg.AddCap(client)
+		iface := NewInterface(seg, id)
+		defer func() {
+			for _, c := range msg.CapTable {
+				c.Release()
+			}
+			if hook.shutdowns == 0 {
+				t.Error("client leaked")
+			}
+		}()
+
+		if err := root.SetPtr(0, iface.ToPtr()); err != nil {
+			t.Fatal("root.SetPtr(0, iface.ToPtr()):", err)
+		}
+		ptr0, err := root.Ptr(0)
+		if err != nil {
+			t.Fatal("root.Ptr(0):", err)
+		}
+		iface0 := ptr0.Interface()
+		if !iface0.IsValid() {
+			t.Error("root.Ptr(0) is not an interface")
+		} else if iface0.Capability() != id {
+			t.Errorf("root.Ptr(0).Interface().Capability() = %d; want %d", iface0.Capability(), id)
+		}
+
+		if err := root.SetPtr(1, iface.ToPtr()); err != nil {
+			t.Fatal("root.SetPtr(1, iface.ToPtr()):", err)
+		}
+		ptr1, err := root.Ptr(1)
+		if err != nil {
+			t.Fatal("root.Ptr(1):", err)
+		}
+		iface1 := ptr1.Interface()
+		if !iface1.IsValid() {
+			t.Error("root.Ptr(1) is not an interface")
+		} else if iface1.Capability() != id {
+			t.Errorf("root.Ptr(1).Interface().Capability() = %d; want %d", iface1.Capability(), id)
+		}
+	})
+	t.Run("DifferentMessages", func(t *testing.T) {
+		msg1 := &Message{Arena: SingleSegment(nil)}
+		seg1, err := msg1.Segment(0)
+		if err != nil {
+			t.Fatal("msg1.Segment(0):", err)
+		}
+		msg2, seg2, err := NewMessage(SingleSegment(nil))
+		if err != nil {
+			t.Fatal("NewMessage:", err)
+		}
+		root, err := NewRootStruct(seg2, ObjectSize{PointerCount: 1})
+		if err != nil {
+			t.Fatal("NewRootStruct:", err)
+		}
+		defer func() {
+			for _, c := range msg1.CapTable {
+				c.Release()
+			}
+			for _, c := range msg2.CapTable {
+				c.Release()
+			}
+		}()
+
+		hook := new(dummyHook)
+		client := NewClient(hook)
+		iface1 := NewInterface(seg1, msg1.AddCap(client))
+		if err := root.SetPtr(0, iface1.ToPtr()); err != nil {
+			t.Fatal("root.SetPtr(0, iface1.ToPtr()):", err)
+		}
+		ptr, err := root.Ptr(0)
+		if err != nil {
+			t.Fatal("root.Ptr(0):", err)
+		}
+		iface2 := ptr.Interface()
+		if !iface2.Client().IsSame(iface1.Client()) {
+			t.Errorf("root.Ptr(0).Interface().Client() = %v; want %v", iface2.Client(), iface1.Client())
+		}
+		for _, c := range msg1.CapTable {
+			c.Release()
+		}
+		msg1.CapTable = nil
+		if hook.shutdowns > 0 {
+			t.Error("copying interface across messages did not add reference")
+		}
+		for _, c := range msg2.CapTable {
+			c.Release()
+		}
+		msg2.CapTable = nil
+		if hook.shutdowns == 0 {
+			t.Error("client not shut down after releasing both message capability tables")
+		}
+	})
+}
+
 func TestEqual(t *testing.T) {
 	msg, seg, _ := NewMessage(SingleSegment(nil))
 	emptyStruct1, _ := NewStruct(seg, ObjectSize{})
