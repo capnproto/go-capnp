@@ -100,7 +100,8 @@ func NewMessage(arena Arena) (msg *Message, first *Segment, err error) {
 
 // Reset resets a message to use a different arena, allowing a single
 // Message to be reused for reading multiple messages.  This invalidates
-// any existing pointers in the Message, so use with caution.
+// any existing pointers in the Message, so use with caution.  All
+// clients in the message's capability table will be released.
 func (m *Message) Reset(arena Arena) {
 	m.mu.Lock()
 	m.segs = nil
@@ -108,7 +109,9 @@ func (m *Message) Reset(arena Arena) {
 	m.mu.Unlock()
 
 	m.Arena = arena
-	m.ClearCaps()
+	for _, c := range m.CapTable {
+		c.Release()
+	}
 	m.CapTable = nil
 	m.rlimitInit.Do(func() {})
 	m.initReadLimit()
@@ -150,17 +153,6 @@ func (m *Message) ResetReadLimit(limit uint64) {
 func (m *Message) Unread(sz Size) {
 	m.rlimitInit.Do(m.initReadLimit)
 	atomic.AddUint64(&m.rlimit, uint64(sz))
-}
-
-// ClearCaps releases all capabilities in the message's table and sets
-// them to nil.  This does not change the size of the table.
-func (m *Message) ClearCaps() {
-	for _, c := range m.CapTable {
-		c.Release()
-	}
-	for i := range m.CapTable {
-		m.CapTable[i] = nil
-	}
 }
 
 // Root returns the pointer to the message's root object.
