@@ -15,12 +15,13 @@ import (
 type Sender interface {
 	// NewMessage allocates a new message to be sent over the transport.
 	// The caller must call the release function when it no longer needs
-	// to reference the message.  Before release is called, send may be
+	// to reference the message.  Before releasing the message, send may be
 	// called at most once to send the mssage, taking its cancelation and
 	// deadline from ctx.
 	//
-	// Messages returned by NewMessage must have a nil CapTable.  release
-	// must release all clients in the CapTable.
+	// Messages returned by NewMessage must have a nil CapTable.
+	// The caller may modify the CapTable before sending it, but the
+	// message's CapTable must be nil before it is sent or released.
 	//
 	// The Arena in the returned message should be fast at allocating new
 	// segments.
@@ -39,7 +40,8 @@ type Receiver interface {
 	// called or CloseRecv is called.
 	//
 	// Messages returned by RecvMessage must have a nil CapTable.
-	// The caller may mutate the CapTable.
+	// The caller may modify the CapTable, but the message's CapTable must
+	// be nil before it is released.
 	//
 	// The Arena in the returned message should not fetch segments lazily;
 	// the Arena should be fast to access other segments.

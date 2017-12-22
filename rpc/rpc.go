@@ -242,6 +242,7 @@ func (c *Conn) shutdown(abortErr error) error {
 	}
 	for _, a := range answers {
 		if a != nil {
+			releaseList(a.resultCapTable).release()
 			// Because shutdown is now the only task running, no need to
 			// acquire sender lock.
 			a.s.releaseMsg()
@@ -392,21 +393,24 @@ func (c *Conn) handleBootstrap(ctx context.Context, id answerID) error {
 		return nil
 	}
 	if !c.bootstrap.IsValid() {
-		ans.sendException(errors.New(errors.Failed, "", "vat does not expose a public/bootstrap interface"))
+		rl := ans.sendException(errors.New(errors.Failed, "", "vat does not expose a public/bootstrap interface"))
 		c.mu.Unlock()
+		rl.release()
 		return nil
 	}
 	if err := ans.setBootstrap(c.bootstrap.AddRef()); err != nil {
-		ans.sendException(err)
+		rl := ans.sendException(err)
 		c.mu.Unlock()
+		rl.release()
 		return nil
 	}
-	refs := ans.sendReturn()
+	rl, err := ans.sendReturn()
 	c.mu.Unlock()
-	if len(refs) > 0 {
+	rl.release()
+	if err != nil {
 		// Answer cannot possibly encounter a Finish, since we still
 		// haven't returned to receive().
-		panic("unreachable")
+		panic(err)
 	}
 	return nil
 }
@@ -451,20 +455,32 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 		return nil
 	}
 	var p parsedCall
-	if err := c.parseCall(&p, call); err != nil {
+	if err := c.parseCall(&p, call); err != nil { // parseCall sets CapTable
 		err = annotate(err).errorf("incoming call")
-		ans.sendException(err)
+		rl := ans.sendException(err)
 		c.mu.Unlock()
 		cancel()
+		rl.release()
+		clearCapTable(call.Message())
 		releaseCall()
 		c.report(err)
 		return nil
+	}
+	released := false
+	releaseArgs := func() {
+		if released {
+			return
+		}
+		released = true
+		clearCapTable(call.Message())
+		releaseCall()
 	}
 	switch p.targetWhich {
 	case rpccp.MessageTarget_Which_importedCap:
 		ent := c.findExport(p.importedCap)
 		if ent == nil {
 			c.mu.Unlock()
+			clearCapTable(call.Message())
 			releaseCall()
 			cancel()
 			return errorf("incoming call: unknown export ID %d", id)
@@ -474,7 +490,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 		pcall := ent.client.RecvCall(callCtx, capnp.Recv{
 			Args:        p.args,
 			Method:      p.method,
-			ReleaseArgs: releaseCall,
+			ReleaseArgs: releaseArgs,
 			Returner:    ans,
 		})
 		// Place PipelineCaller into answer.  Since the receive goroutine is
@@ -486,6 +502,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 		tgtAns := c.answers[p.promisedAnswer]
 		if tgtAns == nil {
 			c.mu.Unlock()
+			clearCapTable(call.Message())
 			releaseCall()
 			cancel()
 			return errorf("incoming call: unknown target answer ID %d", p.promisedAnswer)
@@ -493,8 +510,10 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 		if tgtAns.flags&resultsReady != 0 {
 			// Results ready.
 			if tgtAns.err != nil {
-				ans.sendException(tgtAns.err)
+				rl := ans.sendException(tgtAns.err)
 				c.mu.Unlock()
+				rl.release()
+				clearCapTable(call.Message())
 				releaseCall()
 				cancel()
 				return nil
@@ -505,9 +524,11 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			// happening on the receive goroutine.
 			content, err := tgtAns.results.Content()
 			if err != nil {
-				err = errorf("incoming call: read results from target answer: %v")
-				ans.sendException(err)
+				err = errorf("incoming call: read results from target answer: %v", err)
+				rl := ans.sendException(err)
 				c.mu.Unlock()
+				rl.release()
+				clearCapTable(call.Message())
 				releaseCall()
 				cancel()
 				c.report(err)
@@ -516,23 +537,29 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			sub, err := capnp.Transform(content, p.transform)
 			if err != nil {
 				// Not reporting, as this is the caller's fault.
-				ans.sendException(err)
+				rl := ans.sendException(err)
 				c.mu.Unlock()
+				rl.release()
 				releaseCall()
 				cancel()
 				return nil
 			}
 			iface := sub.Interface()
-			tgt := iface.Client()
-			if sub.IsValid() && !iface.IsValid() {
+			var tgt *capnp.Client
+			switch {
+			case sub.IsValid() && !iface.IsValid():
 				tgt = capnp.ErrorClient(fail("not a capability"))
+			case !iface.IsValid() || int64(iface.Capability()) >= int64(len(tgtAns.resultCapTable)):
+				tgt = nil
+			default:
+				tgt = tgtAns.resultCapTable[iface.Capability()]
 			}
 			c.tasks.Add(1) // will be finished by answer.Return
 			c.mu.Unlock()
 			pcall := tgt.RecvCall(callCtx, capnp.Recv{
 				Args:        p.args,
 				Method:      p.method,
-				ReleaseArgs: releaseCall,
+				ReleaseArgs: releaseArgs,
 				Returner:    ans,
 			})
 			ans.setPipelineCaller(pcall)
@@ -545,7 +572,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			pcall := tgt.PipelineRecv(callCtx, p.transform, capnp.Recv{
 				Args:        p.args,
 				Method:      p.method,
-				ReleaseArgs: releaseCall,
+				ReleaseArgs: releaseArgs,
 				Returner:    ans,
 			})
 			tgtAns.pcalls.Done()
@@ -668,7 +695,7 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 		}
 		return nil
 	}
-	pr := c.parseReturn(ret)
+	pr := c.parseReturn(ret) // fills in CapTable
 	if pr.parseFailed {
 		c.report(annotate(pr.err).errorf("incoming return"))
 	}
@@ -679,6 +706,7 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 		q.p.Fulfill(pr.result)
 		q.bootstrapPromise.Fulfill(q.p.Answer().Client())
 		q.p.ReleaseClients()
+		clearCapTable(pr.result.Message())
 		releaseRet()
 		q.done()
 		c.mu.Lock()
@@ -690,6 +718,7 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 		q.p.Reject(pr.err)
 		q.bootstrapPromise.Fulfill(q.p.Answer().Client())
 		q.p.ReleaseClients()
+		clearCapTable(pr.result.Message())
 		releaseRet()
 		q.done()
 		c.mu.Lock()
@@ -699,11 +728,16 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 		q.release = func() {}
 		c.mu.Unlock()
 		q.p.Reject(pr.err)
+		clearCapTable(pr.result.Message())
 		releaseRet()
 		q.done()
 		c.mu.Lock()
 	default:
-		q.release = releaseRet
+		m := ret.Message()
+		q.release = func() {
+			clearCapTable(m)
+			releaseRet()
+		}
 		c.mu.Unlock()
 		q.p.Fulfill(pr.result)
 		q.done()
@@ -778,22 +812,17 @@ func (c *Conn) handleFinish(ctx context.Context, id answerID, releaseResultCaps 
 		return errorf("incoming finish: answer ID %d already received finish", id)
 	}
 	ans.flags |= finishReceived
+	if releaseResultCaps {
+		ans.flags |= releaseResultCapsFlag
+	}
 	ans.cancel()
 	if ans.flags&returnSent == 0 {
-		if releaseResultCaps {
-			ans.flags |= releaseResultCapsFlag
-		}
 		c.mu.Unlock()
 		return nil
 	}
 	ans.s.acquireSender()
 	ans.s.finish()
-	delete(c.answers, id)
-	if !releaseResultCaps {
-		c.mu.Unlock()
-		return nil
-	}
-	rl, err := c.releaseExports(ans.exportRefs)
+	rl, err := ans.destroy()
 	c.mu.Unlock()
 	rl.release()
 	if err != nil {
@@ -1009,6 +1038,11 @@ func (gen *idgen) next() uint32 {
 
 func (gen *idgen) remove(i uint32) {
 	gen.free = append(gen.free, i)
+}
+
+func clearCapTable(msg *capnp.Message) {
+	releaseList(msg.CapTable).release()
+	msg.CapTable = nil
 }
 
 func fail(msg string) error {

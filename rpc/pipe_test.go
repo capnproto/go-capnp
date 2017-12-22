@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"runtime"
 	"strconv"
+	"sync"
 	"testing"
 
 	"zombiezen.com/go/capnproto2"
@@ -46,56 +47,91 @@ func (p *pipe) NewMessage(ctx context.Context) (_ rpccp.Message, send func() err
 	}
 	p.msgs[caller] = struct{}{}
 
-	// Variables don't need to be synchronized, since a Sender must be
-	// used by one goroutine.
-	done, sent := false, false
+	// Variables aren't synchronized because the Transport interface does
+	// not require them to be.  Should trigger race detector.
+	sent, sendDone, recvDone := false, false, false
+	// Since refs is used by Sender and Receiver, then it must be synchronized.
+	var (
+		refsMu sync.Mutex
+		refs   int = 1
+	)
 	send = func() error {
-		if done {
+		if sendDone {
 			panic("send after release")
 		}
 		if sent {
 			panic("double send")
 		}
+		if msg.CapTable != nil {
+			panic("send with non-nil CapTable")
+		}
 		sent = true
-		recvMsg, _ := cloneMessage(msg)
-		recvRPCMsg, _ := rpccp.ReadRootMessage(recvMsg)
-		pm := pipeMsg{recvRPCMsg, func() { recvMsg.Reset(nil) }}
+		refsMu.Lock()
+		refs++
+		refsMu.Unlock()
+		pm := pipeMsg{
+			msg: rmsg,
+			release: func() {
+				if msg.CapTable != nil {
+					panic("received message released without clearing CapTable")
+				}
+				if recvDone {
+					return
+				}
+				recvDone = true
+				refsMu.Lock()
+				r := refs - 1
+				refs = r
+				refsMu.Unlock()
+				if r == 0 {
+					msg.Reset(nil)
+				}
+			},
+		}
 		select {
 		case p.w <- pm:
 			return nil
 		case <-p.wc:
 			p.w = nil
+			refsMu.Lock()
+			r := refs - 1
+			refs = r
+			refsMu.Unlock()
+			if r == 0 {
+				msg.Reset(nil)
+			}
 			return errors.New("rpc pipe: send on closed pipe")
 		case <-ctx.Done():
+			refsMu.Lock()
+			r := refs - 1
+			refs = r
+			refsMu.Unlock()
+			if r == 0 {
+				msg.Reset(nil)
+			}
 			return fmt.Errorf("rpc pipe: %v", ctx.Err())
 		}
 	}
 	release = func() {
-		if done {
+		if sendDone {
 			return
 		}
-		done = true
+		if !sent {
+			if msg.CapTable != nil {
+				panic("outgoing message released without clearing CapTable")
+			}
+		}
+		sendDone = true
 		delete(p.msgs, caller)
-		msg.Reset(nil)
+		refsMu.Lock()
+		r := refs - 1
+		refs = r
+		refsMu.Unlock()
+		if r == 0 {
+			msg.Reset(nil)
+		}
 	}
 	return rmsg, send, release, nil
-}
-
-// cloneMessage creates a new message that points to the same data as
-// another message.
-func cloneMessage(msg *capnp.Message) (*capnp.Message, error) {
-	// Can't just directly use Arena, since it won't have the updated
-	// lengths (just the capacities).  Need to create a new Arena.
-
-	var segs [][]byte
-	for i := int64(0); i < msg.NumSegments(); i++ {
-		s, err := msg.Segment(capnp.SegmentID(i))
-		if err != nil {
-			return nil, err
-		}
-		segs = append(segs, s.Data())
-	}
-	return &capnp.Message{Arena: capnp.MultiSegment(segs)}, nil
 }
 
 type newMessageCaller struct {
