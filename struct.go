@@ -288,6 +288,9 @@ const (
 // copyStruct makes a deep copy of src into dst.
 func copyStruct(dst, src Struct) error {
 	if dst.seg == nil {
+		panic("copy struct into invalid pointer")
+	}
+	if src.seg == nil {
 		return nil
 	}
 
