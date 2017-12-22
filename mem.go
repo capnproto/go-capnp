@@ -181,7 +181,8 @@ func (m *Message) SetRoot(p Ptr) error {
 }
 
 // AddCap appends a capability to the message's capability table and
-// returns its ID.
+// returns its ID.  It "steals" c's reference: the Message will release
+// the client when calling Reset.
 func (m *Message) AddCap(c *Client) CapabilityID {
 	n := CapabilityID(len(m.CapTable))
 	m.CapTable = append(m.CapTable, c)

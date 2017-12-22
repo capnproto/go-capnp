@@ -756,6 +756,75 @@ func TestStreamHeaderPadding(t *testing.T) {
 	}
 }
 
+func TestAddCap(t *testing.T) {
+	hook1 := new(dummyHook)
+	hook2 := new(dummyHook)
+	client1 := NewClient(hook1)
+	client2 := NewClient(hook2)
+	msg := &Message{Arena: SingleSegment(nil)}
+
+	// Simple case: distinct non-nil clients.
+	id1 := msg.AddCap(client1.AddRef())
+	if id1 != 0 {
+		t.Errorf("first AddCap ID = %d; want 0", id1)
+	}
+	if len(msg.CapTable) != 1 {
+		t.Errorf("after first AddCap, len(msg.CapTable) = %d; want 1", len(msg.CapTable))
+	} else if !msg.CapTable[0].IsSame(client1) {
+		t.Errorf("msg.CapTable[0] = %v; want %v", msg.CapTable[0], client1)
+	}
+	id2 := msg.AddCap(client2.AddRef())
+	if id2 != 1 {
+		t.Errorf("second AddCap ID = %d; want 1", id2)
+	}
+	if len(msg.CapTable) != 2 {
+		t.Errorf("after second AddCap, len(msg.CapTable) = %d; want 2", len(msg.CapTable))
+	} else if !msg.CapTable[1].IsSame(client2) {
+		t.Errorf("msg.CapTable[1] = %v; want %v", msg.CapTable[1], client1)
+	}
+	// nil client
+	id3 := msg.AddCap(nil)
+	if id3 != 2 {
+		t.Errorf("third AddCap ID = %d; want 2", id3)
+	}
+	if len(msg.CapTable) != 3 {
+		t.Errorf("after third AddCap, len(msg.CapTable) = %d; want 3", len(msg.CapTable))
+	} else if !msg.CapTable[2].IsSame(nil) {
+		t.Errorf("msg.CapTable[2] = %v; want <nil>", msg.CapTable[2])
+	}
+	// AddCap should not attempt to deduplicate.
+	id4 := msg.AddCap(client1.AddRef())
+	if id4 != 3 {
+		t.Errorf("fourth AddCap ID = %d; want 3", id4)
+	}
+	if len(msg.CapTable) != 4 {
+		t.Errorf("after fourth AddCap, len(msg.CapTable) = %d; want 4", len(msg.CapTable))
+	} else if !msg.CapTable[3].IsSame(client1) {
+		t.Errorf("msg.CapTable[3] = %v; want %v", msg.CapTable[3], client1)
+	}
+
+	// Verify that AddCap steals the reference: once client1 and client2
+	// and the message's capabilities released, hook1 and hook2 should be
+	// shut down.  If they are not, then AddCap created a new reference.
+	client1.Release()
+	if hook1.shutdowns > 0 {
+		t.Error("hook1 shut down before releasing msg.CapTable")
+	}
+	client2.Release()
+	if hook2.shutdowns > 0 {
+		t.Error("hook2 shut down before releasing msg.CapTable")
+	}
+	for _, c := range msg.CapTable {
+		c.Release()
+	}
+	if hook1.shutdowns == 0 {
+		t.Error("hook1 not shut down after releasing msg.CapTable")
+	}
+	if hook2.shutdowns == 0 {
+		t.Error("hook2 not shut down after releasing msg.CapTable")
+	}
+}
+
 func TestFirstSegmentMessage_SingleSegment(t *testing.T) {
 	msg, seg, err := NewMessage(SingleSegment(nil))
 	if err != nil {
