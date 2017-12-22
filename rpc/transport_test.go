@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"runtime"
 	"testing"
 	"time"
 
@@ -203,6 +204,9 @@ func testTransport(t *testing.T, makePipe func() (t1, t2 rpc.Transport, err erro
 }
 
 func TestTCPStreamTransport(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("TODO(soon): TCP transport only works on Linux")
+	}
 	type listenCall struct {
 		c   *net.TCPConn
 		err error
