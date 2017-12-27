@@ -698,7 +698,8 @@ type Returner interface {
 
 // A ReleaseFunc tells the RPC system that a parameter or result struct
 // is no longer in use and may be reclaimed.  After the first call,
-// subsequent calls to a ReleaseFunc do nothing.
+// subsequent calls to a ReleaseFunc do nothing.  A ReleaseFunc should
+// not be called concurrently.
 type ReleaseFunc func()
 
 // A Method identifies a method along with an optional human-readable
