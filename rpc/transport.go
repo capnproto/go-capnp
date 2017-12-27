@@ -35,9 +35,11 @@ type Sender interface {
 
 // A Receiver receives Cap'n Proto RPC messages from another vat.
 type Receiver interface {
-	// RecvMessage waits to receive a message and returns it.
+	// RecvMessage receives the next message sent from the remote vat.
 	// The returned message is only valid until the release function is
-	// called or CloseRecv is called.
+	// called or CloseRecv is called.  The release function may be called
+	// concurrently with RecvMessage or with any other release function
+	// returned by RecvMessage.
 	//
 	// Messages returned by RecvMessage must have a nil CapTable.
 	// The caller may modify the CapTable, but the message's CapTable must

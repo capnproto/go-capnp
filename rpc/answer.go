@@ -14,20 +14,37 @@ type answerID uint32
 
 // answer is an entry in a Conn's answer table.
 type answer struct {
-	// Fields set by newAnswer:
+	// c and id must be set before any answer methods are called.
+	c  *Conn
+	id answerID
 
-	id  answerID
-	ret rpccp.Return // not set if newAnswer fails
-	s   sendSession  // not set if newAnswer fails
+	// cancel cancels the Context used in the received method call.
+	// May be nil.
+	cancel context.CancelFunc
+
+	// ret is the outgoing Return struct.  ret is valid iff there was no
+	// error creating the message.  If ret is invalid, then this answer
+	// entry is a placeholder until the remote vat cancels the call.
+	ret rpccp.Return
+
+	// sendMsg sends the return message.  The caller must be holding onto
+	// the sender lock but not ans.c.mu.
+	sendMsg func() error
+
+	// releaseMsg releases the return message.  The caller must be holding
+	// onto the sender lock but not ans.c.mu.
+	releaseMsg capnp.ReleaseFunc
+
+	// results is the memoized answer to ret.Results().
+	// Set by AllocResults and setBootstrap, but contents can only be read
+	// if flags has resultsReady but not finishReceived set.
+	results rpccp.Payload
 
 	// All fields below are protected by s.c.mu.
 
+	// flags is a bitmask of events that have occurred in an answer's
+	// lifetime.
 	flags answerFlags
-
-	// results is the memoized answer to ret.Results().
-	// Set by AllocResults and setBootstrap, but contents cannot be
-	// used by the rpc package until flags has resultsReady set.
-	results rpccp.Payload
 
 	// resultCapTable is the CapTable for results.  It is not kept in the
 	// results message because CapTable cannot be used once results are
@@ -39,10 +56,6 @@ type answer struct {
 	// results.
 	exportRefs map[exportID]uint32
 
-	// cancel is the cancel function for the Context used in the received
-	// method call.
-	cancel context.CancelFunc
-
 	// pcall is the PipelineCaller returned by RecvCall.  It will be set
 	// to nil once results are ready.
 	pcall capnp.PipelineCaller
@@ -52,12 +65,12 @@ type answer struct {
 	// to satisfy the Returner.Return contract.
 	pcalls sync.WaitGroup
 
-	// err is the error passed to (*answer).sendException.
+	// err is the error passed to (*answer).sendException or from creating
+	// the Return message.  Can only be read after resultsReady is set in
+	// flags.
 	err error
 }
 
-// answerFlags is a bitmask of events that have occurred in an answer's
-// lifetime.
 type answerFlags uint8
 
 const (
@@ -67,45 +80,40 @@ const (
 	releaseResultCapsFlag
 )
 
-// newAnswer adds an entry to the answers table and creates a new return
-// message.  newAnswer may return both an answer and an error.  Results
-// should not be set on the answer if newAnswer returns a non-nil error.
-// The caller must be holding onto c.mu.
-func (c *Conn) newAnswer(ctx context.Context, id answerID, cancel context.CancelFunc) (*answer, error) {
-	if c.answers == nil {
-		c.answers = make(map[answerID]*answer)
+// errorAnswer returns a placeholder answer with an error result already set.
+func errorAnswer(c *Conn, id answerID, err error) *answer {
+	return &answer{
+		c:     c,
+		id:    id,
+		err:   err,
+		flags: resultsReady | returnSent,
 	}
-	ans := &answer{
-		id:     id,
-		cancel: cancel,
-	}
-	c.answers[id] = ans
-	var err error
-	ans.s, err = c.startSend(ctx)
+}
+
+// newReturn creates a new Return message.  The caller must be holding
+// onto the sender lock but not c.mu.
+func (c *Conn) newReturn(ctx context.Context) (rpccp.Return, func() error, capnp.ReleaseFunc, error) {
+	msg, send, release, err := c.sender.NewMessage(ctx)
 	if err != nil {
-		ans.s = sendSession{}
-		return ans, err
+		return rpccp.Return{}, nil, nil, errorf("create return: %v", err)
 	}
-	ans.ret, err = ans.s.msg.NewReturn()
+	ret, err := msg.NewReturn()
 	if err != nil {
-		ans.s.finish()
-		ans.s = sendSession{}
-		return ans, errorf("create return: %v", err)
+		release()
+		return rpccp.Return{}, nil, nil, errorf("create return: %v", err)
 	}
-	ans.ret.SetAnswerId(uint32(id))
-	ans.ret.SetReleaseParamCaps(false)
-	ans.s.releaseSender()
-	return ans, nil
+	return ret, send, release, nil
 }
 
 // setPipelineCaller sets ans.pcall to pcall if the answer has not
-// already returned.  The caller MUST NOT be holding onto ans.s.c.mu.
+// already returned.  The caller MUST NOT be holding onto ans.c.mu
+// or the sender lock.
 func (ans *answer) setPipelineCaller(pcall capnp.PipelineCaller) {
-	ans.s.c.mu.Lock()
+	ans.c.mu.Lock()
 	if ans.flags&resultsReady == 0 {
 		ans.pcall = pcall
 	}
-	ans.s.c.mu.Unlock()
+	ans.c.mu.Unlock()
 }
 
 // AllocResults allocates the results struct.
@@ -145,26 +153,28 @@ func (ans *answer) setBootstrap(c *capnp.Client) error {
 
 // Return sends the return message.
 //
-// The caller must NOT be holding onto ans.s.c.mu or the sender lock.
+// The caller must NOT be holding onto ans.c.mu or the sender lock.
 func (ans *answer) Return(e error) {
-	c := ans.s.c
-	c.mu.Lock()
+	ans.c.mu.Lock()
+	ans.c.lockSender()
 	if e != nil {
 		rl := ans.sendException(e)
-		c.mu.Unlock()
+		ans.c.unlockSender()
+		ans.c.mu.Unlock()
 		rl.release()
 		ans.pcalls.Wait()
-		c.tasks.Done() // added by handleCall
+		ans.c.tasks.Done() // added by handleCall
 		return
 	}
 	rl, err := ans.sendReturn()
+	ans.c.unlockSender()
 	if err != nil {
 		select {
-		case <-ans.s.c.bgctx.Done():
+		case <-ans.c.bgctx.Done():
 		default:
-			c.tasks.Done() // added by handleCall
-			if err := c.shutdown(err); err != nil {
-				c.report(err)
+			ans.c.tasks.Done() // added by handleCall
+			if err := ans.c.shutdown(err); err != nil {
+				ans.c.report(err)
 			}
 			// shutdown released c.mu
 			rl.release()
@@ -172,10 +182,10 @@ func (ans *answer) Return(e error) {
 			return
 		}
 	}
-	c.mu.Unlock()
+	ans.c.mu.Unlock()
 	rl.release()
 	ans.pcalls.Wait()
-	c.tasks.Done() // added by handleCall
+	ans.c.tasks.Done() // added by handleCall
 }
 
 // sendReturn sends the return message with results allocated by a
@@ -183,15 +193,15 @@ func (ans *answer) Return(e error) {
 // Finish with releaseResultCaps set to true, then sendReturn returns
 // the number of references to be subtracted from each export.
 //
-// The caller must be holding onto ans.s.c.mu.  Only one of sendReturn
-// or sendException should be called.
+// The caller must be holding onto ans.c.mu and the sender lock.
+// Only one of sendReturn or sendException should be called.
 func (ans *answer) sendReturn() (releaseList, error) {
 	ans.pcall = nil
 	ans.flags |= resultsReady
 	var err error
-	ans.exportRefs, err = ans.s.c.fillPayloadCapTable(ans.results)
+	ans.exportRefs, err = ans.c.fillPayloadCapTable(ans.results)
 	if err != nil {
-		ans.s.c.report(annotate(err).errorf("send return"))
+		ans.c.report(annotate(err).errorf("send return"))
 		// Continue.  Don't fail to send return if cap table isn't fully filled.
 	}
 	if m := ans.results.Message(); m != nil {
@@ -199,30 +209,36 @@ func (ans *answer) sendReturn() (releaseList, error) {
 		m.CapTable = nil
 	}
 
-	// Send results.
-	fin := ans.flags&finishReceived != 0
-	ans.s.acquireSender()
-	if err := ans.s.send(); err != nil {
-		ans.s.c.reportf("send return: %v", err)
-	}
-	if !fin {
-		ans.s.releaseSender()
-		ans.flags |= returnSent
-		if ans.flags&finishReceived == 0 {
-			return nil, nil
+	select {
+	case <-ans.c.bgctx.Done():
+	default:
+		fin := ans.flags&finishReceived != 0
+		ans.c.mu.Unlock()
+		if err := ans.sendMsg(); err != nil {
+			ans.c.reportf("send return: %v", err)
 		}
-		ans.s.acquireSender()
+		if fin {
+			ans.releaseMsg()
+			ans.c.mu.Lock()
+			return ans.destroy()
+		}
+		ans.c.mu.Lock()
 	}
-
-	// Already received finish, delete answer.
-	ans.s.finish()
-	return ans.destroy()
+	ans.flags |= returnSent
+	if ans.flags&finishReceived == 0 {
+		return nil, nil
+	}
+	rl, err := ans.destroy()
+	ans.c.mu.Unlock()
+	ans.releaseMsg()
+	ans.c.mu.Lock()
+	return rl, err
 }
 
 // sendException sends an exception on the answer's return message.
 //
-// The caller must be holding onto ans.s.c.mu.  Only one of sendReturn
-// or sendException should be called.
+// The caller must be holding onto ans.c.mu and the sender lock.
+// Only one of sendReturn or sendException should be called.
 func (ans *answer) sendException(e error) releaseList {
 	ans.err = e
 	ans.pcall = nil
@@ -232,48 +248,54 @@ func (ans *answer) sendException(e error) releaseList {
 		m.CapTable = nil
 	}
 
-	// Send exception.
-	fin := ans.flags&finishReceived != 0
-	ans.s.acquireSender()
-	if exc, err := ans.ret.NewException(); err != nil {
-		ans.s.c.reportf("send exception: %v", err)
-	} else {
-		exc.SetType(rpccp.Exception_Type(errors.TypeOf(e)))
-		if err := exc.SetReason(e.Error()); err != nil {
-			ans.s.c.reportf("send exception: %v", err)
-		} else if err := ans.s.send(); err != nil {
-			ans.s.c.reportf("send return: %v", err)
+	select {
+	case <-ans.c.bgctx.Done():
+	default:
+		// Send exception.
+		fin := ans.flags&finishReceived != 0
+		ans.c.mu.Unlock()
+		if exc, err := ans.ret.NewException(); err != nil {
+			ans.c.reportf("send exception: %v", err)
+		} else {
+			exc.SetType(rpccp.Exception_Type(errors.TypeOf(e)))
+			if err := exc.SetReason(e.Error()); err != nil {
+				ans.c.reportf("send exception: %v", err)
+			} else if err := ans.sendMsg(); err != nil {
+				ans.c.reportf("send return: %v", err)
+			}
 		}
-	}
-	if !fin {
-		ans.s.releaseSender()
-		ans.flags |= returnSent
-		if ans.flags&finishReceived == 0 {
-			return nil
+		if fin {
+			ans.releaseMsg()
+			ans.c.mu.Lock()
+			rl, _ := ans.destroy()
+			return rl
 		}
-		ans.s.acquireSender()
+		ans.c.mu.Lock()
 	}
-
-	// Already received finish, delete answer.
+	ans.flags |= returnSent
+	if ans.flags&finishReceived == 0 {
+		return nil
+	}
 	// destory will never return an error because sendException does
 	// create any exports.
-	ans.s.finish()
 	rl, _ := ans.destroy()
+	ans.c.mu.Unlock()
+	ans.releaseMsg()
+	ans.c.mu.Lock()
 	return rl
 }
 
 // destroy removes the answer from the table and returns the clients to
 // release.  The answer must have sent a return and received a finish.
-// The caller must be holding onto ans.s.c.mu and is responsible for
-// finishing ans.s before destroy starts.
+// The caller must be holding onto ans.c.mu.
 //
 // shutdown has its own strategy for cleaning up an answer.
 func (ans *answer) destroy() (releaseList, error) {
-	delete(ans.s.c.answers, ans.id)
+	delete(ans.c.answers, ans.id)
 	rl := releaseList(ans.resultCapTable)
 	if ans.flags&releaseResultCapsFlag == 0 || len(ans.exportRefs) == 0 {
 		return rl, nil
 	}
-	exportReleases, err := ans.s.c.releaseExports(ans.exportRefs)
+	exportReleases, err := ans.c.releaseExports(ans.exportRefs)
 	return append(rl, exportReleases...), err
 }

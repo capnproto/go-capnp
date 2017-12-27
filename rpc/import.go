@@ -49,9 +49,7 @@ type impent struct {
 // incrementing the number of references to this import from this vat.
 // This is separate from the reference counting that capnp.Client does.
 func (c *Conn) addImport(id importID) *capnp.Client {
-	if c.imports == nil {
-		c.imports = make(map[importID]*impent)
-	} else if ent := c.imports[id]; ent != nil {
+	if ent := c.imports[id]; ent != nil {
 		ent.wireRefs++
 		client, ok := ent.wc.AddRef()
 		if !ok {
