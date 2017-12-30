@@ -93,13 +93,13 @@ func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, 
 		ic.conn.mu.Unlock()
 		return capnp.ErrorAnswer(s.Method, disconnected("send on closed import")), func() {}
 	}
-	id := questionID(ic.conn.questionID.next())
+	q := ic.conn.newQuestion(s.Method)
 	err := ic.conn.sendMessage(ctx, func(msg rpccp.Message) error {
 		msgCall, err := msg.NewCall()
 		if err != nil {
 			return err
 		}
-		msgCall.SetQuestionId(uint32(id))
+		msgCall.SetQuestionId(uint32(q.id))
 		msgCall.SetInterfaceId(s.Method.InterfaceID)
 		msgCall.SetMethodId(s.Method.MethodID)
 		target, err := msgCall.NewTarget()
@@ -129,13 +129,18 @@ func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, 
 		return nil
 	})
 	if err != nil {
-		ic.conn.questionID.remove(uint32(id))
+		ic.conn.questions[q.id] = nil
+		ic.conn.questionID.remove(uint32(q.id))
 		ic.conn.mu.Unlock()
 		return capnp.ErrorAnswer(s.Method, annotate(err).errorf("send to import")), func() {}
 	}
-	q := ic.conn.newQuestion(ctx, id, s.Method)
-	ans := q.p.Answer()
+	ic.conn.tasks.Add(1)
+	go func() {
+		defer q.conn.tasks.Done()
+		q.handleCancel(ctx)
+	}()
 	ic.conn.mu.Unlock()
+	ans := q.p.Answer()
 	return ans, func() {
 		<-ans.Done()
 		q.p.ReleaseClients()

@@ -177,27 +177,33 @@ func (c *Conn) Bootstrap(ctx context.Context) *capnp.Client {
 		return capnp.ErrorClient(disconnected("connection closed"))
 	}
 	defer c.tasks.Done()
-	id := questionID(c.questionID.next())
-	err := c.sendMessage(ctx, func(msg rpccp.Message) error {
-		boot, err := msg.NewBootstrap()
-		if err != nil {
-			return err
-		}
-		boot.SetQuestionId(uint32(id))
-		return nil
-	})
-	if err != nil {
-		c.questionID.remove(uint32(id))
-		c.mu.Unlock()
-		return capnp.ErrorClient(annotate(err).errorf("bootstrap"))
-	}
-	ctx, cancel := context.WithCancel(ctx)
-	q := c.newQuestion(ctx, id, capnp.Method{})
+	q := c.newQuestion(capnp.Method{})
+	bootCtx, cancel := context.WithCancel(ctx)
 	bc, cp := capnp.NewPromisedClient(bootstrapClient{
 		c:      q.p.Answer().Client().AddRef(),
 		cancel: cancel,
 	})
 	q.bootstrapPromise = cp // safe to write because we're still holding c.mu
+
+	err := c.sendMessage(ctx, func(msg rpccp.Message) error {
+		boot, err := msg.NewBootstrap()
+		if err != nil {
+			return err
+		}
+		boot.SetQuestionId(uint32(q.id))
+		return nil
+	})
+	if err != nil {
+		c.questions[q.id] = nil
+		c.questionID.remove(uint32(q.id))
+		c.mu.Unlock()
+		return capnp.ErrorClient(annotate(err).errorf("bootstrap"))
+	}
+	c.tasks.Add(1)
+	go func() {
+		defer c.tasks.Done()
+		q.handleCancel(bootCtx)
+	}()
 	c.mu.Unlock()
 	return bc
 }
@@ -847,7 +853,6 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 		q.p.ReleaseClients()
 		clearCapTable(pr.result.Message())
 		releaseRet()
-		q.done()
 		c.mu.Lock()
 	case q.bootstrapPromise != nil && pr.err != nil:
 		// TODO(someday): send unimplemented message back to remote if
@@ -859,7 +864,6 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 		q.p.ReleaseClients()
 		clearCapTable(pr.result.Message())
 		releaseRet()
-		q.done()
 		c.mu.Lock()
 	case q.bootstrapPromise == nil && pr.err != nil:
 		// TODO(someday): send unimplemented message back to remote if
@@ -869,7 +873,6 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 		q.p.Reject(pr.err)
 		clearCapTable(pr.result.Message())
 		releaseRet()
-		q.done()
 		c.mu.Lock()
 	default:
 		m := ret.Message()
@@ -879,7 +882,6 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 		}
 		c.mu.Unlock()
 		q.p.Fulfill(pr.result)
-		q.done()
 		c.mu.Lock()
 	}
 	err := c.sendMessage(ctx, func(msg rpccp.Message) error {
