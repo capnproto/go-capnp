@@ -55,8 +55,8 @@ func (c *Conn) addImport(id importID) *capnp.Client {
 		if !ok {
 			ent.generation++
 			client = capnp.NewClient(&importClient{
+				c:          c,
 				id:         id,
-				conn:       c,
 				generation: ent.generation,
 			})
 			ent.wc = client.WeakRef()
@@ -64,8 +64,8 @@ func (c *Conn) addImport(id importID) *capnp.Client {
 		return client
 	}
 	client := capnp.NewClient(&importClient{
-		id:   id,
-		conn: c,
+		c:  c,
+		id: id,
 	})
 	c.imports[id] = &impent{
 		wc:       client.WeakRef(),
@@ -76,25 +76,25 @@ func (c *Conn) addImport(id importID) *capnp.Client {
 
 // An importClient implements capnp.Client for a remote capability.
 type importClient struct {
+	c          *Conn
 	id         importID
-	conn       *Conn
 	generation uint64
 }
 
 func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, capnp.ReleaseFunc) {
-	ic.conn.mu.Lock()
-	if !ic.conn.startTask() {
-		ic.conn.mu.Unlock()
+	ic.c.mu.Lock()
+	if !ic.c.startTask() {
+		ic.c.mu.Unlock()
 		return capnp.ErrorAnswer(s.Method, disconnected("connection closed")), func() {}
 	}
-	defer ic.conn.tasks.Done()
-	ent := ic.conn.imports[ic.id]
+	defer ic.c.tasks.Done()
+	ent := ic.c.imports[ic.id]
 	if ent == nil || ic.generation != ent.generation {
-		ic.conn.mu.Unlock()
+		ic.c.mu.Unlock()
 		return capnp.ErrorAnswer(s.Method, disconnected("send on closed import")), func() {}
 	}
-	q := ic.conn.newQuestion(s.Method)
-	err := ic.conn.sendMessage(ctx, func(msg rpccp.Message) error {
+	q := ic.c.newQuestion(s.Method)
+	err := ic.c.sendMessage(ctx, func(msg rpccp.Message) error {
 		msgCall, err := msg.NewCall()
 		if err != nil {
 			return err
@@ -129,17 +129,17 @@ func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, 
 		return nil
 	})
 	if err != nil {
-		ic.conn.questions[q.id] = nil
-		ic.conn.questionID.remove(uint32(q.id))
-		ic.conn.mu.Unlock()
+		ic.c.questions[q.id] = nil
+		ic.c.questionID.remove(uint32(q.id))
+		ic.c.mu.Unlock()
 		return capnp.ErrorAnswer(s.Method, annotate(err).errorf("send to import")), func() {}
 	}
-	ic.conn.tasks.Add(1)
+	ic.c.tasks.Add(1)
 	go func() {
-		defer q.conn.tasks.Done()
+		defer q.c.tasks.Done()
 		q.handleCancel(ctx)
 	}()
-	ic.conn.mu.Unlock()
+	ic.c.mu.Unlock()
 	ans := q.p.Answer()
 	return ans, func() {
 		<-ans.Done()
@@ -193,21 +193,21 @@ func (ic *importClient) Brand() interface{} {
 }
 
 func (ic *importClient) Shutdown() {
-	ic.conn.mu.Lock()
-	if !ic.conn.startTask() {
-		ic.conn.mu.Unlock()
+	ic.c.mu.Lock()
+	if !ic.c.startTask() {
+		ic.c.mu.Unlock()
 		return
 	}
-	defer ic.conn.tasks.Done()
-	ent := ic.conn.imports[ic.id]
+	defer ic.c.tasks.Done()
+	ent := ic.c.imports[ic.id]
 	if ic.generation != ent.generation {
 		// A new reference was added concurrently with the Shutdown.  See
 		// impent.generation documentation for an explanation.
-		ic.conn.mu.Unlock()
+		ic.c.mu.Unlock()
 		return
 	}
-	delete(ic.conn.imports, ic.id)
-	err := ic.conn.sendMessage(context.Background(), func(msg rpccp.Message) error {
+	delete(ic.c.imports, ic.id)
+	err := ic.c.sendMessage(context.Background(), func(msg rpccp.Message) error {
 		rel, err := msg.NewRelease()
 		if err != nil {
 			return err
@@ -216,8 +216,8 @@ func (ic *importClient) Shutdown() {
 		rel.SetReferenceCount(uint32(ent.wireRefs))
 		return nil
 	})
-	ic.conn.mu.Unlock()
+	ic.c.mu.Unlock()
 	if err != nil {
-		ic.conn.report(annotate(err).errorf("send release"))
+		ic.c.report(annotate(err).errorf("send release"))
 	}
 }

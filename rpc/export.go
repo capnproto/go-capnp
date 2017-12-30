@@ -84,7 +84,7 @@ func (c *Conn) sendCap(d rpccp.CapDescriptor, client *capnp.Client) (_ exportID,
 	}
 
 	brand := client.Brand()
-	if ic, ok := brand.(*importClient); ok && ic.conn == c {
+	if ic, ok := brand.(*importClient); ok && ic.c == c {
 		if ent := c.imports[ic.id]; ent != nil && ent.generation == ic.generation {
 			d.SetReceiverHosted(uint32(ic.id))
 			return 0, false

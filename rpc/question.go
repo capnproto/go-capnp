@@ -12,15 +12,15 @@ import (
 type questionID uint32
 
 type question struct {
-	id   questionID
-	conn *Conn
+	c  *Conn
+	id questionID
 
 	bootstrapPromise *capnp.ClientPromise
 
 	p       *capnp.Promise
 	release capnp.ReleaseFunc // written before resolving p
 
-	// Protected by conn.mu:
+	// Protected by c.mu:
 
 	flags         questionFlags
 	finishMsgSend chan struct{} // closed after attempting to send the Finish message
@@ -46,8 +46,8 @@ const (
 // holding onto c.mu.
 func (c *Conn) newQuestion(method capnp.Method) *question {
 	q := &question{
+		c:             c,
 		id:            questionID(c.questionID.next()),
-		conn:          c,
 		finishMsgSend: make(chan struct{}),
 	}
 	q.p = capnp.NewPromise(method, q) // TODO(someday): customize error message for bootstrap
@@ -62,27 +62,27 @@ func (c *Conn) newQuestion(method capnp.Method) *question {
 // handleCancel rejects the question's promise upon cancelation of its
 // Context.
 //
-// The caller must not be holding onto q.conn.mu or the sender lock.
+// The caller must not be holding onto q.c.mu or the sender lock.
 func (q *question) handleCancel(ctx context.Context) {
 	var rejectErr error
 	select {
 	case <-ctx.Done():
 		rejectErr = ctx.Err()
-	case <-q.conn.bgctx.Done():
+	case <-q.c.bgctx.Done():
 		rejectErr = disconnected("connection closed")
 	case <-q.p.Answer().Done():
 		return
 	}
 
-	q.conn.mu.Lock()
+	q.c.mu.Lock()
 	if q.flags&finished != 0 {
 		// Promise already fulfilled.
-		q.conn.mu.Unlock()
+		q.c.mu.Unlock()
 		return
 	}
 	q.flags |= finished
 	q.release = func() {}
-	err := q.conn.sendMessage(q.conn.bgctx, func(msg rpccp.Message) error {
+	err := q.c.sendMessage(q.c.bgctx, func(msg rpccp.Message) error {
 		fin, err := msg.NewFinish()
 		if err != nil {
 			return err
@@ -95,13 +95,13 @@ func (q *question) handleCancel(ctx context.Context) {
 		q.flags |= finishSent
 	} else {
 		select {
-		case <-q.conn.bgctx.Done():
+		case <-q.c.bgctx.Done():
 		default:
-			q.conn.report(annotate(err).errorf("send finish"))
+			q.c.report(annotate(err).errorf("send finish"))
 		}
 	}
 	close(q.finishMsgSend)
-	q.conn.mu.Unlock()
+	q.c.mu.Unlock()
 
 	q.p.Reject(rejectErr)
 	if q.bootstrapPromise != nil {
@@ -111,14 +111,14 @@ func (q *question) handleCancel(ctx context.Context) {
 }
 
 func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineOp, s capnp.Send) (*capnp.Answer, capnp.ReleaseFunc) {
-	q.conn.mu.Lock()
-	if !q.conn.startTask() {
-		q.conn.mu.Unlock()
+	q.c.mu.Lock()
+	if !q.c.startTask() {
+		q.c.mu.Unlock()
 		return capnp.ErrorAnswer(s.Method, disconnected("connection closed")), func() {}
 	}
-	defer q.conn.tasks.Done()
-	q2 := q.conn.newQuestion(s.Method)
-	err := q.conn.sendMessage(ctx, func(msg rpccp.Message) error {
+	defer q.c.tasks.Done()
+	q2 := q.c.newQuestion(s.Method)
+	err := q.c.sendMessage(ctx, func(msg rpccp.Message) error {
 		call, err := msg.NewCall()
 		if err != nil {
 			return err
@@ -162,18 +162,18 @@ func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineO
 		return nil
 	})
 	if err != nil {
-		q.conn.questions[q2.id] = nil
-		q.conn.questionID.remove(uint32(q2.id))
-		q.conn.mu.Unlock()
+		q.c.questions[q2.id] = nil
+		q.c.questionID.remove(uint32(q2.id))
+		q.c.mu.Unlock()
 		return capnp.ErrorAnswer(s.Method, annotate(err).errorf("send to promised answer")), func() {}
 	}
-	q2.conn.tasks.Add(1)
+	q2.c.tasks.Add(1)
 	go func() {
-		defer q2.conn.tasks.Done()
+		defer q2.c.tasks.Done()
 		q2.handleCancel(ctx)
 	}()
 	ans := q2.p.Answer()
-	q.conn.mu.Unlock()
+	q.c.mu.Unlock()
 	return ans, func() {
 		<-ans.Done()
 		q2.p.ReleaseClients()

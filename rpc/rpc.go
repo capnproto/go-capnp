@@ -1097,7 +1097,7 @@ func (c *Conn) handleDisembargo(ctx context.Context, d rpccp.Disembargo) error {
 		return fail("incoming disembargo: sender loopback requested on a capability that is not an import")
 	}
 	imp, ok := ans.resultCapTable[iface.Capability()].Brand().(*importClient)
-	if !ok || imp.conn != c {
+	if !ok || imp.c != c {
 		c.mu.Unlock()
 		return fail("incoming disembargo: sender loopback requested on a capability that is not an import")
 	}
