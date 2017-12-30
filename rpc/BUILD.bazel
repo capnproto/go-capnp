@@ -24,6 +24,7 @@ go_test(
     srcs = [
         "bench_test.go",
         "level0_test.go",
+        "level1_test.go",
         "pipe_test.go",
         "transport_test.go",
     ],

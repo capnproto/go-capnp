@@ -1354,7 +1354,9 @@ type rpcMessage struct {
 	Call          *rpcCall
 	Return        *rpcReturn
 	Finish        *rpcFinish
+	Resolve       *rpcResolve
 	Release       *rpcRelease
+	Disembargo    *rpcDisembargo
 }
 
 func sendMessage(ctx context.Context, t rpc.Transport, msg *rpcMessage) error {
@@ -1408,11 +1410,6 @@ type rpcReturn struct {
 type rpcFinish struct {
 	QuestionID        uint32 `capnp:"questionId"`
 	ReleaseResultCaps bool
-}
-
-type rpcRelease struct {
-	ID             uint32 `capnp:"id"`
-	ReferenceCount uint32
 }
 
 type rpcMessageTarget struct {
