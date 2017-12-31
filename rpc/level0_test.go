@@ -46,8 +46,7 @@ func TestMain(m *testing.M) {
 // sends an Abort message and it reports no errors.  Level 0 requirement.
 func TestSendAbort(t *testing.T) {
 	p1, p2 := newPipe(1)
-	defer p2.CloseSend()
-	defer p2.CloseRecv()
+	defer p2.Close()
 	conn := rpc.NewConn(p1, &rpc.Options{
 		ErrorReporter: testErrorReporter{tb: t, fail: true},
 	})
@@ -91,8 +90,7 @@ func TestSendAbort(t *testing.T) {
 // Level 0 requirement.
 func TestRecvAbort(t *testing.T) {
 	p1, p2 := newPipe(1)
-	defer p2.CloseSend()
-	defer p2.CloseRecv()
+	defer p2.Close()
 	conn := rpc.NewConn(p1, &rpc.Options{
 		ErrorReporter: testErrorReporter{tb: t},
 	})
@@ -148,8 +146,7 @@ func TestRecvAbort(t *testing.T) {
 // value came back.  Level 0 requirement.
 func TestSendBootstrapCall(t *testing.T) {
 	p1, p2 := newPipe(1)
-	defer p2.CloseSend()
-	defer p2.CloseRecv()
+	defer p2.Close()
 	conn := rpc.NewConn(p1, &rpc.Options{
 		ErrorReporter: testErrorReporter{tb: t},
 	})
@@ -364,8 +361,7 @@ func TestSendBootstrapCall(t *testing.T) {
 // returned capability without resolving the client.  Level 0 requirement.
 func TestSendBootstrapPipelineCall(t *testing.T) {
 	p1, p2 := newPipe(1)
-	defer p2.CloseSend()
-	defer p2.CloseRecv()
+	defer p2.Close()
 	conn := rpc.NewConn(p1, &rpc.Options{
 		ErrorReporter: testErrorReporter{tb: t},
 	})
@@ -552,8 +548,7 @@ func TestRecvBootstrapCall(t *testing.T) {
 		shutdownFunc(func() { close(srvShutdown) }),
 		nil /* policy */))
 	p1, p2 := newPipe(1)
-	defer p2.CloseSend()
-	defer p2.CloseRecv()
+	defer p2.Close()
 	conn := rpc.NewConn(p1, &rpc.Options{
 		BootstrapClient: srv,
 		ErrorReporter:   testErrorReporter{tb: t},
@@ -732,8 +727,7 @@ func TestRecvBootstrapPipelineCall(t *testing.T) {
 		shutdownFunc(func() { close(srvShutdown) }),
 		nil /* policy */))
 	p1, p2 := newPipe(1)
-	defer p2.CloseSend()
-	defer p2.CloseRecv()
+	defer p2.Close()
 	conn := rpc.NewConn(p1, &rpc.Options{
 		BootstrapClient: srv,
 		ErrorReporter:   testErrorReporter{tb: t},
@@ -844,8 +838,7 @@ func TestRecvBootstrapPipelineCall(t *testing.T) {
 // that the call returns a disconnected error.  Level 0 requirement.
 func TestCallOnClosedConn(t *testing.T) {
 	p1, p2 := newPipe(1)
-	defer p2.CloseSend()
-	defer p2.CloseRecv()
+	defer p2.Close()
 	conn := rpc.NewConn(p1, &rpc.Options{
 		ErrorReporter: testErrorReporter{tb: t},
 	})
@@ -999,8 +992,7 @@ func TestRecvCancel(t *testing.T) {
 		},
 	}, nil /* brand */, nil /* shutdown */, nil /* policy */))
 	p1, p2 := newPipe(1)
-	defer p2.CloseSend()
-	defer p2.CloseRecv()
+	defer p2.Close()
 	conn := rpc.NewConn(p1, &rpc.Options{
 		BootstrapClient: srv,
 		ErrorReporter:   testErrorReporter{tb: t},
@@ -1154,8 +1146,7 @@ func TestRecvCancel(t *testing.T) {
 // see whether a finish message was sent.  Level 0 requirement.
 func TestSendCancel(t *testing.T) {
 	p1, p2 := newPipe(1)
-	defer p2.CloseSend()
-	defer p2.CloseRecv()
+	defer p2.Close()
 	conn := rpc.NewConn(p1, &rpc.Options{
 		ErrorReporter: testErrorReporter{tb: t},
 	})
@@ -1441,8 +1432,8 @@ type rpcPromisedAnswerOp struct {
 	GetPointerField uint16
 }
 
-func recvBootstrapReturn(ctx context.Context, r rpc.Receiver, qid uint32) (uint32, error) {
-	msg, release, err := r.RecvMessage(ctx)
+func recvBootstrapReturn(ctx context.Context, t rpc.Transport, qid uint32) (uint32, error) {
+	msg, release, err := t.RecvMessage(ctx)
 	if err != nil {
 		return 0, err
 	}

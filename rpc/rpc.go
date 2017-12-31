@@ -77,24 +77,20 @@ type Conn struct {
 	// tasks block shutdown.
 	tasks sync.WaitGroup
 
+	// transport is protected by the sender lock.  Only the receive goroutine can
+	// call RecvMessage.
+	transport Transport
+
 	// mu protects all the following fields in the Conn.
 	mu sync.Mutex
 
 	closed bool          // set when Close() is called, used to distinguish user Closing multiple times
 	shut   chan struct{} // closed when shutdown() returns
 
-	recvCloser interface {
-		CloseRecv() error
-	}
-
 	// sendCond is non-nil if an operation involving sender is in
 	// progress, and the channel is closed when the operation is finished.
 	// See the above comment for a longer explanation.
 	sendCond chan struct{}
-
-	// sender is the send half of the transport.  sender is protected by
-	// sendCond.
-	sender Sender
 
 	// Tables
 	questions  []*question
@@ -134,13 +130,12 @@ type ErrorReporter interface {
 func NewConn(t Transport, opts *Options) *Conn {
 	bgctx, bgcancel := context.WithCancel(context.Background())
 	c := &Conn{
-		sender:     t,
-		recvCloser: t,
-		shut:       make(chan struct{}),
-		bgctx:      bgctx,
-		bgcancel:   bgcancel,
-		answers:    make(map[answerID]*answer),
-		imports:    make(map[importID]*impent),
+		transport: t,
+		shut:      make(chan struct{}),
+		bgctx:     bgctx,
+		bgcancel:  bgcancel,
+		answers:   make(map[answerID]*answer),
+		imports:   make(map[importID]*impent),
 	}
 	if opts != nil {
 		c.bootstrap = opts.BootstrapClient
@@ -148,7 +143,7 @@ func NewConn(t Transport, opts *Options) *Conn {
 	}
 	c.tasks.Add(1)
 	go func() {
-		abortErr := c.receive(c.bgctx, t)
+		abortErr := c.receive(c.bgctx)
 		c.tasks.Done()
 
 		c.mu.Lock()
@@ -269,14 +264,13 @@ func (c *Conn) shutdown(abortErr error) error {
 			a.cancel()
 		}
 	}
-	c.mu.Unlock()
-	rerr := c.recvCloser.CloseRecv()
 
 	// Wait for work to stop.
+	c.mu.Unlock()
 	c.tasks.Wait()
+	c.mu.Lock()
 
 	// Clear all tables, releasing exported clients and unfinished answers.
-	c.mu.Lock()
 	exports := c.exports
 	answers := c.answers
 	c.imports = nil
@@ -304,43 +298,38 @@ func (c *Conn) shutdown(abortErr error) error {
 	// Send abort message (ignoring error).
 	if abortErr != nil {
 		// TODO(soon): add timeout
-		msg, send, release, err := c.sender.NewMessage(context.Background())
+		msg, send, release, err := c.transport.NewMessage(context.Background())
 		if err != nil {
-			goto closeSend
+			goto closeTransport
 		}
 		abort, err := msg.NewAbort()
 		if err != nil {
 			release()
-			goto closeSend
+			goto closeTransport
 		}
 		abort.SetType(rpccp.Exception_Type(errors.TypeOf(abortErr)))
 		if err := abort.SetReason(abortErr.Error()); err != nil {
 			release()
-			goto closeSend
+			goto closeTransport
 		}
 		send()
 		release()
 	}
-closeSend:
-	serr := c.sender.CloseSend()
-
-	if rerr != nil {
-		return errorf("close transport: %v", rerr)
-	}
-	if serr != nil {
-		return errorf("close transport: %v", serr)
+closeTransport:
+	if err := c.transport.Close(); err != nil {
+		return errorf("close transport: %v", err)
 	}
 	return nil
 }
 
-// receive receives and dispatches messages coming from r.  receive runs
-// in a background goroutine.
+// receive receives and dispatches messages coming from c.transport.  receive
+// runs in a background goroutine.
 //
 // After receive returns, the connection is shut down.  If receive
 // returns a non-nil error, it is sent to the remove vat as an abort.
-func (c *Conn) receive(ctx context.Context, r Receiver) error {
+func (c *Conn) receive(ctx context.Context) error {
 	for {
-		recv, releaseRecv, err := r.RecvMessage(ctx)
+		recv, releaseRecv, err := c.transport.RecvMessage(ctx)
 		if err != nil {
 			return err
 		}
@@ -1163,7 +1152,7 @@ func (c *Conn) sendMessage(ctx context.Context, f func(msg rpccp.Message) error)
 		return err
 	}
 	c.mu.Unlock()
-	msg, send, release, err := c.sender.NewMessage(ctx)
+	msg, send, release, err := c.transport.NewMessage(ctx)
 	if err != nil {
 		c.mu.Lock()
 		c.unlockSender()

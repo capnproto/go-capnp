@@ -139,27 +139,6 @@ type newMessageCaller struct {
 	line int
 }
 
-func (p *pipe) CloseSend() error {
-	if len(p.msgs) > 0 {
-		var callers []byte
-		for c := range p.msgs {
-			if len(callers) > 0 {
-				callers = append(callers, ", "...)
-			}
-			if c.file == "" && c.line == 0 {
-				callers = append(callers, "<???>"...)
-				continue
-			}
-			callers = append(callers, c.file...)
-			callers = append(callers, ':')
-			callers = strconv.AppendInt(callers, int64(c.line), 10)
-		}
-		panic("CloseSend called before releasing all messages.  Unreleased: " + string(callers))
-	}
-	close(p.w)
-	return nil
-}
-
 func (p *pipe) RecvMessage(ctx context.Context) (rpccp.Message, capnp.ReleaseFunc, error) {
 	select {
 	case pm, ok := <-p.r:
@@ -174,7 +153,24 @@ func (p *pipe) RecvMessage(ctx context.Context) (rpccp.Message, capnp.ReleaseFun
 	}
 }
 
-func (p *pipe) CloseRecv() error {
+func (p *pipe) Close() error {
+	if len(p.msgs) > 0 {
+		var callers []byte
+		for c := range p.msgs {
+			if len(callers) > 0 {
+				callers = append(callers, ", "...)
+			}
+			if c.file == "" && c.line == 0 {
+				callers = append(callers, "<???>"...)
+				continue
+			}
+			callers = append(callers, c.file...)
+			callers = append(callers, ':')
+			callers = strconv.AppendInt(callers, int64(c.line), 10)
+		}
+		panic("Close called before releasing all messages.  Unreleased: " + string(callers))
+	}
+	close(p.w)
 	close(p.rc)
 	for {
 		select {
@@ -186,6 +182,7 @@ func (p *pipe) CloseRecv() error {
 			return nil
 		}
 	}
+	return nil
 }
 
 func TestPipeTransport(t *testing.T) {

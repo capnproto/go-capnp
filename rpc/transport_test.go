@@ -3,8 +3,9 @@ package rpc_test
 import (
 	"context"
 	"errors"
+	"io"
 	"net"
-	"runtime"
+	"os"
 	"testing"
 	"time"
 
@@ -19,17 +20,11 @@ func testTransport(t *testing.T, makePipe func() (t1, t2 rpc.Transport, err erro
 		if err != nil {
 			t.Fatal("makePipe:", err)
 		}
-		if err := t1.CloseRecv(); err != nil {
-			t.Error("t1.CloseRecv:", err)
+		if err := t1.Close(); err != nil {
+			t.Error("t1.Close:", err)
 		}
-		if err := t1.CloseSend(); err != nil {
-			t.Error("t1.CloseSend:", err)
-		}
-		if err := t2.CloseRecv(); err != nil {
-			t.Error("t2.CloseRecv:", err)
-		}
-		if err := t2.CloseSend(); err != nil {
-			t.Error("t2.CloseSend:", err)
+		if err := t2.Close(); err != nil {
+			t.Error("t2.Close:", err)
 		}
 	})
 	t.Run("Send", func(t *testing.T) {
@@ -38,18 +33,12 @@ func testTransport(t *testing.T, makePipe func() (t1, t2 rpc.Transport, err erro
 		if err != nil {
 			t.Fatal("makePipe:", err)
 		}
-		if err := t1.CloseRecv(); err != nil {
-			t.Error("t1.CloseRecv:", err)
-		}
-		if err := t2.CloseSend(); err != nil {
-			t.Error("t2.CloseSend:", err)
-		}
 		defer func() {
-			if err := t2.CloseRecv(); err != nil {
-				t.Error("t2.CloseRecv:", err)
+			if err := t1.Close(); err != nil {
+				t.Error("t1.Close:", err)
 			}
-			if err := t1.CloseSend(); err != nil {
-				t.Error("t1.CloseSend:", err)
+			if err := t2.Close(); err != nil {
+				t.Error("t2.Close:", err)
 			}
 		}()
 
@@ -165,48 +154,29 @@ func testTransport(t *testing.T, makePipe func() (t1, t2 rpc.Transport, err erro
 		}
 		release2()
 	})
-	t.Run("CloseRecv", func(t *testing.T) {
+	t.Run("InterruptRecv", func(t *testing.T) {
 		t1, t2, err := makePipe()
 		if err != nil {
 			t.Fatal("makePipe:", err)
 		}
 
-		done := make(chan struct{})
-		go func(ctx context.Context) {
-			_, release, _ := t1.RecvMessage(ctx)
-			t.Log("t1.RecvMessage returned")
-			if release != nil {
-				release()
-			}
-			close(done)
-		}(context.Background())
-		if err := t1.CloseRecv(); err != nil {
-			t.Error("t1.CloseRecv:", err)
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		_, release, _ := t1.RecvMessage(ctx) // hangs here if doesn't work
+		if release != nil {
+			release()
 		}
-		tm := time.NewTimer(15 * time.Second)
-		defer tm.Stop()
-		select {
-		case <-done:
-		case <-tm.C:
-			t.Error("timed out waiting for t1.RecvMessage to return after CloseRecv")
-		}
+		cancel()
 
-		if err := t1.CloseSend(); err != nil {
-			t.Error("t1.CloseSend:", err)
+		if err := t1.Close(); err != nil {
+			t.Error("t1.Close:", err)
 		}
-		if err := t2.CloseRecv(); err != nil {
-			t.Error("t2.CloseRecv:", err)
-		}
-		if err := t2.CloseSend(); err != nil {
-			t.Error("t2.CloseSend:", err)
+		if err := t2.Close(); err != nil {
+			t.Error("t2.Close:", err)
 		}
 	})
 }
 
 func TestTCPStreamTransport(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("TODO(soon): TCP transport only works on Linux")
-	}
 	type listenCall struct {
 		c   *net.TCPConn
 		err error
@@ -254,4 +224,47 @@ func TestTCPStreamTransport(t *testing.T) {
 			return
 		})
 	})
+}
+
+func TestFileStreamTransport(t *testing.T) {
+	testTransport(t, func() (t1, t2 rpc.Transport, err error) {
+		r1, w1, err := os.Pipe()
+		if err != nil {
+			return nil, nil, err
+		}
+		r2, w2, err := os.Pipe()
+		if err != nil {
+			r1.Close()
+			w1.Close()
+			return nil, nil, err
+		}
+		t1 = rpc.NewStreamTransport(readWriteCloser{r1, w2})
+		t2 = rpc.NewStreamTransport(readWriteCloser{r2, w1})
+		return t1, t2, nil
+	})
+}
+
+type readWriteCloser struct {
+	r io.ReadCloser
+	w io.WriteCloser
+}
+
+func (rwc readWriteCloser) Read(p []byte) (int, error) {
+	return rwc.r.Read(p)
+}
+
+func (rwc readWriteCloser) Write(p []byte) (int, error) {
+	return rwc.w.Write(p)
+}
+
+func (rwc readWriteCloser) Close() error {
+	werr := rwc.w.Close()
+	rerr := rwc.r.Close()
+	if werr != nil {
+		return werr
+	}
+	if rerr != nil {
+		return rerr
+	}
+	return nil
 }

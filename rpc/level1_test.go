@@ -41,8 +41,7 @@ func TestRecvDisembargo(t *testing.T) {
 		},
 	}, nil /* brand */, nil /* shutdown */, nil /* policy */))
 	p1, p2 := newPipe(2)
-	defer p2.CloseSend()
-	defer p2.CloseRecv()
+	defer p2.Close()
 	conn := rpc.NewConn(p1, &rpc.Options{
 		BootstrapClient: srv,
 		ErrorReporter:   testErrorReporter{tb: t},
