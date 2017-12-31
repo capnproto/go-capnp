@@ -548,12 +548,15 @@ type Decoder struct {
 }
 
 // NewDecoder creates a new Cap'n Proto framer that reads from r.
+// The returned decoder will only read as much data as necessary to
+// decode the message.
 func NewDecoder(r io.Reader) *Decoder {
 	return &Decoder{r: r}
 }
 
 // NewPackedDecoder creates a new Cap'n Proto framer that reads from a
-// packed stream r.
+// packed stream r.  The returned decoder may read more data than
+// necessary from r.
 func NewPackedDecoder(r io.Reader) *Decoder {
 	return NewDecoder(packed.NewReader(bufio.NewReader(r)))
 }
