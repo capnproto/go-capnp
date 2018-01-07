@@ -18,28 +18,20 @@ import (
 // disembargo, verifies the call delivery order and the disembargo
 // loopback.  Level 1 requirement.
 func TestRecvDisembargo(t *testing.T) {
-	srv := capnp.NewClient(server.New([]server.Method{
-		{
-			Method: capnp.Method{
-				InterfaceID: interfaceID,
-				MethodID:    methodID,
-			},
-			Impl: func(ctx context.Context, call *server.Call) error {
-				in, err := call.Args().Ptr(0)
-				if err != nil {
-					return fmt.Errorf("capability arg: %v", err)
-				}
-				res, err := call.AllocResults(capnp.ObjectSize{PointerCount: 1})
-				if err != nil {
-					return err
-				}
-				if err := res.SetPtr(0, in.Interface().ToPtr()); err != nil {
-					return fmt.Errorf("copy capability to result: %v", err)
-				}
-				return nil
-			},
-		},
-	}, nil /* brand */, nil /* shutdown */, nil /* policy */))
+	srv := newServer(func(ctx context.Context, call *server.Call) error {
+		in, err := call.Args().Ptr(0)
+		if err != nil {
+			return fmt.Errorf("capability arg: %v", err)
+		}
+		res, err := call.AllocResults(capnp.ObjectSize{PointerCount: 1})
+		if err != nil {
+			return err
+		}
+		if err := res.SetPtr(0, in.Interface().ToPtr()); err != nil {
+			return fmt.Errorf("copy capability to result: %v", err)
+		}
+		return nil
+	}, nil)
 	p1, p2 := newPipe(2)
 	defer p2.Close()
 	conn := rpc.NewConn(p1, &rpc.Options{

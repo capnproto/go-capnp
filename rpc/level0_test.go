@@ -527,26 +527,18 @@ func TestSendBootstrapPipelineCall(t *testing.T) {
 // the return values are correct.  Level 0 requirement.
 func TestRecvBootstrapCall(t *testing.T) {
 	srvShutdown := make(chan struct{})
-	srv := capnp.NewClient(server.New(
-		[]server.Method{
-			{
-				Method: capnp.Method{
-					InterfaceID: interfaceID,
-					MethodID:    methodID,
-				},
-				Impl: func(ctx context.Context, call *server.Call) error {
-					resp, err := call.AllocResults(capnp.ObjectSize{DataSize: 8})
-					if err != nil {
-						return err
-					}
-					resp.SetUint64(0, 0xdeadbeef|uint64(call.Args().Uint32(0))<<32)
-					return nil
-				},
-			},
+	srv := newServer(
+		func(ctx context.Context, call *server.Call) error {
+			resp, err := call.AllocResults(capnp.ObjectSize{DataSize: 8})
+			if err != nil {
+				return err
+			}
+			resp.SetUint64(0, 0xdeadbeef|uint64(call.Args().Uint32(0))<<32)
+			return nil
 		},
-		nil, /* brand */
-		shutdownFunc(func() { close(srvShutdown) }),
-		nil /* policy */))
+		func() {
+			close(srvShutdown)
+		})
 	p1, p2 := newPipe(1)
 	defer p2.Close()
 	conn := rpc.NewConn(p1, &rpc.Options{
@@ -706,26 +698,18 @@ func TestRecvBootstrapCall(t *testing.T) {
 // requirement.
 func TestRecvBootstrapPipelineCall(t *testing.T) {
 	srvShutdown := make(chan struct{})
-	srv := capnp.NewClient(server.New(
-		[]server.Method{
-			{
-				Method: capnp.Method{
-					InterfaceID: interfaceID,
-					MethodID:    methodID,
-				},
-				Impl: func(ctx context.Context, call *server.Call) error {
-					resp, err := call.AllocResults(capnp.ObjectSize{DataSize: 8})
-					if err != nil {
-						return err
-					}
-					resp.SetUint64(0, 0xdeadbeef|uint64(call.Args().Uint32(0))<<32)
-					return nil
-				},
-			},
+	srv := newServer(
+		func(ctx context.Context, call *server.Call) error {
+			resp, err := call.AllocResults(capnp.ObjectSize{DataSize: 8})
+			if err != nil {
+				return err
+			}
+			resp.SetUint64(0, 0xdeadbeef|uint64(call.Args().Uint32(0))<<32)
+			return nil
 		},
-		nil, /* brand */
-		shutdownFunc(func() { close(srvShutdown) }),
-		nil /* policy */))
+		func() {
+			close(srvShutdown)
+		})
 	p1, p2 := newPipe(1)
 	defer p2.Close()
 	conn := rpc.NewConn(p1, &rpc.Options{
@@ -958,39 +942,27 @@ func TestCallOnClosedConn(t *testing.T) {
 func TestRecvCancel(t *testing.T) {
 	callCancel := make(chan struct{})
 	retcapShutdown := make(chan struct{})
-	srv := capnp.NewClient(server.New([]server.Method{
-		{
-			Method: capnp.Method{
-				InterfaceID: interfaceID,
-				MethodID:    methodID,
-			},
-			Impl: func(ctx context.Context, call *server.Call) error {
-				// Wait until canceled
-				call.Ack()
-				<-ctx.Done()
-				close(callCancel)
+	srv := newServer(func(ctx context.Context, call *server.Call) error {
+		// Wait until canceled
+		call.Ack()
+		<-ctx.Done()
+		close(callCancel)
 
-				// Return a capability
-				resp, err := call.AllocResults(capnp.ObjectSize{PointerCount: 1})
-				if err != nil {
-					t.Error("alloc results:", err)
-					close(retcapShutdown)
-					return err
-				}
-				retcap := capnp.NewClient(server.New(
-					nil, /* methods */
-					nil, /* brand */
-					shutdownFunc(func() { close(retcapShutdown) }),
-					nil /* policy */))
-				capID := resp.Message().AddCap(retcap)
-				if err := resp.SetPtr(0, capnp.NewInterface(resp.Segment(), capID).ToPtr()); err != nil {
-					t.Error("set pointer:", err)
-					return err
-				}
-				return nil
-			},
-		},
-	}, nil /* brand */, nil /* shutdown */, nil /* policy */))
+		// Return a capability
+		resp, err := call.AllocResults(capnp.ObjectSize{PointerCount: 1})
+		if err != nil {
+			t.Error("alloc results:", err)
+			close(retcapShutdown)
+			return err
+		}
+		retcap := newServer(nil, func() { close(retcapShutdown) })
+		capID := resp.Message().AddCap(retcap)
+		if err := resp.SetPtr(0, capnp.NewInterface(resp.Segment(), capID).ToPtr()); err != nil {
+			t.Error("set pointer:", err)
+			return err
+		}
+		return nil
+	}, nil)
 	p1, p2 := newPipe(1)
 	defer p2.Close()
 	conn := rpc.NewConn(p1, &rpc.Options{
@@ -1333,9 +1305,28 @@ func TestSendCancel(t *testing.T) {
 	}
 }
 
+func newServer(impl func(context.Context, *server.Call) error, shutdown shutdownFunc) *capnp.Client {
+	var methods []server.Method
+	if impl != nil {
+		methods = []server.Method{{
+			Method: capnp.Method{
+				InterfaceID: interfaceID,
+				MethodID:    methodID,
+			},
+			Impl: impl,
+		}}
+	}
+	return capnp.NewClient(server.New(methods, nil /* brand */, shutdown, nil /* policy */))
+}
+
 type shutdownFunc func()
 
-func (f shutdownFunc) Shutdown() { f() }
+func (f shutdownFunc) Shutdown() {
+	if f == nil {
+		return
+	}
+	f()
+}
 
 type rpcMessage struct {
 	Which         rpccp.Message_Which
