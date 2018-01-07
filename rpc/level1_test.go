@@ -197,16 +197,11 @@ func TestRecvDisembargo(t *testing.T) {
 			disembargoTime == 0
 	}
 	for clock := 1; isDone(); clock++ {
-		msg, release, err := p2.RecvMessage(ctx)
+		rmsg, release, err := recvMessage(ctx, p2)
 		if err != nil {
-			t.Fatal("p2.RecvMessage:", err)
+			t.Fatal("recvMessage(ctx, p2):", err)
 		}
-		var rmsg rpcMessage
-		err = pogs.Extract(&rmsg, rpccp.Message_TypeID, msg.Struct)
-		release()
-		if err != nil {
-			t.Fatal("pogs.Extract(p2.RecvMessage(ctx)):", err)
-		}
+		defer release()
 		switch rmsg.Which {
 		case rpccp.Message_Which_return:
 			if returns[rmsg.Return.AnswerID] != 0 {
