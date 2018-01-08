@@ -161,7 +161,10 @@ func testTransport(t *testing.T, makePipe func() (t1, t2 rpc.Transport, err erro
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-		_, release, _ := t1.RecvMessage(ctx) // hangs here if doesn't work
+		_, release, err := t1.RecvMessage(ctx) // hangs here if doesn't work
+		if err == nil {
+			t.Error("interrupted RecvMessage returned nil error")
+		}
 		if release != nil {
 			release()
 		}
@@ -253,8 +256,28 @@ func (rwc readWriteCloser) Read(p []byte) (int, error) {
 	return rwc.r.Read(p)
 }
 
+func (rwc readWriteCloser) SetReadDeadline(t time.Time) error {
+	d, ok := rwc.r.(interface {
+		SetReadDeadline(time.Time) error
+	})
+	if !ok {
+		return errors.New("read deadline not implemented")
+	}
+	return d.SetReadDeadline(t)
+}
+
 func (rwc readWriteCloser) Write(p []byte) (int, error) {
 	return rwc.w.Write(p)
+}
+
+func (rwc readWriteCloser) SetWriteDeadline(t time.Time) error {
+	d, ok := rwc.w.(interface {
+		SetWriteDeadline(time.Time) error
+	})
+	if !ok {
+		return errors.New("write deadline not implemented")
+	}
+	return d.SetWriteDeadline(t)
 }
 
 func (rwc readWriteCloser) Close() error {
