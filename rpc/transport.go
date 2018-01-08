@@ -58,9 +58,8 @@ type StreamTransport struct {
 	cr ctxReader
 	wc io.WriteCloser
 
-	mu       sync.RWMutex
-	interval time.Duration
-	closed   bool
+	mu     sync.Mutex
+	closed bool
 }
 
 // NewStreamTransport creates a new transport that reads and writes to rwc.
@@ -70,9 +69,8 @@ type StreamTransport struct {
 // used to handle Context cancellation and deadlines.
 func NewStreamTransport(rwc io.ReadWriteCloser) *StreamTransport {
 	return &StreamTransport{
-		cr:       ctxReader{r: rwc},
-		wc:       rwc,
-		interval: 500 * time.Millisecond,
+		cr: ctxReader{r: rwc},
+		wc: rwc,
 	}
 }
 
@@ -99,10 +97,7 @@ func (s *StreamTransport) NewMessage(ctx context.Context) (_ rpccp.Message, send
 		if err != nil {
 			return errors.New(errors.Failed, "rpc stream transport", "send: "+err.Error())
 		}
-		s.mu.RLock()
-		interval := s.interval
-		s.mu.RUnlock()
-		_, err = writeCtx(ctx, s.wc, b, interval)
+		_, err = writeCtx(ctx, s.wc, b)
 		if err != nil {
 			return errors.New(errors.Failed, "rpc stream transport", "send: "+err.Error())
 		}
@@ -118,9 +113,6 @@ func (s *StreamTransport) NewMessage(ctx context.Context) (_ rpccp.Message, send
 //
 // It is safe to call RecvMessage concurrently with NewMessage.
 func (s *StreamTransport) RecvMessage(ctx context.Context) (rpccp.Message, capnp.ReleaseFunc, error) {
-	s.mu.RLock()
-	s.cr.interval = s.interval
-	s.mu.RUnlock()
 	s.cr.ctx = ctx
 	msg, err := capnp.NewDecoder(&s.cr).Decode()
 	if err != nil {
@@ -131,14 +123,6 @@ func (s *StreamTransport) RecvMessage(ctx context.Context) (rpccp.Message, capnp
 		return rpccp.Message{}, nil, errors.New(errors.Failed, "rpc stream transport", "receive: "+err.Error())
 	}
 	return rmsg, func() { msg.Reset(nil) }, nil
-}
-
-// SetInterruptInterval sets the frequency at which reads and writes are
-// woken up to check for cancellation.
-func (s *StreamTransport) SetInterruptInterval(d time.Duration) {
-	s.mu.Lock()
-	s.interval = d
-	s.mu.Unlock()
 }
 
 // Close closes the underlying ReadWriteCloser.
@@ -160,9 +144,8 @@ func (s *StreamTransport) Close() error {
 
 // ctxReader adds timeouts and cancellation to a reader.
 type ctxReader struct {
-	r        io.Reader
-	interval time.Duration
-	ctx      context.Context // set to change Context
+	r   io.Reader
+	ctx context.Context // set to change Context
 
 	// internal state
 	result chan readResult
@@ -206,36 +189,42 @@ func (cr *ctxReader) Read(p []byte) (int, error) {
 			return 0, cr.ctx.Err()
 		}
 	}
+	// Check for early cancel.
 	select {
 	case <-cr.ctx.Done():
 		return 0, cr.ctx.Err()
 	default:
 	}
+	// Query timeout support.
 	rd, ok := cr.r.(interface {
 		SetReadDeadline(time.Time) error
 	})
 	if !ok {
 		return cr.leakyRead(p)
 	}
-	deadline, hasDeadline := cr.ctx.Deadline()
-	if err := rd.SetReadDeadline(nextDeadline(cr.interval, deadline, hasDeadline)); err != nil {
+	if err := rd.SetReadDeadline(time.Now()); err != nil {
 		return cr.leakyRead(p)
 	}
-	for {
+	// Start separate goroutine to wait on Context.Done.
+	if d, ok := cr.ctx.Deadline(); ok {
+		rd.SetReadDeadline(d)
+	} else {
+		rd.SetReadDeadline(time.Time{})
+	}
+	readDone := make(chan struct{})
+	listenDone := make(chan struct{})
+	go func() {
+		defer close(listenDone)
 		select {
 		case <-cr.ctx.Done():
-			return 0, cr.ctx.Err()
-		default:
+			rd.SetReadDeadline(time.Now()) // interrupt read
+		case <-readDone:
 		}
-		n, err := cr.r.Read(p)
-		if isTimeout(err) {
-			err = nil
-		}
-		if n > 0 || err != nil {
-			return n, err
-		}
-		rd.SetReadDeadline(nextDeadline(cr.interval, deadline, hasDeadline))
-	}
+	}()
+	n, err := cr.r.Read(p)
+	close(readDone)
+	<-listenDone
+	return n, err
 }
 
 // leakyRead reads from the underlying reader in a separate goroutine.
@@ -276,7 +265,7 @@ func (cr *ctxReader) wait() {
 // respect the Done signal of the Context.  However, once any bytes have
 // been written to w, writeCtx will ignore the Done signal to avoid
 // partial writes.
-func writeCtx(ctx context.Context, w io.Writer, b []byte, interval time.Duration) (int, error) {
+func writeCtx(ctx context.Context, w io.Writer, b []byte) (int, error) {
 	select {
 	case <-ctx.Done():
 		// Early cancel.
@@ -290,31 +279,36 @@ func writeCtx(ctx context.Context, w io.Writer, b []byte, interval time.Duration
 	if !ok {
 		return w.Write(b)
 	}
-	deadline, hasDeadline := ctx.Deadline()
-	if err := wd.SetWriteDeadline(nextDeadline(interval, deadline, hasDeadline)); err != nil {
+	if err := wd.SetWriteDeadline(time.Now()); err != nil {
 		return w.Write(b)
 	}
-	// Poll for cancel while we haven't written anything.
-	n := 0
-	for n == 0 {
+	// Start separate goroutine to wait on Context.Done.
+	if d, ok := ctx.Deadline(); ok {
+		wd.SetWriteDeadline(d)
+	} else {
+		wd.SetWriteDeadline(time.Time{})
+	}
+	writeDone := make(chan struct{})
+	listenDone := make(chan struct{})
+	go func() {
+		defer close(listenDone)
 		select {
 		case <-ctx.Done():
-			return 0, ctx.Err()
-		default:
+			wd.SetWriteDeadline(time.Now()) // interrupt write
+		case <-writeDone:
 		}
-		var err error
-		n, err = w.Write(b)
-		if err == nil || (err != nil && !isTimeout(err)) {
-			return n, err
-		}
-		wd.SetWriteDeadline(nextDeadline(interval, deadline, hasDeadline))
+	}()
+	n, err := w.Write(b)
+	close(writeDone)
+	<-listenDone
+	if n == 0 || !isTimeout(err) {
+		return n, err
 	}
 	// Data has been written.  Block until finished, since partial writes
 	// are guaranteed protocol violations.
 	wd.SetWriteDeadline(time.Time{})
 	nn, err := w.Write(b[n:])
-	n += nn
-	return n, err
+	return n + nn, err
 }
 
 func nextDeadline(interval time.Duration, deadline time.Time, hasDeadline bool) time.Time {
