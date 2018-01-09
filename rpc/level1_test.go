@@ -312,40 +312,32 @@ func TestRecvDisembargo(t *testing.T) {
 func TestIssue3(t *testing.T) {
 	const callbackInterfaceID = interfaceID + 100
 	const callbackMethodID = 9
-	srv := capnp.NewClient(server.New([]server.Method{
-		{
+	srv := newServer(func(ctx context.Context, call *server.Call) error {
+		in, err := call.Args().Ptr(0)
+		if err != nil {
+			return fmt.Errorf("capability arg: %v", err)
+		}
+		ans, release := in.Interface().Client().SendCall(ctx, capnp.Send{
 			Method: capnp.Method{
-				InterfaceID: interfaceID,
-				MethodID:    methodID,
+				InterfaceID: callbackInterfaceID,
+				MethodID:    callbackMethodID,
 			},
-			Impl: func(ctx context.Context, call *server.Call) error {
-				in, err := call.Args().Ptr(0)
-				if err != nil {
-					return fmt.Errorf("capability arg: %v", err)
-				}
-				ans, release := in.Interface().Client().SendCall(ctx, capnp.Send{
-					Method: capnp.Method{
-						InterfaceID: callbackInterfaceID,
-						MethodID:    callbackMethodID,
-					},
-				})
-				defer release()
-				call.Ack()
-				callbackResult, err := ans.Struct()
-				if err != nil {
-					return fmt.Errorf("callback: %v", err)
-				}
-				res, err := call.AllocResults(callbackResult.Size())
-				if err != nil {
-					return err
-				}
-				if err := res.CopyFrom(callbackResult); err != nil {
-					return fmt.Errorf("copy to result: %v", err)
-				}
-				return nil
-			},
-		},
-	}, nil /* brand */, nil /* shutdown */, nil /* policy */))
+		})
+		defer release()
+		call.Ack()
+		callbackResult, err := ans.Struct()
+		if err != nil {
+			return fmt.Errorf("callback: %v", err)
+		}
+		res, err := call.AllocResults(callbackResult.Size())
+		if err != nil {
+			return err
+		}
+		if err := res.CopyFrom(callbackResult); err != nil {
+			return fmt.Errorf("copy to result: %v", err)
+		}
+		return nil
+	}, nil)
 	p1, p2 := newPipe(1)
 	defer p2.Close()
 	conn := rpc.NewConn(p1, &rpc.Options{
@@ -444,13 +436,11 @@ func TestIssue3(t *testing.T) {
 	// 5. Read callback
 	var callbackQID uint32
 	{
-		msg, release, err := p2.RecvMessage(ctx)
+		rmsg, release, err := recvMessage(ctx, p2)
 		if err != nil {
-			t.Fatal("p2.RecvMessage:", err)
+			t.Fatal("recvMessage(ctx, p2):", err)
 		}
-		var rmsg rpcMessage
-		err = pogs.Extract(&rmsg, rpccp.Message_TypeID, msg.Struct)
-		release()
+		defer release()
 		if err != nil {
 			t.Fatal("pogs.Extract(p2.RecvMessage(ctx)):", err)
 		}
@@ -469,6 +459,7 @@ func TestIssue3(t *testing.T) {
 		if rmsg.Call.Target.ImportedCap != exportID {
 			t.Fatalf("Received call on export %d; want %d", rmsg.Call.Target.ImportedCap, exportID)
 		}
+		release()
 	}
 
 	// 6. Write callback return.
@@ -508,15 +499,11 @@ func TestIssue3(t *testing.T) {
 	seenReturn := false
 	exportRefs := 1
 	for !seenFinish || !seenReturn {
-		msg, release, err := p2.RecvMessage(ctx)
+		rmsg, release, err := recvMessage(ctx, p2)
 		if err != nil {
-			t.Fatal("p2.RecvMessage:", err)
+			t.Fatal("recvMessage(ctx, p2):", err)
 		}
 		defer release()
-		var rmsg rpcMessage
-		if err := pogs.Extract(&rmsg, rpccp.Message_TypeID, msg.Struct); err != nil {
-			t.Fatal("pogs.Extract(p2.RecvMessage(ctx)):", err)
-		}
 		switch rmsg.Which {
 		case rpccp.Message_Which_return:
 			if seenReturn {
