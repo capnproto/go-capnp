@@ -47,7 +47,8 @@ type Transport interface {
 
 	// Close releases any resources associated with the transport.  All
 	// messages created with NewMessage must be released before calling
-	// Close.
+	// Close.  It is not safe to call Close concurrently with any other
+	// operations on the transport.
 	Close() error
 }
 
@@ -66,7 +67,10 @@ type StreamTransport struct {
 // Closing the transport will close rwc.
 //
 // If rwc has SetReadDeadline or SetWriteDeadline methods, they will be
-// used to handle Context cancellation and deadlines.
+// used to handle Context cancellation and deadlines.  If rwc does not
+// have these methods, then rwc.Close must be safe to call concurrently
+// with rwc.Read.  Notably, this is not true of *os.File before Go 1.9
+// (see https://golang.org/issue/7970).
 func NewStreamTransport(rwc io.ReadWriteCloser) *StreamTransport {
 	return &StreamTransport{
 		cr: ctxReader{r: rwc},
@@ -125,7 +129,8 @@ func (s *StreamTransport) RecvMessage(ctx context.Context) (rpccp.Message, capnp
 	return rmsg, func() { msg.Reset(nil) }, nil
 }
 
-// Close closes the underlying ReadWriteCloser.
+// Close closes the underlying ReadWriteCloser.  It is not safe to call
+// Close concurrently with any other operations on the transport.
 func (s *StreamTransport) Close() error {
 	s.mu.Lock()
 	if s.closed {
