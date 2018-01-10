@@ -45,39 +45,53 @@ func TestMain(m *testing.M) {
 // TestSendAbort calls Close on a new connection, verifying that it
 // sends an Abort message and it reports no errors.  Level 0 requirement.
 func TestSendAbort(t *testing.T) {
-	p1, p2 := newPipe(1)
-	defer p2.Close()
-	conn := rpc.NewConn(p1, &rpc.Options{
-		ErrorReporter: testErrorReporter{tb: t, fail: true},
-	})
+	t.Run("ReceiverListening", func(t *testing.T) {
+		p1, p2 := newPipe(1)
+		defer p2.Close()
+		conn := rpc.NewConn(p1, &rpc.Options{
+			ErrorReporter: testErrorReporter{tb: t, fail: true},
+		})
 
-	ctx := context.Background()
-	select {
-	case <-conn.Done():
-		t.Error("conn.Done closed before Close")
-	default:
-	}
-	if err := conn.Close(); err != nil {
-		t.Error("conn.Close():", err)
-	}
-	select {
-	case <-conn.Done():
-	default:
-		t.Error("conn.Done open after Close")
-	}
-	rmsg, release, err := recvMessage(ctx, p2)
-	if err != nil {
-		t.Fatal("recvMessage(ctx, p2):", err)
-	}
-	defer release()
-	if rmsg.Which != rpccp.Message_Which_abort {
-		t.Fatalf("Received %v message; want abort", rmsg.Which)
-	}
-	if rmsg.Abort == nil {
-		t.Error("Received null abort message")
-	} else if rmsg.Abort.Type != rpccp.Exception_Type_failed {
-		t.Errorf("Received exception type %v; want failed", rmsg.Abort.Type)
-	}
+		ctx := context.Background()
+		select {
+		case <-conn.Done():
+			t.Error("conn.Done closed before Close")
+		default:
+		}
+		if err := conn.Close(); err != nil {
+			t.Error("conn.Close():", err)
+		}
+		select {
+		case <-conn.Done():
+		default:
+			t.Error("conn.Done open after Close")
+		}
+		rmsg, release, err := recvMessage(ctx, p2)
+		if err != nil {
+			t.Fatal("recvMessage(ctx, p2):", err)
+		}
+		defer release()
+		if rmsg.Which != rpccp.Message_Which_abort {
+			t.Fatalf("Received %v message; want abort", rmsg.Which)
+		}
+		if rmsg.Abort == nil {
+			t.Error("Received null abort message")
+		} else if rmsg.Abort.Type != rpccp.Exception_Type_failed {
+			t.Errorf("Received exception type %v; want failed", rmsg.Abort.Type)
+		}
+	})
+	t.Run("ReceiverNotListening", func(t *testing.T) {
+		p1, p2 := newPipe(0)
+		defer p2.Close()
+		conn := rpc.NewConn(p1, &rpc.Options{
+			ErrorReporter: testErrorReporter{tb: t, fail: true},
+		})
+
+		// Should have a timeout.
+		if err := conn.Close(); err != nil {
+			t.Error("conn.Close():", err)
+		}
+	})
 }
 
 // TestRecvAbort writes an abort message to a connection, waits for

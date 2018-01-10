@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/internal/errors"
@@ -65,8 +66,9 @@ is a common source of errors and/or inefficiencies.
 // A Conn is a connection to another Cap'n Proto vat.
 // It is safe to use from multiple goroutines.
 type Conn struct {
-	bootstrap *capnp.Client
-	reporter  ErrorReporter
+	bootstrap    *capnp.Client
+	reporter     ErrorReporter
+	abortTimeout time.Duration
 
 	// bgctx is a Context that is canceled when shutdown starts.
 	bgctx context.Context
@@ -112,6 +114,11 @@ type Options struct {
 	// ErrorReporter will be called upon when errors occur while the Conn
 	// is receiving messages from the remote vat.
 	ErrorReporter ErrorReporter
+
+	// AbortTimeout specifies how long to block on sending an abort message
+	// before closing the transport.  If zero, then a reasonably short
+	// timeout is used.
+	AbortTimeout time.Duration
 }
 
 // A type that implements ErrorReporter can receive errors from a Conn.
@@ -140,6 +147,10 @@ func NewConn(t Transport, opts *Options) *Conn {
 	if opts != nil {
 		c.bootstrap = opts.BootstrapClient
 		c.reporter = opts.ErrorReporter
+		c.abortTimeout = opts.AbortTimeout
+	}
+	if c.abortTimeout == 0 {
+		c.abortTimeout = 100 * time.Millisecond
 	}
 	c.tasks.Add(1)
 	go func() {
@@ -297,23 +308,27 @@ func (c *Conn) shutdown(abortErr error) error {
 
 	// Send abort message (ignoring error).
 	if abortErr != nil {
-		// TODO(soon): add timeout
-		msg, send, release, err := c.transport.NewMessage(context.Background())
+		abortCtx, cancel := context.WithTimeout(context.Background(), c.abortTimeout)
+		msg, send, release, err := c.transport.NewMessage(abortCtx)
 		if err != nil {
+			cancel()
 			goto closeTransport
 		}
 		abort, err := msg.NewAbort()
 		if err != nil {
 			release()
+			cancel()
 			goto closeTransport
 		}
 		abort.SetType(rpccp.Exception_Type(errors.TypeOf(abortErr)))
 		if err := abort.SetReason(abortErr.Error()); err != nil {
 			release()
+			cancel()
 			goto closeTransport
 		}
 		send()
 		release()
+		cancel()
 	}
 closeTransport:
 	if err := c.transport.Close(); err != nil {
