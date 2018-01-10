@@ -10,7 +10,7 @@ import (
 func ExampleIsServer() {
 	x := int(42)
 	c := capnp.NewClient(server.New([]server.Method{}, x, nil, nil))
-	if brand, ok := server.IsServer(c.Brand()); ok {
+	if brand, ok := server.IsServer(c.State().Brand); ok {
 		fmt.Println("Client is a server, got brand:", brand)
 	}
 	// Output:

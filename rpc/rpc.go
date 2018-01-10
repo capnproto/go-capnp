@@ -216,8 +216,8 @@ func (bc bootstrapClient) Recv(ctx context.Context, r capnp.Recv) capnp.Pipeline
 	return bc.c.RecvCall(ctx, r)
 }
 
-func (bc bootstrapClient) Brand() interface{} {
-	return bc.c.Brand()
+func (bc bootstrapClient) Brand() capnp.Brand {
+	return bc.c.State().Brand
 }
 
 func (bc bootstrapClient) Shutdown() {
@@ -1085,7 +1085,8 @@ func (c *Conn) handleDisembargo(ctx context.Context, d rpccp.Disembargo) error {
 		c.mu.Unlock()
 		return fail("incoming disembargo: sender loopback requested on a capability that is not an import")
 	}
-	imp, ok := ans.resultCapTable[iface.Capability()].Brand().(*importClient)
+	client := ans.resultCapTable[iface.Capability()]
+	imp, ok := client.State().Brand.Value.(*importClient)
 	if !ok || imp.c != c {
 		c.mu.Unlock()
 		return fail("incoming disembargo: sender loopback requested on a capability that is not an import")

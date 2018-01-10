@@ -10,7 +10,7 @@ import (
 
 func TestClient(t *testing.T) {
 	ctx := context.Background()
-	h := &dummyHook{brand: int(42)}
+	h := &dummyHook{brand: Brand{Value: int(42)}}
 	c := NewClient(h)
 	defer c.Release()
 
@@ -20,9 +20,12 @@ func TestClient(t *testing.T) {
 	if !c.IsValid() {
 		t.Error("new client is not valid")
 	}
-	brand := c.Brand()
-	if x, ok := brand.(int); !ok || x != 42 {
-		t.Errorf("c.Brand() = %v; want 42", brand)
+	state := c.State()
+	if state.IsPromise {
+		t.Error("c.State().IsPromise = true; want false")
+	}
+	if state.Brand.Value != int(42) {
+		t.Errorf("c.State().Brand.Value = %#v; want 42", state.Brand.Value)
 	}
 	ans, finish := c.SendCall(ctx, Send{})
 	if _, err := ans.Struct(); err != nil {
@@ -65,12 +68,19 @@ func TestClient(t *testing.T) {
 
 func TestReleasedClient(t *testing.T) {
 	ctx := context.Background()
-	h := &dummyHook{brand: int(42)}
+	h := &dummyHook{brand: Brand{Value: int(42)}}
 	c := NewClient(h)
 	c.Release()
 
 	if c.IsValid() {
 		t.Error("released client is valid")
+	}
+	state := c.State()
+	if state.Brand.Value != nil {
+		t.Error("c.State().Brand.Value = %#v; want <nil>", state.Brand.Value)
+	}
+	if state.IsPromise {
+		t.Error("c.State().IsPromise = true; want false")
 	}
 	ans, finish := c.SendCall(ctx, Send{})
 	if _, err := ans.Struct(); err == nil {
@@ -128,8 +138,12 @@ func TestNullClient(t *testing.T) {
 			if c.IsValid() {
 				t.Error("null client is valid")
 			}
-			if b := c.Brand(); b != nil {
-				t.Errorf("c.Brand() = %v; want <nil>", b)
+			state := c.State()
+			if state.Brand.Value != nil {
+				t.Errorf("c.State().Brand = %#v; want <nil>", state.Brand)
+			}
+			if state.IsPromise {
+				t.Error("c.State().IsPromise = true; want false")
 			}
 			ans, finish := c.SendCall(ctx, Send{})
 			if _, err := ans.Struct(); err == nil {
@@ -158,8 +172,8 @@ func TestNullClient(t *testing.T) {
 }
 
 func TestPromisedClient(t *testing.T) {
-	a := new(dummyHook)
-	b := new(dummyHook)
+	a := &dummyHook{brand: Brand{Value: int(111)}}
+	b := &dummyHook{brand: Brand{Value: int(222)}}
 	ca, pa := NewPromisedClient(a)
 	defer ca.Release()
 	cb := NewClient(b)
@@ -168,6 +182,13 @@ func TestPromisedClient(t *testing.T) {
 
 	if ca.IsSame(cb) {
 		t.Error("before resolution, ca == cb")
+	}
+	state := ca.State()
+	if state.Brand.Value != int(111) {
+		t.Errorf("before resolution, ca.State().Brand.Value = %#v; want 111", state.Brand.Value)
+	}
+	if !state.IsPromise {
+		t.Error("before resolution, ca.State().IsPromise = false; want true")
 	}
 	_, finish := ca.SendCall(ctx, Send{})
 	finish()
@@ -183,6 +204,14 @@ func TestPromisedClient(t *testing.T) {
 	if !ca.IsSame(cb) {
 		t.Error("after resolution, ca != cb")
 	}
+	state = ca.State()
+	if state.Brand.Value != int(222) {
+		t.Errorf("after resolution, ca.State().Brand.Value = %#v; want 222", state.Brand.Value)
+	}
+	if state.IsPromise {
+		t.Error("after resolution, ca.State().IsPromise = true; want false")
+	}
+
 	if b.shutdowns > 0 {
 		t.Error("b shut down before clients released")
 	}
@@ -235,7 +264,7 @@ func TestPromisedClient_EarlyClose(t *testing.T) {
 
 type dummyHook struct {
 	calls     int
-	brand     interface{}
+	brand     Brand
 	shutdowns int
 }
 
@@ -251,7 +280,7 @@ func (dh *dummyHook) Recv(_ context.Context, r Recv) PipelineCaller {
 	return nil
 }
 
-func (dh *dummyHook) Brand() interface{} {
+func (dh *dummyHook) Brand() Brand {
 	return dh.brand
 }
 

@@ -188,8 +188,8 @@ func returnAnswer(ret capnp.Returner, ans *capnp.Answer, finish func()) {
 	ret.Return(nil)
 }
 
-func (ic *importClient) Brand() interface{} {
-	return ic
+func (ic *importClient) Brand() capnp.Brand {
+	return capnp.Brand{Value: ic}
 }
 
 func (ic *importClient) Shutdown() {

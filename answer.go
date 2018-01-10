@@ -659,16 +659,16 @@ func (pc pipelineClient) Recv(ctx context.Context, r Recv) PipelineCaller {
 	return pc.p.ans.PipelineRecv(ctx, pc.transform, r)
 }
 
-func (pc pipelineClient) Brand() interface{} {
+func (pc pipelineClient) Brand() Brand {
 	select {
 	case <-pc.p.resolved:
 		pc.p.mu.Lock()
 		r := pc.p.resolution()
 		pc.p.mu.Unlock()
-		return r.client(pc.transform).Brand()
+		return r.client(pc.transform).State().Brand
 	default:
 		// TODO(someday): allow people to obtain the underlying answer.
-		return nil
+		return Brand{}
 	}
 }
 

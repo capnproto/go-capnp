@@ -172,24 +172,24 @@ func NewPromisedClient(hook ClientHook) (*Client, *ClientPromise) {
 // startCall holds onto a hook to prevent it from shutting down until
 // finish is called.  It resolves the client's hook as much as possible
 // first.  The caller must not be holding onto c.mu.
-func (c *Client) startCall() (hook ClientHook, released bool, finish func()) {
+func (c *Client) startCall() (hook ClientHook, resolved, released bool, finish func()) {
 	if c == nil {
-		return nil, false, func() {}
+		return nil, true, false, func() {}
 	}
 	defer c.mu.Unlock()
 	c.mu.Lock()
 	if c.h == nil {
-		return nil, c.released, func() {}
+		return nil, true, c.released, func() {}
 	}
 	c.h.mu.Lock()
 	c.h = resolveHook(c.h)
 	if c.h == nil {
-		return nil, false, func() {}
+		return nil, true, false, func() {}
 	}
 	c.h.calls++
 	c.h.mu.Unlock()
 	savedHook := c.h
-	return savedHook.ClientHook, false, func() {
+	return savedHook.ClientHook, savedHook.isResolved(), false, func() {
 		savedHook.mu.Lock()
 		savedHook.calls--
 		if savedHook.refs == 0 && savedHook.calls == 0 {
@@ -244,7 +244,7 @@ func resolveHook(h *clientHook) *clientHook {
 // that will hold the result.  The caller must call the returned release
 // function when it no longer needs the answer's data.
 func (c *Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
-	h, released, finish := c.startCall()
+	h, _, released, finish := c.startCall()
 	defer finish()
 	if released {
 		return ErrorAnswer(s.Method, newError("call on released client")), func() {}
@@ -261,7 +261,7 @@ func (c *Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 // caller must call the returned release function when it no longer
 // needs the answer's data.
 func (c *Client) RecvCall(ctx context.Context, r Recv) PipelineCaller {
-	h, released, finish := c.startCall()
+	h, _, released, finish := c.startCall()
 	defer finish()
 	if released {
 		r.Reject(newError("call on released client"))
@@ -359,15 +359,31 @@ func (c *Client) WeakRef() *WeakClient {
 	return &WeakClient{h: h}
 }
 
-// Brand returns the current underlying hook's Brand method or nil if
-// c is nil, has resolved to null, or has been released.
-func (c *Client) Brand() interface{} {
-	h, _, finish := c.startCall()
+// State reads the current state of the client.  It returns the zero
+// ClientState if c is nil, has resolved to null, or has been released.
+func (c *Client) State() ClientState {
+	h, resolved, _, finish := c.startCall()
 	defer finish()
 	if h == nil {
-		return nil
+		return ClientState{}
 	}
-	return h.Brand()
+	return ClientState{
+		Brand:     h.Brand(),
+		IsPromise: !resolved,
+	}
+}
+
+// A Brand is an opaque value used to identify a capability.
+type Brand struct {
+	Value interface{}
+}
+
+// ClientState is a snapshot of a client's identity.
+type ClientState struct {
+	// Brand is the value returned from the hook's Brand method.
+	Brand Brand
+	// IsPromise is true if the client has not resolved yet.
+	IsPromise bool
 }
 
 // String returns a string that identifies this capability for debugging
@@ -619,7 +635,7 @@ type ClientHook interface {
 
 	// Brand returns an implementation-specific value.  This can be used
 	// to introspect and identify kinds of clients.
-	Brand() interface{}
+	Brand() Brand
 
 	// Shutdown releases any resources associated with this capability.
 	// The behavior of calling any methods on the receiver after calling
@@ -767,8 +783,8 @@ func (ec errorClient) Recv(_ context.Context, r Recv) PipelineCaller {
 	return nil
 }
 
-func (ec errorClient) Brand() interface{} {
-	return nil
+func (ec errorClient) Brand() Brand {
+	return Brand{}
 }
 
 func (ec errorClient) Shutdown() {

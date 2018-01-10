@@ -322,8 +322,8 @@ func (srv *Server) hasOngoing() bool {
 }
 
 // Brand returns a value that will match IsServer.
-func (srv *Server) Brand() interface{} {
-	return serverBrand{srv.brand}
+func (srv *Server) Brand() capnp.Brand {
+	return capnp.Brand{Value: serverBrand{srv.brand}}
 }
 
 // Shutdown waits for ongoing calls to finish and calls Shutdown on the
@@ -356,8 +356,8 @@ func (srv *Server) Shutdown() {
 // IsServer reports whether a brand returned by capnp.Client.Brand
 // originated from Server.Brand, and returns the brand argument passed
 // to New.
-func IsServer(brand interface{}) (_ interface{}, ok bool) {
-	sb, ok := brand.(serverBrand)
+func IsServer(brand capnp.Brand) (_ interface{}, ok bool) {
+	sb, ok := brand.Value.(serverBrand)
 	return sb.x, ok
 }
 
