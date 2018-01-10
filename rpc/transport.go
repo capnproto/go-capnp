@@ -59,8 +59,11 @@ type StreamTransport struct {
 	cr ctxReader
 	wc io.WriteCloser
 
-	mu     sync.Mutex
-	closed bool
+	partialWriteTimeout time.Duration
+	closed              bool
+
+	mu  sync.RWMutex
+	err error
 }
 
 // NewStreamTransport creates a new transport that reads and writes to rwc.
@@ -75,6 +78,8 @@ func NewStreamTransport(rwc io.ReadWriteCloser) *StreamTransport {
 	return &StreamTransport{
 		cr: ctxReader{r: rwc},
 		wc: rwc,
+
+		partialWriteTimeout: 30 * time.Second,
 	}
 }
 
@@ -82,6 +87,14 @@ func NewStreamTransport(rwc io.ReadWriteCloser) *StreamTransport {
 //
 // It is safe to call NewMessage concurrently with RecvMessage.
 func (s *StreamTransport) NewMessage(ctx context.Context) (_ rpccp.Message, send func() error, release capnp.ReleaseFunc, _ error) {
+	// Check if stream is broken
+	s.mu.RLock()
+	err := s.err
+	s.mu.RUnlock()
+	if err != nil {
+		return rpccp.Message{}, nil, nil, err
+	}
+
 	// TODO(soon): reuse memory
 	msg, seg, err := capnp.NewMessage(capnp.MultiSegment(nil))
 	if err != nil {
@@ -97,11 +110,22 @@ func (s *StreamTransport) NewMessage(ctx context.Context) (_ rpccp.Message, send
 			return errors.New(errors.Failed, "rpc stream transport", "send: "+ctx.Err().Error())
 		default:
 		}
+		s.mu.RLock()
+		err := s.err
+		s.mu.RUnlock()
+		if err != nil {
+			return err
+		}
 		b, err := msg.Marshal()
 		if err != nil {
 			return errors.New(errors.Failed, "rpc stream transport", "send: "+err.Error())
 		}
-		_, err = writeCtx(ctx, s.wc, b)
+		n, err := writeCtx(ctx, s.wc, b, s.partialWriteTimeout)
+		if n > 0 && n < len(b) {
+			s.mu.Lock()
+			s.err = errors.New(errors.Disconnected, "rpc stream transport", "broken due to partial write")
+			s.mu.Unlock()
+		}
 		if err != nil {
 			return errors.New(errors.Failed, "rpc stream transport", "send: "+err.Error())
 		}
@@ -113,10 +137,28 @@ func (s *StreamTransport) NewMessage(ctx context.Context) (_ rpccp.Message, send
 	return rmsg, send, release, nil
 }
 
+// SetPartialWriteTimeout sets the timeout for completing the
+// transmission of a partially sent message after the send is cancelled
+// or interrupted for any future sends.  If not set, a reasonable
+// non-zero value is used.
+//
+// Setting a shorter timeout may free up resources faster in the case of
+// an unresponsive remote peer, but may also make the transport respond
+// too aggressively to bursts of latency.
+func (s *StreamTransport) SetPartialWriteTimeout(d time.Duration) {
+	s.partialWriteTimeout = d
+}
+
 // RecvMessage reads the next message from the underlying reader.
 //
 // It is safe to call RecvMessage concurrently with NewMessage.
 func (s *StreamTransport) RecvMessage(ctx context.Context) (rpccp.Message, capnp.ReleaseFunc, error) {
+	s.mu.RLock()
+	err := s.err
+	s.mu.RUnlock()
+	if err != nil {
+		return rpccp.Message{}, nil, err
+	}
 	s.cr.ctx = ctx
 	msg, err := capnp.NewDecoder(&s.cr).Decode()
 	if err != nil {
@@ -132,13 +174,10 @@ func (s *StreamTransport) RecvMessage(ctx context.Context) (rpccp.Message, capnp
 // Close closes the underlying ReadWriteCloser.  It is not safe to call
 // Close concurrently with any other operations on the transport.
 func (s *StreamTransport) Close() error {
-	s.mu.Lock()
 	if s.closed {
-		s.mu.Unlock()
 		return errors.New(errors.Disconnected, "rpc stream transport", "already closed")
 	}
 	s.closed = true
-	s.mu.Unlock()
 	err := s.wc.Close()
 	s.cr.wait()
 	if err != nil {
@@ -267,10 +306,10 @@ func (cr *ctxReader) wait() {
 }
 
 // writeCtx writes bytes to a writer while making a best effort to
-// respect the Done signal of the Context.  However, once any bytes have
-// been written to w, writeCtx will ignore the Done signal to avoid
-// partial writes.
-func writeCtx(ctx context.Context, w io.Writer, b []byte) (int, error) {
+// respect the Done signal of the Context.  However, if allowPartial is
+// false, then once any bytes have been written to w, writeCtx will
+// ignore the Done signal to avoid partial writes.
+func writeCtx(ctx context.Context, w io.Writer, b []byte, partialTimeout time.Duration) (int, error) {
 	select {
 	case <-ctx.Done():
 		// Early cancel.
@@ -306,12 +345,12 @@ func writeCtx(ctx context.Context, w io.Writer, b []byte) (int, error) {
 	n, err := w.Write(b)
 	close(writeDone)
 	<-listenDone
-	if n == 0 || !isTimeout(err) {
+	if partialTimeout <= 0 || n == 0 || !isTimeout(err) {
 		return n, err
 	}
-	// Data has been written.  Block until finished, since partial writes
-	// are guaranteed protocol violations.
-	wd.SetWriteDeadline(time.Time{})
+	// Data has been written.  Block with extra partial timeout, since
+	// partial writes are guaranteed protocol violations.
+	wd.SetWriteDeadline(time.Now().Add(partialTimeout))
 	nn, err := w.Write(b[n:])
 	return n + nn, err
 }
