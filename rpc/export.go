@@ -101,11 +101,16 @@ func (c *Conn) sendCap(d rpccp.CapDescriptor, client *capnp.Client) (_ exportID,
 			return exportID(id), true
 		}
 	}
-	id := exportID(len(c.exports))
-	c.exports = append(c.exports, &expent{
+	ee := &expent{
 		client:   client.AddRef(),
 		wireRefs: 1,
-	})
+	}
+	id := exportID(c.exportID.next())
+	if int64(id) == int64(len(c.exports)) {
+		c.exports = append(c.exports, ee)
+	} else {
+		c.exports[id] = ee
+	}
 	d.SetSenderHosted(uint32(id))
 	return id, true
 }
