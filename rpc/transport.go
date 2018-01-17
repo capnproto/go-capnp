@@ -355,14 +355,6 @@ func writeCtx(ctx context.Context, w io.Writer, b []byte, partialTimeout time.Du
 	return n + nn, err
 }
 
-func nextDeadline(interval time.Duration, deadline time.Time, hasDeadline bool) time.Time {
-	d := time.Now().Add(interval)
-	if hasDeadline && d.After(deadline) {
-		return deadline
-	}
-	return d
-}
-
 func isTimeout(e error) bool {
 	te, ok := e.(interface {
 		Timeout() bool
