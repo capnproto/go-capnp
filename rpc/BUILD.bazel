@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "answer.go",
         "export.go",
+        "idgen.go",
         "import.go",
         "question.go",
         "rpc.go",
@@ -26,6 +27,7 @@ go_test(
         "level0_test.go",
         "level1_test.go",
         "pipe_test.go",
+        "transport_go19_test.go",
         "transport_test.go",
     ],
     importpath = "zombiezen.com/go/capnproto2/rpc_test",
@@ -37,4 +39,11 @@ go_test(
         "//server:go_default_library",
         "//std/capnp/rpc:go_default_library",
     ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["idgen_test.go"],
+    embed = [":go_default_library"],
+    importpath = "zombiezen.com/go/capnproto2/rpc",
 )

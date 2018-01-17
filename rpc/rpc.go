@@ -1258,29 +1258,6 @@ func (c *Conn) reportf(format string, args ...interface{}) {
 	c.reporter.ReportError(errorf(format, args...))
 }
 
-// idgen returns a sequence of monotonically increasing IDs with
-// support for replacement.  The zero value is a generator that
-// starts at zero.
-type idgen struct {
-	i    uint32
-	free []uint32
-}
-
-func (gen *idgen) next() uint32 {
-	if n := len(gen.free); n > 0 {
-		i := gen.free[n-1]
-		gen.free = gen.free[:n-1]
-		return i
-	}
-	i := gen.i
-	gen.i++
-	return i
-}
-
-func (gen *idgen) remove(i uint32) {
-	gen.free = append(gen.free, i)
-}
-
 func clearCapTable(msg *capnp.Message) {
 	releaseList(msg.CapTable).release()
 	msg.CapTable = nil
