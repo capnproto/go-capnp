@@ -866,7 +866,6 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 		q.p.Reject(pr.err)
 		q.bootstrapPromise.Fulfill(q.p.Answer().Client())
 		q.p.ReleaseClients()
-		clearCapTable(pr.result.Message())
 		releaseRet()
 		c.mu.Lock()
 	case q.bootstrapPromise == nil && pr.err != nil:
@@ -875,7 +874,6 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 		q.release = func() {}
 		c.mu.Unlock()
 		q.p.Reject(pr.err)
-		clearCapTable(pr.result.Message())
 		releaseRet()
 		c.mu.Lock()
 	default:
