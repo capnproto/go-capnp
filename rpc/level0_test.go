@@ -597,7 +597,7 @@ func TestSendBootstrapCallException(t *testing.T) {
 		_, err := ans.Struct()
 		const want = "everything went wrong"
 		if err == nil || !strings.Contains(err.Error(), want) {
-			t.Error("ans.Struct() = _, %v; want error to contain %q", err, want)
+			t.Errorf("ans.Struct() = _, %v; want error to contain %q", err, want)
 		}
 	}
 
@@ -1890,7 +1890,7 @@ type rpcPromisedAnswerOp struct {
 func recvBootstrapReturn(ctx context.Context, t rpc.Transport, qid uint32) (uint32, error) {
 	rmsg, release, err := recvMessage(ctx, t)
 	if err != nil {
-		return 0, fmt.Errorf("receive bootstrap: %v")
+		return 0, fmt.Errorf("receive bootstrap: %v", err)
 	}
 	defer release()
 	if rmsg.Which != rpccp.Message_Which_return {

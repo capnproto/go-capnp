@@ -269,7 +269,7 @@ func TestRecvDisembargo(t *testing.T) {
 				continue
 			}
 			if rmsg.Disembargo.Context.ReceiverLoopback != embargoID {
-				t.Errorf("received disembargo for ID %d; want %d", rmsg.Disembargo.Context.ReceiverLoopback)
+				t.Errorf("received disembargo for ID %d; want %d", rmsg.Disembargo.Context.ReceiverLoopback, embargoID)
 				continue
 			}
 			if disembargoTime != 0 {

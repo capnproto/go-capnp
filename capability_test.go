@@ -77,7 +77,7 @@ func TestReleasedClient(t *testing.T) {
 	}
 	state := c.State()
 	if state.Brand.Value != nil {
-		t.Error("c.State().Brand.Value = %#v; want <nil>", state.Brand.Value)
+		t.Errorf("c.State().Brand.Value = %#v; want <nil>", state.Brand.Value)
 	}
 	if state.IsPromise {
 		t.Error("c.State().IsPromise = true; want false")
