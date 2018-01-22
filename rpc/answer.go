@@ -136,15 +136,18 @@ func (ans *answer) AllocResults(sz capnp.ObjectSize) (capnp.Struct, error) {
 // setBootstrap sets the results to an interface pointer, stealing the
 // reference.
 func (ans *answer) setBootstrap(c *capnp.Client) error {
+	if ans.ret.HasResults() || len(ans.ret.Message().CapTable) > 0 || len(ans.resultCapTable) > 0 {
+		panic("setBootstrap called after creating results")
+	}
 	// Add the capability to the table early to avoid leaks if setBootstrap fails.
-	capID := ans.ret.Message().AddCap(c)
+	ans.resultCapTable = []*capnp.Client{c}
 
 	var err error
 	ans.results, err = ans.ret.NewResults()
 	if err != nil {
 		return errorf("alloc bootstrap results: %v", err)
 	}
-	iface := capnp.NewInterface(ans.results.Segment(), capID)
+	iface := capnp.NewInterface(ans.results.Segment(), 0)
 	if err := ans.results.SetContent(iface.ToPtr()); err != nil {
 		return errorf("alloc bootstrap results: %v", err)
 	}
@@ -155,6 +158,10 @@ func (ans *answer) setBootstrap(c *capnp.Client) error {
 //
 // The caller must NOT be holding onto ans.c.mu or the sender lock.
 func (ans *answer) Return(e error) {
+	var cstates []capnp.ClientState
+	if ans.results.IsValid() {
+		ans.resultCapTable, cstates = extractCapTable(ans.results.Message())
+	}
 	ans.c.mu.Lock()
 	ans.c.lockSender()
 	if e != nil {
@@ -166,7 +173,7 @@ func (ans *answer) Return(e error) {
 		ans.c.tasks.Done() // added by handleCall
 		return
 	}
-	rl, err := ans.sendReturn()
+	rl, err := ans.sendReturn(cstates)
 	ans.c.unlockSender()
 	if err != nil {
 		select {
@@ -194,19 +201,17 @@ func (ans *answer) Return(e error) {
 // the number of references to be subtracted from each export.
 //
 // The caller must be holding onto ans.c.mu and the sender lock.
-// Only one of sendReturn or sendException should be called.
-func (ans *answer) sendReturn() (releaseList, error) {
+// The result's capability table must have been extracted into
+// ans.resultsCapTable before calling sendReturn. Only one of
+// sendReturn or sendException should be called.
+func (ans *answer) sendReturn(cstates []capnp.ClientState) (releaseList, error) {
 	ans.pcall = nil
 	ans.flags |= resultsReady
 	var err error
-	ans.exportRefs, err = ans.c.fillPayloadCapTable(ans.results)
+	ans.exportRefs, err = ans.c.fillPayloadCapTable(ans.results, ans.resultCapTable, cstates)
 	if err != nil {
 		ans.c.report(annotate(err).errorf("send return"))
 		// Continue.  Don't fail to send return if cap table isn't fully filled.
-	}
-	if m := ans.results.Message(); m != nil {
-		ans.resultCapTable = m.CapTable
-		m.CapTable = nil
 	}
 
 	select {
@@ -238,15 +243,13 @@ func (ans *answer) sendReturn() (releaseList, error) {
 // sendException sends an exception on the answer's return message.
 //
 // The caller must be holding onto ans.c.mu and the sender lock.
-// Only one of sendReturn or sendException should be called.
+// The result's capability table must have been extracted into
+// ans.resultsCapTable before calling sendException. Only one of
+// sendReturn or sendException should be called.
 func (ans *answer) sendException(e error) releaseList {
 	ans.err = e
 	ans.pcall = nil
 	ans.flags |= resultsReady
-	if m := ans.results.Message(); m != nil {
-		ans.resultCapTable = m.CapTable
-		m.CapTable = nil
-	}
 
 	select {
 	case <-ans.c.bgctx.Done():

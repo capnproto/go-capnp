@@ -692,8 +692,8 @@ func TestSendBootstrapPipelineCall(t *testing.T) {
 			if rmsg.Call.Target.PromisedAnswer.QuestionID != bootstrapQID {
 				t.Errorf("call.target.promisedAnswer.questionID = %d; want %d", rmsg.Call.Target.PromisedAnswer.QuestionID, bootstrapQID)
 			}
-			if xform := rmsg.Call.Target.PromisedAnswer.Transform; len(xform) != 0 {
-				t.Errorf("call.target.promisedAnswer.transform = %v; want []", xform)
+			if !rmsg.Call.Target.PromisedAnswer.transformEquals() {
+				t.Errorf("call.target.promisedAnswer.transform = %v; want []", rmsg.Call.Target.PromisedAnswer.Transform)
 			}
 		}
 	}
@@ -1880,6 +1880,23 @@ type rpcCapDescriptor struct {
 type rpcPromisedAnswer struct {
 	QuestionID uint32 `capnp:"questionId"`
 	Transform  []rpcPromisedAnswerOp
+}
+
+func (pa *rpcPromisedAnswer) transformEquals(path ...uint16) bool {
+	for _, op := range pa.Transform {
+		switch op.Which {
+		case rpccp.PromisedAnswer_Op_Which_noop:
+			// Skip.
+		case rpccp.PromisedAnswer_Op_Which_getPointerField:
+			if len(path) == 0 || path[0] != op.GetPointerField {
+				return false
+			}
+			path = path[1:]
+		default:
+			return false
+		}
+	}
+	return len(path) == 0
 }
 
 type rpcPromisedAnswerOp struct {

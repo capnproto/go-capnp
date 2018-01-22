@@ -12,6 +12,477 @@ import (
 	rpccp "zombiezen.com/go/capnproto2/std/capnp/rpc"
 )
 
+func TestSendDisembargo(t *testing.T) {
+	t.Run("SendQueuedResultToCaller", func(t *testing.T) {
+		testSendDisembargo(t, rpccp.Call_sendResultsTo_Which_caller)
+	})
+	t.Run("SendQueuedResultToYourself", func(t *testing.T) {
+		t.Skip("TODO(soon): not implemented")
+		testSendDisembargo(t, rpccp.Call_sendResultsTo_Which_yourself)
+	})
+}
+
+// testSendDisembargo makes a call on the bootstrap capability with an
+// export as a parameter, makes a pipelined call on the answer, writes a
+// return with that export.  The Conn should send a disembargo, at which
+// point a second call will be made on the answer.  The second call
+// should not be delivered until after the disembargo loops back.
+// Level 1 requirement.
+func testSendDisembargo(t *testing.T, sendPrimeTo rpccp.Call_sendResultsTo_Which) {
+	p1, p2 := newPipe(1)
+	conn := rpc.NewConn(p1, &rpc.Options{
+		ErrorReporter: testErrorReporter{tb: t},
+	})
+	defer finishTest(t, conn, p2)
+	ctx := context.Background()
+
+	// 1. Send bootstrap
+	client := conn.Bootstrap(ctx)
+	defer client.Release()
+	var bootQID uint32
+	{
+		msg, release, err := recvMessage(ctx, p2)
+		if err != nil {
+			t.Fatal("recvMessage(ctx, p2):", err)
+		}
+		defer release()
+		if msg.Which != rpccp.Message_Which_bootstrap {
+			t.Fatalf("Received %v message; want bootstrap", msg.Which)
+		}
+		bootQID = msg.Bootstrap.QuestionID
+	}
+
+	// 2. Return bootstrap
+	{
+		msg, send, release, err := p2.NewMessage(ctx)
+		if err != nil {
+			t.Fatal("p2.NewMessage():", err)
+		}
+		iptr := capnp.NewInterface(msg.Segment(), 0)
+		err = pogs.Insert(rpccp.Message_TypeID, msg.Struct, &rpcMessage{
+			Which: rpccp.Message_Which_return,
+			Return: &rpcReturn{
+				AnswerID: bootQID,
+				Which:    rpccp.Return_Which_results,
+				Results: &rpcPayload{
+					Content: iptr.ToPtr(),
+					CapTable: []rpcCapDescriptor{
+						{
+							Which:        rpccp.CapDescriptor_Which_senderHosted,
+							SenderHosted: bootstrapExportID,
+						},
+					},
+				},
+			},
+		})
+		if err != nil {
+			release()
+			t.Fatal("pogs.Insert(p2.NewMessage(), &rpcMessage{...}):", err)
+		}
+		err = send()
+		release()
+		if err != nil {
+			t.Fatal("send():", err)
+		}
+	}
+
+	// 3. Read bootstrap finish
+	{
+		msg, release, err := recvMessage(ctx, p2)
+		if err != nil {
+			t.Fatal("recvMessage(ctx, p2):", err)
+		}
+		defer release()
+		if msg.Which != rpccp.Message_Which_finish {
+			t.Fatalf("Received %v message; want finish", msg.Which)
+		}
+		if msg.Finish.QuestionID != bootQID {
+			t.Errorf("Received finish for question %d; want %d", msg.Finish.QuestionID, bootQID)
+		}
+	}
+
+	// 4. Make a call (call A) on bootstrap with export parameter
+	callSeq := 1 // synchronized by server
+	srv := newServer(func(ctx context.Context, call *server.Call) error {
+		n := call.Args().Uint64(0)
+		if int(n) != callSeq {
+			err := fmt.Errorf("received call #%d on export when expecting call #%d", n, callSeq)
+			t.Error("Server:", err)
+			return err
+		}
+		callSeq++
+		res, err := call.AllocResults(capnp.ObjectSize{DataSize: 8})
+		if err != nil {
+			return err
+		}
+		res.SetUint64(0, n)
+		return nil
+	}, nil)
+	defer srv.Release()
+	ctxA, cancelA := context.WithCancel(ctx)
+	ansA, releaseCallA := client.SendCall(ctxA, capnp.Send{
+		Method: capnp.Method{
+			InterfaceID: interfaceID,
+			MethodID:    methodID,
+		},
+		ArgsSize: capnp.ObjectSize{PointerCount: 1},
+		PlaceArgs: func(s capnp.Struct) error {
+			id := s.Message().AddCap(srv)
+			ptr := capnp.NewInterface(s.Segment(), id).ToPtr()
+			return s.SetPtr(0, ptr)
+		},
+	})
+	defer func() {
+		cancelA()
+		releaseCallA()
+	}()
+
+	var qidA uint32
+	var importID uint32
+	{
+		msg, release, err := recvMessage(ctx, p2)
+		if err != nil {
+			t.Fatal("recvMessage(ctx, p2):", err)
+		}
+		defer release()
+		if msg.Which != rpccp.Message_Which_call {
+			t.Fatalf("Received %v message; want call", msg.Which)
+		}
+		qidA = msg.Call.QuestionID
+		if msg.Call.InterfaceID != interfaceID {
+			t.Errorf("call.interfaceId = %x; want %x", msg.Call.InterfaceID, interfaceID)
+		}
+		if msg.Call.MethodID != methodID {
+			t.Errorf("call.methodId = %x; want %x", msg.Call.MethodID, methodID)
+		}
+		p, err := msg.Call.Params.Content.Struct().Ptr(0)
+		if err != nil {
+			t.Fatalf("call.params.content.ptr[0]: %v", err)
+		}
+		if !p.Interface().IsValid() {
+			t.Fatal("call.params.content.ptr[0] is not an interface")
+		}
+		id := p.Interface().Capability()
+		release()
+		if int64(id) >= int64(len(msg.Call.Params.CapTable)) {
+			t.Fatalf("call.params.content.ptr[0] refers to capability %d; table is size %d", id, len(msg.Call.Params.CapTable))
+		}
+		desc := msg.Call.Params.CapTable[id]
+		if desc.Which != rpccp.CapDescriptor_Which_senderHosted {
+			t.Fatalf("call.params.capTable[%d].Which = %v; want senderHosted", id, desc.Which)
+		}
+		importID = desc.SenderHosted
+	}
+
+	// 5. Make a pipelined call (call B) on answer
+	sendCall := func(ctx context.Context, n uint64) (*capnp.Answer, capnp.ReleaseFunc) {
+		transform := []capnp.PipelineOp{
+			{Field: 0},
+		}
+		return ansA.PipelineSend(ctx, transform, capnp.Send{
+			Method: capnp.Method{
+				InterfaceID: interfaceID,
+				MethodID:    methodID,
+			},
+			ArgsSize: capnp.ObjectSize{DataSize: 8},
+			PlaceArgs: func(s capnp.Struct) error {
+				s.SetUint64(0, n)
+				return nil
+			},
+		})
+	}
+	ctxB, cancelB := context.WithCancel(ctx)
+	ansB, releaseCallB := sendCall(ctxB, 1)
+	defer func() {
+		cancelB()
+		releaseCallB()
+	}()
+	var qidB uint32
+	var bParams capnp.Ptr
+	{
+		msg, release, err := recvMessage(ctx, p2)
+		if err != nil {
+			t.Fatal("recvMessage(ctx, p2):", err)
+		}
+		defer release()
+		if msg.Which != rpccp.Message_Which_call {
+			t.Fatalf("Received %v message; want call", msg.Which)
+		}
+		qidB = msg.Call.QuestionID
+		bParams = msg.Call.Params.Content
+		if msg.Call.InterfaceID != interfaceID {
+			t.Errorf("call.interfaceId = %x; want %x", msg.Call.InterfaceID, interfaceID)
+		}
+		if msg.Call.MethodID != methodID {
+			t.Errorf("call.methodId = %x; want %x", msg.Call.MethodID, methodID)
+		}
+		if msg.Call.Target.Which != rpccp.MessageTarget_Which_promisedAnswer {
+			t.Errorf("call.target is %v; want promisedAnswer", msg.Call.Target.Which)
+		}
+		if msg.Call.Target.PromisedAnswer.QuestionID != qidA {
+			t.Errorf("call.target.promisedAnswer.questionID = %d; want %d (call A)", msg.Call.Target.PromisedAnswer.QuestionID, qidA)
+		}
+		if !msg.Call.Target.PromisedAnswer.transformEquals(0) {
+			want := []rpcPromisedAnswerOp{
+				{Which: rpccp.PromisedAnswer_Op_Which_getPointerField, GetPointerField: 0},
+			}
+			t.Errorf("call.target.promisedAnswer.transform = %+v; want %+v", msg.Call.Target.PromisedAnswer.Transform, want)
+		}
+	}
+
+	// 6. Write return for call A with the import.
+	{
+		msg, send, release, err := p2.NewMessage(ctx)
+		if err != nil {
+			t.Fatal("p2.NewMessage():", err)
+		}
+		results, err := capnp.NewStruct(msg.Segment(), capnp.ObjectSize{PointerCount: 1})
+		if err != nil {
+			t.Fatal("capnp.NewStruct:", err)
+		}
+		if err := results.SetPtr(0, capnp.NewInterface(msg.Segment(), 0).ToPtr()); err != nil {
+			t.Fatal("results.SetPtr:", err)
+		}
+		err = pogs.Insert(rpccp.Message_TypeID, msg.Struct, &rpcMessage{
+			Which: rpccp.Message_Which_return,
+			Return: &rpcReturn{
+				AnswerID: bootQID,
+				Which:    rpccp.Return_Which_results,
+				Results: &rpcPayload{
+					Content: results.ToPtr(),
+					CapTable: []rpcCapDescriptor{
+						{
+							Which:        rpccp.CapDescriptor_Which_receiverHosted,
+							SenderHosted: importID,
+						},
+					},
+				},
+			},
+		})
+		if err != nil {
+			release()
+			t.Fatal("pogs.Insert(p2.NewMessage(), &rpcMessage{...}):", err)
+		}
+		err = send()
+		release()
+		if err != nil {
+			t.Fatal("send():", err)
+		}
+	}
+
+	// 7. Read sender-loopback disembargo.
+	var embargoID uint32
+	{
+		msg, release, err := recvMessage(ctx, p2)
+		if err != nil {
+			t.Fatal("recvMessage(ctx, p2):", err)
+		}
+		defer release()
+		if msg.Which != rpccp.Message_Which_disembargo {
+			t.Fatalf("Received %v message; want disembargo", msg.Which)
+		}
+		if msg.Disembargo.Context.Which != rpccp.Disembargo_context_Which_senderLoopback {
+			t.Fatalf("disembargo.context is %v; want senderLoopback", msg.Disembargo.Context.Which)
+		}
+		embargoID = msg.Disembargo.Context.SenderLoopback
+		if msg.Disembargo.Target.Which != rpccp.MessageTarget_Which_promisedAnswer {
+			t.Errorf("disembargo.target is %v; want promisedAnswer", msg.Disembargo.Target.Which)
+		}
+		if msg.Disembargo.Target.PromisedAnswer.QuestionID != qidA {
+			t.Errorf("disembargo.target.promisedAnswer.questionId = %d; want %d (call A)", msg.Disembargo.Target.PromisedAnswer.QuestionID, qidA)
+		}
+		if !msg.Disembargo.Target.PromisedAnswer.transformEquals(0) {
+			want := []rpcPromisedAnswerOp{
+				{Which: rpccp.PromisedAnswer_Op_Which_getPointerField, GetPointerField: 0},
+			}
+			t.Errorf("disembargo.target.promisedAnswer.transform = %+v; want %+v", msg.Disembargo.Target.PromisedAnswer.Transform, want)
+		}
+	}
+
+	// 8. Read call A finish.
+	{
+		msg, release, err := recvMessage(ctx, p2)
+		if err != nil {
+			t.Fatal("recvMessage(ctx, p2):", err)
+		}
+		defer release()
+		if msg.Which != rpccp.Message_Which_finish {
+			t.Fatalf("Received %v message; want finish", msg.Which)
+		}
+		if msg.Finish.QuestionID != qidA {
+			t.Errorf("finish.questionId = %d; want %d (call A)", msg.Finish.QuestionID, qidA)
+		}
+		if msg.Finish.ReleaseResultCaps {
+			t.Error("finish.releaseResultCaps = true; want false")
+		}
+	}
+
+	// 9. Make a pipelined call (call C) on answer.  Should not send on
+	// wire, but might block until embargo is lifted..
+	ctxC, cancelC := context.WithCancel(ctx)
+	var (
+		ansCReady    = make(chan struct{})
+		ansC         *capnp.Answer
+		releaseCallC capnp.ReleaseFunc
+	)
+	go func() {
+		ansC, releaseCallC = sendCall(ctxC, 2)
+		close(ansCReady)
+	}()
+	defer func() {
+		cancelC()
+		<-ansCReady
+		releaseCallC()
+	}()
+
+	// 10. Echo call B back (call B', send results to yourself).
+	const bPrimeAnswer = 909
+	{
+		err := sendMessage(ctx, p2, &rpcMessage{
+			Which: rpccp.Message_Which_call,
+			Call: &rpcCall{
+				QuestionID:  bPrimeAnswer,
+				InterfaceID: interfaceID,
+				MethodID:    methodID,
+				Target: rpcMessageTarget{
+					Which:       rpccp.MessageTarget_Which_importedCap,
+					ImportedCap: importID,
+				},
+				Params: rpcPayload{Content: bParams},
+				SendResultsTo: rpcCallSendResultsTo{
+					Which: sendPrimeTo,
+				},
+			},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// 11. Write receiver-loopback disembargo.
+	// This is the earliest legal time to do so.
+	{
+		err := sendMessage(ctx, p2, &rpcMessage{
+			Which: rpccp.Message_Which_disembargo,
+			Disembargo: &rpcDisembargo{
+				Context: rpcDisembargoContext{
+					Which:            rpccp.Disembargo_context_Which_receiverLoopback,
+					ReceiverLoopback: embargoID,
+				},
+				Target: rpcMessageTarget{
+					Which:       rpccp.MessageTarget_Which_importedCap,
+					ImportedCap: importID,
+				},
+			},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// 12. If sendPrimeTo == yourself, then write call B return (take from call B').
+	if sendPrimeTo == rpccp.Call_sendResultsTo_Which_yourself {
+		err := sendMessage(ctx, p2, &rpcMessage{
+			Which: rpccp.Message_Which_return,
+			Return: &rpcReturn{
+				AnswerID: qidB,
+				Which:    rpccp.Return_Which_takeFromOtherQuestion,
+				TakeFromOtherQuestion: bPrimeAnswer,
+			},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// 13. Read call B' return.  If sendPrimeTo == caller, then echo it back.
+	{
+		msg, release, err := recvMessage(ctx, p2)
+		if err != nil {
+			t.Fatal("recvMessage(ctx, p2):", err)
+		}
+		defer release()
+		if msg.Which != rpccp.Message_Which_return {
+			t.Fatalf("Received %v message; want return", msg.Which)
+		}
+		if msg.Return.AnswerID != bPrimeAnswer {
+			t.Errorf("return.answerId = %d; want %d (call B')", msg.Return.AnswerID, bPrimeAnswer)
+		}
+		switch sendPrimeTo {
+		case rpccp.Call_sendResultsTo_Which_caller:
+			if msg.Return.Which != rpccp.Return_Which_results {
+				t.Fatalf("return is %v; want results", msg.Return.Which)
+			}
+			err := sendMessage(ctx, p2, &rpcMessage{
+				Which: rpccp.Message_Which_return,
+				Return: &rpcReturn{
+					AnswerID: qidB,
+					Which:    rpccp.Return_Which_results,
+					Results: &rpcPayload{
+						Content: msg.Return.Results.Content,
+					},
+				},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+		case rpccp.Call_sendResultsTo_Which_yourself:
+			if msg.Return.Which != rpccp.Return_Which_resultsSentElsewhere {
+				t.Errorf("return is %v; want resultsSentElsewhere", msg.Return.Which)
+			}
+		}
+		release()
+	}
+
+	// 14. Read call B finish.  Must come after B' return, since otherwise
+	// it would cancel B'.
+	{
+		msg, release, err := recvMessage(ctx, p2)
+		if err != nil {
+			t.Fatal("recvMessage(ctx, p2):", err)
+		}
+		defer release()
+		if msg.Which != rpccp.Message_Which_finish {
+			t.Fatalf("Received %v message; want finish", msg.Which)
+		}
+		if msg.Finish.QuestionID != qidB {
+			t.Errorf("finish.questionId = %d; want %d (call A)", msg.Finish.QuestionID, qidA)
+		}
+		if msg.Finish.ReleaseResultCaps {
+			t.Error("finish.releaseResultCaps = true; want false")
+		}
+	}
+
+	// 15. Write call B' finish.
+	{
+		err := sendMessage(ctx, p2, &rpcMessage{
+			Which: rpccp.Message_Which_finish,
+			Finish: &rpcFinish{
+				QuestionID:        bPrimeAnswer,
+				ReleaseResultCaps: false,
+			},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// 16. Check call sequence.
+	b, err := ansB.Struct()
+	if err != nil {
+		t.Error("call B error:", err)
+	} else if b.Uint64(0) != 1 {
+		t.Errorf("call B result = %d; want 1", b.Uint64(0))
+	}
+	<-ansCReady
+	c, err := ansC.Struct()
+	if err != nil {
+		t.Error("call C error:", err)
+	} else if c.Uint64(0) != 2 {
+		t.Errorf("call C result = %d; want 2", c.Uint64(0))
+	}
+}
+
 // TestRecvDisembargo exposes a capability that echoes back received
 // capabilities, writes a call to the conn's capability followed by two
 // pipelined calls to the return value, reads the returns and sends a

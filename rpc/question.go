@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"context"
-	"fmt"
 
 	"zombiezen.com/go/capnproto2"
 	rpccp "zombiezen.com/go/capnproto2/std/capnp/rpc"
@@ -23,7 +22,8 @@ type question struct {
 	// Protected by c.mu:
 
 	flags         questionFlags
-	finishMsgSend chan struct{} // closed after attempting to send the Finish message
+	finishMsgSend chan struct{}        // closed after attempting to send the Finish message
+	called        [][]capnp.PipelineOp // paths to called clients
 }
 
 // questionFlags is a bitmask of which events have occurred in a question's
@@ -111,74 +111,145 @@ func (q *question) handleCancel(ctx context.Context) {
 }
 
 func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineOp, s capnp.Send) (*capnp.Answer, capnp.ReleaseFunc) {
+	// Acquire sender lock.
 	q.c.mu.Lock()
 	if !q.c.startTask() {
 		q.c.mu.Unlock()
 		return capnp.ErrorAnswer(s.Method, disconnected("connection closed")), func() {}
 	}
 	defer q.c.tasks.Done()
+	// Mark this transform as having been used for a call ASAP.
+	// q's Return could be received while q2 is being sent.
+	// Don't bother cleaning it up if the call fails because:
+	// a) this may not have been the only call for the given transform,
+	// b) the transform isn't guaranteed to be an import, and
+	// c) the worst that happens is we trade bandwidth for code simplicity.
+	q.mark(transform)
+	if err := q.c.tryLockSender(ctx); err != nil {
+		q.c.mu.Unlock()
+		return capnp.ErrorAnswer(s.Method, err), func() {}
+	}
 	q2 := q.c.newQuestion(s.Method)
-	err := q.c.sendMessage(ctx, func(msg rpccp.Message) error {
-		call, err := msg.NewCall()
-		if err != nil {
-			return err
-		}
-		call.SetQuestionId(uint32(q2.id))
-		call.SetInterfaceId(s.Method.InterfaceID)
-		call.SetMethodId(s.Method.MethodID)
-		tgt, err := call.NewTarget()
-		if err != nil {
-			return err
-		}
-		pa, err := tgt.NewPromisedAnswer()
-		if err != nil {
-			return err
-		}
-		pa.SetQuestionId(uint32(q.id))
-		xform, err := pa.NewTransform(int32(len(transform)))
-		if err != nil {
-			return err
-		}
-		for i, t := range transform {
-			xform.At(i).SetGetPointerField(t.Field)
-		}
-		params, err := call.NewParams()
-		if err != nil {
-			return err
-		}
-		args, err := capnp.NewStruct(params.Segment(), s.ArgsSize)
-		if err != nil {
-			return err
-		}
-		if err := params.SetContent(args.ToPtr()); err != nil {
-			return err
-		}
-		if err := s.PlaceArgs(args); err != nil {
-			// Using fmt.Errorf to annotate to avoid stutter when we wrap the
-			// sendMessage error.
-			return fmt.Errorf("place args: %v", err)
-		}
-		// TODO(soon): fill in capability table
-		return nil
-	})
+	q.c.mu.Unlock()
+
+	// Create call message.
+	msg, send, release, err := q.c.transport.NewMessage(ctx)
+	if err != nil {
+		q.c.mu.Lock()
+		q.c.questions[q2.id] = nil
+		q.c.questionID.remove(uint32(q2.id))
+		q.c.mu.Unlock()
+		return capnp.ErrorAnswer(s.Method, errorf("create message: %v", err)), func() {}
+	}
+	q.c.mu.Lock()
+	q.c.unlockSender() // Can't be holding either lock while calling PlaceArgs.
+	q.c.mu.Unlock()
+	err = q.c.newPipelineCallMessage(msg, q.id, transform, q2.id, s)
+	if err != nil {
+		q.c.mu.Lock()
+		q.c.questions[q2.id] = nil
+		q.c.questionID.remove(uint32(q2.id))
+		q.c.lockSender()
+		q.c.mu.Unlock()
+		release()
+		q.c.mu.Lock()
+		q.c.unlockSender()
+		q.c.mu.Unlock()
+		return capnp.ErrorAnswer(s.Method, err), func() {}
+	}
+
+	// Send call.
+	q.c.mu.Lock()
+	q.c.lockSender()
+	q.c.mu.Unlock()
+	err = send()
+	release()
+
+	q.c.mu.Lock()
+	q.c.unlockSender()
 	if err != nil {
 		q.c.questions[q2.id] = nil
 		q.c.questionID.remove(uint32(q2.id))
 		q.c.mu.Unlock()
-		return capnp.ErrorAnswer(s.Method, annotate(err).errorf("send to promised answer")), func() {}
+		return capnp.ErrorAnswer(s.Method, errorf("send message: %v", err)), func() {}
 	}
 	q2.c.tasks.Add(1)
 	go func() {
 		defer q2.c.tasks.Done()
 		q2.handleCancel(ctx)
 	}()
-	ans := q2.p.Answer()
 	q.c.mu.Unlock()
+
+	ans := q2.p.Answer()
 	return ans, func() {
 		<-ans.Done()
 		q2.p.ReleaseClients()
 		q2.release()
 	}
+}
+
+// newPipelineCallMessage builds a Call message targeted to a promised answer..
+//
+// The caller MUST NOT be holding onto c.mu or the sender lock.
+func (c *Conn) newPipelineCallMessage(msg rpccp.Message, tgt questionID, transform []capnp.PipelineOp, qid questionID, s capnp.Send) error {
+	call, err := msg.NewCall()
+	if err != nil {
+		return errorf("build call message: %v", err)
+	}
+	call.SetQuestionId(uint32(qid))
+	call.SetInterfaceId(s.Method.InterfaceID)
+	call.SetMethodId(s.Method.MethodID)
+
+	target, err := call.NewTarget()
+	if err != nil {
+		return errorf("build call message: %v", err)
+	}
+	pa, err := target.NewPromisedAnswer()
+	if err != nil {
+		return errorf("build call message: %v", err)
+	}
+	pa.SetQuestionId(uint32(tgt))
+	oplist, err := pa.NewTransform(int32(len(transform)))
+	if err != nil {
+		return errorf("build call message: %v", err)
+	}
+	for i, op := range transform {
+		oplist.At(i).SetGetPointerField(op.Field)
+	}
+
+	payload, err := call.NewParams()
+	if err != nil {
+		return errorf("build call message: %v", err)
+	}
+	args, err := capnp.NewStruct(payload.Segment(), s.ArgsSize)
+	if err != nil {
+		return errorf("build call message: %v", err)
+	}
+	if err := payload.SetContent(args.ToPtr()); err != nil {
+		return errorf("build call message: %v", err)
+	}
+
+	if s.PlaceArgs == nil {
+		return nil
+	}
+	m := args.Message()
+	if err := s.PlaceArgs(args); err != nil {
+		for _, c := range m.CapTable {
+			c.Release()
+		}
+		m.CapTable = nil
+		return errorf("place arguments: %v", err)
+	}
+	clients, states := extractCapTable(m)
+	c.mu.Lock()
+	// TODO(soon): save param refs
+	_, err = c.fillPayloadCapTable(payload, clients, states)
+	c.mu.Unlock()
+	releaseList(clients).release()
+	if err != nil {
+		return annotate(err).errorf("build call message")
+	}
+	return nil
 }
 
 func (q *question) PipelineRecv(ctx context.Context, transform []capnp.PipelineOp, r capnp.Recv) capnp.PipelineCaller {
@@ -200,4 +271,33 @@ func (q *question) PipelineRecv(ctx context.Context, transform []capnp.PipelineO
 		go returnAnswer(r.Returner, ans, finish)
 		return ans
 	}
+}
+
+// mark adds the promised answer transform to the set of pipelined
+// questions sent.  The caller must be holding onto q.c.mu.
+func (q *question) mark(xform []capnp.PipelineOp) {
+	for _, x := range q.called {
+		if transformsEqual(x, xform) {
+			// Already in set.
+			return
+		}
+	}
+	// Add a copy (don't retain default values).
+	xform2 := make([]capnp.PipelineOp, len(xform))
+	for i := range xform {
+		xform2[i].Field = xform[i].Field
+	}
+	q.called = append(q.called, xform2)
+}
+
+func transformsEqual(x1, x2 []capnp.PipelineOp) bool {
+	if len(x1) != len(x2) {
+		return false
+	}
+	for i := range x1 {
+		if x1[i].Field != x2[i].Field {
+			return false
+		}
+	}
+	return true
 }

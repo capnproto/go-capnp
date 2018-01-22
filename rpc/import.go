@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"context"
-	"fmt"
 
 	"zombiezen.com/go/capnproto2"
 	rpccp "zombiezen.com/go/capnproto2/std/capnp/rpc"
@@ -48,6 +47,8 @@ type impent struct {
 // addImport returns a client that represents the given import,
 // incrementing the number of references to this import from this vat.
 // This is separate from the reference counting that capnp.Client does.
+//
+// The caller must be holding onto c.mu.
 func (c *Conn) addImport(id importID) *capnp.Client {
 	if ent := c.imports[id]; ent != nil {
 		ent.wireRefs++
@@ -82,6 +83,7 @@ type importClient struct {
 }
 
 func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, capnp.ReleaseFunc) {
+	// Acquire sender lock.
 	ic.c.mu.Lock()
 	if !ic.c.startTask() {
 		ic.c.mu.Unlock()
@@ -93,59 +95,118 @@ func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, 
 		ic.c.mu.Unlock()
 		return capnp.ErrorAnswer(s.Method, disconnected("send on closed import")), func() {}
 	}
+	if err := ic.c.tryLockSender(ctx); err != nil {
+		ic.c.mu.Unlock()
+		return capnp.ErrorAnswer(s.Method, err), func() {}
+	}
 	q := ic.c.newQuestion(s.Method)
-	err := ic.c.sendMessage(ctx, func(msg rpccp.Message) error {
-		msgCall, err := msg.NewCall()
-		if err != nil {
-			return err
-		}
-		msgCall.SetQuestionId(uint32(q.id))
-		msgCall.SetInterfaceId(s.Method.InterfaceID)
-		msgCall.SetMethodId(s.Method.MethodID)
-		target, err := msgCall.NewTarget()
-		if err != nil {
-			return err
-		}
-		target.SetImportedCap(uint32(ic.id))
-		payload, err := msgCall.NewParams()
-		if err != nil {
-			return err
-		}
-		args, err := capnp.NewStruct(payload.Segment(), s.ArgsSize)
-		if err != nil {
-			return err
-		}
-		if err := payload.SetContent(args.ToPtr()); err != nil {
-			return err
-		}
-		if s.PlaceArgs != nil {
-			if err := s.PlaceArgs(args); err != nil {
-				// Using fmt.Errorf to annotate to avoid stutter when we wrap the
-				// sendMessage error.
-				return fmt.Errorf("place parameters: %v", err)
-			}
-		}
-		// TODO(soon): fill in capability table
-		return nil
-	})
+	ic.c.mu.Unlock()
+
+	// Create call message.
+	msg, send, release, err := ic.c.transport.NewMessage(ctx)
+	if err != nil {
+		ic.c.mu.Lock()
+		ic.c.questions[q.id] = nil
+		ic.c.questionID.remove(uint32(q.id))
+		ic.c.mu.Unlock()
+		return capnp.ErrorAnswer(s.Method, errorf("create message: %v", err)), func() {}
+	}
+	ic.c.mu.Lock()
+	ic.c.unlockSender() // Can't be holding either lock while calling PlaceArgs.
+	ic.c.mu.Unlock()
+	err = ic.c.newImportCallMessage(msg, ic.id, q.id, s)
+	if err != nil {
+		ic.c.mu.Lock()
+		ic.c.questions[q.id] = nil
+		ic.c.questionID.remove(uint32(q.id))
+		ic.c.lockSender()
+		ic.c.mu.Unlock()
+		release()
+		ic.c.mu.Lock()
+		ic.c.unlockSender()
+		ic.c.mu.Unlock()
+		return capnp.ErrorAnswer(s.Method, err), func() {}
+	}
+
+	// Send call.
+	ic.c.mu.Lock()
+	ic.c.lockSender()
+	ic.c.mu.Unlock()
+	err = send()
+	release()
+
+	ic.c.mu.Lock()
+	ic.c.unlockSender()
 	if err != nil {
 		ic.c.questions[q.id] = nil
 		ic.c.questionID.remove(uint32(q.id))
 		ic.c.mu.Unlock()
-		return capnp.ErrorAnswer(s.Method, annotate(err).errorf("send to import")), func() {}
+		return capnp.ErrorAnswer(s.Method, errorf("send message: %v", err)), func() {}
 	}
-	ic.c.tasks.Add(1)
+	q.c.tasks.Add(1)
 	go func() {
 		defer q.c.tasks.Done()
 		q.handleCancel(ctx)
 	}()
 	ic.c.mu.Unlock()
+
 	ans := q.p.Answer()
 	return ans, func() {
 		<-ans.Done()
 		q.p.ReleaseClients()
 		q.release()
 	}
+}
+
+// newImportCallMessage builds a Call message targeted to an import.
+//
+// The caller MUST NOT be holding onto c.mu or the sender lock.
+func (c *Conn) newImportCallMessage(msg rpccp.Message, imp importID, qid questionID, s capnp.Send) error {
+	call, err := msg.NewCall()
+	if err != nil {
+		return errorf("build call message: %v", err)
+	}
+	call.SetQuestionId(uint32(qid))
+	call.SetInterfaceId(s.Method.InterfaceID)
+	call.SetMethodId(s.Method.MethodID)
+	target, err := call.NewTarget()
+	if err != nil {
+		return errorf("build call message: %v", err)
+	}
+	target.SetImportedCap(uint32(imp))
+	payload, err := call.NewParams()
+	if err != nil {
+		return errorf("build call message: %v", err)
+	}
+	args, err := capnp.NewStruct(payload.Segment(), s.ArgsSize)
+	if err != nil {
+		return errorf("build call message: %v", err)
+	}
+	if err := payload.SetContent(args.ToPtr()); err != nil {
+		return errorf("build call message: %v", err)
+	}
+
+	if s.PlaceArgs == nil {
+		return nil
+	}
+	m := args.Message()
+	if err := s.PlaceArgs(args); err != nil {
+		for _, c := range m.CapTable {
+			c.Release()
+		}
+		m.CapTable = nil
+		return errorf("place arguments: %v", err)
+	}
+	clients, states := extractCapTable(m)
+	c.mu.Lock()
+	// TODO(soon): save param refs
+	_, err = c.fillPayloadCapTable(payload, clients, states)
+	c.mu.Unlock()
+	releaseList(clients).release()
+	if err != nil {
+		return annotate(err).errorf("build call message")
+	}
+	return nil
 }
 
 func (ic *importClient) Recv(ctx context.Context, r capnp.Recv) capnp.PipelineCaller {
