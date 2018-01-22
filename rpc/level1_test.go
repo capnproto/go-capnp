@@ -33,16 +33,11 @@ func TestRecvDisembargo(t *testing.T) {
 		return nil
 	}, nil)
 	p1, p2 := newPipe(2)
-	defer p2.Close()
 	conn := rpc.NewConn(p1, &rpc.Options{
 		BootstrapClient: srv,
 		ErrorReporter:   testErrorReporter{tb: t},
 	})
-	defer func() {
-		if err := conn.Close(); err != nil {
-			t.Error(err)
-		}
-	}()
+	defer finishTest(t, conn, p2)
 	ctx := context.Background()
 
 	// 1. Write bootstrap
@@ -339,16 +334,11 @@ func TestIssue3(t *testing.T) {
 		return nil
 	}, nil)
 	p1, p2 := newPipe(1)
-	defer p2.Close()
 	conn := rpc.NewConn(p1, &rpc.Options{
 		BootstrapClient: srv,
 		ErrorReporter:   testErrorReporter{tb: t},
 	})
-	defer func() {
-		if err := conn.Close(); err != nil {
-			t.Error(err)
-		}
-	}()
+	defer finishTest(t, conn, p2)
 	ctx := context.Background()
 
 	// 1. Write bootstrap

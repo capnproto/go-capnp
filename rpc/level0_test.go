@@ -156,15 +156,10 @@ func TestRecvAbort(t *testing.T) {
 // error with the correct message.  Level 0 requirement.
 func TestSendBootstrapError(t *testing.T) {
 	p1, p2 := newPipe(1)
-	defer p2.Close()
 	conn := rpc.NewConn(p1, &rpc.Options{
 		ErrorReporter: testErrorReporter{tb: t},
 	})
-	defer func() {
-		if err := conn.Close(); err != nil {
-			t.Error(err)
-		}
-	}()
+	defer finishTest(t, conn, p2)
 
 	ctx := context.Background()
 
@@ -249,15 +244,10 @@ func TestSendBootstrapError(t *testing.T) {
 // value came back.  Level 0 requirement.
 func TestSendBootstrapCall(t *testing.T) {
 	p1, p2 := newPipe(1)
-	defer p2.Close()
 	conn := rpc.NewConn(p1, &rpc.Options{
 		ErrorReporter: testErrorReporter{tb: t},
 	})
-	defer func() {
-		if err := conn.Close(); err != nil {
-			t.Error(err)
-		}
-	}()
+	defer finishTest(t, conn, p2)
 
 	ctx := context.Background()
 
@@ -461,15 +451,10 @@ func TestSendBootstrapCall(t *testing.T) {
 // the wire and that the error message is correct.  Level 0 requirement.
 func TestSendBootstrapCallException(t *testing.T) {
 	p1, p2 := newPipe(1)
-	defer p2.Close()
 	conn := rpc.NewConn(p1, &rpc.Options{
 		ErrorReporter: testErrorReporter{tb: t},
 	})
-	defer func() {
-		if err := conn.Close(); err != nil {
-			t.Error(err)
-		}
-	}()
+	defer finishTest(t, conn, p2)
 
 	ctx := context.Background()
 
@@ -639,15 +624,10 @@ func TestSendBootstrapCallException(t *testing.T) {
 // returned capability without resolving the client.  Level 0 requirement.
 func TestSendBootstrapPipelineCall(t *testing.T) {
 	p1, p2 := newPipe(1)
-	defer p2.Close()
 	conn := rpc.NewConn(p1, &rpc.Options{
 		ErrorReporter: testErrorReporter{tb: t},
 	})
-	defer func() {
-		if err := conn.Close(); err != nil {
-			t.Error(err)
-		}
-	}()
+	defer finishTest(t, conn, p2)
 
 	ctx := context.Background()
 
@@ -801,15 +781,10 @@ func TestSendBootstrapPipelineCall(t *testing.T) {
 // back.  Level 0 requirement.
 func TestRecvBootstrapError(t *testing.T) {
 	p1, p2 := newPipe(1)
-	defer p2.Close()
 	conn := rpc.NewConn(p1, &rpc.Options{
 		ErrorReporter: testErrorReporter{tb: t},
 	})
-	defer func() {
-		if err := conn.Close(); err != nil {
-			t.Error(err)
-		}
-	}()
+	defer finishTest(t, conn, p2)
 	ctx := context.Background()
 
 	// 1. Write bootstrap
@@ -878,15 +853,12 @@ func TestRecvBootstrapCall(t *testing.T) {
 			close(srvShutdown)
 		})
 	p1, p2 := newPipe(1)
-	defer p2.Close()
 	conn := rpc.NewConn(p1, &rpc.Options{
 		BootstrapClient: srv,
 		ErrorReporter:   testErrorReporter{tb: t},
 	})
 	defer func() {
-		if err := conn.Close(); err != nil {
-			t.Error(err)
-		}
+		finishTest(t, conn, p2)
 		select {
 		case <-srvShutdown:
 		default:
@@ -1035,16 +1007,11 @@ func TestRecvBootstrapCallException(t *testing.T) {
 		return errors.New("everything went wrong")
 	}, nil)
 	p1, p2 := newPipe(1)
-	defer p2.Close()
 	conn := rpc.NewConn(p1, &rpc.Options{
 		BootstrapClient: srv,
 		ErrorReporter:   testErrorReporter{tb: t},
 	})
-	defer func() {
-		if err := conn.Close(); err != nil {
-			t.Error(err)
-		}
-	}()
+	defer finishTest(t, conn, p2)
 
 	ctx := context.Background()
 
@@ -1193,15 +1160,12 @@ func TestRecvBootstrapPipelineCall(t *testing.T) {
 			close(srvShutdown)
 		})
 	p1, p2 := newPipe(1)
-	defer p2.Close()
 	conn := rpc.NewConn(p1, &rpc.Options{
 		BootstrapClient: srv,
 		ErrorReporter:   testErrorReporter{tb: t},
 	})
 	defer func() {
-		if err := conn.Close(); err != nil {
-			t.Error(err)
-		}
+		finishTest(t, conn, p2)
 		select {
 		case <-srvShutdown:
 		default:
@@ -1586,15 +1550,10 @@ func TestRecvCancel(t *testing.T) {
 // see whether a finish message was sent.  Level 0 requirement.
 func TestSendCancel(t *testing.T) {
 	p1, p2 := newPipe(1)
-	defer p2.Close()
 	conn := rpc.NewConn(p1, &rpc.Options{
 		ErrorReporter: testErrorReporter{tb: t},
 	})
-	defer func() {
-		if err := conn.Close(); err != nil {
-			t.Error(err)
-		}
-	}()
+	defer finishTest(t, conn, p2)
 	ctx := context.Background()
 
 	// 1. Read bootstrap.
@@ -1746,6 +1705,44 @@ func TestSendCancel(t *testing.T) {
 			t.Errorf("release.id = %d; want 1", rmsg.Release.ReferenceCount)
 		}
 	}
+}
+
+// finishTest drains both sides of a pipe and reports any errors to t.
+func finishTest(t errorfer, conn *rpc.Conn, p2 rpc.Transport) {
+	ctx, cancel := context.WithCancel(context.Background())
+	drained := make(chan struct{})
+	go func() {
+		defer close(drained)
+		for {
+			m, release, err := recvMessage(ctx, p2)
+			if err != nil {
+				return
+			}
+			w := m.Which
+			release()
+			switch w {
+			case rpccp.Message_Which_abort:
+				return
+			case rpccp.Message_Which_release, rpccp.Message_Which_finish:
+				// Ignore clean-up messages.
+			default:
+				// Notify if test ignored a substantial message.
+				t.Errorf("conn sent a %v message while finishing test", w)
+			}
+		}
+	}()
+	if err := conn.Close(); err != nil {
+		t.Errorf("conn.Close(): %v", err)
+	}
+	cancel()
+	<-drained
+	if err := p2.Close(); err != nil {
+		t.Errorf("p2.Close(): %v", err)
+	}
+}
+
+type errorfer interface {
+	Errorf(string, ...interface{})
 }
 
 func newServer(impl func(context.Context, *server.Call) error, shutdown shutdownFunc) *capnp.Client {
