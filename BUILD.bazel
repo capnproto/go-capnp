@@ -51,7 +51,6 @@ go_test(
         "segment_test.go",
     ],
     embed = [":go_default_library"],
-    importpath = "zombiezen.com/go/capnproto2",
 )
 
 go_test(
@@ -64,7 +63,6 @@ go_test(
     data = [
         "//internal/aircraftlib:schema",
     ],
-    importpath = "zombiezen.com/go/capnproto2_test",
     deps = [
         ":go_default_library",
         "//internal/aircraftlib:go_default_library",

@@ -10,7 +10,6 @@ go_library(
 go_test(
     name = "go_default_xtest",
     srcs = ["book_test.go"],
-    importpath = "zombiezen.com/go/capnproto2/internal/demo_test",
     deps = [
         "//:go_default_library",
         "//internal/demo/books:go_default_library",

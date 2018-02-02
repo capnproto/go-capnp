@@ -19,7 +19,6 @@ go_test(
     srcs = ["marshal_test.go"],
     data = glob(["testdata/**"]),
     embed = [":go_default_library"],
-    importpath = "zombiezen.com/go/capnproto2/encoding/text",
     deps = [
         "//:go_default_library",
         "//internal/schema:go_default_library",

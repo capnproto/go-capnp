@@ -20,7 +20,6 @@ go_library(
 go_binary(
     name = "capnpc-go",
     embed = [":go_default_library"],
-    importpath = "zombiezen.com/go/capnproto2/capnpc-go",
     visibility = ["//visibility:public"],
 )
 
@@ -29,7 +28,6 @@ go_test(
     srcs = ["capnpc-go_test.go"],
     data = glob(["testdata/**"]),
     embed = [":go_default_library"],
-    importpath = "zombiezen.com/go/capnproto2/capnpc-go",
     deps = [
         "//:go_default_library",
         "//encoding/text:go_default_library",

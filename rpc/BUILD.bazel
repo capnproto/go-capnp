@@ -30,7 +30,6 @@ go_test(
         "transport_go19_test.go",
         "transport_test.go",
     ],
-    importpath = "zombiezen.com/go/capnproto2/rpc_test",
     deps = [
         ":go_default_library",
         "//:go_default_library",
@@ -45,5 +44,4 @@ go_test(
     name = "go_default_test",
     srcs = ["idgen_test.go"],
     embed = [":go_default_library"],
-    importpath = "zombiezen.com/go/capnproto2/rpc",
 )
