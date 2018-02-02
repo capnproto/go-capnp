@@ -23,5 +23,5 @@ annotation customtype(field) :Text;
 annotation name(struct, field, union, enum, enumerant, interface, method, param, annotation, const, group) :Text;
 # Used to rename the element in the generated code.
 
-$package("capnp");
-$import("zombiezen.com/go/capnproto2");
+$package("gocp");
+$import("zombiezen.com/go/capnproto2/std/go");

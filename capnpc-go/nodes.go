@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/internal/schema"
 )
 
@@ -164,18 +163,18 @@ func parseAnnotations(list schema.Annotation_List) *annotations {
 		val, _ := a.Value()
 		text, _ := val.Text()
 		switch a.Id() {
-		case capnp.Doc:
+		case 0xc58ad6bd519f935e: // $doc
 			ann.Doc = text
-		case capnp.Package:
+		case 0xbea97f1023792be0: // $package
 			ann.Package = text
-		case capnp.Import:
+		case 0xe130b601260e44b5: // $import
 			ann.Import = text
-		case capnp.Tag:
+		case 0xa574b41924caefc7: // $tag
 			ann.TagType = customTag
 			ann.CustomTag = text
-		case capnp.Notag:
+		case 0xc8768679ec52e012: // $notag
 			ann.TagType = noTag
-		case capnp.Name:
+		case 0xc2b96012172f8df1: // $name
 			ann.Name = text
 		}
 	}

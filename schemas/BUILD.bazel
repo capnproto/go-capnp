@@ -15,5 +15,6 @@ go_test(
         ":go_default_library",
         "//:go_default_library",
         "//internal/schema:go_default_library",
+        "//std/go:go_default_library",
     ],
 )

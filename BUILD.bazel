@@ -16,7 +16,6 @@ go_library(
         "capability.go",
         "doc.go",
         "error.go",
-        "go.capnp.go",
         "list.go",
         "message.go",
         "message_go18.go",
@@ -32,7 +31,6 @@ go_library(
         "//internal/errors:go_default_library",
         "//internal/packed:go_default_library",
         "//internal/strquote:go_default_library",
-        "//schemas:go_default_library",
     ],
 )
 

@@ -1,5 +1,7 @@
 #!/bin/bash
 
+std_dir="$(dirname "$0")"
+
 infer_package_name() {
 	# Convert the filename $1 to a package name. We munge the name as follows:
 	#
@@ -11,13 +13,12 @@ infer_package_name() {
 }
 
 gen_annotated_schema() {
-	# Copy the schema from file "$1" to the current directory, and add
+	# Copy the schema from file "$1" to the std/capnp directory, and add
 	# appropriate $Go annotations.
 	infile="$1"
-	outfile="$(basename $infile)"
-	cp "$infile" "$outfile" || return 1
-	package_name="$(infer_package_name $outfile)"
-	cat >> "$outfile" << EOF
+	outfile="$std_dir/capnp/$(basename "$infile")"
+	package_name="$(infer_package_name "$outfile")"
+	cat "$infile" - > "$outfile" << EOF
 using Go = import "/go.capnp";
 \$Go.package("$package_name");
 \$Go.import("zombiezen.com/go/capnproto2/std/capnp/$package_name");
@@ -28,15 +29,16 @@ gen_go_src() {
 	# Generate go source code from the schema file $1. Create the package
 	# directory if necessary.
 	file="$1"
-	package_name="$(infer_package_name $file)"
-	mkdir -p $package_name || return 1
-	capnp compile -I"$(dirname $PWD)" -ogo:$package_name $file
+        filedir="$(dirname "$file")"
+	package_name="$(infer_package_name "$file")"
+	mkdir -p "$filedir/$package_name" && \
+        	capnp compile --no-standard-import -I"$std_dir" -ogo:"$filedir/$package_name" --src-prefix="$filedir" "$file"
 }
 
 usage() {
 	echo "Usage:"
 	echo ""
-	echo "    $0 import <path/to/schema/files>"
+	echo "    $0 import <path/to/capnp/c++/src/capnp>"
 	echo "    $0 compile    # Generate go source files"
 	echo "    $0 clean-go   # Remove go source files"
 	echo "    $0 clean-all  # Remove go source files and imported schemas"
@@ -45,25 +47,25 @@ usage() {
 # do_* implements the corresponding subcommand described in usage's output.
 do_import() {
 	input_dir="$1"
-	for file in $input_dir/*.capnp; do
+	for file in "$input_dir"/*.capnp; do
 		gen_annotated_schema "$file" || return 1
 	done
 }
 
 do_compile() {
-	for file in *.capnp; do
+	for file in "$std_dir"/*.capnp "$std_dir"/capnp/*.capnp; do
 		gen_go_src "$file" || return 1
 	done
 }
 
 do_clean_go() {
-	find "$(dirname $0)" -name '*.capnp.go' -delete
-	find "$(dirname $0)" -type d -empty -delete
+	find "$std_dir" -name '*.capnp.go' -delete
+	find "$std_dir" -type d -empty -delete
 }
 
 do_clean_all() {
 	do_clean_go
-	find "$(dirname $0)" -name '*.capnp' -delete
+	find "$std_dir/capnp" -name '*.capnp' -delete
 }
 
 eq_or_usage() {
