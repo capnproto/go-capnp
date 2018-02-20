@@ -22,7 +22,7 @@ func TestPrepush(t *testing.T) {
 		t.Fatalf("New(qi, 1).Len() = %d; want 1", n)
 	}
 	if i := q.Front(); i != 0 {
-		t.Errorf("q.Front() = %d; want 0")
+		t.Errorf("q.Front() = %d; want 0", i)
 	}
 }
 
@@ -66,7 +66,7 @@ func TestPushFull(t *testing.T) {
 
 	for i := 0; i < 5; i++ {
 		if !ok[i] {
-			t.Errorf("q.Push() #%d returned -1", i, 10+i)
+			t.Errorf("q.Push() #%d returned -1", i)
 		}
 	}
 	if ok[5] {
