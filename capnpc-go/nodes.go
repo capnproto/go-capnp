@@ -161,21 +161,20 @@ func parseAnnotations(list schema.Annotation_List) *annotations {
 	for i, n := 0, list.Len(); i < n; i++ {
 		a := list.At(i)
 		val, _ := a.Value()
-		text, _ := val.Text()
 		switch a.Id() {
 		case 0xc58ad6bd519f935e: // $doc
-			ann.Doc = text
+			ann.Doc, _ = val.Text()
 		case 0xbea97f1023792be0: // $package
-			ann.Package = text
+			ann.Package, _ = val.Text()
 		case 0xe130b601260e44b5: // $import
-			ann.Import = text
+			ann.Import, _ = val.Text()
 		case 0xa574b41924caefc7: // $tag
 			ann.TagType = customTag
-			ann.CustomTag = text
+			ann.CustomTag, _ = val.Text()
 		case 0xc8768679ec52e012: // $notag
 			ann.TagType = noTag
 		case 0xc2b96012172f8df1: // $name
-			ann.Name = text
+			ann.Name, _ = val.Text()
 		}
 	}
 	return ann
