@@ -1085,6 +1085,19 @@ func (c *Conn) recvCap(d rpccp.CapDescriptor) (_ *capnp.Client, local bool, _ er
 	case rpccp.CapDescriptor_Which_senderHosted:
 		id := importID(d.SenderHosted())
 		return c.addImport(id), false, nil
+	case rpccp.CapDescriptor_Which_senderPromise:
+		// We do the same thing as senderHosted, above. @kentonv suggested this on
+		// issue #2; this lets messages be delivered properly, although it's a bit
+		// of a hack, and as Kenton describes, it has some disadvantages:
+		//
+		// > * Apps sometimes want to wait for promise resolution, and to find out if
+		// >   it resolved to an exception. You won't be able to provide that API. But,
+		// >   usually, it isn't needed.
+		// > * If the promise resolves to a capability hosted on the receiver,
+		// >   messages sent to it will uselessly round-trip over the network
+		// >   rather than being delivered locally.
+		id := importID(d.SenderPromise())
+		return c.addImport(id), false, nil
 	case rpccp.CapDescriptor_Which_receiverHosted:
 		id := exportID(d.ReceiverHosted())
 		ent := c.findExport(id)
