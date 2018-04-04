@@ -96,6 +96,9 @@ func (c *Conn) sendCap(d rpccp.CapDescriptor, client *capnp.Client, state capnp.
 
 	// Default to sender-hosted (export).
 	for id, ent := range c.exports {
+		if ent == nil {
+			continue
+		}
 		if ent.client.IsSame(client) {
 			ent.wireRefs++
 			d.SetSenderHosted(uint32(id))
