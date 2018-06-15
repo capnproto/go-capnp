@@ -32,7 +32,7 @@ else
   must /tmp/bazel.sh --user
   rm -f /tmp/bazel.sh
   if [[ ! -z "$TRAVIS_GO_VERSION" ]]; then
-    must $SEDI -e "s/^go_register_toolchains(.*/go_register_toolchains(go_version=\"${TRAVIS_GO_VERSION}\")/" WORKSPACE
+    must $SEDI -e 's/^go_register_toolchains()/go_register_toolchains(go_version="host")/' WORKSPACE
   fi
   must "$HOME/bin/bazel" --bazelrc=_travis/bazelrc version
   must "$HOME/bin/bazel" --bazelrc=_travis/bazelrc fetch //...
