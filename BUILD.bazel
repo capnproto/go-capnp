@@ -1,6 +1,11 @@
+load("@bazel_gazelle//:def.bzl", "gazelle")
 load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_prefix", "go_test")
 
-go_prefix("zombiezen.com/go/capnproto2")
+# gazelle:prefix zombiezen.com/go/capnproto2
+gazelle(
+    name = "gazelle",
+    command = "fix",
+)
 
 go_library(
     name = "go_default_library",
