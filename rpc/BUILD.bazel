@@ -12,6 +12,7 @@ go_library(
         "tables.go",
         "transport.go",
     ],
+    importpath = "zombiezen.com/go/capnproto2/rpc",
     visibility = ["//visibility:public"],
     deps = [
         "//:go_default_library",
@@ -24,7 +25,7 @@ go_library(
 )
 
 go_test(
-    name = "go_default_xtest",
+    name = "go_default_test",
     srcs = [
         "bench_test.go",
         "cancel_test.go",
@@ -35,8 +36,8 @@ go_test(
         "release_test.go",
         "rpc_test.go",
     ],
+    embed = [":go_default_library"],
     deps = [
-        ":go_default_library",
         "//:go_default_library",
         "//rpc/internal/logtransport:go_default_library",
         "//rpc/internal/pipetransport:go_default_library",

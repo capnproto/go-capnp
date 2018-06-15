@@ -6,6 +6,7 @@ go_library(
         "generate.go",
         "test.capnp.go",
     ],
+    importpath = "zombiezen.com/go/capnproto2/rpc/internal/testcapnp",
     visibility = ["//rpc:__subpackages__"],
     deps = [
         "//:go_default_library",
