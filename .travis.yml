@@ -1,7 +1,6 @@
 language: go
 go_import_path: zombiezen.com/go/capnproto2
 go:
-- 1.4.x
 - 1.x
 install: _travis/install.bash
 script: _travis/build.bash
