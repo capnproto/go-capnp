@@ -7,6 +7,7 @@ go_library(
         "discard_go14.go",
         "packed.go",
     ],
+    importpath = "zombiezen.com/go/capnproto2/internal/packed",
     visibility = ["//:__subpackages__"],
 )
 
@@ -14,5 +15,5 @@ go_test(
     name = "go_default_test",
     srcs = ["packed_test.go"],
     data = glob(["testdata/**"]),
-    library = ":go_default_library",
+    embed = [":go_default_library"],
 )

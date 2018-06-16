@@ -6,6 +6,7 @@ go_library(
         "gen.go",
         "hash.capnp.go",
     ],
+    importpath = "zombiezen.com/go/capnproto2/internal/demo/hashes",
     visibility = ["//:__subpackages__"],
     deps = [
         "//:go_default_library",

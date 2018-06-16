@@ -6,6 +6,7 @@ go_library(
         "aircraft.capnp.go",
         "generate.go",
     ],
+    importpath = "zombiezen.com/go/capnproto2/internal/aircraftlib",
     visibility = ["//:__subpackages__"],
     deps = [
         "//:go_default_library",
@@ -18,6 +19,6 @@ go_library(
 
 filegroup(
     name = "schema",
-    visibility = ["//:__subpackages__"],
     srcs = ["aircraft.capnp"],
+    visibility = ["//:__subpackages__"],
 )
