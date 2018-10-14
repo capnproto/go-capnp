@@ -47,7 +47,7 @@ The major cases where I reserve the right to make breaking changes are:
 - Bugs.
 
 The `pogs` package is relatively new and may change over time.
-However, its functionality has been well-tested and will probably only relax restrictions.
+However, it functionality has been well-tested and will probably only relax restrictions.
 
 [gocompat]: https://golang.org/doc/go1compat
 
@@ -57,7 +57,7 @@ See the docs on [godoc.org][godoc].
 
 ## What is Cap'n Proto?
 
-The best cerealization...
+The best serealization...
 
 https://capnproto.org/
 
