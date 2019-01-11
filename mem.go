@@ -204,6 +204,16 @@ func (m *Message) Segment(id SegmentID) (*Segment, error) {
 	return seg, nil
 }
 
+// MarkSafe disables the read limiter
+func (m *Message) MarkSafe() {
+	m.rlimit.safeMessage = true
+}
+
+// MarkUnsafe enables the read limiter
+func (m *Message) MarkUnsafe() {
+	m.rlimit.safeMessage = false
+}
+
 // segment returns the segment with the given ID.
 // The caller must be holding m.mu.
 func (m *Message) segment(id SegmentID) *Segment {

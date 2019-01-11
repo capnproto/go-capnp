@@ -23,6 +23,13 @@ var (
 	ConstList = Zdate_List{List: capnp.MustUnmarshalRootPtr(x_832bcc6686a26d56[24:64]).List()}
 )
 
+func init() {
+	// Mark constants as safe from amplification attacks
+	ConstDate.Segment().Message().MarkSafe()
+	ConstList.Segment().Message().MarkSafe()
+
+}
+
 type Zdate struct{ capnp.Struct }
 
 // Zdate_TypeID is the unique identifier for the type Zdate.
