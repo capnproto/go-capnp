@@ -15,8 +15,8 @@ var (
 
 {{with .Vars -}}
 func init() {
-   // Mark constants as safe from amplification attacks
-  {{range .}} {{.Name}}.Segment().Message().MarkSafe()
+   // Set traversal limit for constants as Uint64Max since they're safe from amplification attacks
+  {{range .}} {{.Name}}.Segment().Message().ReadLimiter().Reset((1<<64) - 1)
   {{end}}
 }
 {{end}}

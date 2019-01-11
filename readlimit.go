@@ -7,16 +7,11 @@ import "sync/atomic"
 // https://capnproto.org/encoding.html#amplification-attack.
 // It is safe to use from multiple goroutines.
 type ReadLimiter struct {
-	limit       uint64
-	safeMessage bool
+	limit uint64
 }
 
 // canRead reports whether the amount of bytes can be stored safely.
 func (rl *ReadLimiter) canRead(sz Size) bool {
-	if rl.safeMessage {
-		return true
-	}
-
 	for {
 		curr := atomic.LoadUint64(&rl.limit)
 		ok := curr >= uint64(sz)

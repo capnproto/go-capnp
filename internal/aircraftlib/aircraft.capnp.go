@@ -24,9 +24,9 @@ var (
 )
 
 func init() {
-	// Mark constants as safe from amplification attacks
-	ConstDate.Segment().Message().MarkSafe()
-	ConstList.Segment().Message().MarkSafe()
+	// Set traversal limit for constants as Uint64Max since they're safe from amplification attacks
+	ConstDate.Segment().Message().ReadLimiter().Reset((1 << 64) - 1)
+	ConstList.Segment().Message().ReadLimiter().Reset((1 << 64) - 1)
 
 }
 
