@@ -12,7 +12,6 @@ var (
 {{end}}
 )
 {{end}}
-
 {{with .Vars -}}
 func init() {
    // Set traversal limit for constants as Uint64Max since they're safe from amplification attacks
