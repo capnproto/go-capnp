@@ -24,10 +24,9 @@ var (
 )
 
 func init() {
-	// Set traversal limit for constants as Uint64Max since they're safe from amplification attacks
+	// Set traversal limit for constants as Uint64Max since they're safe from amplification attacks.
 	ConstDate.Segment().Message().ReadLimiter().Reset((1 << 64) - 1)
 	ConstList.Segment().Message().ReadLimiter().Reset((1 << 64) - 1)
-
 }
 
 type Zdate struct{ capnp.Struct }
