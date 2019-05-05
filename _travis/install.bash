@@ -13,7 +13,7 @@ die() {
 if [[ -z "$USE_BAZEL" || "$USE_BAZEL" -eq "0" ]]; then
   must go get -t ./...
 else
-  BAZEL_VERSION="${BAZEL_VERSION:-0.14.1}"
+  BAZEL_VERSION="${BAZEL_VERSION:-0.25.0}"
   case "$TRAVIS_OS_NAME" in
     linux)
       BAZEL_INSTALLER_URL="https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel-${BAZEL_VERSION}-installer-linux-x86_64.sh"
