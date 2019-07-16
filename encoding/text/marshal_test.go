@@ -20,25 +20,133 @@ func TestEncode(t *testing.T) {
 	tests := []struct {
 		constID uint64
 		text    string
+		indented  string
 	}{
-		{0xc0b634e19e5a9a4e, `(key = "42", value = (int32 = -123))`},
-		{0x967c8fe21790b0fb, `(key = "float", value = (float64 = 3.14))`},
-		{0xdf35cb2e1f5ea087, `(key = "bool", value = (bool = false))`},
-		{0xb167974479102805, `(map = [(key = "foo", value = (void = void)), (key = "bar", value = (void = void))])`},
-		{0x81fdbfdc91779421, `(map = [])`},
-		{0x8e85252144f61858, `(data = "Hi\xde\xad\xbe\xef\xca\xfe")`},
-		{0xc21398a8474837ba, `(voidList = [void, void])`},
-		{0xde82c2eeb3a4b07c, `(boolList = [true, false, true, false])`},
-		{0xf9e3ffc179272aa2, `(int8List = [1, -2, 3])`},
-		{0xfc421b96ec6ad2b6, `(int64List = [1, -2, 3])`},
-		{0xb3034b89d02775a5, `(uint8List = [255, 0, 1])`},
-		{0x9246c307e46ad03b, `(uint64List = [1, 2, 3])`},
-		{0xd012128a1a9cb7fc, `(float32List = [0.5, 3.14, -2])`},
-		{0xf16c386c66d492e2, `(textList = ["foo", "bar", "baz"])`},
-		{0xe14f4d42aa55de8c, `(dataList = ["\xde\xad\xbe\xef", "\xca\xfe"])`},
-		{0xe88c91698f7f0b73, `(cheese = gouda)`},
-		{0x9c51b843b337490b, `(cheeseList = [gouda, cheddar])`},
-		{0x81e2aadb8bfb237b, `(matrix = [[1, 2, 3], [4, 5, 6]])`},
+		{0xc0b634e19e5a9a4e, `(key = "42", value = (int32 = -123))`, `(
+    key = "42",
+    value = (
+        int32 = -123
+    )
+)`},
+		{0x967c8fe21790b0fb, `(key = "float", value = (float64 = 3.14))`, `(
+    key = "float",
+    value = (
+        float64 = 3.14
+    )
+)`},
+		{0xdf35cb2e1f5ea087, `(key = "bool", value = (bool = false))`, `(
+    key = "bool",
+    value = (
+        bool = false
+    )
+)`},
+		{0xb167974479102805, `(map = [(key = "foo", value = (void = void)), (key = "bar", value = (void = void))])`, `(
+    map = [
+        (
+            key = "foo",
+            value = (
+                void = void
+            )
+        ),
+        (
+            key = "bar",
+            value = (
+                void = void
+            )
+        )
+    ]
+)`},
+		{0x81fdbfdc91779421, `(map = [])`, `(
+    map = []
+)`},
+		{0x8e85252144f61858, `(data = "Hi\xde\xad\xbe\xef\xca\xfe")`, `(
+    data = "Hi\xde\xad\xbe\xef\xca\xfe"
+)`},
+		{0xc21398a8474837ba, `(voidList = [void, void])`, `(
+    voidList = [
+        void,
+        void
+    ]
+)`},
+		{0xde82c2eeb3a4b07c, `(boolList = [true, false, true, false])`, `(
+    boolList = [
+        true,
+        false,
+        true,
+        false
+    ]
+)`},
+		{0xf9e3ffc179272aa2, `(int8List = [1, -2, 3])`, `(
+    int8List = [
+        1,
+        -2,
+        3
+    ]
+)`},
+		{0xfc421b96ec6ad2b6, `(int64List = [1, -2, 3])`, `(
+    int64List = [
+        1,
+        -2,
+        3
+    ]
+)`},
+		{0xb3034b89d02775a5, `(uint8List = [255, 0, 1])`, `(
+    uint8List = [
+        255,
+        0,
+        1
+    ]
+)`},
+		{0x9246c307e46ad03b, `(uint64List = [1, 2, 3])`, `(
+    uint64List = [
+        1,
+        2,
+        3
+    ]
+)`},
+		{0xd012128a1a9cb7fc, `(float32List = [0.5, 3.14, -2])`, `(
+    float32List = [
+        0.5,
+        3.14,
+        -2
+    ]
+)`},
+		{0xf16c386c66d492e2, `(textList = ["foo", "bar", "baz"])`, `(
+    textList = [
+        "foo",
+        "bar",
+        "baz"
+    ]
+)`},
+		{0xe14f4d42aa55de8c, `(dataList = ["\xde\xad\xbe\xef", "\xca\xfe"])`, `(
+    dataList = [
+        "\xde\xad\xbe\xef",
+        "\xca\xfe"
+    ]
+)`},
+		{0xe88c91698f7f0b73, `(cheese = gouda)`, `(
+    cheese = gouda
+)`},
+		{0x9c51b843b337490b, `(cheeseList = [gouda, cheddar])`, `(
+    cheeseList = [
+        gouda,
+        cheddar
+    ]
+)`},
+		{0x81e2aadb8bfb237b, `(matrix = [[1, 2, 3], [4, 5, 6]])`, `(
+    matrix = [
+        [
+            1,
+            2,
+            3
+        ],
+        [
+            4,
+            5,
+            6
+        ]
+    ]
+)`},
 	}
 
 	data, err := readTestFile("txt.capnp.out")
@@ -123,6 +231,18 @@ func TestEncode(t *testing.T) {
 			t.Errorf("Encode(%#x, (%s @%#x).const.value.struct) = %q; want %q", tid, dn, test.constID, text, test.text)
 			continue
 		}
+
+		buf.Reset()
+		enc.SetIndent("    ")
+
+		if err := enc.Encode(tid, sv.Struct()); err != nil {
+			t.Errorf("Encode(%#x, (%s @%#x).const.value.struct): %v", tid, dn, test.constID, err)
+			continue
+		}
+		if text := buf.String(); text != test.indented {
+			t.Errorf("Encode(%#x, (%s @%#x).const.value.struct) = %q; want %q", tid, dn, test.constID, text, test.indented)
+			continue
+		}
 	}
 }
 
@@ -130,8 +250,23 @@ func TestEncodeList(t *testing.T) {
 	tests := []struct {
 		constID uint64
 		text    string
+		indent  string
 	}{
-		{0x90c9e81e6418df8e, `[(key = "foo", value = (void = void)), (key = "bar", value = (void = void))]`},
+		{0x90c9e81e6418df8e, `[(key = "foo", value = (void = void)), (key = "bar", value = (void = void))]`, ""},
+		{0x90c9e81e6418df8e, `[
+    (
+        key = "foo",
+        value = (
+            void = void
+        )
+    ),
+    (
+        key = "bar",
+        value = (
+            void = void
+        )
+    )
+]`, "    "},
 	}
 
 	data, err := readTestFile("txt.capnp.out")
@@ -217,6 +352,7 @@ func TestEncodeList(t *testing.T) {
 		buf := new(bytes.Buffer)
 		enc := NewEncoder(buf)
 		enc.UseRegistry(reg)
+		enc.SetIndent(test.indent)
 		if err := enc.EncodeList(tid, lv.List()); err != nil {
 			t.Errorf("Encode(%#x, (%s @%#x).const.value.list): %v", tid, dn, test.constID, err)
 			continue
