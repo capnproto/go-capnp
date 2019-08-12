@@ -461,7 +461,6 @@ func (enc *Encoder) marshalList(elem schema.Type, l capnp.List) error {
 	default:
 		return fmt.Errorf("unknown list type %v", elem.Which())
 	}
-	return nil
 }
 
 func (enc *Encoder) marshalEnum(typ uint64, val uint16) error {
