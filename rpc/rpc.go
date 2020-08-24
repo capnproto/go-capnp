@@ -1116,6 +1116,11 @@ func (c *Conn) recvCap(d rpccp.CapDescriptor) (_ *capnp.Client, local bool, _ er
 //
 // The caller must be holding onto c.mu.
 func (c *Conn) recvPayload(payload rpccp.Payload) (_ capnp.Ptr, locals uintSet, _ error) {
+	if !payload.IsValid() {
+		// null pointer; in this case we can treat the cap table as being empty
+		// and just return.
+		return capnp.Ptr{}, nil, nil
+	}
 	if payload.Message().CapTable != nil {
 		// RecvMessage likely violated its invariant.
 		return capnp.Ptr{}, nil, fail("read payload: capability table already populated")
