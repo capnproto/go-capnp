@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"zombiezen.com/go/capnproto2"
+	capnp "zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/internal/errors"
 	rpccp "zombiezen.com/go/capnproto2/std/capnp/rpc"
 )
@@ -52,12 +52,35 @@ type Transport interface {
 	Close() error
 }
 
+// StreamTransportOption configures StreamTransport.  In general, both sides
+// of the connection must agree on options.
+type StreamTransportOption func(*StreamTransport)
+
+// WithCodec specifies the codec implementation.  A nil value defaults
+// to an unpacked codec.
+func WithCodec(c Codec) StreamTransportOption {
+	if c == nil {
+		c = UnpackedCodec{}
+	}
+
+	return func(t *StreamTransport) {
+		t.c = c
+	}
+}
+
+func withDefaultStreamOpt(opt []StreamTransportOption) []StreamTransportOption {
+	return append([]StreamTransportOption{
+		WithCodec(UnpackedCodec{}),
+	}, opt...)
+}
+
 // StreamTransport serializes and deserializes unpacked Cap'n Proto
 // messages on a byte stream.  StreamTransport adds no buffering beyond
 // what its underlying stream has.
 type StreamTransport struct {
 	cr ctxReader
 	wc io.WriteCloser
+	c  Codec
 
 	partialWriteTimeout time.Duration
 	closed              bool
@@ -74,13 +97,19 @@ type StreamTransport struct {
 // have these methods, then rwc.Close must be safe to call concurrently
 // with rwc.Read.  Notably, this is not true of *os.File before Go 1.9
 // (see https://golang.org/issue/7970).
-func NewStreamTransport(rwc io.ReadWriteCloser) *StreamTransport {
-	return &StreamTransport{
+func NewStreamTransport(rwc io.ReadWriteCloser, opt ...StreamTransportOption) *StreamTransport {
+	t := &StreamTransport{
 		cr: ctxReader{r: rwc},
 		wc: rwc,
 
 		partialWriteTimeout: 30 * time.Second,
 	}
+
+	for _, option := range withDefaultStreamOpt(opt) {
+		option(t)
+	}
+
+	return t
 }
 
 // NewMessage allocates a new message to be sent.
@@ -116,7 +145,7 @@ func (s *StreamTransport) NewMessage(ctx context.Context) (_ rpccp.Message, send
 		if err != nil {
 			return err
 		}
-		b, err := msg.Marshal()
+		b, err := s.c.Encode(msg)
 		if err != nil {
 			return errors.New(errors.Failed, "rpc stream transport", "send: "+err.Error())
 		}
@@ -160,7 +189,7 @@ func (s *StreamTransport) RecvMessage(ctx context.Context) (rpccp.Message, capnp
 		return rpccp.Message{}, nil, err
 	}
 	s.cr.ctx = ctx
-	msg, err := capnp.NewDecoder(&s.cr).Decode()
+	msg, err := s.c.Decode(&s.cr)
 	if err != nil {
 		return rpccp.Message{}, nil, errors.New(errors.Failed, "rpc stream transport", "receive: "+err.Error())
 	}
