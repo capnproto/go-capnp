@@ -4690,6 +4690,16 @@ func (c Echo) Echo(ctx context.Context, params func(Echo_echo_Params) error) (Ec
 	return Echo_echo_Results_Future{Future: ans.Future()}, release
 }
 
+func (c Echo) AddRef() Echo {
+	return Echo{
+		Client: c.Client.AddRef(),
+	}
+}
+
+func (c Echo) Release() {
+	c.Client.Release()
+}
+
 // A Echo_Server is a Echo with a local implementation.
 type Echo_Server interface {
 	Echo(context.Context, Echo_echo) error
@@ -5321,6 +5331,16 @@ func (c CallSequence) GetNumber(ctx context.Context, params func(CallSequence_ge
 	return CallSequence_getNumber_Results_Future{Future: ans.Future()}, release
 }
 
+func (c CallSequence) AddRef() CallSequence {
+	return CallSequence{
+		Client: c.Client.AddRef(),
+	}
+}
+
+func (c CallSequence) Release() {
+	c.Client.Release()
+}
+
 // A CallSequence_Server is a CallSequence with a local implementation.
 type CallSequence_Server interface {
 	GetNumber(context.Context, CallSequence_getNumber) error
@@ -5531,6 +5551,16 @@ func (c Pipeliner) GetNumber(ctx context.Context, params func(CallSequence_getNu
 	}
 	ans, release := c.Client.SendCall(ctx, s)
 	return CallSequence_getNumber_Results_Future{Future: ans.Future()}, release
+}
+
+func (c Pipeliner) AddRef() Pipeliner {
+	return Pipeliner{
+		Client: c.Client.AddRef(),
+	}
+}
+
+func (c Pipeliner) Release() {
+	c.Client.Release()
 }
 
 // A Pipeliner_Server is a Pipeliner with a local implementation.

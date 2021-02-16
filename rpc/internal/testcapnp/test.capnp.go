@@ -32,6 +32,16 @@ func (c PingPong) EchoNum(ctx context.Context, params func(PingPong_echoNum_Para
 	return PingPong_echoNum_Results_Future{Future: ans.Future()}, release
 }
 
+func (c PingPong) AddRef() PingPong {
+	return PingPong{
+		Client: c.Client.AddRef(),
+	}
+}
+
+func (c PingPong) Release() {
+	c.Client.Release()
+}
+
 // A PingPong_Server is a PingPong with a local implementation.
 type PingPong_Server interface {
 	EchoNum(context.Context, PingPong_echoNum) error

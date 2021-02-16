@@ -34,6 +34,16 @@ func (c Persistent) Save(ctx context.Context, params func(Persistent_SaveParams)
 	return Persistent_SaveResults_Future{Future: ans.Future()}, release
 }
 
+func (c Persistent) AddRef() Persistent {
+	return Persistent{
+		Client: c.Client.AddRef(),
+	}
+}
+
+func (c Persistent) Release() {
+	c.Client.Release()
+}
+
 // A Persistent_Server is a Persistent with a local implementation.
 type Persistent_Server interface {
 	Save(context.Context, Persistent_save) error
@@ -268,6 +278,16 @@ func (c RealmGateway) Export(ctx context.Context, params func(RealmGateway_expor
 	}
 	ans, release := c.Client.SendCall(ctx, s)
 	return Persistent_SaveResults_Future{Future: ans.Future()}, release
+}
+
+func (c RealmGateway) AddRef() RealmGateway {
+	return RealmGateway{
+		Client: c.Client.AddRef(),
+	}
+}
+
+func (c RealmGateway) Release() {
+	c.Client.Release()
 }
 
 // A RealmGateway_Server is a RealmGateway with a local implementation.
