@@ -834,7 +834,7 @@ func (m *Message) Marshal() ([]byte, error) {
 		}
 		if len(s.data)%int(wordSize) != 0 {
 			m.mu.Unlock()
-			return nil, errorf("marshal: segment %d not word-aligned")
+			return nil, errorf("marshal: segment %d not word-aligned", i)
 		}
 		binary.LittleEndian.PutUint32(buf[int(i+1)*4:], uint32(len(s.data)/int(wordSize)))
 		buf = append(buf, s.data...)
