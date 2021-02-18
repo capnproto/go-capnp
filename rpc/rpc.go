@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"zombiezen.com/go/capnproto2"
+	capnp "zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/internal/errors"
 	rpccp "zombiezen.com/go/capnproto2/std/capnp/rpc"
 )
@@ -447,6 +447,16 @@ func (c *Conn) receive(ctx context.Context) error {
 			if err != nil {
 				return err
 			}
+		case rpccp.Message_Which_resolve:
+			// https://github.com/capnproto/capnproto/blob/master/c%2B%2B/src/capnp/rpc.capnp#L571
+
+			/*
+			 *  TODO:  swap out the promise identified by promiseId with the contents of the 'cap' field.
+			 *
+			 *		N.B.:  this is where Disembargo matters.
+			 */
+
+			panic("NOT IMPLEMENTED - YOU ARE HERE") // lthibault
 		default:
 			err := c.handleUnknownMessage(ctx, recv)
 			releaseRecv()
