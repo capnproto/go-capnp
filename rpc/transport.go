@@ -61,9 +61,9 @@ type Codec interface {
 	Close() error
 }
 
-// transport serializes and deserializes unpacked Cap'n Proto
-// messages on a byte stream.  transport adds no buffering beyond
-// what its underlying stream has.
+// A transport serializes and deserializes Cap'n Proto using a Codec.
+// It adds no buffering beyond what is provided by the underlying
+// byte transfer mechanism.
 type transport struct {
 	c      Codec
 	closed bool
