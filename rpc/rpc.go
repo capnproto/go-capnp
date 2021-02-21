@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	capnp "zombiezen.com/go/capnproto2"
+	"zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/internal/errors"
 	rpccp "zombiezen.com/go/capnproto2/std/capnp/rpc"
 )
