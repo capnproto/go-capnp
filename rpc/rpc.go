@@ -448,15 +448,14 @@ func (c *Conn) receive(ctx context.Context) error {
 				return err
 			}
 		case rpccp.Message_Which_resolve:
-			// https://github.com/capnproto/capnproto/blob/master/c%2B%2B/src/capnp/rpc.capnp#L571
+			r, err := recv.Resolve()
+			if err == nil {
+				err = c.handleResolve(ctx, r)
+			}
 
-			/*
-			 *  TODO:  swap out the promise identified by promiseId with the contents of the 'cap' field.
-			 *
-			 *		N.B.:  this is where Disembargo matters.
-			 */
+			releaseRecv()
+			return err
 
-			panic("NOT IMPLEMENTED - YOU ARE HERE") // lthibault
 		default:
 			err := c.handleUnknownMessage(ctx, recv)
 			releaseRecv()
@@ -1282,6 +1281,40 @@ func (c *Conn) handleDisembargo(ctx context.Context, d rpccp.Disembargo) error {
 			c.report(annotate(err).errorf("incoming disembargo: send unimplemented"))
 		}
 	}
+	return nil
+}
+
+func (c *Conn) handleResolve(ctx context.Context, r rpccp.Resolve) error {
+	// https://github.com/capnproto/capnproto/blob/master/c%2B%2B/src/capnp/rpc.capnp#L571
+
+	/*
+	 *  TODO:  swap out the promise identified by promiseId with the contents of the 'cap' field.
+	 *
+	 *		N.B.:  this is where Disembargo matters.
+	 *
+	 *
+	 *
+	 *  NOTE ALSO:  this is where you must manage `c.mu`.
+	 */
+
+	switch r.Which() {
+	case rpccp.Resolve_Which_cap:
+		cap, err := r.Cap()
+		if err != nil {
+			return err
+		}
+
+		panic("what do we do with CapDescriptor??  probably recvCap ?")
+
+	case rpccp.Resolve_Which_exception:
+		exc, err := r.Exception()
+		if err != nil {
+			return err
+		}
+
+		panic("what do we do with exc??")
+	}
+
 	return nil
 }
 
