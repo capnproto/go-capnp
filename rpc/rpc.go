@@ -350,7 +350,7 @@ closeTransport:
 // runs in a background goroutine.
 //
 // After receive returns, the connection is shut down.  If receive
-// returns a non-nil error, it is sent to the remove vat as an abort.
+// returns a non-nil error, it is sent to the remote vat as an abort.
 func (c *Conn) receive(ctx context.Context) error {
 	for {
 		recv, releaseRecv, err := c.transport.RecvMessage(ctx)
