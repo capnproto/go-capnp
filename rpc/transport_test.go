@@ -3,11 +3,12 @@ package rpc_test
 import (
 	"context"
 	"errors"
+	"io"
 	"net"
 	"testing"
 	"time"
 
-	"zombiezen.com/go/capnproto2"
+	capnp "zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/rpc"
 	rpccp "zombiezen.com/go/capnproto2/std/capnp/rpc"
 )
@@ -178,10 +179,25 @@ func testTransport(t *testing.T, makePipe func() (t1, t2 rpc.Transport, err erro
 }
 
 func TestTCPStreamTransport(t *testing.T) {
+	t.Run("Unpacked", func(t *testing.T) {
+		t.Parallel()
+
+		testTCPStreamTransport(t, rpc.NewStreamTransport)
+	})
+
+	t.Run("Packed", func(t *testing.T) {
+		t.Parallel()
+
+		testTCPStreamTransport(t, rpc.NewPackedStreamTransport)
+	})
+}
+
+func testTCPStreamTransport(t *testing.T, newTransport func(io.ReadWriteCloser) rpc.Transport) {
 	type listenCall struct {
 		c   *net.TCPConn
 		err error
 	}
+
 	makePipe := func() (t1, t2 rpc.Transport, err error) {
 		host, err := net.LookupIP("localhost")
 		if err != nil {
@@ -214,11 +230,13 @@ func TestTCPStreamTransport(t *testing.T) {
 			l.Close()
 			return nil, nil, err
 		}
-		return rpc.NewStreamTransport(lc.c), rpc.NewStreamTransport(c2), nil
+		return newTransport(lc.c), newTransport(c2), nil
 	}
+
 	t.Run("ServerToClient", func(t *testing.T) {
 		testTransport(t, makePipe)
 	})
+
 	t.Run("ClientToServer", func(t *testing.T) {
 		testTransport(t, func() (t1, t2 rpc.Transport, err error) {
 			t2, t1, err = makePipe()
