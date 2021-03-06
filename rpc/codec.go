@@ -17,6 +17,13 @@ type Codec interface {
 	Close() error
 }
 
+// MessageConn represents a message-oriented connection.
+type MessageConn interface {
+	NextReader() (io.Reader, error)
+	NextWriter() (io.WriteCloser, error)
+	Close() error
+}
+
 type streamCodec struct {
 	r   *ctxReader
 	dec *capnp.Decoder
@@ -25,7 +32,7 @@ type streamCodec struct {
 	enc *capnp.Encoder
 }
 
-func newStreamCodec(rwc io.ReadWriteCloser, f streamEncoding) *streamCodec {
+func newStreamCodec(rwc io.ReadWriteCloser, f encoding) *streamCodec {
 	c := &streamCodec{
 		r: &ctxReader{Reader: rwc},
 		wc: &ctxWriteCloser{
@@ -60,7 +67,7 @@ func (c streamCodec) Close() error {
 	return c.wc.Close()
 }
 
-type streamEncoding interface {
+type encoding interface {
 	NewEncoder(io.Writer) *capnp.Encoder
 	NewDecoder(io.Reader) *capnp.Decoder
 }
@@ -268,4 +275,32 @@ func isTimeout(e error) bool {
 		Timeout() bool
 	})
 	return ok && te.Timeout()
+}
+
+type messageCodec struct {
+	c MessageConn
+	e encoding
+}
+
+func newMessageCodec(c MessageConn, e encoding) messageCodec {
+	return messageCodec{
+		c: c,
+		e: e,
+	}
+}
+
+func (c messageCodec) Encode(context.Context, *capnp.Message) error {
+	panic("NOT IMPLEMENTED")
+}
+
+func (c messageCodec) Decode(context.Context) (*capnp.Message, error) {
+	panic("NOT IMPLEMENTED")
+}
+
+func (c messageCodec) SetPartialWriteTimeout(time.Duration) {
+	panic("NOT IMPLEMENTED")
+}
+
+func (c messageCodec) Close() error {
+	return c.c.Close()
 }

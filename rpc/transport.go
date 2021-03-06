@@ -85,6 +85,21 @@ func NewPackedStreamTransport(rwc io.ReadWriteCloser) Transport {
 	return NewTransport(newStreamCodec(rwc, packedEncoding{}))
 }
 
+// NewMessageTransport creates a new transport that reads and writes
+// over any reliable, ordered, message-oriented transport.  This is
+// useful for transports such as WebSocket.
+func NewMessageTransport(c MessageConn) Transport {
+	return NewTransport(newMessageCodec(c, basicEncoding{}))
+}
+
+// NewPackedMessageTransport creates a new transport that uses a packed
+// encoding.
+//
+// See:  NewMessageTransport
+func NewPackedMessageTransport(c MessageConn) Transport {
+	return NewTransport(newMessageCodec(c, packedEncoding{}))
+}
+
 // NewMessage allocates a new message to be sent.
 //
 // It is safe to call NewMessage concurrently with RecvMessage.
