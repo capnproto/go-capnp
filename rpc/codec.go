@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"time"
@@ -278,27 +279,57 @@ func isTimeout(e error) bool {
 }
 
 type messageCodec struct {
-	c MessageConn
-	e encoding
+	c                   MessageConn
+	e                   encoding
+	partialWriteTimeout time.Duration
 }
 
-func newMessageCodec(c MessageConn, e encoding) messageCodec {
-	return messageCodec{
-		c: c,
-		e: e,
+func newMessageCodec(c MessageConn, e encoding) *messageCodec {
+	return &messageCodec{
+		c:                   c,
+		e:                   e,
+		partialWriteTimeout: 30 * time.Second,
 	}
 }
 
-func (c messageCodec) Encode(context.Context, *capnp.Message) error {
-	panic("NOT IMPLEMENTED")
+func (c messageCodec) Encode(ctx context.Context, m *capnp.Message) error {
+	var buf bytes.Buffer
+	if err := c.e.NewEncoder(&buf).Encode(m); err != nil {
+		return err
+	}
+
+	// does the connection support write deadlines?
+	wd, ok := c.c.(interface{ SetWriteDeadline(time.Time) error })
+	if ok {
+		t, _ := ctx.Deadline()
+		wd.SetWriteDeadline(t) // t defaults to time.Time{}, i.e. no deadline.
+	}
+
+	w, err := c.c.NextWriter()
+	if err != nil {
+		return err
+	}
+
+	n, err := io.Copy(w, &buf)
+	if err == nil || n == 0 || c.partialWriteTimeout <= 0 || !isTimeout(err) {
+		return err
+	}
+
+	// Data has been written.  Block with extra partial timeout, since
+	// partial writes are guaranteed protocol violations
+	wd.SetWriteDeadline(time.Now().Add(c.partialWriteTimeout))
+
+	// final attempt ...
+	_, err = io.Copy(w, &buf)
+	return err
 }
 
 func (c messageCodec) Decode(context.Context) (*capnp.Message, error) {
 	panic("NOT IMPLEMENTED")
 }
 
-func (c messageCodec) SetPartialWriteTimeout(time.Duration) {
-	panic("NOT IMPLEMENTED")
+func (c *messageCodec) SetPartialWriteTimeout(d time.Duration) {
+	c.partialWriteTimeout = d
 }
 
 func (c messageCodec) Close() error {
