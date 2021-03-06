@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 	"sync/atomic"
-	"time"
 
 	capnp "zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/internal/errors"
@@ -74,7 +73,7 @@ func NewTransport(c Codec) Transport { return &transport{c: c} }
 // with rwc.Read.  Notably, this is not true of *os.File before Go 1.9
 // (see https://golang.org/issue/7970).
 func NewStreamTransport(rwc io.ReadWriteCloser) Transport {
-	return NewTransport(newStreamCodec(rwc, basicEncoding{}))
+	return NewTransport(NewStreamCodec(rwc, BasicEncoding{}))
 }
 
 // NewPackedStreamTransport creates a new transport that uses a packed
@@ -82,14 +81,14 @@ func NewStreamTransport(rwc io.ReadWriteCloser) Transport {
 //
 // See:  NewStreamTransport.
 func NewPackedStreamTransport(rwc io.ReadWriteCloser) Transport {
-	return NewTransport(newStreamCodec(rwc, packedEncoding{}))
+	return NewTransport(NewStreamCodec(rwc, PackedEncoding{}))
 }
 
 // NewMessageTransport creates a new transport that reads and writes
 // over any reliable, ordered, message-oriented transport.  This is
 // useful for transports such as WebSocket.
 func NewMessageTransport(c MessageConn) Transport {
-	return NewTransport(newMessageCodec(c, basicEncoding{}))
+	return NewTransport(newMessageCodec(c, BasicEncoding{}))
 }
 
 // NewPackedMessageTransport creates a new transport that uses a packed
@@ -97,7 +96,7 @@ func NewMessageTransport(c MessageConn) Transport {
 //
 // See:  NewMessageTransport
 func NewPackedMessageTransport(c MessageConn) Transport {
-	return NewTransport(newMessageCodec(c, packedEncoding{}))
+	return NewTransport(newMessageCodec(c, PackedEncoding{}))
 }
 
 // NewMessage allocates a new message to be sent.
@@ -143,18 +142,6 @@ func (s *transport) NewMessage(ctx context.Context) (_ rpccp.Message, send func(
 	}
 
 	return rmsg, send, func() { msg.Reset(nil) }, nil
-}
-
-// SetPartialWriteTimeout sets the timeout for completing the
-// transmission of a partially sent message after the send is cancelled
-// or interrupted for any future sends.  If not set, a reasonable
-// non-zero value is used.
-//
-// Setting a shorter timeout may free up resources faster in the case of
-// an unresponsive remote peer, but may also make the transport respond
-// too aggressively to bursts of latency.
-func (s *transport) SetPartialWriteTimeout(d time.Duration) {
-	s.c.SetPartialWriteTimeout(d)
 }
 
 // RecvMessage reads the next message from the underlying reader.

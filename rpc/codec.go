@@ -14,18 +14,34 @@ import (
 type Codec interface {
 	Encode(context.Context, *capnp.Message) error
 	Decode(context.Context) (*capnp.Message, error)
-	SetPartialWriteTimeout(time.Duration)
 	Close() error
 }
 
 // MessageConn represents a message-oriented connection.
 type MessageConn interface {
+	// NextReader returns the next data message received from the peer.
+	//
+	// There can be at most one open reader on a connection. Implementations MUST
+	// discard the previous message if the application has not already consumed it.
+	//
+	// Once this method returns a non-nil error, all subsequent calls to this method
+	// MUST return the same error.
 	NextReader() (io.Reader, error)
+
+	// NextWriter returns a writer for the next message to send.
+	// The writer's Close method flushes the complete message to the network.
+	//
+	// There can be at most one open writer on a connection.  NextWriter MUST
+	// close the previous writer if the application has not already done so.
 	NextWriter() (io.WriteCloser, error)
+
+	// Close the underlying network connections.  Implementations will vary in
+	// whether and how they announce disconnection to the remote side.
 	Close() error
 }
 
-type streamCodec struct {
+// StreamCodec can encode/decode messages from a stream of bytes
+type StreamCodec struct {
 	r   *ctxReader
 	dec *capnp.Decoder
 
@@ -33,8 +49,9 @@ type streamCodec struct {
 	enc *capnp.Encoder
 }
 
-func newStreamCodec(rwc io.ReadWriteCloser, f encoding) *streamCodec {
-	c := &streamCodec{
+// NewStreamCodec creates a StreamCodec with the specified encoding.
+func NewStreamCodec(rwc io.ReadWriteCloser, e Encoding) *StreamCodec {
+	c := &StreamCodec{
 		r: &ctxReader{Reader: rwc},
 		wc: &ctxWriteCloser{
 			WriteCloser:         rwc,
@@ -42,46 +59,66 @@ func newStreamCodec(rwc io.ReadWriteCloser, f encoding) *streamCodec {
 		},
 	}
 
-	c.dec = f.NewDecoder(c.r)
-	c.enc = f.NewEncoder(c.wc)
+	c.dec = e.NewDecoder(c.r)
+	c.enc = e.NewEncoder(c.wc)
 
 	return c
 }
 
-func (c *streamCodec) Encode(ctx context.Context, m *capnp.Message) error {
+// Encode the message.
+func (c *StreamCodec) Encode(ctx context.Context, m *capnp.Message) error {
 	c.wc.setWriteContext(ctx)
 	return c.enc.Encode(m)
 }
 
-func (c *streamCodec) Decode(ctx context.Context) (*capnp.Message, error) {
+// Decode the next message from the stream.
+func (c *StreamCodec) Decode(ctx context.Context) (*capnp.Message, error) {
 	c.r.setReadContext(ctx)
 	return c.dec.Decode()
 }
 
-func (c *streamCodec) SetPartialWriteTimeout(d time.Duration) {
+// SetPartialWriteTimeout sets the timeout for completing the
+// transmission of a partially sent message after the send is cancelled
+// or interrupted for any future sends.  If not set, a reasonable
+// non-zero value is used.
+//
+// Setting a shorter timeout may free up resources faster in the case of
+// an unresponsive remote peer, but may also make the transport respond
+// too aggressively to bursts of latency.
+func (c *StreamCodec) SetPartialWriteTimeout(d time.Duration) {
 	c.wc.partialWriteTimeout = d
 }
 
-func (c streamCodec) Close() error {
+// Close the underlying byte-stream.
+func (c StreamCodec) Close() error {
 	defer c.r.wait()
 
 	return c.wc.Close()
 }
 
-type encoding interface {
+// Encoding specifies the wire transmission format.
+type Encoding interface {
 	NewEncoder(io.Writer) *capnp.Encoder
 	NewDecoder(io.Reader) *capnp.Decoder
 }
 
-type basicEncoding struct{}
+// BasicEncoding is a capnp.NewEncoder/Decoder pair.
+type BasicEncoding struct{}
 
-func (basicEncoding) NewEncoder(w io.Writer) *capnp.Encoder { return capnp.NewEncoder(w) }
-func (basicEncoding) NewDecoder(r io.Reader) *capnp.Decoder { return capnp.NewDecoder(r) }
+// NewEncoder using capnp.NewEncoder.
+func (BasicEncoding) NewEncoder(w io.Writer) *capnp.Encoder { return capnp.NewEncoder(w) }
 
-type packedEncoding struct{}
+// NewDecoder using capnp.NewDecoder.
+func (BasicEncoding) NewDecoder(r io.Reader) *capnp.Decoder { return capnp.NewDecoder(r) }
 
-func (packedEncoding) NewEncoder(w io.Writer) *capnp.Encoder { return capnp.NewPackedEncoder(w) }
-func (packedEncoding) NewDecoder(r io.Reader) *capnp.Decoder { return capnp.NewPackedDecoder(r) }
+// PackedEncoding is a capnp.NewPackedEncoder/Decoder pair.
+type PackedEncoding struct{}
+
+// NewEncoder using capnp.NewPackedEncoder.
+func (PackedEncoding) NewEncoder(w io.Writer) *capnp.Encoder { return capnp.NewPackedEncoder(w) }
+
+// NewDecoder using capnp.NewPackedDecoder.
+func (PackedEncoding) NewDecoder(r io.Reader) *capnp.Decoder { return capnp.NewPackedDecoder(r) }
 
 // ctxReader adds timeouts and cancellation to a reader.
 type ctxReader struct {
@@ -279,16 +316,14 @@ func isTimeout(e error) bool {
 }
 
 type messageCodec struct {
-	c                   MessageConn
-	e                   encoding
-	partialWriteTimeout time.Duration
+	c MessageConn
+	e Encoding
 }
 
-func newMessageCodec(c MessageConn, e encoding) *messageCodec {
+func newMessageCodec(c MessageConn, e Encoding) *messageCodec {
 	return &messageCodec{
-		c:                   c,
-		e:                   e,
-		partialWriteTimeout: 30 * time.Second,
+		c: c,
+		e: e,
 	}
 }
 
@@ -298,38 +333,30 @@ func (c messageCodec) Encode(ctx context.Context, m *capnp.Message) error {
 		return err
 	}
 
-	// does the connection support write deadlines?
-	wd, ok := c.c.(interface{ SetWriteDeadline(time.Time) error })
-	if ok {
-		t, _ := ctx.Deadline()
-		wd.SetWriteDeadline(t) // t defaults to time.Time{}, i.e. no deadline.
-	}
-
 	w, err := c.c.NextWriter()
 	if err != nil {
 		return err
 	}
 
-	n, err := io.Copy(w, &buf)
-	if err == nil || n == 0 || c.partialWriteTimeout <= 0 || !isTimeout(err) {
+	if _, err = io.Copy(w, &buf); err != nil {
 		return err
 	}
 
-	// Data has been written.  Block with extra partial timeout, since
-	// partial writes are guaranteed protocol violations
-	wd.SetWriteDeadline(time.Now().Add(c.partialWriteTimeout))
+	// does the connection support write deadlines?
 
-	// final attempt ...
-	_, err = io.Copy(w, &buf)
-	return err
+	if conn, ok := c.c.(interface{ SetWriteDeadline(time.Time) error }); ok {
+		t, _ := ctx.Deadline()
+		conn.SetWriteDeadline(t) // t defaults to time.Time{}, i.e. no deadline.
+	}
+
+	// Do not use defer to close the writer.
+	// The io.WriteCloser produced by MessageCon waits until its Close method
+	// is called before writing the message to the network.
+	return w.Close()
 }
 
 func (c messageCodec) Decode(context.Context) (*capnp.Message, error) {
 	panic("NOT IMPLEMENTED")
-}
-
-func (c *messageCodec) SetPartialWriteTimeout(d time.Duration) {
-	c.partialWriteTimeout = d
 }
 
 func (c messageCodec) Close() error {
