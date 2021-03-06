@@ -343,16 +343,22 @@ func (c messageCodec) Encode(ctx context.Context, m *capnp.Message) error {
 	}
 
 	// does the connection support write deadlines?
-
 	if conn, ok := c.c.(interface{ SetWriteDeadline(time.Time) error }); ok {
 		t, _ := ctx.Deadline()
 		conn.SetWriteDeadline(t) // t defaults to time.Time{}, i.e. no deadline.
 	}
 
-	// Do not use defer to close the writer.
-	// The io.WriteCloser produced by MessageCon waits until its Close method
-	// is called before writing the message to the network.
-	return w.Close()
+	select {
+	case <-ctx.Done():
+		// The context may have been cancelled in the meantime.
+		return ctx.Err()
+
+	default:
+		// Do not use defer to close the writer.
+		// The io.WriteCloser produced by MessageCon waits until its Close method
+		// is called before writing the message to the network.
+		return w.Close()
+	}
 }
 
 func (c messageCodec) Decode(context.Context) (*capnp.Message, error) {
