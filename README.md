@@ -1,66 +1,55 @@
 # Cap'n Proto bindings for Go
 
-[![GoDoc](https://godoc.org/zombiezen.com/go/capnproto2?status.svg)][godoc]
-[![Build Status](https://travis-ci.org/capnproto/go-capnproto2.svg?branch=master)][travis]
+[![GoDoc](https://godoc.org/capnproto.org/go/capnp/v3?status.svg)][godoc]
+![License](https://img.shields.io/badge/license-MIT-brightgreen?style=flat-square)
+![tests](https://github.com/capnproto/go-capnproto2/workflows/Go/badge.svg)
 
-go-capnproto consists of:
-- a Go code generator for [Cap'n Proto](https://capnproto.org/)
-- a Go package that provides runtime support
-- a Go package that implements Level 1 of the RPC protocol
+[Cap’n Proto](https://capnproto.org/) is an insanely fast data interchange format similar to [Protocol Buffers](https://github.com/protocolbuffers/protobuf), but much faster.
 
-[godoc]: https://godoc.org/zombiezen.com/go/capnproto2
-[travis]: https://travis-ci.org/capnproto/go-capnproto2
+It also includes a sophisticated RPC system based on [Object Capabilities](https://en.wikipedia.org/wiki/Object-capability_model), ideal for secure, low-latency applications.
 
-## Getting started
+This package provides:
+- Go code-generation for Cap'n Proto
+- Runtime support for the Go language
+- Level 1 support for the [Cap'n Proto RPC](https://capnproto.org/rpc.html) protocol
 
-You will need the `capnp` tool to compile schemas into Go.
-This package has been tested with Cap'n Proto 0.5.0.
-
-```
-$ go get -u -t zombiezen.com/go/capnproto2/...
-$ go test -v zombiezen.com/go/capnproto2/...
-```
-
-This library uses [SemVer tags][] to indicate stable releases.
-While the goal is that master should always be passing all known tests, tagged releases are vetted more.
-When possible, use the [latest release tag](https://github.com/capnproto/go-capnproto2/releases).
+[godoc]: http://pkg.go.dev/capnproto.org/go/capnp/v3
+## Installation
 
 ```
-$ cd $GOPATH/src/zombiezen.com/go/capnproto2
-$ git fetch
-$ git checkout v2.16.0  # check the releases page for the latest
+$ go get capnproto.org/go/capnp/v3
 ```
 
-Then read the [Getting Started guide][].
+**NOTE:** You will need to install the [`capnp` tool](https://capnproto.org/capnp-tool.html) in order to compile your Cap'n Proto schemas into Go.  This package has been tested with version `0.8.0` of the `capnp` tool.
 
-[SemVer tags]: http://semver.org/
-[Getting Started guide]: https://github.com/capnproto/go-capnproto2/wiki/Getting-Started
+## Documentation
+
+### Getting Started
+
+Read the ["Getting Started" guide](https://github.com/capnproto/go-capnproto2/wiki/Getting-Started) for a high-level introduction to the package API and workflow.
+
+Browse rest of the [Wiki](https://github.com/capnproto/go-capnproto2/wiki) for in depth explanations of concepts, migration guides, and tutorials.
+
+### API Reference
+
+Available on [GoDoc](http://pkg.go.dev/capnproto.org/go/capnp/v3).
 
 ## API Compatibility
 
-Consider this package's API as beta software, since the Cap'n Proto spec is not final.
-In the spirit of the [Go 1 compatibility guarantee][gocompat], I will make every effort to avoid making breaking API changes.
-The major cases where I reserve the right to make breaking changes are:
+Until the official Cap'n Proto spec is finalized, this repository should be considered <u>beta software</u>.
+
+In the spirit of the [Go 1 compatibility guarantee][gocompat], we will make every effort to avoid making breaking API changes.
+
+In particular, we reserve the right to make breaking changes for reasons related to:
 
 - Security.
 - Changes in the Cap'n Proto specification.
 - Bugs.
 
-The `pogs` package is relatively new and may change over time.
-However, its functionality has been well-tested and will probably only relax restrictions.
+Note that the `pogs` package is relatively new and may change over time.
+However, its functionality has been well-tested, and we expect restrictions to be relaxed.
 
 [gocompat]: https://golang.org/doc/go1compat
-
-## Documentation
-
-See the docs on [godoc.org][godoc].
-
-## What is Cap'n Proto?
-
-The best cerealization...
-
-https://capnproto.org/
-
 ## License
 
 MIT - see [LICENSE][] file
