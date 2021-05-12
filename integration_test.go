@@ -46,7 +46,7 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 			name: "zdataFilledMessage(20)",
 			msg:  zdataFilledMessage(t, 20),
 			typ:  "Z",
-			text: `(zdata = (data = "\x00\x01\x02\x03\x04\x05\x06\a\b\t\n\v\f\r\x0e\x0f\x10\x11\x12\x13"))` + "\n",
+			text: `(zdata = (data = "\000\001\002\003\004\005\006\a\b\t\n\v\f\r\016\017\020\021\022\023"))` + "\n",
 			data: []byte{
 				0, 0, 0, 0, 9, 0, 0, 0,
 				0, 0, 0, 0, 3, 0, 1, 0,
@@ -707,7 +707,7 @@ func TestMarshalShouldMatchData(t *testing.T) {
 			t.Errorf("%s: marshal error: %v", test.name, err)
 			continue
 		}
-		want, err := encodeTestMessage(test.typ, test.text, test.data)
+		want, err := encodeTestMessage(t, test.typ, test.text, test.data)
 		if err != nil {
 			t.Errorf("%s: %v", test.name, err)
 			continue
