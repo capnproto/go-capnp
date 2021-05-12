@@ -38,16 +38,15 @@ Available on [GoDoc](http://pkg.go.dev/capnproto.org/go/capnp/v3).
 
 Until the official Cap'n Proto spec is finalized, this repository should be considered <u>beta software</u>.
 
-In the spirit of the [Go 1 compatibility guarantee][gocompat], we will make every effort to avoid making breaking API changes.
-
-In particular, we reserve the right to make breaking changes for reasons related to:
+We use [semantic versioning](https://semver.org) to track compatibility and signal breaking changes.  In the spirit of the [Go 1 compatibility guarantee][gocompat], we will make every effort to avoid making breaking API changes within major version numbers, but nevertheless reserve the right to introduce breaking changes for reasons related to:
 
 - Security.
 - Changes in the Cap'n Proto specification.
 - Bugs.
 
-Note that the `pogs` package is relatively new and may change over time.
-However, its functionality has been well-tested, and we expect restrictions to be relaxed.
+An exception to this rule is currently in place for the `pogs` package, which is relatively new and may change over time.  However, its functionality has been well-tested, and breaking changes are relatively unlikely.
+
+Note also we may merge breaking changes to the `master` branch without notice.  Users are encouraged to pin their dependencies to a major version, e.g. using the semver-aware features of `go get`.
 
 [gocompat]: https://golang.org/doc/go1compat
 ## License
