@@ -8,7 +8,7 @@
 
 It also includes a sophisticated RPC system based on [Object Capabilities](https://en.wikipedia.org/wiki/Object-capability_model), ideal for secure, low-latency applications.
 
-### This package provides:
+This package provides:
 - Go code-generation for Cap'n Proto
 - Runtime support for the Go language
 - Level 1 support for the [Cap'n Proto RPC](https://capnproto.org/rpc.html) protocol
