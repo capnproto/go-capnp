@@ -4,7 +4,7 @@ import (
 	"math"
 	"strconv"
 
-	"zombiezen.com/go/capnproto2/internal/strquote"
+	"capnproto.org/go/capnp/v3/internal/strquote"
 )
 
 // A List is a reference to an array of values.

@@ -1,5 +1,5 @@
 language: go
-go_import_path: zombiezen.com/go/capnproto2
+go_import_path: capnproto.org/go/capnp/v3
 go:
 - 1.8.x
 - 1.x

@@ -2,10 +2,10 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_prefix", "go_test", "ga
 
 gazelle(
     name = "gazelle",
-    prefix = "zombiezen.com/go/capnproto2",
+    prefix = "capnproto.org/go/capnp/v3",
 )
 
-go_prefix("zombiezen.com/go/capnproto2")
+go_prefix("capnproto.org/go/capnp/v3")
 
 go_library(
     name = "go_default_library",
@@ -25,7 +25,7 @@ go_library(
         "segment.go",
         "struct.go",
     ],
-    importpath = "zombiezen.com/go/capnproto2",
+    importpath = "capnproto.org/go/capnp/v3",
     visibility = ["//visibility:public"],
     deps = [
         "//internal/errors:go_default_library",

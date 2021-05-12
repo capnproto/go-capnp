@@ -139,4 +139,4 @@ annotation persistent(interface, field) :Void $Go.name("PersistentAnnotation");
 # persistent; it just means not *all* such capabilities are persistent.
 using Go = import "/go.capnp";
 $Go.package("persistent");
-$Go.import("zombiezen.com/go/capnproto2/std/capnp/persistent");
+$Go.import("capnproto.org/go/capnp/v3/std/capnp/persistent");

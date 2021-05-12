@@ -11,7 +11,7 @@ go_library(
         "rpc.go",
         "transport.go",
     ],
-    importpath = "zombiezen.com/go/capnproto2/rpc",
+    importpath = "capnproto.org/go/capnp/v3/rpc",
     visibility = ["//visibility:public"],
     deps = [
         "//:go_default_library",

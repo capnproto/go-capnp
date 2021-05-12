@@ -6,9 +6,9 @@ import (
 	"math"
 	"reflect"
 
-	"zombiezen.com/go/capnproto2"
-	"zombiezen.com/go/capnproto2/internal/nodemap"
-	"zombiezen.com/go/capnproto2/internal/schema"
+	"capnproto.org/go/capnp/v3"
+	"capnproto.org/go/capnp/v3/internal/nodemap"
+	"capnproto.org/go/capnp/v3/internal/schema"
 )
 
 // Insert copies val, a pointer to a Go struct, into s.

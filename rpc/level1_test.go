@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"testing"
 
-	"zombiezen.com/go/capnproto2"
-	"zombiezen.com/go/capnproto2/pogs"
-	"zombiezen.com/go/capnproto2/rpc"
-	"zombiezen.com/go/capnproto2/server"
-	rpccp "zombiezen.com/go/capnproto2/std/capnp/rpc"
+	"capnproto.org/go/capnp/v3"
+	"capnproto.org/go/capnp/v3/pogs"
+	"capnproto.org/go/capnp/v3/rpc"
+	"capnproto.org/go/capnp/v3/server"
+	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 )
 
 func TestSendDisembargo(t *testing.T) {
@@ -385,8 +385,8 @@ func testSendDisembargo(t *testing.T, sendPrimeTo rpccp.Call_sendResultsTo_Which
 		err := sendMessage(ctx, p2, &rpcMessage{
 			Which: rpccp.Message_Which_return,
 			Return: &rpcReturn{
-				AnswerID: qidB,
-				Which:    rpccp.Return_Which_takeFromOtherQuestion,
+				AnswerID:              qidB,
+				Which:                 rpccp.Return_Which_takeFromOtherQuestion,
 				TakeFromOtherQuestion: bPrimeAnswer,
 			},
 		})

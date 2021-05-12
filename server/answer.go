@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"zombiezen.com/go/capnproto2"
+	"capnproto.org/go/capnp/v3"
 )
 
 // answerQueue is a queue of method calls to make after an earlier

@@ -1,6 +1,6 @@
 # Cap'n Proto bindings for Go
 
-[![GoDoc](https://godoc.org/zombiezen.com/go/capnproto2?status.svg)][godoc]
+[![GoDoc](https://godoc.org/capnproto.org/go/capnp/v3?status.svg)][godoc]
 [![Build Status](https://travis-ci.org/capnproto/go-capnproto2.svg?branch=master)][travis]
 
 go-capnproto consists of:
@@ -8,7 +8,7 @@ go-capnproto consists of:
 - a Go package that provides runtime support
 - a Go package that implements Level 1 of the RPC protocol
 
-[godoc]: https://godoc.org/zombiezen.com/go/capnproto2
+[godoc]: https://godoc.org/capnproto.org/go/capnp/v3
 [travis]: https://travis-ci.org/capnproto/go-capnproto2
 
 ## Getting started
@@ -17,8 +17,8 @@ You will need the `capnp` tool to compile schemas into Go.
 This package has been tested with Cap'n Proto 0.5.0.
 
 ```
-$ go get -u -t zombiezen.com/go/capnproto2/...
-$ go test -v zombiezen.com/go/capnproto2/...
+$ go get -u -t capnproto.org/go/capnp/v3/...
+$ go test -v capnproto.org/go/capnp/v3/...
 ```
 
 This library uses [SemVer tags][] to indicate stable releases.
@@ -26,7 +26,7 @@ While the goal is that master should always be passing all known tests, tagged r
 When possible, use the [latest release tag](https://github.com/capnproto/go-capnproto2/releases).
 
 ```
-$ cd $GOPATH/src/zombiezen.com/go/capnproto2
+$ cd $GOPATH/src/capnproto.org/go/capnp/v3
 $ git fetch
 $ git checkout v2.16.0  # check the releases page for the latest
 ```

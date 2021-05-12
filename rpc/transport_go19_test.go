@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"zombiezen.com/go/capnproto2/rpc"
+	"capnproto.org/go/capnp/v3/rpc"
 )
 
 // It is only safe to call Read and Close concurrently on an *os.File in

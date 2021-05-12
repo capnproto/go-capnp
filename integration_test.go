@@ -11,9 +11,9 @@ import (
 	"time"
 	"unsafe"
 
-	"zombiezen.com/go/capnproto2"
-	air "zombiezen.com/go/capnproto2/internal/aircraftlib"
-	"zombiezen.com/go/capnproto2/internal/capnptool"
+	"capnproto.org/go/capnp/v3"
+	air "capnproto.org/go/capnp/v3/internal/aircraftlib"
+	"capnproto.org/go/capnp/v3/internal/capnptool"
 )
 
 // A marshalTest tests whether a message can be encoded then read by the

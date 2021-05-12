@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	capnp "zombiezen.com/go/capnproto2"
-	"zombiezen.com/go/capnproto2/rpc"
-	rpccp "zombiezen.com/go/capnproto2/std/capnp/rpc"
+	capnp "capnproto.org/go/capnp/v3"
+	"capnproto.org/go/capnp/v3/rpc"
+	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 )
 
 func testTransport(t *testing.T, makePipe func() (t1, t2 rpc.Transport, err error)) {

@@ -3,7 +3,7 @@
 package cxx
 
 import (
-	schemas "zombiezen.com/go/capnproto2/schemas"
+	schemas "capnproto.org/go/capnp/v3/schemas"
 )
 
 const Namespace = uint64(0xb9c6f99ebf805f2c)

@@ -5,8 +5,8 @@ import (
 	"math/rand"
 	"testing"
 
-	"zombiezen.com/go/capnproto2"
-	air "zombiezen.com/go/capnproto2/internal/aircraftlib"
+	"capnproto.org/go/capnp/v3"
+	air "capnproto.org/go/capnp/v3/internal/aircraftlib"
 )
 
 type A struct {

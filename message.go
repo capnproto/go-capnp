@@ -8,7 +8,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"zombiezen.com/go/capnproto2/internal/packed"
+	"capnproto.org/go/capnp/v3/internal/packed"
 )
 
 // Security limits. Matches C++ implementation.

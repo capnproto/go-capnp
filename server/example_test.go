@@ -3,8 +3,8 @@ package server_test
 import (
 	"fmt"
 
-	"zombiezen.com/go/capnproto2"
-	"zombiezen.com/go/capnproto2/server"
+	"capnproto.org/go/capnp/v3"
+	"capnproto.org/go/capnp/v3/server"
 )
 
 func ExampleIsServer() {
