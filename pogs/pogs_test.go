@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
+	"capnproto.org/go/capnp/v3"
+	air "capnproto.org/go/capnp/v3/internal/aircraftlib"
 	"github.com/kylelemons/godebug/pretty"
-	"zombiezen.com/go/capnproto2"
-	air "zombiezen.com/go/capnproto2/internal/aircraftlib"
 )
 
 type Z struct {

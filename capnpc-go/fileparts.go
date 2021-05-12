@@ -6,7 +6,7 @@ import (
 	"strings"
 	"unicode"
 
-	"zombiezen.com/go/capnproto2"
+	"capnproto.org/go/capnp/v3"
 )
 
 type staticData struct {

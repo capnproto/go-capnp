@@ -12,9 +12,9 @@ import (
 	"strings"
 	"testing"
 
-	"zombiezen.com/go/capnproto2"
-	"zombiezen.com/go/capnproto2/encoding/text"
-	"zombiezen.com/go/capnproto2/internal/schema"
+	"capnproto.org/go/capnp/v3"
+	"capnproto.org/go/capnp/v3/encoding/text"
+	"capnproto.org/go/capnp/v3/internal/schema"
 )
 
 func readTestFile(name string) ([]byte, error) {
@@ -149,7 +149,7 @@ func TestRemoteScope(t *testing.T) {
 			remoteName: "otherscopes.Foo",
 			remoteNew:  "otherscopes.NewFoo",
 			imports: []importSpec{
-				{name: "otherscopes", path: "zombiezen.com/go/capnproto2/capnpc-go/testdata/otherscopes"},
+				{name: "otherscopes", path: "capnproto.org/go/capnp/v3/capnpc-go/testdata/otherscopes"},
 			},
 		},
 		{
@@ -164,7 +164,7 @@ func TestRemoteScope(t *testing.T) {
 			remoteName: "otherscopes.Foo_List",
 			remoteNew:  "otherscopes.NewFoo_List",
 			imports: []importSpec{
-				{name: "otherscopes", path: "zombiezen.com/go/capnproto2/capnpc-go/testdata/otherscopes"},
+				{name: "otherscopes", path: "capnproto.org/go/capnp/v3/capnpc-go/testdata/otherscopes"},
 			},
 		},
 		{
@@ -173,7 +173,7 @@ func TestRemoteScope(t *testing.T) {
 			remoteName: "capnp.Int32List",
 			remoteNew:  "capnp.NewInt32List",
 			imports: []importSpec{
-				{name: "capnp", path: "zombiezen.com/go/capnproto2"},
+				{name: "capnp", path: "capnproto.org/go/capnp/v3"},
 			},
 		},
 	}

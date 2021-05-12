@@ -8,9 +8,9 @@ import (
 	"runtime"
 	"testing"
 
-	"zombiezen.com/go/capnproto2"
-	air "zombiezen.com/go/capnproto2/internal/aircraftlib"
-	"zombiezen.com/go/capnproto2/internal/capnptool"
+	"capnproto.org/go/capnp/v3"
+	air "capnproto.org/go/capnp/v3/internal/aircraftlib"
+	"capnproto.org/go/capnp/v3/internal/capnptool"
 )
 
 const schemaPath = "internal/aircraftlib/aircraft.capnp"
@@ -79,10 +79,10 @@ func zdataFilledMessage(t testing.TB, n int) *capnp.Message {
 
 // encodeTestMessage encodes the textual Cap'n Proto message to unpacked
 // binary using the capnp tool, or returns the fallback if the tool fails.
-func encodeTestMessage(typ string, text string, fallback []byte) ([]byte, error) {
+func encodeTestMessage(t testing.TB, typ string, text string, fallback []byte) ([]byte, error) {
 	tool, err := capnptool.Find()
 	if err != nil {
-		// TODO(light): log tool missing
+		t.Log("capnp tool not found; using fallback")
 		return fallback, nil
 	}
 	b, err := tool.Encode(capnptool.Type{SchemaPath: schemaPath, Name: typ}, text)
@@ -98,7 +98,7 @@ func encodeTestMessage(typ string, text string, fallback []byte) ([]byte, error)
 // mustEncodeTestMessage encodes the textual Cap'n Proto message to unpacked
 // binary using the capnp tool, or returns the fallback if the tool fails.
 func mustEncodeTestMessage(t testing.TB, typ string, text string, fallback []byte) []byte {
-	b, err := encodeTestMessage(typ, text, fallback)
+	b, err := encodeTestMessage(t, typ, text, fallback)
 	if err != nil {
 		if _, fname, line, ok := runtime.Caller(1); ok {
 			t.Fatalf("%s:%d: %v", filepath.Base(fname), line, err)

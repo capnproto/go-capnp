@@ -3,8 +3,8 @@ package rpc
 import (
 	"context"
 
-	"zombiezen.com/go/capnproto2"
-	rpccp "zombiezen.com/go/capnproto2/std/capnp/rpc"
+	"capnproto.org/go/capnp/v3"
+	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 )
 
 // An importID is an index into the imports table.

@@ -7,7 +7,7 @@ go_library(
         "discard_go14.go",
         "packed.go",
     ],
-    importpath = "zombiezen.com/go/capnproto2/internal/packed",
+    importpath = "capnproto.org/go/capnp/v3/internal/packed",
     visibility = ["//:__subpackages__"],
 )
 

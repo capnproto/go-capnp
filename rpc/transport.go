@@ -6,9 +6,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	capnp "zombiezen.com/go/capnproto2"
-	"zombiezen.com/go/capnproto2/internal/errors"
-	rpccp "zombiezen.com/go/capnproto2/std/capnp/rpc"
+	capnp "capnproto.org/go/capnp/v3"
+	"capnproto.org/go/capnp/v3/internal/errors"
+	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 )
 
 // A Transport sends and receives Cap'n Proto RPC messages to and from

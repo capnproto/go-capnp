@@ -10,11 +10,11 @@ import (
 	"sync"
 	"testing"
 
-	"zombiezen.com/go/capnproto2"
-	"zombiezen.com/go/capnproto2/pogs"
-	"zombiezen.com/go/capnproto2/rpc"
-	"zombiezen.com/go/capnproto2/server"
-	rpccp "zombiezen.com/go/capnproto2/std/capnp/rpc"
+	"capnproto.org/go/capnp/v3"
+	"capnproto.org/go/capnp/v3/pogs"
+	"capnproto.org/go/capnp/v3/rpc"
+	"capnproto.org/go/capnp/v3/server"
+	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 )
 
 const (

@@ -4,9 +4,9 @@ import (
 	"context"
 	"sync"
 
-	"zombiezen.com/go/capnproto2"
-	"zombiezen.com/go/capnproto2/internal/errors"
-	rpccp "zombiezen.com/go/capnproto2/std/capnp/rpc"
+	"capnproto.org/go/capnp/v3"
+	"capnproto.org/go/capnp/v3/internal/errors"
+	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 )
 
 // An answerID is an index into the answers table.

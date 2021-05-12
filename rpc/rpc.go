@@ -1,5 +1,5 @@
 // Package rpc implements the Cap'n Proto RPC protocol.
-package rpc // import "zombiezen.com/go/capnproto2/rpc"
+package rpc // import "capnproto.org/go/capnp/v3/rpc"
 
 import (
 	"context"
@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"zombiezen.com/go/capnproto2"
-	"zombiezen.com/go/capnproto2/internal/errors"
-	rpccp "zombiezen.com/go/capnproto2/std/capnp/rpc"
+	"capnproto.org/go/capnp/v3"
+	"capnproto.org/go/capnp/v3/internal/errors"
+	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 )
 
 /*

@@ -3,7 +3,7 @@
 package gocp
 
 import (
-	schemas "zombiezen.com/go/capnproto2/schemas"
+	schemas "capnproto.org/go/capnp/v3/schemas"
 )
 
 const Package = uint64(0xbea97f1023792be0)

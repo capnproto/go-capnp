@@ -1,5 +1,5 @@
 // +build mktemplates
-// Build tag so that users who run `go get zombiezen.com/go/capnproto2/...` don't install this command.
+// Build tag so that users who run `go get capnproto.org/go/capnp/v3/...` don't install this command.
 // cd internal/cmd/mktemplates && go build -tags=mktemplates
 
 // mktemplates is a command to regenerate capnpc-go/templates.go.

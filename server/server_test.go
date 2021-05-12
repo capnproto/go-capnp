@@ -6,10 +6,10 @@ import (
 	"sync"
 	"testing"
 
+	"capnproto.org/go/capnp/v3"
+	air "capnproto.org/go/capnp/v3/internal/aircraftlib"
+	"capnproto.org/go/capnp/v3/server"
 	"context"
-	"zombiezen.com/go/capnproto2"
-	air "zombiezen.com/go/capnproto2/internal/aircraftlib"
-	"zombiezen.com/go/capnproto2/server"
 )
 
 type echoImpl struct{}

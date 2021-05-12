@@ -8,7 +8,7 @@ go_library(
         "fields.go",
         "insert.go",
     ],
-    importpath = "zombiezen.com/go/capnproto2/pogs",
+    importpath = "capnproto.org/go/capnp/v3/pogs",
     visibility = ["//visibility:public"],
     deps = [
         "//:go_default_library",

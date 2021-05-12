@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"zombiezen.com/go/capnproto2/rpc"
-	testcp "zombiezen.com/go/capnproto2/rpc/internal/testcapnp"
+	"capnproto.org/go/capnp/v3/rpc"
+	testcp "capnproto.org/go/capnp/v3/rpc/internal/testcapnp"
 )
 
 func BenchmarkPingPong(b *testing.B) {

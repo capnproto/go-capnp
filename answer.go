@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"sync"
 
-	"zombiezen.com/go/capnproto2/internal/errors"
+	"capnproto.org/go/capnp/v3/internal/errors"
 )
 
 // A Promise holds the result of an RPC call.  Only one of Fulfill,

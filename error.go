@@ -3,7 +3,7 @@ package capnp
 import (
 	"fmt"
 
-	"zombiezen.com/go/capnproto2/internal/errors"
+	"capnproto.org/go/capnp/v3/internal/errors"
 )
 
 // Unimplemented returns an error that formats as the given text and

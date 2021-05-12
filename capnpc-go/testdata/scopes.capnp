@@ -8,7 +8,7 @@ using Other = import "otherscopes.capnp";
 @0xd68755941d99d05e;
 
 $Go.package("scopes");
-$Go.import("zombiezen.com/go/capnproto2/capnpc-go/testdata/scopes");
+$Go.import("capnproto.org/go/capnp/v3/capnpc-go/testdata/scopes");
 
 struct Foo @0xc8d7b3b4e07f8bd9 {
 }

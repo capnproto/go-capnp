@@ -3,9 +3,9 @@
 package schema
 
 import (
+	capnp "capnproto.org/go/capnp/v3"
 	math "math"
 	strconv "strconv"
-	capnp "zombiezen.com/go/capnproto2"
 )
 
 // Constants defined in schema.capnp.

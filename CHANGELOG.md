@@ -9,7 +9,7 @@
   -1 to distinguish them from a null pointer.
   ([#92](https://github.com/capnproto/go-capnproto2/issues/92))
 - Better support for alternate `Arena` implementations
-  - [Document `Arena` contract](https://godoc.org/zombiezen.com/go/capnproto2#Arena)
+  - [Document `Arena` contract](https://godoc.org/capnproto.org/go/capnp/v3#Arena)
     in more detail
   - Permit an `Arena` to have a single empty segment in `NewMessage`
 - `Arena` allocation optimizations: both `SingleSegment` and
@@ -182,7 +182,7 @@ release.
     </tr>
     <tr>
       <th scope="row"><a href="https://github.com/capnproto/go-capnproto2/releases/tag/v2.0.0">2.0.0</a></th>
-      <td>First release under <code>zombiezen.com/go/capnproto2</code></td>
+      <td>First release under <code>capnproto.org/go/capnp/v3</code></td>
     </tr>
   </tbody>
 </table>

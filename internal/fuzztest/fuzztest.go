@@ -1,14 +1,14 @@
 // +build gofuzz
 
 // Fuzz test harness.  To run:
-// go-fuzz-build zombiezen.com/go/capnproto2/internal/fuzztest
+// go-fuzz-build capnproto.org/go/capnp/v3/internal/fuzztest
 // go-fuzz -bin=fuzztest-fuzz.zip -workdir=internal/fuzztest
 
 package fuzztest
 
 import (
-	"zombiezen.com/go/capnproto2"
-	air "zombiezen.com/go/capnproto2/internal/aircraftlib"
+	"capnproto.org/go/capnp/v3"
+	air "capnproto.org/go/capnp/v3/internal/aircraftlib"
 )
 
 func Fuzz(data []byte) int {

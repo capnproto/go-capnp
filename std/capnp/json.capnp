@@ -58,4 +58,4 @@ struct JsonValue {
 }
 using Go = import "/go.capnp";
 $Go.package("json");
-$Go.import("zombiezen.com/go/capnproto2/std/capnp/json");
+$Go.import("capnproto.org/go/capnp/v3/std/capnp/json");
