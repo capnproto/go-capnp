@@ -59,8 +59,8 @@ func TestEncode(t *testing.T) {
 		{0x81fdbfdc91779421, `(map = [])`, `(
     map = []
 )`},
-		{0x8e85252144f61858, `(data = "Hi\xde\xad\xbe\xef\xca\xfe")`, `(
-    data = "Hi\xde\xad\xbe\xef\xca\xfe"
+		{0x8e85252144f61858, `(data = "Hi\xde\xad\xbe\xef\xca\xfe\"\'\\")`, `(
+    data = "Hi\xde\xad\xbe\xef\xca\xfe\"\'\\"
 )`},
 		{0xc21398a8474837ba, `(voidList = [void, void])`, `(
     voidList = [

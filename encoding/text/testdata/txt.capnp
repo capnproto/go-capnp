@@ -55,7 +55,7 @@ const mapVal @0xb167974479102805 :Value = (map = [
   (key = "foo", value = (void = void)),
   (key = "bar", value = (void = void)),
 ]);
-const data @0x8e85252144f61858 :Value = (data = 0x"4869 dead beef cafe");
+const data @0x8e85252144f61858 :Value = (data = 0x"4869 dead beef cafe 22275c");
 const emptyMap @0x81fdbfdc91779421 :Value = (map = []);
 const voidList @0xc21398a8474837ba :Value = (voidList = [void, void]);
 const boolList @0xde82c2eeb3a4b07c :Value = (boolList = [true, false, true, false]);
