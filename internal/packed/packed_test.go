@@ -227,6 +227,27 @@ var badDecompressionTests = []struct {
 	input []byte
 }{
 	{
+		"short zero tag",
+		[]byte{0x00},
+	},
+	{
+		"short unpacked tag",
+		[]byte{0xFF},
+	},
+	{
+		"unpacked tag, only one word",
+		[]byte{
+			0xFF, 0, 0, 0, 0, 0, 0, 0, 0,
+		},
+	},
+	{
+		"unpacked tag, short unpacked word",
+		[]byte{
+			0xFF, 0, 0, 0, 0, 0, 0, 0, 0,
+			0x01, 0,
+		},
+	},
+	{
 		"wrong tag",
 		[]byte{
 			0xa7, 8, 100, 6, 1, 1, 2,

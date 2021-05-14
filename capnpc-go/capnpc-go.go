@@ -144,8 +144,7 @@ func (g *generator) defineSchemaVar() error {
 		ids[i] = n.Id()
 	}
 	sort.Sort(uint64Slice(ids))
-	// TODO(light): find largest object size and use that to allocate list
-	nodes, _ := req.NewNodes(int32(len(g.nodes)))
+	nodes, _ := req.NewNodes(int32(len(fnodes)))
 	i := 0
 	for _, id := range ids {
 		n := g.nodes[id]

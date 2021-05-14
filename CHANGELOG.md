@@ -1,5 +1,10 @@
 # Go Cap'n Proto Release Notes
 
+## 2.17.3
+
+- Clear read limits for `const` messages in schemas.
+  ([#131](https://github.com/capnproto/go-capnproto2/pull/131))
+
 ## 2.17.0
 
 - Add `capnp.Canonicalize` function that implements the
@@ -30,6 +35,12 @@
   This is intended to help uncover programming mistakes where a union
   field is accessed without checking `Which()`.  Prior to this change,
   unset union field accessors would silently return garbage.
+- `Struct.Address()` and `List.Address()` are now deprecated.
+  Especially for `List`, where the address is at the beginning of the
+  data, not the composite literal, the return value is not well-defined
+  and its not clear how to use it.  Use `capnp.SamePtr` if you need to
+  check for pointer reference equality.  File an issue if you're using
+  `Address()` for something else.
 
 ## 2.16.0
 

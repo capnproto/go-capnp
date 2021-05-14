@@ -23,6 +23,12 @@ var (
 	ConstList = Zdate_List{List: capnp.MustUnmarshalRoot(x_832bcc6686a26d56[24:64]).List()}
 )
 
+func init() {
+	// Set traversal limit for constants as Uint64Max since they're safe from amplification attacks.
+	ConstDate.Segment().Message().ReadLimiter().Reset((1 << 64) - 1)
+	ConstList.Segment().Message().ReadLimiter().Reset((1 << 64) - 1)
+}
+
 type Zdate struct{ capnp.Struct }
 
 // Zdate_TypeID is the unique identifier for the type Zdate.
