@@ -26,7 +26,8 @@ $ go get capnproto.org/go/capnp/v3
 
 ### Getting Started
 
-Read the ["Getting Started" guide](https://github.com/capnproto/go-capnproto2/wiki/Getting-Started) for a high-level introduction to the package API and workflow.
+Read the ["Getting Started" guide](https://github.com/capnproto/go-capnproto2/wiki/Getting-Started) for a high-level introduction to the package API and workflow.  
+A minimal working RPC example can be found [here](https://github.com/capnproto/go-capnproto2/wiki/Getting-Started#remote-calls-using-interfaces).
 
 Browse rest of the [Wiki](https://github.com/capnproto/go-capnproto2/wiki) for in depth explanations of concepts, migration guides, and tutorials.
 
