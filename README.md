@@ -2,7 +2,7 @@
 
 [![GoDoc](https://godoc.org/capnproto.org/go/capnp/v3?status.svg)][godoc]
 ![License](https://img.shields.io/badge/license-MIT-brightgreen?style=flat-square)
-![tests](https://github.com/capnproto/go-capnproto2/workflows/Go/badge.svg)
+[![Go](https://github.com/capnproto/go-capnproto2/actions/workflows/go.yml/badge.svg)](https://github.com/capnproto/go-capnproto2/actions/workflows/go.yml)
 
 [Cap’n Proto](https://capnproto.org/) is an insanely fast data interchange format similar to [Protocol Buffers](https://github.com/protocolbuffers/protobuf), but much faster.
 
