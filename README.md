@@ -17,7 +17,7 @@ This package provides:
 ## Installation
 
 ```
-$ go get capnproto.org/go/capnp/v3
+$ GO111MODULE=on go get capnproto.org/go/capnp/v3
 ```
 
 **NOTE:** You will need to install the [`capnp` tool](https://capnproto.org/capnp-tool.html) in order to compile your Cap'n Proto schemas into Go.  This package has been tested with version `0.8.0` of the `capnp` tool.
