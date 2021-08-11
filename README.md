@@ -31,6 +31,10 @@ A minimal working RPC example can be found [here](https://github.com/capnproto/g
 
 Browse rest of the [Wiki](https://github.com/capnproto/go-capnproto2/wiki) for in depth explanations of concepts, migration guides, and tutorials.
 
+### Help and Support
+
+You can find us on Matrix:   [Go Cap'n Proto](https://matrix.to/#/!pLcnVUHHRZrUPscloW:matrix.org?via=matrix.org)
+
 ### API Reference
 
 Available on [GoDoc](http://pkg.go.dev/capnproto.org/go/capnp/v3).
