@@ -665,6 +665,146 @@ func (s Node_NestedNode_List) Set(i int, v Node_NestedNode) error {
 	return s.List.SetStruct(i, v.Struct)
 }
 
+type Node_SourceInfo struct{ capnp.Struct }
+
+// Node_SourceInfo_TypeID is the unique identifier for the type Node_SourceInfo.
+const Node_SourceInfo_TypeID = 0xf38e1de3041357ae
+
+func NewNode_SourceInfo(s *capnp.Segment) (Node_SourceInfo, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2})
+	return Node_SourceInfo{st}, err
+}
+
+func NewRootNode_SourceInfo(s *capnp.Segment) (Node_SourceInfo, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2})
+	return Node_SourceInfo{st}, err
+}
+
+func ReadRootNode_SourceInfo(msg *capnp.Message) (Node_SourceInfo, error) {
+	root, err := msg.Root()
+	return Node_SourceInfo{root.Struct()}, err
+}
+
+func (s Node_SourceInfo) Id() uint64 {
+	return s.Struct.Uint64(0)
+}
+
+func (s Node_SourceInfo) SetId(v uint64) {
+	s.Struct.SetUint64(0, v)
+}
+
+func (s Node_SourceInfo) DocComment() (string, error) {
+	p, err := s.Struct.Ptr(0)
+	return p.Text(), err
+}
+
+func (s Node_SourceInfo) HasDocComment() bool {
+	return s.Struct.HasPtr(0)
+}
+
+func (s Node_SourceInfo) DocCommentBytes() ([]byte, error) {
+	p, err := s.Struct.Ptr(0)
+	return p.TextBytes(), err
+}
+
+func (s Node_SourceInfo) SetDocComment(v string) error {
+	return s.Struct.SetText(0, v)
+}
+
+func (s Node_SourceInfo) Members() (Node_SourceInfo_Member_List, error) {
+	p, err := s.Struct.Ptr(1)
+	return Node_SourceInfo_Member_List{List: p.List()}, err
+}
+
+func (s Node_SourceInfo) HasMembers() bool {
+	return s.Struct.HasPtr(1)
+}
+
+func (s Node_SourceInfo) SetMembers(v Node_SourceInfo_Member_List) error {
+	return s.Struct.SetPtr(1, v.List.ToPtr())
+}
+
+// NewMembers sets the members field to a newly
+// allocated Node_SourceInfo_Member_List, preferring placement in s's segment.
+func (s Node_SourceInfo) NewMembers(n int32) (Node_SourceInfo_Member_List, error) {
+	l, err := NewNode_SourceInfo_Member_List(s.Struct.Segment(), n)
+	if err != nil {
+		return Node_SourceInfo_Member_List{}, err
+	}
+	err = s.Struct.SetPtr(1, l.List.ToPtr())
+	return l, err
+}
+
+// Node_SourceInfo_List is a list of Node_SourceInfo.
+type Node_SourceInfo_List struct{ capnp.List }
+
+// NewNode_SourceInfo creates a new list of Node_SourceInfo.
+func NewNode_SourceInfo_List(s *capnp.Segment, sz int32) (Node_SourceInfo_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2}, sz)
+	return Node_SourceInfo_List{l}, err
+}
+
+func (s Node_SourceInfo_List) At(i int) Node_SourceInfo { return Node_SourceInfo{s.List.Struct(i)} }
+
+func (s Node_SourceInfo_List) Set(i int, v Node_SourceInfo) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+type Node_SourceInfo_Member struct{ capnp.Struct }
+
+// Node_SourceInfo_Member_TypeID is the unique identifier for the type Node_SourceInfo_Member.
+const Node_SourceInfo_Member_TypeID = 0xc2ba9038898e1fa2
+
+func NewNode_SourceInfo_Member(s *capnp.Segment) (Node_SourceInfo_Member, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return Node_SourceInfo_Member{st}, err
+}
+
+func NewRootNode_SourceInfo_Member(s *capnp.Segment) (Node_SourceInfo_Member, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return Node_SourceInfo_Member{st}, err
+}
+
+func ReadRootNode_SourceInfo_Member(msg *capnp.Message) (Node_SourceInfo_Member, error) {
+	root, err := msg.Root()
+	return Node_SourceInfo_Member{root.Struct()}, err
+}
+
+func (s Node_SourceInfo_Member) DocComment() (string, error) {
+	p, err := s.Struct.Ptr(0)
+	return p.Text(), err
+}
+
+func (s Node_SourceInfo_Member) HasDocComment() bool {
+	return s.Struct.HasPtr(0)
+}
+
+func (s Node_SourceInfo_Member) DocCommentBytes() ([]byte, error) {
+	p, err := s.Struct.Ptr(0)
+	return p.TextBytes(), err
+}
+
+func (s Node_SourceInfo_Member) SetDocComment(v string) error {
+	return s.Struct.SetText(0, v)
+}
+
+// Node_SourceInfo_Member_List is a list of Node_SourceInfo_Member.
+type Node_SourceInfo_Member_List struct{ capnp.List }
+
+// NewNode_SourceInfo_Member creates a new list of Node_SourceInfo_Member.
+func NewNode_SourceInfo_Member_List(s *capnp.Segment, sz int32) (Node_SourceInfo_Member_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
+	return Node_SourceInfo_Member_List{l}, err
+}
+
+func (s Node_SourceInfo_Member_List) At(i int) Node_SourceInfo_Member {
+	return Node_SourceInfo_Member{s.List.Struct(i)}
+}
+
+func (s Node_SourceInfo_Member_List) Set(i int, v Node_SourceInfo_Member) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
 type Field struct{ capnp.Struct }
 type Field_slot Field
 type Field_group Field
@@ -2458,24 +2598,105 @@ func (l ElementSize_List) Set(i int, v ElementSize) {
 	ul.Set(i, uint16(v))
 }
 
+type CapnpVersion struct{ capnp.Struct }
+
+// CapnpVersion_TypeID is the unique identifier for the type CapnpVersion.
+const CapnpVersion_TypeID = 0xd85d305b7d839963
+
+func NewCapnpVersion(s *capnp.Segment) (CapnpVersion, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return CapnpVersion{st}, err
+}
+
+func NewRootCapnpVersion(s *capnp.Segment) (CapnpVersion, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return CapnpVersion{st}, err
+}
+
+func ReadRootCapnpVersion(msg *capnp.Message) (CapnpVersion, error) {
+	root, err := msg.Root()
+	return CapnpVersion{root.Struct()}, err
+}
+
+func (s CapnpVersion) Major() uint16 {
+	return s.Struct.Uint16(0)
+}
+
+func (s CapnpVersion) SetMajor(v uint16) {
+	s.Struct.SetUint16(0, v)
+}
+
+func (s CapnpVersion) Minor() uint8 {
+	return s.Struct.Uint8(2)
+}
+
+func (s CapnpVersion) SetMinor(v uint8) {
+	s.Struct.SetUint8(2, v)
+}
+
+func (s CapnpVersion) Micro() uint8 {
+	return s.Struct.Uint8(3)
+}
+
+func (s CapnpVersion) SetMicro(v uint8) {
+	s.Struct.SetUint8(3, v)
+}
+
+// CapnpVersion_List is a list of CapnpVersion.
+type CapnpVersion_List struct{ capnp.List }
+
+// NewCapnpVersion creates a new list of CapnpVersion.
+func NewCapnpVersion_List(s *capnp.Segment, sz int32) (CapnpVersion_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	return CapnpVersion_List{l}, err
+}
+
+func (s CapnpVersion_List) At(i int) CapnpVersion { return CapnpVersion{s.List.Struct(i)} }
+
+func (s CapnpVersion_List) Set(i int, v CapnpVersion) error { return s.List.SetStruct(i, v.Struct) }
+
 type CodeGeneratorRequest struct{ capnp.Struct }
 
 // CodeGeneratorRequest_TypeID is the unique identifier for the type CodeGeneratorRequest.
 const CodeGeneratorRequest_TypeID = 0xbfc546f6210ad7ce
 
 func NewCodeGeneratorRequest(s *capnp.Segment) (CodeGeneratorRequest, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 4})
 	return CodeGeneratorRequest{st}, err
 }
 
 func NewRootCodeGeneratorRequest(s *capnp.Segment) (CodeGeneratorRequest, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 4})
 	return CodeGeneratorRequest{st}, err
 }
 
 func ReadRootCodeGeneratorRequest(msg *capnp.Message) (CodeGeneratorRequest, error) {
 	root, err := msg.Root()
 	return CodeGeneratorRequest{root.Struct()}, err
+}
+
+func (s CodeGeneratorRequest) CapnpVersion() (CapnpVersion, error) {
+	p, err := s.Struct.Ptr(2)
+	return CapnpVersion{Struct: p.Struct()}, err
+}
+
+func (s CodeGeneratorRequest) HasCapnpVersion() bool {
+	return s.Struct.HasPtr(2)
+}
+
+func (s CodeGeneratorRequest) SetCapnpVersion(v CapnpVersion) error {
+	return s.Struct.SetPtr(2, v.Struct.ToPtr())
+}
+
+// NewCapnpVersion sets the capnpVersion field to a newly
+// allocated CapnpVersion struct, preferring placement in s's segment.
+func (s CodeGeneratorRequest) NewCapnpVersion() (CapnpVersion, error) {
+	ss, err := NewCapnpVersion(s.Struct.Segment())
+	if err != nil {
+		return CapnpVersion{}, err
+	}
+	err = s.Struct.SetPtr(2, ss.Struct.ToPtr())
+	return ss, err
 }
 
 func (s CodeGeneratorRequest) Nodes() (Node_List, error) {
@@ -2499,6 +2720,30 @@ func (s CodeGeneratorRequest) NewNodes(n int32) (Node_List, error) {
 		return Node_List{}, err
 	}
 	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
+func (s CodeGeneratorRequest) SourceInfo() (Node_SourceInfo_List, error) {
+	p, err := s.Struct.Ptr(3)
+	return Node_SourceInfo_List{List: p.List()}, err
+}
+
+func (s CodeGeneratorRequest) HasSourceInfo() bool {
+	return s.Struct.HasPtr(3)
+}
+
+func (s CodeGeneratorRequest) SetSourceInfo(v Node_SourceInfo_List) error {
+	return s.Struct.SetPtr(3, v.List.ToPtr())
+}
+
+// NewSourceInfo sets the sourceInfo field to a newly
+// allocated Node_SourceInfo_List, preferring placement in s's segment.
+func (s CodeGeneratorRequest) NewSourceInfo(n int32) (Node_SourceInfo_List, error) {
+	l, err := NewNode_SourceInfo_List(s.Struct.Segment(), n)
+	if err != nil {
+		return Node_SourceInfo_List{}, err
+	}
+	err = s.Struct.SetPtr(3, l.List.ToPtr())
 	return l, err
 }
 
@@ -2531,7 +2776,7 @@ type CodeGeneratorRequest_List struct{ capnp.List }
 
 // NewCodeGeneratorRequest creates a new list of CodeGeneratorRequest.
 func NewCodeGeneratorRequest_List(s *capnp.Segment, sz int32) (CodeGeneratorRequest_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 4}, sz)
 	return CodeGeneratorRequest_List{l}, err
 }
 
