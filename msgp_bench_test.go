@@ -1,4 +1,6 @@
+//go:build msgpbench
 // +build msgpbench
+
 //go:generate msgp -tests=false -o msgp_bench_gen_test.go
 //msgp:Tuple Event
 
