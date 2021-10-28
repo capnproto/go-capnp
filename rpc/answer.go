@@ -279,7 +279,7 @@ func (ans *answer) sendException(e error) releaseList {
 	if ans.flags&finishReceived == 0 {
 		return nil
 	}
-	// destory will never return an error because sendException does
+	// destroy will never return an error because sendException does
 	// create any exports.
 	rl, _ := ans.destroy()
 	ans.c.mu.Unlock()
