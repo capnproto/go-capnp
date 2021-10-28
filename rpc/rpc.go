@@ -123,9 +123,8 @@ type Options struct {
 	AbortTimeout time.Duration
 }
 
-// A type that implements ErrorReporter can receive errors from a Conn.
-// ReportError should be quick to return and should not use the Conn
-// that it is attached to.
+// ErrorReporter can receive errors from a Conn.  ReportError should be quick
+// to return and should not use the Conn that it is attached to.
 type ErrorReporter interface {
 	ReportError(error)
 }
