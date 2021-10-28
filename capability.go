@@ -23,10 +23,10 @@ func NewInterface(s *Segment, cap CapabilityID) Interface {
 }
 
 // ToPtr converts the interface to a generic pointer.
-func (p Interface) ToPtr() Ptr {
+func (i Interface) ToPtr() Ptr {
 	return Ptr{
-		seg:      p.seg,
-		lenOrCap: uint32(p.cap),
+		seg:      i.seg,
+		lenOrCap: uint32(i.cap),
 		flags:    interfacePtrFlag,
 	}
 }
