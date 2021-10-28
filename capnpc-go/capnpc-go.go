@@ -285,9 +285,8 @@ func (g *generator) Value(rel *node, t schema.Type, v schema.Value) (string, err
 	case schema.Type_Which_bool:
 		if v.Bool() {
 			return "true", nil
-		} else {
-			return "false", nil
 		}
+		return "false", nil
 
 	case schema.Type_Which_uint8, schema.Type_Which_uint16, schema.Type_Which_uint32, schema.Type_Which_uint64:
 		return fmt.Sprintf("uint%d(%d)", intbits(t.Which()), uintValue(v)), nil
