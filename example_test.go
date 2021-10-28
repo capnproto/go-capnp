@@ -12,6 +12,9 @@ import (
 func Example() {
 	// Make a brand new empty message.
 	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		panic(err)
+	}
 
 	// If you want runtime-type identification, this is easily obtained. Just
 	// wrap everything in a struct that contains a single anoymous union (e.g. struct Z).
