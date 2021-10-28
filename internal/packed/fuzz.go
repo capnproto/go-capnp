@@ -1,3 +1,4 @@
+//go:build gofuzz
 // +build gofuzz
 
 // Fuzz test harness.  To run:
