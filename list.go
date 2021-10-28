@@ -352,7 +352,7 @@ func NewTextList(s *Segment, n int32) (TextList, error) {
 	if err != nil {
 		return TextList{}, err
 	}
-	return TextList{pl.List}, nil
+	return TextList(pl), nil
 }
 
 // At returns the i'th string in the list.
@@ -426,7 +426,7 @@ func NewDataList(s *Segment, n int32) (DataList, error) {
 	if err != nil {
 		return DataList{}, err
 	}
-	return DataList{pl.List}, nil
+	return DataList(pl), nil
 }
 
 // At returns the i'th data in the list.

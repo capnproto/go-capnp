@@ -170,9 +170,9 @@ func (ins *inserter) insertField(s capnp.Struct, f schema.Field, val reflect.Val
 		}
 		if val.Kind() == reflect.String {
 			return s.SetText(off, val.String())
-		} else {
-			return s.SetTextFromBytes(off, val.Bytes())
 		}
+		return s.SetTextFromBytes(off, val.Bytes())
+
 	case schema.Type_Which_data:
 		b := val.Bytes()
 		if b == nil && !isEmptyValue(dv) {

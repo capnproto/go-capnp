@@ -285,9 +285,8 @@ func (g *generator) Value(rel *node, t schema.Type, v schema.Value) (string, err
 	case schema.Type_Which_bool:
 		if v.Bool() {
 			return "true", nil
-		} else {
-			return "false", nil
 		}
+		return "false", nil
 
 	case schema.Type_Which_uint8, schema.Type_Which_uint16, schema.Type_Which_uint32, schema.Type_Which_uint64:
 		return fmt.Sprintf("uint%d(%d)", intbits(t.Which()), uintValue(v)), nil
@@ -661,21 +660,21 @@ var (
 	}
 	staticListTypeRefs = map[schema.Type_Which]typeRef{
 		// TODO(light): omitting newfunc since it doesn't have a similar type signature (no errors).
-		schema.Type_Which_void: typeRef{name: "VoidList", imp: capnpImportSpec},
+		schema.Type_Which_void: {name: "VoidList", imp: capnpImportSpec},
 
-		schema.Type_Which_bool:    typeRef{name: "BitList", newfunc: "NewBitList", imp: capnpImportSpec},
-		schema.Type_Which_int8:    typeRef{name: "Int8List", newfunc: "NewInt8List", imp: capnpImportSpec},
-		schema.Type_Which_uint8:   typeRef{name: "UInt8List", newfunc: "NewUInt8List", imp: capnpImportSpec},
-		schema.Type_Which_int16:   typeRef{name: "Int16List", newfunc: "NewInt16List", imp: capnpImportSpec},
-		schema.Type_Which_uint16:  typeRef{name: "UInt16List", newfunc: "NewUInt16List", imp: capnpImportSpec},
-		schema.Type_Which_int32:   typeRef{name: "Int32List", newfunc: "NewInt32List", imp: capnpImportSpec},
-		schema.Type_Which_uint32:  typeRef{name: "UInt32List", newfunc: "NewUInt32List", imp: capnpImportSpec},
-		schema.Type_Which_int64:   typeRef{name: "Int64List", newfunc: "NewInt64List", imp: capnpImportSpec},
-		schema.Type_Which_uint64:  typeRef{name: "UInt64List", newfunc: "NewUInt64List", imp: capnpImportSpec},
-		schema.Type_Which_float32: typeRef{name: "Float32List", newfunc: "NewFloat32List", imp: capnpImportSpec},
-		schema.Type_Which_float64: typeRef{name: "Float64List", newfunc: "NewFloat64List", imp: capnpImportSpec},
-		schema.Type_Which_text:    typeRef{name: "TextList", newfunc: "NewTextList", imp: capnpImportSpec},
-		schema.Type_Which_data:    typeRef{name: "DataList", newfunc: "NewDataList", imp: capnpImportSpec},
+		schema.Type_Which_bool:    {name: "BitList", newfunc: "NewBitList", imp: capnpImportSpec},
+		schema.Type_Which_int8:    {name: "Int8List", newfunc: "NewInt8List", imp: capnpImportSpec},
+		schema.Type_Which_uint8:   {name: "UInt8List", newfunc: "NewUInt8List", imp: capnpImportSpec},
+		schema.Type_Which_int16:   {name: "Int16List", newfunc: "NewInt16List", imp: capnpImportSpec},
+		schema.Type_Which_uint16:  {name: "UInt16List", newfunc: "NewUInt16List", imp: capnpImportSpec},
+		schema.Type_Which_int32:   {name: "Int32List", newfunc: "NewInt32List", imp: capnpImportSpec},
+		schema.Type_Which_uint32:  {name: "UInt32List", newfunc: "NewUInt32List", imp: capnpImportSpec},
+		schema.Type_Which_int64:   {name: "Int64List", newfunc: "NewInt64List", imp: capnpImportSpec},
+		schema.Type_Which_uint64:  {name: "UInt64List", newfunc: "NewUInt64List", imp: capnpImportSpec},
+		schema.Type_Which_float32: {name: "Float32List", newfunc: "NewFloat32List", imp: capnpImportSpec},
+		schema.Type_Which_float64: {name: "Float64List", newfunc: "NewFloat64List", imp: capnpImportSpec},
+		schema.Type_Which_text:    {name: "TextList", newfunc: "NewTextList", imp: capnpImportSpec},
+		schema.Type_Which_data:    {name: "DataList", newfunc: "NewDataList", imp: capnpImportSpec},
 	}
 )
 

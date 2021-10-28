@@ -1,4 +1,6 @@
+//go:build mktemplates
 // +build mktemplates
+
 // Build tag so that users who run `go get capnproto.org/go/capnp/v3/...` don't install this command.
 // cd internal/cmd/mktemplates && go build -tags=mktemplates
 

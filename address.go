@@ -110,9 +110,9 @@ const maxSegmentSize Size = 1<<32 - 8
 func maxAllocSize() Size {
 	if maxInt == 0x7fffffff {
 		return Size(0x7ffffff8)
-	} else {
-		return maxSegmentSize
 	}
+
+	return maxSegmentSize
 }
 
 // DataOffset is an offset in bytes from the beginning of a struct's

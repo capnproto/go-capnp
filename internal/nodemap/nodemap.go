@@ -21,6 +21,7 @@ func (m *Map) registry() *schemas.Registry {
 	return &schemas.DefaultRegistry
 }
 
+// UseRegistry assigns 'reg' to 'm' and initializes the nodes map.
 func (m *Map) UseRegistry(reg *schemas.Registry) {
 	m.reg = reg
 	m.nodes = make(map[uint64]schema.Node)
