@@ -69,7 +69,7 @@ func (q *question) handleCancel(ctx context.Context) {
 	case <-ctx.Done():
 		rejectErr = ctx.Err()
 	case <-q.c.bgctx.Done():
-		rejectErr = disconnected("connection closed")
+		rejectErr = ExcClosed
 	case <-q.p.Answer().Done():
 		return
 	}
@@ -97,7 +97,7 @@ func (q *question) handleCancel(ctx context.Context) {
 		select {
 		case <-q.c.bgctx.Done():
 		default:
-			q.c.report(annotate(err).errorf("send finish"))
+			q.c.report(annotate(err, "send finish"))
 		}
 	}
 	close(q.finishMsgSend)
@@ -115,7 +115,7 @@ func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineO
 	q.c.mu.Lock()
 	if !q.c.startTask() {
 		q.c.mu.Unlock()
-		return capnp.ErrorAnswer(s.Method, disconnected("connection closed")), func() {}
+		return capnp.ErrorAnswer(s.Method, ExcClosed), func() {}
 	}
 	defer q.c.tasks.Done()
 	// Mark this transform as having been used for a call ASAP.
@@ -139,7 +139,7 @@ func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineO
 		q.c.questions[q2.id] = nil
 		q.c.questionID.remove(uint32(q2.id))
 		q.c.mu.Unlock()
-		return capnp.ErrorAnswer(s.Method, errorf("create message: %v", err)), func() {}
+		return capnp.ErrorAnswer(s.Method, failedf("create message: %w", err)), func() {}
 	}
 	q.c.mu.Lock()
 	q.c.unlockSender() // Can't be holding either lock while calling PlaceArgs.
@@ -171,7 +171,7 @@ func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineO
 		q.c.questions[q2.id] = nil
 		q.c.questionID.remove(uint32(q2.id))
 		q.c.mu.Unlock()
-		return capnp.ErrorAnswer(s.Method, errorf("send message: %v", err)), func() {}
+		return capnp.ErrorAnswer(s.Method, failedf("send message: %w", err)), func() {}
 	}
 	q2.c.tasks.Add(1)
 	go func() {
@@ -194,7 +194,7 @@ func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineO
 func (c *Conn) newPipelineCallMessage(msg rpccp.Message, tgt questionID, transform []capnp.PipelineOp, qid questionID, s capnp.Send) error {
 	call, err := msg.NewCall()
 	if err != nil {
-		return errorf("build call message: %v", err)
+		return failedf("build call message: %w", err)
 	}
 	call.SetQuestionId(uint32(qid))
 	call.SetInterfaceId(s.Method.InterfaceID)
@@ -202,16 +202,16 @@ func (c *Conn) newPipelineCallMessage(msg rpccp.Message, tgt questionID, transfo
 
 	target, err := call.NewTarget()
 	if err != nil {
-		return errorf("build call message: %v", err)
+		return failedf("build call message: %w", err)
 	}
 	pa, err := target.NewPromisedAnswer()
 	if err != nil {
-		return errorf("build call message: %v", err)
+		return failedf("build call message: %w", err)
 	}
 	pa.SetQuestionId(uint32(tgt))
 	oplist, err := pa.NewTransform(int32(len(transform)))
 	if err != nil {
-		return errorf("build call message: %v", err)
+		return failedf("build call message: %w", err)
 	}
 	for i, op := range transform {
 		oplist.At(i).SetGetPointerField(op.Field)
@@ -219,14 +219,14 @@ func (c *Conn) newPipelineCallMessage(msg rpccp.Message, tgt questionID, transfo
 
 	payload, err := call.NewParams()
 	if err != nil {
-		return errorf("build call message: %v", err)
+		return failedf("build call message: %w", err)
 	}
 	args, err := capnp.NewStruct(payload.Segment(), s.ArgsSize)
 	if err != nil {
-		return errorf("build call message: %v", err)
+		return failedf("build call message: %w", err)
 	}
 	if err := payload.SetContent(args.ToPtr()); err != nil {
-		return errorf("build call message: %v", err)
+		return failedf("build call message: %w", err)
 	}
 
 	if s.PlaceArgs == nil {
@@ -238,7 +238,7 @@ func (c *Conn) newPipelineCallMessage(msg rpccp.Message, tgt questionID, transfo
 			c.Release()
 		}
 		m.CapTable = nil
-		return errorf("place arguments: %v", err)
+		return failedf("place arguments: %w", err)
 	}
 	clients, states := extractCapTable(m)
 	c.mu.Lock()
@@ -247,7 +247,7 @@ func (c *Conn) newPipelineCallMessage(msg rpccp.Message, tgt questionID, transfo
 	c.mu.Unlock()
 	releaseList(clients).release()
 	if err != nil {
-		return annotate(err).errorf("build call message")
+		return annotate(err, "build call message")
 	}
 	return nil
 }

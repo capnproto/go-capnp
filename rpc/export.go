@@ -34,7 +34,7 @@ func (c *Conn) findExport(id exportID) *expent {
 func (c *Conn) releaseExport(id exportID, count uint32) (*capnp.Client, error) {
 	ent := c.findExport(id)
 	if ent == nil {
-		return nil, errorf("unknown export ID %d", id)
+		return nil, failedf("unknown export ID %d", id)
 	}
 	switch {
 	case count == ent.wireRefs:
@@ -43,7 +43,7 @@ func (c *Conn) releaseExport(id exportID, count uint32) (*capnp.Client, error) {
 		c.exportID.remove(uint32(id))
 		return client, nil
 	case count > ent.wireRefs:
-		return nil, errorf("export ID %d released too many references", id)
+		return nil, failedf("export ID %d released too many references", id)
 	default:
 		ent.wireRefs -= count
 		return nil, nil
@@ -133,7 +133,7 @@ func (c *Conn) fillPayloadCapTable(payload rpccp.Payload, clients []*capnp.Clien
 	}
 	list, err := payload.NewCapTable(int32(len(clients)))
 	if err != nil {
-		return nil, errorf("payload capability table: %v", err)
+		return nil, failedf("payload capability table: %w", err)
 	}
 	var refs map[exportID]uint32
 	for i, client := range clients {
@@ -247,19 +247,19 @@ type senderLoopback struct {
 func (sl *senderLoopback) buildDisembargo(msg rpccp.Message) error {
 	d, err := msg.NewDisembargo()
 	if err != nil {
-		return errorf("build disembargo: %v", err)
+		return failedf("build disembargo: %w", err)
 	}
 	tgt, err := d.NewTarget()
 	if err != nil {
-		return errorf("build disembargo: %v", err)
+		return failedf("build disembargo: %w", err)
 	}
 	pa, err := tgt.NewPromisedAnswer()
 	if err != nil {
-		return errorf("build disembargo: %v", err)
+		return failedf("build disembargo: %w", err)
 	}
 	oplist, err := pa.NewTransform(int32(len(sl.transform)))
 	if err != nil {
-		return errorf("build disembargo: %v", err)
+		return failedf("build disembargo: %w", err)
 	}
 
 	d.Context().SetSenderLoopback(uint32(sl.id))

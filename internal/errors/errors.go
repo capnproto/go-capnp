@@ -9,9 +9,9 @@ import (
 
 // Error holds a Cap'n Proto exception.
 type Error struct {
-	Type   Type
-	Prefix string
-	Cause  error
+	ExcType Type
+	Prefix  string
+	Cause   error
 }
 
 // New creates a new error that formats as "<prefix>: <msg>".
@@ -28,11 +28,13 @@ func (e Error) Error() string {
 	return fmt.Sprintf("%s: %v", e.Prefix, e.Cause)
 }
 
+func (e Error) Label() string { return e.Prefix }
+func (e Error) Type() Type    { return e.ExcType }
 func (e Error) Unwrap() error { return e.Cause }
 
 func (e Error) GoString() string {
 	return fmt.Sprintf("errors.Error{Type: %s, Prefix: \"%s\", Cause: fmt.Errorf(\"%v\")}",
-		e.Type.GoString(),
+		e.ExcType.GoString(),
 		e.Prefix,
 		e.Cause)
 }
@@ -42,10 +44,10 @@ func (e Error) GoString() string {
 // The returned Error.Type == e.Type.
 func (e Error) Annotate(prefix, msg string) Error {
 	if prefix != e.Prefix {
-		return Error{e.Type, prefix, fmt.Errorf("%s: %w", msg, e)}
+		return Error{e.ExcType, prefix, fmt.Errorf("%s: %w", msg, e)}
 	}
 
-	return Error{e.Type, prefix, fmt.Errorf("%s: %w", msg, e.Cause)}
+	return Error{e.ExcType, prefix, fmt.Errorf("%s: %w", msg, e.Cause)}
 }
 
 // Annotate creates a new error that formats as "<prefix>: <msg>: <err>".
@@ -53,7 +55,7 @@ func (e Error) Annotate(prefix, msg string) Error {
 // The returned error's type will match err's type.
 func Annotate(prefix, msg string, err error) error {
 	if err == nil {
-		panic("Annotate on nil error")
+		panic("Annotate on nil error") // TODO:  return nil?
 	}
 
 	if ce, ok := err.(Error); ok {
@@ -70,7 +72,7 @@ func TypeOf(err error) Type {
 	if !ok {
 		return Failed
 	}
-	return ce.Type
+	return ce.Type()
 }
 
 // Type indicates the type of error, mirroring those in rpc.capnp.

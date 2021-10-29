@@ -95,12 +95,12 @@ func errorAnswer(c *Conn, id answerID, err error) *answer {
 func (c *Conn) newReturn(ctx context.Context) (rpccp.Return, func() error, capnp.ReleaseFunc, error) {
 	msg, send, release, err := c.transport.NewMessage(ctx)
 	if err != nil {
-		return rpccp.Return{}, nil, nil, errorf("create return: %v", err)
+		return rpccp.Return{}, nil, nil, failedf("create return: %w", err)
 	}
 	ret, err := msg.NewReturn()
 	if err != nil {
 		release()
-		return rpccp.Return{}, nil, nil, errorf("create return: %v", err)
+		return rpccp.Return{}, nil, nil, failedf("create return: %w", err)
 	}
 	return ret, send, release, nil
 }
@@ -121,14 +121,14 @@ func (ans *answer) AllocResults(sz capnp.ObjectSize) (capnp.Struct, error) {
 	var err error
 	ans.results, err = ans.ret.NewResults()
 	if err != nil {
-		return capnp.Struct{}, errorf("alloc results: %v", err)
+		return capnp.Struct{}, failedf("alloc results: %w", err)
 	}
 	s, err := capnp.NewStruct(ans.results.Segment(), sz)
 	if err != nil {
-		return capnp.Struct{}, errorf("alloc results: %v", err)
+		return capnp.Struct{}, failedf("alloc results: %w", err)
 	}
 	if err := ans.results.SetContent(s.ToPtr()); err != nil {
-		return capnp.Struct{}, errorf("alloc results: %v", err)
+		return capnp.Struct{}, failedf("alloc results: %w", err)
 	}
 	return s, nil
 }
@@ -145,11 +145,11 @@ func (ans *answer) setBootstrap(c *capnp.Client) error {
 	var err error
 	ans.results, err = ans.ret.NewResults()
 	if err != nil {
-		return errorf("alloc bootstrap results: %v", err)
+		return failedf("alloc bootstrap results: %w", err)
 	}
 	iface := capnp.NewInterface(ans.results.Segment(), 0)
 	if err := ans.results.SetContent(iface.ToPtr()); err != nil {
-		return errorf("alloc bootstrap results: %v", err)
+		return failedf("alloc bootstrap results: %w", err)
 	}
 	return nil
 }
@@ -210,7 +210,7 @@ func (ans *answer) sendReturn(cstates []capnp.ClientState) (releaseList, error) 
 	var err error
 	ans.exportRefs, err = ans.c.fillPayloadCapTable(ans.results, ans.resultCapTable, cstates)
 	if err != nil {
-		ans.c.report(annotate(err).errorf("send return"))
+		ans.c.report(annotate(err, "send return"))
 		// Continue.  Don't fail to send return if cap table isn't fully filled.
 	}
 
@@ -220,7 +220,7 @@ func (ans *answer) sendReturn(cstates []capnp.ClientState) (releaseList, error) 
 		fin := ans.flags&finishReceived != 0
 		ans.c.mu.Unlock()
 		if err := ans.sendMsg(); err != nil {
-			ans.c.reportf("send return: %v", err)
+			ans.c.report(failedf("send return: %w", err))
 		}
 		if fin {
 			ans.releaseMsg()
@@ -258,13 +258,13 @@ func (ans *answer) sendException(e error) releaseList {
 		fin := ans.flags&finishReceived != 0
 		ans.c.mu.Unlock()
 		if exc, err := ans.ret.NewException(); err != nil {
-			ans.c.reportf("send exception: %v", err)
+			ans.c.report(failedf("send exception: %w", err))
 		} else {
 			exc.SetType(rpccp.Exception_Type(errors.TypeOf(e)))
 			if err := exc.SetReason(e.Error()); err != nil {
-				ans.c.reportf("send exception: %v", err)
+				ans.c.report(failedf("send exception: %w", err))
 			} else if err := ans.sendMsg(); err != nil {
-				ans.c.reportf("send return: %v", err)
+				ans.c.report(failedf("send return: %w", err))
 			}
 		}
 		if fin {
