@@ -276,7 +276,7 @@ func (r *Reader) ReadWord(p []byte) error {
 		nz = tag >> 7 & 1
 		p[7] = b[i] & -nz
 		i += int(nz)
-		discard(r.rd, i)
+		r.rd.Discard(i)
 	}
 	switch tag {
 	case zeroTag:
