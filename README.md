@@ -14,20 +14,44 @@ This package provides:
 - Runtime support for the Go language
 - Level 1 support for the [Cap'n Proto RPC](https://capnproto.org/rpc.html) protocol
 
+Support for Level 3 RPC is [planned](https://github.com/capnproto/go-capnproto2/issues/160).
+
 [godoc]: http://pkg.go.dev/capnproto.org/go/capnp/v3
 ## Installation
 
+#### To interact with pre-compiled schemas
+
+Ensure that Go modules are enabled, then run the following command:
 ```
-$ GO111MODULE=on go get capnproto.org/go/capnp/v3
+$ go get capnproto.org/go/capnp/v3
 ```
 
-**NOTE:** You will need to install the [`capnp` tool](https://capnproto.org/capnp-tool.html) in order to compile your Cap'n Proto schemas into Go.  This package has been tested with version `0.8.0` of the `capnp` tool.
+#### To compile Cap'n Proto schema files to Go
+
+To additional steps are needed to compile `.capnp` files to Go:
+
+1. Install the [`capnp` tool](https://capnproto.org/capnp-tool.html)
+2. Place this repository on your `$GOPATH`, so that the `capnp` tool can find it.
+
+The simplest way to complete step 2 is ensure your `GOPATH` has been set, and to run `GO111MODULE=off go get -u capnproto.org/go/capnp/v3/`.  This will disable modules for the duration of the `go get` command, and clone the present repository in the appropriate location.
+
+If this feels too magical, or fails for some mysterious reason, the same result can be achieved manually:
+
+```bash
+$ mkdir -p $GOPATH/src/capnproto.org/go
+$ cd $GOPATH/src/capnproto.org/go
+$ git clone capnproto.org/go/capnp
+```
+
+To learn how to compile a simple schema, [click here](https://github.com/capnproto/go-capnproto2/wiki/Getting-Started#compiling-schema-files).
+
+This package has been tested with version `0.8.0` of the `capnp` tool.
 
 ## Documentation
 
 ### Getting Started
 
-Read the ["Getting Started" guide](https://github.com/capnproto/go-capnproto2/wiki/Getting-Started) for a high-level introduction to the package API and workflow.  
+Read the ["Getting Started" guide][getting-started] for a high-level introduction to the package API and workflow.  
 A minimal working RPC example can be found [here](https://github.com/capnproto/go-capnproto2/wiki/Getting-Started#remote-calls-using-interfaces).
 
 Browse rest of the [Wiki](https://github.com/capnproto/go-capnproto2/wiki) for in depth explanations of concepts, migration guides, and tutorials.
@@ -52,7 +76,7 @@ We use [semantic versioning](https://semver.org) to track compatibility and sign
 
 An exception to this rule is currently in place for the `pogs` package, which is relatively new and may change over time.  However, its functionality has been well-tested, and breaking changes are relatively unlikely.
 
-Note also we may merge breaking changes to the `master` branch without notice.  Users are encouraged to pin their dependencies to a major version, e.g. using the semver-aware features of `go get`.
+Note also we may merge breaking changes to the `main` branch without notice.  Users are encouraged to pin their dependencies to a major version, e.g. using the semver-aware features of `go get`.
 
 [gocompat]: https://golang.org/doc/go1compat
 ## License
@@ -60,3 +84,5 @@ Note also we may merge breaking changes to the `master` branch without notice.  
 MIT - see [LICENSE][] file
 
 [LICENSE]: https://github.com/capnproto/go-capnproto2/blob/master/LICENSE
+
+[getting-started]: https://github.com/capnproto/go-capnproto2/wiki/Getting-Started
