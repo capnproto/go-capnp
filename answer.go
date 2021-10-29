@@ -574,7 +574,7 @@ func (f *Future) Struct() (Struct, error) {
 	}
 	r := p.resolution()
 	p.mu.Unlock()
-	return r.struct_(f.transform())
+	return r.strct(f.transform())
 }
 
 // Client returns the future as a client.  If the answer's originating
@@ -746,8 +746,8 @@ func (r resolution) ptr(transform []PipelineOp) (Ptr, error) {
 	return p, nil
 }
 
-// struct_ obtains a Struct by applying a transform.
-func (r resolution) struct_(transform []PipelineOp) (Struct, error) {
+// strct obtains a Struct by applying a transform.
+func (r resolution) strct(transform []PipelineOp) (Struct, error) {
 	p, err := r.ptr(transform)
 	return p.Struct(), err
 }
