@@ -6,7 +6,6 @@ import (
 	"errors"
 	"io"
 	"math/rand"
-	"reflect"
 	"testing"
 	"time"
 	"unsafe"
@@ -1724,9 +1723,7 @@ func randString(r *rand.Rand, n int) string {
 }
 
 func unsafeBytesToString(b []byte) string {
-	slice := *(*reflect.SliceHeader)(unsafe.Pointer(&b))
-	hdr := reflect.StringHeader{Data: slice.Data, Len: slice.Len}
-	return *(*string)(unsafe.Pointer(&hdr))
+	return *(*string)(unsafe.Pointer(&b))
 }
 
 func BenchmarkMarshal(b *testing.B) {
