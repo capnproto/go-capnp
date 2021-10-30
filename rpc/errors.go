@@ -49,5 +49,5 @@ func annotate(err error, msg string) error {
 }
 
 func exception(t errors.Type, err error) errors.Error {
-	return errors.Error{ExcType: t, Prefix: prefix, Cause: err}
+	return errors.Error{Type: t, Prefix: prefix, Cause: err}
 }

@@ -253,8 +253,8 @@ func (c *Conn) Close() error {
 	default:
 		// shutdown unlocks c.mu.
 		return c.shutdown(errors.Error{ // NOTE:  omit "rpc" prefix
-			ExcType: errors.Failed,
-			Cause:   ErrConnClosed,
+			Type:  errors.Failed,
+			Cause: ErrConnClosed,
 		})
 	}
 }
