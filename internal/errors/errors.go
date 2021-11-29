@@ -31,7 +31,7 @@ func (e Error) Error() string {
 func (e Error) Unwrap() error { return e.Cause }
 
 func (e Error) GoString() string {
-	return fmt.Sprintf("errors.Error{Type: %s, Prefix: \"%s\", Cause: fmt.Errorf(\"%v\")}",
+	return fmt.Sprintf("errors.Error{Type: %s, Prefix: %q, Cause: fmt.Errorf(%q)}",
 		e.Type.GoString(),
 		e.Prefix,
 		e.Cause)
