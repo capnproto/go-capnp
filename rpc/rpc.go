@@ -181,7 +181,7 @@ func (c *Conn) Bootstrap(ctx context.Context) *capnp.Client {
 	c.mu.Lock()
 	if !c.startTask() {
 		c.mu.Unlock()
-		return capnp.ErrorClient(disconnected("connection closed"))
+		return capnp.ErrorClient(ExcClosed)
 	}
 	defer c.tasks.Done()
 	q := c.newQuestion(capnp.Method{})
@@ -204,7 +204,7 @@ func (c *Conn) Bootstrap(ctx context.Context) *capnp.Client {
 		c.questions[q.id] = nil
 		c.questionID.remove(uint32(q.id))
 		c.mu.Unlock()
-		return capnp.ErrorClient(annotate(err).errorf("bootstrap"))
+		return capnp.ErrorClient(annotate(err, "bootstrap"))
 	}
 	c.tasks.Add(1)
 	go func() {
@@ -242,7 +242,7 @@ func (bc bootstrapClient) Shutdown() {
 func (c *Conn) Close() error {
 	c.mu.Lock()
 	if c.closed {
-		return fail("close on closed connection")
+		return ExcAlreadyClosed
 	}
 	c.closed = true
 	select {
@@ -252,7 +252,10 @@ func (c *Conn) Close() error {
 		return nil
 	default:
 		// shutdown unlocks c.mu.
-		return c.shutdown(errors.New(errors.Failed, "", "connection closed"))
+		return c.shutdown(errors.Error{ // NOTE:  omit "rpc" prefix
+			Type:  errors.Failed,
+			Cause: ErrConnClosed,
+		})
 	}
 }
 
@@ -340,7 +343,7 @@ func (c *Conn) shutdown(abortErr error) error {
 	}
 closeTransport:
 	if err := c.transport.Close(); err != nil {
-		return errorf("close transport: %v", err)
+		return failedf("close transport: %w", err)
 	}
 	return nil
 }
@@ -363,13 +366,13 @@ func (c *Conn) receive(ctx context.Context) error {
 			exc, err := recv.Abort()
 			if err != nil {
 				releaseRecv()
-				c.reportf("read abort: %v", err)
+				c.report(failedf("read abort: %w", err))
 				return nil
 			}
 			reason, err := exc.Reason()
 			if err != nil {
 				releaseRecv()
-				c.reportf("read abort reason: %v", err)
+				c.report(failedf("read abort reason: %w", err))
 				return nil
 			}
 			ty := exc.Type()
@@ -380,7 +383,7 @@ func (c *Conn) receive(ctx context.Context) error {
 			bootstrap, err := recv.Bootstrap()
 			if err != nil {
 				releaseRecv()
-				c.reportf("read bootstrap: %v", err)
+				c.report(failedf("read bootstrap: %w", err))
 				continue
 			}
 			qid := answerID(bootstrap.QuestionId())
@@ -392,7 +395,7 @@ func (c *Conn) receive(ctx context.Context) error {
 			call, err := recv.Call()
 			if err != nil {
 				releaseRecv()
-				c.reportf("read call: %v", err)
+				c.report(failedf("read call: %w", err))
 				continue
 			}
 			if err := c.handleCall(ctx, call, releaseRecv); err != nil {
@@ -402,7 +405,7 @@ func (c *Conn) receive(ctx context.Context) error {
 			ret, err := recv.Return()
 			if err != nil {
 				releaseRecv()
-				c.reportf("read return: %v", err)
+				c.report(failedf("read return: %w", err))
 				continue
 			}
 			if err := c.handleReturn(ctx, ret, releaseRecv); err != nil {
@@ -412,7 +415,7 @@ func (c *Conn) receive(ctx context.Context) error {
 			fin, err := recv.Finish()
 			if err != nil {
 				releaseRecv()
-				c.reportf("read finish: %v", err)
+				c.report(failedf("read finish: %w", err))
 				continue
 			}
 			qid := answerID(fin.QuestionId())
@@ -425,7 +428,7 @@ func (c *Conn) receive(ctx context.Context) error {
 			rel, err := recv.Release()
 			if err != nil {
 				releaseRecv()
-				c.reportf("read release: %v", err)
+				c.report(failedf("read release: %w", err))
 				continue
 			}
 			id := exportID(rel.Id())
@@ -438,7 +441,7 @@ func (c *Conn) receive(ctx context.Context) error {
 			d, err := recv.Disembargo()
 			if err != nil {
 				releaseRecv()
-				c.reportf("read disembargo: %v", err)
+				c.report(failedf("read disembargo: %w", err))
 				continue
 			}
 			err = c.handleDisembargo(ctx, d)
@@ -460,7 +463,7 @@ func (c *Conn) handleBootstrap(ctx context.Context, id answerID) error {
 	c.mu.Lock()
 	if c.answers[id] != nil {
 		c.mu.Unlock()
-		return errorf("incoming bootstrap: answer ID %d reused", id)
+		return failedf("incoming bootstrap: answer ID %d reused", id)
 	}
 	if err := c.tryLockSender(ctx); err != nil {
 		// Shutting down.  Don't report.
@@ -470,7 +473,7 @@ func (c *Conn) handleBootstrap(ctx context.Context, id answerID) error {
 	c.mu.Unlock()
 	ret, send, release, err := c.newReturn(ctx)
 	if err != nil {
-		err = annotate(err).errorf("incoming bootstrap")
+		err = annotate(err, "incoming bootstrap")
 		c.mu.Lock()
 		c.answers[id] = errorAnswer(c, id, err)
 		c.unlockSender()
@@ -520,7 +523,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 	id := answerID(call.QuestionId())
 	if call.SendResultsTo().Which() != rpccp.Call_sendResultsTo_Which_caller {
 		// TODO(someday): handle SendResultsTo.yourself
-		c.reportf("incoming call: results destination is not caller")
+		c.report(failedf("incoming call: results destination is not caller"))
 		c.mu.Lock()
 		err := c.sendMessage(ctx, func(m rpccp.Message) error {
 			mm, err := m.NewUnimplemented()
@@ -535,7 +538,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 		c.mu.Unlock()
 		releaseCall()
 		if err != nil {
-			c.report(annotate(err).errorf("incoming call: send unimplemented"))
+			c.report(annotate(err, "incoming call: send unimplemented"))
 		}
 		return nil
 	}
@@ -545,7 +548,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 	if c.answers[id] != nil {
 		c.mu.Unlock()
 		releaseCall()
-		return errorf("incoming call: answer ID %d reused", id)
+		return failedf("incoming call: answer ID %d reused", id)
 	}
 	if err := c.tryLockSender(ctx); err != nil {
 		// Shutting down.  Don't report.
@@ -559,7 +562,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 	c.mu.Unlock()
 	ret, send, releaseRet, err := c.newReturn(ctx)
 	if err != nil {
-		err = annotate(err).errorf("incoming call")
+		err = annotate(err, "incoming call")
 		c.mu.Lock()
 		c.answers[id] = errorAnswer(c, id, err)
 		c.unlockSender()
@@ -583,7 +586,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 	}
 	c.answers[id] = ans
 	if parseErr != nil {
-		parseErr = annotate(err).errorf("incoming call")
+		parseErr = annotate(err, "incoming call")
 		rl := ans.sendException(parseErr)
 		c.unlockSender()
 		c.mu.Unlock()
@@ -616,7 +619,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			c.mu.Unlock()
 			clearCapTable(call.Message())
 			releaseCall()
-			return errorf("incoming call: unknown export ID %d", id)
+			return failedf("incoming call: unknown export ID %d", id)
 		}
 		c.tasks.Add(1) // will be finished by answer.Return
 		var callCtx context.Context
@@ -647,7 +650,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			c.mu.Unlock()
 			clearCapTable(call.Message())
 			releaseCall()
-			return errorf("incoming call: use of unknown or finished answer ID %d for promised answer target", p.target.promisedAnswer)
+			return failedf("incoming call: use of unknown or finished answer ID %d for promised answer target", p.target.promisedAnswer)
 		}
 		if tgtAns.flags&resultsReady != 0 {
 			// Results ready.
@@ -666,7 +669,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			// happening on the receive goroutine.
 			content, err := tgtAns.results.Content()
 			if err != nil {
-				err = errorf("incoming call: read results from target answer: %v", err)
+				err = failedf("incoming call: read results from target answer: %w", err)
 				rl := ans.sendException(err)
 				c.unlockSender()
 				c.mu.Unlock()
@@ -691,7 +694,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			var tgt *capnp.Client
 			switch {
 			case sub.IsValid() && !iface.IsValid():
-				tgt = capnp.ErrorClient(fail("not a capability"))
+				tgt = capnp.ErrorClient(failed(ErrNotACapability))
 			case !iface.IsValid() || int64(iface.Capability()) >= int64(len(tgtAns.resultCapTable)):
 				tgt = nil
 			default:
@@ -752,16 +755,16 @@ func (c *Conn) parseCall(p *parsedCall, call rpccp.Call) error {
 	}
 	payload, err := call.Params()
 	if err != nil {
-		return errorf("read params: %v", err)
+		return failedf("read params: %w", err)
 	}
 	ptr, _, err := c.recvPayload(payload)
 	if err != nil {
-		return annotate(err).errorf("read params")
+		return annotate(err, "read params")
 	}
 	p.args = ptr.Struct()
 	tgt, err := call.Target()
 	if err != nil {
-		return errorf("read target: %v", err)
+		return failedf("read target: %w", err)
 	}
 	if err := parseMessageTarget(&p.target, tgt); err != nil {
 		return err
@@ -770,27 +773,27 @@ func (c *Conn) parseCall(p *parsedCall, call rpccp.Call) error {
 }
 
 func parseMessageTarget(pt *parsedMessageTarget, tgt rpccp.MessageTarget) error {
-	pt.which = tgt.Which()
-	switch pt.which {
+	switch pt.which = tgt.Which(); pt.which {
 	case rpccp.MessageTarget_Which_importedCap:
 		pt.importedCap = exportID(tgt.ImportedCap())
 	case rpccp.MessageTarget_Which_promisedAnswer:
 		pa, err := tgt.PromisedAnswer()
 		if err != nil {
-			return errorf("read target answer: %v", err)
+			return failedf("read target answer: %w", err)
 		}
 		pt.promisedAnswer = answerID(pa.QuestionId())
 		opList, err := pa.Transform()
 		if err != nil {
-			return errorf("read target transform: %v", err)
+			return failedf("read target transform: %w", err)
 		}
 		pt.transform, err = parseTransform(opList)
 		if err != nil {
-			return annotate(err).errorf("read target transform")
+			return annotate(err, "read target transform")
 		}
 	default:
 		return unimplementedf("unknown message target %v", pt.which)
 	}
+
 	return nil
 }
 
@@ -804,7 +807,7 @@ func parseTransform(list rpccp.PromisedAnswer_Op_List) ([]capnp.PipelineOp, erro
 		case rpccp.PromisedAnswer_Op_Which_getPointerField:
 			ops = append(ops, capnp.PipelineOp{Field: li.GetPointerField()})
 		default:
-			return nil, errorf("transform element %d: unknown type %v", i, li.Which())
+			return nil, failedf("transform element %d: unknown type %v", i, li.Which())
 		}
 	}
 	return ops, nil
@@ -816,7 +819,7 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 	if uint32(qid) >= uint32(len(c.questions)) {
 		c.mu.Unlock()
 		releaseRet()
-		return errorf("incoming return: question %d does not exist", qid)
+		return failedf("incoming return: question %d does not exist", qid)
 	}
 	// Pop the question from the table.  Receiving the Return message
 	// will always remove the question from the table, because it's the
@@ -826,7 +829,7 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 	if q == nil {
 		c.mu.Unlock()
 		releaseRet()
-		return errorf("incoming return: question %d does not exist", qid)
+		return failedf("incoming return: question %d does not exist", qid)
 	}
 	canceled := q.flags&finished != 0
 	q.flags |= finished
@@ -855,7 +858,7 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 	}
 	pr := c.parseReturn(ret, q.called) // fills in CapTable
 	if pr.parseFailed {
-		c.report(annotate(pr.err).errorf("incoming return"))
+		c.report(annotate(pr.err, "incoming return"))
 	}
 	switch {
 	case q.bootstrapPromise != nil && pr.err == nil:
@@ -898,7 +901,7 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 	if err := c.tryLockSender(ctx); err != nil {
 		close(q.finishMsgSend)
 		c.mu.Unlock()
-		c.report(annotate(err).errorf("incoming return: send finish"))
+		c.report(annotate(err, "incoming return: send finish"))
 		return nil
 	}
 	c.mu.Unlock()
@@ -910,18 +913,18 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 	for i := range pr.disembargoes {
 		msg, send, release, err := c.transport.NewMessage(ctx)
 		if err != nil {
-			c.report(errorf("incoming return: send disembargo: create message: %v", err))
+			c.report(failedf("incoming return: send disembargo: create message: %w", err))
 			continue
 		}
 		if err := pr.disembargoes[i].buildDisembargo(msg); err != nil {
 			release()
-			c.report(annotate(err).errorf("incoming return"))
+			c.report(annotate(err, "incoming return"))
 			continue
 		}
 		err = send()
 		release()
 		if err != nil {
-			c.report(errorf("incoming return: send disembargo: %v", err))
+			c.report(failedf("incoming return: send disembargo: %w", err))
 			continue
 		}
 	}
@@ -934,7 +937,7 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 			c.unlockSender()
 			close(q.finishMsgSend)
 			c.mu.Unlock()
-			c.report(annotate(err).errorf("incoming return: send finish"))
+			c.report(annotate(err, "incoming return: send finish"))
 			return nil
 		}
 		fin, err := msg.NewFinish()
@@ -944,7 +947,7 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 			c.unlockSender()
 			close(q.finishMsgSend)
 			c.mu.Unlock()
-			c.report(errorf("incoming return: send finish: build message: %v", err))
+			c.report(failedf("incoming return: send finish: build message: %w", err))
 			return nil
 		}
 		fin.SetQuestionId(uint32(qid))
@@ -956,7 +959,7 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 			c.unlockSender()
 			close(q.finishMsgSend)
 			c.mu.Unlock()
-			c.report(errorf("incoming return: send finish: build message: %v", err))
+			c.report(failedf("incoming return: send finish: build message: %w", err))
 			return nil
 		}
 	}
@@ -971,15 +974,15 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 }
 
 func (c *Conn) parseReturn(ret rpccp.Return, called [][]capnp.PipelineOp) parsedReturn {
-	switch ret.Which() {
+	switch w := ret.Which(); w {
 	case rpccp.Return_Which_results:
 		r, err := ret.Results()
 		if err != nil {
-			return parsedReturn{err: errorf("parse return: %v", err), parseFailed: true}
+			return parsedReturn{err: failedf("parse return: %w", err), parseFailed: true}
 		}
 		content, locals, err := c.recvPayload(r)
 		if err != nil {
-			return parsedReturn{err: errorf("parse return: %v", err), parseFailed: true}
+			return parsedReturn{err: failedf("parse return: %w", err), parseFailed: true}
 		}
 
 		var embargoCaps uintSet
@@ -1011,16 +1014,15 @@ func (c *Conn) parseReturn(ret rpccp.Return, called [][]capnp.PipelineOp) parsed
 	case rpccp.Return_Which_exception:
 		exc, err := ret.Exception()
 		if err != nil {
-			return parsedReturn{err: errorf("parse return: %v", err), parseFailed: true}
+			return parsedReturn{err: failedf("parse return: %w", err), parseFailed: true}
 		}
 		reason, err := exc.Reason()
 		if err != nil {
-			return parsedReturn{err: errorf("parse return: %v", err), parseFailed: true}
+			return parsedReturn{err: failedf("parse return: %w", err), parseFailed: true}
 		}
 		return parsedReturn{err: errors.New(errors.Type(exc.Type()), "", reason)}
 	default:
-		w := ret.Which()
-		return parsedReturn{err: errorf("parse return: unhandled type %v", w), parseFailed: true, unimplemented: true}
+		return parsedReturn{err: failedf("parse return: unhandled type %v", w), parseFailed: true, unimplemented: true}
 	}
 }
 
@@ -1037,11 +1039,11 @@ func (c *Conn) handleFinish(ctx context.Context, id answerID, releaseResultCaps 
 	ans := c.answers[id]
 	if ans == nil {
 		c.mu.Unlock()
-		return errorf("incoming finish: unknown answer ID %d", id)
+		return failedf("incoming finish: unknown answer ID %d", id)
 	}
 	if ans.flags&finishReceived != 0 {
 		c.mu.Unlock()
-		return errorf("incoming finish: answer ID %d already received finish", id)
+		return failedf("incoming finish: answer ID %d already received finish", id)
 	}
 	ans.flags |= finishReceived
 	if releaseResultCaps {
@@ -1067,7 +1069,7 @@ func (c *Conn) handleFinish(ctx context.Context, id answerID, releaseResultCaps 
 	c.mu.Unlock()
 	rl.release()
 	if err != nil {
-		return annotate(err).errorf("incoming finish: release result caps")
+		return annotate(err, "incoming finish: release result caps")
 	}
 	return nil
 }
@@ -1078,7 +1080,7 @@ func (c *Conn) handleFinish(ctx context.Context, id answerID, releaseResultCaps 
 //
 // The caller must be holding onto c.mu.
 func (c *Conn) recvCap(d rpccp.CapDescriptor) (_ *capnp.Client, local bool, _ error) {
-	switch d.Which() {
+	switch w := d.Which(); w {
 	case rpccp.CapDescriptor_Which_none:
 		return nil, false, nil
 	case rpccp.CapDescriptor_Which_senderHosted:
@@ -1101,11 +1103,11 @@ func (c *Conn) recvCap(d rpccp.CapDescriptor) (_ *capnp.Client, local bool, _ er
 		id := exportID(d.ReceiverHosted())
 		ent := c.findExport(id)
 		if ent == nil {
-			return nil, false, errorf("receive capability: invalid export %d", id)
+			return nil, false, failedf("receive capability: invalid export %d", id)
 		}
 		return ent.client.AddRef(), true, nil
 	default:
-		return capnp.ErrorClient(errorf("unknown CapDescriptor type %v", d.Which())), false, nil
+		return capnp.ErrorClient(failedf("unknown CapDescriptor type %v", w)), false, nil
 	}
 }
 
@@ -1122,17 +1124,17 @@ func (c *Conn) recvPayload(payload rpccp.Payload) (_ capnp.Ptr, locals uintSet, 
 	}
 	if payload.Message().CapTable != nil {
 		// RecvMessage likely violated its invariant.
-		return capnp.Ptr{}, nil, fail("read payload: capability table already populated")
+		return capnp.Ptr{}, nil, failedf("read payload: %w", ErrCapTablePopulated)
 	}
 	p, err := payload.Content()
 	if err != nil {
-		return capnp.Ptr{}, nil, errorf("read payload: %v", err)
+		return capnp.Ptr{}, nil, failedf("read payload: %w", err)
 	}
 	ptab, err := payload.CapTable()
 	if err != nil {
 		// Don't allow unreadable capability table to stop other results,
 		// just present an empty capability table.
-		c.reportf("read payload: capability table: %v", err)
+		c.report(failedf("read payload: capability table: %w", err))
 		return p, nil, nil
 	}
 	mtab := make([]*capnp.Client, ptab.Len())
@@ -1142,7 +1144,7 @@ func (c *Conn) recvPayload(payload rpccp.Payload) (_ capnp.Ptr, locals uintSet, 
 		mtab[i], local, err = c.recvCap(ptab.At(i))
 		if err != nil {
 			releaseList(mtab[:i]).release()
-			return capnp.Ptr{}, nil, annotate(err).errorf("read payload: capability %d", i)
+			return capnp.Ptr{}, nil, annotate(err, fmt.Sprintf("read payload: capability %d", i))
 		}
 		if local {
 			locals.add(uint(i))
@@ -1157,7 +1159,7 @@ func (c *Conn) handleRelease(ctx context.Context, id exportID, count uint32) err
 	client, err := c.releaseExport(id, count)
 	c.mu.Unlock()
 	if err != nil {
-		return annotate(err).errorf("incoming release")
+		return annotate(err, "incoming release")
 	}
 	client.Release() // no-ops for nil
 	return nil
@@ -1166,11 +1168,11 @@ func (c *Conn) handleRelease(ctx context.Context, id exportID, count uint32) err
 func (c *Conn) handleDisembargo(ctx context.Context, d rpccp.Disembargo) error {
 	dtarget, err := d.Target()
 	if err != nil {
-		return errorf("incoming disembargo: read target: %v", err)
+		return failedf("incoming disembargo: read target: %w", err)
 	}
 	var tgt parsedMessageTarget
 	if err := parseMessageTarget(&tgt, dtarget); err != nil {
-		return annotate(err).errorf("incoming disembargo")
+		return annotate(err, "incoming disembargo")
 	}
 
 	switch d.Context().Which() {
@@ -1180,7 +1182,7 @@ func (c *Conn) handleDisembargo(ctx context.Context, d rpccp.Disembargo) error {
 		e := c.findEmbargo(id)
 		if e == nil {
 			c.mu.Unlock()
-			return errorf("incoming disembargo: received sender loopback for unknown ID %d", id)
+			return failedf("incoming disembargo: received sender loopback for unknown ID %d", id)
 		}
 		// TODO(soon): verify target matches the right import.
 		c.embargoes[id] = nil
@@ -1191,35 +1193,35 @@ func (c *Conn) handleDisembargo(ctx context.Context, d rpccp.Disembargo) error {
 		c.mu.Lock()
 		if tgt.which != rpccp.MessageTarget_Which_promisedAnswer {
 			c.mu.Unlock()
-			return fail("incoming disembargo: sender loopback: target is not a promised answer")
+			return failedf("incoming disembargo: sender loopback: target is not a promised answer")
 		}
 		ans := c.answers[tgt.promisedAnswer]
 		if ans == nil {
 			c.mu.Unlock()
-			return errorf("incoming disembargo: unknown answer ID %d", tgt.promisedAnswer)
+			return failedf("incoming disembargo: unknown answer ID %d", tgt.promisedAnswer)
 		}
 		if ans.flags&returnSent == 0 {
 			c.mu.Unlock()
-			return errorf("incoming disembargo: answer ID %d has not sent return", tgt.promisedAnswer)
+			return failedf("incoming disembargo: answer ID %d has not sent return", tgt.promisedAnswer)
 		}
 		if ans.err != nil {
 			c.mu.Unlock()
-			return errorf("incoming disembargo: answer ID %d returned exception", tgt.promisedAnswer)
+			return failedf("incoming disembargo: answer ID %d returned exception", tgt.promisedAnswer)
 		}
 		content, err := ans.results.Content()
 		if err != nil {
 			c.mu.Unlock()
-			return errorf("incoming disembargo: read answer ID %d: %v", tgt.promisedAnswer, err)
+			return failedf("incoming disembargo: read answer ID %d: %v", tgt.promisedAnswer, err)
 		}
 		ptr, err := capnp.Transform(content, tgt.transform)
 		if err != nil {
 			c.mu.Unlock()
-			return errorf("incoming disembargo: read answer ID %d: %v", tgt.promisedAnswer, err)
+			return failedf("incoming disembargo: read answer ID %d: %v", tgt.promisedAnswer, err)
 		}
 		iface := ptr.Interface()
 		if !iface.IsValid() || int64(iface.Capability()) >= int64(len(ans.resultCapTable)) {
 			c.mu.Unlock()
-			return fail("incoming disembargo: sender loopback requested on a capability that is not an import")
+			return failedf("incoming disembargo: sender loopback requested on a capability that is not an import")
 		}
 		client := ans.resultCapTable[iface.Capability()].AddRef()
 		c.mu.Unlock()
@@ -1228,7 +1230,7 @@ func (c *Conn) handleDisembargo(ctx context.Context, d rpccp.Disembargo) error {
 		if !ok || imp.c != c {
 			c.mu.Unlock()
 			client.Release()
-			return fail("incoming disembargo: sender loopback requested on a capability that is not an import")
+			return failedf("incoming disembargo: sender loopback requested on a capability that is not an import")
 		}
 		// TODO(maybe): check generation?
 
@@ -1251,10 +1253,10 @@ func (c *Conn) handleDisembargo(ctx context.Context, d rpccp.Disembargo) error {
 		c.mu.Unlock()
 		client.Release()
 		if err != nil {
-			c.report(annotate(err).errorf("incoming disembargo: send receiver loopback"))
+			c.report(annotate(err, "incoming disembargo: send receiver loopback"))
 		}
 	default:
-		c.reportf("incoming disembargo: context %v not implemented", d.Context().Which())
+		c.report(failedf("incoming disembargo: context %v not implemented", d.Context().Which()))
 		c.mu.Lock()
 		err := c.sendMessage(ctx, func(msg rpccp.Message) error {
 			mm, err := msg.NewUnimplemented()
@@ -1268,21 +1270,21 @@ func (c *Conn) handleDisembargo(ctx context.Context, d rpccp.Disembargo) error {
 		})
 		c.mu.Unlock()
 		if err != nil {
-			c.report(annotate(err).errorf("incoming disembargo: send unimplemented"))
+			c.report(annotate(err, "incoming disembargo: send unimplemented"))
 		}
 	}
 	return nil
 }
 
 func (c *Conn) handleUnknownMessage(ctx context.Context, recv rpccp.Message) error {
-	c.reportf("unknown message type %v from remote", recv.Which())
+	c.report(failedf("unknown message type %v from remote", recv.Which()))
 	c.mu.Lock()
 	err := c.sendMessage(ctx, func(msg rpccp.Message) error {
 		return msg.SetUnimplemented(recv)
 	})
 	c.mu.Unlock()
 	if err != nil {
-		c.report(annotate(err).errorf("send unimplemented"))
+		c.report(annotate(err, "send unimplemented"))
 	}
 	return nil
 }
@@ -1315,20 +1317,20 @@ func (c *Conn) sendMessage(ctx context.Context, f func(msg rpccp.Message) error)
 	if err != nil {
 		c.mu.Lock()
 		c.unlockSender()
-		return errorf("create message: %v", err)
+		return failedf("create message: %w", err)
 	}
 	if err := f(msg); err != nil {
 		release()
 		c.mu.Lock()
 		c.unlockSender()
-		return errorf("build message: %v", err)
+		return failedf("build message: %w", err)
 	}
 	err = send()
 	release()
 	c.mu.Lock()
 	c.unlockSender()
 	if err != nil {
-		return errorf("send message: %v", err)
+		return failedf("send message: %w", err)
 	}
 	return nil
 }
@@ -1340,7 +1342,7 @@ func (c *Conn) tryLockSender(ctx context.Context) error {
 	for {
 		select {
 		case <-c.bgctx.Done():
-			return disconnected("connection closed")
+			return ExcClosed
 		default:
 		}
 		s := c.sendCond
@@ -1355,7 +1357,7 @@ func (c *Conn) tryLockSender(ctx context.Context) error {
 			return ctx.Err()
 		case <-c.bgctx.Done():
 			c.mu.Lock()
-			return disconnected("connection closed")
+			return ExcClosed
 		}
 		c.mu.Lock()
 	}
@@ -1393,43 +1395,7 @@ func (c *Conn) report(err error) {
 	c.reporter.ReportError(err)
 }
 
-// reportf formats an error and sends it to c's reporter.
-func (c *Conn) reportf(format string, args ...interface{}) {
-	if c.reporter == nil {
-		return
-	}
-	c.reporter.ReportError(errorf(format, args...))
-}
-
 func clearCapTable(msg *capnp.Message) {
 	releaseList(msg.CapTable).release()
 	msg.CapTable = nil
-}
-
-func fail(msg string) error {
-	return errors.New(errors.Failed, "rpc", msg)
-}
-
-func disconnected(msg string) error {
-	return errors.New(errors.Disconnected, "rpc", msg)
-}
-
-func errorf(format string, args ...interface{}) error {
-	return fail(fmt.Sprintf(format, args...))
-}
-
-func unimplementedf(format string, args ...interface{}) error {
-	return errors.New(errors.Unimplemented, "rpc", fmt.Sprintf(format, args...))
-}
-
-type annotater struct {
-	err error
-}
-
-func annotate(err error) annotater {
-	return annotater{err}
-}
-
-func (a annotater) errorf(format string, args ...interface{}) error {
-	return errors.Annotate("rpc", fmt.Sprintf(format, args...), a.err)
 }

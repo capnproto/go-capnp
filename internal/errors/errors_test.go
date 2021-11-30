@@ -3,9 +3,30 @@ package errors
 import (
 	"errors"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
+func TestUnwrap(t *testing.T) {
+	t.Parallel()
+
+	var (
+		errGeneric = errors.New("something went wrong")
+		err        = Annotate("annotated", "test", errGeneric)
+		exc        Error
+	)
+
+	assert.EqualError(t, errors.Unwrap(err), "test: something went wrong")
+	assert.ErrorIs(t, err, errGeneric)
+
+	assert.ErrorAs(t, err, &exc)
+	assert.Equal(t, "annotated", exc.Prefix)
+	assert.EqualError(t, exc.Cause, "test: something went wrong")
+}
+
 func TestErrorString(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		typ    Type
 		prefix string
@@ -17,14 +38,14 @@ func TestErrorString(t *testing.T) {
 		{Failed, "capnp", "goofed", "capnp: goofed"},
 	}
 	for _, test := range tests {
-		got := New(test.typ, test.prefix, test.msg).Error()
-		if got != test.want {
-			t.Errorf("New(%#v, %q, %q).Error() = %q; want %q", test.typ, test.prefix, test.msg, got, test.want)
-		}
+		err := New(test.typ, test.prefix, test.msg)
+		assert.EqualError(t, err, test.want)
 	}
 }
 
 func TestTypeOf(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		err  error
 		want Type
@@ -37,13 +58,13 @@ func TestTypeOf(t *testing.T) {
 		{New(Unimplemented, "capnp", "unimplemented error"), Unimplemented},
 	}
 	for _, test := range tests {
-		if got := TypeOf(test.err); got != test.want {
-			t.Errorf("TypeOf(%#v) = %#v; want %#v", test.err, got, test.want)
-		}
+		assert.Equal(t, test.want, TypeOf(test.err))
 	}
 }
 
 func TestAnnotate(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		prefix string
 		msg    string
@@ -112,13 +133,8 @@ func TestAnnotate(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		got := Annotate(test.prefix, test.msg, test.err)
-		if got.Error() != test.want {
-			t.Errorf("Annotate(%q, %q, %#v).Error() = %q; %q", test.prefix, test.msg, test.err, got.Error(), test.want)
-		}
-		gotType := TypeOf(got)
-		if gotType != test.wantType {
-			t.Errorf("TypeOf(Annotate(%q, %q, %#v)) = %#v; %#v", test.prefix, test.msg, test.err, gotType, test.wantType)
-		}
+		err := Annotate(test.prefix, test.msg, test.err)
+		assert.EqualError(t, err, test.want)
+		assert.Equal(t, test.wantType, TypeOf(err))
 	}
 }

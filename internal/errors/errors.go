@@ -1,30 +1,51 @@
 // Package errors provides errors with codes and prefixes.
 package errors
 
-import "strconv"
+import (
+	"errors"
+	"fmt"
+	"strconv"
+)
 
-// capnpError holds a Cap'n Proto exception.
-type capnpError struct {
-	typ    Type
-	prefix string
-	msg    string
+// Error holds a Cap'n Proto exception.
+type Error struct {
+	Type   Type
+	Prefix string
+	Cause  error
 }
 
 // New creates a new error that formats as "<prefix>: <msg>".
 // The type can be recovered using the TypeOf() function.
-func New(typ Type, prefix, msg string) error {
-	return &capnpError{typ, prefix, msg}
+func New(typ Type, prefix, msg string) Error {
+	return Error{typ, prefix, errors.New(msg)}
 }
 
-func (e *capnpError) Error() string {
-	if e.prefix == "" {
-		return e.msg
+func (e Error) Error() string {
+	if e.Prefix == "" {
+		return e.Cause.Error()
 	}
-	return e.prefix + ": " + e.msg
+
+	return fmt.Sprintf("%s: %v", e.Prefix, e.Cause)
 }
 
-func (e *capnpError) GoString() string {
-	return "errors.New(" + e.typ.GoString() + ", " + strconv.Quote(e.prefix) + ", " + strconv.Quote(e.msg) + ")"
+func (e Error) Unwrap() error { return e.Cause }
+
+func (e Error) GoString() string {
+	return fmt.Sprintf("errors.Error{Type: %s, Prefix: %q, Cause: fmt.Errorf(%q)}",
+		e.Type.GoString(),
+		e.Prefix,
+		e.Cause)
+}
+
+// Annotate is creates a new error that formats as "<prefix>: <msg>: <e>".
+// If e.Prefix == prefix, the prefix will not be duplicated.
+// The returned Error.Type == e.Type.
+func (e Error) Annotate(prefix, msg string) Error {
+	if prefix != e.Prefix {
+		return Error{e.Type, prefix, fmt.Errorf("%s: %w", msg, e)}
+	}
+
+	return Error{e.Type, prefix, fmt.Errorf("%s: %w", msg, e.Cause)}
 }
 
 // Annotate creates a new error that formats as "<prefix>: <msg>: <err>".
@@ -32,26 +53,24 @@ func (e *capnpError) GoString() string {
 // The returned error's type will match err's type.
 func Annotate(prefix, msg string, err error) error {
 	if err == nil {
-		panic("Annotate on nil error")
+		panic("Annotate on nil error") // TODO:  return nil?
 	}
-	ce, ok := err.(*capnpError)
-	if !ok {
-		return &capnpError{Failed, prefix, msg + ": " + err.Error()}
+
+	if ce, ok := err.(Error); ok {
+		return ce.Annotate(prefix, msg)
 	}
-	if prefix != ce.prefix {
-		return &capnpError{ce.typ, prefix, msg + ": " + err.Error()}
-	}
-	return &capnpError{ce.typ, prefix, msg + ": " + ce.msg}
+
+	return Error{Failed, prefix, fmt.Errorf("%s: %w", msg, err)}
 }
 
 // TypeOf returns err's type if err was created by this package or
 // Failed if it was not.
 func TypeOf(err error) Type {
-	ce, ok := err.(*capnpError)
+	ce, ok := err.(Error)
 	if !ok {
 		return Failed
 	}
-	return ce.typ
+	return ce.Type
 }
 
 // Type indicates the type of error, mirroring those in rpc.capnp.
