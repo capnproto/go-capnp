@@ -28,20 +28,14 @@ $ go get capnproto.org/go/capnp/v3
 
 #### To compile Cap'n Proto schema files to Go
 
-To additional steps are needed to compile `.capnp` files to Go:
+Two additional steps are needed to compile `.capnp` files to Go:
 
-1. Install the [`capnp` tool](https://capnproto.org/capnp-tool.html)
-2. Place this repository on your `$GOPATH`, so that the `capnp` tool can find it.
-
-The simplest way to complete step 2 is ensure your `GOPATH` has been set, and to run `GO111MODULE=off go get -u capnproto.org/go/capnp/v3/`.  This will disable modules for the duration of the `go get` command, and clone the present repository in the appropriate location.
-
-If this feels too magical, or fails for some mysterious reason, the same result can be achieved manually:
-
-```bash
-$ mkdir -p $GOPATH/src/capnproto.org/go
-$ cd $GOPATH/src/capnproto.org/go
-$ git clone capnproto.org/go/capnp
-```
+1. [Install the Cap'n Proto tools](https://capnproto.org/install.html).
+2. Install the Go language bindings by running:
+  ```bash
+  go install capnproto.org/go/capnp/v3/capnpc-go@latest  # install go compiler plugin
+  GO111MODULE=off go get -u capnproto.org/go/capnp/v3/  # install go-capnproto to $GOPATH
+  ```
 
 To learn how to compile a simple schema, [click here](https://github.com/capnproto/go-capnproto2/wiki/Getting-Started#compiling-schema-files).
 
