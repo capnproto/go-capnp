@@ -98,6 +98,27 @@ func NewMessage(arena Arena) (msg *Message, first *Segment, err error) {
 	return msg, first, nil
 }
 
+// NewSingleSegmentMessage(b) is equivalent to NewMessage(SingleSegment(b)), except
+// that it panics instead of returning an error. This can only happen if the passed
+// slice contains data, so the caller is responsible for ensuring that it has a length
+// of zero.
+func NewSingleSegmentMessage(b []byte) (msg *Message, first *Segment) {
+	msg, first, err := NewMessage(SingleSegment(b))
+	if err != nil {
+		panic(err)
+	}
+	return msg, first
+}
+
+// Analagous to NewSingleSegmentMessage, but using MutliSegment.
+func NewMultiSegmentMessage(b [][]byte) (msg *Message, first *Segment) {
+	msg, first, err := NewMessage(MultiSegment(b))
+	if err != nil {
+		panic(err)
+	}
+	return msg, first
+}
+
 // Reset resets a message to use a different arena, allowing a single
 // Message to be reused for reading multiple messages.  This invalidates
 // any existing pointers in the Message, so use with caution.  All
