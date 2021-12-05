@@ -32,7 +32,7 @@ func (e *capnpError) GoString() string {
 // The returned error's type will match err's type.
 func Annotate(prefix, msg string, err error) error {
 	if err == nil {
-		panic("Annotate on nil error")
+		return nil
 	}
 	ce, ok := err.(*capnpError)
 	if !ok {

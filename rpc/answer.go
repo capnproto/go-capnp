@@ -181,7 +181,7 @@ func (ans *answer) Return(e error) {
 		default:
 			ans.c.tasks.Done() // added by handleCall
 			if err := ans.c.shutdown(err); err != nil {
-				ans.c.report(err)
+				ans.c.er.ReportError(err)
 			}
 			// shutdown released c.mu
 			rl.release()
@@ -210,7 +210,7 @@ func (ans *answer) sendReturn(cstates []capnp.ClientState) (releaseList, error) 
 	var err error
 	ans.exportRefs, err = ans.c.fillPayloadCapTable(ans.results, ans.resultCapTable, cstates)
 	if err != nil {
-		ans.c.report(annotate(err).errorf("send return"))
+		ans.c.er.annotatef(err, "send return")
 		// Continue.  Don't fail to send return if cap table isn't fully filled.
 	}
 
@@ -220,7 +220,7 @@ func (ans *answer) sendReturn(cstates []capnp.ClientState) (releaseList, error) 
 		fin := ans.flags&finishReceived != 0
 		ans.c.mu.Unlock()
 		if err := ans.sendMsg(); err != nil {
-			ans.c.reportf("send return: %v", err)
+			ans.c.er.reportf("send return: %v", err)
 		}
 		if fin {
 			ans.releaseMsg()
@@ -258,13 +258,13 @@ func (ans *answer) sendException(e error) releaseList {
 		fin := ans.flags&finishReceived != 0
 		ans.c.mu.Unlock()
 		if exc, err := ans.ret.NewException(); err != nil {
-			ans.c.reportf("send exception: %v", err)
+			ans.c.er.reportf("send exception: %v", err)
 		} else {
 			exc.SetType(rpccp.Exception_Type(errors.TypeOf(e)))
 			if err := exc.SetReason(e.Error()); err != nil {
-				ans.c.reportf("send exception: %v", err)
+				ans.c.er.reportf("send exception: %v", err)
 			} else if err := ans.sendMsg(); err != nil {
-				ans.c.reportf("send return: %v", err)
+				ans.c.er.reportf("send return: %v", err)
 			}
 		}
 		if fin {

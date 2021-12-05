@@ -6,12 +6,10 @@ import (
 	"sync"
 	"testing"
 
-	"context"
-
 	"capnproto.org/go/capnp/v3"
 	air "capnproto.org/go/capnp/v3/internal/aircraftlib"
 	"capnproto.org/go/capnp/v3/server"
-	"github.com/stretchr/testify/assert"
+	"context"
 )
 
 type echoImpl struct{}
@@ -105,6 +103,25 @@ func (seq *callSeq) GetNumber(ctx context.Context, call air.CallSequence_getNumb
 	return nil
 }
 
+type lockCallSeq struct {
+	n  uint32
+	mu sync.Mutex
+}
+
+func (seq *lockCallSeq) GetNumber(ctx context.Context, call air.CallSequence_getNumber) error {
+	seq.mu.Lock()
+	defer seq.mu.Unlock()
+	call.Ack()
+
+	r, err := call.AllocResults()
+	if err != nil {
+		return err
+	}
+	r.SetN(seq.n)
+	seq.n++
+	return nil
+}
+
 func TestServerCallOrder(t *testing.T) {
 	tests := []struct {
 		name string
@@ -150,36 +167,30 @@ func TestServerCallOrder(t *testing.T) {
 }
 
 func TestServerMaxConcurrentCalls(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	wait := make(chan struct{})
 	echo := air.Echo_ServerToClient(blockingEchoImpl{wait}, &server.Policy{
 		MaxConcurrentCalls: 2,
 	})
 	defer echo.Client.Release()
-
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	call1, finish := echo.Echo(ctx, nil)
 	defer finish()
-
 	call2, finish := echo.Echo(ctx, nil)
 	defer finish()
-
 	go close(wait)
-
 	call3, finish := echo.Echo(ctx, nil)
 	defer finish()
-
 	<-wait
-
-	_, err := call1.Struct()
-	assert.NoError(t, err, "call1 should succeed")
-
-	_, err = call2.Struct()
-	assert.NoError(t, err, "call2 should succeed")
-
-	_, err = call3.Struct()
-	assert.Error(t, err, "call3 should fail")
+	if _, err := call1.Struct(); err != nil {
+		t.Error("Echo #1:", err)
+	}
+	if _, err := call2.Struct(); err != nil {
+		t.Error("Echo #2:", err)
+	}
+	if _, err := call3.Struct(); err != nil {
+		t.Error("Echo #3:", err)
+	}
 }
 
 func TestServerShutdown(t *testing.T) {

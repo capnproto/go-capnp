@@ -255,30 +255,29 @@ func (ic *importClient) Brand() capnp.Brand {
 
 func (ic *importClient) Shutdown() {
 	ic.c.mu.Lock()
+	defer ic.c.mu.Unlock()
+
 	if !ic.c.startTask() {
-		ic.c.mu.Unlock()
 		return
 	}
 	defer ic.c.tasks.Done()
+
 	ent := ic.c.imports[ic.id]
 	if ic.generation != ent.generation {
 		// A new reference was added concurrently with the Shutdown.  See
 		// impent.generation documentation for an explanation.
-		ic.c.mu.Unlock()
 		return
 	}
+
 	delete(ic.c.imports, ic.id)
-	err := ic.c.sendMessage(context.Background(), func(msg rpccp.Message) error {
-		rel, err := msg.NewRelease()
-		if err != nil {
+
+	ic.c.sendq.SendAsync(context.Background(),
+		prepFunc(func(m rpccp.Message) error {
+			rel, err := m.NewRelease()
+			if err == nil {
+				rel.SetId(uint32(ic.id))
+				rel.SetReferenceCount(uint32(ent.wireRefs))
+			}
 			return err
-		}
-		rel.SetId(uint32(ic.id))
-		rel.SetReferenceCount(uint32(ent.wireRefs))
-		return nil
-	})
-	ic.c.mu.Unlock()
-	if err != nil {
-		ic.c.report(annotate(err).errorf("send release"))
-	}
+		}), ic.c.er.annotater("send releases"))
 }

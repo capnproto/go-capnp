@@ -75,39 +75,44 @@ func (q *question) handleCancel(ctx context.Context) {
 	}
 
 	q.c.mu.Lock()
+	defer q.c.mu.Unlock()
+
+	// Promise already fulfilled?
 	if q.flags&finished != 0 {
-		// Promise already fulfilled.
-		q.c.mu.Unlock()
 		return
 	}
+
 	q.flags |= finished
 	q.release = func() {}
-	err := q.c.sendMessage(q.c.bgctx, func(msg rpccp.Message) error {
-		fin, err := msg.NewFinish()
-		if err != nil {
-			return err
+	q.c.sendq.SendAsync(q.c.bgctx, prepFunc(func(m rpccp.Message) error {
+		fin, err := m.NewFinish()
+		if err == nil {
+			fin.SetQuestionId(uint32(q.id))
+			fin.SetReleaseResultCaps(true)
 		}
-		fin.SetQuestionId(uint32(q.id))
-		fin.SetReleaseResultCaps(true)
-		return nil
-	})
-	if err == nil {
-		q.flags |= finishSent
-	} else {
-		select {
-		case <-q.c.bgctx.Done():
-		default:
-			q.c.report(annotate(err).errorf("send finish"))
-		}
-	}
-	close(q.finishMsgSend)
-	q.c.mu.Unlock()
+		return err
+	}), errorReporterFunc(func(err error) {
+		q.c.mu.Lock()
+		defer q.c.mu.Unlock()
 
-	q.p.Reject(rejectErr)
-	if q.bootstrapPromise != nil {
-		q.bootstrapPromise.Fulfill(q.p.Answer().Client())
-		q.p.ReleaseClients()
-	}
+		if err == nil {
+			q.flags |= finishSent
+		} else {
+			select {
+			case <-q.c.bgctx.Done():
+			default:
+				q.c.er.annotatef(err, "send finish")
+			}
+		}
+		close(q.finishMsgSend)
+		q.c.mu.Unlock()
+
+		q.p.Reject(rejectErr)
+		if q.bootstrapPromise != nil {
+			q.bootstrapPromise.Fulfill(q.p.Answer().Client())
+			q.p.ReleaseClients()
+		}
+	}))
 }
 
 func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineOp, s capnp.Send) (*capnp.Answer, capnp.ReleaseFunc) {

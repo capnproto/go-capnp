@@ -103,6 +103,10 @@ type Server struct {
 	// call.  It is closed when the acknowledgement is received.
 	starting <-chan struct{}
 
+	// full is non-nil if a start() is waiting for a space in ongoing to
+	// free up.  It is closed and set to nil when the next call returns.
+	full chan<- struct{}
+
 	// drain is non-nil when Shutdown starts and is closed by the last
 	// call to return.
 	drain chan struct{}
@@ -119,15 +123,14 @@ type cstate struct {
 type Policy struct {
 	// MaxConcurrentCalls is the maximum number of methods allowed to be
 	// executing on a single Server simultaneously.  Attempts to make more
-	// calls than this limit will result in immediate error answers.
+	// calls than this limit will block.
 	//
 	// If this is zero, then a reasonably small default is used.
 	MaxConcurrentCalls int
 
 	// AnswerQueueSize is the maximum number of methods allowed to be
 	// enqueued on a single returned Answer while it is unresolved.
-	// Attempts to enqueue more calls than this limit will result in
-	// immediate error answers.
+	// Attempts to enqueue more calls than this limit will block.
 	//
 	// If this is zero, then a reasonably small default is used.
 	AnswerQueueSize int
@@ -221,17 +224,29 @@ func (srv *Server) start(ctx context.Context, m *Method, r capnp.Recv) capnp.Pip
 	// Acquire an ID (semaphore).
 	id := srv.nextID()
 	if id == -1 {
-		defer srv.mu.Unlock()
-
-		err := errors.New(errors.Overloaded, "capnp server", "max concurrent calls exceeded")
+		full := make(chan struct{})
+		srv.full = full
+		srv.mu.Unlock()
+		select {
+		case <-full:
+		case <-ctx.Done():
+			srv.mu.Lock()
+			srv.starting = nil
+			close(starting)
+			srv.full = nil // full could be nil or non-nil, ensure it is nil.
+			srv.mu.Unlock()
+			r.Reject(ctx.Err())
+			return nil
+		}
+		srv.mu.Lock()
+		id = srv.nextID()
 		if srv.drain != nil {
 			srv.starting = nil
 			close(starting)
-			err = errors.New(errors.Failed, "capnp server", "call after shutdown")
+			srv.mu.Unlock()
+			r.Reject(errors.New(errors.Failed, "capnp server", "call after shutdown"))
+			return nil
 		}
-
-		r.Reject(err)
-		return nil
 	}
 
 	// Bookkeeping: set starting to indicate we're waiting for an ack and
@@ -254,15 +269,17 @@ func (srv *Server) start(ctx context.Context, m *Method, r capnp.Recv) capnp.Pip
 			aq.reject(err)
 			r.Returner.Return(err)
 		}
-
 		srv.mu.Lock()
 		srv.ongoing[id].cancel()
 		srv.ongoing[id] = cstate{}
 		if srv.drain != nil && !srv.hasOngoing() {
 			close(srv.drain)
 		}
+		if srv.full != nil {
+			close(srv.full)
+			srv.full = nil
+		}
 		srv.mu.Unlock()
-
 		close(done)
 	}()
 	var pcall capnp.PipelineCaller

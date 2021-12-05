@@ -3,6 +3,8 @@ package errors
 import (
 	"errors"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestErrorString(t *testing.T) {
@@ -52,6 +54,11 @@ func TestAnnotate(t *testing.T) {
 		want     string
 		wantType Type
 	}{
+		{
+			prefix: "prefix",
+			msg:    "context",
+			err:    nil,
+		},
 		{
 			msg:      "context",
 			err:      errors.New("goofed"),
@@ -113,6 +120,11 @@ func TestAnnotate(t *testing.T) {
 	}
 	for _, test := range tests {
 		got := Annotate(test.prefix, test.msg, test.err)
+		if test.err == nil {
+			assert.Nil(t, got)
+			continue
+		}
+
 		if got.Error() != test.want {
 			t.Errorf("Annotate(%q, %q, %#v).Error() = %q; %q", test.prefix, test.msg, test.err, got.Error(), test.want)
 		}
