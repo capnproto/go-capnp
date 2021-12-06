@@ -50,10 +50,10 @@ type Promise struct {
 	// join state.
 	joined chan struct{}
 
-	// signals is the set of resolved channels to close on resolution.
-	// Has at least one element if the promise is unresolved or pending,
-	// nil if resolved or joined.
-	signals []chan<- struct{}
+	// signals is a list of callbacks to invoke on resolution. Has at least
+	// one element if the promise is unresolved or pending, nil if resolved
+	// or joined.
+	signals []func()
 
 	// caller is the hook to make pipelined calls with.  Set to nil once
 	// the promise leaves the unresolved state.
@@ -104,7 +104,7 @@ func NewPromise(m Method, pc PipelineCaller) *Promise {
 	p := &Promise{
 		method:      m,
 		resolved:    resolved,
-		signals:     []chan<- struct{}{resolved},
+		signals:     []func(){func() { close(resolved) }},
 		caller:      pc,
 		clientsRefs: 1,
 	}
@@ -216,8 +216,8 @@ func (p *Promise) resolve(r Ptr, e error) {
 	}
 	p.callsStopped = nil
 	p.result, p.err = r, e
-	for _, ch := range p.signals {
-		close(ch)
+	for _, f := range p.signals {
+		f()
 	}
 	p.signals = nil
 }
