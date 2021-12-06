@@ -92,9 +92,6 @@ func (q *question) handleCancel(ctx context.Context) {
 		}
 		return err
 	}), errorReporterFunc(func(err error) {
-		q.c.mu.Lock()
-		defer q.c.mu.Unlock()
-
 		if err == nil {
 			q.flags |= finishSent
 		} else {
