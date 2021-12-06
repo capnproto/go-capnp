@@ -92,6 +92,7 @@ func (q *question) handleCancel(ctx context.Context) {
 		}
 		return err
 	}), errorReporterFunc(func(err error) {
+		// q.c.mu will be held by c.sendMessage when callback is invoked
 		if err == nil {
 			q.flags |= finishSent
 		} else {
