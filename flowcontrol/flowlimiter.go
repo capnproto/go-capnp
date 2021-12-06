@@ -11,6 +11,16 @@ type FlowLimiter interface {
 	StartMessage(ctx context.Context, size uint64) (gotResponse func(), err error)
 }
 
+var (
+	NopLimiter FlowLimiter = nopLimiter{}
+)
+
+type nopLimiter struct{}
+
+func (nopLimiter) StartMessage(context.Context, uint64) (func(), error) {
+	return func() {}, nil
+}
+
 func NewFixedLimiter(size uint64) FlowLimiter {
 	return &fixedLimiter{
 		total: size,
