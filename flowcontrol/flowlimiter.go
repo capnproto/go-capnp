@@ -1,3 +1,16 @@
+// Package flowcontrol provides support code for per-object flow control.
+//
+// This is most important for dealing with streaming interfaces; see
+// https://capnproto.org/news/2020-04-23-capnproto-0.8.html#multi-stream-flow-control
+// for a description of the general problem.
+//
+// The Go implementation's approach differs from that of the C++ implementation in that
+// we don't treat the `stream` annotation specially; we instead do flow control on all
+// objects. Calls to methods will transparently block for the appropriate amount of
+// time, so it is safe to simply call rpc methods in a loop.
+//
+// To change the default flow control policy on a Client, call Client.SetFlowLimiter
+// with the desired FlowLimiter.
 package flowcontrol
 
 import (
@@ -7,11 +20,20 @@ import (
 	"capnproto.org/go/capnp/v3/internal/chanmutex"
 )
 
+// A `FlowLimiter` is used to manage flow control for a stream of messages.
 type FlowLimiter interface {
+	// StartMessage informs the flow limiter than the caller wants to
+	// send a message of the specified size. It blocks until an appropriate
+	// time to do so, or until the context is canceled. If the returned
+	// error is nil, the caller should then proceed in sending the message
+	// immediately, and it should arrange to call gotResponse() as soon as
+	// a response is received.
 	StartMessage(ctx context.Context, size uint64) (gotResponse func(), err error)
 }
 
 var (
+	// A flow limiter which does not actually limit anything; messages will be
+	// sent as fast as possible.
 	NopLimiter FlowLimiter = nopLimiter{}
 )
 
@@ -21,6 +43,8 @@ func (nopLimiter) StartMessage(context.Context, uint64) (func(), error) {
 	return func() {}, nil
 }
 
+// Returns a FlowLimiter that enforces a fixed limit on the total size of
+// outstanding messages.
 func NewFixedLimiter(size uint64) FlowLimiter {
 	return &fixedLimiter{
 		total: size,
