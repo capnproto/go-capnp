@@ -586,7 +586,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 	}
 	c.answers[id] = ans
 	if parseErr != nil {
-		parseErr = annotate(err, "incoming call")
+		parseErr = annotate(parseErr, "incoming call")
 		rl := ans.sendException(parseErr)
 		c.unlockSender()
 		c.mu.Unlock()
