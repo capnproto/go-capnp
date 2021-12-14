@@ -79,6 +79,7 @@ func (fl *fixedLimiter) StartMessage(ctx context.Context, size uint64) (gotRespo
 func (fl *fixedLimiter) pumpQueue() {
 	next := fl.pending.peek()
 	for next != nil && next.size <= fl.avail {
+		fl.avail -= next.size
 		fl.pending.get() // actually de-queue it.
 		next.ready <- struct{}{}
 		next = fl.pending.peek()
