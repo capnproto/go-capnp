@@ -6,6 +6,8 @@ import (
 	"runtime"
 	"strconv"
 	"sync"
+
+	"capnproto.org/go/capnp/v3/flowcontrol"
 )
 
 // An Interface is a reference to a client in a message's capability table.
@@ -92,6 +94,8 @@ type Client struct {
 	creatorFunc int
 	creatorFile string
 	creatorLine int
+
+	limiter flowcontrol.FlowLimiter
 
 	mu       sync.Mutex  // protects the struct
 	h        *clientHook // nil if resolved to nil or released
@@ -252,7 +256,50 @@ func (c *Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 	if h == nil {
 		return ErrorAnswer(s.Method, newError("call on null client")), func() {}
 	}
-	return h.Send(ctx, s)
+
+	limiter := c.limiter
+	if limiter == nil {
+		limiter = flowcontrol.NopLimiter
+	}
+	var gotResponse func()
+
+	// We need to call PlaceArgs before we will know the size of message for
+	// flow control purposes, so wrap it in a function that measures after the
+	// arguments have been placed:
+	placeArgs := s.PlaceArgs
+	s.PlaceArgs = func(args Struct) error {
+		var err error
+		if placeArgs != nil {
+			err = placeArgs(args)
+			if err != nil {
+				return err
+			}
+		}
+
+		var size uint64
+		size, err = args.Segment().Message().TotalSize()
+		if err != nil {
+			return err
+		}
+
+		gotResponse, err = limiter.StartMessage(ctx, size)
+		return err
+	}
+
+	ans, err := h.Send(ctx, s)
+	if err == nil {
+		p := ans.f.promise
+		p.mu.Lock()
+		if p.isResolved() {
+			// Wow, that was fast.
+			p.mu.Unlock()
+			gotResponse()
+		} else {
+			p.signals = append(p.signals, gotResponse)
+			p.mu.Unlock()
+		}
+	}
+	return ans, err
 }
 
 // RecvCall starts executing a method with the referenced arguments
