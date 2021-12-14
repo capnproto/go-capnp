@@ -35,7 +35,7 @@ type Promise struct {
 	//	  other promise to transition out of the pending join state.  Next
 	//	  state is joined or resolved, since the other promise could be
 	//	  resolved while this promise is in this state.
-	//  - Joined.  Join has finished.
+	//	- Joined.  Join has finished.
 
 	// mu protects the fields below.  When acquiring multiple Promise.mu
 	// mutexes, they must be acquired in traversal order (i.e. p, then
