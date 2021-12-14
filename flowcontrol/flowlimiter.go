@@ -28,6 +28,8 @@ type FlowLimiter interface {
 	// error is nil, the caller should then proceed in sending the message
 	// immediately, and it should arrange to call gotResponse() as soon as
 	// a response is received.
+	//
+	// StartMessage must be safe to call from multiple goroutines.
 	StartMessage(ctx context.Context, size uint64) (gotResponse func(), err error)
 }
 
