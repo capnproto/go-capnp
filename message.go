@@ -210,6 +210,22 @@ func (m *Message) AddCap(c *Client) CapabilityID {
 	return n
 }
 
+// Compute the total size of the message in bytes, when serialized as
+// a stream. This is the same as the length of the slice returned by
+// m.Marshal()
+func (m *Message) TotalSize() (uint64, error) {
+	nsegs := uint64(m.NumSegments())
+	totalSize := (nsegs/2 + 1) * 8
+	for i := uint64(0); i < nsegs; i++ {
+		seg, err := m.Segment(SegmentID(i))
+		if err != nil {
+			return 0, err
+		}
+		totalSize += uint64(len(seg.Data()))
+	}
+	return totalSize, nil
+}
+
 func (m *Message) depthLimit() uint {
 	if m.DepthLimit != 0 {
 		return m.DepthLimit
