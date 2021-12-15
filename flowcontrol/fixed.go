@@ -45,7 +45,7 @@ func (fl *fixedLimiter) pumpQueue() {
 	for next != nil && next.size <= fl.avail {
 		fl.avail -= next.size
 		fl.pending.next() // remove it from the queue
-		next.ready <- struct{}{}
+		next.ready.Unlock()
 		next = fl.pending.peek()
 	}
 }
