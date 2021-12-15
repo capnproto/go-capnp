@@ -268,6 +268,9 @@ func (c *Client) SetFlowLimiter(lim flowcontrol.FlowLimiter) {
 // the parameters, then starts executing a method, returning an answer
 // that will hold the result.  The caller must call the returned release
 // function when it no longer needs the answer's data.
+//
+// This method respects the flow control policy configured with SetFlowLimiter;
+// it may block if the sender is sending too fast.
 func (c *Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 	h, _, released, finish := c.startCall()
 	defer finish()
@@ -325,6 +328,9 @@ func (c *Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 // a.Release when it no longer needs to reference the parameters.  The
 // caller must call the returned release function when it no longer
 // needs the answer's data.
+//
+// Note that unlike SendCall, this method does *not* respect the flow
+// control policy configured with SetFlowLimiter.
 func (c *Client) RecvCall(ctx context.Context, r Recv) PipelineCaller {
 	h, _, released, finish := c.startCall()
 	defer finish()
