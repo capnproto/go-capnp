@@ -95,9 +95,8 @@ type Client struct {
 	creatorFile string
 	creatorLine int
 
-	limiter flowcontrol.FlowLimiter
-
-	mu       sync.Mutex  // protects the struct
+	mu       sync.Mutex // protects the struct
+	limiter  flowcontrol.FlowLimiter
 	h        *clientHook // nil if resolved to nil or released
 	released bool
 }
@@ -243,6 +242,28 @@ func resolveHook(h *clientHook) *clientHook {
 	}
 }
 
+// Get the current flowcontrol.FlowLimiter used to manage flow control
+// for this client.
+func (c *Client) GetFlowLimiter() flowcontrol.FlowLimiter {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	ret := c.limiter
+	if ret == nil {
+		ret = flowcontrol.NopLimiter
+	}
+	return ret
+}
+
+// Update the flowcontrol.FlowLimiter used to manage flow control for
+// this client. This affects all future calls, but not calls already
+// waiting to send. Passing nil sets the value to flowcontrol.NopLimiter,
+// which is also the default.
+func (c *Client) SetFlowLimiter(lim flowcontrol.FlowLimiter) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.limiter = lim
+}
+
 // SendCall allocates space for parameters, calls args.Place to fill out
 // the parameters, then starts executing a method, returning an answer
 // that will hold the result.  The caller must call the returned release
@@ -257,10 +278,7 @@ func (c *Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 		return ErrorAnswer(s.Method, newError("call on null client")), func() {}
 	}
 
-	limiter := c.limiter
-	if limiter == nil {
-		limiter = flowcontrol.NopLimiter
-	}
+	limiter := c.GetFlowLimiter()
 	var gotResponse func()
 
 	// We need to call PlaceArgs before we will know the size of message for
