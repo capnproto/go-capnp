@@ -94,7 +94,7 @@ func (q *requestQueue) next() {
 // which will be unlocked when it is appropriate to send.
 func (q *requestQueue) put(size uint64) chanmutex.Mutex {
 	req := &request{
-		ready: chanmutex.NewUnlocked(),
+		ready: chanmutex.NewLocked(),
 		size:  size,
 		next:  nil,
 	}
