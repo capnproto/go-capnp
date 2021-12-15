@@ -7,6 +7,7 @@ import (
 	text "capnproto.org/go/capnp/v3/encoding/text"
 	schemas "capnproto.org/go/capnp/v3/schemas"
 	server "capnproto.org/go/capnp/v3/server"
+	stream "capnproto.org/go/capnp/v3/std/capnp/stream"
 	context "context"
 )
 
@@ -224,26 +225,192 @@ func (p PingPong_echoNum_Results_Future) Struct() (PingPong_echoNum_Results, err
 	return PingPong_echoNum_Results{s}, err
 }
 
-const schema_ef12a34b9807e19c = "x\xda\x12\xe8u`1\xe4\xcdgb`\x0a\x94ae" +
-	"\xfb\xa7\xa6z{\xda\xdf\xbb\xad\x81\"\x8c\x8c\x0c\x0c," +
-	"\xec\x0c\x0c\xc6\xb2\x8cJ\x8c\x0c\x8c\xc2\xaa\x8c\xf6\x0c\x8c" +
-	"\xff\x159\xef\xcf[\xf9`\xfau\x06$\x05\xae\x8cR" +
-	" \x05\xbe`\x05U\xef~\x1c*9\xc2\xf2\x81A\x90" +
-	"\x9b\xf9\xff\x9c\x87\xec3\xbc\x17\x0b\xbdg``\x14\xce" +
-	"e\\$\\\xca\xc8\xce\xc0 \\\xc8\xe8.<\x93\x91" +
-	"\x9dA\xe7\x7fIjq\x89^rb\x01s^\x81U" +
-	"@f^z@~^\xba^jrF\xbe_i\xae" +
-	"JPjq){NIq \x0b3\x0b\x03\x03\x0b" +
-	"#\x03\x83 \xaf\x10\x03C \x073c\xa0\x08\x13#" +
-	"c\x1e#+\x03\x13#+\x03#~c\x02\x12\x8b\x12" +
-	"\x99sI0\x85\x11f\x0a{~^z\x00#c " +
-	"\x0b3+\x03\x03\xdc\xe7\x8c\x0c\xd0 \x12\x14tb`" +
-	"\x12de\xaf\x87\xda\xe4\xc0\x18\xc0\xc8\x08\x08\x00\x00\xff" +
-	"\xffK U\xd4"
+type StreamTest struct{ Client *capnp.Client }
+
+// StreamTest_TypeID is the unique identifier for the type StreamTest.
+const StreamTest_TypeID = 0xbb3ca85b01eea465
+
+func (c StreamTest) Push(ctx context.Context, params func(StreamTest_push_Params) error) (stream.StreamResult_Future, capnp.ReleaseFunc) {
+	s := capnp.Send{
+		Method: capnp.Method{
+			InterfaceID:   0xbb3ca85b01eea465,
+			MethodID:      0,
+			InterfaceName: "test.capnp:StreamTest",
+			MethodName:    "push",
+		},
+	}
+	if params != nil {
+		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 1}
+		s.PlaceArgs = func(s capnp.Struct) error { return params(StreamTest_push_Params{Struct: s}) }
+	}
+	ans, release := c.Client.SendCall(ctx, s)
+	return stream.StreamResult_Future{Future: ans.Future()}, release
+}
+
+func (c StreamTest) AddRef() StreamTest {
+	return StreamTest{
+		Client: c.Client.AddRef(),
+	}
+}
+
+func (c StreamTest) Release() {
+	c.Client.Release()
+}
+
+// A StreamTest_Server is a StreamTest with a local implementation.
+type StreamTest_Server interface {
+	Push(context.Context, StreamTest_push) error
+}
+
+// StreamTest_NewServer creates a new Server from an implementation of StreamTest_Server.
+func StreamTest_NewServer(s StreamTest_Server, policy *server.Policy) *server.Server {
+	c, _ := s.(server.Shutdowner)
+	return server.New(StreamTest_Methods(nil, s), s, c, policy)
+}
+
+// StreamTest_ServerToClient creates a new Client from an implementation of StreamTest_Server.
+// The caller is responsible for calling Release on the returned Client.
+func StreamTest_ServerToClient(s StreamTest_Server, policy *server.Policy) StreamTest {
+	return StreamTest{Client: capnp.NewClient(StreamTest_NewServer(s, policy))}
+}
+
+// StreamTest_Methods appends Methods to a slice that invoke the methods on s.
+// This can be used to create a more complicated Server.
+func StreamTest_Methods(methods []server.Method, s StreamTest_Server) []server.Method {
+	if cap(methods) == 0 {
+		methods = make([]server.Method, 0, 1)
+	}
+
+	methods = append(methods, server.Method{
+		Method: capnp.Method{
+			InterfaceID:   0xbb3ca85b01eea465,
+			MethodID:      0,
+			InterfaceName: "test.capnp:StreamTest",
+			MethodName:    "push",
+		},
+		Impl: func(ctx context.Context, call *server.Call) error {
+			return s.Push(ctx, StreamTest_push{call})
+		},
+	})
+
+	return methods
+}
+
+// StreamTest_push holds the state for a server call to StreamTest.push.
+// See server.Call for documentation.
+type StreamTest_push struct {
+	*server.Call
+}
+
+// Args returns the call's arguments.
+func (c StreamTest_push) Args() StreamTest_push_Params {
+	return StreamTest_push_Params{Struct: c.Call.Args()}
+}
+
+// AllocResults allocates the results struct.
+func (c StreamTest_push) AllocResults() (stream.StreamResult, error) {
+	r, err := c.Call.AllocResults(capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return stream.StreamResult{Struct: r}, err
+}
+
+type StreamTest_push_Params struct{ capnp.Struct }
+
+// StreamTest_push_Params_TypeID is the unique identifier for the type StreamTest_push_Params.
+const StreamTest_push_Params_TypeID = 0xf838dca6c8721bdb
+
+func NewStreamTest_push_Params(s *capnp.Segment) (StreamTest_push_Params, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return StreamTest_push_Params{st}, err
+}
+
+func NewRootStreamTest_push_Params(s *capnp.Segment) (StreamTest_push_Params, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return StreamTest_push_Params{st}, err
+}
+
+func ReadRootStreamTest_push_Params(msg *capnp.Message) (StreamTest_push_Params, error) {
+	root, err := msg.Root()
+	return StreamTest_push_Params{root.Struct()}, err
+}
+
+func (s StreamTest_push_Params) String() string {
+	str, _ := text.Marshal(0xf838dca6c8721bdb, s.Struct)
+	return str
+}
+
+func (s StreamTest_push_Params) Data() ([]byte, error) {
+	p, err := s.Struct.Ptr(0)
+	return []byte(p.Data()), err
+}
+
+func (s StreamTest_push_Params) HasData() bool {
+	return s.Struct.HasPtr(0)
+}
+
+func (s StreamTest_push_Params) SetData(v []byte) error {
+	return s.Struct.SetData(0, v)
+}
+
+// StreamTest_push_Params_List is a list of StreamTest_push_Params.
+type StreamTest_push_Params_List struct{ capnp.List }
+
+// NewStreamTest_push_Params creates a new list of StreamTest_push_Params.
+func NewStreamTest_push_Params_List(s *capnp.Segment, sz int32) (StreamTest_push_Params_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
+	return StreamTest_push_Params_List{l}, err
+}
+
+func (s StreamTest_push_Params_List) At(i int) StreamTest_push_Params {
+	return StreamTest_push_Params{s.List.Struct(i)}
+}
+
+func (s StreamTest_push_Params_List) Set(i int, v StreamTest_push_Params) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s StreamTest_push_Params_List) String() string {
+	str, _ := text.MarshalList(0xf838dca6c8721bdb, s.List)
+	return str
+}
+
+// StreamTest_push_Params_Future is a wrapper for a StreamTest_push_Params promised by a client call.
+type StreamTest_push_Params_Future struct{ *capnp.Future }
+
+func (p StreamTest_push_Params_Future) Struct() (StreamTest_push_Params, error) {
+	s, err := p.Future.Struct()
+	return StreamTest_push_Params{s}, err
+}
+
+const schema_ef12a34b9807e19c = "x\xda\x12\xf8\xe4\xc0d\xc8Z\xcf\xc2\xc0\x10h\xc2\xca" +
+	"\xf6OM\xf5\xf6\xb4\xbfw[\x03E\x18\x19\x19\x18X" +
+	"\xd8\x19\x18\x8cU\x99\x94\x18\x19\x18\x85u\x99\xec\x19\x18" +
+	"\xff\xa7.y\xc7\x18\xbd\xc2f7\x83 7\xf3\xff9" +
+	"\x0f\xd9gx/\x16z\xcf\xc0\xc0(\xec\xcb\xb4I8" +
+	"\x94\x89\x9d\x81A8\x90\xc9]\xb8\x12\xc4\xfa\xaf\xc8y" +
+	"\x7f\xde\xca\x07\xd3\xaf3 \x99\x96\xc8$\x052-\x13" +
+	"lZ\xd5\xbb\x1f\x87J\x8e\xb0|\xc00\xad\x93i\x91" +
+	"\xf0D\xb0i\xbdL\xee\xc2[\xc1\xa6\xdd\x96.:\xb1" +
+	"\xec\x8e\xc5\x0f\x06A1F\x06\x06VF\x90is\x99" +
+	"\x84@\xa6-e\xb2g\x88\xfc_\x92Z\\\xa2\x97\x9c" +
+	"X\xc0\x9cW`\x15\x90\x99\x97\x1e\x90\x9f\x97\xae\x97\x9a" +
+	"\x9c\x91\xefW\x9a\xab\x12\x94Z\\\xca\x9eSR\x1c\xc8" +
+	"\xc2\xcc\xc2\xc0\xc0\xc2\xc8\xc0 \xc8+\xc4\xc0\x10\xc8\xc1" +
+	"\xcc\x18(\xc2\xc4\xc8\x98\xc7\xc8\xca\xc0\xc4\xc8\xca\xc0\x08" +
+	"7\x861\xaf\xc0*\xb8\xa4(5Q>7$\xb5\xb8" +
+	"$\x80\x911\x90\x85\x99\x15\xc9!\x8cy\x1b\x0f\x94\x1b" +
+	"\xcf\x8a\x9f)(\xa8\xc5\xc0$\xc8\xca\xce_PZ\x9c" +
+	"\xe1\xc0\x18\xc0\xc8\x88\xdf-\x01\x89E\x89\xcc\xb9$:" +
+	"\x05l\x0a{~^:\xc2!\xb0\xf0ed\x80\xc6\x9a" +
+	"\xa0\xa0\x13\xd8!\xf5P\x9b0\xdd\x02\xf6\x10\xd8?z" +
+	" \xc7\x82\x9d\x92\xcb\x88\xe2\x14-\x84S\xf8S\x12K" +
+	"\x12\x19y\x19\x98\x18y\x19\x18\x01\x01\x00\x00\xff\xff)" +
+	"\x11\x93\xee"
 
 func init() {
 	schemas.Register(schema_ef12a34b9807e19c,
 		0x85ddfd96db252600,
+		0xbb3ca85b01eea465,
 		0xd797e0a99edf0921,
-		0xf004c474c2f8ee7a)
+		0xf004c474c2f8ee7a,
+		0xf838dca6c8721bdb)
 }
