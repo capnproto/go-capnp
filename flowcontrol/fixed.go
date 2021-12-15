@@ -37,17 +37,21 @@ func (fl *fixedLimiter) StartMessage(ctx context.Context, size uint64) (gotRespo
 	}
 }
 
-// must be holding mu
+// Unblock as many requests as the limit will allow.
+//
+// The caller must be holding fl.mu.
 func (fl *fixedLimiter) pumpQueue() {
 	next := fl.pending.peek()
 	for next != nil && next.size <= fl.avail {
 		fl.avail -= next.size
-		fl.pending.get() // actually de-queue it.
+		fl.pending.next() // remove it from the queue
 		next.ready <- struct{}{}
 		next = fl.pending.peek()
 	}
 }
 
+// Return a function which, when called, will return `size` bytes to the
+// available pool.
 func (fl *fixedLimiter) makeCallback(size uint64) func() {
 	return func() {
 		fl.mu.Lock()
@@ -57,31 +61,37 @@ func (fl *fixedLimiter) makeCallback(size uint64) func() {
 	}
 }
 
+// A queue of requests to send.
 type requestQueue struct {
 	head, tail *request
 }
 
+// Node in the linked list that makes up requestQueue.
 type request struct {
+	// Unlock this when ready:
 	ready chanmutex.Mutex
-	size  uint64
-	next  *request
+
+	size uint64
+	next *request
 }
 
+// Look at the first request in the queue, without dequeueing it.
 func (q *requestQueue) peek() *request {
 	return q.head
 }
 
-func (q *requestQueue) get() *request {
-	ret := q.head
-	if ret != nil {
-		q.head = ret.next
+// Drop the first request from the queue.
+func (q *requestQueue) next() {
+	if q.head != nil {
+		q.head = q.head.next
 	}
 	if q.head == nil {
 		q.tail = nil
 	}
-	return ret
 }
 
+// Enqueue a request to send `size` bytes. Returns a locked mutex
+// which will be unlocked when it is appropriate to send.
 func (q *requestQueue) put(size uint64) chanmutex.Mutex {
 	req := &request{
 		ready: chanmutex.NewUnlocked(),
