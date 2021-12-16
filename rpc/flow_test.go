@@ -18,9 +18,9 @@ import (
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 )
 
-// Transport, which is a wrapper around another transport, and measures the total size of
-// all messages received from RecvMessage(), but not released. It tracks the current and
-// all-time-maximum of this value.
+// measureTransport is a wrapper around another transport, and measures the
+// total size of all messages received from RecvMessage(), but not released.
+// It tracks the current and all-time-maximum of this value.
 type measuringTransport struct {
 	Transport
 
