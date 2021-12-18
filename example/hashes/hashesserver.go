@@ -83,32 +83,32 @@ func client(ctx context.Context, rwc io.ReadWriteCloser) error {
 	// Now we can call methods on hf, and they will be sent over c.
 	// The NewSha1 method does not have any parameters we can set, so we
 	// pass a nil function.
-	f, free := hf.NewSha1(ctx, nil)
+	h, free := hf.NewSha1(ctx, nil)
 
 	defer free()
 
 	// 'NewSha1' returns a future, which allows us to pipeline calls to
 	// returned values before they are actually delivered.  Here, we issue
 	// calls to an as-of-yet-unresolved Sha1 instance.
-	s := f.Hash()
+	s := h.Hash()
 
 	// s refers to a remote Hash.  Method calls are delivered in order.
-	f, free = s.Write(ctx, func(p hashes.Hash_write_Params) error {
+	_, free = s.Write(ctx, func(p hashes.Hash_write_Params) error {
 		return p.SetData([]byte("Hello, "))
 	})
 	defer free()
 
-	f, free = s.Write(ctx, func(p hashes.Hash_write_Params) error {
+	_, free = s.Write(ctx, func(p hashes.Hash_write_Params) error {
 		return p.SetData([]byte("World!"))
 	})
 	defer free()
 
 	// Get the sum, waiting for the result.
-	f, free = s.Sum(ctx, nil)
+	sumFuture, free := s.Sum(ctx, nil)
 
 	defer free()
 
-	result, err := f.Struct()
+	result, err := sumFuture.Struct()
 
 	if err != nil {
 		return err
