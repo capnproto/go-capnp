@@ -6,18 +6,25 @@ import (
 	"hash"
 	"io"
 	"net"
+	"os"
 
 	"capnproto.org/go/capnp/v3/rpc"
+	"capnproto.org/go/capnp/v3/server"
 	"golang.org/x/net/context"
 	"hashes"
 )
+
+const SOCK_ADDR = "/tmp/example.sock"
 
 // hashFactory is a local implementation of HashFactory.
 type hashFactory struct{}
 
 func (hf hashFactory) NewSha1(_ context.Context, call hashes.HashFactory_newSha1) error {
 	// Create a new locally implemented Hash capability.
-	hs := hashes.Hash_ServerToClient(hashServer{sha1.New()}, nil)
+	hs := hashes.Hash_ServerToClient(hashServer{sha1.New()},
+		&server.Policy{
+			MaxConcurrentCalls: 2,
+		})
 	// Notice that methods can return other interfaces.
 	res, err := call.AllocResults()
 	if err != nil {
@@ -123,9 +130,33 @@ func client(ctx context.Context, rwc io.ReadWriteCloser) error {
 	return nil
 }
 
+func chkfatal(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
 func main() {
+
+	err := os.RemoveAll(SOCK_ADDR) ;
+	chkfatal(err)
+	
+	l, err := net.Listen("unix", SOCK_ADDR)
+	chkfatal(err)
+
+	defer l.Close()
+	
 	ctx := context.Background()
-	c1, c2 := net.Pipe()
-	go serveHash(ctx, c1)
+
+	go func() {
+		c1, err := l.Accept()
+		chkfatal(err)
+
+		serveHash(ctx, c1)
+	}()
+	
+	c2, err := net.Dial("unix", SOCK_ADDR)
+	chkfatal(err)
+
 	client(ctx, c2)
 }
