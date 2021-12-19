@@ -5,6 +5,7 @@ package rpc
 import (
 	"context"
 	"net"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -61,6 +62,12 @@ func (t *measuringTransport) RecvMessage(ctx context.Context) (rpccp.Message, ca
 // and then send calls as fast as the limiter will let us. At the end, we check
 // that the maximum size of outstanding messages looks right.
 func TestFixedFlowLimit(t *testing.T) {
+	if os.Getenv("FLAKY_TESTS") != "1" {
+		t.Skip("Not running TestFlowFixedLimit, which is flaky. Set FLAKY_TESTS=1 to enable")
+		// TODO: at some point make this test run robustly in CI;
+		// it seems to work reliably when run locally for both @zenhack
+		// and @lthibault
+	}
 	t.Parallel()
 
 	limit := uint64(1 << 20)
