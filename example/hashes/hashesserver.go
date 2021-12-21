@@ -138,14 +138,14 @@ func chkfatal(err error) {
 
 func main() {
 
-	err := os.RemoveAll(SOCK_ADDR) ;
+	err := os.RemoveAll(SOCK_ADDR)
 	chkfatal(err)
-	
+
 	l, err := net.Listen("unix", SOCK_ADDR)
 	chkfatal(err)
 
 	defer l.Close()
-	
+
 	ctx := context.Background()
 
 	go func() {
@@ -154,7 +154,7 @@ func main() {
 
 		serveHash(ctx, c1)
 	}()
-	
+
 	c2, err := net.Dial("unix", SOCK_ADDR)
 	chkfatal(err)
 
