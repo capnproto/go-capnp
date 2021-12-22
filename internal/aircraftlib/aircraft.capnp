@@ -350,6 +350,7 @@ struct BenchmarkA {
   siblings @3 :Int32;
   spouse   @4 :Bool;
   money    @5 :Float64;
+  data     @6 :Data;
 }
 
 struct AllocBenchmark {

@@ -376,6 +376,72 @@ func TestMultiSegmentAllocate(t *testing.T) {
 	}
 }
 
+func TestPooledSegment(t *testing.T) {
+	p := NewSegmentPool(16)
+	if p.AllocatedBytes() != 0 {
+		t.Errorf("SegmentPool.allocated = %d; want 0", p.AllocatedBytes())
+	}
+	if p.InUsedSegments() != 0 {
+		t.Errorf("SegmentPool.n = %d; want 0", p.InUsedSegments())
+	}
+
+	// fresh arena
+	{
+		arena, release := p.Get()
+
+		if p.AllocatedBytes() != 24 {
+			t.Errorf("SegmentPool.allocated = %d; want 24", p.AllocatedBytes())
+		}
+		if p.InUsedSegments() != 1 {
+			t.Errorf("SegmentPool.n = %d; want 1", p.InUsedSegments())
+		}
+		if n := arena.NumSegments(); n != 1 {
+			t.Errorf("PooledSegment().NumSegments() = %d; want 1", n)
+		}
+		data, err := arena.Data(0)
+		if !bytes.Equal(data, []byte{}) {
+			t.Errorf("PooledSegment().Data(0) = %#v; want all-zero", data)
+		}
+		if err != nil {
+			t.Errorf("PooledSegment().Data(0) error: %v", err)
+		}
+		copy(data[:16], incrementingData(16))
+		_, err = arena.Data(1)
+		if err == nil {
+			t.Error("PooledSegment().Data(1) succeeded; want error")
+		}
+
+		release()
+	}
+
+	// reuse pooled segment
+	{
+		arena, release := p.Get()
+		defer release()
+
+		if p.AllocatedBytes() != 24 {
+			t.Errorf("SegmentPool.allocated = %d; want 24", p.AllocatedBytes())
+		}
+		if p.InUsedSegments() != 1 {
+			t.Errorf("SegmentPool.n = %d; want 1", p.InUsedSegments())
+		}
+		if n := arena.NumSegments(); n != 1 {
+			t.Errorf("PooledSegment().NumSegments() = %d; want 1", n)
+		}
+		data, err := arena.Data(0)
+		if want := bytes.Repeat([]byte{0}, 16); !bytes.Equal(data[:16], want) {
+			t.Errorf("PooledSegment().Data(0) = %#v; want all-zero", data)
+		}
+		if err != nil {
+			t.Errorf("PooledSegment().Data(0) error: %v", err)
+		}
+		_, err = arena.Data(1)
+		if err == nil {
+			t.Error("PooledSegment().Data(1) succeeded; want error")
+		}
+	}
+}
+
 type serializeTest struct {
 	name        string
 	segs        [][]byte
