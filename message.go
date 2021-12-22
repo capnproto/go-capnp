@@ -523,6 +523,7 @@ func (msa *multiSegmentArena) String() string {
 	return fmt.Sprintf("multi-segment arena [%d segments]", len(*msa))
 }
 
+// A SegmentPool is a set of pre-allocated segments that can be Get or Release
 type SegmentPool struct {
 	p         sync.Pool
 	allocated *uint64
@@ -536,6 +537,7 @@ type item struct {
 	reused bool
 }
 
+// NewSegmentPool creates a memory pool with the segment size.
 func NewSegmentPool(size int) *SegmentPool {
 	allocated := new(uint64)
 
@@ -553,10 +555,13 @@ func NewSegmentPool(size int) *SegmentPool {
 	}
 }
 
+// AllocatedBytes returns the total number of memory allocated by the pool.
 func (p *SegmentPool) AllocatedBytes() uint64 { return atomic.LoadUint64(p.allocated) }
 
+// InUsedSegments returns the number of segments being used by the pool.
 func (p *SegmentPool) InUsedSegments() int64 { return atomic.LoadInt64(&p.used) }
 
+// Get selects an arbitrary item from the Pool, removes it from the Pool, and returns it to the caller.
 func (p *SegmentPool) Get() (arena Arena, release ReleaseFunc) {
 	psa := p.p.Get().(*pooledSegmentArena)
 
@@ -576,6 +581,9 @@ func (p *SegmentPool) Get() (arena Arena, release ReleaseFunc) {
 	return
 }
 
+// Release returns the Arena to the Pool.
+//
+// Callers must not retain references to the Arena after calling Release.
 func (p *SegmentPool) Release(arena Arena) {
 	if psa, ok := arena.(*pooledSegmentArena); ok {
 		(*psa)[0] = 1
