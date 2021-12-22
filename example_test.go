@@ -84,6 +84,102 @@ func Example() {
 	}
 }
 
+func ExampleSegmentPool() {
+	// Create a segment pool.
+	pool := capnp.NewSegmentPool(512)
+
+	// Get a segment from the pool.
+	arena, release := pool.Get()
+
+	// Make a brand new empty message.
+	msg, seg, err := capnp.NewMessage(arena)
+	if err != nil {
+		panic(err)
+	}
+
+	// There can only be one root.  Subsequent NewRoot* calls will set the root
+	// pointer and orphan the previous root.
+	z, err := air.NewRootZ(seg)
+	if err != nil {
+		panic(err)
+	}
+
+	// Fill the message
+
+	// then non-root objects:
+	aircraft, err := z.NewAircraft()
+	if err != nil {
+		panic(err)
+	}
+	b737, err := aircraft.NewB737()
+	if err != nil {
+		panic(err)
+	}
+	planebase, err := b737.NewBase()
+	if err != nil {
+		panic(err)
+	}
+
+	// Set primitive fields
+	planebase.SetCanFly(true)
+	planebase.SetName("Henrietta")
+	planebase.SetRating(100)
+	planebase.SetMaxSpeed(876) // km/hr
+	// if we don't set capacity, it will get the default value, in this case 0.
+	//planebase.SetCapacity(26020) // Liters fuel
+
+	// Creating a list
+	homes, err := planebase.NewHomes(2)
+	if err != nil {
+		panic(err)
+	}
+	homes.Set(0, air.Airport_jfk)
+	homes.Set(1, air.Airport_lax)
+
+	// Ready to write!
+
+	// You can write to memory...
+	buf, err := msg.Marshal()
+	if err != nil {
+		panic(err)
+	}
+	_ = buf
+
+	// ... or write to an io.Writer.
+	file, err := ioutil.TempFile("", "go-capnproto")
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+	defer os.Remove(file.Name())
+	err = capnp.NewEncoder(file).Encode(msg)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("%d bytes allocated, %d segments in used\n", pool.AllocatedBytes(), pool.InUsedSegments())
+
+	// Release the segment back to the pool.
+	release()
+
+	fmt.Printf("after release the segment back to the pool, %d segments in used\n", pool.InUsedSegments())
+
+	// Reuse the segment from the pool.
+	arena2, release := pool.Get()
+	if arena != arena2 {
+		panic(arena2)
+	}
+
+	fmt.Printf("reuse the segment from the pool, %d bytes allocated, %d segments in used\n", pool.AllocatedBytes(), pool.InUsedSegments())
+
+	release()
+
+	// Output:
+	// 520 bytes allocated, 1 segments in used
+	// after release the segment back to the pool, 0 segments in used
+	// reuse the segment from the pool, 520 bytes allocated, 1 segments in used
+}
+
 func ExampleUnmarshal() {
 	msg, s, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	if err != nil {
