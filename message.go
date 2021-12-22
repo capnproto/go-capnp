@@ -523,6 +523,89 @@ func (msa *multiSegmentArena) String() string {
 	return fmt.Sprintf("multi-segment arena [%d segments]", len(*msa))
 }
 
+type SegmentPool struct {
+	p         sync.Pool
+	allocated *uint64
+	used      int64
+}
+
+var hdrSize = int(streamHeaderSize(0))
+
+type item struct {
+	psa    *pooledSegmentArena
+	reused bool
+}
+
+func NewSegmentPool(size int) *SegmentPool {
+	allocated := new(uint64)
+
+	return &SegmentPool{
+		p: sync.Pool{
+			New: func() interface{} {
+				n := Size(hdrSize + size).padToWord()
+				psa := new(pooledSegmentArena)
+				*psa = make([]byte, n)
+				atomic.AddUint64(allocated, uint64(n))
+				return psa
+			},
+		},
+		allocated: allocated,
+	}
+}
+
+func (p *SegmentPool) AllocatedBytes() uint64 { return atomic.LoadUint64(p.allocated) }
+
+func (p *SegmentPool) InUsedSegments() int64 { return atomic.LoadInt64(&p.used) }
+
+func (p *SegmentPool) Get() (arena Arena, release ReleaseFunc) {
+	psa := p.p.Get().(*pooledSegmentArena)
+
+	if b := *psa; b[0] != 0 {
+		// should be optimised with an assembly implementation of memclr
+		// https://codereview.appspot.com/137880043
+		for i := range b {
+			b[i] = 0
+		}
+	}
+
+	atomic.AddInt64(&p.used, 1)
+
+	arena = psa
+	release = func() { p.Release(psa) }
+
+	return
+}
+
+func (p *SegmentPool) Release(arena Arena) {
+	if psa, ok := arena.(*pooledSegmentArena); ok {
+		(*psa)[0] = 1
+		p.p.Put(psa)
+		atomic.AddInt64(&p.used, -1)
+	}
+}
+
+type pooledSegmentArena []byte
+
+func (psa *pooledSegmentArena) data() []byte { return (*psa)[hdrSize:hdrSize] }
+
+func (psa *pooledSegmentArena) NumSegments() int64 { return 1 }
+
+func (psa *pooledSegmentArena) Data(id SegmentID) ([]byte, error) {
+	if id != 0 {
+		return nil, errorf("segment %d requested in pooled segment arena", id)
+	}
+
+	return psa.data(), nil
+}
+
+func (psa *pooledSegmentArena) Allocate(sz Size, segs map[SegmentID]*Segment) (SegmentID, []byte, error) {
+	if data := psa.data(); hasCapacity(data, sz) {
+		return 0, data, nil
+	}
+
+	return 0, nil, errorf("alloc %d bytes: message too large", sz)
+}
+
 // nextAlloc computes how much more space to allocate given the number
 // of bytes allocated in the entire message and the requested number of
 // bytes.  It will always return a multiple of wordSize.  max must be a
@@ -826,6 +909,14 @@ func (m *Message) Marshal() ([]byte, error) {
 	nsegs := m.NumSegments()
 	if nsegs == 0 {
 		return nil, newError("marshal: message has no segments")
+	}
+	if nsegs == 1 {
+		if psa, ok := m.Arena.(*pooledSegmentArena); ok {
+			// fast path for single pooled segment
+			b := *psa
+			binary.LittleEndian.PutUint32(b[4:], uint32(len(m.firstSeg.data)/int(wordSize)))
+			return b[:hdrSize+len(m.firstSeg.data)], nil
+		}
 	}
 	hdrSize := streamHeaderSize(SegmentID(nsegs - 1))
 	if hdrSize > uint64(maxInt) {

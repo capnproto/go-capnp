@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"math/rand"
 	"testing"
@@ -27,7 +28,7 @@ type marshalTest struct {
 	data []byte
 }
 
-func makeMarshalTests(t *testing.T) []marshalTest {
+func makeMarshalTests(t *testing.T, arena func() capnp.Arena) []marshalTest {
 	tests := []marshalTest{
 		{
 			name: "zdateFilledMessage(1)",
@@ -62,7 +63,7 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 	}
 
 	{
-		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		msg, seg, err := capnp.NewMessage(arena())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -84,7 +85,7 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 	}
 
 	{
-		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		msg, seg, err := capnp.NewMessage(arena())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -111,7 +112,7 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 	}
 
 	{
-		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		msg, seg, err := capnp.NewMessage(arena())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -143,7 +144,7 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 	}
 
 	{
-		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		msg, seg, err := capnp.NewMessage(arena())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -179,7 +180,7 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 	}
 
 	{
-		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		msg, seg, err := capnp.NewMessage(arena())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -208,7 +209,7 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 	}
 
 	{
-		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		msg, seg, err := capnp.NewMessage(arena())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -251,7 +252,7 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 	}
 
 	{
-		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		msg, seg, err := capnp.NewMessage(arena())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -291,11 +292,11 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 	}
 
 	{
-		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		msg, seg, err := capnp.NewMessage(arena())
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, scratch, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		_, scratch, err := capnp.NewMessage(arena())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -336,11 +337,11 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 	}
 
 	{
-		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		msg, seg, err := capnp.NewMessage(arena())
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, scratch, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		_, scratch, err := capnp.NewMessage(arena())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -385,11 +386,11 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 	}
 
 	{
-		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		msg, seg, err := capnp.NewMessage(arena())
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, scratch, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		_, scratch, err := capnp.NewMessage(arena())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -444,11 +445,11 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 	}
 
 	{
-		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		msg, seg, err := capnp.NewMessage(arena())
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, scratch, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		_, scratch, err := capnp.NewMessage(arena())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -507,11 +508,11 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 	}
 
 	{
-		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		msg, seg, err := capnp.NewMessage(arena())
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, scratch, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		_, scratch, err := capnp.NewMessage(arena())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -559,7 +560,7 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 	}
 
 	{
-		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		msg, seg, err := capnp.NewMessage(arena())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -590,7 +591,7 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 	}
 
 	{
-		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		msg, seg, err := capnp.NewMessage(arena())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -618,7 +619,7 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 	}
 
 	{
-		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		msg, seg, err := capnp.NewMessage(arena())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -694,25 +695,44 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 	return tests
 }
 
+func singleSegmentArena() capnp.Arena {
+	return capnp.SingleSegment(nil)
+}
+
+var p = capnp.NewSegmentPool(256)
+
+func pooledSegmentArena() capnp.Arena {
+	a, _ := p.Get()
+	return a
+}
+
 func TestMarshalShouldMatchData(t *testing.T) {
 	t.Parallel()
-	for _, test := range makeMarshalTests(t) {
-		if test.data == nil {
-			// TODO(light): backfill all data
-			continue
-		}
-		data, err := test.msg.Marshal()
-		if err != nil {
-			t.Errorf("%s: marshal error: %v", test.name, err)
-			continue
-		}
-		want, err := encodeTestMessage(t, test.typ, test.text, test.data)
-		if err != nil {
-			t.Errorf("%s: %v", test.name, err)
-			continue
-		}
-		if !bytes.Equal(data, want) {
-			t.Errorf("%s: Marshal returned:\n%s\nwant:\n%s", test.name, hex.Dump(data), hex.Dump(want))
+
+	for _, arena := range []func() capnp.Arena{
+		singleSegmentArena,
+		pooledSegmentArena,
+	} {
+		for _, test := range makeMarshalTests(t, arena) {
+			if test.data == nil {
+				// TODO(light): backfill all data
+				continue
+			}
+			data, err := test.msg.Marshal()
+			if err != nil {
+				t.Errorf("%s: marshal error: %v", test.name, err)
+				continue
+			}
+			want, err := encodeTestMessage(t, test.typ, test.text, test.data)
+			if err != nil {
+				t.Errorf("%s: %v", test.name, err)
+				continue
+			}
+			if !bytes.Equal(data, want) {
+				t.Errorf("%s: Marshal returned:\n%s\nwant:\n%s", test.name, hex.Dump(data), hex.Dump(want))
+			}
+
+			p.Release(test.msg.Arena)
 		}
 	}
 }
@@ -723,7 +743,7 @@ func TestMarshalShouldMatchTextWhenDecoded(t *testing.T) {
 	if err != nil {
 		t.Skip("capnp tool not found:", err)
 	}
-	for _, test := range makeMarshalTests(t) {
+	for _, test := range makeMarshalTests(t, singleSegmentArena) {
 		data, err := test.msg.Marshal()
 		if err != nil {
 			t.Errorf("%s: marshal error: %v", test.name, err)
@@ -746,7 +766,7 @@ func TestMarshalPackedShouldMatchTextWhenDecoded(t *testing.T) {
 	if err != nil {
 		t.Skip("capnp tool not found:", err)
 	}
-	for _, test := range makeMarshalTests(t) {
+	for _, test := range makeMarshalTests(t, singleSegmentArena) {
 		data, err := test.msg.MarshalPacked()
 		if err != nil {
 			t.Errorf("%s: marshal error: %v", test.name, err)
@@ -1732,15 +1752,57 @@ func BenchmarkMarshal(b *testing.B) {
 	for i := range data {
 		data[i] = generateA(r)
 	}
-	arena := make([]byte, 0, 512)
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		a := data[r.Intn(len(data))]
-		msg, seg, _ := capnp.NewMessage(capnp.SingleSegment(arena[:0]))
-		root, _ := air.NewRootBenchmarkA(seg)
-		a.fill(root)
-		msg.Marshal()
+
+	sizes := []capnp.Size{0, 4, 64, 1024, 4 * 1024, 16 * 1024, 64 * 1024}
+
+	for _, n := range sizes {
+		b.Run(fmt.Sprintf("SingleSegment/%d", n), func(b *testing.B) {
+			arena := make([]byte, 0, 512+n)
+
+			d := make([]byte, n)
+			r.Read(d)
+
+			b.ReportAllocs()
+			b.ResetTimer()
+
+			for i := 0; i < b.N; i++ {
+				a := data[r.Intn(len(data))]
+				msg, seg, _ := capnp.NewMessage(capnp.SingleSegment(arena[:0]))
+				root, _ := air.NewRootBenchmarkA(seg)
+				a.fill(root)
+				root.SetData(d)
+				bytes, _ := msg.Marshal()
+				if i == 0 {
+					b.SetBytes(int64(len(bytes)))
+				}
+			}
+		})
+	}
+
+	for _, n := range sizes {
+		b.Run(fmt.Sprintf("PooledSegment/%d", n), func(b *testing.B) {
+			p := capnp.NewSegmentPool(512 + int(n))
+
+			d := make([]byte, n)
+			r.Read(d)
+
+			b.ReportAllocs()
+			b.ResetTimer()
+
+			for i := 0; i < b.N; i++ {
+				a := data[r.Intn(len(data))]
+				arena, release := p.Get()
+				msg, seg, _ := capnp.NewMessage(arena)
+				root, _ := air.NewRootBenchmarkA(seg)
+				a.fill(root)
+				root.SetData(d)
+				bytes, _ := msg.Marshal()
+				if i == 0 {
+					b.SetBytes(int64(len(bytes)))
+				}
+				release()
+			}
+		})
 	}
 }
 
