@@ -1116,7 +1116,7 @@ func (c *Conn) recvCap(d rpccp.CapDescriptor) (_ *capnp.Client, local bool, _ er
 		}
 		transform, err := parseTransform(rawTransform)
 		if err != nil {
-			return nil, false, failedf("read target transform: ", err)
+			return nil, false, failedf("read target transform: %v", err)
 		}
 
 		id := answerID(promisedAnswer.QuestionId())
@@ -1151,11 +1151,11 @@ func recvCapReceiverAnswer(ans *answer, transform []capnp.PipelineOp) (
 
 	ptr, err := ans.results.Content()
 	if err != nil {
-		return capnp.ErrorClient(failedf("failed reading results: ", err)), false, nil
+		return capnp.ErrorClient(failedf("failed reading results: %v", err)), false, nil
 	}
 	ptr, err = capnp.Transform(ptr, transform)
 	if err != nil {
-		return capnp.ErrorClient(failedf("Applying transform to results: ", err)), false, nil
+		return capnp.ErrorClient(failedf("Applying transform to results: %v", err)), false, nil
 	}
 	iface := ptr.Interface()
 	if !iface.IsValid() {
