@@ -1105,9 +1105,71 @@ func (c *Conn) recvCap(d rpccp.CapDescriptor) (_ *capnp.Client, local bool, _ er
 			return nil, false, failedf("receive capability: invalid export %d", id)
 		}
 		return ent.client.AddRef(), true, nil
+	case rpccp.CapDescriptor_Which_receiverAnswer:
+		promisedAnswer, err := d.ReceiverAnswer()
+		if err != nil {
+			return nil, false, failedf("receive capabiltiy: reading promised answer: %v", err)
+		}
+		rawTransform, err := promisedAnswer.Transform()
+		if err != nil {
+			return nil, false, failedf("receive capabiltiy: reading promised answer transform: %v", err)
+		}
+		transform, err := parseTransform(rawTransform)
+		if err != nil {
+			return nil, false, failedf("read target transform: ", err)
+		}
+
+		id := answerID(promisedAnswer.QuestionId())
+		ans, ok := c.answers[id]
+		if !ok {
+			return nil, false, failedf("receive capability: no such question id: %v", id)
+		}
+
+		return recvCapReceiverAnswer(ans, transform)
 	default:
 		return capnp.ErrorClient(failedf("unknown CapDescriptor type %v", w)), false, nil
 	}
+}
+
+// Helper for Conn.recvCap(); handles the receiverAnswer case.
+func recvCapReceiverAnswer(ans *answer, transform []capnp.PipelineOp) (
+	_ *capnp.Client, local bool, _ error) {
+
+	if ans.promise != nil {
+		// Still unresolved.
+		future := ans.promise.Answer().Future()
+		for _, op := range transform {
+			future = future.Field(op.Field, op.DefaultValue)
+		}
+		// FIXME: what should local be? I don't know if this is knowable.
+		return future.Client(), false, nil
+	}
+
+	if ans.err != nil {
+		return capnp.ErrorClient(ans.err), false, nil
+	}
+
+	ptr, err := ans.results.Content()
+	if err != nil {
+		return capnp.ErrorClient(failedf("failed reading results: ", err)), false, nil
+	}
+	ptr, err = capnp.Transform(ptr, transform)
+	if err != nil {
+		return capnp.ErrorClient(failedf("Applying transform to results: ", err)), false, nil
+	}
+	iface := ptr.Interface()
+	if !iface.IsValid() {
+		return capnp.ErrorClient(failedf("Result is not a capability")), false, nil
+	}
+
+	// We can't just call Client(), becasue the CapTable has been cleared; instead,
+	// look it up in resultCapTable ourselves:
+	capId := int(iface.Capability())
+	if capId < 0 || capId >= len(ans.resultCapTable) {
+		return nil, false, nil
+	}
+	// FIXME: what should local be?
+	return ans.resultCapTable[capId], false, nil
 }
 
 // recvPayload extracts the content pointer after populating the
