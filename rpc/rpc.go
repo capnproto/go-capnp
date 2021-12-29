@@ -634,7 +634,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 		// Place PipelineCaller into answer.  Since the receive goroutine is
 		// the only one that uses answer.pcall, it's fine that there's a
 		// time gap for this being set.
-		ans.setPipelineCaller(pcall)
+		ans.setPipelineCaller(p.method, pcall)
 		return nil
 	case rpccp.MessageTarget_Which_promisedAnswer:
 		tgtAns := c.answers[p.target.promisedAnswer]
@@ -710,7 +710,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 				ReleaseArgs: releaseArgs,
 				Returner:    ans,
 			})
-			ans.setPipelineCaller(pcall)
+			ans.setPipelineCaller(p.method, pcall)
 		} else {
 			// Results not ready, use pipeline caller.
 			tgtAns.pcalls.Add(1) // will be finished by answer.Return
@@ -726,7 +726,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 				Returner:    ans,
 			})
 			tgtAns.pcalls.Done()
-			ans.setPipelineCaller(pcall)
+			ans.setPipelineCaller(p.method, pcall)
 		}
 		return nil
 	default:

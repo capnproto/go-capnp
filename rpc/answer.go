@@ -59,6 +59,9 @@ type answer struct {
 	// pcall is the PipelineCaller returned by RecvCall.  It will be set
 	// to nil once results are ready.
 	pcall capnp.PipelineCaller
+	// promise is a promise wrapping pcall. It will be resolved, and
+	// subsequently set to nil, once the results are ready.
+	promise *capnp.Promise
 
 	// pcalls is added to for every pending RecvCall and subtracted from
 	// for every RecvCall return (delivery acknowledgement).  This is used
@@ -108,10 +111,13 @@ func (c *Conn) newReturn(ctx context.Context) (rpccp.Return, func() error, capnp
 // setPipelineCaller sets ans.pcall to pcall if the answer has not
 // already returned.  The caller MUST NOT be holding onto ans.c.mu
 // or the sender lock.
-func (ans *answer) setPipelineCaller(pcall capnp.PipelineCaller) {
+//
+// This also sets ans.promise to a new promise, wrapping pcall.
+func (ans *answer) setPipelineCaller(m capnp.Method, pcall capnp.PipelineCaller) {
 	ans.c.mu.Lock()
 	if ans.flags&resultsReady == 0 {
 		ans.pcall = pcall
+		ans.promise = capnp.NewPromise(m, pcall)
 	}
 	ans.c.mu.Unlock()
 }
@@ -206,6 +212,13 @@ func (ans *answer) Return(e error) {
 func (ans *answer) sendReturn() (releaseList, error) {
 	ans.pcall = nil
 	ans.flags |= resultsReady
+	// XXX: do we need to check if we've received a finish? if so, the
+	// results won't be valid...
+	if ans.promise != nil {
+		ans.promise.Resolve(ans.results.Content())
+		ans.promise = nil
+	}
+
 	var err error
 	ans.exportRefs, err = ans.c.fillPayloadCapTable(ans.results, ans.resultCapTable)
 	if err != nil {
@@ -249,6 +262,11 @@ func (ans *answer) sendException(e error) releaseList {
 	ans.err = e
 	ans.pcall = nil
 	ans.flags |= resultsReady
+
+	if ans.promise != nil {
+		ans.promise.Reject(e)
+		ans.promise = nil
+	}
 
 	select {
 	case <-ans.c.bgctx.Done():
