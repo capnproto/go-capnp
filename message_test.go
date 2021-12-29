@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"io"
 	"testing"
+	"testing/quick"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewMessage(t *testing.T) {
@@ -922,6 +925,41 @@ func TestNextAlloc(t *testing.T) {
 			t.Errorf("%s: nextAlloc(%d, %d, %d) = %d, <nil>; want divisible by 8 (word size)", test.name, test.curr, test.max, test.req, got)
 		}
 	}
+}
+
+// Make sure Message.TotalSize() returns a value consistent with Message.Marshal()
+func TestTotalSize(t *testing.T) {
+	var emptyWord [8]byte
+	err := quick.Check(func(segs [][]byte) bool {
+		// Make sure there is at least one segment, and that all segments
+		// are multiples of 8 bytes:
+		if len(segs) == 0 {
+			segs = append(segs, emptyWord[:])
+		}
+		for i := 0; i < len(segs); i++ {
+			length := len(segs[i])
+			excess := length % 8
+			segs[i] = segs[i][0 : length-excess]
+			if len(segs[i]) == 0 {
+				segs[i] = emptyWord[:]
+			}
+		}
+
+		msg := &Message{
+			Arena: MultiSegment(segs),
+		}
+
+		size, err := msg.TotalSize()
+		assert.Nil(t, err, "TotalSize() returned an error")
+
+		data, err := msg.Marshal()
+		assert.Nil(t, err, "Marshal() returned an error")
+
+		assert.Equal(t, len(data), int(size), "Incorrect value")
+		return true
+
+	}, nil)
+	assert.Nil(t, err, "quick.Check returned an error")
 }
 
 type arenaAllocTest struct {

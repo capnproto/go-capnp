@@ -6,6 +6,8 @@ import (
 	"runtime"
 	"strconv"
 	"sync"
+
+	"capnproto.org/go/capnp/v3/flowcontrol"
 )
 
 // An Interface is a reference to a client in a message's capability table.
@@ -93,7 +95,8 @@ type Client struct {
 	creatorFile string
 	creatorLine int
 
-	mu       sync.Mutex  // protects the struct
+	mu       sync.Mutex // protects the struct
+	limiter  flowcontrol.FlowLimiter
 	h        *clientHook // nil if resolved to nil or released
 	released bool
 }
@@ -239,10 +242,35 @@ func resolveHook(h *clientHook) *clientHook {
 	}
 }
 
+// Get the current flowcontrol.FlowLimiter used to manage flow control
+// for this client.
+func (c *Client) GetFlowLimiter() flowcontrol.FlowLimiter {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	ret := c.limiter
+	if ret == nil {
+		ret = flowcontrol.NopLimiter
+	}
+	return ret
+}
+
+// Update the flowcontrol.FlowLimiter used to manage flow control for
+// this client. This affects all future calls, but not calls already
+// waiting to send. Passing nil sets the value to flowcontrol.NopLimiter,
+// which is also the default.
+func (c *Client) SetFlowLimiter(lim flowcontrol.FlowLimiter) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.limiter = lim
+}
+
 // SendCall allocates space for parameters, calls args.Place to fill out
 // the parameters, then starts executing a method, returning an answer
 // that will hold the result.  The caller must call the returned release
 // function when it no longer needs the answer's data.
+//
+// This method respects the flow control policy configured with SetFlowLimiter;
+// it may block if the sender is sending too fast.
 func (c *Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 	h, _, released, finish := c.startCall()
 	defer finish()
@@ -252,7 +280,47 @@ func (c *Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 	if h == nil {
 		return ErrorAnswer(s.Method, newError("call on null client")), func() {}
 	}
-	return h.Send(ctx, s)
+
+	limiter := c.GetFlowLimiter()
+	var gotResponse func()
+
+	// We need to call PlaceArgs before we will know the size of message for
+	// flow control purposes, so wrap it in a function that measures after the
+	// arguments have been placed:
+	placeArgs := s.PlaceArgs
+	s.PlaceArgs = func(args Struct) error {
+		var err error
+		if placeArgs != nil {
+			err = placeArgs(args)
+			if err != nil {
+				return err
+			}
+		}
+
+		var size uint64
+		size, err = args.Segment().Message().TotalSize()
+		if err != nil {
+			return err
+		}
+
+		gotResponse, err = limiter.StartMessage(ctx, size)
+		return err
+	}
+
+	ans, err := h.Send(ctx, s)
+	if err == nil {
+		p := ans.f.promise
+		p.mu.Lock()
+		if p.isResolved() {
+			// Wow, that was fast.
+			p.mu.Unlock()
+			gotResponse()
+		} else {
+			p.signals = append(p.signals, gotResponse)
+			p.mu.Unlock()
+		}
+	}
+	return ans, err
 }
 
 // RecvCall starts executing a method with the referenced arguments
@@ -260,6 +328,9 @@ func (c *Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 // a.Release when it no longer needs to reference the parameters.  The
 // caller must call the returned release function when it no longer
 // needs the answer's data.
+//
+// Note that unlike SendCall, this method does *not* respect the flow
+// control policy configured with SetFlowLimiter.
 func (c *Client) RecvCall(ctx context.Context, r Recv) PipelineCaller {
 	h, _, released, finish := c.startCall()
 	defer finish()

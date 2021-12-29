@@ -2,6 +2,7 @@
 package mpsc
 
 import (
+	"capnproto.org/go/capnp/v3/internal/chanmutex"
 	"context"
 )
 
@@ -24,7 +25,7 @@ type Rx struct {
 type Tx struct {
 	// Mutex which must be held by senders. A goroutine must hold this
 	// lock to manipulate `tail`.
-	mu mutex
+	mu chanmutex.Mutex
 
 	// Pointer to the tail of the list. This will have a locked mu,
 	// and zero values for other fields.
@@ -41,7 +42,7 @@ type node struct {
 	// A mutex which guards the other fields in the node.
 	// Nodes start out with this locked, and then we unlock it
 	// after filling in the other fields.
-	mu mutex
+	mu chanmutex.Mutex
 
 	// The next node in the list, if any. Must be non-nil if
 	// mu is unlocked:
@@ -54,7 +55,7 @@ type node struct {
 // Create a new node, with a locked mutex and zero values for
 // the other fields.
 func newNode() *node {
-	return &node{mu: newLockedMutex()}
+	return &node{mu: chanmutex.NewLocked()}
 }
 
 // Create a new, initially empty Queue.
@@ -63,7 +64,7 @@ func New() *Queue {
 	return &Queue{
 		Tx: Tx{
 			tail: node,
-			mu:   newUnlockedMutex(),
+			mu:   chanmutex.NewUnlocked(),
 		},
 		Rx: Rx{head: node},
 	}
@@ -73,15 +74,15 @@ func New() *Queue {
 func (tx *Tx) Send(v Value) {
 	newTail := newNode()
 
-	tx.mu.lock()
+	tx.mu.Lock()
 
 	oldTail := tx.tail
 	oldTail.next = newTail
 	oldTail.value = v
 	tx.tail = newTail
-	oldTail.mu.unlock()
+	oldTail.mu.Unlock()
 
-	tx.mu.unlock()
+	tx.mu.Unlock()
 }
 
 // Receive a message from the queue. Blocks if the queue is empty.
@@ -113,36 +114,4 @@ func (rx *Rx) doRecv() Value {
 	ret := rx.head.value
 	rx.head = rx.head.next
 	return ret
-}
-
-// mutex based around on channel with buffer size 1.
-//
-// Locking & unlocking operations are just channel receive/send respectively,
-// which allows the caller to lock/unlock the mutex as part of a select.
-// We also provide lock/unlock methods for convenience.
-//
-// TODO: maybe pull this out into its own package, if we find ourselves
-// wanting to use it elsewhere.
-type mutex chan struct{}
-
-// Return a new, locked mutex.
-func newLockedMutex() mutex {
-	return make(mutex, 1)
-}
-
-// Return a new, unlocked mutex
-func newUnlockedMutex() mutex {
-	ret := newLockedMutex()
-	ret.unlock()
-	return ret
-}
-
-// Lock the mutex. Blocks if it is already locked.
-func (m mutex) lock() {
-	<-m
-}
-
-// Unlock the mutex.
-func (m mutex) unlock() {
-	m <- struct{}{}
 }
