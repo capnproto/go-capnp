@@ -72,12 +72,7 @@ func TestCallBootstrapReceiverAnswer(t *testing.T) {
 	conn := NewConn(
 		NewStreamTransport(cServer),
 		&Options{
-			BootstrapClient: testcapnp.CapArgsTest_ServerToClient(
-				srv,
-				&server.Policy{
-					MaxConcurrentCalls: 10,
-				},
-			).Client,
+			BootstrapClient: testcapnp.CapArgsTest_ServerToClient(srv, nil).Client,
 		},
 	)
 	defer conn.Close()
