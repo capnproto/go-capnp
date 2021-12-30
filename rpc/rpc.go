@@ -1141,7 +1141,14 @@ func recvCapReceiverAnswer(ans *answer, transform []capnp.PipelineOp) (
 		for _, op := range transform {
 			future = future.Field(op.Field, op.DefaultValue)
 		}
-		// FIXME: what should local be? I don't know if this is knowable.
+		// N.B. we can't legally return local = true, because in the case of
+		// a return that would send a disembargo to the remote vat, which will
+		// be a protocol error if the final capabiltiy doesn't end up pointing
+		// back to us.
+		//
+		// The correct thing for us to do is, when *this* answer resolves, set
+		// up embargos then if need be, but right now afaik we only do that
+		// in sendReturn. FIXME.
 		return future.Client(), false, nil
 	}
 
@@ -1168,7 +1175,11 @@ func recvCapReceiverAnswer(ans *answer, transform []capnp.PipelineOp) (
 	if capId < 0 || capId >= len(ans.resultCapTable) {
 		return nil, false, nil
 	}
-	// FIXME: what should local be?
+
+	// FIXME: what should the local return be? Probably we need to rework the way
+	// disembargos work so that we just look at the resolved Client.State() directly
+	// instead of trying to work out whether a client is local via return-specific
+	// logic, which will also not work when we start dealing with Resolve messages.
 	return ans.resultCapTable[capId], false, nil
 }
 
