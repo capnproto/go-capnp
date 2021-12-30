@@ -117,7 +117,11 @@ func TestCallBootstrapReceiverAnswer(t *testing.T) {
 	ra, err := capDesc.NewReceiverAnswer()
 	chkfatal(err)
 	ra.SetQuestionId(0)
-	params.SetContent(capnp.NewInterface(params.Struct.Segment(), 0).ToPtr())
+	seg := params.Struct.Segment()
+	argStruct, err := capnp.NewStruct(seg, capnp.ObjectSize{PointerCount: 1})
+	chkfatal(err)
+	argStruct.SetPtr(0, capnp.NewInterface(seg, 0).ToPtr())
+	params.SetContent(argStruct.ToPtr())
 	send()
 	release()
 
