@@ -207,7 +207,7 @@ func (ans *answer) Return(e error) {
 //
 // The caller must be holding onto ans.c.mu and the sender lock.
 // The result's capability table must have been extracted into
-// ans.resultsCapTable before calling sendReturn. Only one of
+// ans.resultCapTable before calling sendReturn. Only one of
 // sendReturn or sendException should be called.
 func (ans *answer) sendReturn() (releaseList, error) {
 	ans.pcall = nil
@@ -256,7 +256,7 @@ func (ans *answer) sendReturn() (releaseList, error) {
 //
 // The caller must be holding onto ans.c.mu and the sender lock.
 // The result's capability table must have been extracted into
-// ans.resultsCapTable before calling sendException. Only one of
+// ans.resultCapTable before calling sendException. Only one of
 // sendReturn or sendException should be called.
 func (ans *answer) sendException(e error) releaseList {
 	ans.err = e
