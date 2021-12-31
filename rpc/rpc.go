@@ -483,7 +483,6 @@ func (c *Conn) handleBootstrap(ctx context.Context, id answerID) error {
 	}
 	ret.SetAnswerId(uint32(id))
 	ret.SetReleaseParamCaps(false)
-	bootState := c.bootstrap.State()
 	c.mu.Lock()
 	ans := &answer{
 		c:          c,
@@ -507,7 +506,7 @@ func (c *Conn) handleBootstrap(ctx context.Context, id answerID) error {
 		rl.release()
 		return nil
 	}
-	rl, err := ans.sendReturn([]capnp.ClientState{bootState})
+	rl, err := ans.sendReturn()
 	c.unlockSender()
 	c.mu.Unlock()
 	rl.release()

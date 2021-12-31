@@ -158,9 +158,8 @@ func (ans *answer) setBootstrap(c *capnp.Client) error {
 //
 // The caller must NOT be holding onto ans.c.mu or the sender lock.
 func (ans *answer) Return(e error) {
-	var cstates []capnp.ClientState
 	if ans.results.IsValid() {
-		ans.resultCapTable, cstates = extractCapTable(ans.results.Message())
+		ans.resultCapTable = extractCapTable(ans.results.Message())
 	}
 	ans.c.mu.Lock()
 	ans.c.lockSender()
@@ -173,7 +172,7 @@ func (ans *answer) Return(e error) {
 		ans.c.tasks.Done() // added by handleCall
 		return
 	}
-	rl, err := ans.sendReturn(cstates)
+	rl, err := ans.sendReturn()
 	ans.c.unlockSender()
 	if err != nil {
 		select {
@@ -204,11 +203,11 @@ func (ans *answer) Return(e error) {
 // The result's capability table must have been extracted into
 // ans.resultsCapTable before calling sendReturn. Only one of
 // sendReturn or sendException should be called.
-func (ans *answer) sendReturn(cstates []capnp.ClientState) (releaseList, error) {
+func (ans *answer) sendReturn() (releaseList, error) {
 	ans.pcall = nil
 	ans.flags |= resultsReady
 	var err error
-	ans.exportRefs, err = ans.c.fillPayloadCapTable(ans.results, ans.resultCapTable, cstates)
+	ans.exportRefs, err = ans.c.fillPayloadCapTable(ans.results, ans.resultCapTable)
 	if err != nil {
 		ans.c.report(annotate(err, "send return"))
 		// Continue.  Don't fail to send return if cap table isn't fully filled.
