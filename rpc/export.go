@@ -23,6 +23,22 @@ type exportIDKey struct {
 	Conn *Conn
 }
 
+func (c *Conn) findExportID(m *capnp.Metadata) (_ exportID, ok bool) {
+	maybeID, ok := m.Get(exportIDKey{c})
+	if ok {
+		return maybeID.(exportID), true
+	}
+	return 0, false
+}
+
+func (c *Conn) setExportID(m *capnp.Metadata, id exportID) {
+	m.Put(exportIDKey{c}, id)
+}
+
+func (c *Conn) clearExportID(m *capnp.Metadata) {
+	m.Delete(exportIDKey{c})
+}
+
 // findExport returns the export entry with the given ID or nil if
 // couldn't be found.
 func (c *Conn) findExport(id exportID) *expent {
@@ -51,7 +67,7 @@ func (c *Conn) releaseExport(id exportID, count uint32) (*capnp.Client, error) {
 		metadata := client.State().Metadata
 		metadata.Lock()
 		defer metadata.Unlock()
-		metadata.Delete(exportIDKey{c})
+		c.clearExportID(metadata)
 		return client, nil
 	case count > ent.wireRefs:
 		return nil, failedf("export ID %d released too many references", id)
@@ -108,9 +124,8 @@ func (c *Conn) sendCap(d rpccp.CapDescriptor, client *capnp.Client, state capnp.
 	// Default to sender-hosted (export).
 	state.Metadata.Lock()
 	defer state.Metadata.Unlock()
-	maybeID, ok := state.Metadata.Get(exportIDKey{c})
+	id, ok := c.findExportID(state.Metadata)
 	if ok {
-		id := maybeID.(exportID)
 		ent := c.exports[id]
 		ent.wireRefs++
 		d.SetSenderHosted(uint32(id))
@@ -122,13 +137,13 @@ func (c *Conn) sendCap(d rpccp.CapDescriptor, client *capnp.Client, state capnp.
 		client:   client.AddRef(),
 		wireRefs: 1,
 	}
-	id := exportID(c.exportID.next())
+	id = exportID(c.exportID.next())
 	if int64(id) == int64(len(c.exports)) {
 		c.exports = append(c.exports, ee)
 	} else {
 		c.exports[id] = ee
 	}
-	state.Metadata.Put(exportIDKey{c}, id)
+	c.setExportID(state.Metadata, id)
 	d.SetSenderHosted(uint32(id))
 	return id, true
 }
