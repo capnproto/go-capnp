@@ -1125,14 +1125,14 @@ func (c *Conn) recvCap(d rpccp.CapDescriptor) (_ *capnp.Client, local bool, _ er
 			return nil, false, failedf("receive capability: no such question id: %v", id)
 		}
 
-		return recvCapReceiverAnswer(ans, transform)
+		return c.recvCapReceiverAnswer(ans, transform)
 	default:
 		return capnp.ErrorClient(failedf("unknown CapDescriptor type %v", w)), false, nil
 	}
 }
 
 // Helper for Conn.recvCap(); handles the receiverAnswer case.
-func recvCapReceiverAnswer(ans *answer, transform []capnp.PipelineOp) (
+func (c *Conn) recvCapReceiverAnswer(ans *answer, transform []capnp.PipelineOp) (
 	_ *capnp.Client, local bool, _ error) {
 
 	if ans.promise != nil {
@@ -1176,11 +1176,11 @@ func recvCapReceiverAnswer(ans *answer, transform []capnp.PipelineOp) (
 		return nil, false, nil
 	}
 
-	// FIXME: what should the local return be? Probably we need to rework the way
-	// disembargos work so that we just look at the resolved Client.State() directly
-	// instead of trying to work out whether a client is local via return-specific
-	// logic, which will also not work when we start dealing with Resolve messages.
-	return ans.resultCapTable[capId], false, nil
+	client := ans.resultCapTable[capId]
+	// TODO: check this; are there other cases where we should return true.
+	_, local = c.findExportID(client.State().Metadata)
+	return client, local, nil
+
 }
 
 // recvPayload extracts the content pointer after populating the
