@@ -109,6 +109,9 @@ type clientHook struct {
 	// a clientHook.
 	ClientHook
 
+	// Place for callers to attach arbitrary metadata to the client.
+	metadata Metadata
+
 	// done is closed when refs == 0 and calls == 0.
 	done chan struct{}
 
@@ -136,6 +139,7 @@ func NewClient(hook ClientHook) *Client {
 		refs:       1,
 		resolved:   newClosedSignal(),
 	}
+	(&h.metadata).init()
 	h.resolvedHook = h
 	c := &Client{h: h}
 	if clientLeakFunc != nil {
@@ -163,6 +167,7 @@ func NewPromisedClient(hook ClientHook) (*Client, *ClientPromise) {
 		refs:       1,
 		resolved:   make(chan struct{}),
 	}
+	(&h.metadata).init()
 	c := &Client{h: h}
 	if clientLeakFunc != nil {
 		c.creatorFunc = 2
@@ -441,6 +446,7 @@ func (c *Client) State() ClientState {
 	return ClientState{
 		Brand:     h.Brand(),
 		IsPromise: !resolved,
+		Metadata:  &resolveHook(c.h).metadata,
 	}
 }
 
@@ -455,6 +461,10 @@ type ClientState struct {
 	Brand Brand
 	// IsPromise is true if the client has not resolved yet.
 	IsPromise bool
+	// Arbitrary metadata. Note that, if a Client is a promise,
+	// when it resolves its metadata will be replaced with that
+	// of its resolution.
+	Metadata *Metadata
 }
 
 // String returns a string that identifies this capability for debugging
@@ -841,6 +851,7 @@ func ErrorClient(e error) *Client {
 		refs:       1,
 		resolved:   newClosedSignal(),
 	}
+	(&h.metadata).init()
 	h.resolvedHook = h
 	return &Client{h: h}
 }
