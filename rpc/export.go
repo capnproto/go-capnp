@@ -16,6 +16,13 @@ type expent struct {
 	wireRefs uint32
 }
 
+// A key for use in a client's Metadata, whose value is the export
+// id (if any) via which the client is exposed on the given
+// connection.
+type exportIDKey struct {
+	Conn *Conn
+}
+
 // findExport returns the export entry with the given ID or nil if
 // couldn't be found.
 func (c *Conn) findExport(id exportID) *expent {
@@ -41,6 +48,10 @@ func (c *Conn) releaseExport(id exportID, count uint32) (*capnp.Client, error) {
 		client := ent.client
 		c.exports[id] = nil
 		c.exportID.remove(uint32(id))
+		metadata := client.State().Metadata
+		metadata.Lock()
+		defer metadata.Unlock()
+		metadata.Delete(exportIDKey{c})
 		return client, nil
 	case count > ent.wireRefs:
 		return nil, failedf("export ID %d released too many references", id)
@@ -95,16 +106,18 @@ func (c *Conn) sendCap(d rpccp.CapDescriptor, client *capnp.Client, state capnp.
 	// TODO(someday): Check for pipeline client on question for receiverAnswer.
 
 	// Default to sender-hosted (export).
-	for id, ent := range c.exports {
-		if ent == nil {
-			continue
-		}
-		if ent.client.IsSame(client) {
-			ent.wireRefs++
-			d.SetSenderHosted(uint32(id))
-			return exportID(id), true
-		}
+	state.Metadata.Lock()
+	defer state.Metadata.Unlock()
+	maybeID, ok := state.Metadata.Get(exportIDKey{c})
+	if ok {
+		id := maybeID.(exportID)
+		ent := c.exports[id]
+		ent.wireRefs++
+		d.SetSenderHosted(uint32(id))
+		return id, true
 	}
+
+	// Not already present; allocate an export id for it:
 	ee := &expent{
 		client:   client.AddRef(),
 		wireRefs: 1,
@@ -115,6 +128,7 @@ func (c *Conn) sendCap(d rpccp.CapDescriptor, client *capnp.Client, state capnp.
 	} else {
 		c.exports[id] = ee
 	}
+	state.Metadata.Put(exportIDKey{c}, id)
 	d.SetSenderHosted(uint32(id))
 	return id, true
 }
