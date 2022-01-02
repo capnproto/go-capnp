@@ -1170,7 +1170,10 @@ func (c *Conn) recvCapReceiverAnswer(ans *answer, transform []capnp.PipelineOp) 
 
 	client := ans.resultCapTable[capId]
 	// TODO: check this; are there other cases where we should return true.
-	_, local = c.findExportID(client.State().Metadata)
+	m := client.State().Metadata
+	m.Lock()
+	defer m.Unlock()
+	_, local = c.findExportID(m)
 	return client, local, nil
 
 }
