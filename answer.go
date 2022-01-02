@@ -608,7 +608,7 @@ traversal:
 		if row := p.clients[cpath]; len(row) > 0 {
 			return row[0].client
 		}
-		c, pr := NewPromisedClient(pipelineClient{
+		c, pr := NewPromisedClient(PipelineClient{
 			p:         p,
 			transform: ft,
 		})
@@ -645,21 +645,29 @@ func (f *Future) Field(off uint16, def []byte) *Future {
 	}
 }
 
-// pipelineClient implements ClientHook by calling to the pipeline's answer.
-type pipelineClient struct {
+// PipelineClient implements ClientHook by calling to the pipeline's answer.
+type PipelineClient struct {
 	p         *Promise
 	transform []PipelineOp
 }
 
-func (pc pipelineClient) Send(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
+func (pc PipelineClient) Answer() *Answer {
+	return pc.p.Answer()
+}
+
+func (pc PipelineClient) Transform() []PipelineOp {
+	return pc.transform
+}
+
+func (pc PipelineClient) Send(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 	return pc.p.ans.PipelineSend(ctx, pc.transform, s)
 }
 
-func (pc pipelineClient) Recv(ctx context.Context, r Recv) PipelineCaller {
+func (pc PipelineClient) Recv(ctx context.Context, r Recv) PipelineCaller {
 	return pc.p.ans.PipelineRecv(ctx, pc.transform, r)
 }
 
-func (pc pipelineClient) Brand() Brand {
+func (pc PipelineClient) Brand() Brand {
 	select {
 	case <-pc.p.resolved:
 		pc.p.mu.Lock()
@@ -667,12 +675,11 @@ func (pc pipelineClient) Brand() Brand {
 		pc.p.mu.Unlock()
 		return r.client(pc.transform).State().Brand
 	default:
-		// TODO(someday): allow people to obtain the underlying answer.
-		return Brand{}
+		return Brand{Value: pc}
 	}
 }
 
-func (pc pipelineClient) Shutdown() {
+func (pc PipelineClient) Shutdown() {
 }
 
 // A PipelineOp describes a step in transforming a pipeline.
