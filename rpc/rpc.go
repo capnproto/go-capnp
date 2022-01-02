@@ -1078,13 +1078,13 @@ func (c *Conn) handleFinish(ctx context.Context, id answerID, releaseResultCaps 
 // error indicates a protocol violation.
 //
 // The caller must be holding onto c.mu.
-func (c *Conn) recvCap(d rpccp.CapDescriptor) (_ *capnp.Client, local bool, _ error) {
+func (c *Conn) recvCap(d rpccp.CapDescriptor) (*capnp.Client, error) {
 	switch w := d.Which(); w {
 	case rpccp.CapDescriptor_Which_none:
-		return nil, false, nil
+		return nil, nil
 	case rpccp.CapDescriptor_Which_senderHosted:
 		id := importID(d.SenderHosted())
-		return c.addImport(id), false, nil
+		return c.addImport(id), nil
 	case rpccp.CapDescriptor_Which_senderPromise:
 		// We do the same thing as senderHosted, above. @kentonv suggested this on
 		// issue #2; this lets messages be delivered properly, although it's a bit
@@ -1097,85 +1097,95 @@ func (c *Conn) recvCap(d rpccp.CapDescriptor) (_ *capnp.Client, local bool, _ er
 		// >   messages sent to it will uselessly round-trip over the network
 		// >   rather than being delivered locally.
 		id := importID(d.SenderPromise())
-		return c.addImport(id), false, nil
+		return c.addImport(id), nil
 	case rpccp.CapDescriptor_Which_receiverHosted:
 		id := exportID(d.ReceiverHosted())
 		ent := c.findExport(id)
 		if ent == nil {
-			return nil, false, failedf("receive capability: invalid export %d", id)
+			return nil, failedf("receive capability: invalid export %d", id)
 		}
-		return ent.client.AddRef(), true, nil
+		return ent.client.AddRef(), nil
 	case rpccp.CapDescriptor_Which_receiverAnswer:
 		promisedAnswer, err := d.ReceiverAnswer()
 		if err != nil {
-			return nil, false, failedf("receive capabiltiy: reading promised answer: %v", err)
+			return nil, failedf("receive capabiltiy: reading promised answer: %v", err)
 		}
 		rawTransform, err := promisedAnswer.Transform()
 		if err != nil {
-			return nil, false, failedf("receive capabiltiy: reading promised answer transform: %v", err)
+			return nil, failedf("receive capabiltiy: reading promised answer transform: %v", err)
 		}
 		transform, err := parseTransform(rawTransform)
 		if err != nil {
-			return nil, false, failedf("read target transform: %v", err)
+			return nil, failedf("read target transform: %v", err)
 		}
 
 		id := answerID(promisedAnswer.QuestionId())
 		ans, ok := c.answers[id]
 		if !ok {
-			return nil, false, failedf("receive capability: no such question id: %v", id)
+			return nil, failedf("receive capability: no such question id: %v", id)
 		}
 
-		return c.recvCapReceiverAnswer(ans, transform)
+		return c.recvCapReceiverAnswer(ans, transform), nil
 	default:
-		return capnp.ErrorClient(failedf("unknown CapDescriptor type %v", w)), false, nil
+		return capnp.ErrorClient(failedf("unknown CapDescriptor type %v", w)), nil
 	}
 }
 
 // Helper for Conn.recvCap(); handles the receiverAnswer case.
-func (c *Conn) recvCapReceiverAnswer(ans *answer, transform []capnp.PipelineOp) (
-	_ *capnp.Client, local bool, _ error) {
-
+func (c *Conn) recvCapReceiverAnswer(ans *answer, transform []capnp.PipelineOp) *capnp.Client {
 	if ans.promise != nil {
 		// Still unresolved.
 		future := ans.promise.Answer().Future()
 		for _, op := range transform {
 			future = future.Field(op.Field, op.DefaultValue)
 		}
-		return future.Client(), true, nil
+		return future.Client()
 	}
 
 	if ans.err != nil {
-		return capnp.ErrorClient(ans.err), false, nil
+		return capnp.ErrorClient(ans.err)
 	}
 
 	ptr, err := ans.results.Content()
 	if err != nil {
-		return capnp.ErrorClient(failedf("failed reading results: %v", err)), false, nil
+		return capnp.ErrorClient(failedf("failed reading results: %v", err))
 	}
 	ptr, err = capnp.Transform(ptr, transform)
 	if err != nil {
-		return capnp.ErrorClient(failedf("Applying transform to results: %v", err)), false, nil
+		return capnp.ErrorClient(failedf("Applying transform to results: %v", err))
 	}
 	iface := ptr.Interface()
 	if !iface.IsValid() {
-		return capnp.ErrorClient(failedf("Result is not a capability")), false, nil
+		return capnp.ErrorClient(failedf("Result is not a capability"))
 	}
 
 	// We can't just call Client(), becasue the CapTable has been cleared; instead,
 	// look it up in resultCapTable ourselves:
 	capId := int(iface.Capability())
 	if capId < 0 || capId >= len(ans.resultCapTable) {
-		return nil, false, nil
+		return nil
 	}
 
-	client := ans.resultCapTable[capId]
-	// TODO: check this; are there other cases where we should return true.
-	m := client.State().Metadata
-	m.Lock()
-	defer m.Unlock()
-	_, local = c.findExportID(m)
-	return client, local, nil
+	return ans.resultCapTable[capId]
+}
 
+// Returns whether the client should be treated as local, for the purpose of
+// embargos.
+func (c *Conn) isLocalClient(client *capnp.Client) bool {
+	if client == nil {
+		return false
+	}
+	if ic, ok := client.State().Brand.Value.(*importClient); ok {
+		// If the connections are different, we must be proxying
+		// it, so as far as this connection is concerned, it lives
+		// on our side.
+		return ic.c != c
+	}
+	// TODO: We should return false for results from pending remote calls
+	// as well. But that can wait until sendCap() actually emits
+	// CapDescriptors of type receiverAnswer, since until then it won't
+	// come up.
+	return true
 }
 
 // recvPayload extracts the content pointer after populating the
@@ -1206,14 +1216,13 @@ func (c *Conn) recvPayload(payload rpccp.Payload) (_ capnp.Ptr, locals uintSet, 
 	}
 	mtab := make([]*capnp.Client, ptab.Len())
 	for i := 0; i < ptab.Len(); i++ {
-		var local bool
 		var err error
-		mtab[i], local, err = c.recvCap(ptab.At(i))
+		mtab[i], err = c.recvCap(ptab.At(i))
 		if err != nil {
 			releaseList(mtab[:i]).release()
 			return capnp.Ptr{}, nil, annotate(err, fmt.Sprintf("read payload: capability %d", i))
 		}
-		if local {
+		if c.isLocalClient(mtab[i]) {
 			locals.add(uint(i))
 		}
 	}
