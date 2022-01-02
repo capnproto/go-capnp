@@ -16,4 +16,5 @@ interface StreamTest {
 
 interface CapArgsTest {
   call @0 (cap :Capability);
+  self @1 () -> (self :CapArgsTest);
 }
