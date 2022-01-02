@@ -300,6 +300,10 @@ func (c *Conn) shutdown(abortErr error) error {
 	c.bootstrap = nil
 	for _, e := range exports {
 		if e != nil {
+			metadata := e.client.State().Metadata
+			metadata.Lock()
+			c.clearExportID(metadata)
+			metadata.Unlock()
 			e.client.Release()
 		}
 	}
