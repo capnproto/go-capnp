@@ -1141,15 +1141,7 @@ func (c *Conn) recvCapReceiverAnswer(ans *answer, transform []capnp.PipelineOp) 
 		for _, op := range transform {
 			future = future.Field(op.Field, op.DefaultValue)
 		}
-		// N.B. we can't legally return local = true, because in the case of
-		// a return that would send a disembargo to the remote vat, which will
-		// be a protocol error if the final capabiltiy doesn't end up pointing
-		// back to us.
-		//
-		// The correct thing for us to do is, when *this* answer resolves, set
-		// up embargos then if need be, but right now afaik we only do that
-		// in sendReturn. FIXME.
-		return future.Client(), false, nil
+		return future.Client(), true, nil
 	}
 
 	if ans.err != nil {
