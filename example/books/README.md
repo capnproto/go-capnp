@@ -10,5 +10,5 @@ Then build and run each example:
 ```
 cd ex1 && go build . && ./bookstest1
 
-cd ex2 && go build . && capnp encode ../books/books.capnp Book < ./book.txt > ./book.capnpenc && ./bookstest2 < ./book.capnpenc && cd ..
+cd ex2 && go build . && capnp encode ../books/books.capnp Book < ./book.txt | ./bookstest2 && cd ..
 ```
