@@ -381,36 +381,446 @@ func (p StreamTest_push_Params_Future) Struct() (StreamTest_push_Params, error) 
 	return StreamTest_push_Params{s}, err
 }
 
-const schema_ef12a34b9807e19c = "x\xda\x12\xf8\xe4\xc0d\xc8Z\xcf\xc2\xc0\x10h\xc2\xca" +
-	"\xf6OM\xf5\xf6\xb4\xbfw[\x03E\x18\x19\x19\x18X" +
-	"\xd8\x19\x18\x8cU\x99\x94\x18\x19\x18\x85u\x99\xec\x19\x18" +
-	"\xff\xa7.y\xc7\x18\xbd\xc2f7\x83 7\xf3\xff9" +
-	"\x0f\xd9gx/\x16z\xcf\xc0\xc0(\xec\xcb\xb4I8" +
-	"\x94\x89\x9d\x81A8\x90\xc9]\xb8\x12\xc4\xfa\xaf\xc8y" +
-	"\x7f\xde\xca\x07\xd3\xaf3 \x99\x96\xc8$\x052-\x13" +
-	"lZ\xd5\xbb\x1f\x87J\x8e\xb0|\xc00\xad\x93i\x91" +
-	"\xf0D\xb0i\xbdL\xee\xc2[\xc1\xa6\xdd\x96.:\xb1" +
-	"\xec\x8e\xc5\x0f\x06A1F\x06\x06VF\x90is\x99" +
-	"\x84@\xa6-e\xb2g\x88\xfc_\x92Z\\\xa2\x97\x9c" +
-	"X\xc0\x9cW`\x15\x90\x99\x97\x1e\x90\x9f\x97\xae\x97\x9a" +
-	"\x9c\x91\xefW\x9a\xab\x12\x94Z\\\xca\x9eSR\x1c\xc8" +
-	"\xc2\xcc\xc2\xc0\xc0\xc2\xc8\xc0 \xc8+\xc4\xc0\x10\xc8\xc1" +
-	"\xcc\x18(\xc2\xc4\xc8\x98\xc7\xc8\xca\xc0\xc4\xc8\xca\xc0\x08" +
-	"7\x861\xaf\xc0*\xb8\xa4(5Q>7$\xb5\xb8" +
-	"$\x80\x911\x90\x85\x99\x15\xc9!\x8cy\x1b\x0f\x94\x1b" +
-	"\xcf\x8a\x9f)(\xa8\xc5\xc0$\xc8\xca\xce_PZ\x9c" +
-	"\xe1\xc0\x18\xc0\xc8\x88\xdf-\x01\x89E\x89\xcc\xb9$:" +
-	"\x05l\x0a{~^:\xc2!\xb0\xf0ed\x80\xc6\x9a" +
-	"\xa0\xa0\x13\xd8!\xf5P\x9b0\xdd\x02\xf6\x10\xd8?z" +
-	" \xc7\x82\x9d\x92\xcb\x88\xe2\x14-\x84S\xf8S\x12K" +
-	"\x12\x19y\x19\x98\x18y\x19\x18\x01\x01\x00\x00\xff\xff)" +
-	"\x11\x93\xee"
+type CapArgsTest struct{ Client *capnp.Client }
+
+// CapArgsTest_TypeID is the unique identifier for the type CapArgsTest.
+const CapArgsTest_TypeID = 0xb86bce7f916a10cc
+
+func (c CapArgsTest) Call(ctx context.Context, params func(CapArgsTest_call_Params) error) (CapArgsTest_call_Results_Future, capnp.ReleaseFunc) {
+	s := capnp.Send{
+		Method: capnp.Method{
+			InterfaceID:   0xb86bce7f916a10cc,
+			MethodID:      0,
+			InterfaceName: "test.capnp:CapArgsTest",
+			MethodName:    "call",
+		},
+	}
+	if params != nil {
+		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 1}
+		s.PlaceArgs = func(s capnp.Struct) error { return params(CapArgsTest_call_Params{Struct: s}) }
+	}
+	ans, release := c.Client.SendCall(ctx, s)
+	return CapArgsTest_call_Results_Future{Future: ans.Future()}, release
+}
+func (c CapArgsTest) Self(ctx context.Context, params func(CapArgsTest_self_Params) error) (CapArgsTest_self_Results_Future, capnp.ReleaseFunc) {
+	s := capnp.Send{
+		Method: capnp.Method{
+			InterfaceID:   0xb86bce7f916a10cc,
+			MethodID:      1,
+			InterfaceName: "test.capnp:CapArgsTest",
+			MethodName:    "self",
+		},
+	}
+	if params != nil {
+		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
+		s.PlaceArgs = func(s capnp.Struct) error { return params(CapArgsTest_self_Params{Struct: s}) }
+	}
+	ans, release := c.Client.SendCall(ctx, s)
+	return CapArgsTest_self_Results_Future{Future: ans.Future()}, release
+}
+
+func (c CapArgsTest) AddRef() CapArgsTest {
+	return CapArgsTest{
+		Client: c.Client.AddRef(),
+	}
+}
+
+func (c CapArgsTest) Release() {
+	c.Client.Release()
+}
+
+// A CapArgsTest_Server is a CapArgsTest with a local implementation.
+type CapArgsTest_Server interface {
+	Call(context.Context, CapArgsTest_call) error
+
+	Self(context.Context, CapArgsTest_self) error
+}
+
+// CapArgsTest_NewServer creates a new Server from an implementation of CapArgsTest_Server.
+func CapArgsTest_NewServer(s CapArgsTest_Server, policy *server.Policy) *server.Server {
+	c, _ := s.(server.Shutdowner)
+	return server.New(CapArgsTest_Methods(nil, s), s, c, policy)
+}
+
+// CapArgsTest_ServerToClient creates a new Client from an implementation of CapArgsTest_Server.
+// The caller is responsible for calling Release on the returned Client.
+func CapArgsTest_ServerToClient(s CapArgsTest_Server, policy *server.Policy) CapArgsTest {
+	return CapArgsTest{Client: capnp.NewClient(CapArgsTest_NewServer(s, policy))}
+}
+
+// CapArgsTest_Methods appends Methods to a slice that invoke the methods on s.
+// This can be used to create a more complicated Server.
+func CapArgsTest_Methods(methods []server.Method, s CapArgsTest_Server) []server.Method {
+	if cap(methods) == 0 {
+		methods = make([]server.Method, 0, 2)
+	}
+
+	methods = append(methods, server.Method{
+		Method: capnp.Method{
+			InterfaceID:   0xb86bce7f916a10cc,
+			MethodID:      0,
+			InterfaceName: "test.capnp:CapArgsTest",
+			MethodName:    "call",
+		},
+		Impl: func(ctx context.Context, call *server.Call) error {
+			return s.Call(ctx, CapArgsTest_call{call})
+		},
+	})
+
+	methods = append(methods, server.Method{
+		Method: capnp.Method{
+			InterfaceID:   0xb86bce7f916a10cc,
+			MethodID:      1,
+			InterfaceName: "test.capnp:CapArgsTest",
+			MethodName:    "self",
+		},
+		Impl: func(ctx context.Context, call *server.Call) error {
+			return s.Self(ctx, CapArgsTest_self{call})
+		},
+	})
+
+	return methods
+}
+
+// CapArgsTest_call holds the state for a server call to CapArgsTest.call.
+// See server.Call for documentation.
+type CapArgsTest_call struct {
+	*server.Call
+}
+
+// Args returns the call's arguments.
+func (c CapArgsTest_call) Args() CapArgsTest_call_Params {
+	return CapArgsTest_call_Params{Struct: c.Call.Args()}
+}
+
+// AllocResults allocates the results struct.
+func (c CapArgsTest_call) AllocResults() (CapArgsTest_call_Results, error) {
+	r, err := c.Call.AllocResults(capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return CapArgsTest_call_Results{Struct: r}, err
+}
+
+// CapArgsTest_self holds the state for a server call to CapArgsTest.self.
+// See server.Call for documentation.
+type CapArgsTest_self struct {
+	*server.Call
+}
+
+// Args returns the call's arguments.
+func (c CapArgsTest_self) Args() CapArgsTest_self_Params {
+	return CapArgsTest_self_Params{Struct: c.Call.Args()}
+}
+
+// AllocResults allocates the results struct.
+func (c CapArgsTest_self) AllocResults() (CapArgsTest_self_Results, error) {
+	r, err := c.Call.AllocResults(capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return CapArgsTest_self_Results{Struct: r}, err
+}
+
+type CapArgsTest_call_Params struct{ capnp.Struct }
+
+// CapArgsTest_call_Params_TypeID is the unique identifier for the type CapArgsTest_call_Params.
+const CapArgsTest_call_Params_TypeID = 0x80087e4e698768a2
+
+func NewCapArgsTest_call_Params(s *capnp.Segment) (CapArgsTest_call_Params, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return CapArgsTest_call_Params{st}, err
+}
+
+func NewRootCapArgsTest_call_Params(s *capnp.Segment) (CapArgsTest_call_Params, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return CapArgsTest_call_Params{st}, err
+}
+
+func ReadRootCapArgsTest_call_Params(msg *capnp.Message) (CapArgsTest_call_Params, error) {
+	root, err := msg.Root()
+	return CapArgsTest_call_Params{root.Struct()}, err
+}
+
+func (s CapArgsTest_call_Params) String() string {
+	str, _ := text.Marshal(0x80087e4e698768a2, s.Struct)
+	return str
+}
+
+func (s CapArgsTest_call_Params) Cap() (capnp.Ptr, error) {
+	return s.Struct.Ptr(0)
+}
+
+func (s CapArgsTest_call_Params) HasCap() bool {
+	return s.Struct.HasPtr(0)
+}
+
+func (s CapArgsTest_call_Params) SetCap(v capnp.Ptr) error {
+	return s.Struct.SetPtr(0, v)
+}
+
+// CapArgsTest_call_Params_List is a list of CapArgsTest_call_Params.
+type CapArgsTest_call_Params_List struct{ capnp.List }
+
+// NewCapArgsTest_call_Params creates a new list of CapArgsTest_call_Params.
+func NewCapArgsTest_call_Params_List(s *capnp.Segment, sz int32) (CapArgsTest_call_Params_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
+	return CapArgsTest_call_Params_List{l}, err
+}
+
+func (s CapArgsTest_call_Params_List) At(i int) CapArgsTest_call_Params {
+	return CapArgsTest_call_Params{s.List.Struct(i)}
+}
+
+func (s CapArgsTest_call_Params_List) Set(i int, v CapArgsTest_call_Params) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s CapArgsTest_call_Params_List) String() string {
+	str, _ := text.MarshalList(0x80087e4e698768a2, s.List)
+	return str
+}
+
+// CapArgsTest_call_Params_Future is a wrapper for a CapArgsTest_call_Params promised by a client call.
+type CapArgsTest_call_Params_Future struct{ *capnp.Future }
+
+func (p CapArgsTest_call_Params_Future) Struct() (CapArgsTest_call_Params, error) {
+	s, err := p.Future.Struct()
+	return CapArgsTest_call_Params{s}, err
+}
+
+func (p CapArgsTest_call_Params_Future) Cap() *capnp.Future {
+	return p.Future.Field(0, nil)
+}
+
+type CapArgsTest_call_Results struct{ capnp.Struct }
+
+// CapArgsTest_call_Results_TypeID is the unique identifier for the type CapArgsTest_call_Results.
+const CapArgsTest_call_Results_TypeID = 0x96fbc50dc2f0200d
+
+func NewCapArgsTest_call_Results(s *capnp.Segment) (CapArgsTest_call_Results, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return CapArgsTest_call_Results{st}, err
+}
+
+func NewRootCapArgsTest_call_Results(s *capnp.Segment) (CapArgsTest_call_Results, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return CapArgsTest_call_Results{st}, err
+}
+
+func ReadRootCapArgsTest_call_Results(msg *capnp.Message) (CapArgsTest_call_Results, error) {
+	root, err := msg.Root()
+	return CapArgsTest_call_Results{root.Struct()}, err
+}
+
+func (s CapArgsTest_call_Results) String() string {
+	str, _ := text.Marshal(0x96fbc50dc2f0200d, s.Struct)
+	return str
+}
+
+// CapArgsTest_call_Results_List is a list of CapArgsTest_call_Results.
+type CapArgsTest_call_Results_List struct{ capnp.List }
+
+// NewCapArgsTest_call_Results creates a new list of CapArgsTest_call_Results.
+func NewCapArgsTest_call_Results_List(s *capnp.Segment, sz int32) (CapArgsTest_call_Results_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	return CapArgsTest_call_Results_List{l}, err
+}
+
+func (s CapArgsTest_call_Results_List) At(i int) CapArgsTest_call_Results {
+	return CapArgsTest_call_Results{s.List.Struct(i)}
+}
+
+func (s CapArgsTest_call_Results_List) Set(i int, v CapArgsTest_call_Results) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s CapArgsTest_call_Results_List) String() string {
+	str, _ := text.MarshalList(0x96fbc50dc2f0200d, s.List)
+	return str
+}
+
+// CapArgsTest_call_Results_Future is a wrapper for a CapArgsTest_call_Results promised by a client call.
+type CapArgsTest_call_Results_Future struct{ *capnp.Future }
+
+func (p CapArgsTest_call_Results_Future) Struct() (CapArgsTest_call_Results, error) {
+	s, err := p.Future.Struct()
+	return CapArgsTest_call_Results{s}, err
+}
+
+type CapArgsTest_self_Params struct{ capnp.Struct }
+
+// CapArgsTest_self_Params_TypeID is the unique identifier for the type CapArgsTest_self_Params.
+const CapArgsTest_self_Params_TypeID = 0xe2553e5a663abb7d
+
+func NewCapArgsTest_self_Params(s *capnp.Segment) (CapArgsTest_self_Params, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return CapArgsTest_self_Params{st}, err
+}
+
+func NewRootCapArgsTest_self_Params(s *capnp.Segment) (CapArgsTest_self_Params, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return CapArgsTest_self_Params{st}, err
+}
+
+func ReadRootCapArgsTest_self_Params(msg *capnp.Message) (CapArgsTest_self_Params, error) {
+	root, err := msg.Root()
+	return CapArgsTest_self_Params{root.Struct()}, err
+}
+
+func (s CapArgsTest_self_Params) String() string {
+	str, _ := text.Marshal(0xe2553e5a663abb7d, s.Struct)
+	return str
+}
+
+// CapArgsTest_self_Params_List is a list of CapArgsTest_self_Params.
+type CapArgsTest_self_Params_List struct{ capnp.List }
+
+// NewCapArgsTest_self_Params creates a new list of CapArgsTest_self_Params.
+func NewCapArgsTest_self_Params_List(s *capnp.Segment, sz int32) (CapArgsTest_self_Params_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	return CapArgsTest_self_Params_List{l}, err
+}
+
+func (s CapArgsTest_self_Params_List) At(i int) CapArgsTest_self_Params {
+	return CapArgsTest_self_Params{s.List.Struct(i)}
+}
+
+func (s CapArgsTest_self_Params_List) Set(i int, v CapArgsTest_self_Params) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s CapArgsTest_self_Params_List) String() string {
+	str, _ := text.MarshalList(0xe2553e5a663abb7d, s.List)
+	return str
+}
+
+// CapArgsTest_self_Params_Future is a wrapper for a CapArgsTest_self_Params promised by a client call.
+type CapArgsTest_self_Params_Future struct{ *capnp.Future }
+
+func (p CapArgsTest_self_Params_Future) Struct() (CapArgsTest_self_Params, error) {
+	s, err := p.Future.Struct()
+	return CapArgsTest_self_Params{s}, err
+}
+
+type CapArgsTest_self_Results struct{ capnp.Struct }
+
+// CapArgsTest_self_Results_TypeID is the unique identifier for the type CapArgsTest_self_Results.
+const CapArgsTest_self_Results_TypeID = 0x9746cc05cbff1132
+
+func NewCapArgsTest_self_Results(s *capnp.Segment) (CapArgsTest_self_Results, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return CapArgsTest_self_Results{st}, err
+}
+
+func NewRootCapArgsTest_self_Results(s *capnp.Segment) (CapArgsTest_self_Results, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return CapArgsTest_self_Results{st}, err
+}
+
+func ReadRootCapArgsTest_self_Results(msg *capnp.Message) (CapArgsTest_self_Results, error) {
+	root, err := msg.Root()
+	return CapArgsTest_self_Results{root.Struct()}, err
+}
+
+func (s CapArgsTest_self_Results) String() string {
+	str, _ := text.Marshal(0x9746cc05cbff1132, s.Struct)
+	return str
+}
+
+func (s CapArgsTest_self_Results) Self() CapArgsTest {
+	p, _ := s.Struct.Ptr(0)
+	return CapArgsTest{Client: p.Interface().Client()}
+}
+
+func (s CapArgsTest_self_Results) HasSelf() bool {
+	return s.Struct.HasPtr(0)
+}
+
+func (s CapArgsTest_self_Results) SetSelf(v CapArgsTest) error {
+	if !v.Client.IsValid() {
+		return s.Struct.SetPtr(0, capnp.Ptr{})
+	}
+	seg := s.Segment()
+	in := capnp.NewInterface(seg, seg.Message().AddCap(v.Client))
+	return s.Struct.SetPtr(0, in.ToPtr())
+}
+
+// CapArgsTest_self_Results_List is a list of CapArgsTest_self_Results.
+type CapArgsTest_self_Results_List struct{ capnp.List }
+
+// NewCapArgsTest_self_Results creates a new list of CapArgsTest_self_Results.
+func NewCapArgsTest_self_Results_List(s *capnp.Segment, sz int32) (CapArgsTest_self_Results_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
+	return CapArgsTest_self_Results_List{l}, err
+}
+
+func (s CapArgsTest_self_Results_List) At(i int) CapArgsTest_self_Results {
+	return CapArgsTest_self_Results{s.List.Struct(i)}
+}
+
+func (s CapArgsTest_self_Results_List) Set(i int, v CapArgsTest_self_Results) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s CapArgsTest_self_Results_List) String() string {
+	str, _ := text.MarshalList(0x9746cc05cbff1132, s.List)
+	return str
+}
+
+// CapArgsTest_self_Results_Future is a wrapper for a CapArgsTest_self_Results promised by a client call.
+type CapArgsTest_self_Results_Future struct{ *capnp.Future }
+
+func (p CapArgsTest_self_Results_Future) Struct() (CapArgsTest_self_Results, error) {
+	s, err := p.Future.Struct()
+	return CapArgsTest_self_Results{s}, err
+}
+
+func (p CapArgsTest_self_Results_Future) Self() CapArgsTest {
+	return CapArgsTest{Client: p.Future.Field(0, nil).Client()}
+}
+
+const schema_ef12a34b9807e19c = "x\xda\x94\x93Mh\xd3`\x18\xc7\x9f\xa7O\xb2tH" +
+	"\xa8o3\x14\xf5\xa0\x8eMp\x87b\xddA\x1db;" +
+	"\x05'\x08\xa3\xf1\xe3\xa0\x1e$\xd4\xac\xad\xb6ihR" +
+	"\x06\x82\xce\x8b\xec\xeceSQ\xc1\xf9\x81\x1e'\x08\xea" +
+	".:\x1c(\x0eo\"2\x87\x1fw\xe7\x8e\x03\xd1\xc8" +
+	"\xfb\xa6Y\x1a\xdb\x1d\xbc\x95\xfe\x9f\xf7\xff\xfb?\x1f\xd9" +
+	"5\x8a\xd9XZ\xde\xd3\x01\xa0\x1f\x91;\xbc\xa9\xe2x" +
+	"i\xf8r\xfc\x0a\xb0\x8d\x08 \xa3\x02\xd0\x8f\xb4\x19\x01" +
+	"\xb5N\xca\x00\xfe\xd9\xd1\xbb0\xf1{\xf1\xaa\xde\x85\x08" +
+	" qy'us9\xcdeO\xdd\xb6<\xab\xce\xfd" +
+	"\x9a\xf0\xdf\x0b]\xe7\xba\xe4\xedf\xde;y\xfe\xf0d" +
+	"\xb3\xf3>\xff\xe9\xa0x:\xbf\xfe\xfc\xb5\xb1\xf7\x17\x9e" +
+	"\x01[G\xde\xado\xca\xf5\xa3\xf7\x92?\x01P3\xe8" +
+	"\x85V\"\x05@3i\\{\xca\x7fy\xe6\xfd%<" +
+	"\xf3h\xffLK\xf1mz\xa2=\x10\xc5wiH{" +
+	"+\x8a\xb7w~\xb9\xf3\xf8\xeb\xe4GhJ=\xed7" +
+	"\xf5\\\xa0/\xcd\x0c\x8c\x9c>p\xf2{S\xeaO\\" +
+	"\x97\xbc\x8bK+\xb3\xeeki\xb9\x85\xf3\x8a\xa6|w" +
+	"m\x8e\x86\xb4\x1f\x82\xb3\xb0\xa5\xf6\xe6\xe1\xe7\xbd+\xc0" +
+	"6\xac\xb6\xf8\x81\x92\x9c\xb3H\x198\xe5\xb9\xa6\xe3\xa6" +
+	"\xf2\x86M\x96=p\xc8\xb0\x07k\x05\xe7\x84\xffW\xb9" +
+	"\xdc\x933j\x06U\x1c]\"\x09@B\x00\xa6v\x03" +
+	"\xe8qB\xbd+\x86J\xde\xb01)\x11 &\x01#" +
+	"N\xb9\x92U\xc8U\xadB\xca\xcc\x17\xab\xc3\xf5J\xcf" +
+	"1\xd3\xa9+e7b\x95\x0c\xad\xd0B\x19b(\xff" +
+	"c\xd3\x12(\xb0Y\xb3\xca1\xcb#ma}!," +
+	"\xc1\x8b\x90\x85\xdb\x05D\xd6D\xc6\xc03\xe3\x9b\xe6\x10" +
+	"\xf58\xc9\x00\xab\xa7\x88\xc1M\xb1t\x1f\xc4X\xaf\x82" +
+	"\xe1\xc20\xb8*\xb6\x89k\xaa\x92\xe0\xc9\xb3>5\x8b" +
+	"9\x8c\x82\x8e\xbb5\xd3\xd8Z\x098\x92\xe0\x04[C" +
+	"k\xfa\xe5h\xff\xcd\xb37\x18\xe3^\xb2\x92\xb0\xebN" +
+	"1j\xd2v\xdcm\x16\xf7\x7f\xd3\x16sl\xb8D\xf2" +
+	"\x0a\x94R\xb5\x0aa\xda\xe0\x96\x11\x1a_\"c\x07E" +
+	"\xda\xb1F\x9c\xd6\xc0\xa2k\xd1t\x8aw$H\x15\\" +
+	"sa\xe7\x0c\xd7@\x15b\xa8\x02\xfe\x0d\x00\x00\xff\xff" +
+	"\xe0\x10 \xd6"
 
 func init() {
 	schemas.Register(schema_ef12a34b9807e19c,
+		0x80087e4e698768a2,
 		0x85ddfd96db252600,
+		0x96fbc50dc2f0200d,
+		0x9746cc05cbff1132,
+		0xb86bce7f916a10cc,
 		0xbb3ca85b01eea465,
 		0xd797e0a99edf0921,
+		0xe2553e5a663abb7d,
 		0xf004c474c2f8ee7a,
 		0xf838dca6c8721bdb)
 }

@@ -181,6 +181,18 @@ func (p *Promise) Reject(e error) {
 	p.resolve(Ptr{}, e)
 }
 
+// Resolve resolves the promise.
+//
+// If e != nil, then this is equivalent to p.Reject(e).
+// Otherwise, it is equivalent to p.Fulfill(r).
+func (p *Promise) Resolve(r Ptr, e error) {
+	if e != nil {
+		p.Reject(e)
+	} else {
+		p.Fulfill(r)
+	}
+}
+
 // resolve moves p into the resolved state from unresolved or pending
 // join.  The caller must be holding onto p.mu.
 func (p *Promise) resolve(r Ptr, e error) {

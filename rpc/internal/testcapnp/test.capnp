@@ -13,3 +13,8 @@ interface PingPong {
 interface StreamTest {
   push @0 (data :Data) -> stream;
 }
+
+interface CapArgsTest {
+  call @0 (cap :Capability);
+  self @1 () -> (self :CapArgsTest);
+}

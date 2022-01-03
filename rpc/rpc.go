@@ -640,7 +640,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 		// Place PipelineCaller into answer.  Since the receive goroutine is
 		// the only one that uses answer.pcall, it's fine that there's a
 		// time gap for this being set.
-		ans.setPipelineCaller(pcall)
+		ans.setPipelineCaller(p.method, pcall)
 		return nil
 	case rpccp.MessageTarget_Which_promisedAnswer:
 		tgtAns := c.answers[p.target.promisedAnswer]
@@ -716,7 +716,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 				ReleaseArgs: releaseArgs,
 				Returner:    ans,
 			})
-			ans.setPipelineCaller(pcall)
+			ans.setPipelineCaller(p.method, pcall)
 		} else {
 			// Results not ready, use pipeline caller.
 			tgtAns.pcalls.Add(1) // will be finished by answer.Return
@@ -732,7 +732,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 				Returner:    ans,
 			})
 			tgtAns.pcalls.Done()
-			ans.setPipelineCaller(pcall)
+			ans.setPipelineCaller(p.method, pcall)
 		}
 		return nil
 	default:
@@ -1111,9 +1111,68 @@ func (c *Conn) recvCap(d rpccp.CapDescriptor) (*capnp.Client, error) {
 			return nil, failedf("receive capability: invalid export %d", id)
 		}
 		return ent.client.AddRef(), nil
+	case rpccp.CapDescriptor_Which_receiverAnswer:
+		promisedAnswer, err := d.ReceiverAnswer()
+		if err != nil {
+			return nil, failedf("receive capabiltiy: reading promised answer: %v", err)
+		}
+		rawTransform, err := promisedAnswer.Transform()
+		if err != nil {
+			return nil, failedf("receive capabiltiy: reading promised answer transform: %v", err)
+		}
+		transform, err := parseTransform(rawTransform)
+		if err != nil {
+			return nil, failedf("read target transform: %v", err)
+		}
+
+		id := answerID(promisedAnswer.QuestionId())
+		ans, ok := c.answers[id]
+		if !ok {
+			return nil, failedf("receive capability: no such question id: %v", id)
+		}
+
+		return c.recvCapReceiverAnswer(ans, transform), nil
 	default:
 		return capnp.ErrorClient(failedf("unknown CapDescriptor type %v", w)), nil
 	}
+}
+
+// Helper for Conn.recvCap(); handles the receiverAnswer case.
+func (c *Conn) recvCapReceiverAnswer(ans *answer, transform []capnp.PipelineOp) *capnp.Client {
+	if ans.promise != nil {
+		// Still unresolved.
+		future := ans.promise.Answer().Future()
+		for _, op := range transform {
+			future = future.Field(op.Field, op.DefaultValue)
+		}
+		return future.Client()
+	}
+
+	if ans.err != nil {
+		return capnp.ErrorClient(ans.err)
+	}
+
+	ptr, err := ans.results.Content()
+	if err != nil {
+		return capnp.ErrorClient(failedf("failed reading results: %v", err))
+	}
+	ptr, err = capnp.Transform(ptr, transform)
+	if err != nil {
+		return capnp.ErrorClient(failedf("Applying transform to results: %v", err))
+	}
+	iface := ptr.Interface()
+	if !iface.IsValid() {
+		return capnp.ErrorClient(failedf("Result is not a capability"))
+	}
+
+	// We can't just call Client(), becasue the CapTable has been cleared; instead,
+	// look it up in resultCapTable ourselves:
+	capId := int(iface.Capability())
+	if capId < 0 || capId >= len(ans.resultCapTable) {
+		return nil
+	}
+
+	return ans.resultCapTable[capId]
 }
 
 // Returns whether the client should be treated as local, for the purpose of
