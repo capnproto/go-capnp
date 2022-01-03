@@ -464,6 +464,9 @@ type ClientState struct {
 	// Arbitrary metadata. Note that, if a Client is a promise,
 	// when it resolves its metadata will be replaced with that
 	// of its resolution.
+	//
+	// TODO: this might change before the v3 API is stabilized;
+	// we are not sure the above is the correct semantics.
 	Metadata *Metadata
 }
 
