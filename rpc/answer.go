@@ -213,12 +213,6 @@ func (ans *answer) Return(e error) {
 func (ans *answer) sendReturn() (releaseList, error) {
 	ans.pcall = nil
 	ans.flags |= resultsReady
-	// XXX: do we need to check if we've received a finish? if so, the
-	// results won't be valid...
-	if ans.promise != nil {
-		ans.promise.Resolve(ans.results.Content())
-		ans.promise = nil
-	}
 
 	var err error
 	ans.exportRefs, err = ans.c.fillPayloadCapTable(ans.results, ans.resultCapTable)
@@ -231,6 +225,18 @@ func (ans *answer) sendReturn() (releaseList, error) {
 	case <-ans.c.bgctx.Done():
 	default:
 		fin := ans.flags&finishReceived != 0
+		if ans.promise != nil {
+			if fin {
+				// Can't use ans.result after a finish, but it's
+				// ok to return an error if the finish comes in
+				// before the return. Possible enhancement: use
+				// the cancel variant of return.
+				ans.promise.Reject(failedf("Received finish before return"))
+			} else {
+				ans.promise.Resolve(ans.results.Content())
+			}
+			ans.promise = nil
+		}
 		ans.c.mu.Unlock()
 		if err := ans.sendMsg(); err != nil {
 			ans.c.report(failedf("send return: %w", err))
