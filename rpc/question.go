@@ -241,10 +241,10 @@ func (c *Conn) newPipelineCallMessage(msg rpccp.Message, tgt questionID, transfo
 		m.CapTable = nil
 		return failedf("place arguments: %w", err)
 	}
-	clients, states := extractCapTable(m)
+	clients := extractCapTable(m)
 	syncutil.With(&c.mu, func() {
 		// TODO(soon): save param refs
-		_, err = c.fillPayloadCapTable(payload, clients, states)
+		_, err = c.fillPayloadCapTable(payload, clients)
 	})
 	releaseList(clients).release()
 	if err != nil {

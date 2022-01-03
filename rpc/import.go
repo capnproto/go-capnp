@@ -198,10 +198,10 @@ func (c *Conn) newImportCallMessage(msg rpccp.Message, imp importID, qid questio
 		m.CapTable = nil
 		return failedf("place arguments: %w", err)
 	}
-	clients, states := extractCapTable(m)
+	clients := extractCapTable(m)
 	syncutil.With(&c.mu, func() {
 		// TODO(soon): save param refs
-		_, err = c.fillPayloadCapTable(payload, clients, states)
+		_, err = c.fillPayloadCapTable(payload, clients)
 	})
 	releaseList(clients).release()
 	if err != nil {
