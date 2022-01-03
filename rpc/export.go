@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"capnproto.org/go/capnp/v3"
+	"capnproto.org/go/capnp/v3/internal/syncutil"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 )
 
@@ -14,6 +15,29 @@ type exportID uint32
 type expent struct {
 	client   *capnp.Client
 	wireRefs uint32
+}
+
+// A key for use in a client's Metadata, whose value is the export
+// id (if any) via which the client is exposed on the given
+// connection.
+type exportIDKey struct {
+	Conn *Conn
+}
+
+func (c *Conn) findExportID(m *capnp.Metadata) (_ exportID, ok bool) {
+	maybeID, ok := m.Get(exportIDKey{c})
+	if ok {
+		return maybeID.(exportID), true
+	}
+	return 0, false
+}
+
+func (c *Conn) setExportID(m *capnp.Metadata, id exportID) {
+	m.Put(exportIDKey{c}, id)
+}
+
+func (c *Conn) clearExportID(m *capnp.Metadata) {
+	m.Delete(exportIDKey{c})
 }
 
 // findExport returns the export entry with the given ID or nil if
@@ -41,6 +65,10 @@ func (c *Conn) releaseExport(id exportID, count uint32) (*capnp.Client, error) {
 		client := ent.client
 		c.exports[id] = nil
 		c.exportID.remove(uint32(id))
+		metadata := client.State().Metadata
+		syncutil.With(metadata, func() {
+			c.clearExportID(metadata)
+		})
 		return client, nil
 	case count > ent.wireRefs:
 		return nil, failedf("export ID %d released too many references", id)
@@ -85,7 +113,8 @@ func (c *Conn) sendCap(d rpccp.CapDescriptor, client *capnp.Client) (_ exportID,
 		return 0, false
 	}
 
-	if ic, ok := client.State().Brand.Value.(*importClient); ok && ic.c == c {
+	state := client.State()
+	if ic, ok := state.Brand.Value.(*importClient); ok && ic.c == c {
 		if ent := c.imports[ic.id]; ent != nil && ent.generation == ic.generation {
 			d.SetReceiverHosted(uint32(ic.id))
 			return 0, false
@@ -95,26 +124,28 @@ func (c *Conn) sendCap(d rpccp.CapDescriptor, client *capnp.Client) (_ exportID,
 	// TODO(someday): Check for pipeline client on question for receiverAnswer.
 
 	// Default to sender-hosted (export).
-	for id, ent := range c.exports {
-		if ent == nil {
-			continue
-		}
-		if ent.client.IsSame(client) {
-			ent.wireRefs++
-			d.SetSenderHosted(uint32(id))
-			return exportID(id), true
-		}
+	state.Metadata.Lock()
+	defer state.Metadata.Unlock()
+	id, ok := c.findExportID(state.Metadata)
+	if ok {
+		ent := c.exports[id]
+		ent.wireRefs++
+		d.SetSenderHosted(uint32(id))
+		return id, true
 	}
+
+	// Not already present; allocate an export id for it:
 	ee := &expent{
 		client:   client.AddRef(),
 		wireRefs: 1,
 	}
-	id := exportID(c.exportID.next())
+	id = exportID(c.exportID.next())
 	if int64(id) == int64(len(c.exports)) {
 		c.exports = append(c.exports, ee)
 	} else {
 		c.exports[id] = ee
 	}
+	c.setExportID(state.Metadata, id)
 	d.SetSenderHosted(uint32(id))
 	return id, true
 }
