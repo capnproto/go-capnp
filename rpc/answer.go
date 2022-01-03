@@ -6,6 +6,7 @@ import (
 
 	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/internal/errors"
+	"capnproto.org/go/capnp/v3/internal/syncutil"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 )
 
@@ -109,11 +110,11 @@ func (c *Conn) newReturn(ctx context.Context) (rpccp.Return, func() error, capnp
 // already returned.  The caller MUST NOT be holding onto ans.c.mu
 // or the sender lock.
 func (ans *answer) setPipelineCaller(pcall capnp.PipelineCaller) {
-	ans.c.mu.Lock()
-	if ans.flags&resultsReady == 0 {
-		ans.pcall = pcall
-	}
-	ans.c.mu.Unlock()
+	syncutil.With(&ans.c.mu, func() {
+		if ans.flags&resultsReady == 0 {
+			ans.pcall = pcall
+		}
+	})
 }
 
 // AllocResults allocates the results struct.
@@ -233,9 +234,9 @@ func (ans *answer) sendReturn() (releaseList, error) {
 		return nil, nil
 	}
 	rl, err := ans.destroy()
-	ans.c.mu.Unlock()
-	ans.releaseMsg()
-	ans.c.mu.Lock()
+	syncutil.Without(&ans.c.mu, func() {
+		ans.releaseMsg()
+	})
 	return rl, err
 }
 
@@ -281,9 +282,9 @@ func (ans *answer) sendException(e error) releaseList {
 	// destroy will never return an error because sendException does
 	// create any exports.
 	rl, _ := ans.destroy()
-	ans.c.mu.Unlock()
-	ans.releaseMsg()
-	ans.c.mu.Lock()
+	syncutil.Without(&ans.c.mu, func() {
+		ans.releaseMsg()
+	})
 	return rl
 }
 
