@@ -106,13 +106,13 @@ func (c *Conn) releaseExports(refs map[exportID]uint32) (releaseList, error) {
 // sendCap writes a capability descriptor, returning an export ID if
 // this vat is hosting the capability.  The caller must be holding
 // onto c.mu.
-func (c *Conn) sendCap(d rpccp.CapDescriptor, client *capnp.Client, state capnp.ClientState) (_ exportID, isExport bool) {
+func (c *Conn) sendCap(d rpccp.CapDescriptor, client *capnp.Client) (_ exportID, isExport bool) {
 	if !client.IsValid() {
 		d.SetNone()
 		return 0, false
 	}
 
-	if ic, ok := state.Brand.Value.(*importClient); ok && ic.c == c {
+	if ic, ok := client.State().Brand.Value.(*importClient); ok && ic.c == c {
 		if ent := c.imports[ic.id]; ent != nil && ent.generation == ic.generation {
 			d.SetReceiverHosted(uint32(ic.id))
 			return 0, false
@@ -153,10 +153,7 @@ func (c *Conn) sendCap(d rpccp.CapDescriptor, client *capnp.Client, state capnp.
 // reference counts added to the exports table.
 //
 // The caller must be holding onto c.mu.
-func (c *Conn) fillPayloadCapTable(payload rpccp.Payload, clients []*capnp.Client, states []capnp.ClientState) (map[exportID]uint32, error) {
-	if len(clients) != len(states) {
-		panic("states slice must be same size as cap table")
-	}
+func (c *Conn) fillPayloadCapTable(payload rpccp.Payload, clients []*capnp.Client) (map[exportID]uint32, error) {
 	if !payload.IsValid() || len(clients) == 0 {
 		return nil, nil
 	}
@@ -166,7 +163,7 @@ func (c *Conn) fillPayloadCapTable(payload rpccp.Payload, clients []*capnp.Clien
 	}
 	var refs map[exportID]uint32
 	for i, client := range clients {
-		id, isExport := c.sendCap(list.At(i), client, states[i])
+		id, isExport := c.sendCap(list.At(i), client)
 		if !isExport {
 			continue
 		}
@@ -182,18 +179,10 @@ func (c *Conn) fillPayloadCapTable(payload rpccp.Payload, clients []*capnp.Clien
 // message's capability table and sets the message's capability table
 // to nil.  The caller must not be holding onto any locks, since this
 // function can call application code (ClientHook.Brand).
-func extractCapTable(msg *capnp.Message) ([]*capnp.Client, []capnp.ClientState) {
-	if len(msg.CapTable) == 0 {
-		msg.CapTable = nil // in case msg.CapTable is a 0-length slice
-		return nil, nil
-	}
+func extractCapTable(msg *capnp.Message) []*capnp.Client {
 	ctab := msg.CapTable
 	msg.CapTable = nil
-	states := make([]capnp.ClientState, len(ctab))
-	for i, c := range ctab {
-		states[i] = c.State()
-	}
-	return ctab, states
+	return ctab
 }
 
 type embargoID uint32

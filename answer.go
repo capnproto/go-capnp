@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"capnproto.org/go/capnp/v3/internal/errors"
+	"capnproto.org/go/capnp/v3/internal/syncutil"
 )
 
 // A Promise holds the result of an RPC call.  Only one of Fulfill,
@@ -193,19 +194,19 @@ func (p *Promise) resolve(r Ptr, e error) {
 		if p.ongoingCalls > 0 {
 			p.callsStopped = make(chan struct{})
 		}
-		p.mu.Unlock()
-		res := resolution{p.method, r, e}
-		for path, row := range p.clients {
-			t := path.transform()
-			for i := range row {
-				row[i].promise.Fulfill(res.client(t))
-				row[i].promise = nil
+		syncutil.Without(&p.mu, func() {
+			res := resolution{p.method, r, e}
+			for path, row := range p.clients {
+				t := path.transform()
+				for i := range row {
+					row[i].promise.Fulfill(res.client(t))
+					row[i].promise = nil
+				}
 			}
-		}
-		if p.callsStopped != nil {
-			<-p.callsStopped
-		}
-		p.mu.Lock()
+			if p.callsStopped != nil {
+				<-p.callsStopped
+			}
+		})
 	}
 
 	// Move p into resolved state.
@@ -247,24 +248,24 @@ traversal:
 		case parent.isPendingResolution():
 			// Wait for resolution.  Next traversal iteration will be resolved.
 			r := parent.resolved
-			parent.mu.Unlock()
-			if p.joined == nil {
-				p.joined = make(chan struct{})
-			}
-			p.mu.Unlock()
-			<-r
-			p.mu.Lock()
-			parent.mu.Lock()
+			syncutil.Without(&parent.mu, func() {
+				if p.joined == nil {
+					p.joined = make(chan struct{})
+				}
+				syncutil.Without(&p.mu, func() {
+					<-r
+				})
+			})
 		case parent.isPendingJoin():
 			j := parent.joined
-			parent.mu.Unlock()
-			if p.joined == nil {
-				p.joined = make(chan struct{})
-			}
-			p.mu.Unlock()
-			<-j
-			p.mu.Lock()
-			parent.mu.Lock()
+			syncutil.Without(&parent.mu, func() {
+				if p.joined == nil {
+					p.joined = make(chan struct{})
+				}
+				syncutil.Without(&p.mu, func() {
+					<-j
+				})
+			})
 		case parent.isResolved():
 			r, e := parent.result, parent.err
 			parent.mu.Unlock()
@@ -284,9 +285,9 @@ traversal:
 		if p.joined == nil {
 			p.joined = make(chan struct{})
 		}
-		p.mu.Unlock()
-		<-p.callsStopped
-		p.mu.Lock()
+		syncutil.Without(&p.mu, func() {
+			<-p.callsStopped
+		})
 		p.callsStopped = nil
 	}
 	if p.joined != nil {
@@ -445,12 +446,12 @@ traversal:
 		caller := p.caller
 		p.mu.Unlock()
 		ans, release := caller.PipelineSend(ctx, transform, s)
-		p.mu.Lock()
-		p.ongoingCalls--
-		if p.ongoingCalls == 0 && p.callsStopped != nil {
-			close(p.callsStopped)
-		}
-		p.mu.Unlock()
+		syncutil.With(&p.mu, func() {
+			p.ongoingCalls--
+			if p.ongoingCalls == 0 && p.callsStopped != nil {
+				close(p.callsStopped)
+			}
+		})
 		return ans, release
 	case p.isPendingResolution():
 		// Block new calls until resolved.
@@ -503,12 +504,12 @@ traversal:
 		caller := p.caller
 		p.mu.Unlock()
 		pcall := caller.PipelineRecv(ctx, transform, r)
-		p.mu.Lock()
-		p.ongoingCalls--
-		if p.ongoingCalls == 0 && p.callsStopped != nil {
-			close(p.callsStopped)
-		}
-		p.mu.Unlock()
+		syncutil.With(&p.mu, func() {
+			p.ongoingCalls--
+			if p.ongoingCalls == 0 && p.callsStopped != nil {
+				close(p.callsStopped)
+			}
+		})
 		return pcall
 	case p.isPendingResolution():
 		// Block new calls until resolved.
@@ -589,9 +590,9 @@ traversal:
 		switch {
 		case p.isPendingJoin():
 			j := p.joined
-			p.mu.Unlock()
-			<-j
-			p.mu.Lock()
+			syncutil.Without(&p.mu, func() {
+				<-j
+			})
 		case p.isJoined():
 			q := p.next
 			p.mu.Unlock()
@@ -619,9 +620,9 @@ traversal:
 		p.mu.Unlock()
 		return c
 	case p.isPendingResolution():
-		p.mu.Unlock()
-		<-p.resolved
-		p.mu.Lock()
+		syncutil.Without(&p.mu, func() {
+			<-p.resolved
+		})
 		fallthrough
 	case p.isResolved():
 		r := p.resolution()

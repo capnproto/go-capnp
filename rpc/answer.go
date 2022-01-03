@@ -6,6 +6,7 @@ import (
 
 	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/internal/errors"
+	"capnproto.org/go/capnp/v3/internal/syncutil"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 )
 
@@ -109,11 +110,11 @@ func (c *Conn) newReturn(ctx context.Context) (rpccp.Return, func() error, capnp
 // already returned.  The caller MUST NOT be holding onto ans.c.mu
 // or the sender lock.
 func (ans *answer) setPipelineCaller(pcall capnp.PipelineCaller) {
-	ans.c.mu.Lock()
-	if ans.flags&resultsReady == 0 {
-		ans.pcall = pcall
-	}
-	ans.c.mu.Unlock()
+	syncutil.With(&ans.c.mu, func() {
+		if ans.flags&resultsReady == 0 {
+			ans.pcall = pcall
+		}
+	})
 }
 
 // AllocResults allocates the results struct.
@@ -158,9 +159,8 @@ func (ans *answer) setBootstrap(c *capnp.Client) error {
 //
 // The caller must NOT be holding onto ans.c.mu or the sender lock.
 func (ans *answer) Return(e error) {
-	var cstates []capnp.ClientState
 	if ans.results.IsValid() {
-		ans.resultCapTable, cstates = extractCapTable(ans.results.Message())
+		ans.resultCapTable = extractCapTable(ans.results.Message())
 	}
 	ans.c.mu.Lock()
 	ans.c.lockSender()
@@ -173,7 +173,7 @@ func (ans *answer) Return(e error) {
 		ans.c.tasks.Done() // added by handleCall
 		return
 	}
-	rl, err := ans.sendReturn(cstates)
+	rl, err := ans.sendReturn()
 	ans.c.unlockSender()
 	if err != nil {
 		select {
@@ -204,11 +204,11 @@ func (ans *answer) Return(e error) {
 // The result's capability table must have been extracted into
 // ans.resultsCapTable before calling sendReturn. Only one of
 // sendReturn or sendException should be called.
-func (ans *answer) sendReturn(cstates []capnp.ClientState) (releaseList, error) {
+func (ans *answer) sendReturn() (releaseList, error) {
 	ans.pcall = nil
 	ans.flags |= resultsReady
 	var err error
-	ans.exportRefs, err = ans.c.fillPayloadCapTable(ans.results, ans.resultCapTable, cstates)
+	ans.exportRefs, err = ans.c.fillPayloadCapTable(ans.results, ans.resultCapTable)
 	if err != nil {
 		ans.c.report(annotate(err, "send return"))
 		// Continue.  Don't fail to send return if cap table isn't fully filled.
@@ -234,9 +234,9 @@ func (ans *answer) sendReturn(cstates []capnp.ClientState) (releaseList, error) 
 		return nil, nil
 	}
 	rl, err := ans.destroy()
-	ans.c.mu.Unlock()
-	ans.releaseMsg()
-	ans.c.mu.Lock()
+	syncutil.Without(&ans.c.mu, func() {
+		ans.releaseMsg()
+	})
 	return rl, err
 }
 
@@ -282,9 +282,9 @@ func (ans *answer) sendException(e error) releaseList {
 	// destroy will never return an error because sendException does
 	// create any exports.
 	rl, _ := ans.destroy()
-	ans.c.mu.Unlock()
-	ans.releaseMsg()
-	ans.c.mu.Lock()
+	syncutil.Without(&ans.c.mu, func() {
+		ans.releaseMsg()
+	})
 	return rl
 }
 

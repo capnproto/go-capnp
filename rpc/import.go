@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"capnproto.org/go/capnp/v3"
+	"capnproto.org/go/capnp/v3/internal/syncutil"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 )
 
@@ -105,33 +106,33 @@ func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, 
 	// Create call message.
 	msg, send, release, err := ic.c.transport.NewMessage(ctx)
 	if err != nil {
-		ic.c.mu.Lock()
-		ic.c.questions[q.id] = nil
-		ic.c.questionID.remove(uint32(q.id))
-		ic.c.mu.Unlock()
+		syncutil.With(&ic.c.mu, func() {
+			ic.c.questions[q.id] = nil
+			ic.c.questionID.remove(uint32(q.id))
+		})
 		return capnp.ErrorAnswer(s.Method, failedf("create message: %w", err)), func() {}
 	}
-	ic.c.mu.Lock()
-	ic.c.unlockSender() // Can't be holding either lock while calling PlaceArgs.
-	ic.c.mu.Unlock()
+	syncutil.With(&ic.c.mu, func() {
+		ic.c.unlockSender() // Can't be holding either lock while calling PlaceArgs.
+	})
 	err = ic.c.newImportCallMessage(msg, ic.id, q.id, s)
 	if err != nil {
-		ic.c.mu.Lock()
-		ic.c.questions[q.id] = nil
-		ic.c.questionID.remove(uint32(q.id))
-		ic.c.lockSender()
-		ic.c.mu.Unlock()
+		syncutil.With(&ic.c.mu, func() {
+			ic.c.questions[q.id] = nil
+			ic.c.questionID.remove(uint32(q.id))
+			ic.c.lockSender()
+		})
 		release()
-		ic.c.mu.Lock()
-		ic.c.unlockSender()
-		ic.c.mu.Unlock()
+		syncutil.With(&ic.c.mu, func() {
+			ic.c.unlockSender()
+		})
 		return capnp.ErrorAnswer(s.Method, err), func() {}
 	}
 
 	// Send call.
-	ic.c.mu.Lock()
-	ic.c.lockSender()
-	ic.c.mu.Unlock()
+	syncutil.With(&ic.c.mu, func() {
+		ic.c.lockSender()
+	})
 	err = send()
 	release()
 
@@ -197,11 +198,11 @@ func (c *Conn) newImportCallMessage(msg rpccp.Message, imp importID, qid questio
 		m.CapTable = nil
 		return failedf("place arguments: %w", err)
 	}
-	clients, states := extractCapTable(m)
-	c.mu.Lock()
-	// TODO(soon): save param refs
-	_, err = c.fillPayloadCapTable(payload, clients, states)
-	c.mu.Unlock()
+	clients := extractCapTable(m)
+	syncutil.With(&c.mu, func() {
+		// TODO(soon): save param refs
+		_, err = c.fillPayloadCapTable(payload, clients)
+	})
 	releaseList(clients).release()
 	if err != nil {
 		return annotate(err, "build call message")

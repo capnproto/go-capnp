@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"capnproto.org/go/capnp/v3/flowcontrol"
+	"capnproto.org/go/capnp/v3/internal/syncutil"
 )
 
 // An Interface is a reference to a client in a message's capability table.
@@ -198,12 +199,12 @@ func (c *Client) startCall() (hook ClientHook, resolved, released bool, finish f
 	c.h.mu.Unlock()
 	savedHook := c.h
 	return savedHook.ClientHook, savedHook.isResolved(), false, func() {
-		savedHook.mu.Lock()
-		savedHook.calls--
-		if savedHook.refs == 0 && savedHook.calls == 0 {
-			close(savedHook.done)
-		}
-		savedHook.mu.Unlock()
+		syncutil.With(&savedHook.mu, func() {
+			savedHook.calls--
+			if savedHook.refs == 0 && savedHook.calls == 0 {
+				close(savedHook.done)
+			}
+		})
 	}
 }
 
