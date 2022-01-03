@@ -8,8 +8,8 @@ import (
 // sync.Locker; it is used by the rpc system to attach bookkeeping
 // information to Clients.
 //
-// The zero value is not meaningful, and once initialized the Metadata
-// must not be copied.
+// The zero value is not meaningful, and the Metadata must not be copied
+// after its first use.
 type Metadata struct {
 	mu     sync.Mutex
 	values map[interface{}]interface{}
@@ -44,16 +44,7 @@ func (m *Metadata) Delete(key interface{}) {
 
 // Allocate and return a freshly initialized Metadata.
 func NewMetadata() *Metadata {
-	ret := &Metadata{}
-	ret.init()
-	return ret
-}
-
-// Initialize the metadata. This must be called exactly once before
-// using it.
-func (m *Metadata) init() {
-	if m.values != nil {
-		panic("called Metadata.init() twice")
+	return &Metadata{
+		values: make(map[interface{}]interface{}),
 	}
-	m.values = make(map[interface{}]interface{})
 }

@@ -301,6 +301,10 @@ func (c *Conn) shutdown(abortErr error) error {
 	c.bootstrap = nil
 	for _, e := range exports {
 		if e != nil {
+			metadata := e.client.State().Metadata
+			syncutil.With(metadata, func() {
+				c.clearExportID(metadata)
+			})
 			e.client.Release()
 		}
 	}

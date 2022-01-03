@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"capnproto.org/go/capnp/v3"
+	"capnproto.org/go/capnp/v3/internal/syncutil"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 )
 
@@ -65,9 +66,9 @@ func (c *Conn) releaseExport(id exportID, count uint32) (*capnp.Client, error) {
 		c.exports[id] = nil
 		c.exportID.remove(uint32(id))
 		metadata := client.State().Metadata
-		metadata.Lock()
-		defer metadata.Unlock()
-		c.clearExportID(metadata)
+		syncutil.With(metadata, func() {
+			c.clearExportID(metadata)
+		})
 		return client, nil
 	case count > ent.wireRefs:
 		return nil, failedf("export ID %d released too many references", id)

@@ -139,8 +139,8 @@ func NewClient(hook ClientHook) *Client {
 		done:       make(chan struct{}),
 		refs:       1,
 		resolved:   newClosedSignal(),
+		metadata:   *NewMetadata(),
 	}
-	(&h.metadata).init()
 	h.resolvedHook = h
 	c := &Client{h: h}
 	if clientLeakFunc != nil {
@@ -167,8 +167,8 @@ func NewPromisedClient(hook ClientHook) (*Client, *ClientPromise) {
 		done:       make(chan struct{}),
 		refs:       1,
 		resolved:   make(chan struct{}),
+		metadata:   *NewMetadata(),
 	}
-	(&h.metadata).init()
 	c := &Client{h: h}
 	if clientLeakFunc != nil {
 		c.creatorFunc = 2
@@ -465,6 +465,9 @@ type ClientState struct {
 	// Arbitrary metadata. Note that, if a Client is a promise,
 	// when it resolves its metadata will be replaced with that
 	// of its resolution.
+	//
+	// TODO: this might change before the v3 API is stabilized;
+	// we are not sure the above is the correct semantics.
 	Metadata *Metadata
 }
 
@@ -851,8 +854,8 @@ func ErrorClient(e error) *Client {
 		done:       make(chan struct{}),
 		refs:       1,
 		resolved:   newClosedSignal(),
+		metadata:   *NewMetadata(),
 	}
-	(&h.metadata).init()
 	h.resolvedHook = h
 	return &Client{h: h}
 }
