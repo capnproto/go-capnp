@@ -495,11 +495,6 @@ type SegmentPool struct {
 
 var hdrSize = int(streamHeaderSize(0))
 
-type item struct {
-	psa    *pooledSegmentArena
-	reused bool
-}
-
 // NewSegmentPool creates a memory pool with the segment size.
 func NewSegmentPool(size int) *SegmentPool {
 	allocated := new(uint64)
@@ -508,7 +503,7 @@ func NewSegmentPool(size int) *SegmentPool {
 		p: sync.Pool{
 			New: func() interface{} {
 				n := Size(hdrSize + size).padToWord()
-				psa := new(pooledSegmentArena)
+				psa := new(PooledSegmentArena)
 				*psa = make([]byte, n)
 				atomic.AddUint64(allocated, uint64(n))
 				return psa
@@ -525,10 +520,10 @@ func (p *SegmentPool) AllocatedBytes() uint64 { return atomic.LoadUint64(p.alloc
 func (p *SegmentPool) InUsedSegments() int64 { return atomic.LoadInt64(&p.used) }
 
 // Get selects an arbitrary item from the Pool, removes it from the Pool, and returns it to the caller.
-func (p *SegmentPool) Get() (arena Arena, release ReleaseFunc) {
-	psa := p.p.Get().(*pooledSegmentArena)
+func (p *SegmentPool) Get() *PooledSegmentArena {
+	psa := p.p.Get().(*PooledSegmentArena)
 
-	if b := *psa; b[0] != 0 {
+	if b := *psa; b[0] == reusedSegment {
 		// should be optimised with an assembly implementation of memclr
 		// https://codereview.appspot.com/137880043
 		for i := range b {
@@ -538,30 +533,29 @@ func (p *SegmentPool) Get() (arena Arena, release ReleaseFunc) {
 
 	atomic.AddInt64(&p.used, 1)
 
-	arena = psa
-	release = func() { p.Release(psa) }
-
-	return
+	return psa
 }
 
 // Release returns the Arena to the Pool.
 //
 // Callers must not retain references to the Arena after calling Release.
-func (p *SegmentPool) Release(arena Arena) {
-	if psa, ok := arena.(*pooledSegmentArena); ok {
-		(*psa)[0] = 1
-		p.p.Put(psa)
-		atomic.AddInt64(&p.used, -1)
-	}
+func (p *SegmentPool) Release(arena *PooledSegmentArena) {
+	(*arena)[0] = reusedSegment
+	p.p.Put(arena)
+	atomic.AddInt64(&p.used, -1)
 }
 
-type pooledSegmentArena []byte
+const reusedSegment = 1
 
-func (psa *pooledSegmentArena) data() []byte { return (*psa)[hdrSize:hdrSize] }
+type PooledSegmentArena []byte
 
-func (psa *pooledSegmentArena) NumSegments() int64 { return 1 }
+func (psa *PooledSegmentArena) data() []byte { return (*psa)[hdrSize:hdrSize] }
 
-func (psa *pooledSegmentArena) Data(id SegmentID) ([]byte, error) {
+func (psa *PooledSegmentArena) Bytes() []byte { return *psa }
+
+func (psa *PooledSegmentArena) NumSegments() int64 { return 1 }
+
+func (psa *PooledSegmentArena) Data(id SegmentID) ([]byte, error) {
 	if id != 0 {
 		return nil, errorf("segment %d requested in pooled segment arena", id)
 	}
@@ -569,7 +563,7 @@ func (psa *pooledSegmentArena) Data(id SegmentID) ([]byte, error) {
 	return psa.data(), nil
 }
 
-func (psa *pooledSegmentArena) Allocate(sz Size, segs map[SegmentID]*Segment) (SegmentID, []byte, error) {
+func (psa *PooledSegmentArena) Allocate(sz Size, segs map[SegmentID]*Segment) (SegmentID, []byte, error) {
 	if data := psa.data(); hasCapacity(data, sz) {
 		return 0, data, nil
 	}
@@ -882,7 +876,7 @@ func (m *Message) Marshal() ([]byte, error) {
 		return nil, newError("marshal: message has no segments")
 	}
 	if nsegs == 1 {
-		if psa, ok := m.Arena.(*pooledSegmentArena); ok {
+		if psa, ok := m.Arena.(*PooledSegmentArena); ok {
 			// fast path for single pooled segment
 			b := *psa
 			binary.LittleEndian.PutUint32(b[4:], uint32(len(m.firstSeg.data)/int(wordSize)))

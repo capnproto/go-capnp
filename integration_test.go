@@ -700,19 +700,14 @@ func singleSegmentArena() capnp.Arena {
 	return capnp.SingleSegment(nil)
 }
 
-var p = capnp.NewSegmentPool(256)
-
-func pooledSegmentArena() capnp.Arena {
-	a, _ := p.Get()
-	return a
-}
-
 func TestMarshalShouldMatchData(t *testing.T) {
 	t.Parallel()
 
+	p := capnp.NewSegmentPool(256)
+
 	for _, arena := range []func() capnp.Arena{
 		singleSegmentArena,
-		pooledSegmentArena,
+		func() capnp.Arena { return p.Get() },
 	} {
 		for _, test := range makeMarshalTests(t, arena) {
 			if test.data == nil {
@@ -733,7 +728,9 @@ func TestMarshalShouldMatchData(t *testing.T) {
 				t.Errorf("%s: Marshal returned:\n%s\nwant:\n%s", test.name, hex.Dump(data), hex.Dump(want))
 			}
 
-			p.Release(test.msg.Arena)
+			if psa, ok := test.msg.Arena.(*capnp.PooledSegmentArena); ok {
+				p.Release(psa)
+			}
 		}
 	}
 }
@@ -1794,7 +1791,7 @@ func BenchmarkMarshal(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				a := data[r.Intn(len(data))]
-				arena, release := p.Get()
+				arena := p.Get()
 				msg, seg, _ := capnp.NewMessage(arena)
 				root, _ := air.NewRootBenchmarkA(seg)
 				a.fill(root)
@@ -1803,7 +1800,7 @@ func BenchmarkMarshal(b *testing.B) {
 				if i == 0 {
 					b.SetBytes(int64(len(bytes)))
 				}
-				release()
+				p.Release(arena)
 			}
 		})
 	}

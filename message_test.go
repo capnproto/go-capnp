@@ -387,7 +387,7 @@ func TestPooledSegment(t *testing.T) {
 
 	// fresh arena
 	{
-		arena, release := p.Get()
+		arena := p.Get()
 
 		if p.AllocatedBytes() != 24 {
 			t.Errorf("SegmentPool.allocated = %d; want 24", p.AllocatedBytes())
@@ -411,13 +411,21 @@ func TestPooledSegment(t *testing.T) {
 			t.Error("PooledSegment().Data(1) succeeded; want error")
 		}
 
-		release()
+		c := make(chan []byte)
+		go func() {
+			buf := <-c
+			p.Release((*PooledSegmentArena)(&buf))
+			close(c)
+		}()
+
+		c <- arena.Bytes()
+		<-c
 	}
 
 	// reuse pooled segment
 	{
-		arena, release := p.Get()
-		defer release()
+		arena := p.Get()
+		defer p.Release(arena)
 
 		if p.AllocatedBytes() != 24 {
 			t.Errorf("SegmentPool.allocated = %d; want 24", p.AllocatedBytes())
