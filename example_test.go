@@ -139,7 +139,7 @@ func ExampleSegmentPool() {
 	// Ready to write!
 
 	// You can write to memory...
-	buf, err := msg.Marshal()
+	buf, err := arena.Encode(msg)
 	if err != nil {
 		panic(err)
 	}
