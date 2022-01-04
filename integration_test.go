@@ -713,7 +713,13 @@ func TestMarshalShouldMatchData(t *testing.T) {
 				// TODO(light): backfill all data
 				continue
 			}
-			data, err := test.msg.Marshal()
+			var data []byte
+			var err error
+			if psa, ok := test.msg.Arena.(*capnp.PooledSegmentArena); ok {
+				data, err = psa.Encode(test.msg)
+			} else {
+				data, err = test.msg.Marshal()
+			}
 			if err != nil {
 				t.Errorf("%s: marshal error: %v", test.name, err)
 				continue
@@ -1793,7 +1799,7 @@ func BenchmarkMarshal(b *testing.B) {
 				root, _ := air.NewRootBenchmarkA(seg)
 				a.fill(root)
 				root.SetData(d)
-				bytes, _ := msg.Marshal()
+				bytes, _ := arena.Encode(msg)
 				if i == 0 {
 					b.SetBytes(int64(len(bytes)))
 				}

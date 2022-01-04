@@ -608,6 +608,16 @@ func (psa *PooledSegmentArena) Allocate(sz Size, segs map[SegmentID]*Segment) (S
 	return 0, nil, errorf("alloc %d bytes: message too large", sz)
 }
 
+func (psa *PooledSegmentArena) Encode(m *Message) ([]byte, error) {
+	if m.Arena != psa {
+		return nil, errorf("message arena is not the pooled segment arena")
+	}
+
+	b := *psa
+	binary.LittleEndian.PutUint32(b[4:], uint32(len(m.firstSeg.data)/int(wordSize)))
+	return b[:hdrSize+len(m.firstSeg.data)], nil
+}
+
 // nextAlloc computes how much more space to allocate given the number
 // of bytes allocated in the entire message and the requested number of
 // bytes.  It will always return a multiple of wordSize.  max must be a
@@ -906,19 +916,15 @@ func (e *Encoder) writePacked(bufs [][]byte) error {
 
 // Marshal concatenates the segments in the message into a single byte
 // slice including framing.
+//
+// Notes: Marshal will copy the message buffer contents completely,
+// please use Encoder.Encode to serialize directly to io.Writer,
+// or PooledSegmentArena.Encode to get a zero-copy []byte to serialize to.
 func (m *Message) Marshal() ([]byte, error) {
 	// Compute buffer size.
 	nsegs := m.NumSegments()
 	if nsegs == 0 {
 		return nil, newError("marshal: message has no segments")
-	}
-	if nsegs == 1 {
-		if psa, ok := m.Arena.(*PooledSegmentArena); ok {
-			// fast path for single pooled segment
-			b := *psa
-			binary.LittleEndian.PutUint32(b[4:], uint32(len(m.firstSeg.data)/int(wordSize)))
-			return b[:hdrSize+len(m.firstSeg.data)], nil
-		}
 	}
 	hdrSize := streamHeaderSize(SegmentID(nsegs - 1))
 	if hdrSize > uint64(maxInt) {
