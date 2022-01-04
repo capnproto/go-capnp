@@ -413,12 +413,14 @@ func TestPooledSegment(t *testing.T) {
 
 		c := make(chan []byte)
 		go func() {
-			buf := <-c
-			p.Release((*PooledSegmentArena)(&buf))
+			<-c
+			p.Release(arena)
 			close(c)
 		}()
 
-		c <- arena.Bytes()
+		msg := &Message{Arena: arena}
+		buf, _ := msg.Marshal()
+		c <- buf
 		<-c
 	}
 

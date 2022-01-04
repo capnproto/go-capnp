@@ -551,8 +551,6 @@ type PooledSegmentArena []byte
 
 func (psa *PooledSegmentArena) data() []byte { return (*psa)[hdrSize:hdrSize] }
 
-func (psa *PooledSegmentArena) Bytes() []byte { return *psa }
-
 func (psa *PooledSegmentArena) NumSegments() int64 { return 1 }
 
 func (psa *PooledSegmentArena) Data(id SegmentID) ([]byte, error) {
