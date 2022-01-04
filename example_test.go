@@ -92,7 +92,7 @@ func ExampleSegmentPool() {
 	pool := capnp.NewSegmentPool(512)
 
 	// Get a segment from the pool.
-	arena, release := pool.Get()
+	arena := pool.Get()
 
 	// Make a brand new empty message.
 	msg, seg, err := capnp.NewMessage(arena)
@@ -163,19 +163,19 @@ func ExampleSegmentPool() {
 	fmt.Printf("%d bytes allocated, %d segments in used\n", pool.AllocatedBytes(), pool.InUsedSegments())
 
 	// Release the segment back to the pool.
-	release()
+	pool.Release(arena)
 
 	fmt.Printf("after release the segment back to the pool, %d segments in used\n", pool.InUsedSegments())
 
 	// Reuse the segment from the pool.
-	arena2, release := pool.Get()
+	arena2 := pool.Get()
+	defer pool.Release(arena2)
+
 	if arena != arena2 {
 		panic(arena2)
 	}
 
 	fmt.Printf("reuse the segment from the pool, %d bytes allocated, %d segments in used\n", pool.AllocatedBytes(), pool.InUsedSegments())
-
-	release()
 
 	// Output:
 	// 520 bytes allocated, 1 segments in used
