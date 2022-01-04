@@ -186,6 +186,7 @@ func (c *Conn) Bootstrap(ctx context.Context) *capnp.Client {
 	}
 	defer c.tasks.Done()
 	q := c.newQuestion(capnp.Method{})
+	c.setAnswerQuestion(q.p.Answer(), q)
 	bootCtx, cancel := context.WithCancel(ctx)
 	bc, cp := capnp.NewPromisedClient(bootstrapClient{
 		c:      q.p.Answer().Client().AddRef(),
@@ -1181,16 +1182,21 @@ func (c *Conn) isLocalClient(client *capnp.Client) bool {
 	if client == nil {
 		return false
 	}
-	if ic, ok := client.State().Brand.Value.(*importClient); ok {
+	bv := client.State().Brand.Value
+
+	if ic, ok := bv.(*importClient); ok {
 		// If the connections are different, we must be proxying
 		// it, so as far as this connection is concerned, it lives
 		// on our side.
 		return ic.c != c
 	}
-	// TODO: We should return false for results from pending remote calls
-	// as well. But that can wait until sendCap() actually emits
-	// CapDescriptors of type receiverAnswer, since until then it won't
-	// come up.
+
+	if pc, ok := bv.(*capnp.PipelineClient); ok {
+		// An associated question means this is remote:
+		_, ok := c.getAnswerQuestion(pc.Answer())
+		return !ok
+	}
+
 	return true
 }
 

@@ -107,21 +107,42 @@ func (c *Conn) releaseExports(refs map[exportID]uint32) (releaseList, error) {
 // sendCap writes a capability descriptor, returning an export ID if
 // this vat is hosting the capability.  The caller must be holding
 // onto c.mu.
-func (c *Conn) sendCap(d rpccp.CapDescriptor, client *capnp.Client) (_ exportID, isExport bool) {
+func (c *Conn) sendCap(d rpccp.CapDescriptor, client *capnp.Client) (_ exportID, isExport bool, _ error) {
 	if !client.IsValid() {
 		d.SetNone()
-		return 0, false
+		return 0, false, nil
 	}
 
 	state := client.State()
-	if ic, ok := state.Brand.Value.(*importClient); ok && ic.c == c {
+	bv := state.Brand.Value
+	if ic, ok := bv.(*importClient); ok && ic.c == c {
 		if ent := c.imports[ic.id]; ent != nil && ent.generation == ic.generation {
 			d.SetReceiverHosted(uint32(ic.id))
-			return 0, false
+			return 0, false, nil
 		}
 	}
+
+	if pc, ok := bv.(*capnp.PipelineClient); ok {
+		q, ok := c.getAnswerQuestion(pc.Answer())
+		if ok {
+			pcTrans := pc.Transform()
+			pa, err := d.NewReceiverAnswer()
+			if err != nil {
+				return 0, false, err
+			}
+			trans, err := pa.NewTransform(int32(len(pcTrans)))
+			if err != nil {
+				return 0, false, err
+			}
+			for i, op := range pcTrans {
+				trans.At(i).SetGetPointerField(op.Field)
+			}
+			pa.SetQuestionId(uint32(q.id))
+			return 0, false, nil
+		}
+	}
+
 	// TODO(someday): Check for unresolved client for senderPromise.
-	// TODO(someday): Check for pipeline client on question for receiverAnswer.
 
 	// Default to sender-hosted (export).
 	state.Metadata.Lock()
@@ -131,7 +152,7 @@ func (c *Conn) sendCap(d rpccp.CapDescriptor, client *capnp.Client) (_ exportID,
 		ent := c.exports[id]
 		ent.wireRefs++
 		d.SetSenderHosted(uint32(id))
-		return id, true
+		return id, true, nil
 	}
 
 	// Not already present; allocate an export id for it:
@@ -147,7 +168,7 @@ func (c *Conn) sendCap(d rpccp.CapDescriptor, client *capnp.Client) (_ exportID,
 	}
 	c.setExportID(state.Metadata, id)
 	d.SetSenderHosted(uint32(id))
-	return id, true
+	return id, true, nil
 }
 
 // fillPayloadCapTable adds descriptors of payload's message's
@@ -165,7 +186,10 @@ func (c *Conn) fillPayloadCapTable(payload rpccp.Payload, clients []*capnp.Clien
 	}
 	var refs map[exportID]uint32
 	for i, client := range clients {
-		id, isExport := c.sendCap(list.At(i), client)
+		id, isExport, err := c.sendCap(list.At(i), client)
+		if err != nil {
+			return nil, failedf("Serializing capabiltiy: %w", err)
+		}
 		if !isExport {
 			continue
 		}
