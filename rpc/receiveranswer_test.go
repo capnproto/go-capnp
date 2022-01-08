@@ -93,16 +93,16 @@ func TestBootstrapReceiverAnswerRpc(t *testing.T) {
 	ctx := context.Background()
 	c := testcapnp.CapArgsTest{clientConn.Bootstrap(ctx)}
 
-	_, rel := c.Call(ctx, func(p testcapnp.CapArgsTest_call_Params) error {
-		capId := p.Message().AddCap(c.Client)
+	res, rel := c.Call(ctx, func(p testcapnp.CapArgsTest_call_Params) error {
+		capId := p.Message().AddCap(c.Client.AddRef())
 		p.SetCap(capnp.NewInterface(p.Segment(), capId).ToPtr())
 		return nil
 	})
 	defer rel()
-	/*
-		_, err := res.Struct()
-		chkfatal(err)
-	*/
+	c.Release()
+
+	_, err := res.Struct()
+	chkfatal(err)
 
 	for err := range errChan {
 		t.Errorf("Error: %v", err)
@@ -131,18 +131,25 @@ func TestCallReceiverAnswerRpc(t *testing.T) {
 
 	ctx := context.Background()
 	bs := testcapnp.CapArgsTest{clientConn.Bootstrap(ctx)}
+	defer bs.Release()
 
-	res, rel := bs.Self(ctx, nil)
+	selfRes, rel := bs.Self(ctx, nil)
 	defer rel()
-	self := res.Self()
-	_, rel = self.Call(ctx, func(p testcapnp.CapArgsTest_call_Params) error {
-		capId := p.Message().AddCap(self.Client)
+	self := selfRes.Self()
+	callRes, rel := self.Call(ctx, func(p testcapnp.CapArgsTest_call_Params) error {
+		capId := p.Message().AddCap(self.Client.AddRef())
 		p.SetCap(capnp.NewInterface(p.Segment(), capId).ToPtr())
 		return nil
 	})
+	self.Release()
 	defer rel()
 
-	for err := range errChan {
+	_, err := selfRes.Struct()
+	chkfatal(err)
+	_, err = callRes.Struct()
+	chkfatal(err)
+
+	for err = range errChan {
 		t.Errorf("Error: %v", err)
 	}
 }
