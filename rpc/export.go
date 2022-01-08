@@ -124,7 +124,7 @@ func (c *Conn) sendCap(d rpccp.CapDescriptor, client *capnp.Client) (_ exportID,
 
 	if pc, ok := bv.(capnp.PipelineClient); ok {
 		q, ok := c.getAnswerQuestion(pc.Answer())
-		if ok {
+		if ok && q.c == c {
 			pcTrans := pc.Transform()
 			pa, err := d.NewReceiverAnswer()
 			if err != nil {
