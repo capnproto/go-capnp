@@ -1181,12 +1181,23 @@ func (c *Conn) isLocalClient(client *capnp.Client) bool {
 	if client == nil {
 		return false
 	}
-	if ic, ok := client.State().Brand.Value.(*importClient); ok {
+
+	bv := client.State().Brand.Value
+
+	if ic, ok := bv.(*importClient); ok {
 		// If the connections are different, we must be proxying
 		// it, so as far as this connection is concerned, it lives
 		// on our side.
 		return ic.c != c
 	}
+
+	if _, ok := bv.(error); ok {
+		// Returned by capnp.ErrorClient. No need to treat this as
+		// local; all methods will just return the error anyway,
+		// so violating E-order will have no effect on the results.
+		return false
+	}
+
 	// TODO: We should return false for results from pending remote calls
 	// as well. But that can wait until sendCap() actually emits
 	// CapDescriptors of type receiverAnswer, since until then it won't
