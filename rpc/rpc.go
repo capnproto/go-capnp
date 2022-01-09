@@ -1192,7 +1192,7 @@ func (c *Conn) isLocalClient(client *capnp.Client) bool {
 		return ic.c != c
 	}
 
-	if pc, ok := bv.(*capnp.PipelineClient); ok {
+	if pc, ok := bv.(capnp.PipelineClient); ok {
 		// An associated question means this is remote:
 		_, ok := c.getAnswerQuestion(pc.Answer())
 		return !ok
