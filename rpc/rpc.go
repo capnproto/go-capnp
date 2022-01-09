@@ -1182,6 +1182,7 @@ func (c *Conn) isLocalClient(client *capnp.Client) bool {
 	if client == nil {
 		return false
 	}
+
 	bv := client.State().Brand.Value
 
 	if ic, ok := bv.(*importClient); ok {
@@ -1195,6 +1196,13 @@ func (c *Conn) isLocalClient(client *capnp.Client) bool {
 		// An associated question means this is remote:
 		_, ok := c.getAnswerQuestion(pc.Answer())
 		return !ok
+	}
+
+	if _, ok := bv.(error); ok {
+		// Returned by capnp.ErrorClient. No need to treat this as
+		// local; all methods will just return the error anyway,
+		// so violating E-order will have no effect on the results.
+		return false
 	}
 
 	return true
