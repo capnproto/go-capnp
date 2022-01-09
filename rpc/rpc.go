@@ -1193,9 +1193,10 @@ func (c *Conn) isLocalClient(client *capnp.Client) bool {
 	}
 
 	if pc, ok := bv.(capnp.PipelineClient); ok {
-		// An associated question means this is remote:
-		_, ok := c.getAnswerQuestion(pc.Answer())
-		return !ok
+		// Same logic re: proxying as with imports:
+		if q, ok := c.getAnswerQuestion(pc.Answer()); ok {
+			return q.c != c
+		}
 	}
 
 	if _, ok := bv.(error); ok {
