@@ -843,6 +843,9 @@ type errorClient struct {
 // ErrorClient returns a Client that always returns error e.
 // An ErrorClient does not need to be released: it is a sentinel like a
 // nil Client.
+//
+// The returned client's State() method returns a State with its
+// Brand.Value set to e.
 func ErrorClient(e error) *Client {
 	if e == nil {
 		panic("ErrorClient(nil)")
@@ -870,7 +873,7 @@ func (ec errorClient) Recv(_ context.Context, r Recv) PipelineCaller {
 }
 
 func (ec errorClient) Brand() Brand {
-	return Brand{}
+	return Brand{Value: ec.e}
 }
 
 func (ec errorClient) Shutdown() {
