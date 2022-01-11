@@ -1146,7 +1146,7 @@ func (c *Conn) recvCapReceiverAnswer(ans *answer, transform []capnp.PipelineOp) 
 		for _, op := range transform {
 			future = future.Field(op.Field, op.DefaultValue)
 		}
-		return future.Client()
+		return future.Client().AddRef()
 	}
 
 	if ans.err != nil {
@@ -1173,7 +1173,7 @@ func (c *Conn) recvCapReceiverAnswer(ans *answer, transform []capnp.PipelineOp) 
 		return nil
 	}
 
-	return ans.resultCapTable[capId]
+	return ans.resultCapTable[capId].AddRef()
 }
 
 // Returns whether the client should be treated as local, for the purpose of
