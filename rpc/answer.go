@@ -166,7 +166,7 @@ func (ans *answer) setBootstrap(c *capnp.Client) error {
 // The caller must NOT be holding onto ans.c.mu or the sender lock.
 func (ans *answer) Return(e error) {
 	if ans.results.IsValid() {
-		ans.resultCapTable = extractCapTable(ans.results.Message())
+		ans.resultCapTable = ans.results.Message().CapTable
 	}
 	ans.c.mu.Lock()
 	ans.c.lockSender()

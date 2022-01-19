@@ -24,8 +24,7 @@ type Transport interface {
 	// deadline from ctx.
 	//
 	// Messages returned by NewMessage must have a nil CapTable.
-	// The caller may modify the CapTable before sending it, but the
-	// message's CapTable must be nil before it is sent or released.
+	// The caller may modify the CapTable as it pleases.
 	//
 	// The Arena in the returned message should be fast at allocating new
 	// segments.
@@ -38,8 +37,7 @@ type Transport interface {
 	// returned by RecvMessage.
 	//
 	// Messages returned by RecvMessage must have a nil CapTable.
-	// The caller may modify the CapTable, but the message's CapTable must
-	// be nil before it is released.
+	// The caller may modify the CapTable as it pleases.
 	//
 	// The Arena in the returned message should not fetch segments lazily;
 	// the Arena should be fast to access other segments.

@@ -201,16 +201,6 @@ func (c *Conn) fillPayloadCapTable(payload rpccp.Payload, clients []*capnp.Clien
 	return refs, nil
 }
 
-// extractCapTable reads the state of all the capabilities in a
-// message's capability table and sets the message's capability table
-// to nil.  The caller must not be holding onto any locks, since this
-// function can call application code (ClientHook.Brand).
-func extractCapTable(msg *capnp.Message) []*capnp.Client {
-	ctab := msg.CapTable
-	msg.CapTable = nil
-	return ctab
-}
-
 type embargoID uint32
 
 type embargo struct {

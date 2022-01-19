@@ -63,9 +63,6 @@ func (p *pipe) NewMessage(ctx context.Context) (_ rpccp.Message, send func() err
 			panic("double send")
 		}
 		sent = true
-		if msg.CapTable != nil {
-			panic("send with non-nil CapTable")
-		}
 		refsMu.Lock()
 		refs++
 		refsMu.Unlock()
@@ -76,9 +73,6 @@ func (p *pipe) NewMessage(ctx context.Context) (_ rpccp.Message, send func() err
 					return
 				}
 				recvDone = true
-				if msg.CapTable != nil {
-					panic("received message released without clearing CapTable")
-				}
 				refsMu.Lock()
 				r := refs - 1
 				refs = r
@@ -117,11 +111,6 @@ func (p *pipe) NewMessage(ctx context.Context) (_ rpccp.Message, send func() err
 			return
 		}
 		sendDone = true
-		if !sent {
-			if msg.CapTable != nil {
-				panic("outgoing message released without clearing CapTable")
-			}
-		}
 		delete(p.msgs, caller)
 		refsMu.Lock()
 		r := refs - 1
