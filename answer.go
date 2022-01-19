@@ -110,6 +110,7 @@ func NewPromise(m Method, pc PipelineCaller) *Promise {
 		clientsRefs: 1,
 	}
 	p.ans.f.promise = p
+	p.ans.metadata = *NewMetadata()
 	return p
 }
 
@@ -372,7 +373,8 @@ type PipelineCaller interface {
 // An Answer is a deferred result of a client call.  Conceptually, this is a
 // future.  It is safe to use from multiple goroutines.
 type Answer struct {
-	f Future
+	f        Future
+	metadata Metadata
 }
 
 // ErrorAnswer returns a Answer that always returns error e.
@@ -394,12 +396,19 @@ func ImmediateAnswer(m Method, s Struct) *Answer {
 		result:   s.ToPtr(),
 	}
 	p.ans.f.promise = p
+	p.ans.metadata = *NewMetadata()
 	return &p.ans
 }
 
 // Future returns a future that is equivalent to ans.
 func (ans *Answer) Future() *Future {
 	return &ans.f
+}
+
+// Metadata returns a metadata map where callers can store information
+// about the answer
+func (ans *Answer) Metadata() *Metadata {
+	return &ans.metadata
 }
 
 // Done returns a channel that is closed when the answer's call is finished.

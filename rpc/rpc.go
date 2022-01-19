@@ -186,6 +186,7 @@ func (c *Conn) Bootstrap(ctx context.Context) *capnp.Client {
 	}
 	defer c.tasks.Done()
 	q := c.newQuestion(capnp.Method{})
+	c.setAnswerQuestion(q.p.Answer(), q)
 	bootCtx, cancel := context.WithCancel(ctx)
 	bc, cp := capnp.NewPromisedClient(bootstrapClient{
 		c:      q.p.Answer().Client().AddRef(),
@@ -1145,7 +1146,7 @@ func (c *Conn) recvCapReceiverAnswer(ans *answer, transform []capnp.PipelineOp) 
 		for _, op := range transform {
 			future = future.Field(op.Field, op.DefaultValue)
 		}
-		return future.Client()
+		return future.Client().AddRef()
 	}
 
 	if ans.err != nil {
@@ -1172,7 +1173,7 @@ func (c *Conn) recvCapReceiverAnswer(ans *answer, transform []capnp.PipelineOp) 
 		return nil
 	}
 
-	return ans.resultCapTable[capId]
+	return ans.resultCapTable[capId].AddRef()
 }
 
 // Returns whether the client should be treated as local, for the purpose of
@@ -1191,6 +1192,13 @@ func (c *Conn) isLocalClient(client *capnp.Client) bool {
 		return ic.c != c
 	}
 
+	if pc, ok := bv.(capnp.PipelineClient); ok {
+		// Same logic re: proxying as with imports:
+		if q, ok := c.getAnswerQuestion(pc.Answer()); ok {
+			return q.c != c
+		}
+	}
+
 	if _, ok := bv.(error); ok {
 		// Returned by capnp.ErrorClient. No need to treat this as
 		// local; all methods will just return the error anyway,
@@ -1198,10 +1206,6 @@ func (c *Conn) isLocalClient(client *capnp.Client) bool {
 		return false
 	}
 
-	// TODO: We should return false for results from pending remote calls
-	// as well. But that can wait until sendCap() actually emits
-	// CapDescriptors of type receiverAnswer, since until then it won't
-	// come up.
 	return true
 }
 

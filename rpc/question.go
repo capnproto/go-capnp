@@ -52,12 +52,35 @@ func (c *Conn) newQuestion(method capnp.Method) *question {
 		finishMsgSend: make(chan struct{}),
 	}
 	q.p = capnp.NewPromise(method, q) // TODO(someday): customize error message for bootstrap
+	c.setAnswerQuestion(q.p.Answer(), q)
 	if int(q.id) == len(c.questions) {
 		c.questions = append(c.questions, q)
 	} else {
 		c.questions[q.id] = q
 	}
 	return q
+}
+
+func (c *Conn) getAnswerQuestion(ans *capnp.Answer) (*question, bool) {
+	m := ans.Metadata()
+	m.Lock()
+	defer m.Unlock()
+	q, ok := m.Get(questionKey{c})
+	if !ok {
+		return nil, false
+	}
+	return q.(*question), true
+}
+
+func (c *Conn) setAnswerQuestion(ans *capnp.Answer, q *question) {
+	m := ans.Metadata()
+	syncutil.With(m, func() {
+		m.Put(questionKey{c}, q)
+	})
+}
+
+type questionKey struct {
+	conn *Conn
 }
 
 // handleCancel rejects the question's promise upon cancelation of its

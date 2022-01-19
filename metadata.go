@@ -6,7 +6,7 @@ import (
 
 // Metadata is a morally a map[interface{}]interface{} which implements
 // sync.Locker; it is used by the rpc system to attach bookkeeping
-// information to Clients.
+// information to various objects.
 //
 // The zero value is not meaningful, and the Metadata must not be copied
 // after its first use.

@@ -70,6 +70,90 @@ func chkfatal(err error) {
 	}
 }
 
+func TestBootstrapReceiverAnswerRpc(t *testing.T) {
+	cClient, cServer := netPipe()
+	defer cClient.Close()
+	defer cServer.Close()
+
+	errChan := make(chan error)
+	srv := &capArgsTest{Errs: errChan}
+
+	// start server:
+	serverConn := NewConn(
+		NewStreamTransport(cServer),
+		&Options{
+			BootstrapClient: testcapnp.CapArgsTest_ServerToClient(srv, nil).Client,
+		},
+	)
+	defer serverConn.Close()
+
+	clientConn := NewConn(NewStreamTransport(cClient), nil)
+	defer clientConn.Close()
+
+	ctx := context.Background()
+	c := testcapnp.CapArgsTest{clientConn.Bootstrap(ctx)}
+
+	res, rel := c.Call(ctx, func(p testcapnp.CapArgsTest_call_Params) error {
+		capId := p.Message().AddCap(c.Client.AddRef())
+		p.SetCap(capnp.NewInterface(p.Segment(), capId).ToPtr())
+		return nil
+	})
+	defer rel()
+	c.Release()
+
+	_, err := res.Struct()
+	chkfatal(err)
+
+	for err := range errChan {
+		t.Errorf("Error: %v", err)
+	}
+}
+
+func TestCallReceiverAnswerRpc(t *testing.T) {
+	cClient, cServer := netPipe()
+	defer cClient.Close()
+	defer cServer.Close()
+
+	errChan := make(chan error)
+	srv := &capArgsTest{Errs: errChan}
+
+	// start server:
+	serverConn := NewConn(
+		NewStreamTransport(cServer),
+		&Options{
+			BootstrapClient: testcapnp.CapArgsTest_ServerToClient(srv, nil).Client,
+		},
+	)
+	defer serverConn.Close()
+
+	clientConn := NewConn(NewStreamTransport(cClient), nil)
+	defer clientConn.Close()
+
+	ctx := context.Background()
+	bs := testcapnp.CapArgsTest{clientConn.Bootstrap(ctx)}
+	defer bs.Release()
+
+	selfRes, rel := bs.Self(ctx, nil)
+	defer rel()
+	self := selfRes.Self()
+	callRes, rel := self.Call(ctx, func(p testcapnp.CapArgsTest_call_Params) error {
+		capId := p.Message().AddCap(self.Client.AddRef())
+		p.SetCap(capnp.NewInterface(p.Segment(), capId).ToPtr())
+		return nil
+	})
+	self.Release()
+	defer rel()
+
+	_, err := selfRes.Struct()
+	chkfatal(err)
+	_, err = callRes.Struct()
+	chkfatal(err)
+
+	for err = range errChan {
+		t.Errorf("Error: %v", err)
+	}
+}
+
 func TestBootstrapReceiverAnswer(t *testing.T) {
 	cClient, cServer := netPipe()
 	defer cClient.Close()
