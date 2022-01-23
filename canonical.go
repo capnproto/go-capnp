@@ -43,7 +43,8 @@ func canonicalPtr(dst *Segment, p Ptr) (Ptr, error) {
 		}
 		return ll.ToPtr(), nil
 	case interfacePtrType:
-		return Ptr{}, newError("cannot canonicalize interface")
+		iface := NewInterface(dst, p.Interface().Capability())
+		return iface.ToPtr(), nil
 	default:
 		panic("unreachable")
 	}
