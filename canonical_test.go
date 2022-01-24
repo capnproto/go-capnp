@@ -82,6 +82,24 @@ func TestCanonicalize(t *testing.T) {
 		}
 	}
 	{
+		// pointer to interface
+		_, seg, _ := NewMessage(SingleSegment(nil))
+		s, _ := NewStruct(seg, ObjectSize{PointerCount: 2})
+		iface := NewInterface(seg, 1)
+		s.SetPtr(0, iface.ToPtr())
+		b, err := Canonicalize(s)
+		if err != nil {
+			t.Fatal("Canonicalize(pointer to interface):", err)
+		}
+		want := ([]byte{
+			0, 0, 0, 0, 0, 0, 1, 0,
+			3, 0, 0, 0, 1, 0, 0, 0,
+		})
+		if !bytes.Equal(b, want) {
+			t.Errorf("Canonicalize(pointer to interface) =\n%s\n; want\n%s", hex.Dump(b), hex.Dump(want))
+		}
+	}
+	{
 		// int list
 		_, seg, _ := NewMessage(SingleSegment(nil))
 		s, _ := NewStruct(seg, ObjectSize{PointerCount: 1})
