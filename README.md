@@ -1,9 +1,10 @@
 # Cap'n Proto bindings for Go
 
-[![GoDoc](https://godoc.org/capnproto.org/go/capnp/v3?status.svg)][godoc]
 ![License](https://img.shields.io/badge/license-MIT-brightgreen?style=flat-square)
 ![CodeQuality](https://goreportcard.com/badge/capnproto.org/go/capnp)
 [![Go](https://github.com/capnproto/go-capnproto2/actions/workflows/go.yml/badge.svg)](https://github.com/capnproto/go-capnproto2/actions/workflows/go.yml)
+[![GoDoc](https://godoc.org/capnproto.org/go/capnp/v3?status.svg)][godoc]
+![Matrix](https://img.shields.io/matrix/go-capnp:matrix.org?color=lightpink&label=Get%20Help&logo=matrix&style=flat-square)
 
 [Cap’n Proto](https://capnproto.org/) is an insanely fast data interchange format similar to [Protocol Buffers](https://github.com/protocolbuffers/protobuf), but much faster.
 
