@@ -19,7 +19,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	book.SetTitle("War and Peace")
+	_ = book.SetTitle("War and Peace")
 	book.SetPageCount(1440)
 
 	// Write the message to stdout.
