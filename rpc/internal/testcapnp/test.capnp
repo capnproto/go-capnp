@@ -9,3 +9,12 @@ $Go.import("capnproto.org/go/capnp/v3/rpc/internal/testcapnp");
 interface PingPong {
   echoNum @0 (n :Int64) -> (n :Int64);
 }
+
+interface StreamTest {
+  push @0 (data :Data) -> stream;
+}
+
+interface CapArgsTest {
+  call @0 (cap :Capability);
+  self @1 () -> (self :CapArgsTest);
+}

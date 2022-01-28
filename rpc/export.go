@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"capnproto.org/go/capnp/v3"
+	"capnproto.org/go/capnp/v3/internal/syncutil"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 )
 
@@ -14,6 +15,29 @@ type exportID uint32
 type expent struct {
 	client   *capnp.Client
 	wireRefs uint32
+}
+
+// A key for use in a client's Metadata, whose value is the export
+// id (if any) via which the client is exposed on the given
+// connection.
+type exportIDKey struct {
+	Conn *Conn
+}
+
+func (c *Conn) findExportID(m *capnp.Metadata) (_ exportID, ok bool) {
+	maybeID, ok := m.Get(exportIDKey{c})
+	if ok {
+		return maybeID.(exportID), true
+	}
+	return 0, false
+}
+
+func (c *Conn) setExportID(m *capnp.Metadata, id exportID) {
+	m.Put(exportIDKey{c}, id)
+}
+
+func (c *Conn) clearExportID(m *capnp.Metadata) {
+	m.Delete(exportIDKey{c})
 }
 
 // findExport returns the export entry with the given ID or nil if
@@ -41,6 +65,10 @@ func (c *Conn) releaseExport(id exportID, count uint32) (*capnp.Client, error) {
 		client := ent.client
 		c.exports[id] = nil
 		c.exportID.remove(uint32(id))
+		metadata := client.State().Metadata
+		syncutil.With(metadata, func() {
+			c.clearExportID(metadata)
+		})
 		return client, nil
 	case count > ent.wireRefs:
 		return nil, failedf("export ID %d released too many references", id)
@@ -79,44 +107,68 @@ func (c *Conn) releaseExports(refs map[exportID]uint32) (releaseList, error) {
 // sendCap writes a capability descriptor, returning an export ID if
 // this vat is hosting the capability.  The caller must be holding
 // onto c.mu.
-func (c *Conn) sendCap(d rpccp.CapDescriptor, client *capnp.Client, state capnp.ClientState) (_ exportID, isExport bool) {
+func (c *Conn) sendCap(d rpccp.CapDescriptor, client *capnp.Client) (_ exportID, isExport bool, _ error) {
 	if !client.IsValid() {
 		d.SetNone()
-		return 0, false
+		return 0, false, nil
 	}
 
-	if ic, ok := state.Brand.Value.(*importClient); ok && ic.c == c {
+	state := client.State()
+	bv := state.Brand.Value
+	if ic, ok := bv.(*importClient); ok && ic.c == c {
 		if ent := c.imports[ic.id]; ent != nil && ent.generation == ic.generation {
 			d.SetReceiverHosted(uint32(ic.id))
-			return 0, false
+			return 0, false, nil
 		}
 	}
+
+	if pc, ok := bv.(capnp.PipelineClient); ok {
+		q, ok := c.getAnswerQuestion(pc.Answer())
+		if ok && q.c == c {
+			pcTrans := pc.Transform()
+			pa, err := d.NewReceiverAnswer()
+			if err != nil {
+				return 0, false, err
+			}
+			trans, err := pa.NewTransform(int32(len(pcTrans)))
+			if err != nil {
+				return 0, false, err
+			}
+			for i, op := range pcTrans {
+				trans.At(i).SetGetPointerField(op.Field)
+			}
+			pa.SetQuestionId(uint32(q.id))
+			return 0, false, nil
+		}
+	}
+
 	// TODO(someday): Check for unresolved client for senderPromise.
-	// TODO(someday): Check for pipeline client on question for receiverAnswer.
 
 	// Default to sender-hosted (export).
-	for id, ent := range c.exports {
-		if ent == nil {
-			continue
-		}
-		if ent.client.IsSame(client) {
-			ent.wireRefs++
-			d.SetSenderHosted(uint32(id))
-			return exportID(id), true
-		}
+	state.Metadata.Lock()
+	defer state.Metadata.Unlock()
+	id, ok := c.findExportID(state.Metadata)
+	if ok {
+		ent := c.exports[id]
+		ent.wireRefs++
+		d.SetSenderHosted(uint32(id))
+		return id, true, nil
 	}
+
+	// Not already present; allocate an export id for it:
 	ee := &expent{
 		client:   client.AddRef(),
 		wireRefs: 1,
 	}
-	id := exportID(c.exportID.next())
+	id = exportID(c.exportID.next())
 	if int64(id) == int64(len(c.exports)) {
 		c.exports = append(c.exports, ee)
 	} else {
 		c.exports[id] = ee
 	}
+	c.setExportID(state.Metadata, id)
 	d.SetSenderHosted(uint32(id))
-	return id, true
+	return id, true, nil
 }
 
 // fillPayloadCapTable adds descriptors of payload's message's
@@ -124,10 +176,7 @@ func (c *Conn) sendCap(d rpccp.CapDescriptor, client *capnp.Client, state capnp.
 // reference counts added to the exports table.
 //
 // The caller must be holding onto c.mu.
-func (c *Conn) fillPayloadCapTable(payload rpccp.Payload, clients []*capnp.Client, states []capnp.ClientState) (map[exportID]uint32, error) {
-	if len(clients) != len(states) {
-		panic("states slice must be same size as cap table")
-	}
+func (c *Conn) fillPayloadCapTable(payload rpccp.Payload, clients []*capnp.Client) (map[exportID]uint32, error) {
 	if !payload.IsValid() || len(clients) == 0 {
 		return nil, nil
 	}
@@ -137,7 +186,10 @@ func (c *Conn) fillPayloadCapTable(payload rpccp.Payload, clients []*capnp.Clien
 	}
 	var refs map[exportID]uint32
 	for i, client := range clients {
-		id, isExport := c.sendCap(list.At(i), client, states[i])
+		id, isExport, err := c.sendCap(list.At(i), client)
+		if err != nil {
+			return nil, failedf("Serializing capabiltiy: %w", err)
+		}
 		if !isExport {
 			continue
 		}
@@ -147,24 +199,6 @@ func (c *Conn) fillPayloadCapTable(payload rpccp.Payload, clients []*capnp.Clien
 		refs[id]++
 	}
 	return refs, nil
-}
-
-// extractCapTable reads the state of all the capabilities in a
-// message's capability table and sets the message's capability table
-// to nil.  The caller must not be holding onto any locks, since this
-// function can call application code (ClientHook.Brand).
-func extractCapTable(msg *capnp.Message) ([]*capnp.Client, []capnp.ClientState) {
-	if len(msg.CapTable) == 0 {
-		msg.CapTable = nil // in case msg.CapTable is a 0-length slice
-		return nil, nil
-	}
-	ctab := msg.CapTable
-	msg.CapTable = nil
-	states := make([]capnp.ClientState, len(ctab))
-	for i, c := range ctab {
-		states[i] = c.State()
-	}
-	return ctab, states
 }
 
 type embargoID uint32

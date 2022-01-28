@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"capnproto.org/go/capnp/v3/internal/errors"
+	"capnproto.org/go/capnp/v3/internal/syncutil"
 )
 
 // A Promise holds the result of an RPC call.  Only one of Fulfill,
@@ -50,10 +51,10 @@ type Promise struct {
 	// join state.
 	joined chan struct{}
 
-	// signals is the set of resolved channels to close on resolution.
-	// Has at least one element if the promise is unresolved or pending,
-	// nil if resolved or joined.
-	signals []chan<- struct{}
+	// signals is a list of callbacks to invoke on resolution. Has at least
+	// one element if the promise is unresolved or pending, nil if resolved
+	// or joined.
+	signals []func()
 
 	// caller is the hook to make pipelined calls with.  Set to nil once
 	// the promise leaves the unresolved state.
@@ -104,11 +105,12 @@ func NewPromise(m Method, pc PipelineCaller) *Promise {
 	p := &Promise{
 		method:      m,
 		resolved:    resolved,
-		signals:     []chan<- struct{}{resolved},
+		signals:     []func(){func() { close(resolved) }},
 		caller:      pc,
 		clientsRefs: 1,
 	}
 	p.ans.f.promise = p
+	p.ans.metadata = *NewMetadata()
 	return p
 }
 
@@ -180,6 +182,18 @@ func (p *Promise) Reject(e error) {
 	p.resolve(Ptr{}, e)
 }
 
+// Resolve resolves the promise.
+//
+// If e != nil, then this is equivalent to p.Reject(e).
+// Otherwise, it is equivalent to p.Fulfill(r).
+func (p *Promise) Resolve(r Ptr, e error) {
+	if e != nil {
+		p.Reject(e)
+	} else {
+		p.Fulfill(r)
+	}
+}
+
 // resolve moves p into the resolved state from unresolved or pending
 // join.  The caller must be holding onto p.mu.
 func (p *Promise) resolve(r Ptr, e error) {
@@ -193,19 +207,19 @@ func (p *Promise) resolve(r Ptr, e error) {
 		if p.ongoingCalls > 0 {
 			p.callsStopped = make(chan struct{})
 		}
-		p.mu.Unlock()
-		res := resolution{p.method, r, e}
-		for path, row := range p.clients {
-			t := path.transform()
-			for i := range row {
-				row[i].promise.Fulfill(res.client(t))
-				row[i].promise = nil
+		syncutil.Without(&p.mu, func() {
+			res := resolution{p.method, r, e}
+			for path, row := range p.clients {
+				t := path.transform()
+				for i := range row {
+					row[i].promise.Fulfill(res.client(t))
+					row[i].promise = nil
+				}
 			}
-		}
-		if p.callsStopped != nil {
-			<-p.callsStopped
-		}
-		p.mu.Lock()
+			if p.callsStopped != nil {
+				<-p.callsStopped
+			}
+		})
 	}
 
 	// Move p into resolved state.
@@ -216,8 +230,8 @@ func (p *Promise) resolve(r Ptr, e error) {
 	}
 	p.callsStopped = nil
 	p.result, p.err = r, e
-	for _, ch := range p.signals {
-		close(ch)
+	for _, f := range p.signals {
+		f()
 	}
 	p.signals = nil
 }
@@ -247,24 +261,24 @@ traversal:
 		case parent.isPendingResolution():
 			// Wait for resolution.  Next traversal iteration will be resolved.
 			r := parent.resolved
-			parent.mu.Unlock()
-			if p.joined == nil {
-				p.joined = make(chan struct{})
-			}
-			p.mu.Unlock()
-			<-r
-			p.mu.Lock()
-			parent.mu.Lock()
+			syncutil.Without(&parent.mu, func() {
+				if p.joined == nil {
+					p.joined = make(chan struct{})
+				}
+				syncutil.Without(&p.mu, func() {
+					<-r
+				})
+			})
 		case parent.isPendingJoin():
 			j := parent.joined
-			parent.mu.Unlock()
-			if p.joined == nil {
-				p.joined = make(chan struct{})
-			}
-			p.mu.Unlock()
-			<-j
-			p.mu.Lock()
-			parent.mu.Lock()
+			syncutil.Without(&parent.mu, func() {
+				if p.joined == nil {
+					p.joined = make(chan struct{})
+				}
+				syncutil.Without(&p.mu, func() {
+					<-j
+				})
+			})
 		case parent.isResolved():
 			r, e := parent.result, parent.err
 			parent.mu.Unlock()
@@ -284,9 +298,9 @@ traversal:
 		if p.joined == nil {
 			p.joined = make(chan struct{})
 		}
-		p.mu.Unlock()
-		<-p.callsStopped
-		p.mu.Lock()
+		syncutil.Without(&p.mu, func() {
+			<-p.callsStopped
+		})
 		p.callsStopped = nil
 	}
 	if p.joined != nil {
@@ -359,7 +373,8 @@ type PipelineCaller interface {
 // An Answer is a deferred result of a client call.  Conceptually, this is a
 // future.  It is safe to use from multiple goroutines.
 type Answer struct {
-	f Future
+	f        Future
+	metadata Metadata
 }
 
 // ErrorAnswer returns a Answer that always returns error e.
@@ -381,12 +396,19 @@ func ImmediateAnswer(m Method, s Struct) *Answer {
 		result:   s.ToPtr(),
 	}
 	p.ans.f.promise = p
+	p.ans.metadata = *NewMetadata()
 	return &p.ans
 }
 
 // Future returns a future that is equivalent to ans.
 func (ans *Answer) Future() *Future {
 	return &ans.f
+}
+
+// Metadata returns a metadata map where callers can store information
+// about the answer
+func (ans *Answer) Metadata() *Metadata {
+	return &ans.metadata
 }
 
 // Done returns a channel that is closed when the answer's call is finished.
@@ -445,12 +467,12 @@ traversal:
 		caller := p.caller
 		p.mu.Unlock()
 		ans, release := caller.PipelineSend(ctx, transform, s)
-		p.mu.Lock()
-		p.ongoingCalls--
-		if p.ongoingCalls == 0 && p.callsStopped != nil {
-			close(p.callsStopped)
-		}
-		p.mu.Unlock()
+		syncutil.With(&p.mu, func() {
+			p.ongoingCalls--
+			if p.ongoingCalls == 0 && p.callsStopped != nil {
+				close(p.callsStopped)
+			}
+		})
 		return ans, release
 	case p.isPendingResolution():
 		// Block new calls until resolved.
@@ -503,12 +525,12 @@ traversal:
 		caller := p.caller
 		p.mu.Unlock()
 		pcall := caller.PipelineRecv(ctx, transform, r)
-		p.mu.Lock()
-		p.ongoingCalls--
-		if p.ongoingCalls == 0 && p.callsStopped != nil {
-			close(p.callsStopped)
-		}
-		p.mu.Unlock()
+		syncutil.With(&p.mu, func() {
+			p.ongoingCalls--
+			if p.ongoingCalls == 0 && p.callsStopped != nil {
+				close(p.callsStopped)
+			}
+		})
 		return pcall
 	case p.isPendingResolution():
 		// Block new calls until resolved.
@@ -589,9 +611,9 @@ traversal:
 		switch {
 		case p.isPendingJoin():
 			j := p.joined
-			p.mu.Unlock()
-			<-j
-			p.mu.Lock()
+			syncutil.Without(&p.mu, func() {
+				<-j
+			})
 		case p.isJoined():
 			q := p.next
 			p.mu.Unlock()
@@ -608,7 +630,7 @@ traversal:
 		if row := p.clients[cpath]; len(row) > 0 {
 			return row[0].client
 		}
-		c, pr := NewPromisedClient(pipelineClient{
+		c, pr := NewPromisedClient(PipelineClient{
 			p:         p,
 			transform: ft,
 		})
@@ -619,9 +641,9 @@ traversal:
 		p.mu.Unlock()
 		return c
 	case p.isPendingResolution():
-		p.mu.Unlock()
-		<-p.resolved
-		p.mu.Lock()
+		syncutil.Without(&p.mu, func() {
+			<-p.resolved
+		})
 		fallthrough
 	case p.isResolved():
 		r := p.resolution()
@@ -645,21 +667,29 @@ func (f *Future) Field(off uint16, def []byte) *Future {
 	}
 }
 
-// pipelineClient implements ClientHook by calling to the pipeline's answer.
-type pipelineClient struct {
+// PipelineClient implements ClientHook by calling to the pipeline's answer.
+type PipelineClient struct {
 	p         *Promise
 	transform []PipelineOp
 }
 
-func (pc pipelineClient) Send(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
+func (pc PipelineClient) Answer() *Answer {
+	return pc.p.Answer()
+}
+
+func (pc PipelineClient) Transform() []PipelineOp {
+	return pc.transform
+}
+
+func (pc PipelineClient) Send(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 	return pc.p.ans.PipelineSend(ctx, pc.transform, s)
 }
 
-func (pc pipelineClient) Recv(ctx context.Context, r Recv) PipelineCaller {
+func (pc PipelineClient) Recv(ctx context.Context, r Recv) PipelineCaller {
 	return pc.p.ans.PipelineRecv(ctx, pc.transform, r)
 }
 
-func (pc pipelineClient) Brand() Brand {
+func (pc PipelineClient) Brand() Brand {
 	select {
 	case <-pc.p.resolved:
 		pc.p.mu.Lock()
@@ -667,12 +697,11 @@ func (pc pipelineClient) Brand() Brand {
 		pc.p.mu.Unlock()
 		return r.client(pc.transform).State().Brand
 	default:
-		// TODO(someday): allow people to obtain the underlying answer.
-		return Brand{}
+		return Brand{Value: pc}
 	}
 }
 
-func (pc pipelineClient) Shutdown() {
+func (pc PipelineClient) Shutdown() {
 }
 
 // A PipelineOp describes a step in transforming a pipeline.
