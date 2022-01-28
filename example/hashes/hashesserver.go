@@ -10,7 +10,7 @@ import (
 
 	"capnproto.org/go/capnp/v3/rpc"
 	"capnproto.org/go/capnp/v3/server"
-	"golang.org/x/net/context"
+	"context"
 	"hashes"
 )
 
