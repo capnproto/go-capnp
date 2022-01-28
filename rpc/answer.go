@@ -6,6 +6,7 @@ import (
 
 	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/internal/errors"
+	"capnproto.org/go/capnp/v3/internal/syncutil"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 )
 
@@ -59,6 +60,9 @@ type answer struct {
 	// pcall is the PipelineCaller returned by RecvCall.  It will be set
 	// to nil once results are ready.
 	pcall capnp.PipelineCaller
+	// promise is a promise wrapping pcall. It will be resolved, and
+	// subsequently set to nil, once the results are ready.
+	promise *capnp.Promise
 
 	// pcalls is added to for every pending RecvCall and subtracted from
 	// for every RecvCall return (delivery acknowledgement).  This is used
@@ -108,12 +112,15 @@ func (c *Conn) newReturn(ctx context.Context) (rpccp.Return, func() error, capnp
 // setPipelineCaller sets ans.pcall to pcall if the answer has not
 // already returned.  The caller MUST NOT be holding onto ans.c.mu
 // or the sender lock.
-func (ans *answer) setPipelineCaller(pcall capnp.PipelineCaller) {
-	ans.c.mu.Lock()
-	if ans.flags&resultsReady == 0 {
-		ans.pcall = pcall
-	}
-	ans.c.mu.Unlock()
+//
+// This also sets ans.promise to a new promise, wrapping pcall.
+func (ans *answer) setPipelineCaller(m capnp.Method, pcall capnp.PipelineCaller) {
+	syncutil.With(&ans.c.mu, func() {
+		if ans.flags&resultsReady == 0 {
+			ans.pcall = pcall
+			ans.promise = capnp.NewPromise(m, pcall)
+		}
+	})
 }
 
 // AllocResults allocates the results struct.
@@ -158,9 +165,8 @@ func (ans *answer) setBootstrap(c *capnp.Client) error {
 //
 // The caller must NOT be holding onto ans.c.mu or the sender lock.
 func (ans *answer) Return(e error) {
-	var cstates []capnp.ClientState
 	if ans.results.IsValid() {
-		ans.resultCapTable, cstates = extractCapTable(ans.results.Message())
+		ans.resultCapTable = ans.results.Message().CapTable
 	}
 	ans.c.mu.Lock()
 	ans.c.lockSender()
@@ -173,7 +179,7 @@ func (ans *answer) Return(e error) {
 		ans.c.tasks.Done() // added by handleCall
 		return
 	}
-	rl, err := ans.sendReturn(cstates)
+	rl, err := ans.sendReturn()
 	ans.c.unlockSender()
 	if err != nil {
 		select {
@@ -202,13 +208,14 @@ func (ans *answer) Return(e error) {
 //
 // The caller must be holding onto ans.c.mu and the sender lock.
 // The result's capability table must have been extracted into
-// ans.resultsCapTable before calling sendReturn. Only one of
+// ans.resultCapTable before calling sendReturn. Only one of
 // sendReturn or sendException should be called.
-func (ans *answer) sendReturn(cstates []capnp.ClientState) (releaseList, error) {
+func (ans *answer) sendReturn() (releaseList, error) {
 	ans.pcall = nil
 	ans.flags |= resultsReady
+
 	var err error
-	ans.exportRefs, err = ans.c.fillPayloadCapTable(ans.results, ans.resultCapTable, cstates)
+	ans.exportRefs, err = ans.c.fillPayloadCapTable(ans.results, ans.resultCapTable)
 	if err != nil {
 		ans.c.report(annotate(err, "send return"))
 		// Continue.  Don't fail to send return if cap table isn't fully filled.
@@ -218,6 +225,18 @@ func (ans *answer) sendReturn(cstates []capnp.ClientState) (releaseList, error) 
 	case <-ans.c.bgctx.Done():
 	default:
 		fin := ans.flags&finishReceived != 0
+		if ans.promise != nil {
+			if fin {
+				// Can't use ans.result after a finish, but it's
+				// ok to return an error if the finish comes in
+				// before the return. Possible enhancement: use
+				// the cancel variant of return.
+				ans.promise.Reject(failedf("Received finish before return"))
+			} else {
+				ans.promise.Resolve(ans.results.Content())
+			}
+			ans.promise = nil
+		}
 		ans.c.mu.Unlock()
 		if err := ans.sendMsg(); err != nil {
 			ans.c.report(failedf("send return: %w", err))
@@ -234,9 +253,9 @@ func (ans *answer) sendReturn(cstates []capnp.ClientState) (releaseList, error) 
 		return nil, nil
 	}
 	rl, err := ans.destroy()
-	ans.c.mu.Unlock()
-	ans.releaseMsg()
-	ans.c.mu.Lock()
+	syncutil.Without(&ans.c.mu, func() {
+		ans.releaseMsg()
+	})
 	return rl, err
 }
 
@@ -244,12 +263,17 @@ func (ans *answer) sendReturn(cstates []capnp.ClientState) (releaseList, error) 
 //
 // The caller must be holding onto ans.c.mu and the sender lock.
 // The result's capability table must have been extracted into
-// ans.resultsCapTable before calling sendException. Only one of
+// ans.resultCapTable before calling sendException. Only one of
 // sendReturn or sendException should be called.
 func (ans *answer) sendException(e error) releaseList {
 	ans.err = e
 	ans.pcall = nil
 	ans.flags |= resultsReady
+
+	if ans.promise != nil {
+		ans.promise.Reject(e)
+		ans.promise = nil
+	}
 
 	select {
 	case <-ans.c.bgctx.Done():
@@ -282,9 +306,9 @@ func (ans *answer) sendException(e error) releaseList {
 	// destroy will never return an error because sendException does
 	// create any exports.
 	rl, _ := ans.destroy()
-	ans.c.mu.Unlock()
-	ans.releaseMsg()
-	ans.c.mu.Lock()
+	syncutil.Without(&ans.c.mu, func() {
+		ans.releaseMsg()
+	})
 	return rl
 }
 
