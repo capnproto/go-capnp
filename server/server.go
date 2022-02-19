@@ -127,14 +127,6 @@ type Policy struct {
 	//
 	// If this is zero, then a reasonably small default is used.
 	MaxConcurrentCalls int
-
-	// AnswerQueueSize is the maximum number of methods allowed to be
-	// enqueued on a single returned Answer while it is unresolved.
-	// Attempts to enqueue more calls than this limit will result in
-	// immediate error answers.
-	//
-	// If this is zero, then a reasonably small default is used.
-	AnswerQueueSize int
 }
 
 // New returns a client hook that makes calls to a set of methods.
@@ -157,9 +149,6 @@ func New(methods []Method, brand interface{}, shutdown Shutdowner, policy *Polic
 		srv.policy.MaxConcurrentCalls = 2
 	}
 	srv.ongoing = make([]cstate, srv.policy.MaxConcurrentCalls)
-	if srv.policy.AnswerQueueSize < 1 {
-		srv.policy.AnswerQueueSize = 8
-	}
 	return srv
 }
 
@@ -258,7 +247,7 @@ func (srv *Server) start(ctx context.Context, m *Method, r capnp.Recv) capnp.Pip
 
 	// Call implementation function.
 	call, ack := newCall(r.Args, r.Returner)
-	aq := newAnswerQueue(r.Method, srv.policy.AnswerQueueSize)
+	aq := newAnswerQueue(r.Method)
 	done := make(chan struct{})
 	go func() {
 		err := m.Impl(ctx, call)
