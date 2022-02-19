@@ -11,6 +11,10 @@ import (
 	"capnproto.org/go/capnp/v3/internal/syncutil"
 )
 
+func init() {
+	close(closedSignal)
+}
+
 // An Interface is a reference to a client in a message's capability table.
 type Interface struct {
 	seg *Segment
@@ -138,7 +142,7 @@ func NewClient(hook ClientHook) *Client {
 		ClientHook: hook,
 		done:       make(chan struct{}),
 		refs:       1,
-		resolved:   newClosedSignal(),
+		resolved:   closedSignal,
 		metadata:   *NewMetadata(),
 	}
 	h.resolvedHook = h
@@ -856,7 +860,7 @@ func ErrorClient(e error) *Client {
 		ClientHook: errorClient{e},
 		done:       make(chan struct{}),
 		refs:       1,
-		resolved:   newClosedSignal(),
+		resolved:   closedSignal,
 		metadata:   *NewMetadata(),
 	}
 	h.resolvedHook = h
@@ -879,8 +883,4 @@ func (ec errorClient) Brand() Brand {
 func (ec errorClient) Shutdown() {
 }
 
-func newClosedSignal() chan struct{} {
-	c := make(chan struct{})
-	close(c)
-	return c
-}
+var closedSignal = make(chan struct{})

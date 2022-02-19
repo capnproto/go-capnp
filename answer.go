@@ -381,7 +381,7 @@ type Answer struct {
 func ErrorAnswer(m Method, e error) *Answer {
 	p := &Promise{
 		method:   m,
-		resolved: newClosedSignal(),
+		resolved: closedSignal,
 		err:      e,
 	}
 	p.ans.f.promise = p
@@ -392,7 +392,7 @@ func ErrorAnswer(m Method, e error) *Answer {
 func ImmediateAnswer(m Method, s Struct) *Answer {
 	p := &Promise{
 		method:   m,
-		resolved: newClosedSignal(),
+		resolved: closedSignal,
 		result:   s.ToPtr(),
 	}
 	p.ans.f.promise = p
