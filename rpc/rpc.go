@@ -164,13 +164,8 @@ func NewConn(t Transport, opts *Options) *Conn {
 	}
 
 	// start background tasks
-	for _, f := range []func(context.Context) error{
-		c.send,
-		c.receive,
-	} {
-		c.tasks.Add(1)
-		g.Go(c.newTask(f))
-	}
+	g.Go(c.newTask(c.send))
+	g.Go(c.newTask(c.receive))
 
 	// monitor background tasks
 	go func() {
