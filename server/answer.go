@@ -8,13 +8,12 @@ import (
 )
 
 // answerQueue is a queue of method calls to make after an earlier
-// method call finishes.  The queue is a fixed size, and will block once
-// the queue is full.
+// method call finishes.  The queue is unbounded; it is the caller's
+// responsibility to manage/impose backpressure.
 //
 // An answerQueue can be in one of three states:
 //
-//	1) Queueing.  Incoming method calls will either be added to the queue
-//	   or block until the answerQueue enters the Drained state.
+//	1) Queueing.  Incoming method calls will be added to the queue.
 //	2) Draining, entered by calling fulfill or reject.  Queued method
 //	   calls will be delivered in sequence, and new incoming method calls
 //	   will block until the answerQueue enters the Drained state.
@@ -43,11 +42,14 @@ type base struct {
 	recv  func(context.Context, []capnp.PipelineOp, capnp.Recv) capnp.PipelineCaller
 }
 
-// newAnswerQueue creates a new answer queue of the given size.
-func newAnswerQueue(m capnp.Method, n int) *answerQueue {
+// newAnswerQueue creates a new answer queue.
+func newAnswerQueue(m capnp.Method) *answerQueue {
 	return &answerQueue{
-		method:   m,
-		q:        make([]qent, 0, n),
+		method: m,
+		// N.B. since q == nil denotes the draining state,
+		// we do have to allocate something here, even though
+		// the queue is an empty slice.
+		q:        make([]qent, 0),
 		draining: make(chan struct{}),
 	}
 }
@@ -147,20 +149,6 @@ type queueCaller struct {
 func (qc queueCaller) PipelineRecv(ctx context.Context, transform []capnp.PipelineOp, r capnp.Recv) capnp.PipelineCaller {
 	qc.aq.mu.Lock()
 	switch {
-	case qc.aq.q != nil && len(qc.aq.q) == cap(qc.aq.q):
-		// Queue full.  Block until draining.
-		qc.aq.mu.Unlock()
-		select {
-		case <-qc.aq.draining:
-		case <-ctx.Done():
-			r.Reject(ctx.Err())
-			return nil
-		}
-		qc.aq.mu.Lock()
-		if len(qc.aq.bases) < 1 {
-			panic("expected to be draining")
-		}
-		fallthrough
 	case len(qc.aq.bases) > 0:
 		// Draining/drained.
 		qc.aq.mu.Unlock()
