@@ -156,8 +156,15 @@ func NewConn(t Transport, opts *Options) *Conn {
 	}
 
 	// start background tasks
-	g.Go(c.newTask(c.send))
-	g.Go(c.newTask(c.receive))
+	c.tasks.Add(2)
+	g.Go(func() error {
+		defer c.tasks.Done()
+		return c.send(c.bgctx)
+	})
+	g.Go(func() error {
+		defer c.tasks.Done()
+		return c.receive(c.bgctx)
+	})
 
 	// monitor background tasks
 	go func() {
@@ -172,13 +179,6 @@ func NewConn(t Transport, opts *Options) *Conn {
 	}()
 
 	return c
-}
-
-func (c *Conn) newTask(f func(context.Context) error) func() error {
-	return func() error {
-		defer c.tasks.Done()
-		return f(c.bgctx)
-	}
 }
 
 // Bootstrap returns the remote vat's bootstrap interface.  This creates
@@ -372,14 +372,16 @@ closeTransport:
 
 func (c *Conn) send(ctx context.Context) error {
 	for {
-		if err := c.sendMessage(ctx, func(msg rpccp.Message) error {
+		err := c.sendMessage(ctx, func(msg rpccp.Message) error {
 			v, err := c.sendq.Recv(ctx)
 			if err == nil {
 				v.(func(rpccp.Message))(msg)
 			}
 			return err
 
-		}); err != nil {
+		})
+
+		if err != nil {
 			return err
 		}
 	}
