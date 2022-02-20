@@ -9,8 +9,10 @@ import (
 
 	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/internal/errors"
+	"capnproto.org/go/capnp/v3/internal/mpsc"
 	"capnproto.org/go/capnp/v3/internal/syncutil"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
+	"golang.org/x/sync/errgroup"
 )
 
 /*
@@ -68,25 +70,20 @@ is a common source of errors and/or inefficiencies.
 // It is safe to use from multiple goroutines.
 type Conn struct {
 	bootstrap    *capnp.Client
-	reporter     ErrorReporter
+	er           annotatingErrReporter
 	abortTimeout time.Duration
 
 	// bgctx is a Context that is canceled when shutdown starts.
 	bgctx context.Context
-
 	// bgcancel cancels bgctx.  It must only be called while holding mu.
 	bgcancel context.CancelFunc
-
 	// tasks block shutdown.
 	tasks sync.WaitGroup
-
 	// transport is protected by the sender lock.  Only the receive goroutine can
 	// call RecvMessage.
 	transport Transport
-
 	// mu protects all the following fields in the Conn.
-	mu sync.Mutex
-
+	mu     sync.Mutex
 	closed bool          // set when Close() is called, used to distinguish user Closing multiple times
 	shut   chan struct{} // closed when shutdown() returns
 
@@ -94,6 +91,8 @@ type Conn struct {
 	// progress, and the channel is closed when the operation is finished.
 	// See the above comment for a longer explanation.
 	sendCond chan struct{}
+
+	sendq *mpsc.Queue
 
 	// Tables
 	questions  []*question
@@ -138,6 +137,11 @@ type ErrorReporter interface {
 // requests from the transport.
 func NewConn(t Transport, opts *Options) *Conn {
 	bgctx, bgcancel := context.WithCancel(context.Background())
+
+	// We use an errgroup to link the lifetime of background tasks
+	// to each other.
+	g, bgctx := errgroup.WithContext(bgctx)
+
 	c := &Conn{
 		transport: t,
 		shut:      make(chan struct{}),
@@ -145,35 +149,41 @@ func NewConn(t Transport, opts *Options) *Conn {
 		bgcancel:  bgcancel,
 		answers:   make(map[answerID]*answer),
 		imports:   make(map[importID]*impent),
+		sendq:     mpsc.New(),
 	}
 	if opts != nil {
 		c.bootstrap = opts.BootstrapClient
-		c.reporter = opts.ErrorReporter
+		c.er.ErrorReporter = opts.ErrorReporter
 		c.abortTimeout = opts.AbortTimeout
 	}
 	if c.abortTimeout == 0 {
 		c.abortTimeout = 100 * time.Millisecond
 	}
-	c.tasks.Add(1)
-	go func() {
-		abortErr := c.receive(c.bgctx)
-		c.tasks.Done()
 
-		c.mu.Lock()
-		select {
-		case <-c.bgctx.Done():
-			c.mu.Unlock()
-		default:
-			if abortErr != nil {
-				c.report(abortErr)
-			}
-			// shutdown unlocks c.mu.
-			if err := c.shutdown(abortErr); err != nil {
-				c.report(err)
+	// start background tasks
+	g.Go(c.newTask(c.send))
+	g.Go(c.newTask(c.receive))
+
+	// monitor background tasks
+	go func() {
+		if err := g.Wait(); err != nil {
+			c.mu.Lock() // shutdown unlocks c.mu.
+
+			c.er.ReportError(err)
+			if err = c.shutdown(err); err != nil {
+				c.er.ReportError(err)
 			}
 		}
 	}()
+
 	return c
+}
+
+func (c *Conn) newTask(f func(context.Context) error) func() error {
+	return func() error {
+		defer c.tasks.Done()
+		return f(c.bgctx)
+	}
 }
 
 // Bootstrap returns the remote vat's bootstrap interface.  This creates
@@ -182,38 +192,49 @@ func (c *Conn) Bootstrap(ctx context.Context) *capnp.Client {
 	c.mu.Lock()
 	if !c.startTask() {
 		c.mu.Unlock()
-		return capnp.ErrorClient(ExcClosed)
+		return capnp.ErrorClient(disconnectedf("connection closed"))
 	}
 	defer c.tasks.Done()
+
 	q := c.newQuestion(capnp.Method{})
-	c.setAnswerQuestion(q.p.Answer(), q)
 	bootCtx, cancel := context.WithCancel(ctx)
 	bc, cp := capnp.NewPromisedClient(bootstrapClient{
 		c:      q.p.Answer().Client().AddRef(),
 		cancel: cancel,
 	})
 	q.bootstrapPromise = cp // safe to write because we're still holding c.mu
+	c.mu.Unlock()
 
-	err := c.sendMessage(ctx, func(msg rpccp.Message) error {
-		boot, err := msg.NewBootstrap()
-		if err != nil {
-			return err
+	// Send bootstrap message synchronously
+	cherr := make(chan error, 1)
+	c.sendq.Send(func(m rpccp.Message) {
+		boot, err := m.NewBootstrap()
+		if err == nil {
+			boot.SetQuestionId(uint32(q.id))
 		}
-		boot.SetQuestionId(uint32(q.id))
-		return nil
+
+		cherr <- err
 	})
+
+	var err error
+	select {
+	case err = <-cherr:
+	case <-ctx.Done():
+		err = ctx.Err()
+	}
+
 	if err != nil {
 		c.questions[q.id] = nil
 		c.questionID.remove(uint32(q.id))
-		c.mu.Unlock()
-		return capnp.ErrorClient(annotate(err, "bootstrap"))
+		return capnp.ErrorClient(errors.Annotate("rpc", "bootstrap", err))
 	}
+
 	c.tasks.Add(1)
 	go func() {
 		defer c.tasks.Done()
 		q.handleCancel(bootCtx)
 	}()
-	c.mu.Unlock()
+
 	return bc
 }
 
@@ -354,6 +375,21 @@ closeTransport:
 	return nil
 }
 
+func (c *Conn) send(ctx context.Context) error {
+	for {
+		if err := c.sendMessage(ctx, func(msg rpccp.Message) error {
+			v, err := c.sendq.Recv(ctx)
+			if err == nil {
+				v.(prepareFunc)(msg)
+			}
+			return err
+
+		}); err != nil {
+			return err
+		}
+	}
+}
+
 // receive receives and dispatches messages coming from c.transport.  receive
 // runs in a background goroutine.
 //
@@ -361,106 +397,117 @@ closeTransport:
 // returns a non-nil error, it is sent to the remove vat as an abort.
 func (c *Conn) receive(ctx context.Context) error {
 	for {
-		recv, releaseRecv, err := c.transport.RecvMessage(ctx)
+		recv, release, err := c.transport.RecvMessage(ctx)
 		if err != nil {
 			return err
 		}
+
 		switch recv.Which() {
 		case rpccp.Message_Which_unimplemented:
 			// no-op for now to avoid feedback loop
+
 		case rpccp.Message_Which_abort:
 			exc, err := recv.Abort()
 			if err != nil {
-				releaseRecv()
-				c.report(failedf("read abort: %w", err))
+				release()
+				c.er.reportf("read abort: %w", err)
 				return nil
 			}
 			reason, err := exc.Reason()
 			if err != nil {
-				releaseRecv()
-				c.report(failedf("read abort reason: %w", err))
+				release()
+				c.er.reportf("read abort reason: %w", err)
 				return nil
 			}
 			ty := exc.Type()
-			releaseRecv()
-			c.report(errors.New(errors.Type(ty), "rpc", "remote abort: "+reason))
+			release()
+			c.er.ReportError(errors.New(errors.Type(ty), "rpc", "remote abort: "+reason))
 			return nil
+
 		case rpccp.Message_Which_bootstrap:
 			bootstrap, err := recv.Bootstrap()
 			if err != nil {
-				releaseRecv()
-				c.report(failedf("read bootstrap: %w", err))
+				release()
+				c.er.reportf("read bootstrap: %w", err)
 				continue
 			}
 			qid := answerID(bootstrap.QuestionId())
-			releaseRecv()
+			release()
 			if err := c.handleBootstrap(ctx, qid); err != nil {
 				return err
 			}
+
 		case rpccp.Message_Which_call:
 			call, err := recv.Call()
 			if err != nil {
-				releaseRecv()
-				c.report(failedf("read call: %w", err))
+				release()
+				c.er.reportf("read call: %w", err)
 				continue
 			}
-			if err := c.handleCall(ctx, call, releaseRecv); err != nil {
+			if err := c.handleCall(ctx, call, release); err != nil {
 				return err
 			}
+
 		case rpccp.Message_Which_return:
 			ret, err := recv.Return()
 			if err != nil {
-				releaseRecv()
-				c.report(failedf("read return: %w", err))
+				release()
+				c.er.reportf("read return: %w", err)
 				continue
 			}
-			if err := c.handleReturn(ctx, ret, releaseRecv); err != nil {
+			if err := c.handleReturn(ctx, ret, release); err != nil {
 				return err
 			}
+
 		case rpccp.Message_Which_finish:
 			fin, err := recv.Finish()
 			if err != nil {
-				releaseRecv()
-				c.report(failedf("read finish: %w", err))
+				release()
+				c.er.reportf("read finish: %w", err)
 				continue
 			}
 			qid := answerID(fin.QuestionId())
 			releaseResultCaps := fin.ReleaseResultCaps()
-			releaseRecv()
+			release()
 			if err := c.handleFinish(ctx, qid, releaseResultCaps); err != nil {
 				return err
 			}
+
 		case rpccp.Message_Which_release:
 			rel, err := recv.Release()
 			if err != nil {
-				releaseRecv()
-				c.report(failedf("read release: %w", err))
+				release()
+				c.er.reportf("read release: %w", err)
 				continue
 			}
 			id := exportID(rel.Id())
 			count := rel.ReferenceCount()
-			releaseRecv()
+			release()
 			if err := c.handleRelease(ctx, id, count); err != nil {
 				return err
 			}
+
 		case rpccp.Message_Which_disembargo:
 			d, err := recv.Disembargo()
 			if err != nil {
-				releaseRecv()
-				c.report(failedf("read disembargo: %w", err))
+				release()
+				c.er.reportf("read disembargo: %w", err)
 				continue
 			}
-			err = c.handleDisembargo(ctx, d)
-			releaseRecv()
+			err = c.handleDisembargo(ctx, d, release)
 			if err != nil {
 				return err
 			}
+
 		default:
-			err := c.handleUnknownMessage(ctx, recv)
-			releaseRecv()
-			if err != nil {
-				return err
-			}
+			c.er.reportf("unknown message type %v from remote", recv.Which())
+			c.sendq.Send(func(msg rpccp.Message) {
+				defer release()
+
+				if err := msg.SetUnimplemented(recv); err != nil {
+					c.er.annotatef(err, "send unimplemented")
+				}
+			})
 		}
 	}
 }
@@ -484,7 +531,7 @@ func (c *Conn) handleBootstrap(ctx context.Context, id answerID) error {
 			c.answers[id] = errorAnswer(c, id, err)
 			c.unlockSender()
 		})
-		c.report(err)
+		c.er.ReportError(err)
 		return nil
 	}
 	ret.SetAnswerId(uint32(id))
@@ -526,26 +573,26 @@ func (c *Conn) handleBootstrap(ctx context.Context, id answerID) error {
 
 func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capnp.ReleaseFunc) error {
 	id := answerID(call.QuestionId())
+
+	// TODO(3rd-party handshake): support sending results to 3rd party vat
 	if call.SendResultsTo().Which() != rpccp.Call_sendResultsTo_Which_caller {
 		// TODO(someday): handle SendResultsTo.yourself
-		c.report(failedf("incoming call: results destination is not caller"))
-		var err error
-		syncutil.With(&c.mu, func() {
-			err = c.sendMessage(ctx, func(m rpccp.Message) error {
-				mm, err := m.NewUnimplemented()
-				if err != nil {
-					return err
-				}
-				if err := mm.SetCall(call); err != nil {
-					return err
-				}
-				return nil
-			})
+		c.er.reportf("incoming call: results destination is not caller")
+
+		c.sendq.Send(func(m rpccp.Message) {
+			defer releaseCall()
+
+			mm, err := m.NewUnimplemented()
+			if err != nil {
+				c.er.annotatef(err, "incoming call: send unimplemented")
+				return
+			}
+
+			if err = mm.SetCall(call); err != nil {
+				c.er.annotatef(err, "incoming call: send unimplemented")
+			}
 		})
-		releaseCall()
-		if err != nil {
-			c.report(annotate(err, "incoming call: send unimplemented"))
-		}
+
 		return nil
 	}
 
@@ -573,7 +620,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			c.answers[id] = errorAnswer(c, id, err)
 			c.unlockSender()
 		})
-		c.report(err)
+		c.er.ReportError(err)
 		clearCapTable(call.Message())
 		releaseCall()
 		return nil
@@ -596,7 +643,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 		rl := ans.sendException(parseErr)
 		c.unlockSender()
 		c.mu.Unlock()
-		c.report(parseErr)
+		c.er.ReportError(parseErr)
 		rl.release()
 		clearCapTable(call.Message())
 		releaseCall()
@@ -682,7 +729,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 				rl.release()
 				clearCapTable(call.Message())
 				releaseCall()
-				c.report(err)
+				c.er.ReportError(err)
 				return nil
 			}
 			sub, err := capnp.Transform(content, p.target.transform)
@@ -819,12 +866,12 @@ func parseTransform(list rpccp.PromisedAnswer_Op_List) ([]capnp.PipelineOp, erro
 	return ops, nil
 }
 
-func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet capnp.ReleaseFunc) error {
+func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp.ReleaseFunc) error {
 	c.mu.Lock()
 	qid := questionID(ret.AnswerId())
 	if uint32(qid) >= uint32(len(c.questions)) {
 		c.mu.Unlock()
-		releaseRet()
+		release()
 		return failedf("incoming return: question %d does not exist", qid)
 	}
 	// Pop the question from the table.  Receiving the Return message
@@ -834,7 +881,7 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 	c.questions[qid] = nil
 	if q == nil {
 		c.mu.Unlock()
-		releaseRet()
+		release()
 		return failedf("incoming return: question %d does not exist", qid)
 	}
 	canceled := q.flags&finished != 0
@@ -849,10 +896,10 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 				c.questionID.remove(uint32(qid))
 			}
 			c.mu.Unlock()
-			releaseRet()
+			release()
 		default:
 			c.mu.Unlock()
-			releaseRet()
+			release()
 			<-q.finishMsgSend
 			syncutil.With(&c.mu, func() {
 				if q.flags&finishSent != 0 {
@@ -864,7 +911,7 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 	}
 	pr := c.parseReturn(ret, q.called) // fills in CapTable
 	if pr.parseFailed {
-		c.report(annotate(pr.err, "incoming return"))
+		c.er.annotatef(pr.err, "incoming return")
 	}
 	switch {
 	case q.bootstrapPromise != nil && pr.err == nil:
@@ -874,7 +921,7 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 			q.bootstrapPromise.Fulfill(q.p.Answer().Client())
 			q.p.ReleaseClients()
 			clearCapTable(pr.result.Message())
-			releaseRet()
+			release()
 		})
 	case q.bootstrapPromise != nil && pr.err != nil:
 		// TODO(someday): send unimplemented message back to remote if
@@ -884,7 +931,7 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 			q.p.Reject(pr.err)
 			q.bootstrapPromise.Fulfill(q.p.Answer().Client())
 			q.p.ReleaseClients()
-			releaseRet()
+			release()
 		})
 	case q.bootstrapPromise == nil && pr.err != nil:
 		// TODO(someday): send unimplemented message back to remote if
@@ -892,13 +939,13 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 		q.release = func() {}
 		syncutil.Without(&c.mu, func() {
 			q.p.Reject(pr.err)
-			releaseRet()
+			release()
 		})
 	default:
 		m := ret.Message()
 		q.release = func() {
 			clearCapTable(m)
-			releaseRet()
+			release()
 		}
 		syncutil.Without(&c.mu, func() {
 			q.p.Fulfill(pr.result)
@@ -907,7 +954,7 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 	if err := c.tryLockSender(ctx); err != nil {
 		close(q.finishMsgSend)
 		c.mu.Unlock()
-		c.report(annotate(err, "incoming return: send finish"))
+		c.er.annotatef(err, "incoming return: send finish")
 		return nil
 	}
 	c.mu.Unlock()
@@ -919,18 +966,18 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 	for i := range pr.disembargoes {
 		msg, send, release, err := c.transport.NewMessage(ctx)
 		if err != nil {
-			c.report(failedf("incoming return: send disembargo: create message: %w", err))
+			c.er.reportf("incoming return: send disembargo: create message: %w", err)
 			continue
 		}
 		if err := pr.disembargoes[i].buildDisembargo(msg); err != nil {
 			release()
-			c.report(annotate(err, "incoming return"))
+			c.er.annotatef(err, "incoming return")
 			continue
 		}
 		err = send()
 		release()
 		if err != nil {
-			c.report(failedf("incoming return: send disembargo: %w", err))
+			c.er.reportf("incoming return: send disembargo: %w", err)
 			continue
 		}
 	}
@@ -943,7 +990,7 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 				c.unlockSender()
 				close(q.finishMsgSend)
 			})
-			c.report(annotate(err, "incoming return: send finish"))
+			c.er.annotatef(err, "incoming return: send finish")
 			return nil
 		}
 		fin, err := msg.NewFinish()
@@ -953,7 +1000,7 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 				c.unlockSender()
 				close(q.finishMsgSend)
 			})
-			c.report(failedf("incoming return: send finish: build message: %w", err))
+			c.er.reportf("incoming return: send finish: build message: %w", err)
 			return nil
 		}
 		fin.SetQuestionId(uint32(qid))
@@ -965,7 +1012,7 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, releaseRet ca
 				c.unlockSender()
 				close(q.finishMsgSend)
 			})
-			c.report(failedf("incoming return: send finish: build message: %w", err))
+			c.er.reportf("incoming return: send finish: build message: %w", err)
 			return nil
 		}
 	}
@@ -1232,7 +1279,7 @@ func (c *Conn) recvPayload(payload rpccp.Payload) (_ capnp.Ptr, locals uintSet, 
 	if err != nil {
 		// Don't allow unreadable capability table to stop other results,
 		// just present an empty capability table.
-		c.report(failedf("read payload: capability table: %w", err))
+		c.er.reportf("read payload: capability table: %w", err)
 		return p, nil, nil
 	}
 	mtab := make([]*capnp.Client, ptab.Len())
@@ -1262,18 +1309,23 @@ func (c *Conn) handleRelease(ctx context.Context, id exportID, count uint32) err
 	return nil
 }
 
-func (c *Conn) handleDisembargo(ctx context.Context, d rpccp.Disembargo) error {
+func (c *Conn) handleDisembargo(ctx context.Context, d rpccp.Disembargo, release capnp.ReleaseFunc) error {
 	dtarget, err := d.Target()
 	if err != nil {
+		release()
 		return failedf("incoming disembargo: read target: %w", err)
 	}
+
 	var tgt parsedMessageTarget
 	if err := parseMessageTarget(&tgt, dtarget); err != nil {
+		release()
 		return annotate(err, "incoming disembargo")
 	}
 
 	switch d.Context().Which() {
 	case rpccp.Disembargo_context_Which_receiverLoopback:
+		defer release()
+
 		id := embargoID(d.Context().ReceiverLoopback())
 		c.mu.Lock()
 		e := c.findEmbargo(id)
@@ -1286,105 +1338,111 @@ func (c *Conn) handleDisembargo(ctx context.Context, d rpccp.Disembargo) error {
 		c.embargoID.remove(uint32(id))
 		c.mu.Unlock()
 		e.lift()
+
 	case rpccp.Disembargo_context_Which_senderLoopback:
-		c.mu.Lock()
-		if tgt.which != rpccp.MessageTarget_Which_promisedAnswer {
-			c.mu.Unlock()
-			return failedf("incoming disembargo: sender loopback: target is not a promised answer")
-		}
-		ans := c.answers[tgt.promisedAnswer]
-		if ans == nil {
-			c.mu.Unlock()
-			return failedf("incoming disembargo: unknown answer ID %d", tgt.promisedAnswer)
-		}
-		if ans.flags&returnSent == 0 {
-			c.mu.Unlock()
-			return failedf("incoming disembargo: answer ID %d has not sent return", tgt.promisedAnswer)
-		}
-		if ans.err != nil {
-			c.mu.Unlock()
-			return failedf("incoming disembargo: answer ID %d returned exception", tgt.promisedAnswer)
-		}
-		content, err := ans.results.Content()
+		var (
+			imp    *importClient
+			client *capnp.Client
+		)
+
+		syncutil.With(&c.mu, func() {
+			if tgt.which != rpccp.MessageTarget_Which_promisedAnswer {
+				err = failedf("incoming disembargo: sender loopback: target is not a promised answer")
+				return
+			}
+
+			ans := c.answers[tgt.promisedAnswer]
+			if ans == nil {
+				err = failedf("incoming disembargo: unknown answer ID %d", tgt.promisedAnswer)
+				return
+			}
+			if ans.flags&returnSent == 0 {
+				err = failedf("incoming disembargo: answer ID %d has not sent return", tgt.promisedAnswer)
+				return
+			}
+
+			if ans.err != nil {
+				err = failedf("incoming disembargo: answer ID %d returned exception", tgt.promisedAnswer)
+				return
+			}
+
+			var content capnp.Ptr
+			if content, err = ans.results.Content(); err != nil {
+				err = failedf("incoming disembargo: read answer ID %d: %v", tgt.promisedAnswer, err)
+				return
+			}
+
+			ptr, err := capnp.Transform(content, tgt.transform)
+			if err != nil {
+				err = failedf("incoming disembargo: read answer ID %d: %v", tgt.promisedAnswer, err)
+				return
+			}
+
+			iface := ptr.Interface()
+			if !iface.IsValid() || int64(iface.Capability()) >= int64(len(ans.resultCapTable)) {
+				err = failedf("incoming disembargo: sender loopback requested on a capability that is not an import")
+				return
+			}
+
+			client := ans.resultCapTable[iface.Capability()].AddRef()
+
+			var ok bool
+			syncutil.Without(&c.mu, func() {
+				imp, ok = client.State().Brand.Value.(*importClient)
+			})
+
+			if !ok || imp.c != c {
+				client.Release()
+				err = failedf("incoming disembargo: sender loopback requested on a capability that is not an import")
+				return
+			}
+
+			// TODO(maybe): check generation?
+		})
+
 		if err != nil {
-			c.mu.Unlock()
-			return failedf("incoming disembargo: read answer ID %d: %v", tgt.promisedAnswer, err)
+			release()
+			return err
 		}
-		ptr, err := capnp.Transform(content, tgt.transform)
-		if err != nil {
-			c.mu.Unlock()
-			return failedf("incoming disembargo: read answer ID %d: %v", tgt.promisedAnswer, err)
-		}
-		iface := ptr.Interface()
-		if !iface.IsValid() || int64(iface.Capability()) >= int64(len(ans.resultCapTable)) {
-			c.mu.Unlock()
-			return failedf("incoming disembargo: sender loopback requested on a capability that is not an import")
-		}
-		client := ans.resultCapTable[iface.Capability()].AddRef()
-		c.mu.Unlock()
-		imp, ok := client.State().Brand.Value.(*importClient)
-		c.mu.Lock()
-		if !ok || imp.c != c {
-			c.mu.Unlock()
-			client.Release()
-			return failedf("incoming disembargo: sender loopback requested on a capability that is not an import")
-		}
-		// TODO(maybe): check generation?
 
 		// Since this Cap'n Proto RPC implementation does not send imports
 		// unless they are fully dequeued, we can just immediately loop back.
 		id := d.Context().SenderLoopback()
-		err = c.sendMessage(ctx, func(msg rpccp.Message) error {
+		c.sendq.Send(func(msg rpccp.Message) {
+			defer release()
+			defer client.Release()
+
 			d, err := msg.NewDisembargo()
 			if err != nil {
-				return err
+				c.er.annotatef(err, "incoming disembargo: send receiver loopback")
+				return
 			}
+
 			tgt, err := d.NewTarget()
 			if err != nil {
-				return err
+				c.er.annotatef(err, "incoming disembargo: send receiver loopback")
+				return
 			}
+
 			tgt.SetImportedCap(uint32(imp.id))
 			d.Context().SetReceiverLoopback(id)
-			return nil
 		})
-		c.mu.Unlock()
-		client.Release()
-		if err != nil {
-			c.report(annotate(err, "incoming disembargo: send receiver loopback"))
-		}
-	default:
-		c.report(failedf("incoming disembargo: context %v not implemented", d.Context().Which()))
-		var err error
-		syncutil.With(&c.mu, func() {
-			err = c.sendMessage(ctx, func(msg rpccp.Message) error {
-				mm, err := msg.NewUnimplemented()
-				if err != nil {
-					return err
-				}
-				if err := mm.SetDisembargo(d); err != nil {
-					return err
-				}
-				return nil
-			})
-		})
-		if err != nil {
-			c.report(annotate(err, "incoming disembargo: send unimplemented"))
-		}
-	}
-	return nil
-}
 
-func (c *Conn) handleUnknownMessage(ctx context.Context, recv rpccp.Message) error {
-	c.report(failedf("unknown message type %v from remote", recv.Which()))
-	var err error
-	syncutil.With(&c.mu, func() {
-		err = c.sendMessage(ctx, func(msg rpccp.Message) error {
-			return msg.SetUnimplemented(recv)
+	default:
+		c.er.reportf("incoming disembargo: context %v not implemented", d.Context().Which())
+		c.sendq.Send(func(msg rpccp.Message) {
+			defer release()
+
+			if msg, err = msg.NewUnimplemented(); err == nil {
+				err = msg.SetDisembargo(d)
+			}
+
+			if err != nil {
+				c.er.annotatef(err, "incoming disembargo: send unimplemented")
+			}
 		})
-	})
-	if err != nil {
-		c.report(annotate(err, "send unimplemented"))
 	}
+
 	return nil
 }
 
@@ -1404,9 +1462,7 @@ func (c *Conn) startTask() bool {
 
 // sendMessage creates a new message on the Sender, calls f to build it,
 // and sends it if f does not return an error.  When f returns, the
-// message must have a nil CapTable.  The caller must be holding onto
-// c.mu.  While f is being called, it will be holding onto the sender
-// lock, but not c.mu.
+// message must have a nil CapTable.
 func (c *Conn) sendMessage(ctx context.Context, f func(msg rpccp.Message) error) error {
 	if err := c.tryLockSender(ctx); err != nil {
 		return err
@@ -1485,16 +1541,9 @@ func (c *Conn) unlockSender() {
 	c.sendCond = nil
 }
 
-// report sends an error to c's reporter.  The caller does not have to
-// be holding c.mu.
-func (c *Conn) report(err error) {
-	if c.reporter == nil {
-		return
-	}
-	c.reporter.ReportError(err)
-}
-
 func clearCapTable(msg *capnp.Message) {
 	releaseList(msg.CapTable).release()
 	msg.CapTable = nil
 }
+
+type prepareFunc func(rpccp.Message)

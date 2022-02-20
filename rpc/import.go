@@ -280,6 +280,6 @@ func (ic *importClient) Shutdown() {
 	})
 	ic.c.mu.Unlock()
 	if err != nil {
-		ic.c.report(annotate(err, "send release"))
+		ic.c.er.annotatef(err, "send release")
 	}
 }

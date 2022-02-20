@@ -51,3 +51,25 @@ func annotate(err error, msg string) error {
 func exception(t errors.Type, err error) errors.Error {
 	return errors.Error{Type: t, Prefix: prefix, Cause: err}
 }
+
+func annotatef(err error, format string, args ...interface{}) error {
+	return errors.Annotate("rpc", fmt.Sprintf(format, args...), err)
+}
+
+type annotatingErrReporter struct {
+	ErrorReporter
+}
+
+func (er annotatingErrReporter) ReportError(err error) {
+	if er.ErrorReporter != nil && err != nil {
+		er.ErrorReporter.ReportError(err)
+	}
+}
+
+func (er annotatingErrReporter) reportf(format string, args ...interface{}) {
+	er.ReportError(fmt.Errorf(format, args...))
+}
+
+func (er annotatingErrReporter) annotatef(err error, format string, args ...interface{}) {
+	er.ReportError(annotatef(err, format, args...))
+}

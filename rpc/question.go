@@ -121,7 +121,7 @@ func (q *question) handleCancel(ctx context.Context) {
 		select {
 		case <-q.c.bgctx.Done():
 		default:
-			q.c.report(annotate(err, "send finish"))
+			q.c.er.annotatef(err, "send finish")
 		}
 	}
 	close(q.finishMsgSend)

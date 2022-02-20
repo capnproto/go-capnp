@@ -91,7 +91,7 @@ func TestBootstrapReceiverAnswerRpc(t *testing.T) {
 	defer clientConn.Close()
 
 	ctx := context.Background()
-	c := testcapnp.CapArgsTest{clientConn.Bootstrap(ctx)}
+	c := testcapnp.CapArgsTest{Client: clientConn.Bootstrap(ctx)}
 
 	res, rel := c.Call(ctx, func(p testcapnp.CapArgsTest_call_Params) error {
 		capId := p.Message().AddCap(c.Client.AddRef())
@@ -130,7 +130,7 @@ func TestCallReceiverAnswerRpc(t *testing.T) {
 	defer clientConn.Close()
 
 	ctx := context.Background()
-	bs := testcapnp.CapArgsTest{clientConn.Bootstrap(ctx)}
+	bs := testcapnp.CapArgsTest{Client: clientConn.Bootstrap(ctx)}
 	defer bs.Release()
 
 	selfRes, rel := bs.Self(ctx, nil)
