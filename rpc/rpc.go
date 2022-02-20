@@ -87,11 +87,6 @@ type Conn struct {
 	closed bool          // set when Close() is called, used to distinguish user Closing multiple times
 	shut   chan struct{} // closed when shutdown() returns
 
-	// sendCond is non-nil if an operation involving sender is in
-	// progress, and the channel is closed when the operation is finished.
-	// See the above comment for a longer explanation.
-	sendCond chan struct{}
-
 	sendq *mpsc.Queue
 
 	// Tables
@@ -380,7 +375,7 @@ func (c *Conn) send(ctx context.Context) error {
 		if err := c.sendMessage(ctx, func(msg rpccp.Message) error {
 			v, err := c.sendq.Recv(ctx)
 			if err == nil {
-				v.(prepareFunc)(msg)
+				v.(func(rpccp.Message))(msg)
 			}
 			return err
 
@@ -518,18 +513,13 @@ func (c *Conn) handleBootstrap(ctx context.Context, id answerID) error {
 		c.mu.Unlock()
 		return failedf("incoming bootstrap: answer ID %d reused", id)
 	}
-	if err := c.tryLockSender(ctx); err != nil {
-		// Shutting down.  Don't report.
-		c.mu.Unlock()
-		return nil
-	}
 	c.mu.Unlock()
+
 	ret, send, release, err := c.newReturn(ctx)
 	if err != nil {
 		err = annotate(err, "incoming bootstrap")
 		syncutil.With(&c.mu, func() {
 			c.answers[id] = errorAnswer(c, id, err)
-			c.unlockSender()
 		})
 		c.er.ReportError(err)
 		return nil
@@ -547,20 +537,17 @@ func (c *Conn) handleBootstrap(ctx context.Context, id answerID) error {
 	c.answers[id] = ans
 	if !c.bootstrap.IsValid() {
 		rl := ans.sendException(errors.New(errors.Failed, "", "vat does not expose a public/bootstrap interface"))
-		c.unlockSender()
 		c.mu.Unlock()
 		rl.release()
 		return nil
 	}
 	if err := ans.setBootstrap(c.bootstrap.AddRef()); err != nil {
 		rl := ans.sendException(err)
-		c.unlockSender()
 		c.mu.Unlock()
 		rl.release()
 		return nil
 	}
 	rl, err := ans.sendReturn()
-	c.unlockSender()
 	c.mu.Unlock()
 	rl.release()
 	if err != nil {
@@ -603,11 +590,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 		releaseCall()
 		return failedf("incoming call: answer ID %d reused", id)
 	}
-	if err := c.tryLockSender(ctx); err != nil {
-		// Shutting down.  Don't report.
-		c.mu.Unlock()
-		return nil
-	}
+
 	var p parsedCall
 	parseErr := c.parseCall(&p, call) // parseCall sets CapTable
 
@@ -618,7 +601,6 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 		err = annotate(err, "incoming call")
 		syncutil.With(&c.mu, func() {
 			c.answers[id] = errorAnswer(c, id, err)
-			c.unlockSender()
 		})
 		c.er.ReportError(err)
 		clearCapTable(call.Message())
@@ -641,7 +623,6 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 	if parseErr != nil {
 		parseErr = annotate(parseErr, "incoming call")
 		rl := ans.sendException(parseErr)
-		c.unlockSender()
 		c.mu.Unlock()
 		c.er.ReportError(parseErr)
 		rl.release()
@@ -667,9 +648,6 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			ans.releaseMsg = nil
 			c.mu.Unlock()
 			releaseRet()
-			syncutil.With(&c.mu, func() {
-				c.unlockSender()
-			})
 			clearCapTable(call.Message())
 			releaseCall()
 			return failedf("incoming call: unknown export ID %d", id)
@@ -677,7 +655,6 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 		c.tasks.Add(1) // will be finished by answer.Return
 		var callCtx context.Context
 		callCtx, ans.cancel = context.WithCancel(c.bgctx)
-		c.unlockSender()
 		c.mu.Unlock()
 		pcall := ent.client.RecvCall(callCtx, capnp.Recv{
 			Args:        p.args,
@@ -698,9 +675,6 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			ans.releaseMsg = nil
 			c.mu.Unlock()
 			releaseRet()
-			syncutil.With(&c.mu, func() {
-				c.unlockSender()
-			})
 			clearCapTable(call.Message())
 			releaseCall()
 			return failedf("incoming call: use of unknown or finished answer ID %d for promised answer target", p.target.promisedAnswer)
@@ -709,7 +683,6 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			// Results ready.
 			if tgtAns.err != nil {
 				rl := ans.sendException(tgtAns.err)
-				c.unlockSender()
 				c.mu.Unlock()
 				rl.release()
 				clearCapTable(call.Message())
@@ -724,7 +697,6 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			if err != nil {
 				err = failedf("incoming call: read results from target answer: %w", err)
 				rl := ans.sendException(err)
-				c.unlockSender()
 				c.mu.Unlock()
 				rl.release()
 				clearCapTable(call.Message())
@@ -736,7 +708,6 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			if err != nil {
 				// Not reporting, as this is the caller's fault.
 				rl := ans.sendException(err)
-				c.unlockSender()
 				c.mu.Unlock()
 				rl.release()
 				clearCapTable(call.Message())
@@ -756,7 +727,6 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			c.tasks.Add(1) // will be finished by answer.Return
 			var callCtx context.Context
 			callCtx, ans.cancel = context.WithCancel(c.bgctx)
-			c.unlockSender()
 			c.mu.Unlock()
 			pcall := tgt.RecvCall(callCtx, capnp.Recv{
 				Args:        p.args,
@@ -951,12 +921,6 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp
 			q.p.Fulfill(pr.result)
 		})
 	}
-	if err := c.tryLockSender(ctx); err != nil {
-		close(q.finishMsgSend)
-		c.mu.Unlock()
-		c.er.annotatef(err, "incoming return: send finish")
-		return nil
-	}
 	c.mu.Unlock()
 
 	// Send disembargoes.  Failing to send one of these just never lifts
@@ -987,7 +951,6 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp
 		msg, send, release, err := c.transport.NewMessage(ctx)
 		if err != nil {
 			syncutil.With(&c.mu, func() {
-				c.unlockSender()
 				close(q.finishMsgSend)
 			})
 			c.er.annotatef(err, "incoming return: send finish")
@@ -997,7 +960,6 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp
 		if err != nil {
 			release()
 			syncutil.With(&c.mu, func() {
-				c.unlockSender()
 				close(q.finishMsgSend)
 			})
 			c.er.reportf("incoming return: send finish: build message: %w", err)
@@ -1009,7 +971,6 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp
 		release()
 		if err != nil {
 			syncutil.With(&c.mu, func() {
-				c.unlockSender()
 				close(q.finishMsgSend)
 			})
 			c.er.reportf("incoming return: send finish: build message: %w", err)
@@ -1018,7 +979,6 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp
 	}
 
 	syncutil.With(&c.mu, func() {
-		c.unlockSender()
 		q.flags |= finishSent
 		c.questionID.remove(uint32(qid))
 		close(q.finishMsgSend)
@@ -1112,18 +1072,15 @@ func (c *Conn) handleFinish(ctx context.Context, id answerID, releaseResultCaps 
 
 	// Return sent and finish received: time to destroy answer.
 	rl, err := ans.destroy()
-	if ans.releaseMsg != nil {
-		c.lockSender()
-		syncutil.Without(&c.mu, func() {
-			ans.releaseMsg()
-		})
-		c.unlockSender()
-	}
 	c.mu.Unlock()
+	if ans.releaseMsg != nil {
+		ans.releaseMsg()
+	}
 	rl.release()
 	if err != nil {
 		return annotate(err, "incoming finish: release result caps")
 	}
+
 	return nil
 }
 
@@ -1464,86 +1421,24 @@ func (c *Conn) startTask() bool {
 // and sends it if f does not return an error.  When f returns, the
 // message must have a nil CapTable.
 func (c *Conn) sendMessage(ctx context.Context, f func(msg rpccp.Message) error) error {
-	if err := c.tryLockSender(ctx); err != nil {
-		return err
-	}
-	c.mu.Unlock()
 	msg, send, release, err := c.transport.NewMessage(ctx)
 	if err != nil {
-		c.mu.Lock()
-		c.unlockSender()
 		return failedf("create message: %w", err)
 	}
+	defer release()
+
 	if err := f(msg); err != nil {
-		release()
-		c.mu.Lock()
-		c.unlockSender()
 		return failedf("build message: %w", err)
 	}
-	err = send()
-	release()
-	c.mu.Lock()
-	c.unlockSender()
-	if err != nil {
+
+	if err = send(); err != nil {
 		return failedf("send message: %w", err)
 	}
+
 	return nil
-}
-
-// tryLockSender attempts to acquire the sender lock, returning an error
-// if either the Context is Done or c starts shutdown before the lock
-// can be acquired.  The caller must be holding c.mu.
-func (c *Conn) tryLockSender(ctx context.Context) error {
-	for {
-		select {
-		case <-c.bgctx.Done():
-			return ExcClosed
-		default:
-		}
-		s := c.sendCond
-		if s == nil {
-			break
-		}
-		c.mu.Unlock()
-		select {
-		case <-s:
-		case <-ctx.Done():
-			c.mu.Lock()
-			return ctx.Err()
-		case <-c.bgctx.Done():
-			c.mu.Lock()
-			return ExcClosed
-		}
-		c.mu.Lock()
-	}
-	c.sendCond = make(chan struct{})
-	return nil
-}
-
-// lockSender acquires the sender lock, ignoring shutdown or any
-// cancelation signal.  The caller must be holding c.mu.
-func (c *Conn) lockSender() {
-	for {
-		s := c.sendCond
-		if s == nil {
-			break
-		}
-		syncutil.Without(&c.mu, func() {
-			<-s
-		})
-	}
-	c.sendCond = make(chan struct{})
-}
-
-// unlockSender releases the sender lock.  The caller must be holding c.mu.
-func (c *Conn) unlockSender() {
-	close(c.sendCond)
-	c.sendCond = nil
 }
 
 func clearCapTable(msg *capnp.Message) {
 	releaseList(msg.CapTable).release()
 	msg.CapTable = nil
 }
-
-type prepareFunc func(rpccp.Message)

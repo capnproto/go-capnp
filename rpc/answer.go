@@ -169,10 +169,8 @@ func (ans *answer) Return(e error) {
 		ans.resultCapTable = ans.results.Message().CapTable
 	}
 	ans.c.mu.Lock()
-	ans.c.lockSender()
 	if e != nil {
 		rl := ans.sendException(e)
-		ans.c.unlockSender()
 		ans.c.mu.Unlock()
 		rl.release()
 		ans.pcalls.Wait()
@@ -180,7 +178,6 @@ func (ans *answer) Return(e error) {
 		return
 	}
 	rl, err := ans.sendReturn()
-	ans.c.unlockSender()
 	if err != nil {
 		select {
 		case <-ans.c.bgctx.Done():

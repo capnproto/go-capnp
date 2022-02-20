@@ -149,10 +149,6 @@ func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineO
 	// b) the transform isn't guaranteed to be an import, and
 	// c) the worst that happens is we trade bandwidth for code simplicity.
 	q.mark(transform)
-	if err := q.c.tryLockSender(ctx); err != nil {
-		q.c.mu.Unlock()
-		return capnp.ErrorAnswer(s.Method, err), func() {}
-	}
 	q2 := q.c.newQuestion(s.Method)
 	q.c.mu.Unlock()
 
@@ -165,32 +161,23 @@ func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineO
 		})
 		return capnp.ErrorAnswer(s.Method, failedf("create message: %w", err)), func() {}
 	}
-	syncutil.With(&q.c.mu, func() {
-		q.c.unlockSender() // Can't be holding either lock while calling PlaceArgs.
-	})
 	err = q.c.newPipelineCallMessage(msg, q.id, transform, q2.id, s)
 	if err != nil {
 		syncutil.With(&q.c.mu, func() {
 			q.c.questions[q2.id] = nil
 			q.c.questionID.remove(uint32(q2.id))
-			q.c.lockSender()
 		})
 		release()
 		syncutil.With(&q.c.mu, func() {
-			q.c.unlockSender()
 		})
 		return capnp.ErrorAnswer(s.Method, err), func() {}
 	}
 
 	// Send call.
-	syncutil.With(&q.c.mu, func() {
-		q.c.lockSender()
-	})
 	err = send()
 	release()
 
 	q.c.mu.Lock()
-	q.c.unlockSender()
 	if err != nil {
 		q.c.questions[q2.id] = nil
 		q.c.questionID.remove(uint32(q2.id))

@@ -96,10 +96,6 @@ func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, 
 		ic.c.mu.Unlock()
 		return capnp.ErrorAnswer(s.Method, disconnectedf("send on closed import")), func() {}
 	}
-	if err := ic.c.tryLockSender(ctx); err != nil {
-		ic.c.mu.Unlock()
-		return capnp.ErrorAnswer(s.Method, err), func() {}
-	}
 	q := ic.c.newQuestion(s.Method)
 	ic.c.mu.Unlock()
 
@@ -112,32 +108,21 @@ func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, 
 		})
 		return capnp.ErrorAnswer(s.Method, failedf("create message: %w", err)), func() {}
 	}
-	syncutil.With(&ic.c.mu, func() {
-		ic.c.unlockSender() // Can't be holding either lock while calling PlaceArgs.
-	})
 	err = ic.c.newImportCallMessage(msg, ic.id, q.id, s)
 	if err != nil {
 		syncutil.With(&ic.c.mu, func() {
 			ic.c.questions[q.id] = nil
 			ic.c.questionID.remove(uint32(q.id))
-			ic.c.lockSender()
 		})
 		release()
-		syncutil.With(&ic.c.mu, func() {
-			ic.c.unlockSender()
-		})
 		return capnp.ErrorAnswer(s.Method, err), func() {}
 	}
 
 	// Send call.
-	syncutil.With(&ic.c.mu, func() {
-		ic.c.lockSender()
-	})
 	err = send()
 	release()
 
 	ic.c.mu.Lock()
-	ic.c.unlockSender()
 	if err != nil {
 		ic.c.questions[q.id] = nil
 		ic.c.questionID.remove(uint32(q.id))
