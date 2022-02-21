@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"capnproto.org/go/capnp/v3"
-	"capnproto.org/go/capnp/v3/internal/errors"
+	"capnproto.org/go/capnp/v3/exc"
 	"capnproto.org/go/capnp/v3/internal/syncutil"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 )
@@ -257,13 +257,13 @@ func (ans *answer) sendReturn() (releaseList, error) {
 // The caller MUST hold ans.c.mu. The result's capability table MUST
 // have been extracted into ans.resultCapTable before calling, and
 // call only one of sendReturn or sendException.
-func (ans *answer) sendException(e error) releaseList {
-	ans.err = e
+func (ans *answer) sendException(ex error) releaseList {
+	ans.err = ex
 	ans.pcall = nil
 	ans.flags |= resultsReady
 
 	if ans.promise != nil {
-		ans.promise.Reject(e)
+		ans.promise.Reject(ex)
 		ans.promise = nil
 	}
 
@@ -273,11 +273,11 @@ func (ans *answer) sendException(e error) releaseList {
 		// Send exception.
 		fin := ans.flags&finishReceived != 0
 		ans.c.mu.Unlock()
-		if exc, err := ans.ret.NewException(); err != nil {
+		if e, err := ans.ret.NewException(); err != nil {
 			ans.c.er.reportf("send exception: %w", err)
 		} else {
-			exc.SetType(rpccp.Exception_Type(errors.TypeOf(e)))
-			if err := exc.SetReason(e.Error()); err != nil {
+			e.SetType(rpccp.Exception_Type(exc.TypeOf(ex)))
+			if err := e.SetReason(ex.Error()); err != nil {
 				ans.c.er.reportf("send exception: %w", err)
 			} else if err := ans.sendMsg(); err != nil {
 				ans.c.er.reportf("send return: %w", err)

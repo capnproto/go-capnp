@@ -3,33 +3,33 @@ package capnp
 import (
 	"fmt"
 
-	"capnproto.org/go/capnp/v3/internal/errors"
+	"capnproto.org/go/capnp/v3/exc"
 )
 
 // Unimplemented returns an error that formats as the given text and
 // will report true when passed to IsUnimplemented.
 func Unimplemented(s string) error {
-	return errors.New(errors.Unimplemented, "", s)
+	return exc.New(exc.Unimplemented, "", s)
 }
 
 // IsUnimplemented reports whether e indicates that functionality is unimplemented.
 func IsUnimplemented(e error) bool {
-	return errors.TypeOf(e) == errors.Unimplemented
+	return exc.TypeOf(e) == exc.Unimplemented
 }
 
 // Disconnected returns an error that formats as the given text and
 // will report true when passed to IsDisconnected.
 func Disconnected(s string) error {
-	return errors.New(errors.Disconnected, "", s)
+	return exc.New(exc.Disconnected, "", s)
 }
 
 // IsDisconnected reports whether e indicates a failure due to loss of a necessary capability.
 func IsDisconnected(e error) bool {
-	return errors.TypeOf(e) == errors.Disconnected
+	return exc.TypeOf(e) == exc.Disconnected
 }
 
 func newError(msg string) error {
-	return errors.New(errors.Failed, "capnp", msg)
+	return exc.New(exc.Failed, "capnp", msg)
 }
 
 func errorf(format string, args ...interface{}) error {
@@ -45,5 +45,5 @@ func annotate(err error) annotater {
 }
 
 func (a annotater) errorf(format string, args ...interface{}) error {
-	return errors.Annotate("capnp", fmt.Sprintf(format, args...), a.err)
+	return exc.Annotate("capnp", fmt.Sprintf(format, args...), a.err)
 }

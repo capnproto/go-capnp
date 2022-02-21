@@ -3,12 +3,13 @@ package rpc // import "capnproto.org/go/capnp/v3/rpc"
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
 
 	"capnproto.org/go/capnp/v3"
-	"capnproto.org/go/capnp/v3/internal/errors"
+	"capnproto.org/go/capnp/v3/exc"
 	"capnproto.org/go/capnp/v3/internal/mpsc"
 	"capnproto.org/go/capnp/v3/internal/syncutil"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
@@ -124,17 +125,17 @@ type ErrorReporter interface {
 // Once a connection is created, it will immediately start receiving
 // requests from the transport.
 func NewConn(t Transport, opts *Options) *Conn {
-	bgctx, bgcancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
 
 	// We use an errgroup to link the lifetime of background tasks
 	// to each other.
-	g, bgctx := errgroup.WithContext(bgctx)
+	g, ctx := errgroup.WithContext(ctx)
 
 	c := &Conn{
 		transport: t,
 		shut:      make(chan struct{}),
-		bgctx:     bgctx,
-		bgcancel:  bgcancel,
+		bgctx:     ctx,
+		bgcancel:  cancel,
 		answers:   make(map[answerID]*answer),
 		imports:   make(map[importID]*impent),
 		sendq:     mpsc.New(),
@@ -149,29 +150,37 @@ func NewConn(t Transport, opts *Options) *Conn {
 	}
 
 	// start background tasks
-	c.tasks.Add(2)
-	g.Go(func() error {
-		defer c.tasks.Done()
-		return c.send(c.bgctx)
-	})
-	g.Go(func() error {
-		defer c.tasks.Done()
-		return c.receive(c.bgctx)
-	})
+	g.Go(c.backgroundTask(c.send))
+	g.Go(c.backgroundTask(c.receive))
 
 	// monitor background tasks
 	go func() {
-		if err := g.Wait(); err != nil {
-			c.mu.Lock() // shutdown unlocks c.mu.
-
+		err := g.Wait()
+		if err != nil {
 			c.er.ReportError(err)
-			if err = c.shutdown(err); err != nil {
-				c.er.ReportError(err)
-			}
+		}
+
+		c.mu.Lock() // unlocked by 'shutdown'
+		if err = c.shutdown(err); err != nil {
+			c.er.ReportError(err)
 		}
 	}()
 
 	return c
+}
+
+func (c *Conn) backgroundTask(f func(context.Context) error) func() error {
+	c.tasks.Add(1)
+
+	return func() (err error) {
+		defer c.tasks.Done()
+
+		if err = f(c.bgctx); errors.Is(err, context.Canceled) {
+			err = nil
+		}
+
+		return
+	}
 }
 
 // Bootstrap returns the remote vat's bootstrap interface.  This creates
@@ -222,7 +231,7 @@ func (c *Conn) Bootstrap(ctx context.Context) *capnp.Client {
 		c.questions[q.id] = nil
 		c.questionID.remove(uint32(q.id))
 
-		return capnp.ErrorClient(errors.Annotate("rpc", "bootstrap", err))
+		return capnp.ErrorClient(exc.Annotate("rpc", "bootstrap", err))
 	}
 
 	c.tasks.Add(1)
@@ -261,21 +270,16 @@ func (bc bootstrapClient) Shutdown() {
 func (c *Conn) Close() error {
 	c.mu.Lock()
 	if c.closed {
+		c.mu.Unlock()
 		return ExcAlreadyClosed
 	}
 	c.closed = true
-	select {
-	case <-c.bgctx.Done():
-		c.mu.Unlock()
-		<-c.shut
-		return nil
-	default:
-		// shutdown unlocks c.mu.
-		return c.shutdown(errors.Error{ // NOTE:  omit "rpc" prefix
-			Type:  errors.Failed,
-			Cause: ErrConnClosed,
-		})
-	}
+
+	// shutdown unlocks c.mu.
+	return c.shutdown(exc.Exception{ // NOTE:  omit "rpc" prefix
+		Type:  exc.Failed,
+		Cause: ErrConnClosed,
+	})
 }
 
 // Done returns a channel that is closed after the connection is
@@ -285,10 +289,15 @@ func (c *Conn) Done() <-chan struct{} {
 }
 
 // shutdown tears down the connection and transport, optionally sending
-// an abort message before closing.  The caller must be holding onto
-// c.mu, although it will be released while shutting down, and c.bgctx
-// must not be Done.
+// an abort message before closing.  The caller MUST be hold c.mu, which
+// will be released by 'shutdown' when it returns.
 func (c *Conn) shutdown(abortErr error) error {
+	// previously called?
+	if c.bgctx.Err() != nil {
+		c.mu.Unlock()
+		<-c.shut
+		return nil
+	}
 	defer close(c.shut)
 
 	// Cancel all work.
@@ -352,7 +361,7 @@ func (c *Conn) shutdown(abortErr error) error {
 			cancel()
 			goto closeTransport
 		}
-		abort.SetType(rpccp.Exception_Type(errors.TypeOf(abortErr)))
+		abort.SetType(rpccp.Exception_Type(exc.TypeOf(abortErr)))
 		if err := abort.SetReason(abortErr.Error()); err != nil {
 			release()
 			cancel()
@@ -403,21 +412,21 @@ func (c *Conn) receive(ctx context.Context) error {
 			// no-op for now to avoid feedback loop
 
 		case rpccp.Message_Which_abort:
-			exc, err := recv.Abort()
+			e, err := recv.Abort()
 			if err != nil {
 				release()
 				c.er.reportf("read abort: %w", err)
 				return nil
 			}
-			reason, err := exc.Reason()
+			reason, err := e.Reason()
 			if err != nil {
 				release()
 				c.er.reportf("read abort reason: %w", err)
 				return nil
 			}
-			ty := exc.Type()
+			ty := e.Type()
 			release()
-			c.er.ReportError(errors.New(errors.Type(ty), "rpc", "remote abort: "+reason))
+			c.er.ReportError(exc.New(exc.Type(ty), "rpc", "remote abort: "+reason))
 			return nil
 
 		case rpccp.Message_Which_bootstrap:
@@ -537,7 +546,7 @@ func (c *Conn) handleBootstrap(ctx context.Context, id answerID) error {
 	}
 	c.answers[id] = ans
 	if !c.bootstrap.IsValid() {
-		rl := ans.sendException(errors.New(errors.Failed, "", "vat does not expose a public/bootstrap interface"))
+		rl := ans.sendException(exc.New(exc.Failed, "", "vat does not expose a public/bootstrap interface"))
 		c.mu.Unlock()
 		rl.release()
 		return nil
@@ -1025,15 +1034,15 @@ func (c *Conn) parseReturn(ret rpccp.Return, called [][]capnp.PipelineOp) parsed
 			disembargoes: disembargoes,
 		}
 	case rpccp.Return_Which_exception:
-		exc, err := ret.Exception()
+		e, err := ret.Exception()
 		if err != nil {
 			return parsedReturn{err: failedf("parse return: %w", err), parseFailed: true}
 		}
-		reason, err := exc.Reason()
+		reason, err := e.Reason()
 		if err != nil {
 			return parsedReturn{err: failedf("parse return: %w", err), parseFailed: true}
 		}
-		return parsedReturn{err: errors.New(errors.Type(exc.Type()), "", reason)}
+		return parsedReturn{err: exc.New(exc.Type(e.Type()), "", reason)}
 	default:
 		return parsedReturn{err: failedf("parse return: unhandled type %v", w), parseFailed: true, unimplemented: true}
 	}

@@ -171,7 +171,6 @@ func (p *pipe) Close() error {
 			return nil
 		}
 	}
-	return nil
 }
 
 func TestPipeTransport(t *testing.T) {

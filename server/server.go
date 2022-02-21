@@ -9,7 +9,7 @@ import (
 	"sync"
 
 	"capnproto.org/go/capnp/v3"
-	"capnproto.org/go/capnp/v3/internal/errors"
+	"capnproto.org/go/capnp/v3/exc"
 )
 
 // A Method describes a single capability method on a server object.
@@ -192,7 +192,7 @@ func (srv *Server) start(ctx context.Context, m *Method, r capnp.Recv) capnp.Pip
 	for {
 		if srv.drain != nil {
 			srv.mu.Unlock()
-			r.Reject(errors.New(errors.Failed, "capnp server", "call after shutdown"))
+			r.Reject(exc.New(exc.Failed, "capnp server", "call after shutdown"))
 			return nil
 		}
 		if srv.starting == nil {
@@ -234,7 +234,7 @@ func (srv *Server) start(ctx context.Context, m *Method, r capnp.Recv) capnp.Pip
 			srv.starting = nil
 			close(starting)
 			srv.mu.Unlock()
-			r.Reject(errors.New(errors.Failed, "capnp server", "call after shutdown"))
+			r.Reject(exc.New(exc.Failed, "capnp server", "call after shutdown"))
 			return nil
 		}
 	}
@@ -423,7 +423,7 @@ type resultsAllocer interface {
 }
 
 func newError(msg string) error {
-	return errors.New(errors.Failed, "capnp server", msg)
+	return exc.New(exc.Failed, "capnp server", msg)
 }
 
 func errorf(format string, args ...interface{}) error {

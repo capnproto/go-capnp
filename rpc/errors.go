@@ -4,7 +4,7 @@ import (
 	goerr "errors"
 	"fmt"
 
-	"capnproto.org/go/capnp/v3/internal/errors"
+	"capnproto.org/go/capnp/v3/exc"
 )
 
 const prefix = "rpc"
@@ -20,40 +20,40 @@ var (
 	ExcAlreadyClosed = failed(goerr.New("close on closed connection"))
 )
 
-func failedf(format string, args ...interface{}) errors.Error {
+func failedf(format string, args ...interface{}) exc.Exception {
 	return failed(fmt.Errorf(format, args...))
 }
 
-func failed(err error) errors.Error {
-	return exception(errors.Failed, err)
+func failed(err error) exc.Exception {
+	return exception(exc.Failed, err)
 }
 
-func disconnectedf(format string, args ...interface{}) errors.Error {
+func disconnectedf(format string, args ...interface{}) exc.Exception {
 	return disconnected(fmt.Errorf(format, args...))
 }
 
-func disconnected(err error) errors.Error {
-	return exception(errors.Disconnected, err)
+func disconnected(err error) exc.Exception {
+	return exception(exc.Disconnected, err)
 }
 
-func unimplementedf(format string, args ...interface{}) errors.Error {
+func unimplementedf(format string, args ...interface{}) exc.Exception {
 	return unimplemented(fmt.Errorf(format, args...))
 }
 
-func unimplemented(err error) errors.Error {
-	return exception(errors.Unimplemented, err)
+func unimplemented(err error) exc.Exception {
+	return exception(exc.Unimplemented, err)
 }
 
 func annotate(err error, msg string) error {
-	return errors.Annotate(prefix, msg, err)
+	return exc.Annotate(prefix, msg, err)
 }
 
-func exception(t errors.Type, err error) errors.Error {
-	return errors.Error{Type: t, Prefix: prefix, Cause: err}
+func exception(t exc.Type, err error) exc.Exception {
+	return exc.Exception{Type: t, Prefix: prefix, Cause: err}
 }
 
 func annotatef(err error, format string, args ...interface{}) error {
-	return errors.Annotate("rpc", fmt.Sprintf(format, args...), err)
+	return exc.Annotate("rpc", fmt.Sprintf(format, args...), err)
 }
 
 type annotatingErrReporter struct {

@@ -1,5 +1,5 @@
-// Package errors provides errors with codes and prefixes.
-package errors
+// Package exc provides an error type for capnp exceptions.
+package exc
 
 import (
 	"errors"
@@ -7,8 +7,8 @@ import (
 	"strconv"
 )
 
-// Error holds a Cap'n Proto exception.
-type Error struct {
+// Exception is an error that designates a Cap'n Proto exception.
+type Exception struct {
 	Type   Type
 	Prefix string
 	Cause  error
@@ -16,11 +16,11 @@ type Error struct {
 
 // New creates a new error that formats as "<prefix>: <msg>".
 // The type can be recovered using the TypeOf() function.
-func New(typ Type, prefix, msg string) Error {
-	return Error{typ, prefix, errors.New(msg)}
+func New(typ Type, prefix, msg string) Exception {
+	return Exception{typ, prefix, errors.New(msg)}
 }
 
-func (e Error) Error() string {
+func (e Exception) Error() string {
 	if e.Prefix == "" {
 		return e.Cause.Error()
 	}
@@ -28,9 +28,9 @@ func (e Error) Error() string {
 	return fmt.Sprintf("%s: %v", e.Prefix, e.Cause)
 }
 
-func (e Error) Unwrap() error { return e.Cause }
+func (e Exception) Unwrap() error { return e.Cause }
 
-func (e Error) GoString() string {
+func (e Exception) GoString() string {
 	return fmt.Sprintf("errors.Error{Type: %s, Prefix: %q, Cause: fmt.Errorf(%q)}",
 		e.Type.GoString(),
 		e.Prefix,
@@ -40,12 +40,12 @@ func (e Error) GoString() string {
 // Annotate is creates a new error that formats as "<prefix>: <msg>: <e>".
 // If e.Prefix == prefix, the prefix will not be duplicated.
 // The returned Error.Type == e.Type.
-func (e Error) Annotate(prefix, msg string) Error {
+func (e Exception) Annotate(prefix, msg string) Exception {
 	if prefix != e.Prefix {
-		return Error{e.Type, prefix, fmt.Errorf("%s: %w", msg, e)}
+		return Exception{e.Type, prefix, fmt.Errorf("%s: %w", msg, e)}
 	}
 
-	return Error{e.Type, prefix, fmt.Errorf("%s: %w", msg, e.Cause)}
+	return Exception{e.Type, prefix, fmt.Errorf("%s: %w", msg, e.Cause)}
 }
 
 // Annotate creates a new error that formats as "<prefix>: <msg>: <err>".
@@ -56,17 +56,17 @@ func Annotate(prefix, msg string, err error) error {
 		panic("Annotate on nil error") // TODO:  return nil?
 	}
 
-	if ce, ok := err.(Error); ok {
+	if ce, ok := err.(Exception); ok {
 		return ce.Annotate(prefix, msg)
 	}
 
-	return Error{Failed, prefix, fmt.Errorf("%s: %w", msg, err)}
+	return Exception{Failed, prefix, fmt.Errorf("%s: %w", msg, err)}
 }
 
 // TypeOf returns err's type if err was created by this package or
 // Failed if it was not.
 func TypeOf(err error) Type {
-	ce, ok := err.(Error)
+	ce, ok := err.(Exception)
 	if !ok {
 		return Failed
 	}

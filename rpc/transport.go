@@ -7,7 +7,7 @@ import (
 	"time"
 
 	capnp "capnproto.org/go/capnp/v3"
-	"capnproto.org/go/capnp/v3/internal/errors"
+	"capnproto.org/go/capnp/v3/exc"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 )
 
@@ -104,17 +104,17 @@ func (s *transport) NewMessage(ctx context.Context) (_ rpccp.Message, send func(
 	// TODO(soon): reuse memory
 	msg, seg, err := capnp.NewMessage(capnp.MultiSegment(nil))
 	if err != nil {
-		return rpccp.Message{}, nil, nil, errors.New(errors.Failed, "rpc stream transport", "new message: "+err.Error())
+		return rpccp.Message{}, nil, nil, exc.New(exc.Failed, "rpc stream transport", "new message: "+err.Error())
 	}
 	rmsg, err := rpccp.NewRootMessage(seg)
 	if err != nil {
-		return rpccp.Message{}, nil, nil, errors.New(errors.Failed, "rpc stream transport", "new message: "+err.Error())
+		return rpccp.Message{}, nil, nil, exc.New(exc.Failed, "rpc stream transport", "new message: "+err.Error())
 	}
 
 	send = func() error {
 		// context expired?
 		if err := ctx.Err(); err != nil {
-			return errors.New(errors.Failed, "rpc stream transport", "send: "+ctx.Err().Error())
+			return exc.New(exc.Failed, "rpc stream transport", "send: "+ctx.Err().Error())
 		}
 
 		// stream error?
@@ -125,10 +125,10 @@ func (s *transport) NewMessage(ctx context.Context) (_ rpccp.Message, send func(
 		// ok, go!
 		if err = s.c.Encode(ctx, msg); err != nil {
 			if _, ok := err.(partialWriteError); ok {
-				s.err.Set(errors.New(errors.Disconnected, "rpc stream transport", "broken due to partial write"))
+				s.err.Set(exc.New(exc.Disconnected, "rpc stream transport", "broken due to partial write"))
 			}
 
-			err = errors.New(errors.Failed, "rpc stream transport", "send: "+err.Error())
+			err = exc.New(exc.Failed, "rpc stream transport", "send: "+err.Error())
 		}
 
 		return err
@@ -159,11 +159,11 @@ func (s *transport) RecvMessage(ctx context.Context) (rpccp.Message, capnp.Relea
 
 	msg, err := s.c.Decode(ctx)
 	if err != nil {
-		return rpccp.Message{}, nil, errors.New(errors.Failed, "rpc stream transport", "receive: "+err.Error())
+		return rpccp.Message{}, nil, exc.New(exc.Failed, "rpc stream transport", "receive: "+err.Error())
 	}
 	rmsg, err := rpccp.ReadRootMessage(msg)
 	if err != nil {
-		return rpccp.Message{}, nil, errors.New(errors.Failed, "rpc stream transport", "receive: "+err.Error())
+		return rpccp.Message{}, nil, exc.New(exc.Failed, "rpc stream transport", "receive: "+err.Error())
 	}
 	return rmsg, func() { msg.Reset(nil) }, nil
 }
@@ -172,12 +172,12 @@ func (s *transport) RecvMessage(ctx context.Context) (rpccp.Message, capnp.Relea
 // Close concurrently with any other operations on the transport.
 func (s *transport) Close() error {
 	if s.closed {
-		return errors.New(errors.Disconnected, "rpc stream transport", "already closed")
+		return exc.New(exc.Disconnected, "rpc stream transport", "already closed")
 	}
 	s.closed = true
 	err := s.c.Close()
 	if err != nil {
-		return errors.New(errors.Failed, "rpc stream transport", "close: "+err.Error())
+		return exc.New(exc.Failed, "rpc stream transport", "close: "+err.Error())
 	}
 	return nil
 }
