@@ -62,9 +62,9 @@ func Annotate(prefix, msg string, err error) Exception {
 	return Exception{Failed, prefix, fmt.Errorf("%s: %w", msg, err)}
 }
 
-type Factory string
+type Annotator string
 
-func (f Factory) New(t Type, err error) Exception {
+func (f Annotator) New(t Type, err error) Exception {
 	return Exception{
 		Type:   t,
 		Prefix: string(f),
@@ -72,34 +72,34 @@ func (f Factory) New(t Type, err error) Exception {
 	}
 }
 
-func (f Factory) Failed(err error) Exception {
+func (f Annotator) Failed(err error) Exception {
 	return f.New(Failed, err)
 }
 
-func (f Factory) Failedf(format string, args ...interface{}) Exception {
+func (f Annotator) Failedf(format string, args ...interface{}) Exception {
 	return f.Failed(fmt.Errorf(format, args...))
 }
 
-func (f Factory) Disconnected(err error) Exception {
+func (f Annotator) Disconnected(err error) Exception {
 	return f.New(Disconnected, err)
 }
 
-func (f Factory) Disconnectedf(format string, args ...interface{}) Exception {
+func (f Annotator) Disconnectedf(format string, args ...interface{}) Exception {
 	return f.Disconnected(fmt.Errorf(format, args...))
 }
 
-func (f Factory) Unimplemented(err error) Exception {
+func (f Annotator) Unimplemented(err error) Exception {
 	return f.New(Unimplemented, err)
 }
 
-func (f Factory) Unimplementedf(format string, args ...interface{}) Exception {
+func (f Annotator) Unimplementedf(format string, args ...interface{}) Exception {
 	return f.Unimplemented(fmt.Errorf(format, args...))
 }
 
-func (f Factory) Annotate(err error, msg string) Exception {
+func (f Annotator) Annotate(err error, msg string) Exception {
 	return Annotate(string(f), msg, err)
 }
 
-func (f Factory) Annotatef(err error, format string, args ...interface{}) Exception {
+func (f Annotator) Annotatef(err error, format string, args ...interface{}) Exception {
 	return f.Annotate(err, fmt.Sprintf(format, args...))
 }

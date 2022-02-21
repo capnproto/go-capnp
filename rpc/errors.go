@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	rpcerr = exc.Factory("rpc")
+	rpcerr = exc.Annotator("rpc")
 
 	// Base errors
 	ErrConnClosed        = errors.New("connection closed")

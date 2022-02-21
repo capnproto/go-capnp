@@ -5,7 +5,7 @@ import (
 )
 
 var (
-	capnperr = exc.Factory("capnp")
+	capnperr = exc.Annotator("capnp")
 )
 
 // TODO(someday):  progressively remove exported functions and instead
