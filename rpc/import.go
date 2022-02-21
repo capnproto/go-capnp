@@ -93,7 +93,7 @@ func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, 
 	ent := ic.c.imports[ic.id]
 	if ent == nil || ic.generation != ent.generation {
 		ic.c.mu.Unlock()
-		return capnp.ErrorAnswer(s.Method, disconnectedf("send on closed import")), func() {}
+		return capnp.ErrorAnswer(s.Method, rpcerr.Disconnectedf("send on closed import")), func() {}
 	}
 	q := ic.c.newQuestion(s.Method)
 	ic.c.mu.Unlock()
@@ -105,7 +105,7 @@ func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, 
 			ic.c.questions[q.id] = nil
 			ic.c.questionID.remove(uint32(q.id))
 		})
-		return capnp.ErrorAnswer(s.Method, failedf("create message: %w", err)), func() {}
+		return capnp.ErrorAnswer(s.Method, rpcerr.Failedf("create message: %w", err)), func() {}
 	}
 	err = ic.c.newImportCallMessage(msg, ic.id, q.id, s)
 	if err != nil {
@@ -126,7 +126,7 @@ func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, 
 		ic.c.questions[q.id] = nil
 		ic.c.questionID.remove(uint32(q.id))
 		ic.c.mu.Unlock()
-		return capnp.ErrorAnswer(s.Method, failedf("send message: %w", err)), func() {}
+		return capnp.ErrorAnswer(s.Method, rpcerr.Failedf("send message: %w", err)), func() {}
 	}
 	q.c.tasks.Add(1)
 	go func() {
@@ -149,26 +149,26 @@ func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, 
 func (c *Conn) newImportCallMessage(msg rpccp.Message, imp importID, qid questionID, s capnp.Send) error {
 	call, err := msg.NewCall()
 	if err != nil {
-		return failedf("build call message: %w", err)
+		return rpcerr.Failedf("build call message: %w", err)
 	}
 	call.SetQuestionId(uint32(qid))
 	call.SetInterfaceId(s.Method.InterfaceID)
 	call.SetMethodId(s.Method.MethodID)
 	target, err := call.NewTarget()
 	if err != nil {
-		return failedf("build call message: %w", err)
+		return rpcerr.Failedf("build call message: %w", err)
 	}
 	target.SetImportedCap(uint32(imp))
 	payload, err := call.NewParams()
 	if err != nil {
-		return failedf("build call message: %w", err)
+		return rpcerr.Failedf("build call message: %w", err)
 	}
 	args, err := capnp.NewStruct(payload.Segment(), s.ArgsSize)
 	if err != nil {
-		return failedf("build call message: %w", err)
+		return rpcerr.Failedf("build call message: %w", err)
 	}
 	if err := payload.SetContent(args.ToPtr()); err != nil {
-		return failedf("build call message: %w", err)
+		return rpcerr.Failedf("build call message: %w", err)
 	}
 
 	if s.PlaceArgs == nil {
@@ -180,7 +180,7 @@ func (c *Conn) newImportCallMessage(msg rpccp.Message, imp importID, qid questio
 			c.Release()
 		}
 		m.CapTable = nil
-		return failedf("place arguments: %w", err)
+		return rpcerr.Failedf("place arguments: %w", err)
 	}
 	clients := m.CapTable
 	syncutil.With(&c.mu, func() {
@@ -189,7 +189,7 @@ func (c *Conn) newImportCallMessage(msg rpccp.Message, imp importID, qid questio
 	})
 	releaseList(clients).release()
 	if err != nil {
-		return annotate(err, "build call message")
+		return rpcerr.Annotatef(err, "build call message")
 	}
 	return nil
 }

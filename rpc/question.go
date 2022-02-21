@@ -158,7 +158,7 @@ func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineO
 			q.c.questions[q2.id] = nil
 			q.c.questionID.remove(uint32(q2.id))
 		})
-		return capnp.ErrorAnswer(s.Method, failedf("create message: %w", err)), func() {}
+		return capnp.ErrorAnswer(s.Method, rpcerr.Failedf("create message: %w", err)), func() {}
 	}
 	err = q.c.newPipelineCallMessage(msg, q.id, transform, q2.id, s)
 	if err != nil {
@@ -181,7 +181,7 @@ func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineO
 		q.c.questions[q2.id] = nil
 		q.c.questionID.remove(uint32(q2.id))
 		q.c.mu.Unlock()
-		return capnp.ErrorAnswer(s.Method, failedf("send message: %w", err)), func() {}
+		return capnp.ErrorAnswer(s.Method, rpcerr.Failedf("send message: %w", err)), func() {}
 	}
 	q2.c.tasks.Add(1)
 	go func() {
@@ -204,7 +204,7 @@ func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineO
 func (c *Conn) newPipelineCallMessage(msg rpccp.Message, tgt questionID, transform []capnp.PipelineOp, qid questionID, s capnp.Send) error {
 	call, err := msg.NewCall()
 	if err != nil {
-		return failedf("build call message: %w", err)
+		return rpcerr.Failedf("build call message: %w", err)
 	}
 	call.SetQuestionId(uint32(qid))
 	call.SetInterfaceId(s.Method.InterfaceID)
@@ -212,16 +212,16 @@ func (c *Conn) newPipelineCallMessage(msg rpccp.Message, tgt questionID, transfo
 
 	target, err := call.NewTarget()
 	if err != nil {
-		return failedf("build call message: %w", err)
+		return rpcerr.Failedf("build call message: %w", err)
 	}
 	pa, err := target.NewPromisedAnswer()
 	if err != nil {
-		return failedf("build call message: %w", err)
+		return rpcerr.Failedf("build call message: %w", err)
 	}
 	pa.SetQuestionId(uint32(tgt))
 	oplist, err := pa.NewTransform(int32(len(transform)))
 	if err != nil {
-		return failedf("build call message: %w", err)
+		return rpcerr.Failedf("build call message: %w", err)
 	}
 	for i, op := range transform {
 		oplist.At(i).SetGetPointerField(op.Field)
@@ -229,14 +229,14 @@ func (c *Conn) newPipelineCallMessage(msg rpccp.Message, tgt questionID, transfo
 
 	payload, err := call.NewParams()
 	if err != nil {
-		return failedf("build call message: %w", err)
+		return rpcerr.Failedf("build call message: %w", err)
 	}
 	args, err := capnp.NewStruct(payload.Segment(), s.ArgsSize)
 	if err != nil {
-		return failedf("build call message: %w", err)
+		return rpcerr.Failedf("build call message: %w", err)
 	}
 	if err := payload.SetContent(args.ToPtr()); err != nil {
-		return failedf("build call message: %w", err)
+		return rpcerr.Failedf("build call message: %w", err)
 	}
 
 	if s.PlaceArgs == nil {
@@ -248,7 +248,7 @@ func (c *Conn) newPipelineCallMessage(msg rpccp.Message, tgt questionID, transfo
 			c.Release()
 		}
 		m.CapTable = nil
-		return failedf("place arguments: %w", err)
+		return rpcerr.Failedf("place arguments: %w", err)
 	}
 	clients := m.CapTable
 	syncutil.With(&c.mu, func() {
@@ -257,7 +257,7 @@ func (c *Conn) newPipelineCallMessage(msg rpccp.Message, tgt questionID, transfo
 	})
 	releaseList(clients).release()
 	if err != nil {
-		return annotate(err, "build call message")
+		return rpcerr.Annotatef(err, "build call message")
 	}
 	return nil
 }

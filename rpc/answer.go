@@ -97,12 +97,12 @@ func errorAnswer(c *Conn, id answerID, err error) *answer {
 func (c *Conn) newReturn(ctx context.Context) (rpccp.Return, func() error, capnp.ReleaseFunc, error) {
 	msg, send, release, err := c.transport.NewMessage(ctx)
 	if err != nil {
-		return rpccp.Return{}, nil, nil, failedf("create return: %w", err)
+		return rpccp.Return{}, nil, nil, rpcerr.Failedf("create return: %w", err)
 	}
 	ret, err := msg.NewReturn()
 	if err != nil {
 		release()
-		return rpccp.Return{}, nil, nil, failedf("create return: %w", err)
+		return rpccp.Return{}, nil, nil, rpcerr.Failedf("create return: %w", err)
 	}
 	return ret, send, release, nil
 }
@@ -125,14 +125,14 @@ func (ans *answer) AllocResults(sz capnp.ObjectSize) (capnp.Struct, error) {
 	var err error
 	ans.results, err = ans.ret.NewResults()
 	if err != nil {
-		return capnp.Struct{}, failedf("alloc results: %w", err)
+		return capnp.Struct{}, rpcerr.Failedf("alloc results: %w", err)
 	}
 	s, err := capnp.NewStruct(ans.results.Segment(), sz)
 	if err != nil {
-		return capnp.Struct{}, failedf("alloc results: %w", err)
+		return capnp.Struct{}, rpcerr.Failedf("alloc results: %w", err)
 	}
 	if err := ans.results.SetContent(s.ToPtr()); err != nil {
-		return capnp.Struct{}, failedf("alloc results: %w", err)
+		return capnp.Struct{}, rpcerr.Failedf("alloc results: %w", err)
 	}
 	return s, nil
 }
@@ -149,11 +149,11 @@ func (ans *answer) setBootstrap(c *capnp.Client) error {
 	var err error
 	ans.results, err = ans.ret.NewResults()
 	if err != nil {
-		return failedf("alloc bootstrap results: %w", err)
+		return rpcerr.Failedf("alloc bootstrap results: %w", err)
 	}
 	iface := capnp.NewInterface(ans.results.Segment(), 0)
 	if err := ans.results.SetContent(iface.ToPtr()); err != nil {
-		return failedf("alloc bootstrap results: %w", err)
+		return rpcerr.Failedf("alloc bootstrap results: %w", err)
 	}
 	return nil
 }
@@ -224,7 +224,7 @@ func (ans *answer) sendReturn() (releaseList, error) {
 				// ok to return an error if the finish comes in
 				// before the return. Possible enhancement: use
 				// the cancel variant of return.
-				ans.promise.Reject(failedf("Received finish before return"))
+				ans.promise.Reject(rpcerr.Failedf("received finish before return"))
 			} else {
 				ans.promise.Resolve(ans.results.Content())
 			}

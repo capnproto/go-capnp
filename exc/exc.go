@@ -4,7 +4,6 @@ package exc
 import (
 	"errors"
 	"fmt"
-	"strconv"
 )
 
 // Exception is an error that designates a Cap'n Proto exception.
@@ -51,7 +50,7 @@ func (e Exception) Annotate(prefix, msg string) Exception {
 // Annotate creates a new error that formats as "<prefix>: <msg>: <err>".
 // If err has the same prefix, then the prefix won't be duplicated.
 // The returned error's type will match err's type.
-func Annotate(prefix, msg string, err error) error {
+func Annotate(prefix, msg string, err error) Exception {
 	if err == nil {
 		panic("Annotate on nil error") // TODO:  return nil?
 	}
@@ -63,65 +62,44 @@ func Annotate(prefix, msg string, err error) error {
 	return Exception{Failed, prefix, fmt.Errorf("%s: %w", msg, err)}
 }
 
-// TypeOf returns err's type if err was created by this package or
-// Failed if it was not.
-func TypeOf(err error) Type {
-	ce, ok := err.(Exception)
-	if !ok {
-		return Failed
-	}
-	return ce.Type
-}
+type Factory string
 
-// Type indicates the type of error, mirroring those in rpc.capnp.
-type Type int
-
-// Error types.
-const (
-	Failed        Type = 0
-	Overloaded    Type = 1
-	Disconnected  Type = 2
-	Unimplemented Type = 3
-)
-
-// String returns the lowercased Go constant name, or a string in the
-// form "type(X)" where X is the value of typ for any unrecognized type.
-func (typ Type) String() string {
-	switch typ {
-	case Failed:
-		return "failed"
-	case Overloaded:
-		return "overloaded"
-	case Disconnected:
-		return "disconnected"
-	case Unimplemented:
-		return "unimplemented"
-	default:
-		var buf [26]byte
-		s := append(buf[:0], "type("...)
-		s = strconv.AppendInt(s, int64(typ), 10)
-		s = append(s, ')')
-		return string(s)
+func (f Factory) New(t Type, err error) Exception {
+	return Exception{
+		Type:   t,
+		Prefix: string(f),
+		Cause:  err,
 	}
 }
 
-// GoString returns the Go constant name, or a string in the form
-// "Type(X)" where X is the value of typ for any unrecognized type.
-func (typ Type) GoString() string {
-	switch typ {
-	case Failed:
-		return "Failed"
-	case Overloaded:
-		return "Overloaded"
-	case Disconnected:
-		return "Disconnected"
-	case Unimplemented:
-		return "Unimplemented"
-	default:
-		var buf [26]byte
-		s := append(buf[:0], "Type("...)
-		s = strconv.AppendInt(s, int64(typ), 10)
-		s = append(s, ')')
-		return string(s)
-	}
+func (f Factory) Failed(err error) Exception {
+	return f.New(Failed, err)
+}
+
+func (f Factory) Failedf(format string, args ...interface{}) Exception {
+	return f.Failed(fmt.Errorf(format, args...))
+}
+
+func (f Factory) Disconnected(err error) Exception {
+	return f.New(Disconnected, err)
+}
+
+func (f Factory) Disconnectedf(format string, args ...interface{}) Exception {
+	return f.Disconnected(fmt.Errorf(format, args...))
+}
+
+func (f Factory) Unimplemented(err error) Exception {
+	return f.New(Unimplemented, err)
+}
+
+func (f Factory) Unimplementedf(format string, args ...interface{}) Exception {
+	return f.Unimplemented(fmt.Errorf(format, args...))
+}
+
+func (f Factory) Annotate(err error, msg string) Exception {
+	return Annotate(string(f), msg, err)
+}
+
+func (f Factory) Annotatef(err error, format string, args ...interface{}) Exception {
+	return f.Annotate(err, fmt.Sprintf(format, args...))
 }
