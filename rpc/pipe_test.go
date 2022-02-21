@@ -103,7 +103,7 @@ func (p *pipe) NewMessage(ctx context.Context) (_ rpccp.Message, send func() err
 			if r == 0 {
 				msg.Reset(nil)
 			}
-			return fmt.Errorf("rpc pipe: %v", ctx.Err())
+			return fmt.Errorf("rpc pipe: %w", ctx.Err())
 		}
 	}
 	release = func() {
@@ -138,7 +138,7 @@ func (p *pipe) RecvMessage(ctx context.Context) (rpccp.Message, capnp.ReleaseFun
 	case <-p.rc:
 		return rpccp.Message{}, nil, errors.New("rpc pipe: receive interrupted by close")
 	case <-ctx.Done():
-		return rpccp.Message{}, nil, fmt.Errorf("rpc pipe: %v", ctx.Err())
+		return rpccp.Message{}, nil, fmt.Errorf("rpc pipe: %w", ctx.Err())
 	}
 }
 

@@ -161,7 +161,9 @@ func NewConn(t Transport, opts *Options) *Conn {
 		}
 
 		c.mu.Lock() // unlocked by 'shutdown'
-		if err = c.shutdown(err); err != nil {
+
+		err = c.shutdown(err)
+		if err != nil && !errors.Is(err, context.Canceled) {
 			c.er.ReportError(err)
 		}
 	}()
