@@ -185,8 +185,11 @@ func NewConn(t Transport, opts *Options) *Conn {
 // a new client that the caller is responsible for releasing.
 func (c *Conn) Bootstrap(ctx context.Context) *capnp.Client {
 	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// Start a background task to prevent the conn from shutting down
+	// while sending the bootstrap message.
 	if !c.startTask() {
-		c.mu.Unlock()
 		return capnp.ErrorClient(disconnectedf("connection closed"))
 	}
 	defer c.tasks.Done()
@@ -198,9 +201,9 @@ func (c *Conn) Bootstrap(ctx context.Context) *capnp.Client {
 		cancel: cancel,
 	})
 	q.bootstrapPromise = cp // safe to write because we're still holding c.mu
-	c.mu.Unlock()
 
-	// Send bootstrap message synchronously
+	// Send bootstrap message synchronously.  This should happen
+	// fairly quickly since there are no other outgoing calls.
 	cherr := make(chan error, 1)
 	c.sendq.Send(func(m rpccp.Message) {
 		boot, err := m.NewBootstrap()
