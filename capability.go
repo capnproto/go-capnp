@@ -285,10 +285,10 @@ func (c *Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 	h, _, released, finish := c.startCall()
 	defer finish()
 	if released {
-		return ErrorAnswer(s.Method, newError("call on released client")), func() {}
+		return ErrorAnswer(s.Method, errorf("call on released client")), func() {}
 	}
 	if h == nil {
-		return ErrorAnswer(s.Method, newError("call on null client")), func() {}
+		return ErrorAnswer(s.Method, errorf("call on null client")), func() {}
 	}
 
 	limiter := c.GetFlowLimiter()
@@ -345,11 +345,11 @@ func (c *Client) RecvCall(ctx context.Context, r Recv) PipelineCaller {
 	h, _, released, finish := c.startCall()
 	defer finish()
 	if released {
-		r.Reject(newError("call on released client"))
+		r.Reject(errorf("call on released client"))
 		return nil
 	}
 	if h == nil {
-		r.Reject(newError("call on null client"))
+		r.Reject(errorf("call on null client"))
 		return nil
 	}
 	return h.Recv(ctx, r)
@@ -384,7 +384,7 @@ func (c *Client) Resolve(ctx context.Context) error {
 	for {
 		h, released, resolved := c.peek()
 		if released {
-			return newError("cannot resolve released client")
+			return errorf("cannot resolve released client")
 		}
 		if resolved {
 			return nil

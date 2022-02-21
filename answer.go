@@ -789,7 +789,7 @@ func (r resolution) client(transform []PipelineOp) *Client {
 	}
 	iface := p.Interface()
 	if p.IsValid() && !iface.IsValid() {
-		return ErrorClient(newError("not a capability"))
+		return ErrorClient(errorf("not a capability"))
 	}
 	return iface.Client()
 }

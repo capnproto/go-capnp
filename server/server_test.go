@@ -6,10 +6,11 @@ import (
 	"sync"
 	"testing"
 
+	"context"
+
 	"capnproto.org/go/capnp/v3"
 	air "capnproto.org/go/capnp/v3/internal/aircraftlib"
 	"capnproto.org/go/capnp/v3/server"
-	"context"
 )
 
 type echoImpl struct{}

@@ -1,10 +1,15 @@
 package capnp
 
 import (
-	"fmt"
-
 	"capnproto.org/go/capnp/v3/exc"
 )
+
+var (
+	capnperr = exc.Factory("capnp")
+)
+
+// TODO(someday):  progressively remove exported functions and instead
+//                 rely on package 'exc'.
 
 // Unimplemented returns an error that formats as the given text and
 // will report true when passed to IsUnimplemented.
@@ -28,22 +33,10 @@ func IsDisconnected(e error) bool {
 	return exc.TypeOf(e) == exc.Disconnected
 }
 
-func newError(msg string) error {
-	return exc.New(exc.Failed, "capnp", msg)
-}
-
 func errorf(format string, args ...interface{}) error {
-	return newError(fmt.Sprintf(format, args...))
+	return capnperr.Failedf(format, args...)
 }
 
-type annotater struct {
-	err error
-}
-
-func annotate(err error) annotater {
-	return annotater{err}
-}
-
-func (a annotater) errorf(format string, args ...interface{}) error {
-	return exc.Annotate("capnp", fmt.Sprintf(format, args...), a.err)
+func annotatef(err error, format string, args ...interface{}) error {
+	return capnperr.Annotatef(err, format, args...)
 }

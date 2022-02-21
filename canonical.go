@@ -17,7 +17,7 @@ func Canonicalize(s Struct) ([]byte, error) {
 		return nil, errorf("canonicalize: %v", err)
 	}
 	if err := fillCanonicalStruct(root, s); err != nil {
-		return nil, annotate(err).errorf("canonicalize")
+		return nil, annotatef(err, "canonicalize")
 	}
 	return seg.Data(), nil
 }
@@ -55,14 +55,14 @@ func fillCanonicalStruct(dst, s Struct) error {
 	for i := uint16(0); i < dst.size.PointerCount; i++ {
 		p, err := s.Ptr(i)
 		if err != nil {
-			return annotate(err).errorf("struct pointer %d", i)
+			return annotatef(err, "struct pointer %d", i)
 		}
 		cp, err := canonicalPtr(dst.seg, p)
 		if err != nil {
-			return annotate(err).errorf("struct pointer %d", i)
+			return annotatef(err, "struct pointer %d", i)
 		}
 		if err := dst.SetPtr(i, cp); err != nil {
-			return annotate(err).errorf("struct pointer %d", i)
+			return annotatef(err, "struct pointer %d", i)
 		}
 	}
 	return nil
@@ -124,7 +124,7 @@ func canonicalList(dst *Segment, l List) (List, error) {
 			}
 			cp, err := canonicalPtr(dst, p)
 			if err != nil {
-				return List{}, annotate(err).errorf("list element %d", i)
+				return List{}, annotatef(err, "list element %d", i)
 			}
 			if err := cl.Set(i, cp); err != nil {
 				return List{}, errorf("list element %d: %v", i, err)
@@ -150,7 +150,7 @@ func canonicalList(dst *Segment, l List) (List, error) {
 	}
 	for i := 0; i < cl.Len(); i++ {
 		if err := fillCanonicalStruct(cl.Struct(i), l.Struct(i)); err != nil {
-			return List{}, annotate(err).errorf("list element %d", i)
+			return List{}, annotatef(err, "list element %d", i)
 		}
 	}
 	return cl, nil
