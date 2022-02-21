@@ -28,12 +28,11 @@ type answer struct {
 	// entry is a placeholder until the remote vat cancels the call.
 	ret rpccp.Return
 
-	// sendMsg sends the return message.  The caller must be holding onto
-	// the sender lock but not ans.c.mu.
+	// sendMsg sends the return message.  The caller MUST NOT hold ans.c.mu.
 	sendMsg func() error
 
-	// releaseMsg releases the return message.  The caller must be holding
-	// onto the sender lock but not ans.c.mu.
+	// releaseMsg releases the return message.  The caller MUST NOT hold
+	// ans.c.mu.
 	releaseMsg capnp.ReleaseFunc
 
 	// results is the memoized answer to ret.Results().
@@ -94,8 +93,7 @@ func errorAnswer(c *Conn, id answerID, err error) *answer {
 	}
 }
 
-// newReturn creates a new Return message.  The caller must be holding
-// onto the sender lock but not c.mu.
+// newReturn creates a new Return message.
 func (c *Conn) newReturn(ctx context.Context) (rpccp.Return, func() error, capnp.ReleaseFunc, error) {
 	msg, send, release, err := c.transport.NewMessage(ctx)
 	if err != nil {
@@ -110,8 +108,7 @@ func (c *Conn) newReturn(ctx context.Context) (rpccp.Return, func() error, capnp
 }
 
 // setPipelineCaller sets ans.pcall to pcall if the answer has not
-// already returned.  The caller MUST NOT be holding onto ans.c.mu
-// or the sender lock.
+// already returned.  The caller MUST NOT hold ans.c.mu.
 //
 // This also sets ans.promise to a new promise, wrapping pcall.
 func (ans *answer) setPipelineCaller(m capnp.Method, pcall capnp.PipelineCaller) {
@@ -163,7 +160,7 @@ func (ans *answer) setBootstrap(c *capnp.Client) error {
 
 // Return sends the return message.
 //
-// The caller must NOT be holding onto ans.c.mu or the sender lock.
+// The caller MUST NOT hold ans.c.mu.
 func (ans *answer) Return(e error) {
 	if ans.results.IsValid() {
 		ans.resultCapTable = ans.results.Message().CapTable
@@ -203,10 +200,9 @@ func (ans *answer) Return(e error) {
 // Finish with releaseResultCaps set to true, then sendReturn returns
 // the number of references to be subtracted from each export.
 //
-// The caller must be holding onto ans.c.mu and the sender lock.
-// The result's capability table must have been extracted into
-// ans.resultCapTable before calling sendReturn. Only one of
-// sendReturn or sendException should be called.
+// The caller MUST hold ans.c.mu.  The result's capability table MUST
+// have been extracted into ans.resultCapTable before calling sendReturn,
+// and call only one of sendReturn or sendException.
 func (ans *answer) sendReturn() (releaseList, error) {
 	ans.pcall = nil
 	ans.flags |= resultsReady
@@ -258,10 +254,9 @@ func (ans *answer) sendReturn() (releaseList, error) {
 
 // sendException sends an exception on the answer's return message.
 //
-// The caller must be holding onto ans.c.mu and the sender lock.
-// The result's capability table must have been extracted into
-// ans.resultCapTable before calling sendException. Only one of
-// sendReturn or sendException should be called.
+// The caller MUST hold ans.c.mu. The result's capability table MUST
+// have been extracted into ans.resultCapTable before calling, and
+// call only one of sendReturn or sendException.
 func (ans *answer) sendException(e error) releaseList {
 	ans.err = e
 	ans.pcall = nil

@@ -84,7 +84,6 @@ type importClient struct {
 }
 
 func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, capnp.ReleaseFunc) {
-	// Acquire sender lock.
 	ic.c.mu.Lock()
 	if !ic.c.startTask() {
 		ic.c.mu.Unlock()
@@ -146,7 +145,7 @@ func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, 
 
 // newImportCallMessage builds a Call message targeted to an import.
 //
-// The caller MUST NOT be holding onto c.mu or the sender lock.
+// The caller MUST NOT hold c.mu.
 func (c *Conn) newImportCallMessage(msg rpccp.Message, imp importID, qid questionID, s capnp.Send) error {
 	call, err := msg.NewCall()
 	if err != nil {

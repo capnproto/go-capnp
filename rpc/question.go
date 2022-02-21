@@ -86,7 +86,7 @@ type questionKey struct {
 // handleCancel rejects the question's promise upon cancelation of its
 // Context.
 //
-// The caller must not be holding onto q.c.mu or the sender lock.
+// The caller MUST NOT hold q.c.mu.
 func (q *question) handleCancel(ctx context.Context) {
 	var rejectErr error
 	select {
@@ -135,7 +135,6 @@ func (q *question) handleCancel(ctx context.Context) {
 }
 
 func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineOp, s capnp.Send) (*capnp.Answer, capnp.ReleaseFunc) {
-	// Acquire sender lock.
 	q.c.mu.Lock()
 	if !q.c.startTask() {
 		q.c.mu.Unlock()
@@ -201,7 +200,7 @@ func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineO
 
 // newPipelineCallMessage builds a Call message targeted to a promised answer..
 //
-// The caller MUST NOT be holding onto c.mu or the sender lock.
+// The caller MUST NOT hold c.mu.
 func (c *Conn) newPipelineCallMessage(msg rpccp.Message, tgt questionID, transform []capnp.PipelineOp, qid questionID, s capnp.Send) error {
 	call, err := msg.NewCall()
 	if err != nil {

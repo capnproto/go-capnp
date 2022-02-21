@@ -30,20 +30,14 @@ by a goroutine that is solely responsible for the inbound stream.  This
 is referred to as the receive goroutine.  The local vat accesses the
 Conn via objects created by the Conn, and may do so from many different
 goroutines.  However, the Conn will largely serialize operations coming
-from the local vat.
+from the local vat.  Similarly, outbound messages are enqueued on 'sendq',
+and processed by a single goroutine.
 
 Conn protects the connection state with a simple mutex: Conn.mu.  This
 mutex must not be held while performing operations that take
 indeterminate time or are provided by the application.  This reduces
 contention, but more importantly, prevents deadlocks.  An application-
 provided operation can (and commonly will) call back into the Conn.
-
-Conn protects the outbound stream with a signal channel, Conn.sendCond,
-referred to as the sender lock.  The sender lock is required to create,
-send, or release outbound transport messages.  While a goroutine may
-hold onto both Conn.mu and the sender lock, the goroutine must not hold
-onto Conn.mu while performing any transport operations, for reasons
-mentioned above.
 
 The receive goroutine, being the only goroutine that receives messages
 from the transport, can receive from the transport without additional
@@ -75,12 +69,11 @@ type Conn struct {
 
 	// bgctx is a Context that is canceled when shutdown starts.
 	bgctx context.Context
-	// bgcancel cancels bgctx.  It must only be called while holding mu.
+	// bgcancel cancels bgctx.  Callers MUST hold mu.
 	bgcancel context.CancelFunc
 	// tasks block shutdown.
 	tasks sync.WaitGroup
-	// transport is protected by the sender lock.  Only the receive goroutine can
-	// call RecvMessage.
+	// Only the receive goroutine may call RecvMessage.
 	transport Transport
 	// mu protects all the following fields in the Conn.
 	mu     sync.Mutex
@@ -185,11 +178,11 @@ func NewConn(t Transport, opts *Options) *Conn {
 // a new client that the caller is responsible for releasing.
 func (c *Conn) Bootstrap(ctx context.Context) *capnp.Client {
 	c.mu.Lock()
-	defer c.mu.Unlock()
 
 	// Start a background task to prevent the conn from shutting down
 	// while sending the bootstrap message.
 	if !c.startTask() {
+		c.mu.Unlock()
 		return capnp.ErrorClient(disconnectedf("connection closed"))
 	}
 	defer c.tasks.Done()
@@ -201,6 +194,7 @@ func (c *Conn) Bootstrap(ctx context.Context) *capnp.Client {
 		cancel: cancel,
 	})
 	q.bootstrapPromise = cp // safe to write because we're still holding c.mu
+	c.mu.Unlock()
 
 	// Send bootstrap message synchronously.  This should happen
 	// fairly quickly since there are no other outgoing calls.
@@ -222,8 +216,12 @@ func (c *Conn) Bootstrap(ctx context.Context) *capnp.Client {
 	}
 
 	if err != nil {
+		c.mu.Lock()
+		defer c.mu.Unlock()
+
 		c.questions[q.id] = nil
 		c.questionID.remove(uint32(q.id))
+
 		return capnp.ErrorClient(errors.Annotate("rpc", "bootstrap", err))
 	}
 
@@ -336,8 +334,6 @@ func (c *Conn) shutdown(abortErr error) error {
 	for _, a := range answers {
 		if a != nil {
 			releaseList(a.resultCapTable).release()
-			// Because shutdown is now the only task running, no need to
-			// acquire sender lock.
 			a.releaseMsg()
 		}
 	}
@@ -588,7 +584,6 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 		return nil
 	}
 
-	// Acquire c.mu and sender lock.
 	c.mu.Lock()
 	if c.answers[id] != nil {
 		c.mu.Unlock()
