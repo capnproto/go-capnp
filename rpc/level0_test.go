@@ -11,10 +11,13 @@ import (
 	"testing"
 
 	"capnproto.org/go/capnp/v3"
+	"capnproto.org/go/capnp/v3/exc"
 	"capnproto.org/go/capnp/v3/pogs"
 	"capnproto.org/go/capnp/v3/rpc"
 	"capnproto.org/go/capnp/v3/server"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -119,15 +122,14 @@ func TestRecvAbort(t *testing.T) {
 			Reason: "over it",
 		},
 	})
-	if err != nil {
-		conn.Close()
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "must send 'failed' exception")
+
 	boot := conn.Bootstrap(ctx)
 	defer boot.Release()
-	if err := boot.Resolve(ctx); err != nil {
-		t.Error("bootstrap resolution:", err)
-	}
+
+	err = boot.Resolve(ctx)
+	require.NoError(t, err, "should resolve bootstrap capability")
+
 	ans, releaseCall := boot.SendCall(ctx, capnp.Send{
 		Method: capnp.Method{
 			InterfaceID: interfaceID,
@@ -141,14 +143,13 @@ func TestRecvAbort(t *testing.T) {
 	})
 	_, err = ans.Struct()
 	releaseCall()
-	if !capnp.IsDisconnected(err) {
-		t.Errorf("call error = %v; want disconnected", err)
-	}
+	require.True(t, exc.IsType(err, exc.Disconnected), "should be 'disconnected' exception")
+
 	boot.Release()
 	<-conn.Done()
-	if err := conn.Close(); err != nil {
-		t.Errorf("conn.Close() = %v; want <nil>", err)
-	}
+
+	err = conn.Close()
+	assert.NoError(t, err, "should close without error")
 }
 
 // TestSendBootstrapError calls Bootstrap, raises an exception, then
