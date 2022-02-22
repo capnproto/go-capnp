@@ -156,7 +156,7 @@ func NewConn(t Transport, opts *Options) *Conn {
 	// monitor background tasks
 	go func() {
 		err := g.Wait()
-		if err != nil {
+		if err != nil && !errors.Is(err, context.Canceled) {
 			c.er.ReportError(err)
 		}
 
@@ -174,14 +174,9 @@ func NewConn(t Transport, opts *Options) *Conn {
 func (c *Conn) backgroundTask(f func(context.Context) error) func() error {
 	c.tasks.Add(1)
 
-	return func() (err error) {
+	return func() error {
 		defer c.tasks.Done()
-
-		if err = f(c.bgctx); errors.Is(err, context.Canceled) {
-			err = nil
-		}
-
-		return
+		return f(c.bgctx)
 	}
 }
 
