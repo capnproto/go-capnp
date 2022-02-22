@@ -71,6 +71,8 @@ func chkfatal(err error) {
 }
 
 func TestBootstrapReceiverAnswerRpc(t *testing.T) {
+	t.Parallel()
+
 	cClient, cServer := netPipe()
 	defer cClient.Close()
 	defer cServer.Close()
@@ -110,6 +112,8 @@ func TestBootstrapReceiverAnswerRpc(t *testing.T) {
 }
 
 func TestCallReceiverAnswerRpc(t *testing.T) {
+	t.Parallel()
+
 	cClient, cServer := netPipe()
 	defer cClient.Close()
 	defer cServer.Close()
@@ -155,6 +159,8 @@ func TestCallReceiverAnswerRpc(t *testing.T) {
 }
 
 func TestBootstrapReceiverAnswer(t *testing.T) {
+	t.Parallel()
+
 	cClient, cServer := netPipe()
 	defer cClient.Close()
 	defer cServer.Close()
@@ -220,6 +226,8 @@ func TestBootstrapReceiverAnswer(t *testing.T) {
 }
 
 func TestCallReceiverAnswer(t *testing.T) {
+	t.Parallel()
+
 	cClient, cServer := netPipe()
 	defer cClient.Close()
 	defer cServer.Close()

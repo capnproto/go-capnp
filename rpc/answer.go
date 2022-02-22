@@ -183,7 +183,8 @@ func (ans *answer) Return(e error) {
 			if err := ans.c.shutdown(err); err != nil {
 				ans.c.er.ReportError(err)
 			}
-			// shutdown released c.mu
+
+			ans.c.mu.Unlock()
 			rl.release()
 			ans.pcalls.Wait()
 			return

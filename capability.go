@@ -386,9 +386,11 @@ func (c *Client) Resolve(ctx context.Context) error {
 		if released {
 			return errorf("cannot resolve released client")
 		}
+
 		if resolved {
 			return nil
 		}
+
 		select {
 		case <-h.resolved:
 		case <-ctx.Done():

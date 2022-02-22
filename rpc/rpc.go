@@ -77,9 +77,9 @@ type Conn struct {
 	// Only the receive goroutine may call RecvMessage.
 	transport Transport
 	// mu protects all the following fields in the Conn.
-	mu     sync.Mutex
-	closed bool          // set when Close() is called, used to distinguish user Closing multiple times
-	shut   chan struct{} // closed when shutdown() returns
+	mu      sync.Mutex
+	closing bool          // used to make shutdown() idempotent
+	closed  chan struct{} // closed when shutdown() returns
 
 	sendq *mpsc.Queue
 
@@ -133,7 +133,7 @@ func NewConn(t Transport, opts *Options) *Conn {
 
 	c := &Conn{
 		transport: t,
-		shut:      make(chan struct{}),
+		closed:    make(chan struct{}),
 		bgctx:     ctx,
 		bgcancel:  cancel,
 		answers:   make(map[answerID]*answer),
@@ -156,14 +156,21 @@ func NewConn(t Transport, opts *Options) *Conn {
 	// monitor background tasks
 	go func() {
 		err := g.Wait()
-		if err != nil && !errors.Is(err, context.Canceled) {
+
+		// Treat context.Canceled as a success indicator.
+		// Do not report or send an abort message.
+		if errors.Is(err, context.Canceled) {
+			err = nil
+		}
+
+		if err != nil {
 			c.er.ReportError(err)
 		}
 
-		c.mu.Lock() // unlocked by 'shutdown'
+		c.mu.Lock()
+		defer c.mu.Unlock()
 
-		err = c.shutdown(err)
-		if err != nil && !errors.Is(err, context.Canceled) {
+		if err = c.shutdown(err); err != nil {
 			c.er.ReportError(err)
 		}
 	}()
@@ -174,9 +181,17 @@ func NewConn(t Transport, opts *Options) *Conn {
 func (c *Conn) backgroundTask(f func(context.Context) error) func() error {
 	c.tasks.Add(1)
 
-	return func() error {
+	return func() (err error) {
 		defer c.tasks.Done()
-		return f(c.bgctx)
+
+		// backgroundTask MUST return a non-nil error in order to signal
+		// other tasks to stop.  The context.Canceled will be treated as
+		// a success indicator by the caller.
+		if err = f(c.bgctx); err == nil {
+			err = context.Canceled
+		}
+
+		return err
 	}
 }
 
@@ -266,13 +281,11 @@ func (bc bootstrapClient) Shutdown() {
 // transport.
 func (c *Conn) Close() error {
 	c.mu.Lock()
-	if c.closed {
+	defer func() {
 		c.mu.Unlock()
-		return ExcAlreadyClosed
-	}
-	c.closed = true
+		<-c.closed
+	}()
 
-	// shutdown unlocks c.mu.
 	return c.shutdown(exc.Exception{ // NOTE:  omit "rpc" prefix
 		Type:  exc.Failed,
 		Cause: ErrConnClosed,
@@ -282,22 +295,20 @@ func (c *Conn) Close() error {
 // Done returns a channel that is closed after the connection is
 // shut down.
 func (c *Conn) Done() <-chan struct{} {
-	return c.shut
+	return c.closed
 }
 
 // shutdown tears down the connection and transport, optionally sending
-// an abort message before closing.  The caller MUST be hold c.mu, which
-// will be released by 'shutdown' when it returns.
+// an abort message before closing.  The caller MUST be hold c.mu.
 func (c *Conn) shutdown(abortErr error) error {
-	// previously called?
-	if c.bgctx.Err() != nil {
-		c.mu.Unlock()
-		<-c.shut
+	if c.closing {
 		return nil
 	}
-	defer close(c.shut)
+	c.closing = true
+	defer close(c.closed)
 
-	// Cancel all work.
+	// Cancel all work.  This also prevents new tasks from starting,
+	// since it expires c.bgctx.
 	c.bgcancel()
 	for _, a := range c.answers {
 		if a != nil && a.cancel != nil {
@@ -319,59 +330,61 @@ func (c *Conn) shutdown(abortErr error) error {
 	c.questions = nil
 	c.answers = nil
 	c.embargoes = nil
-	c.mu.Unlock()
 
-	c.bootstrap.Release()
-	c.bootstrap = nil
-	for _, e := range exports {
-		if e != nil {
-			metadata := e.client.State().Metadata
-			syncutil.With(metadata, func() {
-				c.clearExportID(metadata)
-			})
-			e.client.Release()
+	syncutil.Without(&c.mu, func() {
+		c.bootstrap.Release()
+		c.bootstrap = nil
+		for _, e := range exports {
+			if e != nil {
+				metadata := e.client.State().Metadata
+				syncutil.With(metadata, func() {
+					c.clearExportID(metadata)
+				})
+				e.client.Release()
+			}
 		}
-	}
-	for _, e := range embargoes {
-		if e != nil {
-			e.lift()
+		for _, e := range embargoes {
+			if e != nil {
+				e.lift()
+			}
 		}
-	}
-	for _, a := range answers {
-		if a != nil {
-			releaseList(a.resultCapTable).release()
-			a.releaseMsg()
+		for _, a := range answers {
+			if a != nil {
+				releaseList(a.resultCapTable).release()
+				a.releaseMsg()
+			}
 		}
-	}
 
-	// Send abort message (ignoring error).
-	if abortErr != nil {
-		abortCtx, cancel := context.WithTimeout(context.Background(), c.abortTimeout)
-		msg, send, release, err := c.transport.NewMessage(abortCtx)
-		if err != nil {
-			cancel()
-			goto closeTransport
-		}
-		abort, err := msg.NewAbort()
-		if err != nil {
+		// Send abort message (ignoring error).
+		if abortErr != nil {
+			abortCtx, cancel := context.WithTimeout(context.Background(), c.abortTimeout)
+			msg, send, release, err := c.transport.NewMessage(abortCtx)
+			if err != nil {
+				cancel()
+				return
+			}
+			abort, err := msg.NewAbort()
+			if err != nil {
+				release()
+				cancel()
+				return
+			}
+			abort.SetType(rpccp.Exception_Type(exc.TypeOf(abortErr)))
+			if err := abort.SetReason(abortErr.Error()); err != nil {
+				release()
+				cancel()
+				return
+			}
+			send()
 			release()
 			cancel()
-			goto closeTransport
 		}
-		abort.SetType(rpccp.Exception_Type(exc.TypeOf(abortErr)))
-		if err := abort.SetReason(abortErr.Error()); err != nil {
-			release()
-			cancel()
-			goto closeTransport
-		}
-		send()
-		release()
-		cancel()
-	}
-closeTransport:
+	})
+
 	if err := c.transport.Close(); err != nil {
 		return rpcerr.Failedf("close transport: %w", err)
 	}
+
 	return nil
 }
 
