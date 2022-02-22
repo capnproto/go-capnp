@@ -184,11 +184,11 @@ func (c *Conn) backgroundTask(f func(context.Context) error) func() error {
 // a new client that the caller is responsible for releasing.
 func (c *Conn) Bootstrap(ctx context.Context) *capnp.Client {
 	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	// Start a background task to prevent the conn from shutting down
 	// while sending the bootstrap message.
 	if !c.startTask() {
-		c.mu.Unlock()
 		return capnp.ErrorClient(rpcerr.Disconnectedf("connection closed"))
 	}
 	defer c.tasks.Done()
@@ -200,31 +200,31 @@ func (c *Conn) Bootstrap(ctx context.Context) *capnp.Client {
 		cancel: cancel,
 	})
 	q.bootstrapPromise = cp // safe to write because we're still holding c.mu
-	c.mu.Unlock()
 
 	// Send bootstrap message synchronously.  This should happen
 	// fairly quickly since there are no other outgoing calls.
-	cherr := make(chan error, 1)
-	c.sendq.Send(func(m rpccp.Message) {
-		boot, err := m.NewBootstrap()
-		if err == nil {
-			boot.SetQuestionId(uint32(q.id))
-		}
+	var (
+		err  error
+		boot rpccp.Bootstrap
+	)
 
-		cherr <- err
+	syncutil.Without(&c.mu, func() {
+		sync := make(chan struct{})
+		c.sendq.Send(func(m rpccp.Message) {
+			defer close(sync)
+			if boot, err = m.NewBootstrap(); err == nil {
+				boot.SetQuestionId(uint32(q.id))
+			}
+		})
+
+		select {
+		case <-sync:
+		case <-ctx.Done():
+			err = ctx.Err()
+		}
 	})
 
-	var err error
-	select {
-	case err = <-cherr:
-	case <-ctx.Done():
-		err = ctx.Err()
-	}
-
 	if err != nil {
-		c.mu.Lock()
-		defer c.mu.Unlock()
-
 		c.questions[q.id] = nil
 		c.questionID.remove(uint32(q.id))
 
