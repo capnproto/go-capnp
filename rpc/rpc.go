@@ -300,15 +300,26 @@ func (c *Conn) Done() <-chan struct{} {
 
 // shutdown tears down the connection and transport, optionally sending
 // an abort message before closing.  The caller MUST be hold c.mu.
-func (c *Conn) shutdown(abortErr error) error {
-	if c.closing {
-		return nil
-	}
-	c.closing = true
-	defer close(c.closed)
+func (c *Conn) shutdown(abortErr error) (err error) {
+	if !c.closing {
+		defer close(c.closed)
+		c.closing = true
 
-	// Cancel all work.  This also prevents new tasks from starting,
-	// since it expires c.bgctx.
+		c.stopTasks()
+		c.release()
+		c.abort(abortErr)
+
+		if err = c.transport.Close(); err != nil {
+			err = rpcerr.Failedf("close transport: %w", err)
+		}
+	}
+
+	return
+}
+
+// Stop all tasks and prevent new tasks from being started.
+// Called by 'shutdown'.  Callers MUST hold c.mu.
+func (c *Conn) stopTasks() {
 	c.bgcancel()
 	for _, a := range c.answers {
 		if a != nil && a.cancel != nil {
@@ -320,8 +331,11 @@ func (c *Conn) shutdown(abortErr error) error {
 	syncutil.Without(&c.mu, func() {
 		c.tasks.Wait()
 	})
+}
 
-	// Clear all tables, releasing exported clients and unfinished answers.
+// Clear all tables, releasing exported clients and unfinished answers.
+// Called by 'shutdown'.  Caller MUST hold c.mu.
+func (c *Conn) release() {
 	exports := c.exports
 	answers := c.answers
 	embargoes := c.embargoes
@@ -354,38 +368,34 @@ func (c *Conn) shutdown(abortErr error) error {
 				a.releaseMsg()
 			}
 		}
-
-		// Send abort message (ignoring error).
-		if abortErr != nil {
-			abortCtx, cancel := context.WithTimeout(context.Background(), c.abortTimeout)
-			msg, send, release, err := c.transport.NewMessage(abortCtx)
-			if err != nil {
-				cancel()
-				return
-			}
-			abort, err := msg.NewAbort()
-			if err != nil {
-				release()
-				cancel()
-				return
-			}
-			abort.SetType(rpccp.Exception_Type(exc.TypeOf(abortErr)))
-			if err := abort.SetReason(abortErr.Error()); err != nil {
-				release()
-				cancel()
-				return
-			}
-			send()
-			release()
-			cancel()
-		}
 	})
+}
 
-	if err := c.transport.Close(); err != nil {
-		return rpcerr.Failedf("close transport: %w", err)
+// If abortErr != nil, send abort message.  IO and alloc errors are ignored.
+// Called by 'shutdown'.  Callers MUST c.mu.
+func (c *Conn) abort(abortErr error) {
+	if abortErr == nil {
+		return
 	}
 
-	return nil
+	syncutil.Without(&c.mu, func() {
+		abortCtx, cancel := context.WithTimeout(context.Background(), c.abortTimeout)
+		defer cancel()
+
+		msg, send, release, err := c.transport.NewMessage(abortCtx)
+		if err != nil {
+			return
+		}
+		defer release()
+
+		// configure & send abort message
+		if abort, err := msg.NewAbort(); err == nil {
+			abort.SetType(rpccp.Exception_Type(exc.TypeOf(abortErr)))
+			if err = abort.SetReason(abortErr.Error()); err == nil {
+				send()
+			}
+		}
+	})
 }
 
 func (c *Conn) send(ctx context.Context) error {
