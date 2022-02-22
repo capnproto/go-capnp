@@ -16,8 +16,7 @@ var (
 	ErrCapTablePopulated = errors.New("capability table already populated")
 
 	// RPC exceptions
-	ExcClosed        = rpcerr.Disconnected(ErrConnClosed)
-	ExcAlreadyClosed = rpcerr.Failed(errors.New("close on closed connection"))
+	ExcClosed = rpcerr.Disconnected(ErrConnClosed)
 )
 
 type annotatingErrReporter struct {
