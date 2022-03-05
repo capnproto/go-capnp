@@ -1330,7 +1330,7 @@ func (c *Conn) handleDisembargo(ctx context.Context, d rpccp.Disembargo, release
 				return
 			}
 
-			client := ans.resultCapTable[iface.Capability()] //.AddRef()
+			client := ans.resultCapTable[iface.Capability()].AddRef()
 
 			var ok bool
 			syncutil.Without(&c.mu, func() {
