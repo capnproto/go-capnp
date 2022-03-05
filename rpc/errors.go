@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"errors"
-	"fmt"
 
 	"capnproto.org/go/capnp/v3/exc"
 )
@@ -19,20 +18,12 @@ var (
 	ExcClosed = rpcerr.Disconnected(ErrConnClosed)
 )
 
-type annotatingErrReporter struct {
+type errReporter struct {
 	ErrorReporter
 }
 
-func (er annotatingErrReporter) ReportError(err error) {
+func (er errReporter) ReportError(err error) {
 	if er.ErrorReporter != nil && err != nil {
 		er.ErrorReporter.ReportError(err)
 	}
-}
-
-func (er annotatingErrReporter) reportf(format string, args ...interface{}) {
-	er.ReportError(fmt.Errorf(format, args...))
-}
-
-func (er annotatingErrReporter) annotatef(err error, format string, args ...interface{}) {
-	er.ReportError(rpcerr.Annotatef(err, format, args...))
 }

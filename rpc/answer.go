@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"capnproto.org/go/capnp/v3"
@@ -211,7 +212,7 @@ func (ans *answer) sendReturn() (releaseList, error) {
 	var err error
 	ans.exportRefs, err = ans.c.fillPayloadCapTable(ans.results, ans.resultCapTable)
 	if err != nil {
-		ans.c.er.annotatef(err, "send return")
+		ans.c.er.ReportError(rpcerr.Annotate(err, "send return"))
 		// Continue.  Don't fail to send return if cap table isn't fully filled.
 	}
 
@@ -233,7 +234,7 @@ func (ans *answer) sendReturn() (releaseList, error) {
 		}
 		ans.c.mu.Unlock()
 		if err := ans.sendMsg(); err != nil {
-			ans.c.er.reportf("send return: %w", err)
+			ans.c.er.ReportError(fmt.Errorf("send return: %w", err))
 		}
 		if fin {
 			ans.releaseMsg()
@@ -275,13 +276,13 @@ func (ans *answer) sendException(ex error) releaseList {
 		fin := ans.flags&finishReceived != 0
 		ans.c.mu.Unlock()
 		if e, err := ans.ret.NewException(); err != nil {
-			ans.c.er.reportf("send exception: %w", err)
+			ans.c.er.ReportError(fmt.Errorf("send exception: %w", err))
 		} else {
 			e.SetType(rpccp.Exception_Type(exc.TypeOf(ex)))
 			if err := e.SetReason(ex.Error()); err != nil {
-				ans.c.er.reportf("send exception: %w", err)
+				ans.c.er.ReportError(fmt.Errorf("send exception: %w", err))
 			} else if err := ans.sendMsg(); err != nil {
-				ans.c.er.reportf("send return: %w", err)
+				ans.c.er.ReportError(fmt.Errorf("send return: %w", err))
 			}
 		}
 		if fin {

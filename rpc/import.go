@@ -98,42 +98,26 @@ func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, 
 	q := ic.c.newQuestion(s.Method)
 	ic.c.mu.Unlock()
 
-	// Create call message.
-	msg, send, release, err := ic.c.transport.NewMessage(ctx)
-	if err != nil {
-		syncutil.With(&ic.c.mu, func() {
-			ic.c.questions[q.id] = nil
-			ic.c.questionID.remove(uint32(q.id))
-		})
-		return capnp.ErrorAnswer(s.Method, rpcerr.Failedf("create message: %w", err)), func() {}
-	}
-	err = ic.c.newImportCallMessage(msg, ic.id, q.id, s)
-	if err != nil {
-		syncutil.With(&ic.c.mu, func() {
-			ic.c.questions[q.id] = nil
-			ic.c.questionID.remove(uint32(q.id))
-		})
-		release()
-		return capnp.ErrorAnswer(s.Method, err), func() {}
-	}
-
-	// Send call.
-	err = send()
-	release()
+	// Send call message.
+	err := ic.c.sendMessage(ctx, func(m rpccp.Message) error {
+		return ic.c.newImportCallMessage(m, ic.id, q.id, s)
+	})
 
 	ic.c.mu.Lock()
+	defer ic.c.mu.Unlock()
+
 	if err != nil {
 		ic.c.questions[q.id] = nil
 		ic.c.questionID.remove(uint32(q.id))
-		ic.c.mu.Unlock()
+
 		return capnp.ErrorAnswer(s.Method, rpcerr.Failedf("send message: %w", err)), func() {}
 	}
+
 	q.c.tasks.Add(1)
 	go func() {
 		defer q.c.tasks.Done()
 		q.handleCancel(ctx)
 	}()
-	ic.c.mu.Unlock()
 
 	ans := q.p.Answer()
 	return ans, func() {
@@ -240,20 +224,21 @@ func (ic *importClient) Brand() capnp.Brand {
 
 func (ic *importClient) Shutdown() {
 	ic.c.mu.Lock()
+	defer ic.c.mu.Unlock()
+
 	if !ic.c.startTask() {
-		ic.c.mu.Unlock()
 		return
 	}
 	defer ic.c.tasks.Done()
+
 	ent := ic.c.imports[ic.id]
 	if ic.generation != ent.generation {
 		// A new reference was added concurrently with the Shutdown.  See
 		// impent.generation documentation for an explanation.
-		ic.c.mu.Unlock()
 		return
 	}
 	delete(ic.c.imports, ic.id)
-	err := ic.c.sendMessage(context.Background(), func(msg rpccp.Message) error {
+	err := ic.c.sendMessage(ic.c.bgctx, func(msg rpccp.Message) error {
 		rel, err := msg.NewRelease()
 		if err != nil {
 			return err
@@ -262,8 +247,8 @@ func (ic *importClient) Shutdown() {
 		rel.SetReferenceCount(uint32(ent.wireRefs))
 		return nil
 	})
-	ic.c.mu.Unlock()
+
 	if err != nil {
-		ic.c.er.annotatef(err, "send release")
+		ic.c.er.ReportError(rpcerr.Annotate(err, "send release"))
 	}
 }

@@ -121,7 +121,7 @@ func (q *question) handleCancel(ctx context.Context) {
 		select {
 		case <-q.c.bgctx.Done():
 		default:
-			q.c.er.annotatef(err, "send finish")
+			q.c.er.ReportError(rpcerr.Annotate(err, "send finish"))
 		}
 	}
 	close(q.finishMsgSend)
@@ -151,36 +151,17 @@ func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineO
 	q2 := q.c.newQuestion(s.Method)
 	q.c.mu.Unlock()
 
-	// Create call message.
-	msg, send, release, err := q.c.transport.NewMessage(ctx)
-	if err != nil {
-		syncutil.With(&q.c.mu, func() {
-			q.c.questions[q2.id] = nil
-			q.c.questionID.remove(uint32(q2.id))
-		})
-		return capnp.ErrorAnswer(s.Method, rpcerr.Failedf("create message: %w", err)), func() {}
-	}
-	err = q.c.newPipelineCallMessage(msg, q.id, transform, q2.id, s)
-	if err != nil {
-		syncutil.With(&q.c.mu, func() {
-			q.c.questions[q2.id] = nil
-			q.c.questionID.remove(uint32(q2.id))
-		})
-		release()
-		syncutil.With(&q.c.mu, func() {
-		})
-		return capnp.ErrorAnswer(s.Method, err), func() {}
-	}
-
-	// Send call.
-	err = send()
-	release()
+	// Send call message.
+	err := q.c.sendMessage(ctx, func(m rpccp.Message) error {
+		return q.c.newPipelineCallMessage(m, q.id, transform, q2.id, s)
+	})
 
 	q.c.mu.Lock()
+	defer q.c.mu.Unlock()
+
 	if err != nil {
 		q.c.questions[q2.id] = nil
 		q.c.questionID.remove(uint32(q2.id))
-		q.c.mu.Unlock()
 		return capnp.ErrorAnswer(s.Method, rpcerr.Failedf("send message: %w", err)), func() {}
 	}
 	q2.c.tasks.Add(1)
@@ -188,7 +169,6 @@ func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineO
 		defer q2.c.tasks.Done()
 		q2.handleCancel(ctx)
 	}()
-	q.c.mu.Unlock()
 
 	ans := q2.p.Answer()
 	return ans, func() {
