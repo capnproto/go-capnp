@@ -1330,7 +1330,7 @@ func (c *Conn) handleDisembargo(ctx context.Context, d rpccp.Disembargo, release
 				return
 			}
 
-			client := ans.resultCapTable[iface.Capability()].AddRef()
+			client := ans.resultCapTable[iface.Capability()] //.AddRef()
 
 			var ok bool
 			syncutil.Without(&c.mu, func() {
@@ -1408,10 +1408,14 @@ func (c *Conn) startTask() (ok bool) {
 
 func (c *Conn) sendMessage(ctx context.Context, f func(rpccp.Message) error) (err error) {
 	cherr, release := c.sender.Send(c.newSender(ctx, f))
-	defer release()
 
 	select {
 	case err = <-cherr:
+		// NOTE:  We can only guarantee that cherr is no longer in use if
+		//        we receive a value.  Other cases will produce garbage,
+		//        but will happen infrequently.
+		release()
+
 	case <-ctx.Done():
 		err = ctx.Err()
 	case <-c.bgctx.Done():
@@ -1423,13 +1427,15 @@ func (c *Conn) sendMessage(ctx context.Context, f func(rpccp.Message) error) (er
 
 func (c *Conn) sendMessageAsync(ctx context.Context, f func(rpccp.Message) error) {
 	cherr, release := c.sender.Send(c.newSender(ctx, f))
-	defer release()
 
 	select {
 	case err := <-cherr:
+		release() // See note in sendMessage
 		c.er.ReportError(err)
+
 	case <-ctx.Done():
 		c.er.ReportError(ctx.Err())
+
 	case <-c.bgctx.Done():
 		c.er.ReportError(c.bgctx.Err())
 	}
@@ -1463,9 +1469,9 @@ func clearCapTable(msg *capnp.Message) {
 type sendQueue mpsc.Queue
 
 func (s *sendQueue) Send(sender func() error) (<-chan error, capnp.ReleaseFunc) {
-	cherr := make(chan error, 1)
+	cherr := cherrPool.Get()
 	s.Tx.Send(func() { cherr <- sender() })
-	return cherr, func() { /* TODO:  pool.Put(cherr) */ }
+	return cherr, func() { cherrPool.Put(cherr) }
 }
 
 func (s *sendQueue) Task(ctx context.Context) func() error {
