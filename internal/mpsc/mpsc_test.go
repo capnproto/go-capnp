@@ -12,14 +12,14 @@ import (
 
 func TestTryRecvEmpty(t *testing.T) {
 	t.Parallel()
-	q := New()
+	q := New[int]()
 	v, ok := q.TryRecv()
 	assert.False(t, ok, "TryRecv() on an empty queue succeeded; recevied: ", v)
 }
 
 func TestRecvEmpty(t *testing.T) {
 	t.Parallel()
-	q := New()
+	q := New[int]()
 
 	// Recv() on an empty queue should block until the context is canceled.
 	ctx, _ := context.WithTimeout(context.Background(), time.Millisecond*10)
@@ -27,13 +27,13 @@ func TestRecvEmpty(t *testing.T) {
 	v, err := q.Recv(ctx)
 	assert.Equal(t, ctx.Err(), err, "Returned error is not ctx.Err()")
 	assert.NotNil(t, err, "Returned error is nil.")
-	assert.Nil(t, v, "Return value is not nil.")
+	assert.Equal(t, 0, v, "Return value is not the zero value.")
 }
 
 func TestSendOne(t *testing.T) {
 	t.Parallel()
-	q := New()
-	want := Value(1)
+	q := New[int]()
+	want := 1
 	q.Send(want)
 	got, err := q.Recv(context.Background())
 	assert.Nil(t, err, "Non-nil error from Recv()")
@@ -51,7 +51,7 @@ func TestSendManySequential(t *testing.T) {
 
 	ctx := context.Background()
 
-	q := New()
+	q := New[int]()
 
 	for _, v := range inputs {
 		q.Send(v)
@@ -60,7 +60,7 @@ func TestSendManySequential(t *testing.T) {
 	for len(outputs) != len(inputs) {
 		v, err := q.Recv(ctx)
 		assert.Nil(t, err, "Non-nil error from Recv()")
-		outputs = append(outputs, v.(int))
+		outputs = append(outputs, v)
 	}
 	assert.Equal(t, inputs, outputs, "Received sequence was different from sent.")
 
@@ -71,7 +71,7 @@ func TestSendManySequential(t *testing.T) {
 func TestSendManyConcurrent(t *testing.T) {
 	t.Parallel()
 
-	q := New()
+	q := New[int]()
 
 	for i := 0; i < 100; i += 10 {
 		for j := 0; j < 10; j++ {
@@ -100,7 +100,7 @@ func TestSendManyConcurrent(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		v, err := q.Recv(ctx)
 		assert.Nil(t, err, "Failed to receive from queue: ", err)
-		actual = append(actual, v.(int))
+		actual = append(actual, v)
 	}
 	// Values come out in random order, so sort them:
 	sort.Slice(actual, func(i, j int) bool {
