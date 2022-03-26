@@ -284,7 +284,7 @@ func TestDefineConstNodes(t *testing.T) {
 		t.Fatalf("defineConstNodes called %d templates; want 1", len(calls))
 	}
 	p, ok := calls[0].params.(constantsParams)
-	if calls[0].name != "constants" || !ok {
+	if !ok {
 		t.Fatalf("defineConstNodes rendered %v; want render of constants template", calls[0])
 	}
 	if !containsExactlyIDs(p.Consts, 0xda96e2255811b258) {
@@ -422,18 +422,17 @@ func traceGenerator(g *generator) (getCalls func() []renderCall) {
 	return func() []renderCall { return tr.calls }
 }
 
-func (tr *traceRenderer) Render(name string, params interface{}) error {
-	tr.calls = append(tr.calls, renderCall{name, params})
-	return tr.renderer.Render(name, params)
+func (tr *traceRenderer) Render(params interface{}) error {
+	tr.calls = append(tr.calls, renderCall{params})
+	return tr.renderer.Render(params)
 }
 
 type renderCall struct {
-	name   string
 	params interface{}
 }
 
 func (rc renderCall) String() string {
-	return fmt.Sprintf("{%q %#v}", rc.name, rc.params)
+	return fmt.Sprintf("{%T %#v}", rc.params, rc.params)
 }
 
 func containsExactlyIDs(nodes []*node, ids ...uint64) bool {
