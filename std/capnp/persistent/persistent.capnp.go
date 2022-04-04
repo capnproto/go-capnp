@@ -138,25 +138,12 @@ func (s Persistent_SaveParams) SetSealFor(v capnp.Ptr) error {
 }
 
 // Persistent_SaveParams_List is a list of Persistent_SaveParams.
-type Persistent_SaveParams_List struct{ capnp.List }
+type Persistent_SaveParams_List = capnp.StructList[Persistent_SaveParams]
 
 // NewPersistent_SaveParams creates a new list of Persistent_SaveParams.
 func NewPersistent_SaveParams_List(s *capnp.Segment, sz int32) (Persistent_SaveParams_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return Persistent_SaveParams_List{l}, err
-}
-
-func (s Persistent_SaveParams_List) At(i int) Persistent_SaveParams {
-	return Persistent_SaveParams{s.List.Struct(i)}
-}
-
-func (s Persistent_SaveParams_List) Set(i int, v Persistent_SaveParams) error {
-	return s.List.SetStruct(i, v.Struct)
-}
-
-func (s Persistent_SaveParams_List) String() string {
-	str, _ := text.MarshalList(0xf76fba59183073a5, s.List)
-	return str
+	return capnp.StructList[Persistent_SaveParams]{l}, err
 }
 
 // Persistent_SaveParams_Future is a wrapper for a Persistent_SaveParams promised by a client call.
@@ -209,25 +196,12 @@ func (s Persistent_SaveResults) SetSturdyRef(v capnp.Ptr) error {
 }
 
 // Persistent_SaveResults_List is a list of Persistent_SaveResults.
-type Persistent_SaveResults_List struct{ capnp.List }
+type Persistent_SaveResults_List = capnp.StructList[Persistent_SaveResults]
 
 // NewPersistent_SaveResults creates a new list of Persistent_SaveResults.
 func NewPersistent_SaveResults_List(s *capnp.Segment, sz int32) (Persistent_SaveResults_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return Persistent_SaveResults_List{l}, err
-}
-
-func (s Persistent_SaveResults_List) At(i int) Persistent_SaveResults {
-	return Persistent_SaveResults{s.List.Struct(i)}
-}
-
-func (s Persistent_SaveResults_List) Set(i int, v Persistent_SaveResults) error {
-	return s.List.SetStruct(i, v.Struct)
-}
-
-func (s Persistent_SaveResults_List) String() string {
-	str, _ := text.MarshalList(0xb76848c18c40efbf, s.List)
-	return str
+	return capnp.StructList[Persistent_SaveResults]{l}, err
 }
 
 // Persistent_SaveResults_Future is a wrapper for a Persistent_SaveResults promised by a client call.

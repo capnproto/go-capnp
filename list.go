@@ -1,6 +1,8 @@
 package capnp
 
 import (
+	"bytes"
+	"fmt"
 	"math"
 	"strconv"
 
@@ -982,6 +984,57 @@ func (l Float64List) String() string {
 	}
 	buf = append(buf, ']')
 	return string(buf)
+}
+
+// A list of some Cap'n Proto enum type T.
+type EnumList[T interface{ ~uint16 }] UInt16List
+
+// NewEnumList creates a new list of T, preferring placement in s.
+func NewEnumList[T interface{ ~uint16 }](s *Segment, n int32) (EnumList[T], error) {
+	l, err := NewUInt16List(s, n)
+	return EnumList[T](l), err
+}
+
+// At returns the i'th element.
+func (l EnumList[T]) At(i int) T {
+	return T(UInt16List(l).At(i))
+}
+
+// Set sets the i'th element to v.
+func (l EnumList[T]) Set(i int, v T) {
+	UInt16List(l).Set(i, uint16(v))
+}
+
+// String returns the list in Cap'n Proto schema format (e.g. "[1, 2, 3]").
+func (l EnumList[T]) String() string {
+	return UInt16List(l).String()
+}
+
+// A list of some Cap'n Proto struct type T.
+type StructList[T ~struct{ Struct }] struct{ List }
+
+// At returns the i'th element.
+func (s StructList[T]) At(i int) T {
+	return T{s.List.Struct(i)}
+}
+
+// Set sets the i'th element to v.
+func (s StructList[T]) Set(i int, v T) error {
+	return s.List.SetStruct(i, struct{ Struct }(v).Struct)
+}
+
+// String returns the list in Cap'n Proto schema format (e.g. "[(x = 1), (x = 2)]").
+func (s StructList[T]) String() string {
+	buf := &bytes.Buffer{}
+	buf.WriteByte('[')
+	for i := 0; i < s.Len(); i++ {
+		if i > 0 {
+			buf.WriteString(", ")
+		}
+		fmt.Fprint(buf, s.At(i))
+	}
+	buf.WriteByte(']')
+	return buf.String()
 }
 
 type listFlags uint8

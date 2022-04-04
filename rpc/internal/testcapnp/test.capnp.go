@@ -133,25 +133,12 @@ func (s PingPong_echoNum_Params) SetN(v int64) {
 }
 
 // PingPong_echoNum_Params_List is a list of PingPong_echoNum_Params.
-type PingPong_echoNum_Params_List struct{ capnp.List }
+type PingPong_echoNum_Params_List = capnp.StructList[PingPong_echoNum_Params]
 
 // NewPingPong_echoNum_Params creates a new list of PingPong_echoNum_Params.
 func NewPingPong_echoNum_Params_List(s *capnp.Segment, sz int32) (PingPong_echoNum_Params_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	return PingPong_echoNum_Params_List{l}, err
-}
-
-func (s PingPong_echoNum_Params_List) At(i int) PingPong_echoNum_Params {
-	return PingPong_echoNum_Params{s.List.Struct(i)}
-}
-
-func (s PingPong_echoNum_Params_List) Set(i int, v PingPong_echoNum_Params) error {
-	return s.List.SetStruct(i, v.Struct)
-}
-
-func (s PingPong_echoNum_Params_List) String() string {
-	str, _ := text.MarshalList(0xd797e0a99edf0921, s.List)
-	return str
+	return capnp.StructList[PingPong_echoNum_Params]{l}, err
 }
 
 // PingPong_echoNum_Params_Future is a wrapper for a PingPong_echoNum_Params promised by a client call.
@@ -196,25 +183,12 @@ func (s PingPong_echoNum_Results) SetN(v int64) {
 }
 
 // PingPong_echoNum_Results_List is a list of PingPong_echoNum_Results.
-type PingPong_echoNum_Results_List struct{ capnp.List }
+type PingPong_echoNum_Results_List = capnp.StructList[PingPong_echoNum_Results]
 
 // NewPingPong_echoNum_Results creates a new list of PingPong_echoNum_Results.
 func NewPingPong_echoNum_Results_List(s *capnp.Segment, sz int32) (PingPong_echoNum_Results_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	return PingPong_echoNum_Results_List{l}, err
-}
-
-func (s PingPong_echoNum_Results_List) At(i int) PingPong_echoNum_Results {
-	return PingPong_echoNum_Results{s.List.Struct(i)}
-}
-
-func (s PingPong_echoNum_Results_List) Set(i int, v PingPong_echoNum_Results) error {
-	return s.List.SetStruct(i, v.Struct)
-}
-
-func (s PingPong_echoNum_Results_List) String() string {
-	str, _ := text.MarshalList(0x85ddfd96db252600, s.List)
-	return str
+	return capnp.StructList[PingPong_echoNum_Results]{l}, err
 }
 
 // PingPong_echoNum_Results_Future is a wrapper for a PingPong_echoNum_Results promised by a client call.
@@ -352,25 +326,12 @@ func (s StreamTest_push_Params) SetData(v []byte) error {
 }
 
 // StreamTest_push_Params_List is a list of StreamTest_push_Params.
-type StreamTest_push_Params_List struct{ capnp.List }
+type StreamTest_push_Params_List = capnp.StructList[StreamTest_push_Params]
 
 // NewStreamTest_push_Params creates a new list of StreamTest_push_Params.
 func NewStreamTest_push_Params_List(s *capnp.Segment, sz int32) (StreamTest_push_Params_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return StreamTest_push_Params_List{l}, err
-}
-
-func (s StreamTest_push_Params_List) At(i int) StreamTest_push_Params {
-	return StreamTest_push_Params{s.List.Struct(i)}
-}
-
-func (s StreamTest_push_Params_List) Set(i int, v StreamTest_push_Params) error {
-	return s.List.SetStruct(i, v.Struct)
-}
-
-func (s StreamTest_push_Params_List) String() string {
-	str, _ := text.MarshalList(0xf838dca6c8721bdb, s.List)
-	return str
+	return capnp.StructList[StreamTest_push_Params]{l}, err
 }
 
 // StreamTest_push_Params_Future is a wrapper for a StreamTest_push_Params promised by a client call.
@@ -554,25 +515,12 @@ func (s CapArgsTest_call_Params) SetCap(v capnp.Ptr) error {
 }
 
 // CapArgsTest_call_Params_List is a list of CapArgsTest_call_Params.
-type CapArgsTest_call_Params_List struct{ capnp.List }
+type CapArgsTest_call_Params_List = capnp.StructList[CapArgsTest_call_Params]
 
 // NewCapArgsTest_call_Params creates a new list of CapArgsTest_call_Params.
 func NewCapArgsTest_call_Params_List(s *capnp.Segment, sz int32) (CapArgsTest_call_Params_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return CapArgsTest_call_Params_List{l}, err
-}
-
-func (s CapArgsTest_call_Params_List) At(i int) CapArgsTest_call_Params {
-	return CapArgsTest_call_Params{s.List.Struct(i)}
-}
-
-func (s CapArgsTest_call_Params_List) Set(i int, v CapArgsTest_call_Params) error {
-	return s.List.SetStruct(i, v.Struct)
-}
-
-func (s CapArgsTest_call_Params_List) String() string {
-	str, _ := text.MarshalList(0x80087e4e698768a2, s.List)
-	return str
+	return capnp.StructList[CapArgsTest_call_Params]{l}, err
 }
 
 // CapArgsTest_call_Params_Future is a wrapper for a CapArgsTest_call_Params promised by a client call.
@@ -613,25 +561,12 @@ func (s CapArgsTest_call_Results) String() string {
 }
 
 // CapArgsTest_call_Results_List is a list of CapArgsTest_call_Results.
-type CapArgsTest_call_Results_List struct{ capnp.List }
+type CapArgsTest_call_Results_List = capnp.StructList[CapArgsTest_call_Results]
 
 // NewCapArgsTest_call_Results creates a new list of CapArgsTest_call_Results.
 func NewCapArgsTest_call_Results_List(s *capnp.Segment, sz int32) (CapArgsTest_call_Results_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
-	return CapArgsTest_call_Results_List{l}, err
-}
-
-func (s CapArgsTest_call_Results_List) At(i int) CapArgsTest_call_Results {
-	return CapArgsTest_call_Results{s.List.Struct(i)}
-}
-
-func (s CapArgsTest_call_Results_List) Set(i int, v CapArgsTest_call_Results) error {
-	return s.List.SetStruct(i, v.Struct)
-}
-
-func (s CapArgsTest_call_Results_List) String() string {
-	str, _ := text.MarshalList(0x96fbc50dc2f0200d, s.List)
-	return str
+	return capnp.StructList[CapArgsTest_call_Results]{l}, err
 }
 
 // CapArgsTest_call_Results_Future is a wrapper for a CapArgsTest_call_Results promised by a client call.
@@ -668,25 +603,12 @@ func (s CapArgsTest_self_Params) String() string {
 }
 
 // CapArgsTest_self_Params_List is a list of CapArgsTest_self_Params.
-type CapArgsTest_self_Params_List struct{ capnp.List }
+type CapArgsTest_self_Params_List = capnp.StructList[CapArgsTest_self_Params]
 
 // NewCapArgsTest_self_Params creates a new list of CapArgsTest_self_Params.
 func NewCapArgsTest_self_Params_List(s *capnp.Segment, sz int32) (CapArgsTest_self_Params_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
-	return CapArgsTest_self_Params_List{l}, err
-}
-
-func (s CapArgsTest_self_Params_List) At(i int) CapArgsTest_self_Params {
-	return CapArgsTest_self_Params{s.List.Struct(i)}
-}
-
-func (s CapArgsTest_self_Params_List) Set(i int, v CapArgsTest_self_Params) error {
-	return s.List.SetStruct(i, v.Struct)
-}
-
-func (s CapArgsTest_self_Params_List) String() string {
-	str, _ := text.MarshalList(0xe2553e5a663abb7d, s.List)
-	return str
+	return capnp.StructList[CapArgsTest_self_Params]{l}, err
 }
 
 // CapArgsTest_self_Params_Future is a wrapper for a CapArgsTest_self_Params promised by a client call.
@@ -741,25 +663,12 @@ func (s CapArgsTest_self_Results) SetSelf(v CapArgsTest) error {
 }
 
 // CapArgsTest_self_Results_List is a list of CapArgsTest_self_Results.
-type CapArgsTest_self_Results_List struct{ capnp.List }
+type CapArgsTest_self_Results_List = capnp.StructList[CapArgsTest_self_Results]
 
 // NewCapArgsTest_self_Results creates a new list of CapArgsTest_self_Results.
 func NewCapArgsTest_self_Results_List(s *capnp.Segment, sz int32) (CapArgsTest_self_Results_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return CapArgsTest_self_Results_List{l}, err
-}
-
-func (s CapArgsTest_self_Results_List) At(i int) CapArgsTest_self_Results {
-	return CapArgsTest_self_Results{s.List.Struct(i)}
-}
-
-func (s CapArgsTest_self_Results_List) Set(i int, v CapArgsTest_self_Results) error {
-	return s.List.SetStruct(i, v.Struct)
-}
-
-func (s CapArgsTest_self_Results_List) String() string {
-	str, _ := text.MarshalList(0x9746cc05cbff1132, s.List)
-	return str
+	return capnp.StructList[CapArgsTest_self_Results]{l}, err
 }
 
 // CapArgsTest_self_Results_Future is a wrapper for a CapArgsTest_self_Results promised by a client call.
@@ -774,42 +683,42 @@ func (p CapArgsTest_self_Results_Future) Self() CapArgsTest {
 	return CapArgsTest{Client: p.Future.Field(0, nil).Client()}
 }
 
-const schema_ef12a34b9807e19c = "x\xda\x94\x93Mh\xd3`\x18\xc7\x9f\xa7O\xb2tH" +
-	"\xa8o3\x14\xf5\xa0\x8eMp\x87b\xddA\x1db;" +
-	"\x05'\x08\xa3\xf1\xe3\xa0\x1e$\xd4\xac\xad\xb6ihR" +
-	"\x06\x82\xce\x8b\xec\xeceSQ\xc1\xf9\x81\x1e'\x08\xea" +
-	".:\x1c(\x0eo\"2\x87\x1fw\xe7\x8e\x03\xd1\xc8" +
-	"\xfb\xa6Y\x1a\xdb\x1d\xbc\x95\xfe\x9f\xf7\xff\xfb?\x1f\xd9" +
-	"5\x8a\xd9XZ\xde\xd3\x01\xa0\x1f\x91;\xbc\xa9\xe2x" +
-	"i\xf8r\xfc\x0a\xb0\x8d\x08 \xa3\x02\xd0\x8f\xb4\x19\x01" +
-	"\xb5N\xca\x00\xfe\xd9\xd1\xbb0\xf1{\xf1\xaa\xde\x85\x08" +
-	" qy'us9\xcdeO\xdd\xb6<\xab\xce\xfd" +
-	"\x9a\xf0\xdf\x0b]\xe7\xba\xe4\xedf\xde;y\xfe\xf0d" +
-	"\xb3\xf3>\xff\xe9\xa0x:\xbf\xfe\xfc\xb5\xb1\xf7\x17\x9e" +
-	"\x01[G\xde\xado\xca\xf5\xa3\xf7\x92?\x01P3\xe8" +
-	"\x85V\"\x05@3i\\{\xca\x7fy\xe6\xfd%<" +
-	"\xf3h\xffLK\xf1mz\xa2=\x10\xc5wiH{" +
-	"+\x8a\xb7w~\xb9\xf3\xf8\xeb\xe4GhJ=\xed7" +
-	"\xf5\\\xa0/\xcd\x0c\x8c\x9c>p\xf2{S\xeaO\\" +
-	"\x97\xbc\x8bK+\xb3\xeeki\xb9\x85\xf3\x8a\xa6|w" +
-	"m\x8e\x86\xb4\x1f\x82\xb3\xb0\xa5\xf6\xe6\xe1\xe7\xbd+\xc0" +
-	"6\xac\xb6\xf8\x81\x92\x9c\xb3H\x198\xe5\xb9\xa6\xe3\xa6" +
-	"\xf2\x86M\x96=p\xc8\xb0\x07k\x05\xe7\x84\xffW\xb9" +
-	"\xdc\x933j\x06U\x1c]\"\x09@B\x00\xa6v\x03" +
-	"\xe8qB\xbd+\x86J\xde\xb01)\x11 &\x01#" +
-	"N\xb9\x92U\xc8U\xadB\xca\xcc\x17\xab\xc3\xf5J\xcf" +
-	"1\xd3\xa9+e7b\x95\x0c\xad\xd0B\x19b(\xff" +
-	"c\xd3\x12(\xb0Y\xb3\xca1\xcb#ma}!," +
-	"\xc1\x8b\x90\x85\xdb\x05D\xd6D\xc6\xc03\xe3\x9b\xe6\x10" +
-	"\xf58\xc9\x00\xab\xa7\x88\xc1M\xb1t\x1f\xc4X\xaf\x82" +
-	"\xe1\xc20\xb8*\xb6\x89k\xaa\x92\xe0\xc9\xb3>5\x8b" +
-	"9\x8c\x82\x8e\xbb5\xd3\xd8Z\x098\x92\xe0\x04[C" +
-	"k\xfa\xe5h\xff\xcd\xb37\x18\xe3^\xb2\x92\xb0\xebN" +
-	"1j\xd2v\xdcm\x16\xf7\x7f\xd3\x16sl\xb8D\xf2" +
-	"\x0a\x94R\xb5\x0aa\xda\xe0\x96\x11\x1a_\"c\x07E" +
-	"\xda\xb1F\x9c\xd6\xc0\xa2k\xd1t\x8aw$H\x15\\" +
-	"sa\xe7\x0c\xd7@\x15b\xa8\x02\xfe\x0d\x00\x00\xff\xff" +
-	"\xe0\x10 \xd6"
+const schema_ef12a34b9807e19c = "x\xda\x94\x93Mh\xd3`\x18\xc7\x9f\xa7\xef\x9b\xa5C" +
+	"B}\x93\xa1\xa8\x07ul\x82;\x14\xeb\x0e\xea\x10\xdb" +
+	")8A\x18\x89\x1f\x07\xf5 \xa1fm\xb5MC\x93" +
+	"\"\x0a:/\xb2\xb3\x97ME\x05\xe7\x07z\x9c \xa8" +
+	"\xbb\xe8p\xa08\xbc\x89\xc8\x1c~\xdc\x9d;\x0eD#" +
+	"\xef\x9bfilw\xf0V\xfa\x7f\xde\xff\xef\xff|d" +
+	"\xc7\x05\xcc\xd1\x8c\xb2\xab\x03\x12\xc6!\xa9\xc3\x9f,\x8e" +
+	"\x95\x86/'\xaf\x00[\x8f\x00\x12\xca\x00\xfdH6\"" +
+	"\xa0\xd6I\xb2\x80\x7f\xb6\xf5\xce\x8f\xff^\xb8jt!" +
+	"\x02P.o'\xdd\\\xcep\xd9W\xb6,\xcd(\xb3" +
+	"\xbf\xc6\x83\xf7B7\xb8N\xfd\x9d\xcc\x7f'\xcd\x1d\x9c" +
+	"hv\xde\x13<\x1d\x14O\xe7\xd6\x9e\xbd6\xfa\xfe\xdc" +
+	"3`k\x88\x7f\xeb\x9b|\xfd\xf0=\xf5'\x00j&" +
+	"y\xa1\x95\x88\x0c\xa0YdL{\xca\x7f\xf9\xd6\xfdE" +
+	"<\xf5h\xeftK\xf1m\xf2D{ \x8a\xef\x92!" +
+	"\xed\xad(\xde\xda\xf9\xe5\xce\xe3\xaf\x13\x1f\xa1)\xf5T" +
+	"\xd0\xd4s\x81\xbe4=0rr\xdf\xf1\xefM\xa9?" +
+	"q\x9d\xfa\x17\x17\x97g\xbc\xd7t\xa9\x85\xf3\x8aL\x06" +
+	"\xee\xda,\x19\xd2~\x08\xce\xfc\xa6\xda\x9b\x87\x9fw/" +
+	"\x03[\xb7\xd2\xe2\x07\xa2r\xce\x02\xc9\xc2\x09\xdf\xb3\\" +
+	"/\x9d7\x1db;\x03\x07Lg\xb0Vp\x8f\x05\x7f" +
+	"\x95\xcb=\xbaY3I\xc55(\xa1\x00\x14\x01\x98\xd2" +
+	"\x0d`$\x09\x1a]\x09\x94\xf3\xa6\x83*%\x80\xa8\x02" +
+	"\xc6\x9c\xf4\x92]\xd0\xabv!m\xe5\x8b\xd5\xe1z\xa5" +
+	"\xe7\x88\xe5\xd6\xe5\xb2\x17\xb3R#+\xb4Q\x82\x04J" +
+	"\xff\xd8\xb4\x04\x0amV\xadr\xad\xf2H[X_\x04" +
+	"K\xf1\"d\xd1v\x01\x915\x911\xf4\xcc\x06\xa6:" +
+	"\xa2\x91$\x12\xc0\xca)bxS,\xd3\x07\x09\xd6+" +
+	"c\xb40\x0c\xaf\x8am\xe0\x9a\"\xa7x\xf2\\@\xcd" +
+	"\xa1\x8eq\xd0Q\xaff\x99\x9b+!\x87\x0aN\xb85" +
+	"\xb4\xa7^\x9e\xef\xbfy\xfa\x06c\xdcK\x92SN\xdd" +
+	"-\xc6M\xda\x8e\xbb\xcd\xe2\xfeo\xdab\x8e\x0d\x97X" +
+	"^\x81\x92\xabv!J\x1b\xde2B\xe3Kdl\xbf" +
+	"H;\xda\x88\xd3\x1aXt-\x9aN\xf3\x8e\x04\xa9\x82" +
+	"\xab.\xec\x8c\xe9\x99\xa8@\x02\x15\xc0\xbf\x01\x00\x00\xff" +
+	"\xff\x19\x83 \xe4"
 
 func init() {
 	schemas.Register(schema_ef12a34b9807e19c,

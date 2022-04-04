@@ -60,21 +60,12 @@ func (s Book) SetPageCount(v int32) {
 }
 
 // Book_List is a list of Book.
-type Book_List struct{ capnp.List }
+type Book_List = capnp.StructList[Book]
 
 // NewBook creates a new list of Book.
 func NewBook_List(s *capnp.Segment, sz int32) (Book_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	return Book_List{l}, err
-}
-
-func (s Book_List) At(i int) Book { return Book{s.List.Struct(i)} }
-
-func (s Book_List) Set(i int, v Book) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s Book_List) String() string {
-	str, _ := text.MarshalList(0x8100cc88d7d4d47c, s.List)
-	return str
+	return capnp.StructList[Book]{l}, err
 }
 
 // Book_Future is a wrapper for a Book promised by a client call.
@@ -85,7 +76,7 @@ func (p Book_Future) Struct() (Book, error) {
 	return Book{s}, err
 }
 
-const schema_85d3acc39d94e0f8 = "x\xda\x12\x88w`2d\xdd\xcf\xc8\xc0\x10(\xc2\xca" +
+const schema_85d3acc39d94e0f8 = "x\xda\x12Ht`1\xe4\xdd\xcf\xc8\xc0\x14(\xc2\xca" +
 	"\xb6\xbf\xe6\xca\x95\xeb\x1dg\x1a\x03y\x18\x19\xff\xffx" +
 	"0e\xee\xe15\x97[\x19X\x19\xd9\x19\x18\x04\x8fv" +
 	"\x09\x9e\x05\xd1'\xcb\x19t\xff'\xe5\xe7g\x17\xeb%" +
@@ -95,7 +86,7 @@ const schema_85d3acc39d94e0f8 = "x\xda\x12\x88w`2d\xdd\xcf\xc8\xc0\x10(\xc2\xca"
 	"\x02u\x98\x19\x03-\x98\x18\xe5K2KrR\x19y" +
 	"\x18\x98\x18y\x18\x18\xff\x17$\xa6\xa7:\xe7\x97\xe61" +
 	"0\x960\xb2001\xb200\x02\x02\x00\x00\xff\xff" +
-	"F\xa9$\xae"
+	"N\xd3$\xbc"
 
 func init() {
 	schemas.Register(schema_85d3acc39d94e0f8,
