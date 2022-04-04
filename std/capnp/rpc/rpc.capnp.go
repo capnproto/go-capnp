@@ -2665,21 +2665,10 @@ func Exception_TypeFromString(c string) Exception_Type {
 	}
 }
 
-type Exception_Type_List struct{ capnp.List }
+type Exception_Type_List = capnp.EnumList[Exception_Type]
 
 func NewException_Type_List(s *capnp.Segment, sz int32) (Exception_Type_List, error) {
-	l, err := capnp.NewUInt16List(s, sz)
-	return Exception_Type_List{l.List}, err
-}
-
-func (l Exception_Type_List) At(i int) Exception_Type {
-	ul := capnp.UInt16List{List: l.List}
-	return Exception_Type(ul.At(i))
-}
-
-func (l Exception_Type_List) Set(i int, v Exception_Type) {
-	ul := capnp.UInt16List{List: l.List}
-	ul.Set(i, uint16(v))
+	return capnp.NewEnumList[Exception_Type](s, sz)
 }
 
 const schema_b312981b2552a250 = "x\xda\x9cX\x7f\x8c\x15\xd5\xf5?\xe7\xde\xb7\xef-\xec" +

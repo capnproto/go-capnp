@@ -2581,21 +2581,10 @@ func ElementSizeFromString(c string) ElementSize {
 	}
 }
 
-type ElementSize_List struct{ capnp.List }
+type ElementSize_List = capnp.EnumList[ElementSize]
 
 func NewElementSize_List(s *capnp.Segment, sz int32) (ElementSize_List, error) {
-	l, err := capnp.NewUInt16List(s, sz)
-	return ElementSize_List{l.List}, err
-}
-
-func (l ElementSize_List) At(i int) ElementSize {
-	ul := capnp.UInt16List{List: l.List}
-	return ElementSize(ul.At(i))
-}
-
-func (l ElementSize_List) Set(i int, v ElementSize) {
-	ul := capnp.UInt16List{List: l.List}
-	ul.Set(i, uint16(v))
+	return capnp.NewEnumList[ElementSize](s, sz)
 }
 
 type CapnpVersion struct{ capnp.Struct }

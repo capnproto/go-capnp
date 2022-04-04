@@ -46,21 +46,10 @@ func SideFromString(c string) Side {
 	}
 }
 
-type Side_List struct{ capnp.List }
+type Side_List = capnp.EnumList[Side]
 
 func NewSide_List(s *capnp.Segment, sz int32) (Side_List, error) {
-	l, err := capnp.NewUInt16List(s, sz)
-	return Side_List{l.List}, err
-}
-
-func (l Side_List) At(i int) Side {
-	ul := capnp.UInt16List{List: l.List}
-	return Side(ul.At(i))
-}
-
-func (l Side_List) Set(i int, v Side) {
-	ul := capnp.UInt16List{List: l.List}
-	ul.Set(i, uint16(v))
+	return capnp.NewEnumList[Side](s, sz)
 }
 
 type VatId struct{ capnp.Struct }

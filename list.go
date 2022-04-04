@@ -984,6 +984,30 @@ func (l Float64List) String() string {
 	return string(buf)
 }
 
+// A list of some Cap'n Proto enum type T.
+type EnumList[T interface{ ~uint16 }] UInt16List
+
+// NewEnumList creates a new list of T, preferring placement in s.
+func NewEnumList[T interface{ ~uint16 }](s *Segment, n int32) (EnumList[T], error) {
+	l, err := NewUInt16List(s, n)
+	return EnumList[T](l), err
+}
+
+// At returns the i'th element.
+func (l EnumList[T]) At(i int) T {
+	return T(UInt16List(l).At(i))
+}
+
+// Set sets the i'th element to v.
+func (l EnumList[T]) Set(i int, v T) {
+	UInt16List(l).Set(i, uint16(v))
+}
+
+// String returns the list in Cap'n Proto schema format (e.g. "[1, 2, 3]").
+func (l EnumList[T]) String() string {
+	return UInt16List(l).String()
+}
+
 type listFlags uint8
 
 const (
