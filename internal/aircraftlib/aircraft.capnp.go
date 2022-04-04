@@ -73,21 +73,12 @@ func (s Zdate) SetDay(v uint8) {
 }
 
 // Zdate_List is a list of Zdate.
-type Zdate_List struct{ capnp.List }
+type Zdate_List = capnp.StructList[Zdate]
 
 // NewZdate creates a new list of Zdate.
 func NewZdate_List(s *capnp.Segment, sz int32) (Zdate_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	return Zdate_List{l}, err
-}
-
-func (s Zdate_List) At(i int) Zdate { return Zdate{s.List.Struct(i)} }
-
-func (s Zdate_List) Set(i int, v Zdate) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s Zdate_List) String() string {
-	str, _ := text.MarshalList(0xde50aebbad57549d, s.List)
-	return str
+	return capnp.StructList[Zdate]{l}, err
 }
 
 // Zdate_Future is a wrapper for a Zdate promised by a client call.
@@ -137,21 +128,12 @@ func (s Zdata) SetData(v []byte) error {
 }
 
 // Zdata_List is a list of Zdata.
-type Zdata_List struct{ capnp.List }
+type Zdata_List = capnp.StructList[Zdata]
 
 // NewZdata creates a new list of Zdata.
 func NewZdata_List(s *capnp.Segment, sz int32) (Zdata_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return Zdata_List{l}, err
-}
-
-func (s Zdata_List) At(i int) Zdata { return Zdata{s.List.Struct(i)} }
-
-func (s Zdata_List) Set(i int, v Zdata) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s Zdata_List) String() string {
-	str, _ := text.MarshalList(0xc7da65f9a2f20ba2, s.List)
-	return str
+	return capnp.StructList[Zdata]{l}, err
 }
 
 // Zdata_Future is a wrapper for a Zdata promised by a client call.
@@ -331,21 +313,12 @@ func (s PlaneBase) SetMaxSpeed(v float64) {
 }
 
 // PlaneBase_List is a list of PlaneBase.
-type PlaneBase_List struct{ capnp.List }
+type PlaneBase_List = capnp.StructList[PlaneBase]
 
 // NewPlaneBase creates a new list of PlaneBase.
 func NewPlaneBase_List(s *capnp.Segment, sz int32) (PlaneBase_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 32, PointerCount: 2}, sz)
-	return PlaneBase_List{l}, err
-}
-
-func (s PlaneBase_List) At(i int) PlaneBase { return PlaneBase{s.List.Struct(i)} }
-
-func (s PlaneBase_List) Set(i int, v PlaneBase) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s PlaneBase_List) String() string {
-	str, _ := text.MarshalList(0xd8bccf6e60a73791, s.List)
-	return str
+	return capnp.StructList[PlaneBase]{l}, err
 }
 
 // PlaneBase_Future is a wrapper for a PlaneBase promised by a client call.
@@ -406,21 +379,12 @@ func (s B737) NewBase() (PlaneBase, error) {
 }
 
 // B737_List is a list of B737.
-type B737_List struct{ capnp.List }
+type B737_List = capnp.StructList[B737]
 
 // NewB737 creates a new list of B737.
 func NewB737_List(s *capnp.Segment, sz int32) (B737_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return B737_List{l}, err
-}
-
-func (s B737_List) At(i int) B737 { return B737{s.List.Struct(i)} }
-
-func (s B737_List) Set(i int, v B737) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s B737_List) String() string {
-	str, _ := text.MarshalList(0xccb3b2e3603826e0, s.List)
-	return str
+	return capnp.StructList[B737]{l}, err
 }
 
 // B737_Future is a wrapper for a B737 promised by a client call.
@@ -485,21 +449,12 @@ func (s A320) NewBase() (PlaneBase, error) {
 }
 
 // A320_List is a list of A320.
-type A320_List struct{ capnp.List }
+type A320_List = capnp.StructList[A320]
 
 // NewA320 creates a new list of A320.
 func NewA320_List(s *capnp.Segment, sz int32) (A320_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return A320_List{l}, err
-}
-
-func (s A320_List) At(i int) A320 { return A320{s.List.Struct(i)} }
-
-func (s A320_List) Set(i int, v A320) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s A320_List) String() string {
-	str, _ := text.MarshalList(0xd98c608877d9cb8d, s.List)
-	return str
+	return capnp.StructList[A320]{l}, err
 }
 
 // A320_Future is a wrapper for a A320 promised by a client call.
@@ -564,21 +519,12 @@ func (s F16) NewBase() (PlaneBase, error) {
 }
 
 // F16_List is a list of F16.
-type F16_List struct{ capnp.List }
+type F16_List = capnp.StructList[F16]
 
 // NewF16 creates a new list of F16.
 func NewF16_List(s *capnp.Segment, sz int32) (F16_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return F16_List{l}, err
-}
-
-func (s F16_List) At(i int) F16 { return F16{s.List.Struct(i)} }
-
-func (s F16_List) Set(i int, v F16) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s F16_List) String() string {
-	str, _ := text.MarshalList(0xe1c9eac512335361, s.List)
-	return str
+	return capnp.StructList[F16]{l}, err
 }
 
 // F16_Future is a wrapper for a F16 promised by a client call.
@@ -715,21 +661,12 @@ func (s Regression) SetYsd(v float64) {
 }
 
 // Regression_List is a list of Regression.
-type Regression_List struct{ capnp.List }
+type Regression_List = capnp.StructList[Regression]
 
 // NewRegression creates a new list of Regression.
 func NewRegression_List(s *capnp.Segment, sz int32) (Regression_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 24, PointerCount: 3}, sz)
-	return Regression_List{l}, err
-}
-
-func (s Regression_List) At(i int) Regression { return Regression{s.List.Struct(i)} }
-
-func (s Regression_List) Set(i int, v Regression) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s Regression_List) String() string {
-	str, _ := text.MarshalList(0xb1f0385d845e367f, s.List)
-	return str
+	return capnp.StructList[Regression]{l}, err
 }
 
 // Regression_Future is a wrapper for a Regression promised by a client call.
@@ -898,21 +835,12 @@ func (s Aircraft) NewF16() (F16, error) {
 }
 
 // Aircraft_List is a list of Aircraft.
-type Aircraft_List struct{ capnp.List }
+type Aircraft_List = capnp.StructList[Aircraft]
 
 // NewAircraft creates a new list of Aircraft.
 func NewAircraft_List(s *capnp.Segment, sz int32) (Aircraft_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	return Aircraft_List{l}, err
-}
-
-func (s Aircraft_List) At(i int) Aircraft { return Aircraft{s.List.Struct(i)} }
-
-func (s Aircraft_List) Set(i int, v Aircraft) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s Aircraft_List) String() string {
-	str, _ := text.MarshalList(0xe54e10aede55c7b1, s.List)
-	return str
+	return capnp.StructList[Aircraft]{l}, err
 }
 
 // Aircraft_Future is a wrapper for a Aircraft promised by a client call.
@@ -2337,21 +2265,12 @@ func (s Z) SetAnyCapability(v capnp.Ptr) error {
 }
 
 // Z_List is a list of Z.
-type Z_List struct{ capnp.List }
+type Z_List = capnp.StructList[Z]
 
 // NewZ creates a new list of Z.
 func NewZ_List(s *capnp.Segment, sz int32) (Z_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 24, PointerCount: 1}, sz)
-	return Z_List{l}, err
-}
-
-func (s Z_List) At(i int) Z { return Z{s.List.Struct(i)} }
-
-func (s Z_List) Set(i int, v Z) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s Z_List) String() string {
-	str, _ := text.MarshalList(0xea26e9973bd6a0d9, s.List)
-	return str
+	return capnp.StructList[Z]{l}, err
 }
 
 // Z_Future is a wrapper for a Z promised by a client call.
@@ -2528,21 +2447,12 @@ func (s Counter) NewBitlist(n int32) (capnp.BitList, error) {
 }
 
 // Counter_List is a list of Counter.
-type Counter_List struct{ capnp.List }
+type Counter_List = capnp.StructList[Counter]
 
 // NewCounter creates a new list of Counter.
 func NewCounter_List(s *capnp.Segment, sz int32) (Counter_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 3}, sz)
-	return Counter_List{l}, err
-}
-
-func (s Counter_List) At(i int) Counter { return Counter{s.List.Struct(i)} }
-
-func (s Counter_List) Set(i int, v Counter) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s Counter_List) String() string {
-	str, _ := text.MarshalList(0x8748bc095e10cb5d, s.List)
-	return str
+	return capnp.StructList[Counter]{l}, err
 }
 
 // Counter_Future is a wrapper for a Counter promised by a client call.
@@ -2603,21 +2513,12 @@ func (s Bag) NewCounter() (Counter, error) {
 }
 
 // Bag_List is a list of Bag.
-type Bag_List struct{ capnp.List }
+type Bag_List = capnp.StructList[Bag]
 
 // NewBag creates a new list of Bag.
 func NewBag_List(s *capnp.Segment, sz int32) (Bag_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return Bag_List{l}, err
-}
-
-func (s Bag_List) At(i int) Bag { return Bag{s.List.Struct(i)} }
-
-func (s Bag_List) Set(i int, v Bag) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s Bag_List) String() string {
-	str, _ := text.MarshalList(0xd636fba4f188dabe, s.List)
-	return str
+	return capnp.StructList[Bag]{l}, err
 }
 
 // Bag_Future is a wrapper for a Bag promised by a client call.
@@ -2682,21 +2583,12 @@ func (s Zserver) NewWaitingjobs(n int32) (Zjob_List, error) {
 }
 
 // Zserver_List is a list of Zserver.
-type Zserver_List struct{ capnp.List }
+type Zserver_List = capnp.StructList[Zserver]
 
 // NewZserver creates a new list of Zserver.
 func NewZserver_List(s *capnp.Segment, sz int32) (Zserver_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return Zserver_List{l}, err
-}
-
-func (s Zserver_List) At(i int) Zserver { return Zserver{s.List.Struct(i)} }
-
-func (s Zserver_List) Set(i int, v Zserver) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s Zserver_List) String() string {
-	str, _ := text.MarshalList(0xcc4411e60ba9c498, s.List)
-	return str
+	return capnp.StructList[Zserver]{l}, err
 }
 
 // Zserver_Future is a wrapper for a Zserver promised by a client call.
@@ -2775,21 +2667,12 @@ func (s Zjob) NewArgs(n int32) (capnp.TextList, error) {
 }
 
 // Zjob_List is a list of Zjob.
-type Zjob_List struct{ capnp.List }
+type Zjob_List = capnp.StructList[Zjob]
 
 // NewZjob creates a new list of Zjob.
 func NewZjob_List(s *capnp.Segment, sz int32) (Zjob_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
-	return Zjob_List{l}, err
-}
-
-func (s Zjob_List) At(i int) Zjob { return Zjob{s.List.Struct(i)} }
-
-func (s Zjob_List) Set(i int, v Zjob) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s Zjob_List) String() string {
-	str, _ := text.MarshalList(0xddd1416669fb7613, s.List)
-	return str
+	return capnp.StructList[Zjob]{l}, err
 }
 
 // Zjob_Future is a wrapper for a Zjob promised by a client call.
@@ -2826,21 +2709,12 @@ func (s VerEmpty) String() string {
 }
 
 // VerEmpty_List is a list of VerEmpty.
-type VerEmpty_List struct{ capnp.List }
+type VerEmpty_List = capnp.StructList[VerEmpty]
 
 // NewVerEmpty creates a new list of VerEmpty.
 func NewVerEmpty_List(s *capnp.Segment, sz int32) (VerEmpty_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
-	return VerEmpty_List{l}, err
-}
-
-func (s VerEmpty_List) At(i int) VerEmpty { return VerEmpty{s.List.Struct(i)} }
-
-func (s VerEmpty_List) Set(i int, v VerEmpty) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s VerEmpty_List) String() string {
-	str, _ := text.MarshalList(0x93c99951eacc72ff, s.List)
-	return str
+	return capnp.StructList[VerEmpty]{l}, err
 }
 
 // VerEmpty_Future is a wrapper for a VerEmpty promised by a client call.
@@ -2885,21 +2759,12 @@ func (s VerOneData) SetVal(v int16) {
 }
 
 // VerOneData_List is a list of VerOneData.
-type VerOneData_List struct{ capnp.List }
+type VerOneData_List = capnp.StructList[VerOneData]
 
 // NewVerOneData creates a new list of VerOneData.
 func NewVerOneData_List(s *capnp.Segment, sz int32) (VerOneData_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	return VerOneData_List{l}, err
-}
-
-func (s VerOneData_List) At(i int) VerOneData { return VerOneData{s.List.Struct(i)} }
-
-func (s VerOneData_List) Set(i int, v VerOneData) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s VerOneData_List) String() string {
-	str, _ := text.MarshalList(0xfca3742893be4cde, s.List)
-	return str
+	return capnp.StructList[VerOneData]{l}, err
 }
 
 // VerOneData_Future is a wrapper for a VerOneData promised by a client call.
@@ -2952,21 +2817,12 @@ func (s VerTwoData) SetDuo(v int64) {
 }
 
 // VerTwoData_List is a list of VerTwoData.
-type VerTwoData_List struct{ capnp.List }
+type VerTwoData_List = capnp.StructList[VerTwoData]
 
 // NewVerTwoData creates a new list of VerTwoData.
 func NewVerTwoData_List(s *capnp.Segment, sz int32) (VerTwoData_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0}, sz)
-	return VerTwoData_List{l}, err
-}
-
-func (s VerTwoData_List) At(i int) VerTwoData { return VerTwoData{s.List.Struct(i)} }
-
-func (s VerTwoData_List) Set(i int, v VerTwoData) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s VerTwoData_List) String() string {
-	str, _ := text.MarshalList(0xf705dc45c94766fd, s.List)
-	return str
+	return capnp.StructList[VerTwoData]{l}, err
 }
 
 // VerTwoData_Future is a wrapper for a VerTwoData promised by a client call.
@@ -3027,21 +2883,12 @@ func (s VerOnePtr) NewPtr() (VerOneData, error) {
 }
 
 // VerOnePtr_List is a list of VerOnePtr.
-type VerOnePtr_List struct{ capnp.List }
+type VerOnePtr_List = capnp.StructList[VerOnePtr]
 
 // NewVerOnePtr creates a new list of VerOnePtr.
 func NewVerOnePtr_List(s *capnp.Segment, sz int32) (VerOnePtr_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return VerOnePtr_List{l}, err
-}
-
-func (s VerOnePtr_List) At(i int) VerOnePtr { return VerOnePtr{s.List.Struct(i)} }
-
-func (s VerOnePtr_List) Set(i int, v VerOnePtr) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s VerOnePtr_List) String() string {
-	str, _ := text.MarshalList(0x94bf7df83408218d, s.List)
-	return str
+	return capnp.StructList[VerOnePtr]{l}, err
 }
 
 // VerOnePtr_Future is a wrapper for a VerOnePtr promised by a client call.
@@ -3130,21 +2977,12 @@ func (s VerTwoPtr) NewPtr2() (VerOneData, error) {
 }
 
 // VerTwoPtr_List is a list of VerTwoPtr.
-type VerTwoPtr_List struct{ capnp.List }
+type VerTwoPtr_List = capnp.StructList[VerTwoPtr]
 
 // NewVerTwoPtr creates a new list of VerTwoPtr.
 func NewVerTwoPtr_List(s *capnp.Segment, sz int32) (VerTwoPtr_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
-	return VerTwoPtr_List{l}, err
-}
-
-func (s VerTwoPtr_List) At(i int) VerTwoPtr { return VerTwoPtr{s.List.Struct(i)} }
-
-func (s VerTwoPtr_List) Set(i int, v VerTwoPtr) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s VerTwoPtr_List) String() string {
-	str, _ := text.MarshalList(0xc95babe3bd394d2d, s.List)
-	return str
+	return capnp.StructList[VerTwoPtr]{l}, err
 }
 
 // VerTwoPtr_Future is a wrapper for a VerTwoPtr promised by a client call.
@@ -3253,23 +3091,12 @@ func (s VerTwoDataTwoPtr) NewPtr2() (VerOneData, error) {
 }
 
 // VerTwoDataTwoPtr_List is a list of VerTwoDataTwoPtr.
-type VerTwoDataTwoPtr_List struct{ capnp.List }
+type VerTwoDataTwoPtr_List = capnp.StructList[VerTwoDataTwoPtr]
 
 // NewVerTwoDataTwoPtr creates a new list of VerTwoDataTwoPtr.
 func NewVerTwoDataTwoPtr_List(s *capnp.Segment, sz int32) (VerTwoDataTwoPtr_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 2}, sz)
-	return VerTwoDataTwoPtr_List{l}, err
-}
-
-func (s VerTwoDataTwoPtr_List) At(i int) VerTwoDataTwoPtr { return VerTwoDataTwoPtr{s.List.Struct(i)} }
-
-func (s VerTwoDataTwoPtr_List) Set(i int, v VerTwoDataTwoPtr) error {
-	return s.List.SetStruct(i, v.Struct)
-}
-
-func (s VerTwoDataTwoPtr_List) String() string {
-	str, _ := text.MarshalList(0xb61ee2ecff34ca73, s.List)
-	return str
+	return capnp.StructList[VerTwoDataTwoPtr]{l}, err
 }
 
 // VerTwoDataTwoPtr_Future is a wrapper for a VerTwoDataTwoPtr promised by a client call.
@@ -3338,25 +3165,12 @@ func (s HoldsVerEmptyList) NewMylist(n int32) (VerEmpty_List, error) {
 }
 
 // HoldsVerEmptyList_List is a list of HoldsVerEmptyList.
-type HoldsVerEmptyList_List struct{ capnp.List }
+type HoldsVerEmptyList_List = capnp.StructList[HoldsVerEmptyList]
 
 // NewHoldsVerEmptyList creates a new list of HoldsVerEmptyList.
 func NewHoldsVerEmptyList_List(s *capnp.Segment, sz int32) (HoldsVerEmptyList_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return HoldsVerEmptyList_List{l}, err
-}
-
-func (s HoldsVerEmptyList_List) At(i int) HoldsVerEmptyList {
-	return HoldsVerEmptyList{s.List.Struct(i)}
-}
-
-func (s HoldsVerEmptyList_List) Set(i int, v HoldsVerEmptyList) error {
-	return s.List.SetStruct(i, v.Struct)
-}
-
-func (s HoldsVerEmptyList_List) String() string {
-	str, _ := text.MarshalList(0xde9ed43cfaa83093, s.List)
-	return str
+	return capnp.StructList[HoldsVerEmptyList]{l}, err
 }
 
 // HoldsVerEmptyList_Future is a wrapper for a HoldsVerEmptyList promised by a client call.
@@ -3417,25 +3231,12 @@ func (s HoldsVerOneDataList) NewMylist(n int32) (VerOneData_List, error) {
 }
 
 // HoldsVerOneDataList_List is a list of HoldsVerOneDataList.
-type HoldsVerOneDataList_List struct{ capnp.List }
+type HoldsVerOneDataList_List = capnp.StructList[HoldsVerOneDataList]
 
 // NewHoldsVerOneDataList creates a new list of HoldsVerOneDataList.
 func NewHoldsVerOneDataList_List(s *capnp.Segment, sz int32) (HoldsVerOneDataList_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return HoldsVerOneDataList_List{l}, err
-}
-
-func (s HoldsVerOneDataList_List) At(i int) HoldsVerOneDataList {
-	return HoldsVerOneDataList{s.List.Struct(i)}
-}
-
-func (s HoldsVerOneDataList_List) Set(i int, v HoldsVerOneDataList) error {
-	return s.List.SetStruct(i, v.Struct)
-}
-
-func (s HoldsVerOneDataList_List) String() string {
-	str, _ := text.MarshalList(0xabd055422a4d7df1, s.List)
-	return str
+	return capnp.StructList[HoldsVerOneDataList]{l}, err
 }
 
 // HoldsVerOneDataList_Future is a wrapper for a HoldsVerOneDataList promised by a client call.
@@ -3496,25 +3297,12 @@ func (s HoldsVerTwoDataList) NewMylist(n int32) (VerTwoData_List, error) {
 }
 
 // HoldsVerTwoDataList_List is a list of HoldsVerTwoDataList.
-type HoldsVerTwoDataList_List struct{ capnp.List }
+type HoldsVerTwoDataList_List = capnp.StructList[HoldsVerTwoDataList]
 
 // NewHoldsVerTwoDataList creates a new list of HoldsVerTwoDataList.
 func NewHoldsVerTwoDataList_List(s *capnp.Segment, sz int32) (HoldsVerTwoDataList_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return HoldsVerTwoDataList_List{l}, err
-}
-
-func (s HoldsVerTwoDataList_List) At(i int) HoldsVerTwoDataList {
-	return HoldsVerTwoDataList{s.List.Struct(i)}
-}
-
-func (s HoldsVerTwoDataList_List) Set(i int, v HoldsVerTwoDataList) error {
-	return s.List.SetStruct(i, v.Struct)
-}
-
-func (s HoldsVerTwoDataList_List) String() string {
-	str, _ := text.MarshalList(0xcbdc765fd5dff7ba, s.List)
-	return str
+	return capnp.StructList[HoldsVerTwoDataList]{l}, err
 }
 
 // HoldsVerTwoDataList_Future is a wrapper for a HoldsVerTwoDataList promised by a client call.
@@ -3575,25 +3363,12 @@ func (s HoldsVerOnePtrList) NewMylist(n int32) (VerOnePtr_List, error) {
 }
 
 // HoldsVerOnePtrList_List is a list of HoldsVerOnePtrList.
-type HoldsVerOnePtrList_List struct{ capnp.List }
+type HoldsVerOnePtrList_List = capnp.StructList[HoldsVerOnePtrList]
 
 // NewHoldsVerOnePtrList creates a new list of HoldsVerOnePtrList.
 func NewHoldsVerOnePtrList_List(s *capnp.Segment, sz int32) (HoldsVerOnePtrList_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return HoldsVerOnePtrList_List{l}, err
-}
-
-func (s HoldsVerOnePtrList_List) At(i int) HoldsVerOnePtrList {
-	return HoldsVerOnePtrList{s.List.Struct(i)}
-}
-
-func (s HoldsVerOnePtrList_List) Set(i int, v HoldsVerOnePtrList) error {
-	return s.List.SetStruct(i, v.Struct)
-}
-
-func (s HoldsVerOnePtrList_List) String() string {
-	str, _ := text.MarshalList(0xe508a29c83a059f8, s.List)
-	return str
+	return capnp.StructList[HoldsVerOnePtrList]{l}, err
 }
 
 // HoldsVerOnePtrList_Future is a wrapper for a HoldsVerOnePtrList promised by a client call.
@@ -3654,25 +3429,12 @@ func (s HoldsVerTwoPtrList) NewMylist(n int32) (VerTwoPtr_List, error) {
 }
 
 // HoldsVerTwoPtrList_List is a list of HoldsVerTwoPtrList.
-type HoldsVerTwoPtrList_List struct{ capnp.List }
+type HoldsVerTwoPtrList_List = capnp.StructList[HoldsVerTwoPtrList]
 
 // NewHoldsVerTwoPtrList creates a new list of HoldsVerTwoPtrList.
 func NewHoldsVerTwoPtrList_List(s *capnp.Segment, sz int32) (HoldsVerTwoPtrList_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return HoldsVerTwoPtrList_List{l}, err
-}
-
-func (s HoldsVerTwoPtrList_List) At(i int) HoldsVerTwoPtrList {
-	return HoldsVerTwoPtrList{s.List.Struct(i)}
-}
-
-func (s HoldsVerTwoPtrList_List) Set(i int, v HoldsVerTwoPtrList) error {
-	return s.List.SetStruct(i, v.Struct)
-}
-
-func (s HoldsVerTwoPtrList_List) String() string {
-	str, _ := text.MarshalList(0xcf9beaca1cc180c8, s.List)
-	return str
+	return capnp.StructList[HoldsVerTwoPtrList]{l}, err
 }
 
 // HoldsVerTwoPtrList_Future is a wrapper for a HoldsVerTwoPtrList promised by a client call.
@@ -3733,25 +3495,12 @@ func (s HoldsVerTwoTwoList) NewMylist(n int32) (VerTwoDataTwoPtr_List, error) {
 }
 
 // HoldsVerTwoTwoList_List is a list of HoldsVerTwoTwoList.
-type HoldsVerTwoTwoList_List struct{ capnp.List }
+type HoldsVerTwoTwoList_List = capnp.StructList[HoldsVerTwoTwoList]
 
 // NewHoldsVerTwoTwoList creates a new list of HoldsVerTwoTwoList.
 func NewHoldsVerTwoTwoList_List(s *capnp.Segment, sz int32) (HoldsVerTwoTwoList_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return HoldsVerTwoTwoList_List{l}, err
-}
-
-func (s HoldsVerTwoTwoList_List) At(i int) HoldsVerTwoTwoList {
-	return HoldsVerTwoTwoList{s.List.Struct(i)}
-}
-
-func (s HoldsVerTwoTwoList_List) Set(i int, v HoldsVerTwoTwoList) error {
-	return s.List.SetStruct(i, v.Struct)
-}
-
-func (s HoldsVerTwoTwoList_List) String() string {
-	str, _ := text.MarshalList(0x95befe3f14606e6b, s.List)
-	return str
+	return capnp.StructList[HoldsVerTwoTwoList]{l}, err
 }
 
 // HoldsVerTwoTwoList_Future is a wrapper for a HoldsVerTwoTwoList promised by a client call.
@@ -3812,25 +3561,12 @@ func (s HoldsVerTwoTwoPlus) NewMylist(n int32) (VerTwoTwoPlus_List, error) {
 }
 
 // HoldsVerTwoTwoPlus_List is a list of HoldsVerTwoTwoPlus.
-type HoldsVerTwoTwoPlus_List struct{ capnp.List }
+type HoldsVerTwoTwoPlus_List = capnp.StructList[HoldsVerTwoTwoPlus]
 
 // NewHoldsVerTwoTwoPlus creates a new list of HoldsVerTwoTwoPlus.
 func NewHoldsVerTwoTwoPlus_List(s *capnp.Segment, sz int32) (HoldsVerTwoTwoPlus_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return HoldsVerTwoTwoPlus_List{l}, err
-}
-
-func (s HoldsVerTwoTwoPlus_List) At(i int) HoldsVerTwoTwoPlus {
-	return HoldsVerTwoTwoPlus{s.List.Struct(i)}
-}
-
-func (s HoldsVerTwoTwoPlus_List) Set(i int, v HoldsVerTwoTwoPlus) error {
-	return s.List.SetStruct(i, v.Struct)
-}
-
-func (s HoldsVerTwoTwoPlus_List) String() string {
-	str, _ := text.MarshalList(0x87c33f2330feb3d8, s.List)
-	return str
+	return capnp.StructList[HoldsVerTwoTwoPlus]{l}, err
 }
 
 // HoldsVerTwoTwoPlus_Future is a wrapper for a HoldsVerTwoTwoPlus promised by a client call.
@@ -3963,21 +3699,12 @@ func (s VerTwoTwoPlus) NewLst3(n int32) (capnp.Int64List, error) {
 }
 
 // VerTwoTwoPlus_List is a list of VerTwoTwoPlus.
-type VerTwoTwoPlus_List struct{ capnp.List }
+type VerTwoTwoPlus_List = capnp.StructList[VerTwoTwoPlus]
 
 // NewVerTwoTwoPlus creates a new list of VerTwoTwoPlus.
 func NewVerTwoTwoPlus_List(s *capnp.Segment, sz int32) (VerTwoTwoPlus_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 24, PointerCount: 3}, sz)
-	return VerTwoTwoPlus_List{l}, err
-}
-
-func (s VerTwoTwoPlus_List) At(i int) VerTwoTwoPlus { return VerTwoTwoPlus{s.List.Struct(i)} }
-
-func (s VerTwoTwoPlus_List) Set(i int, v VerTwoTwoPlus) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s VerTwoTwoPlus_List) String() string {
-	str, _ := text.MarshalList(0xce44aee2d9e25049, s.List)
-	return str
+	return capnp.StructList[VerTwoTwoPlus]{l}, err
 }
 
 // VerTwoTwoPlus_Future is a wrapper for a VerTwoTwoPlus promised by a client call.
@@ -4088,21 +3815,12 @@ func (s HoldsText) NewLstlst(n int32) (capnp.PointerList, error) {
 }
 
 // HoldsText_List is a list of HoldsText.
-type HoldsText_List struct{ capnp.List }
+type HoldsText_List = capnp.StructList[HoldsText]
 
 // NewHoldsText creates a new list of HoldsText.
 func NewHoldsText_List(s *capnp.Segment, sz int32) (HoldsText_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 3}, sz)
-	return HoldsText_List{l}, err
-}
-
-func (s HoldsText_List) At(i int) HoldsText { return HoldsText{s.List.Struct(i)} }
-
-func (s HoldsText_List) Set(i int, v HoldsText) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s HoldsText_List) String() string {
-	str, _ := text.MarshalList(0xe5817f849ff906dc, s.List)
-	return str
+	return capnp.StructList[HoldsText]{l}, err
 }
 
 // HoldsText_Future is a wrapper for a HoldsText promised by a client call.
@@ -4163,21 +3881,12 @@ func (s WrapEmpty) NewMightNotBeReallyEmpty() (VerEmpty, error) {
 }
 
 // WrapEmpty_List is a list of WrapEmpty.
-type WrapEmpty_List struct{ capnp.List }
+type WrapEmpty_List = capnp.StructList[WrapEmpty]
 
 // NewWrapEmpty creates a new list of WrapEmpty.
 func NewWrapEmpty_List(s *capnp.Segment, sz int32) (WrapEmpty_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return WrapEmpty_List{l}, err
-}
-
-func (s WrapEmpty_List) At(i int) WrapEmpty { return WrapEmpty{s.List.Struct(i)} }
-
-func (s WrapEmpty_List) Set(i int, v WrapEmpty) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s WrapEmpty_List) String() string {
-	str, _ := text.MarshalList(0x9ab599979b02ac59, s.List)
-	return str
+	return capnp.StructList[WrapEmpty]{l}, err
 }
 
 // WrapEmpty_Future is a wrapper for a WrapEmpty promised by a client call.
@@ -4242,21 +3951,12 @@ func (s Wrap2x2) NewMightNotBeReallyEmpty() (VerTwoDataTwoPtr, error) {
 }
 
 // Wrap2x2_List is a list of Wrap2x2.
-type Wrap2x2_List struct{ capnp.List }
+type Wrap2x2_List = capnp.StructList[Wrap2x2]
 
 // NewWrap2x2 creates a new list of Wrap2x2.
 func NewWrap2x2_List(s *capnp.Segment, sz int32) (Wrap2x2_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return Wrap2x2_List{l}, err
-}
-
-func (s Wrap2x2_List) At(i int) Wrap2x2 { return Wrap2x2{s.List.Struct(i)} }
-
-func (s Wrap2x2_List) Set(i int, v Wrap2x2) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s Wrap2x2_List) String() string {
-	str, _ := text.MarshalList(0xe1a2d1d51107bead, s.List)
-	return str
+	return capnp.StructList[Wrap2x2]{l}, err
 }
 
 // Wrap2x2_Future is a wrapper for a Wrap2x2 promised by a client call.
@@ -4321,21 +4021,12 @@ func (s Wrap2x2plus) NewMightNotBeReallyEmpty() (VerTwoTwoPlus, error) {
 }
 
 // Wrap2x2plus_List is a list of Wrap2x2plus.
-type Wrap2x2plus_List struct{ capnp.List }
+type Wrap2x2plus_List = capnp.StructList[Wrap2x2plus]
 
 // NewWrap2x2plus creates a new list of Wrap2x2plus.
 func NewWrap2x2plus_List(s *capnp.Segment, sz int32) (Wrap2x2plus_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return Wrap2x2plus_List{l}, err
-}
-
-func (s Wrap2x2plus_List) At(i int) Wrap2x2plus { return Wrap2x2plus{s.List.Struct(i)} }
-
-func (s Wrap2x2plus_List) Set(i int, v Wrap2x2plus) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s Wrap2x2plus_List) String() string {
-	str, _ := text.MarshalList(0xe684eb3aef1a6859, s.List)
-	return str
+	return capnp.StructList[Wrap2x2plus]{l}, err
 }
 
 // Wrap2x2plus_Future is a wrapper for a Wrap2x2plus promised by a client call.
@@ -4407,21 +4098,12 @@ func (s VoidUnion) SetB() {
 }
 
 // VoidUnion_List is a list of VoidUnion.
-type VoidUnion_List struct{ capnp.List }
+type VoidUnion_List = capnp.StructList[VoidUnion]
 
 // NewVoidUnion creates a new list of VoidUnion.
 func NewVoidUnion_List(s *capnp.Segment, sz int32) (VoidUnion_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	return VoidUnion_List{l}, err
-}
-
-func (s VoidUnion_List) At(i int) VoidUnion { return VoidUnion{s.List.Struct(i)} }
-
-func (s VoidUnion_List) Set(i int, v VoidUnion) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s VoidUnion_List) String() string {
-	str, _ := text.MarshalList(0x8821cdb23640783a, s.List)
-	return str
+	return capnp.StructList[VoidUnion]{l}, err
 }
 
 // VoidUnion_Future is a wrapper for a VoidUnion promised by a client call.
@@ -4482,21 +4164,12 @@ func (s Nester1Capn) NewStrs(n int32) (capnp.TextList, error) {
 }
 
 // Nester1Capn_List is a list of Nester1Capn.
-type Nester1Capn_List struct{ capnp.List }
+type Nester1Capn_List = capnp.StructList[Nester1Capn]
 
 // NewNester1Capn creates a new list of Nester1Capn.
 func NewNester1Capn_List(s *capnp.Segment, sz int32) (Nester1Capn_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return Nester1Capn_List{l}, err
-}
-
-func (s Nester1Capn_List) At(i int) Nester1Capn { return Nester1Capn{s.List.Struct(i)} }
-
-func (s Nester1Capn_List) Set(i int, v Nester1Capn) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s Nester1Capn_List) String() string {
-	str, _ := text.MarshalList(0xf14fad09425d081c, s.List)
-	return str
+	return capnp.StructList[Nester1Capn]{l}, err
 }
 
 // Nester1Capn_Future is a wrapper for a Nester1Capn promised by a client call.
@@ -4557,21 +4230,12 @@ func (s RWTestCapn) NewNestMatrix(n int32) (capnp.PointerList, error) {
 }
 
 // RWTestCapn_List is a list of RWTestCapn.
-type RWTestCapn_List struct{ capnp.List }
+type RWTestCapn_List = capnp.StructList[RWTestCapn]
 
 // NewRWTestCapn creates a new list of RWTestCapn.
 func NewRWTestCapn_List(s *capnp.Segment, sz int32) (RWTestCapn_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return RWTestCapn_List{l}, err
-}
-
-func (s RWTestCapn_List) At(i int) RWTestCapn { return RWTestCapn{s.List.Struct(i)} }
-
-func (s RWTestCapn_List) Set(i int, v RWTestCapn) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s RWTestCapn_List) String() string {
-	str, _ := text.MarshalList(0xf7ff4414476c186a, s.List)
-	return str
+	return capnp.StructList[RWTestCapn]{l}, err
 }
 
 // RWTestCapn_Future is a wrapper for a RWTestCapn promised by a client call.
@@ -4632,21 +4296,12 @@ func (s ListStructCapn) NewVec(n int32) (Nester1Capn_List, error) {
 }
 
 // ListStructCapn_List is a list of ListStructCapn.
-type ListStructCapn_List struct{ capnp.List }
+type ListStructCapn_List = capnp.StructList[ListStructCapn]
 
 // NewListStructCapn creates a new list of ListStructCapn.
 func NewListStructCapn_List(s *capnp.Segment, sz int32) (ListStructCapn_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return ListStructCapn_List{l}, err
-}
-
-func (s ListStructCapn_List) At(i int) ListStructCapn { return ListStructCapn{s.List.Struct(i)} }
-
-func (s ListStructCapn_List) Set(i int, v ListStructCapn) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s ListStructCapn_List) String() string {
-	str, _ := text.MarshalList(0xb1ac056ed7647011, s.List)
-	return str
+	return capnp.StructList[ListStructCapn]{l}, err
 }
 
 // ListStructCapn_Future is a wrapper for a ListStructCapn promised by a client call.
@@ -4789,23 +4444,12 @@ func (s Echo_echo_Params) SetIn(v string) error {
 }
 
 // Echo_echo_Params_List is a list of Echo_echo_Params.
-type Echo_echo_Params_List struct{ capnp.List }
+type Echo_echo_Params_List = capnp.StructList[Echo_echo_Params]
 
 // NewEcho_echo_Params creates a new list of Echo_echo_Params.
 func NewEcho_echo_Params_List(s *capnp.Segment, sz int32) (Echo_echo_Params_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return Echo_echo_Params_List{l}, err
-}
-
-func (s Echo_echo_Params_List) At(i int) Echo_echo_Params { return Echo_echo_Params{s.List.Struct(i)} }
-
-func (s Echo_echo_Params_List) Set(i int, v Echo_echo_Params) error {
-	return s.List.SetStruct(i, v.Struct)
-}
-
-func (s Echo_echo_Params_List) String() string {
-	str, _ := text.MarshalList(0x8a165fb4d71bf3a2, s.List)
-	return str
+	return capnp.StructList[Echo_echo_Params]{l}, err
 }
 
 // Echo_echo_Params_Future is a wrapper for a Echo_echo_Params promised by a client call.
@@ -4860,25 +4504,12 @@ func (s Echo_echo_Results) SetOut(v string) error {
 }
 
 // Echo_echo_Results_List is a list of Echo_echo_Results.
-type Echo_echo_Results_List struct{ capnp.List }
+type Echo_echo_Results_List = capnp.StructList[Echo_echo_Results]
 
 // NewEcho_echo_Results creates a new list of Echo_echo_Results.
 func NewEcho_echo_Results_List(s *capnp.Segment, sz int32) (Echo_echo_Results_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return Echo_echo_Results_List{l}, err
-}
-
-func (s Echo_echo_Results_List) At(i int) Echo_echo_Results {
-	return Echo_echo_Results{s.List.Struct(i)}
-}
-
-func (s Echo_echo_Results_List) Set(i int, v Echo_echo_Results) error {
-	return s.List.SetStruct(i, v.Struct)
-}
-
-func (s Echo_echo_Results_List) String() string {
-	str, _ := text.MarshalList(0x9b37d729b9dd7b9d, s.List)
-	return str
+	return capnp.StructList[Echo_echo_Results]{l}, err
 }
 
 // Echo_echo_Results_Future is a wrapper for a Echo_echo_Results promised by a client call.
@@ -4939,21 +4570,12 @@ func (s Hoth) NewBase() (EchoBase, error) {
 }
 
 // Hoth_List is a list of Hoth.
-type Hoth_List struct{ capnp.List }
+type Hoth_List = capnp.StructList[Hoth]
 
 // NewHoth creates a new list of Hoth.
 func NewHoth_List(s *capnp.Segment, sz int32) (Hoth_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return Hoth_List{l}, err
-}
-
-func (s Hoth_List) At(i int) Hoth { return Hoth{s.List.Struct(i)} }
-
-func (s Hoth_List) Set(i int, v Hoth) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s Hoth_List) String() string {
-	str, _ := text.MarshalList(0xad87da456fb0ebb9, s.List)
-	return str
+	return capnp.StructList[Hoth]{l}, err
 }
 
 // Hoth_Future is a wrapper for a Hoth promised by a client call.
@@ -5012,21 +4634,12 @@ func (s EchoBase) SetEcho(v Echo) error {
 }
 
 // EchoBase_List is a list of EchoBase.
-type EchoBase_List struct{ capnp.List }
+type EchoBase_List = capnp.StructList[EchoBase]
 
 // NewEchoBase creates a new list of EchoBase.
 func NewEchoBase_List(s *capnp.Segment, sz int32) (EchoBase_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return EchoBase_List{l}, err
-}
-
-func (s EchoBase_List) At(i int) EchoBase { return EchoBase{s.List.Struct(i)} }
-
-func (s EchoBase_List) Set(i int, v EchoBase) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s EchoBase_List) String() string {
-	str, _ := text.MarshalList(0xa8bf13fef2674866, s.List)
-	return str
+	return capnp.StructList[EchoBase]{l}, err
 }
 
 // EchoBase_Future is a wrapper for a EchoBase promised by a client call.
@@ -5119,21 +4732,12 @@ func (s StackingRoot) NewAWithDefault() (StackingA, error) {
 }
 
 // StackingRoot_List is a list of StackingRoot.
-type StackingRoot_List struct{ capnp.List }
+type StackingRoot_List = capnp.StructList[StackingRoot]
 
 // NewStackingRoot creates a new list of StackingRoot.
 func NewStackingRoot_List(s *capnp.Segment, sz int32) (StackingRoot_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
-	return StackingRoot_List{l}, err
-}
-
-func (s StackingRoot_List) At(i int) StackingRoot { return StackingRoot{s.List.Struct(i)} }
-
-func (s StackingRoot_List) Set(i int, v StackingRoot) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s StackingRoot_List) String() string {
-	str, _ := text.MarshalList(0x8fae7b41c61fc890, s.List)
-	return str
+	return capnp.StructList[StackingRoot]{l}, err
 }
 
 // StackingRoot_Future is a wrapper for a StackingRoot promised by a client call.
@@ -5210,21 +4814,12 @@ func (s StackingA) NewB() (StackingB, error) {
 }
 
 // StackingA_List is a list of StackingA.
-type StackingA_List struct{ capnp.List }
+type StackingA_List = capnp.StructList[StackingA]
 
 // NewStackingA creates a new list of StackingA.
 func NewStackingA_List(s *capnp.Segment, sz int32) (StackingA_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	return StackingA_List{l}, err
-}
-
-func (s StackingA_List) At(i int) StackingA { return StackingA{s.List.Struct(i)} }
-
-func (s StackingA_List) Set(i int, v StackingA) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s StackingA_List) String() string {
-	str, _ := text.MarshalList(0x9d3032ff86043b75, s.List)
-	return str
+	return capnp.StructList[StackingA]{l}, err
 }
 
 // StackingA_Future is a wrapper for a StackingA promised by a client call.
@@ -5273,21 +4868,12 @@ func (s StackingB) SetNum(v int32) {
 }
 
 // StackingB_List is a list of StackingB.
-type StackingB_List struct{ capnp.List }
+type StackingB_List = capnp.StructList[StackingB]
 
 // NewStackingB creates a new list of StackingB.
 func NewStackingB_List(s *capnp.Segment, sz int32) (StackingB_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	return StackingB_List{l}, err
-}
-
-func (s StackingB_List) At(i int) StackingB { return StackingB{s.List.Struct(i)} }
-
-func (s StackingB_List) Set(i int, v StackingB) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s StackingB_List) String() string {
-	str, _ := text.MarshalList(0x85257b30d6edf8c5, s.List)
-	return str
+	return capnp.StructList[StackingB]{l}, err
 }
 
 // StackingB_Future is a wrapper for a StackingB promised by a client call.
@@ -5412,25 +4998,12 @@ func (s CallSequence_getNumber_Params) String() string {
 }
 
 // CallSequence_getNumber_Params_List is a list of CallSequence_getNumber_Params.
-type CallSequence_getNumber_Params_List struct{ capnp.List }
+type CallSequence_getNumber_Params_List = capnp.StructList[CallSequence_getNumber_Params]
 
 // NewCallSequence_getNumber_Params creates a new list of CallSequence_getNumber_Params.
 func NewCallSequence_getNumber_Params_List(s *capnp.Segment, sz int32) (CallSequence_getNumber_Params_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
-	return CallSequence_getNumber_Params_List{l}, err
-}
-
-func (s CallSequence_getNumber_Params_List) At(i int) CallSequence_getNumber_Params {
-	return CallSequence_getNumber_Params{s.List.Struct(i)}
-}
-
-func (s CallSequence_getNumber_Params_List) Set(i int, v CallSequence_getNumber_Params) error {
-	return s.List.SetStruct(i, v.Struct)
-}
-
-func (s CallSequence_getNumber_Params_List) String() string {
-	str, _ := text.MarshalList(0xf58782f48a121998, s.List)
-	return str
+	return capnp.StructList[CallSequence_getNumber_Params]{l}, err
 }
 
 // CallSequence_getNumber_Params_Future is a wrapper for a CallSequence_getNumber_Params promised by a client call.
@@ -5475,25 +5048,12 @@ func (s CallSequence_getNumber_Results) SetN(v uint32) {
 }
 
 // CallSequence_getNumber_Results_List is a list of CallSequence_getNumber_Results.
-type CallSequence_getNumber_Results_List struct{ capnp.List }
+type CallSequence_getNumber_Results_List = capnp.StructList[CallSequence_getNumber_Results]
 
 // NewCallSequence_getNumber_Results creates a new list of CallSequence_getNumber_Results.
 func NewCallSequence_getNumber_Results_List(s *capnp.Segment, sz int32) (CallSequence_getNumber_Results_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	return CallSequence_getNumber_Results_List{l}, err
-}
-
-func (s CallSequence_getNumber_Results_List) At(i int) CallSequence_getNumber_Results {
-	return CallSequence_getNumber_Results{s.List.Struct(i)}
-}
-
-func (s CallSequence_getNumber_Results_List) Set(i int, v CallSequence_getNumber_Results) error {
-	return s.List.SetStruct(i, v.Struct)
-}
-
-func (s CallSequence_getNumber_Results_List) String() string {
-	str, _ := text.MarshalList(0xa465f9502fd11e97, s.List)
-	return str
+	return capnp.StructList[CallSequence_getNumber_Results]{l}, err
 }
 
 // CallSequence_getNumber_Results_Future is a wrapper for a CallSequence_getNumber_Results promised by a client call.
@@ -5648,25 +5208,12 @@ func (s Pipeliner_newPipeliner_Params) String() string {
 }
 
 // Pipeliner_newPipeliner_Params_List is a list of Pipeliner_newPipeliner_Params.
-type Pipeliner_newPipeliner_Params_List struct{ capnp.List }
+type Pipeliner_newPipeliner_Params_List = capnp.StructList[Pipeliner_newPipeliner_Params]
 
 // NewPipeliner_newPipeliner_Params creates a new list of Pipeliner_newPipeliner_Params.
 func NewPipeliner_newPipeliner_Params_List(s *capnp.Segment, sz int32) (Pipeliner_newPipeliner_Params_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
-	return Pipeliner_newPipeliner_Params_List{l}, err
-}
-
-func (s Pipeliner_newPipeliner_Params_List) At(i int) Pipeliner_newPipeliner_Params {
-	return Pipeliner_newPipeliner_Params{s.List.Struct(i)}
-}
-
-func (s Pipeliner_newPipeliner_Params_List) Set(i int, v Pipeliner_newPipeliner_Params) error {
-	return s.List.SetStruct(i, v.Struct)
-}
-
-func (s Pipeliner_newPipeliner_Params_List) String() string {
-	str, _ := text.MarshalList(0xbaa7b3b1ca91f833, s.List)
-	return str
+	return capnp.StructList[Pipeliner_newPipeliner_Params]{l}, err
 }
 
 // Pipeliner_newPipeliner_Params_Future is a wrapper for a Pipeliner_newPipeliner_Params promised by a client call.
@@ -5733,25 +5280,12 @@ func (s Pipeliner_newPipeliner_Results) SetPipeliner(v Pipeliner) error {
 }
 
 // Pipeliner_newPipeliner_Results_List is a list of Pipeliner_newPipeliner_Results.
-type Pipeliner_newPipeliner_Results_List struct{ capnp.List }
+type Pipeliner_newPipeliner_Results_List = capnp.StructList[Pipeliner_newPipeliner_Results]
 
 // NewPipeliner_newPipeliner_Results creates a new list of Pipeliner_newPipeliner_Results.
 func NewPipeliner_newPipeliner_Results_List(s *capnp.Segment, sz int32) (Pipeliner_newPipeliner_Results_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
-	return Pipeliner_newPipeliner_Results_List{l}, err
-}
-
-func (s Pipeliner_newPipeliner_Results_List) At(i int) Pipeliner_newPipeliner_Results {
-	return Pipeliner_newPipeliner_Results{s.List.Struct(i)}
-}
-
-func (s Pipeliner_newPipeliner_Results_List) Set(i int, v Pipeliner_newPipeliner_Results) error {
-	return s.List.SetStruct(i, v.Struct)
-}
-
-func (s Pipeliner_newPipeliner_Results_List) String() string {
-	str, _ := text.MarshalList(0xbbcdbf4b4ae501fa, s.List)
-	return str
+	return capnp.StructList[Pipeliner_newPipeliner_Results]{l}, err
 }
 
 // Pipeliner_newPipeliner_Results_Future is a wrapper for a Pipeliner_newPipeliner_Results promised by a client call.
@@ -5854,21 +5388,12 @@ func (s Defaults) SetUint(v uint32) {
 }
 
 // Defaults_List is a list of Defaults.
-type Defaults_List struct{ capnp.List }
+type Defaults_List = capnp.StructList[Defaults]
 
 // NewDefaults creates a new list of Defaults.
 func NewDefaults_List(s *capnp.Segment, sz int32) (Defaults_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 2}, sz)
-	return Defaults_List{l}, err
-}
-
-func (s Defaults_List) At(i int) Defaults { return Defaults{s.List.Struct(i)} }
-
-func (s Defaults_List) Set(i int, v Defaults) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s Defaults_List) String() string {
-	str, _ := text.MarshalList(0x97e38948c61f878d, s.List)
-	return str
+	return capnp.StructList[Defaults]{l}, err
 }
 
 // Defaults_Future is a wrapper for a Defaults promised by a client call.
@@ -5973,21 +5498,12 @@ func (s BenchmarkA) SetMoney(v float64) {
 }
 
 // BenchmarkA_List is a list of BenchmarkA.
-type BenchmarkA_List struct{ capnp.List }
+type BenchmarkA_List = capnp.StructList[BenchmarkA]
 
 // NewBenchmarkA creates a new list of BenchmarkA.
 func NewBenchmarkA_List(s *capnp.Segment, sz int32) (BenchmarkA_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 24, PointerCount: 2}, sz)
-	return BenchmarkA_List{l}, err
-}
-
-func (s BenchmarkA_List) At(i int) BenchmarkA { return BenchmarkA{s.List.Struct(i)} }
-
-func (s BenchmarkA_List) Set(i int, v BenchmarkA) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s BenchmarkA_List) String() string {
-	str, _ := text.MarshalList(0xde2a1a960863c11c, s.List)
-	return str
+	return capnp.StructList[BenchmarkA]{l}, err
 }
 
 // BenchmarkA_Future is a wrapper for a BenchmarkA promised by a client call.
@@ -6048,21 +5564,12 @@ func (s AllocBenchmark) NewFields(n int32) (AllocBenchmark_Field_List, error) {
 }
 
 // AllocBenchmark_List is a list of AllocBenchmark.
-type AllocBenchmark_List struct{ capnp.List }
+type AllocBenchmark_List = capnp.StructList[AllocBenchmark]
 
 // NewAllocBenchmark creates a new list of AllocBenchmark.
 func NewAllocBenchmark_List(s *capnp.Segment, sz int32) (AllocBenchmark_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return AllocBenchmark_List{l}, err
-}
-
-func (s AllocBenchmark_List) At(i int) AllocBenchmark { return AllocBenchmark{s.List.Struct(i)} }
-
-func (s AllocBenchmark_List) Set(i int, v AllocBenchmark) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s AllocBenchmark_List) String() string {
-	str, _ := text.MarshalList(0xecea3e9ebcbe5655, s.List)
-	return str
+	return capnp.StructList[AllocBenchmark]{l}, err
 }
 
 // AllocBenchmark_Future is a wrapper for a AllocBenchmark promised by a client call.
@@ -6117,25 +5624,12 @@ func (s AllocBenchmark_Field) SetStringValue(v string) error {
 }
 
 // AllocBenchmark_Field_List is a list of AllocBenchmark_Field.
-type AllocBenchmark_Field_List struct{ capnp.List }
+type AllocBenchmark_Field_List = capnp.StructList[AllocBenchmark_Field]
 
 // NewAllocBenchmark_Field creates a new list of AllocBenchmark_Field.
 func NewAllocBenchmark_Field_List(s *capnp.Segment, sz int32) (AllocBenchmark_Field_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return AllocBenchmark_Field_List{l}, err
-}
-
-func (s AllocBenchmark_Field_List) At(i int) AllocBenchmark_Field {
-	return AllocBenchmark_Field{s.List.Struct(i)}
-}
-
-func (s AllocBenchmark_Field_List) Set(i int, v AllocBenchmark_Field) error {
-	return s.List.SetStruct(i, v.Struct)
-}
-
-func (s AllocBenchmark_Field_List) String() string {
-	str, _ := text.MarshalList(0xb8fb64b8ed846ae6, s.List)
-	return str
+	return capnp.StructList[AllocBenchmark_Field]{l}, err
 }
 
 // AllocBenchmark_Field_Future is a wrapper for a AllocBenchmark_Field promised by a client call.

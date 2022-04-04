@@ -86,21 +86,12 @@ func (s VatId) SetSide(v Side) {
 }
 
 // VatId_List is a list of VatId.
-type VatId_List struct{ capnp.List }
+type VatId_List = capnp.StructList[VatId]
 
 // NewVatId creates a new list of VatId.
 func NewVatId_List(s *capnp.Segment, sz int32) (VatId_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	return VatId_List{l}, err
-}
-
-func (s VatId_List) At(i int) VatId { return VatId{s.List.Struct(i)} }
-
-func (s VatId_List) Set(i int, v VatId) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s VatId_List) String() string {
-	str, _ := text.MarshalList(0xd20b909fee733a8e, s.List)
-	return str
+	return capnp.StructList[VatId]{l}, err
 }
 
 // VatId_Future is a wrapper for a VatId promised by a client call.
@@ -145,21 +136,12 @@ func (s ProvisionId) SetJoinId(v uint32) {
 }
 
 // ProvisionId_List is a list of ProvisionId.
-type ProvisionId_List struct{ capnp.List }
+type ProvisionId_List = capnp.StructList[ProvisionId]
 
 // NewProvisionId creates a new list of ProvisionId.
 func NewProvisionId_List(s *capnp.Segment, sz int32) (ProvisionId_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	return ProvisionId_List{l}, err
-}
-
-func (s ProvisionId_List) At(i int) ProvisionId { return ProvisionId{s.List.Struct(i)} }
-
-func (s ProvisionId_List) Set(i int, v ProvisionId) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s ProvisionId_List) String() string {
-	str, _ := text.MarshalList(0xb88d09a9c5f39817, s.List)
-	return str
+	return capnp.StructList[ProvisionId]{l}, err
 }
 
 // ProvisionId_Future is a wrapper for a ProvisionId promised by a client call.
@@ -196,21 +178,12 @@ func (s RecipientId) String() string {
 }
 
 // RecipientId_List is a list of RecipientId.
-type RecipientId_List struct{ capnp.List }
+type RecipientId_List = capnp.StructList[RecipientId]
 
 // NewRecipientId creates a new list of RecipientId.
 func NewRecipientId_List(s *capnp.Segment, sz int32) (RecipientId_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
-	return RecipientId_List{l}, err
-}
-
-func (s RecipientId_List) At(i int) RecipientId { return RecipientId{s.List.Struct(i)} }
-
-func (s RecipientId_List) Set(i int, v RecipientId) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s RecipientId_List) String() string {
-	str, _ := text.MarshalList(0x89f389b6fd4082c1, s.List)
-	return str
+	return capnp.StructList[RecipientId]{l}, err
 }
 
 // RecipientId_Future is a wrapper for a RecipientId promised by a client call.
@@ -247,23 +220,12 @@ func (s ThirdPartyCapId) String() string {
 }
 
 // ThirdPartyCapId_List is a list of ThirdPartyCapId.
-type ThirdPartyCapId_List struct{ capnp.List }
+type ThirdPartyCapId_List = capnp.StructList[ThirdPartyCapId]
 
 // NewThirdPartyCapId creates a new list of ThirdPartyCapId.
 func NewThirdPartyCapId_List(s *capnp.Segment, sz int32) (ThirdPartyCapId_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
-	return ThirdPartyCapId_List{l}, err
-}
-
-func (s ThirdPartyCapId_List) At(i int) ThirdPartyCapId { return ThirdPartyCapId{s.List.Struct(i)} }
-
-func (s ThirdPartyCapId_List) Set(i int, v ThirdPartyCapId) error {
-	return s.List.SetStruct(i, v.Struct)
-}
-
-func (s ThirdPartyCapId_List) String() string {
-	str, _ := text.MarshalList(0xb47f4979672cb59d, s.List)
-	return str
+	return capnp.StructList[ThirdPartyCapId]{l}, err
 }
 
 // ThirdPartyCapId_Future is a wrapper for a ThirdPartyCapId promised by a client call.
@@ -324,21 +286,12 @@ func (s JoinKeyPart) SetPartNum(v uint16) {
 }
 
 // JoinKeyPart_List is a list of JoinKeyPart.
-type JoinKeyPart_List struct{ capnp.List }
+type JoinKeyPart_List = capnp.StructList[JoinKeyPart]
 
 // NewJoinKeyPart creates a new list of JoinKeyPart.
 func NewJoinKeyPart_List(s *capnp.Segment, sz int32) (JoinKeyPart_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	return JoinKeyPart_List{l}, err
-}
-
-func (s JoinKeyPart_List) At(i int) JoinKeyPart { return JoinKeyPart{s.List.Struct(i)} }
-
-func (s JoinKeyPart_List) Set(i int, v JoinKeyPart) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s JoinKeyPart_List) String() string {
-	str, _ := text.MarshalList(0x95b29059097fca83, s.List)
-	return str
+	return capnp.StructList[JoinKeyPart]{l}, err
 }
 
 // JoinKeyPart_Future is a wrapper for a JoinKeyPart promised by a client call.
@@ -403,21 +356,12 @@ func (s JoinResult) SetCap(v capnp.Ptr) error {
 }
 
 // JoinResult_List is a list of JoinResult.
-type JoinResult_List struct{ capnp.List }
+type JoinResult_List = capnp.StructList[JoinResult]
 
 // NewJoinResult creates a new list of JoinResult.
 func NewJoinResult_List(s *capnp.Segment, sz int32) (JoinResult_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	return JoinResult_List{l}, err
-}
-
-func (s JoinResult_List) At(i int) JoinResult { return JoinResult{s.List.Struct(i)} }
-
-func (s JoinResult_List) Set(i int, v JoinResult) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s JoinResult_List) String() string {
-	str, _ := text.MarshalList(0x9d263a3630b7ebee, s.List)
-	return str
+	return capnp.StructList[JoinResult]{l}, err
 }
 
 // JoinResult_Future is a wrapper for a JoinResult promised by a client call.

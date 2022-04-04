@@ -34,21 +34,12 @@ func (s StreamResult) String() string {
 }
 
 // StreamResult_List is a list of StreamResult.
-type StreamResult_List struct{ capnp.List }
+type StreamResult_List = capnp.StructList[StreamResult]
 
 // NewStreamResult creates a new list of StreamResult.
 func NewStreamResult_List(s *capnp.Segment, sz int32) (StreamResult_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
-	return StreamResult_List{l}, err
-}
-
-func (s StreamResult_List) At(i int) StreamResult { return StreamResult{s.List.Struct(i)} }
-
-func (s StreamResult_List) Set(i int, v StreamResult) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s StreamResult_List) String() string {
-	str, _ := text.MarshalList(0x995f9a3377c0b16e, s.List)
-	return str
+	return capnp.StructList[StreamResult]{l}, err
 }
 
 // StreamResult_Future is a wrapper for a StreamResult promised by a client call.

@@ -133,25 +133,12 @@ func (s PingPong_echoNum_Params) SetN(v int64) {
 }
 
 // PingPong_echoNum_Params_List is a list of PingPong_echoNum_Params.
-type PingPong_echoNum_Params_List struct{ capnp.List }
+type PingPong_echoNum_Params_List = capnp.StructList[PingPong_echoNum_Params]
 
 // NewPingPong_echoNum_Params creates a new list of PingPong_echoNum_Params.
 func NewPingPong_echoNum_Params_List(s *capnp.Segment, sz int32) (PingPong_echoNum_Params_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	return PingPong_echoNum_Params_List{l}, err
-}
-
-func (s PingPong_echoNum_Params_List) At(i int) PingPong_echoNum_Params {
-	return PingPong_echoNum_Params{s.List.Struct(i)}
-}
-
-func (s PingPong_echoNum_Params_List) Set(i int, v PingPong_echoNum_Params) error {
-	return s.List.SetStruct(i, v.Struct)
-}
-
-func (s PingPong_echoNum_Params_List) String() string {
-	str, _ := text.MarshalList(0xd797e0a99edf0921, s.List)
-	return str
+	return capnp.StructList[PingPong_echoNum_Params]{l}, err
 }
 
 // PingPong_echoNum_Params_Future is a wrapper for a PingPong_echoNum_Params promised by a client call.
@@ -196,25 +183,12 @@ func (s PingPong_echoNum_Results) SetN(v int64) {
 }
 
 // PingPong_echoNum_Results_List is a list of PingPong_echoNum_Results.
-type PingPong_echoNum_Results_List struct{ capnp.List }
+type PingPong_echoNum_Results_List = capnp.StructList[PingPong_echoNum_Results]
 
 // NewPingPong_echoNum_Results creates a new list of PingPong_echoNum_Results.
 func NewPingPong_echoNum_Results_List(s *capnp.Segment, sz int32) (PingPong_echoNum_Results_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	return PingPong_echoNum_Results_List{l}, err
-}
-
-func (s PingPong_echoNum_Results_List) At(i int) PingPong_echoNum_Results {
-	return PingPong_echoNum_Results{s.List.Struct(i)}
-}
-
-func (s PingPong_echoNum_Results_List) Set(i int, v PingPong_echoNum_Results) error {
-	return s.List.SetStruct(i, v.Struct)
-}
-
-func (s PingPong_echoNum_Results_List) String() string {
-	str, _ := text.MarshalList(0x85ddfd96db252600, s.List)
-	return str
+	return capnp.StructList[PingPong_echoNum_Results]{l}, err
 }
 
 // PingPong_echoNum_Results_Future is a wrapper for a PingPong_echoNum_Results promised by a client call.
@@ -352,25 +326,12 @@ func (s StreamTest_push_Params) SetData(v []byte) error {
 }
 
 // StreamTest_push_Params_List is a list of StreamTest_push_Params.
-type StreamTest_push_Params_List struct{ capnp.List }
+type StreamTest_push_Params_List = capnp.StructList[StreamTest_push_Params]
 
 // NewStreamTest_push_Params creates a new list of StreamTest_push_Params.
 func NewStreamTest_push_Params_List(s *capnp.Segment, sz int32) (StreamTest_push_Params_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return StreamTest_push_Params_List{l}, err
-}
-
-func (s StreamTest_push_Params_List) At(i int) StreamTest_push_Params {
-	return StreamTest_push_Params{s.List.Struct(i)}
-}
-
-func (s StreamTest_push_Params_List) Set(i int, v StreamTest_push_Params) error {
-	return s.List.SetStruct(i, v.Struct)
-}
-
-func (s StreamTest_push_Params_List) String() string {
-	str, _ := text.MarshalList(0xf838dca6c8721bdb, s.List)
-	return str
+	return capnp.StructList[StreamTest_push_Params]{l}, err
 }
 
 // StreamTest_push_Params_Future is a wrapper for a StreamTest_push_Params promised by a client call.
@@ -554,25 +515,12 @@ func (s CapArgsTest_call_Params) SetCap(v capnp.Ptr) error {
 }
 
 // CapArgsTest_call_Params_List is a list of CapArgsTest_call_Params.
-type CapArgsTest_call_Params_List struct{ capnp.List }
+type CapArgsTest_call_Params_List = capnp.StructList[CapArgsTest_call_Params]
 
 // NewCapArgsTest_call_Params creates a new list of CapArgsTest_call_Params.
 func NewCapArgsTest_call_Params_List(s *capnp.Segment, sz int32) (CapArgsTest_call_Params_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return CapArgsTest_call_Params_List{l}, err
-}
-
-func (s CapArgsTest_call_Params_List) At(i int) CapArgsTest_call_Params {
-	return CapArgsTest_call_Params{s.List.Struct(i)}
-}
-
-func (s CapArgsTest_call_Params_List) Set(i int, v CapArgsTest_call_Params) error {
-	return s.List.SetStruct(i, v.Struct)
-}
-
-func (s CapArgsTest_call_Params_List) String() string {
-	str, _ := text.MarshalList(0x80087e4e698768a2, s.List)
-	return str
+	return capnp.StructList[CapArgsTest_call_Params]{l}, err
 }
 
 // CapArgsTest_call_Params_Future is a wrapper for a CapArgsTest_call_Params promised by a client call.
@@ -613,25 +561,12 @@ func (s CapArgsTest_call_Results) String() string {
 }
 
 // CapArgsTest_call_Results_List is a list of CapArgsTest_call_Results.
-type CapArgsTest_call_Results_List struct{ capnp.List }
+type CapArgsTest_call_Results_List = capnp.StructList[CapArgsTest_call_Results]
 
 // NewCapArgsTest_call_Results creates a new list of CapArgsTest_call_Results.
 func NewCapArgsTest_call_Results_List(s *capnp.Segment, sz int32) (CapArgsTest_call_Results_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
-	return CapArgsTest_call_Results_List{l}, err
-}
-
-func (s CapArgsTest_call_Results_List) At(i int) CapArgsTest_call_Results {
-	return CapArgsTest_call_Results{s.List.Struct(i)}
-}
-
-func (s CapArgsTest_call_Results_List) Set(i int, v CapArgsTest_call_Results) error {
-	return s.List.SetStruct(i, v.Struct)
-}
-
-func (s CapArgsTest_call_Results_List) String() string {
-	str, _ := text.MarshalList(0x96fbc50dc2f0200d, s.List)
-	return str
+	return capnp.StructList[CapArgsTest_call_Results]{l}, err
 }
 
 // CapArgsTest_call_Results_Future is a wrapper for a CapArgsTest_call_Results promised by a client call.
@@ -668,25 +603,12 @@ func (s CapArgsTest_self_Params) String() string {
 }
 
 // CapArgsTest_self_Params_List is a list of CapArgsTest_self_Params.
-type CapArgsTest_self_Params_List struct{ capnp.List }
+type CapArgsTest_self_Params_List = capnp.StructList[CapArgsTest_self_Params]
 
 // NewCapArgsTest_self_Params creates a new list of CapArgsTest_self_Params.
 func NewCapArgsTest_self_Params_List(s *capnp.Segment, sz int32) (CapArgsTest_self_Params_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
-	return CapArgsTest_self_Params_List{l}, err
-}
-
-func (s CapArgsTest_self_Params_List) At(i int) CapArgsTest_self_Params {
-	return CapArgsTest_self_Params{s.List.Struct(i)}
-}
-
-func (s CapArgsTest_self_Params_List) Set(i int, v CapArgsTest_self_Params) error {
-	return s.List.SetStruct(i, v.Struct)
-}
-
-func (s CapArgsTest_self_Params_List) String() string {
-	str, _ := text.MarshalList(0xe2553e5a663abb7d, s.List)
-	return str
+	return capnp.StructList[CapArgsTest_self_Params]{l}, err
 }
 
 // CapArgsTest_self_Params_Future is a wrapper for a CapArgsTest_self_Params promised by a client call.
@@ -741,25 +663,12 @@ func (s CapArgsTest_self_Results) SetSelf(v CapArgsTest) error {
 }
 
 // CapArgsTest_self_Results_List is a list of CapArgsTest_self_Results.
-type CapArgsTest_self_Results_List struct{ capnp.List }
+type CapArgsTest_self_Results_List = capnp.StructList[CapArgsTest_self_Results]
 
 // NewCapArgsTest_self_Results creates a new list of CapArgsTest_self_Results.
 func NewCapArgsTest_self_Results_List(s *capnp.Segment, sz int32) (CapArgsTest_self_Results_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return CapArgsTest_self_Results_List{l}, err
-}
-
-func (s CapArgsTest_self_Results_List) At(i int) CapArgsTest_self_Results {
-	return CapArgsTest_self_Results{s.List.Struct(i)}
-}
-
-func (s CapArgsTest_self_Results_List) Set(i int, v CapArgsTest_self_Results) error {
-	return s.List.SetStruct(i, v.Struct)
-}
-
-func (s CapArgsTest_self_Results_List) String() string {
-	str, _ := text.MarshalList(0x9746cc05cbff1132, s.List)
-	return str
+	return capnp.StructList[CapArgsTest_self_Results]{l}, err
 }
 
 // CapArgsTest_self_Results_Future is a wrapper for a CapArgsTest_self_Results promised by a client call.
