@@ -61,7 +61,7 @@ func (typ Type) GoString() string {
 // TypeOf returns err's type if err was created by this package or
 // Failed if it was not.
 func TypeOf(err error) Type {
-	ce, ok := err.(Exception)
+	ce, ok := err.(*Exception)
 	if !ok {
 		return Failed
 	}
@@ -74,7 +74,7 @@ func TypeOf(err error) Type {
 // The chain consists of err itself followed by the sequence of
 // errors obtained by repeatedly calling Unwrap.
 func IsType(err error, t Type) bool {
-	var exc Exception
+	var exc = &Exception{}
 	if errors.As(err, &exc) {
 		return exc.Type == t
 	}

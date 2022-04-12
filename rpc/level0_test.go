@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/exc"
@@ -113,13 +114,12 @@ func TestRecvAbort(t *testing.T) {
 		ErrorReporter: testErrorReporter{tb: t},
 	})
 
-	ctx := context.Background()
 	select {
 	case <-conn.Done():
 		t.Error("conn.Done closed before receiving abort")
 	default:
 	}
-	err := sendMessage(ctx, p2, &rpcMessage{
+	err := sendMessage(context.Background(), p2, &rpcMessage{
 		Which: rpccp.Message_Which_abort,
 		Abort: &rpcException{
 			Type:   rpccp.Exception_Type_failed,
@@ -128,13 +128,15 @@ func TestRecvAbort(t *testing.T) {
 	})
 	require.NoError(t, err, "must send 'failed' exception")
 
-	boot := conn.Bootstrap(ctx)
+	boot := conn.Bootstrap(context.Background())
 	defer boot.Release()
 
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
 	err = boot.Resolve(ctx)
 	require.NoError(t, err, "should resolve bootstrap capability")
 
-	ans, releaseCall := boot.SendCall(ctx, capnp.Send{
+	ans, releaseCall := boot.SendCall(context.Background(), capnp.Send{
 		Method: capnp.Method{
 			InterfaceID: interfaceID,
 			MethodID:    methodID,

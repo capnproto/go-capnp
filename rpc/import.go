@@ -85,39 +85,40 @@ type importClient struct {
 
 func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, capnp.ReleaseFunc) {
 	ic.c.mu.Lock()
+	defer ic.c.mu.Unlock()
+
 	if !ic.c.startTask() {
-		ic.c.mu.Unlock()
 		return capnp.ErrorAnswer(s.Method, ExcClosed), func() {}
 	}
 	defer ic.c.tasks.Done()
 	ent := ic.c.imports[ic.id]
 	if ent == nil || ic.generation != ent.generation {
-		ic.c.mu.Unlock()
 		return capnp.ErrorAnswer(s.Method, rpcerr.Disconnectedf("send on closed import")), func() {}
 	}
 	q := ic.c.newQuestion(s.Method)
-	ic.c.mu.Unlock()
 
 	// Send call message.
-	err := ic.c.sendMessage(ctx, func(m rpccp.Message) error {
-		return ic.c.newImportCallMessage(m, ic.id, q.id, s)
+	syncutil.Without(&ic.c.mu, func() {
+		ic.c.sendMessage(ctx, func(m rpccp.Message) error {
+			return ic.c.newImportCallMessage(m, ic.id, q.id, s)
+		}, func(err error) {
+			ic.c.mu.Lock()
+			defer ic.c.mu.Unlock()
+
+			if err != nil {
+				ic.c.questions[q.id] = nil
+				ic.c.questionID.remove(uint32(q.id))
+				q.p.Reject(rpcerr.Failedf("send message: %w", err))
+				return
+			}
+
+			q.c.tasks.Add(1)
+			go func() {
+				defer q.c.tasks.Done()
+				q.handleCancel(ctx)
+			}()
+		})
 	})
-
-	ic.c.mu.Lock()
-	defer ic.c.mu.Unlock()
-
-	if err != nil {
-		ic.c.questions[q.id] = nil
-		ic.c.questionID.remove(uint32(q.id))
-
-		return capnp.ErrorAnswer(s.Method, rpcerr.Failedf("send message: %w", err)), func() {}
-	}
-
-	q.c.tasks.Add(1)
-	go func() {
-		defer q.c.tasks.Done()
-		q.handleCancel(ctx)
-	}()
 
 	ans := q.p.Answer()
 	return ans, func() {
@@ -238,7 +239,7 @@ func (ic *importClient) Shutdown() {
 		return
 	}
 	delete(ic.c.imports, ic.id)
-	err := ic.c.sendMessage(ic.c.bgctx, func(msg rpccp.Message) error {
+	ic.c.sendMessage(ic.c.bgctx, func(msg rpccp.Message) error {
 		rel, err := msg.NewRelease()
 		if err != nil {
 			return err
@@ -246,9 +247,7 @@ func (ic *importClient) Shutdown() {
 		rel.SetId(uint32(ic.id))
 		rel.SetReferenceCount(uint32(ent.wireRefs))
 		return nil
-	})
-
-	if err != nil {
+	}, func(err error) {
 		ic.c.er.ReportError(rpcerr.Annotate(err, "send release"))
-	}
+	})
 }

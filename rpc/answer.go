@@ -30,7 +30,7 @@ type answer struct {
 	ret rpccp.Return
 
 	// sendMsg sends the return message.  The caller MUST NOT hold ans.c.mu.
-	sendMsg func() error
+	sendMsg func()
 
 	// releaseMsg releases the return message.  The caller MUST NOT hold
 	// ans.c.mu.
@@ -95,7 +95,7 @@ func errorAnswer(c *Conn, id answerID, err error) *answer {
 }
 
 // newReturn creates a new Return message.
-func (c *Conn) newReturn(ctx context.Context) (rpccp.Return, func() error, capnp.ReleaseFunc, error) {
+func (c *Conn) newReturn(ctx context.Context) (rpccp.Return, func(), capnp.ReleaseFunc, error) {
 	msg, send, release, err := c.transport.NewMessage(ctx)
 	if err != nil {
 		return rpccp.Return{}, nil, nil, rpcerr.Failedf("create return: %w", err)
@@ -105,7 +105,11 @@ func (c *Conn) newReturn(ctx context.Context) (rpccp.Return, func() error, capnp
 		release()
 		return rpccp.Return{}, nil, nil, rpcerr.Failedf("create return: %w", err)
 	}
-	return ret, send, release, nil
+	return ret, func() {
+		if err := send(); err != nil {
+			c.er.ReportError(fmt.Errorf("send return: %w", err))
+		}
+	}, release, nil
 }
 
 // setPipelineCaller sets ans.pcall to pcall if the answer has not
@@ -211,10 +215,8 @@ func (ans *answer) sendReturn() (releaseList, error) {
 
 	var err error
 	ans.exportRefs, err = ans.c.fillPayloadCapTable(ans.results, ans.resultCapTable)
-	if err != nil {
-		ans.c.er.ReportError(rpcerr.Annotate(err, "send return"))
-		// Continue.  Don't fail to send return if cap table isn't fully filled.
-	}
+	ans.c.er.ReportError(rpcerr.Annotate(err, "send return")) // nop if err == nil
+	// Continue.  Don't fail to send return if cap table isn't fully filled.
 
 	select {
 	case <-ans.c.bgctx.Done():
@@ -233,9 +235,7 @@ func (ans *answer) sendReturn() (releaseList, error) {
 			ans.promise = nil
 		}
 		ans.c.mu.Unlock()
-		if err := ans.sendMsg(); err != nil {
-			ans.c.er.ReportError(fmt.Errorf("send return: %w", err))
-		}
+		ans.sendMsg()
 		if fin {
 			ans.releaseMsg()
 			ans.c.mu.Lock()
@@ -281,8 +281,8 @@ func (ans *answer) sendException(ex error) releaseList {
 			e.SetType(rpccp.Exception_Type(exc.TypeOf(ex)))
 			if err := e.SetReason(ex.Error()); err != nil {
 				ans.c.er.ReportError(fmt.Errorf("send exception: %w", err))
-			} else if err := ans.sendMsg(); err != nil {
-				ans.c.er.ReportError(fmt.Errorf("send return: %w", err))
+			} else {
+				ans.sendMsg()
 			}
 		}
 		if fin {

@@ -12,7 +12,7 @@ func BenchmarkPingPong(b *testing.B) {
 	p1, p2 := newPipe(1)
 	srv := testcp.PingPong_ServerToClient(pingPongServer{}, nil)
 	conn1 := rpc.NewConn(p2, &rpc.Options{
-		ErrorReporter:   testErrorReporter{tb: b},
+		// ErrorReporter:   testErrorReporter{tb: b},
 		BootstrapClient: srv.Client,
 	})
 	defer func() {
@@ -34,6 +34,7 @@ func BenchmarkPingPong(b *testing.B) {
 	client := testcp.PingPong{Client: conn2.Bootstrap(ctx)}
 	defer client.Client.Release()
 	b.ResetTimer()
+	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		ans, release := client.EchoNum(ctx, func(args testcp.PingPong_echoNum_Params) error {
 			args.SetN(42)

@@ -13,7 +13,7 @@ func TestUnwrap(t *testing.T) {
 	var (
 		errGeneric = errors.New("something went wrong")
 		err        = Annotate("annotated", "test", errGeneric)
-		exc        Exception
+		exc        = new(Exception)
 	)
 
 	assert.EqualError(t, errors.Unwrap(err), "test: something went wrong")
