@@ -239,7 +239,11 @@ func (c *Conn) newPipelineCallMessage(msg rpccp.Message, tgt questionID, transfo
 	})
 	releaseList(clients).release()
 
-	return rpcerr.Annotatef(err, "build call message")
+	if err != nil {
+		return rpcerr.Annotatef(err, "build call message")
+	}
+
+	return err
 }
 
 func (q *question) PipelineRecv(ctx context.Context, transform []capnp.PipelineOp, r capnp.Recv) capnp.PipelineCaller {
