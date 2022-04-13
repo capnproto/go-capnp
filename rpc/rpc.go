@@ -81,7 +81,7 @@ type Conn struct {
 	closing bool          // used to make shutdown() idempotent
 	closed  chan struct{} // closed when shutdown() returns
 
-	sender *sendQueue
+	sender *mpsc.Queue
 
 	// Tables
 	questions  []*question
@@ -138,7 +138,7 @@ func NewConn(t Transport, opts *Options) *Conn {
 		bgcancel:  cancel,
 		answers:   make(map[answerID]*answer),
 		imports:   make(map[importID]*impent),
-		sender:    (*sendQueue)(mpsc.New()),
+		sender:    mpsc.New(),
 	}
 	if opts != nil {
 		c.bootstrap = opts.BootstrapClient
@@ -150,7 +150,7 @@ func NewConn(t Transport, opts *Options) *Conn {
 	}
 
 	// start background tasks
-	g.Go(c.backgroundTask(c.sender.Task(ctx)))
+	g.Go(c.backgroundTask(c.send))
 	g.Go(c.backgroundTask(c.receive))
 
 	// monitor background tasks
@@ -204,7 +204,6 @@ func (c *Conn) Bootstrap(ctx context.Context) *capnp.Client {
 	if !c.startTask() {
 		return capnp.ErrorClient(rpcerr.Disconnectedf("connection closed"))
 	}
-	defer c.tasks.Done()
 
 	q := c.newQuestion(capnp.Method{})
 	bootCtx, cancel := context.WithCancel(ctx)
@@ -222,6 +221,8 @@ func (c *Conn) Bootstrap(ctx context.Context) *capnp.Client {
 		return err
 
 	}, func(err error) {
+		defer c.tasks.Done()
+
 		c.mu.Lock()
 		defer c.mu.Unlock()
 
@@ -231,9 +232,6 @@ func (c *Conn) Bootstrap(ctx context.Context) *capnp.Client {
 			cp.Fulfill(capnp.ErrorClient(exc.Annotate("rpc", "bootstrap", err)))
 			return
 		}
-
-		// err = c.bgctx.Err()   // DEBUG
-		// c.er.ReportError(err) // DEBUG -- cp never fulfilled when err == context.Cancelled
 
 		c.tasks.Add(1)
 		go func() {
@@ -318,15 +316,14 @@ func (c *Conn) stopTasks() {
 	}
 
 	// Wait for work to stop.
-	syncutil.Without(&c.mu, func() {
-		c.tasks.Wait()
-	})
+	syncutil.Without(&c.mu, c.tasks.Wait)
 }
 
 // Clear all tables, releasing exported clients and unfinished answers.
 // Called by 'shutdown'.  Caller MUST hold c.mu.
 func (c *Conn) release() {
 	exports := c.exports
+	questions := c.questions
 	answers := c.answers
 	embargoes := c.embargoes
 	c.imports = nil
@@ -346,6 +343,9 @@ func (c *Conn) release() {
 				})
 				e.client.Release()
 			}
+		}
+		for _, q := range questions {
+			q.Reject(rpcerr.Disconnected(ErrConnClosed))
 		}
 		for _, e := range embargoes {
 			if e != nil {
@@ -387,6 +387,29 @@ func (c *Conn) abort(abortErr error) {
 			}
 		}
 	})
+}
+
+func (c *Conn) send() error {
+	defer func() {
+		for {
+			v, ok := c.sender.TryRecv()
+			if !ok {
+				break
+			}
+
+			v.(sendCallbacks).After(ErrConnClosed)
+		}
+	}()
+
+	for {
+		v, err := c.sender.Recv(c.bgctx)
+		if err != nil {
+			return err
+		}
+
+		sc := v.(sendCallbacks)
+		sc.After(sc.Before())
+	}
 }
 
 // receive receives and dispatches messages coming from c.transport.  receive
@@ -1396,7 +1419,7 @@ func (c *Conn) startTask() (ok bool) {
 }
 
 func (c *Conn) sendMessage(ctx context.Context, f func(rpccp.Message) error, callback func(error)) {
-	c.sender.Send(func() error {
+	build := func() error {
 		msg, send, release, err := c.transport.NewMessage(ctx)
 		if err != nil {
 			return rpcerr.Failedf("create message: %w", err)
@@ -1412,33 +1435,24 @@ func (c *Conn) sendMessage(ctx context.Context, f func(rpccp.Message) error, cal
 		}
 
 		return nil
-	}, func(err error) {
-		if callback != nil {
-			callback(err)
-		}
+	}
+
+	if callback == nil {
+		callback = func(error) {}
+	}
+
+	c.sender.Send(sendCallbacks{
+		Before: build,
+		After:  callback,
 	})
+}
+
+type sendCallbacks struct {
+	Before func() error
+	After  func(error)
 }
 
 func clearCapTable(msg *capnp.Message) {
 	releaseList(msg.CapTable).release()
 	msg.CapTable = nil
-}
-
-type sendQueue mpsc.Queue
-
-func (s *sendQueue) Send(send func() error, callback func(error)) {
-	s.Tx.Send(func() { callback(send()) })
-}
-
-func (s *sendQueue) Task(ctx context.Context) func() error {
-	return func() error {
-		for {
-			v, err := s.Recv(ctx)
-			if err != nil {
-				return err
-			}
-
-			v.(func())() // evaluate the thunk
-		}
-	}
 }

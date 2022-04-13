@@ -284,6 +284,18 @@ func (q *question) mark(xform []capnp.PipelineOp) {
 	q.called = append(q.called, xform2)
 }
 
+func (q *question) Reject(err error) {
+	if q != nil {
+		if q.bootstrapPromise != nil {
+			q.bootstrapPromise.Fulfill(capnp.ErrorClient(err))
+		}
+
+		if q.p != nil {
+			q.p.Reject(err)
+		}
+	}
+}
+
 func transformsEqual(x1, x2 []capnp.PipelineOp) bool {
 	if len(x1) != len(x2) {
 		return false
