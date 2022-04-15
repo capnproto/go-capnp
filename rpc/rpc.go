@@ -323,7 +323,6 @@ func (c *Conn) stopTasks() {
 // Called by 'shutdown'.  Caller MUST hold c.mu.
 func (c *Conn) release() {
 	exports := c.exports
-	questions := c.questions
 	answers := c.answers
 	embargoes := c.embargoes
 	c.imports = nil
@@ -343,9 +342,6 @@ func (c *Conn) release() {
 				})
 				e.client.Release()
 			}
-		}
-		for _, q := range questions {
-			q.Reject(rpcerr.Disconnected(ErrConnClosed))
 		}
 		for _, e := range embargoes {
 			if e != nil {
@@ -390,16 +386,7 @@ func (c *Conn) abort(abortErr error) {
 }
 
 func (c *Conn) send() error {
-	defer func() {
-		for {
-			v, ok := c.sender.TryRecv()
-			if !ok {
-				break
-			}
-
-			v.(sendCallbacks).After(ErrConnClosed)
-		}
-	}()
+	defer drain(c.sender)
 
 	for {
 		v, err := c.sender.Recv(c.bgctx)
@@ -407,8 +394,7 @@ func (c *Conn) send() error {
 			return err
 		}
 
-		sc := v.(sendCallbacks)
-		sc.After(sc.Before())
+		v.(sendCallbacks).Send()
 	}
 }
 
@@ -1418,38 +1404,60 @@ func (c *Conn) startTask() (ok bool) {
 	return
 }
 
-func (c *Conn) sendMessage(ctx context.Context, f func(rpccp.Message) error, callback func(error)) {
-	build := func() error {
-		msg, send, release, err := c.transport.NewMessage(ctx)
-		if err != nil {
-			return rpcerr.Failedf("create message: %w", err)
-		}
-		defer release()
-
-		if err = f(msg); err != nil {
-			return rpcerr.Failedf("build message: %w", err)
-		}
-
-		if err = send(); err != nil {
-			return rpcerr.Failedf("send message: %w", err)
-		}
-
-		return nil
+func (c *Conn) sendMessage(ctx context.Context, f func(rpccp.Message) error, callback func(error)) error {
+	msg, send, release, err := c.transport.NewMessage(ctx)
+	if err != nil {
+		return rpcerr.Failedf("create message: %w", err)
 	}
 
-	if callback == nil {
-		callback = func(error) {}
+	if err = f(msg); err != nil {
+		return rpcerr.Failedf("build message: %w", err)
 	}
 
 	c.sender.Send(sendCallbacks{
-		Before: build,
-		After:  callback,
+		Release:  release,
+		Sender:   send,
+		Callback: callback,
 	})
+
+	return nil
 }
 
 type sendCallbacks struct {
-	Before func() error
-	After  func(error)
+	Sender   func() error
+	Callback func(error)
+	Release  capnp.ReleaseFunc
+}
+
+func (sc sendCallbacks) Abort(err error) {
+	defer sc.Release()
+
+	if sc.Callback != nil {
+		sc.Callback(err)
+	}
+}
+
+func (sc sendCallbacks) Send() {
+	defer sc.Release()
+
+	if err := sc.Sender(); sc.Callback != nil {
+		if err != nil {
+			err = rpcerr.Failedf("send message: %w", err)
+		}
+
+		sc.Callback(err)
+	}
+}
+
+func drain(q *mpsc.Queue) {
+	for {
+		v, ok := q.TryRecv()
+		if !ok {
+			break
+		}
+
+		v.(sendCallbacks).Abort(ErrConnClosed)
+	}
 }
 
 func clearCapTable(msg *capnp.Message) {

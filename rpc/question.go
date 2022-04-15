@@ -98,7 +98,6 @@ func (q *question) handleCancel(ctx context.Context) {
 		return
 	}
 
-	/* ... */
 	q.c.mu.Lock()
 	defer q.c.mu.Unlock()
 

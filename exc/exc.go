@@ -69,6 +69,10 @@ func Annotate(prefix, msg string, err error) *Exception {
 type Annotator string
 
 func (f Annotator) New(t Type, err error) *Exception {
+	if err == nil {
+		return nil
+	}
+
 	return &Exception{
 		Type:   t,
 		Prefix: string(f),
