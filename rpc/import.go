@@ -241,12 +241,11 @@ func (ic *importClient) Shutdown() {
 	delete(ic.c.imports, ic.id)
 	ic.c.sendMessage(ic.c.bgctx, func(msg rpccp.Message) error {
 		rel, err := msg.NewRelease()
-		if err != nil {
-			return err
+		if err == nil {
+			rel.SetId(uint32(ic.id))
+			rel.SetReferenceCount(uint32(ent.wireRefs))
 		}
-		rel.SetId(uint32(ic.id))
-		rel.SetReferenceCount(uint32(ent.wireRefs))
-		return nil
+		return err
 	}, func(err error) {
 		ic.c.er.ReportError(rpcerr.Annotate(err, "send release"))
 	})

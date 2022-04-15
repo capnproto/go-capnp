@@ -292,6 +292,7 @@ func (c *Conn) shutdown(abortErr error) (err error) {
 		defer close(c.closed)
 		c.closing = true
 
+		c.bgcancel()
 		c.stopTasks()
 		c.drainQueue()
 		c.release()
@@ -308,7 +309,6 @@ func (c *Conn) shutdown(abortErr error) (err error) {
 // Stop all tasks and prevent new tasks from being started.
 // Called by 'shutdown'.  Callers MUST hold c.mu.
 func (c *Conn) stopTasks() {
-	c.bgcancel()
 	for _, a := range c.answers {
 		if a != nil && a.cancel != nil {
 			a.cancel()
@@ -316,7 +316,10 @@ func (c *Conn) stopTasks() {
 	}
 
 	// Wait for work to stop.
-	syncutil.Without(&c.mu, c.tasks.Wait)
+	c.mu.Unlock()
+	defer c.mu.Lock()
+
+	c.tasks.Wait()
 }
 
 func (c *Conn) drainQueue() {
