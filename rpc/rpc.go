@@ -1433,7 +1433,7 @@ func (as asyncSend) Abort(err error) {
 	defer as.release()
 
 	if as.callback != nil {
-		as.callback(err)
+		as.callback(rpcerr.Disconnected(err))
 	}
 }
 
