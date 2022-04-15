@@ -608,6 +608,10 @@ type ClientPromise struct {
 	h *clientHook
 }
 
+func (cp *ClientPromise) Reject(err error) {
+	cp.Fulfill(ErrorClient(err))
+}
+
 // Fulfill resolves the client promise to c.  After Fulfill returns,
 // then all future calls to the client created by NewPromisedClient will
 // be sent to c.  It is guaranteed that the hook passed to

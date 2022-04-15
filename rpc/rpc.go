@@ -195,7 +195,7 @@ func (c *Conn) backgroundTask(f func() error) func() error {
 
 // Bootstrap returns the remote vat's bootstrap interface.  This creates
 // a new client that the caller is responsible for releasing.
-func (c *Conn) Bootstrap(ctx context.Context) *capnp.Client {
+func (c *Conn) Bootstrap(ctx context.Context) (bc *capnp.Client) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -205,13 +205,12 @@ func (c *Conn) Bootstrap(ctx context.Context) *capnp.Client {
 		return capnp.ErrorClient(rpcerr.Disconnectedf("connection closed"))
 	}
 
-	q := c.newQuestion(capnp.Method{})
 	bootCtx, cancel := context.WithCancel(ctx)
-	bc, cp := capnp.NewPromisedClient(bootstrapClient{
+	q := c.newQuestion(capnp.Method{})
+	bc, q.bootstrapPromise = capnp.NewPromisedClient(bootstrapClient{
 		c:      q.p.Answer().Client().AddRef(),
 		cancel: cancel,
 	})
-	q.bootstrapPromise = cp // safe to write because we're still holding c.mu
 
 	c.sendMessage(ctx, func(m rpccp.Message) error {
 		boot, err := m.NewBootstrap()
@@ -229,7 +228,7 @@ func (c *Conn) Bootstrap(ctx context.Context) *capnp.Client {
 		if err != nil {
 			c.questions[q.id] = nil
 			c.questionID.remove(uint32(q.id))
-			cp.Fulfill(capnp.ErrorClient(exc.Annotate("rpc", "bootstrap", err)))
+			q.bootstrapPromise.Reject(exc.Annotate("rpc", "bootstrap", err))
 			return
 		}
 
@@ -240,7 +239,7 @@ func (c *Conn) Bootstrap(ctx context.Context) *capnp.Client {
 		}()
 	})
 
-	return bc
+	return
 }
 
 type bootstrapClient struct {
@@ -1411,6 +1410,7 @@ func (c *Conn) sendMessage(ctx context.Context, f func(rpccp.Message) error, cal
 	}
 
 	if err = f(msg); err != nil {
+		release()
 		return rpcerr.Failedf("build message: %w", err)
 	}
 
