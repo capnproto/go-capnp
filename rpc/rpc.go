@@ -81,7 +81,7 @@ type Conn struct {
 	closing bool          // used to make shutdown() idempotent
 	closed  chan struct{} // closed when shutdown() returns
 
-	sender *mpsc.Queue
+	sender *mpsc.Queue[asyncSend]
 
 	// Tables
 	questions  []*question
@@ -138,7 +138,7 @@ func NewConn(t Transport, opts *Options) *Conn {
 		bgcancel:  cancel,
 		answers:   make(map[answerID]*answer),
 		imports:   make(map[importID]*impent),
-		sender:    mpsc.New(),
+		sender:    mpsc.New[asyncSend](),
 	}
 	if opts != nil {
 		c.bootstrap = opts.BootstrapClient
@@ -389,12 +389,12 @@ func (c *Conn) send() error {
 	defer drain(c.sender)
 
 	for {
-		v, err := c.sender.Recv(c.bgctx)
+		async, err := c.sender.Recv(c.bgctx)
 		if err != nil {
 			return err
 		}
 
-		v.(sendCallbacks).Send()
+		async.Send()
 	}
 }
 
@@ -1414,49 +1414,49 @@ func (c *Conn) sendMessage(ctx context.Context, f func(rpccp.Message) error, cal
 		return rpcerr.Failedf("build message: %w", err)
 	}
 
-	c.sender.Send(sendCallbacks{
-		Release:  release,
-		Sender:   send,
-		Callback: callback,
+	c.sender.Send(asyncSend{
+		release:  release,
+		send:     send,
+		callback: callback,
 	})
 
 	return nil
 }
 
-type sendCallbacks struct {
-	Sender   func() error
-	Callback func(error)
-	Release  capnp.ReleaseFunc
+type asyncSend struct {
+	send     func() error
+	callback func(error)
+	release  capnp.ReleaseFunc
 }
 
-func (sc sendCallbacks) Abort(err error) {
-	defer sc.Release()
+func (as asyncSend) Abort(err error) {
+	defer as.release()
 
-	if sc.Callback != nil {
-		sc.Callback(err)
+	if as.callback != nil {
+		as.callback(err)
 	}
 }
 
-func (sc sendCallbacks) Send() {
-	defer sc.Release()
+func (as asyncSend) Send() {
+	defer as.release()
 
-	if err := sc.Sender(); sc.Callback != nil {
+	if err := as.send(); as.callback != nil {
 		if err != nil {
 			err = rpcerr.Failedf("send message: %w", err)
 		}
 
-		sc.Callback(err)
+		as.callback(err)
 	}
 }
 
-func drain(q *mpsc.Queue) {
+func drain(q *mpsc.Queue[asyncSend]) {
 	for {
-		v, ok := q.TryRecv()
+		pending, ok := q.TryRecv()
 		if !ok {
 			break
 		}
 
-		v.(sendCallbacks).Abort(ErrConnClosed)
+		pending.Abort(ErrConnClosed)
 	}
 }
 
