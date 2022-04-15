@@ -293,6 +293,7 @@ func (c *Conn) shutdown(abortErr error) (err error) {
 		c.closing = true
 
 		c.stopTasks()
+		c.drainQueue()
 		c.release()
 		c.abort(abortErr)
 
@@ -318,53 +319,82 @@ func (c *Conn) stopTasks() {
 	syncutil.Without(&c.mu, c.tasks.Wait)
 }
 
+func (c *Conn) drainQueue() {
+	for {
+		pending, ok := c.sender.TryRecv()
+		if !ok {
+			break
+		}
+
+		pending.Abort(ErrConnClosed)
+	}
+}
+
 // Clear all tables, releasing exported clients and unfinished answers.
 // Called by 'shutdown'.  Caller MUST hold c.mu.
 func (c *Conn) release() {
 	exports := c.exports
-	answers := c.answers
 	embargoes := c.embargoes
+	answers := c.answers
 	c.imports = nil
 	c.exports = nil
+	c.embargoes = nil
 	c.questions = nil
 	c.answers = nil
-	c.embargoes = nil
 
-	syncutil.Without(&c.mu, func() {
-		c.bootstrap.Release()
-		c.bootstrap = nil
-		for _, e := range exports {
-			if e != nil {
-				metadata := e.client.State().Metadata
-				syncutil.With(metadata, func() {
-					c.clearExportID(metadata)
-				})
-				e.client.Release()
-			}
+	c.mu.Unlock()
+	defer c.mu.Lock()
+
+	c.releaseBootstrap()
+	c.releaseExports(exports)
+	c.liftEmbargoes(embargoes)
+	c.releaseAnswers(answers)
+
+}
+
+func (c *Conn) releaseBootstrap() {
+	c.bootstrap.Release()
+	c.bootstrap = nil
+}
+
+func (c *Conn) releaseExports(exports []*expent) {
+	for _, e := range exports {
+		if e != nil {
+			metadata := e.client.State().Metadata
+			syncutil.With(metadata, func() {
+				c.clearExportID(metadata)
+			})
+
+			e.client.Release()
 		}
-		for _, e := range embargoes {
-			if e != nil {
-				e.lift()
-			}
+	}
+}
+
+func (c *Conn) liftEmbargoes(embargoes []*embargo) {
+	for _, e := range embargoes {
+		if e != nil {
+			e.lift()
 		}
-		for _, a := range answers {
-			if a != nil {
-				releaseList(a.resultCapTable).release()
-				a.releaseMsg()
-			}
+	}
+}
+
+func (c *Conn) releaseAnswers(answers map[answerID]*answer) {
+	for _, a := range answers {
+		if a != nil {
+			releaseList(a.resultCapTable).release()
+			a.releaseMsg()
 		}
-	})
+	}
 }
 
 // If abortErr != nil, send abort message.  IO and alloc errors are ignored.
 // Called by 'shutdown'.  Callers MUST hold c.mu.
 func (c *Conn) abort(abortErr error) {
-	if abortErr == nil {
-		return
-	}
+	// send abort message?
+	if abortErr != nil {
+		c.mu.Unlock()
+		defer c.mu.Lock()
 
-	// c.sender is stopped; send abort message manually.
-	syncutil.Without(&c.mu, func() {
 		ctx, cancel := context.WithTimeout(context.Background(), c.abortTimeout)
 		defer cancel()
 
@@ -381,12 +411,10 @@ func (c *Conn) abort(abortErr error) {
 				send()
 			}
 		}
-	})
+	}
 }
 
 func (c *Conn) send() error {
-	defer drain(c.sender)
-
 	for {
 		async, err := c.sender.Recv(c.bgctx)
 		if err != nil {
@@ -1446,17 +1474,6 @@ func (as asyncSend) Send() {
 		}
 
 		as.callback(err)
-	}
-}
-
-func drain(q *mpsc.Queue[asyncSend]) {
-	for {
-		pending, ok := q.TryRecv()
-		if !ok {
-			break
-		}
-
-		pending.Abort(ErrConnClosed)
 	}
 }
 

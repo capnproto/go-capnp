@@ -317,6 +317,6 @@ func (ans *answer) destroy() (releaseList, error) {
 	if ans.flags&releaseResultCapsFlag == 0 || len(ans.exportRefs) == 0 {
 		return rl, nil
 	}
-	exportReleases, err := ans.c.releaseExports(ans.exportRefs)
+	exportReleases, err := ans.c.releaseExportRefs(ans.exportRefs)
 	return append(rl, exportReleases...), err
 }

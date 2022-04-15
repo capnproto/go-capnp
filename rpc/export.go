@@ -78,7 +78,7 @@ func (c *Conn) releaseExport(id exportID, count uint32) (*capnp.Client, error) {
 	}
 }
 
-func (c *Conn) releaseExports(refs map[exportID]uint32) (releaseList, error) {
+func (c *Conn) releaseExportRefs(refs map[exportID]uint32) (releaseList, error) {
 	n := len(refs)
 	var rl releaseList
 	var firstErr error
