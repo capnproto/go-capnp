@@ -1440,6 +1440,17 @@ func (c *Conn) startTask() (ok bool) {
 	return
 }
 
+// sendMessage creates a new message on the transport, calls f to
+// populate its fields, and enqueues it on the outbound queue.
+// When f returns, the message MUST have a nil cap table.
+//
+// If callback != nil, it will be called by the send gouroutine
+// with the error value returned by the send operation.  If this
+// error is nil, the message was successfully sent.
+//
+// The caller MUST hold c.mu.  The callback will be called without
+// holding c.mu.  Callers of sendMessage MAY wish to reacquire the
+// c.mu within the callback.
 func (c *Conn) sendMessage(ctx context.Context, f func(rpccp.Message) error, callback func(error)) error {
 	msg, send, release, err := c.transport.NewMessage(ctx)
 	if err != nil {
