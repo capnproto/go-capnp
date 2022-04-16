@@ -45,7 +45,9 @@ from the transport, can receive from the transport without additional
 synchronization.  One intentional side effect of this arrangement is
 that during processing of a message, no other messages will be received.
 This provides backpressure to the remote vat as well as simplifying some
-message processing.
+message processing.  However, it is essential that the receive goroutine
+never block while processing a message.  In other words, the receive
+goroutine may only block when waiting for an incoming message.
 
 Some advice for those working on this code:
 
