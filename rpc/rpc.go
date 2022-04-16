@@ -298,7 +298,7 @@ func (c *Conn) shutdown(abortErr error) (err error) {
 
 		c.bgcancel()
 		c.stopTasks()
-		c.drainQueue()
+		syncutil.Without(&c.mu, c.drainQueue)
 		c.release()
 		c.abort(abortErr)
 
@@ -326,6 +326,7 @@ func (c *Conn) stopTasks() {
 	c.tasks.Wait()
 }
 
+// caller MUST NOT hold c.mu
 func (c *Conn) drainQueue() {
 	for {
 		pending, ok := c.sender.TryRecv()
