@@ -12,12 +12,9 @@ import (
 	"fmt"
 	"go/format"
 	"io"
-	"io/ioutil"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
-	"text/template/parse"
 )
 
 func main() {
@@ -30,23 +27,8 @@ func main() {
 	if err != nil {
 		fatalln(err)
 	}
-	ts := make([]template, len(names))
-	for i, name := range names {
-		src, err := ioutil.ReadFile(filepath.Join(dir, name))
-		if err != nil {
-			fatalf("reading template %s: %v", name, err)
-		}
-		compiled, err := compileTemplate(name, string(src))
-		if err != nil {
-			fatalf("compiling template %s: %v", name, err)
-		}
-		ts[i] = template{
-			name:    name,
-			content: compiled,
-		}
-	}
 	genbuf := new(bytes.Buffer)
-	err = generateGo(genbuf, os.Args, ts)
+	err = generateGo(genbuf, os.Args, names)
 	if err != nil {
 		fatalln("generating code:", err)
 	}
@@ -69,40 +51,18 @@ func main() {
 	}
 }
 
-func compileTemplate(name, src string) (string, error) {
-	tset, err := parse.Parse(name, src, "{{", "}}", funcStubs)
-	if err != nil {
-		return "", err
-	}
-	return tset[name].Root.String(), nil
-}
-
-func generateGo(w io.Writer, args []string, ts []template) error {
-	src := new(bytes.Buffer)
-	for _, t := range ts {
-		fmt.Fprintf(src, "{{define %q}}", t.name)
-		src.WriteString(t.content)
-		src.WriteString("{{end}}")
-	}
-
+func generateGo(w io.Writer, args []string, names []string) error {
 	// TODO(light): collect errors
 	fmt.Fprintln(w, "// Code generated from templates directory. DO NOT EDIT.")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "//go:generate", strings.Join(args, " "))
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "package main")
-	fmt.Fprintln(w, "import (")
-	fmt.Fprintln(w, "\t\"strings\"")
-	fmt.Fprintln(w, "\t\"text/template\"")
-	fmt.Fprintln(w, ")")
-	fmt.Fprintln(w, "var templates = template.Must(template.New(\"\").Funcs(template.FuncMap{")
-	fmt.Fprintln(w, "\t\"title\": strings.Title,")
-	fmt.Fprintf(w, "}).Parse(\n\t%q))\n", src.Bytes())
-	for _, t := range ts {
-		if strings.HasPrefix(t.name, "_") {
+	for _, name := range names {
+		if strings.HasPrefix(name, "_") {
 			continue
 		}
-		fmt.Fprintf(w, "func render%s(r renderer, p %sParams) error {\n\treturn r.Render(%[2]q, p)\n}\n", strings.Title(t.name), t.name)
+		fmt.Fprintf(w, "func render%s(r renderer, p %sParams) error {\n\treturn r.Render(%[2]q, p)\n}\n", strings.Title(name), name)
 	}
 	return nil
 }
@@ -151,45 +111,4 @@ func fatalf(format string, args ...interface{}) {
 	}
 	os.Stderr.Write(buf.Bytes())
 	os.Exit(1)
-}
-
-var funcStubs = map[string]interface{}{
-	// Built-ins
-	"and":      variadicBoolStub,
-	"call":     func(interface{}, ...interface{}) (interface{}, error) { return nil, nil },
-	"eq":       func(arg0 interface{}, args ...interface{}) (bool, error) { return false, nil },
-	"ge":       cmpStub,
-	"gt":       cmpStub,
-	"html":     escaperStub,
-	"index":    func(interface{}, ...interface{}) (interface{}, error) { return nil, nil },
-	"js":       escaperStub,
-	"le":       cmpStub,
-	"len":      func(interface{}) (int, error) { return 0, nil },
-	"lt":       cmpStub,
-	"ne":       cmpStub,
-	"not":      func(interface{}) bool { return false },
-	"or":       variadicBoolStub,
-	"print":    fmt.Sprint,
-	"printf":   fmt.Sprintf,
-	"println":  fmt.Sprintln,
-	"urlquery": escaperStub,
-
-	// App-specific
-	"title": strings.Title,
-}
-
-func variadicBoolStub(arg0 interface{}, args ...interface{}) interface{} {
-	return arg0
-}
-
-func cmpStub(interface{}, interface{}) (bool, error) {
-	return false, nil
-}
-
-func escaperStub(...interface{}) string {
-	return ""
-}
-
-func importStub() string {
-	return ""
 }
