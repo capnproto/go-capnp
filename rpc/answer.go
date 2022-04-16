@@ -206,9 +206,9 @@ func (ans *answer) Return(e error) {
 // Finish with releaseResultCaps set to true, then sendReturn returns
 // the number of references to be subtracted from each export.
 //
-// The caller MUST hold ans.c.mu.  The result's capability table MUST
-// have been extracted into ans.resultCapTable before calling sendReturn,
-// and call only one of sendReturn or sendException.
+// The caller MUST be holding onto ans.c.mu.  The result's capability table
+// MUST have been extracted into ans.resultCapTable before calling sendReturn.
+// sendReturn MUST NOT be called if sendException was previously called.
 func (ans *answer) sendReturn() (releaseList, error) {
 	ans.pcall = nil
 	ans.flags |= resultsReady
@@ -256,9 +256,9 @@ func (ans *answer) sendReturn() (releaseList, error) {
 
 // sendException sends an exception on the answer's return message.
 //
-// The caller MUST hold ans.c.mu. The result's capability table MUST
-// have been extracted into ans.resultCapTable before calling, and
-// call only one of sendReturn or sendException.
+// The caller MUST be holding onto ans.c.mu.  The result's capability table
+// MUST have been extracted into ans.resultCapTable before calling sendException.
+// sendException MUST NOT be called if sendReturn was previously called.
 func (ans *answer) sendException(ex error) releaseList {
 	ans.err = ex
 	ans.pcall = nil
