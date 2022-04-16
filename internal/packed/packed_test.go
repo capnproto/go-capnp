@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -12,6 +11,9 @@ import (
 	"strings"
 	"testing"
 	"testing/iotest"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type testCase struct {
@@ -249,88 +251,91 @@ var badDecompressionTests = []struct {
 }
 
 func TestPack(t *testing.T) {
+	t.Parallel()
+
 	for _, test := range compressionTests {
 		t.Run(test.name, func(t *testing.T) {
 			if testing.Short() && test.long {
 				t.Skip("skipping long test due to -short")
 			}
+
 			orig := make([]byte, len(test.original))
 			copy(orig, test.original)
-			compressed := Pack(nil, orig)
-			if !bytes.Equal(compressed, test.compressed) {
-				t.Errorf("Pack(nil,\n%s\n) =\n%s\n; want\n%s", hex.Dump(test.original), hex.Dump(compressed), hex.Dump(test.compressed))
-			}
+			compressed := Pack([]byte{}, orig)
+
+			assert.Equal(t, test.compressed, compressed)
 		})
 	}
 }
 
+func TestPack_wordsize(t *testing.T) {
+	t.Parallel()
+
+	assert.Panics(t, func() {
+		Pack([]byte{}, make([]byte, 1))
+	}, "should panic if len(src) is not a multiple of 8")
+}
+
 func TestUnpack(t *testing.T) {
-	tests := make([]testCase, 0, len(compressionTests)+len(decompressionTests))
+	t.Parallel()
+
+	var tests []testCase
 	tests = append(tests, compressionTests...)
 	tests = append(tests, decompressionTests...)
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			if testing.Short() && test.long {
 				t.Skip("skipping long test due to -short")
 			}
+
 			compressed := make([]byte, len(test.compressed))
 			copy(compressed, test.compressed)
-			orig, err := Unpack(nil, compressed)
-			if err != nil {
-				t.Fatalf("Unpack(nil,\n%s\n) error: %v", hex.Dump(test.compressed), err)
-			}
-			if !bytes.Equal(orig, test.original) {
-				t.Errorf("Unpack(nil,\n%s\n) =\n%s\n; want\n%s", hex.Dump(test.compressed), hex.Dump(orig), hex.Dump(test.original))
-			}
+			orig, err := Unpack([]byte{}, compressed)
+
+			require.NoError(t, err, "should unpack successfully")
+			assert.Equal(t, test.original, orig)
 		})
 	}
 }
 
 func TestUnpack_Fail(t *testing.T) {
+	t.Parallel()
+
 	for _, test := range badDecompressionTests {
 		t.Run(test.name, func(t *testing.T) {
 			compressed := make([]byte, len(test.input))
 			copy(compressed, test.input)
-			_, err := Unpack(nil, compressed)
-			if err == nil {
-				t.Error("did not return error")
-			}
+			_, err := Unpack([]byte{}, compressed)
+			assert.Error(t, err, "should return error")
 		})
 	}
 }
 
 func TestReader(t *testing.T) {
-	tests := make([]testCase, 0, len(compressionTests)+len(decompressionTests))
+	t.Parallel()
+
+	var tests []testCase
 	tests = append(tests, compressionTests...)
 	tests = append(tests, decompressionTests...)
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			if testing.Short() && test.long {
 				t.Skip("skipping long test due to -short")
 			}
+
 			for readSize := 1; readSize <= 8+2*len(test.original); readSize = nextPrime(readSize) {
 				t.Run(fmt.Sprintf("readSize=%d", readSize), func(t *testing.T) {
-					r := bytes.NewReader(test.compressed)
-					d := NewReader(bufio.NewReader(r))
-					buf := make([]byte, readSize)
-					var actual []byte
-					for {
-						n, err := d.Read(buf)
-						actual = append(actual, buf[:n]...)
-						if err != nil {
-							if err == io.EOF {
-								break
-							}
-							t.Fatalf("Read: %v", err)
-						}
-					}
+					var (
+						d   = NewReader(bufio.NewReader(bytes.NewReader(test.compressed)))
+						buf = &bytes.Buffer{}
+					)
 
-					if len(test.original) != len(actual) {
-						t.Fatalf("got %d bytes; want %d bytes", len(actual), len(test.original))
-					}
-					if !bytes.Equal(test.original, actual) {
-						t.Fatalf("bytes = %v; want %v", actual, test.original)
-					}
+					n, err := io.CopyBuffer(buf, d, make([]byte, readSize))
+					require.NoError(t, err, "should read full payload")
+					require.Len(t, test.original, int(n), "number of bytes read should match length of original input")
+					assert.Equal(t, test.original, buf.Bytes(), "should match original input")
 				})
 			}
 		})
@@ -338,48 +343,40 @@ func TestReader(t *testing.T) {
 }
 
 func TestReader_DataErr(t *testing.T) {
+	t.Parallel()
+
 	const readSize = 3
-	tests := make([]testCase, 0, len(compressionTests)+len(decompressionTests))
+	var tests []testCase
 	tests = append(tests, compressionTests...)
 	tests = append(tests, decompressionTests...)
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			if testing.Short() && test.long {
 				t.Skip("skipping long test due to -short")
 			}
-			r := iotest.DataErrReader(bytes.NewReader(test.compressed))
-			d := NewReader(bufio.NewReader(r))
-			buf := make([]byte, readSize)
-			var actual []byte
-			for {
-				n, err := d.Read(buf)
-				actual = append(actual, buf[:n]...)
-				if err != nil {
-					if err == io.EOF {
-						break
-					}
-					t.Fatalf("Read: %v", err)
-				}
-			}
 
-			if len(test.original) != len(actual) {
-				t.Fatalf("got %d bytes; want %d bytes", len(actual), len(test.original))
-			}
-			if !bytes.Equal(test.original, actual) {
-				t.Fatal("bytes not equal")
-			}
+			var (
+				d   = NewReader(bufio.NewReader(iotest.DataErrReader(bytes.NewReader(test.compressed))))
+				buf = &bytes.Buffer{}
+			)
+
+			n, err := io.CopyBuffer(buf, d, make([]byte, readSize))
+			require.NoError(t, err, "should read full payload")
+			require.Len(t, test.original, int(n), "number of bytes read should match length of original input")
+			assert.Equal(t, test.original, buf.Bytes(), "should match original input")
 		})
 	}
 }
 
 func TestReader_Fail(t *testing.T) {
+	t.Parallel()
+
 	for _, test := range badDecompressionTests {
 		t.Run(test.name, func(t *testing.T) {
 			d := NewReader(bufio.NewReader(bytes.NewReader(test.input)))
 			_, err := ioutil.ReadAll(d)
-			if err == nil {
-				t.Error("did not return error")
-			}
+			assert.Error(t, err, "should return error")
 		})
 	}
 }
