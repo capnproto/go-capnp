@@ -34,6 +34,7 @@ func BenchmarkPingPong(b *testing.B) {
 	client := testcp.PingPong{Client: conn2.Bootstrap(ctx)}
 	defer client.Client.Release()
 	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
 		ans, release := client.EchoNum(ctx, func(args testcp.PingPong_echoNum_Params) error {
 			args.SetN(42)

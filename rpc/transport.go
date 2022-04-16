@@ -2,12 +2,12 @@ package rpc
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"sync/atomic"
 	"time"
 
 	capnp "capnproto.org/go/capnp/v3"
-	"capnproto.org/go/capnp/v3/internal/errors"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 )
 
@@ -27,7 +27,8 @@ type Transport interface {
 	// The caller may modify the CapTable as it pleases.
 	//
 	// The Arena in the returned message should be fast at allocating new
-	// segments.
+	// segments.  The returned ReleaseFunc MUST be safe to call concurrently
+	// with subsequent calls to NewMessage.
 	NewMessage(ctx context.Context) (_ rpccp.Message, send func() error, _ capnp.ReleaseFunc, _ error)
 
 	// RecvMessage receives the next message sent from the remote vat.
@@ -104,17 +105,19 @@ func (s *transport) NewMessage(ctx context.Context) (_ rpccp.Message, send func(
 	// TODO(soon): reuse memory
 	msg, seg, err := capnp.NewMessage(capnp.MultiSegment(nil))
 	if err != nil {
-		return rpccp.Message{}, nil, nil, errors.New(errors.Failed, "rpc stream transport", "new message: "+err.Error())
+		err = rpcerr.Annotate(fmt.Errorf("new message: %w", err), "stream transport")
+		return rpccp.Message{}, nil, nil, err
 	}
 	rmsg, err := rpccp.NewRootMessage(seg)
 	if err != nil {
-		return rpccp.Message{}, nil, nil, errors.New(errors.Failed, "rpc stream transport", "new message: "+err.Error())
+		err = rpcerr.Annotate(fmt.Errorf("new message: %w", err), "stream transport")
+		return rpccp.Message{}, nil, nil, err
 	}
 
 	send = func() error {
 		// context expired?
 		if err := ctx.Err(); err != nil {
-			return errors.New(errors.Failed, "rpc stream transport", "send: "+ctx.Err().Error())
+			return rpcerr.Annotate(fmt.Errorf("send: %w", ctx.Err()), "stream transport")
 		}
 
 		// stream error?
@@ -125,10 +128,12 @@ func (s *transport) NewMessage(ctx context.Context) (_ rpccp.Message, send func(
 		// ok, go!
 		if err = s.c.Encode(ctx, msg); err != nil {
 			if _, ok := err.(partialWriteError); ok {
-				s.err.Set(errors.New(errors.Disconnected, "rpc stream transport", "broken due to partial write"))
+				s.err.Set(rpcerr.
+					Disconnectedf("broken due to partial write").
+					Annotate("", "stream transport"))
 			}
 
-			err = errors.New(errors.Failed, "rpc stream transport", "send: "+err.Error())
+			err = rpcerr.Annotate(fmt.Errorf("send: %w", err), "stream transport")
 		}
 
 		return err
@@ -159,11 +164,13 @@ func (s *transport) RecvMessage(ctx context.Context) (rpccp.Message, capnp.Relea
 
 	msg, err := s.c.Decode(ctx)
 	if err != nil {
-		return rpccp.Message{}, nil, errors.New(errors.Failed, "rpc stream transport", "receive: "+err.Error())
+		err = rpcerr.Annotate(fmt.Errorf("receive: %w", err), "stream transport")
+		return rpccp.Message{}, nil, err
 	}
 	rmsg, err := rpccp.ReadRootMessage(msg)
 	if err != nil {
-		return rpccp.Message{}, nil, errors.New(errors.Failed, "rpc stream transport", "receive: "+err.Error())
+		err = rpcerr.Annotate(fmt.Errorf("receive: %w", err), "stream transport")
+		return rpccp.Message{}, nil, err
 	}
 	return rmsg, func() { msg.Reset(nil) }, nil
 }
@@ -172,12 +179,12 @@ func (s *transport) RecvMessage(ctx context.Context) (rpccp.Message, capnp.Relea
 // Close concurrently with any other operations on the transport.
 func (s *transport) Close() error {
 	if s.closed {
-		return errors.New(errors.Disconnected, "rpc stream transport", "already closed")
+		return rpcerr.Disconnectedf("already closed").Annotate("", "stream transport")
 	}
 	s.closed = true
 	err := s.c.Close()
 	if err != nil {
-		return errors.New(errors.Failed, "rpc stream transport", "close: "+err.Error())
+		return rpcerr.Annotate(fmt.Errorf("close: %w", err), "stream transport")
 	}
 	return nil
 }

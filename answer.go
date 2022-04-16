@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"sync"
 
-	"capnproto.org/go/capnp/v3/internal/errors"
+	"capnproto.org/go/capnp/v3/exc"
 	"capnproto.org/go/capnp/v3/internal/syncutil"
 )
 
@@ -766,11 +766,11 @@ type resolution struct {
 // ptr obtains a Ptr by applying a transform.
 func (r resolution) ptr(transform []PipelineOp) (Ptr, error) {
 	if r.err != nil {
-		return Ptr{}, errors.Annotate("", r.method.String(), r.err)
+		return Ptr{}, exc.Annotate("", r.method.String(), r.err)
 	}
 	p, err := Transform(r.result, transform)
 	if err != nil {
-		return Ptr{}, errors.Annotate("", r.method.String(), err)
+		return Ptr{}, exc.Annotate("", r.method.String(), err)
 	}
 	return p, nil
 }
@@ -789,7 +789,7 @@ func (r resolution) client(transform []PipelineOp) *Client {
 	}
 	iface := p.Interface()
 	if p.IsValid() && !iface.IsValid() {
-		return ErrorClient(newError("not a capability"))
+		return ErrorClient(errorf("not a capability"))
 	}
 	return iface.Client()
 }

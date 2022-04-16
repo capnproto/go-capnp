@@ -9,12 +9,16 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"capnproto.org/go/capnp/v3"
+	"capnproto.org/go/capnp/v3/exc"
 	"capnproto.org/go/capnp/v3/pogs"
 	"capnproto.org/go/capnp/v3/rpc"
 	"capnproto.org/go/capnp/v3/server"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -46,6 +50,8 @@ func TestMain(m *testing.M) {
 // TestSendAbort calls Close on a new connection, verifying that it
 // sends an Abort message and it reports no errors.  Level 0 requirement.
 func TestSendAbort(t *testing.T) {
+	t.Parallel()
+
 	t.Run("ReceiverListening", func(t *testing.T) {
 		p1, p2 := newPipe(1)
 		defer p2.Close()
@@ -100,35 +106,37 @@ func TestSendAbort(t *testing.T) {
 // closes the connection, verifying that Close does not return an error.
 // Level 0 requirement.
 func TestRecvAbort(t *testing.T) {
+	t.Parallel()
+
 	p1, p2 := newPipe(1)
 	defer p2.Close()
 	conn := rpc.NewConn(p1, &rpc.Options{
 		ErrorReporter: testErrorReporter{tb: t},
 	})
 
-	ctx := context.Background()
 	select {
 	case <-conn.Done():
 		t.Error("conn.Done closed before receiving abort")
 	default:
 	}
-	err := sendMessage(ctx, p2, &rpcMessage{
+	err := sendMessage(context.Background(), p2, &rpcMessage{
 		Which: rpccp.Message_Which_abort,
 		Abort: &rpcException{
 			Type:   rpccp.Exception_Type_failed,
 			Reason: "over it",
 		},
 	})
-	if err != nil {
-		conn.Close()
-		t.Fatal(err)
-	}
-	boot := conn.Bootstrap(ctx)
+	require.NoError(t, err, "must send 'failed' exception")
+
+	boot := conn.Bootstrap(context.Background())
 	defer boot.Release()
-	if err := boot.Resolve(ctx); err != nil {
-		t.Error("bootstrap resolution:", err)
-	}
-	ans, releaseCall := boot.SendCall(ctx, capnp.Send{
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	err = boot.Resolve(ctx)
+	require.NoError(t, err, "should resolve bootstrap capability")
+
+	ans, releaseCall := boot.SendCall(context.Background(), capnp.Send{
 		Method: capnp.Method{
 			InterfaceID: interfaceID,
 			MethodID:    methodID,
@@ -141,20 +149,21 @@ func TestRecvAbort(t *testing.T) {
 	})
 	_, err = ans.Struct()
 	releaseCall()
-	if !capnp.IsDisconnected(err) {
-		t.Errorf("call error = %v; want disconnected", err)
-	}
+	require.True(t, exc.IsType(err, exc.Disconnected), "should be 'disconnected' exception")
+
 	boot.Release()
 	<-conn.Done()
-	if err := conn.Close(); err != nil {
-		t.Errorf("conn.Close() = %v; want <nil>", err)
-	}
+
+	err = conn.Close()
+	assert.NoError(t, err, "should close without error")
 }
 
 // TestSendBootstrapError calls Bootstrap, raises an exception, then
 // makes an RPC on the client.  It checks to see that the RPC returns an
 // error with the correct message.  Level 0 requirement.
 func TestSendBootstrapError(t *testing.T) {
+	t.Parallel()
+
 	p1, p2 := newPipe(1)
 	conn := rpc.NewConn(p1, &rpc.Options{
 		ErrorReporter: testErrorReporter{tb: t},
@@ -243,6 +252,8 @@ func TestSendBootstrapError(t *testing.T) {
 // correct messages were sent on the wire and that the correct return
 // value came back.  Level 0 requirement.
 func TestSendBootstrapCall(t *testing.T) {
+	t.Parallel()
+
 	p1, p2 := newPipe(1)
 	conn := rpc.NewConn(p1, &rpc.Options{
 		ErrorReporter: testErrorReporter{tb: t},
@@ -450,6 +461,8 @@ func TestSendBootstrapCall(t *testing.T) {
 // exception.  It checks to see that the correct messages were sent on
 // the wire and that the error message is correct.  Level 0 requirement.
 func TestSendBootstrapCallException(t *testing.T) {
+	t.Parallel()
+
 	p1, p2 := newPipe(1)
 	conn := rpc.NewConn(p1, &rpc.Options{
 		ErrorReporter: testErrorReporter{tb: t},
@@ -623,6 +636,8 @@ func TestSendBootstrapCallException(t *testing.T) {
 // TestSendBootstrapPipelineCall calls Bootstrap and makes an RPC on the
 // returned capability without resolving the client.  Level 0 requirement.
 func TestSendBootstrapPipelineCall(t *testing.T) {
+	t.Parallel()
+
 	p1, p2 := newPipe(1)
 	conn := rpc.NewConn(p1, &rpc.Options{
 		ErrorReporter: testErrorReporter{tb: t},
@@ -780,6 +795,8 @@ func TestSendBootstrapPipelineCall(t *testing.T) {
 // receives a Bootstrap message.  It checks that an exception was sent
 // back.  Level 0 requirement.
 func TestRecvBootstrapError(t *testing.T) {
+	t.Parallel()
+
 	p1, p2 := newPipe(1)
 	conn := rpc.NewConn(p1, &rpc.Options{
 		ErrorReporter: testErrorReporter{tb: t},
@@ -839,6 +856,8 @@ func TestRecvBootstrapError(t *testing.T) {
 // connection.  It checks that the correct messages were sent and that
 // the return values are correct.  Level 0 requirement.
 func TestRecvBootstrapCall(t *testing.T) {
+	t.Parallel()
+
 	srvShutdown := make(chan struct{})
 	srv := newServer(
 		func(ctx context.Context, call *server.Call) error {
@@ -1003,6 +1022,8 @@ func TestRecvBootstrapCall(t *testing.T) {
 // messages were sent and that the return values are correct.  Level 0
 // requirement.
 func TestRecvBootstrapCallException(t *testing.T) {
+	t.Parallel()
+
 	srv := newServer(func(ctx context.Context, call *server.Call) error {
 		return errors.New("everything went wrong")
 	}, nil)
@@ -1146,6 +1167,8 @@ func TestRecvBootstrapCallException(t *testing.T) {
 // messages were sent and that the return values are correct.  Level 0
 // requirement.
 func TestRecvBootstrapPipelineCall(t *testing.T) {
+	t.Parallel()
+
 	srvShutdown := make(chan struct{})
 	srv := newServer(
 		func(ctx context.Context, call *server.Call) error {
@@ -1263,6 +1286,8 @@ func TestRecvBootstrapPipelineCall(t *testing.T) {
 // connection, then attempts to make a call on the capability, verifying
 // that the call returns a disconnected error.  Level 0 requirement.
 func TestCallOnClosedConn(t *testing.T) {
+	t.Parallel()
+
 	p1, p2 := newPipe(1)
 	defer p2.Close()
 	conn := rpc.NewConn(p1, &rpc.Options{
@@ -1380,6 +1405,8 @@ func TestCallOnClosedConn(t *testing.T) {
 // checks to see whether the call's Context was canceled and whether the
 // capability the call returned is released.  Level 0 requirement.
 func TestRecvCancel(t *testing.T) {
+	t.Parallel()
+
 	callCancel := make(chan struct{})
 	retcapShutdown := make(chan struct{})
 	srv := newServer(func(ctx context.Context, call *server.Call) error {
@@ -1549,6 +1576,8 @@ func TestRecvCancel(t *testing.T) {
 // TestSendCancel makes a call, cancels the Context, then checks to
 // see whether a finish message was sent.  Level 0 requirement.
 func TestSendCancel(t *testing.T) {
+	t.Parallel()
+
 	p1, p2 := newPipe(1)
 	conn := rpc.NewConn(p1, &rpc.Options{
 		ErrorReporter: testErrorReporter{tb: t},

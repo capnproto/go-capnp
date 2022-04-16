@@ -20,7 +20,7 @@ type pipe struct {
 
 	w    chan<- pipeMsg
 	wc   <-chan struct{} // closed when writes are no longer listened to
-	msgs map[*newMessageCaller]struct{}
+	msgs *callerSet
 }
 
 type pipeMsg struct {
@@ -33,19 +33,14 @@ func newPipe(n int) (p1, p2 *pipe) {
 	ch2 := make(chan pipeMsg, n)
 	close1 := make(chan struct{})
 	close2 := make(chan struct{})
-	return &pipe{r: ch1, w: ch2, rc: close1, wc: close2},
-		&pipe{r: ch2, w: ch1, rc: close2, wc: close1}
+	return &pipe{r: ch1, w: ch2, rc: close1, wc: close2, msgs: newCallerSet()},
+		&pipe{r: ch2, w: ch1, rc: close2, wc: close1, msgs: newCallerSet()}
 }
 
 func (p *pipe) NewMessage(ctx context.Context) (_ rpccp.Message, send func() error, release capnp.ReleaseFunc, _ error) {
 	msg, seg, _ := capnp.NewMessage(capnp.MultiSegment(nil))
 	rmsg, _ := rpccp.NewRootMessage(seg)
-	_, file, line, _ := runtime.Caller(1)
-	caller := &newMessageCaller{file, line}
-	if p.msgs == nil {
-		p.msgs = make(map[*newMessageCaller]struct{})
-	}
-	p.msgs[caller] = struct{}{}
+	clearCaller := p.msgs.Add()
 
 	// Variables aren't synchronized because the Transport interface does
 	// not require them to be.  Should trigger race detector.
@@ -103,7 +98,7 @@ func (p *pipe) NewMessage(ctx context.Context) (_ rpccp.Message, send func() err
 			if r == 0 {
 				msg.Reset(nil)
 			}
-			return fmt.Errorf("rpc pipe: %v", ctx.Err())
+			return fmt.Errorf("rpc pipe: %w", ctx.Err())
 		}
 	}
 	release = func() {
@@ -111,7 +106,7 @@ func (p *pipe) NewMessage(ctx context.Context) (_ rpccp.Message, send func() err
 			return
 		}
 		sendDone = true
-		delete(p.msgs, caller)
+		clearCaller()
 		refsMu.Lock()
 		r := refs - 1
 		refs = r
@@ -138,14 +133,41 @@ func (p *pipe) RecvMessage(ctx context.Context) (rpccp.Message, capnp.ReleaseFun
 	case <-p.rc:
 		return rpccp.Message{}, nil, errors.New("rpc pipe: receive interrupted by close")
 	case <-ctx.Done():
-		return rpccp.Message{}, nil, fmt.Errorf("rpc pipe: %v", ctx.Err())
+		return rpccp.Message{}, nil, fmt.Errorf("rpc pipe: %w", ctx.Err())
 	}
 }
 
 func (p *pipe) Close() error {
-	if len(p.msgs) > 0 {
+	p.msgs.Finish()
+	close(p.w)
+	close(p.rc)
+	for {
+		select {
+		case _, ok := <-p.r:
+			if !ok {
+				return nil
+			}
+		default:
+			return nil
+		}
+	}
+}
+
+type callerSet struct {
+	mu      sync.Mutex
+	callers map[*newMessageCaller]struct{}
+}
+
+func newCallerSet() *callerSet {
+	return &callerSet{
+		callers: map[*newMessageCaller]struct{}{},
+	}
+}
+
+func (cs *callerSet) Finish() {
+	if len(cs.callers) > 0 {
 		var callers []byte
-		for c := range p.msgs {
+		for c := range cs.callers {
 			if len(callers) > 0 {
 				callers = append(callers, ", "...)
 			}
@@ -159,19 +181,21 @@ func (p *pipe) Close() error {
 		}
 		panic("Close called before releasing all messages.  Unreleased: " + string(callers))
 	}
-	close(p.w)
-	close(p.rc)
-	for {
-		select {
-		case _, ok := <-p.r:
-			if !ok {
-				return nil
-			}
-		default:
-			return nil
-		}
+}
+
+func (cs *callerSet) Add() capnp.ReleaseFunc {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+
+	_, file, line, _ := runtime.Caller(2)
+	caller := &newMessageCaller{file, line}
+	cs.callers[caller] = struct{}{}
+
+	return func() {
+		cs.mu.Lock()
+		delete(cs.callers, caller)
+		cs.mu.Unlock()
 	}
-	return nil
 }
 
 func TestPipeTransport(t *testing.T) {

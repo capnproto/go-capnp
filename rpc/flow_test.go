@@ -109,7 +109,7 @@ func TestFixedFlowLimit(t *testing.T) {
 		conn := NewConn(trans, nil)
 		defer conn.Close()
 
-		client := testcapnp.StreamTest{conn.Bootstrap(ctx)}
+		client := testcapnp.StreamTest{Client: conn.Bootstrap(ctx)}
 		defer client.Release()
 
 		// Make a decently sized payload, so we can expect the size of the
@@ -126,7 +126,7 @@ func TestFixedFlowLimit(t *testing.T) {
 		}
 	}()
 
-	_, _ = <-done
+	<-done
 	// The server has exited, it is now safe to access the transport without syncrhonization.
 	//
 	// We check that the max bytes in filght never exceeded the limit by more than 10%.

@@ -2,10 +2,12 @@ package rpc
 
 import (
 	"context"
+	"fmt"
 	"sync"
+	"sync/atomic"
 
 	"capnproto.org/go/capnp/v3"
-	"capnproto.org/go/capnp/v3/internal/errors"
+	"capnproto.org/go/capnp/v3/exc"
 	"capnproto.org/go/capnp/v3/internal/syncutil"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 )
@@ -28,12 +30,11 @@ type answer struct {
 	// entry is a placeholder until the remote vat cancels the call.
 	ret rpccp.Return
 
-	// sendMsg sends the return message.  The caller must be holding onto
-	// the sender lock but not ans.c.mu.
-	sendMsg func() error
+	// sendMsg sends the return message.  The caller MUST NOT hold ans.c.mu.
+	sendMsg func()
 
-	// releaseMsg releases the return message.  The caller must be holding
-	// onto the sender lock but not ans.c.mu.
+	// releaseMsg releases the return message.  The caller MUST NOT hold
+	// ans.c.mu.
 	releaseMsg capnp.ReleaseFunc
 
 	// results is the memoized answer to ret.Results().
@@ -94,24 +95,42 @@ func errorAnswer(c *Conn, id answerID, err error) *answer {
 	}
 }
 
-// newReturn creates a new Return message.  The caller must be holding
-// onto the sender lock but not c.mu.
-func (c *Conn) newReturn(ctx context.Context) (rpccp.Return, func() error, capnp.ReleaseFunc, error) {
-	msg, send, release, err := c.transport.NewMessage(ctx)
+// newReturn creates a new Return message.
+func (c *Conn) newReturn(ctx context.Context) (rpccp.Return, func(), capnp.ReleaseFunc, error) {
+	msg, send, releaseMsg, err := c.transport.NewMessage(ctx)
 	if err != nil {
-		return rpccp.Return{}, nil, nil, failedf("create return: %w", err)
+		return rpccp.Return{}, nil, nil, rpcerr.Failedf("create return: %w", err)
 	}
 	ret, err := msg.NewReturn()
 	if err != nil {
-		release()
-		return rpccp.Return{}, nil, nil, failedf("create return: %w", err)
+		releaseMsg()
+		return rpccp.Return{}, nil, nil, rpcerr.Failedf("create return: %w", err)
 	}
-	return ret, send, release, nil
+
+	// Before releasing the message, we need to wait both until it is sent and
+	// until the local vat is done with it.  We therefore implement a simple
+	// ref-counting mechanism such that 'release' must be called twice before
+	// 'releaseMsg' is called.
+	ref := uint32(2)
+	release := func() {
+		if atomic.AddUint32(&ref, ^uint32(0)) == 0 {
+			releaseMsg()
+		}
+	}
+
+	return ret, func() {
+		c.sender.Send(asyncSend{
+			send:    send,
+			release: release,
+			callback: func(err error) {
+				c.er.ReportError(fmt.Errorf("send return: %w", err))
+			},
+		})
+	}, release, nil
 }
 
 // setPipelineCaller sets ans.pcall to pcall if the answer has not
-// already returned.  The caller MUST NOT be holding onto ans.c.mu
-// or the sender lock.
+// already returned.  The caller MUST NOT hold ans.c.mu.
 //
 // This also sets ans.promise to a new promise, wrapping pcall.
 func (ans *answer) setPipelineCaller(m capnp.Method, pcall capnp.PipelineCaller) {
@@ -128,14 +147,14 @@ func (ans *answer) AllocResults(sz capnp.ObjectSize) (capnp.Struct, error) {
 	var err error
 	ans.results, err = ans.ret.NewResults()
 	if err != nil {
-		return capnp.Struct{}, failedf("alloc results: %w", err)
+		return capnp.Struct{}, rpcerr.Failedf("alloc results: %w", err)
 	}
 	s, err := capnp.NewStruct(ans.results.Segment(), sz)
 	if err != nil {
-		return capnp.Struct{}, failedf("alloc results: %w", err)
+		return capnp.Struct{}, rpcerr.Failedf("alloc results: %w", err)
 	}
 	if err := ans.results.SetContent(s.ToPtr()); err != nil {
-		return capnp.Struct{}, failedf("alloc results: %w", err)
+		return capnp.Struct{}, rpcerr.Failedf("alloc results: %w", err)
 	}
 	return s, nil
 }
@@ -152,27 +171,25 @@ func (ans *answer) setBootstrap(c *capnp.Client) error {
 	var err error
 	ans.results, err = ans.ret.NewResults()
 	if err != nil {
-		return failedf("alloc bootstrap results: %w", err)
+		return rpcerr.Failedf("alloc bootstrap results: %w", err)
 	}
 	iface := capnp.NewInterface(ans.results.Segment(), 0)
 	if err := ans.results.SetContent(iface.ToPtr()); err != nil {
-		return failedf("alloc bootstrap results: %w", err)
+		return rpcerr.Failedf("alloc bootstrap results: %w", err)
 	}
 	return nil
 }
 
 // Return sends the return message.
 //
-// The caller must NOT be holding onto ans.c.mu or the sender lock.
+// The caller MUST NOT hold ans.c.mu.
 func (ans *answer) Return(e error) {
 	if ans.results.IsValid() {
 		ans.resultCapTable = ans.results.Message().CapTable
 	}
 	ans.c.mu.Lock()
-	ans.c.lockSender()
 	if e != nil {
 		rl := ans.sendException(e)
-		ans.c.unlockSender()
 		ans.c.mu.Unlock()
 		rl.release()
 		ans.pcalls.Wait()
@@ -180,16 +197,16 @@ func (ans *answer) Return(e error) {
 		return
 	}
 	rl, err := ans.sendReturn()
-	ans.c.unlockSender()
 	if err != nil {
 		select {
 		case <-ans.c.bgctx.Done():
 		default:
 			ans.c.tasks.Done() // added by handleCall
 			if err := ans.c.shutdown(err); err != nil {
-				ans.c.report(err)
+				ans.c.er.ReportError(err)
 			}
-			// shutdown released c.mu
+
+			ans.c.mu.Unlock()
 			rl.release()
 			ans.pcalls.Wait()
 			return
@@ -206,20 +223,17 @@ func (ans *answer) Return(e error) {
 // Finish with releaseResultCaps set to true, then sendReturn returns
 // the number of references to be subtracted from each export.
 //
-// The caller must be holding onto ans.c.mu and the sender lock.
-// The result's capability table must have been extracted into
-// ans.resultCapTable before calling sendReturn. Only one of
-// sendReturn or sendException should be called.
+// The caller MUST be holding onto ans.c.mu.  The result's capability table
+// MUST have been extracted into ans.resultCapTable before calling sendReturn.
+// sendReturn MUST NOT be called if sendException was previously called.
 func (ans *answer) sendReturn() (releaseList, error) {
 	ans.pcall = nil
 	ans.flags |= resultsReady
 
 	var err error
 	ans.exportRefs, err = ans.c.fillPayloadCapTable(ans.results, ans.resultCapTable)
-	if err != nil {
-		ans.c.report(annotate(err, "send return"))
-		// Continue.  Don't fail to send return if cap table isn't fully filled.
-	}
+	ans.c.er.ReportError(rpcerr.Annotate(err, "send return")) // nop if err == nil
+	// Continue.  Don't fail to send return if cap table isn't fully filled.
 
 	select {
 	case <-ans.c.bgctx.Done():
@@ -231,16 +245,14 @@ func (ans *answer) sendReturn() (releaseList, error) {
 				// ok to return an error if the finish comes in
 				// before the return. Possible enhancement: use
 				// the cancel variant of return.
-				ans.promise.Reject(failedf("Received finish before return"))
+				ans.promise.Reject(rpcerr.Failedf("received finish before return"))
 			} else {
 				ans.promise.Resolve(ans.results.Content())
 			}
 			ans.promise = nil
 		}
 		ans.c.mu.Unlock()
-		if err := ans.sendMsg(); err != nil {
-			ans.c.report(failedf("send return: %w", err))
-		}
+		ans.sendMsg()
 		if fin {
 			ans.releaseMsg()
 			ans.c.mu.Lock()
@@ -261,17 +273,16 @@ func (ans *answer) sendReturn() (releaseList, error) {
 
 // sendException sends an exception on the answer's return message.
 //
-// The caller must be holding onto ans.c.mu and the sender lock.
-// The result's capability table must have been extracted into
-// ans.resultCapTable before calling sendException. Only one of
-// sendReturn or sendException should be called.
-func (ans *answer) sendException(e error) releaseList {
-	ans.err = e
+// The caller MUST be holding onto ans.c.mu.  The result's capability table
+// MUST have been extracted into ans.resultCapTable before calling sendException.
+// sendException MUST NOT be called if sendReturn was previously called.
+func (ans *answer) sendException(ex error) releaseList {
+	ans.err = ex
 	ans.pcall = nil
 	ans.flags |= resultsReady
 
 	if ans.promise != nil {
-		ans.promise.Reject(e)
+		ans.promise.Reject(ex)
 		ans.promise = nil
 	}
 
@@ -281,14 +292,14 @@ func (ans *answer) sendException(e error) releaseList {
 		// Send exception.
 		fin := ans.flags&finishReceived != 0
 		ans.c.mu.Unlock()
-		if exc, err := ans.ret.NewException(); err != nil {
-			ans.c.report(failedf("send exception: %w", err))
+		if e, err := ans.ret.NewException(); err != nil {
+			ans.c.er.ReportError(fmt.Errorf("send exception: %w", err))
 		} else {
-			exc.SetType(rpccp.Exception_Type(errors.TypeOf(e)))
-			if err := exc.SetReason(e.Error()); err != nil {
-				ans.c.report(failedf("send exception: %w", err))
-			} else if err := ans.sendMsg(); err != nil {
-				ans.c.report(failedf("send return: %w", err))
+			e.SetType(rpccp.Exception_Type(exc.TypeOf(ex)))
+			if err := e.SetReason(ex.Error()); err != nil {
+				ans.c.er.ReportError(fmt.Errorf("send exception: %w", err))
+			} else {
+				ans.sendMsg()
 			}
 		}
 		if fin {
@@ -323,6 +334,6 @@ func (ans *answer) destroy() (releaseList, error) {
 	if ans.flags&releaseResultCapsFlag == 0 || len(ans.exportRefs) == 0 {
 		return rl, nil
 	}
-	exportReleases, err := ans.c.releaseExports(ans.exportRefs)
+	exportReleases, err := ans.c.releaseExportRefs(ans.exportRefs)
 	return append(rl, exportReleases...), err
 }

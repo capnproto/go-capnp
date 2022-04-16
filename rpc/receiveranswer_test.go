@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"os"
-	"syscall"
 	"testing"
 
 	//"github.com/stretchr/testify/assert"
@@ -15,20 +13,6 @@ import (
 	"capnproto.org/go/capnp/v3/rpc/internal/testcapnp"
 	"capnproto.org/go/capnp/v3/server"
 )
-
-// A variant of net.Pipe() that uses the socketpair() syscall, instead of
-// using an in-proces transport. This is also buffered, which works around
-// #189. TODO: once that issue is fixed, delete this and just use net.Pipe().
-func netPipe() (net.Conn, net.Conn) {
-	fds, err := syscall.Socketpair(syscall.AF_UNIX, syscall.SOCK_STREAM, 0)
-	chkfatal(err)
-	mkConn := func(fd int, name string) net.Conn {
-		conn, err := net.FileConn(os.NewFile(uintptr(fd), name))
-		chkfatal(err)
-		return conn
-	}
-	return mkConn(fds[0], "pipe0"), mkConn(fds[1], "pipe1")
-}
 
 type capArgsTest struct {
 	Errs chan<- error
@@ -71,7 +55,9 @@ func chkfatal(err error) {
 }
 
 func TestBootstrapReceiverAnswerRpc(t *testing.T) {
-	cClient, cServer := netPipe()
+	t.Parallel()
+
+	cClient, cServer := net.Pipe()
 	defer cClient.Close()
 	defer cServer.Close()
 
@@ -91,7 +77,7 @@ func TestBootstrapReceiverAnswerRpc(t *testing.T) {
 	defer clientConn.Close()
 
 	ctx := context.Background()
-	c := testcapnp.CapArgsTest{clientConn.Bootstrap(ctx)}
+	c := testcapnp.CapArgsTest{Client: clientConn.Bootstrap(ctx)}
 
 	res, rel := c.Call(ctx, func(p testcapnp.CapArgsTest_call_Params) error {
 		capId := p.Message().AddCap(c.Client.AddRef())
@@ -110,7 +96,9 @@ func TestBootstrapReceiverAnswerRpc(t *testing.T) {
 }
 
 func TestCallReceiverAnswerRpc(t *testing.T) {
-	cClient, cServer := netPipe()
+	t.Parallel()
+
+	cClient, cServer := net.Pipe()
 	defer cClient.Close()
 	defer cServer.Close()
 
@@ -130,7 +118,7 @@ func TestCallReceiverAnswerRpc(t *testing.T) {
 	defer clientConn.Close()
 
 	ctx := context.Background()
-	bs := testcapnp.CapArgsTest{clientConn.Bootstrap(ctx)}
+	bs := testcapnp.CapArgsTest{Client: clientConn.Bootstrap(ctx)}
 	defer bs.Release()
 
 	selfRes, rel := bs.Self(ctx, nil)
@@ -155,7 +143,9 @@ func TestCallReceiverAnswerRpc(t *testing.T) {
 }
 
 func TestBootstrapReceiverAnswer(t *testing.T) {
-	cClient, cServer := netPipe()
+	t.Parallel()
+
+	cClient, cServer := net.Pipe()
 	defer cClient.Close()
 	defer cServer.Close()
 
@@ -220,7 +210,9 @@ func TestBootstrapReceiverAnswer(t *testing.T) {
 }
 
 func TestCallReceiverAnswer(t *testing.T) {
-	cClient, cServer := netPipe()
+	t.Parallel()
+
+	cClient, cServer := net.Pipe()
 	defer cClient.Close()
 	defer cServer.Close()
 

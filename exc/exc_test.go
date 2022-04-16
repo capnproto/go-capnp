@@ -1,4 +1,4 @@
-package errors
+package exc
 
 import (
 	"errors"
@@ -13,7 +13,7 @@ func TestUnwrap(t *testing.T) {
 	var (
 		errGeneric = errors.New("something went wrong")
 		err        = Annotate("annotated", "test", errGeneric)
-		exc        Error
+		exc        = new(Exception)
 	)
 
 	assert.EqualError(t, errors.Unwrap(err), "test: something went wrong")
@@ -40,25 +40,6 @@ func TestErrorString(t *testing.T) {
 	for _, test := range tests {
 		err := New(test.typ, test.prefix, test.msg)
 		assert.EqualError(t, err, test.want)
-	}
-}
-
-func TestTypeOf(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		err  error
-		want Type
-	}{
-		{nil, Failed},
-		{errors.New("generic"), Failed},
-		{New(Failed, "capnp", "failed error"), Failed},
-		{New(Overloaded, "capnp", "overloaded error"), Overloaded},
-		{New(Disconnected, "capnp", "disconnected error"), Disconnected},
-		{New(Unimplemented, "capnp", "unimplemented error"), Unimplemented},
-	}
-	for _, test := range tests {
-		assert.Equal(t, test.want, TypeOf(test.err))
 	}
 }
 

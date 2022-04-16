@@ -12,12 +12,12 @@ type Struct struct {
 // NewStruct creates a new struct, preferring placement in s.
 func NewStruct(s *Segment, sz ObjectSize) (Struct, error) {
 	if !sz.isValid() {
-		return Struct{}, newError("new struct: invalid size")
+		return Struct{}, errorf("new struct: invalid size")
 	}
 	sz.DataSize = sz.DataSize.padToWord()
 	seg, addr, err := alloc(s, sz.totalSize())
 	if err != nil {
-		return Struct{}, annotate(err).errorf("new struct")
+		return Struct{}, annotatef(err, "new struct")
 	}
 	return Struct{
 		seg:        seg,
@@ -82,7 +82,7 @@ func (p Struct) Size() ObjectSize {
 // with future versions of the protocol.
 func (p Struct) CopyFrom(other Struct) error {
 	if err := copyStruct(p, other); err != nil {
-		return annotate(err).errorf("copy struct")
+		return annotatef(err, "copy struct")
 	}
 	return nil
 }
@@ -328,11 +328,11 @@ func copyStruct(dst, src Struct) error {
 		dstAddr, _ := dstPtrSect.element(int32(j), wordSize)
 		m, err := src.seg.readPtr(srcAddr, src.depthLimit)
 		if err != nil {
-			return annotate(err).errorf("copy struct pointer %d", j)
+			return annotatef(err, "copy struct pointer %d", j)
 		}
 		err = dst.seg.writePtr(dstAddr, m, true)
 		if err != nil {
-			return annotate(err).errorf("copy struct pointer %d", j)
+			return annotatef(err, "copy struct pointer %d", j)
 		}
 	}
 	for j := numSrcPtrs; j < numDstPtrs; j++ {

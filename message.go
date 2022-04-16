@@ -72,28 +72,28 @@ func NewMessage(arena Arena) (msg *Message, first *Segment, err error) {
 	case 0:
 		first, err = msg.allocSegment(wordSize)
 		if err != nil {
-			return nil, nil, annotate(err).errorf("new message")
+			return nil, nil, annotatef(err, "new message")
 		}
 	case 1:
 		first, err = msg.Segment(0)
 		if err != nil {
-			return nil, nil, annotate(err).errorf("new message")
+			return nil, nil, annotatef(err, "new message")
 		}
 		if len(first.data) > 0 {
-			return nil, nil, newError("new message: arena not empty")
+			return nil, nil, errorf("new message: arena not empty")
 		}
 	default:
-		return nil, nil, newError("new message: arena not empty")
+		return nil, nil, errorf("new message: arena not empty")
 	}
 	if first.ID() != 0 {
-		return nil, nil, newError("new message: arena allocated first segment with non-zero ID")
+		return nil, nil, errorf("new message: arena allocated first segment with non-zero ID")
 	}
 	seg, _, err := alloc(first, wordSize) // allocate root
 	if err != nil {
-		return nil, nil, annotate(err).errorf("new message")
+		return nil, nil, annotatef(err, "new message")
 	}
 	if seg != first {
-		return nil, nil, newError("new message: arena allocated first word outside first segment")
+		return nil, nil, errorf("new message: arena allocated first word outside first segment")
 	}
 	return msg, first, nil
 }
@@ -180,11 +180,11 @@ func (m *Message) Unread(sz Size) {
 func (m *Message) Root() (Ptr, error) {
 	s, err := m.Segment(0)
 	if err != nil {
-		return Ptr{}, annotate(err).errorf("read root")
+		return Ptr{}, annotatef(err, "read root")
 	}
 	p, err := s.root().At(0)
 	if err != nil {
-		return Ptr{}, annotate(err).errorf("read root")
+		return Ptr{}, annotatef(err, "read root")
 	}
 	return p, nil
 }
@@ -193,10 +193,10 @@ func (m *Message) Root() (Ptr, error) {
 func (m *Message) SetRoot(p Ptr) error {
 	s, err := m.Segment(0)
 	if err != nil {
-		return annotate(err).errorf("set root")
+		return annotatef(err, "set root")
 	}
 	if err := s.root().Set(0, p); err != nil {
-		return annotate(err).errorf("set root")
+		return annotatef(err, "set root")
 	}
 	return nil
 }
@@ -303,12 +303,12 @@ func (m *Message) setSegment(id SegmentID, data []byte) *Segment {
 // onto m.mu.
 func (m *Message) allocSegment(sz Size) (*Segment, error) {
 	if sz > maxAllocSize() {
-		return nil, newError("allocation: too large")
+		return nil, errorf("allocation: too large")
 	}
 	m.mu.Lock()
 	if len(m.segs) == maxInt {
 		m.mu.Unlock()
-		return nil, newError("allocation: number of loaded segments exceeds int")
+		return nil, errorf("allocation: number of loaded segments exceeds int")
 	}
 	if m.segs == nil && m.firstSeg.msg != nil {
 		// Transition from sole segment to segment map.
@@ -330,7 +330,7 @@ func (m *Message) allocSegment(sz Size) (*Segment, error) {
 // capacity.
 func alloc(s *Segment, sz Size) (*Segment, address, error) {
 	if sz > maxAllocSize() {
-		return nil, 0, newError("allocation: too large")
+		return nil, 0, errorf("allocation: too large")
 	}
 	sz = sz.padToWord()
 
@@ -345,7 +345,7 @@ func alloc(s *Segment, sz Size) (*Segment, address, error) {
 	addr := address(len(s.data))
 	end, ok := addr.addSize(sz)
 	if !ok {
-		return nil, 0, newError("allocation: address overflow")
+		return nil, 0, errorf("allocation: address overflow")
 	}
 	space := s.data[len(s.data):end]
 	s.data = s.data[:end]
@@ -413,7 +413,7 @@ func (ssa *singleSegmentArena) Allocate(sz Size, segs map[SegmentID]*Segment) (S
 		data = segs[0].data
 	}
 	if len(data)%int(wordSize) != 0 {
-		return 0, nil, newError("segment size is not a multiple of word size")
+		return 0, nil, errorf("segment size is not a multiple of word size")
 	}
 	if hasCapacity(data, sz) {
 		return 0, data, nil
@@ -446,7 +446,7 @@ func (ss roSingleSegment) Data(id SegmentID) ([]byte, error) {
 }
 
 func (ss roSingleSegment) Allocate(sz Size, segs map[SegmentID]*Segment) (SegmentID, []byte, error) {
-	return 0, nil, newError("arena is read-only")
+	return 0, nil, errorf("arena is read-only")
 }
 
 func (ss roSingleSegment) String() string {
@@ -469,7 +469,7 @@ func MultiSegment(b [][]byte) Arena {
 func demuxArena(hdr streamHeader, data []byte) (Arena, error) {
 	maxSeg := hdr.maxSegment()
 	if int64(maxSeg) > int64(maxInt-1) {
-		return nil, newError("number of segments overflows int")
+		return nil, errorf("number of segments overflows int")
 	}
 	segs := make([][]byte, int(maxSeg+1))
 	for i := range segs {
@@ -605,7 +605,7 @@ func (d *Decoder) Decode() (*Message, error) {
 	if maxSize == 0 {
 		maxSize = defaultDecodeLimit
 	} else if maxSize < uint64(len(d.wordbuf)) {
-		return nil, newError("decode: max message size is smaller than header size")
+		return nil, errorf("decode: max message size is smaller than header size")
 	}
 
 	// Read first word (number of segments and first segment size).
@@ -617,7 +617,7 @@ func (d *Decoder) Decode() (*Message, error) {
 	}
 	maxSeg := SegmentID(binary.LittleEndian.Uint32(d.wordbuf[:]))
 	if maxSeg > maxStreamSegments {
-		return nil, newError("decode: too many segments to decode")
+		return nil, errorf("decode: too many segments to decode")
 	}
 
 	// Read the rest of the header if more than one segment.
@@ -627,7 +627,7 @@ func (d *Decoder) Decode() (*Message, error) {
 	} else {
 		hdrSize := streamHeaderSize(maxSeg)
 		if hdrSize > maxSize || hdrSize > uint64(maxInt) {
-			return nil, newError("decode: message too large")
+			return nil, errorf("decode: message too large")
 		}
 		d.hdrbuf = resizeSlice(d.hdrbuf, int(hdrSize))
 		copy(d.hdrbuf, d.wordbuf[:])
@@ -638,12 +638,12 @@ func (d *Decoder) Decode() (*Message, error) {
 	}
 	total, err := hdr.totalSize()
 	if err != nil {
-		return nil, annotate(err).errorf("decode")
+		return nil, annotatef(err, "decode")
 	}
 	// TODO(someday): if total size is greater than can fit in one buffer,
 	// attempt to allocate buffer per segment.
 	if total > maxSize-uint64(len(hdr.b)) || total > uint64(maxInt) {
-		return nil, newError("decode: message too large")
+		return nil, errorf("decode: message too large")
 	}
 
 	// Read segments.
@@ -654,7 +654,7 @@ func (d *Decoder) Decode() (*Message, error) {
 		}
 		arena, err := demuxArena(hdr, buf)
 		if err != nil {
-			return nil, annotate(err).errorf("decode")
+			return nil, annotatef(err, "decode")
 		}
 		return &Message{Arena: arena}, nil
 	}
@@ -670,7 +670,7 @@ func (d *Decoder) Decode() (*Message, error) {
 		var err error
 		arena, err = demuxArena(hdr, d.buf)
 		if err != nil {
-			return nil, annotate(err).errorf("decode")
+			return nil, annotatef(err, "decode")
 		}
 	}
 	d.msg.Reset(arena)
@@ -698,23 +698,23 @@ func Unmarshal(data []byte) (*Message, error) {
 		return nil, io.EOF
 	}
 	if len(data) < int(wordSize) {
-		return nil, newError("unmarshal: short header section")
+		return nil, errorf("unmarshal: short header section")
 	}
 	maxSeg := SegmentID(binary.LittleEndian.Uint32(data))
 	hdrSize := streamHeaderSize(maxSeg)
 	if uint64(len(data)) < hdrSize {
-		return nil, newError("unmarshal: short header section")
+		return nil, errorf("unmarshal: short header section")
 	}
 	hdr := streamHeader{data[:hdrSize]}
 	data = data[hdrSize:]
 	if total, err := hdr.totalSize(); err != nil {
-		return nil, annotate(err).errorf("unmarshal")
+		return nil, annotatef(err, "unmarshal")
 	} else if total > uint64(len(data)) {
-		return nil, newError("unmarshal: short data section")
+		return nil, errorf("unmarshal: short data section")
 	}
 	arena, err := demuxArena(hdr, data)
 	if err != nil {
-		return nil, annotate(err).errorf("unmarshal")
+		return nil, annotatef(err, "unmarshal")
 	}
 	return &Message{Arena: arena}, nil
 }
@@ -771,20 +771,20 @@ func NewPackedEncoder(w io.Writer) *Encoder {
 func (e *Encoder) Encode(m *Message) error {
 	nsegs := m.NumSegments()
 	if nsegs == 0 {
-		return newError("encode: message has no segments")
+		return errorf("encode: message has no segments")
 	}
 	e.bufs = append(e.bufs[:0], nil) // first element is placeholder for header
 	maxSeg := SegmentID(nsegs - 1)
 	hdrSize := streamHeaderSize(maxSeg)
 	if hdrSize > uint64(maxInt) {
-		return newError("encode: header size overflows int")
+		return errorf("encode: header size overflows int")
 	}
 	e.hdrbuf = resizeSlice(e.hdrbuf, int(hdrSize))
 	e.hdrbuf = appendUint32(e.hdrbuf[:0], uint32(maxSeg))
 	for i := int64(0); i < nsegs; i++ {
 		s, err := m.Segment(SegmentID(i))
 		if err != nil {
-			return annotate(err).errorf("encode")
+			return annotatef(err, "encode")
 		}
 		n := len(s.data)
 		if n > int(maxSegmentSize) {
@@ -825,11 +825,11 @@ func (m *Message) Marshal() ([]byte, error) {
 	// Compute buffer size.
 	nsegs := m.NumSegments()
 	if nsegs == 0 {
-		return nil, newError("marshal: message has no segments")
+		return nil, errorf("marshal: message has no segments")
 	}
 	hdrSize := streamHeaderSize(SegmentID(nsegs - 1))
 	if hdrSize > uint64(maxInt) {
-		return nil, newError("marshal: header size overflows int")
+		return nil, errorf("marshal: header size overflows int")
 	}
 	var dataSize uint64
 	m.mu.Lock()
@@ -837,7 +837,7 @@ func (m *Message) Marshal() ([]byte, error) {
 		s, err := m.segment(SegmentID(i))
 		if err != nil {
 			m.mu.Unlock()
-			return nil, annotate(err).errorf("marshal")
+			return nil, annotatef(err, "marshal")
 		}
 		n := uint64(len(s.data))
 		if n%uint64(wordSize) != 0 {
@@ -851,13 +851,13 @@ func (m *Message) Marshal() ([]byte, error) {
 		dataSize += n
 		if dataSize > uint64(maxInt) {
 			m.mu.Unlock()
-			return nil, newError("marshal: message size overflows int")
+			return nil, errorf("marshal: message size overflows int")
 		}
 	}
 	total := hdrSize + dataSize
 	if total > uint64(maxInt) {
 		m.mu.Unlock()
-		return nil, newError("marshal: message size overflows int")
+		return nil, errorf("marshal: message size overflows int")
 	}
 
 	// Fill buffer.
@@ -867,7 +867,7 @@ func (m *Message) Marshal() ([]byte, error) {
 		s, err := m.segment(SegmentID(i))
 		if err != nil {
 			m.mu.Unlock()
-			return nil, annotate(err).errorf("marshal")
+			return nil, annotatef(err, "marshal")
 		}
 		if len(s.data)%int(wordSize) != 0 {
 			m.mu.Unlock()

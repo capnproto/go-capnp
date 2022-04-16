@@ -203,11 +203,11 @@ func SamePtr(p, q Ptr) bool {
 func unmarshalDefault(def []byte) (Ptr, error) {
 	msg, err := Unmarshal(def)
 	if err != nil {
-		return Ptr{}, annotate(err).errorf("read default")
+		return Ptr{}, annotatef(err, "read default")
 	}
 	p, err := msg.Root()
 	if err != nil {
-		return Ptr{}, annotate(err).errorf("read default")
+		return Ptr{}, annotatef(err, "read default")
 	}
 	return p, nil
 }
@@ -315,11 +315,11 @@ func Equal(p1, p2 Ptr) (bool, error) {
 		for i := 0; i < n; i++ {
 			sp1, err := s1.Ptr(uint16(i))
 			if err != nil {
-				return false, annotate(err).errorf("equal")
+				return false, annotatef(err, "equal")
 			}
 			sp2, err := s2.Ptr(uint16(i))
 			if err != nil {
-				return false, annotate(err).errorf("equal")
+				return false, annotatef(err, "equal")
 			}
 			if ok, err := Equal(sp1, sp2); !ok || err != nil {
 				return false, err
@@ -352,7 +352,7 @@ func Equal(p1, p2 Ptr) (bool, error) {
 		for i := 0; i < l1.Len(); i++ {
 			e1, e2 := l1.Struct(i), l2.Struct(i)
 			if ok, err := Equal(e1.ToPtr(), e2.ToPtr()); err != nil {
-				return false, annotate(err).errorf("equal: list element %d", i)
+				return false, annotatef(err, "equal: list element %d", i)
 			} else if !ok {
 				return false, nil
 			}
