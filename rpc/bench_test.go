@@ -12,7 +12,7 @@ func BenchmarkPingPong(b *testing.B) {
 	p1, p2 := newPipe(1)
 	srv := testcp.PingPong_ServerToClient(pingPongServer{}, nil)
 	conn1 := rpc.NewConn(p2, &rpc.Options{
-		// ErrorReporter:   testErrorReporter{tb: b},
+		ErrorReporter:   testErrorReporter{tb: b},
 		BootstrapClient: srv.Client,
 	})
 	defer func() {
