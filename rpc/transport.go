@@ -27,7 +27,8 @@ type Transport interface {
 	// The caller may modify the CapTable as it pleases.
 	//
 	// The Arena in the returned message should be fast at allocating new
-	// segments.
+	// segments.  The returned ReleaseFunc MUST be safe to call concurrently
+	// with subsequent calls to NewMessage.
 	NewMessage(ctx context.Context) (_ rpccp.Message, send func() error, _ capnp.ReleaseFunc, _ error)
 
 	// RecvMessage receives the next message sent from the remote vat.

@@ -75,6 +75,7 @@ type Conn struct {
 	// tasks block shutdown.
 	tasks sync.WaitGroup
 	// Only the receive goroutine may call RecvMessage.
+	// Only the send goroutine may call NewMessage.
 	transport Transport
 	// mu protects all the following fields in the Conn.
 	mu      sync.Mutex
@@ -163,7 +164,7 @@ func NewConn(t Transport, opts *Options) *Conn {
 			err = nil
 		}
 
-		c.er.ReportError(err) // ignores errors
+		c.er.ReportError(err) // ignores nil errors
 
 		c.mu.Lock()
 		defer c.mu.Unlock()
@@ -434,7 +435,9 @@ func (c *Conn) send() error {
 // After receive returns, the connection is shut down.  If receive
 // returns a non-nil error, it is sent to the remove vat as an abort.
 func (c *Conn) receive() error {
-	for ctx := c.bgctx; ; {
+	ctx := c.bgctx
+
+	for {
 		recv, release, err := c.transport.RecvMessage(ctx)
 		if err != nil {
 			return err
