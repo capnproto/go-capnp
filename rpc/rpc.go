@@ -920,12 +920,15 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp
 		default:
 			c.mu.Unlock()
 			release()
-			<-q.finishMsgSend
-			syncutil.With(&c.mu, func() {
-				if q.flags&finishSent != 0 {
-					c.questionID.remove(uint32(qid))
-				}
-			})
+
+			go func() {
+				<-q.finishMsgSend
+				syncutil.With(&c.mu, func() {
+					if q.flags&finishSent != 0 {
+						c.questionID.remove(uint32(qid))
+					}
+				})
+			}()
 		}
 		return nil
 	}

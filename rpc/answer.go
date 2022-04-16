@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 
 	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/exc"
@@ -96,19 +97,35 @@ func errorAnswer(c *Conn, id answerID, err error) *answer {
 
 // newReturn creates a new Return message.
 func (c *Conn) newReturn(ctx context.Context) (rpccp.Return, func(), capnp.ReleaseFunc, error) {
-	msg, send, release, err := c.transport.NewMessage(ctx)
+	msg, send, releaseMsg, err := c.transport.NewMessage(ctx)
 	if err != nil {
 		return rpccp.Return{}, nil, nil, rpcerr.Failedf("create return: %w", err)
 	}
 	ret, err := msg.NewReturn()
 	if err != nil {
-		release()
+		releaseMsg()
 		return rpccp.Return{}, nil, nil, rpcerr.Failedf("create return: %w", err)
 	}
-	return ret, func() {
-		if err := send(); err != nil {
-			c.er.ReportError(fmt.Errorf("send return: %w", err))
+
+	// Before releasing the message, we need to wait both until it is sent and
+	// until the local vat is done with it.  We therefore implement a simple
+	// ref-counting mechanism such that 'release' must be called twice before
+	// 'releaseMsg' is called.
+	ref := uint32(2)
+	release := func() {
+		if atomic.AddUint32(&ref, ^uint32(0)) == 0 {
+			releaseMsg()
 		}
+	}
+
+	return ret, func() {
+		c.sender.Send(asyncSend{
+			send:    send,
+			release: release,
+			callback: func(err error) {
+				c.er.ReportError(fmt.Errorf("send return: %w", err))
+			},
+		})
 	}, release, nil
 }
 
