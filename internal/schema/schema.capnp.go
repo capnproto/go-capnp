@@ -546,7 +546,7 @@ type Node_List = capnp.StructList[Node]
 // NewNode creates a new list of Node.
 func NewNode_List(s *capnp.Segment, sz int32) (Node_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 40, PointerCount: 6}, sz)
-	return capnp.StructList[Node]{l}, err
+	return capnp.StructList[Node]{List: l}, err
 }
 
 type Node_Parameter struct{ capnp.Struct }
@@ -593,7 +593,7 @@ type Node_Parameter_List = capnp.StructList[Node_Parameter]
 // NewNode_Parameter creates a new list of Node_Parameter.
 func NewNode_Parameter_List(s *capnp.Segment, sz int32) (Node_Parameter_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[Node_Parameter]{l}, err
+	return capnp.StructList[Node_Parameter]{List: l}, err
 }
 
 type Node_NestedNode struct{ capnp.Struct }
@@ -648,7 +648,7 @@ type Node_NestedNode_List = capnp.StructList[Node_NestedNode]
 // NewNode_NestedNode creates a new list of Node_NestedNode.
 func NewNode_NestedNode_List(s *capnp.Segment, sz int32) (Node_NestedNode_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	return capnp.StructList[Node_NestedNode]{l}, err
+	return capnp.StructList[Node_NestedNode]{List: l}, err
 }
 
 type Node_SourceInfo struct{ capnp.Struct }
@@ -727,7 +727,7 @@ type Node_SourceInfo_List = capnp.StructList[Node_SourceInfo]
 // NewNode_SourceInfo creates a new list of Node_SourceInfo.
 func NewNode_SourceInfo_List(s *capnp.Segment, sz int32) (Node_SourceInfo_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2}, sz)
-	return capnp.StructList[Node_SourceInfo]{l}, err
+	return capnp.StructList[Node_SourceInfo]{List: l}, err
 }
 
 type Node_SourceInfo_Member struct{ capnp.Struct }
@@ -774,7 +774,7 @@ type Node_SourceInfo_Member_List = capnp.StructList[Node_SourceInfo_Member]
 // NewNode_SourceInfo_Member creates a new list of Node_SourceInfo_Member.
 func NewNode_SourceInfo_Member_List(s *capnp.Segment, sz int32) (Node_SourceInfo_Member_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[Node_SourceInfo_Member]{l}, err
+	return capnp.StructList[Node_SourceInfo_Member]{List: l}, err
 }
 
 type Field struct{ capnp.Struct }
@@ -1010,7 +1010,7 @@ type Field_List = capnp.StructList[Field]
 // NewField creates a new list of Field.
 func NewField_List(s *capnp.Segment, sz int32) (Field_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 24, PointerCount: 4}, sz)
-	return capnp.StructList[Field]{l}, err
+	return capnp.StructList[Field]{List: l}, err
 }
 
 type Enumerant struct{ capnp.Struct }
@@ -1089,7 +1089,7 @@ type Enumerant_List = capnp.StructList[Enumerant]
 // NewEnumerant creates a new list of Enumerant.
 func NewEnumerant_List(s *capnp.Segment, sz int32) (Enumerant_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2}, sz)
-	return capnp.StructList[Enumerant]{l}, err
+	return capnp.StructList[Enumerant]{List: l}, err
 }
 
 type Superclass struct{ capnp.Struct }
@@ -1150,7 +1150,7 @@ type Superclass_List = capnp.StructList[Superclass]
 // NewSuperclass creates a new list of Superclass.
 func NewSuperclass_List(s *capnp.Segment, sz int32) (Superclass_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	return capnp.StructList[Superclass]{l}, err
+	return capnp.StructList[Superclass]{List: l}, err
 }
 
 type Method struct{ capnp.Struct }
@@ -1317,7 +1317,7 @@ type Method_List = capnp.StructList[Method]
 // NewMethod creates a new list of Method.
 func NewMethod_List(s *capnp.Segment, sz int32) (Method_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 24, PointerCount: 5}, sz)
-	return capnp.StructList[Method]{l}, err
+	return capnp.StructList[Method]{List: l}, err
 }
 
 type Type struct{ capnp.Struct }
@@ -1765,7 +1765,7 @@ type Type_List = capnp.StructList[Type]
 // NewType creates a new list of Type.
 func NewType_List(s *capnp.Segment, sz int32) (Type_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 24, PointerCount: 1}, sz)
-	return capnp.StructList[Type]{l}, err
+	return capnp.StructList[Type]{List: l}, err
 }
 
 type Brand struct{ capnp.Struct }
@@ -1818,7 +1818,7 @@ type Brand_List = capnp.StructList[Brand]
 // NewBrand creates a new list of Brand.
 func NewBrand_List(s *capnp.Segment, sz int32) (Brand_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[Brand]{l}, err
+	return capnp.StructList[Brand]{List: l}, err
 }
 
 type Brand_Scope struct{ capnp.Struct }
@@ -1913,7 +1913,7 @@ type Brand_Scope_List = capnp.StructList[Brand_Scope]
 // NewBrand_Scope creates a new list of Brand_Scope.
 func NewBrand_Scope_List(s *capnp.Segment, sz int32) (Brand_Scope_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1}, sz)
-	return capnp.StructList[Brand_Scope]{l}, err
+	return capnp.StructList[Brand_Scope]{List: l}, err
 }
 
 type Brand_Binding struct{ capnp.Struct }
@@ -2000,7 +2000,7 @@ type Brand_Binding_List = capnp.StructList[Brand_Binding]
 // NewBrand_Binding creates a new list of Brand_Binding.
 func NewBrand_Binding_List(s *capnp.Segment, sz int32) (Brand_Binding_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	return capnp.StructList[Brand_Binding]{l}, err
+	return capnp.StructList[Brand_Binding]{List: l}, err
 }
 
 type Value struct{ capnp.Struct }
@@ -2357,7 +2357,7 @@ type Value_List = capnp.StructList[Value]
 // NewValue creates a new list of Value.
 func NewValue_List(s *capnp.Segment, sz int32) (Value_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1}, sz)
-	return capnp.StructList[Value]{l}, err
+	return capnp.StructList[Value]{List: l}, err
 }
 
 type Annotation struct{ capnp.Struct }
@@ -2442,7 +2442,7 @@ type Annotation_List = capnp.StructList[Annotation]
 // NewAnnotation creates a new list of Annotation.
 func NewAnnotation_List(s *capnp.Segment, sz int32) (Annotation_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2}, sz)
-	return capnp.StructList[Annotation]{l}, err
+	return capnp.StructList[Annotation]{List: l}, err
 }
 
 type ElementSize uint16
@@ -2569,7 +2569,7 @@ type CapnpVersion_List = capnp.StructList[CapnpVersion]
 // NewCapnpVersion creates a new list of CapnpVersion.
 func NewCapnpVersion_List(s *capnp.Segment, sz int32) (CapnpVersion_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	return capnp.StructList[CapnpVersion]{l}, err
+	return capnp.StructList[CapnpVersion]{List: l}, err
 }
 
 type CodeGeneratorRequest struct{ capnp.Struct }
@@ -2694,7 +2694,7 @@ type CodeGeneratorRequest_List = capnp.StructList[CodeGeneratorRequest]
 // NewCodeGeneratorRequest creates a new list of CodeGeneratorRequest.
 func NewCodeGeneratorRequest_List(s *capnp.Segment, sz int32) (CodeGeneratorRequest_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 4}, sz)
-	return capnp.StructList[CodeGeneratorRequest]{l}, err
+	return capnp.StructList[CodeGeneratorRequest]{List: l}, err
 }
 
 type CodeGeneratorRequest_RequestedFile struct{ capnp.Struct }
@@ -2773,7 +2773,7 @@ type CodeGeneratorRequest_RequestedFile_List = capnp.StructList[CodeGeneratorReq
 // NewCodeGeneratorRequest_RequestedFile creates a new list of CodeGeneratorRequest_RequestedFile.
 func NewCodeGeneratorRequest_RequestedFile_List(s *capnp.Segment, sz int32) (CodeGeneratorRequest_RequestedFile_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2}, sz)
-	return capnp.StructList[CodeGeneratorRequest_RequestedFile]{l}, err
+	return capnp.StructList[CodeGeneratorRequest_RequestedFile]{List: l}, err
 }
 
 type CodeGeneratorRequest_RequestedFile_Import struct{ capnp.Struct }
@@ -2828,5 +2828,5 @@ type CodeGeneratorRequest_RequestedFile_Import_List = capnp.StructList[CodeGener
 // NewCodeGeneratorRequest_RequestedFile_Import creates a new list of CodeGeneratorRequest_RequestedFile_Import.
 func NewCodeGeneratorRequest_RequestedFile_Import_List(s *capnp.Segment, sz int32) (CodeGeneratorRequest_RequestedFile_Import_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	return capnp.StructList[CodeGeneratorRequest_RequestedFile_Import]{l}, err
+	return capnp.StructList[CodeGeneratorRequest_RequestedFile_Import]{List: l}, err
 }

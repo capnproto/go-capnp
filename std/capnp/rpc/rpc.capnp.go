@@ -519,7 +519,7 @@ type Message_List = capnp.StructList[Message]
 // NewMessage creates a new list of Message.
 func NewMessage_List(s *capnp.Segment, sz int32) (Message_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	return capnp.StructList[Message]{l}, err
+	return capnp.StructList[Message]{List: l}, err
 }
 
 // Message_Future is a wrapper for a Message promised by a client call.
@@ -637,7 +637,7 @@ type Bootstrap_List = capnp.StructList[Bootstrap]
 // NewBootstrap creates a new list of Bootstrap.
 func NewBootstrap_List(s *capnp.Segment, sz int32) (Bootstrap_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	return capnp.StructList[Bootstrap]{l}, err
+	return capnp.StructList[Bootstrap]{List: l}, err
 }
 
 // Bootstrap_Future is a wrapper for a Bootstrap promised by a client call.
@@ -819,7 +819,7 @@ type Call_List = capnp.StructList[Call]
 // NewCall creates a new list of Call.
 func NewCall_List(s *capnp.Segment, sz int32) (Call_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 24, PointerCount: 3}, sz)
-	return capnp.StructList[Call]{l}, err
+	return capnp.StructList[Call]{List: l}, err
 }
 
 // Call_Future is a wrapper for a Call promised by a client call.
@@ -1039,7 +1039,7 @@ type Return_List = capnp.StructList[Return]
 // NewReturn creates a new list of Return.
 func NewReturn_List(s *capnp.Segment, sz int32) (Return_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1}, sz)
-	return capnp.StructList[Return]{l}, err
+	return capnp.StructList[Return]{List: l}, err
 }
 
 // Return_Future is a wrapper for a Return promised by a client call.
@@ -1109,7 +1109,7 @@ type Finish_List = capnp.StructList[Finish]
 // NewFinish creates a new list of Finish.
 func NewFinish_List(s *capnp.Segment, sz int32) (Finish_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	return capnp.StructList[Finish]{l}, err
+	return capnp.StructList[Finish]{List: l}, err
 }
 
 // Finish_Future is a wrapper for a Finish promised by a client call.
@@ -1244,7 +1244,7 @@ type Resolve_List = capnp.StructList[Resolve]
 // NewResolve creates a new list of Resolve.
 func NewResolve_List(s *capnp.Segment, sz int32) (Resolve_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	return capnp.StructList[Resolve]{l}, err
+	return capnp.StructList[Resolve]{List: l}, err
 }
 
 // Resolve_Future is a wrapper for a Resolve promised by a client call.
@@ -1310,7 +1310,7 @@ type Release_List = capnp.StructList[Release]
 // NewRelease creates a new list of Release.
 func NewRelease_List(s *capnp.Segment, sz int32) (Release_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	return capnp.StructList[Release]{l}, err
+	return capnp.StructList[Release]{List: l}, err
 }
 
 // Release_Future is a wrapper for a Release promised by a client call.
@@ -1447,7 +1447,7 @@ type Disembargo_List = capnp.StructList[Disembargo]
 // NewDisembargo creates a new list of Disembargo.
 func NewDisembargo_List(s *capnp.Segment, sz int32) (Disembargo_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	return capnp.StructList[Disembargo]{l}, err
+	return capnp.StructList[Disembargo]{List: l}, err
 }
 
 // Disembargo_Future is a wrapper for a Disembargo promised by a client call.
@@ -1549,7 +1549,7 @@ type Provide_List = capnp.StructList[Provide]
 // NewProvide creates a new list of Provide.
 func NewProvide_List(s *capnp.Segment, sz int32) (Provide_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2}, sz)
-	return capnp.StructList[Provide]{l}, err
+	return capnp.StructList[Provide]{List: l}, err
 }
 
 // Provide_Future is a wrapper for a Provide promised by a client call.
@@ -1627,7 +1627,7 @@ type Accept_List = capnp.StructList[Accept]
 // NewAccept creates a new list of Accept.
 func NewAccept_List(s *capnp.Segment, sz int32) (Accept_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	return capnp.StructList[Accept]{l}, err
+	return capnp.StructList[Accept]{List: l}, err
 }
 
 // Accept_Future is a wrapper for a Accept promised by a client call.
@@ -1717,7 +1717,7 @@ type Join_List = capnp.StructList[Join]
 // NewJoin creates a new list of Join.
 func NewJoin_List(s *capnp.Segment, sz int32) (Join_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2}, sz)
-	return capnp.StructList[Join]{l}, err
+	return capnp.StructList[Join]{List: l}, err
 }
 
 // Join_Future is a wrapper for a Join promised by a client call.
@@ -1832,7 +1832,7 @@ type MessageTarget_List = capnp.StructList[MessageTarget]
 // NewMessageTarget creates a new list of MessageTarget.
 func NewMessageTarget_List(s *capnp.Segment, sz int32) (MessageTarget_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	return capnp.StructList[MessageTarget]{l}, err
+	return capnp.StructList[MessageTarget]{List: l}, err
 }
 
 // MessageTarget_Future is a wrapper for a MessageTarget promised by a client call.
@@ -1914,7 +1914,7 @@ type Payload_List = capnp.StructList[Payload]
 // NewPayload creates a new list of Payload.
 func NewPayload_List(s *capnp.Segment, sz int32) (Payload_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
-	return capnp.StructList[Payload]{l}, err
+	return capnp.StructList[Payload]{List: l}, err
 }
 
 // Payload_Future is a wrapper for a Payload promised by a client call.
@@ -2106,7 +2106,7 @@ type CapDescriptor_List = capnp.StructList[CapDescriptor]
 // NewCapDescriptor creates a new list of CapDescriptor.
 func NewCapDescriptor_List(s *capnp.Segment, sz int32) (CapDescriptor_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	return capnp.StructList[CapDescriptor]{l}, err
+	return capnp.StructList[CapDescriptor]{List: l}, err
 }
 
 // CapDescriptor_Future is a wrapper for a CapDescriptor promised by a client call.
@@ -2188,7 +2188,7 @@ type PromisedAnswer_List = capnp.StructList[PromisedAnswer]
 // NewPromisedAnswer creates a new list of PromisedAnswer.
 func NewPromisedAnswer_List(s *capnp.Segment, sz int32) (PromisedAnswer_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	return capnp.StructList[PromisedAnswer]{l}, err
+	return capnp.StructList[PromisedAnswer]{List: l}, err
 }
 
 // PromisedAnswer_Future is a wrapper for a PromisedAnswer promised by a client call.
@@ -2268,7 +2268,7 @@ type PromisedAnswer_Op_List = capnp.StructList[PromisedAnswer_Op]
 // NewPromisedAnswer_Op creates a new list of PromisedAnswer_Op.
 func NewPromisedAnswer_Op_List(s *capnp.Segment, sz int32) (PromisedAnswer_Op_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	return capnp.StructList[PromisedAnswer_Op]{l}, err
+	return capnp.StructList[PromisedAnswer_Op]{List: l}, err
 }
 
 // PromisedAnswer_Op_Future is a wrapper for a PromisedAnswer_Op promised by a client call.
@@ -2330,7 +2330,7 @@ type ThirdPartyCapDescriptor_List = capnp.StructList[ThirdPartyCapDescriptor]
 // NewThirdPartyCapDescriptor creates a new list of ThirdPartyCapDescriptor.
 func NewThirdPartyCapDescriptor_List(s *capnp.Segment, sz int32) (ThirdPartyCapDescriptor_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	return capnp.StructList[ThirdPartyCapDescriptor]{l}, err
+	return capnp.StructList[ThirdPartyCapDescriptor]{List: l}, err
 }
 
 // ThirdPartyCapDescriptor_Future is a wrapper for a ThirdPartyCapDescriptor promised by a client call.
@@ -2436,7 +2436,7 @@ type Exception_List = capnp.StructList[Exception]
 // NewException creates a new list of Exception.
 func NewException_List(s *capnp.Segment, sz int32) (Exception_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2}, sz)
-	return capnp.StructList[Exception]{l}, err
+	return capnp.StructList[Exception]{List: l}, err
 }
 
 // Exception_Future is a wrapper for a Exception promised by a client call.
