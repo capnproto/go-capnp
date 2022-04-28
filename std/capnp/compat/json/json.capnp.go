@@ -234,7 +234,7 @@ type Value_List = capnp.StructList[Value]
 // NewValue creates a new list of Value.
 func NewValue_List(s *capnp.Segment, sz int32) (Value_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1}, sz)
-	return capnp.StructList[Value]{l}, err
+	return capnp.StructList[Value]{List: l}, err
 }
 
 // Value_Future is a wrapper for a Value promised by a client call.
@@ -322,7 +322,7 @@ type Value_Field_List = capnp.StructList[Value_Field]
 // NewValue_Field creates a new list of Value_Field.
 func NewValue_Field_List(s *capnp.Segment, sz int32) (Value_Field_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
-	return capnp.StructList[Value_Field]{l}, err
+	return capnp.StructList[Value_Field]{List: l}, err
 }
 
 // Value_Field_Future is a wrapper for a Value_Field promised by a client call.
@@ -410,7 +410,7 @@ type Value_Call_List = capnp.StructList[Value_Call]
 // NewValue_Call creates a new list of Value_Call.
 func NewValue_Call_List(s *capnp.Segment, sz int32) (Value_Call_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
-	return capnp.StructList[Value_Call]{l}, err
+	return capnp.StructList[Value_Call]{List: l}, err
 }
 
 // Value_Call_Future is a wrapper for a Value_Call promised by a client call.
@@ -470,7 +470,7 @@ type FlattenOptions_List = capnp.StructList[FlattenOptions]
 // NewFlattenOptions creates a new list of FlattenOptions.
 func NewFlattenOptions_List(s *capnp.Segment, sz int32) (FlattenOptions_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[FlattenOptions]{l}, err
+	return capnp.StructList[FlattenOptions]{List: l}, err
 }
 
 // FlattenOptions_Future is a wrapper for a FlattenOptions promised by a client call.
@@ -548,7 +548,7 @@ type DiscriminatorOptions_List = capnp.StructList[DiscriminatorOptions]
 // NewDiscriminatorOptions creates a new list of DiscriminatorOptions.
 func NewDiscriminatorOptions_List(s *capnp.Segment, sz int32) (DiscriminatorOptions_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
-	return capnp.StructList[DiscriminatorOptions]{l}, err
+	return capnp.StructList[DiscriminatorOptions]{List: l}, err
 }
 
 // DiscriminatorOptions_Future is a wrapper for a DiscriminatorOptions promised by a client call.

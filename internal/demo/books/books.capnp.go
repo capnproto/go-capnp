@@ -65,7 +65,7 @@ type Book_List = capnp.StructList[Book]
 // NewBook creates a new list of Book.
 func NewBook_List(s *capnp.Segment, sz int32) (Book_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	return capnp.StructList[Book]{l}, err
+	return capnp.StructList[Book]{List: l}, err
 }
 
 // Book_Future is a wrapper for a Book promised by a client call.

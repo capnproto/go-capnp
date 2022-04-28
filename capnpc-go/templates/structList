@@ -4,5 +4,5 @@ type {{.Node.Name}}_List = {{.G.Capnp}}.StructList[{{.Node.Name}}]
 // New{{.Node.Name}} creates a new list of {{.Node.Name}}.
 func New{{.Node.Name}}_List(s *{{.G.Capnp}}.Segment, sz int32) ({{.Node.Name}}_List, error) {
 	l, err := {{.G.Capnp}}.NewCompositeList(s, {{.G.ObjectSize .Node}}, sz)
-	return {{.G.Capnp}}.StructList[{{.Node.Name}}]{l}, err
+	return {{.G.Capnp}}.StructList[{{.Node.Name}}]{List: l}, err
 }

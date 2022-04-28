@@ -39,7 +39,7 @@ type StreamResult_List = capnp.StructList[StreamResult]
 // NewStreamResult creates a new list of StreamResult.
 func NewStreamResult_List(s *capnp.Segment, sz int32) (StreamResult_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
-	return capnp.StructList[StreamResult]{l}, err
+	return capnp.StructList[StreamResult]{List: l}, err
 }
 
 // StreamResult_Future is a wrapper for a StreamResult promised by a client call.
