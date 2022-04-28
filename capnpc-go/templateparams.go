@@ -189,6 +189,11 @@ type pointerValueParams struct {
 	Value staticDataRef
 }
 
+type capabilityParams struct {
+	G     *generator
+	Value staticDataRef
+}
+
 type listValueParams struct {
 	G     *generator
 	Typ   string

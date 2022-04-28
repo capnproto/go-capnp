@@ -15,6 +15,7 @@ import (
 	"flag"
 	"fmt"
 	"go/format"
+	"io"
 	"math"
 	"os"
 	"path/filepath"
@@ -369,14 +370,18 @@ func (g *generator) Value(rel *node, t schema.Type, v schema.Value) (string, err
 	case schema.Type_Which_anyPointer:
 		data, _ := v.AnyPointer()
 		var buf bytes.Buffer
+
 		sd, err := g.data.copyData(data)
-		if err != nil {
-			return "", err
+		if err == nil {
+			switch t.AnyPointer().Which() {
+			case schema.Type_anyPointer_Which_unconstrained:
+				err = g.anyPointerUnconstrained(&buf, t, sd)
+
+			default:
+				err = g.pointerValue(&buf, sd)
+			}
 		}
-		err = templates.ExecuteTemplate(&buf, "pointerValue", pointerValueParams{
-			G:     g,
-			Value: sd,
-		})
+
 		return buf.String(), err
 
 	case schema.Type_Which_list:
@@ -399,6 +404,26 @@ func (g *generator) Value(rel *node, t schema.Type, v schema.Value) (string, err
 	default:
 		return "", fmt.Errorf("unhandled value type %v", t.Which())
 	}
+}
+
+func (g *generator) anyPointerUnconstrained(w io.Writer, t schema.Type, sd staticDataRef) error {
+	switch t.AnyPointer().Unconstrained().Which() {
+	case schema.Type_anyPointer_unconstrained_Which_capability:
+		return templates.ExecuteTemplate(w, "capability", capabilityParams{
+			G:     g,
+			Value: sd,
+		})
+
+	default:
+		return g.pointerValue(w, sd)
+	}
+}
+
+func (g *generator) pointerValue(w io.Writer, sd staticDataRef) error {
+	return templates.ExecuteTemplate(w, "pointerValue", pointerValueParams{
+		G:     g,
+		Value: sd,
+	})
 }
 
 func (g *generator) defineAnnotation(n *node) error {

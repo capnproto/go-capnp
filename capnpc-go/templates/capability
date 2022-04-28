@@ -1,0 +1,2 @@
+{{.G.Capnp}}.MustUnmarshalRoot({{.Value}}).Interface()
+{{- /* no EOL */ -}}
