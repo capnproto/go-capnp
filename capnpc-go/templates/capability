@@ -1,2 +1,2 @@
-{{.G.Capnp}}.MustUnmarshalRoot({{.Value}}).Interface()
+{{.G.Capnp}}.MustUnmarshalRoot({{.Value}}).Interface().Client()
 {{- /* no EOL */ -}}
