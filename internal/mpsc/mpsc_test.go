@@ -22,7 +22,8 @@ func TestRecvEmpty(t *testing.T) {
 	q := New[int]()
 
 	// Recv() on an empty queue should block until the context is canceled.
-	ctx, _ := context.WithTimeout(context.Background(), time.Millisecond*10)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*10)
+	defer cancel()
 
 	v, err := q.Recv(ctx)
 	assert.Equal(t, ctx.Err(), err, "Returned error is not ctx.Err()")
