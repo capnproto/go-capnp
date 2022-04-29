@@ -1227,8 +1227,7 @@ func zfill(c air.Z, g *Z) error {
 	case air.Z_Which_anyList:
 		return c.SetAnyList(g.AnyList.ToPtr())
 	case air.Z_Which_anyCapability:
-		cap := capnp.NewInterface(c.Segment(), c.Message().AddCap(g.AnyCapability))
-		return c.SetAnyCapability(cap.Client())
+		return c.SetAnyCapability(g.AnyCapability)
 	default:
 		return fmt.Errorf("zfill: unknown type: %v", g.Which)
 	}
