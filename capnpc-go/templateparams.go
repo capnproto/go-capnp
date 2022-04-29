@@ -61,12 +61,13 @@ type structFieldParams struct {
 }
 
 type (
-	structFloatFieldParams     structUintFieldParams
-	structInterfaceFieldParams structFieldParams
-	structVoidFieldParams      structFieldParams
-	structListFieldParams      structObjectFieldParams
-	structPointerFieldParams   structObjectFieldParams
-	structStructFieldParams    structObjectFieldParams
+	structFloatFieldParams      structUintFieldParams
+	structInterfaceFieldParams  structFieldParams
+	structCapabilityFieldParams structFieldParams
+	structVoidFieldParams       structFieldParams
+	structListFieldParams       structObjectFieldParams
+	structPointerFieldParams    structObjectFieldParams
+	structStructFieldParams     structObjectFieldParams
 )
 
 type structBoolFieldParams struct {
@@ -185,11 +186,6 @@ type structValueParams struct {
 }
 
 type pointerValueParams struct {
-	G     *generator
-	Value staticDataRef
-}
-
-type capabilityParams struct {
 	G     *generator
 	Value staticDataRef
 }

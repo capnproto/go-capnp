@@ -2245,11 +2245,12 @@ func (s Z) SetAnyList(v capnp.Ptr) error {
 	return s.Struct.SetPtr(0, v)
 }
 
-func (s Z) AnyCapability() (capnp.Ptr, error) {
+func (s Z) AnyCapability() *capnp.Client {
 	if s.Struct.Uint16(0) != 48 {
 		panic("Which() != anyCapability")
 	}
-	return s.Struct.Ptr(0)
+	p, _ := s.Struct.Ptr(0)
+	return p.Interface().Client()
 }
 
 func (s Z) HasAnyCapability() bool {
@@ -2259,9 +2260,14 @@ func (s Z) HasAnyCapability() bool {
 	return s.Struct.HasPtr(0)
 }
 
-func (s Z) SetAnyCapability(v capnp.Ptr) error {
+func (s Z) SetAnyCapability(c *capnp.Client) error {
 	s.Struct.SetUint16(0, 48)
-	return s.Struct.SetPtr(0, v)
+	if !c.IsValid() {
+		return s.Struct.SetPtr(0, capnp.Ptr{})
+	}
+	seg := s.Segment()
+	in := capnp.NewInterface(seg, seg.Message().AddCap(c))
+	return s.Struct.SetPtr(0, in.ToPtr())
 }
 
 // Z_List is a list of Z.

@@ -502,16 +502,22 @@ func (s CapArgsTest_call_Params) String() string {
 	return str
 }
 
-func (s CapArgsTest_call_Params) Cap() (capnp.Ptr, error) {
-	return s.Struct.Ptr(0)
+func (s CapArgsTest_call_Params) Cap() *capnp.Client {
+	p, _ := s.Struct.Ptr(0)
+	return p.Interface().Client()
 }
 
 func (s CapArgsTest_call_Params) HasCap() bool {
 	return s.Struct.HasPtr(0)
 }
 
-func (s CapArgsTest_call_Params) SetCap(v capnp.Ptr) error {
-	return s.Struct.SetPtr(0, v)
+func (s CapArgsTest_call_Params) SetCap(c *capnp.Client) error {
+	if !c.IsValid() {
+		return s.Struct.SetPtr(0, capnp.Ptr{})
+	}
+	seg := s.Segment()
+	in := capnp.NewInterface(seg, seg.Message().AddCap(c))
+	return s.Struct.SetPtr(0, in.ToPtr())
 }
 
 // CapArgsTest_call_Params_List is a list of CapArgsTest_call_Params.
