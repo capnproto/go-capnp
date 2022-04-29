@@ -15,7 +15,6 @@ import (
 	"flag"
 	"fmt"
 	"go/format"
-	"io"
 	"math"
 	"os"
 	"path/filepath"
@@ -372,15 +371,30 @@ func (g *generator) Value(rel *node, t schema.Type, v schema.Value) (string, err
 		var buf bytes.Buffer
 
 		sd, err := g.data.copyData(data)
-		if err == nil {
-			switch t.AnyPointer().Which() {
-			case schema.Type_anyPointer_Which_unconstrained:
-				err = g.anyPointerUnconstrained(&buf, t, sd)
+		if err != nil {
+			return "", err
+		}
 
-			default:
-				err = g.pointerValue(&buf, sd)
+		switch t.AnyPointer().Which() {
+		// Unconstrained?
+		case schema.Type_anyPointer_Which_unconstrained:
+
+			switch t.AnyPointer().Unconstrained().Which() {
+			// Capability type?
+			case schema.Type_anyPointer_unconstrained_Which_capability:
+				err = templates.ExecuteTemplate(&buf, "capability", capabilityParams{
+					G:     g,
+					Value: sd,
+				})
+				return buf.String(), err
 			}
 		}
+
+		// Fall back to default case => generic pointer value
+		err = templates.ExecuteTemplate(&buf, "pointerValue", pointerValueParams{
+			G:     g,
+			Value: sd,
+		})
 
 		return buf.String(), err
 
@@ -404,26 +418,6 @@ func (g *generator) Value(rel *node, t schema.Type, v schema.Value) (string, err
 	default:
 		return "", fmt.Errorf("unhandled value type %v", t.Which())
 	}
-}
-
-func (g *generator) anyPointerUnconstrained(w io.Writer, t schema.Type, sd staticDataRef) error {
-	switch t.AnyPointer().Unconstrained().Which() {
-	case schema.Type_anyPointer_unconstrained_Which_capability:
-		return templates.ExecuteTemplate(w, "capability", capabilityParams{
-			G:     g,
-			Value: sd,
-		})
-
-	default:
-		return g.pointerValue(w, sd)
-	}
-}
-
-func (g *generator) pointerValue(w io.Writer, sd staticDataRef) error {
-	return templates.ExecuteTemplate(w, "pointerValue", pointerValueParams{
-		G:     g,
-		Value: sd,
-	})
 }
 
 func (g *generator) defineAnnotation(n *node) error {
@@ -615,6 +609,19 @@ func (g *generator) defineField(n *node, f field) (err error) {
 				return err
 			}
 		}
+
+		switch t.AnyPointer().Which() {
+		// Unconstrained?
+		case schema.Type_anyPointer_Which_unconstrained:
+
+			switch t.AnyPointer().Unconstrained().Which() {
+			// Capability type?
+			case schema.Type_anyPointer_unconstrained_Which_capability:
+				return g.r.Render(structInterfaceFieldParams(params))
+			}
+		}
+
+		// Fall back to default case => generic pointer value
 		return g.r.Render(structPointerFieldParams{
 			structFieldParams: params,
 			Default:           defref,
