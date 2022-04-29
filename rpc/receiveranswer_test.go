@@ -78,9 +78,7 @@ func TestBootstrapReceiverAnswerRpc(t *testing.T) {
 	c := testcapnp.CapArgsTest{Client: clientConn.Bootstrap(ctx)}
 
 	res, rel := c.Call(ctx, func(p testcapnp.CapArgsTest_call_Params) error {
-		capId := p.Message().AddCap(c.Client.AddRef())
-		p.SetCap(capnp.NewInterface(p.Segment(), capId).Client())
-		return nil
+		return p.SetCap(c.Client.AddRef())
 	})
 	defer rel()
 	c.Release()
@@ -123,9 +121,7 @@ func TestCallReceiverAnswerRpc(t *testing.T) {
 	defer rel()
 	self := selfRes.Self()
 	callRes, rel := self.Call(ctx, func(p testcapnp.CapArgsTest_call_Params) error {
-		capId := p.Message().AddCap(self.Client.AddRef())
-		p.SetCap(capnp.NewInterface(p.Segment(), capId).Client())
-		return nil
+		return p.SetCap(self.Client.AddRef())
 	})
 	self.Release()
 	defer rel()
