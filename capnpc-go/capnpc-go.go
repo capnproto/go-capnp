@@ -375,16 +375,13 @@ func (g *generator) Value(rel *node, t schema.Type, v schema.Value) (string, err
 			return "", err
 		}
 
-		switch t.AnyPointer().Which() {
-		// Unconstrained?
-		case schema.Type_anyPointer_Which_unconstrained:
-
-			switch t.AnyPointer().Unconstrained().Which() {
-			// Capability type?
-			case schema.Type_anyPointer_unconstrained_Which_capability:
-				return "nil", nil
-			}
+		// capability pointer?
+		if t.AnyPointer().Which() == schema.Type_anyPointer_Which_unconstrained &&
+			t.AnyPointer().Unconstrained().Which() == schema.Type_anyPointer_unconstrained_Which_capability {
+			return "nil", nil // static values of *Client are always nil.
 		}
+
+		// TODO:  handle other pointer types
 
 		// Fall back to default case => generic pointer value
 		err = templates.ExecuteTemplate(&buf, "pointerValue", pointerValueParams{
@@ -606,17 +603,13 @@ func (g *generator) defineField(n *node, f field) (err error) {
 			}
 		}
 
-		switch t.AnyPointer().Which() {
-		// Unconstrained?
-		case schema.Type_anyPointer_Which_unconstrained:
-
-			switch t.AnyPointer().Unconstrained().Which() {
-			// Capability type?
-			case schema.Type_anyPointer_unconstrained_Which_capability:
-				// params.FieldType = "*capnp.Client"
-				return g.r.Render(structCapabilityFieldParams(params))
-			}
+		// capability pointer?
+		if t.AnyPointer().Which() == schema.Type_anyPointer_Which_unconstrained &&
+			t.AnyPointer().Unconstrained().Which() == schema.Type_anyPointer_unconstrained_Which_capability {
+			return g.r.Render(structCapabilityFieldParams(params))
 		}
+
+		// TODO: handle other pointer types
 
 		// Fall back to default case => generic pointer value
 		return g.r.Render(structPointerFieldParams{
@@ -755,15 +748,15 @@ func makeTypeRef(t schema.Type, rel *node, nodes nodeMap) (typeRef, error) {
 			return typeRef{name: "PointerList", newfunc: "NewPointerList", imp: capnpImportSpec}, nil
 		}
 	case schema.Type_Which_anyPointer:
-		switch t.AnyPointer().Which() {
-		case schema.Type_anyPointer_Which_unconstrained:
-
-			switch t.AnyPointer().Unconstrained().Which() {
-			case schema.Type_anyPointer_unconstrained_Which_capability:
-				return typeRef{name: "Client", imp: capnpImportSpec}, nil
-			}
+		// capability pointer?
+		if t.AnyPointer().Which() == schema.Type_anyPointer_Which_unconstrained &&
+			t.AnyPointer().Unconstrained().Which() == schema.Type_anyPointer_unconstrained_Which_capability {
+			return typeRef{name: "Client", imp: capnpImportSpec}, nil
 		}
 
+		// TODO:  handle other pointer types
+
+		// Fall back to default => generic pointer type
 		return typeRef{name: "Ptr", imp: capnpImportSpec}, nil
 
 	}
