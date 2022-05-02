@@ -1,6 +1,12 @@
 package capnp
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
 
 func TestMessage_canRead(t *testing.T) {
 	t.Parallel()
@@ -65,113 +71,64 @@ func TestMessage_canRead(t *testing.T) {
 }
 
 func TestMessage_ResetReadLimit(t *testing.T) {
-	{
-		m := &Message{TraverseLimit: 42}
-		t.Log("   m := &Message{TraverseLimit: 42}")
-		ok := m.canRead(42)
-		t.Logf("   m.canRead(42) -> %t", ok)
-		m.ResetReadLimit(8)
-		t.Log("   m.ResetReadLimit(8)")
-		if m.canRead(8) {
-			t.Log("   m.canRead(8) -> true")
-		} else {
-			t.Error("!! m.canRead(8) -> false; want true")
-		}
-	}
-	t.Log()
-	{
-		m := &Message{TraverseLimit: 42}
-		t.Log("   m := &Message{TraverseLimit: 42}")
-		ok := m.canRead(40)
-		t.Logf("   m.canRead(40) -> %t", ok)
-		m.ResetReadLimit(8)
-		t.Log("   m.ResetReadLimit(8)")
-		if m.canRead(9) {
-			t.Error("!! m.canRead(9) -> true; want false")
-		} else {
-			t.Log("   m.canRead(9) -> false")
-		}
-	}
-	t.Log()
-	{
-		m := &Message{TraverseLimit: 42}
-		t.Log("   m := &Message{TraverseLimit: 42}")
-		ok := m.canRead(42)
-		t.Logf("   m.canRead(42) -> %t", ok)
-		m.ResetReadLimit(8)
-		t.Log("   m.ResetReadLimit(8)")
-		if m.canRead(8) {
-			t.Log("   m.canRead(8) -> true")
-		} else {
-			t.Error("!! m.canRead(8) -> false; want true")
-		}
-	}
-	t.Log()
-	{
-		m := &Message{TraverseLimit: 42}
-		t.Log("   m := &Message{TraverseLimit: 42}")
-		ok := m.canRead(40)
-		t.Logf("   m.canRead(40) -> %t", ok)
-		m.ResetReadLimit(8)
-		t.Log("   m.ResetReadLimit(8)")
-		if m.canRead(9) {
-			t.Error("!! m.canRead(9) -> true; want false")
-		} else {
-			t.Log("   m.canRead(9) -> false")
-		}
-	}
-	t.Log()
-	{
-		m := new(Message)
-		t.Log("   m := new(Message)")
-		m.ResetReadLimit(0)
-		t.Log("   m.ResetReadLimit(0)")
-		if !m.canRead(0) {
-			t.Error("!! m.canRead(0) -> false; want true")
-		} else {
-			t.Log("   m.canRead(0) -> true")
-		}
-	}
-	t.Log()
-	{
-		m := new(Message)
-		t.Log("   m := new(Message)")
-		m.ResetReadLimit(0)
-		t.Log("   m.ResetReadLimit(0)")
-		if m.canRead(1) {
-			t.Error("!! m.canRead(1) -> true; want false")
-		} else {
-			t.Log("   m.canRead(1) -> false")
-		}
+	t.Parallel()
+	t.Helper()
+
+	for _, tt := range []struct {
+		limit            int
+		initial, canRead Size
+		readLim          uint64
+	}{
+		{
+			limit:   42,
+			initial: 42,
+			readLim: 8,
+			canRead: 8,
+		},
+		{
+			limit:   42,
+			initial: 40,
+			readLim: 8,
+			canRead: 9,
+		},
+		{},
+		{canRead: 1},
+	} {
+		t.Run(fmt.Sprintf("TraverseLimit=%d", tt.limit), func(t *testing.T) {
+			m := &Message{TraverseLimit: uint64(tt.limit)}
+			require.True(t, m.canRead(tt.initial), "should be able to read %s bytes", tt.initial)
+
+			m.ResetReadLimit(tt.readLim)
+			if tt.readLim < uint64(tt.canRead) {
+				assert.False(t, m.canRead(tt.canRead), "should fail to read %d bytes", tt.canRead)
+			} else {
+				assert.True(t, m.canRead(tt.canRead), "should succeed in reading %d bytes", tt.canRead)
+			}
+		})
 	}
 }
 
 func TestMessage_Unread(t *testing.T) {
-	{
+	t.Parallel()
+	t.Helper()
+
+	t.Run("UnreadFromTraverseLimit", func(t *testing.T) {
+		t.Parallel()
+
 		m := &Message{TraverseLimit: 42}
-		t.Log("   m := &Message{TraverseLimit: 42}")
-		ok := m.canRead(42)
-		t.Logf("   m.canRead(42) -> %t", ok)
+		require.True(t, m.canRead(42), "should be able to read up to TraverseLimit")
+
 		m.Unread(8)
-		t.Log("   m.Unread(8)")
-		if m.canRead(8) {
-			t.Log("   m.canRead(8) -> true")
-		} else {
-			t.Error("!! m.canRead(8) -> false; want true")
-		}
-	}
-	t.Log()
-	{
+		assert.True(t, m.canRead(8), "should be able to read 8 bytes after unreading")
+	})
+
+	t.Run("UnreadBeforeTraverseLimit", func(t *testing.T) {
+		t.Parallel()
+
 		m := &Message{TraverseLimit: 42}
-		t.Log("   m := &Message{TraverseLimit: 42}")
-		ok := m.canRead(40)
-		t.Logf("   m.canRead(40) -> %t", ok)
+		require.True(t, m.canRead(40), "should be able to read fewer than 'TraverseLimit' bytes")
+
 		m.Unread(8)
-		t.Log("   m.Unread(8)")
-		if m.canRead(9) {
-			t.Log("   m.canRead(9) -> true")
-		} else {
-			t.Error("!! m.canRead(9) -> false; want true")
-		}
-	}
+		assert.True(t, m.canRead(9), "should be able to read 9 bytes after unreading")
+	})
 }
