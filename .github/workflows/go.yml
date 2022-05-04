@@ -12,6 +12,7 @@ jobs:
     strategy:
       matrix:
         go: [ '1.18' ]
+        arch: [ '', '386' ]
     name: Go ${{ matrix.go }}
     steps:
       - uses: actions/checkout@v2
@@ -19,5 +20,8 @@ jobs:
         uses: actions/setup-go@v1
         with:
           go-version: ${{ matrix.go }}
+      - name: Set GOARCH
+        run: |
+          echo "GOARCH=${{ matrix.arch }}" >> $GITHUB_ENV
       - run: go test -v -race -short ./...
       - run: go test -v ./...
