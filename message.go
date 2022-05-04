@@ -787,7 +787,7 @@ func (e *Encoder) Encode(m *Message) error {
 			return annotatef(err, "encode")
 		}
 		n := len(s.data)
-		if n > int(maxSegmentSize) {
+		if int64(n) > int64(maxSegmentSize) {
 			return errorf("encode: segment %d too large", i)
 		}
 		e.hdrbuf = appendUint32(e.hdrbuf, uint32(Size(n)/wordSize))

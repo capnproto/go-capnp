@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"testing"
 	"testing/quick"
 
@@ -873,6 +874,7 @@ func TestFirstSegmentMessage_MultiSegment(t *testing.T) {
 func TestNextAlloc(t *testing.T) {
 	const max32 = 1<<31 - 8
 	const max64 = 1<<63 - 8
+	const is64bit = int64(maxInt) == math.MaxInt64
 	tests := []struct {
 		name string
 		curr int64
@@ -885,7 +887,7 @@ func TestNextAlloc(t *testing.T) {
 		{name: "first word, unaligned curr", curr: 13, max: max64, req: 8, ok: true},
 		{name: "second word", curr: 8, max: max64, req: 8, ok: true},
 		{name: "one byte pads to word", curr: 8, max: max64, req: 1, ok: true},
-		{name: "max size", curr: 0, max: max64, req: 0xfffffff8, ok: true},
+		{name: "max size", curr: 0, max: max64, req: 0xfffffff8, ok: is64bit},
 		{name: "max size + 1", curr: 0, max: max64, req: 0xfffffff9, ok: false},
 		{name: "max req", curr: 0, max: max64, req: 0xffffffff, ok: false},
 		{name: "max curr, request 0", curr: max64, max: max64, req: 0, ok: true},
