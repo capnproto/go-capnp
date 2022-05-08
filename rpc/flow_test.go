@@ -70,7 +70,7 @@ func TestFixedFlowLimit(t *testing.T) {
 	}
 	t.Parallel()
 
-	limit := uint64(1 << 20)
+	limit := int64(1 << 20)
 
 	clientConn, serverConn := net.Pipe()
 
