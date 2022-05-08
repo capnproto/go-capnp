@@ -20,7 +20,7 @@ func (fl *fixedLimiter) StartMessage(ctx context.Context, size uint64) (gotRespo
 		// semaphore.Weighted expects an int64, so we need to check the bounds.
 		return nil, fmt.Errorf(
 			"StartMessage(): limit %v is too large (max %v)",
-			size, math.MaxInt64,
+			size, int64(math.MaxInt64),
 		)
 	}
 	w := (*semaphore.Weighted)(fl)
