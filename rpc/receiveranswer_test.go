@@ -29,9 +29,7 @@ func (me *capArgsTest) Self(ctx context.Context, p testcapnp.CapArgsTest_self) e
 
 func (me *capArgsTest) Call(ctx context.Context, p testcapnp.CapArgsTest_call) error {
 	defer close(me.Errs)
-	cap, err := p.Args().Cap()
-	chkfatal(err)
-	client := cap.Interface().Client()
+	client := p.Args().Cap()
 	chkfatal(client.Resolve(ctx))
 	brand, ok := server.IsServer(client.State().Brand)
 	if !ok {
@@ -80,9 +78,7 @@ func TestBootstrapReceiverAnswerRpc(t *testing.T) {
 	c := testcapnp.CapArgsTest{Client: clientConn.Bootstrap(ctx)}
 
 	res, rel := c.Call(ctx, func(p testcapnp.CapArgsTest_call_Params) error {
-		capId := p.Message().AddCap(c.Client.AddRef())
-		p.SetCap(capnp.NewInterface(p.Segment(), capId).ToPtr())
-		return nil
+		return p.SetCap(c.Client.AddRef())
 	})
 	defer rel()
 	c.Release()
@@ -125,9 +121,7 @@ func TestCallReceiverAnswerRpc(t *testing.T) {
 	defer rel()
 	self := selfRes.Self()
 	callRes, rel := self.Call(ctx, func(p testcapnp.CapArgsTest_call_Params) error {
-		capId := p.Message().AddCap(self.Client.AddRef())
-		p.SetCap(capnp.NewInterface(p.Segment(), capId).ToPtr())
-		return nil
+		return p.SetCap(self.Client.AddRef())
 	})
 	self.Release()
 	defer rel()

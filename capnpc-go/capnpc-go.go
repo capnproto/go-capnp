@@ -369,14 +369,26 @@ func (g *generator) Value(rel *node, t schema.Type, v schema.Value) (string, err
 	case schema.Type_Which_anyPointer:
 		data, _ := v.AnyPointer()
 		var buf bytes.Buffer
+
 		sd, err := g.data.copyData(data)
 		if err != nil {
 			return "", err
 		}
+
+		// capability pointer?
+		if t.AnyPointer().Which() == schema.Type_anyPointer_Which_unconstrained &&
+			t.AnyPointer().Unconstrained().Which() == schema.Type_anyPointer_unconstrained_Which_capability {
+			return "nil", nil // static values of *Client are always nil.
+		}
+
+		// TODO:  handle other pointer types
+
+		// Fall back to default case => generic pointer value
 		err = templates.ExecuteTemplate(&buf, "pointerValue", pointerValueParams{
 			G:     g,
 			Value: sd,
 		})
+
 		return buf.String(), err
 
 	case schema.Type_Which_list:
@@ -590,6 +602,16 @@ func (g *generator) defineField(n *node, f field) (err error) {
 				return err
 			}
 		}
+
+		// capability pointer?
+		if t.AnyPointer().Which() == schema.Type_anyPointer_Which_unconstrained &&
+			t.AnyPointer().Unconstrained().Which() == schema.Type_anyPointer_unconstrained_Which_capability {
+			return g.r.Render(structCapabilityFieldParams(params))
+		}
+
+		// TODO: handle other pointer types
+
+		// Fall back to default case => generic pointer value
 		return g.r.Render(structPointerFieldParams{
 			structFieldParams: params,
 			Default:           defref,
@@ -647,21 +669,20 @@ func makeNodeTypeRef(n, rel *node) (typeRef, error) {
 
 var (
 	staticTypeRefs = map[schema.Type_Which]typeRef{
-		schema.Type_Which_void:       {},
-		schema.Type_Which_bool:       {name: "bool"},
-		schema.Type_Which_int8:       {name: "int8"},
-		schema.Type_Which_int16:      {name: "int16"},
-		schema.Type_Which_int32:      {name: "int32"},
-		schema.Type_Which_int64:      {name: "int64"},
-		schema.Type_Which_uint8:      {name: "uint8"},
-		schema.Type_Which_uint16:     {name: "uint16"},
-		schema.Type_Which_uint32:     {name: "uint32"},
-		schema.Type_Which_uint64:     {name: "uint64"},
-		schema.Type_Which_float32:    {name: "float32"},
-		schema.Type_Which_float64:    {name: "float64"},
-		schema.Type_Which_text:       {name: "string"},
-		schema.Type_Which_data:       {name: "[]byte"},
-		schema.Type_Which_anyPointer: {name: "Pointer", imp: capnpImportSpec},
+		schema.Type_Which_void:    {},
+		schema.Type_Which_bool:    {name: "bool"},
+		schema.Type_Which_int8:    {name: "int8"},
+		schema.Type_Which_int16:   {name: "int16"},
+		schema.Type_Which_int32:   {name: "int32"},
+		schema.Type_Which_int64:   {name: "int64"},
+		schema.Type_Which_uint8:   {name: "uint8"},
+		schema.Type_Which_uint16:  {name: "uint16"},
+		schema.Type_Which_uint32:  {name: "uint32"},
+		schema.Type_Which_uint64:  {name: "uint64"},
+		schema.Type_Which_float32: {name: "float32"},
+		schema.Type_Which_float64: {name: "float64"},
+		schema.Type_Which_text:    {name: "string"},
+		schema.Type_Which_data:    {name: "[]byte"},
 	}
 	staticListTypeRefs = map[schema.Type_Which]typeRef{
 		// TODO(light): omitting newfunc since it doesn't have a similar type signature (no errors).
@@ -726,6 +747,18 @@ func makeTypeRef(t schema.Type, rel *node, nodes nodeMap) (typeRef, error) {
 		case schema.Type_Which_anyPointer, schema.Type_Which_list, schema.Type_Which_interface:
 			return typeRef{name: "PointerList", newfunc: "NewPointerList", imp: capnpImportSpec}, nil
 		}
+	case schema.Type_Which_anyPointer:
+		// capability pointer?
+		if t.AnyPointer().Which() == schema.Type_anyPointer_Which_unconstrained &&
+			t.AnyPointer().Unconstrained().Which() == schema.Type_anyPointer_unconstrained_Which_capability {
+			return typeRef{name: "Client", imp: capnpImportSpec}, nil
+		}
+
+		// TODO:  handle other pointer types
+
+		// Fall back to default => generic pointer type
+		return typeRef{name: "Ptr", imp: capnpImportSpec}, nil
+
 	}
 	return typeRef{}, fmt.Errorf("unable to reference type %v", t.Which())
 }
