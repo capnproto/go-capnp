@@ -591,7 +591,7 @@ func (c *Conn) handleBootstrap(ctx context.Context, id answerID) error {
 		syncutil.Without(&c.mu, rl.release)
 		return nil
 	}
-	if err := ans.setBootstrap(c.bootstrap.AddRef()); err != nil {
+	if err := ans.setBootstrap(c.bootstrap); err != nil {
 		rl := ans.sendException(err)
 		syncutil.Without(&c.mu, rl.release)
 		return nil
@@ -1075,13 +1075,13 @@ type parsedReturn struct {
 
 func (c *Conn) handleFinish(ctx context.Context, id answerID, releaseResultCaps bool) error {
 	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	ans := c.answers[id]
 	if ans == nil {
-		c.mu.Unlock()
 		return rpcerr.Failedf("incoming finish: unknown answer ID %d", id)
 	}
 	if ans.flags&finishReceived != 0 {
-		c.mu.Unlock()
 		return rpcerr.Failedf("incoming finish: answer ID %d already received finish", id)
 	}
 	ans.flags |= finishReceived
@@ -1092,17 +1092,15 @@ func (c *Conn) handleFinish(ctx context.Context, id answerID, releaseResultCaps 
 		ans.cancel()
 	}
 	if ans.flags&returnSent == 0 {
-		c.mu.Unlock()
 		return nil
 	}
 
 	// Return sent and finish received: time to destroy answer.
-	rl, err := ans.destroy()
-	c.mu.Unlock()
+	_, err := ans.destroy()
 	if ans.releaseMsg != nil {
-		ans.releaseMsg()
+		syncutil.Without(&c.mu, ans.releaseMsg)
 	}
-	rl.release()
+
 	if err != nil {
 		return rpcerr.Annotate(err, "incoming finish: release result caps")
 	}

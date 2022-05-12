@@ -24,7 +24,9 @@ type Transport interface {
 	// deadline from ctx.
 	//
 	// Messages returned by NewMessage must have a nil CapTable.
-	// The caller may modify the CapTable as it pleases.
+	// The caller may modify the CapTable as it pleases.  Calls to the
+	// ReleaseFunc will decrement the refcount of all capabilities in the
+	// message.
 	//
 	// The Arena in the returned message should be fast at allocating new
 	// segments.  The returned ReleaseFunc MUST be safe to call concurrently
