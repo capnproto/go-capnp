@@ -1073,7 +1073,7 @@ type parsedReturn struct {
 	unimplemented bool
 }
 
-func (c *Conn) handleFinish(ctx context.Context, id answerID, releaseResultCaps bool) error {
+func (c *Conn) handleFinish(ctx context.Context, id answerID, releaseResultCaps bool) (err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -1092,20 +1092,25 @@ func (c *Conn) handleFinish(ctx context.Context, id answerID, releaseResultCaps 
 		ans.cancel()
 	}
 	if ans.flags&returnSent == 0 {
-		return nil
+		return
 	}
 
 	// Return sent and finish received: time to destroy answer.
-	_, err := ans.destroy()
+	delete(c.answers, ans.id)
+
+	if ans.flags&releaseResultCapsFlag != 0 {
+		for id, count := range ans.exportRefs {
+			if _, e := c.releaseExport(id, count); err == nil && e != nil {
+				err = rpcerr.Annotate(err, "incoming finish: release result caps")
+			}
+		}
+	}
+
 	if ans.releaseMsg != nil {
 		syncutil.Without(&c.mu, ans.releaseMsg)
 	}
 
-	if err != nil {
-		return rpcerr.Annotate(err, "incoming finish: release result caps")
-	}
-
-	return nil
+	return
 }
 
 // recvCap materializes a client for a given descriptor.  The caller is
