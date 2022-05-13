@@ -379,6 +379,9 @@ func (c *Client) IsSame(c2 *Client) bool {
 	return h1 == h2
 }
 
+// Done returns when the client has been shut down.
+func (c *Client) Done() <-chan struct{} { return c.h.done }
+
 // Resolve blocks until the capability is fully resolved or the Context is Done.
 func (c *Client) Resolve(ctx context.Context) error {
 	for {
