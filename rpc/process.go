@@ -31,7 +31,6 @@ func newProcess(c *Conn) *process {
 		case p.err = <-p.abort:
 		case <-proc.Closing():
 		}
-
 	})
 
 	return p
