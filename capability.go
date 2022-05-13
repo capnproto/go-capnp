@@ -379,7 +379,8 @@ func (c *Client) IsSame(c2 *Client) bool {
 	return h1 == h2
 }
 
-// Done returns when the client has been shut down.
+// Done returns when the client begins shutting down.  The channel
+// returned by Done() is closed before ClientHook.Shutdown() is called.
 func (c *Client) Done() <-chan struct{} { return c.h.done }
 
 // Resolve blocks until the capability is fully resolved or the Context is Done.
