@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/jbenet/goprocess"
@@ -10,7 +9,6 @@ import (
 )
 
 type process struct {
-	mu    sync.RWMutex
 	root  goprocess.Process
 	refs  spinCtr
 	abort chan error
@@ -102,9 +100,6 @@ func (p *process) teardown(c *Conn) goprocess.TeardownFunc {
 }
 
 func (p *process) Shutdown(err error) error {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
 	select {
 	case p.abort <- err:
 	default:
@@ -114,16 +109,10 @@ func (p *process) Shutdown(err error) error {
 }
 
 func (p *process) Closing() <-chan struct{} {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-
 	return p.root.Closing()
 }
 
 func (p *process) Closed() <-chan struct{} {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-
 	return p.root.Closed()
 }
 
@@ -136,9 +125,6 @@ func (p *process) HandleCancel(ctx context.Context, q *question) {
 func (p *process) Go(f goprocess.ProcessFunc) { p.root.Go(f) }
 
 func (p *process) AddRef() bool {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-
 	select {
 	case <-p.root.Closing():
 		return false
