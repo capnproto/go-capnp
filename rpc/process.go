@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/jbenet/goprocess"
@@ -10,7 +11,7 @@ import (
 
 type process struct {
 	root  goprocess.Process
-	refs  spinCtr
+	refs  sync.WaitGroup
 	abort chan error
 	err   error
 }
@@ -129,23 +130,12 @@ func (p *process) AddRef() bool {
 	case <-p.root.Closing():
 		return false
 	default:
-		p.refs.Incr()
+		p.refs.Add(1)
 		return true
 	}
 }
 
-func (p *process) Release() { p.refs.Decr() }
-
-type spinCtr syncutil.Ctr
-
-func (ctr *spinCtr) Incr() { (*syncutil.Ctr)(ctr).Incr() }
-func (ctr *spinCtr) Decr() { (*syncutil.Ctr)(ctr).Decr() }
-
-func (ctr *spinCtr) Wait() {
-	for (*syncutil.Ctr)(ctr).Int() != 0 {
-		time.Sleep(time.Microsecond * 100)
-	}
-}
+func (p *process) Release() { p.refs.Done() }
 
 type procCtx <-chan struct{}
 
