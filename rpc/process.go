@@ -11,7 +11,7 @@ import (
 
 type process struct {
 	root  goprocess.Process
-	refs  sync.WaitGroup
+	refs  refctr
 	abort chan error
 	err   error
 }
@@ -130,12 +130,18 @@ func (p *process) AddRef() bool {
 	case <-p.root.Closing():
 		return false
 	default:
-		p.refs.Add(1)
+		p.refs.Acquire()
 		return true
 	}
 }
 
-func (p *process) Release() { p.refs.Done() }
+func (p *process) Release() { p.refs.Release() }
+
+type refctr sync.WaitGroup
+
+func (r *refctr) Acquire() { (*sync.WaitGroup)(r).Add(1) }
+func (r *refctr) Release() { (*sync.WaitGroup)(r).Done() }
+func (r *refctr) Wait()    { (*sync.WaitGroup)(r).Wait() }
 
 type procCtx <-chan struct{}
 
