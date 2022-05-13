@@ -22,9 +22,9 @@ func newProcess(c *Conn) *process {
 	p.root = goprocess.Go(func(proc goprocess.Process) {
 		proc.SetTeardown(p.teardown(c))
 		proc.
-			Go(p.sender(c)).
-			Go(p.recver(c)).
-			SetTeardown(p.signal(c))
+			Go(p.sender(c)).         // sender returns before recver
+			Go(p.recver(c)).         // recver returns before signal
+			SetTeardown(p.signal(c)) // signal returns before teardown
 
 		select {
 		case p.err = <-p.abort:
