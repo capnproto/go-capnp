@@ -36,7 +36,18 @@ func newProcess(c *Conn) *process {
 }
 
 func (p *process) sender(c *Conn) goprocess.ProcessFunc {
-	return c.sender
+	return func(proc goprocess.Process) {
+		ctx := procCtx(proc.Closing())
+
+		for {
+			sender, err := c.sendq.Recv(ctx)
+			if err != nil {
+				return
+			}
+
+			sender.Send()
+		}
+	}
 }
 
 func (p *process) recver(c *Conn) goprocess.ProcessFunc {

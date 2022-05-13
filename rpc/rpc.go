@@ -296,19 +296,6 @@ func (c *Conn) abort(abortErr error) {
 	}
 }
 
-func (c *Conn) sender(proc goprocess.Process) {
-	ctx := procCtx(proc.Closing())
-
-	for {
-		sender, err := c.sendq.Recv(ctx)
-		if err != nil {
-			return
-		}
-
-		sender.Send()
-	}
-}
-
 // receiveer receives and dispatches messages coming from c.transport.
 //
 // After receive returns, the connection is shut down.  If receive
