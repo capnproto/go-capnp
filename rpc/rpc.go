@@ -1344,6 +1344,12 @@ func (c *Conn) running() bool {
 	}
 }
 
+// withRef acquires a reference on the process, calls f, and releases
+// the process. Returns false if the process is already shutting down,
+// indicating that the reference could not be acquired and that f was
+// not run.
+//
+// Callers MUST hold c.mu.
 func (c *Conn) withRef(f func()) (ok bool) {
 	if ok = c.proc.AddRef(); ok {
 		defer c.proc.Release()

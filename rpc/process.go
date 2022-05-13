@@ -20,11 +20,11 @@ func newProcess(c *Conn) *process {
 	p := new(process)
 	p.abort = make(chan error, 1)
 	p.root = goprocess.Go(func(proc goprocess.Process) {
-		defer p.signal(c)
-
 		proc.SetTeardown(p.teardown(c))
-		proc.Go(p.sender(c))
-		proc.Go(p.recver(c))
+		proc.
+			Go(p.sender(c)).
+			Go(p.recver(c)).
+			SetTeardown(p.signal(c))
 
 		select {
 		case p.err = <-p.abort:
@@ -55,18 +55,25 @@ func (p *process) recver(c *Conn) goprocess.ProcessFunc {
 
 // Signal to answers that we are shutting down. They are expected to
 // promptly release any references to the process that they may hold.
-func (p *process) signal(c *Conn) {
-	syncutil.With(&c.mu, func() {
-		for _, a := range c.answers {
-			if a != nil && a.cancel != nil {
-				a.cancel()
+//
+// Signal is called after the send and receive processes have returned.
+// Signal returns before teardown() is called.
+func (p *process) signal(c *Conn) goprocess.TeardownFunc {
+	return func() error {
+		syncutil.With(&c.mu, func() {
+			for _, a := range c.answers {
+				if a != nil && a.cancel != nil {
+					a.cancel()
+				}
 			}
-		}
-	})
+		})
 
-	p.refs.Wait()
+		p.refs.Wait()
+		return nil
+	}
 }
 
+// Teardown is called after all child processes have terminated.
 func (p *process) teardown(c *Conn) goprocess.TeardownFunc {
 	return func() (err error) {
 		c.drainQueue()
@@ -125,6 +132,11 @@ func (p *process) HandleCancel(ctx context.Context, q *question) {
 
 func (p *process) Go(f goprocess.ProcessFunc) { p.root.Go(f) }
 
+// AddRef increases the refcount on the process, preventing it from
+// shutting down.  Returns false if the process is already shutting
+// down, indicating that the reference could not be acquired.
+//
+// Callers MUST hold c.mu.
 func (p *process) AddRef() bool {
 	select {
 	case <-p.root.Closing():
