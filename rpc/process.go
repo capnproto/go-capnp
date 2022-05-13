@@ -48,7 +48,10 @@ func (p *process) recver(c *Conn) goprocess.ProcessFunc {
 			err = nil
 		}
 
-		_ = p.Shutdown(err)
+		select {
+		case p.abort <- err:
+		default:
+		}
 	}
 }
 
