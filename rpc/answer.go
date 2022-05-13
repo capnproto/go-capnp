@@ -8,8 +8,8 @@ import (
 
 	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/exc"
-	"capnproto.org/go/capnp/v3/internal/syncutil"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
+	syncutil "github.com/lthibault/util/sync"
 )
 
 // An answerID is an index into the answers table.
@@ -119,7 +119,7 @@ func (c *Conn) newReturn(ctx context.Context) (rpccp.Return, func(), capnp.Relea
 	}
 
 	return ret, func() {
-		c.sender.Send(asyncSend{
+		c.sendq.Send(asyncSend{
 			send:    send,
 			release: release,
 			callback: func(err error) {
@@ -193,29 +193,26 @@ func (ans *answer) Return(e error) {
 		ans.c.mu.Unlock()
 		rl.release()
 		ans.pcalls.Wait()
-		ans.c.tasks.Done() // added by handleCall
+		ans.c.proc.Release() // added by handleCall
 		return
 	}
 	rl, err := ans.sendReturn()
-	if err != nil {
-		select {
-		case <-ans.c.bgctx.Done():
-		default:
-			ans.c.tasks.Done() // added by handleCall
-			if err := ans.c.shutdown(err); err != nil {
-				ans.c.er.ReportError(err)
-			}
-
-			ans.c.mu.Unlock()
-			rl.release()
-			ans.pcalls.Wait()
-			return
+	if err != nil && ans.c.running() {
+		ans.c.proc.Release() // added by handleCall
+		if err := ans.c.proc.Shutdown(err); err != nil {
+			ans.c.er.ReportError(err)
 		}
+
+		ans.c.mu.Unlock()
+		rl.release()
+		ans.pcalls.Wait()
+		return
 	}
+
 	ans.c.mu.Unlock()
 	rl.release()
 	ans.pcalls.Wait()
-	ans.c.tasks.Done() // added by handleCall
+	ans.c.proc.Release() // added by handleCall
 }
 
 // sendReturn sends the return message with results allocated by a
@@ -235,9 +232,7 @@ func (ans *answer) sendReturn() (releaseList, error) {
 	ans.c.er.ReportError(rpcerr.Annotate(err, "send return")) // nop if err == nil
 	// Continue.  Don't fail to send return if cap table isn't fully filled.
 
-	select {
-	case <-ans.c.bgctx.Done():
-	default:
+	if ans.c.running() {
 		fin := ans.flags&finishReceived != 0
 		if ans.promise != nil {
 			if fin {
@@ -260,6 +255,7 @@ func (ans *answer) sendReturn() (releaseList, error) {
 		}
 		ans.c.mu.Lock()
 	}
+
 	ans.flags |= returnSent
 	if ans.flags&finishReceived == 0 {
 		return nil, nil
@@ -286,9 +282,7 @@ func (ans *answer) sendException(ex error) releaseList {
 		ans.promise = nil
 	}
 
-	select {
-	case <-ans.c.bgctx.Done():
-	default:
+	if ans.c.running() {
 		// Send exception.
 		fin := ans.flags&finishReceived != 0
 		ans.c.mu.Unlock()

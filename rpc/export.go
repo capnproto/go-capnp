@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"capnproto.org/go/capnp/v3"
-	"capnproto.org/go/capnp/v3/internal/syncutil"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
+	syncutil "github.com/lthibault/util/sync"
 )
 
 // An exportID is an index into the exports table.

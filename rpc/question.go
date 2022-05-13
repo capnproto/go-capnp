@@ -4,8 +4,9 @@ import (
 	"context"
 
 	"capnproto.org/go/capnp/v3"
-	"capnproto.org/go/capnp/v3/internal/syncutil"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
+	"github.com/jbenet/goprocess"
+	syncutil "github.com/lthibault/util/sync"
 )
 
 // A questionID is an index into the questions table.
@@ -88,47 +89,49 @@ type questionKey struct {
 //
 // The caller MUST NOT hold q.c.mu.
 func (q *question) handleCancel(ctx context.Context) {
-	var rejectErr error
-	select {
-	case <-ctx.Done():
-		rejectErr = ctx.Err()
-	case <-q.c.bgctx.Done():
-		rejectErr = ExcClosed
-	case <-q.p.Answer().Done():
-		return
-	}
-
-	q.c.mu.Lock()
-	defer q.c.mu.Unlock()
-
-	// Promise already fulfilled?
-	if q.flags&finished != 0 {
-		return
-	}
-	q.flags |= finished
-	q.release = func() {}
-
-	q.c.sendMessage(q.c.bgctx, func(m rpccp.Message) error {
-		fin, err := m.NewFinish()
-		if err != nil {
-			return err
+	q.c.proc.Go(func(goprocess.Process) {
+		var rejectErr error
+		select {
+		case <-ctx.Done():
+			rejectErr = ctx.Err()
+		case <-q.c.context().Done():
+			rejectErr = ExcClosed
+		case <-q.p.Answer().Done():
+			return
 		}
-		fin.SetQuestionId(uint32(q.id))
-		fin.SetReleaseResultCaps(true)
-		return nil
-	}, func(err error) {
-		if err == nil {
-			syncutil.With(&q.c.mu, func() { q.flags |= finishSent })
-		} else if q.c.bgctx.Err() == nil {
-			q.c.er.ReportError(rpcerr.Annotate(err, "send finish"))
-		}
-		close(q.finishMsgSend)
 
-		q.p.Reject(rejectErr)
-		if q.bootstrapPromise != nil {
-			q.bootstrapPromise.Fulfill(q.p.Answer().Client())
-			q.p.ReleaseClients()
+		q.c.mu.Lock()
+		defer q.c.mu.Unlock()
+
+		// Promise already fulfilled?
+		if q.flags&finished != 0 {
+			return
 		}
+		q.flags |= finished
+		q.release = func() {}
+
+		q.c.sendMessage(q.c.context(), func(m rpccp.Message) error {
+			fin, err := m.NewFinish()
+			if err != nil {
+				return err
+			}
+			fin.SetQuestionId(uint32(q.id))
+			fin.SetReleaseResultCaps(true)
+			return nil
+		}, func(err error) {
+			if err == nil {
+				syncutil.With(&q.c.mu, func() { q.flags |= finishSent })
+			} else if q.c.running() {
+				q.c.er.ReportError(rpcerr.Annotate(err, "send finish"))
+			}
+			close(q.finishMsgSend)
+
+			q.p.Reject(rejectErr)
+			if q.bootstrapPromise != nil {
+				q.bootstrapPromise.Fulfill(q.p.Answer().Client())
+				q.p.ReleaseClients()
+			}
+		})
 	})
 }
 
@@ -136,44 +139,43 @@ func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineO
 	q.c.mu.Lock()
 	defer q.c.mu.Unlock()
 
-	if !q.c.startTask() {
-		return capnp.ErrorAnswer(s.Method, ExcClosed), func() {}
-	}
-	defer q.c.tasks.Done()
+	var q2 *question
 
-	// Mark this transform as having been used for a call ASAP.
-	// q's Return could be received while q2 is being sent.
-	// Don't bother cleaning it up if the call fails because:
-	// a) this may not have been the only call for the given transform,
-	// b) the transform isn't guaranteed to be an import, and
-	// c) the worst that happens is we trade bandwidth for code simplicity.
-	q.mark(transform)
-	q2 := q.c.newQuestion(s.Method)
+	ok := q.c.withRef(func() {
+		// Mark this transform as having been used for a call ASAP.
+		// q's Return could be received while q2 is being sent.
+		// Don't bother cleaning it up if the call fails because:
+		// a) this may not have been the only call for the given transform,
+		// b) the transform isn't guaranteed to be an import, and
+		// c) the worst that happens is we trade bandwidth for code simplicity.
+		q.mark(transform)
+		q2 = q.c.newQuestion(s.Method)
 
-	syncutil.Without(&q.c.mu, func() {
-		// Send call message.
-		q.c.sendMessage(ctx, func(m rpccp.Message) error {
-			return q.c.newPipelineCallMessage(m, q.id, transform, q2.id, s)
-		}, func(err error) {
-			if err != nil {
-				q.c.questions[q2.id] = nil
-				q.c.questionID.remove(uint32(q2.id))
-				q.p.Reject(rpcerr.Failedf("send message: %w", err))
-				return
-			}
+		syncutil.Without(&q.c.mu, func() {
+			// Send call message.
+			q.c.sendMessage(ctx, func(m rpccp.Message) error {
+				return q.c.newPipelineCallMessage(m, q.id, transform, q2.id, s)
+			}, func(err error) {
+				if err != nil {
+					q.c.questions[q2.id] = nil
+					q.c.questionID.remove(uint32(q2.id))
+					q.p.Reject(rpcerr.Failedf("send message: %w", err))
+					return
+				}
 
-			q2.c.tasks.Add(1)
-			go func() {
-				defer q2.c.tasks.Done()
 				q2.handleCancel(ctx)
-			}()
+			})
+
 		})
 
 	})
 
-	ans := q2.p.Answer()
-	return ans, func() {
-		<-ans.Done()
+	if !ok {
+		return capnp.ErrorAnswer(s.Method, ExcClosed), func() {}
+	}
+
+	return q2.p.Answer(), func() {
+		<-q2.p.Answer().Done()
 		q2.p.ReleaseClients()
 		q2.release()
 	}

@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"capnproto.org/go/capnp/v3/exc"
-	"capnproto.org/go/capnp/v3/internal/syncutil"
+	syncutil "github.com/lthibault/util/sync"
 )
 
 // A Promise holds the result of an RPC call.  Only one of Fulfill,

@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"capnproto.org/go/capnp/v3/flowcontrol"
-	"capnproto.org/go/capnp/v3/internal/syncutil"
+	syncutil "github.com/lthibault/util/sync"
 )
 
 func init() {
