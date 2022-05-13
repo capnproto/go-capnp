@@ -71,13 +71,6 @@ type Conn struct {
 
 	proc *process
 
-	// // bgctx is a Context that is canceled when shutdown starts.
-	// bgctx context.Context
-	// // bgcancel cancels bgctx.  Callers MUST hold mu.
-	// bgcancel context.CancelFunc
-	// // tasks block shutdown.
-	// tasks sync.WaitGroup
-
 	// Only the receive goroutine may call RecvMessage.
 	// Only the send goroutine may call NewMessage.
 	transport Transport
@@ -85,8 +78,6 @@ type Conn struct {
 
 	// mu protects all the following fields in the Conn.
 	mu sync.Mutex
-	// closing bool          // used to make shutdown() idempotent
-	// closed  chan struct{} // closed when shutdown() returns
 
 	// Tables
 	questions  []*question
