@@ -13,6 +13,7 @@ import (
 	"capnproto.org/go/capnp/v3"
 	air "capnproto.org/go/capnp/v3/internal/aircraftlib"
 	"capnproto.org/go/capnp/v3/internal/capnptool"
+	"github.com/stretchr/testify/require"
 )
 
 // A marshalTest tests whether a message can be encoded then read by the
@@ -1623,6 +1624,88 @@ func TestVoidUnionSetters(t *testing.T) {
 	if !bytes.Equal(act, want) {
 		t.Errorf("msg.Marshal() =\n%s\n; want:\n%s", hex.Dump(act), hex.Dump(want))
 	}
+}
+
+func TestGenericCaps(t *testing.T) {
+	t.Parallel()
+
+	const size = 1
+
+	_, s := capnp.NewSingleSegmentMessage(nil)
+	ps, err := air.NewSender_send_Params(s)
+	require.NoError(t, err)
+
+	newAirplanes := func(ps air.Sender_send_Params, size int32) (air.Aircraft_List, error) {
+		rs, err := air.NewAircraft_List(ps.Segment(), size)
+		if err == nil {
+			err = ps.SetPtr(0, rs.ToPtr())
+		}
+
+		return rs, err
+	}
+
+	airplanes := func(ps air.Sender_send_Params) (air.Aircraft_List, error) {
+		ptr, err := ps.T()
+		return capnp.StructList[air.Aircraft]{List: ptr.List()}, err
+	}
+
+	t.Run("CreateAndReadRecords", func(t *testing.T) {
+		want, err := newAirplanes(ps, size)
+		require.NoError(t, err)
+		require.Equal(t, size, want.Len())
+
+		for i := 0; i < want.Len(); i++ {
+			f16, err := want.At(i).NewF16()
+			require.NoError(t, err)
+
+			b, err := f16.NewBase()
+			require.NoError(t, err)
+			b.SetCanFly(true)
+		}
+
+		got, err := airplanes(ps)
+		require.NoError(t, err)
+		require.Equal(t, size, got.Len())
+
+		for i := 0; i < got.Len(); i++ {
+			f16, err := got.At(i).F16()
+			require.NoError(t, err)
+
+			b, err := f16.Base()
+			require.NoError(t, err)
+			require.True(t, b.CanFly())
+		}
+	})
+
+	t.Run("MarshalAndUnmarshal", func(t *testing.T) {
+		b, err := ps.Message().MarshalPacked()
+		require.NoError(t, err)
+		require.NotNil(t, b)
+
+		m, err := capnp.UnmarshalPacked(b)
+		require.NoError(t, err)
+		require.NotNil(t, m)
+
+		ps2, err := air.ReadRootSender_send_Params(m)
+		require.NoError(t, err)
+
+		ptr, err := ps2.T()
+		require.NoError(t, err)
+		require.True(t, ptr.IsValid())
+
+		got, err := airplanes(ps2)
+		require.NoError(t, err)
+		require.Equal(t, size, got.Len())
+
+		for i := 0; i < got.Len(); i++ {
+			f16, err := got.At(i).F16()
+			require.NoError(t, err)
+
+			b, err := f16.Base()
+			require.NoError(t, err)
+			require.True(t, b.CanFly())
+		}
+	})
 }
 
 func TestReadDefaults(t *testing.T) {

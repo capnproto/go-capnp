@@ -331,6 +331,12 @@ interface Pipeliner extends (CallSequence) {
   newPipeliner @0 () -> (extra :AnyPointer, pipeliner :Pipeliner);
 }
 
+# test generic capabilities
+
+interface Sender(T) {
+  send @0 (t :T) -> ();
+}
+
 # test defaults
 
 struct Defaults {
