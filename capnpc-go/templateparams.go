@@ -164,6 +164,11 @@ type promiseFieldInterfaceParams struct {
 	Interface *node
 }
 
+type interfaceListParams struct {
+	G    *generator
+	Node *node
+}
+
 type interfaceClientParams struct {
 	G           *generator
 	Node        *node

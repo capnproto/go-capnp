@@ -1,0 +1,9 @@
+
+// {{.Node.Name}}_List is a list of {{.Node.Name}}.
+type {{.Node.Name}}_List = {{.G.Capnp}}.CapList[{{.Node.Name}}]
+
+// New{{.Node.Name}} creates a new list of {{.Node.Name}}.
+func New{{.Node.Name}}_List(s *{{.G.Capnp}}.Segment, sz int32) ({{.Node.Name}}_List, error) {
+	l, err := {{.G.Capnp}}.NewPointerList(s, sz)
+	return {{.G.Capnp}}.CapList[{{.Node.Name}}](l), err
+}
