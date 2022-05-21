@@ -1678,11 +1678,11 @@ func TestGenericCaps(t *testing.T) {
 	})
 
 	t.Run("MarshalAndUnmarshal", func(t *testing.T) {
-		b, err := ps.Message().MarshalPacked()
+		b, err := ps.Message().Marshal()
 		require.NoError(t, err)
 		require.NotNil(t, b)
 
-		m, err := capnp.UnmarshalPacked(b)
+		m, err := capnp.Unmarshal(b)
 		require.NoError(t, err)
 		require.NotNil(t, m)
 
