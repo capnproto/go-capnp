@@ -987,10 +987,10 @@ func (l Float64List) String() string {
 }
 
 // A list of some Cap'n Proto enum type T.
-type EnumList[T interface{ ~uint16 }] UInt16List
+type EnumList[T ~uint16] UInt16List
 
 // NewEnumList creates a new list of T, preferring placement in s.
-func NewEnumList[T interface{ ~uint16 }](s *Segment, n int32) (EnumList[T], error) {
+func NewEnumList[T ~uint16](s *Segment, n int32) (EnumList[T], error) {
 	l, err := NewUInt16List(s, n)
 	return EnumList[T](l), err
 }
