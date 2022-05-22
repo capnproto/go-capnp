@@ -1215,7 +1215,7 @@ func zfill(c air.Z, g *Z) error {
 			if !ee.Client.IsValid() {
 				continue
 			}
-			err := e.Set(i, capnp.NewInterface(e.Segment(), e.Message().AddCap(ee.Client)).ToPtr())
+			err := e.Set(i, ee)
 			if err != nil {
 				return err
 			}

@@ -744,7 +744,15 @@ func makeTypeRef(t schema.Type, rel *node, nodes nodeMap) (typeRef, error) {
 			ref.name = ref.name + "_List"
 			ref.newfunc = "New" + ref.name
 			return ref, nil
-		case schema.Type_Which_anyPointer, schema.Type_Which_list, schema.Type_Which_interface:
+		case schema.Type_Which_interface:
+			ref, err := nodeRef(lt.Interface().TypeId())
+			if err != nil {
+				return ref, err
+			}
+			ref.name = ref.name + "_List"
+			ref.newfunc = "New" + ref.name
+			return ref, nil
+		case schema.Type_Which_anyPointer, schema.Type_Which_list:
 			return typeRef{name: "PointerList", newfunc: "NewPointerList", imp: capnpImportSpec}, nil
 		}
 	case schema.Type_Which_anyPointer:
@@ -1095,6 +1103,11 @@ func (g *generator) defineInterface(n *node) error {
 	if err != nil {
 		return fmt.Errorf("interface server %s: %v", n, err)
 	}
+
+	err = g.r.Render(interfaceListParams{
+		G:    g,
+		Node: n,
+	})
 	return nil
 }
 

@@ -99,6 +99,15 @@ func (c PingPong_echoNum) AllocResults() (PingPong_echoNum_Results, error) {
 	return PingPong_echoNum_Results{Struct: r}, err
 }
 
+// PingPong_List is a list of PingPong.
+type PingPong_List = capnp.CapList[PingPong]
+
+// NewPingPong creates a new list of PingPong.
+func NewPingPong_List(s *capnp.Segment, sz int32) (PingPong_List, error) {
+	l, err := capnp.NewPointerList(s, sz)
+	return capnp.CapList[PingPong](l), err
+}
+
 type PingPong_echoNum_Params struct{ capnp.Struct }
 
 // PingPong_echoNum_Params_TypeID is the unique identifier for the type PingPong_echoNum_Params.
@@ -285,6 +294,15 @@ func (c StreamTest_push) Args() StreamTest_push_Params {
 func (c StreamTest_push) AllocResults() (stream.StreamResult, error) {
 	r, err := c.Call.AllocResults(capnp.ObjectSize{DataSize: 0, PointerCount: 0})
 	return stream.StreamResult{Struct: r}, err
+}
+
+// StreamTest_List is a list of StreamTest.
+type StreamTest_List = capnp.CapList[StreamTest]
+
+// NewStreamTest creates a new list of StreamTest.
+func NewStreamTest_List(s *capnp.Segment, sz int32) (StreamTest_List, error) {
+	l, err := capnp.NewPointerList(s, sz)
+	return capnp.CapList[StreamTest](l), err
 }
 
 type StreamTest_push_Params struct{ capnp.Struct }
@@ -475,6 +493,15 @@ func (c CapArgsTest_self) Args() CapArgsTest_self_Params {
 func (c CapArgsTest_self) AllocResults() (CapArgsTest_self_Results, error) {
 	r, err := c.Call.AllocResults(capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	return CapArgsTest_self_Results{Struct: r}, err
+}
+
+// CapArgsTest_List is a list of CapArgsTest.
+type CapArgsTest_List = capnp.CapList[CapArgsTest]
+
+// NewCapArgsTest creates a new list of CapArgsTest.
+func NewCapArgsTest_List(s *capnp.Segment, sz int32) (CapArgsTest_List, error) {
+	l, err := capnp.NewPointerList(s, sz)
+	return capnp.CapList[CapArgsTest](l), err
 }
 
 type CapArgsTest_call_Params struct{ capnp.Struct }

@@ -1037,6 +1037,23 @@ func (s StructList[T]) String() string {
 	return buf.String()
 }
 
+type CapList[T ~struct{ Client *Client }] PointerList
+
+func (c CapList[T]) At(i int) (T, error) {
+	ptr, err := PointerList(c).At(i)
+	if err != nil {
+		return T{}, err
+	}
+	return T{Client: ptr.Interface().Client()}, nil
+}
+
+func (c CapList[T]) Set(i int, v T) error {
+	pl := PointerList(c)
+	seg := pl.List.Segment()
+	capId := seg.Message().AddCap(struct{ Client *Client }(v).Client)
+	return pl.Set(i, NewInterface(seg, capId).ToPtr())
+}
+
 type listFlags uint8
 
 const (

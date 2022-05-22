@@ -100,6 +100,15 @@ func (c Persistent_save) AllocResults() (Persistent_SaveResults, error) {
 	return Persistent_SaveResults{Struct: r}, err
 }
 
+// Persistent_List is a list of Persistent.
+type Persistent_List = capnp.CapList[Persistent]
+
+// NewPersistent creates a new list of Persistent.
+func NewPersistent_List(s *capnp.Segment, sz int32) (Persistent_List, error) {
+	l, err := capnp.NewPointerList(s, sz)
+	return capnp.CapList[Persistent](l), err
+}
+
 type Persistent_SaveParams struct{ capnp.Struct }
 
 // Persistent_SaveParams_TypeID is the unique identifier for the type Persistent_SaveParams.
