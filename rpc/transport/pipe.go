@@ -26,11 +26,12 @@ type pipeMsg struct {
 	release capnp.ReleaseFunc
 }
 
-// NewPipe returns a pair of transports which communicate (synchronously) over
+// NewPipe returns a pair of transports which communicate over
 // channels, sending and receiving messages without copying.
-func NewPipe(n int) (p1, p2 Transport) {
-	ch1 := make(chan pipeMsg, n)
-	ch2 := make(chan pipeMsg, n)
+// bufSz is the size of the channel buffers.
+func NewPipe(bufSz int) (p1, p2 Transport) {
+	ch1 := make(chan pipeMsg, bufSz)
+	ch2 := make(chan pipeMsg, bufSz)
 	close1 := make(chan struct{})
 	close2 := make(chan struct{})
 	return &pipe{r: ch1, w: ch2, rc: close1, wc: close2, msgs: newCallerSet()},
