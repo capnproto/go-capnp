@@ -6,10 +6,11 @@ import (
 
 	"capnproto.org/go/capnp/v3/rpc"
 	testcp "capnproto.org/go/capnp/v3/rpc/internal/testcapnp"
+	"capnproto.org/go/capnp/v3/rpc/transport"
 )
 
 func BenchmarkPingPong(b *testing.B) {
-	p1, p2 := newPipe(1)
+	p1, p2 := transport.NewPipe(1)
 	srv := testcp.PingPong_ServerToClient(pingPongServer{}, nil)
 	conn1 := rpc.NewConn(p2, &rpc.Options{
 		ErrorReporter:   testErrorReporter{tb: b},

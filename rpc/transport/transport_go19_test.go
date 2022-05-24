@@ -1,7 +1,7 @@
 //go:build go1.9
 // +build go1.9
 
-package rpc_test
+package transport
 
 import (
 	"errors"
@@ -9,15 +9,13 @@ import (
 	"os"
 	"testing"
 	"time"
-
-	"capnproto.org/go/capnp/v3/rpc"
 )
 
 // It is only safe to call Read and Close concurrently on an *os.File in
 // Go 1.9 and above.  See https://golang.org/issue/7970
 
 func TestFileStreamTransport(t *testing.T) {
-	testTransport(t, func() (t1, t2 rpc.Transport, err error) {
+	testTransport(t, func() (t1, t2 Transport, err error) {
 		r1, w1, err := os.Pipe()
 		if err != nil {
 			return nil, nil, err
@@ -28,8 +26,8 @@ func TestFileStreamTransport(t *testing.T) {
 			w1.Close()
 			return nil, nil, err
 		}
-		t1 = rpc.NewStreamTransport(readWriteCloser{r1, w2})
-		t2 = rpc.NewStreamTransport(readWriteCloser{r2, w1})
+		t1 = NewStream(readWriteCloser{r1, w2})
+		t2 = NewStream(readWriteCloser{r2, w1})
 		return t1, t2, nil
 	})
 }
