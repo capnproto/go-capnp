@@ -41,10 +41,8 @@ func Spawn[S any](ctx context.Context, state S, f func(context.Context, Self[S])
 	handle := Handle[S]{proc}
 	self := Self[S]{proc}
 	go func() {
-		defer func() {
-			self.BeginShutdown()
-			close(proc.done)
-		}()
+		defer close(proc.done)
+		defer self.BeginShutdown()
 		f(ctx, self)
 	}()
 	return handle
