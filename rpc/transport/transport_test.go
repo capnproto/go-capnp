@@ -1,4 +1,4 @@
-package rpc_test
+package transport
 
 import (
 	"context"
@@ -9,11 +9,10 @@ import (
 	"time"
 
 	capnp "capnproto.org/go/capnp/v3"
-	"capnproto.org/go/capnp/v3/rpc"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 )
 
-func testTransport(t *testing.T, makePipe func() (t1, t2 rpc.Transport, err error)) {
+func testTransport(t *testing.T, makePipe func() (t1, t2 Transport, err error)) {
 	t.Run("Close", func(t *testing.T) {
 		t1, t2, err := makePipe()
 		if err != nil {
@@ -182,23 +181,23 @@ func TestTCPStreamTransport(t *testing.T) {
 	t.Run("Unpacked", func(t *testing.T) {
 		t.Parallel()
 
-		testTCPStreamTransport(t, rpc.NewStreamTransport)
+		testTCPStreamTransport(t, NewStream)
 	})
 
 	t.Run("Packed", func(t *testing.T) {
 		t.Parallel()
 
-		testTCPStreamTransport(t, rpc.NewPackedStreamTransport)
+		testTCPStreamTransport(t, NewPackedStream)
 	})
 }
 
-func testTCPStreamTransport(t *testing.T, newTransport func(io.ReadWriteCloser) rpc.Transport) {
+func testTCPStreamTransport(t *testing.T, newTransport func(io.ReadWriteCloser) Transport) {
 	type listenCall struct {
 		c   *net.TCPConn
 		err error
 	}
 
-	makePipe := func() (t1, t2 rpc.Transport, err error) {
+	makePipe := func() (t1, t2 Transport, err error) {
 		host, err := net.LookupIP("localhost")
 		if err != nil {
 			return nil, nil, err
@@ -238,7 +237,7 @@ func testTCPStreamTransport(t *testing.T, newTransport func(io.ReadWriteCloser) 
 	})
 
 	t.Run("ClientToServer", func(t *testing.T) {
-		testTransport(t, func() (t1, t2 rpc.Transport, err error) {
+		testTransport(t, func() (t1, t2 Transport, err error) {
 			t2, t1, err = makePipe()
 			return
 		})

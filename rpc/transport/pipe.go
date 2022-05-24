@@ -1,4 +1,4 @@
-package rpc_test
+package transport
 
 import (
 	"context"
@@ -7,10 +7,8 @@ import (
 	"runtime"
 	"strconv"
 	"sync"
-	"testing"
 
 	"capnproto.org/go/capnp/v3"
-	"capnproto.org/go/capnp/v3/rpc"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 )
 
@@ -28,9 +26,12 @@ type pipeMsg struct {
 	release capnp.ReleaseFunc
 }
 
-func newPipe(n int) (p1, p2 *pipe) {
-	ch1 := make(chan pipeMsg, n)
-	ch2 := make(chan pipeMsg, n)
+// NewPipe returns a pair of transports which communicate over
+// channels, sending and receiving messages without copying.
+// bufSz is the size of the channel buffers.
+func NewPipe(bufSz int) (p1, p2 Transport) {
+	ch1 := make(chan pipeMsg, bufSz)
+	ch2 := make(chan pipeMsg, bufSz)
 	close1 := make(chan struct{})
 	close2 := make(chan struct{})
 	return &pipe{r: ch1, w: ch2, rc: close1, wc: close2, msgs: newCallerSet()},
@@ -196,11 +197,4 @@ func (cs *callerSet) Add() capnp.ReleaseFunc {
 		delete(cs.callers, caller)
 		cs.mu.Unlock()
 	}
-}
-
-func TestPipeTransport(t *testing.T) {
-	testTransport(t, func() (t1, t2 rpc.Transport, err error) {
-		p1, p2 := newPipe(1)
-		return p1, p2, nil
-	})
 }
