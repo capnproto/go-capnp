@@ -10,18 +10,20 @@ import (
 )
 
 type sender struct {
-	proc  proc.Handle
-	trans Transport
 	tx    *mpsc.Tx[sendJob]
+	trans Transport
 }
 
-func spawnSender(ctx context.Context, trans Transport) *sender {
+func spawnSender(ctx context.Context, trans Transport) proc.Handle[*sender] {
 	q := mpsc.New[sendJob]()
-	rx := &q.Rx
-	return &sender{
-		tx:    &q.Tx,
-		trans: trans,
-		proc: proc.Spawn(ctx, func(ctx context.Context, self proc.Self) {
+	return proc.Spawn(
+		ctx,
+		&sender{
+			tx:    &q.Tx,
+			trans: trans,
+		},
+		func(ctx context.Context, self proc.Self[*sender]) {
+			rx := &q.Rx
 			for {
 				job, err := rx.Recv(ctx)
 				if err != nil {
@@ -37,18 +39,9 @@ func spawnSender(ctx context.Context, trans Transport) *sender {
 				}
 				job.onSent(ErrConnClosed)
 			}
-		}),
-	}
+		},
+	)
 
-}
-
-// Stop the sender. Returns
-func (s *sender) Stop() {
-	s.proc.Cancel()
-}
-
-func (s *sender) Done() <-chan struct{} {
-	return s.proc.Done()
 }
 
 type sendJob struct {
@@ -62,14 +55,14 @@ type sendArgs struct {
 	Release capnp.ReleaseFunc
 }
 
-func (s *sender) StartMessage(ctx context.Context) (sendArgs, error) {
+func startMessage(ctx context.Context, h proc.Handle[*sender]) (sendArgs, error) {
 	var (
 		msg     rpccp.Message
 		send    func() error
 		release capnp.ReleaseFunc
 		err     error
 	)
-	ok := s.proc.WithLive(func() {
+	ok := h.WithLive(func(s *sender) {
 		msg, send, release, err = s.trans.NewMessage(ctx)
 	})
 	if !ok {
@@ -82,7 +75,7 @@ func (s *sender) StartMessage(ctx context.Context) (sendArgs, error) {
 		Msg:     msg,
 		Release: release,
 		Send: func(onSent func(error)) {
-			ok := s.proc.WithLive(func() {
+			ok := h.WithLive(func(s *sender) {
 				s.tx.Send(sendJob{
 					send:   send,
 					onSent: onSent,

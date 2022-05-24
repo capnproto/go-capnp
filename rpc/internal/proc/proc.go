@@ -25,16 +25,21 @@ import (
 // 3. Perform any shutdown logic that is needed.
 // 4. Return. This transitions the process into the Stopped state.
 //
+// The state argument will be accessible by clients of the process via WithLive
+// until the process enters the Stopping state, after which the state is owned
+// by the process (returned by Self.BeginShutdown)
+//
 // Returns a handle, which can be used by clients of the process to interact
 // with its lifecycle.
-func Spawn(ctx context.Context, f func(context.Context, Self)) Handle {
+func Spawn[S any](ctx context.Context, state S, f func(context.Context, Self[S])) Handle[S] {
 	ctx, cancel := context.WithCancel(ctx)
-	proc := &proc{
+	proc := &proc[S]{
 		cancel: cancel,
 		done:   make(chan struct{}),
+		state:  state,
 	}
-	handle := Handle{proc}
-	self := Self{proc}
+	handle := Handle[S]{proc}
+	self := Self[S]{proc}
 	go func() {
 		defer func() {
 			self.BeginShutdown()
@@ -46,18 +51,18 @@ func Spawn(ctx context.Context, f func(context.Context, Self)) Handle {
 }
 
 // A Handle is used for interacting with a process.
-type Handle struct {
-	proc *proc
+type Handle[S any] struct {
+	proc *proc[S]
 }
 
 // Cancel cancels the process's context.
-func (h Handle) Cancel() {
+func (h Handle[S]) Cancel() {
 	h.proc.cancel()
 }
 
 // Done returns a channel that will be closed when the process transitions
 // to the Stopped state.
-func (h Handle) Done() <-chan struct{} {
+func (h Handle[S]) Done() <-chan struct{} {
 	return h.proc.done
 }
 
@@ -69,35 +74,42 @@ func (h Handle) Done() <-chan struct{} {
 // If the process is still in the Running state, WithLive invokes the callback,
 // while preventing the process from entering the Stopping state, and then returns
 // true. If the process calls Self.BeginShutdown, it will block until f returns.
-func (h Handle) WithLive(f func()) (ok bool) {
+//
+// While f is executing, it has exclusive access to the state.
+func (h Handle[S]) WithLive(f func(state S)) (ok bool) {
 	h.proc.mu.Lock()
 	defer h.proc.mu.Unlock()
 	if h.proc.shuttingDown {
 		return false
 	}
-	f()
+	f(h.proc.state)
 	return true
 }
 
 // A Self is passed to the process to help manage its own lifecycle.
-type Self struct {
-	proc *proc
+type Self[S any] struct {
+	proc *proc[S]
 }
 
 // BeginShutdown transitions the process from the Running state to the Stopped
 // state, waiting for any ongoing calls to Handle.WithLive to complete. Once
 // this returns, any calls to WithLive will return false without executing
 // their callback.
-func (s Self) BeginShutdown() {
+//
+// The return value is the state which up until now has been accessible to
+// clients. The process now has exclusive ownership of this state.
+func (s Self[S]) BeginShutdown() S {
 	s.proc.mu.Lock()
 	defer s.proc.mu.Unlock()
 	s.proc.shuttingDown = true
+	return s.proc.state
 }
 
 // Internal state of the process, shared by Self and Handle.
-type proc struct {
+type proc[S any] struct {
 	mu           sync.Mutex
 	shuttingDown bool
 	cancel       context.CancelFunc
 	done         chan struct{}
+	state        S
 }
