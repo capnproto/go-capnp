@@ -73,7 +73,7 @@ type Promise struct {
 }
 
 type clientAndPromise struct {
-	client  *Client
+	client  Client
 	promise *ClientPromise
 }
 
@@ -295,7 +295,7 @@ func (ans *Answer) Struct() (Struct, error) {
 // call has not completed, then calls will be queued until the original
 // call's completion.  The client reference is borrowed: the caller
 // should not call Close.
-func (ans *Answer) Client() *Client {
+func (ans *Answer) Client() Client {
 	return ans.f.Client()
 }
 
@@ -423,7 +423,7 @@ func (f *Future) Struct() (Struct, error) {
 // call has not completed, then calls will be queued until the original
 // call's completion.  The client reference is borrowed: the caller
 // should not call Close.
-func (f *Future) Client() *Client {
+func (f *Future) Client() Client {
 	p := f.promise
 	p.mu.Lock()
 	switch {
@@ -585,7 +585,7 @@ func (r resolution) strct(transform []PipelineOp) (Struct, error) {
 }
 
 // client obtains a Client by applying a transform.
-func (r resolution) client(transform []PipelineOp) *Client {
+func (r resolution) client(transform []PipelineOp) Client {
 	p, err := r.ptr(transform)
 	if err != nil {
 		return ErrorClient(err)

@@ -1,4 +1,4 @@
-func (s {{.Node.Name}}) {{.Field.Name|title}}() *{{.FieldType}} {
+func (s {{.Node.Name}}) {{.Field.Name|title}}() {{.FieldType}} {
 	{{template "_checktag" . -}}
 	p, _ := s.Struct.Ptr({{.Field.Slot.Offset}})
 	return p.Interface().Client()
@@ -6,7 +6,7 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() *{{.FieldType}} {
 
 {{template "_hasfield" .}}
 
-func (s {{.Node.Name}}) Set{{.Field.Name|title}}(c *{{.FieldType}}) error {
+func (s {{.Node.Name}}) Set{{.Field.Name|title}}(c {{.FieldType}}) error {
 	{{template "_settag" . -}}
 	if !c.IsValid() {
 		return s.Struct.SetPtr({{.Field.Slot.Offset}}, capnp.Ptr{})

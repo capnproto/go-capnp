@@ -41,7 +41,7 @@ type Message struct {
 	//
 	// See https://capnproto.org/encoding.html#capabilities-interfaces for
 	// more details on the capability table.
-	CapTable []*Client
+	CapTable []Client
 
 	// TraverseLimit limits how many total bytes of data are allowed to be
 	// traversed while reading.  Traversal is counted when a Struct or
@@ -204,7 +204,7 @@ func (m *Message) SetRoot(p Ptr) error {
 // AddCap appends a capability to the message's capability table and
 // returns its ID.  It "steals" c's reference: the Message will release
 // the client when calling Reset.
-func (m *Message) AddCap(c *Client) CapabilityID {
+func (m *Message) AddCap(c Client) CapabilityID {
 	n := CapabilityID(len(m.CapTable))
 	m.CapTable = append(m.CapTable, c)
 	return n

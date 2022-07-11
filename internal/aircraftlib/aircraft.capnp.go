@@ -2245,7 +2245,7 @@ func (s Z) SetAnyList(v capnp.Ptr) error {
 	return s.Struct.SetPtr(0, v)
 }
 
-func (s Z) AnyCapability() *capnp.Client {
+func (s Z) AnyCapability() capnp.Client {
 	if s.Struct.Uint16(0) != 48 {
 		panic("Which() != anyCapability")
 	}
@@ -2260,7 +2260,7 @@ func (s Z) HasAnyCapability() bool {
 	return s.Struct.HasPtr(0)
 }
 
-func (s Z) SetAnyCapability(c *capnp.Client) error {
+func (s Z) SetAnyCapability(c capnp.Client) error {
 	s.Struct.SetUint16(0, 48)
 	if !c.IsValid() {
 		return s.Struct.SetPtr(0, capnp.Ptr{})
@@ -4318,7 +4318,7 @@ func (p ListStructCapn_Future) Struct() (ListStructCapn, error) {
 	return ListStructCapn{s}, err
 }
 
-type Echo struct{ Client *capnp.Client }
+type Echo struct{ Client capnp.Client }
 
 // Echo_TypeID is the unique identifier for the type Echo.
 const Echo_TypeID = 0x8e5322c1e9282534
@@ -4899,7 +4899,7 @@ func (p StackingB_Future) Struct() (StackingB, error) {
 	return StackingB{s}, err
 }
 
-type CallSequence struct{ Client *capnp.Client }
+type CallSequence struct{ Client capnp.Client }
 
 // CallSequence_TypeID is the unique identifier for the type CallSequence.
 const CallSequence_TypeID = 0xabaedf5f7817c820
@@ -5088,7 +5088,7 @@ func (p CallSequence_getNumber_Results_Future) Struct() (CallSequence_getNumber_
 	return CallSequence_getNumber_Results{s}, err
 }
 
-type Pipeliner struct{ Client *capnp.Client }
+type Pipeliner struct{ Client capnp.Client }
 
 // Pipeliner_TypeID is the unique identifier for the type Pipeliner.
 const Pipeliner_TypeID = 0xd6514008f0f84ebc

@@ -787,13 +787,13 @@ func TestAddCap(t *testing.T) {
 		t.Errorf("msg.CapTable[1] = %v; want %v", msg.CapTable[1], client1)
 	}
 	// nil client
-	id3 := msg.AddCap(nil)
+	id3 := msg.AddCap(Client{})
 	if id3 != 2 {
 		t.Errorf("third AddCap ID = %d; want 2", id3)
 	}
 	if len(msg.CapTable) != 3 {
 		t.Errorf("after third AddCap, len(msg.CapTable) = %d; want 3", len(msg.CapTable))
-	} else if !msg.CapTable[2].IsSame(nil) {
+	} else if !msg.CapTable[2].IsSame(Client{}) {
 		t.Errorf("msg.CapTable[2] = %v; want <nil>", msg.CapTable[2])
 	}
 	// AddCap should not attempt to deduplicate.

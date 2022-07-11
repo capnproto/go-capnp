@@ -59,7 +59,7 @@ type Z struct {
 	AnyPtr        capnp.Ptr
 	AnyStruct     capnp.Struct
 	AnyList       capnp.List
-	AnyCapability *capnp.Client
+	AnyCapability capnp.Client
 }
 
 type PlaneBase struct {
@@ -163,11 +163,11 @@ var goodTests = []Z{
 	{Which: air.Z_Which_echo, Echo: air.Echo{}},
 	{Which: air.Z_Which_echo, Echo: air.Echo{Client: capnp.ErrorClient(errors.New("boo"))}},
 	{Which: air.Z_Which_echoes, Echoes: []air.Echo{
-		{Client: nil},
+		{Client: capnp.Client{}},
 		{Client: capnp.ErrorClient(errors.New("boo"))},
-		{Client: nil},
+		{Client: capnp.Client{}},
 		{Client: capnp.ErrorClient(errors.New("boo"))},
-		{Client: nil},
+		{Client: capnp.Client{}},
 	}},
 	{Which: air.Z_Which_anyPtr, AnyPtr: capnp.Ptr{}},
 	{Which: air.Z_Which_anyPtr, AnyPtr: newTestStruct().ToPtr()},
@@ -177,7 +177,7 @@ var goodTests = []Z{
 	{Which: air.Z_Which_anyStruct, AnyStruct: newTestStruct()},
 	{Which: air.Z_Which_anyList, AnyList: capnp.List{}},
 	{Which: air.Z_Which_anyList, AnyList: newTestList()},
-	{Which: air.Z_Which_anyCapability, AnyCapability: nil},
+	{Which: air.Z_Which_anyCapability, AnyCapability: capnp.Client{}},
 	{Which: air.Z_Which_anyCapability, AnyCapability: capnp.ErrorClient(errors.New("boo"))},
 }
 

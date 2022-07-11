@@ -12,7 +12,7 @@ import (
 
 const PersistentAnnotation = uint64(0xf622595091cafb67)
 
-type Persistent struct{ Client *capnp.Client }
+type Persistent struct{ Client capnp.Client }
 
 // Persistent_TypeID is the unique identifier for the type Persistent.
 const Persistent_TypeID = 0xc8cb212fcd9f5691

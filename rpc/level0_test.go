@@ -1775,7 +1775,7 @@ type errorfer interface {
 	Errorf(string, ...interface{})
 }
 
-func newServer(impl func(context.Context, *server.Call) error, shutdown shutdownFunc) *capnp.Client {
+func newServer(impl func(context.Context, *server.Call) error, shutdown shutdownFunc) capnp.Client {
 	var methods []server.Method
 	if impl != nil {
 		methods = []server.Method{{
