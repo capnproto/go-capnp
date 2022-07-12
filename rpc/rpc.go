@@ -992,8 +992,10 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp
 		// TODO(soon): make embargo resolve to error client.
 		for _, s := range pr.disembargoes {
 			c.sendMessage(ctx, s.buildDisembargo, func(err error) {
-				err = fmt.Errorf("incoming return: send disembargo: %w", err)
-				c.er.ReportError(err)
+				if err != nil {
+					err = fmt.Errorf("incoming return: send disembargo: %w", err)
+					c.er.ReportError(err)
+				}
 			})
 		}
 
