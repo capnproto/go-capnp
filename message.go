@@ -454,14 +454,14 @@ func (ss roSingleSegment) String() string {
 	return fmt.Sprintf("read-only single-segment arena [len=%d]", len(ss))
 }
 
-// MultiSegment is an arena that allocates new segments of exponentially-
-// increasing size when full. This avoids the potentially-expensive slice
-// copying of SingleSegment.
+// MultiSegment is an arena that stores object data across multiple []byte
+// buffers, allocating new buffers of exponentially-increasing size when
+// full. This avoids the potentially-expensive slice copying of SingleSegment.
 type MultiSegmentArena [][]byte
 
 // MultiSegment returns a new arena that allocates new segments when
-// they are full.  b can be used to populate the buffer for reading or
-// to reserve memory of a specific size.
+// they are full.  b MAY be nil.  Callers MAY use b to populate the
+// buffer for reading or to reserve memory of a specific size.
 func MultiSegment(b [][]byte) *MultiSegmentArena {
 	return (*MultiSegmentArena)(&b)
 }
