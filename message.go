@@ -391,7 +391,7 @@ type SingleSegmentArena []byte
 // buffer.  b can be used to populate the segment for reading or to
 // reserve memory of a specific size.  A SingleSegment arena does not
 // return errors unless you attempt to access another segment.
-func SingleSegment(b []byte) Arena {
+func SingleSegment(b []byte) *SingleSegmentArena {
 	return (*SingleSegmentArena)(&b)
 }
 
