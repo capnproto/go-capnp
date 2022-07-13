@@ -2,7 +2,6 @@ package main
 
 import (
 	"embed"
-	"strings"
 	"text/template"
 )
 
@@ -11,6 +10,6 @@ var (
 	templateFS embed.FS
 
 	templates = template.Must(template.New("").Funcs(template.FuncMap{
-		"title": strings.Title,
+		"title": title.String,
 	}).ParseFS(templateFS, "templates/*"))
 )
