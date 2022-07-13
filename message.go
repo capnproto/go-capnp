@@ -384,13 +384,15 @@ type Arena interface {
 	Allocate(minsz Size, segs map[SegmentID]*Segment) (SegmentID, []byte, error)
 }
 
-// SingleSegmentArena is a simple arena comprising an expanding buffer.
+// SingleSegmentArena is an Arena implementation that stores message data
+// in a continguous slice.  Allocation is performed by first allocating a
+// new slice and copying existing data. SingleSegment arena does not fail
+// unless the caller attempts to access another segment.
 type SingleSegmentArena []byte
 
-// SingleSegment returns a new arena with an expanding single-segment
-// buffer.  b can be used to populate the segment for reading or to
-// reserve memory of a specific size.  A SingleSegment arena does not
-// return errors unless you attempt to access another segment.
+// SingleSegment constructs a SingleSegmentArena from b.  b MAY be nil.
+// Callers MAY use b to populate the segment for reading, or to reserve
+// memory of a specific size.
 func SingleSegment(b []byte) *SingleSegmentArena {
 	return (*SingleSegmentArena)(&b)
 }
