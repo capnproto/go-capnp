@@ -210,7 +210,6 @@ func (c *Conn) Bootstrap(ctx context.Context) (bc *capnp.Client) {
 
 	bootCtx, cancel := context.WithCancel(ctx)
 	q := c.newQuestion(capnp.Method{})
-	c.setAnswerQuestion(q.p.Answer(), q)
 	bc, q.bootstrapPromise = capnp.NewPromisedClient(bootstrapClient{
 		c:      q.p.Answer().Client().AddRef(),
 		cancel: cancel,
