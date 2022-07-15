@@ -3,10 +3,9 @@ package main
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"capnproto.org/go/capnp/v3/internal/schema"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 )
 
 type node struct {
@@ -252,7 +251,7 @@ func resolveName(nodes nodeMap, n *node, base, name string, file *node) error {
 	}
 	name = parseAnnotations(na).Rename(name)
 	if base == "" {
-		n.Name = title.String(name)
+		n.Name = strings.Title(name)
 	} else {
 		n.Name = base + "_" + name
 	}
@@ -333,5 +332,3 @@ func (nm nodeMap) mustFind(id uint64) (*node, error) {
 	}
 	return n, nil
 }
-
-var title = cases.Title(language.English)
