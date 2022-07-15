@@ -15,6 +15,7 @@ import (
 	"capnproto.org/go/capnp/v3/exc"
 	"capnproto.org/go/capnp/v3/pogs"
 	"capnproto.org/go/capnp/v3/rpc"
+	"capnproto.org/go/capnp/v3/rpc/transport"
 	"capnproto.org/go/capnp/v3/server"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 	"github.com/stretchr/testify/assert"
@@ -53,7 +54,7 @@ func TestSendAbort(t *testing.T) {
 	t.Parallel()
 
 	t.Run("ReceiverListening", func(t *testing.T) {
-		p1, p2 := newPipe(1)
+		p1, p2 := transport.NewPipe(1)
 		defer p2.Close()
 		conn := rpc.NewConn(p1, &rpc.Options{
 			ErrorReporter: testErrorReporter{tb: t, fail: true},
@@ -88,7 +89,7 @@ func TestSendAbort(t *testing.T) {
 		}
 	})
 	t.Run("ReceiverNotListening", func(t *testing.T) {
-		p1, p2 := newPipe(0)
+		p1, p2 := transport.NewPipe(0)
 		defer p2.Close()
 		conn := rpc.NewConn(p1, &rpc.Options{
 			ErrorReporter: testErrorReporter{tb: t, fail: true},
@@ -108,7 +109,7 @@ func TestSendAbort(t *testing.T) {
 func TestRecvAbort(t *testing.T) {
 	t.Parallel()
 
-	p1, p2 := newPipe(1)
+	p1, p2 := transport.NewPipe(1)
 	defer p2.Close()
 	conn := rpc.NewConn(p1, &rpc.Options{
 		ErrorReporter: testErrorReporter{tb: t},
@@ -164,7 +165,7 @@ func TestRecvAbort(t *testing.T) {
 func TestSendBootstrapError(t *testing.T) {
 	t.Parallel()
 
-	p1, p2 := newPipe(1)
+	p1, p2 := transport.NewPipe(1)
 	conn := rpc.NewConn(p1, &rpc.Options{
 		ErrorReporter: testErrorReporter{tb: t},
 	})
@@ -254,7 +255,7 @@ func TestSendBootstrapError(t *testing.T) {
 func TestSendBootstrapCall(t *testing.T) {
 	t.Parallel()
 
-	p1, p2 := newPipe(1)
+	p1, p2 := transport.NewPipe(1)
 	conn := rpc.NewConn(p1, &rpc.Options{
 		ErrorReporter: testErrorReporter{tb: t},
 	})
@@ -463,7 +464,7 @@ func TestSendBootstrapCall(t *testing.T) {
 func TestSendBootstrapCallException(t *testing.T) {
 	t.Parallel()
 
-	p1, p2 := newPipe(1)
+	p1, p2 := transport.NewPipe(1)
 	conn := rpc.NewConn(p1, &rpc.Options{
 		ErrorReporter: testErrorReporter{tb: t},
 	})
@@ -638,7 +639,7 @@ func TestSendBootstrapCallException(t *testing.T) {
 func TestSendBootstrapPipelineCall(t *testing.T) {
 	t.Parallel()
 
-	p1, p2 := newPipe(1)
+	p1, p2 := transport.NewPipe(1)
 	conn := rpc.NewConn(p1, &rpc.Options{
 		ErrorReporter: testErrorReporter{tb: t},
 	})
@@ -797,7 +798,7 @@ func TestSendBootstrapPipelineCall(t *testing.T) {
 func TestRecvBootstrapError(t *testing.T) {
 	t.Parallel()
 
-	p1, p2 := newPipe(1)
+	p1, p2 := transport.NewPipe(1)
 	conn := rpc.NewConn(p1, &rpc.Options{
 		ErrorReporter: testErrorReporter{tb: t},
 	})
@@ -871,7 +872,7 @@ func TestRecvBootstrapCall(t *testing.T) {
 		func() {
 			close(srvShutdown)
 		})
-	p1, p2 := newPipe(1)
+	p1, p2 := transport.NewPipe(1)
 	conn := rpc.NewConn(p1, &rpc.Options{
 		BootstrapClient: srv,
 		ErrorReporter:   testErrorReporter{tb: t},
@@ -1027,7 +1028,7 @@ func TestRecvBootstrapCallException(t *testing.T) {
 	srv := newServer(func(ctx context.Context, call *server.Call) error {
 		return errors.New("everything went wrong")
 	}, nil)
-	p1, p2 := newPipe(1)
+	p1, p2 := transport.NewPipe(1)
 	conn := rpc.NewConn(p1, &rpc.Options{
 		BootstrapClient: srv,
 		ErrorReporter:   testErrorReporter{tb: t},
@@ -1182,7 +1183,7 @@ func TestRecvBootstrapPipelineCall(t *testing.T) {
 		func() {
 			close(srvShutdown)
 		})
-	p1, p2 := newPipe(1)
+	p1, p2 := transport.NewPipe(1)
 	conn := rpc.NewConn(p1, &rpc.Options{
 		BootstrapClient: srv,
 		ErrorReporter:   testErrorReporter{tb: t},
@@ -1288,7 +1289,7 @@ func TestRecvBootstrapPipelineCall(t *testing.T) {
 func TestCallOnClosedConn(t *testing.T) {
 	t.Parallel()
 
-	p1, p2 := newPipe(1)
+	p1, p2 := transport.NewPipe(1)
 	defer p2.Close()
 	conn := rpc.NewConn(p1, &rpc.Options{
 		ErrorReporter: testErrorReporter{tb: t},
@@ -1430,7 +1431,7 @@ func TestRecvCancel(t *testing.T) {
 		}
 		return nil
 	}, nil)
-	p1, p2 := newPipe(1)
+	p1, p2 := transport.NewPipe(1)
 	defer p2.Close()
 	conn := rpc.NewConn(p1, &rpc.Options{
 		BootstrapClient: srv,
@@ -1578,7 +1579,7 @@ func TestRecvCancel(t *testing.T) {
 func TestSendCancel(t *testing.T) {
 	t.Parallel()
 
-	p1, p2 := newPipe(1)
+	p1, p2 := transport.NewPipe(1)
 	conn := rpc.NewConn(p1, &rpc.Options{
 		ErrorReporter: testErrorReporter{tb: t},
 	})

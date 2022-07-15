@@ -8,6 +8,7 @@ import (
 	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/pogs"
 	"capnproto.org/go/capnp/v3/rpc"
+	"capnproto.org/go/capnp/v3/rpc/transport"
 	"capnproto.org/go/capnp/v3/server"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 )
@@ -29,7 +30,7 @@ func TestSendDisembargo(t *testing.T) {
 // should not be delivered until after the disembargo loops back.
 // Level 1 requirement.
 func testSendDisembargo(t *testing.T, sendPrimeTo rpccp.Call_sendResultsTo_Which) {
-	p1, p2 := newPipe(1)
+	p1, p2 := transport.NewPipe(1)
 	conn := rpc.NewConn(p1, &rpc.Options{
 		ErrorReporter: testErrorReporter{tb: t},
 	})
@@ -503,7 +504,7 @@ func TestRecvDisembargo(t *testing.T) {
 		}
 		return nil
 	}, nil)
-	p1, p2 := newPipe(2)
+	p1, p2 := transport.NewPipe(2)
 	conn := rpc.NewConn(p1, &rpc.Options{
 		BootstrapClient: srv,
 		ErrorReporter:   testErrorReporter{tb: t},
@@ -804,7 +805,7 @@ func TestIssue3(t *testing.T) {
 		}
 		return nil
 	}, nil)
-	p1, p2 := newPipe(1)
+	p1, p2 := transport.NewPipe(1)
 	conn := rpc.NewConn(p1, &rpc.Options{
 		BootstrapClient: srv,
 		ErrorReporter:   testErrorReporter{tb: t},

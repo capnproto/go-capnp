@@ -1,16 +1,17 @@
 package server_test
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"sync"
 	"testing"
 
-	"context"
-
 	"capnproto.org/go/capnp/v3"
 	air "capnproto.org/go/capnp/v3/internal/aircraftlib"
 	"capnproto.org/go/capnp/v3/server"
+
+	"github.com/stretchr/testify/assert"
 )
 
 type echoImpl struct{}
@@ -339,4 +340,53 @@ func (p brokenPipeliner) NewPipeliner(ctx context.Context, call air.Pipeliner_ne
 	call.Ack()
 	<-p.ready
 	return errors.New("got no pipe")
+}
+
+// Verify that if the first call calls .Ack(), the second will proceed without
+// waiting for it to return.
+func TestAckDoesntBlock(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	client := air.CallSequence_ServerToClient(&callSeqBlockN{
+		blockingCalls: 1,
+	}, nil)
+
+	fut1, rel := client.GetNumber(ctx, nil)
+	defer rel()
+
+	fut2, rel := client.GetNumber(ctx, nil)
+	defer rel()
+
+	res2, err := fut2.Struct()
+	assert.Nil(t, err, "Second call returns successfully")
+	assert.Equal(t, res2.N(), uint32(2), "Second call returns 2.")
+
+	cancel()
+	_, err = fut1.Struct()
+	assert.NotNil(t, err, "First call returns an error after cancel()")
+}
+
+// An implementation of CallSequence, where the first n calls never
+// actually return.
+type callSeqBlockN struct {
+	blockingCalls, currentCall uint32
+}
+
+func (c *callSeqBlockN) GetNumber(ctx context.Context, p air.CallSequence_getNumber) error {
+	c.currentCall++
+	if c.currentCall > c.blockingCalls {
+		res, err := p.AllocResults()
+		if err != nil {
+			panic(err)
+		}
+		res.SetN(c.currentCall)
+		return nil
+	} else {
+		p.Ack()
+		<-ctx.Done()
+		return ctx.Err()
+	}
 }
