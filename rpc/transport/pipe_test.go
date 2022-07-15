@@ -29,4 +29,8 @@ func TestPipe(t *testing.T) {
 
 	err = p1.Encode(context.Background(), m)
 	require.ErrorIs(t, err, io.ErrClosedPipe)
+
+	m, err = p2.Decode(context.Background())
+	require.Nil(t, m)
+	require.ErrorIs(t, err, io.ErrClosedPipe)
 }
