@@ -33,7 +33,7 @@ type pipe struct {
 	timeout <-chan time.Time
 }
 
-func (p *pipe) Encode(ctx context.Context, m *capnp.Message) error {
+func (p *pipe) Encode(ctx context.Context, m *capnp.Message) (err error) {
 	b, err := m.Marshal()
 	if err != nil {
 		return err
@@ -42,6 +42,13 @@ func (p *pipe) Encode(ctx context.Context, m *capnp.Message) error {
 	if m, err = capnp.Unmarshal(b); err != nil {
 		return err
 	}
+
+	// send-channel may be closed
+	defer func() {
+		if v := recover(); v != nil {
+			err = io.ErrClosedPipe
+		}
+	}()
 
 	select {
 	case p.send <- m:

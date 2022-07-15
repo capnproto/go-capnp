@@ -2,6 +2,7 @@ package transport_test
 
 import (
 	"context"
+	"io"
 	"testing"
 
 	"capnproto.org/go/capnp/v3"
@@ -25,4 +26,7 @@ func TestPipe(t *testing.T) {
 
 	err = p1.Close()
 	require.NoError(t, err)
+
+	err = p1.Encode(context.Background(), m)
+	require.ErrorIs(t, err, io.ErrClosedPipe)
 }
