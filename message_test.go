@@ -10,6 +10,7 @@ import (
 	"testing/quick"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewMessage(t *testing.T) {
@@ -569,6 +570,30 @@ func TestUnmarshal(t *testing.T) {
 				t.Errorf("serializeTests[%d] - %s: Unmarshal Segment(%d) = % 02x; want % 02x", i, test.name, j, seg.Data(), test.segs[j])
 			}
 		}
+	}
+}
+
+func TestWriteTo(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	for _, test := range serializeTests {
+		if test.decodeFails {
+			continue
+		}
+
+		msg := &Message{Arena: test.arena()}
+		n, err := msg.WriteTo(&buf)
+		if test.encodeFails {
+			require.Error(t, err, test.name)
+			continue
+		}
+
+		require.NoError(t, err, test.name)
+		require.Equal(t, int64(len(test.out)), n, test.name)
+		require.Equal(t, test.out, buf.Bytes(), test.name)
+
+		buf.Reset()
 	}
 }
 

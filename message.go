@@ -355,6 +355,23 @@ func alloc(s *Segment, sz Size) (*Segment, address, error) {
 	return s, addr, nil
 }
 
+func (m *Message) WriteTo(w io.Writer) (int64, error) {
+	wc := &writeCounter{Writer: w}
+	err := NewEncoder(wc).Encode(m)
+	return wc.N, err
+}
+
+type writeCounter struct {
+	N int64
+	io.Writer
+}
+
+func (wc *writeCounter) Write(b []byte) (n int, err error) {
+	n, err = wc.Writer.Write(b)
+	wc.N += int64(n)
+	return
+}
+
 // An Arena loads and allocates segments for a Message.
 type Arena interface {
 	// NumSegments returns the number of segments in the arena.
