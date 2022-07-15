@@ -252,6 +252,7 @@ var badDecompressionTests = []struct {
 
 func TestPack(t *testing.T) {
 	t.Parallel()
+	t.Helper()
 
 	for _, test := range compressionTests {
 		t.Run(test.name, func(t *testing.T) {
@@ -278,6 +279,7 @@ func TestPack_wordsize(t *testing.T) {
 
 func TestUnpack(t *testing.T) {
 	t.Parallel()
+	t.Helper()
 
 	var tests []testCase
 	tests = append(tests, compressionTests...)
@@ -301,6 +303,7 @@ func TestUnpack(t *testing.T) {
 
 func TestUnpack_Fail(t *testing.T) {
 	t.Parallel()
+	t.Helper()
 
 	for _, test := range badDecompressionTests {
 		t.Run(test.name, func(t *testing.T) {
@@ -314,6 +317,7 @@ func TestUnpack_Fail(t *testing.T) {
 
 func TestReader(t *testing.T) {
 	t.Parallel()
+	t.Helper()
 
 	var tests []testCase
 	tests = append(tests, compressionTests...)
@@ -344,6 +348,7 @@ func TestReader(t *testing.T) {
 
 func TestReader_DataErr(t *testing.T) {
 	t.Parallel()
+	t.Helper()
 
 	const readSize = 3
 	var tests []testCase
@@ -371,6 +376,7 @@ func TestReader_DataErr(t *testing.T) {
 
 func TestReader_Fail(t *testing.T) {
 	t.Parallel()
+	t.Helper()
 
 	for _, test := range badDecompressionTests {
 		t.Run(test.name, func(t *testing.T) {
