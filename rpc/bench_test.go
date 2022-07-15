@@ -12,7 +12,7 @@ import (
 func BenchmarkPingPong(b *testing.B) {
 	p1, p2 := transport.NewPipe(1)
 	srv := testcp.PingPong_ServerToClient(pingPongServer{}, nil)
-	conn1 := rpc.NewConn(p2, &rpc.Options{
+	conn1 := rpc.NewConn(rpc.NewTransport(p2), &rpc.Options{
 		ErrorReporter:   testErrorReporter{tb: b},
 		BootstrapClient: srv.Client,
 	})
@@ -22,7 +22,7 @@ func BenchmarkPingPong(b *testing.B) {
 			b.Error("conn1.Close:", err)
 		}
 	}()
-	conn2 := rpc.NewConn(p1, &rpc.Options{
+	conn2 := rpc.NewConn(rpc.NewTransport(p1), &rpc.Options{
 		ErrorReporter: testErrorReporter{tb: b},
 	})
 	defer func() {

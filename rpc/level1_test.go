@@ -30,7 +30,9 @@ func TestSendDisembargo(t *testing.T) {
 // should not be delivered until after the disembargo loops back.
 // Level 1 requirement.
 func testSendDisembargo(t *testing.T, sendPrimeTo rpccp.Call_sendResultsTo_Which) {
-	p1, p2 := transport.NewPipe(1)
+	left, right := transport.NewPipe(1)
+	p1, p2 := rpc.NewTransport(left), rpc.NewTransport(right)
+
 	conn := rpc.NewConn(p1, &rpc.Options{
 		ErrorReporter: testErrorReporter{tb: t},
 	})
@@ -504,7 +506,10 @@ func TestRecvDisembargo(t *testing.T) {
 		}
 		return nil
 	}, nil)
-	p1, p2 := transport.NewPipe(2)
+
+	left, right := transport.NewPipe(2)
+	p1, p2 := rpc.NewTransport(left), rpc.NewTransport(right)
+
 	conn := rpc.NewConn(p1, &rpc.Options{
 		BootstrapClient: srv,
 		ErrorReporter:   testErrorReporter{tb: t},
@@ -805,7 +810,10 @@ func TestIssue3(t *testing.T) {
 		}
 		return nil
 	}, nil)
-	p1, p2 := transport.NewPipe(1)
+
+	left, right := transport.NewPipe(1)
+	p1, p2 := rpc.NewTransport(left), rpc.NewTransport(right)
+
 	conn := rpc.NewConn(p1, &rpc.Options{
 		BootstrapClient: srv,
 		ErrorReporter:   testErrorReporter{tb: t},
