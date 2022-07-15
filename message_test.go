@@ -10,9 +10,12 @@ import (
 	"testing/quick"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewMessage(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		arena Arena
 		fails bool
@@ -53,6 +56,8 @@ func TestNewMessage(t *testing.T) {
 }
 
 func TestAlloc(t *testing.T) {
+	t.Parallel()
+
 	type allocTest struct {
 		name string
 
@@ -166,6 +171,8 @@ func TestAlloc(t *testing.T) {
 }
 
 func TestSingleSegment(t *testing.T) {
+	t.Parallel()
+
 	// fresh arena
 	{
 		arena := SingleSegment(nil)
@@ -206,6 +213,8 @@ func TestSingleSegment(t *testing.T) {
 }
 
 func TestSingleSegmentAllocate(t *testing.T) {
+	t.Parallel()
+
 	tests := []arenaAllocTest{
 		{
 			name: "empty arena",
@@ -273,6 +282,8 @@ func TestSingleSegmentAllocate(t *testing.T) {
 }
 
 func TestMultiSegment(t *testing.T) {
+	t.Parallel()
+
 	// fresh arena
 	{
 		arena := MultiSegment(nil)
@@ -313,6 +324,8 @@ func TestMultiSegment(t *testing.T) {
 }
 
 func TestMultiSegmentAllocate(t *testing.T) {
+	t.Parallel()
+
 	tests := []arenaAllocTest{
 		{
 			name: "empty arena",
@@ -514,6 +527,8 @@ var serializeTests = []serializeTest{
 }
 
 func TestMarshal(t *testing.T) {
+	t.Parallel()
+
 	for i, test := range serializeTests {
 		if test.decodeFails {
 			continue
@@ -537,6 +552,8 @@ func TestMarshal(t *testing.T) {
 }
 
 func TestUnmarshal(t *testing.T) {
+	t.Parallel()
+
 	for i, test := range serializeTests {
 		if test.encodeFails {
 			continue
@@ -572,7 +589,33 @@ func TestUnmarshal(t *testing.T) {
 	}
 }
 
+func TestWriteTo(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	for _, test := range serializeTests {
+		if test.decodeFails {
+			continue
+		}
+
+		msg := &Message{Arena: test.arena()}
+		n, err := msg.WriteTo(&buf)
+		if test.encodeFails {
+			require.Error(t, err, test.name)
+			continue
+		}
+
+		require.NoError(t, err, test.name)
+		require.Equal(t, int64(len(test.out)), n, test.name)
+		require.Equal(t, test.out, buf.Bytes(), test.name)
+
+		buf.Reset()
+	}
+}
+
 func TestEncoder(t *testing.T) {
+	t.Parallel()
+
 	for i, test := range serializeTests {
 		if test.decodeFails {
 			continue
@@ -599,6 +642,8 @@ func TestEncoder(t *testing.T) {
 }
 
 func TestDecoder(t *testing.T) {
+	t.Parallel()
+
 	for i, test := range serializeTests {
 		if test.encodeFails {
 			continue
@@ -636,6 +681,7 @@ func TestDecoder(t *testing.T) {
 
 func TestDecoder_MaxMessageSize(t *testing.T) {
 	t.Parallel()
+
 	zeroWord := []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
 	tests := []struct {
 		name    string
@@ -720,6 +766,8 @@ func TestDecoder_MaxMessageSize(t *testing.T) {
 // zeroed. This was not done in previous versions and
 // resulted in the padding being garbage.
 func TestStreamHeaderPadding(t *testing.T) {
+	t.Parallel()
+
 	msg := &Message{
 		Arena: MultiSegment([][]byte{
 			incrementingData(8),
@@ -761,6 +809,8 @@ func TestStreamHeaderPadding(t *testing.T) {
 }
 
 func TestAddCap(t *testing.T) {
+	t.Parallel()
+
 	hook1 := new(dummyHook)
 	hook2 := new(dummyHook)
 	client1 := NewClient(hook1)
@@ -830,6 +880,8 @@ func TestAddCap(t *testing.T) {
 }
 
 func TestFirstSegmentMessage_SingleSegment(t *testing.T) {
+	t.Parallel()
+
 	msg, seg, err := NewMessage(SingleSegment(nil))
 	if err != nil {
 		t.Fatal(err)
@@ -851,6 +903,8 @@ func TestFirstSegmentMessage_SingleSegment(t *testing.T) {
 }
 
 func TestFirstSegmentMessage_MultiSegment(t *testing.T) {
+	t.Parallel()
+
 	msg, seg, err := NewMessage(MultiSegment(nil))
 	if err != nil {
 		t.Fatal(err)
@@ -872,6 +926,8 @@ func TestFirstSegmentMessage_MultiSegment(t *testing.T) {
 }
 
 func TestNextAlloc(t *testing.T) {
+	t.Parallel()
+
 	const max32 = 1<<31 - 8
 	const max64 = 1<<63 - 8
 	const is64bit = int64(maxInt) == math.MaxInt64
@@ -931,6 +987,8 @@ func TestNextAlloc(t *testing.T) {
 
 // Make sure Message.TotalSize() returns a value consistent with Message.Marshal()
 func TestTotalSize(t *testing.T) {
+	t.Parallel()
+
 	var emptyWord [8]byte
 	err := quick.Check(func(segs [][]byte) bool {
 		// Make sure there is at least one segment, and that all segments

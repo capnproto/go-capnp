@@ -1094,6 +1094,7 @@ func (g *generator) defineInterface(n *node) error {
 	if err != nil {
 		return fmt.Errorf("interface client %s: %v", n, err)
 	}
+
 	err = g.r.Render(interfaceServerParams{
 		G:           g,
 		Node:        n,
@@ -1108,6 +1109,10 @@ func (g *generator) defineInterface(n *node) error {
 		G:    g,
 		Node: n,
 	})
+	if err != nil {
+		return fmt.Errorf("interface list %s: %v", n, err)
+	}
+
 	return nil
 }
 

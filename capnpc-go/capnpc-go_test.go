@@ -118,8 +118,7 @@ func TestBuildNodeMap(t *testing.T) {
 			n := nodes[k]
 			if n == nil {
 				t.Errorf("%s: missing @%#x from node map", test.name, k)
-			}
-			if n.Id() != k {
+			} else if n.Id() != k {
 				t.Errorf("%s: node map has ID @%#x for lookup of @%#x", test.name, n.Id(), k)
 			}
 		}
