@@ -26,8 +26,7 @@ type extracter struct {
 }
 
 var (
-	clientType = reflect.TypeOf((*capnp.Client)(nil))
-
+	clientType = reflect.TypeOf(capnp.Client{})
 	ptrType    = reflect.TypeOf(capnp.Ptr{})
 	structType = reflect.TypeOf(capnp.Struct{})
 	listType   = reflect.TypeOf(capnp.List{})
@@ -238,11 +237,7 @@ func (e *extracter) extractField(val reflect.Value, s capnp.Struct, f schema.Fie
 		}
 
 		client := p.Interface().Client()
-		if client == nil {
-			val.Set(reflect.Zero(val.Type()))
-		} else {
-			val.Set(reflect.ValueOf(client))
-		}
+		val.Set(reflect.ValueOf(client))
 	case schema.Type_Which_anyPointer:
 		p, err := s.Ptr(uint16(f.Slot().Offset()))
 		if err != nil {

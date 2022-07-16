@@ -117,19 +117,19 @@ func TestReleasedClient(t *testing.T) {
 func TestNullClient(t *testing.T) {
 	ctx := context.Background()
 	c, p := NewPromisedClient(new(dummyHook))
-	p.Fulfill(nil)
+	p.Fulfill(Client{})
 	tests := []struct {
 		name string
-		c    *Client
+		c    Client
 	}{
-		{"nil", nil},
+		{"nil", Client{}},
 		{"promised nil", c},
 	}
 
 	for _, test := range tests {
 		c := test.c
 		t.Run(test.name, func(t *testing.T) {
-			if NewClient(nil) != nil {
+			if (NewClient(nil) != Client{}) {
 				t.Error("NewClient(nil) != nil")
 			}
 			if !c.IsSame(c) {

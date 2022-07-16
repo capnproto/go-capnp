@@ -11,7 +11,7 @@ import (
 	context "context"
 )
 
-type PingPong struct{ Client *capnp.Client }
+type PingPong struct{ Client capnp.Client }
 
 // PingPong_TypeID is the unique identifier for the type PingPong.
 const PingPong_TypeID = 0xf004c474c2f8ee7a
@@ -208,7 +208,7 @@ func (p PingPong_echoNum_Results_Future) Struct() (PingPong_echoNum_Results, err
 	return PingPong_echoNum_Results{s}, err
 }
 
-type StreamTest struct{ Client *capnp.Client }
+type StreamTest struct{ Client capnp.Client }
 
 // StreamTest_TypeID is the unique identifier for the type StreamTest.
 const StreamTest_TypeID = 0xbb3ca85b01eea465
@@ -360,7 +360,7 @@ func (p StreamTest_push_Params_Future) Struct() (StreamTest_push_Params, error) 
 	return StreamTest_push_Params{s}, err
 }
 
-type CapArgsTest struct{ Client *capnp.Client }
+type CapArgsTest struct{ Client capnp.Client }
 
 // CapArgsTest_TypeID is the unique identifier for the type CapArgsTest.
 const CapArgsTest_TypeID = 0xb86bce7f916a10cc
@@ -529,7 +529,7 @@ func (s CapArgsTest_call_Params) String() string {
 	return str
 }
 
-func (s CapArgsTest_call_Params) Cap() *capnp.Client {
+func (s CapArgsTest_call_Params) Cap() capnp.Client {
 	p, _ := s.Struct.Ptr(0)
 	return p.Interface().Client()
 }
@@ -538,7 +538,7 @@ func (s CapArgsTest_call_Params) HasCap() bool {
 	return s.Struct.HasPtr(0)
 }
 
-func (s CapArgsTest_call_Params) SetCap(c *capnp.Client) error {
+func (s CapArgsTest_call_Params) SetCap(c capnp.Client) error {
 	if !c.IsValid() {
 		return s.Struct.SetPtr(0, capnp.Ptr{})
 	}

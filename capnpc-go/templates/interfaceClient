@@ -1,7 +1,7 @@
 {{with .Annotations.Doc -}}
 // {{.}}
 {{end -}}
-type {{.Node.Name}} struct { Client *{{.G.Capnp}}.Client }
+type {{.Node.Name}} struct { Client {{.G.Capnp}}.Client }
 
 {{ template "_typeid" .Node }}
 

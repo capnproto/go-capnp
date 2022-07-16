@@ -730,7 +730,7 @@ func TestSetInterfacePtr(t *testing.T) {
 		if err != nil {
 			t.Fatal("NewMessage:", err)
 		}
-		msg.AddCap(nil) // just to make the capability ID below non-zero
+		msg.AddCap(Client{}) // just to make the capability ID below non-zero
 		root, err := NewRootStruct(seg, ObjectSize{PointerCount: 2})
 		if err != nil {
 			t.Fatal("NewRootStruct:", err)

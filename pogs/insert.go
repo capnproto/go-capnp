@@ -235,7 +235,7 @@ func (ins *inserter) insertField(s capnp.Struct, f schema.Field, val reflect.Val
 		case listType:
 			return s.SetPtr(off, val.Interface().(capnp.List).ToPtr())
 		case clientType:
-			c := val.Interface().(*capnp.Client)
+			c := val.Interface().(capnp.Client)
 			if !c.IsValid() {
 				return s.SetPtr(off, capnp.Ptr{})
 			}
@@ -251,9 +251,9 @@ func (ins *inserter) insertField(s capnp.Struct, f schema.Field, val reflect.Val
 }
 
 func capPtr(seg *capnp.Segment, val reflect.Value) capnp.Ptr {
-	client, ok := val.Interface().(*capnp.Client)
+	client, ok := val.Interface().(capnp.Client)
 	if !ok {
-		client = val.FieldByName("Client").Interface().(*capnp.Client)
+		client = val.FieldByName("Client").Interface().(capnp.Client)
 	}
 	if !client.IsValid() {
 		return capnp.Ptr{}
