@@ -123,7 +123,9 @@ func (c *Conn) newReturn(ctx context.Context) (rpccp.Return, func(), capnp.Relea
 			send:    send,
 			release: release,
 			callback: func(err error) {
-				c.er.ReportError(fmt.Errorf("send return: %w", err))
+				if err != nil {
+					c.er.ReportError(fmt.Errorf("send return: %w", err))
+				}
 			},
 		})
 	}, release, nil
