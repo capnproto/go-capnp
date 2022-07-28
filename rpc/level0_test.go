@@ -15,6 +15,7 @@ import (
 	"capnproto.org/go/capnp/v3/exc"
 	"capnproto.org/go/capnp/v3/pogs"
 	"capnproto.org/go/capnp/v3/rpc"
+	testcp "capnproto.org/go/capnp/v3/rpc/internal/testcapnp"
 	"capnproto.org/go/capnp/v3/rpc/transport"
 	"capnproto.org/go/capnp/v3/server"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
@@ -1766,6 +1767,58 @@ func TestSendCancel(t *testing.T) {
 			t.Errorf("release.id = %d; want 1", rmsg.Release.ReferenceCount)
 		}
 	}
+}
+
+func TestHandleReturn_regression(t *testing.T) {
+	t.Parallel()
+
+	p1, p2 := transport.NewPipe(1)
+
+	srv := testcp.PingPong_ServerToClient(pingPongServer{}, nil)
+	conn1 := rpc.NewConn(rpc.NewTransport(p2), &rpc.Options{
+		BootstrapClient: srv.Client,
+	})
+	defer conn1.Close()
+
+	conn2 := rpc.NewConn(rpc.NewTransport(p1), nil)
+	defer conn2.Close()
+
+	t.Run("MethodCallWithExpiredContext", func(t *testing.T) {
+		pp := testcp.PingPong{Client: conn2.Bootstrap(context.Background())}
+		defer pp.Release()
+
+		// create an EXPIRED context
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		f, release := pp.EchoNum(ctx, func(ps testcp.PingPong_echoNum_Params) error {
+			ps.SetN(42)
+			return nil
+		})
+		defer release()
+
+		_, err := f.Struct()
+		assert.NoError(t, err)
+	})
+
+	t.Run("BootstrapWithExpiredContext", func(t *testing.T) {
+		// create an EXPIRED context
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		// NOTE: bootstrap with expired context
+		pp := testcp.PingPong{Client: conn2.Bootstrap(context.Background())}
+		defer pp.Release()
+
+		f, release := pp.EchoNum(ctx, func(ps testcp.PingPong_echoNum_Params) error {
+			ps.SetN(42)
+			return nil
+		})
+		defer release()
+
+		_, err := f.Struct()
+		assert.NoError(t, err)
+	})
 }
 
 // finishTest drains both sides of a pipe and reports any errors to t.
