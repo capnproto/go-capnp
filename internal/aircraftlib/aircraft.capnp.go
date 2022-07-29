@@ -4356,15 +4356,15 @@ type Echo_Server interface {
 }
 
 // Echo_NewServer creates a new Server from an implementation of Echo_Server.
-func Echo_NewServer(s Echo_Server, policy *server.Policy) *server.Server {
+func Echo_NewServer(s Echo_Server) *server.Server {
 	c, _ := s.(server.Shutdowner)
-	return server.New(Echo_Methods(nil, s), s, c, policy)
+	return server.New(Echo_Methods(nil, s), s, c)
 }
 
 // Echo_ServerToClient creates a new Client from an implementation of Echo_Server.
 // The caller is responsible for calling Release on the returned Client.
-func Echo_ServerToClient(s Echo_Server, policy *server.Policy) Echo {
-	return Echo{Client: capnp.NewClient(Echo_NewServer(s, policy))}
+func Echo_ServerToClient(s Echo_Server) Echo {
+	return Echo{Client: capnp.NewClient(Echo_NewServer(s))}
 }
 
 // Echo_Methods appends Methods to a slice that invoke the methods on s.
@@ -4937,15 +4937,15 @@ type CallSequence_Server interface {
 }
 
 // CallSequence_NewServer creates a new Server from an implementation of CallSequence_Server.
-func CallSequence_NewServer(s CallSequence_Server, policy *server.Policy) *server.Server {
+func CallSequence_NewServer(s CallSequence_Server) *server.Server {
 	c, _ := s.(server.Shutdowner)
-	return server.New(CallSequence_Methods(nil, s), s, c, policy)
+	return server.New(CallSequence_Methods(nil, s), s, c)
 }
 
 // CallSequence_ServerToClient creates a new Client from an implementation of CallSequence_Server.
 // The caller is responsible for calling Release on the returned Client.
-func CallSequence_ServerToClient(s CallSequence_Server, policy *server.Policy) CallSequence {
-	return CallSequence{Client: capnp.NewClient(CallSequence_NewServer(s, policy))}
+func CallSequence_ServerToClient(s CallSequence_Server) CallSequence {
+	return CallSequence{Client: capnp.NewClient(CallSequence_NewServer(s))}
 }
 
 // CallSequence_Methods appends Methods to a slice that invoke the methods on s.
@@ -5144,15 +5144,15 @@ type Pipeliner_Server interface {
 }
 
 // Pipeliner_NewServer creates a new Server from an implementation of Pipeliner_Server.
-func Pipeliner_NewServer(s Pipeliner_Server, policy *server.Policy) *server.Server {
+func Pipeliner_NewServer(s Pipeliner_Server) *server.Server {
 	c, _ := s.(server.Shutdowner)
-	return server.New(Pipeliner_Methods(nil, s), s, c, policy)
+	return server.New(Pipeliner_Methods(nil, s), s, c)
 }
 
 // Pipeliner_ServerToClient creates a new Client from an implementation of Pipeliner_Server.
 // The caller is responsible for calling Release on the returned Client.
-func Pipeliner_ServerToClient(s Pipeliner_Server, policy *server.Policy) Pipeliner {
-	return Pipeliner{Client: capnp.NewClient(Pipeliner_NewServer(s, policy))}
+func Pipeliner_ServerToClient(s Pipeliner_Server) Pipeliner {
+	return Pipeliner{Client: capnp.NewClient(Pipeliner_NewServer(s))}
 }
 
 // Pipeliner_Methods appends Methods to a slice that invoke the methods on s.

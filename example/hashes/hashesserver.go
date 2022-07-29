@@ -8,10 +8,10 @@ import (
 	"net"
 	"os"
 
-	"capnproto.org/go/capnp/v3/rpc"
-	"capnproto.org/go/capnp/v3/server"
 	"context"
 	"hashes"
+
+	"capnproto.org/go/capnp/v3/rpc"
 )
 
 const SOCK_ADDR = "/tmp/example.sock"
@@ -21,10 +21,7 @@ type hashFactory struct{}
 
 func (hf hashFactory) NewSha1(_ context.Context, call hashes.HashFactory_newSha1) error {
 	// Create a new locally implemented Hash capability.
-	hs := hashes.Hash_ServerToClient(hashServer{sha1.New()},
-		&server.Policy{
-			MaxConcurrentCalls: 2,
-		})
+	hs := hashes.Hash_ServerToClient(hashServer{sha1.New()})
 	// Notice that methods can return other interfaces.
 	res, err := call.AllocResults()
 	if err != nil {

@@ -49,15 +49,15 @@ type PingPong_Server interface {
 }
 
 // PingPong_NewServer creates a new Server from an implementation of PingPong_Server.
-func PingPong_NewServer(s PingPong_Server, policy *server.Policy) *server.Server {
+func PingPong_NewServer(s PingPong_Server) *server.Server {
 	c, _ := s.(server.Shutdowner)
-	return server.New(PingPong_Methods(nil, s), s, c, policy)
+	return server.New(PingPong_Methods(nil, s), s, c)
 }
 
 // PingPong_ServerToClient creates a new Client from an implementation of PingPong_Server.
 // The caller is responsible for calling Release on the returned Client.
-func PingPong_ServerToClient(s PingPong_Server, policy *server.Policy) PingPong {
-	return PingPong{Client: capnp.NewClient(PingPong_NewServer(s, policy))}
+func PingPong_ServerToClient(s PingPong_Server) PingPong {
+	return PingPong{Client: capnp.NewClient(PingPong_NewServer(s))}
 }
 
 // PingPong_Methods appends Methods to a slice that invoke the methods on s.
@@ -246,15 +246,15 @@ type StreamTest_Server interface {
 }
 
 // StreamTest_NewServer creates a new Server from an implementation of StreamTest_Server.
-func StreamTest_NewServer(s StreamTest_Server, policy *server.Policy) *server.Server {
+func StreamTest_NewServer(s StreamTest_Server) *server.Server {
 	c, _ := s.(server.Shutdowner)
-	return server.New(StreamTest_Methods(nil, s), s, c, policy)
+	return server.New(StreamTest_Methods(nil, s), s, c)
 }
 
 // StreamTest_ServerToClient creates a new Client from an implementation of StreamTest_Server.
 // The caller is responsible for calling Release on the returned Client.
-func StreamTest_ServerToClient(s StreamTest_Server, policy *server.Policy) StreamTest {
-	return StreamTest{Client: capnp.NewClient(StreamTest_NewServer(s, policy))}
+func StreamTest_ServerToClient(s StreamTest_Server) StreamTest {
+	return StreamTest{Client: capnp.NewClient(StreamTest_NewServer(s))}
 }
 
 // StreamTest_Methods appends Methods to a slice that invoke the methods on s.
@@ -416,15 +416,15 @@ type CapArgsTest_Server interface {
 }
 
 // CapArgsTest_NewServer creates a new Server from an implementation of CapArgsTest_Server.
-func CapArgsTest_NewServer(s CapArgsTest_Server, policy *server.Policy) *server.Server {
+func CapArgsTest_NewServer(s CapArgsTest_Server) *server.Server {
 	c, _ := s.(server.Shutdowner)
-	return server.New(CapArgsTest_Methods(nil, s), s, c, policy)
+	return server.New(CapArgsTest_Methods(nil, s), s, c)
 }
 
 // CapArgsTest_ServerToClient creates a new Client from an implementation of CapArgsTest_Server.
 // The caller is responsible for calling Release on the returned Client.
-func CapArgsTest_ServerToClient(s CapArgsTest_Server, policy *server.Policy) CapArgsTest {
-	return CapArgsTest{Client: capnp.NewClient(CapArgsTest_NewServer(s, policy))}
+func CapArgsTest_ServerToClient(s CapArgsTest_Server) CapArgsTest {
+	return CapArgsTest{Client: capnp.NewClient(CapArgsTest_NewServer(s))}
 }
 
 // CapArgsTest_Methods appends Methods to a slice that invoke the methods on s.
