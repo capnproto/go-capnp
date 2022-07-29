@@ -1807,7 +1807,7 @@ func TestHandleReturn_regression(t *testing.T) {
 		cancel()
 
 		// NOTE: bootstrap with expired context
-		pp := testcp.PingPong{Client: conn2.Bootstrap(context.Background())}
+		pp := testcp.PingPong{Client: conn2.Bootstrap(ctx)}
 		defer pp.Release()
 
 		f, release := pp.EchoNum(ctx, func(ps testcp.PingPong_echoNum_Params) error {
