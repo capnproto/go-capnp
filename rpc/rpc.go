@@ -947,7 +947,6 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp
 	go func() {
 		switch {
 		case q.bootstrapPromise != nil && pr.err == nil:
-			q.release = func() {}
 			syncutil.Without(&c.mu, func() {
 				q.p.Fulfill(pr.result)
 				q.bootstrapPromise.Fulfill(q.p.Answer().Client())
@@ -958,7 +957,6 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp
 		case q.bootstrapPromise != nil && pr.err != nil:
 			// TODO(someday): send unimplemented message back to remote if
 			// pr.unimplemented == true.
-			q.release = func() {}
 			syncutil.Without(&c.mu, func() {
 				q.p.Reject(pr.err)
 				q.bootstrapPromise.Fulfill(q.p.Answer().Client())
@@ -968,7 +966,6 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp
 		case q.bootstrapPromise == nil && pr.err != nil:
 			// TODO(someday): send unimplemented message back to remote if
 			// pr.unimplemented == true.
-			q.release = func() {}
 			syncutil.Without(&c.mu, func() {
 				q.p.Reject(pr.err)
 				release()
