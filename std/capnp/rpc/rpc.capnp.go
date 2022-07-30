@@ -88,6 +88,10 @@ func (s Message) String() string {
 	return str
 }
 
+func (Message) DecodeFromPtr(p capnp.Ptr) Message {
+	return Message{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
+
 func (s Message) Which() Message_Which {
 	return Message_Which(s.Struct.Uint16(0))
 }
@@ -611,6 +615,9 @@ func (s Bootstrap) String() string {
 	return str
 }
 
+func (Bootstrap) DecodeFromPtr(p capnp.Ptr) Bootstrap {
+	return Bootstrap{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Bootstrap) QuestionId() uint32 {
 	return s.Struct.Uint32(0)
 }
@@ -699,6 +706,9 @@ func (s Call) String() string {
 	return str
 }
 
+func (Call) DecodeFromPtr(p capnp.Ptr) Call {
+	return Call{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Call) QuestionId() uint32 {
 	return s.Struct.Uint32(0)
 }
@@ -909,6 +919,10 @@ func (s Return) String() string {
 	return str
 }
 
+func (Return) DecodeFromPtr(p capnp.Ptr) Return {
+	return Return{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
+
 func (s Return) Which() Return_Which {
 	return Return_Which(s.Struct.Uint16(6))
 }
@@ -1087,6 +1101,9 @@ func (s Finish) String() string {
 	return str
 }
 
+func (Finish) DecodeFromPtr(p capnp.Ptr) Finish {
+	return Finish{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Finish) QuestionId() uint32 {
 	return s.Struct.Uint32(0)
 }
@@ -1161,6 +1178,10 @@ func ReadRootResolve(msg *capnp.Message) (Resolve, error) {
 func (s Resolve) String() string {
 	str, _ := text.Marshal(0xbbc29655fa89086e, s.Struct)
 	return str
+}
+
+func (Resolve) DecodeFromPtr(p capnp.Ptr) Resolve {
+	return Resolve{Struct: capnp.Struct{}.DecodeFromPtr(p)}
 }
 
 func (s Resolve) Which() Resolve_Which {
@@ -1288,6 +1309,9 @@ func (s Release) String() string {
 	return str
 }
 
+func (Release) DecodeFromPtr(p capnp.Ptr) Release {
+	return Release{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Release) Id() uint32 {
 	return s.Struct.Uint32(0)
 }
@@ -1371,6 +1395,9 @@ func (s Disembargo) String() string {
 	return str
 }
 
+func (Disembargo) DecodeFromPtr(p capnp.Ptr) Disembargo {
+	return Disembargo{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Disembargo) Target() (MessageTarget, error) {
 	p, err := s.Struct.Ptr(0)
 	return MessageTarget{Struct: p.Struct()}, err
@@ -1499,6 +1526,9 @@ func (s Provide) String() string {
 	return str
 }
 
+func (Provide) DecodeFromPtr(p capnp.Ptr) Provide {
+	return Provide{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Provide) QuestionId() uint32 {
 	return s.Struct.Uint32(0)
 }
@@ -1593,6 +1623,9 @@ func (s Accept) String() string {
 	return str
 }
 
+func (Accept) DecodeFromPtr(p capnp.Ptr) Accept {
+	return Accept{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Accept) QuestionId() uint32 {
 	return s.Struct.Uint32(0)
 }
@@ -1667,6 +1700,9 @@ func (s Join) String() string {
 	return str
 }
 
+func (Join) DecodeFromPtr(p capnp.Ptr) Join {
+	return Join{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Join) QuestionId() uint32 {
 	return s.Struct.Uint32(0)
 }
@@ -1779,6 +1815,10 @@ func (s MessageTarget) String() string {
 	return str
 }
 
+func (MessageTarget) DecodeFromPtr(p capnp.Ptr) MessageTarget {
+	return MessageTarget{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
+
 func (s MessageTarget) Which() MessageTarget_Which {
 	return MessageTarget_Which(s.Struct.Uint16(4))
 }
@@ -1872,6 +1912,9 @@ func (s Payload) String() string {
 	return str
 }
 
+func (Payload) DecodeFromPtr(p capnp.Ptr) Payload {
+	return Payload{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Payload) Content() (capnp.Ptr, error) {
 	return s.Struct.Ptr(0)
 }
@@ -1982,6 +2025,10 @@ func ReadRootCapDescriptor(msg *capnp.Message) (CapDescriptor, error) {
 func (s CapDescriptor) String() string {
 	str, _ := text.Marshal(0x8523ddc40b86b8b0, s.Struct)
 	return str
+}
+
+func (CapDescriptor) DecodeFromPtr(p capnp.Ptr) CapDescriptor {
+	return CapDescriptor{Struct: capnp.Struct{}.DecodeFromPtr(p)}
 }
 
 func (s CapDescriptor) Which() CapDescriptor_Which {
@@ -2150,6 +2197,9 @@ func (s PromisedAnswer) String() string {
 	return str
 }
 
+func (PromisedAnswer) DecodeFromPtr(p capnp.Ptr) PromisedAnswer {
+	return PromisedAnswer{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s PromisedAnswer) QuestionId() uint32 {
 	return s.Struct.Uint32(0)
 }
@@ -2242,6 +2292,10 @@ func (s PromisedAnswer_Op) String() string {
 	return str
 }
 
+func (PromisedAnswer_Op) DecodeFromPtr(p capnp.Ptr) PromisedAnswer_Op {
+	return PromisedAnswer_Op{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
+
 func (s PromisedAnswer_Op) Which() PromisedAnswer_Op_Which {
 	return PromisedAnswer_Op_Which(s.Struct.Uint16(0))
 }
@@ -2304,6 +2358,9 @@ func (s ThirdPartyCapDescriptor) String() string {
 	return str
 }
 
+func (ThirdPartyCapDescriptor) DecodeFromPtr(p capnp.Ptr) ThirdPartyCapDescriptor {
+	return ThirdPartyCapDescriptor{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s ThirdPartyCapDescriptor) Id() (capnp.Ptr, error) {
 	return s.Struct.Ptr(0)
 }
@@ -2370,6 +2427,9 @@ func (s Exception) String() string {
 	return str
 }
 
+func (Exception) DecodeFromPtr(p capnp.Ptr) Exception {
+	return Exception{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Exception) Reason() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err

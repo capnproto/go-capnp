@@ -33,6 +33,10 @@ func (s StreamResult) String() string {
 	return str
 }
 
+func (StreamResult) DecodeFromPtr(p capnp.Ptr) StreamResult {
+	return StreamResult{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
+
 // StreamResult_List is a list of StreamResult.
 type StreamResult_List = capnp.StructList[StreamResult]
 

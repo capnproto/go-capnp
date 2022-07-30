@@ -226,8 +226,19 @@ func (p List) SetStruct(i int, s Struct) error {
 	return nil
 }
 
+// l.EncodeAsPtr is equivalent to l.ToPtr(); for implementing TypeParam.
+// The segment argument is ignored.
+func (l List) EncodeAsPtr(*Segment) Ptr { return l.ToPtr() }
+
+// DecodeFromPtr(p) is equivalent to p.List; for implementing TypeParam.
+func (List) DecodeFromPtr(p Ptr) List { return p.List() }
+
+var _ TypeParam[List] = List{}
+
 // A BitList is a reference to a list of booleans.
 type BitList struct{ List }
+
+var _ TypeParam[BitList] = BitList{}
 
 // NewBitList creates a new bit list, preferring placement in s.
 func NewBitList(s *Segment, n int32) (BitList, error) {
@@ -305,8 +316,14 @@ func (p BitList) String() string {
 	return string(buf)
 }
 
+func (BitList) DecodeFromPtr(p Ptr) BitList {
+	return BitList{ List: List{}.DecodeFromPtr(p) }
+}
+
 // A PointerList is a reference to an array of pointers.
 type PointerList struct{ List }
+
+var _ TypeParam[PointerList] = PointerList{}
 
 // NewPointerList allocates a new list of pointers, preferring placement in s.
 func NewPointerList(s *Segment, n int32) (PointerList, error) {
@@ -345,8 +362,14 @@ func (p PointerList) Set(i int, v Ptr) error {
 	return p.seg.writePtr(addr, v, false)
 }
 
+func (PointerList) DecodeFromPtr(p Ptr) PointerList {
+	return PointerList{ List: List{}.DecodeFromPtr(p) }
+}
+
 // TextList is an array of pointers to strings.
 type TextList struct{ List }
+
+var _ TypeParam[TextList] = TextList{}
 
 // NewTextList allocates a new list of text pointers, preferring placement in s.
 func NewTextList(s *Segment, n int32) (TextList, error) {
@@ -419,8 +442,14 @@ func (l TextList) String() string {
 	return string(buf)
 }
 
+func (TextList) DecodeFromPtr(p Ptr) TextList {
+	return TextList{ List: List{}.DecodeFromPtr(p) }
+}
+
 // DataList is an array of pointers to data.
 type DataList struct{ List }
+
+var _ TypeParam[DataList] = DataList{}
 
 // NewDataList allocates a new list of data pointers, preferring placement in s.
 func NewDataList(s *Segment, n int32) (DataList, error) {
@@ -479,8 +508,14 @@ func (l DataList) String() string {
 	return string(buf)
 }
 
+func (DataList) DecodeFromPtr(p Ptr) DataList {
+	return DataList{ List: List{}.DecodeFromPtr(p) }
+}
+
 // A VoidList is a list of zero-sized elements.
 type VoidList struct{ List }
+
+var _ TypeParam[VoidList] = VoidList{}
 
 // NewVoidList creates a list of voids.  No allocation is performed;
 // s is only used for Segment()'s return value.
@@ -509,8 +544,14 @@ func (l VoidList) String() string {
 	return string(buf)
 }
 
+func (VoidList) DecodeFromPtr(p Ptr) VoidList {
+	return VoidList{ List: List{}.DecodeFromPtr(p) }
+}
+
 // A UInt8List is an array of UInt8 values.
 type UInt8List struct{ List }
+
+var _ TypeParam[UInt8List] = UInt8List{}
 
 // NewUInt8List creates a new list of UInt8, preferring placement in s.
 func NewUInt8List(s *Segment, n int32) (UInt8List, error) {
@@ -590,8 +631,14 @@ func (l UInt8List) String() string {
 	return string(buf)
 }
 
+func (UInt8List) DecodeFromPtr(p Ptr) UInt8List {
+	return UInt8List{ List: List{}.DecodeFromPtr(p) }
+}
+
 // Int8List is an array of Int8 values.
 type Int8List struct{ List }
+
+var _ TypeParam[Int8List] = Int8List{}
 
 // NewInt8List creates a new list of Int8, preferring placement in s.
 func NewInt8List(s *Segment, n int32) (Int8List, error) {
@@ -634,8 +681,14 @@ func (l Int8List) String() string {
 	return string(buf)
 }
 
+func (Int8List) DecodeFromPtr(p Ptr) Int8List {
+	return Int8List{ List: List{}.DecodeFromPtr(p) }
+}
+
 // A UInt16List is an array of UInt16 values.
 type UInt16List struct{ List }
+
+var _ TypeParam[UInt16List] = UInt16List{}
 
 // NewUInt16List creates a new list of UInt16, preferring placement in s.
 func NewUInt16List(s *Segment, n int32) (UInt16List, error) {
@@ -678,8 +731,14 @@ func (l UInt16List) String() string {
 	return string(buf)
 }
 
+func (UInt16List) DecodeFromPtr(p Ptr) UInt16List {
+	return UInt16List{ List: List{}.DecodeFromPtr(p) }
+}
+
 // Int16List is an array of Int16 values.
 type Int16List struct{ List }
+
+var _ TypeParam[Int16List] = Int16List{}
 
 // NewInt16List creates a new list of Int16, preferring placement in s.
 func NewInt16List(s *Segment, n int32) (Int16List, error) {
@@ -722,8 +781,14 @@ func (l Int16List) String() string {
 	return string(buf)
 }
 
+func (Int16List) DecodeFromPtr(p Ptr) Int16List {
+	return Int16List{ List: List{}.DecodeFromPtr(p) }
+}
+
 // UInt32List is an array of UInt32 values.
 type UInt32List struct{ List }
+
+var _ TypeParam[UInt32List] = UInt32List{}
 
 // NewUInt32List creates a new list of UInt32, preferring placement in s.
 func NewUInt32List(s *Segment, n int32) (UInt32List, error) {
@@ -766,8 +831,14 @@ func (l UInt32List) String() string {
 	return string(buf)
 }
 
+func (UInt32List) DecodeFromPtr(p Ptr) UInt32List {
+	return UInt32List{ List: List{}.DecodeFromPtr(p) }
+}
+
 // Int32List is an array of Int32 values.
 type Int32List struct{ List }
+
+var _ TypeParam[Int32List] = Int32List{}
 
 // NewInt32List creates a new list of Int32, preferring placement in s.
 func NewInt32List(s *Segment, n int32) (Int32List, error) {
@@ -810,8 +881,14 @@ func (l Int32List) String() string {
 	return string(buf)
 }
 
+func (Int32List) DecodeFromPtr(p Ptr) Int32List {
+	return Int32List{ List: List{}.DecodeFromPtr(p) }
+}
+
 // UInt64List is an array of UInt64 values.
 type UInt64List struct{ List }
+
+var _ TypeParam[UInt64List] = UInt64List{}
 
 // NewUInt64List creates a new list of UInt64, preferring placement in s.
 func NewUInt64List(s *Segment, n int32) (UInt64List, error) {
@@ -854,8 +931,14 @@ func (l UInt64List) String() string {
 	return string(buf)
 }
 
+func (UInt64List) DecodeFromPtr(p Ptr) UInt64List {
+	return UInt64List{ List: List{}.DecodeFromPtr(p) }
+}
+
 // Int64List is an array of Int64 values.
 type Int64List struct{ List }
+
+var _ TypeParam[Int64List] = Int64List{}
 
 // NewInt64List creates a new list of Int64, preferring placement in s.
 func NewInt64List(s *Segment, n int32) (Int64List, error) {
@@ -898,8 +981,14 @@ func (l Int64List) String() string {
 	return string(buf)
 }
 
+func (Int64List) DecodeFromPtr(p Ptr) Int64List {
+	return Int64List{ List: List{}.DecodeFromPtr(p) }
+}
+
 // Float32List is an array of Float32 values.
 type Float32List struct{ List }
+
+var _ TypeParam[Float32List] = Float32List{}
 
 // NewFloat32List creates a new list of Float32, preferring placement in s.
 func NewFloat32List(s *Segment, n int32) (Float32List, error) {
@@ -942,8 +1031,14 @@ func (l Float32List) String() string {
 	return string(buf)
 }
 
+func (Float32List) DecodeFromPtr(p Ptr) Float32List {
+	return Float32List{ List: List{}.DecodeFromPtr(p) }
+}
+
 // Float64List is an array of Float64 values.
 type Float64List struct{ List }
+
+var _ TypeParam[Float64List] = Float64List{}
 
 // NewFloat64List creates a new list of Float64, preferring placement in s.
 func NewFloat64List(s *Segment, n int32) (Float64List, error) {
@@ -986,8 +1081,14 @@ func (l Float64List) String() string {
 	return string(buf)
 }
 
+func (Float64List) DecodeFromPtr(p Ptr) Float64List {
+	return Float64List{ List: List{}.DecodeFromPtr(p) }
+}
+
 // A list of some Cap'n Proto enum type T.
 type EnumList[T ~uint16] UInt16List
+
+var _ TypeParam[EnumList[uint16]] = EnumList[uint16]{}
 
 // NewEnumList creates a new list of T, preferring placement in s.
 func NewEnumList[T ~uint16](s *Segment, n int32) (EnumList[T], error) {
@@ -1010,8 +1111,14 @@ func (l EnumList[T]) String() string {
 	return UInt16List(l).String()
 }
 
+func (EnumList[T]) DecodeFromPtr(p Ptr) EnumList[T] {
+	return EnumList[T]{ List: List{}.DecodeFromPtr(p) }
+}
+
 // A list of some Cap'n Proto struct type T.
 type StructList[T ~struct{ Struct }] struct{ List }
+
+var _ TypeParam[StructList[struct{Struct}]] = StructList[struct{Struct}]{}
 
 // At returns the i'th element.
 func (s StructList[T]) At(i int) T {
@@ -1037,6 +1144,10 @@ func (s StructList[T]) String() string {
 	return buf.String()
 }
 
+func (StructList[T]) DecodeFromPtr(p Ptr) StructList[T] {
+	return StructList[T]{ List: List{}.DecodeFromPtr(p) }
+}
+
 type CapList[T ~struct{ Client }] PointerList
 
 func (c CapList[T]) At(i int) (T, error) {
@@ -1052,6 +1163,10 @@ func (c CapList[T]) Set(i int, v T) error {
 	seg := pl.List.Segment()
 	capId := seg.Message().AddCap(struct{ Client }(v).Client)
 	return pl.Set(i, NewInterface(seg, capId).ToPtr())
+}
+
+func (CapList[T]) DecodeFromPtr(p Ptr) CapList[T] {
+	return CapList[T](PointerList{}.DecodeFromPtr(p))
 }
 
 type listFlags uint8

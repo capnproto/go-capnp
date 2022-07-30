@@ -21,3 +21,6 @@ func (s {{.Node.Name}}) String() string {
 }
 {{end}}
 
+func ({{.Node.Name}}) DecodeFromPtr(p {{.G.Capnp}}.Ptr) {{.Node.Name}} {
+	return {{.Node.Name}}{ Struct: {{.G.Capnp}}.Struct{}.DecodeFromPtr(p) }
+}

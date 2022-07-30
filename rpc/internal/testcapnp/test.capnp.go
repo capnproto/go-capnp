@@ -39,6 +39,10 @@ func (c PingPong) AddRef() PingPong {
 	}
 }
 
+func (PingPong) DecodeFromPtr(p capnp.Ptr) PingPong {
+	return PingPong{Client: capnp.Client{}.DecodeFromPtr(p)}
+}
+
 // A PingPong_Server is a PingPong with a local implementation.
 type PingPong_Server interface {
 	EchoNum(context.Context, PingPong_echoNum) error
@@ -129,6 +133,9 @@ func (s PingPong_echoNum_Params) String() string {
 	return str
 }
 
+func (PingPong_echoNum_Params) DecodeFromPtr(p capnp.Ptr) PingPong_echoNum_Params {
+	return PingPong_echoNum_Params{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s PingPong_echoNum_Params) N() int64 {
 	return int64(s.Struct.Uint64(0))
 }
@@ -179,6 +186,9 @@ func (s PingPong_echoNum_Results) String() string {
 	return str
 }
 
+func (PingPong_echoNum_Results) DecodeFromPtr(p capnp.Ptr) PingPong_echoNum_Results {
+	return PingPong_echoNum_Results{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s PingPong_echoNum_Results) N() int64 {
 	return int64(s.Struct.Uint64(0))
 }
@@ -230,6 +240,10 @@ func (c StreamTest) AddRef() StreamTest {
 	return StreamTest{
 		Client: c.Client.AddRef(),
 	}
+}
+
+func (StreamTest) DecodeFromPtr(p capnp.Ptr) StreamTest {
+	return StreamTest{Client: capnp.Client{}.DecodeFromPtr(p)}
 }
 
 // A StreamTest_Server is a StreamTest with a local implementation.
@@ -322,6 +336,9 @@ func (s StreamTest_push_Params) String() string {
 	return str
 }
 
+func (StreamTest_push_Params) DecodeFromPtr(p capnp.Ptr) StreamTest_push_Params {
+	return StreamTest_push_Params{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s StreamTest_push_Params) Data() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
 	return []byte(p.Data()), err
@@ -394,6 +411,10 @@ func (c CapArgsTest) AddRef() CapArgsTest {
 	return CapArgsTest{
 		Client: c.Client.AddRef(),
 	}
+}
+
+func (CapArgsTest) DecodeFromPtr(p capnp.Ptr) CapArgsTest {
+	return CapArgsTest{Client: capnp.Client{}.DecodeFromPtr(p)}
 }
 
 // A CapArgsTest_Server is a CapArgsTest with a local implementation.
@@ -517,6 +538,9 @@ func (s CapArgsTest_call_Params) String() string {
 	return str
 }
 
+func (CapArgsTest_call_Params) DecodeFromPtr(p capnp.Ptr) CapArgsTest_call_Params {
+	return CapArgsTest_call_Params{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s CapArgsTest_call_Params) Cap() capnp.Client {
 	p, _ := s.Struct.Ptr(0)
 	return p.Interface().Client()
@@ -581,6 +605,10 @@ func (s CapArgsTest_call_Results) String() string {
 	return str
 }
 
+func (CapArgsTest_call_Results) DecodeFromPtr(p capnp.Ptr) CapArgsTest_call_Results {
+	return CapArgsTest_call_Results{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
+
 // CapArgsTest_call_Results_List is a list of CapArgsTest_call_Results.
 type CapArgsTest_call_Results_List = capnp.StructList[CapArgsTest_call_Results]
 
@@ -621,6 +649,10 @@ func ReadRootCapArgsTest_self_Params(msg *capnp.Message) (CapArgsTest_self_Param
 func (s CapArgsTest_self_Params) String() string {
 	str, _ := text.Marshal(0xe2553e5a663abb7d, s.Struct)
 	return str
+}
+
+func (CapArgsTest_self_Params) DecodeFromPtr(p capnp.Ptr) CapArgsTest_self_Params {
+	return CapArgsTest_self_Params{Struct: capnp.Struct{}.DecodeFromPtr(p)}
 }
 
 // CapArgsTest_self_Params_List is a list of CapArgsTest_self_Params.
@@ -665,6 +697,9 @@ func (s CapArgsTest_self_Results) String() string {
 	return str
 }
 
+func (CapArgsTest_self_Results) DecodeFromPtr(p capnp.Ptr) CapArgsTest_self_Results {
+	return CapArgsTest_self_Results{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s CapArgsTest_self_Results) Self() CapArgsTest {
 	p, _ := s.Struct.Ptr(0)
 	return CapArgsTest{Client: p.Interface().Client()}

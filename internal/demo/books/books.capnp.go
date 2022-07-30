@@ -33,6 +33,9 @@ func (s Book) String() string {
 	return str
 }
 
+func (Book) DecodeFromPtr(p capnp.Ptr) Book {
+	return Book{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Book) Title() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
