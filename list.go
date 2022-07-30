@@ -1037,7 +1037,7 @@ func (s StructList[T]) String() string {
 	return buf.String()
 }
 
-type CapList[T ~struct{ Client Client }] PointerList
+type CapList[T ~struct{ Client }] PointerList
 
 func (c CapList[T]) At(i int) (T, error) {
 	ptr, err := PointerList(c).At(i)
@@ -1050,7 +1050,7 @@ func (c CapList[T]) At(i int) (T, error) {
 func (c CapList[T]) Set(i int, v T) error {
 	pl := PointerList(c)
 	seg := pl.List.Segment()
-	capId := seg.Message().AddCap(struct{ Client Client }(v).Client)
+	capId := seg.Message().AddCap(struct{ Client }(v).Client)
 	return pl.Set(i, NewInterface(seg, capId).ToPtr())
 }
 

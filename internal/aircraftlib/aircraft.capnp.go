@@ -4318,7 +4318,7 @@ func (p ListStructCapn_Future) Struct() (ListStructCapn, error) {
 	return ListStructCapn{s}, err
 }
 
-type Echo struct{ Client capnp.Client }
+type Echo struct{ capnp.Client }
 
 // Echo_TypeID is the unique identifier for the type Echo.
 const Echo_TypeID = 0x8e5322c1e9282534
@@ -4344,10 +4344,6 @@ func (c Echo) AddRef() Echo {
 	return Echo{
 		Client: c.Client.AddRef(),
 	}
-}
-
-func (c Echo) Release() {
-	c.Client.Release()
 }
 
 // A Echo_Server is a Echo with a local implementation.
@@ -4899,7 +4895,7 @@ func (p StackingB_Future) Struct() (StackingB, error) {
 	return StackingB{s}, err
 }
 
-type CallSequence struct{ Client capnp.Client }
+type CallSequence struct{ capnp.Client }
 
 // CallSequence_TypeID is the unique identifier for the type CallSequence.
 const CallSequence_TypeID = 0xabaedf5f7817c820
@@ -4925,10 +4921,6 @@ func (c CallSequence) AddRef() CallSequence {
 	return CallSequence{
 		Client: c.Client.AddRef(),
 	}
-}
-
-func (c CallSequence) Release() {
-	c.Client.Release()
 }
 
 // A CallSequence_Server is a CallSequence with a local implementation.
@@ -5088,7 +5080,7 @@ func (p CallSequence_getNumber_Results_Future) Struct() (CallSequence_getNumber_
 	return CallSequence_getNumber_Results{s}, err
 }
 
-type Pipeliner struct{ Client capnp.Client }
+type Pipeliner struct{ capnp.Client }
 
 // Pipeliner_TypeID is the unique identifier for the type Pipeliner.
 const Pipeliner_TypeID = 0xd6514008f0f84ebc
@@ -5130,10 +5122,6 @@ func (c Pipeliner) AddRef() Pipeliner {
 	return Pipeliner{
 		Client: c.Client.AddRef(),
 	}
-}
-
-func (c Pipeliner) Release() {
-	c.Client.Release()
 }
 
 // A Pipeliner_Server is a Pipeliner with a local implementation.
