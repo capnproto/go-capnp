@@ -1,16 +1,16 @@
 {{ template "_typeid" .Node }}
 
-func New{{.Node.Name}}(s *{{.G.Capnp}}.Segment) ({{.Node.Name}}, error) {
-	st, err := {{$.G.Capnp}}.NewStruct(s, {{.G.ObjectSize .Node}})
+func New{{.Node.Name}}(s *capnp.Segment) ({{.Node.Name}}, error) {
+	st, err := capnp.NewStruct(s, {{.G.ObjectSize .Node}})
 	return {{.Node.Name}}{st}, err
 }
 
-func NewRoot{{.Node.Name}}(s *{{.G.Capnp}}.Segment) ({{.Node.Name}}, error) {
-	st, err := {{.G.Capnp}}.NewRootStruct(s, {{.G.ObjectSize .Node}})
+func NewRoot{{.Node.Name}}(s *capnp.Segment) ({{.Node.Name}}, error) {
+	st, err := capnp.NewRootStruct(s, {{.G.ObjectSize .Node}})
 	return {{.Node.Name}}{st}, err
 }
 
-func ReadRoot{{.Node.Name}}(msg *{{.G.Capnp}}.Message) ({{.Node.Name}}, error) {
+func ReadRoot{{.Node.Name}}(msg *capnp.Message) ({{.Node.Name}}, error) {
 	root, err := msg.Root()
 	return {{.Node.Name}}{root.Struct()}, err
 }
@@ -21,6 +21,6 @@ func (s {{.Node.Name}}) String() string {
 }
 {{end}}
 
-func ({{.Node.Name}}) DecodeFromPtr(p {{.G.Capnp}}.Ptr) {{.Node.Name}} {
-	return {{.Node.Name}}{ Struct: {{.G.Capnp}}.Struct{}.DecodeFromPtr(p) }
+func ({{.Node.Name}}) DecodeFromPtr(p capnp.Ptr) {{.Node.Name}} {
+	return {{.Node.Name}}{ Struct: capnp.Struct{}.DecodeFromPtr(p) }
 }

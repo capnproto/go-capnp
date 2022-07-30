@@ -108,10 +108,6 @@ func (g *generator) Imports() *imports {
 	return &g.imports
 }
 
-func (g *generator) Capnp() string {
-	return g.imports.Capnp()
-}
-
 // generate produces unformatted Go source code from the nodes defined in it.
 func (g *generator) generate() []byte {
 	var out bytes.Buffer

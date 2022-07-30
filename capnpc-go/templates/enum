@@ -37,8 +37,8 @@ func {{$.Node.Name}}FromString(c string) {{$.Node.Name}} {
 }
 {{end}}
 
-type {{.Node.Name}}_List = {{$.G.Capnp}}.EnumList[{{.Node.Name}}]
+type {{.Node.Name}}_List = capnp.EnumList[{{.Node.Name}}]
 
-func New{{.Node.Name}}_List(s *{{$.G.Capnp}}.Segment, sz int32) ({{.Node.Name}}_List, error) {
-	return {{.G.Capnp}}.NewEnumList[{{.Node.Name}}](s, sz)
+func New{{.Node.Name}}_List(s *capnp.Segment, sz int32) ({{.Node.Name}}_List, error) {
+	return capnp.NewEnumList[{{.Node.Name}}](s, sz)
 }

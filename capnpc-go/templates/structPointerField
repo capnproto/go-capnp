@@ -1,4 +1,4 @@
-func (s {{.Node.Name}}) {{.Field.Name|title}}() ({{.G.Capnp}}.Ptr, error) {
+func (s {{.Node.Name}}) {{.Field.Name|title}}() (capnp.Ptr, error) {
 	{{template "_checktag" . -}}
 	{{if .Default.IsValid -}}
 	p, err := s.Struct.Ptr({{.Field.Slot.Offset}})
@@ -13,7 +13,7 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() ({{.G.Capnp}}.Ptr, error) {
 
 {{template "_hasfield" .}}
 
-func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.G.Capnp}}.Ptr) error {
+func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v capnp.Ptr) error {
 	{{template "_settag" . -}}
 	return s.Struct.SetPtr({{.Field.Slot.Offset}}, v)
 }
