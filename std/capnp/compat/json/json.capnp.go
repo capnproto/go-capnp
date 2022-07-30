@@ -75,6 +75,10 @@ func (s Value) String() string {
 	return str
 }
 
+func (Value) DecodeFromPtr(p capnp.Ptr) Value {
+	return Value{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
+
 func (s Value) Which() Value_Which {
 	return Value_Which(s.Struct.Uint16(0))
 }
@@ -274,6 +278,9 @@ func (s Value_Field) String() string {
 	return str
 }
 
+func (Value_Field) DecodeFromPtr(p capnp.Ptr) Value_Field {
+	return Value_Field{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Value_Field) Name() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -362,6 +369,9 @@ func (s Value_Call) String() string {
 	return str
 }
 
+func (Value_Call) DecodeFromPtr(p capnp.Ptr) Value_Call {
+	return Value_Call{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Value_Call) Function() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -446,6 +456,9 @@ func (s FlattenOptions) String() string {
 	return str
 }
 
+func (FlattenOptions) DecodeFromPtr(p capnp.Ptr) FlattenOptions {
+	return FlattenOptions{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s FlattenOptions) Prefix() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -506,6 +519,9 @@ func (s DiscriminatorOptions) String() string {
 	return str
 }
 
+func (DiscriminatorOptions) DecodeFromPtr(p capnp.Ptr) DiscriminatorOptions {
+	return DiscriminatorOptions{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s DiscriminatorOptions) Name() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err

@@ -77,6 +77,9 @@ func (s VatId) String() string {
 	return str
 }
 
+func (VatId) DecodeFromPtr(p capnp.Ptr) VatId {
+	return VatId{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s VatId) Side() Side {
 	return Side(s.Struct.Uint16(0))
 }
@@ -127,6 +130,9 @@ func (s ProvisionId) String() string {
 	return str
 }
 
+func (ProvisionId) DecodeFromPtr(p capnp.Ptr) ProvisionId {
+	return ProvisionId{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s ProvisionId) JoinId() uint32 {
 	return s.Struct.Uint32(0)
 }
@@ -177,6 +183,10 @@ func (s RecipientId) String() string {
 	return str
 }
 
+func (RecipientId) DecodeFromPtr(p capnp.Ptr) RecipientId {
+	return RecipientId{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
+
 // RecipientId_List is a list of RecipientId.
 type RecipientId_List = capnp.StructList[RecipientId]
 
@@ -217,6 +227,10 @@ func ReadRootThirdPartyCapId(msg *capnp.Message) (ThirdPartyCapId, error) {
 func (s ThirdPartyCapId) String() string {
 	str, _ := text.Marshal(0xb47f4979672cb59d, s.Struct)
 	return str
+}
+
+func (ThirdPartyCapId) DecodeFromPtr(p capnp.Ptr) ThirdPartyCapId {
+	return ThirdPartyCapId{Struct: capnp.Struct{}.DecodeFromPtr(p)}
 }
 
 // ThirdPartyCapId_List is a list of ThirdPartyCapId.
@@ -261,6 +275,9 @@ func (s JoinKeyPart) String() string {
 	return str
 }
 
+func (JoinKeyPart) DecodeFromPtr(p capnp.Ptr) JoinKeyPart {
+	return JoinKeyPart{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s JoinKeyPart) JoinId() uint32 {
 	return s.Struct.Uint32(0)
 }
@@ -327,6 +344,9 @@ func (s JoinResult) String() string {
 	return str
 }
 
+func (JoinResult) DecodeFromPtr(p capnp.Ptr) JoinResult {
+	return JoinResult{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s JoinResult) JoinId() uint32 {
 	return s.Struct.Uint32(0)
 }

@@ -75,6 +75,10 @@ func (s Node) String() string {
 	return str
 }
 
+func (Node) DecodeFromPtr(p capnp.Ptr) Node {
+	return Node{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
+
 func (s Node) Which() Node_Which {
 	return Node_Which(s.Struct.Uint16(12))
 }
@@ -651,6 +655,9 @@ func (s Node_Parameter) String() string {
 	return str
 }
 
+func (Node_Parameter) DecodeFromPtr(p capnp.Ptr) Node_Parameter {
+	return Node_Parameter{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Node_Parameter) Name() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -711,6 +718,9 @@ func (s Node_NestedNode) String() string {
 	return str
 }
 
+func (Node_NestedNode) DecodeFromPtr(p capnp.Ptr) Node_NestedNode {
+	return Node_NestedNode{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Node_NestedNode) Name() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -779,6 +789,9 @@ func (s Node_SourceInfo) String() string {
 	return str
 }
 
+func (Node_SourceInfo) DecodeFromPtr(p capnp.Ptr) Node_SourceInfo {
+	return Node_SourceInfo{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Node_SourceInfo) Id() uint64 {
 	return s.Struct.Uint64(0)
 }
@@ -871,6 +884,9 @@ func (s Node_SourceInfo_Member) String() string {
 	return str
 }
 
+func (Node_SourceInfo_Member) DecodeFromPtr(p capnp.Ptr) Node_SourceInfo_Member {
+	return Node_SourceInfo_Member{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Node_SourceInfo_Member) DocComment() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -969,6 +985,10 @@ func ReadRootField(msg *capnp.Message) (Field, error) {
 func (s Field) String() string {
 	str, _ := text.Marshal(0x9aad50a41f4af45f, s.Struct)
 	return str
+}
+
+func (Field) DecodeFromPtr(p capnp.Ptr) Field {
+	return Field{Struct: capnp.Struct{}.DecodeFromPtr(p)}
 }
 
 func (s Field) Which() Field_Which {
@@ -1218,6 +1238,9 @@ func (s Enumerant) String() string {
 	return str
 }
 
+func (Enumerant) DecodeFromPtr(p capnp.Ptr) Enumerant {
+	return Enumerant{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Enumerant) Name() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -1310,6 +1333,9 @@ func (s Superclass) String() string {
 	return str
 }
 
+func (Superclass) DecodeFromPtr(p capnp.Ptr) Superclass {
+	return Superclass{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Superclass) Id() uint64 {
 	return s.Struct.Uint64(0)
 }
@@ -1388,6 +1414,9 @@ func (s Method) String() string {
 	return str
 }
 
+func (Method) DecodeFromPtr(p capnp.Ptr) Method {
+	return Method{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Method) Name() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -1698,6 +1727,10 @@ func ReadRootType(msg *capnp.Message) (Type, error) {
 func (s Type) String() string {
 	str, _ := text.Marshal(0xd07378ede1f9cc60, s.Struct)
 	return str
+}
+
+func (Type) DecodeFromPtr(p capnp.Ptr) Type {
+	return Type{Struct: capnp.Struct{}.DecodeFromPtr(p)}
 }
 
 func (s Type) Which() Type_Which {
@@ -2139,6 +2172,9 @@ func (s Brand) String() string {
 	return str
 }
 
+func (Brand) DecodeFromPtr(p capnp.Ptr) Brand {
+	return Brand{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Brand) Scopes() (Brand_Scope_List, error) {
 	p, err := s.Struct.Ptr(0)
 	return Brand_Scope_List{List: p.List()}, err
@@ -2221,6 +2257,10 @@ func ReadRootBrand_Scope(msg *capnp.Message) (Brand_Scope, error) {
 func (s Brand_Scope) String() string {
 	str, _ := text.Marshal(0xabd73485a9636bc9, s.Struct)
 	return str
+}
+
+func (Brand_Scope) DecodeFromPtr(p capnp.Ptr) Brand_Scope {
+	return Brand_Scope{Struct: capnp.Struct{}.DecodeFromPtr(p)}
 }
 
 func (s Brand_Scope) Which() Brand_Scope_Which {
@@ -2329,6 +2369,10 @@ func ReadRootBrand_Binding(msg *capnp.Message) (Brand_Binding, error) {
 func (s Brand_Binding) String() string {
 	str, _ := text.Marshal(0xc863cd16969ee7fc, s.Struct)
 	return str
+}
+
+func (Brand_Binding) DecodeFromPtr(p capnp.Ptr) Brand_Binding {
+	return Brand_Binding{Struct: capnp.Struct{}.DecodeFromPtr(p)}
 }
 
 func (s Brand_Binding) Which() Brand_Binding_Which {
@@ -2484,6 +2528,10 @@ func ReadRootValue(msg *capnp.Message) (Value, error) {
 func (s Value) String() string {
 	str, _ := text.Marshal(0xce23dcd2d7b00c9b, s.Struct)
 	return str
+}
+
+func (Value) DecodeFromPtr(p capnp.Ptr) Value {
+	return Value{Struct: capnp.Struct{}.DecodeFromPtr(p)}
 }
 
 func (s Value) Which() Value_Which {
@@ -2799,6 +2847,9 @@ func (s Annotation) String() string {
 	return str
 }
 
+func (Annotation) DecodeFromPtr(p capnp.Ptr) Annotation {
+	return Annotation{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Annotation) Id() uint64 {
 	return s.Struct.Uint64(0)
 }
@@ -2979,6 +3030,9 @@ func (s CapnpVersion) String() string {
 	return str
 }
 
+func (CapnpVersion) DecodeFromPtr(p capnp.Ptr) CapnpVersion {
+	return CapnpVersion{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s CapnpVersion) Major() uint16 {
 	return s.Struct.Uint16(0)
 }
@@ -3045,6 +3099,9 @@ func (s CodeGeneratorRequest) String() string {
 	return str
 }
 
+func (CodeGeneratorRequest) DecodeFromPtr(p capnp.Ptr) CodeGeneratorRequest {
+	return CodeGeneratorRequest{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s CodeGeneratorRequest) CapnpVersion() (CapnpVersion, error) {
 	p, err := s.Struct.Ptr(2)
 	return CapnpVersion{Struct: p.Struct()}, err
@@ -3187,6 +3244,9 @@ func (s CodeGeneratorRequest_RequestedFile) String() string {
 	return str
 }
 
+func (CodeGeneratorRequest_RequestedFile) DecodeFromPtr(p capnp.Ptr) CodeGeneratorRequest_RequestedFile {
+	return CodeGeneratorRequest_RequestedFile{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s CodeGeneratorRequest_RequestedFile) Id() uint64 {
 	return s.Struct.Uint64(0)
 }
@@ -3279,6 +3339,9 @@ func (s CodeGeneratorRequest_RequestedFile_Import) String() string {
 	return str
 }
 
+func (CodeGeneratorRequest_RequestedFile_Import) DecodeFromPtr(p capnp.Ptr) CodeGeneratorRequest_RequestedFile_Import {
+	return CodeGeneratorRequest_RequestedFile_Import{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s CodeGeneratorRequest_RequestedFile_Import) Id() uint64 {
 	return s.Struct.Uint64(0)
 }

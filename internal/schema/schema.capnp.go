@@ -68,6 +68,10 @@ func ReadRootNode(msg *capnp.Message) (Node, error) {
 	return Node{root.Struct()}, err
 }
 
+func (Node) DecodeFromPtr(p capnp.Ptr) Node {
+	return Node{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
+
 func (s Node) Which() Node_Which {
 	return Node_Which(s.Struct.Uint16(12))
 }
@@ -569,6 +573,9 @@ func ReadRootNode_Parameter(msg *capnp.Message) (Node_Parameter, error) {
 	return Node_Parameter{root.Struct()}, err
 }
 
+func (Node_Parameter) DecodeFromPtr(p capnp.Ptr) Node_Parameter {
+	return Node_Parameter{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Node_Parameter) Name() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -616,6 +623,9 @@ func ReadRootNode_NestedNode(msg *capnp.Message) (Node_NestedNode, error) {
 	return Node_NestedNode{root.Struct()}, err
 }
 
+func (Node_NestedNode) DecodeFromPtr(p capnp.Ptr) Node_NestedNode {
+	return Node_NestedNode{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Node_NestedNode) Name() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -671,6 +681,9 @@ func ReadRootNode_SourceInfo(msg *capnp.Message) (Node_SourceInfo, error) {
 	return Node_SourceInfo{root.Struct()}, err
 }
 
+func (Node_SourceInfo) DecodeFromPtr(p capnp.Ptr) Node_SourceInfo {
+	return Node_SourceInfo{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Node_SourceInfo) Id() uint64 {
 	return s.Struct.Uint64(0)
 }
@@ -750,6 +763,9 @@ func ReadRootNode_SourceInfo_Member(msg *capnp.Message) (Node_SourceInfo_Member,
 	return Node_SourceInfo_Member{root.Struct()}, err
 }
 
+func (Node_SourceInfo_Member) DecodeFromPtr(p capnp.Ptr) Node_SourceInfo_Member {
+	return Node_SourceInfo_Member{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Node_SourceInfo_Member) DocComment() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -835,6 +851,10 @@ func NewRootField(s *capnp.Segment) (Field, error) {
 func ReadRootField(msg *capnp.Message) (Field, error) {
 	root, err := msg.Root()
 	return Field{root.Struct()}, err
+}
+
+func (Field) DecodeFromPtr(p capnp.Ptr) Field {
+	return Field{Struct: capnp.Struct{}.DecodeFromPtr(p)}
 }
 
 func (s Field) Which() Field_Which {
@@ -1033,6 +1053,9 @@ func ReadRootEnumerant(msg *capnp.Message) (Enumerant, error) {
 	return Enumerant{root.Struct()}, err
 }
 
+func (Enumerant) DecodeFromPtr(p capnp.Ptr) Enumerant {
+	return Enumerant{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Enumerant) Name() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -1112,6 +1135,9 @@ func ReadRootSuperclass(msg *capnp.Message) (Superclass, error) {
 	return Superclass{root.Struct()}, err
 }
 
+func (Superclass) DecodeFromPtr(p capnp.Ptr) Superclass {
+	return Superclass{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Superclass) Id() uint64 {
 	return s.Struct.Uint64(0)
 }
@@ -1173,6 +1199,9 @@ func ReadRootMethod(msg *capnp.Message) (Method, error) {
 	return Method{root.Struct()}, err
 }
 
+func (Method) DecodeFromPtr(p capnp.Ptr) Method {
+	return Method{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Method) Name() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -1462,6 +1491,10 @@ func NewRootType(s *capnp.Segment) (Type, error) {
 func ReadRootType(msg *capnp.Message) (Type, error) {
 	root, err := msg.Root()
 	return Type{root.Struct()}, err
+}
+
+func (Type) DecodeFromPtr(p capnp.Ptr) Type {
+	return Type{Struct: capnp.Struct{}.DecodeFromPtr(p)}
 }
 
 func (s Type) Which() Type_Which {
@@ -1788,6 +1821,9 @@ func ReadRootBrand(msg *capnp.Message) (Brand, error) {
 	return Brand{root.Struct()}, err
 }
 
+func (Brand) DecodeFromPtr(p capnp.Ptr) Brand {
+	return Brand{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Brand) Scopes() (Brand_Scope_List, error) {
 	p, err := s.Struct.Ptr(0)
 	return Brand_Scope_List{List: p.List()}, err
@@ -1857,6 +1893,10 @@ func NewRootBrand_Scope(s *capnp.Segment) (Brand_Scope, error) {
 func ReadRootBrand_Scope(msg *capnp.Message) (Brand_Scope, error) {
 	root, err := msg.Root()
 	return Brand_Scope{root.Struct()}, err
+}
+
+func (Brand_Scope) DecodeFromPtr(p capnp.Ptr) Brand_Scope {
+	return Brand_Scope{Struct: capnp.Struct{}.DecodeFromPtr(p)}
 }
 
 func (s Brand_Scope) Which() Brand_Scope_Which {
@@ -1952,6 +1992,10 @@ func NewRootBrand_Binding(s *capnp.Segment) (Brand_Binding, error) {
 func ReadRootBrand_Binding(msg *capnp.Message) (Brand_Binding, error) {
 	root, err := msg.Root()
 	return Brand_Binding{root.Struct()}, err
+}
+
+func (Brand_Binding) DecodeFromPtr(p capnp.Ptr) Brand_Binding {
+	return Brand_Binding{Struct: capnp.Struct{}.DecodeFromPtr(p)}
 }
 
 func (s Brand_Binding) Which() Brand_Binding_Which {
@@ -2090,6 +2134,10 @@ func NewRootValue(s *capnp.Segment) (Value, error) {
 func ReadRootValue(msg *capnp.Message) (Value, error) {
 	root, err := msg.Root()
 	return Value{root.Struct()}, err
+}
+
+func (Value) DecodeFromPtr(p capnp.Ptr) Value {
+	return Value{Struct: capnp.Struct{}.DecodeFromPtr(p)}
 }
 
 func (s Value) Which() Value_Which {
@@ -2380,6 +2428,9 @@ func ReadRootAnnotation(msg *capnp.Message) (Annotation, error) {
 	return Annotation{root.Struct()}, err
 }
 
+func (Annotation) DecodeFromPtr(p capnp.Ptr) Annotation {
+	return Annotation{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Annotation) Id() uint64 {
 	return s.Struct.Uint64(0)
 }
@@ -2539,6 +2590,9 @@ func ReadRootCapnpVersion(msg *capnp.Message) (CapnpVersion, error) {
 	return CapnpVersion{root.Struct()}, err
 }
 
+func (CapnpVersion) DecodeFromPtr(p capnp.Ptr) CapnpVersion {
+	return CapnpVersion{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s CapnpVersion) Major() uint16 {
 	return s.Struct.Uint16(0)
 }
@@ -2592,6 +2646,9 @@ func ReadRootCodeGeneratorRequest(msg *capnp.Message) (CodeGeneratorRequest, err
 	return CodeGeneratorRequest{root.Struct()}, err
 }
 
+func (CodeGeneratorRequest) DecodeFromPtr(p capnp.Ptr) CodeGeneratorRequest {
+	return CodeGeneratorRequest{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s CodeGeneratorRequest) CapnpVersion() (CapnpVersion, error) {
 	p, err := s.Struct.Ptr(2)
 	return CapnpVersion{Struct: p.Struct()}, err
@@ -2717,6 +2774,9 @@ func ReadRootCodeGeneratorRequest_RequestedFile(msg *capnp.Message) (CodeGenerat
 	return CodeGeneratorRequest_RequestedFile{root.Struct()}, err
 }
 
+func (CodeGeneratorRequest_RequestedFile) DecodeFromPtr(p capnp.Ptr) CodeGeneratorRequest_RequestedFile {
+	return CodeGeneratorRequest_RequestedFile{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s CodeGeneratorRequest_RequestedFile) Id() uint64 {
 	return s.Struct.Uint64(0)
 }
@@ -2796,6 +2856,9 @@ func ReadRootCodeGeneratorRequest_RequestedFile_Import(msg *capnp.Message) (Code
 	return CodeGeneratorRequest_RequestedFile_Import{root.Struct()}, err
 }
 
+func (CodeGeneratorRequest_RequestedFile_Import) DecodeFromPtr(p capnp.Ptr) CodeGeneratorRequest_RequestedFile_Import {
+	return CodeGeneratorRequest_RequestedFile_Import{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s CodeGeneratorRequest_RequestedFile_Import) Id() uint64 {
 	return s.Struct.Uint64(0)
 }

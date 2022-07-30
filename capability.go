@@ -21,6 +21,15 @@ type Interface struct {
 	cap CapabilityID
 }
 
+// i.EncodeAsPtr is equivalent to i.ToPtr(); for implementing TypeParam.
+// The segment argument is ignored.
+func (i Interface) EncodeAsPtr(*Segment) Ptr { return i.ToPtr() }
+
+// DecodeFromPtr(p) is equivalent to p.Interface(); for implementing TypeParam.
+func (Interface) DecodeFromPtr(p Ptr) Interface { return p.Interface() }
+
+var _ TypeParam[Interface] = Interface{}
+
 // NewInterface creates a new interface pointer.
 //
 // No allocation is performed in the given segment: it is used purely
@@ -571,6 +580,18 @@ func (c Client) Release() {
 	<-h.done
 	h.Shutdown()
 }
+
+func (c Client) EncodeAsPtr(seg *Segment) Ptr {
+	capId := seg.Message().AddCap(c)
+	return NewInterface(seg, capId).ToPtr()
+}
+
+func (Client) DecodeFromPtr(p Ptr) Client {
+	return p.Interface().Client()
+}
+
+var _ TypeParam[Client] = Client{}
+
 
 // isResolve reports whether ch has been resolved.
 // The caller must be holding onto ch.mu.

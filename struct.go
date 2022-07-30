@@ -345,3 +345,13 @@ func copyStruct(dst, src Struct) error {
 
 	return nil
 }
+
+// s.EncodeAsPtr is equivalent to s.ToPtr(); for implementing TypeParam.
+// The segment argument is ignored.
+func (s Struct) EncodeAsPtr(*Segment) Ptr { return s.ToPtr() }
+
+// DecodeFromPtr(p) is equivalent to p.Struct() (the receiver is ignored).
+// for implementing TypeParam.
+func (Struct) DecodeFromPtr(p Ptr) Struct { return p.Struct() }
+
+var _ TypeParam[Struct] = Struct{}

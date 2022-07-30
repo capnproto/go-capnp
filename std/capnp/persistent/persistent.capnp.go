@@ -40,6 +40,10 @@ func (c Persistent) AddRef() Persistent {
 	}
 }
 
+func (Persistent) DecodeFromPtr(p capnp.Ptr) Persistent {
+	return Persistent{Client: capnp.Client{}.DecodeFromPtr(p)}
+}
+
 // A Persistent_Server is a Persistent with a local implementation.
 type Persistent_Server interface {
 	Save(context.Context, Persistent_save) error
@@ -130,6 +134,9 @@ func (s Persistent_SaveParams) String() string {
 	return str
 }
 
+func (Persistent_SaveParams) DecodeFromPtr(p capnp.Ptr) Persistent_SaveParams {
+	return Persistent_SaveParams{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Persistent_SaveParams) SealFor() (capnp.Ptr, error) {
 	return s.Struct.Ptr(0)
 }
@@ -188,6 +195,9 @@ func (s Persistent_SaveResults) String() string {
 	return str
 }
 
+func (Persistent_SaveResults) DecodeFromPtr(p capnp.Ptr) Persistent_SaveResults {
+	return Persistent_SaveResults{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Persistent_SaveResults) SturdyRef() (capnp.Ptr, error) {
 	return s.Struct.Ptr(0)
 }

@@ -48,6 +48,9 @@ func (s Zdate) String() string {
 	return str
 }
 
+func (Zdate) DecodeFromPtr(p capnp.Ptr) Zdate {
+	return Zdate{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Zdate) Year() int16 {
 	return int16(s.Struct.Uint16(0))
 }
@@ -114,6 +117,9 @@ func (s Zdata) String() string {
 	return str
 }
 
+func (Zdata) DecodeFromPtr(p capnp.Ptr) Zdata {
+	return Zdata{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Zdata) Data() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
 	return []byte(p.Data()), err
@@ -238,6 +244,9 @@ func (s PlaneBase) String() string {
 	return str
 }
 
+func (PlaneBase) DecodeFromPtr(p capnp.Ptr) PlaneBase {
+	return PlaneBase{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s PlaneBase) Name() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -354,6 +363,9 @@ func (s B737) String() string {
 	return str
 }
 
+func (B737) DecodeFromPtr(p capnp.Ptr) B737 {
+	return B737{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s B737) Base() (PlaneBase, error) {
 	p, err := s.Struct.Ptr(0)
 	return PlaneBase{Struct: p.Struct()}, err
@@ -424,6 +436,9 @@ func (s A320) String() string {
 	return str
 }
 
+func (A320) DecodeFromPtr(p capnp.Ptr) A320 {
+	return A320{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s A320) Base() (PlaneBase, error) {
 	p, err := s.Struct.Ptr(0)
 	return PlaneBase{Struct: p.Struct()}, err
@@ -494,6 +509,9 @@ func (s F16) String() string {
 	return str
 }
 
+func (F16) DecodeFromPtr(p capnp.Ptr) F16 {
+	return F16{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s F16) Base() (PlaneBase, error) {
 	p, err := s.Struct.Ptr(0)
 	return PlaneBase{Struct: p.Struct()}, err
@@ -564,6 +582,9 @@ func (s Regression) String() string {
 	return str
 }
 
+func (Regression) DecodeFromPtr(p capnp.Ptr) Regression {
+	return Regression{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Regression) Base() (PlaneBase, error) {
 	p, err := s.Struct.Ptr(0)
 	return PlaneBase{Struct: p.Struct()}, err
@@ -728,6 +749,10 @@ func ReadRootAircraft(msg *capnp.Message) (Aircraft, error) {
 func (s Aircraft) String() string {
 	str, _ := text.Marshal(0xe54e10aede55c7b1, s.Struct)
 	return str
+}
+
+func (Aircraft) DecodeFromPtr(p capnp.Ptr) Aircraft {
+	return Aircraft{Struct: capnp.Struct{}.DecodeFromPtr(p)}
 }
 
 func (s Aircraft) Which() Aircraft_Which {
@@ -1046,6 +1071,10 @@ func ReadRootZ(msg *capnp.Message) (Z, error) {
 func (s Z) String() string {
 	str, _ := text.Marshal(0xea26e9973bd6a0d9, s.Struct)
 	return str
+}
+
+func (Z) DecodeFromPtr(p capnp.Ptr) Z {
+	return Z{Struct: capnp.Struct{}.DecodeFromPtr(p)}
 }
 
 func (s Z) Which() Z_Which {
@@ -2378,6 +2407,9 @@ func (s Counter) String() string {
 	return str
 }
 
+func (Counter) DecodeFromPtr(p capnp.Ptr) Counter {
+	return Counter{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Counter) Size() int64 {
 	return int64(s.Struct.Uint64(0))
 }
@@ -2494,6 +2526,9 @@ func (s Bag) String() string {
 	return str
 }
 
+func (Bag) DecodeFromPtr(p capnp.Ptr) Bag {
+	return Bag{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Bag) Counter() (Counter, error) {
 	p, err := s.Struct.Ptr(0)
 	return Counter{Struct: p.Struct()}, err
@@ -2564,6 +2599,9 @@ func (s Zserver) String() string {
 	return str
 }
 
+func (Zserver) DecodeFromPtr(p capnp.Ptr) Zserver {
+	return Zserver{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Zserver) Waitingjobs() (Zjob_List, error) {
 	p, err := s.Struct.Ptr(0)
 	return Zjob_List{List: p.List()}, err
@@ -2630,6 +2668,9 @@ func (s Zjob) String() string {
 	return str
 }
 
+func (Zjob) DecodeFromPtr(p capnp.Ptr) Zjob {
+	return Zjob{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Zjob) Cmd() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -2714,6 +2755,10 @@ func (s VerEmpty) String() string {
 	return str
 }
 
+func (VerEmpty) DecodeFromPtr(p capnp.Ptr) VerEmpty {
+	return VerEmpty{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
+
 // VerEmpty_List is a list of VerEmpty.
 type VerEmpty_List = capnp.StructList[VerEmpty]
 
@@ -2756,6 +2801,9 @@ func (s VerOneData) String() string {
 	return str
 }
 
+func (VerOneData) DecodeFromPtr(p capnp.Ptr) VerOneData {
+	return VerOneData{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s VerOneData) Val() int16 {
 	return int16(s.Struct.Uint16(0))
 }
@@ -2806,6 +2854,9 @@ func (s VerTwoData) String() string {
 	return str
 }
 
+func (VerTwoData) DecodeFromPtr(p capnp.Ptr) VerTwoData {
+	return VerTwoData{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s VerTwoData) Val() int16 {
 	return int16(s.Struct.Uint16(0))
 }
@@ -2864,6 +2915,9 @@ func (s VerOnePtr) String() string {
 	return str
 }
 
+func (VerOnePtr) DecodeFromPtr(p capnp.Ptr) VerOnePtr {
+	return VerOnePtr{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s VerOnePtr) Ptr() (VerOneData, error) {
 	p, err := s.Struct.Ptr(0)
 	return VerOneData{Struct: p.Struct()}, err
@@ -2934,6 +2988,9 @@ func (s VerTwoPtr) String() string {
 	return str
 }
 
+func (VerTwoPtr) DecodeFromPtr(p capnp.Ptr) VerTwoPtr {
+	return VerTwoPtr{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s VerTwoPtr) Ptr1() (VerOneData, error) {
 	p, err := s.Struct.Ptr(0)
 	return VerOneData{Struct: p.Struct()}, err
@@ -3032,6 +3089,9 @@ func (s VerTwoDataTwoPtr) String() string {
 	return str
 }
 
+func (VerTwoDataTwoPtr) DecodeFromPtr(p capnp.Ptr) VerTwoDataTwoPtr {
+	return VerTwoDataTwoPtr{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s VerTwoDataTwoPtr) Val() int16 {
 	return int16(s.Struct.Uint16(0))
 }
@@ -3146,6 +3206,9 @@ func (s HoldsVerEmptyList) String() string {
 	return str
 }
 
+func (HoldsVerEmptyList) DecodeFromPtr(p capnp.Ptr) HoldsVerEmptyList {
+	return HoldsVerEmptyList{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s HoldsVerEmptyList) Mylist() (VerEmpty_List, error) {
 	p, err := s.Struct.Ptr(0)
 	return VerEmpty_List{List: p.List()}, err
@@ -3212,6 +3275,9 @@ func (s HoldsVerOneDataList) String() string {
 	return str
 }
 
+func (HoldsVerOneDataList) DecodeFromPtr(p capnp.Ptr) HoldsVerOneDataList {
+	return HoldsVerOneDataList{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s HoldsVerOneDataList) Mylist() (VerOneData_List, error) {
 	p, err := s.Struct.Ptr(0)
 	return VerOneData_List{List: p.List()}, err
@@ -3278,6 +3344,9 @@ func (s HoldsVerTwoDataList) String() string {
 	return str
 }
 
+func (HoldsVerTwoDataList) DecodeFromPtr(p capnp.Ptr) HoldsVerTwoDataList {
+	return HoldsVerTwoDataList{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s HoldsVerTwoDataList) Mylist() (VerTwoData_List, error) {
 	p, err := s.Struct.Ptr(0)
 	return VerTwoData_List{List: p.List()}, err
@@ -3344,6 +3413,9 @@ func (s HoldsVerOnePtrList) String() string {
 	return str
 }
 
+func (HoldsVerOnePtrList) DecodeFromPtr(p capnp.Ptr) HoldsVerOnePtrList {
+	return HoldsVerOnePtrList{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s HoldsVerOnePtrList) Mylist() (VerOnePtr_List, error) {
 	p, err := s.Struct.Ptr(0)
 	return VerOnePtr_List{List: p.List()}, err
@@ -3410,6 +3482,9 @@ func (s HoldsVerTwoPtrList) String() string {
 	return str
 }
 
+func (HoldsVerTwoPtrList) DecodeFromPtr(p capnp.Ptr) HoldsVerTwoPtrList {
+	return HoldsVerTwoPtrList{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s HoldsVerTwoPtrList) Mylist() (VerTwoPtr_List, error) {
 	p, err := s.Struct.Ptr(0)
 	return VerTwoPtr_List{List: p.List()}, err
@@ -3476,6 +3551,9 @@ func (s HoldsVerTwoTwoList) String() string {
 	return str
 }
 
+func (HoldsVerTwoTwoList) DecodeFromPtr(p capnp.Ptr) HoldsVerTwoTwoList {
+	return HoldsVerTwoTwoList{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s HoldsVerTwoTwoList) Mylist() (VerTwoDataTwoPtr_List, error) {
 	p, err := s.Struct.Ptr(0)
 	return VerTwoDataTwoPtr_List{List: p.List()}, err
@@ -3542,6 +3620,9 @@ func (s HoldsVerTwoTwoPlus) String() string {
 	return str
 }
 
+func (HoldsVerTwoTwoPlus) DecodeFromPtr(p capnp.Ptr) HoldsVerTwoTwoPlus {
+	return HoldsVerTwoTwoPlus{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s HoldsVerTwoTwoPlus) Mylist() (VerTwoTwoPlus_List, error) {
 	p, err := s.Struct.Ptr(0)
 	return VerTwoTwoPlus_List{List: p.List()}, err
@@ -3608,6 +3689,9 @@ func (s VerTwoTwoPlus) String() string {
 	return str
 }
 
+func (VerTwoTwoPlus) DecodeFromPtr(p capnp.Ptr) VerTwoTwoPlus {
+	return VerTwoTwoPlus{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s VerTwoTwoPlus) Val() int16 {
 	return int16(s.Struct.Uint16(0))
 }
@@ -3754,6 +3838,9 @@ func (s HoldsText) String() string {
 	return str
 }
 
+func (HoldsText) DecodeFromPtr(p capnp.Ptr) HoldsText {
+	return HoldsText{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s HoldsText) Txt() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -3862,6 +3949,9 @@ func (s WrapEmpty) String() string {
 	return str
 }
 
+func (WrapEmpty) DecodeFromPtr(p capnp.Ptr) WrapEmpty {
+	return WrapEmpty{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s WrapEmpty) MightNotBeReallyEmpty() (VerEmpty, error) {
 	p, err := s.Struct.Ptr(0)
 	return VerEmpty{Struct: p.Struct()}, err
@@ -3932,6 +4022,9 @@ func (s Wrap2x2) String() string {
 	return str
 }
 
+func (Wrap2x2) DecodeFromPtr(p capnp.Ptr) Wrap2x2 {
+	return Wrap2x2{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Wrap2x2) MightNotBeReallyEmpty() (VerTwoDataTwoPtr, error) {
 	p, err := s.Struct.Ptr(0)
 	return VerTwoDataTwoPtr{Struct: p.Struct()}, err
@@ -4002,6 +4095,9 @@ func (s Wrap2x2plus) String() string {
 	return str
 }
 
+func (Wrap2x2plus) DecodeFromPtr(p capnp.Ptr) Wrap2x2plus {
+	return Wrap2x2plus{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Wrap2x2plus) MightNotBeReallyEmpty() (VerTwoTwoPlus, error) {
 	p, err := s.Struct.Ptr(0)
 	return VerTwoTwoPlus{Struct: p.Struct()}, err
@@ -4090,6 +4186,10 @@ func (s VoidUnion) String() string {
 	return str
 }
 
+func (VoidUnion) DecodeFromPtr(p capnp.Ptr) VoidUnion {
+	return VoidUnion{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
+
 func (s VoidUnion) Which() VoidUnion_Which {
 	return VoidUnion_Which(s.Struct.Uint16(0))
 }
@@ -4145,6 +4245,9 @@ func (s Nester1Capn) String() string {
 	return str
 }
 
+func (Nester1Capn) DecodeFromPtr(p capnp.Ptr) Nester1Capn {
+	return Nester1Capn{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Nester1Capn) Strs() (capnp.TextList, error) {
 	p, err := s.Struct.Ptr(0)
 	return capnp.TextList{List: p.List()}, err
@@ -4211,6 +4314,9 @@ func (s RWTestCapn) String() string {
 	return str
 }
 
+func (RWTestCapn) DecodeFromPtr(p capnp.Ptr) RWTestCapn {
+	return RWTestCapn{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s RWTestCapn) NestMatrix() (capnp.PointerList, error) {
 	p, err := s.Struct.Ptr(0)
 	return capnp.PointerList{List: p.List()}, err
@@ -4277,6 +4383,9 @@ func (s ListStructCapn) String() string {
 	return str
 }
 
+func (ListStructCapn) DecodeFromPtr(p capnp.Ptr) ListStructCapn {
+	return ListStructCapn{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s ListStructCapn) Vec() (Nester1Capn_List, error) {
 	p, err := s.Struct.Ptr(0)
 	return Nester1Capn_List{List: p.List()}, err
@@ -4344,6 +4453,10 @@ func (c Echo) AddRef() Echo {
 	return Echo{
 		Client: c.Client.AddRef(),
 	}
+}
+
+func (Echo) DecodeFromPtr(p capnp.Ptr) Echo {
+	return Echo{Client: capnp.Client{}.DecodeFromPtr(p)}
 }
 
 // A Echo_Server is a Echo with a local implementation.
@@ -4436,6 +4549,9 @@ func (s Echo_echo_Params) String() string {
 	return str
 }
 
+func (Echo_echo_Params) DecodeFromPtr(p capnp.Ptr) Echo_echo_Params {
+	return Echo_echo_Params{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Echo_echo_Params) In() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -4496,6 +4612,9 @@ func (s Echo_echo_Results) String() string {
 	return str
 }
 
+func (Echo_echo_Results) DecodeFromPtr(p capnp.Ptr) Echo_echo_Results {
+	return Echo_echo_Results{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Echo_echo_Results) Out() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -4556,6 +4675,9 @@ func (s Hoth) String() string {
 	return str
 }
 
+func (Hoth) DecodeFromPtr(p capnp.Ptr) Hoth {
+	return Hoth{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Hoth) Base() (EchoBase, error) {
 	p, err := s.Struct.Ptr(0)
 	return EchoBase{Struct: p.Struct()}, err
@@ -4626,6 +4748,9 @@ func (s EchoBase) String() string {
 	return str
 }
 
+func (EchoBase) DecodeFromPtr(p capnp.Ptr) EchoBase {
+	return EchoBase{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s EchoBase) Echo() Echo {
 	p, _ := s.Struct.Ptr(0)
 	return Echo{Client: p.Interface().Client()}
@@ -4690,6 +4815,9 @@ func (s StackingRoot) String() string {
 	return str
 }
 
+func (StackingRoot) DecodeFromPtr(p capnp.Ptr) StackingRoot {
+	return StackingRoot{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s StackingRoot) A() (StackingA, error) {
 	p, err := s.Struct.Ptr(1)
 	return StackingA{Struct: p.Struct()}, err
@@ -4792,6 +4920,9 @@ func (s StackingA) String() string {
 	return str
 }
 
+func (StackingA) DecodeFromPtr(p capnp.Ptr) StackingA {
+	return StackingA{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s StackingA) Num() int32 {
 	return int32(s.Struct.Uint32(0))
 }
@@ -4870,6 +5001,9 @@ func (s StackingB) String() string {
 	return str
 }
 
+func (StackingB) DecodeFromPtr(p capnp.Ptr) StackingB {
+	return StackingB{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s StackingB) Num() int32 {
 	return int32(s.Struct.Uint32(0))
 }
@@ -4921,6 +5055,10 @@ func (c CallSequence) AddRef() CallSequence {
 	return CallSequence{
 		Client: c.Client.AddRef(),
 	}
+}
+
+func (CallSequence) DecodeFromPtr(p capnp.Ptr) CallSequence {
+	return CallSequence{Client: capnp.Client{}.DecodeFromPtr(p)}
 }
 
 // A CallSequence_Server is a CallSequence with a local implementation.
@@ -5013,6 +5151,10 @@ func (s CallSequence_getNumber_Params) String() string {
 	return str
 }
 
+func (CallSequence_getNumber_Params) DecodeFromPtr(p capnp.Ptr) CallSequence_getNumber_Params {
+	return CallSequence_getNumber_Params{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
+
 // CallSequence_getNumber_Params_List is a list of CallSequence_getNumber_Params.
 type CallSequence_getNumber_Params_List = capnp.StructList[CallSequence_getNumber_Params]
 
@@ -5055,6 +5197,9 @@ func (s CallSequence_getNumber_Results) String() string {
 	return str
 }
 
+func (CallSequence_getNumber_Results) DecodeFromPtr(p capnp.Ptr) CallSequence_getNumber_Results {
+	return CallSequence_getNumber_Results{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s CallSequence_getNumber_Results) N() uint32 {
 	return s.Struct.Uint32(0)
 }
@@ -5122,6 +5267,10 @@ func (c Pipeliner) AddRef() Pipeliner {
 	return Pipeliner{
 		Client: c.Client.AddRef(),
 	}
+}
+
+func (Pipeliner) DecodeFromPtr(p capnp.Ptr) Pipeliner {
+	return Pipeliner{Client: capnp.Client{}.DecodeFromPtr(p)}
 }
 
 // A Pipeliner_Server is a Pipeliner with a local implementation.
@@ -5228,6 +5377,10 @@ func (s Pipeliner_newPipeliner_Params) String() string {
 	return str
 }
 
+func (Pipeliner_newPipeliner_Params) DecodeFromPtr(p capnp.Ptr) Pipeliner_newPipeliner_Params {
+	return Pipeliner_newPipeliner_Params{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
+
 // Pipeliner_newPipeliner_Params_List is a list of Pipeliner_newPipeliner_Params.
 type Pipeliner_newPipeliner_Params_List = capnp.StructList[Pipeliner_newPipeliner_Params]
 
@@ -5270,6 +5423,9 @@ func (s Pipeliner_newPipeliner_Results) String() string {
 	return str
 }
 
+func (Pipeliner_newPipeliner_Results) DecodeFromPtr(p capnp.Ptr) Pipeliner_newPipeliner_Results {
+	return Pipeliner_newPipeliner_Results{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Pipeliner_newPipeliner_Results) Extra() (capnp.Ptr, error) {
 	return s.Struct.Ptr(0)
 }
@@ -5350,6 +5506,9 @@ func (s Defaults) String() string {
 	return str
 }
 
+func (Defaults) DecodeFromPtr(p capnp.Ptr) Defaults {
+	return Defaults{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s Defaults) Text() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.TextDefault("foo"), err
@@ -5450,6 +5609,9 @@ func (s BenchmarkA) String() string {
 	return str
 }
 
+func (BenchmarkA) DecodeFromPtr(p capnp.Ptr) BenchmarkA {
+	return BenchmarkA{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s BenchmarkA) Name() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
@@ -5560,6 +5722,9 @@ func (s AllocBenchmark) String() string {
 	return str
 }
 
+func (AllocBenchmark) DecodeFromPtr(p capnp.Ptr) AllocBenchmark {
+	return AllocBenchmark{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s AllocBenchmark) Fields() (AllocBenchmark_Field_List, error) {
 	p, err := s.Struct.Ptr(0)
 	return AllocBenchmark_Field_List{List: p.List()}, err
@@ -5626,6 +5791,9 @@ func (s AllocBenchmark_Field) String() string {
 	return str
 }
 
+func (AllocBenchmark_Field) DecodeFromPtr(p capnp.Ptr) AllocBenchmark_Field {
+	return AllocBenchmark_Field{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+}
 func (s AllocBenchmark_Field) StringValue() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
