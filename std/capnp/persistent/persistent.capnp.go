@@ -50,15 +50,15 @@ type Persistent_Server interface {
 }
 
 // Persistent_NewServer creates a new Server from an implementation of Persistent_Server.
-func Persistent_NewServer(s Persistent_Server, policy *server.Policy) *server.Server {
+func Persistent_NewServer(s Persistent_Server) *server.Server {
 	c, _ := s.(server.Shutdowner)
-	return server.New(Persistent_Methods(nil, s), s, c, policy)
+	return server.New(Persistent_Methods(nil, s), s, c)
 }
 
 // Persistent_ServerToClient creates a new Client from an implementation of Persistent_Server.
 // The caller is responsible for calling Release on the returned Client.
-func Persistent_ServerToClient(s Persistent_Server, policy *server.Policy) Persistent {
-	return Persistent{Client: capnp.NewClient(Persistent_NewServer(s, policy))}
+func Persistent_ServerToClient(s Persistent_Server) Persistent {
+	return Persistent{Client: capnp.NewClient(Persistent_NewServer(s))}
 }
 
 // Persistent_Methods appends Methods to a slice that invoke the methods on s.

@@ -23,7 +23,7 @@ func (me *capArgsTest) Self(ctx context.Context, p testcapnp.CapArgsTest_self) e
 	if err != nil {
 		return err
 	}
-	res.SetSelf(testcapnp.CapArgsTest_ServerToClient(me, nil))
+	res.SetSelf(testcapnp.CapArgsTest_ServerToClient(me))
 	return nil
 }
 
@@ -66,7 +66,7 @@ func TestBootstrapReceiverAnswerRpc(t *testing.T) {
 	serverConn := NewConn(
 		NewStreamTransport(cServer),
 		&Options{
-			BootstrapClient: testcapnp.CapArgsTest_ServerToClient(srv, nil).Client,
+			BootstrapClient: testcapnp.CapArgsTest_ServerToClient(srv).Client,
 		},
 	)
 	defer serverConn.Close()
@@ -105,7 +105,7 @@ func TestCallReceiverAnswerRpc(t *testing.T) {
 	serverConn := NewConn(
 		NewStreamTransport(cServer),
 		&Options{
-			BootstrapClient: testcapnp.CapArgsTest_ServerToClient(srv, nil).Client,
+			BootstrapClient: testcapnp.CapArgsTest_ServerToClient(srv).Client,
 		},
 	)
 	defer serverConn.Close()
@@ -149,7 +149,7 @@ func TestBootstrapReceiverAnswer(t *testing.T) {
 	conn := NewConn(
 		NewStreamTransport(cServer),
 		&Options{
-			BootstrapClient: testcapnp.CapArgsTest_ServerToClient(srv, nil).Client,
+			BootstrapClient: testcapnp.CapArgsTest_ServerToClient(srv).Client,
 		},
 	)
 	defer conn.Close()
@@ -216,7 +216,7 @@ func TestCallReceiverAnswer(t *testing.T) {
 	conn := NewConn(
 		NewStreamTransport(cServer),
 		&Options{
-			BootstrapClient: testcapnp.CapArgsTest_ServerToClient(srv, nil).Client,
+			BootstrapClient: testcapnp.CapArgsTest_ServerToClient(srv).Client,
 		},
 	)
 	defer conn.Close()

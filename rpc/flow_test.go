@@ -15,7 +15,6 @@ import (
 	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/flowcontrol"
 	"capnproto.org/go/capnp/v3/rpc/internal/testcapnp"
-	"capnproto.org/go/capnp/v3/server"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 )
 
@@ -82,18 +81,7 @@ func TestFixedFlowLimit(t *testing.T) {
 	go func() {
 		// Server
 
-		bootstrap := testcapnp.StreamTest_ServerToClient(
-			slowStreamTestServer{},
-			&server.Policy{
-				// Crank this way up, so we don't block on the server side.
-				// Exact value is somewhat arbitrary, but big enough that
-				// we should always hit the flow limit *long* before we start
-				// blocking server side.
-				//
-				// In the long term, this will be unbounded anyway, but
-				// for now we have to do this.
-				MaxConcurrentCalls: int(limit * 3),
-			})
+		bootstrap := testcapnp.StreamTest_ServerToClient(slowStreamTestServer{})
 		conn := NewConn(serverTrans, &Options{
 			BootstrapClient: bootstrap.Client,
 		})

@@ -1817,7 +1817,7 @@ func newServer(impl func(context.Context, *server.Call) error, shutdown shutdown
 			Impl: impl,
 		}}
 	}
-	return capnp.NewClient(server.New(methods, nil /* brand */, shutdown, nil /* policy */))
+	return capnp.NewClient(server.New(methods, nil /* brand */, shutdown))
 }
 
 type shutdownFunc func()

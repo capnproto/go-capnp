@@ -11,7 +11,7 @@ import (
 
 func BenchmarkPingPong(b *testing.B) {
 	p1, p2 := transport.NewPipe(1)
-	srv := testcp.PingPong_ServerToClient(pingPongServer{}, nil)
+	srv := testcp.PingPong_ServerToClient(pingPongServer{})
 	conn1 := rpc.NewConn(rpc.NewTransport(p2), &rpc.Options{
 		ErrorReporter:   testErrorReporter{tb: b},
 		BootstrapClient: srv.Client,
