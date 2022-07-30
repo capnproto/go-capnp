@@ -1,2 +1,2 @@
-{{.Typ}}{List: {{.G.Capnp}}.MustUnmarshalRoot({{.Value}}).List()}
+{{.Typ}}{List: capnp.MustUnmarshalRoot({{.Value}}).List()}
 {{- /* no EOL */ -}}

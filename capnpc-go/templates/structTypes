@@ -2,7 +2,7 @@
 // {{.}}
 {{end -}}
 type {{.Node.Name}} {{if .IsBase -}}
-struct{ {{.G.Capnp}}.Struct }
+struct{ capnp.Struct }
 {{- else -}}
 {{.BaseNode.Name}}
 {{- end}}
