@@ -12,7 +12,7 @@ import (
 
 const PersistentAnnotation = uint64(0xf622595091cafb67)
 
-type Persistent struct{ Client capnp.Client }
+type Persistent struct{ capnp.Client }
 
 // Persistent_TypeID is the unique identifier for the type Persistent.
 const Persistent_TypeID = 0xc8cb212fcd9f5691
@@ -38,10 +38,6 @@ func (c Persistent) AddRef() Persistent {
 	return Persistent{
 		Client: c.Client.AddRef(),
 	}
-}
-
-func (c Persistent) Release() {
-	c.Client.Release()
 }
 
 // A Persistent_Server is a Persistent with a local implementation.

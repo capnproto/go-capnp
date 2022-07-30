@@ -11,7 +11,7 @@ import (
 	context "context"
 )
 
-type PingPong struct{ Client capnp.Client }
+type PingPong struct{ capnp.Client }
 
 // PingPong_TypeID is the unique identifier for the type PingPong.
 const PingPong_TypeID = 0xf004c474c2f8ee7a
@@ -37,10 +37,6 @@ func (c PingPong) AddRef() PingPong {
 	return PingPong{
 		Client: c.Client.AddRef(),
 	}
-}
-
-func (c PingPong) Release() {
-	c.Client.Release()
 }
 
 // A PingPong_Server is a PingPong with a local implementation.
@@ -208,7 +204,7 @@ func (p PingPong_echoNum_Results_Future) Struct() (PingPong_echoNum_Results, err
 	return PingPong_echoNum_Results{s}, err
 }
 
-type StreamTest struct{ Client capnp.Client }
+type StreamTest struct{ capnp.Client }
 
 // StreamTest_TypeID is the unique identifier for the type StreamTest.
 const StreamTest_TypeID = 0xbb3ca85b01eea465
@@ -234,10 +230,6 @@ func (c StreamTest) AddRef() StreamTest {
 	return StreamTest{
 		Client: c.Client.AddRef(),
 	}
-}
-
-func (c StreamTest) Release() {
-	c.Client.Release()
 }
 
 // A StreamTest_Server is a StreamTest with a local implementation.
@@ -360,7 +352,7 @@ func (p StreamTest_push_Params_Future) Struct() (StreamTest_push_Params, error) 
 	return StreamTest_push_Params{s}, err
 }
 
-type CapArgsTest struct{ Client capnp.Client }
+type CapArgsTest struct{ capnp.Client }
 
 // CapArgsTest_TypeID is the unique identifier for the type CapArgsTest.
 const CapArgsTest_TypeID = 0xb86bce7f916a10cc
@@ -402,10 +394,6 @@ func (c CapArgsTest) AddRef() CapArgsTest {
 	return CapArgsTest{
 		Client: c.Client.AddRef(),
 	}
-}
-
-func (c CapArgsTest) Release() {
-	c.Client.Release()
 }
 
 // A CapArgsTest_Server is a CapArgsTest with a local implementation.
