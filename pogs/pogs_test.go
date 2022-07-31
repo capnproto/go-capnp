@@ -161,13 +161,13 @@ var goodTests = []Z{
 	{Which: air.Z_Which_airport, Airport: air.Airport_lax},
 	{Which: air.Z_Which_grp, Grp: &ZGroup{First: 123, Second: 456}},
 	{Which: air.Z_Which_echo, Echo: air.Echo{}},
-	{Which: air.Z_Which_echo, Echo: air.Echo{Client: capnp.ErrorClient(errors.New("boo"))}},
+	{Which: air.Z_Which_echo, Echo: air.Echo(capnp.ErrorClient(errors.New("boo")))},
 	{Which: air.Z_Which_echoes, Echoes: []air.Echo{
-		{Client: capnp.Client{}},
-		{Client: capnp.ErrorClient(errors.New("boo"))},
-		{Client: capnp.Client{}},
-		{Client: capnp.ErrorClient(errors.New("boo"))},
-		{Client: capnp.Client{}},
+		air.Echo{},
+		air.Echo(capnp.ErrorClient(errors.New("boo"))),
+		air.Echo{},
+		air.Echo(capnp.ErrorClient(errors.New("boo"))),
+		air.Echo{},
 	}},
 	{Which: air.Z_Which_anyPtr, AnyPtr: capnp.Ptr{}},
 	{Which: air.Z_Which_anyPtr, AnyPtr: newTestStruct().ToPtr()},
@@ -1212,7 +1212,7 @@ func zfill(c air.Z, g *Z) error {
 			return err
 		}
 		for i, ee := range g.Echoes {
-			if !ee.Client.IsValid() {
+			if !ee.IsValid() {
 				continue
 			}
 			err := e.Set(i, ee)

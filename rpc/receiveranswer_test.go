@@ -66,7 +66,7 @@ func TestBootstrapReceiverAnswerRpc(t *testing.T) {
 	serverConn := NewConn(
 		NewStreamTransport(cServer),
 		&Options{
-			BootstrapClient: testcapnp.CapArgsTest_ServerToClient(srv).Client,
+			BootstrapClient: capnp.Client(testcapnp.CapArgsTest_ServerToClient(srv)),
 		},
 	)
 	defer serverConn.Close()
@@ -75,10 +75,10 @@ func TestBootstrapReceiverAnswerRpc(t *testing.T) {
 	defer clientConn.Close()
 
 	ctx := context.Background()
-	c := testcapnp.CapArgsTest{Client: clientConn.Bootstrap(ctx)}
+	c := testcapnp.CapArgsTest(clientConn.Bootstrap(ctx))
 
 	res, rel := c.Call(ctx, func(p testcapnp.CapArgsTest_call_Params) error {
-		return p.SetCap(c.Client.AddRef())
+		return p.SetCap(capnp.Client(c.AddRef()))
 	})
 	defer rel()
 	c.Release()
@@ -105,7 +105,7 @@ func TestCallReceiverAnswerRpc(t *testing.T) {
 	serverConn := NewConn(
 		NewStreamTransport(cServer),
 		&Options{
-			BootstrapClient: testcapnp.CapArgsTest_ServerToClient(srv).Client,
+			BootstrapClient: capnp.Client(testcapnp.CapArgsTest_ServerToClient(srv)),
 		},
 	)
 	defer serverConn.Close()
@@ -114,14 +114,14 @@ func TestCallReceiverAnswerRpc(t *testing.T) {
 	defer clientConn.Close()
 
 	ctx := context.Background()
-	bs := testcapnp.CapArgsTest{Client: clientConn.Bootstrap(ctx)}
+	bs := testcapnp.CapArgsTest(clientConn.Bootstrap(ctx))
 	defer bs.Release()
 
 	selfRes, rel := bs.Self(ctx, nil)
 	defer rel()
 	self := selfRes.Self()
 	callRes, rel := self.Call(ctx, func(p testcapnp.CapArgsTest_call_Params) error {
-		return p.SetCap(self.Client.AddRef())
+		return p.SetCap(capnp.Client(self.AddRef()))
 	})
 	self.Release()
 	defer rel()
@@ -149,7 +149,7 @@ func TestBootstrapReceiverAnswer(t *testing.T) {
 	conn := NewConn(
 		NewStreamTransport(cServer),
 		&Options{
-			BootstrapClient: testcapnp.CapArgsTest_ServerToClient(srv).Client,
+			BootstrapClient: capnp.Client(testcapnp.CapArgsTest_ServerToClient(srv)),
 		},
 	)
 	defer conn.Close()
@@ -216,7 +216,7 @@ func TestCallReceiverAnswer(t *testing.T) {
 	conn := NewConn(
 		NewStreamTransport(cServer),
 		&Options{
-			BootstrapClient: testcapnp.CapArgsTest_ServerToClient(srv).Client,
+			BootstrapClient: capnp.Client(testcapnp.CapArgsTest_ServerToClient(srv)),
 		},
 	)
 	defer conn.Close()

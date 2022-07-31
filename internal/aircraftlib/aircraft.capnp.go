@@ -2165,7 +2165,7 @@ func (s Z) Echo() Echo {
 		panic("Which() != echo")
 	}
 	p, _ := s.Struct.Ptr(0)
-	return Echo{Client: p.Interface().Client()}
+	return Echo(p.Interface().Client())
 }
 
 func (s Z) HasEcho() bool {
@@ -2177,11 +2177,11 @@ func (s Z) HasEcho() bool {
 
 func (s Z) SetEcho(v Echo) error {
 	s.Struct.SetUint16(0, 43)
-	if !v.Client.IsValid() {
+	if !v.IsValid() {
 		return s.Struct.SetPtr(0, capnp.Ptr{})
 	}
 	seg := s.Segment()
-	in := capnp.NewInterface(seg, seg.Message().AddCap(v.Client))
+	in := capnp.NewInterface(seg, seg.Message().AddCap(capnp.Client(v)))
 	return s.Struct.SetPtr(0, in.ToPtr())
 }
 
@@ -2363,7 +2363,7 @@ func (p Z_grp_Future) Struct() (Z_grp, error) {
 }
 
 func (p Z_Future) Echo() Echo {
-	return Echo{Client: p.Future.Field(0, nil).Client()}
+	return Echo(p.Future.Field(0, nil).Client())
 }
 
 func (p Z_Future) AnyPtr() *capnp.Future {
@@ -4427,7 +4427,7 @@ func (p ListStructCapn_Future) Struct() (ListStructCapn, error) {
 	return ListStructCapn{s}, err
 }
 
-type Echo struct{ capnp.Client }
+type Echo capnp.Client
 
 // Echo_TypeID is the unique identifier for the type Echo.
 const Echo_TypeID = 0x8e5322c1e9282534
@@ -4445,18 +4445,28 @@ func (c Echo) Echo(ctx context.Context, params func(Echo_echo_Params) error) (Ec
 		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 1}
 		s.PlaceArgs = func(s capnp.Struct) error { return params(Echo_echo_Params{Struct: s}) }
 	}
-	ans, release := c.Client.SendCall(ctx, s)
+	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return Echo_echo_Results_Future{Future: ans.Future()}, release
 }
 
 func (c Echo) AddRef() Echo {
-	return Echo{
-		Client: c.Client.AddRef(),
-	}
+	return Echo(capnp.Client(c).AddRef())
+}
+
+func (c Echo) Release() {
+	capnp.Client(c).Release()
+}
+
+func (c Echo) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Client(c).EncodeAsPtr(seg)
 }
 
 func (Echo) DecodeFromPtr(p capnp.Ptr) Echo {
-	return Echo{Client: capnp.Client{}.DecodeFromPtr(p)}
+	return Echo(capnp.Client{}.DecodeFromPtr(p))
+}
+
+func (c Echo) IsValid() bool {
+	return capnp.Client(c).IsValid()
 }
 
 // A Echo_Server is a Echo with a local implementation.
@@ -4473,7 +4483,7 @@ func Echo_NewServer(s Echo_Server) *server.Server {
 // Echo_ServerToClient creates a new Client from an implementation of Echo_Server.
 // The caller is responsible for calling Release on the returned Client.
 func Echo_ServerToClient(s Echo_Server) Echo {
-	return Echo{Client: capnp.NewClient(Echo_NewServer(s))}
+	return Echo(capnp.NewClient(Echo_NewServer(s)))
 }
 
 // Echo_Methods appends Methods to a slice that invoke the methods on s.
@@ -4753,7 +4763,7 @@ func (EchoBase) DecodeFromPtr(p capnp.Ptr) EchoBase {
 }
 func (s EchoBase) Echo() Echo {
 	p, _ := s.Struct.Ptr(0)
-	return Echo{Client: p.Interface().Client()}
+	return Echo(p.Interface().Client())
 }
 
 func (s EchoBase) HasEcho() bool {
@@ -4761,11 +4771,11 @@ func (s EchoBase) HasEcho() bool {
 }
 
 func (s EchoBase) SetEcho(v Echo) error {
-	if !v.Client.IsValid() {
+	if !v.IsValid() {
 		return s.Struct.SetPtr(0, capnp.Ptr{})
 	}
 	seg := s.Segment()
-	in := capnp.NewInterface(seg, seg.Message().AddCap(v.Client))
+	in := capnp.NewInterface(seg, seg.Message().AddCap(capnp.Client(v)))
 	return s.Struct.SetPtr(0, in.ToPtr())
 }
 
@@ -4787,7 +4797,7 @@ func (p EchoBase_Future) Struct() (EchoBase, error) {
 }
 
 func (p EchoBase_Future) Echo() Echo {
-	return Echo{Client: p.Future.Field(0, nil).Client()}
+	return Echo(p.Future.Field(0, nil).Client())
 }
 
 type StackingRoot struct{ capnp.Struct }
@@ -5029,7 +5039,7 @@ func (p StackingB_Future) Struct() (StackingB, error) {
 	return StackingB{s}, err
 }
 
-type CallSequence struct{ capnp.Client }
+type CallSequence capnp.Client
 
 // CallSequence_TypeID is the unique identifier for the type CallSequence.
 const CallSequence_TypeID = 0xabaedf5f7817c820
@@ -5047,18 +5057,28 @@ func (c CallSequence) GetNumber(ctx context.Context, params func(CallSequence_ge
 		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
 		s.PlaceArgs = func(s capnp.Struct) error { return params(CallSequence_getNumber_Params{Struct: s}) }
 	}
-	ans, release := c.Client.SendCall(ctx, s)
+	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return CallSequence_getNumber_Results_Future{Future: ans.Future()}, release
 }
 
 func (c CallSequence) AddRef() CallSequence {
-	return CallSequence{
-		Client: c.Client.AddRef(),
-	}
+	return CallSequence(capnp.Client(c).AddRef())
+}
+
+func (c CallSequence) Release() {
+	capnp.Client(c).Release()
+}
+
+func (c CallSequence) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Client(c).EncodeAsPtr(seg)
 }
 
 func (CallSequence) DecodeFromPtr(p capnp.Ptr) CallSequence {
-	return CallSequence{Client: capnp.Client{}.DecodeFromPtr(p)}
+	return CallSequence(capnp.Client{}.DecodeFromPtr(p))
+}
+
+func (c CallSequence) IsValid() bool {
+	return capnp.Client(c).IsValid()
 }
 
 // A CallSequence_Server is a CallSequence with a local implementation.
@@ -5075,7 +5095,7 @@ func CallSequence_NewServer(s CallSequence_Server) *server.Server {
 // CallSequence_ServerToClient creates a new Client from an implementation of CallSequence_Server.
 // The caller is responsible for calling Release on the returned Client.
 func CallSequence_ServerToClient(s CallSequence_Server) CallSequence {
-	return CallSequence{Client: capnp.NewClient(CallSequence_NewServer(s))}
+	return CallSequence(capnp.NewClient(CallSequence_NewServer(s)))
 }
 
 // CallSequence_Methods appends Methods to a slice that invoke the methods on s.
@@ -5225,7 +5245,7 @@ func (p CallSequence_getNumber_Results_Future) Struct() (CallSequence_getNumber_
 	return CallSequence_getNumber_Results{s}, err
 }
 
-type Pipeliner struct{ capnp.Client }
+type Pipeliner capnp.Client
 
 // Pipeliner_TypeID is the unique identifier for the type Pipeliner.
 const Pipeliner_TypeID = 0xd6514008f0f84ebc
@@ -5243,7 +5263,7 @@ func (c Pipeliner) NewPipeliner(ctx context.Context, params func(Pipeliner_newPi
 		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
 		s.PlaceArgs = func(s capnp.Struct) error { return params(Pipeliner_newPipeliner_Params{Struct: s}) }
 	}
-	ans, release := c.Client.SendCall(ctx, s)
+	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return Pipeliner_newPipeliner_Results_Future{Future: ans.Future()}, release
 }
 func (c Pipeliner) GetNumber(ctx context.Context, params func(CallSequence_getNumber_Params) error) (CallSequence_getNumber_Results_Future, capnp.ReleaseFunc) {
@@ -5259,18 +5279,28 @@ func (c Pipeliner) GetNumber(ctx context.Context, params func(CallSequence_getNu
 		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
 		s.PlaceArgs = func(s capnp.Struct) error { return params(CallSequence_getNumber_Params{Struct: s}) }
 	}
-	ans, release := c.Client.SendCall(ctx, s)
+	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return CallSequence_getNumber_Results_Future{Future: ans.Future()}, release
 }
 
 func (c Pipeliner) AddRef() Pipeliner {
-	return Pipeliner{
-		Client: c.Client.AddRef(),
-	}
+	return Pipeliner(capnp.Client(c).AddRef())
+}
+
+func (c Pipeliner) Release() {
+	capnp.Client(c).Release()
+}
+
+func (c Pipeliner) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Client(c).EncodeAsPtr(seg)
 }
 
 func (Pipeliner) DecodeFromPtr(p capnp.Ptr) Pipeliner {
-	return Pipeliner{Client: capnp.Client{}.DecodeFromPtr(p)}
+	return Pipeliner(capnp.Client{}.DecodeFromPtr(p))
+}
+
+func (c Pipeliner) IsValid() bool {
+	return capnp.Client(c).IsValid()
 }
 
 // A Pipeliner_Server is a Pipeliner with a local implementation.
@@ -5289,7 +5319,7 @@ func Pipeliner_NewServer(s Pipeliner_Server) *server.Server {
 // Pipeliner_ServerToClient creates a new Client from an implementation of Pipeliner_Server.
 // The caller is responsible for calling Release on the returned Client.
 func Pipeliner_ServerToClient(s Pipeliner_Server) Pipeliner {
-	return Pipeliner{Client: capnp.NewClient(Pipeliner_NewServer(s))}
+	return Pipeliner(capnp.NewClient(Pipeliner_NewServer(s)))
 }
 
 // Pipeliner_Methods appends Methods to a slice that invoke the methods on s.
@@ -5440,7 +5470,7 @@ func (s Pipeliner_newPipeliner_Results) SetExtra(v capnp.Ptr) error {
 
 func (s Pipeliner_newPipeliner_Results) Pipeliner() Pipeliner {
 	p, _ := s.Struct.Ptr(1)
-	return Pipeliner{Client: p.Interface().Client()}
+	return Pipeliner(p.Interface().Client())
 }
 
 func (s Pipeliner_newPipeliner_Results) HasPipeliner() bool {
@@ -5448,11 +5478,11 @@ func (s Pipeliner_newPipeliner_Results) HasPipeliner() bool {
 }
 
 func (s Pipeliner_newPipeliner_Results) SetPipeliner(v Pipeliner) error {
-	if !v.Client.IsValid() {
+	if !v.IsValid() {
 		return s.Struct.SetPtr(1, capnp.Ptr{})
 	}
 	seg := s.Segment()
-	in := capnp.NewInterface(seg, seg.Message().AddCap(v.Client))
+	in := capnp.NewInterface(seg, seg.Message().AddCap(capnp.Client(v)))
 	return s.Struct.SetPtr(1, in.ToPtr())
 }
 
@@ -5478,7 +5508,7 @@ func (p Pipeliner_newPipeliner_Results_Future) Extra() *capnp.Future {
 }
 
 func (p Pipeliner_newPipeliner_Results_Future) Pipeliner() Pipeliner {
-	return Pipeliner{Client: p.Future.Field(1, nil).Client()}
+	return Pipeliner(p.Future.Field(1, nil).Client())
 }
 
 type Defaults struct{ capnp.Struct }

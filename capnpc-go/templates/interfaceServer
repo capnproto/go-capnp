@@ -14,7 +14,7 @@ func {{.Node.Name}}_NewServer(s {{.Node.Name}}_Server) *{{.G.Imports.Server}}.Se
 // {{.Node.Name}}_ServerToClient creates a new Client from an implementation of {{.Node.Name}}_Server.
 // The caller is responsible for calling Release on the returned Client.
 func {{.Node.Name}}_ServerToClient(s {{.Node.Name}}_Server) {{.Node.Name}} {
-	return {{.Node.Name}}{Client: capnp.NewClient({{.Node.Name}}_NewServer(s))}
+	return {{.Node.Name}}(capnp.NewClient({{.Node.Name}}_NewServer(s)))
 }
 
 // {{.Node.Name}}_Methods appends Methods to a slice that invoke the methods on s.
