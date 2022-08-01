@@ -1205,7 +1205,7 @@ func (c *Conn) recvCapReceiverAnswer(ans *answer, transform []capnp.PipelineOp) 
 		return capnp.ErrorClient(rpcerr.Failedf("Result is not a capability"))
 	}
 
-	// We can't just call Client(), becasue the CapTable has been cleared; instead,
+	// We can't just call Client(), because the CapTable has been cleared; instead,
 	// look it up in resultCapTable ourselves:
 	capId := int(iface.Capability())
 	if capId < 0 || capId >= len(ans.resultCapTable) {
