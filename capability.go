@@ -597,7 +597,6 @@ func (Client) DecodeFromPtr(p Ptr) Client {
 
 var _ TypeParam[Client] = Client{}
 
-
 // isResolve reports whether ch has been resolved.
 // The caller must be holding onto ch.mu.
 func (ch *clientHook) isResolved() bool {
