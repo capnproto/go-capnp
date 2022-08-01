@@ -66,7 +66,7 @@ func TestSendManySequential(t *testing.T) {
 	assert.Equal(t, inputs, outputs, "Received sequence was different from sent.")
 
 	v, ok := q.TryRecv()
-	assert.False(t, ok, "Recieved more values than expected: ", v)
+	assert.False(t, ok, "Received more values than expected: ", v)
 }
 
 func TestSendManyConcurrent(t *testing.T) {
@@ -111,5 +111,5 @@ func TestSendManyConcurrent(t *testing.T) {
 	assert.Equal(t, expected, actual, "Different values came out of the queue than went in.")
 
 	v, ok := q.TryRecv()
-	assert.False(t, ok, "Recieved more values than expected: ", v)
+	assert.False(t, ok, "Received more values than expected: ", v)
 }
