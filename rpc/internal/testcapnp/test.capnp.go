@@ -11,7 +11,7 @@ import (
 	context "context"
 )
 
-type PingPong struct{ capnp.Client }
+type PingPong capnp.Client
 
 // PingPong_TypeID is the unique identifier for the type PingPong.
 const PingPong_TypeID = 0xf004c474c2f8ee7a
@@ -29,18 +29,28 @@ func (c PingPong) EchoNum(ctx context.Context, params func(PingPong_echoNum_Para
 		s.ArgsSize = capnp.ObjectSize{DataSize: 8, PointerCount: 0}
 		s.PlaceArgs = func(s capnp.Struct) error { return params(PingPong_echoNum_Params{Struct: s}) }
 	}
-	ans, release := c.Client.SendCall(ctx, s)
+	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return PingPong_echoNum_Results_Future{Future: ans.Future()}, release
 }
 
 func (c PingPong) AddRef() PingPong {
-	return PingPong{
-		Client: c.Client.AddRef(),
-	}
+	return PingPong(capnp.Client(c).AddRef())
+}
+
+func (c PingPong) Release() {
+	capnp.Client(c).Release()
+}
+
+func (c PingPong) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Client(c).EncodeAsPtr(seg)
 }
 
 func (PingPong) DecodeFromPtr(p capnp.Ptr) PingPong {
-	return PingPong{Client: capnp.Client{}.DecodeFromPtr(p)}
+	return PingPong(capnp.Client{}.DecodeFromPtr(p))
+}
+
+func (c PingPong) IsValid() bool {
+	return capnp.Client(c).IsValid()
 }
 
 // A PingPong_Server is a PingPong with a local implementation.
@@ -57,7 +67,7 @@ func PingPong_NewServer(s PingPong_Server) *server.Server {
 // PingPong_ServerToClient creates a new Client from an implementation of PingPong_Server.
 // The caller is responsible for calling Release on the returned Client.
 func PingPong_ServerToClient(s PingPong_Server) PingPong {
-	return PingPong{Client: capnp.NewClient(PingPong_NewServer(s))}
+	return PingPong(capnp.NewClient(PingPong_NewServer(s)))
 }
 
 // PingPong_Methods appends Methods to a slice that invoke the methods on s.
@@ -214,7 +224,7 @@ func (p PingPong_echoNum_Results_Future) Struct() (PingPong_echoNum_Results, err
 	return PingPong_echoNum_Results{s}, err
 }
 
-type StreamTest struct{ capnp.Client }
+type StreamTest capnp.Client
 
 // StreamTest_TypeID is the unique identifier for the type StreamTest.
 const StreamTest_TypeID = 0xbb3ca85b01eea465
@@ -232,18 +242,28 @@ func (c StreamTest) Push(ctx context.Context, params func(StreamTest_push_Params
 		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 1}
 		s.PlaceArgs = func(s capnp.Struct) error { return params(StreamTest_push_Params{Struct: s}) }
 	}
-	ans, release := c.Client.SendCall(ctx, s)
+	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return stream.StreamResult_Future{Future: ans.Future()}, release
 }
 
 func (c StreamTest) AddRef() StreamTest {
-	return StreamTest{
-		Client: c.Client.AddRef(),
-	}
+	return StreamTest(capnp.Client(c).AddRef())
+}
+
+func (c StreamTest) Release() {
+	capnp.Client(c).Release()
+}
+
+func (c StreamTest) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Client(c).EncodeAsPtr(seg)
 }
 
 func (StreamTest) DecodeFromPtr(p capnp.Ptr) StreamTest {
-	return StreamTest{Client: capnp.Client{}.DecodeFromPtr(p)}
+	return StreamTest(capnp.Client{}.DecodeFromPtr(p))
+}
+
+func (c StreamTest) IsValid() bool {
+	return capnp.Client(c).IsValid()
 }
 
 // A StreamTest_Server is a StreamTest with a local implementation.
@@ -260,7 +280,7 @@ func StreamTest_NewServer(s StreamTest_Server) *server.Server {
 // StreamTest_ServerToClient creates a new Client from an implementation of StreamTest_Server.
 // The caller is responsible for calling Release on the returned Client.
 func StreamTest_ServerToClient(s StreamTest_Server) StreamTest {
-	return StreamTest{Client: capnp.NewClient(StreamTest_NewServer(s))}
+	return StreamTest(capnp.NewClient(StreamTest_NewServer(s)))
 }
 
 // StreamTest_Methods appends Methods to a slice that invoke the methods on s.
@@ -369,7 +389,7 @@ func (p StreamTest_push_Params_Future) Struct() (StreamTest_push_Params, error) 
 	return StreamTest_push_Params{s}, err
 }
 
-type CapArgsTest struct{ capnp.Client }
+type CapArgsTest capnp.Client
 
 // CapArgsTest_TypeID is the unique identifier for the type CapArgsTest.
 const CapArgsTest_TypeID = 0xb86bce7f916a10cc
@@ -387,7 +407,7 @@ func (c CapArgsTest) Call(ctx context.Context, params func(CapArgsTest_call_Para
 		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 1}
 		s.PlaceArgs = func(s capnp.Struct) error { return params(CapArgsTest_call_Params{Struct: s}) }
 	}
-	ans, release := c.Client.SendCall(ctx, s)
+	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return CapArgsTest_call_Results_Future{Future: ans.Future()}, release
 }
 func (c CapArgsTest) Self(ctx context.Context, params func(CapArgsTest_self_Params) error) (CapArgsTest_self_Results_Future, capnp.ReleaseFunc) {
@@ -403,18 +423,28 @@ func (c CapArgsTest) Self(ctx context.Context, params func(CapArgsTest_self_Para
 		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
 		s.PlaceArgs = func(s capnp.Struct) error { return params(CapArgsTest_self_Params{Struct: s}) }
 	}
-	ans, release := c.Client.SendCall(ctx, s)
+	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return CapArgsTest_self_Results_Future{Future: ans.Future()}, release
 }
 
 func (c CapArgsTest) AddRef() CapArgsTest {
-	return CapArgsTest{
-		Client: c.Client.AddRef(),
-	}
+	return CapArgsTest(capnp.Client(c).AddRef())
+}
+
+func (c CapArgsTest) Release() {
+	capnp.Client(c).Release()
+}
+
+func (c CapArgsTest) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Client(c).EncodeAsPtr(seg)
 }
 
 func (CapArgsTest) DecodeFromPtr(p capnp.Ptr) CapArgsTest {
-	return CapArgsTest{Client: capnp.Client{}.DecodeFromPtr(p)}
+	return CapArgsTest(capnp.Client{}.DecodeFromPtr(p))
+}
+
+func (c CapArgsTest) IsValid() bool {
+	return capnp.Client(c).IsValid()
 }
 
 // A CapArgsTest_Server is a CapArgsTest with a local implementation.
@@ -433,7 +463,7 @@ func CapArgsTest_NewServer(s CapArgsTest_Server) *server.Server {
 // CapArgsTest_ServerToClient creates a new Client from an implementation of CapArgsTest_Server.
 // The caller is responsible for calling Release on the returned Client.
 func CapArgsTest_ServerToClient(s CapArgsTest_Server) CapArgsTest {
-	return CapArgsTest{Client: capnp.NewClient(CapArgsTest_NewServer(s))}
+	return CapArgsTest(capnp.NewClient(CapArgsTest_NewServer(s)))
 }
 
 // CapArgsTest_Methods appends Methods to a slice that invoke the methods on s.
@@ -702,7 +732,7 @@ func (CapArgsTest_self_Results) DecodeFromPtr(p capnp.Ptr) CapArgsTest_self_Resu
 }
 func (s CapArgsTest_self_Results) Self() CapArgsTest {
 	p, _ := s.Struct.Ptr(0)
-	return CapArgsTest{Client: p.Interface().Client()}
+	return CapArgsTest(p.Interface().Client())
 }
 
 func (s CapArgsTest_self_Results) HasSelf() bool {
@@ -710,11 +740,11 @@ func (s CapArgsTest_self_Results) HasSelf() bool {
 }
 
 func (s CapArgsTest_self_Results) SetSelf(v CapArgsTest) error {
-	if !v.Client.IsValid() {
+	if !v.IsValid() {
 		return s.Struct.SetPtr(0, capnp.Ptr{})
 	}
 	seg := s.Segment()
-	in := capnp.NewInterface(seg, seg.Message().AddCap(v.Client))
+	in := capnp.NewInterface(seg, seg.Message().AddCap(capnp.Client(v)))
 	return s.Struct.SetPtr(0, in.ToPtr())
 }
 
@@ -736,7 +766,7 @@ func (p CapArgsTest_self_Results_Future) Struct() (CapArgsTest_self_Results, err
 }
 
 func (p CapArgsTest_self_Results_Future) Self() CapArgsTest {
-	return CapArgsTest{Client: p.Future.Field(0, nil).Client()}
+	return CapArgsTest(p.Future.Field(0, nil).Client())
 }
 
 const schema_ef12a34b9807e19c = "x\xda\x94\x93Mh\xd3`\x18\xc7\x9f\xa7\xef\x9b\xa5C" +

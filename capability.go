@@ -104,7 +104,12 @@ func (id CapabilityID) GoString() string {
 // A Client is a reference to a Cap'n Proto capability.
 // The zero value is a null capability reference.
 // It is safe to use from multiple goroutines.
-type Client struct {
+type Client ClientKind
+
+// The underlying type of Client. We expose this so that
+// we can use ~ClientKind as a constraint in generics to
+// capture any capability type.
+type ClientKind = struct {
 	*client
 }
 

@@ -12,7 +12,7 @@ import (
 
 const PersistentAnnotation = uint64(0xf622595091cafb67)
 
-type Persistent struct{ capnp.Client }
+type Persistent capnp.Client
 
 // Persistent_TypeID is the unique identifier for the type Persistent.
 const Persistent_TypeID = 0xc8cb212fcd9f5691
@@ -30,18 +30,28 @@ func (c Persistent) Save(ctx context.Context, params func(Persistent_SaveParams)
 		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 1}
 		s.PlaceArgs = func(s capnp.Struct) error { return params(Persistent_SaveParams{Struct: s}) }
 	}
-	ans, release := c.Client.SendCall(ctx, s)
+	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return Persistent_SaveResults_Future{Future: ans.Future()}, release
 }
 
 func (c Persistent) AddRef() Persistent {
-	return Persistent{
-		Client: c.Client.AddRef(),
-	}
+	return Persistent(capnp.Client(c).AddRef())
+}
+
+func (c Persistent) Release() {
+	capnp.Client(c).Release()
+}
+
+func (c Persistent) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Client(c).EncodeAsPtr(seg)
 }
 
 func (Persistent) DecodeFromPtr(p capnp.Ptr) Persistent {
-	return Persistent{Client: capnp.Client{}.DecodeFromPtr(p)}
+	return Persistent(capnp.Client{}.DecodeFromPtr(p))
+}
+
+func (c Persistent) IsValid() bool {
+	return capnp.Client(c).IsValid()
 }
 
 // A Persistent_Server is a Persistent with a local implementation.
@@ -58,7 +68,7 @@ func Persistent_NewServer(s Persistent_Server) *server.Server {
 // Persistent_ServerToClient creates a new Client from an implementation of Persistent_Server.
 // The caller is responsible for calling Release on the returned Client.
 func Persistent_ServerToClient(s Persistent_Server) Persistent {
-	return Persistent{Client: capnp.NewClient(Persistent_NewServer(s))}
+	return Persistent(capnp.NewClient(Persistent_NewServer(s)))
 }
 
 // Persistent_Methods appends Methods to a slice that invoke the methods on s.

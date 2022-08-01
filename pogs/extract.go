@@ -231,13 +231,8 @@ func (e *extracter) extractField(val reflect.Value, s capnp.Struct, f schema.Fie
 		if err != nil {
 			return err
 		}
-		if val.Type() != clientType {
-			// Must be a struct wrapper.
-			val = val.FieldByName("Client")
-		}
-
 		client := p.Interface().Client()
-		val.Set(reflect.ValueOf(client))
+		val.Set(reflect.ValueOf(client).Convert(val.Type()))
 	case schema.Type_Which_anyPointer:
 		p, err := s.Ptr(uint16(f.Slot().Offset()))
 		if err != nil {
@@ -387,25 +382,16 @@ func (e *extracter) extractList(val reflect.Value, typ schema.Type, l capnp.List
 			}
 		}
 	case schema.Type_Which_interface:
-		if val.Type().Elem() == clientType {
-			for i := 0; i < n; i++ {
-				p, err := capnp.PointerList{List: l}.At(i)
-				// TODO(light): collect errors and finish
-				if err != nil {
-					return err
-				}
-				val.Index(i).Set(reflect.ValueOf(p.Interface().Client()))
+		elemType := val.Type().Elem()
+		for i := 0; i < n; i++ {
+			p, err := capnp.PointerList{List: l}.At(i)
+			// TODO(light): collect errors and finish
+			if err != nil {
+				return err
 			}
-		} else {
-			// Must be a struct wrapper.
-			for i := 0; i < n; i++ {
-				p, err := capnp.PointerList{List: l}.At(i)
-				// TODO(light): collect errors and finish
-				if err != nil {
-					return err
-				}
-				val.Index(i).FieldByName("Client").Set(reflect.ValueOf(p.Interface().Client()))
-			}
+			val.Index(i).Set(
+				reflect.ValueOf(p.Interface().Client()).Convert(elemType),
+			)
 		}
 	case schema.Type_Which_anyPointer:
 		// Schemas aren't allowed to have List(AnyPointer).
@@ -444,23 +430,7 @@ func isTypeMatch(r reflect.Type, s schema.Type) bool {
 		e, _ := s.List().ElementType()
 		return r.Kind() == reflect.Slice && isTypeMatch(r.Elem(), e)
 	case schema.Type_Which_interface:
-		if r == clientType {
-			return true
-		}
-
-		// Otherwise, the type must be a struct with one element named
-		// "Client" of type capnp.Client.
-		if r.Kind() != reflect.Struct {
-			return false
-		}
-		if r.NumField() != 1 {
-			return false
-		}
-		field, ok := r.FieldByName("Client")
-		if !ok {
-			return false
-		}
-		return field.Type == clientType
+		return reflect.Zero(clientType).CanConvert(r)
 	case schema.Type_Which_anyPointer:
 		if r == ptrType {
 			return true

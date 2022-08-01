@@ -1,7 +1,7 @@
 {{with .Annotations.Doc -}}
 // {{.}}
 {{end -}}
-type {{.Node.Name}} struct { capnp.Client }
+type {{.Node.Name}} capnp.Client
 
 {{ template "_typeid" .Node }}
 
@@ -16,17 +16,27 @@ func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{$.G.Imports.Context}}.Context, pa
 		s.ArgsSize = {{$.G.ObjectSize .Params}}
 		s.PlaceArgs = func(s capnp.Struct) error { return params({{$.G.RemoteNodeName .Params $.Node}}{Struct: s}) }
 	}
-	ans, release := c.Client.SendCall(ctx, s)
+	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return {{$.G.RemoteNodeName .Results $.Node}}_Future{Future: ans.Future()}, release
 }
 {{end}}
 
 func (c {{$.Node.Name}}) AddRef() {{$.Node.Name}} {
-	return {{$.Node.Name}} {
-		Client: c.Client.AddRef(),
-	}
+	return {{$.Node.Name}}(capnp.Client(c).AddRef())
+}
+
+func (c {{$.Node.Name}}) Release() {
+	capnp.Client(c).Release()
+}
+
+func (c {{$.Node.Name}}) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Client(c).EncodeAsPtr(seg)
 }
 
 func ({{$.Node.Name}}) DecodeFromPtr(p capnp.Ptr) {{$.Node.Name}} {
-	return {{$.Node.Name}}{ Client: capnp.Client{}.DecodeFromPtr(p) }
+	return {{$.Node.Name}}(capnp.Client{}.DecodeFromPtr(p))
+}
+
+func (c {{$.Node.Name}}) IsValid() bool {
+	return capnp.Client(c).IsValid()
 }

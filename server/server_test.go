@@ -39,7 +39,7 @@ func (errorEchoImpl) Echo(_ context.Context, call air.Echo_echo) error {
 func TestServerCall(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		echo := air.Echo_ServerToClient(echoImpl{})
-		defer echo.Client.Release()
+		defer echo.Release()
 
 		ans, finish := echo.Echo(context.Background(), func(p air.Echo_echo_Params) error {
 			err := p.SetIn("foo")
@@ -58,7 +58,7 @@ func TestServerCall(t *testing.T) {
 	})
 	t.Run("Error", func(t *testing.T) {
 		echo := air.Echo_ServerToClient(errorEchoImpl{})
-		defer echo.Client.Release()
+		defer echo.Release()
 
 		ans, finish := echo.Echo(context.Background(), func(p air.Echo_echo_Params) error {
 			err := p.SetIn("foo")
@@ -71,8 +71,8 @@ func TestServerCall(t *testing.T) {
 		}
 	})
 	t.Run("Unimplemented", func(t *testing.T) {
-		echo := air.Echo{Client: capnp.NewClient(server.New(nil, nil, nil))}
-		defer echo.Client.Release()
+		echo := air.Echo(capnp.NewClient(server.New(nil, nil, nil)))
+		defer echo.Release()
 
 		ans, finish := echo.Echo(context.Background(), func(p air.Echo_echo_Params) error {
 			err := p.SetIn("foo")
@@ -145,19 +145,19 @@ func TestServerCallOrder(t *testing.T) {
 			check(call3, 3)
 			check(call4, 4)
 		})
-		test.seq.Client.Release()
+		test.seq.Release()
 	}
 }
 
 func TestServerShutdown(t *testing.T) {
 	wait := make(chan struct{})
 	echo := air.Echo_ServerToClient(blockingEchoImpl{wait})
-	defer echo.Client.Release()
+	defer echo.Release()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	call, finish := echo.Echo(ctx, nil)
 	defer finish()
-	echo.Client.Release()
+	echo.Release()
 	select {
 	case <-call.Done():
 		if _, err := call.Struct(); err == nil {

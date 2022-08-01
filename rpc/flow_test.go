@@ -83,7 +83,7 @@ func TestFixedFlowLimit(t *testing.T) {
 
 		bootstrap := testcapnp.StreamTest_ServerToClient(slowStreamTestServer{})
 		conn := NewConn(serverTrans, &Options{
-			BootstrapClient: bootstrap.Client,
+			BootstrapClient: capnp.Client(bootstrap),
 		})
 		defer conn.Close()
 		<-ctx.Done()
@@ -97,7 +97,7 @@ func TestFixedFlowLimit(t *testing.T) {
 		conn := NewConn(trans, nil)
 		defer conn.Close()
 
-		client := testcapnp.StreamTest{Client: conn.Bootstrap(ctx)}
+		client := testcapnp.StreamTest(conn.Bootstrap(ctx))
 		defer client.Release()
 
 		// Make a decently sized payload, so we can expect the size of the
@@ -106,7 +106,7 @@ func TestFixedFlowLimit(t *testing.T) {
 
 		// Rig up the flow control, then send calls as fast as the limiter will
 		// let us:
-		client.Client.SetFlowLimiter(flowcontrol.NewFixedLimiter(limit))
+		capnp.Client(client).SetFlowLimiter(flowcontrol.NewFixedLimiter(limit))
 		for ctx.Err() == nil {
 			client.Push(ctx, func(p testcapnp.StreamTest_push_Params) error {
 				return p.SetData(data)
