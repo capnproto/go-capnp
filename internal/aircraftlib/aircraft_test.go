@@ -12,6 +12,6 @@ var (
 	_ capnp.TypeParam[Zdate] = Zdate{}
 
 	// ...and lists:
-	_ capnp.TypeParam[Echo_List] = Echo_List{}
+	_ capnp.TypeParam[Echo_List]  = Echo_List{}
 	_ capnp.TypeParam[Zdate_List] = Zdate_List{}
 )

@@ -317,7 +317,7 @@ func (p BitList) String() string {
 }
 
 func (BitList) DecodeFromPtr(p Ptr) BitList {
-	return BitList{ List: List{}.DecodeFromPtr(p) }
+	return BitList{List: List{}.DecodeFromPtr(p)}
 }
 
 // A PointerList is a reference to an array of pointers.
@@ -363,7 +363,7 @@ func (p PointerList) Set(i int, v Ptr) error {
 }
 
 func (PointerList) DecodeFromPtr(p Ptr) PointerList {
-	return PointerList{ List: List{}.DecodeFromPtr(p) }
+	return PointerList{List: List{}.DecodeFromPtr(p)}
 }
 
 // TextList is an array of pointers to strings.
@@ -443,7 +443,7 @@ func (l TextList) String() string {
 }
 
 func (TextList) DecodeFromPtr(p Ptr) TextList {
-	return TextList{ List: List{}.DecodeFromPtr(p) }
+	return TextList{List: List{}.DecodeFromPtr(p)}
 }
 
 // DataList is an array of pointers to data.
@@ -509,7 +509,7 @@ func (l DataList) String() string {
 }
 
 func (DataList) DecodeFromPtr(p Ptr) DataList {
-	return DataList{ List: List{}.DecodeFromPtr(p) }
+	return DataList{List: List{}.DecodeFromPtr(p)}
 }
 
 // A VoidList is a list of zero-sized elements.
@@ -545,7 +545,7 @@ func (l VoidList) String() string {
 }
 
 func (VoidList) DecodeFromPtr(p Ptr) VoidList {
-	return VoidList{ List: List{}.DecodeFromPtr(p) }
+	return VoidList{List: List{}.DecodeFromPtr(p)}
 }
 
 // A UInt8List is an array of UInt8 values.
@@ -632,7 +632,7 @@ func (l UInt8List) String() string {
 }
 
 func (UInt8List) DecodeFromPtr(p Ptr) UInt8List {
-	return UInt8List{ List: List{}.DecodeFromPtr(p) }
+	return UInt8List{List: List{}.DecodeFromPtr(p)}
 }
 
 // Int8List is an array of Int8 values.
@@ -682,7 +682,7 @@ func (l Int8List) String() string {
 }
 
 func (Int8List) DecodeFromPtr(p Ptr) Int8List {
-	return Int8List{ List: List{}.DecodeFromPtr(p) }
+	return Int8List{List: List{}.DecodeFromPtr(p)}
 }
 
 // A UInt16List is an array of UInt16 values.
@@ -732,7 +732,7 @@ func (l UInt16List) String() string {
 }
 
 func (UInt16List) DecodeFromPtr(p Ptr) UInt16List {
-	return UInt16List{ List: List{}.DecodeFromPtr(p) }
+	return UInt16List{List: List{}.DecodeFromPtr(p)}
 }
 
 // Int16List is an array of Int16 values.
@@ -782,7 +782,7 @@ func (l Int16List) String() string {
 }
 
 func (Int16List) DecodeFromPtr(p Ptr) Int16List {
-	return Int16List{ List: List{}.DecodeFromPtr(p) }
+	return Int16List{List: List{}.DecodeFromPtr(p)}
 }
 
 // UInt32List is an array of UInt32 values.
@@ -832,7 +832,7 @@ func (l UInt32List) String() string {
 }
 
 func (UInt32List) DecodeFromPtr(p Ptr) UInt32List {
-	return UInt32List{ List: List{}.DecodeFromPtr(p) }
+	return UInt32List{List: List{}.DecodeFromPtr(p)}
 }
 
 // Int32List is an array of Int32 values.
@@ -882,7 +882,7 @@ func (l Int32List) String() string {
 }
 
 func (Int32List) DecodeFromPtr(p Ptr) Int32List {
-	return Int32List{ List: List{}.DecodeFromPtr(p) }
+	return Int32List{List: List{}.DecodeFromPtr(p)}
 }
 
 // UInt64List is an array of UInt64 values.
@@ -932,7 +932,7 @@ func (l UInt64List) String() string {
 }
 
 func (UInt64List) DecodeFromPtr(p Ptr) UInt64List {
-	return UInt64List{ List: List{}.DecodeFromPtr(p) }
+	return UInt64List{List: List{}.DecodeFromPtr(p)}
 }
 
 // Int64List is an array of Int64 values.
@@ -982,7 +982,7 @@ func (l Int64List) String() string {
 }
 
 func (Int64List) DecodeFromPtr(p Ptr) Int64List {
-	return Int64List{ List: List{}.DecodeFromPtr(p) }
+	return Int64List{List: List{}.DecodeFromPtr(p)}
 }
 
 // Float32List is an array of Float32 values.
@@ -1032,7 +1032,7 @@ func (l Float32List) String() string {
 }
 
 func (Float32List) DecodeFromPtr(p Ptr) Float32List {
-	return Float32List{ List: List{}.DecodeFromPtr(p) }
+	return Float32List{List: List{}.DecodeFromPtr(p)}
 }
 
 // Float64List is an array of Float64 values.
@@ -1082,7 +1082,7 @@ func (l Float64List) String() string {
 }
 
 func (Float64List) DecodeFromPtr(p Ptr) Float64List {
-	return Float64List{ List: List{}.DecodeFromPtr(p) }
+	return Float64List{List: List{}.DecodeFromPtr(p)}
 }
 
 // A list of some Cap'n Proto enum type T.
@@ -1112,13 +1112,13 @@ func (l EnumList[T]) String() string {
 }
 
 func (EnumList[T]) DecodeFromPtr(p Ptr) EnumList[T] {
-	return EnumList[T]{ List: List{}.DecodeFromPtr(p) }
+	return EnumList[T]{List: List{}.DecodeFromPtr(p)}
 }
 
 // A list of some Cap'n Proto struct type T.
 type StructList[T ~struct{ Struct }] struct{ List }
 
-var _ TypeParam[StructList[struct{Struct}]] = StructList[struct{Struct}]{}
+var _ TypeParam[StructList[struct{ Struct }]] = StructList[struct{ Struct }]{}
 
 // At returns the i'th element.
 func (s StructList[T]) At(i int) T {
