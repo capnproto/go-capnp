@@ -1364,8 +1364,8 @@ func (c *Conn) handleDisembargo(ctx context.Context, d rpccp.Disembargo, release
 				return
 			}
 
-			ptr, err := capnp.Transform(content, tgt.transform)
-			if err != nil {
+			var ptr capnp.Ptr
+			if ptr, err = capnp.Transform(content, tgt.transform); err != nil {
 				err = rpcerr.Failedf("incoming disembargo: read answer ID %d: %v", tgt.promisedAnswer, err)
 				return
 			}
