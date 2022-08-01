@@ -1145,10 +1145,11 @@ func (s StructList[T]) String() string {
 }
 
 func (StructList[T]) DecodeFromPtr(p Ptr) StructList[T] {
-	return StructList[T]{ List: List{}.DecodeFromPtr(p) }
+	return StructList[T]{List: List{}.DecodeFromPtr(p)}
 }
 
-type CapList[T ~struct{*client}] PointerList
+// A list of some Cap'n Proto capability type T.
+type CapList[T ~ClientKind] PointerList
 
 func (c CapList[T]) At(i int) (T, error) {
 	ptr, err := PointerList(c).At(i)
