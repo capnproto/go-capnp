@@ -14,7 +14,7 @@ func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{$.G.Imports.Context}}.Context, pa
 	}
 	if params != nil {
 		s.ArgsSize = {{$.G.ObjectSize .Params}}
-		s.PlaceArgs = func(s capnp.Struct) error { return params({{$.G.RemoteNodeName .Params $.Node}}{Struct: s}) }
+		s.PlaceArgs = func(s capnp.Struct) error { return params({{$.G.RemoteNodeName .Params $.Node}}(s)) }
 	}
 	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return {{$.G.RemoteNodeName .Results $.Node}}_Future{Future: ans.Future()}, release

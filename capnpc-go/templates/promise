@@ -3,6 +3,6 @@ type {{.Node.Name}}_Future struct { *capnp.Future }
 
 func (p {{.Node.Name}}_Future) Struct() ({{.Node.Name}}, error) {
 	s, err := p.Future.Struct()
-	return {{.Node.Name}}{s}, err
+	return {{.Node.Name}}(s), err
 }
 

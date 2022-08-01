@@ -27,7 +27,7 @@ func (c PingPong) EchoNum(ctx context.Context, params func(PingPong_echoNum_Para
 	}
 	if params != nil {
 		s.ArgsSize = capnp.ObjectSize{DataSize: 8, PointerCount: 0}
-		s.PlaceArgs = func(s capnp.Struct) error { return params(PingPong_echoNum_Params{Struct: s}) }
+		s.PlaceArgs = func(s capnp.Struct) error { return params(PingPong_echoNum_Params(s)) }
 	}
 	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return PingPong_echoNum_Results_Future{Future: ans.Future()}, release
@@ -100,13 +100,13 @@ type PingPong_echoNum struct {
 
 // Args returns the call's arguments.
 func (c PingPong_echoNum) Args() PingPong_echoNum_Params {
-	return PingPong_echoNum_Params{Struct: c.Call.Args()}
+	return PingPong_echoNum_Params(c.Call.Args())
 }
 
 // AllocResults allocates the results struct.
 func (c PingPong_echoNum) AllocResults() (PingPong_echoNum_Results, error) {
 	r, err := c.Call.AllocResults(capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	return PingPong_echoNum_Results{Struct: r}, err
+	return PingPong_echoNum_Results(r), err
 }
 
 // PingPong_List is a list of PingPong.
@@ -118,40 +118,59 @@ func NewPingPong_List(s *capnp.Segment, sz int32) (PingPong_List, error) {
 	return capnp.CapList[PingPong](l), err
 }
 
-type PingPong_echoNum_Params struct{ capnp.Struct }
+type PingPong_echoNum_Params capnp.Struct
 
 // PingPong_echoNum_Params_TypeID is the unique identifier for the type PingPong_echoNum_Params.
 const PingPong_echoNum_Params_TypeID = 0xd797e0a99edf0921
 
 func NewPingPong_echoNum_Params(s *capnp.Segment) (PingPong_echoNum_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	return PingPong_echoNum_Params{st}, err
+	return PingPong_echoNum_Params(st), err
 }
 
 func NewRootPingPong_echoNum_Params(s *capnp.Segment) (PingPong_echoNum_Params, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	return PingPong_echoNum_Params{st}, err
+	return PingPong_echoNum_Params(st), err
 }
 
 func ReadRootPingPong_echoNum_Params(msg *capnp.Message) (PingPong_echoNum_Params, error) {
 	root, err := msg.Root()
-	return PingPong_echoNum_Params{root.Struct()}, err
+	return PingPong_echoNum_Params(root.Struct()), err
 }
 
 func (s PingPong_echoNum_Params) String() string {
-	str, _ := text.Marshal(0xd797e0a99edf0921, s.Struct)
+	str, _ := text.Marshal(0xd797e0a99edf0921, capnp.Struct(s))
 	return str
 }
 
+func (s PingPong_echoNum_Params) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
 func (PingPong_echoNum_Params) DecodeFromPtr(p capnp.Ptr) PingPong_echoNum_Params {
-	return PingPong_echoNum_Params{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+	return PingPong_echoNum_Params(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s PingPong_echoNum_Params) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s PingPong_echoNum_Params) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s PingPong_echoNum_Params) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s PingPong_echoNum_Params) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
 }
 func (s PingPong_echoNum_Params) N() int64 {
-	return int64(s.Struct.Uint64(0))
+	return int64(capnp.Struct(s).Uint64(0))
 }
 
 func (s PingPong_echoNum_Params) SetN(v int64) {
-	s.Struct.SetUint64(0, uint64(v))
+	capnp.Struct(s).SetUint64(0, uint64(v))
 }
 
 // PingPong_echoNum_Params_List is a list of PingPong_echoNum_Params.
@@ -168,43 +187,62 @@ type PingPong_echoNum_Params_Future struct{ *capnp.Future }
 
 func (p PingPong_echoNum_Params_Future) Struct() (PingPong_echoNum_Params, error) {
 	s, err := p.Future.Struct()
-	return PingPong_echoNum_Params{s}, err
+	return PingPong_echoNum_Params(s), err
 }
 
-type PingPong_echoNum_Results struct{ capnp.Struct }
+type PingPong_echoNum_Results capnp.Struct
 
 // PingPong_echoNum_Results_TypeID is the unique identifier for the type PingPong_echoNum_Results.
 const PingPong_echoNum_Results_TypeID = 0x85ddfd96db252600
 
 func NewPingPong_echoNum_Results(s *capnp.Segment) (PingPong_echoNum_Results, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	return PingPong_echoNum_Results{st}, err
+	return PingPong_echoNum_Results(st), err
 }
 
 func NewRootPingPong_echoNum_Results(s *capnp.Segment) (PingPong_echoNum_Results, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	return PingPong_echoNum_Results{st}, err
+	return PingPong_echoNum_Results(st), err
 }
 
 func ReadRootPingPong_echoNum_Results(msg *capnp.Message) (PingPong_echoNum_Results, error) {
 	root, err := msg.Root()
-	return PingPong_echoNum_Results{root.Struct()}, err
+	return PingPong_echoNum_Results(root.Struct()), err
 }
 
 func (s PingPong_echoNum_Results) String() string {
-	str, _ := text.Marshal(0x85ddfd96db252600, s.Struct)
+	str, _ := text.Marshal(0x85ddfd96db252600, capnp.Struct(s))
 	return str
 }
 
+func (s PingPong_echoNum_Results) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
 func (PingPong_echoNum_Results) DecodeFromPtr(p capnp.Ptr) PingPong_echoNum_Results {
-	return PingPong_echoNum_Results{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+	return PingPong_echoNum_Results(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s PingPong_echoNum_Results) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s PingPong_echoNum_Results) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s PingPong_echoNum_Results) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s PingPong_echoNum_Results) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
 }
 func (s PingPong_echoNum_Results) N() int64 {
-	return int64(s.Struct.Uint64(0))
+	return int64(capnp.Struct(s).Uint64(0))
 }
 
 func (s PingPong_echoNum_Results) SetN(v int64) {
-	s.Struct.SetUint64(0, uint64(v))
+	capnp.Struct(s).SetUint64(0, uint64(v))
 }
 
 // PingPong_echoNum_Results_List is a list of PingPong_echoNum_Results.
@@ -221,7 +259,7 @@ type PingPong_echoNum_Results_Future struct{ *capnp.Future }
 
 func (p PingPong_echoNum_Results_Future) Struct() (PingPong_echoNum_Results, error) {
 	s, err := p.Future.Struct()
-	return PingPong_echoNum_Results{s}, err
+	return PingPong_echoNum_Results(s), err
 }
 
 type StreamTest capnp.Client
@@ -240,7 +278,7 @@ func (c StreamTest) Push(ctx context.Context, params func(StreamTest_push_Params
 	}
 	if params != nil {
 		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 1}
-		s.PlaceArgs = func(s capnp.Struct) error { return params(StreamTest_push_Params{Struct: s}) }
+		s.PlaceArgs = func(s capnp.Struct) error { return params(StreamTest_push_Params(s)) }
 	}
 	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return stream.StreamResult_Future{Future: ans.Future()}, release
@@ -313,13 +351,13 @@ type StreamTest_push struct {
 
 // Args returns the call's arguments.
 func (c StreamTest_push) Args() StreamTest_push_Params {
-	return StreamTest_push_Params{Struct: c.Call.Args()}
+	return StreamTest_push_Params(c.Call.Args())
 }
 
 // AllocResults allocates the results struct.
 func (c StreamTest_push) AllocResults() (stream.StreamResult, error) {
 	r, err := c.Call.AllocResults(capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	return stream.StreamResult{Struct: r}, err
+	return stream.StreamResult(r), err
 }
 
 // StreamTest_List is a list of StreamTest.
@@ -331,45 +369,64 @@ func NewStreamTest_List(s *capnp.Segment, sz int32) (StreamTest_List, error) {
 	return capnp.CapList[StreamTest](l), err
 }
 
-type StreamTest_push_Params struct{ capnp.Struct }
+type StreamTest_push_Params capnp.Struct
 
 // StreamTest_push_Params_TypeID is the unique identifier for the type StreamTest_push_Params.
 const StreamTest_push_Params_TypeID = 0xf838dca6c8721bdb
 
 func NewStreamTest_push_Params(s *capnp.Segment) (StreamTest_push_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return StreamTest_push_Params{st}, err
+	return StreamTest_push_Params(st), err
 }
 
 func NewRootStreamTest_push_Params(s *capnp.Segment) (StreamTest_push_Params, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return StreamTest_push_Params{st}, err
+	return StreamTest_push_Params(st), err
 }
 
 func ReadRootStreamTest_push_Params(msg *capnp.Message) (StreamTest_push_Params, error) {
 	root, err := msg.Root()
-	return StreamTest_push_Params{root.Struct()}, err
+	return StreamTest_push_Params(root.Struct()), err
 }
 
 func (s StreamTest_push_Params) String() string {
-	str, _ := text.Marshal(0xf838dca6c8721bdb, s.Struct)
+	str, _ := text.Marshal(0xf838dca6c8721bdb, capnp.Struct(s))
 	return str
 }
 
+func (s StreamTest_push_Params) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
 func (StreamTest_push_Params) DecodeFromPtr(p capnp.Ptr) StreamTest_push_Params {
-	return StreamTest_push_Params{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+	return StreamTest_push_Params(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s StreamTest_push_Params) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s StreamTest_push_Params) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s StreamTest_push_Params) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s StreamTest_push_Params) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
 }
 func (s StreamTest_push_Params) Data() ([]byte, error) {
-	p, err := s.Struct.Ptr(0)
+	p, err := capnp.Struct(s).Ptr(0)
 	return []byte(p.Data()), err
 }
 
 func (s StreamTest_push_Params) HasData() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s StreamTest_push_Params) SetData(v []byte) error {
-	return s.Struct.SetData(0, v)
+	return capnp.Struct(s).SetData(0, v)
 }
 
 // StreamTest_push_Params_List is a list of StreamTest_push_Params.
@@ -386,7 +443,7 @@ type StreamTest_push_Params_Future struct{ *capnp.Future }
 
 func (p StreamTest_push_Params_Future) Struct() (StreamTest_push_Params, error) {
 	s, err := p.Future.Struct()
-	return StreamTest_push_Params{s}, err
+	return StreamTest_push_Params(s), err
 }
 
 type CapArgsTest capnp.Client
@@ -405,7 +462,7 @@ func (c CapArgsTest) Call(ctx context.Context, params func(CapArgsTest_call_Para
 	}
 	if params != nil {
 		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 1}
-		s.PlaceArgs = func(s capnp.Struct) error { return params(CapArgsTest_call_Params{Struct: s}) }
+		s.PlaceArgs = func(s capnp.Struct) error { return params(CapArgsTest_call_Params(s)) }
 	}
 	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return CapArgsTest_call_Results_Future{Future: ans.Future()}, release
@@ -421,7 +478,7 @@ func (c CapArgsTest) Self(ctx context.Context, params func(CapArgsTest_self_Para
 	}
 	if params != nil {
 		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
-		s.PlaceArgs = func(s capnp.Struct) error { return params(CapArgsTest_self_Params{Struct: s}) }
+		s.PlaceArgs = func(s capnp.Struct) error { return params(CapArgsTest_self_Params(s)) }
 	}
 	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return CapArgsTest_self_Results_Future{Future: ans.Future()}, release
@@ -508,13 +565,13 @@ type CapArgsTest_call struct {
 
 // Args returns the call's arguments.
 func (c CapArgsTest_call) Args() CapArgsTest_call_Params {
-	return CapArgsTest_call_Params{Struct: c.Call.Args()}
+	return CapArgsTest_call_Params(c.Call.Args())
 }
 
 // AllocResults allocates the results struct.
 func (c CapArgsTest_call) AllocResults() (CapArgsTest_call_Results, error) {
 	r, err := c.Call.AllocResults(capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	return CapArgsTest_call_Results{Struct: r}, err
+	return CapArgsTest_call_Results(r), err
 }
 
 // CapArgsTest_self holds the state for a server call to CapArgsTest.self.
@@ -525,13 +582,13 @@ type CapArgsTest_self struct {
 
 // Args returns the call's arguments.
 func (c CapArgsTest_self) Args() CapArgsTest_self_Params {
-	return CapArgsTest_self_Params{Struct: c.Call.Args()}
+	return CapArgsTest_self_Params(c.Call.Args())
 }
 
 // AllocResults allocates the results struct.
 func (c CapArgsTest_self) AllocResults() (CapArgsTest_self_Results, error) {
 	r, err := c.Call.AllocResults(capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return CapArgsTest_self_Results{Struct: r}, err
+	return CapArgsTest_self_Results(r), err
 }
 
 // CapArgsTest_List is a list of CapArgsTest.
@@ -543,50 +600,69 @@ func NewCapArgsTest_List(s *capnp.Segment, sz int32) (CapArgsTest_List, error) {
 	return capnp.CapList[CapArgsTest](l), err
 }
 
-type CapArgsTest_call_Params struct{ capnp.Struct }
+type CapArgsTest_call_Params capnp.Struct
 
 // CapArgsTest_call_Params_TypeID is the unique identifier for the type CapArgsTest_call_Params.
 const CapArgsTest_call_Params_TypeID = 0x80087e4e698768a2
 
 func NewCapArgsTest_call_Params(s *capnp.Segment) (CapArgsTest_call_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return CapArgsTest_call_Params{st}, err
+	return CapArgsTest_call_Params(st), err
 }
 
 func NewRootCapArgsTest_call_Params(s *capnp.Segment) (CapArgsTest_call_Params, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return CapArgsTest_call_Params{st}, err
+	return CapArgsTest_call_Params(st), err
 }
 
 func ReadRootCapArgsTest_call_Params(msg *capnp.Message) (CapArgsTest_call_Params, error) {
 	root, err := msg.Root()
-	return CapArgsTest_call_Params{root.Struct()}, err
+	return CapArgsTest_call_Params(root.Struct()), err
 }
 
 func (s CapArgsTest_call_Params) String() string {
-	str, _ := text.Marshal(0x80087e4e698768a2, s.Struct)
+	str, _ := text.Marshal(0x80087e4e698768a2, capnp.Struct(s))
 	return str
 }
 
+func (s CapArgsTest_call_Params) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
 func (CapArgsTest_call_Params) DecodeFromPtr(p capnp.Ptr) CapArgsTest_call_Params {
-	return CapArgsTest_call_Params{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+	return CapArgsTest_call_Params(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s CapArgsTest_call_Params) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s CapArgsTest_call_Params) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s CapArgsTest_call_Params) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s CapArgsTest_call_Params) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
 }
 func (s CapArgsTest_call_Params) Cap() capnp.Client {
-	p, _ := s.Struct.Ptr(0)
+	p, _ := capnp.Struct(s).Ptr(0)
 	return p.Interface().Client()
 }
 
 func (s CapArgsTest_call_Params) HasCap() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s CapArgsTest_call_Params) SetCap(c capnp.Client) error {
 	if !c.IsValid() {
-		return s.Struct.SetPtr(0, capnp.Ptr{})
+		return capnp.Struct(s).SetPtr(0, capnp.Ptr{})
 	}
 	seg := s.Segment()
 	in := capnp.NewInterface(seg, seg.Message().AddCap(c))
-	return s.Struct.SetPtr(0, in.ToPtr())
+	return capnp.Struct(s).SetPtr(0, in.ToPtr())
 }
 
 // CapArgsTest_call_Params_List is a list of CapArgsTest_call_Params.
@@ -603,40 +679,59 @@ type CapArgsTest_call_Params_Future struct{ *capnp.Future }
 
 func (p CapArgsTest_call_Params_Future) Struct() (CapArgsTest_call_Params, error) {
 	s, err := p.Future.Struct()
-	return CapArgsTest_call_Params{s}, err
+	return CapArgsTest_call_Params(s), err
 }
 
 func (p CapArgsTest_call_Params_Future) Cap() *capnp.Future {
 	return p.Future.Field(0, nil)
 }
 
-type CapArgsTest_call_Results struct{ capnp.Struct }
+type CapArgsTest_call_Results capnp.Struct
 
 // CapArgsTest_call_Results_TypeID is the unique identifier for the type CapArgsTest_call_Results.
 const CapArgsTest_call_Results_TypeID = 0x96fbc50dc2f0200d
 
 func NewCapArgsTest_call_Results(s *capnp.Segment) (CapArgsTest_call_Results, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	return CapArgsTest_call_Results{st}, err
+	return CapArgsTest_call_Results(st), err
 }
 
 func NewRootCapArgsTest_call_Results(s *capnp.Segment) (CapArgsTest_call_Results, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	return CapArgsTest_call_Results{st}, err
+	return CapArgsTest_call_Results(st), err
 }
 
 func ReadRootCapArgsTest_call_Results(msg *capnp.Message) (CapArgsTest_call_Results, error) {
 	root, err := msg.Root()
-	return CapArgsTest_call_Results{root.Struct()}, err
+	return CapArgsTest_call_Results(root.Struct()), err
 }
 
 func (s CapArgsTest_call_Results) String() string {
-	str, _ := text.Marshal(0x96fbc50dc2f0200d, s.Struct)
+	str, _ := text.Marshal(0x96fbc50dc2f0200d, capnp.Struct(s))
 	return str
 }
 
+func (s CapArgsTest_call_Results) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
 func (CapArgsTest_call_Results) DecodeFromPtr(p capnp.Ptr) CapArgsTest_call_Results {
-	return CapArgsTest_call_Results{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+	return CapArgsTest_call_Results(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s CapArgsTest_call_Results) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s CapArgsTest_call_Results) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s CapArgsTest_call_Results) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s CapArgsTest_call_Results) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
 }
 
 // CapArgsTest_call_Results_List is a list of CapArgsTest_call_Results.
@@ -653,36 +748,55 @@ type CapArgsTest_call_Results_Future struct{ *capnp.Future }
 
 func (p CapArgsTest_call_Results_Future) Struct() (CapArgsTest_call_Results, error) {
 	s, err := p.Future.Struct()
-	return CapArgsTest_call_Results{s}, err
+	return CapArgsTest_call_Results(s), err
 }
 
-type CapArgsTest_self_Params struct{ capnp.Struct }
+type CapArgsTest_self_Params capnp.Struct
 
 // CapArgsTest_self_Params_TypeID is the unique identifier for the type CapArgsTest_self_Params.
 const CapArgsTest_self_Params_TypeID = 0xe2553e5a663abb7d
 
 func NewCapArgsTest_self_Params(s *capnp.Segment) (CapArgsTest_self_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	return CapArgsTest_self_Params{st}, err
+	return CapArgsTest_self_Params(st), err
 }
 
 func NewRootCapArgsTest_self_Params(s *capnp.Segment) (CapArgsTest_self_Params, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	return CapArgsTest_self_Params{st}, err
+	return CapArgsTest_self_Params(st), err
 }
 
 func ReadRootCapArgsTest_self_Params(msg *capnp.Message) (CapArgsTest_self_Params, error) {
 	root, err := msg.Root()
-	return CapArgsTest_self_Params{root.Struct()}, err
+	return CapArgsTest_self_Params(root.Struct()), err
 }
 
 func (s CapArgsTest_self_Params) String() string {
-	str, _ := text.Marshal(0xe2553e5a663abb7d, s.Struct)
+	str, _ := text.Marshal(0xe2553e5a663abb7d, capnp.Struct(s))
 	return str
 }
 
+func (s CapArgsTest_self_Params) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
 func (CapArgsTest_self_Params) DecodeFromPtr(p capnp.Ptr) CapArgsTest_self_Params {
-	return CapArgsTest_self_Params{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+	return CapArgsTest_self_Params(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s CapArgsTest_self_Params) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s CapArgsTest_self_Params) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s CapArgsTest_self_Params) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s CapArgsTest_self_Params) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
 }
 
 // CapArgsTest_self_Params_List is a list of CapArgsTest_self_Params.
@@ -699,53 +813,72 @@ type CapArgsTest_self_Params_Future struct{ *capnp.Future }
 
 func (p CapArgsTest_self_Params_Future) Struct() (CapArgsTest_self_Params, error) {
 	s, err := p.Future.Struct()
-	return CapArgsTest_self_Params{s}, err
+	return CapArgsTest_self_Params(s), err
 }
 
-type CapArgsTest_self_Results struct{ capnp.Struct }
+type CapArgsTest_self_Results capnp.Struct
 
 // CapArgsTest_self_Results_TypeID is the unique identifier for the type CapArgsTest_self_Results.
 const CapArgsTest_self_Results_TypeID = 0x9746cc05cbff1132
 
 func NewCapArgsTest_self_Results(s *capnp.Segment) (CapArgsTest_self_Results, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return CapArgsTest_self_Results{st}, err
+	return CapArgsTest_self_Results(st), err
 }
 
 func NewRootCapArgsTest_self_Results(s *capnp.Segment) (CapArgsTest_self_Results, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return CapArgsTest_self_Results{st}, err
+	return CapArgsTest_self_Results(st), err
 }
 
 func ReadRootCapArgsTest_self_Results(msg *capnp.Message) (CapArgsTest_self_Results, error) {
 	root, err := msg.Root()
-	return CapArgsTest_self_Results{root.Struct()}, err
+	return CapArgsTest_self_Results(root.Struct()), err
 }
 
 func (s CapArgsTest_self_Results) String() string {
-	str, _ := text.Marshal(0x9746cc05cbff1132, s.Struct)
+	str, _ := text.Marshal(0x9746cc05cbff1132, capnp.Struct(s))
 	return str
 }
 
+func (s CapArgsTest_self_Results) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
 func (CapArgsTest_self_Results) DecodeFromPtr(p capnp.Ptr) CapArgsTest_self_Results {
-	return CapArgsTest_self_Results{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+	return CapArgsTest_self_Results(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s CapArgsTest_self_Results) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s CapArgsTest_self_Results) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s CapArgsTest_self_Results) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s CapArgsTest_self_Results) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
 }
 func (s CapArgsTest_self_Results) Self() CapArgsTest {
-	p, _ := s.Struct.Ptr(0)
+	p, _ := capnp.Struct(s).Ptr(0)
 	return CapArgsTest(p.Interface().Client())
 }
 
 func (s CapArgsTest_self_Results) HasSelf() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s CapArgsTest_self_Results) SetSelf(v CapArgsTest) error {
 	if !v.IsValid() {
-		return s.Struct.SetPtr(0, capnp.Ptr{})
+		return capnp.Struct(s).SetPtr(0, capnp.Ptr{})
 	}
 	seg := s.Segment()
 	in := capnp.NewInterface(seg, seg.Message().AddCap(capnp.Client(v)))
-	return s.Struct.SetPtr(0, in.ToPtr())
+	return capnp.Struct(s).SetPtr(0, in.ToPtr())
 }
 
 // CapArgsTest_self_Results_List is a list of CapArgsTest_self_Results.
@@ -762,7 +895,7 @@ type CapArgsTest_self_Results_Future struct{ *capnp.Future }
 
 func (p CapArgsTest_self_Results_Future) Struct() (CapArgsTest_self_Results, error) {
 	s, err := p.Future.Struct()
-	return CapArgsTest_self_Results{s}, err
+	return CapArgsTest_self_Results(s), err
 }
 
 func (p CapArgsTest_self_Results_Future) Self() CapArgsTest {

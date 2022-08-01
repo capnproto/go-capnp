@@ -36,7 +36,7 @@ func BenchmarkExtract(b *testing.B) {
 		a := generateA(r)
 		msg, seg, _ := capnp.NewMessage(capnp.SingleSegment(nil))
 		root, _ := air.NewRootBenchmarkA(seg)
-		Insert(air.BenchmarkA_TypeID, root.Struct, a)
+		Insert(air.BenchmarkA_TypeID, capnp.Struct(root), a)
 		data[i], _ = msg.Marshal()
 	}
 	b.ReportAllocs()
@@ -62,7 +62,7 @@ func BenchmarkInsert(b *testing.B) {
 		a := data[r.Intn(len(data))]
 		msg, seg, _ := capnp.NewMessage(capnp.SingleSegment(arena[:0]))
 		root, _ := air.NewRootBenchmarkA(seg)
-		Insert(air.BenchmarkA_TypeID, root.Struct, a)
+		Insert(air.BenchmarkA_TypeID, capnp.Struct(root), a)
 		msg.Marshal()
 	}
 }

@@ -28,7 +28,7 @@ func (c Persistent) Save(ctx context.Context, params func(Persistent_SaveParams)
 	}
 	if params != nil {
 		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 1}
-		s.PlaceArgs = func(s capnp.Struct) error { return params(Persistent_SaveParams{Struct: s}) }
+		s.PlaceArgs = func(s capnp.Struct) error { return params(Persistent_SaveParams(s)) }
 	}
 	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return Persistent_SaveResults_Future{Future: ans.Future()}, release
@@ -101,13 +101,13 @@ type Persistent_save struct {
 
 // Args returns the call's arguments.
 func (c Persistent_save) Args() Persistent_SaveParams {
-	return Persistent_SaveParams{Struct: c.Call.Args()}
+	return Persistent_SaveParams(c.Call.Args())
 }
 
 // AllocResults allocates the results struct.
 func (c Persistent_save) AllocResults() (Persistent_SaveResults, error) {
 	r, err := c.Call.AllocResults(capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return Persistent_SaveResults{Struct: r}, err
+	return Persistent_SaveResults(r), err
 }
 
 // Persistent_List is a list of Persistent.
@@ -119,44 +119,63 @@ func NewPersistent_List(s *capnp.Segment, sz int32) (Persistent_List, error) {
 	return capnp.CapList[Persistent](l), err
 }
 
-type Persistent_SaveParams struct{ capnp.Struct }
+type Persistent_SaveParams capnp.Struct
 
 // Persistent_SaveParams_TypeID is the unique identifier for the type Persistent_SaveParams.
 const Persistent_SaveParams_TypeID = 0xf76fba59183073a5
 
 func NewPersistent_SaveParams(s *capnp.Segment) (Persistent_SaveParams, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return Persistent_SaveParams{st}, err
+	return Persistent_SaveParams(st), err
 }
 
 func NewRootPersistent_SaveParams(s *capnp.Segment) (Persistent_SaveParams, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return Persistent_SaveParams{st}, err
+	return Persistent_SaveParams(st), err
 }
 
 func ReadRootPersistent_SaveParams(msg *capnp.Message) (Persistent_SaveParams, error) {
 	root, err := msg.Root()
-	return Persistent_SaveParams{root.Struct()}, err
+	return Persistent_SaveParams(root.Struct()), err
 }
 
 func (s Persistent_SaveParams) String() string {
-	str, _ := text.Marshal(0xf76fba59183073a5, s.Struct)
+	str, _ := text.Marshal(0xf76fba59183073a5, capnp.Struct(s))
 	return str
 }
 
+func (s Persistent_SaveParams) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
 func (Persistent_SaveParams) DecodeFromPtr(p capnp.Ptr) Persistent_SaveParams {
-	return Persistent_SaveParams{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+	return Persistent_SaveParams(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s Persistent_SaveParams) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s Persistent_SaveParams) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s Persistent_SaveParams) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s Persistent_SaveParams) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
 }
 func (s Persistent_SaveParams) SealFor() (capnp.Ptr, error) {
-	return s.Struct.Ptr(0)
+	return capnp.Struct(s).Ptr(0)
 }
 
 func (s Persistent_SaveParams) HasSealFor() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Persistent_SaveParams) SetSealFor(v capnp.Ptr) error {
-	return s.Struct.SetPtr(0, v)
+	return capnp.Struct(s).SetPtr(0, v)
 }
 
 // Persistent_SaveParams_List is a list of Persistent_SaveParams.
@@ -173,51 +192,70 @@ type Persistent_SaveParams_Future struct{ *capnp.Future }
 
 func (p Persistent_SaveParams_Future) Struct() (Persistent_SaveParams, error) {
 	s, err := p.Future.Struct()
-	return Persistent_SaveParams{s}, err
+	return Persistent_SaveParams(s), err
 }
 
 func (p Persistent_SaveParams_Future) SealFor() *capnp.Future {
 	return p.Future.Field(0, nil)
 }
 
-type Persistent_SaveResults struct{ capnp.Struct }
+type Persistent_SaveResults capnp.Struct
 
 // Persistent_SaveResults_TypeID is the unique identifier for the type Persistent_SaveResults.
 const Persistent_SaveResults_TypeID = 0xb76848c18c40efbf
 
 func NewPersistent_SaveResults(s *capnp.Segment) (Persistent_SaveResults, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return Persistent_SaveResults{st}, err
+	return Persistent_SaveResults(st), err
 }
 
 func NewRootPersistent_SaveResults(s *capnp.Segment) (Persistent_SaveResults, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return Persistent_SaveResults{st}, err
+	return Persistent_SaveResults(st), err
 }
 
 func ReadRootPersistent_SaveResults(msg *capnp.Message) (Persistent_SaveResults, error) {
 	root, err := msg.Root()
-	return Persistent_SaveResults{root.Struct()}, err
+	return Persistent_SaveResults(root.Struct()), err
 }
 
 func (s Persistent_SaveResults) String() string {
-	str, _ := text.Marshal(0xb76848c18c40efbf, s.Struct)
+	str, _ := text.Marshal(0xb76848c18c40efbf, capnp.Struct(s))
 	return str
 }
 
+func (s Persistent_SaveResults) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
 func (Persistent_SaveResults) DecodeFromPtr(p capnp.Ptr) Persistent_SaveResults {
-	return Persistent_SaveResults{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+	return Persistent_SaveResults(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s Persistent_SaveResults) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s Persistent_SaveResults) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s Persistent_SaveResults) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s Persistent_SaveResults) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
 }
 func (s Persistent_SaveResults) SturdyRef() (capnp.Ptr, error) {
-	return s.Struct.Ptr(0)
+	return capnp.Struct(s).Ptr(0)
 }
 
 func (s Persistent_SaveResults) HasSturdyRef() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Persistent_SaveResults) SetSturdyRef(v capnp.Ptr) error {
-	return s.Struct.SetPtr(0, v)
+	return capnp.Struct(s).SetPtr(0, v)
 }
 
 // Persistent_SaveResults_List is a list of Persistent_SaveResults.
@@ -234,7 +272,7 @@ type Persistent_SaveResults_Future struct{ *capnp.Future }
 
 func (p Persistent_SaveResults_Future) Struct() (Persistent_SaveResults, error) {
 	s, err := p.Future.Struct()
-	return Persistent_SaveResults{s}, err
+	return Persistent_SaveResults(s), err
 }
 
 func (p Persistent_SaveResults_Future) SturdyRef() *capnp.Future {
