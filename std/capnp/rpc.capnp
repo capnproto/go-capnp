@@ -645,7 +645,7 @@ struct Disembargo {
   #
   # Message sent to indicate that an embargo on a recently-resolved promise may now be lifted.
   #
-  # Embargoes are used to enforce E-order in the presence of promise resolution.  That is, if an
+  # Embargos are used to enforce E-order in the presence of promise resolution.  That is, if an
   # application makes two calls foo() and bar() on the same capability reference, in that order,
   # the calls should be delivered in the order in which they were made.  But if foo() is called
   # on a promise, and that promise happens to resolve before bar() is called, then the two calls
@@ -654,7 +654,7 @@ struct Disembargo {
   # the same path as `foo()` to ensure that the `Disembargo` arrives after `foo()`.  Once the
   # `Disembargo` arrives, `bar()` can then be delivered.
   #
-  # There are two particular cases where embargoes are important.  Consider object Alice, in Vat A,
+  # There are two particular cases where embargos are important.  Consider object Alice, in Vat A,
   # who holds a promise P, pointing towards Vat B, that eventually resolves to Carol.  The two
   # cases are:
   # - Carol lives in Vat A, i.e. next to Alice.  In this case, Vat A needs to send a `Disembargo`
@@ -672,7 +672,7 @@ struct Disembargo {
   # same path as the later direct calls.
   #
   # Keep in mind that promise resolution happens both in the form of Resolve messages as well as
-  # Return messages (which resolve PromisedAnswers). Embargoes apply in both cases.
+  # Return messages (which resolve PromisedAnswers). Embargos apply in both cases.
   #
   # An alternative strategy for enforcing E-order over promise resolution could be for Vat A to
   # implement the embargo internally.  When Vat A is notified of promise resolution, it could
@@ -689,7 +689,7 @@ struct Disembargo {
   # "Tribble 4-way race condition", after Dean Tribble, who explained the problem in a lively
   # Friam meeting.
   #
-  # Embargoes are designed to work in the case where a two-hop path is being shortened to one hop.
+  # Embargos are designed to work in the case where a two-hop path is being shortened to one hop.
   # But sometimes there are more hops. Imagine that Alice has a reference to a remote promise P1
   # that eventually resolves to _another_ remote promise P2 (in a third vat), which _at the same
   # time_ happens to resolve to Bob (in a fourth vat). In this case, we're shortening from a 3-hop
