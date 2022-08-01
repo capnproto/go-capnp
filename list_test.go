@@ -63,13 +63,13 @@ func TestTextListBytesAt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	list := TextList{List{
+	list := TextList{
 		seg:        seg,
 		off:        8,
 		length:     1,
 		size:       ObjectSize{PointerCount: 1},
 		depthLimit: maxDepth,
-	}}
+	}
 	b, err := list.BytesAt(0)
 	if err != nil {
 		t.Errorf("list.BytesAt(0) error: %v", err)

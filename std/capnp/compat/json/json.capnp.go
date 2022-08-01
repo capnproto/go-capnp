@@ -160,7 +160,7 @@ func (s Value) Array() (Value_List, error) {
 		panic("Which() != array")
 	}
 	p, err := capnp.Struct(s).Ptr(0)
-	return Value_List{List: p.List()}, err
+	return Value_List(p.List()), err
 }
 
 func (s Value) HasArray() bool {
@@ -172,7 +172,7 @@ func (s Value) HasArray() bool {
 
 func (s Value) SetArray(v Value_List) error {
 	capnp.Struct(s).SetUint16(0, 4)
-	return capnp.Struct(s).SetPtr(0, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewArray sets the array field to a newly
@@ -183,7 +183,7 @@ func (s Value) NewArray(n int32) (Value_List, error) {
 	if err != nil {
 		return Value_List{}, err
 	}
-	err = capnp.Struct(s).SetPtr(0, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
 
@@ -192,7 +192,7 @@ func (s Value) Object() (Value_Field_List, error) {
 		panic("Which() != object")
 	}
 	p, err := capnp.Struct(s).Ptr(0)
-	return Value_Field_List{List: p.List()}, err
+	return Value_Field_List(p.List()), err
 }
 
 func (s Value) HasObject() bool {
@@ -204,7 +204,7 @@ func (s Value) HasObject() bool {
 
 func (s Value) SetObject(v Value_Field_List) error {
 	capnp.Struct(s).SetUint16(0, 5)
-	return capnp.Struct(s).SetPtr(0, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewObject sets the object field to a newly
@@ -215,7 +215,7 @@ func (s Value) NewObject(n int32) (Value_Field_List, error) {
 	if err != nil {
 		return Value_Field_List{}, err
 	}
-	err = capnp.Struct(s).SetPtr(0, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
 
@@ -257,7 +257,7 @@ type Value_List = capnp.StructList[Value]
 // NewValue creates a new list of Value.
 func NewValue_List(s *capnp.Segment, sz int32) (Value_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1}, sz)
-	return capnp.StructList[Value]{List: l}, err
+	return capnp.StructList[Value](l), err
 }
 
 // Value_Future is a wrapper for a Value promised by a client call.
@@ -367,7 +367,7 @@ type Value_Field_List = capnp.StructList[Value_Field]
 // NewValue_Field creates a new list of Value_Field.
 func NewValue_Field_List(s *capnp.Segment, sz int32) (Value_Field_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
-	return capnp.StructList[Value_Field]{List: l}, err
+	return capnp.StructList[Value_Field](l), err
 }
 
 // Value_Field_Future is a wrapper for a Value_Field promised by a client call.
@@ -449,7 +449,7 @@ func (s Value_Call) SetFunction(v string) error {
 
 func (s Value_Call) Params() (Value_List, error) {
 	p, err := capnp.Struct(s).Ptr(1)
-	return Value_List{List: p.List()}, err
+	return Value_List(p.List()), err
 }
 
 func (s Value_Call) HasParams() bool {
@@ -457,7 +457,7 @@ func (s Value_Call) HasParams() bool {
 }
 
 func (s Value_Call) SetParams(v Value_List) error {
-	return capnp.Struct(s).SetPtr(1, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(1, v.ToPtr())
 }
 
 // NewParams sets the params field to a newly
@@ -467,7 +467,7 @@ func (s Value_Call) NewParams(n int32) (Value_List, error) {
 	if err != nil {
 		return Value_List{}, err
 	}
-	err = capnp.Struct(s).SetPtr(1, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(1, l.ToPtr())
 	return l, err
 }
 
@@ -477,7 +477,7 @@ type Value_Call_List = capnp.StructList[Value_Call]
 // NewValue_Call creates a new list of Value_Call.
 func NewValue_Call_List(s *capnp.Segment, sz int32) (Value_Call_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
-	return capnp.StructList[Value_Call]{List: l}, err
+	return capnp.StructList[Value_Call](l), err
 }
 
 // Value_Call_Future is a wrapper for a Value_Call promised by a client call.
@@ -559,7 +559,7 @@ type FlattenOptions_List = capnp.StructList[FlattenOptions]
 // NewFlattenOptions creates a new list of FlattenOptions.
 func NewFlattenOptions_List(s *capnp.Segment, sz int32) (FlattenOptions_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[FlattenOptions]{List: l}, err
+	return capnp.StructList[FlattenOptions](l), err
 }
 
 // FlattenOptions_Future is a wrapper for a FlattenOptions promised by a client call.
@@ -659,7 +659,7 @@ type DiscriminatorOptions_List = capnp.StructList[DiscriminatorOptions]
 // NewDiscriminatorOptions creates a new list of DiscriminatorOptions.
 func NewDiscriminatorOptions_List(s *capnp.Segment, sz int32) (DiscriminatorOptions_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
-	return capnp.StructList[DiscriminatorOptions]{List: l}, err
+	return capnp.StructList[DiscriminatorOptions](l), err
 }
 
 // DiscriminatorOptions_Future is a wrapper for a DiscriminatorOptions promised by a client call.

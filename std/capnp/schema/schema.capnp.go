@@ -145,7 +145,7 @@ func (s Node) SetScopeId(v uint64) {
 
 func (s Node) Parameters() (Node_Parameter_List, error) {
 	p, err := capnp.Struct(s).Ptr(5)
-	return Node_Parameter_List{List: p.List()}, err
+	return Node_Parameter_List(p.List()), err
 }
 
 func (s Node) HasParameters() bool {
@@ -153,7 +153,7 @@ func (s Node) HasParameters() bool {
 }
 
 func (s Node) SetParameters(v Node_Parameter_List) error {
-	return capnp.Struct(s).SetPtr(5, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(5, v.ToPtr())
 }
 
 // NewParameters sets the parameters field to a newly
@@ -163,7 +163,7 @@ func (s Node) NewParameters(n int32) (Node_Parameter_List, error) {
 	if err != nil {
 		return Node_Parameter_List{}, err
 	}
-	err = capnp.Struct(s).SetPtr(5, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(5, l.ToPtr())
 	return l, err
 }
 
@@ -177,7 +177,7 @@ func (s Node) SetIsGeneric(v bool) {
 
 func (s Node) NestedNodes() (Node_NestedNode_List, error) {
 	p, err := capnp.Struct(s).Ptr(1)
-	return Node_NestedNode_List{List: p.List()}, err
+	return Node_NestedNode_List(p.List()), err
 }
 
 func (s Node) HasNestedNodes() bool {
@@ -185,7 +185,7 @@ func (s Node) HasNestedNodes() bool {
 }
 
 func (s Node) SetNestedNodes(v Node_NestedNode_List) error {
-	return capnp.Struct(s).SetPtr(1, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(1, v.ToPtr())
 }
 
 // NewNestedNodes sets the nestedNodes field to a newly
@@ -195,13 +195,13 @@ func (s Node) NewNestedNodes(n int32) (Node_NestedNode_List, error) {
 	if err != nil {
 		return Node_NestedNode_List{}, err
 	}
-	err = capnp.Struct(s).SetPtr(1, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(1, l.ToPtr())
 	return l, err
 }
 
 func (s Node) Annotations() (Annotation_List, error) {
 	p, err := capnp.Struct(s).Ptr(2)
-	return Annotation_List{List: p.List()}, err
+	return Annotation_List(p.List()), err
 }
 
 func (s Node) HasAnnotations() bool {
@@ -209,7 +209,7 @@ func (s Node) HasAnnotations() bool {
 }
 
 func (s Node) SetAnnotations(v Annotation_List) error {
-	return capnp.Struct(s).SetPtr(2, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(2, v.ToPtr())
 }
 
 // NewAnnotations sets the annotations field to a newly
@@ -219,7 +219,7 @@ func (s Node) NewAnnotations(n int32) (Annotation_List, error) {
 	if err != nil {
 		return Annotation_List{}, err
 	}
-	err = capnp.Struct(s).SetPtr(2, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(2, l.ToPtr())
 	return l, err
 }
 
@@ -295,7 +295,7 @@ func (s Node_structNode) SetDiscriminantOffset(v uint32) {
 
 func (s Node_structNode) Fields() (Field_List, error) {
 	p, err := capnp.Struct(s).Ptr(3)
-	return Field_List{List: p.List()}, err
+	return Field_List(p.List()), err
 }
 
 func (s Node_structNode) HasFields() bool {
@@ -303,7 +303,7 @@ func (s Node_structNode) HasFields() bool {
 }
 
 func (s Node_structNode) SetFields(v Field_List) error {
-	return capnp.Struct(s).SetPtr(3, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(3, v.ToPtr())
 }
 
 // NewFields sets the fields field to a newly
@@ -313,7 +313,7 @@ func (s Node_structNode) NewFields(n int32) (Field_List, error) {
 	if err != nil {
 		return Field_List{}, err
 	}
-	err = capnp.Struct(s).SetPtr(3, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(3, l.ToPtr())
 	return l, err
 }
 
@@ -336,7 +336,7 @@ func (s Node_enum) Segment() *capnp.Segment {
 }
 func (s Node_enum) Enumerants() (Enumerant_List, error) {
 	p, err := capnp.Struct(s).Ptr(3)
-	return Enumerant_List{List: p.List()}, err
+	return Enumerant_List(p.List()), err
 }
 
 func (s Node_enum) HasEnumerants() bool {
@@ -344,7 +344,7 @@ func (s Node_enum) HasEnumerants() bool {
 }
 
 func (s Node_enum) SetEnumerants(v Enumerant_List) error {
-	return capnp.Struct(s).SetPtr(3, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(3, v.ToPtr())
 }
 
 // NewEnumerants sets the enumerants field to a newly
@@ -354,7 +354,7 @@ func (s Node_enum) NewEnumerants(n int32) (Enumerant_List, error) {
 	if err != nil {
 		return Enumerant_List{}, err
 	}
-	err = capnp.Struct(s).SetPtr(3, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(3, l.ToPtr())
 	return l, err
 }
 
@@ -377,7 +377,7 @@ func (s Node_interface) Segment() *capnp.Segment {
 }
 func (s Node_interface) Methods() (Method_List, error) {
 	p, err := capnp.Struct(s).Ptr(3)
-	return Method_List{List: p.List()}, err
+	return Method_List(p.List()), err
 }
 
 func (s Node_interface) HasMethods() bool {
@@ -385,7 +385,7 @@ func (s Node_interface) HasMethods() bool {
 }
 
 func (s Node_interface) SetMethods(v Method_List) error {
-	return capnp.Struct(s).SetPtr(3, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(3, v.ToPtr())
 }
 
 // NewMethods sets the methods field to a newly
@@ -395,13 +395,13 @@ func (s Node_interface) NewMethods(n int32) (Method_List, error) {
 	if err != nil {
 		return Method_List{}, err
 	}
-	err = capnp.Struct(s).SetPtr(3, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(3, l.ToPtr())
 	return l, err
 }
 
 func (s Node_interface) Superclasses() (Superclass_List, error) {
 	p, err := capnp.Struct(s).Ptr(4)
-	return Superclass_List{List: p.List()}, err
+	return Superclass_List(p.List()), err
 }
 
 func (s Node_interface) HasSuperclasses() bool {
@@ -409,7 +409,7 @@ func (s Node_interface) HasSuperclasses() bool {
 }
 
 func (s Node_interface) SetSuperclasses(v Superclass_List) error {
-	return capnp.Struct(s).SetPtr(4, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(4, v.ToPtr())
 }
 
 // NewSuperclasses sets the superclasses field to a newly
@@ -419,7 +419,7 @@ func (s Node_interface) NewSuperclasses(n int32) (Superclass_List, error) {
 	if err != nil {
 		return Superclass_List{}, err
 	}
-	err = capnp.Struct(s).SetPtr(4, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(4, l.ToPtr())
 	return l, err
 }
 
@@ -631,7 +631,7 @@ type Node_List = capnp.StructList[Node]
 // NewNode creates a new list of Node.
 func NewNode_List(s *capnp.Segment, sz int32) (Node_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 40, PointerCount: 6}, sz)
-	return capnp.StructList[Node]{List: l}, err
+	return capnp.StructList[Node](l), err
 }
 
 // Node_Future is a wrapper for a Node promised by a client call.
@@ -775,7 +775,7 @@ type Node_Parameter_List = capnp.StructList[Node_Parameter]
 // NewNode_Parameter creates a new list of Node_Parameter.
 func NewNode_Parameter_List(s *capnp.Segment, sz int32) (Node_Parameter_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[Node_Parameter]{List: l}, err
+	return capnp.StructList[Node_Parameter](l), err
 }
 
 // Node_Parameter_Future is a wrapper for a Node_Parameter promised by a client call.
@@ -865,7 +865,7 @@ type Node_NestedNode_List = capnp.StructList[Node_NestedNode]
 // NewNode_NestedNode creates a new list of Node_NestedNode.
 func NewNode_NestedNode_List(s *capnp.Segment, sz int32) (Node_NestedNode_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	return capnp.StructList[Node_NestedNode]{List: l}, err
+	return capnp.StructList[Node_NestedNode](l), err
 }
 
 // Node_NestedNode_Future is a wrapper for a Node_NestedNode promised by a client call.
@@ -951,7 +951,7 @@ func (s Node_SourceInfo) SetDocComment(v string) error {
 
 func (s Node_SourceInfo) Members() (Node_SourceInfo_Member_List, error) {
 	p, err := capnp.Struct(s).Ptr(1)
-	return Node_SourceInfo_Member_List{List: p.List()}, err
+	return Node_SourceInfo_Member_List(p.List()), err
 }
 
 func (s Node_SourceInfo) HasMembers() bool {
@@ -959,7 +959,7 @@ func (s Node_SourceInfo) HasMembers() bool {
 }
 
 func (s Node_SourceInfo) SetMembers(v Node_SourceInfo_Member_List) error {
-	return capnp.Struct(s).SetPtr(1, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(1, v.ToPtr())
 }
 
 // NewMembers sets the members field to a newly
@@ -969,7 +969,7 @@ func (s Node_SourceInfo) NewMembers(n int32) (Node_SourceInfo_Member_List, error
 	if err != nil {
 		return Node_SourceInfo_Member_List{}, err
 	}
-	err = capnp.Struct(s).SetPtr(1, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(1, l.ToPtr())
 	return l, err
 }
 
@@ -979,7 +979,7 @@ type Node_SourceInfo_List = capnp.StructList[Node_SourceInfo]
 // NewNode_SourceInfo creates a new list of Node_SourceInfo.
 func NewNode_SourceInfo_List(s *capnp.Segment, sz int32) (Node_SourceInfo_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2}, sz)
-	return capnp.StructList[Node_SourceInfo]{List: l}, err
+	return capnp.StructList[Node_SourceInfo](l), err
 }
 
 // Node_SourceInfo_Future is a wrapper for a Node_SourceInfo promised by a client call.
@@ -1061,7 +1061,7 @@ type Node_SourceInfo_Member_List = capnp.StructList[Node_SourceInfo_Member]
 // NewNode_SourceInfo_Member creates a new list of Node_SourceInfo_Member.
 func NewNode_SourceInfo_Member_List(s *capnp.Segment, sz int32) (Node_SourceInfo_Member_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[Node_SourceInfo_Member]{List: l}, err
+	return capnp.StructList[Node_SourceInfo_Member](l), err
 }
 
 // Node_SourceInfo_Member_Future is a wrapper for a Node_SourceInfo_Member promised by a client call.
@@ -1191,7 +1191,7 @@ func (s Field) SetCodeOrder(v uint16) {
 
 func (s Field) Annotations() (Annotation_List, error) {
 	p, err := capnp.Struct(s).Ptr(1)
-	return Annotation_List{List: p.List()}, err
+	return Annotation_List(p.List()), err
 }
 
 func (s Field) HasAnnotations() bool {
@@ -1199,7 +1199,7 @@ func (s Field) HasAnnotations() bool {
 }
 
 func (s Field) SetAnnotations(v Annotation_List) error {
-	return capnp.Struct(s).SetPtr(1, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(1, v.ToPtr())
 }
 
 // NewAnnotations sets the annotations field to a newly
@@ -1209,7 +1209,7 @@ func (s Field) NewAnnotations(n int32) (Annotation_List, error) {
 	if err != nil {
 		return Annotation_List{}, err
 	}
-	err = capnp.Struct(s).SetPtr(1, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(1, l.ToPtr())
 	return l, err
 }
 
@@ -1366,7 +1366,7 @@ type Field_List = capnp.StructList[Field]
 // NewField creates a new list of Field.
 func NewField_List(s *capnp.Segment, sz int32) (Field_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 24, PointerCount: 4}, sz)
-	return capnp.StructList[Field]{List: l}, err
+	return capnp.StructList[Field](l), err
 }
 
 // Field_Future is a wrapper for a Field promised by a client call.
@@ -1490,7 +1490,7 @@ func (s Enumerant) SetCodeOrder(v uint16) {
 
 func (s Enumerant) Annotations() (Annotation_List, error) {
 	p, err := capnp.Struct(s).Ptr(1)
-	return Annotation_List{List: p.List()}, err
+	return Annotation_List(p.List()), err
 }
 
 func (s Enumerant) HasAnnotations() bool {
@@ -1498,7 +1498,7 @@ func (s Enumerant) HasAnnotations() bool {
 }
 
 func (s Enumerant) SetAnnotations(v Annotation_List) error {
-	return capnp.Struct(s).SetPtr(1, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(1, v.ToPtr())
 }
 
 // NewAnnotations sets the annotations field to a newly
@@ -1508,7 +1508,7 @@ func (s Enumerant) NewAnnotations(n int32) (Annotation_List, error) {
 	if err != nil {
 		return Annotation_List{}, err
 	}
-	err = capnp.Struct(s).SetPtr(1, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(1, l.ToPtr())
 	return l, err
 }
 
@@ -1518,7 +1518,7 @@ type Enumerant_List = capnp.StructList[Enumerant]
 // NewEnumerant creates a new list of Enumerant.
 func NewEnumerant_List(s *capnp.Segment, sz int32) (Enumerant_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2}, sz)
-	return capnp.StructList[Enumerant]{List: l}, err
+	return capnp.StructList[Enumerant](l), err
 }
 
 // Enumerant_Future is a wrapper for a Enumerant promised by a client call.
@@ -1614,7 +1614,7 @@ type Superclass_List = capnp.StructList[Superclass]
 // NewSuperclass creates a new list of Superclass.
 func NewSuperclass_List(s *capnp.Segment, sz int32) (Superclass_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	return capnp.StructList[Superclass]{List: l}, err
+	return capnp.StructList[Superclass](l), err
 }
 
 // Superclass_Future is a wrapper for a Superclass promised by a client call.
@@ -1704,7 +1704,7 @@ func (s Method) SetCodeOrder(v uint16) {
 
 func (s Method) ImplicitParameters() (Node_Parameter_List, error) {
 	p, err := capnp.Struct(s).Ptr(4)
-	return Node_Parameter_List{List: p.List()}, err
+	return Node_Parameter_List(p.List()), err
 }
 
 func (s Method) HasImplicitParameters() bool {
@@ -1712,7 +1712,7 @@ func (s Method) HasImplicitParameters() bool {
 }
 
 func (s Method) SetImplicitParameters(v Node_Parameter_List) error {
-	return capnp.Struct(s).SetPtr(4, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(4, v.ToPtr())
 }
 
 // NewImplicitParameters sets the implicitParameters field to a newly
@@ -1722,7 +1722,7 @@ func (s Method) NewImplicitParameters(n int32) (Node_Parameter_List, error) {
 	if err != nil {
 		return Node_Parameter_List{}, err
 	}
-	err = capnp.Struct(s).SetPtr(4, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(4, l.ToPtr())
 	return l, err
 }
 
@@ -1792,7 +1792,7 @@ func (s Method) NewResultBrand() (Brand, error) {
 
 func (s Method) Annotations() (Annotation_List, error) {
 	p, err := capnp.Struct(s).Ptr(1)
-	return Annotation_List{List: p.List()}, err
+	return Annotation_List(p.List()), err
 }
 
 func (s Method) HasAnnotations() bool {
@@ -1800,7 +1800,7 @@ func (s Method) HasAnnotations() bool {
 }
 
 func (s Method) SetAnnotations(v Annotation_List) error {
-	return capnp.Struct(s).SetPtr(1, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(1, v.ToPtr())
 }
 
 // NewAnnotations sets the annotations field to a newly
@@ -1810,7 +1810,7 @@ func (s Method) NewAnnotations(n int32) (Annotation_List, error) {
 	if err != nil {
 		return Annotation_List{}, err
 	}
-	err = capnp.Struct(s).SetPtr(1, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(1, l.ToPtr())
 	return l, err
 }
 
@@ -1820,7 +1820,7 @@ type Method_List = capnp.StructList[Method]
 // NewMethod creates a new list of Method.
 func NewMethod_List(s *capnp.Segment, sz int32) (Method_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 24, PointerCount: 5}, sz)
-	return capnp.StructList[Method]{List: l}, err
+	return capnp.StructList[Method](l), err
 }
 
 // Method_Future is a wrapper for a Method promised by a client call.
@@ -2400,7 +2400,7 @@ type Type_List = capnp.StructList[Type]
 // NewType creates a new list of Type.
 func NewType_List(s *capnp.Segment, sz int32) (Type_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 24, PointerCount: 1}, sz)
-	return capnp.StructList[Type]{List: l}, err
+	return capnp.StructList[Type](l), err
 }
 
 // Type_Future is a wrapper for a Type promised by a client call.
@@ -2562,7 +2562,7 @@ func (s Brand) Segment() *capnp.Segment {
 }
 func (s Brand) Scopes() (Brand_Scope_List, error) {
 	p, err := capnp.Struct(s).Ptr(0)
-	return Brand_Scope_List{List: p.List()}, err
+	return Brand_Scope_List(p.List()), err
 }
 
 func (s Brand) HasScopes() bool {
@@ -2570,7 +2570,7 @@ func (s Brand) HasScopes() bool {
 }
 
 func (s Brand) SetScopes(v Brand_Scope_List) error {
-	return capnp.Struct(s).SetPtr(0, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewScopes sets the scopes field to a newly
@@ -2580,7 +2580,7 @@ func (s Brand) NewScopes(n int32) (Brand_Scope_List, error) {
 	if err != nil {
 		return Brand_Scope_List{}, err
 	}
-	err = capnp.Struct(s).SetPtr(0, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
 
@@ -2590,7 +2590,7 @@ type Brand_List = capnp.StructList[Brand]
 // NewBrand creates a new list of Brand.
 func NewBrand_List(s *capnp.Segment, sz int32) (Brand_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[Brand]{List: l}, err
+	return capnp.StructList[Brand](l), err
 }
 
 // Brand_Future is a wrapper for a Brand promised by a client call.
@@ -2683,7 +2683,7 @@ func (s Brand_Scope) Bind() (Brand_Binding_List, error) {
 		panic("Which() != bind")
 	}
 	p, err := capnp.Struct(s).Ptr(0)
-	return Brand_Binding_List{List: p.List()}, err
+	return Brand_Binding_List(p.List()), err
 }
 
 func (s Brand_Scope) HasBind() bool {
@@ -2695,7 +2695,7 @@ func (s Brand_Scope) HasBind() bool {
 
 func (s Brand_Scope) SetBind(v Brand_Binding_List) error {
 	capnp.Struct(s).SetUint16(8, 0)
-	return capnp.Struct(s).SetPtr(0, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewBind sets the bind field to a newly
@@ -2706,7 +2706,7 @@ func (s Brand_Scope) NewBind(n int32) (Brand_Binding_List, error) {
 	if err != nil {
 		return Brand_Binding_List{}, err
 	}
-	err = capnp.Struct(s).SetPtr(0, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
 
@@ -2721,7 +2721,7 @@ type Brand_Scope_List = capnp.StructList[Brand_Scope]
 // NewBrand_Scope creates a new list of Brand_Scope.
 func NewBrand_Scope_List(s *capnp.Segment, sz int32) (Brand_Scope_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1}, sz)
-	return capnp.StructList[Brand_Scope]{List: l}, err
+	return capnp.StructList[Brand_Scope](l), err
 }
 
 // Brand_Scope_Future is a wrapper for a Brand_Scope promised by a client call.
@@ -2844,7 +2844,7 @@ type Brand_Binding_List = capnp.StructList[Brand_Binding]
 // NewBrand_Binding creates a new list of Brand_Binding.
 func NewBrand_Binding_List(s *capnp.Segment, sz int32) (Brand_Binding_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	return capnp.StructList[Brand_Binding]{List: l}, err
+	return capnp.StructList[Brand_Binding](l), err
 }
 
 // Brand_Binding_Future is a wrapper for a Brand_Binding promised by a client call.
@@ -3241,7 +3241,7 @@ type Value_List = capnp.StructList[Value]
 // NewValue creates a new list of Value.
 func NewValue_List(s *capnp.Segment, sz int32) (Value_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1}, sz)
-	return capnp.StructList[Value]{List: l}, err
+	return capnp.StructList[Value](l), err
 }
 
 // Value_Future is a wrapper for a Value promised by a client call.
@@ -3373,7 +3373,7 @@ type Annotation_List = capnp.StructList[Annotation]
 // NewAnnotation creates a new list of Annotation.
 func NewAnnotation_List(s *capnp.Segment, sz int32) (Annotation_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2}, sz)
-	return capnp.StructList[Annotation]{List: l}, err
+	return capnp.StructList[Annotation](l), err
 }
 
 // Annotation_Future is a wrapper for a Annotation promised by a client call.
@@ -3543,7 +3543,7 @@ type CapnpVersion_List = capnp.StructList[CapnpVersion]
 // NewCapnpVersion creates a new list of CapnpVersion.
 func NewCapnpVersion_List(s *capnp.Segment, sz int32) (CapnpVersion_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	return capnp.StructList[CapnpVersion]{List: l}, err
+	return capnp.StructList[CapnpVersion](l), err
 }
 
 // CapnpVersion_Future is a wrapper for a CapnpVersion promised by a client call.
@@ -3627,7 +3627,7 @@ func (s CodeGeneratorRequest) NewCapnpVersion() (CapnpVersion, error) {
 
 func (s CodeGeneratorRequest) Nodes() (Node_List, error) {
 	p, err := capnp.Struct(s).Ptr(0)
-	return Node_List{List: p.List()}, err
+	return Node_List(p.List()), err
 }
 
 func (s CodeGeneratorRequest) HasNodes() bool {
@@ -3635,7 +3635,7 @@ func (s CodeGeneratorRequest) HasNodes() bool {
 }
 
 func (s CodeGeneratorRequest) SetNodes(v Node_List) error {
-	return capnp.Struct(s).SetPtr(0, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewNodes sets the nodes field to a newly
@@ -3645,13 +3645,13 @@ func (s CodeGeneratorRequest) NewNodes(n int32) (Node_List, error) {
 	if err != nil {
 		return Node_List{}, err
 	}
-	err = capnp.Struct(s).SetPtr(0, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
 
 func (s CodeGeneratorRequest) SourceInfo() (Node_SourceInfo_List, error) {
 	p, err := capnp.Struct(s).Ptr(3)
-	return Node_SourceInfo_List{List: p.List()}, err
+	return Node_SourceInfo_List(p.List()), err
 }
 
 func (s CodeGeneratorRequest) HasSourceInfo() bool {
@@ -3659,7 +3659,7 @@ func (s CodeGeneratorRequest) HasSourceInfo() bool {
 }
 
 func (s CodeGeneratorRequest) SetSourceInfo(v Node_SourceInfo_List) error {
-	return capnp.Struct(s).SetPtr(3, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(3, v.ToPtr())
 }
 
 // NewSourceInfo sets the sourceInfo field to a newly
@@ -3669,13 +3669,13 @@ func (s CodeGeneratorRequest) NewSourceInfo(n int32) (Node_SourceInfo_List, erro
 	if err != nil {
 		return Node_SourceInfo_List{}, err
 	}
-	err = capnp.Struct(s).SetPtr(3, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(3, l.ToPtr())
 	return l, err
 }
 
 func (s CodeGeneratorRequest) RequestedFiles() (CodeGeneratorRequest_RequestedFile_List, error) {
 	p, err := capnp.Struct(s).Ptr(1)
-	return CodeGeneratorRequest_RequestedFile_List{List: p.List()}, err
+	return CodeGeneratorRequest_RequestedFile_List(p.List()), err
 }
 
 func (s CodeGeneratorRequest) HasRequestedFiles() bool {
@@ -3683,7 +3683,7 @@ func (s CodeGeneratorRequest) HasRequestedFiles() bool {
 }
 
 func (s CodeGeneratorRequest) SetRequestedFiles(v CodeGeneratorRequest_RequestedFile_List) error {
-	return capnp.Struct(s).SetPtr(1, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(1, v.ToPtr())
 }
 
 // NewRequestedFiles sets the requestedFiles field to a newly
@@ -3693,7 +3693,7 @@ func (s CodeGeneratorRequest) NewRequestedFiles(n int32) (CodeGeneratorRequest_R
 	if err != nil {
 		return CodeGeneratorRequest_RequestedFile_List{}, err
 	}
-	err = capnp.Struct(s).SetPtr(1, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(1, l.ToPtr())
 	return l, err
 }
 
@@ -3703,7 +3703,7 @@ type CodeGeneratorRequest_List = capnp.StructList[CodeGeneratorRequest]
 // NewCodeGeneratorRequest creates a new list of CodeGeneratorRequest.
 func NewCodeGeneratorRequest_List(s *capnp.Segment, sz int32) (CodeGeneratorRequest_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 4}, sz)
-	return capnp.StructList[CodeGeneratorRequest]{List: l}, err
+	return capnp.StructList[CodeGeneratorRequest](l), err
 }
 
 // CodeGeneratorRequest_Future is a wrapper for a CodeGeneratorRequest promised by a client call.
@@ -3793,7 +3793,7 @@ func (s CodeGeneratorRequest_RequestedFile) SetFilename(v string) error {
 
 func (s CodeGeneratorRequest_RequestedFile) Imports() (CodeGeneratorRequest_RequestedFile_Import_List, error) {
 	p, err := capnp.Struct(s).Ptr(1)
-	return CodeGeneratorRequest_RequestedFile_Import_List{List: p.List()}, err
+	return CodeGeneratorRequest_RequestedFile_Import_List(p.List()), err
 }
 
 func (s CodeGeneratorRequest_RequestedFile) HasImports() bool {
@@ -3801,7 +3801,7 @@ func (s CodeGeneratorRequest_RequestedFile) HasImports() bool {
 }
 
 func (s CodeGeneratorRequest_RequestedFile) SetImports(v CodeGeneratorRequest_RequestedFile_Import_List) error {
-	return capnp.Struct(s).SetPtr(1, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(1, v.ToPtr())
 }
 
 // NewImports sets the imports field to a newly
@@ -3811,7 +3811,7 @@ func (s CodeGeneratorRequest_RequestedFile) NewImports(n int32) (CodeGeneratorRe
 	if err != nil {
 		return CodeGeneratorRequest_RequestedFile_Import_List{}, err
 	}
-	err = capnp.Struct(s).SetPtr(1, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(1, l.ToPtr())
 	return l, err
 }
 
@@ -3821,7 +3821,7 @@ type CodeGeneratorRequest_RequestedFile_List = capnp.StructList[CodeGeneratorReq
 // NewCodeGeneratorRequest_RequestedFile creates a new list of CodeGeneratorRequest_RequestedFile.
 func NewCodeGeneratorRequest_RequestedFile_List(s *capnp.Segment, sz int32) (CodeGeneratorRequest_RequestedFile_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2}, sz)
-	return capnp.StructList[CodeGeneratorRequest_RequestedFile]{List: l}, err
+	return capnp.StructList[CodeGeneratorRequest_RequestedFile](l), err
 }
 
 // CodeGeneratorRequest_RequestedFile_Future is a wrapper for a CodeGeneratorRequest_RequestedFile promised by a client call.
@@ -3911,7 +3911,7 @@ type CodeGeneratorRequest_RequestedFile_Import_List = capnp.StructList[CodeGener
 // NewCodeGeneratorRequest_RequestedFile_Import creates a new list of CodeGeneratorRequest_RequestedFile_Import.
 func NewCodeGeneratorRequest_RequestedFile_Import_List(s *capnp.Segment, sz int32) (CodeGeneratorRequest_RequestedFile_Import_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	return capnp.StructList[CodeGeneratorRequest_RequestedFile_Import]{List: l}, err
+	return capnp.StructList[CodeGeneratorRequest_RequestedFile_Import](l), err
 }
 
 // CodeGeneratorRequest_RequestedFile_Import_Future is a wrapper for a CodeGeneratorRequest_RequestedFile_Import promised by a client call.
