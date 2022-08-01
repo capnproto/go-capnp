@@ -1040,7 +1040,7 @@ func TestReadNestedListOfStructWithList(t *testing.T) {
 			t.Errorf("RWTestCapn.nestMatrix[%d]: %v", i, err)
 			return
 		}
-		rowList := air.Nester1Capn_List{List: row.List()}
+		rowList := capnp.StructList[air.Nester1Capn]{List: row.List()}
 		if j >= rowList.Len() {
 			t.Errorf("len(RWTestCapn.nestMatrix[%d]) = %d; tried to index %d", i, rowList.Len(), j)
 			return

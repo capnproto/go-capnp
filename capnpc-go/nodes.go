@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/internal/schema"
 )
 
@@ -156,7 +157,7 @@ type annotations struct {
 	Name      string
 }
 
-func parseAnnotations(list schema.Annotation_List) *annotations {
+func parseAnnotations(list capnp.StructList[schema.Annotation]) *annotations {
 	ann := new(annotations)
 	for i, n := 0, list.Len(); i < n; i++ {
 		a := list.At(i)
