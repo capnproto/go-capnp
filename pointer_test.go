@@ -75,8 +75,8 @@ func TestEqual(t *testing.T) {
 		0: ec,
 		1: ec,
 		2: ErrorClient(errors.New("another boo")),
-		3: Client{},
-		4: Client{},
+		3: {},
+		4: {},
 	}
 	iface1 := NewInterface(seg, 0)
 	iface2 := NewInterface(seg, 1)
