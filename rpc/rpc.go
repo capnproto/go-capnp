@@ -1216,7 +1216,7 @@ func (c *Conn) recvCapReceiverAnswer(ans *answer, transform []capnp.PipelineOp) 
 }
 
 // Returns whether the client should be treated as local, for the purpose of
-// embargos.
+// embargoes.
 func (c *Conn) isLocalClient(client capnp.Client) bool {
 	if (client == capnp.Client{}) {
 		return false
