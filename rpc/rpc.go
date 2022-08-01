@@ -1154,11 +1154,11 @@ func (c *Conn) recvCap(d rpccp.CapDescriptor) (capnp.Client, error) {
 	case rpccp.CapDescriptor_Which_receiverAnswer:
 		promisedAnswer, err := d.ReceiverAnswer()
 		if err != nil {
-			return capnp.Client{}, rpcerr.Failedf("receive capabiltiy: reading promised answer: %v", err)
+			return capnp.Client{}, rpcerr.Failedf("receive capability: reading promised answer: %v", err)
 		}
 		rawTransform, err := promisedAnswer.Transform()
 		if err != nil {
-			return capnp.Client{}, rpcerr.Failedf("receive capabiltiy: reading promised answer transform: %v", err)
+			return capnp.Client{}, rpcerr.Failedf("receive capability: reading promised answer transform: %v", err)
 		}
 		transform, err := parseTransform(rawTransform)
 		if err != nil {
