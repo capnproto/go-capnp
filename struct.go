@@ -1,7 +1,12 @@
 package capnp
 
 // Struct is a pointer to a struct.
-type Struct struct {
+type Struct StructKind
+
+// The underlying type of Struct. We expose this so that
+// we can use ~StructKind as a constraint in generics to
+// capture any struct type.
+type StructKind = struct {
 	seg        *Segment
 	off        address
 	size       ObjectSize

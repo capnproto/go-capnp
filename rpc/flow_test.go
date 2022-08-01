@@ -34,7 +34,7 @@ func (t *measuringTransport) RecvMessage(ctx context.Context) (rpccp.Message, ca
 		return msg, release, err
 	}
 
-	size, err := msg.Struct.Message().TotalSize()
+	size, err := capnp.Struct(msg).Message().TotalSize()
 	if err != nil {
 		return msg, release, err
 	}

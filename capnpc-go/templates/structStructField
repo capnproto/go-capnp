@@ -1,14 +1,14 @@
 func (s {{.Node.Name}}) {{.Field.Name|title}}() ({{.FieldType}}, error) {
 	{{template "_checktag" . -}}
-	p, err := s.Struct.Ptr({{.Field.Slot.Offset}})
+	p, err := capnp.Struct(s).Ptr({{.Field.Slot.Offset}})
 	{{if .Default.IsValid -}}
 	if err != nil {
 		return {{.FieldType}}{}, err
 	}
 	ss, err := p.StructDefault({{.Default}})
-	return {{.FieldType}}{Struct: ss}, err
+	return {{.FieldType}}(ss), err
 	{{- else -}}
-	return {{.FieldType}}{Struct: p.Struct()}, err
+	return {{.FieldType}}(p.Struct()), err
 	{{- end}}
 }
 
@@ -16,18 +16,18 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() ({{.FieldType}}, error) {
 
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.FieldType}}) error {
 	{{template "_settag" . -}}
-	return s.Struct.SetPtr({{.Field.Slot.Offset}}, v.Struct.ToPtr())
+	return capnp.Struct(s).SetPtr({{.Field.Slot.Offset}}, capnp.Struct(v).ToPtr())
 }
 
 // New{{.Field.Name|title}} sets the {{.Field.Name}} field to a newly
 // allocated {{.FieldType}} struct, preferring placement in s's segment.
 func (s {{.Node.Name}}) New{{.Field.Name|title}}() ({{.FieldType}}, error) {
 	{{template "_settag" . -}}
-	ss, err := {{.G.RemoteNodeNew .TypeNode .Node}}(s.Struct.Segment())
+	ss, err := {{.G.RemoteNodeNew .TypeNode .Node}}(capnp.Struct(s).Segment())
 	if err != nil {
 		return {{.FieldType}}{}, err
 	}
-	err = s.Struct.SetPtr({{.Field.Slot.Offset}}, ss.Struct.ToPtr())
+	err = capnp.Struct(s).SetPtr({{.Field.Slot.Offset}}, capnp.Struct(ss).ToPtr())
 	return ss, err
 }
 

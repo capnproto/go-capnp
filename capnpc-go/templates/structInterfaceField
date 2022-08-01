@@ -1,6 +1,6 @@
 func (s {{.Node.Name}}) {{.Field.Name|title}}() {{.FieldType}} {
 	{{template "_checktag" . -}}
-	p, _ := s.Struct.Ptr({{.Field.Slot.Offset}})
+	p, _ := capnp.Struct(s).Ptr({{.Field.Slot.Offset}})
 	return {{.FieldType}}(p.Interface().Client())
 }
 
@@ -9,10 +9,10 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() {{.FieldType}} {
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.FieldType}}) error {
 	{{template "_settag" . -}}
 	if !v.IsValid() {
-		return s.Struct.SetPtr({{.Field.Slot.Offset}}, capnp.Ptr{})
+		return capnp.Struct(s).SetPtr({{.Field.Slot.Offset}}, capnp.Ptr{})
 	}
 	seg := s.Segment()
 	in := capnp.NewInterface(seg, seg.Message().AddCap(capnp.Client(v)))
-	return s.Struct.SetPtr({{.Field.Slot.Offset}}, in.ToPtr())
+	return capnp.Struct(s).SetPtr({{.Field.Slot.Offset}}, in.ToPtr())
 }
 

@@ -45,13 +45,13 @@ type {{$.Node.Name}}_{{.Name}} struct {
 
 // Args returns the call's arguments.
 func (c {{$.Node.Name}}_{{.Name}}) Args() {{$.G.RemoteNodeName .Params $.Node}} {
-	return {{$.G.RemoteNodeName .Params $.Node}}{Struct: c.Call.Args()}
+	return {{$.G.RemoteNodeName .Params $.Node}}(c.Call.Args())
 }
 
 // AllocResults allocates the results struct.
 func (c {{$.Node.Name}}_{{.Name}}) AllocResults() ({{$.G.RemoteNodeName .Results $.Node}}, error) {
 	r, err := c.Call.AllocResults({{$.G.ObjectSize .Results}})
-	return {{$.G.RemoteNodeName .Results $.Node}}{Struct: r}, err
+	return {{$.G.RemoteNodeName .Results $.Node}}(r), err
 }
 {{end}}
 {{- end}}

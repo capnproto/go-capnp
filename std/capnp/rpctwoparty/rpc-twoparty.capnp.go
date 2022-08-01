@@ -52,40 +52,59 @@ func NewSide_List(s *capnp.Segment, sz int32) (Side_List, error) {
 	return capnp.NewEnumList[Side](s, sz)
 }
 
-type VatId struct{ capnp.Struct }
+type VatId capnp.Struct
 
 // VatId_TypeID is the unique identifier for the type VatId.
 const VatId_TypeID = 0xd20b909fee733a8e
 
 func NewVatId(s *capnp.Segment) (VatId, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	return VatId{st}, err
+	return VatId(st), err
 }
 
 func NewRootVatId(s *capnp.Segment) (VatId, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	return VatId{st}, err
+	return VatId(st), err
 }
 
 func ReadRootVatId(msg *capnp.Message) (VatId, error) {
 	root, err := msg.Root()
-	return VatId{root.Struct()}, err
+	return VatId(root.Struct()), err
 }
 
 func (s VatId) String() string {
-	str, _ := text.Marshal(0xd20b909fee733a8e, s.Struct)
+	str, _ := text.Marshal(0xd20b909fee733a8e, capnp.Struct(s))
 	return str
 }
 
+func (s VatId) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
 func (VatId) DecodeFromPtr(p capnp.Ptr) VatId {
-	return VatId{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+	return VatId(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s VatId) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s VatId) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s VatId) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s VatId) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
 }
 func (s VatId) Side() Side {
-	return Side(s.Struct.Uint16(0))
+	return Side(capnp.Struct(s).Uint16(0))
 }
 
 func (s VatId) SetSide(v Side) {
-	s.Struct.SetUint16(0, uint16(v))
+	capnp.Struct(s).SetUint16(0, uint16(v))
 }
 
 // VatId_List is a list of VatId.
@@ -102,43 +121,62 @@ type VatId_Future struct{ *capnp.Future }
 
 func (p VatId_Future) Struct() (VatId, error) {
 	s, err := p.Future.Struct()
-	return VatId{s}, err
+	return VatId(s), err
 }
 
-type ProvisionId struct{ capnp.Struct }
+type ProvisionId capnp.Struct
 
 // ProvisionId_TypeID is the unique identifier for the type ProvisionId.
 const ProvisionId_TypeID = 0xb88d09a9c5f39817
 
 func NewProvisionId(s *capnp.Segment) (ProvisionId, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	return ProvisionId{st}, err
+	return ProvisionId(st), err
 }
 
 func NewRootProvisionId(s *capnp.Segment) (ProvisionId, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	return ProvisionId{st}, err
+	return ProvisionId(st), err
 }
 
 func ReadRootProvisionId(msg *capnp.Message) (ProvisionId, error) {
 	root, err := msg.Root()
-	return ProvisionId{root.Struct()}, err
+	return ProvisionId(root.Struct()), err
 }
 
 func (s ProvisionId) String() string {
-	str, _ := text.Marshal(0xb88d09a9c5f39817, s.Struct)
+	str, _ := text.Marshal(0xb88d09a9c5f39817, capnp.Struct(s))
 	return str
 }
 
+func (s ProvisionId) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
 func (ProvisionId) DecodeFromPtr(p capnp.Ptr) ProvisionId {
-	return ProvisionId{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+	return ProvisionId(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s ProvisionId) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s ProvisionId) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s ProvisionId) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s ProvisionId) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
 }
 func (s ProvisionId) JoinId() uint32 {
-	return s.Struct.Uint32(0)
+	return capnp.Struct(s).Uint32(0)
 }
 
 func (s ProvisionId) SetJoinId(v uint32) {
-	s.Struct.SetUint32(0, v)
+	capnp.Struct(s).SetUint32(0, v)
 }
 
 // ProvisionId_List is a list of ProvisionId.
@@ -155,36 +193,55 @@ type ProvisionId_Future struct{ *capnp.Future }
 
 func (p ProvisionId_Future) Struct() (ProvisionId, error) {
 	s, err := p.Future.Struct()
-	return ProvisionId{s}, err
+	return ProvisionId(s), err
 }
 
-type RecipientId struct{ capnp.Struct }
+type RecipientId capnp.Struct
 
 // RecipientId_TypeID is the unique identifier for the type RecipientId.
 const RecipientId_TypeID = 0x89f389b6fd4082c1
 
 func NewRecipientId(s *capnp.Segment) (RecipientId, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	return RecipientId{st}, err
+	return RecipientId(st), err
 }
 
 func NewRootRecipientId(s *capnp.Segment) (RecipientId, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	return RecipientId{st}, err
+	return RecipientId(st), err
 }
 
 func ReadRootRecipientId(msg *capnp.Message) (RecipientId, error) {
 	root, err := msg.Root()
-	return RecipientId{root.Struct()}, err
+	return RecipientId(root.Struct()), err
 }
 
 func (s RecipientId) String() string {
-	str, _ := text.Marshal(0x89f389b6fd4082c1, s.Struct)
+	str, _ := text.Marshal(0x89f389b6fd4082c1, capnp.Struct(s))
 	return str
 }
 
+func (s RecipientId) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
 func (RecipientId) DecodeFromPtr(p capnp.Ptr) RecipientId {
-	return RecipientId{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+	return RecipientId(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s RecipientId) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s RecipientId) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s RecipientId) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s RecipientId) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
 }
 
 // RecipientId_List is a list of RecipientId.
@@ -201,36 +258,55 @@ type RecipientId_Future struct{ *capnp.Future }
 
 func (p RecipientId_Future) Struct() (RecipientId, error) {
 	s, err := p.Future.Struct()
-	return RecipientId{s}, err
+	return RecipientId(s), err
 }
 
-type ThirdPartyCapId struct{ capnp.Struct }
+type ThirdPartyCapId capnp.Struct
 
 // ThirdPartyCapId_TypeID is the unique identifier for the type ThirdPartyCapId.
 const ThirdPartyCapId_TypeID = 0xb47f4979672cb59d
 
 func NewThirdPartyCapId(s *capnp.Segment) (ThirdPartyCapId, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	return ThirdPartyCapId{st}, err
+	return ThirdPartyCapId(st), err
 }
 
 func NewRootThirdPartyCapId(s *capnp.Segment) (ThirdPartyCapId, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	return ThirdPartyCapId{st}, err
+	return ThirdPartyCapId(st), err
 }
 
 func ReadRootThirdPartyCapId(msg *capnp.Message) (ThirdPartyCapId, error) {
 	root, err := msg.Root()
-	return ThirdPartyCapId{root.Struct()}, err
+	return ThirdPartyCapId(root.Struct()), err
 }
 
 func (s ThirdPartyCapId) String() string {
-	str, _ := text.Marshal(0xb47f4979672cb59d, s.Struct)
+	str, _ := text.Marshal(0xb47f4979672cb59d, capnp.Struct(s))
 	return str
 }
 
+func (s ThirdPartyCapId) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
 func (ThirdPartyCapId) DecodeFromPtr(p capnp.Ptr) ThirdPartyCapId {
-	return ThirdPartyCapId{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+	return ThirdPartyCapId(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s ThirdPartyCapId) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s ThirdPartyCapId) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s ThirdPartyCapId) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s ThirdPartyCapId) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
 }
 
 // ThirdPartyCapId_List is a list of ThirdPartyCapId.
@@ -247,59 +323,78 @@ type ThirdPartyCapId_Future struct{ *capnp.Future }
 
 func (p ThirdPartyCapId_Future) Struct() (ThirdPartyCapId, error) {
 	s, err := p.Future.Struct()
-	return ThirdPartyCapId{s}, err
+	return ThirdPartyCapId(s), err
 }
 
-type JoinKeyPart struct{ capnp.Struct }
+type JoinKeyPart capnp.Struct
 
 // JoinKeyPart_TypeID is the unique identifier for the type JoinKeyPart.
 const JoinKeyPart_TypeID = 0x95b29059097fca83
 
 func NewJoinKeyPart(s *capnp.Segment) (JoinKeyPart, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	return JoinKeyPart{st}, err
+	return JoinKeyPart(st), err
 }
 
 func NewRootJoinKeyPart(s *capnp.Segment) (JoinKeyPart, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	return JoinKeyPart{st}, err
+	return JoinKeyPart(st), err
 }
 
 func ReadRootJoinKeyPart(msg *capnp.Message) (JoinKeyPart, error) {
 	root, err := msg.Root()
-	return JoinKeyPart{root.Struct()}, err
+	return JoinKeyPart(root.Struct()), err
 }
 
 func (s JoinKeyPart) String() string {
-	str, _ := text.Marshal(0x95b29059097fca83, s.Struct)
+	str, _ := text.Marshal(0x95b29059097fca83, capnp.Struct(s))
 	return str
 }
 
+func (s JoinKeyPart) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
 func (JoinKeyPart) DecodeFromPtr(p capnp.Ptr) JoinKeyPart {
-	return JoinKeyPart{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+	return JoinKeyPart(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s JoinKeyPart) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s JoinKeyPart) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s JoinKeyPart) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s JoinKeyPart) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
 }
 func (s JoinKeyPart) JoinId() uint32 {
-	return s.Struct.Uint32(0)
+	return capnp.Struct(s).Uint32(0)
 }
 
 func (s JoinKeyPart) SetJoinId(v uint32) {
-	s.Struct.SetUint32(0, v)
+	capnp.Struct(s).SetUint32(0, v)
 }
 
 func (s JoinKeyPart) PartCount() uint16 {
-	return s.Struct.Uint16(4)
+	return capnp.Struct(s).Uint16(4)
 }
 
 func (s JoinKeyPart) SetPartCount(v uint16) {
-	s.Struct.SetUint16(4, v)
+	capnp.Struct(s).SetUint16(4, v)
 }
 
 func (s JoinKeyPart) PartNum() uint16 {
-	return s.Struct.Uint16(6)
+	return capnp.Struct(s).Uint16(6)
 }
 
 func (s JoinKeyPart) SetPartNum(v uint16) {
-	s.Struct.SetUint16(6, v)
+	capnp.Struct(s).SetUint16(6, v)
 }
 
 // JoinKeyPart_List is a list of JoinKeyPart.
@@ -316,63 +411,82 @@ type JoinKeyPart_Future struct{ *capnp.Future }
 
 func (p JoinKeyPart_Future) Struct() (JoinKeyPart, error) {
 	s, err := p.Future.Struct()
-	return JoinKeyPart{s}, err
+	return JoinKeyPart(s), err
 }
 
-type JoinResult struct{ capnp.Struct }
+type JoinResult capnp.Struct
 
 // JoinResult_TypeID is the unique identifier for the type JoinResult.
 const JoinResult_TypeID = 0x9d263a3630b7ebee
 
 func NewJoinResult(s *capnp.Segment) (JoinResult, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	return JoinResult{st}, err
+	return JoinResult(st), err
 }
 
 func NewRootJoinResult(s *capnp.Segment) (JoinResult, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	return JoinResult{st}, err
+	return JoinResult(st), err
 }
 
 func ReadRootJoinResult(msg *capnp.Message) (JoinResult, error) {
 	root, err := msg.Root()
-	return JoinResult{root.Struct()}, err
+	return JoinResult(root.Struct()), err
 }
 
 func (s JoinResult) String() string {
-	str, _ := text.Marshal(0x9d263a3630b7ebee, s.Struct)
+	str, _ := text.Marshal(0x9d263a3630b7ebee, capnp.Struct(s))
 	return str
 }
 
+func (s JoinResult) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
 func (JoinResult) DecodeFromPtr(p capnp.Ptr) JoinResult {
-	return JoinResult{Struct: capnp.Struct{}.DecodeFromPtr(p)}
+	return JoinResult(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s JoinResult) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s JoinResult) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s JoinResult) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s JoinResult) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
 }
 func (s JoinResult) JoinId() uint32 {
-	return s.Struct.Uint32(0)
+	return capnp.Struct(s).Uint32(0)
 }
 
 func (s JoinResult) SetJoinId(v uint32) {
-	s.Struct.SetUint32(0, v)
+	capnp.Struct(s).SetUint32(0, v)
 }
 
 func (s JoinResult) Succeeded() bool {
-	return s.Struct.Bit(32)
+	return capnp.Struct(s).Bit(32)
 }
 
 func (s JoinResult) SetSucceeded(v bool) {
-	s.Struct.SetBit(32, v)
+	capnp.Struct(s).SetBit(32, v)
 }
 
 func (s JoinResult) Cap() (capnp.Ptr, error) {
-	return s.Struct.Ptr(0)
+	return capnp.Struct(s).Ptr(0)
 }
 
 func (s JoinResult) HasCap() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s JoinResult) SetCap(v capnp.Ptr) error {
-	return s.Struct.SetPtr(0, v)
+	return capnp.Struct(s).SetPtr(0, v)
 }
 
 // JoinResult_List is a list of JoinResult.
@@ -389,7 +503,7 @@ type JoinResult_Future struct{ *capnp.Future }
 
 func (p JoinResult_Future) Struct() (JoinResult, error) {
 	s, err := p.Future.Struct()
-	return JoinResult{s}, err
+	return JoinResult(s), err
 }
 
 func (p JoinResult_Future) Cap() *capnp.Future {

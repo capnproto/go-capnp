@@ -1116,18 +1116,18 @@ func (EnumList[T]) DecodeFromPtr(p Ptr) EnumList[T] {
 }
 
 // A list of some Cap'n Proto struct type T.
-type StructList[T ~struct{ Struct }] struct{ List }
+type StructList[T ~StructKind] struct{ List }
 
-var _ TypeParam[StructList[struct{ Struct }]] = StructList[struct{ Struct }]{}
+var _ TypeParam[StructList[Struct]] = StructList[Struct]{}
 
 // At returns the i'th element.
 func (s StructList[T]) At(i int) T {
-	return T{s.List.Struct(i)}
+	return T(s.List.Struct(i))
 }
 
 // Set sets the i'th element to v.
 func (s StructList[T]) Set(i int, v T) error {
-	return s.List.SetStruct(i, struct{ Struct }(v).Struct)
+	return s.List.SetStruct(i, Struct(v))
 }
 
 // String returns the list in Cap'n Proto schema format (e.g. "[(x = 1), (x = 2)]").

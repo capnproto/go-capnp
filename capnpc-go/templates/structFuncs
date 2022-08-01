@@ -1,5 +1,17 @@
 {{if gt .Node.StructNode.DiscriminantCount 0}}
 func (s {{.Node.Name}}) Which() {{.Node.Name}}_Which {
-	return {{.Node.Name}}_Which(s.Struct.Uint16({{.Node.DiscriminantOffset}}))
+	return {{.Node.Name}}_Which(capnp.Struct(s).Uint16({{.Node.DiscriminantOffset}}))
 }
 {{end -}}
+
+func (s {{.Node.Name}}) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s {{.Node.Name}}) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s {{.Node.Name}}) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
