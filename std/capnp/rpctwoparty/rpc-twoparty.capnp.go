@@ -113,7 +113,7 @@ type VatId_List = capnp.StructList[VatId]
 // NewVatId creates a new list of VatId.
 func NewVatId_List(s *capnp.Segment, sz int32) (VatId_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	return capnp.StructList[VatId]{List: l}, err
+	return capnp.StructList[VatId](l), err
 }
 
 // VatId_Future is a wrapper for a VatId promised by a client call.
@@ -185,7 +185,7 @@ type ProvisionId_List = capnp.StructList[ProvisionId]
 // NewProvisionId creates a new list of ProvisionId.
 func NewProvisionId_List(s *capnp.Segment, sz int32) (ProvisionId_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	return capnp.StructList[ProvisionId]{List: l}, err
+	return capnp.StructList[ProvisionId](l), err
 }
 
 // ProvisionId_Future is a wrapper for a ProvisionId promised by a client call.
@@ -250,7 +250,7 @@ type RecipientId_List = capnp.StructList[RecipientId]
 // NewRecipientId creates a new list of RecipientId.
 func NewRecipientId_List(s *capnp.Segment, sz int32) (RecipientId_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
-	return capnp.StructList[RecipientId]{List: l}, err
+	return capnp.StructList[RecipientId](l), err
 }
 
 // RecipientId_Future is a wrapper for a RecipientId promised by a client call.
@@ -315,7 +315,7 @@ type ThirdPartyCapId_List = capnp.StructList[ThirdPartyCapId]
 // NewThirdPartyCapId creates a new list of ThirdPartyCapId.
 func NewThirdPartyCapId_List(s *capnp.Segment, sz int32) (ThirdPartyCapId_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
-	return capnp.StructList[ThirdPartyCapId]{List: l}, err
+	return capnp.StructList[ThirdPartyCapId](l), err
 }
 
 // ThirdPartyCapId_Future is a wrapper for a ThirdPartyCapId promised by a client call.
@@ -403,7 +403,7 @@ type JoinKeyPart_List = capnp.StructList[JoinKeyPart]
 // NewJoinKeyPart creates a new list of JoinKeyPart.
 func NewJoinKeyPart_List(s *capnp.Segment, sz int32) (JoinKeyPart_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	return capnp.StructList[JoinKeyPart]{List: l}, err
+	return capnp.StructList[JoinKeyPart](l), err
 }
 
 // JoinKeyPart_Future is a wrapper for a JoinKeyPart promised by a client call.
@@ -495,7 +495,7 @@ type JoinResult_List = capnp.StructList[JoinResult]
 // NewJoinResult creates a new list of JoinResult.
 func NewJoinResult_List(s *capnp.Segment, sz int32) (JoinResult_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	return capnp.StructList[JoinResult]{List: l}, err
+	return capnp.StructList[JoinResult](l), err
 }
 
 // JoinResult_Future is a wrapper for a JoinResult promised by a client call.

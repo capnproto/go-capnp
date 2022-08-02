@@ -1040,7 +1040,7 @@ func TestReadNestedListOfStructWithList(t *testing.T) {
 			t.Errorf("RWTestCapn.nestMatrix[%d]: %v", i, err)
 			return
 		}
-		rowList := capnp.StructList[air.Nester1Capn]{List: row.List()}
+		rowList := capnp.StructList[air.Nester1Capn](row.List())
 		if j >= rowList.Len() {
 			t.Errorf("len(RWTestCapn.nestMatrix[%d]) = %d; tried to index %d", i, rowList.Len(), j)
 			return
@@ -2000,7 +2000,7 @@ func TestPointerDepthDefenseAcrossStructsAndLists(t *testing.T) {
 			t.Fatalf("deref %d (for list): %v", limit-i+1, err)
 		}
 		i--
-		curr, err = toStruct(capnp.PointerList{List: l}.At(0))
+		curr, err = toStruct(capnp.PointerList(l).At(0))
 		if err != nil {
 			t.Fatalf("deref %d (for struct): %v", limit-i+1, err)
 		}

@@ -179,7 +179,7 @@ type PingPong_echoNum_Params_List = capnp.StructList[PingPong_echoNum_Params]
 // NewPingPong_echoNum_Params creates a new list of PingPong_echoNum_Params.
 func NewPingPong_echoNum_Params_List(s *capnp.Segment, sz int32) (PingPong_echoNum_Params_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	return capnp.StructList[PingPong_echoNum_Params]{List: l}, err
+	return capnp.StructList[PingPong_echoNum_Params](l), err
 }
 
 // PingPong_echoNum_Params_Future is a wrapper for a PingPong_echoNum_Params promised by a client call.
@@ -251,7 +251,7 @@ type PingPong_echoNum_Results_List = capnp.StructList[PingPong_echoNum_Results]
 // NewPingPong_echoNum_Results creates a new list of PingPong_echoNum_Results.
 func NewPingPong_echoNum_Results_List(s *capnp.Segment, sz int32) (PingPong_echoNum_Results_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	return capnp.StructList[PingPong_echoNum_Results]{List: l}, err
+	return capnp.StructList[PingPong_echoNum_Results](l), err
 }
 
 // PingPong_echoNum_Results_Future is a wrapper for a PingPong_echoNum_Results promised by a client call.
@@ -435,7 +435,7 @@ type StreamTest_push_Params_List = capnp.StructList[StreamTest_push_Params]
 // NewStreamTest_push_Params creates a new list of StreamTest_push_Params.
 func NewStreamTest_push_Params_List(s *capnp.Segment, sz int32) (StreamTest_push_Params_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[StreamTest_push_Params]{List: l}, err
+	return capnp.StructList[StreamTest_push_Params](l), err
 }
 
 // StreamTest_push_Params_Future is a wrapper for a StreamTest_push_Params promised by a client call.
@@ -671,7 +671,7 @@ type CapArgsTest_call_Params_List = capnp.StructList[CapArgsTest_call_Params]
 // NewCapArgsTest_call_Params creates a new list of CapArgsTest_call_Params.
 func NewCapArgsTest_call_Params_List(s *capnp.Segment, sz int32) (CapArgsTest_call_Params_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[CapArgsTest_call_Params]{List: l}, err
+	return capnp.StructList[CapArgsTest_call_Params](l), err
 }
 
 // CapArgsTest_call_Params_Future is a wrapper for a CapArgsTest_call_Params promised by a client call.
@@ -740,7 +740,7 @@ type CapArgsTest_call_Results_List = capnp.StructList[CapArgsTest_call_Results]
 // NewCapArgsTest_call_Results creates a new list of CapArgsTest_call_Results.
 func NewCapArgsTest_call_Results_List(s *capnp.Segment, sz int32) (CapArgsTest_call_Results_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
-	return capnp.StructList[CapArgsTest_call_Results]{List: l}, err
+	return capnp.StructList[CapArgsTest_call_Results](l), err
 }
 
 // CapArgsTest_call_Results_Future is a wrapper for a CapArgsTest_call_Results promised by a client call.
@@ -805,7 +805,7 @@ type CapArgsTest_self_Params_List = capnp.StructList[CapArgsTest_self_Params]
 // NewCapArgsTest_self_Params creates a new list of CapArgsTest_self_Params.
 func NewCapArgsTest_self_Params_List(s *capnp.Segment, sz int32) (CapArgsTest_self_Params_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
-	return capnp.StructList[CapArgsTest_self_Params]{List: l}, err
+	return capnp.StructList[CapArgsTest_self_Params](l), err
 }
 
 // CapArgsTest_self_Params_Future is a wrapper for a CapArgsTest_self_Params promised by a client call.
@@ -887,7 +887,7 @@ type CapArgsTest_self_Results_List = capnp.StructList[CapArgsTest_self_Results]
 // NewCapArgsTest_self_Results creates a new list of CapArgsTest_self_Results.
 func NewCapArgsTest_self_Results_List(s *capnp.Segment, sz int32) (CapArgsTest_self_Results_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[CapArgsTest_self_Results]{List: l}, err
+	return capnp.StructList[CapArgsTest_self_Results](l), err
 }
 
 // CapArgsTest_self_Results_Future is a wrapper for a CapArgsTest_self_Results promised by a client call.

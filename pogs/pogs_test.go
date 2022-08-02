@@ -194,7 +194,7 @@ func newTestList() capnp.List {
 	l.Set(0, 123)
 	l.Set(1, 456)
 	l.Set(2, 789)
-	return l.List
+	return capnp.List(l)
 }
 
 func newTestInterface() capnp.Interface {

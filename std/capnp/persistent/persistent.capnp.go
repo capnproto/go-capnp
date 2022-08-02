@@ -184,7 +184,7 @@ type Persistent_SaveParams_List = capnp.StructList[Persistent_SaveParams]
 // NewPersistent_SaveParams creates a new list of Persistent_SaveParams.
 func NewPersistent_SaveParams_List(s *capnp.Segment, sz int32) (Persistent_SaveParams_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[Persistent_SaveParams]{List: l}, err
+	return capnp.StructList[Persistent_SaveParams](l), err
 }
 
 // Persistent_SaveParams_Future is a wrapper for a Persistent_SaveParams promised by a client call.
@@ -264,7 +264,7 @@ type Persistent_SaveResults_List = capnp.StructList[Persistent_SaveResults]
 // NewPersistent_SaveResults creates a new list of Persistent_SaveResults.
 func NewPersistent_SaveResults_List(s *capnp.Segment, sz int32) (Persistent_SaveResults_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[Persistent_SaveResults]{List: l}, err
+	return capnp.StructList[Persistent_SaveResults](l), err
 }
 
 // Persistent_SaveResults_Future is a wrapper for a Persistent_SaveResults promised by a client call.

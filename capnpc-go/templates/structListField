@@ -6,9 +6,9 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() ({{.FieldType}}, error) {
 		return {{.FieldType}}{}, err
 	}
 	l, err := p.ListDefault({{.Default}})
-	return {{.FieldType}}{List: l}, err
+	return {{.FieldType}}(l), err
 	{{- else -}}
-	return {{.FieldType}}{List: p.List()}, err
+	return {{.FieldType}}(p.List()), err
 	{{- end}}
 }
 
@@ -16,7 +16,7 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() ({{.FieldType}}, error) {
 
 func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v {{.FieldType}}) error {
 	{{template "_settag" . -}}
-	return capnp.Struct(s).SetPtr({{.Field.Slot.Offset}}, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr({{.Field.Slot.Offset}}, v.ToPtr())
 }
 
 // New{{.Field.Name|title}} sets the {{.Field.Name}} field to a newly
@@ -27,7 +27,7 @@ func (s {{.Node.Name}}) New{{.Field.Name|title}}(n int32) ({{.FieldType}}, error
 	if err != nil {
 		return {{.FieldType}}{}, err
 	}
-	err = capnp.Struct(s).SetPtr({{.Field.Slot.Offset}}, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr({{.Field.Slot.Offset}}, l.ToPtr())
 	return l, err
 }
 
