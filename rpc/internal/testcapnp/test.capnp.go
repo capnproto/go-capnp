@@ -80,8 +80,8 @@ func (c PingPong) IsValid() bool {
 	return capnp.Client(c).IsValid()
 }
 
-// IsSame reports whether c and c2 refer to a capability created by the
-// same call to NewClient.  This can return false negatives if c or c2
+// IsSame reports whether c and other refer to a capability created by the
+// same call to NewClient.  This can return false negatives if c or other
 // are not fully resolved: use Resolve if this is an issue.  If either
 // c or other are released, then IsSame panics.
 func (c PingPong) IsSame(other PingPong) bool {
@@ -96,7 +96,11 @@ func (c PingPong) SetFlowLimiter(lim fc.FlowLimiter) {
 	capnp.Client(c).SetFlowLimiter(lim)
 }
 
-// A PingPong_Server is a PingPong with a local implementation.
+// Get the current flowcontrol.FlowLimiter used to manage flow control
+// for this client.
+func (c PingPong) GetFlowLimiter() fc.FlowLimiter {
+	return capnp.Client(c).GetFlowLimiter()
+} // A PingPong_Server is a PingPong with a local implementation.
 type PingPong_Server interface {
 	EchoNum(context.Context, PingPong_echoNum) error
 }
@@ -372,8 +376,8 @@ func (c StreamTest) IsValid() bool {
 	return capnp.Client(c).IsValid()
 }
 
-// IsSame reports whether c and c2 refer to a capability created by the
-// same call to NewClient.  This can return false negatives if c or c2
+// IsSame reports whether c and other refer to a capability created by the
+// same call to NewClient.  This can return false negatives if c or other
 // are not fully resolved: use Resolve if this is an issue.  If either
 // c or other are released, then IsSame panics.
 func (c StreamTest) IsSame(other StreamTest) bool {
@@ -388,7 +392,11 @@ func (c StreamTest) SetFlowLimiter(lim fc.FlowLimiter) {
 	capnp.Client(c).SetFlowLimiter(lim)
 }
 
-// A StreamTest_Server is a StreamTest with a local implementation.
+// Get the current flowcontrol.FlowLimiter used to manage flow control
+// for this client.
+func (c StreamTest) GetFlowLimiter() fc.FlowLimiter {
+	return capnp.Client(c).GetFlowLimiter()
+} // A StreamTest_Server is a StreamTest with a local implementation.
 type StreamTest_Server interface {
 	Push(context.Context, StreamTest_push) error
 }
@@ -613,8 +621,8 @@ func (c CapArgsTest) IsValid() bool {
 	return capnp.Client(c).IsValid()
 }
 
-// IsSame reports whether c and c2 refer to a capability created by the
-// same call to NewClient.  This can return false negatives if c or c2
+// IsSame reports whether c and other refer to a capability created by the
+// same call to NewClient.  This can return false negatives if c or other
 // are not fully resolved: use Resolve if this is an issue.  If either
 // c or other are released, then IsSame panics.
 func (c CapArgsTest) IsSame(other CapArgsTest) bool {
@@ -629,7 +637,11 @@ func (c CapArgsTest) SetFlowLimiter(lim fc.FlowLimiter) {
 	capnp.Client(c).SetFlowLimiter(lim)
 }
 
-// A CapArgsTest_Server is a CapArgsTest with a local implementation.
+// Get the current flowcontrol.FlowLimiter used to manage flow control
+// for this client.
+func (c CapArgsTest) GetFlowLimiter() fc.FlowLimiter {
+	return capnp.Client(c).GetFlowLimiter()
+} // A CapArgsTest_Server is a CapArgsTest with a local implementation.
 type CapArgsTest_Server interface {
 	Call(context.Context, CapArgsTest_call) error
 

@@ -81,3 +81,9 @@ func (c {{$.Node.Name}}) IsSame(other {{$.Node.Name}}) bool {
 func (c {{$.Node.Name}}) SetFlowLimiter(lim {{.G.Imports.FlowControl}}.FlowLimiter) {
 	capnp.Client(c).SetFlowLimiter(lim)
 }
+
+// Get the current flowcontrol.FlowLimiter used to manage flow control
+// for this client.
+func (c {{$.Node.Name}}) GetFlowLimiter() {{.G.Imports.FlowControl}}.FlowLimiter {
+	return capnp.Client(c).GetFlowLimiter()
+}

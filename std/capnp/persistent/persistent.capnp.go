@@ -81,8 +81,8 @@ func (c Persistent) IsValid() bool {
 	return capnp.Client(c).IsValid()
 }
 
-// IsSame reports whether c and c2 refer to a capability created by the
-// same call to NewClient.  This can return false negatives if c or c2
+// IsSame reports whether c and other refer to a capability created by the
+// same call to NewClient.  This can return false negatives if c or other
 // are not fully resolved: use Resolve if this is an issue.  If either
 // c or other are released, then IsSame panics.
 func (c Persistent) IsSame(other Persistent) bool {
@@ -97,7 +97,11 @@ func (c Persistent) SetFlowLimiter(lim fc.FlowLimiter) {
 	capnp.Client(c).SetFlowLimiter(lim)
 }
 
-// A Persistent_Server is a Persistent with a local implementation.
+// Get the current flowcontrol.FlowLimiter used to manage flow control
+// for this client.
+func (c Persistent) GetFlowLimiter() fc.FlowLimiter {
+	return capnp.Client(c).GetFlowLimiter()
+} // A Persistent_Server is a Persistent with a local implementation.
 type Persistent_Server interface {
 	Save(context.Context, Persistent_save) error
 }

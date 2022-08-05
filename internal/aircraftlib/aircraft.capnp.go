@@ -5172,8 +5172,8 @@ func (c Echo) IsValid() bool {
 	return capnp.Client(c).IsValid()
 }
 
-// IsSame reports whether c and c2 refer to a capability created by the
-// same call to NewClient.  This can return false negatives if c or c2
+// IsSame reports whether c and other refer to a capability created by the
+// same call to NewClient.  This can return false negatives if c or other
 // are not fully resolved: use Resolve if this is an issue.  If either
 // c or other are released, then IsSame panics.
 func (c Echo) IsSame(other Echo) bool {
@@ -5188,7 +5188,11 @@ func (c Echo) SetFlowLimiter(lim fc.FlowLimiter) {
 	capnp.Client(c).SetFlowLimiter(lim)
 }
 
-// A Echo_Server is a Echo with a local implementation.
+// Get the current flowcontrol.FlowLimiter used to manage flow control
+// for this client.
+func (c Echo) GetFlowLimiter() fc.FlowLimiter {
+	return capnp.Client(c).GetFlowLimiter()
+} // A Echo_Server is a Echo with a local implementation.
 type Echo_Server interface {
 	Echo(context.Context, Echo_echo) error
 }
@@ -5958,8 +5962,8 @@ func (c CallSequence) IsValid() bool {
 	return capnp.Client(c).IsValid()
 }
 
-// IsSame reports whether c and c2 refer to a capability created by the
-// same call to NewClient.  This can return false negatives if c or c2
+// IsSame reports whether c and other refer to a capability created by the
+// same call to NewClient.  This can return false negatives if c or other
 // are not fully resolved: use Resolve if this is an issue.  If either
 // c or other are released, then IsSame panics.
 func (c CallSequence) IsSame(other CallSequence) bool {
@@ -5974,7 +5978,11 @@ func (c CallSequence) SetFlowLimiter(lim fc.FlowLimiter) {
 	capnp.Client(c).SetFlowLimiter(lim)
 }
 
-// A CallSequence_Server is a CallSequence with a local implementation.
+// Get the current flowcontrol.FlowLimiter used to manage flow control
+// for this client.
+func (c CallSequence) GetFlowLimiter() fc.FlowLimiter {
+	return capnp.Client(c).GetFlowLimiter()
+} // A CallSequence_Server is a CallSequence with a local implementation.
 type CallSequence_Server interface {
 	GetNumber(context.Context, CallSequence_getNumber) error
 }
@@ -6259,8 +6267,8 @@ func (c Pipeliner) IsValid() bool {
 	return capnp.Client(c).IsValid()
 }
 
-// IsSame reports whether c and c2 refer to a capability created by the
-// same call to NewClient.  This can return false negatives if c or c2
+// IsSame reports whether c and other refer to a capability created by the
+// same call to NewClient.  This can return false negatives if c or other
 // are not fully resolved: use Resolve if this is an issue.  If either
 // c or other are released, then IsSame panics.
 func (c Pipeliner) IsSame(other Pipeliner) bool {
@@ -6275,7 +6283,11 @@ func (c Pipeliner) SetFlowLimiter(lim fc.FlowLimiter) {
 	capnp.Client(c).SetFlowLimiter(lim)
 }
 
-// A Pipeliner_Server is a Pipeliner with a local implementation.
+// Get the current flowcontrol.FlowLimiter used to manage flow control
+// for this client.
+func (c Pipeliner) GetFlowLimiter() fc.FlowLimiter {
+	return capnp.Client(c).GetFlowLimiter()
+} // A Pipeliner_Server is a Pipeliner with a local implementation.
 type Pipeliner_Server interface {
 	NewPipeliner(context.Context, Pipeliner_newPipeliner) error
 
