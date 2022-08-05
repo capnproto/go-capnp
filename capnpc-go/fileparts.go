@@ -9,6 +9,25 @@ import (
 	"capnproto.org/go/capnp/v3"
 )
 
+var (
+	capnpImportSpec = importSpec{path: capnpImport, name: "capnp"}
+	importList      = []importSpec{
+		capnpImportSpec,
+
+		// capnp subpackage imports
+		{path: schemasImport, name: "schemas"},
+		{path: serverImport, name: "server"},
+		{path: textImport, name: "text"},
+		{path: flowcontrolImport, name: "fc"},
+
+		// stdlib imports
+		{path: "fmt", name: "fmt"},
+		{path: "context", name: "context"},
+		{path: "math", name: "math"},
+		{path: "strconv", name: "strconv"},
+	}
+)
+
 type staticData struct {
 	name string
 	buf  []byte
@@ -57,22 +76,12 @@ type imports struct {
 	used  map[string]bool // keyed on import path
 }
 
-var capnpImportSpec = importSpec{path: capnpImport, name: "capnp"}
+func newImports() (i imports) {
+	for _, spec := range importList {
+		i.reserve(spec)
+	}
 
-func (i *imports) init() {
-	i.specs = nil
-	i.used = make(map[string]bool)
-
-	i.reserve(capnpImportSpec)
-	i.reserve(importSpec{path: schemasImport, name: "schemas"})
-	i.reserve(importSpec{path: serverImport, name: "server"})
-	i.reserve(importSpec{path: textImport, name: "text"})
-	i.reserve(importSpec{path: flowcontrolImport, name: "fc"})
-
-	i.reserve(importSpec{path: "fmt", name: "fmt"})
-	i.reserve(importSpec{path: "context", name: "context"})
-	i.reserve(importSpec{path: "math", name: "math"})
-	i.reserve(importSpec{path: "strconv", name: "strconv"})
+	return
 }
 
 func (i *imports) Capnp() string {
@@ -140,6 +149,10 @@ func (i *imports) byName(name string) (spec importSpec, ok bool) {
 }
 
 func (i *imports) add(spec importSpec) (name string) {
+	if i.used == nil {
+		i.used = make(map[string]bool)
+	}
+
 	name = i.reserve(spec)
 	i.used[spec.path] = true
 	return name
