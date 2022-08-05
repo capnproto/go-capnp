@@ -37,6 +37,9 @@ func ({{$.Node.Name}}) DecodeFromPtr(p capnp.Ptr) {{$.Node.Name}} {
 	return {{$.Node.Name}}(capnp.Client{}.DecodeFromPtr(p))
 }
 
+// IsValid reports whether c is a valid reference to a capability.
+// A reference is invalid if it is nil, has resolved to null, or has
+// been released.
 func (c {{$.Node.Name}}) IsValid() bool {
 	return capnp.Client(c).IsValid()
 }
