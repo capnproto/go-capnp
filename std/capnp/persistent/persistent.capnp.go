@@ -9,6 +9,7 @@ import (
 	schemas "capnproto.org/go/capnp/v3/schemas"
 	server "capnproto.org/go/capnp/v3/server"
 	context "context"
+	fmt "fmt"
 )
 
 const PersistentAnnotation = uint64(0xf622595091cafb67)
@@ -40,7 +41,7 @@ func (c Persistent) Save(ctx context.Context, params func(Persistent_SaveParams)
 // should not be used to compare clients.  Use IsSame to compare clients
 // for equality.
 func (c Persistent) String() string {
-	return capnp.Client(c).String()
+	return fmt.Sprintf("%T(%v)", c, capnp.Client(c))
 }
 
 // AddRef creates a new Client that refers to the same capability as c.
@@ -78,6 +79,14 @@ func (Persistent) DecodeFromPtr(p capnp.Ptr) Persistent {
 // been released.
 func (c Persistent) IsValid() bool {
 	return capnp.Client(c).IsValid()
+}
+
+// IsSame reports whether c and c2 refer to a capability created by the
+// same call to NewClient.  This can return false negatives if c or c2
+// are not fully resolved: use Resolve if this is an issue.  If either
+// c or other are released, then IsSame panics.
+func (c Persistent) IsSame(other Persistent) bool {
+	return capnp.Client(c).IsSame(capnp.Client(other))
 }
 
 // Update the flowcontrol.FlowLimiter used to manage flow control for

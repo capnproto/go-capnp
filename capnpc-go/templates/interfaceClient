@@ -26,7 +26,7 @@ func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{$.G.Imports.Context}}.Context, pa
 // should not be used to compare clients.  Use IsSame to compare clients
 // for equality.
 func (c {{$.Node.Name}}) String() string {
-	return fmt.Sprintf("%T(%v)", c, capnp.Client(c))
+	return {{$.G.Imports.Fmt}}.Sprintf("%T(%v)", c, capnp.Client(c))
 }
 
 // AddRef creates a new Client that refers to the same capability as c.

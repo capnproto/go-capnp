@@ -10,6 +10,7 @@ import (
 	server "capnproto.org/go/capnp/v3/server"
 	stream "capnproto.org/go/capnp/v3/std/capnp/stream"
 	context "context"
+	fmt "fmt"
 )
 
 type PingPong capnp.Client
@@ -39,7 +40,7 @@ func (c PingPong) EchoNum(ctx context.Context, params func(PingPong_echoNum_Para
 // should not be used to compare clients.  Use IsSame to compare clients
 // for equality.
 func (c PingPong) String() string {
-	return capnp.Client(c).String()
+	return fmt.Sprintf("%T(%v)", c, capnp.Client(c))
 }
 
 // AddRef creates a new Client that refers to the same capability as c.
@@ -77,6 +78,14 @@ func (PingPong) DecodeFromPtr(p capnp.Ptr) PingPong {
 // been released.
 func (c PingPong) IsValid() bool {
 	return capnp.Client(c).IsValid()
+}
+
+// IsSame reports whether c and c2 refer to a capability created by the
+// same call to NewClient.  This can return false negatives if c or c2
+// are not fully resolved: use Resolve if this is an issue.  If either
+// c or other are released, then IsSame panics.
+func (c PingPong) IsSame(other PingPong) bool {
+	return capnp.Client(c).IsSame(capnp.Client(other))
 }
 
 // Update the flowcontrol.FlowLimiter used to manage flow control for
@@ -323,7 +332,7 @@ func (c StreamTest) Push(ctx context.Context, params func(StreamTest_push_Params
 // should not be used to compare clients.  Use IsSame to compare clients
 // for equality.
 func (c StreamTest) String() string {
-	return capnp.Client(c).String()
+	return fmt.Sprintf("%T(%v)", c, capnp.Client(c))
 }
 
 // AddRef creates a new Client that refers to the same capability as c.
@@ -361,6 +370,14 @@ func (StreamTest) DecodeFromPtr(p capnp.Ptr) StreamTest {
 // been released.
 func (c StreamTest) IsValid() bool {
 	return capnp.Client(c).IsValid()
+}
+
+// IsSame reports whether c and c2 refer to a capability created by the
+// same call to NewClient.  This can return false negatives if c or c2
+// are not fully resolved: use Resolve if this is an issue.  If either
+// c or other are released, then IsSame panics.
+func (c StreamTest) IsSame(other StreamTest) bool {
+	return capnp.Client(c).IsSame(capnp.Client(other))
 }
 
 // Update the flowcontrol.FlowLimiter used to manage flow control for
@@ -556,7 +573,7 @@ func (c CapArgsTest) Self(ctx context.Context, params func(CapArgsTest_self_Para
 // should not be used to compare clients.  Use IsSame to compare clients
 // for equality.
 func (c CapArgsTest) String() string {
-	return capnp.Client(c).String()
+	return fmt.Sprintf("%T(%v)", c, capnp.Client(c))
 }
 
 // AddRef creates a new Client that refers to the same capability as c.
@@ -594,6 +611,14 @@ func (CapArgsTest) DecodeFromPtr(p capnp.Ptr) CapArgsTest {
 // been released.
 func (c CapArgsTest) IsValid() bool {
 	return capnp.Client(c).IsValid()
+}
+
+// IsSame reports whether c and c2 refer to a capability created by the
+// same call to NewClient.  This can return false negatives if c or c2
+// are not fully resolved: use Resolve if this is an issue.  If either
+// c or other are released, then IsSame panics.
+func (c CapArgsTest) IsSame(other CapArgsTest) bool {
+	return capnp.Client(c).IsSame(capnp.Client(other))
 }
 
 // Update the flowcontrol.FlowLimiter used to manage flow control for
