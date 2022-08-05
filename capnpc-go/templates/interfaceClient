@@ -21,10 +21,18 @@ func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{$.G.Imports.Context}}.Context, pa
 }
 {{end}}
 
+// AddRef creates a new Client that refers to the same capability as c.
+// If c is nil or has resolved to null, then AddRef returns nil.
 func (c {{$.Node.Name}}) AddRef() {{$.Node.Name}} {
 	return {{$.Node.Name}}(capnp.Client(c).AddRef())
 }
 
+// Release releases a capability reference.  If this is the last
+// reference to the capability, then the underlying resources associated
+// with the capability will be released.
+//
+// Release will panic if c has already been released, but not if c is
+// nil or resolved to null.
 func (c {{$.Node.Name}}) Release() {
 	capnp.Client(c).Release()
 }
