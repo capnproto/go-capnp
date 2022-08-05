@@ -67,6 +67,7 @@ func (i *imports) init() {
 	i.reserve(importSpec{path: schemasImport, name: "schemas"})
 	i.reserve(importSpec{path: serverImport, name: "server"})
 	i.reserve(importSpec{path: textImport, name: "text"})
+	i.reserve(importSpec{path: flowcontrolImport, name: "fc"})
 
 	i.reserve(importSpec{path: "context", name: "context"})
 	i.reserve(importSpec{path: "math", name: "math"})
@@ -87,6 +88,10 @@ func (i *imports) Server() string {
 
 func (i *imports) Text() string {
 	return i.add(importSpec{path: textImport, name: "text"})
+}
+
+func (i *imports) FlowControl() string {
+	return i.add(importSpec{path: flowcontrolImport, name: "fc"})
 }
 
 func (i *imports) Context() string {

@@ -5,6 +5,7 @@ package testcapnp
 import (
 	capnp "capnproto.org/go/capnp/v3"
 	text "capnproto.org/go/capnp/v3/encoding/text"
+	fc "capnproto.org/go/capnp/v3/flowcontrol"
 	schemas "capnproto.org/go/capnp/v3/schemas"
 	server "capnproto.org/go/capnp/v3/server"
 	stream "capnproto.org/go/capnp/v3/std/capnp/stream"
@@ -33,12 +34,34 @@ func (c PingPong) EchoNum(ctx context.Context, params func(PingPong_echoNum_Para
 	return PingPong_echoNum_Results_Future{Future: ans.Future()}, release
 }
 
+// String returns a string that identifies this capability for debugging
+// purposes.  Its format should not be depended on: in particular, it
+// should not be used to compare clients.  Use IsSame to compare clients
+// for equality.
+func (c PingPong) String() string {
+	return capnp.Client(c).String()
+}
+
+// AddRef creates a new Client that refers to the same capability as c.
+// If c is nil or has resolved to null, then AddRef returns nil.
 func (c PingPong) AddRef() PingPong {
 	return PingPong(capnp.Client(c).AddRef())
 }
 
+// Release releases a capability reference.  If this is the last
+// reference to the capability, then the underlying resources associated
+// with the capability will be released.
+//
+// Release will panic if c has already been released, but not if c is
+// nil or resolved to null.
 func (c PingPong) Release() {
 	capnp.Client(c).Release()
+}
+
+// Resolve blocks until the capability is fully resolved or the Context
+// expires.
+func (c PingPong) Resolve(ctx context.Context) error {
+	return capnp.Client(c).Resolve(ctx)
 }
 
 func (c PingPong) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
@@ -49,8 +72,19 @@ func (PingPong) DecodeFromPtr(p capnp.Ptr) PingPong {
 	return PingPong(capnp.Client{}.DecodeFromPtr(p))
 }
 
+// IsValid reports whether c is a valid reference to a capability.
+// A reference is invalid if it is nil, has resolved to null, or has
+// been released.
 func (c PingPong) IsValid() bool {
 	return capnp.Client(c).IsValid()
+}
+
+// Update the flowcontrol.FlowLimiter used to manage flow control for
+// this client. This affects all future calls, but not calls already
+// waiting to send. Passing nil sets the value to flowcontrol.NopLimiter,
+// which is also the default.
+func (c PingPong) SetFlowLimiter(lim fc.FlowLimiter) {
+	capnp.Client(c).SetFlowLimiter(lim)
 }
 
 // A PingPong_Server is a PingPong with a local implementation.
@@ -284,12 +318,34 @@ func (c StreamTest) Push(ctx context.Context, params func(StreamTest_push_Params
 	return stream.StreamResult_Future{Future: ans.Future()}, release
 }
 
+// String returns a string that identifies this capability for debugging
+// purposes.  Its format should not be depended on: in particular, it
+// should not be used to compare clients.  Use IsSame to compare clients
+// for equality.
+func (c StreamTest) String() string {
+	return capnp.Client(c).String()
+}
+
+// AddRef creates a new Client that refers to the same capability as c.
+// If c is nil or has resolved to null, then AddRef returns nil.
 func (c StreamTest) AddRef() StreamTest {
 	return StreamTest(capnp.Client(c).AddRef())
 }
 
+// Release releases a capability reference.  If this is the last
+// reference to the capability, then the underlying resources associated
+// with the capability will be released.
+//
+// Release will panic if c has already been released, but not if c is
+// nil or resolved to null.
 func (c StreamTest) Release() {
 	capnp.Client(c).Release()
+}
+
+// Resolve blocks until the capability is fully resolved or the Context
+// expires.
+func (c StreamTest) Resolve(ctx context.Context) error {
+	return capnp.Client(c).Resolve(ctx)
 }
 
 func (c StreamTest) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
@@ -300,8 +356,19 @@ func (StreamTest) DecodeFromPtr(p capnp.Ptr) StreamTest {
 	return StreamTest(capnp.Client{}.DecodeFromPtr(p))
 }
 
+// IsValid reports whether c is a valid reference to a capability.
+// A reference is invalid if it is nil, has resolved to null, or has
+// been released.
 func (c StreamTest) IsValid() bool {
 	return capnp.Client(c).IsValid()
+}
+
+// Update the flowcontrol.FlowLimiter used to manage flow control for
+// this client. This affects all future calls, but not calls already
+// waiting to send. Passing nil sets the value to flowcontrol.NopLimiter,
+// which is also the default.
+func (c StreamTest) SetFlowLimiter(lim fc.FlowLimiter) {
+	capnp.Client(c).SetFlowLimiter(lim)
 }
 
 // A StreamTest_Server is a StreamTest with a local implementation.
@@ -484,12 +551,34 @@ func (c CapArgsTest) Self(ctx context.Context, params func(CapArgsTest_self_Para
 	return CapArgsTest_self_Results_Future{Future: ans.Future()}, release
 }
 
+// String returns a string that identifies this capability for debugging
+// purposes.  Its format should not be depended on: in particular, it
+// should not be used to compare clients.  Use IsSame to compare clients
+// for equality.
+func (c CapArgsTest) String() string {
+	return capnp.Client(c).String()
+}
+
+// AddRef creates a new Client that refers to the same capability as c.
+// If c is nil or has resolved to null, then AddRef returns nil.
 func (c CapArgsTest) AddRef() CapArgsTest {
 	return CapArgsTest(capnp.Client(c).AddRef())
 }
 
+// Release releases a capability reference.  If this is the last
+// reference to the capability, then the underlying resources associated
+// with the capability will be released.
+//
+// Release will panic if c has already been released, but not if c is
+// nil or resolved to null.
 func (c CapArgsTest) Release() {
 	capnp.Client(c).Release()
+}
+
+// Resolve blocks until the capability is fully resolved or the Context
+// expires.
+func (c CapArgsTest) Resolve(ctx context.Context) error {
+	return capnp.Client(c).Resolve(ctx)
 }
 
 func (c CapArgsTest) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
@@ -500,8 +589,19 @@ func (CapArgsTest) DecodeFromPtr(p capnp.Ptr) CapArgsTest {
 	return CapArgsTest(capnp.Client{}.DecodeFromPtr(p))
 }
 
+// IsValid reports whether c is a valid reference to a capability.
+// A reference is invalid if it is nil, has resolved to null, or has
+// been released.
 func (c CapArgsTest) IsValid() bool {
 	return capnp.Client(c).IsValid()
+}
+
+// Update the flowcontrol.FlowLimiter used to manage flow control for
+// this client. This affects all future calls, but not calls already
+// waiting to send. Passing nil sets the value to flowcontrol.NopLimiter,
+// which is also the default.
+func (c CapArgsTest) SetFlowLimiter(lim fc.FlowLimiter) {
+	capnp.Client(c).SetFlowLimiter(lim)
 }
 
 // A CapArgsTest_Server is a CapArgsTest with a local implementation.

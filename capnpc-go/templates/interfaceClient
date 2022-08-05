@@ -70,6 +70,6 @@ func (c {{$.Node.Name}}) IsValid() bool {
 // this client. This affects all future calls, but not calls already
 // waiting to send. Passing nil sets the value to flowcontrol.NopLimiter,
 // which is also the default.
-func (c {{$.Node.Name}}) SetFlowLimiter(lim flowcontrol.FlowLimiter) {
+func (c {{$.Node.Name}}) SetFlowLimiter(lim {{.G.Imports.FlowControl}}.FlowLimiter) {
 	capnp.Client(c).SetFlowLimiter(lim)
 }
