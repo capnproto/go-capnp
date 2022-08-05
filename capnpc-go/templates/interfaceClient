@@ -21,6 +21,14 @@ func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{$.G.Imports.Context}}.Context, pa
 }
 {{end}}
 
+// String returns a string that identifies this capability for debugging
+// purposes.  Its format should not be depended on: in particular, it
+// should not be used to compare clients.  Use IsSame to compare clients
+// for equality.
+func (c {{$.Node.Name}}) String() string {
+	return capnp.Client(c).String()
+}
+
 // AddRef creates a new Client that refers to the same capability as c.
 // If c is nil or has resolved to null, then AddRef returns nil.
 func (c {{$.Node.Name}}) AddRef() {{$.Node.Name}} {
