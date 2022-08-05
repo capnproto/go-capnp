@@ -5,9 +5,11 @@ package persistent
 import (
 	capnp "capnproto.org/go/capnp/v3"
 	text "capnproto.org/go/capnp/v3/encoding/text"
+	fc "capnproto.org/go/capnp/v3/flowcontrol"
 	schemas "capnproto.org/go/capnp/v3/schemas"
 	server "capnproto.org/go/capnp/v3/server"
 	context "context"
+	fmt "fmt"
 )
 
 const PersistentAnnotation = uint64(0xf622595091cafb67)
@@ -34,12 +36,34 @@ func (c Persistent) Save(ctx context.Context, params func(Persistent_SaveParams)
 	return Persistent_SaveResults_Future{Future: ans.Future()}, release
 }
 
+// String returns a string that identifies this capability for debugging
+// purposes.  Its format should not be depended on: in particular, it
+// should not be used to compare clients.  Use IsSame to compare clients
+// for equality.
+func (c Persistent) String() string {
+	return fmt.Sprintf("%T(%v)", c, capnp.Client(c))
+}
+
+// AddRef creates a new Client that refers to the same capability as c.
+// If c is nil or has resolved to null, then AddRef returns nil.
 func (c Persistent) AddRef() Persistent {
 	return Persistent(capnp.Client(c).AddRef())
 }
 
+// Release releases a capability reference.  If this is the last
+// reference to the capability, then the underlying resources associated
+// with the capability will be released.
+//
+// Release will panic if c has already been released, but not if c is
+// nil or resolved to null.
 func (c Persistent) Release() {
 	capnp.Client(c).Release()
+}
+
+// Resolve blocks until the capability is fully resolved or the Context
+// expires.
+func (c Persistent) Resolve(ctx context.Context) error {
+	return capnp.Client(c).Resolve(ctx)
 }
 
 func (c Persistent) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
@@ -50,11 +74,34 @@ func (Persistent) DecodeFromPtr(p capnp.Ptr) Persistent {
 	return Persistent(capnp.Client{}.DecodeFromPtr(p))
 }
 
+// IsValid reports whether c is a valid reference to a capability.
+// A reference is invalid if it is nil, has resolved to null, or has
+// been released.
 func (c Persistent) IsValid() bool {
 	return capnp.Client(c).IsValid()
 }
 
-// A Persistent_Server is a Persistent with a local implementation.
+// IsSame reports whether c and other refer to a capability created by the
+// same call to NewClient.  This can return false negatives if c or other
+// are not fully resolved: use Resolve if this is an issue.  If either
+// c or other are released, then IsSame panics.
+func (c Persistent) IsSame(other Persistent) bool {
+	return capnp.Client(c).IsSame(capnp.Client(other))
+}
+
+// Update the flowcontrol.FlowLimiter used to manage flow control for
+// this client. This affects all future calls, but not calls already
+// waiting to send. Passing nil sets the value to flowcontrol.NopLimiter,
+// which is also the default.
+func (c Persistent) SetFlowLimiter(lim fc.FlowLimiter) {
+	capnp.Client(c).SetFlowLimiter(lim)
+}
+
+// Get the current flowcontrol.FlowLimiter used to manage flow control
+// for this client.
+func (c Persistent) GetFlowLimiter() fc.FlowLimiter {
+	return capnp.Client(c).GetFlowLimiter()
+} // A Persistent_Server is a Persistent with a local implementation.
 type Persistent_Server interface {
 	Save(context.Context, Persistent_save) error
 }

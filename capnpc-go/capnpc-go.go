@@ -30,10 +30,11 @@ import (
 
 // Non-stdlib import paths.
 const (
-	capnpImport   = "capnproto.org/go/capnp/v3"
-	textImport    = capnpImport + "/encoding/text"
-	schemasImport = capnpImport + "/schemas"
-	serverImport  = capnpImport + "/server"
+	capnpImport       = "capnproto.org/go/capnp/v3"
+	textImport        = capnpImport + "/encoding/text"
+	schemasImport     = capnpImport + "/schemas"
+	serverImport      = capnpImport + "/server"
+	flowcontrolImport = capnpImport + "/flowcontrol"
 )
 
 // genoptions are parameters that control code generation.
