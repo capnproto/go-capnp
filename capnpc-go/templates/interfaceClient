@@ -66,8 +66,8 @@ func (c {{$.Node.Name}}) IsValid() bool {
 	return capnp.Client(c).IsValid()
 }
 
-// IsSame reports whether c and c2 refer to a capability created by the
-// same call to NewClient.  This can return false negatives if c or c2
+// IsSame reports whether c and other refer to a capability created by the
+// same call to NewClient.  This can return false negatives if c or other
 // are not fully resolved: use Resolve if this is an issue.  If either
 // c or other are released, then IsSame panics.
 func (c {{$.Node.Name}}) IsSame(other {{$.Node.Name}}) bool {
