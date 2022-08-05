@@ -45,6 +45,12 @@ func (c {{$.Node.Name}}) Release() {
 	capnp.Client(c).Release()
 }
 
+// Resolve blocks until the capability is fully resolved or the Context
+// expires.
+func (c {{$.Node.Name}}) Resolve(ctx context.Context) error {
+	return capnp.Client(c).Resolve(ctx)
+}
+
 func (c {{$.Node.Name}}) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
 	return capnp.Client(c).EncodeAsPtr(seg)
 }
