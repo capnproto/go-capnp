@@ -17,6 +17,10 @@ func chkfatal(err error) {
 }
 
 var tpl = template.Must(template.New("list-gen").Parse(`
+func (l {{.}}) IsValid() bool {
+	return List(l).IsValid()
+}
+
 func (l {{.}}) Len() int {
 	return List(l).Len()
 }
