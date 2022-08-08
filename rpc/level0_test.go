@@ -1774,9 +1774,9 @@ func TestHandleReturn_regression(t *testing.T) {
 
 	p1, p2 := transport.NewPipe(1)
 
-	srv := testcp.PingPong_ServerToClient(pingPongServer{}, nil)
+	srv := testcp.PingPong_ServerToClient(pingPongServer{})
 	conn1 := rpc.NewConn(rpc.NewTransport(p2), &rpc.Options{
-		BootstrapClient: srv.Client,
+		BootstrapClient: capnp.Client(srv),
 	})
 	defer conn1.Close()
 
@@ -1784,7 +1784,7 @@ func TestHandleReturn_regression(t *testing.T) {
 	defer conn2.Close()
 
 	t.Run("MethodCallWithExpiredContext", func(t *testing.T) {
-		pp := testcp.PingPong{Client: conn2.Bootstrap(context.Background())}
+		pp := testcp.PingPong(conn2.Bootstrap(context.Background()))
 		defer pp.Release()
 
 		// create an EXPIRED context
@@ -1807,7 +1807,7 @@ func TestHandleReturn_regression(t *testing.T) {
 		cancel()
 
 		// NOTE: bootstrap with expired context
-		pp := testcp.PingPong{Client: conn2.Bootstrap(ctx)}
+		pp := testcp.PingPong(conn2.Bootstrap(ctx))
 		defer pp.Release()
 
 		f, release := pp.EchoNum(ctx, func(ps testcp.PingPong_echoNum_Params) error {
