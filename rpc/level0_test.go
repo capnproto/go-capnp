@@ -1798,7 +1798,7 @@ func TestHandleReturn_regression(t *testing.T) {
 		defer release()
 
 		_, err := f.Struct()
-		assert.NoError(t, err)
+		assert.ErrorIs(t, err, ctx.Err())
 	})
 
 	t.Run("BootstrapWithExpiredContext", func(t *testing.T) {
@@ -1817,7 +1817,7 @@ func TestHandleReturn_regression(t *testing.T) {
 		defer release()
 
 		_, err := f.Struct()
-		assert.NoError(t, err)
+		assert.ErrorIs(t, err, ctx.Err())
 	})
 }
 

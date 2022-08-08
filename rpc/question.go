@@ -161,7 +161,7 @@ func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineO
 					q.c.questions[q2.id] = nil
 					q.c.questionID.remove(uint32(q2.id))
 				})
-				q.p.Reject(rpcerr.Failedf("send message: %w", err))
+				q2.p.Reject(rpcerr.Failedf("send message: %w", err))
 				return
 			}
 
