@@ -1,4 +1,4 @@
-func (p {{.Node.Name}}_Future) {{.Field.Name|title}}() *{{.G.Capnp}}.Future {
+func (p {{.Node.Name}}_Future) {{.Field.Name|title}}() *capnp.Future {
 	return p.Future.Field({{.Field.Slot.Offset}}, nil)
 }
 

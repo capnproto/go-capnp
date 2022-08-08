@@ -5,14 +5,16 @@ package persistent
 import (
 	capnp "capnproto.org/go/capnp/v3"
 	text "capnproto.org/go/capnp/v3/encoding/text"
+	fc "capnproto.org/go/capnp/v3/flowcontrol"
 	schemas "capnproto.org/go/capnp/v3/schemas"
 	server "capnproto.org/go/capnp/v3/server"
 	context "context"
+	fmt "fmt"
 )
 
 const PersistentAnnotation = uint64(0xf622595091cafb67)
 
-type Persistent struct{ Client capnp.Client }
+type Persistent capnp.Client
 
 // Persistent_TypeID is the unique identifier for the type Persistent.
 const Persistent_TypeID = 0xc8cb212fcd9f5691
@@ -28,37 +30,92 @@ func (c Persistent) Save(ctx context.Context, params func(Persistent_SaveParams)
 	}
 	if params != nil {
 		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 1}
-		s.PlaceArgs = func(s capnp.Struct) error { return params(Persistent_SaveParams{Struct: s}) }
+		s.PlaceArgs = func(s capnp.Struct) error { return params(Persistent_SaveParams(s)) }
 	}
-	ans, release := c.Client.SendCall(ctx, s)
+	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return Persistent_SaveResults_Future{Future: ans.Future()}, release
 }
 
+// String returns a string that identifies this capability for debugging
+// purposes.  Its format should not be depended on: in particular, it
+// should not be used to compare clients.  Use IsSame to compare clients
+// for equality.
+func (c Persistent) String() string {
+	return fmt.Sprintf("%T(%v)", c, capnp.Client(c))
+}
+
+// AddRef creates a new Client that refers to the same capability as c.
+// If c is nil or has resolved to null, then AddRef returns nil.
 func (c Persistent) AddRef() Persistent {
-	return Persistent{
-		Client: c.Client.AddRef(),
-	}
+	return Persistent(capnp.Client(c).AddRef())
 }
 
+// Release releases a capability reference.  If this is the last
+// reference to the capability, then the underlying resources associated
+// with the capability will be released.
+//
+// Release will panic if c has already been released, but not if c is
+// nil or resolved to null.
 func (c Persistent) Release() {
-	c.Client.Release()
+	capnp.Client(c).Release()
 }
 
-// A Persistent_Server is a Persistent with a local implementation.
+// Resolve blocks until the capability is fully resolved or the Context
+// expires.
+func (c Persistent) Resolve(ctx context.Context) error {
+	return capnp.Client(c).Resolve(ctx)
+}
+
+func (c Persistent) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Client(c).EncodeAsPtr(seg)
+}
+
+func (Persistent) DecodeFromPtr(p capnp.Ptr) Persistent {
+	return Persistent(capnp.Client{}.DecodeFromPtr(p))
+}
+
+// IsValid reports whether c is a valid reference to a capability.
+// A reference is invalid if it is nil, has resolved to null, or has
+// been released.
+func (c Persistent) IsValid() bool {
+	return capnp.Client(c).IsValid()
+}
+
+// IsSame reports whether c and other refer to a capability created by the
+// same call to NewClient.  This can return false negatives if c or other
+// are not fully resolved: use Resolve if this is an issue.  If either
+// c or other are released, then IsSame panics.
+func (c Persistent) IsSame(other Persistent) bool {
+	return capnp.Client(c).IsSame(capnp.Client(other))
+}
+
+// Update the flowcontrol.FlowLimiter used to manage flow control for
+// this client. This affects all future calls, but not calls already
+// waiting to send. Passing nil sets the value to flowcontrol.NopLimiter,
+// which is also the default.
+func (c Persistent) SetFlowLimiter(lim fc.FlowLimiter) {
+	capnp.Client(c).SetFlowLimiter(lim)
+}
+
+// Get the current flowcontrol.FlowLimiter used to manage flow control
+// for this client.
+func (c Persistent) GetFlowLimiter() fc.FlowLimiter {
+	return capnp.Client(c).GetFlowLimiter()
+} // A Persistent_Server is a Persistent with a local implementation.
 type Persistent_Server interface {
 	Save(context.Context, Persistent_save) error
 }
 
 // Persistent_NewServer creates a new Server from an implementation of Persistent_Server.
-func Persistent_NewServer(s Persistent_Server, policy *server.Policy) *server.Server {
+func Persistent_NewServer(s Persistent_Server) *server.Server {
 	c, _ := s.(server.Shutdowner)
-	return server.New(Persistent_Methods(nil, s), s, c, policy)
+	return server.New(Persistent_Methods(nil, s), s, c)
 }
 
 // Persistent_ServerToClient creates a new Client from an implementation of Persistent_Server.
 // The caller is responsible for calling Release on the returned Client.
-func Persistent_ServerToClient(s Persistent_Server, policy *server.Policy) Persistent {
-	return Persistent{Client: capnp.NewClient(Persistent_NewServer(s, policy))}
+func Persistent_ServerToClient(s Persistent_Server) Persistent {
+	return Persistent(capnp.NewClient(Persistent_NewServer(s)))
 }
 
 // Persistent_Methods appends Methods to a slice that invoke the methods on s.
@@ -91,13 +148,13 @@ type Persistent_save struct {
 
 // Args returns the call's arguments.
 func (c Persistent_save) Args() Persistent_SaveParams {
-	return Persistent_SaveParams{Struct: c.Call.Args()}
+	return Persistent_SaveParams(c.Call.Args())
 }
 
 // AllocResults allocates the results struct.
 func (c Persistent_save) AllocResults() (Persistent_SaveResults, error) {
 	r, err := c.Call.AllocResults(capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return Persistent_SaveResults{Struct: r}, err
+	return Persistent_SaveResults(r), err
 }
 
 // Persistent_List is a list of Persistent.
@@ -109,41 +166,63 @@ func NewPersistent_List(s *capnp.Segment, sz int32) (Persistent_List, error) {
 	return capnp.CapList[Persistent](l), err
 }
 
-type Persistent_SaveParams struct{ capnp.Struct }
+type Persistent_SaveParams capnp.Struct
 
 // Persistent_SaveParams_TypeID is the unique identifier for the type Persistent_SaveParams.
 const Persistent_SaveParams_TypeID = 0xf76fba59183073a5
 
 func NewPersistent_SaveParams(s *capnp.Segment) (Persistent_SaveParams, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return Persistent_SaveParams{st}, err
+	return Persistent_SaveParams(st), err
 }
 
 func NewRootPersistent_SaveParams(s *capnp.Segment) (Persistent_SaveParams, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return Persistent_SaveParams{st}, err
+	return Persistent_SaveParams(st), err
 }
 
 func ReadRootPersistent_SaveParams(msg *capnp.Message) (Persistent_SaveParams, error) {
 	root, err := msg.Root()
-	return Persistent_SaveParams{root.Struct()}, err
+	return Persistent_SaveParams(root.Struct()), err
 }
 
 func (s Persistent_SaveParams) String() string {
-	str, _ := text.Marshal(0xf76fba59183073a5, s.Struct)
+	str, _ := text.Marshal(0xf76fba59183073a5, capnp.Struct(s))
 	return str
 }
 
+func (s Persistent_SaveParams) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (Persistent_SaveParams) DecodeFromPtr(p capnp.Ptr) Persistent_SaveParams {
+	return Persistent_SaveParams(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s Persistent_SaveParams) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s Persistent_SaveParams) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s Persistent_SaveParams) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s Persistent_SaveParams) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s Persistent_SaveParams) SealFor() (capnp.Ptr, error) {
-	return s.Struct.Ptr(0)
+	return capnp.Struct(s).Ptr(0)
 }
 
 func (s Persistent_SaveParams) HasSealFor() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Persistent_SaveParams) SetSealFor(v capnp.Ptr) error {
-	return s.Struct.SetPtr(0, v)
+	return capnp.Struct(s).SetPtr(0, v)
 }
 
 // Persistent_SaveParams_List is a list of Persistent_SaveParams.
@@ -152,7 +231,7 @@ type Persistent_SaveParams_List = capnp.StructList[Persistent_SaveParams]
 // NewPersistent_SaveParams creates a new list of Persistent_SaveParams.
 func NewPersistent_SaveParams_List(s *capnp.Segment, sz int32) (Persistent_SaveParams_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[Persistent_SaveParams]{List: l}, err
+	return capnp.StructList[Persistent_SaveParams](l), err
 }
 
 // Persistent_SaveParams_Future is a wrapper for a Persistent_SaveParams promised by a client call.
@@ -160,48 +239,70 @@ type Persistent_SaveParams_Future struct{ *capnp.Future }
 
 func (p Persistent_SaveParams_Future) Struct() (Persistent_SaveParams, error) {
 	s, err := p.Future.Struct()
-	return Persistent_SaveParams{s}, err
+	return Persistent_SaveParams(s), err
 }
 
 func (p Persistent_SaveParams_Future) SealFor() *capnp.Future {
 	return p.Future.Field(0, nil)
 }
 
-type Persistent_SaveResults struct{ capnp.Struct }
+type Persistent_SaveResults capnp.Struct
 
 // Persistent_SaveResults_TypeID is the unique identifier for the type Persistent_SaveResults.
 const Persistent_SaveResults_TypeID = 0xb76848c18c40efbf
 
 func NewPersistent_SaveResults(s *capnp.Segment) (Persistent_SaveResults, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return Persistent_SaveResults{st}, err
+	return Persistent_SaveResults(st), err
 }
 
 func NewRootPersistent_SaveResults(s *capnp.Segment) (Persistent_SaveResults, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return Persistent_SaveResults{st}, err
+	return Persistent_SaveResults(st), err
 }
 
 func ReadRootPersistent_SaveResults(msg *capnp.Message) (Persistent_SaveResults, error) {
 	root, err := msg.Root()
-	return Persistent_SaveResults{root.Struct()}, err
+	return Persistent_SaveResults(root.Struct()), err
 }
 
 func (s Persistent_SaveResults) String() string {
-	str, _ := text.Marshal(0xb76848c18c40efbf, s.Struct)
+	str, _ := text.Marshal(0xb76848c18c40efbf, capnp.Struct(s))
 	return str
 }
 
+func (s Persistent_SaveResults) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (Persistent_SaveResults) DecodeFromPtr(p capnp.Ptr) Persistent_SaveResults {
+	return Persistent_SaveResults(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s Persistent_SaveResults) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s Persistent_SaveResults) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s Persistent_SaveResults) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s Persistent_SaveResults) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s Persistent_SaveResults) SturdyRef() (capnp.Ptr, error) {
-	return s.Struct.Ptr(0)
+	return capnp.Struct(s).Ptr(0)
 }
 
 func (s Persistent_SaveResults) HasSturdyRef() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Persistent_SaveResults) SetSturdyRef(v capnp.Ptr) error {
-	return s.Struct.SetPtr(0, v)
+	return capnp.Struct(s).SetPtr(0, v)
 }
 
 // Persistent_SaveResults_List is a list of Persistent_SaveResults.
@@ -210,7 +311,7 @@ type Persistent_SaveResults_List = capnp.StructList[Persistent_SaveResults]
 // NewPersistent_SaveResults creates a new list of Persistent_SaveResults.
 func NewPersistent_SaveResults_List(s *capnp.Segment, sz int32) (Persistent_SaveResults_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[Persistent_SaveResults]{List: l}, err
+	return capnp.StructList[Persistent_SaveResults](l), err
 }
 
 // Persistent_SaveResults_Future is a wrapper for a Persistent_SaveResults promised by a client call.
@@ -218,7 +319,7 @@ type Persistent_SaveResults_Future struct{ *capnp.Future }
 
 func (p Persistent_SaveResults_Future) Struct() (Persistent_SaveResults, error) {
 	s, err := p.Future.Struct()
-	return Persistent_SaveResults{s}, err
+	return Persistent_SaveResults(s), err
 }
 
 func (p Persistent_SaveResults_Future) SturdyRef() *capnp.Future {

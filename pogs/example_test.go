@@ -77,7 +77,7 @@ func ExampleInsert() {
 		Title:     "War and Peace",
 		PageCount: 1440,
 	}
-	if err := pogs.Insert(books.Book_TypeID, root.Struct, b); err != nil {
+	if err := pogs.Insert(books.Book_TypeID, capnp.Struct(root), b); err != nil {
 		panic(err)
 	}
 	fmt.Println(root)

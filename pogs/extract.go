@@ -231,13 +231,8 @@ func (e *extracter) extractField(val reflect.Value, s capnp.Struct, f schema.Fie
 		if err != nil {
 			return err
 		}
-		if val.Type() != clientType {
-			// Must be a struct wrapper.
-			val = val.FieldByName("Client")
-		}
-
 		client := p.Interface().Client()
-		val.Set(reflect.ValueOf(client))
+		val.Set(reflect.ValueOf(client).Convert(val.Type()))
 	case schema.Type_Which_anyPointer:
 		p, err := s.Ptr(uint16(f.Slot().Offset()))
 		if err != nil {
@@ -286,52 +281,52 @@ func (e *extracter) extractList(val reflect.Value, typ schema.Type, l capnp.List
 	switch elem.Which() {
 	case schema.Type_Which_bool:
 		for i := 0; i < n; i++ {
-			val.Index(i).SetBool(capnp.BitList{List: l}.At(i))
+			val.Index(i).SetBool(capnp.BitList(l).At(i))
 		}
 	case schema.Type_Which_int8:
 		for i := 0; i < n; i++ {
-			val.Index(i).SetInt(int64(capnp.Int8List{List: l}.At(i)))
+			val.Index(i).SetInt(int64(capnp.Int8List(l).At(i)))
 		}
 	case schema.Type_Which_int16:
 		for i := 0; i < n; i++ {
-			val.Index(i).SetInt(int64(capnp.Int16List{List: l}.At(i)))
+			val.Index(i).SetInt(int64(capnp.Int16List(l).At(i)))
 		}
 	case schema.Type_Which_int32:
 		for i := 0; i < n; i++ {
-			val.Index(i).SetInt(int64(capnp.Int32List{List: l}.At(i)))
+			val.Index(i).SetInt(int64(capnp.Int32List(l).At(i)))
 		}
 	case schema.Type_Which_int64:
 		for i := 0; i < n; i++ {
-			val.Index(i).SetInt(capnp.Int64List{List: l}.At(i))
+			val.Index(i).SetInt(capnp.Int64List(l).At(i))
 		}
 	case schema.Type_Which_uint8:
 		for i := 0; i < n; i++ {
-			val.Index(i).SetUint(uint64(capnp.UInt8List{List: l}.At(i)))
+			val.Index(i).SetUint(uint64(capnp.UInt8List(l).At(i)))
 		}
 	case schema.Type_Which_uint16, schema.Type_Which_enum:
 		for i := 0; i < n; i++ {
-			val.Index(i).SetUint(uint64(capnp.UInt16List{List: l}.At(i)))
+			val.Index(i).SetUint(uint64(capnp.UInt16List(l).At(i)))
 		}
 	case schema.Type_Which_uint32:
 		for i := 0; i < n; i++ {
-			val.Index(i).SetUint(uint64(capnp.UInt32List{List: l}.At(i)))
+			val.Index(i).SetUint(uint64(capnp.UInt32List(l).At(i)))
 		}
 	case schema.Type_Which_uint64:
 		for i := 0; i < n; i++ {
-			val.Index(i).SetUint(capnp.UInt64List{List: l}.At(i))
+			val.Index(i).SetUint(capnp.UInt64List(l).At(i))
 		}
 	case schema.Type_Which_float32:
 		for i := 0; i < n; i++ {
-			val.Index(i).SetFloat(float64(capnp.Float32List{List: l}.At(i)))
+			val.Index(i).SetFloat(float64(capnp.Float32List(l).At(i)))
 		}
 	case schema.Type_Which_float64:
 		for i := 0; i < n; i++ {
-			val.Index(i).SetFloat(capnp.Float64List{List: l}.At(i))
+			val.Index(i).SetFloat(capnp.Float64List(l).At(i))
 		}
 	case schema.Type_Which_text:
 		if val.Type().Elem().Kind() == reflect.String {
 			for i := 0; i < n; i++ {
-				s, err := capnp.TextList{List: l}.At(i)
+				s, err := capnp.TextList(l).At(i)
 				if err != nil {
 					// TODO(light): collect errors and finish
 					return err
@@ -340,7 +335,7 @@ func (e *extracter) extractList(val reflect.Value, typ schema.Type, l capnp.List
 			}
 		} else {
 			for i := 0; i < n; i++ {
-				b, err := capnp.TextList{List: l}.BytesAt(i)
+				b, err := capnp.TextList(l).BytesAt(i)
 				if err != nil {
 					// TODO(light): collect errors and finish
 					return err
@@ -350,7 +345,7 @@ func (e *extracter) extractList(val reflect.Value, typ schema.Type, l capnp.List
 		}
 	case schema.Type_Which_data:
 		for i := 0; i < n; i++ {
-			b, err := capnp.DataList{List: l}.At(i)
+			b, err := capnp.DataList(l).At(i)
 			if err != nil {
 				// TODO(light): collect errors and finish
 				return err
@@ -359,7 +354,7 @@ func (e *extracter) extractList(val reflect.Value, typ schema.Type, l capnp.List
 		}
 	case schema.Type_Which_list:
 		for i := 0; i < n; i++ {
-			p, err := capnp.PointerList{List: l}.At(i)
+			p, err := capnp.PointerList(l).At(i)
 			// TODO(light): collect errors and finish
 			if err != nil {
 				return err
@@ -387,25 +382,16 @@ func (e *extracter) extractList(val reflect.Value, typ schema.Type, l capnp.List
 			}
 		}
 	case schema.Type_Which_interface:
-		if val.Type().Elem() == clientType {
-			for i := 0; i < n; i++ {
-				p, err := capnp.PointerList{List: l}.At(i)
-				// TODO(light): collect errors and finish
-				if err != nil {
-					return err
-				}
-				val.Index(i).Set(reflect.ValueOf(p.Interface().Client()))
+		elemType := val.Type().Elem()
+		for i := 0; i < n; i++ {
+			p, err := capnp.PointerList(l).At(i)
+			// TODO(light): collect errors and finish
+			if err != nil {
+				return err
 			}
-		} else {
-			// Must be a struct wrapper.
-			for i := 0; i < n; i++ {
-				p, err := capnp.PointerList{List: l}.At(i)
-				// TODO(light): collect errors and finish
-				if err != nil {
-					return err
-				}
-				val.Index(i).FieldByName("Client").Set(reflect.ValueOf(p.Interface().Client()))
-			}
+			val.Index(i).Set(
+				reflect.ValueOf(p.Interface().Client()).Convert(elemType),
+			)
 		}
 	case schema.Type_Which_anyPointer:
 		// Schemas aren't allowed to have List(AnyPointer).
@@ -444,23 +430,7 @@ func isTypeMatch(r reflect.Type, s schema.Type) bool {
 		e, _ := s.List().ElementType()
 		return r.Kind() == reflect.Slice && isTypeMatch(r.Elem(), e)
 	case schema.Type_Which_interface:
-		if r == clientType {
-			return true
-		}
-
-		// Otherwise, the type must be a struct with one element named
-		// "Client" of type capnp.Client.
-		if r.Kind() != reflect.Struct {
-			return false
-		}
-		if r.NumField() != 1 {
-			return false
-		}
-		field, ok := r.FieldByName("Client")
-		if !ok {
-			return false
-		}
-		return field.Type == clientType
+		return reflect.Zero(clientType).CanConvert(r)
 	case schema.Type_Which_anyPointer:
 		if r == ptrType {
 			return true

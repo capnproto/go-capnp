@@ -235,7 +235,7 @@ func (ins *inserter) insertField(s capnp.Struct, f schema.Field, val reflect.Val
 		case listType:
 			return s.SetPtr(off, val.Interface().(capnp.List).ToPtr())
 		case clientType:
-			c := val.Interface().(capnp.Client)
+			c := val.Convert(clientType).Interface().(capnp.Client)
 			if !c.IsValid() {
 				return s.SetPtr(off, capnp.Ptr{})
 			}
@@ -251,10 +251,7 @@ func (ins *inserter) insertField(s capnp.Struct, f schema.Field, val reflect.Val
 }
 
 func capPtr(seg *capnp.Segment, val reflect.Value) capnp.Ptr {
-	client, ok := val.Interface().(capnp.Client)
-	if !ok {
-		client = val.FieldByName("Client").Interface().(capnp.Client)
-	}
+	client := val.Convert(clientType).Interface().(capnp.Client)
 	if !client.IsValid() {
 		return capnp.Ptr{}
 	}
@@ -277,52 +274,52 @@ func (ins *inserter) insertList(l capnp.List, typ schema.Type, val reflect.Value
 	case schema.Type_Which_void:
 	case schema.Type_Which_bool:
 		for i := 0; i < n; i++ {
-			capnp.BitList{List: l}.Set(i, val.Index(i).Bool())
+			capnp.BitList(l).Set(i, val.Index(i).Bool())
 		}
 	case schema.Type_Which_int8:
 		for i := 0; i < n; i++ {
-			capnp.Int8List{List: l}.Set(i, int8(val.Index(i).Int()))
+			capnp.Int8List(l).Set(i, int8(val.Index(i).Int()))
 		}
 	case schema.Type_Which_int16:
 		for i := 0; i < n; i++ {
-			capnp.Int16List{List: l}.Set(i, int16(val.Index(i).Int()))
+			capnp.Int16List(l).Set(i, int16(val.Index(i).Int()))
 		}
 	case schema.Type_Which_int32:
 		for i := 0; i < n; i++ {
-			capnp.Int32List{List: l}.Set(i, int32(val.Index(i).Int()))
+			capnp.Int32List(l).Set(i, int32(val.Index(i).Int()))
 		}
 	case schema.Type_Which_int64:
 		for i := 0; i < n; i++ {
-			capnp.Int64List{List: l}.Set(i, val.Index(i).Int())
+			capnp.Int64List(l).Set(i, val.Index(i).Int())
 		}
 	case schema.Type_Which_uint8:
 		for i := 0; i < n; i++ {
-			capnp.UInt8List{List: l}.Set(i, uint8(val.Index(i).Uint()))
+			capnp.UInt8List(l).Set(i, uint8(val.Index(i).Uint()))
 		}
 	case schema.Type_Which_uint16, schema.Type_Which_enum:
 		for i := 0; i < n; i++ {
-			capnp.UInt16List{List: l}.Set(i, uint16(val.Index(i).Uint()))
+			capnp.UInt16List(l).Set(i, uint16(val.Index(i).Uint()))
 		}
 	case schema.Type_Which_uint32:
 		for i := 0; i < n; i++ {
-			capnp.UInt32List{List: l}.Set(i, uint32(val.Index(i).Uint()))
+			capnp.UInt32List(l).Set(i, uint32(val.Index(i).Uint()))
 		}
 	case schema.Type_Which_uint64:
 		for i := 0; i < n; i++ {
-			capnp.UInt64List{List: l}.Set(i, val.Index(i).Uint())
+			capnp.UInt64List(l).Set(i, val.Index(i).Uint())
 		}
 	case schema.Type_Which_float32:
 		for i := 0; i < n; i++ {
-			capnp.Float32List{List: l}.Set(i, float32(val.Index(i).Float()))
+			capnp.Float32List(l).Set(i, float32(val.Index(i).Float()))
 		}
 	case schema.Type_Which_float64:
 		for i := 0; i < n; i++ {
-			capnp.Float64List{List: l}.Set(i, val.Index(i).Float())
+			capnp.Float64List(l).Set(i, val.Index(i).Float())
 		}
 	case schema.Type_Which_text:
 		if val.Type().Elem().Kind() == reflect.String {
 			for i := 0; i < n; i++ {
-				err := capnp.TextList{List: l}.Set(i, val.Index(i).String())
+				err := capnp.TextList(l).Set(i, val.Index(i).String())
 				if err != nil {
 					// TODO(light): collect errors and finish
 					return err
@@ -332,7 +329,7 @@ func (ins *inserter) insertList(l capnp.List, typ schema.Type, val reflect.Value
 			for i := 0; i < n; i++ {
 				b := val.Index(i).Bytes()
 				if len(b) == 0 {
-					err := capnp.PointerList{List: l}.Set(i, capnp.Ptr{})
+					err := capnp.PointerList(l).Set(i, capnp.Ptr{})
 					if err != nil {
 						// TODO(light): collect errors and finish
 						return err
@@ -343,7 +340,7 @@ func (ins *inserter) insertList(l capnp.List, typ schema.Type, val reflect.Value
 					// TODO(light): collect errors and finish
 					return err
 				}
-				err = capnp.PointerList{List: l}.Set(i, t.ToPtr())
+				err = capnp.PointerList(l).Set(i, t.ToPtr())
 				if err != nil {
 					// TODO(light): collect errors and finish
 					return err
@@ -354,20 +351,20 @@ func (ins *inserter) insertList(l capnp.List, typ schema.Type, val reflect.Value
 		for i := 0; i < n; i++ {
 			b := val.Index(i).Bytes()
 			if len(b) == 0 {
-				err := capnp.PointerList{List: l}.Set(i, capnp.Ptr{})
+				err := capnp.PointerList(l).Set(i, capnp.Ptr{})
 				if err != nil {
 					// TODO(light): collect errors and finish
 					return err
 				}
 			}
-			err := capnp.DataList{List: l}.Set(i, b)
+			err := capnp.DataList(l).Set(i, b)
 			if err != nil {
 				// TODO(light): collect errors and finish
 				return err
 			}
 		}
 	case schema.Type_Which_list:
-		pl := capnp.PointerList{List: l}
+		pl := capnp.PointerList(l)
 		for i := 0; i < n; i++ {
 			vi := val.Index(i)
 			if vi.IsNil() {
@@ -401,7 +398,7 @@ func (ins *inserter) insertList(l capnp.List, typ schema.Type, val reflect.Value
 			}
 		}
 	case schema.Type_Which_interface:
-		pl := capnp.PointerList{List: l}
+		pl := capnp.PointerList(l)
 		for i := 0; i < n; i++ {
 			ptr := capPtr(l.Segment(), val.Index(i))
 			if err := pl.Set(i, ptr); err != nil {
@@ -423,25 +420,25 @@ func (ins *inserter) newList(s *capnp.Segment, t schema.Type, len int32) (capnp.
 	switch t.Which() {
 	case schema.Type_Which_void:
 		l := capnp.NewVoidList(s, len)
-		return l.List, nil
+		return capnp.List(l), nil
 	case schema.Type_Which_bool:
 		l, err := capnp.NewBitList(s, len)
-		return l.List, err
+		return capnp.List(l), err
 	case schema.Type_Which_int8, schema.Type_Which_uint8:
 		l, err := capnp.NewUInt8List(s, len)
-		return l.List, err
+		return capnp.List(l), err
 	case schema.Type_Which_int16, schema.Type_Which_uint16, schema.Type_Which_enum:
 		l, err := capnp.NewUInt16List(s, len)
-		return l.List, err
+		return capnp.List(l), err
 	case schema.Type_Which_int32, schema.Type_Which_uint32, schema.Type_Which_float32:
 		l, err := capnp.NewUInt32List(s, len)
-		return l.List, err
+		return capnp.List(l), err
 	case schema.Type_Which_int64, schema.Type_Which_uint64, schema.Type_Which_float64:
 		l, err := capnp.NewUInt64List(s, len)
-		return l.List, err
+		return capnp.List(l), err
 	case schema.Type_Which_text, schema.Type_Which_data, schema.Type_Which_list, schema.Type_Which_interface, schema.Type_Which_anyPointer:
 		l, err := capnp.NewPointerList(s, len)
-		return l.List, err
+		return capnp.List(l), err
 	case schema.Type_Which_structType:
 		sz, err := ins.structSize(t.StructType().TypeId())
 		if err != nil {

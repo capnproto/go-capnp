@@ -161,13 +161,13 @@ var goodTests = []Z{
 	{Which: air.Z_Which_airport, Airport: air.Airport_lax},
 	{Which: air.Z_Which_grp, Grp: &ZGroup{First: 123, Second: 456}},
 	{Which: air.Z_Which_echo, Echo: air.Echo{}},
-	{Which: air.Z_Which_echo, Echo: air.Echo{Client: capnp.ErrorClient(errors.New("boo"))}},
+	{Which: air.Z_Which_echo, Echo: air.Echo(capnp.ErrorClient(errors.New("boo")))},
 	{Which: air.Z_Which_echoes, Echoes: []air.Echo{
-		{Client: capnp.Client{}},
-		{Client: capnp.ErrorClient(errors.New("boo"))},
-		{Client: capnp.Client{}},
-		{Client: capnp.ErrorClient(errors.New("boo"))},
-		{Client: capnp.Client{}},
+		{},
+		air.Echo(capnp.ErrorClient(errors.New("boo"))),
+		{},
+		air.Echo(capnp.ErrorClient(errors.New("boo"))),
+		{},
 	}},
 	{Which: air.Z_Which_anyPtr, AnyPtr: capnp.Ptr{}},
 	{Which: air.Z_Which_anyPtr, AnyPtr: newTestStruct().ToPtr()},
@@ -194,7 +194,7 @@ func newTestList() capnp.List {
 	l.Set(0, 123)
 	l.Set(1, 456)
 	l.Set(2, 789)
-	return l.List
+	return capnp.List(l)
 }
 
 func newTestInterface() capnp.Interface {
@@ -220,7 +220,7 @@ func TestExtract(t *testing.T) {
 			continue
 		}
 		out := new(Z)
-		if err := Extract(out, air.Z_TypeID, z.Struct); err != nil {
+		if err := Extract(out, air.Z_TypeID, capnp.Struct(z)); err != nil {
 			t.Errorf("Extract(%v) error: %v", z, err)
 		}
 		if !test.equal(out) {
@@ -241,7 +241,7 @@ func TestInsert(t *testing.T) {
 			t.Errorf("NewRootZ for %s: %v", zpretty.Sprint(test), err)
 			continue
 		}
-		err = Insert(air.Z_TypeID, z.Struct, &test)
+		err = Insert(air.Z_TypeID, capnp.Struct(z), &test)
 		if err != nil {
 			t.Errorf("Insert(%s) error: %v", zpretty.Sprint(test), err)
 		}
@@ -504,7 +504,7 @@ func TestExtract_StringBytes(t *testing.T) {
 		t.Fatalf("zfill: %v", err)
 	}
 	out := new(BytesZ)
-	if err := Extract(out, air.Z_TypeID, z.Struct); err != nil {
+	if err := Extract(out, air.Z_TypeID, capnp.Struct(z)); err != nil {
 		t.Errorf("Extract(%v) error: %v", z, err)
 	}
 	want := &BytesZ{Which: air.Z_Which_text, Text: []byte("Hello, World!")}
@@ -527,7 +527,7 @@ func TestExtract_StringListBytes(t *testing.T) {
 		t.Fatalf("zfill: %v", err)
 	}
 	out := new(BytesZ)
-	if err := Extract(out, air.Z_TypeID, z.Struct); err != nil {
+	if err := Extract(out, air.Z_TypeID, capnp.Struct(z)); err != nil {
 		t.Errorf("Extract(%v) error: %v", z, err)
 	}
 	want := &BytesZ{Which: air.Z_Which_textvec, Textvec: [][]byte{[]byte("Holmes"), []byte("Watson")}}
@@ -549,7 +549,7 @@ func TestInsert_StringBytes(t *testing.T) {
 		t.Fatalf("NewRootZ: %v", err)
 	}
 	bz := &BytesZ{Which: air.Z_Which_text, Text: []byte("Hello, World!")}
-	err = Insert(air.Z_TypeID, z.Struct, bz)
+	err = Insert(air.Z_TypeID, capnp.Struct(z), bz)
 	if err != nil {
 		t.Errorf("Insert(%s) error: %v", zpretty.Sprint(bz), err)
 	}
@@ -571,7 +571,7 @@ func TestInsert_StringListBytes(t *testing.T) {
 		t.Fatalf("NewRootZ: %v", err)
 	}
 	bz := &BytesZ{Which: air.Z_Which_textvec, Textvec: [][]byte{[]byte("Holmes"), []byte("Watson")}}
-	err = Insert(air.Z_TypeID, z.Struct, bz)
+	err = Insert(air.Z_TypeID, capnp.Struct(z), bz)
 	if err != nil {
 		t.Errorf("Insert(%s) error: %v", zpretty.Sprint(bz), err)
 	}
@@ -623,7 +623,7 @@ func TestExtract_StructNoPtr(t *testing.T) {
 		t.Fatalf("zfill: %v", err)
 	}
 	out := new(StructZ)
-	if err := Extract(out, air.Z_TypeID, z.Struct); err != nil {
+	if err := Extract(out, air.Z_TypeID, capnp.Struct(z)); err != nil {
 		t.Errorf("Extract(%v) error: %v", z, err)
 	}
 	want := &StructZ{Which: air.Z_Which_planebase, Planebase: PlaneBase{Name: "foo"}}
@@ -648,7 +648,7 @@ func TestExtract_StructListNoPtr(t *testing.T) {
 		t.Fatalf("zfill: %v", err)
 	}
 	out := new(StructZ)
-	if err := Extract(out, air.Z_TypeID, z.Struct); err != nil {
+	if err := Extract(out, air.Z_TypeID, capnp.Struct(z)); err != nil {
 		t.Errorf("Extract(%v) error: %v", z, err)
 	}
 	want := &StructZ{Which: air.Z_Which_zvec, Zvec: []Z{
@@ -673,7 +673,7 @@ func TestExtract_GroupNoPtr(t *testing.T) {
 		t.Fatalf("zfill: %v", err)
 	}
 	out := new(StructZ)
-	if err := Extract(out, air.Z_TypeID, z.Struct); err != nil {
+	if err := Extract(out, air.Z_TypeID, capnp.Struct(z)); err != nil {
 		t.Errorf("Extract(%v) error: %v", z, err)
 	}
 	want := &StructZ{Which: air.Z_Which_grp, Grp: ZGroup{First: 123, Second: 456}}
@@ -692,7 +692,7 @@ func TestInsert_StructNoPtr(t *testing.T) {
 		t.Fatalf("NewRootZ: %v", err)
 	}
 	bz := &StructZ{Which: air.Z_Which_planebase, Planebase: PlaneBase{Name: "foo"}}
-	err = Insert(air.Z_TypeID, z.Struct, bz)
+	err = Insert(air.Z_TypeID, capnp.Struct(z), bz)
 	if err != nil {
 		t.Errorf("Insert(%s) error: %v", zpretty.Sprint(bz), err)
 	}
@@ -716,7 +716,7 @@ func TestInsert_StructListNoPtr(t *testing.T) {
 	bz := &StructZ{Which: air.Z_Which_zvec, Zvec: []Z{
 		{Which: air.Z_Which_i64, I64: 123},
 	}}
-	err = Insert(air.Z_TypeID, z.Struct, bz)
+	err = Insert(air.Z_TypeID, capnp.Struct(z), bz)
 	if err != nil {
 		t.Errorf("Insert(%s) error: %v", zpretty.Sprint(bz), err)
 	}
@@ -740,7 +740,7 @@ func TestInsert_GroupNoPtr(t *testing.T) {
 		t.Fatalf("NewRootZ: %v", err)
 	}
 	bz := &StructZ{Which: air.Z_Which_grp, Grp: ZGroup{First: 123, Second: 456}}
-	err = Insert(air.Z_TypeID, z.Struct, bz)
+	err = Insert(air.Z_TypeID, capnp.Struct(z), bz)
 	if err != nil {
 		t.Errorf("Insert(%s) error: %v", zpretty.Sprint(bz), err)
 	}
@@ -798,7 +798,7 @@ func TestExtract_Tags(t *testing.T) {
 			continue
 		}
 		out := new(TagZ)
-		if err := Extract(out, air.Z_TypeID, z.Struct); err != nil {
+		if err := Extract(out, air.Z_TypeID, capnp.Struct(z)); err != nil {
 			t.Errorf("%s: Extract error: %v", test.name, err)
 		}
 		if *out != test.tagz {
@@ -840,7 +840,7 @@ func TestInsert_Tags(t *testing.T) {
 			t.Errorf("%s: NewRootZ: %v", test.name, err)
 			continue
 		}
-		err = Insert(air.Z_TypeID, z.Struct, &test.tagz)
+		err = Insert(air.Z_TypeID, capnp.Struct(z), &test.tagz)
 		if err != nil {
 			t.Errorf("%s: Insert(%s) error: %v", test.name, zpretty.Sprint(test.tagz), err)
 		}
@@ -869,7 +869,7 @@ func TestExtract_FixedUnion(t *testing.T) {
 		t.Fatalf("zfill: %v", err)
 	}
 	out := new(ZBool)
-	if err := Extract(out, air.Z_TypeID, z.Struct); err != nil {
+	if err := Extract(out, air.Z_TypeID, capnp.Struct(z)); err != nil {
 		t.Errorf("Extract error: %v", err)
 	}
 	if !out.Bool {
@@ -890,7 +890,7 @@ func TestExtract_FixedUnionMismatch(t *testing.T) {
 		t.Fatalf("zfill: %v", err)
 	}
 	out := new(ZBool)
-	if err := Extract(out, air.Z_TypeID, z.Struct); err == nil {
+	if err := Extract(out, air.Z_TypeID, capnp.Struct(z)); err == nil {
 		t.Error("Extract did not return an error")
 	}
 }
@@ -905,7 +905,7 @@ func TestInsert_FixedUnion(t *testing.T) {
 		t.Fatalf("NewRootZ: %v", err)
 	}
 	zb := &ZBool{Bool: true}
-	err = Insert(air.Z_TypeID, z.Struct, zb)
+	err = Insert(air.Z_TypeID, capnp.Struct(z), zb)
 	if err != nil {
 		t.Errorf("Insert(%s) error: %v", zpretty.Sprint(zb), err)
 	}
@@ -932,11 +932,11 @@ func TestMissingWhich(t *testing.T) {
 		t.Fatalf("NewRootZ: %v", err)
 	}
 	zz := &ZBoolU8{Bool: true, U8: 42}
-	err = Insert(air.Z_TypeID, z.Struct, zz)
+	err = Insert(air.Z_TypeID, capnp.Struct(z), zz)
 	if err == nil {
 		t.Errorf("Insert(%s) did not return error", zpretty.Sprint(zz))
 	}
-	err = Extract(zz, air.Z_TypeID, z.Struct)
+	err = Extract(zz, air.Z_TypeID, capnp.Struct(z))
 	if err == nil {
 		t.Errorf("Extract(%v) did not return error", zz)
 	}
@@ -960,13 +960,13 @@ func TestExtraFields(t *testing.T) {
 		t.Fatalf("NewRootZdate: %v", err)
 	}
 	zd := &ZDateWithExtra{ExtraField: 42}
-	err = Insert(air.Zdate_TypeID, z.Struct, zd)
+	err = Insert(air.Zdate_TypeID, capnp.Struct(z), zd)
 	if err == nil {
 		t.Errorf("Insert(%s) did not return error", zpretty.Sprint(zd))
 	} else if s := err.Error(); !strings.Contains(s, "ExtraField") {
 		t.Errorf("Insert(%s): %v; want error about ExtraField", zpretty.Sprint(zd), err)
 	}
-	err = Extract(zd, air.Zdate_TypeID, z.Struct)
+	err = Extract(zd, air.Zdate_TypeID, capnp.Struct(z))
 	if err == nil {
 		t.Errorf("Extract(%v) did not return error", z)
 	} else if s := err.Error(); !strings.Contains(s, "ExtraField") {
@@ -1212,7 +1212,7 @@ func zfill(c air.Z, g *Z) error {
 			return err
 		}
 		for i, ee := range g.Echoes {
-			if !ee.Client.IsValid() {
+			if !ee.IsValid() {
 				continue
 			}
 			err := e.Set(i, ee)

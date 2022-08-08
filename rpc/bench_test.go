@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/rpc"
 	testcp "capnproto.org/go/capnp/v3/rpc/internal/testcapnp"
 	"capnproto.org/go/capnp/v3/rpc/transport"
@@ -11,10 +12,10 @@ import (
 
 func BenchmarkPingPong(b *testing.B) {
 	p1, p2 := transport.NewPipe(1)
-	srv := testcp.PingPong_ServerToClient(pingPongServer{}, nil)
+	srv := testcp.PingPong_ServerToClient(pingPongServer{})
 	conn1 := rpc.NewConn(rpc.NewTransport(p2), &rpc.Options{
 		ErrorReporter:   testErrorReporter{tb: b},
-		BootstrapClient: srv.Client,
+		BootstrapClient: capnp.Client(srv),
 	})
 	defer func() {
 		<-conn1.Done()
@@ -32,8 +33,8 @@ func BenchmarkPingPong(b *testing.B) {
 	}()
 
 	ctx := context.Background()
-	client := testcp.PingPong{Client: conn2.Bootstrap(ctx)}
-	defer client.Client.Release()
+	client := testcp.PingPong(conn2.Bootstrap(ctx))
+	defer client.Release()
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {

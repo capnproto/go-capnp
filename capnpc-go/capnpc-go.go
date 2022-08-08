@@ -30,10 +30,11 @@ import (
 
 // Non-stdlib import paths.
 const (
-	capnpImport   = "capnproto.org/go/capnp/v3"
-	textImport    = capnpImport + "/encoding/text"
-	schemasImport = capnpImport + "/schemas"
-	serverImport  = capnpImport + "/server"
+	capnpImport       = "capnproto.org/go/capnp/v3"
+	textImport        = capnpImport + "/encoding/text"
+	schemasImport     = capnpImport + "/schemas"
+	serverImport      = capnpImport + "/server"
+	flowcontrolImport = capnpImport + "/flowcontrol"
 )
 
 // genoptions are parameters that control code generation.
@@ -106,10 +107,6 @@ func (g *generator) Basename() (string, error) {
 
 func (g *generator) Imports() *imports {
 	return &g.imports
-}
-
-func (g *generator) Capnp() string {
-	return g.imports.Capnp()
 }
 
 // generate produces unformatted Go source code from the nodes defined in it.

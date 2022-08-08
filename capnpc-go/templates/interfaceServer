@@ -6,15 +6,15 @@ type {{.Node.Name}}_Server interface {
 }
 
 // {{.Node.Name}}_NewServer creates a new Server from an implementation of {{.Node.Name}}_Server.
-func {{.Node.Name}}_NewServer(s {{.Node.Name}}_Server, policy *{{.G.Imports.Server}}.Policy) *{{.G.Imports.Server}}.Server {
+func {{.Node.Name}}_NewServer(s {{.Node.Name}}_Server) *{{.G.Imports.Server}}.Server {
 	c, _ := s.({{.G.Imports.Server}}.Shutdowner)
-  return {{.G.Imports.Server}}.New({{.Node.Name}}_Methods(nil, s), s, c, policy)
+  return {{.G.Imports.Server}}.New({{.Node.Name}}_Methods(nil, s), s, c)
 }
 
 // {{.Node.Name}}_ServerToClient creates a new Client from an implementation of {{.Node.Name}}_Server.
 // The caller is responsible for calling Release on the returned Client.
-func {{.Node.Name}}_ServerToClient(s {{.Node.Name}}_Server, policy *{{.G.Imports.Server}}.Policy) {{.Node.Name}} {
-	return {{.Node.Name}}{Client: {{.G.Capnp}}.NewClient({{.Node.Name}}_NewServer(s, policy))}
+func {{.Node.Name}}_ServerToClient(s {{.Node.Name}}_Server) {{.Node.Name}} {
+	return {{.Node.Name}}(capnp.NewClient({{.Node.Name}}_NewServer(s)))
 }
 
 // {{.Node.Name}}_Methods appends Methods to a slice that invoke the methods on s.
@@ -25,7 +25,7 @@ func {{.Node.Name}}_Methods(methods []{{.G.Imports.Server}}.Method, s {{.Node.Na
 	}
 	{{range .Methods}}
 	methods = append(methods, {{$.G.Imports.Server}}.Method{
-		Method: {{$.G.Capnp}}.Method{
+		Method: capnp.Method{
 			{{template "_interfaceMethod" .}}
 		},
 		Impl: func(ctx {{$.G.Imports.Context}}.Context, call *{{$.G.Imports.Server}}.Call) error {
@@ -45,13 +45,13 @@ type {{$.Node.Name}}_{{.Name}} struct {
 
 // Args returns the call's arguments.
 func (c {{$.Node.Name}}_{{.Name}}) Args() {{$.G.RemoteNodeName .Params $.Node}} {
-	return {{$.G.RemoteNodeName .Params $.Node}}{Struct: c.Call.Args()}
+	return {{$.G.RemoteNodeName .Params $.Node}}(c.Call.Args())
 }
 
 // AllocResults allocates the results struct.
 func (c {{$.Node.Name}}_{{.Name}}) AllocResults() ({{$.G.RemoteNodeName .Results $.Node}}, error) {
 	r, err := c.Call.AllocResults({{$.G.ObjectSize .Results}})
-	return {{$.G.RemoteNodeName .Results $.Node}}{Struct: r}, err
+	return {{$.G.RemoteNodeName .Results $.Node}}(r), err
 }
 {{end}}
 {{- end}}

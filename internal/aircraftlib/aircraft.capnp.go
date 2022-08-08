@@ -5,9 +5,11 @@ package aircraftlib
 import (
 	capnp "capnproto.org/go/capnp/v3"
 	text "capnproto.org/go/capnp/v3/encoding/text"
+	fc "capnproto.org/go/capnp/v3/flowcontrol"
 	schemas "capnproto.org/go/capnp/v3/schemas"
 	server "capnproto.org/go/capnp/v3/server"
 	context "context"
+	fmt "fmt"
 	math "math"
 	strconv "strconv"
 )
@@ -19,57 +21,79 @@ const (
 
 // Constants defined in aircraft.capnp.
 var (
-	ConstDate = Zdate{Struct: capnp.MustUnmarshalRoot(x_832bcc6686a26d56[0:24]).Struct()}
-	ConstList = Zdate_List{List: capnp.MustUnmarshalRoot(x_832bcc6686a26d56[24:64]).List()}
+	ConstDate = Zdate(capnp.MustUnmarshalRoot(x_832bcc6686a26d56[0:24]).Struct())
+	ConstList = Zdate_List(capnp.MustUnmarshalRoot(x_832bcc6686a26d56[24:64]).List())
 )
 
-type Zdate struct{ capnp.Struct }
+type Zdate capnp.Struct
 
 // Zdate_TypeID is the unique identifier for the type Zdate.
 const Zdate_TypeID = 0xde50aebbad57549d
 
 func NewZdate(s *capnp.Segment) (Zdate, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	return Zdate{st}, err
+	return Zdate(st), err
 }
 
 func NewRootZdate(s *capnp.Segment) (Zdate, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	return Zdate{st}, err
+	return Zdate(st), err
 }
 
 func ReadRootZdate(msg *capnp.Message) (Zdate, error) {
 	root, err := msg.Root()
-	return Zdate{root.Struct()}, err
+	return Zdate(root.Struct()), err
 }
 
 func (s Zdate) String() string {
-	str, _ := text.Marshal(0xde50aebbad57549d, s.Struct)
+	str, _ := text.Marshal(0xde50aebbad57549d, capnp.Struct(s))
 	return str
 }
 
+func (s Zdate) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (Zdate) DecodeFromPtr(p capnp.Ptr) Zdate {
+	return Zdate(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s Zdate) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s Zdate) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s Zdate) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s Zdate) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s Zdate) Year() int16 {
-	return int16(s.Struct.Uint16(0))
+	return int16(capnp.Struct(s).Uint16(0))
 }
 
 func (s Zdate) SetYear(v int16) {
-	s.Struct.SetUint16(0, uint16(v))
+	capnp.Struct(s).SetUint16(0, uint16(v))
 }
 
 func (s Zdate) Month() uint8 {
-	return s.Struct.Uint8(2)
+	return capnp.Struct(s).Uint8(2)
 }
 
 func (s Zdate) SetMonth(v uint8) {
-	s.Struct.SetUint8(2, v)
+	capnp.Struct(s).SetUint8(2, v)
 }
 
 func (s Zdate) Day() uint8 {
-	return s.Struct.Uint8(3)
+	return capnp.Struct(s).Uint8(3)
 }
 
 func (s Zdate) SetDay(v uint8) {
-	s.Struct.SetUint8(3, v)
+	capnp.Struct(s).SetUint8(3, v)
 }
 
 // Zdate_List is a list of Zdate.
@@ -78,7 +102,7 @@ type Zdate_List = capnp.StructList[Zdate]
 // NewZdate creates a new list of Zdate.
 func NewZdate_List(s *capnp.Segment, sz int32) (Zdate_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	return capnp.StructList[Zdate]{List: l}, err
+	return capnp.StructList[Zdate](l), err
 }
 
 // Zdate_Future is a wrapper for a Zdate promised by a client call.
@@ -86,45 +110,67 @@ type Zdate_Future struct{ *capnp.Future }
 
 func (p Zdate_Future) Struct() (Zdate, error) {
 	s, err := p.Future.Struct()
-	return Zdate{s}, err
+	return Zdate(s), err
 }
 
-type Zdata struct{ capnp.Struct }
+type Zdata capnp.Struct
 
 // Zdata_TypeID is the unique identifier for the type Zdata.
 const Zdata_TypeID = 0xc7da65f9a2f20ba2
 
 func NewZdata(s *capnp.Segment) (Zdata, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return Zdata{st}, err
+	return Zdata(st), err
 }
 
 func NewRootZdata(s *capnp.Segment) (Zdata, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return Zdata{st}, err
+	return Zdata(st), err
 }
 
 func ReadRootZdata(msg *capnp.Message) (Zdata, error) {
 	root, err := msg.Root()
-	return Zdata{root.Struct()}, err
+	return Zdata(root.Struct()), err
 }
 
 func (s Zdata) String() string {
-	str, _ := text.Marshal(0xc7da65f9a2f20ba2, s.Struct)
+	str, _ := text.Marshal(0xc7da65f9a2f20ba2, capnp.Struct(s))
 	return str
 }
 
+func (s Zdata) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (Zdata) DecodeFromPtr(p capnp.Ptr) Zdata {
+	return Zdata(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s Zdata) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s Zdata) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s Zdata) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s Zdata) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s Zdata) Data() ([]byte, error) {
-	p, err := s.Struct.Ptr(0)
+	p, err := capnp.Struct(s).Ptr(0)
 	return []byte(p.Data()), err
 }
 
 func (s Zdata) HasData() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Zdata) SetData(v []byte) error {
-	return s.Struct.SetData(0, v)
+	return capnp.Struct(s).SetData(0, v)
 }
 
 // Zdata_List is a list of Zdata.
@@ -133,7 +179,7 @@ type Zdata_List = capnp.StructList[Zdata]
 // NewZdata creates a new list of Zdata.
 func NewZdata_List(s *capnp.Segment, sz int32) (Zdata_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[Zdata]{List: l}, err
+	return capnp.StructList[Zdata](l), err
 }
 
 // Zdata_Future is a wrapper for a Zdata promised by a client call.
@@ -141,7 +187,7 @@ type Zdata_Future struct{ *capnp.Future }
 
 func (p Zdata_Future) Struct() (Zdata, error) {
 	s, err := p.Future.Struct()
-	return Zdata{s}, err
+	return Zdata(s), err
 }
 
 type Airport uint16
@@ -213,103 +259,125 @@ func NewAirport_List(s *capnp.Segment, sz int32) (Airport_List, error) {
 	return capnp.NewEnumList[Airport](s, sz)
 }
 
-type PlaneBase struct{ capnp.Struct }
+type PlaneBase capnp.Struct
 
 // PlaneBase_TypeID is the unique identifier for the type PlaneBase.
 const PlaneBase_TypeID = 0xd8bccf6e60a73791
 
 func NewPlaneBase(s *capnp.Segment) (PlaneBase, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 32, PointerCount: 2})
-	return PlaneBase{st}, err
+	return PlaneBase(st), err
 }
 
 func NewRootPlaneBase(s *capnp.Segment) (PlaneBase, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 32, PointerCount: 2})
-	return PlaneBase{st}, err
+	return PlaneBase(st), err
 }
 
 func ReadRootPlaneBase(msg *capnp.Message) (PlaneBase, error) {
 	root, err := msg.Root()
-	return PlaneBase{root.Struct()}, err
+	return PlaneBase(root.Struct()), err
 }
 
 func (s PlaneBase) String() string {
-	str, _ := text.Marshal(0xd8bccf6e60a73791, s.Struct)
+	str, _ := text.Marshal(0xd8bccf6e60a73791, capnp.Struct(s))
 	return str
 }
 
+func (s PlaneBase) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (PlaneBase) DecodeFromPtr(p capnp.Ptr) PlaneBase {
+	return PlaneBase(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s PlaneBase) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s PlaneBase) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s PlaneBase) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s PlaneBase) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s PlaneBase) Name() (string, error) {
-	p, err := s.Struct.Ptr(0)
+	p, err := capnp.Struct(s).Ptr(0)
 	return p.Text(), err
 }
 
 func (s PlaneBase) HasName() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s PlaneBase) NameBytes() ([]byte, error) {
-	p, err := s.Struct.Ptr(0)
+	p, err := capnp.Struct(s).Ptr(0)
 	return p.TextBytes(), err
 }
 
 func (s PlaneBase) SetName(v string) error {
-	return s.Struct.SetText(0, v)
+	return capnp.Struct(s).SetText(0, v)
 }
 
 func (s PlaneBase) Homes() (Airport_List, error) {
-	p, err := s.Struct.Ptr(1)
-	return Airport_List{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(1)
+	return Airport_List(p.List()), err
 }
 
 func (s PlaneBase) HasHomes() bool {
-	return s.Struct.HasPtr(1)
+	return capnp.Struct(s).HasPtr(1)
 }
 
 func (s PlaneBase) SetHomes(v Airport_List) error {
-	return s.Struct.SetPtr(1, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(1, v.ToPtr())
 }
 
 // NewHomes sets the homes field to a newly
 // allocated Airport_List, preferring placement in s's segment.
 func (s PlaneBase) NewHomes(n int32) (Airport_List, error) {
-	l, err := NewAirport_List(s.Struct.Segment(), n)
+	l, err := NewAirport_List(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return Airport_List{}, err
 	}
-	err = s.Struct.SetPtr(1, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(1, l.ToPtr())
 	return l, err
 }
 
 func (s PlaneBase) Rating() int64 {
-	return int64(s.Struct.Uint64(0))
+	return int64(capnp.Struct(s).Uint64(0))
 }
 
 func (s PlaneBase) SetRating(v int64) {
-	s.Struct.SetUint64(0, uint64(v))
+	capnp.Struct(s).SetUint64(0, uint64(v))
 }
 
 func (s PlaneBase) CanFly() bool {
-	return s.Struct.Bit(64)
+	return capnp.Struct(s).Bit(64)
 }
 
 func (s PlaneBase) SetCanFly(v bool) {
-	s.Struct.SetBit(64, v)
+	capnp.Struct(s).SetBit(64, v)
 }
 
 func (s PlaneBase) Capacity() int64 {
-	return int64(s.Struct.Uint64(16))
+	return int64(capnp.Struct(s).Uint64(16))
 }
 
 func (s PlaneBase) SetCapacity(v int64) {
-	s.Struct.SetUint64(16, uint64(v))
+	capnp.Struct(s).SetUint64(16, uint64(v))
 }
 
 func (s PlaneBase) MaxSpeed() float64 {
-	return math.Float64frombits(s.Struct.Uint64(24))
+	return math.Float64frombits(capnp.Struct(s).Uint64(24))
 }
 
 func (s PlaneBase) SetMaxSpeed(v float64) {
-	s.Struct.SetUint64(24, math.Float64bits(v))
+	capnp.Struct(s).SetUint64(24, math.Float64bits(v))
 }
 
 // PlaneBase_List is a list of PlaneBase.
@@ -318,7 +386,7 @@ type PlaneBase_List = capnp.StructList[PlaneBase]
 // NewPlaneBase creates a new list of PlaneBase.
 func NewPlaneBase_List(s *capnp.Segment, sz int32) (PlaneBase_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 32, PointerCount: 2}, sz)
-	return capnp.StructList[PlaneBase]{List: l}, err
+	return capnp.StructList[PlaneBase](l), err
 }
 
 // PlaneBase_Future is a wrapper for a PlaneBase promised by a client call.
@@ -326,55 +394,77 @@ type PlaneBase_Future struct{ *capnp.Future }
 
 func (p PlaneBase_Future) Struct() (PlaneBase, error) {
 	s, err := p.Future.Struct()
-	return PlaneBase{s}, err
+	return PlaneBase(s), err
 }
 
-type B737 struct{ capnp.Struct }
+type B737 capnp.Struct
 
 // B737_TypeID is the unique identifier for the type B737.
 const B737_TypeID = 0xccb3b2e3603826e0
 
 func NewB737(s *capnp.Segment) (B737, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return B737{st}, err
+	return B737(st), err
 }
 
 func NewRootB737(s *capnp.Segment) (B737, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return B737{st}, err
+	return B737(st), err
 }
 
 func ReadRootB737(msg *capnp.Message) (B737, error) {
 	root, err := msg.Root()
-	return B737{root.Struct()}, err
+	return B737(root.Struct()), err
 }
 
 func (s B737) String() string {
-	str, _ := text.Marshal(0xccb3b2e3603826e0, s.Struct)
+	str, _ := text.Marshal(0xccb3b2e3603826e0, capnp.Struct(s))
 	return str
 }
 
+func (s B737) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (B737) DecodeFromPtr(p capnp.Ptr) B737 {
+	return B737(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s B737) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s B737) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s B737) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s B737) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s B737) Base() (PlaneBase, error) {
-	p, err := s.Struct.Ptr(0)
-	return PlaneBase{Struct: p.Struct()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return PlaneBase(p.Struct()), err
 }
 
 func (s B737) HasBase() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s B737) SetBase(v PlaneBase) error {
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+	return capnp.Struct(s).SetPtr(0, capnp.Struct(v).ToPtr())
 }
 
 // NewBase sets the base field to a newly
 // allocated PlaneBase struct, preferring placement in s's segment.
 func (s B737) NewBase() (PlaneBase, error) {
-	ss, err := NewPlaneBase(s.Struct.Segment())
+	ss, err := NewPlaneBase(capnp.Struct(s).Segment())
 	if err != nil {
 		return PlaneBase{}, err
 	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, capnp.Struct(ss).ToPtr())
 	return ss, err
 }
 
@@ -384,7 +474,7 @@ type B737_List = capnp.StructList[B737]
 // NewB737 creates a new list of B737.
 func NewB737_List(s *capnp.Segment, sz int32) (B737_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[B737]{List: l}, err
+	return capnp.StructList[B737](l), err
 }
 
 // B737_Future is a wrapper for a B737 promised by a client call.
@@ -392,59 +482,81 @@ type B737_Future struct{ *capnp.Future }
 
 func (p B737_Future) Struct() (B737, error) {
 	s, err := p.Future.Struct()
-	return B737{s}, err
+	return B737(s), err
 }
 
 func (p B737_Future) Base() PlaneBase_Future {
 	return PlaneBase_Future{Future: p.Future.Field(0, nil)}
 }
 
-type A320 struct{ capnp.Struct }
+type A320 capnp.Struct
 
 // A320_TypeID is the unique identifier for the type A320.
 const A320_TypeID = 0xd98c608877d9cb8d
 
 func NewA320(s *capnp.Segment) (A320, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return A320{st}, err
+	return A320(st), err
 }
 
 func NewRootA320(s *capnp.Segment) (A320, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return A320{st}, err
+	return A320(st), err
 }
 
 func ReadRootA320(msg *capnp.Message) (A320, error) {
 	root, err := msg.Root()
-	return A320{root.Struct()}, err
+	return A320(root.Struct()), err
 }
 
 func (s A320) String() string {
-	str, _ := text.Marshal(0xd98c608877d9cb8d, s.Struct)
+	str, _ := text.Marshal(0xd98c608877d9cb8d, capnp.Struct(s))
 	return str
 }
 
+func (s A320) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (A320) DecodeFromPtr(p capnp.Ptr) A320 {
+	return A320(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s A320) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s A320) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s A320) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s A320) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s A320) Base() (PlaneBase, error) {
-	p, err := s.Struct.Ptr(0)
-	return PlaneBase{Struct: p.Struct()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return PlaneBase(p.Struct()), err
 }
 
 func (s A320) HasBase() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s A320) SetBase(v PlaneBase) error {
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+	return capnp.Struct(s).SetPtr(0, capnp.Struct(v).ToPtr())
 }
 
 // NewBase sets the base field to a newly
 // allocated PlaneBase struct, preferring placement in s's segment.
 func (s A320) NewBase() (PlaneBase, error) {
-	ss, err := NewPlaneBase(s.Struct.Segment())
+	ss, err := NewPlaneBase(capnp.Struct(s).Segment())
 	if err != nil {
 		return PlaneBase{}, err
 	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, capnp.Struct(ss).ToPtr())
 	return ss, err
 }
 
@@ -454,7 +566,7 @@ type A320_List = capnp.StructList[A320]
 // NewA320 creates a new list of A320.
 func NewA320_List(s *capnp.Segment, sz int32) (A320_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[A320]{List: l}, err
+	return capnp.StructList[A320](l), err
 }
 
 // A320_Future is a wrapper for a A320 promised by a client call.
@@ -462,59 +574,81 @@ type A320_Future struct{ *capnp.Future }
 
 func (p A320_Future) Struct() (A320, error) {
 	s, err := p.Future.Struct()
-	return A320{s}, err
+	return A320(s), err
 }
 
 func (p A320_Future) Base() PlaneBase_Future {
 	return PlaneBase_Future{Future: p.Future.Field(0, nil)}
 }
 
-type F16 struct{ capnp.Struct }
+type F16 capnp.Struct
 
 // F16_TypeID is the unique identifier for the type F16.
 const F16_TypeID = 0xe1c9eac512335361
 
 func NewF16(s *capnp.Segment) (F16, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return F16{st}, err
+	return F16(st), err
 }
 
 func NewRootF16(s *capnp.Segment) (F16, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return F16{st}, err
+	return F16(st), err
 }
 
 func ReadRootF16(msg *capnp.Message) (F16, error) {
 	root, err := msg.Root()
-	return F16{root.Struct()}, err
+	return F16(root.Struct()), err
 }
 
 func (s F16) String() string {
-	str, _ := text.Marshal(0xe1c9eac512335361, s.Struct)
+	str, _ := text.Marshal(0xe1c9eac512335361, capnp.Struct(s))
 	return str
 }
 
+func (s F16) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (F16) DecodeFromPtr(p capnp.Ptr) F16 {
+	return F16(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s F16) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s F16) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s F16) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s F16) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s F16) Base() (PlaneBase, error) {
-	p, err := s.Struct.Ptr(0)
-	return PlaneBase{Struct: p.Struct()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return PlaneBase(p.Struct()), err
 }
 
 func (s F16) HasBase() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s F16) SetBase(v PlaneBase) error {
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+	return capnp.Struct(s).SetPtr(0, capnp.Struct(v).ToPtr())
 }
 
 // NewBase sets the base field to a newly
 // allocated PlaneBase struct, preferring placement in s's segment.
 func (s F16) NewBase() (PlaneBase, error) {
-	ss, err := NewPlaneBase(s.Struct.Segment())
+	ss, err := NewPlaneBase(capnp.Struct(s).Segment())
 	if err != nil {
 		return PlaneBase{}, err
 	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, capnp.Struct(ss).ToPtr())
 	return ss, err
 }
 
@@ -524,7 +658,7 @@ type F16_List = capnp.StructList[F16]
 // NewF16 creates a new list of F16.
 func NewF16_List(s *capnp.Segment, sz int32) (F16_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[F16]{List: l}, err
+	return capnp.StructList[F16](l), err
 }
 
 // F16_Future is a wrapper for a F16 promised by a client call.
@@ -532,132 +666,154 @@ type F16_Future struct{ *capnp.Future }
 
 func (p F16_Future) Struct() (F16, error) {
 	s, err := p.Future.Struct()
-	return F16{s}, err
+	return F16(s), err
 }
 
 func (p F16_Future) Base() PlaneBase_Future {
 	return PlaneBase_Future{Future: p.Future.Field(0, nil)}
 }
 
-type Regression struct{ capnp.Struct }
+type Regression capnp.Struct
 
 // Regression_TypeID is the unique identifier for the type Regression.
 const Regression_TypeID = 0xb1f0385d845e367f
 
 func NewRegression(s *capnp.Segment) (Regression, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 3})
-	return Regression{st}, err
+	return Regression(st), err
 }
 
 func NewRootRegression(s *capnp.Segment) (Regression, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 3})
-	return Regression{st}, err
+	return Regression(st), err
 }
 
 func ReadRootRegression(msg *capnp.Message) (Regression, error) {
 	root, err := msg.Root()
-	return Regression{root.Struct()}, err
+	return Regression(root.Struct()), err
 }
 
 func (s Regression) String() string {
-	str, _ := text.Marshal(0xb1f0385d845e367f, s.Struct)
+	str, _ := text.Marshal(0xb1f0385d845e367f, capnp.Struct(s))
 	return str
 }
 
+func (s Regression) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (Regression) DecodeFromPtr(p capnp.Ptr) Regression {
+	return Regression(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s Regression) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s Regression) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s Regression) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s Regression) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s Regression) Base() (PlaneBase, error) {
-	p, err := s.Struct.Ptr(0)
-	return PlaneBase{Struct: p.Struct()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return PlaneBase(p.Struct()), err
 }
 
 func (s Regression) HasBase() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Regression) SetBase(v PlaneBase) error {
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+	return capnp.Struct(s).SetPtr(0, capnp.Struct(v).ToPtr())
 }
 
 // NewBase sets the base field to a newly
 // allocated PlaneBase struct, preferring placement in s's segment.
 func (s Regression) NewBase() (PlaneBase, error) {
-	ss, err := NewPlaneBase(s.Struct.Segment())
+	ss, err := NewPlaneBase(capnp.Struct(s).Segment())
 	if err != nil {
 		return PlaneBase{}, err
 	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, capnp.Struct(ss).ToPtr())
 	return ss, err
 }
 
 func (s Regression) B0() float64 {
-	return math.Float64frombits(s.Struct.Uint64(0))
+	return math.Float64frombits(capnp.Struct(s).Uint64(0))
 }
 
 func (s Regression) SetB0(v float64) {
-	s.Struct.SetUint64(0, math.Float64bits(v))
+	capnp.Struct(s).SetUint64(0, math.Float64bits(v))
 }
 
 func (s Regression) Beta() (capnp.Float64List, error) {
-	p, err := s.Struct.Ptr(1)
-	return capnp.Float64List{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(1)
+	return capnp.Float64List(p.List()), err
 }
 
 func (s Regression) HasBeta() bool {
-	return s.Struct.HasPtr(1)
+	return capnp.Struct(s).HasPtr(1)
 }
 
 func (s Regression) SetBeta(v capnp.Float64List) error {
-	return s.Struct.SetPtr(1, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(1, v.ToPtr())
 }
 
 // NewBeta sets the beta field to a newly
 // allocated capnp.Float64List, preferring placement in s's segment.
 func (s Regression) NewBeta(n int32) (capnp.Float64List, error) {
-	l, err := capnp.NewFloat64List(s.Struct.Segment(), n)
+	l, err := capnp.NewFloat64List(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return capnp.Float64List{}, err
 	}
-	err = s.Struct.SetPtr(1, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(1, l.ToPtr())
 	return l, err
 }
 
 func (s Regression) Planes() (Aircraft_List, error) {
-	p, err := s.Struct.Ptr(2)
-	return Aircraft_List{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(2)
+	return Aircraft_List(p.List()), err
 }
 
 func (s Regression) HasPlanes() bool {
-	return s.Struct.HasPtr(2)
+	return capnp.Struct(s).HasPtr(2)
 }
 
 func (s Regression) SetPlanes(v Aircraft_List) error {
-	return s.Struct.SetPtr(2, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(2, v.ToPtr())
 }
 
 // NewPlanes sets the planes field to a newly
 // allocated Aircraft_List, preferring placement in s's segment.
 func (s Regression) NewPlanes(n int32) (Aircraft_List, error) {
-	l, err := NewAircraft_List(s.Struct.Segment(), n)
+	l, err := NewAircraft_List(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return Aircraft_List{}, err
 	}
-	err = s.Struct.SetPtr(2, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(2, l.ToPtr())
 	return l, err
 }
 
 func (s Regression) Ymu() float64 {
-	return math.Float64frombits(s.Struct.Uint64(8))
+	return math.Float64frombits(capnp.Struct(s).Uint64(8))
 }
 
 func (s Regression) SetYmu(v float64) {
-	s.Struct.SetUint64(8, math.Float64bits(v))
+	capnp.Struct(s).SetUint64(8, math.Float64bits(v))
 }
 
 func (s Regression) Ysd() float64 {
-	return math.Float64frombits(s.Struct.Uint64(16))
+	return math.Float64frombits(capnp.Struct(s).Uint64(16))
 }
 
 func (s Regression) SetYsd(v float64) {
-	s.Struct.SetUint64(16, math.Float64bits(v))
+	capnp.Struct(s).SetUint64(16, math.Float64bits(v))
 }
 
 // Regression_List is a list of Regression.
@@ -666,7 +822,7 @@ type Regression_List = capnp.StructList[Regression]
 // NewRegression creates a new list of Regression.
 func NewRegression_List(s *capnp.Segment, sz int32) (Regression_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 24, PointerCount: 3}, sz)
-	return capnp.StructList[Regression]{List: l}, err
+	return capnp.StructList[Regression](l), err
 }
 
 // Regression_Future is a wrapper for a Regression promised by a client call.
@@ -674,14 +830,14 @@ type Regression_Future struct{ *capnp.Future }
 
 func (p Regression_Future) Struct() (Regression, error) {
 	s, err := p.Future.Struct()
-	return Regression{s}, err
+	return Regression(s), err
 }
 
 func (p Regression_Future) Base() PlaneBase_Future {
 	return PlaneBase_Future{Future: p.Future.Field(0, nil)}
 }
 
-type Aircraft struct{ capnp.Struct }
+type Aircraft capnp.Struct
 type Aircraft_Which uint16
 
 const (
@@ -712,125 +868,148 @@ const Aircraft_TypeID = 0xe54e10aede55c7b1
 
 func NewAircraft(s *capnp.Segment) (Aircraft, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	return Aircraft{st}, err
+	return Aircraft(st), err
 }
 
 func NewRootAircraft(s *capnp.Segment) (Aircraft, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	return Aircraft{st}, err
+	return Aircraft(st), err
 }
 
 func ReadRootAircraft(msg *capnp.Message) (Aircraft, error) {
 	root, err := msg.Root()
-	return Aircraft{root.Struct()}, err
+	return Aircraft(root.Struct()), err
 }
 
 func (s Aircraft) String() string {
-	str, _ := text.Marshal(0xe54e10aede55c7b1, s.Struct)
+	str, _ := text.Marshal(0xe54e10aede55c7b1, capnp.Struct(s))
 	return str
 }
 
+func (s Aircraft) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (Aircraft) DecodeFromPtr(p capnp.Ptr) Aircraft {
+	return Aircraft(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s Aircraft) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+
 func (s Aircraft) Which() Aircraft_Which {
-	return Aircraft_Which(s.Struct.Uint16(0))
+	return Aircraft_Which(capnp.Struct(s).Uint16(0))
+}
+func (s Aircraft) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s Aircraft) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s Aircraft) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
 }
 func (s Aircraft) SetVoid() {
-	s.Struct.SetUint16(0, 0)
+	capnp.Struct(s).SetUint16(0, 0)
 
 }
 
 func (s Aircraft) B737() (B737, error) {
-	if s.Struct.Uint16(0) != 1 {
+	if capnp.Struct(s).Uint16(0) != 1 {
 		panic("Which() != b737")
 	}
-	p, err := s.Struct.Ptr(0)
-	return B737{Struct: p.Struct()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return B737(p.Struct()), err
 }
 
 func (s Aircraft) HasB737() bool {
-	if s.Struct.Uint16(0) != 1 {
+	if capnp.Struct(s).Uint16(0) != 1 {
 		return false
 	}
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Aircraft) SetB737(v B737) error {
-	s.Struct.SetUint16(0, 1)
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+	capnp.Struct(s).SetUint16(0, 1)
+	return capnp.Struct(s).SetPtr(0, capnp.Struct(v).ToPtr())
 }
 
 // NewB737 sets the b737 field to a newly
 // allocated B737 struct, preferring placement in s's segment.
 func (s Aircraft) NewB737() (B737, error) {
-	s.Struct.SetUint16(0, 1)
-	ss, err := NewB737(s.Struct.Segment())
+	capnp.Struct(s).SetUint16(0, 1)
+	ss, err := NewB737(capnp.Struct(s).Segment())
 	if err != nil {
 		return B737{}, err
 	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, capnp.Struct(ss).ToPtr())
 	return ss, err
 }
 
 func (s Aircraft) A320() (A320, error) {
-	if s.Struct.Uint16(0) != 2 {
+	if capnp.Struct(s).Uint16(0) != 2 {
 		panic("Which() != a320")
 	}
-	p, err := s.Struct.Ptr(0)
-	return A320{Struct: p.Struct()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return A320(p.Struct()), err
 }
 
 func (s Aircraft) HasA320() bool {
-	if s.Struct.Uint16(0) != 2 {
+	if capnp.Struct(s).Uint16(0) != 2 {
 		return false
 	}
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Aircraft) SetA320(v A320) error {
-	s.Struct.SetUint16(0, 2)
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+	capnp.Struct(s).SetUint16(0, 2)
+	return capnp.Struct(s).SetPtr(0, capnp.Struct(v).ToPtr())
 }
 
 // NewA320 sets the a320 field to a newly
 // allocated A320 struct, preferring placement in s's segment.
 func (s Aircraft) NewA320() (A320, error) {
-	s.Struct.SetUint16(0, 2)
-	ss, err := NewA320(s.Struct.Segment())
+	capnp.Struct(s).SetUint16(0, 2)
+	ss, err := NewA320(capnp.Struct(s).Segment())
 	if err != nil {
 		return A320{}, err
 	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, capnp.Struct(ss).ToPtr())
 	return ss, err
 }
 
 func (s Aircraft) F16() (F16, error) {
-	if s.Struct.Uint16(0) != 3 {
+	if capnp.Struct(s).Uint16(0) != 3 {
 		panic("Which() != f16")
 	}
-	p, err := s.Struct.Ptr(0)
-	return F16{Struct: p.Struct()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return F16(p.Struct()), err
 }
 
 func (s Aircraft) HasF16() bool {
-	if s.Struct.Uint16(0) != 3 {
+	if capnp.Struct(s).Uint16(0) != 3 {
 		return false
 	}
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Aircraft) SetF16(v F16) error {
-	s.Struct.SetUint16(0, 3)
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+	capnp.Struct(s).SetUint16(0, 3)
+	return capnp.Struct(s).SetPtr(0, capnp.Struct(v).ToPtr())
 }
 
 // NewF16 sets the f16 field to a newly
 // allocated F16 struct, preferring placement in s's segment.
 func (s Aircraft) NewF16() (F16, error) {
-	s.Struct.SetUint16(0, 3)
-	ss, err := NewF16(s.Struct.Segment())
+	capnp.Struct(s).SetUint16(0, 3)
+	ss, err := NewF16(capnp.Struct(s).Segment())
 	if err != nil {
 		return F16{}, err
 	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, capnp.Struct(ss).ToPtr())
 	return ss, err
 }
 
@@ -840,7 +1019,7 @@ type Aircraft_List = capnp.StructList[Aircraft]
 // NewAircraft creates a new list of Aircraft.
 func NewAircraft_List(s *capnp.Segment, sz int32) (Aircraft_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	return capnp.StructList[Aircraft]{List: l}, err
+	return capnp.StructList[Aircraft](l), err
 }
 
 // Aircraft_Future is a wrapper for a Aircraft promised by a client call.
@@ -848,7 +1027,7 @@ type Aircraft_Future struct{ *capnp.Future }
 
 func (p Aircraft_Future) Struct() (Aircraft, error) {
 	s, err := p.Future.Struct()
-	return Aircraft{s}, err
+	return Aircraft(s), err
 }
 
 func (p Aircraft_Future) B737() B737_Future {
@@ -863,7 +1042,7 @@ func (p Aircraft_Future) F16() F16_Future {
 	return F16_Future{Future: p.Future.Field(0, nil)}
 }
 
-type Z struct{ capnp.Struct }
+type Z capnp.Struct
 type Z_grp Z
 type Z_Which uint16
 
@@ -1030,1244 +1209,1278 @@ const Z_TypeID = 0xea26e9973bd6a0d9
 
 func NewZ(s *capnp.Segment) (Z, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 1})
-	return Z{st}, err
+	return Z(st), err
 }
 
 func NewRootZ(s *capnp.Segment) (Z, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 1})
-	return Z{st}, err
+	return Z(st), err
 }
 
 func ReadRootZ(msg *capnp.Message) (Z, error) {
 	root, err := msg.Root()
-	return Z{root.Struct()}, err
+	return Z(root.Struct()), err
 }
 
 func (s Z) String() string {
-	str, _ := text.Marshal(0xea26e9973bd6a0d9, s.Struct)
+	str, _ := text.Marshal(0xea26e9973bd6a0d9, capnp.Struct(s))
 	return str
 }
 
+func (s Z) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (Z) DecodeFromPtr(p capnp.Ptr) Z {
+	return Z(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s Z) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+
 func (s Z) Which() Z_Which {
-	return Z_Which(s.Struct.Uint16(0))
+	return Z_Which(capnp.Struct(s).Uint16(0))
+}
+func (s Z) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s Z) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s Z) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
 }
 func (s Z) SetVoid() {
-	s.Struct.SetUint16(0, 0)
+	capnp.Struct(s).SetUint16(0, 0)
 
 }
 
 func (s Z) Zz() (Z, error) {
-	if s.Struct.Uint16(0) != 1 {
+	if capnp.Struct(s).Uint16(0) != 1 {
 		panic("Which() != zz")
 	}
-	p, err := s.Struct.Ptr(0)
-	return Z{Struct: p.Struct()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return Z(p.Struct()), err
 }
 
 func (s Z) HasZz() bool {
-	if s.Struct.Uint16(0) != 1 {
+	if capnp.Struct(s).Uint16(0) != 1 {
 		return false
 	}
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Z) SetZz(v Z) error {
-	s.Struct.SetUint16(0, 1)
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+	capnp.Struct(s).SetUint16(0, 1)
+	return capnp.Struct(s).SetPtr(0, capnp.Struct(v).ToPtr())
 }
 
 // NewZz sets the zz field to a newly
 // allocated Z struct, preferring placement in s's segment.
 func (s Z) NewZz() (Z, error) {
-	s.Struct.SetUint16(0, 1)
-	ss, err := NewZ(s.Struct.Segment())
+	capnp.Struct(s).SetUint16(0, 1)
+	ss, err := NewZ(capnp.Struct(s).Segment())
 	if err != nil {
 		return Z{}, err
 	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, capnp.Struct(ss).ToPtr())
 	return ss, err
 }
 
 func (s Z) F64() float64 {
-	if s.Struct.Uint16(0) != 2 {
+	if capnp.Struct(s).Uint16(0) != 2 {
 		panic("Which() != f64")
 	}
-	return math.Float64frombits(s.Struct.Uint64(8))
+	return math.Float64frombits(capnp.Struct(s).Uint64(8))
 }
 
 func (s Z) SetF64(v float64) {
-	s.Struct.SetUint16(0, 2)
-	s.Struct.SetUint64(8, math.Float64bits(v))
+	capnp.Struct(s).SetUint16(0, 2)
+	capnp.Struct(s).SetUint64(8, math.Float64bits(v))
 }
 
 func (s Z) F32() float32 {
-	if s.Struct.Uint16(0) != 3 {
+	if capnp.Struct(s).Uint16(0) != 3 {
 		panic("Which() != f32")
 	}
-	return math.Float32frombits(s.Struct.Uint32(8))
+	return math.Float32frombits(capnp.Struct(s).Uint32(8))
 }
 
 func (s Z) SetF32(v float32) {
-	s.Struct.SetUint16(0, 3)
-	s.Struct.SetUint32(8, math.Float32bits(v))
+	capnp.Struct(s).SetUint16(0, 3)
+	capnp.Struct(s).SetUint32(8, math.Float32bits(v))
 }
 
 func (s Z) I64() int64 {
-	if s.Struct.Uint16(0) != 4 {
+	if capnp.Struct(s).Uint16(0) != 4 {
 		panic("Which() != i64")
 	}
-	return int64(s.Struct.Uint64(8))
+	return int64(capnp.Struct(s).Uint64(8))
 }
 
 func (s Z) SetI64(v int64) {
-	s.Struct.SetUint16(0, 4)
-	s.Struct.SetUint64(8, uint64(v))
+	capnp.Struct(s).SetUint16(0, 4)
+	capnp.Struct(s).SetUint64(8, uint64(v))
 }
 
 func (s Z) I32() int32 {
-	if s.Struct.Uint16(0) != 5 {
+	if capnp.Struct(s).Uint16(0) != 5 {
 		panic("Which() != i32")
 	}
-	return int32(s.Struct.Uint32(8))
+	return int32(capnp.Struct(s).Uint32(8))
 }
 
 func (s Z) SetI32(v int32) {
-	s.Struct.SetUint16(0, 5)
-	s.Struct.SetUint32(8, uint32(v))
+	capnp.Struct(s).SetUint16(0, 5)
+	capnp.Struct(s).SetUint32(8, uint32(v))
 }
 
 func (s Z) I16() int16 {
-	if s.Struct.Uint16(0) != 6 {
+	if capnp.Struct(s).Uint16(0) != 6 {
 		panic("Which() != i16")
 	}
-	return int16(s.Struct.Uint16(8))
+	return int16(capnp.Struct(s).Uint16(8))
 }
 
 func (s Z) SetI16(v int16) {
-	s.Struct.SetUint16(0, 6)
-	s.Struct.SetUint16(8, uint16(v))
+	capnp.Struct(s).SetUint16(0, 6)
+	capnp.Struct(s).SetUint16(8, uint16(v))
 }
 
 func (s Z) I8() int8 {
-	if s.Struct.Uint16(0) != 7 {
+	if capnp.Struct(s).Uint16(0) != 7 {
 		panic("Which() != i8")
 	}
-	return int8(s.Struct.Uint8(8))
+	return int8(capnp.Struct(s).Uint8(8))
 }
 
 func (s Z) SetI8(v int8) {
-	s.Struct.SetUint16(0, 7)
-	s.Struct.SetUint8(8, uint8(v))
+	capnp.Struct(s).SetUint16(0, 7)
+	capnp.Struct(s).SetUint8(8, uint8(v))
 }
 
 func (s Z) U64() uint64 {
-	if s.Struct.Uint16(0) != 8 {
+	if capnp.Struct(s).Uint16(0) != 8 {
 		panic("Which() != u64")
 	}
-	return s.Struct.Uint64(8)
+	return capnp.Struct(s).Uint64(8)
 }
 
 func (s Z) SetU64(v uint64) {
-	s.Struct.SetUint16(0, 8)
-	s.Struct.SetUint64(8, v)
+	capnp.Struct(s).SetUint16(0, 8)
+	capnp.Struct(s).SetUint64(8, v)
 }
 
 func (s Z) U32() uint32 {
-	if s.Struct.Uint16(0) != 9 {
+	if capnp.Struct(s).Uint16(0) != 9 {
 		panic("Which() != u32")
 	}
-	return s.Struct.Uint32(8)
+	return capnp.Struct(s).Uint32(8)
 }
 
 func (s Z) SetU32(v uint32) {
-	s.Struct.SetUint16(0, 9)
-	s.Struct.SetUint32(8, v)
+	capnp.Struct(s).SetUint16(0, 9)
+	capnp.Struct(s).SetUint32(8, v)
 }
 
 func (s Z) U16() uint16 {
-	if s.Struct.Uint16(0) != 10 {
+	if capnp.Struct(s).Uint16(0) != 10 {
 		panic("Which() != u16")
 	}
-	return s.Struct.Uint16(8)
+	return capnp.Struct(s).Uint16(8)
 }
 
 func (s Z) SetU16(v uint16) {
-	s.Struct.SetUint16(0, 10)
-	s.Struct.SetUint16(8, v)
+	capnp.Struct(s).SetUint16(0, 10)
+	capnp.Struct(s).SetUint16(8, v)
 }
 
 func (s Z) U8() uint8 {
-	if s.Struct.Uint16(0) != 11 {
+	if capnp.Struct(s).Uint16(0) != 11 {
 		panic("Which() != u8")
 	}
-	return s.Struct.Uint8(8)
+	return capnp.Struct(s).Uint8(8)
 }
 
 func (s Z) SetU8(v uint8) {
-	s.Struct.SetUint16(0, 11)
-	s.Struct.SetUint8(8, v)
+	capnp.Struct(s).SetUint16(0, 11)
+	capnp.Struct(s).SetUint8(8, v)
 }
 
 func (s Z) Bool() bool {
-	if s.Struct.Uint16(0) != 12 {
+	if capnp.Struct(s).Uint16(0) != 12 {
 		panic("Which() != bool")
 	}
-	return s.Struct.Bit(64)
+	return capnp.Struct(s).Bit(64)
 }
 
 func (s Z) SetBool(v bool) {
-	s.Struct.SetUint16(0, 12)
-	s.Struct.SetBit(64, v)
+	capnp.Struct(s).SetUint16(0, 12)
+	capnp.Struct(s).SetBit(64, v)
 }
 
 func (s Z) Text() (string, error) {
-	if s.Struct.Uint16(0) != 13 {
+	if capnp.Struct(s).Uint16(0) != 13 {
 		panic("Which() != text")
 	}
-	p, err := s.Struct.Ptr(0)
+	p, err := capnp.Struct(s).Ptr(0)
 	return p.Text(), err
 }
 
 func (s Z) HasText() bool {
-	if s.Struct.Uint16(0) != 13 {
+	if capnp.Struct(s).Uint16(0) != 13 {
 		return false
 	}
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Z) TextBytes() ([]byte, error) {
-	p, err := s.Struct.Ptr(0)
+	p, err := capnp.Struct(s).Ptr(0)
 	return p.TextBytes(), err
 }
 
 func (s Z) SetText(v string) error {
-	s.Struct.SetUint16(0, 13)
-	return s.Struct.SetText(0, v)
+	capnp.Struct(s).SetUint16(0, 13)
+	return capnp.Struct(s).SetText(0, v)
 }
 
 func (s Z) Blob() ([]byte, error) {
-	if s.Struct.Uint16(0) != 14 {
+	if capnp.Struct(s).Uint16(0) != 14 {
 		panic("Which() != blob")
 	}
-	p, err := s.Struct.Ptr(0)
+	p, err := capnp.Struct(s).Ptr(0)
 	return []byte(p.Data()), err
 }
 
 func (s Z) HasBlob() bool {
-	if s.Struct.Uint16(0) != 14 {
+	if capnp.Struct(s).Uint16(0) != 14 {
 		return false
 	}
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Z) SetBlob(v []byte) error {
-	s.Struct.SetUint16(0, 14)
-	return s.Struct.SetData(0, v)
+	capnp.Struct(s).SetUint16(0, 14)
+	return capnp.Struct(s).SetData(0, v)
 }
 
 func (s Z) F64vec() (capnp.Float64List, error) {
-	if s.Struct.Uint16(0) != 15 {
+	if capnp.Struct(s).Uint16(0) != 15 {
 		panic("Which() != f64vec")
 	}
-	p, err := s.Struct.Ptr(0)
-	return capnp.Float64List{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return capnp.Float64List(p.List()), err
 }
 
 func (s Z) HasF64vec() bool {
-	if s.Struct.Uint16(0) != 15 {
+	if capnp.Struct(s).Uint16(0) != 15 {
 		return false
 	}
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Z) SetF64vec(v capnp.Float64List) error {
-	s.Struct.SetUint16(0, 15)
-	return s.Struct.SetPtr(0, v.List.ToPtr())
+	capnp.Struct(s).SetUint16(0, 15)
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewF64vec sets the f64vec field to a newly
 // allocated capnp.Float64List, preferring placement in s's segment.
 func (s Z) NewF64vec(n int32) (capnp.Float64List, error) {
-	s.Struct.SetUint16(0, 15)
-	l, err := capnp.NewFloat64List(s.Struct.Segment(), n)
+	capnp.Struct(s).SetUint16(0, 15)
+	l, err := capnp.NewFloat64List(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return capnp.Float64List{}, err
 	}
-	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
 
 func (s Z) F32vec() (capnp.Float32List, error) {
-	if s.Struct.Uint16(0) != 16 {
+	if capnp.Struct(s).Uint16(0) != 16 {
 		panic("Which() != f32vec")
 	}
-	p, err := s.Struct.Ptr(0)
-	return capnp.Float32List{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return capnp.Float32List(p.List()), err
 }
 
 func (s Z) HasF32vec() bool {
-	if s.Struct.Uint16(0) != 16 {
+	if capnp.Struct(s).Uint16(0) != 16 {
 		return false
 	}
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Z) SetF32vec(v capnp.Float32List) error {
-	s.Struct.SetUint16(0, 16)
-	return s.Struct.SetPtr(0, v.List.ToPtr())
+	capnp.Struct(s).SetUint16(0, 16)
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewF32vec sets the f32vec field to a newly
 // allocated capnp.Float32List, preferring placement in s's segment.
 func (s Z) NewF32vec(n int32) (capnp.Float32List, error) {
-	s.Struct.SetUint16(0, 16)
-	l, err := capnp.NewFloat32List(s.Struct.Segment(), n)
+	capnp.Struct(s).SetUint16(0, 16)
+	l, err := capnp.NewFloat32List(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return capnp.Float32List{}, err
 	}
-	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
 
 func (s Z) I64vec() (capnp.Int64List, error) {
-	if s.Struct.Uint16(0) != 17 {
+	if capnp.Struct(s).Uint16(0) != 17 {
 		panic("Which() != i64vec")
 	}
-	p, err := s.Struct.Ptr(0)
-	return capnp.Int64List{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return capnp.Int64List(p.List()), err
 }
 
 func (s Z) HasI64vec() bool {
-	if s.Struct.Uint16(0) != 17 {
+	if capnp.Struct(s).Uint16(0) != 17 {
 		return false
 	}
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Z) SetI64vec(v capnp.Int64List) error {
-	s.Struct.SetUint16(0, 17)
-	return s.Struct.SetPtr(0, v.List.ToPtr())
+	capnp.Struct(s).SetUint16(0, 17)
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewI64vec sets the i64vec field to a newly
 // allocated capnp.Int64List, preferring placement in s's segment.
 func (s Z) NewI64vec(n int32) (capnp.Int64List, error) {
-	s.Struct.SetUint16(0, 17)
-	l, err := capnp.NewInt64List(s.Struct.Segment(), n)
+	capnp.Struct(s).SetUint16(0, 17)
+	l, err := capnp.NewInt64List(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return capnp.Int64List{}, err
 	}
-	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
 
 func (s Z) I32vec() (capnp.Int32List, error) {
-	if s.Struct.Uint16(0) != 18 {
+	if capnp.Struct(s).Uint16(0) != 18 {
 		panic("Which() != i32vec")
 	}
-	p, err := s.Struct.Ptr(0)
-	return capnp.Int32List{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return capnp.Int32List(p.List()), err
 }
 
 func (s Z) HasI32vec() bool {
-	if s.Struct.Uint16(0) != 18 {
+	if capnp.Struct(s).Uint16(0) != 18 {
 		return false
 	}
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Z) SetI32vec(v capnp.Int32List) error {
-	s.Struct.SetUint16(0, 18)
-	return s.Struct.SetPtr(0, v.List.ToPtr())
+	capnp.Struct(s).SetUint16(0, 18)
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewI32vec sets the i32vec field to a newly
 // allocated capnp.Int32List, preferring placement in s's segment.
 func (s Z) NewI32vec(n int32) (capnp.Int32List, error) {
-	s.Struct.SetUint16(0, 18)
-	l, err := capnp.NewInt32List(s.Struct.Segment(), n)
+	capnp.Struct(s).SetUint16(0, 18)
+	l, err := capnp.NewInt32List(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return capnp.Int32List{}, err
 	}
-	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
 
 func (s Z) I16vec() (capnp.Int16List, error) {
-	if s.Struct.Uint16(0) != 19 {
+	if capnp.Struct(s).Uint16(0) != 19 {
 		panic("Which() != i16vec")
 	}
-	p, err := s.Struct.Ptr(0)
-	return capnp.Int16List{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return capnp.Int16List(p.List()), err
 }
 
 func (s Z) HasI16vec() bool {
-	if s.Struct.Uint16(0) != 19 {
+	if capnp.Struct(s).Uint16(0) != 19 {
 		return false
 	}
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Z) SetI16vec(v capnp.Int16List) error {
-	s.Struct.SetUint16(0, 19)
-	return s.Struct.SetPtr(0, v.List.ToPtr())
+	capnp.Struct(s).SetUint16(0, 19)
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewI16vec sets the i16vec field to a newly
 // allocated capnp.Int16List, preferring placement in s's segment.
 func (s Z) NewI16vec(n int32) (capnp.Int16List, error) {
-	s.Struct.SetUint16(0, 19)
-	l, err := capnp.NewInt16List(s.Struct.Segment(), n)
+	capnp.Struct(s).SetUint16(0, 19)
+	l, err := capnp.NewInt16List(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return capnp.Int16List{}, err
 	}
-	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
 
 func (s Z) I8vec() (capnp.Int8List, error) {
-	if s.Struct.Uint16(0) != 20 {
+	if capnp.Struct(s).Uint16(0) != 20 {
 		panic("Which() != i8vec")
 	}
-	p, err := s.Struct.Ptr(0)
-	return capnp.Int8List{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return capnp.Int8List(p.List()), err
 }
 
 func (s Z) HasI8vec() bool {
-	if s.Struct.Uint16(0) != 20 {
+	if capnp.Struct(s).Uint16(0) != 20 {
 		return false
 	}
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Z) SetI8vec(v capnp.Int8List) error {
-	s.Struct.SetUint16(0, 20)
-	return s.Struct.SetPtr(0, v.List.ToPtr())
+	capnp.Struct(s).SetUint16(0, 20)
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewI8vec sets the i8vec field to a newly
 // allocated capnp.Int8List, preferring placement in s's segment.
 func (s Z) NewI8vec(n int32) (capnp.Int8List, error) {
-	s.Struct.SetUint16(0, 20)
-	l, err := capnp.NewInt8List(s.Struct.Segment(), n)
+	capnp.Struct(s).SetUint16(0, 20)
+	l, err := capnp.NewInt8List(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return capnp.Int8List{}, err
 	}
-	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
 
 func (s Z) U64vec() (capnp.UInt64List, error) {
-	if s.Struct.Uint16(0) != 21 {
+	if capnp.Struct(s).Uint16(0) != 21 {
 		panic("Which() != u64vec")
 	}
-	p, err := s.Struct.Ptr(0)
-	return capnp.UInt64List{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return capnp.UInt64List(p.List()), err
 }
 
 func (s Z) HasU64vec() bool {
-	if s.Struct.Uint16(0) != 21 {
+	if capnp.Struct(s).Uint16(0) != 21 {
 		return false
 	}
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Z) SetU64vec(v capnp.UInt64List) error {
-	s.Struct.SetUint16(0, 21)
-	return s.Struct.SetPtr(0, v.List.ToPtr())
+	capnp.Struct(s).SetUint16(0, 21)
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewU64vec sets the u64vec field to a newly
 // allocated capnp.UInt64List, preferring placement in s's segment.
 func (s Z) NewU64vec(n int32) (capnp.UInt64List, error) {
-	s.Struct.SetUint16(0, 21)
-	l, err := capnp.NewUInt64List(s.Struct.Segment(), n)
+	capnp.Struct(s).SetUint16(0, 21)
+	l, err := capnp.NewUInt64List(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return capnp.UInt64List{}, err
 	}
-	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
 
 func (s Z) U32vec() (capnp.UInt32List, error) {
-	if s.Struct.Uint16(0) != 22 {
+	if capnp.Struct(s).Uint16(0) != 22 {
 		panic("Which() != u32vec")
 	}
-	p, err := s.Struct.Ptr(0)
-	return capnp.UInt32List{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return capnp.UInt32List(p.List()), err
 }
 
 func (s Z) HasU32vec() bool {
-	if s.Struct.Uint16(0) != 22 {
+	if capnp.Struct(s).Uint16(0) != 22 {
 		return false
 	}
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Z) SetU32vec(v capnp.UInt32List) error {
-	s.Struct.SetUint16(0, 22)
-	return s.Struct.SetPtr(0, v.List.ToPtr())
+	capnp.Struct(s).SetUint16(0, 22)
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewU32vec sets the u32vec field to a newly
 // allocated capnp.UInt32List, preferring placement in s's segment.
 func (s Z) NewU32vec(n int32) (capnp.UInt32List, error) {
-	s.Struct.SetUint16(0, 22)
-	l, err := capnp.NewUInt32List(s.Struct.Segment(), n)
+	capnp.Struct(s).SetUint16(0, 22)
+	l, err := capnp.NewUInt32List(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return capnp.UInt32List{}, err
 	}
-	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
 
 func (s Z) U16vec() (capnp.UInt16List, error) {
-	if s.Struct.Uint16(0) != 23 {
+	if capnp.Struct(s).Uint16(0) != 23 {
 		panic("Which() != u16vec")
 	}
-	p, err := s.Struct.Ptr(0)
-	return capnp.UInt16List{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return capnp.UInt16List(p.List()), err
 }
 
 func (s Z) HasU16vec() bool {
-	if s.Struct.Uint16(0) != 23 {
+	if capnp.Struct(s).Uint16(0) != 23 {
 		return false
 	}
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Z) SetU16vec(v capnp.UInt16List) error {
-	s.Struct.SetUint16(0, 23)
-	return s.Struct.SetPtr(0, v.List.ToPtr())
+	capnp.Struct(s).SetUint16(0, 23)
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewU16vec sets the u16vec field to a newly
 // allocated capnp.UInt16List, preferring placement in s's segment.
 func (s Z) NewU16vec(n int32) (capnp.UInt16List, error) {
-	s.Struct.SetUint16(0, 23)
-	l, err := capnp.NewUInt16List(s.Struct.Segment(), n)
+	capnp.Struct(s).SetUint16(0, 23)
+	l, err := capnp.NewUInt16List(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return capnp.UInt16List{}, err
 	}
-	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
 
 func (s Z) U8vec() (capnp.UInt8List, error) {
-	if s.Struct.Uint16(0) != 24 {
+	if capnp.Struct(s).Uint16(0) != 24 {
 		panic("Which() != u8vec")
 	}
-	p, err := s.Struct.Ptr(0)
-	return capnp.UInt8List{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return capnp.UInt8List(p.List()), err
 }
 
 func (s Z) HasU8vec() bool {
-	if s.Struct.Uint16(0) != 24 {
+	if capnp.Struct(s).Uint16(0) != 24 {
 		return false
 	}
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Z) SetU8vec(v capnp.UInt8List) error {
-	s.Struct.SetUint16(0, 24)
-	return s.Struct.SetPtr(0, v.List.ToPtr())
+	capnp.Struct(s).SetUint16(0, 24)
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewU8vec sets the u8vec field to a newly
 // allocated capnp.UInt8List, preferring placement in s's segment.
 func (s Z) NewU8vec(n int32) (capnp.UInt8List, error) {
-	s.Struct.SetUint16(0, 24)
-	l, err := capnp.NewUInt8List(s.Struct.Segment(), n)
+	capnp.Struct(s).SetUint16(0, 24)
+	l, err := capnp.NewUInt8List(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return capnp.UInt8List{}, err
 	}
-	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
 
 func (s Z) Boolvec() (capnp.BitList, error) {
-	if s.Struct.Uint16(0) != 39 {
+	if capnp.Struct(s).Uint16(0) != 39 {
 		panic("Which() != boolvec")
 	}
-	p, err := s.Struct.Ptr(0)
-	return capnp.BitList{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return capnp.BitList(p.List()), err
 }
 
 func (s Z) HasBoolvec() bool {
-	if s.Struct.Uint16(0) != 39 {
+	if capnp.Struct(s).Uint16(0) != 39 {
 		return false
 	}
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Z) SetBoolvec(v capnp.BitList) error {
-	s.Struct.SetUint16(0, 39)
-	return s.Struct.SetPtr(0, v.List.ToPtr())
+	capnp.Struct(s).SetUint16(0, 39)
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewBoolvec sets the boolvec field to a newly
 // allocated capnp.BitList, preferring placement in s's segment.
 func (s Z) NewBoolvec(n int32) (capnp.BitList, error) {
-	s.Struct.SetUint16(0, 39)
-	l, err := capnp.NewBitList(s.Struct.Segment(), n)
+	capnp.Struct(s).SetUint16(0, 39)
+	l, err := capnp.NewBitList(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return capnp.BitList{}, err
 	}
-	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
 
 func (s Z) Datavec() (capnp.DataList, error) {
-	if s.Struct.Uint16(0) != 40 {
+	if capnp.Struct(s).Uint16(0) != 40 {
 		panic("Which() != datavec")
 	}
-	p, err := s.Struct.Ptr(0)
-	return capnp.DataList{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return capnp.DataList(p.List()), err
 }
 
 func (s Z) HasDatavec() bool {
-	if s.Struct.Uint16(0) != 40 {
+	if capnp.Struct(s).Uint16(0) != 40 {
 		return false
 	}
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Z) SetDatavec(v capnp.DataList) error {
-	s.Struct.SetUint16(0, 40)
-	return s.Struct.SetPtr(0, v.List.ToPtr())
+	capnp.Struct(s).SetUint16(0, 40)
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewDatavec sets the datavec field to a newly
 // allocated capnp.DataList, preferring placement in s's segment.
 func (s Z) NewDatavec(n int32) (capnp.DataList, error) {
-	s.Struct.SetUint16(0, 40)
-	l, err := capnp.NewDataList(s.Struct.Segment(), n)
+	capnp.Struct(s).SetUint16(0, 40)
+	l, err := capnp.NewDataList(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return capnp.DataList{}, err
 	}
-	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
 
 func (s Z) Textvec() (capnp.TextList, error) {
-	if s.Struct.Uint16(0) != 41 {
+	if capnp.Struct(s).Uint16(0) != 41 {
 		panic("Which() != textvec")
 	}
-	p, err := s.Struct.Ptr(0)
-	return capnp.TextList{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return capnp.TextList(p.List()), err
 }
 
 func (s Z) HasTextvec() bool {
-	if s.Struct.Uint16(0) != 41 {
+	if capnp.Struct(s).Uint16(0) != 41 {
 		return false
 	}
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Z) SetTextvec(v capnp.TextList) error {
-	s.Struct.SetUint16(0, 41)
-	return s.Struct.SetPtr(0, v.List.ToPtr())
+	capnp.Struct(s).SetUint16(0, 41)
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewTextvec sets the textvec field to a newly
 // allocated capnp.TextList, preferring placement in s's segment.
 func (s Z) NewTextvec(n int32) (capnp.TextList, error) {
-	s.Struct.SetUint16(0, 41)
-	l, err := capnp.NewTextList(s.Struct.Segment(), n)
+	capnp.Struct(s).SetUint16(0, 41)
+	l, err := capnp.NewTextList(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return capnp.TextList{}, err
 	}
-	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
 
 func (s Z) Zvec() (Z_List, error) {
-	if s.Struct.Uint16(0) != 25 {
+	if capnp.Struct(s).Uint16(0) != 25 {
 		panic("Which() != zvec")
 	}
-	p, err := s.Struct.Ptr(0)
-	return Z_List{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return Z_List(p.List()), err
 }
 
 func (s Z) HasZvec() bool {
-	if s.Struct.Uint16(0) != 25 {
+	if capnp.Struct(s).Uint16(0) != 25 {
 		return false
 	}
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Z) SetZvec(v Z_List) error {
-	s.Struct.SetUint16(0, 25)
-	return s.Struct.SetPtr(0, v.List.ToPtr())
+	capnp.Struct(s).SetUint16(0, 25)
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewZvec sets the zvec field to a newly
 // allocated Z_List, preferring placement in s's segment.
 func (s Z) NewZvec(n int32) (Z_List, error) {
-	s.Struct.SetUint16(0, 25)
-	l, err := NewZ_List(s.Struct.Segment(), n)
+	capnp.Struct(s).SetUint16(0, 25)
+	l, err := NewZ_List(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return Z_List{}, err
 	}
-	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
 
 func (s Z) Zvecvec() (capnp.PointerList, error) {
-	if s.Struct.Uint16(0) != 26 {
+	if capnp.Struct(s).Uint16(0) != 26 {
 		panic("Which() != zvecvec")
 	}
-	p, err := s.Struct.Ptr(0)
-	return capnp.PointerList{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return capnp.PointerList(p.List()), err
 }
 
 func (s Z) HasZvecvec() bool {
-	if s.Struct.Uint16(0) != 26 {
+	if capnp.Struct(s).Uint16(0) != 26 {
 		return false
 	}
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Z) SetZvecvec(v capnp.PointerList) error {
-	s.Struct.SetUint16(0, 26)
-	return s.Struct.SetPtr(0, v.List.ToPtr())
+	capnp.Struct(s).SetUint16(0, 26)
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewZvecvec sets the zvecvec field to a newly
 // allocated capnp.PointerList, preferring placement in s's segment.
 func (s Z) NewZvecvec(n int32) (capnp.PointerList, error) {
-	s.Struct.SetUint16(0, 26)
-	l, err := capnp.NewPointerList(s.Struct.Segment(), n)
+	capnp.Struct(s).SetUint16(0, 26)
+	l, err := capnp.NewPointerList(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return capnp.PointerList{}, err
 	}
-	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
 
 func (s Z) Zdate() (Zdate, error) {
-	if s.Struct.Uint16(0) != 27 {
+	if capnp.Struct(s).Uint16(0) != 27 {
 		panic("Which() != zdate")
 	}
-	p, err := s.Struct.Ptr(0)
-	return Zdate{Struct: p.Struct()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return Zdate(p.Struct()), err
 }
 
 func (s Z) HasZdate() bool {
-	if s.Struct.Uint16(0) != 27 {
+	if capnp.Struct(s).Uint16(0) != 27 {
 		return false
 	}
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Z) SetZdate(v Zdate) error {
-	s.Struct.SetUint16(0, 27)
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+	capnp.Struct(s).SetUint16(0, 27)
+	return capnp.Struct(s).SetPtr(0, capnp.Struct(v).ToPtr())
 }
 
 // NewZdate sets the zdate field to a newly
 // allocated Zdate struct, preferring placement in s's segment.
 func (s Z) NewZdate() (Zdate, error) {
-	s.Struct.SetUint16(0, 27)
-	ss, err := NewZdate(s.Struct.Segment())
+	capnp.Struct(s).SetUint16(0, 27)
+	ss, err := NewZdate(capnp.Struct(s).Segment())
 	if err != nil {
 		return Zdate{}, err
 	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, capnp.Struct(ss).ToPtr())
 	return ss, err
 }
 
 func (s Z) Zdata() (Zdata, error) {
-	if s.Struct.Uint16(0) != 28 {
+	if capnp.Struct(s).Uint16(0) != 28 {
 		panic("Which() != zdata")
 	}
-	p, err := s.Struct.Ptr(0)
-	return Zdata{Struct: p.Struct()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return Zdata(p.Struct()), err
 }
 
 func (s Z) HasZdata() bool {
-	if s.Struct.Uint16(0) != 28 {
+	if capnp.Struct(s).Uint16(0) != 28 {
 		return false
 	}
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Z) SetZdata(v Zdata) error {
-	s.Struct.SetUint16(0, 28)
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+	capnp.Struct(s).SetUint16(0, 28)
+	return capnp.Struct(s).SetPtr(0, capnp.Struct(v).ToPtr())
 }
 
 // NewZdata sets the zdata field to a newly
 // allocated Zdata struct, preferring placement in s's segment.
 func (s Z) NewZdata() (Zdata, error) {
-	s.Struct.SetUint16(0, 28)
-	ss, err := NewZdata(s.Struct.Segment())
+	capnp.Struct(s).SetUint16(0, 28)
+	ss, err := NewZdata(capnp.Struct(s).Segment())
 	if err != nil {
 		return Zdata{}, err
 	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, capnp.Struct(ss).ToPtr())
 	return ss, err
 }
 
 func (s Z) Aircraftvec() (Aircraft_List, error) {
-	if s.Struct.Uint16(0) != 29 {
+	if capnp.Struct(s).Uint16(0) != 29 {
 		panic("Which() != aircraftvec")
 	}
-	p, err := s.Struct.Ptr(0)
-	return Aircraft_List{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return Aircraft_List(p.List()), err
 }
 
 func (s Z) HasAircraftvec() bool {
-	if s.Struct.Uint16(0) != 29 {
+	if capnp.Struct(s).Uint16(0) != 29 {
 		return false
 	}
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Z) SetAircraftvec(v Aircraft_List) error {
-	s.Struct.SetUint16(0, 29)
-	return s.Struct.SetPtr(0, v.List.ToPtr())
+	capnp.Struct(s).SetUint16(0, 29)
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewAircraftvec sets the aircraftvec field to a newly
 // allocated Aircraft_List, preferring placement in s's segment.
 func (s Z) NewAircraftvec(n int32) (Aircraft_List, error) {
-	s.Struct.SetUint16(0, 29)
-	l, err := NewAircraft_List(s.Struct.Segment(), n)
+	capnp.Struct(s).SetUint16(0, 29)
+	l, err := NewAircraft_List(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return Aircraft_List{}, err
 	}
-	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
 
 func (s Z) Aircraft() (Aircraft, error) {
-	if s.Struct.Uint16(0) != 30 {
+	if capnp.Struct(s).Uint16(0) != 30 {
 		panic("Which() != aircraft")
 	}
-	p, err := s.Struct.Ptr(0)
-	return Aircraft{Struct: p.Struct()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return Aircraft(p.Struct()), err
 }
 
 func (s Z) HasAircraft() bool {
-	if s.Struct.Uint16(0) != 30 {
+	if capnp.Struct(s).Uint16(0) != 30 {
 		return false
 	}
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Z) SetAircraft(v Aircraft) error {
-	s.Struct.SetUint16(0, 30)
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+	capnp.Struct(s).SetUint16(0, 30)
+	return capnp.Struct(s).SetPtr(0, capnp.Struct(v).ToPtr())
 }
 
 // NewAircraft sets the aircraft field to a newly
 // allocated Aircraft struct, preferring placement in s's segment.
 func (s Z) NewAircraft() (Aircraft, error) {
-	s.Struct.SetUint16(0, 30)
-	ss, err := NewAircraft(s.Struct.Segment())
+	capnp.Struct(s).SetUint16(0, 30)
+	ss, err := NewAircraft(capnp.Struct(s).Segment())
 	if err != nil {
 		return Aircraft{}, err
 	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, capnp.Struct(ss).ToPtr())
 	return ss, err
 }
 
 func (s Z) Regression() (Regression, error) {
-	if s.Struct.Uint16(0) != 31 {
+	if capnp.Struct(s).Uint16(0) != 31 {
 		panic("Which() != regression")
 	}
-	p, err := s.Struct.Ptr(0)
-	return Regression{Struct: p.Struct()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return Regression(p.Struct()), err
 }
 
 func (s Z) HasRegression() bool {
-	if s.Struct.Uint16(0) != 31 {
+	if capnp.Struct(s).Uint16(0) != 31 {
 		return false
 	}
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Z) SetRegression(v Regression) error {
-	s.Struct.SetUint16(0, 31)
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+	capnp.Struct(s).SetUint16(0, 31)
+	return capnp.Struct(s).SetPtr(0, capnp.Struct(v).ToPtr())
 }
 
 // NewRegression sets the regression field to a newly
 // allocated Regression struct, preferring placement in s's segment.
 func (s Z) NewRegression() (Regression, error) {
-	s.Struct.SetUint16(0, 31)
-	ss, err := NewRegression(s.Struct.Segment())
+	capnp.Struct(s).SetUint16(0, 31)
+	ss, err := NewRegression(capnp.Struct(s).Segment())
 	if err != nil {
 		return Regression{}, err
 	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, capnp.Struct(ss).ToPtr())
 	return ss, err
 }
 
 func (s Z) Planebase() (PlaneBase, error) {
-	if s.Struct.Uint16(0) != 32 {
+	if capnp.Struct(s).Uint16(0) != 32 {
 		panic("Which() != planebase")
 	}
-	p, err := s.Struct.Ptr(0)
-	return PlaneBase{Struct: p.Struct()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return PlaneBase(p.Struct()), err
 }
 
 func (s Z) HasPlanebase() bool {
-	if s.Struct.Uint16(0) != 32 {
+	if capnp.Struct(s).Uint16(0) != 32 {
 		return false
 	}
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Z) SetPlanebase(v PlaneBase) error {
-	s.Struct.SetUint16(0, 32)
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+	capnp.Struct(s).SetUint16(0, 32)
+	return capnp.Struct(s).SetPtr(0, capnp.Struct(v).ToPtr())
 }
 
 // NewPlanebase sets the planebase field to a newly
 // allocated PlaneBase struct, preferring placement in s's segment.
 func (s Z) NewPlanebase() (PlaneBase, error) {
-	s.Struct.SetUint16(0, 32)
-	ss, err := NewPlaneBase(s.Struct.Segment())
+	capnp.Struct(s).SetUint16(0, 32)
+	ss, err := NewPlaneBase(capnp.Struct(s).Segment())
 	if err != nil {
 		return PlaneBase{}, err
 	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, capnp.Struct(ss).ToPtr())
 	return ss, err
 }
 
 func (s Z) Airport() Airport {
-	if s.Struct.Uint16(0) != 33 {
+	if capnp.Struct(s).Uint16(0) != 33 {
 		panic("Which() != airport")
 	}
-	return Airport(s.Struct.Uint16(8))
+	return Airport(capnp.Struct(s).Uint16(8))
 }
 
 func (s Z) SetAirport(v Airport) {
-	s.Struct.SetUint16(0, 33)
-	s.Struct.SetUint16(8, uint16(v))
+	capnp.Struct(s).SetUint16(0, 33)
+	capnp.Struct(s).SetUint16(8, uint16(v))
 }
 
 func (s Z) B737() (B737, error) {
-	if s.Struct.Uint16(0) != 34 {
+	if capnp.Struct(s).Uint16(0) != 34 {
 		panic("Which() != b737")
 	}
-	p, err := s.Struct.Ptr(0)
-	return B737{Struct: p.Struct()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return B737(p.Struct()), err
 }
 
 func (s Z) HasB737() bool {
-	if s.Struct.Uint16(0) != 34 {
+	if capnp.Struct(s).Uint16(0) != 34 {
 		return false
 	}
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Z) SetB737(v B737) error {
-	s.Struct.SetUint16(0, 34)
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+	capnp.Struct(s).SetUint16(0, 34)
+	return capnp.Struct(s).SetPtr(0, capnp.Struct(v).ToPtr())
 }
 
 // NewB737 sets the b737 field to a newly
 // allocated B737 struct, preferring placement in s's segment.
 func (s Z) NewB737() (B737, error) {
-	s.Struct.SetUint16(0, 34)
-	ss, err := NewB737(s.Struct.Segment())
+	capnp.Struct(s).SetUint16(0, 34)
+	ss, err := NewB737(capnp.Struct(s).Segment())
 	if err != nil {
 		return B737{}, err
 	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, capnp.Struct(ss).ToPtr())
 	return ss, err
 }
 
 func (s Z) A320() (A320, error) {
-	if s.Struct.Uint16(0) != 35 {
+	if capnp.Struct(s).Uint16(0) != 35 {
 		panic("Which() != a320")
 	}
-	p, err := s.Struct.Ptr(0)
-	return A320{Struct: p.Struct()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return A320(p.Struct()), err
 }
 
 func (s Z) HasA320() bool {
-	if s.Struct.Uint16(0) != 35 {
+	if capnp.Struct(s).Uint16(0) != 35 {
 		return false
 	}
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Z) SetA320(v A320) error {
-	s.Struct.SetUint16(0, 35)
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+	capnp.Struct(s).SetUint16(0, 35)
+	return capnp.Struct(s).SetPtr(0, capnp.Struct(v).ToPtr())
 }
 
 // NewA320 sets the a320 field to a newly
 // allocated A320 struct, preferring placement in s's segment.
 func (s Z) NewA320() (A320, error) {
-	s.Struct.SetUint16(0, 35)
-	ss, err := NewA320(s.Struct.Segment())
+	capnp.Struct(s).SetUint16(0, 35)
+	ss, err := NewA320(capnp.Struct(s).Segment())
 	if err != nil {
 		return A320{}, err
 	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, capnp.Struct(ss).ToPtr())
 	return ss, err
 }
 
 func (s Z) F16() (F16, error) {
-	if s.Struct.Uint16(0) != 36 {
+	if capnp.Struct(s).Uint16(0) != 36 {
 		panic("Which() != f16")
 	}
-	p, err := s.Struct.Ptr(0)
-	return F16{Struct: p.Struct()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return F16(p.Struct()), err
 }
 
 func (s Z) HasF16() bool {
-	if s.Struct.Uint16(0) != 36 {
+	if capnp.Struct(s).Uint16(0) != 36 {
 		return false
 	}
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Z) SetF16(v F16) error {
-	s.Struct.SetUint16(0, 36)
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+	capnp.Struct(s).SetUint16(0, 36)
+	return capnp.Struct(s).SetPtr(0, capnp.Struct(v).ToPtr())
 }
 
 // NewF16 sets the f16 field to a newly
 // allocated F16 struct, preferring placement in s's segment.
 func (s Z) NewF16() (F16, error) {
-	s.Struct.SetUint16(0, 36)
-	ss, err := NewF16(s.Struct.Segment())
+	capnp.Struct(s).SetUint16(0, 36)
+	ss, err := NewF16(capnp.Struct(s).Segment())
 	if err != nil {
 		return F16{}, err
 	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, capnp.Struct(ss).ToPtr())
 	return ss, err
 }
 
 func (s Z) Zdatevec() (Zdate_List, error) {
-	if s.Struct.Uint16(0) != 37 {
+	if capnp.Struct(s).Uint16(0) != 37 {
 		panic("Which() != zdatevec")
 	}
-	p, err := s.Struct.Ptr(0)
-	return Zdate_List{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return Zdate_List(p.List()), err
 }
 
 func (s Z) HasZdatevec() bool {
-	if s.Struct.Uint16(0) != 37 {
+	if capnp.Struct(s).Uint16(0) != 37 {
 		return false
 	}
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Z) SetZdatevec(v Zdate_List) error {
-	s.Struct.SetUint16(0, 37)
-	return s.Struct.SetPtr(0, v.List.ToPtr())
+	capnp.Struct(s).SetUint16(0, 37)
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewZdatevec sets the zdatevec field to a newly
 // allocated Zdate_List, preferring placement in s's segment.
 func (s Z) NewZdatevec(n int32) (Zdate_List, error) {
-	s.Struct.SetUint16(0, 37)
-	l, err := NewZdate_List(s.Struct.Segment(), n)
+	capnp.Struct(s).SetUint16(0, 37)
+	l, err := NewZdate_List(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return Zdate_List{}, err
 	}
-	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
 
 func (s Z) Zdatavec() (Zdata_List, error) {
-	if s.Struct.Uint16(0) != 38 {
+	if capnp.Struct(s).Uint16(0) != 38 {
 		panic("Which() != zdatavec")
 	}
-	p, err := s.Struct.Ptr(0)
-	return Zdata_List{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return Zdata_List(p.List()), err
 }
 
 func (s Z) HasZdatavec() bool {
-	if s.Struct.Uint16(0) != 38 {
+	if capnp.Struct(s).Uint16(0) != 38 {
 		return false
 	}
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Z) SetZdatavec(v Zdata_List) error {
-	s.Struct.SetUint16(0, 38)
-	return s.Struct.SetPtr(0, v.List.ToPtr())
+	capnp.Struct(s).SetUint16(0, 38)
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewZdatavec sets the zdatavec field to a newly
 // allocated Zdata_List, preferring placement in s's segment.
 func (s Z) NewZdatavec(n int32) (Zdata_List, error) {
-	s.Struct.SetUint16(0, 38)
-	l, err := NewZdata_List(s.Struct.Segment(), n)
+	capnp.Struct(s).SetUint16(0, 38)
+	l, err := NewZdata_List(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return Zdata_List{}, err
 	}
-	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
 
 func (s Z) Grp() Z_grp { return Z_grp(s) }
 
 func (s Z) SetGrp() {
-	s.Struct.SetUint16(0, 42)
+	capnp.Struct(s).SetUint16(0, 42)
 }
 
+func (s Z_grp) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s Z_grp) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s Z_grp) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s Z_grp) First() uint64 {
-	return s.Struct.Uint64(8)
+	return capnp.Struct(s).Uint64(8)
 }
 
 func (s Z_grp) SetFirst(v uint64) {
-	s.Struct.SetUint64(8, v)
+	capnp.Struct(s).SetUint64(8, v)
 }
 
 func (s Z_grp) Second() uint64 {
-	return s.Struct.Uint64(16)
+	return capnp.Struct(s).Uint64(16)
 }
 
 func (s Z_grp) SetSecond(v uint64) {
-	s.Struct.SetUint64(16, v)
+	capnp.Struct(s).SetUint64(16, v)
 }
 
 func (s Z) Echo() Echo {
-	if s.Struct.Uint16(0) != 43 {
+	if capnp.Struct(s).Uint16(0) != 43 {
 		panic("Which() != echo")
 	}
-	p, _ := s.Struct.Ptr(0)
-	return Echo{Client: p.Interface().Client()}
+	p, _ := capnp.Struct(s).Ptr(0)
+	return Echo(p.Interface().Client())
 }
 
 func (s Z) HasEcho() bool {
-	if s.Struct.Uint16(0) != 43 {
+	if capnp.Struct(s).Uint16(0) != 43 {
 		return false
 	}
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Z) SetEcho(v Echo) error {
-	s.Struct.SetUint16(0, 43)
-	if !v.Client.IsValid() {
-		return s.Struct.SetPtr(0, capnp.Ptr{})
+	capnp.Struct(s).SetUint16(0, 43)
+	if !v.IsValid() {
+		return capnp.Struct(s).SetPtr(0, capnp.Ptr{})
 	}
 	seg := s.Segment()
-	in := capnp.NewInterface(seg, seg.Message().AddCap(v.Client))
-	return s.Struct.SetPtr(0, in.ToPtr())
+	in := capnp.NewInterface(seg, seg.Message().AddCap(capnp.Client(v)))
+	return capnp.Struct(s).SetPtr(0, in.ToPtr())
 }
 
 func (s Z) Echoes() (Echo_List, error) {
-	if s.Struct.Uint16(0) != 44 {
+	if capnp.Struct(s).Uint16(0) != 44 {
 		panic("Which() != echoes")
 	}
-	p, err := s.Struct.Ptr(0)
-	return Echo_List{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return Echo_List(p.List()), err
 }
 
 func (s Z) HasEchoes() bool {
-	if s.Struct.Uint16(0) != 44 {
+	if capnp.Struct(s).Uint16(0) != 44 {
 		return false
 	}
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Z) SetEchoes(v Echo_List) error {
-	s.Struct.SetUint16(0, 44)
-	return s.Struct.SetPtr(0, v.List.ToPtr())
+	capnp.Struct(s).SetUint16(0, 44)
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewEchoes sets the echoes field to a newly
 // allocated Echo_List, preferring placement in s's segment.
 func (s Z) NewEchoes(n int32) (Echo_List, error) {
-	s.Struct.SetUint16(0, 44)
-	l, err := NewEcho_List(s.Struct.Segment(), n)
+	capnp.Struct(s).SetUint16(0, 44)
+	l, err := NewEcho_List(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return Echo_List{}, err
 	}
-	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
 
 func (s Z) AnyPtr() (capnp.Ptr, error) {
-	if s.Struct.Uint16(0) != 45 {
+	if capnp.Struct(s).Uint16(0) != 45 {
 		panic("Which() != anyPtr")
 	}
-	return s.Struct.Ptr(0)
+	return capnp.Struct(s).Ptr(0)
 }
 
 func (s Z) HasAnyPtr() bool {
-	if s.Struct.Uint16(0) != 45 {
+	if capnp.Struct(s).Uint16(0) != 45 {
 		return false
 	}
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Z) SetAnyPtr(v capnp.Ptr) error {
-	s.Struct.SetUint16(0, 45)
-	return s.Struct.SetPtr(0, v)
+	capnp.Struct(s).SetUint16(0, 45)
+	return capnp.Struct(s).SetPtr(0, v)
 }
 
 func (s Z) AnyStruct() (capnp.Ptr, error) {
-	if s.Struct.Uint16(0) != 46 {
+	if capnp.Struct(s).Uint16(0) != 46 {
 		panic("Which() != anyStruct")
 	}
-	return s.Struct.Ptr(0)
+	return capnp.Struct(s).Ptr(0)
 }
 
 func (s Z) HasAnyStruct() bool {
-	if s.Struct.Uint16(0) != 46 {
+	if capnp.Struct(s).Uint16(0) != 46 {
 		return false
 	}
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Z) SetAnyStruct(v capnp.Ptr) error {
-	s.Struct.SetUint16(0, 46)
-	return s.Struct.SetPtr(0, v)
+	capnp.Struct(s).SetUint16(0, 46)
+	return capnp.Struct(s).SetPtr(0, v)
 }
 
 func (s Z) AnyList() (capnp.Ptr, error) {
-	if s.Struct.Uint16(0) != 47 {
+	if capnp.Struct(s).Uint16(0) != 47 {
 		panic("Which() != anyList")
 	}
-	return s.Struct.Ptr(0)
+	return capnp.Struct(s).Ptr(0)
 }
 
 func (s Z) HasAnyList() bool {
-	if s.Struct.Uint16(0) != 47 {
+	if capnp.Struct(s).Uint16(0) != 47 {
 		return false
 	}
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Z) SetAnyList(v capnp.Ptr) error {
-	s.Struct.SetUint16(0, 47)
-	return s.Struct.SetPtr(0, v)
+	capnp.Struct(s).SetUint16(0, 47)
+	return capnp.Struct(s).SetPtr(0, v)
 }
 
 func (s Z) AnyCapability() capnp.Client {
-	if s.Struct.Uint16(0) != 48 {
+	if capnp.Struct(s).Uint16(0) != 48 {
 		panic("Which() != anyCapability")
 	}
-	p, _ := s.Struct.Ptr(0)
+	p, _ := capnp.Struct(s).Ptr(0)
 	return p.Interface().Client()
 }
 
 func (s Z) HasAnyCapability() bool {
-	if s.Struct.Uint16(0) != 48 {
+	if capnp.Struct(s).Uint16(0) != 48 {
 		return false
 	}
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Z) SetAnyCapability(c capnp.Client) error {
-	s.Struct.SetUint16(0, 48)
+	capnp.Struct(s).SetUint16(0, 48)
 	if !c.IsValid() {
-		return s.Struct.SetPtr(0, capnp.Ptr{})
+		return capnp.Struct(s).SetPtr(0, capnp.Ptr{})
 	}
 	seg := s.Segment()
 	in := capnp.NewInterface(seg, seg.Message().AddCap(c))
-	return s.Struct.SetPtr(0, in.ToPtr())
+	return capnp.Struct(s).SetPtr(0, in.ToPtr())
 }
 
 // Z_List is a list of Z.
@@ -2276,7 +2489,7 @@ type Z_List = capnp.StructList[Z]
 // NewZ creates a new list of Z.
 func NewZ_List(s *capnp.Segment, sz int32) (Z_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 24, PointerCount: 1}, sz)
-	return capnp.StructList[Z]{List: l}, err
+	return capnp.StructList[Z](l), err
 }
 
 // Z_Future is a wrapper for a Z promised by a client call.
@@ -2284,7 +2497,7 @@ type Z_Future struct{ *capnp.Future }
 
 func (p Z_Future) Struct() (Z, error) {
 	s, err := p.Future.Struct()
-	return Z{s}, err
+	return Z(s), err
 }
 
 func (p Z_Future) Zz() Z_Future {
@@ -2330,11 +2543,11 @@ type Z_grp_Future struct{ *capnp.Future }
 
 func (p Z_grp_Future) Struct() (Z_grp, error) {
 	s, err := p.Future.Struct()
-	return Z_grp{s}, err
+	return Z_grp(s), err
 }
 
 func (p Z_Future) Echo() Echo {
-	return Echo{Client: p.Future.Field(0, nil).Client()}
+	return Echo(p.Future.Field(0, nil).Client())
 }
 
 func (p Z_Future) AnyPtr() *capnp.Future {
@@ -2353,102 +2566,124 @@ func (p Z_Future) AnyCapability() *capnp.Future {
 	return p.Future.Field(0, nil)
 }
 
-type Counter struct{ capnp.Struct }
+type Counter capnp.Struct
 
 // Counter_TypeID is the unique identifier for the type Counter.
 const Counter_TypeID = 0x8748bc095e10cb5d
 
 func NewCounter(s *capnp.Segment) (Counter, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 3})
-	return Counter{st}, err
+	return Counter(st), err
 }
 
 func NewRootCounter(s *capnp.Segment) (Counter, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 3})
-	return Counter{st}, err
+	return Counter(st), err
 }
 
 func ReadRootCounter(msg *capnp.Message) (Counter, error) {
 	root, err := msg.Root()
-	return Counter{root.Struct()}, err
+	return Counter(root.Struct()), err
 }
 
 func (s Counter) String() string {
-	str, _ := text.Marshal(0x8748bc095e10cb5d, s.Struct)
+	str, _ := text.Marshal(0x8748bc095e10cb5d, capnp.Struct(s))
 	return str
 }
 
+func (s Counter) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (Counter) DecodeFromPtr(p capnp.Ptr) Counter {
+	return Counter(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s Counter) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s Counter) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s Counter) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s Counter) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s Counter) Size() int64 {
-	return int64(s.Struct.Uint64(0))
+	return int64(capnp.Struct(s).Uint64(0))
 }
 
 func (s Counter) SetSize(v int64) {
-	s.Struct.SetUint64(0, uint64(v))
+	capnp.Struct(s).SetUint64(0, uint64(v))
 }
 
 func (s Counter) Words() (string, error) {
-	p, err := s.Struct.Ptr(0)
+	p, err := capnp.Struct(s).Ptr(0)
 	return p.Text(), err
 }
 
 func (s Counter) HasWords() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Counter) WordsBytes() ([]byte, error) {
-	p, err := s.Struct.Ptr(0)
+	p, err := capnp.Struct(s).Ptr(0)
 	return p.TextBytes(), err
 }
 
 func (s Counter) SetWords(v string) error {
-	return s.Struct.SetText(0, v)
+	return capnp.Struct(s).SetText(0, v)
 }
 
 func (s Counter) Wordlist() (capnp.TextList, error) {
-	p, err := s.Struct.Ptr(1)
-	return capnp.TextList{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(1)
+	return capnp.TextList(p.List()), err
 }
 
 func (s Counter) HasWordlist() bool {
-	return s.Struct.HasPtr(1)
+	return capnp.Struct(s).HasPtr(1)
 }
 
 func (s Counter) SetWordlist(v capnp.TextList) error {
-	return s.Struct.SetPtr(1, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(1, v.ToPtr())
 }
 
 // NewWordlist sets the wordlist field to a newly
 // allocated capnp.TextList, preferring placement in s's segment.
 func (s Counter) NewWordlist(n int32) (capnp.TextList, error) {
-	l, err := capnp.NewTextList(s.Struct.Segment(), n)
+	l, err := capnp.NewTextList(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return capnp.TextList{}, err
 	}
-	err = s.Struct.SetPtr(1, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(1, l.ToPtr())
 	return l, err
 }
 
 func (s Counter) Bitlist() (capnp.BitList, error) {
-	p, err := s.Struct.Ptr(2)
-	return capnp.BitList{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(2)
+	return capnp.BitList(p.List()), err
 }
 
 func (s Counter) HasBitlist() bool {
-	return s.Struct.HasPtr(2)
+	return capnp.Struct(s).HasPtr(2)
 }
 
 func (s Counter) SetBitlist(v capnp.BitList) error {
-	return s.Struct.SetPtr(2, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(2, v.ToPtr())
 }
 
 // NewBitlist sets the bitlist field to a newly
 // allocated capnp.BitList, preferring placement in s's segment.
 func (s Counter) NewBitlist(n int32) (capnp.BitList, error) {
-	l, err := capnp.NewBitList(s.Struct.Segment(), n)
+	l, err := capnp.NewBitList(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return capnp.BitList{}, err
 	}
-	err = s.Struct.SetPtr(2, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(2, l.ToPtr())
 	return l, err
 }
 
@@ -2458,7 +2693,7 @@ type Counter_List = capnp.StructList[Counter]
 // NewCounter creates a new list of Counter.
 func NewCounter_List(s *capnp.Segment, sz int32) (Counter_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 3}, sz)
-	return capnp.StructList[Counter]{List: l}, err
+	return capnp.StructList[Counter](l), err
 }
 
 // Counter_Future is a wrapper for a Counter promised by a client call.
@@ -2466,55 +2701,77 @@ type Counter_Future struct{ *capnp.Future }
 
 func (p Counter_Future) Struct() (Counter, error) {
 	s, err := p.Future.Struct()
-	return Counter{s}, err
+	return Counter(s), err
 }
 
-type Bag struct{ capnp.Struct }
+type Bag capnp.Struct
 
 // Bag_TypeID is the unique identifier for the type Bag.
 const Bag_TypeID = 0xd636fba4f188dabe
 
 func NewBag(s *capnp.Segment) (Bag, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return Bag{st}, err
+	return Bag(st), err
 }
 
 func NewRootBag(s *capnp.Segment) (Bag, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return Bag{st}, err
+	return Bag(st), err
 }
 
 func ReadRootBag(msg *capnp.Message) (Bag, error) {
 	root, err := msg.Root()
-	return Bag{root.Struct()}, err
+	return Bag(root.Struct()), err
 }
 
 func (s Bag) String() string {
-	str, _ := text.Marshal(0xd636fba4f188dabe, s.Struct)
+	str, _ := text.Marshal(0xd636fba4f188dabe, capnp.Struct(s))
 	return str
 }
 
+func (s Bag) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (Bag) DecodeFromPtr(p capnp.Ptr) Bag {
+	return Bag(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s Bag) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s Bag) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s Bag) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s Bag) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s Bag) Counter() (Counter, error) {
-	p, err := s.Struct.Ptr(0)
-	return Counter{Struct: p.Struct()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return Counter(p.Struct()), err
 }
 
 func (s Bag) HasCounter() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Bag) SetCounter(v Counter) error {
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+	return capnp.Struct(s).SetPtr(0, capnp.Struct(v).ToPtr())
 }
 
 // NewCounter sets the counter field to a newly
 // allocated Counter struct, preferring placement in s's segment.
 func (s Bag) NewCounter() (Counter, error) {
-	ss, err := NewCounter(s.Struct.Segment())
+	ss, err := NewCounter(capnp.Struct(s).Segment())
 	if err != nil {
 		return Counter{}, err
 	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, capnp.Struct(ss).ToPtr())
 	return ss, err
 }
 
@@ -2524,7 +2781,7 @@ type Bag_List = capnp.StructList[Bag]
 // NewBag creates a new list of Bag.
 func NewBag_List(s *capnp.Segment, sz int32) (Bag_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[Bag]{List: l}, err
+	return capnp.StructList[Bag](l), err
 }
 
 // Bag_Future is a wrapper for a Bag promised by a client call.
@@ -2532,59 +2789,81 @@ type Bag_Future struct{ *capnp.Future }
 
 func (p Bag_Future) Struct() (Bag, error) {
 	s, err := p.Future.Struct()
-	return Bag{s}, err
+	return Bag(s), err
 }
 
 func (p Bag_Future) Counter() Counter_Future {
 	return Counter_Future{Future: p.Future.Field(0, nil)}
 }
 
-type Zserver struct{ capnp.Struct }
+type Zserver capnp.Struct
 
 // Zserver_TypeID is the unique identifier for the type Zserver.
 const Zserver_TypeID = 0xcc4411e60ba9c498
 
 func NewZserver(s *capnp.Segment) (Zserver, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return Zserver{st}, err
+	return Zserver(st), err
 }
 
 func NewRootZserver(s *capnp.Segment) (Zserver, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return Zserver{st}, err
+	return Zserver(st), err
 }
 
 func ReadRootZserver(msg *capnp.Message) (Zserver, error) {
 	root, err := msg.Root()
-	return Zserver{root.Struct()}, err
+	return Zserver(root.Struct()), err
 }
 
 func (s Zserver) String() string {
-	str, _ := text.Marshal(0xcc4411e60ba9c498, s.Struct)
+	str, _ := text.Marshal(0xcc4411e60ba9c498, capnp.Struct(s))
 	return str
 }
 
+func (s Zserver) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (Zserver) DecodeFromPtr(p capnp.Ptr) Zserver {
+	return Zserver(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s Zserver) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s Zserver) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s Zserver) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s Zserver) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s Zserver) Waitingjobs() (Zjob_List, error) {
-	p, err := s.Struct.Ptr(0)
-	return Zjob_List{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return Zjob_List(p.List()), err
 }
 
 func (s Zserver) HasWaitingjobs() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Zserver) SetWaitingjobs(v Zjob_List) error {
-	return s.Struct.SetPtr(0, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewWaitingjobs sets the waitingjobs field to a newly
 // allocated Zjob_List, preferring placement in s's segment.
 func (s Zserver) NewWaitingjobs(n int32) (Zjob_List, error) {
-	l, err := NewZjob_List(s.Struct.Segment(), n)
+	l, err := NewZjob_List(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return Zjob_List{}, err
 	}
-	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
 
@@ -2594,7 +2873,7 @@ type Zserver_List = capnp.StructList[Zserver]
 // NewZserver creates a new list of Zserver.
 func NewZserver_List(s *capnp.Segment, sz int32) (Zserver_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[Zserver]{List: l}, err
+	return capnp.StructList[Zserver](l), err
 }
 
 // Zserver_Future is a wrapper for a Zserver promised by a client call.
@@ -2602,73 +2881,95 @@ type Zserver_Future struct{ *capnp.Future }
 
 func (p Zserver_Future) Struct() (Zserver, error) {
 	s, err := p.Future.Struct()
-	return Zserver{s}, err
+	return Zserver(s), err
 }
 
-type Zjob struct{ capnp.Struct }
+type Zjob capnp.Struct
 
 // Zjob_TypeID is the unique identifier for the type Zjob.
 const Zjob_TypeID = 0xddd1416669fb7613
 
 func NewZjob(s *capnp.Segment) (Zjob, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
-	return Zjob{st}, err
+	return Zjob(st), err
 }
 
 func NewRootZjob(s *capnp.Segment) (Zjob, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
-	return Zjob{st}, err
+	return Zjob(st), err
 }
 
 func ReadRootZjob(msg *capnp.Message) (Zjob, error) {
 	root, err := msg.Root()
-	return Zjob{root.Struct()}, err
+	return Zjob(root.Struct()), err
 }
 
 func (s Zjob) String() string {
-	str, _ := text.Marshal(0xddd1416669fb7613, s.Struct)
+	str, _ := text.Marshal(0xddd1416669fb7613, capnp.Struct(s))
 	return str
 }
 
+func (s Zjob) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (Zjob) DecodeFromPtr(p capnp.Ptr) Zjob {
+	return Zjob(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s Zjob) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s Zjob) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s Zjob) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s Zjob) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s Zjob) Cmd() (string, error) {
-	p, err := s.Struct.Ptr(0)
+	p, err := capnp.Struct(s).Ptr(0)
 	return p.Text(), err
 }
 
 func (s Zjob) HasCmd() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Zjob) CmdBytes() ([]byte, error) {
-	p, err := s.Struct.Ptr(0)
+	p, err := capnp.Struct(s).Ptr(0)
 	return p.TextBytes(), err
 }
 
 func (s Zjob) SetCmd(v string) error {
-	return s.Struct.SetText(0, v)
+	return capnp.Struct(s).SetText(0, v)
 }
 
 func (s Zjob) Args() (capnp.TextList, error) {
-	p, err := s.Struct.Ptr(1)
-	return capnp.TextList{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(1)
+	return capnp.TextList(p.List()), err
 }
 
 func (s Zjob) HasArgs() bool {
-	return s.Struct.HasPtr(1)
+	return capnp.Struct(s).HasPtr(1)
 }
 
 func (s Zjob) SetArgs(v capnp.TextList) error {
-	return s.Struct.SetPtr(1, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(1, v.ToPtr())
 }
 
 // NewArgs sets the args field to a newly
 // allocated capnp.TextList, preferring placement in s's segment.
 func (s Zjob) NewArgs(n int32) (capnp.TextList, error) {
-	l, err := capnp.NewTextList(s.Struct.Segment(), n)
+	l, err := capnp.NewTextList(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return capnp.TextList{}, err
 	}
-	err = s.Struct.SetPtr(1, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(1, l.ToPtr())
 	return l, err
 }
 
@@ -2678,7 +2979,7 @@ type Zjob_List = capnp.StructList[Zjob]
 // NewZjob creates a new list of Zjob.
 func NewZjob_List(s *capnp.Segment, sz int32) (Zjob_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
-	return capnp.StructList[Zjob]{List: l}, err
+	return capnp.StructList[Zjob](l), err
 }
 
 // Zjob_Future is a wrapper for a Zjob promised by a client call.
@@ -2686,32 +2987,55 @@ type Zjob_Future struct{ *capnp.Future }
 
 func (p Zjob_Future) Struct() (Zjob, error) {
 	s, err := p.Future.Struct()
-	return Zjob{s}, err
+	return Zjob(s), err
 }
 
-type VerEmpty struct{ capnp.Struct }
+type VerEmpty capnp.Struct
 
 // VerEmpty_TypeID is the unique identifier for the type VerEmpty.
 const VerEmpty_TypeID = 0x93c99951eacc72ff
 
 func NewVerEmpty(s *capnp.Segment) (VerEmpty, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	return VerEmpty{st}, err
+	return VerEmpty(st), err
 }
 
 func NewRootVerEmpty(s *capnp.Segment) (VerEmpty, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	return VerEmpty{st}, err
+	return VerEmpty(st), err
 }
 
 func ReadRootVerEmpty(msg *capnp.Message) (VerEmpty, error) {
 	root, err := msg.Root()
-	return VerEmpty{root.Struct()}, err
+	return VerEmpty(root.Struct()), err
 }
 
 func (s VerEmpty) String() string {
-	str, _ := text.Marshal(0x93c99951eacc72ff, s.Struct)
+	str, _ := text.Marshal(0x93c99951eacc72ff, capnp.Struct(s))
 	return str
+}
+
+func (s VerEmpty) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (VerEmpty) DecodeFromPtr(p capnp.Ptr) VerEmpty {
+	return VerEmpty(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s VerEmpty) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s VerEmpty) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s VerEmpty) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s VerEmpty) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
 }
 
 // VerEmpty_List is a list of VerEmpty.
@@ -2720,7 +3044,7 @@ type VerEmpty_List = capnp.StructList[VerEmpty]
 // NewVerEmpty creates a new list of VerEmpty.
 func NewVerEmpty_List(s *capnp.Segment, sz int32) (VerEmpty_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
-	return capnp.StructList[VerEmpty]{List: l}, err
+	return capnp.StructList[VerEmpty](l), err
 }
 
 // VerEmpty_Future is a wrapper for a VerEmpty promised by a client call.
@@ -2728,40 +3052,62 @@ type VerEmpty_Future struct{ *capnp.Future }
 
 func (p VerEmpty_Future) Struct() (VerEmpty, error) {
 	s, err := p.Future.Struct()
-	return VerEmpty{s}, err
+	return VerEmpty(s), err
 }
 
-type VerOneData struct{ capnp.Struct }
+type VerOneData capnp.Struct
 
 // VerOneData_TypeID is the unique identifier for the type VerOneData.
 const VerOneData_TypeID = 0xfca3742893be4cde
 
 func NewVerOneData(s *capnp.Segment) (VerOneData, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	return VerOneData{st}, err
+	return VerOneData(st), err
 }
 
 func NewRootVerOneData(s *capnp.Segment) (VerOneData, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	return VerOneData{st}, err
+	return VerOneData(st), err
 }
 
 func ReadRootVerOneData(msg *capnp.Message) (VerOneData, error) {
 	root, err := msg.Root()
-	return VerOneData{root.Struct()}, err
+	return VerOneData(root.Struct()), err
 }
 
 func (s VerOneData) String() string {
-	str, _ := text.Marshal(0xfca3742893be4cde, s.Struct)
+	str, _ := text.Marshal(0xfca3742893be4cde, capnp.Struct(s))
 	return str
 }
 
+func (s VerOneData) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (VerOneData) DecodeFromPtr(p capnp.Ptr) VerOneData {
+	return VerOneData(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s VerOneData) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s VerOneData) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s VerOneData) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s VerOneData) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s VerOneData) Val() int16 {
-	return int16(s.Struct.Uint16(0))
+	return int16(capnp.Struct(s).Uint16(0))
 }
 
 func (s VerOneData) SetVal(v int16) {
-	s.Struct.SetUint16(0, uint16(v))
+	capnp.Struct(s).SetUint16(0, uint16(v))
 }
 
 // VerOneData_List is a list of VerOneData.
@@ -2770,7 +3116,7 @@ type VerOneData_List = capnp.StructList[VerOneData]
 // NewVerOneData creates a new list of VerOneData.
 func NewVerOneData_List(s *capnp.Segment, sz int32) (VerOneData_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	return capnp.StructList[VerOneData]{List: l}, err
+	return capnp.StructList[VerOneData](l), err
 }
 
 // VerOneData_Future is a wrapper for a VerOneData promised by a client call.
@@ -2778,48 +3124,70 @@ type VerOneData_Future struct{ *capnp.Future }
 
 func (p VerOneData_Future) Struct() (VerOneData, error) {
 	s, err := p.Future.Struct()
-	return VerOneData{s}, err
+	return VerOneData(s), err
 }
 
-type VerTwoData struct{ capnp.Struct }
+type VerTwoData capnp.Struct
 
 // VerTwoData_TypeID is the unique identifier for the type VerTwoData.
 const VerTwoData_TypeID = 0xf705dc45c94766fd
 
 func NewVerTwoData(s *capnp.Segment) (VerTwoData, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0})
-	return VerTwoData{st}, err
+	return VerTwoData(st), err
 }
 
 func NewRootVerTwoData(s *capnp.Segment) (VerTwoData, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0})
-	return VerTwoData{st}, err
+	return VerTwoData(st), err
 }
 
 func ReadRootVerTwoData(msg *capnp.Message) (VerTwoData, error) {
 	root, err := msg.Root()
-	return VerTwoData{root.Struct()}, err
+	return VerTwoData(root.Struct()), err
 }
 
 func (s VerTwoData) String() string {
-	str, _ := text.Marshal(0xf705dc45c94766fd, s.Struct)
+	str, _ := text.Marshal(0xf705dc45c94766fd, capnp.Struct(s))
 	return str
 }
 
+func (s VerTwoData) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (VerTwoData) DecodeFromPtr(p capnp.Ptr) VerTwoData {
+	return VerTwoData(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s VerTwoData) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s VerTwoData) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s VerTwoData) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s VerTwoData) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s VerTwoData) Val() int16 {
-	return int16(s.Struct.Uint16(0))
+	return int16(capnp.Struct(s).Uint16(0))
 }
 
 func (s VerTwoData) SetVal(v int16) {
-	s.Struct.SetUint16(0, uint16(v))
+	capnp.Struct(s).SetUint16(0, uint16(v))
 }
 
 func (s VerTwoData) Duo() int64 {
-	return int64(s.Struct.Uint64(8))
+	return int64(capnp.Struct(s).Uint64(8))
 }
 
 func (s VerTwoData) SetDuo(v int64) {
-	s.Struct.SetUint64(8, uint64(v))
+	capnp.Struct(s).SetUint64(8, uint64(v))
 }
 
 // VerTwoData_List is a list of VerTwoData.
@@ -2828,7 +3196,7 @@ type VerTwoData_List = capnp.StructList[VerTwoData]
 // NewVerTwoData creates a new list of VerTwoData.
 func NewVerTwoData_List(s *capnp.Segment, sz int32) (VerTwoData_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0}, sz)
-	return capnp.StructList[VerTwoData]{List: l}, err
+	return capnp.StructList[VerTwoData](l), err
 }
 
 // VerTwoData_Future is a wrapper for a VerTwoData promised by a client call.
@@ -2836,55 +3204,77 @@ type VerTwoData_Future struct{ *capnp.Future }
 
 func (p VerTwoData_Future) Struct() (VerTwoData, error) {
 	s, err := p.Future.Struct()
-	return VerTwoData{s}, err
+	return VerTwoData(s), err
 }
 
-type VerOnePtr struct{ capnp.Struct }
+type VerOnePtr capnp.Struct
 
 // VerOnePtr_TypeID is the unique identifier for the type VerOnePtr.
 const VerOnePtr_TypeID = 0x94bf7df83408218d
 
 func NewVerOnePtr(s *capnp.Segment) (VerOnePtr, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return VerOnePtr{st}, err
+	return VerOnePtr(st), err
 }
 
 func NewRootVerOnePtr(s *capnp.Segment) (VerOnePtr, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return VerOnePtr{st}, err
+	return VerOnePtr(st), err
 }
 
 func ReadRootVerOnePtr(msg *capnp.Message) (VerOnePtr, error) {
 	root, err := msg.Root()
-	return VerOnePtr{root.Struct()}, err
+	return VerOnePtr(root.Struct()), err
 }
 
 func (s VerOnePtr) String() string {
-	str, _ := text.Marshal(0x94bf7df83408218d, s.Struct)
+	str, _ := text.Marshal(0x94bf7df83408218d, capnp.Struct(s))
 	return str
 }
 
+func (s VerOnePtr) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (VerOnePtr) DecodeFromPtr(p capnp.Ptr) VerOnePtr {
+	return VerOnePtr(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s VerOnePtr) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s VerOnePtr) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s VerOnePtr) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s VerOnePtr) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s VerOnePtr) Ptr() (VerOneData, error) {
-	p, err := s.Struct.Ptr(0)
-	return VerOneData{Struct: p.Struct()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return VerOneData(p.Struct()), err
 }
 
 func (s VerOnePtr) HasPtr() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s VerOnePtr) SetPtr(v VerOneData) error {
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+	return capnp.Struct(s).SetPtr(0, capnp.Struct(v).ToPtr())
 }
 
 // NewPtr sets the ptr field to a newly
 // allocated VerOneData struct, preferring placement in s's segment.
 func (s VerOnePtr) NewPtr() (VerOneData, error) {
-	ss, err := NewVerOneData(s.Struct.Segment())
+	ss, err := NewVerOneData(capnp.Struct(s).Segment())
 	if err != nil {
 		return VerOneData{}, err
 	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, capnp.Struct(ss).ToPtr())
 	return ss, err
 }
 
@@ -2894,7 +3284,7 @@ type VerOnePtr_List = capnp.StructList[VerOnePtr]
 // NewVerOnePtr creates a new list of VerOnePtr.
 func NewVerOnePtr_List(s *capnp.Segment, sz int32) (VerOnePtr_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[VerOnePtr]{List: l}, err
+	return capnp.StructList[VerOnePtr](l), err
 }
 
 // VerOnePtr_Future is a wrapper for a VerOnePtr promised by a client call.
@@ -2902,83 +3292,105 @@ type VerOnePtr_Future struct{ *capnp.Future }
 
 func (p VerOnePtr_Future) Struct() (VerOnePtr, error) {
 	s, err := p.Future.Struct()
-	return VerOnePtr{s}, err
+	return VerOnePtr(s), err
 }
 
 func (p VerOnePtr_Future) Ptr() VerOneData_Future {
 	return VerOneData_Future{Future: p.Future.Field(0, nil)}
 }
 
-type VerTwoPtr struct{ capnp.Struct }
+type VerTwoPtr capnp.Struct
 
 // VerTwoPtr_TypeID is the unique identifier for the type VerTwoPtr.
 const VerTwoPtr_TypeID = 0xc95babe3bd394d2d
 
 func NewVerTwoPtr(s *capnp.Segment) (VerTwoPtr, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
-	return VerTwoPtr{st}, err
+	return VerTwoPtr(st), err
 }
 
 func NewRootVerTwoPtr(s *capnp.Segment) (VerTwoPtr, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
-	return VerTwoPtr{st}, err
+	return VerTwoPtr(st), err
 }
 
 func ReadRootVerTwoPtr(msg *capnp.Message) (VerTwoPtr, error) {
 	root, err := msg.Root()
-	return VerTwoPtr{root.Struct()}, err
+	return VerTwoPtr(root.Struct()), err
 }
 
 func (s VerTwoPtr) String() string {
-	str, _ := text.Marshal(0xc95babe3bd394d2d, s.Struct)
+	str, _ := text.Marshal(0xc95babe3bd394d2d, capnp.Struct(s))
 	return str
 }
 
+func (s VerTwoPtr) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (VerTwoPtr) DecodeFromPtr(p capnp.Ptr) VerTwoPtr {
+	return VerTwoPtr(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s VerTwoPtr) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s VerTwoPtr) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s VerTwoPtr) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s VerTwoPtr) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s VerTwoPtr) Ptr1() (VerOneData, error) {
-	p, err := s.Struct.Ptr(0)
-	return VerOneData{Struct: p.Struct()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return VerOneData(p.Struct()), err
 }
 
 func (s VerTwoPtr) HasPtr1() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s VerTwoPtr) SetPtr1(v VerOneData) error {
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+	return capnp.Struct(s).SetPtr(0, capnp.Struct(v).ToPtr())
 }
 
 // NewPtr1 sets the ptr1 field to a newly
 // allocated VerOneData struct, preferring placement in s's segment.
 func (s VerTwoPtr) NewPtr1() (VerOneData, error) {
-	ss, err := NewVerOneData(s.Struct.Segment())
+	ss, err := NewVerOneData(capnp.Struct(s).Segment())
 	if err != nil {
 		return VerOneData{}, err
 	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, capnp.Struct(ss).ToPtr())
 	return ss, err
 }
 
 func (s VerTwoPtr) Ptr2() (VerOneData, error) {
-	p, err := s.Struct.Ptr(1)
-	return VerOneData{Struct: p.Struct()}, err
+	p, err := capnp.Struct(s).Ptr(1)
+	return VerOneData(p.Struct()), err
 }
 
 func (s VerTwoPtr) HasPtr2() bool {
-	return s.Struct.HasPtr(1)
+	return capnp.Struct(s).HasPtr(1)
 }
 
 func (s VerTwoPtr) SetPtr2(v VerOneData) error {
-	return s.Struct.SetPtr(1, v.Struct.ToPtr())
+	return capnp.Struct(s).SetPtr(1, capnp.Struct(v).ToPtr())
 }
 
 // NewPtr2 sets the ptr2 field to a newly
 // allocated VerOneData struct, preferring placement in s's segment.
 func (s VerTwoPtr) NewPtr2() (VerOneData, error) {
-	ss, err := NewVerOneData(s.Struct.Segment())
+	ss, err := NewVerOneData(capnp.Struct(s).Segment())
 	if err != nil {
 		return VerOneData{}, err
 	}
-	err = s.Struct.SetPtr(1, ss.Struct.ToPtr())
+	err = capnp.Struct(s).SetPtr(1, capnp.Struct(ss).ToPtr())
 	return ss, err
 }
 
@@ -2988,7 +3400,7 @@ type VerTwoPtr_List = capnp.StructList[VerTwoPtr]
 // NewVerTwoPtr creates a new list of VerTwoPtr.
 func NewVerTwoPtr_List(s *capnp.Segment, sz int32) (VerTwoPtr_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
-	return capnp.StructList[VerTwoPtr]{List: l}, err
+	return capnp.StructList[VerTwoPtr](l), err
 }
 
 // VerTwoPtr_Future is a wrapper for a VerTwoPtr promised by a client call.
@@ -2996,7 +3408,7 @@ type VerTwoPtr_Future struct{ *capnp.Future }
 
 func (p VerTwoPtr_Future) Struct() (VerTwoPtr, error) {
 	s, err := p.Future.Struct()
-	return VerTwoPtr{s}, err
+	return VerTwoPtr(s), err
 }
 
 func (p VerTwoPtr_Future) Ptr1() VerOneData_Future {
@@ -3007,92 +3419,114 @@ func (p VerTwoPtr_Future) Ptr2() VerOneData_Future {
 	return VerOneData_Future{Future: p.Future.Field(1, nil)}
 }
 
-type VerTwoDataTwoPtr struct{ capnp.Struct }
+type VerTwoDataTwoPtr capnp.Struct
 
 // VerTwoDataTwoPtr_TypeID is the unique identifier for the type VerTwoDataTwoPtr.
 const VerTwoDataTwoPtr_TypeID = 0xb61ee2ecff34ca73
 
 func NewVerTwoDataTwoPtr(s *capnp.Segment) (VerTwoDataTwoPtr, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 2})
-	return VerTwoDataTwoPtr{st}, err
+	return VerTwoDataTwoPtr(st), err
 }
 
 func NewRootVerTwoDataTwoPtr(s *capnp.Segment) (VerTwoDataTwoPtr, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 2})
-	return VerTwoDataTwoPtr{st}, err
+	return VerTwoDataTwoPtr(st), err
 }
 
 func ReadRootVerTwoDataTwoPtr(msg *capnp.Message) (VerTwoDataTwoPtr, error) {
 	root, err := msg.Root()
-	return VerTwoDataTwoPtr{root.Struct()}, err
+	return VerTwoDataTwoPtr(root.Struct()), err
 }
 
 func (s VerTwoDataTwoPtr) String() string {
-	str, _ := text.Marshal(0xb61ee2ecff34ca73, s.Struct)
+	str, _ := text.Marshal(0xb61ee2ecff34ca73, capnp.Struct(s))
 	return str
 }
 
+func (s VerTwoDataTwoPtr) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (VerTwoDataTwoPtr) DecodeFromPtr(p capnp.Ptr) VerTwoDataTwoPtr {
+	return VerTwoDataTwoPtr(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s VerTwoDataTwoPtr) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s VerTwoDataTwoPtr) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s VerTwoDataTwoPtr) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s VerTwoDataTwoPtr) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s VerTwoDataTwoPtr) Val() int16 {
-	return int16(s.Struct.Uint16(0))
+	return int16(capnp.Struct(s).Uint16(0))
 }
 
 func (s VerTwoDataTwoPtr) SetVal(v int16) {
-	s.Struct.SetUint16(0, uint16(v))
+	capnp.Struct(s).SetUint16(0, uint16(v))
 }
 
 func (s VerTwoDataTwoPtr) Duo() int64 {
-	return int64(s.Struct.Uint64(8))
+	return int64(capnp.Struct(s).Uint64(8))
 }
 
 func (s VerTwoDataTwoPtr) SetDuo(v int64) {
-	s.Struct.SetUint64(8, uint64(v))
+	capnp.Struct(s).SetUint64(8, uint64(v))
 }
 
 func (s VerTwoDataTwoPtr) Ptr1() (VerOneData, error) {
-	p, err := s.Struct.Ptr(0)
-	return VerOneData{Struct: p.Struct()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return VerOneData(p.Struct()), err
 }
 
 func (s VerTwoDataTwoPtr) HasPtr1() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s VerTwoDataTwoPtr) SetPtr1(v VerOneData) error {
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+	return capnp.Struct(s).SetPtr(0, capnp.Struct(v).ToPtr())
 }
 
 // NewPtr1 sets the ptr1 field to a newly
 // allocated VerOneData struct, preferring placement in s's segment.
 func (s VerTwoDataTwoPtr) NewPtr1() (VerOneData, error) {
-	ss, err := NewVerOneData(s.Struct.Segment())
+	ss, err := NewVerOneData(capnp.Struct(s).Segment())
 	if err != nil {
 		return VerOneData{}, err
 	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, capnp.Struct(ss).ToPtr())
 	return ss, err
 }
 
 func (s VerTwoDataTwoPtr) Ptr2() (VerOneData, error) {
-	p, err := s.Struct.Ptr(1)
-	return VerOneData{Struct: p.Struct()}, err
+	p, err := capnp.Struct(s).Ptr(1)
+	return VerOneData(p.Struct()), err
 }
 
 func (s VerTwoDataTwoPtr) HasPtr2() bool {
-	return s.Struct.HasPtr(1)
+	return capnp.Struct(s).HasPtr(1)
 }
 
 func (s VerTwoDataTwoPtr) SetPtr2(v VerOneData) error {
-	return s.Struct.SetPtr(1, v.Struct.ToPtr())
+	return capnp.Struct(s).SetPtr(1, capnp.Struct(v).ToPtr())
 }
 
 // NewPtr2 sets the ptr2 field to a newly
 // allocated VerOneData struct, preferring placement in s's segment.
 func (s VerTwoDataTwoPtr) NewPtr2() (VerOneData, error) {
-	ss, err := NewVerOneData(s.Struct.Segment())
+	ss, err := NewVerOneData(capnp.Struct(s).Segment())
 	if err != nil {
 		return VerOneData{}, err
 	}
-	err = s.Struct.SetPtr(1, ss.Struct.ToPtr())
+	err = capnp.Struct(s).SetPtr(1, capnp.Struct(ss).ToPtr())
 	return ss, err
 }
 
@@ -3102,7 +3536,7 @@ type VerTwoDataTwoPtr_List = capnp.StructList[VerTwoDataTwoPtr]
 // NewVerTwoDataTwoPtr creates a new list of VerTwoDataTwoPtr.
 func NewVerTwoDataTwoPtr_List(s *capnp.Segment, sz int32) (VerTwoDataTwoPtr_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 2}, sz)
-	return capnp.StructList[VerTwoDataTwoPtr]{List: l}, err
+	return capnp.StructList[VerTwoDataTwoPtr](l), err
 }
 
 // VerTwoDataTwoPtr_Future is a wrapper for a VerTwoDataTwoPtr promised by a client call.
@@ -3110,7 +3544,7 @@ type VerTwoDataTwoPtr_Future struct{ *capnp.Future }
 
 func (p VerTwoDataTwoPtr_Future) Struct() (VerTwoDataTwoPtr, error) {
 	s, err := p.Future.Struct()
-	return VerTwoDataTwoPtr{s}, err
+	return VerTwoDataTwoPtr(s), err
 }
 
 func (p VerTwoDataTwoPtr_Future) Ptr1() VerOneData_Future {
@@ -3121,52 +3555,74 @@ func (p VerTwoDataTwoPtr_Future) Ptr2() VerOneData_Future {
 	return VerOneData_Future{Future: p.Future.Field(1, nil)}
 }
 
-type HoldsVerEmptyList struct{ capnp.Struct }
+type HoldsVerEmptyList capnp.Struct
 
 // HoldsVerEmptyList_TypeID is the unique identifier for the type HoldsVerEmptyList.
 const HoldsVerEmptyList_TypeID = 0xde9ed43cfaa83093
 
 func NewHoldsVerEmptyList(s *capnp.Segment) (HoldsVerEmptyList, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return HoldsVerEmptyList{st}, err
+	return HoldsVerEmptyList(st), err
 }
 
 func NewRootHoldsVerEmptyList(s *capnp.Segment) (HoldsVerEmptyList, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return HoldsVerEmptyList{st}, err
+	return HoldsVerEmptyList(st), err
 }
 
 func ReadRootHoldsVerEmptyList(msg *capnp.Message) (HoldsVerEmptyList, error) {
 	root, err := msg.Root()
-	return HoldsVerEmptyList{root.Struct()}, err
+	return HoldsVerEmptyList(root.Struct()), err
 }
 
 func (s HoldsVerEmptyList) String() string {
-	str, _ := text.Marshal(0xde9ed43cfaa83093, s.Struct)
+	str, _ := text.Marshal(0xde9ed43cfaa83093, capnp.Struct(s))
 	return str
 }
 
+func (s HoldsVerEmptyList) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (HoldsVerEmptyList) DecodeFromPtr(p capnp.Ptr) HoldsVerEmptyList {
+	return HoldsVerEmptyList(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s HoldsVerEmptyList) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s HoldsVerEmptyList) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s HoldsVerEmptyList) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s HoldsVerEmptyList) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s HoldsVerEmptyList) Mylist() (VerEmpty_List, error) {
-	p, err := s.Struct.Ptr(0)
-	return VerEmpty_List{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return VerEmpty_List(p.List()), err
 }
 
 func (s HoldsVerEmptyList) HasMylist() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s HoldsVerEmptyList) SetMylist(v VerEmpty_List) error {
-	return s.Struct.SetPtr(0, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewMylist sets the mylist field to a newly
 // allocated VerEmpty_List, preferring placement in s's segment.
 func (s HoldsVerEmptyList) NewMylist(n int32) (VerEmpty_List, error) {
-	l, err := NewVerEmpty_List(s.Struct.Segment(), n)
+	l, err := NewVerEmpty_List(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return VerEmpty_List{}, err
 	}
-	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
 
@@ -3176,7 +3632,7 @@ type HoldsVerEmptyList_List = capnp.StructList[HoldsVerEmptyList]
 // NewHoldsVerEmptyList creates a new list of HoldsVerEmptyList.
 func NewHoldsVerEmptyList_List(s *capnp.Segment, sz int32) (HoldsVerEmptyList_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[HoldsVerEmptyList]{List: l}, err
+	return capnp.StructList[HoldsVerEmptyList](l), err
 }
 
 // HoldsVerEmptyList_Future is a wrapper for a HoldsVerEmptyList promised by a client call.
@@ -3184,55 +3640,77 @@ type HoldsVerEmptyList_Future struct{ *capnp.Future }
 
 func (p HoldsVerEmptyList_Future) Struct() (HoldsVerEmptyList, error) {
 	s, err := p.Future.Struct()
-	return HoldsVerEmptyList{s}, err
+	return HoldsVerEmptyList(s), err
 }
 
-type HoldsVerOneDataList struct{ capnp.Struct }
+type HoldsVerOneDataList capnp.Struct
 
 // HoldsVerOneDataList_TypeID is the unique identifier for the type HoldsVerOneDataList.
 const HoldsVerOneDataList_TypeID = 0xabd055422a4d7df1
 
 func NewHoldsVerOneDataList(s *capnp.Segment) (HoldsVerOneDataList, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return HoldsVerOneDataList{st}, err
+	return HoldsVerOneDataList(st), err
 }
 
 func NewRootHoldsVerOneDataList(s *capnp.Segment) (HoldsVerOneDataList, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return HoldsVerOneDataList{st}, err
+	return HoldsVerOneDataList(st), err
 }
 
 func ReadRootHoldsVerOneDataList(msg *capnp.Message) (HoldsVerOneDataList, error) {
 	root, err := msg.Root()
-	return HoldsVerOneDataList{root.Struct()}, err
+	return HoldsVerOneDataList(root.Struct()), err
 }
 
 func (s HoldsVerOneDataList) String() string {
-	str, _ := text.Marshal(0xabd055422a4d7df1, s.Struct)
+	str, _ := text.Marshal(0xabd055422a4d7df1, capnp.Struct(s))
 	return str
 }
 
+func (s HoldsVerOneDataList) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (HoldsVerOneDataList) DecodeFromPtr(p capnp.Ptr) HoldsVerOneDataList {
+	return HoldsVerOneDataList(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s HoldsVerOneDataList) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s HoldsVerOneDataList) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s HoldsVerOneDataList) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s HoldsVerOneDataList) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s HoldsVerOneDataList) Mylist() (VerOneData_List, error) {
-	p, err := s.Struct.Ptr(0)
-	return VerOneData_List{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return VerOneData_List(p.List()), err
 }
 
 func (s HoldsVerOneDataList) HasMylist() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s HoldsVerOneDataList) SetMylist(v VerOneData_List) error {
-	return s.Struct.SetPtr(0, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewMylist sets the mylist field to a newly
 // allocated VerOneData_List, preferring placement in s's segment.
 func (s HoldsVerOneDataList) NewMylist(n int32) (VerOneData_List, error) {
-	l, err := NewVerOneData_List(s.Struct.Segment(), n)
+	l, err := NewVerOneData_List(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return VerOneData_List{}, err
 	}
-	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
 
@@ -3242,7 +3720,7 @@ type HoldsVerOneDataList_List = capnp.StructList[HoldsVerOneDataList]
 // NewHoldsVerOneDataList creates a new list of HoldsVerOneDataList.
 func NewHoldsVerOneDataList_List(s *capnp.Segment, sz int32) (HoldsVerOneDataList_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[HoldsVerOneDataList]{List: l}, err
+	return capnp.StructList[HoldsVerOneDataList](l), err
 }
 
 // HoldsVerOneDataList_Future is a wrapper for a HoldsVerOneDataList promised by a client call.
@@ -3250,55 +3728,77 @@ type HoldsVerOneDataList_Future struct{ *capnp.Future }
 
 func (p HoldsVerOneDataList_Future) Struct() (HoldsVerOneDataList, error) {
 	s, err := p.Future.Struct()
-	return HoldsVerOneDataList{s}, err
+	return HoldsVerOneDataList(s), err
 }
 
-type HoldsVerTwoDataList struct{ capnp.Struct }
+type HoldsVerTwoDataList capnp.Struct
 
 // HoldsVerTwoDataList_TypeID is the unique identifier for the type HoldsVerTwoDataList.
 const HoldsVerTwoDataList_TypeID = 0xcbdc765fd5dff7ba
 
 func NewHoldsVerTwoDataList(s *capnp.Segment) (HoldsVerTwoDataList, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return HoldsVerTwoDataList{st}, err
+	return HoldsVerTwoDataList(st), err
 }
 
 func NewRootHoldsVerTwoDataList(s *capnp.Segment) (HoldsVerTwoDataList, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return HoldsVerTwoDataList{st}, err
+	return HoldsVerTwoDataList(st), err
 }
 
 func ReadRootHoldsVerTwoDataList(msg *capnp.Message) (HoldsVerTwoDataList, error) {
 	root, err := msg.Root()
-	return HoldsVerTwoDataList{root.Struct()}, err
+	return HoldsVerTwoDataList(root.Struct()), err
 }
 
 func (s HoldsVerTwoDataList) String() string {
-	str, _ := text.Marshal(0xcbdc765fd5dff7ba, s.Struct)
+	str, _ := text.Marshal(0xcbdc765fd5dff7ba, capnp.Struct(s))
 	return str
 }
 
+func (s HoldsVerTwoDataList) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (HoldsVerTwoDataList) DecodeFromPtr(p capnp.Ptr) HoldsVerTwoDataList {
+	return HoldsVerTwoDataList(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s HoldsVerTwoDataList) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s HoldsVerTwoDataList) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s HoldsVerTwoDataList) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s HoldsVerTwoDataList) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s HoldsVerTwoDataList) Mylist() (VerTwoData_List, error) {
-	p, err := s.Struct.Ptr(0)
-	return VerTwoData_List{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return VerTwoData_List(p.List()), err
 }
 
 func (s HoldsVerTwoDataList) HasMylist() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s HoldsVerTwoDataList) SetMylist(v VerTwoData_List) error {
-	return s.Struct.SetPtr(0, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewMylist sets the mylist field to a newly
 // allocated VerTwoData_List, preferring placement in s's segment.
 func (s HoldsVerTwoDataList) NewMylist(n int32) (VerTwoData_List, error) {
-	l, err := NewVerTwoData_List(s.Struct.Segment(), n)
+	l, err := NewVerTwoData_List(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return VerTwoData_List{}, err
 	}
-	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
 
@@ -3308,7 +3808,7 @@ type HoldsVerTwoDataList_List = capnp.StructList[HoldsVerTwoDataList]
 // NewHoldsVerTwoDataList creates a new list of HoldsVerTwoDataList.
 func NewHoldsVerTwoDataList_List(s *capnp.Segment, sz int32) (HoldsVerTwoDataList_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[HoldsVerTwoDataList]{List: l}, err
+	return capnp.StructList[HoldsVerTwoDataList](l), err
 }
 
 // HoldsVerTwoDataList_Future is a wrapper for a HoldsVerTwoDataList promised by a client call.
@@ -3316,55 +3816,77 @@ type HoldsVerTwoDataList_Future struct{ *capnp.Future }
 
 func (p HoldsVerTwoDataList_Future) Struct() (HoldsVerTwoDataList, error) {
 	s, err := p.Future.Struct()
-	return HoldsVerTwoDataList{s}, err
+	return HoldsVerTwoDataList(s), err
 }
 
-type HoldsVerOnePtrList struct{ capnp.Struct }
+type HoldsVerOnePtrList capnp.Struct
 
 // HoldsVerOnePtrList_TypeID is the unique identifier for the type HoldsVerOnePtrList.
 const HoldsVerOnePtrList_TypeID = 0xe508a29c83a059f8
 
 func NewHoldsVerOnePtrList(s *capnp.Segment) (HoldsVerOnePtrList, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return HoldsVerOnePtrList{st}, err
+	return HoldsVerOnePtrList(st), err
 }
 
 func NewRootHoldsVerOnePtrList(s *capnp.Segment) (HoldsVerOnePtrList, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return HoldsVerOnePtrList{st}, err
+	return HoldsVerOnePtrList(st), err
 }
 
 func ReadRootHoldsVerOnePtrList(msg *capnp.Message) (HoldsVerOnePtrList, error) {
 	root, err := msg.Root()
-	return HoldsVerOnePtrList{root.Struct()}, err
+	return HoldsVerOnePtrList(root.Struct()), err
 }
 
 func (s HoldsVerOnePtrList) String() string {
-	str, _ := text.Marshal(0xe508a29c83a059f8, s.Struct)
+	str, _ := text.Marshal(0xe508a29c83a059f8, capnp.Struct(s))
 	return str
 }
 
+func (s HoldsVerOnePtrList) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (HoldsVerOnePtrList) DecodeFromPtr(p capnp.Ptr) HoldsVerOnePtrList {
+	return HoldsVerOnePtrList(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s HoldsVerOnePtrList) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s HoldsVerOnePtrList) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s HoldsVerOnePtrList) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s HoldsVerOnePtrList) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s HoldsVerOnePtrList) Mylist() (VerOnePtr_List, error) {
-	p, err := s.Struct.Ptr(0)
-	return VerOnePtr_List{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return VerOnePtr_List(p.List()), err
 }
 
 func (s HoldsVerOnePtrList) HasMylist() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s HoldsVerOnePtrList) SetMylist(v VerOnePtr_List) error {
-	return s.Struct.SetPtr(0, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewMylist sets the mylist field to a newly
 // allocated VerOnePtr_List, preferring placement in s's segment.
 func (s HoldsVerOnePtrList) NewMylist(n int32) (VerOnePtr_List, error) {
-	l, err := NewVerOnePtr_List(s.Struct.Segment(), n)
+	l, err := NewVerOnePtr_List(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return VerOnePtr_List{}, err
 	}
-	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
 
@@ -3374,7 +3896,7 @@ type HoldsVerOnePtrList_List = capnp.StructList[HoldsVerOnePtrList]
 // NewHoldsVerOnePtrList creates a new list of HoldsVerOnePtrList.
 func NewHoldsVerOnePtrList_List(s *capnp.Segment, sz int32) (HoldsVerOnePtrList_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[HoldsVerOnePtrList]{List: l}, err
+	return capnp.StructList[HoldsVerOnePtrList](l), err
 }
 
 // HoldsVerOnePtrList_Future is a wrapper for a HoldsVerOnePtrList promised by a client call.
@@ -3382,55 +3904,77 @@ type HoldsVerOnePtrList_Future struct{ *capnp.Future }
 
 func (p HoldsVerOnePtrList_Future) Struct() (HoldsVerOnePtrList, error) {
 	s, err := p.Future.Struct()
-	return HoldsVerOnePtrList{s}, err
+	return HoldsVerOnePtrList(s), err
 }
 
-type HoldsVerTwoPtrList struct{ capnp.Struct }
+type HoldsVerTwoPtrList capnp.Struct
 
 // HoldsVerTwoPtrList_TypeID is the unique identifier for the type HoldsVerTwoPtrList.
 const HoldsVerTwoPtrList_TypeID = 0xcf9beaca1cc180c8
 
 func NewHoldsVerTwoPtrList(s *capnp.Segment) (HoldsVerTwoPtrList, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return HoldsVerTwoPtrList{st}, err
+	return HoldsVerTwoPtrList(st), err
 }
 
 func NewRootHoldsVerTwoPtrList(s *capnp.Segment) (HoldsVerTwoPtrList, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return HoldsVerTwoPtrList{st}, err
+	return HoldsVerTwoPtrList(st), err
 }
 
 func ReadRootHoldsVerTwoPtrList(msg *capnp.Message) (HoldsVerTwoPtrList, error) {
 	root, err := msg.Root()
-	return HoldsVerTwoPtrList{root.Struct()}, err
+	return HoldsVerTwoPtrList(root.Struct()), err
 }
 
 func (s HoldsVerTwoPtrList) String() string {
-	str, _ := text.Marshal(0xcf9beaca1cc180c8, s.Struct)
+	str, _ := text.Marshal(0xcf9beaca1cc180c8, capnp.Struct(s))
 	return str
 }
 
+func (s HoldsVerTwoPtrList) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (HoldsVerTwoPtrList) DecodeFromPtr(p capnp.Ptr) HoldsVerTwoPtrList {
+	return HoldsVerTwoPtrList(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s HoldsVerTwoPtrList) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s HoldsVerTwoPtrList) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s HoldsVerTwoPtrList) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s HoldsVerTwoPtrList) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s HoldsVerTwoPtrList) Mylist() (VerTwoPtr_List, error) {
-	p, err := s.Struct.Ptr(0)
-	return VerTwoPtr_List{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return VerTwoPtr_List(p.List()), err
 }
 
 func (s HoldsVerTwoPtrList) HasMylist() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s HoldsVerTwoPtrList) SetMylist(v VerTwoPtr_List) error {
-	return s.Struct.SetPtr(0, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewMylist sets the mylist field to a newly
 // allocated VerTwoPtr_List, preferring placement in s's segment.
 func (s HoldsVerTwoPtrList) NewMylist(n int32) (VerTwoPtr_List, error) {
-	l, err := NewVerTwoPtr_List(s.Struct.Segment(), n)
+	l, err := NewVerTwoPtr_List(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return VerTwoPtr_List{}, err
 	}
-	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
 
@@ -3440,7 +3984,7 @@ type HoldsVerTwoPtrList_List = capnp.StructList[HoldsVerTwoPtrList]
 // NewHoldsVerTwoPtrList creates a new list of HoldsVerTwoPtrList.
 func NewHoldsVerTwoPtrList_List(s *capnp.Segment, sz int32) (HoldsVerTwoPtrList_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[HoldsVerTwoPtrList]{List: l}, err
+	return capnp.StructList[HoldsVerTwoPtrList](l), err
 }
 
 // HoldsVerTwoPtrList_Future is a wrapper for a HoldsVerTwoPtrList promised by a client call.
@@ -3448,55 +3992,77 @@ type HoldsVerTwoPtrList_Future struct{ *capnp.Future }
 
 func (p HoldsVerTwoPtrList_Future) Struct() (HoldsVerTwoPtrList, error) {
 	s, err := p.Future.Struct()
-	return HoldsVerTwoPtrList{s}, err
+	return HoldsVerTwoPtrList(s), err
 }
 
-type HoldsVerTwoTwoList struct{ capnp.Struct }
+type HoldsVerTwoTwoList capnp.Struct
 
 // HoldsVerTwoTwoList_TypeID is the unique identifier for the type HoldsVerTwoTwoList.
 const HoldsVerTwoTwoList_TypeID = 0x95befe3f14606e6b
 
 func NewHoldsVerTwoTwoList(s *capnp.Segment) (HoldsVerTwoTwoList, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return HoldsVerTwoTwoList{st}, err
+	return HoldsVerTwoTwoList(st), err
 }
 
 func NewRootHoldsVerTwoTwoList(s *capnp.Segment) (HoldsVerTwoTwoList, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return HoldsVerTwoTwoList{st}, err
+	return HoldsVerTwoTwoList(st), err
 }
 
 func ReadRootHoldsVerTwoTwoList(msg *capnp.Message) (HoldsVerTwoTwoList, error) {
 	root, err := msg.Root()
-	return HoldsVerTwoTwoList{root.Struct()}, err
+	return HoldsVerTwoTwoList(root.Struct()), err
 }
 
 func (s HoldsVerTwoTwoList) String() string {
-	str, _ := text.Marshal(0x95befe3f14606e6b, s.Struct)
+	str, _ := text.Marshal(0x95befe3f14606e6b, capnp.Struct(s))
 	return str
 }
 
+func (s HoldsVerTwoTwoList) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (HoldsVerTwoTwoList) DecodeFromPtr(p capnp.Ptr) HoldsVerTwoTwoList {
+	return HoldsVerTwoTwoList(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s HoldsVerTwoTwoList) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s HoldsVerTwoTwoList) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s HoldsVerTwoTwoList) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s HoldsVerTwoTwoList) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s HoldsVerTwoTwoList) Mylist() (VerTwoDataTwoPtr_List, error) {
-	p, err := s.Struct.Ptr(0)
-	return VerTwoDataTwoPtr_List{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return VerTwoDataTwoPtr_List(p.List()), err
 }
 
 func (s HoldsVerTwoTwoList) HasMylist() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s HoldsVerTwoTwoList) SetMylist(v VerTwoDataTwoPtr_List) error {
-	return s.Struct.SetPtr(0, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewMylist sets the mylist field to a newly
 // allocated VerTwoDataTwoPtr_List, preferring placement in s's segment.
 func (s HoldsVerTwoTwoList) NewMylist(n int32) (VerTwoDataTwoPtr_List, error) {
-	l, err := NewVerTwoDataTwoPtr_List(s.Struct.Segment(), n)
+	l, err := NewVerTwoDataTwoPtr_List(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return VerTwoDataTwoPtr_List{}, err
 	}
-	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
 
@@ -3506,7 +4072,7 @@ type HoldsVerTwoTwoList_List = capnp.StructList[HoldsVerTwoTwoList]
 // NewHoldsVerTwoTwoList creates a new list of HoldsVerTwoTwoList.
 func NewHoldsVerTwoTwoList_List(s *capnp.Segment, sz int32) (HoldsVerTwoTwoList_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[HoldsVerTwoTwoList]{List: l}, err
+	return capnp.StructList[HoldsVerTwoTwoList](l), err
 }
 
 // HoldsVerTwoTwoList_Future is a wrapper for a HoldsVerTwoTwoList promised by a client call.
@@ -3514,55 +4080,77 @@ type HoldsVerTwoTwoList_Future struct{ *capnp.Future }
 
 func (p HoldsVerTwoTwoList_Future) Struct() (HoldsVerTwoTwoList, error) {
 	s, err := p.Future.Struct()
-	return HoldsVerTwoTwoList{s}, err
+	return HoldsVerTwoTwoList(s), err
 }
 
-type HoldsVerTwoTwoPlus struct{ capnp.Struct }
+type HoldsVerTwoTwoPlus capnp.Struct
 
 // HoldsVerTwoTwoPlus_TypeID is the unique identifier for the type HoldsVerTwoTwoPlus.
 const HoldsVerTwoTwoPlus_TypeID = 0x87c33f2330feb3d8
 
 func NewHoldsVerTwoTwoPlus(s *capnp.Segment) (HoldsVerTwoTwoPlus, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return HoldsVerTwoTwoPlus{st}, err
+	return HoldsVerTwoTwoPlus(st), err
 }
 
 func NewRootHoldsVerTwoTwoPlus(s *capnp.Segment) (HoldsVerTwoTwoPlus, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return HoldsVerTwoTwoPlus{st}, err
+	return HoldsVerTwoTwoPlus(st), err
 }
 
 func ReadRootHoldsVerTwoTwoPlus(msg *capnp.Message) (HoldsVerTwoTwoPlus, error) {
 	root, err := msg.Root()
-	return HoldsVerTwoTwoPlus{root.Struct()}, err
+	return HoldsVerTwoTwoPlus(root.Struct()), err
 }
 
 func (s HoldsVerTwoTwoPlus) String() string {
-	str, _ := text.Marshal(0x87c33f2330feb3d8, s.Struct)
+	str, _ := text.Marshal(0x87c33f2330feb3d8, capnp.Struct(s))
 	return str
 }
 
+func (s HoldsVerTwoTwoPlus) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (HoldsVerTwoTwoPlus) DecodeFromPtr(p capnp.Ptr) HoldsVerTwoTwoPlus {
+	return HoldsVerTwoTwoPlus(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s HoldsVerTwoTwoPlus) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s HoldsVerTwoTwoPlus) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s HoldsVerTwoTwoPlus) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s HoldsVerTwoTwoPlus) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s HoldsVerTwoTwoPlus) Mylist() (VerTwoTwoPlus_List, error) {
-	p, err := s.Struct.Ptr(0)
-	return VerTwoTwoPlus_List{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return VerTwoTwoPlus_List(p.List()), err
 }
 
 func (s HoldsVerTwoTwoPlus) HasMylist() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s HoldsVerTwoTwoPlus) SetMylist(v VerTwoTwoPlus_List) error {
-	return s.Struct.SetPtr(0, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewMylist sets the mylist field to a newly
 // allocated VerTwoTwoPlus_List, preferring placement in s's segment.
 func (s HoldsVerTwoTwoPlus) NewMylist(n int32) (VerTwoTwoPlus_List, error) {
-	l, err := NewVerTwoTwoPlus_List(s.Struct.Segment(), n)
+	l, err := NewVerTwoTwoPlus_List(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return VerTwoTwoPlus_List{}, err
 	}
-	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
 
@@ -3572,7 +4160,7 @@ type HoldsVerTwoTwoPlus_List = capnp.StructList[HoldsVerTwoTwoPlus]
 // NewHoldsVerTwoTwoPlus creates a new list of HoldsVerTwoTwoPlus.
 func NewHoldsVerTwoTwoPlus_List(s *capnp.Segment, sz int32) (HoldsVerTwoTwoPlus_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[HoldsVerTwoTwoPlus]{List: l}, err
+	return capnp.StructList[HoldsVerTwoTwoPlus](l), err
 }
 
 // HoldsVerTwoTwoPlus_Future is a wrapper for a HoldsVerTwoTwoPlus promised by a client call.
@@ -3580,127 +4168,149 @@ type HoldsVerTwoTwoPlus_Future struct{ *capnp.Future }
 
 func (p HoldsVerTwoTwoPlus_Future) Struct() (HoldsVerTwoTwoPlus, error) {
 	s, err := p.Future.Struct()
-	return HoldsVerTwoTwoPlus{s}, err
+	return HoldsVerTwoTwoPlus(s), err
 }
 
-type VerTwoTwoPlus struct{ capnp.Struct }
+type VerTwoTwoPlus capnp.Struct
 
 // VerTwoTwoPlus_TypeID is the unique identifier for the type VerTwoTwoPlus.
 const VerTwoTwoPlus_TypeID = 0xce44aee2d9e25049
 
 func NewVerTwoTwoPlus(s *capnp.Segment) (VerTwoTwoPlus, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 3})
-	return VerTwoTwoPlus{st}, err
+	return VerTwoTwoPlus(st), err
 }
 
 func NewRootVerTwoTwoPlus(s *capnp.Segment) (VerTwoTwoPlus, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 3})
-	return VerTwoTwoPlus{st}, err
+	return VerTwoTwoPlus(st), err
 }
 
 func ReadRootVerTwoTwoPlus(msg *capnp.Message) (VerTwoTwoPlus, error) {
 	root, err := msg.Root()
-	return VerTwoTwoPlus{root.Struct()}, err
+	return VerTwoTwoPlus(root.Struct()), err
 }
 
 func (s VerTwoTwoPlus) String() string {
-	str, _ := text.Marshal(0xce44aee2d9e25049, s.Struct)
+	str, _ := text.Marshal(0xce44aee2d9e25049, capnp.Struct(s))
 	return str
 }
 
+func (s VerTwoTwoPlus) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (VerTwoTwoPlus) DecodeFromPtr(p capnp.Ptr) VerTwoTwoPlus {
+	return VerTwoTwoPlus(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s VerTwoTwoPlus) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s VerTwoTwoPlus) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s VerTwoTwoPlus) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s VerTwoTwoPlus) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s VerTwoTwoPlus) Val() int16 {
-	return int16(s.Struct.Uint16(0))
+	return int16(capnp.Struct(s).Uint16(0))
 }
 
 func (s VerTwoTwoPlus) SetVal(v int16) {
-	s.Struct.SetUint16(0, uint16(v))
+	capnp.Struct(s).SetUint16(0, uint16(v))
 }
 
 func (s VerTwoTwoPlus) Duo() int64 {
-	return int64(s.Struct.Uint64(8))
+	return int64(capnp.Struct(s).Uint64(8))
 }
 
 func (s VerTwoTwoPlus) SetDuo(v int64) {
-	s.Struct.SetUint64(8, uint64(v))
+	capnp.Struct(s).SetUint64(8, uint64(v))
 }
 
 func (s VerTwoTwoPlus) Ptr1() (VerTwoDataTwoPtr, error) {
-	p, err := s.Struct.Ptr(0)
-	return VerTwoDataTwoPtr{Struct: p.Struct()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return VerTwoDataTwoPtr(p.Struct()), err
 }
 
 func (s VerTwoTwoPlus) HasPtr1() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s VerTwoTwoPlus) SetPtr1(v VerTwoDataTwoPtr) error {
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+	return capnp.Struct(s).SetPtr(0, capnp.Struct(v).ToPtr())
 }
 
 // NewPtr1 sets the ptr1 field to a newly
 // allocated VerTwoDataTwoPtr struct, preferring placement in s's segment.
 func (s VerTwoTwoPlus) NewPtr1() (VerTwoDataTwoPtr, error) {
-	ss, err := NewVerTwoDataTwoPtr(s.Struct.Segment())
+	ss, err := NewVerTwoDataTwoPtr(capnp.Struct(s).Segment())
 	if err != nil {
 		return VerTwoDataTwoPtr{}, err
 	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, capnp.Struct(ss).ToPtr())
 	return ss, err
 }
 
 func (s VerTwoTwoPlus) Ptr2() (VerTwoDataTwoPtr, error) {
-	p, err := s.Struct.Ptr(1)
-	return VerTwoDataTwoPtr{Struct: p.Struct()}, err
+	p, err := capnp.Struct(s).Ptr(1)
+	return VerTwoDataTwoPtr(p.Struct()), err
 }
 
 func (s VerTwoTwoPlus) HasPtr2() bool {
-	return s.Struct.HasPtr(1)
+	return capnp.Struct(s).HasPtr(1)
 }
 
 func (s VerTwoTwoPlus) SetPtr2(v VerTwoDataTwoPtr) error {
-	return s.Struct.SetPtr(1, v.Struct.ToPtr())
+	return capnp.Struct(s).SetPtr(1, capnp.Struct(v).ToPtr())
 }
 
 // NewPtr2 sets the ptr2 field to a newly
 // allocated VerTwoDataTwoPtr struct, preferring placement in s's segment.
 func (s VerTwoTwoPlus) NewPtr2() (VerTwoDataTwoPtr, error) {
-	ss, err := NewVerTwoDataTwoPtr(s.Struct.Segment())
+	ss, err := NewVerTwoDataTwoPtr(capnp.Struct(s).Segment())
 	if err != nil {
 		return VerTwoDataTwoPtr{}, err
 	}
-	err = s.Struct.SetPtr(1, ss.Struct.ToPtr())
+	err = capnp.Struct(s).SetPtr(1, capnp.Struct(ss).ToPtr())
 	return ss, err
 }
 
 func (s VerTwoTwoPlus) Tre() int64 {
-	return int64(s.Struct.Uint64(16))
+	return int64(capnp.Struct(s).Uint64(16))
 }
 
 func (s VerTwoTwoPlus) SetTre(v int64) {
-	s.Struct.SetUint64(16, uint64(v))
+	capnp.Struct(s).SetUint64(16, uint64(v))
 }
 
 func (s VerTwoTwoPlus) Lst3() (capnp.Int64List, error) {
-	p, err := s.Struct.Ptr(2)
-	return capnp.Int64List{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(2)
+	return capnp.Int64List(p.List()), err
 }
 
 func (s VerTwoTwoPlus) HasLst3() bool {
-	return s.Struct.HasPtr(2)
+	return capnp.Struct(s).HasPtr(2)
 }
 
 func (s VerTwoTwoPlus) SetLst3(v capnp.Int64List) error {
-	return s.Struct.SetPtr(2, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(2, v.ToPtr())
 }
 
 // NewLst3 sets the lst3 field to a newly
 // allocated capnp.Int64List, preferring placement in s's segment.
 func (s VerTwoTwoPlus) NewLst3(n int32) (capnp.Int64List, error) {
-	l, err := capnp.NewInt64List(s.Struct.Segment(), n)
+	l, err := capnp.NewInt64List(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return capnp.Int64List{}, err
 	}
-	err = s.Struct.SetPtr(2, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(2, l.ToPtr())
 	return l, err
 }
 
@@ -3710,7 +4320,7 @@ type VerTwoTwoPlus_List = capnp.StructList[VerTwoTwoPlus]
 // NewVerTwoTwoPlus creates a new list of VerTwoTwoPlus.
 func NewVerTwoTwoPlus_List(s *capnp.Segment, sz int32) (VerTwoTwoPlus_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 24, PointerCount: 3}, sz)
-	return capnp.StructList[VerTwoTwoPlus]{List: l}, err
+	return capnp.StructList[VerTwoTwoPlus](l), err
 }
 
 // VerTwoTwoPlus_Future is a wrapper for a VerTwoTwoPlus promised by a client call.
@@ -3718,7 +4328,7 @@ type VerTwoTwoPlus_Future struct{ *capnp.Future }
 
 func (p VerTwoTwoPlus_Future) Struct() (VerTwoTwoPlus, error) {
 	s, err := p.Future.Struct()
-	return VerTwoTwoPlus{s}, err
+	return VerTwoTwoPlus(s), err
 }
 
 func (p VerTwoTwoPlus_Future) Ptr1() VerTwoDataTwoPtr_Future {
@@ -3729,94 +4339,116 @@ func (p VerTwoTwoPlus_Future) Ptr2() VerTwoDataTwoPtr_Future {
 	return VerTwoDataTwoPtr_Future{Future: p.Future.Field(1, nil)}
 }
 
-type HoldsText struct{ capnp.Struct }
+type HoldsText capnp.Struct
 
 // HoldsText_TypeID is the unique identifier for the type HoldsText.
 const HoldsText_TypeID = 0xe5817f849ff906dc
 
 func NewHoldsText(s *capnp.Segment) (HoldsText, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 3})
-	return HoldsText{st}, err
+	return HoldsText(st), err
 }
 
 func NewRootHoldsText(s *capnp.Segment) (HoldsText, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 3})
-	return HoldsText{st}, err
+	return HoldsText(st), err
 }
 
 func ReadRootHoldsText(msg *capnp.Message) (HoldsText, error) {
 	root, err := msg.Root()
-	return HoldsText{root.Struct()}, err
+	return HoldsText(root.Struct()), err
 }
 
 func (s HoldsText) String() string {
-	str, _ := text.Marshal(0xe5817f849ff906dc, s.Struct)
+	str, _ := text.Marshal(0xe5817f849ff906dc, capnp.Struct(s))
 	return str
 }
 
+func (s HoldsText) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (HoldsText) DecodeFromPtr(p capnp.Ptr) HoldsText {
+	return HoldsText(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s HoldsText) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s HoldsText) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s HoldsText) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s HoldsText) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s HoldsText) Txt() (string, error) {
-	p, err := s.Struct.Ptr(0)
+	p, err := capnp.Struct(s).Ptr(0)
 	return p.Text(), err
 }
 
 func (s HoldsText) HasTxt() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s HoldsText) TxtBytes() ([]byte, error) {
-	p, err := s.Struct.Ptr(0)
+	p, err := capnp.Struct(s).Ptr(0)
 	return p.TextBytes(), err
 }
 
 func (s HoldsText) SetTxt(v string) error {
-	return s.Struct.SetText(0, v)
+	return capnp.Struct(s).SetText(0, v)
 }
 
 func (s HoldsText) Lst() (capnp.TextList, error) {
-	p, err := s.Struct.Ptr(1)
-	return capnp.TextList{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(1)
+	return capnp.TextList(p.List()), err
 }
 
 func (s HoldsText) HasLst() bool {
-	return s.Struct.HasPtr(1)
+	return capnp.Struct(s).HasPtr(1)
 }
 
 func (s HoldsText) SetLst(v capnp.TextList) error {
-	return s.Struct.SetPtr(1, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(1, v.ToPtr())
 }
 
 // NewLst sets the lst field to a newly
 // allocated capnp.TextList, preferring placement in s's segment.
 func (s HoldsText) NewLst(n int32) (capnp.TextList, error) {
-	l, err := capnp.NewTextList(s.Struct.Segment(), n)
+	l, err := capnp.NewTextList(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return capnp.TextList{}, err
 	}
-	err = s.Struct.SetPtr(1, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(1, l.ToPtr())
 	return l, err
 }
 
 func (s HoldsText) Lstlst() (capnp.PointerList, error) {
-	p, err := s.Struct.Ptr(2)
-	return capnp.PointerList{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(2)
+	return capnp.PointerList(p.List()), err
 }
 
 func (s HoldsText) HasLstlst() bool {
-	return s.Struct.HasPtr(2)
+	return capnp.Struct(s).HasPtr(2)
 }
 
 func (s HoldsText) SetLstlst(v capnp.PointerList) error {
-	return s.Struct.SetPtr(2, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(2, v.ToPtr())
 }
 
 // NewLstlst sets the lstlst field to a newly
 // allocated capnp.PointerList, preferring placement in s's segment.
 func (s HoldsText) NewLstlst(n int32) (capnp.PointerList, error) {
-	l, err := capnp.NewPointerList(s.Struct.Segment(), n)
+	l, err := capnp.NewPointerList(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return capnp.PointerList{}, err
 	}
-	err = s.Struct.SetPtr(2, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(2, l.ToPtr())
 	return l, err
 }
 
@@ -3826,7 +4458,7 @@ type HoldsText_List = capnp.StructList[HoldsText]
 // NewHoldsText creates a new list of HoldsText.
 func NewHoldsText_List(s *capnp.Segment, sz int32) (HoldsText_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 3}, sz)
-	return capnp.StructList[HoldsText]{List: l}, err
+	return capnp.StructList[HoldsText](l), err
 }
 
 // HoldsText_Future is a wrapper for a HoldsText promised by a client call.
@@ -3834,55 +4466,77 @@ type HoldsText_Future struct{ *capnp.Future }
 
 func (p HoldsText_Future) Struct() (HoldsText, error) {
 	s, err := p.Future.Struct()
-	return HoldsText{s}, err
+	return HoldsText(s), err
 }
 
-type WrapEmpty struct{ capnp.Struct }
+type WrapEmpty capnp.Struct
 
 // WrapEmpty_TypeID is the unique identifier for the type WrapEmpty.
 const WrapEmpty_TypeID = 0x9ab599979b02ac59
 
 func NewWrapEmpty(s *capnp.Segment) (WrapEmpty, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return WrapEmpty{st}, err
+	return WrapEmpty(st), err
 }
 
 func NewRootWrapEmpty(s *capnp.Segment) (WrapEmpty, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return WrapEmpty{st}, err
+	return WrapEmpty(st), err
 }
 
 func ReadRootWrapEmpty(msg *capnp.Message) (WrapEmpty, error) {
 	root, err := msg.Root()
-	return WrapEmpty{root.Struct()}, err
+	return WrapEmpty(root.Struct()), err
 }
 
 func (s WrapEmpty) String() string {
-	str, _ := text.Marshal(0x9ab599979b02ac59, s.Struct)
+	str, _ := text.Marshal(0x9ab599979b02ac59, capnp.Struct(s))
 	return str
 }
 
+func (s WrapEmpty) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (WrapEmpty) DecodeFromPtr(p capnp.Ptr) WrapEmpty {
+	return WrapEmpty(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s WrapEmpty) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s WrapEmpty) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s WrapEmpty) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s WrapEmpty) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s WrapEmpty) MightNotBeReallyEmpty() (VerEmpty, error) {
-	p, err := s.Struct.Ptr(0)
-	return VerEmpty{Struct: p.Struct()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return VerEmpty(p.Struct()), err
 }
 
 func (s WrapEmpty) HasMightNotBeReallyEmpty() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s WrapEmpty) SetMightNotBeReallyEmpty(v VerEmpty) error {
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+	return capnp.Struct(s).SetPtr(0, capnp.Struct(v).ToPtr())
 }
 
 // NewMightNotBeReallyEmpty sets the mightNotBeReallyEmpty field to a newly
 // allocated VerEmpty struct, preferring placement in s's segment.
 func (s WrapEmpty) NewMightNotBeReallyEmpty() (VerEmpty, error) {
-	ss, err := NewVerEmpty(s.Struct.Segment())
+	ss, err := NewVerEmpty(capnp.Struct(s).Segment())
 	if err != nil {
 		return VerEmpty{}, err
 	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, capnp.Struct(ss).ToPtr())
 	return ss, err
 }
 
@@ -3892,7 +4546,7 @@ type WrapEmpty_List = capnp.StructList[WrapEmpty]
 // NewWrapEmpty creates a new list of WrapEmpty.
 func NewWrapEmpty_List(s *capnp.Segment, sz int32) (WrapEmpty_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[WrapEmpty]{List: l}, err
+	return capnp.StructList[WrapEmpty](l), err
 }
 
 // WrapEmpty_Future is a wrapper for a WrapEmpty promised by a client call.
@@ -3900,59 +4554,81 @@ type WrapEmpty_Future struct{ *capnp.Future }
 
 func (p WrapEmpty_Future) Struct() (WrapEmpty, error) {
 	s, err := p.Future.Struct()
-	return WrapEmpty{s}, err
+	return WrapEmpty(s), err
 }
 
 func (p WrapEmpty_Future) MightNotBeReallyEmpty() VerEmpty_Future {
 	return VerEmpty_Future{Future: p.Future.Field(0, nil)}
 }
 
-type Wrap2x2 struct{ capnp.Struct }
+type Wrap2x2 capnp.Struct
 
 // Wrap2x2_TypeID is the unique identifier for the type Wrap2x2.
 const Wrap2x2_TypeID = 0xe1a2d1d51107bead
 
 func NewWrap2x2(s *capnp.Segment) (Wrap2x2, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return Wrap2x2{st}, err
+	return Wrap2x2(st), err
 }
 
 func NewRootWrap2x2(s *capnp.Segment) (Wrap2x2, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return Wrap2x2{st}, err
+	return Wrap2x2(st), err
 }
 
 func ReadRootWrap2x2(msg *capnp.Message) (Wrap2x2, error) {
 	root, err := msg.Root()
-	return Wrap2x2{root.Struct()}, err
+	return Wrap2x2(root.Struct()), err
 }
 
 func (s Wrap2x2) String() string {
-	str, _ := text.Marshal(0xe1a2d1d51107bead, s.Struct)
+	str, _ := text.Marshal(0xe1a2d1d51107bead, capnp.Struct(s))
 	return str
 }
 
+func (s Wrap2x2) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (Wrap2x2) DecodeFromPtr(p capnp.Ptr) Wrap2x2 {
+	return Wrap2x2(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s Wrap2x2) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s Wrap2x2) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s Wrap2x2) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s Wrap2x2) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s Wrap2x2) MightNotBeReallyEmpty() (VerTwoDataTwoPtr, error) {
-	p, err := s.Struct.Ptr(0)
-	return VerTwoDataTwoPtr{Struct: p.Struct()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return VerTwoDataTwoPtr(p.Struct()), err
 }
 
 func (s Wrap2x2) HasMightNotBeReallyEmpty() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Wrap2x2) SetMightNotBeReallyEmpty(v VerTwoDataTwoPtr) error {
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+	return capnp.Struct(s).SetPtr(0, capnp.Struct(v).ToPtr())
 }
 
 // NewMightNotBeReallyEmpty sets the mightNotBeReallyEmpty field to a newly
 // allocated VerTwoDataTwoPtr struct, preferring placement in s's segment.
 func (s Wrap2x2) NewMightNotBeReallyEmpty() (VerTwoDataTwoPtr, error) {
-	ss, err := NewVerTwoDataTwoPtr(s.Struct.Segment())
+	ss, err := NewVerTwoDataTwoPtr(capnp.Struct(s).Segment())
 	if err != nil {
 		return VerTwoDataTwoPtr{}, err
 	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, capnp.Struct(ss).ToPtr())
 	return ss, err
 }
 
@@ -3962,7 +4638,7 @@ type Wrap2x2_List = capnp.StructList[Wrap2x2]
 // NewWrap2x2 creates a new list of Wrap2x2.
 func NewWrap2x2_List(s *capnp.Segment, sz int32) (Wrap2x2_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[Wrap2x2]{List: l}, err
+	return capnp.StructList[Wrap2x2](l), err
 }
 
 // Wrap2x2_Future is a wrapper for a Wrap2x2 promised by a client call.
@@ -3970,59 +4646,81 @@ type Wrap2x2_Future struct{ *capnp.Future }
 
 func (p Wrap2x2_Future) Struct() (Wrap2x2, error) {
 	s, err := p.Future.Struct()
-	return Wrap2x2{s}, err
+	return Wrap2x2(s), err
 }
 
 func (p Wrap2x2_Future) MightNotBeReallyEmpty() VerTwoDataTwoPtr_Future {
 	return VerTwoDataTwoPtr_Future{Future: p.Future.Field(0, nil)}
 }
 
-type Wrap2x2plus struct{ capnp.Struct }
+type Wrap2x2plus capnp.Struct
 
 // Wrap2x2plus_TypeID is the unique identifier for the type Wrap2x2plus.
 const Wrap2x2plus_TypeID = 0xe684eb3aef1a6859
 
 func NewWrap2x2plus(s *capnp.Segment) (Wrap2x2plus, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return Wrap2x2plus{st}, err
+	return Wrap2x2plus(st), err
 }
 
 func NewRootWrap2x2plus(s *capnp.Segment) (Wrap2x2plus, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return Wrap2x2plus{st}, err
+	return Wrap2x2plus(st), err
 }
 
 func ReadRootWrap2x2plus(msg *capnp.Message) (Wrap2x2plus, error) {
 	root, err := msg.Root()
-	return Wrap2x2plus{root.Struct()}, err
+	return Wrap2x2plus(root.Struct()), err
 }
 
 func (s Wrap2x2plus) String() string {
-	str, _ := text.Marshal(0xe684eb3aef1a6859, s.Struct)
+	str, _ := text.Marshal(0xe684eb3aef1a6859, capnp.Struct(s))
 	return str
 }
 
+func (s Wrap2x2plus) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (Wrap2x2plus) DecodeFromPtr(p capnp.Ptr) Wrap2x2plus {
+	return Wrap2x2plus(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s Wrap2x2plus) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s Wrap2x2plus) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s Wrap2x2plus) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s Wrap2x2plus) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s Wrap2x2plus) MightNotBeReallyEmpty() (VerTwoTwoPlus, error) {
-	p, err := s.Struct.Ptr(0)
-	return VerTwoTwoPlus{Struct: p.Struct()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return VerTwoTwoPlus(p.Struct()), err
 }
 
 func (s Wrap2x2plus) HasMightNotBeReallyEmpty() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Wrap2x2plus) SetMightNotBeReallyEmpty(v VerTwoTwoPlus) error {
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+	return capnp.Struct(s).SetPtr(0, capnp.Struct(v).ToPtr())
 }
 
 // NewMightNotBeReallyEmpty sets the mightNotBeReallyEmpty field to a newly
 // allocated VerTwoTwoPlus struct, preferring placement in s's segment.
 func (s Wrap2x2plus) NewMightNotBeReallyEmpty() (VerTwoTwoPlus, error) {
-	ss, err := NewVerTwoTwoPlus(s.Struct.Segment())
+	ss, err := NewVerTwoTwoPlus(capnp.Struct(s).Segment())
 	if err != nil {
 		return VerTwoTwoPlus{}, err
 	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, capnp.Struct(ss).ToPtr())
 	return ss, err
 }
 
@@ -4032,7 +4730,7 @@ type Wrap2x2plus_List = capnp.StructList[Wrap2x2plus]
 // NewWrap2x2plus creates a new list of Wrap2x2plus.
 func NewWrap2x2plus_List(s *capnp.Segment, sz int32) (Wrap2x2plus_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[Wrap2x2plus]{List: l}, err
+	return capnp.StructList[Wrap2x2plus](l), err
 }
 
 // Wrap2x2plus_Future is a wrapper for a Wrap2x2plus promised by a client call.
@@ -4040,14 +4738,14 @@ type Wrap2x2plus_Future struct{ *capnp.Future }
 
 func (p Wrap2x2plus_Future) Struct() (Wrap2x2plus, error) {
 	s, err := p.Future.Struct()
-	return Wrap2x2plus{s}, err
+	return Wrap2x2plus(s), err
 }
 
 func (p Wrap2x2plus_Future) MightNotBeReallyEmpty() VerTwoTwoPlus_Future {
 	return VerTwoTwoPlus_Future{Future: p.Future.Field(0, nil)}
 }
 
-type VoidUnion struct{ capnp.Struct }
+type VoidUnion capnp.Struct
 type VoidUnion_Which uint16
 
 const (
@@ -4072,34 +4770,57 @@ const VoidUnion_TypeID = 0x8821cdb23640783a
 
 func NewVoidUnion(s *capnp.Segment) (VoidUnion, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	return VoidUnion{st}, err
+	return VoidUnion(st), err
 }
 
 func NewRootVoidUnion(s *capnp.Segment) (VoidUnion, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	return VoidUnion{st}, err
+	return VoidUnion(st), err
 }
 
 func ReadRootVoidUnion(msg *capnp.Message) (VoidUnion, error) {
 	root, err := msg.Root()
-	return VoidUnion{root.Struct()}, err
+	return VoidUnion(root.Struct()), err
 }
 
 func (s VoidUnion) String() string {
-	str, _ := text.Marshal(0x8821cdb23640783a, s.Struct)
+	str, _ := text.Marshal(0x8821cdb23640783a, capnp.Struct(s))
 	return str
 }
 
+func (s VoidUnion) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (VoidUnion) DecodeFromPtr(p capnp.Ptr) VoidUnion {
+	return VoidUnion(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s VoidUnion) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+
 func (s VoidUnion) Which() VoidUnion_Which {
-	return VoidUnion_Which(s.Struct.Uint16(0))
+	return VoidUnion_Which(capnp.Struct(s).Uint16(0))
+}
+func (s VoidUnion) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s VoidUnion) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s VoidUnion) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
 }
 func (s VoidUnion) SetA() {
-	s.Struct.SetUint16(0, 0)
+	capnp.Struct(s).SetUint16(0, 0)
 
 }
 
 func (s VoidUnion) SetB() {
-	s.Struct.SetUint16(0, 1)
+	capnp.Struct(s).SetUint16(0, 1)
 
 }
 
@@ -4109,7 +4830,7 @@ type VoidUnion_List = capnp.StructList[VoidUnion]
 // NewVoidUnion creates a new list of VoidUnion.
 func NewVoidUnion_List(s *capnp.Segment, sz int32) (VoidUnion_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	return capnp.StructList[VoidUnion]{List: l}, err
+	return capnp.StructList[VoidUnion](l), err
 }
 
 // VoidUnion_Future is a wrapper for a VoidUnion promised by a client call.
@@ -4117,55 +4838,77 @@ type VoidUnion_Future struct{ *capnp.Future }
 
 func (p VoidUnion_Future) Struct() (VoidUnion, error) {
 	s, err := p.Future.Struct()
-	return VoidUnion{s}, err
+	return VoidUnion(s), err
 }
 
-type Nester1Capn struct{ capnp.Struct }
+type Nester1Capn capnp.Struct
 
 // Nester1Capn_TypeID is the unique identifier for the type Nester1Capn.
 const Nester1Capn_TypeID = 0xf14fad09425d081c
 
 func NewNester1Capn(s *capnp.Segment) (Nester1Capn, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return Nester1Capn{st}, err
+	return Nester1Capn(st), err
 }
 
 func NewRootNester1Capn(s *capnp.Segment) (Nester1Capn, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return Nester1Capn{st}, err
+	return Nester1Capn(st), err
 }
 
 func ReadRootNester1Capn(msg *capnp.Message) (Nester1Capn, error) {
 	root, err := msg.Root()
-	return Nester1Capn{root.Struct()}, err
+	return Nester1Capn(root.Struct()), err
 }
 
 func (s Nester1Capn) String() string {
-	str, _ := text.Marshal(0xf14fad09425d081c, s.Struct)
+	str, _ := text.Marshal(0xf14fad09425d081c, capnp.Struct(s))
 	return str
 }
 
+func (s Nester1Capn) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (Nester1Capn) DecodeFromPtr(p capnp.Ptr) Nester1Capn {
+	return Nester1Capn(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s Nester1Capn) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s Nester1Capn) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s Nester1Capn) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s Nester1Capn) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s Nester1Capn) Strs() (capnp.TextList, error) {
-	p, err := s.Struct.Ptr(0)
-	return capnp.TextList{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return capnp.TextList(p.List()), err
 }
 
 func (s Nester1Capn) HasStrs() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Nester1Capn) SetStrs(v capnp.TextList) error {
-	return s.Struct.SetPtr(0, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewStrs sets the strs field to a newly
 // allocated capnp.TextList, preferring placement in s's segment.
 func (s Nester1Capn) NewStrs(n int32) (capnp.TextList, error) {
-	l, err := capnp.NewTextList(s.Struct.Segment(), n)
+	l, err := capnp.NewTextList(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return capnp.TextList{}, err
 	}
-	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
 
@@ -4175,7 +4918,7 @@ type Nester1Capn_List = capnp.StructList[Nester1Capn]
 // NewNester1Capn creates a new list of Nester1Capn.
 func NewNester1Capn_List(s *capnp.Segment, sz int32) (Nester1Capn_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[Nester1Capn]{List: l}, err
+	return capnp.StructList[Nester1Capn](l), err
 }
 
 // Nester1Capn_Future is a wrapper for a Nester1Capn promised by a client call.
@@ -4183,55 +4926,77 @@ type Nester1Capn_Future struct{ *capnp.Future }
 
 func (p Nester1Capn_Future) Struct() (Nester1Capn, error) {
 	s, err := p.Future.Struct()
-	return Nester1Capn{s}, err
+	return Nester1Capn(s), err
 }
 
-type RWTestCapn struct{ capnp.Struct }
+type RWTestCapn capnp.Struct
 
 // RWTestCapn_TypeID is the unique identifier for the type RWTestCapn.
 const RWTestCapn_TypeID = 0xf7ff4414476c186a
 
 func NewRWTestCapn(s *capnp.Segment) (RWTestCapn, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return RWTestCapn{st}, err
+	return RWTestCapn(st), err
 }
 
 func NewRootRWTestCapn(s *capnp.Segment) (RWTestCapn, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return RWTestCapn{st}, err
+	return RWTestCapn(st), err
 }
 
 func ReadRootRWTestCapn(msg *capnp.Message) (RWTestCapn, error) {
 	root, err := msg.Root()
-	return RWTestCapn{root.Struct()}, err
+	return RWTestCapn(root.Struct()), err
 }
 
 func (s RWTestCapn) String() string {
-	str, _ := text.Marshal(0xf7ff4414476c186a, s.Struct)
+	str, _ := text.Marshal(0xf7ff4414476c186a, capnp.Struct(s))
 	return str
 }
 
+func (s RWTestCapn) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (RWTestCapn) DecodeFromPtr(p capnp.Ptr) RWTestCapn {
+	return RWTestCapn(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s RWTestCapn) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s RWTestCapn) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s RWTestCapn) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s RWTestCapn) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s RWTestCapn) NestMatrix() (capnp.PointerList, error) {
-	p, err := s.Struct.Ptr(0)
-	return capnp.PointerList{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return capnp.PointerList(p.List()), err
 }
 
 func (s RWTestCapn) HasNestMatrix() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s RWTestCapn) SetNestMatrix(v capnp.PointerList) error {
-	return s.Struct.SetPtr(0, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewNestMatrix sets the nestMatrix field to a newly
 // allocated capnp.PointerList, preferring placement in s's segment.
 func (s RWTestCapn) NewNestMatrix(n int32) (capnp.PointerList, error) {
-	l, err := capnp.NewPointerList(s.Struct.Segment(), n)
+	l, err := capnp.NewPointerList(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return capnp.PointerList{}, err
 	}
-	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
 
@@ -4241,7 +5006,7 @@ type RWTestCapn_List = capnp.StructList[RWTestCapn]
 // NewRWTestCapn creates a new list of RWTestCapn.
 func NewRWTestCapn_List(s *capnp.Segment, sz int32) (RWTestCapn_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[RWTestCapn]{List: l}, err
+	return capnp.StructList[RWTestCapn](l), err
 }
 
 // RWTestCapn_Future is a wrapper for a RWTestCapn promised by a client call.
@@ -4249,55 +5014,77 @@ type RWTestCapn_Future struct{ *capnp.Future }
 
 func (p RWTestCapn_Future) Struct() (RWTestCapn, error) {
 	s, err := p.Future.Struct()
-	return RWTestCapn{s}, err
+	return RWTestCapn(s), err
 }
 
-type ListStructCapn struct{ capnp.Struct }
+type ListStructCapn capnp.Struct
 
 // ListStructCapn_TypeID is the unique identifier for the type ListStructCapn.
 const ListStructCapn_TypeID = 0xb1ac056ed7647011
 
 func NewListStructCapn(s *capnp.Segment) (ListStructCapn, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return ListStructCapn{st}, err
+	return ListStructCapn(st), err
 }
 
 func NewRootListStructCapn(s *capnp.Segment) (ListStructCapn, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return ListStructCapn{st}, err
+	return ListStructCapn(st), err
 }
 
 func ReadRootListStructCapn(msg *capnp.Message) (ListStructCapn, error) {
 	root, err := msg.Root()
-	return ListStructCapn{root.Struct()}, err
+	return ListStructCapn(root.Struct()), err
 }
 
 func (s ListStructCapn) String() string {
-	str, _ := text.Marshal(0xb1ac056ed7647011, s.Struct)
+	str, _ := text.Marshal(0xb1ac056ed7647011, capnp.Struct(s))
 	return str
 }
 
+func (s ListStructCapn) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (ListStructCapn) DecodeFromPtr(p capnp.Ptr) ListStructCapn {
+	return ListStructCapn(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s ListStructCapn) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s ListStructCapn) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s ListStructCapn) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s ListStructCapn) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s ListStructCapn) Vec() (Nester1Capn_List, error) {
-	p, err := s.Struct.Ptr(0)
-	return Nester1Capn_List{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return Nester1Capn_List(p.List()), err
 }
 
 func (s ListStructCapn) HasVec() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s ListStructCapn) SetVec(v Nester1Capn_List) error {
-	return s.Struct.SetPtr(0, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewVec sets the vec field to a newly
 // allocated Nester1Capn_List, preferring placement in s's segment.
 func (s ListStructCapn) NewVec(n int32) (Nester1Capn_List, error) {
-	l, err := NewNester1Capn_List(s.Struct.Segment(), n)
+	l, err := NewNester1Capn_List(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return Nester1Capn_List{}, err
 	}
-	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
 
@@ -4307,7 +5094,7 @@ type ListStructCapn_List = capnp.StructList[ListStructCapn]
 // NewListStructCapn creates a new list of ListStructCapn.
 func NewListStructCapn_List(s *capnp.Segment, sz int32) (ListStructCapn_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[ListStructCapn]{List: l}, err
+	return capnp.StructList[ListStructCapn](l), err
 }
 
 // ListStructCapn_Future is a wrapper for a ListStructCapn promised by a client call.
@@ -4315,10 +5102,10 @@ type ListStructCapn_Future struct{ *capnp.Future }
 
 func (p ListStructCapn_Future) Struct() (ListStructCapn, error) {
 	s, err := p.Future.Struct()
-	return ListStructCapn{s}, err
+	return ListStructCapn(s), err
 }
 
-type Echo struct{ Client capnp.Client }
+type Echo capnp.Client
 
 // Echo_TypeID is the unique identifier for the type Echo.
 const Echo_TypeID = 0x8e5322c1e9282534
@@ -4334,37 +5121,92 @@ func (c Echo) Echo(ctx context.Context, params func(Echo_echo_Params) error) (Ec
 	}
 	if params != nil {
 		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 1}
-		s.PlaceArgs = func(s capnp.Struct) error { return params(Echo_echo_Params{Struct: s}) }
+		s.PlaceArgs = func(s capnp.Struct) error { return params(Echo_echo_Params(s)) }
 	}
-	ans, release := c.Client.SendCall(ctx, s)
+	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return Echo_echo_Results_Future{Future: ans.Future()}, release
 }
 
+// String returns a string that identifies this capability for debugging
+// purposes.  Its format should not be depended on: in particular, it
+// should not be used to compare clients.  Use IsSame to compare clients
+// for equality.
+func (c Echo) String() string {
+	return fmt.Sprintf("%T(%v)", c, capnp.Client(c))
+}
+
+// AddRef creates a new Client that refers to the same capability as c.
+// If c is nil or has resolved to null, then AddRef returns nil.
 func (c Echo) AddRef() Echo {
-	return Echo{
-		Client: c.Client.AddRef(),
-	}
+	return Echo(capnp.Client(c).AddRef())
 }
 
+// Release releases a capability reference.  If this is the last
+// reference to the capability, then the underlying resources associated
+// with the capability will be released.
+//
+// Release will panic if c has already been released, but not if c is
+// nil or resolved to null.
 func (c Echo) Release() {
-	c.Client.Release()
+	capnp.Client(c).Release()
 }
 
-// A Echo_Server is a Echo with a local implementation.
+// Resolve blocks until the capability is fully resolved or the Context
+// expires.
+func (c Echo) Resolve(ctx context.Context) error {
+	return capnp.Client(c).Resolve(ctx)
+}
+
+func (c Echo) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Client(c).EncodeAsPtr(seg)
+}
+
+func (Echo) DecodeFromPtr(p capnp.Ptr) Echo {
+	return Echo(capnp.Client{}.DecodeFromPtr(p))
+}
+
+// IsValid reports whether c is a valid reference to a capability.
+// A reference is invalid if it is nil, has resolved to null, or has
+// been released.
+func (c Echo) IsValid() bool {
+	return capnp.Client(c).IsValid()
+}
+
+// IsSame reports whether c and other refer to a capability created by the
+// same call to NewClient.  This can return false negatives if c or other
+// are not fully resolved: use Resolve if this is an issue.  If either
+// c or other are released, then IsSame panics.
+func (c Echo) IsSame(other Echo) bool {
+	return capnp.Client(c).IsSame(capnp.Client(other))
+}
+
+// Update the flowcontrol.FlowLimiter used to manage flow control for
+// this client. This affects all future calls, but not calls already
+// waiting to send. Passing nil sets the value to flowcontrol.NopLimiter,
+// which is also the default.
+func (c Echo) SetFlowLimiter(lim fc.FlowLimiter) {
+	capnp.Client(c).SetFlowLimiter(lim)
+}
+
+// Get the current flowcontrol.FlowLimiter used to manage flow control
+// for this client.
+func (c Echo) GetFlowLimiter() fc.FlowLimiter {
+	return capnp.Client(c).GetFlowLimiter()
+} // A Echo_Server is a Echo with a local implementation.
 type Echo_Server interface {
 	Echo(context.Context, Echo_echo) error
 }
 
 // Echo_NewServer creates a new Server from an implementation of Echo_Server.
-func Echo_NewServer(s Echo_Server, policy *server.Policy) *server.Server {
+func Echo_NewServer(s Echo_Server) *server.Server {
 	c, _ := s.(server.Shutdowner)
-	return server.New(Echo_Methods(nil, s), s, c, policy)
+	return server.New(Echo_Methods(nil, s), s, c)
 }
 
 // Echo_ServerToClient creates a new Client from an implementation of Echo_Server.
 // The caller is responsible for calling Release on the returned Client.
-func Echo_ServerToClient(s Echo_Server, policy *server.Policy) Echo {
-	return Echo{Client: capnp.NewClient(Echo_NewServer(s, policy))}
+func Echo_ServerToClient(s Echo_Server) Echo {
+	return Echo(capnp.NewClient(Echo_NewServer(s)))
 }
 
 // Echo_Methods appends Methods to a slice that invoke the methods on s.
@@ -4397,13 +5239,13 @@ type Echo_echo struct {
 
 // Args returns the call's arguments.
 func (c Echo_echo) Args() Echo_echo_Params {
-	return Echo_echo_Params{Struct: c.Call.Args()}
+	return Echo_echo_Params(c.Call.Args())
 }
 
 // AllocResults allocates the results struct.
 func (c Echo_echo) AllocResults() (Echo_echo_Results, error) {
 	r, err := c.Call.AllocResults(capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return Echo_echo_Results{Struct: r}, err
+	return Echo_echo_Results(r), err
 }
 
 // Echo_List is a list of Echo.
@@ -4415,47 +5257,69 @@ func NewEcho_List(s *capnp.Segment, sz int32) (Echo_List, error) {
 	return capnp.CapList[Echo](l), err
 }
 
-type Echo_echo_Params struct{ capnp.Struct }
+type Echo_echo_Params capnp.Struct
 
 // Echo_echo_Params_TypeID is the unique identifier for the type Echo_echo_Params.
 const Echo_echo_Params_TypeID = 0x8a165fb4d71bf3a2
 
 func NewEcho_echo_Params(s *capnp.Segment) (Echo_echo_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return Echo_echo_Params{st}, err
+	return Echo_echo_Params(st), err
 }
 
 func NewRootEcho_echo_Params(s *capnp.Segment) (Echo_echo_Params, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return Echo_echo_Params{st}, err
+	return Echo_echo_Params(st), err
 }
 
 func ReadRootEcho_echo_Params(msg *capnp.Message) (Echo_echo_Params, error) {
 	root, err := msg.Root()
-	return Echo_echo_Params{root.Struct()}, err
+	return Echo_echo_Params(root.Struct()), err
 }
 
 func (s Echo_echo_Params) String() string {
-	str, _ := text.Marshal(0x8a165fb4d71bf3a2, s.Struct)
+	str, _ := text.Marshal(0x8a165fb4d71bf3a2, capnp.Struct(s))
 	return str
 }
 
+func (s Echo_echo_Params) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (Echo_echo_Params) DecodeFromPtr(p capnp.Ptr) Echo_echo_Params {
+	return Echo_echo_Params(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s Echo_echo_Params) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s Echo_echo_Params) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s Echo_echo_Params) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s Echo_echo_Params) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s Echo_echo_Params) In() (string, error) {
-	p, err := s.Struct.Ptr(0)
+	p, err := capnp.Struct(s).Ptr(0)
 	return p.Text(), err
 }
 
 func (s Echo_echo_Params) HasIn() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Echo_echo_Params) InBytes() ([]byte, error) {
-	p, err := s.Struct.Ptr(0)
+	p, err := capnp.Struct(s).Ptr(0)
 	return p.TextBytes(), err
 }
 
 func (s Echo_echo_Params) SetIn(v string) error {
-	return s.Struct.SetText(0, v)
+	return capnp.Struct(s).SetText(0, v)
 }
 
 // Echo_echo_Params_List is a list of Echo_echo_Params.
@@ -4464,7 +5328,7 @@ type Echo_echo_Params_List = capnp.StructList[Echo_echo_Params]
 // NewEcho_echo_Params creates a new list of Echo_echo_Params.
 func NewEcho_echo_Params_List(s *capnp.Segment, sz int32) (Echo_echo_Params_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[Echo_echo_Params]{List: l}, err
+	return capnp.StructList[Echo_echo_Params](l), err
 }
 
 // Echo_echo_Params_Future is a wrapper for a Echo_echo_Params promised by a client call.
@@ -4472,50 +5336,72 @@ type Echo_echo_Params_Future struct{ *capnp.Future }
 
 func (p Echo_echo_Params_Future) Struct() (Echo_echo_Params, error) {
 	s, err := p.Future.Struct()
-	return Echo_echo_Params{s}, err
+	return Echo_echo_Params(s), err
 }
 
-type Echo_echo_Results struct{ capnp.Struct }
+type Echo_echo_Results capnp.Struct
 
 // Echo_echo_Results_TypeID is the unique identifier for the type Echo_echo_Results.
 const Echo_echo_Results_TypeID = 0x9b37d729b9dd7b9d
 
 func NewEcho_echo_Results(s *capnp.Segment) (Echo_echo_Results, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return Echo_echo_Results{st}, err
+	return Echo_echo_Results(st), err
 }
 
 func NewRootEcho_echo_Results(s *capnp.Segment) (Echo_echo_Results, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return Echo_echo_Results{st}, err
+	return Echo_echo_Results(st), err
 }
 
 func ReadRootEcho_echo_Results(msg *capnp.Message) (Echo_echo_Results, error) {
 	root, err := msg.Root()
-	return Echo_echo_Results{root.Struct()}, err
+	return Echo_echo_Results(root.Struct()), err
 }
 
 func (s Echo_echo_Results) String() string {
-	str, _ := text.Marshal(0x9b37d729b9dd7b9d, s.Struct)
+	str, _ := text.Marshal(0x9b37d729b9dd7b9d, capnp.Struct(s))
 	return str
 }
 
+func (s Echo_echo_Results) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (Echo_echo_Results) DecodeFromPtr(p capnp.Ptr) Echo_echo_Results {
+	return Echo_echo_Results(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s Echo_echo_Results) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s Echo_echo_Results) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s Echo_echo_Results) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s Echo_echo_Results) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s Echo_echo_Results) Out() (string, error) {
-	p, err := s.Struct.Ptr(0)
+	p, err := capnp.Struct(s).Ptr(0)
 	return p.Text(), err
 }
 
 func (s Echo_echo_Results) HasOut() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Echo_echo_Results) OutBytes() ([]byte, error) {
-	p, err := s.Struct.Ptr(0)
+	p, err := capnp.Struct(s).Ptr(0)
 	return p.TextBytes(), err
 }
 
 func (s Echo_echo_Results) SetOut(v string) error {
-	return s.Struct.SetText(0, v)
+	return capnp.Struct(s).SetText(0, v)
 }
 
 // Echo_echo_Results_List is a list of Echo_echo_Results.
@@ -4524,7 +5410,7 @@ type Echo_echo_Results_List = capnp.StructList[Echo_echo_Results]
 // NewEcho_echo_Results creates a new list of Echo_echo_Results.
 func NewEcho_echo_Results_List(s *capnp.Segment, sz int32) (Echo_echo_Results_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[Echo_echo_Results]{List: l}, err
+	return capnp.StructList[Echo_echo_Results](l), err
 }
 
 // Echo_echo_Results_Future is a wrapper for a Echo_echo_Results promised by a client call.
@@ -4532,55 +5418,77 @@ type Echo_echo_Results_Future struct{ *capnp.Future }
 
 func (p Echo_echo_Results_Future) Struct() (Echo_echo_Results, error) {
 	s, err := p.Future.Struct()
-	return Echo_echo_Results{s}, err
+	return Echo_echo_Results(s), err
 }
 
-type Hoth struct{ capnp.Struct }
+type Hoth capnp.Struct
 
 // Hoth_TypeID is the unique identifier for the type Hoth.
 const Hoth_TypeID = 0xad87da456fb0ebb9
 
 func NewHoth(s *capnp.Segment) (Hoth, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return Hoth{st}, err
+	return Hoth(st), err
 }
 
 func NewRootHoth(s *capnp.Segment) (Hoth, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return Hoth{st}, err
+	return Hoth(st), err
 }
 
 func ReadRootHoth(msg *capnp.Message) (Hoth, error) {
 	root, err := msg.Root()
-	return Hoth{root.Struct()}, err
+	return Hoth(root.Struct()), err
 }
 
 func (s Hoth) String() string {
-	str, _ := text.Marshal(0xad87da456fb0ebb9, s.Struct)
+	str, _ := text.Marshal(0xad87da456fb0ebb9, capnp.Struct(s))
 	return str
 }
 
+func (s Hoth) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (Hoth) DecodeFromPtr(p capnp.Ptr) Hoth {
+	return Hoth(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s Hoth) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s Hoth) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s Hoth) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s Hoth) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s Hoth) Base() (EchoBase, error) {
-	p, err := s.Struct.Ptr(0)
-	return EchoBase{Struct: p.Struct()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return EchoBase(p.Struct()), err
 }
 
 func (s Hoth) HasBase() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Hoth) SetBase(v EchoBase) error {
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+	return capnp.Struct(s).SetPtr(0, capnp.Struct(v).ToPtr())
 }
 
 // NewBase sets the base field to a newly
 // allocated EchoBase struct, preferring placement in s's segment.
 func (s Hoth) NewBase() (EchoBase, error) {
-	ss, err := NewEchoBase(s.Struct.Segment())
+	ss, err := NewEchoBase(capnp.Struct(s).Segment())
 	if err != nil {
 		return EchoBase{}, err
 	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, capnp.Struct(ss).ToPtr())
 	return ss, err
 }
 
@@ -4590,7 +5498,7 @@ type Hoth_List = capnp.StructList[Hoth]
 // NewHoth creates a new list of Hoth.
 func NewHoth_List(s *capnp.Segment, sz int32) (Hoth_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[Hoth]{List: l}, err
+	return capnp.StructList[Hoth](l), err
 }
 
 // Hoth_Future is a wrapper for a Hoth promised by a client call.
@@ -4598,54 +5506,76 @@ type Hoth_Future struct{ *capnp.Future }
 
 func (p Hoth_Future) Struct() (Hoth, error) {
 	s, err := p.Future.Struct()
-	return Hoth{s}, err
+	return Hoth(s), err
 }
 
 func (p Hoth_Future) Base() EchoBase_Future {
 	return EchoBase_Future{Future: p.Future.Field(0, nil)}
 }
 
-type EchoBase struct{ capnp.Struct }
+type EchoBase capnp.Struct
 
 // EchoBase_TypeID is the unique identifier for the type EchoBase.
 const EchoBase_TypeID = 0xa8bf13fef2674866
 
 func NewEchoBase(s *capnp.Segment) (EchoBase, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return EchoBase{st}, err
+	return EchoBase(st), err
 }
 
 func NewRootEchoBase(s *capnp.Segment) (EchoBase, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return EchoBase{st}, err
+	return EchoBase(st), err
 }
 
 func ReadRootEchoBase(msg *capnp.Message) (EchoBase, error) {
 	root, err := msg.Root()
-	return EchoBase{root.Struct()}, err
+	return EchoBase(root.Struct()), err
 }
 
 func (s EchoBase) String() string {
-	str, _ := text.Marshal(0xa8bf13fef2674866, s.Struct)
+	str, _ := text.Marshal(0xa8bf13fef2674866, capnp.Struct(s))
 	return str
 }
 
+func (s EchoBase) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (EchoBase) DecodeFromPtr(p capnp.Ptr) EchoBase {
+	return EchoBase(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s EchoBase) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s EchoBase) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s EchoBase) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s EchoBase) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s EchoBase) Echo() Echo {
-	p, _ := s.Struct.Ptr(0)
-	return Echo{Client: p.Interface().Client()}
+	p, _ := capnp.Struct(s).Ptr(0)
+	return Echo(p.Interface().Client())
 }
 
 func (s EchoBase) HasEcho() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s EchoBase) SetEcho(v Echo) error {
-	if !v.Client.IsValid() {
-		return s.Struct.SetPtr(0, capnp.Ptr{})
+	if !v.IsValid() {
+		return capnp.Struct(s).SetPtr(0, capnp.Ptr{})
 	}
 	seg := s.Segment()
-	in := capnp.NewInterface(seg, seg.Message().AddCap(v.Client))
-	return s.Struct.SetPtr(0, in.ToPtr())
+	in := capnp.NewInterface(seg, seg.Message().AddCap(capnp.Client(v)))
+	return capnp.Struct(s).SetPtr(0, in.ToPtr())
 }
 
 // EchoBase_List is a list of EchoBase.
@@ -4654,7 +5584,7 @@ type EchoBase_List = capnp.StructList[EchoBase]
 // NewEchoBase creates a new list of EchoBase.
 func NewEchoBase_List(s *capnp.Segment, sz int32) (EchoBase_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[EchoBase]{List: l}, err
+	return capnp.StructList[EchoBase](l), err
 }
 
 // EchoBase_Future is a wrapper for a EchoBase promised by a client call.
@@ -4662,87 +5592,109 @@ type EchoBase_Future struct{ *capnp.Future }
 
 func (p EchoBase_Future) Struct() (EchoBase, error) {
 	s, err := p.Future.Struct()
-	return EchoBase{s}, err
+	return EchoBase(s), err
 }
 
 func (p EchoBase_Future) Echo() Echo {
-	return Echo{Client: p.Future.Field(0, nil).Client()}
+	return Echo(p.Future.Field(0, nil).Client())
 }
 
-type StackingRoot struct{ capnp.Struct }
+type StackingRoot capnp.Struct
 
 // StackingRoot_TypeID is the unique identifier for the type StackingRoot.
 const StackingRoot_TypeID = 0x8fae7b41c61fc890
 
 func NewStackingRoot(s *capnp.Segment) (StackingRoot, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
-	return StackingRoot{st}, err
+	return StackingRoot(st), err
 }
 
 func NewRootStackingRoot(s *capnp.Segment) (StackingRoot, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
-	return StackingRoot{st}, err
+	return StackingRoot(st), err
 }
 
 func ReadRootStackingRoot(msg *capnp.Message) (StackingRoot, error) {
 	root, err := msg.Root()
-	return StackingRoot{root.Struct()}, err
+	return StackingRoot(root.Struct()), err
 }
 
 func (s StackingRoot) String() string {
-	str, _ := text.Marshal(0x8fae7b41c61fc890, s.Struct)
+	str, _ := text.Marshal(0x8fae7b41c61fc890, capnp.Struct(s))
 	return str
 }
 
+func (s StackingRoot) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (StackingRoot) DecodeFromPtr(p capnp.Ptr) StackingRoot {
+	return StackingRoot(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s StackingRoot) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s StackingRoot) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s StackingRoot) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s StackingRoot) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s StackingRoot) A() (StackingA, error) {
-	p, err := s.Struct.Ptr(1)
-	return StackingA{Struct: p.Struct()}, err
+	p, err := capnp.Struct(s).Ptr(1)
+	return StackingA(p.Struct()), err
 }
 
 func (s StackingRoot) HasA() bool {
-	return s.Struct.HasPtr(1)
+	return capnp.Struct(s).HasPtr(1)
 }
 
 func (s StackingRoot) SetA(v StackingA) error {
-	return s.Struct.SetPtr(1, v.Struct.ToPtr())
+	return capnp.Struct(s).SetPtr(1, capnp.Struct(v).ToPtr())
 }
 
 // NewA sets the a field to a newly
 // allocated StackingA struct, preferring placement in s's segment.
 func (s StackingRoot) NewA() (StackingA, error) {
-	ss, err := NewStackingA(s.Struct.Segment())
+	ss, err := NewStackingA(capnp.Struct(s).Segment())
 	if err != nil {
 		return StackingA{}, err
 	}
-	err = s.Struct.SetPtr(1, ss.Struct.ToPtr())
+	err = capnp.Struct(s).SetPtr(1, capnp.Struct(ss).ToPtr())
 	return ss, err
 }
 
 func (s StackingRoot) AWithDefault() (StackingA, error) {
-	p, err := s.Struct.Ptr(0)
+	p, err := capnp.Struct(s).Ptr(0)
 	if err != nil {
 		return StackingA{}, err
 	}
 	ss, err := p.StructDefault(x_832bcc6686a26d56[64:96])
-	return StackingA{Struct: ss}, err
+	return StackingA(ss), err
 }
 
 func (s StackingRoot) HasAWithDefault() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s StackingRoot) SetAWithDefault(v StackingA) error {
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+	return capnp.Struct(s).SetPtr(0, capnp.Struct(v).ToPtr())
 }
 
 // NewAWithDefault sets the aWithDefault field to a newly
 // allocated StackingA struct, preferring placement in s's segment.
 func (s StackingRoot) NewAWithDefault() (StackingA, error) {
-	ss, err := NewStackingA(s.Struct.Segment())
+	ss, err := NewStackingA(capnp.Struct(s).Segment())
 	if err != nil {
 		return StackingA{}, err
 	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, capnp.Struct(ss).ToPtr())
 	return ss, err
 }
 
@@ -4752,7 +5704,7 @@ type StackingRoot_List = capnp.StructList[StackingRoot]
 // NewStackingRoot creates a new list of StackingRoot.
 func NewStackingRoot_List(s *capnp.Segment, sz int32) (StackingRoot_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
-	return capnp.StructList[StackingRoot]{List: l}, err
+	return capnp.StructList[StackingRoot](l), err
 }
 
 // StackingRoot_Future is a wrapper for a StackingRoot promised by a client call.
@@ -4760,7 +5712,7 @@ type StackingRoot_Future struct{ *capnp.Future }
 
 func (p StackingRoot_Future) Struct() (StackingRoot, error) {
 	s, err := p.Future.Struct()
-	return StackingRoot{s}, err
+	return StackingRoot(s), err
 }
 
 func (p StackingRoot_Future) A() StackingA_Future {
@@ -4771,60 +5723,82 @@ func (p StackingRoot_Future) AWithDefault() StackingA_Future {
 	return StackingA_Future{Future: p.Future.Field(0, x_832bcc6686a26d56[96:128])}
 }
 
-type StackingA struct{ capnp.Struct }
+type StackingA capnp.Struct
 
 // StackingA_TypeID is the unique identifier for the type StackingA.
 const StackingA_TypeID = 0x9d3032ff86043b75
 
 func NewStackingA(s *capnp.Segment) (StackingA, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	return StackingA{st}, err
+	return StackingA(st), err
 }
 
 func NewRootStackingA(s *capnp.Segment) (StackingA, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	return StackingA{st}, err
+	return StackingA(st), err
 }
 
 func ReadRootStackingA(msg *capnp.Message) (StackingA, error) {
 	root, err := msg.Root()
-	return StackingA{root.Struct()}, err
+	return StackingA(root.Struct()), err
 }
 
 func (s StackingA) String() string {
-	str, _ := text.Marshal(0x9d3032ff86043b75, s.Struct)
+	str, _ := text.Marshal(0x9d3032ff86043b75, capnp.Struct(s))
 	return str
 }
 
+func (s StackingA) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (StackingA) DecodeFromPtr(p capnp.Ptr) StackingA {
+	return StackingA(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s StackingA) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s StackingA) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s StackingA) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s StackingA) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s StackingA) Num() int32 {
-	return int32(s.Struct.Uint32(0))
+	return int32(capnp.Struct(s).Uint32(0))
 }
 
 func (s StackingA) SetNum(v int32) {
-	s.Struct.SetUint32(0, uint32(v))
+	capnp.Struct(s).SetUint32(0, uint32(v))
 }
 
 func (s StackingA) B() (StackingB, error) {
-	p, err := s.Struct.Ptr(0)
-	return StackingB{Struct: p.Struct()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return StackingB(p.Struct()), err
 }
 
 func (s StackingA) HasB() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s StackingA) SetB(v StackingB) error {
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+	return capnp.Struct(s).SetPtr(0, capnp.Struct(v).ToPtr())
 }
 
 // NewB sets the b field to a newly
 // allocated StackingB struct, preferring placement in s's segment.
 func (s StackingA) NewB() (StackingB, error) {
-	ss, err := NewStackingB(s.Struct.Segment())
+	ss, err := NewStackingB(capnp.Struct(s).Segment())
 	if err != nil {
 		return StackingB{}, err
 	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, capnp.Struct(ss).ToPtr())
 	return ss, err
 }
 
@@ -4834,7 +5808,7 @@ type StackingA_List = capnp.StructList[StackingA]
 // NewStackingA creates a new list of StackingA.
 func NewStackingA_List(s *capnp.Segment, sz int32) (StackingA_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	return capnp.StructList[StackingA]{List: l}, err
+	return capnp.StructList[StackingA](l), err
 }
 
 // StackingA_Future is a wrapper for a StackingA promised by a client call.
@@ -4842,44 +5816,66 @@ type StackingA_Future struct{ *capnp.Future }
 
 func (p StackingA_Future) Struct() (StackingA, error) {
 	s, err := p.Future.Struct()
-	return StackingA{s}, err
+	return StackingA(s), err
 }
 
 func (p StackingA_Future) B() StackingB_Future {
 	return StackingB_Future{Future: p.Future.Field(0, nil)}
 }
 
-type StackingB struct{ capnp.Struct }
+type StackingB capnp.Struct
 
 // StackingB_TypeID is the unique identifier for the type StackingB.
 const StackingB_TypeID = 0x85257b30d6edf8c5
 
 func NewStackingB(s *capnp.Segment) (StackingB, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	return StackingB{st}, err
+	return StackingB(st), err
 }
 
 func NewRootStackingB(s *capnp.Segment) (StackingB, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	return StackingB{st}, err
+	return StackingB(st), err
 }
 
 func ReadRootStackingB(msg *capnp.Message) (StackingB, error) {
 	root, err := msg.Root()
-	return StackingB{root.Struct()}, err
+	return StackingB(root.Struct()), err
 }
 
 func (s StackingB) String() string {
-	str, _ := text.Marshal(0x85257b30d6edf8c5, s.Struct)
+	str, _ := text.Marshal(0x85257b30d6edf8c5, capnp.Struct(s))
 	return str
 }
 
+func (s StackingB) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (StackingB) DecodeFromPtr(p capnp.Ptr) StackingB {
+	return StackingB(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s StackingB) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s StackingB) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s StackingB) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s StackingB) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s StackingB) Num() int32 {
-	return int32(s.Struct.Uint32(0))
+	return int32(capnp.Struct(s).Uint32(0))
 }
 
 func (s StackingB) SetNum(v int32) {
-	s.Struct.SetUint32(0, uint32(v))
+	capnp.Struct(s).SetUint32(0, uint32(v))
 }
 
 // StackingB_List is a list of StackingB.
@@ -4888,7 +5884,7 @@ type StackingB_List = capnp.StructList[StackingB]
 // NewStackingB creates a new list of StackingB.
 func NewStackingB_List(s *capnp.Segment, sz int32) (StackingB_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	return capnp.StructList[StackingB]{List: l}, err
+	return capnp.StructList[StackingB](l), err
 }
 
 // StackingB_Future is a wrapper for a StackingB promised by a client call.
@@ -4896,10 +5892,10 @@ type StackingB_Future struct{ *capnp.Future }
 
 func (p StackingB_Future) Struct() (StackingB, error) {
 	s, err := p.Future.Struct()
-	return StackingB{s}, err
+	return StackingB(s), err
 }
 
-type CallSequence struct{ Client capnp.Client }
+type CallSequence capnp.Client
 
 // CallSequence_TypeID is the unique identifier for the type CallSequence.
 const CallSequence_TypeID = 0xabaedf5f7817c820
@@ -4915,37 +5911,92 @@ func (c CallSequence) GetNumber(ctx context.Context, params func(CallSequence_ge
 	}
 	if params != nil {
 		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
-		s.PlaceArgs = func(s capnp.Struct) error { return params(CallSequence_getNumber_Params{Struct: s}) }
+		s.PlaceArgs = func(s capnp.Struct) error { return params(CallSequence_getNumber_Params(s)) }
 	}
-	ans, release := c.Client.SendCall(ctx, s)
+	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return CallSequence_getNumber_Results_Future{Future: ans.Future()}, release
 }
 
+// String returns a string that identifies this capability for debugging
+// purposes.  Its format should not be depended on: in particular, it
+// should not be used to compare clients.  Use IsSame to compare clients
+// for equality.
+func (c CallSequence) String() string {
+	return fmt.Sprintf("%T(%v)", c, capnp.Client(c))
+}
+
+// AddRef creates a new Client that refers to the same capability as c.
+// If c is nil or has resolved to null, then AddRef returns nil.
 func (c CallSequence) AddRef() CallSequence {
-	return CallSequence{
-		Client: c.Client.AddRef(),
-	}
+	return CallSequence(capnp.Client(c).AddRef())
 }
 
+// Release releases a capability reference.  If this is the last
+// reference to the capability, then the underlying resources associated
+// with the capability will be released.
+//
+// Release will panic if c has already been released, but not if c is
+// nil or resolved to null.
 func (c CallSequence) Release() {
-	c.Client.Release()
+	capnp.Client(c).Release()
 }
 
-// A CallSequence_Server is a CallSequence with a local implementation.
+// Resolve blocks until the capability is fully resolved or the Context
+// expires.
+func (c CallSequence) Resolve(ctx context.Context) error {
+	return capnp.Client(c).Resolve(ctx)
+}
+
+func (c CallSequence) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Client(c).EncodeAsPtr(seg)
+}
+
+func (CallSequence) DecodeFromPtr(p capnp.Ptr) CallSequence {
+	return CallSequence(capnp.Client{}.DecodeFromPtr(p))
+}
+
+// IsValid reports whether c is a valid reference to a capability.
+// A reference is invalid if it is nil, has resolved to null, or has
+// been released.
+func (c CallSequence) IsValid() bool {
+	return capnp.Client(c).IsValid()
+}
+
+// IsSame reports whether c and other refer to a capability created by the
+// same call to NewClient.  This can return false negatives if c or other
+// are not fully resolved: use Resolve if this is an issue.  If either
+// c or other are released, then IsSame panics.
+func (c CallSequence) IsSame(other CallSequence) bool {
+	return capnp.Client(c).IsSame(capnp.Client(other))
+}
+
+// Update the flowcontrol.FlowLimiter used to manage flow control for
+// this client. This affects all future calls, but not calls already
+// waiting to send. Passing nil sets the value to flowcontrol.NopLimiter,
+// which is also the default.
+func (c CallSequence) SetFlowLimiter(lim fc.FlowLimiter) {
+	capnp.Client(c).SetFlowLimiter(lim)
+}
+
+// Get the current flowcontrol.FlowLimiter used to manage flow control
+// for this client.
+func (c CallSequence) GetFlowLimiter() fc.FlowLimiter {
+	return capnp.Client(c).GetFlowLimiter()
+} // A CallSequence_Server is a CallSequence with a local implementation.
 type CallSequence_Server interface {
 	GetNumber(context.Context, CallSequence_getNumber) error
 }
 
 // CallSequence_NewServer creates a new Server from an implementation of CallSequence_Server.
-func CallSequence_NewServer(s CallSequence_Server, policy *server.Policy) *server.Server {
+func CallSequence_NewServer(s CallSequence_Server) *server.Server {
 	c, _ := s.(server.Shutdowner)
-	return server.New(CallSequence_Methods(nil, s), s, c, policy)
+	return server.New(CallSequence_Methods(nil, s), s, c)
 }
 
 // CallSequence_ServerToClient creates a new Client from an implementation of CallSequence_Server.
 // The caller is responsible for calling Release on the returned Client.
-func CallSequence_ServerToClient(s CallSequence_Server, policy *server.Policy) CallSequence {
-	return CallSequence{Client: capnp.NewClient(CallSequence_NewServer(s, policy))}
+func CallSequence_ServerToClient(s CallSequence_Server) CallSequence {
+	return CallSequence(capnp.NewClient(CallSequence_NewServer(s)))
 }
 
 // CallSequence_Methods appends Methods to a slice that invoke the methods on s.
@@ -4978,13 +6029,13 @@ type CallSequence_getNumber struct {
 
 // Args returns the call's arguments.
 func (c CallSequence_getNumber) Args() CallSequence_getNumber_Params {
-	return CallSequence_getNumber_Params{Struct: c.Call.Args()}
+	return CallSequence_getNumber_Params(c.Call.Args())
 }
 
 // AllocResults allocates the results struct.
 func (c CallSequence_getNumber) AllocResults() (CallSequence_getNumber_Results, error) {
 	r, err := c.Call.AllocResults(capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	return CallSequence_getNumber_Results{Struct: r}, err
+	return CallSequence_getNumber_Results(r), err
 }
 
 // CallSequence_List is a list of CallSequence.
@@ -4996,29 +6047,52 @@ func NewCallSequence_List(s *capnp.Segment, sz int32) (CallSequence_List, error)
 	return capnp.CapList[CallSequence](l), err
 }
 
-type CallSequence_getNumber_Params struct{ capnp.Struct }
+type CallSequence_getNumber_Params capnp.Struct
 
 // CallSequence_getNumber_Params_TypeID is the unique identifier for the type CallSequence_getNumber_Params.
 const CallSequence_getNumber_Params_TypeID = 0xf58782f48a121998
 
 func NewCallSequence_getNumber_Params(s *capnp.Segment) (CallSequence_getNumber_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	return CallSequence_getNumber_Params{st}, err
+	return CallSequence_getNumber_Params(st), err
 }
 
 func NewRootCallSequence_getNumber_Params(s *capnp.Segment) (CallSequence_getNumber_Params, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	return CallSequence_getNumber_Params{st}, err
+	return CallSequence_getNumber_Params(st), err
 }
 
 func ReadRootCallSequence_getNumber_Params(msg *capnp.Message) (CallSequence_getNumber_Params, error) {
 	root, err := msg.Root()
-	return CallSequence_getNumber_Params{root.Struct()}, err
+	return CallSequence_getNumber_Params(root.Struct()), err
 }
 
 func (s CallSequence_getNumber_Params) String() string {
-	str, _ := text.Marshal(0xf58782f48a121998, s.Struct)
+	str, _ := text.Marshal(0xf58782f48a121998, capnp.Struct(s))
 	return str
+}
+
+func (s CallSequence_getNumber_Params) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (CallSequence_getNumber_Params) DecodeFromPtr(p capnp.Ptr) CallSequence_getNumber_Params {
+	return CallSequence_getNumber_Params(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s CallSequence_getNumber_Params) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s CallSequence_getNumber_Params) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s CallSequence_getNumber_Params) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s CallSequence_getNumber_Params) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
 }
 
 // CallSequence_getNumber_Params_List is a list of CallSequence_getNumber_Params.
@@ -5027,7 +6101,7 @@ type CallSequence_getNumber_Params_List = capnp.StructList[CallSequence_getNumbe
 // NewCallSequence_getNumber_Params creates a new list of CallSequence_getNumber_Params.
 func NewCallSequence_getNumber_Params_List(s *capnp.Segment, sz int32) (CallSequence_getNumber_Params_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
-	return capnp.StructList[CallSequence_getNumber_Params]{List: l}, err
+	return capnp.StructList[CallSequence_getNumber_Params](l), err
 }
 
 // CallSequence_getNumber_Params_Future is a wrapper for a CallSequence_getNumber_Params promised by a client call.
@@ -5035,40 +6109,62 @@ type CallSequence_getNumber_Params_Future struct{ *capnp.Future }
 
 func (p CallSequence_getNumber_Params_Future) Struct() (CallSequence_getNumber_Params, error) {
 	s, err := p.Future.Struct()
-	return CallSequence_getNumber_Params{s}, err
+	return CallSequence_getNumber_Params(s), err
 }
 
-type CallSequence_getNumber_Results struct{ capnp.Struct }
+type CallSequence_getNumber_Results capnp.Struct
 
 // CallSequence_getNumber_Results_TypeID is the unique identifier for the type CallSequence_getNumber_Results.
 const CallSequence_getNumber_Results_TypeID = 0xa465f9502fd11e97
 
 func NewCallSequence_getNumber_Results(s *capnp.Segment) (CallSequence_getNumber_Results, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	return CallSequence_getNumber_Results{st}, err
+	return CallSequence_getNumber_Results(st), err
 }
 
 func NewRootCallSequence_getNumber_Results(s *capnp.Segment) (CallSequence_getNumber_Results, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	return CallSequence_getNumber_Results{st}, err
+	return CallSequence_getNumber_Results(st), err
 }
 
 func ReadRootCallSequence_getNumber_Results(msg *capnp.Message) (CallSequence_getNumber_Results, error) {
 	root, err := msg.Root()
-	return CallSequence_getNumber_Results{root.Struct()}, err
+	return CallSequence_getNumber_Results(root.Struct()), err
 }
 
 func (s CallSequence_getNumber_Results) String() string {
-	str, _ := text.Marshal(0xa465f9502fd11e97, s.Struct)
+	str, _ := text.Marshal(0xa465f9502fd11e97, capnp.Struct(s))
 	return str
 }
 
+func (s CallSequence_getNumber_Results) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (CallSequence_getNumber_Results) DecodeFromPtr(p capnp.Ptr) CallSequence_getNumber_Results {
+	return CallSequence_getNumber_Results(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s CallSequence_getNumber_Results) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s CallSequence_getNumber_Results) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s CallSequence_getNumber_Results) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s CallSequence_getNumber_Results) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s CallSequence_getNumber_Results) N() uint32 {
-	return s.Struct.Uint32(0)
+	return capnp.Struct(s).Uint32(0)
 }
 
 func (s CallSequence_getNumber_Results) SetN(v uint32) {
-	s.Struct.SetUint32(0, v)
+	capnp.Struct(s).SetUint32(0, v)
 }
 
 // CallSequence_getNumber_Results_List is a list of CallSequence_getNumber_Results.
@@ -5077,7 +6173,7 @@ type CallSequence_getNumber_Results_List = capnp.StructList[CallSequence_getNumb
 // NewCallSequence_getNumber_Results creates a new list of CallSequence_getNumber_Results.
 func NewCallSequence_getNumber_Results_List(s *capnp.Segment, sz int32) (CallSequence_getNumber_Results_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	return capnp.StructList[CallSequence_getNumber_Results]{List: l}, err
+	return capnp.StructList[CallSequence_getNumber_Results](l), err
 }
 
 // CallSequence_getNumber_Results_Future is a wrapper for a CallSequence_getNumber_Results promised by a client call.
@@ -5085,10 +6181,10 @@ type CallSequence_getNumber_Results_Future struct{ *capnp.Future }
 
 func (p CallSequence_getNumber_Results_Future) Struct() (CallSequence_getNumber_Results, error) {
 	s, err := p.Future.Struct()
-	return CallSequence_getNumber_Results{s}, err
+	return CallSequence_getNumber_Results(s), err
 }
 
-type Pipeliner struct{ Client capnp.Client }
+type Pipeliner capnp.Client
 
 // Pipeliner_TypeID is the unique identifier for the type Pipeliner.
 const Pipeliner_TypeID = 0xd6514008f0f84ebc
@@ -5104,9 +6200,9 @@ func (c Pipeliner) NewPipeliner(ctx context.Context, params func(Pipeliner_newPi
 	}
 	if params != nil {
 		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
-		s.PlaceArgs = func(s capnp.Struct) error { return params(Pipeliner_newPipeliner_Params{Struct: s}) }
+		s.PlaceArgs = func(s capnp.Struct) error { return params(Pipeliner_newPipeliner_Params(s)) }
 	}
-	ans, release := c.Client.SendCall(ctx, s)
+	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return Pipeliner_newPipeliner_Results_Future{Future: ans.Future()}, release
 }
 func (c Pipeliner) GetNumber(ctx context.Context, params func(CallSequence_getNumber_Params) error) (CallSequence_getNumber_Results_Future, capnp.ReleaseFunc) {
@@ -5120,23 +6216,78 @@ func (c Pipeliner) GetNumber(ctx context.Context, params func(CallSequence_getNu
 	}
 	if params != nil {
 		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
-		s.PlaceArgs = func(s capnp.Struct) error { return params(CallSequence_getNumber_Params{Struct: s}) }
+		s.PlaceArgs = func(s capnp.Struct) error { return params(CallSequence_getNumber_Params(s)) }
 	}
-	ans, release := c.Client.SendCall(ctx, s)
+	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return CallSequence_getNumber_Results_Future{Future: ans.Future()}, release
 }
 
+// String returns a string that identifies this capability for debugging
+// purposes.  Its format should not be depended on: in particular, it
+// should not be used to compare clients.  Use IsSame to compare clients
+// for equality.
+func (c Pipeliner) String() string {
+	return fmt.Sprintf("%T(%v)", c, capnp.Client(c))
+}
+
+// AddRef creates a new Client that refers to the same capability as c.
+// If c is nil or has resolved to null, then AddRef returns nil.
 func (c Pipeliner) AddRef() Pipeliner {
-	return Pipeliner{
-		Client: c.Client.AddRef(),
-	}
+	return Pipeliner(capnp.Client(c).AddRef())
 }
 
+// Release releases a capability reference.  If this is the last
+// reference to the capability, then the underlying resources associated
+// with the capability will be released.
+//
+// Release will panic if c has already been released, but not if c is
+// nil or resolved to null.
 func (c Pipeliner) Release() {
-	c.Client.Release()
+	capnp.Client(c).Release()
 }
 
-// A Pipeliner_Server is a Pipeliner with a local implementation.
+// Resolve blocks until the capability is fully resolved or the Context
+// expires.
+func (c Pipeliner) Resolve(ctx context.Context) error {
+	return capnp.Client(c).Resolve(ctx)
+}
+
+func (c Pipeliner) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Client(c).EncodeAsPtr(seg)
+}
+
+func (Pipeliner) DecodeFromPtr(p capnp.Ptr) Pipeliner {
+	return Pipeliner(capnp.Client{}.DecodeFromPtr(p))
+}
+
+// IsValid reports whether c is a valid reference to a capability.
+// A reference is invalid if it is nil, has resolved to null, or has
+// been released.
+func (c Pipeliner) IsValid() bool {
+	return capnp.Client(c).IsValid()
+}
+
+// IsSame reports whether c and other refer to a capability created by the
+// same call to NewClient.  This can return false negatives if c or other
+// are not fully resolved: use Resolve if this is an issue.  If either
+// c or other are released, then IsSame panics.
+func (c Pipeliner) IsSame(other Pipeliner) bool {
+	return capnp.Client(c).IsSame(capnp.Client(other))
+}
+
+// Update the flowcontrol.FlowLimiter used to manage flow control for
+// this client. This affects all future calls, but not calls already
+// waiting to send. Passing nil sets the value to flowcontrol.NopLimiter,
+// which is also the default.
+func (c Pipeliner) SetFlowLimiter(lim fc.FlowLimiter) {
+	capnp.Client(c).SetFlowLimiter(lim)
+}
+
+// Get the current flowcontrol.FlowLimiter used to manage flow control
+// for this client.
+func (c Pipeliner) GetFlowLimiter() fc.FlowLimiter {
+	return capnp.Client(c).GetFlowLimiter()
+} // A Pipeliner_Server is a Pipeliner with a local implementation.
 type Pipeliner_Server interface {
 	NewPipeliner(context.Context, Pipeliner_newPipeliner) error
 
@@ -5144,15 +6295,15 @@ type Pipeliner_Server interface {
 }
 
 // Pipeliner_NewServer creates a new Server from an implementation of Pipeliner_Server.
-func Pipeliner_NewServer(s Pipeliner_Server, policy *server.Policy) *server.Server {
+func Pipeliner_NewServer(s Pipeliner_Server) *server.Server {
 	c, _ := s.(server.Shutdowner)
-	return server.New(Pipeliner_Methods(nil, s), s, c, policy)
+	return server.New(Pipeliner_Methods(nil, s), s, c)
 }
 
 // Pipeliner_ServerToClient creates a new Client from an implementation of Pipeliner_Server.
 // The caller is responsible for calling Release on the returned Client.
-func Pipeliner_ServerToClient(s Pipeliner_Server, policy *server.Policy) Pipeliner {
-	return Pipeliner{Client: capnp.NewClient(Pipeliner_NewServer(s, policy))}
+func Pipeliner_ServerToClient(s Pipeliner_Server) Pipeliner {
+	return Pipeliner(capnp.NewClient(Pipeliner_NewServer(s)))
 }
 
 // Pipeliner_Methods appends Methods to a slice that invoke the methods on s.
@@ -5197,13 +6348,13 @@ type Pipeliner_newPipeliner struct {
 
 // Args returns the call's arguments.
 func (c Pipeliner_newPipeliner) Args() Pipeliner_newPipeliner_Params {
-	return Pipeliner_newPipeliner_Params{Struct: c.Call.Args()}
+	return Pipeliner_newPipeliner_Params(c.Call.Args())
 }
 
 // AllocResults allocates the results struct.
 func (c Pipeliner_newPipeliner) AllocResults() (Pipeliner_newPipeliner_Results, error) {
 	r, err := c.Call.AllocResults(capnp.ObjectSize{DataSize: 0, PointerCount: 2})
-	return Pipeliner_newPipeliner_Results{Struct: r}, err
+	return Pipeliner_newPipeliner_Results(r), err
 }
 
 // Pipeliner_List is a list of Pipeliner.
@@ -5215,29 +6366,52 @@ func NewPipeliner_List(s *capnp.Segment, sz int32) (Pipeliner_List, error) {
 	return capnp.CapList[Pipeliner](l), err
 }
 
-type Pipeliner_newPipeliner_Params struct{ capnp.Struct }
+type Pipeliner_newPipeliner_Params capnp.Struct
 
 // Pipeliner_newPipeliner_Params_TypeID is the unique identifier for the type Pipeliner_newPipeliner_Params.
 const Pipeliner_newPipeliner_Params_TypeID = 0xbaa7b3b1ca91f833
 
 func NewPipeliner_newPipeliner_Params(s *capnp.Segment) (Pipeliner_newPipeliner_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	return Pipeliner_newPipeliner_Params{st}, err
+	return Pipeliner_newPipeliner_Params(st), err
 }
 
 func NewRootPipeliner_newPipeliner_Params(s *capnp.Segment) (Pipeliner_newPipeliner_Params, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	return Pipeliner_newPipeliner_Params{st}, err
+	return Pipeliner_newPipeliner_Params(st), err
 }
 
 func ReadRootPipeliner_newPipeliner_Params(msg *capnp.Message) (Pipeliner_newPipeliner_Params, error) {
 	root, err := msg.Root()
-	return Pipeliner_newPipeliner_Params{root.Struct()}, err
+	return Pipeliner_newPipeliner_Params(root.Struct()), err
 }
 
 func (s Pipeliner_newPipeliner_Params) String() string {
-	str, _ := text.Marshal(0xbaa7b3b1ca91f833, s.Struct)
+	str, _ := text.Marshal(0xbaa7b3b1ca91f833, capnp.Struct(s))
 	return str
+}
+
+func (s Pipeliner_newPipeliner_Params) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (Pipeliner_newPipeliner_Params) DecodeFromPtr(p capnp.Ptr) Pipeliner_newPipeliner_Params {
+	return Pipeliner_newPipeliner_Params(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s Pipeliner_newPipeliner_Params) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s Pipeliner_newPipeliner_Params) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s Pipeliner_newPipeliner_Params) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s Pipeliner_newPipeliner_Params) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
 }
 
 // Pipeliner_newPipeliner_Params_List is a list of Pipeliner_newPipeliner_Params.
@@ -5246,7 +6420,7 @@ type Pipeliner_newPipeliner_Params_List = capnp.StructList[Pipeliner_newPipeline
 // NewPipeliner_newPipeliner_Params creates a new list of Pipeliner_newPipeliner_Params.
 func NewPipeliner_newPipeliner_Params_List(s *capnp.Segment, sz int32) (Pipeliner_newPipeliner_Params_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
-	return capnp.StructList[Pipeliner_newPipeliner_Params]{List: l}, err
+	return capnp.StructList[Pipeliner_newPipeliner_Params](l), err
 }
 
 // Pipeliner_newPipeliner_Params_Future is a wrapper for a Pipeliner_newPipeliner_Params promised by a client call.
@@ -5254,62 +6428,84 @@ type Pipeliner_newPipeliner_Params_Future struct{ *capnp.Future }
 
 func (p Pipeliner_newPipeliner_Params_Future) Struct() (Pipeliner_newPipeliner_Params, error) {
 	s, err := p.Future.Struct()
-	return Pipeliner_newPipeliner_Params{s}, err
+	return Pipeliner_newPipeliner_Params(s), err
 }
 
-type Pipeliner_newPipeliner_Results struct{ capnp.Struct }
+type Pipeliner_newPipeliner_Results capnp.Struct
 
 // Pipeliner_newPipeliner_Results_TypeID is the unique identifier for the type Pipeliner_newPipeliner_Results.
 const Pipeliner_newPipeliner_Results_TypeID = 0xbbcdbf4b4ae501fa
 
 func NewPipeliner_newPipeliner_Results(s *capnp.Segment) (Pipeliner_newPipeliner_Results, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
-	return Pipeliner_newPipeliner_Results{st}, err
+	return Pipeliner_newPipeliner_Results(st), err
 }
 
 func NewRootPipeliner_newPipeliner_Results(s *capnp.Segment) (Pipeliner_newPipeliner_Results, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
-	return Pipeliner_newPipeliner_Results{st}, err
+	return Pipeliner_newPipeliner_Results(st), err
 }
 
 func ReadRootPipeliner_newPipeliner_Results(msg *capnp.Message) (Pipeliner_newPipeliner_Results, error) {
 	root, err := msg.Root()
-	return Pipeliner_newPipeliner_Results{root.Struct()}, err
+	return Pipeliner_newPipeliner_Results(root.Struct()), err
 }
 
 func (s Pipeliner_newPipeliner_Results) String() string {
-	str, _ := text.Marshal(0xbbcdbf4b4ae501fa, s.Struct)
+	str, _ := text.Marshal(0xbbcdbf4b4ae501fa, capnp.Struct(s))
 	return str
 }
 
+func (s Pipeliner_newPipeliner_Results) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (Pipeliner_newPipeliner_Results) DecodeFromPtr(p capnp.Ptr) Pipeliner_newPipeliner_Results {
+	return Pipeliner_newPipeliner_Results(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s Pipeliner_newPipeliner_Results) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s Pipeliner_newPipeliner_Results) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s Pipeliner_newPipeliner_Results) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s Pipeliner_newPipeliner_Results) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s Pipeliner_newPipeliner_Results) Extra() (capnp.Ptr, error) {
-	return s.Struct.Ptr(0)
+	return capnp.Struct(s).Ptr(0)
 }
 
 func (s Pipeliner_newPipeliner_Results) HasExtra() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Pipeliner_newPipeliner_Results) SetExtra(v capnp.Ptr) error {
-	return s.Struct.SetPtr(0, v)
+	return capnp.Struct(s).SetPtr(0, v)
 }
 
 func (s Pipeliner_newPipeliner_Results) Pipeliner() Pipeliner {
-	p, _ := s.Struct.Ptr(1)
-	return Pipeliner{Client: p.Interface().Client()}
+	p, _ := capnp.Struct(s).Ptr(1)
+	return Pipeliner(p.Interface().Client())
 }
 
 func (s Pipeliner_newPipeliner_Results) HasPipeliner() bool {
-	return s.Struct.HasPtr(1)
+	return capnp.Struct(s).HasPtr(1)
 }
 
 func (s Pipeliner_newPipeliner_Results) SetPipeliner(v Pipeliner) error {
-	if !v.Client.IsValid() {
-		return s.Struct.SetPtr(1, capnp.Ptr{})
+	if !v.IsValid() {
+		return capnp.Struct(s).SetPtr(1, capnp.Ptr{})
 	}
 	seg := s.Segment()
-	in := capnp.NewInterface(seg, seg.Message().AddCap(v.Client))
-	return s.Struct.SetPtr(1, in.ToPtr())
+	in := capnp.NewInterface(seg, seg.Message().AddCap(capnp.Client(v)))
+	return capnp.Struct(s).SetPtr(1, in.ToPtr())
 }
 
 // Pipeliner_newPipeliner_Results_List is a list of Pipeliner_newPipeliner_Results.
@@ -5318,7 +6514,7 @@ type Pipeliner_newPipeliner_Results_List = capnp.StructList[Pipeliner_newPipelin
 // NewPipeliner_newPipeliner_Results creates a new list of Pipeliner_newPipeliner_Results.
 func NewPipeliner_newPipeliner_Results_List(s *capnp.Segment, sz int32) (Pipeliner_newPipeliner_Results_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
-	return capnp.StructList[Pipeliner_newPipeliner_Results]{List: l}, err
+	return capnp.StructList[Pipeliner_newPipeliner_Results](l), err
 }
 
 // Pipeliner_newPipeliner_Results_Future is a wrapper for a Pipeliner_newPipeliner_Results promised by a client call.
@@ -5326,7 +6522,7 @@ type Pipeliner_newPipeliner_Results_Future struct{ *capnp.Future }
 
 func (p Pipeliner_newPipeliner_Results_Future) Struct() (Pipeliner_newPipeliner_Results, error) {
 	s, err := p.Future.Struct()
-	return Pipeliner_newPipeliner_Results{s}, err
+	return Pipeliner_newPipeliner_Results(s), err
 }
 
 func (p Pipeliner_newPipeliner_Results_Future) Extra() *capnp.Future {
@@ -5334,90 +6530,112 @@ func (p Pipeliner_newPipeliner_Results_Future) Extra() *capnp.Future {
 }
 
 func (p Pipeliner_newPipeliner_Results_Future) Pipeliner() Pipeliner {
-	return Pipeliner{Client: p.Future.Field(1, nil).Client()}
+	return Pipeliner(p.Future.Field(1, nil).Client())
 }
 
-type Defaults struct{ capnp.Struct }
+type Defaults capnp.Struct
 
 // Defaults_TypeID is the unique identifier for the type Defaults.
 const Defaults_TypeID = 0x97e38948c61f878d
 
 func NewDefaults(s *capnp.Segment) (Defaults, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 2})
-	return Defaults{st}, err
+	return Defaults(st), err
 }
 
 func NewRootDefaults(s *capnp.Segment) (Defaults, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 2})
-	return Defaults{st}, err
+	return Defaults(st), err
 }
 
 func ReadRootDefaults(msg *capnp.Message) (Defaults, error) {
 	root, err := msg.Root()
-	return Defaults{root.Struct()}, err
+	return Defaults(root.Struct()), err
 }
 
 func (s Defaults) String() string {
-	str, _ := text.Marshal(0x97e38948c61f878d, s.Struct)
+	str, _ := text.Marshal(0x97e38948c61f878d, capnp.Struct(s))
 	return str
 }
 
+func (s Defaults) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (Defaults) DecodeFromPtr(p capnp.Ptr) Defaults {
+	return Defaults(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s Defaults) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s Defaults) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s Defaults) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s Defaults) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s Defaults) Text() (string, error) {
-	p, err := s.Struct.Ptr(0)
+	p, err := capnp.Struct(s).Ptr(0)
 	return p.TextDefault("foo"), err
 }
 
 func (s Defaults) HasText() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Defaults) TextBytes() ([]byte, error) {
-	p, err := s.Struct.Ptr(0)
+	p, err := capnp.Struct(s).Ptr(0)
 	return p.TextBytesDefault("foo"), err
 }
 
 func (s Defaults) SetText(v string) error {
-	return s.Struct.SetNewText(0, v)
+	return capnp.Struct(s).SetNewText(0, v)
 }
 
 func (s Defaults) Data() ([]byte, error) {
-	p, err := s.Struct.Ptr(1)
+	p, err := capnp.Struct(s).Ptr(1)
 	return []byte(p.DataDefault([]byte{0x62, 0x61, 0x72})), err
 }
 
 func (s Defaults) HasData() bool {
-	return s.Struct.HasPtr(1)
+	return capnp.Struct(s).HasPtr(1)
 }
 
 func (s Defaults) SetData(v []byte) error {
 	if v == nil {
 		v = []byte{}
 	}
-	return s.Struct.SetData(1, v)
+	return capnp.Struct(s).SetData(1, v)
 }
 
 func (s Defaults) Float() float32 {
-	return math.Float32frombits(s.Struct.Uint32(0) ^ 0x4048f5c3)
+	return math.Float32frombits(capnp.Struct(s).Uint32(0) ^ 0x4048f5c3)
 }
 
 func (s Defaults) SetFloat(v float32) {
-	s.Struct.SetUint32(0, math.Float32bits(v)^0x4048f5c3)
+	capnp.Struct(s).SetUint32(0, math.Float32bits(v)^0x4048f5c3)
 }
 
 func (s Defaults) Int() int32 {
-	return int32(s.Struct.Uint32(4) ^ 4294967173)
+	return int32(capnp.Struct(s).Uint32(4) ^ 4294967173)
 }
 
 func (s Defaults) SetInt(v int32) {
-	s.Struct.SetUint32(4, uint32(v)^4294967173)
+	capnp.Struct(s).SetUint32(4, uint32(v)^4294967173)
 }
 
 func (s Defaults) Uint() uint32 {
-	return s.Struct.Uint32(8) ^ 42
+	return capnp.Struct(s).Uint32(8) ^ 42
 }
 
 func (s Defaults) SetUint(v uint32) {
-	s.Struct.SetUint32(8, v^42)
+	capnp.Struct(s).SetUint32(8, v^42)
 }
 
 // Defaults_List is a list of Defaults.
@@ -5426,7 +6644,7 @@ type Defaults_List = capnp.StructList[Defaults]
 // NewDefaults creates a new list of Defaults.
 func NewDefaults_List(s *capnp.Segment, sz int32) (Defaults_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 2}, sz)
-	return capnp.StructList[Defaults]{List: l}, err
+	return capnp.StructList[Defaults](l), err
 }
 
 // Defaults_Future is a wrapper for a Defaults promised by a client call.
@@ -5434,100 +6652,122 @@ type Defaults_Future struct{ *capnp.Future }
 
 func (p Defaults_Future) Struct() (Defaults, error) {
 	s, err := p.Future.Struct()
-	return Defaults{s}, err
+	return Defaults(s), err
 }
 
-type BenchmarkA struct{ capnp.Struct }
+type BenchmarkA capnp.Struct
 
 // BenchmarkA_TypeID is the unique identifier for the type BenchmarkA.
 const BenchmarkA_TypeID = 0xde2a1a960863c11c
 
 func NewBenchmarkA(s *capnp.Segment) (BenchmarkA, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 2})
-	return BenchmarkA{st}, err
+	return BenchmarkA(st), err
 }
 
 func NewRootBenchmarkA(s *capnp.Segment) (BenchmarkA, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 2})
-	return BenchmarkA{st}, err
+	return BenchmarkA(st), err
 }
 
 func ReadRootBenchmarkA(msg *capnp.Message) (BenchmarkA, error) {
 	root, err := msg.Root()
-	return BenchmarkA{root.Struct()}, err
+	return BenchmarkA(root.Struct()), err
 }
 
 func (s BenchmarkA) String() string {
-	str, _ := text.Marshal(0xde2a1a960863c11c, s.Struct)
+	str, _ := text.Marshal(0xde2a1a960863c11c, capnp.Struct(s))
 	return str
 }
 
+func (s BenchmarkA) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (BenchmarkA) DecodeFromPtr(p capnp.Ptr) BenchmarkA {
+	return BenchmarkA(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s BenchmarkA) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s BenchmarkA) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s BenchmarkA) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s BenchmarkA) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s BenchmarkA) Name() (string, error) {
-	p, err := s.Struct.Ptr(0)
+	p, err := capnp.Struct(s).Ptr(0)
 	return p.Text(), err
 }
 
 func (s BenchmarkA) HasName() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s BenchmarkA) NameBytes() ([]byte, error) {
-	p, err := s.Struct.Ptr(0)
+	p, err := capnp.Struct(s).Ptr(0)
 	return p.TextBytes(), err
 }
 
 func (s BenchmarkA) SetName(v string) error {
-	return s.Struct.SetText(0, v)
+	return capnp.Struct(s).SetText(0, v)
 }
 
 func (s BenchmarkA) BirthDay() int64 {
-	return int64(s.Struct.Uint64(0))
+	return int64(capnp.Struct(s).Uint64(0))
 }
 
 func (s BenchmarkA) SetBirthDay(v int64) {
-	s.Struct.SetUint64(0, uint64(v))
+	capnp.Struct(s).SetUint64(0, uint64(v))
 }
 
 func (s BenchmarkA) Phone() (string, error) {
-	p, err := s.Struct.Ptr(1)
+	p, err := capnp.Struct(s).Ptr(1)
 	return p.Text(), err
 }
 
 func (s BenchmarkA) HasPhone() bool {
-	return s.Struct.HasPtr(1)
+	return capnp.Struct(s).HasPtr(1)
 }
 
 func (s BenchmarkA) PhoneBytes() ([]byte, error) {
-	p, err := s.Struct.Ptr(1)
+	p, err := capnp.Struct(s).Ptr(1)
 	return p.TextBytes(), err
 }
 
 func (s BenchmarkA) SetPhone(v string) error {
-	return s.Struct.SetText(1, v)
+	return capnp.Struct(s).SetText(1, v)
 }
 
 func (s BenchmarkA) Siblings() int32 {
-	return int32(s.Struct.Uint32(8))
+	return int32(capnp.Struct(s).Uint32(8))
 }
 
 func (s BenchmarkA) SetSiblings(v int32) {
-	s.Struct.SetUint32(8, uint32(v))
+	capnp.Struct(s).SetUint32(8, uint32(v))
 }
 
 func (s BenchmarkA) Spouse() bool {
-	return s.Struct.Bit(96)
+	return capnp.Struct(s).Bit(96)
 }
 
 func (s BenchmarkA) SetSpouse(v bool) {
-	s.Struct.SetBit(96, v)
+	capnp.Struct(s).SetBit(96, v)
 }
 
 func (s BenchmarkA) Money() float64 {
-	return math.Float64frombits(s.Struct.Uint64(16))
+	return math.Float64frombits(capnp.Struct(s).Uint64(16))
 }
 
 func (s BenchmarkA) SetMoney(v float64) {
-	s.Struct.SetUint64(16, math.Float64bits(v))
+	capnp.Struct(s).SetUint64(16, math.Float64bits(v))
 }
 
 // BenchmarkA_List is a list of BenchmarkA.
@@ -5536,7 +6776,7 @@ type BenchmarkA_List = capnp.StructList[BenchmarkA]
 // NewBenchmarkA creates a new list of BenchmarkA.
 func NewBenchmarkA_List(s *capnp.Segment, sz int32) (BenchmarkA_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 24, PointerCount: 2}, sz)
-	return capnp.StructList[BenchmarkA]{List: l}, err
+	return capnp.StructList[BenchmarkA](l), err
 }
 
 // BenchmarkA_Future is a wrapper for a BenchmarkA promised by a client call.
@@ -5544,55 +6784,77 @@ type BenchmarkA_Future struct{ *capnp.Future }
 
 func (p BenchmarkA_Future) Struct() (BenchmarkA, error) {
 	s, err := p.Future.Struct()
-	return BenchmarkA{s}, err
+	return BenchmarkA(s), err
 }
 
-type AllocBenchmark struct{ capnp.Struct }
+type AllocBenchmark capnp.Struct
 
 // AllocBenchmark_TypeID is the unique identifier for the type AllocBenchmark.
 const AllocBenchmark_TypeID = 0xecea3e9ebcbe5655
 
 func NewAllocBenchmark(s *capnp.Segment) (AllocBenchmark, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return AllocBenchmark{st}, err
+	return AllocBenchmark(st), err
 }
 
 func NewRootAllocBenchmark(s *capnp.Segment) (AllocBenchmark, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return AllocBenchmark{st}, err
+	return AllocBenchmark(st), err
 }
 
 func ReadRootAllocBenchmark(msg *capnp.Message) (AllocBenchmark, error) {
 	root, err := msg.Root()
-	return AllocBenchmark{root.Struct()}, err
+	return AllocBenchmark(root.Struct()), err
 }
 
 func (s AllocBenchmark) String() string {
-	str, _ := text.Marshal(0xecea3e9ebcbe5655, s.Struct)
+	str, _ := text.Marshal(0xecea3e9ebcbe5655, capnp.Struct(s))
 	return str
 }
 
+func (s AllocBenchmark) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (AllocBenchmark) DecodeFromPtr(p capnp.Ptr) AllocBenchmark {
+	return AllocBenchmark(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s AllocBenchmark) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s AllocBenchmark) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s AllocBenchmark) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s AllocBenchmark) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s AllocBenchmark) Fields() (AllocBenchmark_Field_List, error) {
-	p, err := s.Struct.Ptr(0)
-	return AllocBenchmark_Field_List{List: p.List()}, err
+	p, err := capnp.Struct(s).Ptr(0)
+	return AllocBenchmark_Field_List(p.List()), err
 }
 
 func (s AllocBenchmark) HasFields() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s AllocBenchmark) SetFields(v AllocBenchmark_Field_List) error {
-	return s.Struct.SetPtr(0, v.List.ToPtr())
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewFields sets the fields field to a newly
 // allocated AllocBenchmark_Field_List, preferring placement in s's segment.
 func (s AllocBenchmark) NewFields(n int32) (AllocBenchmark_Field_List, error) {
-	l, err := NewAllocBenchmark_Field_List(s.Struct.Segment(), n)
+	l, err := NewAllocBenchmark_Field_List(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return AllocBenchmark_Field_List{}, err
 	}
-	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
 
@@ -5602,7 +6864,7 @@ type AllocBenchmark_List = capnp.StructList[AllocBenchmark]
 // NewAllocBenchmark creates a new list of AllocBenchmark.
 func NewAllocBenchmark_List(s *capnp.Segment, sz int32) (AllocBenchmark_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[AllocBenchmark]{List: l}, err
+	return capnp.StructList[AllocBenchmark](l), err
 }
 
 // AllocBenchmark_Future is a wrapper for a AllocBenchmark promised by a client call.
@@ -5610,50 +6872,72 @@ type AllocBenchmark_Future struct{ *capnp.Future }
 
 func (p AllocBenchmark_Future) Struct() (AllocBenchmark, error) {
 	s, err := p.Future.Struct()
-	return AllocBenchmark{s}, err
+	return AllocBenchmark(s), err
 }
 
-type AllocBenchmark_Field struct{ capnp.Struct }
+type AllocBenchmark_Field capnp.Struct
 
 // AllocBenchmark_Field_TypeID is the unique identifier for the type AllocBenchmark_Field.
 const AllocBenchmark_Field_TypeID = 0xb8fb64b8ed846ae6
 
 func NewAllocBenchmark_Field(s *capnp.Segment) (AllocBenchmark_Field, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return AllocBenchmark_Field{st}, err
+	return AllocBenchmark_Field(st), err
 }
 
 func NewRootAllocBenchmark_Field(s *capnp.Segment) (AllocBenchmark_Field, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return AllocBenchmark_Field{st}, err
+	return AllocBenchmark_Field(st), err
 }
 
 func ReadRootAllocBenchmark_Field(msg *capnp.Message) (AllocBenchmark_Field, error) {
 	root, err := msg.Root()
-	return AllocBenchmark_Field{root.Struct()}, err
+	return AllocBenchmark_Field(root.Struct()), err
 }
 
 func (s AllocBenchmark_Field) String() string {
-	str, _ := text.Marshal(0xb8fb64b8ed846ae6, s.Struct)
+	str, _ := text.Marshal(0xb8fb64b8ed846ae6, capnp.Struct(s))
 	return str
 }
 
+func (s AllocBenchmark_Field) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (AllocBenchmark_Field) DecodeFromPtr(p capnp.Ptr) AllocBenchmark_Field {
+	return AllocBenchmark_Field(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s AllocBenchmark_Field) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s AllocBenchmark_Field) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s AllocBenchmark_Field) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s AllocBenchmark_Field) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s AllocBenchmark_Field) StringValue() (string, error) {
-	p, err := s.Struct.Ptr(0)
+	p, err := capnp.Struct(s).Ptr(0)
 	return p.Text(), err
 }
 
 func (s AllocBenchmark_Field) HasStringValue() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s AllocBenchmark_Field) StringValueBytes() ([]byte, error) {
-	p, err := s.Struct.Ptr(0)
+	p, err := capnp.Struct(s).Ptr(0)
 	return p.TextBytes(), err
 }
 
 func (s AllocBenchmark_Field) SetStringValue(v string) error {
-	return s.Struct.SetText(0, v)
+	return capnp.Struct(s).SetText(0, v)
 }
 
 // AllocBenchmark_Field_List is a list of AllocBenchmark_Field.
@@ -5662,7 +6946,7 @@ type AllocBenchmark_Field_List = capnp.StructList[AllocBenchmark_Field]
 // NewAllocBenchmark_Field creates a new list of AllocBenchmark_Field.
 func NewAllocBenchmark_Field_List(s *capnp.Segment, sz int32) (AllocBenchmark_Field_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[AllocBenchmark_Field]{List: l}, err
+	return capnp.StructList[AllocBenchmark_Field](l), err
 }
 
 // AllocBenchmark_Field_Future is a wrapper for a AllocBenchmark_Field promised by a client call.
@@ -5670,7 +6954,7 @@ type AllocBenchmark_Field_Future struct{ *capnp.Future }
 
 func (p AllocBenchmark_Field_Future) Struct() (AllocBenchmark_Field, error) {
 	s, err := p.Future.Struct()
-	return AllocBenchmark_Field{s}, err
+	return AllocBenchmark_Field(s), err
 }
 
 const schema_832bcc6686a26d56 = "x\xda\xacZ}t\x14U\x96\xbf\xb7\xaa;\x15\x92t" +

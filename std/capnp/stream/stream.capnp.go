@@ -8,29 +8,52 @@ import (
 	schemas "capnproto.org/go/capnp/v3/schemas"
 )
 
-type StreamResult struct{ capnp.Struct }
+type StreamResult capnp.Struct
 
 // StreamResult_TypeID is the unique identifier for the type StreamResult.
 const StreamResult_TypeID = 0x995f9a3377c0b16e
 
 func NewStreamResult(s *capnp.Segment) (StreamResult, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	return StreamResult{st}, err
+	return StreamResult(st), err
 }
 
 func NewRootStreamResult(s *capnp.Segment) (StreamResult, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	return StreamResult{st}, err
+	return StreamResult(st), err
 }
 
 func ReadRootStreamResult(msg *capnp.Message) (StreamResult, error) {
 	root, err := msg.Root()
-	return StreamResult{root.Struct()}, err
+	return StreamResult(root.Struct()), err
 }
 
 func (s StreamResult) String() string {
-	str, _ := text.Marshal(0x995f9a3377c0b16e, s.Struct)
+	str, _ := text.Marshal(0x995f9a3377c0b16e, capnp.Struct(s))
 	return str
+}
+
+func (s StreamResult) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (StreamResult) DecodeFromPtr(p capnp.Ptr) StreamResult {
+	return StreamResult(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s StreamResult) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s StreamResult) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s StreamResult) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s StreamResult) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
 }
 
 // StreamResult_List is a list of StreamResult.
@@ -39,7 +62,7 @@ type StreamResult_List = capnp.StructList[StreamResult]
 // NewStreamResult creates a new list of StreamResult.
 func NewStreamResult_List(s *capnp.Segment, sz int32) (StreamResult_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
-	return capnp.StructList[StreamResult]{List: l}, err
+	return capnp.StructList[StreamResult](l), err
 }
 
 // StreamResult_Future is a wrapper for a StreamResult promised by a client call.
@@ -47,7 +70,7 @@ type StreamResult_Future struct{ *capnp.Future }
 
 func (p StreamResult_Future) Struct() (StreamResult, error) {
 	s, err := p.Future.Struct()
-	return StreamResult{s}, err
+	return StreamResult(s), err
 }
 
 const schema_86c366a91393f3f8 = "x\xda\x12\x88p`1\xe4\xcdgb`\x0a\x94ae" +

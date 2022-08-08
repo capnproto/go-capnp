@@ -303,7 +303,7 @@ func TestSendBootstrapCall(t *testing.T) {
 			t.Fatal("p2.NewMessage():", err)
 		}
 		iptr := capnp.NewInterface(msg.Segment(), 0)
-		err = pogs.Insert(rpccp.Message_TypeID, msg.Struct, &rpcMessage{
+		err = pogs.Insert(rpccp.Message_TypeID, capnp.Struct(msg), &rpcMessage{
 			Which: rpccp.Message_Which_return,
 			Return: &rpcReturn{
 				AnswerID: qid,
@@ -404,7 +404,7 @@ func TestSendBootstrapCall(t *testing.T) {
 			t.Fatal("capnp.NewStruct:", err)
 		}
 		resp.SetUint64(0, 0xdeadbeef)
-		err = pogs.Insert(rpccp.Message_TypeID, msg.Struct, &rpcMessage{
+		err = pogs.Insert(rpccp.Message_TypeID, capnp.Struct(msg), &rpcMessage{
 			Which: rpccp.Message_Which_return,
 			Return: &rpcReturn{
 				AnswerID: qid,
@@ -514,7 +514,7 @@ func TestSendBootstrapCallException(t *testing.T) {
 			t.Fatal("p2.NewMessage():", err)
 		}
 		iptr := capnp.NewInterface(msg.Segment(), 0)
-		err = pogs.Insert(rpccp.Message_TypeID, msg.Struct, &rpcMessage{
+		err = pogs.Insert(rpccp.Message_TypeID, capnp.Struct(msg), &rpcMessage{
 			Which: rpccp.Message_Which_return,
 			Return: &rpcReturn{
 				AnswerID: qid,
@@ -743,7 +743,7 @@ func TestSendBootstrapPipelineCall(t *testing.T) {
 			t.Fatal("capnp.NewStruct:", err)
 		}
 		resp.SetUint64(0, 0xdeadbeef)
-		err = pogs.Insert(rpccp.Message_TypeID, msg.Struct, &rpcMessage{
+		err = pogs.Insert(rpccp.Message_TypeID, capnp.Struct(msg), &rpcMessage{
 			Which: rpccp.Message_Which_return,
 			Return: &rpcReturn{
 				AnswerID: qid,
@@ -955,7 +955,7 @@ func TestRecvBootstrapCall(t *testing.T) {
 			t.Fatal("capnp.NewStruct:", err)
 		}
 		params.SetUint32(0, 0x2a2b)
-		err = pogs.Insert(rpccp.Message_TypeID, msg.Struct, &rpcMessage{
+		err = pogs.Insert(rpccp.Message_TypeID, capnp.Struct(msg), &rpcMessage{
 			Which: rpccp.Message_Which_call,
 			Call: &rpcCall{
 				QuestionID: callQID,
@@ -1106,7 +1106,7 @@ func TestRecvBootstrapCallException(t *testing.T) {
 			t.Fatal("capnp.NewStruct:", err)
 		}
 		params.SetUint32(0, 0x2a2b)
-		err = pogs.Insert(rpccp.Message_TypeID, msg.Struct, &rpcMessage{
+		err = pogs.Insert(rpccp.Message_TypeID, capnp.Struct(msg), &rpcMessage{
 			Which: rpccp.Message_Which_call,
 			Call: &rpcCall{
 				QuestionID: callQID,
@@ -1254,7 +1254,7 @@ func TestRecvBootstrapPipelineCall(t *testing.T) {
 			t.Fatal("capnp.NewStruct:", err)
 		}
 		params.SetUint32(0, 0x2a2b)
-		err = pogs.Insert(rpccp.Message_TypeID, msg.Struct, &rpcMessage{
+		err = pogs.Insert(rpccp.Message_TypeID, capnp.Struct(msg), &rpcMessage{
 			Which: rpccp.Message_Which_call,
 			Call: &rpcCall{
 				QuestionID: callQID,
@@ -1357,7 +1357,7 @@ func TestCallOnClosedConn(t *testing.T) {
 			t.Fatal("p2.NewMessage():", err)
 		}
 		iptr := capnp.NewInterface(msg.Segment(), 0)
-		err = pogs.Insert(rpccp.Message_TypeID, msg.Struct, &rpcMessage{
+		err = pogs.Insert(rpccp.Message_TypeID, capnp.Struct(msg), &rpcMessage{
 			Which: rpccp.Message_Which_return,
 			Return: &rpcReturn{
 				AnswerID: qid,
@@ -1497,7 +1497,7 @@ func TestRecvCancel(t *testing.T) {
 		if err != nil {
 			t.Fatal("p2.NewMessage():", err)
 		}
-		err = pogs.Insert(rpccp.Message_TypeID, msg.Struct, &rpcMessage{
+		err = pogs.Insert(rpccp.Message_TypeID, capnp.Struct(msg), &rpcMessage{
 			Which: rpccp.Message_Which_call,
 			Call: &rpcCall{
 				QuestionID: callQID,
@@ -1641,7 +1641,7 @@ func TestSendCancel(t *testing.T) {
 			t.Fatal("p2.NewMessage():", err)
 		}
 		iptr := capnp.NewInterface(msg.Segment(), 0)
-		err = pogs.Insert(rpccp.Message_TypeID, msg.Struct, &rpcMessage{
+		err = pogs.Insert(rpccp.Message_TypeID, capnp.Struct(msg), &rpcMessage{
 			Which: rpccp.Message_Which_return,
 			Return: &rpcReturn{
 				AnswerID: bootQID,
@@ -1870,7 +1870,7 @@ func newServer(impl func(context.Context, *server.Call) error, shutdown shutdown
 			Impl: impl,
 		}}
 	}
-	return capnp.NewClient(server.New(methods, nil /* brand */, shutdown, nil /* policy */))
+	return capnp.NewClient(server.New(methods, nil /* brand */, shutdown))
 }
 
 type shutdownFunc func()
@@ -1901,7 +1901,7 @@ func sendMessage(ctx context.Context, t rpc.Transport, msg *rpcMessage) error {
 		return fmt.Errorf("send message: %v", err)
 	}
 	defer release()
-	if err := pogs.Insert(rpccp.Message_TypeID, s.Struct, msg); err != nil {
+	if err := pogs.Insert(rpccp.Message_TypeID, capnp.Struct(s), msg); err != nil {
 		return fmt.Errorf("send message: %v", err)
 	}
 	if err := send(); err != nil {
@@ -1916,7 +1916,7 @@ func recvMessage(ctx context.Context, t rpc.Transport) (*rpcMessage, capnp.Relea
 		return nil, nil, err
 	}
 	r := new(rpcMessage)
-	if err := pogs.Extract(r, rpccp.Message_TypeID, m.Struct); err != nil {
+	if err := pogs.Extract(r, rpccp.Message_TypeID, capnp.Struct(m)); err != nil {
 		release()
 		return nil, nil, fmt.Errorf("extract RPC message: %v", err)
 	}

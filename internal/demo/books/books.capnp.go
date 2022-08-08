@@ -8,55 +8,77 @@ import (
 	schemas "capnproto.org/go/capnp/v3/schemas"
 )
 
-type Book struct{ capnp.Struct }
+type Book capnp.Struct
 
 // Book_TypeID is the unique identifier for the type Book.
 const Book_TypeID = 0x8100cc88d7d4d47c
 
 func NewBook(s *capnp.Segment) (Book, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	return Book{st}, err
+	return Book(st), err
 }
 
 func NewRootBook(s *capnp.Segment) (Book, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	return Book{st}, err
+	return Book(st), err
 }
 
 func ReadRootBook(msg *capnp.Message) (Book, error) {
 	root, err := msg.Root()
-	return Book{root.Struct()}, err
+	return Book(root.Struct()), err
 }
 
 func (s Book) String() string {
-	str, _ := text.Marshal(0x8100cc88d7d4d47c, s.Struct)
+	str, _ := text.Marshal(0x8100cc88d7d4d47c, capnp.Struct(s))
 	return str
 }
 
+func (s Book) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (Book) DecodeFromPtr(p capnp.Ptr) Book {
+	return Book(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s Book) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s Book) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s Book) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s Book) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
 func (s Book) Title() (string, error) {
-	p, err := s.Struct.Ptr(0)
+	p, err := capnp.Struct(s).Ptr(0)
 	return p.Text(), err
 }
 
 func (s Book) HasTitle() bool {
-	return s.Struct.HasPtr(0)
+	return capnp.Struct(s).HasPtr(0)
 }
 
 func (s Book) TitleBytes() ([]byte, error) {
-	p, err := s.Struct.Ptr(0)
+	p, err := capnp.Struct(s).Ptr(0)
 	return p.TextBytes(), err
 }
 
 func (s Book) SetTitle(v string) error {
-	return s.Struct.SetText(0, v)
+	return capnp.Struct(s).SetText(0, v)
 }
 
 func (s Book) PageCount() int32 {
-	return int32(s.Struct.Uint32(0))
+	return int32(capnp.Struct(s).Uint32(0))
 }
 
 func (s Book) SetPageCount(v int32) {
-	s.Struct.SetUint32(0, uint32(v))
+	capnp.Struct(s).SetUint32(0, uint32(v))
 }
 
 // Book_List is a list of Book.
@@ -65,7 +87,7 @@ type Book_List = capnp.StructList[Book]
 // NewBook creates a new list of Book.
 func NewBook_List(s *capnp.Segment, sz int32) (Book_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	return capnp.StructList[Book]{List: l}, err
+	return capnp.StructList[Book](l), err
 }
 
 // Book_Future is a wrapper for a Book promised by a client call.
@@ -73,7 +95,7 @@ type Book_Future struct{ *capnp.Future }
 
 func (p Book_Future) Struct() (Book, error) {
 	s, err := p.Future.Struct()
-	return Book{s}, err
+	return Book(s), err
 }
 
 const schema_85d3acc39d94e0f8 = "x\xda\x12Ht`1\xe4\xdd\xcf\xc8\xc0\x14(\xc2\xca" +

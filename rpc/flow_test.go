@@ -15,7 +15,6 @@ import (
 	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/flowcontrol"
 	"capnproto.org/go/capnp/v3/rpc/internal/testcapnp"
-	"capnproto.org/go/capnp/v3/server"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 )
 
@@ -35,7 +34,7 @@ func (t *measuringTransport) RecvMessage(ctx context.Context) (rpccp.Message, ca
 		return msg, release, err
 	}
 
-	size, err := msg.Struct.Message().TotalSize()
+	size, err := capnp.Struct(msg).Message().TotalSize()
 	if err != nil {
 		return msg, release, err
 	}
@@ -82,20 +81,9 @@ func TestFixedFlowLimit(t *testing.T) {
 	go func() {
 		// Server
 
-		bootstrap := testcapnp.StreamTest_ServerToClient(
-			slowStreamTestServer{},
-			&server.Policy{
-				// Crank this way up, so we don't block on the server side.
-				// Exact value is somewhat arbitrary, but big enough that
-				// we should always hit the flow limit *long* before we start
-				// blocking server side.
-				//
-				// In the long term, this will be unbounded anyway, but
-				// for now we have to do this.
-				MaxConcurrentCalls: int(limit * 3),
-			})
+		bootstrap := testcapnp.StreamTest_ServerToClient(slowStreamTestServer{})
 		conn := NewConn(serverTrans, &Options{
-			BootstrapClient: bootstrap.Client,
+			BootstrapClient: capnp.Client(bootstrap),
 		})
 		defer conn.Close()
 		<-ctx.Done()
@@ -109,7 +97,7 @@ func TestFixedFlowLimit(t *testing.T) {
 		conn := NewConn(trans, nil)
 		defer conn.Close()
 
-		client := testcapnp.StreamTest{Client: conn.Bootstrap(ctx)}
+		client := testcapnp.StreamTest(conn.Bootstrap(ctx))
 		defer client.Release()
 
 		// Make a decently sized payload, so we can expect the size of the
@@ -118,7 +106,7 @@ func TestFixedFlowLimit(t *testing.T) {
 
 		// Rig up the flow control, then send calls as fast as the limiter will
 		// let us:
-		client.Client.SetFlowLimiter(flowcontrol.NewFixedLimiter(limit))
+		capnp.Client(client).SetFlowLimiter(flowcontrol.NewFixedLimiter(limit))
 		for ctx.Err() == nil {
 			client.Push(ctx, func(p testcapnp.StreamTest_push_Params) error {
 				return p.SetData(data)

@@ -38,8 +38,8 @@ func (errorEchoImpl) Echo(_ context.Context, call air.Echo_echo) error {
 
 func TestServerCall(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		echo := air.Echo_ServerToClient(echoImpl{}, nil)
-		defer echo.Client.Release()
+		echo := air.Echo_ServerToClient(echoImpl{})
+		defer echo.Release()
 
 		ans, finish := echo.Echo(context.Background(), func(p air.Echo_echo_Params) error {
 			err := p.SetIn("foo")
@@ -57,8 +57,8 @@ func TestServerCall(t *testing.T) {
 		}
 	})
 	t.Run("Error", func(t *testing.T) {
-		echo := air.Echo_ServerToClient(errorEchoImpl{}, nil)
-		defer echo.Client.Release()
+		echo := air.Echo_ServerToClient(errorEchoImpl{})
+		defer echo.Release()
 
 		ans, finish := echo.Echo(context.Background(), func(p air.Echo_echo_Params) error {
 			err := p.SetIn("foo")
@@ -71,8 +71,8 @@ func TestServerCall(t *testing.T) {
 		}
 	})
 	t.Run("Unimplemented", func(t *testing.T) {
-		echo := air.Echo{Client: capnp.NewClient(server.New(nil, nil, nil, nil))}
-		defer echo.Client.Release()
+		echo := air.Echo(capnp.NewClient(server.New(nil, nil, nil)))
+		defer echo.Release()
 
 		ans, finish := echo.Echo(context.Background(), func(p air.Echo_echo_Params) error {
 			err := p.SetIn("foo")
@@ -105,32 +105,13 @@ func (seq *callSeq) GetNumber(ctx context.Context, call air.CallSequence_getNumb
 	return nil
 }
 
-type lockCallSeq struct {
-	n  uint32
-	mu sync.Mutex
-}
-
-func (seq *lockCallSeq) GetNumber(ctx context.Context, call air.CallSequence_getNumber) error {
-	seq.mu.Lock()
-	defer seq.mu.Unlock()
-	call.Ack()
-
-	r, err := call.AllocResults()
-	if err != nil {
-		return err
-	}
-	r.SetN(seq.n)
-	seq.n++
-	return nil
-}
-
 func TestServerCallOrder(t *testing.T) {
 	tests := []struct {
 		name string
 		seq  air.CallSequence
 	}{
-		{"NoAck", air.CallSequence_ServerToClient(new(callSeq), nil)},
-		{"AckWithLocks", air.CallSequence_ServerToClient(new(callSeq), nil)},
+		{"NoAck", air.CallSequence_ServerToClient(new(callSeq))},
+		{"AckWithLocks", air.CallSequence_ServerToClient(new(callSeq))},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -164,46 +145,19 @@ func TestServerCallOrder(t *testing.T) {
 			check(call3, 3)
 			check(call4, 4)
 		})
-		test.seq.Client.Release()
-	}
-}
-
-func TestServerMaxConcurrentCalls(t *testing.T) {
-	wait := make(chan struct{})
-	echo := air.Echo_ServerToClient(blockingEchoImpl{wait}, &server.Policy{
-		MaxConcurrentCalls: 2,
-	})
-	defer echo.Client.Release()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	call1, finish := echo.Echo(ctx, nil)
-	defer finish()
-	call2, finish := echo.Echo(ctx, nil)
-	defer finish()
-	go close(wait)
-	call3, finish := echo.Echo(ctx, nil)
-	defer finish()
-	<-wait
-	if _, err := call1.Struct(); err != nil {
-		t.Error("Echo #1:", err)
-	}
-	if _, err := call2.Struct(); err != nil {
-		t.Error("Echo #2:", err)
-	}
-	if _, err := call3.Struct(); err != nil {
-		t.Error("Echo #3:", err)
+		test.seq.Release()
 	}
 }
 
 func TestServerShutdown(t *testing.T) {
 	wait := make(chan struct{})
-	echo := air.Echo_ServerToClient(blockingEchoImpl{wait}, nil)
-	defer echo.Client.Release()
+	echo := air.Echo_ServerToClient(blockingEchoImpl{wait})
+	defer echo.Release()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	call, finish := echo.Echo(ctx, nil)
 	defer finish()
-	echo.Client.Release()
+	echo.Release()
 	select {
 	case <-call.Done():
 		if _, err := call.Struct(); err == nil {
@@ -254,7 +208,7 @@ func TestPipelineCall(t *testing.T) {
 				return nil, ctx.Err()
 			}
 		},
-	}, nil)
+	})
 
 	ctx := context.Background()
 	baseAns, finish := p.NewPipeliner(ctx, nil)
@@ -283,7 +237,7 @@ func TestPipelineCall(t *testing.T) {
 
 func TestBrokenPipelineCall(t *testing.T) {
 	wait := make(chan struct{})
-	p := air.Pipeliner_ServerToClient(brokenPipeliner{wait}, nil)
+	p := air.Pipeliner_ServerToClient(brokenPipeliner{wait})
 
 	ctx := context.Background()
 	baseAns, finish := p.NewPipeliner(ctx, nil)
@@ -322,7 +276,7 @@ func (p *pipeliner) NewPipeliner(ctx context.Context, call air.Pipeliner_newPipe
 	if err != nil {
 		return err
 	}
-	r.SetPipeliner(air.Pipeliner_ServerToClient(q, nil))
+	r.SetPipeliner(air.Pipeliner_ServerToClient(q))
 	return nil
 }
 
@@ -352,7 +306,7 @@ func TestAckDoesntBlock(t *testing.T) {
 
 	client := air.CallSequence_ServerToClient(&callSeqBlockN{
 		blockingCalls: 1,
-	}, nil)
+	})
 
 	fut1, rel := client.GetNumber(ctx, nil)
 	defer rel()

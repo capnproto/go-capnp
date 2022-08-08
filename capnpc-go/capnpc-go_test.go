@@ -462,7 +462,7 @@ func nodeListString(n []*node) string {
 		if i > 0 {
 			b.WriteByte(' ')
 		}
-		e.Encode(0xe682ab4cf923a417, nn.Struct)
+		e.Encode(0xe682ab4cf923a417, capnp.Struct(nn.Node))
 	}
 	b.WriteByte(']')
 	return b.String()
