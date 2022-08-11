@@ -2,24 +2,26 @@ package bbr
 
 import (
 	"math"
-	"time"
 )
 
 // A filter estimates a value based on a sliding window of past samples.
-type filter[T any] struct {
+//
+// N.b. the constraint that makes the most sense here would be
+// golang.org/x/exp/constraints.Ordered, but it seems silly to pull in
+// the exp package given this type is un-exported and we only actually
+// use it at types that happen to satisfy ~int64. TODO(cleanup): when the
+// stdlib has such a constraint, use it here for clarity.
+type filter[T ~int64] struct {
 	buf      ringBuffer[T]
 	estimate T
 }
 
-// An rtPropFilter estimates the round-trip propagation time, by taking
-// the minimum round trip time of the samples in its window.
-type rtPropFilter filter[time.Duration]
+func (f *filter[T]) addSample(sample T) {
+	f.buf.Shift(sample)
+}
 
-func (f *rtPropFilter) AddSample(rtt time.Duration) {
-	f.buf.Shift(rtt)
-
-	// Update the estimate (minimum)
-	f.estimate = time.Duration(math.MaxInt64)
+func (f *filter[T]) estimateMin() {
+	f.estimate = T(math.MaxInt64)
 	for _, v := range f.buf.elts {
 		if v < f.estimate {
 			f.estimate = v
@@ -27,19 +29,27 @@ func (f *rtPropFilter) AddSample(rtt time.Duration) {
 	}
 }
 
-// A btlBwFilter estimates the bottleneck bandwidth, as the maximum delivery
-// rate over the samples in its window
-// (where delivery rate = data deliverd/time elapsed).
-type btlBwFilter filter[int64]
-
-func (f *btlBwFilter) AddSample(s sample) {
-	f.buf.Shift(s.DeliveryRate())
-
-	// Update ht estimate (maximum)
-	f.estimate = math.MinInt64
+func (f *filter[T]) estimateMax() {
+	f.estimate = T(math.MinInt64)
 	for _, v := range f.buf.elts {
 		if v > f.estimate {
 			f.estimate = v
 		}
 	}
+}
+
+type minFilter[T ~int64] filter[T]
+
+func (mf *minFilter[T]) AddSample(sample T) {
+	f := (*filter[T])(mf)
+	f.addSample(sample)
+	f.estimateMin()
+}
+
+type maxFilter[T ~int64] filter[T]
+
+func (mf *maxFilter[T]) AddSample(sample T) {
+	f := (*filter[T])(mf)
+	f.addSample(sample)
+	f.estimateMax()
 }

@@ -20,8 +20,8 @@ type packetMeta struct {
 type state struct {
 	// Filters for estimating the round trip propagation time and
 	// bottleneck bandwidth, respectively:
-	rtPropFilter rtPropFilter
-	btlBwFilter  btlBwFilter
+	rtPropFilter minFilter[time.Duration]
+	btlBwFilter  maxFilter[int64]
 
 	delivered     int64
 	deliveredTime time.Time
