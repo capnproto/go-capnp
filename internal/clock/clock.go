@@ -1,10 +1,13 @@
+// Package clock provides an interface for clocks.
+// This is useful in particular for testing code which checks
+// the current time.
 package clock
 
 import (
 	"time"
 )
 
-// A Clock is can return the current time. Useful for testing.
+// A Clock is can return the current time.
 type Clock interface {
 	Now() time.Time
 }
