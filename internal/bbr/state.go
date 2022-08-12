@@ -80,7 +80,7 @@ type state struct {
 func (s *state) send(size int64) (_ packetMeta, ok bool) {
 	now := s.clock.Now()
 	bdp := s.btlBwFilter.estimate * s.rtPropFilter.estimate.Nanoseconds()
-	if s.inflight >= s.cwndGain*bdp {
+	if s.inflight >= int64(s.cwndGain*float64(bdp)) {
 		return packetMeta{}, false
 	}
 	if now.After(s.nextSendTime) {
@@ -99,8 +99,8 @@ func (s *state) onAck(p packetMeta) {
 	s.delivered += p.Size
 	s.deliveredTime = now
 
-	deliveryRate := (s.delivered - p.delivered) /
-		(s.deliveredTime - p.deliveredTime)
+	deliveryRate := (s.delivered - p.Delivered) /
+		(s.deliveredTime.Sub(p.DeliveredTime)).Nanoseconds()
 
 	if deliveryRate > s.btlBwFilter.estimate || !p.AppLimited {
 		s.btlBwFilter.AddSample(deliveryRate)
