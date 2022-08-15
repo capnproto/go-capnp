@@ -64,3 +64,22 @@ func TestQueueItems(t *testing.T) {
 
 	assert.Equal(t, []int{2, 3, 4}, concat(q.Items()))
 }
+
+func TestQueueFold(t *testing.T) {
+	q := &queue[int]{}
+
+	q.Push(1)
+	q.Push(2)
+	q.Push(3)
+
+	assert.Equal(t, 6, q.Fold(0, func(x, y int) int {
+		return x + y
+	}))
+
+	q.Pop()
+	q.Push(4)
+
+	assert.Equal(t, 9, q.Fold(0, func(x, y int) int {
+		return x + y
+	}))
+}

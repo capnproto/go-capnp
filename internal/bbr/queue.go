@@ -73,3 +73,16 @@ func (q *queue[T]) Items() (head, tail []T) {
 		return q.buf[q.start : q.start+q.length], nil
 	}
 }
+
+// Fold combines all of the values in the queue into a single value.
+func (q *queue[T]) Fold(init T, combine func(acc, item T) T) T {
+	acc := init
+	h, t := q.Items()
+	for _, v := range h {
+		acc = combine(acc, v)
+	}
+	for _, v := range t {
+		acc = combine(acc, v)
+	}
+	return acc
+}
