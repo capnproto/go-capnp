@@ -38,8 +38,8 @@ type state struct {
 	// bytes/time.Duration(1) i.e. bytes per nanosecond.
 	// TODO: maybe use a larger unit of time, to save bits for the
 	// actual data.
-	rtPropFilter minFilter[time.Duration]
-	btlBwFilter  maxFilter[int64]
+	rtPropFilter rtPropFilter
+	btlBwFilter  btlBwFilter
 
 	// Total bytes in-flight
 	inflight int64
@@ -79,7 +79,7 @@ type state struct {
 
 func (s *state) send(size int64) (_ packetMeta, ok bool) {
 	now := s.clock.Now()
-	bdp := s.btlBwFilter.estimate * s.rtPropFilter.estimate.Nanoseconds()
+	bdp := s.btlBwFilter.Estimate * s.rtPropFilter.Estimate.Nanoseconds()
 	if s.inflight >= int64(s.cwndGain*float64(bdp)) {
 		return packetMeta{}, false
 	}
@@ -94,7 +94,10 @@ func (s *state) onAck(p packetMeta) {
 	now := s.clock.Now()
 	rtt := now.Sub(p.SendTime)
 
-	s.rtPropFilter.AddSample(rtt)
+	s.rtPropFilter.AddSample(rtPropSample{
+		now: now,
+		rtt: rtt,
+	})
 
 	s.delivered += p.Size
 	s.deliveredTime = now
@@ -102,7 +105,7 @@ func (s *state) onAck(p packetMeta) {
 	deliveryRate := (s.delivered - p.Delivered) /
 		(s.deliveredTime.Sub(p.DeliveredTime)).Nanoseconds()
 
-	if deliveryRate > s.btlBwFilter.estimate || !p.AppLimited {
+	if deliveryRate > s.btlBwFilter.Estimate || !p.AppLimited {
 		s.btlBwFilter.AddSample(deliveryRate)
 	}
 	if s.appLimitedUntil > 0 {

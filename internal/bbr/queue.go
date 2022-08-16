@@ -8,6 +8,12 @@ type queue[T any] struct {
 	length int // Number of elements in the queue.
 }
 
+// newQueue returns a new empty queue whose internal buffer's size is based
+// on sizeHint.
+func newQueue[T any](sizeHint int) *queue[T] {
+	return &queue[T]{buf: make([]T, sizeHint)}
+}
+
 // Len returns the number of elements in the queue.
 func (q *queue[T]) Len() int {
 	return q.length
@@ -76,6 +82,12 @@ func (q *queue[T]) Items() (head, tail []T) {
 
 // Fold combines all of the values in the queue into a single value.
 func (q *queue[T]) Fold(init T, combine func(acc, item T) T) T {
+	return foldQueue(q, init, combine)
+}
+
+// Like queue.Fold, but doesn't require the result/init to be the same as the
+// element type.
+func foldQueue[A, B any](q *queue[A], init B, combine func(acc B, item A) B) B {
 	acc := init
 	h, t := q.Items()
 	for _, v := range h {

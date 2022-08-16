@@ -1,55 +1,108 @@
 package bbr
 
 import (
-	"math"
+	"time"
 )
 
-// A filter estimates a value based on a sliding window of past samples.
+// Size of the bottleneck bandwidth filter's window. The paper suggests
+// 6-10, other than that this is arbitrary.
+const btlBwFilterSize = 6
+
+// Filter that estimates the bottleneck bandwidth.
+type btlBwFilter struct {
+	q        queue[int64]
+	Estimate int64
+}
+
+func newBtlBwFilter() btlBwFilter {
+	return btlBwFilter{
+		q: *newQueue[int64](btlBwFilterSize),
+	}
+}
+
+func (f *btlBwFilter) AddSample(deliveryRate int64) {
+	if f.q.Len() == btlBwFilterSize {
+		f.q.Pop()
+	}
+	f.q.Push(deliveryRate)
+	f.Estimate = f.q.Fold(0, max[int64])
+}
+
+// Filter that estimates the round-trip propagation time.
+type rtPropFilter struct {
+	q          queue[rtPropSample]
+	nextSample rtPropSample
+	Estimate   time.Duration
+}
+
+func newRtPropFilter() rtPropFilter {
+	return rtPropFilter{}
+}
+
+type rtPropSample struct {
+	rtt time.Duration
+	now time.Time
+}
+
+func (f *rtPropFilter) AddSample(sample rtPropSample) {
+	// Clear out any samples older than 30 seconds:
+	for !f.q.Empty() && sample.now.Sub(f.q.Peek().now) > 30*time.Second {
+		f.q.Pop()
+	}
+
+	// We want to avoid an un-bounded growing queue for two reasons:
+	//
+	// 1. Space usage
+	// 2. Recomputing the estimate is an O(n) operation, so we want to
+	//    keep n small if we're doing that on each ack.
+	//
+	// We manage this as follows: rather than adding each sample to the queue
+	// individually, by computing the minimum rtt for each 1 second window,
+	// and adding that aggregate to the queue, which in turn drops samples
+	// more than 30 seconds old. This gives the benefits of the sliding window
+	// without needing to store each and every sample.
+
+	if sample.now.Sub(f.nextSample.now) > time.Second {
+		f.q.Push(f.nextSample)
+		f.nextSample = sample
+	} else {
+		f.nextSample = rtPropSample{
+			// We keep the old now, since it's used to determine if we
+			// should shift to the next sample:
+			now: f.nextSample.now,
+			rtt: min(f.nextSample.rtt, sample.rtt),
+		}
+	}
+
+	f.Estimate = foldQueue(
+		&f.q,
+		f.nextSample.rtt,
+		func(rtProp time.Duration, sample rtPropSample) time.Duration {
+			return min(rtProp, sample.rtt)
+		},
+	)
+}
+
+// min and max compute the minimum and maximum of two numbers, respectively.
+// Presumably, as Go generics become more widely used, these will be dropped
+// in favor of some standard library function.
 //
-// N.b. the constraint that makes the most sense here would be
-// golang.org/x/exp/constraints.Ordered, but it seems silly to pull in
-// the exp package given this type is un-exported and we only actually
-// use it at types that happen to satisfy ~int64. TODO(cleanup): when the
-// stdlib has such a constraint, use it here for clarity.
-type filter[T ~int64] struct {
-	buf      ringBuffer[T]
-	estimate T
-}
+// We could use a broader constraint here (any numeric type), but we'd have
+// to either define the alias ourselves or import the exp package, and we
+// only actually use these at types covered by ~int64 anyway.
 
-func (f *filter[T]) addSample(sample T) {
-	f.buf.Shift(sample)
-}
-
-func (f *filter[T]) estimateMin() {
-	f.estimate = T(math.MaxInt64)
-	for _, v := range f.buf.elts {
-		if v < f.estimate {
-			f.estimate = v
-		}
+func min[T ~int64](x, y T) T {
+	if x < y {
+		return x
+	} else {
+		return y
 	}
 }
 
-func (f *filter[T]) estimateMax() {
-	f.estimate = T(math.MinInt64)
-	for _, v := range f.buf.elts {
-		if v > f.estimate {
-			f.estimate = v
-		}
+func max[T ~int64](x, y T) T {
+	if x > y {
+		return x
+	} else {
+		return y
 	}
-}
-
-type minFilter[T ~int64] filter[T]
-
-func (mf *minFilter[T]) AddSample(sample T) {
-	f := (*filter[T])(mf)
-	f.addSample(sample)
-	f.estimateMin()
-}
-
-type maxFilter[T ~int64] filter[T]
-
-func (mf *maxFilter[T]) AddSample(sample T) {
-	f := (*filter[T])(mf)
-	f.addSample(sample)
-	f.estimateMax()
 }
