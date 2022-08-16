@@ -64,8 +64,21 @@ type Manager struct {
 	// didn't have any more data to send.
 	appLimitedUntil int64
 
+	// The state the flow is in
+	state state
+
 	// A clock, for measuring the current time.
 	clock clock.Clock
+}
+
+func NewManager(clock clock.Clock) Manager {
+	m := Manager{
+		rtPropFilter: newRtPropFilter(),
+		btlBwFilter:  newBtlBwFilter(),
+		clock:        clock,
+	}
+	m.changeState(&startupState{})
+	return m
 }
 
 func (m *Manager) send(size int64) (_ packetMeta, ok bool) {
@@ -83,6 +96,8 @@ func (m *Manager) send(size int64) (_ packetMeta, ok bool) {
 // that packet is received.
 func (m *Manager) onAck(p packetMeta) {
 	now := m.clock.Now()
+	m.state.preAck(m, p, now)
+
 	rtt := now.Sub(p.SendTime)
 
 	m.rtPropFilter.AddSample(rtPropSample{
@@ -102,4 +117,11 @@ func (m *Manager) onAck(p packetMeta) {
 	if m.appLimitedUntil > 0 {
 		m.appLimitedUntil -= p.Size
 	}
+
+	m.state.postAck(m, p, now)
+}
+
+func (m *Manager) changeState(s state) {
+	m.state = s
+	m.state.initialize(m)
 }
