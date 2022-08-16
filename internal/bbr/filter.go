@@ -1,6 +1,7 @@
 package bbr
 
 import (
+	"math"
 	"time"
 )
 
@@ -36,7 +37,20 @@ type rtPropFilter struct {
 }
 
 func newRtPropFilter() rtPropFilter {
-	return rtPropFilter{}
+	return rtPropFilter{
+		nextSample: rtPropSample{
+			// Set this to a value that will be removed immediately,
+			// and will be lower priority than any other value, so
+			// it will removed from the queue when a new sample is
+			// added.
+			//
+			// XXX: this still could theoretically do the wrong thing
+			// if somebody's clock is set very wrong. We should find
+			// a better way to do this; maybe ask the user to supply
+			// an initial estimate, before any samples are collected?
+			now: time.Unix(math.MinInt64, 0),
+		},
+	}
 }
 
 type rtPropSample struct {
@@ -45,11 +59,6 @@ type rtPropSample struct {
 }
 
 func (f *rtPropFilter) AddSample(sample rtPropSample) {
-	// Clear out any samples older than 30 seconds:
-	for !f.q.Empty() && sample.now.Sub(f.q.Peek().now) > 30*time.Second {
-		f.q.Pop()
-	}
-
 	// We want to avoid an un-bounded growing queue for two reasons:
 	//
 	// 1. Space usage
@@ -72,6 +81,11 @@ func (f *rtPropFilter) AddSample(sample rtPropSample) {
 			now: f.nextSample.now,
 			rtt: min(f.nextSample.rtt, sample.rtt),
 		}
+	}
+
+	// Clear out any samples older than 30 seconds:
+	for !f.q.Empty() && sample.now.Sub(f.q.Peek().now) > 30*time.Second {
+		f.q.Pop()
 	}
 
 	f.Estimate = foldQueue(
