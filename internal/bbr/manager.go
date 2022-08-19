@@ -1,6 +1,7 @@
 package bbr
 
 import (
+	"context"
 	"time"
 
 	"capnproto.org/go/capnp/v3/internal/clock"
@@ -20,8 +21,94 @@ type packetMeta struct {
 	DeliveredTime time.Time
 }
 
+type sendRequest struct {
+	size      int64
+	replyChan chan<- packetMeta
+}
+
+func (m *Manager) run(ctx context.Context) {
+	for {
+		// These channels may or may not be nil, depending on what
+		// we want to listen for:
+		var (
+			// Fires when we cross the threshold past m.nextSendTime.
+			timeToSend <-chan time.Time
+
+			// Fires when someone wants to send.
+			sendReqs <-chan sendRequest
+		)
+
+		bdp := m.btlBwFilter.Estimate * m.rtPropFilter.Estimate.Nanoseconds()
+
+		if m.inflight >= int64(m.cwndGain*float64(bdp)) {
+			// We're at our threshold; wait for an ack,
+			// but ignore other signals.
+		} else if m.isAppLimited() {
+			// Last run through we didn't have enough
+			// to send, so we should just wait until we do;
+			// don't watch the timer, but do watch the send
+			// queue:
+			sendReqs = m.chSend
+		} else {
+			// App is sending fast enough for congestion
+			// control to be active; monitor the timer
+			// and wait until it fires before servicing
+			// a request:
+			timeToSend = m.timer.C
+		}
+
+		select {
+		case <-ctx.Done():
+			return
+		case p := <-m.chAck:
+			m.onAck(p)
+		case <-timeToSend:
+			m.trySend(ctx)
+		case req := <-sendReqs:
+			now := m.clock.Now()
+			m.doSend(now, req)
+		}
+	}
+}
+
+func (m *Manager) isAppLimited() bool {
+	return m.appLimitedUntil > 0
+}
+
+func (m *Manager) trySend(ctx context.Context) {
+	select {
+	case <-ctx.Done():
+	case req := <-m.chSend:
+		now := m.clock.Now()
+		m.doSend(now, req)
+	default:
+		m.appLimitedUntil = m.inflight
+	}
+}
+
+func (m *Manager) doSend(now time.Time, req sendRequest) {
+	p := packetMeta{
+		Size:          req.size,
+		AppLimited:    m.isAppLimited(),
+		SendTime:      now,
+		Delivered:     m.delivered,
+		DeliveredTime: m.deliveredTime,
+	}
+	if !m.timer.Stop() {
+		<-m.timer.C
+	}
+	nextSleep := time.Duration(float64(req.size) / (m.pacingGain * float64(m.btlBwFilter.Estimate)))
+	m.timer.Reset(nextSleep)
+	req.replyChan <- p
+	m.nextSendTime = now.Add(nextSleep)
+}
+
 // A Manager manages a BBR flow.
 type Manager struct {
+	chAck  chan packetMeta
+	chSend chan sendRequest
+	timer  time.Timer
+
 	// Filters for estimating the round trip propagation time and
 	// bottleneck bandwidth, respectively.
 	//
@@ -79,17 +166,6 @@ func NewManager(clock clock.Clock) Manager {
 	}
 	m.changeState(&startupState{})
 	return m
-}
-
-func (m *Manager) send(size int64) (_ packetMeta, ok bool) {
-	now := m.clock.Now()
-	bdp := m.btlBwFilter.Estimate * m.rtPropFilter.Estimate.Nanoseconds()
-	if m.inflight >= int64(m.cwndGain*float64(bdp)) {
-		return packetMeta{}, false
-	}
-	if now.After(m.nextSendTime) {
-	}
-	panic("TODO")
 }
 
 // onAck should be invoked on each packetMeta when the acknowledgement for
