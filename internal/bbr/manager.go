@@ -2,6 +2,7 @@ package bbr
 
 import (
 	"context"
+	"math"
 	"time"
 
 	"capnproto.org/go/capnp/v3/internal/clock"
@@ -24,6 +25,31 @@ type packetMeta struct {
 type sendRequest struct {
 	size      int64
 	replyChan chan<- packetMeta
+}
+
+func (m *Manager) StartMessage(ctx context.Context, size uint64) (gotResponse func(), err error) {
+	if size > math.MaxInt64 {
+		panic("TODO: overflow")
+	}
+	replyChan := make(chan packetMeta)
+	select {
+	case <-ctx.Done():
+		return func() {}, ctx.Err()
+	case <-m.ctx.Done():
+		return func() {}, m.ctx.Err()
+	case m.chSend <- sendRequest{size: int64(size), replyChan: replyChan}:
+		pm := <-replyChan
+		return func() {
+			select {
+			case <-m.ctx.Done():
+			case m.chAck <- pm:
+			}
+		}, nil
+	}
+}
+
+func (m *Manager) Release() {
+	m.cancel()
 }
 
 func (m *Manager) run(ctx context.Context) {
@@ -105,9 +131,11 @@ func (m *Manager) doSend(now time.Time, req sendRequest) {
 
 // A Manager manages a BBR flow.
 type Manager struct {
+	ctx    context.Context
+	cancel context.CancelFunc
 	chAck  chan packetMeta
 	chSend chan sendRequest
-	timer  time.Timer
+	timer  time.Timer // TODO: make this an interface for testing, like clock.
 
 	// Filters for estimating the round trip propagation time and
 	// bottleneck bandwidth, respectively.
@@ -159,10 +187,18 @@ type Manager struct {
 }
 
 func NewManager(clock clock.Clock) Manager {
+	ctx, cancel := context.WithCancel(context.Background())
 	m := Manager{
+		ctx:    ctx,
+		cancel: cancel,
+
+		chSend: make(chan sendRequest),
+		chAck:  make(chan packetMeta),
+
 		rtPropFilter: newRtPropFilter(),
 		btlBwFilter:  newBtlBwFilter(),
 		clock:        clock,
+		// TODO: timer.
 	}
 	m.changeState(&startupState{})
 	return m
