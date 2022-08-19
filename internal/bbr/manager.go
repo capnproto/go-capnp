@@ -80,7 +80,7 @@ func (m *Manager) run(ctx context.Context) {
 			// control to be active; monitor the timer
 			// and wait until it fires before servicing
 			// a request:
-			timeToSend = m.timer.C
+			timeToSend = m.timer.Chan()
 		}
 
 		select {
@@ -121,7 +121,7 @@ func (m *Manager) doSend(now time.Time, req sendRequest) {
 		DeliveredTime: m.deliveredTime,
 	}
 	if !m.timer.Stop() {
-		<-m.timer.C
+		<-m.timer.Chan()
 	}
 	nextSleep := time.Duration(float64(req.size) / (m.pacingGain * float64(m.btlBwFilter.Estimate)))
 	m.timer.Reset(nextSleep)
@@ -135,7 +135,6 @@ type Manager struct {
 	cancel context.CancelFunc
 	chAck  chan packetMeta
 	chSend chan sendRequest
-	timer  time.Timer // TODO: make this an interface for testing, like clock.
 
 	// Filters for estimating the round trip propagation time and
 	// bottleneck bandwidth, respectively.
@@ -184,6 +183,9 @@ type Manager struct {
 
 	// A clock, for measuring the current time.
 	clock clock.Clock
+
+	// A timer, to notify us when it's time to send a packet.
+	timer clock.Timer
 }
 
 func NewManager(clock clock.Clock) Manager {
