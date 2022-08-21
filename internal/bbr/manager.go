@@ -200,7 +200,9 @@ func NewManager(clock clock.Clock) Manager {
 		rtPropFilter: newRtPropFilter(),
 		btlBwFilter:  newBtlBwFilter(),
 		clock:        clock,
-		// TODO: timer.
+
+		// Set the timer to go off for the first time immediately:
+		timer: clock.NewTimer(0),
 	}
 	m.changeState(&startupState{})
 	return m
