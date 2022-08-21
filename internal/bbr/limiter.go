@@ -137,7 +137,7 @@ func (l *Limiter) doSend(now time.Time, req sendRequest) {
 	l.sent += req.size
 }
 
-// A Limiter manages a BBR flow.
+// A Limiter implements flowcontrol.FlowLimiter using the BBR algorithm.
 type Limiter struct {
 	// When ctx is canceled, the Limiter's goroutine will exit.
 	// Senders must monitor this context when sending, to detect
