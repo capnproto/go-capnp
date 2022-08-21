@@ -57,3 +57,21 @@ func TestTimers(t *testing.T) {
 		t.Fatal("Timer didn't go off.")
 	}
 }
+
+func TestImmediateTimer(t *testing.T) {
+	clock := NewManual(time.Unix(1e9, 0))
+
+	timer := clock.NewTimer(0)
+	select {
+	case <-timer.Chan():
+	default:
+		t.Fatal("Timer with duration of zero should go off immediately.")
+	}
+
+	timer = clock.NewTimer(-1)
+	select {
+	case <-timer.Chan():
+	default:
+		t.Fatal("Timer with negative duration should go off immediately.")
+	}
+}

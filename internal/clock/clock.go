@@ -82,6 +82,9 @@ func (m *Manual) NewTimer(d time.Duration) Timer {
 			clock:    m,
 		}
 		m.timers = append(m.timers, ret)
+		if d <= 0 {
+			ret.ch <- m.now
+		}
 	})
 	return ret
 }
