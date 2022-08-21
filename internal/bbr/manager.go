@@ -66,9 +66,13 @@ func (m *Manager) run(ctx context.Context) {
 
 		bdp := m.btlBwFilter.Estimate * m.rtPropFilter.Estimate.Nanoseconds()
 
-		if m.inflight >= int64(m.cwndGain*float64(bdp)) {
+		if bdp > 0 && m.inflight() >= int64(m.cwndGain*float64(bdp)) {
 			// We're at our threshold; wait for an ack,
 			// but ignore other signals.
+			//
+			// Note: if bdp == 0, that just means we don't have
+			// any samples yet. which means we haven't ever sent
+			// anything, so we shouldn't block!
 		} else if m.isAppLimited() {
 			// Last run through we didn't have enough
 			// to send, so we should just wait until we do;
@@ -91,6 +95,10 @@ func (m *Manager) run(ctx context.Context) {
 		case <-timeToSend:
 			m.trySend(ctx)
 		case req := <-sendReqs:
+			if !m.timer.Stop() {
+				<-m.timer.Chan()
+			}
+
 			now := m.clock.Now()
 			m.doSend(now, req)
 		}
@@ -108,7 +116,7 @@ func (m *Manager) trySend(ctx context.Context) {
 		now := m.clock.Now()
 		m.doSend(now, req)
 	default:
-		m.appLimitedUntil = m.inflight
+		m.appLimitedUntil = m.inflight()
 	}
 }
 
@@ -120,13 +128,11 @@ func (m *Manager) doSend(now time.Time, req sendRequest) {
 		Delivered:     m.delivered,
 		DeliveredTime: m.deliveredTime,
 	}
-	if !m.timer.Stop() {
-		<-m.timer.Chan()
-	}
 	nextSleep := time.Duration(float64(req.size) / (m.pacingGain * float64(m.btlBwFilter.Estimate)))
 	m.timer.Reset(nextSleep)
 	req.replyChan <- p
 	m.nextSendTime = now.Add(nextSleep)
+	m.sent += req.size
 }
 
 // A Manager manages a BBR flow.
@@ -146,11 +152,8 @@ type Manager struct {
 	rtPropFilter rtPropFilter
 	btlBwFilter  btlBwFilter
 
-	// Total bytes in-flight
-	inflight int64
-
 	// cwndGain (Congestion WiNDow; standard terminology) is a factor
-	// by which we may exceed BDP. i.e. if inflight is greater than
+	// by which we may exceed BDP. i.e. if inflight() is greater than
 	// estimated BDP * cwndGain, attempts to send will block.
 	//
 	// TODO(perf): The BBR paper says that the reason this is
@@ -169,10 +172,11 @@ type Manager struct {
 	// Earliest time at which it is appropriate to send.
 	nextSendTime time.Time
 
-	delivered     int64     // Total data delivered/ACKed
+	sent          int64     // Total data sent
+	delivered     int64     // Total data delivered & ACKed
 	deliveredTime time.Time // Time of the last ACK we received.
 
-	// If appLimitedUntil is not zero, it indicates that inflight
+	// If appLimitedUntil is not zero, it indicates that inflight()
 	// was limited to the specified value *not* because our congestion
 	// control logic decidecd that we should wait, but because the app
 	// didn't have any more data to send.
@@ -186,6 +190,11 @@ type Manager struct {
 
 	// A timer, to notify us when it's time to send a packet.
 	timer clock.Timer
+}
+
+// inflight returns the total bytes in-flight
+func (m *Manager) inflight() int64 {
+	return m.sent - m.delivered
 }
 
 func NewManager(clock clock.Clock) Manager {
@@ -205,6 +214,7 @@ func NewManager(clock clock.Clock) Manager {
 		timer: clock.NewTimer(0),
 	}
 	m.changeState(&startupState{})
+	go m.run(ctx)
 	return m
 }
 
