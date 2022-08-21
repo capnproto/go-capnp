@@ -44,15 +44,8 @@ type rtPropFilter struct {
 func newRtPropFilter() rtPropFilter {
 	return rtPropFilter{
 		nextSample: rtPropSample{
-			// Set this to a value that will be removed immediately,
-			// and will be lower priority than any other value, so
-			// it will removed from the queue when a new sample is
-			// added.
-			//
-			// XXX: this still could theoretically do the wrong thing
-			// if somebody's clock is set very wrong. We should find
-			// a better way to do this; maybe ask the user to supply
-			// an initial estimate, before any samples are collected?
+			// Set this to a value that will immediately be superceeded
+			// as soon as we get a real sample.
 			now: time.Unix(math.MinInt64, 0),
 			rtt: math.MaxInt64,
 		},
