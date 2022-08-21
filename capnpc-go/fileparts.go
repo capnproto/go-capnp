@@ -76,12 +76,14 @@ type imports struct {
 	used  map[string]bool // keyed on import path
 }
 
-func newImports() (i imports) {
+func newImports() imports {
+	i := imports{used: make(map[string]bool)}
+
 	for _, spec := range importList {
 		i.reserve(spec)
 	}
 
-	return
+	return i
 }
 
 func (i *imports) Capnp() string {
@@ -149,10 +151,6 @@ func (i *imports) byName(name string) (spec importSpec, ok bool) {
 }
 
 func (i *imports) add(spec importSpec) (name string) {
-	if i.used == nil {
-		i.used = make(map[string]bool)
-	}
-
 	name = i.reserve(spec)
 	i.used[spec.path] = true
 	return name
