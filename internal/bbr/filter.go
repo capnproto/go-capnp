@@ -9,29 +9,34 @@ import (
 // 6-10, other than that this is arbitrary.
 const btlBwFilterSize = 6
 
+// Units in which we measure the bottleneck bandwidth. Also equivalent
+// to GB/s.
+type bytesPerNs float64
+
 // Filter that estimates the bottleneck bandwidth.
 type btlBwFilter struct {
-	q        queue[int64]
-	Estimate int64
+	q        queue[bytesPerNs]
+	Estimate bytesPerNs
 }
 
 func newBtlBwFilter() btlBwFilter {
 	return btlBwFilter{
-		q: *newQueue[int64](btlBwFilterSize),
+		q: *newQueue[bytesPerNs](btlBwFilterSize),
 
-		// We set this to something that is non-zero,
-		// but otherwise won't take precedence over any actual
-		// data we receive:
-		Estimate: 1,
+		// We set this to something that is only barely
+		// non-zero, so it won't result in divide by
+		// zero errors but alsdo won't take precedence
+		// over any actual data we receive.
+		Estimate: 1e-10, // 1 byte per 10s
 	}
 }
 
-func (f *btlBwFilter) AddSample(deliveryRate int64) {
+func (f *btlBwFilter) AddSample(deliveryRate bytesPerNs) {
 	if f.q.Len() == btlBwFilterSize {
 		f.q.Pop()
 	}
 	f.q.Push(deliveryRate)
-	f.Estimate = f.q.Fold(0, max[int64])
+	f.Estimate = f.q.Fold(0, max[bytesPerNs])
 }
 
 // Filter that estimates the round-trip propagation time.
@@ -100,9 +105,9 @@ func (f *rtPropFilter) AddSample(sample rtPropSample) {
 // Presumably, as Go generics become more widely used, these will be dropped
 // in favor of some standard library function.
 //
-// We could use a broader constraint here (any numeric type), but we'd have
+// We could use a broader constraint here (constraints.Ordered), but we'd have
 // to either define the alias ourselves or import the exp package, and we
-// only actually use these at types covered by ~int64 anyway.
+// only actually use these at more specific types anyway.
 
 func min[T ~int64](x, y T) T {
 	if x < y {
@@ -112,7 +117,7 @@ func min[T ~int64](x, y T) T {
 	}
 }
 
-func max[T ~int64](x, y T) T {
+func max[T ~float64](x, y T) T {
 	if x > y {
 		return x
 	} else {

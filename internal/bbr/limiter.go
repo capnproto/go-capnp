@@ -52,6 +52,11 @@ func (l *Limiter) Release() {
 	l.cancel()
 }
 
+// Compute the bandwidth delay product, in bytes.
+func computeBDP(bandwidth bytesPerNs, delay time.Duration) int64 {
+	return int64(float64(bandwidth) * float64(delay.Nanoseconds()))
+}
+
 func (l *Limiter) run(ctx context.Context) {
 	for {
 		// These channels may or may not be nil, depending on what
@@ -64,7 +69,7 @@ func (l *Limiter) run(ctx context.Context) {
 			sendReqs <-chan sendRequest
 		)
 
-		bdp := l.btlBwFilter.Estimate * l.rtPropFilter.Estimate.Nanoseconds()
+		bdp := computeBDP(l.btlBwFilter.Estimate, l.rtPropFilter.Estimate)
 
 		if bdp > 0 && l.inflight() >= int64(l.cwndGain*float64(bdp)) {
 			// We're at our threshold; wait for an ack,
@@ -252,8 +257,8 @@ func (l *Limiter) onAck(p packetMeta) {
 	l.delivered += p.Size
 	l.deliveredTime = now
 
-	deliveryRate := (l.delivered - p.Delivered) /
-		(l.deliveredTime.Sub(p.DeliveredTime)).Nanoseconds()
+	deliveryRate := bytesPerNs(float64(l.delivered-p.Delivered) /
+		float64((l.deliveredTime.Sub(p.DeliveredTime)).Nanoseconds()))
 
 	if deliveryRate > l.btlBwFilter.Estimate || !p.AppLimited {
 		l.btlBwFilter.AddSample(deliveryRate)

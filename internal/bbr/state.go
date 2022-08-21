@@ -12,7 +12,7 @@ type state interface {
 }
 
 type startupState struct {
-	prevBtlBwEstimate int64
+	prevBtlBwEstimate bytesPerNs
 	plateuRounds      int
 }
 

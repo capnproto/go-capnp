@@ -10,18 +10,18 @@ import (
 func TestBtlBwFilter(t *testing.T) {
 	f := newBtlBwFilter()
 
-	assert.Equal(t, int64(1), f.Estimate, "Initial bandwidth estimate is 1.")
+	assert.Equal(t, bytesPerNs(1e-10), f.Estimate, "Initial bandwidth estimate is 1 byte per 10s.")
 	f.AddSample(4)
-	assert.Equal(t, int64(4), f.Estimate, "After adding one sample, estimate is that sample.")
+	assert.Equal(t, bytesPerNs(4), f.Estimate, "After adding one sample, estimate is that sample.")
 	f.AddSample(2)
-	assert.Equal(t, int64(4), f.Estimate, "After adding a smaller sample, estimate is unchanged.")
+	assert.Equal(t, bytesPerNs(4), f.Estimate, "After adding a smaller sample, estimate is unchanged.")
 	f.AddSample(6)
-	assert.Equal(t, int64(6), f.Estimate, "After adding a larger sample, estimate equals new sample.")
+	assert.Equal(t, bytesPerNs(6), f.Estimate, "After adding a larger sample, estimate equals new sample.")
 
 	for i := 0; i < btlBwFilterSize; i++ {
 		f.AddSample(1)
 	}
-	assert.Equal(t, int64(1), f.Estimate, "Older samples slide out of the window correctly.")
+	assert.Equal(t, bytesPerNs(1), f.Estimate, "Older samples slide out of the window correctly.")
 }
 
 func TestRtPropFilter(t *testing.T) {
