@@ -60,6 +60,11 @@ type Manual struct {
 	timers []*manualTimer
 }
 
+// Returns a new Manual clock, with the given initial time.
+func NewManual(now time.Time) *Manual {
+	return &Manual{now: now}
+}
+
 // Now returns the current time.
 func (m *Manual) Now() (now time.Time) {
 	syncutil.With(&m.mu, func() {
