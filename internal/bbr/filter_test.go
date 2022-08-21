@@ -10,7 +10,7 @@ import (
 func TestBtlBwFilter(t *testing.T) {
 	f := newBtlBwFilter()
 
-	assert.Equal(t, int64(0), f.Estimate, "Initial bandwidth estimate is 0.")
+	assert.Equal(t, int64(1), f.Estimate, "Initial bandwidth estimate is 1.")
 	f.AddSample(4)
 	assert.Equal(t, int64(4), f.Estimate, "After adding one sample, estimate is that sample.")
 	f.AddSample(2)

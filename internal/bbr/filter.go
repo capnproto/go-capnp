@@ -18,6 +18,11 @@ type btlBwFilter struct {
 func newBtlBwFilter() btlBwFilter {
 	return btlBwFilter{
 		q: *newQueue[int64](btlBwFilterSize),
+
+		// We set this to something that is non-zero,
+		// but otherwise won't take precedence over any actual
+		// data we receive:
+		Estimate: 1,
 	}
 }
 
@@ -49,6 +54,7 @@ func newRtPropFilter() rtPropFilter {
 			// a better way to do this; maybe ask the user to supply
 			// an initial estimate, before any samples are collected?
 			now: time.Unix(math.MinInt64, 0),
+			rtt: math.MaxInt64,
 		},
 	}
 }
