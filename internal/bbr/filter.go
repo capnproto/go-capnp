@@ -72,9 +72,12 @@ func (f *rtPropFilter) AddSample(sample rtPropSample) {
 	//    keep n small if we're doing that on each ack.
 	//
 	// We manage this as follows: rather than adding each sample to the queue
-	// individually, by computing the minimum rtt for each 1 second window,
-	// and adding that aggregate to the queue, which in turn drops samples
-	// more than 30 seconds old. This gives the benefits of the sliding window
+	// individually, we coalesce all samples within a given 1 second interval
+	// into a single slot in the queue, taking their minimum. Since we drop
+	// samples that are more than 30 seconds old, this bounds the queue to 30
+	// elements.
+	//
+	// This gives enough granularity to get the benefits of the sliding window
 	// without needing to store each and every sample.
 
 	if sample.now.Sub(f.nextSample.now) > time.Second {
@@ -82,7 +85,7 @@ func (f *rtPropFilter) AddSample(sample rtPropSample) {
 		f.nextSample = sample
 	} else {
 		f.nextSample = rtPropSample{
-			// We keep the old now, since it's used to determine if we
+			// We keep the old `now`, since it's used to determine if we
 			// should shift to the next sample:
 			now: f.nextSample.now,
 			rtt: min(f.nextSample.rtt, sample.rtt),
