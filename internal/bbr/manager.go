@@ -139,9 +139,25 @@ func (m *Manager) doSend(now time.Time, req sendRequest) {
 
 // A Manager manages a BBR flow.
 type Manager struct {
-	ctx    context.Context
+	// When ctx is canceled, the Manager's goroutine will exit.
+	// Senders must monitor this context when sending, to detect
+	// if the manager has shut down.
+	ctx context.Context
+
+	// cancels ctx
 	cancel context.CancelFunc
-	chAck  chan packetMeta
+
+	// When a response to a packet comes in, the original packetMeta
+	// should be sent on this channel.
+	chAck chan packetMeta
+
+	// Used to request permission to send data. This channel is
+	// unbuffered, and the manager's goroutine will only receive
+	// when it is appropriate to send a packet. Once the manager
+	// goroutine receives from this channel, it will promptly and
+	// unconditionally send the corresponding packetMeta on the
+	// request's replyChan. The sending goroutine must immediately
+	// read back this response.
 	chSend chan sendRequest
 
 	// Filters for estimating the round trip propagation time and
