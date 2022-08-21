@@ -17,7 +17,7 @@ type packetMeta struct {
 	// was sent:
 	AppLimited bool
 
-	// value of corresponding fields in Manager when this packet was sent:
+	// value of corresponding fields in Limiter when this packet was sent:
 	Delivered     int64
 	DeliveredTime time.Time
 }
@@ -27,7 +27,7 @@ type sendRequest struct {
 	replyChan chan<- packetMeta
 }
 
-func (m *Manager) StartMessage(ctx context.Context, size uint64) (gotResponse func(), err error) {
+func (l *Limiter) StartMessage(ctx context.Context, size uint64) (gotResponse func(), err error) {
 	if size > math.MaxInt64 {
 		panic("TODO: overflow")
 	}
@@ -35,38 +35,38 @@ func (m *Manager) StartMessage(ctx context.Context, size uint64) (gotResponse fu
 	select {
 	case <-ctx.Done():
 		return func() {}, ctx.Err()
-	case <-m.ctx.Done():
-		return func() {}, m.ctx.Err()
-	case m.chSend <- sendRequest{size: int64(size), replyChan: replyChan}:
+	case <-l.ctx.Done():
+		return func() {}, l.ctx.Err()
+	case l.chSend <- sendRequest{size: int64(size), replyChan: replyChan}:
 		pm := <-replyChan
 		return func() {
 			select {
-			case <-m.ctx.Done():
-			case m.chAck <- pm:
+			case <-l.ctx.Done():
+			case l.chAck <- pm:
 			}
 		}, nil
 	}
 }
 
-func (m *Manager) Release() {
-	m.cancel()
+func (l *Limiter) Release() {
+	l.cancel()
 }
 
-func (m *Manager) run(ctx context.Context) {
+func (l *Limiter) run(ctx context.Context) {
 	for {
 		// These channels may or may not be nil, depending on what
 		// we want to listen for:
 		var (
-			// Fires when we cross the threshold past m.nextSendTime.
+			// Fires when we cross the threshold past l.nextSendTime.
 			timeToSend <-chan time.Time
 
 			// Fires when someone wants to send.
 			sendReqs <-chan sendRequest
 		)
 
-		bdp := m.btlBwFilter.Estimate * m.rtPropFilter.Estimate.Nanoseconds()
+		bdp := l.btlBwFilter.Estimate * l.rtPropFilter.Estimate.Nanoseconds()
 
-		if bdp > 0 && m.inflight() >= int64(m.cwndGain*float64(bdp)) {
+		if bdp > 0 && l.inflight() >= int64(l.cwndGain*float64(bdp)) {
 			// We're at our threshold; wait for an ack,
 			// but ignore other signals.
 			//
@@ -75,71 +75,71 @@ func (m *Manager) run(ctx context.Context) {
 			// value of inflight(). In reality, this probably just means
 			// we don't have data yet, but the result is the same: just
 			// send.
-		} else if m.isAppLimited() {
+		} else if l.isAppLimited() {
 			// Last run through we didn't have enough
 			// to send, so we should just wait until we do;
 			// don't watch the timer, but do watch the send
 			// queue:
-			sendReqs = m.chSend
+			sendReqs = l.chSend
 		} else {
 			// App is sending fast enough for congestion
 			// control to be active; monitor the timer
 			// and wait until it fires before servicing
 			// a request:
-			timeToSend = m.timer.Chan()
+			timeToSend = l.timer.Chan()
 		}
 
 		select {
 		case <-ctx.Done():
 			return
-		case p := <-m.chAck:
-			m.onAck(p)
+		case p := <-l.chAck:
+			l.onAck(p)
 		case <-timeToSend:
-			m.trySend(ctx)
+			l.trySend(ctx)
 		case req := <-sendReqs:
-			if !m.timer.Stop() {
-				<-m.timer.Chan()
+			if !l.timer.Stop() {
+				<-l.timer.Chan()
 			}
 
-			now := m.clock.Now()
-			m.doSend(now, req)
+			now := l.clock.Now()
+			l.doSend(now, req)
 		}
 	}
 }
 
-func (m *Manager) isAppLimited() bool {
-	return m.appLimitedUntil > 0
+func (l *Limiter) isAppLimited() bool {
+	return l.appLimitedUntil > 0
 }
 
-func (m *Manager) trySend(ctx context.Context) {
+func (l *Limiter) trySend(ctx context.Context) {
 	select {
 	case <-ctx.Done():
-	case req := <-m.chSend:
-		now := m.clock.Now()
-		m.doSend(now, req)
+	case req := <-l.chSend:
+		now := l.clock.Now()
+		l.doSend(now, req)
 	default:
-		m.appLimitedUntil = m.inflight()
+		l.appLimitedUntil = l.inflight()
 	}
 }
 
-func (m *Manager) doSend(now time.Time, req sendRequest) {
+func (l *Limiter) doSend(now time.Time, req sendRequest) {
 	p := packetMeta{
 		Size:          req.size,
-		AppLimited:    m.isAppLimited(),
+		AppLimited:    l.isAppLimited(),
 		SendTime:      now,
-		Delivered:     m.delivered,
-		DeliveredTime: m.deliveredTime,
+		Delivered:     l.delivered,
+		DeliveredTime: l.deliveredTime,
 	}
-	nextSleep := time.Duration(float64(req.size) / (m.pacingGain * float64(m.btlBwFilter.Estimate)))
-	m.timer.Reset(nextSleep)
+	nextSleep := time.Duration(float64(req.size) / (l.pacingGain * float64(l.btlBwFilter.Estimate)))
+	l.timer.Reset(nextSleep)
 	req.replyChan <- p
-	m.nextSendTime = now.Add(nextSleep)
-	m.sent += req.size
+	l.nextSendTime = now.Add(nextSleep)
+	l.sent += req.size
 }
 
-// A Manager manages a BBR flow.
-type Manager struct {
-	// When ctx is canceled, the Manager's goroutine will exit.
+// A Limiter manages a BBR flow.
+type Limiter struct {
+	// When ctx is canceled, the Limiter's goroutine will exit.
 	// Senders must monitor this context when sending, to detect
 	// if the manager has shut down.
 	ctx context.Context
@@ -211,13 +211,13 @@ type Manager struct {
 }
 
 // inflight returns the total bytes in-flight
-func (m *Manager) inflight() int64 {
-	return m.sent - m.delivered
+func (l *Limiter) inflight() int64 {
+	return l.sent - l.delivered
 }
 
-func NewManager(clock clock.Clock) Manager {
+func NewLimiter(clock clock.Clock) Limiter {
 	ctx, cancel := context.WithCancel(context.Background())
-	m := Manager{
+	l := Limiter{
 		ctx:    ctx,
 		cancel: cancel,
 
@@ -231,41 +231,41 @@ func NewManager(clock clock.Clock) Manager {
 		// Set the timer to go off for the first time immediately:
 		timer: clock.NewTimer(0),
 	}
-	m.changeState(&startupState{})
-	go m.run(ctx)
-	return m
+	l.changeState(&startupState{})
+	go l.run(ctx)
+	return l
 }
 
 // onAck should be invoked on each packetMeta when the acknowledgement for
 // that packet is received.
-func (m *Manager) onAck(p packetMeta) {
-	now := m.clock.Now()
-	m.state.preAck(m, p, now)
+func (l *Limiter) onAck(p packetMeta) {
+	now := l.clock.Now()
+	l.state.preAck(l, p, now)
 
 	rtt := now.Sub(p.SendTime)
 
-	m.rtPropFilter.AddSample(rtPropSample{
+	l.rtPropFilter.AddSample(rtPropSample{
 		now: now,
 		rtt: rtt,
 	})
 
-	m.delivered += p.Size
-	m.deliveredTime = now
+	l.delivered += p.Size
+	l.deliveredTime = now
 
-	deliveryRate := (m.delivered - p.Delivered) /
-		(m.deliveredTime.Sub(p.DeliveredTime)).Nanoseconds()
+	deliveryRate := (l.delivered - p.Delivered) /
+		(l.deliveredTime.Sub(p.DeliveredTime)).Nanoseconds()
 
-	if deliveryRate > m.btlBwFilter.Estimate || !p.AppLimited {
-		m.btlBwFilter.AddSample(deliveryRate)
+	if deliveryRate > l.btlBwFilter.Estimate || !p.AppLimited {
+		l.btlBwFilter.AddSample(deliveryRate)
 	}
-	if m.appLimitedUntil > 0 {
-		m.appLimitedUntil -= p.Size
+	if l.appLimitedUntil > 0 {
+		l.appLimitedUntil -= p.Size
 	}
 
-	m.state.postAck(m, p, now)
+	l.state.postAck(l, p, now)
 }
 
-func (m *Manager) changeState(s state) {
-	m.state = s
-	m.state.initialize(m)
+func (l *Limiter) changeState(s state) {
+	l.state = s
+	l.state.initialize(l)
 }

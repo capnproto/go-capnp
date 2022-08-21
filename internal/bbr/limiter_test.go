@@ -13,7 +13,7 @@ func TestStuff(t *testing.T) {
 	// Arbitrary starting time.
 	clock := clock.NewManual(time.Unix(1e9, 0))
 
-	mgr := NewManager(clock)
+	mgr := NewLimiter(clock)
 	defer mgr.Release()
 
 	ch := make(chan func())
