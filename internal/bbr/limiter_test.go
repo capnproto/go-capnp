@@ -24,23 +24,27 @@ func TestReleaseLimiter(t *testing.T) {
 	assert.Equal(t, lim.ctx.Err(), err, "Error should be that of the limiter's context.")
 }
 
-func TestFreshLimiterSends(t *testing.T) {
+func TestLimiterOneShot(t *testing.T) {
 	lim := NewLimiter(clock.System)
 	defer lim.Release()
 
-	ch := make(chan func())
+	lim.whilePaused(func() {
+		assert.Equal(t, lim.inflight(), int64(0),
+			"Limiter should start off with nothing in-flight.")
+	})
 
-	goStart := func(size uint64) {
-		go func() {
-			gotResponse, err := lim.StartMessage(context.Background(), size)
-			if err != nil {
-				panic(err)
-			}
-			ch <- gotResponse
-		}()
-	}
+	got1, err := lim.StartMessage(context.Background(), 7)
+	assert.Nil(t, err, "StartMessage() failed.")
 
-	goStart(1)
-	got1 := <-ch
+	lim.whilePaused(func() {
+		assert.Equal(t, lim.inflight(), int64(7),
+			"Once we send the message, limiter should have that much data in-flight.")
+	})
+
 	got1()
+
+	lim.whilePaused(func() {
+		assert.Equal(t, lim.inflight(), int64(0),
+			"Once we receive the ack, in-flight data should be zero again.")
+	})
 }

@@ -104,6 +104,8 @@ func (l *Limiter) run(ctx context.Context) {
 		case req := <-sendReqs:
 			now := l.clock.Now()
 			l.doSend(now, req)
+		case <-l.chPause:
+			l.chPause <- struct{}{}
 		}
 	}
 }
@@ -206,6 +208,20 @@ type Limiter struct {
 
 	// A clock, for measuring the current time.
 	clock clock.Clock
+
+	// This channel is used for testing; the whilePaused() method needs it.
+	chPause chan struct{}
+}
+
+// For testing purpoes; temporarily pauses the goroutine managing the limiter,
+// and runs the callback. This lets us inspect the state of the limiter in
+// tests without data races.
+func (l *Limiter) whilePaused(f func()) {
+	l.chPause <- struct{}{}
+	defer func() {
+		<-l.chPause
+	}()
+	f()
 }
 
 // inflight returns the total bytes in-flight
@@ -225,6 +241,8 @@ func NewLimiter(clock clock.Clock) *Limiter {
 		rtPropFilter: newRtPropFilter(),
 		btlBwFilter:  newBtlBwFilter(),
 		clock:        clock,
+
+		chPause: make(chan struct{}),
 	}
 	l.changeState(&startupState{})
 	go l.run(ctx)
