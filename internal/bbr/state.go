@@ -26,16 +26,12 @@ func (s *startupState) preAck(lim *Limiter, p packetMeta, now time.Time) {
 
 func (s *startupState) postAck(lim *Limiter, p packetMeta, now time.Time) {
 	newBtlBwEstimate := lim.btlBwFilter.Estimate
-	if s.prevBtlBwEstimate == 0 {
-		// This is our first sample.
-		s.prevBtlBwEstimate = newBtlBwEstimate
-		return
-	}
 	if float64(newBtlBwEstimate) < 1.25*float64(s.prevBtlBwEstimate) {
 		s.plateuRounds++
 	} else {
 		s.plateuRounds = 0
 	}
+	s.prevBtlBwEstimate = newBtlBwEstimate
 	if s.plateuRounds >= 3 {
 		lim.changeState(&drainState{})
 	}
