@@ -13,14 +13,14 @@ func TestStuff(t *testing.T) {
 	// Arbitrary starting time.
 	clock := clock.NewManual(time.Unix(1e9, 0))
 
-	mgr := NewLimiter(clock)
-	defer mgr.Release()
+	lim := NewLimiter(clock)
+	defer lim.Release()
 
 	ch := make(chan func())
 
 	goStart := func(size uint64) {
 		go func() {
-			gotResponse, err := mgr.StartMessage(context.TODO(), size)
+			gotResponse, err := lim.StartMessage(context.TODO(), size)
 			if err != nil {
 				panic(err)
 			}
