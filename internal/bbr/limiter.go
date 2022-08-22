@@ -181,7 +181,7 @@ type Limiter struct {
 	// needed (i.e. isn't always just 1) is to deal with delayed and
 	// aggregated ACKs -- a feature of some TCP implementations, but
 	// not something that any capnp implementation does. So do we
-	// actually need this? would dropping it be wrothwhile for
+	// actually need this? would dropping it be worthwhile for
 	// the latency improvement?
 	cwndGain float64
 

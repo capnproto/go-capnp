@@ -25,7 +25,7 @@ func newBtlBwFilter() btlBwFilter {
 
 		// We set this to something that is only barely
 		// non-zero, so it won't result in divide by
-		// zero errors but alsdo won't take precedence
+		// zero errors but also won't take precedence
 		// over any actual data we receive.
 		Estimate: 1e-10, // 1 byte per 10s
 	}
