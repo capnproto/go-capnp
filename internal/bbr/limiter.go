@@ -88,10 +88,10 @@ func (l *Limiter) run(ctx context.Context) {
 			sendReqs = l.chSend
 		} else {
 			// App is sending fast enough for congestion
-			// control to be active; monitor the timer
-			// and wait until it fires before servicing
-			// a request:
-			timeToSend = l.timer.Chan()
+			// control to be active; wait until nextSendTime
+			// before servicing a request:
+			sleep := l.nextSendTime.Sub(l.clock.Now())
+			timeToSend = l.clock.NewTimer(sleep).Chan()
 		}
 
 		select {
@@ -102,10 +102,6 @@ func (l *Limiter) run(ctx context.Context) {
 		case <-timeToSend:
 			l.trySend(ctx)
 		case req := <-sendReqs:
-			if !l.timer.Stop() {
-				<-l.timer.Chan()
-			}
-
 			now := l.clock.Now()
 			l.doSend(now, req)
 		}
@@ -135,9 +131,9 @@ func (l *Limiter) doSend(now time.Time, req sendRequest) {
 		Delivered:     l.delivered,
 		DeliveredTime: l.deliveredTime,
 	}
-	nextSleep := time.Duration(float64(req.size) / (l.pacingGain * float64(l.btlBwFilter.Estimate)))
-	l.timer.Reset(nextSleep)
-	l.nextSendTime = now.Add(nextSleep)
+	l.nextSendTime = now.Add(time.Duration(
+		float64(req.size) / (l.pacingGain * float64(l.btlBwFilter.Estimate)),
+	))
 	l.sent += req.size
 	req.replyChan <- p
 }
@@ -210,9 +206,6 @@ type Limiter struct {
 
 	// A clock, for measuring the current time.
 	clock clock.Clock
-
-	// A timer, to notify us when it's time to send a packet.
-	timer clock.Timer
 }
 
 // inflight returns the total bytes in-flight
@@ -232,9 +225,6 @@ func NewLimiter(clock clock.Clock) *Limiter {
 		rtPropFilter: newRtPropFilter(),
 		btlBwFilter:  newBtlBwFilter(),
 		clock:        clock,
-
-		// Set the timer to go off for the first time immediately:
-		timer: clock.NewTimer(0),
 	}
 	l.changeState(&startupState{})
 	go l.run(ctx)
