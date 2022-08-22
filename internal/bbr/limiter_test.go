@@ -25,10 +25,7 @@ func TestReleaseLimiter(t *testing.T) {
 }
 
 func TestFreshLimiterSends(t *testing.T) {
-	// Arbitrary starting time.
-	clock := clock.NewManual(time.Unix(1e9, 0))
-
-	lim := NewLimiter(clock)
+	lim := NewLimiter(clock.System)
 	defer lim.Release()
 
 	ch := make(chan func())
