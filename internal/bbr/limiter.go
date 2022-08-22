@@ -242,6 +242,8 @@ func NewLimiter(clock clock.Clock) *Limiter {
 		btlBwFilter:  newBtlBwFilter(),
 		clock:        clock,
 
+		nextSendTime: clock.Now(),
+
 		chPause: make(chan struct{}),
 	}
 	l.changeState(&startupState{})
