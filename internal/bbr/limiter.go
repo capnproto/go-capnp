@@ -137,9 +137,9 @@ func (l *Limiter) doSend(now time.Time, req sendRequest) {
 	}
 	nextSleep := time.Duration(float64(req.size) / (l.pacingGain * float64(l.btlBwFilter.Estimate)))
 	l.timer.Reset(nextSleep)
-	req.replyChan <- p
 	l.nextSendTime = now.Add(nextSleep)
 	l.sent += req.size
+	req.replyChan <- p
 }
 
 // A Limiter implements flowcontrol.FlowLimiter using the BBR algorithm.
@@ -220,9 +220,9 @@ func (l *Limiter) inflight() int64 {
 	return l.sent - l.delivered
 }
 
-func NewLimiter(clock clock.Clock) Limiter {
+func NewLimiter(clock clock.Clock) *Limiter {
 	ctx, cancel := context.WithCancel(context.Background())
-	l := Limiter{
+	l := &Limiter{
 		ctx:    ctx,
 		cancel: cancel,
 

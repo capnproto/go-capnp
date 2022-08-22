@@ -24,8 +24,7 @@ func TestReleaseLimiter(t *testing.T) {
 	assert.Equal(t, lim.ctx.Err(), err, "Error should be that of the limiter's context.")
 }
 
-// TODO: refine this, be more specific than "Stuff" wrt. what's being tested.
-func TestStuff(t *testing.T) {
+func TestFreshLimiterSends(t *testing.T) {
 	// Arbitrary starting time.
 	clock := clock.NewManual(time.Unix(1e9, 0))
 
@@ -36,7 +35,7 @@ func TestStuff(t *testing.T) {
 
 	goStart := func(size uint64) {
 		go func() {
-			gotResponse, err := lim.StartMessage(context.TODO(), size)
+			gotResponse, err := lim.StartMessage(context.Background(), size)
 			if err != nil {
 				panic(err)
 			}
@@ -45,7 +44,6 @@ func TestStuff(t *testing.T) {
 	}
 
 	goStart(1)
-
 	got1 := <-ch
 	got1()
 }
