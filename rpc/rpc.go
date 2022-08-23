@@ -215,7 +215,7 @@ func (c *Conn) Bootstrap(ctx context.Context) (bc capnp.Client) {
 		cancel: cancel,
 	})
 
-	c.sendMessage(ctx, func(m rpccp.Message) error {
+	c.sendMessage(func(m rpccp.Message) error {
 		boot, err := m.NewBootstrap()
 		if err == nil {
 			boot.SetQuestionId(uint32(q.id))
@@ -402,10 +402,7 @@ func (c *Conn) abort(abortErr error) {
 		c.mu.Unlock()
 		defer c.mu.Lock()
 
-		ctx, cancel := context.WithTimeout(context.Background(), c.abortTimeout)
-		defer cancel()
-
-		msg, send, release, err := c.transport.NewMessage(ctx)
+		msg, send, release, err := c.transport.NewMessage()
 		if err != nil {
 			return
 		}
@@ -441,7 +438,7 @@ func (c *Conn) receive() error {
 	ctx := c.bgctx
 
 	for {
-		recv, release, err := c.transport.RecvMessage(ctx)
+		recv, release, err := c.transport.RecvMessage()
 		if err != nil {
 			return err
 		}
@@ -545,7 +542,7 @@ func (c *Conn) receive() error {
 
 		default:
 			c.er.ReportError(fmt.Errorf("unknown message type %v from remote", recv.Which()))
-			c.sendMessage(ctx, func(m rpccp.Message) error {
+			c.sendMessage(func(m rpccp.Message) error {
 				defer release()
 				if err := m.SetUnimplemented(recv); err != nil {
 					return rpcerr.Annotatef(err, "send unimplemented")
@@ -613,7 +610,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 		// TODO(someday): handle SendResultsTo.yourself
 		c.er.ReportError(fmt.Errorf("incoming call: results destination is not caller"))
 
-		c.sendMessage(ctx, func(m rpccp.Message) error {
+		c.sendMessage(func(m rpccp.Message) error {
 			defer releaseCall()
 
 			mm, err := m.NewUnimplemented()
@@ -987,7 +984,7 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp
 		//
 		// TODO(soon): make embargo resolve to error client.
 		for _, s := range pr.disembargoes {
-			c.sendMessage(ctx, s.buildDisembargo, func(err error) {
+			c.sendMessage(s.buildDisembargo, func(err error) {
 				if err != nil {
 					err = fmt.Errorf("incoming return: send disembargo: %w", err)
 					c.er.ReportError(err)
@@ -996,7 +993,7 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp
 		}
 
 		// Send finish.
-		c.sendMessage(ctx, func(m rpccp.Message) error {
+		c.sendMessage(func(m rpccp.Message) error {
 			fin, err := m.NewFinish()
 			if err == nil {
 				fin.SetQuestionId(uint32(qid))
@@ -1400,7 +1397,7 @@ func (c *Conn) handleDisembargo(ctx context.Context, d rpccp.Disembargo, release
 		// Since this Cap'n Proto RPC implementation does not send imports
 		// unless they are fully dequeued, we can just immediately loop back.
 		id := d.Context().SenderLoopback()
-		c.sendMessage(ctx, func(m rpccp.Message) error {
+		c.sendMessage(func(m rpccp.Message) error {
 			defer release()
 			defer client.Release()
 
@@ -1424,7 +1421,7 @@ func (c *Conn) handleDisembargo(ctx context.Context, d rpccp.Disembargo, release
 
 	default:
 		c.er.ReportError(fmt.Errorf("incoming disembargo: context %v not implemented", d.Context().Which()))
-		c.sendMessage(ctx, func(m rpccp.Message) (err error) {
+		c.sendMessage(func(m rpccp.Message) (err error) {
 			defer release()
 
 			if m, err = m.NewUnimplemented(); err == nil {
@@ -1464,8 +1461,8 @@ func (c *Conn) startTask() (ok bool) {
 // The caller MUST hold c.mu.  The callback will be called without
 // holding c.mu.  Callers of sendMessage MAY wish to reacquire the
 // c.mu within the callback.
-func (c *Conn) sendMessage(ctx context.Context, f func(rpccp.Message) error, callback func(error)) error {
-	msg, send, release, err := c.transport.NewMessage(ctx)
+func (c *Conn) sendMessage(f func(rpccp.Message) error, callback func(error)) error {
+	msg, send, release, err := c.transport.NewMessage()
 	if err != nil {
 		return rpcerr.Failedf("create message: %w", err)
 	}

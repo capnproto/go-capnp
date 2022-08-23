@@ -109,7 +109,7 @@ func (q *question) handleCancel(ctx context.Context) {
 	q.flags |= finished
 	q.release = func() {}
 
-	q.c.sendMessage(q.c.bgctx, func(m rpccp.Message) error {
+	q.c.sendMessage(func(m rpccp.Message) error {
 		fin, err := m.NewFinish()
 		if err != nil {
 			return err
@@ -153,7 +153,7 @@ func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineO
 
 	syncutil.Without(&q.c.mu, func() {
 		// Send call message.
-		q.c.sendMessage(ctx, func(m rpccp.Message) error {
+		q.c.sendMessage(func(m rpccp.Message) error {
 			return q.c.newPipelineCallMessage(m, q.id, transform, q2.id, s)
 		}, func(err error) {
 			if err != nil {

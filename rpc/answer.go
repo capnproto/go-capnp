@@ -97,7 +97,7 @@ func errorAnswer(c *Conn, id answerID, err error) *answer {
 
 // newReturn creates a new Return message.
 func (c *Conn) newReturn(ctx context.Context) (rpccp.Return, func(), capnp.ReleaseFunc, error) {
-	msg, send, releaseMsg, err := c.transport.NewMessage(ctx)
+	msg, send, releaseMsg, err := c.transport.NewMessage()
 	if err != nil {
 		return rpccp.Return{}, nil, nil, rpcerr.Failedf("create return: %w", err)
 	}

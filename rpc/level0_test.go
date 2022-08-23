@@ -298,7 +298,7 @@ func TestSendBootstrapCall(t *testing.T) {
 
 	// 2. Write back a return
 	{
-		msg, send, release, err := p2.NewMessage(ctx)
+		msg, send, release, err := p2.NewMessage()
 		if err != nil {
 			t.Fatal("p2.NewMessage():", err)
 		}
@@ -395,7 +395,7 @@ func TestSendBootstrapCall(t *testing.T) {
 
 	// 5. Return a response.
 	{
-		msg, send, release, err := p2.NewMessage(ctx)
+		msg, send, release, err := p2.NewMessage()
 		if err != nil {
 			t.Fatal("p2.NewMessage():", err)
 		}
@@ -509,7 +509,7 @@ func TestSendBootstrapCallException(t *testing.T) {
 
 	// 2. Write back a return
 	{
-		msg, send, release, err := p2.NewMessage(ctx)
+		msg, send, release, err := p2.NewMessage()
 		if err != nil {
 			t.Fatal("p2.NewMessage():", err)
 		}
@@ -734,7 +734,7 @@ func TestSendBootstrapPipelineCall(t *testing.T) {
 
 	// 3. Return a response.
 	{
-		msg, send, release, err := p2.NewMessage(ctx)
+		msg, send, release, err := p2.NewMessage()
 		if err != nil {
 			t.Fatal("p2.NewMessage():", err)
 		}
@@ -946,7 +946,7 @@ func TestRecvBootstrapCall(t *testing.T) {
 	// 4. Write call
 	const callQID = 55
 	{
-		msg, send, release, err := p2.NewMessage(ctx)
+		msg, send, release, err := p2.NewMessage()
 		if err != nil {
 			t.Fatal("p2.NewMessage():", err)
 		}
@@ -1097,7 +1097,7 @@ func TestRecvBootstrapCallException(t *testing.T) {
 	// 4. Write call
 	const callQID = 55
 	{
-		msg, send, release, err := p2.NewMessage(ctx)
+		msg, send, release, err := p2.NewMessage()
 		if err != nil {
 			t.Fatal("p2.NewMessage():", err)
 		}
@@ -1245,7 +1245,7 @@ func TestRecvBootstrapPipelineCall(t *testing.T) {
 	// 3. Write call
 	const callQID = 55
 	{
-		msg, send, release, err := p2.NewMessage(ctx)
+		msg, send, release, err := p2.NewMessage()
 		if err != nil {
 			t.Fatal("p2.NewMessage():", err)
 		}
@@ -1352,7 +1352,7 @@ func TestCallOnClosedConn(t *testing.T) {
 
 	// 2. Write back a return
 	{
-		msg, send, release, err := p2.NewMessage(ctx)
+		msg, send, release, err := p2.NewMessage()
 		if err != nil {
 			t.Fatal("p2.NewMessage():", err)
 		}
@@ -1493,7 +1493,7 @@ func TestRecvCancel(t *testing.T) {
 	// 2. Write call
 	const callQID = 55
 	{
-		msg, send, release, err := p2.NewMessage(ctx)
+		msg, send, release, err := p2.NewMessage()
 		if err != nil {
 			t.Fatal("p2.NewMessage():", err)
 		}
@@ -1636,7 +1636,7 @@ func TestSendCancel(t *testing.T) {
 
 	// 2. Write back a return.
 	{
-		msg, send, release, err := p2.NewMessage(ctx)
+		msg, send, release, err := p2.NewMessage()
 		if err != nil {
 			t.Fatal("p2.NewMessage():", err)
 		}
@@ -1896,7 +1896,7 @@ type rpcMessage struct {
 }
 
 func sendMessage(ctx context.Context, t rpc.Transport, msg *rpcMessage) error {
-	s, send, release, err := t.NewMessage(ctx)
+	s, send, release, err := t.NewMessage()
 	if err != nil {
 		return fmt.Errorf("send message: %v", err)
 	}
@@ -1911,7 +1911,7 @@ func sendMessage(ctx context.Context, t rpc.Transport, msg *rpcMessage) error {
 }
 
 func recvMessage(ctx context.Context, t rpc.Transport) (*rpcMessage, capnp.ReleaseFunc, error) {
-	m, release, err := t.RecvMessage(ctx)
+	m, release, err := t.RecvMessage()
 	if err != nil {
 		return nil, nil, err
 	}
