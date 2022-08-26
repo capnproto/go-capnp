@@ -259,8 +259,6 @@ func NewLimiter(clock clock.Clock) *Limiter {
 // that packet is received.
 func (l *Limiter) onAck(p packetMeta) {
 	now := l.clock.Now()
-	l.state.preAck(l, p, now)
-
 	rtt := now.Sub(p.SendTime)
 
 	l.rtPropFilter.AddSample(rtPropSample{

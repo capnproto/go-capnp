@@ -8,7 +8,6 @@ import (
 
 type state interface {
 	initialize(lim *Limiter)
-	preAck(lim *Limiter, pm packetMeta, now time.Time)
 	postAck(lim *Limiter, pm packetMeta, now time.Time)
 }
 
@@ -20,9 +19,6 @@ type startupState struct {
 func (s *startupState) initialize(lim *Limiter) {
 	lim.cwndGain = 2 / math.Ln2
 	lim.pacingGain = 2 / math.Ln2
-}
-
-func (s *startupState) preAck(lim *Limiter, p packetMeta, now time.Time) {
 }
 
 func (s *startupState) postAck(lim *Limiter, p packetMeta, now time.Time) {
@@ -43,9 +39,6 @@ type drainState struct {
 
 func (s *drainState) initialize(lim *Limiter) {
 	lim.pacingGain = 1 / lim.pacingGain
-}
-
-func (s *drainState) preAck(lim *Limiter, p packetMeta, now time.Time) {
 }
 
 func (s *drainState) postAck(lim *Limiter, p packetMeta, now time.Time) {
@@ -80,10 +73,17 @@ type probeBWState struct {
 	// Time at which we should rotate to a new pacing gain
 	// (last change + rtProp):
 	nextPacingGainChange time.Time
+
+	lastRtPropChange time.Time
+	rtProp           time.Duration
 }
 
 func (s *probeBWState) initialize(lim *Limiter) {
 	lim.cwndGain = 2
+
+	now := lim.clock.Now()
+	s.rtProp = lim.rtPropFilter.Estimate
+	s.lastRtPropChange = now
 
 	// Randomly select an initial pacing gain; anything but the value
 	// below 1 will do (see paper).
@@ -93,18 +93,57 @@ func (s *probeBWState) initialize(lim *Limiter) {
 		s.pacingGainIndex++
 	}
 	lim.pacingGain = probeBWPacingGains[s.pacingGainIndex]
-	s.nextPacingGainChange = lim.clock.Now().Add(lim.rtPropFilter.Estimate)
-}
-
-func (s *probeBWState) preAck(lim *Limiter, p packetMeta, now time.Time) {
+	s.nextPacingGainChange = now.Add(s.rtProp)
 }
 
 func (s *probeBWState) postAck(lim *Limiter, p packetMeta, now time.Time) {
+	rtProp := lim.rtPropFilter.Estimate
+	if rtProp < s.rtProp {
+		s.rtProp = rtProp
+		s.lastRtPropChange = now
+	}
+
+	if now.Sub(s.lastRtPropChange) > 10*time.Second {
+		// Been a while since we've measured rtProp; switch to probeRTT.
+		lim.changeState(&probeRTTState{})
+		return
+	}
+
 	if now.After(s.nextPacingGainChange) {
 		s.pacingGainIndex++
 		s.pacingGainIndex %= len(probeBWPacingGains)
 		lim.pacingGain = probeBWPacingGains[s.pacingGainIndex]
-		s.nextPacingGainChange = now.Add(lim.rtPropFilter.Estimate)
+		s.nextPacingGainChange = now.Add(rtProp)
 	}
-	// TODO: check if we should enter probeRTT.
+}
+
+type probeRTTState struct {
+	// The time at which we can exit this state.
+	exitTime time.Time
+}
+
+func (s *probeRTTState) initialize(lim *Limiter) {
+	// TODO: The paper says to send cwnd to "4 packets;" I don't know
+	// exactly how to translate this to our setting...
+	lim.cwndGain = 1
+	// TODO: pacingGain?
+	now := lim.clock.Now()
+
+	exitDuration := 200 * time.Millisecond
+	rtProp := lim.rtPropFilter.Estimate
+	if rtProp > exitDuration {
+		// FIXME: We actually want to check that a round trip has happened.
+		// instead, look at .inflight() and friends to see if any data has
+		// made it the whole way around. new delivered > old sent? Need to
+		// think.
+		s.exitTime = now.Add(rtProp)
+	} else {
+		s.exitTime = now.Add(exitDuration)
+	}
+}
+
+func (s *probeRTTState) postAck(lim *Limiter, p packetMeta, now time.Time) {
+	if now.After(s.exitTime) {
+		// TODO: figure out whether to switch into startup or probeBW.
+	}
 }
