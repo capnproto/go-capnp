@@ -230,6 +230,7 @@ func (l *Limiter) inflight() int64 {
 }
 
 func NewLimiter(clock clock.Clock) *Limiter {
+	now := clock.Now()
 	ctx, cancel := context.WithCancel(context.Background())
 	l := &Limiter{
 		ctx:    ctx,
@@ -242,7 +243,8 @@ func NewLimiter(clock clock.Clock) *Limiter {
 		btlBwFilter:  newBtlBwFilter(),
 		clock:        clock,
 
-		nextSendTime: clock.Now(),
+		nextSendTime:  now,
+		deliveredTime: now,
 
 		chPause: make(chan struct{}),
 	}
