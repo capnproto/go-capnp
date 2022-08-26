@@ -15,7 +15,7 @@ var (
 )
 
 type testPacket struct {
-	packetMeta
+	size        uint64
 	gotResponse func()
 }
 
@@ -64,7 +64,7 @@ func (l *testLink) run(ctx context.Context, clock clock.Clock, rx *mpsc.Rx[testP
 		if l.bandwidth > 0 {
 			// We're the bottleneck; take an appropriate amount of time
 			// to process the packet, based on its size.
-			delay = time.Duration(float64(p.Size) / float64(l.bandwidth))
+			delay = time.Duration(float64(p.size) / float64(l.bandwidth))
 		} else {
 			// We're not the bottleneck; just add our constant delay.
 			delay = l.delay
@@ -143,9 +143,7 @@ func TestLinkBandwidth(t *testing.T) {
 	done := make(chan struct{})
 
 	tx.Send(testPacket{
-		packetMeta: packetMeta{
-			Size: 25,
-		},
+		size: 25,
 		gotResponse: func() {
 			close(done)
 		},
@@ -174,17 +172,13 @@ func TestLinkBandwidthMultiPacket(t *testing.T) {
 	done2 := make(chan struct{})
 
 	tx.Send(testPacket{
-		packetMeta: packetMeta{
-			Size: 25,
-		},
+		size: 25,
 		gotResponse: func() {
 			close(done1)
 		},
 	})
 	tx.Send(testPacket{
-		packetMeta: packetMeta{
-			Size: 30,
-		},
+		size: 30,
 		gotResponse: func() {
 			close(done2)
 		},
