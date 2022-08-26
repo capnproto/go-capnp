@@ -19,7 +19,7 @@ func TestStartupOneAtATime100Sec(t *testing.T) {
 
 func testStartupOneAtATime(t *testing.T, rtProp time.Duration, msgBytes uint64, rounds int) {
 	t.Parallel()
-	clock := clock.NewManual(time.Unix(1e9, 0))
+	clock := clock.NewManual(sampleStartTime)
 	lim := NewLimiter(clock)
 	defer lim.Release()
 

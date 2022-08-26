@@ -9,6 +9,11 @@ import (
 	"capnproto.org/go/capnp/v3/internal/mpsc"
 )
 
+var (
+	// Somewhat arbitrary time to start the clock.
+	sampleStartTime = time.Unix(1e9, 0)
+)
+
 type testPacket struct {
 	packetMeta
 	gotResponse func()
@@ -98,7 +103,7 @@ func TestLinkDelay(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	clock := clock.NewManual(time.Unix(1e9, 0))
+	clock := clock.NewManual(sampleStartTime)
 	tx, rx := startTestPath(ctx, clock, testLink{delay: 4 * time.Second})
 	go processAcks(ctx, rx)
 
@@ -130,7 +135,7 @@ func TestLinkBandwidth(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	clock := clock.NewManual(time.Unix(1e9, 0))
+	clock := clock.NewManual(sampleStartTime)
 
 	tx, rx := startTestPath(ctx, clock, testLink{bandwidth: 10 * bytesPerSecond})
 	go processAcks(ctx, rx)
@@ -160,7 +165,7 @@ func TestLinkBandwidthMultiPacket(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	clock := clock.NewManual(time.Unix(1e9, 0))
+	clock := clock.NewManual(sampleStartTime)
 
 	tx, rx := startTestPath(ctx, clock, testLink{bandwidth: 10 * bytesPerSecond})
 	go processAcks(ctx, rx)

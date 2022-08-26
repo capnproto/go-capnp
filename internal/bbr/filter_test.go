@@ -27,8 +27,7 @@ func TestBtlBwFilter(t *testing.T) {
 func TestRtPropFilter(t *testing.T) {
 	f := newRtPropFilter()
 
-	// Completely arbitrary start time:
-	now := time.Unix(1e9, 0)
+	now := sampleStartTime
 
 	addSample := func(rtt time.Duration) {
 		f.AddSample(rtPropSample{
