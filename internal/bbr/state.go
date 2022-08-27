@@ -130,8 +130,15 @@ type probeRTTState struct {
 }
 
 func (s *probeRTTState) initialize(lim *Limiter) {
-	// TODO: The paper says to send cwnd to "4 packets;" I don't know
-	// exactly how to translate this to our setting...
+	// TODO: The paper says to set cwnd to "4 packets;" I don't know
+	// exactly how to translate this to our setting... Do we measure
+	// average message size? track inflight packets separately from
+	// inflight bytes? Or is there something simpler we can do? Is
+	// "packets" shorthand for "typical TCP packet size?" I wish there
+	// was rationale behind picking a "small" number.
+	//
+	// Also, how does all this integrate into the machinery of the rest
+	// of the algorithm?
 	lim.cwndGain = 1
 	// TODO: pacingGain?
 	now := lim.clock.Now()
@@ -146,6 +153,17 @@ func (s *probeRTTState) postAck(lim *Limiter, p packetMeta, now time.Time) {
 	// we started:
 	afterRoundTrip := lim.delivered > s.initSent
 	if afterRoundTrip && now.After(s.exitTime) {
-		// TODO: figure out whether to switch into startup or probeBW.
+		// TODO: paper suggests sometimes probeRTT should transition to
+		// startup, "depending on whether it estimates the pipe was
+		// filled already." It also suggests that all other states
+		// should contain the 10s trigger to switch to this state,
+		// so maybe that just means switch back to the one we were in?
+		//
+		// It doesn't make sense to me why drain in particular would
+		// want to monitor to switch into probeRTT.
+		//
+		// For now, only probeBW transitions to probeRTT, so let's
+		// always transition back there.
+		lim.changeState(&probeBWState{})
 	}
 }
