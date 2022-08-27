@@ -123,6 +123,10 @@ func (s *probeBWState) postAck(lim *Limiter, p packetMeta, now time.Time) {
 type probeRTTState struct {
 	// The time at which we can exit this state.
 	exitTime time.Time
+
+	// The value of Limiter.sent when we entered this state.
+	// Used to work out when we've seen a full round trip.
+	initSent int64
 }
 
 func (s *probeRTTState) initialize(lim *Limiter) {
@@ -132,21 +136,16 @@ func (s *probeRTTState) initialize(lim *Limiter) {
 	// TODO: pacingGain?
 	now := lim.clock.Now()
 
-	exitDuration := 200 * time.Millisecond
-	rtProp := lim.rtPropFilter.Estimate
-	if rtProp > exitDuration {
-		// FIXME: We actually want to check that a round trip has happened.
-		// instead, look at .inflight() and friends to see if any data has
-		// made it the whole way around. new delivered > old sent? Need to
-		// think.
-		s.exitTime = now.Add(rtProp)
-	} else {
-		s.exitTime = now.Add(exitDuration)
-	}
+	s.exitTime = now.Add(200 * time.Millisecond)
+	s.initSent = lim.sent
 }
 
 func (s *probeRTTState) postAck(lim *Limiter, p packetMeta, now time.Time) {
-	if now.After(s.exitTime) {
+	// We can tell if we've seen a full round trip if the amount of data
+	// *delivered* is greater than the amount that had been *sent* when
+	// we started:
+	afterRoundTrip := lim.delivered > s.initSent
+	if afterRoundTrip && now.After(s.exitTime) {
 		// TODO: figure out whether to switch into startup or probeBW.
 	}
 }
