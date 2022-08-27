@@ -12,6 +12,7 @@ import (
 type state interface {
 	initialize(lim *Limiter)
 	postAck(lim *Limiter, pm packetMeta, now time.Time)
+	snapshot() state
 }
 
 type startupState struct {
@@ -37,6 +38,11 @@ func (s *startupState) postAck(lim *Limiter, p packetMeta, now time.Time) {
 	}
 }
 
+func (s *startupState) snapshot() state {
+	ret := *s
+	return &ret
+}
+
 type drainState struct {
 }
 
@@ -56,6 +62,10 @@ func (s *drainState) postAck(lim *Limiter, p packetMeta, now time.Time) {
 	if lim.inflight() == int64(lim.computeBDP()) {
 		lim.changeState(&probeBWState{})
 	}
+}
+
+func (s *drainState) snapshot() state {
+	return s
 }
 
 var probeBWPacingGains = []float64{
@@ -120,6 +130,11 @@ func (s *probeBWState) postAck(lim *Limiter, p packetMeta, now time.Time) {
 	}
 }
 
+func (s *probeBWState) snapshot() state {
+	ret := *s
+	return &ret
+}
+
 type probeRTTState struct {
 	// The time at which we can exit this state.
 	exitTime time.Time
@@ -166,4 +181,9 @@ func (s *probeRTTState) postAck(lim *Limiter, p packetMeta, now time.Time) {
 		// always transition back there.
 		lim.changeState(&probeBWState{})
 	}
+}
+
+func (s *probeRTTState) snapshot() state {
+	ret := *s
+	return &ret
 }

@@ -53,9 +53,8 @@ func TestTrace(t *testing.T) {
 	}
 
 	path := []testLink{
-		//{delay: 4 * time.Second},
+		{delay: 50 * time.Millisecond},
 		{bandwidth: 1000 * bytesPerSecond},
-		//{delay: 2 * time.Second},
 	}
 
 	snapshots := runTrace(path, packets)
@@ -63,6 +62,33 @@ func TestTrace(t *testing.T) {
 	for _, s := range snapshots {
 		s.report(t)
 	}
+}
+
+func (l *Limiter) snapshot() Limiter {
+	ret := *l
+	ret.btlBwFilter = l.btlBwFilter.snapshot()
+	ret.rtPropFilter = l.rtPropFilter.snapshot()
+	ret.state = l.state.snapshot()
+	return ret
+}
+
+func (f btlBwFilter) snapshot() btlBwFilter {
+	ret := f
+	ret.q = f.q.snapshot()
+	return ret
+}
+
+func (f rtPropFilter) snapshot() rtPropFilter {
+	ret := f
+	ret.q = f.q.snapshot()
+	return ret
+}
+
+func (q queue[T]) snapshot() queue[T] {
+	ret := q
+	ret.buf = make([]T, len(q.buf), cap(q.buf))
+	copy(ret.buf, q.buf)
+	return ret
 }
 
 func runTrace(path []testLink, packetSizes []uint64) []snapshot {
@@ -88,7 +114,7 @@ func runTrace(path []testLink, packetSizes []uint64) []snapshot {
 		})
 		lim.whilePaused(func() {
 			results = append(results, snapshot{
-				lim: *lim,
+				lim: lim.snapshot(),
 				now: clock.Now(),
 			})
 		})
