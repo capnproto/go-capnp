@@ -1,5 +1,8 @@
 package bbr
 
+// This file contains implementations of the various "states" the limiter
+// can be in. This mostly corresponds to the paper's appendix.
+
 import (
 	"math"
 	"math/rand"
