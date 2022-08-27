@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"capnproto.org/go/capnp/v3/internal/clock"
-	"github.com/stretchr/testify/assert"
 )
 
 type snapshot struct {
@@ -46,7 +45,28 @@ func (s *snapshot) report(t *testing.T) {
 // we push data into a stream continuously, but it's not really measuring
 // any pass/fail criteria.
 func TestTrace(t *testing.T) {
-	var snapshots []snapshot
+	sizes := []uint64{1, 5, 7, 10, 20}
+	var packets []uint64
+
+	for i := 0; i < 100; i++ {
+		packets = append(packets, sizes...)
+	}
+
+	path := []testLink{
+		//{delay: 4 * time.Second},
+		{bandwidth: 1000 * bytesPerSecond},
+		//{delay: 2 * time.Second},
+	}
+
+	snapshots := runTrace(path, packets)
+
+	for _, s := range snapshots {
+		s.report(t)
+	}
+}
+
+func runTrace(path []testLink, packetSizes []uint64) []snapshot {
+	var results []snapshot
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	//	clock := clock.NewManual(sampleStartTime)
@@ -54,33 +74,24 @@ func TestTrace(t *testing.T) {
 	lim := NewLimiter(clock)
 	defer lim.Release()
 
-	path := []testLink{
-		//{delay: 4 * time.Second},
-		{bandwidth: 1000 * bytesPerSecond},
-		//{delay: 2 * time.Second},
-	}
 	tx, rx := startTestPath(ctx, clock, path...)
 	go processAcks(ctx, rx)
 
-	sizes := []uint64{1, 5, 7, 10, 20}
-
-	for i := 0; i < 100; i++ {
-		for _, size := range sizes {
-			got, err := lim.StartMessage(ctx, size)
-			assert.Nil(t, err)
-			tx.Send(testPacket{
-				size:        size,
-				gotResponse: got,
-			})
-			lim.whilePaused(func() {
-				snapshots = append(snapshots, snapshot{
-					lim: *lim,
-					now: clock.Now(),
-				})
-			})
+	for _, size := range packetSizes {
+		got, err := lim.StartMessage(ctx, size)
+		if err != nil {
+			panic(err)
 		}
+		tx.Send(testPacket{
+			size:        size,
+			gotResponse: got,
+		})
+		lim.whilePaused(func() {
+			results = append(results, snapshot{
+				lim: *lim,
+				now: clock.Now(),
+			})
+		})
 	}
-	for _, s := range snapshots {
-		s.report(t)
-	}
+	return results
 }
