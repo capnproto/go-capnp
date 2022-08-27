@@ -30,11 +30,20 @@ func (s *snapshot) report(t *testing.T) {
 	t.Logf("state           = %T%v\n", lim.state, lim.state)
 
 	t.Logf("btlBw samples:\n")
-	head, tail := lim.btlBwFilter.q.Items()
-	for _, v := range head {
+	bwhead, bwtail := lim.btlBwFilter.q.Items()
+	for _, v := range bwhead {
 		t.Logf("  %v\n", v)
 	}
-	for _, v := range tail {
+	for _, v := range bwtail {
+		t.Logf("  %v\n", v)
+	}
+
+	t.Logf("rtProp samples:\n")
+	rthead, rttail := lim.rtPropFilter.q.Items()
+	for _, v := range rthead {
+		t.Logf("  %v\n", v)
+	}
+	for _, v := range rttail {
 		t.Logf("  %v\n", v)
 	}
 }

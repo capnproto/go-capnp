@@ -1,6 +1,7 @@
 package bbr
 
 import (
+	"fmt"
 	"math"
 	"time"
 )
@@ -60,6 +61,10 @@ func newRtPropFilter() rtPropFilter {
 type rtPropSample struct {
 	rtt time.Duration
 	now time.Time
+}
+
+func (s rtPropSample) String() string {
+	return fmt.Sprintf("rtPropSample{rtt: %v, now = %v}", s.rtt, s.now)
 }
 
 func (f *rtPropFilter) AddSample(sample rtPropSample) {
