@@ -49,7 +49,7 @@ func startTestPath(ctx context.Context, clock clock.Clock, links ...testLink) (*
 	return initTx, &q.Rx
 }
 
-func (l *testLink) run(ctx context.Context, clock clock.Clock, rx *mpsc.Rx[testPacket], tx *mpsc.Tx[testPacket]) {
+func (l testLink) run(ctx context.Context, clock clock.Clock, rx *mpsc.Rx[testPacket], tx *mpsc.Tx[testPacket]) {
 	timer := clock.NewTimer(0)
 	<-timer.Chan()
 	for {
@@ -95,10 +95,9 @@ func assertNotDone(t *testing.T, done <-chan struct{}) {
 	}
 }
 
+// Try sending a packet through a path with one link of a given known delay;
+// make sure it arrives at the correct time.
 func TestLinkDelay(t *testing.T) {
-	// Try sending a packet through a path with one link of a given known delay;
-	// make sure it arrives at the correct time.
-
 	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -120,6 +119,39 @@ func TestLinkDelay(t *testing.T) {
 	assertNotDone(t, done)
 
 	clock.Advance(3 * time.Second) // This puts us at t = 5, after our delay.
+	<-done                         // would deadlock if the packet still did't send.
+}
+
+// Try sending a packet through a path with two links of known delay;
+// make sure it arrives at the correct time.
+func TestMultiLinkDelay(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	clock := clock.NewManual(sampleStartTime)
+	tx, rx := startTestPath(ctx, clock,
+		testLink{delay: 4 * time.Second},
+		testLink{delay: 2 * time.Second},
+	)
+	go processAcks(ctx, rx)
+
+	done := make(chan struct{})
+
+	tx.Send(testPacket{
+		gotResponse: func() {
+			close(done)
+		},
+	})
+
+	assertNotDone(t, done)
+	clock.Advance(2 * time.Second)
+	assertNotDone(t, done)
+
+	clock.Advance(3 * time.Second) // This puts us at t = 5, after our first link's delay.
+	assertNotDone(t, done)         // ...but it still needs to get through the second link.
+
+	clock.Advance(2 * time.Second) // This should get us all the way to the end.
 	<-done                         // would deadlock if the packet still did't send.
 }
 

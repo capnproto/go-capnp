@@ -104,7 +104,6 @@ func runTrace(path []testLink, packetSizes []uint64) []snapshot {
 	var results []snapshot
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	//	clock := clock.NewManual(sampleStartTime)
 	clock := clock.System
 	lim := NewLimiter(clock)
 	defer lim.Release()
