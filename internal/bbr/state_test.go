@@ -38,12 +38,12 @@ func testStartupOneAtATime(t *testing.T, rtProp time.Duration, msgBytes uint64, 
 		assert.Nil(t, err)
 		clock.Advance(rtProp)
 		lim.whilePaused(func() {
-			assert.Equal(t, lim.inflight(), int64(10))
+			assert.Equal(t, lim.inflight(), uint64(10))
 		})
 		got()
 
 		lim.whilePaused(func() {
-			assert.Equal(t, lim.inflight(), int64(0))
+			assert.Equal(t, lim.inflight(), uint64(0))
 			s := lim.state.(*startupState)
 			assert.Equal(t, lim.rtPropFilter.Estimate, rtProp)
 			assert.Equal(t, s.plateuRounds, i)

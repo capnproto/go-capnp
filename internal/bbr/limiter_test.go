@@ -29,7 +29,7 @@ func TestLimiterOneShot(t *testing.T) {
 	defer lim.Release()
 
 	lim.whilePaused(func() {
-		assert.Equal(t, lim.inflight(), int64(0),
+		assert.Equal(t, lim.inflight(), uint64(0),
 			"Limiter should start off with nothing in-flight.")
 	})
 
@@ -37,14 +37,14 @@ func TestLimiterOneShot(t *testing.T) {
 	assert.Nil(t, err, "StartMessage() failed.")
 
 	lim.whilePaused(func() {
-		assert.Equal(t, lim.inflight(), int64(7),
+		assert.Equal(t, lim.inflight(), uint64(7),
 			"Once we send the message, limiter should have that much data in-flight.")
 	})
 
 	got1()
 
 	lim.whilePaused(func() {
-		assert.Equal(t, lim.inflight(), int64(0),
+		assert.Equal(t, lim.inflight(), uint64(0),
 			"Once we receive the ack, in-flight data should be zero again.")
 	})
 }

@@ -2,7 +2,6 @@ package bbr
 
 import (
 	"context"
-	"math"
 	"time"
 
 	"capnproto.org/go/capnp/v3/internal/clock"
@@ -11,33 +10,30 @@ import (
 // A packetMeta contains metadata about a packet that was sent.
 type packetMeta struct {
 	SendTime time.Time // The time at which the packet was sent.
-	Size     int64     // The size of the packet.
+	Size     uint64    // The size of the packet.
 
 	// Whether the connection flow was app-limited when this packet
 	// was sent:
 	AppLimited bool
 
 	// value of corresponding fields in Limiter when this packet was sent:
-	Delivered     int64
+	Delivered     uint64
 	DeliveredTime time.Time
 }
 
 type sendRequest struct {
-	size      int64
+	size      uint64
 	replyChan chan<- packetMeta
 }
 
 func (l *Limiter) StartMessage(ctx context.Context, size uint64) (gotResponse func(), err error) {
-	if size > math.MaxInt64 {
-		panic("TODO: overflow")
-	}
 	replyChan := make(chan packetMeta)
 	select {
 	case <-ctx.Done():
 		return func() {}, ctx.Err()
 	case <-l.ctx.Done():
 		return func() {}, l.ctx.Err()
-	case l.chSend <- sendRequest{size: int64(size), replyChan: replyChan}:
+	case l.chSend <- sendRequest{size: size, replyChan: replyChan}:
 		pm := <-replyChan
 		return func() {
 			select {
@@ -195,15 +191,15 @@ type Limiter struct {
 	// Earliest time at which it is appropriate to send.
 	nextSendTime time.Time
 
-	sent          int64     // Total data sent
-	delivered     int64     // Total data delivered & ACKed
+	sent          uint64    // Total data sent
+	delivered     uint64    // Total data delivered & ACKed
 	deliveredTime time.Time // Time of the last ACK we received.
 
 	// If appLimitedUntil is not zero, it indicates that inflight()
 	// was limited to the specified value *not* because our congestion
 	// control logic decidecd that we should wait, but because the app
 	// didn't have any more data to send.
-	appLimitedUntil int64
+	appLimitedUntil uint64
 
 	// The state the flow is in
 	state state
@@ -227,7 +223,7 @@ func (l *Limiter) whilePaused(f func()) {
 }
 
 // inflight returns the total bytes in-flight
-func (l *Limiter) inflight() int64 {
+func (l *Limiter) inflight() uint64 {
 	return l.sent - l.delivered
 }
 

@@ -133,7 +133,7 @@ type probeRTTState struct {
 
 	// The value of Limiter.sent when we entered this state.
 	// Used to work out when we've seen a full round trip.
-	initSent int64
+	initSent uint64
 }
 
 func (s *probeRTTState) initialize(lim *Limiter) {
