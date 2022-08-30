@@ -51,15 +51,7 @@ func (s *drainState) initialize(lim *Limiter) {
 }
 
 func (s *drainState) postAck(lim *Limiter, p packetMeta, now time.Time) {
-	// XXX, do we actually want to ensure *equality*? will that always
-	// converge? Appears to work in tests, but need to think about it
-	// and make sure (our tests include messages of size 1; probably
-	// we should test with values that won't divide evenly, but also
-	// we should reason this out -- I suspect it will not always hold
-	//
-	// Maybe instead we should just check that it's within 5% or so
-	// (and we haven't overshot it).
-	if lim.inflight() == int64(lim.computeBDP()) {
+	if lim.inflight() <= uint64(lim.computeBDP()) {
 		lim.changeState(&probeBWState{})
 	}
 }
