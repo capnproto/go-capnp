@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"capnproto.org/go/capnp/v3/exp/mpsc"
 	"capnproto.org/go/capnp/v3/internal/clock"
-	"capnproto.org/go/capnp/v3/internal/mpsc"
 )
 
 var (
