@@ -82,12 +82,12 @@ type generator struct {
 
 func newGenerator(fileID uint64, nodes nodeMap, opts genoptions) *generator {
 	g := &generator{
-		r:      &templateRenderer{t: templates},
-		fileID: fileID,
-		nodes:  nodes,
-		opts:   opts,
+		r:       &templateRenderer{t: templates},
+		fileID:  fileID,
+		nodes:   nodes,
+		imports: newImports(),
+		opts:    opts,
 	}
-	g.imports.init()
 	g.data.init(fileID)
 	return g
 }
