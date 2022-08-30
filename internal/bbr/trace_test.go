@@ -54,6 +54,9 @@ func (s *snapshot) report(t *testing.T) {
 // we push data into a stream continuously, but it's not really measuring
 // any pass/fail criteria.
 func TestTrace(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping long test due to -short")
+	}
 	sizes := []uint64{1, 5, 7, 10, 20}
 	var packets []uint64
 
