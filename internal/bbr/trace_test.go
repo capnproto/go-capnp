@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"capnproto.org/go/capnp/v3/internal/clock"
+	"github.com/stretchr/testify/assert"
 )
 
 type snapshot struct {
@@ -45,6 +46,73 @@ func (s *snapshot) report(t *testing.T) {
 	}
 	for _, v := range rttail {
 		t.Logf("  %v\n", v)
+	}
+}
+
+func withinTolerance(t *testing.T, actual, expected, tolerance float64) {
+	min := expected * (1 - tolerance)
+	max := expected * (1 + tolerance)
+	assert.Greater(t, actual, min)
+	assert.Less(t, actual, max)
+
+}
+
+// trueValues returns the true/expected values of rtProp and and btlBw for a given path and
+// minimum packet size.
+func trueValues(path []testLink, minPacketBytes uint64) (rtProp time.Duration, btlBw bytesPerNs) {
+	for _, link := range path {
+		rtProp += link.delay
+		if link.bandwidth > btlBw {
+			btlBw = link.bandwidth
+		}
+	}
+
+	// The bottleneck only introduces meaningful delays when bandwidth limited, so the
+	// minimum such delay will be however long it takes to transfer the smallest packet:
+	btlProp := float64(minPacketBytes) / float64(btlBw)
+	rtProp += time.Duration(btlProp)
+	return
+}
+
+func TestTrueValues(t *testing.T) {
+	var cases = []struct {
+		path           []testLink
+		minPacketBytes uint64
+		rtProp         time.Duration
+		btlBw          bytesPerNs
+	}{
+		{
+			path: []testLink{
+				{delay: 50 * time.Millisecond},
+				{bandwidth: 1000 * bytesPerSecond},
+			},
+			minPacketBytes: 10,
+			rtProp:         60 * time.Millisecond,
+			btlBw:          1000 * bytesPerSecond,
+		},
+		{
+			path: []testLink{
+				{delay: 100 * time.Millisecond},
+				{bandwidth: 1000 * bytesPerSecond},
+			},
+			minPacketBytes: 10,
+			rtProp:         110 * time.Millisecond,
+			btlBw:          1000 * bytesPerSecond,
+		},
+		{
+			path: []testLink{
+				{delay: 50 * time.Millisecond},
+				{bandwidth: 1000 * bytesPerSecond},
+			},
+			minPacketBytes: 5,
+			rtProp:         55 * time.Millisecond,
+			btlBw:          1000 * bytesPerSecond,
+		},
+	}
+	for _, c := range cases {
+		rtProp, btlBw := trueValues(c.path, c.minPacketBytes)
+		withinTolerance(t, float64(c.rtProp), float64(rtProp), 0.01)
+		withinTolerance(t, float64(c.btlBw), float64(btlBw), 0.01)
 	}
 }
 
