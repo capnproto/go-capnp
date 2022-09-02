@@ -74,7 +74,7 @@ func (l *Limiter) run(ctx context.Context) {
 			// but ignore other signals.
 			//
 			// Note: if bdp <= 0, that means we overflowed, so BDP is
-			// estimated to be *extremely* large -- larger any possible
+			// estimated to be *extremely* large -- larger than any possible
 			// value of inflight(). In reality, this probably just means
 			// we don't have data yet, but the result is the same: just
 			// send.
