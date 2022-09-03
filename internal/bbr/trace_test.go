@@ -50,11 +50,11 @@ func (s *snapshot) report(t *testing.T) {
 	}
 }
 
-func withinTolerance(t *testing.T, actual, expected, tolerance float64) {
+func withinTolerance(t *testing.T, actual, expected, tolerance float64, msg string) {
 	min := expected * (1 - tolerance)
 	max := expected * (1 + tolerance)
-	assert.Greater(t, actual, min)
-	assert.Less(t, actual, max)
+	assert.Greater(t, actual, min, fmt.Sprintf("%v not within tolerance (min)", msg))
+	assert.Less(t, actual, max, fmt.Sprintf("%v not within tolerance (max)", msg))
 
 }
 
@@ -112,8 +112,8 @@ func TestTrueValues(t *testing.T) {
 	}
 	for _, c := range cases {
 		rtProp, btlBw := trueValues(c.path, c.minPacketBytes)
-		withinTolerance(t, float64(c.rtProp), float64(rtProp), 0.01)
-		withinTolerance(t, float64(c.btlBw), float64(btlBw), 0.01)
+		withinTolerance(t, float64(c.rtProp), float64(rtProp), 0.01, "rtProp")
+		withinTolerance(t, float64(c.btlBw), float64(btlBw), 0.01, "btlBw")
 	}
 }
 
@@ -122,8 +122,8 @@ func testEstimates(t *testing.T, path []testLink, minPacketBytes uint64, snapsho
 	rtProp, btlBw := trueValues(path, minPacketBytes)
 	estRtProp := snapshot.lim.rtPropFilter.Estimate
 	estBtlBw := snapshot.lim.btlBwFilter.Estimate
-	withinTolerance(t, float64(estRtProp), float64(rtProp), 0.02)
-	withinTolerance(t, float64(estBtlBw), float64(btlBw), 0.02)
+	withinTolerance(t, float64(estRtProp), float64(rtProp), 0.02, "rtProp")
+	withinTolerance(t, float64(estBtlBw), float64(btlBw), 0.02, "btlBw")
 }
 
 func repeat[T any](count int, values []T) []T {
