@@ -143,15 +143,17 @@ func TestTrace(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		path    []testLink
-		packets []uint64
+		path           []testLink
+		packets        []uint64
+		minPacketBytes uint64
 	}{
 		{
 			path: []testLink{
 				{delay: 50 * time.Millisecond},
 				{bandwidth: 1000 * bytesPerSecond},
 			},
-			packets: repeat(10, []uint64{1, 49, 50, 50, 50}),
+			packets:        repeat(10, []uint64{1, 49, 50, 50, 50}),
+			minPacketBytes: 1,
 		},
 		/* Currently failing.
 		{
@@ -159,7 +161,8 @@ func TestTrace(t *testing.T) {
 				{delay: 5 * time.Millisecond},
 				{bandwidth: 1e6 * bytesPerSecond},
 			},
-			packets: repeat(100, []uint64{1, 49, 50, 50, 50}),
+			packets:        repeat(100, []uint64{1, 49, 50, 50, 50}),
+			minPacketBytes: 1,
 		},
 		*/
 	}
@@ -170,7 +173,7 @@ func TestTrace(t *testing.T) {
 			for _, s := range snapshots {
 				s.report(t)
 			}
-			testEstimates(t, c.path, 1, snapshots[len(snapshots)-1])
+			testEstimates(t, c.path, c.minPacketBytes, snapshots[len(snapshots)-1])
 		})
 	}
 }
