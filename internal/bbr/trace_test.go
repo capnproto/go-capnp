@@ -2,6 +2,7 @@ package bbr
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -116,31 +117,61 @@ func TestTrueValues(t *testing.T) {
 	}
 }
 
-// TODO: work this into a proper test of... something...
-//
-// Right now this just gives me a decent way of watching what happens when
-// we push data into a stream continuously, but it's not really measuring
-// any pass/fail criteria.
+// testEstimates asserts that the snapshot's estimates are close to the true values.
+func testEstimates(t *testing.T, path []testLink, minPacketBytes uint64, snapshot snapshot) {
+	rtProp, btlBw := trueValues(path, minPacketBytes)
+	estRtProp := snapshot.lim.rtPropFilter.Estimate
+	estBtlBw := snapshot.lim.btlBwFilter.Estimate
+	withinTolerance(t, float64(estRtProp), float64(rtProp), 0.02)
+	withinTolerance(t, float64(estBtlBw), float64(btlBw), 0.02)
+}
+
+func repeat[T any](count int, values []T) []T {
+	var ret []T
+	for i := 0; i < count; i++ {
+		ret = append(ret, values...)
+	}
+	return ret
+}
+
+// Collect traces of various packet sequences being streamed over various paths,
+// and check that they pass some sanity checks.
 func TestTrace(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping long test due to -short")
 	}
-	sizes := []uint64{1, 5, 7, 10, 20}
-	var packets []uint64
+	t.Parallel()
 
-	for i := 0; i < 100; i++ {
-		packets = append(packets, sizes...)
+	cases := []struct {
+		path    []testLink
+		packets []uint64
+	}{
+		{
+			path: []testLink{
+				{delay: 50 * time.Millisecond},
+				{bandwidth: 1000 * bytesPerSecond},
+			},
+			packets: repeat(10, []uint64{1, 49, 50, 50, 50}),
+		},
+		/* Currently failing.
+		{
+			path: []testLink{
+				{delay: 5 * time.Millisecond},
+				{bandwidth: 1e6 * bytesPerSecond},
+			},
+			packets: repeat(100, []uint64{1, 49, 50, 50, 50}),
+		},
+		*/
 	}
 
-	path := []testLink{
-		{delay: 50 * time.Millisecond},
-		{bandwidth: 1000 * bytesPerSecond},
-	}
-
-	snapshots := runTrace(path, packets)
-
-	for _, s := range snapshots {
-		s.report(t)
+	for i, c := range cases {
+		t.Run(fmt.Sprintf("Case %v", i), func(t *testing.T) {
+			snapshots := runTrace(c.path, c.packets)
+			for _, s := range snapshots {
+				s.report(t)
+			}
+			testEstimates(t, c.path, 1, snapshots[len(snapshots)-1])
+		})
 	}
 }
 
