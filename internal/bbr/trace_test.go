@@ -173,7 +173,18 @@ func TestTrace(t *testing.T) {
 			for _, s := range snapshots {
 				s.report(t)
 			}
-			testEstimates(t, c.path, c.minPacketBytes, snapshots[len(snapshots)-1])
+			t.Run("At end", func(t *testing.T) {
+				testEstimates(t, c.path, c.minPacketBytes, snapshots[len(snapshots)-1])
+			})
+			t.Run("After startup", func(t *testing.T) {
+				for _, s := range snapshots {
+					// Find the first snapshot after startup.
+					if _, ok := s.lim.state.(*drainState); ok {
+						testEstimates(t, c.path, c.minPacketBytes, s)
+						return
+					}
+				}
+			})
 		})
 	}
 }
