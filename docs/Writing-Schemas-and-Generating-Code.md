@@ -6,9 +6,9 @@ There is support for [other languages](https://capnproto.org/otherlang.html), to
 
 ## Before you Begin
 
-Ensure that you have installed the `capnp` compiler and the Go language plugin, and that your shell's `$PATH` variable includes `$GOPATH/bin`.  
+Ensure that you have installed the `capnp` compiler and the Go language plugin, and that your shell's `$PATH` variable includes `$GOPATH/bin`.
 
-Refer to the [previous section](https://github.com/capnproto/go-capnproto2/wiki/Getting-Started) for instructions.
+Refer to the [previous section](Getting-Started.md) for instructions.
 
 ## Example Schema File
 
@@ -52,4 +52,4 @@ In the next section, we will show how you can write these structs to a file or t
 
 # Next
 
-Now that you have generated code from your schema, you should [learn how to work with Cap'n Proto types](https://github.com/capnproto/go-capnproto2/wiki/Working-with-Cap'n-Proto-Types).
+Now that you have generated code from your schema, you should [learn how to work with Cap'n Proto types](Working-with-Cap'n-Proto-Types.md).

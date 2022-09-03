@@ -16,7 +16,7 @@ Instantiating a type that was generated from your a schema is a three-step proce
 2. Instantiate a new `*capnp.Message`, which allocates capnp structs in the above arena.
 3. Instantiate the schema-generated type, which wraps the above `Message` and provides a high-level getter/setter API.
 
-The code below creates a new `books.Book` from the schema you generated in the [previous section](https://github.com/capnproto/go-capnproto2/wiki/Writing-Schemas-and-Generating-Code), and populates its fields.  Steps 1 through 3 are repeated in the comments, for clarity.
+The code below creates a new `books.Book` from the schema you generated in the [previous section](Writing-Schemas-and-Generating-Code.md), and populates its fields.  Steps 1 through 3 are repeated in the comments, for clarity.
 
 ```go
 package main
@@ -126,7 +126,7 @@ fmt.Printf("%s (%d pages)", title, book.Pages())
 
 ### Using the Packed Encoding
 
-Cap'n Proto supports a [packed encoding](https://capnproto.org/encoding.html#packing), that provides ultra-fast compression.  To use the packed encoding, substitute `Message.Marshal` with `Message.MarshalPacked` and `capnp.Unmarshal` with `capnp.UnmarshalPacked`. 
+Cap'n Proto supports a [packed encoding](https://capnproto.org/encoding.html#packing), that provides ultra-fast compression.  To use the packed encoding, substitute `Message.Marshal` with `Message.MarshalPacked` and `capnp.Unmarshal` with `capnp.UnmarshalPacked`.
 
 ## Streaming
 
@@ -182,4 +182,4 @@ fmt.Printf("%q has %d pages\n", title, pageCount)
 
 # Next
 
-Now that you understand how marshalling works, you're ready to [write your first RPC service](https://github.com/capnproto/go-capnproto2/wiki/Remote-Procedure-Calls-using-Interfaces).
+Now that you understand how marshalling works, you're ready to [write your first RPC service](Remote-Procedure-Calls-using-Interfaces.md).

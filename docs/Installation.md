@@ -15,4 +15,5 @@ If you get stuck at any point, please [ask us for help](https://matrix.to/#/#go-
 
 # Next
 
-Once you have installed `capnp` and the Go plugin, you should [write and compile your first schema](https://github.com/capnproto/go-capnproto2/wiki/Writing-Schemas-and-Generating-Code).
+Once you have installed `capnp` and the Go plugin, you should [write and
+compile your first schema](Writing-Schemas-and-Generating-Code.md).

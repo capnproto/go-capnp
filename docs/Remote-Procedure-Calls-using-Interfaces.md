@@ -22,7 +22,7 @@ Capabilities are first-class objects, and this means you can:
 
 This is a huge improvement over typical RPC protocols.  JSON-RPC, Go's `net/rpc`, gRPC and Thrift only allow you to address global URLs or singleton objects that are registered with the server.  In contrast, Cap'n Proto RPC allows you to dynamically create new objects at runtime, and share them over the network.  In other words, you can do object-oriented programming (OOP) over the network!
 
-This pattern of [Object Capabilities](http://habitatchronicles.com/2017/05/what-are-capabilities/) provides a powerful framework for writing secure, performant protocols.  We'll explore this paradigm in more detail in a [later chapter](https://github.com/capnproto/go-capnproto2/wiki/RPC-and-Capability-Oriented-Design).
+This pattern of [Object Capabilities](http://habitatchronicles.com/2017/05/what-are-capabilities/) provides a powerful framework for writing secure, performant protocols.  We'll explore this paradigm in more detail in a [later chapter](RPC-and-Capability-Oriented-Design.md).
 
 For now, let's skip over the theory and proceed by example.
 
@@ -63,14 +63,14 @@ You should take a moment to inspect the generated types in `arith.capnp.go`.  Fo
 ### Server Types
 
 | Name           | Go Type |   Descripton        |
-| -------------- |-------------| -------------| 
+| -------------- |-------------| -------------|
 | `Arith_Server` | `interface` | Network-shareable object.  Methods are RPC endpoints.|
 | `Arith_<method>` | `struct` | Method call parameters, _e.g._ `Arith_multiply`.<br />Received by `Arith_Server` method when handling RPC call.|
 
 ### Client Types
 
 | Name           | Go Type |   Descripton        |
-| -------------- |-------------| -------------| 
+| -------------- |-------------| -------------|
 | `Arith`        | `struct` | The "client" or "capability".  Instances point to a specific `Arith_Server`.<br />Method calls perform RPC against corresponding `Arith_Server`.      |
 | `Arith_<method>_Params` | `struct` | Arguments to `<method>`,  _e.g._ `Arith_multiply_Params` |
 | `Arith_<method>_Results` | `struct` | The results of an RPC call, _e.g._ `Arith_multiply_Results`. |
@@ -243,4 +243,5 @@ A few additional words on the Future type are in order.  If your RPC method retu
 
 # Next
 
-Now that you've learned the basics of Cap'n Proto RPC, you are ready to [learn more about object capabilities and advanced RPC](https://github.com/capnproto/go-capnproto2/wiki/RPC-and-Capability-Oriented-Design).
+Now that you've learned the basics of Cap'n Proto RPC, you are ready to
+[learn more about object capabilities and advanced RPC](RPC-and-Capability-Oriented-Design.md).
