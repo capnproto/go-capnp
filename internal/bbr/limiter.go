@@ -79,8 +79,7 @@ func (l *Limiter) run(ctx context.Context) {
 			// we don't have data yet, but the result is the same: just
 			// send.
 		} else if l.isAppLimited() {
-			// Last run through we didn't have enough
-			// to send, so we should just wait until we do;
+			// We're bottlnecked on the app, not the path;
 			// don't watch the timer, but do watch the send
 			// queue:
 			sendReqs = l.chSend
@@ -108,8 +107,14 @@ func (l *Limiter) run(ctx context.Context) {
 	}
 }
 
+// isAppLimited returns whether the flow is application limited, i.e. the app is
+// not supplying enough data to keep the pipe full.
 func (l *Limiter) isAppLimited() bool {
-	return l.appLimitedUntil > 0
+	// The paper only has the first part of this condition, but the second is
+	// important: if nothing is on the wire at all, then we *must* be app limited,
+	// and if we fail to detect this scenario during startup when our bdp estimate
+	// estimate is still way too low, there will be no ack to give us updated data.
+	return l.appLimitedUntil > 0 || l.inflight() == 0
 }
 
 func (l *Limiter) trySend(ctx context.Context) {
