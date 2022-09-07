@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"capnproto.org/go/capnp/v3/internal/clock"
-	"github.com/stretchr/testify/assert"
 )
 
 type snapshot struct {
@@ -50,12 +49,16 @@ func (s *snapshot) report(t *testing.T) {
 	}
 }
 
-func withinTolerance(t *testing.T, actual, expected, tolerance float64, msg string) {
+func withinTolerance(actual, expected, tolerance float64, msg string) error {
 	min := expected * (1 - tolerance)
 	max := expected * (1 + tolerance)
-	assert.Greater(t, actual, min, fmt.Sprintf("%v not within tolerance (min)", msg))
-	assert.Less(t, actual, max, fmt.Sprintf("%v not within tolerance (max)", msg))
-
+	if actual < min {
+		return fmt.Errorf("%v = %v not within tolerance (min: %v)", msg, actual, min)
+	}
+	if actual > max {
+		return fmt.Errorf("%v = %v not within tolerance (max: %v)", msg, actual, max)
+	}
+	return nil
 }
 
 // trueValues returns the true/expected values of rtProp and and btlBw for a given path and
@@ -112,18 +115,32 @@ func TestTrueValues(t *testing.T) {
 	}
 	for _, c := range cases {
 		rtProp, btlBw := trueValues(c.path, c.minPacketBytes)
-		withinTolerance(t, float64(c.rtProp), float64(rtProp), 0.01, "rtProp")
-		withinTolerance(t, float64(c.btlBw), float64(btlBw), 0.01, "btlBw")
+		err := withinTolerance(float64(c.rtProp), float64(rtProp), 0.01, "rtProp")
+		if err != nil {
+			t.Error(err)
+		}
+		err = withinTolerance(float64(c.btlBw), float64(btlBw), 0.01, "btlBw")
+		if err != nil {
+			t.Error(err)
+		}
 	}
 }
 
-// testEstimates asserts that the snapshot's estimates are close to the true values.
-func testEstimates(t *testing.T, path []testLink, minPacketBytes uint64, snapshot snapshot) {
+// estimatesCorrect checks that the snapshot's estimates are close to the true values. If not,
+// the error describes the descrepancy.
+func estimatesCorrect(path []testLink, minPacketBytes uint64, snapshot snapshot) error {
 	rtProp, btlBw := trueValues(path, minPacketBytes)
 	estRtProp := snapshot.lim.rtPropFilter.Estimate
 	estBtlBw := snapshot.lim.btlBwFilter.Estimate
-	withinTolerance(t, float64(estRtProp), float64(rtProp), 0.02, "rtProp")
-	withinTolerance(t, float64(estBtlBw), float64(btlBw), 0.02, "btlBw")
+	errRtProp := withinTolerance(float64(estRtProp), float64(rtProp), 0.02, "rtProp")
+	errBtlBw := withinTolerance(float64(estBtlBw), float64(btlBw), 0.02, "btlBw")
+	if errRtProp == nil {
+		return errBtlBw
+	}
+	if errBtlBw == nil {
+		return errRtProp
+	}
+	return fmt.Errorf("Estimates are incorrect:\n%v\n%v\n", errRtProp, errBtlBw)
 }
 
 func repeat[T any](count int, values []T) []T {
@@ -174,16 +191,31 @@ func TestTrace(t *testing.T) {
 				s.report(t)
 			}
 			t.Run("At end", func(t *testing.T) {
-				testEstimates(t, c.path, c.minPacketBytes, snapshots[len(snapshots)-1])
+				err := estimatesCorrect(c.path, c.minPacketBytes, snapshots[len(snapshots)-1])
+				if err != nil {
+					t.Error(err)
+				}
 			})
 			t.Run("After startup", func(t *testing.T) {
 				for _, s := range snapshots {
 					// Find the first snapshot after startup.
 					if _, ok := s.lim.state.(*drainState); ok {
-						testEstimates(t, c.path, c.minPacketBytes, s)
+						err := estimatesCorrect(c.path, c.minPacketBytes, s)
+						if err != nil {
+							t.Error(err)
+						}
 						return
 					}
 				}
+			})
+			t.Run("At some point", func(t *testing.T) {
+				for _, s := range snapshots {
+					err := estimatesCorrect(c.path, c.minPacketBytes, s)
+					if err == nil {
+						return
+					}
+				}
+				t.Fatal("Estimates are never correct.")
 			})
 		})
 	}
