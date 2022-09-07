@@ -16,7 +16,7 @@ type snapshot struct {
 
 func (s *snapshot) report(t *testing.T) {
 	lim := &s.lim
-	t.Logf("Limiter snapshot at %v: \n\n", s.now)
+	t.Logf("Limiter snapshot at %v: \n", s.now)
 	t.Logf("cwndGain        = %v\n", lim.cwndGain)
 	t.Logf("pacingGain      = %v\n", lim.pacingGain)
 	t.Logf("btlBw           = %v\n", lim.btlBwFilter.Estimate)
@@ -47,6 +47,8 @@ func (s *snapshot) report(t *testing.T) {
 	for _, v := range rttail {
 		t.Logf("  %v\n", v)
 	}
+
+	t.Logf("\n\n")
 }
 
 func withinTolerance(actual, expected, tolerance float64, msg string) error {
@@ -132,8 +134,8 @@ func estimatesCorrect(path []testLink, minPacketBytes uint64, snapshot snapshot)
 	rtProp, btlBw := trueValues(path, minPacketBytes)
 	estRtProp := snapshot.lim.rtPropFilter.Estimate
 	estBtlBw := snapshot.lim.btlBwFilter.Estimate
-	errRtProp := withinTolerance(float64(estRtProp), float64(rtProp), 0.02, "rtProp")
-	errBtlBw := withinTolerance(float64(estBtlBw), float64(btlBw), 0.02, "btlBw")
+	errRtProp := withinTolerance(float64(estRtProp), float64(rtProp), 0.05, "rtProp")
+	errBtlBw := withinTolerance(float64(estBtlBw), float64(btlBw), 0.05, "btlBw")
 	if errRtProp == nil {
 		return errBtlBw
 	}
@@ -172,7 +174,22 @@ func TestTrace(t *testing.T) {
 			packets:        repeat(10, []uint64{1, 49, 50, 50, 50}),
 			minPacketBytes: 1,
 		},
-		/* Currently failing.
+		{
+			path: []testLink{
+				{delay: 50 * time.Millisecond},
+				{bandwidth: 1e6 * bytesPerSecond},
+			},
+			packets:        repeat(20, []uint64{1, 4900, 5000, 5000, 5000}),
+			minPacketBytes: 1,
+		},
+		{
+			path: []testLink{
+				{delay: 50 * time.Millisecond},
+				{bandwidth: 1e6 * bytesPerSecond},
+			},
+			packets:        repeat(100, []uint64{1, 49, 50, 50, 50}),
+			minPacketBytes: 1,
+		},
 		{
 			path: []testLink{
 				{delay: 5 * time.Millisecond},
@@ -181,7 +198,6 @@ func TestTrace(t *testing.T) {
 			packets:        repeat(100, []uint64{1, 49, 50, 50, 50}),
 			minPacketBytes: 1,
 		},
-		*/
 	}
 
 	for i, c := range cases {
