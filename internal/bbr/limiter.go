@@ -272,7 +272,7 @@ func (l *Limiter) onAck(p packetMeta) {
 
 	deltaD := l.delivered - p.Delivered
 	deltaT := l.deliveredTime.Sub(p.DeliveredTime)
-	deliveryRate := bytesPerNs(deltaD) / bytesPerNs(deltaT.Nanoseconds())
+	deliveryRate := bytesPerNs(float64(deltaD) / float64(deltaT.Nanoseconds()))
 
 	if deliveryRate > l.btlBwFilter.Estimate || !p.AppLimited {
 		l.btlBwFilter.AddSample(deliveryRate)
