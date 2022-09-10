@@ -130,7 +130,7 @@ Cap'n Proto supports a [packed encoding](https://capnproto.org/encoding.html#pac
 
 ## Streaming
 
-The `Marshal` and `MarshalPacked` methods are suitable for such things as writing capnp types to a file, or sending a single objet over the network, e.g. in an HTTP request.  But if you want to stream multiple objects over, say, a network connection, you'll need a way of "framing" the stream, _i.e._ of separating the byte stream into different objects.  For this, we use the `Encoder` and `Decoder` types.
+The `Marshal` and `MarshalPacked` methods are suitable for such things as writing capnp types to a file, or sending a single object over the network, e.g. in an HTTP request.  But if you want to stream multiple objects over, say, a network connection, you'll need a way of "framing" the stream, _i.e._ of separating the byte stream into different objects.  For this, we use the `Encoder` and `Decoder` types.
 
 The `Encoder` and `Decoder` types allow you to stream generated types to and from any `io.Writer` or `io.Reader`, respectively.
 
