@@ -2,7 +2,9 @@ package bbr
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -12,6 +14,61 @@ import (
 type snapshot struct {
 	lim Limiter
 	now time.Time
+}
+
+type o map[string]any
+type a []any
+
+func (s *snapshot) reportJson() any {
+	lim := &s.lim
+	ret := o{
+		"now":             s.now,
+		"cwndGain":        lim.cwndGain,
+		"pacingGain":      lim.pacingGain,
+		"btlBw":           lim.btlBwFilter.Estimate,
+		"rtProp":          lim.rtPropFilter.Estimate,
+		"nextSendTime":    lim.nextSendTime,
+		"sent":            lim.sent,
+		"delivered":       lim.delivered,
+		"deliveredTime":   lim.deliveredTime,
+		"inflight":        lim.inflight(),
+		"bdp":             lim.computeBDP(),
+		"appLimitedUntil": lim.appLimitedUntil,
+		"state": o{
+			"type":  fmt.Sprintf("%T", lim.state),
+			"value": fmt.Sprintf("%v", lim.state),
+		},
+	}
+
+	bwhead, bwtail := lim.btlBwFilter.q.Items()
+	bwsamples := []float64{}
+	for _, v := range bwhead {
+		bwsamples = append(bwsamples, float64(v))
+	}
+	for _, v := range bwtail {
+		bwsamples = append(bwsamples, float64(v))
+	}
+
+	rthead, rttail := lim.rtPropFilter.q.Items()
+	rtSamples := a{}
+	for _, v := range rthead {
+		rtSamples = append(rtSamples, o{
+			"now": v.now,
+			"rtt": int64(v.rtt),
+		})
+	}
+	for _, v := range rttail {
+		rtSamples = append(rtSamples, o{
+			"now": v.now,
+			"rtt": int64(v.rtt),
+		})
+	}
+
+	ret["samples"] = o{
+		"btlBw":  bwsamples,
+		"rtProp": rtSamples,
+	}
+	return ret
 }
 
 func (s *snapshot) report(t *testing.T) {
@@ -151,6 +208,80 @@ func repeat[T any](count int, values []T) []T {
 		ret = append(ret, values...)
 	}
 	return ret
+}
+
+type ceArg struct {
+	btlBw          bytesPerNs
+	path           []testLink
+	minPacketBytes uint64
+}
+
+func computeErr(expected, actual float64) float64 {
+	return (actual - expected) / expected
+}
+
+func TestGraphs(t *testing.T) {
+	gatherData(t)
+}
+
+func gatherData(t *testing.T) {
+	delays := []time.Duration{}
+	bandwidths := []bytesPerNs{}
+	packets := [][]uint64{
+		repeat(10, []uint64{1, 49, 50, 50, 50}),
+	}
+
+	for i := 0; i < 10; i++ {
+		delays = append(delays, time.Duration(i+1)*5*time.Millisecond)
+	}
+	for i := 0; i < 10; i++ {
+		delays = append(delays, time.Duration(i+1)*50*time.Millisecond)
+	}
+	for i := 0; i < 50; i++ {
+		bw := 100 * (i + 1)
+		bandwidths = append(bandwidths, bytesPerNs(bw)*bytesPerSecond)
+	}
+
+	data := []any{}
+
+	for i, d := range delays {
+		for j, b := range bandwidths {
+			path := []testLink{
+				{delay: d},
+				{bandwidth: b},
+			}
+			for k, p := range packets {
+				t.Logf("Case (%v,%v,%v): (%v, %v, %v)", i, j, k, d, b, p)
+				rtProp, btlBw := trueValues(path, 1) // TODO: don't hardcode minPacketBytes
+				snapshots := runTrace(path, p)
+
+				sample := o{
+					"delay":     int64(d),
+					"bandwidth": float64(b),
+					"packets":   p,
+					"trueValues": o{
+						"rtProp": int64(rtProp),
+						"btlBw":  float64(btlBw),
+					},
+				}
+				trace := a{}
+				for _, s := range snapshots {
+					trace = append(trace, s.reportJson())
+				}
+				sample["trace"] = trace
+				data = append(data, sample)
+			}
+		}
+	}
+
+	buf, err := json.Marshal(data)
+	if err != nil {
+		panic(err)
+	}
+	err = os.WriteFile("data.json", buf, 0600)
+	if err != nil {
+		panic(err)
+	}
 }
 
 // Collect traces of various packet sequences being streamed over various paths,
