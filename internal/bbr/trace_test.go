@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"testing"
 	"time"
@@ -121,12 +122,31 @@ func withinTolerance(actual, expected, tolerance float64, msg string) error {
 }
 
 // trueValues returns the true/expected values of rtProp and and btlBw for a given path and
-// minimum packet size.
-func trueValues(path []testLink, minPacketBytes uint64) (rtProp time.Duration, btlBw bytesPerNs) {
+// set of packets
+func trueValues(path []testLink, packetSizes []uint64) (rtProp time.Duration, btlBw bytesPerNs) {
+	var totalData uint64
+	var minPacketBytes uint64 = math.MaxUint64
+
+	for _, size := range packetSizes {
+		totalData += size
+		if size < minPacketBytes {
+			minPacketBytes = size
+		}
+	}
+
+	avgPacketSize := totalData / uint64(len(packetSizes))
+
 	for _, link := range path {
 		rtProp += link.delay
 		if link.bandwidth > btlBw {
 			btlBw = link.bandwidth
+		}
+
+		if link.delay > 0 {
+			delayBw := bytesPerNs(avgPacketSize) / bytesPerNs(link.delay.Nanoseconds())
+			if delayBw > btlBw {
+				btlBw = delayBw
+			}
 		}
 	}
 
@@ -139,41 +159,41 @@ func trueValues(path []testLink, minPacketBytes uint64) (rtProp time.Duration, b
 
 func TestTrueValues(t *testing.T) {
 	var cases = []struct {
-		path           []testLink
-		minPacketBytes uint64
-		rtProp         time.Duration
-		btlBw          bytesPerNs
+		path        []testLink
+		packetSizes []uint64
+		rtProp      time.Duration
+		btlBw       bytesPerNs
 	}{
 		{
 			path: []testLink{
 				{delay: 50 * time.Millisecond},
 				{bandwidth: 1000 * bytesPerSecond},
 			},
-			minPacketBytes: 10,
-			rtProp:         60 * time.Millisecond,
-			btlBw:          1000 * bytesPerSecond,
+			packetSizes: []uint64{10},
+			rtProp:      60 * time.Millisecond,
+			btlBw:       1000 * bytesPerSecond,
 		},
 		{
 			path: []testLink{
 				{delay: 100 * time.Millisecond},
 				{bandwidth: 1000 * bytesPerSecond},
 			},
-			minPacketBytes: 10,
-			rtProp:         110 * time.Millisecond,
-			btlBw:          1000 * bytesPerSecond,
+			packetSizes: []uint64{10},
+			rtProp:      110 * time.Millisecond,
+			btlBw:       1000 * bytesPerSecond,
 		},
 		{
 			path: []testLink{
 				{delay: 50 * time.Millisecond},
 				{bandwidth: 1000 * bytesPerSecond},
 			},
-			minPacketBytes: 5,
-			rtProp:         55 * time.Millisecond,
-			btlBw:          1000 * bytesPerSecond,
+			packetSizes: []uint64{5},
+			rtProp:      55 * time.Millisecond,
+			btlBw:       1000 * bytesPerSecond,
 		},
 	}
 	for _, c := range cases {
-		rtProp, btlBw := trueValues(c.path, c.minPacketBytes)
+		rtProp, btlBw := trueValues(c.path, c.packetSizes)
 		err := withinTolerance(float64(c.rtProp), float64(rtProp), 0.01, "rtProp")
 		if err != nil {
 			t.Error(err)
@@ -187,8 +207,8 @@ func TestTrueValues(t *testing.T) {
 
 // estimatesCorrect checks that the snapshot's estimates are close to the true values. If not,
 // the error describes the descrepancy.
-func estimatesCorrect(path []testLink, minPacketBytes uint64, snapshot snapshot) error {
-	rtProp, btlBw := trueValues(path, minPacketBytes)
+func estimatesCorrect(path []testLink, packetSizes []uint64, snapshot snapshot) error {
+	rtProp, btlBw := trueValues(path, packetSizes)
 	estRtProp := snapshot.lim.rtPropFilter.Estimate
 	estBtlBw := snapshot.lim.btlBwFilter.Estimate
 	errRtProp := withinTolerance(float64(estRtProp), float64(rtProp), 0.05, "rtProp")
@@ -252,7 +272,7 @@ func gatherData(t *testing.T) {
 			}
 			for k, p := range packets {
 				t.Logf("Case (%v,%v,%v): (%v, %v, %v)", i, j, k, d, b, p)
-				rtProp, btlBw := trueValues(path, 1) // TODO: don't hardcode minPacketBytes
+				rtProp, btlBw := trueValues(path, p)
 				snapshots := runTrace(path, p)
 
 				sample := o{
@@ -293,41 +313,43 @@ func TestTrace(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		path           []testLink
-		packets        []uint64
-		minPacketBytes uint64
+		path    []testLink
+		packets []uint64
 	}{
 		{
 			path: []testLink{
 				{delay: 50 * time.Millisecond},
 				{bandwidth: 1000 * bytesPerSecond},
 			},
-			packets:        repeat(10, []uint64{1, 49, 50, 50, 50}),
-			minPacketBytes: 1,
+			packets: repeat(10, []uint64{1, 49, 50, 50, 50}),
 		},
 		{
 			path: []testLink{
 				{delay: 50 * time.Millisecond},
 				{bandwidth: 1e6 * bytesPerSecond},
 			},
-			packets:        repeat(20, []uint64{1, 4900, 5000, 5000, 5000}),
-			minPacketBytes: 1,
+			packets: repeat(20, []uint64{1, 4900, 5000, 5000, 5000}),
 		},
 		{
 			path: []testLink{
 				{delay: 50 * time.Millisecond},
 				{bandwidth: 1e6 * bytesPerSecond},
 			},
-			packets:        repeat(100, []uint64{1, 49, 50, 50, 50}),
-			minPacketBytes: 1,
+			packets: repeat(100, []uint64{1, 49, 50, 50, 50}),
 		},
 		{
 			path: []testLink{
 				{delay: 5 * time.Millisecond},
 				{bandwidth: 1e6 * bytesPerSecond},
 			},
-			packets:        repeat(100, []uint64{1, 49, 50, 50, 50}),
-			minPacketBytes: 1,
+			packets: repeat(100, []uint64{1, 49, 50, 50, 50}),
+		},
+		{
+			path: []testLink{
+				{delay: 5 * time.Millisecond},
+				{bandwidth: 1e6 * bytesPerSecond},
+			},
+			packets: repeat(100, []uint64{1, 49, 50, 50, 50}),
 		},
 	}
 
@@ -338,7 +360,7 @@ func TestTrace(t *testing.T) {
 				s.report(t)
 			}
 			t.Run("At end", func(t *testing.T) {
-				err := estimatesCorrect(c.path, c.minPacketBytes, snapshots[len(snapshots)-1])
+				err := estimatesCorrect(c.path, c.packets, snapshots[len(snapshots)-1])
 				if err != nil {
 					t.Error(err)
 				}
@@ -347,7 +369,7 @@ func TestTrace(t *testing.T) {
 				for _, s := range snapshots {
 					// Find the first snapshot after startup.
 					if _, ok := s.lim.state.(*drainState); ok {
-						err := estimatesCorrect(c.path, c.minPacketBytes, s)
+						err := estimatesCorrect(c.path, c.packets, s)
 						if err != nil {
 							t.Error(err)
 						}
@@ -357,7 +379,7 @@ func TestTrace(t *testing.T) {
 			})
 			t.Run("At some point", func(t *testing.T) {
 				for _, s := range snapshots {
-					err := estimatesCorrect(c.path, c.minPacketBytes, s)
+					err := estimatesCorrect(c.path, c.packets, s)
 					if err == nil {
 						return
 					}
