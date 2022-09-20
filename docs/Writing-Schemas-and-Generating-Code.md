@@ -52,4 +52,4 @@ In the next section, we will show how you can write these structs to a file or t
 
 # Next
 
-Now that you have generated code from your schema, you should [learn how to work with Cap'n Proto types](Working-with-Cap'n-Proto-Types.md).
+Now that you have generated code from your schema, you should [learn how to work with Cap'n Proto types](Working-with-Capn-Proto-Types.md).
