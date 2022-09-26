@@ -60,8 +60,8 @@ type Promise struct {
 	// clients is a table of promised clients created to proxy the eventual
 	// result's clients.  Even after resolution, this table may still have
 	// entries until the clients are released. Cannot be read or written
-	// in either of the pending states.
-	clients map[clientPath][]clientAndPromise
+	// in the pending state.
+	clients map[clientPath]*clientAndPromise
 
 	// releasedClients is true after ReleaseClients has been called on this
 	// promise.  Only the receiver of ReleaseClients should set this to true.
@@ -197,12 +197,10 @@ func (p *Promise) resolve(r Ptr, e error) {
 		}
 		syncutil.Without(&p.mu, func() {
 			res := resolution{p.method, r, e}
-			for path, row := range p.clients {
+			for path, cp := range p.clients {
 				t := path.transform()
-				for i := range row {
-					row[i].promise.Fulfill(res.client(t))
-					row[i].promise = nil
-				}
+				cp.promise.Fulfill(res.client(t))
+				cp.promise = nil
 			}
 			if p.callsStopped != nil {
 				<-p.callsStopped
@@ -243,10 +241,8 @@ func (p *Promise) ReleaseClients() {
 	clients := p.clients
 	p.clients = nil
 	p.mu.Unlock()
-	for _, row := range clients {
-		for _, cp := range row {
-			cp.client.Release()
-		}
+	for _, cp := range clients {
+		cp.client.Release()
 	}
 }
 
@@ -449,17 +445,17 @@ func (f *Future) Client() Client {
 	case p.isUnresolved():
 		ft := f.transform()
 		cpath := clientPathFromTransform(ft)
-		if row := p.clients[cpath]; len(row) > 0 {
-			return row[0].client
+		if cp := p.clients[cpath]; cp != nil {
+			return cp.client
 		}
 		c, pr := NewPromisedClient(PipelineClient{
 			p:         p,
 			transform: ft,
 		})
 		if p.clients == nil {
-			p.clients = make(map[clientPath][]clientAndPromise)
+			p.clients = make(map[clientPath]*clientAndPromise)
 		}
-		p.clients[cpath] = []clientAndPromise{{c, pr}}
+		p.clients[cpath] = &clientAndPromise{c, pr}
 		p.mu.Unlock()
 		return c
 	case p.isPendingResolution():
