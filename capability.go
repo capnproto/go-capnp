@@ -816,7 +816,8 @@ type Recv struct {
 	Args Struct
 
 	// ReleaseArgs is called after Args is no longer referenced.
-	// Must not be nil.
+	// Must not be nil. If called more than once, subsequent calls
+	// must silently no-op.
 	ReleaseArgs ReleaseFunc
 
 	// Returner manages the results.
