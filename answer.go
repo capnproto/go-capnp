@@ -199,7 +199,7 @@ func (p *Promise) resolve(r Ptr, e error) {
 			res := resolution{p.method, r, e}
 			for path, cp := range p.clients {
 				t := path.transform()
-				cp.promise.Fulfill(res.client(t))
+				cp.promise.Fulfill(res.client(t).AddRef())
 				cp.promise = nil
 			}
 			if p.callsStopped != nil {

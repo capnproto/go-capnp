@@ -667,11 +667,11 @@ func (cp *ClientPromise) Reject(err error) {
 	cp.Fulfill(ErrorClient(err))
 }
 
-// Fulfill resolves the client promise to c.  After Fulfill returns,
-// then all future calls to the client created by NewPromisedClient will
-// be sent to c.  It is guaranteed that the hook passed to
-// NewPromisedClient will be shut down after Fulfill returns, but the
-// hook may have been shut down earlier if the client ran out of
+// Fulfill resolves the client promise to c, stealing the reference c.
+// After Fulfill returns, then all future calls to the client created by
+// NewPromisedClient will be sent to c.  It is guaranteed that the hook
+// passed to NewPromisedClient will be shut down after Fulfill returns,
+// but the hook may have been shut down earlier if the client ran out of
 // references.
 func (cp *ClientPromise) Fulfill(c Client) {
 	// Obtain next client hook.
