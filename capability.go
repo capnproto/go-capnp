@@ -554,7 +554,7 @@ func (c Client) String() string {
 // reference to the capability, then the underlying resources associated
 // with the capability will be released.
 //
-// Release will panic if c has already been released, but not if c is
+// Release has no effect if c has already been released, or if c is
 // nil or resolved to null.
 func (c Client) Release() {
 	if c.client == nil {
