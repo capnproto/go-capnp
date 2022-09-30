@@ -680,7 +680,7 @@ func (cp *ClientPromise) Fulfill(c Client) {
 		c.mu.Lock()
 		if c.released {
 			c.mu.Unlock()
-			panic("ClientPromise.Resolve with a released client")
+			panic("ClientPromise.Fulfill with a released client")
 		}
 		// TODO(maybe): c.h = resolveHook(c.h)
 		rh = c.h
@@ -691,7 +691,7 @@ func (cp *ClientPromise) Fulfill(c Client) {
 	cp.h.mu.Lock()
 	if cp.h.isResolved() {
 		cp.h.mu.Unlock()
-		panic("ClientPromise.Resolve called more than once")
+		panic("ClientPromise.Fulfill called more than once")
 	}
 	cp.h.resolvedHook = rh
 	close(cp.h.resolved)
