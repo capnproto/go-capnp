@@ -652,7 +652,6 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			c.answers[id] = errorAnswer(c, id, err)
 		})
 		c.er.ReportError(err)
-		clearCapTable(call.Message())
 		releaseCall()
 		return nil
 	}
@@ -675,7 +674,6 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 		c.mu.Unlock()
 		c.er.ReportError(parseErr)
 		rl.release()
-		clearCapTable(call.Message())
 		releaseCall()
 		return nil
 	}
@@ -685,7 +683,6 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			return
 		}
 		released = true
-		clearCapTable(call.Message())
 		releaseCall()
 	}
 	switch p.target.which {
@@ -697,7 +694,6 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			ans.releaseMsg = nil
 			c.mu.Unlock()
 			releaseRet()
-			clearCapTable(call.Message())
 			releaseCall()
 			return rpcerr.Failedf("incoming call: unknown export ID %d", id)
 		}
@@ -724,7 +720,6 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			ans.releaseMsg = nil
 			c.mu.Unlock()
 			releaseRet()
-			clearCapTable(call.Message())
 			releaseCall()
 			return rpcerr.Failedf("incoming call: use of unknown or finished answer ID %d for promised answer target", p.target.promisedAnswer)
 		}
@@ -734,7 +729,6 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 				rl := ans.sendException(tgtAns.err)
 				c.mu.Unlock()
 				rl.release()
-				clearCapTable(call.Message())
 				releaseCall()
 				return nil
 			}
@@ -748,7 +742,6 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 				rl := ans.sendException(err)
 				c.mu.Unlock()
 				rl.release()
-				clearCapTable(call.Message())
 				releaseCall()
 				c.er.ReportError(err)
 				return nil
@@ -759,7 +752,6 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 				rl := ans.sendException(err)
 				c.mu.Unlock()
 				rl.release()
-				clearCapTable(call.Message())
 				releaseCall()
 				return nil
 			}
@@ -951,7 +943,6 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp
 				q.p.Fulfill(pr.result)
 				q.bootstrapPromise.Fulfill(q.p.Answer().Client())
 				q.p.ReleaseClients()
-				clearCapTable(pr.result.Message())
 				release()
 			})
 		case q.bootstrapPromise != nil && pr.err != nil:
@@ -971,11 +962,7 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp
 				release()
 			})
 		default:
-			m := ret.Message()
-			q.release = func() {
-				clearCapTable(m)
-				release()
-			}
+			q.release = release
 			syncutil.Without(&c.mu, func() {
 				q.p.Fulfill(pr.result)
 			})
@@ -1508,9 +1495,4 @@ func (as asyncSend) Send() {
 
 		as.callback(err)
 	}
-}
-
-func clearCapTable(msg *capnp.Message) {
-	releaseList(msg.CapTable).release()
-	msg.CapTable = nil
 }
