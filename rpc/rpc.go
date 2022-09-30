@@ -225,13 +225,14 @@ func (c *Conn) Bootstrap(ctx context.Context) (bc capnp.Client) {
 	}, func(err error) {
 		defer c.tasks.Done()
 
-		c.mu.Lock()
-		defer c.mu.Unlock()
-
 		if err != nil {
-			c.questions[q.id] = nil
-			c.questionID.remove(uint32(q.id))
+			syncutil.With(&c.mu, func() {
+				c.questions[q.id] = nil
+			})
 			q.bootstrapPromise.Reject(exc.Annotate("rpc", "bootstrap", err))
+			syncutil.With(&c.mu, func() {
+				c.questionID.remove(uint32(q.id))
+			})
 			return
 		}
 
