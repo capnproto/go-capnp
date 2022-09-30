@@ -160,9 +160,11 @@ func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineO
 			if err != nil {
 				syncutil.With(&q.c.mu, func() {
 					q.c.questions[q2.id] = nil
-					q.c.questionID.remove(uint32(q2.id))
 				})
 				q2.p.Reject(rpcerr.Failedf("send message: %w", err))
+				syncutil.With(&q.c.mu, func() {
+					q.c.questionID.remove(uint32(q2.id))
+				})
 				return
 			}
 

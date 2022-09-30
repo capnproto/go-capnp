@@ -108,8 +108,10 @@ func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, 
 
 			if err != nil {
 				ic.c.questions[q.id] = nil
+				syncutil.Without(&ic.c.mu, func() {
+					q.p.Reject(rpcerr.Failedf("send message: %w", err))
+				})
 				ic.c.questionID.remove(uint32(q.id))
-				q.p.Reject(rpcerr.Failedf("send message: %w", err))
 				return
 			}
 
