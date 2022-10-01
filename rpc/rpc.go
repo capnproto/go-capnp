@@ -344,6 +344,7 @@ func (c *Conn) release() {
 	exports := c.exports
 	embargoes := c.embargoes
 	answers := c.answers
+	questions := c.questions
 	c.imports = nil
 	c.exports = nil
 	c.embargoes = nil
@@ -357,6 +358,7 @@ func (c *Conn) release() {
 	c.releaseExports(exports)
 	c.liftEmbargoes(embargoes)
 	c.releaseAnswers(answers)
+	c.releaseQuestions(questions)
 
 }
 
@@ -392,6 +394,12 @@ func (c *Conn) releaseAnswers(answers map[answerID]*answer) {
 			releaseList(a.resultCapTable).release()
 			a.releaseMsg()
 		}
+	}
+}
+
+func (c *Conn) releaseQuestions(questions []*question) {
+	for _, q := range questions {
+		q.Reject(ExcClosed)
 	}
 }
 
