@@ -168,10 +168,6 @@ func (c *Conn) newImportCallMessage(msg rpccp.Message, imp importID, qid questio
 	}
 	m := args.Message()
 	if err := s.PlaceArgs(args); err != nil {
-		for _, c := range m.CapTable {
-			c.Release()
-		}
-		m.CapTable = nil
 		return rpcerr.Failedf("place arguments: %w", err)
 	}
 	clients := m.CapTable
@@ -179,7 +175,6 @@ func (c *Conn) newImportCallMessage(msg rpccp.Message, imp importID, qid questio
 		// TODO(soon): save param refs
 		_, err = c.fillPayloadCapTable(payload, clients)
 	})
-	releaseList(clients).release()
 	if err != nil {
 		return rpcerr.Annotatef(err, "build call message")
 	}
