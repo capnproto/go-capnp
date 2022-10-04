@@ -437,7 +437,7 @@ func (f *Future) Struct() (Struct, error) {
 // Client returns the future as a client.  If the answer's originating
 // call has not completed, then calls will be queued until the original
 // call's completion.  The client reference is borrowed: the caller
-// should not call Close.
+// should not call Release.
 func (f *Future) Client() Client {
 	p := f.promise
 	p.mu.Lock()
