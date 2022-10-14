@@ -1466,15 +1466,20 @@ func (c *Conn) startTask() (ok bool) {
 // The caller MUST hold c.mu.  The callback will be called without
 // holding c.mu.  Callers of sendMessage MAY wish to reacquire the
 // c.mu within the callback.
-func (c *Conn) sendMessage(ctx context.Context, f func(rpccp.Message) error, callback func(error)) error {
+func (c *Conn) sendMessage(ctx context.Context, f func(rpccp.Message) error, callback func(error)) {
 	msg, send, release, err := c.transport.NewMessage(ctx)
-	if err != nil {
-		return rpcerr.Failedf("create message: %w", err)
-	}
 
-	if err = f(msg); err != nil {
-		release()
-		return rpcerr.Failedf("build message: %w", err)
+	// If errors happen when allocating or building the message, set up dummy send/release
+	// functions so the error handling logic in callback() runs as normal:
+	if err != nil {
+		release = func() {}
+		send = func() error {
+			return rpcerr.Failedf("create message: %w", err)
+		}
+	} else if err = f(msg); err != nil {
+		send = func() error {
+			return rpcerr.Failedf("build message: %w", err)
+		}
 	}
 
 	c.sender.Send(asyncSend{
@@ -1482,8 +1487,6 @@ func (c *Conn) sendMessage(ctx context.Context, f func(rpccp.Message) error, cal
 		send:     send,
 		callback: callback,
 	})
-
-	return nil
 }
 
 type asyncSend struct {
