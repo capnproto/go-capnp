@@ -399,7 +399,13 @@ func (c *Conn) releaseAnswers(answers map[answerID]*answer) {
 
 func (c *Conn) releaseQuestions(questions []*question) {
 	for _, q := range questions {
-		q.Reject(ExcClosed)
+		canceled := q != nil && q.flags&finished != 0
+		if !canceled {
+			// Only reject the question if it isn't already flagged
+			// as finished; otherwise it was rejected when the finished
+			// flag was set.
+			q.Reject(ExcClosed)
+		}
 	}
 }
 

@@ -125,13 +125,6 @@ func (q *question) handleCancel(ctx context.Context) {
 		}
 		close(q.finishMsgSend)
 
-		// First remove the question from the table, so we don't
-		// double-resolve the promise. We can't free the id though,
-		// since the finish failed.
-		syncutil.With(&q.c.mu, func() {
-			q.c.questions[q.id] = nil
-		})
-
 		q.p.Reject(rejectErr)
 		if q.bootstrapPromise != nil {
 			q.bootstrapPromise.Fulfill(q.p.Answer().Client())
