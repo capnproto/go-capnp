@@ -1,6 +1,6 @@
 // Package exn provides an exception-like mechanism.
 //
-// It is a bit easier to reason about than standard exception, since
+// It is a bit easier to reason about than standard exceptions, since
 // not any code can throw, only code given access to a throw callback.
 // See the docs for Try.
 package exn
