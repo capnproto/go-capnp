@@ -23,6 +23,12 @@ jobs:
       - name: Set GOARCH
         run: |
           echo "GOARCH=${{ matrix.arch }}" >> $GITHUB_ENV
-      - run: go test -v -race -short ./...
+      - name: Run tests with race detector
         if: env.GOARCH != '386'
-      - run: go test -v ./...
+        run: go test -v -race -short ./...
+      - name: Run all tests
+        run: go test -v ./...
+      - name: Run RPC tests repeatedly
+        run: |
+          cd rpc
+          for i in `seq 500`; do go test -v; done
