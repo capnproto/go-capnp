@@ -207,6 +207,7 @@ func (c *Conn) Bootstrap(ctx context.Context) (bc capnp.Client) {
 	if !c.startTask() {
 		return capnp.ErrorClient(rpcerr.Disconnectedf("connection closed"))
 	}
+	defer c.tasks.Done()
 
 	bootCtx, cancel := context.WithCancel(ctx)
 	q := c.newQuestion(capnp.Method{})
@@ -223,8 +224,6 @@ func (c *Conn) Bootstrap(ctx context.Context) (bc capnp.Client) {
 		return err
 
 	}, func(err error) {
-		defer c.tasks.Done()
-
 		if err != nil {
 			syncutil.With(&c.mu, func() {
 				c.questions[q.id] = nil
