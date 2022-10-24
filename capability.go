@@ -674,6 +674,21 @@ func (cp *ClientPromise) Reject(err error) {
 // hook may have been shut down earlier if the client ran out of
 // references.
 func (cp *ClientPromise) Fulfill(c Client) {
+	cp.fulfill(c)
+	cp.shutdown()
+}
+
+// shutdown waits for all outstanding calls on the hook to complete and
+// references to be dropped, and then shuts down the hook. The caller
+// must have previously invoked cp.fulfill().
+func (cp *ClientPromise) shutdown() {
+	<-cp.h.done
+	cp.h.Shutdown()
+}
+
+// fulfill is like Fulfill, except that it does not wait for outsanding calls
+// to return answers or shut down the underlying hook.
+func (cp *ClientPromise) fulfill(c Client) {
 	// Obtain next client hook.
 	var rh *clientHook
 	if (c != Client{}) {
@@ -711,8 +726,6 @@ func (cp *ClientPromise) Fulfill(c Client) {
 		rh.refs += refs
 		rh.mu.Unlock()
 	}
-	<-cp.h.done
-	cp.h.Shutdown()
 }
 
 // A WeakClient is a weak reference to a capability: it refers to a

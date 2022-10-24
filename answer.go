@@ -127,10 +127,7 @@ func (p *Promise) resolution() resolution {
 // PipelineCaller to yield Answers and any pipelined clients to be
 // fulfilled.
 func (p *Promise) Fulfill(result Ptr) {
-	defer p.mu.Unlock()
-	p.mu.Lock()
-	p.requireUnresolved("Fulfill")
-	p.resolve(result, nil)
+	p.Resolve(result, nil)
 }
 
 // Reject resolves the promise with a failure.
@@ -142,10 +139,7 @@ func (p *Promise) Reject(e error) {
 	if e == nil {
 		panic("Promise.Reject(nil)")
 	}
-	defer p.mu.Unlock()
-	p.mu.Lock()
-	p.requireUnresolved("Reject")
-	p.resolve(Ptr{}, e)
+	p.Resolve(Ptr{}, e)
 }
 
 // Resolve resolves the promise.
@@ -153,10 +147,47 @@ func (p *Promise) Reject(e error) {
 // If e != nil, then this is equivalent to p.Reject(e).
 // Otherwise, it is equivalent to p.Fulfill(r).
 func (p *Promise) Resolve(r Ptr, e error) {
-	if e != nil {
-		p.Reject(e)
-	} else {
-		p.Fulfill(r)
+	var shutdownPromises []*ClientPromise
+	syncutil.With(&p.mu, func() {
+		if e != nil {
+			p.requireUnresolved("Reject")
+		} else {
+			p.requireUnresolved("Fulfill")
+		}
+		p.caller = nil
+
+		if len(p.clients) > 0 || p.ongoingCalls > 0 {
+			// Pending resolution state: wait for clients to be fulfilled
+			// and calls to have answers.  p.clients cannot be touched in the
+			// pending resolution state, so we have exclusive access to the
+			// variable.
+			if p.ongoingCalls > 0 {
+				p.callsStopped = make(chan struct{})
+			}
+			syncutil.Without(&p.mu, func() {
+				res := resolution{p.method, r, e}
+				for path, cp := range p.clients {
+					t := path.transform()
+					cp.promise.fulfill(res.client(t))
+					shutdownPromises = append(shutdownPromises, cp.promise)
+					cp.promise = nil
+				}
+				if p.callsStopped != nil {
+					<-p.callsStopped
+				}
+			})
+		}
+
+		// Move p into resolved state.
+		p.callsStopped = nil
+		p.result, p.err = r, e
+		for _, f := range p.signals {
+			f()
+		}
+		p.signals = nil
+	})
+	for _, promise := range shutdownPromises {
+		promise.shutdown()
 	}
 }
 
@@ -180,41 +211,6 @@ func (p *Promise) requireUnresolved(callerMethod string) {
 		panic("Promise." + callerMethod +
 			" called after previous call to " + prevMethod)
 	}
-}
-
-// resolve moves p into the resolved state from unresolved.  The caller
-// must be holding onto p.mu.
-func (p *Promise) resolve(r Ptr, e error) {
-	p.caller = nil
-
-	if len(p.clients) > 0 || p.ongoingCalls > 0 {
-		// Pending resolution state: wait for clients to be fulfilled
-		// and calls to have answers.  p.clients cannot be touched in the
-		// pending resolution state, so we have exclusive access to the
-		// variable.
-		if p.ongoingCalls > 0 {
-			p.callsStopped = make(chan struct{})
-		}
-		syncutil.Without(&p.mu, func() {
-			res := resolution{p.method, r, e}
-			for path, cp := range p.clients {
-				t := path.transform()
-				cp.promise.Fulfill(res.client(t))
-				cp.promise = nil
-			}
-			if p.callsStopped != nil {
-				<-p.callsStopped
-			}
-		})
-	}
-
-	// Move p into resolved state.
-	p.callsStopped = nil
-	p.result, p.err = r, e
-	for _, f := range p.signals {
-		f()
-	}
-	p.signals = nil
 }
 
 // Answer returns a read-only view of the promise.
