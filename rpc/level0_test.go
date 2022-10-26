@@ -1772,52 +1772,62 @@ func TestSendCancel(t *testing.T) {
 func TestHandleReturn_regression(t *testing.T) {
 	t.Parallel()
 
-	p1, p2 := transport.NewPipe(1)
+	// Common setup for the tests below. Creates a connection with
+	// a suitable bootstrap interface on one end, then passes the
+	// other end of the connection to the callback.
+	withConn := func(f func(*rpc.Conn)) {
+		p1, p2 := transport.NewPipe(1)
 
-	srv := testcp.PingPong_ServerToClient(pingPongServer{})
-	conn1 := rpc.NewConn(rpc.NewTransport(p2), &rpc.Options{
-		BootstrapClient: capnp.Client(srv),
-	})
-	defer conn1.Close()
+		srv := testcp.PingPong_ServerToClient(pingPongServer{})
+		conn1 := rpc.NewConn(rpc.NewTransport(p2), &rpc.Options{
+			BootstrapClient: capnp.Client(srv),
+		})
+		defer conn1.Close()
 
-	conn2 := rpc.NewConn(rpc.NewTransport(p1), nil)
-	defer conn2.Close()
+		conn2 := rpc.NewConn(rpc.NewTransport(p1), nil)
+		defer conn2.Close()
+		f(conn2)
+	}
 
 	t.Run("MethodCallWithExpiredContext", func(t *testing.T) {
-		pp := testcp.PingPong(conn2.Bootstrap(context.Background()))
-		defer pp.Release()
+		withConn(func(conn *rpc.Conn) {
+			pp := testcp.PingPong(conn.Bootstrap(context.Background()))
+			defer pp.Release()
 
-		// create an EXPIRED context
-		ctx, cancel := context.WithCancel(context.Background())
-		cancel()
+			// create an EXPIRED context
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
 
-		f, release := pp.EchoNum(ctx, func(ps testcp.PingPong_echoNum_Params) error {
-			ps.SetN(42)
-			return nil
+			f, release := pp.EchoNum(ctx, func(ps testcp.PingPong_echoNum_Params) error {
+				ps.SetN(42)
+				return nil
+			})
+			defer release()
+
+			_, err := f.Struct()
+			assert.ErrorIs(t, err, ctx.Err())
 		})
-		defer release()
-
-		_, err := f.Struct()
-		assert.ErrorIs(t, err, ctx.Err())
 	})
 
 	t.Run("BootstrapWithExpiredContext", func(t *testing.T) {
-		// create an EXPIRED context
-		ctx, cancel := context.WithCancel(context.Background())
-		cancel()
+		withConn(func(conn *rpc.Conn) {
+			// create an EXPIRED context
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
 
-		// NOTE: bootstrap with expired context
-		pp := testcp.PingPong(conn2.Bootstrap(ctx))
-		defer pp.Release()
+			// NOTE: bootstrap with expired context
+			pp := testcp.PingPong(conn.Bootstrap(ctx))
+			defer pp.Release()
 
-		f, release := pp.EchoNum(ctx, func(ps testcp.PingPong_echoNum_Params) error {
-			ps.SetN(42)
-			return nil
+			f, release := pp.EchoNum(ctx, func(ps testcp.PingPong_echoNum_Params) error {
+				ps.SetN(42)
+				return nil
+			})
+			defer release()
+
+			_, err := f.Struct()
+			assert.ErrorIs(t, err, ctx.Err())
 		})
-		defer release()
-
-		_, err := f.Struct()
-		assert.ErrorIs(t, err, ctx.Err())
 	})
 }
 
