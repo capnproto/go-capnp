@@ -138,22 +138,24 @@ func trueValues(path []testLink, packetSizes []uint64) (rtProp time.Duration, bt
 
 	for _, link := range path {
 		rtProp += link.delay
-		if link.bandwidth > btlBw {
-			btlBw = link.bandwidth
+		if link.bandwidth > 0 {
+			if link.bandwidth < btlBw || btlBw == 0 {
+				btlBw = link.bandwidth
+			}
+			// Bandwidth limited links only introduce meaningful delays when bandwidth limited, so the
+			// minimum such delay will be however long it takes to transfer the smallest packet:
+			btlProp := float64(minPacketBytes) / float64(link.bandwidth)
+			rtProp += time.Duration(btlProp)
 		}
 
 		if link.delay > 0 {
 			delayBw := bytesPerNs(avgPacketSize) / bytesPerNs(link.delay.Nanoseconds())
-			if delayBw > btlBw {
+			if delayBw < btlBw || btlBw == 0 {
 				btlBw = delayBw
 			}
 		}
 	}
 
-	// The bottleneck only introduces meaningful delays when bandwidth limited, so the
-	// minimum such delay will be however long it takes to transfer the smallest packet:
-	btlProp := float64(minPacketBytes) / float64(btlBw)
-	rtProp += time.Duration(btlProp)
 	return
 }
 
@@ -166,12 +168,21 @@ func TestTrueValues(t *testing.T) {
 	}{
 		{
 			path: []testLink{
+				{delay: 5 * time.Millisecond},
+				{bandwidth: 1000 * bytesPerSecond},
+			},
+			packetSizes: []uint64{10},
+			rtProp:      15 * time.Millisecond,
+			btlBw:       1000 * bytesPerSecond,
+		},
+		{
+			path: []testLink{
 				{delay: 50 * time.Millisecond},
 				{bandwidth: 1000 * bytesPerSecond},
 			},
 			packetSizes: []uint64{10},
 			rtProp:      60 * time.Millisecond,
-			btlBw:       1000 * bytesPerSecond,
+			btlBw:       200 * bytesPerSecond,
 		},
 		{
 			path: []testLink{
@@ -180,7 +191,7 @@ func TestTrueValues(t *testing.T) {
 			},
 			packetSizes: []uint64{10},
 			rtProp:      110 * time.Millisecond,
-			btlBw:       1000 * bytesPerSecond,
+			btlBw:       100 * bytesPerSecond,
 		},
 		{
 			path: []testLink{
@@ -189,19 +200,21 @@ func TestTrueValues(t *testing.T) {
 			},
 			packetSizes: []uint64{5},
 			rtProp:      55 * time.Millisecond,
-			btlBw:       1000 * bytesPerSecond,
+			btlBw:       100 * bytesPerSecond,
 		},
 	}
-	for _, c := range cases {
-		rtProp, btlBw := trueValues(c.path, c.packetSizes)
-		err := withinTolerance(float64(c.rtProp), float64(rtProp), 0.01, "rtProp")
-		if err != nil {
-			t.Error(err)
-		}
-		err = withinTolerance(float64(c.btlBw), float64(btlBw), 0.01, "btlBw")
-		if err != nil {
-			t.Error(err)
-		}
+	for i, c := range cases {
+		t.Run(fmt.Sprintf("Case %v", i), func(t *testing.T) {
+			rtProp, btlBw := trueValues(c.path, c.packetSizes)
+			err := withinTolerance(float64(rtProp), float64(c.rtProp), 0.01, "rtProp")
+			if err != nil {
+				t.Error(err)
+			}
+			err = withinTolerance(float64(btlBw), float64(c.btlBw), 0.01, "btlBw")
+			if err != nil {
+				t.Error(err)
+			}
+		})
 	}
 }
 
