@@ -112,13 +112,14 @@ func (s *snapshot) report(t *testing.T) {
 func withinTolerance(actual, expected, tolerance float64, msg string) error {
 	min := expected * (1 - tolerance)
 	max := expected * (1 + tolerance)
-	if actual < min {
-		return fmt.Errorf("%v = %v not within tolerance (min: %v)", msg, actual, min)
+	diff := actual - expected
+	if math.Abs(diff) <= math.Abs(expected*tolerance) {
+		return nil
 	}
-	if actual > max {
-		return fmt.Errorf("%v = %v not within tolerance (max: %v)", msg, actual, max)
-	}
-	return nil
+
+	return fmt.Errorf(
+		"%v = %v not within tolerance of %v of expected value %v (min %v, max %v). Actual error is %v",
+		msg, actual, tolerance, expected, min, max, diff/expected)
 }
 
 // trueValues returns the true/expected values of rtProp and and btlBw for a given path and
