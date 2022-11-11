@@ -202,7 +202,7 @@ type Limiter struct {
 
 	// If appLimitedUntil is not zero, it indicates that inflight()
 	// was limited to the specified value *not* because our congestion
-	// control logic decidecd that we should wait, but because the app
+	// control logic decided that we should wait, but because the app
 	// didn't have any more data to send.
 	appLimitedUntil uint64
 
