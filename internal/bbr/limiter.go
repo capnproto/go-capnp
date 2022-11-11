@@ -56,7 +56,13 @@ func (l *Limiter) computeBDP() float64 {
 }
 
 func (l *Limiter) run(ctx context.Context) {
+	// Dummy already-closed channel we can use when we want a channel
+	// that is ready, without needing to create it each time.
+	timeToSendNow := make(chan time.Time)
+	close(timeToSendNow)
+
 	for {
+
 		// These channels may or may not be nil, depending on what
 		// we want to listen for:
 		var (
@@ -69,25 +75,34 @@ func (l *Limiter) run(ctx context.Context) {
 
 		bdp := l.computeBDP()
 
-		if bdp > 0 && float64(l.inflight()) >= l.cwndGain*bdp {
+		now := l.clock.Now()
+
+		if l.inflight() == 0 {
+			// We can't let the general purpose logic handle this case,
+			// because if we don't have good information yet nextSendTime
+			// might be in the far future, and there is no ack on its way
+			// to save us from our ignorance. Fortunately we always want
+			// to send if there's nothing on the wire, so just do it.
+			// Note that we don't use sendReqs here, since we don't want
+			// to skip over the logic that checks for app limited flows:
+			timeToSend = timeToSendNow
+		} else if bdp > 0 && float64(l.inflight()) >= l.cwndGain*bdp {
 			// We're at our threshold; wait for an ack,
 			// but ignore other signals.
 			//
-			// Note: if bdp <= 0, that means we overflowed, so BDP is
-			// estimated to be *extremely* large -- larger than any possible
-			// value of inflight(). In reality, this probably just means
-			// we don't have data yet, but the result is the same: just
-			// send.
-		} else if l.isAppLimited() {
+			// Note: bdp == 0 means we just don't have any data yet,
+			// so we filter out that scenario.
+		} else if now.After(l.nextSendTime) {
 			// We're bottlnecked on the app, not the path;
-			// don't watch the timer, but do watch the send
-			// queue:
+			// record that we're app limited, and don't watch the timer,
+			// but do watch the send queue:
+			l.appLimitedUntil = l.inflight()
 			sendReqs = l.chSend
 		} else {
 			// App is sending fast enough for congestion
 			// control to be active; wait until nextSendTime
 			// before servicing a request:
-			sleep := l.nextSendTime.Sub(l.clock.Now())
+			sleep := l.nextSendTime.Sub(now)
 			timeToSend = l.clock.NewTimer(sleep).Chan()
 		}
 
@@ -107,16 +122,6 @@ func (l *Limiter) run(ctx context.Context) {
 	}
 }
 
-// isAppLimited returns whether the flow is application limited, i.e. the app is
-// not supplying enough data to keep the pipe full.
-func (l *Limiter) isAppLimited() bool {
-	// The paper only has the first part of this condition, but the second is
-	// important: if nothing is on the wire at all, then we *must* be app limited,
-	// and if we fail to detect this scenario during startup when our bdp estimate
-	// estimate is still way too low, there will be no ack to give us updated data.
-	return l.appLimitedUntil > 0 || l.inflight() == 0
-}
-
 func (l *Limiter) trySend(ctx context.Context) {
 	select {
 	case <-ctx.Done():
@@ -131,7 +136,7 @@ func (l *Limiter) trySend(ctx context.Context) {
 func (l *Limiter) doSend(now time.Time, req sendRequest) {
 	p := packetMeta{
 		Size:          req.size,
-		AppLimited:    l.isAppLimited(),
+		AppLimited:    l.appLimitedUntil > 0,
 		SendTime:      now,
 		Delivered:     l.delivered,
 		DeliveredTime: l.deliveredTime,
