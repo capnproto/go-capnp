@@ -16,8 +16,12 @@ type state interface {
 }
 
 type startupState struct {
+	// Our bandwidth estimate as of the last time we received an ack:
 	prevBtlBwEstimate bytesPerNs
-	plateauRounds     int
+
+	// How many times in a row we've tried increasing sending rate and
+	// not seen a signficant bandwidth increase:
+	plateauRounds int
 }
 
 func (s *startupState) initialize(lim *Limiter) {
