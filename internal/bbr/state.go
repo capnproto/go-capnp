@@ -65,14 +65,14 @@ func (s *drainState) snapshot() state {
 }
 
 var probeBWPacingGains = []float64{
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
 	1.25,
 	0.75,
-	1,
-	1,
-	1,
-	1,
-	1,
-	1,
 }
 
 type probeBWState struct {
@@ -95,12 +95,10 @@ func (s *probeBWState) initialize(lim *Limiter) {
 	s.lastRtPropChange = now
 
 	// Randomly select an initial pacing gain; anything but the value
-	// below 1 will do (see paper).
+	// below 1 will do (see paper). That value is last in the slice, so
+	// pick a random index before that:
 	s.pacingGainIndex = rand.Int() % (len(probeBWPacingGains) - 1)
-	if s.pacingGainIndex == 1 {
-		// Don't start with the 3/4.
-		s.pacingGainIndex++
-	}
+
 	lim.pacingGain = probeBWPacingGains[s.pacingGainIndex]
 	s.nextPacingGainChange = now.Add(s.rtProp)
 }
