@@ -46,7 +46,7 @@ func testStartupOneAtATime(t *testing.T, rtProp time.Duration, msgBytes uint64, 
 			assert.Equal(t, lim.inflight(), uint64(0))
 			s := lim.state.(*startupState)
 			assert.Equal(t, lim.rtPropFilter.Estimate, rtProp)
-			assert.Equal(t, s.plateuRounds, i)
+			assert.Equal(t, s.plateauRounds, i)
 			t.Log("Next send time: ", lim.nextSendTime)
 		})
 	}

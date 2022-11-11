@@ -17,7 +17,7 @@ type state interface {
 
 type startupState struct {
 	prevBtlBwEstimate bytesPerNs
-	plateuRounds      int
+	plateauRounds     int
 }
 
 func (s *startupState) initialize(lim *Limiter) {
@@ -28,12 +28,12 @@ func (s *startupState) initialize(lim *Limiter) {
 func (s *startupState) postAck(lim *Limiter, p packetMeta, now time.Time) {
 	newBtlBwEstimate := lim.btlBwFilter.Estimate
 	if float64(newBtlBwEstimate) < 1.25*float64(s.prevBtlBwEstimate) {
-		s.plateuRounds++
+		s.plateauRounds++
 	} else {
-		s.plateuRounds = 0
+		s.plateauRounds = 0
 	}
 	s.prevBtlBwEstimate = newBtlBwEstimate
-	if s.plateuRounds >= 3 {
+	if s.plateauRounds >= 3 {
 		lim.changeState(&drainState{})
 	}
 }
