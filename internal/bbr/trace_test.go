@@ -219,14 +219,18 @@ func TestTrueValues(t *testing.T) {
 	}
 }
 
+type tolerances struct {
+	rtProp, btlBw float64
+}
+
 // estimatesCorrect checks that the snapshot's estimates are close to the true values. If not,
 // the error describes the descrepancy.
-func estimatesCorrect(path []testLink, packetSizes []uint64, snapshot snapshot) error {
+func estimatesCorrect(path []testLink, packetSizes []uint64, tolerances tolerances, snapshot snapshot) error {
 	rtProp, btlBw := trueValues(path, packetSizes)
 	estRtProp := snapshot.lim.rtPropFilter.Estimate
 	estBtlBw := snapshot.lim.btlBwFilter.Estimate
-	errRtProp := withinTolerance(float64(estRtProp), float64(rtProp), 0.05, "rtProp")
-	errBtlBw := withinTolerance(float64(estBtlBw), float64(btlBw), 0.05, "btlBw")
+	errRtProp := withinTolerance(float64(estRtProp), float64(rtProp), tolerances.rtProp, "rtProp")
+	errBtlBw := withinTolerance(float64(estBtlBw), float64(btlBw), tolerances.btlBw, "btlBw")
 	if errRtProp == nil {
 		return errBtlBw
 	}
@@ -363,21 +367,52 @@ func TestTrace(t *testing.T) {
 		},
 		{
 			path: []testLink{
+				{delay: 50 * time.Millisecond},
+				{bandwidth: 1000 * bytesPerSecond},
+			},
+			packets: repeat(40, []uint64{50}),
+		},
+		{
+			path: []testLink{
+				{delay: 50 * time.Millisecond},
+				{bandwidth: 1e6 * bytesPerSecond},
+			},
+			packets: repeat(80, []uint64{5000}),
+		},
+		{
+			path: []testLink{
+				{delay: 50 * time.Millisecond},
+				{bandwidth: 1e6 * bytesPerSecond},
+			},
+			packets: repeat(400, []uint64{50}),
+		},
+		{
+			path: []testLink{
 				{delay: 5 * time.Millisecond},
 				{bandwidth: 1e6 * bytesPerSecond},
 			},
-			packets: repeat(100, []uint64{1, 49, 50, 50, 50}),
+			packets: repeat(400, []uint64{50}),
 		},
+		{
+			path: []testLink{
+				{delay: 5 * time.Millisecond},
+				{bandwidth: 1e6 * bytesPerSecond},
+			},
+			packets: repeat(400, []uint64{50}),
+		},
+	}
+
+	tolerances := tolerances{
+		rtProp: 0.25,
+		btlBw:  0.15,
 	}
 
 	for i, c := range cases {
 		t.Run(fmt.Sprintf("Case %v", i), func(t *testing.T) {
+			t.Parallel()
 			snapshots := runTrace(c.path, c.packets)
-			for _, s := range snapshots {
-				s.report(t)
-			}
 			t.Run("At end", func(t *testing.T) {
-				err := estimatesCorrect(c.path, c.packets, snapshots[len(snapshots)-1])
+				err := estimatesCorrect(c.path, c.packets, tolerances, snapshots[len(snapshots)-1])
 				if err != nil {
 					t.Error(err)
 				}
@@ -386,7 +421,7 @@ func TestTrace(t *testing.T) {
 				for _, s := range snapshots {
 					// Find the first snapshot after startup.
 					if _, ok := s.lim.state.(*drainState); ok {
-						err := estimatesCorrect(c.path, c.packets, s)
+						err := estimatesCorrect(c.path, c.packets, tolerances, s)
 						if err != nil {
 							t.Error(err)
 						}
@@ -396,7 +431,7 @@ func TestTrace(t *testing.T) {
 			})
 			t.Run("At some point", func(t *testing.T) {
 				for _, s := range snapshots {
-					err := estimatesCorrect(c.path, c.packets, s)
+					err := estimatesCorrect(c.path, c.packets, tolerances, s)
 					if err == nil {
 						return
 					}
