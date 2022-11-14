@@ -68,9 +68,9 @@ func NewStreamResult_List(s *capnp.Segment, sz int32) (StreamResult_List, error)
 // StreamResult_Future is a wrapper for a StreamResult promised by a client call.
 type StreamResult_Future struct{ *capnp.Future }
 
-func (p StreamResult_Future) Struct() (StreamResult, error) {
-	s, err := p.Future.Struct()
-	return StreamResult(s), err
+func (f StreamResult_Future) Struct() (StreamResult, error) {
+	p, err := f.Future.Ptr()
+	return StreamResult(p.Struct()), err
 }
 
 const schema_86c366a91393f3f8 = "x\xda\x12\x88p`1\xe4\xcdgb`\x0a\x94ae" +

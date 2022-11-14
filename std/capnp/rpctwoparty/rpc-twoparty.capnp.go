@@ -119,9 +119,9 @@ func NewVatId_List(s *capnp.Segment, sz int32) (VatId_List, error) {
 // VatId_Future is a wrapper for a VatId promised by a client call.
 type VatId_Future struct{ *capnp.Future }
 
-func (p VatId_Future) Struct() (VatId, error) {
-	s, err := p.Future.Struct()
-	return VatId(s), err
+func (f VatId_Future) Struct() (VatId, error) {
+	p, err := f.Future.Ptr()
+	return VatId(p.Struct()), err
 }
 
 type ProvisionId capnp.Struct
@@ -191,9 +191,9 @@ func NewProvisionId_List(s *capnp.Segment, sz int32) (ProvisionId_List, error) {
 // ProvisionId_Future is a wrapper for a ProvisionId promised by a client call.
 type ProvisionId_Future struct{ *capnp.Future }
 
-func (p ProvisionId_Future) Struct() (ProvisionId, error) {
-	s, err := p.Future.Struct()
-	return ProvisionId(s), err
+func (f ProvisionId_Future) Struct() (ProvisionId, error) {
+	p, err := f.Future.Ptr()
+	return ProvisionId(p.Struct()), err
 }
 
 type RecipientId capnp.Struct
@@ -256,9 +256,9 @@ func NewRecipientId_List(s *capnp.Segment, sz int32) (RecipientId_List, error) {
 // RecipientId_Future is a wrapper for a RecipientId promised by a client call.
 type RecipientId_Future struct{ *capnp.Future }
 
-func (p RecipientId_Future) Struct() (RecipientId, error) {
-	s, err := p.Future.Struct()
-	return RecipientId(s), err
+func (f RecipientId_Future) Struct() (RecipientId, error) {
+	p, err := f.Future.Ptr()
+	return RecipientId(p.Struct()), err
 }
 
 type ThirdPartyCapId capnp.Struct
@@ -321,9 +321,9 @@ func NewThirdPartyCapId_List(s *capnp.Segment, sz int32) (ThirdPartyCapId_List, 
 // ThirdPartyCapId_Future is a wrapper for a ThirdPartyCapId promised by a client call.
 type ThirdPartyCapId_Future struct{ *capnp.Future }
 
-func (p ThirdPartyCapId_Future) Struct() (ThirdPartyCapId, error) {
-	s, err := p.Future.Struct()
-	return ThirdPartyCapId(s), err
+func (f ThirdPartyCapId_Future) Struct() (ThirdPartyCapId, error) {
+	p, err := f.Future.Ptr()
+	return ThirdPartyCapId(p.Struct()), err
 }
 
 type JoinKeyPart capnp.Struct
@@ -409,9 +409,9 @@ func NewJoinKeyPart_List(s *capnp.Segment, sz int32) (JoinKeyPart_List, error) {
 // JoinKeyPart_Future is a wrapper for a JoinKeyPart promised by a client call.
 type JoinKeyPart_Future struct{ *capnp.Future }
 
-func (p JoinKeyPart_Future) Struct() (JoinKeyPart, error) {
-	s, err := p.Future.Struct()
-	return JoinKeyPart(s), err
+func (f JoinKeyPart_Future) Struct() (JoinKeyPart, error) {
+	p, err := f.Future.Ptr()
+	return JoinKeyPart(p.Struct()), err
 }
 
 type JoinResult capnp.Struct
@@ -501,11 +501,10 @@ func NewJoinResult_List(s *capnp.Segment, sz int32) (JoinResult_List, error) {
 // JoinResult_Future is a wrapper for a JoinResult promised by a client call.
 type JoinResult_Future struct{ *capnp.Future }
 
-func (p JoinResult_Future) Struct() (JoinResult, error) {
-	s, err := p.Future.Struct()
-	return JoinResult(s), err
+func (f JoinResult_Future) Struct() (JoinResult, error) {
+	p, err := f.Future.Ptr()
+	return JoinResult(p.Struct()), err
 }
-
 func (p JoinResult_Future) Cap() *capnp.Future {
 	return p.Future.Field(0, nil)
 }

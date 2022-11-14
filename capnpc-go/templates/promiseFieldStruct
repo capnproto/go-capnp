@@ -2,4 +2,3 @@ func (p {{.Node.Name}}_Future) {{.Field.Name|title}}() {{.G.RemoteNodeName .Stru
 	return {{.G.RemoteNodeName .Struct .Node}}_Future{Future: p.Future.Field(
 		{{- .Field.Slot.Offset}}, {{if .Default.IsValid}}{{.Default}}{{else}}nil{{end}})}
 }
-

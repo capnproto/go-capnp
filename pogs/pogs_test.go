@@ -1225,7 +1225,7 @@ func zfill(c air.Z, g *Z) error {
 	case air.Z_Which_anyStruct:
 		return c.SetAnyStruct(g.AnyStruct)
 	case air.Z_Which_anyList:
-		return c.SetAnyList(g.AnyList.ToPtr())
+		return c.SetAnyList(g.AnyList)
 	case air.Z_Which_anyCapability:
 		return c.SetAnyCapability(g.AnyCapability)
 	default:

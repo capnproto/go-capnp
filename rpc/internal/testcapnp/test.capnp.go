@@ -232,9 +232,9 @@ func NewPingPong_echoNum_Params_List(s *capnp.Segment, sz int32) (PingPong_echoN
 // PingPong_echoNum_Params_Future is a wrapper for a PingPong_echoNum_Params promised by a client call.
 type PingPong_echoNum_Params_Future struct{ *capnp.Future }
 
-func (p PingPong_echoNum_Params_Future) Struct() (PingPong_echoNum_Params, error) {
-	s, err := p.Future.Struct()
-	return PingPong_echoNum_Params(s), err
+func (f PingPong_echoNum_Params_Future) Struct() (PingPong_echoNum_Params, error) {
+	p, err := f.Future.Ptr()
+	return PingPong_echoNum_Params(p.Struct()), err
 }
 
 type PingPong_echoNum_Results capnp.Struct
@@ -304,9 +304,9 @@ func NewPingPong_echoNum_Results_List(s *capnp.Segment, sz int32) (PingPong_echo
 // PingPong_echoNum_Results_Future is a wrapper for a PingPong_echoNum_Results promised by a client call.
 type PingPong_echoNum_Results_Future struct{ *capnp.Future }
 
-func (p PingPong_echoNum_Results_Future) Struct() (PingPong_echoNum_Results, error) {
-	s, err := p.Future.Struct()
-	return PingPong_echoNum_Results(s), err
+func (f PingPong_echoNum_Results_Future) Struct() (PingPong_echoNum_Results, error) {
+	p, err := f.Future.Ptr()
+	return PingPong_echoNum_Results(p.Struct()), err
 }
 
 type StreamTest capnp.Client
@@ -533,9 +533,9 @@ func NewStreamTest_push_Params_List(s *capnp.Segment, sz int32) (StreamTest_push
 // StreamTest_push_Params_Future is a wrapper for a StreamTest_push_Params promised by a client call.
 type StreamTest_push_Params_Future struct{ *capnp.Future }
 
-func (p StreamTest_push_Params_Future) Struct() (StreamTest_push_Params, error) {
-	s, err := p.Future.Struct()
-	return StreamTest_push_Params(s), err
+func (f StreamTest_push_Params_Future) Struct() (StreamTest_push_Params, error) {
+	p, err := f.Future.Ptr()
+	return StreamTest_push_Params(p.Struct()), err
 }
 
 type CapArgsTest capnp.Client
@@ -814,11 +814,10 @@ func NewCapArgsTest_call_Params_List(s *capnp.Segment, sz int32) (CapArgsTest_ca
 // CapArgsTest_call_Params_Future is a wrapper for a CapArgsTest_call_Params promised by a client call.
 type CapArgsTest_call_Params_Future struct{ *capnp.Future }
 
-func (p CapArgsTest_call_Params_Future) Struct() (CapArgsTest_call_Params, error) {
-	s, err := p.Future.Struct()
-	return CapArgsTest_call_Params(s), err
+func (f CapArgsTest_call_Params_Future) Struct() (CapArgsTest_call_Params, error) {
+	p, err := f.Future.Ptr()
+	return CapArgsTest_call_Params(p.Struct()), err
 }
-
 func (p CapArgsTest_call_Params_Future) Cap() capnp.Client {
 	return p.Future.Field(0, nil).Client()
 }
@@ -883,9 +882,9 @@ func NewCapArgsTest_call_Results_List(s *capnp.Segment, sz int32) (CapArgsTest_c
 // CapArgsTest_call_Results_Future is a wrapper for a CapArgsTest_call_Results promised by a client call.
 type CapArgsTest_call_Results_Future struct{ *capnp.Future }
 
-func (p CapArgsTest_call_Results_Future) Struct() (CapArgsTest_call_Results, error) {
-	s, err := p.Future.Struct()
-	return CapArgsTest_call_Results(s), err
+func (f CapArgsTest_call_Results_Future) Struct() (CapArgsTest_call_Results, error) {
+	p, err := f.Future.Ptr()
+	return CapArgsTest_call_Results(p.Struct()), err
 }
 
 type CapArgsTest_self_Params capnp.Struct
@@ -948,9 +947,9 @@ func NewCapArgsTest_self_Params_List(s *capnp.Segment, sz int32) (CapArgsTest_se
 // CapArgsTest_self_Params_Future is a wrapper for a CapArgsTest_self_Params promised by a client call.
 type CapArgsTest_self_Params_Future struct{ *capnp.Future }
 
-func (p CapArgsTest_self_Params_Future) Struct() (CapArgsTest_self_Params, error) {
-	s, err := p.Future.Struct()
-	return CapArgsTest_self_Params(s), err
+func (f CapArgsTest_self_Params_Future) Struct() (CapArgsTest_self_Params, error) {
+	p, err := f.Future.Ptr()
+	return CapArgsTest_self_Params(p.Struct()), err
 }
 
 type CapArgsTest_self_Results capnp.Struct
@@ -1030,11 +1029,10 @@ func NewCapArgsTest_self_Results_List(s *capnp.Segment, sz int32) (CapArgsTest_s
 // CapArgsTest_self_Results_Future is a wrapper for a CapArgsTest_self_Results promised by a client call.
 type CapArgsTest_self_Results_Future struct{ *capnp.Future }
 
-func (p CapArgsTest_self_Results_Future) Struct() (CapArgsTest_self_Results, error) {
-	s, err := p.Future.Struct()
-	return CapArgsTest_self_Results(s), err
+func (f CapArgsTest_self_Results_Future) Struct() (CapArgsTest_self_Results, error) {
+	p, err := f.Future.Ptr()
+	return CapArgsTest_self_Results(p.Struct()), err
 }
-
 func (p CapArgsTest_self_Results_Future) Self() CapArgsTest {
 	return CapArgsTest(p.Future.Field(0, nil).Client())
 }
