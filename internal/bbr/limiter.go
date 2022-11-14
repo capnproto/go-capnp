@@ -176,21 +176,12 @@ type Limiter struct {
 	//
 	// The bottlneck bandwidth is measured in units of
 	// bytes/time.Duration(1) i.e. bytes per nanosecond.
-	// TODO: maybe use a larger unit of time, to save bits for the
-	// actual data.
 	rtPropFilter rtPropFilter
 	btlBwFilter  btlBwFilter
 
 	// cwndGain (Congestion WiNDow; standard terminology) is a factor
 	// by which we may exceed BDP. i.e. if inflight() is greater than
 	// estimated BDP * cwndGain, attempts to send will block.
-	//
-	// TODO(perf): The BBR paper says that the reason this is
-	// needed (i.e. isn't always just 1) is to deal with delayed and
-	// aggregated ACKs -- a feature of some TCP implementations, but
-	// not something that any capnp implementation does. So do we
-	// actually need this? would dropping it be worthwhile for
-	// the latency improvement?
 	cwndGain float64
 
 	// pacingGain is the factor by which our sending rate changes
