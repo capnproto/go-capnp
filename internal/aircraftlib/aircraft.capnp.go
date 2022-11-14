@@ -2419,12 +2419,12 @@ func (s Z) SetAnyPtr(v capnp.Ptr) error {
 	capnp.Struct(s).SetUint16(0, 45)
 	return capnp.Struct(s).SetPtr(0, v)
 }
-
-func (s Z) AnyStruct() (capnp.Ptr, error) {
+func (s Z) AnyStruct() (capnp.Struct, error) {
 	if capnp.Struct(s).Uint16(0) != 46 {
 		panic("Which() != anyStruct")
 	}
-	return capnp.Struct(s).Ptr(0)
+	p, err := capnp.Struct(s).Ptr(0)
+	return p.Struct(), err
 }
 
 func (s Z) HasAnyStruct() bool {
@@ -2434,11 +2434,10 @@ func (s Z) HasAnyStruct() bool {
 	return capnp.Struct(s).HasPtr(0)
 }
 
-func (s Z) SetAnyStruct(v capnp.Ptr) error {
+func (s Z) SetAnyStruct(v capnp.Struct) error {
 	capnp.Struct(s).SetUint16(0, 46)
-	return capnp.Struct(s).SetPtr(0, v)
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
-
 func (s Z) AnyList() (capnp.Ptr, error) {
 	if capnp.Struct(s).Uint16(0) != 47 {
 		panic("Which() != anyList")
@@ -2457,7 +2456,6 @@ func (s Z) SetAnyList(v capnp.Ptr) error {
 	capnp.Struct(s).SetUint16(0, 47)
 	return capnp.Struct(s).SetPtr(0, v)
 }
-
 func (s Z) AnyCapability() capnp.Client {
 	if capnp.Struct(s).Uint16(0) != 48 {
 		panic("Which() != anyCapability")
@@ -2553,15 +2551,12 @@ func (p Z_Future) Echo() Echo {
 func (p Z_Future) AnyPtr() *capnp.Future {
 	return p.Future.Field(0, nil)
 }
-
 func (p Z_Future) AnyStruct() *capnp.Future {
 	return p.Future.Field(0, nil)
 }
-
 func (p Z_Future) AnyList() *capnp.Future {
 	return p.Future.Field(0, nil)
 }
-
 func (p Z_Future) AnyCapability() capnp.Client {
 	return p.Future.Field(0, nil).Client()
 }
@@ -6489,7 +6484,6 @@ func (s Pipeliner_newPipeliner_Results) HasExtra() bool {
 func (s Pipeliner_newPipeliner_Results) SetExtra(v capnp.Ptr) error {
 	return capnp.Struct(s).SetPtr(0, v)
 }
-
 func (s Pipeliner_newPipeliner_Results) Pipeliner() Pipeliner {
 	p, _ := capnp.Struct(s).Ptr(1)
 	return Pipeliner(p.Interface().Client())
@@ -6528,7 +6522,6 @@ func (p Pipeliner_newPipeliner_Results_Future) Struct() (Pipeliner_newPipeliner_
 func (p Pipeliner_newPipeliner_Results_Future) Extra() *capnp.Future {
 	return p.Future.Field(0, nil)
 }
-
 func (p Pipeliner_newPipeliner_Results_Future) Pipeliner() Pipeliner {
 	return Pipeliner(p.Future.Field(1, nil).Client())
 }

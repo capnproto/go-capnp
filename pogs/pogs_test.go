@@ -1223,7 +1223,7 @@ func zfill(c air.Z, g *Z) error {
 	case air.Z_Which_anyPtr:
 		return c.SetAnyPtr(g.AnyPtr)
 	case air.Z_Which_anyStruct:
-		return c.SetAnyStruct(g.AnyStruct.ToPtr())
+		return c.SetAnyStruct(g.AnyStruct)
 	case air.Z_Which_anyList:
 		return c.SetAnyList(g.AnyList.ToPtr())
 	case air.Z_Which_anyCapability:
