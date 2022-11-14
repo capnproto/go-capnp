@@ -106,6 +106,18 @@ func (f *rtPropFilter) AddSample(sample rtPropSample) {
 	)
 }
 
+func (f btlBwFilter) snapshot() btlBwFilter {
+	ret := f
+	ret.q = f.q.snapshot()
+	return ret
+}
+
+func (f rtPropFilter) snapshot() rtPropFilter {
+	ret := f
+	ret.q = f.q.snapshot()
+	return ret
+}
+
 // min and max compute the minimum and maximum of two numbers, respectively.
 // Presumably, as Go generics become more widely used, these will be dropped
 // in favor of some standard library function.

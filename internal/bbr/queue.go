@@ -68,6 +68,13 @@ func (q *queue[T]) grow() {
 	q.start = 0
 }
 
+func (q queue[T]) snapshot() queue[T] {
+	ret := q
+	ret.buf = make([]T, len(q.buf), cap(q.buf))
+	copy(ret.buf, q.buf)
+	return ret
+}
+
 // Items returns all the items in the queue, in two slices.
 // The odd choice to return two slices allows this method to be zero-copy.
 // The items in the first slice come before the items in the second slice.

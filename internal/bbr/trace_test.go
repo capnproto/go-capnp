@@ -12,67 +12,7 @@ import (
 	"capnproto.org/go/capnp/v3/internal/clock"
 )
 
-type snapshot struct {
-	lim Limiter
-	now time.Time
-}
-
-type o map[string]any
-type a []any
-
-func (s *snapshot) reportJson() any {
-	lim := &s.lim
-	ret := o{
-		"now":             s.now,
-		"cwndGain":        lim.cwndGain,
-		"pacingGain":      lim.pacingGain,
-		"btlBw":           lim.btlBwFilter.Estimate,
-		"rtProp":          lim.rtPropFilter.Estimate,
-		"nextSendTime":    lim.nextSendTime,
-		"sent":            lim.sent,
-		"delivered":       lim.delivered,
-		"deliveredTime":   lim.deliveredTime,
-		"inflight":        lim.inflight(),
-		"bdp":             lim.computeBDP(),
-		"appLimitedUntil": lim.appLimitedUntil,
-		"state": o{
-			"type":  fmt.Sprintf("%T", lim.state),
-			"value": fmt.Sprintf("%v", lim.state),
-		},
-	}
-
-	bwhead, bwtail := lim.btlBwFilter.q.Items()
-	bwsamples := []float64{}
-	for _, v := range bwhead {
-		bwsamples = append(bwsamples, float64(v))
-	}
-	for _, v := range bwtail {
-		bwsamples = append(bwsamples, float64(v))
-	}
-
-	rthead, rttail := lim.rtPropFilter.q.Items()
-	rtSamples := a{}
-	for _, v := range rthead {
-		rtSamples = append(rtSamples, o{
-			"now": v.now,
-			"rtt": int64(v.rtt),
-		})
-	}
-	for _, v := range rttail {
-		rtSamples = append(rtSamples, o{
-			"now": v.now,
-			"rtt": int64(v.rtt),
-		})
-	}
-
-	ret["samples"] = o{
-		"btlBw":  bwsamples,
-		"rtProp": rtSamples,
-	}
-	return ret
-}
-
-func (s *snapshot) report(t *testing.T) {
+func (s Snapshot) report(t *testing.T) {
 	lim := &s.lim
 	t.Logf("Limiter snapshot at %v: \n", s.now)
 	t.Logf("cwndGain        = %v\n", lim.cwndGain)
@@ -225,7 +165,7 @@ type tolerances struct {
 
 // estimatesCorrect checks that the snapshot's estimates are close to the true values. If not,
 // the error describes the descrepancy.
-func estimatesCorrect(path []testLink, packetSizes []uint64, tolerances tolerances, snapshot snapshot) error {
+func estimatesCorrect(path []testLink, packetSizes []uint64, tolerances tolerances, snapshot Snapshot) error {
 	rtProp, btlBw := trueValues(path, packetSizes)
 	estRtProp := snapshot.lim.rtPropFilter.Estimate
 	estBtlBw := snapshot.lim.btlBwFilter.Estimate
@@ -307,7 +247,7 @@ func gatherData(t *testing.T) {
 				}
 				trace := a{}
 				for _, s := range snapshots {
-					trace = append(trace, s.reportJson())
+					trace = append(trace, s.Json())
 				}
 				sample["trace"] = trace
 				data = append(data, sample)
@@ -442,35 +382,8 @@ func TestTrace(t *testing.T) {
 	}
 }
 
-func (l *Limiter) snapshot() Limiter {
-	ret := *l
-	ret.btlBwFilter = l.btlBwFilter.snapshot()
-	ret.rtPropFilter = l.rtPropFilter.snapshot()
-	ret.state = l.state.snapshot()
-	return ret
-}
-
-func (f btlBwFilter) snapshot() btlBwFilter {
-	ret := f
-	ret.q = f.q.snapshot()
-	return ret
-}
-
-func (f rtPropFilter) snapshot() rtPropFilter {
-	ret := f
-	ret.q = f.q.snapshot()
-	return ret
-}
-
-func (q queue[T]) snapshot() queue[T] {
-	ret := q
-	ret.buf = make([]T, len(q.buf), cap(q.buf))
-	copy(ret.buf, q.buf)
-	return ret
-}
-
-func runTrace(path []testLink, packetSizes []uint64) []snapshot {
-	var results []snapshot
+func runTrace(path []testLink, packetSizes []uint64) []Snapshot {
+	var results []Snapshot
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	clock := clock.System
@@ -490,10 +403,7 @@ func runTrace(path []testLink, packetSizes []uint64) []snapshot {
 			gotResponse: got,
 		})
 		lim.whilePaused(func() {
-			results = append(results, snapshot{
-				lim: lim.snapshot(),
-				now: clock.Now(),
-			})
+			results = append(results, SnapshotLimiter(lim))
 		})
 	}
 	return results
