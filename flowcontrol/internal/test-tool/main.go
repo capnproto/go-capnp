@@ -14,6 +14,8 @@ import (
 	capnp "capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/flowcontrol"
 	"capnproto.org/go/capnp/v3/flowcontrol/tracing"
+	"capnproto.org/go/capnp/v3/internal/bbr"
+	"capnproto.org/go/capnp/v3/internal/syncutil"
 	"capnproto.org/go/capnp/v3/rpc"
 )
 
@@ -33,6 +35,8 @@ type Report struct {
 	Bandwidth float64
 
 	Records []tracing.TraceRecord
+
+	Snapshots []any
 }
 
 func main() {
@@ -51,12 +55,25 @@ func doClient(ctx context.Context) {
 	defer rpcConn.Close()
 	w := Writer(rpcConn.Bootstrap(ctx))
 	l := capnp.Client(w).GetFlowLimiter()
+	var (
+		snapshots  []bbr.Snapshot
+		snapshotMu sync.Mutex
+	)
 	switch *limiter {
 	case "":
 	case "fixed":
 		l = flowcontrol.NewFixedLimiter(1024 * 1024)
 	case "bbr":
 		l = flowcontrol.NewBBR()
+	case "bbr-snapshot":
+		l = bbr.SnapshottingLimiter{
+			Limiter: flowcontrol.NewBBR().(*bbr.Limiter),
+			RecordSnapshot: func(s bbr.Snapshot) {
+				syncutil.With(&snapshotMu, func() {
+					snapshots = append(snapshots, s)
+				})
+			},
+		}
 	default:
 		panic("Unknown limiter type: " + *limiter)
 	}
@@ -91,6 +108,9 @@ func doClient(ctx context.Context) {
 		Sent:      sent,
 		Bandwidth: bandwidth,
 		Records:   tl.Records(),
+	}
+	for _, s := range snapshots {
+		report.Snapshots = append(report.Snapshots, s.Json())
 	}
 
 	enc := json.NewEncoder(os.Stdout)

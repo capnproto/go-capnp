@@ -26,13 +26,13 @@ func SnapshotLimiter(l *Limiter) Snapshot {
 // A SnapshottingLimiter is a wrapper around Limiter which takes snapshots on each
 // operation and passes them to a callback.
 type SnapshottingLimiter struct {
-	lim            *Limiter
-	recordSnapshot func(Snapshot)
+	Limiter        *Limiter
+	RecordSnapshot func(Snapshot)
 }
 
 func (l SnapshottingLimiter) StartMessage(ctx context.Context, size uint64) (gotResponse func(), err error) {
 	l.snapshot()
-	r, err := l.lim.StartMessage(ctx, size)
+	r, err := l.Limiter.StartMessage(ctx, size)
 	l.snapshot()
 	return func() {
 		l.snapshot()
@@ -42,11 +42,11 @@ func (l SnapshottingLimiter) StartMessage(ctx context.Context, size uint64) (got
 }
 
 func (l SnapshottingLimiter) Release() {
-	l.lim.Release()
+	l.Limiter.Release()
 }
 
 func (l SnapshottingLimiter) snapshot() {
-	l.recordSnapshot(SnapshotLimiter(l.lim))
+	l.RecordSnapshot(SnapshotLimiter(l.Limiter))
 }
 
 type o map[string]any
