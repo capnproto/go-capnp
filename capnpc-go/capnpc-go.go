@@ -373,8 +373,7 @@ func (g *generator) Value(rel *node, t schema.Type, v schema.Value) (string, err
 		}
 
 		// capability pointer?
-		if t.AnyPointer().Which() == schema.Type_anyPointer_Which_unconstrained &&
-			t.AnyPointer().Unconstrained().Which() == schema.Type_anyPointer_unconstrained_Which_capability {
+		if isAnyCap(t.AnyPointer()) {
 			return "nil", nil // static values of *Client are always nil.
 		}
 
@@ -408,6 +407,14 @@ func (g *generator) Value(rel *node, t schema.Type, v schema.Value) (string, err
 	default:
 		return "", fmt.Errorf("unhandled value type %v", t.Which())
 	}
+}
+
+func isAnyCap(ap schema.Type_anyPointer) bool {
+	unconstrained := ap.
+		Which() == schema.Type_anyPointer_Which_unconstrained
+	capability := ap.Unconstrained().
+		Which() == schema.Type_anyPointer_unconstrained_Which_capability
+	return unconstrained && capability
 }
 
 func (g *generator) defineAnnotation(n *node) error {
@@ -590,29 +597,22 @@ func (g *generator) defineField(n *node, f field) (err error) {
 		})
 
 	case schema.Type_Which_anyPointer:
-		var defref staticDataRef
-		if p, err := def.AnyPointer(); err != nil {
+		p, err := def.AnyPointer()
+		if err != nil {
 			return err
-		} else if p.IsValid() {
-			defref, err = g.data.copyData(p)
-			if err != nil {
+		}
+
+		s := structAnyPointerRenderStrategy{Params: params}
+		if p.IsValid() {
+			if s.Default, err = g.data.copyData(p); err != nil {
 				return err
 			}
 		}
 
-		// capability pointer?
-		if t.AnyPointer().Which() == schema.Type_anyPointer_Which_unconstrained &&
-			t.AnyPointer().Unconstrained().Which() == schema.Type_anyPointer_unconstrained_Which_capability {
-			return g.r.Render(structCapabilityFieldParams(params))
-		}
-
-		// TODO: handle other pointer types
-
-		// Fall back to default case => generic pointer value
-		return g.r.Render(structPointerFieldParams{
-			structFieldParams: params,
-			Default:           defref,
-		})
+		return anyPointer{
+			G:    g,
+			Type: t,
+		}.Render(s)
 
 	case schema.Type_Which_list:
 		var defref staticDataRef
@@ -754,8 +754,7 @@ func makeTypeRef(t schema.Type, rel *node, nodes nodeMap) (typeRef, error) {
 		}
 	case schema.Type_Which_anyPointer:
 		// capability pointer?
-		if t.AnyPointer().Which() == schema.Type_anyPointer_Which_unconstrained &&
-			t.AnyPointer().Unconstrained().Which() == schema.Type_anyPointer_unconstrained_Which_capability {
+		if isAnyCap(t.AnyPointer()) {
 			return typeRef{name: "Client", imp: capnpImportSpec}, nil
 		}
 
@@ -1055,11 +1054,15 @@ func (g *generator) definePromiseField(n *node, f field) error {
 		}
 		return g.r.Render(params)
 	case schema.Type_Which_anyPointer:
-		return g.r.Render(promiseFieldAnyPointerParams{
+		return anyPointer{
+			G:    g,
+			Type: t,
+		}.Render(promiseAnyPointerRenderStrategy{
 			G:     g,
 			Node:  n,
 			Field: f,
 		})
+
 	case schema.Type_Which_interface:
 		ni, err := g.nodes.mustFind(t.Interface().TypeId())
 		if err != nil {
