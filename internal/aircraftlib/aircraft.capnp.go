@@ -347,7 +347,6 @@ func (s PlaneBase) NewHomes(n int32) (Airport_List, error) {
 	err = capnp.Struct(s).SetPtr(1, l.ToPtr())
 	return l, err
 }
-
 func (s PlaneBase) Rating() int64 {
 	return int64(capnp.Struct(s).Uint64(0))
 }
@@ -775,7 +774,6 @@ func (s Regression) NewBeta(n int32) (capnp.Float64List, error) {
 	err = capnp.Struct(s).SetPtr(1, l.ToPtr())
 	return l, err
 }
-
 func (s Regression) Planes() (Aircraft_List, error) {
 	p, err := capnp.Struct(s).Ptr(2)
 	return Aircraft_List(p.List()), err
@@ -799,7 +797,6 @@ func (s Regression) NewPlanes(n int32) (Aircraft_List, error) {
 	err = capnp.Struct(s).SetPtr(2, l.ToPtr())
 	return l, err
 }
-
 func (s Regression) Ymu() float64 {
 	return math.Float64frombits(capnp.Struct(s).Uint64(8))
 }
@@ -1498,7 +1495,6 @@ func (s Z) NewF64vec(n int32) (capnp.Float64List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Z) F32vec() (capnp.Float32List, error) {
 	if capnp.Struct(s).Uint16(0) != 16 {
 		panic("Which() != f32vec")
@@ -1530,7 +1526,6 @@ func (s Z) NewF32vec(n int32) (capnp.Float32List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Z) I64vec() (capnp.Int64List, error) {
 	if capnp.Struct(s).Uint16(0) != 17 {
 		panic("Which() != i64vec")
@@ -1562,7 +1557,6 @@ func (s Z) NewI64vec(n int32) (capnp.Int64List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Z) I32vec() (capnp.Int32List, error) {
 	if capnp.Struct(s).Uint16(0) != 18 {
 		panic("Which() != i32vec")
@@ -1594,7 +1588,6 @@ func (s Z) NewI32vec(n int32) (capnp.Int32List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Z) I16vec() (capnp.Int16List, error) {
 	if capnp.Struct(s).Uint16(0) != 19 {
 		panic("Which() != i16vec")
@@ -1626,7 +1619,6 @@ func (s Z) NewI16vec(n int32) (capnp.Int16List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Z) I8vec() (capnp.Int8List, error) {
 	if capnp.Struct(s).Uint16(0) != 20 {
 		panic("Which() != i8vec")
@@ -1658,7 +1650,6 @@ func (s Z) NewI8vec(n int32) (capnp.Int8List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Z) U64vec() (capnp.UInt64List, error) {
 	if capnp.Struct(s).Uint16(0) != 21 {
 		panic("Which() != u64vec")
@@ -1690,7 +1681,6 @@ func (s Z) NewU64vec(n int32) (capnp.UInt64List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Z) U32vec() (capnp.UInt32List, error) {
 	if capnp.Struct(s).Uint16(0) != 22 {
 		panic("Which() != u32vec")
@@ -1722,7 +1712,6 @@ func (s Z) NewU32vec(n int32) (capnp.UInt32List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Z) U16vec() (capnp.UInt16List, error) {
 	if capnp.Struct(s).Uint16(0) != 23 {
 		panic("Which() != u16vec")
@@ -1754,7 +1743,6 @@ func (s Z) NewU16vec(n int32) (capnp.UInt16List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Z) U8vec() (capnp.UInt8List, error) {
 	if capnp.Struct(s).Uint16(0) != 24 {
 		panic("Which() != u8vec")
@@ -1786,7 +1774,6 @@ func (s Z) NewU8vec(n int32) (capnp.UInt8List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Z) Boolvec() (capnp.BitList, error) {
 	if capnp.Struct(s).Uint16(0) != 39 {
 		panic("Which() != boolvec")
@@ -1818,7 +1805,6 @@ func (s Z) NewBoolvec(n int32) (capnp.BitList, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Z) Datavec() (capnp.DataList, error) {
 	if capnp.Struct(s).Uint16(0) != 40 {
 		panic("Which() != datavec")
@@ -1850,7 +1836,6 @@ func (s Z) NewDatavec(n int32) (capnp.DataList, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Z) Textvec() (capnp.TextList, error) {
 	if capnp.Struct(s).Uint16(0) != 41 {
 		panic("Which() != textvec")
@@ -1882,7 +1867,6 @@ func (s Z) NewTextvec(n int32) (capnp.TextList, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Z) Zvec() (Z_List, error) {
 	if capnp.Struct(s).Uint16(0) != 25 {
 		panic("Which() != zvec")
@@ -1914,7 +1898,6 @@ func (s Z) NewZvec(n int32) (Z_List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Z) Zvecvec() (capnp.PointerList, error) {
 	if capnp.Struct(s).Uint16(0) != 26 {
 		panic("Which() != zvecvec")
@@ -1946,7 +1929,6 @@ func (s Z) NewZvecvec(n int32) (capnp.PointerList, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Z) Zdate() (Zdate, error) {
 	if capnp.Struct(s).Uint16(0) != 27 {
 		panic("Which() != zdate")
@@ -2042,7 +2024,6 @@ func (s Z) NewAircraftvec(n int32) (Aircraft_List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Z) Aircraft() (Aircraft, error) {
 	if capnp.Struct(s).Uint16(0) != 30 {
 		panic("Which() != aircraft")
@@ -2278,7 +2259,6 @@ func (s Z) NewZdatevec(n int32) (Zdate_List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Z) Zdatavec() (Zdata_List, error) {
 	if capnp.Struct(s).Uint16(0) != 38 {
 		panic("Which() != zdatavec")
@@ -2310,7 +2290,6 @@ func (s Z) NewZdatavec(n int32) (Zdata_List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Z) Grp() Z_grp { return Z_grp(s) }
 
 func (s Z) SetGrp() {
@@ -2400,7 +2379,6 @@ func (s Z) NewEchoes(n int32) (Echo_List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Z) AnyPtr() (capnp.Ptr, error) {
 	if capnp.Struct(s).Uint16(0) != 45 {
 		panic("Which() != anyPtr")
@@ -2438,11 +2416,12 @@ func (s Z) SetAnyStruct(v capnp.Struct) error {
 	capnp.Struct(s).SetUint16(0, 46)
 	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
-func (s Z) AnyList() (capnp.Ptr, error) {
+func (s Z) AnyList() (capnp.List, error) {
 	if capnp.Struct(s).Uint16(0) != 47 {
 		panic("Which() != anyList")
 	}
-	return capnp.Struct(s).Ptr(0)
+	p, err := capnp.Struct(s).Ptr(0)
+	return p.List(), err
 }
 
 func (s Z) HasAnyList() bool {
@@ -2452,9 +2431,9 @@ func (s Z) HasAnyList() bool {
 	return capnp.Struct(s).HasPtr(0)
 }
 
-func (s Z) SetAnyList(v capnp.Ptr) error {
+func (s Z) SetAnyList(v capnp.List) error {
 	capnp.Struct(s).SetUint16(0, 47)
-	return capnp.Struct(s).SetPtr(0, v)
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 func (s Z) AnyCapability() capnp.Client {
 	if capnp.Struct(s).Uint16(0) != 48 {
@@ -2657,7 +2636,6 @@ func (s Counter) NewWordlist(n int32) (capnp.TextList, error) {
 	err = capnp.Struct(s).SetPtr(1, l.ToPtr())
 	return l, err
 }
-
 func (s Counter) Bitlist() (capnp.BitList, error) {
 	p, err := capnp.Struct(s).Ptr(2)
 	return capnp.BitList(p.List()), err
@@ -4422,7 +4400,6 @@ func (s HoldsText) NewLst(n int32) (capnp.TextList, error) {
 	err = capnp.Struct(s).SetPtr(1, l.ToPtr())
 	return l, err
 }
-
 func (s HoldsText) Lstlst() (capnp.PointerList, error) {
 	p, err := capnp.Struct(s).Ptr(2)
 	return capnp.PointerList(p.List()), err

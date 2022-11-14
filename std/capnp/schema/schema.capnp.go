@@ -166,7 +166,6 @@ func (s Node) NewParameters(n int32) (Node_Parameter_List, error) {
 	err = capnp.Struct(s).SetPtr(5, l.ToPtr())
 	return l, err
 }
-
 func (s Node) IsGeneric() bool {
 	return capnp.Struct(s).Bit(288)
 }
@@ -198,7 +197,6 @@ func (s Node) NewNestedNodes(n int32) (Node_NestedNode_List, error) {
 	err = capnp.Struct(s).SetPtr(1, l.ToPtr())
 	return l, err
 }
-
 func (s Node) Annotations() (Annotation_List, error) {
 	p, err := capnp.Struct(s).Ptr(2)
 	return Annotation_List(p.List()), err
@@ -222,7 +220,6 @@ func (s Node) NewAnnotations(n int32) (Annotation_List, error) {
 	err = capnp.Struct(s).SetPtr(2, l.ToPtr())
 	return l, err
 }
-
 func (s Node) SetFile() {
 	capnp.Struct(s).SetUint16(12, 0)
 
@@ -316,7 +313,6 @@ func (s Node_structNode) NewFields(n int32) (Field_List, error) {
 	err = capnp.Struct(s).SetPtr(3, l.ToPtr())
 	return l, err
 }
-
 func (s Node) Enum() Node_enum { return Node_enum(s) }
 
 func (s Node) SetEnum() {
@@ -357,7 +353,6 @@ func (s Node_enum) NewEnumerants(n int32) (Enumerant_List, error) {
 	err = capnp.Struct(s).SetPtr(3, l.ToPtr())
 	return l, err
 }
-
 func (s Node) Interface() Node_interface { return Node_interface(s) }
 
 func (s Node) SetInterface() {
@@ -398,7 +393,6 @@ func (s Node_interface) NewMethods(n int32) (Method_List, error) {
 	err = capnp.Struct(s).SetPtr(3, l.ToPtr())
 	return l, err
 }
-
 func (s Node_interface) Superclasses() (Superclass_List, error) {
 	p, err := capnp.Struct(s).Ptr(4)
 	return Superclass_List(p.List()), err
@@ -422,7 +416,6 @@ func (s Node_interface) NewSuperclasses(n int32) (Superclass_List, error) {
 	err = capnp.Struct(s).SetPtr(4, l.ToPtr())
 	return l, err
 }
-
 func (s Node) Const() Node_const { return Node_const(s) }
 
 func (s Node) SetConst() {
@@ -1212,7 +1205,6 @@ func (s Field) NewAnnotations(n int32) (Annotation_List, error) {
 	err = capnp.Struct(s).SetPtr(1, l.ToPtr())
 	return l, err
 }
-
 func (s Field) DiscriminantValue() uint16 {
 	return capnp.Struct(s).Uint16(2) ^ 65535
 }
@@ -1725,7 +1717,6 @@ func (s Method) NewImplicitParameters(n int32) (Node_Parameter_List, error) {
 	err = capnp.Struct(s).SetPtr(4, l.ToPtr())
 	return l, err
 }
-
 func (s Method) ParamStructType() uint64 {
 	return capnp.Struct(s).Uint64(8)
 }
@@ -2709,7 +2700,6 @@ func (s Brand_Scope) NewBind(n int32) (Brand_Binding_List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Brand_Scope) SetInherit() {
 	capnp.Struct(s).SetUint16(8, 1)
 
@@ -3644,7 +3634,6 @@ func (s CodeGeneratorRequest) NewNodes(n int32) (Node_List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s CodeGeneratorRequest) SourceInfo() (Node_SourceInfo_List, error) {
 	p, err := capnp.Struct(s).Ptr(3)
 	return Node_SourceInfo_List(p.List()), err
@@ -3668,7 +3657,6 @@ func (s CodeGeneratorRequest) NewSourceInfo(n int32) (Node_SourceInfo_List, erro
 	err = capnp.Struct(s).SetPtr(3, l.ToPtr())
 	return l, err
 }
-
 func (s CodeGeneratorRequest) RequestedFiles() (CodeGeneratorRequest_RequestedFile_List, error) {
 	p, err := capnp.Struct(s).Ptr(1)
 	return CodeGeneratorRequest_RequestedFile_List(p.List()), err

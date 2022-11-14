@@ -1,0 +1,19 @@
+func (s {{.Node.Name}}) {{.Field.Name|title}}() (capnp.List, error) {
+	{{template "_checktag" . -}}
+	p, err := capnp.Struct(s).Ptr({{.Field.Slot.Offset}})
+	{{if .Default.IsValid -}}
+	if err != nil {
+		return capnp.List{}, err
+	}
+	return  p.ListDefault({{.Default}})
+	{{- else -}}
+	return p.List(), err
+	{{- end}}
+}
+
+{{template "_hasfield" .}}
+
+func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v capnp.List) error {
+	{{template "_settag" . -}}
+	return capnp.Struct(s).SetPtr({{.Field.Slot.Offset}}, v.ToPtr())
+}

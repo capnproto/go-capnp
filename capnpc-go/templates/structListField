@@ -30,4 +30,3 @@ func (s {{.Node.Name}}) New{{.Field.Name|title}}(n int32) ({{.FieldType}}, error
 	err = capnp.Struct(s).SetPtr({{.Field.Slot.Offset}}, l.ToPtr())
 	return l, err
 }
-

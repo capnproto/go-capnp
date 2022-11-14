@@ -69,6 +69,7 @@ type (
 	structPointerFieldParams    structObjectFieldParams
 	structStructFieldParams     structObjectFieldParams
 	structAnyStructFieldParams  structObjectFieldParams
+	structAnyListFieldParams    structObjectFieldParams
 )
 
 type structBoolFieldParams struct {

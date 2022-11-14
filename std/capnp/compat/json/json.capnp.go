@@ -186,7 +186,6 @@ func (s Value) NewArray(n int32) (Value_List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Value) Object() (Value_Field_List, error) {
 	if capnp.Struct(s).Uint16(0) != 5 {
 		panic("Which() != object")
@@ -218,7 +217,6 @@ func (s Value) NewObject(n int32) (Value_Field_List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Value) Call() (Value_Call, error) {
 	if capnp.Struct(s).Uint16(0) != 6 {
 		panic("Which() != call")
