@@ -409,14 +409,6 @@ func (g *generator) Value(rel *node, t schema.Type, v schema.Value) (string, err
 	}
 }
 
-func isAnyCap(ap schema.Type_anyPointer) bool {
-	unconstrained := ap.
-		Which() == schema.Type_anyPointer_Which_unconstrained
-	capability := ap.Unconstrained().
-		Which() == schema.Type_anyPointer_unconstrained_Which_capability
-	return unconstrained && capability
-}
-
 func (g *generator) defineAnnotation(n *node) error {
 	err := g.r.Render(annotationParams{
 		G:    g,

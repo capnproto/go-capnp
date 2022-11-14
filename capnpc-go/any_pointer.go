@@ -88,3 +88,11 @@ func (s promiseAnyPointerRenderStrategy) CapabilityParams() any {
 func (s promiseAnyPointerRenderStrategy) PtrParams() any {
 	return promiseFieldAnyPointerParams(s)
 }
+
+func isAnyCap(ap schema.Type_anyPointer) bool {
+	unconstrained := ap.
+		Which() == schema.Type_anyPointer_Which_unconstrained
+	capability := ap.Unconstrained().
+		Which() == schema.Type_anyPointer_unconstrained_Which_capability
+	return unconstrained && capability
+}
