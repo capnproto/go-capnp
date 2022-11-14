@@ -161,6 +161,7 @@ type promiseFieldParams struct {
 
 type (
 	promiseFieldAnyPointerParams promiseFieldParams
+	promiseFieldAnyStructParams  promiseFieldParams
 	promiseCapabilityFieldParams promiseFieldParams
 	promiseFieldAnyListParams    promiseFieldParams
 )
