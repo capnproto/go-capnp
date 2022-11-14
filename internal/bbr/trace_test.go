@@ -402,9 +402,7 @@ func runTrace(path []testLink, packetSizes []uint64) []Snapshot {
 			size:        size,
 			gotResponse: got,
 		})
-		lim.whilePaused(func() {
-			results = append(results, SnapshotLimiter(lim))
-		})
+		results = append(results, SnapshotLimiter(lim))
 	}
 	return results
 }

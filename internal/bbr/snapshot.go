@@ -1,6 +1,7 @@
 package bbr
 
 import (
+	"context"
 	"fmt"
 	"time"
 )
@@ -11,15 +12,41 @@ type Snapshot struct {
 }
 
 func SnapshotLimiter(l *Limiter) Snapshot {
-	ret := *l
-	now := ret.clock.Now()
-	ret.btlBwFilter = l.btlBwFilter.snapshot()
-	ret.rtPropFilter = l.rtPropFilter.snapshot()
-	ret.state = l.state.snapshot()
-	return Snapshot{
-		lim: ret,
-		now: now,
-	}
+	var ret Snapshot
+	l.whilePaused(func() {
+		ret.lim = *l
+		ret.now = l.clock.Now()
+		ret.lim.btlBwFilter = l.btlBwFilter.snapshot()
+		ret.lim.rtPropFilter = l.rtPropFilter.snapshot()
+		ret.lim.state = l.state.snapshot()
+	})
+	return ret
+}
+
+// A SnapshottingLimiter is a wrapper around Limiter which takes snapshots on each
+// operation and passes them to a callback.
+type SnapshottingLimiter struct {
+	lim            *Limiter
+	recordSnapshot func(Snapshot)
+}
+
+func (l SnapshottingLimiter) StartMessage(ctx context.Context, size uint64) (gotResponse func(), err error) {
+	l.snapshot()
+	r, err := l.lim.StartMessage(ctx, size)
+	l.snapshot()
+	return func() {
+		l.snapshot()
+		r()
+		l.snapshot()
+	}, err
+}
+
+func (l SnapshottingLimiter) Release() {
+	l.lim.Release()
+}
+
+func (l SnapshottingLimiter) snapshot() {
+	l.recordSnapshot(SnapshotLimiter(l.lim))
 }
 
 type o map[string]any
