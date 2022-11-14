@@ -162,6 +162,7 @@ type promiseFieldParams struct {
 type (
 	promiseFieldAnyPointerParams promiseFieldParams
 	promiseCapabilityFieldParams promiseFieldParams
+	promiseFieldAnyListParams    promiseFieldParams
 )
 
 type promiseFieldInterfaceParams struct {

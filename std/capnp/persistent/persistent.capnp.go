@@ -237,11 +237,10 @@ func NewPersistent_SaveParams_List(s *capnp.Segment, sz int32) (Persistent_SaveP
 // Persistent_SaveParams_Future is a wrapper for a Persistent_SaveParams promised by a client call.
 type Persistent_SaveParams_Future struct{ *capnp.Future }
 
-func (p Persistent_SaveParams_Future) Struct() (Persistent_SaveParams, error) {
-	s, err := p.Future.Struct()
-	return Persistent_SaveParams(s), err
+func (f Persistent_SaveParams_Future) Struct() (Persistent_SaveParams, error) {
+	p, err := f.Future.Ptr()
+	return Persistent_SaveParams(p.Struct()), err
 }
-
 func (p Persistent_SaveParams_Future) SealFor() *capnp.Future {
 	return p.Future.Field(0, nil)
 }
@@ -317,11 +316,10 @@ func NewPersistent_SaveResults_List(s *capnp.Segment, sz int32) (Persistent_Save
 // Persistent_SaveResults_Future is a wrapper for a Persistent_SaveResults promised by a client call.
 type Persistent_SaveResults_Future struct{ *capnp.Future }
 
-func (p Persistent_SaveResults_Future) Struct() (Persistent_SaveResults, error) {
-	s, err := p.Future.Struct()
-	return Persistent_SaveResults(s), err
+func (f Persistent_SaveResults_Future) Struct() (Persistent_SaveResults, error) {
+	p, err := f.Future.Ptr()
+	return Persistent_SaveResults(p.Struct()), err
 }
-
 func (p Persistent_SaveResults_Future) SturdyRef() *capnp.Future {
 	return p.Future.Field(0, nil)
 }

@@ -84,7 +84,7 @@ func (s promiseAnyPointerRenderStrategy) StructParams() any {
 }
 
 func (s promiseAnyPointerRenderStrategy) ListParams() any {
-	return s.PtrParams() // TODO(soon): implement AnyList
+	return promiseFieldAnyListParams(s)
 }
 
 func (s promiseAnyPointerRenderStrategy) CapabilityParams() any {
