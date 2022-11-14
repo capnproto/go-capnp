@@ -420,7 +420,6 @@ func (s Message) SetObsoleteSave(v capnp.Ptr) error {
 	capnp.Struct(s).SetUint16(0, 7)
 	return capnp.Struct(s).SetPtr(0, v)
 }
-
 func (s Message) ObsoleteDelete() (capnp.Ptr, error) {
 	if capnp.Struct(s).Uint16(0) != 9 {
 		panic("Which() != obsoleteDelete")
@@ -439,7 +438,6 @@ func (s Message) SetObsoleteDelete(v capnp.Ptr) error {
 	capnp.Struct(s).SetUint16(0, 9)
 	return capnp.Struct(s).SetPtr(0, v)
 }
-
 func (s Message) Provide() (Provide, error) {
 	if capnp.Struct(s).Uint16(0) != 10 {
 		panic("Which() != provide")
@@ -592,11 +590,9 @@ func (p Message_Future) Disembargo() Disembargo_Future {
 func (p Message_Future) ObsoleteSave() *capnp.Future {
 	return p.Future.Field(0, nil)
 }
-
 func (p Message_Future) ObsoleteDelete() *capnp.Future {
 	return p.Future.Field(0, nil)
 }
-
 func (p Message_Future) Provide() Provide_Future {
 	return Provide_Future{Future: p.Future.Field(0, nil)}
 }
@@ -1857,7 +1853,6 @@ func (s Accept) HasProvision() bool {
 func (s Accept) SetProvision(v capnp.Ptr) error {
 	return capnp.Struct(s).SetPtr(0, v)
 }
-
 func (s Accept) Embargo() bool {
 	return capnp.Struct(s).Bit(32)
 }
@@ -2195,7 +2190,6 @@ func (s Payload) HasContent() bool {
 func (s Payload) SetContent(v capnp.Ptr) error {
 	return capnp.Struct(s).SetPtr(0, v)
 }
-
 func (s Payload) CapTable() (CapDescriptor_List, error) {
 	p, err := capnp.Struct(s).Ptr(1)
 	return CapDescriptor_List(p.List()), err
@@ -2717,7 +2711,6 @@ func (s ThirdPartyCapDescriptor) HasId() bool {
 func (s ThirdPartyCapDescriptor) SetId(v capnp.Ptr) error {
 	return capnp.Struct(s).SetPtr(0, v)
 }
-
 func (s ThirdPartyCapDescriptor) VineId() uint32 {
 	return capnp.Struct(s).Uint32(0)
 }

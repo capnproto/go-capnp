@@ -3,7 +3,7 @@ func (s {{.Node.Name}}) {{.Field.Name|title}}() (capnp.Ptr, error) {
 	{{if .Default.IsValid -}}
 	p, err := capnp.Struct(s).Ptr({{.Field.Slot.Offset}})
 	if err != nil {
-		return nil, err
+		return capnp.Ptr{}, err
 	}
 	return p.Default({{.Default}})
 	{{- else -}}
@@ -17,4 +17,3 @@ func (s {{.Node.Name}}) Set{{.Field.Name|title}}(v capnp.Ptr) error {
 	{{template "_settag" . -}}
 	return capnp.Struct(s).SetPtr({{.Field.Slot.Offset}}, v)
 }
-

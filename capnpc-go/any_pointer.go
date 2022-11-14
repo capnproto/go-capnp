@@ -49,7 +49,10 @@ type structAnyPointerRenderStrategy struct {
 }
 
 func (s structAnyPointerRenderStrategy) StructParams() any {
-	return s.PtrParams() // TODO(soon): implement AnyStruct
+	return structAnyStructFieldParams{
+		structFieldParams: s.Params,
+		Default:           s.Default,
+	}
 }
 
 func (s structAnyPointerRenderStrategy) ListParams() any {
@@ -74,7 +77,7 @@ type promiseAnyPointerRenderStrategy struct {
 }
 
 func (s promiseAnyPointerRenderStrategy) StructParams() any {
-	return s.PtrParams() // TODO(soon): implement AnyStruct
+	return s.PtrParams()
 }
 
 func (s promiseAnyPointerRenderStrategy) ListParams() any {

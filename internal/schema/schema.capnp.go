@@ -2785,7 +2785,6 @@ func (s Value) SetList(v capnp.Ptr) error {
 	capnp.Struct(s).SetUint16(0, 14)
 	return capnp.Struct(s).SetPtr(0, v)
 }
-
 func (s Value) Enum() uint16 {
 	if capnp.Struct(s).Uint16(0) != 15 {
 		panic("Which() != enum")
@@ -2816,7 +2815,6 @@ func (s Value) SetStructValue(v capnp.Ptr) error {
 	capnp.Struct(s).SetUint16(0, 16)
 	return capnp.Struct(s).SetPtr(0, v)
 }
-
 func (s Value) SetInterface() {
 	capnp.Struct(s).SetUint16(0, 17)
 
