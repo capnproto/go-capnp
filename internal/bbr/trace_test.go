@@ -255,6 +255,9 @@ func computeErr(expected, actual float64) float64 {
 }
 
 func TestGraphs(t *testing.T) {
+	if os.Getenv("GATHER_DATA") != "1" {
+		t.Skip("Not generating data for graphs.")
+	}
 	gatherData(t)
 }
 
