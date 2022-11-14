@@ -299,15 +299,13 @@ func (ans *Answer) Done() <-chan struct{} {
 // Struct waits until the answer is resolved and returns the struct
 // this answer represents.
 func (ans *Answer) Struct() (Struct, error) {
-	p, err := ans.f.Ptr()
-	return p.Struct(), err
+	return ans.f.Struct()
 }
 
 // List waits until the answer is resolved and returns the list
 // this answer represents.
 func (ans *Answer) List() (List, error) {
-	p, err := ans.f.Ptr()
-	return p.List(), err
+	return ans.f.List()
 }
 
 // Client returns the answer as a client.  If the answer's originating
@@ -427,7 +425,7 @@ func (f *Future) Done() <-chan struct{} {
 	return f.promise.resolved
 }
 
-// Struct waits until the answer is resolved and returns the pointer
+// Ptr waits until the answer is resolved and returns the pointer
 // this future represents.
 func (f *Future) Ptr() (Ptr, error) {
 	p := f.promise
@@ -436,6 +434,20 @@ func (f *Future) Ptr() (Ptr, error) {
 	r := p.resolution()
 	p.mu.Unlock()
 	return r.ptr(f.transform())
+}
+
+// Struct waits until the answer is resolved and returns the struct
+// this answer represents.
+func (f *Future) Struct() (Struct, error) {
+	p, err := f.Ptr()
+	return p.Struct(), err
+}
+
+// List waits until the answer is resolved and returns the list
+// this answer represents.
+func (f *Future) List() (List, error) {
+	p, err := f.Ptr()
+	return p.List(), err
 }
 
 // Client returns the future as a client.  If the answer's originating
