@@ -80,7 +80,7 @@ type promiseAnyPointerRenderStrategy struct {
 }
 
 func (s promiseAnyPointerRenderStrategy) StructParams() any {
-	return s.PtrParams()
+	return promiseFieldAnyStructParams(s)
 }
 
 func (s promiseAnyPointerRenderStrategy) ListParams() any {
