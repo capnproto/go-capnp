@@ -2562,8 +2562,8 @@ func (p Z_Future) AnyList() *capnp.Future {
 	return p.Future.Field(0, nil)
 }
 
-func (p Z_Future) AnyCapability() *capnp.Future {
-	return p.Future.Field(0, nil)
+func (p Z_Future) AnyCapability() capnp.Client {
+	return p.Future.Field(0, nil).Client()
 }
 
 type Counter capnp.Struct

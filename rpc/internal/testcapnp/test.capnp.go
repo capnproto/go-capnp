@@ -819,8 +819,8 @@ func (p CapArgsTest_call_Params_Future) Struct() (CapArgsTest_call_Params, error
 	return CapArgsTest_call_Params(s), err
 }
 
-func (p CapArgsTest_call_Params_Future) Cap() *capnp.Future {
-	return p.Future.Field(0, nil)
+func (p CapArgsTest_call_Params_Future) Cap() capnp.Client {
+	return p.Future.Field(0, nil).Client()
 }
 
 type CapArgsTest_call_Results capnp.Struct

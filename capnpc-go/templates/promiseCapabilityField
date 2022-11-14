@@ -1,0 +1,3 @@
+func (p {{.Node.Name}}_Future) {{.Field.Name|title}}() capnp.Client {
+	return p.Future.Field({{.Field.Slot.Offset}}, nil).Client()
+}
