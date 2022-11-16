@@ -20,11 +20,12 @@ import (
 )
 
 var (
-	addr      = flag.String("addr", ":2323", "Address to listen on/connect to")
-	dial      = flag.Bool("client", false, "Should we be the client?")
-	limiter   = flag.String("limiter", "", "What limiter should we use?")
-	totaldata = flag.Int("totaldata", 512*1024*1024, "How much data should we send?")
-	bandwidth = flag.Uint64("bandwidth", math.MaxInt, "Maximum bandwidth the server will permit (B/s)")
+	addr       = flag.String("addr", ":2323", "Address to listen on/connect to")
+	dial       = flag.Bool("client", false, "Should we be the client?")
+	limiter    = flag.String("limiter", "", "What limiter should we use?")
+	packetsize = flag.Int("packetsize", 8192, "Size of individual packets")
+	totaldata  = flag.Int("totaldata", 512*1024*1024, "How much data should we send?")
+	bandwidth  = flag.Uint64("bandwidth", math.MaxInt, "Maximum bandwidth the server will permit (B/s)")
 )
 
 type Report struct {
@@ -85,7 +86,7 @@ func doClient(ctx context.Context) {
 	wg := &sync.WaitGroup{}
 	for sent < *totaldata && ctx.Err() == nil {
 		fut, rel := w.Write(ctx, func(p Writer_write_Params) error {
-			chkfatal(p.SetData(make([]byte, 8192)))
+			chkfatal(p.SetData(make([]byte, *packetsize)))
 			sz, _ := p.Message().TotalSize()
 			sent += int(sz)
 			return nil
