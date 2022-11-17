@@ -26,6 +26,7 @@ var (
 	packetsize = flag.Int("packetsize", 8192, "Size of individual packets")
 	totaldata  = flag.Int("totaldata", 512*1024*1024, "How much data should we send?")
 	bandwidth  = flag.Uint64("bandwidth", math.MaxInt, "Maximum bandwidth the server will permit (B/s)")
+	noTrace    = flag.Bool("no-trace", false, "don't capture a trace")
 )
 
 type Report struct {
@@ -79,7 +80,11 @@ func doClient(ctx context.Context) {
 		panic("Unknown limiter type: " + *limiter)
 	}
 	tl := &tracing.TraceLimiter{Underlying: l}
-	capnp.Client(w).SetFlowLimiter(tl)
+	if *noTrace {
+		capnp.Client(w).SetFlowLimiter(l)
+	} else {
+		capnp.Client(w).SetFlowLimiter(tl)
+	}
 	startTime := time.Now()
 	sent := 0
 
