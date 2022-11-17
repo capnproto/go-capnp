@@ -53,7 +53,7 @@ type dropPingServer struct {
 }
 
 func (s dropPingServer) EchoNum(ctx context.Context, p testcapnp.PingPong_echoNum) error {
-	p.Ack()
+	p.Go()
 	close(s.readyCh)
 	<-ctx.Done()
 	return nil

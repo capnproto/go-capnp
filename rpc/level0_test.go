@@ -1440,7 +1440,7 @@ func TestRecvCancel(t *testing.T) {
 	retcapShutdown := make(chan struct{})
 	srv := newServer(func(ctx context.Context, call *server.Call) error {
 		// Wait until canceled
-		call.Ack()
+		call.Go()
 		<-ctx.Done()
 		close(callCancel)
 

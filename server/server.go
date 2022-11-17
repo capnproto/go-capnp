@@ -53,17 +53,18 @@ func (c *Call) AllocResults(sz capnp.ObjectSize) (capnp.Struct, error) {
 	return c.results, err
 }
 
-// Ack is a function that is called to acknowledge the delivery of the
-// RPC call, allowing other RPC methods to be called on the server.
-// After the first call, subsequent calls to Ack do nothing.
+// Go is a function that is called to unblock future calls; by default
+// a server only accepts one method call at a time, waiting until
+// the method returns before servicing the next method in the queue.
+// calling Go spawns another goroutine to service additional Calls
+// in the queue, allowing the current goroutine to block, do expensive
+// computation, etc. without holding up other calls. If Go is called,
+// the calling Goroutine exits when the method returns, so that there
+// is never more than one goroutine pulling things from the queue.
 //
-// Ack need not be the first call in a function nor is it required.
-// Since the function's return is also an acknowledgment of delivery,
-// short functions can return without calling Ack.  However, since
-// the server will not return an Answer until the delivery is
-// acknowledged, failure to acknowledge a call before waiting on an
-// RPC may cause deadlocks.
-func (c *Call) Ack() {
+// Go need not be the first call in a function nor is it required.
+// short functions can return without calling Go.
+func (c *Call) Go() {
 	if c.acked {
 		return
 	}
@@ -104,8 +105,7 @@ type Server struct {
 // New returns a client hook that makes calls to a set of methods.
 // If shutdown is nil then the server's shutdown is a no-op.  The server
 // guarantees message delivery order by blocking each call on the
-// return or acknowledgment of the previous call.  See Call.Ack for more
-// details.
+// return of the previous call or a call to Call.Go.
 func New(methods []Method, brand interface{}, shutdown Shutdowner) *Server {
 	ctx, cancel := context.WithCancel(context.Background())
 
