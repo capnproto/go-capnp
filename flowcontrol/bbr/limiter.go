@@ -5,7 +5,7 @@ import (
 	"math"
 	"time"
 
-	"capnproto.org/go/capnp/v3/internal/clock"
+	"capnproto.org/go/capnp/v3/exp/clock"
 )
 
 // A packetMeta contains metadata about a packet that was sent.
@@ -234,8 +234,14 @@ func (l *Limiter) inflight() uint64 {
 	return l.sent - l.delivered
 }
 
-func NewLimiter(clock clock.Clock) *Limiter {
-	now := clock.Now()
+// NewLimiter returns a new BBR-based flow limiter. The clock is used to measure
+// message resposne times. If nil is passed (typical, except for testing & debugging),
+// the system clock will be used.
+func NewLimiter(clk clock.Clock) *Limiter {
+	if clk == nil {
+		clk = clock.System
+	}
+	now := clk.Now()
 	ctx, cancel := context.WithCancel(context.Background())
 	l := &Limiter{
 		ctx:    ctx,
@@ -246,7 +252,7 @@ func NewLimiter(clock clock.Clock) *Limiter {
 
 		rtPropFilter: newRtPropFilter(),
 		btlBwFilter:  newBtlBwFilter(),
-		clock:        clock,
+		clock:        clk,
 
 		nextSendTime:  now,
 		deliveredTime: now,

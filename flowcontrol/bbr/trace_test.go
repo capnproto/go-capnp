@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"capnproto.org/go/capnp/v3/internal/clock"
+	"capnproto.org/go/capnp/v3/exp/clock"
 )
 
 func (s Snapshot) report(t *testing.T) {

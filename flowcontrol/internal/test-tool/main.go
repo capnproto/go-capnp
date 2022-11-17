@@ -13,8 +13,8 @@ import (
 
 	capnp "capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/flowcontrol"
+	"capnproto.org/go/capnp/v3/flowcontrol/bbr"
 	"capnproto.org/go/capnp/v3/flowcontrol/tracing"
-	"capnproto.org/go/capnp/v3/internal/bbr"
 	"capnproto.org/go/capnp/v3/internal/syncutil"
 	"capnproto.org/go/capnp/v3/rpc"
 )
@@ -66,10 +66,10 @@ func doClient(ctx context.Context) {
 	case "fixed":
 		l = flowcontrol.NewFixedLimiter(1024 * 1024)
 	case "bbr":
-		l = flowcontrol.NewBBR()
+		l = bbr.NewLimiter(nil)
 	case "bbr-snapshot":
 		l = bbr.SnapshottingLimiter{
-			Limiter: flowcontrol.NewBBR().(*bbr.Limiter),
+			Limiter: bbr.NewLimiter(nil),
 			RecordSnapshot: func(s bbr.Snapshot) {
 				syncutil.With(&snapshotMu, func() {
 					snapshots = append(snapshots, s)
