@@ -163,7 +163,14 @@ func (s *probeRTTState) postAck(lim *Limiter, p packetMeta, now time.Time) {
 		// For now, only probeBW transitions to probeRTT, so let's
 		// always transition back there.
 		lim.maxPacketsInflight = math.MaxUint64
-		lim.changeState(&probeBWState{})
+		if lim.inflight() < uint64(lim.computeBDP()) {
+			// Get back up to where we were quickly:
+			lim.changeState(&startupState{})
+		} else {
+			// We're still above our estimate; go back to
+			// probing bandwidth at a normal pace:
+			lim.changeState(&probeBWState{})
+		}
 	}
 }
 
