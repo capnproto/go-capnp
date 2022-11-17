@@ -2,6 +2,7 @@ package bbr
 
 import (
 	"context"
+	"math"
 	"time"
 
 	"capnproto.org/go/capnp/v3/internal/clock"
@@ -86,7 +87,8 @@ func (l *Limiter) run(ctx context.Context) {
 			// Note that we don't use sendReqs here, since we don't want
 			// to skip over the logic that checks for app limited flows:
 			timeToSend = timeToSendNow
-		} else if bdp > 0 && float64(l.inflight()) >= l.cwndGain*bdp {
+		} else if l.packetsInflight >= l.maxPacketsInflight ||
+			(bdp > 0 && float64(l.inflight()) >= l.cwndGain*bdp) {
 			// We're at our threshold; wait for an ack,
 			// but ignore other signals.
 			//
@@ -134,6 +136,7 @@ func (l *Limiter) trySend(ctx context.Context) {
 }
 
 func (l *Limiter) doSend(now time.Time, req sendRequest) {
+	l.packetsInflight++
 	p := packetMeta{
 		Size:          req.size,
 		AppLimited:    l.appLimitedUntil > 0,
@@ -196,6 +199,9 @@ type Limiter struct {
 	delivered     uint64    // Total data delivered & ACKed
 	deliveredTime time.Time // Time of the last ACK we received.
 
+	packetsInflight    uint64 // The number of packets currently in-flight.
+	maxPacketsInflight uint64 // The maximum allowable packets in-flight.
+
 	// If appLimitedUntil is not zero, it indicates that inflight()
 	// was limited to the specified value *not* because our congestion
 	// control logic decided that we should wait, but because the app
@@ -245,6 +251,8 @@ func NewLimiter(clock clock.Clock) *Limiter {
 		nextSendTime:  now,
 		deliveredTime: now,
 
+		maxPacketsInflight: math.MaxUint64,
+
 		chPause: make(chan struct{}),
 	}
 	l.changeState(&startupState{})
@@ -255,6 +263,7 @@ func NewLimiter(clock clock.Clock) *Limiter {
 // onAck should be invoked on each packetMeta when the acknowledgement for
 // that packet is received.
 func (l *Limiter) onAck(p packetMeta) {
+	l.packetsInflight--
 	now := l.clock.Now()
 	rtt := now.Sub(p.SendTime)
 

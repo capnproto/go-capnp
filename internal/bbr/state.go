@@ -139,19 +139,8 @@ type probeRTTState struct {
 }
 
 func (s *probeRTTState) initialize(lim *Limiter) {
-	// TODO: The paper says to set cwnd to "4 packets;" I don't know
-	// exactly how to translate this to our setting... Do we measure
-	// average message size? track inflight packets separately from
-	// inflight bytes? Or is there something simpler we can do? Is
-	// "packets" shorthand for "typical TCP packet size?" I wish there
-	// was rationale behind picking a "small" number.
-	//
-	// Also, how does all this integrate into the machinery of the rest
-	// of the algorithm?
-	lim.cwndGain = 1
-	// TODO: pacingGain?
+	lim.maxPacketsInflight = 4
 	now := lim.clock.Now()
-
 	s.exitTime = now.Add(200 * time.Millisecond)
 	s.initSent = lim.sent
 }
@@ -173,6 +162,7 @@ func (s *probeRTTState) postAck(lim *Limiter, p packetMeta, now time.Time) {
 		//
 		// For now, only probeBW transitions to probeRTT, so let's
 		// always transition back there.
+		lim.maxPacketsInflight = math.MaxUint64
 		lim.changeState(&probeBWState{})
 	}
 }
