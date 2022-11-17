@@ -79,7 +79,15 @@ func doClient(ctx context.Context) {
 	default:
 		panic("Unknown limiter type: " + *limiter)
 	}
-	tl := &tracing.TraceLimiter{Underlying: l}
+	var (
+		records   []tracing.TraceRecord
+		recordsMu sync.Mutex
+	)
+	tl := tracing.New(l, func(record tracing.TraceRecord) {
+		syncutil.With(&recordsMu, func() {
+			records = append(records, record)
+		})
+	})
 	if *noTrace {
 		capnp.Client(w).SetFlowLimiter(l)
 	} else {
@@ -113,7 +121,7 @@ func doClient(ctx context.Context) {
 		Duration:  duration,
 		Sent:      sent,
 		Bandwidth: bandwidth,
-		Records:   tl.Records(),
+		Records:   records,
 	}
 	for _, s := range snapshots {
 		report.Snapshots = append(report.Snapshots, s.Json())

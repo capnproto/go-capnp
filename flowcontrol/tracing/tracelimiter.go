@@ -3,7 +3,6 @@ package tracing
 
 import (
 	context "context"
-	"sync"
 	"time"
 
 	"capnproto.org/go/capnp/v3/flowcontrol"
@@ -15,14 +14,15 @@ var _ flowcontrol.FlowLimiter = &TraceLimiter{}
 type TraceLimiter struct {
 	// The underlying FlowLimiter
 	underlying flowcontrol.FlowLimiter
-	mu         sync.Mutex
-	records    []TraceRecord
+	emitRecord func(TraceRecord)
 }
 
-// Return a new TraceLimiter, wrapping underlying.
-func New(underlying flowcontrol.FlowLimiter) *TraceLimiter {
+// Return a new TraceLimiter, wrapping underlying. Each time one of the limiter's gotResponse()
+// callbacks is invoked, emitRecord is called with data about the call.
+func New(underlying flowcontrol.FlowLimiter, emitRecord func(TraceRecord)) *TraceLimiter {
 	return &TraceLimiter{
 		underlying: underlying,
+		emitRecord: emitRecord,
 	}
 }
 
@@ -45,29 +45,15 @@ func (l *TraceLimiter) StartMessage(ctx context.Context, size uint64) (gotRespon
 		return r, err
 	}
 	record.ProceedAt = time.Now()
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	index := len(l.records)
-	l.records = append(l.records, record)
 	return func() {
 		now := time.Now()
 		r()
-		l.mu.Lock()
-		defer l.mu.Unlock()
-		l.records[index].ResponseAt = now
+		record.ResponseAt = now
+		l.emitRecord(record)
 	}, nil
 }
 
 // Release releases the underlying flow limiter.
 func (l *TraceLimiter) Release() {
 	l.underlying.Release()
-}
-
-// Records returns the records for all messages that have been sent using this limiter. It is not
-// safe to use the return value while concurrently calling StartMessage() or gotResponse().
-//
-// If a message has been sent, but its gotResponse() callback has not yet been called, the ResponseAt
-// value for that record will be the zero value.
-func (l *TraceLimiter) Records() []TraceRecord {
-	return l.records
 }
