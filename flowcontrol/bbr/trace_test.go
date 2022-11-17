@@ -271,6 +271,9 @@ func TestTrace(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping long test due to -short")
 	}
+	if os.Getenv("FLAKY_TESTS") != "1" {
+		t.Skip("Not running TestTrace, which is flaky. Set FLAKY_TESTS=1 to enable")
+	}
 	t.Parallel()
 
 	cases := []struct {
