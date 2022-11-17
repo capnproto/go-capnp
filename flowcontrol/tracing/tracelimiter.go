@@ -14,9 +14,16 @@ var _ flowcontrol.FlowLimiter = &TraceLimiter{}
 // A TraceLimiter wraps an underlying FlowLimiter, and records data about messages.
 type TraceLimiter struct {
 	// The underlying FlowLimiter
-	Underlying flowcontrol.FlowLimiter
+	underlying flowcontrol.FlowLimiter
 	mu         sync.Mutex
 	records    []TraceRecord
+}
+
+// Return a new TraceLimiter, wrapping underlying.
+func New(underlying flowcontrol.FlowLimiter) *TraceLimiter {
+	return &TraceLimiter{
+		underlying: underlying,
+	}
 }
 
 // A TraceRecord records information about a message sent through the limiter.
@@ -33,7 +40,7 @@ func (l *TraceLimiter) StartMessage(ctx context.Context, size uint64) (gotRespon
 		Size:      size,
 		RequestAt: time.Now(),
 	}
-	r, err := l.Underlying.StartMessage(ctx, size)
+	r, err := l.underlying.StartMessage(ctx, size)
 	if err != nil {
 		return r, err
 	}
@@ -53,7 +60,7 @@ func (l *TraceLimiter) StartMessage(ctx context.Context, size uint64) (gotRespon
 
 // Release releases the underlying flow limiter.
 func (l *TraceLimiter) Release() {
-	l.Underlying.Release()
+	l.underlying.Release()
 }
 
 // Records returns the records for all messages that have been sent using this limiter. It is not
