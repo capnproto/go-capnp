@@ -139,7 +139,7 @@ func TestFixedFlowLimit(t *testing.T) {
 type slowStreamTestServer struct{}
 
 func (slowStreamTestServer) Push(ctx context.Context, p testcapnp.StreamTest_push) error {
-	p.Ack()
+	p.Go()
 	// Take a while processing this, so calls can build up
 	time.Sleep(200 * time.Millisecond)
 	return nil
