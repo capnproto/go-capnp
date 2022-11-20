@@ -1,4 +1,9 @@
 // Package transport defines an interface for sending and receiving rpc messages.
+//
+// In addition to the implementations defined here, one of the developers maintains
+// a websocket-backed implementation as a separate module:
+//
+// https://pkg.go.dev/zenhack.net/go/websocket-capnp
 package transport
 
 import (
