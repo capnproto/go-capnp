@@ -33,10 +33,10 @@ func IsDisconnected(e error) bool {
 	return exc.TypeOf(e) == exc.Disconnected
 }
 
-func errorf(format string, args ...interface{}) error {
+func errorf(format string, args ...any) error {
 	return capnperr.Failedf(format, args...)
 }
 
-func annotatef(err error, format string, args ...interface{}) error {
+func annotatef(err error, format string, args ...any) error {
 	return capnperr.Annotatef(err, format, args...)
 }

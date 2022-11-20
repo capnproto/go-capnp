@@ -12,7 +12,7 @@ import (
 )
 
 // Insert copies val, a pointer to a Go struct, into s.
-func Insert(typeID uint64, s capnp.Struct, val interface{}) error {
+func Insert(typeID uint64, s capnp.Struct, val any) error {
 	ins := new(inserter)
 	err := ins.insertStruct(typeID, s, reflect.ValueOf(val))
 	if err != nil {

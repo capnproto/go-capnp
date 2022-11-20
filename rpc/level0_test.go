@@ -1866,7 +1866,7 @@ func finishTest(t errorfer, conn *rpc.Conn, p2 rpc.Transport) {
 }
 
 type errorfer interface {
-	Errorf(string, ...interface{})
+	Errorf(string, ...any)
 }
 
 func newServer(impl func(context.Context, *server.Call) error, shutdown shutdownFunc) capnp.Client {
@@ -2067,7 +2067,7 @@ func canceledContext(parent context.Context) context.Context {
 
 type testErrorReporter struct {
 	tb interface {
-		Log(...interface{})
+		Log(...any)
 		Fail()
 	}
 	fail bool

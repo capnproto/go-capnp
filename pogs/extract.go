@@ -12,7 +12,7 @@ import (
 )
 
 // Extract copies s into val, a pointer to a Go struct.
-func Extract(val interface{}, typeID uint64, s capnp.Struct) error {
+func Extract(val any, typeID uint64, s capnp.Struct) error {
 	e := new(extracter)
 	err := e.extractStruct(reflect.ValueOf(val), typeID, s)
 	if err != nil {

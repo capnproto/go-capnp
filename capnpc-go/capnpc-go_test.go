@@ -421,13 +421,13 @@ func traceGenerator(g *generator) (getCalls func() []renderCall) {
 	return func() []renderCall { return tr.calls }
 }
 
-func (tr *traceRenderer) Render(params interface{}) error {
+func (tr *traceRenderer) Render(params any) error {
 	tr.calls = append(tr.calls, renderCall{params})
 	return tr.renderer.Render(params)
 }
 
 type renderCall struct {
-	params interface{}
+	params any
 }
 
 func (rc renderCall) String() string {
