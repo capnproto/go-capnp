@@ -81,7 +81,7 @@ type Shutdowner interface {
 // capnp.ClientHook interface.
 type Server struct {
 	methods  sortedMethods
-	brand    interface{}
+	brand    any
 	shutdown Shutdowner
 
 	// Cancels handleCallsCtx
@@ -106,7 +106,7 @@ type Server struct {
 // If shutdown is nil then the server's shutdown is a no-op.  The server
 // guarantees message delivery order by blocking each call on the
 // return of the previous call or a call to Call.Go.
-func New(methods []Method, brand interface{}, shutdown Shutdowner) *Server {
+func New(methods []Method, brand any, shutdown Shutdowner) *Server {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	srv := &Server{
@@ -247,13 +247,13 @@ func (srv *Server) Shutdown() {
 // IsServer reports whether a brand returned by capnp.Client.Brand
 // originated from Server.Brand, and returns the brand argument passed
 // to New.
-func IsServer(brand capnp.Brand) (_ interface{}, ok bool) {
+func IsServer(brand capnp.Brand) (_ any, ok bool) {
 	sb, ok := brand.Value.(serverBrand)
 	return sb.x, ok
 }
 
 type serverBrand struct {
-	x interface{}
+	x any
 }
 
 func sendArgsToStruct(s capnp.Send) (capnp.Struct, error) {
@@ -328,6 +328,6 @@ func newError(msg string) error {
 	return exc.New(exc.Failed, "capnp server", msg)
 }
 
-func errorf(format string, args ...interface{}) error {
+func errorf(format string, args ...any) error {
 	return newError(fmt.Sprintf(format, args...))
 }

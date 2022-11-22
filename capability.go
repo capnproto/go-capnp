@@ -498,7 +498,7 @@ func (c Client) State() ClientState {
 
 // A Brand is an opaque value used to identify a capability.
 type Brand struct {
-	Value interface{}
+	Value any
 }
 
 // ClientState is a snapshot of a client's identity.
