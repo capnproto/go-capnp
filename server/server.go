@@ -206,12 +206,16 @@ func (srv *Server) handleCall(ctx context.Context, c *Call) {
 	err := c.method.Impl(ctx, c)
 
 	c.recv.ReleaseArgs()
+	// NOTE: it is important that we call return *before* fulfilling
+	// the answerQueue, otherwise an incoming pipelined call on the
+	// answer could trigger a read from the message while Return
+	// is filling in the cap table, resulting in a data race.
+	c.recv.Returner.Return(err)
 	if err == nil {
 		c.aq.fulfill(c.results)
 	} else {
 		c.aq.reject(err)
 	}
-	c.recv.Returner.Return(err)
 }
 
 func (srv *Server) start(ctx context.Context, m *Method, r capnp.Recv) capnp.PipelineCaller {
