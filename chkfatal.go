@@ -6,3 +6,9 @@ func Chkfatal(err error) {
 		panic(err)
 	}
 }
+
+// Must panics if err != nil, otherwise returns value.
+func Must[T any](value T, err error) T {
+	Chkfatal(err)
+	return value
+}
