@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -67,14 +68,24 @@ type Codec interface {
 // It adds no buffering beyond what is provided by the underlying
 // byte transfer mechanism.
 type transport struct {
-	c      Codec
-	closed bool
-	err    errorValue
+	c         Codec
+	closed    bool
+	err       errorValue
+	arenaPool sync.Pool
 }
 
 // New creates a new transport that uses the supplied codec
 // to read and write messages across the wire.
-func New(c Codec) Transport { return &transport{c: c} }
+func New(c Codec) Transport {
+	return &transport{
+		c: c,
+		arenaPool: sync.Pool{
+			New: func() any {
+				return capnp.MultiSegment(nil)
+			},
+		},
+	}
+}
 
 // NewStream creates a new transport that reads and writes to rwc.
 // Closing the transport will close rwc.
@@ -96,6 +107,18 @@ func NewPackedStream(rwc io.ReadWriteCloser) Transport {
 	return New(newStreamCodec(rwc, packedEncoding{}))
 }
 
+func (t *transport) allocArena() *capnp.MultiSegmentArena {
+	return t.arenaPool.Get().(*capnp.MultiSegmentArena)
+}
+
+func (t *transport) freeArena(arena *capnp.MultiSegmentArena) {
+	// Truncate each segment:
+	for i := 0; i < len(*arena); i++ {
+		(*arena)[i] = (*arena)[i][:0]
+	}
+	t.arenaPool.Put(arena)
+}
+
 // NewMessage allocates a new message to be sent.
 //
 // It is safe to call NewMessage concurrently with RecvMessage.
@@ -105,8 +128,8 @@ func (s *transport) NewMessage(ctx context.Context) (_ rpccp.Message, send func(
 		return rpccp.Message{}, nil, nil, err
 	}
 
-	// TODO(soon): reuse memory
-	msg, seg, err := capnp.NewMessage(capnp.MultiSegment(nil))
+	arena := s.allocArena()
+	msg, seg, err := capnp.NewMessage(arena)
 	if err != nil {
 		err = transporterr.Annotate(fmt.Errorf("new message: %w", err), "stream transport")
 		return rpccp.Message{}, nil, nil, err
@@ -142,7 +165,10 @@ func (s *transport) NewMessage(ctx context.Context) (_ rpccp.Message, send func(
 		return err
 	}
 
-	return rmsg, send, func() { msg.Reset(nil) }, nil
+	return rmsg, send, func() {
+		msg.Reset(nil)
+		s.freeArena(arena)
+	}, nil
 }
 
 // SetPartialWriteTimeout sets the timeout for completing the
