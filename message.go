@@ -489,8 +489,12 @@ func MultiSegment(b [][]byte) *MultiSegmentArena {
 // Return this arena to an internal sync.Pool of arenas that can be
 // re-used. Any time MultiSegment(nil) is called, arenas from this
 // pool will be used if available, which can help reduce memory
-// allocations. Calling Release however is optional; if not done
-// the garbage collector will release the memory per usual.
+// allocations.
+//
+// All segments will be zeroed before re-use.
+//
+// Calling Release is optional; if not done the garbage collector
+// will release the memory per usual.
 func (msa *MultiSegmentArena) Release() {
 	for i, v := range *msa {
 		// Clear the memory, so there's no junk in here for the next use:
