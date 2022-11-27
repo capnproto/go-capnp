@@ -2,18 +2,18 @@ package rpc_test
 
 import (
 	"context"
+	"net"
 	"testing"
 
 	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/rpc"
 	testcp "capnproto.org/go/capnp/v3/rpc/internal/testcapnp"
-	"capnproto.org/go/capnp/v3/rpc/transport"
 )
 
 func BenchmarkPingPong(b *testing.B) {
-	p1, p2 := transport.NewPipe(1)
+	p1, p2 := net.Pipe()
 	srv := testcp.PingPong_ServerToClient(pingPongServer{})
-	conn1 := rpc.NewConn(rpc.NewTransport(p2), &rpc.Options{
+	conn1 := rpc.NewConn(rpc.NewStreamTransport(p2), &rpc.Options{
 		ErrorReporter:   testErrorReporter{tb: b},
 		BootstrapClient: capnp.Client(srv),
 	})
@@ -23,7 +23,7 @@ func BenchmarkPingPong(b *testing.B) {
 			b.Error("conn1.Close:", err)
 		}
 	}()
-	conn2 := rpc.NewConn(rpc.NewTransport(p1), &rpc.Options{
+	conn2 := rpc.NewConn(rpc.NewStreamTransport(p1), &rpc.Options{
 		ErrorReporter: testErrorReporter{tb: b},
 	})
 	defer func() {
