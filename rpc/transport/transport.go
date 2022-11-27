@@ -25,9 +25,9 @@ import (
 type Transport interface {
 	// NewMessage allocates a new message to be sent over the transport.
 	// The caller must call the release function when it no longer needs
-	// to reference the message.  Before releasing the message, send may be
-	// called at most once to send the mssage, taking its cancelation and
-	// deadline from ctx.
+	// to reference the message. Calling the release function more than once
+	// has no effect. Before releasing the message, send may be called at most
+	// once to send the mssage, taking its cancelation and deadline from ctx.
 	//
 	// Messages returned by NewMessage must have a nil CapTable.
 	// When the returned ReleaseFunc is called, any clients in the message's
@@ -110,8 +110,8 @@ func (s *transport) NewMessage(ctx context.Context) (_ rpccp.Message, send func(
 		return rpccp.Message{}, nil, nil, err
 	}
 
-	// TODO(soon): reuse memory
-	msg, seg, err := capnp.NewMessage(capnp.MultiSegment(nil))
+	arena := capnp.MultiSegment(nil)
+	msg, seg, err := capnp.NewMessage(arena)
 	if err != nil {
 		err = transporterr.Annotate(fmt.Errorf("new message: %w", err), "stream transport")
 		return rpccp.Message{}, nil, nil, err
@@ -122,7 +122,13 @@ func (s *transport) NewMessage(ctx context.Context) (_ rpccp.Message, send func(
 		return rpccp.Message{}, nil, nil, err
 	}
 
+	alreadyReleased := false
+
 	send = func() error {
+		if alreadyReleased {
+			panic("Tried to send() a message that was already released.")
+		}
+
 		// context expired?
 		if err := ctx.Err(); err != nil {
 			return transporterr.Annotate(fmt.Errorf("send: %w", ctx.Err()), "stream transport")
@@ -147,7 +153,17 @@ func (s *transport) NewMessage(ctx context.Context) (_ rpccp.Message, send func(
 		return err
 	}
 
-	return rmsg, send, func() { msg.Reset(nil) }, nil
+	release = func() {
+		if alreadyReleased {
+			return
+		}
+		alreadyReleased = true
+
+		msg.Reset(nil)
+		arena.Release()
+	}
+
+	return rmsg, send, release, nil
 }
 
 // SetPartialWriteTimeout sets the timeout for completing the
