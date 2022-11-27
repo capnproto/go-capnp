@@ -32,7 +32,7 @@ func (echoImpl) Echo(ctx context.Context, call air.Echo_echo) error {
 type errorEchoImpl struct{}
 
 func (errorEchoImpl) Echo(_ context.Context, call air.Echo_echo) error {
-	call.Ack()
+	call.Go()
 	return errors.New("reverb stopped")
 }
 
@@ -110,8 +110,8 @@ func TestServerCallOrder(t *testing.T) {
 		name string
 		seq  air.CallSequence
 	}{
-		{"NoAck", air.CallSequence_ServerToClient(new(callSeq))},
-		{"AckWithLocks", air.CallSequence_ServerToClient(new(callSeq))},
+		{"NoGo", air.CallSequence_ServerToClient(new(callSeq))},
+		{"GoWithLocks", air.CallSequence_ServerToClient(new(callSeq))},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -177,7 +177,7 @@ func (echo blockingEchoImpl) Echo(ctx context.Context, call air.Echo_echo) error
 	if err != nil {
 		return err
 	}
-	call.Ack()
+	call.Go()
 	select {
 	case <-echo.wait:
 	case <-ctx.Done():
@@ -267,7 +267,7 @@ func (p *pipeliner) NewPipeliner(ctx context.Context, call air.Pipeliner_newPipe
 	if p.factory == nil {
 		return errors.New("no factory present")
 	}
-	call.Ack()
+	call.Go()
 	q, err := p.factory(ctx)
 	if err != nil {
 		return err
@@ -285,20 +285,20 @@ type brokenPipeliner struct {
 }
 
 func (p brokenPipeliner) GetNumber(ctx context.Context, call air.CallSequence_getNumber) error {
-	call.Ack()
+	call.Go()
 	<-p.ready
 	return errors.New("got no number")
 }
 
 func (p brokenPipeliner) NewPipeliner(ctx context.Context, call air.Pipeliner_newPipeliner) error {
-	call.Ack()
+	call.Go()
 	<-p.ready
 	return errors.New("got no pipe")
 }
 
-// Verify that if the first call calls .Ack(), the second will proceed without
+// Verify that if the first call calls .Go(), the second will proceed without
 // waiting for it to return.
-func TestAckDoesntBlock(t *testing.T) {
+func TestGoDoesntBlock(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -339,7 +339,7 @@ func (c *callSeqBlockN) GetNumber(ctx context.Context, p air.CallSequence_getNum
 		res.SetN(c.currentCall)
 		return nil
 	} else {
-		p.Ack()
+		p.Go()
 		<-ctx.Done()
 		return ctx.Err()
 	}

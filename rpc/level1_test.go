@@ -796,7 +796,7 @@ func TestIssue3(t *testing.T) {
 			},
 		})
 		defer release()
-		call.Ack()
+		call.Go()
 		callbackResult, err := ans.Struct()
 		if err != nil {
 			return fmt.Errorf("callback: %v", err)

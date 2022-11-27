@@ -93,9 +93,9 @@ func NewBook_List(s *capnp.Segment, sz int32) (Book_List, error) {
 // Book_Future is a wrapper for a Book promised by a client call.
 type Book_Future struct{ *capnp.Future }
 
-func (p Book_Future) Struct() (Book, error) {
-	s, err := p.Future.Struct()
-	return Book(s), err
+func (f Book_Future) Struct() (Book, error) {
+	p, err := f.Future.Ptr()
+	return Book(p.Struct()), err
 }
 
 const schema_85d3acc39d94e0f8 = "x\xda\x12Ht`1\xe4\xdd\xcf\xc8\xc0\x14(\xc2\xca" +

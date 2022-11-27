@@ -287,7 +287,7 @@ func TestExtract_EmbedCollide(t *testing.T) {
 
 	tests := []struct {
 		name string
-		want interface{}
+		want any
 	}{
 		{"top", &VerOneDataTop{Val: 123}},
 		{"no tags", &VerOneDataNoTags{}},
@@ -311,7 +311,7 @@ func TestExtract_EmbedCollide(t *testing.T) {
 func TestInsert_EmbedCollide(t *testing.T) {
 	tests := []struct {
 		name string
-		in   interface{}
+		in   any
 		val  int16
 	}{
 		{"top", &VerOneDataTop{Val: 123, VerVal: VerVal{456}}, 123},

@@ -108,9 +108,9 @@ func NewZdate_List(s *capnp.Segment, sz int32) (Zdate_List, error) {
 // Zdate_Future is a wrapper for a Zdate promised by a client call.
 type Zdate_Future struct{ *capnp.Future }
 
-func (p Zdate_Future) Struct() (Zdate, error) {
-	s, err := p.Future.Struct()
-	return Zdate(s), err
+func (f Zdate_Future) Struct() (Zdate, error) {
+	p, err := f.Future.Ptr()
+	return Zdate(p.Struct()), err
 }
 
 type Zdata capnp.Struct
@@ -185,9 +185,9 @@ func NewZdata_List(s *capnp.Segment, sz int32) (Zdata_List, error) {
 // Zdata_Future is a wrapper for a Zdata promised by a client call.
 type Zdata_Future struct{ *capnp.Future }
 
-func (p Zdata_Future) Struct() (Zdata, error) {
-	s, err := p.Future.Struct()
-	return Zdata(s), err
+func (f Zdata_Future) Struct() (Zdata, error) {
+	p, err := f.Future.Ptr()
+	return Zdata(p.Struct()), err
 }
 
 type Airport uint16
@@ -347,7 +347,6 @@ func (s PlaneBase) NewHomes(n int32) (Airport_List, error) {
 	err = capnp.Struct(s).SetPtr(1, l.ToPtr())
 	return l, err
 }
-
 func (s PlaneBase) Rating() int64 {
 	return int64(capnp.Struct(s).Uint64(0))
 }
@@ -392,9 +391,9 @@ func NewPlaneBase_List(s *capnp.Segment, sz int32) (PlaneBase_List, error) {
 // PlaneBase_Future is a wrapper for a PlaneBase promised by a client call.
 type PlaneBase_Future struct{ *capnp.Future }
 
-func (p PlaneBase_Future) Struct() (PlaneBase, error) {
-	s, err := p.Future.Struct()
-	return PlaneBase(s), err
+func (f PlaneBase_Future) Struct() (PlaneBase, error) {
+	p, err := f.Future.Ptr()
+	return PlaneBase(p.Struct()), err
 }
 
 type B737 capnp.Struct
@@ -480,11 +479,10 @@ func NewB737_List(s *capnp.Segment, sz int32) (B737_List, error) {
 // B737_Future is a wrapper for a B737 promised by a client call.
 type B737_Future struct{ *capnp.Future }
 
-func (p B737_Future) Struct() (B737, error) {
-	s, err := p.Future.Struct()
-	return B737(s), err
+func (f B737_Future) Struct() (B737, error) {
+	p, err := f.Future.Ptr()
+	return B737(p.Struct()), err
 }
-
 func (p B737_Future) Base() PlaneBase_Future {
 	return PlaneBase_Future{Future: p.Future.Field(0, nil)}
 }
@@ -572,11 +570,10 @@ func NewA320_List(s *capnp.Segment, sz int32) (A320_List, error) {
 // A320_Future is a wrapper for a A320 promised by a client call.
 type A320_Future struct{ *capnp.Future }
 
-func (p A320_Future) Struct() (A320, error) {
-	s, err := p.Future.Struct()
-	return A320(s), err
+func (f A320_Future) Struct() (A320, error) {
+	p, err := f.Future.Ptr()
+	return A320(p.Struct()), err
 }
-
 func (p A320_Future) Base() PlaneBase_Future {
 	return PlaneBase_Future{Future: p.Future.Field(0, nil)}
 }
@@ -664,11 +661,10 @@ func NewF16_List(s *capnp.Segment, sz int32) (F16_List, error) {
 // F16_Future is a wrapper for a F16 promised by a client call.
 type F16_Future struct{ *capnp.Future }
 
-func (p F16_Future) Struct() (F16, error) {
-	s, err := p.Future.Struct()
-	return F16(s), err
+func (f F16_Future) Struct() (F16, error) {
+	p, err := f.Future.Ptr()
+	return F16(p.Struct()), err
 }
-
 func (p F16_Future) Base() PlaneBase_Future {
 	return PlaneBase_Future{Future: p.Future.Field(0, nil)}
 }
@@ -775,7 +771,6 @@ func (s Regression) NewBeta(n int32) (capnp.Float64List, error) {
 	err = capnp.Struct(s).SetPtr(1, l.ToPtr())
 	return l, err
 }
-
 func (s Regression) Planes() (Aircraft_List, error) {
 	p, err := capnp.Struct(s).Ptr(2)
 	return Aircraft_List(p.List()), err
@@ -799,7 +794,6 @@ func (s Regression) NewPlanes(n int32) (Aircraft_List, error) {
 	err = capnp.Struct(s).SetPtr(2, l.ToPtr())
 	return l, err
 }
-
 func (s Regression) Ymu() float64 {
 	return math.Float64frombits(capnp.Struct(s).Uint64(8))
 }
@@ -828,11 +822,10 @@ func NewRegression_List(s *capnp.Segment, sz int32) (Regression_List, error) {
 // Regression_Future is a wrapper for a Regression promised by a client call.
 type Regression_Future struct{ *capnp.Future }
 
-func (p Regression_Future) Struct() (Regression, error) {
-	s, err := p.Future.Struct()
-	return Regression(s), err
+func (f Regression_Future) Struct() (Regression, error) {
+	p, err := f.Future.Ptr()
+	return Regression(p.Struct()), err
 }
-
 func (p Regression_Future) Base() PlaneBase_Future {
 	return PlaneBase_Future{Future: p.Future.Field(0, nil)}
 }
@@ -1025,19 +1018,16 @@ func NewAircraft_List(s *capnp.Segment, sz int32) (Aircraft_List, error) {
 // Aircraft_Future is a wrapper for a Aircraft promised by a client call.
 type Aircraft_Future struct{ *capnp.Future }
 
-func (p Aircraft_Future) Struct() (Aircraft, error) {
-	s, err := p.Future.Struct()
-	return Aircraft(s), err
+func (f Aircraft_Future) Struct() (Aircraft, error) {
+	p, err := f.Future.Ptr()
+	return Aircraft(p.Struct()), err
 }
-
 func (p Aircraft_Future) B737() B737_Future {
 	return B737_Future{Future: p.Future.Field(0, nil)}
 }
-
 func (p Aircraft_Future) A320() A320_Future {
 	return A320_Future{Future: p.Future.Field(0, nil)}
 }
-
 func (p Aircraft_Future) F16() F16_Future {
 	return F16_Future{Future: p.Future.Field(0, nil)}
 }
@@ -1498,7 +1488,6 @@ func (s Z) NewF64vec(n int32) (capnp.Float64List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Z) F32vec() (capnp.Float32List, error) {
 	if capnp.Struct(s).Uint16(0) != 16 {
 		panic("Which() != f32vec")
@@ -1530,7 +1519,6 @@ func (s Z) NewF32vec(n int32) (capnp.Float32List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Z) I64vec() (capnp.Int64List, error) {
 	if capnp.Struct(s).Uint16(0) != 17 {
 		panic("Which() != i64vec")
@@ -1562,7 +1550,6 @@ func (s Z) NewI64vec(n int32) (capnp.Int64List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Z) I32vec() (capnp.Int32List, error) {
 	if capnp.Struct(s).Uint16(0) != 18 {
 		panic("Which() != i32vec")
@@ -1594,7 +1581,6 @@ func (s Z) NewI32vec(n int32) (capnp.Int32List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Z) I16vec() (capnp.Int16List, error) {
 	if capnp.Struct(s).Uint16(0) != 19 {
 		panic("Which() != i16vec")
@@ -1626,7 +1612,6 @@ func (s Z) NewI16vec(n int32) (capnp.Int16List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Z) I8vec() (capnp.Int8List, error) {
 	if capnp.Struct(s).Uint16(0) != 20 {
 		panic("Which() != i8vec")
@@ -1658,7 +1643,6 @@ func (s Z) NewI8vec(n int32) (capnp.Int8List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Z) U64vec() (capnp.UInt64List, error) {
 	if capnp.Struct(s).Uint16(0) != 21 {
 		panic("Which() != u64vec")
@@ -1690,7 +1674,6 @@ func (s Z) NewU64vec(n int32) (capnp.UInt64List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Z) U32vec() (capnp.UInt32List, error) {
 	if capnp.Struct(s).Uint16(0) != 22 {
 		panic("Which() != u32vec")
@@ -1722,7 +1705,6 @@ func (s Z) NewU32vec(n int32) (capnp.UInt32List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Z) U16vec() (capnp.UInt16List, error) {
 	if capnp.Struct(s).Uint16(0) != 23 {
 		panic("Which() != u16vec")
@@ -1754,7 +1736,6 @@ func (s Z) NewU16vec(n int32) (capnp.UInt16List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Z) U8vec() (capnp.UInt8List, error) {
 	if capnp.Struct(s).Uint16(0) != 24 {
 		panic("Which() != u8vec")
@@ -1786,7 +1767,6 @@ func (s Z) NewU8vec(n int32) (capnp.UInt8List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Z) Boolvec() (capnp.BitList, error) {
 	if capnp.Struct(s).Uint16(0) != 39 {
 		panic("Which() != boolvec")
@@ -1818,7 +1798,6 @@ func (s Z) NewBoolvec(n int32) (capnp.BitList, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Z) Datavec() (capnp.DataList, error) {
 	if capnp.Struct(s).Uint16(0) != 40 {
 		panic("Which() != datavec")
@@ -1850,7 +1829,6 @@ func (s Z) NewDatavec(n int32) (capnp.DataList, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Z) Textvec() (capnp.TextList, error) {
 	if capnp.Struct(s).Uint16(0) != 41 {
 		panic("Which() != textvec")
@@ -1882,7 +1860,6 @@ func (s Z) NewTextvec(n int32) (capnp.TextList, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Z) Zvec() (Z_List, error) {
 	if capnp.Struct(s).Uint16(0) != 25 {
 		panic("Which() != zvec")
@@ -1914,7 +1891,6 @@ func (s Z) NewZvec(n int32) (Z_List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Z) Zvecvec() (capnp.PointerList, error) {
 	if capnp.Struct(s).Uint16(0) != 26 {
 		panic("Which() != zvecvec")
@@ -1946,7 +1922,6 @@ func (s Z) NewZvecvec(n int32) (capnp.PointerList, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Z) Zdate() (Zdate, error) {
 	if capnp.Struct(s).Uint16(0) != 27 {
 		panic("Which() != zdate")
@@ -2042,7 +2017,6 @@ func (s Z) NewAircraftvec(n int32) (Aircraft_List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Z) Aircraft() (Aircraft, error) {
 	if capnp.Struct(s).Uint16(0) != 30 {
 		panic("Which() != aircraft")
@@ -2278,7 +2252,6 @@ func (s Z) NewZdatevec(n int32) (Zdate_List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Z) Zdatavec() (Zdata_List, error) {
 	if capnp.Struct(s).Uint16(0) != 38 {
 		panic("Which() != zdatavec")
@@ -2310,7 +2283,6 @@ func (s Z) NewZdatavec(n int32) (Zdata_List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Z) Grp() Z_grp { return Z_grp(s) }
 
 func (s Z) SetGrp() {
@@ -2400,7 +2372,6 @@ func (s Z) NewEchoes(n int32) (Echo_List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Z) AnyPtr() (capnp.Ptr, error) {
 	if capnp.Struct(s).Uint16(0) != 45 {
 		panic("Which() != anyPtr")
@@ -2419,12 +2390,12 @@ func (s Z) SetAnyPtr(v capnp.Ptr) error {
 	capnp.Struct(s).SetUint16(0, 45)
 	return capnp.Struct(s).SetPtr(0, v)
 }
-
-func (s Z) AnyStruct() (capnp.Ptr, error) {
+func (s Z) AnyStruct() (capnp.Struct, error) {
 	if capnp.Struct(s).Uint16(0) != 46 {
 		panic("Which() != anyStruct")
 	}
-	return capnp.Struct(s).Ptr(0)
+	p, err := capnp.Struct(s).Ptr(0)
+	return p.Struct(), err
 }
 
 func (s Z) HasAnyStruct() bool {
@@ -2434,16 +2405,16 @@ func (s Z) HasAnyStruct() bool {
 	return capnp.Struct(s).HasPtr(0)
 }
 
-func (s Z) SetAnyStruct(v capnp.Ptr) error {
+func (s Z) SetAnyStruct(v capnp.Struct) error {
 	capnp.Struct(s).SetUint16(0, 46)
-	return capnp.Struct(s).SetPtr(0, v)
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
-
-func (s Z) AnyList() (capnp.Ptr, error) {
+func (s Z) AnyList() (capnp.List, error) {
 	if capnp.Struct(s).Uint16(0) != 47 {
 		panic("Which() != anyList")
 	}
-	return capnp.Struct(s).Ptr(0)
+	p, err := capnp.Struct(s).Ptr(0)
+	return p.List(), err
 }
 
 func (s Z) HasAnyList() bool {
@@ -2453,11 +2424,10 @@ func (s Z) HasAnyList() bool {
 	return capnp.Struct(s).HasPtr(0)
 }
 
-func (s Z) SetAnyList(v capnp.Ptr) error {
+func (s Z) SetAnyList(v capnp.List) error {
 	capnp.Struct(s).SetUint16(0, 47)
-	return capnp.Struct(s).SetPtr(0, v)
+	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
-
 func (s Z) AnyCapability() capnp.Client {
 	if capnp.Struct(s).Uint16(0) != 48 {
 		panic("Which() != anyCapability")
@@ -2495,57 +2465,46 @@ func NewZ_List(s *capnp.Segment, sz int32) (Z_List, error) {
 // Z_Future is a wrapper for a Z promised by a client call.
 type Z_Future struct{ *capnp.Future }
 
-func (p Z_Future) Struct() (Z, error) {
-	s, err := p.Future.Struct()
-	return Z(s), err
+func (f Z_Future) Struct() (Z, error) {
+	p, err := f.Future.Ptr()
+	return Z(p.Struct()), err
 }
-
 func (p Z_Future) Zz() Z_Future {
 	return Z_Future{Future: p.Future.Field(0, nil)}
 }
-
 func (p Z_Future) Zdate() Zdate_Future {
 	return Zdate_Future{Future: p.Future.Field(0, nil)}
 }
-
 func (p Z_Future) Zdata() Zdata_Future {
 	return Zdata_Future{Future: p.Future.Field(0, nil)}
 }
-
 func (p Z_Future) Aircraft() Aircraft_Future {
 	return Aircraft_Future{Future: p.Future.Field(0, nil)}
 }
-
 func (p Z_Future) Regression() Regression_Future {
 	return Regression_Future{Future: p.Future.Field(0, nil)}
 }
-
 func (p Z_Future) Planebase() PlaneBase_Future {
 	return PlaneBase_Future{Future: p.Future.Field(0, nil)}
 }
-
 func (p Z_Future) B737() B737_Future {
 	return B737_Future{Future: p.Future.Field(0, nil)}
 }
-
 func (p Z_Future) A320() A320_Future {
 	return A320_Future{Future: p.Future.Field(0, nil)}
 }
-
 func (p Z_Future) F16() F16_Future {
 	return F16_Future{Future: p.Future.Field(0, nil)}
 }
-
 func (p Z_Future) Grp() Z_grp_Future { return Z_grp_Future{p.Future} }
 
 // Z_grp_Future is a wrapper for a Z_grp promised by a client call.
 type Z_grp_Future struct{ *capnp.Future }
 
-func (p Z_grp_Future) Struct() (Z_grp, error) {
-	s, err := p.Future.Struct()
-	return Z_grp(s), err
+func (f Z_grp_Future) Struct() (Z_grp, error) {
+	p, err := f.Future.Ptr()
+	return Z_grp(p.Struct()), err
 }
-
 func (p Z_Future) Echo() Echo {
 	return Echo(p.Future.Field(0, nil).Client())
 }
@@ -2553,17 +2512,14 @@ func (p Z_Future) Echo() Echo {
 func (p Z_Future) AnyPtr() *capnp.Future {
 	return p.Future.Field(0, nil)
 }
-
 func (p Z_Future) AnyStruct() *capnp.Future {
 	return p.Future.Field(0, nil)
 }
-
 func (p Z_Future) AnyList() *capnp.Future {
 	return p.Future.Field(0, nil)
 }
-
-func (p Z_Future) AnyCapability() *capnp.Future {
-	return p.Future.Field(0, nil)
+func (p Z_Future) AnyCapability() capnp.Client {
+	return p.Future.Field(0, nil).Client()
 }
 
 type Counter capnp.Struct
@@ -2662,7 +2618,6 @@ func (s Counter) NewWordlist(n int32) (capnp.TextList, error) {
 	err = capnp.Struct(s).SetPtr(1, l.ToPtr())
 	return l, err
 }
-
 func (s Counter) Bitlist() (capnp.BitList, error) {
 	p, err := capnp.Struct(s).Ptr(2)
 	return capnp.BitList(p.List()), err
@@ -2699,9 +2654,9 @@ func NewCounter_List(s *capnp.Segment, sz int32) (Counter_List, error) {
 // Counter_Future is a wrapper for a Counter promised by a client call.
 type Counter_Future struct{ *capnp.Future }
 
-func (p Counter_Future) Struct() (Counter, error) {
-	s, err := p.Future.Struct()
-	return Counter(s), err
+func (f Counter_Future) Struct() (Counter, error) {
+	p, err := f.Future.Ptr()
+	return Counter(p.Struct()), err
 }
 
 type Bag capnp.Struct
@@ -2787,11 +2742,10 @@ func NewBag_List(s *capnp.Segment, sz int32) (Bag_List, error) {
 // Bag_Future is a wrapper for a Bag promised by a client call.
 type Bag_Future struct{ *capnp.Future }
 
-func (p Bag_Future) Struct() (Bag, error) {
-	s, err := p.Future.Struct()
-	return Bag(s), err
+func (f Bag_Future) Struct() (Bag, error) {
+	p, err := f.Future.Ptr()
+	return Bag(p.Struct()), err
 }
-
 func (p Bag_Future) Counter() Counter_Future {
 	return Counter_Future{Future: p.Future.Field(0, nil)}
 }
@@ -2879,9 +2833,9 @@ func NewZserver_List(s *capnp.Segment, sz int32) (Zserver_List, error) {
 // Zserver_Future is a wrapper for a Zserver promised by a client call.
 type Zserver_Future struct{ *capnp.Future }
 
-func (p Zserver_Future) Struct() (Zserver, error) {
-	s, err := p.Future.Struct()
-	return Zserver(s), err
+func (f Zserver_Future) Struct() (Zserver, error) {
+	p, err := f.Future.Ptr()
+	return Zserver(p.Struct()), err
 }
 
 type Zjob capnp.Struct
@@ -2985,9 +2939,9 @@ func NewZjob_List(s *capnp.Segment, sz int32) (Zjob_List, error) {
 // Zjob_Future is a wrapper for a Zjob promised by a client call.
 type Zjob_Future struct{ *capnp.Future }
 
-func (p Zjob_Future) Struct() (Zjob, error) {
-	s, err := p.Future.Struct()
-	return Zjob(s), err
+func (f Zjob_Future) Struct() (Zjob, error) {
+	p, err := f.Future.Ptr()
+	return Zjob(p.Struct()), err
 }
 
 type VerEmpty capnp.Struct
@@ -3050,9 +3004,9 @@ func NewVerEmpty_List(s *capnp.Segment, sz int32) (VerEmpty_List, error) {
 // VerEmpty_Future is a wrapper for a VerEmpty promised by a client call.
 type VerEmpty_Future struct{ *capnp.Future }
 
-func (p VerEmpty_Future) Struct() (VerEmpty, error) {
-	s, err := p.Future.Struct()
-	return VerEmpty(s), err
+func (f VerEmpty_Future) Struct() (VerEmpty, error) {
+	p, err := f.Future.Ptr()
+	return VerEmpty(p.Struct()), err
 }
 
 type VerOneData capnp.Struct
@@ -3122,9 +3076,9 @@ func NewVerOneData_List(s *capnp.Segment, sz int32) (VerOneData_List, error) {
 // VerOneData_Future is a wrapper for a VerOneData promised by a client call.
 type VerOneData_Future struct{ *capnp.Future }
 
-func (p VerOneData_Future) Struct() (VerOneData, error) {
-	s, err := p.Future.Struct()
-	return VerOneData(s), err
+func (f VerOneData_Future) Struct() (VerOneData, error) {
+	p, err := f.Future.Ptr()
+	return VerOneData(p.Struct()), err
 }
 
 type VerTwoData capnp.Struct
@@ -3202,9 +3156,9 @@ func NewVerTwoData_List(s *capnp.Segment, sz int32) (VerTwoData_List, error) {
 // VerTwoData_Future is a wrapper for a VerTwoData promised by a client call.
 type VerTwoData_Future struct{ *capnp.Future }
 
-func (p VerTwoData_Future) Struct() (VerTwoData, error) {
-	s, err := p.Future.Struct()
-	return VerTwoData(s), err
+func (f VerTwoData_Future) Struct() (VerTwoData, error) {
+	p, err := f.Future.Ptr()
+	return VerTwoData(p.Struct()), err
 }
 
 type VerOnePtr capnp.Struct
@@ -3290,11 +3244,10 @@ func NewVerOnePtr_List(s *capnp.Segment, sz int32) (VerOnePtr_List, error) {
 // VerOnePtr_Future is a wrapper for a VerOnePtr promised by a client call.
 type VerOnePtr_Future struct{ *capnp.Future }
 
-func (p VerOnePtr_Future) Struct() (VerOnePtr, error) {
-	s, err := p.Future.Struct()
-	return VerOnePtr(s), err
+func (f VerOnePtr_Future) Struct() (VerOnePtr, error) {
+	p, err := f.Future.Ptr()
+	return VerOnePtr(p.Struct()), err
 }
-
 func (p VerOnePtr_Future) Ptr() VerOneData_Future {
 	return VerOneData_Future{Future: p.Future.Field(0, nil)}
 }
@@ -3406,15 +3359,13 @@ func NewVerTwoPtr_List(s *capnp.Segment, sz int32) (VerTwoPtr_List, error) {
 // VerTwoPtr_Future is a wrapper for a VerTwoPtr promised by a client call.
 type VerTwoPtr_Future struct{ *capnp.Future }
 
-func (p VerTwoPtr_Future) Struct() (VerTwoPtr, error) {
-	s, err := p.Future.Struct()
-	return VerTwoPtr(s), err
+func (f VerTwoPtr_Future) Struct() (VerTwoPtr, error) {
+	p, err := f.Future.Ptr()
+	return VerTwoPtr(p.Struct()), err
 }
-
 func (p VerTwoPtr_Future) Ptr1() VerOneData_Future {
 	return VerOneData_Future{Future: p.Future.Field(0, nil)}
 }
-
 func (p VerTwoPtr_Future) Ptr2() VerOneData_Future {
 	return VerOneData_Future{Future: p.Future.Field(1, nil)}
 }
@@ -3542,15 +3493,13 @@ func NewVerTwoDataTwoPtr_List(s *capnp.Segment, sz int32) (VerTwoDataTwoPtr_List
 // VerTwoDataTwoPtr_Future is a wrapper for a VerTwoDataTwoPtr promised by a client call.
 type VerTwoDataTwoPtr_Future struct{ *capnp.Future }
 
-func (p VerTwoDataTwoPtr_Future) Struct() (VerTwoDataTwoPtr, error) {
-	s, err := p.Future.Struct()
-	return VerTwoDataTwoPtr(s), err
+func (f VerTwoDataTwoPtr_Future) Struct() (VerTwoDataTwoPtr, error) {
+	p, err := f.Future.Ptr()
+	return VerTwoDataTwoPtr(p.Struct()), err
 }
-
 func (p VerTwoDataTwoPtr_Future) Ptr1() VerOneData_Future {
 	return VerOneData_Future{Future: p.Future.Field(0, nil)}
 }
-
 func (p VerTwoDataTwoPtr_Future) Ptr2() VerOneData_Future {
 	return VerOneData_Future{Future: p.Future.Field(1, nil)}
 }
@@ -3638,9 +3587,9 @@ func NewHoldsVerEmptyList_List(s *capnp.Segment, sz int32) (HoldsVerEmptyList_Li
 // HoldsVerEmptyList_Future is a wrapper for a HoldsVerEmptyList promised by a client call.
 type HoldsVerEmptyList_Future struct{ *capnp.Future }
 
-func (p HoldsVerEmptyList_Future) Struct() (HoldsVerEmptyList, error) {
-	s, err := p.Future.Struct()
-	return HoldsVerEmptyList(s), err
+func (f HoldsVerEmptyList_Future) Struct() (HoldsVerEmptyList, error) {
+	p, err := f.Future.Ptr()
+	return HoldsVerEmptyList(p.Struct()), err
 }
 
 type HoldsVerOneDataList capnp.Struct
@@ -3726,9 +3675,9 @@ func NewHoldsVerOneDataList_List(s *capnp.Segment, sz int32) (HoldsVerOneDataLis
 // HoldsVerOneDataList_Future is a wrapper for a HoldsVerOneDataList promised by a client call.
 type HoldsVerOneDataList_Future struct{ *capnp.Future }
 
-func (p HoldsVerOneDataList_Future) Struct() (HoldsVerOneDataList, error) {
-	s, err := p.Future.Struct()
-	return HoldsVerOneDataList(s), err
+func (f HoldsVerOneDataList_Future) Struct() (HoldsVerOneDataList, error) {
+	p, err := f.Future.Ptr()
+	return HoldsVerOneDataList(p.Struct()), err
 }
 
 type HoldsVerTwoDataList capnp.Struct
@@ -3814,9 +3763,9 @@ func NewHoldsVerTwoDataList_List(s *capnp.Segment, sz int32) (HoldsVerTwoDataLis
 // HoldsVerTwoDataList_Future is a wrapper for a HoldsVerTwoDataList promised by a client call.
 type HoldsVerTwoDataList_Future struct{ *capnp.Future }
 
-func (p HoldsVerTwoDataList_Future) Struct() (HoldsVerTwoDataList, error) {
-	s, err := p.Future.Struct()
-	return HoldsVerTwoDataList(s), err
+func (f HoldsVerTwoDataList_Future) Struct() (HoldsVerTwoDataList, error) {
+	p, err := f.Future.Ptr()
+	return HoldsVerTwoDataList(p.Struct()), err
 }
 
 type HoldsVerOnePtrList capnp.Struct
@@ -3902,9 +3851,9 @@ func NewHoldsVerOnePtrList_List(s *capnp.Segment, sz int32) (HoldsVerOnePtrList_
 // HoldsVerOnePtrList_Future is a wrapper for a HoldsVerOnePtrList promised by a client call.
 type HoldsVerOnePtrList_Future struct{ *capnp.Future }
 
-func (p HoldsVerOnePtrList_Future) Struct() (HoldsVerOnePtrList, error) {
-	s, err := p.Future.Struct()
-	return HoldsVerOnePtrList(s), err
+func (f HoldsVerOnePtrList_Future) Struct() (HoldsVerOnePtrList, error) {
+	p, err := f.Future.Ptr()
+	return HoldsVerOnePtrList(p.Struct()), err
 }
 
 type HoldsVerTwoPtrList capnp.Struct
@@ -3990,9 +3939,9 @@ func NewHoldsVerTwoPtrList_List(s *capnp.Segment, sz int32) (HoldsVerTwoPtrList_
 // HoldsVerTwoPtrList_Future is a wrapper for a HoldsVerTwoPtrList promised by a client call.
 type HoldsVerTwoPtrList_Future struct{ *capnp.Future }
 
-func (p HoldsVerTwoPtrList_Future) Struct() (HoldsVerTwoPtrList, error) {
-	s, err := p.Future.Struct()
-	return HoldsVerTwoPtrList(s), err
+func (f HoldsVerTwoPtrList_Future) Struct() (HoldsVerTwoPtrList, error) {
+	p, err := f.Future.Ptr()
+	return HoldsVerTwoPtrList(p.Struct()), err
 }
 
 type HoldsVerTwoTwoList capnp.Struct
@@ -4078,9 +4027,9 @@ func NewHoldsVerTwoTwoList_List(s *capnp.Segment, sz int32) (HoldsVerTwoTwoList_
 // HoldsVerTwoTwoList_Future is a wrapper for a HoldsVerTwoTwoList promised by a client call.
 type HoldsVerTwoTwoList_Future struct{ *capnp.Future }
 
-func (p HoldsVerTwoTwoList_Future) Struct() (HoldsVerTwoTwoList, error) {
-	s, err := p.Future.Struct()
-	return HoldsVerTwoTwoList(s), err
+func (f HoldsVerTwoTwoList_Future) Struct() (HoldsVerTwoTwoList, error) {
+	p, err := f.Future.Ptr()
+	return HoldsVerTwoTwoList(p.Struct()), err
 }
 
 type HoldsVerTwoTwoPlus capnp.Struct
@@ -4166,9 +4115,9 @@ func NewHoldsVerTwoTwoPlus_List(s *capnp.Segment, sz int32) (HoldsVerTwoTwoPlus_
 // HoldsVerTwoTwoPlus_Future is a wrapper for a HoldsVerTwoTwoPlus promised by a client call.
 type HoldsVerTwoTwoPlus_Future struct{ *capnp.Future }
 
-func (p HoldsVerTwoTwoPlus_Future) Struct() (HoldsVerTwoTwoPlus, error) {
-	s, err := p.Future.Struct()
-	return HoldsVerTwoTwoPlus(s), err
+func (f HoldsVerTwoTwoPlus_Future) Struct() (HoldsVerTwoTwoPlus, error) {
+	p, err := f.Future.Ptr()
+	return HoldsVerTwoTwoPlus(p.Struct()), err
 }
 
 type VerTwoTwoPlus capnp.Struct
@@ -4326,15 +4275,13 @@ func NewVerTwoTwoPlus_List(s *capnp.Segment, sz int32) (VerTwoTwoPlus_List, erro
 // VerTwoTwoPlus_Future is a wrapper for a VerTwoTwoPlus promised by a client call.
 type VerTwoTwoPlus_Future struct{ *capnp.Future }
 
-func (p VerTwoTwoPlus_Future) Struct() (VerTwoTwoPlus, error) {
-	s, err := p.Future.Struct()
-	return VerTwoTwoPlus(s), err
+func (f VerTwoTwoPlus_Future) Struct() (VerTwoTwoPlus, error) {
+	p, err := f.Future.Ptr()
+	return VerTwoTwoPlus(p.Struct()), err
 }
-
 func (p VerTwoTwoPlus_Future) Ptr1() VerTwoDataTwoPtr_Future {
 	return VerTwoDataTwoPtr_Future{Future: p.Future.Field(0, nil)}
 }
-
 func (p VerTwoTwoPlus_Future) Ptr2() VerTwoDataTwoPtr_Future {
 	return VerTwoDataTwoPtr_Future{Future: p.Future.Field(1, nil)}
 }
@@ -4427,7 +4374,6 @@ func (s HoldsText) NewLst(n int32) (capnp.TextList, error) {
 	err = capnp.Struct(s).SetPtr(1, l.ToPtr())
 	return l, err
 }
-
 func (s HoldsText) Lstlst() (capnp.PointerList, error) {
 	p, err := capnp.Struct(s).Ptr(2)
 	return capnp.PointerList(p.List()), err
@@ -4464,9 +4410,9 @@ func NewHoldsText_List(s *capnp.Segment, sz int32) (HoldsText_List, error) {
 // HoldsText_Future is a wrapper for a HoldsText promised by a client call.
 type HoldsText_Future struct{ *capnp.Future }
 
-func (p HoldsText_Future) Struct() (HoldsText, error) {
-	s, err := p.Future.Struct()
-	return HoldsText(s), err
+func (f HoldsText_Future) Struct() (HoldsText, error) {
+	p, err := f.Future.Ptr()
+	return HoldsText(p.Struct()), err
 }
 
 type WrapEmpty capnp.Struct
@@ -4552,11 +4498,10 @@ func NewWrapEmpty_List(s *capnp.Segment, sz int32) (WrapEmpty_List, error) {
 // WrapEmpty_Future is a wrapper for a WrapEmpty promised by a client call.
 type WrapEmpty_Future struct{ *capnp.Future }
 
-func (p WrapEmpty_Future) Struct() (WrapEmpty, error) {
-	s, err := p.Future.Struct()
-	return WrapEmpty(s), err
+func (f WrapEmpty_Future) Struct() (WrapEmpty, error) {
+	p, err := f.Future.Ptr()
+	return WrapEmpty(p.Struct()), err
 }
-
 func (p WrapEmpty_Future) MightNotBeReallyEmpty() VerEmpty_Future {
 	return VerEmpty_Future{Future: p.Future.Field(0, nil)}
 }
@@ -4644,11 +4589,10 @@ func NewWrap2x2_List(s *capnp.Segment, sz int32) (Wrap2x2_List, error) {
 // Wrap2x2_Future is a wrapper for a Wrap2x2 promised by a client call.
 type Wrap2x2_Future struct{ *capnp.Future }
 
-func (p Wrap2x2_Future) Struct() (Wrap2x2, error) {
-	s, err := p.Future.Struct()
-	return Wrap2x2(s), err
+func (f Wrap2x2_Future) Struct() (Wrap2x2, error) {
+	p, err := f.Future.Ptr()
+	return Wrap2x2(p.Struct()), err
 }
-
 func (p Wrap2x2_Future) MightNotBeReallyEmpty() VerTwoDataTwoPtr_Future {
 	return VerTwoDataTwoPtr_Future{Future: p.Future.Field(0, nil)}
 }
@@ -4736,11 +4680,10 @@ func NewWrap2x2plus_List(s *capnp.Segment, sz int32) (Wrap2x2plus_List, error) {
 // Wrap2x2plus_Future is a wrapper for a Wrap2x2plus promised by a client call.
 type Wrap2x2plus_Future struct{ *capnp.Future }
 
-func (p Wrap2x2plus_Future) Struct() (Wrap2x2plus, error) {
-	s, err := p.Future.Struct()
-	return Wrap2x2plus(s), err
+func (f Wrap2x2plus_Future) Struct() (Wrap2x2plus, error) {
+	p, err := f.Future.Ptr()
+	return Wrap2x2plus(p.Struct()), err
 }
-
 func (p Wrap2x2plus_Future) MightNotBeReallyEmpty() VerTwoTwoPlus_Future {
 	return VerTwoTwoPlus_Future{Future: p.Future.Field(0, nil)}
 }
@@ -4836,9 +4779,9 @@ func NewVoidUnion_List(s *capnp.Segment, sz int32) (VoidUnion_List, error) {
 // VoidUnion_Future is a wrapper for a VoidUnion promised by a client call.
 type VoidUnion_Future struct{ *capnp.Future }
 
-func (p VoidUnion_Future) Struct() (VoidUnion, error) {
-	s, err := p.Future.Struct()
-	return VoidUnion(s), err
+func (f VoidUnion_Future) Struct() (VoidUnion, error) {
+	p, err := f.Future.Ptr()
+	return VoidUnion(p.Struct()), err
 }
 
 type Nester1Capn capnp.Struct
@@ -4924,9 +4867,9 @@ func NewNester1Capn_List(s *capnp.Segment, sz int32) (Nester1Capn_List, error) {
 // Nester1Capn_Future is a wrapper for a Nester1Capn promised by a client call.
 type Nester1Capn_Future struct{ *capnp.Future }
 
-func (p Nester1Capn_Future) Struct() (Nester1Capn, error) {
-	s, err := p.Future.Struct()
-	return Nester1Capn(s), err
+func (f Nester1Capn_Future) Struct() (Nester1Capn, error) {
+	p, err := f.Future.Ptr()
+	return Nester1Capn(p.Struct()), err
 }
 
 type RWTestCapn capnp.Struct
@@ -5012,9 +4955,9 @@ func NewRWTestCapn_List(s *capnp.Segment, sz int32) (RWTestCapn_List, error) {
 // RWTestCapn_Future is a wrapper for a RWTestCapn promised by a client call.
 type RWTestCapn_Future struct{ *capnp.Future }
 
-func (p RWTestCapn_Future) Struct() (RWTestCapn, error) {
-	s, err := p.Future.Struct()
-	return RWTestCapn(s), err
+func (f RWTestCapn_Future) Struct() (RWTestCapn, error) {
+	p, err := f.Future.Ptr()
+	return RWTestCapn(p.Struct()), err
 }
 
 type ListStructCapn capnp.Struct
@@ -5100,9 +5043,9 @@ func NewListStructCapn_List(s *capnp.Segment, sz int32) (ListStructCapn_List, er
 // ListStructCapn_Future is a wrapper for a ListStructCapn promised by a client call.
 type ListStructCapn_Future struct{ *capnp.Future }
 
-func (p ListStructCapn_Future) Struct() (ListStructCapn, error) {
-	s, err := p.Future.Struct()
-	return ListStructCapn(s), err
+func (f ListStructCapn_Future) Struct() (ListStructCapn, error) {
+	p, err := f.Future.Ptr()
+	return ListStructCapn(p.Struct()), err
 }
 
 type Echo capnp.Client
@@ -5334,9 +5277,9 @@ func NewEcho_echo_Params_List(s *capnp.Segment, sz int32) (Echo_echo_Params_List
 // Echo_echo_Params_Future is a wrapper for a Echo_echo_Params promised by a client call.
 type Echo_echo_Params_Future struct{ *capnp.Future }
 
-func (p Echo_echo_Params_Future) Struct() (Echo_echo_Params, error) {
-	s, err := p.Future.Struct()
-	return Echo_echo_Params(s), err
+func (f Echo_echo_Params_Future) Struct() (Echo_echo_Params, error) {
+	p, err := f.Future.Ptr()
+	return Echo_echo_Params(p.Struct()), err
 }
 
 type Echo_echo_Results capnp.Struct
@@ -5416,9 +5359,9 @@ func NewEcho_echo_Results_List(s *capnp.Segment, sz int32) (Echo_echo_Results_Li
 // Echo_echo_Results_Future is a wrapper for a Echo_echo_Results promised by a client call.
 type Echo_echo_Results_Future struct{ *capnp.Future }
 
-func (p Echo_echo_Results_Future) Struct() (Echo_echo_Results, error) {
-	s, err := p.Future.Struct()
-	return Echo_echo_Results(s), err
+func (f Echo_echo_Results_Future) Struct() (Echo_echo_Results, error) {
+	p, err := f.Future.Ptr()
+	return Echo_echo_Results(p.Struct()), err
 }
 
 type Hoth capnp.Struct
@@ -5504,11 +5447,10 @@ func NewHoth_List(s *capnp.Segment, sz int32) (Hoth_List, error) {
 // Hoth_Future is a wrapper for a Hoth promised by a client call.
 type Hoth_Future struct{ *capnp.Future }
 
-func (p Hoth_Future) Struct() (Hoth, error) {
-	s, err := p.Future.Struct()
-	return Hoth(s), err
+func (f Hoth_Future) Struct() (Hoth, error) {
+	p, err := f.Future.Ptr()
+	return Hoth(p.Struct()), err
 }
-
 func (p Hoth_Future) Base() EchoBase_Future {
 	return EchoBase_Future{Future: p.Future.Field(0, nil)}
 }
@@ -5590,11 +5532,10 @@ func NewEchoBase_List(s *capnp.Segment, sz int32) (EchoBase_List, error) {
 // EchoBase_Future is a wrapper for a EchoBase promised by a client call.
 type EchoBase_Future struct{ *capnp.Future }
 
-func (p EchoBase_Future) Struct() (EchoBase, error) {
-	s, err := p.Future.Struct()
-	return EchoBase(s), err
+func (f EchoBase_Future) Struct() (EchoBase, error) {
+	p, err := f.Future.Ptr()
+	return EchoBase(p.Struct()), err
 }
-
 func (p EchoBase_Future) Echo() Echo {
 	return Echo(p.Future.Field(0, nil).Client())
 }
@@ -5710,15 +5651,13 @@ func NewStackingRoot_List(s *capnp.Segment, sz int32) (StackingRoot_List, error)
 // StackingRoot_Future is a wrapper for a StackingRoot promised by a client call.
 type StackingRoot_Future struct{ *capnp.Future }
 
-func (p StackingRoot_Future) Struct() (StackingRoot, error) {
-	s, err := p.Future.Struct()
-	return StackingRoot(s), err
+func (f StackingRoot_Future) Struct() (StackingRoot, error) {
+	p, err := f.Future.Ptr()
+	return StackingRoot(p.Struct()), err
 }
-
 func (p StackingRoot_Future) A() StackingA_Future {
 	return StackingA_Future{Future: p.Future.Field(1, nil)}
 }
-
 func (p StackingRoot_Future) AWithDefault() StackingA_Future {
 	return StackingA_Future{Future: p.Future.Field(0, x_832bcc6686a26d56[96:128])}
 }
@@ -5814,11 +5753,10 @@ func NewStackingA_List(s *capnp.Segment, sz int32) (StackingA_List, error) {
 // StackingA_Future is a wrapper for a StackingA promised by a client call.
 type StackingA_Future struct{ *capnp.Future }
 
-func (p StackingA_Future) Struct() (StackingA, error) {
-	s, err := p.Future.Struct()
-	return StackingA(s), err
+func (f StackingA_Future) Struct() (StackingA, error) {
+	p, err := f.Future.Ptr()
+	return StackingA(p.Struct()), err
 }
-
 func (p StackingA_Future) B() StackingB_Future {
 	return StackingB_Future{Future: p.Future.Field(0, nil)}
 }
@@ -5890,9 +5828,9 @@ func NewStackingB_List(s *capnp.Segment, sz int32) (StackingB_List, error) {
 // StackingB_Future is a wrapper for a StackingB promised by a client call.
 type StackingB_Future struct{ *capnp.Future }
 
-func (p StackingB_Future) Struct() (StackingB, error) {
-	s, err := p.Future.Struct()
-	return StackingB(s), err
+func (f StackingB_Future) Struct() (StackingB, error) {
+	p, err := f.Future.Ptr()
+	return StackingB(p.Struct()), err
 }
 
 type CallSequence capnp.Client
@@ -6107,9 +6045,9 @@ func NewCallSequence_getNumber_Params_List(s *capnp.Segment, sz int32) (CallSequ
 // CallSequence_getNumber_Params_Future is a wrapper for a CallSequence_getNumber_Params promised by a client call.
 type CallSequence_getNumber_Params_Future struct{ *capnp.Future }
 
-func (p CallSequence_getNumber_Params_Future) Struct() (CallSequence_getNumber_Params, error) {
-	s, err := p.Future.Struct()
-	return CallSequence_getNumber_Params(s), err
+func (f CallSequence_getNumber_Params_Future) Struct() (CallSequence_getNumber_Params, error) {
+	p, err := f.Future.Ptr()
+	return CallSequence_getNumber_Params(p.Struct()), err
 }
 
 type CallSequence_getNumber_Results capnp.Struct
@@ -6179,9 +6117,9 @@ func NewCallSequence_getNumber_Results_List(s *capnp.Segment, sz int32) (CallSeq
 // CallSequence_getNumber_Results_Future is a wrapper for a CallSequence_getNumber_Results promised by a client call.
 type CallSequence_getNumber_Results_Future struct{ *capnp.Future }
 
-func (p CallSequence_getNumber_Results_Future) Struct() (CallSequence_getNumber_Results, error) {
-	s, err := p.Future.Struct()
-	return CallSequence_getNumber_Results(s), err
+func (f CallSequence_getNumber_Results_Future) Struct() (CallSequence_getNumber_Results, error) {
+	p, err := f.Future.Ptr()
+	return CallSequence_getNumber_Results(p.Struct()), err
 }
 
 type Pipeliner capnp.Client
@@ -6426,9 +6364,9 @@ func NewPipeliner_newPipeliner_Params_List(s *capnp.Segment, sz int32) (Pipeline
 // Pipeliner_newPipeliner_Params_Future is a wrapper for a Pipeliner_newPipeliner_Params promised by a client call.
 type Pipeliner_newPipeliner_Params_Future struct{ *capnp.Future }
 
-func (p Pipeliner_newPipeliner_Params_Future) Struct() (Pipeliner_newPipeliner_Params, error) {
-	s, err := p.Future.Struct()
-	return Pipeliner_newPipeliner_Params(s), err
+func (f Pipeliner_newPipeliner_Params_Future) Struct() (Pipeliner_newPipeliner_Params, error) {
+	p, err := f.Future.Ptr()
+	return Pipeliner_newPipeliner_Params(p.Struct()), err
 }
 
 type Pipeliner_newPipeliner_Results capnp.Struct
@@ -6489,7 +6427,6 @@ func (s Pipeliner_newPipeliner_Results) HasExtra() bool {
 func (s Pipeliner_newPipeliner_Results) SetExtra(v capnp.Ptr) error {
 	return capnp.Struct(s).SetPtr(0, v)
 }
-
 func (s Pipeliner_newPipeliner_Results) Pipeliner() Pipeliner {
 	p, _ := capnp.Struct(s).Ptr(1)
 	return Pipeliner(p.Interface().Client())
@@ -6520,15 +6457,13 @@ func NewPipeliner_newPipeliner_Results_List(s *capnp.Segment, sz int32) (Pipelin
 // Pipeliner_newPipeliner_Results_Future is a wrapper for a Pipeliner_newPipeliner_Results promised by a client call.
 type Pipeliner_newPipeliner_Results_Future struct{ *capnp.Future }
 
-func (p Pipeliner_newPipeliner_Results_Future) Struct() (Pipeliner_newPipeliner_Results, error) {
-	s, err := p.Future.Struct()
-	return Pipeliner_newPipeliner_Results(s), err
+func (f Pipeliner_newPipeliner_Results_Future) Struct() (Pipeliner_newPipeliner_Results, error) {
+	p, err := f.Future.Ptr()
+	return Pipeliner_newPipeliner_Results(p.Struct()), err
 }
-
 func (p Pipeliner_newPipeliner_Results_Future) Extra() *capnp.Future {
 	return p.Future.Field(0, nil)
 }
-
 func (p Pipeliner_newPipeliner_Results_Future) Pipeliner() Pipeliner {
 	return Pipeliner(p.Future.Field(1, nil).Client())
 }
@@ -6650,9 +6585,9 @@ func NewDefaults_List(s *capnp.Segment, sz int32) (Defaults_List, error) {
 // Defaults_Future is a wrapper for a Defaults promised by a client call.
 type Defaults_Future struct{ *capnp.Future }
 
-func (p Defaults_Future) Struct() (Defaults, error) {
-	s, err := p.Future.Struct()
-	return Defaults(s), err
+func (f Defaults_Future) Struct() (Defaults, error) {
+	p, err := f.Future.Ptr()
+	return Defaults(p.Struct()), err
 }
 
 type BenchmarkA capnp.Struct
@@ -6782,9 +6717,9 @@ func NewBenchmarkA_List(s *capnp.Segment, sz int32) (BenchmarkA_List, error) {
 // BenchmarkA_Future is a wrapper for a BenchmarkA promised by a client call.
 type BenchmarkA_Future struct{ *capnp.Future }
 
-func (p BenchmarkA_Future) Struct() (BenchmarkA, error) {
-	s, err := p.Future.Struct()
-	return BenchmarkA(s), err
+func (f BenchmarkA_Future) Struct() (BenchmarkA, error) {
+	p, err := f.Future.Ptr()
+	return BenchmarkA(p.Struct()), err
 }
 
 type AllocBenchmark capnp.Struct
@@ -6870,9 +6805,9 @@ func NewAllocBenchmark_List(s *capnp.Segment, sz int32) (AllocBenchmark_List, er
 // AllocBenchmark_Future is a wrapper for a AllocBenchmark promised by a client call.
 type AllocBenchmark_Future struct{ *capnp.Future }
 
-func (p AllocBenchmark_Future) Struct() (AllocBenchmark, error) {
-	s, err := p.Future.Struct()
-	return AllocBenchmark(s), err
+func (f AllocBenchmark_Future) Struct() (AllocBenchmark, error) {
+	p, err := f.Future.Ptr()
+	return AllocBenchmark(p.Struct()), err
 }
 
 type AllocBenchmark_Field capnp.Struct
@@ -6952,9 +6887,9 @@ func NewAllocBenchmark_Field_List(s *capnp.Segment, sz int32) (AllocBenchmark_Fi
 // AllocBenchmark_Field_Future is a wrapper for a AllocBenchmark_Field promised by a client call.
 type AllocBenchmark_Field_Future struct{ *capnp.Future }
 
-func (p AllocBenchmark_Field_Future) Struct() (AllocBenchmark_Field, error) {
-	s, err := p.Future.Struct()
-	return AllocBenchmark_Field(s), err
+func (f AllocBenchmark_Field_Future) Struct() (AllocBenchmark_Field, error) {
+	p, err := f.Future.Ptr()
+	return AllocBenchmark_Field(p.Struct()), err
 }
 
 const schema_832bcc6686a26d56 = "x\xda\xacZ}t\x14U\x96\xbf\xb7\xaa;\x15\x92t" +

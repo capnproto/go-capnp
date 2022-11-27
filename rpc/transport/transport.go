@@ -1,4 +1,9 @@
 // Package transport defines an interface for sending and receiving rpc messages.
+//
+// In addition to the implementations defined here, one of the developers maintains
+// a websocket-backed implementation as a separate module:
+//
+// https://pkg.go.dev/zenhack.net/go/websocket-capnp
 package transport
 
 import (
@@ -17,11 +22,13 @@ import (
 type Transport interface {
 	// NewMessage allocates a new message to be sent over the transport.
 	// The caller must call the release function when it no longer needs
-	// to reference the message.  Before releasing the message, send may be
-	// called at most once to send the mssage.
+	// to reference the message. Calling the release function more than once
+	// has no effect. Before releasing the message, send may be called at most
+	// once to send the mssage.
 	//
 	// Messages returned by NewMessage must have a nil CapTable.
-	// The caller may modify the CapTable as it pleases.
+	// When the returned ReleaseFunc is called, any clients in the message's
+	// CapTable will be released.
 	//
 	// The Arena in the returned message should be fast at allocating new
 	// segments.  The returned ReleaseFunc MUST be safe to call concurrently
@@ -34,7 +41,8 @@ type Transport interface {
 	// RecvMessage or with any other release function returned by RecvMessage.
 	//
 	// Messages returned by RecvMessage must have a nil CapTable.
-	// The caller may modify the CapTable as it pleases.
+	// When the returned ReleaseFunc is called, any clients in the message's
+	// CapTable will be released.
 	//
 	// The Arena in the returned message should not fetch segments lazily;
 	// the Arena should be fast to access other segments.
@@ -87,8 +95,8 @@ func NewPackedStream(rwc io.ReadWriteCloser) Transport {
 //
 // It is safe to call NewMessage concurrently with RecvMessage.
 func (s *transport) NewMessage() (_ rpccp.Message, send func() error, release capnp.ReleaseFunc, _ error) {
-	// TODO(soon): reuse memory
-	msg, seg, err := capnp.NewMessage(capnp.MultiSegment(nil))
+	arena := capnp.MultiSegment(nil)
+	msg, seg, err := capnp.NewMessage(arena)
 	if err != nil {
 		err = transporterr.Annotate(fmt.Errorf("new message: %w", err), "stream transport")
 		return rpccp.Message{}, nil, nil, err
@@ -99,15 +107,29 @@ func (s *transport) NewMessage() (_ rpccp.Message, send func() error, release ca
 		return rpccp.Message{}, nil, nil, err
 	}
 
+	alreadyReleased := false
+
 	send = func() error {
+		if alreadyReleased {
+			panic("Tried to send() a message that was already released.")
+		}
 		if err = s.c.Encode(msg); err != nil {
 			err = transporterr.Annotate(fmt.Errorf("send: %w", err), "stream transport")
 		}
-
 		return err
 	}
 
-	return rmsg, send, func() { msg.Reset(nil) }, nil
+	release = func() {
+		if alreadyReleased {
+			return
+		}
+		alreadyReleased = true
+
+		msg.Reset(nil)
+		arena.Release()
+	}
+
+	return rmsg, send, release, nil
 }
 
 // RecvMessage reads the next message from the underlying reader.

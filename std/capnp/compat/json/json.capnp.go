@@ -186,7 +186,6 @@ func (s Value) NewArray(n int32) (Value_List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Value) Object() (Value_Field_List, error) {
 	if capnp.Struct(s).Uint16(0) != 5 {
 		panic("Which() != object")
@@ -218,7 +217,6 @@ func (s Value) NewObject(n int32) (Value_Field_List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Value) Call() (Value_Call, error) {
 	if capnp.Struct(s).Uint16(0) != 6 {
 		panic("Which() != call")
@@ -263,11 +261,10 @@ func NewValue_List(s *capnp.Segment, sz int32) (Value_List, error) {
 // Value_Future is a wrapper for a Value promised by a client call.
 type Value_Future struct{ *capnp.Future }
 
-func (p Value_Future) Struct() (Value, error) {
-	s, err := p.Future.Struct()
-	return Value(s), err
+func (f Value_Future) Struct() (Value, error) {
+	p, err := f.Future.Ptr()
+	return Value(p.Struct()), err
 }
-
 func (p Value_Future) Call() Value_Call_Future {
 	return Value_Call_Future{Future: p.Future.Field(0, nil)}
 }
@@ -373,11 +370,10 @@ func NewValue_Field_List(s *capnp.Segment, sz int32) (Value_Field_List, error) {
 // Value_Field_Future is a wrapper for a Value_Field promised by a client call.
 type Value_Field_Future struct{ *capnp.Future }
 
-func (p Value_Field_Future) Struct() (Value_Field, error) {
-	s, err := p.Future.Struct()
-	return Value_Field(s), err
+func (f Value_Field_Future) Struct() (Value_Field, error) {
+	p, err := f.Future.Ptr()
+	return Value_Field(p.Struct()), err
 }
-
 func (p Value_Field_Future) Value() Value_Future {
 	return Value_Future{Future: p.Future.Field(1, nil)}
 }
@@ -483,9 +479,9 @@ func NewValue_Call_List(s *capnp.Segment, sz int32) (Value_Call_List, error) {
 // Value_Call_Future is a wrapper for a Value_Call promised by a client call.
 type Value_Call_Future struct{ *capnp.Future }
 
-func (p Value_Call_Future) Struct() (Value_Call, error) {
-	s, err := p.Future.Struct()
-	return Value_Call(s), err
+func (f Value_Call_Future) Struct() (Value_Call, error) {
+	p, err := f.Future.Ptr()
+	return Value_Call(p.Struct()), err
 }
 
 type FlattenOptions capnp.Struct
@@ -565,9 +561,9 @@ func NewFlattenOptions_List(s *capnp.Segment, sz int32) (FlattenOptions_List, er
 // FlattenOptions_Future is a wrapper for a FlattenOptions promised by a client call.
 type FlattenOptions_Future struct{ *capnp.Future }
 
-func (p FlattenOptions_Future) Struct() (FlattenOptions, error) {
-	s, err := p.Future.Struct()
-	return FlattenOptions(s), err
+func (f FlattenOptions_Future) Struct() (FlattenOptions, error) {
+	p, err := f.Future.Ptr()
+	return FlattenOptions(p.Struct()), err
 }
 
 type DiscriminatorOptions capnp.Struct
@@ -665,9 +661,9 @@ func NewDiscriminatorOptions_List(s *capnp.Segment, sz int32) (DiscriminatorOpti
 // DiscriminatorOptions_Future is a wrapper for a DiscriminatorOptions promised by a client call.
 type DiscriminatorOptions_Future struct{ *capnp.Future }
 
-func (p DiscriminatorOptions_Future) Struct() (DiscriminatorOptions, error) {
-	s, err := p.Future.Struct()
-	return DiscriminatorOptions(s), err
+func (f DiscriminatorOptions_Future) Struct() (DiscriminatorOptions, error) {
+	p, err := f.Future.Ptr()
+	return DiscriminatorOptions(p.Struct()), err
 }
 
 const schema_8ef99297a43a5e34 = "x\xda\x8c\x94_h[e\x18\xc6\x9f\xe7\xfb\xce9\xeb" +

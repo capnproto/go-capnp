@@ -166,7 +166,6 @@ func (s Node) NewParameters(n int32) (Node_Parameter_List, error) {
 	err = capnp.Struct(s).SetPtr(5, l.ToPtr())
 	return l, err
 }
-
 func (s Node) IsGeneric() bool {
 	return capnp.Struct(s).Bit(288)
 }
@@ -198,7 +197,6 @@ func (s Node) NewNestedNodes(n int32) (Node_NestedNode_List, error) {
 	err = capnp.Struct(s).SetPtr(1, l.ToPtr())
 	return l, err
 }
-
 func (s Node) Annotations() (Annotation_List, error) {
 	p, err := capnp.Struct(s).Ptr(2)
 	return Annotation_List(p.List()), err
@@ -222,7 +220,6 @@ func (s Node) NewAnnotations(n int32) (Annotation_List, error) {
 	err = capnp.Struct(s).SetPtr(2, l.ToPtr())
 	return l, err
 }
-
 func (s Node) SetFile() {
 	capnp.Struct(s).SetUint16(12, 0)
 
@@ -316,7 +313,6 @@ func (s Node_structNode) NewFields(n int32) (Field_List, error) {
 	err = capnp.Struct(s).SetPtr(3, l.ToPtr())
 	return l, err
 }
-
 func (s Node) Enum() Node_enum { return Node_enum(s) }
 
 func (s Node) SetEnum() {
@@ -357,7 +353,6 @@ func (s Node_enum) NewEnumerants(n int32) (Enumerant_List, error) {
 	err = capnp.Struct(s).SetPtr(3, l.ToPtr())
 	return l, err
 }
-
 func (s Node) Interface() Node_interface { return Node_interface(s) }
 
 func (s Node) SetInterface() {
@@ -398,7 +393,6 @@ func (s Node_interface) NewMethods(n int32) (Method_List, error) {
 	err = capnp.Struct(s).SetPtr(3, l.ToPtr())
 	return l, err
 }
-
 func (s Node_interface) Superclasses() (Superclass_List, error) {
 	p, err := capnp.Struct(s).Ptr(4)
 	return Superclass_List(p.List()), err
@@ -422,7 +416,6 @@ func (s Node_interface) NewSuperclasses(n int32) (Superclass_List, error) {
 	err = capnp.Struct(s).SetPtr(4, l.ToPtr())
 	return l, err
 }
-
 func (s Node) Const() Node_const { return Node_const(s) }
 
 func (s Node) SetConst() {
@@ -637,69 +630,61 @@ func NewNode_List(s *capnp.Segment, sz int32) (Node_List, error) {
 // Node_Future is a wrapper for a Node promised by a client call.
 type Node_Future struct{ *capnp.Future }
 
-func (p Node_Future) Struct() (Node, error) {
-	s, err := p.Future.Struct()
-	return Node(s), err
+func (f Node_Future) Struct() (Node, error) {
+	p, err := f.Future.Ptr()
+	return Node(p.Struct()), err
 }
-
 func (p Node_Future) StructNode() Node_structNode_Future { return Node_structNode_Future{p.Future} }
 
 // Node_structNode_Future is a wrapper for a Node_structNode promised by a client call.
 type Node_structNode_Future struct{ *capnp.Future }
 
-func (p Node_structNode_Future) Struct() (Node_structNode, error) {
-	s, err := p.Future.Struct()
-	return Node_structNode(s), err
+func (f Node_structNode_Future) Struct() (Node_structNode, error) {
+	p, err := f.Future.Ptr()
+	return Node_structNode(p.Struct()), err
 }
-
 func (p Node_Future) Enum() Node_enum_Future { return Node_enum_Future{p.Future} }
 
 // Node_enum_Future is a wrapper for a Node_enum promised by a client call.
 type Node_enum_Future struct{ *capnp.Future }
 
-func (p Node_enum_Future) Struct() (Node_enum, error) {
-	s, err := p.Future.Struct()
-	return Node_enum(s), err
+func (f Node_enum_Future) Struct() (Node_enum, error) {
+	p, err := f.Future.Ptr()
+	return Node_enum(p.Struct()), err
 }
-
 func (p Node_Future) Interface() Node_interface_Future { return Node_interface_Future{p.Future} }
 
 // Node_interface_Future is a wrapper for a Node_interface promised by a client call.
 type Node_interface_Future struct{ *capnp.Future }
 
-func (p Node_interface_Future) Struct() (Node_interface, error) {
-	s, err := p.Future.Struct()
-	return Node_interface(s), err
+func (f Node_interface_Future) Struct() (Node_interface, error) {
+	p, err := f.Future.Ptr()
+	return Node_interface(p.Struct()), err
 }
-
 func (p Node_Future) Const() Node_const_Future { return Node_const_Future{p.Future} }
 
 // Node_const_Future is a wrapper for a Node_const promised by a client call.
 type Node_const_Future struct{ *capnp.Future }
 
-func (p Node_const_Future) Struct() (Node_const, error) {
-	s, err := p.Future.Struct()
-	return Node_const(s), err
+func (f Node_const_Future) Struct() (Node_const, error) {
+	p, err := f.Future.Ptr()
+	return Node_const(p.Struct()), err
 }
-
 func (p Node_const_Future) Type() Type_Future {
 	return Type_Future{Future: p.Future.Field(3, nil)}
 }
-
 func (p Node_const_Future) Value() Value_Future {
 	return Value_Future{Future: p.Future.Field(4, nil)}
 }
-
 func (p Node_Future) Annotation() Node_annotation_Future { return Node_annotation_Future{p.Future} }
 
 // Node_annotation_Future is a wrapper for a Node_annotation promised by a client call.
 type Node_annotation_Future struct{ *capnp.Future }
 
-func (p Node_annotation_Future) Struct() (Node_annotation, error) {
-	s, err := p.Future.Struct()
-	return Node_annotation(s), err
+func (f Node_annotation_Future) Struct() (Node_annotation, error) {
+	p, err := f.Future.Ptr()
+	return Node_annotation(p.Struct()), err
 }
-
 func (p Node_annotation_Future) Type() Type_Future {
 	return Type_Future{Future: p.Future.Field(3, nil)}
 }
@@ -781,9 +766,9 @@ func NewNode_Parameter_List(s *capnp.Segment, sz int32) (Node_Parameter_List, er
 // Node_Parameter_Future is a wrapper for a Node_Parameter promised by a client call.
 type Node_Parameter_Future struct{ *capnp.Future }
 
-func (p Node_Parameter_Future) Struct() (Node_Parameter, error) {
-	s, err := p.Future.Struct()
-	return Node_Parameter(s), err
+func (f Node_Parameter_Future) Struct() (Node_Parameter, error) {
+	p, err := f.Future.Ptr()
+	return Node_Parameter(p.Struct()), err
 }
 
 type Node_NestedNode capnp.Struct
@@ -871,9 +856,9 @@ func NewNode_NestedNode_List(s *capnp.Segment, sz int32) (Node_NestedNode_List, 
 // Node_NestedNode_Future is a wrapper for a Node_NestedNode promised by a client call.
 type Node_NestedNode_Future struct{ *capnp.Future }
 
-func (p Node_NestedNode_Future) Struct() (Node_NestedNode, error) {
-	s, err := p.Future.Struct()
-	return Node_NestedNode(s), err
+func (f Node_NestedNode_Future) Struct() (Node_NestedNode, error) {
+	p, err := f.Future.Ptr()
+	return Node_NestedNode(p.Struct()), err
 }
 
 type Node_SourceInfo capnp.Struct
@@ -985,9 +970,9 @@ func NewNode_SourceInfo_List(s *capnp.Segment, sz int32) (Node_SourceInfo_List, 
 // Node_SourceInfo_Future is a wrapper for a Node_SourceInfo promised by a client call.
 type Node_SourceInfo_Future struct{ *capnp.Future }
 
-func (p Node_SourceInfo_Future) Struct() (Node_SourceInfo, error) {
-	s, err := p.Future.Struct()
-	return Node_SourceInfo(s), err
+func (f Node_SourceInfo_Future) Struct() (Node_SourceInfo, error) {
+	p, err := f.Future.Ptr()
+	return Node_SourceInfo(p.Struct()), err
 }
 
 type Node_SourceInfo_Member capnp.Struct
@@ -1067,9 +1052,9 @@ func NewNode_SourceInfo_Member_List(s *capnp.Segment, sz int32) (Node_SourceInfo
 // Node_SourceInfo_Member_Future is a wrapper for a Node_SourceInfo_Member promised by a client call.
 type Node_SourceInfo_Member_Future struct{ *capnp.Future }
 
-func (p Node_SourceInfo_Member_Future) Struct() (Node_SourceInfo_Member, error) {
-	s, err := p.Future.Struct()
-	return Node_SourceInfo_Member(s), err
+func (f Node_SourceInfo_Member_Future) Struct() (Node_SourceInfo_Member, error) {
+	p, err := f.Future.Ptr()
+	return Node_SourceInfo_Member(p.Struct()), err
 }
 
 type Field capnp.Struct
@@ -1212,7 +1197,6 @@ func (s Field) NewAnnotations(n int32) (Annotation_List, error) {
 	err = capnp.Struct(s).SetPtr(1, l.ToPtr())
 	return l, err
 }
-
 func (s Field) DiscriminantValue() uint16 {
 	return capnp.Struct(s).Uint16(2) ^ 65535
 }
@@ -1372,47 +1356,42 @@ func NewField_List(s *capnp.Segment, sz int32) (Field_List, error) {
 // Field_Future is a wrapper for a Field promised by a client call.
 type Field_Future struct{ *capnp.Future }
 
-func (p Field_Future) Struct() (Field, error) {
-	s, err := p.Future.Struct()
-	return Field(s), err
+func (f Field_Future) Struct() (Field, error) {
+	p, err := f.Future.Ptr()
+	return Field(p.Struct()), err
 }
-
 func (p Field_Future) Slot() Field_slot_Future { return Field_slot_Future{p.Future} }
 
 // Field_slot_Future is a wrapper for a Field_slot promised by a client call.
 type Field_slot_Future struct{ *capnp.Future }
 
-func (p Field_slot_Future) Struct() (Field_slot, error) {
-	s, err := p.Future.Struct()
-	return Field_slot(s), err
+func (f Field_slot_Future) Struct() (Field_slot, error) {
+	p, err := f.Future.Ptr()
+	return Field_slot(p.Struct()), err
 }
-
 func (p Field_slot_Future) Type() Type_Future {
 	return Type_Future{Future: p.Future.Field(2, nil)}
 }
-
 func (p Field_slot_Future) DefaultValue() Value_Future {
 	return Value_Future{Future: p.Future.Field(3, nil)}
 }
-
 func (p Field_Future) Group() Field_group_Future { return Field_group_Future{p.Future} }
 
 // Field_group_Future is a wrapper for a Field_group promised by a client call.
 type Field_group_Future struct{ *capnp.Future }
 
-func (p Field_group_Future) Struct() (Field_group, error) {
-	s, err := p.Future.Struct()
-	return Field_group(s), err
+func (f Field_group_Future) Struct() (Field_group, error) {
+	p, err := f.Future.Ptr()
+	return Field_group(p.Struct()), err
 }
-
 func (p Field_Future) Ordinal() Field_ordinal_Future { return Field_ordinal_Future{p.Future} }
 
 // Field_ordinal_Future is a wrapper for a Field_ordinal promised by a client call.
 type Field_ordinal_Future struct{ *capnp.Future }
 
-func (p Field_ordinal_Future) Struct() (Field_ordinal, error) {
-	s, err := p.Future.Struct()
-	return Field_ordinal(s), err
+func (f Field_ordinal_Future) Struct() (Field_ordinal, error) {
+	p, err := f.Future.Ptr()
+	return Field_ordinal(p.Struct()), err
 }
 
 type Enumerant capnp.Struct
@@ -1524,9 +1503,9 @@ func NewEnumerant_List(s *capnp.Segment, sz int32) (Enumerant_List, error) {
 // Enumerant_Future is a wrapper for a Enumerant promised by a client call.
 type Enumerant_Future struct{ *capnp.Future }
 
-func (p Enumerant_Future) Struct() (Enumerant, error) {
-	s, err := p.Future.Struct()
-	return Enumerant(s), err
+func (f Enumerant_Future) Struct() (Enumerant, error) {
+	p, err := f.Future.Ptr()
+	return Enumerant(p.Struct()), err
 }
 
 type Superclass capnp.Struct
@@ -1620,11 +1599,10 @@ func NewSuperclass_List(s *capnp.Segment, sz int32) (Superclass_List, error) {
 // Superclass_Future is a wrapper for a Superclass promised by a client call.
 type Superclass_Future struct{ *capnp.Future }
 
-func (p Superclass_Future) Struct() (Superclass, error) {
-	s, err := p.Future.Struct()
-	return Superclass(s), err
+func (f Superclass_Future) Struct() (Superclass, error) {
+	p, err := f.Future.Ptr()
+	return Superclass(p.Struct()), err
 }
-
 func (p Superclass_Future) Brand() Brand_Future {
 	return Brand_Future{Future: p.Future.Field(0, nil)}
 }
@@ -1725,7 +1703,6 @@ func (s Method) NewImplicitParameters(n int32) (Node_Parameter_List, error) {
 	err = capnp.Struct(s).SetPtr(4, l.ToPtr())
 	return l, err
 }
-
 func (s Method) ParamStructType() uint64 {
 	return capnp.Struct(s).Uint64(8)
 }
@@ -1826,15 +1803,13 @@ func NewMethod_List(s *capnp.Segment, sz int32) (Method_List, error) {
 // Method_Future is a wrapper for a Method promised by a client call.
 type Method_Future struct{ *capnp.Future }
 
-func (p Method_Future) Struct() (Method, error) {
-	s, err := p.Future.Struct()
-	return Method(s), err
+func (f Method_Future) Struct() (Method, error) {
+	p, err := f.Future.Ptr()
+	return Method(p.Struct()), err
 }
-
 func (p Method_Future) ParamBrand() Brand_Future {
 	return Brand_Future{Future: p.Future.Field(2, nil)}
 }
-
 func (p Method_Future) ResultBrand() Brand_Future {
 	return Brand_Future{Future: p.Future.Field(3, nil)}
 }
@@ -2406,77 +2381,67 @@ func NewType_List(s *capnp.Segment, sz int32) (Type_List, error) {
 // Type_Future is a wrapper for a Type promised by a client call.
 type Type_Future struct{ *capnp.Future }
 
-func (p Type_Future) Struct() (Type, error) {
-	s, err := p.Future.Struct()
-	return Type(s), err
+func (f Type_Future) Struct() (Type, error) {
+	p, err := f.Future.Ptr()
+	return Type(p.Struct()), err
 }
-
 func (p Type_Future) List() Type_list_Future { return Type_list_Future{p.Future} }
 
 // Type_list_Future is a wrapper for a Type_list promised by a client call.
 type Type_list_Future struct{ *capnp.Future }
 
-func (p Type_list_Future) Struct() (Type_list, error) {
-	s, err := p.Future.Struct()
-	return Type_list(s), err
+func (f Type_list_Future) Struct() (Type_list, error) {
+	p, err := f.Future.Ptr()
+	return Type_list(p.Struct()), err
 }
-
 func (p Type_list_Future) ElementType() Type_Future {
 	return Type_Future{Future: p.Future.Field(0, nil)}
 }
-
 func (p Type_Future) Enum() Type_enum_Future { return Type_enum_Future{p.Future} }
 
 // Type_enum_Future is a wrapper for a Type_enum promised by a client call.
 type Type_enum_Future struct{ *capnp.Future }
 
-func (p Type_enum_Future) Struct() (Type_enum, error) {
-	s, err := p.Future.Struct()
-	return Type_enum(s), err
+func (f Type_enum_Future) Struct() (Type_enum, error) {
+	p, err := f.Future.Ptr()
+	return Type_enum(p.Struct()), err
 }
-
 func (p Type_enum_Future) Brand() Brand_Future {
 	return Brand_Future{Future: p.Future.Field(0, nil)}
 }
-
 func (p Type_Future) StructType() Type_structType_Future { return Type_structType_Future{p.Future} }
 
 // Type_structType_Future is a wrapper for a Type_structType promised by a client call.
 type Type_structType_Future struct{ *capnp.Future }
 
-func (p Type_structType_Future) Struct() (Type_structType, error) {
-	s, err := p.Future.Struct()
-	return Type_structType(s), err
+func (f Type_structType_Future) Struct() (Type_structType, error) {
+	p, err := f.Future.Ptr()
+	return Type_structType(p.Struct()), err
 }
-
 func (p Type_structType_Future) Brand() Brand_Future {
 	return Brand_Future{Future: p.Future.Field(0, nil)}
 }
-
 func (p Type_Future) Interface() Type_interface_Future { return Type_interface_Future{p.Future} }
 
 // Type_interface_Future is a wrapper for a Type_interface promised by a client call.
 type Type_interface_Future struct{ *capnp.Future }
 
-func (p Type_interface_Future) Struct() (Type_interface, error) {
-	s, err := p.Future.Struct()
-	return Type_interface(s), err
+func (f Type_interface_Future) Struct() (Type_interface, error) {
+	p, err := f.Future.Ptr()
+	return Type_interface(p.Struct()), err
 }
-
 func (p Type_interface_Future) Brand() Brand_Future {
 	return Brand_Future{Future: p.Future.Field(0, nil)}
 }
-
 func (p Type_Future) AnyPointer() Type_anyPointer_Future { return Type_anyPointer_Future{p.Future} }
 
 // Type_anyPointer_Future is a wrapper for a Type_anyPointer promised by a client call.
 type Type_anyPointer_Future struct{ *capnp.Future }
 
-func (p Type_anyPointer_Future) Struct() (Type_anyPointer, error) {
-	s, err := p.Future.Struct()
-	return Type_anyPointer(s), err
+func (f Type_anyPointer_Future) Struct() (Type_anyPointer, error) {
+	p, err := f.Future.Ptr()
+	return Type_anyPointer(p.Struct()), err
 }
-
 func (p Type_anyPointer_Future) Unconstrained() Type_anyPointer_unconstrained_Future {
 	return Type_anyPointer_unconstrained_Future{p.Future}
 }
@@ -2484,11 +2449,10 @@ func (p Type_anyPointer_Future) Unconstrained() Type_anyPointer_unconstrained_Fu
 // Type_anyPointer_unconstrained_Future is a wrapper for a Type_anyPointer_unconstrained promised by a client call.
 type Type_anyPointer_unconstrained_Future struct{ *capnp.Future }
 
-func (p Type_anyPointer_unconstrained_Future) Struct() (Type_anyPointer_unconstrained, error) {
-	s, err := p.Future.Struct()
-	return Type_anyPointer_unconstrained(s), err
+func (f Type_anyPointer_unconstrained_Future) Struct() (Type_anyPointer_unconstrained, error) {
+	p, err := f.Future.Ptr()
+	return Type_anyPointer_unconstrained(p.Struct()), err
 }
-
 func (p Type_anyPointer_Future) Parameter() Type_anyPointer_parameter_Future {
 	return Type_anyPointer_parameter_Future{p.Future}
 }
@@ -2496,11 +2460,10 @@ func (p Type_anyPointer_Future) Parameter() Type_anyPointer_parameter_Future {
 // Type_anyPointer_parameter_Future is a wrapper for a Type_anyPointer_parameter promised by a client call.
 type Type_anyPointer_parameter_Future struct{ *capnp.Future }
 
-func (p Type_anyPointer_parameter_Future) Struct() (Type_anyPointer_parameter, error) {
-	s, err := p.Future.Struct()
-	return Type_anyPointer_parameter(s), err
+func (f Type_anyPointer_parameter_Future) Struct() (Type_anyPointer_parameter, error) {
+	p, err := f.Future.Ptr()
+	return Type_anyPointer_parameter(p.Struct()), err
 }
-
 func (p Type_anyPointer_Future) ImplicitMethodParameter() Type_anyPointer_implicitMethodParameter_Future {
 	return Type_anyPointer_implicitMethodParameter_Future{p.Future}
 }
@@ -2508,9 +2471,9 @@ func (p Type_anyPointer_Future) ImplicitMethodParameter() Type_anyPointer_implic
 // Type_anyPointer_implicitMethodParameter_Future is a wrapper for a Type_anyPointer_implicitMethodParameter promised by a client call.
 type Type_anyPointer_implicitMethodParameter_Future struct{ *capnp.Future }
 
-func (p Type_anyPointer_implicitMethodParameter_Future) Struct() (Type_anyPointer_implicitMethodParameter, error) {
-	s, err := p.Future.Struct()
-	return Type_anyPointer_implicitMethodParameter(s), err
+func (f Type_anyPointer_implicitMethodParameter_Future) Struct() (Type_anyPointer_implicitMethodParameter, error) {
+	p, err := f.Future.Ptr()
+	return Type_anyPointer_implicitMethodParameter(p.Struct()), err
 }
 
 type Brand capnp.Struct
@@ -2596,9 +2559,9 @@ func NewBrand_List(s *capnp.Segment, sz int32) (Brand_List, error) {
 // Brand_Future is a wrapper for a Brand promised by a client call.
 type Brand_Future struct{ *capnp.Future }
 
-func (p Brand_Future) Struct() (Brand, error) {
-	s, err := p.Future.Struct()
-	return Brand(s), err
+func (f Brand_Future) Struct() (Brand, error) {
+	p, err := f.Future.Ptr()
+	return Brand(p.Struct()), err
 }
 
 type Brand_Scope capnp.Struct
@@ -2709,7 +2672,6 @@ func (s Brand_Scope) NewBind(n int32) (Brand_Binding_List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s Brand_Scope) SetInherit() {
 	capnp.Struct(s).SetUint16(8, 1)
 
@@ -2727,9 +2689,9 @@ func NewBrand_Scope_List(s *capnp.Segment, sz int32) (Brand_Scope_List, error) {
 // Brand_Scope_Future is a wrapper for a Brand_Scope promised by a client call.
 type Brand_Scope_Future struct{ *capnp.Future }
 
-func (p Brand_Scope_Future) Struct() (Brand_Scope, error) {
-	s, err := p.Future.Struct()
-	return Brand_Scope(s), err
+func (f Brand_Scope_Future) Struct() (Brand_Scope, error) {
+	p, err := f.Future.Ptr()
+	return Brand_Scope(p.Struct()), err
 }
 
 type Brand_Binding capnp.Struct
@@ -2850,11 +2812,10 @@ func NewBrand_Binding_List(s *capnp.Segment, sz int32) (Brand_Binding_List, erro
 // Brand_Binding_Future is a wrapper for a Brand_Binding promised by a client call.
 type Brand_Binding_Future struct{ *capnp.Future }
 
-func (p Brand_Binding_Future) Struct() (Brand_Binding, error) {
-	s, err := p.Future.Struct()
-	return Brand_Binding(s), err
+func (f Brand_Binding_Future) Struct() (Brand_Binding, error) {
+	p, err := f.Future.Ptr()
+	return Brand_Binding(p.Struct()), err
 }
-
 func (p Brand_Binding_Future) Type() Type_Future {
 	return Type_Future{Future: p.Future.Field(0, nil)}
 }
@@ -3179,7 +3140,6 @@ func (s Value) SetList(v capnp.Ptr) error {
 	capnp.Struct(s).SetUint16(0, 14)
 	return capnp.Struct(s).SetPtr(0, v)
 }
-
 func (s Value) Enum() uint16 {
 	if capnp.Struct(s).Uint16(0) != 15 {
 		panic("Which() != enum")
@@ -3210,7 +3170,6 @@ func (s Value) SetStructValue(v capnp.Ptr) error {
 	capnp.Struct(s).SetUint16(0, 16)
 	return capnp.Struct(s).SetPtr(0, v)
 }
-
 func (s Value) SetInterface() {
 	capnp.Struct(s).SetUint16(0, 17)
 
@@ -3247,19 +3206,16 @@ func NewValue_List(s *capnp.Segment, sz int32) (Value_List, error) {
 // Value_Future is a wrapper for a Value promised by a client call.
 type Value_Future struct{ *capnp.Future }
 
-func (p Value_Future) Struct() (Value, error) {
-	s, err := p.Future.Struct()
-	return Value(s), err
+func (f Value_Future) Struct() (Value, error) {
+	p, err := f.Future.Ptr()
+	return Value(p.Struct()), err
 }
-
 func (p Value_Future) List() *capnp.Future {
 	return p.Future.Field(0, nil)
 }
-
 func (p Value_Future) StructValue() *capnp.Future {
 	return p.Future.Field(0, nil)
 }
-
 func (p Value_Future) AnyPointer() *capnp.Future {
 	return p.Future.Field(0, nil)
 }
@@ -3379,15 +3335,13 @@ func NewAnnotation_List(s *capnp.Segment, sz int32) (Annotation_List, error) {
 // Annotation_Future is a wrapper for a Annotation promised by a client call.
 type Annotation_Future struct{ *capnp.Future }
 
-func (p Annotation_Future) Struct() (Annotation, error) {
-	s, err := p.Future.Struct()
-	return Annotation(s), err
+func (f Annotation_Future) Struct() (Annotation, error) {
+	p, err := f.Future.Ptr()
+	return Annotation(p.Struct()), err
 }
-
 func (p Annotation_Future) Brand() Brand_Future {
 	return Brand_Future{Future: p.Future.Field(1, nil)}
 }
-
 func (p Annotation_Future) Value() Value_Future {
 	return Value_Future{Future: p.Future.Field(0, nil)}
 }
@@ -3549,9 +3503,9 @@ func NewCapnpVersion_List(s *capnp.Segment, sz int32) (CapnpVersion_List, error)
 // CapnpVersion_Future is a wrapper for a CapnpVersion promised by a client call.
 type CapnpVersion_Future struct{ *capnp.Future }
 
-func (p CapnpVersion_Future) Struct() (CapnpVersion, error) {
-	s, err := p.Future.Struct()
-	return CapnpVersion(s), err
+func (f CapnpVersion_Future) Struct() (CapnpVersion, error) {
+	p, err := f.Future.Ptr()
+	return CapnpVersion(p.Struct()), err
 }
 
 type CodeGeneratorRequest capnp.Struct
@@ -3648,7 +3602,6 @@ func (s CodeGeneratorRequest) NewNodes(n int32) (Node_List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-
 func (s CodeGeneratorRequest) SourceInfo() (Node_SourceInfo_List, error) {
 	p, err := capnp.Struct(s).Ptr(3)
 	return Node_SourceInfo_List(p.List()), err
@@ -3672,7 +3625,6 @@ func (s CodeGeneratorRequest) NewSourceInfo(n int32) (Node_SourceInfo_List, erro
 	err = capnp.Struct(s).SetPtr(3, l.ToPtr())
 	return l, err
 }
-
 func (s CodeGeneratorRequest) RequestedFiles() (CodeGeneratorRequest_RequestedFile_List, error) {
 	p, err := capnp.Struct(s).Ptr(1)
 	return CodeGeneratorRequest_RequestedFile_List(p.List()), err
@@ -3709,11 +3661,10 @@ func NewCodeGeneratorRequest_List(s *capnp.Segment, sz int32) (CodeGeneratorRequ
 // CodeGeneratorRequest_Future is a wrapper for a CodeGeneratorRequest promised by a client call.
 type CodeGeneratorRequest_Future struct{ *capnp.Future }
 
-func (p CodeGeneratorRequest_Future) Struct() (CodeGeneratorRequest, error) {
-	s, err := p.Future.Struct()
-	return CodeGeneratorRequest(s), err
+func (f CodeGeneratorRequest_Future) Struct() (CodeGeneratorRequest, error) {
+	p, err := f.Future.Ptr()
+	return CodeGeneratorRequest(p.Struct()), err
 }
-
 func (p CodeGeneratorRequest_Future) CapnpVersion() CapnpVersion_Future {
 	return CapnpVersion_Future{Future: p.Future.Field(2, nil)}
 }
@@ -3827,9 +3778,9 @@ func NewCodeGeneratorRequest_RequestedFile_List(s *capnp.Segment, sz int32) (Cod
 // CodeGeneratorRequest_RequestedFile_Future is a wrapper for a CodeGeneratorRequest_RequestedFile promised by a client call.
 type CodeGeneratorRequest_RequestedFile_Future struct{ *capnp.Future }
 
-func (p CodeGeneratorRequest_RequestedFile_Future) Struct() (CodeGeneratorRequest_RequestedFile, error) {
-	s, err := p.Future.Struct()
-	return CodeGeneratorRequest_RequestedFile(s), err
+func (f CodeGeneratorRequest_RequestedFile_Future) Struct() (CodeGeneratorRequest_RequestedFile, error) {
+	p, err := f.Future.Ptr()
+	return CodeGeneratorRequest_RequestedFile(p.Struct()), err
 }
 
 type CodeGeneratorRequest_RequestedFile_Import capnp.Struct
@@ -3917,9 +3868,9 @@ func NewCodeGeneratorRequest_RequestedFile_Import_List(s *capnp.Segment, sz int3
 // CodeGeneratorRequest_RequestedFile_Import_Future is a wrapper for a CodeGeneratorRequest_RequestedFile_Import promised by a client call.
 type CodeGeneratorRequest_RequestedFile_Import_Future struct{ *capnp.Future }
 
-func (p CodeGeneratorRequest_RequestedFile_Import_Future) Struct() (CodeGeneratorRequest_RequestedFile_Import, error) {
-	s, err := p.Future.Struct()
-	return CodeGeneratorRequest_RequestedFile_Import(s), err
+func (f CodeGeneratorRequest_RequestedFile_Import_Future) Struct() (CodeGeneratorRequest_RequestedFile_Import, error) {
+	p, err := f.Future.Ptr()
+	return CodeGeneratorRequest_RequestedFile_Import(p.Struct()), err
 }
 
 const schema_a93fc509624c72d9 = "x\xda\xacz{\x90\x1c\xd5u\xf79\xb7\xe7\xb1\xaff" +

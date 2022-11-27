@@ -110,7 +110,7 @@ func NewSingleSegmentMessage(b []byte) (msg *Message, first *Segment) {
 	return msg, first
 }
 
-// Analogous to NewSingleSegmentMessage, but using MutliSegment.
+// Analogous to NewSingleSegmentMessage, but using MultiSegment.
 func NewMultiSegmentMessage(b [][]byte) (msg *Message, first *Segment) {
 	msg, first, err := NewMessage(MultiSegment(b))
 	if err != nil {
@@ -480,7 +480,41 @@ type MultiSegmentArena [][]byte
 // they are full.  b MAY be nil.  Callers MAY use b to populate the
 // buffer for reading or to reserve memory of a specific size.
 func MultiSegment(b [][]byte) *MultiSegmentArena {
+	if b == nil {
+		return multiSegmentPool.Get().(*MultiSegmentArena)
+	}
+	return multiSegment(b)
+}
+
+// Return this arena to an internal sync.Pool of arenas that can be
+// re-used. Any time MultiSegment(nil) is called, arenas from this
+// pool will be used if available, which can help reduce memory
+// allocations. Calling Release however is optional; if not done
+// the garbage collector will release the memory per usual.
+func (msa *MultiSegmentArena) Release() {
+	for i, v := range *msa {
+		// Clear the memory, so there's no junk in here for the next use:
+		for j, _ := range v {
+			v[j] = 0
+		}
+
+		// Truncate the segment, since we use the length as the marker for
+		// what's allocated:
+		(*msa)[i] = v[:0]
+	}
+	(*msa) = (*msa)[:0] // Hide the segments
+	multiSegmentPool.Put(msa)
+}
+
+// Like MultiSegment, but doesn't use the pool
+func multiSegment(b [][]byte) *MultiSegmentArena {
 	return (*MultiSegmentArena)(&b)
+}
+
+var multiSegmentPool = sync.Pool{
+	New: func() any {
+		return multiSegment(nil)
+	},
 }
 
 // demuxArena slices b into a multi-segment arena.  It assumes that
@@ -514,7 +548,11 @@ func (msa *MultiSegmentArena) Data(id SegmentID) ([]byte, error) {
 
 func (msa *MultiSegmentArena) Allocate(sz Size, segs map[SegmentID]*Segment) (SegmentID, []byte, error) {
 	var total int64
-	for i, data := range *msa {
+	for i := 0; i < cap(*msa); i++ {
+		if i == len(*msa) {
+			(*msa) = (*msa)[:i+1]
+		}
+		data := (*msa)[i]
 		id := SegmentID(i)
 		if s := segs[id]; s != nil {
 			data = s.data
@@ -770,9 +808,6 @@ type Encoder struct {
 	w      io.Writer
 	hdrbuf []byte
 	bufs   [][]byte
-
-	packed  bool
-	packbuf []byte
 }
 
 // NewEncoder creates a new Cap'n Proto framer that writes to w.
@@ -783,7 +818,7 @@ func NewEncoder(w io.Writer) *Encoder {
 // NewPackedEncoder creates a new Cap'n Proto framer that writes to a
 // packed stream w.
 func NewPackedEncoder(w io.Writer) *Encoder {
-	return &Encoder{w: w, packed: true}
+	return NewEncoder(&packed.Writer{Writer: w})
 }
 
 // Encode writes a message to the encoder stream.
@@ -816,25 +851,11 @@ func (e *Encoder) Encode(m *Message) error {
 		e.hdrbuf = appendUint32(e.hdrbuf, 0)
 	}
 	e.bufs[0] = e.hdrbuf
-	if e.packed {
-		if err := e.writePacked(e.bufs); err != nil {
-			return errorf("encode: %v", err)
-		}
-		return nil
-	}
+
 	if err := e.write(e.bufs); err != nil {
 		return errorf("encode: %v", err)
 	}
-	return nil
-}
 
-func (e *Encoder) writePacked(bufs [][]byte) error {
-	for _, b := range bufs {
-		e.packbuf = packed.Pack(e.packbuf[:0], b)
-		if _, err := e.w.Write(e.packbuf); err != nil {
-			return err
-		}
-	}
 	return nil
 }
 

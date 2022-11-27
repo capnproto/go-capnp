@@ -68,6 +68,8 @@ type (
 	structListFieldParams       structObjectFieldParams
 	structPointerFieldParams    structObjectFieldParams
 	structStructFieldParams     structObjectFieldParams
+	structAnyStructFieldParams  structObjectFieldParams
+	structAnyListFieldParams    structObjectFieldParams
 )
 
 type structBoolFieldParams struct {
@@ -151,11 +153,18 @@ type promiseFieldStructParams struct {
 	Default staticDataRef
 }
 
-type promiseFieldAnyPointerParams struct {
+type promiseFieldParams struct {
 	G     *generator
 	Node  *node
 	Field field
 }
+
+type (
+	promiseFieldAnyPointerParams promiseFieldParams
+	promiseFieldAnyStructParams  promiseFieldParams
+	promiseCapabilityFieldParams promiseFieldParams
+	promiseFieldAnyListParams    promiseFieldParams
+)
 
 type promiseFieldInterfaceParams struct {
 	G         *generator
