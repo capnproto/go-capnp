@@ -295,18 +295,27 @@ func (c *Conn) Done() <-chan struct{} {
 // an abort message before closing.  The caller MUST be hold c.mu.
 func (c *Conn) shutdown(abortErr error) (err error) {
 	if !c.closing {
-		defer close(c.closed)
 		c.closing = true
-
 		c.bgcancel()
+
+		readyForClose := make(chan struct{})
+		go func() {
+			defer close(c.closed)
+			select {
+			case <-readyForClose:
+			case <-time.After(c.abortTimeout):
+			}
+			if err = c.transport.Close(); err != nil {
+				err = rpcerr.Failedf("close transport: %w", err)
+			}
+		}()
+
 		c.stopTasks()
 		syncutil.Without(&c.mu, c.drainQueue)
 		c.release()
 		c.abort(abortErr)
-
-		if err = c.transport.Close(); err != nil {
-			err = rpcerr.Failedf("close transport: %w", err)
-		}
+		close(readyForClose)
+		<-c.closed
 	}
 
 	return

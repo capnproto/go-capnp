@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"runtime"
 	"strings"
@@ -58,12 +59,15 @@ func TestSendAbort(t *testing.T) {
 	t.Run("ReceiverListening", func(t *testing.T) {
 		t.Parallel()
 
-		left, right := transport.NewPipe(1)
-		p1, p2 := rpc.NewTransport(left), rpc.NewTransport(right)
+		left, right := net.Pipe()
+		p1, p2 := transport.NewStream(left), transport.NewStream(right)
 		defer p2.Close()
 
 		conn := rpc.NewConn(p1, &rpc.Options{
 			ErrorReporter: testErrorReporter{tb: t, fail: true},
+			// Give it plenty of time to actually send the message;
+			// otherwise we might time out and close the connection first.
+			AbortTimeout: time.Second,
 		})
 
 		ctx := context.Background()
@@ -72,14 +76,18 @@ func TestSendAbort(t *testing.T) {
 			t.Error("conn.Done closed before Close")
 		default:
 		}
-		if err := conn.Close(); err != nil {
-			t.Error("conn.Close():", err)
-		}
-		select {
-		case <-conn.Done():
-		default:
-			t.Error("conn.Done open after Close")
-		}
+
+		go func() {
+			if err := conn.Close(); err != nil {
+				t.Error("conn.Close():", err)
+			}
+			select {
+			case <-conn.Done():
+			default:
+				t.Error("conn.Done open after Close")
+			}
+		}()
+
 		rmsg, release, err := recvMessage(ctx, p2)
 		if err != nil {
 			t.Fatal("recvMessage(ctx, p2):", err)
