@@ -105,9 +105,9 @@ func TestSendAbort(t *testing.T) {
 	t.Run("ReceiverNotListening", func(t *testing.T) {
 		t.Parallel()
 
-		p1, p2 := transport.NewPipe(0)
+		p1, p2 := net.Pipe()
 		defer p2.Close()
-		conn := rpc.NewConn(rpc.NewTransport(p1), &rpc.Options{
+		conn := rpc.NewConn(transport.NewStream(p1), &rpc.Options{
 			ErrorReporter: testErrorReporter{tb: t, fail: true},
 		})
 
