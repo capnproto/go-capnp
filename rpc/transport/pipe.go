@@ -2,8 +2,10 @@ package transport
 
 import (
 	"io"
+	"sync"
 
 	capnp "capnproto.org/go/capnp/v3"
+	"capnproto.org/go/capnp/v3/internal/syncutil"
 )
 
 // NewPipe returns a pair of codecs which communicate over
@@ -29,6 +31,9 @@ func NewPipe(bufSz int) (c1, c2 Codec) {
 }
 
 type pipe struct {
+	// Must hold while sending or closing `send`:
+	sendMu sync.Mutex
+
 	send   chan<- *capnp.Message
 	recv   <-chan *capnp.Message
 	closed chan struct{}
@@ -44,15 +49,14 @@ func (p *pipe) Encode(m *capnp.Message) (err error) {
 		return err
 	}
 
-	// send-channel may be closed
-	defer func() {
-		if v := recover(); v != nil {
-			err = io.ErrClosedPipe
-		}
-	}()
-
-	p.send <- m
-	return nil
+	p.sendMu.Lock()
+	defer p.sendMu.Unlock()
+	select {
+	case p.send <- m:
+		return nil
+	case <-p.closed:
+		return io.ErrClosedPipe
+	}
 }
 
 func (p *pipe) Decode() (*capnp.Message, error) {
@@ -69,7 +73,10 @@ func (p *pipe) Decode() (*capnp.Message, error) {
 }
 
 func (p *pipe) Close() error {
-	close(p.send)
 	close(p.closed)
+	syncutil.With(&p.sendMu, func() {
+		close(p.send)
+		p.send = nil
+	})
 	return nil
 }
