@@ -12,6 +12,7 @@ import (
 	"capnproto.org/go/capnp/v3/exc"
 	"capnproto.org/go/capnp/v3/exp/mpsc"
 	"capnproto.org/go/capnp/v3/internal/syncutil"
+	"capnproto.org/go/capnp/v3/rpc/transport"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 	"golang.org/x/sync/errgroup"
 )
@@ -76,9 +77,11 @@ type Conn struct {
 	bgcancel context.CancelFunc
 	// tasks block shutdown.
 	tasks sync.WaitGroup
-	// Only the receive goroutine may call RecvMessage.
-	// Only the send goroutine may call NewMessage.
+
+	// The underlying transport. Only the reader & writer goroutines
+	// may do IO, but any thread may call NewMessage().
 	transport Transport
+
 	// mu protects all the following fields in the Conn.
 	mu      sync.Mutex
 	closing bool          // used to make shutdown() idempotent
@@ -454,8 +457,26 @@ func (c *Conn) send() error {
 func (c *Conn) receive() error {
 	ctx := c.bgctx
 
+	incoming := make(chan incomingMessage)
+	// We delegate actual IO to a separate goroutine, so we can always be responsive to the
+	// context:
+	go reader(ctx, incoming, c.transport)
+
 	for {
-		recv, release, err := c.transport.RecvMessage(ctx)
+		var (
+			recv    rpccp.Message
+			release capnp.ReleaseFunc
+			err     error
+		)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case in := <-incoming:
+			recv = in.msg
+			release = in.release
+			err = in.err
+		}
+
 		if err != nil {
 			return err
 		}
@@ -1477,6 +1498,36 @@ func (c *Conn) sendMessage(ctx context.Context, f func(rpccp.Message) error, cal
 		send:     send,
 		callback: callback,
 	})
+}
+
+// reader reads messages from the transport in a loop, and send them down the
+// 'in' channel, until the context is canceled or an error occurs. The first
+// time RecvMessage() returns an error, its results will still be sent on the
+// channel.
+func reader(ctx context.Context, in chan<- incomingMessage, t transport.Transport) {
+	for {
+		msg, release, err := t.RecvMessage(ctx)
+		incoming := incomingMessage{
+			msg:     msg,
+			release: release,
+			err:     err,
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case in <- incoming:
+		}
+		if err != nil {
+			return
+		}
+	}
+}
+
+// An incomingMessage bundles the reutrn values of Transport.RecvMessage.
+type incomingMessage struct {
+	msg     rpccp.Message
+	release capnp.ReleaseFunc
+	err     error
 }
 
 type asyncSend struct {
