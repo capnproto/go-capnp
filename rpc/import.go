@@ -99,7 +99,7 @@ func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, 
 
 	// Send call message.
 	syncutil.Without(&ic.c.mu, func() {
-		ic.c.sendMessage(func(m rpccp.Message) error {
+		ic.c.sendMessage(ctx, func(m rpccp.Message) error {
 			return ic.c.newImportCallMessage(m, ic.id, q.id, s)
 		}, func(err error) {
 			ic.c.mu.Lock()
@@ -236,7 +236,7 @@ func (ic *importClient) Shutdown() {
 		return
 	}
 	delete(ic.c.imports, ic.id)
-	ic.c.sendMessage(func(msg rpccp.Message) error {
+	ic.c.sendMessage(ic.c.bgctx, func(msg rpccp.Message) error {
 		rel, err := msg.NewRelease()
 		if err == nil {
 			rel.SetId(uint32(ic.id))
