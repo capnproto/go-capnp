@@ -18,11 +18,12 @@ func Serve(lis net.Listener, opt *Options) error {
 		// rpc.Options will contain the bootstrap capability
 		go func() {
 			transport := NewStreamTransport(rwc)
+			// Copy the options and clone the bootstrap interface as the connection takes ownership. The original
+			// bootstrap interface can be dropped after
 			conn := NewConn(transport, opt)
 
 			<-conn.Done()
 			// Remote client connection closed
-			return
 		}()
 	}
 }
@@ -31,11 +32,8 @@ func Serve(lis net.Listener, opt *Options) error {
 // network and address are passed to net.Listen. Use network "unix" for Unix Domain Sockets
 // and "tcp" for regular TCP connections.
 func ListenAndServe(ctx context.Context, network, addr string, opt *Options) error {
-	//var listener net.Listener
-	//var err error
 
-	//listener, err = net.Listen(network, address)
-	listener, err := new(net.ListenConfig).Listen(ctx, network, addr)
+	listener, err := net.Listen(network, addr)
 
 	if err == nil {
 		// to close this listener, close the context

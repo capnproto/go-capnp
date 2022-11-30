@@ -8,7 +8,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/rpc"
+	testcp "capnproto.org/go/capnp/v3/rpc/internal/testcapnp"
 )
 
 func TestServe(t *testing.T) {
@@ -36,6 +38,49 @@ func TestServe(t *testing.T) {
 	case err = <-errChannel:
 		assert.ErrorIs(t, err, net.ErrClosed)
 	}
+}
+
+// TestServeCapability serves the ping pong capability and tests
+// if a client can successfuly receive served data.
+func TestServeCapability(t *testing.T) {
+
+	t.Parallel()
+	ctx := context.Background()
+	t.Log("Opening listener")
+	lis, err := net.Listen("tcp", ":0")
+	defer lis.Close()
+	assert.NoError(t, err)
+
+	srv := testcp.PingPong_ServerToClient(pingPongServer{})
+	opts := &rpc.Options{
+		BootstrapClient: capnp.Client(srv),
+	}
+	errChannel := make(chan error)
+	go func() {
+		err2 := rpc.Serve(lis, opts)
+		t.Log("Serve has ended")
+		errChannel <- err2
+	}()
+
+	// connect to the server and invoke the magic N method
+	addr := lis.Addr().String()
+	conn, err := net.Dial("tcp", addr)
+	assert.NoError(t, err)
+	transport := rpc.NewStreamTransport(conn)
+	rpcConn := rpc.NewConn(transport, nil)
+	ppClient := testcp.PingPong(rpcConn.Bootstrap(ctx))
+	method, release := ppClient.EchoNum(ctx, func(ps testcp.PingPong_echoNum_Params) error {
+		ps.SetN(42)
+		return nil
+	})
+	defer release()
+	resp, err := method.Struct()
+	assert.NoError(t, err)
+	numberN := resp.N()
+	assert.Equal(t, int64(42), numberN)
+	t.Logf("Received pingpong: N=%d", numberN)
+	err = lis.Close()
+	assert.NoError(t, err)
 }
 
 func TestListenAndServe(t *testing.T) {
