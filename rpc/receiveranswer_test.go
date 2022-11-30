@@ -155,9 +155,7 @@ func TestBootstrapReceiverAnswer(t *testing.T) {
 	defer conn.Close()
 	trans := NewStreamTransport(cClient)
 
-	ctx := context.Background()
-
-	msg, send, release, err := trans.NewMessage(ctx)
+	msg, send, release, err := trans.NewMessage()
 	chkfatal(err)
 
 	bs, err := msg.NewBootstrap()
@@ -166,7 +164,7 @@ func TestBootstrapReceiverAnswer(t *testing.T) {
 	send()
 	release()
 
-	msg, send, release, err = trans.NewMessage(ctx)
+	msg, send, release, err = trans.NewMessage()
 	chkfatal(err)
 
 	// bootstrap.call(cap = bootstrap)
@@ -222,9 +220,7 @@ func TestCallReceiverAnswer(t *testing.T) {
 	defer conn.Close()
 	trans := NewStreamTransport(cClient)
 
-	ctx := context.Background()
-
-	msg, send, release, err := trans.NewMessage(ctx)
+	msg, send, release, err := trans.NewMessage()
 	chkfatal(err)
 
 	bs, err := msg.NewBootstrap()
@@ -233,7 +229,7 @@ func TestCallReceiverAnswer(t *testing.T) {
 	send()
 	release()
 
-	msg, send, release, err = trans.NewMessage(ctx)
+	msg, send, release, err = trans.NewMessage()
 	chkfatal(err)
 
 	// qid1 = bootstrap.self()
@@ -250,7 +246,7 @@ func TestCallReceiverAnswer(t *testing.T) {
 	send()
 	release()
 
-	msg, send, release, err = trans.NewMessage(ctx)
+	msg, send, release, err = trans.NewMessage()
 	chkfatal(err)
 
 	// qid1.self.call(cap = qid1.self)

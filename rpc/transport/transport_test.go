@@ -1,7 +1,6 @@
 package transport
 
 import (
-	"context"
 	"errors"
 	"io"
 	"net"
@@ -26,7 +25,6 @@ func testTransport(t *testing.T, makePipe func() (t1, t2 Transport, err error)) 
 		}
 	})
 	t.Run("Send", func(t *testing.T) {
-		ctx := context.Background()
 		t1, t2, err := makePipe()
 		if err != nil {
 			t.Fatal("makePipe:", err)
@@ -41,12 +39,12 @@ func testTransport(t *testing.T, makePipe func() (t1, t2 Transport, err error)) 
 		}()
 
 		// Create messages out of sending order
-		callMsg, sendCall, releaseSendCall, err := t1.NewMessage(ctx)
+		callMsg, sendCall, releaseSendCall, err := t1.NewMessage()
 		if err != nil {
 			t.Fatal("t1.NewMessage #1:", err)
 		}
 		defer releaseSendCall()
-		bootMsg, sendBoot, releaseSendBoot, err := t1.NewMessage(ctx)
+		bootMsg, sendBoot, releaseSendBoot, err := t1.NewMessage()
 		if err != nil {
 			t.Fatal("t1.NewMessage #2:", err)
 		}
@@ -98,7 +96,7 @@ func testTransport(t *testing.T, makePipe func() (t1, t2 Transport, err error)) 
 			t.Fatal("sendBoot():", err)
 		}
 		releaseSendBoot()
-		r1, release1, err := t2.RecvMessage(ctx)
+		r1, release1, err := t2.RecvMessage()
 		if err != nil {
 			t.Fatal("t2.RecvMessage:", err)
 		}
@@ -120,7 +118,7 @@ func testTransport(t *testing.T, makePipe func() (t1, t2 Transport, err error)) 
 			t.Fatal("sendCall():", err)
 		}
 		releaseSendCall()
-		r2, release2, err := t2.RecvMessage(ctx)
+		r2, release2, err := t2.RecvMessage()
 		if err != nil {
 			t.Fatal("t2.RecvMessage:", err)
 		}
@@ -158,19 +156,18 @@ func testTransport(t *testing.T, makePipe func() (t1, t2 Transport, err error)) 
 			t.Fatal("makePipe:", err)
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-		_, release, err := t1.RecvMessage(ctx) // hangs here if doesn't work
+		go func() {
+			time.Sleep(100 * time.Millisecond)
+			t1.Close()
+		}()
+		_, release, err := t1.RecvMessage() // hangs here if doesn't work
 		if err == nil {
 			t.Error("interrupted RecvMessage returned nil error")
 		}
 		if release != nil {
 			release()
 		}
-		cancel()
 
-		if err := t1.Close(); err != nil {
-			t.Error("t1.Close:", err)
-		}
 		if err := t2.Close(); err != nil {
 			t.Error("t2.Close:", err)
 		}

@@ -28,8 +28,8 @@ type measuringTransport struct {
 	inUse, maxInUse uint64
 }
 
-func (t *measuringTransport) RecvMessage(ctx context.Context) (rpccp.Message, capnp.ReleaseFunc, error) {
-	msg, release, err := t.Transport.RecvMessage(ctx)
+func (t *measuringTransport) RecvMessage() (rpccp.Message, capnp.ReleaseFunc, error) {
+	msg, release, err := t.Transport.RecvMessage()
 	if err != nil {
 		return msg, release, err
 	}

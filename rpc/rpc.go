@@ -295,18 +295,27 @@ func (c *Conn) Done() <-chan struct{} {
 // an abort message before closing.  The caller MUST be hold c.mu.
 func (c *Conn) shutdown(abortErr error) (err error) {
 	if !c.closing {
-		defer close(c.closed)
 		c.closing = true
-
 		c.bgcancel()
+
+		readyForClose := make(chan struct{})
+		go func() {
+			defer close(c.closed)
+			select {
+			case <-readyForClose:
+			case <-time.After(c.abortTimeout):
+			}
+			if err = c.transport.Close(); err != nil {
+				err = rpcerr.Failedf("close transport: %w", err)
+			}
+		}()
+
 		c.stopTasks()
 		syncutil.Without(&c.mu, c.drainQueue)
 		c.release()
 		c.abort(abortErr)
-
-		if err = c.transport.Close(); err != nil {
-			err = rpcerr.Failedf("close transport: %w", err)
-		}
+		close(readyForClose)
+		<-c.closed
 	}
 
 	return
@@ -394,7 +403,9 @@ func (c *Conn) releaseAnswers(answers map[answerID]*answer) {
 	for _, a := range answers {
 		if a != nil {
 			releaseList(a.resultCapTable).release()
-			a.releaseMsg()
+			if a.releaseMsg != nil {
+				a.releaseMsg()
+			}
 		}
 	}
 }
@@ -419,10 +430,7 @@ func (c *Conn) abort(abortErr error) {
 		c.mu.Unlock()
 		defer c.mu.Lock()
 
-		ctx, cancel := context.WithTimeout(context.Background(), c.abortTimeout)
-		defer cancel()
-
-		msg, send, release, err := c.transport.NewMessage(ctx)
+		msg, send, release, err := c.transport.NewMessage()
 		if err != nil {
 			return
 		}
@@ -1478,7 +1486,7 @@ func (c *Conn) startTask() (ok bool) {
 // holding c.mu.  Callers of sendMessage MAY wish to reacquire the
 // c.mu within the callback.
 func (c *Conn) sendMessage(ctx context.Context, f func(rpccp.Message) error, callback func(error)) {
-	msg, send, release, err := c.transport.NewMessage(ctx)
+	msg, send, release, err := c.transport.NewMessage()
 
 	// If errors happen when allocating or building the message, set up dummy send/release
 	// functions so the error handling logic in callback() runs as normal:
@@ -1491,6 +1499,14 @@ func (c *Conn) sendMessage(ctx context.Context, f func(rpccp.Message) error, cal
 		send = func() error {
 			return rpcerr.Failedf("build message: %w", err)
 		}
+	}
+
+	oldSend := send
+	send = func() error {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		return oldSend()
 	}
 
 	c.sender.Send(asyncSend{
@@ -1506,7 +1522,7 @@ func (c *Conn) sendMessage(ctx context.Context, f func(rpccp.Message) error, cal
 // channel.
 func reader(ctx context.Context, in chan<- incomingMessage, t transport.Transport) {
 	for {
-		msg, release, err := t.RecvMessage(ctx)
+		msg, release, err := t.RecvMessage()
 		incoming := incomingMessage{
 			msg:     msg,
 			release: release,

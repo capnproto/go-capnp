@@ -57,7 +57,7 @@ func testSendDisembargo(t *testing.T, sendPrimeTo rpccp.Call_sendResultsTo_Which
 
 	// 2. Return bootstrap
 	{
-		msg, send, release, err := p2.NewMessage(ctx)
+		msg, send, release, err := p2.NewMessage()
 		if err != nil {
 			t.Fatal("p2.NewMessage():", err)
 		}
@@ -235,7 +235,7 @@ func testSendDisembargo(t *testing.T, sendPrimeTo rpccp.Call_sendResultsTo_Which
 
 	// 6. Write return for call A with the import.
 	{
-		msg, send, release, err := p2.NewMessage(ctx)
+		msg, send, release, err := p2.NewMessage()
 		if err != nil {
 			t.Fatal("p2.NewMessage():", err)
 		}
@@ -553,7 +553,7 @@ func TestRecvDisembargo(t *testing.T) {
 	const callQID = 55
 	const exportID = 888
 	{
-		msg, send, release, err := p2.NewMessage(ctx)
+		msg, send, release, err := p2.NewMessage()
 		if err != nil {
 			t.Fatal("p2.NewMessage():", err)
 		}
@@ -857,7 +857,7 @@ func TestIssue3(t *testing.T) {
 	const callQID = 55
 	const exportID = 888
 	{
-		msg, send, release, err := p2.NewMessage(ctx)
+		msg, send, release, err := p2.NewMessage()
 		if err != nil {
 			t.Fatal("p2.NewMessage():", err)
 		}
@@ -934,7 +934,7 @@ func TestIssue3(t *testing.T) {
 
 	// 6. Write callback return.
 	{
-		msg, send, release, err := p2.NewMessage(ctx)
+		msg, send, release, err := p2.NewMessage()
 		if err != nil {
 			t.Fatal("p2.NewMessage():", err)
 		}
