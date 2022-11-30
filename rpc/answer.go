@@ -111,9 +111,9 @@ func (c *Conn) newReturn(ctx context.Context) (rpccp.Return, func(), capnp.Relea
 	// until the local vat is done with it.  We therefore implement a simple
 	// ref-counting mechanism such that 'release' must be called twice before
 	// 'releaseMsg' is called.
-	ref := uint32(2)
+	ref := int32(2)
 	release := func() {
-		if atomic.AddUint32(&ref, ^uint32(0)) == 0 {
+		if atomic.AddInt32(&ref, -1) == 0 {
 			releaseMsg()
 		}
 	}
