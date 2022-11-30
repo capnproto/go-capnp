@@ -3,6 +3,8 @@ package capnp
 import (
 	"bytes"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestToListDefault(t *testing.T) {
@@ -127,4 +129,28 @@ func TestListRaw(t *testing.T) {
 			t.Errorf("%+v.raw() = %#v; want %#v", test.list, raw, test.raw)
 		}
 	}
+}
+
+// TestListCastRegression is a regression test for a bug where, if a struct
+// list whose elements have a non-empty data section was cast to a pointer
+// list, the pointer would be read out of the data section of the relevant
+// element, rather than the pointer section.
+func TestListCastRegression(t *testing.T) {
+	_, seg, err := NewMessage(SingleSegment(nil))
+	assert.Nil(t, err)
+
+	txt, err := NewText(seg, "Text")
+	assert.Nil(t, err)
+
+	i := 3
+
+	l, err := NewCompositeList(seg, ObjectSize{DataSize: 16, PointerCount: 1}, 6)
+	assert.Nil(t, err)
+	strct := l.Struct(i)
+	strct.SetPtr(0, txt.ToPtr())
+
+	ptrList := PointerList(l)
+	ptr, err := ptrList.At(i)
+	assert.Nil(t, err)
+	assert.Equal(t, ptr.Text(), "Text")
 }

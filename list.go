@@ -188,7 +188,12 @@ func (p List) primitiveElem(i int, expectedSize ObjectSize) (address, error) {
 		// This is programmer error, not input error.
 		panic("list element out of bounds")
 	}
-	if p.flags&isBitList != 0 || p.flags&isCompositeList == 0 && p.size != expectedSize || p.flags&isCompositeList != 0 && (p.size.DataSize < expectedSize.DataSize || p.size.PointerCount < expectedSize.PointerCount) {
+	if p.flags&isBitList != 0 ||
+		p.flags&isCompositeList == 0 && p.size != expectedSize ||
+		p.flags&isCompositeList != 0 &&
+			(p.size.DataSize < expectedSize.DataSize ||
+				p.size.PointerCount < expectedSize.PointerCount) {
+
 		return 0, errorf("mismatched list element size")
 	}
 	addr, ok := p.off.element(int32(i), p.size.totalSize())
@@ -351,6 +356,7 @@ func (p PointerList) At(i int) (Ptr, error) {
 	if err != nil {
 		return Ptr{}, err
 	}
+	addr += address(p.size.DataSize)
 	return p.seg.readPtr(addr, p.depthLimit)
 }
 
