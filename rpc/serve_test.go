@@ -11,37 +11,54 @@ import (
 	"capnproto.org/go/capnp/v3/rpc"
 )
 
-//clientHook := {}
-
 func TestServe(t *testing.T) {
-	lis, err := net.Listen("tcp", ":8888")
+	t.Parallel()
+	t.Log("Opening listener")
+	lis, err := net.Listen("tcp", ":0")
+	defer lis.Close()
 	assert.NoError(t, err)
 
 	errChannel := make(chan error)
 	go func() {
-		err2 := rpc.Serve(lis, &rpc.Options{})
+		err2 := rpc.Serve(lis, nil)
+		t.Log("Serve has ended")
 		errChannel <- err2
 	}()
+
 	time.Sleep(time.Second)
+
 	t.Log("Closing listener")
 	err = lis.Close()
 	assert.NoError(t, err)
-	err = <-errChannel
-	assert.ErrorIs(t, err, net.ErrClosed)
+	select {
+	case <-time.After(time.Second * 2):
+		t.Fail()
+	case err = <-errChannel:
+		assert.ErrorIs(t, err, net.ErrClosed)
+	}
 }
 
 func TestListenAndServe(t *testing.T) {
 	var err error
+	t.Parallel()
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	errChannel := make(chan error)
+
 	go func() {
-		err2 := rpc.ListenAndServe(ctx, ":8888", &rpc.Options{})
+		t.Log("Starting ListenAndServe")
+		err2 := rpc.ListenAndServe(ctx, "tcp", ":0", nil)
 		errChannel <- err2
-		t.Log("Serve has ended")
+		t.Log("ListenAndServe has ended")
 	}()
+
 	time.Sleep(time.Second)
-	t.Log("Closing listener")
+	t.Log("Closing context")
+
 	cancelFunc()
-	err = <-errChannel
-	assert.ErrorIs(t, err, net.ErrClosed)
+	select {
+	case <-time.After(time.Second * 2):
+		t.Error("Cancelling context didn't end the listener")
+	case err = <-errChannel:
+		assert.ErrorIs(t, err, net.ErrClosed)
+	}
 }
