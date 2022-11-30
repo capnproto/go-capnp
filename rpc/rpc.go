@@ -403,7 +403,9 @@ func (c *Conn) releaseAnswers(answers map[answerID]*answer) {
 	for _, a := range answers {
 		if a != nil {
 			releaseList(a.resultCapTable).release()
-			a.releaseMsg()
+			if a.releaseMsg != nil {
+				a.releaseMsg()
+			}
 		}
 	}
 }
