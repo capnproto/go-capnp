@@ -8,6 +8,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"capnproto.org/go/capnp/v3/exp/bufferpool"
 	"capnproto.org/go/capnp/v3/packed"
 )
 
@@ -33,6 +34,10 @@ type Message struct {
 	rlimitInit sync.Once
 
 	Arena Arena
+
+	// If not nil, the original buffer from which this message was decoded.
+	// This mostly for the benefit of returning buffers to pools and such.
+	originalBuffer []byte
 
 	// CapTable is the indexed list of the clients referenced in the
 	// message.  Capability pointers inside the message will use this table
@@ -635,6 +640,8 @@ type Decoder struct {
 	wordbuf [wordSize]byte
 	hdrbuf  []byte
 
+	bufferPool *bufferpool.Pool
+
 	reuse bool
 	buf   []byte
 	msg   Message
@@ -709,7 +716,12 @@ func (d *Decoder) Decode() (*Message, error) {
 
 	// Read segments.
 	if !d.reuse {
-		buf := make([]byte, int(total))
+		var buf []byte
+		if d.bufferPool == nil {
+			buf = make([]byte, int(total))
+		} else {
+			buf = d.bufferPool.Get(int(total))
+		}
 		if _, err := io.ReadFull(d.r, buf); err != nil {
 			return nil, errorf("decode: read segments: %v", err)
 		}
@@ -717,7 +729,10 @@ func (d *Decoder) Decode() (*Message, error) {
 		if err != nil {
 			return nil, annotatef(err, "decode")
 		}
-		return &Message{Arena: arena}, nil
+		return &Message{
+			Arena:          arena,
+			originalBuffer: buf,
+		}, nil
 	}
 	d.buf = resizeSlice(d.buf, int(total))
 	if _, err := io.ReadFull(d.r, d.buf); err != nil {
@@ -749,6 +764,21 @@ func resizeSlice(b []byte, size int) []byte {
 // The decoder may return messages that cannot handle allocations.
 func (d *Decoder) ReuseBuffer() {
 	d.reuse = true
+}
+
+// SetBufferPool registers a buffer pool to allocate message space from, rather
+// than directly allocating buffers with make(). This can help reduce pressure
+// on the garbage collector; pass messages to d.ReleaseMessage() when done with
+// them.
+func (d *Decoder) SetBufferPool(p *bufferpool.Pool) {
+	d.bufferPool = p
+}
+
+func (d *Decoder) ReleaseMessage(m *Message) {
+	if d.bufferPool == nil {
+		return
+	}
+	d.bufferPool.Put(m.originalBuffer)
 }
 
 // Unmarshal reads an unpacked serialized stream into a message.  No
