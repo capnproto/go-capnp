@@ -130,10 +130,7 @@ type ErrorReporter interface {
 // Closing the connection will close the transport and release the bootstrap
 // client provided in opts.
 //
-// Passing nil for opts is the same as passing the zero value. This can be useful
-// for obtaining a reference to the remote side's bootstrap. This in turn allows
-// this listening connection to be used as the RPC client and make calls to the remote
-// side, since capnp connections are symmetric.
+// Passing nil for opts is the same as passing the zero value.
 //
 // Once a connection is created, it will immediately start receiving
 // requests from the transport.
