@@ -10,7 +10,7 @@ import (
 
 	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/exc"
-	"capnproto.org/go/capnp/v3/exp/mpsc"
+	"capnproto.org/go/capnp/v3/exp/spsc"
 	"capnproto.org/go/capnp/v3/internal/syncutil"
 	"capnproto.org/go/capnp/v3/rpc/transport"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
@@ -87,7 +87,7 @@ type Conn struct {
 	closing bool          // used to make shutdown() idempotent
 	closed  chan struct{} // closed when shutdown() returns
 
-	sender *mpsc.Queue[asyncSend]
+	sender spsc.Queue[asyncSend]
 
 	// Tables
 	questions  []*question
@@ -144,7 +144,7 @@ func NewConn(t Transport, opts *Options) *Conn {
 		bgcancel:  cancel,
 		answers:   make(map[answerID]*answer),
 		imports:   make(map[importID]*impent),
-		sender:    mpsc.New[asyncSend](),
+		sender:    spsc.New[asyncSend](),
 	}
 	if opts != nil {
 		c.bootstrap = opts.BootstrapClient
