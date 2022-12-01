@@ -130,7 +130,7 @@ type ErrorReporter interface {
 // Closing the connection will close the transport and release the bootstrap
 // client provided in opts.
 //
-// Passing nil for opts is the same as passing the zero value.
+// If opts == nil, sensible defaults are used. See Options for more info.
 //
 // Once a connection is created, it will immediately start receiving
 // requests from the transport.

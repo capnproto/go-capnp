@@ -13,30 +13,29 @@ import (
 // Serve will take ownership of bootstrapClient and release it after the listener closes.
 //
 // Serve exits with the listener error if the listener is closed by the owner.
-func Serve(lis net.Listener, bootstrapClient capnp.Client) error {
-	if !bootstrapClient.IsValid() {
-		err := errors.New("BootstrapClient is not valid")
+func Serve(lis net.Listener, boot capnp.Client) error {
+	if !boot.IsValid() {
+		err := errors.New("bootstrap client is not valid")
 		return err
 	}
 	// Accept incoming connections
-	defer bootstrapClient.Release()
+	defer boot.Release()
 	for {
 		conn, err := lis.Accept()
 		if err != nil {
 			// Since we took ownership of the bootstrap client, release it after we're done.
-			bootstrapClient.Release()
+			boot.Release()
 			return err
 		}
 
 		// the RPC connection takes ownership of the bootstrap interface and will release it when the connection
 		// exits, so use AddRef to avoid releasing the provided bootstrap client capability.
 		opts := Options{
-			BootstrapClient: bootstrapClient.AddRef(),
+			BootstrapClient: boot.AddRef(),
 		}
 		// For each new incoming connection, create a new RPC transport connection that will serve incoming RPC requests
 		transport := NewStreamTransport(conn)
-		rpcConn := NewConn(transport, &opts)
-		_ = rpcConn
+		_ = NewConn(transport, &opts)
 	}
 }
 
