@@ -19,33 +19,30 @@ func Serve(lis net.Listener, bootstrapClient capnp.Client) error {
 		return err
 	}
 	// Accept incoming connections
+	defer bootstrapClient.Release()
 	for {
-		rwc, err := lis.Accept()
+		conn, err := lis.Accept()
 		if err != nil {
 			// Since we took ownership of the bootstrap client, release it after we're done.
 			if !bootstrapClient.IsValid() {
 				err = errors.New("the bootstrap client was already released")
 			}
-			bootstrapClient.Release()
 			return err
+		}
+
+		// the RPC connection takes ownership of the bootstrap interface and will release it when the connection
+		// exits, so use AddRef to avoid releasing the provided bootstrap client capability.
+		opts := Options{
+			BootstrapClient: bootstrapClient.AddRef(),
 		}
 
 		// For each new incoming connection, create a new RPC transport connection that will serve incoming RPC requests
 		// rpc.Options will contain the bootstrap capability
 		go func() {
-			// skip if the bootstrap client has closed since receiving the connection
-			// this can happen if the server exits while incoming connections are made
-			if bootstrapClient.IsValid() {
-				transport := NewStreamTransport(rwc)
-				// the RPC connection takes ownership of the bootstrap interface and will release it when the connection
-				// exits, so use AddRef to avoid releasing the provided bootstrap client capability.
-				opts := Options{
-					BootstrapClient: bootstrapClient.AddRef(),
-				}
-				conn := NewConn(transport, &opts)
-				<-conn.Done()
-				// Remote client connection closed
-			}
+			transport := NewStreamTransport(conn)
+			conn := NewConn(transport, &opts)
+			<-conn.Done()
+			// Remote client connection closed
 		}()
 	}
 }
