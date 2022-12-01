@@ -8,13 +8,14 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/sync/errgroup"
+
 	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/exc"
 	"capnproto.org/go/capnp/v3/exp/spsc"
 	"capnproto.org/go/capnp/v3/internal/syncutil"
 	"capnproto.org/go/capnp/v3/rpc/transport"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
-	"golang.org/x/sync/errgroup"
 )
 
 /*
@@ -124,9 +125,12 @@ type ErrorReporter interface {
 	ReportError(error)
 }
 
-// NewConn creates a new connection that communications on a given
-// transport.  Closing the connection will close the transport.
-// Passing nil for opts is the same as passing the zero value.
+// NewConn creates a new connection that communicates on a given transport.
+//
+// Closing the connection will close the transport and release the bootstrap
+// client provided in opts.
+//
+// If opts == nil, sensible defaults are used. See Options for more info.
 //
 // Once a connection is created, it will immediately start receiving
 // requests from the transport.
