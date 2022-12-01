@@ -11,6 +11,7 @@ import (
 	"io"
 
 	capnp "capnproto.org/go/capnp/v3"
+	"capnproto.org/go/capnp/v3/exp/bufferpool"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 )
 
@@ -59,6 +60,10 @@ type Transport interface {
 type Codec interface {
 	Encode(*capnp.Message) error
 	Decode() (*capnp.Message, error)
+
+	// Mark a message previously returned by Decode as no longer needed. The
+	// Codec may re-use the space for future messages.
+	ReleaseMessage(*capnp.Message)
 	Close() error
 }
 
@@ -146,7 +151,12 @@ func (s *transport) RecvMessage() (rpccp.Message, capnp.ReleaseFunc, error) {
 		err = transporterr.Annotate(fmt.Errorf("receive: %w", err), "stream transport")
 		return rpccp.Message{}, nil, err
 	}
-	return rmsg, func() { msg.Reset(nil) }, nil
+
+	release := func() {
+		msg.Reset(nil)
+		s.c.ReleaseMessage(msg)
+	}
+	return rmsg, release, nil
 }
 
 // Close closes the underlying ReadWriteCloser.  It is not safe to call
@@ -170,11 +180,13 @@ type streamCodec struct {
 }
 
 func newStreamCodec(rwc io.ReadWriteCloser, f streamEncoding) *streamCodec {
-	return &streamCodec{
+	ret := &streamCodec{
 		Decoder: f.NewDecoder(rwc),
 		Encoder: f.NewEncoder(rwc),
 		Closer:  rwc,
 	}
+	ret.SetBufferPool(&bufferpool.Default)
+	return ret
 }
 
 type streamEncoding interface {
