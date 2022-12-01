@@ -110,7 +110,7 @@ func TestServeCapability(t *testing.T) {
 
 	select {
 	case <-time.After(time.Second * 2):
-		t.Error("Cancelling context didn't end the server")
+		t.Error("Serve did not return after listener was closed")
 	case err = <-errChannel:
 		assert.ErrorIs(t, err, net.ErrClosed)
 	}
