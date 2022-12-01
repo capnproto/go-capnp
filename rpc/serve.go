@@ -18,13 +18,12 @@ func Serve(lis net.Listener, boot capnp.Client) error {
 		err := errors.New("bootstrap client is not valid")
 		return err
 	}
-	// Accept incoming connections
+	// Since we took ownership of the bootstrap client, release it after we're done.
 	defer boot.Release()
 	for {
+		// Accept incoming connections
 		conn, err := lis.Accept()
 		if err != nil {
-			// Since we took ownership of the bootstrap client, release it after we're done.
-			boot.Release()
 			return err
 		}
 
