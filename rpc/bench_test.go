@@ -2,7 +2,6 @@ package rpc_test
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"testing"
 
@@ -13,29 +12,7 @@ import (
 	"capnproto.org/go/capnp/v3/std/capnp/stream"
 )
 
-type benchmarkStreamingConfig struct {
-	FlowLimit    int64
-	MessageCount int
-	MessageSize  int
-}
-
 func BenchmarkStreaming(b *testing.B) {
-	cfg := benchmarkStreamingConfig{
-		MessageSize: 32,
-	}
-	for i := 0; i < 10; i++ {
-		cfg.MessageSize *= 2
-		cfg.MessageCount = 1 << 16
-		cfg.FlowLimit = int64(cfg.MessageSize) * (1 << 12)
-		b.Run(fmt.Sprintf("MessageSize=0x%x,MessageCount=0x%x,FlowLimit=0x%x",
-			cfg.MessageSize, cfg.MessageCount, cfg.FlowLimit),
-			func(b *testing.B) {
-				benchmarkStreaming(b, &cfg)
-			})
-	}
-}
-
-func benchmarkStreaming(b *testing.B, cfg *benchmarkStreamingConfig) {
 	ctx := context.Background()
 	p1, p2 := net.Pipe()
 	srv := testcp.StreamTest_ServerToClient(nullStream{})
@@ -51,14 +28,11 @@ func benchmarkStreaming(b *testing.B, cfg *benchmarkStreamingConfig) {
 		futures      []stream.StreamResult_Future
 		releaseFuncs []capnp.ReleaseFunc
 	)
-	bootstrap.SetFlowLimiter(flowcontrol.NewFixedLimiter(cfg.FlowLimit))
-	data := make([]byte, cfg.MessageSize)
+	bootstrap.SetFlowLimiter(flowcontrol.NewFixedLimiter(1 << 9))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		for j := 0; j < cfg.MessageCount; j++ {
-			fut, rel := bootstrap.Push(ctx, func(p testcp.StreamTest_push_Params) error {
-				return p.SetData(data)
-			})
+		for j := 0; j < 1<<16; j++ {
+			fut, rel := bootstrap.Push(ctx, nil)
 			futures = append(futures, fut)
 			releaseFuncs = append(releaseFuncs, rel)
 		}
