@@ -15,10 +15,9 @@ type Pool struct {
 	buckets [nBuckets]sync.Pool
 }
 
-// Get a buffer of the given length. its capacity may be larger than the
+// Get a buffer of the given length. Its capacity may be larger than the
 // requested size.
 func (p *Pool) Get(size int) []byte {
-
 	for i := 0; i < nBuckets; i++ {
 		capacity := 1 << i
 		if capacity >= size {
