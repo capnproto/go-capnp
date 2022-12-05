@@ -492,7 +492,7 @@ func (c Client) State() ClientState {
 	return ClientState{
 		Brand:     h.Brand(),
 		IsPromise: !resolved,
-		Metadata:  &resolveHook(c.h).metadata,
+		Metadata:  &c.h.metadata,
 	}
 }
 
