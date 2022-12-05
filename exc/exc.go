@@ -4,6 +4,7 @@ package exc
 import (
 	"errors"
 	"fmt"
+	"strconv"
 )
 
 // Exception is an error that designates a Cap'n Proto exception.
@@ -11,6 +12,26 @@ type Exception struct {
 	Type   Type
 	Prefix string
 	Cause  error
+}
+
+type wrappedError struct {
+	prefix string
+	base   error
+}
+
+func (e wrappedError) Error() string {
+	return e.prefix + ": " + e.base.Error()
+}
+
+func (e wrappedError) Unwrap() error {
+	return e.base
+}
+
+func WrapError(prefix string, err error) error {
+	return wrappedError{
+		prefix: prefix,
+		base:   err,
+	}
 }
 
 // New creates a new error that formats as "<prefix>: <msg>".
@@ -24,16 +45,19 @@ func (e Exception) Error() string {
 		return e.Cause.Error()
 	}
 
-	return fmt.Sprintf("%s: %v", e.Prefix, e.Cause)
+	return WrapError(e.Prefix, e.Cause).Error()
 }
 
 func (e Exception) Unwrap() error { return e.Cause }
 
 func (e Exception) GoString() string {
-	return fmt.Sprintf("errors.Error{Type: %s, Prefix: %q, Cause: fmt.Errorf(%q)}",
-		e.Type.GoString(),
-		e.Prefix,
-		e.Cause)
+	return "errors.Error{Type: " +
+		e.Type.GoString() +
+		", Prefix: " +
+		strconv.Quote(e.Prefix) +
+		", Cause: " +
+		strconv.Quote(e.Cause.Error()) +
+		"}"
 }
 
 // Annotate is creates a new error that formats as "<prefix>: <msg>: <e>".
@@ -41,10 +65,10 @@ func (e Exception) GoString() string {
 // The returned Error.Type == e.Type.
 func (e Exception) Annotate(prefix, msg string) *Exception {
 	if prefix != e.Prefix {
-		return &Exception{e.Type, prefix, fmt.Errorf("%s: %w", msg, e)}
+		return &Exception{e.Type, prefix, WrapError(msg, e)}
 	}
 
-	return &Exception{e.Type, prefix, fmt.Errorf("%s: %w", msg, e.Cause)}
+	return &Exception{e.Type, prefix, WrapError(msg, e.Cause)}
 }
 
 // Annotate creates a new error that formats as "<prefix>: <msg>: <err>".
@@ -62,7 +86,7 @@ func Annotate(prefix, msg string, err error) *Exception {
 	return &Exception{
 		Type:   Failed,
 		Prefix: prefix,
-		Cause:  fmt.Errorf("%s: %w", msg, err),
+		Cause:  WrapError(msg, err),
 	}
 }
 
