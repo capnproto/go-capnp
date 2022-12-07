@@ -264,7 +264,6 @@ func (ans *answer) sendReturn() (releaseList, error) {
 		ans.c.mu.Unlock()
 		ans.sendMsg()
 		if fin {
-			ans.releaseMsg()
 			ans.c.mu.Lock()
 			return ans.destroy()
 		}
@@ -274,11 +273,7 @@ func (ans *answer) sendReturn() (releaseList, error) {
 	if !ans.flags.Contains(finishReceived) {
 		return nil, nil
 	}
-	rl, err := ans.destroy()
-	syncutil.Without(&ans.c.mu, func() {
-		ans.releaseMsg()
-	})
-	return rl, err
+	return ans.destroy()
 }
 
 // sendException sends an exception on the answer's return message.
@@ -313,7 +308,6 @@ func (ans *answer) sendException(ex error) releaseList {
 			}
 		}
 		if fin {
-			ans.releaseMsg()
 			ans.c.mu.Lock()
 			rl, _ := ans.destroy()
 			return rl
@@ -327,9 +321,6 @@ func (ans *answer) sendException(ex error) releaseList {
 	// destroy will never return an error because sendException does
 	// create any exports.
 	rl, _ := ans.destroy()
-	syncutil.Without(&ans.c.mu, func() {
-		ans.releaseMsg()
-	})
 	return rl
 }
 
@@ -339,10 +330,12 @@ func (ans *answer) sendException(ex error) releaseList {
 //
 // shutdown has its own strategy for cleaning up an answer.
 func (ans *answer) destroy() (releaseList, error) {
+	defer syncutil.Without(&ans.c.mu, ans.releaseMsg)
 	delete(ans.c.answers, ans.id)
 	rl := releaseList(ans.resultCapTable)
 	if !ans.flags.Contains(releaseResultCapsFlag) || len(ans.exportRefs) == 0 {
 		return rl, nil
+
 	}
 	exportReleases, err := ans.c.releaseExportRefs(ans.exportRefs)
 	return append(rl, exportReleases...), err
