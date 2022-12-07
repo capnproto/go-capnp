@@ -3,10 +3,10 @@ package capnp
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"sync"
 
 	"capnproto.org/go/capnp/v3/exc"
+	"capnproto.org/go/capnp/v3/internal/clientpath"
 	"capnproto.org/go/capnp/v3/internal/syncutil"
 )
 
@@ -61,7 +61,7 @@ type Promise struct {
 	// result's clients.  Even after resolution, this table may still have
 	// entries until the clients are released. Cannot be read or written
 	// in the pending state.
-	clients map[clientPath]*clientAndPromise
+	clients map[clientpath.Path]*clientAndPromise
 
 	// releasedClients is true after ReleaseClients has been called on this
 	// promise.  Only the receiver of ReleaseClients should set this to true.
@@ -167,7 +167,7 @@ func (p *Promise) Resolve(r Ptr, e error) {
 			syncutil.Without(&p.mu, func() {
 				res := resolution{p.method, r, e}
 				for path, cp := range p.clients {
-					t := path.transform()
+					t := path.Transform()
 					cp.promise.fulfill(res.client(t))
 					shutdownPromises = append(shutdownPromises, cp.promise)
 					cp.promise = nil
@@ -460,7 +460,7 @@ func (f *Future) Client() Client {
 	switch {
 	case p.isUnresolved():
 		ft := f.transform()
-		cpath := clientPathFromTransform(ft)
+		cpath := clientpath.FromTransform(ft)
 		if cp := p.clients[cpath]; cp != nil {
 			return cp.client
 		}
@@ -469,7 +469,7 @@ func (f *Future) Client() Client {
 			transform: ft,
 		})
 		if p.clients == nil {
-			p.clients = make(map[clientPath]*clientAndPromise)
+			p.clients = make(map[clientpath.Path]*clientAndPromise)
 		}
 		p.clients[cpath] = &clientAndPromise{c, pr}
 		p.mu.Unlock()
@@ -540,22 +540,7 @@ func (pc PipelineClient) Shutdown() {
 
 // A PipelineOp describes a step in transforming a pipeline.
 // It maps closely with the PromisedAnswer.Op struct in rpc.capnp.
-type PipelineOp struct {
-	Field        uint16
-	DefaultValue []byte
-}
-
-// String returns a human-readable description of op.
-func (op PipelineOp) String() string {
-	s := make([]byte, 0, 32)
-	s = append(s, "get field "...)
-	s = strconv.AppendInt(s, int64(op.Field), 10)
-	if op.DefaultValue == nil {
-		return string(s)
-	}
-	s = append(s, " with default"...)
-	return string(s)
-}
+type PipelineOp = clientpath.PipelineOp
 
 // Transform applies a sequence of pipeline operations to a pointer
 // and returns the result.
@@ -620,28 +605,4 @@ func (r resolution) client(transform []PipelineOp) Client {
 		return ErrorClient(errorf("not a capability"))
 	}
 	return iface.Client()
-}
-
-// clientPath is an encoded version of a list of pipeline operations.
-// It is suitable as a map key.
-//
-// It specifically ignores default values, because a capability can't have a
-// default value other than null.
-type clientPath string
-
-func clientPathFromTransform(ops []PipelineOp) clientPath {
-	buf := make([]byte, 0, len(ops)*2)
-	for i := range ops {
-		f := ops[i].Field
-		buf = append(buf, byte(f&0x00ff), byte(f&0xff00>>8))
-	}
-	return clientPath(buf)
-}
-
-func (cp clientPath) transform() []PipelineOp {
-	ops := make([]PipelineOp, len(cp)/2)
-	for i := range ops {
-		ops[i].Field = uint16(cp[i*2]) | uint16(cp[i*2+1])<<8
-	}
-	return ops
 }
