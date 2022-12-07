@@ -32,7 +32,7 @@ type answerQueue struct {
 type qent struct {
 	ctx   context.Context
 	basis int // index in bases
-	path  clientPath
+	path  []capnp.PipelineOp
 	capnp.Recv
 }
 
@@ -79,7 +79,7 @@ func (aq *answerQueue) fulfill(s capnp.Struct) {
 		recv := aq.bases[ent.basis].recv
 		embargoes[i].alloc = ent.Returner
 		embargoes[i].returned = make(chan struct{})
-		embargoes[i].pcall = recv(ent.ctx, ent.path.transform(), capnp.Recv{
+		embargoes[i].pcall = recv(ent.ctx, ent.path, capnp.Recv{
 			Method:      ent.Method,
 			Args:        ent.Args,
 			ReleaseArgs: ent.ReleaseArgs,
@@ -165,7 +165,7 @@ func (qc queueCaller) PipelineRecv(ctx context.Context, transform []capnp.Pipeli
 		qc.aq.q = append(qc.aq.q, qent{
 			ctx:   ctx,
 			basis: qc.basis,
-			path:  clientPathFromTransform(transform),
+			path:  transform,
 			Recv:  r,
 		})
 		basis := len(qc.aq.q) - 1
@@ -336,28 +336,4 @@ func (re *returnEmbargoer) recv(ctx context.Context, transform []capnp.PipelineO
 		re.mu.Unlock()
 		return re.pcall.PipelineRecv(ctx, transform, r)
 	}
-}
-
-// clientPath is an encoded version of a list of pipeline operations.
-// It is suitable as a map key.
-//
-// It specifically ignores default values, because a capability can't have a
-// default value other than null.
-type clientPath string
-
-func clientPathFromTransform(ops []capnp.PipelineOp) clientPath {
-	buf := make([]byte, 0, len(ops)*2)
-	for i := range ops {
-		f := ops[i].Field
-		buf = append(buf, byte(f&0x00ff), byte(f&0xff00>>8))
-	}
-	return clientPath(buf)
-}
-
-func (cp clientPath) transform() []capnp.PipelineOp {
-	ops := make([]capnp.PipelineOp, len(cp)/2)
-	for i := range ops {
-		ops[i].Field = uint16(cp[i*2]) | uint16(cp[i*2+1])<<8
-	}
-	return ops
 }
