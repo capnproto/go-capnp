@@ -761,7 +761,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 		return nil
 	case rpccp.MessageTarget_Which_promisedAnswer:
 		tgtAns := c.answers[p.target.promisedAnswer]
-		if tgtAns == nil || tgtAns.flags&finishReceived != 0 {
+		if tgtAns == nil || tgtAns.flags.Contains(finishReceived) {
 			ans.ret = rpccp.Return{}
 			ans.sendMsg = nil
 			ans.releaseMsg = nil
@@ -770,8 +770,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			releaseCall()
 			return rpcerr.Failedf("incoming call: use of unknown or finished answer ID %d for promised answer target", p.target.promisedAnswer)
 		}
-		if tgtAns.flags&resultsReady != 0 {
-			// Results ready.
+		if tgtAns.flags.Contains(resultsReady) {
 			if tgtAns.err != nil {
 				rl := ans.sendException(tgtAns.err)
 				c.mu.Unlock()
@@ -1114,7 +1113,7 @@ func (c *Conn) handleFinish(ctx context.Context, id answerID, releaseResultCaps 
 		c.mu.Unlock()
 		return rpcerr.Failedf("incoming finish: unknown answer ID %d", id)
 	}
-	if ans.flags&finishReceived != 0 {
+	if ans.flags.Contains(finishReceived) {
 		c.mu.Unlock()
 		return rpcerr.Failedf("incoming finish: answer ID %d already received finish", id)
 	}
@@ -1125,7 +1124,7 @@ func (c *Conn) handleFinish(ctx context.Context, id answerID, releaseResultCaps 
 	if ans.cancel != nil {
 		ans.cancel()
 	}
-	if ans.flags&returnSent == 0 {
+	if !ans.flags.Contains(returnSent) {
 		c.mu.Unlock()
 		return nil
 	}
@@ -1373,7 +1372,7 @@ func (c *Conn) handleDisembargo(ctx context.Context, d rpccp.Disembargo, release
 				err = rpcerr.Failedf("incoming disembargo: unknown answer ID %d", tgt.promisedAnswer)
 				return
 			}
-			if ans.flags&returnSent == 0 {
+			if !ans.flags.Contains(returnSent) {
 				err = rpcerr.Failedf("incoming disembargo: answer ID %d has not sent return", tgt.promisedAnswer)
 				return
 			}

@@ -85,6 +85,12 @@ const (
 	releaseResultCapsFlag
 )
 
+// flags.Contains(flag) Returns true iff flags contains flag, which must
+// be a single flag.
+func (flags answerFlags) Contains(flag answerFlags) bool {
+	return flags&flag != 0
+}
+
 // errorAnswer returns a placeholder answer with an error result already set.
 func errorAnswer(c *Conn, id answerID, err error) *answer {
 	return &answer{
@@ -137,7 +143,7 @@ func (c *Conn) newReturn(ctx context.Context) (rpccp.Return, func(), capnp.Relea
 // This also sets ans.promise to a new promise, wrapping pcall.
 func (ans *answer) setPipelineCaller(m capnp.Method, pcall capnp.PipelineCaller) {
 	syncutil.With(&ans.c.mu, func() {
-		if ans.flags&resultsReady == 0 {
+		if !ans.flags.Contains(resultsReady) {
 			ans.pcall = pcall
 			ans.promise = capnp.NewPromise(m, pcall)
 		}
@@ -242,7 +248,7 @@ func (ans *answer) sendReturn() (releaseList, error) {
 	select {
 	case <-ans.c.bgctx.Done():
 	default:
-		fin := ans.flags&finishReceived != 0
+		fin := ans.flags.Contains(finishReceived)
 		if ans.promise != nil {
 			if fin {
 				// Can't use ans.result after a finish, but it's
@@ -265,7 +271,7 @@ func (ans *answer) sendReturn() (releaseList, error) {
 		ans.c.mu.Lock()
 	}
 	ans.flags |= returnSent
-	if ans.flags&finishReceived == 0 {
+	if !ans.flags.Contains(finishReceived) {
 		return nil, nil
 	}
 	rl, err := ans.destroy()
@@ -294,7 +300,7 @@ func (ans *answer) sendException(ex error) releaseList {
 	case <-ans.c.bgctx.Done():
 	default:
 		// Send exception.
-		fin := ans.flags&finishReceived != 0
+		fin := ans.flags.Contains(finishReceived)
 		ans.c.mu.Unlock()
 		if e, err := ans.ret.NewException(); err != nil {
 			ans.c.er.ReportError(fmt.Errorf("send exception: %w", err))
@@ -315,7 +321,7 @@ func (ans *answer) sendException(ex error) releaseList {
 		ans.c.mu.Lock()
 	}
 	ans.flags |= returnSent
-	if ans.flags&finishReceived == 0 {
+	if !ans.flags.Contains(finishReceived) {
 		return nil
 	}
 	// destroy will never return an error because sendException does
@@ -335,7 +341,7 @@ func (ans *answer) sendException(ex error) releaseList {
 func (ans *answer) destroy() (releaseList, error) {
 	delete(ans.c.answers, ans.id)
 	rl := releaseList(ans.resultCapTable)
-	if ans.flags&releaseResultCapsFlag == 0 || len(ans.exportRefs) == 0 {
+	if !ans.flags.Contains(releaseResultCapsFlag) || len(ans.exportRefs) == 0 {
 		return rl, nil
 	}
 	exportReleases, err := ans.c.releaseExportRefs(ans.exportRefs)
