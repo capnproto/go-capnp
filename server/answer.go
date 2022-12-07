@@ -148,8 +148,7 @@ type queueCaller struct {
 
 func (qc queueCaller) PipelineRecv(ctx context.Context, transform []capnp.PipelineOp, r capnp.Recv) capnp.PipelineCaller {
 	qc.aq.mu.Lock()
-	switch {
-	case len(qc.aq.bases) > 0:
+	if len(qc.aq.bases) > 0 {
 		// Draining/drained.
 		qc.aq.mu.Unlock()
 		b := &qc.aq.bases[qc.basis]
@@ -160,18 +159,17 @@ func (qc queueCaller) PipelineRecv(ctx context.Context, transform []capnp.Pipeli
 			return nil
 		}
 		return b.recv(ctx, transform, r)
-	default:
-		// Enqueue.
-		qc.aq.q = append(qc.aq.q, qent{
-			ctx:   ctx,
-			basis: qc.basis,
-			path:  clientPathFromTransform(transform),
-			Recv:  r,
-		})
-		basis := len(qc.aq.q) - 1
-		qc.aq.mu.Unlock()
-		return queueCaller{aq: qc.aq, basis: basis}
 	}
+	// Enqueue.
+	qc.aq.q = append(qc.aq.q, qent{
+		ctx:   ctx,
+		basis: qc.basis,
+		path:  clientPathFromTransform(transform),
+		Recv:  r,
+	})
+	basis := len(qc.aq.q) - 1
+	qc.aq.mu.Unlock()
+	return queueCaller{aq: qc.aq, basis: basis}
 }
 
 func (qc queueCaller) PipelineSend(ctx context.Context, transform []capnp.PipelineOp, s capnp.Send) (*capnp.Answer, capnp.ReleaseFunc) {
