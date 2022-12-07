@@ -405,11 +405,8 @@ func (c *Conn) liftEmbargoes(embargoes []*embargo) {
 
 func (c *Conn) releaseAnswers(answers map[answerID]*answer) {
 	for _, a := range answers {
-		if a != nil {
-			releaseList(a.resultCapTable).release()
-			if a.releaseMsg != nil {
-				a.releaseMsg()
-			}
+		if a != nil && a.releaseMsg != nil {
+			a.releaseMsg()
 		}
 	}
 }
@@ -806,10 +803,10 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			switch {
 			case sub.IsValid() && !iface.IsValid():
 				tgt = capnp.ErrorClient(rpcerr.Failed(ErrNotACapability))
-			case !iface.IsValid() || int64(iface.Capability()) >= int64(len(tgtAns.resultCapTable)):
+			case !iface.IsValid() || int64(iface.Capability()) >= int64(len(tgtAns.results.Message().CapTable)):
 				tgt = capnp.Client{}
 			default:
-				tgt = tgtAns.resultCapTable[iface.Capability()]
+				tgt = tgtAns.results.Message().CapTable[iface.Capability()]
 			}
 			c.tasks.Add(1) // will be finished by answer.Return
 			var callCtx context.Context
@@ -1226,14 +1223,7 @@ func (c *Conn) recvCapReceiverAnswer(ans *answer, transform []capnp.PipelineOp) 
 		return capnp.ErrorClient(rpcerr.Failedf("Result is not a capability"))
 	}
 
-	// We can't just call Client(), because the CapTable has been cleared; instead,
-	// look it up in resultCapTable ourselves:
-	capId := int(iface.Capability())
-	if capId < 0 || capId >= len(ans.resultCapTable) {
-		return capnp.Client{}
-	}
-
-	return ans.resultCapTable[capId].AddRef()
+	return iface.Client().AddRef()
 }
 
 // Returns whether the client should be treated as local, for the purpose of
@@ -1392,12 +1382,12 @@ func (c *Conn) handleDisembargo(ctx context.Context, d rpccp.Disembargo, release
 			}
 
 			iface := ptr.Interface()
-			if !iface.IsValid() || int64(iface.Capability()) >= int64(len(ans.resultCapTable)) {
+			if !iface.IsValid() || int64(iface.Capability()) >= int64(len(ans.results.Message().CapTable)) {
 				err = rpcerr.Failedf("incoming disembargo: sender loopback requested on a capability that is not an import")
 				return
 			}
 
-			client := ans.resultCapTable[iface.Capability()] //.AddRef()
+			client := iface.Client() //.AddRef()
 
 			var ok bool
 			syncutil.Without(&c.mu, func() {
