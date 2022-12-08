@@ -48,12 +48,6 @@ type answer struct {
 	// lifetime.
 	flags answerFlags
 
-	// resultCapTable is the CapTable for results.  It is not kept in the
-	// results message because CapTable cannot be used once results are
-	// sent.  However, the capabilities need to be retained for promised
-	// answer targets.
-	resultCapTable []capnp.Client
-
 	// exportRefs is the number of references to exports placed in the
 	// results.
 	exportRefs map[exportID]uint32
@@ -170,11 +164,11 @@ func (ans *answer) AllocResults(sz capnp.ObjectSize) (capnp.Struct, error) {
 // setBootstrap sets the results to an interface pointer, stealing the
 // reference.
 func (ans *answer) setBootstrap(c capnp.Client) error {
-	if ans.ret.HasResults() || len(ans.ret.Message().CapTable) > 0 || len(ans.resultCapTable) > 0 {
+	if ans.ret.HasResults() || len(ans.ret.Message().CapTable) > 0 {
 		panic("setBootstrap called after creating results")
 	}
 	// Add the capability to the table early to avoid leaks if setBootstrap fails.
-	ans.resultCapTable = []capnp.Client{c}
+	ans.ret.Message().CapTable = []capnp.Client{c}
 
 	var err error
 	ans.results, err = ans.ret.NewResults()
@@ -192,9 +186,6 @@ func (ans *answer) setBootstrap(c capnp.Client) error {
 //
 // The caller MUST NOT hold ans.c.mu.
 func (ans *answer) Return(e error) {
-	if ans.results.IsValid() {
-		ans.resultCapTable = ans.results.Message().CapTable
-	}
 	ans.c.mu.Lock()
 	if e != nil {
 		rl := ans.sendException(e)
@@ -231,22 +222,25 @@ func (ans *answer) Return(e error) {
 // Finish with releaseResultCaps set to true, then sendReturn returns
 // the number of references to be subtracted from each export.
 //
-// The caller MUST be holding onto ans.c.mu.  The result's capability table
-// MUST have been extracted into ans.resultCapTable before calling sendReturn.
-// sendReturn MUST NOT be called if sendException was previously called.
+// The caller MUST be holding onto ans.c.mu. sendReturn MUST NOT be
+// called if sendException was previously called.
 func (ans *answer) sendReturn() (releaseList, error) {
 	ans.pcall = nil
 	ans.flags |= resultsReady
 
 	var err error
-	ans.exportRefs, err = ans.c.fillPayloadCapTable(ans.results, ans.resultCapTable)
+	ans.exportRefs, err = ans.c.fillPayloadCapTable(ans.results)
 	if err != nil {
+		// We're not going to send the message after all, so don't forget to release it.
+		ans.releaseMsg()
 		ans.c.er.ReportError(rpcerr.Annotate(err, "send return"))
 	}
 	// Continue.  Don't fail to send return if cap table isn't fully filled.
 
 	select {
 	case <-ans.c.bgctx.Done():
+		// We're not going to send the message after all, so don't forget to release it.
+		ans.releaseMsg()
 	default:
 		fin := ans.flags.Contains(finishReceived)
 		if ans.promise != nil {
@@ -278,9 +272,8 @@ func (ans *answer) sendReturn() (releaseList, error) {
 
 // sendException sends an exception on the answer's return message.
 //
-// The caller MUST be holding onto ans.c.mu.  The result's capability table
-// MUST have been extracted into ans.resultCapTable before calling sendException.
-// sendException MUST NOT be called if sendReturn was previously called.
+// The caller MUST be holding onto ans.c.mu. sendException MUST NOT
+// be called if sendReturn was previously called.
 func (ans *answer) sendException(ex error) releaseList {
 	ans.err = ex
 	ans.pcall = nil
@@ -332,11 +325,9 @@ func (ans *answer) sendException(ex error) releaseList {
 func (ans *answer) destroy() (releaseList, error) {
 	defer syncutil.Without(&ans.c.mu, ans.releaseMsg)
 	delete(ans.c.answers, ans.id)
-	rl := releaseList(ans.resultCapTable)
 	if !ans.flags.Contains(releaseResultCapsFlag) || len(ans.exportRefs) == 0 {
-		return rl, nil
+		return nil, nil
 
 	}
-	exportReleases, err := ans.c.releaseExportRefs(ans.exportRefs)
-	return append(rl, exportReleases...), err
+	return ans.c.releaseExportRefs(ans.exportRefs)
 }

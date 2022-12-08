@@ -227,14 +227,12 @@ func (c *Conn) newPipelineCallMessage(msg rpccp.Message, tgt questionID, transfo
 	if s.PlaceArgs == nil {
 		return nil
 	}
-	m := args.Message()
 	if err := s.PlaceArgs(args); err != nil {
 		return rpcerr.Failedf("place arguments: %w", err)
 	}
-	clients := m.CapTable
 	syncutil.With(&c.mu, func() {
 		// TODO(soon): save param refs
-		_, err = c.fillPayloadCapTable(payload, clients)
+		_, err = c.fillPayloadCapTable(payload)
 	})
 
 	if err != nil {

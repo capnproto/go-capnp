@@ -176,8 +176,12 @@ func (c *Conn) sendCap(d rpccp.CapDescriptor, client capnp.Client) (_ exportID, 
 // reference counts that have been added to the exports table.
 //
 // The caller must be holding onto c.mu.
-func (c *Conn) fillPayloadCapTable(payload rpccp.Payload, clients []capnp.Client) (map[exportID]uint32, error) {
-	if !payload.IsValid() || len(clients) == 0 {
+func (c *Conn) fillPayloadCapTable(payload rpccp.Payload) (map[exportID]uint32, error) {
+	if !payload.IsValid() {
+		return nil, nil
+	}
+	clients := payload.Message().CapTable
+	if len(clients) == 0 {
 		return nil, nil
 	}
 	list, err := payload.NewCapTable(int32(len(clients)))
