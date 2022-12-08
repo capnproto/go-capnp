@@ -231,12 +231,16 @@ func (ans *answer) sendReturn() (releaseList, error) {
 	var err error
 	ans.exportRefs, err = ans.c.fillPayloadCapTable(ans.results)
 	if err != nil {
+		// We're not going to send the message after all, so don't forget to release it.
+		ans.releaseMsg()
 		ans.c.er.ReportError(rpcerr.Annotate(err, "send return"))
 	}
 	// Continue.  Don't fail to send return if cap table isn't fully filled.
 
 	select {
 	case <-ans.c.bgctx.Done():
+		// We're not going to send the message after all, so don't forget to release it.
+		ans.releaseMsg()
 	default:
 		fin := ans.flags.Contains(finishReceived)
 		if ans.promise != nil {
