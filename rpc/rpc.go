@@ -1387,7 +1387,7 @@ func (c *Conn) handleDisembargo(ctx context.Context, d rpccp.Disembargo, release
 				return
 			}
 
-			client := iface.Client() //.AddRef()
+			client := iface.Client()
 
 			var ok bool
 			syncutil.Without(&c.mu, func() {
