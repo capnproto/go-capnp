@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"sync/atomic"
 
 	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/exc"
+	"capnproto.org/go/capnp/v3/internal/rc"
 	"capnproto.org/go/capnp/v3/internal/syncutil"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 )
@@ -33,9 +33,9 @@ type answer struct {
 	// sendMsg sends the return message.  The caller MUST NOT hold ans.c.mu.
 	sendMsg func()
 
-	// releaseMsg releases the return message.  The caller MUST NOT hold
-	// ans.c.mu.
-	releaseMsg capnp.ReleaseFunc
+	// msgReleaser releases the return message when its refcount hits zero.
+	// The caller MUST NOT hold ans.c.mu.
+	msgReleaser *rc.Releaser
 
 	// results is the memoized answer to ret.Results().
 	// Set by AllocResults and setBootstrap, but contents can only be read
@@ -95,8 +95,10 @@ func errorAnswer(c *Conn, id answerID, err error) *answer {
 	}
 }
 
-// newReturn creates a new Return message.
-func (c *Conn) newReturn(ctx context.Context) (rpccp.Return, func(), capnp.ReleaseFunc, error) {
+// newReturn creates a new Return message. The returned Releaser will release the message when
+// all references to it are dropped; the caller is responsible for one reference. This will not
+// happen before the message is sent, as the returned send function retains a reference.
+func (c *Conn) newReturn(ctx context.Context) (_ rpccp.Return, sendMsg func(), _ *rc.Releaser, _ error) {
 	msg, send, releaseMsg, err := c.transport.NewMessage()
 	if err != nil {
 		return rpccp.Return{}, nil, nil, rpcerr.Failedf("create return: %w", err)
@@ -111,24 +113,19 @@ func (c *Conn) newReturn(ctx context.Context) (rpccp.Return, func(), capnp.Relea
 	// until the local vat is done with it.  We therefore implement a simple
 	// ref-counting mechanism such that 'release' must be called twice before
 	// 'releaseMsg' is called.
-	ref := int32(2)
-	release := func() {
-		if atomic.AddInt32(&ref, -1) == 0 {
-			releaseMsg()
-		}
-	}
+	releaser := rc.NewReleaser(2, releaseMsg)
 
 	return ret, func() {
 		c.sender.Send(asyncSend{
 			send:    send,
-			release: release,
+			release: releaser.Decr,
 			callback: func(err error) {
 				if err != nil {
 					c.er.ReportError(fmt.Errorf("send return: %w", err))
 				}
 			},
 		})
-	}, release, nil
+	}, releaser, nil
 }
 
 // setPipelineCaller sets ans.pcall to pcall if the answer has not
@@ -232,7 +229,7 @@ func (ans *answer) sendReturn() (releaseList, error) {
 	ans.exportRefs, err = ans.c.fillPayloadCapTable(ans.results)
 	if err != nil {
 		// We're not going to send the message after all, so don't forget to release it.
-		ans.releaseMsg()
+		ans.msgReleaser.Decr()
 		ans.c.er.ReportError(rpcerr.Annotate(err, "send return"))
 	}
 	// Continue.  Don't fail to send return if cap table isn't fully filled.
@@ -240,7 +237,7 @@ func (ans *answer) sendReturn() (releaseList, error) {
 	select {
 	case <-ans.c.bgctx.Done():
 		// We're not going to send the message after all, so don't forget to release it.
-		ans.releaseMsg()
+		ans.msgReleaser.Decr()
 	default:
 		fin := ans.flags.Contains(finishReceived)
 		if ans.promise != nil {
@@ -323,7 +320,7 @@ func (ans *answer) sendException(ex error) releaseList {
 //
 // shutdown has its own strategy for cleaning up an answer.
 func (ans *answer) destroy() (releaseList, error) {
-	defer syncutil.Without(&ans.c.mu, ans.releaseMsg)
+	defer syncutil.Without(&ans.c.mu, ans.msgReleaser.Decr)
 	delete(ans.c.answers, ans.id)
 	if !ans.flags.Contains(releaseResultCapsFlag) || len(ans.exportRefs) == 0 {
 		return nil, nil

@@ -405,8 +405,8 @@ func (c *Conn) liftEmbargoes(embargoes []*embargo) {
 
 func (c *Conn) releaseAnswers(answers map[answerID]*answer) {
 	for _, a := range answers {
-		if a != nil && a.releaseMsg != nil {
-			a.releaseMsg()
+		if a != nil && a.msgReleaser != nil {
+			a.msgReleaser.Decr()
 		}
 	}
 }
@@ -614,7 +614,7 @@ func (c *Conn) handleBootstrap(ctx context.Context, id answerID) error {
 	)
 
 	syncutil.Without(&c.mu, func() {
-		ans.ret, ans.sendMsg, ans.releaseMsg, err = c.newReturn(ctx)
+		ans.ret, ans.sendMsg, ans.msgReleaser, err = c.newReturn(ctx)
 		if err == nil {
 			ans.ret.SetAnswerId(uint32(id))
 			ans.ret.SetReleaseParamCaps(false)
@@ -689,7 +689,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 
 	// Create return message.
 	c.mu.Unlock()
-	ret, send, releaseRet, err := c.newReturn(ctx)
+	ret, send, retReleaser, err := c.newReturn(ctx)
 	if err != nil {
 		err = rpcerr.Annotate(err, "incoming call")
 		syncutil.With(&c.mu, func() {
@@ -705,11 +705,11 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 	// Find target and start call.
 	c.mu.Lock()
 	ans := &answer{
-		c:          c,
-		id:         id,
-		ret:        ret,
-		sendMsg:    send,
-		releaseMsg: releaseRet,
+		c:           c,
+		id:          id,
+		ret:         ret,
+		sendMsg:     send,
+		msgReleaser: retReleaser,
 	}
 	c.answers[id] = ans
 	if parseErr != nil {
@@ -735,9 +735,9 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 		if ent == nil {
 			ans.ret = rpccp.Return{}
 			ans.sendMsg = nil
-			ans.releaseMsg = nil
+			ans.msgReleaser = nil
 			c.mu.Unlock()
-			releaseRet()
+			retReleaser.Decr()
 			releaseCall()
 			return rpcerr.Failedf("incoming call: unknown export ID %d", id)
 		}
@@ -761,9 +761,9 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 		if tgtAns == nil || tgtAns.flags.Contains(finishReceived) {
 			ans.ret = rpccp.Return{}
 			ans.sendMsg = nil
-			ans.releaseMsg = nil
+			ans.msgReleaser = nil
 			c.mu.Unlock()
-			releaseRet()
+			retReleaser.Decr()
 			releaseCall()
 			return rpcerr.Failedf("incoming call: use of unknown or finished answer ID %d for promised answer target", p.target.promisedAnswer)
 		}
