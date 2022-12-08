@@ -19,6 +19,8 @@ func (rc *Releaser) Decr() {
 	if newCount == 0 {
 		rc.release()
 		rc.release = nil
+	} else if newCount < 0 {
+		panic("Decremented an already-zero refcount")
 	}
 }
 
