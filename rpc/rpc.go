@@ -1132,9 +1132,6 @@ func (c *Conn) handleFinish(ctx context.Context, id answerID, releaseResultCaps 
 	// Return sent and finish received: time to destroy answer.
 	rl, err := ans.destroy()
 	c.mu.Unlock()
-	if ans.releaseMsg != nil {
-		ans.releaseMsg()
-	}
 	rl.release()
 	if err != nil {
 		return rpcerr.Annotate(err, "incoming finish: release result caps")
