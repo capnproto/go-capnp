@@ -84,8 +84,8 @@ type importClient struct {
 }
 
 func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, capnp.ReleaseFunc) {
-	ic.c.mu.Lock()
-	defer ic.c.mu.Unlock()
+	ic.c.lk.Lock()
+	defer ic.c.lk.Unlock()
 
 	if !ic.c.startTask() {
 		return capnp.ErrorAnswer(s.Method, ExcClosed), func() {}
@@ -98,16 +98,16 @@ func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, 
 	q := ic.c.newQuestion(s.Method)
 
 	// Send call message.
-	syncutil.Without(&ic.c.mu, func() {
+	syncutil.Without(&ic.c.lk, func() {
 		ic.c.sendMessage(ctx, func(m rpccp.Message) error {
 			return ic.c.newImportCallMessage(m, ic.id, q.id, s)
 		}, func(err error) {
-			ic.c.mu.Lock()
-			defer ic.c.mu.Unlock()
+			ic.c.lk.Lock()
+			defer ic.c.lk.Unlock()
 
 			if err != nil {
 				ic.c.lk.questions[q.id] = nil
-				syncutil.Without(&ic.c.mu, func() {
+				syncutil.Without(&ic.c.lk, func() {
 					q.p.Reject(rpcerr.Failedf("send message: %w", err))
 				})
 				ic.c.lk.questionID.remove(uint32(q.id))
@@ -164,7 +164,7 @@ func (c *Conn) newImportCallMessage(msg rpccp.Message, imp importID, qid questio
 	if err := s.PlaceArgs(args); err != nil {
 		return rpcerr.Failedf("place arguments: %w", err)
 	}
-	syncutil.With(&c.mu, func() {
+	syncutil.With(&c.lk, func() {
 		// TODO(soon): save param refs
 		_, err = c.fillPayloadCapTable(payload)
 	})
@@ -219,8 +219,8 @@ func (ic *importClient) Brand() capnp.Brand {
 }
 
 func (ic *importClient) Shutdown() {
-	ic.c.mu.Lock()
-	defer ic.c.mu.Unlock()
+	ic.c.lk.Lock()
+	defer ic.c.lk.Unlock()
 
 	if !ic.c.startTask() {
 		return

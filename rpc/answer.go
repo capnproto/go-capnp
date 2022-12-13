@@ -30,11 +30,11 @@ type answer struct {
 	// entry is a placeholder until the remote vat cancels the call.
 	ret rpccp.Return
 
-	// sendMsg sends the return message.  The caller MUST NOT hold ans.c.mu.
+	// sendMsg sends the return message.  The caller MUST NOT hold ans.c.lk.
 	sendMsg func()
 
 	// msgReleaser releases the return message when its refcount hits zero.
-	// The caller MUST NOT hold ans.c.mu.
+	// The caller MUST NOT hold ans.c.lk.
 	msgReleaser *rc.Releaser
 
 	// results is the memoized answer to ret.Results().
@@ -129,11 +129,11 @@ func (c *Conn) newReturn(ctx context.Context) (_ rpccp.Return, sendMsg func(), _
 }
 
 // setPipelineCaller sets ans.pcall to pcall if the answer has not
-// already returned.  The caller MUST NOT hold ans.c.mu.
+// already returned.  The caller MUST NOT hold ans.c.lk.
 //
 // This also sets ans.promise to a new promise, wrapping pcall.
 func (ans *answer) setPipelineCaller(m capnp.Method, pcall capnp.PipelineCaller) {
-	syncutil.With(&ans.c.mu, func() {
+	syncutil.With(&ans.c.lk, func() {
 		if !ans.flags.Contains(resultsReady) {
 			ans.pcall = pcall
 			ans.promise = capnp.NewPromise(m, pcall)
@@ -181,12 +181,12 @@ func (ans *answer) setBootstrap(c capnp.Client) error {
 
 // Return sends the return message.
 //
-// The caller MUST NOT hold ans.c.mu.
+// The caller MUST NOT hold ans.c.lk.
 func (ans *answer) Return(e error) {
-	ans.c.mu.Lock()
+	ans.c.lk.Lock()
 	if e != nil {
 		rl := ans.sendException(e)
-		ans.c.mu.Unlock()
+		ans.c.lk.Unlock()
 		rl.release()
 		ans.pcalls.Wait()
 		ans.c.tasks.Done() // added by handleCall
@@ -202,13 +202,13 @@ func (ans *answer) Return(e error) {
 				ans.c.er.ReportError(err)
 			}
 
-			ans.c.mu.Unlock()
+			ans.c.lk.Unlock()
 			rl.release()
 			ans.pcalls.Wait()
 			return
 		}
 	}
-	ans.c.mu.Unlock()
+	ans.c.lk.Unlock()
 	rl.release()
 	ans.pcalls.Wait()
 	ans.c.tasks.Done() // added by handleCall
@@ -219,7 +219,7 @@ func (ans *answer) Return(e error) {
 // Finish with releaseResultCaps set to true, then sendReturn returns
 // the number of references to be subtracted from each export.
 //
-// The caller MUST be holding onto ans.c.mu. sendReturn MUST NOT be
+// The caller MUST be holding onto ans.c.lk. sendReturn MUST NOT be
 // called if sendException was previously called.
 func (ans *answer) sendReturn() (releaseList, error) {
 	ans.pcall = nil
@@ -252,13 +252,13 @@ func (ans *answer) sendReturn() (releaseList, error) {
 			}
 			ans.promise = nil
 		}
-		ans.c.mu.Unlock()
+		ans.c.lk.Unlock()
 		ans.sendMsg()
 		if fin {
-			ans.c.mu.Lock()
+			ans.c.lk.Lock()
 			return ans.destroy()
 		}
-		ans.c.mu.Lock()
+		ans.c.lk.Lock()
 	}
 	ans.flags |= returnSent
 	if !ans.flags.Contains(finishReceived) {
@@ -269,7 +269,7 @@ func (ans *answer) sendReturn() (releaseList, error) {
 
 // sendException sends an exception on the answer's return message.
 //
-// The caller MUST be holding onto ans.c.mu. sendException MUST NOT
+// The caller MUST be holding onto ans.c.lk. sendException MUST NOT
 // be called if sendReturn was previously called.
 func (ans *answer) sendException(ex error) releaseList {
 	ans.err = ex
@@ -286,7 +286,7 @@ func (ans *answer) sendException(ex error) releaseList {
 	default:
 		// Send exception.
 		fin := ans.flags.Contains(finishReceived)
-		ans.c.mu.Unlock()
+		ans.c.lk.Unlock()
 		if e, err := ans.ret.NewException(); err != nil {
 			ans.c.er.ReportError(fmt.Errorf("send exception: %w", err))
 		} else {
@@ -298,11 +298,11 @@ func (ans *answer) sendException(ex error) releaseList {
 			}
 		}
 		if fin {
-			ans.c.mu.Lock()
+			ans.c.lk.Lock()
 			rl, _ := ans.destroy()
 			return rl
 		}
-		ans.c.mu.Lock()
+		ans.c.lk.Lock()
 	}
 	ans.flags |= returnSent
 	if !ans.flags.Contains(finishReceived) {
@@ -316,11 +316,11 @@ func (ans *answer) sendException(ex error) releaseList {
 
 // destroy removes the answer from the table and returns the clients to
 // release.  The answer must have sent a return and received a finish.
-// The caller must be holding onto ans.c.mu.
+// The caller must be holding onto ans.c.lk.
 //
 // shutdown has its own strategy for cleaning up an answer.
 func (ans *answer) destroy() (releaseList, error) {
-	defer syncutil.Without(&ans.c.mu, ans.msgReleaser.Decr)
+	defer syncutil.Without(&ans.c.lk, ans.msgReleaser.Decr)
 	delete(ans.c.lk.answers, ans.id)
 	if !ans.flags.Contains(releaseResultCapsFlag) || len(ans.exportRefs) == 0 {
 		return nil, nil
