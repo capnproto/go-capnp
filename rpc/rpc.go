@@ -1470,28 +1470,28 @@ func (c *Conn) startTask() (ok bool) {
 	return
 }
 
-// sendMessage creates a new message on the transport, calls f to
+// sendMessage creates a new message on the transport, calls build to
 // populate its fields, and enqueues it on the outbound queue.
 // When f returns, the message MUST have a nil cap table.
 //
-// If callback != nil, it will be called by the send gouroutine
+// If onSent != nil, it will be called by the send gouroutine
 // with the error value returned by the send operation.  If this
 // error is nil, the message was successfully sent.
 //
-// The caller MUST hold c.lk.  The callback will be called without
+// The caller MUST hold c.lk.  onSent will be called without
 // holding c.lk.  Callers of sendMessage MAY wish to reacquire the
-// c.lk within the callback.
-func (c *Conn) sendMessage(ctx context.Context, f func(rpccp.Message) error, callback func(error)) {
+// c.lk within the onSent.
+func (c *Conn) sendMessage(ctx context.Context, build func(rpccp.Message) error, onSent func(error)) {
 	msg, send, release, err := c.transport.NewMessage()
 
 	// If errors happen when allocating or building the message, set up dummy send/release
-	// functions so the error handling logic in callback() runs as normal:
+	// functions so the error handling logic in onSent() runs as normal:
 	if err != nil {
 		release = func() {}
 		send = func() error {
 			return rpcerr.Failedf("create message: %w", err)
 		}
-	} else if err = f(msg); err != nil {
+	} else if err = build(msg); err != nil {
 		send = func() error {
 			return rpcerr.Failedf("build message: %w", err)
 		}
@@ -1506,9 +1506,9 @@ func (c *Conn) sendMessage(ctx context.Context, f func(rpccp.Message) error, cal
 	}
 
 	c.sender.Send(asyncSend{
-		release:  release,
-		send:     send,
-		callback: callback,
+		release: release,
+		send:    send,
+		onSent:  onSent,
 	})
 }
 
@@ -1543,27 +1543,27 @@ type incomingMessage struct {
 }
 
 type asyncSend struct {
-	send     func() error
-	callback func(error)
-	release  capnp.ReleaseFunc
+	send    func() error
+	onSent  func(error)
+	release capnp.ReleaseFunc
 }
 
 func (as asyncSend) Abort(err error) {
 	defer as.release()
 
-	if as.callback != nil {
-		as.callback(rpcerr.Disconnected(err))
+	if as.onSent != nil {
+		as.onSent(rpcerr.Disconnected(err))
 	}
 }
 
 func (as asyncSend) Send() {
 	defer as.release()
 
-	if err := as.send(); as.callback != nil {
+	if err := as.send(); as.onSent != nil {
 		if err != nil {
 			err = rpcerr.Failedf("send message: %w", err)
 		}
 
-		as.callback(err)
+		as.onSent(err)
 	}
 }
