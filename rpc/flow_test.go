@@ -15,7 +15,7 @@ import (
 	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/flowcontrol"
 	"capnproto.org/go/capnp/v3/rpc/internal/testcapnp"
-	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
+	"capnproto.org/go/capnp/v3/rpc/transport"
 )
 
 // measureTransport is a wrapper around another transport, and measures the
@@ -28,15 +28,15 @@ type measuringTransport struct {
 	inUse, maxInUse uint64
 }
 
-func (t *measuringTransport) RecvMessage() (rpccp.Message, capnp.ReleaseFunc, error) {
-	msg, release, err := t.Transport.RecvMessage()
+func (t *measuringTransport) RecvMessage() (transport.IncomingMessage, error) {
+	inMsg, err := t.Transport.RecvMessage()
 	if err != nil {
-		return msg, release, err
+		return inMsg, err
 	}
 
-	size, err := capnp.Struct(msg).Message().TotalSize()
+	size, err := capnp.Struct(inMsg.Message).Message().TotalSize()
 	if err != nil {
-		return msg, release, err
+		return inMsg, err
 	}
 
 	t.mu.Lock()
@@ -46,14 +46,14 @@ func (t *measuringTransport) RecvMessage() (rpccp.Message, capnp.ReleaseFunc, er
 	}
 	t.mu.Unlock()
 
-	oldRelease := release
-	release = capnp.ReleaseFunc(func() {
+	oldRelease := inMsg.Release
+	inMsg.Release = capnp.ReleaseFunc(func() {
 		oldRelease()
 		t.mu.Lock()
 		defer t.mu.Unlock()
 		t.inUse -= size
 	})
-	return msg, release, err
+	return inMsg, err
 }
 
 // Test that attaching a fixed-size FlowLimiter results in actually limiting the

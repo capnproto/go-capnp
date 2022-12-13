@@ -437,17 +437,17 @@ func (c *Conn) abort(abortErr error) {
 		c.lk.Unlock()
 		defer c.lk.Lock()
 
-		msg, send, release, err := c.transport.NewMessage()
+		outMsg, err := c.transport.NewMessage()
 		if err != nil {
 			return
 		}
-		defer release()
+		defer outMsg.Release()
 
 		// configure & send abort message
-		if abort, err := msg.NewAbort(); err == nil {
+		if abort, err := outMsg.Message.NewAbort(); err == nil {
 			abort.SetType(rpccp.Exception_Type(exc.TypeOf(abortErr)))
 			if err = abort.SetReason(abortErr.Error()); err == nil {
-				send()
+				outMsg.Send()
 			}
 		}
 	}
@@ -487,8 +487,8 @@ func (c *Conn) receive() error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case in := <-incoming:
-			recv = in.msg
-			release = in.release
+			recv = in.Message
+			release = in.Release
 			err = in.err
 		}
 
@@ -1482,7 +1482,9 @@ func (c *Conn) startTask() (ok bool) {
 // holding c.lk.  Callers of sendMessage MAY wish to reacquire the
 // c.lk within the onSent.
 func (c *Conn) sendMessage(ctx context.Context, build func(rpccp.Message) error, onSent func(error)) {
-	msg, send, release, err := c.transport.NewMessage()
+	outMsg, err := c.transport.NewMessage()
+	send := outMsg.Send
+	release := outMsg.Release
 
 	// If errors happen when allocating or building the message, set up dummy send/release
 	// functions so the error handling logic in onSent() runs as normal:
@@ -1491,7 +1493,7 @@ func (c *Conn) sendMessage(ctx context.Context, build func(rpccp.Message) error,
 		send = func() error {
 			return rpcerr.Failedf("create message: %w", err)
 		}
-	} else if err = build(msg); err != nil {
+	} else if err = build(outMsg.Message); err != nil {
 		send = func() error {
 			return rpcerr.Failedf("build message: %w", err)
 		}
@@ -1518,11 +1520,10 @@ func (c *Conn) sendMessage(ctx context.Context, build func(rpccp.Message) error,
 // channel.
 func reader(ctx context.Context, in chan<- incomingMessage, t transport.Transport) {
 	for {
-		msg, release, err := t.RecvMessage()
+		inMsg, err := t.RecvMessage()
 		incoming := incomingMessage{
-			msg:     msg,
-			release: release,
-			err:     err,
+			IncomingMessage: inMsg,
+			err:             err,
 		}
 		select {
 		case <-ctx.Done():
@@ -1537,9 +1538,8 @@ func reader(ctx context.Context, in chan<- incomingMessage, t transport.Transpor
 
 // An incomingMessage bundles the reutrn values of Transport.RecvMessage.
 type incomingMessage struct {
-	msg     rpccp.Message
-	release capnp.ReleaseFunc
-	err     error
+	transport.IncomingMessage
+	err error
 }
 
 type asyncSend struct {

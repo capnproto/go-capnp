@@ -99,13 +99,13 @@ func errorAnswer(c *Conn, id answerID, err error) *answer {
 // all references to it are dropped; the caller is responsible for one reference. This will not
 // happen before the message is sent, as the returned send function retains a reference.
 func (c *Conn) newReturn(ctx context.Context) (_ rpccp.Return, sendMsg func(), _ *rc.Releaser, _ error) {
-	msg, send, releaseMsg, err := c.transport.NewMessage()
+	outMsg, err := c.transport.NewMessage()
 	if err != nil {
 		return rpccp.Return{}, nil, nil, rpcerr.Failedf("create return: %w", err)
 	}
-	ret, err := msg.NewReturn()
+	ret, err := outMsg.Message.NewReturn()
 	if err != nil {
-		releaseMsg()
+		outMsg.Release()
 		return rpccp.Return{}, nil, nil, rpcerr.Failedf("create return: %w", err)
 	}
 
@@ -113,11 +113,11 @@ func (c *Conn) newReturn(ctx context.Context) (_ rpccp.Return, sendMsg func(), _
 	// until the local vat is done with it.  We therefore implement a simple
 	// ref-counting mechanism such that 'release' must be called twice before
 	// 'releaseMsg' is called.
-	releaser := rc.NewReleaser(2, releaseMsg)
+	releaser := rc.NewReleaser(2, outMsg.Release)
 
 	return ret, func() {
 		c.sender.Send(asyncSend{
-			send:    send,
+			send:    outMsg.Send,
 			release: releaser.Decr,
 			onSent: func(err error) {
 				if err != nil {
