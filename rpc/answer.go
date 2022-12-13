@@ -119,7 +119,7 @@ func (c *Conn) newReturn(ctx context.Context) (_ rpccp.Return, sendMsg func(), _
 		c.sender.Send(asyncSend{
 			send:    send,
 			release: releaser.Decr,
-			callback: func(err error) {
+			onSent: func(err error) {
 				if err != nil {
 					c.er.ReportError(fmt.Errorf("send return: %w", err))
 				}
