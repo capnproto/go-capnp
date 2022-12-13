@@ -48,16 +48,16 @@ const (
 func (c *Conn) newQuestion(method capnp.Method) *question {
 	q := &question{
 		c:             c,
-		id:            questionID(c.questionID.next()),
+		id:            questionID(c.lk.questionID.next()),
 		release:       func() {},
 		finishMsgSend: make(chan struct{}),
 	}
 	q.p = capnp.NewPromise(method, q) // TODO(someday): customize error message for bootstrap
 	c.setAnswerQuestion(q.p.Answer(), q)
-	if int(q.id) == len(c.questions) {
-		c.questions = append(c.questions, q)
+	if int(q.id) == len(c.lk.questions) {
+		c.lk.questions = append(c.lk.questions, q)
 	} else {
-		c.questions[q.id] = q
+		c.lk.questions[q.id] = q
 	}
 	return q
 }
@@ -158,11 +158,11 @@ func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineO
 		}, func(err error) {
 			if err != nil {
 				syncutil.With(&q.c.mu, func() {
-					q.c.questions[q2.id] = nil
+					q.c.lk.questions[q2.id] = nil
 				})
 				q2.p.Reject(rpcerr.Failedf("send message: %w", err))
 				syncutil.With(&q.c.mu, func() {
-					q.c.questionID.remove(uint32(q2.id))
+					q.c.lk.questionID.remove(uint32(q2.id))
 				})
 				return
 			}

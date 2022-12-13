@@ -321,7 +321,7 @@ func (ans *answer) sendException(ex error) releaseList {
 // shutdown has its own strategy for cleaning up an answer.
 func (ans *answer) destroy() (releaseList, error) {
 	defer syncutil.Without(&ans.c.mu, ans.msgReleaser.Decr)
-	delete(ans.c.answers, ans.id)
+	delete(ans.c.lk.answers, ans.id)
 	if !ans.flags.Contains(releaseResultCapsFlag) || len(ans.exportRefs) == 0 {
 		return nil, nil
 
