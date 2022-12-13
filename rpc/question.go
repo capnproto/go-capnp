@@ -48,16 +48,16 @@ const (
 func (c *Conn) newQuestion(method capnp.Method) *question {
 	q := &question{
 		c:             c,
-		id:            questionID(c.questionID.next()),
+		id:            questionID(c.lk.questionID.next()),
 		release:       func() {},
 		finishMsgSend: make(chan struct{}),
 	}
 	q.p = capnp.NewPromise(method, q) // TODO(someday): customize error message for bootstrap
 	c.setAnswerQuestion(q.p.Answer(), q)
-	if int(q.id) == len(c.questions) {
-		c.questions = append(c.questions, q)
+	if int(q.id) == len(c.lk.questions) {
+		c.lk.questions = append(c.lk.questions, q)
 	} else {
-		c.questions[q.id] = q
+		c.lk.questions[q.id] = q
 	}
 	return q
 }
@@ -87,7 +87,7 @@ type questionKey struct {
 // handleCancel rejects the question's promise upon cancelation of its
 // Context.
 //
-// The caller MUST NOT hold q.c.mu.
+// The caller MUST NOT hold q.c.lk.
 func (q *question) handleCancel(ctx context.Context) {
 	var rejectErr error
 	select {
@@ -99,8 +99,8 @@ func (q *question) handleCancel(ctx context.Context) {
 		return
 	}
 
-	q.c.mu.Lock()
-	defer q.c.mu.Unlock()
+	q.c.lk.Lock()
+	defer q.c.lk.Unlock()
 
 	// Promise already fulfilled?
 	if q.flags&finished != 0 {
@@ -119,7 +119,7 @@ func (q *question) handleCancel(ctx context.Context) {
 		return nil
 	}, func(err error) {
 		if err == nil {
-			syncutil.With(&q.c.mu, func() { q.flags |= finishSent })
+			syncutil.With(&q.c.lk, func() { q.flags |= finishSent })
 		} else if q.c.bgctx.Err() == nil {
 			q.c.er.ReportError(rpcerr.Annotate(err, "send finish"))
 		}
@@ -134,8 +134,8 @@ func (q *question) handleCancel(ctx context.Context) {
 }
 
 func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineOp, s capnp.Send) (*capnp.Answer, capnp.ReleaseFunc) {
-	q.c.mu.Lock()
-	defer q.c.mu.Unlock()
+	q.c.lk.Lock()
+	defer q.c.lk.Unlock()
 
 	if !q.c.startTask() {
 		return capnp.ErrorAnswer(s.Method, ExcClosed), func() {}
@@ -151,18 +151,18 @@ func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineO
 	q.mark(transform)
 	q2 := q.c.newQuestion(s.Method)
 
-	syncutil.Without(&q.c.mu, func() {
+	syncutil.Without(&q.c.lk, func() {
 		// Send call message.
 		q.c.sendMessage(ctx, func(m rpccp.Message) error {
 			return q.c.newPipelineCallMessage(m, q.id, transform, q2.id, s)
 		}, func(err error) {
 			if err != nil {
-				syncutil.With(&q.c.mu, func() {
-					q.c.questions[q2.id] = nil
+				syncutil.With(&q.c.lk, func() {
+					q.c.lk.questions[q2.id] = nil
 				})
 				q2.p.Reject(rpcerr.Failedf("send message: %w", err))
-				syncutil.With(&q.c.mu, func() {
-					q.c.questionID.remove(uint32(q2.id))
+				syncutil.With(&q.c.lk, func() {
+					q.c.lk.questionID.remove(uint32(q2.id))
 				})
 				return
 			}
@@ -230,7 +230,7 @@ func (c *Conn) newPipelineCallMessage(msg rpccp.Message, tgt questionID, transfo
 	if err := s.PlaceArgs(args); err != nil {
 		return rpcerr.Failedf("place arguments: %w", err)
 	}
-	syncutil.With(&c.mu, func() {
+	syncutil.With(&c.lk, func() {
 		// TODO(soon): save param refs
 		_, err = c.fillPayloadCapTable(payload)
 	})
@@ -264,7 +264,7 @@ func (q *question) PipelineRecv(ctx context.Context, transform []capnp.PipelineO
 }
 
 // mark adds the promised answer transform to the set of pipelined
-// questions sent.  The caller must be holding onto q.c.mu.
+// questions sent.  The caller must be holding onto q.c.lk.
 func (q *question) mark(xform []capnp.PipelineOp) {
 	for _, x := range q.called {
 		if transformsEqual(x, xform) {

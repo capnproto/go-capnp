@@ -51,7 +51,7 @@ type impent struct {
 //
 // The caller must be holding onto c.mu.
 func (c *Conn) addImport(id importID) capnp.Client {
-	if ent := c.imports[id]; ent != nil {
+	if ent := c.lk.imports[id]; ent != nil {
 		ent.wireRefs++
 		client, ok := ent.wc.AddRef()
 		if !ok {
@@ -69,7 +69,7 @@ func (c *Conn) addImport(id importID) capnp.Client {
 		c:  c,
 		id: id,
 	})
-	c.imports[id] = &impent{
+	c.lk.imports[id] = &impent{
 		wc:       client.WeakRef(),
 		wireRefs: 1,
 	}
@@ -84,33 +84,33 @@ type importClient struct {
 }
 
 func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, capnp.ReleaseFunc) {
-	ic.c.mu.Lock()
-	defer ic.c.mu.Unlock()
+	ic.c.lk.Lock()
+	defer ic.c.lk.Unlock()
 
 	if !ic.c.startTask() {
 		return capnp.ErrorAnswer(s.Method, ExcClosed), func() {}
 	}
 	defer ic.c.tasks.Done()
-	ent := ic.c.imports[ic.id]
+	ent := ic.c.lk.imports[ic.id]
 	if ent == nil || ic.generation != ent.generation {
 		return capnp.ErrorAnswer(s.Method, rpcerr.Disconnectedf("send on closed import")), func() {}
 	}
 	q := ic.c.newQuestion(s.Method)
 
 	// Send call message.
-	syncutil.Without(&ic.c.mu, func() {
+	syncutil.Without(&ic.c.lk, func() {
 		ic.c.sendMessage(ctx, func(m rpccp.Message) error {
 			return ic.c.newImportCallMessage(m, ic.id, q.id, s)
 		}, func(err error) {
-			ic.c.mu.Lock()
-			defer ic.c.mu.Unlock()
+			ic.c.lk.Lock()
+			defer ic.c.lk.Unlock()
 
 			if err != nil {
-				ic.c.questions[q.id] = nil
-				syncutil.Without(&ic.c.mu, func() {
+				ic.c.lk.questions[q.id] = nil
+				syncutil.Without(&ic.c.lk, func() {
 					q.p.Reject(rpcerr.Failedf("send message: %w", err))
 				})
-				ic.c.questionID.remove(uint32(q.id))
+				ic.c.lk.questionID.remove(uint32(q.id))
 				return
 			}
 
@@ -164,7 +164,7 @@ func (c *Conn) newImportCallMessage(msg rpccp.Message, imp importID, qid questio
 	if err := s.PlaceArgs(args); err != nil {
 		return rpcerr.Failedf("place arguments: %w", err)
 	}
-	syncutil.With(&c.mu, func() {
+	syncutil.With(&c.lk, func() {
 		// TODO(soon): save param refs
 		_, err = c.fillPayloadCapTable(payload)
 	})
@@ -219,21 +219,21 @@ func (ic *importClient) Brand() capnp.Brand {
 }
 
 func (ic *importClient) Shutdown() {
-	ic.c.mu.Lock()
-	defer ic.c.mu.Unlock()
+	ic.c.lk.Lock()
+	defer ic.c.lk.Unlock()
 
 	if !ic.c.startTask() {
 		return
 	}
 	defer ic.c.tasks.Done()
 
-	ent := ic.c.imports[ic.id]
+	ent := ic.c.lk.imports[ic.id]
 	if ic.generation != ent.generation {
 		// A new reference was added concurrently with the Shutdown.  See
 		// impent.generation documentation for an explanation.
 		return
 	}
-	delete(ic.c.imports, ic.id)
+	delete(ic.c.lk.imports, ic.id)
 	ic.c.sendMessage(ic.c.bgctx, func(msg rpccp.Message) error {
 		rel, err := msg.NewRelease()
 		if err == nil {
