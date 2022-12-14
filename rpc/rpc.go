@@ -74,8 +74,6 @@ type Conn struct {
 
 	// bgctx is a Context that is canceled when shutdown starts.
 	bgctx context.Context
-	// bgcancel cancels bgctx.  Callers MUST hold mu.
-	bgcancel context.CancelFunc
 	// tasks block shutdown.
 	tasks  sync.WaitGroup
 	closed chan struct{} // closed when shutdown() returns
@@ -92,7 +90,8 @@ type Conn struct {
 	lk struct {
 		sync.Mutex // protects all the fields in lk.
 
-		closing bool // used to make shutdown() idempotent
+		closing  bool               // used to make shutdown() idempotent
+		bgcancel context.CancelFunc // bgcancel cancels bgctx.
 
 		// Tables
 		questions  []*question
@@ -150,9 +149,9 @@ func NewConn(t Transport, opts *Options) *Conn {
 		transport: t,
 		closed:    make(chan struct{}),
 		bgctx:     ctx,
-		bgcancel:  cancel,
 		sender:    *mpsc.New[asyncSend](),
 	}
+	c.lk.bgcancel = cancel
 	c.lk.answers = make(map[answerID]*answer)
 	c.lk.imports = make(map[importID]*impent)
 
@@ -306,7 +305,7 @@ func (c *Conn) Done() <-chan struct{} {
 func (c *Conn) shutdown(abortErr error) (err error) {
 	if !c.lk.closing {
 		c.lk.closing = true
-		c.bgcancel()
+		c.lk.bgcancel()
 
 		readyForClose := make(chan struct{})
 		go func() {
