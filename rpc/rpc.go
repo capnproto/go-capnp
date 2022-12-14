@@ -72,8 +72,11 @@ type Conn struct {
 	er           errReporter
 	abortTimeout time.Duration
 
-	// bgctx is a Context that is canceled when shutdown starts.
+	// bgctx is a Context that is canceled when shutdown starts. Note
+	// that it's parent is context.Background(), so we can rely on this
+	// being the *only* time it will be canceled.
 	bgctx context.Context
+
 	// tasks block shutdown.
 	tasks  sync.WaitGroup
 	closed chan struct{} // closed when shutdown() returns
