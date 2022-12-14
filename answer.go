@@ -156,28 +156,29 @@ func (p *Promise) Resolve(r Ptr, e error) {
 		}
 		p.caller = nil
 
-		if len(p.clients) > 0 || p.ongoingCalls > 0 {
-			// Pending resolution state: wait for clients to be fulfilled
-			// and calls to have answers.  p.clients cannot be touched in the
-			// pending resolution state, so we have exclusive access to the
-			// variable.
-			if p.ongoingCalls > 0 {
-				p.callsStopped = make(chan struct{})
-			}
-			syncutil.Without(&p.mu, func() {
-				res := resolution{p.method, r, e}
-				for path, cp := range p.clients {
-					t := path.transform()
-					cp.promise.fulfill(res.client(t))
-					shutdownPromises = append(shutdownPromises, cp.promise)
-					cp.promise = nil
-				}
-				if p.callsStopped != nil {
-					<-p.callsStopped
-				}
-			})
+		if p.ongoingCalls > 0 {
+			p.callsStopped = make(chan struct{})
 		}
+	})
 
+	if len(p.clients) > 0 || p.ongoingCalls > 0 {
+		// Pending resolution state: wait for clients to be fulfilled
+		// and calls to have answers.  p.clients cannot be touched in the
+		// pending resolution state, so we have exclusive access to the
+		// variable.
+		res := resolution{p.method, r, e}
+		for path, cp := range p.clients {
+			t := path.transform()
+			cp.promise.fulfill(res.client(t))
+			shutdownPromises = append(shutdownPromises, cp.promise)
+			cp.promise = nil
+		}
+		if p.callsStopped != nil {
+			<-p.callsStopped
+		}
+	}
+
+	syncutil.With(&p.mu, func() {
 		// Move p into resolved state.
 		p.callsStopped = nil
 		p.result, p.err = r, e
