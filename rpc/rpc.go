@@ -619,7 +619,7 @@ func (c *Conn) handleBootstrap(ctx context.Context, id answerID) error {
 	)
 
 	syncutil.Without(&c.lk, func() {
-		ans.ret, ans.sendMsg, ans.msgReleaser, err = c.newReturn(ctx)
+		ans.ret, ans.sendMsg, ans.msgReleaser, err = c.newReturn()
 		if err == nil {
 			ans.ret.SetAnswerId(uint32(id))
 			ans.ret.SetReleaseParamCaps(false)
@@ -694,7 +694,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 
 	// Create return message.
 	c.lk.Unlock()
-	ret, send, retReleaser, err := c.newReturn(ctx)
+	ret, send, retReleaser, err := c.newReturn()
 	if err != nil {
 		err = rpcerr.Annotate(err, "incoming call")
 		syncutil.With(&c.lk, func() {
