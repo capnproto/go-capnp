@@ -1295,7 +1295,11 @@ func (c *Conn) recvPayload(payload rpccp.Payload) (_ capnp.Ptr, locals uintSet, 
 		var err error
 		mtab[i], err = c.recvCap(ptab.At(i))
 		if err != nil {
-			releaseList(mtab[:i]).release()
+			// FIXME: is it safe to release these while holding c.lk? In general,
+			// it's possible for Client.Release() to deadlock.
+			for _, client := range mtab[:i] {
+				client.Release()
+			}
 			return capnp.Ptr{}, nil, rpcerr.Annotate(err, fmt.Sprintf("read payload: capability %d", i))
 		}
 		if c.isLocalClient(mtab[i]) {

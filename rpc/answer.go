@@ -314,17 +314,19 @@ func (ans *answer) sendException(ex error) releaseList {
 	return rl
 }
 
-// destroy removes the answer from the table and returns the clients to
-// release.  The answer must have sent a return and received a finish.
+// destroy removes the answer from the table and returns ReleaseFuncs to
+// run. The answer must have sent a return and received a finish.
 // The caller must be holding onto ans.c.lk.
 //
 // shutdown has its own strategy for cleaning up an answer.
 func (ans *answer) destroy() (releaseList, error) {
-	defer syncutil.Without(&ans.c.lk, ans.msgReleaser.Decr)
+	rl := releaseList{ans.msgReleaser.Decr}
 	delete(ans.c.lk.answers, ans.id)
 	if !ans.flags.Contains(releaseResultCapsFlag) || len(ans.exportRefs) == 0 {
-		return nil, nil
+		return rl, nil
 
 	}
-	return ans.c.releaseExportRefs(ans.exportRefs)
+	ret, err := ans.c.releaseExportRefs(ans.exportRefs)
+	ret = append(ret, rl...)
+	return ret, err
 }

@@ -98,7 +98,7 @@ func (c *Conn) releaseExportRefs(refs map[exportID]uint32) (releaseList, error) 
 		if rl == nil {
 			rl = make(releaseList, 0, n)
 		}
-		rl = append(rl, client)
+		rl = append(rl, client.Release)
 		n--
 	}
 	return rl, firstErr
@@ -308,13 +308,13 @@ func (sl *senderLoopback) buildDisembargo(msg rpccp.Message) error {
 	return nil
 }
 
-type releaseList []capnp.Client
+type releaseList []capnp.ReleaseFunc
 
 func (rl releaseList) release() {
-	for _, c := range rl {
-		c.Release()
+	for _, r := range rl {
+		r()
 	}
 	for i := range rl {
-		rl[i] = capnp.Client{}
+		rl[i] = func() {}
 	}
 }
