@@ -102,15 +102,14 @@ func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, 
 		ic.c.sendMessage(ctx, func(m rpccp.Message) error {
 			return ic.c.newImportCallMessage(m, ic.id, q.id, s)
 		}, func(err error) {
-			ic.c.lk.Lock()
-			defer ic.c.lk.Unlock()
-
 			if err != nil {
-				ic.c.lk.questions[q.id] = nil
-				syncutil.Without(&ic.c.lk, func() {
-					q.p.Reject(rpcerr.Failedf("send message: %w", err))
+				syncutil.With(&ic.c.lk, func() {
+					ic.c.lk.questions[q.id] = nil
 				})
-				ic.c.lk.questionID.remove(uint32(q.id))
+				q.p.Reject(rpcerr.Failedf("send message: %w", err))
+				syncutil.With(&ic.c.lk, func() {
+					ic.c.lk.questionID.remove(uint32(q.id))
+				})
 				return
 			}
 
