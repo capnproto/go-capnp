@@ -41,12 +41,12 @@ func (c *Conn) clearExportID(m *capnp.Metadata) {
 }
 
 // findExport returns the export entry with the given ID or nil if
-// couldn't be found.
+// couldn't be found. The caller must be holding c.mu
 func (c *Conn) findExport(id exportID) *expent {
-	if int64(id) >= int64(len(c.exports)) {
+	if int64(id) >= int64(len(c.lk.exports)) {
 		return nil
 	}
-	return c.exports[id] // might be nil
+	return c.lk.exports[id] // might be nil
 }
 
 // releaseExport decreases the number of wire references to an export
@@ -63,8 +63,8 @@ func (c *Conn) releaseExport(id exportID, count uint32) (capnp.Client, error) {
 	switch {
 	case count == ent.wireRefs:
 		client := ent.client
-		c.exports[id] = nil
-		c.exportID.remove(uint32(id))
+		c.lk.exports[id] = nil
+		c.lk.exportID.remove(uint32(id))
 		metadata := client.State().Metadata
 		syncutil.With(metadata, func() {
 			c.clearExportID(metadata)
@@ -98,7 +98,7 @@ func (c *Conn) releaseExportRefs(refs map[exportID]uint32) (releaseList, error) 
 		if rl == nil {
 			rl = make(releaseList, 0, n)
 		}
-		rl = append(rl, client)
+		rl = append(rl, client.Release)
 		n--
 	}
 	return rl, firstErr
@@ -116,7 +116,7 @@ func (c *Conn) sendCap(d rpccp.CapDescriptor, client capnp.Client) (_ exportID, 
 	state := client.State()
 	bv := state.Brand.Value
 	if ic, ok := bv.(*importClient); ok && ic.c == c {
-		if ent := c.imports[ic.id]; ent != nil && ent.generation == ic.generation {
+		if ent := c.lk.imports[ic.id]; ent != nil && ent.generation == ic.generation {
 			d.SetReceiverHosted(uint32(ic.id))
 			return 0, false, nil
 		}
@@ -149,7 +149,7 @@ func (c *Conn) sendCap(d rpccp.CapDescriptor, client capnp.Client) (_ exportID, 
 	defer state.Metadata.Unlock()
 	id, ok := c.findExportID(state.Metadata)
 	if ok {
-		ent := c.exports[id]
+		ent := c.lk.exports[id]
 		ent.wireRefs++
 		d.SetSenderHosted(uint32(id))
 		return id, true, nil
@@ -160,11 +160,11 @@ func (c *Conn) sendCap(d rpccp.CapDescriptor, client capnp.Client) (_ exportID, 
 		client:   client.AddRef(),
 		wireRefs: 1,
 	}
-	id = exportID(c.exportID.next())
-	if int64(id) == int64(len(c.exports)) {
-		c.exports = append(c.exports, ee)
+	id = exportID(c.lk.exportID.next())
+	if int64(id) == int64(len(c.lk.exports)) {
+		c.lk.exports = append(c.lk.exports, ee)
 	} else {
-		c.exports[id] = ee
+		c.lk.exports[id] = ee
 	}
 	c.setExportID(state.Metadata, id)
 	d.SetSenderHosted(uint32(id))
@@ -217,28 +217,28 @@ type embargo struct {
 //
 // The caller must be holding onto c.mu.
 func (c *Conn) embargo(client capnp.Client) (embargoID, capnp.Client) {
-	id := embargoID(c.embargoID.next())
+	id := embargoID(c.lk.embargoID.next())
 	e := &embargo{
 		c:      client,
 		lifted: make(chan struct{}),
 	}
-	if int64(id) == int64(len(c.embargoes)) {
-		c.embargoes = append(c.embargoes, e)
+	if int64(id) == int64(len(c.lk.embargoes)) {
+		c.lk.embargoes = append(c.lk.embargoes, e)
 	} else {
-		c.embargoes[id] = e
+		c.lk.embargoes[id] = e
 	}
 	var c2 capnp.Client
-	c2, c.embargoes[id].p = capnp.NewPromisedClient(c.embargoes[id])
+	c2, c.lk.embargoes[id].p = capnp.NewPromisedClient(c.lk.embargoes[id])
 	return id, c2
 }
 
 // findEmbargo returns the embargo entry with the given ID or nil if
-// couldn't be found.
+// couldn't be found. Must be holding c.mu
 func (c *Conn) findEmbargo(id embargoID) *embargo {
-	if int64(id) >= int64(len(c.embargoes)) {
+	if int64(id) >= int64(len(c.lk.embargoes)) {
 		return nil
 	}
-	return c.embargoes[id] // might be nil
+	return c.lk.embargoes[id] // might be nil
 }
 
 // lift disembargoes the client.  It must be called only once.
@@ -308,13 +308,13 @@ func (sl *senderLoopback) buildDisembargo(msg rpccp.Message) error {
 	return nil
 }
 
-type releaseList []capnp.Client
+type releaseList []capnp.ReleaseFunc
 
 func (rl releaseList) release() {
-	for _, c := range rl {
-		c.Release()
+	for _, r := range rl {
+		r()
 	}
 	for i := range rl {
-		rl[i] = capnp.Client{}
+		rl[i] = func() {}
 	}
 }

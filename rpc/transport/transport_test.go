@@ -39,26 +39,26 @@ func testTransport(t *testing.T, makePipe func() (t1, t2 Transport, err error)) 
 		}()
 
 		// Create messages out of sending order
-		callMsg, sendCall, releaseSendCall, err := t1.NewMessage()
+		callMsg, err := t1.NewMessage()
 		if err != nil {
 			t.Fatal("t1.NewMessage #1:", err)
 		}
-		defer releaseSendCall()
-		bootMsg, sendBoot, releaseSendBoot, err := t1.NewMessage()
+		defer callMsg.Release()
+		bootMsg, err := t1.NewMessage()
 		if err != nil {
 			t.Fatal("t1.NewMessage #2:", err)
 		}
-		defer releaseSendBoot()
+		defer bootMsg.Release()
 
 		// Fill in bootstrap message
-		boot, err := bootMsg.NewBootstrap()
+		boot, err := bootMsg.Message.NewBootstrap()
 		if err != nil {
 			t.Fatal("NewBootstrap:", err)
 		}
 		boot.SetQuestionId(42)
 
 		// Fill in call message
-		call, err := callMsg.NewCall()
+		call, err := callMsg.Message.NewCall()
 		if err != nil {
 			t.Fatal("NewCall:", err)
 		}
@@ -79,8 +79,8 @@ func testTransport(t *testing.T, makePipe func() (t1, t2 Transport, err error)) 
 			t.Fatal("NewParams:", err)
 		}
 		// simulate mutating CapTable
-		callMsg.Message().AddCap(capnp.ErrorClient(errors.New("foo")))
-		callMsg.Message().CapTable = nil
+		callMsg.Message.Message().AddCap(capnp.ErrorClient(errors.New("foo")))
+		callMsg.Message.Message().CapTable = nil
 		capPtr := capnp.NewInterface(params.Segment(), 0).ToPtr()
 		if err := params.SetContent(capPtr); err != nil {
 			t.Fatal("SetContent:", err)
@@ -92,43 +92,43 @@ func testTransport(t *testing.T, makePipe func() (t1, t2 Transport, err error)) 
 		capTable.At(0).SetSenderHosted(777)
 
 		// Send/receive first message (bootstrap)
-		if err := sendBoot(); err != nil {
+		if err := bootMsg.Send(); err != nil {
 			t.Fatal("sendBoot():", err)
 		}
-		releaseSendBoot()
-		r1, release1, err := t2.RecvMessage()
+		bootMsg.Release()
+		r1, err := t2.RecvMessage()
 		if err != nil {
 			t.Fatal("t2.RecvMessage:", err)
 		}
-		if r1.Message().CapTable != nil {
+		if r1.Message.Message().CapTable != nil {
 			t.Error("t2.RecvMessage(ctx).Message().CapTable is not nil")
 		}
-		if r1.Which() != rpccp.Message_Which_bootstrap {
-			t.Errorf("t2.RecvMessage(ctx).Which = %v; want bootstrap", r1.Which())
+		if r1.Message.Which() != rpccp.Message_Which_bootstrap {
+			t.Errorf("t2.RecvMessage(ctx).Which = %v; want bootstrap", r1.Message.Which())
 		} else {
-			rboot, _ := r1.Bootstrap()
+			rboot, _ := r1.Message.Bootstrap()
 			if rboot.QuestionId() != 42 {
 				t.Errorf("t2.RecvMessage(ctx).Bootstrap.QuestionID = %d; want 42", rboot.QuestionId())
 			}
 		}
-		release1()
+		r1.Release()
 
 		// Send/receive second message (call)
-		if err := sendCall(); err != nil {
+		if err := callMsg.Send(); err != nil {
 			t.Fatal("sendCall():", err)
 		}
-		releaseSendCall()
-		r2, release2, err := t2.RecvMessage()
+		callMsg.Release()
+		r2, err := t2.RecvMessage()
 		if err != nil {
 			t.Fatal("t2.RecvMessage:", err)
 		}
-		if r2.Message().CapTable != nil {
+		if r2.Message.Message().CapTable != nil {
 			t.Error("t2.RecvMessage(ctx).Message().CapTable is not nil")
 		}
-		if r2.Which() != rpccp.Message_Which_call {
-			t.Errorf("t2.RecvMessage(ctx).Which = %v; want call", r2.Which())
+		if r2.Message.Which() != rpccp.Message_Which_call {
+			t.Errorf("t2.RecvMessage(ctx).Which = %v; want call", r2.Message.Which())
 		} else {
-			rcall, _ := r2.Call()
+			rcall, _ := r2.Message.Call()
 			if rcall.QuestionId() != 123 {
 				t.Errorf("t2.RecvMessage(ctx).Call.QuestionID = %d; want 123", rcall.QuestionId())
 			}
@@ -148,7 +148,7 @@ func testTransport(t *testing.T, makePipe func() (t1, t2 Transport, err error)) 
 				t.Errorf("t2.RecvMessage(ctx).Call.Params.CapTable.SenderHosted = %d; want 777", rctab.At(0).SenderHosted())
 			}
 		}
-		release2()
+		r2.Release()
 	})
 	t.Run("InterruptRecv", func(t *testing.T) {
 		t1, t2, err := makePipe()
@@ -160,12 +160,12 @@ func testTransport(t *testing.T, makePipe func() (t1, t2 Transport, err error)) 
 			time.Sleep(100 * time.Millisecond)
 			t1.Close()
 		}()
-		_, release, err := t1.RecvMessage() // hangs here if doesn't work
+		inMsg, err := t1.RecvMessage() // hangs here if doesn't work
 		if err == nil {
 			t.Error("interrupted RecvMessage returned nil error")
 		}
-		if release != nil {
-			release()
+		if inMsg.Release != nil {
+			inMsg.Release()
 		}
 
 		if err := t2.Close(); err != nil {

@@ -155,20 +155,20 @@ func TestBootstrapReceiverAnswer(t *testing.T) {
 	defer conn.Close()
 	trans := NewStreamTransport(cClient)
 
-	msg, send, release, err := trans.NewMessage()
+	outMsg, err := trans.NewMessage()
 	chkfatal(err)
 
-	bs, err := msg.NewBootstrap()
+	bs, err := outMsg.Message.NewBootstrap()
 	chkfatal(err)
 	bs.SetQuestionId(0)
-	send()
-	release()
+	outMsg.Send()
+	outMsg.Release()
 
-	msg, send, release, err = trans.NewMessage()
+	outMsg, err = trans.NewMessage()
 	chkfatal(err)
 
 	// bootstrap.call(cap = bootstrap)
-	call, err := msg.NewCall()
+	call, err := outMsg.Message.NewCall()
 	chkfatal(err)
 	call.SetQuestionId(1)
 	tgt, err := call.NewTarget()
@@ -193,8 +193,8 @@ func TestBootstrapReceiverAnswer(t *testing.T) {
 	chkfatal(err)
 	argStruct.SetPtr(0, capnp.NewInterface(seg, 0).ToPtr())
 	params.SetContent(argStruct.ToPtr())
-	send()
-	release()
+	outMsg.Send()
+	outMsg.Release()
 
 	for err = range errChan {
 		t.Errorf("Error: %v", err)
@@ -220,20 +220,20 @@ func TestCallReceiverAnswer(t *testing.T) {
 	defer conn.Close()
 	trans := NewStreamTransport(cClient)
 
-	msg, send, release, err := trans.NewMessage()
+	outMsg, err := trans.NewMessage()
 	chkfatal(err)
 
-	bs, err := msg.NewBootstrap()
+	bs, err := outMsg.Message.NewBootstrap()
 	chkfatal(err)
 	bs.SetQuestionId(0)
-	send()
-	release()
+	outMsg.Send()
+	outMsg.Release()
 
-	msg, send, release, err = trans.NewMessage()
+	outMsg, err = trans.NewMessage()
 	chkfatal(err)
 
 	// qid1 = bootstrap.self()
-	call, err := msg.NewCall()
+	call, err := outMsg.Message.NewCall()
 	chkfatal(err)
 	call.SetQuestionId(1)
 	tgt, err := call.NewTarget()
@@ -243,14 +243,14 @@ func TestCallReceiverAnswer(t *testing.T) {
 	pa.SetQuestionId(0)
 	call.SetInterfaceId(testcapnp.CapArgsTest_TypeID)
 	call.SetMethodId(1)
-	send()
-	release()
+	outMsg.Send()
+	outMsg.Release()
 
-	msg, send, release, err = trans.NewMessage()
+	outMsg, err = trans.NewMessage()
 	chkfatal(err)
 
 	// qid1.self.call(cap = qid1.self)
-	call, err = msg.NewCall()
+	call, err = outMsg.Message.NewCall()
 	chkfatal(err)
 	call.SetQuestionId(2)
 	tgt, err = call.NewTarget()
@@ -280,8 +280,8 @@ func TestCallReceiverAnswer(t *testing.T) {
 	chkfatal(err)
 	argStruct.SetPtr(0, capnp.NewInterface(seg, 0).ToPtr())
 	params.SetContent(argStruct.ToPtr())
-	send()
-	release()
+	outMsg.Send()
+	outMsg.Release()
 
 	for err = range errChan {
 		t.Errorf("Error: %v", err)
