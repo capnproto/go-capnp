@@ -72,8 +72,11 @@ type Conn struct {
 	er           errReporter
 	abortTimeout time.Duration
 
-	// bgctx is a Context that is canceled when shutdown starts.
+	// bgctx is a Context that is canceled when shutdown starts. Note
+	// that it's parent is context.Background(), so we can rely on this
+	// being the *only* time it will be canceled.
 	bgctx context.Context
+
 	// tasks block shutdown.
 	tasks  sync.WaitGroup
 	closed chan struct{} // closed when shutdown() returns
@@ -619,7 +622,7 @@ func (c *Conn) handleBootstrap(ctx context.Context, id answerID) error {
 	)
 
 	syncutil.Without(&c.lk, func() {
-		ans.ret, ans.sendMsg, ans.msgReleaser, err = c.newReturn(ctx)
+		ans.ret, ans.sendMsg, ans.msgReleaser, err = c.newReturn()
 		if err == nil {
 			ans.ret.SetAnswerId(uint32(id))
 			ans.ret.SetReleaseParamCaps(false)
@@ -694,7 +697,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 
 	// Create return message.
 	c.lk.Unlock()
-	ret, send, retReleaser, err := c.newReturn(ctx)
+	ret, send, retReleaser, err := c.newReturn()
 	if err != nil {
 		err = rpcerr.Annotate(err, "incoming call")
 		syncutil.With(&c.lk, func() {

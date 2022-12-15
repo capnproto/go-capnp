@@ -98,7 +98,7 @@ func errorAnswer(c *Conn, id answerID, err error) *answer {
 // newReturn creates a new Return message. The returned Releaser will release the message when
 // all references to it are dropped; the caller is responsible for one reference. This will not
 // happen before the message is sent, as the returned send function retains a reference.
-func (c *Conn) newReturn(ctx context.Context) (_ rpccp.Return, sendMsg func(), _ *rc.Releaser, _ error) {
+func (c *Conn) newReturn() (_ rpccp.Return, sendMsg func(), _ *rc.Releaser, _ error) {
 	outMsg, err := c.transport.NewMessage()
 	if err != nil {
 		return rpccp.Return{}, nil, nil, rpcerr.Failedf("create return: %w", err)
