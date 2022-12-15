@@ -1037,53 +1037,366 @@ func (p CapArgsTest_self_Results_Future) Self() CapArgsTest {
 	return CapArgsTest(p.Future.Field(0, nil).Client())
 }
 
-const schema_ef12a34b9807e19c = "x\xda\x94\x93Mh\xd3`\x18\xc7\x9f\xa7\xef\x9b\xa5C" +
-	"B}\x93\xa1\xa8\x07ul\x82;\x14\xeb\x0e\xea\x10\xdb" +
-	")8A\x18\x89\x1f\x07\xf5 \xa1fm\xb5MC\x93" +
-	"\"\x0a:/\xb2\xb3\x97ME\x05\xe7\x07z\x9c \xa8" +
-	"\xbb\xe8p\xa08\xbc\x89\xc8\x1c~\xdc\x9d;\x0eD#" +
-	"\xef\x9bfilw\xf0V\xfa\x7f\xde\xff\xef\xff|d" +
-	"\xc7\x05\xcc\xd1\x8c\xb2\xab\x03\x12\xc6!\xa9\xc3\x9f,\x8e" +
-	"\x95\x86/'\xaf\x00[\x8f\x00\x12\xca\x00\xfdH6\"" +
-	"\xa0\xd6I\xb2\x80\x7f\xb6\xf5\xce\x8f\xff^\xb8jt!" +
-	"\x02P.o'\xdd\\\xcep\xd9W\xb6,\xcd(\xb3" +
-	"\xbf\xc6\x83\xf7B7\xb8N\xfd\x9d\xcc\x7f'\xcd\x1d\x9c" +
-	"hv\xde\x13<\x1d\x14O\xe7\xd6\x9e\xbd6\xfa\xfe\xdc" +
-	"3`k\x88\x7f\xeb\x9b|\xfd\xf0=\xf5'\x00j&" +
-	"y\xa1\x95\x88\x0c\xa0YdL{\xca\x7f\xf9\xd6\xfdE" +
-	"<\xf5h\xeftK\xf1m\xf2D{ \x8a\xef\x92!" +
-	"\xed\xad(\xde\xda\xf9\xe5\xce\xe3\xaf\x13\x1f\xa1)\xf5T" +
-	"\xd0\xd4s\x81\xbe4=0rr\xdf\xf1\xefM\xa9?" +
-	"q\x9d\xfa\x17\x17\x97g\xbc\xd7t\xa9\x85\xf3\x8aL\x06" +
-	"\xee\xda,\x19\xd2~\x08\xce\xfc\xa6\xda\x9b\x87\x9fw/" +
-	"\x03[\xb7\xd2\xe2\x07\xa2r\xce\x02\xc9\xc2\x09\xdf\xb3\\" +
-	"/\x9d7\x1db;\x03\x07Lg\xb0Vp\x8f\x05\x7f" +
-	"\x95\xcb=\xbaY3I\xc55(\xa1\x00\x14\x01\x98\xd2" +
-	"\x0d`$\x09\x1a]\x09\x94\xf3\xa6\x83*%\x80\xa8\x02" +
-	"\xc6\x9c\xf4\x92]\xd0\xabv!m\xe5\x8b\xd5\xe1z\xa5" +
-	"\xe7\x88\xe5\xd6\xe5\xb2\x17\xb3R#+\xb4Q\x82\x04J" +
-	"\xff\xd8\xb4\x04\x0amV\xadr\xad\xf2H[X_\x04" +
-	"K\xf1\"d\xd1v\x01\x915\x911\xf4\xcc\x06\xa6:" +
-	"\xa2\x91$\x12\xc0\xca)bxS,\xd3\x07\x09\xd6+" +
-	"c\xb40\x0c\xaf\x8am\xe0\x9a\"\xa7x\xf2\\@\xcd" +
-	"\xa1\x8eq\xd0Q\xaff\x99\x9b+!\x87\x0aN\xb85" +
-	"\xb4\xa7^\x9e\xef\xbfy\xfa\x06c\xdcK\x92SN\xdd" +
-	"-\xc6M\xda\x8e\xbb\xcd\xe2\xfeo\xdab\x8e\x0d\x97X" +
-	"^\x81\x92\xabv!J\x1b\xde2B\xe3Kdl\xbf" +
-	"H;\xda\x88\xd3\x1aXt-\x9aN\xf3\x8e\x04\xa9\x82" +
-	"\xab.\xec\x8c\xe9\x99\xa8@\x02\x15\xc0\xbf\x01\x00\x00\xff" +
-	"\xff\x19\x83 \xe4"
+type PingPongProvider capnp.Client
+
+// PingPongProvider_TypeID is the unique identifier for the type PingPongProvider.
+const PingPongProvider_TypeID = 0x95b6142577e93239
+
+func (c PingPongProvider) PingPong(ctx context.Context, params func(PingPongProvider_pingPong_Params) error) (PingPongProvider_pingPong_Results_Future, capnp.ReleaseFunc) {
+	s := capnp.Send{
+		Method: capnp.Method{
+			InterfaceID:   0x95b6142577e93239,
+			MethodID:      0,
+			InterfaceName: "test.capnp:PingPongProvider",
+			MethodName:    "pingPong",
+		},
+	}
+	if params != nil {
+		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
+		s.PlaceArgs = func(s capnp.Struct) error { return params(PingPongProvider_pingPong_Params(s)) }
+	}
+	ans, release := capnp.Client(c).SendCall(ctx, s)
+	return PingPongProvider_pingPong_Results_Future{Future: ans.Future()}, release
+}
+
+// String returns a string that identifies this capability for debugging
+// purposes.  Its format should not be depended on: in particular, it
+// should not be used to compare clients.  Use IsSame to compare clients
+// for equality.
+func (c PingPongProvider) String() string {
+	return fmt.Sprintf("%T(%v)", c, capnp.Client(c))
+}
+
+// AddRef creates a new Client that refers to the same capability as c.
+// If c is nil or has resolved to null, then AddRef returns nil.
+func (c PingPongProvider) AddRef() PingPongProvider {
+	return PingPongProvider(capnp.Client(c).AddRef())
+}
+
+// Release releases a capability reference.  If this is the last
+// reference to the capability, then the underlying resources associated
+// with the capability will be released.
+//
+// Release will panic if c has already been released, but not if c is
+// nil or resolved to null.
+func (c PingPongProvider) Release() {
+	capnp.Client(c).Release()
+}
+
+// Resolve blocks until the capability is fully resolved or the Context
+// expires.
+func (c PingPongProvider) Resolve(ctx context.Context) error {
+	return capnp.Client(c).Resolve(ctx)
+}
+
+func (c PingPongProvider) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Client(c).EncodeAsPtr(seg)
+}
+
+func (PingPongProvider) DecodeFromPtr(p capnp.Ptr) PingPongProvider {
+	return PingPongProvider(capnp.Client{}.DecodeFromPtr(p))
+}
+
+// IsValid reports whether c is a valid reference to a capability.
+// A reference is invalid if it is nil, has resolved to null, or has
+// been released.
+func (c PingPongProvider) IsValid() bool {
+	return capnp.Client(c).IsValid()
+}
+
+// IsSame reports whether c and other refer to a capability created by the
+// same call to NewClient.  This can return false negatives if c or other
+// are not fully resolved: use Resolve if this is an issue.  If either
+// c or other are released, then IsSame panics.
+func (c PingPongProvider) IsSame(other PingPongProvider) bool {
+	return capnp.Client(c).IsSame(capnp.Client(other))
+}
+
+// Update the flowcontrol.FlowLimiter used to manage flow control for
+// this client. This affects all future calls, but not calls already
+// waiting to send. Passing nil sets the value to flowcontrol.NopLimiter,
+// which is also the default.
+func (c PingPongProvider) SetFlowLimiter(lim fc.FlowLimiter) {
+	capnp.Client(c).SetFlowLimiter(lim)
+}
+
+// Get the current flowcontrol.FlowLimiter used to manage flow control
+// for this client.
+func (c PingPongProvider) GetFlowLimiter() fc.FlowLimiter {
+	return capnp.Client(c).GetFlowLimiter()
+} // A PingPongProvider_Server is a PingPongProvider with a local implementation.
+type PingPongProvider_Server interface {
+	PingPong(context.Context, PingPongProvider_pingPong) error
+}
+
+// PingPongProvider_NewServer creates a new Server from an implementation of PingPongProvider_Server.
+func PingPongProvider_NewServer(s PingPongProvider_Server) *server.Server {
+	c, _ := s.(server.Shutdowner)
+	return server.New(PingPongProvider_Methods(nil, s), s, c)
+}
+
+// PingPongProvider_ServerToClient creates a new Client from an implementation of PingPongProvider_Server.
+// The caller is responsible for calling Release on the returned Client.
+func PingPongProvider_ServerToClient(s PingPongProvider_Server) PingPongProvider {
+	return PingPongProvider(capnp.NewClient(PingPongProvider_NewServer(s)))
+}
+
+// PingPongProvider_Methods appends Methods to a slice that invoke the methods on s.
+// This can be used to create a more complicated Server.
+func PingPongProvider_Methods(methods []server.Method, s PingPongProvider_Server) []server.Method {
+	if cap(methods) == 0 {
+		methods = make([]server.Method, 0, 1)
+	}
+
+	methods = append(methods, server.Method{
+		Method: capnp.Method{
+			InterfaceID:   0x95b6142577e93239,
+			MethodID:      0,
+			InterfaceName: "test.capnp:PingPongProvider",
+			MethodName:    "pingPong",
+		},
+		Impl: func(ctx context.Context, call *server.Call) error {
+			return s.PingPong(ctx, PingPongProvider_pingPong{call})
+		},
+	})
+
+	return methods
+}
+
+// PingPongProvider_pingPong holds the state for a server call to PingPongProvider.pingPong.
+// See server.Call for documentation.
+type PingPongProvider_pingPong struct {
+	*server.Call
+}
+
+// Args returns the call's arguments.
+func (c PingPongProvider_pingPong) Args() PingPongProvider_pingPong_Params {
+	return PingPongProvider_pingPong_Params(c.Call.Args())
+}
+
+// AllocResults allocates the results struct.
+func (c PingPongProvider_pingPong) AllocResults() (PingPongProvider_pingPong_Results, error) {
+	r, err := c.Call.AllocResults(capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return PingPongProvider_pingPong_Results(r), err
+}
+
+// PingPongProvider_List is a list of PingPongProvider.
+type PingPongProvider_List = capnp.CapList[PingPongProvider]
+
+// NewPingPongProvider creates a new list of PingPongProvider.
+func NewPingPongProvider_List(s *capnp.Segment, sz int32) (PingPongProvider_List, error) {
+	l, err := capnp.NewPointerList(s, sz)
+	return capnp.CapList[PingPongProvider](l), err
+}
+
+type PingPongProvider_pingPong_Params capnp.Struct
+
+// PingPongProvider_pingPong_Params_TypeID is the unique identifier for the type PingPongProvider_pingPong_Params.
+const PingPongProvider_pingPong_Params_TypeID = 0xd4e835c17f1ef32c
+
+func NewPingPongProvider_pingPong_Params(s *capnp.Segment) (PingPongProvider_pingPong_Params, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return PingPongProvider_pingPong_Params(st), err
+}
+
+func NewRootPingPongProvider_pingPong_Params(s *capnp.Segment) (PingPongProvider_pingPong_Params, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return PingPongProvider_pingPong_Params(st), err
+}
+
+func ReadRootPingPongProvider_pingPong_Params(msg *capnp.Message) (PingPongProvider_pingPong_Params, error) {
+	root, err := msg.Root()
+	return PingPongProvider_pingPong_Params(root.Struct()), err
+}
+
+func (s PingPongProvider_pingPong_Params) String() string {
+	str, _ := text.Marshal(0xd4e835c17f1ef32c, capnp.Struct(s))
+	return str
+}
+
+func (s PingPongProvider_pingPong_Params) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (PingPongProvider_pingPong_Params) DecodeFromPtr(p capnp.Ptr) PingPongProvider_pingPong_Params {
+	return PingPongProvider_pingPong_Params(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s PingPongProvider_pingPong_Params) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s PingPongProvider_pingPong_Params) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s PingPongProvider_pingPong_Params) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s PingPongProvider_pingPong_Params) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
+
+// PingPongProvider_pingPong_Params_List is a list of PingPongProvider_pingPong_Params.
+type PingPongProvider_pingPong_Params_List = capnp.StructList[PingPongProvider_pingPong_Params]
+
+// NewPingPongProvider_pingPong_Params creates a new list of PingPongProvider_pingPong_Params.
+func NewPingPongProvider_pingPong_Params_List(s *capnp.Segment, sz int32) (PingPongProvider_pingPong_Params_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	return capnp.StructList[PingPongProvider_pingPong_Params](l), err
+}
+
+// PingPongProvider_pingPong_Params_Future is a wrapper for a PingPongProvider_pingPong_Params promised by a client call.
+type PingPongProvider_pingPong_Params_Future struct{ *capnp.Future }
+
+func (f PingPongProvider_pingPong_Params_Future) Struct() (PingPongProvider_pingPong_Params, error) {
+	p, err := f.Future.Ptr()
+	return PingPongProvider_pingPong_Params(p.Struct()), err
+}
+
+type PingPongProvider_pingPong_Results capnp.Struct
+
+// PingPongProvider_pingPong_Results_TypeID is the unique identifier for the type PingPongProvider_pingPong_Results.
+const PingPongProvider_pingPong_Results_TypeID = 0xf269473b6db8d0eb
+
+func NewPingPongProvider_pingPong_Results(s *capnp.Segment) (PingPongProvider_pingPong_Results, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return PingPongProvider_pingPong_Results(st), err
+}
+
+func NewRootPingPongProvider_pingPong_Results(s *capnp.Segment) (PingPongProvider_pingPong_Results, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return PingPongProvider_pingPong_Results(st), err
+}
+
+func ReadRootPingPongProvider_pingPong_Results(msg *capnp.Message) (PingPongProvider_pingPong_Results, error) {
+	root, err := msg.Root()
+	return PingPongProvider_pingPong_Results(root.Struct()), err
+}
+
+func (s PingPongProvider_pingPong_Results) String() string {
+	str, _ := text.Marshal(0xf269473b6db8d0eb, capnp.Struct(s))
+	return str
+}
+
+func (s PingPongProvider_pingPong_Results) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (PingPongProvider_pingPong_Results) DecodeFromPtr(p capnp.Ptr) PingPongProvider_pingPong_Results {
+	return PingPongProvider_pingPong_Results(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s PingPongProvider_pingPong_Results) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s PingPongProvider_pingPong_Results) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s PingPongProvider_pingPong_Results) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s PingPongProvider_pingPong_Results) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
+func (s PingPongProvider_pingPong_Results) PingPong() PingPong {
+	p, _ := capnp.Struct(s).Ptr(0)
+	return PingPong(p.Interface().Client())
+}
+
+func (s PingPongProvider_pingPong_Results) HasPingPong() bool {
+	return capnp.Struct(s).HasPtr(0)
+}
+
+func (s PingPongProvider_pingPong_Results) SetPingPong(v PingPong) error {
+	if !v.IsValid() {
+		return capnp.Struct(s).SetPtr(0, capnp.Ptr{})
+	}
+	seg := s.Segment()
+	in := capnp.NewInterface(seg, seg.Message().AddCap(capnp.Client(v)))
+	return capnp.Struct(s).SetPtr(0, in.ToPtr())
+}
+
+// PingPongProvider_pingPong_Results_List is a list of PingPongProvider_pingPong_Results.
+type PingPongProvider_pingPong_Results_List = capnp.StructList[PingPongProvider_pingPong_Results]
+
+// NewPingPongProvider_pingPong_Results creates a new list of PingPongProvider_pingPong_Results.
+func NewPingPongProvider_pingPong_Results_List(s *capnp.Segment, sz int32) (PingPongProvider_pingPong_Results_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
+	return capnp.StructList[PingPongProvider_pingPong_Results](l), err
+}
+
+// PingPongProvider_pingPong_Results_Future is a wrapper for a PingPongProvider_pingPong_Results promised by a client call.
+type PingPongProvider_pingPong_Results_Future struct{ *capnp.Future }
+
+func (f PingPongProvider_pingPong_Results_Future) Struct() (PingPongProvider_pingPong_Results, error) {
+	p, err := f.Future.Ptr()
+	return PingPongProvider_pingPong_Results(p.Struct()), err
+}
+func (p PingPongProvider_pingPong_Results_Future) PingPong() PingPong {
+	return PingPong(p.Future.Field(0, nil).Client())
+}
+
+const schema_ef12a34b9807e19c = "x\xda\x94TMH\x14o\x18\x7f\x9ey\xdf\xf9\x8f\xf2" +
+	"o\xd9\xde\x1d\xe9\x9b>D;H,\xa9\x04e\xd9j" +
+	"a\x0bF\xb2cz\xa8\x0e1\xe9\xa8k;\xeb2\xb3" +
+	"\x9b\x14\x94]\xc4S\x07\x0fiFt\xb0\x88:t(" +
+	"($/%\x05E\x12\x1d\x8a\x08\x93\xd2S\x11\x98\xd5" +
+	"E\x88\x9ax\xdf\xd9qg\xfd\x82\xae\xfb<\xf3\xfbz" +
+	"~\xef\xee|\x815\xb4<\x10Q@\xd2\x9a\xe4\xff\x9c" +
+	"\xe1\x8e\xbex\xc3\x85\x82\x8b\xc0\xd6\"\x80\x8c\x0a@e" +
+	"/\xd9\x80\x80\xea%\x12\x01\xfc\xb3\xbdtb\xe0\xf7d" +
+	"\xafV\x84\x08@\xf9\xf8.)\xe6\xe3\x07|\xec\xec\xa9" +
+	"\xf8\xd2]Z\xf4\xf02\xb0\xff\x89smJ\xb9r\xf8" +
+	"F\xe8\x1b\x00\xaao\xc9\xb4:E\x14\x00u\x92D\xd5" +
+	"B\xfe\xa5\x13\xd8:;\x16x\xf6k\xc0%\x13`\xdf" +
+	"9\x18u*\x98\xf3R\x1e?4\xe8\x97\xf1\xde\xe5\x99" +
+	"\x12<\xe3\xab;\xfb{^\x9d\x1eY\xc4\x83\xf4\x91\x8b" +
+	"\xae\xca\xb4Om\x16<\xc6\xcd\x19<q{\xdf\xe8\xa2" +
+	"\xe5jz_\xad\x13\xcb\xb54\xaa\xc6\xc5\xf2\x8e\x9f\x9b" +
+	"{\x9e\xec\xfa\xfc\x06\xd8&O\x94FOqQ\xdb\x0a" +
+	"?^\xbf\xf3i\xf0\x1d\xf8\xccWS\x91M\x1d\xe5\xa2" +
+	"\xce\x8fV\xb5\x1d\xdf\xdf<\xed\xf3c\xf09u\xce\xcd" +
+	"\xcc\x8d\xa5\x9f\xd2\xd9E\x0a\x8e\xd0aW\xa4\xaa\xd1\xa8" +
+	"zV(\xf8\xfaz\xc4\xdc\x1b\x8d\xffp\x15\xb8\xe6u" +
+	"\xda\xc9yL\xc13\xb1\xd1z~\xeb\xc3\xee9`k" +
+	"\xe6\x17\xfai\x88/\x0c\xd1\x08\x1cs\xd2\x86\x9d\x0e\xb7" +
+	"\xe8)\x92LU\x1d\xd4S\xb5V\xbb\xdd\xe4\xfe\x94H" +
+	"\x94\xc4tK'\xa6\xadQB\x01(\x02\xb0@1\x80" +
+	"V@P+\x92Pi\xd1S\x18\xa2\x04\x10C\x80y" +
+	"H\xb1x\xb2=\xd6\x95l\x0f\x1b-\x1d]\x0d\x19\xb3" +
+	"\xa4\xd1\xb03J\"\x9d\x07\x15\xcaAa\x12e\x90P" +
+	"\xf6\xc1H>\x98\x98\xd5u&\xae\xb4\x1aV\x0cQ\xa3" +
+	"D\xf6e\x8f^\x04\x8c\xd5\x83\xc4\x0a\x15'\x95\xfd\x08" +
+	"\x00j0\x86\xb8\xb2EO\xd8\xb2[\xb6\x91h[R" +
+	"~YN~\x90/!\xcbU\x0d\x10\x99\xcf\x0bz\x98" +
+	"\x11\x17\x94\xdb(\x106\xbcG\x84^\xc1Yy\x19H" +
+	"\xacT\xc1\\G\xd0\xab8[\xcfg\x01%\xc8\x95\xd7" +
+	"\xb8\xac\xf9\x169\xd1\xd1\xb4e\xe8[L\x8f\xc7\x8d\xcb" +
+	"\xeb\x01&\xef=\xee\xae\xbczr\x881\x8e%+\xc1" +
+	"T\xc6\xee\xc8\x07\xa1\x0b\x93o5\xac\xb0\x97*\xef\x84" +
+	"\xa2\x9b\xf6\xca\xe7^\xa28+_{\xc9\xd4\xb3(y" +
+	"\xee\x04\x95\xc2\x95\xcd{\xf3\x1e\x1bB\xf6\x1f\x87\xb1\x03" +
+	"\xc2[OV\xce\xbf\xd8k4\xec`f\xc1\xa5\xeb\x01" +
+	"\xb4U\x04\xb5u\x12\xfa\xdb\x85,\xf7X\x17\x1c\x9cx" +
+	"w\x10g\x08\xf3\x8c\x85\x1b\x13\x97\xadP\xab\x9e\xd61" +
+	"\x00\x12\x06\x00\xff\x06\x00\x00\xff\xff\xfe*\x86\xac"
 
 func init() {
 	schemas.Register(schema_ef12a34b9807e19c,
 		0x80087e4e698768a2,
 		0x85ddfd96db252600,
+		0x95b6142577e93239,
 		0x96fbc50dc2f0200d,
 		0x9746cc05cbff1132,
 		0xb86bce7f916a10cc,
 		0xbb3ca85b01eea465,
+		0xd4e835c17f1ef32c,
 		0xd797e0a99edf0921,
 		0xe2553e5a663abb7d,
 		0xf004c474c2f8ee7a,
+		0xf269473b6db8d0eb,
 		0xf838dca6c8721bdb)
 }
