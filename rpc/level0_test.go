@@ -1843,10 +1843,6 @@ func TestHandleReturn_regression(t *testing.T) {
 func TestPromisedCapability(t *testing.T) {
 	t.Parallel()
 
-	capnp.SetClientLeakFunc(func(msg string) {
-		panic(msg)
-	})
-
 	var g errgroup.Group
 	for i := 0; i < 1024; i++ {
 		g.Go(func() error {
