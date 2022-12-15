@@ -18,3 +18,7 @@ interface CapArgsTest {
   call @0 (cap :Capability);
   self @1 () -> (self :CapArgsTest);
 }
+
+interface PingPongProvider {
+  pingPong @0 () -> (pingPong :PingPong);
+}

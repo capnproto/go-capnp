@@ -51,15 +51,11 @@ func TestServe(t *testing.T) {
 	t.Log("Closing server listener")
 	err = lis.Close()
 	assert.NoError(t, err)
-	select {
-	case <-time.After(time.Second * 2):
-		t.Error("Serve did not return after listener was closed")
-	case err = <-errChannel:
-		// Expect that the server finished with the 'connection closed' error.
-		assert.ErrorIs(t, err, net.ErrClosed)
-		// Check that the bootstrap client was released by Serve.
-		assert.False(t, bootstrapClient.IsValid(), "Serve did not release its bootstrap client")
-	}
+	err = <-errChannel // Will hang if the server does not return.
+	// Expect that the server finished with the 'connection closed' error.
+	assert.ErrorIs(t, err, net.ErrClosed)
+	// Check that the bootstrap client was released by Serve.
+	assert.False(t, bootstrapClient.IsValid(), "Serve did not release its bootstrap client")
 }
 
 // TestServeCapability serves the ping pong capability and tests
@@ -108,12 +104,8 @@ func TestServeCapability(t *testing.T) {
 	err = lis.Close()
 	assert.NoError(t, err)
 
-	select {
-	case <-time.After(time.Second * 2):
-		t.Error("Serve did not return after listener was closed")
-	case err = <-errChannel:
-		assert.ErrorIs(t, err, net.ErrClosed)
-	}
+	err = <-errChannel // Will hang if the sever does not return
+	assert.ErrorIs(t, err, net.ErrClosed)
 
 	assert.False(t, bootstrapClient.IsValid(), "server bootstrap client not released")
 }

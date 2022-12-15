@@ -22,6 +22,7 @@ import (
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -1837,6 +1838,44 @@ func TestHandleReturn_regression(t *testing.T) {
 			assert.ErrorIs(t, err, ctx.Err())
 		})
 	})
+}
+
+func TestPromisedCapability(t *testing.T) {
+	t.Parallel()
+
+	var g errgroup.Group
+	for i := 0; i < 1024; i++ {
+		g.Go(func() error {
+			ppp := testcp.PingPongProvider_ServerToClient(pingPongProvider{})
+			defer ppp.Release()
+
+			f, release := ppp.PingPong(context.Background(), nil)
+			defer release()
+
+			pp := f.PingPong()
+			return capnp.Client(pp).Resolve(context.Background())
+		})
+	}
+
+	assert.NoError(t, g.Wait())
+}
+
+type pingPongProvider struct{}
+
+func (pingPongProvider) PingPong(ctx context.Context, call testcp.PingPongProvider_pingPong) error {
+	res, err := call.AllocResults()
+	if err == nil {
+		pp := testcp.PingPong_ServerToClient(pingPonger{})
+		err = res.SetPingPong(pp)
+	}
+
+	return err
+}
+
+type pingPonger struct{}
+
+func (pingPonger) EchoNum(ctx context.Context, call testcp.PingPong_echoNum) error {
+	panic("NOT IMPLEMENTED")
 }
 
 // finishTest drains both sides of a pipe and reports any errors to t.

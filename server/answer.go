@@ -281,6 +281,7 @@ func (sr *structReturner) answer(m capnp.Method, pcall capnp.PipelineCaller) (*c
 		msg := sr.result.Message()
 		sr.result = capnp.Struct{}
 		sr.mu.Unlock()
+		sr.p.ReleaseClients()
 		if msg != nil {
 			msg.Reset(nil)
 		}
