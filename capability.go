@@ -775,12 +775,14 @@ func (wc *WeakClient) AddRef() (c Client, ok bool) {
 // Clients.  A ClientHook must be safe to use from multiple goroutines.
 //
 // Calls must be delivered to the capability in the order they are made.
-// This guarantee is based on the concept of a capability
-// acknowledging delivery of a call: this is specific to an
-// implementation of ClientHook.  A type that implements ClientHook
-// must guarantee that if foo() then bar() is called on a client, then
-// the capability acknowledging foo() happens before the capability
-// observing bar().
+// This guarantee is based on the concept of a capability acknowledging
+// delivery of a call: this is specific to an implementation of ClientHook.
+// A type that implements ClientHook must guarantee that if foo() then bar()
+// is called on a client, then the capability acknowledging foo() happens
+// before the capability observing bar().
+//
+// ClientHook is an internal interface.  Users generally SHOULD NOT supply
+// their own implementations.
 type ClientHook interface {
 	// Send allocates space for parameters, calls s.PlaceArgs to fill out
 	// the arguments, then starts executing a method, returning an answer
