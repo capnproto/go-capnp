@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"sync"
 
+	"capnproto.org/go/capnp/v3/exp/bufferpool"
 	"capnproto.org/go/capnp/v3/flowcontrol"
 	"capnproto.org/go/capnp/v3/internal/syncutil"
 )
@@ -114,9 +115,10 @@ type ClientKind = struct {
 }
 
 type client struct {
-	creatorFunc int
-	creatorFile string
-	creatorLine int
+	creatorFunc  int
+	creatorFile  string
+	creatorStack string
+	creatorLine  int
 
 	mu       sync.Mutex // protects the struct
 	limiter  flowcontrol.FlowLimiter
@@ -147,6 +149,19 @@ type clientHook struct {
 	resolvedHook *clientHook // valid only if resolved is closed
 }
 
+func (c Client) setupLeakReporting(creatorFunc int) {
+	if clientLeakFunc == nil {
+		return
+	}
+	c.creatorFunc = creatorFunc
+	_, c.creatorFile, c.creatorLine, _ = runtime.Caller(2)
+	buf := bufferpool.Default.Get(1e6)
+	n := runtime.Stack(buf, false)
+	c.creatorStack = string(buf[:n])
+	bufferpool.Default.Put(buf)
+	c.setFinalizer()
+}
+
 // NewClient creates the first reference to a capability.
 // If hook is nil, then NewClient returns nil.
 //
@@ -165,11 +180,7 @@ func NewClient(hook ClientHook) Client {
 	}
 	h.resolvedHook = h
 	c := Client{client: &client{h: h}}
-	if clientLeakFunc != nil {
-		c.creatorFunc = 1
-		_, c.creatorFile, c.creatorLine, _ = runtime.Caller(1)
-		c.setFinalizer()
-	}
+	c.setupLeakReporting(1)
 	return c
 }
 
@@ -192,11 +203,7 @@ func NewPromisedClient(hook ClientHook) (Client, *ClientPromise) {
 		metadata:   *NewMetadata(),
 	}
 	c := Client{client: &client{h: h}}
-	if clientLeakFunc != nil {
-		c.creatorFunc = 2
-		_, c.creatorFile, c.creatorLine, _ = runtime.Caller(1)
-		c.setFinalizer()
-	}
+	c.setupLeakReporting(2)
 	return c, &ClientPromise{h: h}
 }
 
@@ -460,11 +467,7 @@ func (c Client) AddRef() Client {
 	c.h.refs++
 	c.h.mu.Unlock()
 	d := Client{client: &client{h: c.h}}
-	if clientLeakFunc != nil {
-		d.creatorFunc = 3
-		_, d.creatorFile, d.creatorLine, _ = runtime.Caller(1)
-		d.setFinalizer()
-	}
+	d.setupLeakReporting(3)
 	return d
 }
 
@@ -652,6 +655,9 @@ func finalizeClient(c *client) {
 		msg = fmt.Sprintf("leaked client created by %s", fname)
 	} else {
 		msg = fmt.Sprintf("leaked client created by %s on %s:%d", fname, c.creatorFile, c.creatorLine)
+	}
+	if c.creatorStack != "" {
+		msg += "\nCreation stack trace:\n" + c.creatorStack + "\n"
 	}
 
 	// finalizeClient will only be called if clientLeakFunc != nil.
