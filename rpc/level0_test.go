@@ -1851,6 +1851,7 @@ func TestPromisedCapability(t *testing.T) {
 	for i := 0; i < 1024; i++ {
 		g.Go(func() error {
 			ppp := testcp.PingPongProvider_ServerToClient(pingPongProvider{})
+			defer ppp.Release()
 
 			f, release := ppp.PingPong(context.Background(), nil)
 			defer release()
