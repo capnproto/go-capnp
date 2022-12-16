@@ -1116,14 +1116,16 @@ type parsedReturn struct {
 }
 
 func (c *Conn) handleFinish(ctx context.Context, id answerID, releaseResultCaps bool) error {
+	rl := &releaseList{}
+	defer rl.Release()
 	c.lk.Lock()
+	defer c.lk.Unlock()
+
 	ans := c.lk.answers[id]
 	if ans == nil {
-		c.lk.Unlock()
 		return rpcerr.Failedf("incoming finish: unknown answer ID %d", id)
 	}
 	if ans.flags.Contains(finishReceived) {
-		c.lk.Unlock()
 		return rpcerr.Failedf("incoming finish: answer ID %d already received finish", id)
 	}
 	ans.flags |= finishReceived
@@ -1134,15 +1136,11 @@ func (c *Conn) handleFinish(ctx context.Context, id answerID, releaseResultCaps 
 		ans.cancel()
 	}
 	if !ans.flags.Contains(returnSent) {
-		c.lk.Unlock()
 		return nil
 	}
 
 	// Return sent and finish received: time to destroy answer.
-	rl := &releaseList{}
 	err := ans.destroy(rl)
-	c.lk.Unlock()
-	rl.Release()
 	if err != nil {
 		return rpcerr.Annotate(err, "incoming finish: release result caps")
 	}
