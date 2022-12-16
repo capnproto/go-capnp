@@ -78,9 +78,8 @@ func (c *Conn) releaseExport(id exportID, count uint32) (capnp.Client, error) {
 	}
 }
 
-func (c *Conn) releaseExportRefs(refs map[exportID]uint32) (releaseList, error) {
+func (c *Conn) releaseExportRefs(rl *releaseList, refs map[exportID]uint32) error {
 	n := len(refs)
-	var rl releaseList
 	var firstErr error
 	for id, count := range refs {
 		client, err := c.releaseExport(id, count)
@@ -95,13 +94,10 @@ func (c *Conn) releaseExportRefs(refs map[exportID]uint32) (releaseList, error) 
 			n--
 			continue
 		}
-		if rl == nil {
-			rl = make(releaseList, 0, n)
-		}
-		rl = append(rl, client.Release)
+		rl.Add(client.Release)
 		n--
 	}
-	return rl, firstErr
+	return firstErr
 }
 
 // sendCap writes a capability descriptor, returning an export ID if
@@ -306,15 +302,4 @@ func (sl *senderLoopback) buildDisembargo(msg rpccp.Message) error {
 		oplist.At(i).SetGetPointerField(op.Field)
 	}
 	return nil
-}
-
-type releaseList []capnp.ReleaseFunc
-
-func (rl releaseList) release() {
-	for _, r := range rl {
-		r()
-	}
-	for i := range rl {
-		rl[i] = func() {}
-	}
 }
