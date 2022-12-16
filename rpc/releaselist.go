@@ -4,11 +4,12 @@ import "capnproto.org/go/capnp/v3"
 
 type releaseList []capnp.ReleaseFunc
 
-func (rl releaseList) Release() {
-	for i, r := range rl {
+func (rl *releaseList) Release() {
+	funcs := *rl
+	for i, r := range funcs {
 		if r != nil {
 			r()
-			rl[i] = nil
+			funcs[i] = nil
 		}
 	}
 }
