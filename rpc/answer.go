@@ -187,7 +187,7 @@ func (ans *answer) Return(e error) {
 	if e != nil {
 		rl := ans.sendException(e)
 		ans.c.lk.Unlock()
-		rl.release()
+		rl.Release()
 		ans.pcalls.Wait()
 		ans.c.tasks.Done() // added by handleCall
 		return
@@ -203,13 +203,13 @@ func (ans *answer) Return(e error) {
 			}
 
 			ans.c.lk.Unlock()
-			rl.release()
+			rl.Release()
 			ans.pcalls.Wait()
 			return
 		}
 	}
 	ans.c.lk.Unlock()
-	rl.release()
+	rl.Release()
 	ans.pcalls.Wait()
 	ans.c.tasks.Done() // added by handleCall
 }

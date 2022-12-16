@@ -639,16 +639,16 @@ func (c *Conn) handleBootstrap(ctx context.Context, id answerID) error {
 	c.lk.answers[id] = &ans
 	if !c.bootstrap.IsValid() {
 		rl := ans.sendException(exc.New(exc.Failed, "", "vat does not expose a public/bootstrap interface"))
-		syncutil.Without(&c.lk, rl.release)
+		syncutil.Without(&c.lk, rl.Release)
 		return nil
 	}
 	if err := ans.setBootstrap(c.bootstrap.AddRef()); err != nil {
 		rl := ans.sendException(err)
-		syncutil.Without(&c.lk, rl.release)
+		syncutil.Without(&c.lk, rl.Release)
 		return nil
 	}
 	rl, err := ans.sendReturn()
-	syncutil.Without(&c.lk, rl.release)
+	syncutil.Without(&c.lk, rl.Release)
 	if err != nil {
 		// Answer cannot possibly encounter a Finish, since we still
 		// haven't returned to receive().
@@ -725,7 +725,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 		rl := ans.sendException(parseErr)
 		c.lk.Unlock()
 		c.er.ReportError(parseErr)
-		rl.release()
+		rl.Release()
 		releaseCall()
 		return nil
 	}
@@ -779,7 +779,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			if tgtAns.err != nil {
 				rl := ans.sendException(tgtAns.err)
 				c.lk.Unlock()
-				rl.release()
+				rl.Release()
 				releaseCall()
 				return nil
 			}
@@ -792,7 +792,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 				err = rpcerr.Failedf("incoming call: read results from target answer: %w", err)
 				rl := ans.sendException(err)
 				c.lk.Unlock()
-				rl.release()
+				rl.Release()
 				releaseCall()
 				c.er.ReportError(err)
 				return nil
@@ -802,7 +802,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 				// Not reporting, as this is the caller's fault.
 				rl := ans.sendException(err)
 				c.lk.Unlock()
-				rl.release()
+				rl.Release()
 				releaseCall()
 				return nil
 			}
@@ -1137,7 +1137,7 @@ func (c *Conn) handleFinish(ctx context.Context, id answerID, releaseResultCaps 
 	// Return sent and finish received: time to destroy answer.
 	rl, err := ans.destroy()
 	c.lk.Unlock()
-	rl.release()
+	rl.Release()
 	if err != nil {
 		return rpcerr.Annotate(err, "incoming finish: release result caps")
 	}
