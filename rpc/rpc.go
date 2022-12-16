@@ -638,16 +638,19 @@ func (c *Conn) handleBootstrap(ctx context.Context, id answerID) error {
 
 	c.lk.answers[id] = &ans
 	if !c.bootstrap.IsValid() {
-		rl := ans.sendException(exc.New(exc.Failed, "", "vat does not expose a public/bootstrap interface"))
+		rl := &releaseList{}
+		ans.sendException(rl, exc.New(exc.Failed, "", "vat does not expose a public/bootstrap interface"))
 		syncutil.Without(&c.lk, rl.Release)
 		return nil
 	}
 	if err := ans.setBootstrap(c.bootstrap.AddRef()); err != nil {
-		rl := ans.sendException(err)
+		rl := &releaseList{}
+		ans.sendException(rl, err)
 		syncutil.Without(&c.lk, rl.Release)
 		return nil
 	}
-	rl, err := ans.sendReturn()
+	rl := &releaseList{}
+	err = ans.sendReturn(rl)
 	syncutil.Without(&c.lk, rl.Release)
 	if err != nil {
 		// Answer cannot possibly encounter a Finish, since we still
@@ -722,7 +725,8 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 	c.lk.answers[id] = ans
 	if parseErr != nil {
 		parseErr = rpcerr.Annotate(parseErr, "incoming call")
-		rl := ans.sendException(parseErr)
+		rl := &releaseList{}
+		ans.sendException(rl, parseErr)
 		c.lk.Unlock()
 		c.er.ReportError(parseErr)
 		rl.Release()
@@ -777,7 +781,8 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 		}
 		if tgtAns.flags.Contains(resultsReady) {
 			if tgtAns.err != nil {
-				rl := ans.sendException(tgtAns.err)
+				rl := &releaseList{}
+				ans.sendException(rl, tgtAns.err)
 				c.lk.Unlock()
 				rl.Release()
 				releaseCall()
@@ -790,7 +795,8 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			content, err := tgtAns.results.Content()
 			if err != nil {
 				err = rpcerr.Failedf("incoming call: read results from target answer: %w", err)
-				rl := ans.sendException(err)
+				rl := &releaseList{}
+				ans.sendException(rl, err)
 				c.lk.Unlock()
 				rl.Release()
 				releaseCall()
@@ -800,7 +806,8 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			sub, err := capnp.Transform(content, p.target.transform)
 			if err != nil {
 				// Not reporting, as this is the caller's fault.
-				rl := ans.sendException(err)
+				rl := &releaseList{}
+				ans.sendException(rl, err)
 				c.lk.Unlock()
 				rl.Release()
 				releaseCall()
@@ -1135,7 +1142,8 @@ func (c *Conn) handleFinish(ctx context.Context, id answerID, releaseResultCaps 
 	}
 
 	// Return sent and finish received: time to destroy answer.
-	rl, err := ans.destroy()
+	rl := &releaseList{}
+	err := ans.destroy(rl)
 	c.lk.Unlock()
 	rl.Release()
 	if err != nil {

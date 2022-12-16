@@ -12,3 +12,7 @@ func (rl releaseList) Release() {
 		rl[i] = func() {}
 	}
 }
+
+func (rl *releaseList) Add(r capnp.ReleaseFunc) {
+	*rl = append(*rl, r)
+}

@@ -185,14 +185,16 @@ func (ans *answer) setBootstrap(c capnp.Client) error {
 func (ans *answer) Return(e error) {
 	ans.c.lk.Lock()
 	if e != nil {
-		rl := ans.sendException(e)
+		rl := &releaseList{}
+		ans.sendException(rl, e)
 		ans.c.lk.Unlock()
 		rl.Release()
 		ans.pcalls.Wait()
 		ans.c.tasks.Done() // added by handleCall
 		return
 	}
-	rl, err := ans.sendReturn()
+	rl := &releaseList{}
+	err := ans.sendReturn(rl)
 	if err != nil {
 		select {
 		case <-ans.c.bgctx.Done():
@@ -221,7 +223,7 @@ func (ans *answer) Return(e error) {
 //
 // The caller MUST be holding onto ans.c.lk. sendReturn MUST NOT be
 // called if sendException was previously called.
-func (ans *answer) sendReturn() (releaseList, error) {
+func (ans *answer) sendReturn(rl *releaseList) error {
 	ans.pcall = nil
 	ans.flags |= resultsReady
 
@@ -256,22 +258,22 @@ func (ans *answer) sendReturn() (releaseList, error) {
 		ans.sendMsg()
 		if fin {
 			ans.c.lk.Lock()
-			return ans.destroy()
+			return ans.destroy(rl)
 		}
 		ans.c.lk.Lock()
 	}
 	ans.flags |= returnSent
 	if !ans.flags.Contains(finishReceived) {
-		return nil, nil
+		return nil
 	}
-	return ans.destroy()
+	return ans.destroy(rl)
 }
 
 // sendException sends an exception on the answer's return message.
 //
 // The caller MUST be holding onto ans.c.lk. sendException MUST NOT
 // be called if sendReturn was previously called.
-func (ans *answer) sendException(ex error) releaseList {
+func (ans *answer) sendException(rl *releaseList, ex error) {
 	ans.err = ex
 	ans.pcall = nil
 	ans.flags |= resultsReady
@@ -299,19 +301,19 @@ func (ans *answer) sendException(ex error) releaseList {
 		}
 		if fin {
 			ans.c.lk.Lock()
-			rl, _ := ans.destroy()
-			return rl
+			// destroy will never return an error because sendException does
+			// create any exports.
+			_ = ans.destroy(rl)
 		}
 		ans.c.lk.Lock()
 	}
 	ans.flags |= returnSent
 	if !ans.flags.Contains(finishReceived) {
-		return nil
+		return
 	}
 	// destroy will never return an error because sendException does
 	// create any exports.
-	rl, _ := ans.destroy()
-	return rl
+	_ = ans.destroy(rl)
 }
 
 // destroy removes the answer from the table and returns ReleaseFuncs to
@@ -319,14 +321,12 @@ func (ans *answer) sendException(ex error) releaseList {
 // The caller must be holding onto ans.c.lk.
 //
 // shutdown has its own strategy for cleaning up an answer.
-func (ans *answer) destroy() (releaseList, error) {
-	rl := releaseList{ans.msgReleaser.Decr}
+func (ans *answer) destroy(rl *releaseList) error {
+	rl.Add(ans.msgReleaser.Decr)
 	delete(ans.c.lk.answers, ans.id)
 	if !ans.flags.Contains(releaseResultCapsFlag) || len(ans.exportRefs) == 0 {
-		return rl, nil
+		return nil
 
 	}
-	ret, err := ans.c.releaseExportRefs(ans.exportRefs)
-	ret = append(ret, rl...)
-	return ret, err
+	return ans.c.releaseExportRefs(rl, ans.exportRefs)
 }
