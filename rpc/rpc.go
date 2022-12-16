@@ -609,6 +609,9 @@ func (c *Conn) receive() error {
 }
 
 func (c *Conn) handleBootstrap(ctx context.Context, id answerID) error {
+	rl := &releaseList{}
+	defer rl.Release()
+
 	c.lk.Lock()
 	defer c.lk.Unlock()
 
@@ -638,20 +641,14 @@ func (c *Conn) handleBootstrap(ctx context.Context, id answerID) error {
 
 	c.lk.answers[id] = &ans
 	if !c.bootstrap.IsValid() {
-		rl := &releaseList{}
 		ans.sendException(rl, exc.New(exc.Failed, "", "vat does not expose a public/bootstrap interface"))
-		syncutil.Without(&c.lk, rl.Release)
 		return nil
 	}
 	if err := ans.setBootstrap(c.bootstrap.AddRef()); err != nil {
-		rl := &releaseList{}
 		ans.sendException(rl, err)
-		syncutil.Without(&c.lk, rl.Release)
 		return nil
 	}
-	rl := &releaseList{}
 	err = ans.sendReturn(rl)
-	syncutil.Without(&c.lk, rl.Release)
 	if err != nil {
 		// Answer cannot possibly encounter a Finish, since we still
 		// haven't returned to receive().
