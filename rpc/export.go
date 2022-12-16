@@ -307,14 +307,3 @@ func (sl *senderLoopback) buildDisembargo(msg rpccp.Message) error {
 	}
 	return nil
 }
-
-type releaseList []capnp.ReleaseFunc
-
-func (rl releaseList) release() {
-	for _, r := range rl {
-		r()
-	}
-	for i := range rl {
-		rl[i] = func() {}
-	}
-}
