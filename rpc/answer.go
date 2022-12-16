@@ -194,8 +194,7 @@ func (ans *answer) Return(e error) {
 		return
 	}
 	rl := &releaseList{}
-	err := ans.sendReturn(rl)
-	if err != nil {
+	if err := ans.sendReturn(rl); err != nil {
 		select {
 		case <-ans.c.bgctx.Done():
 		default:
