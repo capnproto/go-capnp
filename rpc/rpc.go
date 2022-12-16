@@ -658,6 +658,9 @@ func (c *Conn) handleBootstrap(ctx context.Context, id answerID) error {
 }
 
 func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capnp.ReleaseFunc) error {
+	rl := &releaseList{}
+	defer rl.Release()
+
 	id := answerID(call.QuestionId())
 
 	// TODO(3rd-party handshake): support sending results to 3rd party vat
@@ -722,11 +725,9 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 	c.lk.answers[id] = ans
 	if parseErr != nil {
 		parseErr = rpcerr.Annotate(parseErr, "incoming call")
-		rl := &releaseList{}
 		ans.sendException(rl, parseErr)
 		c.lk.Unlock()
 		c.er.ReportError(parseErr)
-		rl.Release()
 		releaseCall()
 		return nil
 	}
@@ -778,10 +779,8 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 		}
 		if tgtAns.flags.Contains(resultsReady) {
 			if tgtAns.err != nil {
-				rl := &releaseList{}
 				ans.sendException(rl, tgtAns.err)
 				c.lk.Unlock()
-				rl.Release()
 				releaseCall()
 				return nil
 			}
@@ -792,10 +791,8 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			content, err := tgtAns.results.Content()
 			if err != nil {
 				err = rpcerr.Failedf("incoming call: read results from target answer: %w", err)
-				rl := &releaseList{}
 				ans.sendException(rl, err)
 				c.lk.Unlock()
-				rl.Release()
 				releaseCall()
 				c.er.ReportError(err)
 				return nil
@@ -803,10 +800,8 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			sub, err := capnp.Transform(content, p.target.transform)
 			if err != nil {
 				// Not reporting, as this is the caller's fault.
-				rl := &releaseList{}
 				ans.sendException(rl, err)
 				c.lk.Unlock()
-				rl.Release()
 				releaseCall()
 				return nil
 			}

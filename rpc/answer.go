@@ -183,17 +183,17 @@ func (ans *answer) setBootstrap(c capnp.Client) error {
 //
 // The caller MUST NOT hold ans.c.lk.
 func (ans *answer) Return(e error) {
+	rl := &releaseList{}
+	defer rl.Release()
+
 	ans.c.lk.Lock()
 	if e != nil {
-		rl := &releaseList{}
 		ans.sendException(rl, e)
 		ans.c.lk.Unlock()
-		rl.Release()
 		ans.pcalls.Wait()
 		ans.c.tasks.Done() // added by handleCall
 		return
 	}
-	rl := &releaseList{}
 	if err := ans.sendReturn(rl); err != nil {
 		select {
 		case <-ans.c.bgctx.Done():
@@ -204,13 +204,11 @@ func (ans *answer) Return(e error) {
 			}
 
 			ans.c.lk.Unlock()
-			rl.Release()
 			ans.pcalls.Wait()
 			return
 		}
 	}
 	ans.c.lk.Unlock()
-	rl.Release()
 	ans.pcalls.Wait()
 	ans.c.tasks.Done() // added by handleCall
 }
