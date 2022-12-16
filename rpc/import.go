@@ -98,27 +98,25 @@ func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, 
 	q := ic.c.newQuestion(s.Method)
 
 	// Send call message.
-	syncutil.Without(&ic.c.lk, func() {
-		ic.c.sendMessage(ctx, func(m rpccp.Message) error {
-			return ic.c.newImportCallMessage(m, ic.id, q.id, s)
-		}, func(err error) {
-			if err != nil {
-				syncutil.With(&ic.c.lk, func() {
-					ic.c.lk.questions[q.id] = nil
-				})
-				q.p.Reject(rpcerr.Failedf("send message: %w", err))
-				syncutil.With(&ic.c.lk, func() {
-					ic.c.lk.questionID.remove(uint32(q.id))
-				})
-				return
-			}
+	ic.c.sendMessage(ctx, func(m rpccp.Message) error {
+		return ic.c.newImportCallMessage(m, ic.id, q.id, s)
+	}, func(err error) {
+		if err != nil {
+			syncutil.With(&ic.c.lk, func() {
+				ic.c.lk.questions[q.id] = nil
+			})
+			q.p.Reject(rpcerr.Failedf("send message: %w", err))
+			syncutil.With(&ic.c.lk, func() {
+				ic.c.lk.questionID.remove(uint32(q.id))
+			})
+			return
+		}
 
-			q.c.tasks.Add(1)
-			go func() {
-				defer q.c.tasks.Done()
-				q.handleCancel(ctx)
-			}()
-		})
+		q.c.tasks.Add(1)
+		go func() {
+			defer q.c.tasks.Done()
+			q.handleCancel(ctx)
+		}()
 	})
 
 	ans := q.p.Answer()
@@ -131,7 +129,7 @@ func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, 
 
 // newImportCallMessage builds a Call message targeted to an import.
 //
-// The caller MUST NOT hold c.mu.
+// The caller MUST hold c.mu.
 func (c *Conn) newImportCallMessage(msg rpccp.Message, imp importID, qid questionID, s capnp.Send) error {
 	call, err := msg.NewCall()
 	if err != nil {
@@ -163,10 +161,8 @@ func (c *Conn) newImportCallMessage(msg rpccp.Message, imp importID, qid questio
 	if err := s.PlaceArgs(args); err != nil {
 		return rpcerr.Failedf("place arguments: %w", err)
 	}
-	syncutil.With(&c.lk, func() {
-		// TODO(soon): save param refs
-		_, err = c.fillPayloadCapTable(payload)
-	})
+	// TODO(soon): save param refs
+	_, err = c.fillPayloadCapTable(payload)
 	if err != nil {
 		return rpcerr.Annotatef(err, "build call message")
 	}

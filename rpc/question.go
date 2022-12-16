@@ -151,28 +151,26 @@ func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineO
 	q.mark(transform)
 	q2 := q.c.newQuestion(s.Method)
 
-	syncutil.Without(&q.c.lk, func() {
-		// Send call message.
-		q.c.sendMessage(ctx, func(m rpccp.Message) error {
-			return q.c.newPipelineCallMessage(m, q.id, transform, q2.id, s)
-		}, func(err error) {
-			if err != nil {
-				syncutil.With(&q.c.lk, func() {
-					q.c.lk.questions[q2.id] = nil
-				})
-				q2.p.Reject(rpcerr.Failedf("send message: %w", err))
-				syncutil.With(&q.c.lk, func() {
-					q.c.lk.questionID.remove(uint32(q2.id))
-				})
-				return
-			}
+	// Send call message.
+	q.c.sendMessage(ctx, func(m rpccp.Message) error {
+		return q.c.newPipelineCallMessage(m, q.id, transform, q2.id, s)
+	}, func(err error) {
+		if err != nil {
+			syncutil.With(&q.c.lk, func() {
+				q.c.lk.questions[q2.id] = nil
+			})
+			q2.p.Reject(rpcerr.Failedf("send message: %w", err))
+			syncutil.With(&q.c.lk, func() {
+				q.c.lk.questionID.remove(uint32(q2.id))
+			})
+			return
+		}
 
-			q2.c.tasks.Add(1)
-			go func() {
-				defer q2.c.tasks.Done()
-				q2.handleCancel(ctx)
-			}()
-		})
+		q2.c.tasks.Add(1)
+		go func() {
+			defer q2.c.tasks.Done()
+			q2.handleCancel(ctx)
+		}()
 	})
 
 	ans := q2.p.Answer()
@@ -185,7 +183,7 @@ func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineO
 
 // newPipelineCallMessage builds a Call message targeted to a promised answer..
 //
-// The caller MUST NOT hold c.mu.
+// The caller MUST hold c.mu.
 func (c *Conn) newPipelineCallMessage(msg rpccp.Message, tgt questionID, transform []capnp.PipelineOp, qid questionID, s capnp.Send) error {
 	call, err := msg.NewCall()
 	if err != nil {
@@ -230,10 +228,8 @@ func (c *Conn) newPipelineCallMessage(msg rpccp.Message, tgt questionID, transfo
 	if err := s.PlaceArgs(args); err != nil {
 		return rpcerr.Failedf("place arguments: %w", err)
 	}
-	syncutil.With(&c.lk, func() {
-		// TODO(soon): save param refs
-		_, err = c.fillPayloadCapTable(payload)
-	})
+	// TODO(soon): save param refs
+	_, err = c.fillPayloadCapTable(payload)
 
 	if err != nil {
 		return rpcerr.Annotatef(err, "build call message")
