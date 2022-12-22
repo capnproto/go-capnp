@@ -612,49 +612,48 @@ func (c *Conn) handleBootstrap(ctx context.Context, id answerID) error {
 	rl := &releaseList{}
 	defer rl.Release()
 
-	c.lk.Lock()
-	defer c.lk.Unlock()
-
-	if c.lk.answers[id] != nil {
-		return rpcerr.Failedf("incoming bootstrap: answer ID %d reused", id)
-	}
-
 	var (
 		err error
 		ans = answer{c: c, id: id}
 	)
 
-	syncutil.Without(&c.lk, func() {
-		ans.ret, ans.sendMsg, ans.msgReleaser, err = c.newReturn()
-		if err == nil {
-			ans.ret.SetAnswerId(uint32(id))
-			ans.ret.SetReleaseParamCaps(false)
+	ans.ret, ans.sendMsg, ans.msgReleaser, err = c.newReturn()
+	if err == nil {
+		ans.ret.SetAnswerId(uint32(id))
+		ans.ret.SetReleaseParamCaps(false)
+	}
+
+	syncutil.With(&c.lk, func() {
+		if c.lk.answers[id] != nil {
+			rl.Add(ans.msgReleaser.Decr)
+			err = rpcerr.Failedf("incoming bootstrap: answer ID %d reused", id)
+			return
+		}
+
+		if err != nil {
+			err = rpcerr.Annotate(err, "incoming bootstrap")
+			c.lk.answers[id] = errorAnswer(c, id, err)
+			c.er.ReportError(err)
+			return
+		}
+
+		c.lk.answers[id] = &ans
+		if !c.bootstrap.IsValid() {
+			ans.sendException(rl, exc.New(exc.Failed, "", "vat does not expose a public/bootstrap interface"))
+			return
+		}
+		if err := ans.setBootstrap(c.bootstrap.AddRef()); err != nil {
+			ans.sendException(rl, err)
+			return
+		}
+		err = ans.sendReturn(rl)
+		if err != nil {
+			// Answer cannot possibly encounter a Finish, since we still
+			// haven't returned to receive().
+			panic(err)
 		}
 	})
-
-	if err != nil {
-		err = rpcerr.Annotate(err, "incoming bootstrap")
-		c.lk.answers[id] = errorAnswer(c, id, err)
-		c.er.ReportError(err)
-		return nil
-	}
-
-	c.lk.answers[id] = &ans
-	if !c.bootstrap.IsValid() {
-		ans.sendException(rl, exc.New(exc.Failed, "", "vat does not expose a public/bootstrap interface"))
-		return nil
-	}
-	if err := ans.setBootstrap(c.bootstrap.AddRef()); err != nil {
-		ans.sendException(rl, err)
-		return nil
-	}
-	err = ans.sendReturn(rl)
-	if err != nil {
-		// Answer cannot possibly encounter a Finish, since we still
-		// haven't returned to receive().
-		panic(err)
-	}
-	return nil
+	return err
 }
 
 func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capnp.ReleaseFunc) error {
