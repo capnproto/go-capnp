@@ -195,19 +195,15 @@ func (ans *answer) Return(e error) {
 		return
 	}
 	if err := ans.sendReturn(rl); err != nil {
-		select {
-		case <-ans.c.bgctx.Done():
-		default:
-			ans.c.tasks.Done() // added by handleCall
-			ans.c.lk.Unlock()
+		ans.c.tasks.Done() // added by handleCall
+		ans.c.lk.Unlock()
 
-			if err := ans.c.shutdown(err); err != nil {
-				ans.c.er.ReportError(err)
-			}
-
-			ans.pcalls.Wait()
-			return
+		if err := ans.c.shutdown(err); err != nil {
+			ans.c.er.ReportError(err)
 		}
+
+		ans.pcalls.Wait()
+		return
 	}
 	ans.c.lk.Unlock()
 	ans.pcalls.Wait()
