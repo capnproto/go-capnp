@@ -186,11 +186,12 @@ func (ans *answer) Return(e error) {
 	rl := &releaseList{}
 	defer rl.Release()
 
+	defer ans.pcalls.Wait()
+
 	ans.c.lk.Lock()
 	if e != nil {
 		ans.sendException(rl, e)
 		ans.c.lk.Unlock()
-		ans.pcalls.Wait()
 		ans.c.tasks.Done() // added by handleCall
 		return
 	}
@@ -202,11 +203,10 @@ func (ans *answer) Return(e error) {
 			ans.c.er.ReportError(err)
 		}
 
-		ans.pcalls.Wait()
 		return
 	}
 	ans.c.lk.Unlock()
-	ans.pcalls.Wait()
+
 	ans.c.tasks.Done() // added by handleCall
 }
 
