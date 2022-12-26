@@ -188,26 +188,28 @@ func (ans *answer) Return(e error) {
 
 	defer ans.pcalls.Wait()
 
-	ans.c.lk.Lock()
 	if e != nil {
-		ans.sendException(rl, e)
-		ans.c.lk.Unlock()
+		syncutil.With(&ans.c.lk, func() {
+			ans.sendException(rl, e)
+		})
 		ans.c.tasks.Done() // added by handleCall
 		return
 	}
-	if err := ans.sendReturn(rl); err != nil {
-		ans.c.tasks.Done() // added by handleCall
-		ans.c.lk.Unlock()
 
-		if err := ans.c.shutdown(err); err != nil {
-			ans.c.er.ReportError(err)
-		}
+	var err error
 
-		return
-	}
-	ans.c.lk.Unlock()
-
+	syncutil.With(&ans.c.lk, func() {
+		err = ans.sendReturn(rl)
+	})
 	ans.c.tasks.Done() // added by handleCall
+
+	if err == nil {
+		return
+	}
+
+	if err = ans.c.shutdown(err); err != nil {
+		ans.c.er.ReportError(err)
+	}
 }
 
 // sendReturn sends the return message with results allocated by a
