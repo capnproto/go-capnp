@@ -199,11 +199,12 @@ func (ans *answer) Return(e error) {
 		case <-ans.c.bgctx.Done():
 		default:
 			ans.c.tasks.Done() // added by handleCall
+			ans.c.lk.Unlock()
+
 			if err := ans.c.shutdown(err); err != nil {
 				ans.c.er.ReportError(err)
 			}
 
-			ans.c.lk.Unlock()
 			ans.pcalls.Wait()
 			return
 		}

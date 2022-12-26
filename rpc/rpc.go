@@ -183,9 +183,6 @@ func NewConn(t Transport, opts *Options) *Conn {
 
 		c.er.ReportError(err) // ignores nil errors
 
-		c.lk.Lock()
-		defer c.lk.Unlock()
-
 		if err = c.shutdown(err); err != nil {
 			c.er.ReportError(err)
 		}
@@ -285,9 +282,7 @@ func (bc bootstrapClient) Shutdown() {
 // Close sends an abort to the remote vat and closes the underlying
 // transport.
 func (c *Conn) Close() error {
-	c.lk.Lock()
 	defer func() {
-		c.lk.Unlock()
 		<-c.closed
 	}()
 
@@ -304,8 +299,11 @@ func (c *Conn) Done() <-chan struct{} {
 }
 
 // shutdown tears down the connection and transport, optionally sending
-// an abort message before closing.  The caller MUST be hold c.lk.
+// an abort message before closing.  The caller MUST NOT hold c.lk.
 func (c *Conn) shutdown(abortErr error) (err error) {
+	c.lk.Lock()
+	defer c.lk.Unlock()
+
 	if !c.lk.closing {
 		c.lk.closing = true
 		c.lk.bgcancel()
