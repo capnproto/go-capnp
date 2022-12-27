@@ -30,7 +30,7 @@ type answer struct {
 	// entry is a placeholder until the remote vat cancels the call.
 	ret rpccp.Return
 
-	// sendMsg sends the return message.  The caller MUST NOT hold ans.c.lk.
+	// sendMsg sends the return message.  The caller MUST hold ans.c.lk.
 	sendMsg func()
 
 	// msgReleaser releases the return message when its refcount hits zero.
@@ -250,13 +250,10 @@ func (ans *answer) sendReturn(rl *releaseList) error {
 			}
 			ans.promise = nil
 		}
-		ans.c.lk.Unlock()
 		ans.sendMsg()
 		if fin {
-			ans.c.lk.Lock()
 			return ans.destroy(rl)
 		}
-		ans.c.lk.Lock()
 	}
 	ans.flags |= returnSent
 	if !ans.flags.Contains(finishReceived) {
