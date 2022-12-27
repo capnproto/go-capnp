@@ -116,7 +116,7 @@ func (c *Conn) newReturn() (_ rpccp.Return, sendMsg func(), _ *rc.Releaser, _ er
 	releaser := rc.NewReleaser(2, outMsg.Release)
 
 	return ret, func() {
-		c.sender.Send(asyncSend{
+		c.lk.sendTx.Send(asyncSend{
 			send:    outMsg.Send,
 			release: releaser.Decr,
 			onSent: func(err error) {

@@ -12,7 +12,7 @@ import (
 
 	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/exc"
-	"capnproto.org/go/capnp/v3/exp/mpsc"
+	"capnproto.org/go/capnp/v3/exp/spsc"
 	"capnproto.org/go/capnp/v3/internal/syncutil"
 	"capnproto.org/go/capnp/v3/rpc/transport"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
@@ -85,13 +85,19 @@ type Conn struct {
 	// may do IO, but any thread may call NewMessage().
 	transport Transport
 
-	sender mpsc.Queue[asyncSend]
+	// Receive end of the send queue (lk.sendTx). Only the send goroutine may
+	// touch this.
+	sendRx *spsc.Rx[asyncSend]
 
 	// lk contains all the fields that need to be protected by a mutex
 	// this makes it easy to tell at call sites whether you should or
 	// should not be holding the lock.
 	lk struct {
 		sync.Mutex // protects all the fields in lk.
+
+		// The send end of the send queue; outgoing messages are inserted
+		// here to be sent by a dedicated goroutine.
+		sendTx *spsc.Tx[asyncSend]
 
 		closing  bool               // used to make shutdown() idempotent
 		bgcancel context.CancelFunc // bgcancel cancels bgctx.
@@ -152,8 +158,11 @@ func NewConn(t Transport, opts *Options) *Conn {
 		transport: t,
 		closed:    make(chan struct{}),
 		bgctx:     ctx,
-		sender:    *mpsc.New[asyncSend](),
 	}
+	sender := spsc.New[asyncSend]()
+	c.sendRx = &sender.Rx
+	c.lk.sendTx = &sender.Tx
+
 	c.lk.bgcancel = cancel
 	c.lk.answers = make(map[answerID]*answer)
 	c.lk.imports = make(map[importID]*impent)
@@ -352,7 +361,7 @@ func (c *Conn) cancelTasks() {
 // caller MUST NOT hold c.lk
 func (c *Conn) drainQueue() {
 	for {
-		pending, ok := c.sender.TryRecv()
+		pending, ok := c.sendRx.TryRecv()
 		if !ok {
 			break
 		}
@@ -455,7 +464,7 @@ func (c *Conn) abort(abortErr error) {
 
 func (c *Conn) send() error {
 	for {
-		async, err := c.sender.Recv(c.bgctx)
+		async, err := c.sendRx.Recv(c.bgctx)
 		if err != nil {
 			return err
 		}
@@ -1496,7 +1505,7 @@ func (c *Conn) sendMessage(ctx context.Context, build func(rpccp.Message) error,
 		return oldSend()
 	}
 
-	c.sender.Send(asyncSend{
+	c.lk.sendTx.Send(asyncSend{
 		release: release,
 		send:    send,
 		onSent:  onSent,
