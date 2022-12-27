@@ -737,7 +737,6 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 	ret.SetReleaseParamCaps(false)
 
 	// Find target and start call.
-	c.lk.Lock()
 	ans := &answer{
 		c:           c,
 		id:          id,
@@ -745,13 +744,17 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 		sendMsg:     send,
 		msgReleaser: retReleaser,
 	}
+	c.lk.Lock()
+	defer c.lk.Unlock()
+
 	c.lk.answers[id] = ans
 	if parseErr != nil {
 		parseErr = rpcerr.Annotate(parseErr, "incoming call")
 		ans.sendException(rl, parseErr)
-		c.lk.Unlock()
-		c.er.ReportError(parseErr)
-		releaseCall()
+		rl.Add(func() {
+			c.er.ReportError(parseErr)
+			releaseCall()
+		})
 		return nil
 	}
 
@@ -769,20 +772,22 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			ans.ret = rpccp.Return{}
 			ans.sendMsg = nil
 			ans.msgReleaser = nil
-			c.lk.Unlock()
-			retReleaser.Decr()
-			releaseCall()
+			rl.Add(func() {
+				retReleaser.Decr()
+				releaseCall()
+			})
 			return rpcerr.Failedf("incoming call: unknown export ID %d", id)
 		}
 		c.tasks.Add(1) // will be finished by answer.Return
 		var callCtx context.Context
 		callCtx, ans.cancel = context.WithCancel(c.bgctx)
-		c.lk.Unlock()
-		pcall := ent.client.RecvCall(callCtx, recv)
-		// Place PipelineCaller into answer.  Since the receive goroutine is
-		// the only one that uses answer.pcall, it's fine that there's a
-		// time gap for this being set.
-		ans.setPipelineCaller(p.method, pcall)
+		rl.Add(func() {
+			pcall := ent.client.RecvCall(callCtx, recv)
+			// Place PipelineCaller into answer.  Since the receive goroutine is
+			// the only one that uses answer.pcall, it's fine that there's a
+			// time gap for this being set.
+			ans.setPipelineCaller(p.method, pcall)
+		})
 		return nil
 	case rpccp.MessageTarget_Which_promisedAnswer:
 		tgtAns := c.lk.answers[p.target.promisedAnswer]
@@ -790,16 +795,16 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			ans.ret = rpccp.Return{}
 			ans.sendMsg = nil
 			ans.msgReleaser = nil
-			c.lk.Unlock()
-			retReleaser.Decr()
-			releaseCall()
+			rl.Add(func() {
+				retReleaser.Decr()
+				releaseCall()
+			})
 			return rpcerr.Failedf("incoming call: use of unknown or finished answer ID %d for promised answer target", p.target.promisedAnswer)
 		}
 		if tgtAns.flags.Contains(resultsReady) {
 			if tgtAns.err != nil {
 				ans.sendException(rl, tgtAns.err)
-				c.lk.Unlock()
-				releaseCall()
+				rl.Add(releaseCall)
 				return nil
 			}
 			// tgtAns.results is guaranteed to stay alive because it hasn't
@@ -810,8 +815,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			if err != nil {
 				err = rpcerr.Failedf("incoming call: read results from target answer: %w", err)
 				ans.sendException(rl, err)
-				c.lk.Unlock()
-				releaseCall()
+				rl.Add(releaseCall)
 				c.er.ReportError(err)
 				return nil
 			}
@@ -819,8 +823,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			if err != nil {
 				// Not reporting, as this is the caller's fault.
 				ans.sendException(rl, err)
-				c.lk.Unlock()
-				releaseCall()
+				rl.Add(releaseCall)
 				return nil
 			}
 			iface := sub.Interface()
@@ -836,9 +839,10 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			c.tasks.Add(1) // will be finished by answer.Return
 			var callCtx context.Context
 			callCtx, ans.cancel = context.WithCancel(c.bgctx)
-			c.lk.Unlock()
-			pcall := tgt.RecvCall(callCtx, recv)
-			ans.setPipelineCaller(p.method, pcall)
+			rl.Add(func() {
+				pcall := tgt.RecvCall(callCtx, recv)
+				ans.setPipelineCaller(p.method, pcall)
+			})
 		} else {
 			// Results not ready, use pipeline caller.
 			tgtAns.pcalls.Add(1) // will be finished by answer.Return
@@ -846,10 +850,11 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			callCtx, ans.cancel = context.WithCancel(c.bgctx)
 			tgt := tgtAns.pcall
 			c.tasks.Add(1) // will be finished by answer.Return
-			c.lk.Unlock()
-			pcall := tgt.PipelineRecv(callCtx, p.target.transform, recv)
-			tgtAns.pcalls.Done()
-			ans.setPipelineCaller(p.method, pcall)
+			rl.Add(func() {
+				pcall := tgt.PipelineRecv(callCtx, p.target.transform, recv)
+				tgtAns.pcalls.Done()
+				ans.setPipelineCaller(p.method, pcall)
+			})
 		}
 		return nil
 	default:
