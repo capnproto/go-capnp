@@ -755,7 +755,12 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 		return nil
 	}
 
-	releaseArgs := makeIdempotent(releaseCall)
+	recv := capnp.Recv{
+		Args:        p.args,
+		Method:      p.method,
+		ReleaseArgs: makeIdempotent(releaseCall),
+		Returner:    ans,
+	}
 
 	switch p.target.which {
 	case rpccp.MessageTarget_Which_importedCap:
@@ -773,12 +778,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 		var callCtx context.Context
 		callCtx, ans.cancel = context.WithCancel(c.bgctx)
 		c.lk.Unlock()
-		pcall := ent.client.RecvCall(callCtx, capnp.Recv{
-			Args:        p.args,
-			Method:      p.method,
-			ReleaseArgs: releaseArgs,
-			Returner:    ans,
-		})
+		pcall := ent.client.RecvCall(callCtx, recv)
 		// Place PipelineCaller into answer.  Since the receive goroutine is
 		// the only one that uses answer.pcall, it's fine that there's a
 		// time gap for this being set.
@@ -837,12 +837,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			var callCtx context.Context
 			callCtx, ans.cancel = context.WithCancel(c.bgctx)
 			c.lk.Unlock()
-			pcall := tgt.RecvCall(callCtx, capnp.Recv{
-				Args:        p.args,
-				Method:      p.method,
-				ReleaseArgs: releaseArgs,
-				Returner:    ans,
-			})
+			pcall := tgt.RecvCall(callCtx, recv)
 			ans.setPipelineCaller(p.method, pcall)
 		} else {
 			// Results not ready, use pipeline caller.
@@ -852,12 +847,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			tgt := tgtAns.pcall
 			c.tasks.Add(1) // will be finished by answer.Return
 			c.lk.Unlock()
-			pcall := tgt.PipelineRecv(callCtx, p.target.transform, capnp.Recv{
-				Args:        p.args,
-				Method:      p.method,
-				ReleaseArgs: releaseArgs,
-				Returner:    ans,
-			})
+			pcall := tgt.PipelineRecv(callCtx, p.target.transform, recv)
 			tgtAns.pcalls.Done()
 			ans.setPipelineCaller(p.method, pcall)
 		}
