@@ -1461,7 +1461,7 @@ func (c *Conn) startTask() (ok bool) {
 
 // sendMessage creates a new message on the transport, calls build to
 // populate its fields, and enqueues it on the outbound queue.
-// When f returns, the message MUST have a nil cap table.
+// When build returns, the message MUST have a nil cap table.
 //
 // If onSent != nil, it will be called by the send gouroutine
 // with the error value returned by the send operation.  If this
