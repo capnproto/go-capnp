@@ -663,6 +663,16 @@ func (c *Conn) handleBootstrap(ctx context.Context, id answerID) error {
 	return err
 }
 
+func makeIdempotent(f func()) func() {
+	called := false
+	return func() {
+		if !called {
+			called = true
+			f()
+		}
+	}
+}
+
 func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capnp.ReleaseFunc) error {
 	rl := &releaseList{}
 	defer rl.Release()
@@ -744,14 +754,9 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 		releaseCall()
 		return nil
 	}
-	released := false
-	releaseArgs := func() {
-		if released {
-			return
-		}
-		released = true
-		releaseCall()
-	}
+
+	releaseArgs := makeIdempotent(releaseCall)
+
 	switch p.target.which {
 	case rpccp.MessageTarget_Which_importedCap:
 		ent := c.findExport(p.target.importedCap)
