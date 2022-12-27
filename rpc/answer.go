@@ -186,32 +186,30 @@ func (ans *answer) Return(e error) {
 	rl := &releaseList{}
 	defer rl.Release()
 
-	ans.c.lk.Lock()
+	defer ans.pcalls.Wait()
+
 	if e != nil {
-		ans.sendException(rl, e)
-		ans.c.lk.Unlock()
-		ans.pcalls.Wait()
+		syncutil.With(&ans.c.lk, func() {
+			ans.sendException(rl, e)
+		})
 		ans.c.tasks.Done() // added by handleCall
 		return
 	}
-	if err := ans.sendReturn(rl); err != nil {
-		select {
-		case <-ans.c.bgctx.Done():
-		default:
-			ans.c.tasks.Done() // added by handleCall
-			ans.c.lk.Unlock()
 
-			if err := ans.c.shutdown(err); err != nil {
-				ans.c.er.ReportError(err)
-			}
+	var err error
 
-			ans.pcalls.Wait()
-			return
-		}
-	}
-	ans.c.lk.Unlock()
-	ans.pcalls.Wait()
+	syncutil.With(&ans.c.lk, func() {
+		err = ans.sendReturn(rl)
+	})
 	ans.c.tasks.Done() // added by handleCall
+
+	if err == nil {
+		return
+	}
+
+	if err = ans.c.shutdown(err); err != nil {
+		ans.c.er.ReportError(err)
+	}
 }
 
 // sendReturn sends the return message with results allocated by a
