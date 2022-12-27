@@ -183,9 +183,6 @@ func NewConn(t Transport, opts *Options) *Conn {
 
 		c.er.ReportError(err) // ignores nil errors
 
-		c.lk.Lock()
-		defer c.lk.Unlock()
-
 		if err = c.shutdown(err); err != nil {
 			c.er.ReportError(err)
 		}
@@ -285,12 +282,6 @@ func (bc bootstrapClient) Shutdown() {
 // Close sends an abort to the remote vat and closes the underlying
 // transport.
 func (c *Conn) Close() error {
-	c.lk.Lock()
-	defer func() {
-		c.lk.Unlock()
-		<-c.closed
-	}()
-
 	return c.shutdown(exc.Exception{ // NOTE:  omit "rpc" prefix
 		Type:  exc.Failed,
 		Cause: ErrConnClosed,
@@ -304,12 +295,21 @@ func (c *Conn) Done() <-chan struct{} {
 }
 
 // shutdown tears down the connection and transport, optionally sending
-// an abort message before closing.  The caller MUST be hold c.lk.
+// an abort message before closing.  The caller MUST NOT hold c.lk.
+// shutdown is idempotent.
 func (c *Conn) shutdown(abortErr error) (err error) {
-	if !c.lk.closing {
-		c.lk.closing = true
-		c.lk.bgcancel()
+	alreadyClosing := false
 
+	syncutil.With(&c.lk, func() {
+		alreadyClosing = c.lk.closing
+		if !alreadyClosing {
+			c.lk.closing = true
+			c.lk.bgcancel()
+			c.cancelTasks()
+		}
+	})
+
+	if !alreadyClosing {
 		readyForClose := make(chan struct{})
 		go func() {
 			defer close(c.closed)
@@ -322,31 +322,31 @@ func (c *Conn) shutdown(abortErr error) (err error) {
 			}
 		}()
 
-		c.stopTasks()
-		syncutil.Without(&c.lk, c.drainQueue)
-		c.release()
+		c.tasks.Wait()
+		c.drainQueue()
+
+		rl := &releaseList{}
+		syncutil.With(&c.lk, func() {
+			c.release(rl)
+		})
+		rl.Release()
 		c.abort(abortErr)
 		close(readyForClose)
-		<-c.closed
 	}
+	<-c.closed
 
 	return
 }
 
-// Stop all tasks and prevent new tasks from being started.
+// Cancel all tasks and prevent new tasks from being started.
+// Does not wait for tasks to finish shutting down.
 // Called by 'shutdown'.  Callers MUST hold c.lk.
-func (c *Conn) stopTasks() {
+func (c *Conn) cancelTasks() {
 	for _, a := range c.lk.answers {
 		if a != nil && a.cancel != nil {
 			a.cancel()
 		}
 	}
-
-	// Wait for work to stop.
-	c.lk.Unlock()
-	defer c.lk.Lock()
-
-	c.tasks.Wait()
 }
 
 // caller MUST NOT hold c.lk
@@ -361,9 +361,9 @@ func (c *Conn) drainQueue() {
 	}
 }
 
-// Clear all tables, releasing exported clients and unfinished answers.
-// Called by 'shutdown'.  Caller MUST hold c.lk.
-func (c *Conn) release() {
+// Clear all tables, and arrange for the releaseList to release exported clients
+// and unfinished answers. Called by 'shutdown'.  Caller MUST hold c.lk.
+func (c *Conn) release(rl *releaseList) {
 	exports := c.lk.exports
 	embargoes := c.lk.embargoes
 	answers := c.lk.answers
@@ -374,23 +374,20 @@ func (c *Conn) release() {
 	c.lk.questions = nil
 	c.lk.answers = nil
 
-	c.lk.Unlock()
-	defer c.lk.Lock()
-
-	c.releaseBootstrap()
-	c.releaseExports(exports)
-	c.liftEmbargoes(embargoes)
-	c.releaseAnswers(answers)
-	c.releaseQuestions(questions)
+	c.releaseBootstrap(rl)
+	c.releaseExports(rl, exports)
+	c.liftEmbargoes(rl, embargoes)
+	c.releaseAnswers(rl, answers)
+	c.releaseQuestions(rl, questions)
 
 }
 
-func (c *Conn) releaseBootstrap() {
-	c.bootstrap.Release()
+func (c *Conn) releaseBootstrap(rl *releaseList) {
+	rl.Add(c.bootstrap.Release)
 	c.bootstrap = capnp.Client{}
 }
 
-func (c *Conn) releaseExports(exports []*expent) {
+func (c *Conn) releaseExports(rl *releaseList, exports []*expent) {
 	for _, e := range exports {
 		if e != nil {
 			metadata := e.client.State().Metadata
@@ -398,47 +395,48 @@ func (c *Conn) releaseExports(exports []*expent) {
 				c.clearExportID(metadata)
 			})
 
-			e.client.Release()
+			rl.Add(e.client.Release)
 		}
 	}
 }
 
-func (c *Conn) liftEmbargoes(embargoes []*embargo) {
+func (c *Conn) liftEmbargoes(rl *releaseList, embargoes []*embargo) {
 	for _, e := range embargoes {
 		if e != nil {
-			e.lift()
+			rl.Add(e.lift)
 		}
 	}
 }
 
-func (c *Conn) releaseAnswers(answers map[answerID]*answer) {
+func (c *Conn) releaseAnswers(rl *releaseList, answers map[answerID]*answer) {
 	for _, a := range answers {
 		if a != nil && a.msgReleaser != nil {
-			a.msgReleaser.Decr()
+			rl.Add(a.msgReleaser.Decr)
 		}
 	}
 }
 
-func (c *Conn) releaseQuestions(questions []*question) {
+func (c *Conn) releaseQuestions(rl *releaseList, questions []*question) {
 	for _, q := range questions {
 		canceled := q != nil && q.flags&finished != 0
 		if !canceled {
 			// Only reject the question if it isn't already flagged
 			// as finished; otherwise it was rejected when the finished
 			// flag was set.
-			q.Reject(ExcClosed)
+
+			qr := q // Capture a different variable each time through the loop.
+			rl.Add(func() {
+				qr.Reject(ExcClosed)
+			})
 		}
 	}
 }
 
 // If abortErr != nil, send abort message.  IO and alloc errors are ignored.
-// Called by 'shutdown'.  Callers MUST hold c.lk.
+// Called by 'shutdown'.  Callers MUST NOT hold c.lk.
 func (c *Conn) abort(abortErr error) {
 	// send abort message?
 	if abortErr != nil {
-		c.lk.Unlock()
-		defer c.lk.Lock()
-
 		outMsg, err := c.transport.NewMessage()
 		if err != nil {
 			return
