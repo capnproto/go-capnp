@@ -694,18 +694,25 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 		return nil
 	}
 
-	c.lk.Lock()
-	if c.lk.answers[id] != nil {
-		c.lk.Unlock()
-		releaseCall()
-		return rpcerr.Failedf("incoming call: answer ID %d reused", id)
+	var (
+		err      error
+		p        parsedCall
+		parseErr error
+	)
+	syncutil.With(&c.lk, func() {
+		if c.lk.answers[id] != nil {
+			rl.Add(releaseCall)
+			err = rpcerr.Failedf("incoming call: answer ID %d reused", id)
+			return
+		}
+
+		parseErr = c.parseCall(&p, call) // parseCall sets CapTable
+	})
+	if err != nil {
+		return err
 	}
 
-	var p parsedCall
-	parseErr := c.parseCall(&p, call) // parseCall sets CapTable
-
 	// Create return message.
-	c.lk.Unlock()
 	ret, send, retReleaser, err := c.newReturn()
 	if err != nil {
 		err = rpcerr.Annotate(err, "incoming call")
