@@ -280,8 +280,6 @@ func (ans *answer) sendException(rl *releaseList, ex error) {
 	case <-ans.c.bgctx.Done():
 	default:
 		// Send exception.
-		fin := ans.flags.Contains(finishReceived)
-		ans.c.lk.Unlock()
 		if e, err := ans.ret.NewException(); err != nil {
 			ans.c.er.ReportError(fmt.Errorf("send exception: %w", err))
 		} else {
@@ -292,21 +290,13 @@ func (ans *answer) sendException(rl *releaseList, ex error) {
 				ans.sendMsg()
 			}
 		}
-		if fin {
-			ans.c.lk.Lock()
-			// destroy will never return an error because sendException does
-			// create any exports.
-			_ = ans.destroy(rl)
-		}
-		ans.c.lk.Lock()
 	}
 	ans.flags |= returnSent
-	if !ans.flags.Contains(finishReceived) {
-		return
+	if ans.flags.Contains(finishReceived) {
+		// destroy will never return an error because sendException does
+		// create any exports.
+		_ = ans.destroy(rl)
 	}
-	// destroy will never return an error because sendException does
-	// create any exports.
-	_ = ans.destroy(rl)
 }
 
 // destroy removes the answer from the table and returns ReleaseFuncs to
