@@ -30,7 +30,7 @@ type answer struct {
 	// entry is a placeholder until the remote vat cancels the call.
 	ret rpccp.Return
 
-	// sendMsg sends the return message.  The caller MUST NOT hold ans.c.lk.
+	// sendMsg sends the return message.  The caller MUST hold ans.c.lk.
 	sendMsg func()
 
 	// msgReleaser releases the return message when its refcount hits zero.
@@ -116,7 +116,7 @@ func (c *Conn) newReturn() (_ rpccp.Return, sendMsg func(), _ *rc.Releaser, _ er
 	releaser := rc.NewReleaser(2, outMsg.Release)
 
 	return ret, func() {
-		c.sender.Send(asyncSend{
+		c.lk.sendTx.Send(asyncSend{
 			send:    outMsg.Send,
 			release: releaser.Decr,
 			onSent: func(err error) {
@@ -250,13 +250,10 @@ func (ans *answer) sendReturn(rl *releaseList) error {
 			}
 			ans.promise = nil
 		}
-		ans.c.lk.Unlock()
 		ans.sendMsg()
 		if fin {
-			ans.c.lk.Lock()
 			return ans.destroy(rl)
 		}
-		ans.c.lk.Lock()
 	}
 	ans.flags |= returnSent
 	if !ans.flags.Contains(finishReceived) {
@@ -283,8 +280,6 @@ func (ans *answer) sendException(rl *releaseList, ex error) {
 	case <-ans.c.bgctx.Done():
 	default:
 		// Send exception.
-		fin := ans.flags.Contains(finishReceived)
-		ans.c.lk.Unlock()
 		if e, err := ans.ret.NewException(); err != nil {
 			ans.c.er.ReportError(fmt.Errorf("send exception: %w", err))
 		} else {
@@ -295,21 +290,13 @@ func (ans *answer) sendException(rl *releaseList, ex error) {
 				ans.sendMsg()
 			}
 		}
-		if fin {
-			ans.c.lk.Lock()
-			// destroy will never return an error because sendException does
-			// create any exports.
-			_ = ans.destroy(rl)
-		}
-		ans.c.lk.Lock()
 	}
 	ans.flags |= returnSent
-	if !ans.flags.Contains(finishReceived) {
-		return
+	if ans.flags.Contains(finishReceived) {
+		// destroy will never return an error because sendException does
+		// create any exports.
+		_ = ans.destroy(rl)
 	}
-	// destroy will never return an error because sendException does
-	// create any exports.
-	_ = ans.destroy(rl)
 }
 
 // destroy removes the answer from the table and returns ReleaseFuncs to
