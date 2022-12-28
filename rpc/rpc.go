@@ -1310,9 +1310,13 @@ func (c *Conn) recvPayload(payload rpccp.Payload) (_ capnp.Ptr, locals uintSet, 
 }
 
 func (c *Conn) handleRelease(ctx context.Context, id exportID, count uint32) error {
-	c.lk.Lock()
-	client, err := c.releaseExport(id, count)
-	c.lk.Unlock()
+	var (
+		client capnp.Client
+		err    error
+	)
+	syncutil.With(&c.lk, func() {
+		client, err = c.releaseExport(id, count)
+	})
 	if err != nil {
 		return rpcerr.Annotate(err, "incoming release")
 	}
