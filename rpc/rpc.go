@@ -663,7 +663,7 @@ func (c *Conn) handleBootstrap(ctx context.Context, id answerID) error {
 	return err
 }
 
-func makeIdempotent(f func()) func() {
+func idempotent(f func()) func() {
 	called := false
 	return func() {
 		if !called {
@@ -761,7 +761,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 	recv := capnp.Recv{
 		Args:        p.args,
 		Method:      p.method,
-		ReleaseArgs: makeIdempotent(releaseCall),
+		ReleaseArgs: idempotent(releaseCall),
 		Returner:    ans,
 	}
 
