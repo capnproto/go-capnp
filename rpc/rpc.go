@@ -941,11 +941,14 @@ func parseTransform(list rpccp.PromisedAnswer_Op_List) ([]capnp.PipelineOp, erro
 }
 
 func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp.ReleaseFunc) error {
+	rl := &releaseList{}
+	defer rl.Release()
 	c.lk.Lock()
+	defer c.lk.Unlock()
+
 	qid := questionID(ret.AnswerId())
 	if uint32(qid) >= uint32(len(c.lk.questions)) {
-		c.lk.Unlock()
-		release()
+		rl.Add(release)
 		return rpcerr.Failedf("incoming return: question %d does not exist", qid)
 	}
 	// Pop the question from the table.  Receiving the Return message
@@ -954,8 +957,7 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp
 	q := c.lk.questions[qid]
 	c.lk.questions[qid] = nil
 	if q == nil {
-		c.lk.Unlock()
-		release()
+		rl.Add(release)
 		return rpcerr.Failedf("incoming return: question %d does not exist", qid)
 	}
 	canceled := q.flags&finished != 0
@@ -969,11 +971,9 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp
 			if q.flags&finishSent != 0 {
 				c.lk.questionID.remove(uint32(qid))
 			}
-			c.lk.Unlock()
-			release()
+			rl.Add(release)
 		default:
-			c.lk.Unlock()
-			release()
+			rl.Add(release)
 
 			go func() {
 				<-q.finishMsgSend
@@ -996,7 +996,6 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp
 		// client or an error), so we save the ReleaseFunc for later:
 		q.release = release
 	}
-	c.lk.Unlock()
 	// We're going to potentially block fulfilling some promises so fork
 	// off a goroutine to avoid blocking the receive loop.
 	go func() {
