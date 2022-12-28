@@ -1348,16 +1348,18 @@ func (c *Conn) handleDisembargo(ctx context.Context, d rpccp.Disembargo, release
 		defer release()
 
 		id := embargoID(d.Context().ReceiverLoopback())
-		c.lk.Lock()
-		e := c.findEmbargo(id)
+		var e *embargo
+		syncutil.With(&c.lk, func() {
+			e = c.findEmbargo(id)
+			if e != nil {
+				// TODO(soon): verify target matches the right import.
+				c.lk.embargoes[id] = nil
+				c.lk.embargoID.remove(uint32(id))
+			}
+		})
 		if e == nil {
-			c.lk.Unlock()
 			return rpcerr.Failedf("incoming disembargo: received sender loopback for unknown ID %d", id)
 		}
-		// TODO(soon): verify target matches the right import.
-		c.lk.embargoes[id] = nil
-		c.lk.embargoID.remove(uint32(id))
-		c.lk.Unlock()
 		e.lift()
 
 	case rpccp.Disembargo_context_Which_senderLoopback:
