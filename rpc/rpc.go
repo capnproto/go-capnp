@@ -89,9 +89,11 @@ type Conn struct {
 	// touch this.
 	sendRx *spsc.Rx[asyncSend]
 
-	// lk contains all the fields that need to be protected by a mutex
+	// lk contains all the fields that need to be protected by a mutex.
 	// this makes it easy to tell at call sites whether you should or
-	// should not be holding the lock.
+	// should not be holding the lock. Methods that access fields within
+	// should be defined on lockedConn, rather than Conn, so that callers
+	// must invoke c.withLocked or one of its variants.
 	lk struct {
 		sync.Mutex // protects all the fields in lk.
 
@@ -111,6 +113,54 @@ type Conn struct {
 		imports    map[importID]*impent
 		embargoes  []*embargo
 		embargoID  idgen
+	}
+}
+
+// A lockedConn is the same as a Conn, but the methods defined on it
+// access c.lk without synchronization. Therefore callers must already
+// be holding the lock. Conn.withLock can be used to simultaneously
+// delmit a critical section and grant access to a lockedConn.
+type lockedConn Conn
+
+// withLocked runs f while holding c.lk. It is considered good style
+// to shadow the variable name for the receiver with the parameter
+// to f, e.g.
+//
+// c.withLocked(func(c *lockedConn) { ... })
+//
+// This makes it hard to accidentally use the Conn directly while
+// holding the lock, which could result in deadlocks if withLocked
+// is called reentrantly.
+func (c *Conn) withLocked(f func(*lockedConn)) {
+	syncutil.With(&c.lk, func() {
+		f((*lockedConn)(c))
+	})
+}
+
+// withLockedConn1 is like c.withLocked, but allows the function f
+// to return a value. It is a stand-alone function so the return type
+// can be generic.
+func withLockedConn1[T any](c *Conn, f func(*lockedConn) T) T {
+	var ret T
+	c.withLocked(func(c *lockedConn) {
+		ret = f(c)
+	})
+	return ret
+}
+
+// withLockedConn2 is like withLockedConn1, except that the function
+// has two return values.
+func withLockedConn2[A, B any](c *Conn, f func(*lockedConn) (A, B)) (a A, b B) {
+	c.withLocked(func(c *lockedConn) {
+		a, b = f(c)
+	})
+	return
+}
+
+// assertIs panics if the receiver and the argument are not the same connection.
+func (lc *lockedConn) assertIs(c *Conn) {
+	if (*Conn)(lc) != c {
+		panic("lockedConn.assertIs: different connections.")
 	}
 }
 
@@ -220,50 +270,49 @@ func (c *Conn) backgroundTask(f func() error) func() error {
 // Bootstrap returns the remote vat's bootstrap interface.  This creates
 // a new client that the caller is responsible for releasing.
 func (c *Conn) Bootstrap(ctx context.Context) (bc capnp.Client) {
-	c.lk.Lock()
-	defer c.lk.Unlock()
-
-	// Start a background task to prevent the conn from shutting down
-	// while sending the bootstrap message.
-	if !c.startTask() {
-		return capnp.ErrorClient(rpcerr.Disconnectedf("connection closed"))
-	}
-	defer c.tasks.Done()
-
-	bootCtx, cancel := context.WithCancel(ctx)
-	q := c.newQuestion(capnp.Method{})
-	bc, q.bootstrapPromise = capnp.NewPromisedClient(bootstrapClient{
-		c:      q.p.Answer().Client().AddRef(),
-		cancel: cancel,
-	})
-
-	c.sendMessage(ctx, func(m rpccp.Message) error {
-		boot, err := m.NewBootstrap()
-		if err == nil {
-			boot.SetQuestionId(uint32(q.id))
+	return withLockedConn1(c, func(c *lockedConn) (bc capnp.Client) {
+		// Start a background task to prevent the conn from shutting down
+		// while sending the bootstrap message.
+		if !c.startTask() {
+			return capnp.ErrorClient(rpcerr.Disconnectedf("connection closed"))
 		}
-		return err
+		defer c.tasks.Done()
 
-	}, func(err error) {
-		if err != nil {
-			syncutil.With(&c.lk, func() {
-				c.lk.questions[q.id] = nil
-			})
-			q.bootstrapPromise.Reject(exc.Annotate("rpc", "bootstrap", err))
-			syncutil.With(&c.lk, func() {
-				c.lk.questionID.remove(uint32(q.id))
-			})
-			return
-		}
+		bootCtx, cancel := context.WithCancel(ctx)
+		q := c.newQuestion(capnp.Method{})
+		bc, q.bootstrapPromise = capnp.NewPromisedClient(bootstrapClient{
+			c:      q.p.Answer().Client().AddRef(),
+			cancel: cancel,
+		})
 
-		c.tasks.Add(1)
-		go func() {
-			defer c.tasks.Done()
-			q.handleCancel(bootCtx)
-		}()
+		c.sendMessage(ctx, func(m rpccp.Message) error {
+			boot, err := m.NewBootstrap()
+			if err == nil {
+				boot.SetQuestionId(uint32(q.id))
+			}
+			return err
+
+		}, func(err error) {
+			if err != nil {
+				syncutil.With(&c.lk, func() {
+					c.lk.questions[q.id] = nil
+				})
+				q.bootstrapPromise.Reject(exc.Annotate("rpc", "bootstrap", err))
+				syncutil.With(&c.lk, func() {
+					c.lk.questionID.remove(uint32(q.id))
+				})
+				return
+			}
+
+			c.tasks.Add(1)
+			go func() {
+				defer c.tasks.Done()
+				q.handleCancel(bootCtx)
+			}()
+		})
+
+		return
 	})
-
-	return
 }
 
 type bootstrapClient struct {
@@ -604,13 +653,15 @@ func (c *Conn) receive() error {
 
 		default:
 			c.er.ReportError(fmt.Errorf("unknown message type %v from remote", recv.Which()))
-			c.sendMessage(ctx, func(m rpccp.Message) error {
-				defer release()
-				if err := m.SetUnimplemented(recv); err != nil {
-					return rpcerr.Annotatef(err, "send unimplemented")
-				}
-				return nil
-			}, nil)
+			c.withLocked(func(c *lockedConn) {
+				c.sendMessage(ctx, func(m rpccp.Message) error {
+					defer release()
+					if err := m.SetUnimplemented(recv); err != nil {
+						return rpcerr.Annotatef(err, "send unimplemented")
+					}
+					return nil
+				}, nil)
+			})
 		}
 	}
 }
@@ -630,7 +681,7 @@ func (c *Conn) handleBootstrap(ctx context.Context, id answerID) error {
 		ans.ret.SetReleaseParamCaps(false)
 	}
 
-	syncutil.With(&c.lk, func() {
+	c.withLocked(func(c *lockedConn) {
 		if c.lk.answers[id] != nil {
 			rl.Add(ans.msgReleaser.Decr)
 			err = rpcerr.Failedf("incoming bootstrap: answer ID %d reused", id)
@@ -639,7 +690,7 @@ func (c *Conn) handleBootstrap(ctx context.Context, id answerID) error {
 
 		if err != nil {
 			err = rpcerr.Annotate(err, "incoming bootstrap")
-			c.lk.answers[id] = errorAnswer(c, id, err)
+			c.lk.answers[id] = errorAnswer((*Conn)(c), id, err)
 			c.er.ReportError(err)
 			return
 		}
@@ -653,7 +704,7 @@ func (c *Conn) handleBootstrap(ctx context.Context, id answerID) error {
 			ans.sendException(rl, err)
 			return
 		}
-		err = ans.sendReturn(rl)
+		err = ans.sendReturn(c, rl)
 		if err != nil {
 			// Answer cannot possibly encounter a Finish, since we still
 			// haven't returned to receive().
@@ -684,21 +735,23 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 		// TODO(someday): handle SendResultsTo.yourself
 		c.er.ReportError(fmt.Errorf("incoming call: results destination is not caller"))
 
-		c.sendMessage(ctx, func(m rpccp.Message) error {
-			defer releaseCall()
+		c.withLocked(func(c *lockedConn) {
+			c.sendMessage(ctx, func(m rpccp.Message) error {
+				defer releaseCall()
 
-			mm, err := m.NewUnimplemented()
-			if err != nil {
-				return rpcerr.Annotatef(err, "incoming call: send unimplemented")
-			}
+				mm, err := m.NewUnimplemented()
+				if err != nil {
+					return rpcerr.Annotatef(err, "incoming call: send unimplemented")
+				}
 
-			if err = mm.SetCall(call); err != nil {
-				return rpcerr.Annotatef(err, "incoming call: send unimplemented")
-			}
+				if err = mm.SetCall(call); err != nil {
+					return rpcerr.Annotatef(err, "incoming call: send unimplemented")
+				}
 
-			return nil
-		}, func(err error) {
-			c.er.ReportError(rpcerr.Annotatef(err, "incoming call: send unimplemented"))
+				return nil
+			}, func(err error) {
+				c.er.ReportError(rpcerr.Annotatef(err, "incoming call: send unimplemented"))
+			})
 		})
 
 		return nil
@@ -1012,7 +1065,7 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp
 			release()
 		}
 
-		syncutil.With(&c.lk, func() {
+		c.withLocked(func(c *lockedConn) {
 			// Send disembargoes.  Failing to send one of these just never lifts
 			// the embargo on our side, but doesn't cause a leak.
 			//
@@ -1425,7 +1478,7 @@ func (c *Conn) handleDisembargo(ctx context.Context, d rpccp.Disembargo, release
 		// Since this Cap'n Proto RPC implementation does not send imports
 		// unless they are fully dequeued, we can just immediately loop back.
 		id := d.Context().SenderLoopback()
-		syncutil.With(&c.lk, func() {
+		c.withLocked(func(c *lockedConn) {
 			c.sendMessage(ctx, func(m rpccp.Message) error {
 				d, err := m.NewDisembargo()
 				if err != nil {
@@ -1450,7 +1503,7 @@ func (c *Conn) handleDisembargo(ctx context.Context, d rpccp.Disembargo, release
 
 	default:
 		c.er.ReportError(fmt.Errorf("incoming disembargo: context %v not implemented", d.Context().Which()))
-		syncutil.With(&c.lk, func() {
+		c.withLocked(func(c *lockedConn) {
 			c.sendMessage(ctx, func(m rpccp.Message) (err error) {
 				if m, err = m.NewUnimplemented(); err == nil {
 					err = m.SetDisembargo(d)
@@ -1469,9 +1522,7 @@ func (c *Conn) handleDisembargo(ctx context.Context, d rpccp.Disembargo, release
 
 // startTask increments c.tasks if c is not shutting down.
 // It returns whether c.tasks was incremented.
-//
-// The caller must be holding onto c.lk.
-func (c *Conn) startTask() (ok bool) {
+func (c *lockedConn) startTask() (ok bool) {
 	if c.bgctx.Err() == nil {
 		c.tasks.Add(1)
 		ok = true
@@ -1488,10 +1539,9 @@ func (c *Conn) startTask() (ok bool) {
 // with the error value returned by the send operation.  If this
 // error is nil, the message was successfully sent.
 //
-// The caller MUST hold c.lk.  onSent will be called without
-// holding c.lk.  Callers of sendMessage MAY wish to reacquire the
-// c.lk within the onSent.
-func (c *Conn) sendMessage(ctx context.Context, build func(rpccp.Message) error, onSent func(error)) {
+// onSent will be called without holding c.lk.  Callers of
+// sendMessage MAY wish to reacquire the c.lk within the onSent.
+func (c *lockedConn) sendMessage(ctx context.Context, build func(rpccp.Message) error, onSent func(error)) {
 	outMsg, err := c.transport.NewMessage()
 	send := outMsg.Send
 	release := outMsg.Release

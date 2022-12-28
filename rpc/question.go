@@ -43,11 +43,10 @@ const (
 	finishSent
 )
 
-// newQuestion adds a new question to c's table.  The caller must be
-// holding onto c.mu.
-func (c *Conn) newQuestion(method capnp.Method) *question {
+// newQuestion adds a new question to c's table.
+func (c *lockedConn) newQuestion(method capnp.Method) *question {
 	q := &question{
-		c:             c,
+		c:             (*Conn)(c),
 		id:            questionID(c.lk.questionID.next()),
 		release:       func() {},
 		finishMsgSend: make(chan struct{}),
@@ -63,20 +62,30 @@ func (c *Conn) newQuestion(method capnp.Method) *question {
 }
 
 func (c *Conn) getAnswerQuestion(ans *capnp.Answer) (*question, bool) {
+	// Note: lockedConn.getAnswerQuestion doesn't actually do anything with the
+	// locked data, but we end up needing to call this method on both types so
+	// we define it there as well.
+	return (*lockedConn)(c).getAnswerQuestion(ans)
+}
+
+func (c *lockedConn) getAnswerQuestion(ans *capnp.Answer) (*question, bool) {
+	// Note: make sure to update Conn.getAnswerQuestion if this ever changes
+	// to access c.lk for some strange reason.
+
 	m := ans.Metadata()
 	m.Lock()
 	defer m.Unlock()
-	q, ok := m.Get(questionKey{c})
+	q, ok := m.Get(questionKey{(*Conn)(c)})
 	if !ok {
 		return nil, false
 	}
 	return q.(*question), true
 }
 
-func (c *Conn) setAnswerQuestion(ans *capnp.Answer, q *question) {
+func (c *lockedConn) setAnswerQuestion(ans *capnp.Answer, q *question) {
 	m := ans.Metadata()
 	syncutil.With(m, func() {
-		m.Put(questionKey{c}, q)
+		m.Put(questionKey{(*Conn)(c)}, q)
 	})
 }
 
@@ -99,92 +108,88 @@ func (q *question) handleCancel(ctx context.Context) {
 		return
 	}
 
-	q.c.lk.Lock()
-	defer q.c.lk.Unlock()
-
-	// Promise already fulfilled?
-	if q.flags&finished != 0 {
-		return
-	}
-	q.flags |= finished
-	q.release = func() {}
-
-	q.c.sendMessage(q.c.bgctx, func(m rpccp.Message) error {
-		fin, err := m.NewFinish()
-		if err != nil {
-			return err
+	q.c.withLocked(func(c *lockedConn) {
+		// Promise already fulfilled?
+		if q.flags&finished != 0 {
+			return
 		}
-		fin.SetQuestionId(uint32(q.id))
-		fin.SetReleaseResultCaps(true)
-		return nil
-	}, func(err error) {
-		if err == nil {
-			syncutil.With(&q.c.lk, func() { q.flags |= finishSent })
-		} else if q.c.bgctx.Err() == nil {
-			q.c.er.ReportError(rpcerr.Annotate(err, "send finish"))
-		}
-		close(q.finishMsgSend)
+		q.flags |= finished
+		q.release = func() {}
 
-		q.p.Reject(rejectErr)
-		if q.bootstrapPromise != nil {
-			q.bootstrapPromise.Fulfill(q.p.Answer().Client())
-			q.p.ReleaseClients()
-		}
+		c.sendMessage(c.bgctx, func(m rpccp.Message) error {
+			fin, err := m.NewFinish()
+			if err != nil {
+				return err
+			}
+			fin.SetQuestionId(uint32(q.id))
+			fin.SetReleaseResultCaps(true)
+			return nil
+		}, func(err error) {
+			if err == nil {
+				syncutil.With(&q.c.lk, func() { q.flags |= finishSent })
+			} else if q.c.bgctx.Err() == nil {
+				q.c.er.ReportError(rpcerr.Annotate(err, "send finish"))
+			}
+			close(q.finishMsgSend)
+
+			q.p.Reject(rejectErr)
+			if q.bootstrapPromise != nil {
+				q.bootstrapPromise.Fulfill(q.p.Answer().Client())
+				q.p.ReleaseClients()
+			}
+		})
 	})
 }
 
 func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineOp, s capnp.Send) (*capnp.Answer, capnp.ReleaseFunc) {
-	q.c.lk.Lock()
-	defer q.c.lk.Unlock()
-
-	if !q.c.startTask() {
-		return capnp.ErrorAnswer(s.Method, ExcClosed), func() {}
-	}
-	defer q.c.tasks.Done()
-
-	// Mark this transform as having been used for a call ASAP.
-	// q's Return could be received while q2 is being sent.
-	// Don't bother cleaning it up if the call fails because:
-	// a) this may not have been the only call for the given transform,
-	// b) the transform isn't guaranteed to be an import, and
-	// c) the worst that happens is we trade bandwidth for code simplicity.
-	q.mark(transform)
-	q2 := q.c.newQuestion(s.Method)
-
-	// Send call message.
-	q.c.sendMessage(ctx, func(m rpccp.Message) error {
-		return q.c.newPipelineCallMessage(m, q.id, transform, q2.id, s)
-	}, func(err error) {
-		if err != nil {
-			syncutil.With(&q.c.lk, func() {
-				q.c.lk.questions[q2.id] = nil
-			})
-			q2.p.Reject(rpcerr.Failedf("send message: %w", err))
-			syncutil.With(&q.c.lk, func() {
-				q.c.lk.questionID.remove(uint32(q2.id))
-			})
-			return
+	return withLockedConn2(q.c, func(c *lockedConn) (*capnp.Answer, capnp.ReleaseFunc) {
+		if !c.startTask() {
+			return capnp.ErrorAnswer(s.Method, ExcClosed), func() {}
 		}
+		defer c.tasks.Done()
 
-		q2.c.tasks.Add(1)
-		go func() {
-			defer q2.c.tasks.Done()
-			q2.handleCancel(ctx)
-		}()
+		// Mark this transform as having been used for a call ASAP.
+		// q's Return could be received while q2 is being sent.
+		// Don't bother cleaning it up if the call fails because:
+		// a) this may not have been the only call for the given transform,
+		// b) the transform isn't guaranteed to be an import, and
+		// c) the worst that happens is we trade bandwidth for code simplicity.
+		q.mark(transform)
+		q2 := c.newQuestion(s.Method)
+
+		// Send call message.
+		c.sendMessage(ctx, func(m rpccp.Message) error {
+			return c.newPipelineCallMessage(m, q.id, transform, q2.id, s)
+		}, func(err error) {
+			if err != nil {
+				syncutil.With(&q.c.lk, func() {
+					q.c.lk.questions[q2.id] = nil
+				})
+				q2.p.Reject(rpcerr.Failedf("send message: %w", err))
+				syncutil.With(&q.c.lk, func() {
+					q.c.lk.questionID.remove(uint32(q2.id))
+				})
+				return
+			}
+
+			q2.c.tasks.Add(1)
+			go func() {
+				defer q2.c.tasks.Done()
+				q2.handleCancel(ctx)
+			}()
+		})
+
+		ans := q2.p.Answer()
+		return ans, func() {
+			<-ans.Done()
+			q2.p.ReleaseClients()
+			q2.release()
+		}
 	})
-
-	ans := q2.p.Answer()
-	return ans, func() {
-		<-ans.Done()
-		q2.p.ReleaseClients()
-		q2.release()
-	}
 }
 
 // newPipelineCallMessage builds a Call message targeted to a promised answer..
-//
-// The caller MUST hold c.mu.
-func (c *Conn) newPipelineCallMessage(msg rpccp.Message, tgt questionID, transform []capnp.PipelineOp, qid questionID, s capnp.Send) error {
+func (c *lockedConn) newPipelineCallMessage(msg rpccp.Message, tgt questionID, transform []capnp.PipelineOp, qid questionID, s capnp.Send) error {
 	call, err := msg.NewCall()
 	if err != nil {
 		return rpcerr.Failedf("build call message: %w", err)
