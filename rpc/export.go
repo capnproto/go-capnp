@@ -24,16 +24,16 @@ type exportIDKey struct {
 	Conn *Conn
 }
 
-func (c *Conn) findExportID(m *capnp.Metadata) (_ exportID, ok bool) {
-	maybeID, ok := m.Get(exportIDKey{c})
+func (c *lockedConn) findExportID(m *capnp.Metadata) (_ exportID, ok bool) {
+	maybeID, ok := m.Get(exportIDKey{(*Conn)(c)})
 	if ok {
 		return maybeID.(exportID), true
 	}
 	return 0, false
 }
 
-func (c *Conn) setExportID(m *capnp.Metadata, id exportID) {
-	m.Put(exportIDKey{c}, id)
+func (c *lockedConn) setExportID(m *capnp.Metadata, id exportID) {
+	m.Put(exportIDKey{(*Conn)(c)}, id)
 }
 
 func (c *Conn) clearExportID(m *capnp.Metadata) {
@@ -101,9 +101,8 @@ func (c *Conn) releaseExportRefs(rl *releaseList, refs map[exportID]uint32) erro
 }
 
 // sendCap writes a capability descriptor, returning an export ID if
-// this vat is hosting the capability.  The caller must be holding
-// onto c.mu.
-func (c *Conn) sendCap(d rpccp.CapDescriptor, client capnp.Client) (_ exportID, isExport bool, _ error) {
+// this vat is hosting the capability.
+func (c *lockedConn) sendCap(d rpccp.CapDescriptor, client capnp.Client) (_ exportID, isExport bool, _ error) {
 	if !client.IsValid() {
 		d.SetNone()
 		return 0, false, nil
@@ -111,7 +110,7 @@ func (c *Conn) sendCap(d rpccp.CapDescriptor, client capnp.Client) (_ exportID, 
 
 	state := client.State()
 	bv := state.Brand.Value
-	if ic, ok := bv.(*importClient); ok && ic.c == c {
+	if ic, ok := bv.(*importClient); ok && ic.c == (*Conn)(c) {
 		if ent := c.lk.imports[ic.id]; ent != nil && ent.generation == ic.generation {
 			d.SetReceiverHosted(uint32(ic.id))
 			return 0, false, nil
@@ -120,7 +119,7 @@ func (c *Conn) sendCap(d rpccp.CapDescriptor, client capnp.Client) (_ exportID, 
 
 	if pc, ok := bv.(capnp.PipelineClient); ok {
 		q, ok := c.getAnswerQuestion(pc.Answer())
-		if ok && q.c == c {
+		if ok && q.c == (*Conn)(c) {
 			pcTrans := pc.Transform()
 			pa, err := d.NewReceiverAnswer()
 			if err != nil {
@@ -170,9 +169,7 @@ func (c *Conn) sendCap(d rpccp.CapDescriptor, client capnp.Client) (_ exportID, 
 // fillPayloadCapTable adds descriptors of payload's message's
 // capabilities into payload's capability table and returns the
 // reference counts that have been added to the exports table.
-//
-// The caller must be holding onto c.mu.
-func (c *Conn) fillPayloadCapTable(payload rpccp.Payload) (map[exportID]uint32, error) {
+func (c *lockedConn) fillPayloadCapTable(payload rpccp.Payload) (map[exportID]uint32, error) {
 	if !payload.IsValid() {
 		return nil, nil
 	}

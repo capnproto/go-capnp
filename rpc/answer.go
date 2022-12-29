@@ -198,8 +198,8 @@ func (ans *answer) Return(e error) {
 
 	var err error
 
-	syncutil.With(&ans.c.lk, func() {
-		err = ans.sendReturn(rl)
+	ans.c.withLocked(func(c *lockedConn) {
+		err = ans.sendReturn(c, rl)
 	})
 	ans.c.tasks.Done() // added by handleCall
 
@@ -217,14 +217,19 @@ func (ans *answer) Return(e error) {
 // Finish with releaseResultCaps set to true, then sendReturn returns
 // the number of references to be subtracted from each export.
 //
-// The caller MUST be holding onto ans.c.lk. sendReturn MUST NOT be
-// called if sendException was previously called.
-func (ans *answer) sendReturn(rl *releaseList) error {
+// The caller MUST be holding onto ans.c.lk, and the lockedConn parameter
+// must be equal to ans.c (it exists to make it hard to forget to acquire
+// the lock, per usual).
+//
+// sendReturn MUST NOT be called if sendException was previously called.
+func (ans *answer) sendReturn(c *lockedConn, rl *releaseList) error {
+	c.assertIs(ans.c)
+
 	ans.pcall = nil
 	ans.flags |= resultsReady
 
 	var err error
-	ans.exportRefs, err = ans.c.fillPayloadCapTable(ans.results)
+	ans.exportRefs, err = c.fillPayloadCapTable(ans.results)
 	if err != nil {
 		// We're not going to send the message after all, so don't forget to release it.
 		ans.msgReleaser.Decr()
