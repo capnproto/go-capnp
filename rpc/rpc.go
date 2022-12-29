@@ -33,14 +33,21 @@ by a goroutine that is solely responsible for the inbound stream.  This
 is referred to as the receive goroutine.  The local vat accesses the
 Conn via objects created by the Conn, and may do so from many different
 goroutines.  However, the Conn will largely serialize operations coming
-from the local vat.  Similarly, outbound messages are enqueued on 'sendq',
+from the local vat.  Similarly, outbound messages are enqueued on 'sendTx',
 and processed by a single goroutine.
 
-Conn protects the connection state with a simple mutex: Conn.mu.  This
-mutex must not be held while performing operations that take
-indeterminate time or are provided by the application.  This reduces
-contention, but more importantly, prevents deadlocks.  An application-
-provided operation can (and commonly will) call back into the Conn.
+Conn protects the connection state with a simple mutex, embedded in c.lk
+to make it clear which fields it protects.  This mutex must not be held
+while performing operations that take indeterminate time or are provided
+by the application.  This reduces contention, but more importantly,
+prevents deadlocks.  An application- provided operation can (and
+commonly will) call back into the Conn.
+
+Note that importantly, capnp.ClientHooks should be considered
+potentially "provided by the application," since it is an interface,
+and since capnp.Clients and capnp.Promises may call into ClientHooks,
+methods on those should not be invoked while holding the lock; in the
+past this has been the source of *many* bugs.
 
 The receive goroutine, being the only goroutine that receives messages
 from the transport, can receive from the transport without additional
@@ -58,8 +65,12 @@ a lot more going on in this code than in most code, and many steps
 require complicated invariants.  Only extract common functionality if
 the preconditions are simple.
 
-As much as possible, ensure that when a function returns, the goroutine
-is holding (or not holding) the same set of locks as when it started.
+Avoid complex locking patterns; if you can't express what you need to
+do with Conn.withLocked or one of its friends, you should go for a walk
+and think, rather than hacking around it by accessing the lock directly
+and/or doing something more complex. In the long run, it's never worth
+it.
+
 Try to push lock acquisition as high up in the call stack as you can.
 This makes it easy to see and avoid extraneous lock transitions, which
 is a common source of errors and/or inefficiencies.
