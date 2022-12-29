@@ -59,7 +59,7 @@ func TestServe(t *testing.T) {
 }
 
 // TestServeCapability serves the ping pong capability and tests
-// if a client can successfuly receive served data.
+// if a client can successfully receive served data.
 func TestServeCapability(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

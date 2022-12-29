@@ -50,7 +50,7 @@ type rtPropFilter struct {
 func newRtPropFilter() rtPropFilter {
 	return rtPropFilter{
 		nextSample: rtPropSample{
-			// Set this to a value that will immediately be superceeded
+			// Set this to a value that will immediately be superseded
 			// as soon as we get a real sample.
 			now: time.Unix(math.MinInt64, 0),
 			rtt: math.MaxInt64,
