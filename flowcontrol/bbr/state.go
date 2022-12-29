@@ -20,7 +20,7 @@ type startupState struct {
 	prevBtlBwEstimate bytesPerNs
 
 	// How many times in a row we've tried increasing sending rate and
-	// not seen a signficant bandwidth increase:
+	// not seen a significant bandwidth increase:
 	plateauRounds int
 }
 
