@@ -102,7 +102,7 @@ type Server struct {
 	callQueue *mpsc.Queue[*Call]
 
 	// Handler for custom behavior of unknown methods
-	HandleUnknownMethod func(ctx context.Context, m capnp.Method) *Method
+	HandleUnknownMethod func(m capnp.Method) *Method
 }
 
 // New returns a client hook that makes calls to a set of methods.
@@ -154,7 +154,7 @@ func (srv *Server) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, capnp
 func (srv *Server) Recv(ctx context.Context, r capnp.Recv) capnp.PipelineCaller {
 	mm := srv.methods.find(r.Method)
 	if mm == nil && srv.HandleUnknownMethod != nil {
-		mm = srv.HandleUnknownMethod(ctx, r.Method)
+		mm = srv.HandleUnknownMethod(r.Method)
 	}
 	if mm == nil {
 		r.Reject(capnp.Unimplemented("unimplemented"))
