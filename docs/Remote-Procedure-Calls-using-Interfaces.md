@@ -48,7 +48,7 @@ $Go.import("arith");
 
 # Declare the Arith capability, which provides multiplication and division.
 interface Arith {
-	multiply @0 (a :Int64, b :Int64) -> (:product :Int64);
+	multiply @0 (a :Int64, b :Int64) -> (product :Int64);
 	divide   @1 (num :Int64, denom :Int64) -> (quo :Int64, rem :Int64);
 }
 ```
@@ -112,7 +112,7 @@ func (Arith) Multiply(ctx context.Context, call Arith_multiply) error {
 // Divide is analogous to Multiply.  All capability server methods follow the
 // same pattern.
 func (Arith) Divide(ctx context.Context, call Arith_divide) error {
-	if call.Args().B() == 0 {
+	if call.Args().Denom() == 0 {
 		return errors.New("divide by zero")
 	}
 
@@ -121,8 +121,8 @@ func (Arith) Divide(ctx context.Context, call Arith_divide) error {
 		return err
 	}
 
-	res.SetQuo(call.Args().A() / call.Args().B())
-	res.SetRem(call.Args().A() % call.Args().B())
+	res.SetQuo(call.Args().Num() / call.Args().Denom())
+	res.SetRem(call.Args().Num() % call.Args().Denom())
 	return nil
 }
 ```
