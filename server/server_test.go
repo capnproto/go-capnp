@@ -3,12 +3,17 @@ package server_test
 import (
 	"context"
 	"errors"
+	"net"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"capnproto.org/go/capnp/v3"
 	air "capnproto.org/go/capnp/v3/internal/aircraftlib"
+	"capnproto.org/go/capnp/v3/rpc"
 	"capnproto.org/go/capnp/v3/server"
 
 	"github.com/stretchr/testify/assert"
@@ -89,6 +94,63 @@ func TestServerCall(t *testing.T) {
 			if !strings.Contains(err.Error(), "echo") {
 				t.Errorf("echo.Echo() error = %v; want error containing \"echo\"", err)
 			}
+		}
+	})
+	t.Run("Unimplemented hook", func(t *testing.T) {
+		t.Parallel()
+		var echoText = "are you there?"
+		var proxyReceived atomic.Value
+
+		// start a proxy server with hook
+		srv := server.New(nil, nil, nil)
+		srv.HandleUnknownMethod = func(method capnp.Method) *server.Method {
+			sm := server.Method{
+				Method: method,
+				Impl:   nil,
+			}
+			sm.Impl = func(ctx context.Context, call *server.Call) error {
+				t.Log("welcome to blank")
+				echoArgs := air.Echo_echo_Params(call.Args())
+				inText, err := echoArgs.In()
+				assert.NoError(t, err)
+				proxyReceived.Store(inText)
+				// pretend we received an answer
+				echo := air.Echo_echo{Call: call}
+				resp, err := echo.AllocResults()
+				err = resp.SetOut(inText)
+				return err
+			}
+			return &sm
+		}
+		blankBoot := capnp.NewClient(srv)
+		lis, err := net.Listen("tcp", ":0")
+		defer lis.Close()
+		require.NoError(t, err)
+		go rpc.Serve(lis, blankBoot)
+
+		// invoke the proxy server with the echo client
+		addr := lis.Addr().String()
+		conn, err := net.Dial("tcp", addr)
+		assert.NoError(t, err)
+		transport := rpc.NewStreamTransport(conn)
+		rpcConn := rpc.NewConn(transport, nil)
+		defer rpcConn.Close()
+		blankClient := rpcConn.Bootstrap(context.Background())
+		echoClient := air.Echo(blankClient)
+		defer echoClient.Release()
+
+		ans, finish := echoClient.Echo(context.Background(), func(p air.Echo_echo_Params) error {
+			err := p.SetIn(echoText)
+			return err
+		})
+		defer finish()
+		resp, err := ans.Struct()
+		answerOut, _ := resp.Out()
+		rxValue := proxyReceived.Load()
+		assert.Equal(t, echoText, rxValue)
+		assert.Equal(t, echoText, answerOut)
+		if err != nil {
+			t.Error("echo.Echo() error != <nil>; want success")
 		}
 	})
 }
