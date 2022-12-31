@@ -1,21 +1,17 @@
 package capnp
 
 import (
-	"fmt"
+	"strconv"
 )
-
-// An address is an index inside a segment's data (in bytes).
-// It is bounded to [0, maxSegmentSize).
-type address uint32
 
 // String returns the address in hex format.
 func (a address) String() string {
-	return fmt.Sprintf("%#08x", uint64(a))
+	return strconv.FormatUint(uint64(a), 16)
 }
 
 // GoString returns the address in hex format.
 func (a address) GoString() string {
-	return fmt.Sprintf("capnp.address(%#08x)", uint64(a))
+	return "capnp.address(%" + a.String() + ")"
 }
 
 // addSize returns the address a+sz.  ok is false if the result would
@@ -62,12 +58,12 @@ func (sz Size) String() string {
 	if sz == 1 {
 		return "1 byte"
 	}
-	return fmt.Sprintf("%d bytes", sz)
+	return fmtUdecimal(sz) + " bytes"
 }
 
 // GoString returns the size as a Go expression.
 func (sz Size) GoString() string {
-	return fmt.Sprintf("capnp.Size(%d)", sz)
+	return "capnp.Size(" + fmtUdecimal(sz) + ")"
 }
 
 // times returns the size sz*n.  ok is false if the result would be
@@ -124,12 +120,12 @@ func (off DataOffset) String() string {
 	if off == 1 {
 		return "+1 byte"
 	}
-	return fmt.Sprintf("+%d bytes", off)
+	return "+" + fmtUdecimal(off) + " bytes"
 }
 
 // GoString returns the offset as a Go expression.
 func (off DataOffset) GoString() string {
-	return fmt.Sprintf("capnp.DataOffset(%d)", off)
+	return "capnp.DataOffset(" + fmtUdecimal(off) + ")"
 }
 
 // ObjectSize records section sizes for a struct or list.
@@ -181,12 +177,13 @@ func (sz ObjectSize) totalWordCount() int32 {
 // String returns a short, human readable representation of the object
 // size.
 func (sz ObjectSize) String() string {
-	return fmt.Sprintf("{datasz=%d ptrs=%d}", sz.DataSize, sz.PointerCount)
+	return "{datasz=" + fmtUdecimal(sz.DataSize) + " ptrs=" + fmtUdecimal(sz.PointerCount) + "}"
 }
 
 // GoString formats the ObjectSize as a keyed struct literal.
 func (sz ObjectSize) GoString() string {
-	return fmt.Sprintf("capnp.ObjectSize{DataSize: %d, PointerCount: %d}", sz.DataSize, sz.PointerCount)
+	return "capnp.ObjectSize{DataSize: " + fmtUdecimal(sz.DataSize) +
+		", PointerCount: " + fmtUdecimal(sz.PointerCount) + "}"
 }
 
 // BitOffset is an offset in bits from the beginning of a struct's data
@@ -205,10 +202,10 @@ func (bit BitOffset) mask() byte {
 
 // String returns the offset in the format "bit X".
 func (bit BitOffset) String() string {
-	return fmt.Sprintf("bit %d", bit)
+	return "bit " + fmtUdecimal(bit)
 }
 
 // GoString returns the offset as a Go expression.
 func (bit BitOffset) GoString() string {
-	return fmt.Sprintf("capnp.BitOffset(%d)", bit)
+	return "capnp.BitOffset(" + fmtUdecimal(bit) + ")"
 }

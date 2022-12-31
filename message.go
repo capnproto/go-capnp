@@ -452,7 +452,7 @@ func (ssa *SingleSegmentArena) Allocate(sz Size, segs map[SegmentID]*Segment) (S
 }
 
 func (ssa SingleSegmentArena) String() string {
-	return fmt.Sprintf("single-segment arena [len=%d cap=%d]", len(ssa), cap(ssa))
+	return "single-segment arena [len=" + fmtIdecimal(len(ssa)) + " cap=" + fmtIdecimal(cap(ssa)) + "]"
 }
 
 type roSingleSegment []byte
@@ -586,7 +586,7 @@ func (msa *MultiSegmentArena) Allocate(sz Size, segs map[SegmentID]*Segment) (Se
 }
 
 func (msa *MultiSegmentArena) String() string {
-	return fmt.Sprintf("multi-segment arena [%d segments]", len(*msa))
+	return "multi-segment arena [" + fmtIdecimal(len(*msa)) + " segments]"
 }
 
 // nextAlloc computes how much more space to allocate given the number

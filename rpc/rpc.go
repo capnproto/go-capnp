@@ -663,7 +663,7 @@ func (c *Conn) receive() error {
 			}
 
 		default:
-			c.er.ReportError(fmt.Errorf("unknown message type %v from remote", recv.Which()))
+			c.er.ReportError(errors.New("unknown message type " + recv.Which().String() + " from remote"))
 			c.withLocked(func(c *lockedConn) {
 				c.sendMessage(ctx, func(m rpccp.Message) error {
 					defer release()
@@ -744,7 +744,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 	// TODO(3rd-party handshake): support sending results to 3rd party vat
 	if call.SendResultsTo().Which() != rpccp.Call_sendResultsTo_Which_caller {
 		// TODO(someday): handle SendResultsTo.yourself
-		c.er.ReportError(fmt.Errorf("incoming call: results destination is not caller"))
+		c.er.ReportError(errors.New("incoming call: results destination is not caller"))
 
 		c.withLocked(func(c *lockedConn) {
 			c.sendMessage(ctx, func(m rpccp.Message) error {
@@ -1513,7 +1513,7 @@ func (c *Conn) handleDisembargo(ctx context.Context, d rpccp.Disembargo, release
 		})
 
 	default:
-		c.er.ReportError(fmt.Errorf("incoming disembargo: context %v not implemented", d.Context().Which()))
+		c.er.ReportError(errors.New("incoming disembargo: context " + d.Context().Which().String() + " not implemented"))
 		c.withLocked(func(c *lockedConn) {
 			c.sendMessage(ctx, func(m rpccp.Message) (err error) {
 				if m, err = m.NewUnimplemented(); err == nil {
