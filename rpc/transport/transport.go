@@ -7,10 +7,12 @@
 package transport
 
 import (
+	"errors"
 	"fmt"
 	"io"
 
 	capnp "capnproto.org/go/capnp/v3"
+	"capnproto.org/go/capnp/v3/exc"
 	"capnproto.org/go/capnp/v3/exp/bufferpool"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 )
@@ -181,12 +183,12 @@ func (s *transport) RecvMessage() (IncomingMessage, error) {
 // Close concurrently with any other operations on the transport.
 func (s *transport) Close() error {
 	if s.closed {
-		return transporterr.Disconnectedf("already closed").Annotate("", "stream transport")
+		return transporterr.Disconnected(errors.New("already closed")).Annotate("", "stream transport")
 	}
 	s.closed = true
 	err := s.c.Close()
 	if err != nil {
-		return transporterr.Annotate(fmt.Errorf("close: %w", err), "stream transport")
+		return transporterr.Annotate(exc.WrapError("close", err), "stream transport")
 	}
 	return nil
 }

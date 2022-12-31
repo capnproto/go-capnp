@@ -2,6 +2,7 @@ package capnp
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"sync"
 
@@ -568,26 +569,34 @@ func Transform(p Ptr, transform []PipelineOp) (Ptr, error) {
 	for i, op := range transform[:n-1] {
 		field, err := s.Ptr(op.Field)
 		if err != nil {
-			return Ptr{}, errorf("transform: op %d: pointer field %d: %v", i, op.Field, err)
+			return Ptr{}, newTransformError(i, op.Field, err, false)
 		}
 		s, err = field.StructDefault(op.DefaultValue)
 		if err != nil {
-			return Ptr{}, errorf("transform: op %d: pointer field %d with default: %v", i, op.Field, err)
+			return Ptr{}, newTransformError(i, op.Field, err, true)
 		}
 	}
 	op := transform[n-1]
 	p, err := s.Ptr(op.Field)
 	if err != nil {
-		return Ptr{}, errorf("transform: op %d: pointer field %d: %v", n-1, op.Field, err)
+		return Ptr{}, newTransformError(n-1, op.Field, err, false)
 	}
 	if op.DefaultValue != nil {
 		p, err = p.Default(op.DefaultValue)
 		if err != nil {
-			return Ptr{}, errorf("transform: op %d: pointer field %d with default: %v", n-1, op.Field, err)
+			return Ptr{}, newTransformError(n-1, op.Field, err, true)
 		}
 		return p, nil
 	}
 	return p, nil
+}
+
+func newTransformError(index int, field uint16, err error, withDefault bool) error {
+	msg := "transform: op " + fmtIdecimal(index) + ": pointer field " + fmtUdecimal(field)
+	if withDefault {
+		msg += " with default"
+	}
+	return exc.WrapError(msg, err)
 }
 
 // A resolution is the outcome of a future.
@@ -617,7 +626,7 @@ func (r resolution) client(transform []PipelineOp) Client {
 	}
 	iface := p.Interface()
 	if p.IsValid() && !iface.IsValid() {
-		return ErrorClient(errorf("not a capability"))
+		return ErrorClient(errors.New("not a capability"))
 	}
 	return iface.Client()
 }
