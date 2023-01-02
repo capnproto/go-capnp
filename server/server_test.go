@@ -109,14 +109,13 @@ func TestServerCall(t *testing.T) {
 				Impl:   nil,
 			}
 			sm.Impl = func(ctx context.Context, call *server.Call) error {
-				t.Log("welcome to blank")
 				echoArgs := air.Echo_echo_Params(call.Args())
 				inText, err := echoArgs.In()
 				assert.NoError(t, err)
 				proxyReceived.Store(inText)
 				// pretend we received an answer
 				echo := air.Echo_echo{Call: call}
-				resp, err := echo.AllocResults()
+				resp, _ := echo.AllocResults()
 				err = resp.SetOut(inText)
 				return err
 			}
@@ -147,11 +146,9 @@ func TestServerCall(t *testing.T) {
 		resp, err := ans.Struct()
 		answerOut, _ := resp.Out()
 		rxValue := proxyReceived.Load()
-		assert.Equal(t, echoText, rxValue)
+		require.Equal(t, echoText, rxValue)
 		assert.Equal(t, echoText, answerOut)
-		if err != nil {
-			t.Error("echo.Echo() error != <nil>; want success")
-		}
+		assert.NoError(t, err, "echo.Echo() error != <nil>; want success")
 	})
 }
 
