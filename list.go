@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"capnproto.org/go/capnp/v3/exc"
+	"capnproto.org/go/capnp/v3/internal/str"
 	"capnproto.org/go/capnp/v3/internal/strquote"
 )
 
@@ -200,7 +201,7 @@ func (p List) primitiveElem(i int, expectedSize ObjectSize) (address, error) {
 	}
 	addr, ok := p.off.element(int32(i), p.size.totalSize())
 	if !ok {
-		return 0, errors.New("read list element " + fmtIdecimal(i) + ": address overflow")
+		return 0, errors.New("read list element " + str.Itod(i) + ": address overflow")
 	}
 	return addr, nil
 }
@@ -233,7 +234,7 @@ func (p List) SetStruct(i int, s Struct) error {
 		return errors.New("SetStruct called on bit list")
 	}
 	if err := copyStruct(p.Struct(i), s); err != nil {
-		return exc.WrapError("set list element "+fmtIdecimal(i), err)
+		return exc.WrapError("set list element "+str.Itod(i), err)
 	}
 	return nil
 }
@@ -259,7 +260,7 @@ func NewBitList(s *Segment, n int32) (BitList, error) {
 	}
 	s, addr, err := alloc(s, bitListSize(n))
 	if err != nil {
-		return BitList{}, exc.WrapError("new "+fmtIdecimal(n)+"-element bit list", err)
+		return BitList{}, exc.WrapError("new "+str.Itod(n)+"-element bit list", err)
 	}
 	return BitList{
 		seg:        s,
@@ -341,7 +342,7 @@ func NewPointerList(s *Segment, n int32) (PointerList, error) {
 	}
 	s, addr, err := alloc(s, total)
 	if err != nil {
-		return PointerList{}, exc.WrapError("new "+fmtIdecimal(n)+"-element pointer list", err)
+		return PointerList{}, exc.WrapError("new "+str.Itod(n)+"-element pointer list", err)
 	}
 	return PointerList{
 		seg:        s,

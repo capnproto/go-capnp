@@ -10,6 +10,7 @@ import (
 
 	"capnproto.org/go/capnp/v3/exc"
 	"capnproto.org/go/capnp/v3/exp/bufferpool"
+	"capnproto.org/go/capnp/v3/internal/str"
 	"capnproto.org/go/capnp/v3/packed"
 )
 
@@ -247,7 +248,7 @@ func (m *Message) NumSegments() int64 {
 // Segment returns the segment with the given ID.
 func (m *Message) Segment(id SegmentID) (*Segment, error) {
 	if int64(id) >= m.Arena.NumSegments() {
-		return nil, errors.New("segment " + fmtUdecimal(id) + ": out of bounds")
+		return nil, errors.New("segment " + str.Utod(id) + ": out of bounds")
 	}
 	m.mu.Lock()
 	seg, err := m.segment(id)
@@ -265,11 +266,11 @@ func (m *Message) segment(id SegmentID) (*Segment, error) {
 		return s, nil
 	}
 	if len(m.segs) == maxInt {
-		return nil, errors.New("segment " + fmtUdecimal(id) + ": number of loaded segments exceeds int")
+		return nil, errors.New("segment " + str.Utod(id) + ": number of loaded segments exceeds int")
 	}
 	data, err := m.Arena.Data(id)
 	if err != nil {
-		return nil, exc.WrapError("load segment "+fmtUdecimal(id), err)
+		return nil, exc.WrapError("load segment "+str.Utod(id), err)
 	}
 	s := m.setSegment(id, data)
 	return s, nil
@@ -426,7 +427,7 @@ func (ssa SingleSegmentArena) NumSegments() int64 {
 
 func (ssa SingleSegmentArena) Data(id SegmentID) ([]byte, error) {
 	if id != 0 {
-		return nil, errors.New("segment " + fmtUdecimal(id) + " requested in single segment arena")
+		return nil, errors.New("segment " + str.Utod(id) + " requested in single segment arena")
 	}
 	return ssa, nil
 }
@@ -453,7 +454,7 @@ func (ssa *SingleSegmentArena) Allocate(sz Size, segs map[SegmentID]*Segment) (S
 }
 
 func (ssa SingleSegmentArena) String() string {
-	return "single-segment arena [len=" + fmtIdecimal(len(ssa)) + " cap=" + fmtIdecimal(cap(ssa)) + "]"
+	return "single-segment arena [len=" + str.Itod(len(ssa)) + " cap=" + str.Itod(cap(ssa)) + "]"
 }
 
 type roSingleSegment []byte
@@ -464,7 +465,7 @@ func (ss roSingleSegment) NumSegments() int64 {
 
 func (ss roSingleSegment) Data(id SegmentID) ([]byte, error) {
 	if id != 0 {
-		return nil, errors.New("segment " + fmtUdecimal(id) + " requested in single segment arena")
+		return nil, errors.New("segment " + str.Utod(id) + " requested in single segment arena")
 	}
 	return ss, nil
 }
@@ -474,7 +475,7 @@ func (ss roSingleSegment) Allocate(sz Size, segs map[SegmentID]*Segment) (Segmen
 }
 
 func (ss roSingleSegment) String() string {
-	return "read-only single-segment arena [len=" + fmtIdecimal(len(ss)) + "]"
+	return "read-only single-segment arena [len=" + str.Itod(len(ss)) + "]"
 }
 
 // MultiSegment is an arena that stores object data across multiple []byte
@@ -551,8 +552,8 @@ func (msa *MultiSegmentArena) NumSegments() int64 {
 
 func (msa *MultiSegmentArena) Data(id SegmentID) ([]byte, error) {
 	if int64(id) >= int64(len(*msa)) {
-		return nil, errors.New("segment " + fmtUdecimal(id) + " requested (arena only has " +
-			fmtIdecimal(len(*msa)) + " segments)")
+		return nil, errors.New("segment " + str.Utod(id) + " requested (arena only has " +
+			str.Itod(len(*msa)) + " segments)")
 	}
 	return (*msa)[id], nil
 }
@@ -574,7 +575,7 @@ func (msa *MultiSegmentArena) Allocate(sz Size, segs map[SegmentID]*Segment) (Se
 		total += int64(cap(data))
 		if total < 0 {
 			// Overflow.
-			return 0, nil, errors.New("alloc " + fmtUdecimal(sz) + " bytes: message too large")
+			return 0, nil, errors.New("alloc " + str.Utod(sz) + " bytes: message too large")
 		}
 	}
 	n, err := nextAlloc(total, 1<<63-1, sz)
@@ -588,7 +589,7 @@ func (msa *MultiSegmentArena) Allocate(sz Size, segs map[SegmentID]*Segment) (Se
 }
 
 func (msa *MultiSegmentArena) String() string {
-	return "multi-segment arena [" + fmtIdecimal(len(*msa)) + " segments]"
+	return "multi-segment arena [" + str.Itod(len(*msa)) + " segments]"
 }
 
 // nextAlloc computes how much more space to allocate given the number
@@ -878,7 +879,7 @@ func (e *Encoder) Encode(m *Message) error {
 		}
 		n := len(s.data)
 		if int64(n) > int64(maxSegmentSize) {
-			return errors.New("encode: segment " + fmtIdecimal(i) + " too large")
+			return errors.New("encode: segment " + str.Itod(i) + " too large")
 		}
 		e.hdrbuf = appendUint32(e.hdrbuf, uint32(Size(n)/wordSize))
 		e.bufs = append(e.bufs, s.data)
@@ -918,11 +919,11 @@ func (m *Message) Marshal() ([]byte, error) {
 		n := uint64(len(s.data))
 		if n%uint64(wordSize) != 0 {
 			m.mu.Unlock()
-			return nil, errors.New("marshal: segment " + fmtIdecimal(i) + " not word-aligned")
+			return nil, errors.New("marshal: segment " + str.Itod(i) + " not word-aligned")
 		}
 		if n > uint64(maxSegmentSize) {
 			m.mu.Unlock()
-			return nil, errors.New("marshal: segment " + fmtIdecimal(i) + " too large")
+			return nil, errors.New("marshal: segment " + str.Itod(i) + " too large")
 		}
 		dataSize += n
 		if dataSize > uint64(maxInt) {
@@ -947,7 +948,7 @@ func (m *Message) Marshal() ([]byte, error) {
 		}
 		if len(s.data)%int(wordSize) != 0 {
 			m.mu.Unlock()
-			return nil, errors.New("marshal: segment " + fmtIdecimal(i) + " not word-aligned")
+			return nil, errors.New("marshal: segment " + str.Itod(i) + " not word-aligned")
 		}
 		binary.LittleEndian.PutUint32(buf[int(i+1)*4:], uint32(len(s.data)/int(wordSize)))
 		buf = append(buf, s.data...)
@@ -999,7 +1000,7 @@ func (h streamHeader) segmentSize(i SegmentID) (Size, error) {
 	s := binary.LittleEndian.Uint32(h.b[4+i*4:])
 	sz, ok := wordSize.times(int32(s))
 	if !ok {
-		return 0, errors.New("segment " + fmtUdecimal(i) + ": overflow size")
+		return 0, errors.New("segment " + str.Utod(i) + ": overflow size")
 	}
 	return sz, nil
 }

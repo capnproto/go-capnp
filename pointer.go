@@ -4,6 +4,7 @@ import (
 	"bytes"
 
 	"capnproto.org/go/capnp/v3/exc"
+	"capnproto.org/go/capnp/v3/internal/str"
 )
 
 // A Ptr is a reference to a Cap'n Proto struct, list, or interface.
@@ -363,7 +364,7 @@ func Equal(p1, p2 Ptr) (bool, error) {
 		for i := 0; i < l1.Len(); i++ {
 			e1, e2 := l1.Struct(i), l2.Struct(i)
 			if ok, err := Equal(e1.ToPtr(), e2.ToPtr()); err != nil {
-				return false, exc.WrapError("equal: list element "+fmtIdecimal(i), err)
+				return false, exc.WrapError("equal: list element "+str.Itod(i), err)
 			} else if !ok {
 				return false, nil
 			}

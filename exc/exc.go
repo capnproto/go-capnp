@@ -107,12 +107,24 @@ func (f Annotator) Failed(err error) *Exception {
 	return f.New(Failed, err)
 }
 
+func (f Annotator) WrapFailed(msg string, err error) *Exception {
+	return f.New(Failed, WrapError(msg, err))
+}
+
 func (f Annotator) Disconnected(err error) *Exception {
 	return f.New(Disconnected, err)
 }
 
+func (f Annotator) WrapDisconnected(msg string, err error) *Exception {
+	return f.New(Disconnected, WrapError(msg, err))
+}
+
 func (f Annotator) Unimplemented(err error) *Exception {
 	return f.New(Unimplemented, err)
+}
+
+func (f Annotator) WrapUnimplemented(msg string, err error) *Exception {
+	return f.New(Unimplemented, WrapError(msg, err))
 }
 
 func (f Annotator) Annotate(err error, msg string) *Exception {

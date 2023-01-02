@@ -10,6 +10,7 @@ import (
 
 	"capnproto.org/go/capnp/v3/exp/bufferpool"
 	"capnproto.org/go/capnp/v3/flowcontrol"
+	"capnproto.org/go/capnp/v3/internal/str"
 	"capnproto.org/go/capnp/v3/internal/syncutil"
 )
 
@@ -95,12 +96,12 @@ type CapabilityID uint32
 
 // String returns the ID in the format "capability X".
 func (id CapabilityID) String() string {
-	return "capability " + fmtUdecimal(id)
+	return "capability " + str.Utod(id)
 }
 
 // GoString returns the ID as a Go expression.
 func (id CapabilityID) GoString() string {
-	return "capnp.CapabilityID(" + fmtUdecimal(id) + ")"
+	return "capnp.CapabilityID(" + str.Utod(id) + ")"
 }
 
 // A Client is a reference to a Cap'n Proto capability.
@@ -656,7 +657,7 @@ func finalizeClient(c *client) {
 		msg = "leaked client created by " + fname
 	} else {
 		msg = "leaked client created by " + fname + " on " +
-			c.creatorFile + ":" + fmtIdecimal(c.creatorLine)
+			c.creatorFile + ":" + str.Itod(c.creatorLine)
 	}
 	if c.creatorStack != "" {
 		msg += "\nCreation stack trace:\n" + c.creatorStack + "\n"

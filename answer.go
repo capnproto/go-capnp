@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"capnproto.org/go/capnp/v3/exc"
+	"capnproto.org/go/capnp/v3/internal/str"
 	"capnproto.org/go/capnp/v3/internal/syncutil"
 )
 
@@ -592,7 +593,7 @@ func Transform(p Ptr, transform []PipelineOp) (Ptr, error) {
 }
 
 func newTransformError(index int, field uint16, err error, withDefault bool) error {
-	msg := "transform: op " + fmtIdecimal(index) + ": pointer field " + fmtUdecimal(field)
+	msg := "transform: op " + str.Itod(index) + ": pointer field " + str.Utod(field)
 	if withDefault {
 		msg += " with default"
 	}

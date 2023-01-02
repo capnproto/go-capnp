@@ -1,6 +1,9 @@
 package capnp
 
-import "capnproto.org/go/capnp/v3/exc"
+import (
+	"capnproto.org/go/capnp/v3/exc"
+	"capnproto.org/go/capnp/v3/internal/str"
+)
 
 // Canonicalize encodes a struct into its canonical form: a single-
 // segment blob without a segment table.  The result will be identical
@@ -57,14 +60,14 @@ func fillCanonicalStruct(dst, s Struct) error {
 	for i := uint16(0); i < dst.size.PointerCount; i++ {
 		p, err := s.Ptr(i)
 		if err != nil {
-			return exc.WrapError("struct pointer "+fmtUdecimal(i), err)
+			return exc.WrapError("struct pointer "+str.Utod(i), err)
 		}
 		cp, err := canonicalPtr(dst.seg, p)
 		if err != nil {
-			return exc.WrapError("struct pointer "+fmtUdecimal(i), err)
+			return exc.WrapError("struct pointer "+str.Utod(i), err)
 		}
 		if err := dst.SetPtr(i, cp); err != nil {
-			return exc.WrapError("struct pointer "+fmtUdecimal(i), err)
+			return exc.WrapError("struct pointer "+str.Utod(i), err)
 		}
 	}
 	return nil
@@ -122,14 +125,14 @@ func canonicalList(dst *Segment, l List) (List, error) {
 		for i := 0; i < l.Len(); i++ {
 			p, err := PointerList(l).At(i)
 			if err != nil {
-				return List{}, exc.WrapError("list element "+fmtIdecimal(i), err)
+				return List{}, exc.WrapError("list element "+str.Itod(i), err)
 			}
 			cp, err := canonicalPtr(dst, p)
 			if err != nil {
-				return List{}, exc.WrapError("list element "+fmtIdecimal(i), err)
+				return List{}, exc.WrapError("list element "+str.Itod(i), err)
 			}
 			if err := cl.Set(i, cp); err != nil {
-				return List{}, exc.WrapError("list element "+fmtIdecimal(i), err)
+				return List{}, exc.WrapError("list element "+str.Itod(i), err)
 			}
 		}
 		return List(cl), nil
@@ -152,7 +155,7 @@ func canonicalList(dst *Segment, l List) (List, error) {
 	}
 	for i := 0; i < cl.Len(); i++ {
 		if err := fillCanonicalStruct(cl.Struct(i), l.Struct(i)); err != nil {
-			return List{}, exc.WrapError("list element "+fmtIdecimal(i), err)
+			return List{}, exc.WrapError("list element "+str.Itod(i), err)
 		}
 	}
 	return cl, nil

@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"capnproto.org/go/capnp/v3/exc"
+	"capnproto.org/go/capnp/v3/internal/str"
 )
 
 // A SegmentID is a numeric identifier for a Segment.
@@ -360,7 +361,7 @@ func (s *Segment) writePtr(off address, src Ptr, forceCopy bool) error {
 				for i := 0; i < l.Len(); i++ {
 					err := copyStruct(dst.Struct(i), l.Struct(i))
 					if err != nil {
-						return exc.WrapError("write pointer: copy list element"+fmtIdecimal(i), err)
+						return exc.WrapError("write pointer: copy list element"+str.Itod(i), err)
 					}
 				}
 			}

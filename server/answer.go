@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"capnproto.org/go/capnp/v3"
+	"capnproto.org/go/capnp/v3/exc"
 )
 
 // answerQueue is a queue of method calls to make after an earlier
@@ -219,7 +220,7 @@ func (sr *structReturner) AllocResults(sz capnp.ObjectSize) (capnp.Struct, error
 	sr.alloced = true
 	s, err := newBlankStruct(sz)
 	if err != nil {
-		return capnp.Struct{}, errorf("alloc results: %v", err)
+		return capnp.Struct{}, exc.WrapError("alloc results", err)
 	}
 	sr.result = s
 	return s, nil

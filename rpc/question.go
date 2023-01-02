@@ -165,7 +165,7 @@ func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineO
 				syncutil.With(&q.c.lk, func() {
 					q.c.lk.questions[q2.id] = nil
 				})
-				q2.p.Reject(rpcerr.Failedf("send message: %w", err))
+				q2.p.Reject(rpcerr.WrapFailed("send message", err))
 				syncutil.With(&q.c.lk, func() {
 					q.c.lk.questionID.remove(uint32(q2.id))
 				})
@@ -192,7 +192,7 @@ func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineO
 func (c *lockedConn) newPipelineCallMessage(msg rpccp.Message, tgt questionID, transform []capnp.PipelineOp, qid questionID, s capnp.Send) error {
 	call, err := msg.NewCall()
 	if err != nil {
-		return rpcerr.Failedf("build call message: %w", err)
+		return rpcerr.WrapFailed("build call message", err)
 	}
 	call.SetQuestionId(uint32(qid))
 	call.SetInterfaceId(s.Method.InterfaceID)
@@ -200,16 +200,16 @@ func (c *lockedConn) newPipelineCallMessage(msg rpccp.Message, tgt questionID, t
 
 	target, err := call.NewTarget()
 	if err != nil {
-		return rpcerr.Failedf("build call message: %w", err)
+		return rpcerr.WrapFailed("build call message", err)
 	}
 	pa, err := target.NewPromisedAnswer()
 	if err != nil {
-		return rpcerr.Failedf("build call message: %w", err)
+		return rpcerr.WrapFailed("build call message", err)
 	}
 	pa.SetQuestionId(uint32(tgt))
 	oplist, err := pa.NewTransform(int32(len(transform)))
 	if err != nil {
-		return rpcerr.Failedf("build call message: %w", err)
+		return rpcerr.WrapFailed("build call message", err)
 	}
 	for i, op := range transform {
 		oplist.At(i).SetGetPointerField(op.Field)
@@ -217,27 +217,27 @@ func (c *lockedConn) newPipelineCallMessage(msg rpccp.Message, tgt questionID, t
 
 	payload, err := call.NewParams()
 	if err != nil {
-		return rpcerr.Failedf("build call message: %w", err)
+		return rpcerr.WrapFailed("build call message", err)
 	}
 	args, err := capnp.NewStruct(payload.Segment(), s.ArgsSize)
 	if err != nil {
-		return rpcerr.Failedf("build call message: %w", err)
+		return rpcerr.WrapFailed("build call message", err)
 	}
 	if err := payload.SetContent(args.ToPtr()); err != nil {
-		return rpcerr.Failedf("build call message: %w", err)
+		return rpcerr.WrapFailed("build call message", err)
 	}
 
 	if s.PlaceArgs == nil {
 		return nil
 	}
 	if err := s.PlaceArgs(args); err != nil {
-		return rpcerr.Failedf("place arguments: %w", err)
+		return rpcerr.WrapFailed("place arguments", err)
 	}
 	// TODO(soon): save param refs
 	_, err = c.fillPayloadCapTable(payload)
 
 	if err != nil {
-		return rpcerr.Annotatef(err, "build call message")
+		return rpcerr.Annotate(err, "build call message")
 	}
 
 	return err

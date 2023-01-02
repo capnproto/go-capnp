@@ -2,7 +2,13 @@ package capnp
 
 import (
 	"strconv"
+
+	"capnproto.org/go/capnp/v3/internal/str"
 )
+
+// An address is an index inside a segment's data (in bytes).
+// It is bounded to [0, maxSegmentSize).
+type address uint32
 
 // String returns the address in hex format.
 func (a address) String() string {
@@ -58,12 +64,12 @@ func (sz Size) String() string {
 	if sz == 1 {
 		return "1 byte"
 	}
-	return fmtUdecimal(sz) + " bytes"
+	return str.Utod(sz) + " bytes"
 }
 
 // GoString returns the size as a Go expression.
 func (sz Size) GoString() string {
-	return "capnp.Size(" + fmtUdecimal(sz) + ")"
+	return "capnp.Size(" + str.Utod(sz) + ")"
 }
 
 // times returns the size sz*n.  ok is false if the result would be
@@ -120,12 +126,12 @@ func (off DataOffset) String() string {
 	if off == 1 {
 		return "+1 byte"
 	}
-	return "+" + fmtUdecimal(off) + " bytes"
+	return "+" + str.Utod(off) + " bytes"
 }
 
 // GoString returns the offset as a Go expression.
 func (off DataOffset) GoString() string {
-	return "capnp.DataOffset(" + fmtUdecimal(off) + ")"
+	return "capnp.DataOffset(" + str.Utod(off) + ")"
 }
 
 // ObjectSize records section sizes for a struct or list.
@@ -177,13 +183,13 @@ func (sz ObjectSize) totalWordCount() int32 {
 // String returns a short, human readable representation of the object
 // size.
 func (sz ObjectSize) String() string {
-	return "{datasz=" + fmtUdecimal(sz.DataSize) + " ptrs=" + fmtUdecimal(sz.PointerCount) + "}"
+	return "{datasz=" + str.Utod(sz.DataSize) + " ptrs=" + str.Utod(sz.PointerCount) + "}"
 }
 
 // GoString formats the ObjectSize as a keyed struct literal.
 func (sz ObjectSize) GoString() string {
-	return "capnp.ObjectSize{DataSize: " + fmtUdecimal(sz.DataSize) +
-		", PointerCount: " + fmtUdecimal(sz.PointerCount) + "}"
+	return "capnp.ObjectSize{DataSize: " + str.Utod(sz.DataSize) +
+		", PointerCount: " + str.Utod(sz.PointerCount) + "}"
 }
 
 // BitOffset is an offset in bits from the beginning of a struct's data
@@ -202,10 +208,10 @@ func (bit BitOffset) mask() byte {
 
 // String returns the offset in the format "bit X".
 func (bit BitOffset) String() string {
-	return "bit " + fmtUdecimal(bit)
+	return "bit " + str.Utod(bit)
 }
 
 // GoString returns the offset as a Go expression.
 func (bit BitOffset) GoString() string {
-	return "capnp.BitOffset(" + fmtUdecimal(bit) + ")"
+	return "capnp.BitOffset(" + str.Utod(bit) + ")"
 }

@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"capnproto.org/go/capnp/v3/exc"
+	"capnproto.org/go/capnp/v3/internal/str"
 )
 
 // Struct is a pointer to a struct.
@@ -339,11 +340,11 @@ func copyStruct(dst, src Struct) error {
 		dstAddr, _ := dstPtrSect.element(int32(j), wordSize)
 		m, err := src.seg.readPtr(srcAddr, src.depthLimit)
 		if err != nil {
-			return exc.WrapError("copy struct pointer "+fmtUdecimal(j), err)
+			return exc.WrapError("copy struct pointer "+str.Utod(j), err)
 		}
 		err = dst.seg.writePtr(dstAddr, m, true)
 		if err != nil {
-			return exc.WrapError("copy struct pointer "+fmtUdecimal(j), err)
+			return exc.WrapError("copy struct pointer "+str.Utod(j), err)
 		}
 	}
 	for j := numSrcPtrs; j < numDstPtrs; j++ {
