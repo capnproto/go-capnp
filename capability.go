@@ -94,12 +94,12 @@ type CapabilityID uint32
 
 // String returns the ID in the format "capability X".
 func (id CapabilityID) String() string {
-	return fmt.Sprintf("capability %d", id)
+	return "capability " + fmtUdecimal(id)
 }
 
 // GoString returns the ID as a Go expression.
 func (id CapabilityID) GoString() string {
-	return fmt.Sprintf("capnp.CapabilityID(%d)", id)
+	return "capnp.CapabilityID(" + fmtUdecimal(id) + ")"
 }
 
 // A Client is a reference to a Cap'n Proto capability.
@@ -652,9 +652,10 @@ func finalizeClient(c *client) {
 	}
 	var msg string
 	if c.creatorFile == "" {
-		msg = fmt.Sprintf("leaked client created by %s", fname)
+		msg = "leaked client created by " + fname
 	} else {
-		msg = fmt.Sprintf("leaked client created by %s on %s:%d", fname, c.creatorFile, c.creatorLine)
+		msg = "leaked client created by " + fname + " on " +
+			c.creatorFile + ":" + fmtIdecimal(c.creatorLine)
 	}
 	if c.creatorStack != "" {
 		msg += "\nCreation stack trace:\n" + c.creatorStack + "\n"

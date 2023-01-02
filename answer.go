@@ -2,7 +2,6 @@ package capnp
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"sync"
 
@@ -206,7 +205,7 @@ func (p *Promise) requireUnresolved(callerMethod string) {
 		if p.err == nil {
 			prevMethod = "Fulfill"
 		} else {
-			prevMethod = fmt.Sprintf("Reject (error = %q)", p.err)
+			prevMethod = "Reject (error = " + strconv.Quote(p.err.Error()) + ")"
 		}
 
 		panic("Promise." + callerMethod +
