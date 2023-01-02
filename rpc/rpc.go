@@ -4,7 +4,6 @@ package rpc // import "capnproto.org/go/capnp/v3/rpc"
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sync"
 	"time"
 
@@ -575,13 +574,13 @@ func (c *Conn) receive() error {
 
 			e, err := recv.Abort()
 			if err != nil {
-				c.er.ReportError(fmt.Errorf("read abort: %w", err))
+				c.er.ReportError(exc.WrapError("read abort", err))
 				return nil
 			}
 
 			reason, err := e.Reason()
 			if err != nil {
-				c.er.ReportError(fmt.Errorf("read abort: reason: %w", err))
+				c.er.ReportError(exc.WrapError("read abort: reason", err))
 				return nil
 			}
 
@@ -592,7 +591,7 @@ func (c *Conn) receive() error {
 			bootstrap, err := recv.Bootstrap()
 			if err != nil {
 				release()
-				c.er.ReportError(fmt.Errorf("read bootstrap: %w", err))
+				c.er.ReportError(exc.WrapError("read bootstrap", err))
 				continue
 			}
 			qid := answerID(bootstrap.QuestionId())
@@ -605,7 +604,7 @@ func (c *Conn) receive() error {
 			call, err := recv.Call()
 			if err != nil {
 				release()
-				c.er.ReportError(fmt.Errorf("read call: %w", err))
+				c.er.ReportError(exc.WrapError("read call", err))
 				continue
 			}
 			if err := c.handleCall(ctx, call, release); err != nil {
@@ -616,7 +615,7 @@ func (c *Conn) receive() error {
 			ret, err := recv.Return()
 			if err != nil {
 				release()
-				c.er.ReportError(fmt.Errorf("read return: %w", err))
+				c.er.ReportError(exc.WrapError("read return", err))
 				continue
 			}
 			if err := c.handleReturn(ctx, ret, release); err != nil {
@@ -627,7 +626,7 @@ func (c *Conn) receive() error {
 			fin, err := recv.Finish()
 			if err != nil {
 				release()
-				c.er.ReportError(fmt.Errorf("read finish: %w", err))
+				c.er.ReportError(exc.WrapError("read finish", err))
 				continue
 			}
 			qid := answerID(fin.QuestionId())
@@ -641,7 +640,7 @@ func (c *Conn) receive() error {
 			rel, err := recv.Release()
 			if err != nil {
 				release()
-				c.er.ReportError(fmt.Errorf("read release: %w", err))
+				c.er.ReportError(exc.WrapError("read release", err))
 				continue
 			}
 			id := exportID(rel.Id())
@@ -655,7 +654,7 @@ func (c *Conn) receive() error {
 			d, err := recv.Disembargo()
 			if err != nil {
 				release()
-				c.er.ReportError(fmt.Errorf("read disembargo: %w", err))
+				c.er.ReportError(exc.WrapError("read disembargo", err))
 				continue
 			}
 			err = c.handleDisembargo(ctx, d, release)
@@ -1096,7 +1095,7 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp
 			for _, s := range pr.disembargoes {
 				c.sendMessage(ctx, s.buildDisembargo, func(err error) {
 					if err != nil {
-						err = fmt.Errorf("incoming return: send disembargo: %w", err)
+						err = exc.WrapError("incoming return: send disembargo", err)
 						c.er.ReportError(err)
 					}
 				})
@@ -1116,7 +1115,7 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp
 				defer close(q.finishMsgSend)
 
 				if err != nil {
-					err = fmt.Errorf("incoming return: send finish: build message: %w", err)
+					err = exc.WrapError("incoming return: send finish: build message", err)
 					c.er.ReportError(err)
 				} else {
 					q.flags |= finishSent
@@ -1380,7 +1379,7 @@ func (c *Conn) recvPayload(payload rpccp.Payload) (_ capnp.Ptr, locals uintSet, 
 	if err != nil {
 		// Don't allow unreadable capability table to stop other results,
 		// just present an empty capability table.
-		c.er.ReportError(fmt.Errorf("read payload: capability table: %w", err))
+		c.er.ReportError(exc.WrapError("read payload: capability table", err))
 		return p, nil, nil
 	}
 	mtab := make([]capnp.Client, ptab.Len())
@@ -1393,7 +1392,9 @@ func (c *Conn) recvPayload(payload rpccp.Payload) (_ capnp.Ptr, locals uintSet, 
 			for _, client := range mtab[:i] {
 				client.Release()
 			}
-			return capnp.Ptr{}, nil, rpcerr.Annotate(err, fmt.Sprintf("read payload: capability %d", i))
+			return capnp.Ptr{}, nil, rpcerr.Annotate(
+				err, "read payload: capability "+str.Itod(i),
+			)
 		}
 		if c.isLocalClient(mtab[i]) {
 			locals.add(uint(i))

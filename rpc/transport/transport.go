@@ -8,7 +8,6 @@ package transport
 
 import (
 	"errors"
-	"fmt"
 	"io"
 
 	capnp "capnproto.org/go/capnp/v3"
@@ -116,12 +115,12 @@ func (s *transport) NewMessage() (OutgoingMessage, error) {
 	arena := capnp.MultiSegment(nil)
 	msg, seg, err := capnp.NewMessage(arena)
 	if err != nil {
-		err = transporterr.Annotate(fmt.Errorf("new message: %w", err), "stream transport")
+		err = transporterr.Annotate(exc.WrapError("new message", err), "stream transport")
 		return OutgoingMessage{}, err
 	}
 	rmsg, err := rpccp.NewRootMessage(seg)
 	if err != nil {
-		err = transporterr.Annotate(fmt.Errorf("new message: %w", err), "stream transport")
+		err = transporterr.Annotate(exc.WrapError("new message", err), "stream transport")
 		return OutgoingMessage{}, err
 	}
 
@@ -132,7 +131,7 @@ func (s *transport) NewMessage() (OutgoingMessage, error) {
 			panic("Tried to send() a message that was already released.")
 		}
 		if err = s.c.Encode(msg); err != nil {
-			err = transporterr.Annotate(fmt.Errorf("send: %w", err), "stream transport")
+			err = transporterr.Annotate(exc.WrapError("send", err), "stream transport")
 		}
 		return err
 	}
@@ -160,12 +159,12 @@ func (s *transport) NewMessage() (OutgoingMessage, error) {
 func (s *transport) RecvMessage() (IncomingMessage, error) {
 	msg, err := s.c.Decode()
 	if err != nil {
-		err = transporterr.Annotate(fmt.Errorf("receive: %w", err), "stream transport")
+		err = transporterr.Annotate(exc.WrapError("receive", err), "stream transport")
 		return IncomingMessage{}, err
 	}
 	rmsg, err := rpccp.ReadRootMessage(msg)
 	if err != nil {
-		err = transporterr.Annotate(fmt.Errorf("receive: %w", err), "stream transport")
+		err = transporterr.Annotate(exc.WrapError("receive", err), "stream transport")
 		return IncomingMessage{}, err
 	}
 

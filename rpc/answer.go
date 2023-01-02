@@ -3,7 +3,6 @@ package rpc
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sync"
 
 	"capnproto.org/go/capnp/v3"
@@ -122,7 +121,7 @@ func (c *Conn) newReturn() (_ rpccp.Return, sendMsg func(), _ *rc.Releaser, _ er
 			release: releaser.Decr,
 			onSent: func(err error) {
 				if err != nil {
-					c.er.ReportError(fmt.Errorf("send return: %w", err))
+					c.er.ReportError(exc.WrapError("send return", err))
 				}
 			},
 		})
@@ -287,11 +286,11 @@ func (ans *answer) sendException(rl *releaseList, ex error) {
 	default:
 		// Send exception.
 		if e, err := ans.ret.NewException(); err != nil {
-			ans.c.er.ReportError(fmt.Errorf("send exception: %w", err))
+			ans.c.er.ReportError(exc.WrapError("send exception", err))
 		} else {
 			e.SetType(rpccp.Exception_Type(exc.TypeOf(ex)))
 			if err := e.SetReason(ex.Error()); err != nil {
-				ans.c.er.ReportError(fmt.Errorf("send exception: %w", err))
+				ans.c.er.ReportError(exc.WrapError("send exception", err))
 			} else {
 				ans.sendMsg()
 			}
