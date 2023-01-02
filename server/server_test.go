@@ -111,7 +111,7 @@ func TestServerCall(t *testing.T) {
 			sm.Impl = func(ctx context.Context, call *server.Call) error {
 				echoArgs := air.Echo_echo_Params(call.Args())
 				inText, err := echoArgs.In()
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				proxyReceived.Store(inText)
 				// pretend we received an answer
 				echo := air.Echo_echo{Call: call}
