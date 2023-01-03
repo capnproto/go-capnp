@@ -3,7 +3,6 @@ package server_test
 import (
 	"context"
 	"errors"
-	"net"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -13,7 +12,6 @@ import (
 
 	"capnproto.org/go/capnp/v3"
 	air "capnproto.org/go/capnp/v3/internal/aircraftlib"
-	"capnproto.org/go/capnp/v3/rpc"
 	"capnproto.org/go/capnp/v3/server"
 
 	"github.com/stretchr/testify/assert"
@@ -122,20 +120,7 @@ func TestServerCall(t *testing.T) {
 			return &sm
 		}
 		blankBoot := capnp.NewClient(srv)
-		lis, err := net.Listen("tcp", ":0")
-		defer lis.Close()
-		require.NoError(t, err)
-		go rpc.Serve(lis, blankBoot)
-
-		// invoke the proxy server with the echo client
-		addr := lis.Addr().String()
-		conn, err := net.Dial("tcp", addr)
-		assert.NoError(t, err)
-		transport := rpc.NewStreamTransport(conn)
-		rpcConn := rpc.NewConn(transport, nil)
-		defer rpcConn.Close()
-		blankClient := rpcConn.Bootstrap(context.Background())
-		echoClient := air.Echo(blankClient)
+		echoClient := air.Echo(blankBoot)
 		defer echoClient.Release()
 
 		ans, finish := echoClient.Echo(context.Background(), func(p air.Echo_echo_Params) error {
