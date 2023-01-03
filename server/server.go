@@ -327,7 +327,3 @@ type resultsAllocer interface {
 func newError(msg string) error {
 	return exc.New(exc.Failed, "capnp server", msg)
 }
-
-func errorf(format string, args ...any) error {
-	return newError(fmt.Sprintf(format, args...))
-}

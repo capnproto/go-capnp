@@ -7,10 +7,11 @@
 package transport
 
 import (
-	"fmt"
+	"errors"
 	"io"
 
 	capnp "capnproto.org/go/capnp/v3"
+	"capnproto.org/go/capnp/v3/exc"
 	"capnproto.org/go/capnp/v3/exp/bufferpool"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 )
@@ -114,12 +115,12 @@ func (s *transport) NewMessage() (OutgoingMessage, error) {
 	arena := capnp.MultiSegment(nil)
 	msg, seg, err := capnp.NewMessage(arena)
 	if err != nil {
-		err = transporterr.Annotate(fmt.Errorf("new message: %w", err), "stream transport")
+		err = transporterr.Annotate(exc.WrapError("new message", err), "stream transport")
 		return OutgoingMessage{}, err
 	}
 	rmsg, err := rpccp.NewRootMessage(seg)
 	if err != nil {
-		err = transporterr.Annotate(fmt.Errorf("new message: %w", err), "stream transport")
+		err = transporterr.Annotate(exc.WrapError("new message", err), "stream transport")
 		return OutgoingMessage{}, err
 	}
 
@@ -130,7 +131,7 @@ func (s *transport) NewMessage() (OutgoingMessage, error) {
 			panic("Tried to send() a message that was already released.")
 		}
 		if err = s.c.Encode(msg); err != nil {
-			err = transporterr.Annotate(fmt.Errorf("send: %w", err), "stream transport")
+			err = transporterr.Annotate(exc.WrapError("send", err), "stream transport")
 		}
 		return err
 	}
@@ -158,12 +159,12 @@ func (s *transport) NewMessage() (OutgoingMessage, error) {
 func (s *transport) RecvMessage() (IncomingMessage, error) {
 	msg, err := s.c.Decode()
 	if err != nil {
-		err = transporterr.Annotate(fmt.Errorf("receive: %w", err), "stream transport")
+		err = transporterr.Annotate(exc.WrapError("receive", err), "stream transport")
 		return IncomingMessage{}, err
 	}
 	rmsg, err := rpccp.ReadRootMessage(msg)
 	if err != nil {
-		err = transporterr.Annotate(fmt.Errorf("receive: %w", err), "stream transport")
+		err = transporterr.Annotate(exc.WrapError("receive", err), "stream transport")
 		return IncomingMessage{}, err
 	}
 
@@ -181,12 +182,12 @@ func (s *transport) RecvMessage() (IncomingMessage, error) {
 // Close concurrently with any other operations on the transport.
 func (s *transport) Close() error {
 	if s.closed {
-		return transporterr.Disconnectedf("already closed").Annotate("", "stream transport")
+		return transporterr.Disconnected(errors.New("already closed")).Annotate("", "stream transport")
 	}
 	s.closed = true
 	err := s.c.Close()
 	if err != nil {
-		return transporterr.Annotate(fmt.Errorf("close: %w", err), "stream transport")
+		return transporterr.Annotate(exc.WrapError("close", err), "stream transport")
 	}
 	return nil
 }

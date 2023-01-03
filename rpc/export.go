@@ -2,8 +2,10 @@ package rpc
 
 import (
 	"context"
+	"errors"
 
 	"capnproto.org/go/capnp/v3"
+	"capnproto.org/go/capnp/v3/internal/str"
 	"capnproto.org/go/capnp/v3/internal/syncutil"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 )
@@ -58,7 +60,7 @@ func (c *Conn) findExport(id exportID) *expent {
 func (c *Conn) releaseExport(id exportID, count uint32) (capnp.Client, error) {
 	ent := c.findExport(id)
 	if ent == nil {
-		return capnp.Client{}, rpcerr.Failedf("unknown export ID %d", id)
+		return capnp.Client{}, rpcerr.Failed(errors.New("unknown export ID " + str.Utod(id)))
 	}
 	switch {
 	case count == ent.wireRefs:
@@ -71,7 +73,7 @@ func (c *Conn) releaseExport(id exportID, count uint32) (capnp.Client, error) {
 		})
 		return client, nil
 	case count > ent.wireRefs:
-		return capnp.Client{}, rpcerr.Failedf("export ID %d released too many references", id)
+		return capnp.Client{}, rpcerr.Failed(errors.New("export ID " + str.Utod(id) + " released too many references"))
 	default:
 		ent.wireRefs -= count
 		return capnp.Client{}, nil
@@ -179,13 +181,13 @@ func (c *lockedConn) fillPayloadCapTable(payload rpccp.Payload) (map[exportID]ui
 	}
 	list, err := payload.NewCapTable(int32(len(clients)))
 	if err != nil {
-		return nil, rpcerr.Failedf("payload capability table: %w", err)
+		return nil, rpcerr.WrapFailed("payload capability table", err)
 	}
 	var refs map[exportID]uint32
 	for i, client := range clients {
 		id, isExport, err := c.sendCap(list.At(i), client)
 		if err != nil {
-			return nil, rpcerr.Failedf("Serializing capability: %w", err)
+			return nil, rpcerr.WrapFailed("Serializing capability", err)
 		}
 		if !isExport {
 			continue
@@ -278,19 +280,19 @@ type senderLoopback struct {
 func (sl *senderLoopback) buildDisembargo(msg rpccp.Message) error {
 	d, err := msg.NewDisembargo()
 	if err != nil {
-		return rpcerr.Failedf("build disembargo: %w", err)
+		return rpcerr.WrapFailed("build disembargo", err)
 	}
 	tgt, err := d.NewTarget()
 	if err != nil {
-		return rpcerr.Failedf("build disembargo: %w", err)
+		return rpcerr.WrapFailed("build disembargo", err)
 	}
 	pa, err := tgt.NewPromisedAnswer()
 	if err != nil {
-		return rpcerr.Failedf("build disembargo: %w", err)
+		return rpcerr.WrapFailed("build disembargo", err)
 	}
 	oplist, err := pa.NewTransform(int32(len(sl.transform)))
 	if err != nil {
-		return rpcerr.Failedf("build disembargo: %w", err)
+		return rpcerr.WrapFailed("build disembargo", err)
 	}
 
 	d.Context().SetSenderLoopback(uint32(sl.id))

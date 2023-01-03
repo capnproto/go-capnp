@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"errors"
 
 	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/internal/syncutil"
@@ -91,7 +92,7 @@ func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, 
 		defer c.tasks.Done()
 		ent := c.lk.imports[ic.id]
 		if ent == nil || ic.generation != ent.generation {
-			return capnp.ErrorAnswer(s.Method, rpcerr.Disconnectedf("send on closed import")), func() {}
+			return capnp.ErrorAnswer(s.Method, rpcerr.Disconnected(errors.New("send on closed import"))), func() {}
 		}
 		q := c.newQuestion(s.Method)
 
@@ -103,7 +104,7 @@ func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, 
 				syncutil.With(&ic.c.lk, func() {
 					ic.c.lk.questions[q.id] = nil
 				})
-				q.p.Reject(rpcerr.Failedf("send message: %w", err))
+				q.p.Reject(rpcerr.WrapFailed("send message", err))
 				syncutil.With(&ic.c.lk, func() {
 					ic.c.lk.questionID.remove(uint32(q.id))
 				})
@@ -130,38 +131,38 @@ func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, 
 func (c *lockedConn) newImportCallMessage(msg rpccp.Message, imp importID, qid questionID, s capnp.Send) error {
 	call, err := msg.NewCall()
 	if err != nil {
-		return rpcerr.Failedf("build call message: %w", err)
+		return rpcerr.WrapFailed("build call message", err)
 	}
 	call.SetQuestionId(uint32(qid))
 	call.SetInterfaceId(s.Method.InterfaceID)
 	call.SetMethodId(s.Method.MethodID)
 	target, err := call.NewTarget()
 	if err != nil {
-		return rpcerr.Failedf("build call message: %w", err)
+		return rpcerr.WrapFailed("build call message", err)
 	}
 	target.SetImportedCap(uint32(imp))
 	payload, err := call.NewParams()
 	if err != nil {
-		return rpcerr.Failedf("build call message: %w", err)
+		return rpcerr.WrapFailed("build call message", err)
 	}
 	args, err := capnp.NewStruct(payload.Segment(), s.ArgsSize)
 	if err != nil {
-		return rpcerr.Failedf("build call message: %w", err)
+		return rpcerr.WrapFailed("build call message", err)
 	}
 	if err := payload.SetContent(args.ToPtr()); err != nil {
-		return rpcerr.Failedf("build call message: %w", err)
+		return rpcerr.WrapFailed("build call message", err)
 	}
 
 	if s.PlaceArgs == nil {
 		return nil
 	}
 	if err := s.PlaceArgs(args); err != nil {
-		return rpcerr.Failedf("place arguments: %w", err)
+		return rpcerr.WrapFailed("place arguments", err)
 	}
 	// TODO(soon): save param refs
 	_, err = c.fillPayloadCapTable(payload)
 	if err != nil {
-		return rpcerr.Annotatef(err, "build call message")
+		return rpcerr.Annotate(err, "build call message")
 	}
 	return nil
 }

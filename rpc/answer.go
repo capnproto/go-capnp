@@ -2,7 +2,7 @@ package rpc
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"sync"
 
 	"capnproto.org/go/capnp/v3"
@@ -101,12 +101,12 @@ func errorAnswer(c *Conn, id answerID, err error) *answer {
 func (c *Conn) newReturn() (_ rpccp.Return, sendMsg func(), _ *rc.Releaser, _ error) {
 	outMsg, err := c.transport.NewMessage()
 	if err != nil {
-		return rpccp.Return{}, nil, nil, rpcerr.Failedf("create return: %w", err)
+		return rpccp.Return{}, nil, nil, rpcerr.WrapFailed("create return", err)
 	}
 	ret, err := outMsg.Message.NewReturn()
 	if err != nil {
 		outMsg.Release()
-		return rpccp.Return{}, nil, nil, rpcerr.Failedf("create return: %w", err)
+		return rpccp.Return{}, nil, nil, rpcerr.WrapFailed("create return", err)
 	}
 
 	// Before releasing the message, we need to wait both until it is sent and
@@ -121,7 +121,7 @@ func (c *Conn) newReturn() (_ rpccp.Return, sendMsg func(), _ *rc.Releaser, _ er
 			release: releaser.Decr,
 			onSent: func(err error) {
 				if err != nil {
-					c.er.ReportError(fmt.Errorf("send return: %w", err))
+					c.er.ReportError(exc.WrapError("send return", err))
 				}
 			},
 		})
@@ -146,14 +146,14 @@ func (ans *answer) AllocResults(sz capnp.ObjectSize) (capnp.Struct, error) {
 	var err error
 	ans.results, err = ans.ret.NewResults()
 	if err != nil {
-		return capnp.Struct{}, rpcerr.Failedf("alloc results: %w", err)
+		return capnp.Struct{}, rpcerr.WrapFailed("alloc results", err)
 	}
 	s, err := capnp.NewStruct(ans.results.Segment(), sz)
 	if err != nil {
-		return capnp.Struct{}, rpcerr.Failedf("alloc results: %w", err)
+		return capnp.Struct{}, rpcerr.WrapFailed("alloc results", err)
 	}
 	if err := ans.results.SetContent(s.ToPtr()); err != nil {
-		return capnp.Struct{}, rpcerr.Failedf("alloc results: %w", err)
+		return capnp.Struct{}, rpcerr.WrapFailed("alloc results", err)
 	}
 	return s, nil
 }
@@ -170,11 +170,11 @@ func (ans *answer) setBootstrap(c capnp.Client) error {
 	var err error
 	ans.results, err = ans.ret.NewResults()
 	if err != nil {
-		return rpcerr.Failedf("alloc bootstrap results: %w", err)
+		return rpcerr.WrapFailed("alloc bootstrap results", err)
 	}
 	iface := capnp.NewInterface(ans.results.Segment(), 0)
 	if err := ans.results.SetContent(iface.ToPtr()); err != nil {
-		return rpcerr.Failedf("alloc bootstrap results: %w", err)
+		return rpcerr.WrapFailed("alloc bootstrap results", err)
 	}
 	return nil
 }
@@ -249,7 +249,7 @@ func (ans *answer) sendReturn(c *lockedConn, rl *releaseList) error {
 				// ok to return an error if the finish comes in
 				// before the return. Possible enhancement: use
 				// the cancel variant of return.
-				ans.promise.Reject(rpcerr.Failedf("received finish before return"))
+				ans.promise.Reject(rpcerr.Failed(errors.New("received finish before return")))
 			} else {
 				ans.promise.Resolve(ans.results.Content())
 			}
@@ -286,11 +286,11 @@ func (ans *answer) sendException(rl *releaseList, ex error) {
 	default:
 		// Send exception.
 		if e, err := ans.ret.NewException(); err != nil {
-			ans.c.er.ReportError(fmt.Errorf("send exception: %w", err))
+			ans.c.er.ReportError(exc.WrapError("send exception", err))
 		} else {
 			e.SetType(rpccp.Exception_Type(exc.TypeOf(ex)))
 			if err := e.SetReason(ex.Error()); err != nil {
-				ans.c.er.ReportError(fmt.Errorf("send exception: %w", err))
+				ans.c.er.ReportError(exc.WrapError("send exception", err))
 			} else {
 				ans.sendMsg()
 			}

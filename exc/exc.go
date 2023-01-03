@@ -3,7 +3,6 @@ package exc
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 )
 
@@ -108,30 +107,26 @@ func (f Annotator) Failed(err error) *Exception {
 	return f.New(Failed, err)
 }
 
-func (f Annotator) Failedf(format string, args ...any) *Exception {
-	return f.Failed(fmt.Errorf(format, args...))
+func (f Annotator) WrapFailed(msg string, err error) *Exception {
+	return f.New(Failed, WrapError(msg, err))
 }
 
 func (f Annotator) Disconnected(err error) *Exception {
 	return f.New(Disconnected, err)
 }
 
-func (f Annotator) Disconnectedf(format string, args ...any) *Exception {
-	return f.Disconnected(fmt.Errorf(format, args...))
+func (f Annotator) WrapDisconnected(msg string, err error) *Exception {
+	return f.New(Disconnected, WrapError(msg, err))
 }
 
 func (f Annotator) Unimplemented(err error) *Exception {
 	return f.New(Unimplemented, err)
 }
 
-func (f Annotator) Unimplementedf(format string, args ...any) *Exception {
-	return f.Unimplemented(fmt.Errorf(format, args...))
+func (f Annotator) WrapUnimplemented(msg string, err error) *Exception {
+	return f.New(Unimplemented, WrapError(msg, err))
 }
 
 func (f Annotator) Annotate(err error, msg string) *Exception {
 	return Annotate(string(f), msg, err)
-}
-
-func (f Annotator) Annotatef(err error, format string, args ...any) *Exception {
-	return f.Annotate(err, fmt.Sprintf(format, args...))
 }
