@@ -129,6 +129,9 @@ func New(methods []Method, brand any, shutdown Shutdowner) *Server {
 // Send starts a method call.
 func (srv *Server) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, capnp.ReleaseFunc) {
 	mm := srv.methods.find(s.Method)
+	if mm == nil && srv.HandleUnknownMethod != nil {
+		mm = srv.HandleUnknownMethod(s.Method)
+	}
 	if mm == nil {
 		return capnp.ErrorAnswer(s.Method, capnp.Unimplemented("unimplemented")), func() {}
 	}
