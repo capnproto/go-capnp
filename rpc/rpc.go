@@ -395,7 +395,7 @@ func (c *Conn) shutdown(abortErr error) (err error) {
 		c.drainQueue()
 
 		rl := &releaseList{}
-		syncutil.With(&c.lk, func() {
+		c.withLocked(func(c *lockedConn) {
 			c.release(rl)
 		})
 		rl.Release()
@@ -432,7 +432,7 @@ func (c *Conn) drainQueue() {
 
 // Clear all tables, and arrange for the releaseList to release exported clients
 // and unfinished answers. Called by 'shutdown'.  Caller MUST hold c.lk.
-func (c *Conn) release(rl *releaseList) {
+func (c *lockedConn) release(rl *releaseList) {
 	exports := c.lk.exports
 	embargoes := c.lk.embargoes
 	answers := c.lk.answers
@@ -451,12 +451,12 @@ func (c *Conn) release(rl *releaseList) {
 
 }
 
-func (c *Conn) releaseBootstrap(rl *releaseList) {
+func (c *lockedConn) releaseBootstrap(rl *releaseList) {
 	rl.Add(c.bootstrap.Release)
 	c.bootstrap = capnp.Client{}
 }
 
-func (c *Conn) releaseExports(rl *releaseList, exports []*expent) {
+func (c *lockedConn) releaseExports(rl *releaseList, exports []*expent) {
 	for _, e := range exports {
 		if e != nil {
 			metadata := e.client.State().Metadata
@@ -469,7 +469,7 @@ func (c *Conn) releaseExports(rl *releaseList, exports []*expent) {
 	}
 }
 
-func (c *Conn) liftEmbargoes(rl *releaseList, embargoes []*embargo) {
+func (c *lockedConn) liftEmbargoes(rl *releaseList, embargoes []*embargo) {
 	for _, e := range embargoes {
 		if e != nil {
 			rl.Add(e.lift)
@@ -477,7 +477,7 @@ func (c *Conn) liftEmbargoes(rl *releaseList, embargoes []*embargo) {
 	}
 }
 
-func (c *Conn) releaseAnswers(rl *releaseList, answers map[answerID]*answer) {
+func (c *lockedConn) releaseAnswers(rl *releaseList, answers map[answerID]*answer) {
 	for _, a := range answers {
 		if a != nil && a.msgReleaser != nil {
 			rl.Add(a.msgReleaser.Decr)
@@ -485,7 +485,7 @@ func (c *Conn) releaseAnswers(rl *releaseList, answers map[answerID]*answer) {
 	}
 }
 
-func (c *Conn) releaseQuestions(rl *releaseList, questions []*question) {
+func (c *lockedConn) releaseQuestions(rl *releaseList, questions []*question) {
 	for _, q := range questions {
 		canceled := q != nil && q.flags&finished != 0
 		if !canceled {
@@ -708,11 +708,11 @@ func (c *Conn) handleBootstrap(ctx context.Context, id answerID) error {
 
 		c.lk.answers[id] = &ans
 		if !c.bootstrap.IsValid() {
-			ans.sendException(rl, exc.New(exc.Failed, "", "vat does not expose a public/bootstrap interface"))
+			ans.sendException(c, rl, exc.New(exc.Failed, "", "vat does not expose a public/bootstrap interface"))
 			return
 		}
 		if err := ans.setBootstrap(c.bootstrap.AddRef()); err != nil {
-			ans.sendException(rl, err)
+			ans.sendException(c, rl, err)
 			return
 		}
 		err = ans.sendReturn(c, rl)
@@ -773,7 +773,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 		p        parsedCall
 		parseErr error
 	)
-	syncutil.With(&c.lk, func() {
+	c.withLocked(func(c *lockedConn) {
 		if c.lk.answers[id] != nil {
 			rl.Add(releaseCall)
 			err = rpcerr.Failed(errors.New("incoming call: answer ID " + str.Utod(id) + "reused"))
@@ -808,126 +808,126 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 		sendMsg:     send,
 		msgReleaser: retReleaser,
 	}
-	c.lk.Lock()
-	defer c.lk.Unlock()
+	return withLockedConn1(c, func(c *lockedConn) error {
 
-	c.lk.answers[id] = ans
-	if parseErr != nil {
-		parseErr = rpcerr.Annotate(parseErr, "incoming call")
-		ans.sendException(rl, parseErr)
-		rl.Add(func() {
-			c.er.ReportError(parseErr)
-			releaseCall()
-		})
-		return nil
-	}
-
-	recv := capnp.Recv{
-		Args:        p.args,
-		Method:      p.method,
-		ReleaseArgs: idempotent(releaseCall),
-		Returner:    ans,
-	}
-
-	switch p.target.which {
-	case rpccp.MessageTarget_Which_importedCap:
-		ent := c.findExport(p.target.importedCap)
-		if ent == nil {
-			ans.ret = rpccp.Return{}
-			ans.sendMsg = nil
-			ans.msgReleaser = nil
+		c.lk.answers[id] = ans
+		if parseErr != nil {
+			parseErr = rpcerr.Annotate(parseErr, "incoming call")
+			ans.sendException(c, rl, parseErr)
 			rl.Add(func() {
-				retReleaser.Decr()
+				c.er.ReportError(parseErr)
 				releaseCall()
 			})
-			return rpcerr.Failed(errors.New("incoming call: unknown export ID " + str.Utod(id)))
+			return nil
 		}
-		c.tasks.Add(1) // will be finished by answer.Return
-		var callCtx context.Context
-		callCtx, ans.cancel = context.WithCancel(c.bgctx)
-		rl.Add(func() {
-			pcall := ent.client.RecvCall(callCtx, recv)
-			// Place PipelineCaller into answer.  Since the receive goroutine is
-			// the only one that uses answer.pcall, it's fine that there's a
-			// time gap for this being set.
-			ans.setPipelineCaller(p.method, pcall)
-		})
-		return nil
-	case rpccp.MessageTarget_Which_promisedAnswer:
-		tgtAns := c.lk.answers[p.target.promisedAnswer]
-		if tgtAns == nil || tgtAns.flags.Contains(finishReceived) {
-			ans.ret = rpccp.Return{}
-			ans.sendMsg = nil
-			ans.msgReleaser = nil
-			rl.Add(func() {
-				retReleaser.Decr()
-				releaseCall()
-			})
-			return rpcerr.Failed(errors.New(
-				"incoming call: use of unknown or finished answer ID " +
-					str.Utod(p.target.promisedAnswer) +
-					" for promised answer target",
-			))
+
+		recv := capnp.Recv{
+			Args:        p.args,
+			Method:      p.method,
+			ReleaseArgs: idempotent(releaseCall),
+			Returner:    ans,
 		}
-		if tgtAns.flags.Contains(resultsReady) {
-			if tgtAns.err != nil {
-				ans.sendException(rl, tgtAns.err)
-				rl.Add(releaseCall)
-				return nil
-			}
-			// tgtAns.results is guaranteed to stay alive because it hasn't
-			// received finish yet (it would have been deleted from the
-			// answers table), and it can't receive a finish because this is
-			// happening on the receive goroutine.
-			content, err := tgtAns.results.Content()
-			if err != nil {
-				err = rpcerr.WrapFailed("incoming call: read results from target answer", err)
-				ans.sendException(rl, err)
-				rl.Add(releaseCall)
-				c.er.ReportError(err)
-				return nil
-			}
-			sub, err := capnp.Transform(content, p.target.transform)
-			if err != nil {
-				// Not reporting, as this is the caller's fault.
-				ans.sendException(rl, err)
-				rl.Add(releaseCall)
-				return nil
-			}
-			iface := sub.Interface()
-			var tgt capnp.Client
-			switch {
-			case sub.IsValid() && !iface.IsValid():
-				tgt = capnp.ErrorClient(rpcerr.Failed(ErrNotACapability))
-			case !iface.IsValid() || int64(iface.Capability()) >= int64(len(tgtAns.results.Message().CapTable)):
-				tgt = capnp.Client{}
-			default:
-				tgt = tgtAns.results.Message().CapTable[iface.Capability()]
+
+		switch p.target.which {
+		case rpccp.MessageTarget_Which_importedCap:
+			ent := c.findExport(p.target.importedCap)
+			if ent == nil {
+				ans.ret = rpccp.Return{}
+				ans.sendMsg = nil
+				ans.msgReleaser = nil
+				rl.Add(func() {
+					retReleaser.Decr()
+					releaseCall()
+				})
+				return rpcerr.Failed(errors.New("incoming call: unknown export ID " + str.Utod(id)))
 			}
 			c.tasks.Add(1) // will be finished by answer.Return
 			var callCtx context.Context
 			callCtx, ans.cancel = context.WithCancel(c.bgctx)
 			rl.Add(func() {
-				pcall := tgt.RecvCall(callCtx, recv)
+				pcall := ent.client.RecvCall(callCtx, recv)
+				// Place PipelineCaller into answer.  Since the receive goroutine is
+				// the only one that uses answer.pcall, it's fine that there's a
+				// time gap for this being set.
 				ans.setPipelineCaller(p.method, pcall)
 			})
-		} else {
-			// Results not ready, use pipeline caller.
-			tgtAns.pcalls.Add(1) // will be finished by answer.Return
-			var callCtx context.Context
-			callCtx, ans.cancel = context.WithCancel(c.bgctx)
-			tgt := tgtAns.pcall
-			c.tasks.Add(1) // will be finished by answer.Return
-			rl.Add(func() {
-				pcall := tgt.PipelineRecv(callCtx, p.target.transform, recv)
-				tgtAns.pcalls.Done()
-				ans.setPipelineCaller(p.method, pcall)
-			})
+			return nil
+		case rpccp.MessageTarget_Which_promisedAnswer:
+			tgtAns := c.lk.answers[p.target.promisedAnswer]
+			if tgtAns == nil || tgtAns.flags.Contains(finishReceived) {
+				ans.ret = rpccp.Return{}
+				ans.sendMsg = nil
+				ans.msgReleaser = nil
+				rl.Add(func() {
+					retReleaser.Decr()
+					releaseCall()
+				})
+				return rpcerr.Failed(errors.New(
+					"incoming call: use of unknown or finished answer ID " +
+						str.Utod(p.target.promisedAnswer) +
+						" for promised answer target",
+				))
+			}
+			if tgtAns.flags.Contains(resultsReady) {
+				if tgtAns.err != nil {
+					ans.sendException(c, rl, tgtAns.err)
+					rl.Add(releaseCall)
+					return nil
+				}
+				// tgtAns.results is guaranteed to stay alive because it hasn't
+				// received finish yet (it would have been deleted from the
+				// answers table), and it can't receive a finish because this is
+				// happening on the receive goroutine.
+				content, err := tgtAns.results.Content()
+				if err != nil {
+					err = rpcerr.WrapFailed("incoming call: read results from target answer", err)
+					ans.sendException(c, rl, err)
+					rl.Add(releaseCall)
+					c.er.ReportError(err)
+					return nil
+				}
+				sub, err := capnp.Transform(content, p.target.transform)
+				if err != nil {
+					// Not reporting, as this is the caller's fault.
+					ans.sendException(c, rl, err)
+					rl.Add(releaseCall)
+					return nil
+				}
+				iface := sub.Interface()
+				var tgt capnp.Client
+				switch {
+				case sub.IsValid() && !iface.IsValid():
+					tgt = capnp.ErrorClient(rpcerr.Failed(ErrNotACapability))
+				case !iface.IsValid() || int64(iface.Capability()) >= int64(len(tgtAns.results.Message().CapTable)):
+					tgt = capnp.Client{}
+				default:
+					tgt = tgtAns.results.Message().CapTable[iface.Capability()]
+				}
+				c.tasks.Add(1) // will be finished by answer.Return
+				var callCtx context.Context
+				callCtx, ans.cancel = context.WithCancel(c.bgctx)
+				rl.Add(func() {
+					pcall := tgt.RecvCall(callCtx, recv)
+					ans.setPipelineCaller(p.method, pcall)
+				})
+			} else {
+				// Results not ready, use pipeline caller.
+				tgtAns.pcalls.Add(1) // will be finished by answer.Return
+				var callCtx context.Context
+				callCtx, ans.cancel = context.WithCancel(c.bgctx)
+				tgt := tgtAns.pcall
+				c.tasks.Add(1) // will be finished by answer.Return
+				rl.Add(func() {
+					pcall := tgt.PipelineRecv(callCtx, p.target.transform, recv)
+					tgtAns.pcalls.Done()
+					ans.setPipelineCaller(p.method, pcall)
+				})
+			}
+			return nil
+		default:
+			panic("unreachable")
 		}
-		return nil
-	default:
-		panic("unreachable")
-	}
+	})
 }
 
 type parsedCall struct {
@@ -943,7 +943,7 @@ type parsedMessageTarget struct {
 	transform      []capnp.PipelineOp
 }
 
-func (c *Conn) parseCall(p *parsedCall, call rpccp.Call) error {
+func (c *lockedConn) parseCall(p *parsedCall, call rpccp.Call) error {
 	p.method = capnp.Method{
 		InterfaceID: call.InterfaceId(),
 		MethodID:    call.MethodId(),
@@ -1014,121 +1014,128 @@ func parseTransform(list rpccp.PromisedAnswer_Op_List) ([]capnp.PipelineOp, erro
 func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp.ReleaseFunc) error {
 	rl := &releaseList{}
 	defer rl.Release()
-	c.lk.Lock()
-	defer c.lk.Unlock()
 
-	qid := questionID(ret.AnswerId())
-	if uint32(qid) >= uint32(len(c.lk.questions)) {
-		rl.Add(release)
-		return rpcerr.Failed(errors.New(
-			"incoming return: question " + str.Utod(qid) + " does not exist",
-		))
-	}
-	// Pop the question from the table.  Receiving the Return message
-	// will always remove the question from the table, because it's the
-	// only time the remote vat will use it.
-	q := c.lk.questions[qid]
-	c.lk.questions[qid] = nil
-	if q == nil {
-		rl.Add(release)
-		return rpcerr.Failed(errors.New(
-			"incoming return: question " + str.Utod(qid) + " does not exist",
-		))
-	}
-	canceled := q.flags&finished != 0
-	q.flags |= finished
-	if canceled {
-		// Wait for cancelation task to write the Finish message.  If the
-		// Finish message could not be sent to the remote vat, we can't
-		// reuse the ID.
-		select {
-		case <-q.finishMsgSend:
-			if q.flags&finishSent != 0 {
-				c.lk.questionID.remove(uint32(qid))
+	// Save this, so we can reference it from spawned goroutines that are not holding
+	// the lock; we reassign to c at the top of those functions.
+	unlockedConn := c
+
+	return withLockedConn1(c, func(c *lockedConn) error {
+
+		qid := questionID(ret.AnswerId())
+		if uint32(qid) >= uint32(len(c.lk.questions)) {
+			rl.Add(release)
+			return rpcerr.Failed(errors.New(
+				"incoming return: question " + str.Utod(qid) + " does not exist",
+			))
+		}
+		// Pop the question from the table.  Receiving the Return message
+		// will always remove the question from the table, because it's the
+		// only time the remote vat will use it.
+		q := c.lk.questions[qid]
+		c.lk.questions[qid] = nil
+		if q == nil {
+			rl.Add(release)
+			return rpcerr.Failed(errors.New(
+				"incoming return: question " + str.Utod(qid) + " does not exist",
+			))
+		}
+		canceled := q.flags&finished != 0
+		q.flags |= finished
+		if canceled {
+			// Wait for cancelation task to write the Finish message.  If the
+			// Finish message could not be sent to the remote vat, we can't
+			// reuse the ID.
+			select {
+			case <-q.finishMsgSend:
+				if q.flags&finishSent != 0 {
+					c.lk.questionID.remove(uint32(qid))
+				}
+				rl.Add(release)
+			default:
+				rl.Add(release)
+
+				go func() {
+					c := unlockedConn
+					<-q.finishMsgSend
+					c.withLocked(func(c *lockedConn) {
+						if q.flags&finishSent != 0 {
+							c.lk.questionID.remove(uint32(qid))
+						}
+					})
+				}()
 			}
-			rl.Add(release)
-		default:
-			rl.Add(release)
+			return nil
+		}
+		pr := c.parseReturn(ret, q.called) // fills in CapTable
+		if pr.parseFailed {
+			c.er.ReportError(rpcerr.Annotate(pr.err, "incoming return"))
+		}
 
-			go func() {
-				<-q.finishMsgSend
-				syncutil.With(&c.lk, func() {
-					if q.flags&finishSent != 0 {
+		if q.bootstrapPromise == nil && pr.err == nil {
+			// The result of the message contains actual data (not just a
+			// client or an error), so we save the ReleaseFunc for later:
+			q.release = release
+		}
+		// We're going to potentially block fulfilling some promises so fork
+		// off a goroutine to avoid blocking the receive loop.
+		go func() {
+			c := unlockedConn
+			q.p.Resolve(pr.result, pr.err)
+			if q.bootstrapPromise != nil {
+				q.bootstrapPromise.Fulfill(q.p.Answer().Client())
+				q.p.ReleaseClients()
+				// We can release now; root pointer of the result is a client, so the
+				// message won't be accessed:
+				release()
+			} else if pr.err != nil {
+				// We can release now; the result is an error, so data from the message
+				// won't be accessed:
+				release()
+			}
+
+			c.withLocked(func(c *lockedConn) {
+				// Send disembargoes.  Failing to send one of these just never lifts
+				// the embargo on our side, but doesn't cause a leak.
+				//
+				// TODO(soon): make embargo resolve to error client.
+				for _, s := range pr.disembargoes {
+					c.sendMessage(ctx, s.buildDisembargo, func(err error) {
+						if err != nil {
+							err = exc.WrapError("incoming return: send disembargo", err)
+							c.er.ReportError(err)
+						}
+					})
+				}
+
+				// Send finish.
+				c.sendMessage(ctx, func(m rpccp.Message) error {
+					fin, err := m.NewFinish()
+					if err == nil {
+						fin.SetQuestionId(uint32(qid))
+						fin.SetReleaseResultCaps(false)
+					}
+					return err
+				}, func(err error) {
+					c.lk.Lock()
+					defer c.lk.Unlock()
+					defer close(q.finishMsgSend)
+
+					if err != nil {
+						err = exc.WrapError("incoming return: send finish: build message", err)
+						c.er.ReportError(err)
+					} else {
+						q.flags |= finishSent
 						c.lk.questionID.remove(uint32(qid))
 					}
 				})
-			}()
-		}
-		return nil
-	}
-	pr := c.parseReturn(ret, q.called) // fills in CapTable
-	if pr.parseFailed {
-		c.er.ReportError(rpcerr.Annotate(pr.err, "incoming return"))
-	}
-
-	if q.bootstrapPromise == nil && pr.err == nil {
-		// The result of the message contains actual data (not just a
-		// client or an error), so we save the ReleaseFunc for later:
-		q.release = release
-	}
-	// We're going to potentially block fulfilling some promises so fork
-	// off a goroutine to avoid blocking the receive loop.
-	go func() {
-		q.p.Resolve(pr.result, pr.err)
-		if q.bootstrapPromise != nil {
-			q.bootstrapPromise.Fulfill(q.p.Answer().Client())
-			q.p.ReleaseClients()
-			// We can release now; root pointer of the result is a client, so the
-			// message won't be accessed:
-			release()
-		} else if pr.err != nil {
-			// We can release now; the result is an error, so data from the message
-			// won't be accessed:
-			release()
-		}
-
-		c.withLocked(func(c *lockedConn) {
-			// Send disembargoes.  Failing to send one of these just never lifts
-			// the embargo on our side, but doesn't cause a leak.
-			//
-			// TODO(soon): make embargo resolve to error client.
-			for _, s := range pr.disembargoes {
-				c.sendMessage(ctx, s.buildDisembargo, func(err error) {
-					if err != nil {
-						err = exc.WrapError("incoming return: send disembargo", err)
-						c.er.ReportError(err)
-					}
-				})
-			}
-
-			// Send finish.
-			c.sendMessage(ctx, func(m rpccp.Message) error {
-				fin, err := m.NewFinish()
-				if err == nil {
-					fin.SetQuestionId(uint32(qid))
-					fin.SetReleaseResultCaps(false)
-				}
-				return err
-			}, func(err error) {
-				c.lk.Lock()
-				defer c.lk.Unlock()
-				defer close(q.finishMsgSend)
-
-				if err != nil {
-					err = exc.WrapError("incoming return: send finish: build message", err)
-					c.er.ReportError(err)
-				} else {
-					q.flags |= finishSent
-					c.lk.questionID.remove(uint32(qid))
-				}
 			})
-		})
-	}()
+		}()
 
-	return nil
+		return nil
+	})
 }
 
-func (c *Conn) parseReturn(ret rpccp.Return, called [][]capnp.PipelineOp) parsedReturn {
+func (c *lockedConn) parseReturn(ret rpccp.Return, called [][]capnp.PipelineOp) parsedReturn {
 	switch w := ret.Which(); w {
 	case rpccp.Return_Which_results:
 		r, err := ret.Results()
@@ -1194,38 +1201,37 @@ type parsedReturn struct {
 func (c *Conn) handleFinish(ctx context.Context, id answerID, releaseResultCaps bool) error {
 	rl := &releaseList{}
 	defer rl.Release()
-	c.lk.Lock()
-	defer c.lk.Unlock()
+	return withLockedConn1(c, func(c *lockedConn) error {
+		ans := c.lk.answers[id]
+		if ans == nil {
+			return rpcerr.Failed(errors.New(
+				"incoming finish: unknown answer ID " + str.Utod(id),
+			))
+		}
+		if ans.flags.Contains(finishReceived) {
+			return rpcerr.Failed(errors.New(
+				"incoming finish: answer ID " + str.Utod(id) + " already received finish",
+			))
+		}
+		ans.flags |= finishReceived
+		if releaseResultCaps {
+			ans.flags |= releaseResultCapsFlag
+		}
+		if ans.cancel != nil {
+			ans.cancel()
+		}
+		if !ans.flags.Contains(returnSent) {
+			return nil
+		}
 
-	ans := c.lk.answers[id]
-	if ans == nil {
-		return rpcerr.Failed(errors.New(
-			"incoming finish: unknown answer ID " + str.Utod(id),
-		))
-	}
-	if ans.flags.Contains(finishReceived) {
-		return rpcerr.Failed(errors.New(
-			"incoming finish: answer ID " + str.Utod(id) + " already received finish",
-		))
-	}
-	ans.flags |= finishReceived
-	if releaseResultCaps {
-		ans.flags |= releaseResultCapsFlag
-	}
-	if ans.cancel != nil {
-		ans.cancel()
-	}
-	if !ans.flags.Contains(returnSent) {
+		// Return sent and finish received: time to destroy answer.
+		err := ans.destroy(c, rl)
+		if err != nil {
+			return rpcerr.Annotate(err, "incoming finish: release result caps")
+		}
+
 		return nil
-	}
-
-	// Return sent and finish received: time to destroy answer.
-	err := ans.destroy(rl)
-	if err != nil {
-		return rpcerr.Annotate(err, "incoming finish: release result caps")
-	}
-
-	return nil
+	})
 }
 
 // recvCap materializes a client for a given descriptor.  The caller is
@@ -1233,7 +1239,7 @@ func (c *Conn) handleFinish(ctx context.Context, id answerID, releaseResultCaps 
 // error indicates a protocol violation.
 //
 // The caller must be holding onto c.lk.
-func (c *Conn) recvCap(d rpccp.CapDescriptor) (capnp.Client, error) {
+func (c *lockedConn) recvCap(d rpccp.CapDescriptor) (capnp.Client, error) {
 	switch w := d.Which(); w {
 	case rpccp.CapDescriptor_Which_none:
 		return capnp.Client{}, nil
@@ -1292,8 +1298,8 @@ func (c *Conn) recvCap(d rpccp.CapDescriptor) (capnp.Client, error) {
 	}
 }
 
-// Helper for Conn.recvCap(); handles the receiverAnswer case.
-func (c *Conn) recvCapReceiverAnswer(ans *answer, transform []capnp.PipelineOp) capnp.Client {
+// Helper for lockedConn.recvCap(); handles the receiverAnswer case.
+func (c *lockedConn) recvCapReceiverAnswer(ans *answer, transform []capnp.PipelineOp) capnp.Client {
 	if ans.promise != nil {
 		// Still unresolved.
 		future := ans.promise.Answer().Future()
@@ -1325,7 +1331,7 @@ func (c *Conn) recvCapReceiverAnswer(ans *answer, transform []capnp.PipelineOp) 
 
 // Returns whether the client should be treated as local, for the purpose of
 // embargoes.
-func (c *Conn) isLocalClient(client capnp.Client) bool {
+func (c *lockedConn) isLocalClient(client capnp.Client) bool {
 	if (client == capnp.Client{}) {
 		return false
 	}
@@ -1336,13 +1342,13 @@ func (c *Conn) isLocalClient(client capnp.Client) bool {
 		// If the connections are different, we must be proxying
 		// it, so as far as this connection is concerned, it lives
 		// on our side.
-		return ic.c != c
+		return ic.c != (*Conn)(c)
 	}
 
 	if pc, ok := bv.(capnp.PipelineClient); ok {
 		// Same logic re: proxying as with imports:
 		if q, ok := c.getAnswerQuestion(pc.Answer()); ok {
-			return q.c != c
+			return q.c != (*Conn)(c)
 		}
 	}
 
@@ -1361,7 +1367,7 @@ func (c *Conn) isLocalClient(client capnp.Client) bool {
 // the capability table that represent capabilities in the local vat.
 //
 // The caller must be holding onto c.lk.
-func (c *Conn) recvPayload(payload rpccp.Payload) (_ capnp.Ptr, locals uintSet, _ error) {
+func (c *lockedConn) recvPayload(payload rpccp.Payload) (_ capnp.Ptr, locals uintSet, _ error) {
 	if !payload.IsValid() {
 		// null pointer; in this case we can treat the cap table as being empty
 		// and just return.
@@ -1409,7 +1415,7 @@ func (c *Conn) handleRelease(ctx context.Context, id exportID, count uint32) err
 		client capnp.Client
 		err    error
 	)
-	syncutil.With(&c.lk, func() {
+	c.withLocked(func(c *lockedConn) {
 		client, err = c.releaseExport(id, count)
 	})
 	if err != nil {
