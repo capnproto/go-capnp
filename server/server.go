@@ -134,7 +134,7 @@ func (srv *Server) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, capnp
 		return capnp.ErrorAnswer(mm.Method, err), func() {}
 	}
 	ret := new(structReturner)
-	return ret.answer(mm.Method, srv.start(ctx, mm, capnp.Recv{
+	pcaller := srv.start(ctx, mm, capnp.Recv{
 		Method: mm.Method, // pick up names from server method
 		Args:   args,
 		ReleaseArgs: func() {
@@ -144,7 +144,8 @@ func (srv *Server) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, capnp
 			}
 		},
 		Returner: ret,
-	}))
+	})
+	return ret.answer(mm.Method, pcaller)
 }
 
 // Recv starts a method call.
