@@ -780,7 +780,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			return
 		}
 
-		parseErr = c.parseCall(&p, call) // parseCall sets CapTable
+		parseErr = c.parseCall(rl, &p, call) // parseCall sets CapTable
 	})
 	if err != nil {
 		return err
@@ -943,7 +943,7 @@ type parsedMessageTarget struct {
 	transform      []capnp.PipelineOp
 }
 
-func (c *lockedConn) parseCall(p *parsedCall, call rpccp.Call) error {
+func (c *lockedConn) parseCall(rl *releaseList, p *parsedCall, call rpccp.Call) error {
 	p.method = capnp.Method{
 		InterfaceID: call.InterfaceId(),
 		MethodID:    call.MethodId(),
@@ -952,7 +952,7 @@ func (c *lockedConn) parseCall(p *parsedCall, call rpccp.Call) error {
 	if err != nil {
 		return rpcerr.WrapFailed("read params", err)
 	}
-	ptr, _, err := c.recvPayload(payload)
+	ptr, _, err := c.recvPayload(rl, payload)
 	if err != nil {
 		return rpcerr.Annotate(err, "read params")
 	}
@@ -1066,7 +1066,7 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp
 			}
 			return nil
 		}
-		pr := c.parseReturn(ret, q.called) // fills in CapTable
+		pr := c.parseReturn(rl, ret, q.called) // fills in CapTable
 		if pr.parseFailed {
 			c.er.ReportError(rpcerr.Annotate(pr.err, "incoming return"))
 		}
@@ -1135,14 +1135,14 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp
 	})
 }
 
-func (c *lockedConn) parseReturn(ret rpccp.Return, called [][]capnp.PipelineOp) parsedReturn {
+func (c *lockedConn) parseReturn(rl *releaseList, ret rpccp.Return, called [][]capnp.PipelineOp) parsedReturn {
 	switch w := ret.Which(); w {
 	case rpccp.Return_Which_results:
 		r, err := ret.Results()
 		if err != nil {
 			return parsedReturn{err: rpcerr.WrapFailed("parse return", err), parseFailed: true}
 		}
-		content, locals, err := c.recvPayload(r)
+		content, locals, err := c.recvPayload(rl, r)
 		if err != nil {
 			return parsedReturn{err: rpcerr.WrapFailed("parse return", err), parseFailed: true}
 		}
@@ -1367,7 +1367,7 @@ func (c *lockedConn) isLocalClient(client capnp.Client) bool {
 // the capability table that represent capabilities in the local vat.
 //
 // The caller must be holding onto c.lk.
-func (c *lockedConn) recvPayload(payload rpccp.Payload) (_ capnp.Ptr, locals uintSet, _ error) {
+func (c *lockedConn) recvPayload(rl *releaseList, payload rpccp.Payload) (_ capnp.Ptr, locals uintSet, _ error) {
 	if !payload.IsValid() {
 		// null pointer; in this case we can treat the cap table as being empty
 		// and just return.
@@ -1393,10 +1393,8 @@ func (c *lockedConn) recvPayload(payload rpccp.Payload) (_ capnp.Ptr, locals uin
 		var err error
 		mtab[i], err = c.recvCap(ptab.At(i))
 		if err != nil {
-			// FIXME: is it safe to release these while holding c.lk? In general,
-			// it's possible for Client.Release() to deadlock.
 			for _, client := range mtab[:i] {
-				client.Release()
+				rl.Add(client.Release)
 			}
 			return capnp.Ptr{}, nil, rpcerr.Annotate(
 				err, "read payload: capability "+str.Itod(i),
