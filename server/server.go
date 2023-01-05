@@ -100,6 +100,9 @@ type Server struct {
 	// Calls are inserted into this queue, to be handled
 	// by a goroutine running handleCalls()
 	callQueue *mpsc.Queue[*Call]
+
+	// Handler for custom behavior of unknown methods
+	HandleUnknownMethod func(m capnp.Method) *Method
 }
 
 // New returns a client hook that makes calls to a set of methods.
@@ -126,6 +129,9 @@ func New(methods []Method, brand any, shutdown Shutdowner) *Server {
 // Send starts a method call.
 func (srv *Server) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, capnp.ReleaseFunc) {
 	mm := srv.methods.find(s.Method)
+	if mm == nil && srv.HandleUnknownMethod != nil {
+		mm = srv.HandleUnknownMethod(s.Method)
+	}
 	if mm == nil {
 		return capnp.ErrorAnswer(s.Method, capnp.Unimplemented("unimplemented")), func() {}
 	}
@@ -151,6 +157,9 @@ func (srv *Server) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, capnp
 // Recv starts a method call.
 func (srv *Server) Recv(ctx context.Context, r capnp.Recv) capnp.PipelineCaller {
 	mm := srv.methods.find(r.Method)
+	if mm == nil && srv.HandleUnknownMethod != nil {
+		mm = srv.HandleUnknownMethod(r.Method)
+	}
 	if mm == nil {
 		r.Reject(capnp.Unimplemented("unimplemented"))
 		return nil

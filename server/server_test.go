@@ -5,7 +5,10 @@ import (
 	"errors"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"capnproto.org/go/capnp/v3"
 	air "capnproto.org/go/capnp/v3/internal/aircraftlib"
@@ -90,6 +93,47 @@ func TestServerCall(t *testing.T) {
 				t.Errorf("echo.Echo() error = %v; want error containing \"echo\"", err)
 			}
 		}
+	})
+	t.Run("Unimplemented hook", func(t *testing.T) {
+		t.Parallel()
+		var echoText = "are you there?"
+		var proxyReceived atomic.Value
+
+		// start a proxy server with hook
+		srv := server.New(nil, nil, nil)
+		srv.HandleUnknownMethod = func(method capnp.Method) *server.Method {
+			sm := server.Method{
+				Method: method,
+				Impl:   nil,
+			}
+			sm.Impl = func(ctx context.Context, call *server.Call) error {
+				echoArgs := air.Echo_echo_Params(call.Args())
+				inText, err := echoArgs.In()
+				require.NoError(t, err)
+				proxyReceived.Store(inText)
+				// pretend we received an answer
+				echo := air.Echo_echo{Call: call}
+				resp, _ := echo.AllocResults()
+				err = resp.SetOut(inText)
+				return err
+			}
+			return &sm
+		}
+		blankBoot := capnp.NewClient(srv)
+		echoClient := air.Echo(blankBoot)
+		defer echoClient.Release()
+
+		ans, finish := echoClient.Echo(context.Background(), func(p air.Echo_echo_Params) error {
+			err := p.SetIn(echoText)
+			return err
+		})
+		defer finish()
+		resp, err := ans.Struct()
+		answerOut, _ := resp.Out()
+		rxValue := proxyReceived.Load()
+		require.Equal(t, echoText, rxValue)
+		assert.Equal(t, echoText, answerOut)
+		assert.NoError(t, err, "echo.Echo() error != <nil>; want success")
 	})
 }
 
