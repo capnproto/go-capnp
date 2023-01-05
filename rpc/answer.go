@@ -189,8 +189,8 @@ func (ans *answer) Return(e error) {
 	defer ans.pcalls.Wait()
 
 	if e != nil {
-		syncutil.With(&ans.c.lk, func() {
-			ans.sendException(rl, e)
+		ans.c.withLocked(func(c *lockedConn) {
+			ans.sendException(c, rl, e)
 		})
 		ans.c.tasks.Done() // added by handleCall
 		return
@@ -257,21 +257,23 @@ func (ans *answer) sendReturn(c *lockedConn, rl *releaseList) error {
 		}
 		ans.sendMsg()
 		if fin {
-			return ans.destroy(rl)
+			return ans.destroy(c, rl)
 		}
 	}
 	ans.flags |= returnSent
 	if !ans.flags.Contains(finishReceived) {
 		return nil
 	}
-	return ans.destroy(rl)
+	return ans.destroy(c, rl)
 }
 
 // sendException sends an exception on the answer's return message.
 //
 // The caller MUST be holding onto ans.c.lk. sendException MUST NOT
 // be called if sendReturn was previously called.
-func (ans *answer) sendException(rl *releaseList, ex error) {
+func (ans *answer) sendException(c *lockedConn, rl *releaseList, ex error) {
+	c.assertIs(ans.c)
+
 	ans.err = ex
 	ans.pcall = nil
 	ans.flags |= resultsReady
@@ -300,7 +302,7 @@ func (ans *answer) sendException(rl *releaseList, ex error) {
 	if ans.flags.Contains(finishReceived) {
 		// destroy will never return an error because sendException does
 		// create any exports.
-		_ = ans.destroy(rl)
+		_ = ans.destroy(c, rl)
 	}
 }
 
@@ -309,12 +311,14 @@ func (ans *answer) sendException(rl *releaseList, ex error) {
 // The caller must be holding onto ans.c.lk.
 //
 // shutdown has its own strategy for cleaning up an answer.
-func (ans *answer) destroy(rl *releaseList) error {
+func (ans *answer) destroy(c *lockedConn, rl *releaseList) error {
+	c.assertIs(ans.c)
+
 	rl.Add(ans.msgReleaser.Decr)
-	delete(ans.c.lk.answers, ans.id)
+	delete(c.lk.answers, ans.id)
 	if !ans.flags.Contains(releaseResultCapsFlag) || len(ans.exportRefs) == 0 {
 		return nil
 
 	}
-	return ans.c.releaseExportRefs(rl, ans.exportRefs)
+	return c.releaseExportRefs(rl, ans.exportRefs)
 }

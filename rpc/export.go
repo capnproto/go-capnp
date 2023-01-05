@@ -38,13 +38,13 @@ func (c *lockedConn) setExportID(m *capnp.Metadata, id exportID) {
 	m.Put(exportIDKey{(*Conn)(c)}, id)
 }
 
-func (c *Conn) clearExportID(m *capnp.Metadata) {
-	m.Delete(exportIDKey{c})
+func (c *lockedConn) clearExportID(m *capnp.Metadata) {
+	m.Delete(exportIDKey{(*Conn)(c)})
 }
 
 // findExport returns the export entry with the given ID or nil if
 // couldn't be found. The caller must be holding c.mu
-func (c *Conn) findExport(id exportID) *expent {
+func (c *lockedConn) findExport(id exportID) *expent {
 	if int64(id) >= int64(len(c.lk.exports)) {
 		return nil
 	}
@@ -57,7 +57,7 @@ func (c *Conn) findExport(id exportID) *expent {
 // export's client.  The caller must be holding onto c.mu, and the
 // caller is responsible for releasing the client once the caller is no
 // longer holding onto c.mu.
-func (c *Conn) releaseExport(id exportID, count uint32) (capnp.Client, error) {
+func (c *lockedConn) releaseExport(id exportID, count uint32) (capnp.Client, error) {
 	ent := c.findExport(id)
 	if ent == nil {
 		return capnp.Client{}, rpcerr.Failed(errors.New("unknown export ID " + str.Utod(id)))
@@ -80,7 +80,7 @@ func (c *Conn) releaseExport(id exportID, count uint32) (capnp.Client, error) {
 	}
 }
 
-func (c *Conn) releaseExportRefs(rl *releaseList, refs map[exportID]uint32) error {
+func (c *lockedConn) releaseExportRefs(rl *releaseList, refs map[exportID]uint32) error {
 	n := len(refs)
 	var firstErr error
 	for id, count := range refs {
@@ -211,7 +211,7 @@ type embargo struct {
 // embargo creates a new embargoed client, stealing the reference.
 //
 // The caller must be holding onto c.mu.
-func (c *Conn) embargo(client capnp.Client) (embargoID, capnp.Client) {
+func (c *lockedConn) embargo(client capnp.Client) (embargoID, capnp.Client) {
 	id := embargoID(c.lk.embargoID.next())
 	e := &embargo{
 		c:      client,

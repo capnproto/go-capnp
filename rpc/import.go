@@ -51,14 +51,14 @@ type impent struct {
 // This is separate from the reference counting that capnp.Client does.
 //
 // The caller must be holding onto c.mu.
-func (c *Conn) addImport(id importID) capnp.Client {
+func (c *lockedConn) addImport(id importID) capnp.Client {
 	if ent := c.lk.imports[id]; ent != nil {
 		ent.wireRefs++
 		client, ok := ent.wc.AddRef()
 		if !ok {
 			ent.generation++
 			client = capnp.NewClient(&importClient{
-				c:          c,
+				c:          (*Conn)(c),
 				id:         id,
 				generation: ent.generation,
 			})
@@ -67,7 +67,7 @@ func (c *Conn) addImport(id importID) capnp.Client {
 		return client
 	}
 	client := capnp.NewClient(&importClient{
-		c:  c,
+		c:  (*Conn)(c),
 		id: id,
 	})
 	c.lk.imports[id] = &impent{
