@@ -93,13 +93,15 @@ func (aq *answerQueue) fulfill(s capnp.Struct) {
 	// fulfill just needs to guarantee delivery, not completion.
 	// TODO(maybe): avoid goroutine if return already happened
 	for i := range embargoes {
-		go func(e *returnEmbargoer, ret capnp.Returner) {
+		e := &embargoes[i]
+		ret := q[i].Returner
+		go func() {
 			<-e.returned
 			e.mu.Lock()
 			err := e.err
 			e.mu.Unlock()
 			ret.Return(err)
-		}(&embargoes[i], q[i].Returner)
+		}()
 	}
 }
 
