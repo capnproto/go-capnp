@@ -222,6 +222,7 @@ func (srv *Server) handleCall(ctx context.Context, c *Call) {
 		c.aq.reject(err)
 	}
 	c.recv.Returner.Return(err)
+	c.recv.Returner.ReleaseResults()
 }
 
 func (srv *Server) start(ctx context.Context, m *Method, r capnp.Recv) capnp.PipelineCaller {

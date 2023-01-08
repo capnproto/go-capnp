@@ -180,13 +180,16 @@ func (qc queueCaller) PipelineSend(ctx context.Context, transform []capnp.Pipeli
 // message.  It is safe to use from multiple goroutines.  The zero value
 // is a Returner in its initial state.
 type structReturner struct {
-	mu      sync.Mutex     // guards all fields
-	p       *capnp.Promise // assigned at most once
-	alloced bool
+	mu       sync.Mutex     // guards all fields
+	p        *capnp.Promise // assigned at most once
+	alloced  bool
+	released bool
+	msg      *capnp.Message // assigned at most once
 
 	returned bool         // indicates whether the below fields are filled in
 	result   capnp.Struct // assigned at most once
 	err      error        // assigned at most once
+
 }
 
 func (sr *structReturner) AllocResults(sz capnp.ObjectSize) (capnp.Struct, error) {
@@ -201,6 +204,7 @@ func (sr *structReturner) AllocResults(sz capnp.ObjectSize) (capnp.Struct, error
 		return capnp.Struct{}, exc.WrapError("alloc results", err)
 	}
 	sr.result = s
+	sr.msg = s.Message()
 	return s, nil
 }
 
@@ -217,16 +221,37 @@ func (sr *structReturner) Return(e error) {
 			sr.p.Fulfill(sr.result.ToPtr())
 		}
 	} else {
-		msg := sr.result.Message()
 		sr.result = capnp.Struct{}
 		sr.err = e
 		sr.mu.Unlock()
-		if msg != nil {
-			msg.Reset(nil)
-		}
 		if sr.p != nil {
 			sr.p.Reject(e)
 		}
+	}
+}
+
+func (sr *structReturner) ReleaseResults() {
+	sr.mu.Lock()
+	alloced := sr.alloced
+	returned := sr.returned
+	released := sr.released
+	err := sr.err
+	msg := sr.msg
+	sr.msg = nil
+	sr.released = true
+	sr.mu.Unlock()
+
+	if !returned {
+		panic("ReleaseResults() called before Return()")
+	}
+	if released {
+		panic("ReleaseResults() called twice")
+	}
+	if !alloced {
+		return
+	}
+	if err != nil && msg != nil {
+		msg.Reset(nil)
 	}
 }
 

@@ -155,6 +155,7 @@ func (ans *answer) AllocResults(sz capnp.ObjectSize) (capnp.Struct, error) {
 	if err := ans.results.SetContent(s.ToPtr()); err != nil {
 		return capnp.Struct{}, rpcerr.WrapFailed("alloc results", err)
 	}
+	ans.msgReleaser.Incr()
 	return s, nil
 }
 
@@ -209,6 +210,12 @@ func (ans *answer) Return(e error) {
 
 	if err = ans.c.shutdown(err); err != nil {
 		ans.c.er.ReportError(err)
+	}
+}
+
+func (ans *answer) ReleaseResults() {
+	if ans.results.IsValid() {
+		ans.msgReleaser.Decr()
 	}
 }
 
