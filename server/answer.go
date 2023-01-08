@@ -74,34 +74,10 @@ func (aq *answerQueue) fulfill(s capnp.Struct) {
 	aq.mu.Unlock()
 
 	// Drain queue.
-	embargoes := make([]returnEmbargoer, len(q))
 	for i := range q {
 		ent := &q[i]
 		recv := aq.bases[ent.basis].recv
-		embargoes[i].alloc = ent.Returner
-		embargoes[i].returned = make(chan struct{})
-		embargoes[i].pcall = recv(ent.ctx, ent.path, capnp.Recv{
-			Method:      ent.Method,
-			Args:        ent.Args,
-			ReleaseArgs: ent.ReleaseArgs,
-			Returner:    &embargoes[i],
-		})
-		aq.bases[i+1].recv = (&embargoes[i]).recv
-	}
-
-	// Asynchronously deliver returns.
-	// fulfill just needs to guarantee delivery, not completion.
-	// TODO(maybe): avoid goroutine if return already happened
-	for i := range embargoes {
-		e := &embargoes[i]
-		ret := q[i].Returner
-		go func() {
-			<-e.returned
-			e.mu.Lock()
-			err := e.err
-			e.mu.Unlock()
-			ret.Return(err)
-		}()
+		recv(ent.ctx, ent.path, ent.Recv)
 	}
 }
 
@@ -288,54 +264,5 @@ func (sr *structReturner) answer(m capnp.Method, pcall capnp.PipelineCaller) (*c
 		if msg != nil {
 			msg.Reset(nil)
 		}
-	}
-}
-
-// returnEmbargoer collects a return result without sending it anywhere,
-// while allowing pipeline calls.
-type returnEmbargoer struct {
-	alloc    resultsAllocer
-	pcall    capnp.PipelineCaller
-	calls    sync.WaitGroup
-	returned chan struct{} // closed after result and err finalized
-
-	mu     sync.Mutex
-	result capnp.Struct
-	err    error
-}
-
-func (re *returnEmbargoer) AllocResults(sz capnp.ObjectSize) (capnp.Struct, error) {
-	s, err := re.alloc.AllocResults(sz)
-	re.mu.Lock()
-	re.result = s
-	re.mu.Unlock()
-	return s, err
-}
-
-func (re *returnEmbargoer) Return(e error) {
-	re.mu.Lock()
-	re.err = e
-	close(re.returned)
-	re.mu.Unlock()
-	re.calls.Wait()
-}
-
-// recv starts a pipelined call on the answer, either using the
-// PipelineCaller or a client in the returned result.
-func (re *returnEmbargoer) recv(ctx context.Context, transform []capnp.PipelineOp, r capnp.Recv) capnp.PipelineCaller {
-	re.mu.Lock()
-	select {
-	case <-re.returned:
-		re.mu.Unlock()
-		if re.err != nil {
-			r.Reject(re.err)
-			return nil
-		}
-		return capnp.ImmediateAnswer(r.Method, re.result).PipelineRecv(ctx, transform, r)
-	default:
-		re.calls.Add(1)
-		defer re.calls.Done()
-		re.mu.Unlock()
-		return re.pcall.PipelineRecv(ctx, transform, r)
 	}
 }
