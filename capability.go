@@ -874,8 +874,9 @@ func (r Recv) Reject(e error) {
 type Returner interface {
 	// AllocResults allocates the results struct that will be sent using
 	// Return.  It can be called at most once, and only before calling
-	// Return.  The struct returned by AllocResults cannot be used after
-	// Return is called.
+	// Return.  The struct returned by AllocResults must not be mutated
+	// after Return is called, and may not be accessed after
+	// ReleaseResults is called.
 	AllocResults(sz ObjectSize) (Struct, error)
 
 	// Return resolves the method call successfully if e is nil, or failure
@@ -885,6 +886,13 @@ type Returner interface {
 	// and after it returns, no new calls can be sent to the PipelineCaller
 	// returned from Recv.
 	Return(e error)
+
+	// ReleaseResults relinquishes the caller's access to the message
+	// containing the results; once this is called the message may be
+	// released or reused, and it is not safe to access.
+	//
+	// If AllocResults has not been called, then this is a no-op.
+	ReleaseResults()
 }
 
 // A ReleaseFunc tells the RPC system that a parameter or result struct

@@ -190,6 +190,7 @@ func (ic *importClient) Recv(ctx context.Context, r capnp.Recv) capnp.PipelineCa
 
 func returnAnswer(ret capnp.Returner, ans *capnp.Answer, finish func()) {
 	defer finish()
+	defer ret.ReleaseResults()
 	result, err := ans.Struct()
 	if err != nil {
 		ret.Return(err)

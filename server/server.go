@@ -216,12 +216,13 @@ func (srv *Server) handleCall(ctx context.Context, c *Call) {
 	err := c.method.Impl(ctx, c)
 
 	c.recv.ReleaseArgs()
+	c.recv.Returner.Return(err)
 	if err == nil {
 		c.aq.fulfill(c.results)
 	} else {
 		c.aq.reject(err)
 	}
-	c.recv.Returner.Return(err)
+	c.recv.Returner.ReleaseResults()
 }
 
 func (srv *Server) start(ctx context.Context, m *Method, r capnp.Recv) capnp.PipelineCaller {

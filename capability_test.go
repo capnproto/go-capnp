@@ -311,6 +311,9 @@ func (dr *dummyReturner) Return(e error) {
 	dr.err = e
 }
 
+func (dr *dummyReturner) ReleaseResults() {
+}
+
 func TestToInterface(t *testing.T) {
 	_, seg, err := NewMessage(SingleSegment(nil))
 	if err != nil {
