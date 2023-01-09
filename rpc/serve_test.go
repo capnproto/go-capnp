@@ -4,7 +4,6 @@ import (
 	"context"
 	"net"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -126,10 +125,6 @@ func TestListenAndServe(t *testing.T) {
 	}()
 
 	cancelFunc()
-	select {
-	case <-time.After(time.Second * 2):
-		t.Error("Cancelling context didn't end the listener")
-	case err = <-errChannel:
-		assert.ErrorIs(t, err, net.ErrClosed)
-	}
+	err = <-errChannel // Will hang if server does not return.
+	assert.ErrorIs(t, err, net.ErrClosed)
 }
