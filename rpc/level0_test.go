@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"net"
 	"os"
 	"runtime"
@@ -68,7 +69,9 @@ func TestSendAbort(t *testing.T) {
 			ErrorReporter: testErrorReporter{tb: t, fail: true},
 			// Give it plenty of time to actually send the message;
 			// otherwise we might time out and close the connection first.
-			AbortTimeout: time.Second,
+			// "plenty of time" here really means defer to the test suite's
+			// timeout.
+			AbortTimeout: time.Duration(math.MaxInt64),
 		})
 
 		ctx := context.Background()
