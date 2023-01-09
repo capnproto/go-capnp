@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"net"
 	"os"
 	"runtime"
@@ -68,7 +69,9 @@ func TestSendAbort(t *testing.T) {
 			ErrorReporter: testErrorReporter{tb: t, fail: true},
 			// Give it plenty of time to actually send the message;
 			// otherwise we might time out and close the connection first.
-			AbortTimeout: time.Second,
+			// "plenty of time" here really means defer to the test suite's
+			// timeout.
+			AbortTimeout: time.Duration(math.MaxInt64),
 		})
 
 		ctx := context.Background()
@@ -148,11 +151,10 @@ func TestRecvAbort(t *testing.T) {
 	})
 	require.NoError(t, err, "must send 'failed' exception")
 
-	boot := conn.Bootstrap(context.Background())
+	ctx := context.Background()
+	boot := conn.Bootstrap(ctx)
 	defer boot.Release()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
 	err = boot.Resolve(ctx)
 	require.NoError(t, err, "should resolve bootstrap capability")
 
