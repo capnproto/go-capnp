@@ -148,11 +148,10 @@ func TestRecvAbort(t *testing.T) {
 	})
 	require.NoError(t, err, "must send 'failed' exception")
 
-	boot := conn.Bootstrap(context.Background())
+	ctx := context.Background()
+	boot := conn.Bootstrap(ctx)
 	defer boot.Release()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
 	err = boot.Resolve(ctx)
 	require.NoError(t, err, "should resolve bootstrap capability")
 
