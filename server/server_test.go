@@ -266,17 +266,12 @@ func TestPipelineCall(t *testing.T) {
 	defer finish()
 
 	result1, err := ans1.Struct()
-	if err != nil {
-		t.Errorf("GetNumber() #1: %v", err)
-	} else if result1.N() != 0 {
-		t.Errorf("GetNumber() #1 = %d; want 0", result1.N())
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, uint32(0), result1.N())
+
 	result2, err := ans2.Struct()
-	if err != nil {
-		t.Errorf("GetNumber() #2: %v", err)
-	} else if result2.N() != 1 {
-		t.Errorf("GetNumber() #2 = %d; want 1", result2.N())
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, uint32(1), result2.N())
 }
 
 func TestBrokenPipelineCall(t *testing.T) {
