@@ -761,7 +761,9 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 
 				return nil
 			}, func(err error) {
-				c.er.ReportError(rpcerr.Annotate(err, "incoming call: send unimplemented"))
+				if err != nil {
+					c.er.ReportError(rpcerr.Annotate(err, "incoming call: send unimplemented"))
+				}
 			})
 		})
 
