@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+	"sync/atomic"
 
 	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/exc"
@@ -179,16 +180,10 @@ func (srv *Server) handleCalls(ctx context.Context) {
 		// (ctx); we need to monitor both and pass the call a
 		// context that will be canceled if *either* context is
 		// cancelled.
-		callCtx, cancelCall := context.WithCancel(call.ctx)
-		go func() {
-			defer cancelCall()
-			select {
-			case <-callCtx.Done():
-			case <-ctx.Done():
-			}
-		}()
 		func() {
+			callCtx, cancelCall := newCallContext(ctx)
 			defer cancelCall()
+
 			srv.handleCall(callCtx, call)
 		}()
 
@@ -216,13 +211,40 @@ func (srv *Server) handleCall(ctx context.Context, c *Call) {
 	err := c.method.Impl(ctx, c)
 
 	c.recv.ReleaseArgs()
-	c.recv.Returner.Return(err)
+	defer c.recv.Returner.ReleaseResults()
+
 	if err == nil {
+		c.recv.Returner.Return(nil)
 		c.aq.fulfill(c.results)
 	} else {
+		c.recv.Returner.Return(err)
 		c.aq.reject(err)
 	}
-	c.recv.Returner.ReleaseResults()
+}
+
+type callContext struct {
+	context.Context
+	userCanceled atomic.Bool
+}
+
+func newCallContext(ctx context.Context) (*callContext, context.CancelFunc) {
+	subContext, cancel := context.WithCancel(ctx)
+	ccx := &callContext{Context: subContext}
+	return ccx, func() {
+		if ctx.Err() == nil {
+			ccx.userCanceled.Store(true)
+		}
+
+		cancel()
+	}
+}
+
+func (ctx *callContext) Err() (err error) {
+	if ctx.userCanceled.Load() {
+		err = ctx.Context.Err()
+	}
+
+	return
 }
 
 func (srv *Server) start(ctx context.Context, m *Method, r capnp.Recv) capnp.PipelineCaller {
