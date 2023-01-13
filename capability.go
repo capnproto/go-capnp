@@ -882,7 +882,9 @@ type Returner interface {
 	AllocResults(sz ObjectSize) (Struct, error)
 
 	// PrepareReturn finalizes the return message. The method call will
-	// resolve successfully if e is nil, or otherwise it will fail.
+	// resolve successfully if e is nil, or otherwise it will return an
+	// exception to the caller.
+	//
 	// PrepareReturn must be called once.
 	//
 	// After PrepareReturn is invoked, no goroutine may modify the message
