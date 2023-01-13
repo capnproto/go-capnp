@@ -246,8 +246,6 @@ func (ans *answer) prepareSendReturn(c *lockedConn, rl *releaseList) {
 	var err error
 	ans.exportRefs, err = c.fillPayloadCapTable(ans.results)
 	if err != nil {
-		// We're not going to send the message after all, so don't forget to release it.
-		ans.msgReleaser.Decr()
 		ans.c.er.ReportError(rpcerr.Annotate(err, "send return"))
 	}
 	// Continue.  Don't fail to send return if cap table isn't fully filled.
