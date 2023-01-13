@@ -290,16 +290,13 @@ func (ans *answer) completeSendReturn(c *lockedConn, rl *releaseList) error {
 // The caller MUST be holding onto ans.c.lk. sendException MUST NOT
 // be called if sendReturn was previously called.
 func (ans *answer) sendException(c *lockedConn, rl *releaseList, ex error) {
+	ans.prepareSendException(c, rl, ex)
+	ans.completeSendException(c, rl)
+}
+
+func (ans *answer) prepareSendException(c *lockedConn, rl *releaseList, ex error) {
 	c.assertIs(ans.c)
-
 	ans.err = ex
-	ans.pcall = nil
-	ans.flags |= resultsReady
-
-	if ans.promise != nil {
-		ans.promise.Reject(ex)
-		ans.promise = nil
-	}
 
 	select {
 	case <-ans.c.bgctx.Done():
@@ -307,14 +304,30 @@ func (ans *answer) sendException(c *lockedConn, rl *releaseList, ex error) {
 		// Send exception.
 		if e, err := ans.ret.NewException(); err != nil {
 			ans.c.er.ReportError(exc.WrapError("send exception", err))
+			ans.sendMsg = nil
 		} else {
 			e.SetType(rpccp.Exception_Type(exc.TypeOf(ex)))
 			if err := e.SetReason(ex.Error()); err != nil {
 				ans.c.er.ReportError(exc.WrapError("send exception", err))
-			} else {
-				ans.sendMsg()
+				ans.sendMsg = nil
 			}
 		}
+	}
+}
+
+func (ans *answer) completeSendException(c *lockedConn, rl *releaseList) {
+	c.assertIs(ans.c)
+
+	ex := ans.err
+	ans.pcall = nil
+	ans.flags |= resultsReady
+
+	if ans.promise != nil {
+		ans.promise.Reject(ex)
+		ans.promise = nil
+	}
+	if ans.sendMsg != nil {
+		ans.sendMsg()
 	}
 	ans.flags |= returnSent
 	if ans.flags.Contains(finishReceived) {
