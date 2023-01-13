@@ -306,9 +306,12 @@ func (dr *dummyReturner) AllocResults(sz ObjectSize) (Struct, error) {
 	return dr.s, err
 }
 
-func (dr *dummyReturner) Return(e error) {
-	dr.returned = true
+func (dr *dummyReturner) PrepareReturn(e error) {
 	dr.err = e
+}
+
+func (dr *dummyReturner) Return() {
+	dr.returned = true
 }
 
 func (dr *dummyReturner) ReleaseResults() {

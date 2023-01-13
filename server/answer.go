@@ -207,14 +207,20 @@ func (sr *structReturner) AllocResults(sz capnp.ObjectSize) (capnp.Struct, error
 	sr.msg = s.Message()
 	return s, nil
 }
+func (sr *structReturner) PrepareReturn(e error) {
+	sr.mu.Lock()
+	defer sr.mu.Unlock()
+	sr.err = e
+}
 
-func (sr *structReturner) Return(e error) {
+func (sr *structReturner) Return() {
 	sr.mu.Lock()
 	if sr.returned {
 		sr.mu.Unlock()
 		panic("structReturner.Return called twice")
 	}
 	sr.returned = true
+	e := sr.err
 	if e == nil {
 		sr.mu.Unlock()
 		if sr.p != nil {
@@ -222,7 +228,6 @@ func (sr *structReturner) Return(e error) {
 		}
 	} else {
 		sr.result = capnp.Struct{}
-		sr.err = e
 		sr.mu.Unlock()
 		if sr.p != nil {
 			sr.p.Reject(e)

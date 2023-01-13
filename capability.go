@@ -857,7 +857,8 @@ func (r Recv) AllocResults(sz ObjectSize) (Struct, error) {
 // Return ends the method call successfully, releasing the arguments.
 func (r Recv) Return() {
 	r.ReleaseArgs()
-	r.Returner.Return(nil)
+	r.Returner.PrepareReturn(nil)
+	r.Returner.Return()
 }
 
 // Reject ends the method call with an error, releasing the arguments.
@@ -866,7 +867,8 @@ func (r Recv) Reject(e error) {
 		panic("Reject(nil)")
 	}
 	r.ReleaseArgs()
-	r.Returner.Return(e)
+	r.Returner.PrepareReturn(e)
+	r.Returner.Return()
 }
 
 // A Returner allocates and sends the results from a received
@@ -879,13 +881,23 @@ type Returner interface {
 	// ReleaseResults is called.
 	AllocResults(sz ObjectSize) (Struct, error)
 
-	// Return resolves the method call successfully if e is nil, or failure
-	// otherwise.  Return must be called once.
+	// PrepareReturn finalizes the return message. The method call will
+	// resolve successfully if e is nil, or otherwise it will return an
+	// exception to the caller.
+	//
+	// PrepareReturn must be called once.
+	//
+	// After PrepareReturn is invoked, no goroutine may modify the message
+	// containing the results.
+	PrepareReturn(e error)
+
+	// Return resolves the method call, using the results finalized in
+	// PrepareReturn. Return must be called once.
 	//
 	// Return must wait for all ongoing pipelined calls to be delivered,
 	// and after it returns, no new calls can be sent to the PipelineCaller
 	// returned from Recv.
-	Return(e error)
+	Return()
 
 	// ReleaseResults relinquishes the caller's access to the message
 	// containing the results; once this is called the message may be

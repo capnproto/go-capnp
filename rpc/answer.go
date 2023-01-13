@@ -180,27 +180,33 @@ func (ans *answer) setBootstrap(c capnp.Client) error {
 	return nil
 }
 
-// Return sends the return message.
-//
-// The caller MUST NOT hold ans.c.lk.
-func (ans *answer) Return(e error) {
+// PrepareReturn implements capnp.Returner.PrepareReturn
+func (ans *answer) PrepareReturn(e error) {
 	rl := &releaseList{}
 	defer rl.Release()
 
+	ans.c.withLocked(func(c *lockedConn) {
+		if e == nil {
+			ans.prepareSendReturn(c, rl)
+		} else {
+			ans.prepareSendException(c, rl, e)
+		}
+	})
+}
+
+// Return implements capnp.Returner.Return
+func (ans *answer) Return() {
+	rl := &releaseList{}
+	defer rl.Release()
 	defer ans.pcalls.Wait()
 
-	if e != nil {
-		ans.c.withLocked(func(c *lockedConn) {
-			ans.sendException(c, rl, e)
-		})
-		ans.c.tasks.Done() // added by handleCall
-		return
-	}
-
 	var err error
-
 	ans.c.withLocked(func(c *lockedConn) {
-		err = ans.sendReturn(c, rl)
+		if ans.err == nil {
+			err = ans.completeSendReturn(c, rl)
+		} else {
+			ans.completeSendException(c, rl)
+		}
 	})
 	ans.c.tasks.Done() // added by handleCall
 
@@ -230,10 +236,12 @@ func (ans *answer) ReleaseResults() {
 //
 // sendReturn MUST NOT be called if sendException was previously called.
 func (ans *answer) sendReturn(c *lockedConn, rl *releaseList) error {
-	c.assertIs(ans.c)
+	ans.prepareSendReturn(c, rl)
+	return ans.completeSendReturn(c, rl)
+}
 
-	ans.pcall = nil
-	ans.flags |= resultsReady
+func (ans *answer) prepareSendReturn(c *lockedConn, rl *releaseList) {
+	c.assertIs(ans.c)
 
 	var err error
 	ans.exportRefs, err = c.fillPayloadCapTable(ans.results)
@@ -248,8 +256,19 @@ func (ans *answer) sendReturn(c *lockedConn, rl *releaseList) error {
 	case <-ans.c.bgctx.Done():
 		// We're not going to send the message after all, so don't forget to release it.
 		ans.msgReleaser.Decr()
+		ans.sendMsg = nil
 	default:
-		fin := ans.flags.Contains(finishReceived)
+	}
+}
+
+func (ans *answer) completeSendReturn(c *lockedConn, rl *releaseList) error {
+	c.assertIs(ans.c)
+
+	ans.pcall = nil
+	ans.flags |= resultsReady
+
+	fin := ans.flags.Contains(finishReceived)
+	if ans.sendMsg != nil {
 		if ans.promise != nil {
 			if fin {
 				// Can't use ans.result after a finish, but it's
@@ -263,15 +282,13 @@ func (ans *answer) sendReturn(c *lockedConn, rl *releaseList) error {
 			ans.promise = nil
 		}
 		ans.sendMsg()
-		if fin {
-			return ans.destroy(c, rl)
-		}
 	}
+
 	ans.flags |= returnSent
-	if !ans.flags.Contains(finishReceived) {
-		return nil
+	if fin {
+		return ans.destroy(c, rl)
 	}
-	return ans.destroy(c, rl)
+	return nil
 }
 
 // sendException sends an exception on the answer's return message.
@@ -279,16 +296,13 @@ func (ans *answer) sendReturn(c *lockedConn, rl *releaseList) error {
 // The caller MUST be holding onto ans.c.lk. sendException MUST NOT
 // be called if sendReturn was previously called.
 func (ans *answer) sendException(c *lockedConn, rl *releaseList, ex error) {
+	ans.prepareSendException(c, rl, ex)
+	ans.completeSendException(c, rl)
+}
+
+func (ans *answer) prepareSendException(c *lockedConn, rl *releaseList, ex error) {
 	c.assertIs(ans.c)
-
 	ans.err = ex
-	ans.pcall = nil
-	ans.flags |= resultsReady
-
-	if ans.promise != nil {
-		ans.promise.Reject(ex)
-		ans.promise = nil
-	}
 
 	select {
 	case <-ans.c.bgctx.Done():
@@ -296,14 +310,30 @@ func (ans *answer) sendException(c *lockedConn, rl *releaseList, ex error) {
 		// Send exception.
 		if e, err := ans.ret.NewException(); err != nil {
 			ans.c.er.ReportError(exc.WrapError("send exception", err))
+			ans.sendMsg = nil
 		} else {
 			e.SetType(rpccp.Exception_Type(exc.TypeOf(ex)))
 			if err := e.SetReason(ex.Error()); err != nil {
 				ans.c.er.ReportError(exc.WrapError("send exception", err))
-			} else {
-				ans.sendMsg()
+				ans.sendMsg = nil
 			}
 		}
+	}
+}
+
+func (ans *answer) completeSendException(c *lockedConn, rl *releaseList) {
+	c.assertIs(ans.c)
+
+	ex := ans.err
+	ans.pcall = nil
+	ans.flags |= resultsReady
+
+	if ans.promise != nil {
+		ans.promise.Reject(ex)
+		ans.promise = nil
+	}
+	if ans.sendMsg != nil {
+		ans.sendMsg()
 	}
 	ans.flags |= returnSent
 	if ans.flags.Contains(finishReceived) {

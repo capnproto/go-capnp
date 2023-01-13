@@ -193,19 +193,23 @@ func returnAnswer(ret capnp.Returner, ans *capnp.Answer, finish func()) {
 	defer ret.ReleaseResults()
 	result, err := ans.Struct()
 	if err != nil {
-		ret.Return(err)
+		ret.PrepareReturn(err)
+		ret.Return()
 		return
 	}
 	recvResult, err := ret.AllocResults(result.Size())
 	if err != nil {
-		ret.Return(err)
+		ret.PrepareReturn(err)
+		ret.Return()
 		return
 	}
 	if err := recvResult.CopyFrom(result); err != nil {
-		ret.Return(err)
+		ret.PrepareReturn(err)
+		ret.Return()
 		return
 	}
-	ret.Return(nil)
+	ret.PrepareReturn(nil)
+	ret.Return()
 }
 
 func (ic *importClient) Brand() capnp.Brand {

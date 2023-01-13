@@ -216,12 +216,13 @@ func (srv *Server) handleCall(ctx context.Context, c *Call) {
 	err := c.method.Impl(ctx, c)
 
 	c.recv.ReleaseArgs()
-	c.recv.Returner.Return(err)
+	c.recv.Returner.PrepareReturn(err)
 	if err == nil {
 		c.aq.fulfill(c.results)
 	} else {
 		c.aq.reject(err)
 	}
+	c.recv.Returner.Return()
 	c.recv.Returner.ReleaseResults()
 }
 
