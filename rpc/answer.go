@@ -180,27 +180,33 @@ func (ans *answer) setBootstrap(c capnp.Client) error {
 	return nil
 }
 
-// Return sends the return message.
-//
-// The caller MUST NOT hold ans.c.lk.
-func (ans *answer) Return(e error) {
+// PrepareReturn implements capnp.Returner.PrepareReturn
+func (ans *answer) PrepareReturn(e error) {
 	rl := &releaseList{}
 	defer rl.Release()
 
+	ans.c.withLocked(func(c *lockedConn) {
+		if e == nil {
+			ans.prepareSendReturn(c, rl)
+		} else {
+			ans.prepareSendException(c, rl, e)
+		}
+	})
+}
+
+// Return implements capnp.Returner.Return
+func (ans *answer) Return() {
+	rl := &releaseList{}
+	defer rl.Release()
 	defer ans.pcalls.Wait()
 
-	if e != nil {
-		ans.c.withLocked(func(c *lockedConn) {
-			ans.sendException(c, rl, e)
-		})
-		ans.c.tasks.Done() // added by handleCall
-		return
-	}
-
 	var err error
-
 	ans.c.withLocked(func(c *lockedConn) {
-		err = ans.sendReturn(c, rl)
+		if ans.err == nil {
+			err = ans.completeSendReturn(c, rl)
+		} else {
+			ans.completeSendException(c, rl)
+		}
 	})
 	ans.c.tasks.Done() // added by handleCall
 
