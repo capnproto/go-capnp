@@ -230,10 +230,12 @@ func (ans *answer) ReleaseResults() {
 //
 // sendReturn MUST NOT be called if sendException was previously called.
 func (ans *answer) sendReturn(c *lockedConn, rl *releaseList) error {
-	c.assertIs(ans.c)
+	ans.prepareSendReturn(c, rl)
+	return ans.completeSendReturn(c, rl)
+}
 
-	ans.pcall = nil
-	ans.flags |= resultsReady
+func (ans *answer) prepareSendReturn(c *lockedConn, rl *releaseList) {
+	c.assertIs(ans.c)
 
 	var err error
 	ans.exportRefs, err = c.fillPayloadCapTable(ans.results)
@@ -248,8 +250,19 @@ func (ans *answer) sendReturn(c *lockedConn, rl *releaseList) error {
 	case <-ans.c.bgctx.Done():
 		// We're not going to send the message after all, so don't forget to release it.
 		ans.msgReleaser.Decr()
+		ans.sendMsg = nil
 	default:
-		fin := ans.flags.Contains(finishReceived)
+	}
+}
+
+func (ans *answer) completeSendReturn(c *lockedConn, rl *releaseList) error {
+	c.assertIs(ans.c)
+
+	ans.pcall = nil
+	ans.flags |= resultsReady
+
+	fin := ans.flags.Contains(finishReceived)
+	if ans.sendMsg != nil {
 		if ans.promise != nil {
 			if fin {
 				// Can't use ans.result after a finish, but it's
@@ -263,15 +276,13 @@ func (ans *answer) sendReturn(c *lockedConn, rl *releaseList) error {
 			ans.promise = nil
 		}
 		ans.sendMsg()
-		if fin {
-			return ans.destroy(c, rl)
-		}
 	}
+
 	ans.flags |= returnSent
-	if !ans.flags.Contains(finishReceived) {
-		return nil
+	if fin {
+		return ans.destroy(c, rl)
 	}
-	return ans.destroy(c, rl)
+	return nil
 }
 
 // sendException sends an exception on the answer's return message.
