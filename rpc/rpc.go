@@ -761,7 +761,9 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 
 				return nil
 			}, func(err error) {
-				c.er.ReportError(rpcerr.Annotate(err, "incoming call: send unimplemented"))
+				if err != nil {
+					c.er.ReportError(rpcerr.Annotate(err, "incoming call: send unimplemented"))
+				}
 			})
 		})
 
@@ -1558,7 +1560,10 @@ func (c *Conn) handleDisembargo(ctx context.Context, d rpccp.Disembargo, release
 			}, func(err error) {
 				defer release()
 				defer client.Release()
-				c.er.ReportError(rpcerr.Annotate(err, "incoming disembargo: send receiver loopback"))
+
+				if err != nil {
+					c.er.ReportError(rpcerr.Annotate(err, "incoming disembargo: send receiver loopback"))
+				}
 			})
 		})
 
@@ -1573,7 +1578,9 @@ func (c *Conn) handleDisembargo(ctx context.Context, d rpccp.Disembargo, release
 				return
 			}, func(err error) {
 				defer release()
-				c.er.ReportError(rpcerr.Annotate(err, "incoming disembargo: send unimplemented"))
+				if err != nil {
+					c.er.ReportError(rpcerr.Annotate(err, "incoming disembargo: send unimplemented"))
+				}
 			})
 		})
 	}
