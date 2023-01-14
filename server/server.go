@@ -171,7 +171,14 @@ func (srv *Server) handleCalls(ctx context.Context) {
 	for {
 		call, err := srv.callQueue.Recv(ctx)
 		if err != nil {
-			break
+			// Context has been canceled; drain the rest of the queue,
+			// invoking handleCall() with the cancelled context to
+			// trigger cleanup.
+			var ok bool
+			call, ok = srv.callQueue.TryRecv()
+			if !ok {
+				return
+			}
 		}
 
 		// The context for the individual call is not necessarily
@@ -197,16 +204,6 @@ func (srv *Server) handleCalls(ctx context.Context) {
 			// to retire.
 			return
 		}
-	}
-	for {
-		// Context has been canceled; drain the rest of the queue,
-		// invoking handleCall() with the cancelled context to
-		// trigger cleanup.
-		call, ok := srv.callQueue.TryRecv()
-		if !ok {
-			return
-		}
-		srv.handleCall(ctx, call)
 	}
 }
 
