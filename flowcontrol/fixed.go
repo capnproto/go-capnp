@@ -35,3 +35,27 @@ func (fl *fixedLimiter) StartMessage(ctx context.Context, size uint64) (gotRespo
 }
 
 func (fixedLimiter) Release() {}
+
+// NewInflightMessageLimiter returns a FlowLimiter that enforces a fixed limit on
+// the number of inflight messages.   This is useful when you don't know the size
+// of messages a priori.
+func NewInflightMessageLimiter(n int64) FlowLimiter {
+	sem := semaphore.NewWeighted(n)
+	return (*inflightMessageLimiter)(sem)
+}
+
+type inflightMessageLimiter semaphore.Weighted
+
+func (fl *inflightMessageLimiter) StartMessage(ctx context.Context, _ uint64) (gotResponse func(), err error) {
+	if err = (*semaphore.Weighted)(fl).Acquire(ctx, 1); err == nil {
+		gotResponse = fl.gotResponse
+	}
+
+	return
+}
+
+func (fl *inflightMessageLimiter) gotResponse() {
+	(*semaphore.Weighted)(fl).Release(1)
+}
+
+func (inflightMessageLimiter) Release() {}
