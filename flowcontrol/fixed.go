@@ -30,12 +30,11 @@ func (fl *fixedLimiter) StartMessage(ctx context.Context, size uint64) (gotRespo
 		panic(fmt.Sprintf(s, size, fl.size))
 	}
 
-	if err = fl.sem.Acquire(ctx, int64(size)); err != nil {
-		return nil, err
+	if err = fl.sem.Acquire(ctx, int64(size)); err == nil {
+		gotResponse = func() { fl.sem.Release(int64(size)) }
 	}
-	return func() {
-		fl.sem.Release(int64(size))
-	}, nil
+
+	return
 }
 
 func (fixedLimiter) Release() {}
