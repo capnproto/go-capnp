@@ -406,6 +406,16 @@ type Arena interface {
 	// arena is responsible for preserving the existing data in the
 	// returned byte slice.
 	Allocate(minsz Size, segs map[SegmentID]*Segment) (SegmentID, []byte, error)
+
+	// Release all resources associated with the Arena. Callers MUST NOT
+	// use the Arena after it has been released.
+	//
+	// Calling Release() is OPTIONAL, but may reduce allocations.
+	//
+	// Implementations MAY use Release() as a signal to return resources
+	// to free lists, or otherwise reuse the Arena.   However, they MUST
+	// NOT assume Release() will be called.
+	Release()
 }
 
 // SingleSegmentArena is an Arena implementation that stores message data
@@ -418,7 +428,10 @@ type SingleSegmentArena []byte
 // Callers MAY use b to populate the segment for reading, or to reserve
 // memory of a specific size.
 func SingleSegment(b []byte) *SingleSegmentArena {
-	return (*SingleSegmentArena)(&b)
+	if b == nil {
+		return singleSegmentPool.Get().(*SingleSegmentArena)
+	}
+	return singleSegment(b)
 }
 
 func (ssa SingleSegmentArena) NumSegments() int64 {
@@ -457,6 +470,39 @@ func (ssa SingleSegmentArena) String() string {
 	return "single-segment arena [len=" + str.Itod(len(ssa)) + " cap=" + str.Itod(cap(ssa)) + "]"
 }
 
+// Return this arena to an internal sync.Pool of arenas that can be
+// re-used. Any time SingleSegment(nil) is called, arenas from this
+// pool will be used if available, which can help reduce memory
+// allocations.
+//
+// All segments will be zeroed before re-use.
+//
+// Calling Release is optional; if not done the garbage collector
+// will release the memory per usual.
+func (ssa *SingleSegmentArena) Release() {
+	// Clear the memory, so there's no junk in here for the next use:
+	for i := range *ssa {
+		(*ssa)[i] = 0
+	}
+
+	// Truncate the segment, since we use the length as the marker for
+	// what's allocated:
+	(*ssa) = (*ssa)[:0]
+
+	singleSegmentPool.Put(ssa)
+}
+
+// Like SingleSegment, but doesn't use the pool
+func singleSegment(b []byte) *SingleSegmentArena {
+	return (*SingleSegmentArena)(&b)
+}
+
+var singleSegmentPool = sync.Pool{
+	New: func() any {
+		return singleSegment(nil)
+	},
+}
+
 type roSingleSegment []byte
 
 func (ss roSingleSegment) NumSegments() int64 {
@@ -477,6 +523,8 @@ func (ss roSingleSegment) Allocate(sz Size, segs map[SegmentID]*Segment) (Segmen
 func (ss roSingleSegment) String() string {
 	return "read-only single-segment arena [len=" + str.Itod(len(ss)) + "]"
 }
+
+func (ss roSingleSegment) Release() {}
 
 // MultiSegment is an arena that stores object data across multiple []byte
 // buffers, allocating new buffers of exponentially-increasing size when
