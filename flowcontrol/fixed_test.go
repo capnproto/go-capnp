@@ -47,3 +47,11 @@ func TestFixed(t *testing.T) {
 	got1()
 
 }
+
+func TestFixeLimiterPanics(t *testing.T) {
+	t.Parallel()
+
+	assert.Panics(t, func() {
+		NewFixedLimiter(1024).StartMessage(context.Background(), 1025)
+	}, "should panic if reservation would cause deadlock")
+}
