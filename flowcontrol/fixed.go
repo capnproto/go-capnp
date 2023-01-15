@@ -26,8 +26,7 @@ func (fl *fixedLimiter) StartMessage(ctx context.Context, size uint64) (gotRespo
 	//        reservation on the semaphore. We can't return an error because it
 	//        is currently ignored by the caller.
 	if int64(size) > fl.size {
-		const s = "StartMessage(): message size %d is too large (max %d)"
-		panic(fmt.Sprintf(s, size, fl.size))
+		panic(fmt.Sprintf("StartMessage(): message size %d is too large (max %d)", size, fl.size))
 	}
 
 	if err = fl.sem.Acquire(ctx, int64(size)); err == nil {
