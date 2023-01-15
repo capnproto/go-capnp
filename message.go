@@ -407,13 +407,11 @@ type Arena interface {
 	// returned byte slice.
 	Allocate(minsz Size, segs map[SegmentID]*Segment) (SegmentID, []byte, error)
 
-	// Return this arena to an internal sync.Pool of arenas that can be
-	// re-used, which can help reduce memory allocations.
-	//
-	// All segments will be zeroed before re-use.
+	// Release all resources associated with the Arena, allowing it to
+	// be reused in another message.
 	//
 	// Calling Release is optional; if not done, the garbage collector
-	// will release the memory per usual.
+	// will release resources per usual.
 	Release()
 }
 
