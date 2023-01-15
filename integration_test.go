@@ -1261,7 +1261,6 @@ func TestDataTextCopyOptimization(t *testing.T) {
 // is when special casing Text and Data
 //
 // run this test with capnp.go:1334-1341 commented in/out to compare.
-//
 func BenchmarkTextMovementBetweenSegments(b *testing.B) {
 	buf := make([]byte, 1<<21)
 	buf2 := make([]byte, 1<<21)
@@ -1889,6 +1888,8 @@ func (ta testArena) Data(id capnp.SegmentID) ([]byte, error) {
 func (ta testArena) Allocate(capnp.Size, map[capnp.SegmentID]*capnp.Segment) (capnp.SegmentID, []byte, error) {
 	return 0, nil, errors.New("test arena: can't allocate")
 }
+
+func (ta testArena) Release() {}
 
 func TestPointerTraverseDefense(t *testing.T) {
 	t.Parallel()
