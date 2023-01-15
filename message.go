@@ -407,11 +407,14 @@ type Arena interface {
 	// returned byte slice.
 	Allocate(minsz Size, segs map[SegmentID]*Segment) (SegmentID, []byte, error)
 
-	// Release all resources associated with the Arena, allowing it to
-	// be reused in another message.
+	// Release all resources associated with the Arena. Callers MUST NOT
+	// use the Arena after it has been released.
 	//
-	// Calling Release is optional; if not done, the garbage collector
-	// will release resources per usual.
+	// Calling Release() is OPTIONAL, but may reduce allocations.
+	//
+	// Implementations MAY use Release() as a signal to return resources
+	// to free lists, or otherwise reuse the Arena.   However, they MUST
+	// NOT assume Release() will be called.
 	Release()
 }
 
