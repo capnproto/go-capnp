@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"sync"
 	"sync/atomic"
@@ -688,7 +689,8 @@ func (d *Decoder) Decode() (*Message, error) {
 	}
 	maxSeg := SegmentID(binary.LittleEndian.Uint32(d.wordbuf[:]))
 	if maxSeg > maxStreamSegments {
-		return nil, errors.New("decode: too many segments to decode")
+		return nil, fmt.Errorf("decode: too many segments (%d) to decode (max=%d)",
+			maxSeg, maxStreamSegments)
 	}
 
 	// Read the rest of the header if more than one segment.
