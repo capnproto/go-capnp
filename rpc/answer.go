@@ -8,7 +8,6 @@ import (
 	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/exc"
 	"capnproto.org/go/capnp/v3/internal/rc"
-	"capnproto.org/go/capnp/v3/internal/syncutil"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 )
 
@@ -129,16 +128,16 @@ func (c *Conn) newReturn() (_ rpccp.Return, sendMsg func(), _ *rc.Releaser, _ er
 }
 
 // setPipelineCaller sets ans.pcall to pcall if the answer has not
-// already returned.  The caller MUST NOT hold ans.c.lk.
+// already returned.  The caller MUST hold ans.c.lk.
 //
 // This also sets ans.promise to a new promise, wrapping pcall.
-func (ans *answer) setPipelineCaller(m capnp.Method, pcall capnp.PipelineCaller) {
-	syncutil.With(&ans.c.lk, func() {
-		if !ans.flags.Contains(resultsReady) {
-			ans.pcall = pcall
-			ans.promise = capnp.NewPromise(m, pcall)
-		}
-	})
+func (ans *answer) setPipelineCaller(c *lockedConn, m capnp.Method, pcall capnp.PipelineCaller) {
+	c.assertIs(ans.c)
+
+	if !ans.flags.Contains(resultsReady) {
+		ans.pcall = pcall
+		ans.promise = capnp.NewPromise(m, pcall)
+	}
 }
 
 // AllocResults allocates the results struct.
