@@ -31,5 +31,11 @@ jobs:
       - name: Run RPC tests repeatedly
         run: |
           cd rpc
-          go test -c
+          go test -c -trace trace.out
           for i in `seq 500`; do ./rpc.test; done
+      - name: upload trace
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: trace.out
+          path: rpc/trace.out
