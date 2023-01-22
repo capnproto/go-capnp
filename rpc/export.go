@@ -228,8 +228,8 @@ func (c *lockedConn) embargo(client capnp.Client) (embargoID, capnp.Client) {
 }
 
 // findEmbargo returns the embargo entry with the given ID or nil if
-// couldn't be found. Must be holding c.mu
-func (c *Conn) findEmbargo(id embargoID) *embargo {
+// couldn't be found.
+func (c *lockedConn) findEmbargo(id embargoID) *embargo {
 	if int64(id) >= int64(len(c.lk.embargoes)) {
 		return nil
 	}
