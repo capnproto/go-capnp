@@ -31,4 +31,5 @@ jobs:
       - name: Run RPC tests repeatedly
         run: |
           cd rpc
-          for i in `seq 500`; do go test; done
+          go test -c
+          for i in `seq 500`; do ./rpc.test; done
