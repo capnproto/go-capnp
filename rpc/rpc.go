@@ -1488,7 +1488,7 @@ func (c *Conn) handleDisembargo(ctx context.Context, d rpccp.Disembargo, release
 
 		id := embargoID(d.Context().ReceiverLoopback())
 		var e *embargo
-		syncutil.With(&c.lk, func() {
+		c.withLocked(func(c *lockedConn) {
 			e = c.findEmbargo(id)
 			if e != nil {
 				// TODO(soon): verify target matches the right import.
