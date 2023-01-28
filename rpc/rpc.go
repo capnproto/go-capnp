@@ -369,7 +369,7 @@ func (c *Conn) Done() <-chan struct{} {
 func (c *Conn) shutdown(abortErr error) (err error) {
 	alreadyClosing := false
 
-	syncutil.With(&c.lk, func() {
+	c.withLocked(func(c *lockedConn) {
 		alreadyClosing = c.lk.closing
 		if !alreadyClosing {
 			c.lk.closing = true
@@ -410,7 +410,7 @@ func (c *Conn) shutdown(abortErr error) (err error) {
 // Cancel all tasks and prevent new tasks from being started.
 // Does not wait for tasks to finish shutting down.
 // Called by 'shutdown'.  Callers MUST hold c.lk.
-func (c *Conn) cancelTasks() {
+func (c *lockedConn) cancelTasks() {
 	for _, a := range c.lk.answers {
 		if a != nil && a.cancel != nil {
 			a.cancel()
