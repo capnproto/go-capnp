@@ -1509,7 +1509,7 @@ func (c *Conn) handleDisembargo(ctx context.Context, d rpccp.Disembargo, release
 			client capnp.Client
 		)
 
-		syncutil.With(&c.lk, func() {
+		c.withLocked(func(c *lockedConn) {
 			if tgt.which != rpccp.MessageTarget_Which_promisedAnswer {
 				err = rpcerr.Failed(errors.New("incoming disembargo: sender loopback: target is not a promised answer"))
 				return
