@@ -43,6 +43,12 @@ const (
 	finishSent
 )
 
+// flags.Contains(flag) Returns true iff flags contains flag, which must
+// be a single flag.
+func (flags questionFlags) Contains(flag questionFlags) bool {
+	return flags&flag != 0
+}
+
 // newQuestion adds a new question to c's table.
 func (c *lockedConn) newQuestion(method capnp.Method) *question {
 	q := &question{
@@ -110,7 +116,7 @@ func (q *question) handleCancel(ctx context.Context) {
 
 	q.c.withLocked(func(c *lockedConn) {
 		// Promise already fulfilled?
-		if q.flags&finished != 0 {
+		if q.flags.Contains(finished) {
 			return
 		}
 		q.flags |= finished

@@ -487,7 +487,7 @@ func (c *lockedConn) releaseAnswers(rl *releaseList, answers map[answerID]*answe
 
 func (c *lockedConn) releaseQuestions(rl *releaseList, questions []*question) {
 	for _, q := range questions {
-		canceled := q != nil && q.flags&finished != 0
+		canceled := q != nil && q.flags.Contains(finished)
 		if !canceled {
 			// Only reject the question if it isn't already flagged
 			// as finished; otherwise it was rejected when the finished
@@ -1085,7 +1085,7 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp
 				"incoming return: question " + str.Utod(qid) + " does not exist",
 			))
 		}
-		canceled := q.flags&finished != 0
+		canceled := q.flags.Contains(finished)
 		q.flags |= finished
 		if canceled {
 			// Wait for cancelation task to write the Finish message.  If the
@@ -1093,7 +1093,7 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp
 			// reuse the ID.
 			select {
 			case <-q.finishMsgSend:
-				if q.flags&finishSent != 0 {
+				if q.flags.Contains(finishSent) {
 					c.lk.questionID.remove(uint32(qid))
 				}
 				rl.Add(release)
@@ -1104,7 +1104,7 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp
 					c := unlockedConn
 					<-q.finishMsgSend
 					c.withLocked(func(c *lockedConn) {
-						if q.flags&finishSent != 0 {
+						if q.flags.Contains(finishSent) {
 							c.lk.questionID.remove(uint32(qid))
 						}
 					})
