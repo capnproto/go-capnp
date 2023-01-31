@@ -29,8 +29,9 @@ type answer struct {
 	// entry is a placeholder until the remote vat cancels the call.
 	ret rpccp.Return
 
-	// sendMsg sends the return message.  The caller MUST hold ans.c.lk.
-	sendMsg func()
+	// sendMsg sends the return message.  The caller MUST hold ans.c.lk;
+	// the argument should be the same as ans.c
+	sendMsg func(*lockedConn)
 
 	// msgReleaser releases the return message when its refcount hits zero.
 	// The caller MUST NOT hold ans.c.lk.
@@ -97,7 +98,7 @@ func errorAnswer(c *Conn, id answerID, err error) *answer {
 // newReturn creates a new Return message. The returned Releaser will release the message when
 // all references to it are dropped; the caller is responsible for one reference. This will not
 // happen before the message is sent, as the returned send function retains a reference.
-func (c *Conn) newReturn() (_ rpccp.Return, sendMsg func(), _ *rc.Releaser, _ error) {
+func (c *Conn) newReturn() (_ rpccp.Return, sendMsg func(*lockedConn), _ *rc.Releaser, _ error) {
 	outMsg, err := c.transport.NewMessage()
 	if err != nil {
 		return rpccp.Return{}, nil, nil, rpcerr.WrapFailed("create return", err)
@@ -114,7 +115,9 @@ func (c *Conn) newReturn() (_ rpccp.Return, sendMsg func(), _ *rc.Releaser, _ er
 	// 'releaseMsg' is called.
 	releaser := rc.NewReleaser(2, outMsg.Release)
 
-	return ret, func() {
+	unlockedConn := c
+	return ret, func(c *lockedConn) {
+		c.assertIs(unlockedConn)
 		c.lk.sendTx.Send(asyncSend{
 			send:    outMsg.Send,
 			release: releaser.Decr,
@@ -278,7 +281,7 @@ func (ans *answer) completeSendReturn(c *lockedConn, rl *releaseList) error {
 			}
 			ans.promise = nil
 		}
-		ans.sendMsg()
+		ans.sendMsg(c)
 	}
 
 	ans.flags |= returnSent
@@ -330,7 +333,7 @@ func (ans *answer) completeSendException(c *lockedConn, rl *releaseList) {
 		ans.promise = nil
 	}
 	if ans.sendMsg != nil {
-		ans.sendMsg()
+		ans.sendMsg(c)
 	}
 	ans.flags |= returnSent
 	if ans.flags.Contains(finishReceived) {
