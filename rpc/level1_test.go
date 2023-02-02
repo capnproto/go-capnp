@@ -36,6 +36,8 @@ func testSendDisembargo(t *testing.T, sendPrimeTo rpccp.Call_sendResultsTo_Which
 	conn := rpc.NewConn(p1, &rpc.Options{
 		ErrorReporter: testErrorReporter{tb: t},
 	})
+	disembargoCount := -1
+	rpc.DisembargoCounts[conn] = &disembargoCount
 	defer finishTest(t, conn, p2)
 	ctx := context.Background()
 
@@ -282,7 +284,10 @@ func testSendDisembargo(t *testing.T, sendPrimeTo rpccp.Call_sendResultsTo_Which
 		}
 		defer release()
 		if msg.Which != rpccp.Message_Which_disembargo {
-			t.Fatalf("Received %v message; want disembargo", msg.Which)
+			t.Fatalf("Received %v message; want disembargo (count %v)",
+				msg.Which,
+				disembargoCount,
+			)
 		}
 		if msg.Disembargo.Context.Which != rpccp.Disembargo_context_Which_senderLoopback {
 			t.Fatalf("disembargo.context is %v; want senderLoopback", msg.Disembargo.Context.Which)

@@ -1057,6 +1057,8 @@ func parseTransform(list rpccp.PromisedAnswer_Op_List) ([]capnp.PipelineOp, erro
 	return ops, nil
 }
 
+var DisembargoCounts = make(map[*Conn]*int)
+
 func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp.ReleaseFunc) error {
 	rl := &releaseList{}
 	defer rl.Release()
@@ -1122,6 +1124,11 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp
 			// client or an error), so we save the ReleaseFunc for later:
 			q.release = release
 		}
+
+		if ptr, ok := DisembargoCounts[(*Conn)(c)]; ok {
+			*ptr = len(pr.disembargoes)
+		}
+
 		// We're going to potentially block fulfilling some promises so fork
 		// off a goroutine to avoid blocking the receive loop.
 		go func() {
