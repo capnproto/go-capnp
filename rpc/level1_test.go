@@ -2,6 +2,7 @@ package rpc_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -283,9 +284,12 @@ func testSendDisembargo(t *testing.T, sendPrimeTo rpccp.Call_sendResultsTo_Which
 		}
 		defer release()
 		if msg.Which != rpccp.Message_Which_disembargo {
-			t.Fatalf("Received %v message; want disembargo (count %v)",
+			jsonData, err := json.Marshal(conn.Log)
+			t.Fatalf(
+				"Received %v message; want disembargo (log = %v, jsonerr = %v)",
 				msg.Which,
-				conn.Log.DisembargoCount,
+				string(jsonData),
+				err,
 			)
 		}
 		if msg.Disembargo.Context.Which != rpccp.Disembargo_context_Which_senderLoopback {

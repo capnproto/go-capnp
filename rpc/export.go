@@ -212,6 +212,8 @@ type embargo struct {
 //
 // The caller must be holding onto c.mu.
 func (c *lockedConn) embargo(client capnp.Client) (embargoID, capnp.Client) {
+	c.Log.EmbargoCalls++
+
 	id := embargoID(c.lk.embargoID.next())
 	e := &embargo{
 		c:      client,

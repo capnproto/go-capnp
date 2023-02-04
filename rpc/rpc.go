@@ -128,6 +128,8 @@ type Conn struct {
 
 	Log struct {
 		DisembargoCount int
+		ReturnCapCount  int
+		EmbargoCalls    int
 	}
 }
 
@@ -1203,6 +1205,7 @@ func (c *lockedConn) parseReturn(rl *releaseList, ret rpccp.Return, called [][]c
 		var embargoCaps uintSet
 		var disembargoes []senderLoopback
 		mtab := ret.Message().CapTable
+		c.Log.ReturnCapCount = len(mtab)
 		for _, xform := range called {
 			p2, _ := capnp.Transform(content, xform)
 			iface := p2.Interface()
