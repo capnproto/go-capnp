@@ -32,4 +32,4 @@ jobs:
         run: |
           cd rpc
           go test -c
-          for i in `seq 500`; do ./rpc.test; done
+          for i in `seq 500`; do ./rpc.test -test.v; done
