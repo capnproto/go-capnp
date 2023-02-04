@@ -160,7 +160,7 @@ func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineO
 		// a) this may not have been the only call for the given transform,
 		// b) the transform isn't guaranteed to be an import, and
 		// c) the worst that happens is we trade bandwidth for code simplicity.
-		q.mark(transform)
+		q.mark(c, transform)
 		q2 := c.newQuestion(s.Method)
 
 		// Send call message.
@@ -272,7 +272,9 @@ func (q *question) PipelineRecv(ctx context.Context, transform []capnp.PipelineO
 
 // mark adds the promised answer transform to the set of pipelined
 // questions sent.  The caller must be holding onto q.c.lk.
-func (q *question) mark(xform []capnp.PipelineOp) {
+func (q *question) mark(c *lockedConn, xform []capnp.PipelineOp) {
+	c.assertIs(q.c)
+
 	for _, x := range q.called {
 		if transformsEqual(x, xform) {
 			// Already in set.
