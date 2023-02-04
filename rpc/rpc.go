@@ -130,6 +130,7 @@ type Conn struct {
 		DisembargoCount int
 		ReturnCapCount  int
 		EmbargoCalls    int
+		ClientType      string
 	}
 }
 
@@ -1389,6 +1390,7 @@ func (c *lockedConn) recvCapReceiverAnswer(ans *answer, transform []capnp.Pipeli
 // embargoes.
 func (c *lockedConn) isLocalClient(client capnp.Client) bool {
 	if (client == capnp.Client{}) {
+		c.Log.ClientType = "nil"
 		return false
 	}
 
@@ -1398,11 +1400,13 @@ func (c *lockedConn) isLocalClient(client capnp.Client) bool {
 		// If the connections are different, we must be proxying
 		// it, so as far as this connection is concerned, it lives
 		// on our side.
+		c.Log.ClientType = "importClient"
 		return ic.c != (*Conn)(c)
 	}
 
 	if pc, ok := bv.(capnp.PipelineClient); ok {
 		// Same logic re: proxying as with imports:
+		c.Log.ClientType = "PipelineClient"
 		if q, ok := c.getAnswerQuestion(pc.Answer()); ok {
 			return q.c != (*Conn)(c)
 		}
@@ -1412,8 +1416,10 @@ func (c *lockedConn) isLocalClient(client capnp.Client) bool {
 		// Returned by capnp.ErrorClient. No need to treat this as
 		// local; all methods will just return the error anyway,
 		// so violating E-order will have no effect on the results.
+		c.Log.ClientType = "Error"
 		return false
 	}
+	c.Log.ClientType = "other"
 
 	return true
 }

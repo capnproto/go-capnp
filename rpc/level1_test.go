@@ -283,14 +283,13 @@ func testSendDisembargo(t *testing.T, sendPrimeTo rpccp.Call_sendResultsTo_Which
 			t.Fatal("recvMessage(ctx, p2):", err)
 		}
 		defer release()
+		jsonData, err := json.Marshal(conn.Log)
+		t.Logf("expecting disembargo (log = %v, jsonerr = %v)",
+			string(jsonData),
+			err,
+		)
 		if msg.Which != rpccp.Message_Which_disembargo {
-			jsonData, err := json.Marshal(conn.Log)
-			t.Fatalf(
-				"Received %v message; want disembargo (log = %v, jsonerr = %v)",
-				msg.Which,
-				string(jsonData),
-				err,
-			)
+			t.Fatalf("Received %v message; want disembargo", msg.Which)
 		}
 		if msg.Disembargo.Context.Which != rpccp.Disembargo_context_Which_senderLoopback {
 			t.Fatalf("disembargo.context is %v; want senderLoopback", msg.Disembargo.Context.Which)
