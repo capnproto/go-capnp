@@ -144,6 +144,7 @@ type Conn struct {
 type QuestionPipeline struct {
 	Qid  uint32
 	Path []capnp.PipelineOp
+	Tick int
 }
 
 // A lockedConn is the same as a Conn, but the methods defined on it
