@@ -290,7 +290,13 @@ func (q *question) mark(c *lockedConn, xform []capnp.PipelineOp) {
 	c.Log.QuestionPipelines = append(c.Log.QuestionPipelines, QuestionPipeline{
 		Qid:  uint32(q.id),
 		Path: xform2,
+		Tick: c.tickLog(),
 	})
+}
+
+func (c *lockedConn) tickLog() int {
+	c.Log.tick++
+	return c.Log.tick
 }
 
 func (q *question) Reject(err error) {
