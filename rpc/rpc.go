@@ -131,6 +131,7 @@ type Conn struct {
 		ReturnCapCount  int
 		NLocals         int
 		EmbargoCalls    int
+		ReturnCalled    [][]capnp.PipelineOp
 		ClientType      string
 	}
 }
@@ -1121,6 +1122,7 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp
 			return nil
 		}
 		pr := c.parseReturn(rl, ret, q.called) // fills in CapTable
+		c.Log.ReturnCalled = q.called
 		if pr.parseFailed {
 			c.er.ReportError(rpcerr.Annotate(pr.err, "incoming return"))
 		}
