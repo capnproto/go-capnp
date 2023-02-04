@@ -125,6 +125,10 @@ type Conn struct {
 		embargoes  []*embargo
 		embargoID  idgen
 	}
+
+	Log struct {
+		DisembargoCount int
+	}
 }
 
 // A lockedConn is the same as a Conn, but the methods defined on it
@@ -1057,8 +1061,6 @@ func parseTransform(list rpccp.PromisedAnswer_Op_List) ([]capnp.PipelineOp, erro
 	return ops, nil
 }
 
-var DisembargoCounts = make(map[*Conn]*int)
-
 func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp.ReleaseFunc) error {
 	rl := &releaseList{}
 	defer rl.Release()
@@ -1125,9 +1127,7 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp
 			q.release = release
 		}
 
-		if ptr, ok := DisembargoCounts[(*Conn)(c)]; ok {
-			*ptr = len(pr.disembargoes)
-		}
+		c.Log.DisembargoCount = len(pr.disembargoes)
 
 		// We're going to potentially block fulfilling some promises so fork
 		// off a goroutine to avoid blocking the receive loop.
