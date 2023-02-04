@@ -133,7 +133,14 @@ type Conn struct {
 		EmbargoCalls    int
 		ReturnCalled    [][]capnp.PipelineOp
 		ClientType      string
+
+		QuestionPipelines []QuestionPipeline
 	}
+}
+
+type QuestionPipeline struct {
+	Qid  uint32
+	Path []capnp.PipelineOp
 }
 
 // A lockedConn is the same as a Conn, but the methods defined on it

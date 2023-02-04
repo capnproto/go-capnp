@@ -38,6 +38,7 @@ func testSendDisembargo(t *testing.T, sendPrimeTo rpccp.Call_sendResultsTo_Which
 		ErrorReporter: testErrorReporter{tb: t},
 	})
 	conn.Log.DisembargoCount = -1
+	conn.Log.QuestionPipelines = make([]QuestionPipelines, 0, 10)
 	defer finishTest(t, conn, p2)
 	ctx := context.Background()
 
