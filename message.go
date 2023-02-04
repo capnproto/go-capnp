@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 	"sync"
 	"sync/atomic"
@@ -689,8 +688,7 @@ func (d *Decoder) Decode() (*Message, error) {
 	}
 	maxSeg := SegmentID(binary.LittleEndian.Uint32(d.wordbuf[:]))
 	if maxSeg > maxStreamSegments {
-		return nil, fmt.Errorf("decode: too many segments (%d) to decode (max=%d)",
-			maxSeg, maxStreamSegments)
+		return nil, errSegIDTooLarge(maxSeg)
 	}
 
 	// Read the rest of the header if more than one segment.
@@ -756,6 +754,14 @@ func (d *Decoder) Decode() (*Message, error) {
 	}
 	d.msg.Reset(arena)
 	return &d.msg, nil
+}
+
+type errSegIDTooLarge SegmentID
+
+func (err errSegIDTooLarge) Error() string {
+	id := str.Utod(err)
+	max := str.Itod(maxStreamSegments)
+	return "decode: segment id" + id + "exceeds max segment count (max=" + max + ")"
 }
 
 func resizeSlice(b []byte, size int) []byte {
