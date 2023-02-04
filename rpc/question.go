@@ -149,10 +149,6 @@ func (q *question) handleCancel(ctx context.Context) {
 
 func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineOp, s capnp.Send) (*capnp.Answer, capnp.ReleaseFunc) {
 	return withLockedConn2(q.c, func(c *lockedConn) (*capnp.Answer, capnp.ReleaseFunc) {
-		c.Log.QuestionPipelines = append(c.Log.QuestionPipelines, QuestionPipeline{
-			Qid:  uint32(q.id),
-			Path: transform,
-		})
 		if !c.startTask() {
 			return capnp.ErrorAnswer(s.Method, ExcClosed), func() {}
 		}
@@ -291,6 +287,10 @@ func (q *question) mark(c *lockedConn, xform []capnp.PipelineOp) {
 		xform2[i].Field = xform[i].Field
 	}
 	q.called = append(q.called, xform2)
+	c.Log.QuestionPipelines = append(c.Log.QuestionPipelines, QuestionPipeline{
+		Qid:  uint32(q.id),
+		Path: xform2,
+	})
 }
 
 func (q *question) Reject(err error) {
