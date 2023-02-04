@@ -255,8 +255,8 @@ func testSendDisembargo(t *testing.T, sendPrimeTo rpccp.Call_sendResultsTo_Which
 					Content: results.ToPtr(),
 					CapTable: []rpcCapDescriptor{
 						{
-							Which:        rpccp.CapDescriptor_Which_receiverHosted,
-							SenderHosted: importID,
+							Which:          rpccp.CapDescriptor_Which_receiverHosted,
+							ReceiverHosted: importID,
 						},
 					},
 				},
