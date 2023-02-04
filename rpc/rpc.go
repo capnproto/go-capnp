@@ -129,6 +129,7 @@ type Conn struct {
 	Log struct {
 		DisembargoCount int
 		ReturnCapCount  int
+		NLocals         int
 		EmbargoCalls    int
 		ClientType      string
 	}
@@ -1202,6 +1203,7 @@ func (c *lockedConn) parseReturn(rl *releaseList, ret rpccp.Return, called [][]c
 		if err != nil {
 			return parsedReturn{err: rpcerr.WrapFailed("parse return", err), parseFailed: true}
 		}
+		c.Log.NLocals = len(locals)
 
 		var embargoCaps uintSet
 		var disembargoes []senderLoopback
