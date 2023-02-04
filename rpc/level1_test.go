@@ -284,7 +284,7 @@ func testSendDisembargo(t *testing.T, sendPrimeTo rpccp.Call_sendResultsTo_Which
 			t.Fatal("recvMessage(ctx, p2):", err)
 		}
 		defer release()
-		jsonData, err := json.Marshal(conn.Log)
+		jsonData, err := json.MarshalIndent(conn.Log, "", "  ")
 		t.Logf("expecting disembargo (log = %v, jsonerr = %v)",
 			string(jsonData),
 			err,
