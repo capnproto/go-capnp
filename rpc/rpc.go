@@ -133,6 +133,7 @@ type Conn struct {
 		EmbargoCalls     int
 		ReturnCalled     [][]capnp.PipelineOp
 		ReturnCalledTick int
+		ReturnQid        uint32
 		ClientType       string
 
 		QuestionPipelines []QuestionPipeline
@@ -1134,6 +1135,7 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp
 		}
 		pr := c.parseReturn(rl, ret, q.called) // fills in CapTable
 		c.Log.ReturnCalled = q.called
+		c.Log.ReturnQid = uint32(q.id)
 		c.Log.ReturnCalledTick = c.tickLog()
 		if pr.parseFailed {
 			c.er.ReportError(rpcerr.Annotate(pr.err, "incoming return"))
