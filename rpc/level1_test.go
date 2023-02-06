@@ -249,7 +249,7 @@ func testSendDisembargo(t *testing.T, sendPrimeTo rpccp.Call_sendResultsTo_Which
 		err = pogs.Insert(rpccp.Message_TypeID, capnp.Struct(outMsg.Message), &rpcMessage{
 			Which: rpccp.Message_Which_return,
 			Return: &rpcReturn{
-				AnswerID: bootQID,
+				AnswerID: qidA,
 				Which:    rpccp.Return_Which_results,
 				Results: &rpcPayload{
 					Content: results.ToPtr(),
