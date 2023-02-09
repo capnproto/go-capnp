@@ -114,7 +114,7 @@ func (l *Limiter) run(ctx context.Context) {
 		case p := <-l.chAck:
 			l.onAck(p)
 		case <-timeToSend:
-			l.trySend(ctx)
+			l.trySend()
 		case req := <-sendReqs:
 			now := l.clock.Now()
 			l.doSend(now, req)
@@ -124,9 +124,8 @@ func (l *Limiter) run(ctx context.Context) {
 	}
 }
 
-func (l *Limiter) trySend(ctx context.Context) {
+func (l *Limiter) trySend() {
 	select {
-	case <-ctx.Done():
 	case req := <-l.chSend:
 		now := l.clock.Now()
 		l.doSend(now, req)
