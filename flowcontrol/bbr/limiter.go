@@ -57,11 +57,6 @@ func (l *Limiter) computeBDP() float64 {
 }
 
 func (l *Limiter) run(ctx context.Context) {
-	// Dummy already-closed channel we can use when we want a channel
-	// that is ready, without needing to create it each time.
-	timeToSendNow := make(chan time.Time)
-	close(timeToSendNow)
-
 	for {
 
 		// These channels may or may not be nil, depending on what
@@ -84,9 +79,7 @@ func (l *Limiter) run(ctx context.Context) {
 			// might be in the far future, and there is no ack on its way
 			// to save us from our ignorance. Fortunately we always want
 			// to send if there's nothing on the wire, so just do it.
-			// Note that we don't use sendReqs here, since we don't want
-			// to skip over the logic that checks for app limited flows:
-			timeToSend = timeToSendNow
+			sendReqs = l.chSend
 		} else if l.packetsInflight >= l.maxPacketsInflight ||
 			(bdp > 0 && float64(l.inflight()) >= l.cwndGain*bdp) {
 			// We're at our threshold; wait for an ack,
