@@ -1320,6 +1320,93 @@ func TestRecvBootstrapPipelineCall(t *testing.T) {
 	}
 }
 
+// TestDuplicateBootstrap calls Bootstrap twice on the same connection,
+// and verifies that the results are the same.
+func TestDuplicateBoostrap(t *testing.T) {
+	t.Parallel()
+
+	left, right := transport.NewPipe(1)
+	p1, p2 := rpc.NewTransport(left), rpc.NewTransport(right)
+
+	srv := newServer(func(ctx context.Context, call *server.Call) error {
+		return nil
+	}, nil)
+
+	srvConn := rpc.NewConn(p1, &rpc.Options{
+		BootstrapClient: srv,
+		ErrorReporter:   testErrorReporter{tb: t},
+	})
+	defer srvConn.Close()
+
+	clientConn := rpc.NewConn(p2, &rpc.Options{
+		ErrorReporter: testErrorReporter{tb: t},
+	})
+	defer clientConn.Close()
+
+	ctx := context.Background()
+	bs1 := clientConn.Bootstrap(ctx)
+	bs2 := clientConn.Bootstrap(ctx)
+	assert.NoError(t, bs1.Resolve(ctx))
+	assert.NoError(t, bs2.Resolve(ctx))
+	assert.True(t, bs1.IsValid())
+	assert.True(t, bs2.IsValid())
+	assert.True(t, bs1.IsSame(bs2))
+
+	bs1.Release()
+	bs2.Release()
+}
+
+// TestUseConnAfterBootstrapError triggers a failed bootstrap call, and then
+// verifies that the connection still works.
+func TestUseConnAfterBootstrapError(t *testing.T) {
+	t.Parallel()
+
+	left, right := transport.NewPipe(1)
+	p1, p2 := rpc.NewTransport(left), rpc.NewTransport(right)
+
+	srv := newServer(func(ctx context.Context, call *server.Call) error {
+		return nil
+	}, nil)
+
+	srvConn := rpc.NewConn(p1, &rpc.Options{
+		BootstrapClient: srv,
+		ErrorReporter:   testErrorReporter{tb: t},
+	})
+	defer srvConn.Close()
+
+	clientConn := rpc.NewConn(p2, &rpc.Options{
+		ErrorReporter: testErrorReporter{tb: t},
+	})
+	defer clientConn.Close()
+
+	// srv -> client bootstrap should fail.
+	ctx := context.Background()
+	clientBs := srvConn.Bootstrap(ctx)
+	assert.NoError(t, clientBs.Resolve(ctx))
+	err, ok := clientBs.State().Brand.Value.(error)
+	assert.True(t, ok)
+	assert.NotNil(t, err)
+	clientBs.Release()
+
+	// client -> srv bootstrap should succeed.
+	srvBs := clientConn.Bootstrap(ctx)
+	defer srvBs.Release()
+	assert.NoError(t, srvBs.Resolve(ctx))
+
+	// ...and we should be able to make a call on it:
+	ans, rel := srvBs.SendCall(ctx, capnp.Send{
+		Method: capnp.Method{
+			InterfaceID: interfaceID,
+			MethodID:    methodID,
+		},
+		ArgsSize:  capnp.ObjectSize{},
+		PlaceArgs: nil,
+	})
+	defer rel()
+	_, err = ans.Struct()
+	assert.NoError(t, err)
+}
+
 // TestCallOnClosedConn obtains the bootstrap capability, closes the
 // connection, then attempts to make a call on the capability, verifying
 // that the call returns a disconnected error.  Level 0 requirement.
