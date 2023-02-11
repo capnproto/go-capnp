@@ -35,6 +35,15 @@ func Go[A any](f func() A) *T[A] {
 	return ret
 }
 
+// Ready returns a new T which is already ready; when forced it will return
+// value immediately.
+func Ready[A any](value A) *T[A] {
+	var ret T[A]
+	ret.once.Do(func() {})
+	ret.value = value
+	return &ret
+}
+
 // Promise returns a pair of a T and a function fulfill to supply the value of
 // the T; calls to t.Force() will block until fulfill has been invoked, at which
 // point they will return the value passed to fulfill. Fulfill must not be called
