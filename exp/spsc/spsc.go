@@ -13,6 +13,7 @@ package spsc
 
 import (
 	"context"
+	"io"
 )
 
 const itemsBuffer = 64
@@ -74,9 +75,17 @@ func (tx *Tx[T]) Send(v T) {
 	}
 }
 
+// Close the queue. Calls to Recv on the other end will return io.EOF.
+func (tx *Tx[T]) Close() error {
+	close(tx.tail.items)
+	close(tx.tail.next)
+	return nil
+}
+
 // Receive a message from the queue. Blocks if the queue is empty.
 // If the context ends before the receive happens, this returns
-// ctx.Err().
+// ctx.Err(). If Close is called on the corresponding Tx, this
+// returns io.EOF
 func (rx *Rx[T]) Recv(ctx context.Context) (T, error) {
 	for {
 		select {
@@ -87,7 +96,11 @@ func (rx *Rx[T]) Recv(ctx context.Context) (T, error) {
 			if ok {
 				return v, nil
 			}
-			rx.head = <-rx.head.next
+			rx.head, ok = <-rx.head.next
+			if !ok {
+				var zero T
+				return zero, io.EOF
+			}
 		}
 	}
 }
