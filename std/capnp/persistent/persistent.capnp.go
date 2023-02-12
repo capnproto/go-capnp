@@ -20,6 +20,7 @@ type Persistent capnp.Client
 const Persistent_TypeID = 0xc8cb212fcd9f5691
 
 func (c Persistent) Save(ctx context.Context, params func(Persistent_SaveParams) error) (Persistent_SaveResults_Future, capnp.ReleaseFunc) {
+
 	s := capnp.Send{
 		Method: capnp.Method{
 			InterfaceID:   0xc8cb212fcd9f5691,
@@ -32,8 +33,10 @@ func (c Persistent) Save(ctx context.Context, params func(Persistent_SaveParams)
 		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 1}
 		s.PlaceArgs = func(s capnp.Struct) error { return params(Persistent_SaveParams(s)) }
 	}
+
 	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return Persistent_SaveResults_Future{Future: ans.Future()}, release
+
 }
 
 // String returns a string that identifies this capability for debugging
@@ -101,7 +104,9 @@ func (c Persistent) SetFlowLimiter(lim fc.FlowLimiter) {
 // for this client.
 func (c Persistent) GetFlowLimiter() fc.FlowLimiter {
 	return capnp.Client(c).GetFlowLimiter()
-} // A Persistent_Server is a Persistent with a local implementation.
+}
+
+// A Persistent_Server is a Persistent with a local implementation.
 type Persistent_Server interface {
 	Save(context.Context, Persistent_save) error
 }

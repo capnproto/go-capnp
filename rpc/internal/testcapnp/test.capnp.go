@@ -19,6 +19,7 @@ type PingPong capnp.Client
 const PingPong_TypeID = 0xf004c474c2f8ee7a
 
 func (c PingPong) EchoNum(ctx context.Context, params func(PingPong_echoNum_Params) error) (PingPong_echoNum_Results_Future, capnp.ReleaseFunc) {
+
 	s := capnp.Send{
 		Method: capnp.Method{
 			InterfaceID:   0xf004c474c2f8ee7a,
@@ -31,8 +32,10 @@ func (c PingPong) EchoNum(ctx context.Context, params func(PingPong_echoNum_Para
 		s.ArgsSize = capnp.ObjectSize{DataSize: 8, PointerCount: 0}
 		s.PlaceArgs = func(s capnp.Struct) error { return params(PingPong_echoNum_Params(s)) }
 	}
+
 	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return PingPong_echoNum_Results_Future{Future: ans.Future()}, release
+
 }
 
 // String returns a string that identifies this capability for debugging
@@ -100,7 +103,9 @@ func (c PingPong) SetFlowLimiter(lim fc.FlowLimiter) {
 // for this client.
 func (c PingPong) GetFlowLimiter() fc.FlowLimiter {
 	return capnp.Client(c).GetFlowLimiter()
-} // A PingPong_Server is a PingPong with a local implementation.
+}
+
+// A PingPong_Server is a PingPong with a local implementation.
 type PingPong_Server interface {
 	EchoNum(context.Context, PingPong_echoNum) error
 }
@@ -314,7 +319,7 @@ type StreamTest capnp.Client
 // StreamTest_TypeID is the unique identifier for the type StreamTest.
 const StreamTest_TypeID = 0xbb3ca85b01eea465
 
-func (c StreamTest) Push(ctx context.Context, params func(StreamTest_push_Params) error) (stream.StreamResult_Future, capnp.ReleaseFunc) {
+func (c StreamTest) Push(ctx context.Context, params func(StreamTest_push_Params) error) error {
 	s := capnp.Send{
 		Method: capnp.Method{
 			InterfaceID:   0xbb3ca85b01eea465,
@@ -327,8 +332,29 @@ func (c StreamTest) Push(ctx context.Context, params func(StreamTest_push_Params
 		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 1}
 		s.PlaceArgs = func(s capnp.Struct) error { return params(StreamTest_push_Params(s)) }
 	}
+
+	return capnp.Client(c).SendStreamCall(ctx, s)
+
+}
+
+func (c StreamTest) Done(ctx context.Context, params func(StreamTest_done_Params) error) (StreamTest_done_Results_Future, capnp.ReleaseFunc) {
+
+	s := capnp.Send{
+		Method: capnp.Method{
+			InterfaceID:   0xbb3ca85b01eea465,
+			MethodID:      1,
+			InterfaceName: "test.capnp:StreamTest",
+			MethodName:    "done",
+		},
+	}
+	if params != nil {
+		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
+		s.PlaceArgs = func(s capnp.Struct) error { return params(StreamTest_done_Params(s)) }
+	}
+
 	ans, release := capnp.Client(c).SendCall(ctx, s)
-	return stream.StreamResult_Future{Future: ans.Future()}, release
+	return StreamTest_done_Results_Future{Future: ans.Future()}, release
+
 }
 
 // String returns a string that identifies this capability for debugging
@@ -396,9 +422,13 @@ func (c StreamTest) SetFlowLimiter(lim fc.FlowLimiter) {
 // for this client.
 func (c StreamTest) GetFlowLimiter() fc.FlowLimiter {
 	return capnp.Client(c).GetFlowLimiter()
-} // A StreamTest_Server is a StreamTest with a local implementation.
+}
+
+// A StreamTest_Server is a StreamTest with a local implementation.
 type StreamTest_Server interface {
 	Push(context.Context, StreamTest_push) error
+
+	Done(context.Context, StreamTest_done) error
 }
 
 // StreamTest_NewServer creates a new Server from an implementation of StreamTest_Server.
@@ -417,7 +447,7 @@ func StreamTest_ServerToClient(s StreamTest_Server) StreamTest {
 // This can be used to create a more complicated Server.
 func StreamTest_Methods(methods []server.Method, s StreamTest_Server) []server.Method {
 	if cap(methods) == 0 {
-		methods = make([]server.Method, 0, 1)
+		methods = make([]server.Method, 0, 2)
 	}
 
 	methods = append(methods, server.Method{
@@ -429,6 +459,18 @@ func StreamTest_Methods(methods []server.Method, s StreamTest_Server) []server.M
 		},
 		Impl: func(ctx context.Context, call *server.Call) error {
 			return s.Push(ctx, StreamTest_push{call})
+		},
+	})
+
+	methods = append(methods, server.Method{
+		Method: capnp.Method{
+			InterfaceID:   0xbb3ca85b01eea465,
+			MethodID:      1,
+			InterfaceName: "test.capnp:StreamTest",
+			MethodName:    "done",
+		},
+		Impl: func(ctx context.Context, call *server.Call) error {
+			return s.Done(ctx, StreamTest_done{call})
 		},
 	})
 
@@ -450,6 +492,23 @@ func (c StreamTest_push) Args() StreamTest_push_Params {
 func (c StreamTest_push) AllocResults() (stream.StreamResult, error) {
 	r, err := c.Call.AllocResults(capnp.ObjectSize{DataSize: 0, PointerCount: 0})
 	return stream.StreamResult(r), err
+}
+
+// StreamTest_done holds the state for a server call to StreamTest.done.
+// See server.Call for documentation.
+type StreamTest_done struct {
+	*server.Call
+}
+
+// Args returns the call's arguments.
+func (c StreamTest_done) Args() StreamTest_done_Params {
+	return StreamTest_done_Params(c.Call.Args())
+}
+
+// AllocResults allocates the results struct.
+func (c StreamTest_done) AllocResults() (StreamTest_done_Results, error) {
+	r, err := c.Call.AllocResults(capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return StreamTest_done_Results(r), err
 }
 
 // StreamTest_List is a list of StreamTest.
@@ -538,12 +597,143 @@ func (f StreamTest_push_Params_Future) Struct() (StreamTest_push_Params, error) 
 	return StreamTest_push_Params(p.Struct()), err
 }
 
+type StreamTest_done_Params capnp.Struct
+
+// StreamTest_done_Params_TypeID is the unique identifier for the type StreamTest_done_Params.
+const StreamTest_done_Params_TypeID = 0x86370ae31868a1e2
+
+func NewStreamTest_done_Params(s *capnp.Segment) (StreamTest_done_Params, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return StreamTest_done_Params(st), err
+}
+
+func NewRootStreamTest_done_Params(s *capnp.Segment) (StreamTest_done_Params, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return StreamTest_done_Params(st), err
+}
+
+func ReadRootStreamTest_done_Params(msg *capnp.Message) (StreamTest_done_Params, error) {
+	root, err := msg.Root()
+	return StreamTest_done_Params(root.Struct()), err
+}
+
+func (s StreamTest_done_Params) String() string {
+	str, _ := text.Marshal(0x86370ae31868a1e2, capnp.Struct(s))
+	return str
+}
+
+func (s StreamTest_done_Params) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (StreamTest_done_Params) DecodeFromPtr(p capnp.Ptr) StreamTest_done_Params {
+	return StreamTest_done_Params(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s StreamTest_done_Params) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s StreamTest_done_Params) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s StreamTest_done_Params) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s StreamTest_done_Params) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
+
+// StreamTest_done_Params_List is a list of StreamTest_done_Params.
+type StreamTest_done_Params_List = capnp.StructList[StreamTest_done_Params]
+
+// NewStreamTest_done_Params creates a new list of StreamTest_done_Params.
+func NewStreamTest_done_Params_List(s *capnp.Segment, sz int32) (StreamTest_done_Params_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	return capnp.StructList[StreamTest_done_Params](l), err
+}
+
+// StreamTest_done_Params_Future is a wrapper for a StreamTest_done_Params promised by a client call.
+type StreamTest_done_Params_Future struct{ *capnp.Future }
+
+func (f StreamTest_done_Params_Future) Struct() (StreamTest_done_Params, error) {
+	p, err := f.Future.Ptr()
+	return StreamTest_done_Params(p.Struct()), err
+}
+
+type StreamTest_done_Results capnp.Struct
+
+// StreamTest_done_Results_TypeID is the unique identifier for the type StreamTest_done_Results.
+const StreamTest_done_Results_TypeID = 0xebb3a7aa1f38c1b9
+
+func NewStreamTest_done_Results(s *capnp.Segment) (StreamTest_done_Results, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return StreamTest_done_Results(st), err
+}
+
+func NewRootStreamTest_done_Results(s *capnp.Segment) (StreamTest_done_Results, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return StreamTest_done_Results(st), err
+}
+
+func ReadRootStreamTest_done_Results(msg *capnp.Message) (StreamTest_done_Results, error) {
+	root, err := msg.Root()
+	return StreamTest_done_Results(root.Struct()), err
+}
+
+func (s StreamTest_done_Results) String() string {
+	str, _ := text.Marshal(0xebb3a7aa1f38c1b9, capnp.Struct(s))
+	return str
+}
+
+func (s StreamTest_done_Results) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (StreamTest_done_Results) DecodeFromPtr(p capnp.Ptr) StreamTest_done_Results {
+	return StreamTest_done_Results(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s StreamTest_done_Results) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s StreamTest_done_Results) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s StreamTest_done_Results) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s StreamTest_done_Results) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
+
+// StreamTest_done_Results_List is a list of StreamTest_done_Results.
+type StreamTest_done_Results_List = capnp.StructList[StreamTest_done_Results]
+
+// NewStreamTest_done_Results creates a new list of StreamTest_done_Results.
+func NewStreamTest_done_Results_List(s *capnp.Segment, sz int32) (StreamTest_done_Results_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	return capnp.StructList[StreamTest_done_Results](l), err
+}
+
+// StreamTest_done_Results_Future is a wrapper for a StreamTest_done_Results promised by a client call.
+type StreamTest_done_Results_Future struct{ *capnp.Future }
+
+func (f StreamTest_done_Results_Future) Struct() (StreamTest_done_Results, error) {
+	p, err := f.Future.Ptr()
+	return StreamTest_done_Results(p.Struct()), err
+}
+
 type CapArgsTest capnp.Client
 
 // CapArgsTest_TypeID is the unique identifier for the type CapArgsTest.
 const CapArgsTest_TypeID = 0xb86bce7f916a10cc
 
 func (c CapArgsTest) Call(ctx context.Context, params func(CapArgsTest_call_Params) error) (CapArgsTest_call_Results_Future, capnp.ReleaseFunc) {
+
 	s := capnp.Send{
 		Method: capnp.Method{
 			InterfaceID:   0xb86bce7f916a10cc,
@@ -556,10 +746,14 @@ func (c CapArgsTest) Call(ctx context.Context, params func(CapArgsTest_call_Para
 		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 1}
 		s.PlaceArgs = func(s capnp.Struct) error { return params(CapArgsTest_call_Params(s)) }
 	}
+
 	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return CapArgsTest_call_Results_Future{Future: ans.Future()}, release
+
 }
+
 func (c CapArgsTest) Self(ctx context.Context, params func(CapArgsTest_self_Params) error) (CapArgsTest_self_Results_Future, capnp.ReleaseFunc) {
+
 	s := capnp.Send{
 		Method: capnp.Method{
 			InterfaceID:   0xb86bce7f916a10cc,
@@ -572,8 +766,10 @@ func (c CapArgsTest) Self(ctx context.Context, params func(CapArgsTest_self_Para
 		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
 		s.PlaceArgs = func(s capnp.Struct) error { return params(CapArgsTest_self_Params(s)) }
 	}
+
 	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return CapArgsTest_self_Results_Future{Future: ans.Future()}, release
+
 }
 
 // String returns a string that identifies this capability for debugging
@@ -641,7 +837,9 @@ func (c CapArgsTest) SetFlowLimiter(lim fc.FlowLimiter) {
 // for this client.
 func (c CapArgsTest) GetFlowLimiter() fc.FlowLimiter {
 	return capnp.Client(c).GetFlowLimiter()
-} // A CapArgsTest_Server is a CapArgsTest with a local implementation.
+}
+
+// A CapArgsTest_Server is a CapArgsTest with a local implementation.
 type CapArgsTest_Server interface {
 	Call(context.Context, CapArgsTest_call) error
 
@@ -1043,6 +1241,7 @@ type PingPongProvider capnp.Client
 const PingPongProvider_TypeID = 0x95b6142577e93239
 
 func (c PingPongProvider) PingPong(ctx context.Context, params func(PingPongProvider_pingPong_Params) error) (PingPongProvider_pingPong_Results_Future, capnp.ReleaseFunc) {
+
 	s := capnp.Send{
 		Method: capnp.Method{
 			InterfaceID:   0x95b6142577e93239,
@@ -1055,8 +1254,10 @@ func (c PingPongProvider) PingPong(ctx context.Context, params func(PingPongProv
 		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
 		s.PlaceArgs = func(s capnp.Struct) error { return params(PingPongProvider_pingPong_Params(s)) }
 	}
+
 	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return PingPongProvider_pingPong_Results_Future{Future: ans.Future()}, release
+
 }
 
 // String returns a string that identifies this capability for debugging
@@ -1124,7 +1325,9 @@ func (c PingPongProvider) SetFlowLimiter(lim fc.FlowLimiter) {
 // for this client.
 func (c PingPongProvider) GetFlowLimiter() fc.FlowLimiter {
 	return capnp.Client(c).GetFlowLimiter()
-} // A PingPongProvider_Server is a PingPongProvider with a local implementation.
+}
+
+// A PingPongProvider_Server is a PingPongProvider with a local implementation.
 type PingPongProvider_Server interface {
 	PingPong(context.Context, PingPongProvider_pingPong) error
 }
@@ -1339,55 +1542,61 @@ func (p PingPongProvider_pingPong_Results_Future) PingPong() PingPong {
 	return PingPong(p.Future.Field(0, nil).Client())
 }
 
-const schema_ef12a34b9807e19c = "x\xda\x94TMH\x14o\x18\x7f\x9ey\xdf\xf9\x8f\xf2" +
-	"o\xd9\xde\x1d\xe9\x9b>D;H,\xa9\x04e\xd9j" +
-	"a\x0bF\xb2cz\xa8\x0e1\xe9\xa8k;\xeb2\xb3" +
-	"\x9b\x14\x94]\xc4S\x07\x0fiFt\xb0\x88:t(" +
-	"($/%\x05E\x12\x1d\x8a\x08\x93\xd2S\x11\x98\xd5" +
-	"E\x88\x9ax\xdf\xd9qg\xfd\x82\xae\xfb<\xf3\xfbz" +
-	"~\xef\xee|\x815\xb4<\x10Q@\xd2\x9a\xe4\xff\x9c" +
-	"\xe1\x8e\xbex\xc3\x85\x82\x8b\xc0\xd6\"\x80\x8c\x0a@e" +
-	"/\xd9\x80\x80\xea%\x12\x01\xfc\xb3\xbdtb\xe0\xf7d" +
-	"\xafV\x84\x08@\xf9\xf8.)\xe6\xe3\x07|\xec\xec\xa9" +
-	"\xf8\xd2]Z\xf4\xf02\xb0\xff\x89smJ\xb9r\xf8" +
-	"F\xe8\x1b\x00\xaao\xc9\xb4:E\x14\x00u\x92D\xd5" +
-	"B\xfe\xa5\x13\xd8:;\x16x\xf6k\xc0%\x13`\xdf" +
-	"9\x18u*\x98\xf3R\x1e?4\xe8\x97\xf1\xde\xe5\x99" +
-	"\x12<\xe3\xab;\xfb{^\x9d\x1eY\xc4\x83\xf4\x91\x8b" +
-	"\xae\xca\xb4Om\x16<\xc6\xcd\x19<q{\xdf\xe8\xa2" +
-	"\xe5jz_\xad\x13\xcb\xb54\xaa\xc6\xc5\xf2\x8e\x9f\x9b" +
-	"{\x9e\xec\xfa\xfc\x06\xd8&O\x94FOqQ\xdb\x0a" +
-	"?^\xbf\xf3i\xf0\x1d\xf8\xccWS\x91M\x1d\xe5\xa2" +
-	"\xce\x8fV\xb5\x1d\xdf\xdf<\xed\xf3c\xf09u\xce\xcd" +
-	"\xcc\x8d\xa5\x9f\xd2\xd9E\x0a\x8e\xd0aW\xa4\xaa\xd1\xa8" +
-	"zV(\xf8\xfaz\xc4\xdc\x1b\x8d\xffp\x15\xb8\xe6u" +
-	"\xda\xc9yL\xc13\xb1\xd1z~\xeb\xc3\xee9`k" +
-	"\xe6\x17\xfai\x88/\x0c\xd1\x08\x1cs\xd2\x86\x9d\x0e\xb7" +
-	"\xe8)\x92LU\x1d\xd4S\xb5V\xbb\xdd\xe4\xfe\x94H" +
-	"\x94\xc4tK'\xa6\xadQB\x01(\x02\xb0@1\x80" +
-	"V@P+\x92Pi\xd1S\x18\xa2\x04\x10C\x80y" +
-	"H\xb1x\xb2=\xd6\x95l\x0f\x1b-\x1d]\x0d\x19\xb3" +
-	"\xa4\xd1\xb03J\"\x9d\x07\x15\xcaAa\x12e\x90P" +
-	"\xf6\xc1H>\x98\x98\xd5u&\xae\xb4\x1aV\x0cQ\xa3" +
-	"D\xf6e\x8f^\x04\x8c\xd5\x83\xc4\x0a\x15'\x95\xfd\x08" +
-	"\x00j0\x86\xb8\xb2EO\xd8\xb2[\xb6\x91h[R" +
-	"~YN~\x90/!\xcbU\x0d\x10\x99\xcf\x0bz\x98" +
-	"\x11\x17\x94\xdb(\x106\xbcG\x84^\xc1Yy\x19H" +
-	"\xacT\xc1\\G\xd0\xab8[\xcfg\x01%\xc8\x95\xd7" +
-	"\xb8\xac\xf9\x169\xd1\xd1\xb4e\xe8[L\x8f\xc7\x8d\xcb" +
-	"\xeb\x01&\xef=\xee\xae\xbczr\x881\x8e%+\xc1" +
-	"T\xc6\xee\xc8\x07\xa1\x0b\x93o5\xac\xb0\x97*\xef\x84" +
-	"\xa2\x9b\xf6\xca\xe7^\xa28+_{\xc9\xd4\xb3(y" +
-	"\xee\x04\x95\xc2\x95\xcd{\xf3\x1e\x1bB\xf6\x1f\x87\xb1\x03" +
-	"\xc2[OV\xce\xbf\xd8k4\xec`f\xc1\xa5\xeb\x01" +
-	"\xb4U\x04\xb5u\x12\xfa\xdb\x85,\xf7X\x17\x1c\x9cx" +
-	"w\x10g\x08\xf3\x8c\x85\x1b\x13\x97\xadP\xab\x9e\xd61" +
-	"\x00\x12\x06\x00\xff\x06\x00\x00\xff\xff\xfe*\x86\xac"
+const schema_ef12a34b9807e19c = "x\xda\x94\x94]H\x1cW\x14\xc7\xcf\x99\xb9\xd3\xd1\xb6" +
+	"\xc3\xf6\xee\xd8V\xfbe\x15\xed\x83\xb4R\x95RkK" +
+	"wmi\xa5\x16d\xc7\xb6\x0f\xfd\x802uGw\xed" +
+	"~\xb1\xb3[\xa1`m\x1e\x8c\xcfyP\x93\x90\x044" +
+	"1_\x90\x07\x13\x124\x12\x88\x92@BLH \x90" +
+	"\x07#\x89\x86@DP\x89/BH&\xdc\x99\xbd\xee" +
+	"\xec\xae\x1a\xf2\xb6\xec9s\xfe\xbfs\xce\xff\xdcO\xd7" +
+	"\xd1O\xea\x94U\x19\x04\xed\x0f\xe9\x15k44\x10n" +
+	"\xfb\xaf\xe8\x7f\xa0o#\x80\x842@\xc3\xbc\xf8\x0e\x02" +
+	"\xaa\x0fE\x1f\xe0\xb3\x8f\xaa\xe7\x86\x9e\xce\xf7k%\x88" +
+	"\x00\x84\x85%R\xc9\xc2\x0a\xf1\x01Z\x8b#\xa1\xd2\x07" +
+	"\xaf~\xbe\x1b\xe8[<\xfe\x09\xf1\"\x10\xeb\x8b\xfa\xa5" +
+	"\x9e\xea\x92s\x83@_\x13\xad\x03\x0b\xf2\xde\x1f\x0f{" +
+	"W\x01P}\x93,\xaa\x15,S}\x9f\xb4\xa8?\xb0" +
+	"_\x96\xf2\xe1\xda\x8cr\xf9\xc9\x90\x83a\x97\xa9c2" +
+	"\xc4\xaa\xa7\xd65i\xf6\xfba7`\x99CPa\x13" +
+	"\xcc\xbe\xd1\xbd\xa7\xef\xc6\xdf\x13\x05:\xcd\xe4\xbcS]" +
+	"\xfd\x8e\x0c\xa8\x83\xb6\x8eqd\x05\x7f?\xfe\xd5TA" +
+	"r/9\xad\xf6\xdb\xc9\xbb\xc8\x80z\xcbN\xfex\xfd" +
+	"\x83\xbe\xe9\xcf\x1e\xdd\x06\xfa\x1e\x87\x9a$\x7f1\xa8\x8a" +
+	"\xe2{\x87N\xdc\x1f\xbe\x03\xae\xb1\x8c\x11{j\xa7l" +
+	"\xa8\xde\xa9\xa6\xce\xdf\xbe\xfee\xd1\xd5\xcfu\x16'\xd6" +
+	"\xe4tc\xf9\xc9cg\x96]\x03;\xebD\xfe]\xd9" +
+	"\x98I]\"k\x05l\x07\xc9\xa8:f\xb3\x8d\x90\x16" +
+	"\xf5\xaa\xcd\xb6|s\"\xfaeK\xf8\xb1\xc3\xe6\x8ce" +
+	"\x9ct3\x82\x0b6\xc1\xdc\xbb\xc9+G\xef6n8" +
+	":N\xc2\x02\xdb\x0c\xaaK\xc4\x07\xbfZ)\xc3L\xd5" +
+	"v\xe8\x091\x96h\xfaVO4'\xbb\xcc\x9f\x9d\xbf" +
+	"\"\x91\xaa\x80\x9e\xd4\xc5\xa8\xa9\x11\x91\x00\x10\x04\xa0J" +
+	"%\x80V$\xa2V\"\xa0\xdc\xa1'\xd0KD@\xf4" +
+	"\x02\xe6T\x0a\x84c]\x81x\xac\xab\xd6\xe8\x08\xc5\xdb" +
+	"\xd2\xd1\xaav\xc3L\xcb\x91TN)o\xb6\x14\xc6P" +
+	"\x02\x01\xa5\xbc2?\xa5\x92\x86\x1e\xb5y\x82\xf1\x98a" +
+	"\xf3D\xd1\xdc\xcc\x11\\R\x81d\xfc\x9f\xb0\x1c4\x92" +
+	"\x01D\x8d\x88\x92ks\xc8\xc7Di+\x08\xb4X\xb6" +
+	"\x12\x99\x8f\x00\xc0\x8f\x01\xc4\x9d\xc7\xc0\xe1\xb7\xcd2\x8d" +
+	"H\xe7\x96-\xd6d[\xf4\xb0$\xa4Y\xa3\x02\"u" +
+	"\xf5\x8b\xbc\xa6\xcf)\xca\xda(\xb2\xdb\xe0\xc7\x89\xfc<" +
+	"h]\x0d\x08\xb4Z\xc6\xac\xc3\x90\x1f\x08-c1E" +
+	"\xf60r\xbf\xa3\x9a\xdb\"\xf2\xc1\x96Gsu\xb8W" +
+	"06~\xb1\xa7a\xff\x9f\xfb\\:\xfc\xc0\x91\x1bw" +
+	"S'\x916C~\xf4\xb0\xfd\xe4\xea\x90\xfc\xe5\x04\x8d" +
+	"d-\x1f<[\xa5\xacG\xcd\x9d]\xb3\x85\xff^l" +
+	"\x9a\x82\xc5d\xaa\xec\xe8,\xb6\xbc\x88\xe8Z1r\x1e" +
+	"\x99\xe1oZ\x8a\x9f<B\xe6E\xa4\xf4\x1b\x10\xa8$" +
+	"\xf7e\x98_f\x06\xed\x86\xe9I\xe79\xa6\x15@{" +
+	"]D\xadT@\xb7K\x91f\x1f\x86<\xe3\xe4\xb5\xc3" +
+	"\xf6\xc1\x0fe;+\x06\xf5\x94\x8e\x0a\x08\xa8\x00>\x0f" +
+	"\x00\x00\xff\xff\x1f\xcb\xbd\x93"
 
 func init() {
 	schemas.Register(schema_ef12a34b9807e19c,
 		0x80087e4e698768a2,
 		0x85ddfd96db252600,
+		0x86370ae31868a1e2,
 		0x95b6142577e93239,
 		0x96fbc50dc2f0200d,
 		0x9746cc05cbff1132,
@@ -1396,6 +1605,7 @@ func init() {
 		0xd4e835c17f1ef32c,
 		0xd797e0a99edf0921,
 		0xe2553e5a663abb7d,
+		0xebb3a7aa1f38c1b9,
 		0xf004c474c2f8ee7a,
 		0xf269473b6db8d0eb,
 		0xf838dca6c8721bdb)

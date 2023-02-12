@@ -12,6 +12,7 @@ interface PingPong {
 
 interface StreamTest {
   push @0 (data :Data) -> stream;
+  done @1 ();
 }
 
 interface CapArgsTest {

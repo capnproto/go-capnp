@@ -144,3 +144,7 @@ func (slowStreamTestServer) Push(ctx context.Context, p testcapnp.StreamTest_pus
 	time.Sleep(200 * time.Millisecond)
 	return nil
 }
+
+func (slowStreamTestServer) Done(context.Context, testcapnp.StreamTest_done) error {
+	return nil
+}
