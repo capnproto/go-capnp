@@ -428,6 +428,8 @@ func (c Client) IsSame(c2 Client) bool {
 }
 
 // Resolve blocks until the capability is fully resolved or the Context is Done.
+// Resolve only returns an error if the context is canceled; it returns nil even
+// if the capability resolves to an error.
 func (c Client) Resolve(ctx context.Context) error {
 	for {
 		h, released, resolved := c.peek()
