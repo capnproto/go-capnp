@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"sync"
 
+	"capnproto.org/go/capnp/v3/exc"
 	"capnproto.org/go/capnp/v3/exp/bufferpool"
 	"capnproto.org/go/capnp/v3/flowcontrol"
 	"capnproto.org/go/capnp/v3/internal/str"
@@ -122,10 +123,11 @@ type client struct {
 	creatorStack string
 	creatorLine  int
 
-	mu       sync.Mutex // protects the struct
-	limiter  flowcontrol.FlowLimiter
-	h        *clientHook // nil if resolved to nil or released
-	released bool
+	mu          sync.Mutex // protects the struct
+	limiter     flowcontrol.FlowLimiter
+	streamError error       // Last error from streaming calls.
+	h           *clientHook // nil if resolved to nil or released
+	released    bool
 }
 
 // clientHook is a reference-counted wrapper for a ClientHook.
@@ -321,6 +323,10 @@ func (c Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 		return ErrorAnswer(s.Method, errors.New("call on null client")), func() {}
 	}
 
+	if c.streamError != nil {
+		return ErrorAnswer(s.Method, exc.WrapError("streamError", c.streamError)), func() {}
+	}
+
 	limiter := c.GetFlowLimiter()
 
 	// We need to call PlaceArgs before we will know the size of message for
@@ -379,6 +385,33 @@ func (c Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 	}
 
 	return ans, rel
+}
+
+// SendStreamCall is like SendCall except that:
+//
+// 1. It does not return an answer for the eventual result.
+// 2. If the call returns an error, all future calls on this
+//    client will reutrn the same error. (without starting
+//    the method or calling PlaceArgs).
+func (c Client) SendStreamCall(ctx context.Context, s Send) error {
+	var streamError error
+	syncutil.With(&c.mu, func() {
+		streamError = c.streamError
+	})
+	if streamError != nil {
+		return streamError
+	}
+	ans, release := c.SendCall(ctx, s)
+	go func() {
+		_, err := ans.Future().Ptr()
+		release()
+		if err != nil {
+			syncutil.With(&c.mu, func() {
+				c.streamError = err
+			})
+		}
+	}()
+	return nil
 }
 
 // RecvCall starts executing a method with the referenced arguments
