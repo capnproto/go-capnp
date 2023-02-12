@@ -46,9 +46,17 @@ func (tx *Tx[T]) Send(v T) {
 	tx.tx.Send(v)
 }
 
+// Close the queue. Calls to Recv on the other end will return io.EOF.
+func (tx *Tx[T]) Close() error {
+	tx.mu.Lock()
+	defer tx.mu.Unlock()
+	return tx.tx.Close()
+}
+
 // Receive a message from the queue. Blocks if the queue is empty.
 // If the context ends before the receive happens, this returns
-// ctx.Err().
+// ctx.Err(). If Close is called on the corresponding Tx, this
+// returns io.EOF
 func (rx *Rx[T]) Recv(ctx context.Context) (T, error) {
 	return rx.rx.Recv(ctx)
 }
