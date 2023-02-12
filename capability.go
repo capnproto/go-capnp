@@ -391,7 +391,7 @@ func (c Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 //
 // 1. It does not return an answer for the eventual result.
 // 2. If the call returns an error, all future calls on this
-//    client will reutrn the same error. (without starting
+//    client will return the same error (without starting
 //    the method or calling PlaceArgs).
 func (c Client) SendStreamCall(ctx context.Context, s Send) error {
 	var streamError error
