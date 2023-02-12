@@ -324,7 +324,7 @@ func (c Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 	}
 
 	if c.streamError != nil {
-		return ErrorAnswer(s.Method, exc.WrapError("streamError", c.streamError)), func() {}
+		return ErrorAnswer(s.Method, exc.WrapError("stream error", c.streamError)), func() {}
 	}
 
 	limiter := c.GetFlowLimiter()
