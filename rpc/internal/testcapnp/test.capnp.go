@@ -38,6 +38,10 @@ func (c PingPong) EchoNum(ctx context.Context, params func(PingPong_echoNum_Para
 
 }
 
+func (c PingPong) WaitStreaming() error {
+	return capnp.Client(c).WaitStreaming()
+}
+
 // String returns a string that identifies this capability for debugging
 // purposes.  Its format should not be depended on: in particular, it
 // should not be used to compare clients.  Use IsSame to compare clients
@@ -337,6 +341,10 @@ func (c StreamTest) Push(ctx context.Context, params func(StreamTest_push_Params
 
 }
 
+func (c StreamTest) WaitStreaming() error {
+	return capnp.Client(c).WaitStreaming()
+}
+
 // String returns a string that identifies this capability for debugging
 // purposes.  Its format should not be depended on: in particular, it
 // should not be used to compare clients.  Use IsSame to compare clients
@@ -589,6 +597,10 @@ func (c CapArgsTest) Self(ctx context.Context, params func(CapArgsTest_self_Para
 	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return CapArgsTest_self_Results_Future{Future: ans.Future()}, release
 
+}
+
+func (c CapArgsTest) WaitStreaming() error {
+	return capnp.Client(c).WaitStreaming()
 }
 
 // String returns a string that identifies this capability for debugging
@@ -1077,6 +1089,10 @@ func (c PingPongProvider) PingPong(ctx context.Context, params func(PingPongProv
 	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return PingPongProvider_pingPong_Results_Future{Future: ans.Future()}, release
 
+}
+
+func (c PingPongProvider) WaitStreaming() error {
+	return capnp.Client(c).WaitStreaming()
 }
 
 // String returns a string that identifies this capability for debugging

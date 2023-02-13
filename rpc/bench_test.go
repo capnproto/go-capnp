@@ -59,7 +59,7 @@ func benchmarkStreaming(b *testing.B, cfg *benchmarkStreamingConfig) {
 			}
 		}
 	}
-	if err := capnp.Client(bootstrap).WaitStreaming(); err != nil {
+	if err := bootstrap.WaitStreaming(); err != nil {
 		b.Errorf("Error waiting on streaming calls: %v", err)
 	}
 }

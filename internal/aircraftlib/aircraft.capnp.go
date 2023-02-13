@@ -5073,6 +5073,10 @@ func (c Echo) Echo(ctx context.Context, params func(Echo_echo_Params) error) (Ec
 
 }
 
+func (c Echo) WaitStreaming() error {
+	return capnp.Client(c).WaitStreaming()
+}
+
 // String returns a string that identifies this capability for debugging
 // purposes.  Its format should not be depended on: in particular, it
 // should not be used to compare clients.  Use IsSame to compare clients
@@ -5863,6 +5867,10 @@ func (c CallSequence) GetNumber(ctx context.Context, params func(CallSequence_ge
 
 }
 
+func (c CallSequence) WaitStreaming() error {
+	return capnp.Client(c).WaitStreaming()
+}
+
 // String returns a string that identifies this capability for debugging
 // purposes.  Its format should not be depended on: in particular, it
 // should not be used to compare clients.  Use IsSame to compare clients
@@ -6175,6 +6183,10 @@ func (c Pipeliner) GetNumber(ctx context.Context, params func(CallSequence_getNu
 	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return CallSequence_getNumber_Results_Future{Future: ans.Future()}, release
 
+}
+
+func (c Pipeliner) WaitStreaming() error {
+	return capnp.Client(c).WaitStreaming()
 }
 
 // String returns a string that identifies this capability for debugging

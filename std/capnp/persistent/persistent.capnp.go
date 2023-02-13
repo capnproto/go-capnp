@@ -39,6 +39,10 @@ func (c Persistent) Save(ctx context.Context, params func(Persistent_SaveParams)
 
 }
 
+func (c Persistent) WaitStreaming() error {
+	return capnp.Client(c).WaitStreaming()
+}
+
 // String returns a string that identifies this capability for debugging
 // purposes.  Its format should not be depended on: in particular, it
 // should not be used to compare clients.  Use IsSame to compare clients
