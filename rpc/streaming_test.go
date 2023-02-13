@@ -5,21 +5,29 @@ import (
 	"fmt"
 	"testing"
 
+	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/rpc/internal/testcapnp"
 	"github.com/stretchr/testify/assert"
 )
 
-// TestStreamingDoneErr verifies that if an error occurs in a streaming call,
-// it shows up in a subsequent call to done().
-func TestStreamingDoneErr(t *testing.T) {
+// TestStreamingWaitOk verifies that if no errors occur in streaming calls,
+// WaitStreaming retnurs nil.
+func TestStreamingWaitOk(t *testing.T) {
+	ctx := context.Background()
+	client := testcapnp.StreamTest_ServerToClient(&maxPushStream{limit: 1})
+	defer client.Release()
+	assert.NoError(t, client.Push(ctx, nil))
+	assert.NoError(t, capnp.Client(client).WaitStreaming())
+}
+
+// TestStreamingWaitErr verifies that if an error occurs in a streaming call,
+// it shows up in a subsequent call to WaitStreaming().
+func TestStreamingWaitErr(t *testing.T) {
 	ctx := context.Background()
 	client := testcapnp.StreamTest_ServerToClient(&maxPushStream{limit: 0})
 	defer client.Release()
 	assert.NoError(t, client.Push(ctx, nil))
-	fut, rel := client.Done(ctx, nil)
-	defer rel()
-	_, err := fut.Struct()
-	assert.NotNil(t, err)
+	assert.NotNil(t, capnp.Client(client).WaitStreaming())
 }
 
 // A maxPushStream is an implementation of StreamTest that
