@@ -59,11 +59,8 @@ func benchmarkStreaming(b *testing.B, cfg *benchmarkStreamingConfig) {
 			}
 		}
 	}
-	fut, rel := bootstrap.Done(ctx, nil)
-	defer rel()
-	_, err := fut.Struct()
-	if err != nil {
-		b.Errorf("Error waiting on done() future: %v", err)
+	if err := capnp.Client(bootstrap).WaitStreaming(); err != nil {
+		b.Errorf("Error waiting on streaming calls: %v", err)
 	}
 }
 
@@ -72,10 +69,6 @@ type nullStream struct {
 }
 
 func (nullStream) Push(context.Context, testcp.StreamTest_push) error {
-	return nil
-}
-
-func (nullStream) Done(context.Context, testcp.StreamTest_done) error {
 	return nil
 }
 

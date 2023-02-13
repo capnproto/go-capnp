@@ -44,10 +44,3 @@ func (m *maxPushStream) Push(context.Context, testcapnp.StreamTest_push) error {
 	}
 	return nil
 }
-
-func (m *maxPushStream) Done(context.Context, testcapnp.StreamTest_done) error {
-	// Note: important to always return nil here, so the tests can distinguish
-	// between an error carried over from a call to push() and one returned
-	// directly from done().
-	return nil
-}
