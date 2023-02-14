@@ -19,6 +19,7 @@ type PingPong capnp.Client
 const PingPong_TypeID = 0xf004c474c2f8ee7a
 
 func (c PingPong) EchoNum(ctx context.Context, params func(PingPong_echoNum_Params) error) (PingPong_echoNum_Results_Future, capnp.ReleaseFunc) {
+
 	s := capnp.Send{
 		Method: capnp.Method{
 			InterfaceID:   0xf004c474c2f8ee7a,
@@ -31,8 +32,14 @@ func (c PingPong) EchoNum(ctx context.Context, params func(PingPong_echoNum_Para
 		s.ArgsSize = capnp.ObjectSize{DataSize: 8, PointerCount: 0}
 		s.PlaceArgs = func(s capnp.Struct) error { return params(PingPong_echoNum_Params(s)) }
 	}
+
 	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return PingPong_echoNum_Results_Future{Future: ans.Future()}, release
+
+}
+
+func (c PingPong) WaitStreaming() error {
+	return capnp.Client(c).WaitStreaming()
 }
 
 // String returns a string that identifies this capability for debugging
@@ -100,7 +107,9 @@ func (c PingPong) SetFlowLimiter(lim fc.FlowLimiter) {
 // for this client.
 func (c PingPong) GetFlowLimiter() fc.FlowLimiter {
 	return capnp.Client(c).GetFlowLimiter()
-} // A PingPong_Server is a PingPong with a local implementation.
+}
+
+// A PingPong_Server is a PingPong with a local implementation.
 type PingPong_Server interface {
 	EchoNum(context.Context, PingPong_echoNum) error
 }
@@ -314,7 +323,7 @@ type StreamTest capnp.Client
 // StreamTest_TypeID is the unique identifier for the type StreamTest.
 const StreamTest_TypeID = 0xbb3ca85b01eea465
 
-func (c StreamTest) Push(ctx context.Context, params func(StreamTest_push_Params) error) (stream.StreamResult_Future, capnp.ReleaseFunc) {
+func (c StreamTest) Push(ctx context.Context, params func(StreamTest_push_Params) error) error {
 	s := capnp.Send{
 		Method: capnp.Method{
 			InterfaceID:   0xbb3ca85b01eea465,
@@ -327,8 +336,13 @@ func (c StreamTest) Push(ctx context.Context, params func(StreamTest_push_Params
 		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 1}
 		s.PlaceArgs = func(s capnp.Struct) error { return params(StreamTest_push_Params(s)) }
 	}
-	ans, release := capnp.Client(c).SendCall(ctx, s)
-	return stream.StreamResult_Future{Future: ans.Future()}, release
+
+	return capnp.Client(c).SendStreamCall(ctx, s)
+
+}
+
+func (c StreamTest) WaitStreaming() error {
+	return capnp.Client(c).WaitStreaming()
 }
 
 // String returns a string that identifies this capability for debugging
@@ -396,7 +410,9 @@ func (c StreamTest) SetFlowLimiter(lim fc.FlowLimiter) {
 // for this client.
 func (c StreamTest) GetFlowLimiter() fc.FlowLimiter {
 	return capnp.Client(c).GetFlowLimiter()
-} // A StreamTest_Server is a StreamTest with a local implementation.
+}
+
+// A StreamTest_Server is a StreamTest with a local implementation.
 type StreamTest_Server interface {
 	Push(context.Context, StreamTest_push) error
 }
@@ -544,6 +560,7 @@ type CapArgsTest capnp.Client
 const CapArgsTest_TypeID = 0xb86bce7f916a10cc
 
 func (c CapArgsTest) Call(ctx context.Context, params func(CapArgsTest_call_Params) error) (CapArgsTest_call_Results_Future, capnp.ReleaseFunc) {
+
 	s := capnp.Send{
 		Method: capnp.Method{
 			InterfaceID:   0xb86bce7f916a10cc,
@@ -556,10 +573,14 @@ func (c CapArgsTest) Call(ctx context.Context, params func(CapArgsTest_call_Para
 		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 1}
 		s.PlaceArgs = func(s capnp.Struct) error { return params(CapArgsTest_call_Params(s)) }
 	}
+
 	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return CapArgsTest_call_Results_Future{Future: ans.Future()}, release
+
 }
+
 func (c CapArgsTest) Self(ctx context.Context, params func(CapArgsTest_self_Params) error) (CapArgsTest_self_Results_Future, capnp.ReleaseFunc) {
+
 	s := capnp.Send{
 		Method: capnp.Method{
 			InterfaceID:   0xb86bce7f916a10cc,
@@ -572,8 +593,14 @@ func (c CapArgsTest) Self(ctx context.Context, params func(CapArgsTest_self_Para
 		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
 		s.PlaceArgs = func(s capnp.Struct) error { return params(CapArgsTest_self_Params(s)) }
 	}
+
 	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return CapArgsTest_self_Results_Future{Future: ans.Future()}, release
+
+}
+
+func (c CapArgsTest) WaitStreaming() error {
+	return capnp.Client(c).WaitStreaming()
 }
 
 // String returns a string that identifies this capability for debugging
@@ -641,7 +668,9 @@ func (c CapArgsTest) SetFlowLimiter(lim fc.FlowLimiter) {
 // for this client.
 func (c CapArgsTest) GetFlowLimiter() fc.FlowLimiter {
 	return capnp.Client(c).GetFlowLimiter()
-} // A CapArgsTest_Server is a CapArgsTest with a local implementation.
+}
+
+// A CapArgsTest_Server is a CapArgsTest with a local implementation.
 type CapArgsTest_Server interface {
 	Call(context.Context, CapArgsTest_call) error
 
@@ -1043,6 +1072,7 @@ type PingPongProvider capnp.Client
 const PingPongProvider_TypeID = 0x95b6142577e93239
 
 func (c PingPongProvider) PingPong(ctx context.Context, params func(PingPongProvider_pingPong_Params) error) (PingPongProvider_pingPong_Results_Future, capnp.ReleaseFunc) {
+
 	s := capnp.Send{
 		Method: capnp.Method{
 			InterfaceID:   0x95b6142577e93239,
@@ -1055,8 +1085,14 @@ func (c PingPongProvider) PingPong(ctx context.Context, params func(PingPongProv
 		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
 		s.PlaceArgs = func(s capnp.Struct) error { return params(PingPongProvider_pingPong_Params(s)) }
 	}
+
 	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return PingPongProvider_pingPong_Results_Future{Future: ans.Future()}, release
+
+}
+
+func (c PingPongProvider) WaitStreaming() error {
+	return capnp.Client(c).WaitStreaming()
 }
 
 // String returns a string that identifies this capability for debugging
@@ -1124,7 +1160,9 @@ func (c PingPongProvider) SetFlowLimiter(lim fc.FlowLimiter) {
 // for this client.
 func (c PingPongProvider) GetFlowLimiter() fc.FlowLimiter {
 	return capnp.Client(c).GetFlowLimiter()
-} // A PingPongProvider_Server is a PingPongProvider with a local implementation.
+}
+
+// A PingPongProvider_Server is a PingPongProvider with a local implementation.
 type PingPongProvider_Server interface {
 	PingPong(context.Context, PingPongProvider_pingPong) error
 }

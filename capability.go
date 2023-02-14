@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"sync"
 
+	"capnproto.org/go/capnp/v3/exc"
 	"capnproto.org/go/capnp/v3/exp/bufferpool"
 	"capnproto.org/go/capnp/v3/flowcontrol"
 	"capnproto.org/go/capnp/v3/internal/str"
@@ -126,6 +127,11 @@ type client struct {
 	limiter  flowcontrol.FlowLimiter
 	h        *clientHook // nil if resolved to nil or released
 	released bool
+
+	stream struct {
+		err error          // Last error from streaming calls.
+		wg  sync.WaitGroup // Outstanding calls.
+	}
 }
 
 // clientHook is a reference-counted wrapper for a ClientHook.
@@ -321,6 +327,15 @@ func (c Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 		return ErrorAnswer(s.Method, errors.New("call on null client")), func() {}
 	}
 
+	var err error
+	syncutil.With(&c.mu, func() {
+		err = c.stream.err
+	})
+
+	if err != nil {
+		return ErrorAnswer(s.Method, exc.WrapError("stream error", err)), func() {}
+	}
+
 	limiter := c.GetFlowLimiter()
 
 	// We need to call PlaceArgs before we will know the size of message for
@@ -379,6 +394,49 @@ func (c Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 	}
 
 	return ans, rel
+}
+
+// SendStreamCall is like SendCall except that:
+//
+// 1. It does not return an answer for the eventual result.
+// 2. If the call returns an error, all future calls on this
+//    client will return the same error (without starting
+//    the method or calling PlaceArgs).
+func (c Client) SendStreamCall(ctx context.Context, s Send) error {
+	var streamError error
+	syncutil.With(&c.mu, func() {
+		streamError = c.stream.err
+		if streamError == nil {
+			c.stream.wg.Add(1)
+		}
+	})
+	if streamError != nil {
+		return streamError
+	}
+	ans, release := c.SendCall(ctx, s)
+	go func() {
+		defer c.stream.wg.Done()
+		_, err := ans.Future().Ptr()
+		release()
+		if err != nil {
+			syncutil.With(&c.mu, func() {
+				c.stream.err = err
+			})
+		}
+	}()
+	return nil
+}
+
+// WaitStreaming waits for all outstanding streaming calls (i.e. calls
+// started with SendStreamCall) to complete, and then returns an error
+// if any streaming call has failed.
+func (c Client) WaitStreaming() error {
+	c.stream.wg.Wait()
+	var ret error
+	syncutil.With(&c.mu, func() {
+		ret = c.stream.err
+	})
+	return ret
 }
 
 // RecvCall starts executing a method with the referenced arguments

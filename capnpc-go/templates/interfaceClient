@@ -6,7 +6,11 @@ type {{.Node.Name}} capnp.Client
 {{ template "_typeid" .Node }}
 
 {{range .Methods -}}
-func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{$.G.Imports.Context}}.Context, params func({{$.G.RemoteNodeName .Params $.Node}}) error) ({{$.G.RemoteNodeName .Results $.Node}}_Future, capnp.ReleaseFunc) {
+
+func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{$.G.Imports.Context}}.Context, params func({{$.G.RemoteNodeName .Params $.Node}}) error)
+{{- if .IsStreaming }} error {
+{{- else }} ({{$.G.RemoteNodeName .Results $.Node}}_Future, capnp.ReleaseFunc) {
+{{ end }}
 	s := capnp.Send{
 		Method: capnp.Method{
 			{{template "_interfaceMethod" .}}
@@ -16,10 +20,19 @@ func (c {{$.Node.Name}}) {{.Name|title}}(ctx {{$.G.Imports.Context}}.Context, pa
 		s.ArgsSize = {{$.G.ObjectSize .Params}}
 		s.PlaceArgs = func(s capnp.Struct) error { return params({{$.G.RemoteNodeName .Params $.Node}}(s)) }
 	}
+{{ if .IsStreaming }}
+	return capnp.Client(c).SendStreamCall(ctx, s)
+{{ else }}
 	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return {{$.G.RemoteNodeName .Results $.Node}}_Future{Future: ans.Future()}, release
+{{ end }}
 }
+
 {{end}}
+
+func (c {{$.Node.Name}}) WaitStreaming() error {
+	return capnp.Client(c).WaitStreaming()
+}
 
 // String returns a string that identifies this capability for debugging
 // purposes.  Its format should not be depended on: in particular, it

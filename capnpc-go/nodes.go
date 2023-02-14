@@ -7,6 +7,7 @@ import (
 
 	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/internal/schema"
+	"capnproto.org/go/capnp/v3/std/capnp/stream"
 )
 
 type node struct {
@@ -98,6 +99,10 @@ type interfaceMethod struct {
 	OriginalName string
 	Params       *node
 	Results      *node
+}
+
+func (m interfaceMethod) IsStreaming() bool {
+	return m.Results.Id() == stream.StreamResult_TypeID
 }
 
 func methodSet(methods []interfaceMethod, n *node, nodes nodeMap) ([]interfaceMethod, error) {

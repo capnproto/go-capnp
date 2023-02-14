@@ -5054,6 +5054,7 @@ type Echo capnp.Client
 const Echo_TypeID = 0x8e5322c1e9282534
 
 func (c Echo) Echo(ctx context.Context, params func(Echo_echo_Params) error) (Echo_echo_Results_Future, capnp.ReleaseFunc) {
+
 	s := capnp.Send{
 		Method: capnp.Method{
 			InterfaceID:   0x8e5322c1e9282534,
@@ -5066,8 +5067,14 @@ func (c Echo) Echo(ctx context.Context, params func(Echo_echo_Params) error) (Ec
 		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 1}
 		s.PlaceArgs = func(s capnp.Struct) error { return params(Echo_echo_Params(s)) }
 	}
+
 	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return Echo_echo_Results_Future{Future: ans.Future()}, release
+
+}
+
+func (c Echo) WaitStreaming() error {
+	return capnp.Client(c).WaitStreaming()
 }
 
 // String returns a string that identifies this capability for debugging
@@ -5135,7 +5142,9 @@ func (c Echo) SetFlowLimiter(lim fc.FlowLimiter) {
 // for this client.
 func (c Echo) GetFlowLimiter() fc.FlowLimiter {
 	return capnp.Client(c).GetFlowLimiter()
-} // A Echo_Server is a Echo with a local implementation.
+}
+
+// A Echo_Server is a Echo with a local implementation.
 type Echo_Server interface {
 	Echo(context.Context, Echo_echo) error
 }
@@ -5839,6 +5848,7 @@ type CallSequence capnp.Client
 const CallSequence_TypeID = 0xabaedf5f7817c820
 
 func (c CallSequence) GetNumber(ctx context.Context, params func(CallSequence_getNumber_Params) error) (CallSequence_getNumber_Results_Future, capnp.ReleaseFunc) {
+
 	s := capnp.Send{
 		Method: capnp.Method{
 			InterfaceID:   0xabaedf5f7817c820,
@@ -5851,8 +5861,14 @@ func (c CallSequence) GetNumber(ctx context.Context, params func(CallSequence_ge
 		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
 		s.PlaceArgs = func(s capnp.Struct) error { return params(CallSequence_getNumber_Params(s)) }
 	}
+
 	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return CallSequence_getNumber_Results_Future{Future: ans.Future()}, release
+
+}
+
+func (c CallSequence) WaitStreaming() error {
+	return capnp.Client(c).WaitStreaming()
 }
 
 // String returns a string that identifies this capability for debugging
@@ -5920,7 +5936,9 @@ func (c CallSequence) SetFlowLimiter(lim fc.FlowLimiter) {
 // for this client.
 func (c CallSequence) GetFlowLimiter() fc.FlowLimiter {
 	return capnp.Client(c).GetFlowLimiter()
-} // A CallSequence_Server is a CallSequence with a local implementation.
+}
+
+// A CallSequence_Server is a CallSequence with a local implementation.
 type CallSequence_Server interface {
 	GetNumber(context.Context, CallSequence_getNumber) error
 }
@@ -6128,6 +6146,7 @@ type Pipeliner capnp.Client
 const Pipeliner_TypeID = 0xd6514008f0f84ebc
 
 func (c Pipeliner) NewPipeliner(ctx context.Context, params func(Pipeliner_newPipeliner_Params) error) (Pipeliner_newPipeliner_Results_Future, capnp.ReleaseFunc) {
+
 	s := capnp.Send{
 		Method: capnp.Method{
 			InterfaceID:   0xd6514008f0f84ebc,
@@ -6140,10 +6159,14 @@ func (c Pipeliner) NewPipeliner(ctx context.Context, params func(Pipeliner_newPi
 		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
 		s.PlaceArgs = func(s capnp.Struct) error { return params(Pipeliner_newPipeliner_Params(s)) }
 	}
+
 	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return Pipeliner_newPipeliner_Results_Future{Future: ans.Future()}, release
+
 }
+
 func (c Pipeliner) GetNumber(ctx context.Context, params func(CallSequence_getNumber_Params) error) (CallSequence_getNumber_Results_Future, capnp.ReleaseFunc) {
+
 	s := capnp.Send{
 		Method: capnp.Method{
 			InterfaceID:   0xabaedf5f7817c820,
@@ -6156,8 +6179,14 @@ func (c Pipeliner) GetNumber(ctx context.Context, params func(CallSequence_getNu
 		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
 		s.PlaceArgs = func(s capnp.Struct) error { return params(CallSequence_getNumber_Params(s)) }
 	}
+
 	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return CallSequence_getNumber_Results_Future{Future: ans.Future()}, release
+
+}
+
+func (c Pipeliner) WaitStreaming() error {
+	return capnp.Client(c).WaitStreaming()
 }
 
 // String returns a string that identifies this capability for debugging
@@ -6225,7 +6254,9 @@ func (c Pipeliner) SetFlowLimiter(lim fc.FlowLimiter) {
 // for this client.
 func (c Pipeliner) GetFlowLimiter() fc.FlowLimiter {
 	return capnp.Client(c).GetFlowLimiter()
-} // A Pipeliner_Server is a Pipeliner with a local implementation.
+}
+
+// A Pipeliner_Server is a Pipeliner with a local implementation.
 type Pipeliner_Server interface {
 	NewPipeliner(context.Context, Pipeliner_newPipeliner) error
 

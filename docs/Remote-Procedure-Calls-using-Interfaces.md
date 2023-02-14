@@ -238,6 +238,98 @@ It isn't until the `Struct()` method is called on a method that the `client` fun
 
 A few additional words on the Future type are in order.  If your RPC method returns another interface type, you can use the Future to immediately make calls against that as-of-yet-unreturned interface.  This relies on a feature of the Cap'n Proto RPC protocol called [promise pipelining][pipelining], the advantage of which is that Cap'n Proto can often optimize away the additional network round-trips when such method calls are chained. This is one of Cap'n Proto's key advantages, which we will use heavily in the next chapter.
 
+## Streaming and Backpressure
+
+Cap'n Proto supports streaming workflows. Unlike other RPC protocols
+such as grpc, this can be done without any dedicated "streaming"
+construct. Instead, you can define an interface such as:
+
+```capnp
+interface ByteStream {
+  write @0 (data :Data);
+  done @1 ();
+}
+```
+
+The above is roughly analogous to the `io.WriteCloser` interface. If you
+have a `ByteStream` interface, you can write your data into it in
+chunks, and then call done() to signal that all data has been
+written.
+
+There are however two wrinkles.
+
+The first is flow control. If you naively call write() in a loop, Cap'n
+Proto will not by default provide any backpressure, resulting in excess
+memory usage and high latency. But waiting for each call in turn results
+in low throughput. To solve this, you need to attach a flow limiter,
+from the `flowcontrol` package. You can do this with `SetFlowLimiter` on
+any capability:
+
+```go
+import "capnproto.org/go/capnp/v3/flowcontrol"
+
+// ...
+
+// Limits in-flight data to 2^16 bytes = 64KiB:
+client.SetFlowLimiter(flowcontrol.NewFixedLimiter(1 << 16))
+```
+
+If too much data is already in-flight, This will cause future rpc calls
+to block until some existing ones have returned.
+
+The second wrinkle is dealing with return values: even though
+`ByteStream.write()` has no return value, each call will return a future
+and ReleaseFunc which must be waited on at some point. You could
+accumulate these in a slice and wait on each of them at the end, but
+there is a better option: the schema language supports a special
+`stream` return type:
+
+```capnp
+interface ByteStream {
+  write @0 (data :Data) -> stream;
+  done @1 ();
+}
+```
+
+If the return type of a method is `stream`, instead of returning
+a future and `ReleaseFunc`, the generated method will just return an
+error:
+
+```diff
+- func (c ByteStream) Write(ctx context.Context, params func(ByteStream_write_Params) error) (stream.ByteStream_write_Results_Future, capnp.ReleaseFunc) {
++ func (c ByteStream) Write(ctx context.Context, params func(ByteStream_write_Params) error) error {
+```
+
+The implementation will take care of waiting on the Future. If the
+error is non-nil, it means some prior streaming call failed; this
+can be useful for short-circuiting long streaming workflows.
+
+Additionally, each client type has a `WaitStreaming` method, which should
+be called at the end of a streaming workflow. A full example might look
+like:
+
+```go
+for chunk := range chunks {
+    err := client.Write(ctx, func(p ByteStream_write_Params) error {
+        return p.SetData(chunk)
+    })
+    if err != nil {
+        return err
+    }
+}
+
+future, release := client.Done(ctx, nil)
+defer release()
+_, err := future.Struct()
+if err != nil {
+    return err
+}
+
+if err := client.WaitStreaming(); err != nil {
+    return err
+}
+```
+
 [rpc]: https://capnproto.org/rpc.html
 [pipelining]: https://capnproto.org/news/2013-12-13-promise-pipelining-capnproto-vs-ice.html
 

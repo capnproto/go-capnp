@@ -10,7 +10,6 @@ import (
 	"capnproto.org/go/capnp/v3/flowcontrol"
 	"capnproto.org/go/capnp/v3/rpc"
 	testcp "capnproto.org/go/capnp/v3/rpc/internal/testcapnp"
-	"capnproto.org/go/capnp/v3/std/capnp/stream"
 )
 
 type benchmarkStreamingConfig struct {
@@ -47,30 +46,21 @@ func benchmarkStreaming(b *testing.B, cfg *benchmarkStreamingConfig) {
 	defer conn2.Close()
 	bootstrap := testcp.StreamTest(conn2.Bootstrap(ctx))
 	defer bootstrap.Release()
-	var (
-		futures      []stream.StreamResult_Future
-		releaseFuncs []capnp.ReleaseFunc
-	)
 	bootstrap.SetFlowLimiter(flowcontrol.NewFixedLimiter(cfg.FlowLimit))
 	data := make([]byte, cfg.MessageSize)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < cfg.MessageCount; j++ {
-			fut, rel := bootstrap.Push(ctx, func(p testcp.StreamTest_push_Params) error {
+			err := bootstrap.Push(ctx, func(p testcp.StreamTest_push_Params) error {
 				return p.SetData(data)
 			})
-			futures = append(futures, fut)
-			releaseFuncs = append(releaseFuncs, rel)
+			if err != nil {
+				b.Fatalf("Streaming call #%v failed: %v", j, err)
+			}
 		}
 	}
-	for i, fut := range futures {
-		_, err := fut.Struct()
-		if err != nil {
-			b.Errorf("Error waiting on future #%v: %v", i, err)
-		}
-	}
-	for _, rel := range releaseFuncs {
-		rel()
+	if err := bootstrap.WaitStreaming(); err != nil {
+		b.Errorf("Error waiting on streaming calls: %v", err)
 	}
 }
 

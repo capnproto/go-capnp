@@ -18,6 +18,7 @@ type Writer capnp.Client
 const Writer_TypeID = 0xf82e58b4a78f136b
 
 func (c Writer) Write(ctx context.Context, params func(Writer_write_Params) error) (Writer_write_Results_Future, capnp.ReleaseFunc) {
+
 	s := capnp.Send{
 		Method: capnp.Method{
 			InterfaceID:   0xf82e58b4a78f136b,
@@ -30,8 +31,14 @@ func (c Writer) Write(ctx context.Context, params func(Writer_write_Params) erro
 		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 1}
 		s.PlaceArgs = func(s capnp.Struct) error { return params(Writer_write_Params(s)) }
 	}
+
 	ans, release := capnp.Client(c).SendCall(ctx, s)
 	return Writer_write_Results_Future{Future: ans.Future()}, release
+
+}
+
+func (c Writer) WaitStreaming() error {
+	return capnp.Client(c).WaitStreaming()
 }
 
 // String returns a string that identifies this capability for debugging
@@ -99,7 +106,9 @@ func (c Writer) SetFlowLimiter(lim fc.FlowLimiter) {
 // for this client.
 func (c Writer) GetFlowLimiter() fc.FlowLimiter {
 	return capnp.Client(c).GetFlowLimiter()
-} // A Writer_Server is a Writer with a local implementation.
+}
+
+// A Writer_Server is a Writer with a local implementation.
 type Writer_Server interface {
 	Write(context.Context, Writer_write) error
 }
@@ -236,9 +245,9 @@ func NewWriter_write_Params_List(s *capnp.Segment, sz int32) (Writer_write_Param
 // Writer_write_Params_Future is a wrapper for a Writer_write_Params promised by a client call.
 type Writer_write_Params_Future struct{ *capnp.Future }
 
-func (p Writer_write_Params_Future) Struct() (Writer_write_Params, error) {
-	s, err := p.Future.Struct()
-	return Writer_write_Params(s), err
+func (f Writer_write_Params_Future) Struct() (Writer_write_Params, error) {
+	p, err := f.Future.Ptr()
+	return Writer_write_Params(p.Struct()), err
 }
 
 type Writer_write_Results capnp.Struct
@@ -301,9 +310,9 @@ func NewWriter_write_Results_List(s *capnp.Segment, sz int32) (Writer_write_Resu
 // Writer_write_Results_Future is a wrapper for a Writer_write_Results promised by a client call.
 type Writer_write_Results_Future struct{ *capnp.Future }
 
-func (p Writer_write_Results_Future) Struct() (Writer_write_Results, error) {
-	s, err := p.Future.Struct()
-	return Writer_write_Results(s), err
+func (f Writer_write_Results_Future) Struct() (Writer_write_Results, error) {
+	p, err := f.Future.Ptr()
+	return Writer_write_Results(p.Struct()), err
 }
 
 const schema_aca73f831c7ebfdd = "x\xda\x12\xa8u`1\xe4\xcdgb`\x0a\x94ae" +
