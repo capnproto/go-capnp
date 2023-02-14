@@ -1305,6 +1305,18 @@ func (c *lockedConn) recvCap(d rpccp.CapDescriptor) (capnp.Client, error) {
 		// >   rather than being delivered locally.
 		id := importID(d.SenderPromise())
 		return c.addImport(id), nil
+	case rpccp.CapDescriptor_Which_thirdPartyHosted:
+		// We don't support third-party handoff yet, so instead of trying to
+		// pick this up, use the vine and treat it the same as senderHosted:
+		thirdPartyDesc, err := d.ThirdPartyHosted()
+		if err != nil {
+			return capnp.Client{}, exc.WrapError(
+				"reading ThridPartyCapDescriptor",
+				err,
+			)
+		}
+		id := importID(thirdPartyDesc.VineId())
+		return c.addImport(id), nil
 	case rpccp.CapDescriptor_Which_receiverHosted:
 		id := exportID(d.ReceiverHosted())
 		ent := c.findExport(id)
