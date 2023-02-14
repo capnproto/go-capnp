@@ -327,8 +327,13 @@ func (c Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 		return ErrorAnswer(s.Method, errors.New("call on null client")), func() {}
 	}
 
-	if c.stream.err != nil {
-		return ErrorAnswer(s.Method, exc.WrapError("stream error", c.stream.err)), func() {}
+	var err error
+	syncutil.With(&c.mu, func() {
+		err = c.stream.err
+	})
+
+	if err != nil {
+		return ErrorAnswer(s.Method, exc.WrapError("stream error", err)), func() {}
 	}
 
 	limiter := c.GetFlowLimiter()
