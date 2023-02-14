@@ -123,12 +123,15 @@ type client struct {
 	creatorStack string
 	creatorLine  int
 
-	mu          sync.Mutex // protects the struct
-	limiter     flowcontrol.FlowLimiter
-	streamError error // Last error from streaming calls.
-	streamWg    *sync.WaitGroup
-	h           *clientHook // nil if resolved to nil or released
-	released    bool
+	mu       sync.Mutex // protects the struct
+	limiter  flowcontrol.FlowLimiter
+	h        *clientHook // nil if resolved to nil or released
+	released bool
+
+	stream struct {
+		err error          // Last error from streaming calls.
+		wg  sync.WaitGroup // Outstanding calls.
+	}
 }
 
 // clientHook is a reference-counted wrapper for a ClientHook.
@@ -324,8 +327,8 @@ func (c Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 		return ErrorAnswer(s.Method, errors.New("call on null client")), func() {}
 	}
 
-	if c.streamError != nil {
-		return ErrorAnswer(s.Method, exc.WrapError("stream error", c.streamError)), func() {}
+	if c.stream.err != nil {
+		return ErrorAnswer(s.Method, exc.WrapError("stream error", c.stream.err)), func() {}
 	}
 
 	limiter := c.GetFlowLimiter()
@@ -395,18 +398,11 @@ func (c Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 //    client will return the same error (without starting
 //    the method or calling PlaceArgs).
 func (c Client) SendStreamCall(ctx context.Context, s Send) error {
-	var (
-		streamError error
-		wg          *sync.WaitGroup
-	)
+	var streamError error
 	syncutil.With(&c.mu, func() {
-		streamError = c.streamError
+		streamError = c.stream.err
 		if streamError == nil {
-			if c.streamWg == nil {
-				c.streamWg = &sync.WaitGroup{}
-			}
-			wg = c.streamWg
-			wg.Add(1)
+			c.stream.wg.Add(1)
 		}
 	})
 	if streamError != nil {
@@ -414,12 +410,12 @@ func (c Client) SendStreamCall(ctx context.Context, s Send) error {
 	}
 	ans, release := c.SendCall(ctx, s)
 	go func() {
-		defer wg.Done()
+		defer c.stream.wg.Done()
 		_, err := ans.Future().Ptr()
 		release()
 		if err != nil {
 			syncutil.With(&c.mu, func() {
-				c.streamError = err
+				c.stream.err = err
 			})
 		}
 	}()
@@ -430,19 +426,10 @@ func (c Client) SendStreamCall(ctx context.Context, s Send) error {
 // started with SendStreamCall) to complete, and then returns an error
 // if any streaming call has failed.
 func (c Client) WaitStreaming() error {
-	var (
-		ret error
-		wg  *sync.WaitGroup
-	)
+	c.stream.wg.Wait()
+	var ret error
 	syncutil.With(&c.mu, func() {
-		wg = c.streamWg
-	})
-	if wg == nil {
-		return nil
-	}
-	wg.Wait()
-	syncutil.With(&c.mu, func() {
-		ret = c.streamError
+		ret = c.stream.err
 	})
 	return ret
 }
