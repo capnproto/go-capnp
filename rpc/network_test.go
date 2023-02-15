@@ -92,7 +92,7 @@ func (n inMemoryNetworkRef) Dial(dst rpc.PeerID, opts *rpc.Options) (*rpc.Conn, 
 	return conn, nil
 }
 
-func (n inMemoryNetworkRef) Accept(ctx context.Context) (*rpc.Conn, error) {
+func (n inMemoryNetworkRef) Accept(ctx context.Context, opts *rpc.Options) (*rpc.Conn, error) {
 	n.network.mu.Lock()
 	q := n.network.getAcceptQueue(n.myID)
 	n.network.mu.Unlock()
@@ -101,14 +101,11 @@ func (n inMemoryNetworkRef) Accept(ctx context.Context) (*rpc.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	opts.Network = n
+	opts.RemotePeerID = rpc.PeerID{incoming.ID}
 	n.network.mu.Lock()
 	defer n.network.mu.Unlock()
-
-	conn := rpc.NewConn(rpc.NewStreamTransport(incoming.Conn), &rpc.Options{
-		Network:      n,
-		RemotePeerID: rpc.PeerID{incoming.ID},
-	})
+	conn := rpc.NewConn(rpc.NewStreamTransport(incoming.Conn), opts)
 	n.network.connections[inMemoryEdge{
 		From: n.myID,
 		To:   incoming.ID,

@@ -22,7 +22,7 @@ type IntroductionInfo struct {
 type Network interface {
 	MyID() PeerID
 	Dial(PeerID, *Options) (*Conn, error)
-	Accept(context.Context) (*Conn, error)
+	Accept(context.Context, *Options) (*Conn, error)
 	Introduce(provider, recipient *Conn) (IntroductionInfo, error)
 	DialIntroduced(capID ThirdPartyCapID) (*Conn, ProvisionID, error)
 	AcceptIntroduced(recipientID RecipientID) (*Conn, error)
