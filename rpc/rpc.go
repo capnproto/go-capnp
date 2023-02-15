@@ -191,6 +191,9 @@ type Options struct {
 	// before closing the transport.  If zero, then a reasonably short
 	// timeout is used.
 	AbortTimeout time.Duration
+
+	Network Network
+	PeerId  PeerId
 }
 
 // ErrorReporter can receive errors from a Conn.  ReportError should be quick
