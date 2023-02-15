@@ -68,7 +68,7 @@ func (n inMemoryNetworkRef) Dial(dst rpc.PeerId, opts *rpc.Options) (*rpc.Conn, 
 		opts = &rpc.Options{}
 	}
 	opts.Network = n
-	opts.PeerId = dst
+	opts.RemotePeerId = dst
 	dstId := dst.Value.(inMemoryPeerId)
 	edge := inMemoryEdge{
 		From: n.myId,
@@ -106,8 +106,8 @@ func (n inMemoryNetworkRef) Accept(ctx context.Context) (*rpc.Conn, error) {
 	defer n.network.mu.Unlock()
 
 	conn := rpc.NewConn(rpc.NewStreamTransport(incoming.Conn), &rpc.Options{
-		Network: n,
-		PeerId:  rpc.PeerId{incoming.Id},
+		Network:      n,
+		RemotePeerId: rpc.PeerId{incoming.Id},
 	})
 	n.network.connections[inMemoryEdge{
 		From: n.myId,
