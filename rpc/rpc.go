@@ -192,11 +192,11 @@ type Options struct {
 	// timeout is used.
 	AbortTimeout time.Duration
 
-	// RemotePeerId is the PeerId of the remote side of the connection. Can
+	// RemotePeerID is the PeerID of the remote side of the connection. Can
 	// be left as the zero value for point to point connections. For >= 3
 	// party use, this should be filled in by the Network on Accept or Dial.
 	// Application code should not set this.
-	RemotePeerId PeerId
+	RemotePeerID PeerID
 
 	// A reference to the Network that this connection is a part of.  Can be
 	// left nil for point to point connections. Otherwise, this must be set

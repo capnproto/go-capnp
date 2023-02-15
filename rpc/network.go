@@ -6,24 +6,24 @@ import (
 	capnp "capnproto.org/go/capnp/v3"
 )
 
-type PeerId struct {
+type PeerID struct {
 	Value any
 }
 
-type ThirdPartyCapId capnp.Ptr
-type RecipientId capnp.Ptr
-type ProvisionId capnp.Ptr
+type ThirdPartyCapID capnp.Ptr
+type RecipientID capnp.Ptr
+type ProvisionID capnp.Ptr
 
 type IntroductionInfo struct {
-	SendToRecipient ThirdPartyCapId
-	SendToProvider  RecipientId
+	SendToRecipient ThirdPartyCapID
+	SendToProvider  RecipientID
 }
 
 type Network interface {
-	MyId() PeerId
-	Dial(PeerId, *Options) (*Conn, error)
+	MyID() PeerID
+	Dial(PeerID, *Options) (*Conn, error)
 	Accept(context.Context) (*Conn, error)
 	Introduce(provider, recipient *Conn) (IntroductionInfo, error)
-	DialIntroduced(capId ThirdPartyCapId) (*Conn, ProvisionId, error)
-	AcceptIntroduced(recipientId RecipientId) (*Conn, error)
+	DialIntroduced(capID ThirdPartyCapID) (*Conn, ProvisionID, error)
+	AcceptIntroduced(recipientID RecipientID) (*Conn, error)
 }

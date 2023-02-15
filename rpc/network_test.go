@@ -9,33 +9,33 @@ import (
 	"capnproto.org/go/capnp/v3/rpc"
 )
 
-type inMemoryPeerId uint64
+type inMemoryPeerID uint64
 
 type inMemoryEdge struct {
-	To, From inMemoryPeerId
+	To, From inMemoryPeerID
 }
 
 type inMemoryNetworkRef struct {
-	myId    inMemoryPeerId
+	myID    inMemoryPeerID
 	network *inMemoryNetwork
 }
 
 type inMemoryNetwork struct {
 	mu          sync.Mutex
-	nextId      inMemoryPeerId
+	nextID      inMemoryPeerID
 	connections map[inMemoryEdge]*rpc.Conn
-	incoming    map[inMemoryPeerId]spsc.Queue[inMemoryIncomingConn]
+	incoming    map[inMemoryPeerID]spsc.Queue[inMemoryIncomingConn]
 }
 
 type inMemoryIncomingConn struct {
 	Conn net.Conn
-	Id   inMemoryPeerId
+	ID   inMemoryPeerID
 }
 
 func newInMemoryNetwork() *inMemoryNetwork {
 	return &inMemoryNetwork{
 		connections: make(map[inMemoryEdge]*rpc.Conn),
-		incoming:    make(map[inMemoryPeerId]spsc.Queue[inMemoryIncomingConn]),
+		incoming:    make(map[inMemoryPeerID]spsc.Queue[inMemoryIncomingConn]),
 	}
 }
 
@@ -43,14 +43,14 @@ func (n *inMemoryNetwork) Join() rpc.Network {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	ret := inMemoryNetworkRef{
-		myId:    n.nextId,
+		myID:    n.nextID,
 		network: n,
 	}
-	n.nextId++
+	n.nextID++
 	return ret
 }
 
-func (n *inMemoryNetwork) getAcceptQueue(id inMemoryPeerId) spsc.Queue[inMemoryIncomingConn] {
+func (n *inMemoryNetwork) getAcceptQueue(id inMemoryPeerID) spsc.Queue[inMemoryIncomingConn] {
 	q, ok := n.incoming[id]
 	if !ok {
 		q = spsc.New[inMemoryIncomingConn]()
@@ -59,20 +59,20 @@ func (n *inMemoryNetwork) getAcceptQueue(id inMemoryPeerId) spsc.Queue[inMemoryI
 	return q
 }
 
-func (n inMemoryNetworkRef) MyId() rpc.PeerId {
-	return rpc.PeerId{n.myId}
+func (n inMemoryNetworkRef) MyID() rpc.PeerID {
+	return rpc.PeerID{n.myID}
 }
 
-func (n inMemoryNetworkRef) Dial(dst rpc.PeerId, opts *rpc.Options) (*rpc.Conn, error) {
+func (n inMemoryNetworkRef) Dial(dst rpc.PeerID, opts *rpc.Options) (*rpc.Conn, error) {
 	if opts == nil {
 		opts = &rpc.Options{}
 	}
 	opts.Network = n
-	opts.RemotePeerId = dst
-	dstId := dst.Value.(inMemoryPeerId)
+	opts.RemotePeerID = dst
+	dstID := dst.Value.(inMemoryPeerID)
 	edge := inMemoryEdge{
-		From: n.myId,
-		To:   dstId,
+		From: n.myID,
+		To:   dstID,
 	}
 
 	n.network.mu.Lock()
@@ -81,11 +81,11 @@ func (n inMemoryNetworkRef) Dial(dst rpc.PeerId, opts *rpc.Options) (*rpc.Conn, 
 	if ok {
 		return conn, nil
 	}
-	q := n.network.getAcceptQueue(dstId)
+	q := n.network.getAcceptQueue(dstID)
 	c1, c2 := net.Pipe()
 	q.Send(inMemoryIncomingConn{
 		Conn: c1,
-		Id:   n.myId,
+		ID:   n.myID,
 	})
 	conn = rpc.NewConn(rpc.NewStreamTransport(c2), opts)
 	n.network.connections[edge] = conn
@@ -94,7 +94,7 @@ func (n inMemoryNetworkRef) Dial(dst rpc.PeerId, opts *rpc.Options) (*rpc.Conn, 
 
 func (n inMemoryNetworkRef) Accept(ctx context.Context) (*rpc.Conn, error) {
 	n.network.mu.Lock()
-	q := n.network.getAcceptQueue(n.myId)
+	q := n.network.getAcceptQueue(n.myID)
 	n.network.mu.Unlock()
 
 	incoming, err := q.Recv(ctx)
@@ -107,11 +107,11 @@ func (n inMemoryNetworkRef) Accept(ctx context.Context) (*rpc.Conn, error) {
 
 	conn := rpc.NewConn(rpc.NewStreamTransport(incoming.Conn), &rpc.Options{
 		Network:      n,
-		RemotePeerId: rpc.PeerId{incoming.Id},
+		RemotePeerID: rpc.PeerID{incoming.ID},
 	})
 	n.network.connections[inMemoryEdge{
-		From: n.myId,
-		To:   incoming.Id,
+		From: n.myID,
+		To:   incoming.ID,
 	}] = conn
 	return conn, nil
 }
@@ -119,9 +119,9 @@ func (n inMemoryNetworkRef) Accept(ctx context.Context) (*rpc.Conn, error) {
 func (n inMemoryNetworkRef) Introduce(provider, recipient *rpc.Conn) (rpc.IntroductionInfo, error) {
 	panic("TODO")
 }
-func (n inMemoryNetworkRef) DialIntroduced(capId rpc.ThirdPartyCapId) (*rpc.Conn, rpc.ProvisionId, error) {
+func (n inMemoryNetworkRef) DialIntroduced(capID rpc.ThirdPartyCapID) (*rpc.Conn, rpc.ProvisionID, error) {
 	panic("TODO")
 }
-func (n inMemoryNetworkRef) AcceptIntroduced(recipientId rpc.RecipientId) (*rpc.Conn, error) {
+func (n inMemoryNetworkRef) AcceptIntroduced(recipientID rpc.RecipientID) (*rpc.Conn, error) {
 	panic("TODO")
 }
