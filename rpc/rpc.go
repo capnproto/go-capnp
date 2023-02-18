@@ -79,6 +79,9 @@ is a common source of errors and/or inefficiencies.
 // A Conn is a connection to another Cap'n Proto vat.
 // It is safe to use from multiple goroutines.
 type Conn struct {
+	remotePeerID PeerID
+	network      Network
+
 	bootstrap    capnp.Client
 	er           errReporter
 	abortTimeout time.Duration
@@ -244,6 +247,8 @@ func NewConn(t Transport, opts *Options) *Conn {
 		c.bootstrap = opts.BootstrapClient
 		c.er = errReporter{opts.ErrorReporter}
 		c.abortTimeout = opts.AbortTimeout
+		c.network = opts.Network
+		c.remotePeerID = opts.RemotePeerID
 	}
 	if c.abortTimeout == 0 {
 		c.abortTimeout = 100 * time.Millisecond
@@ -288,6 +293,13 @@ func (c *Conn) backgroundTask(f func() error) func() error {
 
 		return err
 	}
+}
+
+// Return the peer ID for the remote side of the connection. Returns
+// the zero value if this connection was set up with NewConn instead
+// of via a Network.
+func (c *Conn) RemotePeerID() PeerID {
+	return c.remotePeerID
 }
 
 // Bootstrap returns the remote vat's bootstrap interface.  This creates

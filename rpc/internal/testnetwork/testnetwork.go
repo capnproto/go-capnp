@@ -6,6 +6,7 @@ import (
 	"net"
 	"sync"
 
+	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/exp/spsc"
 	"capnproto.org/go/capnp/v3/rpc"
 )
@@ -27,6 +28,7 @@ type network struct {
 type Joiner struct {
 	mu          sync.Mutex
 	nextID      PeerID
+	nextNonce   uint64
 	connections map[edge]*rpc.Conn
 	incoming    map[PeerID]spsc.Queue[incomingConn]
 }
@@ -118,11 +120,50 @@ func (n network) Accept(ctx context.Context, opts *rpc.Options) (*rpc.Conn, erro
 }
 
 func (n network) Introduce(provider, recipient *rpc.Conn) (rpc.IntroductionInfo, error) {
-	panic("TODO")
+	providerPeer := provider.RemotePeerID()
+	recipientPeer = recipient.RemotePeerID()
+	n.global.mu.Lock()
+	defer n.global.mu.Unlock()
+	nonce := n.nextNonce
+	n.nextNonce++
+	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	ret := rpc.IntroductionInfo{}
+	if err != nil {
+		return ret, err
+	}
+	sendToRecipient, err := NewPeerAndNonce(seg)
+	if err != nil {
+		return ret, err
+	}
+	sendToProvider, err := NewPeerAndNonce(seg)
+	if err != nil {
+		return ret, err
+	}
+	sendToRecipient.SetPeerId(uint64(providerPeer.Value.(PeerID)))
+	sendToRecipient.SetNonce(nonce)
+	sendToProvider.SetPeerId(uint64(recipientPeer.Value.(PeerID)))
+	sendToProvider.SetNonce(nonce)
+	ret.SendToRecipient = rpc.ThirdPartyCapID(sendToRecipient.ToPtr())
+	ret.SendToProivder = rpc.RecipientID(sendToProvider.ToPtr())
+	return ret, nil
 }
-func (n network) DialIntroduced(capID rpc.ThirdPartyCapID) (*rpc.Conn, rpc.ProvisionID, error) {
-	panic("TODO")
+func (n network) DialIntroduced(capID rpc.ThirdPartyCapID, introducedBy *rpc.Conn) (*rpc.Conn, rpc.ProvisionID, error) {
+	cid := PeerAndNonce(capnp.Ptr(capID).Struct())
+
+	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		return nil, rpc.ProvisionID{}, err
+	}
+	pid, err := NewPeerAndNonce(seg)
+	if err != nil {
+		return nil, rpc.ProvisionID{}, err
+	}
+	pid.SetPeerId(uint64(introducedBy.RemotePeerID().Value.(PeerID)))
+	pid.SetNonce(cid.Nonce())
+
+	conn, err := n.Dial(rpc.PeerID{PeerID(cid.PeerId())}, nil)
+	return conn, rpc.ProvisionID(pid.ToPtr()), err
 }
-func (n network) AcceptIntroduced(recipientID rpc.RecipientID) (*rpc.Conn, error) {
+func (n network) AcceptIntroduced(recipientID rpc.RecipientID, introducedBy *rpc.Conn) (*rpc.Conn, error) {
 	panic("TODO")
 }

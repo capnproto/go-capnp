@@ -81,15 +81,15 @@ type Network interface {
 	// provider, and a ThirdPartyCapId should be sent to recipient.
 	Introduce(provider, recipient *Conn) (IntroductionInfo, error)
 
-	// Given a ThirdPartyCapID, connect to the third party. The
-	// caller should then send an Accept message over the returned
-	// Connection.
-	DialIntroduced(capID ThirdPartyCapID) (*Conn, ProvisionID, error)
+	// Given a ThirdPartyCapID, received from introducedBy, connect
+	// to the third party. The caller should then send an Accept
+	// message over the returned Connection.
+	DialIntroduced(capID ThirdPartyCapID, introducedBy *Conn) (*Conn, ProvisionID, error)
 
-	// Given a RecipientID received in a Provide message, wait
-	// for the recipient to connect, and return the connection
-	// formed. If there is already an established connection
-	// to the relevant Peer, this SHOULD return the existing
-	// connection immediately.
-	AcceptIntroduced(recipientID RecipientID) (*Conn, error)
+	// Given a RecipientID received in a Provide message via
+	// introducedBy, wait for the recipient to connect, and
+	// return the connection formed. If there is already an
+	// established connection to the relevant Peer, this
+	// SHOULD return the existing connection immediately.
+	AcceptIntroduced(recipientID RecipientID, introducedBy *Conn) (*Conn, error)
 }
