@@ -4,7 +4,6 @@ package server // import "capnproto.org/go/capnp/v3/server"
 
 import (
 	"context"
-	"fmt"
 	"sort"
 	"sync"
 
@@ -275,8 +274,7 @@ func sendArgsToStruct(s capnp.Send) (capnp.Struct, error) {
 	}
 	if err := s.PlaceArgs(st); err != nil {
 		st.Message().Reset(nil)
-		// Using fmt.Errorf to ensure sendArgsToStruct returns a generic error.
-		return capnp.Struct{}, fmt.Errorf("place args: %w", err)
+		return capnp.Struct{}, exc.WrapError("place args", err)
 	}
 	return st, nil
 }
