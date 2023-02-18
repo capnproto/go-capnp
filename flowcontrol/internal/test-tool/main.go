@@ -17,6 +17,7 @@ import (
 	"capnproto.org/go/capnp/v3/flowcontrol/tracing"
 	"capnproto.org/go/capnp/v3/internal/syncutil"
 	"capnproto.org/go/capnp/v3/rpc"
+	"zenhack.net/go/util"
 )
 
 var (
@@ -52,7 +53,7 @@ func main() {
 
 func doClient(ctx context.Context) {
 	netConn, err := net.Dial("tcp", *addr)
-	chkfatal(err)
+	util.Chkfatal(err)
 	rpcConn := rpc.NewConn(rpc.NewStreamTransport(netConn), nil)
 	defer rpcConn.Close()
 	w := Writer(rpcConn.Bootstrap(ctx))
@@ -99,7 +100,7 @@ func doClient(ctx context.Context) {
 	wg := &sync.WaitGroup{}
 	for sent < *totaldata && ctx.Err() == nil {
 		fut, rel := w.Write(ctx, func(p Writer_write_Params) error {
-			chkfatal(p.SetData(make([]byte, *packetsize)))
+			util.Chkfatal(p.SetData(make([]byte, *packetsize)))
 			sz, _ := p.Message().TotalSize()
 			sent += int(sz)
 			return nil
@@ -110,7 +111,7 @@ func doClient(ctx context.Context) {
 	wg.Wait()
 
 	endTime := time.Now()
-	chkfatal(ctx.Err())
+	util.Chkfatal(ctx.Err())
 
 	duration := endTime.Sub(startTime)
 	bandwidth := float64(sent) / (float64(duration) / float64(time.Second))
@@ -129,7 +130,7 @@ func doClient(ctx context.Context) {
 
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
-	chkfatal(enc.Encode(report))
+	util.Chkfatal(enc.Encode(report))
 }
 
 func waitAsync(wg *sync.WaitGroup, fut Writer_write_Results_Future, rel capnp.ReleaseFunc) {
@@ -138,13 +139,13 @@ func waitAsync(wg *sync.WaitGroup, fut Writer_write_Results_Future, rel capnp.Re
 		defer wg.Done()
 		defer rel()
 		_, err := fut.Struct()
-		chkfatal(err)
+		util.Chkfatal(err)
 	}()
 }
 
 func doServer() {
 	l, err := net.Listen("tcp", *addr)
-	chkfatal(err)
+	util.Chkfatal(err)
 	for {
 		netConn, err := l.Accept()
 		if err != nil {
@@ -157,12 +158,6 @@ func doServer() {
 				})
 			<-rpcConn.Done()
 		}()
-	}
-}
-
-func chkfatal(err error) {
-	if err != nil {
-		panic(err)
 	}
 }
 
