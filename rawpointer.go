@@ -1,8 +1,6 @@
 package capnp
 
 import (
-	"fmt"
-
 	"capnproto.org/go/capnp/v3/internal/str"
 )
 
@@ -250,7 +248,7 @@ func (p rawPointer) GoString() string {
 	default:
 		// other pointer
 		if p.otherPointerType() != 0 {
-			return fmt.Sprintf("rawPointer(%#016x)", uint64(p))
+			return "rawPointer(" + str.ZeroPad(16, str.UToHex(p)) + ")"
 		}
 		return "rawInterfacePointer(" + str.Utod(p.capabilityIndex()) + ")"
 	}
