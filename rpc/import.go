@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"capnproto.org/go/capnp/v3"
+	"capnproto.org/go/capnp/v3/internal/str"
 	"capnproto.org/go/capnp/v3/internal/syncutil"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 )
@@ -82,6 +83,10 @@ type importClient struct {
 	c          *Conn
 	id         importID
 	generation uint64
+}
+
+func (ic *importClient) String() string {
+	return "importClient{c: 0x" + str.PtrToHex(ic.c) + ", id: " + str.Utod(ic.id) + "}"
 }
 
 func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, capnp.ReleaseFunc) {

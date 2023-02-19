@@ -3,7 +3,6 @@ package capnp
 import (
 	"context"
 	"errors"
-	"fmt"
 	"runtime"
 	"strconv"
 	"sync"
@@ -606,9 +605,9 @@ func (c Client) String() string {
 	}
 	var s string
 	if c.h.isResolved() {
-		s = fmt.Sprintf("<client %T@%p>", c.h.ClientHook, c.h)
+		s = "<client " + c.h.ClientHook.String() + ">"
 	} else {
-		s = fmt.Sprintf("<unresolved client %T@%p>", c.h.ClientHook, c.h)
+		s = "<unresolved client " + c.h.ClientHook.String() + ">"
 	}
 	c.h.mu.Unlock()
 	c.mu.Unlock()
@@ -876,6 +875,9 @@ type ClientHook interface {
 	// Shutdown is undefined.  It is expected for the ClientHook to reject
 	// any outstanding call futures.
 	Shutdown()
+
+	// String formats the hook as a string (same as fmt.Stringer)
+	String() string
 }
 
 // Send is the input to ClientHook.Send.
@@ -1047,6 +1049,10 @@ func (ec errorClient) Brand() Brand {
 }
 
 func (ec errorClient) Shutdown() {
+}
+
+func (ec errorClient) String() string {
+	return "errorClient{" + ec.e.Error() + "}"
 }
 
 var closedSignal = make(chan struct{})

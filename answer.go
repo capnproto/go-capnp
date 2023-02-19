@@ -540,6 +540,13 @@ func (pc PipelineClient) Brand() Brand {
 func (pc PipelineClient) Shutdown() {
 }
 
+func (pc PipelineClient) String() string {
+	return "PipelineClient{transform: " +
+		str.Slice(pc.transform) +
+		", promise: 0x" + str.PtrToHex(pc.p) +
+		"}"
+}
+
 // A PipelineOp describes a step in transforming a pipeline.
 // It maps closely with the PromisedAnswer.Op struct in rpc.capnp.
 type PipelineOp struct {
