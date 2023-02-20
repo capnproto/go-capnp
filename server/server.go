@@ -214,7 +214,7 @@ func (srv *Server) handleCall(ctx context.Context, c *Call) {
 	c.recv.ReleaseArgs()
 	c.recv.Returner.PrepareReturn(err)
 	if err == nil {
-		c.aq.Fulfill(c.results)
+		c.aq.Fulfill(c.results.ToPtr())
 	} else {
 		c.aq.Reject(err)
 	}

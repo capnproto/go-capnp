@@ -56,9 +56,9 @@ func NewAnswerQueue(m Method) *AnswerQueue {
 }
 
 // Fulfill empties the queue, delivering the method calls on the given
-// struct.  After fulfill returns, pipeline calls will be immediately
+// pointer.  After fulfill returns, pipeline calls will be immediately
 // delivered instead of being queued.
-func (aq *AnswerQueue) Fulfill(s Struct) {
+func (aq *AnswerQueue) Fulfill(ptr Ptr) {
 	// Enter draining state.
 	aq.mu.Lock()
 	q := aq.q
@@ -69,7 +69,7 @@ func (aq *AnswerQueue) Fulfill(s Struct) {
 	for i := range aq.bases {
 		aq.bases[i].ready = ready
 	}
-	aq.bases[0].recv = ImmediateAnswer(aq.method, s).PipelineRecv
+	aq.bases[0].recv = ImmediateAnswer(aq.method, ptr).PipelineRecv
 	close(aq.draining)
 	aq.mu.Unlock()
 
@@ -272,7 +272,7 @@ func (sr *StructReturner) Answer(m Method, pcall PipelineCaller) (*Answer, Relea
 		if sr.err != nil {
 			return ErrorAnswer(m, sr.err), func() {}
 		}
-		return ImmediateAnswer(m, sr.result), func() {
+		return ImmediateAnswer(m, sr.result.ToPtr()), func() {
 			sr.mu.Lock()
 			msg := sr.result.Message()
 			sr.result = Struct{}
