@@ -24,7 +24,7 @@ type Call struct {
 	ctx    context.Context
 	method *Method
 	recv   capnp.Recv
-	aq     *answerQueue
+	aq     *capnp.AnswerQueue
 	srv    *Server
 
 	alloced bool
@@ -138,7 +138,7 @@ func (srv *Server) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, capnp
 	if err != nil {
 		return capnp.ErrorAnswer(mm.Method, err), func() {}
 	}
-	ret := new(structReturner)
+	ret := new(capnp.StructReturner)
 	pcaller := srv.start(ctx, mm, capnp.Recv{
 		Method: mm.Method, // pick up names from server method
 		Args:   args,
@@ -150,7 +150,7 @@ func (srv *Server) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, capnp
 		},
 		Returner: ret,
 	})
-	return ret.answer(mm.Method, pcaller)
+	return ret.Answer(mm.Method, pcaller)
 }
 
 // Recv starts a method call.
@@ -214,9 +214,9 @@ func (srv *Server) handleCall(ctx context.Context, c *Call) {
 	c.recv.ReleaseArgs()
 	c.recv.Returner.PrepareReturn(err)
 	if err == nil {
-		c.aq.fulfill(c.results)
+		c.aq.Fulfill(c.results)
 	} else {
-		c.aq.reject(err)
+		c.aq.Reject(err)
 	}
 	c.recv.Returner.Return()
 	c.recv.Returner.ReleaseResults()
@@ -225,7 +225,7 @@ func (srv *Server) handleCall(ctx context.Context, c *Call) {
 func (srv *Server) start(ctx context.Context, m *Method, r capnp.Recv) capnp.PipelineCaller {
 	srv.wg.Add(1)
 
-	aq := newAnswerQueue(r.Method)
+	aq := capnp.NewAnswerQueue(r.Method)
 	srv.callQueue.Send(&Call{
 		ctx:    ctx,
 		method: m,

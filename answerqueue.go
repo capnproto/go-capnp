@@ -1,27 +1,27 @@
-package server
+package capnp
 
 import (
 	"context"
+	"errors"
 	"sync"
 
-	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/exc"
 )
 
-// answerQueue is a queue of method calls to make after an earlier
+// AnswerQueue is a queue of method calls to make after an earlier
 // method call finishes.  The queue is unbounded; it is the caller's
 // responsibility to manage/impose backpressure.
 //
-// An answerQueue can be in one of three states:
+// An AnswerQueue can be in one of three states:
 //
 //	1) Queueing.  Incoming method calls will be added to the queue.
-//	2) Draining, entered by calling fulfill or reject.  Queued method
+//	2) Draining, entered by calling Fulfill or Reject.  Queued method
 //	   calls will be delivered in sequence, and new incoming method calls
-//	   will block until the answerQueue enters the Drained state.
+//	   will block until the AnswerQueue enters the Drained state.
 //	3) Drained, entered once all queued methods have been delivered.
 //	   Incoming methods are passthrough.
-type answerQueue struct {
-	method   capnp.Method
+type AnswerQueue struct {
+	method   Method
 	draining chan struct{} // closed while exiting queueing state
 
 	mu    sync.Mutex
@@ -29,23 +29,23 @@ type answerQueue struct {
 	bases []base // set when drain starts. len(bases) >= 1
 }
 
-// qent is a single entry in an answerQueue.
+// qent is a single entry in an AnswerQueue.
 type qent struct {
 	ctx   context.Context
 	basis int // index in bases
-	path  []capnp.PipelineOp
-	capnp.Recv
+	path  []PipelineOp
+	Recv
 }
 
 // base is a message target derived from applying a qent.
 type base struct {
 	ready chan struct{} // closed after recv is assigned
-	recv  func(context.Context, []capnp.PipelineOp, capnp.Recv) capnp.PipelineCaller
+	recv  func(context.Context, []PipelineOp, Recv) PipelineCaller
 }
 
-// newAnswerQueue creates a new answer queue.
-func newAnswerQueue(m capnp.Method) *answerQueue {
-	return &answerQueue{
+// NewAnswerQueue creates a new answer queue.
+func NewAnswerQueue(m Method) *AnswerQueue {
+	return &AnswerQueue{
 		method: m,
 		// N.B. since q == nil denotes the draining state,
 		// we do have to allocate something here, even though
@@ -55,10 +55,10 @@ func newAnswerQueue(m capnp.Method) *answerQueue {
 	}
 }
 
-// fulfill empties the queue, delivering the method calls on the given
+// Fulfill empties the queue, delivering the method calls on the given
 // struct.  After fulfill returns, pipeline calls will be immediately
 // delivered instead of being queued.
-func (aq *answerQueue) fulfill(s capnp.Struct) {
+func (aq *AnswerQueue) Fulfill(s Struct) {
 	// Enter draining state.
 	aq.mu.Lock()
 	q := aq.q
@@ -69,7 +69,7 @@ func (aq *answerQueue) fulfill(s capnp.Struct) {
 	for i := range aq.bases {
 		aq.bases[i].ready = ready
 	}
-	aq.bases[0].recv = capnp.ImmediateAnswer(aq.method, s).PipelineRecv
+	aq.bases[0].recv = ImmediateAnswer(aq.method, s).PipelineRecv
 	close(aq.draining)
 	aq.mu.Unlock()
 
@@ -81,10 +81,10 @@ func (aq *answerQueue) fulfill(s capnp.Struct) {
 	}
 }
 
-// reject empties the queue, returning errors on all the method calls.
-func (aq *answerQueue) reject(e error) {
+// Reject empties the queue, returning errors on all the method calls.
+func (aq *AnswerQueue) Reject(e error) {
 	if e == nil {
-		panic("answerQueue.reject(nil)")
+		panic("AnswerQueue.reject(nil)")
 	}
 
 	// Enter draining state.
@@ -97,7 +97,7 @@ func (aq *answerQueue) reject(e error) {
 	for i := range aq.bases {
 		b := &aq.bases[i]
 		b.ready = ready
-		b.recv = func(_ context.Context, _ []capnp.PipelineOp, r capnp.Recv) capnp.PipelineCaller {
+		b.recv = func(_ context.Context, _ []PipelineOp, r Recv) PipelineCaller {
 			r.Reject(e) // TODO(soon): attach pipelined method info
 			return nil
 		}
@@ -111,21 +111,21 @@ func (aq *answerQueue) reject(e error) {
 	}
 }
 
-func (aq *answerQueue) PipelineRecv(ctx context.Context, transform []capnp.PipelineOp, r capnp.Recv) capnp.PipelineCaller {
+func (aq *AnswerQueue) PipelineRecv(ctx context.Context, transform []PipelineOp, r Recv) PipelineCaller {
 	return queueCaller{aq, 0}.PipelineRecv(ctx, transform, r)
 }
 
-func (aq *answerQueue) PipelineSend(ctx context.Context, transform []capnp.PipelineOp, r capnp.Send) (*capnp.Answer, capnp.ReleaseFunc) {
+func (aq *AnswerQueue) PipelineSend(ctx context.Context, transform []PipelineOp, r Send) (*Answer, ReleaseFunc) {
 	return queueCaller{aq, 0}.PipelineSend(ctx, transform, r)
 }
 
-// queueCaller is a client that enqueues calls to an answerQueue.
+// queueCaller is a client that enqueues calls to an AnswerQueue.
 type queueCaller struct {
-	aq    *answerQueue
+	aq    *AnswerQueue
 	basis int
 }
 
-func (qc queueCaller) PipelineRecv(ctx context.Context, transform []capnp.PipelineOp, r capnp.Recv) capnp.PipelineCaller {
+func (qc queueCaller) PipelineRecv(ctx context.Context, transform []PipelineOp, r Recv) PipelineCaller {
 	qc.aq.mu.Lock()
 	if len(qc.aq.bases) > 0 {
 		// Draining/drained.
@@ -151,9 +151,9 @@ func (qc queueCaller) PipelineRecv(ctx context.Context, transform []capnp.Pipeli
 	return queueCaller{aq: qc.aq, basis: basis}
 }
 
-func (qc queueCaller) PipelineSend(ctx context.Context, transform []capnp.PipelineOp, s capnp.Send) (*capnp.Answer, capnp.ReleaseFunc) {
-	ret := new(structReturner)
-	r := capnp.Recv{
+func (qc queueCaller) PipelineSend(ctx context.Context, transform []PipelineOp, s Send) (*Answer, ReleaseFunc) {
+	ret := new(StructReturner)
+	r := Recv{
 		Method:   s.Method,
 		Returner: ret,
 	}
@@ -161,10 +161,10 @@ func (qc queueCaller) PipelineSend(ctx context.Context, transform []capnp.Pipeli
 		var err error
 		r.Args, err = newBlankStruct(s.ArgsSize)
 		if err != nil {
-			return capnp.ErrorAnswer(s.Method, err), func() {}
+			return ErrorAnswer(s.Method, err), func() {}
 		}
 		if err = s.PlaceArgs(r.Args); err != nil {
-			return capnp.ErrorAnswer(s.Method, err), func() {}
+			return ErrorAnswer(s.Method, err), func() {}
 		}
 		r.ReleaseArgs = func() {
 			r.Args.Message().Reset(nil)
@@ -173,51 +173,51 @@ func (qc queueCaller) PipelineSend(ctx context.Context, transform []capnp.Pipeli
 		r.ReleaseArgs = func() {}
 	}
 	pcall := qc.PipelineRecv(ctx, transform, r)
-	return ret.answer(s.Method, pcall)
+	return ret.Answer(s.Method, pcall)
 }
 
-// A structReturner implements Returner by allocating an in-memory
+// A StructReturner implements Returner by allocating an in-memory
 // message.  It is safe to use from multiple goroutines.  The zero value
 // is a Returner in its initial state.
-type structReturner struct {
-	mu       sync.Mutex     // guards all fields
-	p        *capnp.Promise // assigned at most once
+type StructReturner struct {
+	mu       sync.Mutex // guards all fields
+	p        *Promise   // assigned at most once
 	alloced  bool
 	released bool
-	msg      *capnp.Message // assigned at most once
+	msg      *Message // assigned at most once
 
-	returned bool         // indicates whether the below fields are filled in
-	result   capnp.Struct // assigned at most once
-	err      error        // assigned at most once
+	returned bool   // indicates whether the below fields are filled in
+	result   Struct // assigned at most once
+	err      error  // assigned at most once
 
 }
 
-func (sr *structReturner) AllocResults(sz capnp.ObjectSize) (capnp.Struct, error) {
+func (sr *StructReturner) AllocResults(sz ObjectSize) (Struct, error) {
 	defer sr.mu.Unlock()
 	sr.mu.Lock()
 	if sr.alloced {
-		return capnp.Struct{}, newError("multiple calls to AllocResults")
+		return Struct{}, errors.New("StructReturner: multiple calls to AllocResults")
 	}
 	sr.alloced = true
 	s, err := newBlankStruct(sz)
 	if err != nil {
-		return capnp.Struct{}, exc.WrapError("alloc results", err)
+		return Struct{}, exc.WrapError("alloc results", err)
 	}
 	sr.result = s
 	sr.msg = s.Message()
 	return s, nil
 }
-func (sr *structReturner) PrepareReturn(e error) {
+func (sr *StructReturner) PrepareReturn(e error) {
 	sr.mu.Lock()
 	defer sr.mu.Unlock()
 	sr.err = e
 }
 
-func (sr *structReturner) Return() {
+func (sr *StructReturner) Return() {
 	sr.mu.Lock()
 	if sr.returned {
 		sr.mu.Unlock()
-		panic("structReturner.Return called twice")
+		panic("StructReturner.Return called twice")
 	}
 	sr.returned = true
 	e := sr.err
@@ -227,7 +227,7 @@ func (sr *structReturner) Return() {
 			sr.p.Fulfill(sr.result.ToPtr())
 		}
 	} else {
-		sr.result = capnp.Struct{}
+		sr.result = Struct{}
 		sr.mu.Unlock()
 		if sr.p != nil {
 			sr.p.Reject(e)
@@ -235,7 +235,7 @@ func (sr *structReturner) Return() {
 	}
 }
 
-func (sr *structReturner) ReleaseResults() {
+func (sr *StructReturner) ReleaseResults() {
 	sr.mu.Lock()
 	alloced := sr.alloced
 	returned := sr.returned
@@ -260,39 +260,52 @@ func (sr *structReturner) ReleaseResults() {
 	}
 }
 
-// answer returns an Answer that will be resolved when Return is called.
-// answer must only be called once per structReturner.
-func (sr *structReturner) answer(m capnp.Method, pcall capnp.PipelineCaller) (*capnp.Answer, capnp.ReleaseFunc) {
+// Answer returns an Answer that will be resolved when Return is called.
+// answer must only be called once per StructReturner.
+func (sr *StructReturner) Answer(m Method, pcall PipelineCaller) (*Answer, ReleaseFunc) {
 	defer sr.mu.Unlock()
 	sr.mu.Lock()
 	if sr.p != nil {
-		panic("structReturner.answer called multiple times")
+		panic("StructReturner.Answer called multiple times")
 	}
 	if sr.returned {
 		if sr.err != nil {
-			return capnp.ErrorAnswer(m, sr.err), func() {}
+			return ErrorAnswer(m, sr.err), func() {}
 		}
-		return capnp.ImmediateAnswer(m, sr.result), func() {
+		return ImmediateAnswer(m, sr.result), func() {
 			sr.mu.Lock()
 			msg := sr.result.Message()
-			sr.result = capnp.Struct{}
+			sr.result = Struct{}
 			sr.mu.Unlock()
 			if msg != nil {
 				msg.Reset(nil)
 			}
 		}
 	}
-	sr.p = capnp.NewPromise(m, pcall)
+	sr.p = NewPromise(m, pcall)
 	ans := sr.p.Answer()
 	return ans, func() {
 		<-ans.Done()
 		sr.mu.Lock()
 		msg := sr.result.Message()
-		sr.result = capnp.Struct{}
+		sr.result = Struct{}
 		sr.mu.Unlock()
 		sr.p.ReleaseClients()
 		if msg != nil {
 			msg.Reset(nil)
 		}
 	}
+}
+
+// TODO(cleanup): this is copypasta from the server package.
+func newBlankStruct(sz ObjectSize) (Struct, error) {
+	_, seg, err := NewMessage(MultiSegment(nil))
+	if err != nil {
+		return Struct{}, err
+	}
+	st, err := NewRootStruct(seg, sz)
+	if err != nil {
+		return Struct{}, err
+	}
+	return st, nil
 }
