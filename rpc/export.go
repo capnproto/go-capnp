@@ -203,9 +203,8 @@ func (c *lockedConn) fillPayloadCapTable(payload rpccp.Payload) (map[exportID]ui
 type embargoID uint32
 
 type embargo struct {
-	c      capnp.Client
-	p      *capnp.ClientPromise
-	lifted chan struct{}
+	result capnp.Ptr
+	q      *capnp.AnswerQueue
 }
 
 // embargo creates a new embargoed client, stealing the reference.
@@ -213,18 +212,13 @@ type embargo struct {
 // The caller must be holding onto c.mu.
 func (c *lockedConn) embargo(client capnp.Client) (embargoID, capnp.Client) {
 	id := embargoID(c.lk.embargoID.next())
-	e := &embargo{
-		c:      client,
-		lifted: make(chan struct{}),
-	}
+	e := newEmbargo(client)
 	if int64(id) == int64(len(c.lk.embargoes)) {
 		c.lk.embargoes = append(c.lk.embargoes, e)
 	} else {
 		c.lk.embargoes[id] = e
 	}
-	var c2 capnp.Client
-	c2, c.lk.embargoes[id].p = capnp.NewPromisedClient(c.lk.embargoes[id])
-	return id, c2
+	return id, capnp.NewClient(e)
 }
 
 // findEmbargo returns the embargo entry with the given ID or nil if
@@ -236,29 +230,28 @@ func (c *lockedConn) findEmbargo(id embargoID) *embargo {
 	return c.lk.embargoes[id] // might be nil
 }
 
+func newEmbargo(client capnp.Client) *embargo {
+	msg, seg := capnp.NewSingleSegmentMessage(nil)
+	capID := msg.AddCap(client)
+	iface := capnp.NewInterface(seg, capID)
+	return &embargo{
+		result: iface.ToPtr(),
+		q:      capnp.NewAnswerQueue(capnp.Method{}),
+	}
+}
+
 // lift disembargoes the client.  It must be called only once.
 func (e *embargo) lift() {
-	close(e.lifted)
-	e.p.Fulfill(e.c)
+	e.q.Fulfill(e.result)
 }
 
 func (e *embargo) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, capnp.ReleaseFunc) {
-	select {
-	case <-e.lifted:
-		return e.c.SendCall(ctx, s)
-	case <-ctx.Done():
-		return capnp.ErrorAnswer(s.Method, ctx.Err()), func() {}
-	}
+	return e.q.PipelineSend(ctx, nil, s)
 }
 
 func (e *embargo) Recv(ctx context.Context, r capnp.Recv) capnp.PipelineCaller {
-	select {
-	case <-e.lifted:
-		return e.c.RecvCall(ctx, r)
-	case <-ctx.Done():
-		r.Reject(ctx.Err())
-		return nil
-	}
+
+	return e.q.PipelineRecv(ctx, nil, r)
 }
 
 func (e *embargo) Brand() capnp.Brand {
@@ -266,7 +259,8 @@ func (e *embargo) Brand() capnp.Brand {
 }
 
 func (e *embargo) Shutdown() {
-	e.c.Release()
+	e.result.Interface().Client().Release()
+	// FIXME: what to do with contents of queue?
 }
 
 // senderLoopback holds the salient information for a sender-loopback
