@@ -130,6 +130,8 @@ func NewMultiSegmentMessage(b [][]byte) (msg *Message, first *Segment) {
 // Message to be reused for reading multiple messages.  This invalidates
 // any existing pointers in the Message, so use with caution.  All
 // clients in the message's capability table will be released.
+//
+// Note: this API is not designed for *writing* to messages, only reading.
 func (m *Message) Reset(arena Arena) {
 	for _, c := range m.CapTable {
 		c.Release()
