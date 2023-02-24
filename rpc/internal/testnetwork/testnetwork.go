@@ -143,11 +143,8 @@ func (n network) Introduce(provider, recipient *rpc.Conn) (rpc.IntroductionInfo,
 	defer n.global.mu.Unlock()
 	nonce := n.global.nextNonce
 	n.global.nextNonce++
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	_, seg := capnp.NewSingleSegmentMessage(nil)
 	ret := rpc.IntroductionInfo{}
-	if err != nil {
-		return ret, err
-	}
 	sendToRecipient, err := NewPeerAndNonce(seg)
 	if err != nil {
 		return ret, err
@@ -167,10 +164,7 @@ func (n network) Introduce(provider, recipient *rpc.Conn) (rpc.IntroductionInfo,
 func (n network) DialIntroduced(capID rpc.ThirdPartyCapID, introducedBy *rpc.Conn) (*rpc.Conn, rpc.ProvisionID, error) {
 	cid := PeerAndNonce(capnp.Ptr(capID).Struct())
 
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		return nil, rpc.ProvisionID{}, err
-	}
+	_, seg := capnp.NewSingleSegmentMessage(nil)
 	pid, err := NewPeerAndNonce(seg)
 	if err != nil {
 		return nil, rpc.ProvisionID{}, err
