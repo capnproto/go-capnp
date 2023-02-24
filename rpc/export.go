@@ -208,7 +208,10 @@ type embargo struct {
 }
 
 func (e embargo) String() string {
-	return "embargo{c: " + e.c.String() + ", 0x" + str.PtrToHex(e.p) + "}"
+	return "embargo{client: " +
+		e.client().String() +
+		", q: 0x" + str.PtrToHex(e.q) +
+		"}"
 }
 
 // embargo creates a new embargoed client, stealing the reference.
@@ -262,8 +265,12 @@ func (e *embargo) Brand() capnp.Brand {
 	return capnp.Brand{}
 }
 
+func (e *embargo) client() capnp.Client {
+	return e.result.Interface().Client()
+}
+
 func (e *embargo) Shutdown() {
-	e.result.Interface().Client().Release()
+	e.client().Release()
 }
 
 // senderLoopback holds the salient information for a sender-loopback
