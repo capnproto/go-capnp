@@ -13,10 +13,7 @@ type Request struct {
 }
 
 func NewRequest(client Client, method Method, argsSize ObjectSize) (*Request, error) {
-	_, seg, err := NewMessage(MultiSegment(nil))
-	if err != nil {
-		return nil, err
-	}
+	_, seg := NewMultiSegmentMessage(nil)
 	args, err := NewStruct(seg, argsSize)
 	if err != nil {
 		return nil, err
