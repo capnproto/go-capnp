@@ -18,6 +18,13 @@ type edge struct {
 	To, From PeerID
 }
 
+func (e edge) Flip() edge {
+	return edge{
+		To:   e.From,
+		From: e.To,
+	}
+}
+
 type network struct {
 	myID   PeerID
 	global *Joiner
@@ -29,19 +36,18 @@ type Joiner struct {
 	mu          sync.Mutex
 	nextID      PeerID
 	nextNonce   uint64
-	connections map[edge]*rpc.Conn
-	incoming    map[PeerID]spsc.Queue[incomingConn]
+	connections map[edge]*connectionEntry
+	incoming    map[PeerID]spsc.Queue[PeerID]
 }
 
-type incomingConn struct {
-	Conn net.Conn
-	ID   PeerID
+type connectionEntry struct {
+	Transport rpc.Transport
+	Conn      *rpc.Conn // Might be nil, if we haven't initialized this yet.
 }
 
 func NewJoiner() *Joiner {
 	return &Joiner{
-		connections: make(map[edge]*rpc.Conn),
-		incoming:    make(map[PeerID]spsc.Queue[incomingConn]),
+		connections: make(map[edge]*connectionEntry),
 	}
 }
 
@@ -56,10 +62,10 @@ func (j *Joiner) Join() rpc.Network {
 	return ret
 }
 
-func (j *Joiner) getAcceptQueue(id PeerID) spsc.Queue[incomingConn] {
+func (j *Joiner) getAcceptQueue(id PeerID) spsc.Queue[PeerID] {
 	q, ok := j.incoming[id]
 	if !ok {
-		q = spsc.New[incomingConn]()
+		q = spsc.New[PeerID]()
 		j.incoming[id] = q
 	}
 	return q
@@ -76,26 +82,32 @@ func (n network) Dial(dst rpc.PeerID, opts *rpc.Options) (*rpc.Conn, error) {
 	opts.Network = n
 	opts.RemotePeerID = dst
 	dstID := dst.Value.(PeerID)
-	edge := edge{
+	toEdge := edge{
 		From: n.myID,
 		To:   dstID,
 	}
+	fromEdge := toEdge.Flip()
 
 	n.global.mu.Lock()
 	defer n.global.mu.Unlock()
-	conn, ok := n.global.connections[edge]
-	if ok {
-		return conn, nil
+	ent, ok := n.global.connections[toEdge]
+	if !ok {
+		c1, c2 := net.Pipe()
+		t1 := rpc.NewStreamTransport(c1)
+		t2 := rpc.NewStreamTransport(c2)
+		ent = &connectionEntry{Transport: t1}
+		n.global.connections[toEdge] = ent
+		n.global.connections[fromEdge] = &connectionEntry{Transport: t2}
+
 	}
-	q := n.global.getAcceptQueue(dstID)
-	c1, c2 := net.Pipe()
-	q.Send(incomingConn{
-		Conn: c1,
-		ID:   n.myID,
-	})
-	conn = rpc.NewConn(rpc.NewStreamTransport(c2), opts)
-	n.global.connections[edge] = conn
-	return conn, nil
+	if ent.Conn == nil {
+		ent.Conn = rpc.NewConn(ent.Transport, opts)
+	} else {
+		// There's already a connection, so we're not going to use this, but
+		// we own it. So drop it:
+		opts.BootstrapClient.Release()
+	}
+	return ent.Conn, nil
 }
 
 func (n network) Accept(ctx context.Context, opts *rpc.Options) (*rpc.Conn, error) {
@@ -108,15 +120,20 @@ func (n network) Accept(ctx context.Context, opts *rpc.Options) (*rpc.Conn, erro
 		return nil, err
 	}
 	opts.Network = n
-	opts.RemotePeerID = rpc.PeerID{incoming.ID}
+	opts.RemotePeerID = rpc.PeerID{incoming}
 	n.global.mu.Lock()
 	defer n.global.mu.Unlock()
-	conn := rpc.NewConn(rpc.NewStreamTransport(incoming.Conn), opts)
-	n.global.connections[edge{
+	edge := edge{
 		From: n.myID,
-		To:   incoming.ID,
-	}] = conn
-	return conn, nil
+		To:   incoming,
+	}
+	ent := n.global.connections[edge]
+	if ent.Conn == nil {
+		ent.Conn = rpc.NewConn(ent.Transport, opts)
+	} else {
+		opts.BootstrapClient.Release()
+	}
+	return ent.Conn, nil
 }
 
 func (n network) Introduce(provider, recipient *rpc.Conn) (rpc.IntroductionInfo, error) {
