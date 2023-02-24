@@ -268,25 +268,14 @@ func sendArgsToStruct(s capnp.Send) (capnp.Struct, error) {
 	if s.PlaceArgs == nil {
 		return capnp.Struct{}, nil
 	}
-	st, err := newBlankStruct(s.ArgsSize)
+	_, seg := capnp.NewMultiSegmentMessage(nil)
+	st, err := capnp.NewRootStruct(seg, s.ArgsSize)
 	if err != nil {
 		return capnp.Struct{}, err
 	}
 	if err := s.PlaceArgs(st); err != nil {
 		st.Message().Reset(nil)
 		return capnp.Struct{}, exc.WrapError("place args", err)
-	}
-	return st, nil
-}
-
-func newBlankStruct(sz capnp.ObjectSize) (capnp.Struct, error) {
-	_, seg, err := capnp.NewMessage(capnp.MultiSegment(nil))
-	if err != nil {
-		return capnp.Struct{}, err
-	}
-	st, err := capnp.NewRootStruct(seg, sz)
-	if err != nil {
-		return capnp.Struct{}, err
 	}
 	return st, nil
 }

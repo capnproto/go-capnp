@@ -159,7 +159,8 @@ func (qc queueCaller) PipelineSend(ctx context.Context, transform []PipelineOp, 
 	}
 	if s.PlaceArgs != nil {
 		var err error
-		r.Args, err = newBlankStruct(s.ArgsSize)
+		_, seg := NewMultiSegmentMessage(nil)
+		r.Args, err = NewRootStruct(seg, s.ArgsSize)
 		if err != nil {
 			return ErrorAnswer(s.Method, err), func() {}
 		}
@@ -199,7 +200,8 @@ func (sr *StructReturner) AllocResults(sz ObjectSize) (Struct, error) {
 		return Struct{}, errors.New("StructReturner: multiple calls to AllocResults")
 	}
 	sr.alloced = true
-	s, err := newBlankStruct(sz)
+	_, seg := NewMultiSegmentMessage(nil)
+	s, err := NewRootStruct(seg, sz)
 	if err != nil {
 		return Struct{}, exc.WrapError("alloc results", err)
 	}
@@ -295,17 +297,4 @@ func (sr *StructReturner) Answer(m Method, pcall PipelineCaller) (*Answer, Relea
 			msg.Reset(nil)
 		}
 	}
-}
-
-// TODO(cleanup): this is copypasta from the server package.
-func newBlankStruct(sz ObjectSize) (Struct, error) {
-	_, seg, err := NewMessage(MultiSegment(nil))
-	if err != nil {
-		return Struct{}, err
-	}
-	st, err := NewRootStruct(seg, sz)
-	if err != nil {
-		return Struct{}, err
-	}
-	return st, nil
 }
