@@ -207,6 +207,10 @@ type embargo struct {
 	q      *capnp.AnswerQueue
 }
 
+func (e embargo) String() string {
+	return "embargo{c: " + e.c.String() + ", 0x" + str.PtrToHex(e.p) + "}"
+}
+
 // embargo creates a new embargoed client, stealing the reference.
 //
 // The caller must be holding onto c.mu.

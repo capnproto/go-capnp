@@ -332,6 +332,10 @@ type bootstrapClient struct {
 	cancel context.CancelFunc
 }
 
+func (bc bootstrapClient) String() string {
+	return "bootstrapClient{c: " + bc.c.String() + "}"
+}
+
 func (bc bootstrapClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, capnp.ReleaseFunc) {
 	return bc.c.SendCall(ctx, s)
 }

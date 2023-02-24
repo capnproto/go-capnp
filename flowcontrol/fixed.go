@@ -2,8 +2,8 @@ package flowcontrol
 
 import (
 	"context"
-	"fmt"
 
+	"capnproto.org/go/capnp/v3/internal/str"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -26,7 +26,9 @@ func (fl *fixedLimiter) StartMessage(ctx context.Context, size uint64) (gotRespo
 	//        reservation on the semaphore. We can't return an error because it
 	//        is currently ignored by the caller.
 	if int64(size) > fl.size {
-		panic(fmt.Sprintf("StartMessage(): message size %d is too large (max %d)", size, fl.size))
+		panic("StartMessage(): message size " +
+			str.Utod(size) +
+			" is too large (max " + str.Itod(fl.size) + ")")
 	}
 
 	if err = fl.sem.Acquire(ctx, int64(size)); err == nil {

@@ -10,6 +10,7 @@ import (
 	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/exc"
 	"capnproto.org/go/capnp/v3/exp/mpsc"
+	"capnproto.org/go/capnp/v3/internal/str"
 )
 
 // A Method describes a single capability method on a server object.
@@ -102,6 +103,10 @@ type Server struct {
 
 	// Handler for custom behavior of unknown methods
 	HandleUnknownMethod func(m capnp.Method) *Method
+}
+
+func (s *Server) String() string {
+	return "*Server@0x" + str.PtrToHex(s)
 }
 
 // New returns a client hook that makes calls to a set of methods.
