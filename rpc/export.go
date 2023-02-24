@@ -260,7 +260,6 @@ func (e *embargo) Brand() capnp.Brand {
 
 func (e *embargo) Shutdown() {
 	e.result.Interface().Client().Release()
-	// FIXME: what to do with contents of queue?
 }
 
 // senderLoopback holds the salient information for a sender-loopback
