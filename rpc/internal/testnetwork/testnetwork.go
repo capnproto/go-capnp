@@ -121,11 +121,11 @@ func (n network) Accept(ctx context.Context, opts *rpc.Options) (*rpc.Conn, erro
 
 func (n network) Introduce(provider, recipient *rpc.Conn) (rpc.IntroductionInfo, error) {
 	providerPeer := provider.RemotePeerID()
-	recipientPeer = recipient.RemotePeerID()
+	recipientPeer := recipient.RemotePeerID()
 	n.global.mu.Lock()
 	defer n.global.mu.Unlock()
-	nonce := n.nextNonce
-	n.nextNonce++
+	nonce := n.global.nextNonce
+	n.global.nextNonce++
 	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	ret := rpc.IntroductionInfo{}
 	if err != nil {
@@ -144,7 +144,7 @@ func (n network) Introduce(provider, recipient *rpc.Conn) (rpc.IntroductionInfo,
 	sendToProvider.SetPeerId(uint64(recipientPeer.Value.(PeerID)))
 	sendToProvider.SetNonce(nonce)
 	ret.SendToRecipient = rpc.ThirdPartyCapID(sendToRecipient.ToPtr())
-	ret.SendToProivder = rpc.RecipientID(sendToProvider.ToPtr())
+	ret.SendToProvider = rpc.RecipientID(sendToProvider.ToPtr())
 	return ret, nil
 }
 func (n network) DialIntroduced(capID rpc.ThirdPartyCapID, introducedBy *rpc.Conn) (*rpc.Conn, rpc.ProvisionID, error) {
