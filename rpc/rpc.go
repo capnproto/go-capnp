@@ -594,6 +594,19 @@ func (c *Conn) receive() error {
 			return err
 		}
 
+		sendUnimplemented := func(err error) {
+			c.er.ReportError(err)
+			c.withLocked(func(c *lockedConn) {
+				c.sendMessage(ctx, func(m rpccp.Message) error {
+					defer release()
+					if err := m.SetUnimplemented(recv); err != nil {
+						return rpcerr.Annotate(err, "send unimplemented")
+					}
+					return nil
+				}, nil)
+			})
+		}
+
 		switch recv.Which() {
 		case rpccp.Message_Which_unimplemented:
 			// no-op for now to avoid feedback loop
@@ -691,17 +704,20 @@ func (c *Conn) receive() error {
 				return err
 			}
 
+		case rpccp.Message_Which_accept:
+			if c.network == nil {
+				sendUnimplemented(errors.New("Accept from remote not supported: connection has no associated network"))
+				continue
+			}
+			panic("TODO: 3PH")
+		case rpccp.Message_Which_provide:
+			if c.network == nil {
+				sendUnimplemented(errors.New("Provide from remote not supported: connection has no associated network"))
+				continue
+			}
+			panic("TODO: 3PH")
 		default:
-			c.er.ReportError(errors.New("unknown message type " + recv.Which().String() + " from remote"))
-			c.withLocked(func(c *lockedConn) {
-				c.sendMessage(ctx, func(m rpccp.Message) error {
-					defer release()
-					if err := m.SetUnimplemented(recv); err != nil {
-						return rpcerr.Annotate(err, "send unimplemented")
-					}
-					return nil
-				}, nil)
-			})
+			sendUnimplemented(errors.New("unknown message type " + recv.Which().String() + " from remote"))
 		}
 	}
 }
