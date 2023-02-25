@@ -1,9 +1,7 @@
 // Package bufferpool supports object pooling for byte buffers.
 package bufferpool
 
-import (
-	"sync"
-)
+import "sync"
 
 const (
 	defaultMinSize     = 1024
