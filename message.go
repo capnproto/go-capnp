@@ -558,7 +558,7 @@ func MultiSegment(b [][]byte) *MultiSegmentArena {
 func (msa *MultiSegmentArena) Release() {
 	for i, v := range *msa {
 		// Clear the memory, so there's no junk in here for the next use:
-		for j, _ := range v {
+		for j := range v {
 			v[j] = 0
 		}
 
