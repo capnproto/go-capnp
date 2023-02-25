@@ -4,10 +4,6 @@ import (
 	"capnproto.org/go/capnp/v3/exc"
 )
 
-var (
-	capnperr = exc.Annotator("capnp")
-)
-
 // TODO(someday):  progressively remove exported functions and instead
 //                 rely on package 'exc'.
 
