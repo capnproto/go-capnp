@@ -4,7 +4,8 @@ package bufferpool
 import "sync"
 
 const (
-	nBuckets = 20
+	minSize  = 1024
+	nBuckets = 11 // max 1Mb
 )
 
 // A default global pool.
@@ -18,33 +19,29 @@ type Pool struct {
 // Get a buffer of the given length. Its capacity may be larger than the
 // requested size.
 func (p *Pool) Get(size int) []byte {
-	for i := 0; i < nBuckets; i++ {
-		capacity := 1 << i
-		if capacity >= size {
-			var ret []byte
-			item := p.buckets[i].Get()
-			if item == nil {
-				ret = make([]byte, capacity)
-			} else {
-				ret = item.([]byte)
+	for i := range p.buckets {
+		if capacity := minSize << i; capacity >= size {
+			if item := p.buckets[i].Get(); item != nil {
+				return item.([]byte)[:size]
 			}
-			ret = ret[:size]
-			return ret
+
+			return make([]byte, size, capacity)
 		}
 	}
+
 	return make([]byte, size)
 }
 
 // Return a buffer to the pool. Zeros the slice (but not the full backing array)
 // before making it available for future use.
 func (p *Pool) Put(buf []byte) {
-	for i := 0; i < len(buf); i++ {
+	for i := range buf {
 		buf[i] = 0
 	}
 
 	capacity := cap(buf)
-	for i := 0; i < nBuckets; i++ {
-		if (1 << i) == capacity {
+	for i := range p.buckets {
+		if (1 << i) >= capacity {
 			p.buckets[i].Put(buf[:capacity])
 			return
 		}
