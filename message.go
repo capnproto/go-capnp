@@ -463,7 +463,8 @@ func (ssa *SingleSegmentArena) Allocate(sz Size, segs map[SegmentID]*Segment) (S
 		return 0, nil, err
 	}
 	buf := bufferpool.Default.Get(cap(data) + inc)
-	buf = buf[:copy(buf, data)]
+	copied := copy(buf, data)
+	buf = buf[:copied]
 	bufferpool.Default.Put(data)
 	*ssa = buf
 	return 0, *ssa, nil
@@ -484,7 +485,7 @@ func (ssa SingleSegmentArena) String() string {
 // will release the memory per usual.
 func (ssa *SingleSegmentArena) Release() {
 	bufferpool.Default.Put(*ssa)
-	(*ssa) = nil
+	*ssa = nil
 }
 
 type roSingleSegment []byte
