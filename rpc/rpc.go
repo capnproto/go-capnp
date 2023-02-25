@@ -1341,17 +1341,21 @@ func (c *lockedConn) recvCap(d rpccp.CapDescriptor) (capnp.Client, error) {
 		id := importID(d.SenderPromise())
 		return c.addImport(id), nil
 	case rpccp.CapDescriptor_Which_thirdPartyHosted:
-		// We don't support third-party handoff yet, so instead of trying to
-		// pick this up, use the vine and treat it the same as senderHosted:
-		thirdPartyDesc, err := d.ThirdPartyHosted()
-		if err != nil {
-			return capnp.Client{}, exc.WrapError(
-				"reading ThridPartyCapDescriptor",
-				err,
-			)
+		if c.network == nil {
+			// We can't do third-party handoff without a network, so instead of
+			// trying to pick this up, use the vine and treat it the same as
+			// senderHosted:
+			thirdPartyDesc, err := d.ThirdPartyHosted()
+			if err != nil {
+				return capnp.Client{}, exc.WrapError(
+					"reading ThridPartyCapDescriptor",
+					err,
+				)
+			}
+			id := importID(thirdPartyDesc.VineId())
+			return c.addImport(id), nil
 		}
-		id := importID(thirdPartyDesc.VineId())
-		return c.addImport(id), nil
+		panic("TODO: 3PH")
 	case rpccp.CapDescriptor_Which_receiverHosted:
 		id := exportID(d.ReceiverHosted())
 		ent := c.findExport(id)
@@ -1432,16 +1436,30 @@ func (c *lockedConn) isLocalClient(client capnp.Client) bool {
 	bv := client.State().Brand.Value
 
 	if ic, ok := bv.(*importClient); ok {
-		// If the connections are different, we must be proxying
-		// it, so as far as this connection is concerned, it lives
-		// on our side.
-		return ic.c != (*Conn)(c)
+		if ic.c == (*Conn)(c) {
+			return false
+		}
+		if c.network == nil || c.network != ic.c.network {
+			// Different connections on different networks. We must
+			// be proxying it, so as far as this connection is
+			// concerned, it lives on our side.
+			return true
+		}
+		// Might have to do more refactoring re: what to do in this case;
+		// just checking for embargo or not might not be sufficient:
+		panic("TODO: 3PH")
 	}
 
 	if pc, ok := bv.(capnp.PipelineClient); ok {
 		// Same logic re: proxying as with imports:
 		if q, ok := c.getAnswerQuestion(pc.Answer()); ok {
-			return q.c != (*Conn)(c)
+			if q.c == (*Conn)(c) {
+				return false
+			}
+			if c.network == nil || c.network != q.c.network {
+				return true
+			}
+			panic("TODO: 3PH")
 		}
 	}
 

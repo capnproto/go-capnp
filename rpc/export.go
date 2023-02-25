@@ -112,30 +112,39 @@ func (c *lockedConn) sendCap(d rpccp.CapDescriptor, client capnp.Client) (_ expo
 
 	state := client.State()
 	bv := state.Brand.Value
-	if ic, ok := bv.(*importClient); ok && ic.c == (*Conn)(c) {
-		if ent := c.lk.imports[ic.id]; ent != nil && ent.generation == ic.generation {
-			d.SetReceiverHosted(uint32(ic.id))
-			return 0, false, nil
+	if ic, ok := bv.(*importClient); ok {
+		if ic.c == (*Conn)(c) {
+			if ent := c.lk.imports[ic.id]; ent != nil && ent.generation == ic.generation {
+				d.SetReceiverHosted(uint32(ic.id))
+				return 0, false, nil
+			}
+		}
+		if c.network != nil && c.network == ic.c.network {
+			panic("TODO: 3PH")
 		}
 	}
 
 	if pc, ok := bv.(capnp.PipelineClient); ok {
-		q, ok := c.getAnswerQuestion(pc.Answer())
-		if ok && q.c == (*Conn)(c) {
-			pcTrans := pc.Transform()
-			pa, err := d.NewReceiverAnswer()
-			if err != nil {
-				return 0, false, err
+		if q, ok := c.getAnswerQuestion(pc.Answer()); ok {
+			if q.c == (*Conn)(c) {
+				pcTrans := pc.Transform()
+				pa, err := d.NewReceiverAnswer()
+				if err != nil {
+					return 0, false, err
+				}
+				trans, err := pa.NewTransform(int32(len(pcTrans)))
+				if err != nil {
+					return 0, false, err
+				}
+				for i, op := range pcTrans {
+					trans.At(i).SetGetPointerField(op.Field)
+				}
+				pa.SetQuestionId(uint32(q.id))
+				return 0, false, nil
 			}
-			trans, err := pa.NewTransform(int32(len(pcTrans)))
-			if err != nil {
-				return 0, false, err
+			if c.network != nil && c.network == q.c.network {
+				panic("TODO: 3PH")
 			}
-			for i, op := range pcTrans {
-				trans.At(i).SetGetPointerField(op.Field)
-			}
-			pa.SetQuestionId(uint32(q.id))
-			return 0, false, nil
 		}
 	}
 
