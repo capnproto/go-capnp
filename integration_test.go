@@ -1811,7 +1811,6 @@ func BenchmarkDecode(b *testing.B) {
 
 		for {
 			msg, err := dec.Decode()
-
 			if err == io.EOF {
 				break
 			}
@@ -1824,6 +1823,8 @@ func BenchmarkDecode(b *testing.B) {
 			if err != nil {
 				b.Fatal(err)
 			}
+
+			msg.Release()
 		}
 	}
 }
