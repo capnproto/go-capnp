@@ -72,7 +72,7 @@ type Pool interface {
 // As a general rule, increasing Min reduces GC latency at the
 // expense of increased memory usage.  Increasing N can reduce
 // GC latency in applications that frequently allocate buffers
-// larger than 1MiB.
+// of size >=1MiB.
 type BasicPool struct {
 	once    sync.Once
 	Min, N  int
