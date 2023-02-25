@@ -91,7 +91,6 @@ func (p *BasicPool) Get(size int) []byte {
 	return make([]byte, size)
 }
 
-// Return a buffer to the pool.
 func (p *BasicPool) Put(buf []byte) {
 	p.init()
 
