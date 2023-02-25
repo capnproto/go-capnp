@@ -676,7 +676,6 @@ type Decoder struct {
 	bufferPool *bufferpool.Pool
 
 	reuse bool
-	// buf   []byte
 	msg   Message
 	arena Arena
 
