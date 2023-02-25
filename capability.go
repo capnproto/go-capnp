@@ -162,10 +162,10 @@ func (c Client) setupLeakReporting(creatorFunc int) {
 	}
 	c.creatorFunc = creatorFunc
 	_, c.creatorFile, c.creatorLine, _ = runtime.Caller(2)
-	buf := bufferpool.Default.Get(1e6)
+	buf := bufferpool.Get(1e6)
 	n := runtime.Stack(buf, false)
 	c.creatorStack = string(buf[:n])
-	bufferpool.Default.Put(buf)
+	bufferpool.Put(buf)
 	c.setFinalizer()
 }
 
@@ -397,10 +397,10 @@ func (c Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 
 // SendStreamCall is like SendCall except that:
 //
-// 1. It does not return an answer for the eventual result.
-// 2. If the call returns an error, all future calls on this
-//    client will return the same error (without starting
-//    the method or calling PlaceArgs).
+//  1. It does not return an answer for the eventual result.
+//  2. If the call returns an error, all future calls on this
+//     client will return the same error (without starting
+//     the method or calling PlaceArgs).
 func (c Client) SendStreamCall(ctx context.Context, s Send) error {
 	var streamError error
 	syncutil.With(&c.mu, func() {

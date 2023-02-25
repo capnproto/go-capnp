@@ -12,7 +12,6 @@ import (
 
 	capnp "capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/exc"
-	"capnproto.org/go/capnp/v3/exp/bufferpool"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 )
 
@@ -199,13 +198,11 @@ type streamCodec struct {
 }
 
 func newStreamCodec(rwc io.ReadWriteCloser, f streamEncoding) *streamCodec {
-	ret := &streamCodec{
+	return &streamCodec{
 		Decoder: f.NewDecoder(rwc),
 		Encoder: f.NewEncoder(rwc),
 		Closer:  rwc,
 	}
-	ret.SetBufferPool(&bufferpool.Default)
-	return ret
 }
 
 type streamEncoding interface {

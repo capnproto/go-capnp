@@ -392,8 +392,6 @@ type Decoder struct {
 	wordbuf [wordSize]byte
 	hdrbuf  []byte
 
-	bufferPool *bufferpool.Pool
-
 	reuse bool
 	buf   []byte
 	msg   Message
@@ -468,12 +466,7 @@ func (d *Decoder) Decode() (*Message, error) {
 
 	// Read segments.
 	if !d.reuse {
-		var buf []byte
-		if d.bufferPool == nil {
-			buf = make([]byte, int(total))
-		} else {
-			buf = d.bufferPool.Get(int(total))
-		}
+		buf := bufferpool.Get(int(total))
 		if _, err := io.ReadFull(d.r, buf); err != nil {
 			return nil, exc.WrapError("decode: read segments", err)
 		}
@@ -526,19 +519,8 @@ func (d *Decoder) ReuseBuffer() {
 	d.reuse = true
 }
 
-// SetBufferPool registers a buffer pool to allocate message space from, rather
-// than directly allocating buffers with make(). This can help reduce pressure
-// on the garbage collector; pass messages to d.ReleaseMessage() when done with
-// them.
-func (d *Decoder) SetBufferPool(p *bufferpool.Pool) {
-	d.bufferPool = p
-}
-
 func (d *Decoder) ReleaseMessage(m *Message) {
-	if d.bufferPool == nil {
-		return
-	}
-	d.bufferPool.Put(m.originalBuffer)
+	bufferpool.Put(m.originalBuffer)
 }
 
 // Unmarshal reads an unpacked serialized stream into a message.  No
