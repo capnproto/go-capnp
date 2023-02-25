@@ -508,29 +508,6 @@ var singleSegmentPool = sync.Pool{
 	},
 }
 
-type roSingleSegment []byte
-
-func (ss roSingleSegment) NumSegments() int64 {
-	return 1
-}
-
-func (ss roSingleSegment) Data(id SegmentID) ([]byte, error) {
-	if id != 0 {
-		return nil, errors.New("segment " + str.Utod(id) + " requested in single segment arena")
-	}
-	return ss, nil
-}
-
-func (ss roSingleSegment) Allocate(sz Size, segs map[SegmentID]*Segment) (SegmentID, []byte, error) {
-	return 0, nil, errors.New("arena is read-only")
-}
-
-func (ss roSingleSegment) String() string {
-	return "read-only single-segment arena [len=" + str.Itod(len(ss)) + "]"
-}
-
-func (ss roSingleSegment) Release() {}
-
 // MultiSegment is an arena that stores object data across multiple []byte
 // buffers, allocating new buffers of exponentially-increasing size when
 // full. This avoids the potentially-expensive slice copying of SingleSegment.
@@ -699,9 +676,9 @@ type Decoder struct {
 	bufferPool *bufferpool.Pool
 
 	reuse bool
-	buf   []byte
+	// buf   []byte
 	msg   Message
-	arena roSingleSegment
+	arena Arena
 
 	// Maximum number of bytes that can be read per call to Decode.
 	// If not set, a reasonable default is used.
@@ -771,42 +748,30 @@ func (d *Decoder) Decode() (*Message, error) {
 	}
 
 	// Read segments.
-	if !d.reuse {
-		var buf []byte
-		if d.bufferPool == nil {
-			buf = make([]byte, int(total))
-		} else {
-			buf = d.bufferPool.Get(int(total))
-		}
-		if _, err := io.ReadFull(d.r, buf); err != nil {
-			return nil, exc.WrapError("decode: read segments", err)
-		}
-		arena, err := demuxArena(hdr, buf)
-		if err != nil {
-			return nil, exc.WrapError("decode", err)
-		}
-		return &Message{
-			Arena:          arena,
-			originalBuffer: buf,
-		}, nil
+	if d.reuse {
+		d.arena.Release()
+		d.arena = singleSegmentPool.Get().(Arena)
+		d.msg.Reset(d.arena)
+		return &d.msg, nil
 	}
-	d.buf = resizeSlice(d.buf, int(total))
-	if _, err := io.ReadFull(d.r, d.buf); err != nil {
+
+	var buf []byte
+	if d.bufferPool == nil {
+		buf = make([]byte, int(total))
+	} else {
+		buf = d.bufferPool.Get(int(total))
+	}
+	if _, err := io.ReadFull(d.r, buf); err != nil {
 		return nil, exc.WrapError("decode: read segments", err)
 	}
-	var arena Arena
-	if maxSeg == 0 {
-		d.arena = d.buf[:len(d.buf):len(d.buf)]
-		arena = &d.arena
-	} else {
-		var err error
-		arena, err = demuxArena(hdr, d.buf)
-		if err != nil {
-			return nil, exc.WrapError("decode", err)
-		}
+	arena, err := demuxArena(hdr, buf)
+	if err != nil {
+		return nil, exc.WrapError("decode", err)
 	}
-	d.msg.Reset(arena)
-	return &d.msg, nil
+	return &Message{
+		Arena:          arena,
+		originalBuffer: buf,
+	}, nil
 }
 
 type errSegIDTooLarge SegmentID
