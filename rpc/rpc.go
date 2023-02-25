@@ -80,6 +80,9 @@ is a common source of errors and/or inefficiencies.
 // A Conn is a connection to another Cap'n Proto vat.
 // It is safe to use from multiple goroutines.
 type Conn struct {
+	remotePeerID PeerID
+	network      Network
+
 	bootstrap    capnp.Client
 	er           errReporter
 	abortTimeout time.Duration
@@ -192,6 +195,18 @@ type Options struct {
 	// before closing the transport.  If zero, then a reasonably short
 	// timeout is used.
 	AbortTimeout time.Duration
+
+	// RemotePeerID is the PeerID of the remote side of the connection. Can
+	// be left as the zero value for point to point connections. For >= 3
+	// party use, this should be filled in by the Network on Accept or Dial.
+	// Application code should not set this.
+	RemotePeerID PeerID
+
+	// A reference to the Network that this connection is a part of.  Can be
+	// left nil for point to point connections. Otherwise, this must be set
+	// by Dial or Accept on the Network itself; application code should not
+	// set this.
+	Network Network
 }
 
 // ErrorReporter can receive errors from a Conn.  ReportError should be quick
@@ -233,6 +248,8 @@ func NewConn(t Transport, opts *Options) *Conn {
 		c.bootstrap = opts.BootstrapClient
 		c.er = errReporter{opts.ErrorReporter}
 		c.abortTimeout = opts.AbortTimeout
+		c.network = opts.Network
+		c.remotePeerID = opts.RemotePeerID
 	}
 	if c.abortTimeout == 0 {
 		c.abortTimeout = 100 * time.Millisecond
@@ -277,6 +294,13 @@ func (c *Conn) backgroundTask(f func() error) func() error {
 
 		return err
 	}
+}
+
+// Return the peer ID for the remote side of the connection. Returns
+// the zero value if this connection was set up with NewConn instead
+// of via a Network.
+func (c *Conn) RemotePeerID() PeerID {
+	return c.remotePeerID
 }
 
 // Bootstrap returns the remote vat's bootstrap interface.  This creates
