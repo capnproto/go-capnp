@@ -749,7 +749,7 @@ func (d *Decoder) Decode() (*Message, error) {
 	// Read segments.
 	if d.reuse {
 		d.arena.Release()
-		d.arena = singleSegmentPool.Get().(Arena)
+		d.arena = SingleSegment(nil)
 		d.msg.Reset(d.arena)
 		return &d.msg, nil
 	}
