@@ -433,10 +433,7 @@ type SingleSegmentArena []byte
 // Callers MAY use b to populate the segment for reading, or to reserve
 // memory of a specific size.
 func SingleSegment(b []byte) *SingleSegmentArena {
-	if b == nil {
-		return singleSegmentPool.Get().(*SingleSegmentArena)
-	}
-	return singleSegment(b)
+	return (*SingleSegmentArena)(&b)
 }
 
 func (ssa SingleSegmentArena) NumSegments() int64 {
@@ -465,8 +462,9 @@ func (ssa *SingleSegmentArena) Allocate(sz Size, segs map[SegmentID]*Segment) (S
 	if err != nil {
 		return 0, nil, err
 	}
-	buf := make([]byte, len(data), cap(data)+inc)
-	copy(buf, data)
+	buf := bufferpool.Default.Get(cap(data) + inc)
+	buf = buf[:copy(buf, data)]
+	bufferpool.Default.Put(data)
 	*ssa = buf
 	return 0, *ssa, nil
 }
@@ -485,27 +483,8 @@ func (ssa SingleSegmentArena) String() string {
 // Calling Release is optional; if not done the garbage collector
 // will release the memory per usual.
 func (ssa *SingleSegmentArena) Release() {
-	// Clear the memory, so there's no junk in here for the next use:
-	for i := range *ssa {
-		(*ssa)[i] = 0
-	}
-
-	// Truncate the segment, since we use the length as the marker for
-	// what's allocated:
-	(*ssa) = (*ssa)[:0]
-
-	singleSegmentPool.Put(ssa)
-}
-
-// Like SingleSegment, but doesn't use the pool
-func singleSegment(b []byte) *SingleSegmentArena {
-	return (*SingleSegmentArena)(&b)
-}
-
-var singleSegmentPool = sync.Pool{
-	New: func() any {
-		return singleSegment(nil)
-	},
+	bufferpool.Default.Put(*ssa)
+	(*ssa) = nil
 }
 
 type roSingleSegment []byte
