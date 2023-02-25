@@ -86,10 +86,10 @@ func (ssa *SingleSegmentArena) Allocate(sz Size, segs map[SegmentID]*Segment) (S
 	if err != nil {
 		return 0, nil, err
 	}
-	buf := bufferpool.Default.Get(cap(data) + inc)
+	buf := bufferpool.Get(cap(data) + inc)
 	copied := copy(buf, data)
 	buf = buf[:copied]
-	bufferpool.Default.Put(data)
+	bufferpool.Put(data)
 	*ssa = buf
 	return 0, *ssa, nil
 }
@@ -108,7 +108,7 @@ func (ssa SingleSegmentArena) String() string {
 // Calling Release is optional; if not done the garbage collector
 // will release the memory per usual.
 func (ssa *SingleSegmentArena) Release() {
-	bufferpool.Default.Put(*ssa)
+	bufferpool.Put(*ssa)
 	*ssa = nil
 }
 
