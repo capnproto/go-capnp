@@ -25,8 +25,7 @@ func Set(p Pool) {
 // Get a buffer of with the specified size from the global pool.  The
 // resulting buffer's capacity MAY exceed size. The buffer SHOULD NOT
 // be resized beyond its underlying capacity, or it will leak to the
-// garbage collector. Callers MAY wish to over-allocate if the intend
-// to append to the buffer.
+// garbage collector.
 func Get(size int) []byte {
 	return pool.Get(size)[:size]
 }
