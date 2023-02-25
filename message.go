@@ -780,4 +780,22 @@ func hasCapacity(b []byte, sz Size) bool {
 	return sz <= Size(cap(b)-len(b))
 }
 
+// demuxArena slices b into a multi-segment arena.  It assumes that
+// len(data) >= hdr.totalSize().
+func demuxArena(hdr streamHeader, data []byte) (Arena, error) {
+	maxSeg := hdr.maxSegment()
+	if int64(maxSeg) > int64(maxInt-1) {
+		return nil, errors.New("number of segments overflows int")
+	}
+	segs := make([][]byte, int(maxSeg+1))
+	for i := range segs {
+		sz, err := hdr.segmentSize(SegmentID(i))
+		if err != nil {
+			return nil, err
+		}
+		segs[i], data = data[:sz:sz], data[sz:]
+	}
+	return MultiSegment(segs), nil
+}
+
 const maxInt = int(^uint(0) >> 1)
