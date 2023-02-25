@@ -703,7 +703,7 @@ func (c *Conn) receive() error {
 			if err != nil {
 				return err
 			}
-
+		// TODO: handle resolve.
 		case rpccp.Message_Which_accept:
 			if c.network == nil {
 				sendUnimplemented(errors.New("Accept from remote not supported: connection has no associated network"))
@@ -1264,7 +1264,13 @@ func (c *lockedConn) parseReturn(rl *releaseList, ret rpccp.Return, called [][]c
 			return parsedReturn{err: rpcerr.WrapFailed("parse return", err), parseFailed: true}
 		}
 		return parsedReturn{err: exc.New(exc.Type(e.Type()), "", reason)}
+	case rpccp.Return_Which_acceptFromThirdParty:
+		// TODO: 3PH. Can wait until after the MVP, because we can keep
+		// setting allowThirdPartyTailCall = false
+		fallthrough
 	default:
+		// TODO: go through other variants and make sure we're handling
+		// them all correctly.
 		return parsedReturn{err: rpcerr.Failed(errors.New(
 			"parse return: unhandled type " + w.String(),
 		)), parseFailed: true, unimplemented: true}
@@ -1676,6 +1682,11 @@ func (c *Conn) handleDisembargo(ctx context.Context, d rpccp.Disembargo, release
 			})
 		})
 
+	case rpccp.Disembargo_context_Which_accept, rpccp.Disembargo_context_Which_provide:
+		if c.network != nil {
+			panic("TODO: 3PH")
+		}
+		fallthrough
 	default:
 		c.er.ReportError(errors.New("incoming disembargo: context " + d.Context().Which().String() + " not implemented"))
 		c.withLocked(func(c *lockedConn) {
