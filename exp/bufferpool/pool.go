@@ -112,7 +112,7 @@ func (p *BasicPool) init() {
 		}
 
 		p.buckets = make([]bucket, p.N)
-		for i := 0; i < p.N; i++ {
+		for i := range p.buckets {
 			p.buckets[i] = newBucket(p.Min, i)
 		}
 	})
