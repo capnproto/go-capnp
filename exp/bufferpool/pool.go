@@ -41,7 +41,10 @@ func (p *Pool) Put(buf []byte) {
 
 	capacity := cap(buf)
 	for i := range p.buckets {
-		if (1 << i) >= capacity {
+		bucket := (1 << i)
+		next := (1<<i + 1)
+
+		if bucket <= capacity && capacity < next {
 			p.buckets[i].Put(buf[:capacity])
 			return
 		}
