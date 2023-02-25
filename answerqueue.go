@@ -14,12 +14,12 @@ import (
 //
 // An AnswerQueue can be in one of three states:
 //
-//	1) Queueing.  Incoming method calls will be added to the queue.
-//	2) Draining, entered by calling Fulfill or Reject.  Queued method
-//	   calls will be delivered in sequence, and new incoming method calls
-//	   will block until the AnswerQueue enters the Drained state.
-//	3) Drained, entered once all queued methods have been delivered.
-//	   Incoming methods are passthrough.
+//  1. Queueing.  Incoming method calls will be added to the queue.
+//  2. Draining, entered by calling Fulfill or Reject.  Queued method
+//     calls will be delivered in sequence, and new incoming method calls
+//     will block until the AnswerQueue enters the Drained state.
+//  3. Drained, entered once all queued methods have been delivered.
+//     Incoming methods are passthrough.
 type AnswerQueue struct {
 	method   Method
 	draining chan struct{} // closed while exiting queueing state
@@ -168,7 +168,7 @@ func (qc queueCaller) PipelineSend(ctx context.Context, transform []PipelineOp, 
 			return ErrorAnswer(s.Method, err), func() {}
 		}
 		r.ReleaseArgs = func() {
-			r.Args.Message().Reset(nil)
+			r.Args.Message().Release()
 		}
 	} else {
 		r.ReleaseArgs = func() {}
@@ -257,8 +257,8 @@ func (sr *StructReturner) ReleaseResults() {
 	if !alloced {
 		return
 	}
-	if err != nil && msg != nil {
-		msg.Reset(nil)
+	if err != nil {
+		msg.Release() // nil-safe
 	}
 }
 
@@ -279,9 +279,7 @@ func (sr *StructReturner) Answer(m Method, pcall PipelineCaller) (*Answer, Relea
 			msg := sr.result.Message()
 			sr.result = Struct{}
 			sr.mu.Unlock()
-			if msg != nil {
-				msg.Reset(nil)
-			}
+			msg.Release() // nil-safe
 		}
 	}
 	sr.p = NewPromise(m, pcall)
@@ -293,8 +291,6 @@ func (sr *StructReturner) Answer(m Method, pcall PipelineCaller) (*Answer, Relea
 		sr.result = Struct{}
 		sr.mu.Unlock()
 		sr.p.ReleaseClients()
-		if msg != nil {
-			msg.Reset(nil)
-		}
+		msg.Release() // nil-safe
 	}
 }

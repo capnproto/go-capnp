@@ -37,10 +37,6 @@ type Message struct {
 
 	Arena Arena
 
-	// If not nil, the original buffer from which this message was decoded.
-	// This mostly for the benefit of returning buffers to pools and such.
-	originalBuffer []byte
-
 	// CapTable is the indexed list of the clients referenced in the
 	// message.  Capability pointers inside the message will use this table
 	// to map pointers to Clients.  The table is usually populated by the
@@ -74,9 +70,9 @@ type Message struct {
 // NewMessage creates a message with a new root and returns the first
 // segment.  It is an error to call NewMessage on an arena with data in it.
 func NewMessage(arena Arena) (*Message, *Segment, error) {
-	var msg Message
+	msg := msgpool.Get()
 	first, err := msg.Reset(arena)
-	return &msg, first, err
+	return msg, first, err
 }
 
 // NewSingleSegmentMessage(b) is equivalent to NewMessage(SingleSegment(b)), except
@@ -100,6 +96,20 @@ func NewMultiSegmentMessage(b [][]byte) (msg *Message, first *Segment) {
 	return msg, first
 }
 
+// Release resources acquired by the Message and return it
+// to a global message pool, where it can be reused.   The
+// message's arena is also released.  Calling Release() is
+// OPTIONAL.
+//
+// Note that this will reset the message, invalidating any
+// pointers and releasing any clients in the cap table.
+func (m *Message) Release() {
+	if m != nil {
+		m.Reset(nil)
+		msgpool.Put(m)
+	}
+}
+
 // Reset the message to use a different arena, allowing it
 // to be reused. This invalidates any existing pointers in
 // the Message, and releases all clients in the cap table,
@@ -107,6 +117,10 @@ func NewMultiSegmentMessage(b [][]byte) (msg *Message, first *Segment) {
 func (m *Message) Reset(arena Arena) (first *Segment, err error) {
 	for _, c := range m.CapTable {
 		c.Release()
+	}
+
+	if m.Arena != nil {
+		m.Arena.Release()
 	}
 
 	*m = Message{
@@ -474,10 +488,7 @@ func (d *Decoder) Decode() (*Message, error) {
 		if err != nil {
 			return nil, exc.WrapError("decode", err)
 		}
-		return &Message{
-			Arena:          arena,
-			originalBuffer: buf,
-		}, nil
+		return &Message{Arena: arena}, nil
 	}
 	d.buf = resizeSlice(d.buf, int(total))
 	if _, err := io.ReadFull(d.r, d.buf); err != nil {
@@ -517,10 +528,6 @@ func resizeSlice(b []byte, size int) []byte {
 // The decoder may return messages that cannot handle allocations.
 func (d *Decoder) ReuseBuffer() {
 	d.reuse = true
-}
-
-func (d *Decoder) ReleaseMessage(m *Message) {
-	bufferpool.Put(m.originalBuffer)
 }
 
 // Unmarshal reads an unpacked serialized stream into a message.  No
@@ -781,3 +788,19 @@ func demuxArena(hdr streamHeader, data []byte) (Arena, error) {
 }
 
 const maxInt = int(^uint(0) >> 1)
+
+var msgpool messagePool
+
+type messagePool sync.Pool
+
+func (p *messagePool) Get() *Message {
+	if v := (*sync.Pool)(p).Get(); v != nil {
+		return v.(*Message)
+	}
+
+	return new(Message)
+}
+
+func (p *messagePool) Put(m *Message) {
+	(*sync.Pool)(p).Put(m)
+}

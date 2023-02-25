@@ -71,10 +71,6 @@ type IncomingMessage struct {
 type Codec interface {
 	Encode(*capnp.Message) error
 	Decode() (*capnp.Message, error)
-
-	// Mark a message previously returned by Decode as no longer needed. The
-	// Codec may re-use the space for future messages.
-	ReleaseMessage(*capnp.Message)
 	Close() error
 }
 
@@ -136,13 +132,10 @@ func (s *transport) NewMessage() (OutgoingMessage, error) {
 	}
 
 	release := func() {
-		if alreadyReleased {
-			return
+		if !alreadyReleased {
+			alreadyReleased = true
+			msg.Release()
 		}
-		alreadyReleased = true
-
-		msg.Reset(nil)
-		arena.Release()
 	}
 
 	return OutgoingMessage{
@@ -167,13 +160,9 @@ func (s *transport) RecvMessage() (IncomingMessage, error) {
 		return IncomingMessage{}, err
 	}
 
-	release := func() {
-		msg.Reset(nil)
-		s.c.ReleaseMessage(msg)
-	}
 	return IncomingMessage{
 		Message: rmsg,
-		Release: release,
+		Release: msg.Release,
 	}, nil
 }
 

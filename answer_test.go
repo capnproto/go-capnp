@@ -58,7 +58,7 @@ func TestPromiseFulfill(t *testing.T) {
 		p := NewPromise(dummyMethod, dummyPipelineCaller{})
 		done := p.Answer().Done()
 		msg, seg, _ := NewMessage(SingleSegment(nil))
-		defer msg.Reset(nil)
+		defer msg.Release()
 		res, _ := NewStruct(seg, ObjectSize{DataSize: 8})
 		p.Fulfill(res.ToPtr())
 		select {
@@ -73,7 +73,7 @@ func TestPromiseFulfill(t *testing.T) {
 		defer p.ReleaseClients()
 		ans := p.Answer()
 		msg, seg, _ := NewMessage(SingleSegment(nil))
-		defer msg.Reset(nil)
+		defer msg.Release()
 		res, _ := NewStruct(seg, ObjectSize{DataSize: 8})
 		res.SetUint32(0, 0xdeadbeef)
 		p.Fulfill(res.ToPtr())
@@ -96,7 +96,7 @@ func TestPromiseFulfill(t *testing.T) {
 		c := NewClient(h)
 		defer c.Release()
 		msg, seg, _ := NewMessage(SingleSegment(nil))
-		defer msg.Reset(nil)
+		defer msg.Release()
 		res, _ := NewStruct(seg, ObjectSize{PointerCount: 3})
 		res.SetPtr(1, NewInterface(seg, msg.AddCap(c.AddRef())).ToPtr())
 

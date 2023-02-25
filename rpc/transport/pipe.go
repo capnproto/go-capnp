@@ -72,8 +72,6 @@ func (p *pipe) Decode() (*capnp.Message, error) {
 
 }
 
-func (*pipe) ReleaseMessage(*capnp.Message) {}
-
 func (p *pipe) Close() error {
 	close(p.closed)
 	syncutil.With(&p.sendMu, func() {
