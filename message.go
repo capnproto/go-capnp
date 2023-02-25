@@ -73,36 +73,10 @@ type Message struct {
 
 // NewMessage creates a message with a new root and returns the first
 // segment.  It is an error to call NewMessage on an arena with data in it.
-func NewMessage(arena Arena) (msg *Message, first *Segment, err error) {
-	msg = &Message{Arena: arena}
-	switch arena.NumSegments() {
-	case 0:
-		first, err = msg.allocSegment(wordSize)
-		if err != nil {
-			return nil, nil, exc.WrapError("new message", err)
-		}
-	case 1:
-		first, err = msg.Segment(0)
-		if err != nil {
-			return nil, nil, exc.WrapError("new message", err)
-		}
-		if len(first.data) > 0 {
-			return nil, nil, errors.New("new message: arena not empty")
-		}
-	default:
-		return nil, nil, errors.New("new message: arena not empty")
-	}
-	if first.ID() != 0 {
-		return nil, nil, errors.New("new message: arena allocated first segment with non-zero ID")
-	}
-	seg, _, err := alloc(first, wordSize) // allocate root
-	if err != nil {
-		return nil, nil, exc.WrapError("new message", err)
-	}
-	if seg != first {
-		return nil, nil, errors.New("new message: arena allocated first word outside first segment")
-	}
-	return msg, first, nil
+func NewMessage(arena Arena) (*Message, *Segment, error) {
+	var msg Message
+	first, err := msg.Reset(arena)
+	return &msg, first, err
 }
 
 // NewSingleSegmentMessage(b) is equivalent to NewMessage(SingleSegment(b)), except
@@ -126,21 +100,54 @@ func NewMultiSegmentMessage(b [][]byte) (msg *Message, first *Segment) {
 	return msg, first
 }
 
-// Reset resets a message to use a different arena, allowing a single
-// Message to be reused for reading multiple messages.  This invalidates
-// any existing pointers in the Message, so use with caution.  All
-// clients in the message's capability table will be released.
-//
-// Note: this API is not designed for *writing* to messages, only reading.
-func (m *Message) Reset(arena Arena) {
+// Reset the message to use a different arena, allowing it
+// to be reused. This invalidates any existing pointers in
+// the Message, and releases all clients in the cap table,
+// so use with caution.
+func (m *Message) Reset(arena Arena) (first *Segment, err error) {
 	for _, c := range m.CapTable {
 		c.Release()
 	}
+
 	*m = Message{
 		Arena:         arena,
 		TraverseLimit: m.TraverseLimit,
 		DepthLimit:    m.DepthLimit,
 	}
+
+	if arena != nil {
+		switch arena.NumSegments() {
+		case 0:
+			if first, err = m.allocSegment(wordSize); err != nil {
+				return nil, exc.WrapError("new message", err)
+			}
+
+		case 1:
+			if first, err = m.Segment(0); err != nil {
+				return nil, exc.WrapError("new message", err)
+			}
+			if len(first.data) > 0 {
+				return nil, errors.New("new message: arena not empty")
+			}
+
+		default:
+			return nil, errors.New("new message: arena not empty")
+		}
+
+		if first.ID() != 0 {
+			return nil, errors.New("new message: arena allocated first segment with non-zero ID")
+		}
+
+		seg, _, err := alloc(first, wordSize) // allocate root
+		if err != nil {
+			return nil, exc.WrapError("new message", err)
+		}
+		if seg != first {
+			return nil, errors.New("new message: arena allocated first word outside first segment")
+		}
+	}
+
+	return
 }
 
 func (m *Message) initReadLimit() {
