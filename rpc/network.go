@@ -64,7 +64,7 @@ type IntroductionInfo struct {
 // connections outside a point-to-point setting.
 type Network interface {
 	// Return the identifier for caller on this network.
-	MyID() PeerID
+	LocalID() PeerID
 
 	// Connect to another peer by ID. The supplied Options are used
 	// for the connection, with the values for RemotePeerID and Network

@@ -71,7 +71,7 @@ func (j *Joiner) getAcceptQueue(id PeerID) spsc.Queue[PeerID] {
 	return q
 }
 
-func (n network) MyID() rpc.PeerID {
+func (n network) LocalID() rpc.PeerID {
 	return rpc.PeerID{n.myID}
 }
 
