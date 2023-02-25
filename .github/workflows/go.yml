@@ -11,9 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go: [ '1.18', '1.19' ]
-        arch: [ '', '386' ]
-    name: Go ${{ matrix.go }}
+        go: [ '1.18', '1.19', '1.20' ]
+        arch: [ 'amd64', '386' ]
+    name: Go ${{ matrix.go }} GOARCH=${{ matrix.arch }}
     steps:
       - uses: actions/checkout@v2
       - name: Setup go

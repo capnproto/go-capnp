@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"golang.org/x/sync/errgroup"
+	"zenhack.net/go/util"
 
 	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/exc"
@@ -353,6 +354,10 @@ func (c *Conn) Bootstrap(ctx context.Context) (bc capnp.Client) {
 type bootstrapClient struct {
 	c      capnp.Client
 	cancel context.CancelFunc
+}
+
+func (bc bootstrapClient) String() string {
+	return "bootstrapClient{c: " + bc.c.String() + "}"
 }
 
 func (bc bootstrapClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, capnp.ReleaseFunc) {
@@ -749,16 +754,6 @@ func (c *Conn) handleBootstrap(ctx context.Context, id answerID) error {
 	return err
 }
 
-func idempotent(f func()) func() {
-	called := false
-	return func() {
-		if !called {
-			called = true
-			f()
-		}
-	}
-}
-
 func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capnp.ReleaseFunc) error {
 	rl := &releaseList{}
 	defer rl.Release()
@@ -850,7 +845,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 		recv := capnp.Recv{
 			Args:        p.args,
 			Method:      p.method,
-			ReleaseArgs: idempotent(releaseCall),
+			ReleaseArgs: util.Idempotent(releaseCall),
 			Returner:    ans,
 		}
 

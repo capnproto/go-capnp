@@ -7,6 +7,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/tinylib/msgp v1.1.5
 	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
+	zenhack.net/go/util v0.0.0-20230218002511-744d2d6d1739
 )
 
 require (

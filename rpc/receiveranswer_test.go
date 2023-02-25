@@ -12,6 +12,7 @@ import (
 	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/rpc/internal/testcapnp"
 	"capnproto.org/go/capnp/v3/server"
+	"zenhack.net/go/util"
 )
 
 type capArgsTest struct {
@@ -30,7 +31,7 @@ func (me *capArgsTest) Self(ctx context.Context, p testcapnp.CapArgsTest_self) e
 func (me *capArgsTest) Call(ctx context.Context, p testcapnp.CapArgsTest_call) error {
 	defer close(me.Errs)
 	client := p.Args().Cap()
-	chkfatal(client.Resolve(ctx))
+	util.Chkfatal(client.Resolve(ctx))
 	brand, ok := server.IsServer(client.State().Brand)
 	if !ok {
 		err := fmt.Errorf("server.IsServer returned !ok")
@@ -44,12 +45,6 @@ func (me *capArgsTest) Call(ctx context.Context, p testcapnp.CapArgsTest_call) e
 			me, other)
 	}
 	return nil
-}
-
-func chkfatal(err error) {
-	if err != nil {
-		panic(err)
-	}
 }
 
 func TestBootstrapReceiverAnswerRpc(t *testing.T) {
@@ -84,7 +79,7 @@ func TestBootstrapReceiverAnswerRpc(t *testing.T) {
 	c.Release()
 
 	_, err := res.Struct()
-	chkfatal(err)
+	util.Chkfatal(err)
 
 	for err := range errChan {
 		t.Errorf("Error: %v", err)
@@ -127,9 +122,9 @@ func TestCallReceiverAnswerRpc(t *testing.T) {
 	defer rel()
 
 	_, err := selfRes.Struct()
-	chkfatal(err)
+	util.Chkfatal(err)
 	_, err = callRes.Struct()
-	chkfatal(err)
+	util.Chkfatal(err)
 
 	for err = range errChan {
 		t.Errorf("Error: %v", err)
@@ -156,41 +151,41 @@ func TestBootstrapReceiverAnswer(t *testing.T) {
 	trans := NewStreamTransport(cClient)
 
 	outMsg, err := trans.NewMessage()
-	chkfatal(err)
+	util.Chkfatal(err)
 
 	bs, err := outMsg.Message.NewBootstrap()
-	chkfatal(err)
+	util.Chkfatal(err)
 	bs.SetQuestionId(0)
 	outMsg.Send()
 	outMsg.Release()
 
 	outMsg, err = trans.NewMessage()
-	chkfatal(err)
+	util.Chkfatal(err)
 
 	// bootstrap.call(cap = bootstrap)
 	call, err := outMsg.Message.NewCall()
-	chkfatal(err)
+	util.Chkfatal(err)
 	call.SetQuestionId(1)
 	tgt, err := call.NewTarget()
-	chkfatal(err)
+	util.Chkfatal(err)
 	pa, err := tgt.NewPromisedAnswer()
-	chkfatal(err)
+	util.Chkfatal(err)
 	pa.SetQuestionId(0)
 	// Can leave off transform, since the root of the response is the
 	// bootstrap capability.
 	call.SetInterfaceId(testcapnp.CapArgsTest_TypeID)
 	call.SetMethodId(0)
 	params, err := call.NewParams()
-	chkfatal(err)
+	util.Chkfatal(err)
 	capTable, err := params.NewCapTable(1)
-	chkfatal(err)
+	util.Chkfatal(err)
 	capDesc := capTable.At(0)
 	ra, err := capDesc.NewReceiverAnswer()
-	chkfatal(err)
+	util.Chkfatal(err)
 	ra.SetQuestionId(0)
 	seg := params.Segment()
 	argStruct, err := capnp.NewStruct(seg, capnp.ObjectSize{PointerCount: 1})
-	chkfatal(err)
+	util.Chkfatal(err)
 	argStruct.SetPtr(0, capnp.NewInterface(seg, 0).ToPtr())
 	params.SetContent(argStruct.ToPtr())
 	outMsg.Send()
@@ -221,25 +216,25 @@ func TestCallReceiverAnswer(t *testing.T) {
 	trans := NewStreamTransport(cClient)
 
 	outMsg, err := trans.NewMessage()
-	chkfatal(err)
+	util.Chkfatal(err)
 
 	bs, err := outMsg.Message.NewBootstrap()
-	chkfatal(err)
+	util.Chkfatal(err)
 	bs.SetQuestionId(0)
 	outMsg.Send()
 	outMsg.Release()
 
 	outMsg, err = trans.NewMessage()
-	chkfatal(err)
+	util.Chkfatal(err)
 
 	// qid1 = bootstrap.self()
 	call, err := outMsg.Message.NewCall()
-	chkfatal(err)
+	util.Chkfatal(err)
 	call.SetQuestionId(1)
 	tgt, err := call.NewTarget()
-	chkfatal(err)
+	util.Chkfatal(err)
 	pa, err := tgt.NewPromisedAnswer()
-	chkfatal(err)
+	util.Chkfatal(err)
 	pa.SetQuestionId(0)
 	call.SetInterfaceId(testcapnp.CapArgsTest_TypeID)
 	call.SetMethodId(1)
@@ -247,37 +242,37 @@ func TestCallReceiverAnswer(t *testing.T) {
 	outMsg.Release()
 
 	outMsg, err = trans.NewMessage()
-	chkfatal(err)
+	util.Chkfatal(err)
 
 	// qid1.self.call(cap = qid1.self)
 	call, err = outMsg.Message.NewCall()
-	chkfatal(err)
+	util.Chkfatal(err)
 	call.SetQuestionId(2)
 	tgt, err = call.NewTarget()
-	chkfatal(err)
+	util.Chkfatal(err)
 	pa, err = tgt.NewPromisedAnswer()
-	chkfatal(err)
+	util.Chkfatal(err)
 	pa.SetQuestionId(1)
 	transform, err := pa.NewTransform(1)
-	chkfatal(err)
+	util.Chkfatal(err)
 	transform.At(0).SetGetPointerField(0)
 	call.SetInterfaceId(testcapnp.CapArgsTest_TypeID)
 	call.SetMethodId(0)
 	params, err := call.NewParams()
-	chkfatal(err)
+	util.Chkfatal(err)
 	capTable, err := params.NewCapTable(1)
-	chkfatal(err)
+	util.Chkfatal(err)
 	capDesc := capTable.At(0)
 	ra, err := capDesc.NewReceiverAnswer()
-	chkfatal(err)
+	util.Chkfatal(err)
 	transform.At(0).SetGetPointerField(0)
 	ra.SetQuestionId(1)
 	transform, err = ra.NewTransform(1)
-	chkfatal(err)
+	util.Chkfatal(err)
 	transform.At(0).SetGetPointerField(0)
 	seg := params.Segment()
 	argStruct, err := capnp.NewStruct(seg, capnp.ObjectSize{PointerCount: 1})
-	chkfatal(err)
+	util.Chkfatal(err)
 	argStruct.SetPtr(0, capnp.NewInterface(seg, 0).ToPtr())
 	params.SetContent(argStruct.ToPtr())
 	outMsg.Send()

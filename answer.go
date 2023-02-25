@@ -270,12 +270,12 @@ func ErrorAnswer(m Method, e error) *Answer {
 	return &p.ans
 }
 
-// ImmediateAnswer returns an Answer that accesses s.
-func ImmediateAnswer(m Method, s Struct) *Answer {
+// ImmediateAnswer returns an Answer that accesses ptr.
+func ImmediateAnswer(m Method, ptr Ptr) *Answer {
 	p := &Promise{
 		method:   m,
 		resolved: closedSignal,
-		result:   s.ToPtr(),
+		result:   ptr,
 	}
 	p.ans.f.promise = p
 	p.ans.metadata = *NewMetadata()
@@ -538,6 +538,13 @@ func (pc PipelineClient) Brand() Brand {
 }
 
 func (pc PipelineClient) Shutdown() {
+}
+
+func (pc PipelineClient) String() string {
+	return "PipelineClient{transform: " +
+		str.Slice(pc.transform) +
+		", promise: 0x" + str.PtrToHex(pc.p) +
+		"}"
 }
 
 // A PipelineOp describes a step in transforming a pipeline.
