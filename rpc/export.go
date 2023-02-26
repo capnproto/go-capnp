@@ -15,8 +15,9 @@ type exportID uint32
 
 // expent is an entry in a Conn's export table.
 type expent struct {
-	client   capnp.Client
-	wireRefs uint32
+	client    capnp.Client
+	wireRefs  uint32
+	isPromise bool
 }
 
 // A key for use in a client's Metadata, whose value is the export
@@ -154,26 +155,30 @@ func (c *lockedConn) sendCap(d rpccp.CapDescriptor, client capnp.Client) (_ expo
 	state.Metadata.Lock()
 	defer state.Metadata.Unlock()
 	id, ok := c.findExportID(state.Metadata)
+	var ee *expent
 	if ok {
-		ent := c.lk.exports[id]
-		ent.wireRefs++
-		d.SetSenderHosted(uint32(id))
-		return id, true, nil
-	}
-
-	// Not already present; allocate an export id for it:
-	ee := &expent{
-		client:   client.AddRef(),
-		wireRefs: 1,
-	}
-	id = exportID(c.lk.exportID.next())
-	if int64(id) == int64(len(c.lk.exports)) {
-		c.lk.exports = append(c.lk.exports, ee)
+		ee = c.lk.exports[id]
+		ee.wireRefs++
 	} else {
-		c.lk.exports[id] = ee
+		// Not already present; allocate an export id for it:
+		ee = &expent{
+			client:    client.AddRef(),
+			wireRefs:  1,
+			isPromise: state.IsPromise,
+		}
+		id = exportID(c.lk.exportID.next())
+		if int64(id) == int64(len(c.lk.exports)) {
+			c.lk.exports = append(c.lk.exports, ee)
+		} else {
+			c.lk.exports[id] = ee
+		}
+		c.setExportID(state.Metadata, id)
 	}
-	c.setExportID(state.Metadata, id)
-	d.SetSenderHosted(uint32(id))
+	if ee.isPromise {
+		d.SetSenderPromise(uint32(id))
+	} else {
+		d.SetSenderHosted(uint32(id))
+	}
 	return id, true, nil
 }
 
