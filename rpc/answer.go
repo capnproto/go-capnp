@@ -312,8 +312,7 @@ func (ans *answer) prepareSendException(c *lockedConn, rl *releaseList, ex error
 			ans.c.er.ReportError(exc.WrapError("send exception", err))
 			ans.sendMsg = nil
 		} else {
-			e.SetType(rpccp.Exception_Type(exc.TypeOf(ex)))
-			if err := e.SetReason(ex.Error()); err != nil {
+			if err := e.MarshalError(ex); err != nil {
 				ans.c.er.ReportError(exc.WrapError("send exception", err))
 				ans.sendMsg = nil
 			}

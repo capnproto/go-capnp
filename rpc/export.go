@@ -175,7 +175,48 @@ func (c *lockedConn) sendCap(d rpccp.CapDescriptor, client capnp.Client) (_ expo
 		c.setExportID(state.Metadata, id)
 	}
 	if ee.isPromise {
+		// Send a promise, wait for the resolution asynchronously, then send
+		// a resolve message:
 		d.SetSenderPromise(uint32(id))
+		waitRef := client.AddRef()
+		go func() {
+			unlockedConn := (*Conn)(c)
+			waitErr := waitRef.Resolve(c.bgctx)
+			unlockedConn.withLocked(func(c *lockedConn) {
+				// Export was removed from the table at some point;
+				// remote peer is uninterested in the resolution, so
+				// drop the reference and we're done:
+				if c.lk.exports[id] != ee {
+					go waitRef.Release()
+					return
+				}
+
+				c.sendMessage(c.bgctx, func(m rpccp.Message) error {
+					res, err := m.NewResolve()
+					if err != nil {
+						return err
+					}
+					res.SetPromiseId(uint32(id))
+					if waitErr != nil {
+						ex, err := res.NewException()
+						if err != nil {
+							return err
+						}
+						return ex.MarshalError(waitErr)
+					}
+					desc, err := res.NewCap()
+					if err != nil {
+						return err
+					}
+					_, _, err = c.sendCap(desc, waitRef)
+					return err
+				}, func(err error) {
+					if err != nil {
+						waitRef.Release()
+					}
+				})
+			})
+		}()
 	} else {
 		d.SetSenderHosted(uint32(id))
 	}
