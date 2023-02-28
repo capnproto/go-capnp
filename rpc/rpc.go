@@ -1754,7 +1754,7 @@ func (c *lockedConn) sendMessage(ctx context.Context, build func(rpccp.Message) 
 // time RecvMessage() returns an error, its results will still be sent on the
 // channel.
 func (c *Conn) reader(ctx context.Context, in chan<- transport.IncomingMessage) func() error {
-	return func() error {
+	return c.backgroundTask(func() error {
 		defer close(in)
 
 		ctx, cancel := context.WithCancel(ctx)
@@ -1805,7 +1805,7 @@ func (c *Conn) reader(ctx context.Context, in chan<- transport.IncomingMessage) 
 		default:
 			return ctx.Err()
 		}
-	}
+	})
 }
 
 type asyncSend struct {
