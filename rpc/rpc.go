@@ -255,26 +255,15 @@ func NewConn(t Transport, opts *Options) *Conn {
 		c.abortTimeout = 100 * time.Millisecond
 	}
 
-	// start background tasks
-	g.Go(c.backgroundTask(c.send))
-	g.Go(c.backgroundTask(c.receive))
-
-	// monitor background tasks
-	go func() {
-		err := g.Wait()
-
-		// Treat context.Canceled as a success indicator.
-		// Do not report or send an abort message.
-		if errors.Is(err, context.Canceled) {
-			err = nil
-		}
-
-		c.er.ReportError(err) // ignores nil errors
-
-		if err = c.shutdown(err); err != nil {
-			c.er.ReportError(err)
-		}
-	}()
+	// Start background tasks.
+	//
+	// We delegate actual IO to a separate goroutine, so we can always
+	// be responsive to the context.
+	incoming := make(chan transport.IncomingMessage)
+	g.Go(c.send(ctx))
+	g.Go(c.receive(ctx, incoming))
+	g.Go(c.reader(ctx, incoming)) // closes incoming
+	go c.waitBackgroundTasks(g)
 
 	return c
 }
@@ -294,6 +283,19 @@ func (c *Conn) backgroundTask(f func() error) func() error {
 
 		return err
 	}
+}
+
+func (c *Conn) waitBackgroundTasks(g *errgroup.Group) {
+	err := g.Wait()
+
+	// Treat context.Canceled as a success indicator.
+	// Do not report or send an abort message.
+	if errors.Is(err, context.Canceled) {
+		err = nil
+	}
+
+	c.er.ReportError(err) // ignores nil errors
+	c.er.ReportError(c.shutdown(err))
 }
 
 // Return the peer ID for the remote side of the connection. Returns
@@ -551,15 +553,17 @@ func (c *Conn) abort(abortErr error) {
 	}
 }
 
-func (c *Conn) send() error {
-	for {
-		async, err := c.sendRx.Recv(c.bgctx)
-		if err != nil {
-			return err
-		}
+func (c *Conn) send(ctx context.Context) func() error {
+	return c.backgroundTask(func() error {
+		for {
+			async, err := c.sendRx.Recv(ctx)
+			if err != nil {
+				return err
+			}
 
-		async.Send()
-	}
+			async.Send()
+		}
+	})
 }
 
 // receive receives and dispatches messages coming from c.transport.  receive
@@ -567,180 +571,120 @@ func (c *Conn) send() error {
 //
 // After receive returns, the connection is shut down.  If receive
 // returns a non-nil error, it is sent to the remove vat as an abort.
-func (c *Conn) receive() error {
-	ctx := c.bgctx
+func (c *Conn) receive(ctx context.Context, incoming <-chan transport.IncomingMessage) func() error {
+	return c.backgroundTask(func() error {
+		for in := range incoming {
+			switch in.Message.Which() {
+			case rpccp.Message_Which_unimplemented:
+				// no-op for now to avoid feedback loop
 
-	incoming := make(chan incomingMessage)
-	// We delegate actual IO to a separate goroutine, so we can always be responsive to the
-	// context:
-	go reader(ctx, incoming, c.transport)
-
-	for {
-		var (
-			recv    rpccp.Message
-			release capnp.ReleaseFunc
-			err     error
-		)
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case in := <-incoming:
-			recv = in.Message
-			release = in.Release
-			err = in.err
-		}
-
-		if err != nil {
-			return err
-		}
-
-		switch recv.Which() {
-		case rpccp.Message_Which_unimplemented:
-			// no-op for now to avoid feedback loop
-
-		case rpccp.Message_Which_abort:
-			defer release()
-
-			e, err := recv.Abort()
-			if err != nil {
-				c.er.ReportError(exc.WrapError("read abort", err))
+			case rpccp.Message_Which_abort:
+				c.handleAbort(in)
 				return nil
-			}
 
-			reason, err := e.Reason()
-			if err != nil {
-				c.er.ReportError(exc.WrapError("read abort: reason", err))
-				return nil
-			}
+			case rpccp.Message_Which_bootstrap:
+				if err := c.handleBootstrap(in); err != nil {
+					return err
+				}
 
-			c.er.ReportError(exc.New(exc.Type(e.Type()), "rpc", "remote abort: "+reason))
-			return nil
+			case rpccp.Message_Which_call:
+				if err := c.handleCall(ctx, in); err != nil {
+					return err
+				}
 
-		case rpccp.Message_Which_bootstrap:
-			bootstrap, err := recv.Bootstrap()
-			if err != nil {
-				release()
-				c.er.ReportError(exc.WrapError("read bootstrap", err))
-				continue
-			}
-			qid := answerID(bootstrap.QuestionId())
-			release()
-			if err := c.handleBootstrap(ctx, qid); err != nil {
-				return err
-			}
+			case rpccp.Message_Which_return:
+				if err := c.handleReturn(ctx, in); err != nil {
+					return err
+				}
 
-		case rpccp.Message_Which_call:
-			call, err := recv.Call()
-			if err != nil {
-				release()
-				c.er.ReportError(exc.WrapError("read call", err))
-				continue
-			}
-			if err := c.handleCall(ctx, call, release); err != nil {
-				return err
-			}
+			case rpccp.Message_Which_finish:
+				if err := c.handleFinish(ctx, in); err != nil {
+					return err
+				}
 
-		case rpccp.Message_Which_return:
-			ret, err := recv.Return()
-			if err != nil {
-				release()
-				c.er.ReportError(exc.WrapError("read return", err))
-				continue
-			}
-			if err := c.handleReturn(ctx, ret, release); err != nil {
-				return err
-			}
+			case rpccp.Message_Which_release:
+				if err := c.handleRelease(ctx, in); err != nil {
+					return err
+				}
 
-		case rpccp.Message_Which_finish:
-			fin, err := recv.Finish()
-			if err != nil {
-				release()
-				c.er.ReportError(exc.WrapError("read finish", err))
-				continue
-			}
-			qid := answerID(fin.QuestionId())
-			releaseResultCaps := fin.ReleaseResultCaps()
-			release()
-			if err := c.handleFinish(ctx, qid, releaseResultCaps); err != nil {
-				return err
-			}
+			case rpccp.Message_Which_disembargo:
+				if err := c.handleDisembargo(ctx, in); err != nil {
+					return err
+				}
 
-		case rpccp.Message_Which_release:
-			rel, err := recv.Release()
-			if err != nil {
-				release()
-				c.er.ReportError(exc.WrapError("read release", err))
-				continue
-			}
-			id := exportID(rel.Id())
-			count := rel.ReferenceCount()
-			release()
-			if err := c.handleRelease(ctx, id, count); err != nil {
-				return err
-			}
+			// TODO: handle resolve.
+			case rpccp.Message_Which_accept, rpccp.Message_Which_provide:
+				if c.network != nil {
+					panic("TODO: 3PH")
+				}
+				fallthrough
 
-		case rpccp.Message_Which_disembargo:
-			d, err := recv.Disembargo()
-			if err != nil {
-				release()
-				c.er.ReportError(exc.WrapError("read disembargo", err))
-				continue
+			default:
+				c.handleUnknownMessageType(ctx, in)
 			}
-			err = c.handleDisembargo(ctx, d, release)
-			if err != nil {
-				return err
-			}
-		// TODO: handle resolve.
-		case rpccp.Message_Which_accept, rpccp.Message_Which_provide:
-			if c.network != nil {
-				panic("TODO: 3PH")
-			}
-			fallthrough
-		default:
-			c.er.ReportError(errors.New("unknown message type " + recv.Which().String() + " from remote"))
-			c.withLocked(func(c *lockedConn) {
-				c.sendMessage(ctx, func(m rpccp.Message) error {
-					defer release()
-					if err := m.SetUnimplemented(recv); err != nil {
-						return rpcerr.Annotate(err, "send unimplemented")
-					}
-					return nil
-				}, nil)
-			})
 		}
-	}
+
+		// incoming channel was closed; graceful exit.
+		return ctx.Err()
+	})
 }
 
-func (c *Conn) handleBootstrap(ctx context.Context, id answerID) error {
+func (c *Conn) handleAbort(in transport.IncomingMessage) {
+	defer in.Release()
+
+	e, err := in.Message.Abort()
+	if err != nil {
+		c.er.ReportError(exc.WrapError("read abort", err))
+		return
+	}
+
+	reason, err := e.Reason()
+	if err != nil {
+		c.er.ReportError(exc.WrapError("read abort: reason", err))
+		return
+	}
+
+	c.er.ReportError(exc.New(exc.Type(e.Type()), "rpc", "remote abort: "+reason))
+}
+
+func (c *Conn) handleBootstrap(in transport.IncomingMessage) error {
+	defer in.Release()
+
+	bootstrap, err := in.Message.Bootstrap()
+	if err != nil {
+		c.er.ReportError(exc.WrapError("read bootstrap", err))
+		return nil
+	}
+
 	rl := &releaseList{}
 	defer rl.Release()
 
-	var (
-		err error
-		ans = answer{c: c, id: id}
-	)
+	ans := answer{
+		c:  c,
+		id: answerID(bootstrap.QuestionId()),
+	}
 
 	ans.ret, ans.sendMsg, ans.msgReleaser, err = c.newReturn()
 	if err == nil {
-		ans.ret.SetAnswerId(uint32(id))
+		ans.ret.SetAnswerId(uint32(ans.id))
 		ans.ret.SetReleaseParamCaps(false)
 	}
 
 	c.withLocked(func(c *lockedConn) {
-		if c.lk.answers[id] != nil {
+		if c.lk.answers[ans.id] != nil {
 			rl.Add(ans.msgReleaser.Decr)
-			err = rpcerr.Failed(errors.New("incoming bootstrap: answer ID " + str.Utod(id) + " reused"))
+			err = rpcerr.Failed(errors.New("incoming bootstrap: answer ID " + str.Utod(ans.id) + " reused"))
 			return
 		}
 
 		if err != nil {
 			err = rpcerr.Annotate(err, "incoming bootstrap")
-			c.lk.answers[id] = errorAnswer((*Conn)(c), id, err)
+			c.lk.answers[ans.id] = errorAnswer((*Conn)(c), ans.id, err)
 			c.er.ReportError(err)
 			return
 		}
 
-		c.lk.answers[id] = &ans
+		c.lk.answers[ans.id] = &ans
 		if !c.bootstrap.IsValid() {
 			ans.sendException(c, rl, exc.New(exc.Failed, "", "vat does not expose a public/bootstrap interface"))
 			return
@@ -756,10 +700,18 @@ func (c *Conn) handleBootstrap(ctx context.Context, id answerID) error {
 			panic(err)
 		}
 	})
+
 	return err
 }
 
-func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capnp.ReleaseFunc) error {
+func (c *Conn) handleCall(ctx context.Context, in transport.IncomingMessage) error {
+	call, err := in.Message.Call()
+	if err != nil {
+		in.Release()
+		c.er.ReportError(exc.WrapError("read call", err))
+		return nil
+	}
+
 	rl := &releaseList{}
 	defer rl.Release()
 
@@ -772,7 +724,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 
 		c.withLocked(func(c *lockedConn) {
 			c.sendMessage(ctx, func(m rpccp.Message) error {
-				defer releaseCall()
+				defer in.Release()
 
 				mm, err := m.NewUnimplemented()
 				if err != nil {
@@ -795,13 +747,12 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 	}
 
 	var (
-		err      error
 		p        parsedCall
 		parseErr error
 	)
 	c.withLocked(func(c *lockedConn) {
 		if c.lk.answers[id] != nil {
-			rl.Add(releaseCall)
+			rl.Add(in.Release)
 			err = rpcerr.Failed(errors.New("incoming call: answer ID " + str.Utod(id) + "reused"))
 			return
 		}
@@ -820,7 +771,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			c.lk.answers[id] = errorAnswer(c, id, err)
 		})
 		c.er.ReportError(err)
-		releaseCall()
+		in.Release()
 		return nil
 	}
 	ret.SetAnswerId(uint32(id))
@@ -835,14 +786,13 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 		msgReleaser: retReleaser,
 	}
 	return withLockedConn1(c, func(c *lockedConn) error {
-
 		c.lk.answers[id] = ans
 		if parseErr != nil {
 			parseErr = rpcerr.Annotate(parseErr, "incoming call")
 			ans.sendException(c, rl, parseErr)
 			rl.Add(func() {
 				c.er.ReportError(parseErr)
-				releaseCall()
+				in.Release()
 			})
 			return nil
 		}
@@ -850,7 +800,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 		recv := capnp.Recv{
 			Args:        p.args,
 			Method:      p.method,
-			ReleaseArgs: util.Idempotent(releaseCall),
+			ReleaseArgs: util.Idempotent(in.Release),
 			Returner:    ans,
 		}
 
@@ -863,7 +813,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 				ans.msgReleaser = nil
 				rl.Add(func() {
 					retReleaser.Decr()
-					releaseCall()
+					in.Release()
 				})
 				return rpcerr.Failed(errors.New("incoming call: unknown export ID " + str.Utod(id)))
 			}
@@ -884,7 +834,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 				ans.msgReleaser = nil
 				rl.Add(func() {
 					retReleaser.Decr()
-					releaseCall()
+					in.Release()
 				})
 				return rpcerr.Failed(errors.New(
 					"incoming call: use of unknown or finished answer ID " +
@@ -895,7 +845,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 			if tgtAns.flags.Contains(resultsReady) {
 				if tgtAns.err != nil {
 					ans.sendException(c, rl, tgtAns.err)
-					rl.Add(releaseCall)
+					rl.Add(in.Release)
 					return nil
 				}
 				// tgtAns.results is guaranteed to stay alive because it hasn't
@@ -906,7 +856,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 				if err != nil {
 					err = rpcerr.WrapFailed("incoming call: read results from target answer", err)
 					ans.sendException(c, rl, err)
-					rl.Add(releaseCall)
+					rl.Add(in.Release)
 					c.er.ReportError(err)
 					return nil
 				}
@@ -914,7 +864,7 @@ func (c *Conn) handleCall(ctx context.Context, call rpccp.Call, releaseCall capn
 				if err != nil {
 					// Not reporting, as this is the caller's fault.
 					ans.sendException(c, rl, err)
-					rl.Add(releaseCall)
+					rl.Add(in.Release)
 					return nil
 				}
 				iface := sub.Interface()
@@ -1081,7 +1031,14 @@ func parseTransform(list rpccp.PromisedAnswer_Op_List) ([]capnp.PipelineOp, erro
 	return ops, nil
 }
 
-func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp.ReleaseFunc) error {
+func (c *Conn) handleReturn(ctx context.Context, in transport.IncomingMessage) error {
+	ret, err := in.Message.Return()
+	if err != nil {
+		in.Release()
+		c.er.ReportError(exc.WrapError("read return", err))
+		return nil
+	}
+
 	rl := &releaseList{}
 	defer rl.Release()
 
@@ -1093,7 +1050,7 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp
 
 		qid := questionID(ret.AnswerId())
 		if uint32(qid) >= uint32(len(c.lk.questions)) {
-			rl.Add(release)
+			rl.Add(in.Release)
 			return rpcerr.Failed(errors.New(
 				"incoming return: question " + str.Utod(qid) + " does not exist",
 			))
@@ -1104,7 +1061,7 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp
 		q := c.lk.questions[qid]
 		c.lk.questions[qid] = nil
 		if q == nil {
-			rl.Add(release)
+			rl.Add(in.Release)
 			return rpcerr.Failed(errors.New(
 				"incoming return: question " + str.Utod(qid) + " does not exist",
 			))
@@ -1120,9 +1077,9 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp
 				if q.flags.Contains(finishSent) {
 					c.lk.questionID.remove(uint32(qid))
 				}
-				rl.Add(release)
+				rl.Add(in.Release)
 			default:
-				rl.Add(release)
+				rl.Add(in.Release)
 
 				go func() {
 					c := unlockedConn
@@ -1144,7 +1101,7 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp
 		if q.bootstrapPromise == nil && pr.err == nil {
 			// The result of the message contains actual data (not just a
 			// client or an error), so we save the ReleaseFunc for later:
-			q.release = release
+			q.release = in.Release
 		}
 		// We're going to potentially block fulfilling some promises so fork
 		// off a goroutine to avoid blocking the receive loop.
@@ -1156,11 +1113,11 @@ func (c *Conn) handleReturn(ctx context.Context, ret rpccp.Return, release capnp
 				q.p.ReleaseClients()
 				// We can release now; root pointer of the result is a client, so the
 				// message won't be accessed:
-				release()
+				in.Release()
 			} else if pr.err != nil {
 				// We can release now; the result is an error, so data from the message
 				// won't be accessed:
-				release()
+				in.Release()
 			}
 
 			c.withLocked(func(c *lockedConn) {
@@ -1274,7 +1231,18 @@ type parsedReturn struct {
 	unimplemented bool
 }
 
-func (c *Conn) handleFinish(ctx context.Context, id answerID, releaseResultCaps bool) error {
+func (c *Conn) handleFinish(ctx context.Context, in transport.IncomingMessage) error {
+	defer in.Release()
+
+	fin, err := in.Message.Finish()
+	if err != nil {
+		c.er.ReportError(exc.WrapError("read finish", err))
+		return nil
+	}
+
+	id := answerID(fin.QuestionId())
+	releaseResultCaps := fin.ReleaseResultCaps()
+
 	rl := &releaseList{}
 	defer rl.Release()
 	return withLockedConn1(c, func(c *lockedConn) error {
@@ -1514,11 +1482,19 @@ func (c *lockedConn) recvPayload(rl *releaseList, payload rpccp.Payload) (_ capn
 	return p, locals, nil
 }
 
-func (c *Conn) handleRelease(ctx context.Context, id exportID, count uint32) error {
-	var (
-		client capnp.Client
-		err    error
-	)
+func (c *Conn) handleRelease(ctx context.Context, in transport.IncomingMessage) error {
+	defer in.Release()
+
+	rel, err := in.Message.Release()
+	if err != nil {
+		c.er.ReportError(exc.WrapError("read release", err))
+		return nil
+	}
+
+	id := exportID(rel.Id())
+	count := rel.ReferenceCount()
+
+	var client capnp.Client
 	c.withLocked(func(c *lockedConn) {
 		client, err = c.releaseExport(id, count)
 	})
@@ -1529,22 +1505,29 @@ func (c *Conn) handleRelease(ctx context.Context, id exportID, count uint32) err
 	return nil
 }
 
-func (c *Conn) handleDisembargo(ctx context.Context, d rpccp.Disembargo, release capnp.ReleaseFunc) error {
+func (c *Conn) handleDisembargo(ctx context.Context, in transport.IncomingMessage) error {
+	d, err := in.Message.Disembargo()
+	if err != nil {
+		in.Release()
+		c.er.ReportError(exc.WrapError("read disembargo", err))
+		return nil
+	}
+
 	dtarget, err := d.Target()
 	if err != nil {
-		release()
+		in.Release()
 		return rpcerr.WrapFailed("incoming disembargo: read target", err)
 	}
 
 	var tgt parsedMessageTarget
 	if err := parseMessageTarget(&tgt, dtarget); err != nil {
-		release()
+		in.Release()
 		return rpcerr.Annotate(err, "incoming disembargo")
 	}
 
 	switch d.Context().Which() {
 	case rpccp.Disembargo_context_Which_receiverLoopback:
-		defer release()
+		defer in.Release()
 
 		id := embargoID(d.Context().ReceiverLoopback())
 		var e *embargo
@@ -1629,7 +1612,7 @@ func (c *Conn) handleDisembargo(ctx context.Context, d rpccp.Disembargo, release
 		})
 
 		if err != nil {
-			release()
+			in.Release()
 			return err
 		}
 
@@ -1662,7 +1645,7 @@ func (c *Conn) handleDisembargo(ctx context.Context, d rpccp.Disembargo, release
 				return nil
 
 			}, func(err error) {
-				defer release()
+				defer in.Release()
 				defer client.Release()
 
 				if err != nil {
@@ -1686,7 +1669,7 @@ func (c *Conn) handleDisembargo(ctx context.Context, d rpccp.Disembargo, release
 
 				return
 			}, func(err error) {
-				defer release()
+				defer in.Release()
 				if err != nil {
 					c.er.ReportError(rpcerr.Annotate(err, "incoming disembargo: send unimplemented"))
 				}
@@ -1695,6 +1678,21 @@ func (c *Conn) handleDisembargo(ctx context.Context, d rpccp.Disembargo, release
 	}
 
 	return nil
+}
+
+func (c *Conn) handleUnknownMessageType(ctx context.Context, in transport.IncomingMessage) {
+	err := errors.New("unknown message type " + in.Message.Which().String() + " from remote")
+	c.er.ReportError(err)
+
+	c.withLocked(func(c *lockedConn) {
+		c.sendMessage(ctx, func(m rpccp.Message) error {
+			defer in.Release()
+			if err := m.SetUnimplemented(in.Message); err != nil {
+				return rpcerr.Annotate(err, "send unimplemented")
+			}
+			return nil
+		}, nil)
+	})
 }
 
 // startTask increments c.tasks if c is not shutting down.
@@ -1755,28 +1753,59 @@ func (c *lockedConn) sendMessage(ctx context.Context, build func(rpccp.Message) 
 // 'in' channel, until the context is canceled or an error occurs. The first
 // time RecvMessage() returns an error, its results will still be sent on the
 // channel.
-func reader(ctx context.Context, in chan<- incomingMessage, t transport.Transport) {
-	for {
-		inMsg, err := t.RecvMessage()
-		incoming := incomingMessage{
-			IncomingMessage: inMsg,
-			err:             err,
+func (c *Conn) reader(ctx context.Context, in chan<- transport.IncomingMessage) func() error {
+	return func() error {
+		defer close(in)
+
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+
+		chmsg := make(chan transport.IncomingMessage)
+		cherr := make(chan error, 1)
+
+		go func() {
+			defer close(cherr)
+			defer cancel()
+
+			for {
+				msg, err := c.transport.RecvMessage()
+				if err != nil {
+					cherr <- err
+					return
+				}
+
+				select {
+				case chmsg <- msg:
+				case <-ctx.Done():
+					msg.Release()
+					cherr <- ctx.Err()
+					return
+				}
+			}
+		}()
+
+		for {
+			select {
+			case msg := <-chmsg:
+				select {
+				case in <- msg:
+					continue
+				case <-ctx.Done():
+					msg.Release()
+				}
+			case <-ctx.Done():
+			}
+
+			break
 		}
+
 		select {
-		case <-ctx.Done():
-			return
-		case in <- incoming:
-		}
-		if err != nil {
-			return
+		case err := <-cherr:
+			return err
+		default:
+			return ctx.Err()
 		}
 	}
-}
-
-// An incomingMessage bundles the reutrn values of Transport.RecvMessage.
-type incomingMessage struct {
-	transport.IncomingMessage
-	err error
 }
 
 type asyncSend struct {
