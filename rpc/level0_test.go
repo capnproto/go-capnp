@@ -1964,7 +1964,12 @@ func (pingPongProvider) PingPong(ctx context.Context, call testcp.PingPongProvid
 type pingPonger struct{}
 
 func (pingPonger) EchoNum(ctx context.Context, call testcp.PingPong_echoNum) error {
-	panic("NOT IMPLEMENTED")
+	results, err := call.AllocResults()
+	if err != nil {
+		return err
+	}
+	results.SetN(call.Args().N())
+	return nil
 }
 
 // finishTest drains both sides of a pipe and reports any errors to t.
