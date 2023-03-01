@@ -10,6 +10,22 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type echoNumOrderChecker struct {
+	t       *testing.T
+	nextNum int64
+}
+
+func (e *echoNumOrderChecker) EchoNum(ctx context.Context, p testcapnp.PingPong_echoNum) error {
+	assert.Equal(e.t, e.nextNum, p.Args().N())
+	e.nextNum++
+	results, err := p.AllocResults()
+	if err != nil {
+		return err
+	}
+	results.SetN(p.Args().N())
+	return nil
+}
+
 func TestLocalPromiseFulfill(t *testing.T) {
 	ctx := context.Background()
 	p, r := capnp.NewLocalPromise[testcapnp.PingPong]()
@@ -27,7 +43,10 @@ func TestLocalPromiseFulfill(t *testing.T) {
 	})
 	defer rel2()
 
-	pp := testcapnp.PingPong_ServerToClient(&pingPonger{})
+	pp := testcapnp.PingPong_ServerToClient(&echoNumOrderChecker{
+		t:       t,
+		nextNum: 1,
+	})
 	defer pp.Release()
 	r.Fulfill(pp)
 
@@ -37,16 +56,15 @@ func TestLocalPromiseFulfill(t *testing.T) {
 	})
 	defer rel3()
 
-	res1, err := fut1.Struct()
-	assert.NoError(t, err)
+	res1, err1 := fut1.Struct()
+	res2, err2 := fut2.Struct()
+	res3, err3 := fut3.Struct()
+
+	assert.NoError(t, err1)
 	assert.Equal(t, int64(1), res1.N())
-
-	res2, err := fut2.Struct()
-	assert.NoError(t, err)
+	assert.NoError(t, err2)
 	assert.Equal(t, int64(2), res2.N())
-
-	res3, err := fut3.Struct()
-	assert.NoError(t, err)
+	assert.NoError(t, err3)
 	assert.Equal(t, int64(3), res3.N())
 }
 
