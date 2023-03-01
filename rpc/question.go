@@ -15,7 +15,7 @@ type question struct {
 	c  *Conn
 	id questionID
 
-	bootstrapPromise *capnp.ClientPromise
+	bootstrapPromise capnp.Fulfiller[capnp.Client]
 
 	p       *capnp.Promise
 	release capnp.ReleaseFunc // written before resolving p
