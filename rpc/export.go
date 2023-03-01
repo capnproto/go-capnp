@@ -180,7 +180,11 @@ func (c *lockedConn) sendCap(d rpccp.CapDescriptor, client capnp.Client) (_ expo
 		d.SetSenderPromise(uint32(id))
 		waitRef := client.AddRef()
 		go func() {
+			// Logically we don't hold the lock anymore; it's held by the
+			// goroutine that spawned this one. So cast back to an unlocked
+			// Conn before trying to use it again:
 			unlockedConn := (*Conn)(c)
+
 			waitErr := waitRef.Resolve(c.bgctx)
 			unlockedConn.withLocked(func(c *lockedConn) {
 				// Export was removed from the table at some point;
