@@ -23,7 +23,7 @@ func NewLocalPromise[C ~ClientKind]() (C, Fulfiller[C]) {
 }
 
 func newLocalPromise() localPromise {
-	return localPromise{NewAnswerQueue(Method{})}
+	return localPromise{aq: NewAnswerQueue(Method{})}
 }
 
 func (lp localPromise) Send(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
