@@ -11,8 +11,17 @@ type localPromise struct {
 	aq *AnswerQueue
 }
 
-func newLocalPromise() *localPromise {
-	return &localPromise{NewAnswerQueue(Method{})}
+func NewLocalPromise() (Client, Fulfiller[Client]) {
+	lp := newLocalPromise()
+	p, f := NewPromisedClient(lp)
+	return p, localFulfiller{
+		lp:              lp,
+		clientFulfiller: f,
+	}
+}
+
+func newLocalPromise() localPromise {
+	return localPromise{NewAnswerQueue(Method{})}
 }
 
 func (lp localPromise) Send(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
@@ -29,6 +38,10 @@ func (lp localPromise) Brand() Brand {
 
 func (lp localPromise) Shutdown() {}
 
+func (lp localPromise) String() string {
+	return "localPromise{...}"
+}
+
 func (lp localPromise) Fulfill(c Client) {
 	msg, seg := NewSingleSegmentMessage(nil)
 	capID := msg.AddCap(c)
@@ -37,4 +50,19 @@ func (lp localPromise) Fulfill(c Client) {
 
 func (lp localPromise) Reject(err error) {
 	lp.aq.Reject(err)
+}
+
+type localFulfiller struct {
+	lp              localPromise
+	clientFulfiller Fulfiller[Client]
+}
+
+func (lf localFulfiller) Fulfill(c Client) {
+	lf.lp.Fulfill(c)
+	lf.clientFulfiller.Fulfill(c)
+}
+
+func (lf localFulfiller) Reject(err error) {
+	lf.lp.Reject(err)
+	lf.clientFulfiller.Reject(err)
 }
