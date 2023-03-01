@@ -627,8 +627,7 @@ func (c *Conn) receive(ctx context.Context, incoming <-chan transport.IncomingMe
 			}
 		}
 
-		// incoming channel was closed; graceful exit.
-		return ctx.Err()
+		return nil
 	})
 }
 
