@@ -225,22 +225,15 @@ type ErrorReporter interface {
 // Once a connection is created, it will immediately start receiving
 // requests from the transport.
 func NewConn(t Transport, opts *Options) *Conn {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	// We use an errgroup to link the lifetime of background tasks
-	// to each other.
-	g, ctx := errgroup.WithContext(ctx)
-
 	c := &Conn{
 		transport: t,
 		closed:    make(chan struct{}),
-		bgctx:     ctx,
 	}
+
 	sender := spsc.New[asyncSend]()
 	c.sendRx = &sender.Rx
 	c.lk.sendTx = &sender.Tx
 
-	c.lk.bgcancel = cancel
 	c.lk.answers = make(map[answerID]*answer)
 	c.lk.imports = make(map[importID]*impent)
 
@@ -255,17 +248,40 @@ func NewConn(t Transport, opts *Options) *Conn {
 		c.abortTimeout = 100 * time.Millisecond
 	}
 
-	// Start background tasks.
-	//
+	c.startBackgroundTasks()
+
+	return c
+}
+
+func (c *Conn) startBackgroundTasks() {
+	// We use an errgroup to link the lifetime of background tasks
+	// to each other.
+	ctx, cancel := context.WithCancel(context.Background())
+	g, ctx := errgroup.WithContext(ctx)
+
+	c.bgctx = ctx
+	c.lk.bgcancel = cancel
+
 	// We delegate actual IO to a separate goroutine, so we can always
 	// be responsive to the context.
 	incoming := make(chan transport.IncomingMessage)
 	g.Go(c.send(ctx))
 	g.Go(c.receive(ctx, incoming))
 	g.Go(c.reader(ctx, incoming)) // closes incoming
-	go c.waitBackgroundTasks(g)
 
-	return c
+	// Wait for tasks to complete.
+	go func() {
+		err := g.Wait()
+
+		// Treat context.Canceled as a success indicator.
+		// Do not report or send an abort message.
+		if errors.Is(err, context.Canceled) {
+			err = nil
+		}
+
+		c.er.ReportError(err) // ignores nil errors
+		c.er.ReportError(c.shutdown(err))
+	}()
 }
 
 func (c *Conn) backgroundTask(f func() error) func() error {
@@ -283,19 +299,6 @@ func (c *Conn) backgroundTask(f func() error) func() error {
 
 		return err
 	}
-}
-
-func (c *Conn) waitBackgroundTasks(g *errgroup.Group) {
-	err := g.Wait()
-
-	// Treat context.Canceled as a success indicator.
-	// Do not report or send an abort message.
-	if errors.Is(err, context.Canceled) {
-		err = nil
-	}
-
-	c.er.ReportError(err) // ignores nil errors
-	c.er.ReportError(c.shutdown(err))
 }
 
 // Return the peer ID for the remote side of the connection. Returns
