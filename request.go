@@ -4,6 +4,8 @@ import (
 	"context"
 )
 
+// A Request is a method call to be sent. Create one with NewReqeust, and send it with
+// Request.Send().
 type Request struct {
 	method          Method
 	args            Struct
@@ -12,6 +14,8 @@ type Request struct {
 	future          *Future
 }
 
+// NewRequest creates a new request calling the specified method on the specified client.
+// argsSize is the size of the arguments struct.
 func NewRequest(client Client, method Method, argsSize ObjectSize) (*Request, error) {
 	_, seg := NewMultiSegmentMessage(nil)
 	args, err := NewStruct(seg, argsSize)
@@ -25,6 +29,8 @@ func NewRequest(client Client, method Method, argsSize ObjectSize) (*Request, er
 	}, nil
 }
 
+// Args returns the arguments struct for this request. The arguments must not
+// be accessed after the request is sent.
 func (r *Request) Args() Struct {
 	return r.args
 }
@@ -41,6 +47,7 @@ func (r *Request) getSend() Send {
 	}
 }
 
+// Send sends the request, returning a future for its results.
 func (r *Request) Send(ctx context.Context) *Future {
 	ans, rel := r.client.SendCall(ctx, r.getSend())
 	r.releaseResponse = rel
@@ -48,14 +55,22 @@ func (r *Request) Send(ctx context.Context) *Future {
 	return r.future
 }
 
+// SendStream is to send as Client.SendStreamCall is to Client.SendCall
 func (r *Request) SendStream(ctx context.Context) error {
 	return r.client.SendStreamCall(ctx, r.getSend())
 }
 
+// Future returns a future for the requests results. Returns nil if
+// called before the request is sent.
 func (r *Request) Future() *Future {
 	return r.future
 }
 
+// Release resources associated with the request. In particular:
+//
+// * Release the arguments if they have not yet been released.
+// * If the request has been sent, wait for the result and release
+//   the results.
 func (r *Request) Release() {
 	r.releaseArgs()
 	rel := r.releaseResponse
