@@ -262,12 +262,8 @@ func (c *Conn) startBackgroundTasks() {
 	c.bgctx = ctx
 	c.lk.bgcancel = cancel
 
-	// We delegate actual IO to a separate goroutine, so we can always
-	// be responsive to the context.
-	incoming := make(chan transport.IncomingMessage)
 	g.Go(c.send(ctx))
-	g.Go(c.receive(ctx, incoming))
-	g.Go(c.reader(ctx, incoming)) // closes incoming
+	g.Go(c.receive(ctx))
 
 	// Wait for tasks to complete.
 	go func() {
@@ -574,9 +570,27 @@ func (c *Conn) send(ctx context.Context) func() error {
 //
 // After receive returns, the connection is shut down.  If receive
 // returns a non-nil error, it is sent to the remove vat as an abort.
-func (c *Conn) receive(ctx context.Context, incoming <-chan transport.IncomingMessage) func() error {
+func (c *Conn) receive(ctx context.Context) func() error {
 	return c.backgroundTask(func() error {
-		for in := range incoming {
+		// We delegate actual IO to a separate goroutine, so that we
+		// can always respond to context cancellation.
+		incoming := make(chan incomingMessage)
+		go c.reader(ctx, incoming)
+
+		var in transport.IncomingMessage
+		for {
+			select {
+			case inMsg := <-incoming:
+				// reader error?
+				if inMsg.err != nil {
+					return inMsg.err
+				}
+				in = inMsg.IncomingMessage
+
+			case <-ctx.Done():
+				return nil
+			}
+
 			switch in.Message.Which() {
 			case rpccp.Message_Which_unimplemented:
 				// no-op for now to avoid feedback loop
@@ -626,8 +640,6 @@ func (c *Conn) receive(ctx context.Context, incoming <-chan transport.IncomingMe
 				c.handleUnknownMessageType(ctx, in)
 			}
 		}
-
-		return nil
 	})
 }
 
@@ -1755,59 +1767,24 @@ func (c *lockedConn) sendMessage(ctx context.Context, build func(rpccp.Message) 
 // 'in' channel, until the context is canceled or an error occurs. The first
 // time RecvMessage() returns an error, its results will still be sent on the
 // channel.
-func (c *Conn) reader(ctx context.Context, in chan<- transport.IncomingMessage) func() error {
-	return c.backgroundTask(func() error {
-		defer close(in)
-
-		ctx, cancel := context.WithCancel(ctx)
-		defer cancel()
-
-		chmsg := make(chan transport.IncomingMessage)
-		cherr := make(chan error, 1)
-
-		go func() {
-			defer close(cherr)
-			defer cancel()
-
-			for {
-				msg, err := c.transport.RecvMessage()
-				if err != nil {
-					cherr <- err
-					return
-				}
-
-				select {
-				case chmsg <- msg:
-				case <-ctx.Done():
-					msg.Release()
-					cherr <- ctx.Err()
-					return
-				}
-			}
-		}()
-
-		for {
-			select {
-			case msg := <-chmsg:
-				select {
-				case in <- msg:
-					continue
-				case <-ctx.Done():
-					msg.Release()
-				}
-			case <-ctx.Done():
-			}
-
-			break
-		}
-
+func (c *Conn) reader(ctx context.Context, in chan<- incomingMessage) {
+	for {
+		inMsg, err := c.transport.RecvMessage()
 		select {
-		case err := <-cherr:
-			return err
-		default:
-			return ctx.Err()
+		case in <- incomingMessage{IncomingMessage: inMsg, err: err}:
+		case <-ctx.Done():
+			err = ctx.Err()
 		}
-	})
+		if err != nil {
+			return
+		}
+	}
+}
+
+// An incomingMessage bundles the reutrn values of Transport.RecvMessage.
+type incomingMessage struct {
+	transport.IncomingMessage
+	err error
 }
 
 type asyncSend struct {
