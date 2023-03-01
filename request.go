@@ -51,7 +51,7 @@ func (r *Request) getSend() Send {
 // Send sends the request, returning a future for its results.
 func (r *Request) Send(ctx context.Context) *Future {
 	if r.future != nil {
-		return ErrorAnswer(r.method, errors.New("Sent the same request twice.")).Future()
+		return ErrorAnswer(r.method, errors.New("sent the same request twice")).Future()
 	}
 
 	ans, rel := r.client.SendCall(ctx, r.getSend())
@@ -63,7 +63,7 @@ func (r *Request) Send(ctx context.Context) *Future {
 // SendStream is to send as Client.SendStreamCall is to Client.SendCall
 func (r *Request) SendStream(ctx context.Context) error {
 	if r.future != nil {
-		return errors.New("Sent the same request twice.")
+		return errors.New("sent the same request twice")
 	}
 
 	return r.client.SendStreamCall(ctx, r.getSend())
