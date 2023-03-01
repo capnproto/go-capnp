@@ -76,7 +76,7 @@ type Promise struct {
 
 type clientAndPromise struct {
 	client  Client
-	promise *ClientPromise
+	promise *clientPromise
 }
 
 // NewPromise creates a new unresolved promise.  The PipelineCaller will
@@ -148,7 +148,7 @@ func (p *Promise) Reject(e error) {
 // If e != nil, then this is equivalent to p.Reject(e).
 // Otherwise, it is equivalent to p.Fulfill(r).
 func (p *Promise) Resolve(r Ptr, e error) {
-	var shutdownPromises []*ClientPromise
+	var shutdownPromises []*clientPromise
 	syncutil.With(&p.mu, func() {
 		if e != nil {
 			p.requireUnresolved("Reject")
@@ -466,7 +466,7 @@ func (f *Future) Client() Client {
 		if cp := p.clients[cpath]; cp != nil {
 			return cp.client
 		}
-		c, pr := NewPromisedClient(PipelineClient{
+		c, pr := newPromisedClient(PipelineClient{
 			p:         p,
 			transform: ft,
 		})

@@ -15,7 +15,7 @@ type question struct {
 	c  *Conn
 	id questionID
 
-	bootstrapPromise *capnp.ClientPromise
+	bootstrapPromise capnp.Resolver[capnp.Client]
 
 	p       *capnp.Promise
 	release capnp.ReleaseFunc // written before resolving p
@@ -67,17 +67,7 @@ func (c *lockedConn) newQuestion(method capnp.Method) *question {
 	return q
 }
 
-func (c *Conn) getAnswerQuestion(ans *capnp.Answer) (*question, bool) {
-	// Note: lockedConn.getAnswerQuestion doesn't actually do anything with the
-	// locked data, but we end up needing to call this method on both types so
-	// we define it there as well.
-	return (*lockedConn)(c).getAnswerQuestion(ans)
-}
-
 func (c *lockedConn) getAnswerQuestion(ans *capnp.Answer) (*question, bool) {
-	// Note: make sure to update Conn.getAnswerQuestion if this ever changes
-	// to access c.lk for some strange reason.
-
 	m := ans.Metadata()
 	m.Lock()
 	defer m.Unlock()
