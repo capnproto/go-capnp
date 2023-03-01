@@ -198,7 +198,7 @@ func NewClient(hook ClientHook) Client {
 //
 // Typically the RPC system will create a client for the application.
 // Most applications will not need to use this directly.
-func NewPromisedClient(hook ClientHook) (Client, Fulfiller[Client]) {
+func NewPromisedClient(hook ClientHook) (Client, Resolver[Client]) {
 	return newPromisedClient(hook)
 }
 
