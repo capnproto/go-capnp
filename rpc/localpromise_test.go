@@ -27,6 +27,8 @@ func (e *echoNumOrderChecker) EchoNum(ctx context.Context, p testcapnp.PingPong_
 }
 
 func TestLocalPromiseFulfill(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	p, r := capnp.NewLocalPromise[testcapnp.PingPong]()
 	defer p.Release()
@@ -69,6 +71,8 @@ func TestLocalPromiseFulfill(t *testing.T) {
 }
 
 func TestLocalPromiseReject(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	p, r := capnp.NewLocalPromise[testcapnp.PingPong]()
 	defer p.Release()
