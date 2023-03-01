@@ -198,7 +198,13 @@ func NewClient(hook ClientHook) Client {
 //
 // Typically the RPC system will create a client for the application.
 // Most applications will not need to use this directly.
-func NewPromisedClient(hook ClientHook) (Client, *ClientPromise) {
+func NewPromisedClient(hook ClientHook) (Client, Resolver[Client]) {
+	return newPromisedClient(hook)
+}
+
+// newPromisedClient is the same as NewPromisedClient, but the return
+// value exposes the concrete type of the fulfiller.
+func newPromisedClient(hook ClientHook) (Client, *clientPromise) {
 	if hook == nil {
 		panic("NewPromisedClient(nil)")
 	}
@@ -211,7 +217,7 @@ func NewPromisedClient(hook ClientHook) (Client, *ClientPromise) {
 	}
 	c := Client{client: &client{h: h}}
 	c.setupLeakReporting(2)
-	return c, &ClientPromise{h: h}
+	return c, &clientPromise{h: h}
 }
 
 // startCall holds onto a hook to prevent it from shutting down until
@@ -727,11 +733,11 @@ func finalizeClient(c *client) {
 }
 
 // A ClientPromise resolves the identity of a client created by NewPromisedClient.
-type ClientPromise struct {
+type clientPromise struct {
 	h *clientHook
 }
 
-func (cp *ClientPromise) Reject(err error) {
+func (cp *clientPromise) Reject(err error) {
 	cp.Fulfill(ErrorClient(err))
 }
 
@@ -741,7 +747,7 @@ func (cp *ClientPromise) Reject(err error) {
 // NewPromisedClient will be shut down after Fulfill returns, but the
 // hook may have been shut down earlier if the client ran out of
 // references.
-func (cp *ClientPromise) Fulfill(c Client) {
+func (cp *clientPromise) Fulfill(c Client) {
 	cp.fulfill(c)
 	cp.shutdown()
 }
@@ -749,14 +755,14 @@ func (cp *ClientPromise) Fulfill(c Client) {
 // shutdown waits for all outstanding calls on the hook to complete and
 // references to be dropped, and then shuts down the hook. The caller
 // must have previously invoked cp.fulfill().
-func (cp *ClientPromise) shutdown() {
+func (cp *clientPromise) shutdown() {
 	<-cp.h.done
 	cp.h.Shutdown()
 }
 
 // fulfill is like Fulfill, except that it does not wait for outsanding calls
 // to return answers or shut down the underlying hook.
-func (cp *ClientPromise) fulfill(c Client) {
+func (cp *clientPromise) fulfill(c Client) {
 	// Obtain next client hook.
 	var rh *clientHook
 	if (c != Client{}) {
