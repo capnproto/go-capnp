@@ -13,12 +13,12 @@ type localPromise struct {
 
 // NewLocalPromise returns a client that will eventually resolve to a capability,
 // supplied via the fulfiller.
-func NewLocalPromise[C ~ClientKind]() (C, Fulfiller[C]) {
+func NewLocalPromise[C ~ClientKind]() (C, Resolver[C]) {
 	lp := newLocalPromise()
 	p, f := NewPromisedClient(lp)
-	return C(p), localFulfiller[C]{
-		lp:              lp,
-		clientFulfiller: f,
+	return C(p), localResolver[C]{
+		lp:             lp,
+		clientResolver: f,
 	}
 }
 
@@ -54,17 +54,17 @@ func (lp localPromise) Reject(err error) {
 	lp.aq.Reject(err)
 }
 
-type localFulfiller[C ~ClientKind] struct {
-	lp              localPromise
-	clientFulfiller Fulfiller[Client]
+type localResolver[C ~ClientKind] struct {
+	lp             localPromise
+	clientResolver Resolver[Client]
 }
 
-func (lf localFulfiller[C]) Fulfill(c C) {
+func (lf localResolver[C]) Fulfill(c C) {
 	lf.lp.Fulfill(Client(c))
-	lf.clientFulfiller.Fulfill(Client(c))
+	lf.clientResolver.Fulfill(Client(c))
 }
 
-func (lf localFulfiller[C]) Reject(err error) {
+func (lf localResolver[C]) Reject(err error) {
 	lf.lp.Reject(err)
-	lf.clientFulfiller.Reject(err)
+	lf.clientResolver.Reject(err)
 }
