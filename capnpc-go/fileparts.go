@@ -21,7 +21,6 @@ var (
 		{path: flowcontrolImport, name: "fc"},
 
 		// stdlib imports
-		{path: "fmt", name: "fmt"},
 		{path: "context", name: "context"},
 		{path: "math", name: "math"},
 		{path: "strconv", name: "strconv"},
@@ -104,10 +103,6 @@ func (i *imports) Text() string {
 
 func (i *imports) FlowControl() string {
 	return i.add(importSpec{path: flowcontrolImport, name: "fc"})
-}
-
-func (i *imports) Fmt() string {
-	return i.add(importSpec{path: "fmt", name: "fmt"})
 }
 
 func (i *imports) Context() string {

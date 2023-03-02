@@ -39,7 +39,7 @@ func (c {{$.Node.Name}}) WaitStreaming() error {
 // should not be used to compare clients.  Use IsSame to compare clients
 // for equality.
 func (c {{$.Node.Name}}) String() string {
-	return {{$.G.Imports.Fmt}}.Sprintf("%T(%v)", c, capnp.Client(c))
+	return "{{$.Node.Name}}(" + capnp.Client(c).String() + ")"
 }
 
 // AddRef creates a new Client that refers to the same capability as c.

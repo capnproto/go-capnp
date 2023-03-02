@@ -9,7 +9,6 @@ import (
 	schemas "capnproto.org/go/capnp/v3/schemas"
 	server "capnproto.org/go/capnp/v3/server"
 	context "context"
-	fmt "fmt"
 )
 
 const PersistentAnnotation = uint64(0xf622595091cafb67)
@@ -48,7 +47,7 @@ func (c Persistent) WaitStreaming() error {
 // should not be used to compare clients.  Use IsSame to compare clients
 // for equality.
 func (c Persistent) String() string {
-	return fmt.Sprintf("%T(%v)", c, capnp.Client(c))
+	return "Persistent(" + capnp.Client(c).String() + ")"
 }
 
 // AddRef creates a new Client that refers to the same capability as c.

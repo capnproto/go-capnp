@@ -9,7 +9,6 @@ import (
 	schemas "capnproto.org/go/capnp/v3/schemas"
 	server "capnproto.org/go/capnp/v3/server"
 	context "context"
-	fmt "fmt"
 )
 
 type Writer capnp.Client
@@ -46,7 +45,7 @@ func (c Writer) WaitStreaming() error {
 // should not be used to compare clients.  Use IsSame to compare clients
 // for equality.
 func (c Writer) String() string {
-	return fmt.Sprintf("%T(%v)", c, capnp.Client(c))
+	return "Writer(" + capnp.Client(c).String() + ")"
 }
 
 // AddRef creates a new Client that refers to the same capability as c.
