@@ -6,7 +6,12 @@ import (
 
 	"capnproto.org/go/capnp/v3"
 	air "capnproto.org/go/capnp/v3/internal/aircraftlib"
+	"capnproto.org/go/capnp/v3/schemas"
 )
+
+func init() {
+	air.RegisterSchema(schemas.DefaultRegistry)
+}
 
 type VerVal struct {
 	Val int16

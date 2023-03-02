@@ -6,7 +6,12 @@ import (
 	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/internal/demo/books"
 	"capnproto.org/go/capnp/v3/pogs"
+	"capnproto.org/go/capnp/v3/schemas"
 )
+
+func init() {
+	books.RegisterSchema(schemas.DefaultRegistry)
+}
 
 var bookData = []byte{
 	0x00, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00,

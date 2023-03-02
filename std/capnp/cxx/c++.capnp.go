@@ -18,8 +18,13 @@ const schema_bdf87d7bb8304e81 = "x\xda\x12\x08w`1\xe4\x15gb`\x0a\x94`e" +
 	"FF\x1e\x06&\xb8$\x83=D\x16*\x0e\x08\x00\x00" +
 	"\xff\xffM^1\xb8"
 
-func init() {
-	schemas.Register(schema_bdf87d7bb8304e81,
-		0xb9c6f99ebf805f2c,
-		0xf264a779fef191ce)
+func RegisterSchema(reg *schemas.Registry) {
+	reg.Register(&schemas.Schema{
+		String: schema_bdf87d7bb8304e81,
+		Nodes: []uint64{
+			0xb9c6f99ebf805f2c,
+			0xf264a779fef191ce,
+		},
+		Compressed: true,
+	})
 }
