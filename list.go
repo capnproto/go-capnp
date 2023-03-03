@@ -1,9 +1,7 @@
 package capnp
 
 import (
-	"bytes"
 	"errors"
-	"fmt"
 	"math"
 	"strconv"
 
@@ -1078,20 +1076,6 @@ func (s StructList[T]) At(i int) T {
 // Set sets the i'th element to v.
 func (s StructList[T]) Set(i int, v T) error {
 	return List(s).SetStruct(i, Struct(v))
-}
-
-// String returns the list in Cap'n Proto schema format (e.g. "[(x = 1), (x = 2)]").
-func (s StructList[T]) String() string {
-	buf := &bytes.Buffer{}
-	buf.WriteByte('[')
-	for i := 0; i < s.Len(); i++ {
-		if i > 0 {
-			buf.WriteString(", ")
-		}
-		fmt.Fprint(buf, s.At(i))
-	}
-	buf.WriteByte(']')
-	return buf.String()
 }
 
 // A list of some Cap'n Proto capability type T.

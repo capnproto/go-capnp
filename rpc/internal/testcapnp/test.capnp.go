@@ -10,7 +10,6 @@ import (
 	server "capnproto.org/go/capnp/v3/server"
 	stream "capnproto.org/go/capnp/v3/std/capnp/stream"
 	context "context"
-	fmt "fmt"
 )
 
 type PingPong capnp.Client
@@ -47,7 +46,7 @@ func (c PingPong) WaitStreaming() error {
 // should not be used to compare clients.  Use IsSame to compare clients
 // for equality.
 func (c PingPong) String() string {
-	return fmt.Sprintf("%T(%v)", c, capnp.Client(c))
+	return "PingPong(" + capnp.Client(c).String() + ")"
 }
 
 // AddRef creates a new Client that refers to the same capability as c.
@@ -350,7 +349,7 @@ func (c StreamTest) WaitStreaming() error {
 // should not be used to compare clients.  Use IsSame to compare clients
 // for equality.
 func (c StreamTest) String() string {
-	return fmt.Sprintf("%T(%v)", c, capnp.Client(c))
+	return "StreamTest(" + capnp.Client(c).String() + ")"
 }
 
 // AddRef creates a new Client that refers to the same capability as c.
@@ -608,7 +607,7 @@ func (c CapArgsTest) WaitStreaming() error {
 // should not be used to compare clients.  Use IsSame to compare clients
 // for equality.
 func (c CapArgsTest) String() string {
-	return fmt.Sprintf("%T(%v)", c, capnp.Client(c))
+	return "CapArgsTest(" + capnp.Client(c).String() + ")"
 }
 
 // AddRef creates a new Client that refers to the same capability as c.
@@ -1100,7 +1099,7 @@ func (c PingPongProvider) WaitStreaming() error {
 // should not be used to compare clients.  Use IsSame to compare clients
 // for equality.
 func (c PingPongProvider) String() string {
-	return fmt.Sprintf("%T(%v)", c, capnp.Client(c))
+	return "PingPongProvider(" + capnp.Client(c).String() + ")"
 }
 
 // AddRef creates a new Client that refers to the same capability as c.

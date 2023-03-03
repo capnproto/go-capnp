@@ -9,7 +9,6 @@ import (
 	schemas "capnproto.org/go/capnp/v3/schemas"
 	server "capnproto.org/go/capnp/v3/server"
 	context "context"
-	fmt "fmt"
 	math "math"
 	strconv "strconv"
 )
@@ -5082,7 +5081,7 @@ func (c Echo) WaitStreaming() error {
 // should not be used to compare clients.  Use IsSame to compare clients
 // for equality.
 func (c Echo) String() string {
-	return fmt.Sprintf("%T(%v)", c, capnp.Client(c))
+	return "Echo(" + capnp.Client(c).String() + ")"
 }
 
 // AddRef creates a new Client that refers to the same capability as c.
@@ -5876,7 +5875,7 @@ func (c CallSequence) WaitStreaming() error {
 // should not be used to compare clients.  Use IsSame to compare clients
 // for equality.
 func (c CallSequence) String() string {
-	return fmt.Sprintf("%T(%v)", c, capnp.Client(c))
+	return "CallSequence(" + capnp.Client(c).String() + ")"
 }
 
 // AddRef creates a new Client that refers to the same capability as c.
@@ -6194,7 +6193,7 @@ func (c Pipeliner) WaitStreaming() error {
 // should not be used to compare clients.  Use IsSame to compare clients
 // for equality.
 func (c Pipeliner) String() string {
-	return fmt.Sprintf("%T(%v)", c, capnp.Client(c))
+	return "Pipeliner(" + capnp.Client(c).String() + ")"
 }
 
 // AddRef creates a new Client that refers to the same capability as c.
