@@ -121,7 +121,7 @@ func (r *record) read() ([]byte, error) {
 }
 
 // DefaultRegistry is the process-wide registry used by Register and Find.
-var DefaultRegistry Registry
+var DefaultRegistry = &Registry{}
 
 // Register is called by generated code to associate a blob of zlib-
 // compressed, packed Cap'n Proto data for a CodeGeneratorRequest with

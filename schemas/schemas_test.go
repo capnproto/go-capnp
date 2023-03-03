@@ -10,6 +10,7 @@ import (
 )
 
 func TestDefaultFind(t *testing.T) {
+	gocp.RegisterSchema(schemas.DefaultRegistry)
 	if s := schemas.Find(0xdeadbeef); s != nil {
 		t.Errorf("schemas.Find(0xdeadbeef) = %d-byte slice; want nil", len(s))
 	}

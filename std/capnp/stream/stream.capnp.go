@@ -80,7 +80,12 @@ const schema_86c366a91393f3f8 = "x\xda\x12\x88p`1\xe4\xcdgb`\x0a\x94ae" +
 	"L\x89\x05y\x05V\xc1`^Pjqi\x0ecI" +
 	"\x00## \x00\x00\xff\xff\x13|\x19\xd3"
 
-func init() {
-	schemas.Register(schema_86c366a91393f3f8,
-		0x995f9a3377c0b16e)
+func RegisterSchema(reg *schemas.Registry) {
+	reg.Register(&schemas.Schema{
+		String: schema_86c366a91393f3f8,
+		Nodes: []uint64{
+			0x995f9a3377c0b16e,
+		},
+		Compressed: true,
+	})
 }
