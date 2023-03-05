@@ -12,9 +12,14 @@ type exn struct {
 	err error
 }
 
+// An alias for the type of the callback provided by Try.
+type Thrower = func(error)
+
 // Try invokes f, which is a callback with type:
 //
-// func(throw func(error)) T
+// func(throw Thrower) T
+//
+// Thrower is an alias for func(error).
 //
 // If f returns normally, Try returns the value f returned and a nil
 // error.
@@ -32,7 +37,7 @@ type exn struct {
 //
 // f must not store throw or otherwise cause it to be invoked after
 // Try returns.
-func Try[T any](f func(func(error)) T) (result T, err error) {
+func Try[T any](f func(Thrower) T) (result T, err error) {
 	throw := func(e error) {
 		if e == nil {
 			return
@@ -59,7 +64,7 @@ func Try[T any](f func(func(error)) T) (result T, err error) {
 
 // Try0 is like Try, but f does not return a value, and Try0 only returns
 // an error.
-func Try0(f func(func(error))) error {
+func Try0(f func(Thrower)) error {
 	_, err := Try(func(throw func(error)) struct{} {
 		f(throw)
 		return struct{}{}
