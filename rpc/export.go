@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"capnproto.org/go/capnp/v3"
+	"capnproto.org/go/capnp/v3/exc"
 	"capnproto.org/go/capnp/v3/internal/str"
 	"capnproto.org/go/capnp/v3/internal/syncutil"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
@@ -196,6 +197,10 @@ func (c *lockedConn) sendCap(d rpccp.CapDescriptor, client capnp.Client) (_ expo
 				}
 
 				sendRef := waitRef.AddRef()
+				var (
+					resolvedID exportID
+					isExport   bool
+				)
 				c.sendMessage(c.bgctx, func(m rpccp.Message) error {
 					res, err := m.NewResolve()
 					if err != nil {
@@ -213,12 +218,25 @@ func (c *lockedConn) sendCap(d rpccp.CapDescriptor, client capnp.Client) (_ expo
 					if err != nil {
 						return err
 					}
-					_, _, err = c.sendCap(desc, sendRef)
+					resolvedID, isExport, err = c.sendCap(desc, sendRef)
 					return err
 				}, func(err error) {
 					sendRef.Release()
-					if err != nil {
-						// TODO: release 1 ref of the thing it resolved to.
+					if err != nil && isExport {
+						// release 1 ref of the thing it resolved to.
+						client, err := withLockedConn2(
+							unlockedConn,
+							func(c *lockedConn) (capnp.Client, error) {
+								return c.releaseExport(resolvedID, 1)
+							},
+						)
+						if err != nil {
+							c.er.ReportError(
+								exc.WrapError("releasing export due to failure to send resolve", err),
+							)
+						} else {
+							client.Release()
+						}
 					}
 				})
 			})
