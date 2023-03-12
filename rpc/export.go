@@ -180,6 +180,7 @@ func (c *lockedConn) sendCap(d rpccp.CapDescriptor, client capnp.Client) (_ expo
 		d.SetSenderPromise(uint32(id))
 		waitRef := client.AddRef()
 		go func() {
+			defer waitRef.Release()
 			// Logically we don't hold the lock anymore; it's held by the
 			// goroutine that spawned this one. So cast back to an unlocked
 			// Conn before trying to use it again:
@@ -191,10 +192,10 @@ func (c *lockedConn) sendCap(d rpccp.CapDescriptor, client capnp.Client) (_ expo
 				// remote peer is uninterested in the resolution, so
 				// drop the reference and we're done:
 				if c.lk.exports[id] != ee {
-					go waitRef.Release()
 					return
 				}
 
+				sendRef := waitRef.AddRef()
 				c.sendMessage(c.bgctx, func(m rpccp.Message) error {
 					res, err := m.NewResolve()
 					if err != nil {
@@ -212,11 +213,12 @@ func (c *lockedConn) sendCap(d rpccp.CapDescriptor, client capnp.Client) (_ expo
 					if err != nil {
 						return err
 					}
-					_, _, err = c.sendCap(desc, waitRef)
+					_, _, err = c.sendCap(desc, sendRef)
 					return err
 				}, func(err error) {
+					sendRef.Release()
 					if err != nil {
-						waitRef.Release()
+						// TODO: release 1 ref of the thing it resolved to.
 					}
 				})
 			})
