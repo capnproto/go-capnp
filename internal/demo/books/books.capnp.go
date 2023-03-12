@@ -110,7 +110,12 @@ const schema_85d3acc39d94e0f8 = "x\xda\x12Ht`1\xe4\xdd\xcf\xc8\xc0\x14(\xc2\xca"
 	"0\x960\xb2001\xb200\x02\x02\x00\x00\xff\xff" +
 	"N\xd3$\xbc"
 
-func init() {
-	schemas.Register(schema_85d3acc39d94e0f8,
-		0x8100cc88d7d4d47c)
+func RegisterSchema(reg *schemas.Registry) {
+	reg.Register(&schemas.Schema{
+		String: schema_85d3acc39d94e0f8,
+		Nodes: []uint64{
+			0x8100cc88d7d4d47c,
+		},
+		Compressed: true,
+	})
 }

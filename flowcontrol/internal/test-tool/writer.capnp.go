@@ -9,7 +9,6 @@ import (
 	schemas "capnproto.org/go/capnp/v3/schemas"
 	server "capnproto.org/go/capnp/v3/server"
 	context "context"
-	fmt "fmt"
 )
 
 type Writer capnp.Client
@@ -46,7 +45,7 @@ func (c Writer) WaitStreaming() error {
 // should not be used to compare clients.  Use IsSame to compare clients
 // for equality.
 func (c Writer) String() string {
-	return fmt.Sprintf("%T(%v)", c, capnp.Client(c))
+	return "Writer(" + capnp.Client(c).String() + ")"
 }
 
 // AddRef creates a new Client that refers to the same capability as c.
@@ -331,9 +330,14 @@ const schema_aca73f831c7ebfdd = "x\xda\x12\xa8u`1\xe4\xcdgb`\x0a\x94ae" +
 	"p/3\xc2\xbc&(h\xc4\xc0$\xc8\xca.\x0f\xd6" +
 	"\xe8\xc0\x18\xc0\xc8\x08\x08\x00\x00\xff\xff\x1d\x88R\x0a"
 
-func init() {
-	schemas.Register(schema_aca73f831c7ebfdd,
-		0x80b8cd5f44e3c477,
-		0xd939de8c6024e7f8,
-		0xf82e58b4a78f136b)
+func RegisterSchema(reg *schemas.Registry) {
+	reg.Register(&schemas.Schema{
+		String: schema_aca73f831c7ebfdd,
+		Nodes: []uint64{
+			0x80b8cd5f44e3c477,
+			0xd939de8c6024e7f8,
+			0xf82e58b4a78f136b,
+		},
+		Compressed: true,
+	})
 }

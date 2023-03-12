@@ -9,7 +9,6 @@ import (
 	schemas "capnproto.org/go/capnp/v3/schemas"
 	server "capnproto.org/go/capnp/v3/server"
 	context "context"
-	fmt "fmt"
 	math "math"
 	strconv "strconv"
 )
@@ -5082,7 +5081,7 @@ func (c Echo) WaitStreaming() error {
 // should not be used to compare clients.  Use IsSame to compare clients
 // for equality.
 func (c Echo) String() string {
-	return fmt.Sprintf("%T(%v)", c, capnp.Client(c))
+	return "Echo(" + capnp.Client(c).String() + ")"
 }
 
 // AddRef creates a new Client that refers to the same capability as c.
@@ -5876,7 +5875,7 @@ func (c CallSequence) WaitStreaming() error {
 // should not be used to compare clients.  Use IsSame to compare clients
 // for equality.
 func (c CallSequence) String() string {
-	return fmt.Sprintf("%T(%v)", c, capnp.Client(c))
+	return "CallSequence(" + capnp.Client(c).String() + ")"
 }
 
 // AddRef creates a new Client that refers to the same capability as c.
@@ -6194,7 +6193,7 @@ func (c Pipeliner) WaitStreaming() error {
 // should not be used to compare clients.  Use IsSame to compare clients
 // for equality.
 func (c Pipeliner) String() string {
-	return fmt.Sprintf("%T(%v)", c, capnp.Client(c))
+	return "Pipeliner(" + capnp.Client(c).String() + ")"
 }
 
 // AddRef creates a new Client that refers to the same capability as c.
@@ -7219,66 +7218,71 @@ const schema_832bcc6686a26d56 = "x\xda\xacZ}t\x14U\x96\xbf\xb7\xaa;\x15\x92t" +
 	"8\x91\xfe(\x83\xda\x0f|Su\x08\xfc\x7f\x01\x00\x00" +
 	"\xff\xffX\x17OX"
 
-func init() {
-	schemas.Register(schema_832bcc6686a26d56,
-		0x85257b30d6edf8c5,
-		0x8748bc095e10cb5d,
-		0x87c33f2330feb3d8,
-		0x8821cdb23640783a,
-		0x8a165fb4d71bf3a2,
-		0x8e5322c1e9282534,
-		0x8fae7b41c61fc890,
-		0x93c99951eacc72ff,
-		0x9430ab12c496d40c,
-		0x94bf7df83408218d,
-		0x95befe3f14606e6b,
-		0x97e38948c61f878d,
-		0x9ab599979b02ac59,
-		0x9b37d729b9dd7b9d,
-		0x9b8f27ba05e255c8,
-		0x9d3032ff86043b75,
-		0xa465f9502fd11e97,
-		0xa8bf13fef2674866,
-		0xabaedf5f7817c820,
-		0xabd055422a4d7df1,
-		0xad87da456fb0ebb9,
-		0xb1ac056ed7647011,
-		0xb1f0385d845e367f,
-		0xb61ee2ecff34ca73,
-		0xb72b6dc625baa6a4,
-		0xb8fb64b8ed846ae6,
-		0xbaa7b3b1ca91f833,
-		0xbbcdbf4b4ae501fa,
-		0xc7da65f9a2f20ba2,
-		0xc95babe3bd394d2d,
-		0xcbdc765fd5dff7ba,
-		0xcc4411e60ba9c498,
-		0xccb3b2e3603826e0,
-		0xce44aee2d9e25049,
-		0xcf9beaca1cc180c8,
-		0xd636fba4f188dabe,
-		0xd6514008f0f84ebc,
-		0xd8bccf6e60a73791,
-		0xd98c608877d9cb8d,
-		0xddd1416669fb7613,
-		0xde2a1a960863c11c,
-		0xde50aebbad57549d,
-		0xde9ed43cfaa83093,
-		0xe1a2d1d51107bead,
-		0xe1c9eac512335361,
-		0xe508a29c83a059f8,
-		0xe54e10aede55c7b1,
-		0xe55d85fc1bf82f21,
-		0xe5817f849ff906dc,
-		0xe684eb3aef1a6859,
-		0xe7711aada4bed56b,
-		0xea26e9973bd6a0d9,
-		0xecea3e9ebcbe5655,
-		0xf14fad09425d081c,
-		0xf58782f48a121998,
-		0xf705dc45c94766fd,
-		0xf7ff4414476c186a,
-		0xfca3742893be4cde)
+func RegisterSchema(reg *schemas.Registry) {
+	reg.Register(&schemas.Schema{
+		String: schema_832bcc6686a26d56,
+		Nodes: []uint64{
+			0x85257b30d6edf8c5,
+			0x8748bc095e10cb5d,
+			0x87c33f2330feb3d8,
+			0x8821cdb23640783a,
+			0x8a165fb4d71bf3a2,
+			0x8e5322c1e9282534,
+			0x8fae7b41c61fc890,
+			0x93c99951eacc72ff,
+			0x9430ab12c496d40c,
+			0x94bf7df83408218d,
+			0x95befe3f14606e6b,
+			0x97e38948c61f878d,
+			0x9ab599979b02ac59,
+			0x9b37d729b9dd7b9d,
+			0x9b8f27ba05e255c8,
+			0x9d3032ff86043b75,
+			0xa465f9502fd11e97,
+			0xa8bf13fef2674866,
+			0xabaedf5f7817c820,
+			0xabd055422a4d7df1,
+			0xad87da456fb0ebb9,
+			0xb1ac056ed7647011,
+			0xb1f0385d845e367f,
+			0xb61ee2ecff34ca73,
+			0xb72b6dc625baa6a4,
+			0xb8fb64b8ed846ae6,
+			0xbaa7b3b1ca91f833,
+			0xbbcdbf4b4ae501fa,
+			0xc7da65f9a2f20ba2,
+			0xc95babe3bd394d2d,
+			0xcbdc765fd5dff7ba,
+			0xcc4411e60ba9c498,
+			0xccb3b2e3603826e0,
+			0xce44aee2d9e25049,
+			0xcf9beaca1cc180c8,
+			0xd636fba4f188dabe,
+			0xd6514008f0f84ebc,
+			0xd8bccf6e60a73791,
+			0xd98c608877d9cb8d,
+			0xddd1416669fb7613,
+			0xde2a1a960863c11c,
+			0xde50aebbad57549d,
+			0xde9ed43cfaa83093,
+			0xe1a2d1d51107bead,
+			0xe1c9eac512335361,
+			0xe508a29c83a059f8,
+			0xe54e10aede55c7b1,
+			0xe55d85fc1bf82f21,
+			0xe5817f849ff906dc,
+			0xe684eb3aef1a6859,
+			0xe7711aada4bed56b,
+			0xea26e9973bd6a0d9,
+			0xecea3e9ebcbe5655,
+			0xf14fad09425d081c,
+			0xf58782f48a121998,
+			0xf705dc45c94766fd,
+			0xf7ff4414476c186a,
+			0xfca3742893be4cde,
+		},
+		Compressed: true,
+	})
 }
 
 var x_832bcc6686a26d56 = []byte{

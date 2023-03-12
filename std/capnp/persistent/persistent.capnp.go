@@ -9,7 +9,6 @@ import (
 	schemas "capnproto.org/go/capnp/v3/schemas"
 	server "capnproto.org/go/capnp/v3/server"
 	context "context"
-	fmt "fmt"
 )
 
 const PersistentAnnotation = uint64(0xf622595091cafb67)
@@ -48,7 +47,7 @@ func (c Persistent) WaitStreaming() error {
 // should not be used to compare clients.  Use IsSame to compare clients
 // for equality.
 func (c Persistent) String() string {
-	return fmt.Sprintf("%T(%v)", c, capnp.Client(c))
+	return "Persistent(" + capnp.Client(c).String() + ")"
 }
 
 // AddRef creates a new Client that refers to the same capability as c.
@@ -362,10 +361,15 @@ const schema_b8630836983feed7 = "x\xdat\x91\xbfk\x14A\x1c\xc5\xbfof\xd7\xbd\x83"
 	"U\xe1P\xfb\x19\xeeX\x9d\xf6\xcf\x0e24\xc2\xff\x17" +
 	"\xf8\x13\x00\x00\xff\xff\x80\x98\xd3O"
 
-func init() {
-	schemas.Register(schema_b8630836983feed7,
-		0xb76848c18c40efbf,
-		0xc8cb212fcd9f5691,
-		0xf622595091cafb67,
-		0xf76fba59183073a5)
+func RegisterSchema(reg *schemas.Registry) {
+	reg.Register(&schemas.Schema{
+		String: schema_b8630836983feed7,
+		Nodes: []uint64{
+			0xb76848c18c40efbf,
+			0xc8cb212fcd9f5691,
+			0xf622595091cafb67,
+			0xf76fba59183073a5,
+		},
+		Compressed: true,
+	})
 }

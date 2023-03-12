@@ -19,12 +19,18 @@ import (
 	"capnproto.org/go/capnp/v3/rpc"
 	testcp "capnproto.org/go/capnp/v3/rpc/internal/testcapnp"
 	"capnproto.org/go/capnp/v3/rpc/transport"
+	"capnproto.org/go/capnp/v3/schemas"
 	"capnproto.org/go/capnp/v3/server"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 )
+
+func init() {
+	testcp.RegisterSchema(schemas.DefaultRegistry)
+	rpccp.RegisterSchema(schemas.DefaultRegistry)
+}
 
 const (
 	interfaceID       uint64 = 0xa7317bd7216570aa

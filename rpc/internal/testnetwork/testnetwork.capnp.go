@@ -100,7 +100,12 @@ const schema_bcea0965c2a55c5b = "x\xda\x12Ht`1\xe4\xdd\xcf\xc8\xc0\x14(\xc2\xca"
 	"\x06&FN\x06F\xf9<\x90\x190\x1e \x00\x00\xff" +
 	"\xff\xe1\"&\xa5"
 
-func init() {
-	schemas.Register(schema_bcea0965c2a55c5b,
-		0x9fae1e732359c0b5)
+func RegisterSchema(reg *schemas.Registry) {
+	reg.Register(&schemas.Schema{
+		String: schema_bcea0965c2a55c5b,
+		Nodes: []uint64{
+			0x9fae1e732359c0b5,
+		},
+		Compressed: true,
+	})
 }

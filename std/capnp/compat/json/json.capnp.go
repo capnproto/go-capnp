@@ -723,17 +723,22 @@ const schema_8ef99297a43a5e34 = "x\xda\x8c\x94_h[e\x18\xc6\x9f\xe7\xfb\xce9\xeb"
 	"#\x13\x94\xd3\x8fyS\x9b-h\x99\xc8~\x1c\xe2\x9f" +
 	"\x00\x00\x00\xff\xff\x06\xfd\x9d\x93"
 
-func init() {
-	schemas.Register(schema_8ef99297a43a5e34,
-		0x82d3e852af0336bf,
-		0xa0a054dea32fd98c,
-		0xa0d9f6eca1c93d48,
-		0xa3fa7845f919dd83,
-		0xc2f8c20c293e5319,
-		0xc4df13257bc2ea61,
-		0xcfa794e8d19a0162,
-		0xd7d879450a253e4b,
-		0xe31026e735d69ddf,
-		0xf061e22f0ae5c7b5,
-		0xfa5b1fd61c2e7c3d)
+func RegisterSchema(reg *schemas.Registry) {
+	reg.Register(&schemas.Schema{
+		String: schema_8ef99297a43a5e34,
+		Nodes: []uint64{
+			0x82d3e852af0336bf,
+			0xa0a054dea32fd98c,
+			0xa0d9f6eca1c93d48,
+			0xa3fa7845f919dd83,
+			0xc2f8c20c293e5319,
+			0xc4df13257bc2ea61,
+			0xcfa794e8d19a0162,
+			0xd7d879450a253e4b,
+			0xe31026e735d69ddf,
+			0xf061e22f0ae5c7b5,
+			0xfa5b1fd61c2e7c3d,
+		},
+		Compressed: true,
+	})
 }
