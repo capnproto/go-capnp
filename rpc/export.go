@@ -179,78 +179,84 @@ func (c *lockedConn) sendCap(d rpccp.CapDescriptor, client capnp.Client) (_ expo
 		c.setExportID(state.Metadata, id)
 	}
 	if ee.isPromise {
-		// Send a promise, wait for the resolution asynchronously, then send
-		// a resolve message:
-		d.SetSenderPromise(uint32(id))
-		ctx, cancel := context.WithCancel(c.bgctx)
-		ee.cancel = cancel
-		waitRef := client.AddRef()
-		go func() {
-			defer cancel()
-			defer waitRef.Release()
-			// Logically we don't hold the lock anymore; it's held by the
-			// goroutine that spawned this one. So cast back to an unlocked
-			// Conn before trying to use it again:
-			unlockedConn := (*Conn)(c)
-
-			waitErr := waitRef.Resolve(ctx)
-			unlockedConn.withLocked(func(c *lockedConn) {
-				// Export was removed from the table at some point;
-				// remote peer is uninterested in the resolution, so
-				// drop the reference and we're done:
-				if c.lk.exports[id] != ee {
-					return
-				}
-
-				sendRef := waitRef.AddRef()
-				var (
-					resolvedID exportID
-					isExport   bool
-				)
-				c.sendMessage(c.bgctx, func(m rpccp.Message) error {
-					res, err := m.NewResolve()
-					if err != nil {
-						return err
-					}
-					res.SetPromiseId(uint32(id))
-					if waitErr != nil {
-						ex, err := res.NewException()
-						if err != nil {
-							return err
-						}
-						return ex.MarshalError(waitErr)
-					}
-					desc, err := res.NewCap()
-					if err != nil {
-						return err
-					}
-					resolvedID, isExport, err = c.sendCap(desc, sendRef)
-					return err
-				}, func(err error) {
-					sendRef.Release()
-					if err != nil && isExport {
-						// release 1 ref of the thing it resolved to.
-						client, err := withLockedConn2(
-							unlockedConn,
-							func(c *lockedConn) (capnp.Client, error) {
-								return c.releaseExport(resolvedID, 1)
-							},
-						)
-						if err != nil {
-							c.er.ReportError(
-								exc.WrapError("releasing export due to failure to send resolve", err),
-							)
-						} else {
-							client.Release()
-						}
-					}
-				})
-			})
-		}()
+		c.sendSenderPromise(id, client, d)
 	} else {
 		d.SetSenderHosted(uint32(id))
 	}
 	return id, true, nil
+}
+
+// sendSenderPromise is a helper for sendCap that handles the senderPromise case.
+func (c *lockedConn) sendSenderPromise(id exportID, client capnp.Client, d rpccp.CapDescriptor) {
+	// Send a promise, wait for the resolution asynchronously, then send
+	// a resolve message:
+	ee := c.lk.exports[id]
+	d.SetSenderPromise(uint32(id))
+	ctx, cancel := context.WithCancel(c.bgctx)
+	ee.cancel = cancel
+	waitRef := client.AddRef()
+	go func() {
+		defer cancel()
+		defer waitRef.Release()
+		// Logically we don't hold the lock anymore; it's held by the
+		// goroutine that spawned this one. So cast back to an unlocked
+		// Conn before trying to use it again:
+		unlockedConn := (*Conn)(c)
+
+		waitErr := waitRef.Resolve(ctx)
+		unlockedConn.withLocked(func(c *lockedConn) {
+			// Export was removed from the table at some point;
+			// remote peer is uninterested in the resolution, so
+			// drop the reference and we're done:
+			if c.lk.exports[id] != ee {
+				return
+			}
+
+			sendRef := waitRef.AddRef()
+			var (
+				resolvedID exportID
+				isExport   bool
+			)
+			c.sendMessage(c.bgctx, func(m rpccp.Message) error {
+				res, err := m.NewResolve()
+				if err != nil {
+					return err
+				}
+				res.SetPromiseId(uint32(id))
+				if waitErr != nil {
+					ex, err := res.NewException()
+					if err != nil {
+						return err
+					}
+					return ex.MarshalError(waitErr)
+				}
+				desc, err := res.NewCap()
+				if err != nil {
+					return err
+				}
+				resolvedID, isExport, err = c.sendCap(desc, sendRef)
+				return err
+			}, func(err error) {
+				sendRef.Release()
+				if err != nil && isExport {
+					// release 1 ref of the thing it resolved to.
+					client, err := withLockedConn2(
+						unlockedConn,
+						func(c *lockedConn) (capnp.Client, error) {
+							return c.releaseExport(resolvedID, 1)
+						},
+					)
+					if err != nil {
+						c.er.ReportError(
+							exc.WrapError("releasing export due to failure to send resolve", err),
+						)
+					} else {
+						client.Release()
+					}
+				}
+			})
+		})
+	}()
 }
 
 // fillPayloadCapTable adds descriptors of payload's message's
