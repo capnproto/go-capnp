@@ -19,6 +19,9 @@ type expent struct {
 	client    capnp.Client
 	wireRefs  uint32
 	isPromise bool
+
+	// Should be called when removing this entry from the exports table:
+	cancel context.CancelFunc
 }
 
 // A key for use in a client's Metadata, whose value is the export
@@ -66,6 +69,7 @@ func (c *lockedConn) releaseExport(id exportID, count uint32) (capnp.Client, err
 	}
 	switch {
 	case count == ent.wireRefs:
+		defer ent.cancel()
 		client := ent.client
 		c.lk.exports[id] = nil
 		c.lk.exportID.remove(uint32(id))
@@ -164,6 +168,7 @@ func (c *lockedConn) sendCap(d rpccp.CapDescriptor, client capnp.Client) (_ expo
 			client:    client.AddRef(),
 			wireRefs:  1,
 			isPromise: state.IsPromise,
+			cancel:    func() {},
 		}
 		id = exportID(c.lk.exportID.next())
 		if int64(id) == int64(len(c.lk.exports)) {
@@ -177,15 +182,18 @@ func (c *lockedConn) sendCap(d rpccp.CapDescriptor, client capnp.Client) (_ expo
 		// Send a promise, wait for the resolution asynchronously, then send
 		// a resolve message:
 		d.SetSenderPromise(uint32(id))
+		ctx, cancel := context.WithCancel(c.bgctx)
+		ee.cancel = cancel
 		waitRef := client.AddRef()
 		go func() {
+			defer cancel()
 			defer waitRef.Release()
 			// Logically we don't hold the lock anymore; it's held by the
 			// goroutine that spawned this one. So cast back to an unlocked
 			// Conn before trying to use it again:
 			unlockedConn := (*Conn)(c)
 
-			waitErr := waitRef.Resolve(c.bgctx)
+			waitErr := waitRef.Resolve(ctx)
 			unlockedConn.withLocked(func(c *lockedConn) {
 				// Export was removed from the table at some point;
 				// remote peer is uninterested in the resolution, so
