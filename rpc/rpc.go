@@ -593,7 +593,9 @@ func (c *Conn) receive(ctx context.Context) func() error {
 
 			switch in.Message.Which() {
 			case rpccp.Message_Which_unimplemented:
-				// no-op for now to avoid feedback loop
+				if err := c.handleUnimplemented(in); err != nil {
+					return err
+				}
 
 			case rpccp.Message_Which_abort:
 				c.handleAbort(in)
@@ -659,6 +661,48 @@ func (c *Conn) handleAbort(in transport.IncomingMessage) {
 	}
 
 	c.er.ReportError(exc.New(exc.Type(e.Type()), "rpc", "remote abort: "+reason))
+}
+
+func (c *Conn) handleUnimplemented(in transport.IncomingMessage) error {
+	defer in.Release()
+
+	msg, err := in.Message.Unimplemented()
+	if err != nil {
+		return exc.WrapError("read unimplemented", err)
+	}
+	if msg.Which() == rpccp.Message_Which_resolve {
+		// If we get unimplemented for a resolve message, we should
+		// release the reference we sent, since it won't be used.
+		resolve, err := msg.Resolve()
+		if err != nil {
+			return exc.WrapError("read unimplemented.resolve", err)
+		}
+		if resolve.Which() == rpccp.Resolve_Which_cap {
+			desc, err := resolve.Cap()
+			if err != nil {
+				return exc.WrapError("read unimplemented.resolve.cap", err)
+			}
+			var id exportID
+			switch desc.Which() {
+			case rpccp.CapDescriptor_Which_senderHosted:
+				id = exportID(desc.SenderHosted())
+			case rpccp.CapDescriptor_Which_senderPromise:
+				id = exportID(desc.SenderPromise())
+			default:
+				return nil
+			}
+			client, err := withLockedConn2(c, func(c *lockedConn) (capnp.Client, error) {
+				return c.releaseExport(id, 1)
+			})
+			if err != nil {
+				return err
+			}
+			client.Release()
+			return nil
+		}
+	}
+	// For other cases we should just ignore the message.
+	return nil
 }
 
 func (c *Conn) handleBootstrap(in transport.IncomingMessage) error {
