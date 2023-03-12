@@ -150,9 +150,7 @@ func (c *lockedConn) sendCap(d rpccp.CapDescriptor, client capnp.Client) (_ expo
 		}
 	}
 
-	// TODO(someday): Check for unresolved client for senderPromise.
-
-	// Default to sender-hosted (export).
+	// Default to export.
 	state.Metadata.Lock()
 	defer state.Metadata.Unlock()
 	id, ok := c.findExportID(state.Metadata)
