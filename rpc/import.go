@@ -45,6 +45,11 @@ type impent struct {
 	// importClient's generation matches the entry's generation before
 	// removing the entry from the table and sending a release message.
 	generation uint64
+
+	// If resolver is non-nil, then this is a promise (received as
+	// CapDescriptor_Which_senderPromise), and when a resolve message
+	// arrives we should use this to fulfill the promise locally.
+	resolver capnp.Resolver[capnp.Client]
 }
 
 // addImport returns a client that represents the given import,
@@ -52,7 +57,7 @@ type impent struct {
 // This is separate from the reference counting that capnp.Client does.
 //
 // The caller must be holding onto c.mu.
-func (c *lockedConn) addImport(id importID) capnp.Client {
+func (c *lockedConn) addImport(id importID, isPromise bool) capnp.Client {
 	if ent := c.lk.imports[id]; ent != nil {
 		ent.wireRefs++
 		client, ok := ent.wc.AddRef()
@@ -67,13 +72,23 @@ func (c *lockedConn) addImport(id importID) capnp.Client {
 		}
 		return client
 	}
-	client := capnp.NewClient(&importClient{
+	hook := &importClient{
 		c:  (*Conn)(c),
 		id: id,
-	})
+	}
+	var (
+		client   capnp.Client
+		resolver capnp.Resolver[capnp.Client]
+	)
+	if isPromise {
+		client, resolver = capnp.NewPromisedClient(hook)
+	} else {
+		client = capnp.NewClient(hook)
+	}
 	c.lk.imports[id] = &impent{
 		wc:       client.WeakRef(),
 		wireRefs: 1,
+		resolver: resolver,
 	}
 	return client
 }

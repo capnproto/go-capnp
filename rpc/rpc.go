@@ -631,7 +631,11 @@ func (c *Conn) receive(ctx context.Context) func() error {
 					return err
 				}
 
-			// TODO: handle resolve.
+			case rpccp.Message_Which_resolve:
+				if err := c.handleResolve(ctx, in); err != nil {
+					return err
+				}
+
 			case rpccp.Message_Which_accept, rpccp.Message_Which_provide:
 				if c.network != nil {
 					panic("TODO: 3PH")
@@ -1249,9 +1253,12 @@ func (c *lockedConn) parseReturn(rl *releaseList, ret rpccp.Return, called [][]c
 			id, mtab[i] = c.embargo(mtab[i])
 			embargoCaps.add(uint(i))
 			disembargoes = append(disembargoes, senderLoopback{
-				id:        id,
-				question:  questionID(ret.AnswerId()),
-				transform: xform,
+				id: id,
+				target: parsedMessageTarget{
+					which:          rpccp.MessageTarget_Which_promisedAnswer,
+					promisedAnswer: answerID(ret.AnswerId()),
+					transform:      xform,
+				},
 			})
 		}
 		return parsedReturn{
@@ -1347,20 +1354,10 @@ func (c *lockedConn) recvCap(d rpccp.CapDescriptor) (capnp.Client, error) {
 		return capnp.Client{}, nil
 	case rpccp.CapDescriptor_Which_senderHosted:
 		id := importID(d.SenderHosted())
-		return c.addImport(id), nil
+		return c.addImport(id, false), nil
 	case rpccp.CapDescriptor_Which_senderPromise:
-		// We do the same thing as senderHosted, above. @kentonv suggested this on
-		// issue #2; this lets messages be delivered properly, although it's a bit
-		// of a hack, and as Kenton describes, it has some disadvantages:
-		//
-		// > * Apps sometimes want to wait for promise resolution, and to find out if
-		// >   it resolved to an exception. You won't be able to provide that API. But,
-		// >   usually, it isn't needed.
-		// > * If the promise resolves to a capability hosted on the receiver,
-		// >   messages sent to it will uselessly round-trip over the network
-		// >   rather than being delivered locally.
 		id := importID(d.SenderPromise())
-		return c.addImport(id), nil
+		return c.addImport(id, true), nil
 	case rpccp.CapDescriptor_Which_thirdPartyHosted:
 		if c.network == nil {
 			// We can't do third-party handoff without a network, so instead of
@@ -1374,7 +1371,7 @@ func (c *lockedConn) recvCap(d rpccp.CapDescriptor) (capnp.Client, error) {
 				)
 			}
 			id := importID(thirdPartyDesc.VineId())
-			return c.addImport(id), nil
+			return c.addImport(id, false), nil
 		}
 		panic("TODO: 3PH")
 	case rpccp.CapDescriptor_Which_receiverHosted:
@@ -1736,6 +1733,85 @@ func (c *Conn) handleDisembargo(ctx context.Context, in transport.IncomingMessag
 	}
 
 	return nil
+}
+
+func (c *Conn) handleResolve(ctx context.Context, in transport.IncomingMessage) error {
+	rl := &releaseList{}
+	defer rl.Release()
+
+	resolve, err := in.Message.Resolve()
+	if err != nil {
+		in.Release()
+		c.er.ReportError(exc.WrapError("read resolve", err))
+		return nil
+	}
+
+	promiseID := importID(resolve.PromiseId())
+	err = withLockedConn1(c, func(c *lockedConn) error {
+		imp, ok := c.lk.imports[promiseID]
+		if !ok {
+			return errors.New(
+				"incoming resolve: no such import ID: " + str.Utod(promiseID),
+			)
+		}
+		if imp.resolver == nil {
+			return errors.New(
+				"incoming resolve: import ID " +
+					str.Utod(promiseID) +
+					"is not a promise",
+			)
+		}
+		switch resolve.Which() {
+		case rpccp.Resolve_Which_cap:
+			desc, err := resolve.Cap()
+			if err != nil {
+				return exc.WrapError("reading cap from resolve message", err)
+			}
+			client, err := c.recvCap(desc)
+			if err != nil {
+				return err
+			}
+			if c.isLocalClient(client) {
+				var id embargoID
+				id, client = c.embargo(client)
+				disembargo := senderLoopback{
+					id: id,
+					target: parsedMessageTarget{
+						which:       rpccp.MessageTarget_Which_importedCap,
+						importedCap: exportID(promiseID),
+					},
+				}
+				c.sendMessage(ctx, disembargo.buildDisembargo, func(err error) {
+					if err != nil {
+						c.er.ReportError(
+							exc.WrapError(
+								"incoming resolve: send disembargo",
+								err,
+							),
+						)
+					}
+				})
+			}
+			rl.Add(func() {
+				imp.resolver.Fulfill(client)
+			})
+		case rpccp.Resolve_Which_exception:
+			ex, err := resolve.Exception()
+			if err != nil {
+				err = exc.WrapError("reading exception from resolve message", err)
+			} else {
+				err = ex.ToError()
+			}
+			rl.Add(func() {
+				imp.resolver.Reject(err)
+			})
+		}
+		return nil
+	})
+	if err != nil {
+		c.er.ReportError(err)
+	}
+	return err
 }
 
 func (c *Conn) handleUnknownMessageType(ctx context.Context, in transport.IncomingMessage) {
