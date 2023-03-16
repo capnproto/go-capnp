@@ -366,9 +366,8 @@ func (e *embargo) Shutdown() {
 // senderLoopback holds the salient information for a sender-loopback
 // Disembargo message.
 type senderLoopback struct {
-	id        embargoID
-	question  questionID
-	transform []capnp.PipelineOp
+	id     embargoID
+	target parsedMessageTarget
 }
 
 func (sl *senderLoopback) buildDisembargo(msg rpccp.Message) error {
@@ -376,23 +375,30 @@ func (sl *senderLoopback) buildDisembargo(msg rpccp.Message) error {
 	if err != nil {
 		return rpcerr.WrapFailed("build disembargo", err)
 	}
+	d.Context().SetSenderLoopback(uint32(sl.id))
 	tgt, err := d.NewTarget()
 	if err != nil {
 		return rpcerr.WrapFailed("build disembargo", err)
 	}
-	pa, err := tgt.NewPromisedAnswer()
-	if err != nil {
-		return rpcerr.WrapFailed("build disembargo", err)
-	}
-	oplist, err := pa.NewTransform(int32(len(sl.transform)))
-	if err != nil {
-		return rpcerr.WrapFailed("build disembargo", err)
-	}
+	switch sl.target.which {
+	case rpccp.MessageTarget_Which_promisedAnswer:
+		pa, err := tgt.NewPromisedAnswer()
+		if err != nil {
+			return rpcerr.WrapFailed("build disembargo", err)
+		}
+		oplist, err := pa.NewTransform(int32(len(sl.target.transform)))
+		if err != nil {
+			return rpcerr.WrapFailed("build disembargo", err)
+		}
 
-	d.Context().SetSenderLoopback(uint32(sl.id))
-	pa.SetQuestionId(uint32(sl.question))
-	for i, op := range sl.transform {
-		oplist.At(i).SetGetPointerField(op.Field)
+		pa.SetQuestionId(uint32(sl.target.promisedAnswer))
+		for i, op := range sl.target.transform {
+			oplist.At(i).SetGetPointerField(op.Field)
+		}
+	case rpccp.MessageTarget_Which_importedCap:
+		tgt.SetImportedCap(uint32(sl.target.importedCap))
+	default:
+		return errors.New("unknown variant for MessageTarget: " + str.Utod(sl.target.which))
 	}
 	return nil
 }
