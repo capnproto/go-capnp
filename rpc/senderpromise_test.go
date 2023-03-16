@@ -158,8 +158,8 @@ func TestResolveUnimplementedDrop(t *testing.T) {
 		pp := testcapnp.Empty_ServerToClient(emptyShutdowner{
 			onShutdown: onShutdown,
 		})
-		defer pp.Release()
 		r.Fulfill(pp)
+		pp.Release()
 	}
 	// 8. Receive resolve, send unimplemented
 	{
