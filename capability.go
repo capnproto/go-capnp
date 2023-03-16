@@ -203,7 +203,7 @@ func NewPromisedClient(hook ClientHook) (Client, Resolver[Client]) {
 }
 
 // newPromisedClient is the same as NewPromisedClient, but the return
-// value exposes the concrete type of the fulfiller.
+// value exposes the concrete type of the resolver.
 func newPromisedClient(hook ClientHook) (Client, *clientPromise) {
 	if hook == nil {
 		panic("NewPromisedClient(nil)")

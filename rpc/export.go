@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"capnproto.org/go/capnp/v3"
+	"capnproto.org/go/capnp/v3/exc"
 	"capnproto.org/go/capnp/v3/internal/str"
 	"capnproto.org/go/capnp/v3/internal/syncutil"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
@@ -15,8 +16,12 @@ type exportID uint32
 
 // expent is an entry in a Conn's export table.
 type expent struct {
-	client   capnp.Client
-	wireRefs uint32
+	client    capnp.Client
+	wireRefs  uint32
+	isPromise bool
+
+	// Should be called when removing this entry from the exports table:
+	cancel context.CancelFunc
 }
 
 // A key for use in a client's Metadata, whose value is the export
@@ -64,6 +69,7 @@ func (c *lockedConn) releaseExport(id exportID, count uint32) (capnp.Client, err
 	}
 	switch {
 	case count == ent.wireRefs:
+		defer ent.cancel()
 		client := ent.client
 		c.lk.exports[id] = nil
 		c.lk.exportID.remove(uint32(id))
@@ -148,33 +154,109 @@ func (c *lockedConn) sendCap(d rpccp.CapDescriptor, client capnp.Client) (_ expo
 		}
 	}
 
-	// TODO(someday): Check for unresolved client for senderPromise.
-
-	// Default to sender-hosted (export).
+	// Default to export.
 	state.Metadata.Lock()
 	defer state.Metadata.Unlock()
 	id, ok := c.findExportID(state.Metadata)
+	var ee *expent
 	if ok {
-		ent := c.lk.exports[id]
-		ent.wireRefs++
-		d.SetSenderHosted(uint32(id))
-		return id, true, nil
-	}
-
-	// Not already present; allocate an export id for it:
-	ee := &expent{
-		client:   client.AddRef(),
-		wireRefs: 1,
-	}
-	id = exportID(c.lk.exportID.next())
-	if int64(id) == int64(len(c.lk.exports)) {
-		c.lk.exports = append(c.lk.exports, ee)
+		ee = c.lk.exports[id]
+		ee.wireRefs++
 	} else {
-		c.lk.exports[id] = ee
+		// Not already present; allocate an export id for it:
+		ee = &expent{
+			client:    client.AddRef(),
+			wireRefs:  1,
+			isPromise: state.IsPromise,
+			cancel:    func() {},
+		}
+		id = exportID(c.lk.exportID.next())
+		if int64(id) == int64(len(c.lk.exports)) {
+			c.lk.exports = append(c.lk.exports, ee)
+		} else {
+			c.lk.exports[id] = ee
+		}
+		c.setExportID(state.Metadata, id)
 	}
-	c.setExportID(state.Metadata, id)
-	d.SetSenderHosted(uint32(id))
+	if ee.isPromise {
+		c.sendSenderPromise(id, client, d)
+	} else {
+		d.SetSenderHosted(uint32(id))
+	}
 	return id, true, nil
+}
+
+// sendSenderPromise is a helper for sendCap that handles the senderPromise case.
+func (c *lockedConn) sendSenderPromise(id exportID, client capnp.Client, d rpccp.CapDescriptor) {
+	// Send a promise, wait for the resolution asynchronously, then send
+	// a resolve message:
+	ee := c.lk.exports[id]
+	d.SetSenderPromise(uint32(id))
+	ctx, cancel := context.WithCancel(c.bgctx)
+	ee.cancel = cancel
+	waitRef := client.AddRef()
+	go func() {
+		defer cancel()
+		defer waitRef.Release()
+		// Logically we don't hold the lock anymore; it's held by the
+		// goroutine that spawned this one. So cast back to an unlocked
+		// Conn before trying to use it again:
+		unlockedConn := (*Conn)(c)
+
+		waitErr := waitRef.Resolve(ctx)
+		unlockedConn.withLocked(func(c *lockedConn) {
+			// Export was removed from the table at some point;
+			// remote peer is uninterested in the resolution, so
+			// drop the reference and we're done:
+			if c.lk.exports[id] != ee {
+				return
+			}
+
+			sendRef := waitRef.AddRef()
+			var (
+				resolvedID exportID
+				isExport   bool
+			)
+			c.sendMessage(c.bgctx, func(m rpccp.Message) error {
+				res, err := m.NewResolve()
+				if err != nil {
+					return err
+				}
+				res.SetPromiseId(uint32(id))
+				if waitErr != nil {
+					ex, err := res.NewException()
+					if err != nil {
+						return err
+					}
+					return ex.MarshalError(waitErr)
+				}
+				desc, err := res.NewCap()
+				if err != nil {
+					return err
+				}
+				resolvedID, isExport, err = c.sendCap(desc, sendRef)
+				return err
+			}, func(err error) {
+				sendRef.Release()
+				if err != nil && isExport {
+					// release 1 ref of the thing it resolved to.
+					client, err := withLockedConn2(
+						unlockedConn,
+						func(c *lockedConn) (capnp.Client, error) {
+							return c.releaseExport(resolvedID, 1)
+						},
+					)
+					if err != nil {
+						c.er.ReportError(
+							exc.WrapError("releasing export due to failure to send resolve", err),
+						)
+					} else {
+						client.Release()
+					}
+				}
+			})
+		})
+	}()
 }
 
 // fillPayloadCapTable adds descriptors of payload's message's

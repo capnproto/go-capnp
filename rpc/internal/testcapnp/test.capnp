@@ -6,6 +6,15 @@ using Go = import "/go.capnp";
 $Go.package("testcapnp");
 $Go.import("capnproto.org/go/capnp/v3/rpc/internal/testcapnp");
 
+interface Empty {
+  # Empty interface, handy for testing shutdown hooks and stuff that just
+  # needs an arbitrary capability.
+}
+
+interface EmptyProvider {
+  getEmpty @0 () -> (empty :Empty);
+}
+
 interface PingPong {
   echoNum @0 (n :Int64) -> (n :Int64);
 }
