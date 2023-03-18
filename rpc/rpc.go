@@ -1604,67 +1604,25 @@ func (c *Conn) handleDisembargo(ctx context.Context, in transport.IncomingMessag
 	case rpccp.Disembargo_context_Which_senderLoopback:
 		var client capnp.Client
 		c.withLocked(func(c *lockedConn) {
-			if tgt.which != rpccp.MessageTarget_Which_promisedAnswer {
-				err = rpcerr.Failed(errors.New("incoming disembargo: sender loopback: target is not a promised answer"))
-				return
-			}
-
-			ans := c.lk.answers[tgt.promisedAnswer]
-			if ans == nil {
+			switch tgt.which {
+			case rpccp.MessageTarget_Which_promisedAnswer:
+				client, err = c.getAnswerClient(
+					tgt.promisedAnswer,
+					tgt.transform,
+				)
+			case rpccp.MessageTarget_Which_importedCap:
+				fallthrough
+			default:
 				err = rpcerr.Failed(errors.New(
-					"incoming disembargo: unknown answer ID " +
-						str.Utod(tgt.promisedAnswer),
+					"sender loopback: unsupported message target variant: " +
+						tgt.which.String(),
 				))
-				return
 			}
-			if !ans.flags.Contains(returnSent) {
-				err = rpcerr.Failed(errors.New(
-					"incoming disembargo: answer ID " +
-						str.Utod(tgt.promisedAnswer) + " has not sent return",
-				))
-				return
-			}
-
-			if ans.err != nil {
-				err = rpcerr.Failed(errors.New(
-					"incoming disembargo: answer ID " +
-						str.Utod(tgt.promisedAnswer) + " returned exception",
-				))
-				return
-			}
-
-			var content capnp.Ptr
-			if content, err = ans.results.Content(); err != nil {
-				err = rpcerr.Failed(errors.New(
-					"incoming disembargo: read answer ID " +
-						str.Utod(tgt.promisedAnswer) + ": " + err.Error(),
-				))
-				return
-			}
-
-			var ptr capnp.Ptr
-			if ptr, err = capnp.Transform(content, tgt.transform); err != nil {
-				err = rpcerr.Failed(errors.New(
-					"incoming disembargo: read answer ID " +
-						str.Utod(tgt.promisedAnswer) + ": " + err.Error(),
-				))
-				return
-			}
-
-			iface := ptr.Interface()
-			if !iface.IsValid() || int64(iface.Capability()) >= int64(len(ans.results.Message().CapTable)) {
-				err = rpcerr.Failed(errors.New(
-					"incoming disembargo: sender loopback requested on a capability that is not an import",
-				))
-				return
-			}
-
-			client = iface.Client()
 		})
 
 		if err != nil {
 			in.Release()
-			return err
+			return exc.WrapError("incoming disembargo", err)
 		}
 
 		imp, ok := client.State().Brand.Value.(*importClient)
@@ -1729,6 +1687,52 @@ func (c *Conn) handleDisembargo(ctx context.Context, in transport.IncomingMessag
 	}
 
 	return nil
+}
+
+// getAnswerClient returns a client for the capability at the given path
+// in the specified answer. The answer must have already sent a return.
+// Returns an error if the path does not identify a capability.
+func (c *lockedConn) getAnswerClient(id answerID, transform []capnp.PipelineOp) (capnp.Client, error) {
+	ans := c.lk.answers[id]
+	if ans == nil {
+		return capnp.Client{}, rpcerr.Failed(errors.New(
+			"unknown answer ID " + str.Utod(id),
+		))
+	}
+	if !ans.flags.Contains(returnSent) {
+		return capnp.Client{}, rpcerr.Failed(errors.New(
+			"answer ID " + str.Utod(id) + " has not sent return",
+		))
+	}
+
+	if ans.err != nil {
+		return capnp.Client{}, rpcerr.Failed(errors.New(
+			"answer ID " + str.Utod(id) + " returned exception",
+		))
+	}
+
+	content, err := ans.results.Content()
+	if err != nil {
+		return capnp.Client{}, rpcerr.Failed(errors.New(
+			"read answer ID " + str.Utod(id) + ": " + err.Error(),
+		))
+	}
+
+	ptr, err := capnp.Transform(content, transform)
+	if err != nil {
+		return capnp.Client{}, rpcerr.Failed(errors.New(
+			"read answer ID " + str.Utod(id) + ": " + err.Error(),
+		))
+	}
+
+	iface := ptr.Interface()
+	if !iface.IsValid() || int64(iface.Capability()) >= int64(len(ans.results.Message().CapTable)) {
+		return capnp.Client{}, rpcerr.Failed(errors.New(
+			"target is not a capability",
+		))
+	}
+
+	return iface.Client(), nil
 }
 
 func (c *Conn) handleResolve(ctx context.Context, in transport.IncomingMessage) error {
