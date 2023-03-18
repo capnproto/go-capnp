@@ -1602,18 +1602,31 @@ func (c *Conn) handleDisembargo(ctx context.Context, in transport.IncomingMessag
 		e.lift()
 
 	case rpccp.Disembargo_context_Which_senderLoopback:
-		var client capnp.Client
-		c.withLocked(func(c *lockedConn) {
+		client, err := withLockedConn2(c, func(c *lockedConn) (capnp.Client, error) {
 			switch tgt.which {
 			case rpccp.MessageTarget_Which_promisedAnswer:
-				client, err = c.getAnswerClient(
+				return c.getAnswerClient(
 					tgt.promisedAnswer,
 					tgt.transform,
 				)
 			case rpccp.MessageTarget_Which_importedCap:
-				fallthrough
+				ent := c.findExport(tgt.importedCap)
+				if ent == nil {
+					return capnp.Client{}, rpcerr.Failed(errors.New(
+						"sender loopback: no such export: " +
+							str.Utod(tgt.importedCap),
+					))
+				}
+				if !ent.isPromise {
+					return capnp.Client{}, rpcerr.Failed(errors.New(
+						"sender loopback: target export " +
+							str.Utod(tgt.importedCap) +
+							" is not a promise",
+					))
+				}
+				return ent.client, nil
 			default:
-				err = rpcerr.Failed(errors.New(
+				return capnp.Client{}, rpcerr.Failed(errors.New(
 					"sender loopback: unsupported message target variant: " +
 						tgt.which.String(),
 				))
