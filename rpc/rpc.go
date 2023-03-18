@@ -1602,11 +1602,7 @@ func (c *Conn) handleDisembargo(ctx context.Context, in transport.IncomingMessag
 		e.lift()
 
 	case rpccp.Disembargo_context_Which_senderLoopback:
-		var (
-			imp    *importClient
-			client capnp.Client
-		)
-
+		var client capnp.Client
 		c.withLocked(func(c *lockedConn) {
 			if tgt.which != rpccp.MessageTarget_Which_promisedAnswer {
 				err = rpcerr.Failed(errors.New("incoming disembargo: sender loopback: target is not a promised answer"))
