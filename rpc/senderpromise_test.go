@@ -153,7 +153,7 @@ func TestResolveUnimplementedDrop(t *testing.T) {
 		assert.Equal(t, rpccp.CapDescriptor_Which_senderPromise, desc.Which)
 		emptyExportID = desc.SenderPromise
 	}
-	// 7. Fulfill promise
+	// 6. Fulfill promise
 	{
 		pp := testcapnp.Empty_ServerToClient(emptyShutdowner{
 			onShutdown: onShutdown,
@@ -161,7 +161,7 @@ func TestResolveUnimplementedDrop(t *testing.T) {
 		r.Fulfill(pp)
 		pp.Release()
 	}
-	// 8. Receive resolve, send unimplemented
+	// 7. Receive resolve, send unimplemented
 	{
 		rmsg, release, err := recvMessage(ctx, p2)
 		assert.NoError(t, err)
@@ -176,12 +176,12 @@ func TestResolveUnimplementedDrop(t *testing.T) {
 			Unimplemented: rmsg,
 		}))
 	}
-	// 9. Drop the promise on our side. Otherwise it will stay alive because of
+	// 8. Drop the promise on our side. Otherwise it will stay alive because of
 	// the bootstrap interface:
 	{
 		p.Release()
 	}
-	// 6. Send finish
+	// 9. Send finish
 	{
 		assert.NoError(t, sendMessage(ctx, p2, &rpcMessage{
 			Which: rpccp.Message_Which_finish,
