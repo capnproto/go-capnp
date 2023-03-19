@@ -458,9 +458,11 @@ func (c *lockedConn) releaseExports(dq *deferred.Queue, exports []*expent) {
 	for _, e := range exports {
 		if e != nil {
 			metadata := e.snapshot.Metadata()
-			syncutil.With(metadata, func() {
-				c.clearExportID(metadata)
-			})
+			if metadata != nil {
+				syncutil.With(metadata, func() {
+					c.clearExportID(metadata)
+				})
+			}
 			dq.Defer(e.snapshot.Release)
 		}
 	}

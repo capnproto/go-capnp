@@ -214,3 +214,137 @@ type emptyShutdowner struct {
 func (s emptyShutdowner) Shutdown() {
 	close(s.onShutdown)
 }
+
+// Tests fulfilling a senderPromise with something hosted on the receiver
+func TestDisembargoSenderPromise(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	p, r := capnp.NewLocalPromise[capnp.Client]()
+
+	left, right := transport.NewPipe(1)
+	p1, p2 := rpc.NewTransport(left), rpc.NewTransport(right)
+
+	conn := rpc.NewConn(p1, &rpc.Options{
+		ErrorReporter:   testErrorReporter{tb: t},
+		BootstrapClient: capnp.Client(p),
+	})
+	defer finishTest(t, conn, p2)
+
+	// Send bootstrap.
+	{
+		msg := &rpcMessage{
+			Which:     rpccp.Message_Which_bootstrap,
+			Bootstrap: &rpcBootstrap{QuestionID: 0},
+		}
+		assert.NoError(t, sendMessage(ctx, p2, msg))
+	}
+	// Receive return.
+	var theirBootstrapID uint32
+	{
+		rmsg, release, err := recvMessage(ctx, p2)
+		assert.NoError(t, err)
+		defer release()
+		assert.Equal(t, rpccp.Message_Which_return, rmsg.Which)
+		assert.Equal(t, uint32(0), rmsg.Return.AnswerID)
+		assert.Equal(t, rpccp.Return_Which_results, rmsg.Return.Which)
+		assert.Equal(t, 1, len(rmsg.Return.Results.CapTable))
+		desc := rmsg.Return.Results.CapTable[0]
+		assert.Equal(t, rpccp.CapDescriptor_Which_senderPromise, desc.Which)
+		theirBootstrapID = desc.SenderPromise
+	}
+
+	// For conveience, we use the other peer's bootstrap interface as the thing
+	// to resolve to.
+	bsClient := conn.Bootstrap(ctx)
+	defer bsClient.Release()
+
+	// Receive bootstrap, send return.
+	myBootstrapID := uint32(12)
+	var incomingBSQid uint32
+	{
+		rmsg, release, err := recvMessage(ctx, p2)
+		assert.NoError(t, err)
+		defer release()
+		assert.Equal(t, rpccp.Message_Which_bootstrap, rmsg.Which)
+		incomingBSQid = rmsg.Bootstrap.QuestionID
+
+		outMsg, err := p2.NewMessage()
+		assert.NoError(t, err)
+		iface := capnp.NewInterface(outMsg.Message().Segment(), 0)
+
+		assert.NoError(t, sendMessage(ctx, p2, &rpcMessage{
+			Which: rpccp.Message_Which_return,
+			Return: &rpcReturn{
+				AnswerID: incomingBSQid,
+				Which:    rpccp.Return_Which_results,
+				Results: &rpcPayload{
+					Content: iface.ToPtr(),
+					CapTable: []rpcCapDescriptor{
+						{
+							Which:        rpccp.CapDescriptor_Which_senderHosted,
+							SenderHosted: myBootstrapID,
+						},
+					},
+				},
+			},
+		}))
+	}
+	// Accept return
+	assert.NoError(t, bsClient.Resolve(ctx))
+
+	// Receive Finish
+	{
+		rmsg, release, err := recvMessage(ctx, p2)
+		assert.NoError(t, err)
+		defer release()
+		assert.Equal(t, rpccp.Message_Which_finish, rmsg.Which)
+		assert.Equal(t, incomingBSQid, rmsg.Finish.QuestionID)
+	}
+
+	// Resolve bootstrap
+	r.Fulfill(bsClient)
+
+	// Receive resolve.
+	{
+		rmsg, release, err := recvMessage(ctx, p2)
+		assert.NoError(t, err)
+		defer release()
+		assert.Equal(t, rpccp.Message_Which_resolve, rmsg.Which)
+		assert.Equal(t, theirBootstrapID, rmsg.Resolve.PromiseID)
+		assert.Equal(t, rpccp.Resolve_Which_cap, rmsg.Resolve.Which)
+		desc := rmsg.Resolve.Cap
+		assert.Equal(t, rpccp.CapDescriptor_Which_receiverHosted, desc.Which)
+		assert.Equal(t, myBootstrapID, desc.ReceiverHosted)
+	}
+	// Send disembargo:
+	embargoID := uint32(7)
+	{
+		assert.NoError(t, sendMessage(ctx, p2, &rpcMessage{
+			Which: rpccp.Message_Which_disembargo,
+			Disembargo: &rpcDisembargo{
+				Context: rpcDisembargoContext{
+					Which:          rpccp.Disembargo_context_Which_senderLoopback,
+					SenderLoopback: embargoID,
+				},
+				Target: rpcMessageTarget{
+					Which:       rpccp.MessageTarget_Which_importedCap,
+					ImportedCap: theirBootstrapID,
+				},
+			},
+		}))
+	}
+	// Receive disembargo:
+	{
+		rmsg, release, err := recvMessage(ctx, p2)
+		assert.NoError(t, err)
+		defer release()
+		assert.Equal(t, rpccp.Message_Which_disembargo, rmsg.Which)
+		d := rmsg.Disembargo
+		assert.Equal(t, rpccp.Disembargo_context_Which_receiverLoopback, d.Context.Which)
+		assert.Equal(t, embargoID, d.Context.ReceiverLoopback)
+		tgt := d.Target
+		assert.Equal(t, rpccp.MessageTarget_Which_importedCap, tgt.Which)
+		assert.Equal(t, myBootstrapID, tgt.ImportedCap)
+	}
+}
