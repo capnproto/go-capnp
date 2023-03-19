@@ -490,10 +490,11 @@ func (c *lockedConn) releaseExports(rl *releaseList, exports []*expent) {
 	for _, e := range exports {
 		if e != nil {
 			metadata := e.client.State().Metadata
-			syncutil.With(metadata, func() {
-				c.clearExportID(metadata)
-			})
-
+			if metadata != nil {
+				syncutil.With(metadata, func() {
+					c.clearExportID(metadata)
+				})
+			}
 			rl.Add(e.client.Release)
 		}
 	}

@@ -74,9 +74,11 @@ func (c *lockedConn) releaseExport(id exportID, count uint32) (capnp.Client, err
 		c.lk.exports[id] = nil
 		c.lk.exportID.remove(uint32(id))
 		metadata := client.State().Metadata
-		syncutil.With(metadata, func() {
-			c.clearExportID(metadata)
-		})
+		if metadata != nil {
+			syncutil.With(metadata, func() {
+				c.clearExportID(metadata)
+			})
+		}
 		return client, nil
 	case count > ent.wireRefs:
 		return capnp.Client{}, rpcerr.Failed(errors.New("export ID " + str.Utod(id) + " released too many references"))
