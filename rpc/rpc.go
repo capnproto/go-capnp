@@ -1808,6 +1808,7 @@ func (c *Conn) handleResolve(ctx context.Context, in transport.IncomingMessage) 
 			}
 			rl.Add(func() {
 				imp.resolver.Fulfill(client)
+				client.Release()
 			})
 		case rpccp.Resolve_Which_exception:
 			ex, err := resolve.Exception()
