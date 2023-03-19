@@ -1800,6 +1800,7 @@ func (c *Conn) handleResolve(ctx context.Context, in transport.IncomingMessage) 
 			}
 			dq.Defer(func() {
 				imp.resolver.Fulfill(client)
+				client.Release()
 			})
 		case rpccp.Resolve_Which_exception:
 			ex, err := resolve.Exception()
