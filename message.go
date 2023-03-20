@@ -100,6 +100,8 @@ func NewMultiSegmentMessage(b [][]byte) (msg *Message, first *Segment) {
 	return msg, first
 }
 
+var errArenaNotEmpty = errors.New("new message: arena not empty")
+
 // Reset the message to use a different arena, allowing it
 // to be reused. This invalidates any existing pointers in
 // the Message, and releases all clients in the cap table,
@@ -127,11 +129,11 @@ func (m *Message) Reset(arena Arena) (first *Segment, err error) {
 				return nil, exc.WrapError("new message", err)
 			}
 			if len(first.data) > 0 {
-				return nil, errors.New("new message: arena not empty")
+				return nil, errArenaNotEmpty
 			}
 
 		default:
-			return nil, errors.New("new message: arena not empty")
+			return nil, errArenaNotEmpty
 		}
 
 		if first.ID() != 0 {
