@@ -392,7 +392,6 @@ func TestPromiseOrdering(t *testing.T) {
 		if i == 100 {
 			go func() {
 				bs := testcapnp.PingPong(c1.Bootstrap(ctx))
-				defer bs.Release()
 				r.Fulfill(bs)
 			}()
 		}
