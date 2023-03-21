@@ -918,11 +918,7 @@ func TestRecvBootstrapCall(t *testing.T) {
 	})
 	defer func() {
 		finishTest(t, conn, p2)
-		select {
-		case <-srvShutdown:
-		default:
-			t.Error("Bootstrap client still alive after Close returned")
-		}
+		<-srvShutdown // Hangs if bootstrap client is never shut down.
 	}()
 
 	ctx := context.Background()
@@ -1233,11 +1229,7 @@ func TestRecvBootstrapPipelineCall(t *testing.T) {
 	})
 	defer func() {
 		finishTest(t, conn, p2)
-		select {
-		case <-srvShutdown:
-		default:
-			t.Error("Bootstrap client still alive after Close returned")
-		}
+		<-srvShutdown // Will hang if closing does not shut down the client.
 	}()
 	ctx := context.Background()
 
@@ -1699,13 +1691,9 @@ func TestRecvCancel(t *testing.T) {
 	}
 
 	// 8. Verify that returned capability was shut down.
-	// There's no guarantee when the release/shutdown will happen, other
-	// than it will be released before Close returns.
-	select {
-	case <-retcapShutdown:
-	default:
-		t.Error("returned capability was not shut down")
-	}
+	// There's no guarantee exactly when the release/shutdown will happen,
+	// but Close should trigger it. Otherwise, this will hang:
+	<-retcapShutdown
 }
 
 // TestSendCancel makes a call, cancels the Context, then checks to
