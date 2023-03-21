@@ -117,11 +117,6 @@ type ClientKind = struct {
 }
 
 type client struct {
-	creatorFunc  int
-	creatorFile  string
-	creatorStack string
-	creatorLine  int
-
 	mu       sync.Mutex // protects the struct
 	limiter  flowcontrol.FlowLimiter
 	h        *clientHook // nil if resolved to nil or released
@@ -156,19 +151,6 @@ type clientHook struct {
 	resolvedHook *clientHook // valid only if resolved is closed
 }
 
-func (c Client) setupLeakReporting(creatorFunc int) {
-	if clientLeakFunc == nil {
-		return
-	}
-	c.creatorFunc = creatorFunc
-	_, c.creatorFile, c.creatorLine, _ = runtime.Caller(2)
-	buf := bufferpool.Default.Get(1e6)
-	n := runtime.Stack(buf, false)
-	c.creatorStack = string(buf[:n])
-	bufferpool.Default.Put(buf)
-	c.setFinalizer()
-}
-
 // NewClient creates the first reference to a capability.
 // If hook is nil, then NewClient returns nil.
 //
@@ -187,7 +169,7 @@ func NewClient(hook ClientHook) Client {
 	}
 	h.resolvedHook = h
 	c := Client{client: &client{h: h}}
-	c.setupLeakReporting(1)
+	setupLeakReporting(c)
 	return c
 }
 
@@ -216,7 +198,7 @@ func newPromisedClient(hook ClientHook) (Client, *clientPromise) {
 		metadata:   *NewMetadata(),
 	}
 	c := Client{client: &client{h: h}}
-	c.setupLeakReporting(2)
+	setupLeakReporting(c)
 	return c, &clientPromise{h: h}
 }
 
@@ -534,7 +516,7 @@ func (c Client) AddRef() Client {
 	c.h.refs++
 	c.h.mu.Unlock()
 	d := Client{client: &client{h: c.h}}
-	d.setupLeakReporting(3)
+	setupLeakReporting(d)
 	return d
 }
 
@@ -682,7 +664,7 @@ func (ch *clientHook) isResolved() bool {
 	}
 }
 
-var clientLeakFunc func(string)
+var setupLeakReporting func(Client) = func(Client) {}
 
 // SetClientLeakFunc sets a callback for reporting Clients that went
 // out of scope without being released.  The callback is not guaranteed
@@ -691,45 +673,19 @@ var clientLeakFunc func(string)
 //
 // SetClientLeakFunc must not be called after any calls to NewClient or
 // NewPromisedClient.
-func SetClientLeakFunc(f func(msg string)) {
-	clientLeakFunc = f
-}
-
-func (c Client) setFinalizer() {
-	runtime.SetFinalizer(c.client, finalizeClient)
-}
-
-func finalizeClient(c *client) {
-	// Since there are no other references to c, then we don't have to
-	// acquire the mutex to read.
-	if c.released {
-		return
+func SetClientLeakFunc(clientLeakFunc func(msg string)) {
+	setupLeakReporting = func(c Client) {
+		buf := bufferpool.Default.Get(1e6)
+		n := runtime.Stack(buf, false)
+		stack := string(buf[:n])
+		bufferpool.Default.Put(buf)
+		runtime.SetFinalizer(c.client, func(c *client) {
+			if c.released {
+				return
+			}
+			clientLeakFunc("leaked client created at:\n\n" + stack)
+		})
 	}
-
-	var fname string
-	switch c.creatorFunc {
-	case 1:
-		fname = "NewClient"
-	case 2:
-		fname = "NewPromisedClient"
-	case 3:
-		fname = "AddRef"
-	default:
-		fname = "<???>"
-	}
-	var msg string
-	if c.creatorFile == "" {
-		msg = "leaked client created by " + fname
-	} else {
-		msg = "leaked client created by " + fname + " on " +
-			c.creatorFile + ":" + str.Itod(c.creatorLine)
-	}
-	if c.creatorStack != "" {
-		msg += "\nCreation stack trace:\n" + c.creatorStack + "\n"
-	}
-
-	// finalizeClient will only be called if clientLeakFunc != nil.
-	go clientLeakFunc(msg)
 }
 
 // A ClientPromise resolves the identity of a client created by NewPromisedClient.
@@ -830,11 +786,7 @@ func (wc *WeakClient) AddRef() (c Client, ok bool) {
 	wc.h.refs++
 	wc.h.mu.Unlock()
 	c = Client{client: &client{h: wc.h}}
-	if clientLeakFunc != nil {
-		c.creatorFunc = 3
-		_, c.creatorFile, c.creatorLine, _ = runtime.Caller(1)
-		c.setFinalizer()
-	}
+	setupLeakReporting(c)
 	return c, true
 }
 
