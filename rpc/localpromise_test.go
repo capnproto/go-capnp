@@ -45,12 +45,10 @@ func TestLocalPromiseFulfill(t *testing.T) {
 	})
 	defer rel2()
 
-	pp := testcapnp.PingPong_ServerToClient(&echoNumOrderChecker{
+	r.Fulfill(testcapnp.PingPong_ServerToClient(&echoNumOrderChecker{
 		t:       t,
 		nextNum: 1,
-	})
-	defer pp.Release()
-	r.Fulfill(pp)
+	}))
 
 	fut3, rel3 := p.EchoNum(ctx, func(p testcapnp.PingPong_echoNum_Params) error {
 		p.SetN(3)
@@ -103,4 +101,18 @@ func TestLocalPromiseReject(t *testing.T) {
 
 	_, err = fut3.Struct()
 	assert.NotNil(t, err)
+}
+
+// Test that the promise owns the capability it resolves to; no separate
+// release should be necessary.
+func TestLocalPromiseOwnsResult(t *testing.T) {
+	t.Parallel()
+
+	p, r := capnp.NewLocalPromise[testcapnp.PingPong]()
+	defer p.Release()
+
+	r.Fulfill(testcapnp.PingPong_ServerToClient(&echoNumOrderChecker{
+		t:       t,
+		nextNum: 1,
+	}))
 }
