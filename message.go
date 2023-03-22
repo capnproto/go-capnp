@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"net"
 	"sync"
 	"sync/atomic"
 
@@ -651,6 +652,11 @@ func (e *Encoder) Encode(m *Message) error {
 	}
 
 	return nil
+}
+
+func (e *Encoder) write(bufs [][]byte) error {
+	_, err := (*net.Buffers)(&bufs).WriteTo(e.w)
+	return err
 }
 
 // Marshal concatenates the segments in the message into a single byte

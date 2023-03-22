@@ -7,6 +7,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -198,17 +199,23 @@ func TestServerShutdown(t *testing.T) {
 	echo := air.Echo_ServerToClient(blockingEchoImpl{wait})
 	defer echo.Release()
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	call, finish := echo.Echo(ctx, nil)
 	defer finish()
 	echo.Release()
+
+	// Even though we've dropped the client, existing calls should
+	// still go through:
 	select {
 	case <-call.Done():
-		if _, err := call.Struct(); err == nil {
-			t.Error("call finished without error")
-		}
-	default:
-		t.Error("call not done after Shutdown")
+		t.Error("call finished before cancel()")
+	case <-time.After(10 * time.Millisecond):
+	}
+
+	cancel()
+	<-call.Done() // Will hang if cancel doesn't stop the call.
+
+	if _, err := call.Struct(); err == nil {
+		t.Error("call finished without error")
 	}
 }
 
