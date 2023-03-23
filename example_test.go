@@ -2,7 +2,6 @@ package capnp_test
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	"capnproto.org/go/capnp/v3"
@@ -75,7 +74,7 @@ func Example() {
 	_ = buf
 
 	// ... or write to an io.Writer.
-	file, err := ioutil.TempFile("", "go-capnproto")
+	file, err := os.CreateTemp("", "go-capnproto")
 	if err != nil {
 		panic(err)
 	}
