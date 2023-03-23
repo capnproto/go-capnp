@@ -1639,33 +1639,50 @@ func (c *Conn) handleDisembargo(ctx context.Context, in transport.IncomingMessag
 			return exc.WrapError("incoming disembargo", err)
 		}
 
-		imp, ok := client.State().Brand.Value.(*importClient)
-		if !ok || imp.c != c {
-			client.Release()
-			return rpcerr.Failed(errors.New(
-				"incoming disembargo: sender loopback requested on a capability that is not an import",
-			))
-		}
-		// TODO(maybe): check generation?
-
 		// Since this Cap'n Proto RPC implementation does not send imports
 		// unless they are fully dequeued, we can just immediately loop back.
 		id := d.Context().SenderLoopback()
+
 		c.withLocked(func(c *lockedConn) {
 			c.sendMessage(ctx, func(m rpccp.Message) error {
 				d, err := m.NewDisembargo()
 				if err != nil {
 					return err
 				}
-
+				d.Context().SetReceiverLoopback(id)
 				tgt, err := d.NewTarget()
 				if err != nil {
 					return err
 				}
 
-				tgt.SetImportedCap(uint32(imp.id))
-				d.Context().SetReceiverLoopback(id)
-				return nil
+				brand := client.State().Brand
+				if pc, ok := brand.Value.(capnp.PipelineClient); ok {
+					if q, ok := c.getAnswerQuestion(pc.Answer()); ok {
+						if q.c == (*Conn)(c) {
+							pa, err := tgt.NewPromisedAnswer()
+							if err != nil {
+								return err
+							}
+							pa.SetQuestionId(uint32(q.id))
+							pcTrans := pc.Transform()
+							trans, err := pa.NewTransform(int32(len(pcTrans)))
+							if err != nil {
+								return err
+							}
+							for i, op := range pcTrans {
+								trans.At(i).SetGetPointerField(op.Field)
+							}
+						}
+						return nil
+					}
+				}
+
+				imp, ok := brand.Value.(*importClient)
+				if ok && imp.c == (*Conn)(c) {
+					tgt.SetImportedCap(uint32(imp.id))
+					return nil
+				}
+				return errors.New("target for receiver loopback does not point to the right connection")
 
 			}, func(err error) {
 				defer in.Release()
