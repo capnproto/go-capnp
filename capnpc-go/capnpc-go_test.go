@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"go/parser"
 	"go/token"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -19,7 +19,7 @@ import (
 
 func readTestFile(name string) ([]byte, error) {
 	path := filepath.Join("testdata", name)
-	return ioutil.ReadFile(path)
+	return os.ReadFile(path)
 }
 
 func mustReadTestFile(t *testing.T, name string) []byte {

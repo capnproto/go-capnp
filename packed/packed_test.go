@@ -6,7 +6,6 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"strings"
 	"testing"
@@ -381,7 +380,7 @@ func TestReader_Fail(t *testing.T) {
 	for _, test := range badDecompressionTests {
 		t.Run(test.name, func(t *testing.T) {
 			d := NewReader(bufio.NewReader(bytes.NewReader(test.input)))
-			_, err := ioutil.ReadAll(d)
+			_, err := io.ReadAll(d)
 			assert.Error(t, err, "should return error")
 		})
 	}
@@ -521,7 +520,7 @@ func mustGunzip(s string) []byte {
 	if err != nil {
 		panic(err)
 	}
-	data, err := ioutil.ReadAll(r)
+	data, err := io.ReadAll(r)
 	if err != nil {
 		panic(err)
 	}
