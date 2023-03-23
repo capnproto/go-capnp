@@ -112,29 +112,6 @@ func (ssa *SingleSegmentArena) Release() {
 	*ssa = nil
 }
 
-type roSingleSegment []byte
-
-func (ss roSingleSegment) NumSegments() int64 {
-	return 1
-}
-
-func (ss roSingleSegment) Data(id SegmentID) ([]byte, error) {
-	if id != 0 {
-		return nil, errors.New("segment " + str.Utod(id) + " requested in single segment arena")
-	}
-	return ss, nil
-}
-
-func (ss roSingleSegment) Allocate(sz Size, segs map[SegmentID]*Segment) (SegmentID, []byte, error) {
-	return 0, nil, errors.New("arena is read-only")
-}
-
-func (ss roSingleSegment) String() string {
-	return "read-only single-segment arena [len=" + str.Itod(len(ss)) + "]"
-}
-
-func (ss roSingleSegment) Release() {}
-
 // MultiSegment is an arena that stores object data across multiple []byte
 // buffers, allocating new buffers of exponentially-increasing size when
 // full. This avoids the potentially-expensive slice copying of SingleSegment.
