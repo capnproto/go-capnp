@@ -50,34 +50,11 @@ func (d *Decoder) Decode() (*Message, error) {
 		return nil, errors.New("decode: max message size is smaller than header size")
 	}
 
-	// Read first word (number of segments and first segment size).
-	// For single-segment messages, this will be sufficient.
-	if _, err := io.ReadFull(d.r, d.wordbuf[:]); err == io.EOF {
-		return nil, io.EOF
-	} else if err != nil {
-		return nil, exc.WrapError("decode: read header", err)
-	}
-	maxSeg := SegmentID(binary.LittleEndian.Uint32(d.wordbuf[:]))
-	if maxSeg > maxStreamSegments {
-		return nil, errSegIDTooLarge(maxSeg)
+	hdr, err := d.readHeader(maxSize)
+	if err != nil {
+		return nil, err
 	}
 
-	// Read the rest of the header if more than one segment.
-	var hdr streamHeader
-	if maxSeg == 0 {
-		hdr = streamHeader{d.wordbuf[:]}
-	} else {
-		hdrSize := streamHeaderSize(maxSeg)
-		if hdrSize > maxSize || hdrSize > uint64(maxInt) {
-			return nil, errors.New("decode: message too large")
-		}
-		d.hdrbuf = resizeSlice(d.hdrbuf, int(hdrSize))
-		copy(d.hdrbuf, d.wordbuf[:])
-		if _, err := io.ReadFull(d.r, d.hdrbuf[len(d.wordbuf):]); err != nil {
-			return nil, exc.WrapError("decode: read header", err)
-		}
-		hdr = streamHeader{d.hdrbuf}
-	}
 	total, err := hdr.totalSize()
 	if err != nil {
 		return nil, exc.WrapError("decode", err)
@@ -101,6 +78,49 @@ func (d *Decoder) Decode() (*Message, error) {
 		Arena:          arena,
 		originalBuffer: buf,
 	}, nil
+}
+
+func (d *Decoder) readHeader(maxSize uint64) (streamHeader, error) {
+	// Read first word (number of segments and first segment size).
+	// For single-segment messages, this will be sufficient.
+	maxSeg, err := d.readMaxSeg()
+	if err != nil {
+		return streamHeader{}, err
+	}
+
+	// single-segment message?
+	if maxSeg == 0 {
+		return streamHeader{d.wordbuf[:]}, nil
+	}
+
+	// Read the rest of the header if more than one segment.
+	hdrSize := streamHeaderSize(maxSeg)
+	if hdrSize > maxSize || hdrSize > uint64(maxInt) {
+		return streamHeader{}, errors.New("decode: message too large")
+	}
+
+	d.hdrbuf = resizeSlice(d.hdrbuf, int(hdrSize))
+	copy(d.hdrbuf, d.wordbuf[:])
+	if _, err := io.ReadFull(d.r, d.hdrbuf[len(d.wordbuf):]); err != nil {
+		return streamHeader{}, exc.WrapError("decode: read header", err)
+	}
+
+	return streamHeader{d.hdrbuf}, nil
+}
+
+func (d *Decoder) readMaxSeg() (SegmentID, error) {
+	if _, err := io.ReadFull(d.r, d.wordbuf[:]); err == io.EOF {
+		return 0, io.EOF
+	} else if err != nil {
+		return 0, exc.WrapError("decode: read header", err)
+	}
+
+	maxSeg := SegmentID(binary.LittleEndian.Uint32(d.wordbuf[:]))
+	if maxSeg > maxStreamSegments {
+		return 0, errSegIDTooLarge(maxSeg)
+	}
+
+	return maxSeg, nil
 }
 
 type errSegIDTooLarge SegmentID
