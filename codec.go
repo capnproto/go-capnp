@@ -21,13 +21,6 @@ type Decoder struct {
 	wordbuf [wordSize]byte
 	hdrbuf  []byte
 
-	bufferPool *bufferpool.Pool
-
-	reuse bool
-	buf   []byte
-	msg   Message
-	arena roSingleSegment
-
 	// Maximum number of bytes that can be read per call to Decode.
 	// If not set, a reasonable default is used.
 	MaxMessageSize uint64
@@ -96,42 +89,18 @@ func (d *Decoder) Decode() (*Message, error) {
 	}
 
 	// Read segments.
-	if !d.reuse {
-		var buf []byte
-		if d.bufferPool == nil {
-			buf = make([]byte, int(total))
-		} else {
-			buf = d.bufferPool.Get(int(total))
-		}
-		if _, err := io.ReadFull(d.r, buf); err != nil {
-			return nil, exc.WrapError("decode: read segments", err)
-		}
-		arena, err := demuxArena(hdr, buf)
-		if err != nil {
-			return nil, exc.WrapError("decode", err)
-		}
-		return &Message{
-			Arena:          arena,
-			originalBuffer: buf,
-		}, nil
-	}
-	d.buf = resizeSlice(d.buf, int(total))
-	if _, err := io.ReadFull(d.r, d.buf); err != nil {
+	buf := bufferpool.Default.Get(int(total))
+	if _, err := io.ReadFull(d.r, buf); err != nil {
 		return nil, exc.WrapError("decode: read segments", err)
 	}
-	var arena Arena
-	if maxSeg == 0 {
-		d.arena = d.buf[:len(d.buf):len(d.buf)]
-		arena = &d.arena
-	} else {
-		var err error
-		arena, err = demuxArena(hdr, d.buf)
-		if err != nil {
-			return nil, exc.WrapError("decode", err)
-		}
+	arena, err := demuxArena(hdr, buf)
+	if err != nil {
+		return nil, exc.WrapError("decode", err)
 	}
-	d.msg.Reset(arena)
-	return &d.msg, nil
+	return &Message{
+		Arena:          arena,
+		originalBuffer: buf,
+	}, nil
 }
 
 type errSegIDTooLarge SegmentID
@@ -147,27 +116,6 @@ func resizeSlice(b []byte, size int) []byte {
 		return make([]byte, size)
 	}
 	return b[:size]
-}
-
-// ReuseBuffer causes the decoder to reuse its buffer on subsequent decodes.
-// The decoder may return messages that cannot handle allocations.
-func (d *Decoder) ReuseBuffer() {
-	d.reuse = true
-}
-
-// SetBufferPool registers a buffer pool to allocate message space from, rather
-// than directly allocating buffers with make(). This can help reduce pressure
-// on the garbage collector; pass messages to d.ReleaseMessage() when done with
-// them.
-func (d *Decoder) SetBufferPool(p *bufferpool.Pool) {
-	d.bufferPool = p
-}
-
-func (d *Decoder) ReleaseMessage(m *Message) {
-	if d.bufferPool == nil {
-		return
-	}
-	d.bufferPool.Put(m.originalBuffer)
 }
 
 // Unmarshal reads an unpacked serialized stream into a message.  No
