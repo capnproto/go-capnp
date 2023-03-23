@@ -1797,12 +1797,8 @@ func (c *Conn) handleResolve(ctx context.Context, in transport.IncomingMessage) 
 				}
 				c.sendMessage(ctx, disembargo.buildDisembargo, func(err error) {
 					if err != nil {
-						c.er.ReportError(
-							exc.WrapError(
-								"incoming resolve: send disembargo",
-								err,
-							),
-						)
+						err = exc.WrapError("incoming resolve: send disembargo", err)
+						c.er.ReportError(err)
 					}
 				})
 			}
