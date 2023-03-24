@@ -1828,50 +1828,6 @@ func BenchmarkDecode(b *testing.B) {
 	}
 }
 
-func BenchmarkDecode_Reuse(b *testing.B) {
-	var buf bytes.Buffer
-
-	r := rand.New(rand.NewSource(12345))
-	enc := capnp.NewEncoder(&buf)
-	count := 10000
-
-	for i := 0; i < count; i++ {
-		a := generateA(r)
-		msg, seg, _ := capnp.NewMessage(capnp.SingleSegment(nil))
-		root, _ := air.NewRootBenchmarkA(seg)
-		a.fill(root)
-		enc.Encode(msg)
-	}
-
-	blob := buf.Bytes()
-
-	b.ReportAllocs()
-	b.SetBytes(int64(buf.Len()))
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		dec := capnp.NewDecoder(bytes.NewReader(blob))
-		dec.ReuseBuffer()
-
-		for {
-			msg, err := dec.Decode()
-
-			if err == io.EOF {
-				break
-			}
-
-			if err != nil {
-				b.Fatal(err)
-			}
-
-			_, err = air.ReadRootBenchmarkA(msg)
-			if err != nil {
-				b.Fatal(err)
-			}
-		}
-	}
-}
-
 type testArena []byte
 
 func (ta testArena) NumSegments() int64 {

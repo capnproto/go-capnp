@@ -2,7 +2,7 @@ package text
 
 import (
 	"bytes"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -13,7 +13,7 @@ import (
 
 func readTestFile(name string) ([]byte, error) {
 	path := filepath.Join("testdata", name)
-	return ioutil.ReadFile(path)
+	return os.ReadFile(path)
 }
 
 func TestEncode(t *testing.T) {
