@@ -142,9 +142,10 @@ func MultiSegment(b [][]byte) *MultiSegmentArena {
 // will release the memory per usual.
 func (msa *MultiSegmentArena) Release() {
 	for i, v := range msa.ss {
+		msa.ss[i] = nil
+
 		// segment not in buf?
 		if i >= msa.delim {
-			msa.ss[i] = nil
 			bufferpool.Default.Put(v)
 		}
 	}
