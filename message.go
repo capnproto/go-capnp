@@ -103,10 +103,15 @@ func (m *Message) Reset(arena Arena) (first *Segment, err error) {
 		c.Release()
 	}
 
+	for k := range m.segs {
+		delete(m.segs, k)
+	}
+
 	*m = Message{
 		Arena:         arena,
 		TraverseLimit: m.TraverseLimit,
 		DepthLimit:    m.DepthLimit,
+		segs:          m.segs,
 	}
 
 	if arena != nil {
@@ -311,23 +316,26 @@ func (m *Message) allocSegment(sz Size) (*Segment, error) {
 	if sz > maxAllocSize() {
 		return nil, errors.New("allocation: too large")
 	}
+
 	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	if len(m.segs) == maxInt {
-		m.mu.Unlock()
 		return nil, errors.New("allocation: number of loaded segments exceeds int")
 	}
+
+	// Transition from sole segment to segment map?
 	if m.segs == nil && m.firstSeg.msg != nil {
-		// Transition from sole segment to segment map.
 		m.segs = make(map[SegmentID]*Segment)
 		m.segs[0] = &m.firstSeg
 	}
+
 	id, data, err := m.Arena.Allocate(sz, m.segs)
 	if err != nil {
-		m.mu.Unlock()
 		return nil, exc.WrapError("allocation", err)
 	}
+
 	seg := m.setSegment(id, data)
-	m.mu.Unlock()
 	return seg, nil
 }
 
