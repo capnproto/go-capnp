@@ -136,7 +136,7 @@ func (srv *Server) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, capnp
 		Args:   args,
 		ReleaseArgs: func() {
 			if msg := args.Message(); msg != nil {
-				msg.Reset(nil)
+				msg.Release()
 				args = capnp.Struct{}
 			}
 		},
@@ -244,7 +244,7 @@ func sendArgsToStruct(s capnp.Send) (capnp.Struct, error) {
 		return capnp.Struct{}, err
 	}
 	if err := s.PlaceArgs(st); err != nil {
-		st.Message().Reset(nil)
+		st.Message().Release()
 		return capnp.Struct{}, exc.WrapError("place args", err)
 	}
 	return st, nil
@@ -284,10 +284,6 @@ func (sm sortedMethods) Less(i, j int) bool {
 
 func (sm sortedMethods) Swap(i, j int) {
 	sm[i], sm[j] = sm[j], sm[i]
-}
-
-type resultsAllocer interface {
-	AllocResults(capnp.ObjectSize) (capnp.Struct, error)
 }
 
 func newError(msg string) error {

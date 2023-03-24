@@ -34,7 +34,7 @@ type Transport interface {
 	// The Arena in the returned message should be fast at allocating new
 	// segments.  The returned ReleaseFunc MUST be safe to call concurrently
 	// with subsequent calls to NewMessage.
-	NewMessage() (OutgoingMessage, error)
+	NewMessage() (*OutgoingMessage, error)
 
 	// RecvMessage receives the next message sent from the remote vat.
 	// The returned message is only valid until the release function is
@@ -56,14 +56,36 @@ type Transport interface {
 }
 
 type OutgoingMessage struct {
-	Message rpccp.Message
-	Send    func() error
-	Release capnp.ReleaseFunc
+	Message  rpccp.Message
+	send     func() error
+	released bool
+}
+
+func (o *OutgoingMessage) Release() {
+	if m := o.Message.Message(); !o.released && m != nil {
+		m.Release()
+	}
+}
+
+func (o *OutgoingMessage) Send() error {
+	if !o.released {
+		return o.send()
+	}
+
+	panic("Tried to send() a message that was already released.")
 }
 
 type IncomingMessage struct {
-	Message rpccp.Message
-	Release capnp.ReleaseFunc
+	Message     rpccp.Message
+	ReleaseHook capnp.ReleaseFunc
+}
+
+func (i IncomingMessage) Release() {
+	if m := i.Message.Message(); m != nil {
+		if m.Release(); i.ReleaseHook != nil {
+			i.ReleaseHook()
+		}
+	}
 }
 
 // A Codec is responsible for encoding and decoding messages from
@@ -106,46 +128,30 @@ func NewPackedStream(rwc io.ReadWriteCloser) Transport {
 // NewMessage allocates a new message to be sent.
 //
 // It is safe to call NewMessage concurrently with RecvMessage.
-func (s *transport) NewMessage() (OutgoingMessage, error) {
+func (s *transport) NewMessage() (*OutgoingMessage, error) {
 	arena := capnp.MultiSegment(nil)
 	msg, seg, err := capnp.NewMessage(arena)
 	if err != nil {
 		err = transporterr.Annotate(exc.WrapError("new message", err), "stream transport")
-		return OutgoingMessage{}, err
+		return nil, err
 	}
 	rmsg, err := rpccp.NewRootMessage(seg)
 	if err != nil {
 		err = transporterr.Annotate(exc.WrapError("new message", err), "stream transport")
-		return OutgoingMessage{}, err
+		return nil, err
 	}
 
-	alreadyReleased := false
-
-	send := func() error {
-		if alreadyReleased {
-			panic("Tried to send() a message that was already released.")
-		}
-		if err = s.c.Encode(msg); err != nil {
-			err = transporterr.Annotate(exc.WrapError("send", err), "stream transport")
-		}
-		return err
-	}
-
-	release := func() {
-		if alreadyReleased {
-			return
-		}
-		alreadyReleased = true
-
-		msg.Reset(nil)
-		arena.Release()
-	}
-
-	return OutgoingMessage{
+	out := &OutgoingMessage{
 		Message: rmsg,
-		Send:    send,
-		Release: release,
-	}, nil
+		send: func() (err error) {
+			if err = s.c.Encode(msg); err != nil {
+				err = transporterr.Annotate(exc.WrapError("send", err), "stream transport")
+			}
+			return
+		},
+	}
+
+	return out, nil
 }
 
 // RecvMessage reads the next message from the underlying reader.
@@ -163,14 +169,7 @@ func (s *transport) RecvMessage() (IncomingMessage, error) {
 		return IncomingMessage{}, err
 	}
 
-	release := func() {
-		msg.Reset(nil)
-	}
-
-	return IncomingMessage{
-		Message: rmsg,
-		Release: release,
-	}, nil
+	return IncomingMessage{Message: rmsg}, nil
 }
 
 // Close closes the underlying ReadWriteCloser.  It is not safe to call

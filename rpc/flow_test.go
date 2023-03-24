@@ -40,19 +40,18 @@ func (t *measuringTransport) RecvMessage() (transport.IncomingMessage, error) {
 	}
 
 	t.mu.Lock()
-	t.inUse += size
-	if t.inUse > t.maxInUse {
+	defer t.mu.Unlock()
+
+	if t.inUse += size; t.inUse > t.maxInUse {
 		t.maxInUse = t.inUse
 	}
-	t.mu.Unlock()
 
-	oldRelease := inMsg.Release
-	inMsg.Release = capnp.ReleaseFunc(func() {
-		oldRelease()
+	inMsg.ReleaseHook = func() {
 		t.mu.Lock()
-		defer t.mu.Unlock()
 		t.inUse -= size
-	})
+		t.mu.Unlock()
+	}
+
 	return inMsg, err
 }
 

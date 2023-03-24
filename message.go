@@ -94,10 +94,16 @@ func NewMultiSegmentMessage(b [][]byte) (msg *Message, first *Segment) {
 	return msg, first
 }
 
+// Release is syntactic sugar for Message.Reset(nil).  See
+// docstring for Reset for an important warning.
+func (m *Message) Release() {
+	m.Reset(nil)
+}
+
 // Reset the message to use a different arena, allowing it
 // to be reused. This invalidates any existing pointers in
-// the Message, and releases all clients in the cap table,
-// so use with caution.
+// the Message, releases all clients in the cap table, and
+// releases the current Arena, so use with caution.
 func (m *Message) Reset(arena Arena) (first *Segment, err error) {
 	for _, c := range m.CapTable {
 		c.Release()
@@ -107,10 +113,15 @@ func (m *Message) Reset(arena Arena) (first *Segment, err error) {
 		delete(m.segs, k)
 	}
 
+	if m.Arena != nil {
+		m.Arena.Release()
+	}
+
 	*m = Message{
 		Arena:         arena,
 		TraverseLimit: m.TraverseLimit,
 		DepthLimit:    m.DepthLimit,
+		CapTable:      m.CapTable[:0],
 		segs:          m.segs,
 	}
 

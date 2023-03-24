@@ -164,9 +164,7 @@ func testTransport(t *testing.T, makePipe func() (t1, t2 Transport, err error)) 
 		if err == nil {
 			t.Error("interrupted RecvMessage returned nil error")
 		}
-		if inMsg.Release != nil {
-			inMsg.Release()
-		}
+		inMsg.Release()
 
 		if err := t2.Close(); err != nil {
 			t.Error("t2.Close:", err)
