@@ -21,13 +21,6 @@ type Decoder struct {
 	wordbuf [wordSize]byte
 	hdrbuf  []byte
 
-	bufferPool *bufferpool.Pool
-
-	reuse bool
-	buf   []byte
-	msg   Message
-	arena roSingleSegment
-
 	// Maximum number of bytes that can be read per call to Decode.
 	// If not set, a reasonable default is used.
 	MaxMessageSize uint64
@@ -57,81 +50,76 @@ func (d *Decoder) Decode() (*Message, error) {
 		return nil, errors.New("decode: max message size is smaller than header size")
 	}
 
-	// Read first word (number of segments and first segment size).
-	// For single-segment messages, this will be sufficient.
-	if _, err := io.ReadFull(d.r, d.wordbuf[:]); err == io.EOF {
-		return nil, io.EOF
-	} else if err != nil {
-		return nil, exc.WrapError("decode: read header", err)
-	}
-	maxSeg := SegmentID(binary.LittleEndian.Uint32(d.wordbuf[:]))
-	if maxSeg > maxStreamSegments {
-		return nil, errSegIDTooLarge(maxSeg)
+	hdr, err := d.readHeader(maxSize)
+	if err != nil {
+		return nil, err
 	}
 
-	// Read the rest of the header if more than one segment.
-	var hdr streamHeader
-	if maxSeg == 0 {
-		hdr = streamHeader{d.wordbuf[:]}
-	} else {
-		hdrSize := streamHeaderSize(maxSeg)
-		if hdrSize > maxSize || hdrSize > uint64(maxInt) {
-			return nil, errors.New("decode: message too large")
-		}
-		d.hdrbuf = resizeSlice(d.hdrbuf, int(hdrSize))
-		copy(d.hdrbuf, d.wordbuf[:])
-		if _, err := io.ReadFull(d.r, d.hdrbuf[len(d.wordbuf):]); err != nil {
-			return nil, exc.WrapError("decode: read header", err)
-		}
-		hdr = streamHeader{d.hdrbuf}
-	}
 	total, err := hdr.totalSize()
 	if err != nil {
 		return nil, exc.WrapError("decode", err)
 	}
 	// TODO(someday): if total size is greater than can fit in one buffer,
 	// attempt to allocate buffer per segment.
-	if total > maxSize-uint64(len(hdr.b)) || total > uint64(maxInt) {
+	if total > maxSize-uint64(len(hdr)) || total > uint64(maxInt) {
 		return nil, errors.New("decode: message too large")
 	}
 
 	// Read segments.
-	if !d.reuse {
-		var buf []byte
-		if d.bufferPool == nil {
-			buf = make([]byte, int(total))
-		} else {
-			buf = d.bufferPool.Get(int(total))
-		}
-		if _, err := io.ReadFull(d.r, buf); err != nil {
-			return nil, exc.WrapError("decode: read segments", err)
-		}
-		arena, err := demuxArena(hdr, buf)
-		if err != nil {
-			return nil, exc.WrapError("decode", err)
-		}
-		return &Message{
-			Arena:          arena,
-			originalBuffer: buf,
-		}, nil
-	}
-	d.buf = resizeSlice(d.buf, int(total))
-	if _, err := io.ReadFull(d.r, d.buf); err != nil {
+	buf := bufferpool.Default.Get(int(total))
+	if _, err := io.ReadFull(d.r, buf); err != nil {
 		return nil, exc.WrapError("decode: read segments", err)
 	}
-	var arena Arena
-	if maxSeg == 0 {
-		d.arena = d.buf[:len(d.buf):len(d.buf)]
-		arena = &d.arena
-	} else {
-		var err error
-		arena, err = demuxArena(hdr, d.buf)
-		if err != nil {
-			return nil, exc.WrapError("decode", err)
-		}
+
+	arena := MultiSegment(nil)
+	if err = arena.demux(hdr, buf); err != nil {
+		return nil, exc.WrapError("decode", err)
 	}
-	d.msg.Reset(arena)
-	return &d.msg, nil
+
+	return &Message{Arena: arena}, nil
+}
+
+func (d *Decoder) readHeader(maxSize uint64) (streamHeader, error) {
+	// Read first word (number of segments and first segment size).
+	// For single-segment messages, this will be sufficient.
+	maxSeg, err := d.readMaxSeg()
+	if err != nil {
+		return nil, err
+	}
+
+	// single-segment message?
+	if maxSeg == 0 {
+		return d.wordbuf[:], nil
+	}
+
+	// Read the rest of the header if more than one segment.
+	hdrSize := streamHeaderSize(maxSeg)
+	if hdrSize > maxSize || hdrSize > uint64(maxInt) {
+		return nil, errors.New("decode: message too large")
+	}
+
+	d.hdrbuf = resizeSlice(d.hdrbuf, int(hdrSize))
+	copy(d.hdrbuf, d.wordbuf[:])
+	if _, err := io.ReadFull(d.r, d.hdrbuf[len(d.wordbuf):]); err != nil {
+		return nil, exc.WrapError("decode: read header", err)
+	}
+
+	return d.hdrbuf, nil
+}
+
+func (d *Decoder) readMaxSeg() (SegmentID, error) {
+	if _, err := io.ReadFull(d.r, d.wordbuf[:]); err == io.EOF {
+		return 0, io.EOF
+	} else if err != nil {
+		return 0, exc.WrapError("decode: read header", err)
+	}
+
+	maxSeg := SegmentID(binary.LittleEndian.Uint32(d.wordbuf[:]))
+	if maxSeg > maxStreamSegments {
+		return 0, errSegIDTooLarge(maxSeg)
+	}
+
+	return maxSeg, nil
 }
 
 type errSegIDTooLarge SegmentID
@@ -144,30 +132,10 @@ func (err errSegIDTooLarge) Error() string {
 
 func resizeSlice(b []byte, size int) []byte {
 	if cap(b) < size {
-		return make([]byte, size)
+		bufferpool.Default.Put(b)
+		return bufferpool.Default.Get(size)
 	}
 	return b[:size]
-}
-
-// ReuseBuffer causes the decoder to reuse its buffer on subsequent decodes.
-// The decoder may return messages that cannot handle allocations.
-func (d *Decoder) ReuseBuffer() {
-	d.reuse = true
-}
-
-// SetBufferPool registers a buffer pool to allocate message space from, rather
-// than directly allocating buffers with make(). This can help reduce pressure
-// on the garbage collector; pass messages to d.ReleaseMessage() when done with
-// them.
-func (d *Decoder) SetBufferPool(p *bufferpool.Pool) {
-	d.bufferPool = p
-}
-
-func (d *Decoder) ReleaseMessage(m *Message) {
-	if d.bufferPool == nil {
-		return
-	}
-	d.bufferPool.Put(m.originalBuffer)
 }
 
 // Unmarshal reads an unpacked serialized stream into a message.  No
@@ -185,17 +153,19 @@ func Unmarshal(data []byte) (*Message, error) {
 	if uint64(len(data)) < hdrSize {
 		return nil, errors.New("unmarshal: short header section")
 	}
-	hdr := streamHeader{data[:hdrSize]}
+	hdr := streamHeader(data[:hdrSize])
 	data = data[hdrSize:]
 	if total, err := hdr.totalSize(); err != nil {
 		return nil, exc.WrapError("unmarshal", err)
 	} else if total > uint64(len(data)) {
 		return nil, errors.New("unmarshal: short data section")
 	}
-	arena, err := demuxArena(hdr, data)
-	if err != nil {
+
+	arena := MultiSegment(nil)
+	if err := arena.demux(hdr, data); err != nil {
 		return nil, exc.WrapError("unmarshal", err)
 	}
+
 	return &Message{Arena: arena}, nil
 }
 
@@ -304,24 +274,22 @@ func appendUint32(b []byte, v uint32) []byte {
 
 // streamHeader holds the framing words at the beginning of a serialized
 // Cap'n Proto message.
-type streamHeader struct {
-	b []byte
-}
+type streamHeader []byte
 
 // maxSegment returns the number of segments in the message minus one.
 func (h streamHeader) maxSegment() SegmentID {
-	return SegmentID(binary.LittleEndian.Uint32(h.b))
+	return SegmentID(binary.LittleEndian.Uint32(h))
 }
 
 // segmentSize returns the size of segment i, returning an error if the
 // segment overflows maxSegmentSize.
 func (h streamHeader) segmentSize(i SegmentID) (Size, error) {
-	s := binary.LittleEndian.Uint32(h.b[4+i*4:])
-	sz, ok := wordSize.times(int32(s))
-	if !ok {
-		return 0, errors.New("segment " + str.Utod(i) + ": overflow size")
+	s := binary.LittleEndian.Uint32(h[4+i*4:])
+	if sz, ok := wordSize.times(int32(s)); ok {
+		return sz, nil
 	}
-	return sz, nil
+
+	return 0, errors.New("segment " + str.Utod(i) + ": overflow size")
 }
 
 // totalSize returns the sum of all the segment sizes.  The sum will
@@ -336,28 +304,6 @@ func (h streamHeader) totalSize() (uint64, error) {
 		sum += uint64(x)
 	}
 	return sum, nil
-}
-
-func hasCapacity(b []byte, sz Size) bool {
-	return sz <= Size(cap(b)-len(b))
-}
-
-// demuxArena slices b into a multi-segment arena.  It assumes that
-// len(data) >= hdr.totalSize().
-func demuxArena(hdr streamHeader, data []byte) (Arena, error) {
-	maxSeg := hdr.maxSegment()
-	if int64(maxSeg) > int64(maxInt-1) {
-		return nil, errors.New("number of segments overflows int")
-	}
-	segs := make([][]byte, int(maxSeg+1))
-	for i := range segs {
-		sz, err := hdr.segmentSize(SegmentID(i))
-		if err != nil {
-			return nil, err
-		}
-		segs[i], data = data[:sz:sz], data[sz:]
-	}
-	return MultiSegment(segs), nil
 }
 
 const maxInt = int(^uint(0) >> 1)

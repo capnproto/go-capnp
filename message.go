@@ -35,10 +35,6 @@ type Message struct {
 
 	Arena Arena
 
-	// If not nil, the original buffer from which this message was decoded.
-	// This mostly for the benefit of returning buffers to pools and such.
-	originalBuffer []byte
-
 	// CapTable is the indexed list of the clients referenced in the
 	// message.  Capability pointers inside the message will use this table
 	// to map pointers to Clients.  The table is usually populated by the
@@ -107,10 +103,15 @@ func (m *Message) Reset(arena Arena) (first *Segment, err error) {
 		c.Release()
 	}
 
+	for k := range m.segs {
+		delete(m.segs, k)
+	}
+
 	*m = Message{
 		Arena:         arena,
 		TraverseLimit: m.TraverseLimit,
 		DepthLimit:    m.DepthLimit,
+		segs:          m.segs,
 	}
 
 	if arena != nil {
@@ -315,23 +316,26 @@ func (m *Message) allocSegment(sz Size) (*Segment, error) {
 	if sz > maxAllocSize() {
 		return nil, errors.New("allocation: too large")
 	}
+
 	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	if len(m.segs) == maxInt {
-		m.mu.Unlock()
 		return nil, errors.New("allocation: number of loaded segments exceeds int")
 	}
+
+	// Transition from sole segment to segment map?
 	if m.segs == nil && m.firstSeg.msg != nil {
-		// Transition from sole segment to segment map.
 		m.segs = make(map[SegmentID]*Segment)
 		m.segs[0] = &m.firstSeg
 	}
+
 	id, data, err := m.Arena.Allocate(sz, m.segs)
 	if err != nil {
-		m.mu.Unlock()
 		return nil, exc.WrapError("allocation", err)
 	}
+
 	seg := m.setSegment(id, data)
-	m.mu.Unlock()
 	return seg, nil
 }
 
