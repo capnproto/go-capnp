@@ -70,14 +70,13 @@ func (d *Decoder) Decode() (*Message, error) {
 	if _, err := io.ReadFull(d.r, buf); err != nil {
 		return nil, exc.WrapError("decode: read segments", err)
 	}
-	arena, err := demuxArena(hdr, buf)
-	if err != nil {
+
+	arena := MultiSegment(nil)
+	if err = arena.demux(hdr, buf); err != nil {
 		return nil, exc.WrapError("decode", err)
 	}
-	return &Message{
-		Arena:          arena,
-		originalBuffer: buf,
-	}, nil
+
+	return &Message{Arena: arena}, nil
 }
 
 func (d *Decoder) readHeader(maxSize uint64) (streamHeader, error) {
@@ -133,7 +132,8 @@ func (err errSegIDTooLarge) Error() string {
 
 func resizeSlice(b []byte, size int) []byte {
 	if cap(b) < size {
-		return make([]byte, size)
+		bufferpool.Default.Put(b)
+		return bufferpool.Default.Get(size)
 	}
 	return b[:size]
 }
@@ -160,10 +160,12 @@ func Unmarshal(data []byte) (*Message, error) {
 	} else if total > uint64(len(data)) {
 		return nil, errors.New("unmarshal: short data section")
 	}
-	arena, err := demuxArena(hdr, data)
-	if err != nil {
+
+	arena := MultiSegment(nil)
+	if err := arena.demux(hdr, data); err != nil {
 		return nil, exc.WrapError("unmarshal", err)
 	}
+
 	return &Message{Arena: arena}, nil
 }
 
@@ -302,28 +304,6 @@ func (h streamHeader) totalSize() (uint64, error) {
 		sum += uint64(x)
 	}
 	return sum, nil
-}
-
-func hasCapacity(b []byte, sz Size) bool {
-	return sz <= Size(cap(b)-len(b))
-}
-
-// demuxArena slices b into a multi-segment arena.  It assumes that
-// len(data) >= hdr.totalSize().
-func demuxArena(hdr streamHeader, data []byte) (Arena, error) {
-	maxSeg := hdr.maxSegment()
-	if int64(maxSeg) > int64(maxInt-1) {
-		return nil, errors.New("number of segments overflows int")
-	}
-	segs := make([][]byte, int(maxSeg+1))
-	for i := range segs {
-		sz, err := hdr.segmentSize(SegmentID(i))
-		if err != nil {
-			return nil, err
-		}
-		segs[i], data = data[:sz:sz], data[sz:]
-	}
-	return MultiSegment(segs), nil
 }
 
 const maxInt = int(^uint(0) >> 1)

@@ -35,10 +35,6 @@ type Message struct {
 
 	Arena Arena
 
-	// If not nil, the original buffer from which this message was decoded.
-	// This mostly for the benefit of returning buffers to pools and such.
-	originalBuffer []byte
-
 	// CapTable is the indexed list of the clients referenced in the
 	// message.  Capability pointers inside the message will use this table
 	// to map pointers to Clients.  The table is usually populated by the
