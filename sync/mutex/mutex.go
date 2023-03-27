@@ -87,8 +87,7 @@ func With4[T, A, B, C, D any](m *Mutex[T], f func(*T) (A, B, C, D)) (A, B, C, D)
 // A Locked[T] is a reference to a value of type T which is guarded by a Mutex,
 // which the caller has acquired.
 type Locked[T any] struct {
-	mu       *Mutex[T]
-	unlocked bool
+	mu *Mutex[T]
 }
 
 // Value returns a reference to the protected value. It must not be used after
@@ -100,18 +99,12 @@ type Locked[T any] struct {
 // repeatedly having to write l.Value() is mildly annoying, it makes it
 // much harder to accidentally use the value after unlocking.
 func (l *Locked[T]) Value() *T {
-	if l.unlocked {
-		panic("Called Locked.Value after Unlock.")
-	}
 	return &l.mu.val
 }
 
 // Unlock releases the mutex. Any references to the value obtained via Value
 // must not be used after this is called.
 func (l *Locked[T]) Unlock() {
-	if l.unlocked {
-		panic("Called Locked.Unlock twice.")
-	}
-	l.unlocked = true
 	l.mu.mu.Unlock()
+	l.mu = nil
 }
