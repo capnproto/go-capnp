@@ -57,6 +57,33 @@ func With2[T, A, B any](m *Mutex[T], f func(*T) (A, B)) (A, B) {
 	return a, b
 }
 
+// With3 is like With1, but the callback returns three values instead of one.
+func With3[T, A, B, C any](m *Mutex[T], f func(*T) (A, B, C)) (A, B, C) {
+	var (
+		a A
+		b B
+		c C
+	)
+	m.With(func(t *T) {
+		a, b, c = f(t)
+	})
+	return a, b, c
+}
+
+// With4 is like With1, but the callback returns four values instead of one.
+func With4[T, A, B, C, D any](m *Mutex[T], f func(*T) (A, B, C, D)) (A, B, C, D) {
+	var (
+		a A
+		b B
+		c C
+		d D
+	)
+	m.With(func(t *T) {
+		a, b, c, d = f(t)
+	})
+	return a, b, c, d
+}
+
 // A Locked[T] is a reference to a value of type T which is guarded by a Mutex,
 // which the caller has acquired.
 type Locked[T any] struct {
