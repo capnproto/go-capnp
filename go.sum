@@ -40,3 +40,5 @@ gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c h1:dUUwHk2QECo/6vqA44rthZ8ie
 gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
 zenhack.net/go/util v0.0.0-20230218002511-744d2d6d1739 h1:/QnbZBURrZUFvnxB4wDyRrPsWzh2KWbJ6AjUjohCHJ8=
 zenhack.net/go/util v0.0.0-20230218002511-744d2d6d1739/go.mod h1:0lafdGg7tDb7RcXASgmJmRbLFLkAxu328+KGIs7icDE=
+zenhack.net/go/util v0.0.0-20230327231740-da8cb323921c h1:L+T38E+u91e956ykUrYKHZaZef9hKMJsnGmTbMVb2cE=
+zenhack.net/go/util v0.0.0-20230327231740-da8cb323921c/go.mod h1:0lafdGg7tDb7RcXASgmJmRbLFLkAxu328+KGIs7icDE=
