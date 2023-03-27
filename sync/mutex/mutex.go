@@ -66,6 +66,12 @@ type Locked[T any] struct {
 
 // Value returns a reference to the protected value. It must not be used after
 // calling Unlock.
+//
+// Value will panic if called after Unlock()
+//
+// We recommend against assigning the result of Value() to a variable; while
+// repeatedly having to write l.Value() is mildly annoying, it makes it
+// much harder to accidentally use the value after unlocking.
 func (l *Locked[T]) Value() *T {
 	if l.unlocked {
 		panic("Called Locked.Value after Unlock.")
