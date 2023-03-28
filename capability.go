@@ -385,14 +385,14 @@ func (c Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 		gotResponse = func() {}
 	}
 	p := ans.f.promise
-	p.mu.Lock()
-	if p.isResolved() {
+	l := p.state.Lock()
+	if l.Value().isResolved() {
 		// Wow, that was fast.
-		p.mu.Unlock()
+		l.Unlock()
 		gotResponse()
 	} else {
-		p.signals = append(p.signals, gotResponse)
-		p.mu.Unlock()
+		l.Value().signals = append(l.Value().signals, gotResponse)
+		l.Unlock()
 	}
 
 	return ans, rel
