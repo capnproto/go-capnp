@@ -12,6 +12,7 @@ import (
 	"capnproto.org/go/capnp/v3/flowcontrol"
 	"capnproto.org/go/capnp/v3/internal/str"
 	"capnproto.org/go/capnp/v3/internal/syncutil"
+	"zenhack.net/go/util/sync/mutex"
 )
 
 func init() {
@@ -142,10 +143,13 @@ type clientHook struct {
 	// done is closed when refs == 0 and calls == 0.
 	done chan struct{}
 
+	state mutex.Mutex[clientHookState]
+}
+
+type clientHookState struct {
 	// resolved is closed after resolvedHook is set
 	resolved chan struct{}
 
-	mu           sync.Mutex
 	refs         int         // how many open Clients reference this clientHook
 	calls        int         // number of outstanding ClientHook accesses
 	resolvedHook *clientHook // valid only if resolved is closed
@@ -163,11 +167,15 @@ func NewClient(hook ClientHook) Client {
 	h := &clientHook{
 		ClientHook: hook,
 		done:       make(chan struct{}),
-		refs:       1,
-		resolved:   closedSignal,
 		metadata:   *NewMetadata(),
+		state: mutex.New(clientHookState{
+			resolved: closedSignal,
+			refs:     1,
+		}),
 	}
-	h.resolvedHook = h
+	h.state.With(func(s *clientHookState) {
+		s.resolvedHook = h
+	})
 	c := Client{client: &client{h: h}}
 	setupLeakReporting(c)
 	return c
@@ -193,9 +201,11 @@ func newPromisedClient(hook ClientHook) (Client, *clientPromise) {
 	h := &clientHook{
 		ClientHook: hook,
 		done:       make(chan struct{}),
-		refs:       1,
-		resolved:   make(chan struct{}),
 		metadata:   *NewMetadata(),
+		state: mutex.New(clientHookState{
+			resolved: make(chan struct{}),
+			refs:     1,
+		}),
 	}
 	c := Client{client: &client{h: h}}
 	setupLeakReporting(c)
@@ -214,18 +224,19 @@ func (c Client) startCall() (hook ClientHook, resolved, released bool, finish fu
 	if c.h == nil {
 		return nil, true, c.released, func() {}
 	}
-	c.h.mu.Lock()
-	c.h = resolveHook(c.h)
+	l := c.h.state.Lock()
+	c.h, l = resolveHook(c.h, l)
 	if c.h == nil {
 		return nil, true, false, func() {}
 	}
-	c.h.calls++
-	c.h.mu.Unlock()
+	l.Value().calls++
+	isResolved := l.Value().isResolved()
+	l.Unlock()
 	savedHook := c.h
-	return savedHook.ClientHook, savedHook.isResolved(), false, func() {
-		syncutil.With(&savedHook.mu, func() {
-			savedHook.calls--
-			if savedHook.refs == 0 && savedHook.calls == 0 {
+	return savedHook.ClientHook, isResolved, false, func() {
+		savedHook.state.With(func(s *clientHookState) {
+			s.calls--
+			if s.refs == 0 && s.calls == 0 {
 				close(savedHook.done)
 			}
 		})
@@ -241,34 +252,35 @@ func (c Client) peek() (hook *clientHook, released bool, resolved bool) {
 	if c.h == nil {
 		return nil, c.released, true
 	}
-	c.h.mu.Lock()
-	c.h = resolveHook(c.h)
+	l := c.h.state.Lock()
+	c.h, l = resolveHook(c.h, l)
 	if c.h == nil {
 		return nil, false, true
 	}
-	resolved = c.h.isResolved()
-	c.h.mu.Unlock()
+	resolved = l.Value().isResolved()
+	l.Unlock()
 	return c.h, false, resolved
 }
 
 // resolveHook resolves h as much as possible without blocking.
-// The caller must be holding onto h.mu and when resolveHook returns, it
-// will be holding onto the mutex of the returned hook if not nil.
-func resolveHook(h *clientHook) *clientHook {
+// l must point to the state belonging to h. resolveHook returns,
+// l will be invalid. The returnd Locked will point at the state of
+// the returned clientHook if they are not nil.
+func resolveHook(h *clientHook, l *mutex.Locked[clientHookState]) (*clientHook, *mutex.Locked[clientHookState]) {
 	for {
-		if !h.isResolved() {
-			return h
+		if !l.Value().isResolved() {
+			return h, l
 		}
-		r := h.resolvedHook
+		r := l.Value().resolvedHook
 		if r == h {
-			return h
+			return h, l
 		}
-		h.mu.Unlock()
+		l.Unlock()
 		h = r
 		if h == nil {
-			return nil
+			return nil, nil
 		}
-		h.mu.Lock()
+		l = h.state.Lock()
 	}
 }
 
@@ -486,8 +498,12 @@ func (c Client) Resolve(ctx context.Context) error {
 			return nil
 		}
 
+		resolvedCh := mutex.With1(&h.state, func(s *clientHookState) <-chan struct{} {
+			return s.resolved
+		})
+
 		select {
-		case <-h.resolved:
+		case <-resolvedCh:
 		case <-ctx.Done():
 			return ctx.Err()
 		}
@@ -508,13 +524,13 @@ func (c Client) AddRef() Client {
 	if c.h == nil {
 		return Client{}
 	}
-	c.h.mu.Lock()
-	c.h = resolveHook(c.h)
+	l := c.h.state.Lock()
+	c.h, l = resolveHook(c.h, l)
 	if c.h == nil {
 		return Client{}
 	}
-	c.h.refs++
-	c.h.mu.Unlock()
+	l.Value().refs++
+	l.Unlock()
 	d := Client{client: &client{h: c.h}}
 	setupLeakReporting(d)
 	return d
@@ -585,19 +601,19 @@ func (c Client) String() string {
 		c.mu.Unlock()
 		return "<nil>"
 	}
-	c.h.mu.Lock()
-	c.h = resolveHook(c.h)
+	l := c.h.state.Lock()
+	c.h, l = resolveHook(c.h, l)
 	if c.h == nil {
 		c.mu.Unlock()
 		return "<nil>"
 	}
 	var s string
-	if c.h.isResolved() {
+	if l.Value().isResolved() {
 		s = "<client " + c.h.ClientHook.String() + ">"
 	} else {
 		s = "<unresolved client " + c.h.ClientHook.String() + ">"
 	}
-	c.h.mu.Unlock()
+	l.Unlock()
 	c.mu.Unlock()
 	return s
 }
@@ -618,24 +634,24 @@ func (c Client) Release() {
 		return
 	}
 	c.released = true
-	c.h.mu.Lock()
-	c.h = resolveHook(c.h)
+	l := c.h.state.Lock()
+	c.h, l = resolveHook(c.h, l)
 	if c.h == nil {
 		c.mu.Unlock()
 		return
 	}
 	h := c.h
 	c.h = nil
-	h.refs--
-	if h.refs > 0 {
-		h.mu.Unlock()
+	l.Value().refs--
+	if l.Value().refs > 0 {
+		l.Unlock()
 		c.mu.Unlock()
 		return
 	}
-	if h.calls == 0 {
+	if l.Value().calls == 0 {
 		close(h.done)
 	}
-	h.mu.Unlock()
+	l.Unlock()
 	c.mu.Unlock()
 	<-h.done
 	h.Shutdown()
@@ -653,11 +669,10 @@ func (Client) DecodeFromPtr(p Ptr) Client {
 
 var _ TypeParam[Client] = Client{}
 
-// isResolve reports whether ch has been resolved.
-// The caller must be holding onto ch.mu.
-func (ch *clientHook) isResolved() bool {
+// isResolve reports whether the clientHook s belongs to is resolved.
+func (s *clientHookState) isResolved() bool {
 	select {
-	case <-ch.resolved:
+	case <-s.resolved:
 		return true
 	default:
 		return false
@@ -733,28 +748,28 @@ func (cp *clientPromise) fulfill(c Client) {
 	}
 
 	// Mark hook as resolved.
-	cp.h.mu.Lock()
-	if cp.h.isResolved() {
-		cp.h.mu.Unlock()
+	l := cp.h.state.Lock()
+	if l.Value().isResolved() {
+		l.Unlock()
 		panic("ClientPromise.Fulfill called more than once")
 	}
-	cp.h.resolvedHook = rh
-	close(cp.h.resolved)
-	refs := cp.h.refs
-	cp.h.refs = 0
+	l.Value().resolvedHook = rh
+	close(l.Value().resolved)
+	refs := l.Value().refs
+	l.Value().refs = 0
 	if refs == 0 {
-		cp.h.mu.Unlock()
+		l.Unlock()
 		return
 	}
 
 	// Client still had references, so we're responsible for shutting it down.
-	if cp.h.calls == 0 {
+	if l.Value().calls == 0 {
 		close(cp.h.done)
 	}
-	rh = resolveHook(cp.h) // swaps mutex on cp.h for mutex on rh
+	rh, l = resolveHook(cp.h, l) // swaps mutex on cp.h for mutex on rh
 	if rh != nil {
-		rh.refs += refs
-		rh.mu.Unlock()
+		l.Value().refs += refs
+		l.Unlock()
 	}
 }
 
@@ -774,17 +789,17 @@ func (wc *WeakClient) AddRef() (c Client, ok bool) {
 	if wc.h == nil {
 		return Client{}, true
 	}
-	wc.h.mu.Lock()
-	wc.h = resolveHook(wc.h)
+	l := wc.h.state.Lock()
+	wc.h, l = resolveHook(wc.h, l)
 	if wc.h == nil {
 		return Client{}, true
 	}
-	if wc.h.refs == 0 {
-		wc.h.mu.Unlock()
+	if l.Value().refs == 0 {
+		l.Unlock()
 		return Client{}, false
 	}
-	wc.h.refs++
-	wc.h.mu.Unlock()
+	l.Value().refs++
+	l.Unlock()
 	c = Client{client: &client{h: wc.h}}
 	setupLeakReporting(c)
 	return c, true
@@ -985,11 +1000,15 @@ func ErrorClient(e error) Client {
 	h := &clientHook{
 		ClientHook: errorClient{e},
 		done:       make(chan struct{}),
-		refs:       1,
-		resolved:   closedSignal,
 		metadata:   *NewMetadata(),
+		state: mutex.New(clientHookState{
+			resolved: closedSignal,
+			refs:     1,
+		}),
 	}
-	h.resolvedHook = h
+	h.state.With(func(s *clientHookState) {
+		s.resolvedHook = h
+	})
 	return Client{client: &client{h: h}}
 }
 
