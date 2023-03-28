@@ -34,7 +34,7 @@ func (t *measuringTransport) RecvMessage() (transport.IncomingMessage, error) {
 		return inMsg, err
 	}
 
-	size, err := capnp.Struct(inMsg.Message).Message().TotalSize()
+	size, err := inMsg.Message().Message().TotalSize()
 	if err != nil {
 		return inMsg, err
 	}
@@ -46,13 +46,24 @@ func (t *measuringTransport) RecvMessage() (transport.IncomingMessage, error) {
 		t.maxInUse = t.inUse
 	}
 
-	inMsg.ReleaseHook = func() {
-		t.mu.Lock()
-		t.inUse -= size
-		t.mu.Unlock()
-	}
+	return releaseHook{
+		t:               t,
+		IncomingMessage: inMsg,
+	}, nil
+}
 
-	return inMsg, err
+type releaseHook struct {
+	t    *measuringTransport
+	size uint64
+	transport.IncomingMessage
+}
+
+func (rh releaseHook) Release() {
+	rh.IncomingMessage.Release()
+
+	rh.t.mu.Lock()
+	rh.t.inUse -= rh.size
+	rh.t.mu.Lock()
 }
 
 // Test that attaching a fixed-size FlowLimiter results in actually limiting the

@@ -22,28 +22,31 @@ import (
 // with RecvMessage.
 type Transport interface {
 	// NewMessage allocates a new message to be sent over the transport.
-	// The caller must call the release function when it no longer needs
-	// to reference the message. Calling the release function more than once
-	// has no effect. Before releasing the message, send may be called at most
-	// once to send the mssage.
+	// The caller must call OutgoingMessage.Release() when it no longer
+	// needs to reference the message. Calling Release() more than once
+	// has no effect.  Before releasing the message, Send() MAY be called
+	// at most once to send the mssage.
 	//
-	// Messages returned by NewMessage must have a nil CapTable.
-	// When the returned ReleaseFunc is called, any clients in the message's
-	// CapTable will be released.
+	// OutgoingMessage instances returned by NewMessage must have a nil
+	// CapTable.  When OutgoingMessage.Release() is called, the underlying
+	// *capnp.Message will be released. This will also release any clients
+	// in the message's CapTable and release its Arena.
 	//
 	// The Arena in the returned message should be fast at allocating new
 	// segments.  The returned ReleaseFunc MUST be safe to call concurrently
 	// with subsequent calls to NewMessage.
-	NewMessage() (*OutgoingMessage, error)
+	NewMessage() (OutgoingMessage, error)
 
 	// RecvMessage receives the next message sent from the remote vat.
-	// The returned message is only valid until the release function is
-	// called.  The release function may be called concurrently with
-	// RecvMessage or with any other release function returned by RecvMessage.
+	// The returned message is only valid until the release method is
+	// called.  The IncomingMessage.Release() method may be called
+	// concurrently with RecvMessage or with any other release function
+	// returned by RecvMessage.
 	//
-	// Messages returned by RecvMessage must have a nil CapTable.
-	// When the returned ReleaseFunc is called, any clients in the message's
-	// CapTable will be released.
+	// IncomingMessage instances returned by RecvMessage must have a nil
+	// CapTable. When IncomingMessage.Release() is called, the underlying
+	// *capnp.Message will be released. This will also release any clients
+	// in the message's CapTable and release its Arena.
 	//
 	// The Arena in the returned message should not fetch segments lazily;
 	// the Arena should be fast to access other segments.
@@ -55,37 +58,32 @@ type Transport interface {
 	Close() error
 }
 
-type OutgoingMessage struct {
-	Message  rpccp.Message
-	send     func() error
-	released bool
+// OutgoingMessage is a message that can be sent at a later time.
+// Release() MUST be called when the OutgoingMessage is no longer in
+// use. Before releasing an ougoing message, Send() MAY be called at
+// most once to send the message over the transport that produced it.
+//
+// Implementations MUST ensure the cap table is empty before Send is
+// called, and SHOULD release the underlying *capnp.Message when the
+// Release() method is called.
+//
+// Release() MUST be idempotent, and calls to Send() after a call to
+// Release MUST panic.
+type OutgoingMessage interface {
+	Send() error
+	Message() rpccp.Message
+	Release()
 }
 
-func (o *OutgoingMessage) Release() {
-	if m := o.Message.Message(); !o.released && m != nil {
-		m.Release()
-	}
-}
-
-func (o *OutgoingMessage) Send() error {
-	if !o.released {
-		return o.send()
-	}
-
-	panic("Tried to send() a message that was already released.")
-}
-
-type IncomingMessage struct {
-	Message     rpccp.Message
-	ReleaseHook capnp.ReleaseFunc
-}
-
-func (i IncomingMessage) Release() {
-	if m := i.Message.Message(); m != nil {
-		if m.Release(); i.ReleaseHook != nil {
-			i.ReleaseHook()
-		}
-	}
+// IncomingMessage is a message that has arrived over a transport.
+// Release() MUST be called when the IncomingMessage is no longer
+// in use.
+//
+// Implementations SHOULD release the underlying *capnp.Message when
+// the Release() method is called.  Release() MUST be idempotent.
+type IncomingMessage interface {
+	Message() rpccp.Message
+	Release()
 }
 
 // A Codec is responsible for encoding and decoding messages from
@@ -128,30 +126,31 @@ func NewPackedStream(rwc io.ReadWriteCloser) Transport {
 // NewMessage allocates a new message to be sent.
 //
 // It is safe to call NewMessage concurrently with RecvMessage.
-func (s *transport) NewMessage() (*OutgoingMessage, error) {
+func (s *transport) NewMessage() (OutgoingMessage, error) {
 	arena := capnp.MultiSegment(nil)
-	msg, seg, err := capnp.NewMessage(arena)
+	_, seg, err := capnp.NewMessage(arena)
 	if err != nil {
 		err = transporterr.Annotate(exc.WrapError("new message", err), "stream transport")
 		return nil, err
 	}
-	rmsg, err := rpccp.NewRootMessage(seg)
+	m, err := rpccp.NewRootMessage(seg)
 	if err != nil {
 		err = transporterr.Annotate(exc.WrapError("new message", err), "stream transport")
 		return nil, err
 	}
 
-	out := &OutgoingMessage{
-		Message: rmsg,
-		send: func() (err error) {
-			if err = s.c.Encode(msg); err != nil {
-				err = transporterr.Annotate(exc.WrapError("send", err), "stream transport")
-			}
-			return
-		},
+	send := func(m *capnp.Message) (err error) {
+		if err = s.c.Encode(m); err != nil {
+			err = transporterr.Annotate(exc.WrapError("send", err), "stream transport")
+		}
+
+		return
 	}
 
-	return out, nil
+	return &outgoingMsg{
+		message: m,
+		send:    send,
+	}, nil
 }
 
 // RecvMessage reads the next message from the underlying reader.
@@ -161,15 +160,15 @@ func (s *transport) RecvMessage() (IncomingMessage, error) {
 	msg, err := s.c.Decode()
 	if err != nil {
 		err = transporterr.Annotate(exc.WrapError("receive", err), "stream transport")
-		return IncomingMessage{}, err
+		return nil, err
 	}
 	rmsg, err := rpccp.ReadRootMessage(msg)
 	if err != nil {
 		err = transporterr.Annotate(exc.WrapError("receive", err), "stream transport")
-		return IncomingMessage{}, err
+		return nil, err
 	}
 
-	return IncomingMessage{Message: rmsg}, nil
+	return incomingMsg(rmsg), nil
 }
 
 // Close closes the underlying ReadWriteCloser.  It is not safe to call
@@ -214,3 +213,39 @@ type packedEncoding struct{}
 
 func (packedEncoding) NewEncoder(w io.Writer) *capnp.Encoder { return capnp.NewPackedEncoder(w) }
 func (packedEncoding) NewDecoder(r io.Reader) *capnp.Decoder { return capnp.NewPackedDecoder(r) }
+
+type outgoingMsg struct {
+	message  rpccp.Message
+	send     func(*capnp.Message) error
+	released bool
+}
+
+func (o *outgoingMsg) Release() {
+	if m := o.message.Message(); !o.released && m != nil {
+		m.Release()
+	}
+}
+
+func (o *outgoingMsg) Message() rpccp.Message {
+	return o.message
+}
+
+func (o *outgoingMsg) Send() error {
+	if !o.released {
+		return o.send(o.message.Message())
+	}
+
+	panic("call to Send() after call to Release()")
+}
+
+type incomingMsg rpccp.Message
+
+func (i incomingMsg) Message() rpccp.Message {
+	return rpccp.Message(i)
+}
+
+func (i incomingMsg) Release() {
+	if m := i.Message().Message(); m != nil {
+		m.Release()
+	}
+}

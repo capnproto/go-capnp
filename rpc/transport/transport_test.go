@@ -9,6 +9,8 @@ import (
 
 	capnp "capnproto.org/go/capnp/v3"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func testTransport(t *testing.T, makePipe func() (t1, t2 Transport, err error)) {
@@ -51,14 +53,14 @@ func testTransport(t *testing.T, makePipe func() (t1, t2 Transport, err error)) 
 		defer bootMsg.Release()
 
 		// Fill in bootstrap message
-		boot, err := bootMsg.Message.NewBootstrap()
+		boot, err := bootMsg.Message().NewBootstrap()
 		if err != nil {
 			t.Fatal("NewBootstrap:", err)
 		}
 		boot.SetQuestionId(42)
 
 		// Fill in call message
-		call, err := callMsg.Message.NewCall()
+		call, err := callMsg.Message().NewCall()
 		if err != nil {
 			t.Fatal("NewCall:", err)
 		}
@@ -79,8 +81,8 @@ func testTransport(t *testing.T, makePipe func() (t1, t2 Transport, err error)) 
 			t.Fatal("NewParams:", err)
 		}
 		// simulate mutating CapTable
-		callMsg.Message.Message().AddCap(capnp.ErrorClient(errors.New("foo")))
-		callMsg.Message.Message().CapTable = nil
+		callMsg.Message().Message().AddCap(capnp.ErrorClient(errors.New("foo")))
+		callMsg.Message().Message().CapTable = nil
 		capPtr := capnp.NewInterface(params.Segment(), 0).ToPtr()
 		if err := params.SetContent(capPtr); err != nil {
 			t.Fatal("SetContent:", err)
@@ -100,13 +102,13 @@ func testTransport(t *testing.T, makePipe func() (t1, t2 Transport, err error)) 
 		if err != nil {
 			t.Fatal("t2.RecvMessage:", err)
 		}
-		if r1.Message.Message().CapTable != nil {
+		if r1.Message().Message().CapTable != nil {
 			t.Error("t2.RecvMessage(ctx).Message().CapTable is not nil")
 		}
-		if r1.Message.Which() != rpccp.Message_Which_bootstrap {
-			t.Errorf("t2.RecvMessage(ctx).Which = %v; want bootstrap", r1.Message.Which())
+		if r1.Message().Which() != rpccp.Message_Which_bootstrap {
+			t.Errorf("t2.RecvMessage(ctx).Which = %v; want bootstrap", r1.Message().Which())
 		} else {
-			rboot, _ := r1.Message.Bootstrap()
+			rboot, _ := r1.Message().Bootstrap()
 			if rboot.QuestionId() != 42 {
 				t.Errorf("t2.RecvMessage(ctx).Bootstrap.QuestionID = %d; want 42", rboot.QuestionId())
 			}
@@ -122,13 +124,13 @@ func testTransport(t *testing.T, makePipe func() (t1, t2 Transport, err error)) 
 		if err != nil {
 			t.Fatal("t2.RecvMessage:", err)
 		}
-		if r2.Message.Message().CapTable != nil {
+		if r2.Message().Message().CapTable != nil {
 			t.Error("t2.RecvMessage(ctx).Message().CapTable is not nil")
 		}
-		if r2.Message.Which() != rpccp.Message_Which_call {
-			t.Errorf("t2.RecvMessage(ctx).Which = %v; want call", r2.Message.Which())
+		if r2.Message().Which() != rpccp.Message_Which_call {
+			t.Errorf("t2.RecvMessage(ctx).Which = %v; want call", r2.Message().Which())
 		} else {
-			rcall, _ := r2.Message.Call()
+			rcall, _ := r2.Message().Call()
 			if rcall.QuestionId() != 123 {
 				t.Errorf("t2.RecvMessage(ctx).Call.QuestionID = %d; want 123", rcall.QuestionId())
 			}
@@ -152,23 +154,20 @@ func testTransport(t *testing.T, makePipe func() (t1, t2 Transport, err error)) 
 	})
 	t.Run("InterruptRecv", func(t *testing.T) {
 		t1, t2, err := makePipe()
-		if err != nil {
-			t.Fatal("makePipe:", err)
-		}
+		require.NoError(t, err, "makePipe should not fail")
 
 		go func() {
 			time.Sleep(100 * time.Millisecond)
 			t1.Close()
 		}()
-		inMsg, err := t1.RecvMessage() // hangs here if doesn't work
-		if err == nil {
-			t.Error("interrupted RecvMessage returned nil error")
-		}
-		inMsg.Release()
+		_, err = t1.RecvMessage() // hangs here if doesn't work
+		assert.Error(t, err,
+			"RecvMessage() should return error when transport is closed")
 
-		if err := t2.Close(); err != nil {
-			t.Error("t2.Close:", err)
-		}
+		err = t2.Close()
+		assert.NoError(t, err,
+			"Close() should not return error after remote side closes")
+
 	})
 }
 
