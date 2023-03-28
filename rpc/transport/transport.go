@@ -27,10 +27,9 @@ type Transport interface {
 	// has no effect.  Before releasing the message, Send() MAY be called
 	// at most once to send the mssage.
 	//
-	// OutgoingMessage instances returned by NewMessage must have a nil
-	// CapTable.  When OutgoingMessage.Release() is called, the underlying
-	// *capnp.Message will be released. This will also release any clients
-	// in the message's CapTable and release its Arena.
+	// When Release() is called, the underlying *capnp.Message SHOULD be
+	// released.  This will also release any clients in the CapTable and
+	// release its Arena.
 	//
 	// The Arena in the returned message should be fast at allocating new
 	// segments.  The returned ReleaseFunc MUST be safe to call concurrently
@@ -43,10 +42,9 @@ type Transport interface {
 	// concurrently with RecvMessage or with any other release function
 	// returned by RecvMessage.
 	//
-	// IncomingMessage instances returned by RecvMessage must have a nil
-	// CapTable. When IncomingMessage.Release() is called, the underlying
-	// *capnp.Message will be released. This will also release any clients
-	// in the message's CapTable and release its Arena.
+	// When Release() is called, the underlying *capnp.Message SHOULD be
+	// released.  This will also release any clients in the CapTable and
+	// release its Arena.
 	//
 	// The Arena in the returned message should not fetch segments lazily;
 	// the Arena should be fast to access other segments.
@@ -63,9 +61,8 @@ type Transport interface {
 // use. Before releasing an ougoing message, Send() MAY be called at
 // most once to send the message over the transport that produced it.
 //
-// Implementations MUST ensure the cap table is empty before Send is
-// called, and SHOULD release the underlying *capnp.Message when the
-// Release() method is called.
+// Implementations SHOULD release the underlying *capnp.Message when
+// the Release() method is called.
 //
 // Release() MUST be idempotent, and calls to Send() after a call to
 // Release MUST panic.
