@@ -153,7 +153,7 @@ func TestBootstrapReceiverAnswer(t *testing.T) {
 	outMsg, err := trans.NewMessage()
 	util.Chkfatal(err)
 
-	bs, err := outMsg.Message.NewBootstrap()
+	bs, err := outMsg.Message().NewBootstrap()
 	util.Chkfatal(err)
 	bs.SetQuestionId(0)
 	outMsg.Send()
@@ -163,7 +163,7 @@ func TestBootstrapReceiverAnswer(t *testing.T) {
 	util.Chkfatal(err)
 
 	// bootstrap.call(cap = bootstrap)
-	call, err := outMsg.Message.NewCall()
+	call, err := outMsg.Message().NewCall()
 	util.Chkfatal(err)
 	call.SetQuestionId(1)
 	tgt, err := call.NewTarget()
@@ -218,7 +218,7 @@ func TestCallReceiverAnswer(t *testing.T) {
 	outMsg, err := trans.NewMessage()
 	util.Chkfatal(err)
 
-	bs, err := outMsg.Message.NewBootstrap()
+	bs, err := outMsg.Message().NewBootstrap()
 	util.Chkfatal(err)
 	bs.SetQuestionId(0)
 	outMsg.Send()
@@ -228,7 +228,7 @@ func TestCallReceiverAnswer(t *testing.T) {
 	util.Chkfatal(err)
 
 	// qid1 = bootstrap.self()
-	call, err := outMsg.Message.NewCall()
+	call, err := outMsg.Message().NewCall()
 	util.Chkfatal(err)
 	call.SetQuestionId(1)
 	tgt, err := call.NewTarget()
@@ -245,7 +245,7 @@ func TestCallReceiverAnswer(t *testing.T) {
 	util.Chkfatal(err)
 
 	// qid1.self.call(cap = qid1.self)
-	call, err = outMsg.Message.NewCall()
+	call, err = outMsg.Message().NewCall()
 	util.Chkfatal(err)
 	call.SetQuestionId(2)
 	tgt, err = call.NewTarget()

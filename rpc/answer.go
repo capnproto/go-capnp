@@ -103,7 +103,7 @@ func (c *Conn) newReturn() (_ rpccp.Return, sendMsg func(*lockedConn), _ *rc.Rel
 	if err != nil {
 		return rpccp.Return{}, nil, nil, rpcerr.WrapFailed("create return", err)
 	}
-	ret, err := outMsg.Message.NewReturn()
+	ret, err := outMsg.Message().NewReturn()
 	if err != nil {
 		outMsg.Release()
 		return rpccp.Return{}, nil, nil, rpcerr.WrapFailed("create return", err)
