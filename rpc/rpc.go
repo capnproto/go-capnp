@@ -1770,7 +1770,7 @@ func (c *Conn) handleResolve(ctx context.Context, in transport.IncomingMessage) 
 	rl := &releaseList{}
 	defer rl.Release()
 
-	resolve, err := in.Message.Resolve()
+	resolve, err := in.Message().Resolve()
 	if err != nil {
 		in.Release()
 		c.er.ReportError(exc.WrapError("read resolve", err))

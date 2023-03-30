@@ -271,7 +271,7 @@ func TestDisembargoSenderPromise(t *testing.T) {
 
 		outMsg, err := p2.NewMessage()
 		assert.NoError(t, err)
-		iface := capnp.NewInterface(outMsg.Message.Segment(), 0)
+		iface := capnp.NewInterface(outMsg.Message().Segment(), 0)
 
 		assert.NoError(t, sendMessage(ctx, p2, &rpcMessage{
 			Which: rpccp.Message_Which_return,
