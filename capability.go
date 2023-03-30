@@ -11,7 +11,7 @@ import (
 	"capnproto.org/go/capnp/v3/exp/bufferpool"
 	"capnproto.org/go/capnp/v3/flowcontrol"
 	"capnproto.org/go/capnp/v3/internal/str"
-	"capnproto.org/go/capnp/v3/internal/syncutil"
+	"zenhack.net/go/util/sync/mutex"
 )
 
 func init() {
@@ -117,7 +117,10 @@ type ClientKind = struct {
 }
 
 type client struct {
-	mu       sync.Mutex // protects the struct
+	state mutex.Mutex[clientState]
+}
+
+type clientState struct {
 	limiter  flowcontrol.FlowLimiter
 	h        *clientHook // nil if resolved to nil or released
 	released bool
@@ -142,10 +145,13 @@ type clientHook struct {
 	// done is closed when refs == 0 and calls == 0.
 	done chan struct{}
 
+	state mutex.Mutex[clientHookState]
+}
+
+type clientHookState struct {
 	// resolved is closed after resolvedHook is set
 	resolved chan struct{}
 
-	mu           sync.Mutex
 	refs         int         // how many open Clients reference this clientHook
 	calls        int         // number of outstanding ClientHook accesses
 	resolvedHook *clientHook // valid only if resolved is closed
@@ -163,12 +169,17 @@ func NewClient(hook ClientHook) Client {
 	h := &clientHook{
 		ClientHook: hook,
 		done:       make(chan struct{}),
-		refs:       1,
-		resolved:   closedSignal,
 		metadata:   *NewMetadata(),
+		state: mutex.New(clientHookState{
+			resolved: closedSignal,
+			refs:     1,
+		}),
 	}
-	h.resolvedHook = h
-	c := Client{client: &client{h: h}}
+	h.state.With(func(s *clientHookState) {
+		s.resolvedHook = h
+	})
+	cs := mutex.New(clientState{h: h})
+	c := Client{client: &client{state: cs}}
 	setupLeakReporting(c)
 	return c
 }
@@ -193,11 +204,14 @@ func newPromisedClient(hook ClientHook) (Client, *clientPromise) {
 	h := &clientHook{
 		ClientHook: hook,
 		done:       make(chan struct{}),
-		refs:       1,
-		resolved:   make(chan struct{}),
 		metadata:   *NewMetadata(),
+		state: mutex.New(clientHookState{
+			resolved: make(chan struct{}),
+			refs:     1,
+		}),
 	}
-	c := Client{client: &client{h: h}}
+	cs := mutex.New(clientState{h: h})
+	c := Client{client: &client{state: cs}}
 	setupLeakReporting(c)
 	return c, &clientPromise{h: h}
 }
@@ -209,79 +223,81 @@ func (c Client) startCall() (hook ClientHook, resolved, released bool, finish fu
 	if c.client == nil {
 		return nil, true, false, func() {}
 	}
-	defer c.mu.Unlock()
-	c.mu.Lock()
-	if c.h == nil {
-		return nil, true, c.released, func() {}
-	}
-	c.h.mu.Lock()
-	c.h = resolveHook(c.h)
-	if c.h == nil {
-		return nil, true, false, func() {}
-	}
-	c.h.calls++
-	c.h.mu.Unlock()
-	savedHook := c.h
-	return savedHook.ClientHook, savedHook.isResolved(), false, func() {
-		syncutil.With(&savedHook.mu, func() {
-			savedHook.calls--
-			if savedHook.refs == 0 && savedHook.calls == 0 {
-				close(savedHook.done)
-			}
-		})
-	}
+	return mutex.With4(&c.state, func(c *clientState) (hook ClientHook, resolved, released bool, finish func()) {
+		if c.h == nil {
+			return nil, true, c.released, func() {}
+		}
+		l := c.h.state.Lock()
+		c.h, l = resolveHook(c.h, l)
+		if c.h == nil {
+			return nil, true, false, func() {}
+		}
+		l.Value().calls++
+		isResolved := l.Value().isResolved()
+		l.Unlock()
+		savedHook := c.h
+		return savedHook.ClientHook, isResolved, false, func() {
+			savedHook.state.With(func(s *clientHookState) {
+				s.calls--
+				if s.refs == 0 && s.calls == 0 {
+					close(savedHook.done)
+				}
+			})
+		}
+	})
 }
 
 func (c Client) peek() (hook *clientHook, released bool, resolved bool) {
 	if c.client == nil {
 		return nil, false, true
 	}
-	defer c.mu.Unlock()
-	c.mu.Lock()
-	if c.h == nil {
-		return nil, c.released, true
-	}
-	c.h.mu.Lock()
-	c.h = resolveHook(c.h)
-	if c.h == nil {
-		return nil, false, true
-	}
-	resolved = c.h.isResolved()
-	c.h.mu.Unlock()
-	return c.h, false, resolved
+	return mutex.With3(&c.state, func(c *clientState) (hook *clientHook, released bool, resolved bool) {
+		if c.h == nil {
+			return nil, c.released, true
+		}
+		l := c.h.state.Lock()
+		c.h, l = resolveHook(c.h, l)
+		if c.h == nil {
+			return nil, false, true
+		}
+		resolved = l.Value().isResolved()
+		l.Unlock()
+		return c.h, false, resolved
+	})
 }
 
 // resolveHook resolves h as much as possible without blocking.
-// The caller must be holding onto h.mu and when resolveHook returns, it
-// will be holding onto the mutex of the returned hook if not nil.
-func resolveHook(h *clientHook) *clientHook {
+// l must point to the state belonging to h. resolveHook returns,
+// l will be invalid. The returnd Locked will point at the state of
+// the returned clientHook if they are not nil.
+func resolveHook(h *clientHook, l *mutex.Locked[clientHookState]) (*clientHook, *mutex.Locked[clientHookState]) {
 	for {
-		if !h.isResolved() {
-			return h
+		if !l.Value().isResolved() {
+			return h, l
 		}
-		r := h.resolvedHook
+		r := l.Value().resolvedHook
 		if r == h {
-			return h
+			return h, l
 		}
-		h.mu.Unlock()
+		l.Unlock()
 		h = r
 		if h == nil {
-			return nil
+			return nil, nil
 		}
-		h.mu.Lock()
+		l = h.state.Lock()
 	}
 }
 
 // Get the current flowcontrol.FlowLimiter used to manage flow control
 // for this client.
 func (c Client) GetFlowLimiter() flowcontrol.FlowLimiter {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	ret := c.limiter
-	if ret == nil {
-		ret = flowcontrol.NopLimiter
-	}
-	return ret
+	return mutex.With1(&c.state, func(c *clientState) flowcontrol.FlowLimiter {
+		ret := c.limiter
+		if ret == nil {
+			ret = flowcontrol.NopLimiter
+		}
+		return ret
+	})
 }
 
 // Update the flowcontrol.FlowLimiter used to manage flow control for
@@ -292,9 +308,9 @@ func (c Client) GetFlowLimiter() flowcontrol.FlowLimiter {
 // When .Release() is called on the client, it will call .Release() on
 // the FlowLimiter in turn.
 func (c Client) SetFlowLimiter(lim flowcontrol.FlowLimiter) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.limiter = lim
+	c.state.With(func(c *clientState) {
+		c.limiter = lim
+	})
 }
 
 // SendCall allocates space for parameters, calls args.Place to fill out
@@ -314,9 +330,8 @@ func (c Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 		return ErrorAnswer(s.Method, errors.New("call on null client")), func() {}
 	}
 
-	var err error
-	syncutil.With(&c.mu, func() {
-		err = c.stream.err
+	err := mutex.With1(&c.state, func(c *clientState) error {
+		return c.stream.err
 	})
 
 	if err != nil {
@@ -370,14 +385,14 @@ func (c Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 		gotResponse = func() {}
 	}
 	p := ans.f.promise
-	p.mu.Lock()
-	if p.isResolved() {
+	l := p.state.Lock()
+	if l.Value().isResolved() {
 		// Wow, that was fast.
-		p.mu.Unlock()
+		l.Unlock()
 		gotResponse()
 	} else {
-		p.signals = append(p.signals, gotResponse)
-		p.mu.Unlock()
+		l.Value().signals = append(l.Value().signals, gotResponse)
+		l.Unlock()
 	}
 
 	return ans, rel
@@ -390,23 +405,25 @@ func (c Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 //    client will return the same error (without starting
 //    the method or calling PlaceArgs).
 func (c Client) SendStreamCall(ctx context.Context, s Send) error {
-	var streamError error
-	syncutil.With(&c.mu, func() {
-		streamError = c.stream.err
-		if streamError == nil {
+	streamError := mutex.With1(&c.state, func(c *clientState) error {
+		err := c.stream.err
+		if err == nil {
 			c.stream.wg.Add(1)
 		}
+		return err
 	})
 	if streamError != nil {
 		return streamError
 	}
 	ans, release := c.SendCall(ctx, s)
 	go func() {
-		defer c.stream.wg.Done()
+		defer c.state.With(func(c *clientState) {
+			c.stream.wg.Done()
+		})
 		_, err := ans.Future().Ptr()
 		release()
 		if err != nil {
-			syncutil.With(&c.mu, func() {
+			c.state.With(func(c *clientState) {
 				c.stream.err = err
 			})
 		}
@@ -418,12 +435,13 @@ func (c Client) SendStreamCall(ctx context.Context, s Send) error {
 // started with SendStreamCall) to complete, and then returns an error
 // if any streaming call has failed.
 func (c Client) WaitStreaming() error {
-	c.stream.wg.Wait()
-	var ret error
-	syncutil.With(&c.mu, func() {
-		ret = c.stream.err
+	wg := mutex.With1(&c.state, func(c *clientState) *sync.WaitGroup {
+		return &c.stream.wg
 	})
-	return ret
+	wg.Wait()
+	return mutex.With1(&c.state, func(c *clientState) error {
+		return c.stream.err
+	})
 }
 
 // RecvCall starts executing a method with the referenced arguments
@@ -486,8 +504,12 @@ func (c Client) Resolve(ctx context.Context) error {
 			return nil
 		}
 
+		resolvedCh := mutex.With1(&h.state, func(s *clientHookState) <-chan struct{} {
+			return s.resolved
+		})
+
 		select {
-		case <-h.resolved:
+		case <-resolvedCh:
 		case <-ctx.Done():
 			return ctx.Err()
 		}
@@ -500,24 +522,25 @@ func (c Client) AddRef() Client {
 	if c.client == nil {
 		return Client{}
 	}
-	defer c.mu.Unlock()
-	c.mu.Lock()
-	if c.released {
-		panic("AddRef on released client")
-	}
-	if c.h == nil {
-		return Client{}
-	}
-	c.h.mu.Lock()
-	c.h = resolveHook(c.h)
-	if c.h == nil {
-		return Client{}
-	}
-	c.h.refs++
-	c.h.mu.Unlock()
-	d := Client{client: &client{h: c.h}}
-	setupLeakReporting(d)
-	return d
+	return mutex.With1(&c.state, func(c *clientState) Client {
+		if c.released {
+			panic("AddRef on released client")
+		}
+		if c.h == nil {
+			return Client{}
+		}
+		l := c.h.state.Lock()
+		c.h, l = resolveHook(c.h, l)
+		if c.h == nil {
+			return Client{}
+		}
+		l.Value().refs++
+		l.Unlock()
+		cs := mutex.New(clientState{h: c.h})
+		d := Client{client: &client{state: cs}}
+		setupLeakReporting(d)
+		return d
+	})
 }
 
 // WeakRef creates a new WeakClient that refers to the same capability
@@ -544,7 +567,9 @@ func (c Client) State() ClientState {
 	return ClientState{
 		Brand:     h.Brand(),
 		IsPromise: !resolved,
-		Metadata:  &c.h.metadata,
+		Metadata: mutex.With1(&c.state, func(c *clientState) *Metadata {
+			return &c.h.metadata
+		}),
 	}
 }
 
@@ -576,29 +601,29 @@ func (c Client) String() string {
 	if c.client == nil {
 		return "<nil>"
 	}
-	c.mu.Lock()
-	if c.released {
-		c.mu.Unlock()
+	cl := c.state.Lock()
+	if cl.Value().released {
+		cl.Unlock()
 		return "<released client>"
 	}
-	if c.h == nil {
-		c.mu.Unlock()
+	if cl.Value().h == nil {
+		cl.Unlock()
 		return "<nil>"
 	}
-	c.h.mu.Lock()
-	c.h = resolveHook(c.h)
-	if c.h == nil {
-		c.mu.Unlock()
+	hl := cl.Value().h.state.Lock()
+	cl.Value().h, hl = resolveHook(cl.Value().h, hl)
+	if cl.Value().h == nil {
+		cl.Unlock()
 		return "<nil>"
 	}
 	var s string
-	if c.h.isResolved() {
-		s = "<client " + c.h.ClientHook.String() + ">"
+	if hl.Value().isResolved() {
+		s = "<client " + cl.Value().h.ClientHook.String() + ">"
 	} else {
-		s = "<unresolved client " + c.h.ClientHook.String() + ">"
+		s = "<unresolved client " + cl.Value().h.ClientHook.String() + ">"
 	}
-	c.h.mu.Unlock()
-	c.mu.Unlock()
+	hl.Unlock()
+	cl.Unlock()
 	return s
 }
 
@@ -612,31 +637,31 @@ func (c Client) Release() {
 	if c.client == nil {
 		return
 	}
-	c.mu.Lock()
-	if c.released || c.h == nil {
-		c.mu.Unlock()
+	cl := c.state.Lock()
+	if cl.Value().released || cl.Value().h == nil {
+		cl.Unlock()
 		return
 	}
-	c.released = true
-	c.h.mu.Lock()
-	c.h = resolveHook(c.h)
-	if c.h == nil {
-		c.mu.Unlock()
+	cl.Value().released = true
+	hl := cl.Value().h.state.Lock()
+	cl.Value().h, hl = resolveHook(cl.Value().h, hl)
+	if cl.Value().h == nil {
+		cl.Unlock()
 		return
 	}
-	h := c.h
-	c.h = nil
-	h.refs--
-	if h.refs > 0 {
-		h.mu.Unlock()
-		c.mu.Unlock()
+	h := cl.Value().h
+	cl.Value().h = nil
+	hl.Value().refs--
+	if hl.Value().refs > 0 {
+		hl.Unlock()
+		cl.Unlock()
 		return
 	}
-	if h.calls == 0 {
+	if hl.Value().calls == 0 {
 		close(h.done)
 	}
-	h.mu.Unlock()
-	c.mu.Unlock()
+	hl.Unlock()
+	cl.Unlock()
 	<-h.done
 	h.Shutdown()
 	c.GetFlowLimiter().Release()
@@ -653,11 +678,10 @@ func (Client) DecodeFromPtr(p Ptr) Client {
 
 var _ TypeParam[Client] = Client{}
 
-// isResolve reports whether ch has been resolved.
-// The caller must be holding onto ch.mu.
-func (ch *clientHook) isResolved() bool {
+// isResolve reports whether the clientHook s belongs to is resolved.
+func (s *clientHookState) isResolved() bool {
 	select {
-	case <-ch.resolved:
+	case <-s.resolved:
 		return true
 	default:
 		return false
@@ -680,7 +704,10 @@ func SetClientLeakFunc(clientLeakFunc func(msg string)) {
 		stack := string(buf[:n])
 		bufferpool.Default.Put(buf)
 		runtime.SetFinalizer(c.client, func(c *client) {
-			if c.released {
+			released := mutex.With1(&c.state, func(c *clientState) bool {
+				return c.released
+			})
+			if released {
 				return
 			}
 			clientLeakFunc("leaked client created at:\n\n" + stack)
@@ -722,39 +749,38 @@ func (cp *clientPromise) fulfill(c Client) {
 	// Obtain next client hook.
 	var rh *clientHook
 	if (c != Client{}) {
-		c.mu.Lock()
-		if c.released {
-			c.mu.Unlock()
-			panic("ClientPromise.Fulfill with a released client")
-		}
-		// TODO(maybe): c.h = resolveHook(c.h)
-		rh = c.h
-		c.mu.Unlock()
+		c.state.With(func(c *clientState) {
+			if c.released {
+				panic("ClientPromise.Fulfill with a released client")
+			}
+			// TODO(maybe): c.h = resolveHook(c.h)
+			rh = c.h
+		})
 	}
 
 	// Mark hook as resolved.
-	cp.h.mu.Lock()
-	if cp.h.isResolved() {
-		cp.h.mu.Unlock()
+	l := cp.h.state.Lock()
+	if l.Value().isResolved() {
+		l.Unlock()
 		panic("ClientPromise.Fulfill called more than once")
 	}
-	cp.h.resolvedHook = rh
-	close(cp.h.resolved)
-	refs := cp.h.refs
-	cp.h.refs = 0
+	l.Value().resolvedHook = rh
+	close(l.Value().resolved)
+	refs := l.Value().refs
+	l.Value().refs = 0
 	if refs == 0 {
-		cp.h.mu.Unlock()
+		l.Unlock()
 		return
 	}
 
 	// Client still had references, so we're responsible for shutting it down.
-	if cp.h.calls == 0 {
+	if l.Value().calls == 0 {
 		close(cp.h.done)
 	}
-	rh = resolveHook(cp.h) // swaps mutex on cp.h for mutex on rh
+	rh, l = resolveHook(cp.h, l) // swaps mutex on cp.h for mutex on rh
 	if rh != nil {
-		rh.refs += refs
-		rh.mu.Unlock()
+		l.Value().refs += refs
+		l.Unlock()
 	}
 }
 
@@ -774,18 +800,20 @@ func (wc *WeakClient) AddRef() (c Client, ok bool) {
 	if wc.h == nil {
 		return Client{}, true
 	}
-	wc.h.mu.Lock()
-	wc.h = resolveHook(wc.h)
+	l := wc.h.state.Lock()
+	// FIXME: unsynchronized access to wc.h
+	wc.h, l = resolveHook(wc.h, l)
 	if wc.h == nil {
 		return Client{}, true
 	}
-	if wc.h.refs == 0 {
-		wc.h.mu.Unlock()
+	if l.Value().refs == 0 {
+		l.Unlock()
 		return Client{}, false
 	}
-	wc.h.refs++
-	wc.h.mu.Unlock()
-	c = Client{client: &client{h: wc.h}}
+	l.Value().refs++
+	l.Unlock()
+	cs := mutex.New(clientState{h: wc.h})
+	c = Client{client: &client{state: cs}}
 	setupLeakReporting(c)
 	return c, true
 }
@@ -985,12 +1013,17 @@ func ErrorClient(e error) Client {
 	h := &clientHook{
 		ClientHook: errorClient{e},
 		done:       make(chan struct{}),
-		refs:       1,
-		resolved:   closedSignal,
 		metadata:   *NewMetadata(),
+		state: mutex.New(clientHookState{
+			resolved: closedSignal,
+			refs:     1,
+		}),
 	}
-	h.resolvedHook = h
-	return Client{client: &client{h: h}}
+	h.state.With(func(s *clientHookState) {
+		s.resolvedHook = h
+	})
+	cs := mutex.New(clientState{h: h})
+	return Client{client: &client{state: cs}}
 }
 
 func (ec errorClient) Send(_ context.Context, s Send) (*Answer, ReleaseFunc) {

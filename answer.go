@@ -4,11 +4,10 @@ import (
 	"context"
 	"errors"
 	"strconv"
-	"sync"
 
 	"capnproto.org/go/capnp/v3/exc"
 	"capnproto.org/go/capnp/v3/internal/str"
-	"capnproto.org/go/capnp/v3/internal/syncutil"
+	"zenhack.net/go/util/sync/mutex"
 )
 
 // A Promise holds the result of an RPC call.  Only one of Fulfill
@@ -34,11 +33,17 @@ type Promise struct {
 	//	  Next state is resolved.
 	//	- Resolved.  Fulfill or Reject has finished.
 
-	// mu protects the fields below.  When acquiring multiple Promise.mu
-	// mutexes, they must be acquired in traversal order (i.e. p, then
-	// p.next, then p.next.next).
-	mu sync.Mutex
+	// When acquiring multiple Promise.state mutexes, they must be acquired
+	// in traversal order (i.e. p, then p.next, then p.next.next).
+	//
+	// FIXME: is the above traversal scheme sound? It depends on avoiding
+	// cycles in the graph to prevent potential deadlocks, and it is not
+	// clear to me(zenhack) that this is a safe assumption (I suspect it's
+	// not).
+	state mutex.Mutex[promiseState]
+}
 
+type promiseState struct {
 	// signals is a list of callbacks to invoke on resolution. Has at least
 	// one element if the promise is unresolved or pending, nil if resolved.
 	signals []func()
@@ -89,8 +94,10 @@ func NewPromise(m Method, pc PipelineCaller) *Promise {
 	p := &Promise{
 		method:   m,
 		resolved: resolved,
-		signals:  []func(){func() { close(resolved) }},
-		caller:   pc,
+		state: mutex.New(promiseState{
+			signals: []func(){func() { close(resolved) }},
+			caller:  pc,
+		}),
 	}
 	p.ans.f.promise = p
 	p.ans.metadata = *NewMetadata()
@@ -98,28 +105,30 @@ func NewPromise(m Method, pc PipelineCaller) *Promise {
 }
 
 // isUnresolved reports whether p is in the unresolved state.
-// The caller must be holding onto p.mu.
-func (p *Promise) isUnresolved() bool {
+func (p *promiseState) isUnresolved() bool {
 	return p.caller != nil
 }
 
-// isPendingResolution reports whether p is in the pending resolution
-// state.  The caller must be holding onto p.mu.
-func (p *Promise) isPendingResolution() bool {
+// isPendingResolution reports whether p is in the pending
+// resolution state.
+func (p *promiseState) isPendingResolution() bool {
 	return p.caller == nil && len(p.signals) > 0
 }
 
 // isResolved reports whether p is in the resolved state.
-// The caller must be holding onto p.mu.
-func (p *Promise) isResolved() bool {
+func (p *promiseState) isResolved() bool {
 	return len(p.signals) == 0
 }
 
 // resolution returns p's resolution.  The return value is invalid
 // unless p is in the resolved state.  The caller must be holding onto
 // p.mu.
-func (p *Promise) resolution() resolution {
-	return resolution{p.method, p.result, p.err}
+func (p *promiseState) resolution(m Method) resolution {
+	return resolution{
+		method: m,
+		result: p.result,
+		err:    p.err,
+	}
 }
 
 // Fulfill resolves the promise with a successful result.
@@ -148,8 +157,18 @@ func (p *Promise) Reject(e error) {
 // If e != nil, then this is equivalent to p.Reject(e).
 // Otherwise, it is equivalent to p.Fulfill(r).
 func (p *Promise) Resolve(r Ptr, e error) {
-	var shutdownPromises []*clientPromise
-	syncutil.With(&p.mu, func() {
+	var (
+		shutdownPromises []*clientPromise
+
+		// We need to access some of these fields from p.state while
+		// not holding the lock, so we store them here while holding it.
+		// p.clients cannot be touched in the pending resolution state,
+		// so we have exclusive access to the variable anyway.
+		clients      map[clientPath]*clientAndPromise
+		callsStopped chan struct{}
+	)
+
+	p.state.With(func(p *promiseState) {
 		if e != nil {
 			p.requireUnresolved("Reject")
 		} else {
@@ -160,26 +179,26 @@ func (p *Promise) Resolve(r Ptr, e error) {
 		if p.ongoingCalls > 0 {
 			p.callsStopped = make(chan struct{})
 		}
+
+		if len(p.clients) > 0 || p.ongoingCalls > 0 {
+			clients = p.clients
+		}
 	})
 
-	if len(p.clients) > 0 || p.ongoingCalls > 0 {
-		// Pending resolution state: wait for clients to be fulfilled
-		// and calls to have answers.  p.clients cannot be touched in the
-		// pending resolution state, so we have exclusive access to the
-		// variable.
-		res := resolution{p.method, r, e}
-		for path, cp := range p.clients {
-			t := path.transform()
-			cp.promise.fulfill(res.client(t))
-			shutdownPromises = append(shutdownPromises, cp.promise)
-			cp.promise = nil
-		}
-		if p.callsStopped != nil {
-			<-p.callsStopped
-		}
+	// Pending resolution state: wait for clients to be fulfilled
+	// and calls to have answers.
+	res := resolution{p.method, r, e}
+	for path, cp := range clients {
+		t := path.transform()
+		cp.promise.fulfill(res.client(t))
+		shutdownPromises = append(shutdownPromises, cp.promise)
+		cp.promise = nil
+	}
+	if callsStopped != nil {
+		<-callsStopped
 	}
 
-	syncutil.With(&p.mu, func() {
+	p.state.With(func(p *promiseState) {
 		// Move p into resolved state.
 		p.callsStopped = nil
 		p.result, p.err = r, e
@@ -201,7 +220,7 @@ func (p *Promise) Resolve(r Ptr, e error) {
 // is invoking requireUnresolved. The panic message will report this
 // value as well as the method that originally resolved the promise,
 // and which method (Fulfill or Reject) was used to resolve it.
-func (p *Promise) requireUnresolved(callerMethod string) {
+func (p *promiseState) requireUnresolved(callerMethod string) {
 	if !p.isUnresolved() {
 		var prevMethod string
 		if p.err == nil {
@@ -230,15 +249,15 @@ func (p *Promise) Answer() *Answer {
 // This method is typically used in a ReleaseFunc.
 func (p *Promise) ReleaseClients() {
 	<-p.resolved
-	p.mu.Lock()
-	if p.releasedClients {
-		p.mu.Unlock()
-		return
-	}
-	p.releasedClients = true // must happen before traversing pointers
-	clients := p.clients
-	p.clients = nil
-	p.mu.Unlock()
+	clients := mutex.With1(&p.state, func(p *promiseState) map[clientPath]*clientAndPromise {
+		if p.releasedClients {
+			return nil
+		}
+		p.releasedClients = true // must happen before traversing pointers
+		clients := p.clients
+		p.clients = nil
+		return clients
+	})
 	for _, cp := range clients {
 		cp.client.Release()
 	}
@@ -264,7 +283,9 @@ func ErrorAnswer(m Method, e error) *Answer {
 	p := &Promise{
 		method:   m,
 		resolved: closedSignal,
-		err:      e,
+		state: mutex.New(promiseState{
+			err: e,
+		}),
 	}
 	p.ans.f.promise = p
 	return &p.ans
@@ -275,7 +296,9 @@ func ImmediateAnswer(m Method, ptr Ptr) *Answer {
 	p := &Promise{
 		method:   m,
 		resolved: closedSignal,
-		result:   ptr,
+		state: mutex.New(promiseState{
+			result: ptr,
+		}),
 	}
 	p.ans.f.promise = p
 	p.ans.metadata = *NewMetadata()
@@ -327,33 +350,33 @@ func (ans *Answer) Field(off uint16, def []byte) *Future {
 // PipelineSend starts a pipelined call.
 func (ans *Answer) PipelineSend(ctx context.Context, transform []PipelineOp, s Send) (*Answer, ReleaseFunc) {
 	p := ans.f.promise
-	p.mu.Lock()
+	l := p.state.Lock()
 	switch {
-	case p.isUnresolved():
-		p.ongoingCalls++
-		caller := p.caller
-		p.mu.Unlock()
+	case l.Value().isUnresolved():
+		l.Value().ongoingCalls++
+		caller := l.Value().caller
+		l.Unlock()
 		ans, release := caller.PipelineSend(ctx, transform, s)
-		syncutil.With(&p.mu, func() {
+		p.state.With(func(p *promiseState) {
 			p.ongoingCalls--
 			if p.ongoingCalls == 0 && p.callsStopped != nil {
 				close(p.callsStopped)
 			}
 		})
 		return ans, release
-	case p.isPendingResolution():
+	case l.Value().isPendingResolution():
 		// Block new calls until resolved.
-		p.mu.Unlock()
+		l.Unlock()
 		select {
 		case <-p.resolved:
 		case <-ctx.Done():
 			return ErrorAnswer(s.Method, ctx.Err()), func() {}
 		}
-		p.mu.Lock()
+		l = p.state.Lock()
 		fallthrough
-	case p.isResolved():
-		r := p.resolution()
-		p.mu.Unlock()
+	case l.Value().isResolved():
+		r := l.Value().resolution(p.method)
+		l.Unlock()
 		return r.client(transform).SendCall(ctx, s)
 	default:
 		panic("unreachable")
@@ -363,34 +386,34 @@ func (ans *Answer) PipelineSend(ctx context.Context, transform []PipelineOp, s S
 // PipelineRecv starts a pipelined call.
 func (ans *Answer) PipelineRecv(ctx context.Context, transform []PipelineOp, r Recv) PipelineCaller {
 	p := ans.f.promise
-	p.mu.Lock()
+	l := p.state.Lock()
 	switch {
-	case p.isUnresolved():
-		p.ongoingCalls++
-		caller := p.caller
-		p.mu.Unlock()
+	case l.Value().isUnresolved():
+		l.Value().ongoingCalls++
+		caller := l.Value().caller
+		l.Unlock()
 		pcall := caller.PipelineRecv(ctx, transform, r)
-		syncutil.With(&p.mu, func() {
+		p.state.With(func(p *promiseState) {
 			p.ongoingCalls--
 			if p.ongoingCalls == 0 && p.callsStopped != nil {
 				close(p.callsStopped)
 			}
 		})
 		return pcall
-	case p.isPendingResolution():
+	case l.Value().isPendingResolution():
 		// Block new calls until resolved.
-		p.mu.Unlock()
+		l.Unlock()
 		select {
 		case <-p.resolved:
 		case <-ctx.Done():
 			r.Reject(ctx.Err())
 			return nil
 		}
-		p.mu.Lock()
+		l = p.state.Lock()
 		fallthrough
-	case p.isResolved():
-		res := p.resolution()
-		p.mu.Unlock()
+	case l.Value().isResolved():
+		res := l.Value().resolution(p.method)
+		l.Unlock()
 		return res.client(transform).RecvCall(ctx, r)
 	default:
 		panic("unreachable")
@@ -432,9 +455,9 @@ func (f *Future) Done() <-chan struct{} {
 func (f *Future) Ptr() (Ptr, error) {
 	p := f.promise
 	<-p.resolved
-	p.mu.Lock()
-	r := p.resolution()
-	p.mu.Unlock()
+	r := mutex.With1(&p.state, func(s *promiseState) resolution {
+		return s.resolution(p.method)
+	})
 	return r.ptr(f.transform())
 }
 
@@ -458,32 +481,32 @@ func (f *Future) List() (List, error) {
 // should not call Release.
 func (f *Future) Client() Client {
 	p := f.promise
-	p.mu.Lock()
+	l := p.state.Lock()
 	switch {
-	case p.isUnresolved():
+	case l.Value().isUnresolved():
 		ft := f.transform()
 		cpath := clientPathFromTransform(ft)
-		if cp := p.clients[cpath]; cp != nil {
+		if cp := l.Value().clients[cpath]; cp != nil {
 			return cp.client
 		}
 		c, pr := newPromisedClient(PipelineClient{
 			p:         p,
 			transform: ft,
 		})
-		if p.clients == nil {
-			p.clients = make(map[clientPath]*clientAndPromise)
+		if l.Value().clients == nil {
+			l.Value().clients = make(map[clientPath]*clientAndPromise)
 		}
-		p.clients[cpath] = &clientAndPromise{c, pr}
-		p.mu.Unlock()
+		l.Value().clients[cpath] = &clientAndPromise{c, pr}
+		l.Unlock()
 		return c
-	case p.isPendingResolution():
-		syncutil.Without(&p.mu, func() {
-			<-p.resolved
-		})
+	case l.Value().isPendingResolution():
+		l.Unlock()
+		<-p.resolved
+		l = p.state.Lock()
 		fallthrough
-	case p.isResolved():
-		r := p.resolution()
-		p.mu.Unlock()
+	case l.Value().isResolved():
+		r := l.Value().resolution(p.method)
+		l.Unlock()
 		return r.client(f.transform())
 	default:
 		panic("unreachable")
@@ -528,9 +551,9 @@ func (pc PipelineClient) Recv(ctx context.Context, r Recv) PipelineCaller {
 func (pc PipelineClient) Brand() Brand {
 	select {
 	case <-pc.p.resolved:
-		pc.p.mu.Lock()
-		r := pc.p.resolution()
-		pc.p.mu.Unlock()
+		r := mutex.With1(&pc.p.state, func(p *promiseState) resolution {
+			return p.resolution(pc.p.method)
+		})
 		return r.client(pc.transform).State().Brand
 	default:
 		return Brand{Value: pc}

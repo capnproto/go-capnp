@@ -544,7 +544,7 @@ func (c *Conn) abort(abortErr error) {
 		defer outMsg.Release()
 
 		// configure & send abort message
-		if abort, err := outMsg.Message.NewAbort(); err == nil {
+		if abort, err := outMsg.Message().NewAbort(); err == nil {
 			abort.SetType(rpccp.Exception_Type(exc.TypeOf(abortErr)))
 			if err = abort.SetReason(abortErr.Error()); err == nil {
 				outMsg.Send()
@@ -592,7 +592,7 @@ func (c *Conn) receive(ctx context.Context) func() error {
 				return nil
 			}
 
-			switch in.Message.Which() {
+			switch in.Message().Which() {
 			case rpccp.Message_Which_unimplemented:
 				if err := c.handleUnimplemented(in); err != nil {
 					return err
@@ -653,7 +653,7 @@ func (c *Conn) receive(ctx context.Context) func() error {
 func (c *Conn) handleAbort(in transport.IncomingMessage) {
 	defer in.Release()
 
-	e, err := in.Message.Abort()
+	e, err := in.Message().Abort()
 	if err != nil {
 		c.er.ReportError(exc.WrapError("read abort", err))
 		return
@@ -671,7 +671,7 @@ func (c *Conn) handleAbort(in transport.IncomingMessage) {
 func (c *Conn) handleUnimplemented(in transport.IncomingMessage) error {
 	defer in.Release()
 
-	msg, err := in.Message.Unimplemented()
+	msg, err := in.Message().Unimplemented()
 	if err != nil {
 		return exc.WrapError("read unimplemented", err)
 	}
@@ -713,7 +713,7 @@ func (c *Conn) handleUnimplemented(in transport.IncomingMessage) error {
 func (c *Conn) handleBootstrap(in transport.IncomingMessage) error {
 	defer in.Release()
 
-	bootstrap, err := in.Message.Bootstrap()
+	bootstrap, err := in.Message().Bootstrap()
 	if err != nil {
 		c.er.ReportError(exc.WrapError("read bootstrap", err))
 		return nil
@@ -768,7 +768,7 @@ func (c *Conn) handleBootstrap(in transport.IncomingMessage) error {
 }
 
 func (c *Conn) handleCall(ctx context.Context, in transport.IncomingMessage) error {
-	call, err := in.Message.Call()
+	call, err := in.Message().Call()
 	if err != nil {
 		in.Release()
 		c.er.ReportError(exc.WrapError("read call", err))
@@ -1095,7 +1095,7 @@ func parseTransform(list rpccp.PromisedAnswer_Op_List) ([]capnp.PipelineOp, erro
 }
 
 func (c *Conn) handleReturn(ctx context.Context, in transport.IncomingMessage) error {
-	ret, err := in.Message.Return()
+	ret, err := in.Message().Return()
 	if err != nil {
 		in.Release()
 		c.er.ReportError(exc.WrapError("read return", err))
@@ -1300,7 +1300,7 @@ type parsedReturn struct {
 func (c *Conn) handleFinish(ctx context.Context, in transport.IncomingMessage) error {
 	defer in.Release()
 
-	fin, err := in.Message.Finish()
+	fin, err := in.Message().Finish()
 	if err != nil {
 		c.er.ReportError(exc.WrapError("read finish", err))
 		return nil
@@ -1541,7 +1541,7 @@ func (c *lockedConn) recvPayload(rl *releaseList, payload rpccp.Payload) (_ capn
 func (c *Conn) handleRelease(ctx context.Context, in transport.IncomingMessage) error {
 	defer in.Release()
 
-	rel, err := in.Message.Release()
+	rel, err := in.Message().Release()
 	if err != nil {
 		c.er.ReportError(exc.WrapError("read release", err))
 		return nil
@@ -1562,7 +1562,7 @@ func (c *Conn) handleRelease(ctx context.Context, in transport.IncomingMessage) 
 }
 
 func (c *Conn) handleDisembargo(ctx context.Context, in transport.IncomingMessage) error {
-	d, err := in.Message.Disembargo()
+	d, err := in.Message().Disembargo()
 	if err != nil {
 		in.Release()
 		c.er.ReportError(exc.WrapError("read disembargo", err))
@@ -1843,13 +1843,13 @@ func (c *Conn) handleResolve(ctx context.Context, in transport.IncomingMessage) 
 }
 
 func (c *Conn) handleUnknownMessageType(ctx context.Context, in transport.IncomingMessage) {
-	err := errors.New("unknown message type " + in.Message.Which().String() + " from remote")
+	err := errors.New("unknown message type " + in.Message().Which().String() + " from remote")
 	c.er.ReportError(err)
 
 	c.withLocked(func(c *lockedConn) {
 		c.sendMessage(ctx, func(m rpccp.Message) error {
 			defer in.Release()
-			if err := m.SetUnimplemented(in.Message); err != nil {
+			if err := m.SetUnimplemented(in.Message()); err != nil {
 				return rpcerr.Annotate(err, "send unimplemented")
 			}
 			return nil
@@ -1890,7 +1890,7 @@ func (c *lockedConn) sendMessage(ctx context.Context, build func(rpccp.Message) 
 		send = func() error {
 			return rpcerr.WrapFailed("create message", err)
 		}
-	} else if err = build(outMsg.Message); err != nil {
+	} else if err = build(outMsg.Message()); err != nil {
 		send = func() error {
 			return rpcerr.WrapFailed("build message", err)
 		}
