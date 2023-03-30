@@ -282,7 +282,7 @@ func (sr *StructReturner) Answer(m Method, pcall PipelineCaller) (*Answer, Relea
 			}
 		}
 	}
-	sr.p = NewPromise(m, pcall)
+	sr.p = NewPromise(m, pcall, nil)
 	ans := sr.p.Answer()
 	return ans, func() {
 		<-ans.Done()
