@@ -139,7 +139,7 @@ func (ans *answer) setPipelineCaller(c *lockedConn, m capnp.Method, pcall capnp.
 
 	if !ans.flags.Contains(resultsReady) {
 		ans.pcall = pcall
-		ans.promise = capnp.NewPromise(m, pcall)
+		ans.promise = capnp.NewPromise(m, pcall, nil)
 	}
 }
 
