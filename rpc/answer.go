@@ -156,7 +156,7 @@ func (c *Conn) newReturn() (_ rpccp.Return, sendMsg func(), _ *rc.Releaser, _ er
 func (ans *ansent) setPipelineCaller(m capnp.Method, pcall capnp.PipelineCaller) {
 	if !ans.flags.Contains(resultsReady) {
 		ans.pcall = pcall
-		ans.promise = capnp.NewPromise(m, pcall)
+		ans.promise = capnp.NewPromise(m, pcall, nil)
 	}
 }
 

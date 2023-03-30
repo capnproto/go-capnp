@@ -35,6 +35,8 @@ type Promise struct {
 	//	- Resolved.  Fulfill or Reject has finished.
 
 	state mutex.Mutex[promiseState]
+
+	resolver Resolver[Ptr]
 }
 
 type promiseState struct {
@@ -64,11 +66,13 @@ type clientAndPromise struct {
 }
 
 // NewPromise creates a new unresolved promise.  The PipelineCaller will
-// be used to make pipelined calls before the promise resolves.
-func NewPromise(m Method, pc PipelineCaller) *Promise {
+// be used to make pipelined calls before the promise resolves. If resolver
+// is not nil,  calls to Fulfill will be forwarded to it.
+func NewPromise(m Method, pc PipelineCaller, resolver Resolver[Ptr]) *Promise {
 	if pc == nil {
 		panic("NewPromise(nil)")
 	}
+
 	resolved := make(chan struct{})
 	p := &Promise{
 		method:   m,
@@ -77,6 +81,7 @@ func NewPromise(m Method, pc PipelineCaller) *Promise {
 			signals: []func(){func() { close(resolved) }},
 			caller:  pc,
 		}),
+		resolver: resolver,
 	}
 	p.ans.f.promise = p
 	p.ans.metadata = *NewMetadata()
@@ -151,6 +156,14 @@ func (p *Promise) Resolve(r Ptr, e error) {
 		p.caller = nil
 		return p.clients
 	})
+
+	if p.resolver != nil {
+		if e == nil {
+			p.resolver.Fulfill(r)
+		} else {
+			p.resolver.Reject(e)
+		}
+	}
 
 	// Pending resolution state: wait for clients to be fulfilled
 	// and calls to have answers.
