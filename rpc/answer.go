@@ -45,6 +45,10 @@ type ansent struct {
 	// the argument should be the same as ans.c
 	sendMsg func(*lockedConn)
 
+	// cancel cancels the Context used in the received method call.
+	// May be nil.
+	cancel context.CancelFunc
+
 	// Unlike other fields in this struct, it is ok to hand out pointers
 	// to this that can be used while not holding the connection lock.
 	returner ansReturner
@@ -56,10 +60,6 @@ type ansReturner struct {
 	// c and id must be set before any answer methods are called.
 	c  *Conn
 	id answerID
-
-	// cancel cancels the Context used in the received method call.
-	// May be nil.
-	cancel context.CancelFunc
 
 	// ret is the outgoing Return struct.  ret is valid iff there was no
 	// error creating the message.  If ret is invalid, then this answer

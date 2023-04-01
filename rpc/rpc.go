@@ -442,8 +442,8 @@ func (c *Conn) shutdown(abortErr error) (err error) {
 // Called by 'shutdown'.  Callers MUST hold c.lk.
 func (c *lockedConn) cancelTasks() {
 	for _, a := range c.lk.answers {
-		if a != nil && a.returner.cancel != nil {
-			a.returner.cancel()
+		if a != nil && a.cancel != nil {
+			a.cancel()
 		}
 	}
 }
@@ -881,7 +881,7 @@ func (c *Conn) handleCall(ctx context.Context, in transport.IncomingMessage) err
 			}
 			c.tasks.Add(1) // will be finished by answer.Return
 			var callCtx context.Context
-			callCtx, ans.returner.cancel = context.WithCancel(c.bgctx)
+			callCtx, ans.cancel = context.WithCancel(c.bgctx)
 			pcall := newPromisedPipelineCaller()
 			ans.setPipelineCaller(c, p.method, pcall)
 			rl.Add(func() {
@@ -941,7 +941,7 @@ func (c *Conn) handleCall(ctx context.Context, in transport.IncomingMessage) err
 				}
 				c.tasks.Add(1) // will be finished by answer.Return
 				var callCtx context.Context
-				callCtx, ans.returner.cancel = context.WithCancel(c.bgctx)
+				callCtx, ans.cancel = context.WithCancel(c.bgctx)
 				pcall := newPromisedPipelineCaller()
 				ans.setPipelineCaller(c, p.method, pcall)
 				rl.Add(func() {
@@ -951,7 +951,7 @@ func (c *Conn) handleCall(ctx context.Context, in transport.IncomingMessage) err
 				// Results not ready, use pipeline caller.
 				tgtAns.pcalls.Add(1) // will be finished by answer.Return
 				var callCtx context.Context
-				callCtx, ans.returner.cancel = context.WithCancel(c.bgctx)
+				callCtx, ans.cancel = context.WithCancel(c.bgctx)
 				tgt := tgtAns.pcall
 				c.tasks.Add(1) // will be finished by answer.Return
 				pcall := newPromisedPipelineCaller()
@@ -1323,8 +1323,8 @@ func (c *Conn) handleFinish(ctx context.Context, in transport.IncomingMessage) e
 		if releaseResultCaps {
 			ans.flags |= releaseResultCapsFlag
 		}
-		if ans.returner.cancel != nil {
-			ans.returner.cancel()
+		if ans.cancel != nil {
+			ans.cancel()
 		}
 		if !ans.flags.Contains(returnSent) {
 			return nil
