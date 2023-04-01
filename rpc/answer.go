@@ -268,7 +268,7 @@ func (ans *ansent) prepareSendReturn(c *lockedConn, rl *releaseList) {
 	select {
 	case <-c.bgctx.Done():
 		// We're not going to send the message after all, so don't forget to release it.
-		ans.returner.msgReleaser.Decr()
+		rl.Add(ans.returner.msgReleaser.Decr)
 		ans.sendMsg = nil
 	default:
 	}
