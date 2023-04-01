@@ -172,13 +172,6 @@ func withLockedConn2[A, B any](c *Conn, f func(*lockedConn) (A, B)) (a A, b B) {
 	return
 }
 
-// assertIs panics if the receiver and the argument are not the same connection.
-func (lc *lockedConn) assertIs(c *Conn) {
-	if (*Conn)(lc) != c {
-		panic("lockedConn.assertIs: different connections.")
-	}
-}
-
 // Options specifies optional parameters for creating a Conn.
 type Options struct {
 	// BootstrapClient is the capability that will be returned to the
@@ -746,14 +739,14 @@ func (c *Conn) handleBootstrap(in transport.IncomingMessage) error {
 
 		c.lk.answers[ans.returner.id] = &ans
 		if !c.bootstrap.IsValid() {
-			ans.sendException(c, rl, exc.New(exc.Failed, "", "vat does not expose a public/bootstrap interface"))
+			ans.sendException(rl, exc.New(exc.Failed, "", "vat does not expose a public/bootstrap interface"))
 			return
 		}
 		if err := ans.returner.setBootstrap(c.bootstrap.AddRef()); err != nil {
-			ans.sendException(c, rl, err)
+			ans.sendException(rl, err)
 			return
 		}
-		err = ans.sendReturn(c, rl)
+		err = ans.sendReturn(rl)
 		if err != nil {
 			// Answer cannot possibly encounter a Finish, since we still
 			// haven't returned to receive().
@@ -851,7 +844,7 @@ func (c *Conn) handleCall(ctx context.Context, in transport.IncomingMessage) err
 		c.lk.answers[id] = ans
 		if parseErr != nil {
 			parseErr = rpcerr.Annotate(parseErr, "incoming call")
-			ans.sendException(c, rl, parseErr)
+			ans.sendException(rl, parseErr)
 			rl.Add(func() {
 				c.er.ReportError(parseErr)
 				in.Release()
@@ -883,7 +876,7 @@ func (c *Conn) handleCall(ctx context.Context, in transport.IncomingMessage) err
 			var callCtx context.Context
 			callCtx, ans.cancel = context.WithCancel(c.bgctx)
 			pcall := newPromisedPipelineCaller()
-			ans.setPipelineCaller(c, p.method, pcall)
+			ans.setPipelineCaller(p.method, pcall)
 			rl.Add(func() {
 				pcall.resolve(ent.client.RecvCall(callCtx, recv))
 			})
@@ -906,7 +899,7 @@ func (c *Conn) handleCall(ctx context.Context, in transport.IncomingMessage) err
 			}
 			if tgtAns.flags.Contains(resultsReady) {
 				if tgtAns.err != nil {
-					ans.sendException(c, rl, tgtAns.err)
+					ans.sendException(rl, tgtAns.err)
 					rl.Add(in.Release)
 					return nil
 				}
@@ -917,7 +910,7 @@ func (c *Conn) handleCall(ctx context.Context, in transport.IncomingMessage) err
 				content, err := tgtAns.returner.results.Content()
 				if err != nil {
 					err = rpcerr.WrapFailed("incoming call: read results from target answer", err)
-					ans.sendException(c, rl, err)
+					ans.sendException(rl, err)
 					rl.Add(in.Release)
 					c.er.ReportError(err)
 					return nil
@@ -925,7 +918,7 @@ func (c *Conn) handleCall(ctx context.Context, in transport.IncomingMessage) err
 				sub, err := capnp.Transform(content, p.target.transform)
 				if err != nil {
 					// Not reporting, as this is the caller's fault.
-					ans.sendException(c, rl, err)
+					ans.sendException(rl, err)
 					rl.Add(in.Release)
 					return nil
 				}
@@ -943,7 +936,7 @@ func (c *Conn) handleCall(ctx context.Context, in transport.IncomingMessage) err
 				var callCtx context.Context
 				callCtx, ans.cancel = context.WithCancel(c.bgctx)
 				pcall := newPromisedPipelineCaller()
-				ans.setPipelineCaller(c, p.method, pcall)
+				ans.setPipelineCaller(p.method, pcall)
 				rl.Add(func() {
 					pcall.resolve(tgt.RecvCall(callCtx, recv))
 				})
@@ -955,7 +948,7 @@ func (c *Conn) handleCall(ctx context.Context, in transport.IncomingMessage) err
 				tgt := tgtAns.pcall
 				c.tasks.Add(1) // will be finished by answer.Return
 				pcall := newPromisedPipelineCaller()
-				ans.setPipelineCaller(c, p.method, pcall)
+				ans.setPipelineCaller(p.method, pcall)
 				rl.Add(func() {
 					pcall.resolve(tgt.PipelineRecv(callCtx, p.target.transform, recv))
 					tgtAns.pcalls.Done()
@@ -1331,7 +1324,7 @@ func (c *Conn) handleFinish(ctx context.Context, in transport.IncomingMessage) e
 		}
 
 		// Return sent and finish received: time to destroy answer.
-		err := ans.destroy(c, rl)
+		err := ans.destroy(rl)
 		if err != nil {
 			return rpcerr.Annotate(err, "incoming finish: release result caps")
 		}

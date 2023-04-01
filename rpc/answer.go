@@ -41,9 +41,8 @@ type ansent struct {
 	// flags.
 	err error
 
-	// sendMsg sends the return message.  The caller MUST hold ans.c.lk;
-	// the argument should be the same as ans.c
-	sendMsg func(*lockedConn)
+	// sendMsg sends the return message.
+	sendMsg func()
 
 	// cancel cancels the Context used in the received method call.
 	// May be nil.
@@ -52,6 +51,13 @@ type ansent struct {
 	// Unlike other fields in this struct, it is ok to hand out pointers
 	// to this that can be used while not holding the connection lock.
 	returner ansReturner
+}
+
+// Returns the already-locked connection to which this entry belongs.
+// Since ansents are only supposed to be accessed through c.lk, it is
+// assumed that the caller already holds the lock.
+func (ans *ansent) lockedConn() *lockedConn {
+	return (*lockedConn)(ans.returner.c)
 }
 
 // ansReturner is the implementation of capnp.Returner that is used when
@@ -106,7 +112,7 @@ func errorAnswer(c *Conn, id answerID, err error) *ansent {
 // newReturn creates a new Return message. The returned Releaser will release the message when
 // all references to it are dropped; the caller is responsible for one reference. This will not
 // happen before the message is sent, as the returned send function retains a reference.
-func (c *Conn) newReturn() (_ rpccp.Return, sendMsg func(*lockedConn), _ *rc.Releaser, _ error) {
+func (c *Conn) newReturn() (_ rpccp.Return, sendMsg func(), _ *rc.Releaser, _ error) {
 	outMsg, err := c.transport.NewMessage()
 	if err != nil {
 		return rpccp.Return{}, nil, nil, rpcerr.WrapFailed("create return", err)
@@ -123,9 +129,7 @@ func (c *Conn) newReturn() (_ rpccp.Return, sendMsg func(*lockedConn), _ *rc.Rel
 	// 'releaseMsg' is called.
 	releaser := rc.NewReleaser(2, outMsg.Release)
 
-	unlockedConn := c
-	return ret, func(c *lockedConn) {
-		c.assertIs(unlockedConn)
+	return ret, func() {
 		c.lk.sendTx.Send(asyncSend{
 			send:    outMsg.Send,
 			release: releaser.Decr,
@@ -142,9 +146,7 @@ func (c *Conn) newReturn() (_ rpccp.Return, sendMsg func(*lockedConn), _ *rc.Rel
 // already returned.  The caller MUST hold ans.c.lk.
 //
 // This also sets ans.promise to a new promise, wrapping pcall.
-func (ans *ansent) setPipelineCaller(c *lockedConn, m capnp.Method, pcall capnp.PipelineCaller) {
-	c.assertIs(ans.returner.c)
-
+func (ans *ansent) setPipelineCaller(m capnp.Method, pcall capnp.PipelineCaller) {
 	if !ans.flags.Contains(resultsReady) {
 		ans.pcall = pcall
 		ans.promise = capnp.NewPromise(m, pcall)
@@ -198,9 +200,9 @@ func (ans *ansReturner) PrepareReturn(e error) {
 	ans.c.withLocked(func(c *lockedConn) {
 		ent := c.lk.answers[ans.id]
 		if e == nil {
-			ent.prepareSendReturn(c, rl)
+			ent.prepareSendReturn(rl)
 		} else {
-			ent.prepareSendException(c, rl, e)
+			ent.prepareSendException(rl, e)
 		}
 	})
 }
@@ -217,9 +219,9 @@ func (ans *ansReturner) Return() {
 		pcallsWait = ent.pcalls.Wait
 
 		if ent.err == nil {
-			err = ent.completeSendReturn(c, rl)
+			err = ent.completeSendReturn(rl)
 		} else {
-			ent.completeSendException(c, rl)
+			ent.completeSendException(rl)
 		}
 	})
 	defer pcallsWait()
@@ -250,15 +252,14 @@ func (ans *ansReturner) ReleaseResults() {
 // the lock, per usual).
 //
 // sendReturn MUST NOT be called if sendException was previously called.
-func (ans *ansent) sendReturn(c *lockedConn, rl *releaseList) error {
-	ans.prepareSendReturn(c, rl)
-	return ans.completeSendReturn(c, rl)
+func (ans *ansent) sendReturn(rl *releaseList) error {
+	ans.prepareSendReturn(rl)
+	return ans.completeSendReturn(rl)
 }
 
-func (ans *ansent) prepareSendReturn(c *lockedConn, rl *releaseList) {
-	c.assertIs(ans.returner.c)
-
+func (ans *ansent) prepareSendReturn(rl *releaseList) {
 	var err error
+	c := ans.lockedConn()
 	ans.exportRefs, err = c.fillPayloadCapTable(ans.returner.results)
 	if err != nil {
 		c.er.ReportError(rpcerr.Annotate(err, "send return"))
@@ -274,9 +275,7 @@ func (ans *ansent) prepareSendReturn(c *lockedConn, rl *releaseList) {
 	}
 }
 
-func (ans *ansent) completeSendReturn(c *lockedConn, rl *releaseList) error {
-	c.assertIs(ans.returner.c)
-
+func (ans *ansent) completeSendReturn(rl *releaseList) error {
 	ans.pcall = nil
 	ans.flags |= resultsReady
 
@@ -294,12 +293,12 @@ func (ans *ansent) completeSendReturn(c *lockedConn, rl *releaseList) error {
 			}
 			ans.promise = nil
 		}
-		ans.sendMsg(c)
+		ans.sendMsg()
 	}
 
 	ans.flags |= returnSent
 	if fin {
-		return ans.destroy(c, rl)
+		return ans.destroy(rl)
 	}
 	return nil
 }
@@ -308,15 +307,15 @@ func (ans *ansent) completeSendReturn(c *lockedConn, rl *releaseList) error {
 //
 // The caller MUST be holding onto ans.c.lk. sendException MUST NOT
 // be called if sendReturn was previously called.
-func (ans *ansent) sendException(c *lockedConn, rl *releaseList, ex error) {
-	ans.prepareSendException(c, rl, ex)
-	ans.completeSendException(c, rl)
+func (ans *ansent) sendException(rl *releaseList, ex error) {
+	ans.prepareSendException(rl, ex)
+	ans.completeSendException(rl)
 }
 
-func (ans *ansent) prepareSendException(c *lockedConn, rl *releaseList, ex error) {
-	c.assertIs(ans.returner.c)
+func (ans *ansent) prepareSendException(rl *releaseList, ex error) {
 	ans.err = ex
 
+	c := ans.lockedConn()
 	select {
 	case <-c.bgctx.Done():
 	default:
@@ -331,9 +330,7 @@ func (ans *ansent) prepareSendException(c *lockedConn, rl *releaseList, ex error
 	}
 }
 
-func (ans *ansent) completeSendException(c *lockedConn, rl *releaseList) {
-	c.assertIs(ans.returner.c)
-
+func (ans *ansent) completeSendException(rl *releaseList) {
 	ex := ans.err
 	ans.pcall = nil
 	ans.flags |= resultsReady
@@ -343,13 +340,13 @@ func (ans *ansent) completeSendException(c *lockedConn, rl *releaseList) {
 		ans.promise = nil
 	}
 	if ans.sendMsg != nil {
-		ans.sendMsg(c)
+		ans.sendMsg()
 	}
 	ans.flags |= returnSent
 	if ans.flags.Contains(finishReceived) {
 		// destroy will never return an error because sendException does
 		// create any exports.
-		_ = ans.destroy(c, rl)
+		_ = ans.destroy(rl)
 	}
 }
 
@@ -358,10 +355,9 @@ func (ans *ansent) completeSendException(c *lockedConn, rl *releaseList) {
 // The caller must be holding onto ans.c.lk.
 //
 // shutdown has its own strategy for cleaning up an answer.
-func (ans *ansent) destroy(c *lockedConn, rl *releaseList) error {
-	c.assertIs(ans.returner.c)
-
+func (ans *ansent) destroy(rl *releaseList) error {
 	rl.Add(ans.returner.msgReleaser.Decr)
+	c := ans.lockedConn()
 	delete(c.lk.answers, ans.returner.id)
 	if !ans.flags.Contains(releaseResultCapsFlag) || len(ans.exportRefs) == 0 {
 		return nil
