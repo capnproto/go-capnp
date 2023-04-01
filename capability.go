@@ -142,18 +142,21 @@ type clientHook struct {
 	// Place for callers to attach arbitrary metadata to the client.
 	metadata Metadata
 
-	// done is closed when refs == 0 and calls == 0.
+	// done is closed when refs == 0
 	done chan struct{}
 
 	state mutex.Mutex[clientHookState]
 }
 
 type clientHookState struct {
+	// How many references there are to this clientHook.
+	// This includes both Clients that point to it and
+	// outstanding calls on it.
+	refs int
+
 	// resolved is closed after resolvedHook is set
 	resolved chan struct{}
 
-	refs         int         // how many open Clients reference this clientHook
-	calls        int         // number of outstanding ClientHook accesses
 	resolvedHook *clientHook // valid only if resolved is closed
 }
 
@@ -232,14 +235,14 @@ func (c Client) startCall() (hook ClientHook, resolved, released bool, finish fu
 		if c.h == nil {
 			return nil, true, false, func() {}
 		}
-		l.Value().calls++
+		l.Value().refs++
 		isResolved := l.Value().isResolved()
 		l.Unlock()
 		savedHook := c.h
 		return savedHook.ClientHook, isResolved, false, func() {
 			savedHook.state.With(func(s *clientHookState) {
-				s.calls--
-				if s.refs == 0 && s.calls == 0 {
+				s.refs--
+				if s.refs == 0 {
 					close(savedHook.done)
 				}
 			})
@@ -657,9 +660,7 @@ func (c Client) Release() {
 		cl.Unlock()
 		return
 	}
-	if hl.Value().calls == 0 {
-		close(h.done)
-	}
+	close(h.done)
 	hl.Unlock()
 	cl.Unlock()
 	<-h.done
@@ -774,9 +775,7 @@ func (cp *clientPromise) fulfill(c Client) {
 	}
 
 	// Client still had references, so we're responsible for shutting it down.
-	if l.Value().calls == 0 {
-		close(cp.h.done)
-	}
+	close(cp.h.done)
 	rh, l = resolveHook(cp.h, l) // swaps mutex on cp.h for mutex on rh
 	if rh != nil {
 		l.Value().refs += refs
