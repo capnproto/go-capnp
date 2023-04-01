@@ -30,7 +30,7 @@ const maxDepth = ^uint(0)
 type Message struct {
 	// rlimit must be first so that it is 64-bit aligned.
 	// See sync/atomic docs.
-	rlimit     uint64
+	rlimit     atomic.Uint64
 	rlimitInit sync.Once
 
 	Arena Arena
@@ -162,26 +162,25 @@ func (m *Message) Reset(arena Arena) (first *Segment, err error) {
 
 func (m *Message) initReadLimit() {
 	if m.TraverseLimit == 0 {
-		atomic.StoreUint64(&m.rlimit, defaultTraverseLimit)
+		m.rlimit.Store(defaultTraverseLimit)
 		return
 	}
-	atomic.StoreUint64(&m.rlimit, m.TraverseLimit)
+	m.rlimit.Store(m.TraverseLimit)
 }
 
 // canRead reports whether the amount of bytes can be stored safely.
-func (m *Message) canRead(sz Size) bool {
+func (m *Message) canRead(sz Size) (ok bool) {
 	m.rlimitInit.Do(m.initReadLimit)
 	for {
-		curr := atomic.LoadUint64(&m.rlimit)
-		ok := curr >= uint64(sz)
+		curr := m.rlimit.Load()
+
 		var new uint64
-		if ok {
+		if ok = curr >= uint64(sz); ok {
 			new = curr - uint64(sz)
-		} else {
-			new = 0
 		}
-		if atomic.CompareAndSwapUint64(&m.rlimit, curr, new) {
-			return ok
+
+		if m.rlimit.CompareAndSwap(curr, new) {
+			return
 		}
 	}
 }
@@ -189,13 +188,13 @@ func (m *Message) canRead(sz Size) bool {
 // ResetReadLimit sets the number of bytes allowed to be read from this message.
 func (m *Message) ResetReadLimit(limit uint64) {
 	m.rlimitInit.Do(func() {})
-	atomic.StoreUint64(&m.rlimit, limit)
+	m.rlimit.Store(limit)
 }
 
 // Unread increases the read limit by sz.
 func (m *Message) Unread(sz Size) {
 	m.rlimitInit.Do(m.initReadLimit)
-	atomic.AddUint64(&m.rlimit, uint64(sz))
+	m.rlimit.Add(uint64(sz))
 }
 
 // Root returns the pointer to the message's root object.
