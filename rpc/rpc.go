@@ -122,7 +122,7 @@ type Conn struct {
 		// Tables
 		questions  []*question
 		questionID idgen
-		answers    map[answerID]*answer
+		answers    map[answerID]*ansent
 		exports    []*expent
 		exportID   idgen
 		imports    map[importID]*impent
@@ -234,7 +234,7 @@ func NewConn(t Transport, opts *Options) *Conn {
 	c.sendRx = &sender.Rx
 	c.lk.sendTx = &sender.Tx
 
-	c.lk.answers = make(map[answerID]*answer)
+	c.lk.answers = make(map[answerID]*ansent)
 	c.lk.imports = make(map[importID]*impent)
 
 	if opts != nil {
@@ -442,8 +442,8 @@ func (c *Conn) shutdown(abortErr error) (err error) {
 // Called by 'shutdown'.  Callers MUST hold c.lk.
 func (c *lockedConn) cancelTasks() {
 	for _, a := range c.lk.answers {
-		if a != nil && a.cancel != nil {
-			a.cancel()
+		if a != nil && a.returner.cancel != nil {
+			a.returner.cancel()
 		}
 	}
 }
@@ -507,10 +507,10 @@ func (c *lockedConn) liftEmbargoes(rl *releaseList, embargoes []*embargo) {
 	}
 }
 
-func (c *lockedConn) releaseAnswers(rl *releaseList, answers map[answerID]*answer) {
+func (c *lockedConn) releaseAnswers(rl *releaseList, answers map[answerID]*ansent) {
 	for _, a := range answers {
-		if a != nil && a.msgReleaser != nil {
-			rl.Add(a.msgReleaser.Decr)
+		if a != nil && a.returner.msgReleaser != nil {
+			rl.Add(a.returner.msgReleaser.Decr)
 		}
 	}
 }
@@ -717,37 +717,39 @@ func (c *Conn) handleBootstrap(in transport.IncomingMessage) error {
 	rl := &releaseList{}
 	defer rl.Release()
 
-	ans := answer{
-		c:  c,
-		id: answerID(bootstrap.QuestionId()),
+	ans := ansent{
+		returner: ansReturner{
+			c:  c,
+			id: answerID(bootstrap.QuestionId()),
+		},
 	}
 
-	ans.ret, ans.sendMsg, ans.msgReleaser, err = c.newReturn()
+	ans.returner.ret, ans.sendMsg, ans.returner.msgReleaser, err = c.newReturn()
 	if err == nil {
-		ans.ret.SetAnswerId(uint32(ans.id))
-		ans.ret.SetReleaseParamCaps(false)
+		ans.returner.ret.SetAnswerId(uint32(ans.returner.id))
+		ans.returner.ret.SetReleaseParamCaps(false)
 	}
 
 	c.withLocked(func(c *lockedConn) {
-		if c.lk.answers[ans.id] != nil {
-			rl.Add(ans.msgReleaser.Decr)
-			err = rpcerr.Failed(errors.New("incoming bootstrap: answer ID " + str.Utod(ans.id) + " reused"))
+		if c.lk.answers[ans.returner.id] != nil {
+			rl.Add(ans.returner.msgReleaser.Decr)
+			err = rpcerr.Failed(errors.New("incoming bootstrap: answer ID " + str.Utod(ans.returner.id) + " reused"))
 			return
 		}
 
 		if err != nil {
 			err = rpcerr.Annotate(err, "incoming bootstrap")
-			c.lk.answers[ans.id] = errorAnswer((*Conn)(c), ans.id, err)
+			c.lk.answers[ans.returner.id] = errorAnswer((*Conn)(c), ans.returner.id, err)
 			c.er.ReportError(err)
 			return
 		}
 
-		c.lk.answers[ans.id] = &ans
+		c.lk.answers[ans.returner.id] = &ans
 		if !c.bootstrap.IsValid() {
 			ans.sendException(c, rl, exc.New(exc.Failed, "", "vat does not expose a public/bootstrap interface"))
 			return
 		}
-		if err := ans.setBootstrap(c.bootstrap.AddRef()); err != nil {
+		if err := ans.returner.setBootstrap(c.bootstrap.AddRef()); err != nil {
 			ans.sendException(c, rl, err)
 			return
 		}
@@ -836,12 +838,14 @@ func (c *Conn) handleCall(ctx context.Context, in transport.IncomingMessage) err
 	ret.SetReleaseParamCaps(false)
 
 	// Find target and start call.
-	ans := &answer{
-		c:           c,
-		id:          id,
-		ret:         ret,
-		sendMsg:     send,
-		msgReleaser: retReleaser,
+	ans := &ansent{
+		returner: ansReturner{
+			c:           c,
+			id:          id,
+			ret:         ret,
+			msgReleaser: retReleaser,
+		},
+		sendMsg: send,
 	}
 	return withLockedConn1(c, func(c *lockedConn) error {
 		c.lk.answers[id] = ans
@@ -859,16 +863,16 @@ func (c *Conn) handleCall(ctx context.Context, in transport.IncomingMessage) err
 			Args:        p.args,
 			Method:      p.method,
 			ReleaseArgs: util.Idempotent(in.Release),
-			Returner:    ans,
+			Returner:    &ans.returner,
 		}
 
 		switch p.target.which {
 		case rpccp.MessageTarget_Which_importedCap:
 			ent := c.findExport(p.target.importedCap)
 			if ent == nil {
-				ans.ret = rpccp.Return{}
+				ans.returner.ret = rpccp.Return{}
 				ans.sendMsg = nil
-				ans.msgReleaser = nil
+				ans.returner.msgReleaser = nil
 				rl.Add(func() {
 					retReleaser.Decr()
 					in.Release()
@@ -877,7 +881,7 @@ func (c *Conn) handleCall(ctx context.Context, in transport.IncomingMessage) err
 			}
 			c.tasks.Add(1) // will be finished by answer.Return
 			var callCtx context.Context
-			callCtx, ans.cancel = context.WithCancel(c.bgctx)
+			callCtx, ans.returner.cancel = context.WithCancel(c.bgctx)
 			pcall := newPromisedPipelineCaller()
 			ans.setPipelineCaller(c, p.method, pcall)
 			rl.Add(func() {
@@ -887,9 +891,9 @@ func (c *Conn) handleCall(ctx context.Context, in transport.IncomingMessage) err
 		case rpccp.MessageTarget_Which_promisedAnswer:
 			tgtAns := c.lk.answers[p.target.promisedAnswer]
 			if tgtAns == nil || tgtAns.flags.Contains(finishReceived) {
-				ans.ret = rpccp.Return{}
+				ans.returner.ret = rpccp.Return{}
 				ans.sendMsg = nil
-				ans.msgReleaser = nil
+				ans.returner.msgReleaser = nil
 				rl.Add(func() {
 					retReleaser.Decr()
 					in.Release()
@@ -910,7 +914,7 @@ func (c *Conn) handleCall(ctx context.Context, in transport.IncomingMessage) err
 				// received finish yet (it would have been deleted from the
 				// answers table), and it can't receive a finish because this is
 				// happening on the receive goroutine.
-				content, err := tgtAns.results.Content()
+				content, err := tgtAns.returner.results.Content()
 				if err != nil {
 					err = rpcerr.WrapFailed("incoming call: read results from target answer", err)
 					ans.sendException(c, rl, err)
@@ -930,14 +934,14 @@ func (c *Conn) handleCall(ctx context.Context, in transport.IncomingMessage) err
 				switch {
 				case sub.IsValid() && !iface.IsValid():
 					tgt = capnp.ErrorClient(rpcerr.Failed(ErrNotACapability))
-				case !iface.IsValid() || int64(iface.Capability()) >= int64(len(tgtAns.results.Message().CapTable)):
+				case !iface.IsValid() || int64(iface.Capability()) >= int64(len(tgtAns.returner.results.Message().CapTable)):
 					tgt = capnp.Client{}
 				default:
-					tgt = tgtAns.results.Message().CapTable[iface.Capability()]
+					tgt = tgtAns.returner.results.Message().CapTable[iface.Capability()]
 				}
 				c.tasks.Add(1) // will be finished by answer.Return
 				var callCtx context.Context
-				callCtx, ans.cancel = context.WithCancel(c.bgctx)
+				callCtx, ans.returner.cancel = context.WithCancel(c.bgctx)
 				pcall := newPromisedPipelineCaller()
 				ans.setPipelineCaller(c, p.method, pcall)
 				rl.Add(func() {
@@ -947,7 +951,7 @@ func (c *Conn) handleCall(ctx context.Context, in transport.IncomingMessage) err
 				// Results not ready, use pipeline caller.
 				tgtAns.pcalls.Add(1) // will be finished by answer.Return
 				var callCtx context.Context
-				callCtx, ans.cancel = context.WithCancel(c.bgctx)
+				callCtx, ans.returner.cancel = context.WithCancel(c.bgctx)
 				tgt := tgtAns.pcall
 				c.tasks.Add(1) // will be finished by answer.Return
 				pcall := newPromisedPipelineCaller()
@@ -1319,8 +1323,8 @@ func (c *Conn) handleFinish(ctx context.Context, in transport.IncomingMessage) e
 		if releaseResultCaps {
 			ans.flags |= releaseResultCapsFlag
 		}
-		if ans.cancel != nil {
-			ans.cancel()
+		if ans.returner.cancel != nil {
+			ans.returner.cancel()
 		}
 		if !ans.flags.Contains(returnSent) {
 			return nil
@@ -1417,7 +1421,7 @@ func (c *lockedConn) recvCap(d rpccp.CapDescriptor) (capnp.Client, error) {
 }
 
 // Helper for lockedConn.recvCap(); handles the receiverAnswer case.
-func (c *lockedConn) recvCapReceiverAnswer(ans *answer, transform []capnp.PipelineOp) capnp.Client {
+func (c *lockedConn) recvCapReceiverAnswer(ans *ansent, transform []capnp.PipelineOp) capnp.Client {
 	if ans.promise != nil {
 		// Still unresolved.
 		future := ans.promise.Answer().Future()
@@ -1431,7 +1435,7 @@ func (c *lockedConn) recvCapReceiverAnswer(ans *answer, transform []capnp.Pipeli
 		return capnp.ErrorClient(ans.err)
 	}
 
-	ptr, err := ans.results.Content()
+	ptr, err := ans.returner.results.Content()
 	if err != nil {
 		return capnp.ErrorClient(rpcerr.WrapFailed("except.Failed reading results", err))
 	}
@@ -1641,7 +1645,7 @@ func (c *Conn) handleDisembargo(ctx context.Context, in transport.IncomingMessag
 			}
 
 			var content capnp.Ptr
-			if content, err = ans.results.Content(); err != nil {
+			if content, err = ans.returner.results.Content(); err != nil {
 				err = rpcerr.Failed(errors.New(
 					"incoming disembargo: read answer ID " +
 						str.Utod(tgt.promisedAnswer) + ": " + err.Error(),
@@ -1659,7 +1663,7 @@ func (c *Conn) handleDisembargo(ctx context.Context, in transport.IncomingMessag
 			}
 
 			iface := ptr.Interface()
-			if !iface.IsValid() || int64(iface.Capability()) >= int64(len(ans.results.Message().CapTable)) {
+			if !iface.IsValid() || int64(iface.Capability()) >= int64(len(ans.returner.results.Message().CapTable)) {
 				err = rpcerr.Failed(errors.New(
 					"incoming disembargo: sender loopback requested on a capability that is not an import",
 				))
