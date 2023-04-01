@@ -740,7 +740,7 @@ func TestSetInterfacePtr(t *testing.T) {
 		id := msg.AddCap(client)
 		iface := NewInterface(seg, id)
 		defer func() {
-			for _, c := range msg.CapTable {
+			for _, c := range msg.capTable {
 				c.Release()
 			}
 			if hook.shutdowns == 0 {
@@ -791,10 +791,10 @@ func TestSetInterfacePtr(t *testing.T) {
 			t.Fatal("NewRootStruct:", err)
 		}
 		defer func() {
-			for _, c := range msg1.CapTable {
+			for _, c := range msg1.capTable {
 				c.Release()
 			}
-			for _, c := range msg2.CapTable {
+			for _, c := range msg2.capTable {
 				c.Release()
 			}
 		}()
@@ -813,17 +813,17 @@ func TestSetInterfacePtr(t *testing.T) {
 		if !iface2.Client().IsSame(iface1.Client()) {
 			t.Errorf("root.Ptr(0).Interface().Client() = %v; want %v", iface2.Client(), iface1.Client())
 		}
-		for _, c := range msg1.CapTable {
+		for _, c := range msg1.capTable {
 			c.Release()
 		}
-		msg1.CapTable = nil
+		msg1.capTable = nil
 		if hook.shutdowns > 0 {
 			t.Error("copying interface across messages did not add reference")
 		}
-		for _, c := range msg2.CapTable {
+		for _, c := range msg2.capTable {
 			c.Release()
 		}
-		msg2.CapTable = nil
+		msg2.capTable = nil
 		if hook.shutdowns == 0 {
 			t.Error("client not shut down after releasing both message capability tables")
 		}

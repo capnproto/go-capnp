@@ -24,6 +24,24 @@ const (
 
 const maxDepth = ^uint(0)
 
+type CapTable []Client
+
+func (ct CapTable) Len() int {
+	return len(ct)
+}
+
+func (ct CapTable) Contains(ifc Interface) bool {
+	return ifc.IsValid() && ifc.Capability() < CapabilityID(ct.Len())
+}
+
+func (ct CapTable) Get(ifc Interface) (c Client) {
+	if ct.Contains(ifc) {
+		c = ct[ifc.Capability()]
+	}
+
+	return
+}
+
 // A Message is a tree of Cap'n Proto objects, split into one or more
 // segments of contiguous memory.  The only required field is Arena.
 // A Message is safe to read from multiple goroutines.
@@ -35,14 +53,14 @@ type Message struct {
 
 	Arena Arena
 
-	// CapTable is the indexed list of the clients referenced in the
+	// capTable is the indexed list of the clients referenced in the
 	// message.  Capability pointers inside the message will use this table
 	// to map pointers to Clients.  The table is usually populated by the
 	// RPC system.
 	//
 	// See https://capnproto.org/encoding.html#capabilities-interfaces for
 	// more details on the capability table.
-	CapTable []Client
+	capTable CapTable
 
 	// TraverseLimit limits how many total bytes of data are allowed to be
 	// traversed while reading.  Traversal is counted when a Struct or
@@ -105,7 +123,7 @@ func (m *Message) Release() {
 // the Message, releases all clients in the cap table, and
 // releases the current Arena, so use with caution.
 func (m *Message) Reset(arena Arena) (first *Segment, err error) {
-	for _, c := range m.CapTable {
+	for _, c := range m.capTable {
 		c.Release()
 	}
 
@@ -121,7 +139,7 @@ func (m *Message) Reset(arena Arena) (first *Segment, err error) {
 		Arena:         arena,
 		TraverseLimit: m.TraverseLimit,
 		DepthLimit:    m.DepthLimit,
-		CapTable:      m.CapTable[:0],
+		capTable:      m.capTable[:0],
 		segs:          m.segs,
 	}
 
@@ -222,12 +240,20 @@ func (m *Message) SetRoot(p Ptr) error {
 	return nil
 }
 
+func (m *Message) CapTable() CapTable {
+	return m.capTable
+}
+
+func (m *Message) SetCapTable(ct []Client) {
+	m.capTable = ct
+}
+
 // AddCap appends a capability to the message's capability table and
 // returns its ID.  It "steals" c's reference: the Message will release
 // the client when calling Reset.
 func (m *Message) AddCap(c Client) CapabilityID {
-	n := CapabilityID(len(m.CapTable))
-	m.CapTable = append(m.CapTable, c)
+	n := CapabilityID(len(m.capTable))
+	m.capTable = append(m.capTable, c)
 	return n
 }
 

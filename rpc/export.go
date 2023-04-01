@@ -266,11 +266,11 @@ func (c *lockedConn) fillPayloadCapTable(payload rpccp.Payload) (map[exportID]ui
 	if !payload.IsValid() {
 		return nil, nil
 	}
-	clients := payload.Message().CapTable
-	if len(clients) == 0 {
+	clients := payload.Message().CapTable()
+	if clients.Len() == 0 {
 		return nil, nil
 	}
-	list, err := payload.NewCapTable(int32(len(clients)))
+	list, err := payload.NewCapTable(int32(clients.Len()))
 	if err != nil {
 		return nil, rpcerr.WrapFailed("payload capability table", err)
 	}
@@ -284,7 +284,7 @@ func (c *lockedConn) fillPayloadCapTable(payload rpccp.Payload) (map[exportID]ui
 			continue
 		}
 		if refs == nil {
-			refs = make(map[exportID]uint32, len(clients)-i)
+			refs = make(map[exportID]uint32, clients.Len()-i)
 		}
 		refs[id]++
 	}

@@ -71,7 +71,7 @@ func TestEqual(t *testing.T) {
 	plistB, _ := NewPointerList(seg, 1)
 	plistB.Set(0, structB.ToPtr())
 	ec := ErrorClient(errors.New("boo"))
-	msg.CapTable = []Client{
+	msg.capTable = []Client{
 		0: ec,
 		1: ec,
 		2: ErrorClient(errors.New("another boo")),

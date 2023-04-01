@@ -174,11 +174,11 @@ func (ans *ansReturner) AllocResults(sz capnp.ObjectSize) (capnp.Struct, error) 
 // setBootstrap sets the results to an interface pointer, stealing the
 // reference.
 func (ans *ansReturner) setBootstrap(c capnp.Client) error {
-	if ans.ret.HasResults() || len(ans.ret.Message().CapTable) > 0 {
+	if ans.ret.HasResults() || ans.ret.Message().CapTable().Len() > 0 {
 		panic("setBootstrap called after creating results")
 	}
 	// Add the capability to the table early to avoid leaks if setBootstrap fails.
-	ans.ret.Message().CapTable = []capnp.Client{c}
+	ans.ret.Message().SetCapTable([]capnp.Client{c})
 
 	var err error
 	ans.results, err = ans.ret.NewResults()

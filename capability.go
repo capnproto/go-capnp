@@ -84,7 +84,7 @@ func (i Interface) Client() Client {
 	if msg == nil {
 		return Client{}
 	}
-	tab := msg.CapTable
+	tab := msg.capTable
 	if int64(i.cap) >= int64(len(tab)) {
 		return Client{}
 	}
@@ -400,10 +400,10 @@ func (c Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 
 // SendStreamCall is like SendCall except that:
 //
-// 1. It does not return an answer for the eventual result.
-// 2. If the call returns an error, all future calls on this
-//    client will return the same error (without starting
-//    the method or calling PlaceArgs).
+//  1. It does not return an answer for the eventual result.
+//  2. If the call returns an error, all future calls on this
+//     client will return the same error (without starting
+//     the method or calling PlaceArgs).
 func (c Client) SendStreamCall(ctx context.Context, s Send) error {
 	streamError := mutex.With1(&c.state, func(c *clientState) error {
 		err := c.stream.err

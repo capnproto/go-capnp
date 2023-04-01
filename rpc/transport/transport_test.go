@@ -82,7 +82,7 @@ func testTransport(t *testing.T, makePipe func() (t1, t2 Transport, err error)) 
 		}
 		// simulate mutating CapTable
 		callMsg.Message().Message().AddCap(capnp.ErrorClient(errors.New("foo")))
-		callMsg.Message().Message().CapTable = nil
+		callMsg.Message().Message().SetCapTable(nil)
 		capPtr := capnp.NewInterface(params.Segment(), 0).ToPtr()
 		if err := params.SetContent(capPtr); err != nil {
 			t.Fatal("SetContent:", err)
@@ -102,7 +102,7 @@ func testTransport(t *testing.T, makePipe func() (t1, t2 Transport, err error)) 
 		if err != nil {
 			t.Fatal("t2.RecvMessage:", err)
 		}
-		if r1.Message().Message().CapTable != nil {
+		if r1.Message().Message().CapTable() != nil {
 			t.Error("t2.RecvMessage(ctx).Message().CapTable is not nil")
 		}
 		if r1.Message().Which() != rpccp.Message_Which_bootstrap {
@@ -124,7 +124,7 @@ func testTransport(t *testing.T, makePipe func() (t1, t2 Transport, err error)) 
 		if err != nil {
 			t.Fatal("t2.RecvMessage:", err)
 		}
-		if r2.Message().Message().CapTable != nil {
+		if r2.Message().Message().CapTable() != nil {
 			t.Error("t2.RecvMessage(ctx).Message().CapTable is not nil")
 		}
 		if r2.Message().Which() != rpccp.Message_Which_call {
