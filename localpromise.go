@@ -46,7 +46,7 @@ func (lp localPromise) String() string {
 
 func (lp localPromise) Fulfill(c Client) {
 	msg, seg := NewSingleSegmentMessage(nil)
-	capID := msg.AddCap(c)
+	capID := msg.CapTable().Add(c)
 	lp.aq.Fulfill(NewInterface(seg, capID).ToPtr())
 }
 

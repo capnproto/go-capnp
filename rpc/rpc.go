@@ -1237,8 +1237,10 @@ func (c *lockedConn) parseReturn(rl *releaseList, ret rpccp.Return, called [][]c
 			if !mtab.Contains(iface) || !locals.has(uint(i)) || embargoCaps.has(uint(i)) {
 				continue
 			}
-			var id embargoID
-			id, mtab[i] = c.embargo(mtab[i])
+
+			id, ec := c.embargo(mtab.Get(iface))
+			mtab.Set(i, ec)
+
 			embargoCaps.add(uint(i))
 			disembargoes = append(disembargoes, senderLoopback{
 				id:        id,
@@ -1497,7 +1499,7 @@ func (c *lockedConn) recvPayload(rl *releaseList, payload rpccp.Payload) (_ capn
 		// and just return.
 		return capnp.Ptr{}, nil, nil
 	}
-	if payload.Message().CapTable() != nil {
+	if payload.Message().CapTable().Len() != 0 {
 		// RecvMessage likely violated its invariant.
 		return capnp.Ptr{}, nil, rpcerr.WrapFailed("read payload", ErrCapTablePopulated)
 	}
@@ -1512,24 +1514,26 @@ func (c *lockedConn) recvPayload(rl *releaseList, payload rpccp.Payload) (_ capn
 		c.er.ReportError(exc.WrapError("read payload: capability table", err))
 		return p, nil, nil
 	}
-	mtab := make([]capnp.Client, ptab.Len())
+
+	mtab := payload.Message().CapTable()
+	mtab.Reset()
+
+	var cl capnp.Client
 	for i := 0; i < ptab.Len(); i++ {
-		var err error
-		mtab[i], err = c.recvCap(ptab.At(i))
-		if err != nil {
-			for _, client := range mtab[:i] {
-				rl.Add(client.Release)
-			}
-			return capnp.Ptr{}, nil, rpcerr.Annotate(
-				err, "read payload: capability "+str.Itod(i),
-			)
+		if cl, err = c.recvCap(ptab.At(i)); err != nil {
+			cl.Release()
+			mtab.Reset()
+			err = rpcerr.Annotate(err, "read payload: capability "+str.Itod(i))
+			break
 		}
-		if c.isLocalClient(mtab[i]) {
+
+		mtab.Add(cl)
+		if c.isLocalClient(cl) {
 			locals.add(uint(i))
 		}
 	}
-	payload.Message().SetCapTable(mtab)
-	return p, locals, nil
+
+	return p, locals, err
 }
 
 func (c *Conn) handleRelease(ctx context.Context, in transport.IncomingMessage) error {

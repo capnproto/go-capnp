@@ -24,24 +24,6 @@ const (
 
 const maxDepth = ^uint(0)
 
-type CapTable []Client
-
-func (ct CapTable) Len() int {
-	return len(ct)
-}
-
-func (ct CapTable) Contains(ifc Interface) bool {
-	return ifc.IsValid() && ifc.Capability() < CapabilityID(ct.Len())
-}
-
-func (ct CapTable) Get(ifc Interface) (c Client) {
-	if ct.Contains(ifc) {
-		c = ct[ifc.Capability()]
-	}
-
-	return
-}
-
 // A Message is a tree of Cap'n Proto objects, split into one or more
 // segments of contiguous memory.  The only required field is Arena.
 // A Message is safe to read from multiple goroutines.
@@ -123,10 +105,7 @@ func (m *Message) Release() {
 // the Message, releases all clients in the cap table, and
 // releases the current Arena, so use with caution.
 func (m *Message) Reset(arena Arena) (first *Segment, err error) {
-	for _, c := range m.capTable {
-		c.Release()
-	}
-
+	m.capTable.Reset()
 	for k := range m.segs {
 		delete(m.segs, k)
 	}
@@ -139,7 +118,7 @@ func (m *Message) Reset(arena Arena) (first *Segment, err error) {
 		Arena:         arena,
 		TraverseLimit: m.TraverseLimit,
 		DepthLimit:    m.DepthLimit,
-		capTable:      m.capTable[:0],
+		capTable:      m.capTable,
 		segs:          m.segs,
 	}
 
@@ -240,21 +219,8 @@ func (m *Message) SetRoot(p Ptr) error {
 	return nil
 }
 
-func (m *Message) CapTable() CapTable {
-	return m.capTable
-}
-
-func (m *Message) SetCapTable(ct []Client) {
-	m.capTable = ct
-}
-
-// AddCap appends a capability to the message's capability table and
-// returns its ID.  It "steals" c's reference: the Message will release
-// the client when calling Reset.
-func (m *Message) AddCap(c Client) CapabilityID {
-	n := CapabilityID(len(m.capTable))
-	m.capTable = append(m.capTable, c)
-	return n
+func (m *Message) CapTable() *CapTable {
+	return &m.capTable
 }
 
 // Compute the total size of the message in bytes, when serialized as

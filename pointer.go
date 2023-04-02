@@ -376,8 +376,8 @@ func Equal(p1, p2 Ptr) (bool, error) {
 			if i1.Capability() == i2.Capability() {
 				return true, nil
 			}
-			ntab := len(i1.Message().capTable)
-			if int64(i1.Capability()) >= int64(ntab) || int64(i2.Capability()) >= int64(ntab) {
+
+			if !i1.Message().CapTable().Contains(i1) || !i1.Message().CapTable().Contains(i2) {
 				return false, nil
 			}
 		}

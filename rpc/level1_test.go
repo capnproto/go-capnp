@@ -130,7 +130,7 @@ func testSendDisembargo(t *testing.T, sendPrimeTo rpccp.Call_sendResultsTo_Which
 		},
 		ArgsSize: capnp.ObjectSize{PointerCount: 1},
 		PlaceArgs: func(s capnp.Struct) error {
-			id := s.Message().AddCap(srv)
+			id := s.Message().CapTable().Add(srv)
 			ptr := capnp.NewInterface(s.Segment(), id).ToPtr()
 			return s.SetPtr(0, ptr)
 		},

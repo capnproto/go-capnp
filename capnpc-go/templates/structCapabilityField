@@ -12,6 +12,6 @@ func (s {{.Node.Name}}) Set{{.Field.Name|title}}(c {{.FieldType}}) error {
 		return capnp.Struct(s).SetPtr({{.Field.Slot.Offset}}, capnp.Ptr{})
 	}
 	seg := s.Segment()
-	in := capnp.NewInterface(seg, seg.Message().AddCap(c))
+	in := capnp.NewInterface(seg, seg.Message().CapTable().Add(c))
 	return capnp.Struct(s).SetPtr({{.Field.Slot.Offset}}, in.ToPtr())
 }

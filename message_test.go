@@ -400,39 +400,49 @@ func TestAddCap(t *testing.T) {
 	msg := &Message{Arena: SingleSegment(nil)}
 
 	// Simple case: distinct non-nil clients.
-	id1 := msg.AddCap(client1.AddRef())
-	assert.Equal(t, CapabilityID(0), id1, "first capability ID should be 0")
-	assert.Len(t, msg.capTable, 1, "should have exactly one capability in the capTable")
-	assert.True(t, msg.capTable[0].IsSame(client1), "client does not match entry in cap table")
+	id1 := msg.CapTable().Add(client1.AddRef())
+	assert.Equal(t, CapabilityID(0), id1,
+		"first capability ID should be 0")
+	assert.Equal(t, 1, msg.CapTable().Len(),
+		"should have exactly one capability in the capTable")
+	assert.True(t, msg.CapTable().At(0).IsSame(client1),
+		"client does not match entry in cap table")
 
-	id2 := msg.AddCap(client2.AddRef())
-	assert.Equal(t, CapabilityID(1), id2, "second capability ID should be 1")
-	assert.Len(t, msg.capTable, 2, "should have exactly two capabilities in the capTable")
-	assert.True(t, msg.capTable[1].IsSame(client2), "client does not match entry in cap table")
+	id2 := msg.CapTable().Add(client2.AddRef())
+	assert.Equal(t, CapabilityID(1), id2,
+		"second capability ID should be 1")
+	assert.Equal(t, 2, msg.CapTable().Len(),
+		"should have exactly two capabilities in the capTable")
+	assert.True(t, msg.CapTable().At(1).IsSame(client2),
+		"client does not match entry in cap table")
 
 	// nil client
-	id3 := msg.AddCap(Client{})
-	assert.Equal(t, CapabilityID(2), id3, "third capability ID should be 2")
-	assert.Len(t, msg.capTable, 3, "should have exactly three capabilities in the capTable")
-	assert.True(t, msg.capTable[2].IsSame(Client{}), "client does not match entry in cap table")
+	id3 := msg.CapTable().Add(Client{})
+	assert.Equal(t, CapabilityID(2), id3,
+		"third capability ID should be 2")
+	assert.Equal(t, 3, msg.CapTable().Len(),
+		"should have exactly three capabilities in the capTable")
+	assert.True(t, msg.CapTable().At(2).IsSame(Client{}),
+		"client does not match entry in cap table")
 
-	// AddCap should not attempt to deduplicate.
-	id4 := msg.AddCap(client1.AddRef())
-	assert.Equal(t, CapabilityID(3), id4, "fourth capability ID should be 3")
-	assert.Len(t, msg.capTable, 4, "should have exactly four capabilities in the capTable")
-	assert.True(t, msg.capTable[3].IsSame(client1), "client does not match entry in cap table")
+	// Add should not attempt to deduplicate.
+	id4 := msg.CapTable().Add(client1.AddRef())
+	assert.Equal(t, CapabilityID(3), id4,
+		"fourth capability ID should be 3")
+	assert.Equal(t, 4, msg.CapTable().Len(),
+		"should have exactly four capabilities in the capTable")
+	assert.True(t, msg.CapTable().At(3).IsSame(client1),
+		"client does not match entry in cap table")
 
-	// Verify that AddCap steals the reference: once client1 and client2
+	// Verify that Add steals the reference: once client1 and client2
 	// and the message's capabilities released, hook1 and hook2 should be
-	// shut down.  If they are not, then AddCap created a new reference.
+	// shut down.  If they are not, then Add created a new reference.
 	client1.Release()
 	assert.Zero(t, hook1.shutdowns, "hook1 shut down before releasing msg.capTable")
 	client2.Release()
 	assert.Zero(t, hook2.shutdowns, "hook2 shut down before releasing msg.capTable")
 
-	for _, c := range msg.capTable {
-		c.Release()
-	}
+	msg.CapTable().Reset()
 
 	assert.NotZero(t, hook1.shutdowns, "hook1 not shut down after releasing msg.capTable")
 	assert.NotZero(t, hook2.shutdowns, "hook2 not shut down after releasing msg.capTable")

@@ -79,16 +79,12 @@ func (i Interface) value(paddr address) rawPointer {
 
 // Client returns the client stored in the message's capability table
 // or nil if the pointer is invalid.
-func (i Interface) Client() Client {
-	msg := i.Message()
-	if msg == nil {
-		return Client{}
+func (i Interface) Client() (c Client) {
+	if msg := i.Message(); msg != nil {
+		c = msg.CapTable().Get(i)
 	}
-	tab := msg.capTable
-	if int64(i.cap) >= int64(len(tab)) {
-		return Client{}
-	}
-	return tab[i.cap]
+
+	return
 }
 
 // A CapabilityID is an index into a message's capability table.
@@ -668,7 +664,7 @@ func (c Client) Release() {
 }
 
 func (c Client) EncodeAsPtr(seg *Segment) Ptr {
-	capId := seg.Message().AddCap(c)
+	capId := seg.Message().CapTable().Add(c)
 	return NewInterface(seg, capId).ToPtr()
 }
 
