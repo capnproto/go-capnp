@@ -1521,8 +1521,13 @@ func (c *lockedConn) recvPayload(rl *releaseList, payload rpccp.Payload) (_ capn
 	var cl capnp.Client
 	for i := 0; i < ptab.Len(); i++ {
 		if cl, err = c.recvCap(ptab.At(i)); err != nil {
-			cl.Release()
-			mtab.Reset()
+			// It's not safe to release clients while holding the connection lock,
+			// as this might trigger a deadlock.  Use the releaseList instead.
+			rl.Add(cl.Release)
+			for j := 0; j < i; j++ {
+				rl.Add(mtab.At(j).Release)
+			}
+
 			err = rpcerr.Annotate(err, "read payload: capability "+str.Itod(i))
 			break
 		}
