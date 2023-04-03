@@ -1548,7 +1548,7 @@ func TestRecvCancel(t *testing.T) {
 			return err
 		}
 		retcap := newServer(nil, func() { close(retcapShutdown) })
-		capID := resp.Message().AddCap(retcap)
+		capID := resp.Message().CapTable().Add(retcap)
 		if err := resp.SetPtr(0, capnp.NewInterface(resp.Segment(), capID).ToPtr()); err != nil {
 			t.Error("set pointer:", err)
 			return err

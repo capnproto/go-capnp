@@ -79,16 +79,12 @@ func (i Interface) value(paddr address) rawPointer {
 
 // Client returns the client stored in the message's capability table
 // or nil if the pointer is invalid.
-func (i Interface) Client() Client {
-	msg := i.Message()
-	if msg == nil {
-		return Client{}
+func (i Interface) Client() (c Client) {
+	if msg := i.Message(); msg != nil {
+		c = msg.CapTable().Get(i)
 	}
-	tab := msg.CapTable
-	if int64(i.cap) >= int64(len(tab)) {
-		return Client{}
-	}
-	return tab[i.cap]
+
+	return
 }
 
 // A CapabilityID is an index into a message's capability table.
@@ -400,10 +396,10 @@ func (c Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 
 // SendStreamCall is like SendCall except that:
 //
-// 1. It does not return an answer for the eventual result.
-// 2. If the call returns an error, all future calls on this
-//    client will return the same error (without starting
-//    the method or calling PlaceArgs).
+//  1. It does not return an answer for the eventual result.
+//  2. If the call returns an error, all future calls on this
+//     client will return the same error (without starting
+//     the method or calling PlaceArgs).
 func (c Client) SendStreamCall(ctx context.Context, s Send) error {
 	streamError := mutex.With1(&c.state, func(c *clientState) error {
 		err := c.stream.err
@@ -668,7 +664,7 @@ func (c Client) Release() {
 }
 
 func (c Client) EncodeAsPtr(seg *Segment) Ptr {
-	capId := seg.Message().AddCap(c)
+	capId := seg.Message().CapTable().Add(c)
 	return NewInterface(seg, capId).ToPtr()
 }
 

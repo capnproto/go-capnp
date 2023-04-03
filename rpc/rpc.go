@@ -924,14 +924,12 @@ func (c *Conn) handleCall(ctx context.Context, in transport.IncomingMessage) err
 				}
 				iface := sub.Interface()
 				var tgt capnp.Client
-				switch {
-				case sub.IsValid() && !iface.IsValid():
+				if sub.IsValid() && !iface.IsValid() {
 					tgt = capnp.ErrorClient(rpcerr.Failed(ErrNotACapability))
-				case !iface.IsValid() || int64(iface.Capability()) >= int64(len(tgtAns.returner.results.Message().CapTable)):
-					tgt = capnp.Client{}
-				default:
-					tgt = tgtAns.returner.results.Message().CapTable[iface.Capability()]
+				} else {
+					tgt = tgtAns.returner.results.Message().CapTable().Get(iface)
 				}
+
 				c.tasks.Add(1) // will be finished by answer.Return
 				var callCtx context.Context
 				callCtx, ans.cancel = context.WithCancel(c.bgctx)
@@ -1231,19 +1229,18 @@ func (c *lockedConn) parseReturn(rl *releaseList, ret rpccp.Return, called [][]c
 
 		var embargoCaps uintSet
 		var disembargoes []senderLoopback
-		mtab := ret.Message().CapTable
+		mtab := ret.Message().CapTable()
 		for _, xform := range called {
 			p2, _ := capnp.Transform(content, xform)
 			iface := p2.Interface()
-			if !iface.IsValid() {
-				continue
-			}
 			i := iface.Capability()
-			if int64(i) >= int64(len(mtab)) || !locals.has(uint(i)) || embargoCaps.has(uint(i)) {
+			if !mtab.Contains(iface) || !locals.has(uint(i)) || embargoCaps.has(uint(i)) {
 				continue
 			}
-			var id embargoID
-			id, mtab[i] = c.embargo(mtab[i])
+
+			id, ec := c.embargo(mtab.Get(iface))
+			mtab.Set(i, ec)
+
 			embargoCaps.add(uint(i))
 			disembargoes = append(disembargoes, senderLoopback{
 				id:        id,
@@ -1502,7 +1499,7 @@ func (c *lockedConn) recvPayload(rl *releaseList, payload rpccp.Payload) (_ capn
 		// and just return.
 		return capnp.Ptr{}, nil, nil
 	}
-	if payload.Message().CapTable != nil {
+	if payload.Message().CapTable().Len() != 0 {
 		// RecvMessage likely violated its invariant.
 		return capnp.Ptr{}, nil, rpcerr.WrapFailed("read payload", ErrCapTablePopulated)
 	}
@@ -1517,24 +1514,31 @@ func (c *lockedConn) recvPayload(rl *releaseList, payload rpccp.Payload) (_ capn
 		c.er.ReportError(exc.WrapError("read payload: capability table", err))
 		return p, nil, nil
 	}
-	mtab := make([]capnp.Client, ptab.Len())
+
+	mtab := payload.Message().CapTable()
+	mtab.Reset()
+
+	var cl capnp.Client
 	for i := 0; i < ptab.Len(); i++ {
-		var err error
-		mtab[i], err = c.recvCap(ptab.At(i))
-		if err != nil {
-			for _, client := range mtab[:i] {
-				rl.Add(client.Release)
+		if cl, err = c.recvCap(ptab.At(i)); err != nil {
+			// It's not safe to release clients while holding the connection lock,
+			// as this might trigger a deadlock.  Use the releaseList instead.
+			rl.Add(cl.Release)
+			for j := 0; j < i; j++ {
+				rl.Add(mtab.At(j).Release)
 			}
-			return capnp.Ptr{}, nil, rpcerr.Annotate(
-				err, "read payload: capability "+str.Itod(i),
-			)
+
+			err = rpcerr.Annotate(err, "read payload: capability "+str.Itod(i))
+			break
 		}
-		if c.isLocalClient(mtab[i]) {
+
+		mtab.Add(cl)
+		if c.isLocalClient(cl) {
 			locals.add(uint(i))
 		}
 	}
-	payload.Message().CapTable = mtab
-	return p, locals, nil
+
+	return p, locals, err
 }
 
 func (c *Conn) handleRelease(ctx context.Context, in transport.IncomingMessage) error {
@@ -1656,7 +1660,7 @@ func (c *Conn) handleDisembargo(ctx context.Context, in transport.IncomingMessag
 			}
 
 			iface := ptr.Interface()
-			if !iface.IsValid() || int64(iface.Capability()) >= int64(len(ans.returner.results.Message().CapTable)) {
+			if !ans.returner.results.Message().CapTable().Contains(iface) {
 				err = rpcerr.Failed(errors.New(
 					"incoming disembargo: sender loopback requested on a capability that is not an import",
 				))

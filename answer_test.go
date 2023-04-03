@@ -103,7 +103,7 @@ func TestPromiseFulfill(t *testing.T) {
 		defer msg.Release()
 
 		res, _ := NewStruct(seg, ObjectSize{PointerCount: 3})
-		res.SetPtr(1, NewInterface(seg, msg.AddCap(c.AddRef())).ToPtr())
+		res.SetPtr(1, NewInterface(seg, msg.CapTable().Add(c.AddRef())).ToPtr())
 
 		p.Fulfill(res.ToPtr())
 

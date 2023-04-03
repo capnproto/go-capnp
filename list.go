@@ -1092,7 +1092,7 @@ func (c CapList[T]) At(i int) (T, error) {
 func (c CapList[T]) Set(i int, v T) error {
 	pl := PointerList(c)
 	seg := pl.Segment()
-	capId := seg.Message().AddCap(Client(v))
+	capId := seg.Message().CapTable().Add(Client(v))
 	return pl.Set(i, NewInterface(seg, capId).ToPtr())
 }
 
