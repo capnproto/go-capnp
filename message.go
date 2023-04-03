@@ -35,13 +35,6 @@ type Message struct {
 
 	Arena Arena
 
-	// capTable is the indexed list of the clients referenced in the
-	// message.  Capability pointers inside the message will use this table
-	// to map pointers to Clients.  The table is usually populated by the
-	// RPC system.
-	//
-	// See https://capnproto.org/encoding.html#capabilities-interfaces for
-	// more details on the capability table.
 	capTable CapTable
 
 	// TraverseLimit limits how many total bytes of data are allowed to be
