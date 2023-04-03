@@ -212,6 +212,12 @@ func (m *Message) SetRoot(p Ptr) error {
 	return nil
 }
 
+// CapTable is the indexed list of the clients referenced in the
+// message. Capability pointers inside the message will use this
+// table to map pointers to Clients.   The table is populated by
+// the RPC system.
+//
+// https://capnproto.org/encoding.html#capabilities-interfaces
 func (m *Message) CapTable() *CapTable {
 	return &m.capTable
 }
