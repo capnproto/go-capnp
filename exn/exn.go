@@ -71,3 +71,18 @@ func Try0(f func(Thrower)) error {
 	})
 	return err
 }
+
+// Try2 is like Try, but with two values instead of 1.
+func Try2[A, B any](f func(Thrower) (A, B)) (A, B, error) {
+	r, err := Try(func(throw func(error)) pair[A, B] {
+		a, b := f(throw)
+		return pair[A, B]{a: a, b: b}
+	})
+	return r.a, r.b, err
+}
+
+// TODO: move into its own package.
+type pair[A, B any] struct {
+	a A
+	b B
+}
