@@ -263,8 +263,8 @@ func (c Client) peek() (hook *clientHook, released bool, resolved bool) {
 }
 
 // resolveHook resolves h as much as possible without blocking.
-// l must point to the state belonging to h. resolveHook returns,
-// l will be invalid. The returnd Locked will point at the state of
+// l must point to the state belonging to h. When resolveHook returns,
+// l will be invalid. The returned Locked will point at the state of
 // the returned clientHook if they are not nil.
 func resolveHook(h *clientHook, l *mutex.Locked[clientHookState]) (*clientHook, *mutex.Locked[clientHookState]) {
 	for {
