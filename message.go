@@ -30,19 +30,12 @@ const maxDepth = ^uint(0)
 type Message struct {
 	// rlimit must be first so that it is 64-bit aligned.
 	// See sync/atomic docs.
-	rlimit     uint64
+	rlimit     atomic.Uint64
 	rlimitInit sync.Once
 
 	Arena Arena
 
-	// CapTable is the indexed list of the clients referenced in the
-	// message.  Capability pointers inside the message will use this table
-	// to map pointers to Clients.  The table is usually populated by the
-	// RPC system.
-	//
-	// See https://capnproto.org/encoding.html#capabilities-interfaces for
-	// more details on the capability table.
-	CapTable []Client
+	capTable CapTable
 
 	// TraverseLimit limits how many total bytes of data are allowed to be
 	// traversed while reading.  Traversal is counted when a Struct or
@@ -105,10 +98,7 @@ func (m *Message) Release() {
 // the Message, releases all clients in the cap table, and
 // releases the current Arena, so use with caution.
 func (m *Message) Reset(arena Arena) (first *Segment, err error) {
-	for _, c := range m.CapTable {
-		c.Release()
-	}
-
+	m.capTable.Reset()
 	for k := range m.segs {
 		delete(m.segs, k)
 	}
@@ -121,7 +111,7 @@ func (m *Message) Reset(arena Arena) (first *Segment, err error) {
 		Arena:         arena,
 		TraverseLimit: m.TraverseLimit,
 		DepthLimit:    m.DepthLimit,
-		CapTable:      m.CapTable[:0],
+		capTable:      m.capTable,
 		segs:          m.segs,
 	}
 
@@ -162,26 +152,25 @@ func (m *Message) Reset(arena Arena) (first *Segment, err error) {
 
 func (m *Message) initReadLimit() {
 	if m.TraverseLimit == 0 {
-		atomic.StoreUint64(&m.rlimit, defaultTraverseLimit)
+		m.rlimit.Store(defaultTraverseLimit)
 		return
 	}
-	atomic.StoreUint64(&m.rlimit, m.TraverseLimit)
+	m.rlimit.Store(m.TraverseLimit)
 }
 
 // canRead reports whether the amount of bytes can be stored safely.
-func (m *Message) canRead(sz Size) bool {
+func (m *Message) canRead(sz Size) (ok bool) {
 	m.rlimitInit.Do(m.initReadLimit)
 	for {
-		curr := atomic.LoadUint64(&m.rlimit)
-		ok := curr >= uint64(sz)
+		curr := m.rlimit.Load()
+
 		var new uint64
-		if ok {
+		if ok = curr >= uint64(sz); ok {
 			new = curr - uint64(sz)
-		} else {
-			new = 0
 		}
-		if atomic.CompareAndSwapUint64(&m.rlimit, curr, new) {
-			return ok
+
+		if m.rlimit.CompareAndSwap(curr, new) {
+			return
 		}
 	}
 }
@@ -189,13 +178,13 @@ func (m *Message) canRead(sz Size) bool {
 // ResetReadLimit sets the number of bytes allowed to be read from this message.
 func (m *Message) ResetReadLimit(limit uint64) {
 	m.rlimitInit.Do(func() {})
-	atomic.StoreUint64(&m.rlimit, limit)
+	m.rlimit.Store(limit)
 }
 
 // Unread increases the read limit by sz.
 func (m *Message) Unread(sz Size) {
 	m.rlimitInit.Do(m.initReadLimit)
-	atomic.AddUint64(&m.rlimit, uint64(sz))
+	m.rlimit.Add(uint64(sz))
 }
 
 // Root returns the pointer to the message's root object.
@@ -223,13 +212,14 @@ func (m *Message) SetRoot(p Ptr) error {
 	return nil
 }
 
-// AddCap appends a capability to the message's capability table and
-// returns its ID.  It "steals" c's reference: the Message will release
-// the client when calling Reset.
-func (m *Message) AddCap(c Client) CapabilityID {
-	n := CapabilityID(len(m.CapTable))
-	m.CapTable = append(m.CapTable, c)
-	return n
+// CapTable is the indexed list of the clients referenced in the
+// message. Capability pointers inside the message will use this
+// table to map pointers to Clients.   The table is populated by
+// the RPC system.
+//
+// https://capnproto.org/encoding.html#capabilities-interfaces
+func (m *Message) CapTable() *CapTable {
+	return &m.capTable
 }
 
 // Compute the total size of the message in bytes, when serialized as

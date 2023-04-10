@@ -199,7 +199,7 @@ func newTestList() capnp.List {
 
 func newTestInterface() capnp.Interface {
 	msg, seg, _ := capnp.NewMessage(capnp.SingleSegment(nil))
-	id := msg.AddCap(capnp.ErrorClient(errors.New("boo")))
+	id := msg.CapTable().Add(capnp.ErrorClient(errors.New("boo")))
 	return capnp.NewInterface(seg, id)
 }
 
