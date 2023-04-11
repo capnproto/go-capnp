@@ -130,7 +130,7 @@ func (q *question) handleCancel(ctx context.Context) {
 
 			q.p.Reject(rejectErr)
 			if q.bootstrapPromise != nil {
-				q.bootstrapPromise.Fulfill(q.p.Answer().Client())
+				q.bootstrapPromise.Reject(rejectErr)
 				q.p.ReleaseClients()
 			}
 		})
