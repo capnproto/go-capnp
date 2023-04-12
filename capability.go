@@ -854,8 +854,8 @@ type ClientHook interface {
 
 	// Shutdown releases any resources associated with this capability.
 	// The behavior of calling any methods on the receiver after calling
-	// Shutdown is undefined. Any already-outstanding calls should not
-	// be interrupted.
+	// Shutdown is undefined. Shutdown must not interrupt any already
+	// outstanding calls.
 	Shutdown()
 
 	// String formats the hook as a string (same as fmt.Stringer)
