@@ -807,8 +807,35 @@ func TestSendBootstrapPipelineCall(t *testing.T) {
 		}
 	}
 
-	// 6. Release the client, read the finish.
-	client.Release()
+	// 6. Send back a return for the bootstrap message:
+	bootstrapExportID := uint32(99)
+	{
+		outMsg, err := p2.NewMessage()
+		require.NoError(t, err)
+		iface := capnp.NewInterface(outMsg.Message().Segment(), 0)
+		require.NoError(t, pogs.Insert(rpccp.Message_TypeID, capnp.Struct(outMsg.Message()),
+			&rpcMessage{
+				Which: rpccp.Message_Which_return,
+				Return: &rpcReturn{
+					AnswerID: bootstrapQID,
+					Which:    rpccp.Return_Which_results,
+					Results: &rpcPayload{
+						Content: iface.ToPtr(),
+						CapTable: []rpcCapDescriptor{
+							{
+								Which:        rpccp.CapDescriptor_Which_senderHosted,
+								SenderHosted: bootstrapExportID,
+							},
+						},
+					},
+				},
+			},
+		))
+		require.NoError(t, outMsg.Send())
+		outMsg.Release()
+	}
+
+	// 7. Read the finish:
 	{
 		rmsg, release, err := recvMessage(ctx, p2)
 		if err != nil {
@@ -821,9 +848,22 @@ func TestSendBootstrapPipelineCall(t *testing.T) {
 		if rmsg.Finish.QuestionID != bootstrapQID {
 			t.Errorf("Received finish for question %d; want %d", rmsg.Finish.QuestionID, bootstrapQID)
 		}
-		if !rmsg.Finish.ReleaseResultCaps {
-			t.Error("Received finish that does not release bootstrap")
-		}
+		require.False(
+			t,
+			rmsg.Finish.ReleaseResultCaps,
+			"Received finish that releases bootstrap (should receive separate releasemessage)",
+		)
+	}
+
+	// 8. Release the client, read the release message.
+	client.Release()
+	{
+		rmsg, release, err := recvMessage(ctx, p2)
+		require.NoError(t, err)
+		defer release()
+		require.Equal(t, rpccp.Message_Which_release, rmsg.Which)
+		require.Equal(t, bootstrapExportID, rmsg.Release.ID)
+		require.Equal(t, uint32(1), rmsg.Release.ReferenceCount)
 	}
 }
 
