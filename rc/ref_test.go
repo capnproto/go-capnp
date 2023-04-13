@@ -27,6 +27,12 @@ func TestRef(t *testing.T) {
 	assert.Panics(t, func() {
 		first.Value()
 	}, "Trying to access the value via a released ref should panic, even if the value is still live.")
+	assert.Panics(t, func() {
+		first.AddRef()
+	}, "Trying to call AddRef() on a released ref should panic")
+	assert.Panics(t, func() {
+		first.Weak()
+	}, "Trying to call Weak() on a released ref should panic")
 	first.Release()
 	assert.False(t, released, "Calling Release() twice should have no effect")
 	second.Release()
