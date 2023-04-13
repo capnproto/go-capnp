@@ -659,7 +659,6 @@ func (c Client) Release() {
 	close(h.done)
 	hl.Unlock()
 	cl.Unlock()
-	<-h.done
 	h.Shutdown()
 	c.GetFlowLimiter().Release()
 }
