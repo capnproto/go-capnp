@@ -75,6 +75,15 @@ func (r *Ref[T]) Value() *T {
 	return &r.cell.value
 }
 
+// Steal steals the receiver, releasing it and returning a different
+// reference to the same cell. The refcount is unchanged, but this
+// is useful to enforce ownership invariants.
+func (r *Ref[T]) Steal() *Ref[T] {
+	ret := &Ref[T]{cell: r.cell}
+	r.cell = nil
+	return ret
+}
+
 // A WeakRef is a reference that does not keep the value alive.
 // It can be used to obtain a (strong) Ref to the value if it
 // has not yet been released.

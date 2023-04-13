@@ -39,6 +39,23 @@ func TestRef(t *testing.T) {
 	assert.True(t, released, "Releasing the second reference should drop the value")
 }
 
+func TestSteal(t *testing.T) {
+	released := false
+	release := func() {
+		released = true
+	}
+	value := 4
+
+	first := NewRef(value, release)
+	second := first.Steal()
+	assert.False(t, released, "steal should not reduce the refcount")
+	assert.Panics(t, func() {
+		first.Value()
+	}, "receiver is invalid after steal")
+	second.Release()
+	assert.True(t, released, "releasing the new reference has an effect")
+}
+
 func TestWeakRef(t *testing.T) {
 	released := false
 	release := func() {
