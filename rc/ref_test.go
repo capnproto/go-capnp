@@ -32,3 +32,28 @@ func TestRef(t *testing.T) {
 	second.Release()
 	assert.True(t, released, "Releasing the second reference should drop the value")
 }
+
+func TestWeakRef(t *testing.T) {
+	released := false
+	release := func() {
+		released = true
+	}
+	value := 4
+
+	first := NewRef(value, release)
+	weak := first.Weak()
+
+	second, ok := weak.AddRef()
+	assert.True(t, ok, "WeakRef().AddRef() should succeed if the ref is live.")
+	assert.Equal(t, value, *second.Value(), "The strong reference should have the correct value.")
+
+	second.Release()
+	assert.False(t, released, "Dropping the returned ref should keep the other ref alive")
+
+	first.Release()
+	assert.True(t, released, "Dropping the first ref should release the value")
+
+	third, ok := weak.AddRef()
+	assert.False(t, ok, "Creating a strong ref after the value is released should fail")
+	assert.Nil(t, third, "The returned ref should be nil if creating a strong ref fails")
+}

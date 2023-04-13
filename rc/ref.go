@@ -74,3 +74,32 @@ func (r *Ref[T]) Release() {
 func (r *Ref[T]) Value() *T {
 	return &r.cell.value
 }
+
+// A WeakRef is a reference that does not keep the value alive.
+// It can be used to obtain a (strong) Ref to the value if it
+// has not yet been released.
+type WeakRef[T any] cell[T]
+
+// Weak returns a weak reference to the value.
+func (r *Ref[T]) Weak() *WeakRef[T] {
+	if r.cell == nil {
+		panic("Called Weak() on already-released Ref")
+	}
+	return (*WeakRef[T])(r.cell)
+}
+
+// AddRef returns a (strong) Ref to the value, with ok indicating
+// whether the operation was successfull -- if ok is false, this
+// indicates that  underlying cell had already been released, and
+// the returned Ref will be nil.
+func (r *WeakRef[T]) AddRef() (_ *Ref[T], ok bool) {
+	for {
+		old := atomic.LoadInt32(&r.refcount)
+		if old == 0 {
+			return nil, false
+		}
+		if atomic.CompareAndSwapInt32(&r.refcount, old, old+1) {
+			return &Ref[T]{cell: (*cell[T])(r)}, true
+		}
+	}
+}
