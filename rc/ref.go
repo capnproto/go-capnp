@@ -6,7 +6,7 @@ import "sync/atomic"
 // A Ref is a reference to a refcounted cell containing a T.
 // It must not be moved after it is first used (but it is ok
 // to move the return values of NewRef/AddRef *before* using
-// them. The zero value is an already-released reference to
+// them). The zero value is an already-released reference to
 // some non-existant cell; it is not useful.
 type Ref[T any] struct {
 	// Pointer to the actual data. When we release our
