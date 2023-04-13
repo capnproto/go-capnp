@@ -14,17 +14,21 @@ func TestRef(t *testing.T) {
 	value := 4
 
 	first := NewRef(value, release)
-	assert.Equal(t, value, *first.Value())
+	assert.Equal(t, value, *first.Value(),
+		"Ref.Value() should return the value passed")
 	second := first.AddRef()
-	assert.Equal(t, value, *second.Value())
+	assert.Equal(t, value, *second.Value(),
+		"second ref should have the same value as the first")
 	first.Release()
-	assert.False(t, released)
-	assert.Equal(t, value, *second.Value())
+	assert.False(t, released,
+		"Releasing the first ref should keep the value alive")
+	assert.Equal(t, value, *second.Value(),
+		"Value should be the same after releasing the first ref")
 	assert.Panics(t, func() {
 		first.Value()
-	})
-	first.Release() // Should no-op.
-	assert.False(t, released)
+	}, "Trying to access the value via a released ref should panic, even if the value is still live.")
+	first.Release()
+	assert.False(t, released, "Calling Release() twice should have no effect")
 	second.Release()
-	assert.True(t, released)
+	assert.True(t, released, "Releasing the second reference should drop the value")
 }
