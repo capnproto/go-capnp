@@ -52,7 +52,16 @@ func (r *Ref[T]) AddRef() *Ref[T] {
 
 // Release this reference to the value. If this is the last reference,
 // this calls the release function that was passed to NewRef.
+//
+// Release is idempotent: calling it twice on the same reference
+// has no effect. This is handy as it allows you to defer a call
+// to Release and then still have the option of a releasing a
+// reference early.
 func (r *Ref[T]) Release() {
+	if r.cell == nil {
+		// Already released.
+		return
+	}
 	val := atomic.AddInt32(&r.cell.refcount, -1)
 	if val == 0 {
 		r.cell.release()

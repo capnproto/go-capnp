@@ -23,9 +23,7 @@ func TestRef(t *testing.T) {
 	assert.Panics(t, func() {
 		first.Value()
 	})
-	assert.Panics(t, func() {
-		first.Release()
-	})
+	first.Release() // Should no-op.
 	assert.False(t, released)
 	second.Release()
 	assert.True(t, released)
