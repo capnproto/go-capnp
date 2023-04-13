@@ -12,43 +12,6 @@ import (
 	"capnproto.org/go/capnp/v3/exp/clock"
 )
 
-func (s Snapshot) report(t *testing.T) {
-	lim := &s.lim
-	t.Logf("Limiter snapshot at %v: \n", s.now)
-	t.Logf("cwndGain        = %v\n", lim.cwndGain)
-	t.Logf("pacingGain      = %v\n", lim.pacingGain)
-	t.Logf("btlBw           = %v\n", lim.btlBwFilter.Estimate)
-	t.Logf("rtProp          = %v\n", lim.rtPropFilter.Estimate)
-	t.Logf("nextSendTime    = %v\n", lim.nextSendTime)
-	t.Logf("sent            = %v\n", lim.sent)
-	t.Logf("delivered       = %v\n", lim.delivered)
-	t.Logf("deliveredTime   = %v\n", lim.deliveredTime)
-	t.Logf("inflight        = %v\n", lim.inflight())
-	t.Logf("bdp             = %v\n", lim.computeBDP())
-	t.Logf("appLimitedUntil = %v\n", lim.appLimitedUntil)
-	t.Logf("state           = %T%v\n", lim.state, lim.state)
-
-	t.Logf("btlBw samples:\n")
-	bwhead, bwtail := lim.btlBwFilter.q.Items()
-	for _, v := range bwhead {
-		t.Logf("  %v\n", v)
-	}
-	for _, v := range bwtail {
-		t.Logf("  %v\n", v)
-	}
-
-	t.Logf("rtProp samples:\n")
-	rthead, rttail := lim.rtPropFilter.q.Items()
-	for _, v := range rthead {
-		t.Logf("  %v\n", v)
-	}
-	for _, v := range rttail {
-		t.Logf("  %v\n", v)
-	}
-
-	t.Logf("\n\n")
-}
-
 func withinTolerance(actual, expected, tolerance float64, msg string) error {
 	min := expected * (1 - tolerance)
 	max := expected * (1 + tolerance)
@@ -186,16 +149,6 @@ func repeat[T any](count int, values []T) []T {
 		ret = append(ret, values...)
 	}
 	return ret
-}
-
-type ceArg struct {
-	btlBw          bytesPerNs
-	path           []testLink
-	minPacketBytes uint64
-}
-
-func computeErr(expected, actual float64) float64 {
-	return (actual - expected) / expected
 }
 
 func TestGraphs(t *testing.T) {
