@@ -9,6 +9,7 @@ import (
 	"capnproto.org/go/capnp/v3/internal/str"
 	"capnproto.org/go/capnp/v3/internal/syncutil"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
+	"zenhack.net/go/util/deferred"
 )
 
 // An exportID is an index into the exports table.
@@ -86,7 +87,7 @@ func (c *lockedConn) releaseExport(id exportID, count uint32) (capnp.Client, err
 	}
 }
 
-func (c *lockedConn) releaseExportRefs(rl *releaseList, refs map[exportID]uint32) error {
+func (c *lockedConn) releaseExportRefs(dq *deferred.Queue, refs map[exportID]uint32) error {
 	n := len(refs)
 	var firstErr error
 	for id, count := range refs {
@@ -102,7 +103,7 @@ func (c *lockedConn) releaseExportRefs(rl *releaseList, refs map[exportID]uint32
 			n--
 			continue
 		}
-		rl.Add(client.Release)
+		dq.Defer(client.Release)
 		n--
 	}
 	return firstErr
