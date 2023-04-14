@@ -84,6 +84,12 @@ func (r *Ref[T]) Steal() *Ref[T] {
 	return ret
 }
 
+// Return true iff this is a valid ref, i.e. Value() will return without
+// panicking. You may call this on a nil reference.
+func (r *Ref[T]) IsValid() bool {
+	return r != nil && r.cell != nil
+}
+
 // A WeakRef is a reference that does not keep the value alive.
 // It can be used to obtain a (strong) Ref to the value if it
 // has not yet been released.
