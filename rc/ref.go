@@ -58,7 +58,7 @@ func (r *Ref[T]) AddRef() *Ref[T] {
 // to Release and then still have the option of a releasing a
 // reference early.
 func (r *Ref[T]) Release() {
-	if r.cell == nil {
+	if r == nil || r.cell == nil {
 		// Already released.
 		return
 	}
