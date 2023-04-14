@@ -34,6 +34,22 @@ func NewRef[T any](value T, release func()) *Ref[T] {
 	}
 }
 
+// NewRefInPlace returns a ref pointing at a value. It constructs the
+// value by passing a pointer to the zero value to the mk callback,
+// which should return the function to run on release.
+//
+// This is useful when the value cannot be moved after construction,
+// but otherwise you will likely find NewRef more convinenet.
+func NewRefInPlace[T any](mk func(v *T) (release func())) *Ref[T] {
+	ret := &Ref[T]{
+		cell: &cell[T]{
+			refcount: 1,
+		},
+	}
+	ret.cell.release = mk(&ret.cell.value)
+	return ret
+}
+
 // AddRef returns a new reference to the same underlying data as
 // the receiver. The references are not interchangable: to
 // release the underlying data you must call Release on each
