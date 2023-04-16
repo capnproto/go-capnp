@@ -15,6 +15,12 @@ import (
 	"zenhack.net/go/util"
 )
 
+func DumpConnDebug(t *testing.T, c *Conn) {
+	for _, w := range c.RecvLog {
+		t.Logf("  %v\n", w)
+	}
+}
+
 type capArgsTest struct {
 	Errs chan<- error
 }
@@ -107,6 +113,13 @@ func TestCallReceiverAnswerRpc(t *testing.T) {
 
 	clientConn := NewConn(NewStreamTransport(cClient), nil)
 	defer clientConn.Close()
+
+	defer func() {
+		t.Logf("Server receives:\n")
+		DumpConnDebug(t, serverConn)
+		t.Logf("Client receives:\n")
+		DumpConnDebug(t, clientConn)
+	}()
 
 	ctx := context.Background()
 	bs := testcapnp.CapArgsTest(clientConn.Bootstrap(ctx))

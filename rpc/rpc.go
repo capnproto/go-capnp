@@ -129,6 +129,8 @@ type Conn struct {
 		embargoes  []*embargo
 		embargoID  idgen
 	}
+
+	RecvLog []rpccp.Message_Which
 }
 
 // A lockedConn is the same as a Conn, but the methods defined on it
@@ -221,6 +223,7 @@ func NewConn(t Transport, opts *Options) *Conn {
 	c := &Conn{
 		transport: t,
 		closed:    make(chan struct{}),
+		RecvLog:   make([]rpccp.Message_Which, 0, 1024),
 	}
 
 	sender := spsc.New[asyncSend]()
@@ -557,6 +560,8 @@ func (c *Conn) receive(ctx context.Context) func() error {
 			case <-ctx.Done():
 				return nil
 			}
+
+			c.RecvLog = append(c.RecvLog, in.Message().Which())
 
 			switch in.Message().Which() {
 			case rpccp.Message_Which_unimplemented:
