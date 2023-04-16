@@ -561,7 +561,9 @@ func (c *Conn) receive(ctx context.Context) func() error {
 				return nil
 			}
 
+			c.lk.Lock()
 			c.RecvLog = append(c.RecvLog, in.Message().Which())
+			c.lk.Unlock()
 
 			switch in.Message().Which() {
 			case rpccp.Message_Which_unimplemented:
