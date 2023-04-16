@@ -323,7 +323,7 @@ func (c Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 		return ErrorAnswer(s.Method, errors.New("call on released client")), func() {}
 	}
 	if h == nil {
-		return ErrorAnswer(s.Method, errors.New("call on null client")), func() {}
+		return ErrorAnswer(s.Method, errors.New("call on null client (sendcall)")), func() {}
 	}
 
 	err := mutex.With1(&c.state, func(c *clientState) error {
@@ -456,7 +456,7 @@ func (c Client) RecvCall(ctx context.Context, r Recv) PipelineCaller {
 		return nil
 	}
 	if h == nil {
-		r.Reject(errors.New("call on null client"))
+		r.Reject(errors.New("call on null client (recvcall)"))
 		return nil
 	}
 	return h.Recv(ctx, r)
