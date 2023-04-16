@@ -4,6 +4,8 @@ package rpc // import "capnproto.org/go/capnp/v3/rpc"
 import (
 	"context"
 	"errors"
+	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -130,7 +132,7 @@ type Conn struct {
 		embargoID  idgen
 	}
 
-	RecvLog []rpccp.Message_Which
+	recvLog []rpccp.Message_Which
 }
 
 // A lockedConn is the same as a Conn, but the methods defined on it
@@ -223,7 +225,7 @@ func NewConn(t Transport, opts *Options) *Conn {
 	c := &Conn{
 		transport: t,
 		closed:    make(chan struct{}),
-		RecvLog:   make([]rpccp.Message_Which, 0, 1024),
+		recvLog:   make([]rpccp.Message_Which, 0, 1024),
 	}
 
 	sender := spsc.New[asyncSend]()
@@ -535,6 +537,14 @@ func (c *Conn) send(ctx context.Context) func() error {
 	})
 }
 
+func (c *Conn) DumpRecvLog() {
+	c.lk.Lock()
+	defer c.lk.Unlock()
+	for _, w := range c.recvLog {
+		fmt.Fprintln(os.Stdout, "  ", w)
+	}
+}
+
 // receive receives and dispatches messages coming from c.transport.  receive
 // runs in a background goroutine.
 //
@@ -562,7 +572,7 @@ func (c *Conn) receive(ctx context.Context) func() error {
 			}
 
 			c.lk.Lock()
-			c.RecvLog = append(c.RecvLog, in.Message().Which())
+			c.recvLog = append(c.recvLog, in.Message().Which())
 			c.lk.Unlock()
 
 			switch in.Message().Which() {

@@ -1919,10 +1919,10 @@ func TestHandleReturn_regression(t *testing.T) {
 		conn2 := rpc.NewConn(rpc.NewTransport(p1), nil)
 		defer conn2.Close()
 		defer func() {
-			t.Logf("conn1 receives:\n")
-			rpc.DumpConnDebug(t, conn1)
-			t.Logf("conn2 receives:\n")
-			rpc.DumpConnDebug(t, conn2)
+			fmt.Fprintln(os.Stdout, "conn1 receives:")
+			conn1.DumpRecvLog()
+			fmt.Fprintln(os.Stdout, "conn2 receives:")
+			conn2.DumpRecvLog()
 		}()
 		f(conn2)
 	}

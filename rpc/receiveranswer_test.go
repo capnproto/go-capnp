@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os"
 	"testing"
 
 	//"github.com/stretchr/testify/assert"
@@ -14,12 +15,6 @@ import (
 	"capnproto.org/go/capnp/v3/server"
 	"zenhack.net/go/util"
 )
-
-func DumpConnDebug(t *testing.T, c *Conn) {
-	for _, w := range c.RecvLog {
-		t.Logf("  %v\n", w)
-	}
-}
 
 type capArgsTest struct {
 	Errs chan<- error
@@ -115,10 +110,10 @@ func TestCallReceiverAnswerRpc(t *testing.T) {
 	defer clientConn.Close()
 
 	defer func() {
-		t.Logf("Server receives:\n")
-		DumpConnDebug(t, serverConn)
-		t.Logf("Client receives:\n")
-		DumpConnDebug(t, clientConn)
+		fmt.Fprintln(os.Stdout, "Server receives:")
+		serverConn.DumpRecvLog()
+		fmt.Fprintln(os.Stdout, "Client receives:")
+		clientConn.DumpRecvLog()
 	}()
 
 	ctx := context.Background()
