@@ -9,6 +9,7 @@ import (
 	"capnproto.org/go/capnp/v3/exc"
 	"capnproto.org/go/capnp/v3/internal/rc"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
+	"zenhack.net/go/util/deferred"
 )
 
 // An answerID is an index into the answers table.
@@ -194,23 +195,23 @@ func (ans *ansReturner) setBootstrap(c capnp.Client) error {
 
 // PrepareReturn implements capnp.Returner.PrepareReturn
 func (ans *ansReturner) PrepareReturn(e error) {
-	rl := &releaseList{}
-	defer rl.Release()
+	dq := &deferred.Queue{}
+	defer dq.Run()
 
 	ans.c.withLocked(func(c *lockedConn) {
 		ent := c.lk.answers[ans.id]
 		if e == nil {
-			ent.prepareSendReturn(rl)
+			ent.prepareSendReturn(dq)
 		} else {
-			ent.prepareSendException(rl, e)
+			ent.prepareSendException(dq, e)
 		}
 	})
 }
 
 // Return implements capnp.Returner.Return
 func (ans *ansReturner) Return() {
-	rl := &releaseList{}
-	defer rl.Release()
+	dq := &deferred.Queue{}
+	defer dq.Run()
 	pcallsWait := func() {}
 
 	var err error
@@ -219,9 +220,9 @@ func (ans *ansReturner) Return() {
 		pcallsWait = ent.pcalls.Wait
 
 		if ent.err == nil {
-			err = ent.completeSendReturn(rl)
+			err = ent.completeSendReturn(dq)
 		} else {
-			ent.completeSendException(rl)
+			ent.completeSendException(dq)
 		}
 	})
 	defer pcallsWait()
@@ -252,12 +253,12 @@ func (ans *ansReturner) ReleaseResults() {
 // the lock, per usual).
 //
 // sendReturn MUST NOT be called if sendException was previously called.
-func (ans *ansent) sendReturn(rl *releaseList) error {
-	ans.prepareSendReturn(rl)
-	return ans.completeSendReturn(rl)
+func (ans *ansent) sendReturn(dq *deferred.Queue) error {
+	ans.prepareSendReturn(dq)
+	return ans.completeSendReturn(dq)
 }
 
-func (ans *ansent) prepareSendReturn(rl *releaseList) {
+func (ans *ansent) prepareSendReturn(dq *deferred.Queue) {
 	var err error
 	c := ans.lockedConn()
 	ans.exportRefs, err = c.fillPayloadCapTable(ans.returner.results)
@@ -269,13 +270,13 @@ func (ans *ansent) prepareSendReturn(rl *releaseList) {
 	select {
 	case <-c.bgctx.Done():
 		// We're not going to send the message after all, so don't forget to release it.
-		rl.Add(ans.returner.msgReleaser.Decr)
+		dq.Defer(ans.returner.msgReleaser.Decr)
 		ans.sendMsg = nil
 	default:
 	}
 }
 
-func (ans *ansent) completeSendReturn(rl *releaseList) error {
+func (ans *ansent) completeSendReturn(dq *deferred.Queue) error {
 	ans.pcall = nil
 	ans.flags |= resultsReady
 
@@ -298,7 +299,7 @@ func (ans *ansent) completeSendReturn(rl *releaseList) error {
 
 	ans.flags |= returnSent
 	if fin {
-		return ans.destroy(rl)
+		return ans.destroy(dq)
 	}
 	return nil
 }
@@ -307,12 +308,12 @@ func (ans *ansent) completeSendReturn(rl *releaseList) error {
 //
 // The caller MUST be holding onto ans.c.lk. sendException MUST NOT
 // be called if sendReturn was previously called.
-func (ans *ansent) sendException(rl *releaseList, ex error) {
-	ans.prepareSendException(rl, ex)
-	ans.completeSendException(rl)
+func (ans *ansent) sendException(dq *deferred.Queue, ex error) {
+	ans.prepareSendException(dq, ex)
+	ans.completeSendException(dq)
 }
 
-func (ans *ansent) prepareSendException(rl *releaseList, ex error) {
+func (ans *ansent) prepareSendException(dq *deferred.Queue, ex error) {
 	ans.err = ex
 
 	c := ans.lockedConn()
@@ -330,7 +331,7 @@ func (ans *ansent) prepareSendException(rl *releaseList, ex error) {
 	}
 }
 
-func (ans *ansent) completeSendException(rl *releaseList) {
+func (ans *ansent) completeSendException(dq *deferred.Queue) {
 	ex := ans.err
 	ans.pcall = nil
 	ans.flags |= resultsReady
@@ -346,7 +347,7 @@ func (ans *ansent) completeSendException(rl *releaseList) {
 	if ans.flags.Contains(finishReceived) {
 		// destroy will never return an error because sendException does
 		// create any exports.
-		_ = ans.destroy(rl)
+		_ = ans.destroy(dq)
 	}
 }
 
@@ -355,13 +356,13 @@ func (ans *ansent) completeSendException(rl *releaseList) {
 // The caller must be holding onto ans.c.lk.
 //
 // shutdown has its own strategy for cleaning up an answer.
-func (ans *ansent) destroy(rl *releaseList) error {
-	rl.Add(ans.returner.msgReleaser.Decr)
+func (ans *ansent) destroy(dq *deferred.Queue) error {
+	dq.Defer(ans.returner.msgReleaser.Decr)
 	c := ans.lockedConn()
 	delete(c.lk.answers, ans.returner.id)
 	if !ans.flags.Contains(releaseResultCapsFlag) || len(ans.exportRefs) == 0 {
 		return nil
 
 	}
-	return c.releaseExportRefs(rl, ans.exportRefs)
+	return c.releaseExportRefs(dq, ans.exportRefs)
 }
