@@ -318,6 +318,9 @@ func (c *Conn) Bootstrap(ctx context.Context) (bc capnp.Client) {
 		q := c.newQuestion(capnp.Method{})
 		q.WasBootstrap = true
 		bc = q.p.Answer().Client().AddRef()
+		if c.TrackBootstrap {
+			println("Before send: " + bc.String())
+		}
 		go func() {
 			if c.TrackBootstrap {
 				<-q.p.Answer().Done()
