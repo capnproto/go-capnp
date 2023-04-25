@@ -319,8 +319,13 @@ func (c *Conn) Bootstrap(ctx context.Context) (bc capnp.Client) {
 		q.WasBootstrap = true
 		bc = q.p.Answer().Client().AddRef()
 		go func() {
+			if c.TrackBootstrap {
+				<-q.p.Answer().Done()
+				println("Before ReleaseClients(): " + bc.String())
+			}
 			q.p.ReleaseClients()
 			q.release()
+			println("After ReleaseClients(): " + bc.String())
 		}()
 
 		c.sendMessage(ctx, func(m rpccp.Message) error {
