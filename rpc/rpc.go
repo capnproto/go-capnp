@@ -132,6 +132,8 @@ type Conn struct {
 		embargoID  idgen
 	}
 
+	TrackBootstrap bool
+
 	recvLog []rpccp.Message_Which
 }
 
@@ -314,6 +316,7 @@ func (c *Conn) Bootstrap(ctx context.Context) (bc capnp.Client) {
 		defer c.tasks.Done()
 
 		q := c.newQuestion(capnp.Method{})
+		q.WasBootstrap = true
 		bc = q.p.Answer().Client().AddRef()
 		go func() {
 			q.p.ReleaseClients()
@@ -1151,6 +1154,11 @@ func (c *Conn) handleReturn(ctx context.Context, in transport.IncomingMessage) e
 		// off a goroutine to avoid blocking the receive loop.
 		go func() {
 			c := unlockedConn
+			if c.TrackBootstrap && q.WasBootstrap {
+				if !pr.result.Interface().IsValid() {
+					panic(fmt.Sprintf("Returned bootstrap is invalid: %v", pr.result))
+				}
+			}
 			q.p.Resolve(pr.result, pr.err)
 			if pr.err != nil {
 				// We can release now; the result is an error, so data from the message

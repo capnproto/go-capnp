@@ -107,6 +107,7 @@ func TestCallReceiverAnswerRpc(t *testing.T) {
 	defer serverConn.Close()
 
 	clientConn := NewConn(NewStreamTransport(cClient), nil)
+	clientConn.TrackBootstrap = true
 	defer clientConn.Close()
 
 	defer func() {

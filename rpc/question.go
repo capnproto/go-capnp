@@ -18,6 +18,8 @@ type question struct {
 	p       *capnp.Promise
 	release capnp.ReleaseFunc // written before resolving p
 
+	WasBootstrap bool
+
 	// Protected by c.mu:
 
 	flags         questionFlags
