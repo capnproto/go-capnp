@@ -754,6 +754,13 @@ func (cp *clientPromise) fulfill(c Client) {
 		})
 	}
 
+	if rh == nil {
+		var buf [1e6]byte
+		n := runtime.Stack(buf[:], false)
+		println("resolvehook nil. stack:")
+		println(string(buf[:n]))
+	}
+
 	// Mark hook as resolved.
 	l := cp.h.state.Lock()
 	if l.Value().isResolved() {
