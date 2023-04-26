@@ -278,6 +278,10 @@ func resolveHook(h *clientHook, l *mutex.Locked[clientHookState]) (*clientHook, 
 		l.Unlock()
 		h = r
 		if h == nil {
+			var buf [1e6]byte
+			n := runtime.Stack(buf[:], false)
+			println("resolvehook nil (3). stack:")
+			println(string(buf[:n]))
 			return nil, nil
 		}
 		l = h.state.Lock()
