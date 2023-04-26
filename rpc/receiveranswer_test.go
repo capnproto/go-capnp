@@ -127,7 +127,6 @@ func TestCallReceiverAnswerRpc(t *testing.T) {
 	callRes, rel := self.Call(ctx, func(p testcapnp.CapArgsTest_call_Params) error {
 		return p.SetCap(capnp.Client(self.AddRef()))
 	})
-	self.Release()
 	defer rel()
 
 	_, err := selfRes.Struct()
