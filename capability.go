@@ -757,7 +757,7 @@ func (cp *clientPromise) fulfill(c Client) {
 	if rh == nil {
 		var buf [1e6]byte
 		n := runtime.Stack(buf[:], false)
-		println("resolvehook nil. stack:")
+		println("resolvehook nil (1). stack:")
 		println(string(buf[:n]))
 	}
 
@@ -784,6 +784,11 @@ func (cp *clientPromise) fulfill(c Client) {
 	if rh != nil {
 		l.Value().refs += refs
 		l.Unlock()
+	} else {
+		var buf [1e6]byte
+		n := runtime.Stack(buf[:], false)
+		println("resolvehook nil (2). stack:")
+		println(string(buf[:n]))
 	}
 }
 
