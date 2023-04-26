@@ -760,9 +760,6 @@ func (cp *clientPromise) fulfill(c Client) {
 		return
 	}
 
-	// Client still had references, so we're responsible for shutting it down.
-	defer cp.h.Shutdown()
-
 	rh, l = resolveHook(cp.h, l) // swaps mutex on cp.h for mutex on rh
 	if rh != nil {
 		l.Value().refs += refs
