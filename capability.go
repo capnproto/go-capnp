@@ -138,9 +138,6 @@ type clientHook struct {
 	// Place for callers to attach arbitrary metadata to the client.
 	metadata Metadata
 
-	// done is closed when refs == 0 and calls == 0.
-	done chan struct{}
-
 	state mutex.Mutex[clientHookState]
 }
 
@@ -149,7 +146,6 @@ type clientHookState struct {
 	resolved chan struct{}
 
 	refs         int         // how many open Clients reference this clientHook
-	calls        int         // number of outstanding ClientHook accesses
 	resolvedHook *clientHook // valid only if resolved is closed
 }
 
@@ -164,7 +160,6 @@ func NewClient(hook ClientHook) Client {
 	}
 	h := &clientHook{
 		ClientHook: hook,
-		done:       make(chan struct{}),
 		metadata:   *NewMetadata(),
 		state: mutex.New(clientHookState{
 			resolved: closedSignal,
@@ -199,7 +194,6 @@ func newPromisedClient(hook ClientHook) (Client, *clientPromise) {
 	}
 	h := &clientHook{
 		ClientHook: hook,
-		done:       make(chan struct{}),
 		metadata:   *NewMetadata(),
 		state: mutex.New(clientHookState{
 			resolved: make(chan struct{}),
@@ -228,17 +222,19 @@ func (c Client) startCall() (hook ClientHook, resolved, released bool, finish fu
 		if c.h == nil {
 			return nil, true, false, func() {}
 		}
-		l.Value().calls++
+		l.Value().refs++
 		isResolved := l.Value().isResolved()
 		l.Unlock()
 		savedHook := c.h
 		return savedHook.ClientHook, isResolved, false, func() {
+			shutdown := func() {}
 			savedHook.state.With(func(s *clientHookState) {
-				s.calls--
-				if s.refs == 0 && s.calls == 0 {
-					close(savedHook.done)
+				s.refs--
+				if s.refs == 0 {
+					shutdown = savedHook.Shutdown
 				}
 			})
+			shutdown()
 		}
 	})
 }
@@ -653,12 +649,8 @@ func (c Client) Release() {
 		cl.Unlock()
 		return
 	}
-	if hl.Value().calls == 0 {
-		close(h.done)
-	}
 	hl.Unlock()
 	cl.Unlock()
-	<-h.done
 	h.Shutdown()
 	c.GetFlowLimiter().Release()
 }
@@ -735,7 +727,6 @@ func (cp *clientPromise) Fulfill(c Client) {
 // references to be dropped, and then shuts down the hook. The caller
 // must have previously invoked cp.fulfill().
 func (cp *clientPromise) shutdown() {
-	<-cp.h.done
 	cp.h.Shutdown()
 }
 
@@ -770,9 +761,8 @@ func (cp *clientPromise) fulfill(c Client) {
 	}
 
 	// Client still had references, so we're responsible for shutting it down.
-	if l.Value().calls == 0 {
-		close(cp.h.done)
-	}
+	defer cp.h.Shutdown()
+
 	rh, l = resolveHook(cp.h, l) // swaps mutex on cp.h for mutex on rh
 	if rh != nil {
 		l.Value().refs += refs
@@ -1008,7 +998,6 @@ func ErrorClient(e error) Client {
 	// Avoid NewClient because it can set a finalizer.
 	h := &clientHook{
 		ClientHook: errorClient{e},
-		done:       make(chan struct{}),
 		metadata:   *NewMetadata(),
 		state: mutex.New(clientHookState{
 			resolved: closedSignal,
