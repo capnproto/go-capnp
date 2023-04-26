@@ -1929,6 +1929,7 @@ func TestHandleReturn_regression(t *testing.T) {
 
 	t.Run("MethodCallWithExpiredContext", func(t *testing.T) {
 		withConn(func(conn *rpc.Conn) {
+			conn.TrackBootstrap = true
 			pp := testcp.PingPong(conn.Bootstrap(context.Background()))
 			defer pp.Release()
 
