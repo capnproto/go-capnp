@@ -11,6 +11,7 @@ import (
 	"capnproto.org/go/capnp/v3/exp/bufferpool"
 	"capnproto.org/go/capnp/v3/flowcontrol"
 	"capnproto.org/go/capnp/v3/internal/str"
+	"zenhack.net/go/util/deferred"
 	"zenhack.net/go/util/maybe"
 	"zenhack.net/go/util/sync/mutex"
 )
@@ -720,8 +721,9 @@ func (cp *clientPromise) Reject(err error) {
 // hook may have been shut down earlier if the client ran out of
 // references.
 func (cp *clientPromise) Fulfill(c Client) {
-	cp.fulfill(c)
-	cp.shutdown()
+	dq := &deferred.Queue{}
+	defer dq.Run()
+	cp.fulfill(dq, c)
 }
 
 // shutdown waits for all outstanding calls on the hook to complete and
@@ -732,8 +734,11 @@ func (cp *clientPromise) shutdown() {
 }
 
 // fulfill is like Fulfill, except that it does not wait for outsanding calls
-// to return answers or shut down the underlying hook.
-func (cp *clientPromise) fulfill(c Client) {
+// to return answers or shut down the underlying hook; instead, it adds functions
+// to do this to dq.
+func (cp *clientPromise) fulfill(dq *deferred.Queue, c Client) {
+	dq.Defer(cp.shutdown)
+
 	// Obtain next client hook.
 	var rh *clientHook
 	if (c != Client{}) {
