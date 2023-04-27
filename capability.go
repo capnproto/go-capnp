@@ -192,6 +192,17 @@ type clientHook struct {
 	state mutex.Mutex[clientHookState]
 }
 
+func (h *clientHook) deref() {
+	shutdown := func() {}
+	h.state.With(func(s *clientHookState) {
+		s.refs--
+		if s.refs == 0 {
+			shutdown = h.Shutdown
+		}
+	})
+	shutdown()
+}
+
 type clientHookState struct {
 	// resolved is closed after resolvedHook is set
 	resolved chan struct{}
@@ -277,16 +288,7 @@ func (c Client) startCall() (hook ClientHook, resolved, released bool, finish fu
 		isResolved := l.Value().isResolved()
 		l.Unlock()
 		savedHook := c.cursor.hook
-		return savedHook.ClientHook, isResolved, false, func() {
-			shutdown := func() {}
-			savedHook.state.With(func(s *clientHookState) {
-				s.refs--
-				if s.refs == 0 {
-					shutdown = savedHook.Shutdown
-				}
-			})
-			shutdown()
-		}
+		return savedHook.ClientHook, isResolved, false, savedHook.deref
 	})
 }
 
