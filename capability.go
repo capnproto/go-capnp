@@ -797,7 +797,6 @@ func (wc *WeakClient) AddRef() (c Client, ok bool) {
 		return Client{}, true
 	}
 	l := wc.h.state.Lock()
-	// FIXME: unsynchronized access to wc.h
 	wc.h, l = resolveHook(wc.h, l)
 	if wc.h == nil {
 		return Client{}, true
