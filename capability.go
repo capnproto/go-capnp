@@ -11,6 +11,7 @@ import (
 	"capnproto.org/go/capnp/v3/exp/bufferpool"
 	"capnproto.org/go/capnp/v3/flowcontrol"
 	"capnproto.org/go/capnp/v3/internal/str"
+	"zenhack.net/go/util/maybe"
 	"zenhack.net/go/util/sync/mutex"
 )
 
@@ -145,8 +146,11 @@ type clientHookState struct {
 	// resolved is closed after resolvedHook is set
 	resolved chan struct{}
 
-	refs         int         // how many open Clients reference this clientHook
-	resolvedHook *clientHook // valid only if resolved is closed
+	refs int // how many open Clients reference this clientHook
+
+	// Valid only if resolved is closed. Absent if this
+	// was not a promise.
+	resolvedHook maybe.Maybe[*clientHook]
 }
 
 // NewClient creates the first reference to a capability.
@@ -166,9 +170,6 @@ func NewClient(hook ClientHook) Client {
 			refs:     1,
 		}),
 	}
-	h.state.With(func(s *clientHookState) {
-		s.resolvedHook = h
-	})
 	cs := mutex.New(clientState{h: h})
 	c := Client{client: &client{state: cs}}
 	setupLeakReporting(c)
@@ -267,8 +268,8 @@ func resolveHook(h *clientHook, l *mutex.Locked[clientHookState]) (*clientHook, 
 		if !l.Value().isResolved() {
 			return h, l
 		}
-		r := l.Value().resolvedHook
-		if r == h {
+		r, ok := l.Value().resolvedHook.Get()
+		if !ok {
 			return h, l
 		}
 		l.Unlock()
@@ -751,7 +752,7 @@ func (cp *clientPromise) fulfill(c Client) {
 		l.Unlock()
 		panic("ClientPromise.Fulfill called more than once")
 	}
-	l.Value().resolvedHook = rh
+	l.Value().resolvedHook = maybe.New(rh)
 	close(l.Value().resolved)
 	refs := l.Value().refs
 	l.Value().refs = 0
@@ -1001,9 +1002,6 @@ func ErrorClient(e error) Client {
 			refs:     1,
 		}),
 	}
-	h.state.With(func(s *clientHookState) {
-		s.resolvedHook = h
-	})
 	cs := mutex.New(clientState{h: h})
 	return Client{client: &client{state: cs}}
 }
