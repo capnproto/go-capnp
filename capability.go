@@ -292,22 +292,22 @@ func (c Client) startCall() (hook ClientHook, resolved, released bool, finish fu
 	})
 }
 
-func (c Client) peek() (hook *clientHook, released bool, resolved bool) {
+func (c Client) peek() (hook *clientHook, resolved, released bool) {
 	if c.client == nil {
-		return nil, false, true
+		return nil, true, false
 	}
 	return mutex.With3(&c.state, func(c *clientState) (hook *clientHook, released bool, resolved bool) {
 		if c.cursor.hook == nil {
-			return nil, c.released, true
+			return nil, true, c.released
 		}
 		c.cursor.compress()
 		if c.cursor.hook == nil {
-			return nil, false, true
+			return nil, true, false
 		}
 		l := c.cursor.hook.state.Lock()
 		resolved = l.Value().isResolved()
 		l.Unlock()
-		return c.cursor.hook, false, resolved
+		return c.cursor.hook, resolved, false
 	})
 }
 
@@ -493,7 +493,7 @@ func (c Client) RecvCall(ctx context.Context, r Recv) PipelineCaller {
 // A reference is invalid if it is nil, has resolved to null, or has
 // been released.
 func (c Client) IsValid() bool {
-	h, released, _ := c.peek()
+	h, _, released := c.peek()
 	return !released && h != nil
 }
 
@@ -502,11 +502,11 @@ func (c Client) IsValid() bool {
 // are not fully resolved: use Resolve if this is an issue.  If either
 // c or c2 are released, then IsSame panics.
 func (c Client) IsSame(c2 Client) bool {
-	h1, released, _ := c.peek()
+	h1, _, released := c.peek()
 	if released {
 		panic("IsSame on released client")
 	}
-	h2, released, _ := c2.peek()
+	h2, _, released := c2.peek()
 	if released {
 		panic("IsSame on released client")
 	}
@@ -518,7 +518,7 @@ func (c Client) IsSame(c2 Client) bool {
 // if the capability resolves to an error.
 func (c Client) Resolve(ctx context.Context) error {
 	for {
-		h, released, resolved := c.peek()
+		h, resolved, released := c.peek()
 		if released {
 			return errors.New("cannot resolve released client")
 		}
@@ -569,7 +569,7 @@ func (c Client) AddRef() Client {
 // WeakRef creates a new WeakClient that refers to the same capability
 // as c.  If c is nil or has resolved to null, then WeakRef returns nil.
 func (c Client) WeakRef() *WeakClient {
-	h, released, _ := c.peek()
+	h, _, released := c.peek()
 	if released {
 		panic("WeakRef on released client")
 	}
