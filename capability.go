@@ -121,7 +121,7 @@ type client struct {
 
 type clientState struct {
 	limiter  flowcontrol.FlowLimiter
-	cursor   *rc.Ref[mutex.Mutex[clientCursor]] // nil iff this is an initially-nil client
+	cursor   *rc.Ref[mutex.Mutex[clientCursor]] // never nil
 	released bool
 
 	stream struct {
