@@ -717,21 +717,10 @@ func (cp *clientPromise) Fulfill(c Client) {
 	cp.fulfill(dq, c)
 }
 
-/*
-// shutdown waits for all outstanding calls on the hook to complete and
-// references to be dropped, and then shuts down the hook. The caller
-// must have previously invoked cp.fulfill().
-func (cp *clientPromise) shutdown() {
-	cp.h.Shutdown()
-}
-*/
-
 // fulfill is like Fulfill, except that it does not wait for outsanding calls
 // to return answers or shut down the underlying hook; instead, it adds functions
 // to do this to dq.
 func (cp *clientPromise) fulfill(dq *deferred.Queue, c Client) {
-	//	dq.Defer(cp.shutdown)
-
 	cursor, ok := cp.cursor.AddRef()
 	if !ok {
 		return
