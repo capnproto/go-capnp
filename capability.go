@@ -178,6 +178,7 @@ func (c *clientCursor) compress() {
 // l will be invalid. The returned Locked will point at the state of
 // the returned clientHook if they are not nil.
 func resolveHook(h *rc.Ref[clientHook], l *mutex.Locked[clientHookState]) (*rc.Ref[clientHook], *mutex.Locked[clientHookState]) {
+	h = h.Steal()
 	for {
 		if !l.Value().isResolved() {
 			return h, l
@@ -187,10 +188,11 @@ func resolveHook(h *rc.Ref[clientHook], l *mutex.Locked[clientHookState]) (*rc.R
 			return h, l
 		}
 		l.Unlock()
-		h = r
-		if h == nil {
+		h.Release()
+		if r == nil {
 			return nil, nil
 		}
+		h = r.AddRef()
 		l = h.Value().state.Lock()
 	}
 }
