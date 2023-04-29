@@ -641,7 +641,8 @@ func (c Client) Release() {
 	}
 	limiter := c.GetFlowLimiter()
 	c.state.With(func(s *clientState) {
-		if s.cursor.IsValid() {
+		if !s.released {
+			s.released = true
 			s.cursor.Release()
 			limiter.Release()
 		}
