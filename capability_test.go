@@ -203,7 +203,7 @@ func TestPromisedClient(t *testing.T) {
 	finish()
 
 	if !ca.IsSame(cb) {
-		t.Error("after resolution, ca != cb")
+		t.Errorf("after resolution, ca != cb (%v vs. %v)", ca, cb)
 	}
 	state = ca.State()
 	if state.Brand.Value != int(222) {
