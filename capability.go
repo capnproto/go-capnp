@@ -13,6 +13,7 @@ import (
 	"capnproto.org/go/capnp/v3/internal/str"
 	"zenhack.net/go/util/deferred"
 	"zenhack.net/go/util/maybe"
+	"zenhack.net/go/util/rc"
 	"zenhack.net/go/util/sync/mutex"
 )
 
@@ -120,7 +121,7 @@ type client struct {
 
 type clientState struct {
 	limiter  flowcontrol.FlowLimiter
-	cursor   *clientCursor // never nil
+	cursor   *rc.Ref[mutex.Mutex[clientCursor]] // nil iff this is an initially-nil client
 	released bool
 
 	stream struct {
@@ -138,7 +139,23 @@ type clientState struct {
 // shorten from afar, rather than waiting for methods to be called
 // on the relevant Client.
 type clientCursor struct {
-	hook *clientHook // nil if resolved to nil or released
+	hook *rc.Ref[clientHook] // nil if resolved to nil or released
+}
+
+func newClientCursor(hook clientHook) *rc.Ref[mutex.Mutex[clientCursor]] {
+	return rc.NewRefInPlace(func(c *mutex.Mutex[clientCursor]) func() {
+		c.With(func(c *clientCursor) {
+			c.hook = rc.NewRefInPlace(func(h *clientHook) func() {
+				*h = hook
+				return h.Shutdown
+			})
+		})
+		return func() {
+			c.With(func(c *clientCursor) {
+				c.hook.Release()
+			})
+		}
+	})
 }
 
 // compress advances the hook referred to by this cursor as far
@@ -147,7 +164,7 @@ func (c *clientCursor) compress() {
 	if c.hook == nil {
 		return
 	}
-	l := c.hook.state.Lock()
+	l := c.hook.Value().state.Lock()
 	c.hook, l = resolveHook(c.hook, l)
 	if c.hook != nil {
 		l.Unlock()
@@ -160,7 +177,7 @@ func (c *clientCursor) compress() {
 // l must point to the state belonging to h. When resolveHook returns,
 // l will be invalid. The returned Locked will point at the state of
 // the returned clientHook if they are not nil.
-func resolveHook(h *clientHook, l *mutex.Locked[clientHookState]) (*clientHook, *mutex.Locked[clientHookState]) {
+func resolveHook(h *rc.Ref[clientHook], l *mutex.Locked[clientHookState]) (*rc.Ref[clientHook], *mutex.Locked[clientHookState]) {
 	for {
 		if !l.Value().isResolved() {
 			return h, l
@@ -174,7 +191,7 @@ func resolveHook(h *clientHook, l *mutex.Locked[clientHookState]) (*clientHook, 
 		if h == nil {
 			return nil, nil
 		}
-		l = h.state.Lock()
+		l = h.Value().state.Lock()
 	}
 }
 
@@ -192,26 +209,13 @@ type clientHook struct {
 	state mutex.Mutex[clientHookState]
 }
 
-func (h *clientHook) deref() {
-	shutdown := func() {}
-	h.state.With(func(s *clientHookState) {
-		s.refs--
-		if s.refs == 0 {
-			shutdown = h.Shutdown
-		}
-	})
-	shutdown()
-}
-
 type clientHookState struct {
 	// resolved is closed after resolvedHook is set
 	resolved chan struct{}
 
-	refs int // how many open Clients reference this clientHook
-
 	// Valid only if resolved is closed. Absent if this
 	// was not a promise.
-	resolvedHook maybe.Maybe[*clientHook]
+	resolvedHook maybe.Maybe[*rc.Ref[clientHook]]
 }
 
 // NewClient creates the first reference to a capability.
@@ -223,15 +227,14 @@ func NewClient(hook ClientHook) Client {
 	if hook == nil {
 		return Client{}
 	}
-	h := &clientHook{
+	h := clientHook{
 		ClientHook: hook,
 		metadata:   *NewMetadata(),
 		state: mutex.New(clientHookState{
 			resolved: closedSignal,
-			refs:     1,
 		}),
 	}
-	cs := mutex.New(clientState{cursor: &clientCursor{hook: h}})
+	cs := mutex.New(clientState{cursor: newClientCursor(h)})
 	c := Client{client: &client{state: cs}}
 	setupLeakReporting(c)
 	return c
@@ -254,60 +257,45 @@ func newPromisedClient(hook ClientHook) (Client, *clientPromise) {
 	if hook == nil {
 		panic("NewPromisedClient(nil)")
 	}
-	h := &clientHook{
+	h := clientHook{
 		ClientHook: hook,
 		metadata:   *NewMetadata(),
 		state: mutex.New(clientHookState{
 			resolved: make(chan struct{}),
-			refs:     1,
 		}),
 	}
-	cs := mutex.New(clientState{cursor: &clientCursor{hook: h}})
+	cursor := newClientCursor(h)
+	cs := mutex.New(clientState{cursor: newClientCursor(h)})
 	c := Client{client: &client{state: cs}}
 	setupLeakReporting(c)
-	return c, &clientPromise{h: h}
+	return c, &clientPromise{cursor: cursor.Weak()}
 }
 
 // startCall holds onto a hook to prevent it from shutting down until
 // finish is called.  It resolves the client's hook as much as possible
 // first.  The caller must not be holding onto c.mu.
-func (c Client) startCall() (hook ClientHook, resolved, released bool, finish func()) {
-	if c.client == nil {
-		return nil, true, false, func() {}
-	}
-	return mutex.With4(&c.state, func(c *clientState) (hook ClientHook, resolved, released bool, finish func()) {
-		if c.cursor.hook == nil {
-			return nil, true, c.released, func() {}
-		}
-		c.cursor.compress()
-		l := c.cursor.hook.state.Lock()
-		if c.cursor.hook == nil {
-			return nil, true, false, func() {}
-		}
-		l.Value().refs++
-		isResolved := l.Value().isResolved()
-		l.Unlock()
-		savedHook := c.cursor.hook
-		return savedHook.ClientHook, isResolved, false, savedHook.deref
-	})
-}
-
-func (c Client) peek() (hook *clientHook, resolved, released bool) {
+func (c Client) startCall() (hook *rc.Ref[clientHook], resolved, released bool) {
 	if c.client == nil {
 		return nil, true, false
 	}
-	return mutex.With3(&c.state, func(c *clientState) (hook *clientHook, released bool, resolved bool) {
-		if c.cursor.hook == nil {
+	return mutex.With3(&c.state, func(c *clientState) (hook *rc.Ref[clientHook], resolved, released bool) {
+		if c.released || !c.cursor.IsValid() {
 			return nil, true, c.released
 		}
-		c.cursor.compress()
-		if c.cursor.hook == nil {
+		hook, ok := mutex.With2(c.cursor.Value(), func(c *clientCursor) (*rc.Ref[clientHook], bool) {
+			c.compress()
+			if c.hook.IsValid() {
+				return c.hook.AddRef(), true
+			}
+			return nil, false
+		})
+		if !ok {
 			return nil, true, false
 		}
-		l := c.cursor.hook.state.Lock()
-		resolved = l.Value().isResolved()
-		l.Unlock()
-		return c.cursor.hook, resolved, false
+		resolved = mutex.With1(&hook.Value().state, func(s *clientHookState) bool {
+			return s.isResolved()
+		})
+		return hook, resolved, false
 	})
 }
 
@@ -344,8 +332,8 @@ func (c Client) SetFlowLimiter(lim flowcontrol.FlowLimiter) {
 // This method respects the flow control policy configured with SetFlowLimiter;
 // it may block if the sender is sending too fast.
 func (c Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
-	h, _, released, finish := c.startCall()
-	defer finish()
+	h, _, released := c.startCall()
+	defer h.Release()
 	if released {
 		return ErrorAnswer(s.Method, errors.New("call on released client")), func() {}
 	}
@@ -381,7 +369,7 @@ func (c Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 		return err
 	}
 
-	ans, rel := h.Send(ctx, s)
+	ans, rel := h.Value().Send(ctx, s)
 	// FIXME: an earlier version of this code called StartMessage() from
 	// within PlaceArgs -- but that can result in a deadlock, since it means
 	// the client hook is holding a lock while we're waiting on the limiter.
@@ -476,8 +464,8 @@ func (c Client) WaitStreaming() error {
 // Note that unlike SendCall, this method does *not* respect the flow
 // control policy configured with SetFlowLimiter.
 func (c Client) RecvCall(ctx context.Context, r Recv) PipelineCaller {
-	h, _, released, finish := c.startCall()
-	defer finish()
+	h, _, released := c.startCall()
+	defer h.Release()
 	if released {
 		r.Reject(errors.New("call on released client"))
 		return nil
@@ -486,14 +474,15 @@ func (c Client) RecvCall(ctx context.Context, r Recv) PipelineCaller {
 		r.Reject(errors.New("call on null client"))
 		return nil
 	}
-	return h.Recv(ctx, r)
+	return h.Value().Recv(ctx, r)
 }
 
 // IsValid reports whether c is a valid reference to a capability.
 // A reference is invalid if it is nil, has resolved to null, or has
 // been released.
 func (c Client) IsValid() bool {
-	h, _, released := c.peek()
+	h, _, released := c.startCall()
+	defer h.Release()
 	return !released && h != nil
 }
 
@@ -502,15 +491,23 @@ func (c Client) IsValid() bool {
 // are not fully resolved: use Resolve if this is an issue.  If either
 // c or c2 are released, then IsSame panics.
 func (c Client) IsSame(c2 Client) bool {
-	h1, _, released := c.peek()
+	h1, _, released := c.startCall()
+	defer h1.Release()
 	if released {
 		panic("IsSame on released client")
 	}
-	h2, _, released := c2.peek()
+	h2, _, released := c2.startCall()
+	defer h2.Release()
 	if released {
 		panic("IsSame on released client")
 	}
-	return h1 == h2
+	if !h1.IsValid() && !h2.IsValid() {
+		return true
+	}
+	if !h1.IsValid() || !h2.IsValid() {
+		return false
+	}
+	return h1.Value() == h2.Value()
 }
 
 // Resolve blocks until the capability is fully resolved or the Context is Done.
@@ -518,7 +515,8 @@ func (c Client) IsSame(c2 Client) bool {
 // if the capability resolves to an error.
 func (c Client) Resolve(ctx context.Context) error {
 	for {
-		h, resolved, released := c.peek()
+		h, resolved, released := c.startCall()
+		defer h.Release()
 		if released {
 			return errors.New("cannot resolve released client")
 		}
@@ -527,7 +525,7 @@ func (c Client) Resolve(ctx context.Context) error {
 			return nil
 		}
 
-		resolvedCh := mutex.With1(&h.state, func(s *clientHookState) <-chan struct{} {
+		resolvedCh := mutex.With1(&h.Value().state, func(s *clientHookState) <-chan struct{} {
 			return s.resolved
 		})
 
@@ -545,22 +543,13 @@ func (c Client) AddRef() Client {
 	if c.client == nil {
 		return Client{}
 	}
+	h, _, released := c.startCall()
+	defer h.Release()
+	if released {
+		panic("AddRef on released client")
+	}
 	return mutex.With1(&c.state, func(c *clientState) Client {
-		if c.released {
-			panic("AddRef on released client")
-		}
-		if c.cursor.hook == nil {
-			return Client{}
-		}
-		c.cursor.compress()
-		if c.cursor.hook == nil {
-			return Client{}
-		}
-		l := c.cursor.hook.state.Lock()
-		l.Value().refs++
-		l.Unlock()
-		cs := mutex.New(clientState{cursor: &clientCursor{hook: c.cursor.hook}})
-		d := Client{client: &client{state: cs}}
+		d := Client{client: &client{state: mutex.New(clientState{cursor: c.cursor.AddRef()})}}
 		setupLeakReporting(d)
 		return d
 	})
@@ -569,30 +558,27 @@ func (c Client) AddRef() Client {
 // WeakRef creates a new WeakClient that refers to the same capability
 // as c.  If c is nil or has resolved to null, then WeakRef returns nil.
 func (c Client) WeakRef() *WeakClient {
-	h, _, released := c.peek()
-	if released {
-		panic("WeakRef on released client")
-	}
-	if h == nil {
-		return nil
-	}
-	return &WeakClient{h: h}
+	cursor := mutex.With1(&c.state, func(s *clientState) *rc.WeakRef[mutex.Mutex[clientCursor]] {
+		if s.released {
+			panic("WeakRef on released client")
+		}
+		return s.cursor.Weak()
+	})
+	return &WeakClient{r: cursor}
 }
 
 // State reads the current state of the client.  It returns the zero
 // ClientState if c is nil, has resolved to null, or has been released.
 func (c Client) State() ClientState {
-	h, resolved, _, finish := c.startCall()
-	defer finish()
+	h, resolved, _ := c.startCall()
+	defer h.Release()
 	if h == nil {
 		return ClientState{}
 	}
 	return ClientState{
-		Brand:     h.Brand(),
+		Brand:     h.Value().Brand(),
 		IsPromise: !resolved,
-		Metadata: mutex.With1(&c.state, func(c *clientState) *Metadata {
-			return &c.cursor.hook.metadata
-		}),
+		Metadata:  &h.Value().metadata,
 	}
 }
 
@@ -624,29 +610,20 @@ func (c Client) String() string {
 	if c.client == nil {
 		return "<nil>"
 	}
-	cl := c.state.Lock()
-	if cl.Value().released {
-		cl.Unlock()
+	h, resolved, released := c.startCall()
+	defer h.Release()
+	if released {
 		return "<released client>"
 	}
-	if cl.Value().cursor.hook == nil {
-		cl.Unlock()
-		return "<nil>"
-	}
-	cl.Value().cursor.compress()
-	hl := cl.Value().cursor.hook.state.Lock()
-	if cl.Value().cursor.hook == nil {
-		cl.Unlock()
+	if h == nil {
 		return "<nil>"
 	}
 	var s string
-	if hl.Value().isResolved() {
-		s = "<client " + cl.Value().cursor.hook.ClientHook.String() + ">"
+	if resolved {
+		s = "<client " + h.Value().ClientHook.String() + ">"
 	} else {
-		s = "<unresolved client " + cl.Value().cursor.hook.ClientHook.String() + ">"
+		s = "<unresolved client " + h.Value().ClientHook.String() + ">"
 	}
-	hl.Unlock()
-	cl.Unlock()
 	return s
 }
 
@@ -660,26 +637,13 @@ func (c Client) Release() {
 	if c.client == nil {
 		return
 	}
-	cl := c.state.Lock()
-	cl.Value().cursor.compress()
-	if cl.Value().released || cl.Value().cursor.hook == nil {
-		cl.Unlock()
-		return
-	}
-	cl.Value().released = true
-	h := cl.Value().cursor.hook
-	hl := h.state.Lock()
-	cl.Value().cursor.hook = nil
-	hl.Value().refs--
-	if hl.Value().refs > 0 {
-		hl.Unlock()
-		cl.Unlock()
-		return
-	}
-	hl.Unlock()
-	cl.Unlock()
-	h.Shutdown()
-	c.GetFlowLimiter().Release()
+	limiter := c.GetFlowLimiter()
+	c.state.With(func(s *clientState) {
+		if s.cursor.IsValid() {
+			s.cursor.Release()
+			limiter.Release()
+		}
+	})
 }
 
 func (c Client) EncodeAsPtr(seg *Segment) Ptr {
@@ -732,7 +696,7 @@ func SetClientLeakFunc(clientLeakFunc func(msg string)) {
 
 // A ClientPromise resolves the identity of a client created by NewPromisedClient.
 type clientPromise struct {
-	h *clientHook
+	cursor *rc.WeakRef[mutex.Mutex[clientCursor]]
 }
 
 func (cp *clientPromise) Reject(err error) {
@@ -751,82 +715,70 @@ func (cp *clientPromise) Fulfill(c Client) {
 	cp.fulfill(dq, c)
 }
 
+/*
 // shutdown waits for all outstanding calls on the hook to complete and
 // references to be dropped, and then shuts down the hook. The caller
 // must have previously invoked cp.fulfill().
 func (cp *clientPromise) shutdown() {
 	cp.h.Shutdown()
 }
+*/
 
 // fulfill is like Fulfill, except that it does not wait for outsanding calls
 // to return answers or shut down the underlying hook; instead, it adds functions
 // to do this to dq.
 func (cp *clientPromise) fulfill(dq *deferred.Queue, c Client) {
-	dq.Defer(cp.shutdown)
+	//	dq.Defer(cp.shutdown)
+
+	dq.Defer(c.Release)
+	cursor, ok := cp.cursor.AddRef()
+	if !ok {
+		return
+	}
+	dq.Defer(cursor.Release)
 
 	// Obtain next client hook.
-	var rh *clientHook
+	var rh *rc.Ref[clientHook]
 	if (c != Client{}) {
-		c.state.With(func(c *clientState) {
-			if c.released {
-				panic("ClientPromise.Fulfill with a released client")
-			}
-			// TODO(maybe): c.h = resolveHook(c.h)
-			rh = c.cursor.hook
-		})
+		h, _, released := c.startCall()
+		if released {
+			panic("ClientPromise.Fulfill with a released client")
+		}
+		rh = h
 	}
 
 	// Mark hook as resolved.
-	l := cp.h.state.Lock()
-	if l.Value().isResolved() {
-		l.Unlock()
-		panic("ClientPromise.Fulfill called more than once")
-	}
-	l.Value().resolvedHook = maybe.New(rh)
-	close(l.Value().resolved)
-	refs := l.Value().refs
-	l.Value().refs = 0
-	if refs == 0 {
-		l.Unlock()
-		return
-	}
-
-	rh, l = resolveHook(cp.h, l) // swaps mutex on cp.h for mutex on rh
-	if rh != nil {
-		l.Value().refs += refs
-		l.Unlock()
-	}
+	cursor.Value().With(func(c *clientCursor) {
+		h := c.hook
+		h.Value().state.With(func(s *clientHookState) {
+			if s.isResolved() {
+				panic("ClientPromise.Fulfill called more than once")
+			}
+			s.resolvedHook = maybe.New(rh)
+			close(s.resolved)
+		})
+		c.compress()
+	})
 }
 
 // A WeakClient is a weak reference to a capability: it refers to a
 // capability without preventing it from being shut down.  The zero
 // value is a null reference.
 type WeakClient struct {
-	h *clientHook
+	r *rc.WeakRef[mutex.Mutex[clientCursor]]
 }
 
 // AddRef creates a new Client that refers to the same capability as c
 // as long as the capability hasn't already been shut down.
 func (wc *WeakClient) AddRef() (c Client, ok bool) {
-	if wc == nil {
+	if wc == nil || wc.r == nil {
 		return Client{}, true
 	}
-	if wc.h == nil {
-		return Client{}, true
-	}
-	l := wc.h.state.Lock()
-	wc.h, l = resolveHook(wc.h, l)
-	if wc.h == nil {
-		return Client{}, true
-	}
-	if l.Value().refs == 0 {
-		l.Unlock()
+	cursor, ok := wc.r.AddRef()
+	if !ok {
 		return Client{}, false
 	}
-	l.Value().refs++
-	l.Unlock()
-	cs := mutex.New(clientState{cursor: &clientCursor{hook: wc.h}})
-	c = Client{client: &client{state: cs}}
+	c = Client{client: &client{state: mutex.New(clientState{cursor: cursor.AddRef()})}}
 	setupLeakReporting(c)
 	return c, true
 }
@@ -1023,15 +975,14 @@ func ErrorClient(e error) Client {
 	}
 
 	// Avoid NewClient because it can set a finalizer.
-	h := &clientHook{
+	h := clientHook{
 		ClientHook: errorClient{e},
 		metadata:   *NewMetadata(),
 		state: mutex.New(clientHookState{
 			resolved: closedSignal,
-			refs:     1,
 		}),
 	}
-	cs := mutex.New(clientState{cursor: &clientCursor{hook: h}})
+	cs := mutex.New(clientState{cursor: newClientCursor(h)})
 	return Client{client: &client{state: cs}}
 }
 
