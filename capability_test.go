@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 )
@@ -269,7 +270,10 @@ type dummyHook struct {
 }
 
 func (dh *dummyHook) String() string {
-	return "&dummyHook{}"
+	return fmt.Sprintf(
+		"&dummyHook{calls: %v, brand: %v, shutdowns: %v}",
+		dh.calls, dh.brand, dh.shutdowns,
+	)
 }
 
 func (dh *dummyHook) Send(_ context.Context, s Send) (*Answer, ReleaseFunc) {
