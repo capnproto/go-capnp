@@ -768,7 +768,7 @@ func (wc *WeakClient) AddRef() (c Client, ok bool) {
 	if !ok {
 		return Client{}, false
 	}
-	c = Client{client: &client{state: mutex.New(clientState{cursor: cursor.AddRef()})}}
+	c = Client{client: &client{state: mutex.New(clientState{cursor: cursor})}}
 	setupLeakReporting(c)
 	return c, true
 }
