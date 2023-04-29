@@ -732,7 +732,6 @@ func (cp *clientPromise) shutdown() {
 func (cp *clientPromise) fulfill(dq *deferred.Queue, c Client) {
 	//	dq.Defer(cp.shutdown)
 
-	dq.Defer(c.Release)
 	cursor, ok := cp.cursor.AddRef()
 	if !ok {
 		return
