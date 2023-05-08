@@ -41,7 +41,7 @@ Compilation will fail unless these annotations are present.
 To compile this schema into Go code, run the following command.   Note that the source path `/foo/books.capnp` must correspond to the import path declared in your annotations.
 
 ```bash
-capnp compile -I$GOPATH/src/capnproto.org/go/capnp/std -ogo foo/books.capnp
+capnp compile -I /path/to/go-capnp/std -ogo foo/books.capnp
 ```
 
 > **Tip** 👉 For more compilation options, see `capnp compile --help`.
