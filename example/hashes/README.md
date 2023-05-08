@@ -1,10 +1,10 @@
-cd to wherever you installed the source, for example:
+cd to wherever you installed the source:
 
-`cd $GOPATH/src/go-capnproto2/example/hashes`
+`cd /path/to/go-capnp/example/hashes`
 
 Compile the capnp file:
 
-`capnp compile -I$GOPATH/src/capnproto.org/go/capnp/std/ -ogo hashes/hashes.capnp`
+`capnp compile -I ../../std/ -ogo hashes.capnp`
 
 Build your code, and run it:
 
