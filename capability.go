@@ -267,7 +267,7 @@ func newPromisedClient(hook ClientHook) (Client, *clientPromise) {
 		}),
 	}
 	cursor := newClientCursor(h)
-	cs := mutex.New(clientState{cursor: newClientCursor(h)})
+	cs := mutex.New(clientState{cursor: cursor})
 	c := Client{client: &client{state: cs}}
 	setupLeakReporting(c)
 	return c, &clientPromise{cursor: cursor.Weak()}
