@@ -147,7 +147,17 @@ func newClientCursor(hook clientHook) *rc.Ref[mutex.Mutex[clientCursor]] {
 		c.With(func(c *clientCursor) {
 			c.hook = rc.NewRefInPlace(func(h *clientHook) func() {
 				*h = hook
-				return h.Shutdown
+				return func() {
+					h.Shutdown()
+					h.state.With(func(s *clientHookState) {
+						if !s.isResolved() {
+							return
+						}
+						if ref, ok := s.resolvedHook.Get(); ok {
+							ref.Release()
+						}
+					})
+				}
 			})
 		})
 		return func() {
@@ -187,12 +197,15 @@ func resolveHook(h *rc.Ref[clientHook], l *mutex.Locked[clientHookState]) (*rc.R
 		if !ok {
 			return h, l
 		}
+		if r != nil {
+			r = r.AddRef()
+		}
 		l.Unlock()
 		h.Release()
 		if r == nil {
 			return nil, nil
 		}
-		h = r.AddRef()
+		h = r
 		l = h.Value().state.Lock()
 	}
 }
