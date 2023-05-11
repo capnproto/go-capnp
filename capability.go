@@ -171,36 +171,26 @@ func newClientCursor(hook clientHook) *rc.Ref[mutex.Mutex[clientCursor]] {
 // compress advances the hook referred to by this cursor as far
 // as possible without blocking on a resolution.
 func (c *clientCursor) compress() {
-	if c.hook == nil {
-		return
-	}
-	c.hook = resolveHook(c.hook)
-}
-
-// resolveHook is a helper for clientCursor.compress. It resolves h as much
-// as possible without blocking.  Takes ownership of h, and the returned
-// reference will be owned by the caller.
-func resolveHook(h *rc.Ref[clientHook]) *rc.Ref[clientHook] {
 	for {
-		if h == nil {
-			return h
+		if c.hook == nil {
+			return
 		}
-		res, ok := h.Value().resolution.Get()
+		res, ok := c.hook.Value().resolution.Get()
 		if !ok {
-			return h
+			return
 		}
 		l := res.Lock()
 		if !l.Value().isResolved() {
 			l.Unlock()
-			return h
+			return
 		}
 		r := l.Value().resolvedHook
 		if r != nil {
 			r = r.AddRef()
 		}
 		l.Unlock()
-		h.Release()
-		h = r
+		c.hook.Release()
+		c.hook = r
 	}
 }
 
