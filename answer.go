@@ -146,24 +146,19 @@ func (p *Promise) Reject(e error) {
 // If e != nil, then this is equivalent to p.Reject(e).
 // Otherwise, it is equivalent to p.Fulfill(r).
 func (p *Promise) Resolve(r Ptr, e error) {
-	var (
-		shutdownPromises []*clientPromise
+	var shutdownPromises []*clientPromise
 
-		// We need to access some of these fields from p.state while
-		// not holding the lock, so we store them here while holding it.
-		// p.clients cannot be touched in the pending resolution state,
-		// so we have exclusive access to the variable anyway.
-		clients map[clientPath]*clientAndPromise
-	)
-
-	p.state.With(func(p *promiseState) {
+	// It's ok to extract p.clients and use it while not holding the lock:
+	// it may not be accessed in the pending resolution state, so we have
+	// exclusive access to the variable anyway.
+	clients := mutex.With1(&p.state, func(p *promiseState) map[clientPath]*clientAndPromise {
 		if e != nil {
 			p.requireUnresolved("Reject")
 		} else {
 			p.requireUnresolved("Fulfill")
 		}
 		p.caller = nil
-		clients = p.clients
+		return p.clients
 	})
 
 	// Pending resolution state: wait for clients to be fulfilled
