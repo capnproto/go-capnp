@@ -174,28 +174,24 @@ func (c *clientCursor) compress() {
 	if c.hook == nil {
 		return
 	}
-	l := c.hook.Value().state.Lock()
-	c.hook, l = resolveHook(c.hook, l)
-	if c.hook != nil {
-		l.Unlock()
-	}
+	c.hook = resolveHook(c.hook)
 }
 
 // resolveHook is a helper for clientCursor.compress. It resolves h as much
-// as possible without blocking.
-//
-// l must point to the state belonging to h. When resolveHook returns,
-// l will be invalid. The returned Locked will point at the state of
-// the returned clientHook if they are not nil.
-func resolveHook(h *rc.Ref[clientHook], l *mutex.Locked[clientHookState]) (*rc.Ref[clientHook], *mutex.Locked[clientHookState]) {
+// as possible without blocking.  Takes ownership of h, and the returned
+// reference will be owned by the caller.
+func resolveHook(h *rc.Ref[clientHook]) *rc.Ref[clientHook] {
 	h = h.Steal()
+	l := h.Value().state.Lock()
 	for {
 		if !l.Value().isResolved() {
-			return h, l
+			l.Unlock()
+			return h
 		}
 		r, ok := l.Value().resolvedHook.Get()
 		if !ok {
-			return h, l
+			l.Unlock()
+			return h
 		}
 		if r != nil {
 			r = r.AddRef()
@@ -203,7 +199,7 @@ func resolveHook(h *rc.Ref[clientHook], l *mutex.Locked[clientHookState]) (*rc.R
 		l.Unlock()
 		h.Release()
 		if r == nil {
-			return nil, nil
+			return nil
 		}
 		h = r
 		l = h.Value().state.Lock()
