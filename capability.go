@@ -149,14 +149,14 @@ func newClientCursor(hook clientHook) *rc.Ref[mutex.Mutex[clientCursor]] {
 				*h = hook
 				return func() {
 					h.Shutdown()
-					h.state.With(func(s *clientHookState) {
-						if !s.isResolved() {
-							return
-						}
-						if ref, ok := s.resolvedHook.Get(); ok {
-							ref.Release()
-						}
-					})
+					r, ok := h.resolution.Get()
+					if ok {
+						r.With(func(s *resolveState) {
+							if s.isResolved() {
+								s.resolvedHook.Release()
+							}
+						})
+					}
 				}
 			})
 		})
@@ -181,28 +181,26 @@ func (c *clientCursor) compress() {
 // as possible without blocking.  Takes ownership of h, and the returned
 // reference will be owned by the caller.
 func resolveHook(h *rc.Ref[clientHook]) *rc.Ref[clientHook] {
-	h = h.Steal()
-	l := h.Value().state.Lock()
 	for {
+		if h == nil {
+			return h
+		}
+		res, ok := h.Value().resolution.Get()
+		if !ok {
+			return h
+		}
+		l := res.Lock()
 		if !l.Value().isResolved() {
 			l.Unlock()
 			return h
 		}
-		r, ok := l.Value().resolvedHook.Get()
-		if !ok {
-			l.Unlock()
-			return h
-		}
+		r := l.Value().resolvedHook
 		if r != nil {
 			r = r.AddRef()
 		}
 		l.Unlock()
 		h.Release()
-		if r == nil {
-			return nil
-		}
 		h = r
-		l = h.Value().state.Lock()
 	}
 }
 
@@ -217,16 +215,17 @@ type clientHook struct {
 	// Place for callers to attach arbitrary metadata to the client.
 	metadata Metadata
 
-	state mutex.Mutex[clientHookState]
+	// State of the promise's resolution. If this is absent, then
+	// this clientHook is not a promise.
+	resolution maybe.Maybe[*mutex.Mutex[resolveState]]
 }
 
-type clientHookState struct {
+type resolveState struct {
 	// resolved is closed after resolvedHook is set
 	resolved chan struct{}
 
-	// Valid only if resolved is closed. Absent if this
-	// was not a promise.
-	resolvedHook maybe.Maybe[*rc.Ref[clientHook]]
+	// Valid only if resolved is closed.
+	resolvedHook *rc.Ref[clientHook]
 }
 
 // NewClient creates the first reference to a capability.
@@ -241,9 +240,6 @@ func NewClient(hook ClientHook) Client {
 	h := clientHook{
 		ClientHook: hook,
 		metadata:   *NewMetadata(),
-		state: mutex.New(clientHookState{
-			resolved: closedSignal,
-		}),
 	}
 	cs := mutex.New(clientState{cursor: newClientCursor(h)})
 	c := Client{client: &client{state: cs}}
@@ -268,14 +264,14 @@ func newPromisedClient(hook ClientHook) (Client, *clientPromise) {
 	if hook == nil {
 		panic("NewPromisedClient(nil)")
 	}
-	h := clientHook{
+	rs := mutex.New(resolveState{
+		resolved: make(chan struct{}),
+	})
+	cursor := newClientCursor(clientHook{
 		ClientHook: hook,
 		metadata:   *NewMetadata(),
-		state: mutex.New(clientHookState{
-			resolved: make(chan struct{}),
-		}),
-	}
-	cursor := newClientCursor(h)
+		resolution: maybe.New(&rs),
+	})
 	cs := mutex.New(clientState{cursor: cursor})
 	c := Client{client: &client{state: cs}}
 	setupLeakReporting(c)
@@ -303,7 +299,11 @@ func (c Client) startCall() (hook *rc.Ref[clientHook], resolved, released bool) 
 		if !ok {
 			return nil, true, false
 		}
-		resolved = mutex.With1(&hook.Value().state, func(s *clientHookState) bool {
+		r, ok := hook.Value().resolution.Get()
+		if !ok {
+			return hook, true, false
+		}
+		resolved = mutex.With1(r, func(s *resolveState) bool {
 			return s.isResolved()
 		})
 		return hook, resolved, false
@@ -526,17 +526,22 @@ func (c Client) IsSame(c2 Client) bool {
 // if the capability resolves to an error.
 func (c Client) Resolve(ctx context.Context) error {
 	for {
-		h, resolved, released := c.startCall()
+		h, _, released := c.startCall()
 		defer h.Release()
 		if released {
 			return errors.New("cannot resolve released client")
 		}
 
-		if resolved {
+		if h == nil {
 			return nil
 		}
 
-		resolvedCh := mutex.With1(&h.Value().state, func(s *clientHookState) <-chan struct{} {
+		r, ok := h.Value().resolution.Get()
+		if !ok {
+			return nil
+		}
+
+		resolvedCh := mutex.With1(r, func(s *resolveState) <-chan struct{} {
 			return s.resolved
 		})
 
@@ -670,7 +675,7 @@ func (Client) DecodeFromPtr(p Ptr) Client {
 var _ TypeParam[Client] = Client{}
 
 // isResolve reports whether the clientHook s belongs to is resolved.
-func (s *clientHookState) isResolved() bool {
+func (s *resolveState) isResolved() bool {
 	select {
 	case <-s.resolved:
 		return true
@@ -750,11 +755,15 @@ func (cp *clientPromise) fulfill(dq *deferred.Queue, c Client) {
 	// Mark hook as resolved.
 	cursor.Value().With(func(c *clientCursor) {
 		h := c.hook
-		h.Value().state.With(func(s *clientHookState) {
+		r, ok := h.Value().resolution.Get()
+		if !ok {
+			panic("BUG: clientPromise referred to a clientHook that was not a promise")
+		}
+		r.With(func(s *resolveState) {
 			if s.isResolved() {
 				panic("ClientPromise.Fulfill called more than once")
 			}
-			s.resolvedHook = maybe.New(rh)
+			s.resolvedHook = rh
 			close(s.resolved)
 		})
 		c.compress()
@@ -978,9 +987,6 @@ func ErrorClient(e error) Client {
 	h := clientHook{
 		ClientHook: errorClient{e},
 		metadata:   *NewMetadata(),
-		state: mutex.New(clientHookState{
-			resolved: closedSignal,
-		}),
 	}
 	cs := mutex.New(clientState{cursor: newClientCursor(h)})
 	return Client{client: &client{state: cs}}
