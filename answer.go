@@ -52,17 +52,6 @@ type promiseState struct {
 	// the promise leaves the unresolved state.
 	caller PipelineCaller
 
-	// ongoingCalls counts the number of calls to caller that have not
-	// yielded an Answer yet (but not necessarily finished).
-	ongoingCalls int
-	// If callsStopped is non-nil, then the promise has entered into
-	// the pending state and is waiting for ongoingCalls to drop to zero.
-	// After decrementing ongoingCalls, callsStopped should be closed if
-	// ongoingCalls is zero to wake up the goroutine.
-	//
-	// Only Fulfill or Reject will set callsStopped.
-	callsStopped chan struct{}
-
 	// clients is a table of promised clients created to proxy the eventual
 	// result's clients.  Even after resolution, this table may still have
 	// entries until the clients are released. Cannot be read or written
@@ -164,8 +153,7 @@ func (p *Promise) Resolve(r Ptr, e error) {
 		// not holding the lock, so we store them here while holding it.
 		// p.clients cannot be touched in the pending resolution state,
 		// so we have exclusive access to the variable anyway.
-		clients      map[clientPath]*clientAndPromise
-		callsStopped chan struct{}
+		clients map[clientPath]*clientAndPromise
 	)
 
 	p.state.With(func(p *promiseState) {
@@ -175,14 +163,7 @@ func (p *Promise) Resolve(r Ptr, e error) {
 			p.requireUnresolved("Fulfill")
 		}
 		p.caller = nil
-
-		if p.ongoingCalls > 0 {
-			p.callsStopped = make(chan struct{})
-		}
-
-		if len(p.clients) > 0 || p.ongoingCalls > 0 {
-			clients = p.clients
-		}
+		clients = p.clients
 	})
 
 	// Pending resolution state: wait for clients to be fulfilled
@@ -194,13 +175,9 @@ func (p *Promise) Resolve(r Ptr, e error) {
 		shutdownPromises = append(shutdownPromises, cp.promise)
 		cp.promise = nil
 	}
-	if callsStopped != nil {
-		<-callsStopped
-	}
 
 	p.state.With(func(p *promiseState) {
 		// Move p into resolved state.
-		p.callsStopped = nil
 		p.result, p.err = r, e
 		for _, f := range p.signals {
 			f()
@@ -353,17 +330,9 @@ func (ans *Answer) PipelineSend(ctx context.Context, transform []PipelineOp, s S
 	l := p.state.Lock()
 	switch {
 	case l.Value().isUnresolved():
-		l.Value().ongoingCalls++
 		caller := l.Value().caller
 		l.Unlock()
-		ans, release := caller.PipelineSend(ctx, transform, s)
-		p.state.With(func(p *promiseState) {
-			p.ongoingCalls--
-			if p.ongoingCalls == 0 && p.callsStopped != nil {
-				close(p.callsStopped)
-			}
-		})
-		return ans, release
+		return caller.PipelineSend(ctx, transform, s)
 	case l.Value().isPendingResolution():
 		// Block new calls until resolved.
 		l.Unlock()
@@ -389,17 +358,9 @@ func (ans *Answer) PipelineRecv(ctx context.Context, transform []PipelineOp, r R
 	l := p.state.Lock()
 	switch {
 	case l.Value().isUnresolved():
-		l.Value().ongoingCalls++
 		caller := l.Value().caller
 		l.Unlock()
-		pcall := caller.PipelineRecv(ctx, transform, r)
-		p.state.With(func(p *promiseState) {
-			p.ongoingCalls--
-			if p.ongoingCalls == 0 && p.callsStopped != nil {
-				close(p.callsStopped)
-			}
-		})
-		return pcall
+		return caller.PipelineRecv(ctx, transform, r)
 	case l.Value().isPendingResolution():
 		// Block new calls until resolved.
 		l.Unlock()
