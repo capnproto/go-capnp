@@ -33,13 +33,6 @@ type Promise struct {
 	//	  Next state is resolved.
 	//	- Resolved.  Fulfill or Reject has finished.
 
-	// When acquiring multiple Promise.state mutexes, they must be acquired
-	// in traversal order (i.e. p, then p.next, then p.next.next).
-	//
-	// FIXME: is the above traversal scheme sound? It depends on avoiding
-	// cycles in the graph to prevent potential deadlocks, and it is not
-	// clear to me(zenhack) that this is a safe assumption (I suspect it's
-	// not).
 	state mutex.Mutex[promiseState]
 }
 
