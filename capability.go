@@ -147,17 +147,7 @@ func newClientCursor(hook clientHook) *rc.Ref[mutex.Mutex[clientCursor]] {
 		c.With(func(c *clientCursor) {
 			c.hook = rc.NewRefInPlace(func(h *clientHook) func() {
 				*h = hook
-				return func() {
-					h.Shutdown()
-					r, ok := h.resolution.Get()
-					if ok {
-						r.With(func(s *resolveState) {
-							if s.isResolved() {
-								s.resolvedHook.Release()
-							}
-						})
-					}
-				}
+				return h.Release
 			})
 		})
 		return func() {
@@ -208,6 +198,18 @@ type clientHook struct {
 	// State of the promise's resolution. If this is absent, then
 	// this clientHook is not a promise.
 	resolution maybe.Maybe[*mutex.Mutex[resolveState]]
+}
+
+func (h *clientHook) Release() {
+	h.Shutdown()
+	r, ok := h.resolution.Get()
+	if ok {
+		r.With(func(s *resolveState) {
+			if s.isResolved() {
+				s.resolvedHook.Release()
+			}
+		})
+	}
 }
 
 type resolveState struct {
