@@ -133,11 +133,6 @@ type clientState struct {
 // clientCursor is an indirection pointing to a link in the resolution
 // chain of clientHooks. Places that need to do path shortening should
 // store one of these, rather than storing clientHook directly.
-//
-// TODO: we want to move towards sharing one clientCursor (protected
-// by a mutex) between all Clients and the like, to allow us to
-// shorten from afar, rather than waiting for methods to be called
-// on the relevant Client.
 type clientCursor struct {
 	hook *rc.Ref[clientHook] // nil if resolved to nil or released
 }
