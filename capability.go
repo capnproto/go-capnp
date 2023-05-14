@@ -499,10 +499,12 @@ func (c Client) IsSame(c2 Client) bool {
 	if released {
 		panic("IsSame on released client")
 	}
-	if !h1.IsValid() && !h2.IsValid() {
+	valid1 := h1.IsValid()
+	valid2 := h2.IsValid()
+	if !valid1 && !valid2 {
 		return true
 	}
-	if !h1.IsValid() || !h2.IsValid() {
+	if !valid1 || !valid2 {
 		return false
 	}
 	return h1.Value() == h2.Value()
