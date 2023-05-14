@@ -121,7 +121,7 @@ type client struct {
 
 type clientState struct {
 	limiter  flowcontrol.FlowLimiter
-	cursor   *rc.Ref[mutex.Mutex[clientCursor]] // never nil
+	cursor   *rc.Ref[clientCursor] // never nil
 	released bool
 
 	stream struct {
@@ -134,49 +134,53 @@ type clientState struct {
 // chain of clientHooks. Places that need to do path shortening should
 // store one of these, rather than storing clientHook directly.
 type clientCursor struct {
-	hook *rc.Ref[clientHook] // nil if resolved to nil or released
+	hook mutex.Mutex[*rc.Ref[clientHook]] // nil if resolved to nil or released
 }
 
-func newClientCursor(hook clientHook) *rc.Ref[mutex.Mutex[clientCursor]] {
-	return rc.NewRefInPlace(func(c *mutex.Mutex[clientCursor]) func() {
-		c.With(func(c *clientCursor) {
-			c.hook = rc.NewRefInPlace(func(h *clientHook) func() {
-				*h = hook
-				return h.Release
-			})
-		})
-		return func() {
-			c.With(func(c *clientCursor) {
-				c.hook.Release()
-			})
-		}
+func newClientCursor(hook clientHook) *rc.Ref[clientCursor] {
+	hookRef := rc.NewRefInPlace(func(h *clientHook) func() {
+		*h = hook
+		return h.Release
+	})
+	return rc.NewRefInPlace(func(c *clientCursor) func() {
+		*c = clientCursor{hook: mutex.New(hookRef)}
+		return c.Release
 	})
 }
 
 // compress advances the hook referred to by this cursor as far
 // as possible without blocking on a resolution.
 func (c *clientCursor) compress() {
-	for {
-		if c.hook == nil {
-			return
-		}
-		res, ok := c.hook.Value().resolution.Get()
-		if !ok {
-			return
-		}
-		l := res.Lock()
-		if !l.Value().isResolved() {
+	c.hook.With(func(hook **rc.Ref[clientHook]) {
+		for {
+			h := *hook
+			if h == nil {
+				return
+			}
+			res, ok := h.Value().resolution.Get()
+			if !ok {
+				return
+			}
+			l := res.Lock()
+			if !l.Value().isResolved() {
+				l.Unlock()
+				return
+			}
+			r := l.Value().resolvedHook
+			if r != nil {
+				r = r.AddRef()
+			}
 			l.Unlock()
-			return
+			h.Release()
+			*hook = r
 		}
-		r := l.Value().resolvedHook
-		if r != nil {
-			r = r.AddRef()
-		}
-		l.Unlock()
-		c.hook.Release()
-		c.hook = r
-	}
+	})
+}
+
+func (c *clientCursor) Release() {
+	c.hook.With(func(hook **rc.Ref[clientHook]) {
+		(*hook).Release()
+	})
 }
 
 // clientHook is a reference-counted wrapper for a ClientHook.
@@ -276,10 +280,11 @@ func (c Client) startCall() (hook *rc.Ref[clientHook], resolved, released bool) 
 		if c.released || !c.cursor.IsValid() {
 			return nil, true, c.released
 		}
-		hook, ok := mutex.With2(c.cursor.Value(), func(c *clientCursor) (*rc.Ref[clientHook], bool) {
-			c.compress()
-			if c.hook.IsValid() {
-				return c.hook.AddRef(), true
+		c.cursor.Value().compress()
+		hook, ok := mutex.With2(&c.cursor.Value().hook, func(h **rc.Ref[clientHook]) (*rc.Ref[clientHook], bool) {
+			ret := *h
+			if ret.IsValid() {
+				return ret.AddRef(), true
 			}
 			return nil, false
 		})
@@ -563,7 +568,7 @@ func (c Client) AddRef() Client {
 // WeakRef creates a new WeakClient that refers to the same capability
 // as c.  If c is nil or has resolved to null, then WeakRef returns nil.
 func (c Client) WeakRef() WeakClient {
-	cursor := mutex.With1(&c.state, func(s *clientState) *rc.WeakRef[mutex.Mutex[clientCursor]] {
+	cursor := mutex.With1(&c.state, func(s *clientState) *rc.WeakRef[clientCursor] {
 		if s.released {
 			panic("WeakRef on released client")
 		}
@@ -702,7 +707,7 @@ func SetClientLeakFunc(clientLeakFunc func(msg string)) {
 
 // A ClientPromise resolves the identity of a client created by NewPromisedClient.
 type clientPromise struct {
-	cursor *rc.WeakRef[mutex.Mutex[clientCursor]]
+	cursor *rc.WeakRef[clientCursor]
 }
 
 func (cp *clientPromise) Reject(err error) {
@@ -742,9 +747,8 @@ func (cp *clientPromise) fulfill(dq *deferred.Queue, c Client) {
 	}
 
 	// Mark hook as resolved.
-	cursor.Value().With(func(c *clientCursor) {
-		h := c.hook
-		r, ok := h.Value().resolution.Get()
+	cursor.Value().hook.With(func(h **rc.Ref[clientHook]) {
+		r, ok := (*h).Value().resolution.Get()
 		if !ok {
 			panic("BUG: clientPromise referred to a clientHook that was not a promise")
 		}
@@ -755,15 +759,15 @@ func (cp *clientPromise) fulfill(dq *deferred.Queue, c Client) {
 			s.resolvedHook = rh
 			close(s.resolved)
 		})
-		c.compress()
 	})
+	cursor.Value().compress()
 }
 
 // A WeakClient is a weak reference to a capability: it refers to a
 // capability without preventing it from being shut down.  The zero
 // value is a null reference.
 type WeakClient struct {
-	r *rc.WeakRef[mutex.Mutex[clientCursor]]
+	r *rc.WeakRef[clientCursor]
 }
 
 // AddRef creates a new Client that refers to the same capability as c
