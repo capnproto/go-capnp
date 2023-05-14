@@ -562,14 +562,14 @@ func (c Client) AddRef() Client {
 
 // WeakRef creates a new WeakClient that refers to the same capability
 // as c.  If c is nil or has resolved to null, then WeakRef returns nil.
-func (c Client) WeakRef() *WeakClient {
+func (c Client) WeakRef() WeakClient {
 	cursor := mutex.With1(&c.state, func(s *clientState) *rc.WeakRef[mutex.Mutex[clientCursor]] {
 		if s.released {
 			panic("WeakRef on released client")
 		}
 		return s.cursor.Weak()
 	})
-	return &WeakClient{r: cursor}
+	return WeakClient{r: cursor}
 }
 
 // State reads the current state of the client.  It returns the zero
@@ -768,8 +768,8 @@ type WeakClient struct {
 
 // AddRef creates a new Client that refers to the same capability as c
 // as long as the capability hasn't already been shut down.
-func (wc *WeakClient) AddRef() (c Client, ok bool) {
-	if wc == nil || wc.r == nil {
+func (wc WeakClient) AddRef() (c Client, ok bool) {
+	if wc.r == nil {
 		return Client{}, true
 	}
 	cursor, ok := wc.r.AddRef()
