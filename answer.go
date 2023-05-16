@@ -58,10 +58,6 @@ type promiseState struct {
 	// in the pending state.
 	clients map[clientPath]*clientAndPromise
 
-	// releasedClients is true after ReleaseClients has been called on this
-	// promise.  Only the receiver of ReleaseClients should set this to true.
-	releasedClients bool
-
 	// result and err are the values from Fulfill or Reject respectively
 	// in the resolved state.
 	result Ptr
@@ -222,10 +218,6 @@ func (p *Promise) Answer() *Answer {
 func (p *Promise) ReleaseClients() {
 	<-p.resolved
 	clients := mutex.With1(&p.state, func(p *promiseState) map[clientPath]*clientAndPromise {
-		if p.releasedClients {
-			return nil
-		}
-		p.releasedClients = true // must happen before traversing pointers
 		clients := p.clients
 		p.clients = nil
 		return clients
