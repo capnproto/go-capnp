@@ -292,6 +292,7 @@ func (ans *ansent) completeSendReturn(dq *deferred.Queue) error {
 			} else {
 				ans.promise.Resolve(ans.returner.results.Content())
 			}
+			dq.Defer(ans.promise.ReleaseClients)
 			ans.promise = nil
 		}
 		ans.sendMsg()
@@ -338,6 +339,7 @@ func (ans *ansent) completeSendException(dq *deferred.Queue) {
 
 	if ans.promise != nil {
 		ans.promise.Reject(ex)
+		dq.Defer(ans.promise.ReleaseClients)
 		ans.promise = nil
 	}
 	if ans.sendMsg != nil {
