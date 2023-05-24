@@ -34,13 +34,6 @@ type Promise struct {
 	//	  Next state is resolved.
 	//	- Resolved.  Fulfill or Reject has finished.
 
-	// When acquiring multiple Promise.state mutexes, they must be acquired
-	// in traversal order (i.e. p, then p.next, then p.next.next).
-	//
-	// FIXME: is the above traversal scheme sound? It depends on avoiding
-	// cycles in the graph to prevent potential deadlocks, and it is not
-	// clear to me(zenhack) that this is a safe assumption (I suspect it's
-	// not).
 	state mutex.Mutex[promiseState]
 }
 
@@ -58,10 +51,6 @@ type promiseState struct {
 	// entries until the clients are released. Cannot be read or written
 	// in the pending state.
 	clients map[clientPath]*clientAndPromise
-
-	// releasedClients is true after ReleaseClients has been called on this
-	// promise.  Only the receiver of ReleaseClients should set this to true.
-	releasedClients bool
 
 	// result and err are the values from Fulfill or Reject respectively
 	// in the resolved state.
@@ -220,10 +209,6 @@ func (p *Promise) Answer() *Answer {
 func (p *Promise) ReleaseClients() {
 	<-p.resolved
 	clients := mutex.With1(&p.state, func(p *promiseState) map[clientPath]*clientAndPromise {
-		if p.releasedClients {
-			return nil
-		}
-		p.releasedClients = true // must happen before traversing pointers
 		clients := p.clients
 		p.clients = nil
 		return clients
