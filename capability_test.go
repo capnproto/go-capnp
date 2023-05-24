@@ -23,13 +23,14 @@ func TestClient(t *testing.T) {
 	if !c.IsValid() {
 		t.Error("new client is not valid")
 	}
-	state := c.State()
+	state := c.Snapshot()
 	if state.IsPromise {
 		t.Error("c.State().IsPromise = true; want false")
 	}
-	if state.Brand.Value != int(42) {
-		t.Errorf("c.State().Brand.Value = %#v; want 42", state.Brand.Value)
+	if state.Brand().Value != int(42) {
+		t.Errorf("c.State().Brand().Value = %#v; want 42", state.Brand().Value)
 	}
+	state.Release()
 	ans, finish := c.SendCall(ctx, Send{})
 	if _, err := ans.Struct(); err != nil {
 		t.Error("SendCall:", err)
@@ -78,13 +79,14 @@ func TestReleasedClient(t *testing.T) {
 	if c.IsValid() {
 		t.Error("released client is valid")
 	}
-	state := c.State()
-	if state.Brand.Value != nil {
-		t.Errorf("c.State().Brand.Value = %#v; want <nil>", state.Brand.Value)
+	state := c.Snapshot()
+	if state.Brand().Value != nil {
+		t.Errorf("c.Snapshot().Brand().Value = %#v; want <nil>", state.Brand().Value)
 	}
 	if state.IsPromise {
-		t.Error("c.State().IsPromise = true; want false")
+		t.Error("c.Snapshot().IsPromise = true; want false")
 	}
+	state.Release()
 	ans, finish := c.SendCall(ctx, Send{})
 	if _, err := ans.Struct(); err == nil {
 		t.Error("SendCall did not return error")
@@ -141,13 +143,14 @@ func TestNullClient(t *testing.T) {
 			if c.IsValid() {
 				t.Error("null client is valid")
 			}
-			state := c.State()
-			if state.Brand.Value != nil {
-				t.Errorf("c.State().Brand = %#v; want <nil>", state.Brand)
+			state := c.Snapshot()
+			if state.Brand().Value != nil {
+				t.Errorf("c.Snapshot().Brand() = %#v; want <nil>", state.Brand())
 			}
 			if state.IsPromise {
-				t.Error("c.State().IsPromise = true; want false")
+				t.Error("c.Snapshot().IsPromise = true; want false")
 			}
+			state.Release()
 			ans, finish := c.SendCall(ctx, Send{})
 			if _, err := ans.Struct(); err == nil {
 				t.Error("SendCall did not return error")
@@ -186,13 +189,14 @@ func TestPromisedClient(t *testing.T) {
 	if ca.IsSame(cb) {
 		t.Error("before resolution, ca == cb")
 	}
-	state := ca.State()
-	if state.Brand.Value != int(111) {
-		t.Errorf("before resolution, ca.State().Brand.Value = %#v; want 111", state.Brand.Value)
+	state := ca.Snapshot()
+	if state.Brand().Value != int(111) {
+		t.Errorf("before resolution, ca.Snapshot().Brand().Value = %#v; want 111", state.Brand().Value)
 	}
 	if !state.IsPromise {
-		t.Error("before resolution, ca.State().IsPromise = false; want true")
+		t.Error("before resolution, ca.Snapshot().IsPromise = false; want true")
 	}
+	state.Release()
 	_, finish := ca.SendCall(ctx, Send{})
 	finish()
 	pa.Fulfill(cb)
@@ -207,13 +211,14 @@ func TestPromisedClient(t *testing.T) {
 	if !ca.IsSame(cb) {
 		t.Errorf("after resolution, ca != cb (%v vs. %v)", ca, cb)
 	}
-	state = ca.State()
-	if state.Brand.Value != int(222) {
-		t.Errorf("after resolution, ca.State().Brand.Value = %#v; want 222", state.Brand.Value)
+	state = ca.Snapshot()
+	if state.Brand().Value != int(222) {
+		t.Errorf("after resolution, ca.Snapshot().Brand().Value = %#v; want 222", state.Brand().Value)
 	}
 	if state.IsPromise {
-		t.Error("after resolution, ca.State().IsPromise = true; want false")
+		t.Error("after resolution, ca.Snapshot().IsPromise = true; want false")
 	}
+	state.Release()
 
 	if b.shutdowns > 0 {
 		t.Error("b shut down before clients released")

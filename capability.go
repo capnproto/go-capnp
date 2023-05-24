@@ -577,18 +577,16 @@ func (c Client) WeakRef() WeakClient {
 	return WeakClient{r: cursor}
 }
 
-// State reads the current state of the client.  It returns the zero
-// ClientState if c is nil, has resolved to null, or has been released.
-func (c Client) State() ClientState {
+// Snapshot reads the current state of the client.  It returns the zero
+// ClientSnapshot if c is nil, has resolved to null, or has been released.
+func (c Client) Snapshot() ClientSnapshot {
 	h, resolved, _ := c.startCall()
-	defer h.Release()
 	if h == nil {
-		return ClientState{}
+		return ClientSnapshot{}
 	}
-	return ClientState{
-		Brand:     h.Value().Brand(),
+	return ClientSnapshot{
+		hook:      h,
 		IsPromise: !resolved,
-		Metadata:  &h.Value().metadata,
 	}
 }
 
@@ -597,19 +595,34 @@ type Brand struct {
 	Value any
 }
 
-// ClientState is a snapshot of a client's identity.
-type ClientState struct {
-	// Brand is the value returned from the hook's Brand method.
-	Brand Brand
-	// IsPromise is true if the client has not resolved yet.
+// ClientSnapshot is a snapshot of a client's identity. If the Client
+// is a promise, then the corresponding ClientSnapshot will *not*
+// redirect to point at the resolution.
+type ClientSnapshot struct {
+	hook *rc.Ref[clientHook]
+	// IsPromise is true if the client was an unresolved promise when
+	// this snapshot was taken.
 	IsPromise bool
-	// Arbitrary metadata. Note that, if a Client is a promise,
-	// when it resolves its metadata will be replaced with that
-	// of its resolution.
-	//
-	// TODO: this might change before the v3 API is stabilized;
-	// we are not sure the above is the correct semantics.
-	Metadata *Metadata
+}
+
+// Brand is the value returned from the ClientHook's Brand method.
+// Returns the zero Brand if the receiver is the zero ClientSnapshot.
+func (cs ClientSnapshot) Brand() Brand {
+	if cs.hook == nil {
+		return Brand{}
+	}
+	return cs.hook.Value().Brand()
+}
+
+// Return a the reference to the Metadata associated with this client hook.
+// Callers may store whatever they need here.
+func (cs ClientSnapshot) Metadata() *Metadata {
+	return &cs.hook.Value().metadata
+}
+
+// Release the reference to the hook.
+func (cs ClientSnapshot) Release() {
+	cs.hook.Release()
 }
 
 // String returns a string that identifies this capability for debugging

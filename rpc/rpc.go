@@ -457,11 +457,12 @@ func (c *lockedConn) releaseBootstrap(dq *deferred.Queue) {
 func (c *lockedConn) releaseExports(dq *deferred.Queue, exports []*expent) {
 	for _, e := range exports {
 		if e != nil {
-			metadata := e.client.State().Metadata
+			snapshot := e.client.Snapshot()
+			metadata := snapshot.Metadata()
 			syncutil.With(metadata, func() {
 				c.clearExportID(metadata)
 			})
-
+			snapshot.Release()
 			dq.Defer(e.client.Release)
 		}
 	}
@@ -1417,7 +1418,9 @@ func (c *lockedConn) isLocalClient(client capnp.Client) bool {
 		return false
 	}
 
-	bv := client.State().Brand.Value
+	snapshot := client.Snapshot()
+	defer snapshot.Release()
+	bv := snapshot.Brand().Value
 
 	if ic, ok := bv.(*importClient); ok {
 		if ic.c == (*Conn)(c) {
@@ -1644,7 +1647,9 @@ func (c *Conn) handleDisembargo(ctx context.Context, in transport.IncomingMessag
 			return err
 		}
 
-		imp, ok := client.State().Brand.Value.(*importClient)
+		snapshot := client.Snapshot()
+		defer snapshot.Release()
+		imp, ok := snapshot.Brand().Value.(*importClient)
 		if !ok || imp.c != c {
 			client.Release()
 			return rpcerr.Failed(errors.New(

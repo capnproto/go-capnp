@@ -493,7 +493,9 @@ func (pc PipelineClient) Brand() Brand {
 		r := mutex.With1(&pc.p.state, func(p *promiseState) resolution {
 			return p.resolution(pc.p.method)
 		})
-		return r.client(pc.transform).State().Brand
+		snapshot := r.client(pc.transform).Snapshot()
+		defer snapshot.Release()
+		return snapshot.Brand()
 	default:
 		return Brand{Value: pc}
 	}
