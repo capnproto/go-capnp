@@ -309,12 +309,12 @@ func (c *Conn) Bootstrap(ctx context.Context) (bc capnp.Client) {
 		}
 		defer c.tasks.Done()
 
-		bootCtx, cancel := context.WithCancel(ctx)
 		q := c.newQuestion(capnp.Method{})
-		bc, q.bootstrapPromise = capnp.NewPromisedClient(bootstrapClient{
-			c:      q.p.Answer().Client().AddRef(),
-			cancel: cancel,
-		})
+		bc = q.p.Answer().Client().AddRef()
+		go func() {
+			q.p.ReleaseClients()
+			q.release()
+		}()
 
 		c.sendMessage(ctx, func(m rpccp.Message) error {
 			boot, err := m.NewBootstrap()
@@ -328,7 +328,7 @@ func (c *Conn) Bootstrap(ctx context.Context) (bc capnp.Client) {
 				syncutil.With(&c.lk, func() {
 					c.lk.questions[q.id] = nil
 				})
-				q.bootstrapPromise.Reject(exc.Annotate("rpc", "bootstrap", err))
+				q.p.Reject(exc.Annotate("rpc", "bootstrap", err))
 				syncutil.With(&c.lk, func() {
 					c.lk.questionID.remove(uint32(q.id))
 				})
@@ -338,38 +338,12 @@ func (c *Conn) Bootstrap(ctx context.Context) (bc capnp.Client) {
 			c.tasks.Add(1)
 			go func() {
 				defer c.tasks.Done()
-				q.handleCancel(bootCtx)
+				q.handleCancel(ctx)
 			}()
 		})
 
 		return
 	})
-}
-
-type bootstrapClient struct {
-	c      capnp.Client
-	cancel context.CancelFunc
-}
-
-func (bc bootstrapClient) String() string {
-	return "bootstrapClient{c: " + bc.c.String() + "}"
-}
-
-func (bc bootstrapClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, capnp.ReleaseFunc) {
-	return bc.c.SendCall(ctx, s)
-}
-
-func (bc bootstrapClient) Recv(ctx context.Context, r capnp.Recv) capnp.PipelineCaller {
-	return bc.c.RecvCall(ctx, r)
-}
-
-func (bc bootstrapClient) Brand() capnp.Brand {
-	return bc.c.State().Brand
-}
-
-func (bc bootstrapClient) Shutdown() {
-	bc.cancel()
-	bc.c.Release()
 }
 
 // Close sends an abort to the remote vat and closes the underlying
@@ -1152,9 +1126,9 @@ func (c *Conn) handleReturn(ctx context.Context, in transport.IncomingMessage) e
 			c.er.ReportError(rpcerr.Annotate(pr.err, "incoming return"))
 		}
 
-		if q.bootstrapPromise == nil && pr.err == nil {
-			// The result of the message contains actual data (not just a
-			// client or an error), so we save the ReleaseFunc for later:
+		if pr.err == nil {
+			// The result of the message contains actual data (not just
+			// an error), so we save the ReleaseFunc for later:
 			q.release = in.Release
 		}
 		// We're going to potentially block fulfilling some promises so fork
@@ -1162,13 +1136,7 @@ func (c *Conn) handleReturn(ctx context.Context, in transport.IncomingMessage) e
 		go func() {
 			c := unlockedConn
 			q.p.Resolve(pr.result, pr.err)
-			if q.bootstrapPromise != nil {
-				q.bootstrapPromise.Fulfill(q.p.Answer().Client())
-				q.p.ReleaseClients()
-				// We can release now; root pointer of the result is a client, so the
-				// message won't be accessed:
-				in.Release()
-			} else if pr.err != nil {
+			if pr.err != nil {
 				// We can release now; the result is an error, so data from the message
 				// won't be accessed:
 				in.Release()
