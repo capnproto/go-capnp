@@ -519,10 +519,13 @@ func (c Client) IsSame(c2 Client) bool {
 // Resolve only returns an error if the context is canceled; it returns nil even
 // if the capability resolves to an error.
 func (c Client) Resolve(ctx context.Context) error {
-	h, _, released := c.startCall()
+	h, resolved, released := c.startCall()
 	defer h.Release()
 	if released {
 		return errors.New("cannot resolve released client")
+	}
+	if resolved {
+		return nil
 	}
 	h, err := resolveClientHook(ctx, h)
 	h.Release()
