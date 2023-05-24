@@ -520,13 +520,13 @@ func (c Client) IsSame(c2 Client) bool {
 // if the capability resolves to an error.
 func (c Client) Resolve(ctx context.Context) error {
 	for {
-		h, _, released := c.startCall()
+		h, resolved, released := c.startCall()
 		defer h.Release()
 		if released {
 			return errors.New("cannot resolve released client")
 		}
 
-		if h == nil {
+		if resolved {
 			return nil
 		}
 
