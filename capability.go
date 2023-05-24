@@ -605,6 +605,30 @@ type ClientSnapshot struct {
 	IsPromise bool
 }
 
+// Send implements ClientHook.Send
+func (cs ClientSnapshot) Send(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
+	return cs.hook.Value().Send(ctx, s)
+}
+
+// Recv implements ClientHook.Recv
+func (cs ClientSnapshot) Recv(ctx context.Context, r Recv) PipelineCaller {
+	return cs.hook.Value().Recv(ctx, r)
+}
+
+// Client returns a client pointing at the most-resolved version of the snapshot.
+func (cs ClientSnapshot) Client() Client {
+	cursor := rc.NewRefInPlace(func(c *clientCursor) func() {
+		*c = clientCursor{hook: mutex.New(cs.hook.AddRef())}
+		c.compress()
+		return c.Release
+	})
+	c := Client{client: &client{
+		state: mutex.New(clientState{cursor: cursor}),
+	}}
+	setupLeakReporting(c)
+	return c
+}
+
 // Brand is the value returned from the ClientHook's Brand method.
 // Returns the zero Brand if the receiver is the zero ClientSnapshot.
 func (cs ClientSnapshot) Brand() Brand {
