@@ -519,32 +519,14 @@ func (c Client) IsSame(c2 Client) bool {
 // Resolve only returns an error if the context is canceled; it returns nil even
 // if the capability resolves to an error.
 func (c Client) Resolve(ctx context.Context) error {
-	for {
-		h, _, released := c.startCall()
-		defer h.Release()
-		if released {
-			return errors.New("cannot resolve released client")
-		}
-
-		if h == nil {
-			return nil
-		}
-
-		r, ok := h.Value().resolution.Get()
-		if !ok {
-			return nil
-		}
-
-		resolvedCh := mutex.With1(r, func(s *resolveState) <-chan struct{} {
-			return s.resolved
-		})
-
-		select {
-		case <-resolvedCh:
-		case <-ctx.Done():
-			return ctx.Err()
-		}
+	h, _, released := c.startCall()
+	defer h.Release()
+	if released {
+		return errors.New("cannot resolve released client")
 	}
+	h, err := resolveClientHook(ctx, h)
+	h.Release()
+	return err
 }
 
 // AddRef creates a new Client that refers to the same capability as c.
@@ -653,6 +635,59 @@ func (cs ClientSnapshot) AddRef() ClientSnapshot {
 // Release the reference to the hook.
 func (cs ClientSnapshot) Release() {
 	cs.hook.Release()
+}
+
+func (cs ClientSnapshot) Resolve1(ctx context.Context) error {
+	var err error
+	cs.hook, _, err = resolve1ClientHook(ctx, cs.hook)
+	return err
+}
+
+func (cs ClientSnapshot) resolve1(ctx context.Context) (more bool, err error) {
+	cs.hook, more, err = resolve1ClientHook(ctx, cs.hook)
+	return
+}
+
+func (cs ClientSnapshot) Resolve(ctx context.Context) error {
+	var err error
+	cs.hook, err = resolveClientHook(ctx, cs.hook)
+	return err
+}
+
+func resolveClientHook(ctx context.Context, h *rc.Ref[clientHook]) (_ *rc.Ref[clientHook], err error) {
+	for {
+		var more bool
+		h, more, err = resolve1ClientHook(ctx, h)
+		if !more || err != nil {
+			return h, err
+		}
+	}
+}
+
+func resolve1ClientHook(ctx context.Context, h *rc.Ref[clientHook]) (_ *rc.Ref[clientHook], more bool, err error) {
+	if !h.IsValid() {
+		return h, false, nil
+	}
+	defer h.Release()
+
+	r, ok := h.Value().resolution.Get()
+	if !ok {
+		return h.AddRef(), false, nil
+	}
+
+	resolvedCh := mutex.With1(r, func(s *resolveState) <-chan struct{} {
+		return s.resolved
+	})
+
+	select {
+	case <-resolvedCh:
+		rh := mutex.With1(r, func(r *resolveState) *rc.Ref[clientHook] {
+			return r.resolvedHook
+		})
+		return rh.AddRef(), true, nil
+	case <-ctx.Done():
+		return h.AddRef(), true, ctx.Err()
+	}
 }
 
 // String returns a string that identifies this capability for debugging

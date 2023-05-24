@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestClient(t *testing.T) {
@@ -117,6 +118,49 @@ func TestReleasedClient(t *testing.T) {
 	if h.shutdowns > 1 {
 		t.Error("second Release made more calls to ClientHook.Shutdown")
 	}
+}
+func TestResolve(t *testing.T) {
+	test := func(name string, f func(t *testing.T, p1, p2 Client, r1, r2 Resolver[Client])) {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			p1, r1 := NewLocalPromise[Client]()
+			p2, r2 := NewLocalPromise[Client]()
+			defer p1.Release()
+			defer p2.Release()
+			f(t, p1, p2, r1, r2)
+		})
+	}
+	t.Run("Clients", func(t *testing.T) {
+		test("Waits for the full chain", func(t *testing.T, p1, p2 Client, r1, r2 Resolver[Client]) {
+			r1.Fulfill(p2)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second/10)
+			defer cancel()
+			require.NotNil(t, p1.Resolve(ctx), "blocks on second promise")
+			r2.Fulfill(Client{})
+			require.NoError(t, p1.Resolve(context.Background()), "resolves after second resolution")
+			assert.True(t, p1.IsSame(Client{}), "p1 resolves to null")
+			assert.True(t, p2.IsSame(Client{}), "p2 resolves to null")
+			assert.True(t, p1.IsSame(p2), "p1 & p2 are the same")
+		})
+	})
+	t.Run("Snapshots", func(t *testing.T) {
+		test("Resolve1 only waits for one link", func(t *testing.T, p1, p2 Client, r1, r2 Resolver[Client]) {
+			s1 := p1.Snapshot()
+			defer s1.Release()
+			r1.Fulfill(p2)
+			require.NoError(t, s1.Resolve1(context.Background()), "Resolve1 returns after first resolution")
+		})
+		test("Resolve waits for the full chain", func(t *testing.T, p1, p2 Client, r1, r2 Resolver[Client]) {
+			s1 := p1.Snapshot()
+			defer s1.Release()
+			r1.Fulfill(p2)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second/10)
+			defer cancel()
+			require.NotNil(t, s1.Resolve(ctx), "blocks on second promise")
+			r2.Fulfill(Client{})
+			require.NoError(t, s1.Resolve(context.Background()), "resolves after second resolution")
+		})
+	})
 }
 
 func TestNullClient(t *testing.T) {
