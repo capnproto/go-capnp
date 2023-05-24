@@ -644,6 +644,12 @@ func (cs ClientSnapshot) Metadata() *Metadata {
 	return &cs.hook.Value().metadata
 }
 
+// Create a copy of the snapshot, with its own underlying reference.
+func (cs ClientSnapshot) AddRef() ClientSnapshot {
+	cs.hook = cs.hook.AddRef()
+	return cs
+}
+
 // Release the reference to the hook.
 func (cs ClientSnapshot) Release() {
 	cs.hook.Release()
