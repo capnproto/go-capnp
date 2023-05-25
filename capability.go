@@ -644,18 +644,18 @@ func (cs ClientSnapshot) Release() {
 	cs.hook.Release()
 }
 
-func (cs ClientSnapshot) Resolve1(ctx context.Context) error {
+func (cs *ClientSnapshot) Resolve1(ctx context.Context) error {
 	var err error
 	cs.hook, _, err = resolve1ClientHook(ctx, cs.hook)
 	return err
 }
 
-func (cs ClientSnapshot) resolve1(ctx context.Context) (more bool, err error) {
+func (cs *ClientSnapshot) resolve1(ctx context.Context) (more bool, err error) {
 	cs.hook, more, err = resolve1ClientHook(ctx, cs.hook)
 	return
 }
 
-func (cs ClientSnapshot) Resolve(ctx context.Context) error {
+func (cs *ClientSnapshot) Resolve(ctx context.Context) error {
 	var err error
 	cs.hook, err = resolveClientHook(ctx, cs.hook)
 	return err
