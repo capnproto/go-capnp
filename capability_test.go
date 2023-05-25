@@ -120,7 +120,7 @@ func TestReleasedClient(t *testing.T) {
 	}
 }
 func TestResolve(t *testing.T) {
-	test := func(name string, f func(t *testing.T, p1, p2 Client, r1, r2 Resolver[Client])) {
+	test := func(t *testing.T, name string, f func(t *testing.T, p1, p2 Client, r1, r2 Resolver[Client])) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			p1, r1 := NewLocalPromise[Client]()
@@ -131,7 +131,7 @@ func TestResolve(t *testing.T) {
 		})
 	}
 	t.Run("Clients", func(t *testing.T) {
-		test("Waits for the full chain", func(t *testing.T, p1, p2 Client, r1, r2 Resolver[Client]) {
+		test(t, "Waits for the full chain", func(t *testing.T, p1, p2 Client, r1, r2 Resolver[Client]) {
 			r1.Fulfill(p2)
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second/10)
 			defer cancel()
@@ -144,13 +144,13 @@ func TestResolve(t *testing.T) {
 		})
 	})
 	t.Run("Snapshots", func(t *testing.T) {
-		test("Resolve1 only waits for one link", func(t *testing.T, p1, p2 Client, r1, r2 Resolver[Client]) {
+		test(t, "Resolve1 only waits for one link", func(t *testing.T, p1, p2 Client, r1, r2 Resolver[Client]) {
 			s1 := p1.Snapshot()
 			defer s1.Release()
 			r1.Fulfill(p2)
 			require.NoError(t, s1.Resolve1(context.Background()), "Resolve1 returns after first resolution")
 		})
-		test("Resolve waits for the full chain", func(t *testing.T, p1, p2 Client, r1, r2 Resolver[Client]) {
+		test(t, "Resolve waits for the full chain", func(t *testing.T, p1, p2 Client, r1, r2 Resolver[Client]) {
 			s1 := p1.Snapshot()
 			defer s1.Release()
 			r1.Fulfill(p2)
