@@ -590,6 +590,10 @@ type ClientSnapshot struct {
 	IsPromise bool
 }
 
+func (cs ClientSnapshot) IsValid() bool {
+	return cs.hook.IsValid()
+}
+
 // Send implements ClientHook.Send
 func (cs ClientSnapshot) Send(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 	return cs.hook.Value().Send(ctx, s)
