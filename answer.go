@@ -7,6 +7,7 @@ import (
 
 	"capnproto.org/go/capnp/v3/exc"
 	"capnproto.org/go/capnp/v3/internal/str"
+	"zenhack.net/go/util/deferred"
 	"zenhack.net/go/util/sync/mutex"
 )
 
@@ -135,7 +136,8 @@ func (p *Promise) Reject(e error) {
 // If e != nil, then this is equivalent to p.Reject(e).
 // Otherwise, it is equivalent to p.Fulfill(r).
 func (p *Promise) Resolve(r Ptr, e error) {
-	var shutdownPromises []*clientPromise
+	dq := &deferred.Queue{}
+	defer dq.Run()
 
 	// It's ok to extract p.clients and use it while not holding the lock:
 	// it may not be accessed in the pending resolution state, so we have
@@ -155,8 +157,7 @@ func (p *Promise) Resolve(r Ptr, e error) {
 	res := resolution{p.method, r, e}
 	for path, cp := range clients {
 		t := path.transform()
-		cp.promise.fulfill(res.client(t))
-		shutdownPromises = append(shutdownPromises, cp.promise)
+		cp.promise.fulfill(dq, res.client(t))
 		cp.promise = nil
 	}
 
@@ -168,9 +169,6 @@ func (p *Promise) Resolve(r Ptr, e error) {
 		}
 		p.signals = nil
 	})
-	for _, promise := range shutdownPromises {
-		promise.shutdown()
-	}
 }
 
 // requireUnresolved is a helper method for checking for duplicate

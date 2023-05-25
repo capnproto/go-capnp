@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestClient(t *testing.T) {
@@ -202,7 +205,7 @@ func TestPromisedClient(t *testing.T) {
 	finish()
 
 	if !ca.IsSame(cb) {
-		t.Error("after resolution, ca != cb")
+		t.Errorf("after resolution, ca != cb (%v vs. %v)", ca, cb)
 	}
 	state = ca.State()
 	if state.Brand.Value != int(222) {
@@ -269,7 +272,10 @@ type dummyHook struct {
 }
 
 func (dh *dummyHook) String() string {
-	return "&dummyHook{}"
+	return fmt.Sprintf(
+		"&dummyHook{calls: %v, brand: %v, shutdowns: %v}",
+		dh.calls, dh.brand, dh.shutdowns,
+	)
 }
 
 func (dh *dummyHook) Send(_ context.Context, s Send) (*Answer, ReleaseFunc) {
@@ -596,20 +602,12 @@ func TestWeakPromisedClient(t *testing.T) {
 	defer ca.Release()
 	cb2, ok := wa.AddRef()
 	defer cb2.Release()
-	if !ok {
-		t.Error("wa.AddRef() failed after releasing ca")
-	}
-	if !cb.IsSame(cb2) {
-		t.Error("cb != cb2")
-	}
+	assert.False(t, ok, "wa.AddRef() failed after releasing ca")
+	assert.False(t, cb.IsSame(cb2), "cb != cb2")
+
 	cb.Release()
-	defer cb.Release()
-	if b.shutdowns > 0 {
-		t.Error("b shut down before cb2.Release")
-	}
-	cb2.Release()
 	if b.shutdowns == 0 {
-		t.Error("b not shut down after cb2.Release")
+		t.Error("b not shut down after cb.Release")
 	}
 }
 

@@ -16,7 +16,7 @@ type importID uint32
 // impent is an entry in the import table.  All fields are protected by
 // Conn.mu.
 type impent struct {
-	wc *capnp.WeakClient
+	wc capnp.WeakClient
 
 	// wireRefs is the number of times that the importID has appeared in
 	// messages received from the remote vat.  Used to populate the

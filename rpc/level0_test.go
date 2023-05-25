@@ -1360,7 +1360,7 @@ func TestRecvBootstrapPipelineCall(t *testing.T) {
 
 // TestDuplicateBootstrap calls Bootstrap twice on the same connection,
 // and verifies that the results are the same.
-func TestDuplicateBoostrap(t *testing.T) {
+func TestDuplicateBootstrap(t *testing.T) {
 	t.Parallel()
 
 	left, right := transport.NewPipe(1)
