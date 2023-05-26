@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestClient(t *testing.T) {
@@ -23,13 +24,14 @@ func TestClient(t *testing.T) {
 	if !c.IsValid() {
 		t.Error("new client is not valid")
 	}
-	state := c.State()
-	if state.IsPromise {
+	state := c.Snapshot()
+	if state.IsPromise() {
 		t.Error("c.State().IsPromise = true; want false")
 	}
-	if state.Brand.Value != int(42) {
-		t.Errorf("c.State().Brand.Value = %#v; want 42", state.Brand.Value)
+	if state.Brand().Value != int(42) {
+		t.Errorf("c.State().Brand().Value = %#v; want 42", state.Brand().Value)
 	}
+	state.Release()
 	ans, finish := c.SendCall(ctx, Send{})
 	if _, err := ans.Struct(); err != nil {
 		t.Error("SendCall:", err)
@@ -78,13 +80,14 @@ func TestReleasedClient(t *testing.T) {
 	if c.IsValid() {
 		t.Error("released client is valid")
 	}
-	state := c.State()
-	if state.Brand.Value != nil {
-		t.Errorf("c.State().Brand.Value = %#v; want <nil>", state.Brand.Value)
+	state := c.Snapshot()
+	if state.Brand().Value != nil {
+		t.Errorf("c.Snapshot().Brand().Value = %#v; want <nil>", state.Brand().Value)
 	}
-	if state.IsPromise {
-		t.Error("c.State().IsPromise = true; want false")
+	if state.IsPromise() {
+		t.Error("c.Snapshot().IsPromise = true; want false")
 	}
+	state.Release()
 	ans, finish := c.SendCall(ctx, Send{})
 	if _, err := ans.Struct(); err == nil {
 		t.Error("SendCall did not return error")
@@ -116,6 +119,49 @@ func TestReleasedClient(t *testing.T) {
 		t.Error("second Release made more calls to ClientHook.Shutdown")
 	}
 }
+func TestResolve(t *testing.T) {
+	test := func(t *testing.T, name string, f func(t *testing.T, p1, p2 Client, r1, r2 Resolver[Client])) {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			p1, r1 := NewLocalPromise[Client]()
+			p2, r2 := NewLocalPromise[Client]()
+			defer p1.Release()
+			defer p2.Release()
+			f(t, p1, p2, r1, r2)
+		})
+	}
+	t.Run("Clients", func(t *testing.T) {
+		test(t, "Waits for the full chain", func(t *testing.T, p1, p2 Client, r1, r2 Resolver[Client]) {
+			r1.Fulfill(p2)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second/10)
+			defer cancel()
+			require.NotNil(t, p1.Resolve(ctx), "blocks on second promise")
+			r2.Fulfill(Client{})
+			require.NoError(t, p1.Resolve(context.Background()), "resolves after second resolution")
+			assert.True(t, p1.IsSame(Client{}), "p1 resolves to null")
+			assert.True(t, p2.IsSame(Client{}), "p2 resolves to null")
+			assert.True(t, p1.IsSame(p2), "p1 & p2 are the same")
+		})
+	})
+	t.Run("Snapshots", func(t *testing.T) {
+		test(t, "Resolve1 only waits for one link", func(t *testing.T, p1, p2 Client, r1, r2 Resolver[Client]) {
+			s1 := p1.Snapshot()
+			defer s1.Release()
+			r1.Fulfill(p2)
+			require.NoError(t, s1.Resolve1(context.Background()), "Resolve1 returns after first resolution")
+		})
+		test(t, "Resolve waits for the full chain", func(t *testing.T, p1, p2 Client, r1, r2 Resolver[Client]) {
+			s1 := p1.Snapshot()
+			defer s1.Release()
+			r1.Fulfill(p2)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second/10)
+			defer cancel()
+			require.NotNil(t, s1.Resolve(ctx), "blocks on second promise")
+			r2.Fulfill(Client{})
+			require.NoError(t, s1.Resolve(context.Background()), "resolves after second resolution")
+		})
+	})
+}
 
 func TestNullClient(t *testing.T) {
 	ctx := context.Background()
@@ -141,13 +187,14 @@ func TestNullClient(t *testing.T) {
 			if c.IsValid() {
 				t.Error("null client is valid")
 			}
-			state := c.State()
-			if state.Brand.Value != nil {
-				t.Errorf("c.State().Brand = %#v; want <nil>", state.Brand)
+			state := c.Snapshot()
+			if state.Brand().Value != nil {
+				t.Errorf("c.Snapshot().Brand() = %#v; want <nil>", state.Brand())
 			}
-			if state.IsPromise {
-				t.Error("c.State().IsPromise = true; want false")
+			if state.IsPromise() {
+				t.Error("c.Snapshot().IsPromise = true; want false")
 			}
+			state.Release()
 			ans, finish := c.SendCall(ctx, Send{})
 			if _, err := ans.Struct(); err == nil {
 				t.Error("SendCall did not return error")
@@ -186,13 +233,14 @@ func TestPromisedClient(t *testing.T) {
 	if ca.IsSame(cb) {
 		t.Error("before resolution, ca == cb")
 	}
-	state := ca.State()
-	if state.Brand.Value != int(111) {
-		t.Errorf("before resolution, ca.State().Brand.Value = %#v; want 111", state.Brand.Value)
+	state := ca.Snapshot()
+	if state.Brand().Value != int(111) {
+		t.Errorf("before resolution, ca.Snapshot().Brand().Value = %#v; want 111", state.Brand().Value)
 	}
-	if !state.IsPromise {
-		t.Error("before resolution, ca.State().IsPromise = false; want true")
+	if !state.IsPromise() {
+		t.Error("before resolution, ca.Snapshot().IsPromise = false; want true")
 	}
+	state.Release()
 	_, finish := ca.SendCall(ctx, Send{})
 	finish()
 	pa.Fulfill(cb)
@@ -207,13 +255,14 @@ func TestPromisedClient(t *testing.T) {
 	if !ca.IsSame(cb) {
 		t.Errorf("after resolution, ca != cb (%v vs. %v)", ca, cb)
 	}
-	state = ca.State()
-	if state.Brand.Value != int(222) {
-		t.Errorf("after resolution, ca.State().Brand.Value = %#v; want 222", state.Brand.Value)
+	state = ca.Snapshot()
+	if state.Brand().Value != int(222) {
+		t.Errorf("after resolution, ca.Snapshot().Brand().Value = %#v; want 222", state.Brand().Value)
 	}
-	if state.IsPromise {
-		t.Error("after resolution, ca.State().IsPromise = true; want false")
+	if state.IsPromise() {
+		t.Error("after resolution, ca.Snapshot().IsPromise = true; want false")
 	}
+	state.Release()
 
 	if b.shutdowns > 0 {
 		t.Error("b shut down before clients released")

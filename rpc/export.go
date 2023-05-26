@@ -74,7 +74,9 @@ func (c *lockedConn) releaseExport(id exportID, count uint32) (capnp.Client, err
 		client := ent.client
 		c.lk.exports[id] = nil
 		c.lk.exportID.remove(uint32(id))
-		metadata := client.State().Metadata
+		snapshot := client.Snapshot()
+		defer snapshot.Release()
+		metadata := snapshot.Metadata()
 		syncutil.With(metadata, func() {
 			c.clearExportID(metadata)
 		})
@@ -117,8 +119,9 @@ func (c *lockedConn) sendCap(d rpccp.CapDescriptor, client capnp.Client) (_ expo
 		return 0, false, nil
 	}
 
-	state := client.State()
-	bv := state.Brand.Value
+	state := client.Snapshot()
+	defer state.Release()
+	bv := state.Brand().Value
 	if ic, ok := bv.(*importClient); ok {
 		if ic.c == (*Conn)(c) {
 			if ent := c.lk.imports[ic.id]; ent != nil && ent.generation == ic.generation {
@@ -156,9 +159,10 @@ func (c *lockedConn) sendCap(d rpccp.CapDescriptor, client capnp.Client) (_ expo
 	}
 
 	// Default to export.
-	state.Metadata.Lock()
-	defer state.Metadata.Unlock()
-	id, ok := c.findExportID(state.Metadata)
+	metadata := state.Metadata()
+	metadata.Lock()
+	defer metadata.Unlock()
+	id, ok := c.findExportID(metadata)
 	var ee *expent
 	if ok {
 		ee = c.lk.exports[id]
@@ -168,7 +172,7 @@ func (c *lockedConn) sendCap(d rpccp.CapDescriptor, client capnp.Client) (_ expo
 		ee = &expent{
 			client:    client.AddRef(),
 			wireRefs:  1,
-			isPromise: state.IsPromise,
+			isPromise: state.IsPromise(),
 			cancel:    func() {},
 		}
 		id = exportID(c.lk.exportID.next())
@@ -177,7 +181,7 @@ func (c *lockedConn) sendCap(d rpccp.CapDescriptor, client capnp.Client) (_ expo
 		} else {
 			c.lk.exports[id] = ee
 		}
-		c.setExportID(state.Metadata, id)
+		c.setExportID(metadata, id)
 	}
 	if ee.isPromise {
 		c.sendSenderPromise(id, client, d)

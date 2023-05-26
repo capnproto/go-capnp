@@ -29,6 +29,8 @@ func TestCapTable(t *testing.T) {
 
 	errTest := errors.New("test")
 	ct.Set(capnp.CapabilityID(0), capnp.ErrorClient(errTest))
-	err := ct.At(0).State().Brand.Value.(error)
+	snapshot := ct.At(0).Snapshot()
+	defer snapshot.Release()
+	err := snapshot.Brand().Value.(error)
 	assert.ErrorIs(t, errTest, err, "should update client at index 0")
 }

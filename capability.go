@@ -519,32 +519,17 @@ func (c Client) IsSame(c2 Client) bool {
 // Resolve only returns an error if the context is canceled; it returns nil even
 // if the capability resolves to an error.
 func (c Client) Resolve(ctx context.Context) error {
-	for {
-		h, resolved, released := c.startCall()
-		defer h.Release()
-		if released {
-			return errors.New("cannot resolve released client")
-		}
-
-		if resolved {
-			return nil
-		}
-
-		r, ok := h.Value().resolution.Get()
-		if !ok {
-			return nil
-		}
-
-		resolvedCh := mutex.With1(r, func(s *resolveState) <-chan struct{} {
-			return s.resolved
-		})
-
-		select {
-		case <-resolvedCh:
-		case <-ctx.Done():
-			return ctx.Err()
-		}
+	h, resolved, released := c.startCall()
+	defer h.Release()
+	if released {
+		return errors.New("cannot resolve released client")
 	}
+	if resolved {
+		return nil
+	}
+	h, err := resolveClientHook(ctx, h)
+	h.Release()
+	return err
 }
 
 // AddRef creates a new Client that refers to the same capability as c.
@@ -577,19 +562,11 @@ func (c Client) WeakRef() WeakClient {
 	return WeakClient{r: cursor}
 }
 
-// State reads the current state of the client.  It returns the zero
-// ClientState if c is nil, has resolved to null, or has been released.
-func (c Client) State() ClientState {
-	h, resolved, _ := c.startCall()
-	defer h.Release()
-	if h == nil {
-		return ClientState{}
-	}
-	return ClientState{
-		Brand:     h.Value().Brand(),
-		IsPromise: !resolved,
-		Metadata:  &h.Value().metadata,
-	}
+// Snapshot reads the current state of the client.  It returns the zero
+// ClientSnapshot if c is nil, has resolved to null, or has been released.
+func (c Client) Snapshot() ClientSnapshot {
+	h, _, _ := c.startCall()
+	return ClientSnapshot{hook: h}
 }
 
 // A Brand is an opaque value used to identify a capability.
@@ -597,19 +574,130 @@ type Brand struct {
 	Value any
 }
 
-// ClientState is a snapshot of a client's identity.
-type ClientState struct {
-	// Brand is the value returned from the hook's Brand method.
-	Brand Brand
-	// IsPromise is true if the client has not resolved yet.
-	IsPromise bool
-	// Arbitrary metadata. Note that, if a Client is a promise,
-	// when it resolves its metadata will be replaced with that
-	// of its resolution.
-	//
-	// TODO: this might change before the v3 API is stabilized;
-	// we are not sure the above is the correct semantics.
-	Metadata *Metadata
+// ClientSnapshot is a snapshot of a client's identity. If the Client
+// is a promise, then the corresponding ClientSnapshot will *not*
+// redirect to point at the resolution.
+type ClientSnapshot struct {
+	hook *rc.Ref[clientHook]
+}
+
+func (cs ClientSnapshot) IsValid() bool {
+	return cs.hook.IsValid()
+}
+
+// IsPromise returns true if the snapshot is a promise.
+func (cs ClientSnapshot) IsPromise() bool {
+	if cs.hook == nil {
+		return false
+	}
+	_, ret := cs.hook.Value().resolution.Get()
+	return ret
+}
+
+// Send implements ClientHook.Send
+func (cs ClientSnapshot) Send(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
+	return cs.hook.Value().Send(ctx, s)
+}
+
+// Recv implements ClientHook.Recv
+func (cs ClientSnapshot) Recv(ctx context.Context, r Recv) PipelineCaller {
+	return cs.hook.Value().Recv(ctx, r)
+}
+
+// Client returns a client pointing at the most-resolved version of the snapshot.
+func (cs ClientSnapshot) Client() Client {
+	cursor := rc.NewRefInPlace(func(c *clientCursor) func() {
+		*c = clientCursor{hook: mutex.New(cs.hook.AddRef())}
+		c.compress()
+		return c.Release
+	})
+	c := Client{client: &client{
+		state: mutex.New(clientState{cursor: cursor}),
+	}}
+	setupLeakReporting(c)
+	return c
+}
+
+// Brand is the value returned from the ClientHook's Brand method.
+// Returns the zero Brand if the receiver is the zero ClientSnapshot.
+func (cs ClientSnapshot) Brand() Brand {
+	if cs.hook == nil {
+		return Brand{}
+	}
+	return cs.hook.Value().Brand()
+}
+
+// Return a the reference to the Metadata associated with this client hook.
+// Callers may store whatever they need here.
+func (cs ClientSnapshot) Metadata() *Metadata {
+	return &cs.hook.Value().metadata
+}
+
+// Create a copy of the snapshot, with its own underlying reference.
+func (cs ClientSnapshot) AddRef() ClientSnapshot {
+	cs.hook = cs.hook.AddRef()
+	return cs
+}
+
+// Release the reference to the hook.
+func (cs ClientSnapshot) Release() {
+	cs.hook.Release()
+}
+
+func (cs *ClientSnapshot) Resolve1(ctx context.Context) error {
+	var err error
+	cs.hook, _, err = resolve1ClientHook(ctx, cs.hook)
+	return err
+}
+
+func (cs *ClientSnapshot) resolve1(ctx context.Context) (more bool, err error) {
+	cs.hook, more, err = resolve1ClientHook(ctx, cs.hook)
+	return
+}
+
+func (cs *ClientSnapshot) Resolve(ctx context.Context) error {
+	var err error
+	cs.hook, err = resolveClientHook(ctx, cs.hook)
+	return err
+}
+
+func resolveClientHook(ctx context.Context, h *rc.Ref[clientHook]) (_ *rc.Ref[clientHook], err error) {
+	for {
+		var more bool
+		h, more, err = resolve1ClientHook(ctx, h)
+		if !more || err != nil {
+			return h, err
+		}
+	}
+}
+
+func resolve1ClientHook(ctx context.Context, h *rc.Ref[clientHook]) (_ *rc.Ref[clientHook], more bool, err error) {
+	if !h.IsValid() {
+		return h, false, nil
+	}
+	defer h.Release()
+
+	r, ok := h.Value().resolution.Get()
+	if !ok {
+		return h.AddRef(), false, nil
+	}
+
+	resolvedCh := mutex.With1(r, func(s *resolveState) <-chan struct{} {
+		return s.resolved
+	})
+
+	select {
+	case <-resolvedCh:
+		rh := mutex.With1(r, func(r *resolveState) *rc.Ref[clientHook] {
+			return r.resolvedHook
+		})
+		if rh == nil {
+			return nil, false, nil
+		}
+		return rh.AddRef(), true, nil
+	case <-ctx.Done():
+		return h.AddRef(), true, ctx.Err()
+	}
 }
 
 // String returns a string that identifies this capability for debugging
