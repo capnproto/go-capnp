@@ -640,7 +640,7 @@ func (cs ClientSnapshot) AddRef() ClientSnapshot {
 }
 
 // Release the reference to the hook.
-func (cs ClientSnapshot) Release() {
+func (cs *ClientSnapshot) Release() {
 	cs.hook.Release()
 }
 
