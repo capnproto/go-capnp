@@ -691,6 +691,9 @@ func resolve1ClientHook(ctx context.Context, h *rc.Ref[clientHook]) (_ *rc.Ref[c
 		rh := mutex.With1(r, func(r *resolveState) *rc.Ref[clientHook] {
 			return r.resolvedHook
 		})
+		if rh == nil {
+			return nil, false, nil
+		}
 		return rh.AddRef(), true, nil
 	case <-ctx.Done():
 		return h.AddRef(), true, ctx.Err()
