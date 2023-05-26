@@ -565,14 +565,8 @@ func (c Client) WeakRef() WeakClient {
 // Snapshot reads the current state of the client.  It returns the zero
 // ClientSnapshot if c is nil, has resolved to null, or has been released.
 func (c Client) Snapshot() ClientSnapshot {
-	h, resolved, _ := c.startCall()
-	if h == nil {
-		return ClientSnapshot{}
-	}
-	return ClientSnapshot{
-		hook:      h,
-		IsPromise: !resolved,
-	}
+	h, _, _ := c.startCall()
+	return ClientSnapshot{hook: h}
 }
 
 // A Brand is an opaque value used to identify a capability.
@@ -585,13 +579,19 @@ type Brand struct {
 // redirect to point at the resolution.
 type ClientSnapshot struct {
 	hook *rc.Ref[clientHook]
-	// IsPromise is true if the client was an unresolved promise when
-	// this snapshot was taken.
-	IsPromise bool
 }
 
 func (cs ClientSnapshot) IsValid() bool {
 	return cs.hook.IsValid()
+}
+
+// IsPromise returns true if the snapshot is a promise.
+func (cs ClientSnapshot) IsPromise() bool {
+	if cs.hook == nil {
+		return false
+	}
+	_, ret := cs.hook.Value().resolution.Get()
+	return ret
 }
 
 // Send implements ClientHook.Send

@@ -172,7 +172,7 @@ func (c *lockedConn) sendCap(d rpccp.CapDescriptor, client capnp.Client) (_ expo
 		ee = &expent{
 			client:    client.AddRef(),
 			wireRefs:  1,
-			isPromise: state.IsPromise,
+			isPromise: state.IsPromise(),
 			cancel:    func() {},
 		}
 		id = exportID(c.lk.exportID.next())

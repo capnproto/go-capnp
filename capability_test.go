@@ -25,7 +25,7 @@ func TestClient(t *testing.T) {
 		t.Error("new client is not valid")
 	}
 	state := c.Snapshot()
-	if state.IsPromise {
+	if state.IsPromise() {
 		t.Error("c.State().IsPromise = true; want false")
 	}
 	if state.Brand().Value != int(42) {
@@ -84,7 +84,7 @@ func TestReleasedClient(t *testing.T) {
 	if state.Brand().Value != nil {
 		t.Errorf("c.Snapshot().Brand().Value = %#v; want <nil>", state.Brand().Value)
 	}
-	if state.IsPromise {
+	if state.IsPromise() {
 		t.Error("c.Snapshot().IsPromise = true; want false")
 	}
 	state.Release()
@@ -191,7 +191,7 @@ func TestNullClient(t *testing.T) {
 			if state.Brand().Value != nil {
 				t.Errorf("c.Snapshot().Brand() = %#v; want <nil>", state.Brand())
 			}
-			if state.IsPromise {
+			if state.IsPromise() {
 				t.Error("c.Snapshot().IsPromise = true; want false")
 			}
 			state.Release()
@@ -237,7 +237,7 @@ func TestPromisedClient(t *testing.T) {
 	if state.Brand().Value != int(111) {
 		t.Errorf("before resolution, ca.Snapshot().Brand().Value = %#v; want 111", state.Brand().Value)
 	}
-	if !state.IsPromise {
+	if !state.IsPromise() {
 		t.Error("before resolution, ca.Snapshot().IsPromise = false; want true")
 	}
 	state.Release()
@@ -259,7 +259,7 @@ func TestPromisedClient(t *testing.T) {
 	if state.Brand().Value != int(222) {
 		t.Errorf("after resolution, ca.Snapshot().Brand().Value = %#v; want 222", state.Brand().Value)
 	}
-	if state.IsPromise {
+	if state.IsPromise() {
 		t.Error("after resolution, ca.Snapshot().IsPromise = true; want false")
 	}
 	state.Release()
