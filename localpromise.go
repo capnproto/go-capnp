@@ -60,7 +60,7 @@ type localResolver[C ~ClientKind] struct {
 }
 
 func (lf localResolver[C]) Fulfill(c C) {
-	lf.lp.Fulfill(Client(c))
+	lf.lp.Fulfill(Client(c).AddRef())
 	lf.clientResolver.Fulfill(Client(c))
 }
 
