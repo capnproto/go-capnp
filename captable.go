@@ -48,6 +48,17 @@ func (ct CapTable) GetClient(ifc Interface) (c Client) {
 	return
 }
 
+// GetSnapshot is like GetClient, except that it returns a snapshot
+// instead of a Client.
+func (ct CapTable) GetSnapshot(ifc Interface) (s ClientSnapshot) {
+	if ct.Contains(ifc) {
+		c := ct.cs[ifc.Capability()]
+		defer c.Release()
+		s = c.Snapshot()
+	}
+	return
+}
+
 // Set the client for the supplied capability ID.  If a client
 // for the given ID already exists, it will be replaced without
 // releasing.
@@ -61,4 +72,11 @@ func (ct CapTable) Set(id CapabilityID, c Client) {
 func (ct *CapTable) AddClient(c Client) CapabilityID {
 	ct.cs = append(ct.cs, c)
 	return CapabilityID(ct.Len() - 1)
+}
+
+// AddSnapshot is like AddClient, except that it takes a snapshot rather
+// than a Client.
+func (ct *CapTable) AddSnapshot(s ClientSnapshot) CapabilityID {
+	defer s.Release()
+	return ct.AddClient(s.Client())
 }
