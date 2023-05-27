@@ -7,32 +7,40 @@ package capnp
 //
 // https://capnproto.org/encoding.html#capabilities-interfaces
 type CapTable struct {
-	cs []ClientSnapshot
+	// We maintain two parallel structurs of clients and corresponding
+	// snapshots. We need to store both, so that Get*() can hand out
+	// borrowed references in both cases.
+	clients   []Client
+	snapshots []ClientSnapshot
 }
 
 // Reset the cap table, releasing all capabilities and setting
 // the length to zero.
 func (ct *CapTable) Reset() {
-	for _, c := range ct.cs {
+	for _, c := range ct.clients {
 		c.Release()
 	}
+	for _, s := range ct.snapshots {
+		s.Release()
+	}
 
-	ct.cs = ct.cs[:0]
+	ct.clients = ct.clients[:0]
+	ct.snapshots = ct.snapshots[:0]
 }
 
 // Len returns the number of capabilities in the table.
 func (ct CapTable) Len() int {
-	return len(ct.cs)
+	return len(ct.clients)
 }
 
 // ClientAt returns the client at the given index of the table.
 func (ct CapTable) ClientAt(i int) Client {
-	return ct.SnapshotAt(i).Client()
+	return ct.clients[i]
 }
 
 // SnapshotAt is like ClientAt, except that it returns a snapshot.
 func (ct CapTable) SnapshotAt(i int) ClientSnapshot {
-	return ct.cs[i]
+	return ct.snapshots[i]
 }
 
 // Contains returns true if the supplied interface corresponds
@@ -45,14 +53,17 @@ func (ct CapTable) Contains(ifc Interface) bool {
 // It returns a null client if the interface's CapabilityID isn't
 // in the table.
 func (ct CapTable) GetClient(ifc Interface) (c Client) {
-	return ct.GetSnapshot(ifc).Client()
+	if ct.Contains(ifc) {
+		c = ct.clients[ifc.Capability()]
+	}
+	return
 }
 
 // GetSnapshot is like GetClient, except that it returns a snapshot
 // instead of a Client.
 func (ct CapTable) GetSnapshot(ifc Interface) (s ClientSnapshot) {
 	if ct.Contains(ifc) {
-		s = ct.cs[ifc.Capability()]
+		s = ct.snapshots[ifc.Capability()]
 	}
 	return
 }
@@ -61,22 +72,22 @@ func (ct CapTable) GetSnapshot(ifc Interface) (s ClientSnapshot) {
 // for the given ID already exists, it will be replaced without
 // releasing.
 func (ct CapTable) SetClient(id CapabilityID, c Client) {
-	s := c.Snapshot()
-	c.Release()
-	ct.cs[id] = s
+	ct.snapshots[id] = c.Snapshot()
+	ct.clients[id] = c.Steal()
 }
 
 // SetSnapshot is like SetClient, but takes a snapshot.
 func (ct CapTable) SetSnapshot(id CapabilityID, s ClientSnapshot) {
-	ct.cs[id] = s
+	ct.clients[id] = s.Client()
+	ct.snapshots[id] = s.Steal()
 }
 
 // AddClient appends a capability to the message's capability table and
 // returns its ID.  It "steals" c's reference: the Message will release
 // the client when calling Reset.
 func (ct *CapTable) AddClient(c Client) CapabilityID {
-	defer c.Release()
-	ct.cs = append(ct.cs, c.Snapshot())
+	ct.snapshots = append(ct.snapshots, c.Snapshot())
+	ct.clients = append(ct.clients, c.Steal())
 	return CapabilityID(ct.Len() - 1)
 }
 
