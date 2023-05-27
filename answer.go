@@ -7,6 +7,7 @@ import (
 
 	"capnproto.org/go/capnp/v3/exc"
 	"capnproto.org/go/capnp/v3/internal/str"
+	"zenhack.net/go/util/deferred"
 	"zenhack.net/go/util/sync/mutex"
 )
 
@@ -33,13 +34,6 @@ type Promise struct {
 	//	  Next state is resolved.
 	//	- Resolved.  Fulfill or Reject has finished.
 
-	// When acquiring multiple Promise.state mutexes, they must be acquired
-	// in traversal order (i.e. p, then p.next, then p.next.next).
-	//
-	// FIXME: is the above traversal scheme sound? It depends on avoiding
-	// cycles in the graph to prevent potential deadlocks, and it is not
-	// clear to me(zenhack) that this is a safe assumption (I suspect it's
-	// not).
 	state mutex.Mutex[promiseState]
 
 	resolver Resolver[Ptr]
@@ -54,26 +48,11 @@ type promiseState struct {
 	// the promise leaves the unresolved state.
 	caller PipelineCaller
 
-	// ongoingCalls counts the number of calls to caller that have not
-	// yielded an Answer yet (but not necessarily finished).
-	ongoingCalls int
-	// If callsStopped is non-nil, then the promise has entered into
-	// the pending state and is waiting for ongoingCalls to drop to zero.
-	// After decrementing ongoingCalls, callsStopped should be closed if
-	// ongoingCalls is zero to wake up the goroutine.
-	//
-	// Only Fulfill or Reject will set callsStopped.
-	callsStopped chan struct{}
-
 	// clients is a table of promised clients created to proxy the eventual
 	// result's clients.  Even after resolution, this table may still have
 	// entries until the clients are released. Cannot be read or written
 	// in the pending state.
 	clients map[clientPath]*clientAndPromise
-
-	// releasedClients is true after ReleaseClients has been called on this
-	// promise.  Only the receiver of ReleaseClients should set this to true.
-	releasedClients bool
 
 	// result and err are the values from Fulfill or Reject respectively
 	// in the resolved state.
@@ -162,32 +141,20 @@ func (p *Promise) Reject(e error) {
 // If e != nil, then this is equivalent to p.Reject(e).
 // Otherwise, it is equivalent to p.Fulfill(r).
 func (p *Promise) Resolve(r Ptr, e error) {
-	var (
-		shutdownPromises []*clientPromise
+	dq := &deferred.Queue{}
+	defer dq.Run()
 
-		// We need to access some of these fields from p.state while
-		// not holding the lock, so we store them here while holding it.
-		// p.clients cannot be touched in the pending resolution state,
-		// so we have exclusive access to the variable anyway.
-		clients      map[clientPath]*clientAndPromise
-		callsStopped chan struct{}
-	)
-
-	p.state.With(func(p *promiseState) {
+	// It's ok to extract p.clients and use it while not holding the lock:
+	// it may not be accessed in the pending resolution state, so we have
+	// exclusive access to the variable anyway.
+	clients := mutex.With1(&p.state, func(p *promiseState) map[clientPath]*clientAndPromise {
 		if e != nil {
 			p.requireUnresolved("Reject")
 		} else {
 			p.requireUnresolved("Fulfill")
 		}
 		p.caller = nil
-
-		if p.ongoingCalls > 0 {
-			p.callsStopped = make(chan struct{})
-		}
-
-		if len(p.clients) > 0 || p.ongoingCalls > 0 {
-			clients = p.clients
-		}
+		return p.clients
 	})
 
 	if p.resolver != nil {
@@ -203,26 +170,18 @@ func (p *Promise) Resolve(r Ptr, e error) {
 	res := resolution{p.method, r, e}
 	for path, cp := range clients {
 		t := path.transform()
-		cp.promise.fulfill(res.client(t))
-		shutdownPromises = append(shutdownPromises, cp.promise)
+		cp.promise.fulfill(dq, res.client(t))
 		cp.promise = nil
-	}
-	if callsStopped != nil {
-		<-callsStopped
 	}
 
 	p.state.With(func(p *promiseState) {
 		// Move p into resolved state.
-		p.callsStopped = nil
 		p.result, p.err = r, e
 		for _, f := range p.signals {
 			f()
 		}
 		p.signals = nil
 	})
-	for _, promise := range shutdownPromises {
-		promise.shutdown()
-	}
 }
 
 // requireUnresolved is a helper method for checking for duplicate
@@ -263,10 +222,6 @@ func (p *Promise) Answer() *Answer {
 func (p *Promise) ReleaseClients() {
 	<-p.resolved
 	clients := mutex.With1(&p.state, func(p *promiseState) map[clientPath]*clientAndPromise {
-		if p.releasedClients {
-			return nil
-		}
-		p.releasedClients = true // must happen before traversing pointers
 		clients := p.clients
 		p.clients = nil
 		return clients
@@ -366,17 +321,9 @@ func (ans *Answer) PipelineSend(ctx context.Context, transform []PipelineOp, s S
 	l := p.state.Lock()
 	switch {
 	case l.Value().isUnresolved():
-		l.Value().ongoingCalls++
 		caller := l.Value().caller
 		l.Unlock()
-		ans, release := caller.PipelineSend(ctx, transform, s)
-		p.state.With(func(p *promiseState) {
-			p.ongoingCalls--
-			if p.ongoingCalls == 0 && p.callsStopped != nil {
-				close(p.callsStopped)
-			}
-		})
-		return ans, release
+		return caller.PipelineSend(ctx, transform, s)
 	case l.Value().isPendingResolution():
 		// Block new calls until resolved.
 		l.Unlock()
@@ -402,17 +349,9 @@ func (ans *Answer) PipelineRecv(ctx context.Context, transform []PipelineOp, r R
 	l := p.state.Lock()
 	switch {
 	case l.Value().isUnresolved():
-		l.Value().ongoingCalls++
 		caller := l.Value().caller
 		l.Unlock()
-		pcall := caller.PipelineRecv(ctx, transform, r)
-		p.state.With(func(p *promiseState) {
-			p.ongoingCalls--
-			if p.ongoingCalls == 0 && p.callsStopped != nil {
-				close(p.callsStopped)
-			}
-		})
-		return pcall
+		return caller.PipelineRecv(ctx, transform, r)
 	case l.Value().isPendingResolution():
 		// Block new calls until resolved.
 		l.Unlock()
@@ -567,7 +506,9 @@ func (pc PipelineClient) Brand() Brand {
 		r := mutex.With1(&pc.p.state, func(p *promiseState) resolution {
 			return p.resolution(pc.p.method)
 		})
-		return r.client(pc.transform).State().Brand
+		snapshot := r.client(pc.transform).Snapshot()
+		defer snapshot.Release()
+		return snapshot.Brand()
 	default:
 		return Brand{Value: pc}
 	}

@@ -376,7 +376,7 @@ func (s *Segment) writePtr(off address, src Ptr, forceCopy bool) error {
 	case interfacePtrType:
 		i := src.Interface()
 		if src.seg.msg != s.msg {
-			c := s.msg.AddCap(i.Client().AddRef())
+			c := s.msg.CapTable().Add(i.Client().AddRef())
 			i = NewInterface(s, c)
 		}
 		s.writeRawPointer(off, i.value(off))

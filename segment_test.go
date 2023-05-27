@@ -730,19 +730,17 @@ func TestSetInterfacePtr(t *testing.T) {
 		if err != nil {
 			t.Fatal("NewMessage:", err)
 		}
-		msg.AddCap(Client{}) // just to make the capability ID below non-zero
+		msg.CapTable().Add(Client{}) // just to make the capability ID below non-zero
 		root, err := NewRootStruct(seg, ObjectSize{PointerCount: 2})
 		if err != nil {
 			t.Fatal("NewRootStruct:", err)
 		}
 		hook := new(dummyHook)
 		client := NewClient(hook)
-		id := msg.AddCap(client)
+		id := msg.CapTable().Add(client)
 		iface := NewInterface(seg, id)
 		defer func() {
-			for _, c := range msg.CapTable {
-				c.Release()
-			}
+			msg.CapTable().Reset()
 			if hook.shutdowns == 0 {
 				t.Error("client leaked")
 			}
@@ -791,17 +789,13 @@ func TestSetInterfacePtr(t *testing.T) {
 			t.Fatal("NewRootStruct:", err)
 		}
 		defer func() {
-			for _, c := range msg1.CapTable {
-				c.Release()
-			}
-			for _, c := range msg2.CapTable {
-				c.Release()
-			}
+			msg1.CapTable().Reset()
+			msg2.CapTable().Reset()
 		}()
 
 		hook := new(dummyHook)
 		client := NewClient(hook)
-		iface1 := NewInterface(seg1, msg1.AddCap(client))
+		iface1 := NewInterface(seg1, msg1.CapTable().Add(client))
 		if err := root.SetPtr(0, iface1.ToPtr()); err != nil {
 			t.Fatal("root.SetPtr(0, iface1.ToPtr()):", err)
 		}
@@ -813,17 +807,11 @@ func TestSetInterfacePtr(t *testing.T) {
 		if !iface2.Client().IsSame(iface1.Client()) {
 			t.Errorf("root.Ptr(0).Interface().Client() = %v; want %v", iface2.Client(), iface1.Client())
 		}
-		for _, c := range msg1.CapTable {
-			c.Release()
-		}
-		msg1.CapTable = nil
+		msg1.CapTable().Reset()
 		if hook.shutdowns > 0 {
 			t.Error("copying interface across messages did not add reference")
 		}
-		for _, c := range msg2.CapTable {
-			c.Release()
-		}
-		msg2.CapTable = nil
+		msg2.CapTable().Reset()
 		if hook.shutdowns == 0 {
 			t.Error("client not shut down after releasing both message capability tables")
 		}

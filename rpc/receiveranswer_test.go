@@ -32,7 +32,9 @@ func (me *capArgsTest) Call(ctx context.Context, p testcapnp.CapArgsTest_call) e
 	defer close(me.Errs)
 	client := p.Args().Cap()
 	util.Chkfatal(client.Resolve(ctx))
-	brand, ok := server.IsServer(client.State().Brand)
+	snapshot := client.Snapshot()
+	defer snapshot.Release()
+	brand, ok := server.IsServer(snapshot.Brand())
 	if !ok {
 		err := fmt.Errorf("server.IsServer returned !ok")
 		me.Errs <- err
@@ -118,7 +120,6 @@ func TestCallReceiverAnswerRpc(t *testing.T) {
 	callRes, rel := self.Call(ctx, func(p testcapnp.CapArgsTest_call_Params) error {
 		return p.SetCap(capnp.Client(self.AddRef()))
 	})
-	self.Release()
 	defer rel()
 
 	_, err := selfRes.Struct()

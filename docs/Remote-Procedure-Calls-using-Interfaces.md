@@ -55,7 +55,7 @@ interface Arith {
 
 Now, compile the schema as before:
 ```bash
-capnp compile -I$GOPATH/src/capnproto.org/go/capnp/std -ogo arith.capnp
+capnp compile -I /path/to/go-capnp/std -ogo arith.capnp
 ```
 
 You should take a moment to inspect the generated types in `arith.capnp.go`.  For interface declarations in your schema, the capnp compiler generates several types, summarized in the following tables.

@@ -24,7 +24,7 @@ type localResolver[C ~ClientKind] struct {
 
 func (lf localResolver[C]) Fulfill(c C) {
 	msg, seg := NewSingleSegmentMessage(nil)
-	capID := msg.AddCap(Client(c))
+	capID := msg.CapTable().Add(Client(c))
 	iface := NewInterface(seg, capID)
 	lf.p.Fulfill(iface.ToPtr())
 	lf.p.ReleaseClients()

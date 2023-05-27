@@ -15,8 +15,6 @@ type question struct {
 	c  *Conn
 	id questionID
 
-	bootstrapPromise capnp.Resolver[capnp.Client]
-
 	p       *capnp.Promise
 	release capnp.ReleaseFunc // written before resolving p
 
@@ -127,12 +125,7 @@ func (q *question) handleCancel(ctx context.Context) {
 				q.c.er.ReportError(rpcerr.Annotate(err, "send finish"))
 			}
 			close(q.finishMsgSend)
-
 			q.p.Reject(rejectErr)
-			if q.bootstrapPromise != nil {
-				q.bootstrapPromise.Fulfill(q.p.Answer().Client())
-				q.p.ReleaseClients()
-			}
 		})
 	})
 }
@@ -278,14 +271,8 @@ func (q *question) mark(xform []capnp.PipelineOp) {
 }
 
 func (q *question) Reject(err error) {
-	if q != nil {
-		if q.bootstrapPromise != nil {
-			q.bootstrapPromise.Fulfill(capnp.ErrorClient(err))
-		}
-
-		if q.p != nil {
-			q.p.Reject(err)
-		}
+	if q != nil && q.p != nil {
+		q.p.Reject(err)
 	}
 }
 

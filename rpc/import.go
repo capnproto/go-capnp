@@ -16,7 +16,7 @@ type importID uint32
 // impent is an entry in the import table.  All fields are protected by
 // Conn.mu.
 type impent struct {
-	wc *capnp.WeakClient
+	wc capnp.WeakClient
 
 	// wireRefs is the number of times that the importID has appeared in
 	// messages received from the remote vat.  Used to populate the
@@ -29,19 +29,19 @@ type impent struct {
 	// 1) An import given to application code.
 	// 2) A new reference to the import is received over the wire, while
 	//    the application concurrently closes the import.
-	//    importClient.Close is called, but the receive has the lock
+	//    importClient.Shutdown is called, but the receive has the lock
 	//    first.
 	// 3) Conn.addImport attempts to return a weak client reference, but
 	//    can't because it has been closed.  It creates a new client
 	//    with a new importClient.
-	// 4) importClient.Close attempts to remove the import from the import
+	// 4) importClient.Shutdown attempts to remove the import from the import
 	//    table.  This is the critical step: it needs to be informed that
 	//    it should not do this because another client has been created.
 	//    No release message should be sent.
 	//
 	// The generation counter solves this by amending steps 3 and 4.  When
 	// a new importClient is created, generation is incremented.
-	// When importClient.Close is called, then it must check that the
+	// When importClient.Shutdown is called, then it must check that the
 	// importClient's generation matches the entry's generation before
 	// removing the entry from the table and sending a release message.
 	generation uint64

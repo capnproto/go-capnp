@@ -400,65 +400,52 @@ func TestAddCap(t *testing.T) {
 	msg := &Message{Arena: SingleSegment(nil)}
 
 	// Simple case: distinct non-nil clients.
-	id1 := msg.AddCap(client1.AddRef())
-	if id1 != 0 {
-		t.Errorf("first AddCap ID = %d; want 0", id1)
-	}
-	if len(msg.CapTable) != 1 {
-		t.Errorf("after first AddCap, len(msg.CapTable) = %d; want 1", len(msg.CapTable))
-	} else if !msg.CapTable[0].IsSame(client1) {
-		t.Errorf("msg.CapTable[0] = %v; want %v", msg.CapTable[0], client1)
-	}
-	id2 := msg.AddCap(client2.AddRef())
-	if id2 != 1 {
-		t.Errorf("second AddCap ID = %d; want 1", id2)
-	}
-	if len(msg.CapTable) != 2 {
-		t.Errorf("after second AddCap, len(msg.CapTable) = %d; want 2", len(msg.CapTable))
-	} else if !msg.CapTable[1].IsSame(client2) {
-		t.Errorf("msg.CapTable[1] = %v; want %v", msg.CapTable[1], client1)
-	}
-	// nil client
-	id3 := msg.AddCap(Client{})
-	if id3 != 2 {
-		t.Errorf("third AddCap ID = %d; want 2", id3)
-	}
-	if len(msg.CapTable) != 3 {
-		t.Errorf("after third AddCap, len(msg.CapTable) = %d; want 3", len(msg.CapTable))
-	} else if !msg.CapTable[2].IsSame(Client{}) {
-		t.Errorf("msg.CapTable[2] = %v; want <nil>", msg.CapTable[2])
-	}
-	// AddCap should not attempt to deduplicate.
-	id4 := msg.AddCap(client1.AddRef())
-	if id4 != 3 {
-		t.Errorf("fourth AddCap ID = %d; want 3", id4)
-	}
-	if len(msg.CapTable) != 4 {
-		t.Errorf("after fourth AddCap, len(msg.CapTable) = %d; want 4", len(msg.CapTable))
-	} else if !msg.CapTable[3].IsSame(client1) {
-		t.Errorf("msg.CapTable[3] = %v; want %v", msg.CapTable[3], client1)
-	}
+	id1 := msg.CapTable().Add(client1.AddRef())
+	assert.Equal(t, CapabilityID(0), id1,
+		"first capability ID should be 0")
+	assert.Equal(t, 1, msg.CapTable().Len(),
+		"should have exactly one capability in the capTable")
+	assert.True(t, msg.CapTable().At(0).IsSame(client1),
+		"client does not match entry in cap table")
 
-	// Verify that AddCap steals the reference: once client1 and client2
+	id2 := msg.CapTable().Add(client2.AddRef())
+	assert.Equal(t, CapabilityID(1), id2,
+		"second capability ID should be 1")
+	assert.Equal(t, 2, msg.CapTable().Len(),
+		"should have exactly two capabilities in the capTable")
+	assert.True(t, msg.CapTable().At(1).IsSame(client2),
+		"client does not match entry in cap table")
+
+	// nil client
+	id3 := msg.CapTable().Add(Client{})
+	assert.Equal(t, CapabilityID(2), id3,
+		"third capability ID should be 2")
+	assert.Equal(t, 3, msg.CapTable().Len(),
+		"should have exactly three capabilities in the capTable")
+	assert.True(t, msg.CapTable().At(2).IsSame(Client{}),
+		"client does not match entry in cap table")
+
+	// Add should not attempt to deduplicate.
+	id4 := msg.CapTable().Add(client1.AddRef())
+	assert.Equal(t, CapabilityID(3), id4,
+		"fourth capability ID should be 3")
+	assert.Equal(t, 4, msg.CapTable().Len(),
+		"should have exactly four capabilities in the capTable")
+	assert.True(t, msg.CapTable().At(3).IsSame(client1),
+		"client does not match entry in cap table")
+
+	// Verify that Add steals the reference: once client1 and client2
 	// and the message's capabilities released, hook1 and hook2 should be
-	// shut down.  If they are not, then AddCap created a new reference.
+	// shut down.  If they are not, then Add created a new reference.
 	client1.Release()
-	if hook1.shutdowns > 0 {
-		t.Error("hook1 shut down before releasing msg.CapTable")
-	}
+	assert.Zero(t, hook1.shutdowns, "hook1 shut down before releasing msg.capTable")
 	client2.Release()
-	if hook2.shutdowns > 0 {
-		t.Error("hook2 shut down before releasing msg.CapTable")
-	}
-	for _, c := range msg.CapTable {
-		c.Release()
-	}
-	if hook1.shutdowns == 0 {
-		t.Error("hook1 not shut down after releasing msg.CapTable")
-	}
-	if hook2.shutdowns == 0 {
-		t.Error("hook2 not shut down after releasing msg.CapTable")
-	}
+	assert.Zero(t, hook2.shutdowns, "hook2 shut down before releasing msg.capTable")
+
+	msg.CapTable().Reset()
+
+	assert.NotZero(t, hook1.shutdowns, "hook1 not shut down after releasing msg.capTable")
+	assert.NotZero(t, hook2.shutdowns, "hook2 not shut down after releasing msg.capTable")
 }
 
 func TestFirstSegmentMessage_SingleSegment(t *testing.T) {

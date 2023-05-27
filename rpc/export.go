@@ -9,6 +9,7 @@ import (
 	"capnproto.org/go/capnp/v3/internal/str"
 	"capnproto.org/go/capnp/v3/internal/syncutil"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
+	"zenhack.net/go/util/deferred"
 )
 
 // An exportID is an index into the exports table.
@@ -73,7 +74,9 @@ func (c *lockedConn) releaseExport(id exportID, count uint32) (capnp.Client, err
 		client := ent.client
 		c.lk.exports[id] = nil
 		c.lk.exportID.remove(uint32(id))
-		metadata := client.State().Metadata
+		snapshot := client.Snapshot()
+		defer snapshot.Release()
+		metadata := snapshot.Metadata()
 		if metadata != nil {
 			syncutil.With(metadata, func() {
 				c.clearExportID(metadata)
@@ -88,7 +91,7 @@ func (c *lockedConn) releaseExport(id exportID, count uint32) (capnp.Client, err
 	}
 }
 
-func (c *lockedConn) releaseExportRefs(rl *releaseList, refs map[exportID]uint32) error {
+func (c *lockedConn) releaseExportRefs(dq *deferred.Queue, refs map[exportID]uint32) error {
 	n := len(refs)
 	var firstErr error
 	for id, count := range refs {
@@ -104,7 +107,7 @@ func (c *lockedConn) releaseExportRefs(rl *releaseList, refs map[exportID]uint32
 			n--
 			continue
 		}
-		rl.Add(client.Release)
+		dq.Defer(client.Release)
 		n--
 	}
 	return firstErr
@@ -118,8 +121,9 @@ func (c *lockedConn) sendCap(d rpccp.CapDescriptor, client capnp.Client) (_ expo
 		return 0, false, nil
 	}
 
-	state := client.State()
-	bv := state.Brand.Value
+	state := client.Snapshot()
+	defer state.Release()
+	bv := state.Brand().Value
 	if ic, ok := bv.(*importClient); ok {
 		if ic.c == (*Conn)(c) {
 			if ent := c.lk.imports[ic.id]; ent != nil && ent.generation == ic.generation {
@@ -157,9 +161,10 @@ func (c *lockedConn) sendCap(d rpccp.CapDescriptor, client capnp.Client) (_ expo
 	}
 
 	// Default to export.
-	state.Metadata.Lock()
-	defer state.Metadata.Unlock()
-	id, ok := c.findExportID(state.Metadata)
+	metadata := state.Metadata()
+	metadata.Lock()
+	defer metadata.Unlock()
+	id, ok := c.findExportID(metadata)
 	var ee *expent
 	if ok {
 		ee = c.lk.exports[id]
@@ -169,7 +174,7 @@ func (c *lockedConn) sendCap(d rpccp.CapDescriptor, client capnp.Client) (_ expo
 		ee = &expent{
 			client:    client.AddRef(),
 			wireRefs:  1,
-			isPromise: state.IsPromise,
+			isPromise: state.IsPromise(),
 			cancel:    func() {},
 		}
 		id = exportID(c.lk.exportID.next())
@@ -178,7 +183,7 @@ func (c *lockedConn) sendCap(d rpccp.CapDescriptor, client capnp.Client) (_ expo
 		} else {
 			c.lk.exports[id] = ee
 		}
-		c.setExportID(state.Metadata, id)
+		c.setExportID(metadata, id)
 	}
 	if ee.isPromise {
 		c.sendSenderPromise(id, client, d)
@@ -268,27 +273,26 @@ func (c *lockedConn) fillPayloadCapTable(payload rpccp.Payload) (map[exportID]ui
 	if !payload.IsValid() {
 		return nil, nil
 	}
-	clients := payload.Message().CapTable
-	if len(clients) == 0 {
+	clients := payload.Message().CapTable()
+	if clients.Len() == 0 {
 		return nil, nil
 	}
-	list, err := payload.NewCapTable(int32(len(clients)))
+	list, err := payload.NewCapTable(int32(clients.Len()))
 	if err != nil {
 		return nil, rpcerr.WrapFailed("payload capability table", err)
 	}
 	var refs map[exportID]uint32
-	for i, client := range clients {
-		id, isExport, err := c.sendCap(list.At(i), client)
+	for i := 0; i < clients.Len(); i++ {
+		id, isExport, err := c.sendCap(list.At(i), clients.At(i))
 		if err != nil {
 			return nil, rpcerr.WrapFailed("Serializing capability", err)
 		}
-		if !isExport {
-			continue
+		if isExport {
+			if refs == nil {
+				refs = make(map[exportID]uint32, clients.Len()-i)
+			}
+			refs[id]++
 		}
-		if refs == nil {
-			refs = make(map[exportID]uint32, len(clients)-i)
-		}
-		refs[id]++
 	}
 	return refs, nil
 }
@@ -332,7 +336,7 @@ func (c *lockedConn) findEmbargo(id embargoID) *embargo {
 
 func newEmbargo(client capnp.Client) *embargo {
 	msg, seg := capnp.NewSingleSegmentMessage(nil)
-	capID := msg.AddCap(client)
+	capID := msg.CapTable().Add(client)
 	iface := capnp.NewInterface(seg, capID)
 	return &embargo{
 		result: iface.ToPtr(),
