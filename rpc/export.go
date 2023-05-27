@@ -278,7 +278,7 @@ func (c *lockedConn) fillPayloadCapTable(payload rpccp.Payload) (map[exportID]ui
 	}
 	var refs map[exportID]uint32
 	for i := 0; i < clients.Len(); i++ {
-		id, isExport, err := c.sendCap(list.At(i), clients.At(i).Snapshot())
+		id, isExport, err := c.sendCap(list.At(i), clients.SnapshotAt(i))
 		if err != nil {
 			return nil, rpcerr.WrapFailed("Serializing capability", err)
 		}
@@ -331,7 +331,7 @@ func (c *lockedConn) findEmbargo(id embargoID) *embargo {
 
 func newEmbargo(client capnp.Client) *embargo {
 	msg, seg := capnp.NewSingleSegmentMessage(nil)
-	capID := msg.CapTable().Add(client)
+	capID := msg.CapTable().AddClient(client)
 	iface := capnp.NewInterface(seg, capID)
 	return &embargo{
 		result: iface.ToPtr(),

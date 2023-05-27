@@ -15,7 +15,7 @@ func TestCapTable(t *testing.T) {
 
 	assert.Zero(t, ct.Len(),
 		"zero-value CapTable should be empty")
-	assert.Zero(t, ct.Add(capnp.Client{}),
+	assert.Zero(t, ct.AddClient(capnp.Client{}),
 		"first entry should have CapabilityID(0)")
 	assert.Equal(t, 1, ct.Len(),
 		"should increase length after adding capability")
@@ -23,13 +23,15 @@ func TestCapTable(t *testing.T) {
 	ct.Reset()
 	assert.Zero(t, ct.Len(),
 		"zero-value CapTable should be empty after Reset()")
-	ct.Reset(capnp.Client{}, capnp.Client{})
+
+	ct.AddClient(capnp.Client{})
+	ct.AddClient(capnp.Client{})
 	assert.Equal(t, 2, ct.Len(),
-		"zero-value CapTable should be empty after Reset(c, c)")
+		"zero-value CapTable should be empty after Reset() & add twice")
 
 	errTest := errors.New("test")
-	ct.Set(capnp.CapabilityID(0), capnp.ErrorClient(errTest))
-	snapshot := ct.At(0).Snapshot()
+	ct.SetClient(capnp.CapabilityID(0), capnp.ErrorClient(errTest))
+	snapshot := ct.ClientAt(0).Snapshot()
 	defer snapshot.Release()
 	err := snapshot.Brand().Value.(error)
 	assert.ErrorIs(t, errTest, err, "should update client at index 0")

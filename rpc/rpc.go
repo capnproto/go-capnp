@@ -907,7 +907,7 @@ func (c *Conn) handleCall(ctx context.Context, in transport.IncomingMessage) err
 				if sub.IsValid() && !iface.IsValid() {
 					tgt = capnp.ErrorClient(rpcerr.Failed(ErrNotACapability))
 				} else {
-					tgt = tgtAns.returner.results.Message().CapTable().Get(iface)
+					tgt = tgtAns.returner.results.Message().CapTable().GetClient(iface)
 				}
 
 				c.tasks.Add(1) // will be finished by answer.Return
@@ -1212,8 +1212,8 @@ func (c *lockedConn) parseReturn(dq *deferred.Queue, ret rpccp.Return, called []
 				continue
 			}
 
-			id, ec := c.embargo(mtab.Get(iface))
-			mtab.Set(i, ec)
+			id, ec := c.embargo(mtab.GetClient(iface))
+			mtab.SetClient(i, ec)
 
 			embargoCaps.add(uint(i))
 			disembargoes = append(disembargoes, senderLoopback{
@@ -1494,14 +1494,14 @@ func (c *lockedConn) recvPayload(dq *deferred.Queue, payload rpccp.Payload) (_ c
 			// as this might trigger a deadlock.  Use the deferred.Queue instead.
 			dq.Defer(cl.Release)
 			for j := 0; j < i; j++ {
-				dq.Defer(mtab.At(j).Release)
+				dq.Defer(mtab.ClientAt(j).Release)
 			}
 
 			err = rpcerr.Annotate(err, "read payload: capability "+str.Itod(i))
 			break
 		}
 
-		mtab.Add(cl)
+		mtab.AddClient(cl)
 		if c.isLocalClient(cl) {
 			locals.add(uint(i))
 		}

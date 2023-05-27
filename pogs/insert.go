@@ -239,7 +239,7 @@ func (ins *inserter) insertField(s capnp.Struct, f schema.Field, val reflect.Val
 			if !c.IsValid() {
 				return s.SetPtr(off, capnp.Ptr{})
 			}
-			id := s.Message().CapTable().Add(c)
+			id := s.Message().CapTable().AddClient(c)
 			return s.SetPtr(off, capnp.NewInterface(s.Segment(), id).ToPtr())
 		default:
 			panic("unreachable")
@@ -255,7 +255,7 @@ func capPtr(seg *capnp.Segment, val reflect.Value) capnp.Ptr {
 	if !client.IsValid() {
 		return capnp.Ptr{}
 	}
-	cap := seg.Message().CapTable().Add(client)
+	cap := seg.Message().CapTable().AddClient(client)
 	iface := capnp.NewInterface(seg, cap)
 	return iface.ToPtr()
 }

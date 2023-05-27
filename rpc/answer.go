@@ -179,7 +179,9 @@ func (ans *ansReturner) setBootstrap(c capnp.Client) error {
 		panic("setBootstrap called after creating results")
 	}
 	// Add the capability to the table early to avoid leaks if setBootstrap fails.
-	ans.ret.Message().CapTable().Reset(c)
+	ct := ans.ret.Message().CapTable()
+	ct.Reset()
+	ct.AddClient(c)
 
 	var err error
 	ans.results, err = ans.ret.NewResults()

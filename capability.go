@@ -84,7 +84,7 @@ func (i Interface) value(paddr address) rawPointer {
 // or nil if the pointer is invalid.
 func (i Interface) Client() (c Client) {
 	if msg := i.Message(); msg != nil {
-		c = msg.CapTable().Get(i)
+		c = msg.CapTable().GetClient(i)
 	}
 
 	return
@@ -550,6 +550,13 @@ func (c Client) AddRef() Client {
 	})
 }
 
+// Steal steals the receiver, and returns a new client for the same capability
+// owned by the caller. This can be useful for tracking down ownership bugs.
+func (c Client) Steal() Client {
+	defer c.Release()
+	return c.AddRef()
+}
+
 // WeakRef creates a new WeakClient that refers to the same capability
 // as c.  If c is nil or has resolved to null, then WeakRef returns nil.
 func (c Client) WeakRef() WeakClient {
@@ -608,6 +615,9 @@ func (cs ClientSnapshot) Recv(ctx context.Context, r Recv) PipelineCaller {
 
 // Client returns a client pointing at the most-resolved version of the snapshot.
 func (cs ClientSnapshot) Client() Client {
+	if !cs.IsValid() {
+		return Client{}
+	}
 	cursor := rc.NewRefInPlace(func(c *clientCursor) func() {
 		*c = clientCursor{hook: mutex.New(cs.hook.AddRef())}
 		c.compress()
@@ -643,6 +653,12 @@ func (cs ClientSnapshot) AddRef() ClientSnapshot {
 	cs.hook = cs.hook.AddRef()
 	setupLeakReporting(cs)
 	return cs
+}
+
+// Steal is like Client.Steal() but for snapshots.
+func (cs ClientSnapshot) Steal() ClientSnapshot {
+	defer cs.Release()
+	return cs.AddRef()
 }
 
 // Release the reference to the hook.
@@ -754,7 +770,7 @@ func (c Client) Release() {
 }
 
 func (c Client) EncodeAsPtr(seg *Segment) Ptr {
-	capId := seg.Message().CapTable().Add(c)
+	capId := seg.Message().CapTable().AddClient(c)
 	return NewInterface(seg, capId).ToPtr()
 }
 

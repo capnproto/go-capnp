@@ -81,7 +81,7 @@ func testTransport(t *testing.T, makePipe func() (t1, t2 Transport, err error)) 
 			t.Fatal("NewParams:", err)
 		}
 		// simulate mutating CapTable
-		callMsg.Message().Message().CapTable().Add(capnp.ErrorClient(errors.New("foo")))
+		callMsg.Message().Message().CapTable().AddClient(capnp.ErrorClient(errors.New("foo")))
 		callMsg.Message().Message().CapTable().Reset()
 		capPtr := capnp.NewInterface(params.Segment(), 0).ToPtr()
 		if err := params.SetContent(capPtr); err != nil {
