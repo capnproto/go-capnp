@@ -334,7 +334,7 @@ func (c *lockedConn) findEmbargo(id embargoID) *embargo {
 
 func newEmbargo(client capnp.Client) *embargo {
 	msg, seg := capnp.NewSingleSegmentMessage(nil)
-	capID := msg.CapTable().Add(client)
+	capID := msg.CapTable().AddClient(client)
 	iface := capnp.NewInterface(seg, capID)
 	return &embargo{
 		result: iface.ToPtr(),

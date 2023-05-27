@@ -730,14 +730,14 @@ func TestSetInterfacePtr(t *testing.T) {
 		if err != nil {
 			t.Fatal("NewMessage:", err)
 		}
-		msg.CapTable().Add(Client{}) // just to make the capability ID below non-zero
+		msg.CapTable().AddClient(Client{}) // just to make the capability ID below non-zero
 		root, err := NewRootStruct(seg, ObjectSize{PointerCount: 2})
 		if err != nil {
 			t.Fatal("NewRootStruct:", err)
 		}
 		hook := new(dummyHook)
 		client := NewClient(hook)
-		id := msg.CapTable().Add(client)
+		id := msg.CapTable().AddClient(client)
 		iface := NewInterface(seg, id)
 		defer func() {
 			msg.CapTable().Reset()
@@ -795,7 +795,7 @@ func TestSetInterfacePtr(t *testing.T) {
 
 		hook := new(dummyHook)
 		client := NewClient(hook)
-		iface1 := NewInterface(seg1, msg1.CapTable().Add(client))
+		iface1 := NewInterface(seg1, msg1.CapTable().AddClient(client))
 		if err := root.SetPtr(0, iface1.ToPtr()); err != nil {
 			t.Fatal("root.SetPtr(0, iface1.ToPtr()):", err)
 		}

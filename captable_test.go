@@ -15,7 +15,7 @@ func TestCapTable(t *testing.T) {
 
 	assert.Zero(t, ct.Len(),
 		"zero-value CapTable should be empty")
-	assert.Zero(t, ct.Add(capnp.Client{}),
+	assert.Zero(t, ct.AddClient(capnp.Client{}),
 		"first entry should have CapabilityID(0)")
 	assert.Equal(t, 1, ct.Len(),
 		"should increase length after adding capability")

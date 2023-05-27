@@ -903,7 +903,7 @@ func (c *Conn) handleCall(ctx context.Context, in transport.IncomingMessage) err
 				if sub.IsValid() && !iface.IsValid() {
 					tgt = capnp.ErrorClient(rpcerr.Failed(ErrNotACapability))
 				} else {
-					tgt = tgtAns.returner.results.Message().CapTable().Get(iface)
+					tgt = tgtAns.returner.results.Message().CapTable().GetClient(iface)
 				}
 
 				c.tasks.Add(1) // will be finished by answer.Return
@@ -1208,7 +1208,7 @@ func (c *lockedConn) parseReturn(dq *deferred.Queue, ret rpccp.Return, called []
 				continue
 			}
 
-			id, ec := c.embargo(mtab.Get(iface))
+			id, ec := c.embargo(mtab.GetClient(iface))
 			mtab.Set(i, ec)
 
 			embargoCaps.add(uint(i))
@@ -1504,7 +1504,7 @@ func (c *lockedConn) recvPayload(dq *deferred.Queue, payload rpccp.Payload) (_ c
 			break
 		}
 
-		mtab.Add(cl)
+		mtab.AddClient(cl)
 		if c.isLocalClient(cl) {
 			locals.add(uint(i))
 		}

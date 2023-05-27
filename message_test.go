@@ -400,7 +400,7 @@ func TestAddCap(t *testing.T) {
 	msg := &Message{Arena: SingleSegment(nil)}
 
 	// Simple case: distinct non-nil clients.
-	id1 := msg.CapTable().Add(client1.AddRef())
+	id1 := msg.CapTable().AddClient(client1.AddRef())
 	assert.Equal(t, CapabilityID(0), id1,
 		"first capability ID should be 0")
 	assert.Equal(t, 1, msg.CapTable().Len(),
@@ -408,7 +408,7 @@ func TestAddCap(t *testing.T) {
 	assert.True(t, msg.CapTable().At(0).IsSame(client1),
 		"client does not match entry in cap table")
 
-	id2 := msg.CapTable().Add(client2.AddRef())
+	id2 := msg.CapTable().AddClient(client2.AddRef())
 	assert.Equal(t, CapabilityID(1), id2,
 		"second capability ID should be 1")
 	assert.Equal(t, 2, msg.CapTable().Len(),
@@ -417,7 +417,7 @@ func TestAddCap(t *testing.T) {
 		"client does not match entry in cap table")
 
 	// nil client
-	id3 := msg.CapTable().Add(Client{})
+	id3 := msg.CapTable().AddClient(Client{})
 	assert.Equal(t, CapabilityID(2), id3,
 		"third capability ID should be 2")
 	assert.Equal(t, 3, msg.CapTable().Len(),
@@ -426,7 +426,7 @@ func TestAddCap(t *testing.T) {
 		"client does not match entry in cap table")
 
 	// Add should not attempt to deduplicate.
-	id4 := msg.CapTable().Add(client1.AddRef())
+	id4 := msg.CapTable().AddClient(client1.AddRef())
 	assert.Equal(t, CapabilityID(3), id4,
 		"fourth capability ID should be 3")
 	assert.Equal(t, 4, msg.CapTable().Len(),

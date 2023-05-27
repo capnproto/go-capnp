@@ -84,7 +84,7 @@ func (i Interface) value(paddr address) rawPointer {
 // or nil if the pointer is invalid.
 func (i Interface) Client() (c Client) {
 	if msg := i.Message(); msg != nil {
-		c = msg.CapTable().Get(i)
+		c = msg.CapTable().GetClient(i)
 	}
 
 	return
@@ -746,7 +746,7 @@ func (c Client) Release() {
 }
 
 func (c Client) EncodeAsPtr(seg *Segment) Ptr {
-	capId := seg.Message().CapTable().Add(c)
+	capId := seg.Message().CapTable().AddClient(c)
 	return NewInterface(seg, capId).ToPtr()
 }
 
