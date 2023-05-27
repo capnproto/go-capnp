@@ -1209,7 +1209,7 @@ func (c *lockedConn) parseReturn(dq *deferred.Queue, ret rpccp.Return, called []
 			}
 
 			id, ec := c.embargo(mtab.GetClient(iface))
-			mtab.Set(i, ec)
+			mtab.SetClient(i, ec)
 
 			embargoCaps.add(uint(i))
 			disembargoes = append(disembargoes, senderLoopback{

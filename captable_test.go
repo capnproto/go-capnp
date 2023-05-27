@@ -30,7 +30,7 @@ func TestCapTable(t *testing.T) {
 		"zero-value CapTable should be empty after Reset() & add twice")
 
 	errTest := errors.New("test")
-	ct.Set(capnp.CapabilityID(0), capnp.ErrorClient(errTest))
+	ct.SetClient(capnp.CapabilityID(0), capnp.ErrorClient(errTest))
 	snapshot := ct.ClientAt(0).Snapshot()
 	defer snapshot.Release()
 	err := snapshot.Brand().Value.(error)

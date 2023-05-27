@@ -63,11 +63,17 @@ func (ct CapTable) GetSnapshot(ifc Interface) (s ClientSnapshot) {
 	return
 }
 
-// Set the client for the supplied capability ID.  If a client
+// SetClient sets the client for the supplied capability ID.  If a client
 // for the given ID already exists, it will be replaced without
 // releasing.
-func (ct CapTable) Set(id CapabilityID, c Client) {
+func (ct CapTable) SetClient(id CapabilityID, c Client) {
 	ct.cs[id] = c
+}
+
+// SetSnapshot is like SetClient, but takes a snapshot.
+func (ct CapTable) SetSnapshot(id CapabilityID, s ClientSnapshot) {
+	defer s.Release()
+	ct.cs[id] = s.Client()
 }
 
 // AddClient appends a capability to the message's capability table and
