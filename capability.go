@@ -550,6 +550,13 @@ func (c Client) AddRef() Client {
 	})
 }
 
+// Steal steals the receiver, and returns a new client for the same capability
+// owned by the caller. This can be useful for tracking down ownership bugs.
+func (c Client) Steal() Client {
+	defer c.Release()
+	return c.AddRef()
+}
+
 // WeakRef creates a new WeakClient that refers to the same capability
 // as c.  If c is nil or has resolved to null, then WeakRef returns nil.
 func (c Client) WeakRef() WeakClient {
@@ -637,6 +644,12 @@ func (cs ClientSnapshot) Metadata() *Metadata {
 func (cs ClientSnapshot) AddRef() ClientSnapshot {
 	cs.hook = cs.hook.AddRef()
 	return cs
+}
+
+// Steal is like Client.Steal() but for snapshots.
+func (cs ClientSnapshot) Steal() ClientSnapshot {
+	defer cs.Release()
+	return cs.AddRef()
 }
 
 // Release the reference to the hook.

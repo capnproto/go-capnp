@@ -52,13 +52,13 @@ func (ct CapTable) Get(ifc Interface) (c Client) {
 // for the given ID already exists, it will be replaced without
 // releasing.
 func (ct CapTable) Set(id CapabilityID, c Client) {
-	ct.cs[id] = c
+	ct.cs[id] = c.Steal()
 }
 
 // Add appends a capability to the message's capability table and
 // returns its ID.  It "steals" c's reference: the Message will release
 // the client when calling Reset.
 func (ct *CapTable) Add(c Client) CapabilityID {
-	ct.cs = append(ct.cs, c)
+	ct.cs = append(ct.cs, c.Steal())
 	return CapabilityID(ct.Len() - 1)
 }
