@@ -23,9 +23,11 @@ func TestCapTable(t *testing.T) {
 	ct.Reset()
 	assert.Zero(t, ct.Len(),
 		"zero-value CapTable should be empty after Reset()")
-	ct.Reset(capnp.Client{}, capnp.Client{})
+
+	ct.AddClient(capnp.Client{})
+	ct.AddClient(capnp.Client{})
 	assert.Equal(t, 2, ct.Len(),
-		"zero-value CapTable should be empty after Reset(c, c)")
+		"zero-value CapTable should be empty after Reset() & add twice")
 
 	errTest := errors.New("test")
 	ct.Set(capnp.CapabilityID(0), capnp.ErrorClient(errTest))

@@ -71,13 +71,13 @@ func TestEqual(t *testing.T) {
 	plistB, _ := NewPointerList(seg, 1)
 	plistB.Set(0, structB.ToPtr())
 	ec := ErrorClient(errors.New("boo"))
-	msg.CapTable().Reset(
-		ec,
-		ec,
-		ErrorClient(errors.New("another boo")),
-		Client{},
-		Client{},
-	)
+	ct := msg.CapTable()
+	ct.Reset()
+	ct.AddClient(ec)
+	ct.AddClient(ec)
+	ct.AddClient(ErrorClient(errors.New("another boo")))
+	ct.AddClient(Client{})
+	ct.AddClient(Client{})
 	iface1 := NewInterface(seg, 0)
 	iface2 := NewInterface(seg, 1)
 	ifaceAlt := NewInterface(seg, 2)

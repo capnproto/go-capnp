@@ -11,14 +11,13 @@ type CapTable struct {
 }
 
 // Reset the cap table, releasing all capabilities and setting
-// the length to zero.   Clients passed as arguments are added
-// to the table after zeroing, such that ct.Len() == len(cs).
-func (ct *CapTable) Reset(cs ...Client) {
+// the length to zero.
+func (ct *CapTable) Reset() {
 	for _, c := range ct.cs {
 		c.Release()
 	}
 
-	ct.cs = append(ct.cs[:0], cs...)
+	ct.cs = ct.cs[:0]
 }
 
 // Len returns the number of capabilities in the table.
