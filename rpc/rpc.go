@@ -1497,7 +1497,7 @@ func (c *lockedConn) recvPayload(dq *deferred.Queue, payload rpccp.Payload) (_ c
 			// as this might trigger a deadlock.  Use the deferred.Queue instead.
 			dq.Defer(cl.Release)
 			for j := 0; j < i; j++ {
-				dq.Defer(mtab.At(j).Release)
+				dq.Defer(mtab.ClientAt(j).Release)
 			}
 
 			err = rpcerr.Annotate(err, "read payload: capability "+str.Itod(i))

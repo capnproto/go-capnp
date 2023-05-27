@@ -405,7 +405,7 @@ func TestAddCap(t *testing.T) {
 		"first capability ID should be 0")
 	assert.Equal(t, 1, msg.CapTable().Len(),
 		"should have exactly one capability in the capTable")
-	assert.True(t, msg.CapTable().At(0).IsSame(client1),
+	assert.True(t, msg.CapTable().ClientAt(0).IsSame(client1),
 		"client does not match entry in cap table")
 
 	id2 := msg.CapTable().AddClient(client2.AddRef())
@@ -413,7 +413,7 @@ func TestAddCap(t *testing.T) {
 		"second capability ID should be 1")
 	assert.Equal(t, 2, msg.CapTable().Len(),
 		"should have exactly two capabilities in the capTable")
-	assert.True(t, msg.CapTable().At(1).IsSame(client2),
+	assert.True(t, msg.CapTable().ClientAt(1).IsSame(client2),
 		"client does not match entry in cap table")
 
 	// nil client
@@ -422,7 +422,7 @@ func TestAddCap(t *testing.T) {
 		"third capability ID should be 2")
 	assert.Equal(t, 3, msg.CapTable().Len(),
 		"should have exactly three capabilities in the capTable")
-	assert.True(t, msg.CapTable().At(2).IsSame(Client{}),
+	assert.True(t, msg.CapTable().ClientAt(2).IsSame(Client{}),
 		"client does not match entry in cap table")
 
 	// Add should not attempt to deduplicate.
@@ -431,7 +431,7 @@ func TestAddCap(t *testing.T) {
 		"fourth capability ID should be 3")
 	assert.Equal(t, 4, msg.CapTable().Len(),
 		"should have exactly four capabilities in the capTable")
-	assert.True(t, msg.CapTable().At(3).IsSame(client1),
+	assert.True(t, msg.CapTable().ClientAt(3).IsSame(client1),
 		"client does not match entry in cap table")
 
 	// Verify that Add steals the reference: once client1 and client2

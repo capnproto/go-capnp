@@ -26,9 +26,14 @@ func (ct CapTable) Len() int {
 	return len(ct.cs)
 }
 
-// At returns the capability at the given index of the table.
-func (ct CapTable) At(i int) Client {
+// ClientAt returns the client at the given index of the table.
+func (ct CapTable) ClientAt(i int) Client {
 	return ct.cs[i]
+}
+
+// SnapshotAt is like ClientAt, except that it returns a snapshot.
+func (ct CapTable) SnapshotAt(i int) ClientSnapshot {
+	return ct.ClientAt(i).Snapshot()
 }
 
 // Contains returns true if the supplied interface corresponds
