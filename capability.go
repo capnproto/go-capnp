@@ -606,6 +606,9 @@ func (cs ClientSnapshot) Recv(ctx context.Context, r Recv) PipelineCaller {
 
 // Client returns a client pointing at the most-resolved version of the snapshot.
 func (cs ClientSnapshot) Client() Client {
+	if !cs.IsValid() {
+		return Client{}
+	}
 	cursor := rc.NewRefInPlace(func(c *clientCursor) func() {
 		*c = clientCursor{hook: mutex.New(cs.hook.AddRef())}
 		c.compress()

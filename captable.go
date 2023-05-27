@@ -7,7 +7,7 @@ package capnp
 //
 // https://capnproto.org/encoding.html#capabilities-interfaces
 type CapTable struct {
-	cs []Client
+	cs []ClientSnapshot
 }
 
 // Reset the cap table, releasing all capabilities and setting
@@ -27,12 +27,12 @@ func (ct CapTable) Len() int {
 
 // ClientAt returns the client at the given index of the table.
 func (ct CapTable) ClientAt(i int) Client {
-	return ct.cs[i]
+	return ct.SnapshotAt(i).Client()
 }
 
 // SnapshotAt is like ClientAt, except that it returns a snapshot.
 func (ct CapTable) SnapshotAt(i int) ClientSnapshot {
-	return ct.ClientAt(i).Snapshot()
+	return ct.cs[i]
 }
 
 // Contains returns true if the supplied interface corresponds
@@ -45,20 +45,14 @@ func (ct CapTable) Contains(ifc Interface) bool {
 // It returns a null client if the interface's CapabilityID isn't
 // in the table.
 func (ct CapTable) GetClient(ifc Interface) (c Client) {
-	if ct.Contains(ifc) {
-		c = ct.cs[ifc.Capability()]
-	}
-
-	return
+	return ct.GetSnapshot(ifc).Client()
 }
 
 // GetSnapshot is like GetClient, except that it returns a snapshot
 // instead of a Client.
 func (ct CapTable) GetSnapshot(ifc Interface) (s ClientSnapshot) {
 	if ct.Contains(ifc) {
-		c := ct.cs[ifc.Capability()]
-		defer c.Release()
-		s = c.Snapshot()
+		s = ct.cs[ifc.Capability()]
 	}
 	return
 }
@@ -67,20 +61,22 @@ func (ct CapTable) GetSnapshot(ifc Interface) (s ClientSnapshot) {
 // for the given ID already exists, it will be replaced without
 // releasing.
 func (ct CapTable) SetClient(id CapabilityID, c Client) {
-	ct.cs[id] = c
+	s := c.Snapshot()
+	c.Release()
+	ct.cs[id] = s
 }
 
 // SetSnapshot is like SetClient, but takes a snapshot.
 func (ct CapTable) SetSnapshot(id CapabilityID, s ClientSnapshot) {
-	defer s.Release()
-	ct.cs[id] = s.Client()
+	ct.cs[id] = s
 }
 
 // AddClient appends a capability to the message's capability table and
 // returns its ID.  It "steals" c's reference: the Message will release
 // the client when calling Reset.
 func (ct *CapTable) AddClient(c Client) CapabilityID {
-	ct.cs = append(ct.cs, c)
+	defer c.Release()
+	ct.cs = append(ct.cs, c.Snapshot())
 	return CapabilityID(ct.Len() - 1)
 }
 
