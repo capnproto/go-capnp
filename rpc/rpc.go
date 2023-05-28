@@ -1574,36 +1574,39 @@ func (c *Conn) handleDisembargo(ctx context.Context, in transport.IncomingMessag
 		e.lift()
 
 	case rpccp.Disembargo_context_Which_senderLoopback:
-		client, err := withLockedConn2(c, func(c *lockedConn) (capnp.Client, error) {
+		snapshot, err := withLockedConn2(c, func(c *lockedConn) (capnp.ClientSnapshot, error) {
 			switch tgt.which {
 			case rpccp.MessageTarget_Which_promisedAnswer:
-				return c.getAnswerClient(
+				iface, err := c.getAnswerInterface(
 					tgt.promisedAnswer,
 					tgt.transform,
 				)
+				return iface.Snapshot(), err
 			case rpccp.MessageTarget_Which_importedCap:
 				ent := c.findExport(tgt.importedCap)
 				if ent == nil {
-					return capnp.Client{}, rpcerr.Failed(errors.New(
+					return capnp.ClientSnapshot{}, rpcerr.Failed(errors.New(
 						"sender loopback: no such export: " +
 							str.Utod(tgt.importedCap),
 					))
 				}
 				if !ent.isPromise {
-					return capnp.Client{}, rpcerr.Failed(errors.New(
+					return capnp.ClientSnapshot{}, rpcerr.Failed(errors.New(
 						"sender loopback: target export " +
 							str.Utod(tgt.importedCap) +
 							" is not a promise",
 					))
 				}
-				return ent.client, nil
+				return ent.snapshot, nil
 			default:
-				return capnp.Client{}, rpcerr.Failed(errors.New(
+				return capnp.ClientSnapshot{}, rpcerr.Failed(errors.New(
 					"sender loopback: unsupported message target variant: " +
 						tgt.which.String(),
 				))
 			}
 		})
+		snapshot = snapshot.AddRef()
+		defer snapshot.Release()
 
 		if err != nil {
 			in.Release()
@@ -1615,7 +1618,9 @@ func (c *Conn) handleDisembargo(ctx context.Context, in transport.IncomingMessag
 		id := d.Context().SenderLoopback()
 
 		c.withLocked(func(c *lockedConn) {
+			snapshot := snapshot.AddRef()
 			c.sendMessage(ctx, func(m rpccp.Message) error {
+				defer snapshot.Release()
 				d, err := m.NewDisembargo()
 				if err != nil {
 					return err
@@ -1626,8 +1631,6 @@ func (c *Conn) handleDisembargo(ctx context.Context, in transport.IncomingMessag
 					return err
 				}
 
-				snapshot := client.Snapshot()
-				defer snapshot.Release()
 				brand := snapshot.Brand()
 				if pc, ok := brand.Value.(capnp.PipelineClient); ok {
 					if q, ok := c.getAnswerQuestion(pc.Answer()); ok {
@@ -1659,7 +1662,6 @@ func (c *Conn) handleDisembargo(ctx context.Context, in transport.IncomingMessag
 
 			}, func(err error) {
 				defer in.Release()
-				defer client.Release()
 
 				if err != nil {
 					c.er.ReportError(rpcerr.Annotate(err, "incoming disembargo: send receiver loopback"))
@@ -1693,38 +1695,38 @@ func (c *Conn) handleDisembargo(ctx context.Context, in transport.IncomingMessag
 	return nil
 }
 
-// getAnswerClient returns a client for the capability at the given path
+// getAnswerInterface returns an Interface for the capability at the given path
 // in the specified answer. The answer must have already sent a return.
 // Returns an error if the path does not identify a capability.
-func (c *lockedConn) getAnswerClient(id answerID, transform []capnp.PipelineOp) (capnp.Client, error) {
+func (c *lockedConn) getAnswerInterface(id answerID, transform []capnp.PipelineOp) (capnp.Interface, error) {
 	ans := c.lk.answers[id]
 	if ans == nil {
-		return capnp.Client{}, rpcerr.Failed(errors.New(
+		return capnp.Interface{}, rpcerr.Failed(errors.New(
 			"unknown answer ID " + str.Utod(id),
 		))
 	}
 	if !ans.flags.Contains(returnSent) {
-		return capnp.Client{}, rpcerr.Failed(errors.New(
+		return capnp.Interface{}, rpcerr.Failed(errors.New(
 			"answer ID " + str.Utod(id) + " has not sent return",
 		))
 	}
 
 	if ans.err != nil {
-		return capnp.Client{}, rpcerr.Failed(errors.New(
+		return capnp.Interface{}, rpcerr.Failed(errors.New(
 			"answer ID " + str.Utod(id) + " returned exception",
 		))
 	}
 
 	content, err := ans.returner.results.Content()
 	if err != nil {
-		return capnp.Client{}, rpcerr.Failed(errors.New(
+		return capnp.Interface{}, rpcerr.Failed(errors.New(
 			"read answer ID " + str.Utod(id) + ": " + err.Error(),
 		))
 	}
 
 	ptr, err := capnp.Transform(content, transform)
 	if err != nil {
-		return capnp.Client{}, rpcerr.Failed(errors.New(
+		return capnp.Interface{}, rpcerr.Failed(errors.New(
 			"read answer ID " + str.Utod(id) + ": " + err.Error(),
 		))
 	}
@@ -1732,12 +1734,12 @@ func (c *lockedConn) getAnswerClient(id answerID, transform []capnp.PipelineOp) 
 	iface := ptr.Interface()
 	ncaps := int64(ans.returner.results.Message().CapTable().Len())
 	if !iface.IsValid() || int64(iface.Capability()) >= ncaps {
-		return capnp.Client{}, rpcerr.Failed(errors.New(
+		return capnp.Interface{}, rpcerr.Failed(errors.New(
 			"target is not a capability",
 		))
 	}
 
-	return iface.Client(), nil
+	return iface, nil
 }
 
 func (c *Conn) handleResolve(ctx context.Context, in transport.IncomingMessage) error {

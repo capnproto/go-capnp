@@ -86,7 +86,14 @@ func (i Interface) Client() (c Client) {
 	if msg := i.Message(); msg != nil {
 		c = msg.CapTable().GetClient(i)
 	}
+	return
+}
 
+// Snapshot is like Client except that it returns a snapshot.
+func (i Interface) Snapshot() (c ClientSnapshot) {
+	if msg := i.Message(); msg != nil {
+		c = msg.CapTable().GetSnapshot(i)
+	}
 	return
 }
 
