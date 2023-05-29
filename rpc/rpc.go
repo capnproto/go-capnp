@@ -904,11 +904,15 @@ func (c *Conn) handleCall(ctx context.Context, in transport.IncomingMessage) err
 					return nil
 				}
 				iface := sub.Interface()
-				var tgt capnp.Client
+				var tgt capnp.ClientSnapshot
 				if sub.IsValid() && !iface.IsValid() {
-					tgt = capnp.ErrorClient(rpcerr.Failed(ErrNotACapability))
+					tgt = capnp.ErrorClient(rpcerr.Failed(ErrNotACapability)).Snapshot()
 				} else {
-					tgt = tgtAns.returner.results.Message().CapTable().Get(iface)
+					capID := iface.Capability()
+					capTable := tgtAns.returner.resultsCapTable
+					if int(capID) < len(capTable) {
+						tgt = capTable[capID].AddRef()
+					}
 				}
 
 				c.tasks.Add(1) // will be finished by answer.Return
@@ -917,7 +921,8 @@ func (c *Conn) handleCall(ctx context.Context, in transport.IncomingMessage) err
 				pcall := newPromisedPipelineCaller()
 				ans.setPipelineCaller(p.method, pcall)
 				dq.Defer(func() {
-					pcall.resolve(tgt.RecvCall(callCtx, recv))
+					defer tgt.Release()
+					pcall.resolve(tgt.Recv(callCtx, recv))
 				})
 			} else {
 				// Results not ready, use pipeline caller.
