@@ -81,6 +81,12 @@ type ansReturner struct {
 	// Set by AllocResults and setBootstrap, but contents can only be read
 	// if flags has resultsReady but not finishReceived set.
 	results rpccp.Payload
+
+	// Snapshots of the clients results's capTable, at the time of PrepareReturn().
+	// Pipelined calls are invoked on the snapshots, rather than the clients,
+	// to respect the invariant regarding the 4-way race condition that table
+	// entries must not path-shorten.
+	resultsCapTable []capnp.ClientSnapshot
 }
 
 type answerFlags uint8
@@ -266,6 +272,15 @@ func (ans *ansent) prepareSendReturn(dq *deferred.Queue) {
 		c.er.ReportError(rpcerr.Annotate(err, "send return"))
 	}
 	// Continue.  Don't fail to send return if cap table isn't fully filled.
+	results := ans.returner.results
+	if results.IsValid() {
+		capTable := results.Message().CapTable()
+		snapshots := make([]capnp.ClientSnapshot, capTable.Len())
+		for i := range snapshots {
+			snapshots[i] = capTable.At(i).Snapshot()
+		}
+		ans.returner.resultsCapTable = snapshots
+	}
 
 	select {
 	case <-c.bgctx.Done():
@@ -353,15 +368,17 @@ func (ans *ansent) completeSendException(dq *deferred.Queue) {
 	}
 }
 
-// destroy removes the answer from the table and returns ReleaseFuncs to
-// run. The answer must have sent a return and received a finish.
-// The caller must be holding onto ans.c.lk.
+// destroy removes the answer from the table and schedule ReleaseFuncs to
+// run using dq. The answer must have sent a return and received a finish.
 //
 // shutdown has its own strategy for cleaning up an answer.
 func (ans *ansent) destroy(dq *deferred.Queue) error {
 	dq.Defer(ans.returner.msgReleaser.Decr)
 	c := ans.lockedConn()
 	delete(c.lk.answers, ans.returner.id)
+	for _, s := range ans.returner.resultsCapTable {
+		dq.Defer(s.Release)
+	}
 	if !ans.flags.Contains(releaseResultCapsFlag) || len(ans.exportRefs) == 0 {
 		return nil
 

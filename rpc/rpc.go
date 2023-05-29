@@ -478,8 +478,13 @@ func (c *lockedConn) liftEmbargoes(dq *deferred.Queue, embargoes []*embargo) {
 
 func (c *lockedConn) releaseAnswers(dq *deferred.Queue, answers map[answerID]*ansent) {
 	for _, a := range answers {
-		if a != nil && a.returner.msgReleaser != nil {
-			dq.Defer(a.returner.msgReleaser.Decr)
+		if a != nil {
+			for _, s := range a.returner.resultsCapTable {
+				dq.Defer(s.Release)
+			}
+			if a.returner.msgReleaser != nil {
+				dq.Defer(a.returner.msgReleaser.Decr)
+			}
 		}
 	}
 }
