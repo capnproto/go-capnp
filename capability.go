@@ -596,11 +596,18 @@ func (cs ClientSnapshot) IsPromise() bool {
 
 // Send implements ClientHook.Send
 func (cs ClientSnapshot) Send(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
+	if cs.hook == nil {
+		return ErrorAnswer(s.Method, errors.New("call on null client")), func() {}
+	}
 	return cs.hook.Value().Send(ctx, s)
 }
 
 // Recv implements ClientHook.Recv
 func (cs ClientSnapshot) Recv(ctx context.Context, r Recv) PipelineCaller {
+	if cs.hook == nil {
+		r.Reject(errors.New("call on null client"))
+		return nil
+	}
 	return cs.hook.Value().Recv(ctx, r)
 }
 
