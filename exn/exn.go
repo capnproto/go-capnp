@@ -13,13 +13,13 @@ type exn struct {
 }
 
 // An alias for the type of the callback provided by Try.
-type Thrower = func(error)
+type Thrower = func(error, ...string)
 
 // Try invokes f, which is a callback with type:
 //
 // func(throw Thrower) T
 //
-// Thrower is an alias for func(error).
+// Thrower is an alias for func(error, ...string).
 //
 // If f returns normally, Try returns the value f returned and a nil
 // error.
@@ -37,10 +37,17 @@ type Thrower = func(error)
 //
 // f must not store throw or otherwise cause it to be invoked after
 // Try returns.
+//
+// Callers may pass additonal string arguments to throw, which will
+// wrap the error with additional context, i.e. throw(err, "something")
+// is equivalent to throw(Wrap("something", err))
 func Try[T any](f func(Thrower) T) (result T, err error) {
-	throw := func(e error) {
+	throw := func(e error, context ...string) {
 		if e == nil {
 			return
+		}
+		for i := len(context) - 1; i >= 0; i-- {
+			e = Wrap(context[i], e)
 		}
 		panic(exn{err: e})
 	}
@@ -65,7 +72,7 @@ func Try[T any](f func(Thrower) T) (result T, err error) {
 // Try0 is like Try, but f does not return a value, and Try0 only returns
 // an error.
 func Try0(f func(Thrower)) error {
-	_, err := Try(func(throw func(error)) struct{} {
+	_, err := Try(func(throw Thrower) struct{} {
 		f(throw)
 		return struct{}{}
 	})
@@ -74,7 +81,7 @@ func Try0(f func(Thrower)) error {
 
 // Try2 is like Try, but with two values instead of 1.
 func Try2[A, B any](f func(Thrower) (A, B)) (A, B, error) {
-	r, err := Try(func(throw func(error)) pair[A, B] {
+	r, err := Try(func(throw Thrower) pair[A, B] {
 		a, b := f(throw)
 		return pair[A, B]{a: a, b: b}
 	})
