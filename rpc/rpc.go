@@ -1582,19 +1582,19 @@ func (c *Conn) handleDisembargo(ctx context.Context, in transport.IncomingMessag
 		e.lift()
 
 	case rpccp.Disembargo_context_Which_senderLoopback:
-		var (
-			snapshot capnp.ClientSnapshot
-			err      error
-		)
-		c.withLocked(func(c *lockedConn) {
-			if tgt.which != rpccp.MessageTarget_Which_promisedAnswer {
-				err = rpcerr.Failed(errors.New("incoming disembargo: sender loopback: target is not a promised answer"))
-				return
+		snapshot, err := withLockedConn2(c, func(c *lockedConn) (capnp.ClientSnapshot, error) {
+			switch tgt.which {
+			case rpccp.MessageTarget_Which_promisedAnswer:
+				return c.getAnswerSnapshot(
+					tgt.promisedAnswer,
+					tgt.transform,
+				)
+			case rpccp.MessageTarget_Which_importedCap:
+				fallthrough
+			default:
+				err := rpcerr.Failed(errors.New("incoming disembargo: sender loopback: target is not a promised answer"))
+				return capnp.ClientSnapshot{}, err
 			}
-			snapshot, err = c.getAnswerSnapshot(
-				tgt.promisedAnswer,
-				tgt.transform,
-			)
 		})
 
 		if err != nil {
