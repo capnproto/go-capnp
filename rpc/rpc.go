@@ -1582,7 +1582,7 @@ func (c *Conn) handleDisembargo(ctx context.Context, in transport.IncomingMessag
 		e.lift()
 
 	case rpccp.Disembargo_context_Which_senderLoopback:
-		snapshot, err := withLockedConn2(c, func(c *lockedConn) (capnp.ClientSnapshot, error) {
+		snapshot, err := withLockedConn2(c, func(c *lockedConn) (_ capnp.ClientSnapshot, err error) {
 			switch tgt.which {
 			case rpccp.MessageTarget_Which_promisedAnswer:
 				return c.getAnswerSnapshot(
@@ -1590,10 +1590,23 @@ func (c *Conn) handleDisembargo(ctx context.Context, in transport.IncomingMessag
 					tgt.transform,
 				)
 			case rpccp.MessageTarget_Which_importedCap:
-				fallthrough
+				ent := c.findExport(tgt.importedCap)
+				if ent == nil {
+					err = rpcerr.Failed(errors.New("sender loopback: no such export: " +
+						str.Utod(tgt.importedCap)))
+					return
+				}
+				if !ent.isPromise {
+					err = rpcerr.Failed(errors.New(
+						"sender loopback: target export " +
+							str.Utod(tgt.importedCap) +
+							" is not a promise"))
+					return
+				}
+				return ent.snapshot.AddRef(), nil
 			default:
-				err := rpcerr.Failed(errors.New("incoming disembargo: sender loopback: target is not a promised answer"))
-				return capnp.ClientSnapshot{}, err
+				err = rpcerr.Failed(errors.New("incoming disembargo: sender loopback: target is not a promised answer"))
+				return
 			}
 		})
 
