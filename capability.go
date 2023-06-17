@@ -566,7 +566,9 @@ func (c Client) WeakRef() WeakClient {
 // ClientSnapshot if c is nil, has resolved to null, or has been released.
 func (c Client) Snapshot() ClientSnapshot {
 	h, _, _ := c.startCall()
-	return ClientSnapshot{hook: h}
+	s := ClientSnapshot{hook: h}
+	setupLeakReporting(s)
+	return s
 }
 
 // A Brand is an opaque value used to identify a capability.
@@ -643,17 +645,19 @@ func (cs ClientSnapshot) Metadata() *Metadata {
 // Create a copy of the snapshot, with its own underlying reference.
 func (cs ClientSnapshot) AddRef() ClientSnapshot {
 	cs.hook = cs.hook.AddRef()
+	setupLeakReporting(cs)
 	return cs
 }
 
 // Release the reference to the hook.
-func (cs ClientSnapshot) Release() {
+func (cs *ClientSnapshot) Release() {
 	cs.hook.Release()
 }
 
 func (cs *ClientSnapshot) Resolve1(ctx context.Context) error {
 	var err error
 	cs.hook, _, err = resolve1ClientHook(ctx, cs.hook)
+	setupLeakReporting(*cs)
 	return err
 }
 
@@ -665,6 +669,7 @@ func (cs *ClientSnapshot) resolve1(ctx context.Context) (more bool, err error) {
 func (cs *ClientSnapshot) Resolve(ctx context.Context) error {
 	var err error
 	cs.hook, err = resolveClientHook(ctx, cs.hook)
+	setupLeakReporting(*cs)
 	return err
 }
 
@@ -773,7 +778,7 @@ func (s *resolveState) isResolved() bool {
 	}
 }
 
-var setupLeakReporting func(Client) = func(Client) {}
+var setupLeakReporting func(any) = func(any) {}
 
 // SetClientLeakFunc sets a callback for reporting Clients that went
 // out of scope without being released.  The callback is not guaranteed
@@ -783,20 +788,32 @@ var setupLeakReporting func(Client) = func(Client) {}
 // SetClientLeakFunc must not be called after any calls to NewClient or
 // NewPromisedClient.
 func SetClientLeakFunc(clientLeakFunc func(msg string)) {
-	setupLeakReporting = func(c Client) {
+	setupLeakReporting = func(v any) {
 		buf := bufferpool.Default.Get(1e6)
 		n := runtime.Stack(buf, false)
 		stack := string(buf[:n])
 		bufferpool.Default.Put(buf)
-		runtime.SetFinalizer(c.client, func(c *client) {
-			released := mutex.With1(&c.state, func(c *clientState) bool {
-				return c.released
+		switch c := v.(type) {
+		case Client:
+			runtime.SetFinalizer(c.client, func(c *client) {
+				released := mutex.With1(&c.state, func(c *clientState) bool {
+					return c.released
+				})
+				if released {
+					return
+				}
+				clientLeakFunc("leaked client created at:\n\n" + stack)
 			})
-			if released {
-				return
-			}
-			clientLeakFunc("leaked client created at:\n\n" + stack)
-		})
+		case ClientSnapshot:
+			runtime.SetFinalizer(c.hook, func(c *rc.Ref[clientHook]) {
+				if !c.IsValid() {
+					return
+				}
+				clientLeakFunc("leaked client snapshot created at:\n\n" + stack)
+			})
+		default:
+			panic("setupLeakReporting called on unrecognized type!")
+		}
 	}
 }
 

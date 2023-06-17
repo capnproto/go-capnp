@@ -457,13 +457,11 @@ func (c *lockedConn) releaseBootstrap(dq *deferred.Queue) {
 func (c *lockedConn) releaseExports(dq *deferred.Queue, exports []*expent) {
 	for _, e := range exports {
 		if e != nil {
-			snapshot := e.client.Snapshot()
-			metadata := snapshot.Metadata()
+			metadata := e.snapshot.Metadata()
 			syncutil.With(metadata, func() {
 				c.clearExportID(metadata)
 			})
-			snapshot.Release()
-			dq.Defer(e.client.Release)
+			dq.Defer(e.snapshot.Release)
 		}
 	}
 }
@@ -665,13 +663,13 @@ func (c *Conn) handleUnimplemented(in transport.IncomingMessage) error {
 			default:
 				return nil
 			}
-			client, err := withLockedConn2(c, func(c *lockedConn) (capnp.Client, error) {
+			snapshot, err := withLockedConn2(c, func(c *lockedConn) (capnp.ClientSnapshot, error) {
 				return c.releaseExport(id, 1)
 			})
 			if err != nil {
 				return err
 			}
-			client.Release()
+			snapshot.Release()
 			return nil
 		}
 	}
@@ -859,7 +857,7 @@ func (c *Conn) handleCall(ctx context.Context, in transport.IncomingMessage) err
 			pcall := newPromisedPipelineCaller()
 			ans.setPipelineCaller(p.method, pcall)
 			dq.Defer(func() {
-				pcall.resolve(ent.client.RecvCall(callCtx, recv))
+				pcall.resolve(ent.snapshot.Recv(callCtx, recv))
 			})
 			return nil
 		case rpccp.MessageTarget_Which_promisedAnswer:
@@ -1359,7 +1357,7 @@ func (c *lockedConn) recvCap(d rpccp.CapDescriptor) (capnp.Client, error) {
 				"receive capability: invalid export " + str.Utod(id),
 			))
 		}
-		return ent.client.AddRef(), nil
+		return ent.snapshot.Client(), nil
 	case rpccp.CapDescriptor_Which_receiverAnswer:
 		promisedAnswer, err := d.ReceiverAnswer()
 		if err != nil {
@@ -1535,14 +1533,13 @@ func (c *Conn) handleRelease(ctx context.Context, in transport.IncomingMessage) 
 	id := exportID(rel.Id())
 	count := rel.ReferenceCount()
 
-	var client capnp.Client
-	c.withLocked(func(c *lockedConn) {
-		client, err = c.releaseExport(id, count)
+	snapshot, err := withLockedConn2(c, func(c *lockedConn) (capnp.ClientSnapshot, error) {
+		return c.releaseExport(id, count)
 	})
 	if err != nil {
 		return rpcerr.Annotate(err, "incoming release")
 	}
-	client.Release() // no-ops for nil
+	snapshot.Release() // no-ops for nil
 	return nil
 }
 
