@@ -478,8 +478,13 @@ func (c *lockedConn) liftEmbargoes(dq *deferred.Queue, embargoes []*embargo) {
 
 func (c *lockedConn) releaseAnswers(dq *deferred.Queue, answers map[answerID]*ansent) {
 	for _, a := range answers {
-		if a != nil && a.returner.msgReleaser != nil {
-			dq.Defer(a.returner.msgReleaser.Decr)
+		if a != nil {
+			for _, s := range a.returner.resultsCapTable {
+				dq.Defer(s.Release)
+			}
+			if a.returner.msgReleaser != nil {
+				dq.Defer(a.returner.msgReleaser.Decr)
+			}
 		}
 	}
 }
@@ -899,11 +904,15 @@ func (c *Conn) handleCall(ctx context.Context, in transport.IncomingMessage) err
 					return nil
 				}
 				iface := sub.Interface()
-				var tgt capnp.Client
+				var tgt capnp.ClientSnapshot
 				if sub.IsValid() && !iface.IsValid() {
-					tgt = capnp.ErrorClient(rpcerr.Failed(ErrNotACapability))
+					tgt = capnp.ErrorClient(rpcerr.Failed(ErrNotACapability)).Snapshot()
 				} else {
-					tgt = tgtAns.returner.results.Message().CapTable().Get(iface)
+					capID := iface.Capability()
+					capTable := tgtAns.returner.resultsCapTable
+					if int(capID) < len(capTable) {
+						tgt = capTable[capID].AddRef()
+					}
 				}
 
 				c.tasks.Add(1) // will be finished by answer.Return
@@ -912,7 +921,8 @@ func (c *Conn) handleCall(ctx context.Context, in transport.IncomingMessage) err
 				pcall := newPromisedPipelineCaller()
 				ans.setPipelineCaller(p.method, pcall)
 				dq.Defer(func() {
-					pcall.resolve(tgt.RecvCall(callCtx, recv))
+					defer tgt.Release()
+					pcall.resolve(tgt.Recv(callCtx, recv))
 				})
 			} else {
 				// Results not ready, use pipeline caller.
