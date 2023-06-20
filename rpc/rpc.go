@@ -1605,7 +1605,17 @@ func (c *Conn) handleDisembargo(ctx context.Context, in transport.IncomingMessag
 							" is not a promise"))
 					return
 				}
-				return ent.snapshot.AddRef(), nil
+
+				if !ent.snapshot.IsResolved() {
+					err = errors.New("target for receiver loopback is an unresolved promise")
+					return
+				}
+				snapshot := ent.snapshot.AddRef()
+				err = snapshot.Resolve1(context.Background())
+				if err != nil {
+					panic("error resolving snapshot: " + err.Error())
+				}
+				return snapshot, nil
 			default:
 				err = rpcerr.Failed(errors.New("incoming disembargo: sender loopback: target is not a promised answer"))
 				return
@@ -1617,8 +1627,13 @@ func (c *Conn) handleDisembargo(ctx context.Context, in transport.IncomingMessag
 			return err
 		}
 
-		// Since this Cap'n Proto RPC implementation does not send imports
-		// unless they are fully dequeued, we can just immediately loop back.
+		// FIXME: we're sending the the disembargo right a way, which I(zenhack)
+		// *think* is fine, and definitely was before we actually did anything
+		// with promises. But this is contingent on making sure that all of the
+		// relevant ClientHook implementations queue up their call messages before
+		// returning from .Recv(); if this invariant holds then this is fine
+		// because anything ahead of it is aready on the wire. But we need to
+		// actually check this invariant.
 		id := d.Context().SenderLoopback()
 
 		c.withLocked(func(c *lockedConn) {

@@ -596,6 +596,22 @@ func (cs ClientSnapshot) IsPromise() bool {
 	return ret
 }
 
+// IsResolved returns true if the snapshot has resolved to its final value.
+// If IsPromise() returns false, then this will also return false. Otherwise,
+// it returns false before resolution and true afterwards.
+func (cs ClientSnapshot) IsResolved() bool {
+	if cs.hook == nil {
+		return false
+	}
+	res, ok := cs.hook.Value().resolution.Get()
+	if !ok {
+		return false
+	}
+	return mutex.With1(res, func(s *resolveState) bool {
+		return s.isResolved()
+	})
+}
+
 // Send implements ClientHook.Send
 func (cs ClientSnapshot) Send(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 	if cs.hook == nil {
