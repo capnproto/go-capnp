@@ -204,7 +204,7 @@ func (c *lockedConn) sendSenderPromise(id exportID, d rpccp.CapDescriptor) {
 		// Conn before trying to use it again:
 		unlockedConn := (*Conn)(c)
 
-		waitErr := waitRef.Resolve(ctx)
+		waitErr := waitRef.Resolve1(ctx)
 		unlockedConn.withLocked(func(c *lockedConn) {
 			if len(c.lk.exports) <= int(id) || c.lk.exports[id] != ee {
 				// Export was removed from the table at some point;
