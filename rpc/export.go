@@ -17,9 +17,8 @@ type exportID uint32
 
 // expent is an entry in a Conn's export table.
 type expent struct {
-	snapshot  capnp.ClientSnapshot
-	wireRefs  uint32
-	isPromise bool
+	snapshot capnp.ClientSnapshot
+	wireRefs uint32
 
 	// Should be called when removing this entry from the exports table:
 	cancel context.CancelFunc

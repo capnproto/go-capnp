@@ -1598,7 +1598,7 @@ func (c *Conn) handleDisembargo(ctx context.Context, in transport.IncomingMessag
 						str.Utod(tgt.importedCap)))
 					return
 				}
-				if !ent.isPromise {
+				if !ent.snapshot.IsPromise() {
 					err = rpcerr.Failed(errors.New(
 						"sender loopback: target export " +
 							str.Utod(tgt.importedCap) +
