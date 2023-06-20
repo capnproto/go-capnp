@@ -821,6 +821,9 @@ func SetClientLeakFunc(clientLeakFunc func(msg string)) {
 				clientLeakFunc("leaked client created at:\n\n" + stack)
 			})
 		case ClientSnapshot:
+			if !c.IsValid() {
+				return
+			}
 			runtime.SetFinalizer(c.hook, func(c *rc.Ref[clientHook]) {
 				if !c.IsValid() {
 					return
