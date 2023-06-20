@@ -11,6 +11,7 @@ import (
 	"capnproto.org/go/capnp/v3/rpc/transport"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSenderPromiseFulfill(t *testing.T) {
@@ -402,14 +403,14 @@ func TestPromiseOrdering(t *testing.T) {
 		// Verify that all the results are as expected. The server
 		// Will verify that they came in the right order.
 		res, err := fut.Struct()
-		assert.NoError(t, err, fmt.Sprintf("call #%d should succeed", i))
-		assert.Equal(t, int64(i), res.N())
+		require.NoError(t, err, fmt.Sprintf("call #%d should succeed", i))
+		require.Equal(t, int64(i), res.N())
 	}
 	for _, rel := range rels {
 		rel()
 	}
 
-	assert.NoError(t, remotePromise.Resolve(ctx))
+	require.NoError(t, remotePromise.Resolve(ctx))
 	// Shut down the connections, and make sure we can still send
 	// calls. This ensures that we've successfully shortened the path to
 	// cut out the remote peer:
@@ -418,6 +419,6 @@ func TestPromiseOrdering(t *testing.T) {
 	fut, rel := echoNum(ctx, remotePromise, int64(numCalls))
 	defer rel()
 	res, err := fut.Struct()
-	assert.NoError(t, err)
-	assert.Equal(t, int64(numCalls), res.N())
+	require.NoError(t, err)
+	require.Equal(t, int64(numCalls), res.N())
 }
