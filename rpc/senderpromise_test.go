@@ -2,6 +2,7 @@ package rpc_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"capnproto.org/go/capnp/v3"
@@ -401,7 +402,7 @@ func TestPromiseOrdering(t *testing.T) {
 		// Verify that all the results are as expected. The server
 		// Will verify that they came in the right order.
 		res, err := fut.Struct()
-		assert.NoError(t, err)
+		assert.NoError(t, err, fmt.Sprintf("call #%d should succeed", i))
 		assert.Equal(t, int64(i), res.N())
 	}
 	for _, rel := range rels {
