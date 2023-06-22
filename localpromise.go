@@ -28,6 +28,7 @@ func (lf localResolver[C]) Fulfill(c C) {
 	iface := NewInterface(seg, capID)
 	lf.p.Fulfill(iface.ToPtr())
 	lf.p.ReleaseClients()
+	msg.Release()
 }
 
 func (lf localResolver[C]) Reject(err error) {

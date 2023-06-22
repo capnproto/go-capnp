@@ -393,9 +393,7 @@ func TestPromiseOrdering(t *testing.T) {
 		// with the other bootstrap interface:
 		if i == 100 {
 			go func() {
-				bs := testcapnp.PingPong(c1.Bootstrap(ctx))
-				defer bs.Release()
-				r.Fulfill(bs)
+				r.Fulfill(testcapnp.PingPong(c1.Bootstrap(ctx)))
 			}()
 		}
 	}
