@@ -583,6 +583,13 @@ type ClientSnapshot struct {
 	hook *rc.Ref[clientHook]
 }
 
+func (cs ClientSnapshot) String() string {
+	if !cs.IsValid() {
+		return "ClientSnapshot{}"
+	}
+	return "ClientSnapshot{" + cs.hook.Value().String() + "}"
+}
+
 func (cs ClientSnapshot) IsValid() bool {
 	return cs.hook.IsValid()
 }
@@ -668,6 +675,11 @@ func (cs ClientSnapshot) AddRef() ClientSnapshot {
 // Release the reference to the hook.
 func (cs *ClientSnapshot) Release() {
 	cs.hook.Release()
+}
+
+// Shutdown is an alias for Release, to implement ClientHook.
+func (cs *ClientSnapshot) Shutdown() {
+	cs.Release()
 }
 
 func (cs *ClientSnapshot) Resolve1(ctx context.Context) error {
