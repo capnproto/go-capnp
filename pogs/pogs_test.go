@@ -62,6 +62,39 @@ type Z struct {
 	AnyCapability capnp.Client
 }
 
+func (z Z) AddRef() Z {
+	switch z.Which {
+	case air.Z_Which_echo:
+		z.Echo = z.Echo.AddRef()
+	case air.Z_Which_echoes:
+		old := z.Echoes
+		z.Echoes = make([]air.Echo, len(old))
+		for i := range old {
+			z.Echoes[i] = old[i].AddRef()
+		}
+	case air.Z_Which_anyCapability:
+		z.AnyCapability = z.AnyCapability.AddRef()
+	case air.Z_Which_zvec:
+		old := z.Zvec
+		z.Zvec = make([]*Z, len(old))
+		for i := range old {
+			newRef := old[i].AddRef()
+			z.Zvec[i] = &newRef
+		}
+	case air.Z_Which_zvecvec:
+		old := z.Zvecvec
+		z.Zvecvec = make([][]*Z, len(old))
+		for i := range old {
+			z.Zvecvec[i] = make([]*Z, len(old[i]))
+			for j := range old[i] {
+				newRef := old[i][j].AddRef()
+				z.Zvecvec[i][j] = &newRef
+			}
+		}
+	}
+	return z
+}
+
 type PlaneBase struct {
 	Name     string
 	Homes    []air.Airport
@@ -241,7 +274,8 @@ func TestInsert(t *testing.T) {
 			t.Errorf("NewRootZ for %s: %v", zpretty.Sprint(test), err)
 			continue
 		}
-		err = Insert(air.Z_TypeID, capnp.Struct(z), &test)
+		testCopy := test.AddRef()
+		err = Insert(air.Z_TypeID, capnp.Struct(z), &testCopy)
 		if err != nil {
 			t.Errorf("Insert(%s) error: %v", zpretty.Sprint(test), err)
 		}
@@ -1205,7 +1239,7 @@ func zfill(c air.Z, g *Z) error {
 			c.Grp().SetSecond(g.Grp.Second)
 		}
 	case air.Z_Which_echo:
-		c.SetEcho(g.Echo)
+		c.SetEcho(g.Echo.AddRef())
 	case air.Z_Which_echoes:
 		e, err := c.NewEchoes(int32(len(g.Echoes)))
 		if err != nil {
@@ -1215,7 +1249,7 @@ func zfill(c air.Z, g *Z) error {
 			if !ee.IsValid() {
 				continue
 			}
-			err := e.Set(i, ee)
+			err := e.Set(i, ee.AddRef())
 			if err != nil {
 				return err
 			}
@@ -1227,7 +1261,7 @@ func zfill(c air.Z, g *Z) error {
 	case air.Z_Which_anyList:
 		return c.SetAnyList(g.AnyList)
 	case air.Z_Which_anyCapability:
-		return c.SetAnyCapability(g.AnyCapability)
+		return c.SetAnyCapability(g.AnyCapability.AddRef())
 	default:
 		return fmt.Errorf("zfill: unknown type: %v", g.Which)
 	}
