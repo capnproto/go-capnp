@@ -157,18 +157,26 @@ func (c *lockedConn) send3PHPromise(
 			return
 		}
 
+		var provideQID questionID
 		// XXX: think about what we should be doing for contexts here:
 		srcConn.withLocked(func(c *lockedConn) {
+			provideQID = c.lk.questionID.next()
 			c.sendMessage(c.bgctx, func(m rpccp.Message) error {
 				provide, err := m.NewProvide()
 				if err != nil {
 					return err
 				}
+				provide.SetQuestionId(uint32(provideQID))
 				if err = provide.SetRecipient(capnp.Ptr(introInfo.SendToProvider)); err != nil {
 					return err
 				}
-				panic("TODO: set questionId & target")
+				panic("TODO: set target")
 			}, func(err error) {
+				if err != nil {
+					srcConn.withLocked(func(c *lockedConn) {
+						c.lk.questionID.remove(provideQID)
+					})
+				}
 				panic("TODO")
 			})
 		})
