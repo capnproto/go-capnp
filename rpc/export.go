@@ -132,7 +132,7 @@ func (c *lockedConn) send3PHPromise(
 
 	// TODO(cleanup): most of this is copypasta from sendExport; consider
 	// ways to factor out the common bits.
-	id := exportID(c.lk.exportID.next())
+	id := c.lk.exportID.next()
 	metadata := pSnapshot.Metadata()
 	metadata.Lock()
 	defer metadata.Unlock()
