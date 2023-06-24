@@ -121,6 +121,7 @@ func (c *lockedConn) send3PHPromise(
 	d rpccp.CapDescriptor,
 	srcConn *Conn,
 	srcSnapshot capnp.ClientSnapshot,
+	target parsedMessageTarget,
 ) exportID {
 	if c.network != srcConn.network {
 		panic("BUG: tried to do 3PH between different networks")
@@ -132,18 +133,18 @@ func (c *lockedConn) send3PHPromise(
 
 	// TODO(cleanup): most of this is copypasta from sendExport; consider
 	// ways to factor out the common bits.
-	id := c.lk.exportID.next()
+	promiseID := c.lk.exportID.next()
 	metadata := pSnapshot.Metadata()
 	metadata.Lock()
 	defer metadata.Unlock()
-	c.setExportID(metadata, id)
-	c.insertExport(id, &expent{
+	c.setExportID(metadata, promiseID)
+	ee := &expent{
 		snapshot: pSnapshot,
 		wireRefs: 1,
 		cancel:   func() {},
-	})
-
-	d.SetSenderPromise(uint32(id))
+	}
+	c.insertExport(promiseID, ee)
+	d.SetSenderPromise(uint32(promiseID))
 
 	go func() {
 		c := (*Conn)(c)
@@ -170,7 +171,15 @@ func (c *lockedConn) send3PHPromise(
 				if err = provide.SetRecipient(capnp.Ptr(introInfo.SendToProvider)); err != nil {
 					return err
 				}
-				panic("TODO: set target")
+				encodedTgt, err := provide.NewTarget()
+				if err != nil {
+					return err
+				}
+				if err = target.Encode(encodedTgt); err != nil {
+					return err
+				}
+				// TODO: probably set up something in our questions table?
+				return nil
 			}, func(err error) {
 				if err != nil {
 					srcConn.withLocked(func(c *lockedConn) {
@@ -182,11 +191,14 @@ func (c *lockedConn) send3PHPromise(
 		})
 		c.withLocked(func(c *lockedConn) {
 			c.sendMessage(c.bgctx, func(m rpccp.Message) error {
+				if c.lk.exports[promiseID] != ee {
+					panic("TODO: at some point the receiver lost interest in the cap")
+				}
 				resolve, err := m.NewResolve()
 				if err != nil {
 					return err
 				}
-				// TODO: set promiseId
+				resolve.SetPromiseId(uint32(promiseID))
 				capDesc, err := resolve.NewCap()
 				if err != nil {
 					return err
@@ -198,14 +210,17 @@ func (c *lockedConn) send3PHPromise(
 				if err = thirdCapDesc.SetId(capnp.Ptr(introInfo.SendToRecipient)); err != nil {
 					return err
 				}
-				panic("TODO: set vineId")
 
+				panic("TODO: set the vine id")
+				// It is tempting to just re-use promiseID for the vine,
+				// but we can't, since we need to respond specially to
+				// the first call to a vine.
 			}, func(err error) {
 				panic("TODO")
 			})
 		})
 	}()
-	return id
+	return promiseID
 }
 
 // sendCap writes a capability descriptor, returning an export ID if
@@ -228,7 +243,14 @@ func (c *lockedConn) sendCap(d rpccp.CapDescriptor, snapshot capnp.ClientSnapsho
 		}
 		if c.network != nil && c.network == ic.c.network {
 
-			return c.send3PHPromise(d, ic.c, snapshot.AddRef()), true, nil
+			exportID := c.send3PHPromise(
+				d, ic.c, snapshot.AddRef(),
+				parsedMessageTarget{
+					which:       rpccp.MessageTarget_Which_importedCap,
+					importedCap: exportID(ic.id),
+				},
+			)
+			return exportID, true, nil
 		}
 	} else if pc, ok := bv.(capnp.PipelineClient); ok {
 		if q, ok := c.getAnswerQuestion(pc.Answer()); ok {
@@ -249,7 +271,15 @@ func (c *lockedConn) sendCap(d rpccp.CapDescriptor, snapshot capnp.ClientSnapsho
 				return 0, false, nil
 			}
 			if c.network != nil && c.network == q.c.network {
-				return c.send3PHPromise(d, q.c, snapshot.AddRef()), true, nil
+				exportID := c.send3PHPromise(
+					d, q.c, snapshot.AddRef(),
+					parsedMessageTarget{
+						which:          rpccp.MessageTarget_Which_promisedAnswer,
+						transform:      pc.Transform(),
+						promisedAnswer: answerID(q.id),
+					},
+				)
+				return exportID, true, nil
 			}
 		}
 	}

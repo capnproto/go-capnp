@@ -1055,6 +1055,30 @@ func parseMessageTarget(pt *parsedMessageTarget, tgt rpccp.MessageTarget) error 
 	return nil
 }
 
+func (pt parsedMessageTarget) Encode(into rpccp.MessageTarget) error {
+	switch pt.which {
+	case rpccp.MessageTarget_Which_importedCap:
+		into.SetImportedCap(uint32(pt.importedCap))
+		return nil
+	case rpccp.MessageTarget_Which_promisedAnswer:
+		pa, err := into.NewPromisedAnswer()
+		if err != nil {
+			return err
+		}
+		pa.SetQuestionId(uint32(pt.promisedAnswer))
+		trans, err := pa.NewTransform(int32(len(pt.transform)))
+		if err != nil {
+			return err
+		}
+		for i, op := range pt.transform {
+			trans.At(i).SetGetPointerField(op.Field)
+		}
+		return nil
+	default:
+		return rpcerr.Unimplemented(errors.New("unknown message target " + pt.which.String()))
+	}
+}
+
 func parseTransform(list rpccp.PromisedAnswer_Op_List) ([]capnp.PipelineOp, error) {
 	ops := make([]capnp.PipelineOp, 0, list.Len())
 	for i := 0; i < list.Len(); i++ {
