@@ -72,7 +72,7 @@ func (c *lockedConn) releaseExport(id exportID, count uint32) (capnp.ClientSnaps
 		defer ent.cancel()
 		snapshot := ent.snapshot
 		c.lk.exports[id] = nil
-		c.lk.exportID.remove(uint32(id))
+		c.lk.exportID.remove(id)
 		metadata := snapshot.Metadata()
 		syncutil.With(metadata, func() {
 			c.clearExportID(metadata)
@@ -170,7 +170,7 @@ func (c *lockedConn) sendCap(d rpccp.CapDescriptor, snapshot capnp.ClientSnapsho
 			wireRefs: 1,
 			cancel:   func() {},
 		}
-		id = exportID(c.lk.exportID.next())
+		id = c.lk.exportID.next()
 		if int64(id) == int64(len(c.lk.exports)) {
 			c.lk.exports = append(c.lk.exports, ee)
 		} else {
@@ -308,7 +308,7 @@ func (e embargo) String() string {
 //
 // The caller must be holding onto c.mu.
 func (c *lockedConn) embargo(client capnp.Client) (embargoID, capnp.Client) {
-	id := embargoID(c.lk.embargoID.next())
+	id := c.lk.embargoID.next()
 	e := newEmbargo(client)
 	if int64(id) == int64(len(c.lk.embargoes)) {
 		c.lk.embargoes = append(c.lk.embargoes, e)
