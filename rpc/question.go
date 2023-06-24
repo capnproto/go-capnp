@@ -51,7 +51,7 @@ func (flags questionFlags) Contains(flag questionFlags) bool {
 func (c *lockedConn) newQuestion(method capnp.Method) *question {
 	q := &question{
 		c:             (*Conn)(c),
-		id:            questionID(c.lk.questionID.next()),
+		id:            c.lk.questionID.next(),
 		release:       func() {},
 		finishMsgSend: make(chan struct{}),
 	}
@@ -156,7 +156,7 @@ func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineO
 				})
 				q2.p.Reject(rpcerr.WrapFailed("send message", err))
 				syncutil.With(&q.c.lk, func() {
-					q.c.lk.questionID.remove(uint32(q2.id))
+					q.c.lk.questionID.remove(q2.id)
 				})
 				return
 			}

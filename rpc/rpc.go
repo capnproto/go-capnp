@@ -122,13 +122,13 @@ type Conn struct {
 
 		// Tables
 		questions  []*question
-		questionID idgen
+		questionID idgen[questionID]
 		answers    map[answerID]*ansent
 		exports    []*expent
-		exportID   idgen
+		exportID   idgen[exportID]
 		imports    map[importID]*impent
 		embargoes  []*embargo
-		embargoID  idgen
+		embargoID  idgen[embargoID]
 	}
 }
 
@@ -330,7 +330,7 @@ func (c *Conn) Bootstrap(ctx context.Context) (bc capnp.Client) {
 				})
 				q.p.Reject(exc.Annotate("rpc", "bootstrap", err))
 				syncutil.With(&c.lk, func() {
-					c.lk.questionID.remove(uint32(q.id))
+					c.lk.questionID.remove(q.id)
 				})
 				return
 			}
@@ -1118,7 +1118,7 @@ func (c *Conn) handleReturn(ctx context.Context, in transport.IncomingMessage) e
 			select {
 			case <-q.finishMsgSend:
 				if q.flags.Contains(finishSent) {
-					c.lk.questionID.remove(uint32(qid))
+					c.lk.questionID.remove(qid)
 				}
 				dq.Defer(in.Release)
 			default:
@@ -1129,7 +1129,7 @@ func (c *Conn) handleReturn(ctx context.Context, in transport.IncomingMessage) e
 					<-q.finishMsgSend
 					c.withLocked(func(c *lockedConn) {
 						if q.flags.Contains(finishSent) {
-							c.lk.questionID.remove(uint32(qid))
+							c.lk.questionID.remove(qid)
 						}
 					})
 				}()
@@ -1189,7 +1189,7 @@ func (c *Conn) handleReturn(ctx context.Context, in transport.IncomingMessage) e
 						c.er.ReportError(err)
 					} else {
 						q.flags |= finishSent
-						c.lk.questionID.remove(uint32(qid))
+						c.lk.questionID.remove(qid)
 					}
 				})
 			})
@@ -1573,7 +1573,7 @@ func (c *Conn) handleDisembargo(ctx context.Context, in transport.IncomingMessag
 			if e != nil {
 				// TODO(soon): verify target matches the right import.
 				c.lk.embargoes[id] = nil
-				c.lk.embargoID.remove(uint32(id))
+				c.lk.embargoID.remove(id)
 			}
 		})
 		if e == nil {
