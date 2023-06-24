@@ -158,10 +158,10 @@ func (c *lockedConn) send3PHPromise(
 			return
 		}
 
-		var provideQID questionID
 		// XXX: think about what we should be doing for contexts here:
+		provideQID := c.lk.questionID.next()
+		vine := newVine(srcConn, provideQID, srcSnapshot.AddRef())
 		srcConn.withLocked(func(c *lockedConn) {
-			provideQID = c.lk.questionID.next()
 			c.sendMessage(c.bgctx, func(m rpccp.Message) error {
 				provide, err := m.NewProvide()
 				if err != nil {
@@ -186,7 +186,7 @@ func (c *lockedConn) send3PHPromise(
 						c.lk.questionID.remove(provideQID)
 					})
 				}
-				panic("TODO")
+				panic("TODO: anything else?")
 			})
 		})
 		c.withLocked(func(c *lockedConn) {
@@ -211,12 +211,19 @@ func (c *lockedConn) send3PHPromise(
 					return err
 				}
 
-				panic("TODO: set the vine id")
-				// It is tempting to just re-use promiseID for the vine,
-				// but we can't, since we need to respond specially to
-				// the first call to a vine.
+				vineID := c.lk.exportID.next()
+				client := capnp.NewClient(vine)
+				defer client.Release()
+				c.lk.exports[vineID] = &expent{
+					snapshot: client.Snapshot(),
+					wireRefs: 1,
+					cancel:   func() {},
+				}
+
+				thirdCapDesc.SetVineId(uint32(vineID))
+				return nil
 			}, func(err error) {
-				panic("TODO")
+				panic("TODO: clean up vine, other stuff?")
 			})
 		})
 	}()
