@@ -109,6 +109,97 @@ func (c *lockedConn) releaseExportRefs(dq *deferred.Queue, refs map[exportID]uin
 	return firstErr
 }
 
+// send3PHPromise begins the process of performing a third party handoff,
+// passing srcSnapshot across c. srcSnapshot must point to an object across
+// srcConn.
+//
+// This will store a senderPromise capability in d, which will later be
+// resolved to a thirdPartyHosted cap by a separate goroutine.
+//
+// Returns the export ID for the promise.
+func (c *lockedConn) send3PHPromise(
+	d rpccp.CapDescriptor,
+	srcConn *Conn,
+	srcSnapshot capnp.ClientSnapshot,
+) exportID {
+	if c.network != srcConn.network {
+		panic("BUG: tried to do 3PH between different networks")
+	}
+
+	p, r := capnp.NewLocalPromise[capnp.Client]()
+	pSnapshot := p.Snapshot()
+	r.Fulfill(srcSnapshot.Client()) // FIXME: this may allow path shortening...
+
+	// TODO(cleanup): most of this is copypasta from sendExport; consider
+	// ways to factor out the common bits.
+	id := exportID(c.lk.exportID.next())
+	metadata := pSnapshot.Metadata()
+	metadata.Lock()
+	defer metadata.Unlock()
+	c.setExportID(metadata, id)
+	c.insertExport(id, &expent{
+		snapshot: pSnapshot,
+		wireRefs: 1,
+		cancel:   func() {},
+	})
+
+	d.SetSenderPromise(uint32(id))
+
+	go func() {
+		c := (*Conn)(c)
+		defer srcSnapshot.Release()
+
+		// TODO(cleanup): we should probably make the src/dest arguments
+		// consistent across all 3PH code:
+		introInfo, err := c.network.Introduce(srcConn, c)
+		if err != nil {
+			// TODO: report somehow; see above.
+			return
+		}
+
+		// XXX: think about what we should be doing for contexts here:
+		srcConn.withLocked(func(c *lockedConn) {
+			c.sendMessage(c.bgctx, func(m rpccp.Message) error {
+				provide, err := m.NewProvide()
+				if err != nil {
+					return err
+				}
+				if err = provide.SetRecipient(capnp.Ptr(introInfo.SendToProvider)); err != nil {
+					return err
+				}
+				panic("TODO: set questionId & target")
+			}, func(err error) {
+				panic("TODO")
+			})
+		})
+		c.withLocked(func(c *lockedConn) {
+			c.sendMessage(c.bgctx, func(m rpccp.Message) error {
+				resolve, err := m.NewResolve()
+				if err != nil {
+					return err
+				}
+				// TODO: set promiseId
+				capDesc, err := resolve.NewCap()
+				if err != nil {
+					return err
+				}
+				thirdCapDesc, err := capDesc.NewThirdPartyHosted()
+				if err != nil {
+					return err
+				}
+				if err = thirdCapDesc.SetId(capnp.Ptr(introInfo.SendToRecipient)); err != nil {
+					return err
+				}
+				panic("TODO: set vineId")
+
+			}, func(err error) {
+				panic("TODO")
+			})
+		})
+	}()
+	return id
+}
+
 // sendCap writes a capability descriptor, returning an export ID if
 // this vat is hosting the capability. Steals the snapshot.
 func (c *lockedConn) sendCap(d rpccp.CapDescriptor, snapshot capnp.ClientSnapshot) (_ exportID, isExport bool, _ error) {
@@ -119,21 +210,21 @@ func (c *lockedConn) sendCap(d rpccp.CapDescriptor, snapshot capnp.ClientSnapsho
 
 	defer snapshot.Release()
 	bv := snapshot.Brand().Value
+	unlockedConn := (*Conn)(c)
 	if ic, ok := bv.(*importClient); ok {
-		if ic.c == (*Conn)(c) {
+		if ic.c == unlockedConn {
 			if ent := c.lk.imports[ic.id]; ent != nil && ent.generation == ic.generation {
 				d.SetReceiverHosted(uint32(ic.id))
 				return 0, false, nil
 			}
 		}
 		if c.network != nil && c.network == ic.c.network {
-			panic("TODO: 3PH")
-		}
-	}
 
-	if pc, ok := bv.(capnp.PipelineClient); ok {
+			return c.send3PHPromise(d, ic.c, snapshot.AddRef()), true, nil
+		}
+	} else if pc, ok := bv.(capnp.PipelineClient); ok {
 		if q, ok := c.getAnswerQuestion(pc.Answer()); ok {
-			if q.c == (*Conn)(c) {
+			if q.c == unlockedConn {
 				pcTrans := pc.Transform()
 				pa, err := d.NewReceiverAnswer()
 				if err != nil {
@@ -150,12 +241,25 @@ func (c *lockedConn) sendCap(d rpccp.CapDescriptor, snapshot capnp.ClientSnapsho
 				return 0, false, nil
 			}
 			if c.network != nil && c.network == q.c.network {
-				panic("TODO: 3PH")
+				return c.send3PHPromise(d, q.c, snapshot.AddRef()), true, nil
 			}
 		}
 	}
 
 	// Default to export.
+	return c.sendExport(d, snapshot), true, nil
+}
+
+func (c *lockedConn) insertExport(id exportID, ee *expent) {
+	if int64(id) == int64(len(c.lk.exports)) {
+		c.lk.exports = append(c.lk.exports, ee)
+	} else {
+		c.lk.exports[id] = ee
+	}
+}
+
+// sendExport is a helper for sendCap that handles the export cases.
+func (c *lockedConn) sendExport(d rpccp.CapDescriptor, snapshot capnp.ClientSnapshot) exportID {
 	metadata := snapshot.Metadata()
 	metadata.Lock()
 	defer metadata.Unlock()
@@ -172,11 +276,7 @@ func (c *lockedConn) sendCap(d rpccp.CapDescriptor, snapshot capnp.ClientSnapsho
 			cancel:   func() {},
 		}
 		id = exportID(c.lk.exportID.next())
-		if int64(id) == int64(len(c.lk.exports)) {
-			c.lk.exports = append(c.lk.exports, ee)
-		} else {
-			c.lk.exports[id] = ee
-		}
+		c.insertExport(id, ee)
 		c.setExportID(metadata, id)
 	}
 	if ee.snapshot.IsPromise() {
@@ -184,10 +284,10 @@ func (c *lockedConn) sendCap(d rpccp.CapDescriptor, snapshot capnp.ClientSnapsho
 	} else {
 		d.SetSenderHosted(uint32(id))
 	}
-	return id, true, nil
+	return id
 }
 
-// sendSenderPromise is a helper for sendCap that handles the senderPromise case.
+// sendSenderPromise is a helper for sendExport that handles the senderPromise case.
 func (c *lockedConn) sendSenderPromise(id exportID, d rpccp.CapDescriptor) {
 	// Send a promise, wait for the resolution asynchronously, then send
 	// a resolve message:
