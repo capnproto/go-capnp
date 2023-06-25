@@ -9,6 +9,7 @@ import (
 	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/exp/spsc"
 	"capnproto.org/go/capnp/v3/rpc"
+	"zenhack.net/go/util"
 )
 
 // PeerID is the implementation of peer ids used by a test network
@@ -136,42 +137,33 @@ func (n TestNetwork) Accept(ctx context.Context, opts *rpc.Options) (*rpc.Conn, 
 	return ent.Conn, nil
 }
 
+func makePeerAndNonce(peerID, nonce uint64) PeerAndNonce {
+	_, seg := capnp.NewSingleSegmentMessage(nil)
+	ret, err := NewPeerAndNonce(seg)
+	util.Chkfatal(err)
+	ret.SetPeerId(peerID)
+	ret.SetNonce(nonce)
+	return ret
+}
+
 func (n TestNetwork) Introduce(provider, recipient *rpc.Conn) (rpc.IntroductionInfo, error) {
-	providerPeer := provider.RemotePeerID()
-	recipientPeer := recipient.RemotePeerID()
+	providerPeerID := uint64(provider.RemotePeerID().Value.(PeerID))
+	recipientPeerID := uint64(recipient.RemotePeerID().Value.(PeerID))
 	n.global.mu.Lock()
 	defer n.global.mu.Unlock()
 	nonce := n.global.nextNonce
 	n.global.nextNonce++
-	_, seg := capnp.NewSingleSegmentMessage(nil)
-	ret := rpc.IntroductionInfo{}
-	sendToRecipient, err := NewPeerAndNonce(seg)
-	if err != nil {
-		return ret, err
-	}
-	sendToProvider, err := NewPeerAndNonce(seg)
-	if err != nil {
-		return ret, err
-	}
-	sendToRecipient.SetPeerId(uint64(providerPeer.Value.(PeerID)))
-	sendToRecipient.SetNonce(nonce)
-	sendToProvider.SetPeerId(uint64(recipientPeer.Value.(PeerID)))
-	sendToProvider.SetNonce(nonce)
-	ret.SendToRecipient = rpc.ThirdPartyCapID(sendToRecipient.ToPtr())
-	ret.SendToProvider = rpc.RecipientID(sendToProvider.ToPtr())
-	return ret, nil
+	return rpc.IntroductionInfo{
+		SendToRecipient: rpc.ThirdPartyCapID(makePeerAndNonce(providerPeerID, nonce).ToPtr()),
+		SendToProvider:  rpc.RecipientID(makePeerAndNonce(recipientPeerID, nonce).ToPtr()),
+	}, nil
 }
 func (n TestNetwork) DialIntroduced(capID rpc.ThirdPartyCapID, introducedBy *rpc.Conn) (*rpc.Conn, rpc.ProvisionID, error) {
 	cid := PeerAndNonce(capnp.Ptr(capID).Struct())
-
-	_, seg := capnp.NewSingleSegmentMessage(nil)
-	pid, err := NewPeerAndNonce(seg)
-	if err != nil {
-		return nil, rpc.ProvisionID{}, err
-	}
-	pid.SetPeerId(uint64(introducedBy.RemotePeerID().Value.(PeerID)))
-	pid.SetNonce(cid.Nonce())
-
+	pid := makePeerAndNonce(
+		uint64(introducedBy.RemotePeerID().Value.(PeerID)),
+		cid.Nonce(),
+	)
 	conn, err := n.Dial(rpc.PeerID{PeerID(cid.PeerId())}, nil)
 	return conn, rpc.ProvisionID(pid.ToPtr()), err
 }
