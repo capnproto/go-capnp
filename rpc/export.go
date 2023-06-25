@@ -159,9 +159,13 @@ func (c *lockedConn) send3PHPromise(
 		}
 
 		// XXX: think about what we should be doing for contexts here:
-		provideQID := c.lk.questionID.next()
-		vine := newVine(srcConn, provideQID, srcSnapshot.AddRef())
+		var (
+			provideQID questionID
+			vine       *vine
+		)
 		srcConn.withLocked(func(c *lockedConn) {
+			provideQID = c.lk.questionID.next()
+			vine = newVine(srcConn, provideQID, srcSnapshot.AddRef())
 			c.sendMessage(c.bgctx, func(m rpccp.Message) error {
 				provide, err := m.NewProvide()
 				if err != nil {
