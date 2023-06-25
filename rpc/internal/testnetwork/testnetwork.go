@@ -27,8 +27,9 @@ func (e edge) Flip() edge {
 }
 
 type TestNetwork struct {
-	myID   PeerID
-	global *Joiner
+	myID             PeerID
+	global           *Joiner
+	configureOptions func(*rpc.Options)
 }
 
 // A Joiner is a global view of a test network, which can be joined by a
@@ -57,11 +58,22 @@ func NewJoiner() *Joiner {
 	}
 }
 
-func (j *Joiner) Join() TestNetwork {
+// Join the network.
+//
+// The supplied configureOptions callback will be invoked each time a new
+// connection is established, with an Options whose Network and RemotePeerID
+// fields are already filled in. When the callback returns the options will be
+// passed to rpc.NewConn. If configureOptions is nil, default options will
+// be used.
+func (j *Joiner) Join(configureOptions func(*rpc.Options)) TestNetwork {
+	if configureOptions == nil {
+		configureOptions = func(*rpc.Options) {}
+	}
 	return mutex.With1(&j.state, func(js *joinerState) TestNetwork {
 		ret := TestNetwork{
-			myID:   js.nextID,
-			global: j,
+			myID:             js.nextID,
+			global:           j,
+			configureOptions: configureOptions,
 		}
 		js.nextID++
 		return ret
@@ -81,26 +93,28 @@ func (n TestNetwork) LocalID() rpc.PeerID {
 	return rpc.PeerID{n.myID}
 }
 
-func (n TestNetwork) Dial(dst rpc.PeerID, opts *rpc.Options) (*rpc.Conn, error) {
-	conn, _, err := n.dial(dst, true, opts)
+func (n TestNetwork) Dial(dst rpc.PeerID) (*rpc.Conn, error) {
+	conn, _, err := n.dial(dst, true)
 	return conn, err
 }
 
 // DialTransport is like Dial, except that a Conn is not created, and the raw Transport is
 // returned instead.
 func (n TestNetwork) DialTransport(dst rpc.PeerID) (rpc.Transport, error) {
-	_, trans, err := n.dial(dst, false, nil)
+	_, trans, err := n.dial(dst, false)
 	return trans, err
 }
 
 // Helper for Dial and DialTransport; setupConn indicates whether to create the Conn
 // (if false it will be nil).
-func (n TestNetwork) dial(dst rpc.PeerID, setupConn bool, opts *rpc.Options) (*rpc.Conn, rpc.Transport, error) {
-	if opts == nil {
-		opts = &rpc.Options{}
+func (n TestNetwork) dial(dst rpc.PeerID, setupConn bool) (*rpc.Conn, rpc.Transport, error) {
+	opts := &rpc.Options{
+		Network:      n,
+		RemotePeerID: dst,
 	}
-	opts.Network = n
-	opts.RemotePeerID = dst
+	if setupConn {
+		n.configureOptions(opts)
+	}
 	dstID := dst.Value.(PeerID)
 	toEdge := edge{
 		From: n.myID,
@@ -130,30 +144,22 @@ func (n TestNetwork) dial(dst rpc.PeerID, setupConn bool, opts *rpc.Options) (*r
 	})
 }
 
-func (n TestNetwork) Accept(ctx context.Context, opts *rpc.Options) (*rpc.Conn, error) {
+func (n TestNetwork) Serve(ctx context.Context) error {
 	q := mutex.With1(&n.global.state, func(js *joinerState) spsc.Queue[PeerID] {
 		return js.getAcceptQueue(n.myID)
 	})
-
-	incoming, err := q.Recv(ctx)
-	if err != nil {
-		return nil, err
+	for ctx.Err() == nil {
+		incoming, err := q.Recv(ctx)
+		if err != nil {
+			return err
+		}
+		// Don't actually need to do anything with the conn, just
+		// accept it:
+		if _, err = n.Dial(rpc.PeerID{Value: incoming}); err != nil {
+			return err
+		}
 	}
-	opts.Network = n
-	opts.RemotePeerID = rpc.PeerID{incoming}
-	return mutex.With2(&n.global.state, func(js *joinerState) (*rpc.Conn, error) {
-		edge := edge{
-			From: n.myID,
-			To:   incoming,
-		}
-		ent := js.connections[edge]
-		if ent.Conn == nil {
-			ent.Conn = rpc.NewConn(ent.Transport, opts)
-		} else {
-			opts.BootstrapClient.Release()
-		}
-		return ent.Conn, nil
-	})
+	return ctx.Err()
 }
 
 func makePeerAndNonce(peerID, nonce uint64) PeerAndNonce {
@@ -183,7 +189,7 @@ func (n TestNetwork) DialIntroduced(capID rpc.ThirdPartyCapID, introducedBy *rpc
 		uint64(introducedBy.RemotePeerID().Value.(PeerID)),
 		cid.Nonce(),
 	)
-	conn, err := n.Dial(rpc.PeerID{PeerID(cid.PeerId())}, nil)
+	conn, err := n.Dial(rpc.PeerID{PeerID(cid.PeerId())})
 	return conn, rpc.ProvisionID(pid.ToPtr()), err
 }
 func (n TestNetwork) AcceptIntroduced(recipientID rpc.RecipientID, introducedBy *rpc.Conn) (*rpc.Conn, error) {

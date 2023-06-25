@@ -66,15 +66,13 @@ type Network interface {
 	// Return the identifier for caller on this network.
 	LocalID() PeerID
 
-	// Connect to another peer by ID. The supplied Options are used
-	// for the connection, with the values for RemotePeerID and Network
-	// overridden by the Network.
-	Dial(PeerID, *Options) (*Conn, error)
+	// Connect to another peer by ID. Re-uses any existing connection
+	// to the peer.
+	Dial(PeerID) (*Conn, error)
 
-	// Accept the next incoming connection on the network, using the
-	// supplied Options for the connection. Generally, callers will
-	// want to invoke this in a loop when launching a server.
-	Accept(context.Context, *Options) (*Conn, error)
+	// Accept and handle incoming connections on the network until
+	// the context is canceled.
+	Serve(context.Context) error
 
 	// Introduce the two connections, in preparation for a third party
 	// handoff. Afterwards, a Provide messsage should be sent to
@@ -83,7 +81,8 @@ type Network interface {
 
 	// Given a ThirdPartyCapID, received from introducedBy, connect
 	// to the third party. The caller should then send an Accept
-	// message over the returned Connection.
+	// message over the returned Connection. Re-uses any existing
+	// connection to the peer.
 	DialIntroduced(capID ThirdPartyCapID, introducedBy *Conn) (*Conn, ProvisionID, error)
 
 	// Given a RecipientID received in a Provide message via
