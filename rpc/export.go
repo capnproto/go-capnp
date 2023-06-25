@@ -236,7 +236,10 @@ func (c *lockedConn) send3PHPromise(
 				thirdCapDesc.SetVineId(uint32(vineID))
 				return nil
 			}, func(err error) {
-				panic("TODO: clean up vine, other stuff?")
+				if err != nil {
+					vine.Shutdown()
+				}
+				panic("TODO: cancel provide, other stuff?")
 			})
 		})
 	}()
