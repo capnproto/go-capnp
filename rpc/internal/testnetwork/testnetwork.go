@@ -4,12 +4,12 @@ package testnetwork
 import (
 	"context"
 	"net"
-	"sync"
 
 	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/exp/spsc"
 	"capnproto.org/go/capnp/v3/rpc"
 	"zenhack.net/go/util"
+	"zenhack.net/go/util/sync/mutex"
 )
 
 // PeerID is the implementation of peer ids used by a test network
@@ -34,7 +34,10 @@ type TestNetwork struct {
 // A Joiner is a global view of a test network, which can be joined by a
 // peer to acquire a TestNetwork.
 type Joiner struct {
-	mu          sync.Mutex
+	state mutex.Mutex[joinerState]
+}
+
+type joinerState struct {
 	nextID      PeerID
 	nextNonce   uint64
 	connections map[edge]*connectionEntry
@@ -48,22 +51,24 @@ type connectionEntry struct {
 
 func NewJoiner() *Joiner {
 	return &Joiner{
-		connections: make(map[edge]*connectionEntry),
+		state: mutex.New(joinerState{
+			connections: make(map[edge]*connectionEntry),
+		}),
 	}
 }
 
 func (j *Joiner) Join() TestNetwork {
-	j.mu.Lock()
-	defer j.mu.Unlock()
-	ret := TestNetwork{
-		myID:   j.nextID,
-		global: j,
-	}
-	j.nextID++
-	return ret
+	return mutex.With1(&j.state, func(js *joinerState) TestNetwork {
+		ret := TestNetwork{
+			myID:   js.nextID,
+			global: j,
+		}
+		js.nextID++
+		return ret
+	})
 }
 
-func (j *Joiner) getAcceptQueue(id PeerID) spsc.Queue[PeerID] {
+func (j *joinerState) getAcceptQueue(id PeerID) spsc.Queue[PeerID] {
 	q, ok := j.incoming[id]
 	if !ok {
 		q = spsc.New[PeerID]()
@@ -89,32 +94,32 @@ func (n TestNetwork) Dial(dst rpc.PeerID, opts *rpc.Options) (*rpc.Conn, error) 
 	}
 	fromEdge := toEdge.Flip()
 
-	n.global.mu.Lock()
-	defer n.global.mu.Unlock()
-	ent, ok := n.global.connections[toEdge]
-	if !ok {
-		c1, c2 := net.Pipe()
-		t1 := rpc.NewStreamTransport(c1)
-		t2 := rpc.NewStreamTransport(c2)
-		ent = &connectionEntry{Transport: t1}
-		n.global.connections[toEdge] = ent
-		n.global.connections[fromEdge] = &connectionEntry{Transport: t2}
+	return mutex.With2(&n.global.state, func(state *joinerState) (*rpc.Conn, error) {
+		ent, ok := state.connections[toEdge]
+		if !ok {
+			c1, c2 := net.Pipe()
+			t1 := rpc.NewStreamTransport(c1)
+			t2 := rpc.NewStreamTransport(c2)
+			ent = &connectionEntry{Transport: t1}
+			state.connections[toEdge] = ent
+			state.connections[fromEdge] = &connectionEntry{Transport: t2}
 
-	}
-	if ent.Conn == nil {
-		ent.Conn = rpc.NewConn(ent.Transport, opts)
-	} else {
-		// There's already a connection, so we're not going to use this, but
-		// we own it. So drop it:
-		opts.BootstrapClient.Release()
-	}
-	return ent.Conn, nil
+		}
+		if ent.Conn == nil {
+			ent.Conn = rpc.NewConn(ent.Transport, opts)
+		} else {
+			// There's already a connection, so we're not going to use this, but
+			// we own it. So drop it:
+			opts.BootstrapClient.Release()
+		}
+		return ent.Conn, nil
+	})
 }
 
 func (n TestNetwork) Accept(ctx context.Context, opts *rpc.Options) (*rpc.Conn, error) {
-	n.global.mu.Lock()
-	q := n.global.getAcceptQueue(n.myID)
-	n.global.mu.Unlock()
+	q := mutex.With1(&n.global.state, func(js *joinerState) spsc.Queue[PeerID] {
+		return js.getAcceptQueue(n.myID)
+	})
 
 	incoming, err := q.Recv(ctx)
 	if err != nil {
@@ -122,19 +127,19 @@ func (n TestNetwork) Accept(ctx context.Context, opts *rpc.Options) (*rpc.Conn, 
 	}
 	opts.Network = n
 	opts.RemotePeerID = rpc.PeerID{incoming}
-	n.global.mu.Lock()
-	defer n.global.mu.Unlock()
-	edge := edge{
-		From: n.myID,
-		To:   incoming,
-	}
-	ent := n.global.connections[edge]
-	if ent.Conn == nil {
-		ent.Conn = rpc.NewConn(ent.Transport, opts)
-	} else {
-		opts.BootstrapClient.Release()
-	}
-	return ent.Conn, nil
+	return mutex.With2(&n.global.state, func(js *joinerState) (*rpc.Conn, error) {
+		edge := edge{
+			From: n.myID,
+			To:   incoming,
+		}
+		ent := js.connections[edge]
+		if ent.Conn == nil {
+			ent.Conn = rpc.NewConn(ent.Transport, opts)
+		} else {
+			opts.BootstrapClient.Release()
+		}
+		return ent.Conn, nil
+	})
 }
 
 func makePeerAndNonce(peerID, nonce uint64) PeerAndNonce {
@@ -149,14 +154,14 @@ func makePeerAndNonce(peerID, nonce uint64) PeerAndNonce {
 func (n TestNetwork) Introduce(provider, recipient *rpc.Conn) (rpc.IntroductionInfo, error) {
 	providerPeerID := uint64(provider.RemotePeerID().Value.(PeerID))
 	recipientPeerID := uint64(recipient.RemotePeerID().Value.(PeerID))
-	n.global.mu.Lock()
-	defer n.global.mu.Unlock()
-	nonce := n.global.nextNonce
-	n.global.nextNonce++
-	return rpc.IntroductionInfo{
-		SendToRecipient: rpc.ThirdPartyCapID(makePeerAndNonce(providerPeerID, nonce).ToPtr()),
-		SendToProvider:  rpc.RecipientID(makePeerAndNonce(recipientPeerID, nonce).ToPtr()),
-	}, nil
+	return mutex.With2(&n.global.state, func(js *joinerState) (rpc.IntroductionInfo, error) {
+		nonce := js.nextNonce
+		js.nextNonce++
+		return rpc.IntroductionInfo{
+			SendToRecipient: rpc.ThirdPartyCapID(makePeerAndNonce(providerPeerID, nonce).ToPtr()),
+			SendToProvider:  rpc.RecipientID(makePeerAndNonce(recipientPeerID, nonce).ToPtr()),
+		}, nil
+	})
 }
 func (n TestNetwork) DialIntroduced(capID rpc.ThirdPartyCapID, introducedBy *rpc.Conn) (*rpc.Conn, rpc.ProvisionID, error) {
 	cid := PeerAndNonce(capnp.Ptr(capID).Struct())
