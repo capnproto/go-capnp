@@ -3,11 +3,11 @@ package testnetwork
 
 import (
 	"context"
-	"net"
 
 	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/exp/spsc"
 	"capnproto.org/go/capnp/v3/rpc"
+	"capnproto.org/go/capnp/v3/rpc/transport"
 	"zenhack.net/go/util"
 	"zenhack.net/go/util/sync/mutex"
 )
@@ -125,9 +125,12 @@ func (n TestNetwork) dial(dst rpc.PeerID, setupConn bool) (*rpc.Conn, rpc.Transp
 	return mutex.With3(&n.global.state, func(state *joinerState) (*rpc.Conn, rpc.Transport, error) {
 		ent, ok := state.connections[toEdge]
 		if !ok {
-			c1, c2 := net.Pipe()
-			t1 := rpc.NewStreamTransport(c1)
-			t2 := rpc.NewStreamTransport(c2)
+			// Some tests may need a few messages worth of buffer if
+			// they're using DialTransport; let's be generous:
+			c1, c2 := transport.NewPipe(100)
+
+			t1 := rpc.NewTransport(c1)
+			t2 := rpc.NewTransport(c2)
 			ent = &connectionEntry{Transport: t1}
 			state.connections[toEdge] = ent
 			state.connections[fromEdge] = &connectionEntry{Transport: t2}
