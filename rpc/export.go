@@ -10,6 +10,7 @@ import (
 	"capnproto.org/go/capnp/v3/internal/syncutil"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 	"zenhack.net/go/util/deferred"
+	"zenhack.net/go/util/maybe"
 )
 
 // An exportID is an index into the exports table.
@@ -22,6 +23,12 @@ type expent struct {
 
 	// Should be called when removing this entry from the exports table:
 	cancel context.CancelFunc
+
+	// If present, this export is a promise which resolved to some third
+	// party capability, and the question corresponds to the provide message.
+	// Note that this means the question will belong to a different connection
+	// from the expent.
+	provide maybe.Maybe[*question]
 }
 
 // A key for use in a client's Metadata, whose value is the export
@@ -160,18 +167,19 @@ func (c *lockedConn) send3PHPromise(
 
 		// XXX: think about what we should be doing for contexts here:
 		var (
-			provideQID questionID
-			vine       *vine
+			provideQ *question
+			vine     *vine
 		)
 		srcConn.withLocked(func(c *lockedConn) {
-			provideQID = c.lk.questionID.next()
-			vine = newVine(srcConn, provideQID, srcSnapshot.AddRef())
+			provideQ = c.newQuestion(capnp.Method{})
+			provideQ.flags |= isProvide
+			vine = newVine(srcConn, provideQ.id, srcSnapshot.AddRef())
 			c.sendMessage(c.bgctx, func(m rpccp.Message) error {
 				provide, err := m.NewProvide()
 				if err != nil {
 					return err
 				}
-				provide.SetQuestionId(uint32(provideQID))
+				provide.SetQuestionId(uint32(provideQ.id))
 				if err = provide.SetRecipient(capnp.Ptr(introInfo.SendToProvider)); err != nil {
 					return err
 				}
@@ -182,14 +190,15 @@ func (c *lockedConn) send3PHPromise(
 				if err = target.Encode(encodedTgt); err != nil {
 					return err
 				}
-				// TODO: probably set up something in our questions table?
 				return nil
 			}, func(err error) {
 				if err != nil {
 					srcConn.withLocked(func(c *lockedConn) {
-						c.lk.questionID.remove(provideQID)
+						c.lk.questionID.remove(provideQ.id)
 					})
+					return
 				}
+				go provideQ.handleCancel(c.bgctx)
 				panic("TODO: anything else?")
 			})
 		})
