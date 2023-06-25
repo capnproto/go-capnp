@@ -1711,7 +1711,46 @@ func (c *Conn) handleDisembargo(ctx context.Context, in transport.IncomingMessag
 			})
 		})
 
-	case rpccp.Disembargo_context_Which_accept, rpccp.Disembargo_context_Which_provide:
+	case rpccp.Disembargo_context_Which_accept:
+		defer in.Release()
+		if tgt.which != rpccp.MessageTarget_Which_importedCap {
+			// The Go implementation never emits third party cap descriptors in return
+			// messages, so this can only be valid if it targets an import.
+			return errors.New("incoming disembargo: answer target is not valid for context.accept")
+		}
+		id := tgt.importedCap
+		q, err := withLockedConn2(c, func(c *lockedConn) (*question, error) {
+			if int(id) >= len(c.lk.exports) || c.lk.exports == nil {
+				return nil, errors.New("no such export: " + str.Utod(id))
+			}
+			q, ok := c.lk.exports[id].provide.Get()
+			if !ok {
+				return nil, errors.New("export #" + str.Utod(id) + " does not resolve to a third party capability")
+			}
+			return q, nil
+		})
+		if err != nil {
+			return err
+		}
+		return withLockedConn1(q.c, func(c *lockedConn) error {
+			if !q.flags.Contains(provideDisembargoSent) {
+				return errors.New("disembargo already sent to export #" + str.Utod(id))
+			}
+			q.flags |= provideDisembargoSent
+			c.sendMessage(c.bgctx, func(m rpccp.Message) error {
+				d, err := m.NewDisembargo()
+				if err != nil {
+					return err
+				}
+				d.Context().SetProvide(uint32(q.id))
+				panic("TODO: target")
+			}, func(err error) {
+				panic("TODO")
+			})
+			return nil
+		})
+		return nil
+	case rpccp.Disembargo_context_Which_provide:
 		if c.network != nil {
 			panic("TODO: 3PH")
 		}
