@@ -82,6 +82,20 @@ func (n TestNetwork) LocalID() rpc.PeerID {
 }
 
 func (n TestNetwork) Dial(dst rpc.PeerID, opts *rpc.Options) (*rpc.Conn, error) {
+	conn, _, err := n.dial(dst, true, opts)
+	return conn, err
+}
+
+// DialTransport is like Dial, except that a Conn is not created, and the raw Transport is
+// returned instead.
+func (n TestNetwork) DialTransport(dst rpc.PeerID) (rpc.Transport, error) {
+	_, trans, err := n.dial(dst, false, nil)
+	return trans, err
+}
+
+// Helper for Dial and DialTransport; setupConn indicates whether to create the Conn
+// (if false it will be nil).
+func (n TestNetwork) dial(dst rpc.PeerID, setupConn bool, opts *rpc.Options) (*rpc.Conn, rpc.Transport, error) {
 	if opts == nil {
 		opts = &rpc.Options{}
 	}
@@ -94,7 +108,7 @@ func (n TestNetwork) Dial(dst rpc.PeerID, opts *rpc.Options) (*rpc.Conn, error) 
 	}
 	fromEdge := toEdge.Flip()
 
-	return mutex.With2(&n.global.state, func(state *joinerState) (*rpc.Conn, error) {
+	return mutex.With3(&n.global.state, func(state *joinerState) (*rpc.Conn, rpc.Transport, error) {
 		ent, ok := state.connections[toEdge]
 		if !ok {
 			c1, c2 := net.Pipe()
@@ -105,14 +119,14 @@ func (n TestNetwork) Dial(dst rpc.PeerID, opts *rpc.Options) (*rpc.Conn, error) 
 			state.connections[fromEdge] = &connectionEntry{Transport: t2}
 
 		}
-		if ent.Conn == nil {
+		if setupConn && ent.Conn == nil {
 			ent.Conn = rpc.NewConn(ent.Transport, opts)
 		} else {
 			// There's already a connection, so we're not going to use this, but
 			// we own it. So drop it:
 			opts.BootstrapClient.Release()
 		}
-		return ent.Conn, nil
+		return ent.Conn, ent.Transport, nil
 	})
 }
 
