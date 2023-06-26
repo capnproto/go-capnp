@@ -199,7 +199,6 @@ func (c *lockedConn) send3PHPromise(
 					return
 				}
 				go provideQ.handleCancel(c.bgctx)
-				panic("TODO: anything else?")
 			})
 		})
 		c.withLocked(func(c *lockedConn) {
