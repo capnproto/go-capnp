@@ -62,6 +62,9 @@ type IntroductionInfo struct {
 // A Network is a reference to a multi-party (generally >= 3) network
 // of Cap'n Proto peers. Use this instead of NewConn when establishing
 // connections outside a point-to-point setting.
+//
+// In addition to satisfying the method set, a correct implementation
+// of Netowrk must be comparable.
 type Network interface {
 	// Return the identifier for caller on this network.
 	LocalID() PeerID
