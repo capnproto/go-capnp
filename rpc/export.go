@@ -170,6 +170,7 @@ func (c *lockedConn) send3PHPromise(
 			provideQ *question
 			vine     *vine
 		)
+		ctx, cancel := context.WithCancel(srcConn.bgctx)
 		srcConn.withLocked(func(c *lockedConn) {
 			provideQ = c.newQuestion(capnp.Method{})
 			provideQ.flags |= isProvide
@@ -198,9 +199,14 @@ func (c *lockedConn) send3PHPromise(
 					})
 					return
 				}
-				go provideQ.handleCancel(c.bgctx)
+				go provideQ.handleCancel(ctx)
 			})
 		})
+		unlockedConn := c
+		var (
+			vineID    exportID
+			vineEntry *expent
+		)
 		c.withLocked(func(c *lockedConn) {
 			c.sendMessage(c.bgctx, func(m rpccp.Message) error {
 				if c.lk.exports[promiseID] != ee {
@@ -223,23 +229,31 @@ func (c *lockedConn) send3PHPromise(
 					return err
 				}
 
-				vineID := c.lk.exportID.next()
+				vineID = c.lk.exportID.next()
 				client := capnp.NewClient(vine)
 				defer client.Release()
 
 				c.insertExport(vineID, &expent{
 					snapshot: client.Snapshot(),
 					wireRefs: 1,
-					cancel:   func() {},
+					cancel:   cancel,
 				})
+				vineEntry = c.lk.exports[vineID]
 
 				thirdCapDesc.SetVineId(uint32(vineID))
 				return nil
 			}, func(err error) {
-				if err != nil {
-					vine.Shutdown()
+				if err == nil {
+					return
 				}
-				panic("TODO: cancel provide, other stuff?")
+				if vineEntry == nil {
+					vine.Shutdown()
+				} else {
+					unlockedConn.withLocked(func(c *lockedConn) {
+						snapshot, _ := c.releaseExport(vineID, 1)
+						snapshot.Release()
+					})
+				}
 			})
 		})
 	}()
