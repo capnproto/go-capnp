@@ -227,11 +227,12 @@ func (c *lockedConn) send3PHPromise(
 				vineID := c.lk.exportID.next()
 				client := capnp.NewClient(vine)
 				defer client.Release()
-				c.lk.exports[vineID] = &expent{
+
+				c.insertExport(vineID, &expent{
 					snapshot: client.Snapshot(),
 					wireRefs: 1,
 					cancel:   func() {},
-				}
+				})
 
 				thirdCapDesc.SetVineId(uint32(vineID))
 				return nil
