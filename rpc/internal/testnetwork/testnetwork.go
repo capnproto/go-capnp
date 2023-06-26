@@ -54,6 +54,7 @@ func NewJoiner() *Joiner {
 	return &Joiner{
 		state: mutex.New(joinerState{
 			connections: make(map[edge]*connectionEntry),
+			incoming:    make(map[PeerID]spsc.Queue[PeerID]),
 		}),
 	}
 }
@@ -65,12 +66,12 @@ func NewJoiner() *Joiner {
 // fields are already filled in. When the callback returns the options will be
 // passed to rpc.NewConn. If configureOptions is nil, default options will
 // be used.
-func (j *Joiner) Join(configureOptions func(*rpc.Options)) TestNetwork {
+func (j *Joiner) Join(configureOptions func(*rpc.Options)) *TestNetwork {
 	if configureOptions == nil {
 		configureOptions = func(*rpc.Options) {}
 	}
-	return mutex.With1(&j.state, func(js *joinerState) TestNetwork {
-		ret := TestNetwork{
+	return mutex.With1(&j.state, func(js *joinerState) *TestNetwork {
+		ret := &TestNetwork{
 			myID:             js.nextID,
 			global:           j,
 			configureOptions: configureOptions,
@@ -89,25 +90,25 @@ func (j *joinerState) getAcceptQueue(id PeerID) spsc.Queue[PeerID] {
 	return q
 }
 
-func (n TestNetwork) LocalID() rpc.PeerID {
+func (n *TestNetwork) LocalID() rpc.PeerID {
 	return rpc.PeerID{n.myID}
 }
 
-func (n TestNetwork) Dial(dst rpc.PeerID) (*rpc.Conn, error) {
+func (n *TestNetwork) Dial(dst rpc.PeerID) (*rpc.Conn, error) {
 	conn, _, err := n.dial(dst, true)
 	return conn, err
 }
 
 // DialTransport is like Dial, except that a Conn is not created, and the raw Transport is
 // returned instead.
-func (n TestNetwork) DialTransport(dst rpc.PeerID) (rpc.Transport, error) {
+func (n *TestNetwork) DialTransport(dst rpc.PeerID) (rpc.Transport, error) {
 	_, trans, err := n.dial(dst, false)
 	return trans, err
 }
 
 // Helper for Dial and DialTransport; setupConn indicates whether to create the Conn
 // (if false it will be nil).
-func (n TestNetwork) dial(dst rpc.PeerID, setupConn bool) (*rpc.Conn, rpc.Transport, error) {
+func (n *TestNetwork) dial(dst rpc.PeerID, setupConn bool) (*rpc.Conn, rpc.Transport, error) {
 	opts := &rpc.Options{
 		Network:      n,
 		RemotePeerID: dst,
@@ -147,7 +148,7 @@ func (n TestNetwork) dial(dst rpc.PeerID, setupConn bool) (*rpc.Conn, rpc.Transp
 	})
 }
 
-func (n TestNetwork) Serve(ctx context.Context) error {
+func (n *TestNetwork) Serve(ctx context.Context) error {
 	q := mutex.With1(&n.global.state, func(js *joinerState) spsc.Queue[PeerID] {
 		return js.getAcceptQueue(n.myID)
 	})
@@ -174,7 +175,7 @@ func makePeerAndNonce(peerID, nonce uint64) PeerAndNonce {
 	return ret
 }
 
-func (n TestNetwork) Introduce(provider, recipient *rpc.Conn) (rpc.IntroductionInfo, error) {
+func (n *TestNetwork) Introduce(provider, recipient *rpc.Conn) (rpc.IntroductionInfo, error) {
 	providerPeerID := uint64(provider.RemotePeerID().Value.(PeerID))
 	recipientPeerID := uint64(recipient.RemotePeerID().Value.(PeerID))
 	return mutex.With2(&n.global.state, func(js *joinerState) (rpc.IntroductionInfo, error) {
@@ -186,7 +187,7 @@ func (n TestNetwork) Introduce(provider, recipient *rpc.Conn) (rpc.IntroductionI
 		}, nil
 	})
 }
-func (n TestNetwork) DialIntroduced(capID rpc.ThirdPartyCapID, introducedBy *rpc.Conn) (*rpc.Conn, rpc.ProvisionID, error) {
+func (n *TestNetwork) DialIntroduced(capID rpc.ThirdPartyCapID, introducedBy *rpc.Conn) (*rpc.Conn, rpc.ProvisionID, error) {
 	cid := PeerAndNonce(capnp.Ptr(capID).Struct())
 	pid := makePeerAndNonce(
 		uint64(introducedBy.RemotePeerID().Value.(PeerID)),
@@ -195,6 +196,6 @@ func (n TestNetwork) DialIntroduced(capID rpc.ThirdPartyCapID, introducedBy *rpc
 	conn, err := n.Dial(rpc.PeerID{PeerID(cid.PeerId())})
 	return conn, rpc.ProvisionID(pid.ToPtr()), err
 }
-func (n TestNetwork) AcceptIntroduced(recipientID rpc.RecipientID, introducedBy *rpc.Conn) (*rpc.Conn, error) {
+func (n *TestNetwork) AcceptIntroduced(recipientID rpc.RecipientID, introducedBy *rpc.Conn) (*rpc.Conn, error) {
 	panic("TODO")
 }
