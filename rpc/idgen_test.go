@@ -7,7 +7,7 @@ import (
 
 func TestIDGen(t *testing.T) {
 	t.Run("NoReplacement", func(t *testing.T) {
-		var gen idgen
+		var gen idgen[uint32]
 		for i := uint32(0); i <= 128; i++ {
 			got := gen.next()
 			if got != i {
@@ -16,7 +16,7 @@ func TestIDGen(t *testing.T) {
 		}
 	})
 	t.Run("Replacement", func(t *testing.T) {
-		var gen idgen
+		var gen idgen[uint32]
 		for i := 0; i < 64; i++ {
 			gen.next()
 		}

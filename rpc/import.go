@@ -111,7 +111,7 @@ func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, 
 				})
 				q.p.Reject(rpcerr.WrapFailed("send message", err))
 				syncutil.With(&ic.c.lk, func() {
-					ic.c.lk.questionID.remove(uint32(q.id))
+					ic.c.lk.questionID.remove(q.id)
 				})
 				return
 			}
