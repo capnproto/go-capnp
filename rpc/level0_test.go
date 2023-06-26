@@ -2083,6 +2083,7 @@ type rpcMessage struct {
 	Resolve       *rpcResolve
 	Release       *rpcRelease
 	Disembargo    *rpcDisembargo
+	Provide       *rpcProvide
 }
 
 func sendMessage(ctx context.Context, t rpc.Transport, msg *rpcMessage) error {
