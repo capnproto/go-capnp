@@ -28,9 +28,13 @@ func TestSendProvide(t *testing.T) {
 	pp := testcapnp.PingPong_ServerToClient(&pingPonger{})
 	defer pp.Release()
 
-	introducer := j.Join(nil)
-	recipient := j.Join(nil)
-	provider := j.Join(nil)
+	cfgOpts := func(opts *rpc.Options) {
+		opts.ErrorReporter = testErrorReporter{tb: t}
+	}
+
+	introducer := j.Join(cfgOpts)
+	recipient := j.Join(cfgOpts)
+	provider := j.Join(cfgOpts)
 
 	go introducer.Serve(ctx)
 
