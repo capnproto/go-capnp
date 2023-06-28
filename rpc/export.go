@@ -135,6 +135,7 @@ func (c *lockedConn) send3PHPromise(
 	}
 
 	p, r := capnp.NewLocalPromise[capnp.Client]()
+	defer p.Release()
 	pSnapshot := p.Snapshot()
 	r.Fulfill(srcSnapshot.Client()) // FIXME: this may allow path shortening...
 
