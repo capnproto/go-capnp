@@ -11,6 +11,7 @@ import (
 	"capnproto.org/go/capnp/v3/rpc/internal/testnetwork"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 	"github.com/stretchr/testify/require"
+	"zenhack.net/go/util/deferred"
 )
 
 type rpcProvide struct {
@@ -20,13 +21,21 @@ type rpcProvide struct {
 }
 
 func TestSendProvide(t *testing.T) {
+	// Note: we do our deferring in this test via a deferred.Queue,
+	// so we can be sure that cancelling the context happens *first.*
+	// Otherwise, some of the things we defer can block until
+	// connection shutdown which won't happen until the context ends,
+	// causing this test to deadlock instead of failing with a useful
+	// error.
+	dq := deferred.Queue{}
+	defer dq.Run()
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	dq.Defer(cancel)
 
 	j := testnetwork.NewJoiner()
 
 	pp := testcapnp.PingPong_ServerToClient(&pingPonger{})
-	defer pp.Release()
+	dq.Defer(pp.Release)
 
 	cfgOpts := func(opts *rpc.Options) {
 		opts.ErrorReporter = testErrorReporter{tb: t}
@@ -45,9 +54,9 @@ func TestSendProvide(t *testing.T) {
 	require.NoError(t, err)
 
 	rBs := rConn.Bootstrap(ctx)
-	defer rBs.Release()
+	dq.Defer(rBs.Release)
 	pBs := pConn.Bootstrap(ctx)
-	defer pBs.Release()
+	dq.Defer(pBs.Release)
 
 	rTrans, err := recipient.DialTransport(introducer.LocalID())
 	require.NoError(t, err)
@@ -60,7 +69,7 @@ func TestSendProvide(t *testing.T) {
 		// Receive bootstrap
 		rmsg, release, err := recvMessage(ctx, trans)
 		require.NoError(t, err)
-		defer release()
+		dq.Defer(release)
 		require.Equal(t, rpccp.Message_Which_bootstrap, rmsg.Which)
 		qid := rmsg.Bootstrap.QuestionID
 
@@ -89,7 +98,7 @@ func TestSendProvide(t *testing.T) {
 		// Receive finish
 		rmsg, release, err = recvMessage(ctx, trans)
 		require.NoError(t, err)
-		defer release()
+		dq.Defer(release)
 		require.Equal(t, rpccp.Message_Which_finish, rmsg.Which)
 		require.Equal(t, qid, rmsg.Finish.QuestionID)
 	}
@@ -99,14 +108,14 @@ func TestSendProvide(t *testing.T) {
 	require.NoError(t, pBs.Resolve(ctx))
 
 	futEmpty, rel := testcapnp.EmptyProvider(pBs).GetEmpty(ctx, nil)
-	defer rel()
+	dq.Defer(rel)
 
 	emptyExportID := uint32(30)
 	{
 		// Receive call
 		rmsg, release, err := recvMessage(ctx, pTrans)
 		require.NoError(t, err)
-		defer release()
+		dq.Defer(release)
 		require.Equal(t, rpccp.Message_Which_call, rmsg.Which)
 		qid := rmsg.Call.QuestionID
 		require.Equal(t, uint64(testcapnp.EmptyProvider_TypeID), rmsg.Call.InterfaceID)
@@ -141,7 +150,7 @@ func TestSendProvide(t *testing.T) {
 		// Receive finish
 		rmsg, release, err = recvMessage(ctx, pTrans)
 		require.NoError(t, err)
-		defer release()
+		dq.Defer(release)
 		require.Equal(t, rpccp.Message_Which_finish, rmsg.Which)
 		require.Equal(t, qid, rmsg.Finish.QuestionID)
 	}
@@ -153,19 +162,54 @@ func TestSendProvide(t *testing.T) {
 	_, rel = testcapnp.CapArgsTest(rBs).Call(ctx, func(p testcapnp.CapArgsTest_call_Params) error {
 		return p.SetCap(capnp.Client(empty))
 	})
-	defer rel()
+	dq.Defer(rel)
 
 	//var provideQid uint32
 	{
 		// Provider should receive a provide message
 		rmsg, release, err := recvMessage(ctx, pTrans)
 		require.NoError(t, err)
-		defer release()
+		dq.Defer(release)
 		require.Equal(t, rpccp.Message_Which_provide, rmsg.Which)
 		//provideQid = rmsg.Provide.QuestionID
 		require.Equal(t, rpccp.MessageTarget_Which_importedCap, rmsg.Provide.Target.Which)
 		require.Equal(t, emptyExportID, rmsg.Provide.Target.ImportedCap)
 	}
 
-	panic("TODO: check for messages on rTrans (call, resolve)")
+	{
+		// Read the call; should start off with a promise, record the ID:
+		rmsg, release, err := recvMessage(ctx, rTrans)
+		require.NoError(t, err)
+		dq.Defer(release)
+		require.Equal(t, rpccp.Message_Which_call, rmsg.Which)
+		call := rmsg.Call
+		//qid := call.QuestionID
+		require.Equal(t, rpcMessageTarget{
+			Which:       rpccp.MessageTarget_Which_importedCap,
+			ImportedCap: bootstrapExportID,
+		}, call.Target)
+
+		require.Equal(t, uint64(testcapnp.CapArgsTest_TypeID), call.InterfaceID)
+		require.Equal(t, uint16(0), call.MethodID)
+		ptr, err := call.Params.Content.Struct().Ptr(0)
+		require.NoError(t, err)
+		iptr := ptr.Interface()
+		require.True(t, iptr.IsValid())
+		require.Equal(t, capnp.CapabilityID(0), iptr.Capability())
+		require.Equal(t, 1, len(call.Params.CapTable))
+		desc := call.Params.CapTable[0]
+		require.Equal(t, rpccp.CapDescriptor_Which_senderPromise, desc.Which)
+		promiseExportID := desc.SenderPromise
+
+		// Read the resolve for that promise, which should point to a third party cap:
+		rmsg, release, err = recvMessage(ctx, rTrans)
+		require.NoError(t, err)
+		dq.Defer(release)
+		require.Equal(t, rpccp.Message_Which_resolve, rmsg.Which)
+		require.Equal(t, promiseExportID, rmsg.Resolve.PromiseID)
+		require.Equal(t, rpccp.Resolve_Which_cap, rmsg.Resolve.Which)
+		capDesc := rmsg.Resolve.Cap
+		require.Equal(t, rpccp.CapDescriptor_Which_thirdPartyHosted, capDesc.Which)
+	}
+	panic("TODO: finish this up")
 }
