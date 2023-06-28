@@ -2114,7 +2114,6 @@ func recvMessage(ctx context.Context, t rpc.Transport) (*rpcMessage, capnp.Relea
 	if r.Which == rpccp.Message_Which_abort ||
 		r.Which == rpccp.Message_Which_bootstrap ||
 		r.Which == rpccp.Message_Which_finish ||
-		r.Which == rpccp.Message_Which_resolve ||
 		r.Which == rpccp.Message_Which_release ||
 		r.Which == rpccp.Message_Which_disembargo {
 		// These messages are guaranteed to not contain pointers back to
@@ -2175,11 +2174,17 @@ type rpcPayload struct {
 }
 
 type rpcCapDescriptor struct {
-	Which          rpccp.CapDescriptor_Which
-	SenderHosted   uint32
-	SenderPromise  uint32
-	ReceiverHosted uint32
-	ReceiverAnswer *rpcPromisedAnswer
+	Which            rpccp.CapDescriptor_Which
+	SenderHosted     uint32
+	SenderPromise    uint32
+	ReceiverHosted   uint32
+	ReceiverAnswer   *rpcPromisedAnswer
+	ThirdPartyHosted rpcThirdPartyCapDescriptor
+}
+
+type rpcThirdPartyCapDescriptor struct {
+	ID     capnp.Ptr `capnp:"id"`
+	VineID uint32    `capnp:"vineId"`
 }
 
 type rpcPromisedAnswer struct {

@@ -174,6 +174,13 @@ func TestSendProvide(t *testing.T) {
 		//provideQid = rmsg.Provide.QuestionID
 		require.Equal(t, rpccp.MessageTarget_Which_importedCap, rmsg.Provide.Target.Which)
 		require.Equal(t, emptyExportID, rmsg.Provide.Target.ImportedCap)
+
+		peerAndNonce := testnetwork.PeerAndNonce(rmsg.Provide.Recipient.Struct())
+
+		require.Equal(t,
+			uint64(recipient.LocalID().Value.(testnetwork.PeerID)),
+			peerAndNonce.PeerId(),
+		)
 	}
 
 	{
@@ -210,6 +217,23 @@ func TestSendProvide(t *testing.T) {
 		require.Equal(t, rpccp.Resolve_Which_cap, rmsg.Resolve.Which)
 		capDesc := rmsg.Resolve.Cap
 		require.Equal(t, rpccp.CapDescriptor_Which_thirdPartyHosted, capDesc.Which)
+		peerAndNonce := testnetwork.PeerAndNonce(capDesc.ThirdPartyHosted.ID.Struct())
+
+		require.Equal(t,
+			uint64(provider.LocalID().Value.(testnetwork.PeerID)),
+			peerAndNonce.PeerId(),
+		)
 	}
 	panic("TODO: finish this up")
+	// TODO:
+	//
+	// - Send a return for the provide, and see that we get a finish back.
+	// - return & finish from the call.
+	//
+	// Other things to test, maybe in other tests?
+	//
+	// - Use the vine
+	//   - Make sure the introducer cancels the provide when this happens.
+	// - Drop the vine before pickup, and see that the introducer sends a finish for the provide.
+	// - Test dropping the promise?
 }
