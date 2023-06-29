@@ -43,6 +43,8 @@ type introTestInfo struct {
 	ProvideQID uint32
 	// question id for the call to CapArgsTest.call()
 	CallQID uint32
+	// export id for the promise which resolves to the third party cap
+	PromiseID uint32
 	// export id for the vine
 	VineID uint32
 	// export id for the cap returned from EmptyProvider.getEmpty()
@@ -196,8 +198,9 @@ func introTest(t *testing.T, f func(info introTestInfo)) {
 	}
 
 	var (
-		callQid uint32
-		vineID  uint32
+		callQid         uint32
+		vineID          uint32
+		promiseExportID uint32
 	)
 	{
 		// Read the call; should start off with a promise, record the ID:
@@ -222,7 +225,7 @@ func introTest(t *testing.T, f func(info introTestInfo)) {
 		require.Equal(t, 1, len(call.Params.CapTable))
 		desc := call.Params.CapTable[0]
 		require.Equal(t, rpccp.CapDescriptor_Which_senderPromise, desc.Which)
-		promiseExportID := desc.SenderPromise
+		promiseExportID = desc.SenderPromise
 
 		// Read the resolve for that promise, which should point to a third party cap:
 		rmsg, release, err = recvMessage(ctx, rTrans)
@@ -245,6 +248,7 @@ func introTest(t *testing.T, f func(info introTestInfo)) {
 		Dq:            dq,
 		ProvideQID:    provideQid,
 		CallQID:       callQid,
+		PromiseID:     promiseExportID,
 		VineID:        vineID,
 		EmptyExportID: emptyExportID,
 		EmptyFut:      emptyFut,
@@ -396,6 +400,45 @@ func TestVineDropCancelsHandoff(t *testing.T) {
 			require.Equal(t, rpccp.Message_Which_finish, rmsg.Which)
 			require.Equal(t, info.ProvideQID, rmsg.Finish.QuestionID)
 		}
+	})
+}
+
+// Checks that a third party disembargo is propogated correctly.
+func TestDisembargoThirdPartyCap(t *testing.T) {
+	introTest(t, func(info introTestInfo) {
+		ctx := context.Background()
+		rTrans := info.Recipient.Trans
+		pTrans := info.Provider.Trans
+
+		require.NoError(t, sendMessage(ctx, rTrans, &rpcMessage{
+			Which: rpccp.Message_Which_disembargo,
+			Disembargo: &rpcDisembargo{
+				Target: rpcMessageTarget{
+					Which:       rpccp.MessageTarget_Which_importedCap,
+					ImportedCap: info.PromiseID,
+				},
+				Context: rpcDisembargoContext{
+					Which: rpccp.Disembargo_context_Which_accept,
+				},
+			},
+		}))
+
+		rmsg, release, err := recvMessage(ctx, pTrans)
+		require.NoError(t, err)
+		info.Dq.Defer(release)
+
+		require.Equal(t, rpccp.Message_Which_disembargo, rmsg.Which)
+		require.Equal(t, info.ProvideQID, rmsg.Disembargo.Target.Which)
+		require.Equal(t, info.ProvideQID, rmsg.Disembargo.Target.PromisedAnswer.QuestionID)
+		require.Equal(t, 0, len(rmsg.Disembargo.Target.PromisedAnswer.Transform))
+
+		require.Equal(t,
+			rpcDisembargoContext{
+				Which:   rpccp.Disembargo_context_Which_provide,
+				Provide: info.ProvideQID,
+			},
+			rmsg.Disembargo.Context,
+		)
 	})
 }
 

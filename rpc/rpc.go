@@ -1733,7 +1733,7 @@ func (c *Conn) handleDisembargo(ctx context.Context, in transport.IncomingMessag
 			return err
 		}
 		return withLockedConn1(q.c, func(c *lockedConn) error {
-			if !q.flags.Contains(provideDisembargoSent) {
+			if q.flags.Contains(provideDisembargoSent) {
 				return errors.New("disembargo already sent to export #" + str.Utod(id))
 			}
 			q.flags |= provideDisembargoSent

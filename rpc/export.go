@@ -215,6 +215,11 @@ func (c *lockedConn) send3PHPromise(
 					// Return an error to indicate we didn't send the resolve:
 					return errReceiverLostInterest
 				}
+				// We have to set this before sending the provide, so we're ready
+				// for a disembargo. It's okay to wait up until now though, since
+				// the receiver shouldn't send one until it sees the resolution:
+				c.lk.exports[promiseID].provide = maybe.New(provideQ)
+
 				resolve, err := m.NewResolve()
 				if err != nil {
 					return err
