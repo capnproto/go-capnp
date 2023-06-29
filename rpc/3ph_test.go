@@ -298,6 +298,10 @@ func TestVineUseCancelsHandoff(t *testing.T) {
 			require.NoError(t, sendMessage(ctx, rTrans, &rpcMessage{
 				Which: rpccp.Message_Which_call,
 				Call: &rpcCall{
+					Target: rpcMessageTarget{
+						Which:       rpccp.MessageTarget_Which_importedCap,
+						ImportedCap: info.VineID,
+					},
 					QuestionID: vineCallQID,
 					// Arbitrary:
 					InterfaceID: 0x0101,
