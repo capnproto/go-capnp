@@ -175,7 +175,7 @@ func (c *lockedConn) send3PHPromise(
 		srcConn.withLocked(func(c *lockedConn) {
 			provideQ = c.newQuestion(capnp.Method{})
 			provideQ.flags |= isProvide
-			vine = newVine(srcConn, provideQ.id, srcSnapshot.AddRef())
+			vine = newVine(srcSnapshot.AddRef(), cancel)
 			c.sendMessage(c.bgctx, func(m rpccp.Message) error {
 				provide, err := m.NewProvide()
 				if err != nil {

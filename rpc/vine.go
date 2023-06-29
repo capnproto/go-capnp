@@ -11,27 +11,24 @@ import (
 // ThirdPartyCapDescriptor.vineId. It forwards calls to an underlying
 // capnp.ClientSnapshot
 type vine struct {
-	used         bool
-	providerConn *Conn
-	provideID    questionID
-	snapshot     capnp.ClientSnapshot
+	snapshot      capnp.ClientSnapshot
+	cancelProvide context.CancelFunc
 }
 
-func newVine(c *Conn, qid questionID, snapshot capnp.ClientSnapshot) *vine {
+func newVine(snapshot capnp.ClientSnapshot, cancelProvide context.CancelFunc) *vine {
 	return &vine{
-		providerConn: c,
-		provideID:    qid,
-		snapshot:     snapshot,
+		snapshot:      snapshot,
+		cancelProvide: cancelProvide,
 	}
 }
 
 func (v *vine) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, capnp.ReleaseFunc) {
-	v.markUsed()
+	v.cancelProvide()
 	return v.snapshot.Send(ctx, s)
 }
 
 func (v *vine) Recv(ctx context.Context, r capnp.Recv) capnp.PipelineCaller {
-	v.markUsed()
+	v.cancelProvide()
 	return v.snapshot.Recv(ctx, r)
 }
 
@@ -40,22 +37,10 @@ func (v *vine) Brand() capnp.Brand {
 }
 
 func (v *vine) Shutdown() {
+	v.cancelProvide()
 	v.snapshot.Release()
 }
 
 func (v *vine) String() string {
-	// TODO: include other fields?
-	return "&vine{snapshot: " + v.snapshot.String() + ", ...}"
-}
-
-func (v *vine) markUsed() {
-	if v.used {
-		return
-	}
-	v.used = true
-	go func() {
-		v.providerConn.withLocked(func(c *lockedConn) {
-			panic("TODO: send finish, manipulate tables...")
-		})
-	}()
+	return "&vine{snapshot: " + v.snapshot.String() + "}"
 }
