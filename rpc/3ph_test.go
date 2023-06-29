@@ -20,9 +20,13 @@ type rpcProvide struct {
 	Recipient  capnp.Ptr
 }
 
+// introTestInfo is information collected by introTest; see the comments there.
 type introTestInfo struct {
+	// Run at the end of the test:
 	Dq *deferred.Queue
 
+	// Networks and (except for the introducer itself) transports connected to
+	// the introducer for each of the peers in our network:
 	Introducer struct {
 		Network *testnetwork.TestNetwork
 	}
@@ -35,15 +39,33 @@ type introTestInfo struct {
 		Trans   rpc.Transport
 	}
 
-	ProvideQID, CallQID   uint32
-	VineID, EmptyExportID uint32
+	// question id for the provide message
+	ProvideQID uint32
+	// question id for the call to CapArgsTest.call()
+	CallQID uint32
+	// export id for the vine
+	VineID uint32
+	// export id for the cap returned from EmptyProvider.getEmpty()
+	EmptyExportID uint32
 
+	// Futures for the results of the two calls made.
 	EmptyFut testcapnp.EmptyProvider_getEmpty_Results_Future
 	CallFut  testcapnp.CapArgsTest_call_Results_Future
 }
 
 // introTest starts a three-party handoff, does some common checks, and then
-// hands of collected objects to callback for more checks.
+// hands of collected objects to callback for more checks. In particular,
+// introTest:
+//
+// - Creates three connected Networks, for introducer, provider and recipient
+// - Via the introducer, gets the bootstrap of each other peer.
+//   - The recipient's bootstrap is a testcapnp.CallArgsTest.
+//   - The provider's bootstrap is a testcapnp.EmptyProvider.
+// - Calls getEmpty() on the provider's bootstrap, and then passes the
+//   returned capability to the recipient's bootstrap's call() method.
+// - Verifies that the expected messages for all of the above are sent
+//   via the provdier's and recipient's transports.
+// - Invokes f(), passing along some information collected along the way.
 func introTest(t *testing.T, f func(info introTestInfo)) {
 	// Note: we do our deferring in this test via a deferred.Queue,
 	// so we can be sure that canceling the context happens *first.*
@@ -51,6 +73,9 @@ func introTest(t *testing.T, f func(info introTestInfo)) {
 	// connection shutdown which won't happen until the context ends,
 	// causing this test to deadlock instead of failing with a useful
 	// error.
+	//
+	// Mainly the issue is ReleaseFuncs; TODO: once #534 is fixed,
+	// consider simplifying.
 	dq := &deferred.Queue{}
 	defer dq.Run()
 	ctx, cancel := context.WithCancel(context.Background())
@@ -233,6 +258,8 @@ func introTest(t *testing.T, f func(info introTestInfo)) {
 	f(info)
 }
 
+// TestSendProvide tests the basics of triggering a provide message; this includes what
+// introTest checks, plus the behavior when sending a return for a provide.
 func TestSendProvide(t *testing.T) {
 	introTest(t, func(info introTestInfo) {
 		ctx := context.Background()
