@@ -210,7 +210,7 @@ func (c *lockedConn) send3PHPromise(
 		)
 		c.withLocked(func(c *lockedConn) {
 			c.sendMessage(c.bgctx, func(m rpccp.Message) error {
-				if len(c.lk.exports) <= promiseID || c.lk.exports[promiseID] != ee {
+				if len(c.lk.exports) <= int(promiseID) || c.lk.exports[promiseID] != ee {
 					// At some point the receiver lost interest in the cap.
 					// Return an error to indicate we didn't send the resolve:
 					return errReceiverLostInterest
@@ -252,7 +252,7 @@ func (c *lockedConn) send3PHPromise(
 				if vineEntry == nil {
 					vine.Shutdown()
 				} else {
-					var snapshot capnp.Clientsnapshot
+					var snapshot capnp.ClientSnapshot
 					unlockedConn.withLocked(func(c *lockedConn) {
 						snapshot, _ = c.releaseExport(vineID, 1)
 					})
