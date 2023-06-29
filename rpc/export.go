@@ -210,8 +210,10 @@ func (c *lockedConn) send3PHPromise(
 		)
 		c.withLocked(func(c *lockedConn) {
 			c.sendMessage(c.bgctx, func(m rpccp.Message) error {
-				if c.lk.exports[promiseID] != ee {
-					panic("TODO: at some point the receiver lost interest in the cap")
+				if len(c.lk.exports) <= promiseID || c.lk.exports[promiseID] != ee {
+					// At some point the receiver lost interest in the cap.
+					// Return an error to indicate we didn't send the resolve:
+					return errReceiverLostInterest
 				}
 				resolve, err := m.NewResolve()
 				if err != nil {
@@ -250,16 +252,19 @@ func (c *lockedConn) send3PHPromise(
 				if vineEntry == nil {
 					vine.Shutdown()
 				} else {
+					var snapshot capnp.Clientsnapshot
 					unlockedConn.withLocked(func(c *lockedConn) {
-						snapshot, _ := c.releaseExport(vineID, 1)
-						snapshot.Release()
+						snapshot, _ = c.releaseExport(vineID, 1)
 					})
+					snapshot.Release()
 				}
 			})
 		})
 	}()
 	return promiseID
 }
+
+var errReceiverLostInterest = errors.New("receiver lost interest in the resolution")
 
 // sendCap writes a capability descriptor, returning an export ID if
 // this vat is hosting the capability. Steals the snapshot.
