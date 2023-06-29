@@ -35,8 +35,8 @@ type introTestInfo struct {
 		Trans   rpc.Transport
 	}
 
-	ProvideQID, CallQID uint32
-	VineID              uint32
+	ProvideQID, CallQID   uint32
+	VineID, EmptyExportID uint32
 
 	EmptyFut testcapnp.EmptyProvider_getEmpty_Results_Future
 	CallFut  testcapnp.CapArgsTest_call_Results_Future
@@ -217,12 +217,13 @@ func introTest(t *testing.T, f func(info introTestInfo)) {
 		)
 	}
 	info := introTestInfo{
-		Dq:         dq,
-		ProvideQID: provideQid,
-		CallQID:    callQid,
-		VineID:     vineID,
-		EmptyFut:   emptyFut,
-		CallFut:    callFut,
+		Dq:            dq,
+		ProvideQID:    provideQid,
+		CallQID:       callQid,
+		VineID:        vineID,
+		EmptyExportID: emptyExportID,
+		EmptyFut:      emptyFut,
+		CallFut:       callFut,
 	}
 	info.Introducer.Network = introducer
 	info.Recipient.Network = recipient
@@ -293,41 +294,53 @@ func TestVineUseCancelsHandoff(t *testing.T) {
 		pTrans := info.Provider.Trans
 		vineCallQID := uint32(77)
 
-		{
-			// Send a call to the vine, expect an unimplemented response:
-			require.NoError(t, sendMessage(ctx, rTrans, &rpcMessage{
-				Which: rpccp.Message_Which_call,
-				Call: &rpcCall{
-					Target: rpcMessageTarget{
-						Which:       rpccp.MessageTarget_Which_importedCap,
-						ImportedCap: info.VineID,
-					},
-					QuestionID: vineCallQID,
-					// Arbitrary:
-					InterfaceID: 0x0101,
-					MethodID:    0,
-					Params:      rpcPayload{},
+		// arbitrary values that we can look for
+		someInterfaceID := uint64(0x010102)
+		someMethodID := uint16(32)
+
+		// Send a call to the vine:
+		require.NoError(t, sendMessage(ctx, rTrans, &rpcMessage{
+			Which: rpccp.Message_Which_call,
+			Call: &rpcCall{
+				Target: rpcMessageTarget{
+					Which:       rpccp.MessageTarget_Which_importedCap,
+					ImportedCap: info.VineID,
 				},
-			}))
-			rmsg, release, err := recvMessage(ctx, rTrans)
-			require.NoError(t, err)
-			dq.Defer(release)
+				QuestionID: vineCallQID,
+				// Arbitrary:
+				InterfaceID: someInterfaceID,
+				MethodID:    someMethodID,
+				Params:      rpcPayload{},
+			},
+		}))
 
-			require.Equal(t, rpccp.Message_Which_return, rmsg.Which)
-			require.Equal(t, vineCallQID, rmsg.Return.AnswerID)
-			require.Equal(t, rpccp.Return_Which_exception, rmsg.Return.Which)
-			require.Equal(t, rpccp.Exception_Type_unimplemented, rmsg.Return.Exception.Type)
-		}
-
-		{
-			// Expect a finish message canceling the provide:
+		// Now we expect to see the call come through to the provider, and also
+		// a finish message for the provide. These can happen in either order:
+		var sawFinish, sawCall bool
+		for i := 0; i < 2; i++ {
 			rmsg, release, err := recvMessage(ctx, pTrans)
 			require.NoError(t, err)
 			dq.Defer(release)
 
-			require.Equal(t, rpccp.Message_Which_finish, rmsg.Which)
-			require.Equal(t, rmsg.Finish.QuestionID, info.ProvideQID)
+			switch rmsg.Which {
+			case rpccp.Message_Which_call:
+				sawCall = true
+				require.Equal(t, rpcMessageTarget{
+					Which:       rpccp.MessageTarget_Which_importedCap,
+					ImportedCap: info.EmptyExportID,
+				}, rmsg.Call.Target)
+				require.Equal(t, someInterfaceID, rmsg.Call.InterfaceID)
+				require.Equal(t, someMethodID, rmsg.Call.MethodID)
+			case rpccp.Message_Which_finish:
+				sawFinish = true
+				require.Equal(t, rmsg.Finish.QuestionID, info.ProvideQID)
+			default:
+				t.Fatalf("Unexpected message type: %v", rmsg.Which)
+			}
 		}
+
+		require.True(t, sawFinish, "saw finish message")
+		require.True(t, sawCall, "saw call message")
 	})
 }
 
