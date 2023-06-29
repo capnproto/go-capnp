@@ -65,46 +65,9 @@ func TestSendProvide(t *testing.T) {
 	require.NoError(t, err)
 
 	bootstrapExportID := uint32(10)
-	doBootstrap := func(trans rpc.Transport) {
-		// Receive bootstrap
-		rmsg, release, err := recvMessage(ctx, trans)
-		require.NoError(t, err)
-		dq.Defer(release)
-		require.Equal(t, rpccp.Message_Which_bootstrap, rmsg.Which)
-		qid := rmsg.Bootstrap.QuestionID
-
-		// Write back return
-		outMsg, err := trans.NewMessage()
-		require.NoError(t, err, "trans.NewMessage()")
-		iptr := capnp.NewInterface(outMsg.Message().Segment(), 0)
-		require.NoError(t, pogs.Insert(rpccp.Message_TypeID, capnp.Struct(outMsg.Message()), &rpcMessage{
-			Which: rpccp.Message_Which_return,
-			Return: &rpcReturn{
-				AnswerID: qid,
-				Which:    rpccp.Return_Which_results,
-				Results: &rpcPayload{
-					Content: iptr.ToPtr(),
-					CapTable: []rpcCapDescriptor{
-						{
-							Which:        rpccp.CapDescriptor_Which_senderHosted,
-							SenderHosted: bootstrapExportID,
-						},
-					},
-				},
-			},
-		}))
-		require.NoError(t, outMsg.Send())
-
-		// Receive finish
-		rmsg, release, err = recvMessage(ctx, trans)
-		require.NoError(t, err)
-		dq.Defer(release)
-		require.Equal(t, rpccp.Message_Which_finish, rmsg.Which)
-		require.Equal(t, qid, rmsg.Finish.QuestionID)
-	}
-	doBootstrap(rTrans)
+	doBootstrap(t, bootstrapExportID, rTrans)
 	require.NoError(t, rBs.Resolve(ctx))
-	doBootstrap(pTrans)
+	doBootstrap(t, bootstrapExportID, pTrans)
 	require.NoError(t, pBs.Resolve(ctx))
 
 	futEmpty, rel := testcapnp.EmptyProvider(pBs).GetEmpty(ctx, nil)
@@ -269,11 +232,56 @@ func TestSendProvide(t *testing.T) {
 	}
 }
 
-func TestVine(t *testing.T) {
-	// things to test:
-	//
-	// - Use the vine
-	//   - Make sure the introducer cancels the provide when this happens.
-	// - Drop the vine before pickup, and see that the introducer sends a finish for the provide.
-	// - Test dropping the promise?
+// TestVineUseCancelsHandoff checks that using the vine causes the introducer to cancel the
+// handoff (by sending a finish for the provide).
+func TestVineUseCancelsHandoff(t *testing.T) {
+	t.Fatal("TODO")
+}
+
+// TestVineDropCancelsHandoff checks that releasing the vine causes the introducer to cancel the
+// handoff
+func TestVineDropCancelsHandoff(t *testing.T) {
+	t.Fatal("TODO")
+}
+
+// Helper that receives and replies to a bootstrap message on trans, returning a SenderHosted
+// capability with the given export ID.
+func doBootstrap(t *testing.T, bootstrapExportID uint32, trans rpc.Transport) {
+	ctx := context.Background()
+
+	// Receive bootstrap
+	rmsg, release, err := recvMessage(ctx, trans)
+	require.NoError(t, err)
+	defer release()
+	require.Equal(t, rpccp.Message_Which_bootstrap, rmsg.Which)
+	qid := rmsg.Bootstrap.QuestionID
+
+	// Write back return
+	outMsg, err := trans.NewMessage()
+	require.NoError(t, err, "trans.NewMessage()")
+	iptr := capnp.NewInterface(outMsg.Message().Segment(), 0)
+	require.NoError(t, pogs.Insert(rpccp.Message_TypeID, capnp.Struct(outMsg.Message()), &rpcMessage{
+		Which: rpccp.Message_Which_return,
+		Return: &rpcReturn{
+			AnswerID: qid,
+			Which:    rpccp.Return_Which_results,
+			Results: &rpcPayload{
+				Content: iptr.ToPtr(),
+				CapTable: []rpcCapDescriptor{
+					{
+						Which:        rpccp.CapDescriptor_Which_senderHosted,
+						SenderHosted: bootstrapExportID,
+					},
+				},
+			},
+		},
+	}))
+	require.NoError(t, outMsg.Send())
+
+	// Receive finish
+	rmsg, release, err = recvMessage(ctx, trans)
+	require.NoError(t, err)
+	defer release()
+	require.Equal(t, rpccp.Message_Which_finish, rmsg.Which)
+	require.Equal(t, qid, rmsg.Finish.QuestionID)
 }
