@@ -92,6 +92,6 @@ type Network interface {
 	// introducedBy, wait for the recipient to connect, and
 	// return the connection formed. If there is already an
 	// established connection to the relevant Peer, this
-	// SHOULD return the existing connection immediately.
+	// MUST return the existing connection immediately.
 	AcceptIntroduced(recipientID RecipientID, introducedBy *Conn) (*Conn, error)
 }
