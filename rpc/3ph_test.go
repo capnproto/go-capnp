@@ -159,19 +159,19 @@ func TestSendProvide(t *testing.T) {
 	require.NoError(t, err)
 	empty := resEmpty.Empty()
 
-	_, rel = testcapnp.CapArgsTest(rBs).Call(ctx, func(p testcapnp.CapArgsTest_call_Params) error {
+	callFut, rel := testcapnp.CapArgsTest(rBs).Call(ctx, func(p testcapnp.CapArgsTest_call_Params) error {
 		return p.SetCap(capnp.Client(empty))
 	})
 	dq.Defer(rel)
 
-	//var provideQid uint32
+	var provideQid uint32
 	{
 		// Provider should receive a provide message
 		rmsg, release, err := recvMessage(ctx, pTrans)
 		require.NoError(t, err)
 		dq.Defer(release)
 		require.Equal(t, rpccp.Message_Which_provide, rmsg.Which)
-		//provideQid = rmsg.Provide.QuestionID
+		provideQid = rmsg.Provide.QuestionID
 		require.Equal(t, rpccp.MessageTarget_Which_importedCap, rmsg.Provide.Target.Which)
 		require.Equal(t, emptyExportID, rmsg.Provide.Target.ImportedCap)
 
@@ -183,6 +183,7 @@ func TestSendProvide(t *testing.T) {
 		)
 	}
 
+	var callQid uint32
 	{
 		// Read the call; should start off with a promise, record the ID:
 		rmsg, release, err := recvMessage(ctx, rTrans)
@@ -190,7 +191,7 @@ func TestSendProvide(t *testing.T) {
 		dq.Defer(release)
 		require.Equal(t, rpccp.Message_Which_call, rmsg.Which)
 		call := rmsg.Call
-		//qid := call.QuestionID
+		callQid = call.QuestionID
 		require.Equal(t, rpcMessageTarget{
 			Which:       rpccp.MessageTarget_Which_importedCap,
 			ImportedCap: bootstrapExportID,
@@ -224,13 +225,52 @@ func TestSendProvide(t *testing.T) {
 			peerAndNonce.PeerId(),
 		)
 	}
-	panic("TODO: finish this up")
-	// TODO:
-	//
-	// - Send a return for the provide, and see that we get a finish back.
-	// - return & finish from the call.
-	//
-	// Other things to test, maybe in other tests?
+
+	{
+		// Return from the provide, and see that we get back a finish
+		require.NoError(t, sendMessage(ctx, pTrans, &rpcMessage{
+			Which: rpccp.Message_Which_return,
+			Return: &rpcReturn{
+				AnswerID: provideQid,
+				Which:    rpccp.Return_Which_results,
+				Results:  &rpcPayload{},
+			},
+		}))
+
+		rmsg, release, err := recvMessage(ctx, pTrans)
+		require.NoError(t, err)
+		dq.Defer(release)
+		require.Equal(t, rpccp.Message_Which_finish, rmsg.Which)
+		require.Equal(t, provideQid, rmsg.Finish.QuestionID)
+	}
+
+	{
+		// Return from the call, see that we get back a finish
+		require.NoError(t, sendMessage(ctx, rTrans, &rpcMessage{
+			Which: rpccp.Message_Which_return,
+			Return: &rpcReturn{
+				AnswerID: callQid,
+				Which:    rpccp.Return_Which_results,
+				Results:  &rpcPayload{},
+			},
+		}))
+
+		rmsg, release, err := recvMessage(ctx, rTrans)
+		require.NoError(t, err)
+		dq.Defer(release)
+		require.Equal(t, rpccp.Message_Which_finish, rmsg.Which)
+		require.Equal(t, callQid, rmsg.Finish.QuestionID)
+	}
+
+	{
+		// Wait for the result of the call:
+		_, err := callFut.Struct()
+		require.NoError(t, err)
+	}
+}
+
+func TestVine(t *testing.T) {
+	// things to test:
 	//
 	// - Use the vine
 	//   - Make sure the introducer cancels the provide when this happens.
