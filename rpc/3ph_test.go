@@ -374,7 +374,29 @@ func TestVineUseCancelsHandoff(t *testing.T) {
 // TestVineDropCancelsHandoff checks that releasing the vine causes the introducer to cancel the
 // handoff
 func TestVineDropCancelsHandoff(t *testing.T) {
-	t.Fatal("TODO")
+	introTest(t, func(info introTestInfo) {
+		ctx := context.Background()
+		rTrans := info.Recipient.Trans
+		pTrans := info.Provider.Trans
+
+		// Send a release message for the vine:
+		require.NoError(t, sendMessage(ctx, rTrans, &rpcMessage{
+			Which: rpccp.Message_Which_release,
+			Release: &rpcRelease{
+				ID:             info.VineID,
+				ReferenceCount: 1,
+			},
+		}))
+
+		// Expect a finish for the provide:
+		{
+			rmsg, release, err := recvMessage(ctx, pTrans)
+			require.NoError(t, err)
+			info.Dq.Defer(release)
+			require.Equal(t, rpccp.Message_Which_finish, rmsg.Which)
+			require.Equal(t, info.ProvideQID, rmsg.Finish.QuestionID)
+		}
+	})
 }
 
 // Helper that receives and replies to a bootstrap message on trans, returning a SenderHosted
