@@ -20,14 +20,38 @@ type rpcProvide struct {
 	Recipient  capnp.Ptr
 }
 
-func TestSendProvide(t *testing.T) {
+type introTestInfo struct {
+	Dq *deferred.Queue
+
+	Introducer struct {
+		Network *testnetwork.TestNetwork
+	}
+	Recipient struct {
+		Network *testnetwork.TestNetwork
+		Trans   rpc.Transport
+	}
+	Provider struct {
+		Network *testnetwork.TestNetwork
+		Trans   rpc.Transport
+	}
+
+	ProvideQID, CallQID uint32
+	VineID              uint32
+
+	EmptyFut testcapnp.EmptyProvider_getEmpty_Results_Future
+	CallFut  testcapnp.CapArgsTest_call_Results_Future
+}
+
+// introTest starts a three-party handoff, does some common checks, and then
+// hands of collected objects to callback for more checks.
+func introTest(t *testing.T, f func(info introTestInfo)) {
 	// Note: we do our deferring in this test via a deferred.Queue,
-	// so we can be sure that cancelling the context happens *first.*
+	// so we can be sure that canceling the context happens *first.*
 	// Otherwise, some of the things we defer can block until
 	// connection shutdown which won't happen until the context ends,
 	// causing this test to deadlock instead of failing with a useful
 	// error.
-	dq := deferred.Queue{}
+	dq := &deferred.Queue{}
 	defer dq.Run()
 	ctx, cancel := context.WithCancel(context.Background())
 	dq.Defer(cancel)
@@ -70,7 +94,7 @@ func TestSendProvide(t *testing.T) {
 	doBootstrap(t, bootstrapExportID, pTrans)
 	require.NoError(t, pBs.Resolve(ctx))
 
-	futEmpty, rel := testcapnp.EmptyProvider(pBs).GetEmpty(ctx, nil)
+	emptyFut, rel := testcapnp.EmptyProvider(pBs).GetEmpty(ctx, nil)
 	dq.Defer(rel)
 
 	emptyExportID := uint32(30)
@@ -118,9 +142,9 @@ func TestSendProvide(t *testing.T) {
 		require.Equal(t, qid, rmsg.Finish.QuestionID)
 	}
 
-	resEmpty, err := futEmpty.Struct()
+	emptyRes, err := emptyFut.Struct()
 	require.NoError(t, err)
-	empty := resEmpty.Empty()
+	empty := emptyRes.Empty()
 
 	callFut, rel := testcapnp.CapArgsTest(rBs).Call(ctx, func(p testcapnp.CapArgsTest_call_Params) error {
 		return p.SetCap(capnp.Client(empty))
@@ -146,7 +170,10 @@ func TestSendProvide(t *testing.T) {
 		)
 	}
 
-	var callQid uint32
+	var (
+		callQid uint32
+		vineID  uint32
+	)
 	{
 		// Read the call; should start off with a promise, record the ID:
 		rmsg, release, err := recvMessage(ctx, rTrans)
@@ -181,6 +208,7 @@ func TestSendProvide(t *testing.T) {
 		require.Equal(t, rpccp.Resolve_Which_cap, rmsg.Resolve.Which)
 		capDesc := rmsg.Resolve.Cap
 		require.Equal(t, rpccp.CapDescriptor_Which_thirdPartyHosted, capDesc.Which)
+		vineID = capDesc.ThirdPartyHosted.VineID
 		peerAndNonce := testnetwork.PeerAndNonce(capDesc.ThirdPartyHosted.ID.Struct())
 
 		require.Equal(t,
@@ -188,54 +216,115 @@ func TestSendProvide(t *testing.T) {
 			peerAndNonce.PeerId(),
 		)
 	}
-
-	{
-		// Return from the provide, and see that we get back a finish
-		require.NoError(t, sendMessage(ctx, pTrans, &rpcMessage{
-			Which: rpccp.Message_Which_return,
-			Return: &rpcReturn{
-				AnswerID: provideQid,
-				Which:    rpccp.Return_Which_results,
-				Results:  &rpcPayload{},
-			},
-		}))
-
-		rmsg, release, err := recvMessage(ctx, pTrans)
-		require.NoError(t, err)
-		dq.Defer(release)
-		require.Equal(t, rpccp.Message_Which_finish, rmsg.Which)
-		require.Equal(t, provideQid, rmsg.Finish.QuestionID)
+	info := introTestInfo{
+		Dq:         dq,
+		ProvideQID: provideQid,
+		CallQID:    callQid,
+		VineID:     vineID,
+		EmptyFut:   emptyFut,
+		CallFut:    callFut,
 	}
+	info.Introducer.Network = introducer
+	info.Recipient.Network = recipient
+	info.Recipient.Trans = rTrans
+	info.Provider.Network = provider
+	info.Provider.Trans = pTrans
+	f(info)
+}
 
-	{
-		// Return from the call, see that we get back a finish
-		require.NoError(t, sendMessage(ctx, rTrans, &rpcMessage{
-			Which: rpccp.Message_Which_return,
-			Return: &rpcReturn{
-				AnswerID: callQid,
-				Which:    rpccp.Return_Which_results,
-				Results:  &rpcPayload{},
-			},
-		}))
+func TestSendProvide(t *testing.T) {
+	introTest(t, func(info introTestInfo) {
+		ctx := context.Background()
+		pTrans := info.Provider.Trans
+		rTrans := info.Recipient.Trans
+		dq := info.Dq
 
-		rmsg, release, err := recvMessage(ctx, rTrans)
-		require.NoError(t, err)
-		dq.Defer(release)
-		require.Equal(t, rpccp.Message_Which_finish, rmsg.Which)
-		require.Equal(t, callQid, rmsg.Finish.QuestionID)
-	}
+		{
+			// Return from the provide, and see that we get back a finish
+			require.NoError(t, sendMessage(ctx, pTrans, &rpcMessage{
+				Which: rpccp.Message_Which_return,
+				Return: &rpcReturn{
+					AnswerID: info.ProvideQID,
+					Which:    rpccp.Return_Which_results,
+					Results:  &rpcPayload{},
+				},
+			}))
 
-	{
-		// Wait for the result of the call:
-		_, err := callFut.Struct()
-		require.NoError(t, err)
-	}
+			rmsg, release, err := recvMessage(ctx, pTrans)
+			require.NoError(t, err)
+			dq.Defer(release)
+			require.Equal(t, rpccp.Message_Which_finish, rmsg.Which)
+			require.Equal(t, info.ProvideQID, rmsg.Finish.QuestionID)
+		}
+
+		{
+			// Return from the call, see that we get back a finish
+			require.NoError(t, sendMessage(ctx, rTrans, &rpcMessage{
+				Which: rpccp.Message_Which_return,
+				Return: &rpcReturn{
+					AnswerID: info.CallQID,
+					Which:    rpccp.Return_Which_results,
+					Results:  &rpcPayload{},
+				},
+			}))
+
+			rmsg, release, err := recvMessage(ctx, rTrans)
+			require.NoError(t, err)
+			dq.Defer(release)
+			require.Equal(t, rpccp.Message_Which_finish, rmsg.Which)
+			require.Equal(t, info.CallQID, rmsg.Finish.QuestionID)
+		}
+
+		{
+			// Wait for the result of the call:
+			_, err := info.CallFut.Struct()
+			require.NoError(t, err)
+		}
+	})
 }
 
 // TestVineUseCancelsHandoff checks that using the vine causes the introducer to cancel the
 // handoff (by sending a finish for the provide).
 func TestVineUseCancelsHandoff(t *testing.T) {
-	t.Fatal("TODO")
+	introTest(t, func(info introTestInfo) {
+		ctx := context.Background()
+		dq := info.Dq
+		rTrans := info.Recipient.Trans
+		pTrans := info.Provider.Trans
+		vineCallQID := uint32(77)
+
+		{
+			// Send a call to the vine, expect an unimplemented response:
+			require.NoError(t, sendMessage(ctx, rTrans, &rpcMessage{
+				Which: rpccp.Message_Which_call,
+				Call: &rpcCall{
+					QuestionID: vineCallQID,
+					// Arbitrary:
+					InterfaceID: 0x0101,
+					MethodID:    0,
+					Params:      rpcPayload{},
+				},
+			}))
+			rmsg, release, err := recvMessage(ctx, rTrans)
+			require.NoError(t, err)
+			dq.Defer(release)
+
+			require.Equal(t, rpccp.Message_Which_return, rmsg.Which)
+			require.Equal(t, vineCallQID, rmsg.Return.AnswerID)
+			require.Equal(t, rpccp.Return_Which_exception, rmsg.Return.Which)
+			require.Equal(t, rpccp.Exception_Type_unimplemented, rmsg.Return.Exception.Type)
+		}
+
+		{
+			// Expect a finish message canceling the provide:
+			rmsg, release, err := recvMessage(ctx, pTrans)
+			require.NoError(t, err)
+			dq.Defer(release)
+
+			require.Equal(t, rpccp.Message_Which_finish, rmsg.Which)
+			require.Equal(t, rmsg.Finish.QuestionID, info.ProvideQID)
+		}
+	})
 }
 
 // TestVineDropCancelsHandoff checks that releasing the vine causes the introducer to cancel the
