@@ -70,6 +70,13 @@ func TestLocalPromiseFulfill(t *testing.T) {
 	assert.Equal(t, int64(3), res3.N())
 }
 
+func echoNum(ctx context.Context, pp testcapnp.PingPong, n int64) (testcapnp.PingPong_echoNum_Results_Future, capnp.ReleaseFunc) {
+	return pp.EchoNum(ctx, func(p testcapnp.PingPong_echoNum_Params) error {
+		p.SetN(n)
+		return nil
+	})
+}
+
 func TestLocalPromiseReject(t *testing.T) {
 	t.Parallel()
 
@@ -77,24 +84,15 @@ func TestLocalPromiseReject(t *testing.T) {
 	p, r := capnp.NewLocalPromise[testcapnp.PingPong]()
 	defer p.Release()
 
-	fut1, rel1 := p.EchoNum(ctx, func(p testcapnp.PingPong_echoNum_Params) error {
-		p.SetN(1)
-		return nil
-	})
+	fut1, rel1 := echoNum(ctx, p, 1)
 	defer rel1()
 
-	fut2, rel2 := p.EchoNum(ctx, func(p testcapnp.PingPong_echoNum_Params) error {
-		p.SetN(2)
-		return nil
-	})
+	fut2, rel2 := echoNum(ctx, p, 2)
 	defer rel2()
 
 	r.Reject(errors.New("Promise rejected"))
 
-	fut3, rel3 := p.EchoNum(ctx, func(p testcapnp.PingPong_echoNum_Params) error {
-		p.SetN(3)
-		return nil
-	})
+	fut3, rel3 := echoNum(ctx, p, 3)
 	defer rel3()
 
 	_, err := fut1.Struct()

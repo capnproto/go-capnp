@@ -132,7 +132,7 @@ func TestResolve(t *testing.T) {
 	}
 	t.Run("Clients", func(t *testing.T) {
 		test(t, "Waits for the full chain", func(t *testing.T, p1, p2 Client, r1, r2 Resolver[Client]) {
-			r1.Fulfill(p2)
+			r1.Fulfill(p2.AddRef())
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second/10)
 			defer cancel()
 			require.NotNil(t, p1.Resolve(ctx), "blocks on second promise")

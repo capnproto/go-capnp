@@ -17,9 +17,8 @@ type exportID uint32
 
 // expent is an entry in a Conn's export table.
 type expent struct {
-	snapshot  capnp.ClientSnapshot
-	wireRefs  uint32
-	isPromise bool
+	snapshot capnp.ClientSnapshot
+	wireRefs uint32
 
 	// Should be called when removing this entry from the exports table:
 	cancel context.CancelFunc
@@ -74,9 +73,11 @@ func (c *lockedConn) releaseExport(id exportID, count uint32) (capnp.ClientSnaps
 		c.lk.exports[id] = nil
 		c.lk.exportID.remove(id)
 		metadata := snapshot.Metadata()
-		syncutil.With(metadata, func() {
-			c.clearExportID(metadata)
-		})
+		if metadata != nil {
+			syncutil.With(metadata, func() {
+				c.clearExportID(metadata)
+			})
+		}
 		return snapshot, nil
 	case count > ent.wireRefs:
 		return capnp.ClientSnapshot{}, rpcerr.Failed(errors.New("export ID " + str.Utod(id) + " released too many references"))
@@ -203,7 +204,7 @@ func (c *lockedConn) sendSenderPromise(id exportID, d rpccp.CapDescriptor) {
 		// Conn before trying to use it again:
 		unlockedConn := (*Conn)(c)
 
-		waitErr := waitRef.Resolve(ctx)
+		waitErr := waitRef.Resolve1(ctx)
 		unlockedConn.withLocked(func(c *lockedConn) {
 			if len(c.lk.exports) <= int(id) || c.lk.exports[id] != ee {
 				// Export was removed from the table at some point;
@@ -366,9 +367,8 @@ func (e *embargo) Shutdown() {
 // senderLoopback holds the salient information for a sender-loopback
 // Disembargo message.
 type senderLoopback struct {
-	id        embargoID
-	question  questionID
-	transform []capnp.PipelineOp
+	id     embargoID
+	target parsedMessageTarget
 }
 
 func (sl *senderLoopback) buildDisembargo(msg rpccp.Message) error {
@@ -376,23 +376,30 @@ func (sl *senderLoopback) buildDisembargo(msg rpccp.Message) error {
 	if err != nil {
 		return rpcerr.WrapFailed("build disembargo", err)
 	}
+	d.Context().SetSenderLoopback(uint32(sl.id))
 	tgt, err := d.NewTarget()
 	if err != nil {
 		return rpcerr.WrapFailed("build disembargo", err)
 	}
-	pa, err := tgt.NewPromisedAnswer()
-	if err != nil {
-		return rpcerr.WrapFailed("build disembargo", err)
-	}
-	oplist, err := pa.NewTransform(int32(len(sl.transform)))
-	if err != nil {
-		return rpcerr.WrapFailed("build disembargo", err)
-	}
+	switch sl.target.which {
+	case rpccp.MessageTarget_Which_promisedAnswer:
+		pa, err := tgt.NewPromisedAnswer()
+		if err != nil {
+			return rpcerr.WrapFailed("build disembargo", err)
+		}
+		oplist, err := pa.NewTransform(int32(len(sl.target.transform)))
+		if err != nil {
+			return rpcerr.WrapFailed("build disembargo", err)
+		}
 
-	d.Context().SetSenderLoopback(uint32(sl.id))
-	pa.SetQuestionId(uint32(sl.question))
-	for i, op := range sl.transform {
-		oplist.At(i).SetGetPointerField(op.Field)
+		pa.SetQuestionId(uint32(sl.target.promisedAnswer))
+		for i, op := range sl.target.transform {
+			oplist.At(i).SetGetPointerField(op.Field)
+		}
+	case rpccp.MessageTarget_Which_importedCap:
+		tgt.SetImportedCap(uint32(sl.target.importedCap))
+	default:
+		return errors.New("unknown variant for MessageTarget: " + str.Utod(sl.target.which))
 	}
 	return nil
 }

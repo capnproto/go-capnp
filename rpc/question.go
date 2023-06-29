@@ -55,7 +55,7 @@ func (c *lockedConn) newQuestion(method capnp.Method) *question {
 		release:       func() {},
 		finishMsgSend: make(chan struct{}),
 	}
-	q.p = capnp.NewPromise(method, q) // TODO(someday): customize error message for bootstrap
+	q.p = capnp.NewPromise(method, q, nil) // TODO(someday): customize error message for bootstrap
 	c.setAnswerQuestion(q.p.Answer(), q)
 	if int(q.id) == len(c.lk.questions) {
 		c.lk.questions = append(c.lk.questions, q)

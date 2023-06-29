@@ -16,7 +16,7 @@ var dummyMethod = Method{
 
 func TestPromiseReject(t *testing.T) {
 	t.Run("Done", func(t *testing.T) {
-		p := NewPromise(dummyMethod, dummyPipelineCaller{})
+		p := NewPromise(dummyMethod, dummyPipelineCaller{}, nil)
 		done := p.Answer().Done()
 		p.Reject(errors.New("omg bbq"))
 		select {
@@ -27,7 +27,7 @@ func TestPromiseReject(t *testing.T) {
 		}
 	})
 	t.Run("Struct", func(t *testing.T) {
-		p := NewPromise(dummyMethod, dummyPipelineCaller{})
+		p := NewPromise(dummyMethod, dummyPipelineCaller{}, nil)
 		defer p.ReleaseClients()
 		ans := p.Answer()
 		p.Reject(errors.New("omg bbq"))
@@ -36,7 +36,7 @@ func TestPromiseReject(t *testing.T) {
 		}
 	})
 	t.Run("Client", func(t *testing.T) {
-		p := NewPromise(dummyMethod, dummyPipelineCaller{})
+		p := NewPromise(dummyMethod, dummyPipelineCaller{}, nil)
 		defer p.ReleaseClients()
 		pc := p.Answer().Field(1, nil).Client()
 		p.Reject(errors.New("omg bbq"))
@@ -57,7 +57,7 @@ func TestPromiseFulfill(t *testing.T) {
 	t.Parallel()
 
 	t.Run("Done", func(t *testing.T) {
-		p := NewPromise(dummyMethod, dummyPipelineCaller{})
+		p := NewPromise(dummyMethod, dummyPipelineCaller{}, nil)
 		done := p.Answer().Done()
 		msg, seg, _ := NewMessage(SingleSegment(nil))
 		defer msg.Release()
@@ -72,7 +72,7 @@ func TestPromiseFulfill(t *testing.T) {
 		}
 	})
 	t.Run("Struct", func(t *testing.T) {
-		p := NewPromise(dummyMethod, dummyPipelineCaller{})
+		p := NewPromise(dummyMethod, dummyPipelineCaller{}, nil)
 		defer p.ReleaseClients()
 		ans := p.Answer()
 		msg, seg, _ := NewMessage(SingleSegment(nil))
@@ -92,7 +92,7 @@ func TestPromiseFulfill(t *testing.T) {
 		}
 	})
 	t.Run("Client", func(t *testing.T) {
-		p := NewPromise(dummyMethod, dummyPipelineCaller{})
+		p := NewPromise(dummyMethod, dummyPipelineCaller{}, nil)
 		defer p.ReleaseClients()
 		pc := p.Answer().Field(1, nil).Client()
 

@@ -458,9 +458,11 @@ func (c *lockedConn) releaseExports(dq *deferred.Queue, exports []*expent) {
 	for _, e := range exports {
 		if e != nil {
 			metadata := e.snapshot.Metadata()
-			syncutil.With(metadata, func() {
-				c.clearExportID(metadata)
-			})
+			if metadata != nil {
+				syncutil.With(metadata, func() {
+					c.clearExportID(metadata)
+				})
+			}
 			dq.Defer(e.snapshot.Release)
 		}
 	}
@@ -603,7 +605,11 @@ func (c *Conn) receive(ctx context.Context) func() error {
 					return err
 				}
 
-			// TODO: handle resolve.
+			case rpccp.Message_Which_resolve:
+				if err := c.handleResolve(ctx, in); err != nil {
+					return err
+				}
+
 			case rpccp.Message_Which_accept, rpccp.Message_Which_provide:
 				if c.network != nil {
 					panic("TODO: 3PH")
@@ -1221,9 +1227,12 @@ func (c *lockedConn) parseReturn(dq *deferred.Queue, ret rpccp.Return, called []
 
 			embargoCaps.add(uint(i))
 			disembargoes = append(disembargoes, senderLoopback{
-				id:        id,
-				question:  questionID(ret.AnswerId()),
-				transform: xform,
+				id: id,
+				target: parsedMessageTarget{
+					which:          rpccp.MessageTarget_Which_promisedAnswer,
+					promisedAnswer: answerID(ret.AnswerId()),
+					transform:      xform,
+				},
 			})
 		}
 		return parsedReturn{
@@ -1319,20 +1328,10 @@ func (c *lockedConn) recvCap(d rpccp.CapDescriptor) (capnp.Client, error) {
 		return capnp.Client{}, nil
 	case rpccp.CapDescriptor_Which_senderHosted:
 		id := importID(d.SenderHosted())
-		return c.addImport(id), nil
+		return c.addImport(id, false), nil
 	case rpccp.CapDescriptor_Which_senderPromise:
-		// We do the same thing as senderHosted, above. @kentonv suggested this on
-		// issue #2; this lets messages be delivered properly, although it's a bit
-		// of a hack, and as Kenton describes, it has some disadvantages:
-		//
-		// > * Apps sometimes want to wait for promise resolution, and to find out if
-		// >   it resolved to an exception. You won't be able to provide that API. But,
-		// >   usually, it isn't needed.
-		// > * If the promise resolves to a capability hosted on the receiver,
-		// >   messages sent to it will uselessly round-trip over the network
-		// >   rather than being delivered locally.
 		id := importID(d.SenderPromise())
-		return c.addImport(id), nil
+		return c.addImport(id, true), nil
 	case rpccp.CapDescriptor_Which_thirdPartyHosted:
 		if c.network == nil {
 			// We can't do third-party handoff without a network, so instead of
@@ -1346,7 +1345,7 @@ func (c *lockedConn) recvCap(d rpccp.CapDescriptor) (capnp.Client, error) {
 				)
 			}
 			id := importID(thirdPartyDesc.VineId())
-			return c.addImport(id), nil
+			return c.addImport(id, false), nil
 		}
 		panic("TODO: 3PH")
 	case rpccp.CapDescriptor_Which_receiverHosted:
@@ -1585,68 +1584,42 @@ func (c *Conn) handleDisembargo(ctx context.Context, in transport.IncomingMessag
 		e.lift()
 
 	case rpccp.Disembargo_context_Which_senderLoopback:
-		var (
-			imp    *importClient
-			client capnp.Client
-		)
+		snapshot, err := withLockedConn2(c, func(c *lockedConn) (_ capnp.ClientSnapshot, err error) {
+			switch tgt.which {
+			case rpccp.MessageTarget_Which_promisedAnswer:
+				return c.getAnswerSnapshot(
+					tgt.promisedAnswer,
+					tgt.transform,
+				)
+			case rpccp.MessageTarget_Which_importedCap:
+				ent := c.findExport(tgt.importedCap)
+				if ent == nil {
+					err = rpcerr.Failed(errors.New("sender loopback: no such export: " +
+						str.Utod(tgt.importedCap)))
+					return
+				}
+				if !ent.snapshot.IsPromise() {
+					err = rpcerr.Failed(errors.New(
+						"sender loopback: target export " +
+							str.Utod(tgt.importedCap) +
+							" is not a promise"))
+					return
+				}
 
-		c.withLocked(func(c *lockedConn) {
-			if tgt.which != rpccp.MessageTarget_Which_promisedAnswer {
+				if !ent.snapshot.IsResolved() {
+					err = errors.New("target for receiver loopback is an unresolved promise")
+					return
+				}
+				snapshot := ent.snapshot.AddRef()
+				err = snapshot.Resolve1(context.Background())
+				if err != nil {
+					panic("error resolving snapshot: " + err.Error())
+				}
+				return snapshot, nil
+			default:
 				err = rpcerr.Failed(errors.New("incoming disembargo: sender loopback: target is not a promised answer"))
 				return
 			}
-
-			ans := c.lk.answers[tgt.promisedAnswer]
-			if ans == nil {
-				err = rpcerr.Failed(errors.New(
-					"incoming disembargo: unknown answer ID " +
-						str.Utod(tgt.promisedAnswer),
-				))
-				return
-			}
-			if !ans.flags.Contains(returnSent) {
-				err = rpcerr.Failed(errors.New(
-					"incoming disembargo: answer ID " +
-						str.Utod(tgt.promisedAnswer) + " has not sent return",
-				))
-				return
-			}
-
-			if ans.err != nil {
-				err = rpcerr.Failed(errors.New(
-					"incoming disembargo: answer ID " +
-						str.Utod(tgt.promisedAnswer) + " returned exception",
-				))
-				return
-			}
-
-			var content capnp.Ptr
-			if content, err = ans.returner.results.Content(); err != nil {
-				err = rpcerr.Failed(errors.New(
-					"incoming disembargo: read answer ID " +
-						str.Utod(tgt.promisedAnswer) + ": " + err.Error(),
-				))
-				return
-			}
-
-			var ptr capnp.Ptr
-			if ptr, err = capnp.Transform(content, tgt.transform); err != nil {
-				err = rpcerr.Failed(errors.New(
-					"incoming disembargo: read answer ID " +
-						str.Utod(tgt.promisedAnswer) + ": " + err.Error(),
-				))
-				return
-			}
-
-			iface := ptr.Interface()
-			if !ans.returner.results.Message().CapTable().Contains(iface) {
-				err = rpcerr.Failed(errors.New(
-					"incoming disembargo: sender loopback requested on a capability that is not an import",
-				))
-				return
-			}
-
-			client = iface.Client()
 		})
 
 		if err != nil {
@@ -1654,39 +1627,59 @@ func (c *Conn) handleDisembargo(ctx context.Context, in transport.IncomingMessag
 			return err
 		}
 
-		snapshot := client.Snapshot()
-		defer snapshot.Release()
-		imp, ok := snapshot.Brand().Value.(*importClient)
-		if !ok || imp.c != c {
-			client.Release()
-			return rpcerr.Failed(errors.New(
-				"incoming disembargo: sender loopback requested on a capability that is not an import",
-			))
-		}
-		// TODO(maybe): check generation?
-
-		// Since this Cap'n Proto RPC implementation does not send imports
-		// unless they are fully dequeued, we can just immediately loop back.
+		// FIXME: we're sending the the disembargo right a way, which I(zenhack)
+		// *think* is fine, and definitely was before we actually did anything
+		// with promises. But this is contingent on making sure that all of the
+		// relevant ClientHook implementations queue up their call messages before
+		// returning from .Recv(); if this invariant holds then this is fine
+		// because anything ahead of it is aready on the wire. But we need to
+		// actually check this invariant.
 		id := d.Context().SenderLoopback()
+
 		c.withLocked(func(c *lockedConn) {
 			c.sendMessage(ctx, func(m rpccp.Message) error {
 				d, err := m.NewDisembargo()
 				if err != nil {
 					return err
 				}
-
+				d.Context().SetReceiverLoopback(id)
 				tgt, err := d.NewTarget()
 				if err != nil {
 					return err
 				}
 
-				tgt.SetImportedCap(uint32(imp.id))
-				d.Context().SetReceiverLoopback(id)
-				return nil
+				brand := snapshot.Brand()
+				if pc, ok := brand.Value.(capnp.PipelineClient); ok {
+					if q, ok := c.getAnswerQuestion(pc.Answer()); ok {
+						if q.c == (*Conn)(c) {
+							pa, err := tgt.NewPromisedAnswer()
+							if err != nil {
+								return err
+							}
+							pa.SetQuestionId(uint32(q.id))
+							pcTrans := pc.Transform()
+							trans, err := pa.NewTransform(int32(len(pcTrans)))
+							if err != nil {
+								return err
+							}
+							for i, op := range pcTrans {
+								trans.At(i).SetGetPointerField(op.Field)
+							}
+						}
+						return nil
+					}
+				}
+
+				imp, ok := brand.Value.(*importClient)
+				if ok && imp.c == (*Conn)(c) {
+					tgt.SetImportedCap(uint32(imp.id))
+					return nil
+				}
+				return errors.New("target for receiver loopback does not point to the right connection")
 
 			}, func(err error) {
 				defer in.Release()
-				defer client.Release()
+				defer snapshot.Release()
 
 				if err != nil {
 					c.er.ReportError(rpcerr.Annotate(err, "incoming disembargo: send receiver loopback"))
@@ -1718,6 +1711,147 @@ func (c *Conn) handleDisembargo(ctx context.Context, in transport.IncomingMessag
 	}
 
 	return nil
+}
+
+func (c *lockedConn) getAnswerSnapshot(
+	id answerID,
+	transform []capnp.PipelineOp,
+) (_ capnp.ClientSnapshot, err error) {
+	ans := c.lk.answers[id]
+	if ans == nil {
+		err = rpcerr.Failed(errors.New(
+			"incoming disembargo: unknown answer ID " +
+				str.Utod(id)))
+		return
+	}
+	if !ans.flags.Contains(returnSent) {
+		err = rpcerr.Failed(errors.New(
+			"incoming disembargo: answer ID " +
+				str.Utod(id) + " has not sent return",
+		))
+		return
+	}
+
+	if ans.err != nil {
+		err = rpcerr.Failed(errors.New(
+			"incoming disembargo: answer ID " +
+				str.Utod(id) + " returned exception",
+		))
+		return
+	}
+
+	var content capnp.Ptr
+	if content, err = ans.returner.results.Content(); err != nil {
+		err = rpcerr.Failed(errors.New(
+			"incoming disembargo: read answer ID " +
+				str.Utod(id) + ": " + err.Error(),
+		))
+		return
+	}
+
+	var ptr capnp.Ptr
+	if ptr, err = capnp.Transform(content, transform); err != nil {
+		err = rpcerr.Failed(errors.New(
+			"incoming disembargo: read answer ID " +
+				str.Utod(id) + ": " + err.Error(),
+		))
+		return
+	}
+
+	iface := ptr.Interface()
+	if !ans.returner.results.Message().CapTable().Contains(iface) {
+		err = rpcerr.Failed(errors.New(
+			"incoming disembargo: sender loopback requested on a capability that is not an import",
+		))
+		return
+	}
+	caps := ans.returner.resultsCapTable
+	capID := iface.Capability()
+	if int(capID) >= len(caps) {
+		return capnp.ClientSnapshot{}, nil
+	}
+
+	return caps[capID].AddRef(), nil
+}
+
+func (c *Conn) handleResolve(ctx context.Context, in transport.IncomingMessage) error {
+	dq := &deferred.Queue{}
+	defer dq.Run()
+
+	resolve, err := in.Message().Resolve()
+	if err != nil {
+		in.Release()
+		c.er.ReportError(exc.WrapError("read resolve", err))
+		return nil
+	}
+
+	promiseID := importID(resolve.PromiseId())
+	err = withLockedConn1(c, func(c *lockedConn) error {
+		imp, ok := c.lk.imports[promiseID]
+		if !ok {
+			return errors.New(
+				"incoming resolve: no such import ID: " + str.Utod(promiseID),
+			)
+		}
+		if imp.resolver == nil {
+			return errors.New(
+				"incoming resolve: import ID " +
+					str.Utod(promiseID) +
+					"is not a promise",
+			)
+		}
+		switch resolve.Which() {
+		case rpccp.Resolve_Which_cap:
+			desc, err := resolve.Cap()
+			if err != nil {
+				return exc.WrapError("reading cap from resolve message", err)
+			}
+			client, err := c.recvCap(desc)
+			if err != nil {
+				return err
+			}
+			if c.isLocalClient(client) {
+				var id embargoID
+				id, client = c.embargo(client)
+				disembargo := senderLoopback{
+					id: id,
+					target: parsedMessageTarget{
+						which:       rpccp.MessageTarget_Which_importedCap,
+						importedCap: exportID(promiseID),
+					},
+				}
+				c.sendMessage(ctx, disembargo.buildDisembargo, func(err error) {
+					if err != nil {
+						c.er.ReportError(
+							exc.WrapError(
+								"incoming resolve: send disembargo",
+								err,
+							),
+						)
+					}
+				})
+			}
+			dq.Defer(func() {
+				imp.resolver.Fulfill(client)
+				client.Release()
+			})
+		case rpccp.Resolve_Which_exception:
+			ex, err := resolve.Exception()
+			if err != nil {
+				err = exc.WrapError("reading exception from resolve message", err)
+			} else {
+				err = ex.ToError()
+			}
+			dq.Defer(func() {
+				imp.resolver.Reject(err)
+			})
+		}
+		return nil
+	})
+	if err != nil {
+		c.er.ReportError(err)
+	}
+	return err
 }
 
 func (c *Conn) handleUnknownMessageType(ctx context.Context, in transport.IncomingMessage) {
