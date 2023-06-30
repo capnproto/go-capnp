@@ -428,9 +428,8 @@ func TestDisembargoThirdPartyCap(t *testing.T) {
 		info.Dq.Defer(release)
 
 		require.Equal(t, rpccp.Message_Which_disembargo, rmsg.Which)
-		require.Equal(t, info.ProvideQID, rmsg.Disembargo.Target.Which)
-		require.Equal(t, info.ProvideQID, rmsg.Disembargo.Target.PromisedAnswer.QuestionID)
-		require.Equal(t, 0, len(rmsg.Disembargo.Target.PromisedAnswer.Transform))
+		require.Equal(t, rpccp.MessageTarget_Which_importedCap, rmsg.Disembargo.Target.Which)
+		require.Equal(t, info.EmptyExportID, rmsg.Disembargo.Target.ImportedCap)
 
 		require.Equal(t,
 			rpcDisembargoContext{

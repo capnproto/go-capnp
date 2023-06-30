@@ -1748,7 +1748,10 @@ func (c *Conn) handleDisembargo(ctx context.Context, in transport.IncomingMessag
 				}
 				return pinfo.target.Encode(tgt)
 			}, func(err error) {
-				panic("TODO")
+				if err != nil {
+					// TODO: what should we do here? abort the connection, probably.
+					panic("TODO")
+				}
 			})
 			return nil
 		})
