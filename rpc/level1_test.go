@@ -34,7 +34,7 @@ func testSendDisembargo(t *testing.T, sendPrimeTo rpccp.Call_sendResultsTo_Which
 	p1, p2 := rpc.NewTransport(left), rpc.NewTransport(right)
 
 	conn := rpc.NewConn(p1, &rpc.Options{
-		ErrorReporter: testErrorReporter{tb: t},
+		Logger: testErrorReporter{tb: t},
 	})
 	defer finishTest(t, conn, p2)
 	ctx := context.Background()
@@ -512,7 +512,7 @@ func TestRecvDisembargo(t *testing.T) {
 
 	conn := rpc.NewConn(p1, &rpc.Options{
 		BootstrapClient: srv,
-		ErrorReporter:   testErrorReporter{tb: t},
+		Logger:          testErrorReporter{tb: t},
 	})
 	defer finishTest(t, conn, p2)
 	ctx := context.Background()
@@ -816,7 +816,7 @@ func TestIssue3(t *testing.T) {
 
 	conn := rpc.NewConn(p1, &rpc.Options{
 		BootstrapClient: srv,
-		ErrorReporter:   testErrorReporter{tb: t},
+		Logger:          testErrorReporter{tb: t},
 	})
 	defer finishTest(t, conn, p2)
 	ctx := context.Background()

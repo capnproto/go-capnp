@@ -72,7 +72,7 @@ func TestSendAbort(t *testing.T) {
 		defer p2.Close()
 
 		conn := rpc.NewConn(p1, &rpc.Options{
-			ErrorReporter: testErrorReporter{tb: t, fail: true},
+			Logger: testErrorReporter{tb: t, fail: true},
 			// Give it plenty of time to actually send the message;
 			// otherwise we might time out and close the connection first.
 			// "plenty of time" here really means defer to the test suite's
@@ -118,7 +118,7 @@ func TestSendAbort(t *testing.T) {
 		p1, p2 := net.Pipe()
 		defer p2.Close()
 		conn := rpc.NewConn(transport.NewStream(p1), &rpc.Options{
-			ErrorReporter: testErrorReporter{tb: t, fail: true},
+			Logger: testErrorReporter{tb: t, fail: true},
 		})
 
 		// Should have a timeout.
@@ -140,7 +140,7 @@ func TestRecvAbort(t *testing.T) {
 	defer p2.Close()
 
 	conn := rpc.NewConn(p1, &rpc.Options{
-		ErrorReporter: testErrorReporter{tb: t},
+		Logger: testErrorReporter{tb: t},
 	})
 
 	select {
@@ -196,7 +196,7 @@ func TestSendBootstrapError(t *testing.T) {
 	p1, p2 := rpc.NewTransport(left), rpc.NewTransport(right)
 
 	conn := rpc.NewConn(p1, &rpc.Options{
-		ErrorReporter: testErrorReporter{tb: t},
+		Logger: testErrorReporter{tb: t},
 	})
 	defer finishTest(t, conn, p2)
 
@@ -288,7 +288,7 @@ func TestSendBootstrapCall(t *testing.T) {
 	p1, p2 := rpc.NewTransport(left), rpc.NewTransport(right)
 
 	conn := rpc.NewConn(p1, &rpc.Options{
-		ErrorReporter: testErrorReporter{tb: t},
+		Logger: testErrorReporter{tb: t},
 	})
 	defer finishTest(t, conn, p2)
 
@@ -499,7 +499,7 @@ func TestSendBootstrapCallException(t *testing.T) {
 	p1, p2 := rpc.NewTransport(left), rpc.NewTransport(right)
 
 	conn := rpc.NewConn(p1, &rpc.Options{
-		ErrorReporter: testErrorReporter{tb: t},
+		Logger: testErrorReporter{tb: t},
 	})
 	defer finishTest(t, conn, p2)
 
@@ -676,7 +676,7 @@ func TestSendBootstrapPipelineCall(t *testing.T) {
 	p1, p2 := rpc.NewTransport(left), rpc.NewTransport(right)
 
 	conn := rpc.NewConn(p1, &rpc.Options{
-		ErrorReporter: testErrorReporter{tb: t},
+		Logger: testErrorReporter{tb: t},
 	})
 	defer finishTest(t, conn, p2)
 
@@ -877,7 +877,7 @@ func TestRecvBootstrapError(t *testing.T) {
 	p1, p2 := rpc.NewTransport(left), rpc.NewTransport(right)
 
 	conn := rpc.NewConn(p1, &rpc.Options{
-		ErrorReporter: testErrorReporter{tb: t},
+		Logger: testErrorReporter{tb: t},
 	})
 	defer finishTest(t, conn, p2)
 	ctx := context.Background()
@@ -954,7 +954,7 @@ func TestRecvBootstrapCall(t *testing.T) {
 
 	conn := rpc.NewConn(p1, &rpc.Options{
 		BootstrapClient: srv,
-		ErrorReporter:   testErrorReporter{tb: t},
+		Logger:          testErrorReporter{tb: t},
 	})
 	defer func() {
 		finishTest(t, conn, p2)
@@ -1108,7 +1108,7 @@ func TestRecvBootstrapCallException(t *testing.T) {
 
 	conn := rpc.NewConn(p1, &rpc.Options{
 		BootstrapClient: srv,
-		ErrorReporter:   testErrorReporter{tb: t},
+		Logger:          testErrorReporter{tb: t},
 	})
 	defer finishTest(t, conn, p2)
 
@@ -1265,7 +1265,7 @@ func TestRecvBootstrapPipelineCall(t *testing.T) {
 
 	conn := rpc.NewConn(p1, &rpc.Options{
 		BootstrapClient: srv,
-		ErrorReporter:   testErrorReporter{tb: t},
+		Logger:          testErrorReporter{tb: t},
 	})
 	defer func() {
 		finishTest(t, conn, p2)
@@ -1372,12 +1372,12 @@ func TestDuplicateBootstrap(t *testing.T) {
 
 	srvConn := rpc.NewConn(p1, &rpc.Options{
 		BootstrapClient: srv,
-		ErrorReporter:   testErrorReporter{tb: t},
+		Logger:          testErrorReporter{tb: t},
 	})
 	defer srvConn.Close()
 
 	clientConn := rpc.NewConn(p2, &rpc.Options{
-		ErrorReporter: testErrorReporter{tb: t},
+		Logger: testErrorReporter{tb: t},
 	})
 	defer clientConn.Close()
 
@@ -1411,12 +1411,12 @@ func TestUseConnAfterBootstrapError(t *testing.T) {
 
 	srvConn := rpc.NewConn(p1, &rpc.Options{
 		BootstrapClient: srv,
-		ErrorReporter:   testErrorReporter{tb: t},
+		Logger:          testErrorReporter{tb: t},
 	})
 	defer srvConn.Close()
 
 	clientConn := rpc.NewConn(p2, &rpc.Options{
-		ErrorReporter: testErrorReporter{tb: t},
+		Logger: testErrorReporter{tb: t},
 	})
 	defer clientConn.Close()
 
@@ -1461,7 +1461,7 @@ func TestCallOnClosedConn(t *testing.T) {
 
 	defer p2.Close()
 	conn := rpc.NewConn(p1, &rpc.Options{
-		ErrorReporter: testErrorReporter{tb: t},
+		Logger: testErrorReporter{tb: t},
 	})
 	closed := false
 	defer func() {
@@ -1606,7 +1606,7 @@ func TestRecvCancel(t *testing.T) {
 	defer p2.Close()
 	conn := rpc.NewConn(p1, &rpc.Options{
 		BootstrapClient: srv,
-		ErrorReporter:   testErrorReporter{tb: t},
+		Logger:          testErrorReporter{tb: t},
 	})
 	closed := false
 	defer func() {
@@ -1750,7 +1750,7 @@ func TestSendCancel(t *testing.T) {
 	p1, p2 := rpc.NewTransport(left), rpc.NewTransport(right)
 
 	conn := rpc.NewConn(p1, &rpc.Options{
-		ErrorReporter: testErrorReporter{tb: t},
+		Logger: testErrorReporter{tb: t},
 	})
 	defer finishTest(t, conn, p2)
 	ctx := context.Background()
@@ -2253,15 +2253,48 @@ func canceledContext(parent context.Context) context.Context {
 
 type testErrorReporter struct {
 	tb interface {
-		Log(...any)
+		Logf(string, ...any)
 		Fail()
 	}
 	fail bool
 }
 
-func (r testErrorReporter) ReportError(e error) {
-	r.tb.Log("conn error:", e)
-	if r.fail {
-		r.tb.Fail()
+func mkArgsMap(args []any) map[string]any {
+	if len(args)%2 != 0 {
+		panic("odd number of arguments passed to logging method")
 	}
+	ret := make(map[string]any, len(args)/2)
+	for i := 0; i < len(args); i += 2 {
+		k := args[i].(string)
+		v := args[i+1]
+		ret[k] = v
+	}
+	return ret
+}
+
+func (t testErrorReporter) log(level string, msg string, args ...any) {
+	t.tb.Logf("log level %v: %v (args: %v)", level, msg, mkArgsMap(args))
+}
+
+func (t testErrorReporter) Debug(msg string, args ...any) {
+	t.log("debug", msg, args...)
+}
+
+func (t testErrorReporter) Info(msg string, args ...any) {
+	t.log("info", msg, args...)
+}
+
+func (t testErrorReporter) Warn(msg string, args ...any) {
+	t.log("warn", msg, args...)
+}
+
+func (t testErrorReporter) Error(msg string, args ...any) {
+	t.log("error", msg, args...)
+	if t.fail {
+		t.tb.Fail()
+	}
+}
+
+func (t testErrorReporter) ReportError(e error) {
+	t.Error(e.Error())
 }
