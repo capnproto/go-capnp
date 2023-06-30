@@ -1194,14 +1194,7 @@ func (c *Conn) handleReturn(ctx context.Context, in transport.IncomingMessage) e
 				// the embargo on our side, but doesn't cause a leak.
 				//
 				// TODO(soon): make embargo resolve to error client.
-				for _, s := range pr.disembargoes {
-					c.sendMessage(ctx, s.buildDisembargo, func(err error) {
-						if err != nil {
-							err = exc.WrapError("incoming return: send disembargo", err)
-							c.er.ReportError(err)
-						}
-					})
-				}
+				pr.disembargoes.send(ctx, c)
 
 				// Send finish.
 				c.sendMessage(ctx, func(m rpccp.Message) error {
@@ -1238,34 +1231,44 @@ func (c *lockedConn) parseReturn(dq *deferred.Queue, ret rpccp.Return, called []
 		if err != nil {
 			return parsedReturn{err: rpcerr.WrapFailed("parse return", err), parseFailed: true}
 		}
-		content, locals, err := c.recvPayload(dq, r)
+		content, disembargoRequirements, err := c.recvPayload(dq, r)
 		if err != nil {
 			return parsedReturn{err: rpcerr.WrapFailed("parse return", err), parseFailed: true}
 		}
 
 		var embargoCaps uintSet
-		var disembargoes []senderLoopback
+		var disembargoes disembargoSet
 		mtab := ret.Message().CapTable()
 		for _, xform := range called {
 			p2, _ := capnp.Transform(content, xform)
 			iface := p2.Interface()
 			i := iface.Capability()
-			if !mtab.Contains(iface) || !locals.has(uint(i)) || embargoCaps.has(uint(i)) {
+			if !mtab.Contains(iface) || embargoCaps.has(uint(i)) {
 				continue
 			}
 
-			id, ec := c.embargo(mtab.Get(iface))
-			mtab.Set(i, ec)
+			target := parsedMessageTarget{
+				which:          rpccp.MessageTarget_Which_promisedAnswer,
+				promisedAnswer: answerID(ret.AnswerId()),
+				transform:      xform,
+			}
+			switch disembargoRequirements[i] {
+			case noDisembargo:
+				continue
+			case loopbackDisembargo:
+				id, ec := c.embargo(mtab.Get(iface))
+				mtab.Set(i, ec)
+				disembargoes.loopback = append(disembargoes.loopback, senderLoopback{
+					id:     id,
+					target: target,
+				})
+			case acceptDisembargo:
+				disembargoes.accept = append(disembargoes.accept, target)
+			default:
+				panic("invalid disembargo type")
+			}
 
 			embargoCaps.add(uint(i))
-			disembargoes = append(disembargoes, senderLoopback{
-				id: id,
-				target: parsedMessageTarget{
-					which:          rpccp.MessageTarget_Which_promisedAnswer,
-					promisedAnswer: answerID(ret.AnswerId()),
-					transform:      xform,
-				},
-			})
 		}
 		return parsedReturn{
 			result:       content,
@@ -1296,7 +1299,7 @@ func (c *lockedConn) parseReturn(dq *deferred.Queue, ret rpccp.Return, called []
 
 type parsedReturn struct {
 	result        capnp.Ptr
-	disembargoes  []senderLoopback
+	disembargoes  disembargoSet
 	err           error
 	parseFailed   bool
 	unimplemented bool
@@ -1465,21 +1468,6 @@ const (
 	acceptDisembargo
 )
 
-// Returns whether the client should be treated as local, for the purpose of
-// embargoes.
-func (c *lockedConn) isLocalClient(client capnp.Client) bool {
-	switch c.disembargoType(client) {
-	case noDisembargo:
-		return false
-	case loopbackDisembargo:
-		return true
-	case acceptDisembargo:
-		panic("TODO: 3PH")
-	default:
-		panic("bad disembargo type")
-	}
-}
-
 // Returns what type of disembargo (if any) we must send after a remote promise
 // has resolved to the client.
 func (c *lockedConn) disembargoType(client capnp.Client) disembargoRequirement {
@@ -1529,11 +1517,13 @@ func (c *lockedConn) disembargoType(client capnp.Client) disembargoRequirement {
 }
 
 // recvPayload extracts the content pointer after populating the
-// message's capability table.  It also returns the set of indices in
-// the capability table that represent capabilities in the local vat.
-//
-// The caller must be holding onto c.lk.
-func (c *lockedConn) recvPayload(dq *deferred.Queue, payload rpccp.Payload) (_ capnp.Ptr, locals uintSet, _ error) {
+// message's capability table.  It also returns a mapping from indices
+// in the capability table to any disembargoes that need to be sent to them.
+func (c *lockedConn) recvPayload(dq *deferred.Queue, payload rpccp.Payload) (
+	_ capnp.Ptr,
+	disembargos []disembargoRequirement,
+	_ error,
+) {
 	if !payload.IsValid() {
 		// null pointer; in this case we can treat the cap table as being empty
 		// and just return.
@@ -1573,12 +1563,10 @@ func (c *lockedConn) recvPayload(dq *deferred.Queue, payload rpccp.Payload) (_ c
 		}
 
 		mtab.Add(cl)
-		if c.isLocalClient(cl) {
-			locals.add(uint(i))
-		}
+		disembargos = append(disembargos, c.disembargoType(cl))
 	}
 
-	return p, locals, err
+	return p, disembargos, err
 }
 
 func (c *Conn) handleRelease(ctx context.Context, in transport.IncomingMessage) error {

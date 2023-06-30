@@ -590,3 +590,40 @@ func (sl *senderLoopback) buildDisembargo(msg rpccp.Message) error {
 	}
 	return sl.target.Encode(tgt)
 }
+
+// disembargoSet describes a set of disembargoes that must be sent.
+type disembargoSet struct {
+	loopback []senderLoopback
+	accept   []parsedMessageTarget
+}
+
+func (ds *disembargoSet) send(ctx context.Context, c *lockedConn) {
+	onError := func(err error) {
+		if err != nil {
+			err = exc.WrapError("send disembargo", err)
+			c.er.ReportError(err)
+		}
+	}
+	for _, v := range ds.loopback {
+		c.sendMessage(ctx, v.buildDisembargo, onError)
+	}
+	for _, disembargoTarget := range ds.accept {
+		// FIXME: if we fail to send one of these, calls to the destination will
+		// hang forever.
+		c.sendMessage(ctx, func(m rpccp.Message) error {
+			d, err := m.NewDisembargo()
+			if err != nil {
+				return err
+			}
+			tgt, err := d.NewTarget()
+			if err != nil {
+				return err
+			}
+			if err = disembargoTarget.Encode(tgt); err != nil {
+				return err
+			}
+			d.Context().SetAccept()
+			return nil
+		}, onError)
+	}
+}
