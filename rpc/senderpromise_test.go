@@ -24,7 +24,7 @@ func TestSenderPromiseFulfill(t *testing.T) {
 	p1, p2 := rpc.NewTransport(left), rpc.NewTransport(right)
 
 	conn := rpc.NewConn(p1, &rpc.Options{
-		ErrorReporter:   testErrorReporter{tb: t},
+		Logger:          testErrorReporter{tb: t},
 		BootstrapClient: capnp.Client(p),
 	})
 	defer finishTest(t, conn, p2)
@@ -87,7 +87,7 @@ func TestResolveUnimplementedDrop(t *testing.T) {
 	p1, p2 := rpc.NewTransport(left), rpc.NewTransport(right)
 
 	conn := rpc.NewConn(p1, &rpc.Options{
-		ErrorReporter:   testErrorReporter{tb: t},
+		Logger:          testErrorReporter{tb: t},
 		BootstrapClient: capnp.Client(provider),
 	})
 	defer finishTest(t, conn, p2)
@@ -228,7 +228,7 @@ func TestDisembargoSenderPromise(t *testing.T) {
 	p1, p2 := rpc.NewTransport(left), rpc.NewTransport(right)
 
 	conn := rpc.NewConn(p1, &rpc.Options{
-		ErrorReporter:   testErrorReporter{tb: t},
+		Logger:          testErrorReporter{tb: t},
 		BootstrapClient: capnp.Client(p),
 	})
 	defer finishTest(t, conn, p2)
@@ -364,14 +364,14 @@ func TestPromiseOrdering(t *testing.T) {
 	p1, p2 := rpc.NewTransport(left), rpc.NewTransport(right)
 
 	c1 := rpc.NewConn(p1, &rpc.Options{
-		ErrorReporter:   testErrorReporter{tb: t},
+		Logger:          testErrorReporter{tb: t},
 		BootstrapClient: capnp.Client(p),
 	})
 	ord := &echoNumOrderChecker{
 		t: t,
 	}
 	c2 := rpc.NewConn(p2, &rpc.Options{
-		ErrorReporter:   testErrorReporter{tb: t},
+		Logger:          testErrorReporter{tb: t},
 		BootstrapClient: capnp.Client(testcapnp.PingPong_ServerToClient(ord)),
 	})
 

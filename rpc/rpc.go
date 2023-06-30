@@ -181,9 +181,9 @@ type Options struct {
 	// closed.
 	BootstrapClient capnp.Client
 
-	// ErrorReporter will be called upon when errors occur while the Conn
-	// is receiving messages from the remote vat.
-	ErrorReporter ErrorReporter
+	// Logger is used for logging by the RPC system, including errors that
+	// occur while the Conn is receiving messages from the remote vat.
+	Logger Logger
 
 	// AbortTimeout specifies how long to block on sending an abort message
 	// before closing the transport.  If zero, then a reasonably short
@@ -203,10 +203,20 @@ type Options struct {
 	Network Network
 }
 
-// ErrorReporter can receive errors from a Conn.  ReportError should be quick
-// to return and should not use the Conn that it is attached to.
-type ErrorReporter interface {
-	ReportError(error)
+// Logger is used for logging by the RPC system. Each method logs
+// messages at a different level, but otherwise has the same semantics:
+//
+// - Message is a human-readable description of the log event.
+// - Args is a sequenece of key, value pairs, where the keys must be strings
+//   and the values may be any type.
+// - The methods may not block for long periods of time.
+//
+// This interface is designed such that it is satisfied by *slog.Logger.
+type Logger interface {
+	Debug(message string, args ...any)
+	Info(message string, args ...any)
+	Warn(message string, args ...any)
+	Error(message string, args ...any)
 }
 
 // NewConn creates a new connection that communicates on a given transport.
@@ -233,7 +243,7 @@ func NewConn(t Transport, opts *Options) *Conn {
 
 	if opts != nil {
 		c.bootstrap = opts.BootstrapClient
-		c.er = errReporter{opts.ErrorReporter}
+		c.er = errReporter{opts.Logger}
 		c.abortTimeout = opts.AbortTimeout
 		c.network = opts.Network
 		c.remotePeerID = opts.RemotePeerID

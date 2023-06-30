@@ -19,11 +19,11 @@ var (
 )
 
 type errReporter struct {
-	ErrorReporter
+	Logger
 }
 
 func (er errReporter) ReportError(err error) {
-	if er.ErrorReporter != nil && err != nil {
-		er.ErrorReporter.ReportError(err)
+	if er.Logger != nil && err != nil {
+		er.Logger.Error(err.Error())
 	}
 }
