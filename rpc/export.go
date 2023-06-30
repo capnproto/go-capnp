@@ -170,7 +170,15 @@ func (c *lockedConn) send3PHPromise(
 		// consistent across all 3PH code:
 		introInfo, err := c.network.Introduce(srcConn, c)
 		if err != nil {
-			// TODO: report somehow; see above.
+			// TODO: consider fulfilling the promise with something else, so
+			// if the remote tries to .Resolve() it, it doesn't just block
+			// indefinitely? Unsure.
+			c.er.Warn(
+				"failed to introduce connections; proxying third party cap",
+				"error", err,
+				"provider", srcConn.RemotePeerID,
+				"recipient", c.RemotePeerID,
+			)
 			return
 		}
 
