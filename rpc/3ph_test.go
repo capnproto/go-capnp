@@ -89,7 +89,7 @@ func introTest(t *testing.T, f func(info introTestInfo)) {
 	dq.Defer(pp.Release)
 
 	cfgOpts := func(opts *rpc.Options) {
-		opts.ErrorReporter = testErrorReporter{tb: t}
+		opts.Logger = testErrorReporter{tb: t}
 	}
 
 	introducer := j.Join(cfgOpts)
