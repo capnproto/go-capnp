@@ -1450,11 +1450,41 @@ func (c *lockedConn) recvCapReceiverAnswer(ans *ansent, transform []capnp.Pipeli
 	return iface.Client().AddRef()
 }
 
+// A disembargoRequirement indicates what kind of disembargo must be sent for
+// a newly resolved capability.
+type disembargoRequirement int
+
+const (
+	// No disembargo is required.
+	noDisembargo disembargoRequirement = iota
+
+	// We must send disembargo with context = senderLoopback.
+	loopbackDisembargo
+
+	// We must send disembargo with context = accept.
+	acceptDisembargo
+)
+
 // Returns whether the client should be treated as local, for the purpose of
 // embargoes.
 func (c *lockedConn) isLocalClient(client capnp.Client) bool {
-	if (client == capnp.Client{}) {
+	switch c.disembargoType(client) {
+	case noDisembargo:
 		return false
+	case loopbackDisembargo:
+		return true
+	case acceptDisembargo:
+		panic("TODO: 3PH")
+	default:
+		panic("bad disembargo type")
+	}
+}
+
+// Returns what type of disembargo (if any) we must send after a remote promise
+// has resolved to the client.
+func (c *lockedConn) disembargoType(client capnp.Client) disembargoRequirement {
+	if (client == capnp.Client{}) {
+		return noDisembargo
 	}
 
 	snapshot := client.Snapshot()
@@ -1463,40 +1493,39 @@ func (c *lockedConn) isLocalClient(client capnp.Client) bool {
 
 	if ic, ok := bv.(*importClient); ok {
 		if ic.c == (*Conn)(c) {
-			return false
+			return noDisembargo
 		}
 		if c.network == nil || c.network != ic.c.network {
 			// Different connections on different networks. We must
 			// be proxying it, so as far as this connection is
 			// concerned, it lives on our side.
-			return true
+			return loopbackDisembargo
 		}
-		// Might have to do more refactoring re: what to do in this case;
-		// just checking for embargo or not might not be sufficient:
-		panic("TODO: 3PH")
+		return acceptDisembargo
 	}
 
 	if pc, ok := bv.(capnp.PipelineClient); ok {
 		// Same logic re: proxying as with imports:
 		if q, ok := c.getAnswerQuestion(pc.Answer()); ok {
 			if q.c == (*Conn)(c) {
-				return false
+				return noDisembargo
 			}
 			if c.network == nil || c.network != q.c.network {
-				return true
+				return loopbackDisembargo
 			}
-			panic("TODO: 3PH")
+			// Shouldn't happen, but obvious what we need to do if it does:
+			return acceptDisembargo
 		}
 	}
 
 	if _, ok := bv.(error); ok {
-		// Returned by capnp.ErrorClient. No need to treat this as
-		// local; all methods will just return the error anyway,
-		// so violating E-order will have no effect on the results.
-		return false
+		// Returned by capnp.ErrorClient. No need to disembargo this;
+		// all methods will just return the error anyway, so violating
+		// E-order will have no effect on the results.
+		return noDisembargo
 	}
 
-	return true
+	return loopbackDisembargo
 }
 
 // recvPayload extracts the content pointer after populating the
@@ -1889,26 +1918,52 @@ func (c *Conn) handleResolve(ctx context.Context, in transport.IncomingMessage) 
 			if err != nil {
 				return err
 			}
-			if c.isLocalClient(client) {
+			disembargoTarget := parsedMessageTarget{
+				which:       rpccp.MessageTarget_Which_importedCap,
+				importedCap: exportID(promiseID),
+			}
+			switch c.disembargoType(client) {
+			case noDisembargo:
+			case loopbackDisembargo:
 				var id embargoID
 				id, client = c.embargo(client)
 				disembargo := senderLoopback{
-					id: id,
-					target: parsedMessageTarget{
-						which:       rpccp.MessageTarget_Which_importedCap,
-						importedCap: exportID(promiseID),
-					},
+					id:     id,
+					target: disembargoTarget,
 				}
 				c.sendMessage(ctx, disembargo.buildDisembargo, func(err error) {
-					if err != nil {
-						c.er.ReportError(
-							exc.WrapError(
-								"incoming resolve: send disembargo",
-								err,
-							),
-						)
+					if err == nil {
+						return
 					}
+					c.er.Error("incoming resolve: send disembargo failed",
+						"error", err,
+					)
 				})
+			case acceptDisembargo:
+				c.sendMessage(ctx, func(m rpccp.Message) error {
+					d, err := m.NewDisembargo()
+					if err != nil {
+						return err
+					}
+					tgt, err := d.NewTarget()
+					if err != nil {
+						return err
+					}
+					if err = disembargoTarget.Encode(tgt); err != nil {
+						return err
+					}
+					d.Context().SetAccept()
+					return nil
+				}, func(err error) {
+					if err == nil {
+						return
+					}
+					c.er.Error("incoming resolve: send disembargo failed",
+						"error", err,
+					)
+				})
+			default:
+				panic("invalid disembargo type")
 			}
 			dq.Defer(func() {
 				imp.resolver.Fulfill(client)
