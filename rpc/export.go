@@ -88,7 +88,6 @@ func (c *lockedConn) releaseExport(id exportID, count uint32) (capnp.ClientSnaps
 }
 
 func (c *lockedConn) releaseExportRefs(dq *deferred.Queue, refs map[exportID]uint32) error {
-	n := len(refs)
 	var firstErr error
 	for id, count := range refs {
 		snapshot, err := c.releaseExport(id, count)
@@ -96,15 +95,12 @@ func (c *lockedConn) releaseExportRefs(dq *deferred.Queue, refs map[exportID]uin
 			if firstErr == nil {
 				firstErr = err
 			}
-			n--
 			continue
 		}
 		if (snapshot == capnp.ClientSnapshot{}) {
-			n--
 			continue
 		}
 		dq.Defer(snapshot.Release)
-		n--
 	}
 	return firstErr
 }
