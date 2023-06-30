@@ -246,11 +246,11 @@ func (c *lockedConn) send3PHPromise(
 				if vineEntry == nil {
 					vine.Shutdown()
 				} else {
-					var snapshot capnp.ClientSnapshot
+					dq := &deferred.Queue{}
+					defer dq.Run()
 					unlockedConn.withLocked(func(c *lockedConn) {
-						snapshot, _ = c.releaseExport(vineID, 1)
+						c.releaseExport(dq, vineID, 1)
 					})
-					snapshot.Release()
 				}
 			})
 		})
