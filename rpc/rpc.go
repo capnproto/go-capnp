@@ -669,14 +669,12 @@ func (c *Conn) handleUnimplemented(in transport.IncomingMessage) error {
 			default:
 				return nil
 			}
-			snapshot, err := withLockedConn2(c, func(c *lockedConn) (capnp.ClientSnapshot, error) {
-				return c.releaseExport(id, 1)
+			dq := &deferred.Queue{}
+			defer dq.Run()
+			err = withLockedConn1(c, func(c *lockedConn) error {
+				return c.releaseExport(dq, id, 1)
 			})
-			if err != nil {
-				return err
-			}
-			snapshot.Release()
-			return nil
+			return err
 		}
 	}
 	// For other cases we should just ignore the message.
@@ -1532,13 +1530,14 @@ func (c *Conn) handleRelease(ctx context.Context, in transport.IncomingMessage) 
 	id := exportID(rel.Id())
 	count := rel.ReferenceCount()
 
-	snapshot, err := withLockedConn2(c, func(c *lockedConn) (capnp.ClientSnapshot, error) {
-		return c.releaseExport(id, count)
+	dq := &deferred.Queue{}
+	defer dq.Run()
+	err = withLockedConn1(c, func(c *lockedConn) error {
+		return c.releaseExport(dq, id, count)
 	})
 	if err != nil {
 		return rpcerr.Annotate(err, "incoming release")
 	}
-	snapshot.Release() // no-ops for nil
 	return nil
 }
 
