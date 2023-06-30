@@ -588,25 +588,5 @@ func (sl *senderLoopback) buildDisembargo(msg rpccp.Message) error {
 	if err != nil {
 		return rpcerr.WrapFailed("build disembargo", err)
 	}
-	switch sl.target.which {
-	case rpccp.MessageTarget_Which_promisedAnswer:
-		pa, err := tgt.NewPromisedAnswer()
-		if err != nil {
-			return rpcerr.WrapFailed("build disembargo", err)
-		}
-		oplist, err := pa.NewTransform(int32(len(sl.target.transform)))
-		if err != nil {
-			return rpcerr.WrapFailed("build disembargo", err)
-		}
-
-		pa.SetQuestionId(uint32(sl.target.promisedAnswer))
-		for i, op := range sl.target.transform {
-			oplist.At(i).SetGetPointerField(op.Field)
-		}
-	case rpccp.MessageTarget_Which_importedCap:
-		tgt.SetImportedCap(uint32(sl.target.importedCap))
-	default:
-		return errors.New("unknown variant for MessageTarget: " + str.Utod(sl.target.which))
-	}
-	return nil
+	return sl.target.Encode(tgt)
 }
