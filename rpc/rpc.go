@@ -1282,8 +1282,8 @@ func (c *lockedConn) parseReturn(dq *deferred.Queue, ret rpccp.Return, called []
 		}
 		return parsedReturn{err: exc.New(exc.Type(e.Type()), "", reason)}
 	case rpccp.Return_Which_acceptFromThirdParty:
-		// TODO: 3PH. Can wait until after the MVP, because we can keep
-		// setting allowThirdPartyTailCall = false
+		// TODO: 3PH. For now we can skip this, because we always set
+		// allowThirdPartyTailCall = false.
 		fallthrough
 	default:
 		// TODO: go through other variants and make sure we're handling
