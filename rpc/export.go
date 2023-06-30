@@ -25,10 +25,29 @@ type expent struct {
 	cancel context.CancelFunc
 
 	// If present, this export is a promise which resolved to some third
-	// party capability, and the question corresponds to the provide message.
-	// Note that this means the question will belong to a different connection
-	// from the expent.
-	provide maybe.Maybe[*question]
+	// party capability, and this corresponds to the provide message.
+	provide maybe.Maybe[expentProvideInfo]
+}
+
+type expentProvideInfo struct {
+	// The question corresponding to the provide. Note that the question
+	// will belong to a different connection from the expent.
+	q *question
+
+	// The original MessageTarget in the provide message
+	target parsedMessageTarget
+
+	// A snapshot for the original target of the provide message.
+	// This is to keep it alive so that our target field remains
+	// correct.
+	snapshot capnp.ClientSnapshot
+}
+
+func (e *expent) Release() {
+	e.snapshot.Release()
+	if pinfo, ok := e.provide.Get(); ok {
+		pinfo.snapshot.Release()
+	}
 }
 
 // A key for use in a client's Metadata, whose value is the export
@@ -84,7 +103,7 @@ func (c *lockedConn) releaseExport(dq *deferred.Queue, id exportID, count uint32
 				c.clearExportID(metadata)
 			})
 		}
-		dq.Defer(snapshot.Release)
+		dq.Defer(ent.Release)
 		return nil
 	case count > ent.wireRefs:
 		return rpcerr.Failed(errors.New("export ID " + str.Utod(id) + " released too many references"))
@@ -198,6 +217,7 @@ func (c *lockedConn) send3PHPromise(
 			vineEntry *expent
 		)
 		c.withLocked(func(c *lockedConn) {
+			targetSnapshot := srcSnapshot.AddRef()
 			c.sendMessage(c.bgctx, func(m rpccp.Message) error {
 				if len(c.lk.exports) <= int(promiseID) || c.lk.exports[promiseID] != ee {
 					// At some point the receiver lost interest in the cap.
@@ -207,7 +227,11 @@ func (c *lockedConn) send3PHPromise(
 				// We have to set this before sending the provide, so we're ready
 				// for a disembargo. It's okay to wait up until now though, since
 				// the receiver shouldn't send one until it sees the resolution:
-				c.lk.exports[promiseID].provide = maybe.New(provideQ)
+				c.lk.exports[promiseID].provide = maybe.New(expentProvideInfo{
+					q:        provideQ,
+					target:   target,
+					snapshot: targetSnapshot,
+				})
 
 				resolve, err := m.NewResolve()
 				if err != nil {

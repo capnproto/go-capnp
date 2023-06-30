@@ -463,7 +463,7 @@ func (c *lockedConn) releaseExports(dq *deferred.Queue, exports []*expent) {
 					c.clearExportID(metadata)
 				})
 			}
-			dq.Defer(e.snapshot.Release)
+			dq.Defer(e.Release)
 		}
 	}
 }
@@ -1718,31 +1718,35 @@ func (c *Conn) handleDisembargo(ctx context.Context, in transport.IncomingMessag
 			return errors.New("incoming disembargo: answer target is not valid for context.accept")
 		}
 		id := tgt.importedCap
-		q, err := withLockedConn2(c, func(c *lockedConn) (*question, error) {
+		pinfo, err := withLockedConn2(c, func(c *lockedConn) (expentProvideInfo, error) {
 			if int(id) >= len(c.lk.exports) || c.lk.exports == nil {
-				return nil, errors.New("no such export: " + str.Utod(id))
+				return expentProvideInfo{}, errors.New("no such export: " + str.Utod(id))
 			}
-			q, ok := c.lk.exports[id].provide.Get()
+			pinfo, ok := c.lk.exports[id].provide.Get()
 			if !ok {
-				return nil, errors.New("export #" + str.Utod(id) + " does not resolve to a third party capability")
+				return expentProvideInfo{}, errors.New("export #" + str.Utod(id) + " does not resolve to a third party capability")
 			}
-			return q, nil
+			return pinfo, nil
 		})
 		if err != nil {
 			return err
 		}
-		return withLockedConn1(q.c, func(c *lockedConn) error {
-			if q.flags.Contains(provideDisembargoSent) {
+		return withLockedConn1(pinfo.q.c, func(c *lockedConn) error {
+			if pinfo.q.flags.Contains(provideDisembargoSent) {
 				return errors.New("disembargo already sent to export #" + str.Utod(id))
 			}
-			q.flags |= provideDisembargoSent
+			pinfo.q.flags |= provideDisembargoSent
 			c.sendMessage(c.bgctx, func(m rpccp.Message) error {
 				d, err := m.NewDisembargo()
 				if err != nil {
 					return err
 				}
-				d.Context().SetProvide(uint32(q.id))
-				panic("TODO: target")
+				d.Context().SetProvide(uint32(pinfo.q.id))
+				tgt, err := d.NewTarget()
+				if err != nil {
+					return err
+				}
+				return pinfo.target.Encode(tgt)
 			}, func(err error) {
 				panic("TODO")
 			})
