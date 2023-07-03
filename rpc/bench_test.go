@@ -76,7 +76,7 @@ func BenchmarkPingPong(b *testing.B) {
 	p1, p2 := net.Pipe()
 	srv := testcp.PingPong_ServerToClient(pingPongServer{})
 	conn1 := rpc.NewConn(rpc.NewStreamTransport(p2), &rpc.Options{
-		ErrorReporter:   testErrorReporter{tb: b},
+		Logger:          testErrorReporter{tb: b},
 		BootstrapClient: capnp.Client(srv),
 	})
 	defer func() {
@@ -86,7 +86,7 @@ func BenchmarkPingPong(b *testing.B) {
 		}
 	}()
 	conn2 := rpc.NewConn(rpc.NewStreamTransport(p1), &rpc.Options{
-		ErrorReporter: testErrorReporter{tb: b},
+		Logger: testErrorReporter{tb: b},
 	})
 	defer func() {
 		if err := conn2.Close(); err != nil {
