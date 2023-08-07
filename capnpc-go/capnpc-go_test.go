@@ -1,3 +1,7 @@
+/*
+Copyright (c) 2013-2023 Sandstorm Development Group, Inc. and contributors
+Licensed under the MIT License:
+*/
 package main
 
 import (
@@ -6,6 +10,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -466,4 +471,147 @@ func nodeListString(n []*node) string {
 	}
 	b.WriteByte(']')
 	return b.String()
+}
+
+func setupTempDir() (string, error) {
+	dir, err := os.MkdirTemp("", "capnpc-go_test")
+	if err != nil {
+		return "", fmt.Errorf("setupTempDir(capnpc-go_test): %v", err)
+	}
+
+	// Add go.mod to the new dir, minimal contents
+	err = os.WriteFile(filepath.Join(dir, "go.mod"),
+		[]byte("module capnpc_go_test"), 0660)
+	if err != nil {
+		return "", fmt.Errorf("setupTempDir: write go.mod: %v", err)
+	}
+
+	// Add go.work to the new dir, minimal contents
+	modRoot, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("setupTempDir: Getwd: %v", err)
+	}
+	modRoot = filepath.Dir(modRoot)
+
+	err = os.WriteFile(filepath.Join(dir, "go.work"),
+		[]byte(fmt.Sprintf("use %s", modRoot)), 0660)
+	if err != nil {
+		return "", fmt.Errorf("setupTempDir: write go.work: %v", err)
+	}
+	return dir, nil
+}
+
+// This test arises because capnproto-c++ has a file named:
+// * src/capnp/persistent.capnp
+// * Also found in this repo: std/capnp/persistent.capnp
+//
+// It contains two definitions:
+//   interface Persistent {}
+//   annotation persistent(interface, field) :Void;
+//
+// testdata/persistent-simple.capnp is a minimal reproducible test case for the
+// collision.
+func TestPersistent(t *testing.T) {
+	// This test is equivalent to:
+	// `capnp compile -ogo persistent-simple.capnp`
+	//
+	// Or the equivalent in-repo commands before a go install:
+	// ```
+	//    go build;
+	//    capnp compile --no-standard-import -I../std -o- \
+	//        testdata/persistent-simple.capnp | \
+	//        capnpc-go -promises=0 -schemas=0 -structstrings=0
+	// ```
+	t.Parallel()
+
+	defaultOptions := genoptions{
+		promises:      false,
+		schemas:       false,
+		structStrings: false,
+	}
+	tests := []struct {
+		fname string
+		opts  genoptions
+	}{
+		{"persistent-simple.capnp.out", defaultOptions},
+	}
+	for _, test := range tests {
+		dir, err := setupTempDir()
+		if err != nil {
+			t.Fatalf("%s: %v", test.fname, err)
+			break;
+		}
+		defer os.RemoveAll(dir)
+		genfname := test.fname+".go"
+
+		data, err := readTestFile(test.fname)
+		if err != nil {
+			t.Errorf("reading %s: %v", test.fname, err)
+			continue
+		}
+		msg, err := capnp.Unmarshal(data)
+		if err != nil {
+			t.Errorf("Unmarshaling %q: %v", test.fname, err)
+			continue
+		}
+		req, err := schema.ReadRootCodeGeneratorRequest(msg)
+		if err != nil {
+			t.Errorf("Reading code generator request %q: %v", test.fname, err)
+			continue
+		}
+		reqFiles, err := req.RequestedFiles()
+		if err != nil {
+			t.Errorf("Reading code generator request %q: RequestedFiles: %v", test.fname, err)
+			continue
+		}
+		if reqFiles.Len() < 1 {
+			t.Errorf("Reading code generator request %q: %d RequestedFiles", test.fname, reqFiles.Len())
+			continue
+		}
+		nodes, err := buildNodeMap(req)
+		if err != nil {
+			t.Errorf("buildNodeMap %q: %v", test.fname, err)
+			continue
+		}
+		g := newGenerator(reqFiles.At(0).Id(), nodes, test.opts)
+		err = g.defineFile()
+		if err != nil {
+			reqFname, _ := reqFiles.At(0).Filename()
+			t.Errorf("defineFile %q %+v: file %q: %v", test.fname, test.opts, reqFname, err)
+			continue
+		}
+		src := g.generate()
+		genfpath := filepath.Join(dir, genfname)
+		err = os.WriteFile(genfpath, []byte(src), 0660)
+		if err != nil {
+			t.Fatalf("Writing generated code %q: %v", genfpath, err)
+			break
+		}
+
+		// Relies on persistent-simple.capnp with $Go.package("persistent_simple")
+		// not being ("main"). Thus `go build` skips writing an executable.
+		args := []string{
+			"build", genfname,
+		}
+		cmd := exec.Command("go", args...)
+		cmd.Dir = dir
+		cmd.Stdin = strings.NewReader("")
+		var sout strings.Builder
+		cmd.Stdout = &sout
+		var serr strings.Builder
+		cmd.Stderr = &serr
+		if err = cmd.Run(); err != nil {
+			if gotcode, ok := err.(*exec.ExitError); ok {
+				exitcode := gotcode.ExitCode()
+				t.Errorf("go %+v exitcode:%d", args, exitcode)
+				t.Errorf("sout:\n%s", sout.String())
+				t.Errorf("serr:\n%s", serr.String())
+				t.Errorf("\n%s:\n%s", genfname, src)
+				continue
+			} else {
+				t.Errorf("go %+v: %v", args, err)
+				continue
+			}
+		}
+	}
 }

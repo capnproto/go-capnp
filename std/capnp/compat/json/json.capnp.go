@@ -10,12 +10,12 @@ import (
 	strconv "strconv"
 )
 
-const Name = uint64(0xfa5b1fd61c2e7c3d)
-const Flatten = uint64(0x82d3e852af0336bf)
-const Discriminator = uint64(0xcfa794e8d19a0162)
-const Base64 = uint64(0xd7d879450a253e4b)
-const Hex = uint64(0xf061e22f0ae5c7b5)
-const Notification = uint64(0xa0a054dea32fd98c)
+const Name_ = uint64(0xfa5b1fd61c2e7c3d)
+const Flatten_ = uint64(0x82d3e852af0336bf)
+const Discriminator_ = uint64(0xcfa794e8d19a0162)
+const Base64_ = uint64(0xd7d879450a253e4b)
+const Hex_ = uint64(0xf061e22f0ae5c7b5)
+const Notification_ = uint64(0xa0a054dea32fd98c)
 
 type Value capnp.Struct
 type Value_Which uint16

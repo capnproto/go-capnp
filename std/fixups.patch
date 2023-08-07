@@ -38,14 +38,3 @@
 
      interface @17 :Void;
      # The only interface value that can be represented statically is "null", whose methods always
---- a/capnp/persistent.capnp	2021-10-21 15:12:33.501158612 -0400
-+++ b/capnp/persistent.capnp	2021-10-21 15:13:31.930030219 -0400
-@@ -108,7 +108,7 @@
-   }
- }
-
--annotation persistent(interface, field) :Void;
-+annotation persistent(interface, field) :Void $Go.name("PersistentAnnotation");
- # Apply this annotation to interfaces for objects that will always be persistent, instead of
- # extending the Persistent capability, since the correct type parameters to Persistent depend on
- # the realm, which is orthogonal to the interface type and therefore should not be defined
