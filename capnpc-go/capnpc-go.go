@@ -1,4 +1,7 @@
 /*
+Copyright (c) 2013-2023 Sandstorm Development Group, Inc. and contributors
+Licensed under the MIT License:
+
 capnpc-go is the Cap'n proto code generator for Go.  It reads a
 CodeGeneratorRequest from stdin and for a file foo.capnp it writes
 foo.capnp.go.  This is usually invoked from `capnp compile -ogo`.

@@ -258,6 +258,17 @@ func resolveName(nodes nodeMap, n *node, base, name string, file *node) error {
 	name = parseAnnotations(na).Rename(name)
 	if base == "" {
 		n.Name = strings.Title(name)
+		if n.Which() == schema.Node_Which_annotation && n.Name[0] != name[0] {
+			// Names that had a lowercase first letter change to uppercase and
+			// now might collide with a similar-named node.
+			//
+			// This rule forces Annotations to have a trailing underscore. The
+			// idea is to use a consistent naming rule that works even if there
+			// is no name collision yet. If a node is added later, names will
+			// not get mixed up or require a big refactor downstream.
+			// See also: persistent.capnp
+			n.Name = strings.Title(name) + "_"
+		}
 	} else {
 		n.Name = base + "_" + name
 	}

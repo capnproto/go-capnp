@@ -108,7 +108,7 @@ interface Persistent@0xc8cb212fcd9f5691(SturdyRef, Owner) {
   }
 }
 
-annotation persistent(interface, field) :Void $Go.name("PersistentAnnotation");
+annotation persistent(interface, field) :Void;
 # Apply this annotation to interfaces for objects that will always be persistent, instead of
 # extending the Persistent capability, since the correct type parameters to Persistent depend on
 # the realm, which is orthogonal to the interface type and therefore should not be defined

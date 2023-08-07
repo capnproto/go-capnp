@@ -6,8 +6,8 @@ import (
 	schemas "capnproto.org/go/capnp/v3/schemas"
 )
 
-const Namespace = uint64(0xb9c6f99ebf805f2c)
-const Name = uint64(0xf264a779fef191ce)
+const Namespace_ = uint64(0xb9c6f99ebf805f2c)
+const Name_ = uint64(0xf264a779fef191ce)
 const schema_bdf87d7bb8304e81 = "x\xda\x12\x08w`1\xe4\x15gb`\x0a\x94`e" +
 	"\xfb\xaf\x13\xdf\xb0\x7f\xde\xcfc;\x19\x02\xb9X\x19\xff" +
 	"7\xfa\x19\xec\xa8\xae\xfd\xb1\x97\x81\x81Q\xf0\xe3\"\xc1" +

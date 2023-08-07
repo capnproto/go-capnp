@@ -60,7 +60,7 @@ func (c {{$.Node.Name}}) Release() {
 
 // Resolve blocks until the capability is fully resolved or the Context
 // expires.
-func (c {{$.Node.Name}}) Resolve(ctx context.Context) error {
+func (c {{$.Node.Name}}) Resolve(ctx {{$.G.Imports.Context}}.Context) error {
 	return capnp.Client(c).Resolve(ctx)
 }
 
