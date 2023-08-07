@@ -4,6 +4,7 @@ package rpc // import "capnproto.org/go/capnp/v3/rpc"
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -206,10 +207,10 @@ type Options struct {
 // Logger is used for logging by the RPC system. Each method logs
 // messages at a different level, but otherwise has the same semantics:
 //
-// - Message is a human-readable description of the log event.
-// - Args is a sequenece of key, value pairs, where the keys must be strings
-//   and the values may be any type.
-// - The methods may not block for long periods of time.
+//   - Message is a human-readable description of the log event.
+//   - Args is a sequenece of key, value pairs, where the keys must be strings
+//     and the values may be any type.
+//   - The methods may not block for long periods of time.
 //
 // This interface is designed such that it is satisfied by *slog.Logger.
 type Logger interface {
@@ -567,7 +568,7 @@ func (c *Conn) receive(ctx context.Context) func() error {
 			case inMsg := <-incoming:
 				// reader error?
 				if inMsg.err != nil {
-					return inMsg.err
+					return fmt.Errorf("reader: %w", inMsg.err)
 				}
 				in = inMsg.IncomingMessage
 
@@ -578,7 +579,7 @@ func (c *Conn) receive(ctx context.Context) func() error {
 			switch in.Message().Which() {
 			case rpccp.Message_Which_unimplemented:
 				if err := c.handleUnimplemented(in); err != nil {
-					return err
+					return fmt.Errorf("handle Unimplemented: %w", err)
 				}
 
 			case rpccp.Message_Which_abort:
@@ -587,37 +588,37 @@ func (c *Conn) receive(ctx context.Context) func() error {
 
 			case rpccp.Message_Which_bootstrap:
 				if err := c.handleBootstrap(in); err != nil {
-					return err
+					return fmt.Errorf("handle Bootstrap: %w", err)
 				}
 
 			case rpccp.Message_Which_call:
 				if err := c.handleCall(ctx, in); err != nil {
-					return err
+					return fmt.Errorf("handle Call: %w", err)
 				}
 
 			case rpccp.Message_Which_return:
 				if err := c.handleReturn(ctx, in); err != nil {
-					return err
+					return fmt.Errorf("handle Return: %w", err)
 				}
 
 			case rpccp.Message_Which_finish:
 				if err := c.handleFinish(ctx, in); err != nil {
-					return err
+					return fmt.Errorf("handle Finish: %w", err)
 				}
 
 			case rpccp.Message_Which_release:
 				if err := c.handleRelease(ctx, in); err != nil {
-					return err
+					return fmt.Errorf("handle Release: %w", err)
 				}
 
 			case rpccp.Message_Which_disembargo:
 				if err := c.handleDisembargo(ctx, in); err != nil {
-					return err
+					return fmt.Errorf("handle Disembargo: %w", err)
 				}
 
 			case rpccp.Message_Which_resolve:
 				if err := c.handleResolve(ctx, in); err != nil {
-					return err
+					return fmt.Errorf("handle Resolve: %w", err)
 				}
 
 			case rpccp.Message_Which_accept, rpccp.Message_Which_provide:
