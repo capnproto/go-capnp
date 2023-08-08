@@ -310,40 +310,39 @@ func TestDefineFile(t *testing.T) {
 		structStrings: true,
 	}
 	tests := []struct {
-		fileID uint64
 		fname  string
 		opts   genoptions
 	}{
-		{0x832bcc6686a26d56, "aircraft.capnp.out", defaultOptions},
-		{0x832bcc6686a26d56, "aircraft.capnp.out", genoptions{
+		{"aircraft.capnp.out", defaultOptions},
+		{"aircraft.capnp.out", genoptions{
 			promises:      false,
 			schemas:       false,
 			structStrings: false,
 		}},
-		{0x832bcc6686a26d56, "aircraft.capnp.out", genoptions{
+		{"aircraft.capnp.out", genoptions{
 			promises:      true,
 			schemas:       false,
 			structStrings: false,
 		}},
-		{0x832bcc6686a26d56, "aircraft.capnp.out", genoptions{
+		{"aircraft.capnp.out", genoptions{
 			promises:      false,
 			schemas:       true,
 			structStrings: false,
 		}},
-		{0x832bcc6686a26d56, "aircraft.capnp.out", genoptions{
+		{"aircraft.capnp.out", genoptions{
 			promises:      true,
 			schemas:       true,
 			structStrings: false,
 		}},
-		{0x832bcc6686a26d56, "aircraft.capnp.out", genoptions{
+		{"aircraft.capnp.out", genoptions{
 			promises:      false,
 			schemas:       true,
 			structStrings: true,
 		}},
-		{0x83c2b5818e83ab19, "group.capnp.out", defaultOptions},
-		{0xb312981b2552a250, "rpc.capnp.out", defaultOptions},
-		{0xd68755941d99d05e, "scopes.capnp.out", defaultOptions},
-		{0xecd50d792c3d9992, "util.capnp.out", defaultOptions},
+		{"group.capnp.out", defaultOptions},
+		{"rpc.capnp.out", defaultOptions},
+		{"scopes.capnp.out", defaultOptions},
+		{"util.capnp.out", defaultOptions},
 	}
 	for _, test := range tests {
 		data, err := readTestFile(test.fname)
@@ -361,12 +360,21 @@ func TestDefineFile(t *testing.T) {
 			t.Errorf("Reading code generator request %s: %v", test.fname, err)
 			continue
 		}
+		reqFiles, err := req.RequestedFiles()
+		if err != nil {
+			t.Errorf("Reading code generator request %q: RequestedFiles: %v", test.fname, err)
+			continue
+		}
+		if reqFiles.Len() < 1 {
+			t.Errorf("Reading code generator request %q: %d RequestedFiles", test.fname, reqFiles.Len())
+			continue
+		}
 		nodes, err := buildNodeMap(req)
 		if err != nil {
 			t.Errorf("buildNodeMap %s: %v", test.fname, err)
 			continue
 		}
-		g := newGenerator(test.fileID, nodes, test.opts)
+		g := newGenerator(reqFiles.At(0).Id(), nodes, test.opts)
 		if err := g.defineFile(); err != nil {
 			t.Errorf("defineFile %s %+v: %v", test.fname, test.opts, err)
 			continue
@@ -379,7 +387,7 @@ func TestDefineFile(t *testing.T) {
 
 		// Generation should be deterministic between runs.
 		for i := 0; i < iterations-1; i++ {
-			g := newGenerator(test.fileID, nodes, test.opts)
+			g := newGenerator(reqFiles.At(0).Id(), nodes, test.opts)
 			if err := g.defineFile(); err != nil {
 				t.Errorf("defineFile %s %+v [iteration %d]: %v", test.fname, test.opts, i+2, err)
 				continue
@@ -525,9 +533,9 @@ func TestPersistent(t *testing.T) {
 	t.Parallel()
 
 	defaultOptions := genoptions{
-		promises:      false,
-		schemas:       false,
-		structStrings: false,
+		promises:      true,
+		schemas:       true,
+		structStrings: true,
 	}
 	tests := []struct {
 		fname string

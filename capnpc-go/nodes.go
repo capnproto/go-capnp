@@ -10,6 +10,15 @@ import (
 	"capnproto.org/go/capnp/v3/std/capnp/stream"
 )
 
+// These renames only apply to the codegen for struct fields.
+var renameIdents = map[string]bool {
+	"IsValid": true,	// This is not a complete list.
+	"Segment": true,	// E.g. "ToPtr", "SetNull" are too
+	"String":  true,	// unusual to burden codegen with.
+	"Message": true,
+	"Which":   true,
+}
+
 type node struct {
 	schema.Node
 	pkg   string
@@ -26,8 +35,14 @@ func (n *node) codeOrderFields() []field {
 		f := fields.At(i)
 		fann, _ := f.Annotations()
 		fname, _ := f.Name()
-		fname = parseAnnotations(fann).Rename(fname)
-		mbrs[f.CodeOrder()] = field{Field: f, Name: fname}
+		var renamed = parseAnnotations(fann).Rename(fname)
+		if renamed == fname {	// Avoid collisions if no annotation
+			if _, ok := renameIdents[strings.Title(fname)]; ok {
+				renamed = fname + "_"
+			}
+
+		}
+		mbrs[f.CodeOrder()] = field{Field: f, Name: renamed}
 	}
 	return mbrs
 }
