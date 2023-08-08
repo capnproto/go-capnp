@@ -21,6 +21,27 @@ import (
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 )
 
+type handlerFn func(*Conn, context.Context, transport.IncomingMessage) error
+
+// handlers is a jump table of message handlers.  Handleres MUST be ordered
+// by their schema ordinal values (see:  rpccp.Message_Which)
+var handlers = [...]handlerFn{
+	handlerFn((*Conn).handleUnimplemented),
+	handlerFn((*Conn).handleAbort),
+	handlerFn((*Conn).handleCall),
+	handlerFn((*Conn).handleReturn),
+	handlerFn((*Conn).handleFinish),
+	handlerFn((*Conn).handleResolve),
+	handlerFn((*Conn).handleRelease),
+	handleObsolete(), // obsoleteSave
+	handlerFn((*Conn).handleBootstrap),
+	handleObsolete(), // obsoleteDelete
+	handlerFn((*Conn).handleProvide),
+	handlerFn((*Conn).handleAccept),
+	handlerFn((*Conn).handleJoin),
+	handlerFn((*Conn).handleDisembargo),
+}
+
 /*
 At a high level, Conn manages three resources:
 
@@ -559,100 +580,66 @@ func (c *Conn) receive(ctx context.Context) func() error {
 	return c.backgroundTask(func() error {
 		// We delegate actual IO to a separate goroutine, so that we
 		// can always respond to context cancellation.
-		incoming := make(chan incomingMessage)
-		go c.reader(ctx, incoming)
+		incoming, readerErrs := c.startReader(ctx)
 
-		var in transport.IncomingMessage
 		for {
 			select {
-			case inMsg := <-incoming:
-				// reader error?
-				if inMsg.err != nil {
-					return fmt.Errorf("reader: %w", inMsg.err)
+			case in := <-incoming:
+				if err := c.handle(ctx, in); err != nil {
+					if err == errAbort {
+						return nil
+					}
+
+					return fmt.Errorf("handle %s: %w", in.Message().Which(), err)
 				}
-				in = inMsg.IncomingMessage
+
+			case err := <-readerErrs:
+				return fmt.Errorf("reader: %w", err)
 
 			case <-ctx.Done():
 				return nil
-			}
-
-			switch in.Message().Which() {
-			case rpccp.Message_Which_unimplemented:
-				if err := c.handleUnimplemented(in); err != nil {
-					return fmt.Errorf("handle Unimplemented: %w", err)
-				}
-
-			case rpccp.Message_Which_abort:
-				c.handleAbort(in)
-				return nil
-
-			case rpccp.Message_Which_bootstrap:
-				if err := c.handleBootstrap(in); err != nil {
-					return fmt.Errorf("handle Bootstrap: %w", err)
-				}
-
-			case rpccp.Message_Which_call:
-				if err := c.handleCall(ctx, in); err != nil {
-					return fmt.Errorf("handle Call: %w", err)
-				}
-
-			case rpccp.Message_Which_return:
-				if err := c.handleReturn(ctx, in); err != nil {
-					return fmt.Errorf("handle Return: %w", err)
-				}
-
-			case rpccp.Message_Which_finish:
-				if err := c.handleFinish(ctx, in); err != nil {
-					return fmt.Errorf("handle Finish: %w", err)
-				}
-
-			case rpccp.Message_Which_release:
-				if err := c.handleRelease(ctx, in); err != nil {
-					return fmt.Errorf("handle Release: %w", err)
-				}
-
-			case rpccp.Message_Which_disembargo:
-				if err := c.handleDisembargo(ctx, in); err != nil {
-					return fmt.Errorf("handle Disembargo: %w", err)
-				}
-
-			case rpccp.Message_Which_resolve:
-				if err := c.handleResolve(ctx, in); err != nil {
-					return fmt.Errorf("handle Resolve: %w", err)
-				}
-
-			case rpccp.Message_Which_accept, rpccp.Message_Which_provide:
-				if c.network != nil {
-					panic("TODO: 3PH")
-				}
-				fallthrough
-
-			default:
-				c.handleUnknownMessageType(ctx, in)
 			}
 		}
 	})
 }
 
-func (c *Conn) handleAbort(in transport.IncomingMessage) {
-	defer in.Release()
+func (c *Conn) handle(ctx context.Context, in transport.IncomingMessage) error {
+	which := in.Message().Which()
 
-	e, err := in.Message().Abort()
-	if err != nil {
-		c.er.ReportError(exc.WrapError("read abort", err))
-		return
+	// Do we have a handler?
+	if int(which) < len(handlers) {
+		return handlers[which](c, ctx, in)
 	}
 
-	reason, err := e.Reason()
-	if err != nil {
-		c.er.ReportError(exc.WrapError("read abort: reason", err))
-		return
-	}
-
-	c.er.ReportError(exc.New(exc.Type(e.Type()), "rpc", "remote abort: "+reason))
+	return c.handleUnknownMessageType(ctx, in) // reply with "Unimplemented"
 }
 
-func (c *Conn) handleUnimplemented(in transport.IncomingMessage) error {
+func (c *Conn) handleUnknownMessageType(ctx context.Context, in transport.IncomingMessage) error {
+	c.er.ReportError(fmt.Errorf("unknown message type: %s", in.Message().Which()))
+
+	// Send "Unimplemented" message
+	c.withLocked(func(c *lockedConn) {
+		c.sendMessage(ctx, func(m rpccp.Message) error {
+			defer in.Release()
+			if err := m.SetUnimplemented(in.Message()); err != nil {
+				return rpcerr.Annotate(err, "send unimplemented")
+			}
+			return nil
+		}, nil)
+	})
+
+	// Succeed.  The other side will receive an Exception result
+	// for their RPC call.
+	return nil
+}
+
+func handleObsolete() handlerFn {
+	return func(c *Conn, ctx context.Context, im transport.IncomingMessage) error {
+		return c.handleUnknownMessageType(ctx, im)
+	}
+}
+
+func (c *Conn) handleUnimplemented(_ context.Context, in transport.IncomingMessage) error {
 	defer in.Release()
 
 	msg, err := in.Message().Unimplemented()
@@ -692,7 +679,26 @@ func (c *Conn) handleUnimplemented(in transport.IncomingMessage) error {
 	return nil
 }
 
-func (c *Conn) handleBootstrap(in transport.IncomingMessage) error {
+func (c *Conn) handleAbort(_ context.Context, in transport.IncomingMessage) error {
+	defer in.Release()
+
+	e, err := in.Message().Abort()
+	if err != nil {
+		c.er.ReportError(exc.WrapError("read abort", err))
+		return err
+	}
+
+	reason, err := e.Reason()
+	if err != nil {
+		c.er.ReportError(exc.WrapError("read abort: reason", err))
+		return err
+	}
+
+	c.er.ReportError(exc.New(exc.Type(e.Type()), "rpc", "remote abort: "+reason))
+	return errAbort // graceful exit
+}
+
+func (c *Conn) handleBootstrap(_ context.Context, in transport.IncomingMessage) error {
 	defer in.Release()
 
 	bootstrap, err := in.Message().Bootstrap()
@@ -1864,19 +1870,24 @@ func (c *Conn) handleResolve(ctx context.Context, in transport.IncomingMessage) 
 	return err
 }
 
-func (c *Conn) handleUnknownMessageType(ctx context.Context, in transport.IncomingMessage) {
-	err := errors.New("unknown message type " + in.Message().Which().String() + " from remote")
-	c.er.ReportError(err)
+func (c *Conn) handleProvide(ctx context.Context, in transport.IncomingMessage) error {
+	if c.network != nil {
+		panic("TODO: 3PH")
+	}
 
-	c.withLocked(func(c *lockedConn) {
-		c.sendMessage(ctx, func(m rpccp.Message) error {
-			defer in.Release()
-			if err := m.SetUnimplemented(in.Message()); err != nil {
-				return rpcerr.Annotate(err, "send unimplemented")
-			}
-			return nil
-		}, nil)
-	})
+	return c.handleUnknownMessageType(ctx, in)
+}
+
+func (c *Conn) handleJoin(ctx context.Context, in transport.IncomingMessage) error {
+	if c.network != nil {
+		panic("TODO: 3PH")
+	}
+
+	return c.handleUnknownMessageType(ctx, in)
+}
+
+func (c *Conn) handleAccept(ctx context.Context, in transport.IncomingMessage) error {
+	return c.handleUnknownMessageType(ctx, in)
 }
 
 // startTask increments c.tasks if c is not shutting down.
@@ -1933,28 +1944,37 @@ func (c *lockedConn) sendMessage(ctx context.Context, build func(rpccp.Message) 
 	})
 }
 
-// reader reads messages from the transport in a loop, and send them down the
-// 'in' channel, until the context is canceled or an error occurs. The first
-// time RecvMessage() returns an error, its results will still be sent on the
-// channel.
-func (c *Conn) reader(ctx context.Context, in chan<- incomingMessage) {
-	for {
-		inMsg, err := c.transport.RecvMessage()
-		select {
-		case in <- incomingMessage{IncomingMessage: inMsg, err: err}:
-		case <-ctx.Done():
-			err = ctx.Err()
-		}
-		if err != nil {
-			return
-		}
-	}
-}
+// startReader spawns a background goroutine that reads messages from the
+// transport until the context is canceled or an error occurs.  The first
+// error will be sent down the error channel returned by startReader. The
+// error channel will be closed after it receives its first error.
+func (c *Conn) startReader(ctx context.Context) (<-chan transport.IncomingMessage, <-chan error) {
+	var (
+		incoming   = make(chan transport.IncomingMessage)
+		readerErrs = make(chan error)
+	)
 
-// An incomingMessage bundles the reutrn values of Transport.RecvMessage.
-type incomingMessage struct {
-	transport.IncomingMessage
-	err error
+	go func() {
+		defer close(incoming)
+		defer close(readerErrs)
+
+		for ctx.Err() == nil {
+			in, err := c.transport.RecvMessage()
+			if err != nil {
+				select {
+				case readerErrs <- err:
+				case <-ctx.Done():
+				}
+			}
+
+			select {
+			case incoming <- in:
+			case <-ctx.Done():
+			}
+		}
+	}()
+
+	return incoming, readerErrs
 }
 
 type asyncSend struct {

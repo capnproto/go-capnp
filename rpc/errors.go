@@ -16,6 +16,8 @@ var (
 
 	// RPC exceptions
 	ExcClosed = rpcerr.Disconnected(ErrConnClosed)
+
+	errAbort = errors.New("abort") // sentinel value for Conn.receive()
 )
 
 type errReporter struct {
