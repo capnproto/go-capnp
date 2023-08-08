@@ -28,7 +28,7 @@ struct Value {
     null @0 :Void;
     boolean @1 :Bool;
     number @2 :Float64;
-    string @3 :Text $Go.name("string_");
+    string @3 :Text;
     array @4 :List(Value);
     object @5 :List(Field);
     # Standard JSON values.

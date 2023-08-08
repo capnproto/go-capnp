@@ -31,6 +31,6 @@ interface Persistent {
 
 annotation persistent(interface, field) :Void;
 
-struct ThisStructOnlyNeededToGetImportsToWork {
-  value @0 :Int64;
+struct FieldNameThatIsInvalidInGolang {
+  string @0 :Text;
 }

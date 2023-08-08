@@ -1,14 +1,3 @@
---- a/capnp/compat/json.capnp	2021-10-21 14:59:51.244324279 -0400
-+++ b/capnp/compat/json.capnp	2021-10-21 15:01:09.543760012 -0400
-@@ -28,7 +28,7 @@
-     null @0 :Void;
-     boolean @1 :Bool;
-     number @2 :Float64;
--    string @3 :Text;
-+    string @3 :Text $Go.name("string_");
-     array @4 :List(Value);
-     object @5 :List(Field);
-     # Standard JSON values.
 --- a/capnp/schema.capnp	2021-10-21 15:03:20.221774538 -0400
 +++ b/capnp/schema.capnp	2021-10-21 15:04:20.870019327 -0400
 @@ -82,7 +82,7 @@
