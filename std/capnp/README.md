@@ -31,24 +31,21 @@ are actually legal go. However, this is not meant to be a
 general-purpose solution; it is only intended to work for the base
 schemas.
 
-# Extra Annotations
+# Footnote: annotations get an underscore in certain cases
 
-Under certain circumstances, `capnpc-go` will sometimes generate illegal
-go code. As an example, if two declarations `Foo` and `foo` exist in the
-schema, `capnpc-go` will capitalize the latter so that it will be
-exported, which will cause a name collision.
+Under certain circumstances, `capnpc-go` will rename the identifier when it
+generates go code. As an example, if two declarations `struct Foo` and
+`annotation foo` exist in the schema, `capnpc-go` has to capitalize
+`annotation foo` in the generated code. But that would not compile since
+there is already a `Foo` from `struct Foo`.
 
-To address this kind of issue, some of the schema have been manually
-modified after importing, adding `$Go.name` annotations which prevent
-these errors.
+To address this kind of issue, `capnpc-go` will change the annotation to
+`Foo_` (by adding the trailing "_"). This can be overridden on a
+case-by-case basis if you need some other name. Just add `$Go.name`:
 
-# Versions
-
-The schemas checked in to this repository are those in capnproto commit
-ad4079b (master at the time of writing). Unfortunately, the stable
-release is *very* old, and some schemas out in the wild (notably
-sandstorm) have started expecting more recent versions of the base
-schemas.
+```
+annotation foo(struct, field) :Void $Go.name("fooAnnotation");
+```
 
 # Directory Structure
 

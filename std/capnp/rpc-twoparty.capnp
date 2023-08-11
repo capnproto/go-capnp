@@ -162,10 +162,8 @@ struct JoinResult {
   # implements the join by waiting for all the `JoinKeyParts` and then performing its own join on
   # them, then going back and answering all the join requests afterwards.
 
-  cap @2 :AnyPointer;
+  cap @2 :Capability;
   # One of the JoinResults will have a non-null `cap` which is the joined capability.
-  #
-  # TODO(cleanup):  Change `AnyPointer` to `Capability` when that is supported.
 }
 using Go = import "/go.capnp";
 $Go.package("rpctwoparty");
