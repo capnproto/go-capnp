@@ -225,19 +225,43 @@ func (ann *annotations) Rename(given string) string {
 	return ann.Name
 }
 
-type nodeMap map[uint64]*node
+type pkgSchema struct {
+	// nodeId has the Ids of all the schema nodes in this package.
+	// (use nodeMap to locate the nodes by their ID)
+	nodeId []uint64
+	// done is true if this schema has been written, i.e. do not
+	// write it to multiple files in a Go package.
+	done bool
+}
 
-func buildNodeMap(req schema.CodeGeneratorRequest) (nodeMap, error) {
+type nodeMap map[uint64]*node
+type pkgMap map[string]*pkgSchema
+
+// nodeTrees contains the abstract syntax tree plus any compiled
+// intermediate representation trees so that any call to
+// buildNodeTrees() gets a completely filled-out nodeTrees instance
+// with all trees ready to generate the output files in a single pass.
+type nodeTrees struct {
+	// nodes has all schema.CodeGeneratorRequest.Nodes indexed by Id
+	nodes nodeMap
+	// pkgs maps each $Go.package annotation to the schema node Ids
+	// used to write a RegisterSchemas block
+	pkgs  pkgMap
+}
+
+func makeNodeTrees(req schema.CodeGeneratorRequest) (nodeTrees, error) {
+	ret := nodeTrees{}
 	rnodes, err := req.Nodes()
 	if err != nil {
-		return nil, err
+		return ret, err
 	}
-	nodes := make(nodeMap, rnodes.Len())
+	ret.nodes = make(nodeMap, rnodes.Len())
+	ret.pkgs = make(pkgMap)
 	var allfiles []*node
 	for i := 0; i < rnodes.Len(); i++ {
 		ni := rnodes.At(i)
 		n := &node{Node: ni}
-		nodes[n.Id()] = n
+		ret.nodes[n.Id()] = n
 		if n.Which() == schema.Node_Which_file {
 			allfiles = append(allfiles, n)
 		}
@@ -245,23 +269,35 @@ func buildNodeMap(req schema.CodeGeneratorRequest) (nodeMap, error) {
 	for _, f := range allfiles {
 		fann, err := f.Annotations()
 		if err != nil {
-			return nil, fmt.Errorf("reading annotations for %v: %v", f, err)
+			return ret, fmt.Errorf("reading annotations for %v: %v", f, err)
 		}
 		ann := parseAnnotations(fann)
 		f.pkg = ann.Package
 		f.imp = ann.Import
 		nnodes, _ := f.NestedNodes()
+		ids := make([]uint64, nnodes.Len())
 		for i := 0; i < nnodes.Len(); i++ {
 			nn := nnodes.At(i)
-			if ni := nodes[nn.Id()]; ni != nil {
+			ids[i] = nn.Id()
+			if ni := ret.nodes[nn.Id()]; ni != nil {
 				nname, _ := nn.Name()
-				if err := resolveName(nodes, ni, "", nname, f); err != nil {
-					return nil, err
+				if err := resolveName(ret.nodes, ni, "", nname, f); err != nil {
+					return ret, err
 				}
 			}
 		}
+
+		// add this file's nodes to the f.pkg (the $Go.package annotation value)
+		pkg, ok := ret.pkgs[f.pkg]
+		if !ok {
+			pkg = &pkgSchema{}
+		}
+		// Note that this can collect ids from multiple files if they are in the
+		// same $Go.package.
+		pkg.nodeId = append(pkg.nodeId, ids...)
+		ret.pkgs[f.pkg] = pkg
 	}
-	return nodes, nil
+	return ret, nil
 }
 
 // resolveName is called as part of building up a node map to populate the name field of n.

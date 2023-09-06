@@ -43,9 +43,10 @@ const (
 // genoptions are parameters that control code generation.
 // Usually passed on the command line.
 type genoptions struct {
-	promises      bool
-	schemas       bool
-	structStrings bool
+	promises           bool
+	schemas            bool
+	structStrings      bool
+	forceSchemasAlways bool
 }
 
 type renderer interface {
@@ -78,16 +79,18 @@ type generator struct {
 	r       renderer
 	fileID  uint64
 	nodes   nodeMap
+	pkgs    pkgMap
 	imports imports
 	data    staticData
 	opts    genoptions
 }
 
-func newGenerator(fileID uint64, nodes nodeMap, opts genoptions) *generator {
+func newGenerator(fileID uint64, trees nodeTrees, opts genoptions) *generator {
 	g := &generator{
 		r:       &templateRenderer{t: templates},
 		fileID:  fileID,
-		nodes:   nodes,
+		nodes:   trees.nodes,
+		pkgs:    trees.pkgs,
 		imports: newImports(),
 		opts:    opts,
 	}
@@ -141,14 +144,32 @@ func writeByteLiteral(out *bytes.Buffer, name string, data []byte) {
 }
 
 func (g *generator) defineSchemaVar() error {
-	msg, seg, _ := capnp.NewMessage(capnp.SingleSegment(nil))
-	req, _ := schema.NewRootCodeGeneratorRequest(seg)
-	fnodes := g.nodes[g.fileID].nodes
-	ids := make([]uint64, len(fnodes))
-	for i, n := range fnodes {
-		ids[i] = n.Id()
+	var ids []uint64
+	// Unless g.opts.forceSchemasAlways overrides it, only call g.r.Render() if
+	// .done is false, then set .done = true
+	if !g.opts.forceSchemasAlways {
+		pkg, ok := g.pkgs[g.nodes[g.fileID].pkg]
+		if !ok {
+			return fmt.Errorf("BUG: file %v, $Go.package %q: not found", g.fileID, g.nodes[g.fileID].pkg)
+		}
+		if pkg.done {
+			return nil	// RegisterSchema was written in another file
+		}
+		ids = make([]uint64, len(pkg.nodeId))
+		copy(ids, pkg.nodeId)
+		pkg.done = true
+	} else {
+		// Restore the old behavior: every file has a RegisterSchema with only its own nodes
+		fnodes := g.nodes[g.fileID].nodes
+		ids = make([]uint64, len(fnodes))
+		for i, n := range fnodes {
+			ids[i] = n.Id()
+		}
 	}
 	sort.Sort(uint64Slice(ids))
+
+	msg, seg, _ := capnp.NewMessage(capnp.SingleSegment(nil))
+	req, _ := schema.NewRootCodeGeneratorRequest(seg)
 	// TODO(light): find largest object size and use that to allocate list
 	nodes, _ := req.NewNodes(int32(len(g.nodes)))
 	i := 0
@@ -1171,13 +1192,13 @@ func (g *generator) defineFile() error {
 	return nil
 }
 
-func generateFile(reqf schema.CodeGeneratorRequest_RequestedFile, nodes nodeMap, opts genoptions) error {
+func generateFile(reqf schema.CodeGeneratorRequest_RequestedFile, trees nodeTrees, opts genoptions) error {
 	if opts.structStrings && !opts.schemas {
 		return errors.New("cannot generate struct String() methods without embedding schemas")
 	}
 	id := reqf.Id()
 	fname, _ := reqf.Filename()
-	g := newGenerator(id, nodes, opts)
+	g := newGenerator(id, trees, opts)
 	if err := g.defineFile(); err != nil {
 		return err
 	}
@@ -1218,6 +1239,7 @@ func main() {
 	flag.BoolVar(&opts.promises, "promises", true, "generate code for promises")
 	flag.BoolVar(&opts.schemas, "schemas", true, "embed schema information in generated code")
 	flag.BoolVar(&opts.structStrings, "structstrings", true, "generate String() methods for structs (-schemas must be true)")
+	flag.BoolVar(&opts.forceSchemasAlways, "forceschemasalways", false, "(temporary, will be removed) force RegisterSchema() code in every generated .go file even if it is in the same package as another go file. Perhaps useful if the code generation erroneously omits a RegisterSchemas()")
 	flag.Parse()
 
 	msg, err := capnp.NewDecoder(os.Stdin).Decode()
@@ -1230,7 +1252,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "capnpc-go: reading input:", err)
 		os.Exit(1)
 	}
-	nodes, err := buildNodeMap(req)
+	trees, err := makeNodeTrees(req)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "capnpc-go:", err)
 		os.Exit(1)
@@ -1239,9 +1261,14 @@ func main() {
 	reqFiles, _ := req.RequestedFiles()
 	for i := 0; i < reqFiles.Len(); i++ {
 		reqf := reqFiles.At(i)
-		err := generateFile(reqf, nodes, opts)
+		fname, err := reqf.Filename()
 		if err != nil {
-			fname, _ := reqf.Filename()
+			fmt.Fprintf(os.Stderr, "capnpc-go: failed to get filename %d/%d: %v\n", i + 1, reqFiles.Len(), err)
+			success = false
+			break
+		}
+		err = generateFile(reqf, trees, opts)
+		if err != nil {
 			fmt.Fprintf(os.Stderr, "capnpc-go: generating %s: %v\n", fname, err)
 			success = false
 		}
