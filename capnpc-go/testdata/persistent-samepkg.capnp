@@ -21,16 +21,14 @@
 
 using Go = import "/go.capnp";
 
-@0xbcfe42e3392b05a8;
+@0x941fad1fe66eeb50;
 
 $Go.package("persistent_simple");
 $Go.import("capnproto.org/go/capnp/v3/capnpc-go/testdata/persistent-simple");
 
-interface Persistent {
+interface SomeOtherFile {
 }
 
-annotation persistent(interface, field) :Void;
-
-struct FieldNameThatIsInvalidInGolang {
+struct ThisIsInTheSamePackageAsTheOtherfile {
   string @0 :Text;
 }

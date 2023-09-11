@@ -92,11 +92,11 @@ func TestBuildNodeMap(t *testing.T) {
 			t.Errorf("Reading code generator request %s: %v", test.name, err)
 			continue
 		}
-		nodes, err := buildNodeMap(req)
+		trees, err := makeNodeTrees(req)
 		if err != nil {
 			t.Errorf("%s: buildNodeMap: %v", test.name, err)
 		}
-		f := nodes[test.fileID]
+		f := trees.nodes[test.fileID]
 		if f == nil {
 			t.Errorf("%s: node map is missing file node @%#x", test.name, test.fileID)
 			continue
@@ -120,7 +120,7 @@ func TestBuildNodeMap(t *testing.T) {
 		}
 		// Test map lookup
 		for _, k := range test.fileNodes {
-			n := nodes[k]
+			n := trees.nodes[k]
 			if n == nil {
 				t.Errorf("%s: missing @%#x from node map", test.name, k)
 			} else if n.Id() != k {
@@ -182,13 +182,13 @@ func TestRemoteScope(t *testing.T) {
 		},
 	}
 	req := mustReadGeneratorRequest(t, "scopes.capnp.out")
-	nodes, err := buildNodeMap(req)
+	trees, err := makeNodeTrees(req)
 	if err != nil {
 		t.Fatal("buildNodeMap:", err)
 	}
 	collect := func(test scopeTest) (g *generator, typ schema.Type, from *node, ok bool) {
-		g = newGenerator(0xd68755941d99d05e, nodes, genoptions{})
-		v := nodes[test.constID]
+		g = newGenerator(0xd68755941d99d05e, trees, genoptions{})
+		v := trees.nodes[test.constID]
 		if v == nil {
 			t.Errorf("Can't find const @%#x for %s test", test.constID, test.name)
 			return nil, schema.Type{}, nil, false
@@ -273,13 +273,13 @@ func formatImportSpecs(specs []importSpec) string {
 
 func TestDefineConstNodes(t *testing.T) {
 	req := mustReadGeneratorRequest(t, "const.capnp.out")
-	nodes, err := buildNodeMap(req)
+	trees, err := makeNodeTrees(req)
 	if err != nil {
 		t.Fatal("buildNodeMap:", err)
 	}
-	g := newGenerator(0xc260cb50ae622e10, nodes, genoptions{})
+	g := newGenerator(0xc260cb50ae622e10, trees, genoptions{})
 	getCalls := traceGenerator(g)
-	err = g.defineConstNodes(nodes[0xc260cb50ae622e10].nodes)
+	err = g.defineConstNodes(trees.nodes[0xc260cb50ae622e10].nodes)
 	if err != nil {
 		t.Fatal("defineConstNodes:", err)
 	}
@@ -369,12 +369,12 @@ func TestDefineFile(t *testing.T) {
 			t.Errorf("Reading code generator request %q: %d RequestedFiles", test.fname, reqFiles.Len())
 			continue
 		}
-		nodes, err := buildNodeMap(req)
+		trees, err := makeNodeTrees(req)
 		if err != nil {
 			t.Errorf("buildNodeMap %s: %v", test.fname, err)
 			continue
 		}
-		g := newGenerator(reqFiles.At(0).Id(), nodes, test.opts)
+		g := newGenerator(reqFiles.At(0).Id(), trees, test.opts)
 		if err := g.defineFile(); err != nil {
 			t.Errorf("defineFile %s %+v: %v", test.fname, test.opts, err)
 			continue
@@ -387,7 +387,10 @@ func TestDefineFile(t *testing.T) {
 
 		// Generation should be deterministic between runs.
 		for i := 0; i < iterations-1; i++ {
-			g := newGenerator(reqFiles.At(0).Id(), nodes, test.opts)
+			for _, v := range trees.pkgs {
+				v.done = false
+			}
+			g := newGenerator(reqFiles.At(0).Id(), trees, test.opts)
 			if err := g.defineFile(); err != nil {
 				t.Errorf("defineFile %s %+v [iteration %d]: %v", test.fname, test.opts, i+2, err)
 				continue
@@ -531,6 +534,11 @@ func TestPersistent(t *testing.T) {
 	//        capnpc-go -promises=0 -schemas=0 -structstrings=0
 	// ```
 	t.Parallel()
+	dir, err := setupTempDir()
+	if err != nil {
+		panic(err)
+	}
+	defer os.RemoveAll(dir)
 
 	defaultOptions := genoptions{
 		promises:      true,
@@ -541,17 +549,13 @@ func TestPersistent(t *testing.T) {
 		fname string
 		opts  genoptions
 	}{
-		{"persistent-simple.capnp.out", defaultOptions},
+		// The capnp.out is generated with:
+		// capnp compile --no-standard-import -I../../std -o- persistent-simple.capnp \
+		//         persistent-samepkg.capnp > persistent-simple-and-samepkg.capnp.out
+		{"persistent-simple-and-samepkg.capnp.out", defaultOptions},
 	}
-	for _, test := range tests {
-		dir, err := setupTempDir()
-		if err != nil {
-			t.Fatalf("%s: %v", test.fname, err)
-			break;
-		}
-		defer os.RemoveAll(dir)
-		genfname := test.fname+".go"
-
+	var tobuild []string
+	for testIndex, test := range tests {
 		data, err := readTestFile(test.fname)
 		if err != nil {
 			t.Errorf("reading %s: %v", test.fname, err)
@@ -576,32 +580,49 @@ func TestPersistent(t *testing.T) {
 			t.Errorf("Reading code generator request %q: %d RequestedFiles", test.fname, reqFiles.Len())
 			continue
 		}
-		nodes, err := buildNodeMap(req)
+		trees, err := makeNodeTrees(req)
 		if err != nil {
 			t.Errorf("buildNodeMap %q: %v", test.fname, err)
 			continue
 		}
-		g := newGenerator(reqFiles.At(0).Id(), nodes, test.opts)
-		err = g.defineFile()
-		if err != nil {
-			reqFname, _ := reqFiles.At(0).Filename()
-			t.Errorf("defineFile %q %+v: file %q: %v", test.fname, test.opts, reqFname, err)
+		var srcDump string
+		ok := false
+		for i := 0; i < reqFiles.Len(); i++ {
+			reqf := reqFiles.At(i)
+			reqFname, err := reqf.Filename()
+			if err != nil {
+				t.Errorf("Reading code generator request %q: reqFiles[%d] failed: %v", test.fname, i, err)
+				break
+			}
+			genfname := reqFname+".go"
+			g := newGenerator(reqf.Id(), trees, test.opts)
+			err = g.defineFile()
+			if err != nil {
+				t.Errorf("defineFile %q %+v: file[%d] %q: %v", test.fname, test.opts, i, reqFname, err)
+				break
+			}
+			src := g.generate()
+			genfpath := filepath.Join(dir, genfname)
+			err = os.WriteFile(genfpath, []byte(src), 0660)
+			if err != nil {
+				t.Fatalf("Writing generated code %q: %v", genfpath, err)
+				return
+			}
+			tobuild = append(tobuild, genfname)
+			ok = true
+			srcDump += fmt.Sprintf("\n%s:\n%s", genfname, src)
+		}
+		if !ok {
 			continue
 		}
-		src := g.generate()
-		genfpath := filepath.Join(dir, genfname)
-		err = os.WriteFile(genfpath, []byte(src), 0660)
-		if err != nil {
-			t.Fatalf("Writing generated code %q: %v", genfpath, err)
-			break
-		}
 
+		if testIndex + 1 < len(tests) {
+			continue
+		}
 		// Relies on persistent-simple.capnp with $Go.package("persistent_simple")
 		// not being ("main"). Thus `go build` skips writing an executable.
-		args := []string{
-			"build", genfname,
-		}
-		cmd := exec.Command("go", args...)
+		tobuild = append([]string{"build"}, tobuild...)
+		cmd := exec.Command("go", tobuild...)
 		cmd.Dir = dir
 		cmd.Stdin = strings.NewReader("")
 		var sout strings.Builder
@@ -611,13 +632,12 @@ func TestPersistent(t *testing.T) {
 		if err = cmd.Run(); err != nil {
 			if gotcode, ok := err.(*exec.ExitError); ok {
 				exitcode := gotcode.ExitCode()
-				t.Errorf("go %+v exitcode:%d", args, exitcode)
+				t.Errorf("go %+v exitcode:%d", tobuild, exitcode)
 				t.Errorf("sout:\n%s", sout.String())
-				t.Errorf("serr:\n%s", serr.String())
-				t.Errorf("\n%s:\n%s", genfname, src)
+				t.Errorf("serr:\n%s%s", serr.String(), srcDump)
 				continue
 			} else {
-				t.Errorf("go %+v: %v", args, err)
+				t.Errorf("go %+v: %v", tobuild, err)
 				continue
 			}
 		}
