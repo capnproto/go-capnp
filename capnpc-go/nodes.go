@@ -275,10 +275,8 @@ func makeNodeTrees(req schema.CodeGeneratorRequest) (nodeTrees, error) {
 		f.pkg = ann.Package
 		f.imp = ann.Import
 		nnodes, _ := f.NestedNodes()
-		ids := make([]uint64, nnodes.Len())
 		for i := 0; i < nnodes.Len(); i++ {
 			nn := nnodes.At(i)
-			ids[i] = nn.Id()
 			if ni := ret.nodes[nn.Id()]; ni != nil {
 				nname, _ := nn.Name()
 				if err := resolveName(ret.nodes, ni, "", nname, f); err != nil {
@@ -294,7 +292,9 @@ func makeNodeTrees(req schema.CodeGeneratorRequest) (nodeTrees, error) {
 		}
 		// Note that this can collect ids from multiple files if they are in the
 		// same $Go.package.
-		pkg.nodeId = append(pkg.nodeId, ids...)
+		for _, n := range f.nodes {
+			pkg.nodeId = append(pkg.nodeId, n.Id())
+		}
 		ret.pkgs[f.pkg] = pkg
 	}
 	return ret, nil
