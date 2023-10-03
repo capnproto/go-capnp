@@ -5,12 +5,7 @@ package strquote
 // Append appends a Cap'n Proto string literal of s to buf.
 func Append(buf []byte, s []byte) []byte {
 	buf = append(buf, '"')
-	last := 0
-	for i, b := range s {
-		if !needsEscape(b) {
-			continue
-		}
-		buf = append(buf, s[last:i]...)
+	for _, b := range s {
 		switch b {
 		case '\a':
 			buf = append(buf, '\\', 'a')
@@ -33,11 +28,13 @@ func Append(buf []byte, s []byte) []byte {
 		case '\\':
 			buf = append(buf, '\\', '\\')
 		default:
-			buf = append(buf, '\\', 'x', hexDigit(b/16), hexDigit(b%16))
+			if needsEscape(b) {
+				buf = append(buf, '\\', 'x', hexDigit(b/16), hexDigit(b%16))
+			} else {
+				buf = append(buf, b)
+			}
 		}
-		last = i + 1
 	}
-	buf = append(buf, s[last:]...)
 	buf = append(buf, '"')
 	return buf
 }
