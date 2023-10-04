@@ -39,6 +39,7 @@ func TestEncode(t *testing.T) {
 		{0xe88c91698f7f0b73, `(cheese = gouda)`},
 		{0x9c51b843b337490b, `(cheeseList = [gouda, cheddar])`},
 		{0x81e2aadb8bfb237b, `(matrix = [[1, 2, 3], [4, 5, 6]])`},
+		{0xaf440d469839118e, `(data = "\x00\n\"\\\xff")`},
 	}
 
 	data, err := readTestFile("txt.capnp.out")
