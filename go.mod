@@ -5,10 +5,9 @@ go 1.19
 require (
 	github.com/kylelemons/godebug v1.1.0
 	github.com/stretchr/testify v1.8.2
-	github.com/stretchr/testify v1.8.2
 	github.com/tinylib/msgp v1.1.5
 	github.com/tj/assert v0.0.3
-	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
+	golang.org/x/exp v0.0.0-20230905200255-921286631fa9
 	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
 )
 

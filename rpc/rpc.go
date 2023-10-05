@@ -9,8 +9,6 @@ import (
 	"time"
 
 	"golang.org/x/sync/errgroup"
-	"zenhack.net/go/util"
-	"zenhack.net/go/util/deferred"
 
 	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/exc"
@@ -19,6 +17,8 @@ import (
 	"capnproto.org/go/capnp/v3/internal/syncutil"
 	"capnproto.org/go/capnp/v3/rpc/transport"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
+	"capnproto.org/go/capnp/v3/util"
+	"capnproto.org/go/capnp/v3/util/deferred"
 )
 
 /*

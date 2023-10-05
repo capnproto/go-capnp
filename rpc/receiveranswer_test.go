@@ -12,7 +12,7 @@ import (
 	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/rpc/internal/testcapnp"
 	"capnproto.org/go/capnp/v3/server"
-	"zenhack.net/go/util"
+	"capnproto.org/go/capnp/v3/util"
 )
 
 type capArgsTest struct {

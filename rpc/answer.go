@@ -9,7 +9,7 @@ import (
 	"capnproto.org/go/capnp/v3/exc"
 	"capnproto.org/go/capnp/v3/internal/rc"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
-	"zenhack.net/go/util/deferred"
+	"capnproto.org/go/capnp/v3/util/deferred"
 )
 
 // An answerID is an index into the answers table.
