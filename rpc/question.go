@@ -39,6 +39,15 @@ const (
 	// successfully.  It is only valid to query after finishMsgSend is
 	// closed.
 	finishSent
+
+	// isProvide is set if this question corresponds to a provide
+	// message, rather than a call or bootstrap message.
+	isProvide
+
+	// provideDisembargoSent indicates that we have already sent
+	// a disembargo with context.provide set to the target of this
+	// question.
+	provideDisembargoSent
 )
 
 // flags.Contains(flag) Returns true iff flags contains flag, which must
