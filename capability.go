@@ -11,10 +11,10 @@ import (
 	"capnproto.org/go/capnp/v3/exp/bufferpool"
 	"capnproto.org/go/capnp/v3/flowcontrol"
 	"capnproto.org/go/capnp/v3/internal/str"
-	"zenhack.net/go/util/deferred"
-	"zenhack.net/go/util/maybe"
-	"zenhack.net/go/util/rc"
-	"zenhack.net/go/util/sync/mutex"
+	"capnproto.org/go/capnp/v3/util/deferred"
+	"capnproto.org/go/capnp/v3/util/maybe"
+	"capnproto.org/go/capnp/v3/util/rc"
+	"capnproto.org/go/capnp/v3/util/sync/mutex"
 )
 
 func init() {

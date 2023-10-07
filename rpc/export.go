@@ -9,7 +9,7 @@ import (
 	"capnproto.org/go/capnp/v3/internal/str"
 	"capnproto.org/go/capnp/v3/internal/syncutil"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
-	"zenhack.net/go/util/deferred"
+	"capnproto.org/go/capnp/v3/util/deferred"
 )
 
 // An exportID is an index into the exports table.

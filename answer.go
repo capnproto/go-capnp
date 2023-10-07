@@ -7,8 +7,8 @@ import (
 
 	"capnproto.org/go/capnp/v3/exc"
 	"capnproto.org/go/capnp/v3/internal/str"
-	"zenhack.net/go/util/deferred"
-	"zenhack.net/go/util/sync/mutex"
+	"capnproto.org/go/capnp/v3/util/deferred"
+	"capnproto.org/go/capnp/v3/util/sync/mutex"
 )
 
 // A Promise holds the result of an RPC call.  Only one of Fulfill

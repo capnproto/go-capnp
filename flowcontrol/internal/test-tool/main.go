@@ -17,7 +17,7 @@ import (
 	"capnproto.org/go/capnp/v3/flowcontrol/tracing"
 	"capnproto.org/go/capnp/v3/internal/syncutil"
 	"capnproto.org/go/capnp/v3/rpc"
-	"zenhack.net/go/util"
+	"capnproto.org/go/capnp/v3/util"
 )
 
 var (
