@@ -3,6 +3,7 @@ module capnproto.org/go/capnp/v3
 go 1.19
 
 require (
+	github.com/colega/zeropool v0.0.0-20230505084239-6fb4a4f75381
 	github.com/kylelemons/godebug v1.1.0
 	github.com/stretchr/testify v1.8.2
 	github.com/tinylib/msgp v1.1.5
