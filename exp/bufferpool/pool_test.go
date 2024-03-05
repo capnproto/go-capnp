@@ -68,8 +68,17 @@ func TestPut(t *testing.T) {
 }
 
 func BenchmarkPool(b *testing.B) {
+	var pool bufferpool.Pool
+	const size = 32
+
+	// Make cache hot.
+	buf := pool.Get(size)
+	pool.Put(buf)
+
+	b.ResetTimer()
+	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		buf := bufferpool.Default.Get(32)
-		bufferpool.Default.Put(buf)
+		buf := pool.Get(size)
+		pool.Put(buf)
 	}
 }
