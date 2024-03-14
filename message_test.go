@@ -643,3 +643,21 @@ func (readOnlyArena) Allocate(sz Size, segs map[SegmentID]*Segment) (SegmentID, 
 }
 
 var errReadOnlyArena = errors.New("Allocate called on read-only arena")
+
+func BenchmarkMessageGetFirstSegment(b *testing.B) {
+	var msg Message
+	var arena Arena = SingleSegment(nil)
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_, err := msg.Reset(arena)
+		if err != nil {
+			b.Fatal(err)
+		}
+		_, err = msg.Segment(0)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
