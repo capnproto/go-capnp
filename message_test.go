@@ -604,8 +604,9 @@ type arenaAllocTest struct {
 }
 
 func (test *arenaAllocTest) run(t *testing.T, i int) {
-	arena, segs := test.init()
-	id, data, err := arena.Allocate(test.size, segs)
+	arena, _ := test.init()
+	seg, _, err := arena.Allocate(test.size, nil, nil)
+	id, data := seg.id, seg.data
 
 	if err != nil {
 		t.Errorf("tests[%d] - %s: Allocate error: %v", i, test.name, err)
@@ -638,8 +639,8 @@ func (ro readOnlyArena) String() string {
 	return fmt.Sprintf("readOnlyArena{%v}", ro.Arena)
 }
 
-func (readOnlyArena) Allocate(sz Size, segs map[SegmentID]*Segment) (SegmentID, []byte, error) {
-	return 0, nil, errReadOnlyArena
+func (readOnlyArena) Allocate(sz Size, msg *Message, seg *Segment) (*Segment, address, error) {
+	return nil, 0, errReadOnlyArena
 }
 
 var errReadOnlyArena = errors.New("Allocate called on read-only arena")

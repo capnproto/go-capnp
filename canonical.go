@@ -18,7 +18,7 @@ func Canonicalize(s Struct) ([]byte, error) {
 	if err != nil {
 		return nil, exc.WrapError("canonicalize", err)
 	}
-	if err := msg.SetRoot(root.ToPtr()); err != nil {
+	if err := msg.SetRoot(root.ToPtr()); err != nil { // TODO: dupe from NewRootStruct?
 		return nil, exc.WrapError("canonicalize", err)
 	}
 	if err := fillCanonicalStruct(root, s); err != nil {

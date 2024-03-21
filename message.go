@@ -28,6 +28,9 @@ const maxDepth = ^uint(0)
 // A Message is a tree of Cap'n Proto objects, split into one or more
 // segments of contiguous memory.  The only required field is Arena.
 // A Message is safe to read from multiple goroutines.
+//
+// A message must be set up with a fully valid Arena when reading or with
+// a valid and empty arena by calling NewArena.
 type Message struct {
 	// rlimit must be first so that it is 64-bit aligned.
 	// See sync/atomic docs.
@@ -52,15 +55,13 @@ type Message struct {
 	// DepthLimit limits how deeply-nested a message structure can be.
 	// If not set, this defaults to 64.
 	DepthLimit uint
-
-	// mu protects the following fields:
-	mu       sync.Mutex
-	segs     map[SegmentID]*Segment
-	firstSeg Segment // Preallocated first segment. msg is non-nil once initialized.
 }
 
 // NewMessage creates a message with a new root and returns the first
 // segment.  It is an error to call NewMessage on an arena with data in it.
+//
+// The new message is guaranteed to contain at least one segment and that
+// segment is guaranteed to contain enough space for the root struct pointer.
 func NewMessage(arena Arena) (*Message, *Segment, error) {
 	var msg Message
 	first, err := msg.Reset(arena)
@@ -88,25 +89,22 @@ func NewMultiSegmentMessage(b [][]byte) (msg *Message, first *Segment) {
 	return msg, first
 }
 
-// Release is syntactic sugar for Message.Reset(nil).  See
+// Release is syntactic sugar for Message.Reset(m.Arena).  See
 // docstring for Reset for an important warning.
 func (m *Message) Release() {
-	m.Reset(nil)
+	m.Reset(m.Arena)
 }
 
 // Reset the message to use a different arena, allowing it
 // to be reused. This invalidates any existing pointers in
 // the Message, releases all clients in the cap table, and
 // releases the current Arena, so use with caution.
+//
+// Reset fails if the new arena is not empty and is not able to allocate enough
+// space for at least one segment and its root pointer.  In other words, Reset
+// must only be used for messages which will be modified, not read.
 func (m *Message) Reset(arena Arena) (first *Segment, err error) {
 	m.capTable.Reset()
-	for k := range m.segs {
-		if k == 0 && m.segs[k] == &m.firstSeg {
-			continue
-		}
-		delete(m.segs, k)
-	}
-
 	if m.Arena != nil {
 		m.Arena.Release()
 	}
@@ -116,43 +114,64 @@ func (m *Message) Reset(arena Arena) (first *Segment, err error) {
 		TraverseLimit: m.TraverseLimit,
 		DepthLimit:    m.DepthLimit,
 		capTable:      m.capTable,
-		segs:          m.segs,
-		firstSeg:      Segment{msg: m},
 	}
 
-	if arena != nil {
-		switch arena.NumSegments() {
-		case 0:
-			if first, err = m.allocSegment(wordSize); err != nil {
-				return nil, exc.WrapError("new message", err)
-			}
+	// FIXME(matheusd): All the checks after this point have been added to
+	// maintain compatibility to the prior implementation and not break any
+	// tests, but personally, I think these should not exist. Message
+	// should be resettable with a pre-filled arena for reading without it
+	// failing and they should only enforce an allocation when the first
+	// write operation occurs.
 
-		case 1:
-			if first, err = m.Segment(0); err != nil {
-				return nil, exc.WrapError("new message", err)
-			}
-			if len(first.data) > 0 {
-				return nil, errors.New("new message: arena not empty")
-			}
-
-		default:
-			return nil, errors.New("new message: arena not empty")
-		}
-
-		if first.ID() != 0 {
-			return nil, errors.New("new message: arena allocated first segment with non-zero ID")
-		}
-
-		seg, _, err := alloc(first, wordSize) // allocate root
-		if err != nil {
-			return nil, exc.WrapError("new message", err)
-		}
-		if seg != first {
-			return nil, errors.New("new message: arena allocated first word outside first segment")
-		}
+	// Ensure there are no more than one segment allocated in the arena.
+	// This maintains compatibility to older versions of Reset().
+	if arena.NumSegments() > 1 {
+		return nil, errors.New("arena already has multiple segments allocated")
 	}
 
+	// Ensure the first segment has no data.
+	first = m.Arena.Segment(0)
+	if first != nil {
+		if len(first.data) != 0 {
+			return nil, errors.New("arena not empty")
+		}
+		if first.msg != nil && first.msg != m {
+			return nil, errors.New("first segment associated with different msg")
+		}
+
+		// Ensure the first segment points to message m.
+		first.msg = m
+	}
+
+	// Ensure the arena has size of at least the root pointer.
+	if first == nil || len(first.data) < int(wordSize) {
+		// When there is a first segment and it has capacity (but not
+		// yet length), manually resize it.
+		//
+		// TODO: this is here due to a single test requiring this
+		// behavior. Consider removing it.
+		if first != nil && len(first.data) == 0 && cap(first.data) >= int(wordSize) {
+			first.data = first.data[:8]
+		} else {
+			first, _, err = m.Arena.Allocate(wordSize, m, nil)
+		}
+	}
 	return
+}
+
+// ResetForRead resets the message for reading with the specified arena. This
+// releases the current message arena, if it exists.
+func (m *Message) ResetForRead(arena Arena) {
+	m.capTable.Reset()
+	if m.Arena != nil {
+		m.Arena.Release()
+	}
+	*m = Message{
+		Arena:         arena,
+		TraverseLimit: m.TraverseLimit,
+		DepthLimit:    m.DepthLimit,
+		capTable:      m.capTable,
+	}
 }
 
 func (m *Message) initReadLimit() {
@@ -198,7 +217,11 @@ func (m *Message) Root() (Ptr, error) {
 	if err != nil {
 		return Ptr{}, exc.WrapError("read root", err)
 	}
-	p, err := s.root().At(0)
+	root, ok := s.root()
+	if !ok {
+		return Ptr{}, errors.New("root is not set")
+	}
+	p, err := root.At(0)
 	if err != nil {
 		return Ptr{}, exc.WrapError("read root", err)
 	}
@@ -211,7 +234,19 @@ func (m *Message) SetRoot(p Ptr) error {
 	if err != nil {
 		return exc.WrapError("set root", err)
 	}
-	if err := s.root().Set(0, p); err != nil {
+	root, ok := s.root()
+	if !ok {
+		// Root is not allocated on the first segment. Allocate it now.
+		_, _, err := m.alloc(wordSize, nil)
+		if err != nil {
+			return exc.WrapError("initial alloc", err)
+		}
+		root, ok = s.root()
+		if !ok {
+			return errors.New("unable to allocate root")
+		}
+	}
+	if err := root.Set(0, p); err != nil {
 		return exc.WrapError("set root", err)
 	}
 	return nil
@@ -252,97 +287,44 @@ func (m *Message) depthLimit() uint {
 
 // NumSegments returns the number of segments in the message.
 func (m *Message) NumSegments() int64 {
-	return int64(m.Arena.NumSegments())
+	return m.Arena.NumSegments()
 }
 
-// Segment returns the segment with the given ID.
+// Segment returns the segment with the given ID.  If err == nil, then the
+// segment is enforced to exist and to be associated to message m.
 func (m *Message) Segment(id SegmentID) (*Segment, error) {
-	if int64(id) >= m.Arena.NumSegments() {
+	seg := m.Arena.Segment(id)
+	if seg == nil {
 		return nil, errors.New("segment " + str.Utod(id) + ": out of bounds")
 	}
-	m.mu.Lock()
-	seg, err := m.segment(id)
-	m.mu.Unlock()
-	return seg, err
-}
 
-// segment returns the segment with the given ID, with no bounds
-// checking.  The caller must be holding m.mu.
-func (m *Message) segment(id SegmentID) (*Segment, error) {
-	if m.segs == nil && id == 0 && m.firstSeg.msg != nil && m.firstSeg.data != nil {
-		return &m.firstSeg, nil
+	if seg.msg == nil {
+		seg.msg = m
 	}
-	if s := m.segs[id]; s != nil && s.data != nil {
-		return s, nil
+	if seg.msg != m {
+		return nil, fmt.Errorf("segment %d associated with different msg", id)
 	}
-	if len(m.segs) == maxInt {
-		return nil, errors.New("segment " + str.Utod(id) + ": number of loaded segments exceeds int")
-	}
-	data, err := m.Arena.Data(id)
-	if err != nil {
-		return nil, exc.WrapError("load segment "+str.Utod(id), err)
-	}
-	s := m.setSegment(id, data)
-	return s, nil
-}
-
-// setSegment creates or updates the Segment with the given ID.
-// The caller must be holding m.mu.
-func (m *Message) setSegment(id SegmentID, data []byte) *Segment {
-	if m.segs == nil {
-		if id == 0 {
-			m.firstSeg = Segment{
-				id:   id,
-				msg:  m,
-				data: data,
-			}
-			return &m.firstSeg
-		}
-		m.segs = make(map[SegmentID]*Segment)
-		if m.firstSeg.msg != nil {
-			m.segs[0] = &m.firstSeg
-		}
-	} else if seg := m.segs[id]; seg != nil {
-		seg.data = data
-		return seg
-	}
-	seg := &Segment{
-		id:   id,
-		msg:  m,
-		data: data,
-	}
-	m.segs[id] = seg
-	return seg
-}
-
-// allocSegment creates or resizes an existing segment such that
-// cap(seg.Data) - len(seg.Data) >= sz.  The caller must not be holding
-// onto m.mu.
-func (m *Message) allocSegment(sz Size) (*Segment, error) {
-	if sz > maxAllocSize() {
-		return nil, errors.New("allocation: too large")
-	}
-
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if len(m.segs) == maxInt {
-		return nil, errors.New("allocation: number of loaded segments exceeds int")
-	}
-
-	// Transition from sole segment to segment map?
-	if m.segs == nil && m.firstSeg.msg != nil {
-		m.segs = make(map[SegmentID]*Segment)
-		m.segs[0] = &m.firstSeg
-	}
-
-	id, data, err := m.Arena.Allocate(sz, m.segs)
-	if err != nil {
-		return nil, exc.WrapError("allocation", err)
-	}
-
-	seg := m.setSegment(id, data)
 	return seg, nil
+}
+
+func (m *Message) alloc(sz Size, pref *Segment) (*Segment, address, error) {
+	if sz > maxAllocSize() {
+		return nil, 0, errors.New("allocation: too large")
+	}
+	sz = sz.padToWord()
+
+	seg, addr, err := m.Arena.Allocate(sz, m, pref)
+	if err != nil {
+		return nil, 0, err
+	}
+	if seg == nil {
+		return nil, 0, errors.New("arena returned nil segment for Allocate()")
+	}
+	if seg.msg != nil && seg.msg != m {
+		return nil, 0, errors.New("arena returned segment assigned to other message")
+	}
+	seg.msg = m
+	return seg, addr, nil
 }
 
 func (m *Message) WriteTo(w io.Writer) (int64, error) {
@@ -364,31 +346,28 @@ func (m *Message) Marshal() ([]byte, error) {
 		return nil, errors.New("marshal: header size overflows int")
 	}
 	var dataSize uint64
-	m.mu.Lock()
 	for i := int64(0); i < nsegs; i++ {
-		s, err := m.segment(SegmentID(i))
+		s, err := m.Segment(SegmentID(i))
 		if err != nil {
-			m.mu.Unlock()
-			return nil, exc.WrapError("marshal", err)
+			return nil, exc.WrapError("marshal: ", err)
+		}
+		if s == nil {
+			return nil, errors.New("marshal: nil segment")
 		}
 		n := uint64(len(s.data))
 		if n%uint64(wordSize) != 0 {
-			m.mu.Unlock()
 			return nil, errors.New("marshal: segment " + str.Itod(i) + " not word-aligned")
 		}
 		if n > uint64(maxSegmentSize) {
-			m.mu.Unlock()
 			return nil, errors.New("marshal: segment " + str.Itod(i) + " too large")
 		}
 		dataSize += n
 		if dataSize > uint64(maxInt) {
-			m.mu.Unlock()
 			return nil, errors.New("marshal: message size overflows int")
 		}
 	}
 	total := hdrSize + dataSize
 	if total > uint64(maxInt) {
-		m.mu.Unlock()
 		return nil, errors.New("marshal: message size overflows int")
 	}
 
@@ -396,19 +375,16 @@ func (m *Message) Marshal() ([]byte, error) {
 	buf := make([]byte, int(hdrSize), int(total))
 	binary.LittleEndian.PutUint32(buf, uint32(nsegs-1))
 	for i := int64(0); i < nsegs; i++ {
-		s, err := m.segment(SegmentID(i))
+		s, err := m.Segment(SegmentID(i))
 		if err != nil {
-			m.mu.Unlock()
-			return nil, exc.WrapError("marshal", err)
+			return nil, exc.WrapError("marshal: ", err)
 		}
 		if len(s.data)%int(wordSize) != 0 {
-			m.mu.Unlock()
 			return nil, errors.New("marshal: segment " + str.Itod(i) + " not word-aligned")
 		}
 		binary.LittleEndian.PutUint32(buf[int(i+1)*4:], uint32(len(s.data)/int(wordSize)))
 		buf = append(buf, s.data...)
 	}
-	m.mu.Unlock()
 	return buf, nil
 }
 
@@ -438,28 +414,5 @@ func (wc *writeCounter) Write(b []byte) (n int, err error) {
 // use a different segment in the same message if there's not sufficient
 // capacity.
 func alloc(s *Segment, sz Size) (*Segment, address, error) {
-	if sz > maxAllocSize() {
-		return nil, 0, errors.New("allocation: too large")
-	}
-	sz = sz.padToWord()
-
-	if !hasCapacity(s.data, sz) {
-		var err error
-		s, err = s.msg.allocSegment(sz)
-		if err != nil {
-			return nil, 0, fmt.Errorf("allocSegment failed: %v", err)
-		}
-	}
-
-	addr := address(len(s.data))
-	end, ok := addr.addSize(sz)
-	if !ok {
-		return nil, 0, errors.New("allocation: address overflow")
-	}
-	space := s.data[len(s.data):end]
-	s.data = s.data[:end]
-	for i := range space {
-		space[i] = 0
-	}
-	return s, addr, nil
+	return s.msg.alloc(sz, s)
 }

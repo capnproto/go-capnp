@@ -1773,17 +1773,17 @@ func BenchmarkUnmarshal_Reuse(b *testing.B) {
 		data[i], _ = msg.Marshal()
 	}
 	msg := new(capnp.Message)
-	ta := new(testArena)
-	arena := capnp.Arena(ta)
+	ta := new(capnp.ReadOnlySingleSegmentArena)
+	msg.ResetForRead(ta)
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		*ta = testArena(data[r.Intn(len(data))][8:])
-		_, err := msg.Reset(arena)
+		ta.UseBuffer(data[r.Intn(len(data))][8:])
+		msg.ResetForRead(ta)
+		a, err := air.ReadRootBenchmarkA(msg)
 		if err != nil {
 			b.Fatal(err)
 		}
-		a, _ := air.ReadRootBenchmarkA(msg)
 		unmarshalA(a)
 	}
 }
@@ -1830,25 +1830,6 @@ func BenchmarkDecode(b *testing.B) {
 		}
 	}
 }
-
-type testArena []byte
-
-func (ta testArena) NumSegments() int64 {
-	return 1
-}
-
-func (ta testArena) Data(id capnp.SegmentID) ([]byte, error) {
-	if id != 0 {
-		return nil, errors.New("test arena: requested non-zero segment")
-	}
-	return []byte(ta), nil
-}
-
-func (ta testArena) Allocate(capnp.Size, map[capnp.SegmentID]*capnp.Segment) (capnp.SegmentID, []byte, error) {
-	return 0, nil, errors.New("test arena: can't allocate")
-}
-
-func (ta testArena) Release() {}
 
 func TestPointerTraverseDefense(t *testing.T) {
 	t.Parallel()
