@@ -1779,7 +1779,10 @@ func BenchmarkUnmarshal_Reuse(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		*ta = testArena(data[r.Intn(len(data))][8:])
-		msg.Reset(arena)
+		_, err := msg.Reset(arena)
+		if err != nil {
+			b.Fatal(err)
+		}
 		a, _ := air.ReadRootBenchmarkA(msg)
 		unmarshalA(a)
 	}
