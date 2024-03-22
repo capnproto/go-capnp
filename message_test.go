@@ -661,3 +661,17 @@ func BenchmarkMessageGetFirstSegment(b *testing.B) {
 		}
 	}
 }
+
+// TestCannotResetArenaForRead demonstrates that Reset() cannot be used when
+// intending to read data from an arena (i.e. cannot reuse a msg value by
+// calling Reset with the intention to read data).
+func TestCannotResetArenaForRead(t *testing.T) {
+	var msg Message
+	var arena Arena = SingleSegment(incrementingData(8))
+
+	_, err := msg.Reset(arena)
+	if err == nil {
+		t.Fatal("expected non nil error, got nil")
+	}
+	t.Logf("Got err: %v", err)
+}
