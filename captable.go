@@ -14,11 +14,21 @@ type CapTable struct {
 // the length to zero.   Clients passed as arguments are added
 // to the table after zeroing, such that ct.Len() == len(cs).
 func (ct *CapTable) Reset(cs ...Client) {
-	for _, c := range ct.cs {
-		c.Release()
-	}
+	switch {
+	case len(ct.cs) == 0 && len(cs) == 0:
+		// Nothing to do
+		return
 
-	ct.cs = append(ct.cs[:0], cs...)
+	case len(ct.cs) == 0 && len(cs) != 0:
+		ct.cs = cs
+
+	default:
+		for _, c := range ct.cs {
+			c.Release()
+		}
+
+		ct.cs = append(ct.cs[:0], cs...)
+	}
 }
 
 // Len returns the number of capabilities in the table.
