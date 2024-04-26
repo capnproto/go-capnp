@@ -120,41 +120,42 @@ func demuxArena(hdr streamHeader, data []byte) (Arena, error) {
 // bytes.  It will always return a multiple of wordSize.  max must be a
 // multiple of wordSize.  The sum of curr and the returned size will
 // always be less than max.
-func nextAlloc(curr, max int64, req Size) (int, error) {
+func nextAlloc(curr int64, req Size) (int, error) {
+
 	if req == 0 {
 		return 0, nil
 	}
+
+	req = req.padToWord()
+	totalWant := curr + int64(req)
+
+	// Sanity checks.
 	if req > maxAllocSize() {
 		return 0, errors.New("alloc " + req.String() + ": too large")
 	}
-	padreq := req.padToWord()
-	want := curr + int64(padreq)
-	if want <= curr || want > max {
+	if totalWant <= curr || totalWant > int64(maxAllocSize()) {
 		return 0, errors.New("alloc " + req.String() + ": message size overflow")
 	}
-	new := curr
-	double := new + new
+
+	if totalWant < 1024 {
+		return int(req), nil
+	}
+
+	// doubleCurr is double the current total message size (padded to the
+	// word sized).
+	doubleCurr := (curr*2 + 7) &^ 7
+
+	// The following attempts to amortize allocation costs across a wide
+	// range of uses.
 	switch {
-	case want < 1024:
-		next := (1024 - curr + 7) &^ 7
-		if next < curr {
-			return int((curr + 7) &^ 7), nil
-		}
-		return int(next), nil
-	case want > double:
-		return int(padreq), nil
+	case totalWant < 1024*1024 && doubleCurr < 1024*1024:
+		// When doubling the message size still keeps the message under
+		// 1MiB, double the message size.
+		return int(doubleCurr), nil
+
 	default:
-		for 0 < new && new < want {
-			new += new / 4
-		}
-		if new <= 0 {
-			return int(padreq), nil
-		}
-		delta := new - curr
-		if delta > int64(maxAllocSize()) {
-			return int(maxAllocSize()), nil
-		}
-		return int((delta + 7) &^ 7), nil
+		// Otherwise, allocate the requested amount.
+		return int(req), nil
 	}
 }
 

@@ -34,7 +34,7 @@ func (bpa *bufferPoolAllocator) Grow(b []byte, totalMsgSize int64, sz Size) ([]b
 		pool = &bufferpool.Default
 	}
 
-	inc, err := nextAlloc(totalMsgSize, int64(maxAllocSize()), sz)
+	inc, err := nextAlloc(totalMsgSize, sz)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func (bpa *bufferPoolAllocator) Release(b []byte) {
 type simpleAllocator struct{}
 
 func (_ simpleAllocator) Grow(b []byte, totalMsgSize int64, sz Size) ([]byte, error) {
-	inc, err := nextAlloc(totalMsgSize, int64(maxAllocSize()), sz)
+	inc, err := nextAlloc(totalMsgSize, sz)
 	if err != nil {
 		return nil, err
 	}
