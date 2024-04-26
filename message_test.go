@@ -530,7 +530,7 @@ func TestNextAlloc(t *testing.T) {
 			t.Errorf("%s: max must be word-aligned. Skipped.", test.name)
 			continue
 		}
-		got, err := nextAlloc(test.curr, test.max, test.req)
+		got, err := nextAlloc(test.curr, test.req)
 		if err != nil {
 			if test.ok {
 				t.Errorf("%s: nextAlloc(%d, %d, %d) = _, %v; want >=%d, <nil>", test.name, test.curr, test.max, test.req, err, test.req)
