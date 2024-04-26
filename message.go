@@ -166,12 +166,9 @@ func (m *Message) ResetForRead(arena Arena) {
 	if m.Arena != nil {
 		m.Arena.Release()
 	}
-	*m = Message{
-		Arena:         arena,
-		TraverseLimit: m.TraverseLimit,
-		DepthLimit:    m.DepthLimit,
-		capTable:      m.capTable,
-	}
+	m.Arena = arena
+	m.rlimit = atomic.Uint64{}
+	m.rlimitInit = sync.Once{}
 }
 
 func (m *Message) initReadLimit() {
