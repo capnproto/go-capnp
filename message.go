@@ -225,6 +225,41 @@ func (m *Message) Root() (Ptr, error) {
 	return p, nil
 }
 
+// AllocateAsRoot allocates the passed size and sets that as the root structure
+// of the message.
+func (m *Message) AllocateAsRoot(size ObjectSize) (*Segment, address, error) {
+	// Allocate enough for the root pointer + the root structure. Doing a
+	// single alloc ensures both end up on the same segment (which should
+	// be segment zero and the offset should also be zero, meaning the root
+	// pointer is the first data written to the segment).
+	//
+	// Technically, it could be the case (depending on the arena
+	// implementation) that the first segment would have only the root
+	// pointer (one word) and then the root struct would be put in a
+	// different segment (using a landing pad), but that would be very
+	// inneficient in several ways, so we opt here to enforce a single
+	// alloc for both as an optimization.
+	s, rootAddr, err := m.alloc(wordSize+size.totalSize(), nil)
+	if err != nil {
+		return nil, 0, err
+	}
+	if s.ID() != 0 {
+		return nil, 0, errors.New("root was not allocated on first segment")
+	}
+	if rootAddr != 0 {
+		return nil, 0, errors.New("root struct was already allocated")
+	}
+
+	// The root struct starts immediately after the root pointer (which
+	// takes one word).
+	srcAddr := address(wordSize)
+
+	// FIXME: does not handle lists and interfaces/capabilities yet.
+	srcRaw := rawStructPointer(0, size)
+	s.writeRawPointer(rootAddr, srcRaw.withOffset(nearPointerOffset(rootAddr, srcAddr)))
+	return s, srcAddr, nil
+}
+
 // SetRoot sets the message's root object to p.
 func (m *Message) SetRoot(p Ptr) error {
 	s, err := m.Segment(0)

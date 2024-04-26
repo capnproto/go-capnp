@@ -663,6 +663,54 @@ func BenchmarkMessageGetFirstSegment(b *testing.B) {
 	}
 }
 
+// BenchmarkMessageSetRoot benchmarks setting the root structure of a message.
+func BenchmarkMessageSetRoot(b *testing.B) {
+	var msg Message
+	var arena Arena = SingleSegment(nil)
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_, err := msg.Reset(arena)
+		if err != nil {
+			b.Fatal(err)
+		}
+		s, err := msg.Segment(0)
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		st, err := NewRootStruct(s, ObjectSize{DataSize: 8, PointerCount: 0})
+		if err != nil {
+			b.Fatal(err)
+		}
+		err = msg.SetRoot(st.ToPtr())
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+// BenchmarkMessageAllocateAsRoot benchmarks using AllocateAsRoot to allocate
+// a new root structure.
+func BenchmarkMessageAllocateAsRoot(b *testing.B) {
+	var msg Message
+	var arena Arena = SingleSegment(nil)
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		// NOTE: Needs to be ResetForRead() because Reset() allocates
+		// the root pointer. This is part of API madness.
+		msg.ResetForRead(arena)
+
+		_, _, err := msg.AllocateAsRoot(ObjectSize{DataSize: 8, PointerCount: 0})
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 // TestCannotResetArenaForRead demonstrates that Reset() cannot be used when
 // intending to read data from an arena (i.e. cannot reuse a msg value by
 // calling Reset with the intention to read data).
