@@ -2,7 +2,7 @@
 // {{.Node.Name}}_List is a list of {{.Node.Name}}.
 type {{.Node.Name}}_List = capnp.CapList[{{.Node.Name}}]
 
-// New{{.Node.Name}} creates a new list of {{.Node.Name}}.
+// New{{.Node.Name}}_List creates a new list of {{.Node.Name}}.
 func New{{.Node.Name}}_List(s *capnp.Segment, sz int32) ({{.Node.Name}}_List, error) {
 	l, err := capnp.NewPointerList(s, sz)
 	return capnp.CapList[{{.Node.Name}}](l), err
