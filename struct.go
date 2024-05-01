@@ -21,6 +21,25 @@ type StructKind = struct {
 	flags      structFlags
 }
 
+// AllocateRootStruct allocates the root struct on the message as a struct of
+// the passed size.
+func AllocateRootStruct(msg *Message, sz ObjectSize) (Struct, error) {
+	if !sz.isValid() {
+		return Struct{}, errors.New("new struct: invalid size")
+	}
+	sz.DataSize = sz.DataSize.padToWord()
+	s, addr, err := msg.AllocateAsRoot(sz)
+	if err != nil {
+		return Struct{}, exc.WrapError("new struct", err)
+	}
+	return Struct{
+		seg:        s,
+		off:        addr,
+		size:       sz,
+		depthLimit: maxDepth,
+	}, nil
+}
+
 // NewStruct creates a new struct, preferring placement in s.
 func NewStruct(s *Segment, sz ObjectSize) (Struct, error) {
 	if !sz.isValid() {
@@ -139,6 +158,31 @@ func (p Struct) SetText(i uint16, v string) error {
 		return p.SetPtr(i, Ptr{})
 	}
 	return p.SetNewText(i, v)
+}
+
+func (p Struct) FlatSetNewText(i uint16, v string) error {
+	// NewText().newPrimitiveList
+	sz := Size(1)
+	n := int32(len(v) + 1)
+	total := sz.timesUnchecked(n)
+	s, addr, err := alloc(p.seg, total)
+	if err != nil {
+		return err
+	}
+
+	// NewText()
+	copy(s.slice(addr, Size(len(v))), v)
+
+	// SetPtr().pointerAddress()
+	// offInsideP := p.pointerAddress(i)
+	ptrStart, _ := p.off.addSize(p.size.DataSize)
+	offInsideP, _ := ptrStart.element(int32(i), wordSize)
+
+	// SetPtr().writePtr()
+	srcAddr := addr                                       // srcAddr = l.off
+	srcRaw := rawListPointer(0, byte1List, int32(len(v))) // srcRaw = l.raw()
+	s.writeRawPointer(offInsideP, srcRaw.withOffset(nearPointerOffset(offInsideP, srcAddr)))
+	return nil
 }
 
 // SetNewText sets the i'th pointer to a newly allocated text.

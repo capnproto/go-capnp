@@ -199,3 +199,58 @@ func (a *ReadOnlySingleSegmentArena) Release() {
 func (a *ReadOnlySingleSegmentArena) UseBuffer(b []byte) {
 	a.data = b
 }
+
+// SimpleSingleSegmentArena is an alternative implementation of a single
+// segment arena that is not subject to the same legacy behavior as the the
+// single segment arena initialized by SingleSegmentArena.
+//
+// This arena is not safe for concurrent access and holds onto the last
+// allocated buffer for reuse after a call to Relese().
+type SimpleSingleSegmentArena Segment
+
+func (a *SimpleSingleSegmentArena) NumSegments() int64 { return 1 }
+
+func (a *SimpleSingleSegmentArena) Data(id SegmentID) ([]byte, error) {
+	if id != 0 {
+		return nil, errors.New("segment out of bounds")
+	}
+	return a.data, nil
+}
+
+func (a *SimpleSingleSegmentArena) Segment(id SegmentID) *Segment {
+	if id != 0 {
+		return nil
+	}
+	return (*Segment)(a)
+}
+
+func (a *SimpleSingleSegmentArena) Allocate(sz Size, msg *Message, seg *Segment) (*Segment, address, error) {
+	totalMsgSize := int64(len(a.data))
+	inc, err := nextAlloc(totalMsgSize, sz)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	addr := address(len(a.data))
+	capNeeded := len(a.data) + inc
+	if capNeeded <= cap(a.data) {
+		a.data = a.data[:capNeeded]
+	} else {
+		a.data = append(a.data, make([]byte, inc)...)
+	}
+	return (*Segment)(a), addr, nil
+}
+
+func (a *SimpleSingleSegmentArena) Release() {
+	for i := range a.data {
+		a.data[i] = 0
+	}
+	a.data = a.data[:0]
+}
+
+// ReplaceBuffer replaces the internal buffer with a new buffer. This
+// effectively resets a message to the one encoded by the passed buffer, which
+// should be a single segment message.
+func (a *SimpleSingleSegmentArena) ReplaceBuffer(b []byte) {
+	a.data = b
+}
