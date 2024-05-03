@@ -57,3 +57,37 @@ func BenchmarkSetTextFlat(b *testing.B) {
 		}
 	}
 }
+
+// BenchmarkSetTextUpdate benchmarks updating the text field in-place.
+func BenchmarkSetTextUpdate(b *testing.B) {
+	var msg capnp.Message
+	var arena = &capnp.SimpleSingleSegmentArena{}
+	arena.ReplaceBuffer(make([]byte, 0, 1024))
+
+	// NOTE: Needs to be ResetForRead() because Reset() allocates
+	// the root pointer. This is part of API madness.
+	msg.ResetForRead(arena)
+
+	a, err := aircraftlib.AllocateNewRootBenchmark(&msg)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	err = a.SetName("my name")
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	// WHY?!?!?!?
+	msg.ResetReadLimit(1 << 31)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		err := a.UpdateName("my name")
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}

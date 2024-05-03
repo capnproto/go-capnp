@@ -17,3 +17,8 @@ func AllocateNewRootBenchmark(msg *capnp.Message) (BenchmarkA, error) {
 func (s BenchmarkA) FlatSetName(v string) error {
 	return capnp.Struct(s).FlatSetNewText(0, v)
 }
+
+// Experimental: update the set in-place.
+func (s BenchmarkA) UpdateName(v string) error {
+	return capnp.Struct(s).UpdateText(0, v)
+}

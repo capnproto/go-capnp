@@ -185,6 +185,59 @@ func (p Struct) FlatSetNewText(i uint16, v string) error {
 	return nil
 }
 
+// EXPERIMENTAL unrolled version of updating a text field in-place when it
+// already has enough space to hold the value (as opposed to allocating a new
+// object in the message).
+func (p Struct) UpdateText(i uint16, v string) error {
+	// Determine pointer offset.
+	ptrStart, _ := p.off.addSize(p.size.DataSize)
+	offInsideP, _ := ptrStart.element(int32(i), wordSize)
+
+	// ptr, err := p.seg.readPtr(offInsideP, p.depthLimit)
+	s, base, val, err := p.seg.resolveFarPointer(offInsideP)
+	if err != nil {
+		return exc.WrapError("read pointer", err)
+	}
+
+	// TODO: depth limit read check?
+
+	if val == 0 {
+		// Existing pointer is empty/void.
+		return p.FlatSetNewText(i, v)
+	}
+
+	// lp, err := s.readListPtr(base, val)
+	addr, ok := val.offset().resolve(base)
+	if !ok {
+		return errors.New("list pointer: invalid address")
+	}
+	// TODO: list checks from readListPtr()?
+
+	if err != nil {
+		return exc.WrapError("read pointer", err)
+	}
+
+	length := int(val.numListElements())
+
+	if length < len(v)+1 {
+		// Existing buffer does not have enough space for new text.
+		return p.FlatSetNewText(i, v)
+	}
+
+	// Existing buffer location has space for new text. Copy text over it.
+	dst := s.slice(addr, Size(length))
+	n := copy(dst, []byte(v))
+
+	// Pad with zeros (clear leftover). Last byte is already zero.
+	//
+	// TODO: replace with clear(dst[n:length-1]) after go1.21.
+	for i := n; i < int(length-1); i++ {
+		dst[i] = 0
+	}
+
+	return nil
+}
+
 // SetNewText sets the i'th pointer to a newly allocated text.
 func (p Struct) SetNewText(i uint16, v string) error {
 	t, err := NewText(p.seg, v)
