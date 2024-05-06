@@ -22,3 +22,8 @@ func (s BenchmarkA) FlatSetName(v string) error {
 func (s BenchmarkA) UpdateName(v string) error {
 	return capnp.Struct(s).UpdateText(0, v)
 }
+
+// Experimental: return the name as a field that can be mutated.
+func (s BenchmarkA) NameField() (capnp.TextField, error) {
+	return capnp.Struct(s).TextField(0)
+}

@@ -238,6 +238,68 @@ func (p Struct) UpdateText(i uint16, v string) error {
 	return nil
 }
 
+type TextField struct {
+	// Pointer location
+	pSeg  *Segment
+	pAddr address
+
+	// Current value location
+	vSeg  *Segment
+	vAddr address
+	vLen  int
+}
+
+// EXPERIMENTAL: return ith pointer as a text field.
+func (p Struct) TextField(i uint16) (TextField, error) {
+	ptrStart, _ := p.off.addSize(p.size.DataSize)
+	offInsideP, _ := ptrStart.element(int32(i), wordSize)
+
+	// ptr, err := p.seg.readPtr(offInsideP, p.depthLimit)
+	s, base, val, err := p.seg.resolveFarPointer(offInsideP)
+	if err != nil {
+		return TextField{}, exc.WrapError("read pointer", err)
+	}
+
+	tf := TextField{pSeg: p.seg, pAddr: offInsideP}
+
+	if val == 0 {
+		return tf, nil
+	}
+
+	addr, ok := val.offset().resolve(base)
+	if !ok {
+		return TextField{}, errors.New("list pointer: invalid address")
+	}
+
+	tf.vSeg = s
+	tf.vLen = int(val.numListElements())
+	tf.vAddr = addr
+
+	return tf, nil
+}
+
+// UpdateText updates the value of the text field.
+func (tf *TextField) Set(v string) error {
+	if tf.vLen < len(v)+1 || tf.vSeg == nil {
+		// TODO: handle this case. Needs to alloc and set pointer.
+		// Needs to set tf.vSeg, tf.vLen and tf.vAddr.
+		panic("we can work it out")
+	}
+
+	// Existing buffer location has space for new text. Copy text over it.
+	dst := tf.vSeg.slice(tf.vAddr, Size(tf.vLen))
+	n := copy(dst, []byte(v))
+
+	// Pad with zeros (clear leftover). Last byte is already zero.
+	//
+	// TODO: replace with clear(dst[n:length-1]) after go1.21.
+	for i := n; i < int(tf.vLen-1); i++ {
+		dst[i] = 0
+	}
+
+	return nil
+}
+
 // SetNewText sets the i'th pointer to a newly allocated text.
 func (p Struct) SetNewText(i uint16, v string) error {
 	t, err := NewText(p.seg, v)
