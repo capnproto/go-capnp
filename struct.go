@@ -1,7 +1,9 @@
 package capnp
 
 import (
+	"bytes"
 	"errors"
+	"unsafe"
 
 	"capnproto.org/go/capnp/v3/exc"
 	"capnproto.org/go/capnp/v3/internal/str"
@@ -298,6 +300,29 @@ func (tf *TextField) Set(v string) error {
 	}
 
 	return nil
+}
+
+func trimZero(r rune) bool {
+	return r == 0
+}
+
+func (tf *TextField) Get() string {
+	if tf.vSeg == nil {
+		panic("not allocated")
+	}
+
+	if tf.vLen == 0 {
+		return ""
+	}
+
+	b := tf.vSeg.slice(tf.vAddr, Size(tf.vLen))
+	return string(bytes.TrimRightFunc(b, trimZero))
+}
+
+func (tf *TextField) GetUnsafe() string {
+	b := tf.vSeg.slice(tf.vAddr, Size(tf.vLen))
+	b = bytes.TrimRightFunc(b, trimZero)
+	return *(*string)(unsafe.Pointer(&b))
 }
 
 // SetNewText sets the i'th pointer to a newly allocated text.

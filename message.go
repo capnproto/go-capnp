@@ -365,9 +365,9 @@ func (m *Message) WriteTo(w io.Writer) (int64, error) {
 	return wc.N, err
 }
 
-// Marshal concatenates the segments in the message into a single byte
+// MarshalInto concatenates the segments in the message into a single byte
 // slice including framing.
-func (m *Message) Marshal() ([]byte, error) {
+func (m *Message) MarshalInto(buf []byte) ([]byte, error) {
 	// Compute buffer size.
 	nsegs := m.NumSegments()
 	if nsegs == 0 {
@@ -404,8 +404,10 @@ func (m *Message) Marshal() ([]byte, error) {
 	}
 
 	// Fill buffer.
-	buf := make([]byte, int(hdrSize), int(total))
-	binary.LittleEndian.PutUint32(buf, uint32(nsegs-1))
+	if buf == nil {
+		buf = make([]byte, 0, int(total))
+	}
+	buf = binary.LittleEndian.AppendUint32(buf, uint32(nsegs-1))
 	for i := int64(0); i < nsegs; i++ {
 		s, err := m.Segment(SegmentID(i))
 		if err != nil {
@@ -414,10 +416,14 @@ func (m *Message) Marshal() ([]byte, error) {
 		if len(s.data)%int(wordSize) != 0 {
 			return nil, errors.New("marshal: segment " + str.Itod(i) + " not word-aligned")
 		}
-		binary.LittleEndian.PutUint32(buf[int(i+1)*4:], uint32(len(s.data)/int(wordSize)))
+		buf = binary.LittleEndian.AppendUint32(buf, uint32(len(s.data)/int(wordSize)))
 		buf = append(buf, s.data...)
 	}
 	return buf, nil
+}
+
+func (m *Message) Marshal() ([]byte, error) {
+	return m.MarshalInto(nil)
 }
 
 // MarshalPacked marshals the message in packed form.
