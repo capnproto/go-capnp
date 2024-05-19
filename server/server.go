@@ -94,6 +94,9 @@ type Server struct {
 
 	// Handler for custom behavior of unknown methods
 	HandleUnknownMethod func(m capnp.Method) *Method
+
+	// Arena implementation
+	NewArena func() capnp.Arena
 }
 
 func (s *Server) String() string {
@@ -126,7 +129,7 @@ func (srv *Server) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, capnp
 	if mm == nil {
 		return capnp.ErrorAnswer(s.Method, capnp.Unimplemented("unimplemented")), func() {}
 	}
-	args, err := sendArgsToStruct(s)
+	args, err := srv.sendArgsToStruct(s)
 	if err != nil {
 		return capnp.ErrorAnswer(mm.Method, err), func() {}
 	}
@@ -234,11 +237,22 @@ type serverBrand struct {
 	x any
 }
 
-func sendArgsToStruct(s capnp.Send) (capnp.Struct, error) {
+func (srv *Server) sendArgsToStruct(s capnp.Send) (capnp.Struct, error) {
 	if s.PlaceArgs == nil {
 		return capnp.Struct{}, nil
 	}
-	_, seg := capnp.NewMultiSegmentMessage(nil)
+
+	if srv.NewArena == nil {
+		srv.NewArena = func() capnp.Arena {
+			// TODO:  change to single segment?
+			return capnp.MultiSegment(nil)
+		}
+	}
+
+	_, seg, err := capnp.NewMessage(srv.NewArena())
+	if err != nil {
+		return capnp.Struct{}, err
+	}
 	st, err := capnp.NewRootStruct(seg, s.ArgsSize)
 	if err != nil {
 		return capnp.Struct{}, err
