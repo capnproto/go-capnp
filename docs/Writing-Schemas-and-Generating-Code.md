@@ -48,6 +48,12 @@ capnp compile -I /path/to/go-capnp/std -ogo foo/books.capnp
 
 This will output the `foo/books.capnp.go` file, containing Go structs that can be imported into your programs.  These are ordinary Go types that represent the schema you declared in `books.capnp`.  Each has accessor methods corresponding to the fields declared in the schema.  For example, the `Book` struct will have the methods `Title() (string, error)` and `SetTitle(string) error`.
 
+If you have go-capnp as a dependency and you are in go module folder, you can use `go list` and backticks like so
+
+```bash
+capnp compile -I `go list -m -f '{{.Dir}}' capnproto.org/go/capnp/v3`/std -ogo foo/books.capnp
+```
+
 In the next section, we will show how you can write these structs to a file or transmit them over the network.
 
 # Next
