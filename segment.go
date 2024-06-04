@@ -76,7 +76,16 @@ func (s *Segment) readRawPointer(addr address) rawPointer {
 }
 
 func (s *Segment) writeUint8(addr address, val uint8) {
-	s.slice(addr, 1)[0] = val
+	// s.slice(addr, 1)[0] = val
+	s.data[addr] = val
+}
+
+func (s *Segment) setBit(addr address, off uint8) {
+	s.data[addr] |= 1 << off
+}
+
+func (s *Segment) clearBit(addr address, off uint8) {
+	s.data[addr] &^= 1 << off
 }
 
 func (s *Segment) writeUint16(addr address, val uint16) {

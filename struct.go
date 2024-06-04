@@ -2,6 +2,7 @@ package capnp
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"unsafe"
 
@@ -366,7 +367,7 @@ func (p Struct) pointerAddress(i uint16) address {
 }
 
 // bitInData reports whether bit is inside p's data section.
-func (p Struct) bitInData(bit BitOffset) bool {
+func (p *Struct) bitInData(bit BitOffset) bool {
 	return p.seg != nil && bit < BitOffset(p.size.DataSize*8)
 }
 
@@ -394,7 +395,21 @@ func (p Struct) SetBit(n BitOffset, v bool) {
 	p.seg.writeUint8(addr, b)
 }
 
-func (p Struct) dataAddress(off DataOffset, sz Size) (addr address, ok bool) {
+func (p *Struct) SetBitp(n BitOffset, v bool) {
+	if !p.bitInData(n) {
+		panic("capnp: set field outside struct boundaries")
+	}
+	addr := p.off.addOffset(n.offset())
+	b := p.seg.readUint8(addr)
+	if v {
+		b |= n.mask()
+	} else {
+		b &^= n.mask()
+	}
+	p.seg.writeUint8(addr, b)
+}
+
+func (p *Struct) dataAddress(off DataOffset, sz Size) (addr address, ok bool) {
 	if p.seg == nil || Size(off)+sz > p.size.DataSize {
 		return 0, false
 	}
@@ -464,6 +479,14 @@ func (p Struct) SetUint32(off DataOffset, v uint32) {
 	p.seg.writeUint32(addr, v)
 }
 
+func (p *Struct) SetUint32p(off DataOffset, v uint32) {
+	addr, ok := p.dataAddress(off, 4)
+	if !ok {
+		panic("capnp: set field outside struct boundaries")
+	}
+	p.seg.writeUint32(addr, v)
+}
+
 // SetUint64 sets the 64-bit integer that is off bytes from the start of the struct to v.
 func (p Struct) SetUint64(off DataOffset, v uint64) {
 	addr, ok := p.dataAddress(off, 8)
@@ -471,6 +494,42 @@ func (p Struct) SetUint64(off DataOffset, v uint64) {
 		panic("capnp: set field outside struct boundaries")
 	}
 	p.seg.writeUint64(addr, v)
+}
+
+func (p *Struct) SetUint64p(off DataOffset, v uint64) {
+	addr, ok := p.dataAddress(off, 8)
+	if !ok {
+		panic("capnp: set field outside struct boundaries")
+	}
+
+	// p.seg.writeUint64(addr, v)
+	b := p.seg.slice(addr, 8)
+	binary.LittleEndian.PutUint64(b, v)
+
+	/*
+		b := p.seg.slice(addr, 8)
+		b[0] = byte(v)
+		b[1] = byte(v >> 8)
+		b[2] = byte(v >> 16)
+		b[3] = byte(v >> 24)
+		b[4] = byte(v >> 32)
+		b[5] = byte(v >> 40)
+		b[6] = byte(v >> 48)
+		b[7] = byte(v >> 56)
+	*/
+	/*
+		b := p.seg.data
+		_ = b[addr+7]
+		b[addr] = byte(v)
+		b[addr+1] = byte(v >> 8)
+		b[addr+2] = byte(v >> 16)
+		b[addr+3] = byte(v >> 24)
+		b[addr+4] = byte(v >> 32)
+		b[addr+5] = byte(v >> 40)
+		b[addr+6] = byte(v >> 48)
+		b[addr+7] = byte(v >> 56)
+	*/
+
 }
 
 // structFlags is a bitmask of flags for a pointer.
