@@ -1,5 +1,7 @@
-using Go = import "/go.capnp";
 @0xdb8274f9144abc7e;
+
+using Go = import "/go.capnp";
+
 $Go.package("hashes");
 $Go.import("foo/hashes");
 
