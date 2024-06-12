@@ -4,13 +4,15 @@ import (
 	"crypto/sha1"
 	"fmt"
 	"hash"
+	hashes "hashtest"
 	"io"
+	"log"
 	"net"
 	"os"
 
 	"context"
-	"hashes"
 
+	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/rpc"
 )
 
@@ -33,6 +35,7 @@ func (hf hashFactory) NewSha1(_ context.Context, call hashes.HashFactory_newSha1
 
 // hashServer is a local implementation of Hash.
 type hashServer struct {
+	// The state of the server
 	h hash.Hash
 }
 
@@ -58,11 +61,11 @@ func (hs hashServer) Sum(_ context.Context, call hashes.Hash_sum) error {
 
 func serveHash(ctx context.Context, rwc io.ReadWriteCloser) error {
 	// Create a new locally implemented HashFactory.
-	main := hashes.HashFactory_ServerToClient(hashFactory{}, nil)
+	client := hashes.HashFactory_ServerToClient(hashFactory{})
 
 	// Listen for calls, using the HashFactory as the bootstrap interface.
 	conn := rpc.NewConn(rpc.NewStreamTransport(rwc), &rpc.Options{
-		BootstrapClient: main.Client,
+		BootstrapClient: capnp.Client(client),
 	})
 	defer conn.Close()
 
@@ -75,20 +78,19 @@ func serveHash(ctx context.Context, rwc io.ReadWriteCloser) error {
 	}
 }
 
-func client(ctx context.Context, rwc io.ReadWriteCloser) error {
+func callRpc(ctx context.Context, rwc io.ReadWriteCloser) error {
 	// Create a connection that we can use to get the HashFactory.
 	conn := rpc.NewConn(rpc.NewStreamTransport(rwc), nil) // nil sets default options
 	defer conn.Close()
 
 	// Get the "bootstrap" interface.  This is the capability set with
 	// rpc.MainInterface on the remote side.
-	hf := hashes.HashFactory{Client: conn.Bootstrap(ctx)}
+	hf := hashes.HashFactory(conn.Bootstrap(ctx))
 
 	// Now we can call methods on hf, and they will be sent over c.
 	// The NewSha1 method does not have any parameters we can set, so we
 	// pass a nil function.
 	h, free := hf.NewSha1(ctx, nil)
-
 	defer free()
 
 	// 'NewSha1' returns a future, which allows us to pipeline calls to
@@ -109,11 +111,9 @@ func client(ctx context.Context, rwc io.ReadWriteCloser) error {
 
 	// Get the sum, waiting for the result.
 	sumFuture, free := s.Sum(ctx, nil)
-
 	defer free()
 
 	result, err := sumFuture.Struct()
-
 	if err != nil {
 		return err
 	}
@@ -127,33 +127,45 @@ func client(ctx context.Context, rwc io.ReadWriteCloser) error {
 	return nil
 }
 
-func chkfatal(err error) {
-	if err != nil {
-		panic(err)
-	}
-}
-
 func main() {
-
 	err := os.RemoveAll(SOCK_ADDR)
-	chkfatal(err)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	l, err := net.Listen("unix", SOCK_ADDR)
-	chkfatal(err)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	defer l.Close()
+	defer func(l net.Listener) {
+		err := l.Close()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}(l)
 
 	ctx := context.Background()
 
 	go func() {
 		c1, err := l.Accept()
-		chkfatal(err)
+		if err != nil {
+			log.Fatal(err)
+		}
 
-		serveHash(ctx, c1)
+		err = serveHash(ctx, c1)
+		if err != nil {
+			log.Println(err)
+		}
 	}()
 
 	c2, err := net.Dial("unix", SOCK_ADDR)
-	chkfatal(err)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	client(ctx, c2)
+	err = callRpc(ctx, c2)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
