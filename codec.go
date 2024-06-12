@@ -66,16 +66,17 @@ func (d *Decoder) Decode() (*Message, error) {
 	}
 
 	// Read segments.
+	//
+	// TODO: improve so we don't impose bufferpool on caller.
+	//
+	// TODO: this should be streaming, not reading the entire thing in
+	// memory.
 	buf := bufferpool.Default.Get(int(total))
 	if _, err := io.ReadFull(d.r, buf); err != nil {
 		return nil, exc.WrapError("decode: read segments", err)
 	}
 
-	arena := MultiSegment(nil)
-	if err = arena.demux(hdr, buf); err != nil {
-		return nil, exc.WrapError("decode", err)
-	}
-
+	arena, err := demuxArena(hdr, buf)
 	return &Message{Arena: arena}, nil
 }
 
@@ -161,8 +162,8 @@ func Unmarshal(data []byte) (*Message, error) {
 		return nil, errors.New("unmarshal: short data section")
 	}
 
-	arena := MultiSegment(nil)
-	if err := arena.demux(hdr, data); err != nil {
+	arena, err := demuxArena(hdr, data)
+	if err != nil {
 		return nil, exc.WrapError("unmarshal", err)
 	}
 

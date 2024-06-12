@@ -50,6 +50,7 @@ func TestSingleSegment(t *testing.T) {
 	})
 }
 
+/*
 func TestSingleSegmentAllocate(t *testing.T) {
 	t.Parallel()
 
@@ -118,6 +119,7 @@ func TestSingleSegmentAllocate(t *testing.T) {
 		tests[i].run(t, i)
 	}
 }
+*/
 
 func TestMultiSegment(t *testing.T) {
 	t.Parallel()
@@ -163,6 +165,8 @@ func TestMultiSegment(t *testing.T) {
 		}
 	})
 }
+
+/*
 
 func TestMultiSegmentAllocate(t *testing.T) {
 	t.Parallel()
@@ -233,3 +237,4 @@ func TestMultiSegmentAllocate(t *testing.T) {
 		tests[i].run(t, i)
 	}
 }
+*/

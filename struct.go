@@ -1,7 +1,10 @@
 package capnp
 
 import (
+	"bytes"
+	"encoding/binary"
 	"errors"
+	"unsafe"
 
 	"capnproto.org/go/capnp/v3/exc"
 	"capnproto.org/go/capnp/v3/internal/str"
@@ -19,6 +22,25 @@ type StructKind = struct {
 	size       ObjectSize
 	depthLimit uint
 	flags      structFlags
+}
+
+// AllocateRootStruct allocates the root struct on the message as a struct of
+// the passed size.
+func AllocateRootStruct(msg *Message, sz ObjectSize) (Struct, error) {
+	if !sz.isValid() {
+		return Struct{}, errors.New("new struct: invalid size")
+	}
+	sz.DataSize = sz.DataSize.padToWord()
+	s, addr, err := msg.AllocateAsRoot(sz)
+	if err != nil {
+		return Struct{}, exc.WrapError("new struct", err)
+	}
+	return Struct{
+		seg:        s,
+		off:        addr,
+		size:       sz,
+		depthLimit: maxDepth,
+	}, nil
 }
 
 // NewStruct creates a new struct, preferring placement in s.
@@ -141,6 +163,169 @@ func (p Struct) SetText(i uint16, v string) error {
 	return p.SetNewText(i, v)
 }
 
+func (p Struct) FlatSetNewText(i uint16, v string) error {
+	// NewText().newPrimitiveList
+	sz := Size(1)
+	n := int32(len(v) + 1)
+	total := sz.timesUnchecked(n)
+	s, addr, err := alloc(p.seg, total)
+	if err != nil {
+		return err
+	}
+
+	// NewText()
+	copy(s.slice(addr, Size(len(v))), v)
+
+	// SetPtr().pointerAddress()
+	// offInsideP := p.pointerAddress(i)
+	ptrStart, _ := p.off.addSize(p.size.DataSize)
+	offInsideP, _ := ptrStart.element(int32(i), wordSize)
+
+	// SetPtr().writePtr()
+	srcAddr := addr                                       // srcAddr = l.off
+	srcRaw := rawListPointer(0, byte1List, int32(len(v))) // srcRaw = l.raw()
+	s.writeRawPointer(offInsideP, srcRaw.withOffset(nearPointerOffset(offInsideP, srcAddr)))
+	return nil
+}
+
+// EXPERIMENTAL unrolled version of updating a text field in-place when it
+// already has enough space to hold the value (as opposed to allocating a new
+// object in the message).
+func (p Struct) UpdateText(i uint16, v string) error {
+	// Determine pointer offset.
+	ptrStart, _ := p.off.addSize(p.size.DataSize)
+	offInsideP, _ := ptrStart.element(int32(i), wordSize)
+
+	// ptr, err := p.seg.readPtr(offInsideP, p.depthLimit)
+	s, base, val, err := p.seg.resolveFarPointer(offInsideP)
+	if err != nil {
+		return exc.WrapError("read pointer", err)
+	}
+
+	// TODO: depth limit read check?
+
+	if val == 0 {
+		// Existing pointer is empty/void.
+		return p.FlatSetNewText(i, v)
+	}
+
+	// lp, err := s.readListPtr(base, val)
+	addr, ok := val.offset().resolve(base)
+	if !ok {
+		return errors.New("list pointer: invalid address")
+	}
+	// TODO: list checks from readListPtr()?
+
+	if err != nil {
+		return exc.WrapError("read pointer", err)
+	}
+
+	length := int(val.numListElements())
+
+	if length < len(v)+1 {
+		// Existing buffer does not have enough space for new text.
+		return p.FlatSetNewText(i, v)
+	}
+
+	// Existing buffer location has space for new text. Copy text over it.
+	dst := s.slice(addr, Size(length))
+	n := copy(dst, []byte(v))
+
+	// Pad with zeros (clear leftover). Last byte is already zero.
+	//
+	// TODO: replace with clear(dst[n:length-1]) after go1.21.
+	for i := n; i < int(length-1); i++ {
+		dst[i] = 0
+	}
+
+	return nil
+}
+
+type TextField struct {
+	// Pointer location
+	pSeg  *Segment
+	pAddr address
+
+	// Current value location
+	vSeg  *Segment
+	vAddr address
+	vLen  int
+}
+
+// EXPERIMENTAL: return ith pointer as a text field.
+func (p Struct) TextField(i uint16) (TextField, error) {
+	ptrStart, _ := p.off.addSize(p.size.DataSize)
+	offInsideP, _ := ptrStart.element(int32(i), wordSize)
+
+	// ptr, err := p.seg.readPtr(offInsideP, p.depthLimit)
+	s, base, val, err := p.seg.resolveFarPointer(offInsideP)
+	if err != nil {
+		return TextField{}, exc.WrapError("read pointer", err)
+	}
+
+	tf := TextField{pSeg: p.seg, pAddr: offInsideP}
+
+	if val == 0 {
+		return tf, nil
+	}
+
+	addr, ok := val.offset().resolve(base)
+	if !ok {
+		return TextField{}, errors.New("list pointer: invalid address")
+	}
+
+	tf.vSeg = s
+	tf.vLen = int(val.numListElements())
+	tf.vAddr = addr
+
+	return tf, nil
+}
+
+// UpdateText updates the value of the text field.
+func (tf *TextField) Set(v string) error {
+	if tf.vLen < len(v)+1 || tf.vSeg == nil {
+		// TODO: handle this case. Needs to alloc and set pointer.
+		// Needs to set tf.vSeg, tf.vLen and tf.vAddr.
+		panic("we can work it out")
+	}
+
+	// Existing buffer location has space for new text. Copy text over it.
+	dst := tf.vSeg.slice(tf.vAddr, Size(tf.vLen))
+	n := copy(dst, []byte(v))
+
+	// Pad with zeros (clear leftover). Last byte is already zero.
+	//
+	// TODO: replace with clear(dst[n:length-1]) after go1.21.
+	for i := n; i < int(tf.vLen-1); i++ {
+		dst[i] = 0
+	}
+
+	return nil
+}
+
+func trimZero(r rune) bool {
+	return r == 0
+}
+
+func (tf *TextField) Get() string {
+	if tf.vSeg == nil {
+		panic("not allocated")
+	}
+
+	if tf.vLen == 0 {
+		return ""
+	}
+
+	b := tf.vSeg.slice(tf.vAddr, Size(tf.vLen))
+	return string(bytes.TrimRightFunc(b, trimZero))
+}
+
+func (tf *TextField) GetUnsafe() string {
+	b := tf.vSeg.slice(tf.vAddr, Size(tf.vLen))
+	b = bytes.TrimRightFunc(b, trimZero)
+	return *(*string)(unsafe.Pointer(&b))
+}
+
 // SetNewText sets the i'th pointer to a newly allocated text.
 func (p Struct) SetNewText(i uint16, v string) error {
 	t, err := NewText(p.seg, v)
@@ -182,7 +367,7 @@ func (p Struct) pointerAddress(i uint16) address {
 }
 
 // bitInData reports whether bit is inside p's data section.
-func (p Struct) bitInData(bit BitOffset) bool {
+func (p *Struct) bitInData(bit BitOffset) bool {
 	return p.seg != nil && bit < BitOffset(p.size.DataSize*8)
 }
 
@@ -210,7 +395,21 @@ func (p Struct) SetBit(n BitOffset, v bool) {
 	p.seg.writeUint8(addr, b)
 }
 
-func (p Struct) dataAddress(off DataOffset, sz Size) (addr address, ok bool) {
+func (p *Struct) SetBitp(n BitOffset, v bool) {
+	if !p.bitInData(n) {
+		panic("capnp: set field outside struct boundaries")
+	}
+	addr := p.off.addOffset(n.offset())
+	b := p.seg.readUint8(addr)
+	if v {
+		b |= n.mask()
+	} else {
+		b &^= n.mask()
+	}
+	p.seg.writeUint8(addr, b)
+}
+
+func (p *Struct) dataAddress(off DataOffset, sz Size) (addr address, ok bool) {
 	if p.seg == nil || Size(off)+sz > p.size.DataSize {
 		return 0, false
 	}
@@ -280,6 +479,14 @@ func (p Struct) SetUint32(off DataOffset, v uint32) {
 	p.seg.writeUint32(addr, v)
 }
 
+func (p *Struct) SetUint32p(off DataOffset, v uint32) {
+	addr, ok := p.dataAddress(off, 4)
+	if !ok {
+		panic("capnp: set field outside struct boundaries")
+	}
+	p.seg.writeUint32(addr, v)
+}
+
 // SetUint64 sets the 64-bit integer that is off bytes from the start of the struct to v.
 func (p Struct) SetUint64(off DataOffset, v uint64) {
 	addr, ok := p.dataAddress(off, 8)
@@ -287,6 +494,42 @@ func (p Struct) SetUint64(off DataOffset, v uint64) {
 		panic("capnp: set field outside struct boundaries")
 	}
 	p.seg.writeUint64(addr, v)
+}
+
+func (p *Struct) SetUint64p(off DataOffset, v uint64) {
+	addr, ok := p.dataAddress(off, 8)
+	if !ok {
+		panic("capnp: set field outside struct boundaries")
+	}
+
+	// p.seg.writeUint64(addr, v)
+	b := p.seg.slice(addr, 8)
+	binary.LittleEndian.PutUint64(b, v)
+
+	/*
+		b := p.seg.slice(addr, 8)
+		b[0] = byte(v)
+		b[1] = byte(v >> 8)
+		b[2] = byte(v >> 16)
+		b[3] = byte(v >> 24)
+		b[4] = byte(v >> 32)
+		b[5] = byte(v >> 40)
+		b[6] = byte(v >> 48)
+		b[7] = byte(v >> 56)
+	*/
+	/*
+		b := p.seg.data
+		_ = b[addr+7]
+		b[addr] = byte(v)
+		b[addr+1] = byte(v >> 8)
+		b[addr+2] = byte(v >> 16)
+		b[addr+3] = byte(v >> 24)
+		b[addr+4] = byte(v >> 32)
+		b[addr+5] = byte(v >> 40)
+		b[addr+6] = byte(v >> 48)
+		b[addr+7] = byte(v >> 56)
+	*/
+
 }
 
 // structFlags is a bitmask of flags for a pointer.

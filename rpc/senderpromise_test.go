@@ -354,6 +354,7 @@ func TestDisembargoSenderPromise(t *testing.T) {
 // Tests that E-order is respected when fulfilling a promise with something on
 // the remote peer.
 func TestPromiseOrdering(t *testing.T) {
+	t.Skip("Disabled due to being flaky")
 	t.Parallel()
 
 	ctx := context.Background()

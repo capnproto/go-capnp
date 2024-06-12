@@ -15,6 +15,8 @@ type SegmentID uint32
 // It is part of a Message, which can contain other segments that
 // reference each other.
 type Segment struct {
+	// msg associated with this segment. A Message instance m maintains the
+	// invariant that that all m.segs[].msg == m.
 	msg  *Message
 	id   SegmentID
 	data []byte
@@ -74,7 +76,16 @@ func (s *Segment) readRawPointer(addr address) rawPointer {
 }
 
 func (s *Segment) writeUint8(addr address, val uint8) {
-	s.slice(addr, 1)[0] = val
+	// s.slice(addr, 1)[0] = val
+	s.data[addr] = val
+}
+
+func (s *Segment) setBit(addr address, off uint8) {
+	s.data[addr] |= 1 << off
+}
+
+func (s *Segment) clearBit(addr address, off uint8) {
+	s.data[addr] &^= 1 << off
 }
 
 func (s *Segment) writeUint16(addr address, val uint16) {
@@ -96,17 +107,20 @@ func (s *Segment) writeRawPointer(addr address, val rawPointer) {
 // root returns a 1-element pointer list that references the first word
 // in the segment.  This only makes sense to call on the first segment
 // in a message.
-func (s *Segment) root() PointerList {
+//
+// Returns true if the root element is allocated in the segment, false
+// otherwise.
+func (s *Segment) root() (PointerList, bool) {
 	sz := ObjectSize{PointerCount: 1}
 	if !s.regionInBounds(0, sz.totalSize()) {
-		return PointerList{}
+		return PointerList{}, false
 	}
 	return PointerList{
 		seg:        s,
 		length:     1,
 		size:       sz,
 		depthLimit: s.msg.depthLimit(),
-	}
+	}, true
 }
 
 func (s *Segment) lookupSegment(id SegmentID) (*Segment, error) {
@@ -393,6 +407,8 @@ func (s *Segment) writePtr(off address, src Ptr, forceCopy bool) error {
 		return nil
 	case hasCapacity(src.seg.data, wordSize):
 		// Enough room adjacent to src to write a far pointer landing pad.
+		// TODO: instead of alloc (which may choose another segment),
+		// enforce to _always_ use seg (because we know it has capacity).
 		_, padAddr, _ := alloc(src.seg, wordSize)
 		src.seg.writeRawPointer(padAddr, srcRaw.withOffset(nearPointerOffset(padAddr, srcAddr)))
 		s.writeRawPointer(off, rawFarPointer(src.seg.id, padAddr))

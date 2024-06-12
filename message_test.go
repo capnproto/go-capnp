@@ -530,7 +530,7 @@ func TestNextAlloc(t *testing.T) {
 			t.Errorf("%s: max must be word-aligned. Skipped.", test.name)
 			continue
 		}
-		got, err := nextAlloc(test.curr, test.max, test.req)
+		got, err := nextAlloc(test.curr, test.req)
 		if err != nil {
 			if test.ok {
 				t.Errorf("%s: nextAlloc(%d, %d, %d) = _, %v; want >=%d, <nil>", test.name, test.curr, test.max, test.req, err, test.req)
@@ -604,8 +604,9 @@ type arenaAllocTest struct {
 }
 
 func (test *arenaAllocTest) run(t *testing.T, i int) {
-	arena, segs := test.init()
-	id, data, err := arena.Allocate(test.size, segs)
+	arena, _ := test.init()
+	seg, _, err := arena.Allocate(test.size, nil, nil)
+	id, data := seg.id, seg.data
 
 	if err != nil {
 		t.Errorf("tests[%d] - %s: Allocate error: %v", i, test.name, err)
@@ -638,8 +639,88 @@ func (ro readOnlyArena) String() string {
 	return fmt.Sprintf("readOnlyArena{%v}", ro.Arena)
 }
 
-func (readOnlyArena) Allocate(sz Size, segs map[SegmentID]*Segment) (SegmentID, []byte, error) {
-	return 0, nil, errReadOnlyArena
+func (readOnlyArena) Allocate(sz Size, msg *Message, seg *Segment) (*Segment, address, error) {
+	return nil, 0, errReadOnlyArena
 }
 
 var errReadOnlyArena = errors.New("Allocate called on read-only arena")
+
+func BenchmarkMessageGetFirstSegment(b *testing.B) {
+	var msg Message
+	var arena Arena = SingleSegment(nil)
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_, err := msg.Reset(arena)
+		if err != nil {
+			b.Fatal(err)
+		}
+		_, err = msg.Segment(0)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+// BenchmarkMessageSetRoot benchmarks setting the root structure of a message.
+func BenchmarkMessageSetRoot(b *testing.B) {
+	var msg Message
+	var arena Arena = SingleSegment(nil)
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_, err := msg.Reset(arena)
+		if err != nil {
+			b.Fatal(err)
+		}
+		s, err := msg.Segment(0)
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		st, err := NewRootStruct(s, ObjectSize{DataSize: 8, PointerCount: 0})
+		if err != nil {
+			b.Fatal(err)
+		}
+		err = msg.SetRoot(st.ToPtr())
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+// BenchmarkMessageAllocateAsRoot benchmarks using AllocateAsRoot to allocate
+// a new root structure.
+func BenchmarkMessageAllocateAsRoot(b *testing.B) {
+	var msg Message
+	var arena Arena = SingleSegment(nil)
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		// NOTE: Needs to be ResetForRead() because Reset() allocates
+		// the root pointer. This is part of API madness.
+		msg.ResetForRead(arena)
+
+		_, _, err := msg.AllocateAsRoot(ObjectSize{DataSize: 8, PointerCount: 0})
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+// TestCannotResetArenaForRead demonstrates that Reset() cannot be used when
+// intending to read data from an arena (i.e. cannot reuse a msg value by
+// calling Reset with the intention to read data).
+func TestCannotResetArenaForRead(t *testing.T) {
+	var msg Message
+	var arena Arena = SingleSegment(incrementingData(8))
+
+	_, err := msg.Reset(arena)
+	if err == nil {
+		t.Fatal("expected non nil error, got nil")
+	}
+	t.Logf("Got err: %v", err)
+}
