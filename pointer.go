@@ -150,6 +150,20 @@ func (p Ptr) text() (b []byte, ok bool) {
 	return b[: len(b)-1 : len(b)], true
 }
 
+func (p *Ptr) textp() (b []byte, ok bool) {
+	// if !isOneByteList(p) {
+	if !(p.seg != nil && p.flags.ptrType() == listPtrType && p.size.isOneByte() && p.flags.listFlags()&isCompositeList == 0) {
+		return nil, false
+	}
+
+	b = p.seg.slice(p.off, Size(p.lenOrCap))
+	if len(b) == 0 || b[len(b)-1] != 0 {
+		// Text must be null-terminated.
+		return nil, false
+	}
+	return b[: len(b)-1 : len(b)], true
+}
+
 // Data attempts to convert p into Data, returning nil if p is not a
 // valid 1-byte list pointer.
 func (p Ptr) Data() []byte {

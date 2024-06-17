@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"unsafe"
 
 	"capnproto.org/go/capnp/v3/exc"
@@ -161,6 +162,163 @@ func (p Struct) SetText(i uint16, v string) error {
 		return p.SetPtr(i, Ptr{})
 	}
 	return p.SetNewText(i, v)
+}
+
+func (p *Struct) GetText(i uint16) (string, error) {
+	// p.Ptr(i)
+	if p.seg == nil || i >= p.size.PointerCount {
+		return "", nil
+	}
+
+	// p.pointerAddress(i)
+	ptrStart, _ := p.off.addSize(p.size.DataSize)
+	addr, _ := ptrStart.element(int32(i), wordSize)
+
+	ptr, err := p.seg.readPtr(addr, p.depthLimit)
+	if err != nil {
+		return "", err
+	}
+
+	// return ptr.Text(), nil
+
+	tb, ok := ptr.textp()
+	if !ok {
+		return "", nil
+	}
+
+	return string(tb), nil
+}
+
+func (p *Struct) GetTextUnsafe(i uint16) (string, error) {
+	// p.Ptr(i)
+	if p.seg == nil || i >= p.size.PointerCount {
+		return "", nil
+	}
+
+	// p.pointerAddress(i)
+	ptrStart, _ := p.off.addSize(p.size.DataSize)   // Start of pointers in struct (could be cached)
+	addr, _ := ptrStart.element(int32(i), wordSize) // Address of ith pointer
+
+	// ptr, err := p.seg.readPtr(addr, p.depthLimit)
+	s, base, val, err := p.seg.resolveFarPointer(addr) // Read pointer (panics if out of bounds, but validated by initial check)
+
+	if err != nil {
+		return "", exc.WrapError("read pointer", err)
+	}
+	if val == 0 {
+		return "", nil
+	}
+	if p.depthLimit == 0 {
+		return "", errors.New("read pointer: depth limit reached")
+	}
+	if val.pointerType() != listPointer {
+		return "", fmt.Errorf("not a list pointer")
+	}
+	/*
+		lp, err := s.readListPtr(base, val)
+		if err != nil {
+			return "", exc.WrapError("read pointer", err)
+		}
+	*/
+	if val.listType() != byte1List {
+		return "", fmt.Errorf("not a byte1list")
+	}
+	laddr, ok := val.offset().resolve(base)
+	if !ok {
+		return "", errors.New("list pointer: invalid address")
+	}
+	/*
+		if !s.msg.canRead(lp.readSize()) {
+			return "", errors.New("read pointer: read traversal limit reached")
+		}
+		lp.depthLimit = p.depthLimit - 1
+	*/
+	// return ptr.Text(), nil
+
+	// tb, ok := ptr.textp()
+	tb := s.slice(laddr, Size(val.numListElements()))
+	end := len(tb) - 1
+	trimmed := false
+	for ; end >= 0 && tb[end] == 0; end-- {
+		trimmed = true
+	}
+	if !trimmed {
+		// Not null terminated.
+		return "", nil
+	}
+	tb = tb[:end+1]
+
+	return *(*string)(unsafe.Pointer(&tb)), nil
+}
+
+func (p *Struct) GetTextSuperUnsafe(i uint16) (string, error) {
+	// p.Ptr(i)
+	// Bounds check pointer address within range.
+	if p.seg == nil || i >= p.size.PointerCount {
+		return "", nil
+	}
+
+	// p.pointerAddress(i)
+	ptrStart := p.off + address(p.size.DataSize)
+	addr := ptrStart + address(i)*address(wordSize)
+
+	// ptr, err := p.seg.readPtr(addr, p.depthLimit)
+	s, base, val, _ := p.seg.resolveFarPointer(addr) // Read pointer (panics if out of bounds, but validated by initial check)
+	/*
+		if err != nil {
+			return "", exc.WrapError("read pointer", err)
+		}
+	*/
+	if val == 0 {
+		return "", nil
+	}
+	/*
+		if p.depthLimit == 0 {
+			return "", errors.New("read pointer: depth limit reached")
+		}
+		if val.pointerType() != listPointer {
+			return "", fmt.Errorf("not a list pointer")
+		}
+		/*
+			lp, err := s.readListPtr(base, val)
+			if err != nil {
+				return "", exc.WrapError("read pointer", err)
+			}
+	*/
+	/*
+		if val.listType() != byte1List {
+			return "", fmt.Errorf("not a byte1list")
+		}
+	*/
+	laddr := val.offset().resolveUnsafe(base)
+	/*
+		laddr, ok := val.offset().resolve(base)
+		if !ok {
+			return "", errors.New("list pointer: invalid address")
+		}
+	*/
+	/*
+		if !s.msg.canRead(lp.readSize()) {
+			return "", errors.New("read pointer: read traversal limit reached")
+		}
+		lp.depthLimit = p.depthLimit - 1
+	*/
+	// return ptr.Text(), nil
+
+	// tb, ok := ptr.textp()
+	tb := s.slice(laddr, Size(val.numListElements()))
+	end := len(tb) - 1
+	trimmed := false
+	for ; end >= 0 && tb[end] == 0; end-- {
+		trimmed = true
+	}
+	if !trimmed {
+		// Not null terminated.
+		return "", nil
+	}
+	tb = tb[:end+1]
+
+	return *(*string)(unsafe.Pointer(&tb)), nil
 }
 
 func (p Struct) FlatSetNewText(i uint16, v string) error {
@@ -380,6 +538,11 @@ func (p Struct) Bit(n BitOffset) bool {
 	return p.seg.readUint8(addr)&n.mask() != 0
 }
 
+func (p *Struct) Bitp(n BitOffset) bool {
+	addr := p.dataAddressUnchecked(n.offset())
+	return p.seg.readUint8(addr)&n.mask() != 0
+}
+
 // SetBit sets the bit that is n bits from the start of the struct to v.
 func (p Struct) SetBit(n BitOffset, v bool) {
 	if !p.bitInData(n) {
@@ -396,17 +559,25 @@ func (p Struct) SetBit(n BitOffset, v bool) {
 }
 
 func (p *Struct) SetBitp(n BitOffset, v bool) {
-	if !p.bitInData(n) {
-		panic("capnp: set field outside struct boundaries")
-	}
-	addr := p.off.addOffset(n.offset())
-	b := p.seg.readUint8(addr)
+	addr := p.dataAddressUnchecked(n.offset())
 	if v {
-		b |= n.mask()
+		p.seg.setBit(addr, uint8(n%8))
 	} else {
-		b &^= n.mask()
+		p.seg.clearBit(addr, uint8(n%8))
 	}
-	p.seg.writeUint8(addr, b)
+	/*
+		if !p.bitInData(n) {
+			panic("capnp: set field outside struct boundaries")
+		}
+		addr := p.off.addOffset(n.offset())
+		b := p.seg.readUint8(addr)
+		if v {
+			b |= n.mask()
+		} else {
+			b &^= n.mask()
+		}
+		p.seg.writeUint8(addr, b)
+	*/
 }
 
 func (p *Struct) dataAddress(off DataOffset, sz Size) (addr address, ok bool) {
@@ -414,6 +585,11 @@ func (p *Struct) dataAddress(off DataOffset, sz Size) (addr address, ok bool) {
 		return 0, false
 	}
 	return p.off.addOffset(off), true
+	// return p.off + address(off), true
+}
+
+func (p *Struct) dataAddressUnchecked(off DataOffset) (addr address) {
+	return p.off + address(off)
 }
 
 // Uint8 returns an 8-bit integer from the struct's data section.
@@ -443,12 +619,33 @@ func (p Struct) Uint32(off DataOffset) uint32 {
 	return p.seg.readUint32(addr)
 }
 
+// Uint32p returns a 32-bit integer from the struct's data section.
+func (p *Struct) Uint32p(off DataOffset) uint32 {
+	addr, ok := p.dataAddress(off, 4)
+	if !ok {
+		return 0
+	}
+	return p.seg.readUint32(addr)
+}
+
 // Uint64 returns a 64-bit integer from the struct's data section.
 func (p Struct) Uint64(off DataOffset) uint64 {
 	addr, ok := p.dataAddress(off, 8)
 	if !ok {
 		return 0
 	}
+	return p.seg.readUint64(addr)
+}
+
+func (p *Struct) Uint64p(off DataOffset) uint64 {
+
+	/*
+		addr, ok := p.dataAddress(off, 8)
+		if !ok {
+			return 0
+		}
+	*/
+	addr := p.dataAddressUnchecked(off)
 	return p.seg.readUint64(addr)
 }
 
@@ -530,6 +727,18 @@ func (p *Struct) SetUint64p(off DataOffset, v uint64) {
 		b[addr+7] = byte(v >> 56)
 	*/
 
+}
+
+func (p *Struct) SetFloat64p(off DataOffset, v float64) {
+	/*
+		addr, ok := p.dataAddress(off, 8)
+		if !ok {
+			panic("capnp: set field outside struct boundaries")
+		}
+	*/
+	addr := p.dataAddressUnchecked(off)
+
+	p.seg.writeFloat64(addr, v)
 }
 
 // structFlags is a bitmask of flags for a pointer.

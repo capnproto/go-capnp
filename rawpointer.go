@@ -15,6 +15,10 @@ func (off pointerOffset) resolve(base address) (_ address, ok bool) {
 	return base.element(int32(off), wordSize)
 }
 
+func (off pointerOffset) resolveUnsafe(base address) address {
+	return base + address(off)*address(wordSize)
+}
+
 // nearPointerOffset computes the offset for a pointer at paddr to point to addr.
 func nearPointerOffset(paddr, addr address) pointerOffset {
 	return pointerOffset(addr/address(wordSize) - paddr/address(wordSize) - 1)

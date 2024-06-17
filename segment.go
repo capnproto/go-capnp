@@ -3,6 +3,7 @@ package capnp
 import (
 	"encoding/binary"
 	"errors"
+	"math"
 
 	"capnproto.org/go/capnp/v3/exc"
 	"capnproto.org/go/capnp/v3/internal/str"
@@ -98,8 +99,13 @@ func (s *Segment) writeUint32(addr address, val uint32) {
 
 func (s *Segment) writeUint64(addr address, val uint64) {
 	binary.LittleEndian.PutUint64(s.slice(addr, 8), val)
+	// binary.LittleEndian.AppendUint64(s.data[addr:addr], val)
 }
 
+func (s *Segment) writeFloat64(addr address, val float64) {
+	binary.LittleEndian.PutUint64(s.slice(addr, 8), math.Float64bits(val))
+	// binary.LittleEndian.AppendUint64(s.data[addr:addr], math.Float64bits(val))
+}
 func (s *Segment) writeRawPointer(addr address, val rawPointer) {
 	s.writeUint64(addr, uint64(val))
 }

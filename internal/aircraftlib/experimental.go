@@ -36,13 +36,28 @@ func (s BenchmarkA) FlatSetPhone(v string) error {
 	return capnp.Struct(s).FlatSetNewText(1, v)
 }
 
+func (s *BenchmarkA) GetName() (string, error) {
+	return (*capnp.Struct)(s).GetTextUnsafe(0)
+}
+
+func (s *BenchmarkA) GetNameSuperUnsafe() (string, error) {
+	return (*capnp.Struct)(s).GetTextSuperUnsafe(0)
+}
+
+func (s *BenchmarkA) GetPhone() (string, error) {
+	return (*capnp.Struct)(s).GetTextUnsafe(1)
+}
+
+func (s *BenchmarkA) GetPhoneSuperUnsafe() (string, error) {
+	return (*capnp.Struct)(s).GetTextSuperUnsafe(1)
+}
+
 func (s BenchmarkA) PhoneField() (capnp.TextField, error) {
 	return capnp.Struct(s).TextField(1)
 }
 
 func (s *BenchmarkA) SetMoneyp(v float64) {
-	bits := math.Float64bits(v)
-	(*capnp.Struct)(s).SetUint64p(16, bits)
+	(*capnp.Struct)(s).SetFloat64p(16, v)
 }
 
 func (s *BenchmarkA) SetSpousep(v bool) {
@@ -53,6 +68,22 @@ func (s *BenchmarkA) SetSiblingsp(v int32) {
 	(*capnp.Struct)(s).SetUint32p(8, uint32(v))
 }
 
+func (s *BenchmarkA) GetSiblings() int32 {
+	return int32((*capnp.Struct)(s).Uint32p(8))
+}
+
 func (s *BenchmarkA) SetBirthDayp(v int64) {
 	(*capnp.Struct)(s).SetUint64p(0, uint64(v))
+}
+
+func (s *BenchmarkA) GetBirthDay() int64 {
+	return int64((*capnp.Struct)(s).Uint64p(0))
+}
+
+func (s *BenchmarkA) GetMoney() float64 {
+	return math.Float64frombits((*capnp.Struct)(s).Uint64p(16))
+}
+
+func (s *BenchmarkA) GetSpouse() bool {
+	return (*capnp.Struct)(s).Bitp(96)
 }

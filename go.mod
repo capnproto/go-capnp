@@ -3,7 +3,6 @@ module capnproto.org/go/capnp/v3
 go 1.19
 
 require (
-
 	github.com/alecthomas/go_serialization_benchmarks/goserbench v0.0.0
 	github.com/colega/zeropool v0.0.0-20230505084239-6fb4a4f75381
 	github.com/kylelemons/godebug v1.1.0
@@ -14,7 +13,7 @@ require (
 	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
 )
 
-replace github.com/alecthomas/go_serialization_benchmarks/goserbench => /home/user/testes/vendor/alecthomas/go_serialization_benchmarks/goserbench
+replace github.com/alecthomas/go_serialization_benchmarks/goserbench => github.com/matheusd/go_serialization_benchmarks/goserbench v0.1.0
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
