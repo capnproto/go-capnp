@@ -268,13 +268,21 @@ func BenchmarkGoserBench(b *testing.B) {
 }
 
 type CapNProtoImprovSerializer struct {
+	arena capnp.Arena
+	msg   *capnp.Message
 }
 
 func (x *CapNProtoImprovSerializer) Marshal(o interface{}) ([]byte, error) {
-	msg, seg := capnp.NewSingleSegmentMessage(nil)
+	// x.msg.Release()
+	x.msg.ResetForRead(x.arena)
+	seg, err := x.msg.Segment(0)
+	if err != nil {
+		return nil, err
+	}
 
-	// c, err := aircraftlib.AllocateNewRootBenchmark(msg)
-	c, err := aircraftlib.NewRootBenchmarkA(seg)
+	c, err := aircraftlib.AllocateNewRootBenchmark(x.msg)
+	_ = seg
+	// c, err := aircraftlib.NewRootBenchmarkA(seg)
 	if err != nil {
 		return nil, err
 	}
@@ -287,7 +295,7 @@ func (x *CapNProtoImprovSerializer) Marshal(o interface{}) ([]byte, error) {
 	c.FlatSetName(a.Name)   // c.SetName(a.Name)
 	c.FlatSetPhone(a.Phone) // c.SetPhone(a.Phone)
 
-	return msg.Marshal()
+	return x.msg.Marshal()
 }
 
 func (x *CapNProtoImprovSerializer) Unmarshal(d []byte, i interface{}) error {
@@ -319,7 +327,16 @@ func (x *CapNProtoImprovSerializer) Unmarshal(d []byte, i interface{}) error {
 }
 
 func NewCapNProtoImprovSerializer() goserbench.Serializer {
-	return &CapNProtoSerializer{}
+	// arena := capnp.SingleSegment(nil)
+	arena := &capnp.SimpleSingleSegmentArena{}
+	msg, _, err := capnp.NewMessage(arena)
+	if err != nil {
+		panic(err)
+	}
+	return &CapNProtoImprovSerializer{
+		arena: arena,
+		msg:   msg,
+	}
 }
 
 func BenchmarkGoserBenchImprov(b *testing.B) {

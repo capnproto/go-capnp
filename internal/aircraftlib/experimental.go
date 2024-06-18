@@ -11,7 +11,6 @@ import (
 func AllocateNewRootBenchmark(msg *capnp.Message) (BenchmarkA, error) {
 	st, err := capnp.AllocateRootStruct(msg, capnp.ObjectSize{DataSize: 24, PointerCount: 2})
 	return BenchmarkA(st), err
-
 }
 
 // Exprimental: set the name using the flat/unrolled version of SetNewText.
