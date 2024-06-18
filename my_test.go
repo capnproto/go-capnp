@@ -99,7 +99,7 @@ func BenchmarkSetTextBaselineCopyClear(b *testing.B) {
 	}
 }
 
-type CapNProtoSerializer struct {
+type CapNProtoUnsafeSerializer struct {
 	msg   capnp.Message
 	arena *capnp.SimpleSingleSegmentArena
 	c     *aircraftlib.BenchmarkA
@@ -108,7 +108,7 @@ type CapNProtoSerializer struct {
 	fieldPhone *capnp.TextField
 }
 
-func (x *CapNProtoSerializer) Marshal(o interface{}) ([]byte, error) {
+func (x *CapNProtoUnsafeSerializer) Marshal(o interface{}) ([]byte, error) {
 	a := o.(*goserbench.SmallStruct)
 	/*
 		x.msg.ResetForRead(x.arena)
@@ -134,7 +134,7 @@ func (x *CapNProtoSerializer) Marshal(o interface{}) ([]byte, error) {
 	return x.arena.Data(0)
 }
 
-func (x *CapNProtoSerializer) Unmarshal(d []byte, i interface{}) error {
+func (x *CapNProtoUnsafeSerializer) Unmarshal(d []byte, i interface{}) error {
 	a := i.(*goserbench.SmallStruct)
 
 	x.arena.ReplaceBuffer(d)
@@ -157,7 +157,7 @@ func (x *CapNProtoSerializer) Unmarshal(d []byte, i interface{}) error {
 	return nil
 }
 
-func NewCapNProtoSerializer() goserbench.Serializer {
+func NewCapNProtoUnsafeSerializer() goserbench.Serializer {
 	arena := &capnp.SimpleSingleSegmentArena{}
 	var msg capnp.Message
 	msg.ResetForRead(arena)
@@ -183,13 +183,78 @@ func NewCapNProtoSerializer() goserbench.Serializer {
 		panic(err)
 	}
 
-	return &CapNProtoSerializer{
+	return &CapNProtoUnsafeSerializer{
 		arena:      arena,
 		c:          &a,
 		fieldName:  &fieldName,
 		fieldPhone: &fieldPhone,
 	}
 
+}
+
+func BenchmarkGoserBenchUnsafe(b *testing.B) {
+	b.Run("marshal", func(b *testing.B) {
+		goserbench.BenchMarshalSmallStruct(b, NewCapNProtoUnsafeSerializer())
+	})
+
+	b.Run("unmarshal", func(b *testing.B) {
+		goserbench.BenchUnmarshalSmallStruct(b, NewCapNProtoUnsafeSerializer(), false)
+	})
+}
+
+type CapNProtoSerializer struct {
+}
+
+func (x *CapNProtoSerializer) Marshal(o interface{}) ([]byte, error) {
+	msg, seg := capnp.NewSingleSegmentMessage(nil)
+
+	// c, err := aircraftlib.AllocateNewRootBenchmark(msg)
+	c, err := aircraftlib.NewRootBenchmarkA(seg)
+	if err != nil {
+		return nil, err
+	}
+
+	a := o.(*goserbench.SmallStruct)
+	c.SetBirthDayp(a.BirthDay.UnixNano())
+	c.SetSiblingsp(int32(a.Siblings))
+	c.SetSpousep(a.Spouse)
+	c.SetMoneyp(a.Money)    // c.SetMoney(a.Money)
+	c.FlatSetName(a.Name)   // c.SetName(a.Name)
+	c.FlatSetPhone(a.Phone) // c.SetPhone(a.Phone)
+
+	return msg.Marshal()
+}
+
+func (x *CapNProtoSerializer) Unmarshal(d []byte, i interface{}) error {
+	a := i.(*goserbench.SmallStruct)
+
+	msg, err := capnp.Unmarshal(d)
+	if err != nil {
+		return err
+	}
+
+	c, err := aircraftlib.ReadRootBenchmarkA(msg)
+	if err != nil {
+		return err
+	}
+
+	a.Name, err = c.Name()
+	if err != nil {
+		return err
+	}
+	a.BirthDay = time.Unix(0, c.GetBirthDay())
+	a.Phone, err = c.Phone()
+	if err != nil {
+		return err
+	}
+	a.Siblings = int(c.GetSiblings())
+	a.Spouse = c.GetSpouse()
+	a.Money = c.GetMoney()
+	return nil
+}
+
+func NewCapNProtoSerializer() goserbench.Serializer {
+	return &CapNProtoSerializer{}
 }
 
 func BenchmarkGoserBench(b *testing.B) {
@@ -199,6 +264,71 @@ func BenchmarkGoserBench(b *testing.B) {
 
 	b.Run("unmarshal", func(b *testing.B) {
 		goserbench.BenchUnmarshalSmallStruct(b, NewCapNProtoSerializer(), false)
+	})
+}
+
+type CapNProtoImprovSerializer struct {
+}
+
+func (x *CapNProtoImprovSerializer) Marshal(o interface{}) ([]byte, error) {
+	msg, seg := capnp.NewSingleSegmentMessage(nil)
+
+	// c, err := aircraftlib.AllocateNewRootBenchmark(msg)
+	c, err := aircraftlib.NewRootBenchmarkA(seg)
+	if err != nil {
+		return nil, err
+	}
+
+	a := o.(*goserbench.SmallStruct)
+	c.SetBirthDayp(a.BirthDay.UnixNano())
+	c.SetSiblingsp(int32(a.Siblings))
+	c.SetSpousep(a.Spouse)
+	c.SetMoneyp(a.Money)    // c.SetMoney(a.Money)
+	c.FlatSetName(a.Name)   // c.SetName(a.Name)
+	c.FlatSetPhone(a.Phone) // c.SetPhone(a.Phone)
+
+	return msg.Marshal()
+}
+
+func (x *CapNProtoImprovSerializer) Unmarshal(d []byte, i interface{}) error {
+	a := i.(*goserbench.SmallStruct)
+
+	msg, err := capnp.Unmarshal(d)
+	if err != nil {
+		return err
+	}
+
+	c, err := aircraftlib.ReadRootBenchmarkA(msg)
+	if err != nil {
+		return err
+	}
+
+	a.Name, err = c.Name()
+	if err != nil {
+		return err
+	}
+	a.BirthDay = time.Unix(0, c.GetBirthDay())
+	a.Phone, err = c.Phone()
+	if err != nil {
+		return err
+	}
+	a.Siblings = int(c.GetSiblings())
+	a.Spouse = c.GetSpouse()
+	a.Money = c.GetMoney()
+	return nil
+}
+
+func NewCapNProtoImprovSerializer() goserbench.Serializer {
+	return &CapNProtoSerializer{}
+}
+
+func BenchmarkGoserBenchImprov(b *testing.B) {
+	b.Run("marshal", func(b *testing.B) {
+		goserbench.BenchMarshalSmallStruct(b, NewCapNProtoImprovSerializer())
+	})
+
+	b.Run("unmarshal", func(b *testing.B) {
+		goserbench.BenchUnmarshalSmallStruct(b, NewCapNProtoImprovSerializer(), false)
 	})
 }
 

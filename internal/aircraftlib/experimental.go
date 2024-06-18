@@ -18,8 +18,8 @@ func AllocateNewRootBenchmark(msg *capnp.Message) (BenchmarkA, error) {
 //
 // If the unrolled version is deemed good enough, it would just be replaced
 // inside SetNewText, without having to alter the public API.
-func (s BenchmarkA) FlatSetName(v string) error {
-	return capnp.Struct(s).FlatSetNewText(0, v)
+func (s *BenchmarkA) FlatSetName(v string) error {
+	return (*capnp.Struct)(s).FlatSetNewText(0, v)
 }
 
 // Experimental: update the set in-place.
@@ -32,8 +32,8 @@ func (s BenchmarkA) NameField() (capnp.TextField, error) {
 	return capnp.Struct(s).TextField(0)
 }
 
-func (s BenchmarkA) FlatSetPhone(v string) error {
-	return capnp.Struct(s).FlatSetNewText(1, v)
+func (s *BenchmarkA) FlatSetPhone(v string) error {
+	return (*capnp.Struct)(s).FlatSetNewText(1, v)
 }
 
 func (s *BenchmarkA) GetName() (string, error) {

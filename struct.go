@@ -321,7 +321,7 @@ func (p *Struct) GetTextSuperUnsafe(i uint16) (string, error) {
 	return *(*string)(unsafe.Pointer(&tb)), nil
 }
 
-func (p Struct) FlatSetNewText(i uint16, v string) error {
+func (p *Struct) FlatSetNewText(i uint16, v string) error {
 	// NewText().newPrimitiveList
 	sz := Size(1)
 	n := int32(len(v) + 1)
