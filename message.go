@@ -100,6 +100,11 @@ func (m *Message) Release() {
 func (m *Message) Reset(arena Arena) (first *Segment, err error) {
 	m.capTable.Reset()
 	for k := range m.segs {
+		// Optimization: keep the first segment so that the re-used
+		// Message does not have to allocate a new one.
+		if k == 0 && m.segs[k] == &m.firstSeg {
+			continue
+		}
 		delete(m.segs, k)
 	}
 
@@ -113,6 +118,7 @@ func (m *Message) Reset(arena Arena) (first *Segment, err error) {
 		DepthLimit:    m.DepthLimit,
 		capTable:      m.capTable,
 		segs:          m.segs,
+		firstSeg:      Segment{msg: m},
 	}
 
 	if arena != nil {
@@ -264,10 +270,10 @@ func (m *Message) Segment(id SegmentID) (*Segment, error) {
 // segment returns the segment with the given ID, with no bounds
 // checking.  The caller must be holding m.mu.
 func (m *Message) segment(id SegmentID) (*Segment, error) {
-	if m.segs == nil && id == 0 && m.firstSeg.msg != nil {
+	if m.segs == nil && id == 0 && m.firstSeg.msg != nil && m.firstSeg.data != nil {
 		return &m.firstSeg, nil
 	}
-	if s := m.segs[id]; s != nil {
+	if s := m.segs[id]; s != nil && s.data != nil {
 		return s, nil
 	}
 	if len(m.segs) == maxInt {
@@ -442,7 +448,7 @@ func alloc(s *Segment, sz Size) (*Segment, address, error) {
 		var err error
 		s, err = s.msg.allocSegment(sz)
 		if err != nil {
-			return nil, 0, err
+			return nil, 0, errors.New("allocSegment failed: " + err.Error())
 		}
 	}
 
