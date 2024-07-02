@@ -1145,7 +1145,7 @@ func (c *Conn) handleReturn(ctx context.Context, in transport.IncomingMessage) e
 			}
 			return nil
 		}
-		pr := c.parseReturn(dq, ret, q.called) // fills in CapTable
+		pr := c.parseReturn(dq, ret, q.called) // fills in CapTable and adds imports to local vat
 		if pr.parseFailed {
 			c.er.ReportError(rpcerr.Annotate(pr.err, "incoming return"))
 		}
@@ -1164,6 +1164,51 @@ func (c *Conn) handleReturn(ctx context.Context, in transport.IncomingMessage) e
 				// We can release now; the result is an error, so data from the message
 				// won't be accessed:
 				in.Release()
+			}
+
+			// Even though any imports added within the
+			// parseResults()  were added inside the locked conn
+			// mutex, there could still be references to the prior
+			// question `qid` that are (concurrent to the
+			// processing of this Return message) about to send a
+			// pipelined request to the remote host. Sending a
+			// Finish message now, could mean these other outbound
+			// messages enter the send queue _after_ the Finish,
+			// thus causing a remote error: the pipelined call
+			// referencing `qid` arrives after the Finish, which is
+			// a protocol violation.
+			//
+			// One way of seeing this bug manifest is on the
+			// TestPromiseOrdering test as of commit 2f9aa4f:
+			// removing the fix below triggers errors in the style
+			// of:
+			//
+			//   "handle Call: rpc: incoming call: use of unknown
+			//   or finished answer ID 0 for promised answer"
+			//
+			// Unfortunately, I (matheusd) cannot see _any_ way of
+			// doing a proper fix. What I consider a "proper" fix
+			// would be to couple (via some synchronization
+			// mechanism) the sending and receiving sides of the
+			// conn, such that sending this finish only happens
+			// after all references of the above question are
+			// released. Or something like that.
+			//
+			// Instead, we opt for a sleep here, to give a chance
+			// to any concurrent goroutines to complete their
+			// sending process, and then we send the finish. If
+			// production code is doing anything similar to what
+			// that test exercises, then unless the host system is
+			// under _significant_ load, the following sleep should
+			// be sufficient.
+			//
+			// Yes, I am aware this is an ugly solution. Hopefully
+			// some future refactor will make a better fix obvious
+			// or (even better) unnecessary.
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(250 * time.Millisecond):
 			}
 
 			c.withLocked(func(c *lockedConn) {
