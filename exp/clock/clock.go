@@ -91,6 +91,7 @@ func (m *Manual) NewTimer(d time.Duration) Timer {
 
 // Advance advances the clock forward by the given duration.
 func (m *Manual) Advance(d time.Duration) {
+	triggeredTimer := false
 	syncutil.With(&m.mu, func() {
 		before := m.now
 		m.now = before.Add(d)
@@ -100,9 +101,18 @@ func (m *Manual) Advance(d time.Duration) {
 
 			if before.Before(t.deadline) && !m.now.Before(t.deadline) {
 				t.ch <- m.now
+				triggeredTimer = true
 			}
 		}
 	})
+
+	// Before returning, give a chance for any timer handlers to run. This
+	// helps avoid test flakes when 2 .Advance() calls happen back-to-back
+	// before timer handlers had a chance to run and update their
+	// deadlines.
+	if triggeredTimer {
+		time.Sleep(50 * time.Millisecond)
+	}
 }
 
 type manualTimer struct {

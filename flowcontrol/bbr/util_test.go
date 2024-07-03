@@ -43,15 +43,21 @@ func startTestPath(ctx context.Context, clock clock.Clock, links ...testLink) (*
 		rx := &q.Rx
 		q = mpsc.New[testPacket]()
 		tx := &q.Tx
-		go l.run(ctx, clock, rx, tx)
+		ready := make(chan struct{})
+		go l.run(ctx, clock, rx, tx, ready)
+
+		// Wait until the link is ready to receive (avoids races with
+		// the test clock).
+		<-ready
 	}
 
 	return initTx, &q.Rx
 }
 
-func (l testLink) run(ctx context.Context, clock clock.Clock, rx *mpsc.Rx[testPacket], tx *mpsc.Tx[testPacket]) {
+func (l testLink) run(ctx context.Context, clock clock.Clock, rx *mpsc.Rx[testPacket], tx *mpsc.Tx[testPacket], ready chan struct{}) {
 	timer := clock.NewTimer(0)
 	<-timer.Chan()
+	close(ready)
 	for {
 
 		// Wait for a packet to arrive:
@@ -95,6 +101,17 @@ func assertNotDone(t *testing.T, done <-chan struct{}) {
 	}
 }
 
+// assertDone asserts that the done channel is written to at a reasonable time
+// or else it fails the test.
+func assertDone(t *testing.T, done <-chan struct{}) {
+	t.Helper()
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("Not done before timeout")
+	}
+}
+
 // Try sending a packet through a path with one link of a given known delay;
 // make sure it arrives at the correct time.
 func TestLinkDelay(t *testing.T) {
@@ -119,7 +136,7 @@ func TestLinkDelay(t *testing.T) {
 	assertNotDone(t, done)
 
 	clock.Advance(3 * time.Second) // This puts us at t = 5, after our delay.
-	<-done                         // would deadlock if the packet still did't send.
+	assertDone(t, done)            // would deadlock if the packet still did't send.
 }
 
 // Try sending a packet through a path with two links of known delay;
@@ -152,7 +169,7 @@ func TestMultiLinkDelay(t *testing.T) {
 	assertNotDone(t, done)         // ...but it still needs to get through the second link.
 
 	clock.Advance(2 * time.Second) // This should get us all the way to the end.
-	<-done                         // would deadlock if the packet still did't send.
+	assertDone(t, done)            // would deadlock if the packet still did't send.
 }
 
 const (
@@ -185,7 +202,7 @@ func TestLinkBandwidth(t *testing.T) {
 	clock.Advance(2 * time.Second)
 	assertNotDone(t, done)
 	clock.Advance(1 * time.Second)
-	<-done
+	assertDone(t, done)
 }
 
 func TestLinkBandwidthMultiPacket(t *testing.T) {
@@ -224,9 +241,9 @@ func TestLinkBandwidthMultiPacket(t *testing.T) {
 	assertNotDone(t, done2)
 
 	clock.Advance(1 * time.Second)
-	<-done1
+	assertDone(t, done1)
 	assertNotDone(t, done2)
 
 	clock.Advance(3 * time.Second)
-	<-done2
+	assertDone(t, done2)
 }
