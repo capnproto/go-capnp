@@ -352,6 +352,294 @@ func TestDisembargoSenderPromise(t *testing.T) {
 	}
 }
 
+// TestDisembargoSenderPromiseWithPipeline tests disembargoing a sender promise
+// when there are pipelined calls.
+func TestDisembargoSenderPromiseWithPipeline(t *testing.T) {
+	t.Parallel()
+
+	const concreteBootstrapInterfaceID uint64 = 0xbaba001337
+	const methodIdOrd uint16 = 0x0f30
+
+	ctx := context.Background()
+	p, r := capnp.NewLocalPromise[capnp.Client]()
+
+	left, right := transport.NewPipe(1)
+	p1, p2 := rpc.NewTransport(left), rpc.NewTransport(right)
+
+	conn := rpc.NewConn(p1, &rpc.Options{
+		Logger:          testErrorReporter{tb: t},
+		BootstrapClient: capnp.Client(p), // The bootstrap intf of conn/p1 is promise `p`
+		RemotePeerID:    rpc.PeerID{Value: "p1"},
+	})
+	defer finishTest(t, conn, p2)
+
+	// P2 asks for P1's bootstrap interface (send Bootstrap from P2 to P1).
+	{
+		msg := &rpcMessage{
+			Which:     rpccp.Message_Which_bootstrap,
+			Bootstrap: &rpcBootstrap{QuestionID: 0},
+		}
+		assert.NoError(t, sendMessage(ctx, p2, msg))
+	}
+
+	// Receive return from P1. `theirBootstrapID` will point to a P1
+	// promise to return the bootstrap interface (i.e. a promise to return
+	// once `p` resolves).
+	var theirBootstrapID uint32
+	{
+		rmsg, release, err := recvMessage(ctx, p2)
+		assert.NoError(t, err)
+		defer release()
+
+		// Assert that it contains a result and that the result is
+		// index 0 in the cap table and that the result is a promise.
+		assert.Equal(t, rpccp.Message_Which_return, rmsg.Which)
+		assert.Equal(t, uint32(0), rmsg.Return.AnswerID)
+		assert.Equal(t, rpccp.Return_Which_results, rmsg.Return.Which)
+		assert.Equal(t, 1, len(rmsg.Return.Results.CapTable))
+		desc := rmsg.Return.Results.CapTable[0]
+		assert.Equal(t, rpccp.CapDescriptor_Which_senderPromise, desc.Which)
+		theirBootstrapID = desc.SenderPromise
+	}
+
+	// P2 makes a pipelined call on that returned promise. This will get
+	// embargoed in P1. Note this is a call on the bootstrap interface, thus
+	// must be supported by level 0 implementations.
+	p2Call01Id := uint32(0xaabbccdd)
+	{
+		msg := &rpcMessage{
+			Which: rpccp.Message_Which_call,
+			Call: &rpcCall{
+				QuestionID: p2Call01Id,
+				Target: rpcMessageTarget{
+					Which: rpccp.MessageTarget_Which_promisedAnswer,
+					PromisedAnswer: &rpcPromisedAnswer{
+						// ???
+						//
+						// Doc says "ID of the
+						// question (in the sender's
+						// question table / receiver's
+						// answer table)"
+						//
+						// But I think this is backwards.
+						QuestionID: theirBootstrapID,
+					},
+				},
+				InterfaceID: concreteBootstrapInterfaceID,
+				MethodID:    methodIdOrd,
+				SendResultsTo: rpcCallSendResultsTo{
+					Which: rpccp.Call_sendResultsTo_Which_caller,
+				},
+			},
+		}
+		assert.NoError(t, sendMessage(ctx, p2, msg))
+	}
+
+	// The previous call is now pending in P1. It's waiting for P1's own
+	// bootstrap interface promise (i.e. `p`) to be resolved before it
+	// can continue.
+
+	// For conveience, we use the other peer's (i.e. P2's) bootstrap
+	// interface as the thing to resolve to.
+	//
+	// bsClient is a promise (in P1) that will resolve to P2's bootstrap
+	// interface.
+	//
+	// conn.Bootstrap() asks for P2's bootstrap interface.
+	bsClient := conn.Bootstrap(ctx)
+	defer bsClient.Release()
+
+	// P2 receives the bootstrap request, sends return.
+	myBootstrapID := uint32(12) // Any dummy value. This is the cap in P2.
+	var incomingBSQid uint32
+	{
+		// Assert the next message is a bootstrap request.
+		rmsg, release, err := recvMessage(ctx, p2)
+		assert.NoError(t, err)
+		defer release()
+		assert.Equal(t, rpccp.Message_Which_bootstrap, rmsg.Which)
+		incomingBSQid = rmsg.Bootstrap.QuestionID
+
+		outMsg, err := p2.NewMessage()
+		assert.NoError(t, err)
+		iface := capnp.NewInterface(outMsg.Message().Segment(), 0)
+
+		// Reply with the return, pointing out that P2's bootstrap
+		// interface is located at the `myBootstrapID` entry in P2's
+		// export table.
+		assert.NoError(t, sendMessage(ctx, p2, &rpcMessage{
+			Which: rpccp.Message_Which_return,
+			Return: &rpcReturn{
+				AnswerID: incomingBSQid,
+				Which:    rpccp.Return_Which_results,
+				Results: &rpcPayload{
+					Content: iface.ToPtr(),
+					CapTable: []rpcCapDescriptor{
+						{
+							Which:        rpccp.CapDescriptor_Which_senderHosted,
+							SenderHosted: myBootstrapID,
+						},
+					},
+				},
+			},
+		}))
+	}
+
+	// P1 accepts P2's return and resolves the bootstrap interface. It
+	// sends a Finish to flag that it has no more pipelined calls into the
+	// prior conn.Bootstrap() call and P2 may release resources.
+	assert.NoError(t, bsClient.Resolve(ctx))
+
+	// P2 receives finish.
+	{
+		rmsg, release, err := recvMessage(ctx, p2)
+		assert.NoError(t, err)
+		defer release()
+		assert.Equal(t, rpccp.Message_Which_finish, rmsg.Which)
+		assert.Equal(t, incomingBSQid, rmsg.Finish.QuestionID)
+	}
+
+	// Resolve P1's bootstrap capability as P2's bootstrap capability.
+	// Semantically, this means P1 proxies calls to P2.
+	//
+	// At this point in time, bsClient is already resolved.
+	r.Fulfill(bsClient)
+
+	// At this point in time, P1 has a fulfilled promise on its bootstrap
+	// interface. This was the dependency needed to answer P2's initial
+	// query for P1's bootstrap interface.
+	//
+	// P1 also has a pipelined call (sent by P2) into that promise (that
+	// effectively should be proxied by P1 back to P2). The question
+	// becomes: what comes first? The pipelined call or the resolve?
+	//
+	// Due to the nature of this test (and the use of NewLocalPromise), the
+	// prior `r.Fulfill()` directly triggers the pending pipelined call
+	// _before_ the resolve has a chance to be sent, so that's what we
+	// assert next.
+	var p1ToP2CallQuestionId uint32
+	{
+		// P1 sends the pipelined call back to P2.
+		rmsg, release, err := recvMessage(ctx, p2)
+		assert.NoError(t, err)
+		defer release()
+		assert.Equal(t, rpccp.Message_Which_call, rmsg.Which)
+		assert.Equal(t, methodIdOrd, rmsg.Call.MethodID)
+		assert.Equal(t, concreteBootstrapInterfaceID, rmsg.Call.InterfaceID)
+		p1ToP2CallQuestionId = rmsg.Call.QuestionID
+	}
+
+	// r.Fulfill() causes all references to P1's bootstrap capability (which
+	// was initialized as the `p` promise) to be completed. This triggers
+	// a Resolve message from P1 to P2 (recall that the very first message
+	// in this test was P2 asking for P1's bootstrap interface).
+	{
+		rmsg, release, err := recvMessage(ctx, p2)
+		assert.NoError(t, err)
+		defer release()
+		assert.Equal(t, rpccp.Message_Which_resolve, rmsg.Which)
+		assert.Equal(t, theirBootstrapID, rmsg.Resolve.PromiseID)
+		assert.Equal(t, rpccp.Resolve_Which_cap, rmsg.Resolve.Which)
+		desc := rmsg.Resolve.Cap
+		assert.Equal(t, rpccp.CapDescriptor_Which_receiverHosted, desc.Which)
+
+		// Recall that we resolved P1's bootstrap promise with P2's
+		// bootstrap capability (a concrete exported capability, at
+		// `myBootstrapID`).
+		assert.Equal(t, myBootstrapID, desc.ReceiverHosted)
+	}
+
+	// Send reply to the P1->P2 call. We do this here instead of immediately
+	// after receiving the call in order to process the resolve message first
+	// and ensure the finish P2 will receive for this comes later.
+	{
+		// P2 sends the reply.
+		assert.NoError(t, sendMessage(ctx, p2, &rpcMessage{
+			Which: rpccp.Message_Which_return,
+			Return: &rpcReturn{
+				AnswerID: p1ToP2CallQuestionId,
+				Which:    rpccp.Return_Which_results,
+				Results: &rpcPayload{
+					Content: capnp.Ptr{}, // Returning void.
+				},
+			},
+		}))
+
+		// P2 Receives the finish.
+		rmsg, release, err := recvMessage(ctx, p2)
+		assert.NoError(t, err)
+		defer release()
+		assert.Equal(t, rpccp.Message_Which_finish, rmsg.Which)
+	}
+
+	// The prior message resolved P1's bootstrap interface (promise `p`,
+	// identified in P1's export table by `theirBootstrapID`) into P2's
+	// bootstrap interface (the concrete capability `myBootstrapID`).
+	//
+	// P2 detects that is a local capability (i.e. looped back), thus
+	// it needs to send a disembargo so that P1 will start resolving
+	// any pipelined calls (if there are any).
+
+	// P2 sends the disembargo.
+	embargoID := uint32(7) // Any dummy value.
+	{
+		assert.NoError(t, sendMessage(ctx, p2, &rpcMessage{
+			Which: rpccp.Message_Which_disembargo,
+			Disembargo: &rpcDisembargo{
+				Context: rpcDisembargoContext{
+					Which: rpccp.Disembargo_context_Which_senderLoopback,
+
+					// The original promise resolved to a
+					// capability in P2 (who is sending this
+					// very message, thus SenderLoopback).
+					SenderLoopback: embargoID,
+				},
+				Target: rpcMessageTarget{
+					Which: rpccp.MessageTarget_Which_importedCap,
+
+					// P2 is disembargo'ing the original
+					// promise it received from P1.
+					ImportedCap: theirBootstrapID,
+				},
+			},
+		}))
+	}
+
+	// P1 sends any previously-embargoed and now disembargoed pipelined
+	// calls. This test has one embargoed call that can now be returned
+	// to P1 (this is the original P2->P1 pipelined call).
+	{
+		rmsg, release, err := recvMessage(ctx, p2)
+		assert.NoError(t, err)
+		defer release()
+		assert.Equal(t, rpccp.Message_Which_return, rmsg.Which)
+		assert.Equal(t, rmsg.Return.AnswerID, p2Call01Id)
+		// Anything else to assert?
+	}
+
+	// P1 echoes back the disembargo to P2 to let it know it has finished
+	// processing pipelined calls.
+
+	// P2 Receives disembargo:
+	{
+		rmsg, release, err := recvMessage(ctx, p2)
+		assert.NoError(t, err)
+		defer release()
+		assert.Equal(t, rpccp.Message_Which_disembargo, rmsg.Which)
+		d := rmsg.Disembargo
+
+		// Echo of SenderLoopback in ReceiverLoopback
+		assert.Equal(t, rpccp.Disembargo_context_Which_receiverLoopback, d.Context.Which)
+		assert.Equal(t, embargoID, d.Context.ReceiverLoopback)
+		tgt := d.Target
+		assert.Equal(t, rpccp.MessageTarget_Which_importedCap, tgt.Which)
+
+		// P2 exported the concrete capability in `myBootstrapID`. P1
+		// now knows this and is replying that info back.
+		assert.Equal(t, myBootstrapID, tgt.ImportedCap)
+	}
+}
+
 // testPromiseOrderingCase tests that E-order is respected when fulfilling a
 // promise with something on the remote peer.
 //
