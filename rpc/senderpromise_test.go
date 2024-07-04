@@ -640,6 +640,85 @@ func TestDisembargoSenderPromiseWithPipeline(t *testing.T) {
 	}
 }
 
+// TestShortensPathAfterResolve verifies that a conn collapses the path to a
+// capability if the remote promise resolves to the local vat.
+func TestShortensPathAfterResolve(t *testing.T) {
+	t.Parallel()
+
+	t.Cleanup(func() { time.Sleep(100 * time.Millisecond) }) // Avoid log error after fail
+
+	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(ctx, time.Second*30)
+	defer cancel()
+
+	// Promise that will be the bootstrap capability in C1 and will be
+	// eventually resolved as the bootstrap capability in C2.
+	p, r := capnp.NewLocalPromise[testcapnp.PingPong]()
+	defer p.Release()
+
+	left, right := transport.NewPipe(1)
+	p1, p2 := rpc.NewTransport(left), rpc.NewTransport(right)
+
+	// C1 will be proxying calls to C2 (the bootstrap capability is the
+	// promise).
+	c1 := rpc.NewConn(p1, &rpc.Options{
+		Logger:          testErrorReporter{tb: t},
+		BootstrapClient: capnp.Client(p),
+		RemotePeerID:    rpc.PeerID{Value: "c1"}, // (really, c2)
+		AbortTimeout:    15 * time.Second,
+	})
+
+	// C2 is the "echo server".
+	ord := &echoNumOrderChecker{t: t, skipAssertNum: true}
+	c2 := rpc.NewConn(p2, &rpc.Options{
+		Logger:          testErrorReporter{tb: t},
+		BootstrapClient: capnp.Client(testcapnp.PingPong_ServerToClient(ord)),
+		RemotePeerID:    rpc.PeerID{Value: "c2"}, // (really, c1)
+		AbortTimeout:    15 * time.Second,
+	})
+
+	// Request C1's bootstrap interface. This returns a promise that will
+	// take a while to resolve, because in C1 this is _also_ a promise back
+	// to C2 (in C1 this is `p`, which will be resolved by `r.Fulfill`).
+	// time.Sleep(time.Second)
+	c2PromiseToC1 := testcapnp.PingPong(c2.Bootstrap(ctx))
+	defer c2PromiseToC1.Release()
+
+	// Fetch C2's bootstrap interface (the concrete echo server).
+	c1PromiseToC2 := testcapnp.PingPong(c1.Bootstrap(ctx))
+	defer c1PromiseToC2.Release()
+	require.NoError(t, c1PromiseToC2.Resolve(ctx))
+
+	// Perform a call in C1 using C2's bootstrap interface (which is
+	// already resolved).
+	const c1CallValue int64 = 0xc1000042
+	c1Call, c1CallRel := echoNum(ctx, c1PromiseToC2, c1CallValue)
+	defer c1CallRel()
+	c1CallRes, err := c1Call.Struct()
+	require.NoError(t, err)
+	require.Equal(t, c1CallValue, c1CallRes.N())
+
+	// Fulfill C1's bootstrap capability with C2's bootstrap capability
+	// (i.e. echo server). This resolves the prior c2PromiseToC1 above and
+	// shortens the path, because C1's bootstrap resolves to C2's bootstrap.
+	r.Fulfill(c1PromiseToC2)
+	require.NoError(t, c2PromiseToC1.Resolve(ctx))
+
+	// Shut down the connections. This ensures that we've successfully
+	// shortened the path to cut out the remote peer in the next assertion.
+	require.NoError(t, c1.Close())
+	require.NoError(t, c2.Close())
+
+	// Perform the call using what was originally a C2->C1 promise, but
+	// that should have gotten shortened to a local call.
+	const c2CallValue int64 = 0xc2000042
+	c2Call, c2CallRel := echoNum(ctx, c2PromiseToC1, c2CallValue)
+	defer c2CallRel()
+	c2CallRes, err := c2Call.Struct()
+	require.NoError(t, err)
+	require.Equal(t, c2CallValue, c2CallRes.N())
+}
+
 // testPromiseOrderingCase tests that E-order is respected when fulfilling a
 // promise with something on the remote peer.
 //

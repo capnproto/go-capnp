@@ -11,12 +11,15 @@ import (
 )
 
 type echoNumOrderChecker struct {
-	t       *testing.T
-	nextNum int64
+	t             *testing.T
+	nextNum       int64
+	skipAssertNum bool
 }
 
 func (e *echoNumOrderChecker) EchoNum(ctx context.Context, p testcapnp.PingPong_echoNum) error {
-	assert.Equal(e.t, e.nextNum, p.Args().N())
+	if !e.skipAssertNum {
+		assert.Equal(e.t, e.nextNum, p.Args().N())
+	}
 	e.nextNum++
 	results, err := p.AllocResults()
 	if err != nil {
