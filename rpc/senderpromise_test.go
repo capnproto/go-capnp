@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/rpc"
@@ -351,18 +352,35 @@ func TestDisembargoSenderPromise(t *testing.T) {
 	}
 }
 
-// Tests that E-order is respected when fulfilling a promise with something on
-// the remote peer.
-func TestPromiseOrdering(t *testing.T) {
-	t.Parallel()
+// testPromiseOrderingCase tests that E-order is respected when fulfilling a
+// promise with something on the remote peer.
+//
+// numCalls must be >= 0. callToFulFill is the index of the call of when
+// the initial C1 promise will be fulfilled and can be < 0 to fulfill in the
+// first call or > numCalls to fulfill after all calls.
+//
+// waitC1Promise is whether the test waits for the c1.bootstrap() call to resolve
+// before fulfilling C1's original promise.
+func testPromiseOrderingCase(t *testing.T, numCalls int, callToFulfill int,
+	waitC2Promise bool) {
 
-	ctx := context.Background()
+	// t.Parallel()
+
+	// Test context to ensure we don't hang for too long.
+	timeout := 5*time.Second + time.Duration(numCalls)*50*time.Millisecond
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	// Setup a promise that will take the role of C1's bootstrap interface.
+	// This will eventually be resolved as C2's bootstrap interface.
 	p, r := capnp.NewLocalPromise[testcapnp.PingPong]()
 	defer p.Release()
 
+	// Create the simulated connection.
 	left, right := transport.NewPipe(1)
 	p1, p2 := rpc.NewTransport(left), rpc.NewTransport(right)
 
+	// Create the vats.
 	c1 := rpc.NewConn(p1, &rpc.Options{
 		Logger:          testErrorReporter{tb: t},
 		BootstrapClient: capnp.Client(p),
@@ -375,28 +393,70 @@ func TestPromiseOrdering(t *testing.T) {
 		BootstrapClient: capnp.Client(testcapnp.PingPong_ServerToClient(ord)),
 	})
 
-	remotePromise := testcapnp.PingPong(c2.Bootstrap(ctx))
-	defer remotePromise.Release()
+	// C2 requests C1's bootstrap capability.
+	c1BootstrapCap := testcapnp.PingPong(c2.Bootstrap(ctx))
+	defer c1BootstrapCap.Release()
+
+	fulfillC1BootstrapPromise := func() {
+		// C1 fetches C2's bootstrap capability. This
+		// is a promise that, in C1 will be a remote
+		// capability but when this bubbles up and
+		// resolves C2's call to C1's bootstrap, will
+		// resolve to a local (to C2) cap.
+		c2BootstrapCap := c1.Bootstrap(ctx)
+
+		// We could wait until C2 sends its reply or
+		// not.
+		if waitC2Promise {
+			err := c2BootstrapCap.Resolve(ctx)
+			if err != nil {
+				// Panic because this could be in a goroutine.
+				panic(err)
+			}
+		}
+
+		// Fulfill the promise that was set as C1's
+		// bootstrap cap with C2's bootstrap cap.
+		r.Fulfill(testcapnp.PingPong(c2BootstrapCap))
+	}
+
+	// When testing fulfilling before any calls are made, do it
+	// synchronously to ensure this completes appropriately.
+	if callToFulfill < 0 {
+		fulfillC1BootstrapPromise()
+
+		// Wait for the path shortening to happen.
+		require.NoError(t, c1BootstrapCap.Resolve(ctx))
+	}
 
 	// Send a whole bunch of calls to the promise:
 	var (
 		futures []testcapnp.PingPong_echoNum_Results_Future
 		rels    []capnp.ReleaseFunc
 	)
-	numCalls := 1024
 	for i := 0; i < numCalls; i++ {
-		fut, rel := echoNum(ctx, remotePromise, int64(i))
+		fut, rel := echoNum(ctx, c1BootstrapCap, int64(i))
 		futures = append(futures, fut)
 		rels = append(rels, rel)
 
 		// At some arbitrary point in the middle, fulfill the promise
-		// with the other bootstrap interface:
-		if i == 100 {
-			go func() {
-				r.Fulfill(testcapnp.PingPong(c1.Bootstrap(ctx)))
-			}()
+		// with the other bootstrap interface. This must be done
+		// asynchronously to ensure some calls catch all internal
+		// state changes.
+		if i == callToFulfill {
+			go fulfillC1BootstrapPromise()
 		}
 	}
+
+	// When testing fulfilling after all calls are made, do it
+	// synchronously to ensure this completes appropriately.
+	if callToFulfill >= numCalls {
+		fulfillC1BootstrapPromise()
+
+		// Wait for the path shortening to happen.
+		require.NoError(t, c1BootstrapCap.Resolve(ctx))
+	}
+
 	for i, fut := range futures {
 		// Verify that all the results are as expected. The server
 		// Will verify that they came in the right order.
@@ -408,15 +468,46 @@ func TestPromiseOrdering(t *testing.T) {
 		rel()
 	}
 
-	require.NoError(t, remotePromise.Resolve(ctx))
 	// Shut down the connections, and make sure we can still send
 	// calls. This ensures that we've successfully shortened the path to
-	// cut out the remote peer:
+	// cut out the remote peer.
 	c1.Close()
 	c2.Close()
-	fut, rel := echoNum(ctx, remotePromise, int64(numCalls))
+	fut, rel := echoNum(ctx, c1BootstrapCap, int64(numCalls))
 	defer rel()
 	res, err := fut.Struct()
 	require.NoError(t, err)
 	require.Equal(t, int64(numCalls), res.N())
+}
+
+func TestPromiseOrdering(t *testing.T) {
+	tests := []struct {
+		numCalls      int
+		callToFulfill int
+	}{
+		{numCalls: 0, callToFulfill: -1},
+		{numCalls: 0, callToFulfill: 0},
+		{numCalls: 1, callToFulfill: -1},
+		{numCalls: 1, callToFulfill: 0},
+		{numCalls: 1, callToFulfill: 1},
+		{numCalls: 1024, callToFulfill: -1},
+		{numCalls: 1024, callToFulfill: 100},
+		{numCalls: 1024, callToFulfill: 1024},
+	}
+
+	for _, b := range []bool{false, true} {
+		waitC2Promise := b
+		waitC2Name := "noWaitC2Promise"
+		if waitC2Promise {
+			waitC2Name = "waitC2Promise"
+		}
+		for i := range tests {
+			tc := tests[i]
+			name := fmt.Sprintf("%d_calls_%d_callToFulfill_%s", tc.numCalls,
+				tc.callToFulfill, waitC2Name)
+			t.Run(name, func(t *testing.T) {
+				testPromiseOrderingCase(t, tc.numCalls, tc.callToFulfill, waitC2Promise)
+			})
+		}
+	}
 }
