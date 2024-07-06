@@ -808,6 +808,22 @@ func testPromiseOrderingCase(t *testing.T, numCalls int, callToFulfill int,
 		// state changes.
 		if i == callToFulfill {
 			go fulfillC1BootstrapPromise()
+
+			// Wait for the path shortening to happen.
+			//
+			// FIXME: this shouldn't be necessary, as it makes path
+			// shortening a leaky abstraction and imposes to the
+			// caller the necessity of knowing it will happen.
+			//
+			// Without this, the test may fail due to the first to
+			// call to the path-shortened capability happening
+			// before the last call to the non-shortened (i.e.
+			// remote) reference.
+			//
+			// Ideally, this behavior should be verified by a
+			// specific test instead of relying on a flaky test
+			// that depends on exact timings.
+			require.NoError(t, c1BootstrapCap.Resolve(ctx))
 		}
 	}
 
