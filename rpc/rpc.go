@@ -322,10 +322,10 @@ func (c *Conn) Bootstrap(ctx context.Context) (bc capnp.Client) {
 
 		q := c.newQuestion(capnp.Method{})
 		bc = q.p.Answer().Client().AddRef()
-		go func() {
+		bc.AttachReleaser(func() {
 			q.p.ReleaseClients()
 			q.release()
-		}()
+		})
 
 		c.sendMessage(ctx, func(m rpccp.Message) error {
 			boot, err := m.NewBootstrap()
