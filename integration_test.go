@@ -1763,28 +1763,37 @@ func BenchmarkUnmarshal(b *testing.B) {
 }
 
 func BenchmarkUnmarshal_Reuse(b *testing.B) {
+	type testCase struct {
+		a    A
+		data []byte
+	}
 	r := rand.New(rand.NewSource(12345))
-	data := make([][]byte, 1000)
+	data := make([]testCase, 1000)
 	for i := range data {
 		a := generateA(r)
 		msg, seg, _ := capnp.NewMessage(capnp.SingleSegment(nil))
 		root, _ := air.NewRootBenchmarkA(seg)
 		a.fill(root)
-		data[i], _ = msg.Marshal()
-	}
-	msg := new(capnp.Message)
-	ta := new(testArena)
-	arena := capnp.Arena(ta)
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		*ta = testArena(data[r.Intn(len(data))][8:])
-		_, err := msg.Reset(arena)
+		buf, err := msg.Marshal()
 		if err != nil {
 			b.Fatal(err)
 		}
+		data[i].data, data[i].a = buf, *a
+	}
+	msg := new(capnp.Message)
+	ta := new(testArena)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		testIdx := r.Intn(len(data))
+		*ta = testArena(data[testIdx].data[8:])
+		msg.Release()
+		msg.Arena = ta
 		a, _ := air.ReadRootBenchmarkA(msg)
-		unmarshalA(a)
+		gotA := unmarshalA(a)
+		if gotA != data[testIdx].a {
+			b.Fatal("unexpected unmarshalled data")
+		}
 	}
 }
 
