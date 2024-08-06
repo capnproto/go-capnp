@@ -124,6 +124,9 @@ type clientState struct {
 	cursor   *rc.Ref[clientCursor] // never nil
 	released bool
 
+	// extraReleasers are called by Release() if any exist.
+	extraReleasers []func()
+
 	stream struct {
 		err error          // Last error from streaming calls.
 		wg  sync.WaitGroup // Outstanding calls.
@@ -571,6 +574,21 @@ func (c Client) Snapshot() ClientSnapshot {
 	return s
 }
 
+// AttachReleaser attaches an additional releaser func to be called when c.Release()
+// is called. Returns false if the client has already been released.
+//
+// MUST NOT be called with the client state mutex held.
+func (c Client) AttachReleaser(f func()) (released bool) {
+	c.state.With(func(s *clientState) {
+		if s.released {
+			released = true
+		} else {
+			s.extraReleasers = append(s.extraReleasers, f)
+		}
+	})
+	return
+}
+
 // A Brand is an opaque value used to identify a capability.
 type Brand struct {
 	Value any
@@ -781,6 +799,10 @@ func (c Client) Release() {
 			s.released = true
 			s.cursor.Release()
 			limiter.Release()
+
+			for i := range s.extraReleasers {
+				s.extraReleasers[i]()
+			}
 		}
 	})
 }
