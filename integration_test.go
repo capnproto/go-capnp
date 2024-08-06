@@ -1725,63 +1725,147 @@ func unsafeBytesToString(b []byte) string {
 	return *(*string)(unsafe.Pointer(&b))
 }
 
+// BenchmarkMarshal benchmarks marshalling a message using the simplest API
+// available to go-capnp users.
 func BenchmarkMarshal(b *testing.B) {
 	r := rand.New(rand.NewSource(12345))
 	data := make([]*A, 1000)
 	for i := range data {
 		data[i] = generateA(r)
 	}
-	arena := make([]byte, 0, 512)
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		a := data[r.Intn(len(data))]
-		msg, seg, _ := capnp.NewMessage(capnp.SingleSegment(arena[:0]))
-		root, _ := air.NewRootBenchmarkA(seg)
+		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		if err != nil {
+			b.Fatal(err)
+		}
+		root, err := air.NewRootBenchmarkA(seg)
+		if err != nil {
+			b.Fatal(err)
+		}
 		a.fill(root)
-		msg.Marshal()
+		_, err = msg.Marshal()
+		if err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
-func BenchmarkUnmarshal(b *testing.B) {
+// BenchmarkMarshal_ReuseMsg benchmarks marshalling while reusing the message
+// object.
+func BenchmarkMarshal_ReuseMsg(b *testing.B) {
 	r := rand.New(rand.NewSource(12345))
-	data := make([][]byte, 1000)
+	data := make([]*A, 1000)
 	for i := range data {
-		a := generateA(r)
-		msg, seg, _ := capnp.NewMessage(capnp.SingleSegment(nil))
-		root, _ := air.NewRootBenchmarkA(seg)
-		a.fill(root)
-		data[i], _ = msg.Marshal()
+		data[i] = generateA(r)
+	}
+	msg, _, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		b.Fatal(err)
 	}
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		msg, _ := capnp.Unmarshal(data[r.Intn(len(data))])
-		a, _ := air.ReadRootBenchmarkA(msg)
-		unmarshalA(a)
+		a := data[r.Intn(len(data))]
+		seg, err := msg.Reset(msg.Arena)
+		if err != nil {
+			b.Fatal(err)
+		}
+		root, err := air.NewRootBenchmarkA(seg)
+		if err != nil {
+			b.Fatal(err)
+		}
+		a.fill(root)
+		_, err = msg.Marshal()
+		if err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
-func BenchmarkUnmarshal_Reuse(b *testing.B) {
+// BenchmarkUnmarshal benchmarks unmarshalling using the simplest API possible
+// available to go-capnp users.
+func BenchmarkUnmarshal(b *testing.B) {
 	r := rand.New(rand.NewSource(12345))
-	data := make([][]byte, 1000)
+	type testCase struct {
+		a    A
+		data []byte
+	}
+
+	data := make([]testCase, 1000)
 	for i := range data {
 		a := generateA(r)
 		msg, seg, _ := capnp.NewMessage(capnp.SingleSegment(nil))
 		root, _ := air.NewRootBenchmarkA(seg)
 		a.fill(root)
-		data[i], _ = msg.Marshal()
+		buf, err := msg.Marshal()
+		if err != nil {
+			b.Fatal(err)
+		}
+		data[i].data, data[i].a = buf, *a
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		testIdx := r.Intn(len(data))
+		msg, err := capnp.Unmarshal(data[testIdx].data)
+		if err != nil {
+			b.Fatal(err)
+		}
+		a, err := air.ReadRootBenchmarkA(msg)
+		if err != nil {
+			b.Fatal(err)
+		}
+		gotA := unmarshalA(a)
+		if gotA != data[testIdx].a {
+			b.Fatal("unexpected unmarshalled data")
+		}
+	}
+}
+
+// BenchmarkUnmarshal_Reuse benchmarks unmarshalling by reusing the msg object
+// and directly using the test data buffer as an arena.
+//
+// NOTE: this bypasses framing done by capnp marshalling, thus expects the
+// caller to frame the message appropriately.
+func BenchmarkUnmarshal_Reuse(b *testing.B) {
+	type testCase struct {
+		a    A
+		data []byte
+	}
+	r := rand.New(rand.NewSource(12345))
+	data := make([]testCase, 1000)
+	for i := range data {
+		a := generateA(r)
+		msg, seg, _ := capnp.NewMessage(capnp.SingleSegment(nil))
+		root, _ := air.NewRootBenchmarkA(seg)
+		a.fill(root)
+		buf, err := msg.Marshal()
+		if err != nil {
+			b.Fatal(err)
+		}
+		data[i].data, data[i].a = buf, *a
 	}
 	msg := new(capnp.Message)
 	ta := new(testArena)
-	arena := capnp.Arena(ta)
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		*ta = testArena(data[r.Intn(len(data))][8:])
-		msg.Reset(arena)
-		a, _ := air.ReadRootBenchmarkA(msg)
-		unmarshalA(a)
+		testIdx := r.Intn(len(data))
+		*ta = testArena(data[testIdx].data[8:]) // [8:] to skip header
+		msg.Release()
+		msg.Arena = ta
+		a, err := air.ReadRootBenchmarkA(msg)
+		if err != nil {
+			b.Fatal(err)
+		}
+		gotA := unmarshalA(a)
+		if gotA != data[testIdx].a {
+			b.Fatal("unexpected unmarshalled data")
+		}
 	}
 }
 

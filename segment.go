@@ -395,6 +395,8 @@ func (s *Segment) writePtr(off address, src Ptr, forceCopy bool) error {
 		return nil
 	case hasCapacity(src.seg.data, wordSize):
 		// Enough room adjacent to src to write a far pointer landing pad.
+		// TODO: instead of alloc (which may choose another segment),
+		// enforce to _always_ use seg (because we know it has capacity).
 		_, padAddr, _ := alloc(src.seg, wordSize)
 		src.seg.writeRawPointer(padAddr, srcRaw.withOffset(nearPointerOffset(padAddr, srcAddr)))
 		s.writeRawPointer(off, rawFarPointer(src.seg.id, padAddr))

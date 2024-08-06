@@ -27,6 +27,9 @@ const maxDepth = ^uint(0)
 // A Message is a tree of Cap'n Proto objects, split into one or more
 // segments of contiguous memory.  The only required field is Arena.
 // A Message is safe to read from multiple goroutines.
+//
+// A message must be set up with a fully valid Arena when reading or with
+// a valid and empty arena by calling NewArena.
 type Message struct {
 	// rlimit must be first so that it is 64-bit aligned.
 	// See sync/atomic docs.
@@ -60,6 +63,9 @@ type Message struct {
 
 // NewMessage creates a message with a new root and returns the first
 // segment.  It is an error to call NewMessage on an arena with data in it.
+//
+// The new message is guaranteed to contain at least one segment and that
+// segment is guaranteed to contain enough space for the root struct pointer.
 func NewMessage(arena Arena) (*Message, *Segment, error) {
 	var msg Message
 	first, err := msg.Reset(arena)
@@ -93,10 +99,14 @@ func (m *Message) Release() {
 	m.Reset(nil)
 }
 
-// Reset the message to use a different arena, allowing it
-// to be reused. This invalidates any existing pointers in
-// the Message, releases all clients in the cap table, and
-// releases the current Arena, so use with caution.
+// Reset the message to use a different arena, allowing it to be reused. This
+// invalidates any existing pointers in the Message, releases all clients in
+// the cap table, and releases the current Arena, so use with caution.
+//
+// Reset fails if the new arena is not empty and is not able to allocate enough
+// space for at least one segment and its root pointer.  In other words, Reset
+// with a non-nil arena must only be used for messages which will be modified,
+// not read.
 func (m *Message) Reset(arena Arena) (first *Segment, err error) {
 	m.capTable.Reset()
 	for k := range m.segs {
