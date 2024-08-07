@@ -3,7 +3,48 @@ package capnp
 import (
 	"bytes"
 	"testing"
+
+	"capnproto.org/go/capnp/v3/exp/bufferpool"
+	"github.com/stretchr/testify/require"
 )
+
+type arenaAllocTest struct {
+	name string
+
+	// Arrange
+	init func() (Arena, map[SegmentID]*Segment)
+	size Size
+
+	// Assert
+	id   SegmentID
+	data []byte
+}
+
+func (test *arenaAllocTest) run(t *testing.T) {
+	arena, _ := test.init()
+	seg, addr, err := arena.Allocate(test.size, nil, nil)
+
+	require.NoError(t, err, "Allocate error")
+	require.Equal(t, test.id, seg.id)
+
+	// Allocate() contract is that segment data starting at addr should
+	// have anough room for test.size bytes.
+	require.Less(t, int(addr), len(seg.data))
+
+	data := seg.data[addr:]
+	require.LessOrEqual(t, test.size, Size(cap(seg.data)))
+
+	data = data[:test.size]
+	require.Equal(t, test.data, data)
+}
+
+func incrementingData(n int) []byte {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = byte(i % 256)
+	}
+	return b
+}
 
 func TestSingleSegment(t *testing.T) {
 	t.Parallel()
@@ -61,7 +102,7 @@ func TestSingleSegmentAllocate(t *testing.T) {
 			},
 			size: 8,
 			id:   0,
-			data: []byte{},
+			data: []byte{7: 0},
 		},
 		{
 			name: "unloaded",
@@ -71,7 +112,7 @@ func TestSingleSegmentAllocate(t *testing.T) {
 			},
 			size: 8,
 			id:   0,
-			data: incrementingData(16),
+			data: incrementingData(24)[16 : 16+8],
 		},
 		{
 			name: "loaded",
@@ -85,7 +126,7 @@ func TestSingleSegmentAllocate(t *testing.T) {
 			},
 			size: 8,
 			id:   0,
-			data: incrementingData(16),
+			data: incrementingData(24)[16 : 16+8],
 		},
 		{
 			name: "loaded changes length",
@@ -98,7 +139,7 @@ func TestSingleSegmentAllocate(t *testing.T) {
 			},
 			size: 8,
 			id:   0,
-			data: incrementingData(24),
+			data: incrementingData(32)[16 : 16+8],
 		},
 		{
 			name: "message-filled segment",
@@ -111,11 +152,12 @@ func TestSingleSegmentAllocate(t *testing.T) {
 			},
 			size: 8,
 			id:   0,
-			data: incrementingData(24),
+			data: incrementingData(24)[16 : 16+8],
 		},
 	}
 	for i := range tests {
-		tests[i].run(t, i)
+		tc := tests[i]
+		t.Run(tc.name, tc.run)
 	}
 }
 
@@ -175,7 +217,7 @@ func TestMultiSegmentAllocate(t *testing.T) {
 			},
 			size: 8,
 			id:   0,
-			data: []byte{},
+			data: []byte{7: 0},
 		},
 		{
 			name: "space in unloaded segment",
@@ -185,7 +227,7 @@ func TestMultiSegmentAllocate(t *testing.T) {
 			},
 			size: 8,
 			id:   0,
-			data: incrementingData(16),
+			data: incrementingData(24)[16 : 16+8],
 		},
 		{
 			name: "space in loaded segment",
@@ -199,7 +241,7 @@ func TestMultiSegmentAllocate(t *testing.T) {
 			},
 			size: 8,
 			id:   0,
-			data: incrementingData(16),
+			data: incrementingData(24)[16 : 16+8],
 		},
 		{
 			name: "space in loaded segment changes length",
@@ -212,24 +254,27 @@ func TestMultiSegmentAllocate(t *testing.T) {
 			},
 			size: 8,
 			id:   0,
-			data: incrementingData(24),
+			data: incrementingData(24)[16 : 16+8],
 		},
 		{
-			name: "message-filled segment",
+			name: "first segment is filled",
 			init: func() (Arena, map[SegmentID]*Segment) {
 				buf := incrementingData(24)
 				segs := map[SegmentID]*Segment{
 					0: {id: 0, data: buf},
 				}
-				return MultiSegment([][]byte{buf[:16]}), segs
+				msa := MultiSegment([][]byte{buf[:16:16]})
+				msa.bp = &bufferpool.Default
+				return msa, segs
 			},
 			size: 8,
 			id:   1,
-			data: []byte{},
+			data: []byte{7: 0},
 		},
 	}
 
 	for i := range tests {
-		tests[i].run(t, i)
+		tc := tests[i]
+		t.Run(tc.name, tc.run)
 	}
 }

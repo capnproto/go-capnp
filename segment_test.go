@@ -5,6 +5,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"testing"
+
+	"capnproto.org/go/capnp/v3/exp/bufferpool"
 )
 
 func TestSegmentInBounds(t *testing.T) {
@@ -666,6 +668,9 @@ func TestWriteDoubleFarPointer(t *testing.T) {
 			make([]byte, 0, 16),
 		}),
 	}
+
+	// Make arena writable again.
+	msg.Arena.(*MultiSegmentArena).bp = &bufferpool.Default
 	seg1, err := msg.Segment(1)
 	if err != nil {
 		t.Fatal("msg.Segment(1):", err)

@@ -9,6 +9,7 @@ import (
 	"testing"
 	"testing/quick"
 
+	"capnproto.org/go/capnp/v3/exp/bufferpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -23,8 +24,7 @@ func TestNewMessage(t *testing.T) {
 		{arena: SingleSegment(nil)},
 		{arena: MultiSegment(nil)},
 		{arena: readOnlyArena{SingleSegment(make([]byte, 0, 7))}, fails: true},
-		{arena: readOnlyArena{SingleSegment(make([]byte, 0, 8))}},
-		{arena: MultiSegment(nil)},
+		{arena: readOnlyArena{SingleSegment(make([]byte, 0, 8))}, fails: true},
 		{arena: MultiSegment([][]byte{make([]byte, 8)}), fails: true},
 		{arena: MultiSegment([][]byte{incrementingData(8)}), fails: true},
 		// This is somewhat arbitrary, but more than one segment = data.
@@ -141,6 +141,9 @@ func TestAlloc(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+
+		// Make arena not read-only again.
+		msg.Arena.(*MultiSegmentArena).bp = &bufferpool.Default
 		tests = append(tests, allocTest{
 			name:    "given segment full and no others available",
 			seg:     seg,
@@ -591,45 +594,6 @@ func TestTotalSize(t *testing.T) {
 	assert.Nil(t, err, "quick.Check returned an error")
 }
 
-type arenaAllocTest struct {
-	name string
-
-	// Arrange
-	init func() (Arena, map[SegmentID]*Segment)
-	size Size
-
-	// Assert
-	id   SegmentID
-	data []byte
-}
-
-func (test *arenaAllocTest) run(t *testing.T, i int) {
-	arena, segs := test.init()
-	id, data, err := arena.Allocate(test.size, segs)
-
-	if err != nil {
-		t.Errorf("tests[%d] - %s: Allocate error: %v", i, test.name, err)
-		return
-	}
-	if id != test.id {
-		t.Errorf("tests[%d] - %s: Allocate id = %d; want %d", i, test.name, id, test.id)
-	}
-	if !bytes.Equal(data, test.data) {
-		t.Errorf("tests[%d] - %s: Allocate data = % 02x; want % 02x", i, test.name, data, test.data)
-	}
-	if Size(cap(data)-len(data)) < test.size {
-		t.Errorf("tests[%d] - %s: Allocate len(data) = %d, cap(data) = %d; cap(data) should be at least %d", i, test.name, len(data), cap(data), Size(len(data))+test.size)
-	}
-}
-
-func incrementingData(n int) []byte {
-	b := make([]byte, n)
-	for i := range b {
-		b[i] = byte(i % 256)
-	}
-	return b
-}
-
 type readOnlyArena struct {
 	Arena
 }
@@ -638,8 +602,12 @@ func (ro readOnlyArena) String() string {
 	return fmt.Sprintf("readOnlyArena{%v}", ro.Arena)
 }
 
-func (readOnlyArena) Allocate(sz Size, segs map[SegmentID]*Segment) (SegmentID, []byte, error) {
-	return 0, nil, errReadOnlyArena
+func (readOnlyArena) Allocate(sz Size, msg *Message, seg *Segment) (*Segment, address, error) {
+	return nil, 0, errReadOnlyArena
+}
+
+func (ro readOnlyArena) Segment(id SegmentID) *Segment {
+	return ro.Arena.Segment(id)
 }
 
 var errReadOnlyArena = errors.New("Allocate called on read-only arena")

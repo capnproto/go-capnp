@@ -81,12 +81,12 @@ type tooManySegsArena struct {
 
 func (t *tooManySegsArena) NumSegments() int64 { return 1<<32 + 1 }
 
-func (t *tooManySegsArena) Data(id SegmentID) ([]byte, error) {
-	return nil, errors.New("no data")
+func (t *tooManySegsArena) Segment(id SegmentID) *Segment {
+	return nil
 }
 
-func (t *tooManySegsArena) Allocate(minsz Size, segs map[SegmentID]*Segment) (SegmentID, []byte, error) {
-	return 0, nil, errors.New("cannot allocate")
+func (t *tooManySegsArena) Allocate(minsz Size, msg *Message, seg *Segment) (*Segment, address, error) {
+	return nil, 0, errors.New("cannot allocate")
 }
 
 func (t *tooManySegsArena) Release() {}
