@@ -565,17 +565,25 @@ func TestDisembargoSenderPromiseWithPipeline(t *testing.T) {
 			},
 		}))
 
-		// P2 Receives the finish.
+		// P1 completes the pipelined call by returning the response to
+		// P2. This message is now ensured to arrive first due to the
+		// fix we did in handleReturn.
+		rmsg, release, err := recvMessage(ctx, p2)
+		assert.NoError(t, err)
+		defer release()
+		assert.Equal(t, rpccp.Message_Which_return, rmsg.Which)
+		assert.Equal(t, p2Call01Id, rmsg.Return.AnswerID)
+		// Anything else to assert?
+	}
+
+	{
+		// P2 receives the final finish.
 		rmsg, release, err := recvMessage(ctx, p2)
 		assert.NoError(t, err)
 		defer release()
 		assert.Equal(t, rpccp.Message_Which_finish, rmsg.Which)
 	}
 
-	// The prior message resolved P1's bootstrap interface (promise `p`,
-	// identified in P1's export table by `theirBootstrapID`) into P2's
-	// bootstrap interface (the concrete capability `myBootstrapID`).
-	//
 	// P2 detects that is a local capability (i.e. looped back), thus
 	// it needs to send a disembargo so that P1 will start resolving
 	// any pipelined calls (if there are any).
@@ -603,18 +611,6 @@ func TestDisembargoSenderPromiseWithPipeline(t *testing.T) {
 				},
 			},
 		}))
-	}
-
-	// P1 sends any previously-embargoed and now disembargoed pipelined
-	// calls. This test has one embargoed call that can now be returned
-	// to P1 (this is the original P2->P1 pipelined call).
-	{
-		rmsg, release, err := recvMessage(ctx, p2)
-		assert.NoError(t, err)
-		defer release()
-		assert.Equal(t, rpccp.Message_Which_return, rmsg.Which)
-		assert.Equal(t, rmsg.Return.AnswerID, p2Call01Id)
-		// Anything else to assert?
 	}
 
 	// P1 echoes back the disembargo to P2 to let it know it has finished
@@ -812,6 +808,22 @@ func testPromiseOrderingCase(t *testing.T, numCalls int, callToFulfill int,
 		// state changes.
 		if i == callToFulfill {
 			go fulfillC1BootstrapPromise()
+
+			// Wait for the path shortening to happen.
+			//
+			// FIXME: this shouldn't be necessary, as it makes path
+			// shortening a leaky abstraction and imposes to the
+			// caller the necessity of knowing it will happen.
+			//
+			// Without this, the test may fail due to the first to
+			// call to the path-shortened capability happening
+			// before the last call to the non-shortened (i.e.
+			// remote) reference.
+			//
+			// Ideally, this behavior should be verified by a
+			// specific test instead of relying on a flaky test
+			// that depends on exact timings.
+			require.NoError(t, c1BootstrapCap.Resolve(ctx))
 		}
 	}
 
