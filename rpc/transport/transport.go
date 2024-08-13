@@ -219,6 +219,7 @@ type outgoingMsg struct {
 
 func (o *outgoingMsg) Release() {
 	if m := o.message.Message(); !o.released && m != nil {
+		o.released = true
 		m.Release()
 	}
 }
