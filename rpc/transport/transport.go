@@ -245,10 +245,7 @@ func (i *incomingMsg) Message() rpccp.Message {
 }
 
 func (i *incomingMsg) Release() {
-	if m := i.Message().Message(); m != nil {
-		if i.released {
-			panic("double release")
-		}
+	if m := i.Message().Message(); !i.released && m != nil {
 		i.released = true
 		m.Release()
 	}
