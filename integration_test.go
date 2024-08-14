@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"math/rand"
 	"testing"
@@ -2223,7 +2224,7 @@ func TestFuzzedListOutOfBounds(t *testing.T) {
 	}
 }
 
-func benchmarkGrowth(b *testing.B, newArena func() capnp.Arena) {
+func benchmarkGrowth(b *testing.B, newArena func() capnp.Arena, release bool) {
 	const (
 		fieldValue = "1234567" // carefully chosen to be word-padded
 
@@ -2235,7 +2236,7 @@ func benchmarkGrowth(b *testing.B, newArena func() capnp.Arena) {
 	b.SetBytes(totalSize)
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_, seg, err := capnp.NewMessage(newArena())
+		msg, seg, err := capnp.NewMessage(newArena())
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -2252,23 +2253,46 @@ func benchmarkGrowth(b *testing.B, newArena func() capnp.Arena) {
 				b.Fatal(err)
 			}
 		}
+
+		if release {
+			msg.Release()
+		}
 	}
 }
 
-func BenchmarkGrowth_SingleSegment(b *testing.B) {
-	benchmarkGrowth(b, func() capnp.Arena { return capnp.SingleSegment(nil) })
+func newSingleSegmentArena() capnp.Arena { return capnp.SingleSegment(nil) }
+func newMultiSegmentArena() capnp.Arena  { return capnp.MultiSegment(nil) }
+
+func BenchmarkGrowth(b *testing.B) {
+	tests := []struct {
+		name     string
+		newArena func() capnp.Arena
+	}{{
+		name:     "SingleSegment",
+		newArena: newSingleSegmentArena,
+	}, {
+		name:     "MultiSegment",
+		newArena: newMultiSegmentArena,
+	}}
+
+	for _, release := range []bool{false, true} {
+		release := release
+		for i := range tests {
+			tc := tests[i]
+			name := fmt.Sprintf("%s/release=%v", tc.name, release)
+			b.Run(name, func(b *testing.B) {
+				benchmarkGrowth(b, tc.newArena, release)
+			})
+		}
+	}
 }
 
-func BenchmarkGrowth_MultiSegment(b *testing.B) {
-	benchmarkGrowth(b, func() capnp.Arena { return capnp.MultiSegment(nil) })
-}
-
-func benchmarkSmallMessage(b *testing.B, newArena func() capnp.Arena) {
+func benchmarkSmallMessage(b *testing.B, newArena func() capnp.Arena, release bool) {
 	const fieldValue = "1234567" // carefully chosen to be word-padded
 	b.SetBytes(8 * 9)
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_, seg, err := capnp.NewMessage(newArena())
+		msg, seg, err := capnp.NewMessage(newArena())
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -2299,13 +2323,33 @@ func benchmarkSmallMessage(b *testing.B, newArena func() capnp.Arena) {
 		if err := root.SetPtr(0, sub2.ToPtr()); err != nil {
 			b.Fatal(err)
 		}
+
+		if release {
+			msg.Release()
+		}
 	}
 }
 
-func BenchmarkSmallMessage_SingleSegment(b *testing.B) {
-	benchmarkSmallMessage(b, func() capnp.Arena { return capnp.SingleSegment(nil) })
-}
+func BenchmarkSmallMessage(b *testing.B) {
+	tests := []struct {
+		name     string
+		newArena func() capnp.Arena
+	}{{
+		name:     "SingleSegment",
+		newArena: newSingleSegmentArena,
+	}, {
+		name:     "MultiSegment",
+		newArena: newMultiSegmentArena,
+	}}
 
-func BenchmarkSmallMessage_MultiSegment(b *testing.B) {
-	benchmarkSmallMessage(b, func() capnp.Arena { return capnp.MultiSegment(nil) })
+	for _, release := range []bool{false, true} {
+		release := release
+		for i := range tests {
+			tc := tests[i]
+			name := fmt.Sprintf("%s/release=%v", tc.name, release)
+			b.Run(name, func(b *testing.B) {
+				benchmarkSmallMessage(b, tc.newArena, release)
+			})
+		}
+	}
 }
