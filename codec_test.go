@@ -2,8 +2,11 @@ package capnp
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestEncoder(t *testing.T) {
@@ -70,6 +73,40 @@ func TestDecoder(t *testing.T) {
 			}
 		}
 	}
+}
+
+type tooManySegsArena struct {
+	data []byte
+}
+
+func (t *tooManySegsArena) NumSegments() int64 { return 1<<32 + 1 }
+
+func (t *tooManySegsArena) Data(id SegmentID) ([]byte, error) {
+	return nil, errors.New("no data")
+}
+
+func (t *tooManySegsArena) Allocate(minsz Size, segs map[SegmentID]*Segment) (SegmentID, []byte, error) {
+	return 0, nil, errors.New("cannot allocate")
+}
+
+func (t *tooManySegsArena) Release() {}
+
+// TestEncoderTooManySegments verifies attempting to encode an arena that has
+// more segments than possible.
+func TestEncoderTooManySegments(t *testing.T) {
+	t.Parallel()
+	zeroWord := []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+	arena := &tooManySegsArena{data: zeroWord}
+
+	// Setup via field because NewMessage checks arena has > 1 segments.
+	var msg Message
+	msg.Arena = arena
+	var buf bytes.Buffer
+	enc := NewEncoder(&buf)
+	err := enc.Encode(&msg)
+
+	// Encoding should error with a specific error.
+	require.ErrorIs(t, err, errTooManySegments)
 }
 
 func TestDecoder_MaxMessageSize(t *testing.T) {
