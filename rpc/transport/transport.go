@@ -165,7 +165,7 @@ func (s *transport) RecvMessage() (IncomingMessage, error) {
 		return nil, err
 	}
 
-	return incomingMsg(rmsg), nil
+	return &incomingMsg{message: rmsg}, nil
 }
 
 // Close closes the underlying ReadWriteCloser.  It is not safe to call
@@ -219,6 +219,7 @@ type outgoingMsg struct {
 
 func (o *outgoingMsg) Release() {
 	if m := o.message.Message(); !o.released && m != nil {
+		o.released = true
 		m.Release()
 	}
 }
@@ -235,14 +236,18 @@ func (o *outgoingMsg) Send() error {
 	panic("call to Send() after call to Release()")
 }
 
-type incomingMsg rpccp.Message
-
-func (i incomingMsg) Message() rpccp.Message {
-	return rpccp.Message(i)
+type incomingMsg struct {
+	message  rpccp.Message
+	released bool
 }
 
-func (i incomingMsg) Release() {
-	if m := i.Message().Message(); m != nil {
+func (i *incomingMsg) Message() rpccp.Message {
+	return i.message
+}
+
+func (i *incomingMsg) Release() {
+	if m := i.Message().Message(); !i.released && m != nil {
+		i.released = true
 		m.Release()
 	}
 }
