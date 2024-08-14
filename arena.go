@@ -18,13 +18,6 @@ type Arena interface {
 	// may return nil if the segment with the specified ID does not exist.
 	Segment(id SegmentID) *Segment
 
-	// Data loads the data for the segment with the given ID.  IDs are in
-	// the range [0, NumSegments()).
-	// must be tightly packed in the range [0, NumSegments()).
-	//
-	// Deprecated. Use .Segment(id).Data().
-	Data(id SegmentID) ([]byte, error)
-
 	// Allocate selects a segment to place a new object in, creating a
 	// segment or growing the capacity of a previously loaded segment if
 	// necessary.  If Allocate does not return an error, then the returned
@@ -98,14 +91,10 @@ func (ssa *SingleSegmentArena) NumSegments() int64 {
 	return 1
 }
 
-func (ssa *SingleSegmentArena) Data(id SegmentID) ([]byte, error) {
-	if id != 0 {
-		return nil, errors.New("segment " + str.Utod(id) + " requested in single segment arena")
-	}
-	return ssa.seg.data, nil
-}
-
 func (ssa *SingleSegmentArena) Segment(id SegmentID) *Segment {
+	if id != 0 {
+		return nil
+	}
 	return &ssa.seg
 }
 
@@ -279,15 +268,10 @@ func (msa *MultiSegmentArena) NumSegments() int64 {
 	return int64(len(msa.segs))
 }
 
-func (msa *MultiSegmentArena) Data(id SegmentID) ([]byte, error) {
-	if int64(id) >= int64(len(msa.segs)) {
-		return nil, errors.New("segment " + str.Utod(id) + " requested (arena only has " +
-			str.Itod(len(msa.segs)) + " segments)")
-	}
-	return msa.segs[id].data, nil
-}
-
 func (msa *MultiSegmentArena) Segment(id SegmentID) *Segment {
+	if int(id) >= len(msa.segs) {
+		return nil
+	}
 	return &msa.segs[id]
 }
 
@@ -446,18 +430,6 @@ func (r *ReadOnlySingleSegment) Segment(id SegmentID) *Segment {
 	return nil
 }
 
-// Data loads the data for the segment with the given ID.  IDs are in
-// the range [0, NumSegments()).
-// must be tightly packed in the range [0, NumSegments()).
-//
-// Deprecated. Use .Segment(id).Data().
-func (r *ReadOnlySingleSegment) Data(id SegmentID) ([]byte, error) {
-	if id == 0 {
-		return r.seg.data, nil
-	}
-	return nil, errors.New("segment does not exist")
-}
-
 // Allocate selects a segment to place a new object in, creating a
 // segment or growing the capacity of a previously loaded segment if
 // necessary.  If Allocate does not return an error, then the
@@ -496,6 +468,7 @@ func (r *ReadOnlySingleSegment) ReplaceData(b []byte) {
 	r.seg.data = b
 }
 
+// NewReadOnlySingleSegment creates a new read only arena with the given data.
 func NewReadOnlySingleSegment(b []byte) *ReadOnlySingleSegment {
 	return &ReadOnlySingleSegment{seg: Segment{data: b}}
 }
