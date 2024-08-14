@@ -646,11 +646,11 @@ var errReadOnlyArena = errors.New("Allocate called on read-only arena")
 
 func BenchmarkMessageGetFirstSegment(b *testing.B) {
 	var msg Message
-	var arena Arena = SingleSegment(nil)
 
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
+		arena := SingleSegment(nil)
 		_, err := msg.Reset(arena)
 		if err != nil {
 			b.Fatal(err)

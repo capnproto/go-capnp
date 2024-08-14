@@ -1770,7 +1770,7 @@ func BenchmarkMarshal_ReuseMsg(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		a := data[r.Intn(len(data))]
-		seg, err := msg.Reset(msg.Arena)
+		seg, err := msg.Reset(capnp.SingleSegment(nil))
 		if err != nil {
 			b.Fatal(err)
 		}
