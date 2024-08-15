@@ -45,12 +45,10 @@ func testTransport(t *testing.T, makePipe func() (t1, t2 Transport, err error)) 
 		if err != nil {
 			t.Fatal("t1.NewMessage #1:", err)
 		}
-		defer callMsg.Release()
 		bootMsg, err := t1.NewMessage()
 		if err != nil {
 			t.Fatal("t1.NewMessage #2:", err)
 		}
-		defer bootMsg.Release()
 
 		// Fill in bootstrap message
 		boot, err := bootMsg.Message().NewBootstrap()
