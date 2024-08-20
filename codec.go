@@ -195,6 +195,10 @@ func MustUnmarshalRoot(data []byte) Ptr {
 	return p
 }
 
+var (
+	errTooManySegments = errors.New("message has too many segments")
+)
+
 // An Encoder represents a framer for serializing a particular Cap'n
 // Proto stream.
 type Encoder struct {
@@ -219,6 +223,9 @@ func (e *Encoder) Encode(m *Message) error {
 	nsegs := m.NumSegments()
 	if nsegs == 0 {
 		return errors.New("encode: message has no segments")
+	}
+	if nsegs > 1<<32 {
+		return exc.WrapError("encode", errTooManySegments)
 	}
 	e.bufs = append(e.bufs[:0], nil) // first element is placeholder for header
 	maxSeg := SegmentID(nsegs - 1)

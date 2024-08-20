@@ -218,7 +218,10 @@ type outgoingMsg struct {
 }
 
 func (o *outgoingMsg) Release() {
-	if m := o.message.Message(); !o.released && m != nil {
+	if o.released {
+		return
+	}
+	if m := o.message.Message(); m != nil {
 		o.released = true
 		m.Release()
 	}
@@ -246,7 +249,10 @@ func (i *incomingMsg) Message() rpccp.Message {
 }
 
 func (i *incomingMsg) Release() {
-	if m := i.Message().Message(); !i.released && m != nil {
+	if i.released {
+		return
+	}
+	if m := i.Message().Message(); m != nil {
 		i.released = true
 		m.Release()
 	}
