@@ -10,7 +10,7 @@ import (
 // for equivalent structs, even as the schema evolves.  The blob is
 // suitable for hashing or signing.
 func Canonicalize(s Struct) ([]byte, error) {
-	msg, seg, _ := NewMessage(SingleSegment(nil))
+	msg, seg := NewSingleSegmentMessage(nil)
 	if !s.IsValid() {
 		return seg.Data(), nil
 	}

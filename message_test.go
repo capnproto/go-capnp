@@ -70,31 +70,13 @@ func TestAlloc(t *testing.T) {
 	var tests []allocTest
 
 	{
-		msg := &Message{Arena: SingleSegment(nil)}
-		seg, err := msg.Segment(0)
-		if err != nil {
-			t.Fatal(err)
-		}
+		_, seg := NewSingleSegmentMessage(nil)
 		tests = append(tests, allocTest{
 			name:    "empty alloc in empty segment",
 			seg:     seg,
 			size:    0,
 			allocID: 0,
-			addr:    0,
-		})
-	}
-	{
-		msg := &Message{Arena: SingleSegment(nil)}
-		seg, err := msg.Segment(0)
-		if err != nil {
-			t.Fatal(err)
-		}
-		tests = append(tests, allocTest{
-			name:    "alloc in empty segment",
-			seg:     seg,
-			size:    8,
-			allocID: 0,
-			addr:    0,
+			addr:    8, // First alloc is after root pointer.
 		})
 	}
 	{
@@ -400,7 +382,7 @@ func TestAddCap(t *testing.T) {
 	hook2 := new(dummyHook)
 	client1 := NewClient(hook1)
 	client2 := NewClient(hook2)
-	msg := &Message{Arena: SingleSegment(nil)}
+	msg, _ := NewSingleSegmentMessage(nil)
 
 	// Simple case: distinct non-nil clients.
 	id1 := msg.CapTable().Add(client1.AddRef())
@@ -454,10 +436,7 @@ func TestAddCap(t *testing.T) {
 func TestFirstSegmentMessage_SingleSegment(t *testing.T) {
 	t.Parallel()
 
-	msg, seg, err := NewMessage(SingleSegment(nil))
-	if err != nil {
-		t.Fatal(err)
-	}
+	msg, seg := NewSingleSegmentMessage(nil)
 	if msg.NumSegments() != 1 {
 		t.Errorf("msg.NumSegments() = %d; want 1", msg.NumSegments())
 	}
@@ -477,10 +456,7 @@ func TestFirstSegmentMessage_SingleSegment(t *testing.T) {
 func TestFirstSegmentMessage_MultiSegment(t *testing.T) {
 	t.Parallel()
 
-	msg, seg, err := NewMessage(MultiSegment(nil))
-	if err != nil {
-		t.Fatal(err)
-	}
+	msg, seg := NewMultiSegmentMessage(nil)
 	if msg.NumSegments() != 1 {
 		t.Errorf("msg.NumSegments() = %d; want 1", msg.NumSegments())
 	}

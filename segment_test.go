@@ -432,10 +432,7 @@ func TestSegmentWriteUint64(t *testing.T) {
 }
 
 func TestSetPtrCopyListMember(t *testing.T) {
-	_, seg, err := NewMessage(SingleSegment(nil))
-	if err != nil {
-		t.Fatal("NewMessage:", err)
-	}
+	_, seg := NewSingleSegmentMessage(nil)
 	root, err := NewRootStruct(seg, ObjectSize{PointerCount: 2})
 	if err != nil {
 		t.Fatal("NewRootStruct:", err)
@@ -489,10 +486,7 @@ func TestSetPtrCopyListMember(t *testing.T) {
 }
 
 func TestSetPtrToZeroSizeStruct(t *testing.T) {
-	_, seg, err := NewMessage(SingleSegment(nil))
-	if err != nil {
-		t.Fatal("NewMessage:", err)
-	}
+	_, seg := NewSingleSegmentMessage(nil)
 	root, err := NewRootStruct(seg, ObjectSize{PointerCount: 1})
 	if err != nil {
 		t.Fatal("NewRootStruct:", err)
@@ -731,10 +725,7 @@ func TestWriteDoubleFarPointer(t *testing.T) {
 
 func TestSetInterfacePtr(t *testing.T) {
 	t.Run("SameMessage", func(t *testing.T) {
-		msg, seg, err := NewMessage(SingleSegment(nil))
-		if err != nil {
-			t.Fatal("NewMessage:", err)
-		}
+		msg, seg := NewSingleSegmentMessage(nil)
 		msg.CapTable().Add(Client{}) // just to make the capability ID below non-zero
 		root, err := NewRootStruct(seg, ObjectSize{PointerCount: 2})
 		if err != nil {
@@ -780,15 +771,8 @@ func TestSetInterfacePtr(t *testing.T) {
 		}
 	})
 	t.Run("DifferentMessages", func(t *testing.T) {
-		msg1 := &Message{Arena: SingleSegment(nil)}
-		seg1, err := msg1.Segment(0)
-		if err != nil {
-			t.Fatal("msg1.Segment(0):", err)
-		}
-		msg2, seg2, err := NewMessage(SingleSegment(nil))
-		if err != nil {
-			t.Fatal("NewMessage:", err)
-		}
+		msg1, seg1 := NewSingleSegmentMessage(nil)
+		msg2, seg2 := NewSingleSegmentMessage(nil)
 		root, err := NewRootStruct(seg2, ObjectSize{PointerCount: 1})
 		if err != nil {
 			t.Fatal("NewRootStruct:", err)

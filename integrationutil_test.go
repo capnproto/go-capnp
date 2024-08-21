@@ -28,10 +28,7 @@ func initNester(t *testing.T, n air.Nester1Capn, strs ...string) {
 }
 
 func zdateFilledMessage(t testing.TB, n int32) *capnp.Message {
-	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatal(err)
-	}
+	msg, seg := capnp.NewSingleSegmentMessage(nil)
 	z, err := air.NewRootZ(seg)
 	if err != nil {
 		t.Fatal(err)
@@ -56,10 +53,7 @@ func zdateFilledMessage(t testing.TB, n int32) *capnp.Message {
 }
 
 func zdataFilledMessage(t testing.TB, n int) *capnp.Message {
-	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatal(err)
-	}
+	msg, seg := capnp.NewSingleSegmentMessage(nil)
 	z, err := air.NewRootZ(seg)
 	if err != nil {
 		t.Fatal(err)

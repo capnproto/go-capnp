@@ -82,10 +82,7 @@ func TestTextListBytesAt(t *testing.T) {
 }
 
 func TestListRaw(t *testing.T) {
-	_, seg, err := NewMessage(SingleSegment(nil))
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, seg := NewSingleSegmentMessage(nil)
 	tests := []struct {
 		list List
 		raw  rawPointer
@@ -136,8 +133,7 @@ func TestListRaw(t *testing.T) {
 // list, the pointer would be read out of the data section of the relevant
 // element, rather than the pointer section.
 func TestListCastRegression(t *testing.T) {
-	_, seg, err := NewMessage(SingleSegment(nil))
-	assert.Nil(t, err)
+	_, seg := NewSingleSegmentMessage(nil)
 
 	txt, err := NewText(seg, "Text")
 	assert.Nil(t, err)

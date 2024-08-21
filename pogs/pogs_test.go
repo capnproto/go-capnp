@@ -182,14 +182,14 @@ var goodTests = []Z{
 }
 
 func newTestStruct() capnp.Struct {
-	_, seg, _ := capnp.NewMessage(capnp.SingleSegment(nil))
+	_, seg := capnp.NewSingleSegmentMessage(nil)
 	s, _ := capnp.NewRootStruct(seg, capnp.ObjectSize{DataSize: 8})
 	s.SetUint32(0, 0xdeadbeef)
 	return s
 }
 
 func newTestList() capnp.List {
-	_, seg, _ := capnp.NewMessage(capnp.SingleSegment(nil))
+	_, seg := capnp.NewSingleSegmentMessage(nil)
 	l, _ := capnp.NewInt32List(seg, 3)
 	l.Set(0, 123)
 	l.Set(1, 456)
@@ -198,18 +198,14 @@ func newTestList() capnp.List {
 }
 
 func newTestInterface() capnp.Interface {
-	msg, seg, _ := capnp.NewMessage(capnp.SingleSegment(nil))
+	msg, seg := capnp.NewSingleSegmentMessage(nil)
 	id := msg.CapTable().Add(capnp.ErrorClient(errors.New("boo")))
 	return capnp.NewInterface(seg, id)
 }
 
 func TestExtract(t *testing.T) {
 	for _, test := range goodTests {
-		_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-		if err != nil {
-			t.Errorf("NewMessage for %s: %v", zpretty.Sprint(test), err)
-			continue
-		}
+		_, seg := capnp.NewSingleSegmentMessage(nil)
 		z, err := air.NewRootZ(seg)
 		if err != nil {
 			t.Errorf("NewRootZ for %s: %v", zpretty.Sprint(test), err)
@@ -231,11 +227,7 @@ func TestExtract(t *testing.T) {
 
 func TestInsert(t *testing.T) {
 	for _, test := range goodTests {
-		_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-		if err != nil {
-			t.Errorf("NewMessage for %s: %v", zpretty.Sprint(test), err)
-			continue
-		}
+		_, seg := capnp.NewSingleSegmentMessage(nil)
 		z, err := air.NewRootZ(seg)
 		if err != nil {
 			t.Errorf("NewRootZ for %s: %v", zpretty.Sprint(test), err)
@@ -464,11 +456,7 @@ func TestInsert_Size(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-		if err != nil {
-			t.Errorf("%s: NewMessage: %v", test.name, err)
-			continue
-		}
+		_, seg := capnp.NewSingleSegmentMessage(nil)
 		st, err := capnp.NewRootStruct(seg, test.sz)
 		if err != nil {
 			t.Errorf("%s: NewRootStruct(seg, %v): %v", test.name, test.sz, err)
@@ -491,10 +479,7 @@ type BytesZ struct {
 }
 
 func TestExtract_StringBytes(t *testing.T) {
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatalf("NewMessage: %v", err)
-	}
+	_, seg := capnp.NewSingleSegmentMessage(nil)
 	z, err := air.NewRootZ(seg)
 	if err != nil {
 		t.Fatalf("NewRootZ: %v", err)
@@ -514,10 +499,7 @@ func TestExtract_StringBytes(t *testing.T) {
 }
 
 func TestExtract_StringListBytes(t *testing.T) {
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatalf("NewMessage: %v", err)
-	}
+	_, seg := capnp.NewSingleSegmentMessage(nil)
 	z, err := air.NewRootZ(seg)
 	if err != nil {
 		t.Fatalf("NewRootZ: %v", err)
@@ -540,10 +522,7 @@ func TestExtract_StringListBytes(t *testing.T) {
 }
 
 func TestInsert_StringBytes(t *testing.T) {
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatalf("NewMessage: %v", err)
-	}
+	_, seg := capnp.NewSingleSegmentMessage(nil)
 	z, err := air.NewRootZ(seg)
 	if err != nil {
 		t.Fatalf("NewRootZ: %v", err)
@@ -562,10 +541,7 @@ func TestInsert_StringBytes(t *testing.T) {
 }
 
 func TestInsert_StringListBytes(t *testing.T) {
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatalf("NewMessage: %v", err)
-	}
+	_, seg := capnp.NewSingleSegmentMessage(nil)
 	z, err := air.NewRootZ(seg)
 	if err != nil {
 		t.Fatalf("NewRootZ: %v", err)
@@ -610,10 +586,7 @@ func (z *StructZ) equal(y *StructZ) bool {
 }
 
 func TestExtract_StructNoPtr(t *testing.T) {
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatalf("NewMessage: %v", err)
-	}
+	_, seg := capnp.NewSingleSegmentMessage(nil)
 	z, err := air.NewRootZ(seg)
 	if err != nil {
 		t.Fatalf("NewRootZ: %v", err)
@@ -633,10 +606,7 @@ func TestExtract_StructNoPtr(t *testing.T) {
 }
 
 func TestExtract_StructListNoPtr(t *testing.T) {
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatalf("NewMessage: %v", err)
-	}
+	_, seg := capnp.NewSingleSegmentMessage(nil)
 	z, err := air.NewRootZ(seg)
 	if err != nil {
 		t.Fatalf("NewRootZ: %v", err)
@@ -660,10 +630,7 @@ func TestExtract_StructListNoPtr(t *testing.T) {
 }
 
 func TestExtract_GroupNoPtr(t *testing.T) {
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatalf("NewMessage: %v", err)
-	}
+	_, seg := capnp.NewSingleSegmentMessage(nil)
 	z, err := air.NewRootZ(seg)
 	if err != nil {
 		t.Fatalf("NewRootZ: %v", err)
@@ -683,10 +650,7 @@ func TestExtract_GroupNoPtr(t *testing.T) {
 }
 
 func TestInsert_StructNoPtr(t *testing.T) {
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatalf("NewMessage: %v", err)
-	}
+	_, seg := capnp.NewSingleSegmentMessage(nil)
 	z, err := air.NewRootZ(seg)
 	if err != nil {
 		t.Fatalf("NewRootZ: %v", err)
@@ -705,10 +669,7 @@ func TestInsert_StructNoPtr(t *testing.T) {
 }
 
 func TestInsert_StructListNoPtr(t *testing.T) {
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatalf("NewMessage: %v", err)
-	}
+	_, seg := capnp.NewSingleSegmentMessage(nil)
 	z, err := air.NewRootZ(seg)
 	if err != nil {
 		t.Fatalf("NewRootZ: %v", err)
@@ -731,10 +692,7 @@ func TestInsert_StructListNoPtr(t *testing.T) {
 }
 
 func TestInsert_GroupNoPtr(t *testing.T) {
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatalf("NewMessage: %v", err)
-	}
+	_, seg := capnp.NewSingleSegmentMessage(nil)
 	z, err := air.NewRootZ(seg)
 	if err != nil {
 		t.Fatalf("NewRootZ: %v", err)
@@ -783,11 +741,7 @@ func TestExtract_Tags(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-		if err != nil {
-			t.Errorf("%s: NewMessage: %v", test.name, err)
-			continue
-		}
+		_, seg := capnp.NewSingleSegmentMessage(nil)
 		z, err := air.NewRootZ(seg)
 		if err != nil {
 			t.Errorf("%s: NewRootZ: %v", test.name, err)
@@ -830,11 +784,7 @@ func TestInsert_Tags(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-		if err != nil {
-			t.Errorf("%s: NewMessage: %v", test.name, err)
-			continue
-		}
+		_, seg := capnp.NewSingleSegmentMessage(nil)
 		z, err := air.NewRootZ(seg)
 		if err != nil {
 			t.Errorf("%s: NewRootZ: %v", test.name, err)
@@ -857,10 +807,7 @@ type ZBool struct {
 }
 
 func TestExtract_FixedUnion(t *testing.T) {
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatalf("NewMessage: %v", err)
-	}
+	_, seg := capnp.NewSingleSegmentMessage(nil)
 	z, err := air.NewRootZ(seg)
 	if err != nil {
 		t.Fatalf("NewRootZ: %v", err)
@@ -878,10 +825,7 @@ func TestExtract_FixedUnion(t *testing.T) {
 }
 
 func TestExtract_FixedUnionMismatch(t *testing.T) {
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatalf("NewMessage: %v", err)
-	}
+	_, seg := capnp.NewSingleSegmentMessage(nil)
 	z, err := air.NewRootZ(seg)
 	if err != nil {
 		t.Fatalf("NewRootZ: %v", err)
@@ -896,10 +840,7 @@ func TestExtract_FixedUnionMismatch(t *testing.T) {
 }
 
 func TestInsert_FixedUnion(t *testing.T) {
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatalf("NewMessage: %v", err)
-	}
+	_, seg := capnp.NewSingleSegmentMessage(nil)
 	z, err := air.NewRootZ(seg)
 	if err != nil {
 		t.Fatalf("NewRootZ: %v", err)
@@ -923,10 +864,7 @@ type ZBoolU8 struct {
 }
 
 func TestMissingWhich(t *testing.T) {
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatalf("NewMessage: %v", err)
-	}
+	_, seg := capnp.NewSingleSegmentMessage(nil)
 	z, err := air.NewRootZ(seg)
 	if err != nil {
 		t.Fatalf("NewRootZ: %v", err)
@@ -951,10 +889,7 @@ type ZDateWithExtra struct {
 }
 
 func TestExtraFields(t *testing.T) {
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatalf("NewMessage: %v", err)
-	}
+	_, seg := capnp.NewSingleSegmentMessage(nil)
 	z, err := air.NewRootZdate(seg)
 	if err != nil {
 		t.Fatalf("NewRootZdate: %v", err)
@@ -981,7 +916,7 @@ func zequal(g *Z, c air.Z) (bool, error) {
 	if g.Which != c.Which() {
 		return false, nil
 	}
-	_, seg, _ := capnp.NewMessage(capnp.SingleSegment(nil))
+	_, seg := capnp.NewSingleSegmentMessage(nil)
 	d, _ := air.NewRootZ(seg)
 	if err := zfill(d, g); err != nil {
 		return false, err
@@ -993,7 +928,7 @@ func (z *Z) equal(y *Z) bool {
 	if z.Which != y.Which {
 		return false
 	}
-	_, seg, _ := capnp.NewMessage(capnp.SingleSegment(nil))
+	_, seg := capnp.NewSingleSegmentMessage(nil)
 	c, _ := air.NewZ(seg)
 	if err := zfill(c, z); err != nil {
 		return false

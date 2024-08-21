@@ -63,10 +63,7 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 	}
 
 	{
-		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-		if err != nil {
-			t.Fatal(err)
-		}
+		msg, seg := capnp.NewSingleSegmentMessage(nil)
 		if _, err := air.NewRootZjob(seg); err != nil {
 			t.Fatal(err)
 		}
@@ -85,10 +82,7 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 	}
 
 	{
-		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-		if err != nil {
-			t.Fatal(err)
-		}
+		msg, seg := capnp.NewSingleSegmentMessage(nil)
 		zjob, err := air.NewRootZjob(seg)
 		if err != nil {
 			t.Fatal(err)
@@ -112,10 +106,7 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 	}
 
 	{
-		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-		if err != nil {
-			t.Fatal(err)
-		}
+		msg, seg := capnp.NewSingleSegmentMessage(nil)
 		zjob, err := air.NewRootZjob(seg)
 		if err != nil {
 			t.Fatal(err)
@@ -144,10 +135,7 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 	}
 
 	{
-		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-		if err != nil {
-			t.Fatal(err)
-		}
+		msg, seg := capnp.NewSingleSegmentMessage(nil)
 		zjob, err := air.NewRootZjob(seg)
 		if err != nil {
 			t.Fatal(err)
@@ -180,10 +168,7 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 	}
 
 	{
-		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-		if err != nil {
-			t.Fatal(err)
-		}
+		msg, seg := capnp.NewSingleSegmentMessage(nil)
 		server, err := air.NewRootZserver(seg)
 		if err != nil {
 			t.Fatal(err)
@@ -209,10 +194,7 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 	}
 
 	{
-		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-		if err != nil {
-			t.Fatal(err)
-		}
+		msg, seg := capnp.NewSingleSegmentMessage(nil)
 		server, err := air.NewRootZserver(seg)
 		if err != nil {
 			t.Fatal(err)
@@ -252,10 +234,7 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 	}
 
 	{
-		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-		if err != nil {
-			t.Fatal(err)
-		}
+		msg, seg := capnp.NewSingleSegmentMessage(nil)
 		server, err := air.NewRootZserver(seg)
 		if err != nil {
 			t.Fatal(err)
@@ -292,14 +271,8 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 	}
 
 	{
-		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-		if err != nil {
-			t.Fatal(err)
-		}
-		_, scratch, err := capnp.NewMessage(capnp.SingleSegment(nil))
-		if err != nil {
-			t.Fatal(err)
-		}
+		msg, seg := capnp.NewSingleSegmentMessage(nil)
+		_, scratch := capnp.NewSingleSegmentMessage(nil)
 
 		// in seg
 		segbag, err := air.NewRootBag(seg)
@@ -337,14 +310,8 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 	}
 
 	{
-		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-		if err != nil {
-			t.Fatal(err)
-		}
-		_, scratch, err := capnp.NewMessage(capnp.SingleSegment(nil))
-		if err != nil {
-			t.Fatal(err)
-		}
+		msg, seg := capnp.NewSingleSegmentMessage(nil)
+		_, scratch := capnp.NewSingleSegmentMessage(nil)
 
 		// in seg
 		segbag, err := air.NewRootBag(seg)
@@ -386,14 +353,8 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 	}
 
 	{
-		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-		if err != nil {
-			t.Fatal(err)
-		}
-		_, scratch, err := capnp.NewMessage(capnp.SingleSegment(nil))
-		if err != nil {
-			t.Fatal(err)
-		}
+		msg, seg := capnp.NewSingleSegmentMessage(nil)
+		_, scratch := capnp.NewSingleSegmentMessage(nil)
 
 		// in seg
 		segbag, err := air.NewRootBag(seg)
@@ -445,14 +406,8 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 	}
 
 	{
-		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-		if err != nil {
-			t.Fatal(err)
-		}
-		_, scratch, err := capnp.NewMessage(capnp.SingleSegment(nil))
-		if err != nil {
-			t.Fatal(err)
-		}
+		msg, seg := capnp.NewSingleSegmentMessage(nil)
+		_, scratch := capnp.NewSingleSegmentMessage(nil)
 
 		// in seg
 		segbag, err := air.NewRootBag(seg)
@@ -508,14 +463,8 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 	}
 
 	{
-		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-		if err != nil {
-			t.Fatal(err)
-		}
-		_, scratch, err := capnp.NewMessage(capnp.SingleSegment(nil))
-		if err != nil {
-			t.Fatal(err)
-		}
+		msg, seg := capnp.NewSingleSegmentMessage(nil)
+		_, scratch := capnp.NewSingleSegmentMessage(nil)
 
 		// in seg
 		segbag, err := air.NewRootBag(seg)
@@ -560,10 +509,7 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 	}
 
 	{
-		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-		if err != nil {
-			t.Fatal(err)
-		}
+		msg, seg := capnp.NewSingleSegmentMessage(nil)
 		holder, err := air.NewRootHoldsVerEmptyList(seg)
 		if err != nil {
 			t.Fatal(err)
@@ -591,10 +537,7 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 	}
 
 	{
-		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-		if err != nil {
-			t.Fatal(err)
-		}
+		msg, seg := capnp.NewSingleSegmentMessage(nil)
 		holder, err := air.NewRootNester1Capn(seg)
 		if err != nil {
 			t.Fatal(err)
@@ -619,10 +562,7 @@ func makeMarshalTests(t *testing.T) []marshalTest {
 	}
 
 	{
-		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-		if err != nil {
-			t.Fatal(err)
-		}
+		msg, seg := capnp.NewSingleSegmentMessage(nil)
 		holder, err := air.NewRootRWTestCapn(seg)
 		if err != nil {
 			t.Fatal(err)
@@ -815,10 +755,7 @@ var bitListTests = []bitListTest{
 }
 
 func (blt bitListTest) makeMessage() (*capnp.Message, error) {
-	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		return nil, err
-	}
+	msg, seg := capnp.NewSingleSegmentMessage(nil)
 	z, err := air.NewRootZ(seg)
 	if err != nil {
 		return nil, err
@@ -1108,10 +1045,7 @@ func TestDataVersioningAvoidsUnnecessaryTruncation(t *testing.T) {
 	}
 
 	// Store the larger message into another segment.
-	freshMsg, freshSeg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatal("NewMessage:", err)
-	}
+	freshMsg, freshSeg := capnp.NewSingleSegmentMessage(nil)
 	wrapEmpty, err := air.NewRootWrapEmpty(freshSeg)
 	if err != nil {
 		t.Fatal("NewRootWrapEmpty:", err)
@@ -1193,10 +1127,7 @@ func TestEnumFromString(t *testing.T) {
 
 func TestDefaultStructField(t *testing.T) {
 	t.Parallel()
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, seg := capnp.NewSingleSegmentMessage(nil)
 	root, err := air.NewRootStackingRoot(seg)
 	if err != nil {
 		t.Fatal(err)
@@ -1214,18 +1145,12 @@ func TestDefaultStructField(t *testing.T) {
 
 func TestDataTextCopyOptimization(t *testing.T) {
 	t.Parallel()
-	_, seg1, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, seg1 := capnp.NewSingleSegmentMessage(nil)
 	root, err := air.NewRootNester1Capn(seg1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, seg2, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, seg2 := capnp.NewSingleSegmentMessage(nil)
 	strsl, err := capnp.NewTextList(seg2, 256)
 	if err != nil {
 		t.Fatal(err)
@@ -1278,8 +1203,8 @@ func BenchmarkTextMovementBetweenSegments(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, seg, _ := capnp.NewMessage(capnp.SingleSegment(buf[:0]))
-		_, scratch, _ := capnp.NewMessage(capnp.SingleSegment(buf2[:0]))
+		_, seg := capnp.NewSingleSegmentMessage(buf[:0])
+		_, scratch := capnp.NewSingleSegmentMessage(buf2[:0])
 
 		ht, _ := air.NewRootHoldsText(seg)
 		// Purposefully created in another segment.
@@ -1606,10 +1531,7 @@ func TestVoidUnionSetters(t *testing.T) {
 		1, 0, 0, 0, 0, 0, 0, 0,
 	})
 
-	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatal(err)
-	}
+	msg, seg := capnp.NewSingleSegmentMessage(nil)
 	voidUnion, err := air.NewRootVoidUnion(seg)
 	if err != nil {
 		t.Fatal(err)
@@ -1738,10 +1660,7 @@ func BenchmarkMarshal(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		a := data[r.Intn(len(data))]
-		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-		if err != nil {
-			b.Fatal(err)
-		}
+		msg, seg := capnp.NewSingleSegmentMessage(nil)
 		root, err := air.NewRootBenchmarkA(seg)
 		if err != nil {
 			b.Fatal(err)
@@ -1762,10 +1681,7 @@ func BenchmarkMarshal_ReuseMsg(b *testing.B) {
 	for i := range data {
 		data[i] = generateA(r)
 	}
-	msg, _, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		b.Fatal(err)
-	}
+	msg, _ := capnp.NewSingleSegmentMessage(nil)
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -1798,7 +1714,7 @@ func BenchmarkUnmarshal(b *testing.B) {
 	data := make([]testCase, 1000)
 	for i := range data {
 		a := generateA(r)
-		msg, seg, _ := capnp.NewMessage(capnp.SingleSegment(nil))
+		msg, seg := capnp.NewSingleSegmentMessage(nil)
 		root, _ := air.NewRootBenchmarkA(seg)
 		a.fill(root)
 		buf, err := msg.Marshal()
@@ -1841,7 +1757,7 @@ func BenchmarkUnmarshal_Reuse(b *testing.B) {
 	data := make([]testCase, 1000)
 	for i := range data {
 		a := generateA(r)
-		msg, seg, _ := capnp.NewMessage(capnp.SingleSegment(nil))
+		msg, seg := capnp.NewSingleSegmentMessage(nil)
 		root, _ := air.NewRootBenchmarkA(seg)
 		a.fill(root)
 		buf, err := msg.Marshal()
@@ -1879,7 +1795,7 @@ func BenchmarkDecode(b *testing.B) {
 
 	for i := 0; i < count; i++ {
 		a := generateA(r)
-		msg, seg, _ := capnp.NewMessage(capnp.SingleSegment(nil))
+		msg, seg := capnp.NewSingleSegmentMessage(nil)
 		root, _ := air.NewRootBenchmarkA(seg)
 		a.fill(root)
 		enc.Encode(msg)
@@ -2038,10 +1954,7 @@ func TestPointerDepthDefenseAcrossStructsAndLists(t *testing.T) {
 
 func TestHasPointerInUnion(t *testing.T) {
 	t.Parallel()
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatal("NewMessage:", err)
-	}
+	_, seg := capnp.NewSingleSegmentMessage(nil)
 	craft, err := air.NewRootAircraft(seg)
 	if err != nil {
 		t.Fatal("NewRootAircraft:", err)
@@ -2063,10 +1976,7 @@ func TestHasPointerInUnion(t *testing.T) {
 
 func TestSetNilBlob(t *testing.T) {
 	t.Parallel()
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatal("NewMessage:", err)
-	}
+	_, seg := capnp.NewSingleSegmentMessage(nil)
 	z, err := air.NewRootZ(seg)
 	if err != nil {
 		t.Fatal("NewRootZ:", err)
@@ -2089,10 +1999,7 @@ func TestSetNilBlob(t *testing.T) {
 
 func TestSetEmptyText(t *testing.T) {
 	t.Parallel()
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatal("NewMessage:", err)
-	}
+	_, seg := capnp.NewSingleSegmentMessage(nil)
 	z, err := air.NewRootZ(seg)
 	if err != nil {
 		t.Fatal("NewRootZ:", err)
@@ -2122,10 +2029,7 @@ func TestSetEmptyText(t *testing.T) {
 
 func TestSetNilBlobWithDefault(t *testing.T) {
 	t.Parallel()
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatal("NewMessage:", err)
-	}
+	_, seg := capnp.NewSingleSegmentMessage(nil)
 	d, err := air.NewRootDefaults(seg)
 	if err != nil {
 		t.Fatal("NewRootDefaults:", err)
@@ -2149,10 +2053,7 @@ func TestSetNilBlobWithDefault(t *testing.T) {
 
 func TestSetEmptyTextWithDefault(t *testing.T) {
 	t.Parallel()
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatal("NewMessage:", err)
-	}
+	_, seg := capnp.NewSingleSegmentMessage(nil)
 	d, err := air.NewRootDefaults(seg)
 	if err != nil {
 		t.Fatal("NewRootDefaults:", err)
