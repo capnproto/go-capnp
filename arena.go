@@ -106,7 +106,7 @@ func (ssa *SingleSegmentArena) Allocate(sz Size, msg *Message, seg *Segment) (*S
 	if len(data)%int(wordSize) != 0 {
 		return nil, 0, errors.New("segment size is not a multiple of word size")
 	}
-	ssa.seg.msg = msg
+	ssa.seg.BindTo(msg)
 	if hasCapacity(data, sz) {
 		addr := address(len(ssa.seg.data))
 		ssa.seg.data = ssa.seg.data[:len(ssa.seg.data)+int(sz)]
@@ -145,7 +145,7 @@ func (ssa *SingleSegmentArena) Release() {
 		zeroSlice(ssa.seg.data)
 		ssa.bp.Put(ssa.seg.data)
 	}
-	ssa.seg.msg = nil
+	ssa.seg.BindTo(nil)
 	ssa.seg.data = nil
 	if ssa.fromPool {
 		ssa.fromPool = false // Prevent double return
@@ -196,7 +196,7 @@ func (msa *MultiSegmentArena) Release() {
 			msa.bp.Put(msa.segs[i].data)
 		}
 		msa.segs[i].data = nil
-		msa.segs[i].msg = nil
+		msa.segs[i].BindTo(nil)
 	}
 
 	if msa.segs != nil {
@@ -293,14 +293,14 @@ func (msa *MultiSegmentArena) Allocate(sz Size, msg *Message, seg *Segment) (*Se
 		}
 
 		// Double check this segment is for this message.
-		if seg.msg != nil && seg.msg != msg {
+		if seg.Message() != nil && seg.Message() != msg {
 			return nil, 0, errors.New("attempt to allocate in segment for different message")
 		}
 
 		addr := address(len(seg.data))
 		newLen := int(addr) + int(sz)
 		seg.data = seg.data[:newLen]
-		seg.msg = msg
+		seg.BindTo(msg)
 		return seg, addr, nil
 	}
 
@@ -312,7 +312,7 @@ func (msa *MultiSegmentArena) Allocate(sz Size, msg *Message, seg *Segment) (*Se
 			addr := address(len(msa.segs[i].data))
 			newLen := int(addr) + int(sz)
 			msa.segs[i].data = msa.segs[i].data[:newLen]
-			msa.segs[i].msg = msg
+			msa.segs[i].BindTo(msg)
 			return &msa.segs[i], addr, nil
 		}
 
@@ -354,9 +354,10 @@ func (msa *MultiSegmentArena) Allocate(sz Size, msg *Message, seg *Segment) (*Se
 	msa.segs = append(msa.segs, Segment{
 		data: buf,
 		id:   id,
-		msg:  msg,
 	})
-	return &msa.segs[int(id)], 0, nil
+	res := &msa.segs[int(id)]
+	res.BindTo(msg)
+	return res, 0, nil
 }
 
 func (msa *MultiSegmentArena) String() string {

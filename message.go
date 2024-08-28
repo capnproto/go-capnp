@@ -256,10 +256,12 @@ func (m *Message) Segment(id SegmentID) (*Segment, error) {
 	if seg == nil {
 		return nil, errors.New("segment " + str.Utod(id) + " out of bounds in arena")
 	}
-	if seg.msg != nil && seg.msg != m {
+	segMsg := seg.Message()
+	if segMsg == nil {
+		seg.BindTo(m)
+	} else if segMsg != m {
 		return nil, errors.New("segment " + str.Utod(id) + ": not of the same message")
 	}
-	seg.msg = m
 	return seg, nil
 }
 
@@ -352,17 +354,18 @@ func alloc(s *Segment, sz Size) (*Segment, address, error) {
 	}
 	sz = sz.padToWord()
 
-	if s.msg == nil {
+	msg := s.Message()
+	if msg == nil {
 		return nil, 0, errors.New("segment does not have a message assotiated with it")
 	}
-	if s.msg.Arena == nil {
+	if msg.Arena == nil {
 		return nil, 0, errors.New("message does not have an arena")
 	}
 
 	// TODO: From this point on, this could be changed to be a requirement
 	// for Arena implementations instead of relying on alloc() to do it.
 
-	s, addr, err := s.msg.Arena.Allocate(sz, s.msg, s)
+	s, addr, err := msg.Arena.Allocate(sz, msg, s)
 	if err != nil {
 		return s, addr, err
 	}
