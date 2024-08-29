@@ -110,21 +110,43 @@ func TestServeCapability(t *testing.T) {
 }
 
 func TestListenAndServe(t *testing.T) {
-	var err error
-	t.Parallel()
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	errChannel := make(chan error)
+	cases := []struct {
+		name string
+		opts []rpc.ServeOption
+	}{
+		{
+			name: "basic encoding transport",
+			opts: []rpc.ServeOption{
+				rpc.WithBasicStreamingTransport(),
+			},
+		},
+		{
+			name: "packed encoding transport",
+			opts: []rpc.ServeOption{
+				rpc.WithPackedStreamingTransport(),
+			},
+		},
+	}
 
-	// Provide a server that listens
-	srv := testcp.PingPong_ServerToClient(pingPongServer{})
-	bootstrapClient := capnp.Client(srv)
-	go func() {
-		t.Log("Starting ListenAndServe")
-		err2 := rpc.ListenAndServe(ctx, "tcp", ":0", bootstrapClient)
-		errChannel <- err2
-	}()
+	for _, tcase := range cases {
+		t.Run(tcase.name, func(t *testing.T) {
+			var err error
+			t.Parallel()
+			ctx, cancelFunc := context.WithCancel(context.Background())
+			errChannel := make(chan error)
 
-	cancelFunc()
-	err = <-errChannel // Will hang if server does not return.
-	assert.ErrorIs(t, err, net.ErrClosed)
+			// Provide a server that listens
+			srv := testcp.PingPong_ServerToClient(pingPongServer{})
+			bootstrapClient := capnp.Client(srv)
+			go func() {
+				t.Log("Starting ListenAndServe")
+				err2 := rpc.ListenAndServe(ctx, "tcp", ":0", bootstrapClient, tcase.opts...)
+				errChannel <- err2
+			}()
+
+			cancelFunc()
+			err = <-errChannel // Will hang if server does not return.
+			assert.ErrorIs(t, err, net.ErrClosed)
+		})
+	}
 }
