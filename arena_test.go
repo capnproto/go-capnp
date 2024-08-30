@@ -1,8 +1,6 @@
 package capnp
 
 import (
-	"bytes"
-	"errors"
 	"testing"
 
 	"capnproto.org/go/capnp/v3/exp/bufferpool"
@@ -47,13 +45,13 @@ func incrementingData(n int) []byte {
 	return b
 }
 
-func segmentData(a Arena, id SegmentID) ([]byte, error) {
+func segmentData(a Arena, id SegmentID) []byte {
 	seg := a.Segment(id)
 	if seg == nil {
-		return nil, errors.New("segment does not exist")
+		return nil
 	}
 
-	return seg.Data(), nil
+	return seg.Data()
 }
 
 func TestSingleSegment(t *testing.T) {
@@ -64,40 +62,22 @@ func TestSingleSegment(t *testing.T) {
 		t.Parallel()
 
 		arena := SingleSegment(nil)
-		if n := arena.NumSegments(); n != 1 {
-			t.Errorf("SingleSegment(nil).NumSegments() = %d; want 1", n)
-		}
-		data, err := segmentData(arena, 0)
-		if len(data) != 0 {
-			t.Errorf("SingleSegment(nil).Data(0) = %#v; want nil", data)
-		}
-		if err != nil {
-			t.Errorf("SingleSegment(nil).Data(0) error: %v", err)
-		}
-		_, err = segmentData(arena, 1)
-		if err == nil {
-			t.Error("SingleSegment(nil).Data(1) succeeded; want error")
-		}
+		require.Equal(t, int64(1), arena.NumSegments())
+		data0 := segmentData(arena, 0)
+		require.Empty(t, data0)
+		data1 := segmentData(arena, 1)
+		require.Empty(t, data1)
 	})
 
 	t.Run("ExistingData", func(t *testing.T) {
 		t.Parallel()
 
 		arena := SingleSegment(incrementingData(8))
-		if n := arena.NumSegments(); n != 1 {
-			t.Errorf("SingleSegment(incrementingData(8)).NumSegments() = %d; want 1", n)
-		}
-		data, err := segmentData(arena, 0)
-		if want := incrementingData(8); !bytes.Equal(data, want) {
-			t.Errorf("SingleSegment(incrementingData(8)).Data(0) = %#v; want %#v", data, want)
-		}
-		if err != nil {
-			t.Errorf("SingleSegment(incrementingData(8)).Data(0) error: %v", err)
-		}
-		_, err = segmentData(arena, 1)
-		if err == nil {
-			t.Error("SingleSegment(incrementingData(8)).Data(1) succeeded; want error")
-		}
+		require.Equal(t, int64(1), arena.NumSegments())
+		data0 := segmentData(arena, 0)
+		require.Equal(t, incrementingData(8), data0)
+		data1 := segmentData(arena, 1)
+		require.Empty(t, data1)
 	})
 }
 
@@ -179,40 +159,22 @@ func TestMultiSegment(t *testing.T) {
 		t.Parallel()
 
 		arena := MultiSegment(nil)
-		if n := arena.NumSegments(); n != 0 {
-			t.Errorf("MultiSegment(nil).NumSegments() = %d; want 1", n)
-		}
-		_, err := segmentData(arena, 0)
-		if err == nil {
-			t.Error("MultiSegment(nil).Data(0) succeeded; want error")
-		}
+		require.Equal(t, int64(0), arena.NumSegments())
+		data0 := segmentData(arena, 0)
+		require.Empty(t, data0)
 	})
 
 	t.Run("ExistingData", func(t *testing.T) {
 		t.Parallel()
 
 		arena := MultiSegment([][]byte{incrementingData(8), incrementingData(24)})
-		if n := arena.NumSegments(); n != 2 {
-			t.Errorf("MultiSegment(...).NumSegments() = %d; want 2", n)
-		}
-		data, err := segmentData(arena, 0)
-		if want := incrementingData(8); !bytes.Equal(data, want) {
-			t.Errorf("MultiSegment(...).Data(0) = %#v; want %#v", data, want)
-		}
-		if err != nil {
-			t.Errorf("MultiSegment(...).Data(0) error: %v", err)
-		}
-		data, err = segmentData(arena, 1)
-		if want := incrementingData(24); !bytes.Equal(data, want) {
-			t.Errorf("MultiSegment(...).Data(1) = %#v; want %#v", data, want)
-		}
-		if err != nil {
-			t.Errorf("MultiSegment(...).Data(1) error: %v", err)
-		}
-		_, err = segmentData(arena, 2)
-		if err == nil {
-			t.Error("MultiSegment(...).Data(2) succeeded; want error")
-		}
+		require.Equal(t, int64(2), arena.NumSegments())
+		data0 := segmentData(arena, 0)
+		require.Equal(t, incrementingData(8), data0)
+		data1 := segmentData(arena, 1)
+		require.Equal(t, incrementingData(24), data1)
+		data2 := segmentData(arena, 2)
+		require.Empty(t, data2)
 	})
 }
 
