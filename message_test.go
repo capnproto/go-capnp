@@ -18,40 +18,52 @@ func TestNewMessage(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
+		name  string
 		arena Arena
 		fails bool
-	}{
-		{arena: SingleSegment(nil)},
-		{arena: MultiSegment(nil)},
-		{arena: readOnlyArena{SingleSegment(make([]byte, 0, 7))}, fails: true},
-		{arena: readOnlyArena{SingleSegment(make([]byte, 0, 8))}, fails: true},
-		{arena: MultiSegment([][]byte{make([]byte, 8)}), fails: true},
-		{arena: MultiSegment([][]byte{incrementingData(8)}), fails: true},
+	}{{
+		name:  "empty single segment",
+		arena: SingleSegment(nil),
+	}, {
+		name:  "empty multi segment",
+		arena: MultiSegment(nil),
+	}, {
+		name:  "short read only arena",
+		arena: readOnlyArena{SingleSegment(make([]byte, 0, 7))},
+		fails: true,
+	}, {
+		name:  "short read only arena with cap",
+		arena: readOnlyArena{SingleSegment(make([]byte, 0, 8))},
+		fails: true,
+	}, {
+		name:  "multi segment w/ root word",
+		arena: MultiSegment([][]byte{make([]byte, 8)}),
+		fails: true,
+	}, {
+		name:  "multi segment w/ data",
+		arena: MultiSegment([][]byte{incrementingData(8)}),
+		fails: true,
+	}, {
 		// This is somewhat arbitrary, but more than one segment = data.
 		// This restriction may be lifted if it's not useful.
-		{arena: MultiSegment([][]byte{make([]byte, 0, 16), make([]byte, 0)}), fails: true},
-	}
-	for _, test := range tests {
-		msg, seg, err := NewMessage(test.arena)
-		if err != nil {
-			if !test.fails {
-				t.Errorf("NewMessage(%v) failed unexpectedly: %v", test.arena, err)
+		name:  "multi segment w/ 2 segments",
+		arena: MultiSegment([][]byte{make([]byte, 0, 16), make([]byte, 0)}),
+		fails: true,
+	}}
+	for i := range tests {
+		test := tests[i]
+		t.Run(test.name, func(t *testing.T) {
+			msg, seg, err := NewMessage(test.arena)
+			if test.fails {
+				require.Error(t, err)
+				return
 			}
-			continue
-		}
-		if test.fails {
-			t.Errorf("NewMessage(%v) succeeded; want error", test.arena)
-			continue
-		}
-		if n := msg.NumSegments(); n != 1 {
-			t.Errorf("NewMessage(%v).NumSegments() = %d; want 1", test.arena, n)
-		}
-		if seg.ID() != 0 {
-			t.Errorf("NewMessage(%v) segment.ID() = %d; want 0", test.arena, seg.ID())
-		}
-		if len(seg.Data()) != 8 {
-			t.Errorf("NewMessage(%v) segment.Data() = % 02x; want length 8", test.arena, seg.Data())
-		}
+
+			require.NoError(t, err)
+			require.Equal(t, int64(1), msg.NumSegments())
+			require.Equal(t, SegmentID(0), seg.ID())
+			require.Len(t, seg.Data(), 8)
+		})
 	}
 }
 
