@@ -18,9 +18,11 @@ func TestNewMessage(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name  string
-		arena Arena
-		fails bool
+		name        string
+		arena       Arena
+		extraSegs   int
+		err         error
+		wantSeg0Len int
 	}{{
 		name:  "empty single segment",
 		arena: SingleSegment(nil),
@@ -30,39 +32,36 @@ func TestNewMessage(t *testing.T) {
 	}, {
 		name:  "short read only arena",
 		arena: readOnlyArena{SingleSegment(make([]byte, 0, 7))},
-		fails: true,
 	}, {
 		name:  "short read only arena with cap",
 		arena: readOnlyArena{SingleSegment(make([]byte, 0, 8))},
-		fails: true,
 	}, {
-		name:  "multi segment w/ root word",
-		arena: MultiSegment([][]byte{make([]byte, 8)}),
-		fails: true,
+		name:        "multi segment w/ root word",
+		arena:       MultiSegment([][]byte{make([]byte, 8)}),
+		wantSeg0Len: 8,
 	}, {
-		name:  "multi segment w/ data",
-		arena: MultiSegment([][]byte{incrementingData(8)}),
-		fails: true,
+		name:        "multi segment w/ data",
+		arena:       MultiSegment([][]byte{incrementingData(8)}),
+		wantSeg0Len: 8,
 	}, {
-		// This is somewhat arbitrary, but more than one segment = data.
-		// This restriction may be lifted if it's not useful.
-		name:  "multi segment w/ 2 segments",
-		arena: MultiSegment([][]byte{make([]byte, 0, 16), make([]byte, 0)}),
-		fails: true,
+		name:        "multi segment w/ 2 segments",
+		arena:       MultiSegment([][]byte{make([]byte, 0, 16), make([]byte, 0)}),
+		extraSegs:   1,
+		wantSeg0Len: 0,
 	}}
 	for i := range tests {
 		test := tests[i]
 		t.Run(test.name, func(t *testing.T) {
 			msg, seg, err := NewMessage(test.arena)
-			if test.fails {
-				require.Error(t, err)
+			require.ErrorIs(t, err, test.err)
+			if test.err != nil {
 				return
 			}
 
 			require.NoError(t, err)
-			require.Equal(t, int64(1), msg.NumSegments())
+			require.Equal(t, int64(1+test.extraSegs), msg.NumSegments())
 			require.Equal(t, SegmentID(0), seg.ID())
-			require.Len(t, seg.Data(), 8)
+			require.Len(t, seg.Data(), test.wantSeg0Len)
 		})
 	}
 }
@@ -93,7 +92,7 @@ func TestAlloc(t *testing.T) {
 	}
 	{
 		msg := &Message{Arena: MultiSegment([][]byte{
-			incrementingData(24)[:8],
+			incrementingData(24)[:8:8],
 			incrementingData(24)[:8],
 			incrementingData(24)[:8],
 		})}
@@ -168,12 +167,13 @@ func TestAlloc(t *testing.T) {
 }
 
 type serializeTest struct {
-	name        string
-	segs        [][]byte
-	out         []byte
-	encodeFails bool
-	decodeFails bool
-	decodeError error
+	name            string
+	segs            [][]byte
+	out             []byte
+	encodeFails     bool
+	decodeFails     bool
+	decodeError     error
+	newMessageFails bool
 }
 
 func (st *serializeTest) arena() Arena {
@@ -193,9 +193,10 @@ func (st *serializeTest) copyOut() []byte {
 
 var serializeTests = []serializeTest{
 	{
-		name:        "empty message",
-		segs:        [][]byte{},
-		encodeFails: true,
+		name:            "empty message",
+		segs:            [][]byte{},
+		encodeFails:     true,
+		newMessageFails: true,
 	},
 	{
 		name:        "empty stream",
@@ -368,7 +369,7 @@ func TestWriteTo(t *testing.T) {
 
 	var buf bytes.Buffer
 	for _, test := range serializeTests {
-		if test.decodeFails {
+		if test.decodeFails || test.newMessageFails {
 			continue
 		}
 
@@ -618,16 +619,12 @@ func BenchmarkMessageGetFirstSegment(b *testing.B) {
 	}
 }
 
-// TestCannotResetArenaForRead demonstrates that Reset() cannot be used when
-// intending to read data from an arena (i.e. cannot reuse a msg value by
-// calling Reset with the intention to read data).
-func TestCannotResetArenaForRead(t *testing.T) {
+// TestCanResetArenaForRead demonstrates that Reset() can be used when
+// intending to read data from an arena.
+func TestCanResetArenaForRead(t *testing.T) {
 	var msg Message
 	var arena Arena = SingleSegment(incrementingData(8))
 
 	_, err := msg.Reset(arena)
-	if err == nil {
-		t.Fatal("expected non nil error, got nil")
-	}
-	t.Logf("Got err: %v", err)
+	require.NoError(t, err)
 }

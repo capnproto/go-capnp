@@ -12,6 +12,13 @@ import (
 func Canonicalize(s Struct) ([]byte, error) {
 	msg, seg := NewSingleSegmentMessage(nil)
 	if !s.IsValid() {
+		// Ensure compatbility to existing behavior: even if the struct
+		// is not valid, at least the root pointer is allocated and
+		// returned as canonical. Without this,
+		// TestCanonicalize/Struct{} fails.
+		if _, err := msg.allocRootPointerSpace(); err != nil {
+			return nil, err
+		}
 		return seg.Data(), nil
 	}
 	root, err := NewRootStruct(seg, canonicalStructSize(s))

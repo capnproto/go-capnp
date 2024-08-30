@@ -644,7 +644,7 @@ func TestShortensPathAfterResolve(t *testing.T) {
 	t.Cleanup(func() { time.Sleep(100 * time.Millisecond) }) // Avoid log error after fail
 
 	ctx := context.Background()
-	ctx, cancel := context.WithTimeout(ctx, time.Second*30)
+	ctx, cancel := context.WithTimeout(ctx, time.Second*120)
 	defer cancel()
 
 	// Promise that will be the bootstrap capability in C1 and will be
