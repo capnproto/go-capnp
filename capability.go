@@ -59,7 +59,7 @@ func (i Interface) Message() *Message {
 	if i.seg == nil {
 		return nil
 	}
-	return i.seg.msg
+	return i.seg.Message()
 }
 
 // IsValid returns whether the interface is valid.
