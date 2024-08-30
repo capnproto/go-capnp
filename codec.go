@@ -66,13 +66,14 @@ func (d *Decoder) Decode() (*Message, error) {
 	}
 
 	// Read segments.
-	buf := bufferpool.Default.Get(int(total))
+	bp := &bufferpool.Default
+	buf := bp.Get(int(total))
 	if _, err := io.ReadFull(d.r, buf); err != nil {
 		return nil, exc.WrapError("decode: read segments", err)
 	}
 
 	arena := MultiSegment(nil)
-	if err = arena.demux(hdr, buf); err != nil {
+	if err = arena.demux(hdr, buf, bp); err != nil {
 		return nil, exc.WrapError("decode", err)
 	}
 
@@ -162,7 +163,7 @@ func Unmarshal(data []byte) (*Message, error) {
 	}
 
 	arena := MultiSegment(nil)
-	if err := arena.demux(hdr, data); err != nil {
+	if err := arena.demux(hdr, data, nil); err != nil {
 		return nil, exc.WrapError("unmarshal", err)
 	}
 
