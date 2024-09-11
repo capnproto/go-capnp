@@ -13,13 +13,14 @@ func TestEncoder(t *testing.T) {
 	t.Parallel()
 
 	for i, test := range serializeTests {
-		if test.decodeFails {
+		if test.decodeFails || test.newMessageFails {
 			continue
 		}
-		msg := &Message{Arena: test.arena()}
+		msg, _, err := NewMessage(test.arena())
+		require.NoError(t, err)
 		var buf bytes.Buffer
 		enc := NewEncoder(&buf)
-		err := enc.Encode(msg)
+		err = enc.Encode(msg)
 		out := buf.Bytes()
 		if err != nil {
 			if !test.encodeFails {
@@ -198,26 +199,26 @@ func TestDecoder_MaxMessageSize(t *testing.T) {
 func TestStreamHeaderPadding(t *testing.T) {
 	t.Parallel()
 
-	msg := &Message{
-		Arena: MultiSegment([][]byte{
+	msg, _, err := NewMessage(
+		MultiSegment([][]byte{
 			incrementingData(8),
 			incrementingData(8),
 			incrementingData(8),
-		}),
-	}
+		}))
+	require.NoError(t, err)
 	var buf bytes.Buffer
 	enc := NewEncoder(&buf)
-	err := enc.Encode(msg)
+	err = enc.Encode(msg)
 	buf.Reset()
 	if err != nil {
 		t.Fatalf("Encode error: %v", err)
 	}
-	msg = &Message{
-		Arena: MultiSegment([][]byte{
+	msg, _, err = NewMessage(
+		MultiSegment([][]byte{
 			incrementingData(8),
 			incrementingData(8),
-		}),
-	}
+		}))
+	require.NoError(t, err)
 	err = enc.Encode(msg)
 	out := buf.Bytes()
 	if err != nil {

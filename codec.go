@@ -59,6 +59,15 @@ func (d *Decoder) Decode() (*Message, error) {
 	if err != nil {
 		return nil, exc.WrapError("decode", err)
 	}
+
+	// Special case an empty message to return a new MultiSegment message
+	// ready for writing. This maintains compatibility to tests and older
+	// implementation of message and arenas.
+	if hdr.maxSegment() == 0 && total == 0 {
+		msg, _ := NewMultiSegmentMessage(nil)
+		return msg, nil
+	}
+
 	// TODO(someday): if total size is greater than can fit in one buffer,
 	// attempt to allocate buffer per segment.
 	if total > maxSize-uint64(len(hdr)) || total > uint64(maxInt) {
@@ -77,7 +86,8 @@ func (d *Decoder) Decode() (*Message, error) {
 		return nil, exc.WrapError("decode", err)
 	}
 
-	return &Message{Arena: arena}, nil
+	msg, _, err := NewMessage(arena)
+	return msg, err
 }
 
 func (d *Decoder) readHeader(maxSize uint64) (streamHeader, error) {
@@ -167,7 +177,8 @@ func Unmarshal(data []byte) (*Message, error) {
 		return nil, exc.WrapError("unmarshal", err)
 	}
 
-	return &Message{Arena: arena}, nil
+	msg, _, err := NewMessage(arena)
+	return msg, err
 }
 
 // UnmarshalPacked reads a packed serialized stream into a message.

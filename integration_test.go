@@ -1832,13 +1832,11 @@ func BenchmarkDecode(b *testing.B) {
 func TestPointerTraverseDefense(t *testing.T) {
 	t.Parallel()
 	const limit = 128
-	msg := &capnp.Message{
-		Arena: capnp.SingleSegment([]byte{
-			0, 0, 0, 0, 1, 0, 0, 0, // root 1-word struct pointer to next word
-			0, 0, 0, 0, 0, 0, 0, 0, // struct's data
-		}),
-		TraverseLimit: limit * 8,
-	}
+	msg, _ := capnp.NewSingleSegmentMessage([]byte{
+		0, 0, 0, 0, 1, 0, 0, 0, // root 1-word struct pointer to next word
+		0, 0, 0, 0, 0, 0, 0, 0, // struct's data
+	})
+	msg.TraverseLimit = limit * 8
 
 	for i := 0; i < limit; i++ {
 		_, err := msg.Root()
@@ -1855,13 +1853,11 @@ func TestPointerTraverseDefense(t *testing.T) {
 func TestPointerDepthDefense(t *testing.T) {
 	t.Parallel()
 	const limit = 64
-	msg := &capnp.Message{
-		Arena: capnp.SingleSegment([]byte{
-			0, 0, 0, 0, 0, 0, 1, 0, // root 1-pointer struct pointer to next word
-			0xfc, 0xff, 0xff, 0xff, 0, 0, 1, 0, // root struct pointer that points back to itself
-		}),
-		DepthLimit: limit,
-	}
+	msg, _ := capnp.NewSingleSegmentMessage([]byte{
+		0, 0, 0, 0, 0, 0, 1, 0, // root 1-pointer struct pointer to next word
+		0xfc, 0xff, 0xff, 0xff, 0, 0, 1, 0, // root struct pointer that points back to itself
+	})
+	msg.DepthLimit = limit
 	root, err := msg.Root()
 	if err != nil {
 		t.Fatal("Root:", err)
@@ -1894,14 +1890,12 @@ func TestPointerDepthDefense(t *testing.T) {
 func TestPointerDepthDefenseAcrossStructsAndLists(t *testing.T) {
 	t.Parallel()
 	const limit = 63
-	msg := &capnp.Message{
-		Arena: capnp.SingleSegment([]byte{
-			0, 0, 0, 0, 0, 0, 1, 0, // root 1-pointer struct pointer to next word
-			0x01, 0, 0, 0, 0x0e, 0, 0, 0, // list pointer to 1-element list of pointer (next word)
-			0xf8, 0xff, 0xff, 0xff, 0, 0, 1, 0, // struct pointer to previous word
-		}),
-		DepthLimit: limit,
-	}
+	msg, _ := capnp.NewSingleSegmentMessage([]byte{
+		0, 0, 0, 0, 0, 0, 1, 0, // root 1-pointer struct pointer to next word
+		0x01, 0, 0, 0, 0x0e, 0, 0, 0, // list pointer to 1-element list of pointer (next word)
+		0xf8, 0xff, 0xff, 0xff, 0, 0, 1, 0, // struct pointer to previous word
+	})
+	msg.DepthLimit = limit
 
 	toStruct := func(p capnp.Ptr, err error) (capnp.Struct, error) {
 		if err != nil {
@@ -2083,11 +2077,10 @@ func TestSetEmptyTextWithDefault(t *testing.T) {
 
 func TestFuzzedListOutOfBounds(t *testing.T) {
 	t.Parallel()
-	msg := &capnp.Message{
-		Arena: capnp.SingleSegment([]byte(
-			"\x00\x00\x00\x00\x03\x00\x01\x00\x0f\x000000000000" +
-				"000000000000\x01\x00\x00\x00\x13\x00\x00\x000\x00\x00\x00\x00\x00\x00\x00")),
-	}
+	msg, _ := capnp.NewSingleSegmentMessage([]byte(
+		"\x00\x00\x00\x00\x03\x00\x01\x00\x0f\x000000000000" +
+			"000000000000\x01\x00\x00\x00\x13\x00\x00\x000\x00\x00\x00\x00\x00\x00\x00"))
+
 	z, err := air.ReadRootZ(msg)
 	if err != nil {
 		t.Fatal("ReadRootZ:", err)

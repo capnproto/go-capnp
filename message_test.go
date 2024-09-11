@@ -91,15 +91,11 @@ func TestAlloc(t *testing.T) {
 		})
 	}
 	{
-		msg := &Message{Arena: MultiSegment([][]byte{
+		_, seg := NewMultiSegmentMessage([][]byte{
 			incrementingData(24)[:8:8],
 			incrementingData(24)[:8],
 			incrementingData(24)[:8],
-		})}
-		seg, err := msg.Segment(1)
-		if err != nil {
-			t.Fatal(err)
-		}
+		})
 		tests = append(tests, allocTest{
 			name:    "prefers given segment",
 			seg:     seg,
@@ -109,14 +105,10 @@ func TestAlloc(t *testing.T) {
 		})
 	}
 	{
-		msg := &Message{Arena: MultiSegment([][]byte{
+		_, seg := NewMultiSegmentMessage([][]byte{
 			incrementingData(24)[:8],
 			incrementingData(24),
-		})}
-		seg, err := msg.Segment(1)
-		if err != nil {
-			t.Fatal(err)
-		}
+		})
 		tests = append(tests, allocTest{
 			name:    "given segment full with another available",
 			seg:     seg,
@@ -126,14 +118,10 @@ func TestAlloc(t *testing.T) {
 		})
 	}
 	{
-		msg := &Message{Arena: MultiSegment([][]byte{
+		msg, seg := NewMultiSegmentMessage([][]byte{
 			incrementingData(24),
 			incrementingData(24),
-		})}
-		seg, err := msg.Segment(1)
-		if err != nil {
-			t.Fatal(err)
-		}
+		})
 
 		// Make arena not read-only again.
 		msg.Arena.(*MultiSegmentArena).bp = &bufferpool.Default
@@ -308,7 +296,14 @@ func TestMarshal(t *testing.T) {
 		if test.decodeFails {
 			continue
 		}
-		msg := &Message{Arena: test.arena()}
+		msg, _, err := NewMessage(test.arena())
+		if err != nil != test.newMessageFails {
+			t.Errorf("serializeTests[%d] %s: NewMessage unexpected error: %v", i, test.name, err)
+			continue
+		}
+		if err != nil {
+			continue
+		}
 		out, err := msg.Marshal()
 		if err != nil {
 			if !test.encodeFails {
@@ -373,7 +368,8 @@ func TestWriteTo(t *testing.T) {
 			continue
 		}
 
-		msg := &Message{Arena: test.arena()}
+		msg, _, err := NewMessage(test.arena())
+		require.NoError(t, err)
 		n, err := msg.WriteTo(&buf)
 		if test.encodeFails {
 			require.Error(t, err, test.name)
@@ -566,9 +562,7 @@ func TestTotalSize(t *testing.T) {
 			}
 		}
 
-		msg := &Message{
-			Arena: MultiSegment(segs),
-		}
+		msg, _ := NewMultiSegmentMessage(segs)
 
 		size, err := msg.TotalSize()
 		assert.Nil(t, err, "TotalSize() returned an error")

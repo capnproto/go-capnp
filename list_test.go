@@ -8,14 +8,10 @@ import (
 )
 
 func TestToListDefault(t *testing.T) {
-	msg := &Message{Arena: SingleSegment([]byte{
+	_, seg := NewSingleSegmentMessage([]byte{
 		0, 0, 0, 0, 0, 0, 0, 0,
 		42, 0, 0, 0, 0, 0, 0, 0,
-	})}
-	seg, err := msg.Segment(0)
-	if err != nil {
-		t.Fatal(err)
-	}
+	})
 	tests := []struct {
 		ptr  Ptr
 		def  []byte
@@ -56,15 +52,11 @@ func TestToListDefault(t *testing.T) {
 }
 
 func TestTextListBytesAt(t *testing.T) {
-	msg := &Message{Arena: SingleSegment([]byte{
+	_, seg := NewSingleSegmentMessage([]byte{
 		0, 0, 0, 0, 0, 0, 0, 0,
 		0x01, 0, 0, 0, 0x22, 0, 0, 0,
 		'f', 'o', 'o', 0, 0, 0, 0, 0,
-	})}
-	seg, err := msg.Segment(0)
-	if err != nil {
-		t.Fatal(err)
-	}
+	})
 	list := TextList{
 		seg:        seg,
 		off:        8,
