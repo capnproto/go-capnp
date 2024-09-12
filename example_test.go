@@ -10,10 +10,7 @@ import (
 
 func Example() {
 	// Make a brand new empty message.
-	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		panic(err)
-	}
+	msg, seg := capnp.NewSingleSegmentMessage(nil)
 
 	// If you want runtime-type identification, this is easily obtained. Just
 	// wrap everything in a struct that contains a single anoymous union (e.g. struct Z).
@@ -87,11 +84,7 @@ func Example() {
 }
 
 func ExampleUnmarshal() {
-	msg, s, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		fmt.Printf("allocation error %v\n", err)
-		return
-	}
+	msg, s := capnp.NewSingleSegmentMessage(nil)
 	d, err := air.NewRootZdate(s)
 	if err != nil {
 		fmt.Printf("root error %v\n", err)

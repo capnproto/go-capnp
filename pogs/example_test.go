@@ -68,10 +68,7 @@ func ExampleInsert() {
 	}
 
 	// Allocate a new Cap'n Proto Book struct.
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		panic(err)
-	}
+	_, seg := capnp.NewSingleSegmentMessage(nil)
 	root, err := books.NewRootBook(seg)
 	if err != nil {
 		panic(err)

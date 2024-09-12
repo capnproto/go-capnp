@@ -25,7 +25,7 @@ and the Go struct:
 
 We can copy the Go struct into a Cap'n Proto struct like this:
 
-	_, arena, _ := capnp.NewMessage(capnp.SingleSegment(nil))
+	_, arena := capnp.NewSingleSegmentMessage(nil)
 	root, _ := myschema.NewRootMessage(arena)
 	m := &Message{"Alice", "Hello", 1294706395881547000}
 	err := pogs.Insert(myschema.Message_TypeID, root.Struct, m)

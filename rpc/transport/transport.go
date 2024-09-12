@@ -124,12 +124,7 @@ func NewPackedStream(rwc io.ReadWriteCloser) Transport {
 //
 // It is safe to call NewMessage concurrently with RecvMessage.
 func (s *transport) NewMessage() (OutgoingMessage, error) {
-	arena := capnp.MultiSegment(nil)
-	_, seg, err := capnp.NewMessage(arena)
-	if err != nil {
-		err = transporterr.Annotate(exc.WrapError("new message", err), "stream transport")
-		return nil, err
-	}
+	_, seg := capnp.NewMultiSegmentMessage(nil)
 	m, err := rpccp.NewRootMessage(seg)
 	if err != nil {
 		err = transporterr.Annotate(exc.WrapError("new message", err), "stream transport")

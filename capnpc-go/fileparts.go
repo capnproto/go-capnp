@@ -38,11 +38,8 @@ func (sd *staticData) init(fileID uint64) {
 }
 
 func (sd *staticData) copyData(obj capnp.Ptr) (staticDataRef, error) {
-	m, _, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		return staticDataRef{}, err
-	}
-	err = m.SetRoot(obj)
+	m, _ := capnp.NewSingleSegmentMessage(nil)
+	err := m.SetRoot(obj)
 	if err != nil {
 		return staticDataRef{}, err
 	}

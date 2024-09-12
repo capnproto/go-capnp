@@ -9,10 +9,7 @@ import (
 
 func main() {
 	// Make a brand new empty message.  A Message allocates Cap'n Proto structs.
-	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		panic(err)
-	}
+	msg, seg := capnp.NewSingleSegmentMessage(nil)
 
 	// Create a new Book struct.  Every message must have a root struct.
 	book, err := books.NewRootBook(seg)
