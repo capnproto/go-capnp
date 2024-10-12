@@ -10,12 +10,12 @@ import (
 	strconv "strconv"
 )
 
-const Name_ = uint64(0xfa5b1fd61c2e7c3d)
-const Flatten_ = uint64(0x82d3e852af0336bf)
-const Discriminator_ = uint64(0xcfa794e8d19a0162)
-const Base64_ = uint64(0xd7d879450a253e4b)
-const Hex_ = uint64(0xf061e22f0ae5c7b5)
-const Notification_ = uint64(0xa0a054dea32fd98c)
+const Name = uint64(0xfa5b1fd61c2e7c3d)
+const Flatten = uint64(0x82d3e852af0336bf)
+const Discriminator = uint64(0xcfa794e8d19a0162)
+const Base64 = uint64(0xd7d879450a253e4b)
+const Hex = uint64(0xf061e22f0ae5c7b5)
+const Notification = uint64(0xa0a054dea32fd98c)
 
 type Value capnp.Struct
 type Value_Which uint16
@@ -24,7 +24,7 @@ const (
 	Value_Which_null    Value_Which = 0
 	Value_Which_boolean Value_Which = 1
 	Value_Which_number  Value_Which = 2
-	Value_Which_string_ Value_Which = 3
+	Value_Which_string  Value_Which = 3
 	Value_Which_array   Value_Which = 4
 	Value_Which_object  Value_Which = 5
 	Value_Which_call    Value_Which = 6
@@ -32,7 +32,7 @@ const (
 )
 
 func (w Value_Which) String() string {
-	const s = "nullbooleannumberstring_arrayobjectcallraw"
+	const s = "nullbooleannumberstringarrayobjectcallraw"
 	switch w {
 	case Value_Which_null:
 		return s[0:4]
@@ -40,16 +40,16 @@ func (w Value_Which) String() string {
 		return s[4:11]
 	case Value_Which_number:
 		return s[11:17]
-	case Value_Which_string_:
-		return s[17:24]
+	case Value_Which_string:
+		return s[17:23]
 	case Value_Which_array:
-		return s[24:29]
+		return s[23:28]
 	case Value_Which_object:
-		return s[29:35]
+		return s[28:34]
 	case Value_Which_call:
-		return s[35:39]
+		return s[34:38]
 	case Value_Which_raw:
-		return s[39:42]
+		return s[38:41]
 
 	}
 	return "Value_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
@@ -133,27 +133,27 @@ func (s Value) SetNumber(v float64) {
 	capnp.Struct(s).SetUint64(8, math.Float64bits(v))
 }
 
-func (s Value) String_() (string, error) {
+func (s Value) String() (string, error) {
 	if capnp.Struct(s).Uint16(0) != 3 {
-		panic("Which() != string_")
+		panic("Which() != string")
 	}
 	p, err := capnp.Struct(s).Ptr(0)
 	return p.Text(), err
 }
 
-func (s Value) HasString_() bool {
+func (s Value) HasString() bool {
 	if capnp.Struct(s).Uint16(0) != 3 {
 		return false
 	}
 	return capnp.Struct(s).HasPtr(0)
 }
 
-func (s Value) String_Bytes() ([]byte, error) {
+func (s Value) StringBytes() ([]byte, error) {
 	p, err := capnp.Struct(s).Ptr(0)
 	return p.TextBytes(), err
 }
 
-func (s Value) SetString_(v string) error {
+func (s Value) SetString(v string) error {
 	capnp.Struct(s).SetUint16(0, 3)
 	return capnp.Struct(s).SetText(0, v)
 }

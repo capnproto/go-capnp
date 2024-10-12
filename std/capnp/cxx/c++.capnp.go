@@ -6,9 +6,9 @@ import (
 	schemas "capnproto.org/go/capnp/v3/schemas"
 )
 
-const Namespace_ = uint64(0xb9c6f99ebf805f2c)
-const Name_ = uint64(0xf264a779fef191ce)
-const AllowCancellation_ = uint64(0xac7096ff8cfc9dce)
+const Namespace = uint64(0xb9c6f99ebf805f2c)
+const Name = uint64(0xf264a779fef191ce)
+const AllowCancellation = uint64(0xac7096ff8cfc9dce)
 const schema_bdf87d7bb8304e81 = "x\xda\x12\xc8v`1\xe4\xcdgb`\x0a\x94ae" +
 	"\xfb\x7fn\xee\x9f\x9e\xff\xd3\x0a\xd60\\\xe4bed" +
 	"\xfe\xdf\xe8g\xb0\xa3\xba\xf6\xc7^\x06\x06FaY\xc6" +

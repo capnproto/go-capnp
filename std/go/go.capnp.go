@@ -6,13 +6,13 @@ import (
 	schemas "capnproto.org/go/capnp/v3/schemas"
 )
 
-const Package_ = uint64(0xbea97f1023792be0)
-const Import_ = uint64(0xe130b601260e44b5)
-const Doc_ = uint64(0xc58ad6bd519f935e)
-const Tag_ = uint64(0xa574b41924caefc7)
-const Notag_ = uint64(0xc8768679ec52e012)
-const Customtype_ = uint64(0xfa10659ae02f2093)
-const Name_ = uint64(0xc2b96012172f8df1)
+const Package = uint64(0xbea97f1023792be0)
+const Import = uint64(0xe130b601260e44b5)
+const Doc = uint64(0xc58ad6bd519f935e)
+const Tag = uint64(0xa574b41924caefc7)
+const Notag = uint64(0xc8768679ec52e012)
+const Customtype = uint64(0xfa10659ae02f2093)
+const Name = uint64(0xc2b96012172f8df1)
 const schema_d12a1c51fedd6c88 = "x\xda\x12\x98\xe8\xc0b\xc8{\x9c\x89\x81)P\x81\x95" +
 	"\xed\xff\xf1\xf7\xa7T$\xb7\x94,e\x08\xe4d\xe5\xf8" +
 	"\xdf\x91s\xf7_\xa0\x8c\xd6E\x06\x06FaO\xc6," +

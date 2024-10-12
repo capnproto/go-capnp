@@ -125,7 +125,6 @@ annotation hex @0xf061e22f0ae5c7b5 (field) :Void;
 
 annotation notification @0xa0a054dea32fd98c (method) :Void;
 # Indicates that this method is a JSON-RPC "notification", meaning it expects no response.
-
 using Go = import "/go.capnp";
 $Go.package("json");
 $Go.import("capnproto.org/go/capnp/v3/std/capnp/json");
