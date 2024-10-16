@@ -268,4 +268,4 @@ struct HttpHeader {
 }
 using Go = import "/go.capnp";
 $Go.package("httpovercapnp");
-$Go.import("capnproto.org/go/capnp/v3/std/capnp/httpovercapnp");
+$Go.import("capnproto.org/go/capnp/v3/std/capnp/compat/httpovercapnp");

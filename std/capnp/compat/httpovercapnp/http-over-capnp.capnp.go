@@ -8,7 +8,7 @@ import (
 	fc "capnproto.org/go/capnp/v3/flowcontrol"
 	schemas "capnproto.org/go/capnp/v3/schemas"
 	server "capnproto.org/go/capnp/v3/server"
-	bytestream "capnproto.org/go/capnp/v3/std/capnp/bytestream"
+	bytestream "capnproto.org/go/capnp/v3/std/capnp/compat/bytestream"
 	stream "capnproto.org/go/capnp/v3/std/capnp/stream"
 	context "context"
 	strconv "strconv"

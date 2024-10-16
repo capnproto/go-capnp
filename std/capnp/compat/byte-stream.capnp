@@ -45,4 +45,4 @@ interface ByteStream {
 }
 using Go = import "/go.capnp";
 $Go.package("bytestream");
-$Go.import("capnproto.org/go/capnp/v3/std/capnp/bytestream");
+$Go.import("capnproto.org/go/capnp/v3/std/capnp/compat/bytestream");

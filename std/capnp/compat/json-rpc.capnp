@@ -37,10 +37,10 @@ struct RpcMessage {
 
   struct Error {
     code @0 :Int32;
-    message @1 :Text;
+    message @1 :Text $Go.name("messageValue");
     data @2 :Json.Value;
   }
 }
 using Go = import "/go.capnp";
 $Go.package("jsonrpc");
-$Go.import("capnproto.org/go/capnp/v3/std/capnp/jsonrpc");
+$Go.import("capnproto.org/go/capnp/v3/std/capnp/compat/jsonrpc");
