@@ -91,7 +91,7 @@ type Conn struct {
 	baseContext  func() context.Context
 
 	// bgctx is a Context that is canceled when shutdown starts. Note
-	// that if baseContext is not provided. it's parent is context.Background(),
+	// that if baseContext is not provided, it's parent is context.Background(),
 	// so we can rely on this being the *only* time it will be canceled.
 	bgctx context.Context
 
@@ -204,7 +204,7 @@ type Options struct {
 	// set this.
 	Network Network
 
-	// BaseContext is an optional funcation that returns a base context
+	// BaseContext is an optional function that returns a base context
 	// for any incoming connection. If ommitted, the context.Background()
 	// will be used instead.
 	BaseContext func() context.Context
