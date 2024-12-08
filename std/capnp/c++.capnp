@@ -46,6 +46,7 @@ annotation allowCancellation(interface, method, file) :Void;
 # If your code is not cancellation-safe, then allowing cancellation might give a malicious client
 # an easy way to induce use-after-free or other bugs in your server, by requesting cancellation
 # when not expected.
+
 using Go = import "/go.capnp";
 $Go.package("cxx");
 $Go.import("capnproto.org/go/capnp/v3/std/capnp/cxx");

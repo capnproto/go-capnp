@@ -1303,7 +1303,7 @@ func (c *lockedConn) parseReturn(dq *deferred.Queue, ret rpccp.Return, called []
 			return parsedReturn{err: rpcerr.WrapFailed("parse return", err), parseFailed: true}
 		}
 		return parsedReturn{err: exc.New(exc.Type(e.Type()), "", reason)}
-	case rpccp.Return_Which_awaitFromThirdParty:
+	case rpccp.Return_Which_acceptFromThirdParty:
 		// TODO: 3PH. Can wait until after the MVP, because we can keep
 		// setting allowThirdPartyTailCall = false
 		fallthrough
@@ -1742,7 +1742,7 @@ func (c *Conn) handleDisembargo(ctx context.Context, in transport.IncomingMessag
 			})
 		})
 
-	case rpccp.Disembargo_context_Which_accept:
+	case rpccp.Disembargo_context_Which_accept, rpccp.Disembargo_context_Which_provide:
 		if c.network != nil {
 			panic("TODO: 3PH")
 		}

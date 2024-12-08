@@ -97,17 +97,17 @@ struct VatId {
   side @0 :Side;
 }
 
-struct ThirdPartyCompletion {
+struct ProvisionId {
   # Only used for joins, since three-way introductions never happen on a two-party network.
 
   joinId @0 :UInt32;
   # The ID from `JoinKeyPart`.
 }
 
-struct ThirdPartyToAwait {}
+struct RecipientId {}
 # Never used, because there are only two parties.
 
-struct ThirdPartyToContact {}
+struct ThirdPartyCapId {}
 # Never used, because there is no third party.
 
 struct JoinKeyPart {
