@@ -120,7 +120,6 @@ annotation persistent(interface, field) :Void;
 #
 # Note that absence of the $persistent annotation doesn't mean a capability of that type isn't
 # persistent; it just means not *all* such capabilities are persistent.
-
 using Go = import "/go.capnp";
 $Go.package("persistent");
 $Go.import("capnproto.org/go/capnp/v3/std/capnp/persistent");

@@ -28,7 +28,7 @@ struct Value {
     null @0 :Void;
     boolean @1 :Bool;
     number @2 :Float64;
-    string @3 :Text;
+    string @3 :Text $Go.name("stringValue");
     array @4 :List(Value);
     object @5 :List(Field);
     # Standard JSON values.
@@ -125,7 +125,6 @@ annotation hex @0xf061e22f0ae5c7b5 (field) :Void;
 
 annotation notification @0xa0a054dea32fd98c (method) :Void;
 # Indicates that this method is a JSON-RPC "notification", meaning it expects no response.
-
 using Go = import "/go.capnp";
 $Go.package("json");
-$Go.import("capnproto.org/go/capnp/v3/std/capnp/json");
+$Go.import("capnproto.org/go/capnp/v3/std/capnp/compat/json");
