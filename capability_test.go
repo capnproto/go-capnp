@@ -357,10 +357,8 @@ func (dr *dummyReturner) AllocResults(sz ObjectSize) (Struct, error) {
 	if dr.s.IsValid() {
 		return Struct{}, errors.New("AllocResults called multiple times")
 	}
-	_, seg, err := NewMessage(SingleSegment(nil))
-	if err != nil {
-		return Struct{}, err
-	}
+	_, seg := NewSingleSegmentMessage(nil)
+	var err error
 	dr.s, err = NewRootStruct(seg, sz)
 	return dr.s, err
 }
@@ -377,10 +375,7 @@ func (dr *dummyReturner) ReleaseResults() {
 }
 
 func TestToInterface(t *testing.T) {
-	_, seg, err := NewMessage(SingleSegment(nil))
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, seg := NewSingleSegmentMessage(nil)
 	tests := []struct {
 		ptr Ptr
 		in  Interface
@@ -399,10 +394,7 @@ func TestToInterface(t *testing.T) {
 }
 
 func TestInterface_value(t *testing.T) {
-	_, seg, err := NewMessage(SingleSegment(nil))
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, seg := NewSingleSegmentMessage(nil)
 	tests := []struct {
 		in  Interface
 		val rawPointer
@@ -421,10 +413,7 @@ func TestInterface_value(t *testing.T) {
 }
 
 func TestTransform(t *testing.T) {
-	_, s, err := NewMessage(SingleSegment(nil))
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, s := NewSingleSegmentMessage(nil)
 	root, err := NewStruct(s, ObjectSize{PointerCount: 2})
 	if err != nil {
 		t.Fatal(err)
@@ -442,7 +431,7 @@ func TestTransform(t *testing.T) {
 	b.SetUint64(0, 2)
 	a.SetPtr(0, b.ToPtr())
 
-	dmsg, d, err := NewMessage(SingleSegment(nil))
+	dmsg, d := NewSingleSegmentMessage(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -675,20 +664,17 @@ func deepPointerEqual(a, b Ptr) bool {
 	if !a.IsValid() || !b.IsValid() {
 		return false
 	}
-	msgA, _, _ := NewMessage(SingleSegment(nil))
+	msgA, _ := NewSingleSegmentMessage(nil)
 	msgA.SetRoot(a)
 	abytes, _ := msgA.Marshal()
-	msgB, _, _ := NewMessage(SingleSegment(nil))
+	msgB, _ := NewSingleSegmentMessage(nil)
 	msgB.SetRoot(b)
 	bbytes, _ := msgB.Marshal()
 	return bytes.Equal(abytes, bbytes)
 }
 
 func newEmptyStruct() Struct {
-	_, seg, err := NewMessage(SingleSegment(nil))
-	if err != nil {
-		panic(err)
-	}
+	_, seg := NewSingleSegmentMessage(nil)
 	s, err := NewRootStruct(seg, ObjectSize{})
 	if err != nil {
 		panic(err)

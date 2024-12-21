@@ -18,40 +18,51 @@ func TestNewMessage(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		arena Arena
-		fails bool
-	}{
-		{arena: SingleSegment(nil)},
-		{arena: MultiSegment(nil)},
-		{arena: readOnlyArena{SingleSegment(make([]byte, 0, 7))}, fails: true},
-		{arena: readOnlyArena{SingleSegment(make([]byte, 0, 8))}, fails: true},
-		{arena: MultiSegment([][]byte{make([]byte, 8)}), fails: true},
-		{arena: MultiSegment([][]byte{incrementingData(8)}), fails: true},
-		// This is somewhat arbitrary, but more than one segment = data.
-		// This restriction may be lifted if it's not useful.
-		{arena: MultiSegment([][]byte{make([]byte, 0, 16), make([]byte, 0)}), fails: true},
-	}
-	for _, test := range tests {
-		msg, seg, err := NewMessage(test.arena)
-		if err != nil {
-			if !test.fails {
-				t.Errorf("NewMessage(%v) failed unexpectedly: %v", test.arena, err)
+		name        string
+		arena       Arena
+		extraSegs   int
+		err         error
+		wantSeg0Len int
+	}{{
+		name:  "empty single segment",
+		arena: SingleSegment(nil),
+	}, {
+		name:  "empty multi segment",
+		arena: MultiSegment(nil),
+	}, {
+		name:  "short read only arena",
+		arena: readOnlyArena{SingleSegment(make([]byte, 0, 7))},
+	}, {
+		name:  "short read only arena with cap",
+		arena: readOnlyArena{SingleSegment(make([]byte, 0, 8))},
+	}, {
+		name:        "multi segment w/ root word",
+		arena:       MultiSegment([][]byte{make([]byte, 8)}),
+		wantSeg0Len: 8,
+	}, {
+		name:        "multi segment w/ data",
+		arena:       MultiSegment([][]byte{incrementingData(8)}),
+		wantSeg0Len: 8,
+	}, {
+		name:        "multi segment w/ 2 segments",
+		arena:       MultiSegment([][]byte{make([]byte, 0, 16), make([]byte, 0)}),
+		extraSegs:   1,
+		wantSeg0Len: 0,
+	}}
+	for i := range tests {
+		test := tests[i]
+		t.Run(test.name, func(t *testing.T) {
+			msg, seg, err := NewMessage(test.arena)
+			require.ErrorIs(t, err, test.err)
+			if test.err != nil {
+				return
 			}
-			continue
-		}
-		if test.fails {
-			t.Errorf("NewMessage(%v) succeeded; want error", test.arena)
-			continue
-		}
-		if n := msg.NumSegments(); n != 1 {
-			t.Errorf("NewMessage(%v).NumSegments() = %d; want 1", test.arena, n)
-		}
-		if seg.ID() != 0 {
-			t.Errorf("NewMessage(%v) segment.ID() = %d; want 0", test.arena, seg.ID())
-		}
-		if len(seg.Data()) != 8 {
-			t.Errorf("NewMessage(%v) segment.Data() = % 02x; want length 8", test.arena, seg.Data())
-		}
+
+			require.NoError(t, err)
+			require.Equal(t, int64(1+test.extraSegs), msg.NumSegments())
+			require.Equal(t, SegmentID(0), seg.ID())
+			require.Len(t, seg.Data(), test.wantSeg0Len)
+		})
 	}
 }
 
@@ -70,43 +81,21 @@ func TestAlloc(t *testing.T) {
 	var tests []allocTest
 
 	{
-		msg := &Message{Arena: SingleSegment(nil)}
-		seg, err := msg.Segment(0)
-		if err != nil {
-			t.Fatal(err)
-		}
+		_, seg := NewSingleSegmentMessage(nil)
 		tests = append(tests, allocTest{
 			name:    "empty alloc in empty segment",
 			seg:     seg,
 			size:    0,
 			allocID: 0,
-			addr:    0,
+			addr:    8, // First alloc is after root pointer.
 		})
 	}
 	{
-		msg := &Message{Arena: SingleSegment(nil)}
-		seg, err := msg.Segment(0)
-		if err != nil {
-			t.Fatal(err)
-		}
-		tests = append(tests, allocTest{
-			name:    "alloc in empty segment",
-			seg:     seg,
-			size:    8,
-			allocID: 0,
-			addr:    0,
+		_, seg := NewMultiSegmentMessage([][]byte{
+			incrementingData(24)[:8:8],
+			incrementingData(24)[:8],
+			incrementingData(24)[:8],
 		})
-	}
-	{
-		msg := &Message{Arena: MultiSegment([][]byte{
-			incrementingData(24)[:8],
-			incrementingData(24)[:8],
-			incrementingData(24)[:8],
-		})}
-		seg, err := msg.Segment(1)
-		if err != nil {
-			t.Fatal(err)
-		}
 		tests = append(tests, allocTest{
 			name:    "prefers given segment",
 			seg:     seg,
@@ -116,14 +105,10 @@ func TestAlloc(t *testing.T) {
 		})
 	}
 	{
-		msg := &Message{Arena: MultiSegment([][]byte{
+		_, seg := NewMultiSegmentMessage([][]byte{
 			incrementingData(24)[:8],
 			incrementingData(24),
-		})}
-		seg, err := msg.Segment(1)
-		if err != nil {
-			t.Fatal(err)
-		}
+		})
 		tests = append(tests, allocTest{
 			name:    "given segment full with another available",
 			seg:     seg,
@@ -133,14 +118,10 @@ func TestAlloc(t *testing.T) {
 		})
 	}
 	{
-		msg := &Message{Arena: MultiSegment([][]byte{
+		msg, seg := NewMultiSegmentMessage([][]byte{
 			incrementingData(24),
 			incrementingData(24),
-		})}
-		seg, err := msg.Segment(1)
-		if err != nil {
-			t.Fatal(err)
-		}
+		})
 
 		// Make arena not read-only again.
 		msg.Arena.(*MultiSegmentArena).bp = &bufferpool.Default
@@ -174,12 +155,13 @@ func TestAlloc(t *testing.T) {
 }
 
 type serializeTest struct {
-	name        string
-	segs        [][]byte
-	out         []byte
-	encodeFails bool
-	decodeFails bool
-	decodeError error
+	name            string
+	segs            [][]byte
+	out             []byte
+	encodeFails     bool
+	decodeFails     bool
+	decodeError     error
+	newMessageFails bool
 }
 
 func (st *serializeTest) arena() Arena {
@@ -199,9 +181,10 @@ func (st *serializeTest) copyOut() []byte {
 
 var serializeTests = []serializeTest{
 	{
-		name:        "empty message",
-		segs:        [][]byte{},
-		encodeFails: true,
+		name:            "empty message",
+		segs:            [][]byte{},
+		encodeFails:     true,
+		newMessageFails: true,
 	},
 	{
 		name:        "empty stream",
@@ -313,7 +296,14 @@ func TestMarshal(t *testing.T) {
 		if test.decodeFails {
 			continue
 		}
-		msg := &Message{Arena: test.arena()}
+		msg, _, err := NewMessage(test.arena())
+		if err != nil != test.newMessageFails {
+			t.Errorf("serializeTests[%d] %s: NewMessage unexpected error: %v", i, test.name, err)
+			continue
+		}
+		if err != nil {
+			continue
+		}
 		out, err := msg.Marshal()
 		if err != nil {
 			if !test.encodeFails {
@@ -374,11 +364,12 @@ func TestWriteTo(t *testing.T) {
 
 	var buf bytes.Buffer
 	for _, test := range serializeTests {
-		if test.decodeFails {
+		if test.decodeFails || test.newMessageFails {
 			continue
 		}
 
-		msg := &Message{Arena: test.arena()}
+		msg, _, err := NewMessage(test.arena())
+		require.NoError(t, err)
 		n, err := msg.WriteTo(&buf)
 		if test.encodeFails {
 			require.Error(t, err, test.name)
@@ -400,7 +391,7 @@ func TestAddCap(t *testing.T) {
 	hook2 := new(dummyHook)
 	client1 := NewClient(hook1)
 	client2 := NewClient(hook2)
-	msg := &Message{Arena: SingleSegment(nil)}
+	msg, _ := NewSingleSegmentMessage(nil)
 
 	// Simple case: distinct non-nil clients.
 	id1 := msg.CapTable().Add(client1.AddRef())
@@ -454,10 +445,7 @@ func TestAddCap(t *testing.T) {
 func TestFirstSegmentMessage_SingleSegment(t *testing.T) {
 	t.Parallel()
 
-	msg, seg, err := NewMessage(SingleSegment(nil))
-	if err != nil {
-		t.Fatal(err)
-	}
+	msg, seg := NewSingleSegmentMessage(nil)
 	if msg.NumSegments() != 1 {
 		t.Errorf("msg.NumSegments() = %d; want 1", msg.NumSegments())
 	}
@@ -477,10 +465,7 @@ func TestFirstSegmentMessage_SingleSegment(t *testing.T) {
 func TestFirstSegmentMessage_MultiSegment(t *testing.T) {
 	t.Parallel()
 
-	msg, seg, err := NewMessage(MultiSegment(nil))
-	if err != nil {
-		t.Fatal(err)
-	}
+	msg, seg := NewMultiSegmentMessage(nil)
 	if msg.NumSegments() != 1 {
 		t.Errorf("msg.NumSegments() = %d; want 1", msg.NumSegments())
 	}
@@ -577,9 +562,7 @@ func TestTotalSize(t *testing.T) {
 			}
 		}
 
-		msg := &Message{
-			Arena: MultiSegment(segs),
-		}
+		msg, _ := NewMultiSegmentMessage(segs)
 
 		size, err := msg.TotalSize()
 		assert.Nil(t, err, "TotalSize() returned an error")
@@ -630,16 +613,12 @@ func BenchmarkMessageGetFirstSegment(b *testing.B) {
 	}
 }
 
-// TestCannotResetArenaForRead demonstrates that Reset() cannot be used when
-// intending to read data from an arena (i.e. cannot reuse a msg value by
-// calling Reset with the intention to read data).
-func TestCannotResetArenaForRead(t *testing.T) {
+// TestCanResetArenaForRead demonstrates that Reset() can be used when
+// intending to read data from an arena.
+func TestCanResetArenaForRead(t *testing.T) {
 	var msg Message
 	var arena Arena = SingleSegment(incrementingData(8))
 
 	_, err := msg.Reset(arena)
-	if err == nil {
-		t.Fatal("expected non nil error, got nil")
-	}
-	t.Logf("Got err: %v", err)
+	require.NoError(t, err)
 }

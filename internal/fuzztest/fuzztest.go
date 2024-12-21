@@ -21,7 +21,7 @@ func Fuzz(data []byte) int {
 			data = append(data, 0)
 		}
 	}
-	msg := &capnp.Message{Arena: capnp.SingleSegment(data)}
+	msg, _ := capnp.NewSingleSegmentMessage(data)
 	z, err := air.ReadRootZ(msg)
 	if err != nil {
 		return 0

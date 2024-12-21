@@ -19,7 +19,7 @@ func TestCanonicalize(t *testing.T) {
 	}, {
 		name: "empty struct",
 		f: func() Struct {
-			_, seg, _ := NewMessage(SingleSegment(nil))
+			_, seg := NewSingleSegmentMessage(nil)
 			s, _ := NewStruct(seg, ObjectSize{})
 			return s
 		},
@@ -27,7 +27,7 @@ func TestCanonicalize(t *testing.T) {
 	}, {
 		name: "zero data, zero pointer struct",
 		f: func() Struct {
-			_, seg, _ := NewMessage(SingleSegment(nil))
+			_, seg := NewSingleSegmentMessage(nil)
 			s, _ := NewStruct(seg, ObjectSize{DataSize: 8, PointerCount: 1})
 			return s
 		},
@@ -35,7 +35,7 @@ func TestCanonicalize(t *testing.T) {
 	}, {
 		name: "one word data struct",
 		f: func() Struct {
-			_, seg, _ := NewMessage(SingleSegment(nil))
+			_, seg := NewSingleSegmentMessage(nil)
 			s, _ := NewStruct(seg, ObjectSize{DataSize: 8, PointerCount: 1})
 			s.SetUint16(0, 0xbeef)
 			return s
@@ -47,7 +47,7 @@ func TestCanonicalize(t *testing.T) {
 	}, {
 		name: "two pointers to zero structs",
 		f: func() Struct {
-			_, seg, _ := NewMessage(SingleSegment(nil))
+			_, seg := NewSingleSegmentMessage(nil)
 			s, _ := NewStruct(seg, ObjectSize{PointerCount: 2})
 			e1, _ := NewStruct(seg, ObjectSize{DataSize: 8})
 			e2, _ := NewStruct(seg, ObjectSize{DataSize: 8})
@@ -63,7 +63,7 @@ func TestCanonicalize(t *testing.T) {
 	}, {
 		name: "pointer to interface",
 		f: func() Struct {
-			_, seg, _ := NewMessage(SingleSegment(nil))
+			_, seg := NewSingleSegmentMessage(nil)
 			s, _ := NewStruct(seg, ObjectSize{PointerCount: 2})
 			iface := NewInterface(seg, 1)
 			s.SetPtr(0, iface.ToPtr())
@@ -76,7 +76,7 @@ func TestCanonicalize(t *testing.T) {
 	}, {
 		name: "int list",
 		f: func() Struct {
-			_, seg, _ := NewMessage(SingleSegment(nil))
+			_, seg := NewSingleSegmentMessage(nil)
 			s, _ := NewStruct(seg, ObjectSize{PointerCount: 1})
 			l, _ := NewInt8List(seg, 5)
 			s.SetPtr(0, l.ToPtr())
@@ -95,7 +95,7 @@ func TestCanonicalize(t *testing.T) {
 	}, {
 		name: "zero int list",
 		f: func() Struct {
-			_, seg, _ := NewMessage(SingleSegment(nil))
+			_, seg := NewSingleSegmentMessage(nil)
 			s, _ := NewStruct(seg, ObjectSize{PointerCount: 1})
 			l, _ := NewInt8List(seg, 5)
 			s.SetPtr(0, l.ToPtr())
@@ -110,7 +110,7 @@ func TestCanonicalize(t *testing.T) {
 	}, {
 		name: "struct list",
 		f: func() Struct {
-			_, seg, _ := NewMessage(SingleSegment(nil))
+			_, seg := NewSingleSegmentMessage(nil)
 			s, _ := NewStruct(seg, ObjectSize{PointerCount: 1})
 			l, _ := NewCompositeList(seg, ObjectSize{DataSize: 8, PointerCount: 1}, 2)
 			s.SetPtr(0, l.ToPtr())
@@ -133,7 +133,7 @@ func TestCanonicalize(t *testing.T) {
 	}, {
 		name: "zero struct list",
 		f: func() Struct {
-			_, seg, _ := NewMessage(SingleSegment(nil))
+			_, seg := NewSingleSegmentMessage(nil)
 			s, _ := NewStruct(seg, ObjectSize{PointerCount: 1})
 			l, _ := NewCompositeList(seg, ObjectSize{DataSize: 16, PointerCount: 2}, 3)
 			s.SetPtr(0, l.ToPtr())
@@ -148,7 +148,7 @@ func TestCanonicalize(t *testing.T) {
 	}, {
 		name: "zero-length struct list",
 		f: func() Struct {
-			_, seg, _ := NewMessage(SingleSegment(nil))
+			_, seg := NewSingleSegmentMessage(nil)
 			s, _ := NewStruct(seg, ObjectSize{PointerCount: 1})
 			l, _ := NewCompositeList(seg, ObjectSize{DataSize: 16, PointerCount: 2}, 0)
 			s.SetPtr(0, l.ToPtr())

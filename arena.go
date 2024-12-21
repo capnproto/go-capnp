@@ -159,6 +159,10 @@ func (ssa *SingleSegmentArena) Release() {
 type MultiSegmentArena struct {
 	segs []Segment
 
+	// rawData is set when the individual segments were all demuxed from
+	// the passed raw data slice.
+	rawData []byte
+
 	// bp is the bufferpool assotiated with this arena's segments if it was
 	// initialized for writing.
 	bp *bufferpool.Pool
@@ -175,6 +179,7 @@ func MultiSegment(b [][]byte) *MultiSegmentArena {
 	if b == nil {
 		msa := multiSegmentPool.Get().(*MultiSegmentArena)
 		msa.fromPool = true
+		msa.bp = &bufferpool.Default
 		return msa
 	}
 	return multiSegment(b)
@@ -190,6 +195,14 @@ func MultiSegment(b [][]byte) *MultiSegmentArena {
 // Calling Release is optional; if not done the garbage collector
 // will release the memory per usual.
 func (msa *MultiSegmentArena) Release() {
+	// When this was demuxed from a single slice, return the entire slice.
+	if msa.rawData != nil && msa.bp != nil {
+		zeroSlice(msa.rawData)
+		msa.bp.Put(msa.rawData)
+		msa.bp = nil
+	}
+	msa.rawData = nil
+
 	for i := range msa.segs {
 		if msa.bp != nil {
 			zeroSlice(msa.segs[i].data)
@@ -236,7 +249,10 @@ var multiSegmentPool = sync.Pool{
 
 // demuxArena slices data into a multi-segment arena.  It assumes that
 // len(data) >= hdr.totalSize().
-func (msa *MultiSegmentArena) demux(hdr streamHeader, data []byte) error {
+//
+// bp should point to the bufferpool which will receive back data once the
+// arena is released. It may be nil if this should not be returned anywhere.
+func (msa *MultiSegmentArena) demux(hdr streamHeader, data []byte, bp *bufferpool.Pool) error {
 	maxSeg := hdr.maxSegment()
 	if int64(maxSeg) > int64(maxInt-1) {
 		return errors.New("number of segments overflows int")
@@ -261,6 +277,8 @@ func (msa *MultiSegmentArena) demux(hdr streamHeader, data []byte) error {
 		msa.segs[i].id = i
 	}
 
+	msa.rawData = data
+	msa.bp = bp
 	return nil
 }
 

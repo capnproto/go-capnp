@@ -6,7 +6,7 @@ import (
 )
 
 func TestEqual(t *testing.T) {
-	msg, seg, _ := NewMessage(SingleSegment(nil))
+	msg, seg := NewSingleSegmentMessage(nil)
 	emptyStruct1, _ := NewStruct(seg, ObjectSize{})
 	emptyStruct2, _ := NewStruct(seg, ObjectSize{})
 	zeroStruct1, _ := NewStruct(seg, ObjectSize{DataSize: 8, PointerCount: 1})
