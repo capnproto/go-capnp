@@ -56,21 +56,20 @@ type Message struct {
 	DepthLimit uint
 }
 
-// NewMessage creates a message with a new root and returns the first
-// segment.  It is an error to call NewMessage on an arena with data in it.
+// NewMessage creates a message with a new root and returns the first segment.
+// The arena may or may not have any data.
 //
 // The new message is guaranteed to contain at least one segment and that
 // segment is guaranteed to contain enough space for the root struct pointer.
+// This might involve allocating data if the arena is empty.
 func NewMessage(arena Arena) (*Message, *Segment, error) {
 	var msg Message
 	first, err := msg.Reset(arena)
 	return &msg, first, err
 }
 
-// NewSingleSegmentMessage(b) is equivalent to NewMessage(SingleSegment(b)), except
-// that it panics instead of returning an error. This can only happen if the passed
-// slice contains data, so the caller is responsible for ensuring that it has a length
-// of zero.
+// NewSingleSegmentMessage(b) is equivalent to NewMessage(SingleSegment(b)),
+// except that it panics instead of returning an error.
 func NewSingleSegmentMessage(b []byte) (msg *Message, first *Segment) {
 	msg, first, err := NewMessage(SingleSegment(b))
 	if err != nil {
@@ -98,10 +97,8 @@ func (m *Message) Release() {
 // invalidates any existing pointers in the Message, releases all clients in
 // the cap table, and releases the current Arena, so use with caution.
 //
-// Reset fails if the new arena is not empty and is not able to allocate enough
-// space for at least one segment and its root pointer.  In other words, Reset
-// with a non-nil arena must only be used for messages which will be modified,
-// not read.
+// Reset fails if the new arena is empty and is not able to allocate the first
+// segment.
 func (m *Message) Reset(arena Arena) (first *Segment, err error) {
 	m.capTable.Reset()
 
@@ -123,27 +120,14 @@ func (m *Message) Reset(arena Arena) (first *Segment, err error) {
 				return nil, exc.WrapError("new message", err)
 			}
 
-		case 1:
+		default:
 			if first, err = m.Segment(0); err != nil {
 				return nil, exc.WrapError("Reset.Segment(0)", err)
 			}
-			if len(first.data) > 0 {
-				return nil, errors.New("new message: arena not empty")
-			}
-
-		default:
-			return nil, errors.New("new message: arena not empty")
 		}
 
 		if first.ID() != 0 {
 			return nil, errors.New("new message: arena allocated first segment with non-zero ID")
-		}
-		seg, _, err := alloc(first, wordSize) // allocate root
-		if err != nil {
-			return nil, exc.WrapError("new message", err)
-		}
-		if seg != first {
-			return nil, errors.New("new message: arena allocated first word outside first segment")
 		}
 	}
 
@@ -187,11 +171,49 @@ func (m *Message) Unread(sz Size) {
 	m.rlimit.Add(uint64(sz))
 }
 
+func (m *Message) allocRootPointerSpace() (*Segment, error) {
+	// TODO: This may be simplified once NewMessage is the only acceptable
+	// way to create a message and it ensures at least one segment exists.
+	//
+	// This may be achieved by making the Arena field of message private.
+	var first *Segment
+	var err error
+	if m.NumSegments() == 0 {
+		if m.Arena == nil {
+			return nil, errors.New("cannot allocate root pointer without arena")
+		}
+
+		if first, _, err = m.Arena.Allocate(wordSize, m, nil); err != nil {
+			return nil, exc.WrapError("new message", err)
+		}
+		if first.id != 0 {
+			return nil, errors.New("allocRootPointer: segment allocated is not segment 0")
+		}
+	} else {
+		if first, err = m.Segment(0); err != nil {
+			return nil, exc.WrapError("allocRootPointer", err)
+		}
+
+		if len(first.Data()) < int(wordSize) {
+			if first, _, err = m.Arena.Allocate(wordSize, m, first); err != nil {
+				return nil, exc.WrapError("new message", err)
+			}
+			if first.id != 0 {
+				return nil, errors.New("allocRootPointer: segment allocated is not segment 0")
+			}
+		}
+	}
+	return first, err
+}
+
 // Root returns the pointer to the message's root object.
 func (m *Message) Root() (Ptr, error) {
 	s, err := m.Segment(0)
 	if err != nil {
 		return Ptr{}, exc.WrapError("read root", err)
+	}
+	if len(s.Data()) == 0 {
+		return Ptr{}, errors.New("message does not contain root pointer")
 	}
 	p, err := s.root().At(0)
 	if err != nil {
@@ -202,7 +224,12 @@ func (m *Message) Root() (Ptr, error) {
 
 // SetRoot sets the message's root object to p.
 func (m *Message) SetRoot(p Ptr) error {
-	s, err := m.Segment(0)
+	// TODO: enforcement of root pointer space is only needed here because
+	// a single call in package capnpc-go (in file fileparts.go) calls
+	// SetRoot() without first allocating space. This is likely an erroneous
+	// usage and should be investigated in the future. If that is fixed,
+	// then this can be simplified (and improved for performance).
+	s, err := m.allocRootPointerSpace()
 	if err != nil {
 		return exc.WrapError("set root", err)
 	}
@@ -360,6 +387,10 @@ func alloc(s *Segment, sz Size) (*Segment, address, error) {
 	}
 	if msg.Arena == nil {
 		return nil, 0, errors.New("message does not have an arena")
+	}
+
+	if _, err := msg.allocRootPointerSpace(); err != nil {
+		return nil, 0, err
 	}
 
 	// TODO: From this point on, this could be changed to be a requirement

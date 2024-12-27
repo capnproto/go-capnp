@@ -59,7 +59,7 @@ func TestPromiseFulfill(t *testing.T) {
 	t.Run("Done", func(t *testing.T) {
 		p := NewPromise(dummyMethod, dummyPipelineCaller{}, nil)
 		done := p.Answer().Done()
-		msg, seg, _ := NewMessage(SingleSegment(nil))
+		msg, seg := NewSingleSegmentMessage(nil)
 		defer msg.Release()
 
 		res, _ := NewStruct(seg, ObjectSize{DataSize: 8})
@@ -75,7 +75,7 @@ func TestPromiseFulfill(t *testing.T) {
 		p := NewPromise(dummyMethod, dummyPipelineCaller{}, nil)
 		defer p.ReleaseClients()
 		ans := p.Answer()
-		msg, seg, _ := NewMessage(SingleSegment(nil))
+		msg, seg := NewSingleSegmentMessage(nil)
 		defer msg.Release()
 
 		res, _ := NewStruct(seg, ObjectSize{DataSize: 8})
@@ -99,7 +99,7 @@ func TestPromiseFulfill(t *testing.T) {
 		h := new(dummyHook)
 		c := NewClient(h)
 		defer c.Release()
-		msg, seg, _ := NewMessage(SingleSegment(nil))
+		msg, seg := NewSingleSegmentMessage(nil)
 		defer msg.Release()
 
 		res, _ := NewStruct(seg, ObjectSize{PointerCount: 3})

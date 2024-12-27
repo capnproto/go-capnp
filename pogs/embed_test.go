@@ -31,10 +31,7 @@ type F16 struct {
 }
 
 func TestExtract_Embed(t *testing.T) {
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatalf("NewMessage: %v", err)
-	}
+	_, seg := capnp.NewSingleSegmentMessage(nil)
 	v1, err := air.NewRootVerOneData(seg)
 	if err != nil {
 		t.Fatalf("NewRootVerOneData: %v", err)
@@ -50,10 +47,7 @@ func TestExtract_Embed(t *testing.T) {
 }
 
 func TestExtract_EmbedPtr(t *testing.T) {
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatalf("NewMessage: %v", err)
-	}
+	_, seg := capnp.NewSingleSegmentMessage(nil)
 	v2, err := air.NewRootVerTwoData(seg)
 	if err != nil {
 		t.Fatalf("NewRootVerTwoData: %v", err)
@@ -70,10 +64,7 @@ func TestExtract_EmbedPtr(t *testing.T) {
 }
 
 func TestExtract_EmbedOmit(t *testing.T) {
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatalf("NewMessage: %v", err)
-	}
+	_, seg := capnp.NewSingleSegmentMessage(nil)
 	v2, err := air.NewRootVerTwoData(seg)
 	if err != nil {
 		t.Fatalf("NewRootVerTwoData: %v", err)
@@ -90,10 +81,7 @@ func TestExtract_EmbedOmit(t *testing.T) {
 }
 
 func TestExtract_EmbedName(t *testing.T) {
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatalf("NewMessage: %v", err)
-	}
+	_, seg := capnp.NewSingleSegmentMessage(nil)
 	f16, err := air.NewRootF16(seg)
 	if err != nil {
 		t.Fatalf("NewRootF16: %v", err)
@@ -118,10 +106,7 @@ func TestExtract_EmbedName(t *testing.T) {
 }
 
 func TestInsert_Embed(t *testing.T) {
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatalf("NewMessage: %v", err)
-	}
+	_, seg := capnp.NewSingleSegmentMessage(nil)
 	v1, err := air.NewRootVerOneData(seg)
 	if err != nil {
 		t.Fatalf("NewRootVerOneData: %v", err)
@@ -137,10 +122,7 @@ func TestInsert_Embed(t *testing.T) {
 }
 
 func TestInsert_EmbedPtr(t *testing.T) {
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatalf("NewMessage: %v", err)
-	}
+	_, seg := capnp.NewSingleSegmentMessage(nil)
 	v2, err := air.NewRootVerTwoData(seg)
 	if err != nil {
 		t.Fatalf("NewRootVerTwoData: %v", err)
@@ -156,10 +138,7 @@ func TestInsert_EmbedPtr(t *testing.T) {
 }
 
 func TestInsert_EmbedNilPtr(t *testing.T) {
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatalf("NewMessage: %v", err)
-	}
+	_, seg := capnp.NewSingleSegmentMessage(nil)
 	v2, err := air.NewRootVerTwoData(seg)
 	if err != nil {
 		t.Fatalf("NewRootVerTwoData: %v", err)
@@ -175,10 +154,7 @@ func TestInsert_EmbedNilPtr(t *testing.T) {
 }
 
 func TestInsert_EmbedOmit(t *testing.T) {
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatalf("NewMessage: %v", err)
-	}
+	_, seg := capnp.NewSingleSegmentMessage(nil)
 	v2, err := air.NewRootVerTwoData(seg)
 	if err != nil {
 		t.Fatalf("NewRootVerTwoData: %v", err)
@@ -194,10 +170,7 @@ func TestInsert_EmbedOmit(t *testing.T) {
 }
 
 func TestInsert_EmbedNamed(t *testing.T) {
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatalf("NewMessage: %v", err)
-	}
+	_, seg := capnp.NewSingleSegmentMessage(nil)
 	f16, err := air.NewRootF16(seg)
 	if err != nil {
 		t.Fatalf("NewRootF16: %v", err)
@@ -280,10 +253,7 @@ type VerOneData3Tags struct {
 }
 
 func TestExtract_EmbedCollide(t *testing.T) {
-	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		t.Fatalf("NewMessage: %v", err)
-	}
+	_, seg := capnp.NewSingleSegmentMessage(nil)
 	v1, err := air.NewRootVerOneData(seg)
 	if err != nil {
 		t.Fatalf("NewRootVerOneData: %v", err)
@@ -344,11 +314,7 @@ func TestInsert_EmbedCollide(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
-		if err != nil {
-			t.Errorf("%s: NewMessage: %v", test.name, err)
-			continue
-		}
+		_, seg := capnp.NewSingleSegmentMessage(nil)
 		v1, err := air.NewRootVerOneData(seg)
 		if err != nil {
 			t.Errorf("%s: NewRootVerOneData: %v", test.name, err)

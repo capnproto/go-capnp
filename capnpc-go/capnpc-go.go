@@ -168,7 +168,7 @@ func (g *generator) defineSchemaVar() error {
 	}
 	sort.Sort(uint64Slice(ids))
 
-	msg, seg, _ := capnp.NewMessage(capnp.SingleSegment(nil))
+	msg, seg := capnp.NewSingleSegmentMessage(nil)
 	req, _ := schema.NewRootCodeGeneratorRequest(seg)
 	// TODO(light): find largest object size and use that to allocate list
 	nodes, _ := req.NewNodes(int32(len(g.nodes)))

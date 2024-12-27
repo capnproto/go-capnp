@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"capnproto.org/go/capnp/v3/exp/bufferpool"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSegmentInBounds(t *testing.T) {
@@ -432,10 +433,7 @@ func TestSegmentWriteUint64(t *testing.T) {
 }
 
 func TestSetPtrCopyListMember(t *testing.T) {
-	_, seg, err := NewMessage(SingleSegment(nil))
-	if err != nil {
-		t.Fatal("NewMessage:", err)
-	}
+	_, seg := NewSingleSegmentMessage(nil)
 	root, err := NewRootStruct(seg, ObjectSize{PointerCount: 2})
 	if err != nil {
 		t.Fatal("NewRootStruct:", err)
@@ -489,10 +487,7 @@ func TestSetPtrCopyListMember(t *testing.T) {
 }
 
 func TestSetPtrToZeroSizeStruct(t *testing.T) {
-	_, seg, err := NewMessage(SingleSegment(nil))
-	if err != nil {
-		t.Fatal("NewMessage:", err)
-	}
+	_, seg := NewSingleSegmentMessage(nil)
 	root, err := NewRootStruct(seg, ObjectSize{PointerCount: 1})
 	if err != nil {
 		t.Fatal("NewRootStruct:", err)
@@ -512,68 +507,65 @@ func TestSetPtrToZeroSizeStruct(t *testing.T) {
 }
 
 func TestReadFarPointers(t *testing.T) {
-	msg := &Message{
-		// an rpc.capnp Message
-		Arena: MultiSegment([][]byte{
-			// Segment 0
-			{
-				// Double-far pointer: segment 2, offset 0
-				0x06, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00,
-			},
-			// Segment 1
-			{
-				// (Root) Struct data section
-				0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-				// Struct pointer section
-				// Double-far pointer: segment 4, offset 0
-				0x06, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00,
-			},
-			// Segment 2
-			{
-				// Far pointer landing pad: segment 1, offset 0
-				0x02, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
-				// Far pointer landing pad tag word: struct with 1 word data and 1 pointer
-				0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00,
-			},
-			// Segment 3
-			{
-				// (Root>0) Struct data section
-				0x00, 0x00, 0x00, 0x00, 0x09, 0x00, 0x00, 0x00,
-				0xaa, 0x70, 0x65, 0x21, 0xd7, 0x7b, 0x31, 0xa7,
-				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-				// Struct pointer section
-				// Far pointer: segment 4, offset 4
-				0x22, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00,
-				// Far pointer: segment 4, offset 7
-				0x3a, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00,
-				// Null
-				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			},
-			// Segment 4
-			{
-				// Far pointer landing pad: segment 3, offset 0
-				0x02, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00,
-				// Far pointer landing pad tag word: struct with 3 word data and 3 pointer
-				0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x03, 0x00,
-				// (Root>0>0) Struct data section
-				0x54, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-				// Struct pointer section
-				// Null
-				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-				// Far pointer landing pad: struct pointer: offset -3, 1 word data, 1 pointer
-				0xf4, 0xff, 0xff, 0xff, 0x01, 0x00, 0x01, 0x00,
-				// (Root>0>1) Struct pointer section
-				// Struct pointer: offset 2, 1 word data
-				0x08, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
-				// Null
-				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-				// Far pointer landing pad: struct pointer: offset -3, 2 pointers
-				0xf4, 0xff, 0xff, 0xff, 0x00, 0x00, 0x02, 0x00,
-				// (Root>0>1>0) Struct data section
-				0x2a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			},
-		}),
-	}
+	msg, _ := NewMultiSegmentMessage([][]byte{
+		// Segment 0
+		{
+			// Double-far pointer: segment 2, offset 0
+			0x06, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00,
+		},
+		// Segment 1
+		{
+			// (Root) Struct data section
+			0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			// Struct pointer section
+			// Double-far pointer: segment 4, offset 0
+			0x06, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00,
+		},
+		// Segment 2
+		{
+			// Far pointer landing pad: segment 1, offset 0
+			0x02, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+			// Far pointer landing pad tag word: struct with 1 word data and 1 pointer
+			0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00,
+		},
+		// Segment 3
+		{
+			// (Root>0) Struct data section
+			0x00, 0x00, 0x00, 0x00, 0x09, 0x00, 0x00, 0x00,
+			0xaa, 0x70, 0x65, 0x21, 0xd7, 0x7b, 0x31, 0xa7,
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			// Struct pointer section
+			// Far pointer: segment 4, offset 4
+			0x22, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00,
+			// Far pointer: segment 4, offset 7
+			0x3a, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00,
+			// Null
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		},
+		// Segment 4
+		{
+			// Far pointer landing pad: segment 3, offset 0
+			0x02, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00,
+			// Far pointer landing pad tag word: struct with 3 word data and 3 pointer
+			0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x03, 0x00,
+			// (Root>0>0) Struct data section
+			0x54, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			// Struct pointer section
+			// Null
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			// Far pointer landing pad: struct pointer: offset -3, 1 word data, 1 pointer
+			0xf4, 0xff, 0xff, 0xff, 0x01, 0x00, 0x01, 0x00,
+			// (Root>0>1) Struct pointer section
+			// Struct pointer: offset 2, 1 word data
+			0x08, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+			// Null
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			// Far pointer landing pad: struct pointer: offset -3, 2 pointers
+			0xf4, 0xff, 0xff, 0xff, 0x00, 0x00, 0x02, 0x00,
+			// (Root>0>1>0) Struct data section
+			0x2a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		},
+	})
 	rootp, err := msg.Root()
 	if err != nil {
 		t.Error("Root:", err)
@@ -610,42 +602,25 @@ func TestReadFarPointers(t *testing.T) {
 func TestWriteFarPointer(t *testing.T) {
 	// TODO(someday): run same test with a two-word list
 
-	msg := &Message{
-		Arena: MultiSegment([][]byte{
-			make([]byte, 8),
-			make([]byte, 0, 24),
-		}),
-	}
+	msg, _ := NewMultiSegmentMessage([][]byte{
+		make([]byte, 8),
+		make([]byte, 0, 24),
+	})
 	seg1, err := msg.Segment(1)
-	if err != nil {
-		t.Fatal("msg.Segment(1):", err)
-	}
+	require.NoError(t, err)
 	s, err := NewStruct(seg1, ObjectSize{DataSize: 8, PointerCount: 1})
-	if err != nil {
-		t.Fatal("NewStruct(msg.Segment(1), ObjectSize{8, 1}):", err)
-	}
-	if s.Segment() != seg1 {
-		t.Fatalf("struct allocated in segment %d", s.Segment().ID())
-	}
-	if err := msg.SetRoot(s.ToPtr()); err != nil {
-		t.Error("msg.SetRoot(...):", err)
-	}
+	require.NoError(t, err)
+	require.Equal(t, s.Segment(), seg1)
+	err = msg.SetRoot(s.ToPtr())
+	require.NoError(t, err)
 	seg0, err := msg.Segment(0)
-	if err != nil {
-		t.Fatal("msg.Segment(0):", err)
-	}
+	require.NoError(t, err)
 
 	root := rawPointer(binary.LittleEndian.Uint64(seg0.Data()))
-	if root.pointerType() != farPointer {
-		t.Fatalf("root (%#016x) type = %v; want %v (farPointer)", root, root.pointerType(), farPointer)
-	}
-	if root.farSegment() != 1 {
-		t.Fatalf("root points to segment %d; want 1", root.farSegment())
-	}
+	require.Equal(t, farPointer, root.pointerType())
+	require.Equal(t, SegmentID(1), root.farSegment())
 	padAddr := root.farAddress()
-	if padAddr > address(len(seg1.Data())-8) {
-		t.Fatalf("root points to out of bounds address %v; size of segment is %d", padAddr, len(seg1.Data()))
-	}
+	require.LessOrEqual(t, padAddr, address(len(seg1.Data())-8))
 
 	pad := rawPointer(binary.LittleEndian.Uint64(seg1.Data()[padAddr:]))
 	if pad.pointerType() != structPointer {
@@ -662,12 +637,10 @@ func TestWriteFarPointer(t *testing.T) {
 func TestWriteDoubleFarPointer(t *testing.T) {
 	// TODO(someday): run same test with a two-word list
 
-	msg := &Message{
-		Arena: MultiSegment([][]byte{
-			make([]byte, 8),
-			make([]byte, 0, 16),
-		}),
-	}
+	msg, _ := NewMultiSegmentMessage([][]byte{
+		make([]byte, 8),
+		make([]byte, 0, 16),
+	})
 
 	// Make arena writable again.
 	msg.Arena.(*MultiSegmentArena).bp = &bufferpool.Default
@@ -731,10 +704,7 @@ func TestWriteDoubleFarPointer(t *testing.T) {
 
 func TestSetInterfacePtr(t *testing.T) {
 	t.Run("SameMessage", func(t *testing.T) {
-		msg, seg, err := NewMessage(SingleSegment(nil))
-		if err != nil {
-			t.Fatal("NewMessage:", err)
-		}
+		msg, seg := NewSingleSegmentMessage(nil)
 		msg.CapTable().Add(Client{}) // just to make the capability ID below non-zero
 		root, err := NewRootStruct(seg, ObjectSize{PointerCount: 2})
 		if err != nil {
@@ -780,15 +750,8 @@ func TestSetInterfacePtr(t *testing.T) {
 		}
 	})
 	t.Run("DifferentMessages", func(t *testing.T) {
-		msg1 := &Message{Arena: SingleSegment(nil)}
-		seg1, err := msg1.Segment(0)
-		if err != nil {
-			t.Fatal("msg1.Segment(0):", err)
-		}
-		msg2, seg2, err := NewMessage(SingleSegment(nil))
-		if err != nil {
-			t.Fatal("NewMessage:", err)
-		}
+		msg1, seg1 := NewSingleSegmentMessage(nil)
+		msg2, seg2 := NewSingleSegmentMessage(nil)
 		root, err := NewRootStruct(seg2, ObjectSize{PointerCount: 1})
 		if err != nil {
 			t.Fatal("NewRootStruct:", err)
