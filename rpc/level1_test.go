@@ -1053,5 +1053,5 @@ type rpcDisembargoContext struct {
 	Which            rpccp.Disembargo_context_Which
 	SenderLoopback   uint32
 	ReceiverLoopback uint32
-	Provide          uint32
+	Accept           capnp.Ptr
 }
