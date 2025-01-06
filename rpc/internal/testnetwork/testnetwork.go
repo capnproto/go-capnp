@@ -25,9 +25,13 @@ func (e edge) Flip() edge {
 	}
 }
 
+// This test network uses the same set of options for all
+// participants. The rpc.Options instance can be cloned
+// without issue.
 type network struct {
-	myID   PeerID
-	global *Joiner
+	myID    PeerID
+	options rpc.Options
+	global  *Joiner
 }
 
 // A Joiner is a global view of a test network, which can be joined by a
@@ -51,12 +55,13 @@ func NewJoiner() *Joiner {
 	}
 }
 
-func (j *Joiner) Join() rpc.Network {
+func (j *Joiner) Join(opts *rpc.Options) rpc.Network {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 	ret := network{
-		myID:   j.nextID,
-		global: j,
+		myID:    j.nextID,
+		global:  j,
+		options: *opts,
 	}
 	j.nextID++
 	return ret
@@ -72,13 +77,11 @@ func (j *Joiner) getAcceptQueue(id PeerID) spsc.Queue[PeerID] {
 }
 
 func (n network) LocalID() rpc.PeerID {
-	return rpc.PeerID{n.myID}
+	return rpc.PeerID{Value: n.myID}
 }
 
-func (n network) Dial(dst rpc.PeerID, opts *rpc.Options) (*rpc.Conn, error) {
-	if opts == nil {
-		opts = &rpc.Options{}
-	}
+func (n network) Dial(dst rpc.PeerID) (*rpc.Conn, error) {
+	opts := n.options
 	opts.Network = n
 	opts.RemotePeerID = dst
 	dstID := dst.Value.(PeerID)
@@ -101,7 +104,7 @@ func (n network) Dial(dst rpc.PeerID, opts *rpc.Options) (*rpc.Conn, error) {
 
 	}
 	if ent.Conn == nil {
-		ent.Conn = rpc.NewConn(ent.Transport, opts)
+		ent.Conn = rpc.NewConn(ent.Transport, &opts)
 	} else {
 		// There's already a connection, so we're not going to use this, but
 		// we own it. So drop it:
@@ -110,30 +113,32 @@ func (n network) Dial(dst rpc.PeerID, opts *rpc.Options) (*rpc.Conn, error) {
 	return ent.Conn, nil
 }
 
-func (n network) Accept(ctx context.Context, opts *rpc.Options) (*rpc.Conn, error) {
+func (n network) Serve(ctx context.Context) error {
 	n.global.mu.Lock()
 	q := n.global.getAcceptQueue(n.myID)
 	n.global.mu.Unlock()
 
-	incoming, err := q.Recv(ctx)
-	if err != nil {
-		return nil, err
+	for {
+		incoming, err := q.Recv(ctx)
+		if err != nil {
+			return err
+		}
+		opts := n.options
+		opts.Network = n
+		opts.RemotePeerID = rpc.PeerID{incoming}
+		n.global.mu.Lock()
+		defer n.global.mu.Unlock()
+		edge := edge{
+			From: n.myID,
+			To:   incoming,
+		}
+		ent := n.global.connections[edge]
+		if ent.Conn == nil {
+			ent.Conn = rpc.NewConn(ent.Transport, &opts)
+		} else {
+			opts.BootstrapClient.Release()
+		}
 	}
-	opts.Network = n
-	opts.RemotePeerID = rpc.PeerID{incoming}
-	n.global.mu.Lock()
-	defer n.global.mu.Unlock()
-	edge := edge{
-		From: n.myID,
-		To:   incoming,
-	}
-	ent := n.global.connections[edge]
-	if ent.Conn == nil {
-		ent.Conn = rpc.NewConn(ent.Transport, opts)
-	} else {
-		opts.BootstrapClient.Release()
-	}
-	return ent.Conn, nil
 }
 
 func (n network) Introduce(provider, recipient *rpc.Conn) (rpc.IntroductionInfo, error) {
@@ -157,24 +162,7 @@ func (n network) Introduce(provider, recipient *rpc.Conn) (rpc.IntroductionInfo,
 	sendToRecipient.SetNonce(nonce)
 	sendToProvider.SetPeerId(uint64(recipientPeer.Value.(PeerID)))
 	sendToProvider.SetNonce(nonce)
-	ret.SendToRecipient = rpc.ThirdPartyCapID(sendToRecipient.ToPtr())
-	ret.SendToProvider = rpc.RecipientID(sendToProvider.ToPtr())
+	ret.SendToRecipient = rpc.ThirdPartyToContact(sendToRecipient.ToPtr())
+	ret.SendToProvider = rpc.ThirdPartyToAwait(sendToProvider.ToPtr())
 	return ret, nil
-}
-func (n network) DialIntroduced(capID rpc.ThirdPartyCapID, introducedBy *rpc.Conn) (*rpc.Conn, rpc.ProvisionID, error) {
-	cid := PeerAndNonce(capnp.Ptr(capID).Struct())
-
-	_, seg := capnp.NewSingleSegmentMessage(nil)
-	pid, err := NewPeerAndNonce(seg)
-	if err != nil {
-		return nil, rpc.ProvisionID{}, err
-	}
-	pid.SetPeerId(uint64(introducedBy.RemotePeerID().Value.(PeerID)))
-	pid.SetNonce(cid.Nonce())
-
-	conn, err := n.Dial(rpc.PeerID{PeerID(cid.PeerId())}, nil)
-	return conn, rpc.ProvisionID(pid.ToPtr()), err
-}
-func (n network) AcceptIntroduced(recipientID rpc.RecipientID, introducedBy *rpc.Conn) (*rpc.Conn, error) {
-	panic("TODO")
 }

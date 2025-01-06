@@ -14,13 +14,13 @@ func TestDefaultFind(t *testing.T) {
 	if s := schemas.Find(0xdeadbeef); s != nil {
 		t.Errorf("schemas.Find(0xdeadbeef) = %d-byte slice; want nil", len(s))
 	}
-	s := schemas.Find(gocp.Package_)
+	s := schemas.Find(gocp.Package)
 	if s == nil {
-		t.Fatalf("schemas.Find(%#x) = nil", gocp.Package_)
+		t.Fatalf("schemas.Find(%#x) = nil", gocp.Package)
 	}
 	msg, err := capnp.Unmarshal(s)
 	if err != nil {
-		t.Fatalf("capnp.Unmarshal(schemas.Find(%#x)) error: %v", gocp.Package_, err)
+		t.Fatalf("capnp.Unmarshal(schemas.Find(%#x)) error: %v", gocp.Package, err)
 	}
 	req, err := schema.ReadRootCodeGeneratorRequest(msg)
 	if err != nil {
@@ -32,15 +32,15 @@ func TestDefaultFind(t *testing.T) {
 	}
 	for i := 0; i < nodes.Len(); i++ {
 		n := nodes.At(i)
-		if n.Id() == gocp.Package_ {
+		if n.Id() == gocp.Package {
 			// Found
 			if n.Which() != schema.Node_Which_annotation {
-				t.Errorf("found node %#x which = %v; want annotation", gocp.Package_, n.Which())
+				t.Errorf("found node %#x which = %v; want annotation", gocp.Package, n.Which())
 			}
 			return
 		}
 	}
-	t.Fatalf("could not find node %#x in registry", gocp.Package_)
+	t.Fatalf("could not find node %#x in registry", gocp.Package)
 }
 
 func TestNotFound(t *testing.T) {
