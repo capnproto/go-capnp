@@ -1825,6 +1825,8 @@ func BenchmarkDecode(b *testing.B) {
 			if err != nil {
 				b.Fatal(err)
 			}
+
+			msg.Release()
 		}
 	}
 }
