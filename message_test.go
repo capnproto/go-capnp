@@ -637,9 +637,7 @@ func (test_zero_stream) Read(b []byte) (int, error) {
 // See github.com/capnproto/go-capnp/issues/592
 func TestZeroStream(t *testing.T) {
 	m, err := NewDecoder(test_zero_stream{}).Decode()
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 
 	_, err = m.Root()
 	assert.NotNil(t, err, "expected error decoding zero stream")
