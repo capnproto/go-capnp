@@ -622,3 +622,23 @@ func TestCanResetArenaForRead(t *testing.T) {
 	_, err := msg.Reset(arena)
 	require.NoError(t, err)
 }
+
+type test_zero_stream struct{}
+
+func (test_zero_stream) Read(b []byte) (int, error) {
+	for i := 0; i < len(b); i++ {
+		b[i] = 0
+	}
+	return len(b), nil
+}
+
+// TestZeroStream checks that an all-zero stream will fail to decode with an
+// error, and not panic.
+// See github.com/capnproto/go-capnp/issues/592
+func TestZeroStream(t *testing.T) {
+	m, err := NewDecoder(test_zero_stream{}).Decode()
+	require.NoError(t, err)
+
+	_, err = m.Root()
+	assert.NotNil(t, err, "expected error decoding zero stream")
+}
