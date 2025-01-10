@@ -267,6 +267,7 @@ func (msa *MultiSegmentArena) demux(hdr streamHeader, data []byte, bp *bufferpoo
 		msa.segs = append(msa.segs, make([]Segment, inc)...)
 	}
 
+	rawData := data
 	for i := SegmentID(0); i <= maxSeg; i++ {
 		sz, err := hdr.segmentSize(SegmentID(i))
 		if err != nil {
@@ -277,7 +278,7 @@ func (msa *MultiSegmentArena) demux(hdr streamHeader, data []byte, bp *bufferpoo
 		msa.segs[i].id = i
 	}
 
-	msa.rawData = data
+	msa.rawData = rawData
 	msa.bp = bp
 	return nil
 }
