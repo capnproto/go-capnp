@@ -3,6 +3,7 @@ package rpc
 import (
 	"context"
 	"net"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -48,13 +49,22 @@ func TestConnection_BaseContext(t *testing.T) {
 	})
 
 	t.Run("external context", func(t *testing.T) {
-		_, server := net.Pipe()
-		doneCh := make(chan struct{}, 1)
+		client, server := net.Pipe()
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
+		clientConnectedCh := make(chan struct{}, 1)
+		contextCancelledCh := make(chan struct{}, 1)
+		wg := &sync.WaitGroup{}
+		wg.Add(2)
+
 		go func() {
+			defer wg.Done()
+
+			ctx, cancel := context.WithCancel(ctx)
+			defer cancel()
+
 			bootstrapClient := testcapnp.StreamTest_ServerToClient(slowStreamTestServer{})
 			conn := NewConn(NewStreamTransport(server), &Options{
 				BootstrapClient: capnp.Client(bootstrapClient),
@@ -64,11 +74,44 @@ func TestConnection_BaseContext(t *testing.T) {
 			})
 			defer conn.Close()
 
+			select {
+			case <-clientConnectedCh:
+				cancel()
+				contextCancelledCh <- struct{}{}
+			case <-conn.Done():
+				t.Failed()
+			}
+
+			// Connection should close when external context is cancelled
 			<-conn.Done()
-			close(doneCh)
 		}()
 
-		cancel()
-		<-doneCh
+		go func() {
+			defer wg.Done()
+
+			conn := NewConn(NewStreamTransport(client), nil)
+			defer conn.Close()
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			client := testcapnp.StreamTest(conn.Bootstrap(ctx))
+			defer client.Release()
+
+			if err := client.Resolve(ctx); err != nil {
+				require.NoError(t, err)
+			}
+
+			clientConnectedCh <- struct{}{}
+			<-contextCancelledCh
+
+			err := client.Push(ctx, func(st testcapnp.StreamTest_push_Params) error {
+				return st.SetData(make([]byte, 1))
+			})
+
+			require.NoError(t, err)
+		}()
+
+		wg.Wait()
 	})
 }
