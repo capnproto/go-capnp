@@ -13,6 +13,8 @@ import (
 )
 
 func TestConnection_BaseContext(t *testing.T) {
+	t.Parallel()
+
 	t.Run("background context", func(t *testing.T) {
 		client, server := net.Pipe()
 		doneCh := make(chan struct{}, 1)
