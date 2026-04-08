@@ -692,6 +692,10 @@ func (cs ClientSnapshot) AddRef() ClientSnapshot {
 
 // Release the reference to the hook.
 func (cs *ClientSnapshot) Release() {
+	if cs.hook == nil {
+		return
+	}
+
 	cs.hook.Release()
 }
 
