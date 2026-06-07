@@ -7,8 +7,8 @@ import (
 func TestPointerOffsetResolve(t *testing.T) {
 	tests := []struct {
 		off      pointerOffset
-		base     address
-		resolved address
+		base     Address
+		resolved Address
 		ok       bool
 	}{
 		{off: 0, base: 0, resolved: 0, ok: true},
@@ -164,7 +164,7 @@ func TestRawFarPointer(t *testing.T) {
 	tests := []struct {
 		ptr  rawPointer
 		typ  pointerType
-		addr address
+		addr Address
 		seg  SegmentID
 	}{
 		{0x0000000000000002, farPointer, 0, 0},

@@ -6,9 +6,9 @@ import (
 
 func TestAddressAddSize(t *testing.T) {
 	tests := []struct {
-		a   address
+		a   Address
 		sz  Size
-		out address
+		out Address
 		ok  bool
 	}{
 		{0, 0, 0, true},
@@ -38,10 +38,10 @@ func TestAddressAddSize(t *testing.T) {
 
 func TestAddressElement(t *testing.T) {
 	tests := []struct {
-		a   address
+		a   Address
 		i   int32
 		sz  Size
-		out address
+		out Address
 		ok  bool
 	}{
 		{0, 0, 0, 0, true},

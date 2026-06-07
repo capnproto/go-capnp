@@ -6,51 +6,51 @@ import (
 	"capnproto.org/go/capnp/v3/internal/str"
 )
 
-// An address is an index inside a segment's data (in bytes).
+// An Address is an index inside a segment's data (in bytes).
 // It is bounded to [0, maxSegmentSize).
-type address uint32
+type Address uint32
 
 // String returns the address in hex format.
-func (a address) String() string {
+func (a Address) String() string {
 	return strconv.FormatUint(uint64(a), 16)
 }
 
 // GoString returns the address in hex format.
-func (a address) GoString() string {
+func (a Address) GoString() string {
 	return "capnp.address(%" + a.String() + ")"
 }
 
 // addSize returns the address a+sz.  ok is false if the result would
 // be an invalid address.
-func (a address) addSize(sz Size) (_ address, ok bool) {
+func (a Address) addSize(sz Size) (_ Address, ok bool) {
 	x := int64(a) + int64(sz)
 	if x > int64(maxSegmentSize) {
 		return 0xffffffff, false
 	}
-	return address(x), true
+	return Address(x), true
 }
 
 // addSizeUnchecked returns a+sz without any overflow checking.
-func (a address) addSizeUnchecked(sz Size) address {
-	return a + address(sz)
+func (a Address) addSizeUnchecked(sz Size) Address {
+	return a + Address(sz)
 }
 
 // element returns the address a+i*sz.  ok is false if the result would
 // be an invalid address.
-func (a address) element(i int32, sz Size) (_ address, ok bool) {
+func (a Address) element(i int32, sz Size) (_ Address, ok bool) {
 	x := int64(a) + int64(i)*int64(sz)
 	if x > int64(maxSegmentSize) || x < 0 {
 		return 0xffffffff, false
 	}
-	return address(x), true
+	return Address(x), true
 }
 
 // addOffset returns the address a+o.  It panics if o is invalid.
-func (a address) addOffset(o DataOffset) address {
+func (a Address) addOffset(o DataOffset) Address {
 	if o >= 1<<19 {
 		panic("data offset overflow")
 	}
-	return a + address(o)
+	return a + Address(o)
 }
 
 // A Size is a size (in bytes).

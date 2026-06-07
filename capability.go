@@ -73,7 +73,7 @@ func (i Interface) Capability() CapabilityID {
 }
 
 // value returns a raw interface pointer with the capability ID.
-func (i Interface) value(paddr address) rawPointer {
+func (i Interface) value(paddr Address) rawPointer {
 	if i.seg == nil {
 		return 0
 	}

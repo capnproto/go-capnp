@@ -32,7 +32,7 @@ type Arena interface {
 	//
 	// If Allocate returns an previously loaded segment, then the arena is
 	// responsible for preserving the existing data.
-	Allocate(minsz Size, msg *Message, seg *Segment) (*Segment, address, error)
+	Allocate(minsz Size, msg *Message, seg *Segment) (*Segment, Address, error)
 
 	// Release all resources associated with the Arena. Callers MUST NOT
 	// use the Arena after it has been released.
@@ -98,7 +98,7 @@ func (ssa *SingleSegmentArena) Segment(id SegmentID) *Segment {
 	return &ssa.seg
 }
 
-func (ssa *SingleSegmentArena) Allocate(sz Size, msg *Message, seg *Segment) (*Segment, address, error) {
+func (ssa *SingleSegmentArena) Allocate(sz Size, msg *Message, seg *Segment) (*Segment, Address, error) {
 	if seg != nil && seg != &ssa.seg {
 		return nil, 0, errors.New("segment is not associated with arena")
 	}
@@ -108,7 +108,7 @@ func (ssa *SingleSegmentArena) Allocate(sz Size, msg *Message, seg *Segment) (*S
 	}
 	ssa.seg.BindTo(msg)
 	if hasCapacity(data, sz) {
-		addr := address(len(ssa.seg.data))
+		addr := Address(len(ssa.seg.data))
 		ssa.seg.data = ssa.seg.data[:len(ssa.seg.data)+int(sz)]
 		return &ssa.seg, addr, nil
 	}
@@ -119,7 +119,7 @@ func (ssa *SingleSegmentArena) Allocate(sz Size, msg *Message, seg *Segment) (*S
 	if ssa.bp == nil {
 		return nil, 0, errors.New("cannot allocate on read-only SingleSegmentArena")
 	}
-	addr := address(len(ssa.seg.data))
+	addr := Address(len(ssa.seg.data))
 	ssa.seg.data = ssa.bp.Get(cap(data) + inc)[:len(data)+int(sz)]
 	copy(ssa.seg.data, data)
 	zeroSlice(data)
@@ -304,7 +304,7 @@ func (msa *MultiSegmentArena) Segment(id SegmentID) *Segment {
 	return msa.segs[id]
 }
 
-func (msa *MultiSegmentArena) Allocate(sz Size, msg *Message, seg *Segment) (*Segment, address, error) {
+func (msa *MultiSegmentArena) Allocate(sz Size, msg *Message, seg *Segment) (*Segment, Address, error) {
 	// Prefer allocating in seg if it has capacity.
 	if seg != nil && hasCapacity(seg.data, sz) {
 		// Membership check: validate by id and exact pointer equality.
@@ -317,7 +317,7 @@ func (msa *MultiSegmentArena) Allocate(sz Size, msg *Message, seg *Segment) (*Se
 			return nil, 0, errors.New("attempt to allocate in segment for different message")
 		}
 
-		addr := address(len(seg.data))
+		addr := Address(len(seg.data))
 		newLen := int(addr) + int(sz)
 		seg.data = seg.data[:newLen]
 		seg.BindTo(msg)
@@ -332,7 +332,7 @@ func (msa *MultiSegmentArena) Allocate(sz Size, msg *Message, seg *Segment) (*Se
 		data := msa.segs[i].data
 		if hasCapacity(data, sz) {
 			// Found segment with spare capacity.
-			addr := address(len(data))
+			addr := Address(len(data))
 			newLen := int(addr) + int(sz)
 			msa.segs[i].data = data[:newLen]
 			msa.segs[i].BindTo(msg)
@@ -465,7 +465,7 @@ func (r *ReadOnlySingleSegment) Segment(id SegmentID) *Segment {
 //
 // If Allocate returns an previously loaded segment, then the
 // arena is responsible for preserving the existing data.
-func (r *ReadOnlySingleSegment) Allocate(minsz Size, msg *Message, seg *Segment) (*Segment, address, error) {
+func (r *ReadOnlySingleSegment) Allocate(minsz Size, msg *Message, seg *Segment) (*Segment, Address, error) {
 	return nil, 0, errors.New("readOnly segment cannot allocate data")
 }
 

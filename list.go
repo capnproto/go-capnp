@@ -18,7 +18,7 @@ type List ListKind
 // capture any list type.
 type ListKind = struct {
 	seg        *Segment
-	off        address    // at beginning of elements (past composite list tag word)
+	off        Address    // at beginning of elements (past composite list tag word)
 	length     int32      // always [0, 1<<29)
 	size       ObjectSize // always valid
 	depthLimit uint
@@ -184,7 +184,7 @@ func (p List) Len() int {
 
 // primitiveElem returns the address of the segment data for a list element.
 // Calling this on a bit list returns an error.
-func (p List) primitiveElem(i int, expectedSize ObjectSize) (address, error) {
+func (p List) primitiveElem(i int, expectedSize ObjectSize) (Address, error) {
 	if p.seg == nil || i < 0 || i >= int(p.length) {
 		// This is programmer error, not input error.
 		panic("list element out of bounds")
@@ -357,7 +357,7 @@ func (p PointerList) At(i int) (Ptr, error) {
 	if err != nil {
 		return Ptr{}, err
 	}
-	addr += address(p.size.DataSize)
+	addr += Address(p.size.DataSize)
 	return p.seg.readPtr(addr, p.depthLimit)
 }
 
