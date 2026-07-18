@@ -169,6 +169,10 @@ func (writerImpl) Write(ctx context.Context, p Writer_write) error {
 	if err != nil {
 		return err
 	}
-	time.Sleep(time.Duration(float64(len(data)) / (float64(*bandwidth) * float64(time.Second))))
+	time.Sleep(transferDelay(len(data), *bandwidth))
 	return nil
+}
+
+func transferDelay(size int, bytesPerSecond uint64) time.Duration {
+	return time.Duration(float64(size) / float64(bytesPerSecond) * float64(time.Second))
 }
