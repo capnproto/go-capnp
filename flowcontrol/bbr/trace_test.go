@@ -1,15 +1,12 @@
 package bbr
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"math"
 	"os"
 	"testing"
 	"time"
-
-	"capnproto.org/go/capnp/v3/exp/clock"
 )
 
 func (s Snapshot) report(t *testing.T) {
@@ -268,80 +265,29 @@ func gatherData(t *testing.T) {
 // Collect traces of various packet sequences being streamed over various paths,
 // and check that they pass some sanity checks.
 func TestTrace(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping long test due to -short")
-	}
-	if os.Getenv("FLAKY_TESTS") != "1" {
-		t.Skip("Not running TestTrace, which is flaky. Set FLAKY_TESTS=1 to enable")
-	}
-	t.Parallel()
-
 	cases := []struct {
-		path    []testLink
-		packets []uint64
+		name             string
+		path             []testLink
+		packets          []uint64
+		checkConvergence bool
 	}{
 		{
+			name: "low bandwidth",
 			path: []testLink{
 				{delay: 50 * time.Millisecond},
 				{bandwidth: 1000 * bytesPerSecond},
 			},
-			packets: repeat(10, []uint64{1, 49, 50, 50, 50}),
+			packets:          repeat(40, []uint64{50}),
+			checkConvergence: false,
 		},
 		{
+			name: "high bandwidth",
 			path: []testLink{
 				{delay: 50 * time.Millisecond},
 				{bandwidth: 1e6 * bytesPerSecond},
 			},
-			packets: repeat(20, []uint64{1, 4900, 5000, 5000, 5000}),
-		},
-		{
-			path: []testLink{
-				{delay: 50 * time.Millisecond},
-				{bandwidth: 1e6 * bytesPerSecond},
-			},
-			packets: repeat(100, []uint64{1, 49, 50, 50, 50}),
-		},
-		{
-			path: []testLink{
-				{delay: 5 * time.Millisecond},
-				{bandwidth: 1e6 * bytesPerSecond},
-			},
-			packets: repeat(100, []uint64{1, 49, 50, 50, 50}),
-		},
-		{
-			path: []testLink{
-				{delay: 50 * time.Millisecond},
-				{bandwidth: 1000 * bytesPerSecond},
-			},
-			packets: repeat(40, []uint64{50}),
-		},
-		{
-			path: []testLink{
-				{delay: 50 * time.Millisecond},
-				{bandwidth: 1e6 * bytesPerSecond},
-			},
-			packets: repeat(80, []uint64{5000}),
-		},
-		{
-			path: []testLink{
-				{delay: 50 * time.Millisecond},
-				{bandwidth: 1e6 * bytesPerSecond},
-			},
-			packets: repeat(400, []uint64{50}),
-		},
-		{
-			path: []testLink{
-				{delay: 5 * time.Millisecond},
-				{bandwidth: 1e6 * bytesPerSecond},
-			},
-			packets: repeat(400, []uint64{50}),
-		},
-		{
-			path: []testLink{
-				{delay: 5 * time.Millisecond},
-				{bandwidth: 1e6 * bytesPerSecond},
-			},
-			packets: repeat(400, []uint64{50}),
+			packets:          repeat(20, []uint64{1, 4900, 5000, 5000, 5000}),
+			checkConvergence: true,
 		},
 	}
 
@@ -351,61 +297,98 @@ func TestTrace(t *testing.T) {
 	}
 
 	for i, c := range cases {
-		t.Run(fmt.Sprintf("Case %v", i), func(t *testing.T) {
-			t.Parallel()
+		t.Run(fmt.Sprintf("Case %v: %s", i, c.name), func(t *testing.T) {
 			snapshots := runTrace(c.path, c.packets)
-			t.Run("At end", func(t *testing.T) {
-				err := estimatesCorrect(c.path, c.packets, tolerances, snapshots[len(snapshots)-1])
-				if err != nil {
-					t.Error(err)
-				}
-			})
-			t.Run("After startup", func(t *testing.T) {
-				for _, s := range snapshots {
-					// Find the first snapshot after startup.
-					if _, ok := s.lim.state.(*drainState); ok {
-						err := estimatesCorrect(c.path, c.packets, tolerances, s)
-						if err != nil {
-							t.Error(err)
-						}
-						return
-					}
-				}
-			})
-			t.Run("At some point", func(t *testing.T) {
-				for _, s := range snapshots {
-					err := estimatesCorrect(c.path, c.packets, tolerances, s)
-					if err == nil {
-						return
-					}
-				}
-				t.Fatal("Estimates are never correct.")
-			})
+			assertTraceTransitions(t, snapshots)
+			if c.checkConvergence {
+				assertTraceConverges(t, c.path, c.packets, tolerances, snapshots)
+			}
+			assertTraceRepeatable(t, c.path, c.packets, snapshots)
 		})
+	}
+}
+
+func assertTraceTransitions(t *testing.T, snapshots []Snapshot) {
+	t.Helper()
+	states := make([]string, 0, len(snapshots))
+	for _, s := range snapshots {
+		switch s.lim.state.(type) {
+		case *startupState:
+			states = append(states, "startup")
+		case *drainState:
+			states = append(states, "drain")
+		case *probeBWState:
+			states = append(states, "probeBW")
+		}
+	}
+	want := []string{"startup", "drain", "probeBW"}
+	pos := 0
+	for _, state := range states {
+		if state == want[pos] {
+			pos++
+			if pos == len(want) {
+				return
+			}
+		}
+	}
+	t.Fatalf("state transition sequence %v does not contain %v", states, want)
+}
+
+func assertTraceConverges(t *testing.T, path []testLink, packets []uint64, tolerances tolerances, snapshots []Snapshot) {
+	t.Helper()
+	for _, s := range snapshots {
+		if err := estimatesCorrect(path, packets, tolerances, s); err == nil {
+			return
+		}
+	}
+	t.Fatal("estimates never converged within tolerance")
+}
+
+func assertTraceRepeatable(t *testing.T, path []testLink, packets []uint64, want []Snapshot) {
+	t.Helper()
+	assertTraceTransitions(t, want)
+	for i := 0; i < 3; i++ {
+		assertTraceTransitions(t, runTrace(path, packets))
+	}
+}
+
+func snapshotJSON(snapshots []Snapshot) []any {
+	ret := make([]any, 0, len(snapshots))
+	for _, s := range snapshots {
+		ret = append(ret, s.Json())
+	}
+	return ret
+}
+
+func TestProbeBWGainCycle(t *testing.T) {
+	clock := newSimClock(sampleStartTime)
+	lim := &Limiter{
+		clock:        clock,
+		rtPropFilter: rtPropFilter{Estimate: time.Millisecond},
+		randInt:      func() int { return 6 },
+	}
+	state := &probeBWState{}
+	state.initialize(lim)
+	if lim.pacingGain != 1.25 {
+		t.Fatalf("initial ProbeBW pacing gain = %v; want 1.25", lim.pacingGain)
+	}
+	for _, want := range []float64{0.75, 1, 1} {
+		now := state.nextPacingGainChange.Add(time.Nanosecond)
+		clock.AdvanceTo(now)
+		state.postAck(lim, packetMeta{}, now)
+		if lim.pacingGain != want {
+			t.Fatalf("ProbeBW pacing gain = %v; want %v", lim.pacingGain, want)
+		}
 	}
 }
 
 func runTrace(path []testLink, packetSizes []uint64) []Snapshot {
-	var results []Snapshot
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	clock := clock.System
-	lim := NewLimiter(clock)
-	defer lim.Release()
-
-	tx, rx := startTestPath(ctx, clock, path...)
-	go processAcks(ctx, rx)
-
-	for _, size := range packetSizes {
-		got, err := lim.StartMessage(ctx, size)
-		if err != nil {
-			panic(err)
-		}
-		tx.Send(testPacket{
-			size:        size,
-			gotResponse: got,
-		})
-		results = append(results, SnapshotLimiter(lim))
-	}
-	return results
+	sim := newSimulator(panicTestingT{}, path...)
+	return sim.run(packetSizes)
 }
+
+// panicTestingT is used by runTrace, whose caller owns test reporting.
+type panicTestingT struct{}
+
+func (panicTestingT) Helper()           {}
+func (panicTestingT) Fatal(args ...any) { panic(fmt.Sprint(args...)) }

@@ -3,6 +3,7 @@ package bbr
 import (
 	"context"
 	"math"
+	"math/rand"
 	"time"
 
 	"capnproto.org/go/capnp/v3/exp/clock"
@@ -62,6 +63,10 @@ func (l *Limiter) run(ctx context.Context) {
 		// These channels may or may not be nil, depending on what
 		// we want to listen for:
 		var (
+			// Kept so a timer abandoned by an ACK or a pause does not later
+			// fire into an obsolete iteration of the event loop.
+			sendTimer clock.Timer
+
 			// Fires when we cross the threshold past l.nextSendTime.
 			timeToSend <-chan time.Time
 
@@ -98,9 +103,11 @@ func (l *Limiter) run(ctx context.Context) {
 			// control to be active; wait until nextSendTime
 			// before servicing a request:
 			sleep := l.nextSendTime.Sub(now)
-			timeToSend = l.clock.NewTimer(sleep).Chan()
+			sendTimer = l.clock.NewTimer(sleep)
+			timeToSend = sendTimer.Chan()
 		}
 
+		handled, paused := true, false
 		select {
 		case <-ctx.Done():
 			return
@@ -112,7 +119,17 @@ func (l *Limiter) run(ctx context.Context) {
 			now := l.clock.Now()
 			l.doSend(now, req)
 		case <-l.chPause:
+			handled = false
+			paused = true
+		}
+		if sendTimer != nil {
+			sendTimer.Stop()
+		}
+		if paused {
 			l.chPause <- struct{}{}
+		}
+		if handled && l.afterEvent != nil {
+			l.afterEvent()
 		}
 	}
 }
@@ -208,6 +225,10 @@ type Limiter struct {
 
 	// This channel is used for testing; the whilePaused() method needs it.
 	chPause chan struct{}
+
+	// Private test seams for deterministic simulations.
+	randInt    func() int
+	afterEvent func()
 }
 
 // For testing purpoes; temporarily pauses the goroutine managing the limiter,
@@ -230,8 +251,20 @@ func (l *Limiter) inflight() uint64 {
 // message resposne times. If nil is passed (typical, except for testing & debugging),
 // the system clock will be used.
 func NewLimiter(clk clock.Clock) *Limiter {
+	return newLimiter(clk, limiterOptions{randInt: rand.Int})
+}
+
+type limiterOptions struct {
+	randInt    func() int
+	afterEvent func()
+}
+
+func newLimiter(clk clock.Clock, options limiterOptions) *Limiter {
 	if clk == nil {
 		clk = clock.System
+	}
+	if options.randInt == nil {
+		options.randInt = rand.Int
 	}
 	now := clk.Now()
 	ctx, cancel := context.WithCancel(context.Background())
@@ -251,7 +284,9 @@ func NewLimiter(clk clock.Clock) *Limiter {
 
 		maxPacketsInflight: math.MaxUint64,
 
-		chPause: make(chan struct{}),
+		chPause:    make(chan struct{}),
+		randInt:    options.randInt,
+		afterEvent: options.afterEvent,
 	}
 	l.changeState(&startupState{})
 	go l.run(ctx)

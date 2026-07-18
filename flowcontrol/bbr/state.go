@@ -5,7 +5,6 @@ package bbr
 
 import (
 	"math"
-	"math/rand"
 	"time"
 )
 
@@ -97,7 +96,7 @@ func (s *probeBWState) initialize(lim *Limiter) {
 	// Randomly select an initial pacing gain; anything but the value
 	// below 1 will do (see paper). That value is last in the slice, so
 	// pick a random index before that:
-	s.pacingGainIndex = rand.Int() % (len(probeBWPacingGains) - 1)
+	s.pacingGainIndex = lim.randInt() % (len(probeBWPacingGains) - 1)
 
 	lim.pacingGain = probeBWPacingGains[s.pacingGainIndex]
 	s.nextPacingGainChange = now.Add(s.rtProp)
