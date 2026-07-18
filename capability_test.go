@@ -119,6 +119,12 @@ func TestReleasedClient(t *testing.T) {
 		t.Error("second Release made more calls to ClientHook.Shutdown")
 	}
 }
+
+func TestZeroClientSnapshotRelease(t *testing.T) {
+	var snapshot ClientSnapshot
+	snapshot.Release()
+}
+
 func TestResolve(t *testing.T) {
 	test := func(t *testing.T, name string, f func(t *testing.T, p1, p2 Client, r1, r2 Resolver[Client])) {
 		t.Run(name, func(t *testing.T) {
