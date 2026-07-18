@@ -53,6 +53,40 @@ func TestPromiseReject(t *testing.T) {
 	})
 }
 
+func TestAnswerQueueFulfillLeafWithoutPipelineCaller(t *testing.T) {
+	aq := NewAnswerQueue(dummyMethod)
+	ret1 := new(dummyReturner)
+	pcall := aq.PipelineRecv(context.Background(), nil, Recv{
+		Method:      dummyMethod,
+		Returner:    ret1,
+		ReleaseArgs: func() {},
+	})
+	ret2 := new(dummyReturner)
+	pcall.PipelineRecv(context.Background(), nil, Recv{
+		Method:      dummyMethod,
+		Returner:    ret2,
+		ReleaseArgs: func() {},
+	})
+
+	msg, seg := NewSingleSegmentMessage(nil)
+	defer msg.Release()
+	capID := msg.CapTable().Add(ErrorClient(errors.New("test error")))
+	aq.Fulfill(NewInterface(seg, capID).ToPtr())
+
+	if !ret1.returned {
+		t.Fatal("first queued call was not returned")
+	}
+	if ret1.err == nil {
+		t.Fatal("first queued call was not rejected")
+	}
+	if !ret2.returned {
+		t.Fatal("dependent queued call was not returned")
+	}
+	if ret2.err == nil {
+		t.Fatal("dependent queued call was not rejected")
+	}
+}
+
 func TestPromiseFulfill(t *testing.T) {
 	t.Parallel()
 
