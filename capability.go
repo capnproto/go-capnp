@@ -690,8 +690,12 @@ func (cs ClientSnapshot) AddRef() ClientSnapshot {
 	return cs
 }
 
-// Release the reference to the hook.
+// Release the reference to the hook. Release on a zero ClientSnapshot is a no-op.
 func (cs *ClientSnapshot) Release() {
+	if cs.hook == nil {
+		return
+	}
+
 	cs.hook.Release()
 }
 
