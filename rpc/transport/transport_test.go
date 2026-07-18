@@ -183,6 +183,123 @@ func TestTCPStreamTransport(t *testing.T) {
 	})
 }
 
+func TestStreamTransportOptions(t *testing.T) {
+	tests := []struct {
+		name    string
+		new     func(io.ReadWriteCloser, StreamTransportOptions) Transport
+		maxSize uint64
+	}{
+		{
+			name:    "UnpackedDefault",
+			new:     NewStreamWithOptions,
+			maxSize: 0,
+		},
+		{
+			name:    "UnpackedConfigured",
+			new:     NewStreamWithOptions,
+			maxSize: 128,
+		},
+		{
+			name:    "PackedDefault",
+			new:     NewPackedStreamWithOptions,
+			maxSize: 0,
+		},
+		{
+			name:    "PackedConfigured",
+			new:     NewPackedStreamWithOptions,
+			maxSize: 128,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			left, right := net.Pipe()
+			t.Cleanup(func() {
+				left.Close()
+				right.Close()
+			})
+
+			got := test.new(left, StreamTransportOptions{MaxMessageSize: test.maxSize})
+			codec := got.(*transport).c.(*streamCodec)
+			if codec.MaxMessageSize != test.maxSize {
+				t.Errorf("MaxMessageSize = %d; want %d", codec.MaxMessageSize, test.maxSize)
+			}
+		})
+	}
+}
+
+func TestStreamTransportOptions_MessageLimit(t *testing.T) {
+	tests := []struct {
+		name    string
+		new     func(io.ReadWriteCloser, StreamTransportOptions) Transport
+		encoder func(io.Writer) *capnp.Encoder
+		maxSize uint64
+		wantErr bool
+	}{
+		{
+			name:    "UnpackedAccept",
+			new:     NewStreamWithOptions,
+			encoder: capnp.NewEncoder,
+			maxSize: 32,
+		},
+		{
+			name:    "UnpackedReject",
+			new:     NewStreamWithOptions,
+			encoder: capnp.NewEncoder,
+			maxSize: 8,
+			wantErr: true,
+		},
+		{
+			name:    "PackedAccept",
+			new:     NewPackedStreamWithOptions,
+			encoder: capnp.NewPackedEncoder,
+			maxSize: 32,
+		},
+		{
+			name:    "PackedReject",
+			new:     NewPackedStreamWithOptions,
+			encoder: capnp.NewPackedEncoder,
+			maxSize: 8,
+			wantErr: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			left, right := net.Pipe()
+			t.Cleanup(func() {
+				left.Close()
+				right.Close()
+			})
+
+			msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+			require.NoError(t, err)
+			_, err = capnp.NewRootStruct(seg, capnp.ObjectSize{DataSize: 8})
+			require.NoError(t, err)
+
+			writeErr := make(chan error, 1)
+			go func() {
+				writeErr <- test.encoder(right).Encode(msg)
+			}()
+
+			transport := test.new(left, StreamTransportOptions{MaxMessageSize: test.maxSize})
+			incoming, err := transport.RecvMessage()
+			if test.wantErr {
+				assert.Error(t, err)
+				require.NoError(t, left.Close())
+			} else {
+				require.NoError(t, err)
+				incoming.Release()
+			}
+			if test.wantErr {
+				assert.Error(t, <-writeErr)
+			} else {
+				require.NoError(t, <-writeErr)
+			}
+		})
+	}
+}
+
 func testTCPStreamTransport(t *testing.T, newTransport func(io.ReadWriteCloser) Transport) {
 	type listenCall struct {
 		c   *net.TCPConn
