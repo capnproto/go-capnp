@@ -4,20 +4,20 @@ import (
 	"capnproto.org/go/capnp/v3/internal/str"
 )
 
-// pointerOffset is an address offset in multiples of word size.
+// pointerOffset is an Address offset in multiples of word size.
 // It is bounded to [-1<<29, 1<<29).
 type pointerOffset int32
 
-// resolve returns an absolute address relative to a base address.
+// resolve returns an absolute Address relative to a base Address.
 // For near pointers, the base is the end of the near pointer.
 // For far pointers, the base is zero (the beginning of the segment).
-func (off pointerOffset) resolve(base address) (_ address, ok bool) {
+func (off pointerOffset) resolve(base Address) (_ Address, ok bool) {
 	return base.element(int32(off), wordSize)
 }
 
 // nearPointerOffset computes the offset for a pointer at paddr to point to addr.
-func nearPointerOffset(paddr, addr address) pointerOffset {
-	return pointerOffset(addr/address(wordSize) - paddr/address(wordSize) - 1)
+func nearPointerOffset(paddr, addr Address) pointerOffset {
+	return pointerOffset(addr/Address(wordSize) - paddr/Address(wordSize) - 1)
 }
 
 // rawPointer is an encoded pointer.
@@ -45,12 +45,12 @@ func rawInterfacePointer(capability CapabilityID) rawPointer {
 }
 
 // rawFarPointer returns a pointer to a pointer in another segment.
-func rawFarPointer(segID SegmentID, off address) rawPointer {
+func rawFarPointer(segID SegmentID, off Address) rawPointer {
 	return rawPointer(farPointer) | rawPointer(off&^7) | (rawPointer(segID) << 32)
 }
 
 // rawDoubleFarPointer returns a pointer to a pointer in another segment.
-func rawDoubleFarPointer(segID SegmentID, off address) rawPointer {
+func rawDoubleFarPointer(segID SegmentID, off Address) rawPointer {
 	return rawPointer(doubleFarPointer) | rawPointer(off&^7) | (rawPointer(segID) << 32)
 }
 
@@ -170,12 +170,12 @@ func (p rawPointer) withOffset(off pointerOffset) rawPointer {
 	return p&^0xfffffffc | rawPointer(uint32(off<<2))
 }
 
-// farAddress returns the address of the landing pad pointer.
-func (p rawPointer) farAddress() address {
+// farAddress returns the Address of the landing pad pointer.
+func (p rawPointer) farAddress() Address {
 	// Far pointer offset is 29 bits, starting after the low 3 bits.
 	// It's an unsigned word offset, which would be equivalent to a
 	// logical left shift by 3.
-	return address(p) &^ 7
+	return Address(p) &^ 7
 }
 
 // farSegment returns the segment ID that the far pointer references.

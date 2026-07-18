@@ -76,7 +76,7 @@ func TestAlloc(t *testing.T) {
 		size Size
 
 		allocID SegmentID
-		addr    address
+		addr    Address
 	}
 	var tests []allocTest
 
@@ -585,7 +585,7 @@ func (ro readOnlyArena) String() string {
 	return fmt.Sprintf("readOnlyArena{%v}", ro.Arena)
 }
 
-func (readOnlyArena) Allocate(sz Size, msg *Message, seg *Segment) (*Segment, address, error) {
+func (readOnlyArena) Allocate(sz Size, msg *Message, seg *Segment) (*Segment, Address, error) {
 	return nil, 0, errReadOnlyArena
 }
 

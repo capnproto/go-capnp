@@ -11,7 +11,7 @@ import (
 // The zero value is a null pointer.
 type Ptr struct {
 	seg        *Segment
-	off        address
+	off        Address
 	lenOrCap   uint32
 	size       ObjectSize
 	depthLimit uint

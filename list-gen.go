@@ -30,7 +30,7 @@ func (l VoidList) ToPtr() Ptr {
 	return List(l).ToPtr()
 }
 
-func (l VoidList) primitiveElem(i int, expectedSize ObjectSize) (address, error) {
+func (l VoidList) primitiveElem(i int, expectedSize ObjectSize) (Address, error) {
 	return List(l).primitiveElem(i, expectedSize)
 }
 
@@ -62,7 +62,7 @@ func (l BitList) ToPtr() Ptr {
 	return List(l).ToPtr()
 }
 
-func (l BitList) primitiveElem(i int, expectedSize ObjectSize) (address, error) {
+func (l BitList) primitiveElem(i int, expectedSize ObjectSize) (Address, error) {
 	return List(l).primitiveElem(i, expectedSize)
 }
 
@@ -94,7 +94,7 @@ func (l Float32List) ToPtr() Ptr {
 	return List(l).ToPtr()
 }
 
-func (l Float32List) primitiveElem(i int, expectedSize ObjectSize) (address, error) {
+func (l Float32List) primitiveElem(i int, expectedSize ObjectSize) (Address, error) {
 	return List(l).primitiveElem(i, expectedSize)
 }
 
@@ -126,7 +126,7 @@ func (l Float64List) ToPtr() Ptr {
 	return List(l).ToPtr()
 }
 
-func (l Float64List) primitiveElem(i int, expectedSize ObjectSize) (address, error) {
+func (l Float64List) primitiveElem(i int, expectedSize ObjectSize) (Address, error) {
 	return List(l).primitiveElem(i, expectedSize)
 }
 
@@ -158,7 +158,7 @@ func (l TextList) ToPtr() Ptr {
 	return List(l).ToPtr()
 }
 
-func (l TextList) primitiveElem(i int, expectedSize ObjectSize) (address, error) {
+func (l TextList) primitiveElem(i int, expectedSize ObjectSize) (Address, error) {
 	return List(l).primitiveElem(i, expectedSize)
 }
 
@@ -190,7 +190,7 @@ func (l DataList) ToPtr() Ptr {
 	return List(l).ToPtr()
 }
 
-func (l DataList) primitiveElem(i int, expectedSize ObjectSize) (address, error) {
+func (l DataList) primitiveElem(i int, expectedSize ObjectSize) (Address, error) {
 	return List(l).primitiveElem(i, expectedSize)
 }
 
@@ -222,7 +222,7 @@ func (l PointerList) ToPtr() Ptr {
 	return List(l).ToPtr()
 }
 
-func (l PointerList) primitiveElem(i int, expectedSize ObjectSize) (address, error) {
+func (l PointerList) primitiveElem(i int, expectedSize ObjectSize) (Address, error) {
 	return List(l).primitiveElem(i, expectedSize)
 }
 
@@ -254,7 +254,7 @@ func (l EnumList[T]) ToPtr() Ptr {
 	return List(l).ToPtr()
 }
 
-func (l EnumList[T]) primitiveElem(i int, expectedSize ObjectSize) (address, error) {
+func (l EnumList[T]) primitiveElem(i int, expectedSize ObjectSize) (Address, error) {
 	return List(l).primitiveElem(i, expectedSize)
 }
 
@@ -286,7 +286,7 @@ func (l StructList[T]) ToPtr() Ptr {
 	return List(l).ToPtr()
 }
 
-func (l StructList[T]) primitiveElem(i int, expectedSize ObjectSize) (address, error) {
+func (l StructList[T]) primitiveElem(i int, expectedSize ObjectSize) (Address, error) {
 	return List(l).primitiveElem(i, expectedSize)
 }
 
@@ -318,7 +318,7 @@ func (l CapList[T]) ToPtr() Ptr {
 	return List(l).ToPtr()
 }
 
-func (l CapList[T]) primitiveElem(i int, expectedSize ObjectSize) (address, error) {
+func (l CapList[T]) primitiveElem(i int, expectedSize ObjectSize) (Address, error) {
 	return List(l).primitiveElem(i, expectedSize)
 }
 
@@ -350,7 +350,7 @@ func (l Int8List) ToPtr() Ptr {
 	return List(l).ToPtr()
 }
 
-func (l Int8List) primitiveElem(i int, expectedSize ObjectSize) (address, error) {
+func (l Int8List) primitiveElem(i int, expectedSize ObjectSize) (Address, error) {
 	return List(l).primitiveElem(i, expectedSize)
 }
 
@@ -382,7 +382,7 @@ func (l UInt8List) ToPtr() Ptr {
 	return List(l).ToPtr()
 }
 
-func (l UInt8List) primitiveElem(i int, expectedSize ObjectSize) (address, error) {
+func (l UInt8List) primitiveElem(i int, expectedSize ObjectSize) (Address, error) {
 	return List(l).primitiveElem(i, expectedSize)
 }
 
@@ -414,7 +414,7 @@ func (l Int16List) ToPtr() Ptr {
 	return List(l).ToPtr()
 }
 
-func (l Int16List) primitiveElem(i int, expectedSize ObjectSize) (address, error) {
+func (l Int16List) primitiveElem(i int, expectedSize ObjectSize) (Address, error) {
 	return List(l).primitiveElem(i, expectedSize)
 }
 
@@ -446,7 +446,7 @@ func (l UInt16List) ToPtr() Ptr {
 	return List(l).ToPtr()
 }
 
-func (l UInt16List) primitiveElem(i int, expectedSize ObjectSize) (address, error) {
+func (l UInt16List) primitiveElem(i int, expectedSize ObjectSize) (Address, error) {
 	return List(l).primitiveElem(i, expectedSize)
 }
 
@@ -478,7 +478,7 @@ func (l Int32List) ToPtr() Ptr {
 	return List(l).ToPtr()
 }
 
-func (l Int32List) primitiveElem(i int, expectedSize ObjectSize) (address, error) {
+func (l Int32List) primitiveElem(i int, expectedSize ObjectSize) (Address, error) {
 	return List(l).primitiveElem(i, expectedSize)
 }
 
@@ -510,7 +510,7 @@ func (l UInt32List) ToPtr() Ptr {
 	return List(l).ToPtr()
 }
 
-func (l UInt32List) primitiveElem(i int, expectedSize ObjectSize) (address, error) {
+func (l UInt32List) primitiveElem(i int, expectedSize ObjectSize) (Address, error) {
 	return List(l).primitiveElem(i, expectedSize)
 }
 
@@ -542,7 +542,7 @@ func (l Int64List) ToPtr() Ptr {
 	return List(l).ToPtr()
 }
 
-func (l Int64List) primitiveElem(i int, expectedSize ObjectSize) (address, error) {
+func (l Int64List) primitiveElem(i int, expectedSize ObjectSize) (Address, error) {
 	return List(l).primitiveElem(i, expectedSize)
 }
 
@@ -574,6 +574,6 @@ func (l UInt64List) ToPtr() Ptr {
 	return List(l).ToPtr()
 }
 
-func (l UInt64List) primitiveElem(i int, expectedSize ObjectSize) (address, error) {
+func (l UInt64List) primitiveElem(i int, expectedSize ObjectSize) (Address, error) {
 	return List(l).primitiveElem(i, expectedSize)
 }

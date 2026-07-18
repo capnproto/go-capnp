@@ -45,7 +45,7 @@ func (l {{.}}) ToPtr() Ptr {
 	return List(l).ToPtr()
 }
 
-func (l {{.}}) primitiveElem(i int, expectedSize ObjectSize) (address, error) {
+func (l {{.}}) primitiveElem(i int, expectedSize ObjectSize) (Address, error) {
 	return List(l).primitiveElem(i, expectedSize)
 }
 `))
