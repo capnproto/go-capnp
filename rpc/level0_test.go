@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -1246,6 +1247,56 @@ func TestRecvBootstrapCallException(t *testing.T) {
 // requirement.
 func TestRecvBootstrapPipelineCall(t *testing.T) {
 	t.Parallel()
+	testRecvBootstrapPipelineCall(t)
+}
+
+func TestRecvPromisedAnswerMissingCapability(t *testing.T) {
+	t.Parallel()
+	srv := newServer(func(_ context.Context, call *server.Call) error {
+		results, err := call.AllocResults(capnp.ObjectSize{PointerCount: 1})
+		if err != nil {
+			return err
+		}
+		results.SetPtr(0, capnp.NewInterface(results.Segment(), 1).ToPtr())
+		return nil
+	}, nil)
+	left, right := transport.NewPipe(1)
+	conn := rpc.NewConn(rpc.NewTransport(left), &rpc.Options{BootstrapClient: srv, Logger: testErrorReporter{tb: t}})
+	p := rpc.NewTransport(right)
+	defer finishTest(t, conn, p)
+	ctx := context.Background()
+	const boot, source, bad, good = 1, 2, 3, 4
+	require.NoError(t, sendMessage(ctx, p, &rpcMessage{Which: rpccp.Message_Which_bootstrap, Bootstrap: &rpcBootstrap{QuestionID: boot}}))
+	_, err := recvBootstrapReturn(ctx, p, boot)
+	require.NoError(t, err)
+	send := func(qid uint32, target rpcMessageTarget) *rpcMessage {
+		require.NoError(t, sendMessage(ctx, p, &rpcMessage{Which: rpccp.Message_Which_call, Call: &rpcCall{QuestionID: qid, Target: target, InterfaceID: interfaceID, MethodID: methodID}}))
+		m, release, err := recvMessage(ctx, p)
+		require.NoError(t, err)
+		defer release()
+		return m
+	}
+	first := send(source, rpcMessageTarget{Which: rpccp.MessageTarget_Which_promisedAnswer, PromisedAnswer: &rpcPromisedAnswer{QuestionID: boot}})
+	require.Equal(t, rpccp.Return_Which_results, first.Return.Which)
+	badReturn := send(bad, rpcMessageTarget{Which: rpccp.MessageTarget_Which_promisedAnswer, PromisedAnswer: &rpcPromisedAnswer{QuestionID: source, Transform: []rpcPromisedAnswerOp{{Which: rpccp.PromisedAnswer_Op_Which_getPointerField, GetPointerField: 0}}}})
+	require.Equal(t, rpccp.Return_Which_exception, badReturn.Return.Which)
+	valid := send(good, rpcMessageTarget{Which: rpccp.MessageTarget_Which_promisedAnswer, PromisedAnswer: &rpcPromisedAnswer{QuestionID: boot}})
+	require.Equal(t, rpccp.Return_Which_results, valid.Return.Which)
+}
+
+func TestRecvBootstrapPipelineCallStress(t *testing.T) {
+	if os.Getenv("CAPNP_RPC_STRESS") != "1" {
+		t.Skip("set CAPNP_RPC_STRESS=1 to run promised-answer lifecycle stress test")
+	}
+
+	for i := 0; i < 100; i++ {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			testRecvBootstrapPipelineCall(t)
+		})
+	}
+}
+
+func testRecvBootstrapPipelineCall(t *testing.T) {
 
 	srvShutdown := make(chan struct{})
 	srv := newServer(

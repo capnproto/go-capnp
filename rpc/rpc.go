@@ -927,16 +927,11 @@ func (c *Conn) handleCall(ctx context.Context, in transport.IncomingMessage) err
 					dq.Defer(in.Release)
 					return nil
 				}
-				iface := sub.Interface()
-				var tgt capnp.ClientSnapshot
-				if sub.IsValid() && !iface.IsValid() {
-					tgt = capnp.ErrorClient(rpcerr.Failed(ErrNotACapability)).Snapshot()
-				} else {
-					capID := iface.Capability()
-					capTable := tgtAns.returner.resultsCapTable
-					if int(capID) < len(capTable) {
-						tgt = capTable[capID].AddRef()
-					}
+				tgt, err := promisedAnswerTarget(sub, tgtAns.returner.resultsCapTable)
+				if err != nil {
+					ans.sendException(dq, err)
+					dq.Defer(in.Release)
+					return nil
 				}
 
 				c.tasks.Add(1) // will be finished by answer.Return
@@ -967,6 +962,26 @@ func (c *Conn) handleCall(ctx context.Context, in transport.IncomingMessage) err
 			panic("unreachable")
 		}
 	})
+}
+
+// promisedAnswerTarget resolves an interface pointer from a promised answer's
+// results. The returned snapshot owns a reference and must be released by the
+// caller. A non-capability result is represented by an error client; a missing
+// capability-table entry is an invalid incoming call.
+func promisedAnswerTarget(sub capnp.Ptr, capTable []capnp.ClientSnapshot) (capnp.ClientSnapshot, error) {
+	iface := sub.Interface()
+	if !sub.IsValid() || !iface.IsValid() {
+		return capnp.ErrorClient(rpcerr.Failed(ErrNotACapability)).Snapshot(), nil
+	}
+
+	capID := iface.Capability()
+	if int(capID) >= len(capTable) || !capTable[capID].IsValid() {
+		return capnp.ClientSnapshot{}, rpcerr.Failed(errors.New(
+			"incoming call: promised answer capability index " + str.Utod(capID) +
+				" is not present in results capability table",
+		))
+	}
+	return capTable[capID].AddRef(), nil
 }
 
 // A promisedPipelineCaller is a PipelineCaller that stands in for another
