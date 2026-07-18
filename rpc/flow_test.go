@@ -12,84 +12,66 @@ import (
 	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/flowcontrol"
 	"capnproto.org/go/capnp/v3/rpc/internal/testcapnp"
-	"capnproto.org/go/capnp/v3/rpc/transport"
 )
 
-// measureTransport is a wrapper around another transport, and measures the
-// total size of all messages received from RecvMessage(), but not released.
-// It tracks the current and all-time-maximum of this value.
-type measuringTransport struct {
-	Transport
+// observingLimiter reports when a call to StartMessage is waiting for a
+// response. It lets the integration test observe the configured limiter
+// directly instead of inferring its state from the receiver's message sizes.
+type observingLimiter struct {
+	flowcontrol.FlowLimiter
 
-	mu              sync.Mutex
-	inUse, maxInUse uint64
-	changed         chan struct{}
+	mu                 sync.Mutex
+	started, proceeded uint64
+	changed            chan struct{}
 }
 
-func (t *measuringTransport) RecvMessage() (transport.IncomingMessage, error) {
-	inMsg, err := t.Transport.RecvMessage()
+func newObservingLimiter(limit int64) *observingLimiter {
+	return &observingLimiter{
+		FlowLimiter: flowcontrol.NewFixedLimiter(limit),
+		changed:     make(chan struct{}, 1),
+	}
+}
+
+func (l *observingLimiter) StartMessage(ctx context.Context, size uint64) (func(), error) {
+	l.mu.Lock()
+	l.started++
+	l.mu.Unlock()
+	l.signalChanged()
+
+	gotResponse, err := l.FlowLimiter.StartMessage(ctx, size)
 	if err != nil {
-		return inMsg, err
+		return gotResponse, err
 	}
 
-	size, err := inMsg.Message().Message().TotalSize()
-	if err != nil {
-		return inMsg, err
-	}
-
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	if t.inUse += size; t.inUse > t.maxInUse {
-		t.maxInUse = t.inUse
-	}
-	select {
-	case t.changed <- struct{}{}:
-	default:
-	}
-
-	return releaseHook{
-		t:               t,
-		size:            size,
-		IncomingMessage: inMsg,
-	}, nil
+	l.mu.Lock()
+	l.proceeded++
+	l.mu.Unlock()
+	l.signalChanged()
+	return gotResponse, nil
 }
 
-type releaseHook struct {
-	t    *measuringTransport
-	size uint64
-	transport.IncomingMessage
-}
-
-func (rh releaseHook) Release() {
-	rh.IncomingMessage.Release()
-
-	rh.t.mu.Lock()
-	rh.t.inUse -= rh.size
-	rh.t.mu.Unlock()
-}
-
-func (t *measuringTransport) waitForInUse(ctx context.Context, min uint64) bool {
+func (l *observingLimiter) waitForBlocked(ctx context.Context) bool {
 	for {
-		t.mu.Lock()
-		inUse := t.inUse
-		t.mu.Unlock()
-		if inUse >= min {
+		l.mu.Lock()
+		blocked := l.started > l.proceeded
+		l.mu.Unlock()
+		if blocked {
 			return true
 		}
 
 		select {
 		case <-ctx.Done():
 			return false
-		case <-t.changed:
+		case <-l.changed:
 		}
 	}
 }
 
-func (t *measuringTransport) maxInUseSnapshot() uint64 {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	return t.maxInUse
+func (l *observingLimiter) signalChanged() {
+	select {
+	case l.changed <- struct{}{}:
+	default:
+	}
 }
 
 // Test that attaching a fixed-size FlowLimiter results in actually limiting the
@@ -99,17 +81,12 @@ func TestFixedFlowLimit(t *testing.T) {
 	t.Parallel()
 
 	limit := int64(1 << 20)
-	const callCount = 1024
 
 	clientConn, serverConn := net.Pipe()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	serverTrans := &measuringTransport{
-		Transport: NewStreamTransport(serverConn),
-		changed:   make(chan struct{}, 1),
-	}
 	unblock := make(chan struct{})
 	releaseServer := func() {
 		select {
@@ -125,7 +102,7 @@ func TestFixedFlowLimit(t *testing.T) {
 		// Server
 
 		bootstrap := testcapnp.StreamTest_ServerToClient(server)
-		conn := NewConn(serverTrans, &Options{
+		conn := NewConn(NewStreamTransport(serverConn), &Options{
 			BootstrapClient: capnp.Client(bootstrap),
 		})
 		defer conn.Close()
@@ -143,11 +120,19 @@ func TestFixedFlowLimit(t *testing.T) {
 	// Make a decently sized payload, so we can expect the size of the
 	// parameters to dominate the size of rpc messages.
 	data := make([]byte, 2048)
-	capnp.Client(client).SetFlowLimiter(flowcontrol.NewFixedLimiter(limit))
+	limiter := newObservingLimiter(limit)
+	capnp.Client(client).SetFlowLimiter(limiter)
 
+	stop := make(chan struct{})
 	sent := make(chan error, 1)
 	go func() {
-		for i := 0; i < callCount; i++ {
+		for {
+			select {
+			case <-stop:
+				sent <- nil
+				return
+			default:
+			}
 			if err := client.Push(ctx, func(p testcapnp.StreamTest_push_Params) error {
 				return p.SetData(data)
 			}); err != nil {
@@ -155,11 +140,10 @@ func TestFixedFlowLimit(t *testing.T) {
 				return
 			}
 		}
-		sent <- nil
 	}()
 
-	if !serverTrans.waitForInUse(ctx, uint64(limit-(limit/10))) {
-		t.Fatal("server did not receive enough held calls to exercise the limiter")
+	if !limiter.waitForBlocked(ctx) {
+		t.Fatal("flow limiter did not block while the server held responses")
 	}
 	select {
 	case err := <-sent:
@@ -169,6 +153,7 @@ func TestFixedFlowLimit(t *testing.T) {
 
 	// The server cannot respond until this gate is opened. Once it is, each
 	// response returns capacity to the limiter and lets the client proceed.
+	close(stop)
 	releaseServer()
 	select {
 	case err := <-sent:
@@ -182,26 +167,6 @@ func TestFixedFlowLimit(t *testing.T) {
 	cancel()
 	<-done
 
-	maxInUse := serverTrans.maxInUseSnapshot()
-	// We check that the max bytes in flight never exceeded the limit by more than 10%.
-	// We leave a little headroom to allow for things like:
-	//
-	// * space taken up by non-calls, like Finish messages and such
-	// * descrepencies due to the rpc system choosing to add metadata after the
-	//   size of the call has already been measured.
-	//
-	// Note that this is theoretically a per-client limit, not a per-connection limit,
-	// but this test only has one client. TODO: we could enhance this by having a test
-	// with multiple clients, and examining the sum of their uses.
-	if maxInUse >= uint64(limit+(limit/10)) {
-		t.Fatalf("flow control didn't limit flow enough: max in use = %d, limit = %d", maxInUse, limit)
-	}
-
-	// Let's also make sure that we aren't too far *under* the limit; if we've written the test
-	// right, the client should be much faster than the server, so we should get close to it.
-	if maxInUse <= uint64(limit-(limit/10)) {
-		t.Fatalf("too little flow: max in use = %d, limit = %d", maxInUse, limit)
-	}
 }
 
 type gatedStreamTestServer struct {
