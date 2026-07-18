@@ -91,6 +91,13 @@ type Codec interface {
 	Close() error
 }
 
+// StreamTransportOptions configures a stream transport.
+type StreamTransportOptions struct {
+	// MaxMessageSize is the maximum number of bytes accepted in an incoming
+	// message. If zero, the decoder's default limit is used.
+	MaxMessageSize uint64
+}
+
 // A transport serializes and deserializes Cap'n Proto using a Codec.
 // It adds no buffering beyond what is provided by the underlying
 // byte transfer mechanism.
@@ -109,7 +116,12 @@ func New(c Codec) Transport { return &transport{c: c} }
 // rwc's Close method must interrupt any outstanding IO, and it must be safe
 // to call rwc.Read and rwc.Write concurrently.
 func NewStream(rwc io.ReadWriteCloser) Transport {
-	return New(newStreamCodec(rwc, basicEncoding{}))
+	return NewStreamWithOptions(rwc, StreamTransportOptions{})
+}
+
+// NewStreamWithOptions creates a stream transport with the given options.
+func NewStreamWithOptions(rwc io.ReadWriteCloser, opts StreamTransportOptions) Transport {
+	return New(newStreamCodec(rwc, basicEncoding{}, opts))
 }
 
 // NewPackedStream creates a new transport that uses a packed
@@ -117,7 +129,13 @@ func NewStream(rwc io.ReadWriteCloser) Transport {
 //
 // See:  NewStream.
 func NewPackedStream(rwc io.ReadWriteCloser) Transport {
-	return New(newStreamCodec(rwc, packedEncoding{}))
+	return NewPackedStreamWithOptions(rwc, StreamTransportOptions{})
+}
+
+// NewPackedStreamWithOptions creates a packed stream transport with the
+// given options.
+func NewPackedStreamWithOptions(rwc io.ReadWriteCloser, opts StreamTransportOptions) Transport {
+	return New(newStreamCodec(rwc, packedEncoding{}, opts))
 }
 
 // NewMessage allocates a new message to be sent.
@@ -183,9 +201,11 @@ type streamCodec struct {
 	io.Closer
 }
 
-func newStreamCodec(rwc io.ReadWriteCloser, f streamEncoding) *streamCodec {
+func newStreamCodec(rwc io.ReadWriteCloser, f streamEncoding, opts StreamTransportOptions) *streamCodec {
+	decoder := f.NewDecoder(rwc)
+	decoder.MaxMessageSize = opts.MaxMessageSize
 	return &streamCodec{
-		Decoder: f.NewDecoder(rwc),
+		Decoder: decoder,
 		Encoder: f.NewEncoder(rwc),
 		Closer:  rwc,
 	}
