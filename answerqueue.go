@@ -101,8 +101,17 @@ func (aq *AnswerQueue) Fulfill(ptr Ptr) {
 		pcall := recv(ent.ctx, ent.path, ent.Recv)
 		// The basis for our result will always be our index in the queue + 1
 		// since 0 is used for the initial fulfilled result.
-		aq.bases[i+1].recv = pcall.PipelineRecv
+		if pcall == nil {
+			aq.bases[i+1].recv = rejectPipelineCall
+		} else {
+			aq.bases[i+1].recv = pcall.PipelineRecv
+		}
 	}
+}
+
+func rejectPipelineCall(_ context.Context, _ []PipelineOp, r Recv) PipelineCaller {
+	r.Reject(errors.New("capnp: pipeline call has no pipeline caller"))
+	return nil
 }
 
 // Reject empties the queue, returning errors on all the method calls.
