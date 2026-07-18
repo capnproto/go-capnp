@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -1246,6 +1247,22 @@ func TestRecvBootstrapCallException(t *testing.T) {
 // requirement.
 func TestRecvBootstrapPipelineCall(t *testing.T) {
 	t.Parallel()
+	testRecvBootstrapPipelineCall(t)
+}
+
+func TestRecvBootstrapPipelineCallStress(t *testing.T) {
+	if os.Getenv("CAPNP_RPC_STRESS") != "1" {
+		t.Skip("set CAPNP_RPC_STRESS=1 to run promised-answer lifecycle stress test")
+	}
+
+	for i := 0; i < 100; i++ {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			testRecvBootstrapPipelineCall(t)
+		})
+	}
+}
+
+func testRecvBootstrapPipelineCall(t *testing.T) {
 
 	srvShutdown := make(chan struct{})
 	srv := newServer(
