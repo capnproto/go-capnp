@@ -73,7 +73,7 @@ func (i Interface) Capability() CapabilityID {
 }
 
 // value returns a raw interface pointer with the capability ID.
-func (i Interface) value(paddr address) rawPointer {
+func (i Interface) value(paddr Address) rawPointer {
 	if i.seg == nil {
 		return 0
 	}
@@ -187,7 +187,7 @@ func (c *clientCursor) Release() {
 }
 
 // clientHook is a reference-counted wrapper for a ClientHook.
-// It is assumed that a clientHook's address uniquely identifies a hook,
+// It is assumed that a clientHook's Address uniquely identifies a hook,
 // since they are only created in NewClient and NewPromisedClient.
 type clientHook struct {
 	// ClientHook will never be nil and will not change for the lifetime of

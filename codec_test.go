@@ -86,7 +86,7 @@ func (t *tooManySegsArena) Segment(id SegmentID) *Segment {
 	return nil
 }
 
-func (t *tooManySegsArena) Allocate(minsz Size, msg *Message, seg *Segment) (*Segment, address, error) {
+func (t *tooManySegsArena) Allocate(minsz Size, msg *Message, seg *Segment) (*Segment, Address, error) {
 	return nil, 0, errors.New("cannot allocate")
 }
 

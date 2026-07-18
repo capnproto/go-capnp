@@ -375,7 +375,7 @@ func (wc *writeCounter) Write(b []byte) (n int, err error) {
 // alloc allocates sz zero-filled bytes.  It prefers using s, but may
 // use a different segment in the same message if there's not sufficient
 // capacity.
-func alloc(s *Segment, sz Size) (*Segment, address, error) {
+func alloc(s *Segment, sz Size) (*Segment, Address, error) {
 	if sz > maxAllocSize() {
 		return nil, 0, errors.New("allocation: too large")
 	}

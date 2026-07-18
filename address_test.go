@@ -4,11 +4,31 @@ import (
 	"testing"
 )
 
+type externalArena struct{}
+
+func (externalArena) NumSegments() int64 { return 0 }
+
+func (externalArena) Segment(SegmentID) *Segment { return nil }
+
+func (externalArena) Allocate(Size, *Message, *Segment) (*Segment, Address, error) {
+	return nil, 0, nil
+}
+
+func (externalArena) Release() {}
+
+var _ Arena = externalArena{}
+
+func TestAddressGoString(t *testing.T) {
+	if got, want := Address(0x1f).GoString(), "capnp.Address(1f)"; got != want {
+		t.Errorf("Address(0x1f).GoString() = %q; want %q", got, want)
+	}
+}
+
 func TestAddressAddSize(t *testing.T) {
 	tests := []struct {
-		a   address
+		a   Address
 		sz  Size
-		out address
+		out Address
 		ok  bool
 	}{
 		{0, 0, 0, true},
@@ -38,10 +58,10 @@ func TestAddressAddSize(t *testing.T) {
 
 func TestAddressElement(t *testing.T) {
 	tests := []struct {
-		a   address
+		a   Address
 		i   int32
 		sz  Size
-		out address
+		out Address
 		ok  bool
 	}{
 		{0, 0, 0, 0, true},
