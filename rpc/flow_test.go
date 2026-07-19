@@ -78,7 +78,9 @@ func (l *observingLimiter) signalChanged() {
 // flow of messages. The server holds accepted calls until the test releases it,
 // which fills the client's limiter without depending on scheduler timing.
 func TestFixedFlowLimit(t *testing.T) {
-	t.Parallel()
+	// This test deliberately saturates an RPC connection and uses a short
+	// deadline to detect a blocked client. Keep it serial so unrelated parallel
+	// RPC tests cannot consume that deadline.
 
 	limit := int64(1 << 20)
 
