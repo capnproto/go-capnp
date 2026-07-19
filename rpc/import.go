@@ -6,7 +6,6 @@ import (
 
 	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/internal/str"
-	"capnproto.org/go/capnp/v3/internal/syncutil"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 )
 
@@ -58,7 +57,7 @@ type impent struct {
 //
 // The caller must be holding onto c.mu.
 func (c *lockedConn) addImport(id importID, isPromise bool) capnp.Client {
-	if ent := c.lk.imports[id]; ent != nil {
+	if ent, _ := c.lk.imports.Find(id); ent != nil {
 		ent.wireRefs++
 		client, ok := ent.wc.AddRef()
 		if !ok {
@@ -85,11 +84,11 @@ func (c *lockedConn) addImport(id importID, isPromise bool) capnp.Client {
 	} else {
 		client = capnp.NewClient(hook)
 	}
-	c.lk.imports[id] = &impent{
+	c.lk.imports.Create(id, &impent{
 		wc:       client.WeakRef(),
 		wireRefs: 1,
 		resolver: resolver,
-	}
+	})
 	return client
 }
 
@@ -106,85 +105,17 @@ func (ic *importClient) String() string {
 
 func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, capnp.ReleaseFunc) {
 	return withLockedConn2(ic.c, func(c *lockedConn) (*capnp.Answer, capnp.ReleaseFunc) {
-		if !c.startTask() {
-			return capnp.ErrorAnswer(s.Method, ExcClosed), func() {}
-		}
-		defer c.tasks.Done()
-		ent := c.lk.imports[ic.id]
-		if ent == nil || ic.generation != ent.generation {
-			return capnp.ErrorAnswer(s.Method, rpcerr.Disconnected(errors.New("send on closed import"))), func() {}
-		}
-		q := c.newQuestion(s.Method)
-
-		// Send call message.
-		c.sendMessage(ctx, func(m rpccp.Message) error {
-			return c.newImportCallMessage(m, ic.id, q.id, s)
-		}, func(err error) {
-			if err != nil {
-				syncutil.With(&ic.c.lk, func() {
-					ic.c.lk.questions[q.id] = nil
-				})
-				q.p.Reject(rpcerr.WrapFailed("send message", err))
-				syncutil.With(&ic.c.lk, func() {
-					ic.c.lk.questionID.remove(q.id)
-				})
-				return
+		return c.startCall(ctx, s, func() error {
+			ent, _ := c.lk.imports.Find(ic.id)
+			if ent == nil || ic.generation != ent.generation {
+				return rpcerr.Disconnected(errors.New("send on closed import"))
 			}
-
-			q.c.tasks.Add(1)
-			go func() {
-				defer q.c.tasks.Done()
-				q.handleCancel(ctx)
-			}()
+			return nil
+		}, func(target rpccp.MessageTarget) error {
+			target.SetImportedCap(uint32(ic.id))
+			return nil
 		})
-
-		ans := q.p.Answer()
-		return ans, func() {
-			<-ans.Done()
-			q.p.ReleaseClients()
-			q.release()
-		}
 	})
-}
-
-// newImportCallMessage builds a Call message targeted to an import.
-func (c *lockedConn) newImportCallMessage(msg rpccp.Message, imp importID, qid questionID, s capnp.Send) error {
-	call, err := msg.NewCall()
-	if err != nil {
-		return rpcerr.WrapFailed("build call message", err)
-	}
-	call.SetQuestionId(uint32(qid))
-	call.SetInterfaceId(s.Method.InterfaceID)
-	call.SetMethodId(s.Method.MethodID)
-	target, err := call.NewTarget()
-	if err != nil {
-		return rpcerr.WrapFailed("build call message", err)
-	}
-	target.SetImportedCap(uint32(imp))
-	payload, err := call.NewParams()
-	if err != nil {
-		return rpcerr.WrapFailed("build call message", err)
-	}
-	args, err := capnp.NewStruct(payload.Segment(), s.ArgsSize)
-	if err != nil {
-		return rpcerr.WrapFailed("build call message", err)
-	}
-	if err := payload.SetContent(args.ToPtr()); err != nil {
-		return rpcerr.WrapFailed("build call message", err)
-	}
-
-	if s.PlaceArgs == nil {
-		return nil
-	}
-	if err := s.PlaceArgs(args); err != nil {
-		return rpcerr.WrapFailed("place arguments", err)
-	}
-	// TODO(soon): save param refs
-	_, err = c.fillPayloadCapTable(payload)
-	if err != nil {
-		return rpcerr.Annotate(err, "build call message")
-	}
-	return nil
 }
 
 func (ic *importClient) Recv(ctx context.Context, r capnp.Recv) capnp.PipelineCaller {
@@ -243,13 +174,13 @@ func (ic *importClient) Shutdown() {
 		}
 		defer c.tasks.Done()
 
-		ent := c.lk.imports[ic.id]
-		if ic.generation != ent.generation {
+		ent, ok := c.lk.imports.Find(ic.id)
+		if !ok || ic.generation != ent.generation {
 			// A new reference was added concurrently with the Shutdown.  See
 			// impent.generation documentation for an explanation.
 			return
 		}
-		delete(ic.c.lk.imports, ic.id)
+		c.lk.imports.Remove(ic.id)
 		c.sendMessage(c.bgctx, func(msg rpccp.Message) error {
 			rel, err := msg.NewRelease()
 			if err == nil {

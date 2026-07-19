@@ -50,10 +50,8 @@ func (c *lockedConn) clearExportID(m *capnp.Metadata) {
 // findExport returns the export entry with the given ID or nil if
 // couldn't be found. The caller must be holding c.mu
 func (c *lockedConn) findExport(id exportID) *expent {
-	if int64(id) >= int64(len(c.lk.exports)) {
-		return nil
-	}
-	return c.lk.exports[id] // might be nil
+	ent, _ := c.lk.exports.Find(id)
+	return ent
 }
 
 // releaseExport decreases the number of wire references to an export
@@ -69,8 +67,7 @@ func (c *lockedConn) releaseExport(dq *deferred.Queue, id exportID, count uint32
 	case count == ent.wireRefs:
 		defer ent.cancel()
 		snapshot := ent.snapshot
-		c.lk.exports[id] = nil
-		c.lk.exportID.remove(id)
+		c.lk.exports.Remove(id)
 		metadata := snapshot.Metadata()
 		if metadata != nil {
 			syncutil.With(metadata, func() {
@@ -110,7 +107,7 @@ func (c *lockedConn) sendCap(d rpccp.CapDescriptor, snapshot capnp.ClientSnapsho
 	bv := snapshot.Brand().Value
 	if ic, ok := bv.(*importClient); ok {
 		if ic.c == (*Conn)(c) {
-			if ent := c.lk.imports[ic.id]; ent != nil && ent.generation == ic.generation {
+			if ent, _ := c.lk.imports.Find(ic.id); ent != nil && ent.generation == ic.generation {
 				d.SetReceiverHosted(uint32(ic.id))
 				return 0, false, nil
 			}
@@ -151,7 +148,7 @@ func (c *lockedConn) sendCap(d rpccp.CapDescriptor, snapshot capnp.ClientSnapsho
 	id, ok := c.findExportID(metadata)
 	var ee *expent
 	if ok {
-		ee = c.lk.exports[id]
+		ee, _ = c.lk.exports.Find(id)
 		ee.wireRefs++
 	} else {
 		// Not already present; allocate an export id for it:
@@ -160,12 +157,7 @@ func (c *lockedConn) sendCap(d rpccp.CapDescriptor, snapshot capnp.ClientSnapsho
 			wireRefs: 1,
 			cancel:   func() {},
 		}
-		id = c.lk.exportID.next()
-		if int64(id) == int64(len(c.lk.exports)) {
-			c.lk.exports = append(c.lk.exports, ee)
-		} else {
-			c.lk.exports[id] = ee
-		}
+		id = c.lk.exports.Add(ee)
 		c.setExportID(metadata, id)
 	}
 	if ee.snapshot.IsPromise() {
@@ -180,7 +172,7 @@ func (c *lockedConn) sendCap(d rpccp.CapDescriptor, snapshot capnp.ClientSnapsho
 func (c *lockedConn) sendSenderPromise(id exportID, d rpccp.CapDescriptor) {
 	// Send a promise, wait for the resolution asynchronously, then send
 	// a resolve message:
-	ee := c.lk.exports[id]
+	ee, _ := c.lk.exports.Find(id)
 	d.SetSenderPromise(uint32(id))
 	ctx, cancel := context.WithCancel(c.bgctx)
 	ee.cancel = cancel
@@ -195,7 +187,7 @@ func (c *lockedConn) sendSenderPromise(id exportID, d rpccp.CapDescriptor) {
 
 		waitErr := waitRef.Resolve1(ctx)
 		unlockedConn.withLocked(func(c *lockedConn) {
-			if len(c.lk.exports) <= int(id) || c.lk.exports[id] != ee {
+			if current, ok := c.lk.exports.Find(id); !ok || current != ee {
 				// Export was removed from the table at some point;
 				// remote peer is uninterested in the resolution, so
 				// drop the reference and we're done
@@ -298,23 +290,16 @@ func (e embargo) String() string {
 //
 // The caller must be holding onto c.mu.
 func (c *lockedConn) embargo(client capnp.Client) (embargoID, capnp.Client) {
-	id := c.lk.embargoID.next()
 	e := newEmbargo(client)
-	if int64(id) == int64(len(c.lk.embargoes)) {
-		c.lk.embargoes = append(c.lk.embargoes, e)
-	} else {
-		c.lk.embargoes[id] = e
-	}
+	id := c.lk.embargoes.Add(e)
 	return id, capnp.NewClient(e)
 }
 
 // findEmbargo returns the embargo entry with the given ID or nil if
 // couldn't be found.
 func (c *lockedConn) findEmbargo(id embargoID) *embargo {
-	if int64(id) >= int64(len(c.lk.embargoes)) {
-		return nil
-	}
-	return c.lk.embargoes[id] // might be nil
+	e, _ := c.lk.embargoes.Find(id)
+	return e
 }
 
 func newEmbargo(client capnp.Client) *embargo {

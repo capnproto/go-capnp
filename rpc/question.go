@@ -51,17 +51,12 @@ func (flags questionFlags) Contains(flag questionFlags) bool {
 func (c *lockedConn) newQuestion(method capnp.Method) *question {
 	q := &question{
 		c:             (*Conn)(c),
-		id:            c.lk.questionID.next(),
 		release:       func() {},
 		finishMsgSend: make(chan struct{}),
 	}
+	q.id = c.lk.questions.Add(q)
 	q.p = capnp.NewPromise(method, q, nil) // TODO(someday): customize error message for bootstrap
 	c.setAnswerQuestion(q.p.Answer(), q)
-	if int(q.id) == len(c.lk.questions) {
-		c.lk.questions = append(c.lk.questions, q)
-	} else {
-		c.lk.questions[q.id] = q
-	}
 	return q
 }
 
@@ -132,11 +127,6 @@ func (q *question) handleCancel(ctx context.Context) {
 
 func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineOp, s capnp.Send) (*capnp.Answer, capnp.ReleaseFunc) {
 	return withLockedConn2(q.c, func(c *lockedConn) (*capnp.Answer, capnp.ReleaseFunc) {
-		if !c.startTask() {
-			return capnp.ErrorAnswer(s.Method, ExcClosed), func() {}
-		}
-		defer c.tasks.Done()
-
 		// Mark this transform as having been used for a call ASAP.
 		// q's Return could be received while q2 is being sent.
 		// Don't bother cleaning it up if the call fails because:
@@ -144,41 +134,64 @@ func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineO
 		// b) the transform isn't guaranteed to be an import, and
 		// c) the worst that happens is we trade bandwidth for code simplicity.
 		q.mark(transform)
-		q2 := c.newQuestion(s.Method)
-
-		// Send call message.
-		c.sendMessage(ctx, func(m rpccp.Message) error {
-			return c.newPipelineCallMessage(m, q.id, transform, q2.id, s)
-		}, func(err error) {
+		return c.startCall(ctx, s, nil, func(target rpccp.MessageTarget) error {
+			pa, err := target.NewPromisedAnswer()
 			if err != nil {
-				syncutil.With(&q.c.lk, func() {
-					q.c.lk.questions[q2.id] = nil
-				})
-				q2.p.Reject(rpcerr.WrapFailed("send message", err))
-				syncutil.With(&q.c.lk, func() {
-					q.c.lk.questionID.remove(q2.id)
-				})
-				return
+				return rpcerr.WrapFailed("build call message", err)
 			}
-
-			q2.c.tasks.Add(1)
-			go func() {
-				defer q2.c.tasks.Done()
-				q2.handleCancel(ctx)
-			}()
+			pa.SetQuestionId(uint32(q.id))
+			oplist, err := pa.NewTransform(int32(len(transform)))
+			if err != nil {
+				return rpcerr.WrapFailed("build call message", err)
+			}
+			for i, op := range transform {
+				oplist.At(i).SetGetPointerField(op.Field)
+			}
+			return nil
 		})
-
-		ans := q2.p.Answer()
-		return ans, func() {
-			<-ans.Done()
-			q2.p.ReleaseClients()
-			q2.release()
-		}
 	})
 }
 
-// newPipelineCallMessage builds a Call message targeted to a promised answer..
-func (c *lockedConn) newPipelineCallMessage(msg rpccp.Message, tgt questionID, transform []capnp.PipelineOp, qid questionID, s capnp.Send) error {
+// startCall starts an outbound question.  populateTarget selects either an
+// imported capability or a promised answer without duplicating the question
+// lifecycle around those two target encodings.
+func (c *lockedConn) startCall(ctx context.Context, s capnp.Send, preflight func() error, populateTarget func(rpccp.MessageTarget) error) (*capnp.Answer, capnp.ReleaseFunc) {
+	if !c.startTask() {
+		return capnp.ErrorAnswer(s.Method, ExcClosed), func() {}
+	}
+	defer c.tasks.Done()
+	if preflight != nil {
+		if err := preflight(); err != nil {
+			return capnp.ErrorAnswer(s.Method, err), func() {}
+		}
+	}
+
+	q := c.newQuestion(s.Method)
+	c.sendMessage(ctx, func(m rpccp.Message) error {
+		return c.newCallMessage(m, q.id, s, populateTarget)
+	}, func(err error) {
+		if err != nil {
+			syncutil.With(&q.c.lk, func() { q.c.lk.questions.Remove(q.id) })
+			q.p.Reject(rpcerr.WrapFailed("send message", err))
+			return
+		}
+
+		q.c.tasks.Add(1)
+		go func() {
+			defer q.c.tasks.Done()
+			q.handleCancel(ctx)
+		}()
+	})
+
+	ans := q.p.Answer()
+	return ans, func() {
+		<-ans.Done()
+		q.p.ReleaseClients()
+		q.release()
+	}
+}
+
+func (c *lockedConn) newCallMessage(msg rpccp.Message, qid questionID, s capnp.Send, populateTarget func(rpccp.MessageTarget) error) error {
 	call, err := msg.NewCall()
 	if err != nil {
 		return rpcerr.WrapFailed("build call message", err)
@@ -191,17 +204,8 @@ func (c *lockedConn) newPipelineCallMessage(msg rpccp.Message, tgt questionID, t
 	if err != nil {
 		return rpcerr.WrapFailed("build call message", err)
 	}
-	pa, err := target.NewPromisedAnswer()
-	if err != nil {
-		return rpcerr.WrapFailed("build call message", err)
-	}
-	pa.SetQuestionId(uint32(tgt))
-	oplist, err := pa.NewTransform(int32(len(transform)))
-	if err != nil {
-		return rpcerr.WrapFailed("build call message", err)
-	}
-	for i, op := range transform {
-		oplist.At(i).SetGetPointerField(op.Field)
+	if err := populateTarget(target); err != nil {
+		return err
 	}
 
 	payload, err := call.NewParams()
