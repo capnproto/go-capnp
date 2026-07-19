@@ -1102,7 +1102,7 @@ func TestRecvBootstrapCallException(t *testing.T) {
 	t.Parallel()
 
 	srv := newServer(func(ctx context.Context, call *server.Call) error {
-		return errors.New("everything went wrong")
+		return fmt.Errorf("handler failed: %w", exc.New(exc.Unimplemented, "test", "everything went wrong"))
 	}, nil)
 	left, right := transport.NewPipe(1)
 	p1, p2 := rpc.NewTransport(left), rpc.NewTransport(right)
@@ -1202,10 +1202,10 @@ func TestRecvBootstrapCallException(t *testing.T) {
 		if rmsg.Return.Which != rpccp.Return_Which_exception {
 			t.Fatalf("return which = %v; want results", rmsg.Return.Which)
 		}
-		if rmsg.Return.Exception.Type != rpccp.Exception_Type_failed {
-			t.Errorf("return.exception.type = %v; want failed", rmsg.Return.Exception.Type)
+		if rmsg.Return.Exception.Type != rpccp.Exception_Type_unimplemented {
+			t.Errorf("return.exception.type = %v; want unimplemented", rmsg.Return.Exception.Type)
 		}
-		const want = "everything went wrong"
+		const want = "handler failed: test: everything went wrong"
 		if !strings.Contains(rmsg.Return.Exception.Reason, want) {
 			t.Errorf("return.exception.reason = %q; want to contain %q", rmsg.Return.Exception.Reason, want)
 		}
