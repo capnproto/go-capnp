@@ -58,11 +58,11 @@ func (typ Type) GoString() string {
 	}
 }
 
-// TypeOf returns err's type if err was created by this package or
-// Failed if it was not.
+// TypeOf returns err's exception type if its error chain contains an exception
+// created by this package, or Failed if it does not.
 func TypeOf(err error) Type {
-	ce, ok := err.(*Exception)
-	if !ok {
+	var ce *Exception
+	if !errors.As(err, &ce) {
 		return Failed
 	}
 	return ce.Type

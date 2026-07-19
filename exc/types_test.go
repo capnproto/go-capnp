@@ -22,6 +22,7 @@ func TestTypeOf(t *testing.T) {
 		{exc.New(exc.Overloaded, "capnp", "overloaded error"), exc.Overloaded},
 		{exc.New(exc.Disconnected, "capnp", "disconnected error"), exc.Disconnected},
 		{exc.New(exc.Unimplemented, "capnp", "unimplemented error"), exc.Unimplemented},
+		{fmt.Errorf("wrapped: %w", exc.New(exc.Unimplemented, "capnp", "unimplemented error")), exc.Unimplemented},
 	}
 	for _, test := range tests {
 		assert.Equal(t, test.want, exc.TypeOf(test.err))
