@@ -4,112 +4,32 @@ import (
 	"context"
 	"sort"
 	"sync"
+	"testing"
 	"time"
 
 	"capnproto.org/go/capnp/v3/exp/clock"
 )
 
-// simClock is a clock whose timers are fired explicitly by simulator.  It
-// deliberately does not try to run goroutines: the simulator chooses both
-// virtual-time ordering and the next timer to fire.
+// simClock advances only when the synchronous simulator tells it to. Its
+// NewTimer method deliberately panics: limiter tests must drive prepareStep
+// and step directly rather than accidentally starting the production actor.
 type simClock struct {
-	mu      sync.Mutex
-	now     time.Time
-	nextID  uint64
-	timers  []*simTimer
-	changed chan struct{}
+	now time.Time
 }
 
-type simTimer struct {
-	clock    *simClock
-	deadline time.Time
-	id       uint64
-	active   bool
-	ch       chan time.Time
-}
+func newSimClock(now time.Time) *simClock { return &simClock{now: now} }
 
-func newSimClock(now time.Time) *simClock {
-	return &simClock{now: now, changed: make(chan struct{}, 1)}
-}
+func (c *simClock) Now() time.Time { return c.now }
 
-func (c *simClock) Now() time.Time {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.now
-}
-
-func (c *simClock) NewTimer(d time.Duration) clock.Timer {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.nextID++
-	t := &simTimer{
-		clock:    c,
-		deadline: c.now.Add(d),
-		id:       c.nextID,
-		active:   true,
-		ch:       make(chan time.Time, 1),
-	}
-	c.timers = append(c.timers, t)
-	c.notifyChanged()
-	return t
-}
-
-func (c *simClock) notifyChanged() {
-	select {
-	case c.changed <- struct{}{}:
-	default:
-	}
+func (c *simClock) NewTimer(time.Duration) clock.Timer {
+	panic("bbr: synchronous simulator must not create clock timers")
 }
 
 func (c *simClock) AdvanceTo(now time.Time) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	if now.Before(c.now) {
 		panic("simulated clock moved backwards")
 	}
 	c.now = now
-}
-
-func (c *simClock) nextTimer() *simTimer {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	var next *simTimer
-	for _, t := range c.timers {
-		if !t.active || (next != nil && (next.deadline.Before(t.deadline) || next.deadline.Equal(t.deadline) && next.id < t.id)) {
-			continue
-		}
-		next = t
-	}
-	return next
-}
-
-func (c *simClock) fire(t *simTimer) bool {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if !t.active || t.deadline.After(c.now) {
-		return false
-	}
-	t.active = false
-	t.ch <- c.now
-	return true
-}
-
-func (t *simTimer) Chan() <-chan time.Time { return t.ch }
-
-func (t *simTimer) Reset(d time.Duration) {
-	t.clock.mu.Lock()
-	defer t.clock.mu.Unlock()
-	t.deadline = t.clock.now.Add(d)
-	t.active = true
-	t.clock.notifyChanged()
-}
-
-func (t *simTimer) Stop() bool {
-	t.clock.mu.Lock()
-	defer t.clock.mu.Unlock()
-	wasActive := t.active
-	t.active = false
-	return wasActive
 }
 
 type simPacket struct {
@@ -118,8 +38,8 @@ type simPacket struct {
 	packet   testPacket
 }
 
-// simPath reproduces testLink's fixed-delay and serial bandwidth-limited
-// links without worker goroutines.
+// simPath models overlapping fixed propagation delay and serial
+// bandwidth-limited links without worker goroutines.
 type simPath struct {
 	clock         *simClock
 	links         []testLink
@@ -179,133 +99,410 @@ func (p *simPath) advance(d time.Duration) {
 	}
 }
 
+func TestLinkDelayOverlapsPackets(t *testing.T) {
+	clock := newSimClock(sampleStartTime)
+	path := newSimPath(clock, testLink{delay: 4 * time.Second})
+	var arrivals []time.Time
+	for i := 0; i < 2; i++ {
+		path.send(testPacket{gotResponse: func() {
+			arrivals = append(arrivals, clock.Now())
+		}})
+	}
+
+	path.advance(4 * time.Second)
+	if len(arrivals) != 2 {
+		t.Fatalf("fixed-delay link delivered %d packets; want 2", len(arrivals))
+	}
+	if !arrivals[0].Equal(arrivals[1]) {
+		t.Fatalf("fixed-delay packets arrived at %v and %v; propagation delay must overlap", arrivals[0], arrivals[1])
+	}
+}
+
 type simulator struct {
-	t       testingT
 	clock   *simClock
 	path    *simPath
 	lim     *Limiter
-	events  chan struct{}
+	wait    limiterWait
 	results []Snapshot
 }
 
-// testingT keeps the simulator useful to the small path tests without making
-// it responsible for reporting failures from a goroutine.
-type testingT interface {
-	Helper()
-	Fatal(...any)
-}
-
-func newSimulator(t testingT, links ...testLink) *simulator {
-	t.Helper()
-	events := make(chan struct{}, 1)
+func newSimulator(links ...testLink) *simulator {
 	clock := newSimClock(sampleStartTime)
 	s := &simulator{
-		t:      t,
-		clock:  clock,
-		path:   newSimPath(clock, links...),
-		events: events,
+		clock: clock,
+		path:  newSimPath(clock, links...),
+		lim: newLimiterState(clock, limiterOptions{
+			randInt: func() int { return 6 }, // enter ProbeBW at the 1.25 phase
+		}),
 	}
-	s.lim = newLimiter(clock, limiterOptions{
-		randInt: func() int { return 6 }, // begin ProbeBW at the 1.25 gain phase
-		afterEvent: func() {
-			events <- struct{}{}
-		},
-	})
+	s.wait = s.lim.prepareStep(clock.Now())
 	return s
 }
 
-func (s *simulator) close() { s.lim.Release() }
-
-func (s *simulator) snapshot() {
-	s.results = append(s.results, SnapshotLimiter(s.lim))
-}
-
-func (s *simulator) settle() { _ = SnapshotLimiter(s.lim) }
-
-func (s *simulator) waitEvent() { <-s.events }
-
-func (s *simulator) drainEvents() {
-	for {
-		select {
-		case <-s.events:
-		default:
-			return
-		}
+// apply owns one atomic limiter transition and records its stable wait-state
+// boundary. A sent packet is put on the path before the snapshot, but ACK
+// delivery remains an explicit later event.
+func (s *simulator) apply(event limiterEvent) {
+	result := s.lim.step(s.clock.Now(), event)
+	if result.sent {
+		packet := result.packet
+		s.path.send(testPacket{
+			size: packet.Size,
+			gotResponse: func() {
+				s.apply(limiterEvent{kind: limiterAckEvent, ack: packet})
+			},
+		})
 	}
+	s.wait = s.lim.prepareStep(s.clock.Now())
+	s.results = append(s.results, s.lim.snapshotAt(s.clock.Now()))
 }
 
-func (s *simulator) step() bool {
-	packet, hasPacket := s.path.nextPacket()
-	timer := s.clock.nextTimer()
-	if !hasPacket && timer == nil {
+func (s *simulator) deliverNextAck() bool {
+	packet, ok := s.path.nextPacket()
+	if !ok {
 		return false
 	}
-	if hasPacket && (timer == nil || packet.deadline.Before(timer.deadline) || packet.deadline.Equal(timer.deadline)) {
-		s.clock.AdvanceTo(packet.deadline)
-		s.path.popPacket().packet.gotResponse()
-		s.waitEvent()
-		s.snapshot()
-		s.drainEvents()
-		return true
-	}
-	s.clock.AdvanceTo(timer.deadline)
-	if !s.clock.fire(timer) {
-		return true
-	}
-	s.waitEvent()
-	s.settle()
-	s.snapshot()
-	s.drainEvents()
+	s.clock.AdvanceTo(packet.deadline)
+	s.path.popPacket().packet.gotResponse()
 	return true
 }
 
-func (s *simulator) send(size uint64) {
-	result := make(chan testPacket, 1)
-	ctx := context.Background()
-	go func() {
-		gotResponse, err := s.lim.StartMessage(ctx, size)
-		if err != nil {
-			panic(err)
-		}
-		result <- testPacket{size: size, gotResponse: gotResponse}
-	}()
+func (s *simulator) deliverDueAck() bool {
+	packet, ok := s.path.nextPacket()
+	if !ok || packet.deadline.After(s.clock.Now()) {
+		return false
+	}
+	return s.deliverNextAck()
+}
 
+func (s *simulator) send(size uint64) {
 	for {
-		select {
-		case packet := <-result:
-			s.path.send(packet)
-			s.settle()
-			s.snapshot()
-			s.drainEvents()
-			return
-		default:
-		}
-		if s.step() {
+		// At one virtual timestamp, ACKs are processed FIFO before a due
+		// pacing event and before this application send.
+		if s.deliverDueAck() {
 			continue
 		}
-		select {
-		case packet := <-result:
-			s.path.send(packet)
-			s.settle()
-			s.snapshot()
-			s.drainEvents()
+		if s.wait.acceptSend {
+			s.apply(limiterEvent{kind: limiterSendEvent, size: size})
 			return
-		case <-s.events:
-		case <-s.clock.changed:
 		}
+
+		packet, hasPacket := s.path.nextPacket()
+		if s.wait.hasDeadline {
+			// Equal-time ACKs win. The ACK transition may invalidate or
+			// replace this pacing deadline before it can fire.
+			if hasPacket && !s.wait.deadline.Before(packet.deadline) {
+				s.deliverNextAck()
+				continue
+			}
+			s.clock.AdvanceTo(s.wait.deadline)
+			s.apply(limiterEvent{
+				kind:        limiterPacingEvent,
+				size:        size,
+				sendPending: true,
+			})
+			return
+		}
+
+		if !hasPacket {
+			panic("bbr: limiter is ACK-gated with no packet in flight")
+		}
+		s.deliverNextAck()
 	}
 }
 
 func (s *simulator) drain() {
-	for s.step() {
+	for {
+		packet, hasPacket := s.path.nextPacket()
+		if !hasPacket {
+			return
+		}
+		if !packet.deadline.After(s.clock.Now()) {
+			s.deliverNextAck()
+			continue
+		}
+		if s.wait.hasDeadline && s.wait.deadline.Before(packet.deadline) {
+			s.clock.AdvanceTo(s.wait.deadline)
+			s.apply(limiterEvent{kind: limiterPacingEvent})
+			continue
+		}
+		// An ACK wins a tie with a pacing deadline.
+		s.deliverNextAck()
 	}
 }
 
 func (s *simulator) run(packetSizes []uint64) []Snapshot {
-	defer s.close()
+	defer s.lim.Release()
 	for _, size := range packetSizes {
 		s.send(size)
 	}
 	s.drain()
 	return s.results
+}
+
+func TestLimiterPrepareStepGates(t *testing.T) {
+	t.Run("zero inflight bypasses limits", func(t *testing.T) {
+		clock := newSimClock(sampleStartTime)
+		lim := newLimiterState(clock, limiterOptions{})
+		lim.maxPacketsInflight = 0
+		if wait := lim.prepareStep(clock.Now()); !wait.acceptSend {
+			t.Fatal("zero-inflight limiter did not accept a send")
+		}
+	})
+
+	t.Run("packet limit gates sends", func(t *testing.T) {
+		clock := newSimClock(sampleStartTime)
+		lim := newLimiterState(clock, limiterOptions{})
+		lim.sent = 1
+		lim.packetsInflight = 1
+		lim.maxPacketsInflight = 1
+		wait := lim.prepareStep(clock.Now())
+		if wait.acceptSend || wait.hasDeadline {
+			t.Fatal("packet-limited state should wait only for an ACK")
+		}
+	})
+
+	t.Run("byte window uses greater-than-or-equal gate", func(t *testing.T) {
+		clock := newSimClock(sampleStartTime)
+		lim := newLimiterState(clock, limiterOptions{})
+		lim.sent = 1
+		lim.packetsInflight = 1
+		lim.btlBwFilter.Estimate = 1 * bytesPerSecond
+		lim.rtPropFilter.Estimate = time.Second
+		lim.cwndGain = 1
+		wait := lim.prepareStep(clock.Now())
+		if wait.acceptSend || wait.hasDeadline {
+			t.Fatal("limiter at its byte window should wait only for an ACK")
+		}
+	})
+
+	t.Run("zero BDP does not gate pacing", func(t *testing.T) {
+		clock := newSimClock(sampleStartTime)
+		lim := newLimiterState(clock, limiterOptions{})
+		lim.sent = 1
+		lim.packetsInflight = 1
+		lim.rtPropFilter.Estimate = 0
+		if wait := lim.prepareStep(clock.Now()); !wait.hasDeadline {
+			t.Fatal("zero BDP incorrectly activated the byte window gate")
+		}
+	})
+}
+
+func TestLimiterPacingDeadline(t *testing.T) {
+	newPacedLimiter := func(t *testing.T) (*simClock, *Limiter, limiterWait) {
+		t.Helper()
+		clock := newSimClock(sampleStartTime)
+		lim := newLimiterState(clock, limiterOptions{randInt: func() int { return 6 }})
+		if wait := lim.prepareStep(clock.Now()); !wait.acceptSend {
+			t.Fatal("new limiter did not accept its first send")
+		}
+		result := lim.step(clock.Now(), limiterEvent{kind: limiterSendEvent, size: 1})
+		if !result.sent {
+			t.Fatal("first send was not applied")
+		}
+		wait := lim.prepareStep(clock.Now())
+		if !wait.hasDeadline {
+			t.Fatal("in-flight limiter did not expose a pacing deadline")
+		}
+		clock.AdvanceTo(wait.deadline)
+		return clock, lim, wait
+	}
+
+	t.Run("pending send at equality is not app limited", func(t *testing.T) {
+		clock, lim, _ := newPacedLimiter(t)
+		wait := lim.prepareStep(clock.Now())
+		if wait.acceptSend || !wait.hasDeadline || !wait.deadline.Equal(clock.Now()) {
+			t.Fatal("exact deadline was not preserved as a pacing event")
+		}
+		result := lim.step(clock.Now(), limiterEvent{
+			kind:        limiterPacingEvent,
+			size:        1,
+			sendPending: true,
+		})
+		if !result.sent || result.packet.AppLimited {
+			t.Fatal("pending deadline send was not sent as pacing-limited traffic")
+		}
+		if lim.pacingReady {
+			t.Fatal("send did not clear pacing-ready latch")
+		}
+	})
+
+	t.Run("idle equality latches readiness once", func(t *testing.T) {
+		clock, lim, _ := newPacedLimiter(t)
+		if wait := lim.prepareStep(clock.Now()); wait.acceptSend || !wait.hasDeadline {
+			t.Fatal("exact deadline did not require a pacing event")
+		}
+		lim.step(clock.Now(), limiterEvent{kind: limiterPacingEvent})
+		if !lim.pacingReady || lim.appLimitedUntil != lim.inflight() {
+			t.Fatal("idle pacing event did not atomically mark app-limited readiness")
+		}
+		maxPacketsInflight := lim.maxPacketsInflight
+		lim.maxPacketsInflight = lim.packetsInflight
+		if wait := lim.prepareStep(clock.Now()); wait.acceptSend || wait.hasDeadline {
+			t.Fatal("pacing-ready latch bypassed the packet window gate")
+		}
+		lim.maxPacketsInflight = maxPacketsInflight
+		for i := 0; i < 2; i++ {
+			if wait := lim.prepareStep(clock.Now()); !wait.acceptSend || wait.hasDeadline {
+				t.Fatal("latched pacing event re-created a zero-duration timer")
+			}
+		}
+		result := lim.step(clock.Now(), limiterEvent{kind: limiterSendEvent, size: 1})
+		if !result.sent || !result.packet.AppLimited || lim.pacingReady {
+			t.Fatal("send after idle pacing did not consume app-limited latch")
+		}
+	})
+}
+
+func TestLimiterAppLimitedAccountingWithOutOfOrderACK(t *testing.T) {
+	clock := newSimClock(sampleStartTime)
+	lim := newLimiterState(clock, limiterOptions{})
+
+	older := lim.step(clock.Now(), limiterEvent{kind: limiterSendEvent, size: 2}).packet
+	lim.appLimitedUntil = lim.inflight()
+	newer := lim.step(clock.Now(), limiterEvent{kind: limiterSendEvent, size: 100}).packet
+	if !newer.AppLimited {
+		t.Fatal("packet sent past the app-limited boundary was not marked app-limited")
+	}
+
+	clock.AdvanceTo(clock.Now().Add(time.Second))
+	lim.step(clock.Now(), limiterEvent{kind: limiterAckEvent, ack: newer})
+	if lim.appLimitedUntil != 0 {
+		t.Fatalf("app-limited marker after larger out-of-order ACK = %d; want 0", lim.appLimitedUntil)
+	}
+	if lim.inflight() != older.Size || lim.packetsInflight != 1 {
+		t.Fatalf("out-of-order ACK left %d bytes in %d packets; want %d byte in 1 packet", lim.inflight(), lim.packetsInflight, older.Size)
+	}
+}
+
+type trackingClock struct {
+	mu      sync.Mutex
+	now     time.Time
+	created chan *trackingTimer
+}
+
+func newTrackingClock(now time.Time) *trackingClock {
+	return &trackingClock{now: now, created: make(chan *trackingTimer, 8)}
+}
+
+func (c *trackingClock) Now() time.Time {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.now
+}
+
+func (c *trackingClock) Advance(d time.Duration) {
+	c.mu.Lock()
+	c.now = c.now.Add(d)
+	c.mu.Unlock()
+}
+
+func (c *trackingClock) NewTimer(time.Duration) clock.Timer {
+	timer := &trackingTimer{ch: make(chan time.Time), stopped: make(chan struct{})}
+	c.created <- timer
+	return timer
+}
+
+type trackingTimer struct {
+	ch      chan time.Time
+	stopped chan struct{}
+	once    sync.Once
+}
+
+func (t *trackingTimer) Chan() <-chan time.Time { return t.ch }
+func (t *trackingTimer) Reset(time.Duration)    {}
+func (t *trackingTimer) Stop() (stopped bool) {
+	t.once.Do(func() {
+		stopped = true
+		close(t.stopped)
+	})
+	return stopped
+}
+
+func TestLimiterRunStopsAbandonedPacingTimer(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		act  func(*trackingClock, *Limiter, func())
+	}{
+		{
+			name: "ACK",
+			act: func(clock *trackingClock, _ *Limiter, gotResponse func()) {
+				clock.Advance(time.Millisecond)
+				gotResponse()
+			},
+		},
+		{
+			name: "pause",
+			act: func(_ *trackingClock, lim *Limiter, _ func()) {
+				_ = SnapshotLimiter(lim)
+			},
+		},
+		{
+			name: "cancellation",
+			act: func(_ *trackingClock, lim *Limiter, _ func()) {
+				lim.Release()
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			clock := newTrackingClock(sampleStartTime)
+			lim := NewLimiter(clock)
+			gotResponse, err := lim.StartMessage(context.Background(), 1)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			var timer *trackingTimer
+			select {
+			case timer = <-clock.created:
+			case <-time.After(time.Second):
+				t.Fatal("limiter did not create its pacing timer")
+			}
+			test.act(clock, lim, gotResponse)
+			select {
+			case <-timer.stopped:
+			case <-time.After(time.Second):
+				t.Fatal("abandoned pacing timer was not stopped")
+			}
+
+			lim.Release()
+			select {
+			case <-lim.done:
+			case <-time.After(time.Second):
+				t.Fatal("limiter actor did not exit after Release")
+			}
+			// Once done is closed there is no actor to pause; this must still
+			// return a safe final snapshot rather than deadlocking.
+			_ = SnapshotLimiter(lim)
+		})
+	}
+}
+
+func TestLimiterRunCompletesAcceptedSendAfterRelease(t *testing.T) {
+	lim := NewLimiter(newTrackingClock(sampleStartTime))
+	reply := make(chan packetMeta)
+	request := sendRequest{size: 7, replyChan: reply}
+
+	select {
+	case lim.chSend <- request:
+		// The unbuffered rendezvous proves the actor accepted the request.
+	case <-time.After(time.Second):
+		lim.Release()
+		t.Fatal("limiter did not accept the send request")
+	}
+	lim.Release()
+
+	select {
+	case packet := <-reply:
+		if packet.Size != request.size {
+			t.Fatalf("accepted packet size = %d; want %d", packet.Size, request.size)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Release interrupted an already-accepted send")
+	}
+	select {
+	case <-lim.done:
+	case <-time.After(time.Second):
+		t.Fatal("limiter actor did not exit after completing the accepted send")
+	}
 }

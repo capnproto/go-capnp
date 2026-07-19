@@ -17,12 +17,19 @@ type Snapshot struct {
 func SnapshotLimiter(l *Limiter) Snapshot {
 	var ret Snapshot
 	l.whilePaused(func() {
-		ret.lim = *l
-		ret.now = l.clock.Now()
-		ret.lim.btlBwFilter = l.btlBwFilter.snapshot()
-		ret.lim.rtPropFilter = l.rtPropFilter.snapshot()
-		ret.lim.state = l.state.snapshot()
+		ret = l.snapshotAt(l.clock.Now())
 	})
+	return ret
+}
+
+// snapshotAt copies limiter state at a caller-defined event boundary. The
+// caller must have exclusive ownership of l, either through whilePaused or by
+// driving an unstarted limiter synchronously.
+func (l *Limiter) snapshotAt(now time.Time) Snapshot {
+	ret := Snapshot{lim: *l, now: now}
+	ret.lim.btlBwFilter = l.btlBwFilter.snapshot()
+	ret.lim.rtPropFilter = l.rtPropFilter.snapshot()
+	ret.lim.state = l.state.snapshot()
 	return ret
 }
 
@@ -61,18 +68,21 @@ type a []any
 func (s Snapshot) Json() any {
 	lim := &s.lim
 	ret := o{
-		"now":             s.now,
-		"cwndGain":        lim.cwndGain,
-		"pacingGain":      lim.pacingGain,
-		"btlBw":           lim.btlBwFilter.Estimate,
-		"rtProp":          lim.rtPropFilter.Estimate,
-		"nextSendTime":    lim.nextSendTime,
-		"sent":            lim.sent,
-		"delivered":       lim.delivered,
-		"deliveredTime":   lim.deliveredTime,
-		"inflight":        lim.inflight(),
-		"bdp":             lim.computeBDP(),
-		"appLimitedUntil": lim.appLimitedUntil,
+		"now":                s.now,
+		"cwndGain":           lim.cwndGain,
+		"pacingGain":         lim.pacingGain,
+		"btlBw":              lim.btlBwFilter.Estimate,
+		"rtProp":             lim.rtPropFilter.Estimate,
+		"nextSendTime":       lim.nextSendTime,
+		"pacingReady":        lim.pacingReady,
+		"sent":               lim.sent,
+		"delivered":          lim.delivered,
+		"deliveredTime":      lim.deliveredTime,
+		"inflight":           lim.inflight(),
+		"packetsInflight":    lim.packetsInflight,
+		"maxPacketsInflight": lim.maxPacketsInflight,
+		"bdp":                lim.computeBDP(),
+		"appLimitedUntil":    lim.appLimitedUntil,
 		"state": o{
 			"type":  fmt.Sprintf("%T", lim.state),
 			"value": fmt.Sprintf("%v", lim.state), // TODO: better formatting of state?
@@ -106,6 +116,12 @@ func (s Snapshot) Json() any {
 	ret["samples"] = o{
 		"btlBw":  bwsamples,
 		"rtProp": rtSamples,
+		"rtPropNext": o{
+			// The initial sentinel is outside encoding/json's supported
+			// time range, so use its stable textual form here.
+			"now": lim.rtPropFilter.nextSample.now.Round(0).String(),
+			"rtt": int64(lim.rtPropFilter.nextSample.rtt),
+		},
 	}
 	return ret
 }

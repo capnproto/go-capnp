@@ -9,7 +9,7 @@ import (
 )
 
 type state interface {
-	initialize(lim *Limiter)
+	initialize(lim *Limiter, now time.Time)
 	postAck(lim *Limiter, pm packetMeta, now time.Time)
 	snapshot() state
 }
@@ -23,7 +23,7 @@ type startupState struct {
 	plateauRounds int
 }
 
-func (s *startupState) initialize(lim *Limiter) {
+func (s *startupState) initialize(lim *Limiter, now time.Time) {
 	lim.cwndGain = 2 / math.Ln2
 	lim.pacingGain = 2 / math.Ln2
 }
@@ -37,7 +37,7 @@ func (s *startupState) postAck(lim *Limiter, p packetMeta, now time.Time) {
 	}
 	s.prevBtlBwEstimate = newBtlBwEstimate
 	if s.plateauRounds >= 3 {
-		lim.changeState(&drainState{})
+		lim.changeState(&drainState{}, now)
 	}
 }
 
@@ -49,13 +49,13 @@ func (s *startupState) snapshot() state {
 type drainState struct {
 }
 
-func (s *drainState) initialize(lim *Limiter) {
+func (s *drainState) initialize(lim *Limiter, now time.Time) {
 	lim.pacingGain = 1 / lim.pacingGain
 }
 
 func (s *drainState) postAck(lim *Limiter, p packetMeta, now time.Time) {
 	if lim.inflight() <= uint64(lim.computeBDP()) {
-		lim.changeState(&probeBWState{})
+		lim.changeState(&probeBWState{}, now)
 	}
 }
 
@@ -86,10 +86,9 @@ type probeBWState struct {
 	rtProp           time.Duration
 }
 
-func (s *probeBWState) initialize(lim *Limiter) {
+func (s *probeBWState) initialize(lim *Limiter, now time.Time) {
 	lim.cwndGain = 2
 
-	now := lim.clock.Now()
 	s.rtProp = lim.rtPropFilter.Estimate
 	s.lastRtPropChange = now
 
@@ -111,7 +110,7 @@ func (s *probeBWState) postAck(lim *Limiter, p packetMeta, now time.Time) {
 
 	if now.Sub(s.lastRtPropChange) > 10*time.Second {
 		// Been a while since we've measured rtProp; switch to probeRTT.
-		lim.changeState(&probeRTTState{})
+		lim.changeState(&probeRTTState{}, now)
 		return
 	}
 
@@ -137,9 +136,8 @@ type probeRTTState struct {
 	initSent uint64
 }
 
-func (s *probeRTTState) initialize(lim *Limiter) {
+func (s *probeRTTState) initialize(lim *Limiter, now time.Time) {
 	lim.maxPacketsInflight = 4
-	now := lim.clock.Now()
 	s.exitTime = now.Add(200 * time.Millisecond)
 	s.initSent = lim.sent
 }
@@ -164,11 +162,11 @@ func (s *probeRTTState) postAck(lim *Limiter, p packetMeta, now time.Time) {
 		lim.maxPacketsInflight = math.MaxUint64
 		if lim.inflight() < uint64(lim.computeBDP()) {
 			// Get back up to where we were quickly:
-			lim.changeState(&startupState{})
+			lim.changeState(&startupState{}, now)
 		} else {
 			// We're still above our estimate; go back to
 			// probing bandwidth at a normal pace:
-			lim.changeState(&probeBWState{})
+			lim.changeState(&probeBWState{}, now)
 		}
 	}
 }

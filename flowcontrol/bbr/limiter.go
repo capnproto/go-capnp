@@ -28,6 +28,36 @@ type sendRequest struct {
 	replyChan chan<- packetMeta
 }
 
+type limiterWait struct {
+	acceptSend  bool
+	hasDeadline bool
+	deadline    time.Time
+}
+
+type limiterEventKind uint8
+
+const (
+	limiterSendEvent limiterEventKind = iota
+	limiterAckEvent
+	limiterPacingEvent
+)
+
+type limiterEvent struct {
+	kind limiterEventKind
+	size uint64
+	ack  packetMeta
+
+	// sendPending is only meaningful for limiterPacingEvent. A pacing
+	// deadline atomically consumes a waiting send when one is available,
+	// matching the non-blocking receive in the production actor.
+	sendPending bool
+}
+
+type limiterStepResult struct {
+	sent   bool
+	packet packetMeta
+}
+
 func (l *Limiter) StartMessage(ctx context.Context, size uint64) (gotResponse func(), err error) {
 	replyChan := make(chan packetMeta)
 	select {
@@ -57,107 +87,144 @@ func (l *Limiter) computeBDP() float64 {
 	return float64(bandwidth) * float64(delay.Nanoseconds())
 }
 
+// prepareStep determines what the limiter actor should wait for next. It and
+// step form the synchronous limiter state machine. They must be called either
+// by run, or by the sole owner of an unstarted limiter in a test; they are not
+// safe to call concurrently with a running limiter actor.
+func (l *Limiter) prepareStep(now time.Time) limiterWait {
+	bdp := l.computeBDP()
+
+	if l.inflight() == 0 {
+		// With nothing on the wire there is no ACK that can unblock an
+		// inaccurate initial pacing estimate, so always accept a send.
+		return limiterWait{acceptSend: true}
+	}
+	if l.packetsInflight >= l.maxPacketsInflight ||
+		(bdp > 0 && float64(l.inflight()) >= l.cwndGain*bdp) {
+		return limiterWait{}
+	}
+	if l.pacingReady {
+		return limiterWait{acceptSend: true}
+	}
+	if now.After(l.nextSendTime) {
+		l.appLimitedUntil = l.inflight()
+		return limiterWait{acceptSend: true}
+	}
+	return limiterWait{hasDeadline: true, deadline: l.nextSendTime}
+}
+
+// step applies one explicit ACK, send, or pacing-deadline event. Pause and
+// cancellation do not alter congestion-control state and remain concerns of
+// the production channel adapter in run.
+func (l *Limiter) step(now time.Time, event limiterEvent) limiterStepResult {
+	switch event.kind {
+	case limiterSendEvent:
+		return limiterStepResult{sent: true, packet: l.doSendAt(now, event.size)}
+	case limiterAckEvent:
+		l.onAckAt(now, event.ack)
+		return limiterStepResult{}
+	case limiterPacingEvent:
+		if event.sendPending {
+			return limiterStepResult{sent: true, packet: l.doSendAt(now, event.size)}
+		}
+		// Remember that this pacing opportunity has already fired. A real
+		// clock advances past a zero-duration timer; a virtual clock does
+		// not, so the latch prevents repeatedly firing at the same instant.
+		l.appLimitedUntil = l.inflight()
+		l.pacingReady = true
+		return limiterStepResult{}
+	default:
+		panic("bbr: invalid limiter event")
+	}
+}
+
 func (l *Limiter) run(ctx context.Context) {
+	defer close(l.done)
 	for {
-
-		// These channels may or may not be nil, depending on what
-		// we want to listen for:
 		var (
-			// Kept so a timer abandoned by an ACK or a pause does not later
-			// fire into an obsolete iteration of the event loop.
-			sendTimer clock.Timer
-
-			// Fires when we cross the threshold past l.nextSendTime.
+			sendTimer  clock.Timer
 			timeToSend <-chan time.Time
-
-			// Fires when someone wants to send.
-			sendReqs <-chan sendRequest
+			sendReqs   <-chan sendRequest
 		)
 
-		bdp := l.computeBDP()
-
 		now := l.clock.Now()
-
-		if l.inflight() == 0 {
-			// We can't let the general purpose logic handle this case,
-			// because if we don't have good information yet nextSendTime
-			// might be in the far future, and there is no ack on its way
-			// to save us from our ignorance. Fortunately we always want
-			// to send if there's nothing on the wire, so just do it.
+		wait := l.prepareStep(now)
+		if wait.acceptSend {
 			sendReqs = l.chSend
-		} else if l.packetsInflight >= l.maxPacketsInflight ||
-			(bdp > 0 && float64(l.inflight()) >= l.cwndGain*bdp) {
-			// We're at our threshold; wait for an ack,
-			// but ignore other signals.
-			//
-			// Note: bdp == 0 means we just don't have any data yet,
-			// so we filter out that scenario.
-		} else if now.After(l.nextSendTime) {
-			// We're bottlnecked on the app, not the path;
-			// record that we're app limited, and don't watch the timer,
-			// but do watch the send queue:
-			l.appLimitedUntil = l.inflight()
-			sendReqs = l.chSend
-		} else {
-			// App is sending fast enough for congestion
-			// control to be active; wait until nextSendTime
-			// before servicing a request:
-			sleep := l.nextSendTime.Sub(now)
+		} else if wait.hasDeadline {
+			sleep := wait.deadline.Sub(now)
 			sendTimer = l.clock.NewTimer(sleep)
 			timeToSend = sendTimer.Chan()
 		}
 
-		handled, paused := true, false
+		var (
+			event       limiterEvent
+			eventTime   time.Time
+			handleEvent bool
+			replyChan   chan<- packetMeta
+			cancelled   bool
+			paused      bool
+		)
 		select {
 		case <-ctx.Done():
-			return
+			cancelled = true
 		case p := <-l.chAck:
-			l.onAck(p)
+			eventTime = l.clock.Now()
+			event = limiterEvent{kind: limiterAckEvent, ack: p}
+			handleEvent = true
 		case <-timeToSend:
-			l.trySend()
+			event = limiterEvent{kind: limiterPacingEvent}
+			select {
+			case req := <-l.chSend:
+				eventTime = l.clock.Now()
+				event.size = req.size
+				event.sendPending = true
+				replyChan = req.replyChan
+			default:
+			}
+			handleEvent = true
 		case req := <-sendReqs:
-			now := l.clock.Now()
-			l.doSend(now, req)
+			eventTime = l.clock.Now()
+			event = limiterEvent{kind: limiterSendEvent, size: req.size}
+			replyChan = req.replyChan
+			handleEvent = true
 		case <-l.chPause:
-			handled = false
 			paused = true
 		}
 		if sendTimer != nil {
 			sendTimer.Stop()
 		}
+		if cancelled {
+			return
+		}
 		if paused {
 			l.chPause <- struct{}{}
+			continue
 		}
-		if handled && l.afterEvent != nil {
-			l.afterEvent()
+		if handleEvent {
+			result := l.step(eventTime, event)
+			if result.sent {
+				replyChan <- result.packet
+			}
 		}
 	}
 }
 
-func (l *Limiter) trySend() {
-	select {
-	case req := <-l.chSend:
-		now := l.clock.Now()
-		l.doSend(now, req)
-	default:
-		l.appLimitedUntil = l.inflight()
-	}
-}
-
-func (l *Limiter) doSend(now time.Time, req sendRequest) {
+func (l *Limiter) doSendAt(now time.Time, size uint64) packetMeta {
+	l.pacingReady = false
 	l.packetsInflight++
 	p := packetMeta{
-		Size:          req.size,
+		Size:          size,
 		AppLimited:    l.appLimitedUntil > 0,
 		SendTime:      now,
 		Delivered:     l.delivered,
 		DeliveredTime: l.deliveredTime,
 	}
 	l.nextSendTime = now.Add(time.Duration(
-		float64(req.size) / (l.pacingGain * float64(l.btlBwFilter.Estimate)),
+		float64(size) / (l.pacingGain * float64(l.btlBwFilter.Estimate)),
 	))
-	l.sent += req.size
-	req.replyChan <- p
+	l.sent += size
+	return p
 }
 
 // A Limiter implements flowcontrol.FlowLimiter using the BBR algorithm.
@@ -204,6 +271,11 @@ type Limiter struct {
 	// Earliest time at which it is appropriate to send.
 	nextSendTime time.Time
 
+	// pacingReady records that a pacing timer fired while no sender was
+	// waiting. It is explicit because virtual time does not advance between
+	// firing a zero-duration timer and preparing the next actor iteration.
+	pacingReady bool
+
 	sent          uint64    // Total data sent
 	delivered     uint64    // Total data delivered & ACKed
 	deliveredTime time.Time // Time of the last ACK we received.
@@ -226,20 +298,27 @@ type Limiter struct {
 	// This channel is used for testing; the whilePaused() method needs it.
 	chPause chan struct{}
 
-	// Private test seams for deterministic simulations.
-	randInt    func() int
-	afterEvent func()
+	// Closed after the actor exits. This makes snapshots after Release safe:
+	// once done is closed, no goroutine can still mutate limiter state.
+	done chan struct{}
+
+	// Private test seam for deterministic ProbeBW initialization.
+	randInt func() int
 }
 
 // For testing purpoes; temporarily pauses the goroutine managing the limiter,
 // and runs the callback. This lets us inspect the state of the limiter in
 // tests without data races.
 func (l *Limiter) whilePaused(f func()) {
-	l.chPause <- struct{}{}
-	defer func() {
-		<-l.chPause
-	}()
-	f()
+	select {
+	case l.chPause <- struct{}{}:
+		defer func() {
+			<-l.chPause
+		}()
+		f()
+	case <-l.done:
+		f()
+	}
 }
 
 // inflight returns the total bytes in-flight
@@ -255,11 +334,19 @@ func NewLimiter(clk clock.Clock) *Limiter {
 }
 
 type limiterOptions struct {
-	randInt    func() int
-	afterEvent func()
+	randInt func() int
 }
 
 func newLimiter(clk clock.Clock, options limiterOptions) *Limiter {
+	l := newLimiterState(clk, options)
+	go l.run(l.ctx)
+	return l
+}
+
+// newLimiterState constructs a limiter without starting its actor. Production
+// must use newLimiter; deterministic tests may drive the synchronous state
+// machine directly while retaining exclusive ownership.
+func newLimiterState(clk clock.Clock, options limiterOptions) *Limiter {
 	if clk == nil {
 		clk = clock.System
 	}
@@ -284,20 +371,18 @@ func newLimiter(clk clock.Clock, options limiterOptions) *Limiter {
 
 		maxPacketsInflight: math.MaxUint64,
 
-		chPause:    make(chan struct{}),
-		randInt:    options.randInt,
-		afterEvent: options.afterEvent,
+		chPause: make(chan struct{}),
+		done:    make(chan struct{}),
+		randInt: options.randInt,
 	}
-	l.changeState(&startupState{})
-	go l.run(ctx)
+	l.changeState(&startupState{}, now)
 	return l
 }
 
-// onAck should be invoked on each packetMeta when the acknowledgement for
+// onAckAt should be invoked on each packetMeta when the acknowledgement for
 // that packet is received.
-func (l *Limiter) onAck(p packetMeta) {
+func (l *Limiter) onAckAt(now time.Time, p packetMeta) {
 	l.packetsInflight--
-	now := l.clock.Now()
 	rtt := now.Sub(p.SendTime)
 
 	l.rtPropFilter.AddSample(rtPropSample{
@@ -316,13 +401,17 @@ func (l *Limiter) onAck(p packetMeta) {
 		l.btlBwFilter.AddSample(deliveryRate)
 	}
 	if l.appLimitedUntil > 0 {
-		l.appLimitedUntil -= p.Size
+		if p.Size >= l.appLimitedUntil {
+			l.appLimitedUntil = 0
+		} else {
+			l.appLimitedUntil -= p.Size
+		}
 	}
 
 	l.state.postAck(l, p, now)
 }
 
-func (l *Limiter) changeState(s state) {
+func (l *Limiter) changeState(s state, now time.Time) {
 	l.state = s
-	l.state.initialize(l)
+	l.state.initialize(l, now)
 }
