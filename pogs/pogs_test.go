@@ -4,11 +4,15 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
+	"sync"
 	"testing"
 
 	"capnproto.org/go/capnp/v3"
 	air "capnproto.org/go/capnp/v3/internal/aircraftlib"
+	"capnproto.org/go/capnp/v3/internal/nodemap"
+	"capnproto.org/go/capnp/v3/internal/schema"
 	"github.com/kylelemons/godebug/pretty"
 )
 
@@ -1172,6 +1176,96 @@ func zfill(c air.Z, g *Z) error {
 var zpretty = &pretty.Config{
 	Compact:        true,
 	SkipZeroFields: true,
+}
+
+type invalidCachedMapping struct {
+	NotInSchema int
+}
+
+func benchmarkANode(t *testing.T) schema.Node {
+	t.Helper()
+	var nodes nodemap.Map
+	n, err := nodes.Find(air.BenchmarkA_TypeID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return n
+}
+
+func TestMapStructCachesResult(t *testing.T) {
+	n := benchmarkANode(t)
+	typ := reflect.TypeOf(A{})
+	first, err := mapStruct(typ, n)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := mapStruct(typ, n)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(first.fields) == 0 || &first.fields[0] != &second.fields[0] {
+		t.Fatal("mapStruct did not return the cached field mapping")
+	}
+}
+
+func TestMapStructCachesError(t *testing.T) {
+	n := benchmarkANode(t)
+	typ := reflect.TypeOf(invalidCachedMapping{})
+	_, first := mapStruct(typ, n)
+	_, second := mapStruct(typ, n)
+	if first == nil {
+		t.Fatal("mapStruct unexpectedly succeeded")
+	}
+	if first != second {
+		t.Fatalf("mapStruct errors are not cached: first %p, second %p", first, second)
+	}
+}
+
+func TestMapStructConcurrentFirstUse(t *testing.T) {
+	type concurrentMapping struct {
+		Name     string
+		BirthDay int64
+		Phone    string
+		Siblings int32
+		Spouse   bool
+		Money    float64
+	}
+
+	n := benchmarkANode(t)
+	typ := reflect.TypeOf(concurrentMapping{})
+	const goroutines = 32
+	start := make(chan struct{})
+	results := make(chan *fieldLoc, goroutines)
+	errs := make(chan error, goroutines)
+	var wg sync.WaitGroup
+	for i := 0; i < goroutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			props, err := mapStruct(typ, n)
+			if err != nil {
+				errs <- err
+				return
+			}
+			results <- &props.fields[0]
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(results)
+	close(errs)
+	for err := range errs {
+		t.Error(err)
+	}
+	var first *fieldLoc
+	for result := range results {
+		if first == nil {
+			first = result
+		} else if first != result {
+			t.Error("concurrent mapStruct call returned a separately built mapping")
+		}
+	}
 }
 
 func sliceeq(na, nb int, f func(i int) bool) bool {

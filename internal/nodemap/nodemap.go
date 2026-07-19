@@ -2,6 +2,8 @@
 package nodemap
 
 import (
+	"sync"
+
 	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/internal/schema"
 	"capnproto.org/go/capnp/v3/schemas"
@@ -11,6 +13,16 @@ import (
 // The zero value is an index of the default registry.
 type Map struct {
 	reg   *schemas.Registry
+	index *nodeIndex
+}
+
+// defaultIndex is shared by all zero-value Maps.  Generated schemas are
+// immutable after registration, so nodes are safe to share once an entire
+// decoded request has been published under the lock.
+var defaultIndex = new(nodeIndex)
+
+type nodeIndex struct {
+	mu    sync.RWMutex
 	nodes map[uint64]schema.Node
 }
 
@@ -21,18 +33,32 @@ func (m *Map) registry() *schemas.Registry {
 	return schemas.DefaultRegistry
 }
 
-// UseRegistry assigns 'reg' to 'm' and initializes the nodes map.
+// UseRegistry assigns reg to m and initializes an index for it.  The default
+// registry uses the process-wide shared index; custom registries remain local
+// to the Map.
 func (m *Map) UseRegistry(reg *schemas.Registry) {
 	m.reg = reg
-	m.nodes = make(map[uint64]schema.Node)
+	m.index = new(nodeIndex)
 }
 
 // Find returns the node for the given ID.
 func (m *Map) Find(id uint64) (schema.Node, error) {
-	if n := m.nodes[id]; n.IsValid() {
+	reg := m.registry()
+	index := m.index
+	if reg == schemas.DefaultRegistry {
+		index = defaultIndex
+	}
+	return index.find(reg, id)
+}
+
+func (index *nodeIndex) find(reg *schemas.Registry, id uint64) (schema.Node, error) {
+	index.mu.RLock()
+	n := index.nodes[id]
+	index.mu.RUnlock()
+	if n.IsValid() {
 		return n, nil
 	}
-	data, err := m.registry().Find(id)
+	data, err := reg.Find(id)
 	if err != nil {
 		return schema.Node{}, err
 	}
@@ -48,12 +74,26 @@ func (m *Map) Find(id uint64) (schema.Node, error) {
 	if err != nil {
 		return schema.Node{}, err
 	}
-	if m.nodes == nil {
-		m.nodes = make(map[uint64]schema.Node)
-	}
+	decoded := make(map[uint64]schema.Node, nodes.Len())
 	for i := 0; i < nodes.Len(); i++ {
 		n := nodes.At(i)
-		m.nodes[n.Id()] = n
+		decoded[n.Id()] = n
 	}
-	return m.nodes[id], nil
+	// Cached nodes retain msg for the lifetime of the index.  Schema data is
+	// trusted, immutable metadata, so a finite cumulative traversal budget
+	// would eventually make an otherwise valid cache entry unreadable.
+	msg.ResetReadLimit(^uint64(0))
+
+	index.mu.Lock()
+	if index.nodes == nil {
+		index.nodes = make(map[uint64]schema.Node)
+	}
+	for nodeID, n := range decoded {
+		if !index.nodes[nodeID].IsValid() {
+			index.nodes[nodeID] = n
+		}
+	}
+	n = index.nodes[id]
+	index.mu.Unlock()
+	return n, nil
 }
