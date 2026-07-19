@@ -158,6 +158,7 @@ type serializeTest struct {
 	name            string
 	segs            [][]byte
 	out             []byte
+	marshalFails    bool
 	encodeFails     bool
 	decodeFails     bool
 	decodeError     error
@@ -206,10 +207,11 @@ var serializeTests = []serializeTest{
 		decodeFails: true,
 	},
 	{
-		name: "empty single segment",
+		name: "rootless single segment",
 		segs: [][]byte{
 			{},
 		},
+		marshalFails: true,
 		out: []byte{
 			0x00, 0x00, 0x00, 0x00,
 			0x00, 0x00, 0x00, 0x00,
@@ -306,17 +308,61 @@ func TestMarshal(t *testing.T) {
 		}
 		out, err := msg.Marshal()
 		if err != nil {
-			if !test.encodeFails {
+			if !test.marshalFails {
 				t.Errorf("serializeTests[%d] %s: Marshal error: %v", i, test.name, err)
 			}
 			continue
 		}
-		if test.encodeFails {
+		if test.marshalFails {
 			t.Errorf("serializeTests[%d] - %s: Marshal success; want error", i, test.name)
 			continue
 		}
 		if !bytes.Equal(out, test.out) {
 			t.Errorf("serializeTests[%d] - %s: Marshal = % 02x; want % 02x", i, test.name, out, test.out)
+		}
+	}
+}
+
+func TestMarshalRootless(t *testing.T) {
+	t.Parallel()
+
+	for _, data := range [][]byte{nil, make([]byte, wordSize)} {
+		msg, _ := NewSingleSegmentMessage(data)
+		if _, err := msg.Marshal(); err == nil {
+			t.Error("Marshal() succeeded for a rootless message")
+		}
+		if _, err := msg.MarshalPacked(); err == nil {
+			t.Error("MarshalPacked() succeeded for a rootless message")
+		}
+	}
+}
+
+func TestUnmarshalRootless(t *testing.T) {
+	t.Parallel()
+
+	for _, test := range []struct {
+		data        []byte
+		wantRootErr bool
+	}{
+		{data: []byte{
+			0x00, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0x00, 0x00,
+		}, wantRootErr: true},
+		{data: []byte{
+			0x00, 0x00, 0x00, 0x00,
+			0x01, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0x00, 0x00,
+		}},
+	} {
+		msg, err := Unmarshal(test.data)
+		require.NoError(t, err)
+		root, err := msg.Root()
+		if test.wantRootErr {
+			require.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.False(t, root.IsValid(), "Root() should report a null root pointer")
 		}
 	}
 }
@@ -562,7 +608,11 @@ func TestTotalSize(t *testing.T) {
 			}
 		}
 
-		msg, _ := NewMultiSegmentMessage(segs)
+		msg, seg := NewMultiSegmentMessage(segs)
+		_, err := NewRootStruct(seg, ObjectSize{})
+		if err != nil {
+			return false
+		}
 
 		size, err := msg.TotalSize()
 		assert.Nil(t, err, "TotalSize() returned an error")
