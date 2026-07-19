@@ -23,6 +23,14 @@ type Segment struct {
 	data []byte
 }
 
+// NewSegment creates a segment with the given ID and data.
+//
+// It is intended for use by Arena implementations. The ID of a segment must
+// not change after it has been added to an arena.
+func NewSegment(id SegmentID, data []byte) *Segment {
+	return &Segment{id: id, data: data}
+}
+
 // Message returns the message that contains s.
 func (s *Segment) Message() *Message {
 	return s.msg
@@ -42,6 +50,15 @@ func (s *Segment) ID() SegmentID {
 // Data returns the raw byte slice for the segment.
 func (s *Segment) Data() []byte {
 	return s.data
+}
+
+// SetData replaces the data in s.
+//
+// This is intended for use by Arena implementations when growing a segment.
+// If an arena returns an existing segment from Allocate, it must preserve the
+// existing data when replacing the segment's data.
+func (s *Segment) SetData(data []byte) {
+	s.data = data
 }
 
 func (s *Segment) inBounds(addr Address) bool {
