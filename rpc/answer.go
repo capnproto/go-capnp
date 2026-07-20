@@ -138,11 +138,12 @@ func (c *Conn) newReturn() (_ rpccp.Return, sendMsg func(), _ *rc.Releaser, _ er
 
 	return ret, func() {
 		c.lk.sendTx.Send(asyncSend{
+			ctx:     c.bgctx,
 			send:    outMsg.Send,
 			release: releaser.Decr,
-			onSent: func(err error) {
-				if err != nil {
-					c.er.ReportError(exc.WrapError("send return", err))
+			onSent: func(outcome sendOutcome) {
+				if outcome.err != nil && !outcome.fatal {
+					c.er.ReportError(exc.WrapError("send return", outcome.err))
 				}
 			},
 		})

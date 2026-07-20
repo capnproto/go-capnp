@@ -116,7 +116,7 @@ func (q *question) handleCancel(ctx context.Context) {
 		}, func(err error) {
 			if err == nil {
 				syncutil.With(&q.c.lk, func() { q.flags |= finishSent })
-			} else if q.c.bgctx.Err() == nil {
+			} else if q.c.bgctx.Err() == nil && !isFatalSendError(err) {
 				q.c.er.ReportError(rpcerr.Annotate(err, "send finish"))
 			}
 			close(q.finishMsgSend)
