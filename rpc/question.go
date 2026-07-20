@@ -18,41 +18,53 @@ type question struct {
 	p       *capnp.Promise
 	release capnp.ReleaseFunc // written before resolving p
 
-	// Protected by c.mu:
-
-	flags         questionFlags
-	finishMsgSend chan struct{}        // closed after attempting to send the Finish message
-	called        [][]capnp.PipelineOp // paths to called clients
+	// Protected by c.lk:
+	owner          questionTerminalOwner
+	callSend       questionCallSendState
+	callSendDone   chan struct{}
+	callSendErr    error
+	drainComplete  bool
+	drainDone      chan struct{}
+	returnReceived bool
+	noFinishNeeded bool
+	finish         questionFinishState
+	called         [][]capnp.PipelineOp // paths to called clients
 }
 
-// questionFlags is a bitmask of which events have occurred in a question's
-// lifetime.
-type questionFlags uint8
+type questionTerminalOwner uint8
 
 const (
-	// finished is set when the question's Context has been canceled or
-	// its Return message has been received.  The codepath that sets this
-	// flag is responsible for sending the Finish message.
-	finished questionFlags = 1 << iota
-
-	// finishSent indicates whether the Finish message was sent
-	// successfully.  It is only valid to query after finishMsgSend is
-	// closed.
-	finishSent
+	questionOwnerNone questionTerminalOwner = iota
+	questionOwnerReturn
+	questionOwnerCancel
+	questionOwnerSendFailure
 )
 
-// flags.Contains(flag) Returns true iff flags contains flag, which must
-// be a single flag.
-func (flags questionFlags) Contains(flag questionFlags) bool {
-	return flags&flag != 0
-}
+type questionFinishState uint8
+
+const (
+	questionFinishNotQueued questionFinishState = iota
+	questionFinishQueued
+	questionFinishSent
+	questionFinishFailed
+	questionFinishSuppressed
+)
+
+type questionCallSendState uint8
+
+const (
+	questionCallSendPending questionCallSendState = iota
+	questionCallSendSucceeded
+	questionCallSendFailed
+)
 
 // newQuestion adds a new question to c's table.
 func (c *lockedConn) newQuestion(method capnp.Method) *question {
 	q := &question{
-		c:             (*Conn)(c),
-		release:       func() {},
-		finishMsgSend: make(chan struct{}),
+		c:            (*Conn)(c),
+		release:      func() {},
+		callSendDone: make(chan struct{}),
+		drainDone:    make(chan struct{}),
 	}
 	q.id = c.lk.questions.Add(q)
 	q.p = capnp.NewPromise(method, q, nil) // TODO(someday): customize error message for bootstrap
@@ -97,36 +109,155 @@ func (q *question) handleCancel(ctx context.Context) {
 		return
 	}
 
+	claimed := false
 	q.c.withLocked(func(c *lockedConn) {
-		// Promise already fulfilled?
-		if q.flags.Contains(finished) {
+		if q.owner == questionOwnerNone {
+			q.owner = questionOwnerCancel
+			q.release = func() {}
+			claimed = true
+		}
+	})
+	if !claimed {
+		return
+	}
+
+	// Reject drains every pipeline call that selected q before cancellation
+	// claimed terminal ownership. No Finish may be queued before it returns.
+	q.p.Reject(rejectErr)
+	q.c.withLocked(func(c *lockedConn) {
+		q.drainComplete = true
+		q.queueFinish(c, true)
+		q.signalDrainDone()
+	})
+}
+
+func (q *question) signalDrainDone() {
+	if q.drainDone != nil {
+		close(q.drainDone)
+	}
+}
+
+// handleCallSend completes the initial Call send. The caller MUST NOT hold
+// q.c.lk; it is invoked by the sender loop.
+func (q *question) handleCallSend(ctx context.Context, outcome sendOutcome, annotation string) {
+	var callErr error
+	if outcome.err != nil {
+		callErr = rpcerr.Annotate(outcome.err, annotation)
+	} else if outcome.disposition != sendSucceeded {
+		callErr = ExcClosed
+	}
+	q.c.withLocked(func(c *lockedConn) {
+		if q.callSend != questionCallSendPending {
 			return
 		}
-		q.flags |= finished
-		q.release = func() {}
+		if outcome.disposition == sendSucceeded {
+			q.callSend = questionCallSendSucceeded
+		} else {
+			q.callSend = questionCallSendFailed
+			q.callSendErr = callErr
+		}
+		close(q.callSendDone)
+	})
 
-		c.sendMessage(c.bgctx, func(m rpccp.Message) error {
-			fin, err := m.NewFinish()
-			if err != nil {
-				return err
+	switch outcome.disposition {
+	case sendSucceeded:
+		startCancel := false
+		q.c.withLocked(func(c *lockedConn) {
+			if q.owner == questionOwnerNone {
+				startCancel = c.startTask()
 			}
+		})
+		if startCancel {
+			go func() {
+				defer q.c.tasks.Done()
+				q.handleCancel(ctx)
+			}()
+		}
+
+	case sendDefinitelyUnsent:
+		reject := false
+		q.c.withLocked(func(c *lockedConn) {
+			if current, ok := c.lk.questions.Find(q.id); ok && current == q && q.owner == questionOwnerNone {
+				q.owner = questionOwnerSendFailure
+				reject = true
+			}
+		})
+		if reject {
+			// callSendDone wakes admitted old-route calls. They must yield
+			// without enqueueing before rejection completes and the ID is freed.
+			q.p.Reject(callErr)
+			q.c.withLocked(func(c *lockedConn) {
+				if current, ok := c.lk.questions.Find(q.id); ok && current == q {
+					c.lk.questions.Remove(q.id)
+				}
+			})
+		}
+
+	case sendDeliveryAmbiguous:
+		reject := false
+		q.c.withLocked(func(c *lockedConn) {
+			if current, ok := c.lk.questions.Find(q.id); ok && current == q && q.owner == questionOwnerNone {
+				q.owner = questionOwnerSendFailure
+				reject = true
+			}
+		})
+		if reject {
+			q.p.Reject(callErr)
+		}
+
+	case sendAbortedByShutdown:
+		// callSendDone was closed above so admitted pipeline calls can yield;
+		// shutdown owns Promise rejection and table cleanup.
+	}
+}
+
+// queueFinish queues the question's single terminal Finish after Promise
+// admission has drained. The caller MUST hold q.c.lk.
+func (q *question) queueFinish(c *lockedConn, releaseResultCaps bool) {
+	if !q.drainComplete || q.finish != questionFinishNotQueued {
+		return
+	}
+	if c.lk.closing {
+		q.finish = questionFinishFailed
+		return
+	}
+	q.finish = questionFinishQueued
+	c.sendMessageOutcome(c.bgctx, func(m rpccp.Message) error {
+		fin, err := m.NewFinish()
+		if err == nil {
 			fin.SetQuestionId(uint32(q.id))
-			fin.SetReleaseResultCaps(true)
-			return nil
-		}, func(err error) {
-			if err == nil {
-				syncutil.With(&q.c.lk, func() { q.flags |= finishSent })
-			} else if q.c.bgctx.Err() == nil && !isFatalSendError(err) {
-				q.c.er.ReportError(rpcerr.Annotate(err, "send finish"))
+			fin.SetReleaseResultCaps(releaseResultCaps)
+		}
+		return err
+	}, true, func(outcome sendOutcome) {
+		q.c.withLocked(func(c *lockedConn) {
+			if q.finish != questionFinishQueued {
+				return
 			}
-			close(q.finishMsgSend)
-			q.p.Reject(rejectErr)
+			if outcome.disposition == sendSucceeded {
+				q.finish = questionFinishSent
+				if q.returnReceived {
+					c.lk.questions.release(q.id)
+				}
+			} else {
+				q.finish = questionFinishFailed
+			}
 		})
 	})
 }
 
 func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineOp, s capnp.Send) (*capnp.Answer, capnp.ReleaseFunc) {
+	select {
+	case <-q.callSendDone:
+	case <-ctx.Done():
+		return capnp.ErrorAnswer(s.Method, ctx.Err()), func() {}
+	case <-q.c.bgctx.Done():
+		return capnp.ErrorAnswer(s.Method, ExcClosed), func() {}
+	}
 	return withLockedConn2(q.c, func(c *lockedConn) (*capnp.Answer, capnp.ReleaseFunc) {
+		if q.callSend != questionCallSendSucceeded {
+			return capnp.ErrorAnswer(s.Method, q.callSendErr), func() {}
+		}
 		// Mark this transform as having been used for a call ASAP.
 		// q's Return could be received while q2 is being sent.
 		// Don't bother cleaning it up if the call fails because:
@@ -167,21 +298,9 @@ func (c *lockedConn) startCall(ctx context.Context, s capnp.Send, preflight func
 	}
 
 	q := c.newQuestion(s.Method)
-	c.sendMessage(ctx, func(m rpccp.Message) error {
+	c.sendMessageOutcome(ctx, func(m rpccp.Message) error {
 		return c.newCallMessage(m, q.id, s, populateTarget)
-	}, func(err error) {
-		if err != nil {
-			syncutil.With(&q.c.lk, func() { q.c.lk.questions.Remove(q.id) })
-			q.p.Reject(rpcerr.WrapFailed("send message", err))
-			return
-		}
-
-		q.c.tasks.Add(1)
-		go func() {
-			defer q.c.tasks.Done()
-			q.handleCancel(ctx)
-		}()
-	})
+	}, false, func(outcome sendOutcome) { q.handleCallSend(ctx, outcome, "send message") })
 
 	ans := q.p.Answer()
 	return ans, func() {

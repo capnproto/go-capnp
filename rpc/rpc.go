@@ -332,26 +332,14 @@ func (c *Conn) Bootstrap(ctx context.Context) (bc capnp.Client) {
 			q.release()
 		})
 
-		c.sendMessage(ctx, func(m rpccp.Message) error {
+		c.sendMessageOutcome(ctx, func(m rpccp.Message) error {
 			boot, err := m.NewBootstrap()
 			if err == nil {
 				boot.SetQuestionId(uint32(q.id))
 			}
 			return err
 
-		}, func(err error) {
-			if err != nil {
-				syncutil.With(&c.lk, func() { c.lk.questions.Remove(q.id) })
-				q.p.Reject(exc.Annotate("rpc", "bootstrap", err))
-				return
-			}
-
-			c.tasks.Add(1)
-			go func() {
-				defer c.tasks.Done()
-				q.handleCancel(ctx)
-			}()
-		})
+		}, false, func(outcome sendOutcome) { q.handleCallSend(ctx, outcome, "bootstrap") })
 
 		return
 	})
@@ -499,12 +487,9 @@ func (c *lockedConn) releaseAnswers(dq *deferred.Queue, answers []*ansent) {
 
 func (c *lockedConn) releaseQuestions(dq *deferred.Queue, questions []*question) {
 	for _, q := range questions {
-		canceled := q != nil && q.flags.Contains(finished)
-		if !canceled {
-			// Only reject the question if it isn't already flagged
-			// as finished; otherwise it was rejected when the finished
-			// flag was set.
-
+		if q != nil && q.owner == questionOwnerNone {
+			// Terminal owners resolve or reject their own Promise. Questions
+			// without one are still pending and are rejected by shutdown.
 			qr := q // Capture a different variable each time through the loop.
 			dq.Defer(func() {
 				qr.Reject(ExcClosed)
@@ -1097,7 +1082,7 @@ func parseTransform(list rpccp.PromisedAnswer_Op_List) ([]capnp.PipelineOp, erro
 	return ops, nil
 }
 
-func (c *Conn) handleReturn(ctx context.Context, in transport.IncomingMessage) error {
+func (c *Conn) handleReturn(_ context.Context, in transport.IncomingMessage) error {
 	ret, err := in.Message().Return()
 	if err != nil {
 		in.Release()
@@ -1108,53 +1093,56 @@ func (c *Conn) handleReturn(ctx context.Context, in transport.IncomingMessage) e
 	dq := &deferred.Queue{}
 	defer dq.Run()
 
-	// Save this, so we can reference it from spawned goroutines that are not holding
-	// the lock; we reassign to c at the top of those functions.
-	unlockedConn := c
-
-	return withLockedConn1(c, func(c *lockedConn) error {
-
+	var drain func()
+	var taskStarted bool
+	var handleErr error
+	c.withLocked(func(c *lockedConn) {
 		qid := questionID(ret.AnswerId())
-		// Pop the question from the table.  Receiving the Return message
-		// will always remove the question from the table, because it's the
-		// only time the remote vat will use it.
 		q, ok := c.lk.questions.take(qid)
 		if !ok {
 			dq.Defer(in.Release)
-			return rpcerr.Failed(errors.New(
+			handleErr = rpcerr.Failed(errors.New(
 				"incoming return: question " + str.Utod(qid) + " does not exist",
 			))
+			return
 		}
-		canceled := q.flags.Contains(finished)
-		q.flags |= finished
-		if canceled {
-			// Wait for cancelation task to write the Finish message.  If the
-			// Finish message could not be sent to the remote vat, we can't
-			// reuse the ID.
-			select {
-			case <-q.finishMsgSend:
-				if q.flags.Contains(finishSent) {
-					c.lk.questions.release(qid)
-				}
-				dq.Defer(in.Release)
-			default:
-				dq.Defer(in.Release)
+		q.returnReceived = true
 
-				go func() {
-					c := unlockedConn
-					<-q.finishMsgSend
-					c.withLocked(func(c *lockedConn) {
-						if q.flags.Contains(finishSent) {
-							c.lk.questions.release(qid)
-						}
-					})
-				}()
+		switch q.owner {
+		case questionOwnerCancel:
+			// Cancellation owns the single Finish(true). A late Return never
+			// parses result capabilities and cannot suppress that Finish.
+			dq.Defer(in.Release)
+			if q.finish == questionFinishSent {
+				c.lk.questions.release(qid)
 			}
-			return nil
+			return
+		case questionOwnerSendFailure:
+			// Delivery was ambiguous and shutdown owns the retained ID.
+			dq.Defer(in.Release)
+			return
+		case questionOwnerNone:
+			q.owner = questionOwnerReturn
+		default:
+			dq.Defer(in.Release)
+			handleErr = rpcerr.Failed(errors.New(
+				"incoming return: question " + str.Utod(qid) + " has invalid terminal owner",
+			))
+			return
 		}
+
 		pr := c.parseReturn(dq, ret, q.called) // fills in CapTable and adds imports to local vat
 		if pr.parseFailed {
 			c.er.ReportError(rpcerr.Annotate(pr.err, "incoming return"))
+		}
+		if ret.NoFinishNeeded() {
+			if !returnHasCapabilities(ret) {
+				q.noFinishNeeded = true
+			} else {
+				c.er.ReportError(errors.New(
+					"incoming return: noFinishNeeded set on capability-bearing result; sending Finish",
+				))
+			}
 		}
 
 		if pr.err == nil {
@@ -1162,104 +1150,75 @@ func (c *Conn) handleReturn(ctx context.Context, in transport.IncomingMessage) e
 			// an error), so we save the ReleaseFunc for later:
 			q.release = in.Release
 		}
-		// We're going to potentially block fulfilling some promises so fork
-		// off a goroutine to avoid blocking the receive loop.
-		go func() {
-			c := unlockedConn
+
+		taskStarted = c.startTask()
+		drain = func() {
 			q.p.Resolve(pr.result, pr.err)
 			if pr.err != nil {
-				// We can release now; the result is an error, so data from the message
-				// won't be accessed:
+				// Error results do not retain data from the incoming message.
 				in.Release()
 			}
 
-			// Even though any imports added within the
-			// parseResults()  were added inside the locked conn
-			// mutex, there could still be references to the prior
-			// question `qid` that are (concurrent to the
-			// processing of this Return message) about to send a
-			// pipelined request to the remote host. Sending a
-			// Finish message now, could mean these other outbound
-			// messages enter the send queue _after_ the Finish,
-			// thus causing a remote error: the pipelined call
-			// referencing `qid` arrives after the Finish, which is
-			// a protocol violation.
-			//
-			// One way of seeing this bug manifest is on the
-			// TestPromiseOrdering test as of commit 2f9aa4f:
-			// removing the fix below triggers errors in the style
-			// of:
-			//
-			//   "handle Call: rpc: incoming call: use of unknown
-			//   or finished answer ID 0 for promised answer"
-			//
-			// Unfortunately, I (matheusd) cannot see _any_ way of
-			// doing a proper fix. What I consider a "proper" fix
-			// would be to couple (via some synchronization
-			// mechanism) the sending and receiving sides of the
-			// conn, such that sending this finish only happens
-			// after all references of the above question are
-			// released. Or something like that.
-			//
-			// Instead, we opt for a sleep here, to give a chance
-			// to any concurrent goroutines to complete their
-			// sending process, and then we send the finish. If
-			// production code is doing anything similar to what
-			// that test exercises, then unless the host system is
-			// under _significant_ load, the following sleep should
-			// be sufficient.
-			//
-			// Yes, I am aware this is an ugly solution. Hopefully
-			// some future refactor will make a better fix obvious
-			// or (even better) unnecessary.
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(250 * time.Millisecond):
-			}
-
-			c.withLocked(func(c *lockedConn) {
-				// Send disembargoes.  Failing to send one of these just never lifts
-				// the embargo on our side, but doesn't cause a leak.
-				//
-				// TODO(soon): make embargo resolve to error client.
-				for _, s := range pr.disembargoes {
-					c.sendMessage(ctx, s.buildDisembargo, func(err error) {
-						if err != nil && !isFatalSendError(err) {
-							err = exc.WrapError("incoming return: send disembargo", err)
-							c.er.ReportError(err)
-						}
-					})
-				}
-
-				// Send finish.
-				c.sendMessage(ctx, func(m rpccp.Message) error {
-					fin, err := m.NewFinish()
-					if err == nil {
-						fin.SetQuestionId(uint32(qid))
-						fin.SetReleaseResultCaps(false)
-					}
-					return err
-				}, func(err error) {
-					c.lk.Lock()
-					defer c.lk.Unlock()
-					defer close(q.finishMsgSend)
-
-					if err != nil {
-						if !isFatalSendError(err) {
-							err = exc.WrapError("incoming return: send finish: build message", err)
-							c.er.ReportError(err)
-						}
-					} else {
-						q.flags |= finishSent
-						c.lk.questions.release(qid)
-					}
-				})
+			q.c.withLocked(func(c *lockedConn) {
+				q.completeReturn(c, pr.disembargoes)
 			})
-		}()
-
-		return nil
+		}
 	})
+
+	if handleErr != nil || drain == nil {
+		return handleErr
+	}
+	if taskStarted {
+		go func() {
+			defer c.tasks.Done()
+			drain()
+		}()
+	} else {
+		// Shutdown has already started. The receive task itself keeps table
+		// teardown from racing this synchronous drain.
+		drain()
+	}
+	return nil
+}
+
+// completeReturn records that Promise admission has drained and orders all
+// terminal messages after the admitted Calls. The caller MUST hold q.c.lk.
+func (q *question) completeReturn(c *lockedConn, disembargoes []senderLoopback) {
+	q.drainComplete = true
+	defer q.signalDrainDone()
+	if c.lk.closing {
+		q.finish = questionFinishFailed
+		return
+	}
+
+	// Failing to send a disembargo leaves the local embargo in place but
+	// does not leak peer-side question state.
+	for _, s := range disembargoes {
+		c.sendMessage(c.bgctx, s.buildDisembargo, func(err error) {
+			if err != nil && !isFatalSendError(err) {
+				c.er.ReportError(exc.WrapError("incoming return: send disembargo", err))
+			}
+		})
+	}
+
+	if q.noFinishNeeded {
+		q.finish = questionFinishSuppressed
+		c.lk.questions.release(q.id)
+		return
+	}
+	q.queueFinish(c, false)
+}
+
+func returnHasCapabilities(ret rpccp.Return) bool {
+	if ret.Which() != rpccp.Return_Which_results {
+		return false
+	}
+	results, err := ret.Results()
+	if err != nil {
+		return true
+	}
+	capTable, err := results.CapTable()
+	return err != nil || capTable.Len() > 0
 }
 
 func (c *lockedConn) parseReturn(dq *deferred.Queue, ret rpccp.Return, called [][]capnp.PipelineOp) parsedReturn {
