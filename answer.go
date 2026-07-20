@@ -48,6 +48,11 @@ type promiseState struct {
 	// the promise leaves the unresolved state.
 	caller PipelineCaller
 
+	// ongoingCalls counts calls admitted to caller that have not yet yielded.
+	ongoingCalls int
+	// callsStopped is installed during pending resolution when ongoingCalls > 0.
+	callsStopped chan struct{}
+
 	// clients is a table of promised clients created to proxy the eventual
 	// result's clients.  Even after resolution, this table may still have
 	// entries until the clients are released. Cannot be read or written
@@ -67,7 +72,11 @@ type clientAndPromise struct {
 
 // NewPromise creates a new unresolved promise.  The PipelineCaller will
 // be used to make pipelined calls before the promise resolves. If resolver
-// is not nil,  calls to Fulfill will be forwarded to it.
+// is not nil, calls to Fulfill and Reject will be forwarded to it.
+//
+// PipelineCaller and Resolver implementations must not synchronously resolve
+// this Promise, or wait for this Promise to resolve, from a callback made by
+// the Promise itself. Doing so creates a dependency cycle.
 func NewPromise(m Method, pc PipelineCaller, resolver Resolver[Ptr]) *Promise {
 	if pc == nil {
 		panic("NewPromise(nil)")
@@ -147,6 +156,7 @@ func (p *Promise) Resolve(r Ptr, e error) {
 	// It's ok to extract p.clients and use it while not holding the lock:
 	// it may not be accessed in the pending resolution state, so we have
 	// exclusive access to the variable anyway.
+	var callsStopped <-chan struct{}
 	clients := mutex.With1(&p.state, func(p *promiseState) map[clientPath]*clientAndPromise {
 		if e != nil {
 			p.requireUnresolved("Reject")
@@ -154,6 +164,10 @@ func (p *Promise) Resolve(r Ptr, e error) {
 			p.requireUnresolved("Fulfill")
 		}
 		p.caller = nil
+		if p.ongoingCalls > 0 {
+			p.callsStopped = make(chan struct{})
+			callsStopped = p.callsStopped
+		}
 		return p.clients
 	})
 
@@ -172,6 +186,9 @@ func (p *Promise) Resolve(r Ptr, e error) {
 		t := path.transform()
 		cp.promise.fulfill(dq, res.client(t))
 		cp.promise = nil
+	}
+	if callsStopped != nil {
+		<-callsStopped
 	}
 
 	p.state.With(func(p *promiseState) {
@@ -322,7 +339,9 @@ func (ans *Answer) PipelineSend(ctx context.Context, transform []PipelineOp, s S
 	switch {
 	case l.Value().isUnresolved():
 		caller := l.Value().caller
+		l.Value().ongoingCalls++
 		l.Unlock()
+		defer p.pipelineCallDone()
 		return caller.PipelineSend(ctx, transform, s)
 	case l.Value().isPendingResolution():
 		// Block new calls until resolved.
@@ -350,7 +369,9 @@ func (ans *Answer) PipelineRecv(ctx context.Context, transform []PipelineOp, r R
 	switch {
 	case l.Value().isUnresolved():
 		caller := l.Value().caller
+		l.Value().ongoingCalls++
 		l.Unlock()
+		defer p.pipelineCallDone()
 		return caller.PipelineRecv(ctx, transform, r)
 	case l.Value().isPendingResolution():
 		// Block new calls until resolved.
@@ -370,6 +391,16 @@ func (ans *Answer) PipelineRecv(ctx context.Context, transform []PipelineOp, r R
 	default:
 		panic("unreachable")
 	}
+}
+
+func (p *Promise) pipelineCallDone() {
+	p.state.With(func(s *promiseState) {
+		s.ongoingCalls--
+		if s.ongoingCalls == 0 && s.callsStopped != nil {
+			close(s.callsStopped)
+			s.callsStopped = nil
+		}
+	})
 }
 
 // A Future accesses a portion of an Answer.  It is safe to use from

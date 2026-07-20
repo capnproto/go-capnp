@@ -1,5 +1,12 @@
 # Go Cap'n Proto Release Notes
 
+## Unreleased
+
+- Clarify that a `PipelineCaller` or `Resolver` used by `capnp.NewPromise`
+  must not synchronously resolve, or wait for resolution of, that same
+  `Promise`. Promise resolution waits for already-admitted pipelined calls to
+  yield before publishing the result.
+
 ## 2.17.0
 
 - Add `capnp.Canonicalize` function that implements the
