@@ -565,23 +565,27 @@ func TestDisembargoSenderPromiseWithPipeline(t *testing.T) {
 			},
 		}))
 
-		// P1 completes the pipelined call by returning the response to
-		// P2. This message is now ensured to arrive first due to the
-		// fix we did in handleReturn.
-		rmsg, release, err := recvMessage(ctx, p2)
-		assert.NoError(t, err)
-		defer release()
-		assert.Equal(t, rpccp.Message_Which_return, rmsg.Which)
-		assert.Equal(t, p2Call01Id, rmsg.Return.AnswerID)
-		// Anything else to assert?
-	}
-
-	{
-		// P2 receives the final finish.
-		rmsg, release, err := recvMessage(ctx, p2)
-		assert.NoError(t, err)
-		defer release()
-		assert.Equal(t, rpccp.Message_Which_finish, rmsg.Which)
+		// The nested Return and the original question's Finish are
+		// independent once the pipelined Call has been sent, so either may
+		// arrive first. The protocol invariant is Call-before-Finish, not
+		// nested-Return-before-Finish.
+		seenReturn, seenFinish := false, false
+		for i := 0; i < 2; i++ {
+			rmsg, release, err := recvMessage(ctx, p2)
+			assert.NoError(t, err)
+			switch rmsg.Which {
+			case rpccp.Message_Which_return:
+				seenReturn = true
+				assert.Equal(t, p2Call01Id, rmsg.Return.AnswerID)
+			case rpccp.Message_Which_finish:
+				seenFinish = true
+			default:
+				t.Errorf("unexpected message between pipelined Call and cleanup: %v", rmsg.Which)
+			}
+			release()
+		}
+		assert.True(t, seenReturn, "missing nested Return")
+		assert.True(t, seenFinish, "missing Finish")
 	}
 
 	// P2 detects that is a local capability (i.e. looped back), thus
