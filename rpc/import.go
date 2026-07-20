@@ -189,7 +189,7 @@ func (ic *importClient) Shutdown() {
 			}
 			return err
 		}, func(err error) {
-			if err != nil {
+			if err != nil && !isFatalSendError(err) {
 				ic.c.er.ReportError(rpcerr.Annotate(err, "send release"))
 			}
 		})

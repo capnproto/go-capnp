@@ -542,7 +542,9 @@ func (c *Conn) send(ctx context.Context) func() error {
 				return err
 			}
 
-			async.Send()
+			if err := async.Send(); err != nil {
+				return err
+			}
 		}
 	})
 }
@@ -781,7 +783,7 @@ func (c *Conn) handleCall(ctx context.Context, in transport.IncomingMessage) err
 
 				return nil
 			}, func(err error) {
-				if err != nil {
+				if err != nil && !isFatalSendError(err) {
 					c.er.ReportError(rpcerr.Annotate(err, "incoming call: send unimplemented"))
 				}
 			})
@@ -1223,7 +1225,7 @@ func (c *Conn) handleReturn(ctx context.Context, in transport.IncomingMessage) e
 				// TODO(soon): make embargo resolve to error client.
 				for _, s := range pr.disembargoes {
 					c.sendMessage(ctx, s.buildDisembargo, func(err error) {
-						if err != nil {
+						if err != nil && !isFatalSendError(err) {
 							err = exc.WrapError("incoming return: send disembargo", err)
 							c.er.ReportError(err)
 						}
@@ -1244,8 +1246,10 @@ func (c *Conn) handleReturn(ctx context.Context, in transport.IncomingMessage) e
 					defer close(q.finishMsgSend)
 
 					if err != nil {
-						err = exc.WrapError("incoming return: send finish: build message", err)
-						c.er.ReportError(err)
+						if !isFatalSendError(err) {
+							err = exc.WrapError("incoming return: send finish: build message", err)
+							c.er.ReportError(err)
+						}
 					} else {
 						q.flags |= finishSent
 						c.lk.questions.release(qid)
@@ -1740,7 +1744,7 @@ func (c *Conn) handleDisembargo(ctx context.Context, in transport.IncomingMessag
 				defer in.Release()
 				defer snapshot.Release()
 
-				if err != nil {
+				if err != nil && !isFatalSendError(err) {
 					c.er.ReportError(rpcerr.Annotate(err, "incoming disembargo: send receiver loopback"))
 				}
 			})
@@ -1762,7 +1766,7 @@ func (c *Conn) handleDisembargo(ctx context.Context, in transport.IncomingMessag
 				return
 			}, func(err error) {
 				defer in.Release()
-				if err != nil {
+				if err != nil && !isFatalSendError(err) {
 					c.er.ReportError(rpcerr.Annotate(err, "incoming disembargo: send unimplemented"))
 				}
 			})
@@ -1880,7 +1884,7 @@ func (c *Conn) handleResolve(ctx context.Context, in transport.IncomingMessage) 
 					},
 				}
 				c.sendMessage(ctx, disembargo.buildDisembargo, func(err error) {
-					if err != nil {
+					if err != nil && !isFatalSendError(err) {
 						c.er.ReportError(
 							exc.WrapError(
 								"incoming resolve: send disembargo",
@@ -1950,35 +1954,51 @@ func (c *lockedConn) startTask() (ok bool) {
 // onSent will be called without holding c.lk.  Callers of
 // sendMessage MAY wish to reacquire the c.lk within the onSent.
 func (c *lockedConn) sendMessage(ctx context.Context, build func(rpccp.Message) error, onSent func(error)) {
-	outMsg, err := c.transport.NewMessage()
-	send := outMsg.Send
-	release := outMsg.Release
-
-	// If errors happen when allocating or building the message, set up dummy send/release
-	// functions so the error handling logic in onSent() runs as normal:
-	if err != nil {
-		release = func() {}
-		send = func() error {
-			return rpcerr.WrapFailed("create message", err)
-		}
-	} else if err = build(outMsg.Message()); err != nil {
-		send = func() error {
-			return rpcerr.WrapFailed("build message", err)
+	var callback func(sendOutcome)
+	if onSent != nil {
+		callback = func(outcome sendOutcome) {
+			err := outcome.err
+			if outcome.fatal && err != nil {
+				err = fatalSendError{err}
+			}
+			onSent(err)
 		}
 	}
+	c.sendMessageOutcome(ctx, build, false, callback)
+}
 
-	oldSend := send
-	send = func() error {
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
-		return oldSend()
+// sendMessageOutcome is the classified form of sendMessage.  It distinguishes
+// failures that happened before calling OutgoingMessage.Send from failures
+// whose delivery is ambiguous.  fatalIfUnsent is for protocol messages, such
+// as Finish, whose failure prevents the connection from making safe progress.
+func (c *lockedConn) sendMessageOutcome(
+	ctx context.Context,
+	build func(rpccp.Message) error,
+	fatalIfUnsent bool,
+	onSent func(sendOutcome),
+) {
+	outMsg, err := c.transport.NewMessage()
+	var send func() error
+	var release capnp.ReleaseFunc
+	var preSendErr error
+	if err != nil {
+		release = func() {}
+		preSendErr = rpcerr.WrapFailed("create message", err)
+	} else if err = build(outMsg.Message()); err != nil {
+		release = outMsg.Release
+		preSendErr = rpcerr.WrapFailed("build message", err)
+	} else {
+		send = outMsg.Send
+		release = outMsg.Release
 	}
 
 	c.lk.sendTx.Send(asyncSend{
-		release: release,
-		send:    send,
-		onSent:  onSent,
+		ctx:           ctx,
+		preSendErr:    preSendErr,
+		fatalIfUnsent: fatalIfUnsent,
+		release:       release,
+		send:          send,
+		onSent:        onSent,
 	})
 }
 
@@ -2007,27 +2027,75 @@ type incomingMessage struct {
 }
 
 type asyncSend struct {
-	send    func() error
-	onSent  func(error)
-	release capnp.ReleaseFunc
+	ctx           context.Context
+	preSendErr    error
+	fatalIfUnsent bool
+	send          func() error
+	onSent        func(sendOutcome)
+	release       capnp.ReleaseFunc
+}
+
+type sendDisposition uint8
+
+const (
+	sendSucceeded sendDisposition = iota
+	sendDefinitelyUnsent
+	sendDeliveryAmbiguous
+	sendAbortedByShutdown
+)
+
+type sendOutcome struct {
+	disposition sendDisposition
+	err         error
+	fatal       bool
+}
+
+type fatalSendError struct{ error }
+
+func isFatalSendError(err error) bool {
+	var fatal fatalSendError
+	return errors.As(err, &fatal)
 }
 
 func (as asyncSend) Abort(err error) {
 	defer as.release()
 
 	if as.onSent != nil {
-		as.onSent(rpcerr.Disconnected(err))
+		as.onSent(sendOutcome{
+			disposition: sendAbortedByShutdown,
+			err:         rpcerr.Disconnected(err),
+		})
 	}
 }
 
-func (as asyncSend) Send() {
+func (as asyncSend) Send() error {
 	defer as.release()
 
-	if err := as.send(); as.onSent != nil {
-		if err != nil {
-			err = rpcerr.WrapFailed("send message", err)
+	outcome := sendOutcome{disposition: sendSucceeded}
+	switch {
+	case as.preSendErr != nil:
+		outcome.disposition = sendDefinitelyUnsent
+		outcome.err = as.preSendErr
+		outcome.fatal = as.fatalIfUnsent
+	case as.ctx.Err() != nil:
+		outcome.disposition = sendDefinitelyUnsent
+		outcome.err = as.ctx.Err()
+		outcome.fatal = as.fatalIfUnsent
+	default:
+		if err := as.send(); err != nil {
+			outcome.disposition = sendDeliveryAmbiguous
+			outcome.err = err
+			outcome.fatal = true
 		}
-
-		as.onSent(err)
 	}
+	if outcome.err != nil {
+		outcome.err = rpcerr.WrapFailed("send message", outcome.err)
+	}
+	if as.onSent != nil {
+		as.onSent(outcome)
+	}
+	if outcome.fatal {
+		return outcome.err
+	}
+	return nil
 }
