@@ -220,12 +220,47 @@ func (ans *ansReturner) Return() {
 	dq := &deferred.Queue{}
 	defer dq.Run()
 	pcallsWait := func() {}
+	var owner *ansent
+	var promise *capnp.Promise
+	var promiseResult capnp.Ptr
+	var promiseErr error
 
 	var err error
 	ans.c.withLocked(func(c *lockedConn) {
 		ent, _ := c.lk.answers.Find(ans.id)
+		owner = ent
 		pcallsWait = ent.pcalls.Wait
 
+		// Claim completion before resolving the promise. Promise resolution can
+		// wait for admitted pipeline calls, so it must not run under Conn.lk.
+		// A concurrent Finish may mark this answer, but cannot destroy it until
+		// returnSent is set in the second critical section below.
+		ent.pcall = nil
+		ent.flags |= resultsReady
+		if ent.promise != nil && (ent.err != nil || ent.sendMsg != nil) {
+			promise = ent.promise
+			ent.promise = nil
+			switch {
+			case ent.err != nil:
+				promiseErr = ent.err
+			case ent.flags.Contains(finishReceived):
+				promiseErr = rpcerr.Failed(errors.New("received finish before return"))
+			default:
+				promiseResult, promiseErr = ent.returner.results.Content()
+			}
+		}
+	})
+
+	if promise != nil {
+		promise.Resolve(promiseResult, promiseErr)
+		promise.ReleaseClients()
+	}
+
+	ans.c.withLocked(func(c *lockedConn) {
+		ent, ok := c.lk.answers.Find(ans.id)
+		if !ok || ent != owner {
+			panic("rpc: answer completion lost ownership")
+		}
 		if ent.err == nil {
 			err = ent.completeSendReturn(dq)
 		} else {
