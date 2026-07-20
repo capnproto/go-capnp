@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync"
 
 	"capnproto.org/go/capnp/v3/internal/schema"
 )
@@ -93,7 +94,31 @@ type structProps struct {
 	fixedWhich uint16
 }
 
+type structPropsKey struct {
+	typeID uint64
+	t      reflect.Type
+}
+
+type structPropsResult struct {
+	props structProps
+	err   error
+}
+
+var structPropsCache sync.Map
+
 func mapStruct(t reflect.Type, n schema.Node) (structProps, error) {
+	key := structPropsKey{typeID: n.Id(), t: t}
+	if cached, ok := structPropsCache.Load(key); ok {
+		result := cached.(structPropsResult)
+		return result.props, result.err
+	}
+	props, err := buildStructProps(t, n)
+	actual, _ := structPropsCache.LoadOrStore(key, structPropsResult{props: props, err: err})
+	result := actual.(structPropsResult)
+	return result.props, result.err
+}
+
+func buildStructProps(t reflect.Type, n schema.Node) (structProps, error) {
 	fields, err := n.StructNode().Fields()
 	if err != nil {
 		return structProps{}, err
