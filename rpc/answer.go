@@ -205,7 +205,7 @@ func (ans *ansReturner) PrepareReturn(e error) {
 	defer dq.Run()
 
 	ans.c.withLocked(func(c *lockedConn) {
-		ent := c.lk.answers[ans.id]
+		ent, _ := c.lk.answers.Find(ans.id)
 		if e == nil {
 			ent.prepareSendReturn(dq)
 		} else {
@@ -222,7 +222,7 @@ func (ans *ansReturner) Return() {
 
 	var err error
 	ans.c.withLocked(func(c *lockedConn) {
-		ent := c.lk.answers[ans.id]
+		ent, _ := c.lk.answers.Find(ans.id)
 		pcallsWait = ent.pcalls.Wait
 
 		if ent.err == nil {
@@ -375,7 +375,7 @@ func (ans *ansent) completeSendException(dq *deferred.Queue) {
 func (ans *ansent) destroy(dq *deferred.Queue) error {
 	dq.Defer(ans.returner.msgReleaser.Decr)
 	c := ans.lockedConn()
-	delete(c.lk.answers, ans.returner.id)
+	c.lk.answers.Remove(ans.returner.id)
 	for _, s := range ans.returner.resultsCapTable {
 		dq.Defer(s.Release)
 	}

@@ -123,14 +123,11 @@ type Conn struct {
 		bgcancel context.CancelFunc // bgcancel cancels bgctx.
 
 		// Tables
-		questions  []*question
-		questionID idgen[questionID]
-		answers    map[answerID]*ansent
-		exports    []*expent
-		exportID   idgen[exportID]
-		imports    map[importID]*impent
-		embargoes  []*embargo
-		embargoID  idgen[embargoID]
+		questions localTable[questionID, *question]
+		answers   remoteTable[answerID, *ansent]
+		exports   localTable[exportID, *expent]
+		imports   remoteTable[importID, *impent]
+		embargoes localTable[embargoID, *embargo]
 	}
 }
 
@@ -246,9 +243,6 @@ func NewConn(t Transport, opts *Options) *Conn {
 	c.sendRx = &sender.Rx
 	c.lk.sendTx = &sender.Tx
 
-	c.lk.answers = make(map[answerID]*ansent)
-	c.lk.imports = make(map[importID]*impent)
-
 	if opts != nil {
 		c.bootstrap = opts.BootstrapClient
 		c.er = errReporter{opts.Logger}
@@ -347,13 +341,8 @@ func (c *Conn) Bootstrap(ctx context.Context) (bc capnp.Client) {
 
 		}, func(err error) {
 			if err != nil {
-				syncutil.With(&c.lk, func() {
-					c.lk.questions[q.id] = nil
-				})
+				syncutil.With(&c.lk, func() { c.lk.questions.Remove(q.id) })
 				q.p.Reject(exc.Annotate("rpc", "bootstrap", err))
-				syncutil.With(&c.lk, func() {
-					c.lk.questionID.remove(q.id)
-				})
 				return
 			}
 
@@ -431,11 +420,12 @@ func (c *Conn) shutdown(abortErr error) (err error) {
 // Does not wait for tasks to finish shutting down.
 // Called by 'shutdown'.  Callers MUST hold c.lk.
 func (c *lockedConn) cancelTasks() {
-	for _, a := range c.lk.answers {
+	c.lk.answers.Range(func(_ answerID, a *ansent) bool {
 		if a != nil && a.cancel != nil {
 			a.cancel()
 		}
-	}
+		return true
+	})
 }
 
 // caller MUST NOT hold c.lk
@@ -453,15 +443,11 @@ func (c *Conn) drainQueue() {
 // Clear all tables, and arrange for the deferred.Queue to release exported clients
 // and unfinished answers. Called by 'shutdown'.  Caller MUST hold c.lk.
 func (c *lockedConn) release(dq *deferred.Queue) {
-	exports := c.lk.exports
-	embargoes := c.lk.embargoes
-	answers := c.lk.answers
-	questions := c.lk.questions
-	c.lk.imports = nil
-	c.lk.exports = nil
-	c.lk.embargoes = nil
-	c.lk.questions = nil
-	c.lk.answers = nil
+	exports := c.lk.exports.Clear()
+	embargoes := c.lk.embargoes.Clear()
+	answers := c.lk.answers.Clear()
+	questions := c.lk.questions.Clear()
+	c.lk.imports.Clear()
 
 	c.releaseBootstrap(dq)
 	c.releaseExports(dq, exports)
@@ -498,7 +484,7 @@ func (c *lockedConn) liftEmbargoes(dq *deferred.Queue, embargoes []*embargo) {
 	}
 }
 
-func (c *lockedConn) releaseAnswers(dq *deferred.Queue, answers map[answerID]*ansent) {
+func (c *lockedConn) releaseAnswers(dq *deferred.Queue, answers []*ansent) {
 	for _, a := range answers {
 		if a != nil {
 			for _, s := range a.returner.resultsCapTable {
@@ -729,7 +715,7 @@ func (c *Conn) handleBootstrap(in transport.IncomingMessage) error {
 	}
 
 	c.withLocked(func(c *lockedConn) {
-		if c.lk.answers[ans.returner.id] != nil {
+		if _, ok := c.lk.answers.Find(ans.returner.id); ok {
 			dq.Defer(ans.returner.msgReleaser.Decr)
 			err = rpcerr.Failed(errors.New("incoming bootstrap: answer ID " + str.Utod(ans.returner.id) + " reused"))
 			return
@@ -737,12 +723,12 @@ func (c *Conn) handleBootstrap(in transport.IncomingMessage) error {
 
 		if err != nil {
 			err = rpcerr.Annotate(err, "incoming bootstrap")
-			c.lk.answers[ans.returner.id] = errorAnswer((*Conn)(c), ans.returner.id, err)
+			c.lk.answers.Create(ans.returner.id, errorAnswer((*Conn)(c), ans.returner.id, err))
 			c.er.ReportError(err)
 			return
 		}
 
-		c.lk.answers[ans.returner.id] = &ans
+		c.lk.answers.Create(ans.returner.id, &ans)
 		if !c.bootstrap.IsValid() {
 			ans.sendException(dq, exc.New(exc.Failed, "", "vat does not expose a public/bootstrap interface"))
 			return
@@ -809,7 +795,7 @@ func (c *Conn) handleCall(ctx context.Context, in transport.IncomingMessage) err
 		parseErr error
 	)
 	c.withLocked(func(c *lockedConn) {
-		if c.lk.answers[id] != nil {
+		if _, ok := c.lk.answers.Find(id); ok {
 			dq.Defer(in.Release)
 			err = rpcerr.Failed(errors.New("incoming call: answer ID " + str.Utod(id) + "reused"))
 			return
@@ -826,7 +812,7 @@ func (c *Conn) handleCall(ctx context.Context, in transport.IncomingMessage) err
 	if err != nil {
 		err = rpcerr.Annotate(err, "incoming call")
 		syncutil.With(&c.lk, func() {
-			c.lk.answers[id] = errorAnswer(c, id, err)
+			c.lk.answers.Create(id, errorAnswer(c, id, err))
 		})
 		c.er.ReportError(err)
 		in.Release()
@@ -846,7 +832,7 @@ func (c *Conn) handleCall(ctx context.Context, in transport.IncomingMessage) err
 		sendMsg: send,
 	}
 	return withLockedConn1(c, func(c *lockedConn) error {
-		c.lk.answers[id] = ans
+		c.lk.answers.Create(id, ans)
 		if parseErr != nil {
 			parseErr = rpcerr.Annotate(parseErr, "incoming call")
 			ans.sendException(dq, parseErr)
@@ -887,7 +873,7 @@ func (c *Conn) handleCall(ctx context.Context, in transport.IncomingMessage) err
 			})
 			return nil
 		case rpccp.MessageTarget_Which_promisedAnswer:
-			tgtAns := c.lk.answers[p.target.promisedAnswer]
+			tgtAns, _ := c.lk.answers.Find(p.target.promisedAnswer)
 			if tgtAns == nil || tgtAns.flags.Contains(finishReceived) {
 				ans.returner.ret = rpccp.Return{}
 				ans.sendMsg = nil
@@ -1127,18 +1113,11 @@ func (c *Conn) handleReturn(ctx context.Context, in transport.IncomingMessage) e
 	return withLockedConn1(c, func(c *lockedConn) error {
 
 		qid := questionID(ret.AnswerId())
-		if uint32(qid) >= uint32(len(c.lk.questions)) {
-			dq.Defer(in.Release)
-			return rpcerr.Failed(errors.New(
-				"incoming return: question " + str.Utod(qid) + " does not exist",
-			))
-		}
 		// Pop the question from the table.  Receiving the Return message
 		// will always remove the question from the table, because it's the
 		// only time the remote vat will use it.
-		q := c.lk.questions[qid]
-		c.lk.questions[qid] = nil
-		if q == nil {
+		q, ok := c.lk.questions.take(qid)
+		if !ok {
 			dq.Defer(in.Release)
 			return rpcerr.Failed(errors.New(
 				"incoming return: question " + str.Utod(qid) + " does not exist",
@@ -1153,7 +1132,7 @@ func (c *Conn) handleReturn(ctx context.Context, in transport.IncomingMessage) e
 			select {
 			case <-q.finishMsgSend:
 				if q.flags.Contains(finishSent) {
-					c.lk.questionID.remove(qid)
+					c.lk.questions.release(qid)
 				}
 				dq.Defer(in.Release)
 			default:
@@ -1164,7 +1143,7 @@ func (c *Conn) handleReturn(ctx context.Context, in transport.IncomingMessage) e
 					<-q.finishMsgSend
 					c.withLocked(func(c *lockedConn) {
 						if q.flags.Contains(finishSent) {
-							c.lk.questionID.remove(qid)
+							c.lk.questions.release(qid)
 						}
 					})
 				}()
@@ -1269,7 +1248,7 @@ func (c *Conn) handleReturn(ctx context.Context, in transport.IncomingMessage) e
 						c.er.ReportError(err)
 					} else {
 						q.flags |= finishSent
-						c.lk.questionID.remove(qid)
+						c.lk.questions.release(qid)
 					}
 				})
 			})
@@ -1365,7 +1344,7 @@ func (c *Conn) handleFinish(ctx context.Context, in transport.IncomingMessage) e
 	dq := &deferred.Queue{}
 	defer dq.Run()
 	return withLockedConn1(c, func(c *lockedConn) error {
-		ans := c.lk.answers[id]
+		ans, _ := c.lk.answers.Find(id)
 		if ans == nil {
 			return rpcerr.Failed(errors.New(
 				"incoming finish: unknown answer ID " + str.Utod(id),
@@ -1452,7 +1431,7 @@ func (c *lockedConn) recvCap(d rpccp.CapDescriptor) (capnp.Client, error) {
 		}
 
 		id := answerID(promisedAnswer.QuestionId())
-		ans, ok := c.lk.answers[id]
+		ans, ok := c.lk.answers.Find(id)
 		if !ok {
 			return capnp.Client{}, rpcerr.Failed(errors.New(
 				"receive capability: no such question id: " + str.Utod(id),
@@ -1653,8 +1632,7 @@ func (c *Conn) handleDisembargo(ctx context.Context, in transport.IncomingMessag
 			e = c.findEmbargo(id)
 			if e != nil {
 				// TODO(soon): verify target matches the right import.
-				c.lk.embargoes[id] = nil
-				c.lk.embargoID.remove(id)
+				c.lk.embargoes.Remove(id)
 			}
 		})
 		if e == nil {
@@ -1798,7 +1776,7 @@ func (c *lockedConn) getAnswerSnapshot(
 	id answerID,
 	transform []capnp.PipelineOp,
 ) (_ capnp.ClientSnapshot, err error) {
-	ans := c.lk.answers[id]
+	ans, _ := c.lk.answers.Find(id)
 	if ans == nil {
 		err = rpcerr.Failed(errors.New(
 			"incoming disembargo: unknown answer ID " +
@@ -1868,7 +1846,7 @@ func (c *Conn) handleResolve(ctx context.Context, in transport.IncomingMessage) 
 
 	promiseID := importID(resolve.PromiseId())
 	err = withLockedConn1(c, func(c *lockedConn) error {
-		imp, ok := c.lk.imports[promiseID]
+		imp, ok := c.lk.imports.Find(promiseID)
 		if !ok {
 			return errors.New(
 				"incoming resolve: no such import ID: " + str.Utod(promiseID),
