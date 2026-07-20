@@ -16,10 +16,26 @@ type Map struct {
 	index *nodeIndex
 }
 
-// defaultIndex is shared by all zero-value Maps.  Generated schemas are
-// immutable after registration, so nodes are safe to share once an entire
-// decoded request has been published under the lock.
-var defaultIndex = new(nodeIndex)
+// defaultIndex is shared by all zero-value Maps.  It associates the index with
+// the current default registry so replacing schemas.DefaultRegistry cannot
+// expose nodes decoded from the previous registry.
+var defaultIndex defaultNodeIndex
+
+type defaultNodeIndex struct {
+	mu    sync.Mutex
+	reg   *schemas.Registry
+	index *nodeIndex
+}
+
+func (d *defaultNodeIndex) forRegistry(reg *schemas.Registry) *nodeIndex {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.reg != reg || d.index == nil {
+		d.reg = reg
+		d.index = new(nodeIndex)
+	}
+	return d.index
+}
 
 type nodeIndex struct {
 	mu    sync.RWMutex
@@ -46,7 +62,7 @@ func (m *Map) Find(id uint64) (schema.Node, error) {
 	reg := m.registry()
 	index := m.index
 	if reg == schemas.DefaultRegistry {
-		index = defaultIndex
+		index = defaultIndex.forRegistry(reg)
 	}
 	return index.find(reg, id)
 }

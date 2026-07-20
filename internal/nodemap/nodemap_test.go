@@ -61,12 +61,9 @@ func nodeName(t *testing.T, n schema.Node) string {
 func useFreshDefaultRegistry(t *testing.T) {
 	t.Helper()
 	oldRegistry := schemas.DefaultRegistry
-	oldIndex := defaultIndex
 	schemas.DefaultRegistry = new(schemas.Registry)
-	defaultIndex = new(nodeIndex)
 	t.Cleanup(func() {
 		schemas.DefaultRegistry = oldRegistry
-		defaultIndex = oldIndex
 	})
 }
 
@@ -104,6 +101,37 @@ func TestDefaultIndexFindsLaterRegistration(t *testing.T) {
 	}
 	if got := nodeName(t, n); got != "later" {
 		t.Fatalf("display name = %q; want later", got)
+	}
+}
+
+func TestDefaultIndexTracksRegistryReplacement(t *testing.T) {
+	const id = 0x9c5c2bf81252e180
+	first := new(schemas.Registry)
+	second := new(schemas.Registry)
+	registerSchema(t, first, map[uint64]string{id: "first registry"})
+	registerSchema(t, second, map[uint64]string{id: "second registry"})
+
+	oldRegistry := schemas.DefaultRegistry
+	t.Cleanup(func() { schemas.DefaultRegistry = oldRegistry })
+	schemas.DefaultRegistry = first
+
+	var firstMap Map
+	n, err := firstMap.Find(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := nodeName(t, n); got != "first registry" {
+		t.Fatalf("first registry returned %q", got)
+	}
+
+	schemas.DefaultRegistry = second
+	var secondMap Map
+	n, err = secondMap.Find(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := nodeName(t, n); got != "second registry" {
+		t.Fatalf("replacement registry returned %q; want second registry", got)
 	}
 }
 
