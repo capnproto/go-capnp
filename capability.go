@@ -606,6 +606,17 @@ func (c Client) sendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc, err
 	gotResponse, err := limiter.StartMessage(ctx, size)
 	ticket.publish(nil)
 	if err != nil {
+		if errors.Is(err, flowcontrol.ErrMessageTooLarge) {
+			// A legacy hook has already enqueued the call by the time its final
+			// size is known. Do not hide the impossible reservation: report it
+			// synchronously and arrange to release the answer no caller receives.
+			go func() {
+				<-ans.Done()
+				rel()
+				ticket.finish()
+			}()
+			return nil, nil, err
+		}
 		// HACK: An error should only happen if the context was cancelled,
 		// in which case the caller will notice it soon probably. The call
 		// still went off ok, so we can just return the result we already
