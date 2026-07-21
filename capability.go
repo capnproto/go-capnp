@@ -155,11 +155,17 @@ type flowTicket struct {
 	ready chan struct{}
 	wait  func(context.Context) error
 	once  sync.Once
+	done  sync.Once
 	flow  *clientFlow
 	gen   *limiterGeneration
 }
 
-type streamTail struct{ done chan struct{} }
+// streamTail is a completion prefix: closing it means every stream call
+// registered at or before it has completed.
+type streamTail struct {
+	prev *streamTail
+	done chan struct{}
+}
 
 func newClientFlow(lim flowcontrol.FlowLimiter) *clientFlow {
 	if lim == nil {
@@ -238,17 +244,19 @@ func (t *flowTicket) await(ctx context.Context) error {
 }
 
 func (t *flowTicket) finish() {
-	var release flowcontrol.FlowLimiter
-	t.flow.mu.Lock()
-	t.gen.leases--
-	if t.gen.retired && t.gen.leases == 0 && !t.gen.released {
-		release = t.gen.limiter
-		t.gen.released = true
-	}
-	t.flow.mu.Unlock()
-	if release != nil {
-		release.Release()
-	}
+	t.done.Do(func() {
+		var release flowcontrol.FlowLimiter
+		t.flow.mu.Lock()
+		t.gen.leases--
+		if t.gen.retired && t.gen.leases == 0 && !t.gen.released {
+			release = t.gen.limiter
+			t.gen.released = true
+		}
+		t.flow.mu.Unlock()
+		if release != nil {
+			release.Release()
+		}
+	})
 }
 
 // clientCursor is an indirection pointing to a link in the resolution
@@ -525,13 +533,14 @@ func (c Client) sendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc, err
 		if rich, ok := lim.(flowcontrol.GateNextFlowLimiter); ok {
 			waitNext, complete := rich.GateNext().CommitMessage(prepared.Size())
 			ticket.publish(waitNext)
-			ans, rel, err := prepared.Commit(func(kind flowcontrol.MessageOutcomeKind, e error) {
-				complete(kind, e)
-				ticket.finish()
-			})
+			var terminalOnce sync.Once
+			terminal := func(kind flowcontrol.MessageOutcomeKind, e error) {
+				terminalOnce.Do(func() { complete(kind, e); ticket.finish() })
+			}
+			ans, rel, err := prepared.Commit(terminal)
 			if err != nil {
 				prepared.Abort()
-				ticket.finish()
+				terminal(flowcontrol.MessageOutcomeAbortedBeforeEnqueue, err)
 				return nil, nil, err
 			}
 			return ans, rel, nil
@@ -544,14 +553,14 @@ func (c Client) sendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc, err
 			return nil, nil, err
 		}
 		ticket.publish(nil)
-		ans, rel, err := prepared.Commit(func(kind flowcontrol.MessageOutcomeKind, e error) {
-			got()
-			ticket.finish()
-		})
+		var terminalOnce sync.Once
+		terminal := func(flowcontrol.MessageOutcomeKind, error) {
+			terminalOnce.Do(func() { got(); ticket.finish() })
+		}
+		ans, rel, err := prepared.Commit(terminal)
 		if err != nil {
 			prepared.Abort()
-			got()
-			ticket.finish()
+			terminal(flowcontrol.MessageOutcomeAbortedBeforeEnqueue, err)
 			return nil, nil, err
 		}
 		return ans, rel, nil
@@ -630,7 +639,7 @@ func (c Client) SendStreamCall(ctx context.Context, s Send) error {
 	streamError := mutex.With1(&c.state, func(c *clientState) error {
 		err := c.stream.err
 		if err == nil {
-			tail = &streamTail{done: make(chan struct{})}
+			tail = &streamTail{prev: c.stream.tail, done: make(chan struct{})}
 			c.stream.tail = tail
 		}
 		return err
@@ -656,8 +665,13 @@ func (c Client) finishStream(tail *streamTail, err error) {
 		if err != nil && s.stream.err == nil {
 			s.stream.err = err
 		}
-		close(tail.done)
 	})
+	go func() {
+		if tail.prev != nil {
+			<-tail.prev.done
+		}
+		close(tail.done)
+	}()
 }
 
 // WaitStreaming waits for all outstanding streaming calls (i.e. calls
