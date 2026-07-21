@@ -15,7 +15,41 @@ package flowcontrol
 
 import (
 	"context"
+	"errors"
 )
+
+// ErrMessageTooLarge is returned when a message can never fit in a
+// limiter's window.
+var ErrMessageTooLarge = errors.New("flowcontrol: message too large")
+
+// MessageOutcomeKind describes how a committed message completed.
+type MessageOutcomeKind uint8
+
+const (
+	MessageOutcomeUnknown MessageOutcomeKind = iota
+	MessageOutcomeSucceeded
+	MessageOutcomeAbortedBeforeEnqueue
+	MessageOutcomeFailedAfterEnqueue
+	MessageOutcomeFatal
+)
+
+// GateNextController is the optional, richer flow-control protocol. CommitMessage
+// charges the current message immediately. Its waitNext function gates only the
+// successor, and complete retires the current message exactly once. Fatal
+// completion also poisons the controller. Poison may be called after a non-fatal
+// completion; it is idempotent and preserves the first error. A permission already
+// returned by waitNext is irrevocable, so callers must revalidate a connection
+// before enqueueing.
+type GateNextController interface {
+	CommitMessage(size uint64) (waitNext func(context.Context) error, complete func(MessageOutcomeKind, error))
+	Poison(error)
+}
+
+// GateNextFlowLimiter is a FlowLimiter that supports the richer protocol.
+type GateNextFlowLimiter interface {
+	FlowLimiter
+	GateNext() GateNextController
+}
 
 // A `FlowLimiter` is used to manage flow control for a stream of messages.
 type FlowLimiter interface {

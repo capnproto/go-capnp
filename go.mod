@@ -1,6 +1,6 @@
 module capnproto.org/go/capnp/v3
 
-go 1.19
+go 1.25
 
 require (
 	github.com/colega/zeropool v0.0.0-20230505084239-6fb4a4f75381
