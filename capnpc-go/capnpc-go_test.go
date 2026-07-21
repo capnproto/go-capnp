@@ -310,8 +310,8 @@ func TestDefineFile(t *testing.T) {
 		structStrings: true,
 	}
 	tests := []struct {
-		fname  string
-		opts   genoptions
+		fname string
+		opts  genoptions
 	}{
 		{"aircraft.capnp.out", defaultOptions},
 		{"aircraft.capnp.out", genoptions{
@@ -505,7 +505,7 @@ func setupTempDir() (string, error) {
 	modRoot = filepath.Dir(modRoot)
 
 	err = os.WriteFile(filepath.Join(dir, "go.work"),
-		[]byte(fmt.Sprintf("use %s", modRoot)), 0660)
+		[]byte(fmt.Sprintf("go 1.25\n\nuse %s", modRoot)), 0660)
 	if err != nil {
 		return "", fmt.Errorf("setupTempDir: write go.work: %v", err)
 	}
@@ -517,8 +517,9 @@ func setupTempDir() (string, error) {
 // * Also found in this repo: std/capnp/persistent.capnp
 //
 // It contains two definitions:
-//   interface Persistent {}
-//   annotation persistent(interface, field) :Void;
+//
+//	interface Persistent {}
+//	annotation persistent(interface, field) :Void;
 //
 // testdata/persistent-simple.capnp is a minimal reproducible test case for the
 // collision.
@@ -594,7 +595,7 @@ func TestPersistent(t *testing.T) {
 				t.Errorf("Reading code generator request %q: reqFiles[%d] failed: %v", test.fname, i, err)
 				break
 			}
-			genfname := reqFname+".go"
+			genfname := reqFname + ".go"
 			g := newGenerator(reqf.Id(), trees, test.opts)
 			err = g.defineFile()
 			if err != nil {
@@ -616,7 +617,7 @@ func TestPersistent(t *testing.T) {
 			continue
 		}
 
-		if testIndex + 1 < len(tests) {
+		if testIndex+1 < len(tests) {
 			continue
 		}
 		// Relies on persistent-simple.capnp with $Go.package("persistent_simple")
