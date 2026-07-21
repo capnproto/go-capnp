@@ -232,12 +232,14 @@ func (t *flowTicket) publish(wait func(context.Context) error) {
 }
 
 func (t *flowTicket) await(ctx context.Context) error {
-	if t.prev == nil {
+	prev := t.prev
+	if prev == nil {
 		return nil
 	}
+	defer func() { t.prev = nil }()
 	select {
-	case <-t.prev.ready:
-		return t.prev.wait(ctx)
+	case <-prev.ready:
+		return prev.wait(ctx)
 	case <-ctx.Done():
 		return ctx.Err()
 	}
