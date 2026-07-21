@@ -175,12 +175,17 @@ func newClientFlow(lim flowcontrol.FlowLimiter) *clientFlow {
 }
 
 func (f *clientFlow) ticket(lim flowcontrol.FlowLimiter) *flowTicket {
+	var release flowcontrol.FlowLimiter
 	f.mu.Lock()
 	if f.gen == nil || f.gen.limiter != lim {
 		old := f.gen
 		f.gen = &limiterGeneration{limiter: lim}
 		if old != nil {
 			old.retired = true
+			if old.leases == 0 && !old.released {
+				release = old.limiter
+				old.released = true
+			}
 		}
 	}
 	g := f.gen
@@ -188,6 +193,9 @@ func (f *clientFlow) ticket(lim flowcontrol.FlowLimiter) *flowTicket {
 	t := &flowTicket{prev: f.tail, ready: make(chan struct{}), flow: f, gen: g}
 	f.tail = t
 	f.mu.Unlock()
+	if release != nil {
+		release.Release()
+	}
 	return t
 }
 
