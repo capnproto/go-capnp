@@ -13,6 +13,7 @@ type Request struct {
 	client          Client
 	releaseResponse ReleaseFunc
 	future          *Future
+	sent            bool
 }
 
 // NewRequest creates a new request calling the specified method on the specified client.
@@ -50,11 +51,13 @@ func (r *Request) getSend() Send {
 
 // Send sends the request, returning a future for its results.
 func (r *Request) Send(ctx context.Context) *Future {
-	if r.future != nil {
+	if r.sent {
 		return ErrorAnswer(r.method, errors.New("sent the same request twice")).Future()
 	}
+	r.sent = true
 
 	ans, rel := r.client.SendCall(ctx, r.getSend())
+	r.releaseArgs()
 	r.releaseResponse = rel
 	r.future = ans.Future()
 	return r.future
@@ -62,11 +65,14 @@ func (r *Request) Send(ctx context.Context) *Future {
 
 // SendStream is to send as Client.SendStreamCall is to Client.SendCall
 func (r *Request) SendStream(ctx context.Context) error {
-	if r.future != nil {
+	if r.sent {
 		return errors.New("sent the same request twice")
 	}
+	r.sent = true
 
-	return r.client.SendStreamCall(ctx, r.getSend())
+	err := r.client.SendStreamCall(ctx, r.getSend())
+	r.releaseArgs()
+	return err
 }
 
 // Future returns a future for the requests results. Returns nil if
@@ -91,9 +97,11 @@ func (r *Request) Release() {
 }
 
 func (r *Request) releaseArgs() {
-	if !r.args.IsValid() {
+	if r.args.IsValid() {
 		msg := r.args.Message()
 		r.args = Struct{}
-		msg.Release()
+		if msg != nil {
+			msg.Release()
+		}
 	}
 }
