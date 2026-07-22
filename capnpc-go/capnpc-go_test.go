@@ -310,8 +310,8 @@ func TestDefineFile(t *testing.T) {
 		structStrings: true,
 	}
 	tests := []struct {
-		fname  string
-		opts   genoptions
+		fname string
+		opts  genoptions
 	}{
 		{"aircraft.capnp.out", defaultOptions},
 		{"aircraft.capnp.out", genoptions{
@@ -503,9 +503,24 @@ func setupTempDir() (string, error) {
 		return "", fmt.Errorf("setupTempDir: Getwd: %v", err)
 	}
 	modRoot = filepath.Dir(modRoot)
+	mod, err := os.ReadFile(filepath.Join(modRoot, "go.mod"))
+	if err != nil {
+		return "", fmt.Errorf("setupTempDir: read root go.mod: %v", err)
+	}
+	var goVersion string
+	for _, line := range strings.Split(string(mod), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 2 && fields[0] == "go" {
+			goVersion = fields[1]
+			break
+		}
+	}
+	if goVersion == "" {
+		return "", fmt.Errorf("setupTempDir: root go.mod has no go directive")
+	}
 
 	err = os.WriteFile(filepath.Join(dir, "go.work"),
-		[]byte(fmt.Sprintf("use %s", modRoot)), 0660)
+		[]byte(fmt.Sprintf("go %s\n\nuse %s", goVersion, modRoot)), 0660)
 	if err != nil {
 		return "", fmt.Errorf("setupTempDir: write go.work: %v", err)
 	}
@@ -517,8 +532,9 @@ func setupTempDir() (string, error) {
 // * Also found in this repo: std/capnp/persistent.capnp
 //
 // It contains two definitions:
-//   interface Persistent {}
-//   annotation persistent(interface, field) :Void;
+//
+//	interface Persistent {}
+//	annotation persistent(interface, field) :Void;
 //
 // testdata/persistent-simple.capnp is a minimal reproducible test case for the
 // collision.
@@ -594,7 +610,7 @@ func TestPersistent(t *testing.T) {
 				t.Errorf("Reading code generator request %q: reqFiles[%d] failed: %v", test.fname, i, err)
 				break
 			}
-			genfname := reqFname+".go"
+			genfname := reqFname + ".go"
 			g := newGenerator(reqf.Id(), trees, test.opts)
 			err = g.defineFile()
 			if err != nil {
@@ -616,7 +632,7 @@ func TestPersistent(t *testing.T) {
 			continue
 		}
 
-		if testIndex + 1 < len(tests) {
+		if testIndex+1 < len(tests) {
 			continue
 		}
 		// Relies on persistent-simple.capnp with $Go.package("persistent_simple")

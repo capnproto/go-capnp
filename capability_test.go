@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"capnproto.org/go/capnp/v3/flowcontrol"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -70,6 +71,23 @@ func TestClient(t *testing.T) {
 		t.Error("Release called ClientHook.Shutdown multiple times")
 	}
 }
+
+func TestSetFlowLimiterAfterRelease(t *testing.T) {
+	c := NewClient(&dummyHook{})
+	c.Release()
+	lim := &countingLimiter{}
+	c.SetFlowLimiter(lim)
+	if lim.releases != 1 {
+		t.Fatalf("Release called %d times; want 1", lim.releases)
+	}
+}
+
+type countingLimiter struct{ releases int }
+
+func (*countingLimiter) StartMessage(context.Context, uint64) (func(), error) { return func() {}, nil }
+func (l *countingLimiter) Release()                                           { l.releases++ }
+
+var _ flowcontrol.FlowLimiter = (*countingLimiter)(nil)
 
 func TestReleasedClient(t *testing.T) {
 	ctx := context.Background()

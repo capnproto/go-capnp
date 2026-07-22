@@ -121,6 +121,7 @@ type client struct {
 
 type clientState struct {
 	limiter  flowcontrol.FlowLimiter
+	flow     *clientFlow
 	cursor   *rc.Ref[clientCursor] // never nil
 	released bool
 
@@ -128,9 +129,153 @@ type clientState struct {
 	extraReleasers []func()
 
 	stream struct {
-		err error          // Last error from streaming calls.
-		wg  sync.WaitGroup // Outstanding calls.
+		err  error // First error from streaming calls.
+		tail *streamTail
+		done chan struct{}
 	}
+}
+
+// clientFlow is deliberately separate from clientState: copying a Client shares
+// it, while AddRef and snapshots receive independent call ordering.
+type clientFlow struct {
+	mu   sync.Mutex
+	tail *flowTicket
+	gen  *limiterGeneration
+}
+
+type limiterGeneration struct {
+	limiter  flowcontrol.FlowLimiter
+	leases   int
+	retired  bool
+	released bool
+}
+
+type flowTicket struct {
+	prev  *flowTicket
+	ready chan struct{}
+	wait  func(context.Context) error
+	once  sync.Once
+	done  sync.Once
+	flow  *clientFlow
+	gen   *limiterGeneration
+}
+
+// streamTail is a completion prefix: closing it means every stream call
+// registered at or before it has completed.
+type streamTail struct {
+	prev *streamTail
+	done chan struct{}
+}
+
+func newClientFlow(lim flowcontrol.FlowLimiter) *clientFlow {
+	if lim == nil {
+		lim = flowcontrol.NopLimiter
+	}
+	return &clientFlow{gen: &limiterGeneration{limiter: lim}}
+}
+
+func (f *clientFlow) ticket(lim flowcontrol.FlowLimiter) *flowTicket {
+	var release flowcontrol.FlowLimiter
+	f.mu.Lock()
+	if f.gen == nil || f.gen.limiter != lim {
+		old := f.gen
+		f.gen = &limiterGeneration{limiter: lim}
+		if old != nil {
+			old.retired = true
+			if old.leases == 0 && !old.released {
+				release = old.limiter
+				old.released = true
+			}
+		}
+	}
+	g := f.gen
+	g.leases++
+	t := &flowTicket{prev: f.tail, ready: make(chan struct{}), flow: f, gen: g}
+	f.tail = t
+	f.mu.Unlock()
+	if release != nil {
+		release.Release()
+	}
+	return t
+}
+
+func (f *clientFlow) replace(lim flowcontrol.FlowLimiter) (release flowcontrol.FlowLimiter) {
+	if lim == nil {
+		lim = flowcontrol.NopLimiter
+	}
+	f.mu.Lock()
+	if f.gen == nil || f.gen.limiter != lim {
+		old := f.gen
+		f.gen = &limiterGeneration{limiter: lim}
+		if old != nil {
+			old.retired = true
+			if old.leases == 0 && !old.released {
+				release = old.limiter
+				old.released = true
+			}
+		}
+	}
+	f.mu.Unlock()
+	return
+}
+
+func (f *clientFlow) close() (release flowcontrol.FlowLimiter) {
+	f.mu.Lock()
+	if f.gen != nil {
+		f.gen.retired = true
+		if f.gen.leases == 0 && !f.gen.released {
+			release = f.gen.limiter
+			f.gen.released = true
+		}
+	}
+	f.mu.Unlock()
+	return
+}
+
+func (t *flowTicket) publish(wait func(context.Context) error) {
+	if wait == nil {
+		wait = func(context.Context) error { return nil }
+	}
+	t.once.Do(func() { t.wait = wait; close(t.ready) })
+}
+
+func (t *flowTicket) await(ctx context.Context) error {
+	prev := t.prev
+	if prev == nil {
+		return nil
+	}
+	select {
+	case <-prev.ready:
+		err := prev.wait(ctx)
+		if err == nil {
+			t.prev = nil
+		}
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+// forward preserves FIFO admission when this ticket is abandoned before it
+// consumes its predecessor's gate.
+func (t *flowTicket) forward(ctx context.Context) error {
+	return t.await(ctx)
+}
+
+func (t *flowTicket) finish() {
+	t.done.Do(func() {
+		var release flowcontrol.FlowLimiter
+		t.flow.mu.Lock()
+		t.gen.leases--
+		if t.gen.retired && t.gen.leases == 0 && !t.gen.released {
+			release = t.gen.limiter
+			t.gen.released = true
+		}
+		t.flow.mu.Unlock()
+		if release != nil {
+			release.Release()
+		}
+	})
 }
 
 // clientCursor is an indirection pointing to a link in the resolution
@@ -235,7 +380,7 @@ func NewClient(hook ClientHook) Client {
 		ClientHook: hook,
 		metadata:   *NewMetadata(),
 	}
-	cs := mutex.New(clientState{cursor: newClientCursor(h)})
+	cs := mutex.New(clientState{cursor: newClientCursor(h), flow: newClientFlow(flowcontrol.NopLimiter)})
 	c := Client{client: &client{state: cs}}
 	setupLeakReporting(c)
 	return c
@@ -266,7 +411,7 @@ func newPromisedClient(hook ClientHook) (Client, *clientPromise) {
 		metadata:   *NewMetadata(),
 		resolution: maybe.New(&rs),
 	})
-	cs := mutex.New(clientState{cursor: cursor})
+	cs := mutex.New(clientState{cursor: cursor, flow: newClientFlow(flowcontrol.NopLimiter)})
 	c := Client{client: &client{state: cs}}
 	setupLeakReporting(c)
 	return c, &clientPromise{cursor: cursor.Weak()}
@@ -317,17 +462,53 @@ func (c Client) GetFlowLimiter() flowcontrol.FlowLimiter {
 	})
 }
 
+func (c Client) newFlowTicket() *flowTicket {
+	return mutex.With1(&c.state, func(s *clientState) *flowTicket {
+		if s.released {
+			return nil
+		}
+		lim := s.limiter
+		if lim == nil {
+			lim = flowcontrol.NopLimiter
+		}
+		if s.flow == nil {
+			s.flow = newClientFlow(lim)
+		}
+		return s.flow.ticket(lim)
+	})
+}
+
 // Update the flowcontrol.FlowLimiter used to manage flow control for
 // this client. This affects all future calls, but not calls already
 // waiting to send. Passing nil sets the value to flowcontrol.NopLimiter,
 // which is also the default.
 //
-// When .Release() is called on the client, it will call .Release() on
-// the FlowLimiter in turn.
+// The client takes ownership of the limiter: replacing a limiter calls
+// .Release() on the displaced limiter once its in-flight calls drain, and
+// releasing the client calls .Release() on the current limiter under the
+// same drain rule. Do not install a limiter that has already been displaced
+// from this or any other client.
 func (c Client) SetFlowLimiter(lim flowcontrol.FlowLimiter) {
-	c.state.With(func(c *clientState) {
-		c.limiter = lim
+	var release flowcontrol.FlowLimiter
+	var rejected bool
+	c.state.With(func(s *clientState) {
+		if s.released {
+			rejected = true
+			return
+		}
+		s.limiter = lim
+		if s.flow == nil {
+			s.flow = newClientFlow(lim)
+		} else {
+			release = s.flow.replace(lim)
+		}
 	})
+	if release != nil {
+		release.Release()
+	}
+	if rejected && lim != nil {
+		lim.Release()
+	}
 }
 
 // SendCall allocates space for parameters, calls args.Place to fill out
@@ -337,14 +518,30 @@ func (c Client) SetFlowLimiter(lim flowcontrol.FlowLimiter) {
 //
 // This method respects the flow control policy configured with SetFlowLimiter;
 // it may block if the sender is sending too fast.
+//
+// If the limiter reports flowcontrol.ErrMessageTooLarge for a hook that only
+// learns the message size after enqueueing (the legacy path), the returned
+// answer carries that error even though the call may already have been
+// transmitted. Do not blindly retry such a call: a non-idempotent method may
+// execute twice.
 func (c Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
+	ans, rel, err := c.sendCall(ctx, s)
+	if err != nil {
+		return ErrorAnswer(s.Method, err), func() {}
+	}
+	return ans, rel
+}
+
+// sendCall returns a synchronous error only for a prepared send that did not
+// enqueue anything. The legacy hook path remains source-compatible.
+func (c Client) sendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc, error) {
 	h, _, released := c.startCall()
 	defer h.Release()
 	if released {
-		return ErrorAnswer(s.Method, errors.New("call on released client")), func() {}
+		return nil, nil, errors.New("call on released client")
 	}
 	if h == nil {
-		return ErrorAnswer(s.Method, errors.New("call on null client")), func() {}
+		return nil, nil, errors.New("call on null client")
 	}
 
 	err := mutex.With1(&c.state, func(c *clientState) error {
@@ -352,10 +549,73 @@ func (c Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 	})
 
 	if err != nil {
-		return ErrorAnswer(s.Method, exc.WrapError("stream error", err)), func() {}
+		return nil, nil, exc.WrapError("stream error", err)
+	}
+	ticket := c.newFlowTicket()
+	if ticket == nil {
+		return nil, nil, errors.New("call on released client")
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			ticket.publish(ticket.forward)
+			ticket.finish()
+			panic(r)
+		}
+	}()
+	if err := ticket.await(ctx); err != nil {
+		ticket.publish(ticket.forward)
+		ticket.finish()
+		return nil, nil, err
 	}
 
-	limiter := c.GetFlowLimiter()
+	// Hooks that opt in can allocate and populate the message only after their
+	// FIFO predecessor has granted permission. This is the path required for a
+	// gate-next limiter to avoid work behind a closed gate.
+	if p, ok := h.Value().ClientHook.(ClientHookPreparer); ok {
+		prepared, err := p.PrepareSend(ctx, s)
+		if err != nil {
+			ticket.publish(nil)
+			ticket.finish()
+			return nil, nil, err
+		}
+		lim := ticket.gen.limiter
+		if rich, ok := lim.(flowcontrol.GateNextFlowLimiter); ok {
+			waitNext, complete := rich.GateNext().CommitMessage(prepared.Size())
+			ticket.publish(waitNext)
+			var terminalOnce sync.Once
+			terminal := func(kind flowcontrol.MessageOutcomeKind, e error) {
+				terminalOnce.Do(func() { complete(kind, e); ticket.finish() })
+			}
+			ans, rel, err := prepared.Commit(terminal)
+			if err != nil {
+				prepared.Abort()
+				terminal(flowcontrol.MessageOutcomeAbortedBeforeEnqueue, err)
+				return nil, nil, err
+			}
+			return ans, rel, nil
+		}
+		got, err := lim.StartMessage(ctx, prepared.Size())
+		if err != nil {
+			prepared.Abort()
+			ticket.publish(nil)
+			ticket.finish()
+			return nil, nil, err
+		}
+		ticket.publish(nil)
+		var terminalOnce sync.Once
+		terminal := func(flowcontrol.MessageOutcomeKind, error) {
+			terminalOnce.Do(func() { got(); ticket.finish() })
+		}
+		ans, rel, err := prepared.Commit(terminal)
+		if err != nil {
+			prepared.Abort()
+			terminal(flowcontrol.MessageOutcomeAbortedBeforeEnqueue, err)
+			return nil, nil, err
+		}
+		return ans, rel, nil
+	}
+
+	limiter := ticket.gen.limiter
 
 	// We need to call PlaceArgs before we will know the size of message for
 	// flow control purposes, so wrap it in a function that measures after the
@@ -391,16 +651,28 @@ func (c Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 	// deadlock could also arise if the user code blocks. Once that is solved,
 	// we can back out this hack.
 	gotResponse, err := limiter.StartMessage(ctx, size)
+	ticket.publish(nil)
 	if err != nil {
-		// HACK: An error should only happen if the context was cancelled,
-		// in which case the caller will notice it soon probably. The call
-		// still went off ok, so we can just return the result we already
-		// got, and trying to report the error is awkward because we can't
-		// return one... so we don't. Set gotResponse to something that won't
-		// break things, and call it a day. See comments above about a
-		// longer term solution to this mess.
+		if errors.Is(err, flowcontrol.ErrMessageTooLarge) {
+			// A legacy hook has already enqueued the call by the time its final
+			// size is known. Do not hide the impossible reservation: report it
+			// synchronously and arrange to release the answer no caller receives.
+			go func() {
+				<-ans.Done()
+				rel()
+				ticket.finish()
+			}()
+			return nil, nil, err
+		}
+		// HACK: An error here should only be a context cancellation. The
+		// legacy hook has already enqueued the call, so surfacing the error
+		// now would report failure for a message that actually went out.
+		// Return the answer we already have; the caller will notice the
+		// cancellation soon anyway. See comments above about a longer term
+		// solution to this mess.
 		gotResponse = func() {}
 	}
+	go func() { <-ans.Done(); ticket.finish() }()
 	p := ans.f.promise
 	l := p.state.Lock()
 	if l.Value().isResolved() {
@@ -412,7 +684,7 @@ func (c Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 		l.Unlock()
 	}
 
-	return ans, rel
+	return ans, rel, nil
 }
 
 // SendStreamCall is like SendCall except that:
@@ -422,40 +694,71 @@ func (c Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 //     client will return the same error (without starting
 //     the method or calling PlaceArgs).
 func (c Client) SendStreamCall(ctx context.Context, s Send) error {
+	var tail *streamTail
 	streamError := mutex.With1(&c.state, func(c *clientState) error {
 		err := c.stream.err
 		if err == nil {
-			c.stream.wg.Add(1)
+			tail = &streamTail{prev: c.stream.tail, done: make(chan struct{})}
+			c.stream.tail = tail
 		}
 		return err
 	})
 	if streamError != nil {
 		return streamError
 	}
-	ans, release := c.SendCall(ctx, s)
+	ans, release, err := c.sendCall(ctx, s)
+	if err != nil {
+		// This call never committed. The caller already receives the error;
+		// it must not permanently poison a stream that has no sent failure.
+		c.finishStream(tail, nil)
+		return err
+	}
 	go func() {
-		defer c.state.With(func(c *clientState) {
-			c.stream.wg.Done()
-		})
 		_, err := ans.Future().Ptr()
 		release()
-		if err != nil {
-			c.state.With(func(c *clientState) {
-				c.stream.err = err
-			})
-		}
+		c.finishStream(tail, err)
 	}()
 	return nil
+}
+
+func (c Client) finishStream(tail *streamTail, err error) {
+	c.state.With(func(s *clientState) {
+		if err != nil && s.stream.err == nil {
+			s.stream.err = err
+		}
+	})
+	go func() {
+		if tail.prev != nil {
+			<-tail.prev.done
+			// Drop the link so completed prefixes become collectible; only
+			// this goroutine reads prev after registration.
+			tail.prev = nil
+		}
+		close(tail.done)
+	}()
 }
 
 // WaitStreaming waits for all outstanding streaming calls (i.e. calls
 // started with SendStreamCall) to complete, and then returns an error
 // if any streaming call has failed.
 func (c Client) WaitStreaming() error {
-	wg := mutex.With1(&c.state, func(c *clientState) *sync.WaitGroup {
-		return &c.stream.wg
+	tail, released := mutex.With2(&c.state, func(s *clientState) (*streamTail, <-chan struct{}) {
+		if s.stream.done == nil {
+			s.stream.done = make(chan struct{})
+		}
+		return s.stream.tail, s.stream.done
 	})
-	wg.Wait()
+	if tail != nil {
+		select {
+		case <-tail.done:
+		case <-released:
+			select {
+			case <-tail.done:
+			default:
+				return errors.New("client released while streaming calls were outstanding")
+			}
+		}
+	}
 	return mutex.With1(&c.state, func(c *clientState) error {
 		return c.stream.err
 	})
@@ -547,7 +850,7 @@ func (c Client) AddRef() Client {
 		panic("AddRef on released client")
 	}
 	return mutex.With1(&c.state, func(c *clientState) Client {
-		d := Client{client: &client{state: mutex.New(clientState{cursor: c.cursor.AddRef()})}}
+		d := Client{client: &client{state: mutex.New(clientState{cursor: c.cursor.AddRef(), flow: newClientFlow(flowcontrol.NopLimiter)})}}
 		setupLeakReporting(d)
 		return d
 	})
@@ -662,7 +965,7 @@ func (cs ClientSnapshot) Client() Client {
 		return c.Release
 	})
 	c := Client{client: &client{
-		state: mutex.New(clientState{cursor: cursor}),
+		state: mutex.New(clientState{cursor: cursor, flow: newClientFlow(flowcontrol.NopLimiter)}),
 	}}
 	setupLeakReporting(c)
 	return c
@@ -797,18 +1100,36 @@ func (c Client) Release() {
 	if c.client == nil {
 		return
 	}
-	limiter := c.GetFlowLimiter()
+	var limiter flowcontrol.FlowLimiter
+	var releasers []func()
+	var cursor *rc.Ref[clientCursor]
+	var wake chan struct{}
 	c.state.With(func(s *clientState) {
 		if !s.released {
 			s.released = true
-			s.cursor.Release()
-			limiter.Release()
-
-			for i := range s.extraReleasers {
-				s.extraReleasers[i]()
+			cursor = s.cursor
+			if s.flow == nil {
+				s.flow = newClientFlow(s.limiter)
 			}
+			limiter = s.flow.close()
+			releasers = append(releasers, s.extraReleasers...)
+			if s.stream.done == nil {
+				s.stream.done = make(chan struct{})
+			}
+			wake = s.stream.done
 		}
 	})
+	if cursor == nil {
+		return
+	}
+	cursor.Release()
+	if limiter != nil {
+		limiter.Release()
+	}
+	close(wake)
+	for _, f := range releasers {
+		f()
+	}
 }
 
 func (c Client) EncodeAsPtr(seg *Segment) Ptr {
@@ -949,7 +1270,7 @@ func (wc WeakClient) AddRef() (c Client, ok bool) {
 	if !ok {
 		return Client{}, false
 	}
-	c = Client{client: &client{state: mutex.New(clientState{cursor: cursor})}}
+	c = Client{client: &client{state: mutex.New(clientState{cursor: cursor, flow: newClientFlow(flowcontrol.NopLimiter)})}}
 	setupLeakReporting(c)
 	return c, true
 }
@@ -1000,6 +1321,25 @@ type ClientHook interface {
 
 	// String formats the hook as a string (same as fmt.Stringer)
 	String() string
+}
+
+// PreparedSend is the optional two-phase send extension used by Client's
+// flow-control implementation. It is intended for internal hooks, not normal
+// application implementations.
+type PreparedSend interface {
+	Size() uint64
+	Commit(terminal func(flowcontrol.MessageOutcomeKind, error)) (*Answer, ReleaseFunc, error)
+	Abort()
+}
+
+// ClientHookPreparer optionally prepares a send without enqueueing it.
+type ClientHookPreparer interface {
+	PrepareSend(context.Context, Send) (PreparedSend, error)
+}
+
+// PipelineCallerPreparer optionally prepares a pipelined send without enqueueing it.
+type PipelineCallerPreparer interface {
+	PreparePipelineSend(context.Context, []PipelineOp, Send) (PreparedSend, error)
 }
 
 // Send is the input to ClientHook.Send.
@@ -1150,7 +1490,7 @@ func ErrorClient(e error) Client {
 		ClientHook: errorClient{e},
 		metadata:   *NewMetadata(),
 	}
-	cs := mutex.New(clientState{cursor: newClientCursor(h)})
+	cs := mutex.New(clientState{cursor: newClientCursor(h), flow: newClientFlow(flowcontrol.NopLimiter)})
 	return Client{client: &client{state: cs}}
 }
 
