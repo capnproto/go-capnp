@@ -1974,9 +1974,6 @@ func (c *lockedConn) prepareMessage(build func(rpccp.Message) error) *preparedMe
 func (p *preparedMessage) commit(ctx context.Context, fatalIfUnsent bool, onSent func(sendOutcome)) bool {
 	committed := false
 	p.once.Do(func() {
-		if p.c.lk.closing {
-			return
-		}
 		p.c.lk.sendTx.Send(asyncSend{
 			ctx:           ctx,
 			preSendErr:    p.preErr,
