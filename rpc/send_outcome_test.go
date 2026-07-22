@@ -58,6 +58,37 @@ func TestSendMessageNewMessageError(t *testing.T) {
 	}
 }
 
+// Closing after a protocol handler has transferred ownership to sendMessage
+// must still enqueue the message.  The shutdown drain owns aborting it, which
+// runs both the terminal callback and the transport release outside c.lk.
+func TestSendMessageClosingQueuesForShutdownAbort(t *testing.T) {
+	tr := newFailingSendTransport(errors.New("unused"))
+	queue := spsc.New[asyncSend]()
+	c := &Conn{transport: tr}
+	c.lk.sendTx = &queue.Tx
+	c.lk.closing = true
+
+	var outcomes []sendOutcome
+	(*lockedConn)(c).sendMessageOutcome(context.Background(), func(m rpccp.Message) error {
+		_, err := m.NewUnimplemented()
+		return err
+	}, false, func(outcome sendOutcome) { outcomes = append(outcomes, outcome) })
+
+	pending, ok := queue.Rx.TryRecv()
+	if !ok {
+		t.Fatal("closing connection did not transfer message to shutdown queue")
+	}
+	pending.Abort(errors.New("connection closed"))
+	if len(outcomes) != 1 || outcomes[0].disposition != sendAbortedByShutdown {
+		t.Fatalf("outcomes = %+v; want one shutdown-aborted outcome", outcomes)
+	}
+	select {
+	case <-tr.firstRelease:
+	default:
+		t.Fatal("shutdown abort did not release outgoing message")
+	}
+}
+
 func TestAsyncSendOutcomes(t *testing.T) {
 	canceled, cancel := context.WithCancel(context.Background())
 	cancel()

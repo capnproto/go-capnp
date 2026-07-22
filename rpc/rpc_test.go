@@ -111,7 +111,13 @@ func TestConnection_BaseContext(t *testing.T) {
 				return st.SetData(make([]byte, 1))
 			})
 
-			require.NoError(t, err)
+			// The server has already begun shutdown. A legacy send could return
+			// before the transport noticed it, while a prepared send revalidates
+			// immediately before enqueueing. Both outcomes are valid; a failure
+			// must be the expected disconnection rather than an application error.
+			if err != nil && !capnp.IsDisconnected(err) {
+				require.NoError(t, err)
+			}
 		}()
 
 		wg.Wait()
