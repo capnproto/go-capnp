@@ -244,13 +244,22 @@ func (t *flowTicket) await(ctx context.Context) error {
 	if prev == nil {
 		return nil
 	}
-	defer func() { t.prev = nil }()
 	select {
 	case <-prev.ready:
-		return prev.wait(ctx)
+		err := prev.wait(ctx)
+		if err == nil {
+			t.prev = nil
+		}
+		return err
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+}
+
+// forward preserves FIFO admission when this ticket is abandoned before it
+// consumes its predecessor's gate.
+func (t *flowTicket) forward(ctx context.Context) error {
+	return t.await(ctx)
 }
 
 func (t *flowTicket) finish() {
@@ -455,6 +464,9 @@ func (c Client) GetFlowLimiter() flowcontrol.FlowLimiter {
 
 func (c Client) newFlowTicket() *flowTicket {
 	return mutex.With1(&c.state, func(s *clientState) *flowTicket {
+		if s.released {
+			return nil
+		}
 		lim := s.limiter
 		if lim == nil {
 			lim = flowcontrol.NopLimiter
@@ -471,11 +483,19 @@ func (c Client) newFlowTicket() *flowTicket {
 // waiting to send. Passing nil sets the value to flowcontrol.NopLimiter,
 // which is also the default.
 //
-// When .Release() is called on the client, it will call .Release() on
-// the FlowLimiter in turn.
+// The client takes ownership of the limiter: replacing a limiter calls
+// .Release() on the displaced limiter once its in-flight calls drain, and
+// releasing the client calls .Release() on the current limiter under the
+// same drain rule. Do not install a limiter that has already been displaced
+// from this or any other client.
 func (c Client) SetFlowLimiter(lim flowcontrol.FlowLimiter) {
 	var release flowcontrol.FlowLimiter
+	var rejected bool
 	c.state.With(func(s *clientState) {
+		if s.released {
+			rejected = true
+			return
+		}
 		s.limiter = lim
 		if s.flow == nil {
 			s.flow = newClientFlow(lim)
@@ -486,6 +506,9 @@ func (c Client) SetFlowLimiter(lim flowcontrol.FlowLimiter) {
 	if release != nil {
 		release.Release()
 	}
+	if rejected && lim != nil {
+		lim.Release()
+	}
 }
 
 // SendCall allocates space for parameters, calls args.Place to fill out
@@ -495,6 +518,12 @@ func (c Client) SetFlowLimiter(lim flowcontrol.FlowLimiter) {
 //
 // This method respects the flow control policy configured with SetFlowLimiter;
 // it may block if the sender is sending too fast.
+//
+// If the limiter reports flowcontrol.ErrMessageTooLarge for a hook that only
+// learns the message size after enqueueing (the legacy path), the returned
+// answer carries that error even though the call may already have been
+// transmitted. Do not blindly retry such a call: a non-idempotent method may
+// execute twice.
 func (c Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 	ans, rel, err := c.sendCall(ctx, s)
 	if err != nil {
@@ -523,8 +552,18 @@ func (c Client) sendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc, err
 		return nil, nil, exc.WrapError("stream error", err)
 	}
 	ticket := c.newFlowTicket()
+	if ticket == nil {
+		return nil, nil, errors.New("call on released client")
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			ticket.publish(ticket.forward)
+			ticket.finish()
+			panic(r)
+		}
+	}()
 	if err := ticket.await(ctx); err != nil {
-		ticket.publish(nil)
+		ticket.publish(ticket.forward)
 		ticket.finish()
 		return nil, nil, err
 	}
@@ -625,13 +664,12 @@ func (c Client) sendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc, err
 			}()
 			return nil, nil, err
 		}
-		// HACK: An error should only happen if the context was cancelled,
-		// in which case the caller will notice it soon probably. The call
-		// still went off ok, so we can just return the result we already
-		// got, and trying to report the error is awkward because we can't
-		// return one... so we don't. Set gotResponse to something that won't
-		// break things, and call it a day. See comments above about a
-		// longer term solution to this mess.
+		// HACK: An error here should only be a context cancellation. The
+		// legacy hook has already enqueued the call, so surfacing the error
+		// now would report failure for a message that actually went out.
+		// Return the answer we already have; the caller will notice the
+		// cancellation soon anyway. See comments above about a longer term
+		// solution to this mess.
 		gotResponse = func() {}
 	}
 	go func() { <-ans.Done(); ticket.finish() }()
@@ -670,7 +708,9 @@ func (c Client) SendStreamCall(ctx context.Context, s Send) error {
 	}
 	ans, release, err := c.sendCall(ctx, s)
 	if err != nil {
-		c.finishStream(tail, err)
+		// This call never committed. The caller already receives the error;
+		// it must not permanently poison a stream that has no sent failure.
+		c.finishStream(tail, nil)
 		return err
 	}
 	go func() {
@@ -690,6 +730,9 @@ func (c Client) finishStream(tail *streamTail, err error) {
 	go func() {
 		if tail.prev != nil {
 			<-tail.prev.done
+			// Drop the link so completed prefixes become collectible; only
+			// this goroutine reads prev after registration.
+			tail.prev = nil
 		}
 		close(tail.done)
 	}()
@@ -709,6 +752,11 @@ func (c Client) WaitStreaming() error {
 		select {
 		case <-tail.done:
 		case <-released:
+			select {
+			case <-tail.done:
+			default:
+				return errors.New("client released while streaming calls were outstanding")
+			}
 		}
 	}
 	return mutex.With1(&c.state, func(c *clientState) error {
