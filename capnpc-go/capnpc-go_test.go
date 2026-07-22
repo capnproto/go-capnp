@@ -503,9 +503,24 @@ func setupTempDir() (string, error) {
 		return "", fmt.Errorf("setupTempDir: Getwd: %v", err)
 	}
 	modRoot = filepath.Dir(modRoot)
+	mod, err := os.ReadFile(filepath.Join(modRoot, "go.mod"))
+	if err != nil {
+		return "", fmt.Errorf("setupTempDir: read root go.mod: %v", err)
+	}
+	var goVersion string
+	for _, line := range strings.Split(string(mod), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 2 && fields[0] == "go" {
+			goVersion = fields[1]
+			break
+		}
+	}
+	if goVersion == "" {
+		return "", fmt.Errorf("setupTempDir: root go.mod has no go directive")
+	}
 
 	err = os.WriteFile(filepath.Join(dir, "go.work"),
-		[]byte(fmt.Sprintf("go 1.25\n\nuse %s", modRoot)), 0660)
+		[]byte(fmt.Sprintf("go %s\n\nuse %s", goVersion, modRoot)), 0660)
 	if err != nil {
 		return "", fmt.Errorf("setupTempDir: write go.work: %v", err)
 	}
