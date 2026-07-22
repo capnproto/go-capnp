@@ -118,6 +118,23 @@ func (ic *importClient) Send(ctx context.Context, s capnp.Send) (*capnp.Answer, 
 	})
 }
 
+// PrepareSend lets Client's flow-control path reserve against the fully built
+// RPC message before it is placed on the transport queue.
+func (ic *importClient) PrepareSend(ctx context.Context, s capnp.Send) (capnp.PreparedSend, error) {
+	return withLockedConn2(ic.c, func(c *lockedConn) (capnp.PreparedSend, error) {
+		return c.prepareCall(ctx, s, func(c *lockedConn) error {
+			ent, _ := c.lk.imports.Find(ic.id)
+			if ent == nil || ic.generation != ent.generation {
+				return rpcerr.Disconnected(errors.New("send on closed import"))
+			}
+			return nil
+		}, func(target rpccp.MessageTarget) error {
+			target.SetImportedCap(uint32(ic.id))
+			return nil
+		})
+	})
+}
+
 func (ic *importClient) Recv(ctx context.Context, r capnp.Recv) capnp.PipelineCaller {
 	ans, finish := ic.Send(ctx, capnp.Send{
 		Method:   r.Method,

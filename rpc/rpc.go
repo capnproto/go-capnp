@@ -1936,29 +1936,62 @@ func (c *lockedConn) sendMessageOutcome(
 	fatalIfUnsent bool,
 	onSent func(sendOutcome),
 ) {
-	outMsg, err := c.transport.NewMessage()
-	var send func() error
-	var release capnp.ReleaseFunc
-	var preSendErr error
-	if err != nil {
-		release = func() {}
-		preSendErr = rpcerr.WrapFailed("create message", err)
-	} else if err = build(outMsg.Message()); err != nil {
-		release = outMsg.Release
-		preSendErr = rpcerr.WrapFailed("build message", err)
-	} else {
-		send = outMsg.Send
-		release = outMsg.Release
-	}
+	prepared := c.prepareMessage(build)
+	prepared.commit(ctx, fatalIfUnsent, onSent)
+}
 
-	c.lk.sendTx.Send(asyncSend{
-		ctx:           ctx,
-		preSendErr:    preSendErr,
-		fatalIfUnsent: fatalIfUnsent,
-		release:       release,
-		send:          send,
-		onSent:        onSent,
+// preparedMessage owns an outgoing transport message until exactly one of
+// commit or abort is called.  It is deliberately internal: callers that need
+// to defer enqueueing must also arrange their own protocol cleanup.
+type preparedMessage struct {
+	c       *lockedConn
+	send    func() error
+	release capnp.ReleaseFunc
+	preErr  error
+	size    uint64
+	once    sync.Once
+}
+
+func (c *lockedConn) prepareMessage(build func(rpccp.Message) error) *preparedMessage {
+	p := &preparedMessage{c: c, release: func() {}}
+	outMsg, err := c.transport.NewMessage()
+	if err != nil {
+		p.preErr = rpcerr.WrapFailed("create message", err)
+	} else if err = build(outMsg.Message()); err != nil {
+		p.release = outMsg.Release
+		p.preErr = rpcerr.WrapFailed("build message", err)
+	} else {
+		p.send = outMsg.Send
+		p.release = outMsg.Release
+		p.size, err = outMsg.Message().Message().TotalSize()
+		if err != nil {
+			p.preErr = rpcerr.WrapFailed("measure message", err)
+		}
+	}
+	return p
+}
+
+func (p *preparedMessage) commit(ctx context.Context, fatalIfUnsent bool, onSent func(sendOutcome)) bool {
+	committed := false
+	p.once.Do(func() {
+		if p.c.lk.closing {
+			return
+		}
+		p.c.lk.sendTx.Send(asyncSend{
+			ctx:           ctx,
+			preSendErr:    p.preErr,
+			fatalIfUnsent: fatalIfUnsent,
+			release:       p.release,
+			send:          p.send,
+			onSent:        onSent,
+		})
+		committed = true
 	})
+	return committed
+}
+
+func (p *preparedMessage) abort() {
+	p.once.Do(func() { p.release() })
 }
 
 // reader reads messages from the transport in a loop, and send them down the

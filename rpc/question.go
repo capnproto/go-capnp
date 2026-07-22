@@ -2,8 +2,11 @@ package rpc
 
 import (
 	"context"
+	"errors"
+	"sync"
 
 	"capnproto.org/go/capnp/v3"
+	"capnproto.org/go/capnp/v3/flowcontrol"
 	"capnproto.org/go/capnp/v3/internal/syncutil"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 )
@@ -283,6 +286,40 @@ func (q *question) PipelineSend(ctx context.Context, transform []capnp.PipelineO
 	})
 }
 
+// PreparePipelineSend preserves the same initial-call admission ordering as
+// PipelineSend.  In particular, a pipelined Call is never constructed or
+// enqueued until its parent Call has been accepted by the sender.
+func (q *question) PreparePipelineSend(ctx context.Context, transform []capnp.PipelineOp, s capnp.Send) (capnp.PreparedSend, error) {
+	select {
+	case <-q.callSendDone:
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-q.c.bgctx.Done():
+		return nil, ExcClosed
+	}
+	return withLockedConn2(q.c, func(c *lockedConn) (capnp.PreparedSend, error) {
+		if q.callSend != questionCallSendSucceeded {
+			return nil, q.callSendErr
+		}
+		q.mark(transform)
+		return c.prepareCall(ctx, s, nil, func(target rpccp.MessageTarget) error {
+			pa, err := target.NewPromisedAnswer()
+			if err != nil {
+				return rpcerr.WrapFailed("build call message", err)
+			}
+			pa.SetQuestionId(uint32(q.id))
+			oplist, err := pa.NewTransform(int32(len(transform)))
+			if err != nil {
+				return rpcerr.WrapFailed("build call message", err)
+			}
+			for i, op := range transform {
+				oplist.At(i).SetGetPointerField(op.Field)
+			}
+			return nil
+		})
+	})
+}
+
 // startCall starts an outbound question.  populateTarget selects either an
 // imported capability or a promised answer without duplicating the question
 // lifecycle around those two target encodings.
@@ -308,6 +345,104 @@ func (c *lockedConn) startCall(ctx context.Context, s capnp.Send, preflight func
 		q.p.ReleaseClients()
 		q.release()
 	}
+}
+
+// preparedCall is the RPC implementation of capnp.PreparedSend.  The Call and
+// question exist before it is returned, but the transport message is not made
+// visible to the sender until Commit succeeds.
+type preparedCall struct {
+	c         *Conn
+	q         *question
+	msg       *preparedMessage
+	ctx       context.Context
+	preflight func(*lockedConn) error
+
+	mu        sync.Mutex
+	committed bool
+	aborted   bool
+}
+
+func (c *lockedConn) prepareCall(ctx context.Context, s capnp.Send, preflight func(*lockedConn) error, populateTarget func(rpccp.MessageTarget) error) (*preparedCall, error) {
+	if !c.startTask() {
+		return nil, ExcClosed
+	}
+	defer c.tasks.Done()
+	if preflight != nil {
+		if err := preflight(c); err != nil {
+			return nil, err
+		}
+	}
+	q := c.newQuestion(s.Method)
+	p := &preparedCall{c: (*Conn)(c), q: q, ctx: ctx, preflight: preflight}
+	p.msg = c.prepareMessage(func(m rpccp.Message) error {
+		return c.newCallMessage(m, q.id, s, populateTarget)
+	})
+	if p.msg.preErr != nil {
+		p.Abort()
+		return nil, p.msg.preErr
+	}
+	return p, nil
+}
+
+func (p *preparedCall) Size() uint64 { return p.msg.size }
+
+func (p *preparedCall) Commit(terminal func(flowcontrol.MessageOutcomeKind, error)) (*capnp.Answer, capnp.ReleaseFunc, error) {
+	p.mu.Lock()
+	if p.committed || p.aborted {
+		p.mu.Unlock()
+		return nil, nil, errors.New("prepared RPC send already completed")
+	}
+	p.committed = true
+	p.mu.Unlock()
+
+	var committed bool
+	p.c.withLocked(func(c *lockedConn) {
+		if p.ctx.Err() != nil || c.bgctx.Err() != nil || (p.preflight != nil && p.preflight(c) != nil) {
+			return
+		}
+		committed = p.msg.commit(p.ctx, false, func(outcome sendOutcome) {
+			p.q.handleCallSend(p.ctx, outcome, "send message")
+			switch outcome.disposition {
+			case sendSucceeded:
+				go func() { <-p.q.p.Answer().Done(); terminal(flowcontrol.MessageOutcomeSucceeded, nil) }()
+			case sendDefinitelyUnsent:
+				terminal(flowcontrol.MessageOutcomeAbortedBeforeEnqueue, outcome.err)
+			default:
+				terminal(flowcontrol.MessageOutcomeFatal, outcome.err)
+			}
+		})
+	})
+	if !committed {
+		p.msg.abort()
+		p.removeQuestion()
+		return nil, nil, ExcClosed
+	}
+	ans := p.q.p.Answer()
+	return ans, func() {
+		<-ans.Done()
+		p.q.p.ReleaseClients()
+		p.q.release()
+	}, nil
+}
+
+func (p *preparedCall) removeQuestion() {
+	p.c.withLocked(func(c *lockedConn) {
+		if q, ok := c.lk.questions.Find(p.q.id); ok && q == p.q {
+			c.lk.questions.Remove(p.q.id)
+		}
+	})
+}
+
+func (p *preparedCall) Abort() {
+	p.mu.Lock()
+	if p.committed || p.aborted {
+		p.mu.Unlock()
+		return
+	}
+	p.aborted = true
+	p.mu.Unlock()
+	p.msg.abort()
+	p.removeQuestion()
 }
 
 func (c *lockedConn) newCallMessage(msg rpccp.Message, qid questionID, s capnp.Send, populateTarget func(rpccp.MessageTarget) error) error {

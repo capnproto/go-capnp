@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"capnproto.org/go/capnp/v3/exc"
+	"capnproto.org/go/capnp/v3/flowcontrol"
 	"capnproto.org/go/capnp/v3/internal/str"
 	"capnproto.org/go/capnp/v3/util/deferred"
 	"capnproto.org/go/capnp/v3/util/sync/mutex"
@@ -342,6 +343,18 @@ func (ans *Answer) PipelineSend(ctx context.Context, transform []PipelineOp, s S
 		l.Value().ongoingCalls++
 		l.Unlock()
 		defer p.pipelineCallDone()
+		if preparer, ok := caller.(PipelineCallerPreparer); ok {
+			prepared, err := preparer.PreparePipelineSend(ctx, transform, s)
+			if err != nil {
+				return ErrorAnswer(s.Method, err), func() {}
+			}
+			ans, release, err := prepared.Commit(func(flowcontrol.MessageOutcomeKind, error) {})
+			if err != nil {
+				prepared.Abort()
+				return ErrorAnswer(s.Method, err), func() {}
+			}
+			return ans, release
+		}
 		return caller.PipelineSend(ctx, transform, s)
 	case l.Value().isPendingResolution():
 		// Block new calls until resolved.
