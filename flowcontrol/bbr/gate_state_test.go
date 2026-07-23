@@ -3,6 +3,7 @@ package bbr
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 
 	"capnproto.org/go/capnp/v3/flowcontrol"
@@ -117,4 +118,70 @@ func TestGateEventsFailAfterLimiterRelease(t *testing.T) {
 
 	_, err := lim.gateCommit(10)
 	assert.ErrorIs(t, err, context.Canceled)
+}
+
+func TestGateEventsPoisonRejectsCommitAndReplay(t *testing.T) {
+	lim := NewLimiter(nil)
+	defer lim.Release()
+	a, err := lim.gateCommit(10)
+	if !assert.NoError(t, err) {
+		return
+	}
+	b, err := lim.gateCommit(20)
+	if !assert.NoError(t, err) {
+		return
+	}
+	poison := errors.New("poison")
+	replay, err := lim.gateComplete(a, flowcontrol.MessageOutcomeFatal, poison)
+	assert.NoError(t, err)
+	assert.False(t, replay)
+	_, err = lim.gateCommit(30)
+	assert.ErrorIs(t, err, poison)
+	replay, err = lim.gateComplete(b, flowcontrol.MessageOutcomeAbortedBeforeEnqueue, nil)
+	assert.NoError(t, err)
+	assert.False(t, replay)
+}
+
+func TestGateEventsSerializeConcurrentCommits(t *testing.T) {
+	lim := NewLimiter(nil)
+	defer lim.Release()
+	const n = 16
+	ids := make(chan uint64, n)
+	errs := make(chan error, n)
+	var wg sync.WaitGroup
+	for range n {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			r, err := lim.gateCommit(1)
+			if err == nil {
+				ids <- r.id
+			}
+			errs <- err
+		}()
+	}
+	wg.Wait()
+	close(ids)
+	close(errs)
+	seen := make(map[uint64]struct{}, n)
+	for err := range errs {
+		assert.NoError(t, err)
+	}
+	for id := range ids {
+		if _, ok := seen[id]; !assert.False(t, ok, "duplicate id %d", id) {
+			continue
+		}
+		seen[id] = struct{}{}
+	}
+	assert.Len(t, seen, n)
+}
+
+func TestGateEventsInvalidKindPoisonsLedger(t *testing.T) {
+	lim := NewLimiter(nil)
+	defer lim.Release()
+	_, err := lim.gateEvent(gateEvent{kind: gateEventKind(99)})
+	assert.NoError(t, err)
+	lim.whilePaused(func() {
+		assert.EqualError(t, lim.gate.poison, "bbr: invalid gate-next event")
+	})
 }

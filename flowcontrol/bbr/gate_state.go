@@ -58,10 +58,14 @@ type gateEvent struct {
 type gateEventResult struct {
 	reservation *gateReservation
 	replay      bool
+	err         error
 }
 
 func (l *Limiter) gateCommit(size uint64) (*gateReservation, error) {
 	result, err := l.gateEvent(gateEvent{kind: gateCommitEvent, size: size})
+	if err == nil {
+		err = result.err
+	}
 	return result.reservation, err
 }
 
@@ -101,6 +105,8 @@ func (l *Limiter) handleGateEvent(event gateEvent) {
 	case gateCommitEvent:
 		if l.gate.poison == nil {
 			result.reservation = l.gate.commit(event.size)
+		} else {
+			result.err = l.gate.poison
 		}
 	case gateCompleteEvent:
 		result.replay = l.gate.complete(event.reservation, event.outcome, event.err)
@@ -124,7 +130,7 @@ func (g *gateState) commit(size uint64) *gateReservation {
 // operation before admitting another successor. Other provisional reservations
 // remain in the ledger and must not be committed again.
 func (g *gateState) complete(r *gateReservation, kind flowcontrol.MessageOutcomeKind, err error) (replay bool) {
-	if r == nil || r.state != gateReservationProvisional {
+	if g.poison != nil || r == nil || r.state != gateReservationProvisional {
 		return false
 	}
 	switch kind {
