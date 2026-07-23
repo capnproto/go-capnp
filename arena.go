@@ -34,8 +34,16 @@ type Arena interface {
 	// responsible for preserving the existing data.
 	Allocate(minsz Size, msg *Message, seg *Segment) (*Segment, Address, error)
 
-	// Release all resources associated with the Arena. Callers MUST NOT
-	// use the Arena after it has been released.
+	// Release all resources associated with a Message's use of the Arena.
+	// Message.Reset and Message.Release call Release when they end a
+	// Message's association with its Arena.
+	//
+	// Whether an Arena may be reused after Release is implementation-defined.
+	// An implementation may invalidate itself, return storage to a pool, or
+	// reset caller-owned storage for a later Message. Callers MUST NOT assume
+	// an Arena can be reused unless its concrete documentation says so.
+	// Callers MUST NOT call Arena.Release directly while an Arena is attached
+	// to a live Message.
 	//
 	// Calling Release() is OPTIONAL, but may reduce allocations.
 	//
@@ -469,8 +477,15 @@ func (r *ReadOnlySingleSegment) Allocate(minsz Size, msg *Message, seg *Segment)
 	return nil, 0, errors.New("readOnly segment cannot allocate data")
 }
 
-// Release all resources associated with the Arena. Callers MUST NOT
-// use the Arena after it has been released.
+// Release all resources associated with a Message's use of the Arena.
+// Message.Reset and Message.Release call Release when they end a Message's
+// association with its Arena.
+//
+// Whether an Arena may be reused after Release is implementation-defined.
+// An implementation may invalidate itself, return storage to a pool, or
+// reset caller-owned storage for a later Message. Callers MUST NOT assume an
+// Arena can be reused unless its concrete documentation says so. Callers MUST
+// NOT call Arena.Release directly while an Arena is attached to a live Message.
 //
 // Calling Release() is OPTIONAL, but may reduce allocations.
 //
