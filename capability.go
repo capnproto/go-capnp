@@ -151,13 +151,14 @@ type limiterGeneration struct {
 }
 
 type flowTicket struct {
-	prev  *flowTicket
-	ready chan struct{}
-	wait  func(context.Context) error
-	once  sync.Once
-	done  sync.Once
-	flow  *clientFlow
-	gen   *limiterGeneration
+	prev       *flowTicket
+	ready      chan struct{}
+	wait       func(context.Context) error
+	forwarding bool
+	once       sync.Once
+	done       sync.Once
+	flow       *clientFlow
+	gen        *limiterGeneration
 }
 
 // streamTail is a completion prefix: closing it means every stream call
@@ -188,14 +189,30 @@ func (f *clientFlow) ticket(lim flowcontrol.FlowLimiter) *flowTicket {
 			}
 		}
 	}
-	g := f.gen
-	g.leases++
-	t := &flowTicket{prev: f.tail, ready: make(chan struct{}), flow: f, gen: g}
-	f.tail = t
+	t := f.ticketLocked()
 	f.mu.Unlock()
 	if release != nil {
 		release.Release()
 	}
+	return t
+}
+
+// ticketCurrent appends a ticket to the flow's current generation. It lets a
+// promised-answer handoff retain FIFO ordering after its source Client has
+// been released, without consulting that Client's state.
+func (f *clientFlow) ticketCurrent() *flowTicket {
+	f.mu.Lock()
+	t := f.ticketLocked()
+	f.mu.Unlock()
+	return t
+}
+
+// ticketLocked appends a ticket to f. The caller must hold f.mu.
+func (f *clientFlow) ticketLocked() *flowTicket {
+	g := f.gen
+	g.leases++
+	t := &flowTicket{prev: f.tail, ready: make(chan struct{}), flow: f, gen: g}
+	f.tail = t
 	return t
 }
 
@@ -239,21 +256,45 @@ func (t *flowTicket) publish(wait func(context.Context) error) {
 	t.once.Do(func() { t.wait = wait; close(t.ready) })
 }
 
+// abandon publishes a forwarding ticket. A successor must walk through a
+// forwarding ticket to preserve the abandoned call's FIFO position.
+func (t *flowTicket) abandon() {
+	t.once.Do(func() {
+		t.forwarding = true
+		t.wait = t.forward
+		close(t.ready)
+	})
+}
+
 func (t *flowTicket) await(ctx context.Context) error {
 	prev := t.prev
-	if prev == nil {
-		return nil
-	}
-	select {
-	case <-prev.ready:
-		err := prev.wait(ctx)
-		if err == nil {
-			t.prev = nil
+	for prev != nil {
+		select {
+		case <-prev.ready:
+			// Abandoned tickets publish before their predecessors have cleared.
+			// Walk through them so their transitive FIFO position is preserved.
+			if prev.forwarding {
+				prev = prev.prev
+				continue
+			}
+			// A replacement generation still waits for the old ticket to
+			// publish, preserving FIFO handoff order, but it must not call a
+			// retired limiter's GateNext permission.
+			if prev.gen != t.gen {
+				t.prev = nil
+				return nil
+			}
+			err := prev.wait(ctx)
+			if err == nil {
+				t.prev = nil
+			}
+			return err
+		case <-ctx.Done():
+			return ctx.Err()
 		}
-		return err
-	case <-ctx.Done():
-		return ctx.Err()
 	}
+	t.prev = nil
+	return nil
 }
 
 // forward preserves FIFO admission when this ticket is abandoned before it
@@ -557,13 +598,13 @@ func (c Client) sendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc, err
 	}
 	defer func() {
 		if r := recover(); r != nil {
-			ticket.publish(ticket.forward)
+			ticket.abandon()
 			ticket.finish()
 			panic(r)
 		}
 	}()
 	if err := ticket.await(ctx); err != nil {
-		ticket.publish(ticket.forward)
+		ticket.abandon()
 		ticket.finish()
 		return nil, nil, err
 	}
@@ -578,41 +619,7 @@ func (c Client) sendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc, err
 			ticket.finish()
 			return nil, nil, err
 		}
-		lim := ticket.gen.limiter
-		if rich, ok := lim.(flowcontrol.GateNextFlowLimiter); ok {
-			waitNext, complete := rich.GateNext().CommitMessage(prepared.Size())
-			ticket.publish(waitNext)
-			var terminalOnce sync.Once
-			terminal := func(kind flowcontrol.MessageOutcomeKind, e error) {
-				terminalOnce.Do(func() { complete(kind, e); ticket.finish() })
-			}
-			ans, rel, err := prepared.Commit(terminal)
-			if err != nil {
-				prepared.Abort()
-				terminal(flowcontrol.MessageOutcomeAbortedBeforeEnqueue, err)
-				return nil, nil, err
-			}
-			return ans, rel, nil
-		}
-		got, err := lim.StartMessage(ctx, prepared.Size())
-		if err != nil {
-			prepared.Abort()
-			ticket.publish(nil)
-			ticket.finish()
-			return nil, nil, err
-		}
-		ticket.publish(nil)
-		var terminalOnce sync.Once
-		terminal := func(flowcontrol.MessageOutcomeKind, error) {
-			terminalOnce.Do(func() { got(); ticket.finish() })
-		}
-		ans, rel, err := prepared.Commit(terminal)
-		if err != nil {
-			prepared.Abort()
-			terminal(flowcontrol.MessageOutcomeAbortedBeforeEnqueue, err)
-			return nil, nil, err
-		}
-		return ans, rel, nil
+		return admitPreparedSend(ctx, ticket, prepared)
 	}
 
 	limiter := ticket.gen.limiter
@@ -684,6 +691,89 @@ func (c Client) sendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc, err
 		l.Unlock()
 	}
 
+	return ans, rel, nil
+}
+
+// admitPreparedSend commits a prepared send after ticket has consumed its
+// predecessor's permission. The ticket's successor is published only after
+// enqueueing, or after the reservation has been retired on a local failure.
+//
+// This helper is shared by direct prepared sends today and by the promised
+// pipeline admission wrapper once that wrapper is installed. It deliberately
+// leaves legacy ClientHook.Send behavior in sendCall unchanged.
+func admitPreparedSend(ctx context.Context, ticket *flowTicket, prepared PreparedSend) (ans *Answer, rel ReleaseFunc, err error) {
+	const (
+		preparedBeforeReservation = iota
+		preparedCommitInProgress
+		preparedCommitted
+	)
+	phase := preparedBeforeReservation
+	var waitNext func(context.Context) error
+	var terminal func(flowcontrol.MessageOutcomeKind, error)
+
+	defer func() {
+		if r := recover(); r != nil {
+			switch phase {
+			case preparedBeforeReservation:
+				prepared.Abort()
+				ticket.publish(nil)
+				ticket.finish()
+			case preparedCommitInProgress:
+				// Commit may have enqueued before panicking, so the reservation
+				// cannot be safely replayed.
+				terminal(flowcontrol.MessageOutcomeFatal, errors.New("panic during prepared send commit"))
+				ticket.publish(waitNext)
+			case preparedCommitted:
+				// The terminal callback owns the reservation after a successful
+				// Commit. Only publish the already-created successor here.
+				ticket.publish(waitNext)
+			}
+			panic(r)
+		}
+	}()
+
+	lim := ticket.gen.limiter
+	if rich, ok := lim.(flowcontrol.GateNextFlowLimiter); ok {
+		var complete func(flowcontrol.MessageOutcomeKind, error)
+		waitNext, complete = rich.GateNext().CommitMessage(prepared.Size())
+		var terminalOnce sync.Once
+		terminal = func(kind flowcontrol.MessageOutcomeKind, e error) {
+			terminalOnce.Do(func() { complete(kind, e); ticket.finish() })
+		}
+		phase = preparedCommitInProgress
+		ans, rel, err = prepared.Commit(terminal)
+		if err != nil {
+			prepared.Abort()
+			terminal(flowcontrol.MessageOutcomeAbortedBeforeEnqueue, err)
+			ticket.publish(waitNext)
+			return nil, nil, err
+		}
+		phase = preparedCommitted
+		ticket.publish(waitNext)
+		return ans, rel, nil
+	}
+
+	got, err := lim.StartMessage(ctx, prepared.Size())
+	if err != nil {
+		prepared.Abort()
+		ticket.publish(nil)
+		ticket.finish()
+		return nil, nil, err
+	}
+	var terminalOnce sync.Once
+	terminal = func(flowcontrol.MessageOutcomeKind, error) {
+		terminalOnce.Do(func() { got(); ticket.finish() })
+	}
+	phase = preparedCommitInProgress
+	ans, rel, err = prepared.Commit(terminal)
+	if err != nil {
+		prepared.Abort()
+		terminal(flowcontrol.MessageOutcomeAbortedBeforeEnqueue, err)
+		ticket.publish(nil)
+		return nil, nil, err
+	}
+	phase = preparedCommitted
+	ticket.publish(nil)
 	return ans, rel, nil
 }
 

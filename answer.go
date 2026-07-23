@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strconv"
+	"sync"
 
 	"capnproto.org/go/capnp/v3/exc"
 	"capnproto.org/go/capnp/v3/flowcontrol"
@@ -255,6 +256,67 @@ func (p *Promise) ReleaseClients() {
 type PipelineCaller interface {
 	PipelineSend(ctx context.Context, transform []PipelineOp, s Send) (*Answer, ReleaseFunc)
 	PipelineRecv(ctx context.Context, transform []PipelineOp, r Recv) PipelineCaller
+}
+
+// pipelineAdmissionController marks a PipelineCaller that performs admission
+// before delegating a pipelined send. It is private so only the capnp package
+// can opt into the late-claim protocol.
+//
+// The marker is intentionally dormant until the admitted RPC pipeline wrapper
+// is installed. Keeping the protocol private lets that wrapper wait for a
+// predecessor's permission without holding Promise resolution open.
+type pipelineAdmissionController interface {
+	PipelineCaller
+	pipelineAdmissionToken() *pipelineAdmissionToken
+}
+
+type pipelineAdmissionToken struct{ _ byte }
+
+// pipelineResolutionState reports the result of a late pipeline-call claim.
+// A caller that loses the claim because resolution has begun must use the
+// Promise's resolved-client path instead of the old pipeline caller.
+type pipelineResolutionState uint8
+
+const (
+	pipelineUnresolved pipelineResolutionState = iota
+	pipelinePendingResolution
+	pipelineResolved
+)
+
+// pipelineCallClaim owns one admission counted in Promise.ongoingCalls.
+// Done is safe to call more than once, including from a panic defer.
+type pipelineCallClaim struct {
+	p    *Promise
+	done sync.Once
+}
+
+// Done releases the claim's admission.
+func (c *pipelineCallClaim) Done() {
+	c.done.Do(c.p.pipelineCallDone)
+}
+
+// claimPipelineCall atomically claims an unresolved Promise's current
+// PipelineCaller. expected must be the exact controller installed in the
+// Promise. A successful claim increments ongoingCalls; callers must defer
+// claim.Done. Once resolution has started, no claim is made and the returned
+// state tells the caller whether to wait for or use the resolved target.
+func (p *Promise) claimPipelineCall(expected pipelineAdmissionController) (*pipelineCallClaim, pipelineResolutionState) {
+	l := p.state.Lock()
+	defer l.Unlock()
+	s := l.Value()
+	if s.isUnresolved() {
+		current, ok := s.caller.(pipelineAdmissionController)
+		expectedToken := expected.pipelineAdmissionToken()
+		if !ok || expectedToken == nil || current.pipelineAdmissionToken() != expectedToken {
+			panic("pipeline call claimed by non-current controller")
+		}
+		s.ongoingCalls++
+		return &pipelineCallClaim{p: p}, pipelineUnresolved
+	}
+	if s.isPendingResolution() {
+		return nil, pipelinePendingResolution
+	}
+	return nil, pipelineResolved
 }
 
 // An Answer is a deferred result of a client call.  Conceptually, this is a
