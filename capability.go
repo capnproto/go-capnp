@@ -601,41 +601,7 @@ func (c Client) sendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc, err
 			ticket.finish()
 			return nil, nil, err
 		}
-		lim := ticket.gen.limiter
-		if rich, ok := lim.(flowcontrol.GateNextFlowLimiter); ok {
-			waitNext, complete := rich.GateNext().CommitMessage(prepared.Size())
-			ticket.publish(waitNext)
-			var terminalOnce sync.Once
-			terminal := func(kind flowcontrol.MessageOutcomeKind, e error) {
-				terminalOnce.Do(func() { complete(kind, e); ticket.finish() })
-			}
-			ans, rel, err := prepared.Commit(terminal)
-			if err != nil {
-				prepared.Abort()
-				terminal(flowcontrol.MessageOutcomeAbortedBeforeEnqueue, err)
-				return nil, nil, err
-			}
-			return ans, rel, nil
-		}
-		got, err := lim.StartMessage(ctx, prepared.Size())
-		if err != nil {
-			prepared.Abort()
-			ticket.publish(nil)
-			ticket.finish()
-			return nil, nil, err
-		}
-		ticket.publish(nil)
-		var terminalOnce sync.Once
-		terminal := func(flowcontrol.MessageOutcomeKind, error) {
-			terminalOnce.Do(func() { got(); ticket.finish() })
-		}
-		ans, rel, err := prepared.Commit(terminal)
-		if err != nil {
-			prepared.Abort()
-			terminal(flowcontrol.MessageOutcomeAbortedBeforeEnqueue, err)
-			return nil, nil, err
-		}
-		return ans, rel, nil
+		return admitPreparedSend(ctx, ticket, prepared)
 	}
 
 	limiter := ticket.gen.limiter
@@ -707,6 +673,89 @@ func (c Client) sendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc, err
 		l.Unlock()
 	}
 
+	return ans, rel, nil
+}
+
+// admitPreparedSend commits a prepared send after ticket has consumed its
+// predecessor's permission. The ticket's successor is published only after
+// enqueueing, or after the reservation has been retired on a local failure.
+//
+// This helper is shared by direct prepared sends today and by the promised
+// pipeline admission wrapper once that wrapper is installed. It deliberately
+// leaves legacy ClientHook.Send behavior in sendCall unchanged.
+func admitPreparedSend(ctx context.Context, ticket *flowTicket, prepared PreparedSend) (ans *Answer, rel ReleaseFunc, err error) {
+	const (
+		preparedBeforeReservation = iota
+		preparedCommitInProgress
+		preparedCommitted
+	)
+	phase := preparedBeforeReservation
+	var waitNext func(context.Context) error
+	var terminal func(flowcontrol.MessageOutcomeKind, error)
+
+	defer func() {
+		if r := recover(); r != nil {
+			switch phase {
+			case preparedBeforeReservation:
+				prepared.Abort()
+				ticket.publish(nil)
+				ticket.finish()
+			case preparedCommitInProgress:
+				// Commit may have enqueued before panicking, so the reservation
+				// cannot be safely replayed.
+				terminal(flowcontrol.MessageOutcomeFatal, errors.New("panic during prepared send commit"))
+				ticket.publish(waitNext)
+			case preparedCommitted:
+				// The terminal callback owns the reservation after a successful
+				// Commit. Only publish the already-created successor here.
+				ticket.publish(waitNext)
+			}
+			panic(r)
+		}
+	}()
+
+	lim := ticket.gen.limiter
+	if rich, ok := lim.(flowcontrol.GateNextFlowLimiter); ok {
+		var complete func(flowcontrol.MessageOutcomeKind, error)
+		waitNext, complete = rich.GateNext().CommitMessage(prepared.Size())
+		var terminalOnce sync.Once
+		terminal = func(kind flowcontrol.MessageOutcomeKind, e error) {
+			terminalOnce.Do(func() { complete(kind, e); ticket.finish() })
+		}
+		phase = preparedCommitInProgress
+		ans, rel, err = prepared.Commit(terminal)
+		if err != nil {
+			prepared.Abort()
+			terminal(flowcontrol.MessageOutcomeAbortedBeforeEnqueue, err)
+			ticket.publish(waitNext)
+			return nil, nil, err
+		}
+		phase = preparedCommitted
+		ticket.publish(waitNext)
+		return ans, rel, nil
+	}
+
+	got, err := lim.StartMessage(ctx, prepared.Size())
+	if err != nil {
+		prepared.Abort()
+		ticket.publish(nil)
+		ticket.finish()
+		return nil, nil, err
+	}
+	var terminalOnce sync.Once
+	terminal = func(flowcontrol.MessageOutcomeKind, error) {
+		terminalOnce.Do(func() { got(); ticket.finish() })
+	}
+	phase = preparedCommitInProgress
+	ans, rel, err = prepared.Commit(terminal)
+	if err != nil {
+		prepared.Abort()
+		terminal(flowcontrol.MessageOutcomeAbortedBeforeEnqueue, err)
+		ticket.publish(nil)
+		return nil, nil, err
+	}
+	phase = preparedCommitted
+	ticket.publish(nil)
 	return ans, rel, nil
 }
 
