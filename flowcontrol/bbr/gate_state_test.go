@@ -3,9 +3,12 @@ package bbr
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"testing"
+	"time"
 
+	"capnproto.org/go/capnp/v3/exp/clock"
 	"capnproto.org/go/capnp/v3/flowcontrol"
 
 	"github.com/stretchr/testify/assert"
@@ -16,7 +19,7 @@ func TestGateStateAbortRemovesReservationAndPreservesSuffix(t *testing.T) {
 	a := g.commit(10)
 	b := g.commit(20)
 
-	assert.True(t, g.complete(a, flowcontrol.MessageOutcomeAbortedBeforeEnqueue, nil))
+	assert.Equal(t, gateActionUnsend, g.complete(a, flowcontrol.MessageOutcomeAbortedBeforeEnqueue, nil))
 	if assert.Len(t, g.reservations, 1) {
 		assert.Same(t, b, g.reservations[0])
 		assert.Equal(t, gateReservationProvisional, b.state)
@@ -47,8 +50,8 @@ func TestGateStateFatalPreservesFirstPoison(t *testing.T) {
 	b := g.commit(20)
 	first := errors.New("first")
 
-	assert.False(t, g.complete(a, flowcontrol.MessageOutcomeFatal, first))
-	assert.False(t, g.complete(b, flowcontrol.MessageOutcomeFailedAfterEnqueue, errors.New("second")))
+	assert.Equal(t, gateActionNone, g.complete(a, flowcontrol.MessageOutcomeFatal, first))
+	assert.Equal(t, gateActionNone, g.complete(b, flowcontrol.MessageOutcomeFailedAfterEnqueue, errors.New("second")))
 	assert.ErrorIs(t, g.poison, first)
 }
 
@@ -56,8 +59,8 @@ func TestGateStateTerminalCompletionIsIdempotent(t *testing.T) {
 	var g gateState
 	a := g.commit(10)
 
-	assert.True(t, g.complete(a, flowcontrol.MessageOutcomeAbortedBeforeEnqueue, nil))
-	assert.False(t, g.complete(a, flowcontrol.MessageOutcomeAbortedBeforeEnqueue, nil))
+	assert.Equal(t, gateActionUnsend, g.complete(a, flowcontrol.MessageOutcomeAbortedBeforeEnqueue, nil))
+	assert.Equal(t, gateActionNone, g.complete(a, flowcontrol.MessageOutcomeAbortedBeforeEnqueue, nil))
 	assert.Empty(t, g.reservations)
 }
 
@@ -65,20 +68,20 @@ func TestGateStateContradictoryTerminalOutcomeIsIgnored(t *testing.T) {
 	var g gateState
 	a := g.commit(10)
 
-	assert.False(t, g.complete(a, flowcontrol.MessageOutcomeSucceeded, nil))
-	assert.False(t, g.complete(a, flowcontrol.MessageOutcomeFatal, errors.New("late")))
+	assert.Equal(t, gateActionAck, g.complete(a, flowcontrol.MessageOutcomeSucceeded, nil))
+	assert.Equal(t, gateActionNone, g.complete(a, flowcontrol.MessageOutcomeFatal, errors.New("late")))
 	assert.NoError(t, g.poison)
-	assert.False(t, g.complete(a, flowcontrol.MessageOutcomeSucceeded, nil))
+	assert.Equal(t, gateActionNone, g.complete(a, flowcontrol.MessageOutcomeSucceeded, nil))
 }
 
 func TestGateStateNilAndPoisonedCompletionAreIdempotent(t *testing.T) {
 	var g gateState
-	assert.False(t, g.complete(nil, flowcontrol.MessageOutcomeFatal, errors.New("ignored")))
+	assert.Equal(t, gateActionNone, g.complete(nil, flowcontrol.MessageOutcomeFatal, errors.New("ignored")))
 
 	a := g.commit(10)
-	assert.False(t, g.complete(a, flowcontrol.MessageOutcomeFatal, nil))
+	assert.Equal(t, gateActionNone, g.complete(a, flowcontrol.MessageOutcomeFatal, nil))
 	assert.EqualError(t, g.poison, "bbr: gate-next poisoned")
-	assert.False(t, g.complete(a, flowcontrol.MessageOutcomeFatal, errors.New("late")))
+	assert.Equal(t, gateActionNone, g.complete(a, flowcontrol.MessageOutcomeFatal, errors.New("late")))
 	assert.EqualError(t, g.poison, "bbr: gate-next poisoned")
 }
 
@@ -86,10 +89,10 @@ func TestGateStateInvalidOutcomePoisonsReservation(t *testing.T) {
 	var g gateState
 	a := g.commit(10)
 
-	assert.False(t, g.complete(a, flowcontrol.MessageOutcomeUnknown, nil))
+	assert.Equal(t, gateActionNone, g.complete(a, flowcontrol.MessageOutcomeUnknown, nil))
 	assert.Equal(t, gateReservationPoisoned, a.state)
 	assert.EqualError(t, g.poison, "bbr: invalid gate-next terminal outcome")
-	assert.False(t, g.complete(a, flowcontrol.MessageOutcomeAbortedBeforeEnqueue, nil))
+	assert.Equal(t, gateActionNone, g.complete(a, flowcontrol.MessageOutcomeAbortedBeforeEnqueue, nil))
 	assert.Same(t, a, g.reservations[0])
 }
 
@@ -102,9 +105,9 @@ func TestGateEventsAreOwnedByLimiterActor(t *testing.T) {
 		return
 	}
 	assert.NotNil(t, a)
-	replay, err := lim.gateComplete(a, flowcontrol.MessageOutcomeAbortedBeforeEnqueue, nil)
+	action, err := lim.gateComplete(a, flowcontrol.MessageOutcomeAbortedBeforeEnqueue, nil)
 	assert.NoError(t, err)
-	assert.True(t, replay)
+	assert.Equal(t, gateActionUnsend, action)
 
 	lim.whilePaused(func() {
 		assert.Empty(t, lim.gate.reservations)
@@ -132,14 +135,14 @@ func TestGateEventsPoisonRejectsCommitAndReplay(t *testing.T) {
 		return
 	}
 	poison := errors.New("poison")
-	replay, err := lim.gateComplete(a, flowcontrol.MessageOutcomeFatal, poison)
+	action, err := lim.gateComplete(a, flowcontrol.MessageOutcomeFatal, poison)
 	assert.NoError(t, err)
-	assert.False(t, replay)
+	assert.Equal(t, gateActionNone, action)
 	_, err = lim.gateCommit(30)
 	assert.ErrorIs(t, err, poison)
-	replay, err = lim.gateComplete(b, flowcontrol.MessageOutcomeAbortedBeforeEnqueue, nil)
+	action, err = lim.gateComplete(b, flowcontrol.MessageOutcomeAbortedBeforeEnqueue, nil)
 	assert.NoError(t, err)
-	assert.False(t, replay)
+	assert.Equal(t, gateActionNone, action)
 }
 
 func TestGateEventsSerializeConcurrentCommits(t *testing.T) {
@@ -242,4 +245,99 @@ func TestGateFatalCompletionWakesWaitingAttempt(t *testing.T) {
 	_, err = lim.gateComplete(r, flowcontrol.MessageOutcomeFatal, poison)
 	assert.NoError(t, err)
 	assert.ErrorIs(t, <-a.result, poison)
+}
+
+func TestGateCommitChargesAndSuccessAcknowledgesBBR(t *testing.T) {
+	now := time.Unix(1, 0)
+	lim := newLimiterState(clock.NewManual(now), limiterOptions{})
+	commit := applyGateEvent(lim, now, gateEvent{kind: gateCommitEvent, size: 10})
+	r := commit.reservation
+	if !assert.NotNil(t, r) {
+		return
+	}
+	assert.Equal(t, uint64(10), r.packet.Size)
+	assert.Equal(t, now, r.packet.SendTime)
+	assert.Equal(t, uint64(10), lim.inflight())
+	assert.Equal(t, uint64(1), lim.packetsInflight)
+
+	ack := applyGateEvent(lim, now.Add(time.Millisecond), gateEvent{
+		kind:        gateCompleteEvent,
+		reservation: r,
+		outcome:     flowcontrol.MessageOutcomeSucceeded,
+	})
+	assert.Equal(t, gateActionAck, ack.action)
+	assert.Zero(t, lim.inflight())
+	assert.Zero(t, lim.packetsInflight)
+	assert.Equal(t, uint64(10), lim.delivered)
+}
+
+func TestGateAbortReversesOnlyOnWireAccounting(t *testing.T) {
+	now := time.Unix(1, 0)
+	lim := newLimiterState(clock.NewManual(now), limiterOptions{})
+	a := applyGateEvent(lim, now, gateEvent{kind: gateCommitEvent, size: 10}).reservation
+	b := applyGateEvent(lim, now, gateEvent{kind: gateCommitEvent, size: 20}).reservation
+	nextSendTime := lim.nextSendTime
+	pacingReady := lim.pacingReady
+	delivered := lim.delivered
+	stateType := fmt.Sprintf("%T", lim.state)
+
+	abort := applyGateEvent(lim, now, gateEvent{
+		kind:        gateCompleteEvent,
+		reservation: a,
+		outcome:     flowcontrol.MessageOutcomeAbortedBeforeEnqueue,
+	})
+	assert.Equal(t, gateActionUnsend, abort.action)
+	assert.Equal(t, uint64(20), lim.sent)
+	assert.Equal(t, uint64(1), lim.packetsInflight)
+	assert.Equal(t, uint64(20), lim.inflight())
+	assert.Equal(t, nextSendTime, lim.nextSendTime)
+	assert.Equal(t, pacingReady, lim.pacingReady)
+	assert.Equal(t, delivered, lim.delivered)
+	assert.Equal(t, stateType, fmt.Sprintf("%T", lim.state))
+	assert.Same(t, b, lim.gate.reservations[0])
+}
+
+func TestGateAbortOfLaterReservationDoesNotBreakEarlierAck(t *testing.T) {
+	now := time.Unix(1, 0)
+	lim := newLimiterState(clock.NewManual(now), limiterOptions{})
+	a := applyGateEvent(lim, now, gateEvent{kind: gateCommitEvent, size: 10}).reservation
+	b := applyGateEvent(lim, now, gateEvent{kind: gateCommitEvent, size: 20}).reservation
+
+	abort := applyGateEvent(lim, now, gateEvent{
+		kind:        gateCompleteEvent,
+		reservation: b,
+		outcome:     flowcontrol.MessageOutcomeAbortedBeforeEnqueue,
+	})
+	assert.Equal(t, gateActionUnsend, abort.action)
+	ack := applyGateEvent(lim, now.Add(time.Millisecond), gateEvent{
+		kind:        gateCompleteEvent,
+		reservation: a,
+		outcome:     flowcontrol.MessageOutcomeSucceeded,
+	})
+	assert.Equal(t, gateActionAck, ack.action)
+	assert.Zero(t, lim.inflight())
+	assert.Zero(t, lim.packetsInflight)
+	assert.Equal(t, uint64(10), lim.delivered)
+}
+
+func TestGateFatalDoesNotAcknowledgeOrUnsendBBR(t *testing.T) {
+	now := time.Unix(1, 0)
+	lim := newLimiterState(clock.NewManual(now), limiterOptions{})
+	r := applyGateEvent(lim, now, gateEvent{kind: gateCommitEvent, size: 10}).reservation
+	action := applyGateEvent(lim, now, gateEvent{
+		kind:        gateCompleteEvent,
+		reservation: r,
+		outcome:     flowcontrol.MessageOutcomeFatal,
+		err:         errors.New("fatal"),
+	}).action
+	assert.Equal(t, gateActionNone, action)
+	assert.Equal(t, uint64(10), lim.inflight())
+	assert.Equal(t, uint64(1), lim.packetsInflight)
+	assert.Zero(t, lim.delivered)
+}
+
+func applyGateEvent(lim *Limiter, now time.Time, event gateEvent) gateEventResult {
+	event.reply = make(chan gateEventResult, 1)
+	lim.handleGateEvent(now, event)
+	return <-event.reply
 }

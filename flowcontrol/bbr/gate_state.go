@@ -3,6 +3,7 @@ package bbr
 import (
 	"context"
 	"errors"
+	"time"
 
 	"capnproto.org/go/capnp/v3/flowcontrol"
 )
@@ -33,10 +34,22 @@ const (
 )
 
 type gateReservation struct {
-	id    uint64
-	size  uint64
-	state gateReservationState
+	id     uint64
+	size   uint64
+	state  gateReservationState
+	packet packetMeta
 }
+
+// gateCompleteAction tells the limiter actor which BBR lifecycle operation a
+// terminal reservation transition requires. gateState deliberately does not
+// mutate BBR state itself so it remains a timeless, actor-owned ledger.
+type gateCompleteAction uint8
+
+const (
+	gateActionNone gateCompleteAction = iota
+	gateActionAck
+	gateActionUnsend
+)
 
 type gateEventKind uint8
 
@@ -63,7 +76,8 @@ type gateEvent struct {
 
 type gateEventResult struct {
 	reservation *gateReservation
-	replay      bool
+	action      gateCompleteAction
+	granted     bool
 	err         error
 }
 
@@ -96,14 +110,14 @@ func (l *Limiter) gateCommit(size uint64) (*gateReservation, error) {
 	return result.reservation, err
 }
 
-func (l *Limiter) gateComplete(r *gateReservation, kind flowcontrol.MessageOutcomeKind, err error) (bool, error) {
+func (l *Limiter) gateComplete(r *gateReservation, kind flowcontrol.MessageOutcomeKind, err error) (gateCompleteAction, error) {
 	result, eventErr := l.gateEvent(gateEvent{
 		kind:        gateCompleteEvent,
 		reservation: r,
 		outcome:     kind,
 		err:         err,
 	})
-	return result.replay, eventErr
+	return result.action, eventErr
 }
 
 func (l *Limiter) gatePoison(err error) error {
@@ -175,7 +189,7 @@ func (l *Limiter) gateCancelWait(a *gateWaitAttempt, cancelErr error) error {
 // call the same actor transition once BBR's pacing/cwnd state permits it.
 func (l *Limiter) gateGrant(r *gateReservation) (bool, error) {
 	result, err := l.gateEvent(gateEvent{kind: gateGrantWaitEvent, reservation: r})
-	return result.replay, err
+	return result.granted, err
 }
 
 func (l *Limiter) gateEvent(event gateEvent) (gateEventResult, error) {
@@ -193,17 +207,24 @@ func (l *Limiter) gateEvent(event gateEvent) (gateEventResult, error) {
 	}
 }
 
-func (l *Limiter) handleGateEvent(event gateEvent) {
+func (l *Limiter) handleGateEvent(now time.Time, event gateEvent) {
 	var result gateEventResult
 	switch event.kind {
 	case gateCommitEvent:
 		if l.gate.poison == nil {
 			result.reservation = l.gate.commit(event.size)
+			result.reservation.packet = l.doSendAt(now, event.size)
 		} else {
 			result.err = l.gate.poison
 		}
 	case gateCompleteEvent:
-		result.replay = l.gate.complete(event.reservation, event.outcome, event.err)
+		result.action = l.gate.complete(event.reservation, event.outcome, event.err)
+		switch result.action {
+		case gateActionAck:
+			l.onAckAt(now, event.reservation.packet)
+		case gateActionUnsend:
+			l.unsend(event.reservation)
+		}
 		l.gate.failWaiters()
 	case gatePoisonEvent:
 		l.gate.poisonWith(event.err)
@@ -213,7 +234,7 @@ func (l *Limiter) handleGateEvent(event gateEvent) {
 	case gateCancelWaitEvent:
 		result.err = l.gate.cancelWait(event.waiter, event.err)
 	case gateGrantWaitEvent:
-		result.replay = l.gate.grantWait(event.reservation)
+		result.granted = l.gate.grantWait(event.reservation)
 	default:
 		l.gate.poisonWith(errors.New("bbr: invalid gate-next event"))
 		l.gate.failWaiters()
@@ -228,22 +249,22 @@ func (g *gateState) commit(size uint64) *gateReservation {
 	return r
 }
 
-// complete records one terminal outcome. It returns true only for a
-// definitely-unsent reservation, which tells the actor it must replay that
-// operation before admitting another successor. Other provisional reservations
-// remain in the ledger and must not be committed again.
-func (g *gateState) complete(r *gateReservation, kind flowcontrol.MessageOutcomeKind, err error) (replay bool) {
+// complete records one terminal outcome and returns the BBR lifecycle action
+// the owning limiter actor must apply. Other provisional reservations remain in
+// the ledger after an abort and must not be committed again.
+func (g *gateState) complete(r *gateReservation, kind flowcontrol.MessageOutcomeKind, err error) gateCompleteAction {
 	if g.poison != nil || r == nil || r.state != gateReservationProvisional {
-		return false
+		return gateActionNone
 	}
 	switch kind {
 	case flowcontrol.MessageOutcomeSucceeded:
 		r.state = gateReservationAcknowledged
 		g.compactAcknowledgedPrefix()
+		return gateActionAck
 	case flowcontrol.MessageOutcomeAbortedBeforeEnqueue:
 		r.state = gateReservationAborted
 		g.remove(r)
-		return true
+		return gateActionUnsend
 	case flowcontrol.MessageOutcomeFatal, flowcontrol.MessageOutcomeFailedAfterEnqueue:
 		r.state = gateReservationPoisoned
 		g.poisonWith(err)
@@ -251,7 +272,7 @@ func (g *gateState) complete(r *gateReservation, kind flowcontrol.MessageOutcome
 		r.state = gateReservationPoisoned
 		g.poisonWith(errors.New("bbr: invalid gate-next terminal outcome"))
 	}
-	return false
+	return gateActionNone
 }
 
 func (g *gateState) poisonWith(err error) {
