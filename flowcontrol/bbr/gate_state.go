@@ -34,10 +34,11 @@ const (
 )
 
 type gateReservation struct {
-	id     uint64
-	size   uint64
-	state  gateReservationState
-	packet packetMeta
+	id               uint64
+	size             uint64
+	state            gateReservationState
+	packet           packetMeta
+	successorGranted bool
 }
 
 // gateCompleteAction tells the limiter actor which BBR lifecycle operation a
@@ -292,8 +293,13 @@ func (g *gateState) registerWait(a *gateWaitAttempt) error {
 	if g.poison != nil {
 		return g.poison
 	}
-	if a.reservation.state != gateReservationProvisional && a.reservation.state != gateReservationAborted {
+	if a.reservation.state == gateReservationPoisoned {
 		return errors.New("bbr: gate-next permission is no longer available")
+	}
+	if a.reservation.successorGranted {
+		a.state = gateWaitGranted
+		a.result <- nil
+		return nil
 	}
 	for _, waiter := range g.waiters {
 		if waiter.reservation == a.reservation && waiter.state == gateWaitWaiting {
@@ -343,6 +349,7 @@ func (g *gateState) grantWait(r *gateReservation) bool {
 		}
 		g.removeWait(a)
 		a.state = gateWaitGranted
+		r.successorGranted = true
 		a.result <- nil
 		return true
 	}

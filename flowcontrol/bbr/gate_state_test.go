@@ -267,7 +267,7 @@ func TestGateWaitResultGrantWinsCanceledCaller(t *testing.T) {
 	assert.NoError(t, lim.gateWaitResult(ctx, a))
 }
 
-func TestGateWaitRegistrationRejectsDuplicateAndTerminalReservation(t *testing.T) {
+func TestGateWaitRegistrationRejectsDuplicateAndPoisonedReservation(t *testing.T) {
 	lim := NewLimiter(nil)
 	defer lim.Release()
 	r, err := lim.gateCommit(10)
@@ -283,10 +283,45 @@ func TestGateWaitRegistrationRejectsDuplicateAndTerminalReservation(t *testing.T
 	if !assert.NoError(t, err) {
 		return
 	}
-	_, err = lim.gateComplete(terminal, flowcontrol.MessageOutcomeSucceeded, nil)
+	fatal := errors.New("fatal")
+	_, err = lim.gateComplete(terminal, flowcontrol.MessageOutcomeFatal, fatal)
 	assert.NoError(t, err)
 	_, err = lim.gateStartWait(context.Background(), terminal)
-	assert.EqualError(t, err, "bbr: gate-next permission is no longer available")
+	assert.ErrorIs(t, err, fatal)
+}
+
+func TestGateWaitRemainsUsableAfterAcknowledgement(t *testing.T) {
+	lim := NewLimiter(nil)
+	defer lim.Release()
+	r, err := lim.gateCommit(10)
+	if !assert.NoError(t, err) {
+		return
+	}
+	_, err = lim.gateComplete(r, flowcontrol.MessageOutcomeSucceeded, nil)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	first, err := lim.gateStartWait(context.Background(), r)
+	if !assert.NoError(t, err) {
+		return
+	}
+	granted, err := lim.gateGrant(r)
+	assert.NoError(t, err)
+	assert.True(t, granted)
+	assert.NoError(t, <-first.result)
+
+	// Ticket forwarding may invoke the same published permission again after
+	// another caller won the grant. It must reuse that grant, not consume a
+	// second admission opportunity.
+	retry, err := lim.gateStartWait(context.Background(), r)
+	if !assert.NoError(t, err) {
+		return
+	}
+	assert.NoError(t, <-retry.result)
+	granted, err = lim.gateGrant(r)
+	assert.NoError(t, err)
+	assert.False(t, granted)
 }
 
 func TestGateGrantRejectsMissingAndPoisonedWaiter(t *testing.T) {
