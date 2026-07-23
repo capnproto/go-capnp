@@ -188,14 +188,30 @@ func (f *clientFlow) ticket(lim flowcontrol.FlowLimiter) *flowTicket {
 			}
 		}
 	}
-	g := f.gen
-	g.leases++
-	t := &flowTicket{prev: f.tail, ready: make(chan struct{}), flow: f, gen: g}
-	f.tail = t
+	t := f.ticketLocked()
 	f.mu.Unlock()
 	if release != nil {
 		release.Release()
 	}
+	return t
+}
+
+// ticketCurrent appends a ticket to the flow's current generation. It lets a
+// promised-answer handoff retain FIFO ordering after its source Client has
+// been released, without consulting that Client's state.
+func (f *clientFlow) ticketCurrent() *flowTicket {
+	f.mu.Lock()
+	t := f.ticketLocked()
+	f.mu.Unlock()
+	return t
+}
+
+// ticketLocked appends a ticket to f. The caller must hold f.mu.
+func (f *clientFlow) ticketLocked() *flowTicket {
+	g := f.gen
+	g.leases++
+	t := &flowTicket{prev: f.tail, ready: make(chan struct{}), flow: f, gen: g}
+	f.tail = t
 	return t
 }
 
@@ -246,6 +262,13 @@ func (t *flowTicket) await(ctx context.Context) error {
 	}
 	select {
 	case <-prev.ready:
+		// A replacement generation still waits for the old ticket to publish,
+		// preserving FIFO handoff order, but it must not call a retired
+		// limiter's GateNext permission.
+		if prev.gen != t.gen {
+			t.prev = nil
+			return nil
+		}
 		err := prev.wait(ctx)
 		if err == nil {
 			t.prev = nil
