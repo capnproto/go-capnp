@@ -247,6 +247,64 @@ func TestGateFatalCompletionWakesWaitingAttempt(t *testing.T) {
 	assert.ErrorIs(t, <-a.result, poison)
 }
 
+func TestGateWaitResultGrantWinsCanceledCaller(t *testing.T) {
+	lim := NewLimiter(nil)
+	defer lim.Release()
+	r, err := lim.gateCommit(10)
+	if !assert.NoError(t, err) {
+		return
+	}
+	a, err := lim.gateStartWait(context.Background(), r)
+	if !assert.NoError(t, err) {
+		return
+	}
+	granted, err := lim.gateGrant(r)
+	if !assert.NoError(t, err) || !assert.True(t, granted) {
+		return
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	assert.NoError(t, lim.gateWaitResult(ctx, a))
+}
+
+func TestGateWaitRegistrationRejectsDuplicateAndTerminalReservation(t *testing.T) {
+	lim := NewLimiter(nil)
+	defer lim.Release()
+	r, err := lim.gateCommit(10)
+	if !assert.NoError(t, err) {
+		return
+	}
+	_, err = lim.gateStartWait(context.Background(), r)
+	assert.NoError(t, err)
+	_, err = lim.gateStartWait(context.Background(), r)
+	assert.EqualError(t, err, "bbr: gate-next permission already has a waiter")
+
+	terminal, err := lim.gateCommit(20)
+	if !assert.NoError(t, err) {
+		return
+	}
+	_, err = lim.gateComplete(terminal, flowcontrol.MessageOutcomeSucceeded, nil)
+	assert.NoError(t, err)
+	_, err = lim.gateStartWait(context.Background(), terminal)
+	assert.EqualError(t, err, "bbr: gate-next permission is no longer available")
+}
+
+func TestGateGrantRejectsMissingAndPoisonedWaiter(t *testing.T) {
+	lim := NewLimiter(nil)
+	defer lim.Release()
+	r, err := lim.gateCommit(10)
+	if !assert.NoError(t, err) {
+		return
+	}
+	granted, err := lim.gateGrant(r)
+	assert.NoError(t, err)
+	assert.False(t, granted)
+	assert.NoError(t, lim.gatePoison(errors.New("poison")))
+	granted, err = lim.gateGrant(r)
+	assert.NoError(t, err)
+	assert.False(t, granted)
+}
+
 func TestGateCommitChargesAndSuccessAcknowledgesBBR(t *testing.T) {
 	now := time.Unix(1, 0)
 	lim := newLimiterState(clock.NewManual(now), limiterOptions{})

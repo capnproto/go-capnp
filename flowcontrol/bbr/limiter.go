@@ -232,7 +232,9 @@ func (l *Limiter) doSendAt(now time.Time, size uint64) packetMeta {
 // unsend reverses the on-wire accounting for a definitely-unsent GateNext
 // reservation. Pacing and filter state intentionally remain monotone: rolling
 // them back after later commits would be unreconstructable and less
-// conservative than leaving the existing pacing deadline in place.
+// conservative than leaving the existing pacing deadline in place. In
+// particular, a probeRTTState that captured sent before this reversal can stay
+// in probeRTT until later delivery crosses that conservative snapshot.
 func (l *Limiter) unsend(r *gateReservation) {
 	if r == nil || l.packetsInflight == 0 || r.size > l.sent-l.delivered {
 		panic("bbr: invalid gate-next unsend")
