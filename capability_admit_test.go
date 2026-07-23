@@ -125,9 +125,20 @@ func TestAdmitPreparedSendPublishesAfterCommit(t *testing.T) {
 	}
 
 	terminal(flowcontrol.MessageOutcomeSucceeded, nil)
+	terminal(flowcontrol.MessageOutcomeFatal, errors.New("duplicate terminal"))
 	completion := <-lim.gate.completions
 	if completion.kind != flowcontrol.MessageOutcomeSucceeded || completion.err != nil {
 		t.Fatalf("completion = %+v; want success", completion)
+	}
+	select {
+	case completion := <-lim.gate.completions:
+		t.Fatalf("duplicate completion = %+v", completion)
+	default:
+	}
+	select {
+	case <-lim.gate.waitCalled:
+		t.Fatal("successor invoked GateNext permission more than once")
+	default:
 	}
 	second.finish()
 	if release := flow.close(); release != lim {
@@ -169,6 +180,16 @@ func TestAdmitPreparedSendFailureRetiresBeforePublishing(t *testing.T) {
 		t.Fatalf("successor await() = %v; want nil", err)
 	}
 	<-lim.gate.waitCalled
+	select {
+	case completion := <-lim.gate.completions:
+		t.Fatalf("duplicate completion = %+v", completion)
+	default:
+	}
+	select {
+	case <-lim.gate.waitCalled:
+		t.Fatal("successor invoked GateNext permission more than once")
+	default:
+	}
 
 	second.finish()
 	if release := flow.close(); release != lim {
@@ -213,6 +234,16 @@ func TestAdmitPreparedSendPanicPoisonsAndPublishes(t *testing.T) {
 		t.Fatalf("successor await() = %v; want nil", err)
 	}
 	<-lim.gate.waitCalled
+	select {
+	case completion := <-lim.gate.completions:
+		t.Fatalf("duplicate completion = %+v", completion)
+	default:
+	}
+	select {
+	case <-lim.gate.waitCalled:
+		t.Fatal("successor invoked GateNext permission more than once")
+	default:
+	}
 
 	second.finish()
 	if release := flow.close(); release != lim {

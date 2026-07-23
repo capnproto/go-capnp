@@ -151,13 +151,14 @@ type limiterGeneration struct {
 }
 
 type flowTicket struct {
-	prev  *flowTicket
-	ready chan struct{}
-	wait  func(context.Context) error
-	once  sync.Once
-	done  sync.Once
-	flow  *clientFlow
-	gen   *limiterGeneration
+	prev       *flowTicket
+	ready      chan struct{}
+	wait       func(context.Context) error
+	forwarding bool
+	once       sync.Once
+	done       sync.Once
+	flow       *clientFlow
+	gen        *limiterGeneration
 }
 
 // streamTail is a completion prefix: closing it means every stream call
@@ -255,28 +256,45 @@ func (t *flowTicket) publish(wait func(context.Context) error) {
 	t.once.Do(func() { t.wait = wait; close(t.ready) })
 }
 
+// abandon publishes a forwarding ticket. A successor must walk through a
+// forwarding ticket to preserve the abandoned call's FIFO position.
+func (t *flowTicket) abandon() {
+	t.once.Do(func() {
+		t.forwarding = true
+		t.wait = t.forward
+		close(t.ready)
+	})
+}
+
 func (t *flowTicket) await(ctx context.Context) error {
 	prev := t.prev
-	if prev == nil {
-		return nil
-	}
-	select {
-	case <-prev.ready:
-		// A replacement generation still waits for the old ticket to publish,
-		// preserving FIFO handoff order, but it must not call a retired
-		// limiter's GateNext permission.
-		if prev.gen != t.gen {
-			t.prev = nil
-			return nil
+	for prev != nil {
+		select {
+		case <-prev.ready:
+			// Abandoned tickets publish before their predecessors have cleared.
+			// Walk through them so their transitive FIFO position is preserved.
+			if prev.forwarding {
+				prev = prev.prev
+				continue
+			}
+			// A replacement generation still waits for the old ticket to
+			// publish, preserving FIFO handoff order, but it must not call a
+			// retired limiter's GateNext permission.
+			if prev.gen != t.gen {
+				t.prev = nil
+				return nil
+			}
+			err := prev.wait(ctx)
+			if err == nil {
+				t.prev = nil
+			}
+			return err
+		case <-ctx.Done():
+			return ctx.Err()
 		}
-		err := prev.wait(ctx)
-		if err == nil {
-			t.prev = nil
-		}
-		return err
-	case <-ctx.Done():
-		return ctx.Err()
 	}
+	t.prev = nil
+	return nil
 }
 
 // forward preserves FIFO admission when this ticket is abandoned before it
@@ -580,13 +598,13 @@ func (c Client) sendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc, err
 	}
 	defer func() {
 		if r := recover(); r != nil {
-			ticket.publish(ticket.forward)
+			ticket.abandon()
 			ticket.finish()
 			panic(r)
 		}
 	}()
 	if err := ticket.await(ctx); err != nil {
-		ticket.publish(ticket.forward)
+		ticket.abandon()
 		ticket.finish()
 		return nil, nil, err
 	}

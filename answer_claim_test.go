@@ -6,11 +6,26 @@ import (
 
 type testAdmissionPipelineCaller struct {
 	dummyPipelineCaller
+	token pipelineAdmissionToken
 }
 
-func (*testAdmissionPipelineCaller) pipelineAdmissionController() {}
+func (c *testAdmissionPipelineCaller) pipelineAdmissionToken() *pipelineAdmissionToken {
+	return &c.token
+}
 
 var _ pipelineAdmissionController = (*testAdmissionPipelineCaller)(nil)
+
+type nonComparableAdmissionPipelineCaller struct {
+	dummyPipelineCaller
+	token *pipelineAdmissionToken
+	data  []byte
+}
+
+func (c nonComparableAdmissionPipelineCaller) pipelineAdmissionToken() *pipelineAdmissionToken {
+	return c.token
+}
+
+var _ pipelineAdmissionController = nonComparableAdmissionPipelineCaller{}
 
 func TestPromisePipelineCallClaimDrainsOnce(t *testing.T) {
 	caller := new(testAdmissionPipelineCaller)
@@ -74,4 +89,18 @@ func TestPromisePipelineCallClaimReportsResolutionState(t *testing.T) {
 			t.Fatalf("claim after resolution = (%v, %v); want nil, resolved", claim, state)
 		}
 	})
+}
+
+func TestPromisePipelineCallClaimSupportsNonComparableController(t *testing.T) {
+	caller := nonComparableAdmissionPipelineCaller{
+		token: new(pipelineAdmissionToken),
+		data:  []byte{1},
+	}
+	p := NewPromise(Method{}, caller, nil)
+	claim, state := p.claimPipelineCall(caller)
+	if state != pipelineUnresolved || claim == nil {
+		t.Fatalf("claimPipelineCall = (%v, %v); want non-nil, unresolved", claim, state)
+	}
+	claim.Done()
+	p.Resolve(Ptr{}, nil)
 }

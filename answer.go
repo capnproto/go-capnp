@@ -267,8 +267,10 @@ type PipelineCaller interface {
 // predecessor's permission without holding Promise resolution open.
 type pipelineAdmissionController interface {
 	PipelineCaller
-	pipelineAdmissionController()
+	pipelineAdmissionToken() *pipelineAdmissionToken
 }
+
+type pipelineAdmissionToken struct{ _ byte }
 
 // pipelineResolutionState reports the result of a late pipeline-call claim.
 // A caller that loses the claim because resolution has begun must use the
@@ -304,7 +306,8 @@ func (p *Promise) claimPipelineCall(expected pipelineAdmissionController) (*pipe
 	s := l.Value()
 	if s.isUnresolved() {
 		current, ok := s.caller.(pipelineAdmissionController)
-		if !ok || current != expected {
+		expectedToken := expected.pipelineAdmissionToken()
+		if !ok || expectedToken == nil || current.pipelineAdmissionToken() != expectedToken {
 			panic("pipeline call claimed by non-current controller")
 		}
 		s.ongoingCalls++
