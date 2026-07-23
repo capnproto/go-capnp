@@ -262,8 +262,7 @@ type PipelineCaller interface {
 // before delegating a pipelined send. It is private so only the capnp package
 // can opt into the late-claim protocol.
 //
-// The marker is intentionally dormant until the admitted RPC pipeline wrapper
-// is installed. Keeping the protocol private lets that wrapper wait for a
+// Keeping the protocol private lets the RPC admission wrapper wait for a
 // predecessor's permission without holding Promise resolution open.
 type pipelineAdmissionController interface {
 	PipelineCaller

@@ -283,7 +283,6 @@ func (t *flowTicket) publish(wait func(context.Context) error) {
 func (t *flowTicket) abandon() {
 	t.once.Do(func() {
 		t.forwarding = true
-		t.wait = t.forward
 		close(t.ready)
 	})
 }
@@ -317,12 +316,6 @@ func (t *flowTicket) await(ctx context.Context) error {
 	}
 	t.prev = nil
 	return nil
-}
-
-// forward preserves FIFO admission when this ticket is abandoned before it
-// consumes its predecessor's gate.
-func (t *flowTicket) forward(ctx context.Context) error {
-	return t.await(ctx)
 }
 
 func (t *flowTicket) finish() {
@@ -764,9 +757,9 @@ func (c Client) sendCallWithTicket(ctx context.Context, s Send, ticket *flowTick
 // predecessor's permission. The ticket's successor is published only after
 // enqueueing, or after the reservation has been retired on a local failure.
 //
-// This helper is shared by direct prepared sends today and by the promised
-// pipeline admission wrapper once that wrapper is installed. It deliberately
-// leaves legacy ClientHook.Send behavior in sendCall unchanged.
+// This helper is shared by direct prepared sends and promised pipeline
+// admission. It deliberately leaves legacy ClientHook.Send behavior in
+// sendCall unchanged.
 func admitPreparedSend(ctx context.Context, ticket *flowTicket, prepared PreparedSend) (ans *Answer, rel ReleaseFunc, err error) {
 	const (
 		preparedBeforeReservation = iota
