@@ -12,9 +12,9 @@ import (
 // its sole production owner.
 //
 // A reservation is provisional until it is acknowledged. A definitely-unsent
-// operation is removed from the active log so the actor can replay the suffix;
-// fatal completion preserves the first poison error and makes the controller
-// terminal.
+// operation is removed from the active log and reports replay to the actor;
+// surviving successors remain valid provisional entries. Fatal completion
+// preserves the first poison error and makes the controller terminal.
 type gateState struct {
 	nextID       uint64
 	reservations []*gateReservation
@@ -44,8 +44,9 @@ func (g *gateState) commit(size uint64) *gateReservation {
 }
 
 // complete records one terminal outcome. It returns true only for a
-// definitely-unsent reservation, which tells the actor it must rebuild its
-// provisional suffix before admitting another successor.
+// definitely-unsent reservation, which tells the actor it must replay that
+// operation before admitting another successor. Other provisional reservations
+// remain in the ledger and must not be committed again.
 func (g *gateState) complete(r *gateReservation, kind flowcontrol.MessageOutcomeKind, err error) (replay bool) {
 	if r == nil || r.state != gateReservationProvisional {
 		return false

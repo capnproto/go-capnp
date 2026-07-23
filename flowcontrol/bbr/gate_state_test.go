@@ -59,12 +59,34 @@ func TestGateStateTerminalCompletionIsIdempotent(t *testing.T) {
 	assert.Empty(t, g.reservations)
 }
 
+func TestGateStateContradictoryTerminalOutcomeIsIgnored(t *testing.T) {
+	var g gateState
+	a := g.commit(10)
+
+	assert.False(t, g.complete(a, flowcontrol.MessageOutcomeSucceeded, nil))
+	assert.False(t, g.complete(a, flowcontrol.MessageOutcomeFatal, errors.New("late")))
+	assert.NoError(t, g.poison)
+	assert.False(t, g.complete(a, flowcontrol.MessageOutcomeSucceeded, nil))
+}
+
+func TestGateStateNilAndPoisonedCompletionAreIdempotent(t *testing.T) {
+	var g gateState
+	assert.False(t, g.complete(nil, flowcontrol.MessageOutcomeFatal, errors.New("ignored")))
+
+	a := g.commit(10)
+	assert.False(t, g.complete(a, flowcontrol.MessageOutcomeFatal, nil))
+	assert.EqualError(t, g.poison, "bbr: gate-next poisoned")
+	assert.False(t, g.complete(a, flowcontrol.MessageOutcomeFatal, errors.New("late")))
+	assert.EqualError(t, g.poison, "bbr: gate-next poisoned")
+}
+
 func TestGateStateInvalidOutcomePoisonsReservation(t *testing.T) {
 	var g gateState
 	a := g.commit(10)
 
 	assert.False(t, g.complete(a, flowcontrol.MessageOutcomeUnknown, nil))
 	assert.Equal(t, gateReservationPoisoned, a.state)
+	assert.EqualError(t, g.poison, "bbr: invalid gate-next terminal outcome")
 	assert.False(t, g.complete(a, flowcontrol.MessageOutcomeAbortedBeforeEnqueue, nil))
 	assert.Same(t, a, g.reservations[0])
 }
