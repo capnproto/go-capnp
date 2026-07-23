@@ -1,6 +1,7 @@
 package bbr
 
 import (
+	"context"
 	"errors"
 
 	"capnproto.org/go/capnp/v3/flowcontrol"
@@ -18,6 +19,7 @@ import (
 type gateState struct {
 	nextID       uint64
 	reservations []*gateReservation
+	waiters      []*gateWaitAttempt
 	poison       error
 }
 
@@ -42,6 +44,9 @@ const (
 	gateCommitEvent gateEventKind = iota
 	gateCompleteEvent
 	gatePoisonEvent
+	gateWaitEvent
+	gateCancelWaitEvent
+	gateGrantWaitEvent
 )
 
 // gateEvent is private actor traffic. Its reply channel is buffered so the
@@ -53,12 +58,34 @@ type gateEvent struct {
 	outcome     flowcontrol.MessageOutcomeKind
 	err         error
 	reply       chan gateEventResult
+	waiter      *gateWaitAttempt
 }
 
 type gateEventResult struct {
 	reservation *gateReservation
 	replay      bool
 	err         error
+}
+
+type gateWaitState uint8
+
+const (
+	gateWaitWaiting gateWaitState = iota
+	gateWaitGranted
+	gateWaitCanceled
+	gateWaitFailed
+)
+
+// gateWaitAttempt represents one invocation of a retryable successor
+// permission. The actor alone changes state or sends result.
+type gateWaitAttempt struct {
+	reservation *gateReservation
+	state       gateWaitState
+	result      chan error
+}
+
+func newGateWaitAttempt(r *gateReservation) *gateWaitAttempt {
+	return &gateWaitAttempt{reservation: r, result: make(chan error, 1)}
 }
 
 func (l *Limiter) gateCommit(size uint64) (*gateReservation, error) {
@@ -82,6 +109,73 @@ func (l *Limiter) gateComplete(r *gateReservation, kind flowcontrol.MessageOutco
 func (l *Limiter) gatePoison(err error) error {
 	_, eventErr := l.gateEvent(gateEvent{kind: gatePoisonEvent, err: err})
 	return eventErr
+}
+
+// gateWait waits for one successor permission. Cancellation is resolved by
+// the actor: a canceled attempt is removed without consuming permission, while
+// a grant that won the race is returned as success.
+func (l *Limiter) gateWait(ctx context.Context, r *gateReservation) error {
+	a, err := l.gateStartWait(ctx, r)
+	if err != nil {
+		return err
+	}
+	return l.gateWaitResult(ctx, a)
+}
+
+func (l *Limiter) gateStartWait(ctx context.Context, r *gateReservation) (*gateWaitAttempt, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	a := newGateWaitAttempt(r)
+	event := gateEvent{kind: gateWaitEvent, waiter: a, reply: make(chan gateEventResult, 1)}
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-l.ctx.Done():
+		return nil, l.ctx.Err()
+	case l.chGate <- event:
+	}
+	select {
+	case result := <-event.reply:
+		if result.err != nil {
+			return nil, result.err
+		}
+	case <-ctx.Done():
+		return nil, l.gateCancelWait(a, ctx.Err())
+	case <-l.ctx.Done():
+		return nil, l.ctx.Err()
+	}
+	return a, nil
+}
+
+func (l *Limiter) gateWaitResult(ctx context.Context, a *gateWaitAttempt) error {
+	select {
+	case err := <-a.result:
+		return err
+	case <-ctx.Done():
+		return l.gateCancelWait(a, ctx.Err())
+	case <-l.ctx.Done():
+		return l.ctx.Err()
+	}
+}
+
+func (l *Limiter) gateCancelWait(a *gateWaitAttempt, cancelErr error) error {
+	result, err := l.gateEvent(gateEvent{
+		kind:   gateCancelWaitEvent,
+		waiter: a,
+		err:    cancelErr,
+	})
+	if err != nil {
+		return err
+	}
+	return result.err
+}
+
+// gateGrant is a private deterministic test seam. Production admission will
+// call the same actor transition once BBR's pacing/cwnd state permits it.
+func (l *Limiter) gateGrant(r *gateReservation) (bool, error) {
+	result, err := l.gateEvent(gateEvent{kind: gateGrantWaitEvent, reservation: r})
+	return result.replay, err
 }
 
 func (l *Limiter) gateEvent(event gateEvent) (gateEventResult, error) {
@@ -110,10 +204,19 @@ func (l *Limiter) handleGateEvent(event gateEvent) {
 		}
 	case gateCompleteEvent:
 		result.replay = l.gate.complete(event.reservation, event.outcome, event.err)
+		l.gate.failWaiters()
 	case gatePoisonEvent:
 		l.gate.poisonWith(event.err)
+		l.gate.failWaiters()
+	case gateWaitEvent:
+		result.err = l.gate.registerWait(event.waiter)
+	case gateCancelWaitEvent:
+		result.err = l.gate.cancelWait(event.waiter, event.err)
+	case gateGrantWaitEvent:
+		result.replay = l.gate.grantWait(event.reservation)
 	default:
 		l.gate.poisonWith(errors.New("bbr: invalid gate-next event"))
+		l.gate.failWaiters()
 	}
 	event.reply <- result
 }
@@ -159,6 +262,97 @@ func (g *gateState) poisonWith(err error) {
 		err = errors.New("bbr: gate-next poisoned")
 	}
 	g.poison = err
+}
+
+func (g *gateState) registerWait(a *gateWaitAttempt) error {
+	if a == nil || a.reservation == nil {
+		return errors.New("bbr: invalid gate-next wait")
+	}
+	if g.poison != nil {
+		return g.poison
+	}
+	if a.reservation.state != gateReservationProvisional && a.reservation.state != gateReservationAborted {
+		return errors.New("bbr: gate-next permission is no longer available")
+	}
+	for _, waiter := range g.waiters {
+		if waiter.reservation == a.reservation && waiter.state == gateWaitWaiting {
+			return errors.New("bbr: gate-next permission already has a waiter")
+		}
+	}
+	g.waiters = append(g.waiters, a)
+	return nil
+}
+
+func (g *gateState) cancelWait(a *gateWaitAttempt, err error) error {
+	if a == nil {
+		return errors.New("bbr: invalid gate-next wait")
+	}
+	switch a.state {
+	case gateWaitWaiting:
+		g.removeWait(a)
+		a.state = gateWaitCanceled
+		if err == nil {
+			err = context.Canceled
+		}
+		a.result <- err
+		return err
+	case gateWaitGranted:
+		return nil
+	case gateWaitCanceled:
+		return err
+	case gateWaitFailed:
+		if g.poison != nil {
+			return g.poison
+		}
+		return errors.New("bbr: gate-next wait failed")
+	default:
+		panic("bbr: invalid gate-next wait state")
+	}
+}
+
+// grantWait grants at most one retryable successor permission. The bool result
+// means a waiter was granted; it does not request reservation replay.
+func (g *gateState) grantWait(r *gateReservation) bool {
+	if g.poison != nil || r == nil {
+		return false
+	}
+	for _, a := range g.waiters {
+		if a.reservation != r || a.state != gateWaitWaiting {
+			continue
+		}
+		g.removeWait(a)
+		a.state = gateWaitGranted
+		a.result <- nil
+		return true
+	}
+	return false
+}
+
+func (g *gateState) failWaiters() {
+	if g.poison == nil {
+		return
+	}
+	for len(g.waiters) > 0 {
+		a := g.waiters[0]
+		g.removeWait(a)
+		if a.state != gateWaitWaiting {
+			continue
+		}
+		a.state = gateWaitFailed
+		a.result <- g.poison
+	}
+}
+
+func (g *gateState) removeWait(a *gateWaitAttempt) {
+	for i, waiter := range g.waiters {
+		if waiter != a {
+			continue
+		}
+		copy(g.waiters[i:], g.waiters[i+1:])
+		g.waiters[len(g.waiters)-1] = nil
+		g.waiters = g.waiters[:len(g.waiters)-1]
+		return
+	}
 }
 
 func (g *gateState) remove(r *gateReservation) {

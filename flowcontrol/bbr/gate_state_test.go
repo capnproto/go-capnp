@@ -185,3 +185,61 @@ func TestGateEventsInvalidKindPoisonsLedger(t *testing.T) {
 		assert.EqualError(t, lim.gate.poison, "bbr: invalid gate-next event")
 	})
 }
+
+func TestGateWaitCancellationDoesNotConsumePermission(t *testing.T) {
+	lim := NewLimiter(nil)
+	defer lim.Release()
+	r, err := lim.gateCommit(10)
+	if !assert.NoError(t, err) {
+		return
+	}
+	a, err := lim.gateStartWait(context.Background(), r)
+	if !assert.NoError(t, err) {
+		return
+	}
+	cancelErr := errors.New("canceled")
+	assert.ErrorIs(t, lim.gateCancelWait(a, cancelErr), cancelErr)
+	assert.ErrorIs(t, <-a.result, cancelErr)
+
+	retry, err := lim.gateStartWait(context.Background(), r)
+	if !assert.NoError(t, err) {
+		return
+	}
+	granted, err := lim.gateGrant(r)
+	assert.NoError(t, err)
+	assert.True(t, granted)
+	assert.NoError(t, <-retry.result)
+}
+
+func TestGatePoisonWakesWaitingAttempt(t *testing.T) {
+	lim := NewLimiter(nil)
+	defer lim.Release()
+	r, err := lim.gateCommit(10)
+	if !assert.NoError(t, err) {
+		return
+	}
+	a, err := lim.gateStartWait(context.Background(), r)
+	if !assert.NoError(t, err) {
+		return
+	}
+	poison := errors.New("poison")
+	assert.NoError(t, lim.gatePoison(poison))
+	assert.ErrorIs(t, <-a.result, poison)
+}
+
+func TestGateFatalCompletionWakesWaitingAttempt(t *testing.T) {
+	lim := NewLimiter(nil)
+	defer lim.Release()
+	r, err := lim.gateCommit(10)
+	if !assert.NoError(t, err) {
+		return
+	}
+	a, err := lim.gateStartWait(context.Background(), r)
+	if !assert.NoError(t, err) {
+		return
+	}
+	poison := errors.New("fatal")
+	_, err = lim.gateComplete(r, flowcontrol.MessageOutcomeFatal, poison)
+	assert.NoError(t, err)
+	assert.ErrorIs(t, <-a.result, poison)
+}
