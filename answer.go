@@ -298,12 +298,13 @@ func (c *pipelineCallClaim) Done() {
 // Promise. A successful claim increments ongoingCalls; callers must defer
 // claim.Done. Once resolution has started, no claim is made and the returned
 // state tells the caller whether to wait for or use the resolved target.
-func (p *Promise) claimPipelineCall(expected PipelineCaller) (*pipelineCallClaim, pipelineResolutionState) {
+func (p *Promise) claimPipelineCall(expected pipelineAdmissionController) (*pipelineCallClaim, pipelineResolutionState) {
 	l := p.state.Lock()
 	defer l.Unlock()
 	s := l.Value()
 	if s.isUnresolved() {
-		if s.caller != expected {
+		current, ok := s.caller.(pipelineAdmissionController)
+		if !ok || current != expected {
 			panic("pipeline call claimed by non-current controller")
 		}
 		s.ongoingCalls++
