@@ -62,6 +62,7 @@ func (g *gateState) complete(r *gateReservation, kind flowcontrol.MessageOutcome
 		r.state = gateReservationPoisoned
 		g.poisonWith(err)
 	default:
+		r.state = gateReservationPoisoned
 		g.poisonWith(errors.New("bbr: invalid gate-next terminal outcome"))
 	}
 	return false

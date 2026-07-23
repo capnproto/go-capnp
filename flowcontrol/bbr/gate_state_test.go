@@ -58,3 +58,13 @@ func TestGateStateTerminalCompletionIsIdempotent(t *testing.T) {
 	assert.False(t, g.complete(a, flowcontrol.MessageOutcomeAbortedBeforeEnqueue, nil))
 	assert.Empty(t, g.reservations)
 }
+
+func TestGateStateInvalidOutcomePoisonsReservation(t *testing.T) {
+	var g gateState
+	a := g.commit(10)
+
+	assert.False(t, g.complete(a, flowcontrol.MessageOutcomeUnknown, nil))
+	assert.Equal(t, gateReservationPoisoned, a.state)
+	assert.False(t, g.complete(a, flowcontrol.MessageOutcomeAbortedBeforeEnqueue, nil))
+	assert.Same(t, a, g.reservations[0])
+}
