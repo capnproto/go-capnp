@@ -1,6 +1,7 @@
 package bbr
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -89,4 +90,31 @@ func TestGateStateInvalidOutcomePoisonsReservation(t *testing.T) {
 	assert.EqualError(t, g.poison, "bbr: invalid gate-next terminal outcome")
 	assert.False(t, g.complete(a, flowcontrol.MessageOutcomeAbortedBeforeEnqueue, nil))
 	assert.Same(t, a, g.reservations[0])
+}
+
+func TestGateEventsAreOwnedByLimiterActor(t *testing.T) {
+	lim := NewLimiter(nil)
+	defer lim.Release()
+
+	a, err := lim.gateCommit(10)
+	if !assert.NoError(t, err) {
+		return
+	}
+	assert.NotNil(t, a)
+	replay, err := lim.gateComplete(a, flowcontrol.MessageOutcomeAbortedBeforeEnqueue, nil)
+	assert.NoError(t, err)
+	assert.True(t, replay)
+
+	lim.whilePaused(func() {
+		assert.Empty(t, lim.gate.reservations)
+	})
+}
+
+func TestGateEventsFailAfterLimiterRelease(t *testing.T) {
+	lim := NewLimiter(nil)
+	lim.Release()
+	<-lim.done
+
+	_, err := lim.gateCommit(10)
+	assert.ErrorIs(t, err, context.Canceled)
 }

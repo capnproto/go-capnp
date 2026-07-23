@@ -36,6 +36,82 @@ type gateReservation struct {
 	state gateReservationState
 }
 
+type gateEventKind uint8
+
+const (
+	gateCommitEvent gateEventKind = iota
+	gateCompleteEvent
+	gatePoisonEvent
+)
+
+// gateEvent is private actor traffic. Its reply channel is buffered so the
+// actor never waits for a caller that has observed limiter shutdown.
+type gateEvent struct {
+	kind        gateEventKind
+	size        uint64
+	reservation *gateReservation
+	outcome     flowcontrol.MessageOutcomeKind
+	err         error
+	reply       chan gateEventResult
+}
+
+type gateEventResult struct {
+	reservation *gateReservation
+	replay      bool
+}
+
+func (l *Limiter) gateCommit(size uint64) (*gateReservation, error) {
+	result, err := l.gateEvent(gateEvent{kind: gateCommitEvent, size: size})
+	return result.reservation, err
+}
+
+func (l *Limiter) gateComplete(r *gateReservation, kind flowcontrol.MessageOutcomeKind, err error) (bool, error) {
+	result, eventErr := l.gateEvent(gateEvent{
+		kind:        gateCompleteEvent,
+		reservation: r,
+		outcome:     kind,
+		err:         err,
+	})
+	return result.replay, eventErr
+}
+
+func (l *Limiter) gatePoison(err error) error {
+	_, eventErr := l.gateEvent(gateEvent{kind: gatePoisonEvent, err: err})
+	return eventErr
+}
+
+func (l *Limiter) gateEvent(event gateEvent) (gateEventResult, error) {
+	event.reply = make(chan gateEventResult, 1)
+	select {
+	case <-l.ctx.Done():
+		return gateEventResult{}, l.ctx.Err()
+	case l.chGate <- event:
+	}
+	select {
+	case <-l.ctx.Done():
+		return gateEventResult{}, l.ctx.Err()
+	case result := <-event.reply:
+		return result, nil
+	}
+}
+
+func (l *Limiter) handleGateEvent(event gateEvent) {
+	var result gateEventResult
+	switch event.kind {
+	case gateCommitEvent:
+		if l.gate.poison == nil {
+			result.reservation = l.gate.commit(event.size)
+		}
+	case gateCompleteEvent:
+		result.replay = l.gate.complete(event.reservation, event.outcome, event.err)
+	case gatePoisonEvent:
+		l.gate.poisonWith(event.err)
+	default:
+		l.gate.poisonWith(errors.New("bbr: invalid gate-next event"))
+	}
+	event.reply <- result
+}
+
 func (g *gateState) commit(size uint64) *gateReservation {
 	g.nextID++
 	r := &gateReservation{id: g.nextID, size: size}

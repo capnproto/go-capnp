@@ -188,6 +188,8 @@ func (l *Limiter) run(ctx context.Context) {
 			event = limiterEvent{kind: limiterSendEvent, size: req.size}
 			replyChan = req.replyChan
 			handleEvent = true
+		case gateEvent := <-l.chGate:
+			l.handleGateEvent(gateEvent)
 		case <-l.chPause:
 			paused = true
 		}
@@ -304,6 +306,11 @@ type Limiter struct {
 
 	// Private test seam for deterministic ProbeBW initialization.
 	randInt func() int
+
+	// Private actor-owned GateNext reservation ledger. It is not exposed until
+	// the capnp admission surface is complete.
+	gate   gateState
+	chGate chan gateEvent
 }
 
 // For testing purpoes; temporarily pauses the goroutine managing the limiter,
@@ -361,6 +368,7 @@ func newLimiterState(clk clock.Clock, options limiterOptions) *Limiter {
 
 		chSend: make(chan sendRequest),
 		chAck:  make(chan packetMeta),
+		chGate: make(chan gateEvent),
 
 		rtPropFilter: newRtPropFilter(),
 		btlBwFilter:  newBtlBwFilter(),
