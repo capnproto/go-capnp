@@ -207,6 +207,28 @@ func (f *clientFlow) ticketCurrent() *flowTicket {
 	return t
 }
 
+func (f *clientFlow) handoff(origin *flowTicket, lim flowcontrol.FlowLimiter) (ticket *flowTicket, release flowcontrol.FlowLimiter) {
+	f.mu.Lock()
+	if f.gen == nil || f.gen.limiter != lim {
+		old := f.gen
+		f.gen = &limiterGeneration{limiter: lim}
+		if old != nil {
+			old.retired = true
+			if old.leases == 0 && !old.released {
+				release = old.limiter
+				old.released = true
+			}
+		}
+	}
+	if origin != nil && origin.flow == f && origin.gen == f.gen {
+		ticket = origin
+	} else {
+		ticket = f.ticketLocked()
+	}
+	f.mu.Unlock()
+	return ticket, release
+}
+
 // ticketLocked appends a ticket to f. The caller must hold f.mu.
 func (f *clientFlow) ticketLocked() *flowTicket {
 	g := f.gen
@@ -519,6 +541,33 @@ func (c Client) newFlowTicket() *flowTicket {
 	})
 }
 
+// handoffFlowTicket acquires the resolved target's FIFO position before the
+// origin position is published. When both positions are the same flow
+// generation, the origin ticket itself is reused.
+func (c Client) handoffFlowTicket(origin *flowTicket) *flowTicket {
+	var (
+		ticket  *flowTicket
+		release flowcontrol.FlowLimiter
+	)
+	c.state.With(func(s *clientState) {
+		if s.released {
+			return
+		}
+		lim := s.limiter
+		if lim == nil {
+			lim = flowcontrol.NopLimiter
+		}
+		if s.flow == nil {
+			s.flow = newClientFlow(lim)
+		}
+		ticket, release = s.flow.handoff(origin, lim)
+	})
+	if release != nil {
+		release.Release()
+	}
+	return ticket
+}
+
 // Update the flowcontrol.FlowLimiter used to manage flow control for
 // this client. This affects all future calls, but not calls already
 // waiting to send. Passing nil sets the value to flowcontrol.NopLimiter,
@@ -576,12 +625,33 @@ func (c Client) SendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc) {
 // sendCall returns a synchronous error only for a prepared send that did not
 // enqueue anything. The legacy hook path remains source-compatible.
 func (c Client) sendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc, error) {
+	return c.sendCallWithTicket(ctx, s, nil)
+}
+
+// sendCallWithTicket is sendCall with an optional FIFO position acquired by a
+// promised-answer handoff. It owns ticket on entry.
+func (c Client) sendCallWithTicket(ctx context.Context, s Send, ticket *flowTicket) (*Answer, ReleaseFunc, error) {
+	discardTicket := func() {
+		if ticket != nil {
+			ticket.abandon()
+			ticket.finish()
+		}
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			discardTicket()
+			panic(r)
+		}
+	}()
+
 	h, _, released := c.startCall()
 	defer h.Release()
 	if released {
+		discardTicket()
 		return nil, nil, errors.New("call on released client")
 	}
 	if h == nil {
+		discardTicket()
 		return nil, nil, errors.New("call on null client")
 	}
 
@@ -590,19 +660,15 @@ func (c Client) sendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc, err
 	})
 
 	if err != nil {
+		discardTicket()
 		return nil, nil, exc.WrapError("stream error", err)
 	}
-	ticket := c.newFlowTicket()
 	if ticket == nil {
-		return nil, nil, errors.New("call on released client")
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			ticket.abandon()
-			ticket.finish()
-			panic(r)
+		ticket = c.newFlowTicket()
+		if ticket == nil {
+			return nil, nil, errors.New("call on released client")
 		}
-	}()
+	}
 	if err := ticket.await(ctx); err != nil {
 		ticket.abandon()
 		ticket.finish()
@@ -615,7 +681,7 @@ func (c Client) sendCall(ctx context.Context, s Send) (*Answer, ReleaseFunc, err
 	if p, ok := h.Value().ClientHook.(ClientHookPreparer); ok {
 		prepared, err := p.PrepareSend(ctx, s)
 		if err != nil {
-			ticket.publish(nil)
+			ticket.abandon()
 			ticket.finish()
 			return nil, nil, err
 		}
@@ -716,7 +782,7 @@ func admitPreparedSend(ctx context.Context, ticket *flowTicket, prepared Prepare
 			switch phase {
 			case preparedBeforeReservation:
 				prepared.Abort()
-				ticket.publish(nil)
+				ticket.abandon()
 				ticket.finish()
 			case preparedCommitInProgress:
 				// Commit may have enqueued before panicking, so the reservation
@@ -749,6 +815,7 @@ func admitPreparedSend(ctx context.Context, ticket *flowTicket, prepared Prepare
 			return nil, nil, err
 		}
 		phase = preparedCommitted
+		installPipelineAdmission(ans, ticket.flow)
 		ticket.publish(waitNext)
 		return ans, rel, nil
 	}
@@ -756,7 +823,7 @@ func admitPreparedSend(ctx context.Context, ticket *flowTicket, prepared Prepare
 	got, err := lim.StartMessage(ctx, prepared.Size())
 	if err != nil {
 		prepared.Abort()
-		ticket.publish(nil)
+		ticket.abandon()
 		ticket.finish()
 		return nil, nil, err
 	}
@@ -773,9 +840,141 @@ func admitPreparedSend(ctx context.Context, ticket *flowTicket, prepared Prepare
 		return nil, nil, err
 	}
 	phase = preparedCommitted
+	installPipelineAdmission(ans, ticket.flow)
 	ticket.publish(nil)
 	return ans, rel, nil
 }
+
+// admittedPipelineCaller waits for its origin flow's predecessor before it
+// claims an unresolved Promise. It intentionally does not implement
+// PipelineCallerPreparer: Answer must not bypass this admission path.
+type admittedPipelineCaller struct {
+	promise    *Promise
+	flow       *clientFlow
+	underlying PipelineCaller
+	preparer   PipelineCallerPreparer
+	token      pipelineAdmissionToken
+}
+
+func (c *admittedPipelineCaller) pipelineAdmissionToken() *pipelineAdmissionToken {
+	return &c.token
+}
+
+func (c *admittedPipelineCaller) PipelineSend(ctx context.Context, transform []PipelineOp, s Send) (*Answer, ReleaseFunc) {
+	return c.pipelineSendWithTicket(ctx, transform, s, c.pipelineTicket())
+}
+
+func (c *admittedPipelineCaller) pipelineTicket() *flowTicket {
+	return c.flow.ticketCurrent()
+}
+
+func (c *admittedPipelineCaller) pipelineSendWithTicket(ctx context.Context, transform []PipelineOp, s Send, ticket *flowTicket) (*Answer, ReleaseFunc) {
+	ans, rel, err := c.pipelineSend(ctx, transform, s, ticket)
+	if err != nil {
+		return ErrorAnswer(s.Method, err), func() {}
+	}
+	return ans, rel
+}
+
+func (c *admittedPipelineCaller) pipelineSend(ctx context.Context, transform []PipelineOp, s Send, ticket *flowTicket) (ans *Answer, rel ReleaseFunc, err error) {
+	ownedTicket := ticket
+	defer func() {
+		if r := recover(); r != nil {
+			if ownedTicket != nil {
+				ownedTicket.abandon()
+				ownedTicket.finish()
+			}
+			panic(r)
+		}
+	}()
+	if err := ticket.await(ctx); err != nil {
+		ticket.abandon()
+		ticket.finish()
+		ownedTicket = nil
+		return nil, nil, err
+	}
+
+	claim, state := c.promise.claimPipelineCall(c)
+	if claim != nil {
+		defer claim.Done()
+		prepared, err := c.preparer.PreparePipelineSend(ctx, transform, s)
+		if err != nil {
+			ticket.abandon()
+			ticket.finish()
+			ownedTicket = nil
+			return nil, nil, err
+		}
+		ownedTicket = nil
+		return admitPreparedSend(ctx, ticket, prepared)
+	}
+
+	if state == pipelinePendingResolution {
+		select {
+		case <-c.promise.resolved:
+		case <-ctx.Done():
+			ticket.abandon()
+			ticket.finish()
+			ownedTicket = nil
+			return nil, nil, ctx.Err()
+		}
+	}
+	l := c.promise.state.Lock()
+	if !l.Value().isResolved() {
+		l.Unlock()
+		panic("pipeline admission handoff before resolution")
+	}
+	res := l.Value().resolution(c.promise.method)
+	l.Unlock()
+	target := res.client(transform)
+	targetTicket := target.handoffFlowTicket(ticket)
+	if targetTicket == nil {
+		ticket.abandon()
+		ticket.finish()
+		ownedTicket = nil
+		return nil, nil, errors.New("call on released client")
+	}
+	if targetTicket != ticket {
+		ownedTicket = targetTicket
+		ticket.abandon()
+		ticket.finish()
+	}
+	ownedTicket = nil
+	return target.sendCallWithTicket(ctx, s, targetTicket)
+}
+
+// PipelineRecv remains ungated because it may run on an RPC connection's
+// receive goroutine; waiting there can deadlock the Return that opens a gate.
+func (c *admittedPipelineCaller) PipelineRecv(ctx context.Context, transform []PipelineOp, r Recv) PipelineCaller {
+	return c.underlying.PipelineRecv(ctx, transform, r)
+}
+
+func installPipelineAdmission(ans *Answer, flow *clientFlow) {
+	if ans == nil || ans.f.promise == nil || flow == nil {
+		return
+	}
+	p := ans.f.promise
+	p.state.With(func(s *promiseState) {
+		if !s.isUnresolved() {
+			return
+		}
+		if _, ok := s.caller.(pipelineAdmissionController); ok {
+			return
+		}
+		preparer, ok := s.caller.(PipelineCallerPreparer)
+		if !ok {
+			return
+		}
+		s.caller = &admittedPipelineCaller{
+			promise:    p,
+			flow:       flow,
+			underlying: s.caller,
+			preparer:   preparer,
+		}
+	})
+}
+
+var _ pipelineAdmissionController = (*admittedPipelineCaller)(nil)
+var _ pipelineAdmissionSender = (*admittedPipelineCaller)(nil)
 
 // SendStreamCall is like SendCall except that:
 //

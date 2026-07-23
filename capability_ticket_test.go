@@ -74,6 +74,29 @@ func TestFlowTicketAwaitSameGenerationUsesPredecessorGate(t *testing.T) {
 	lim.Release()
 }
 
+func TestClientFlowHandoffReusesSameGenerationTicket(t *testing.T) {
+	lim := new(ticketTestLimiter)
+	flow := newClientFlow(lim)
+	origin := flow.ticketCurrent()
+
+	ticket, release := flow.handoff(origin, lim)
+	if ticket != origin {
+		t.Fatalf("handoff ticket = %p; want origin %p", ticket, origin)
+	}
+	if release != nil {
+		t.Fatalf("handoff released limiter %v", release)
+	}
+	if got := origin.gen.leases; got != 1 {
+		t.Fatalf("generation leases = %d; want 1", got)
+	}
+
+	origin.finish()
+	if release := flow.close(); release != lim {
+		t.Fatalf("close release = %v; want limiter", release)
+	}
+	lim.Release()
+}
+
 func TestFlowTicketAwaitCrossGenerationOnlyWaitsForPublication(t *testing.T) {
 	old := new(ticketTestLimiter)
 	replacement := new(ticketTestLimiter)
