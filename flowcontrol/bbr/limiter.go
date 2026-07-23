@@ -188,6 +188,8 @@ func (l *Limiter) run(ctx context.Context) {
 			event = limiterEvent{kind: limiterSendEvent, size: req.size}
 			replyChan = req.replyChan
 			handleEvent = true
+		case gateEvent := <-l.chGate:
+			l.handleGateEvent(l.clock.Now(), gateEvent)
 		case <-l.chPause:
 			paused = true
 		}
@@ -225,6 +227,20 @@ func (l *Limiter) doSendAt(now time.Time, size uint64) packetMeta {
 	))
 	l.sent += size
 	return p
+}
+
+// unsend reverses the on-wire accounting for a definitely-unsent GateNext
+// reservation. Pacing and filter state intentionally remain monotone: rolling
+// them back after later commits would be unreconstructable and less
+// conservative than leaving the existing pacing deadline in place. In
+// particular, a probeRTTState that captured sent before this reversal can stay
+// in probeRTT until later delivery crosses that conservative snapshot.
+func (l *Limiter) unsend(r *gateReservation) {
+	if r == nil || l.packetsInflight == 0 || r.size > l.sent-l.delivered {
+		panic("bbr: invalid gate-next unsend")
+	}
+	l.packetsInflight--
+	l.sent -= r.size
 }
 
 // A Limiter implements flowcontrol.FlowLimiter using the BBR algorithm.
@@ -304,6 +320,11 @@ type Limiter struct {
 
 	// Private test seam for deterministic ProbeBW initialization.
 	randInt func() int
+
+	// Private actor-owned GateNext reservation ledger. It is not exposed until
+	// the capnp admission surface is complete.
+	gate   gateState
+	chGate chan gateEvent
 }
 
 // For testing purpoes; temporarily pauses the goroutine managing the limiter,
@@ -361,6 +382,7 @@ func newLimiterState(clk clock.Clock, options limiterOptions) *Limiter {
 
 		chSend: make(chan sendRequest),
 		chAck:  make(chan packetMeta),
+		chGate: make(chan gateEvent),
 
 		rtPropFilter: newRtPropFilter(),
 		btlBwFilter:  newBtlBwFilter(),
