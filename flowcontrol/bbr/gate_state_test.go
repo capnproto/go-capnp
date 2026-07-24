@@ -267,7 +267,7 @@ func TestGateWaitResultGrantWinsCanceledCaller(t *testing.T) {
 	assert.NoError(t, lim.gateWaitResult(ctx, a))
 }
 
-func TestGateWaitRegistrationRejectsDuplicateAndTerminalReservation(t *testing.T) {
+func TestGateWaitRegistrationRejectsDuplicateAndPoisonedReservation(t *testing.T) {
 	lim := NewLimiter(nil)
 	defer lim.Release()
 	r, err := lim.gateCommit(10)
@@ -283,10 +283,161 @@ func TestGateWaitRegistrationRejectsDuplicateAndTerminalReservation(t *testing.T
 	if !assert.NoError(t, err) {
 		return
 	}
-	_, err = lim.gateComplete(terminal, flowcontrol.MessageOutcomeSucceeded, nil)
+	fatal := errors.New("fatal")
+	_, err = lim.gateComplete(terminal, flowcontrol.MessageOutcomeFatal, fatal)
 	assert.NoError(t, err)
 	_, err = lim.gateStartWait(context.Background(), terminal)
-	assert.EqualError(t, err, "bbr: gate-next permission is no longer available")
+	assert.ErrorIs(t, err, fatal)
+}
+
+func TestGateWaitRemainsUsableAfterAcknowledgement(t *testing.T) {
+	lim := NewLimiter(nil)
+	defer lim.Release()
+	r, err := lim.gateCommit(10)
+	if !assert.NoError(t, err) {
+		return
+	}
+	_, err = lim.gateComplete(r, flowcontrol.MessageOutcomeSucceeded, nil)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	first, err := lim.gateStartWait(context.Background(), r)
+	if !assert.NoError(t, err) {
+		return
+	}
+	assert.NoError(t, <-first.result)
+	granted, err := lim.gateGrant(r)
+	assert.NoError(t, err)
+	assert.False(t, granted)
+
+	// Ticket forwarding may invoke the same published permission again after
+	// another caller won the grant. It must reuse that grant, not consume a
+	// second admission opportunity.
+	retry, err := lim.gateStartWait(context.Background(), r)
+	if !assert.NoError(t, err) {
+		return
+	}
+	assert.NoError(t, <-retry.result)
+	granted, err = lim.gateGrant(r)
+	assert.NoError(t, err)
+	assert.False(t, granted)
+}
+
+func TestGateControllerIsStable(t *testing.T) {
+	lim := NewLimiter(nil)
+	defer lim.Release()
+
+	assert.Same(t, lim.GateNext(), lim.GateNext())
+}
+
+func TestGatePendingGrantClosesWindowAndConvertsAtCommit(t *testing.T) {
+	now := time.Unix(1, 0)
+	lim := newLimiterState(clock.NewManual(now), limiterOptions{})
+	lim.maxPacketsInflight = 1
+	first := applyGateEvent(lim, now, gateEvent{kind: gateCommitEvent, size: 10}).reservation
+	waiter := newGateWaitAttempt(first)
+	registered := applyGateEvent(lim, now, gateEvent{kind: gateWaitEvent, waiter: waiter})
+	if !assert.NoError(t, registered.err) {
+		return
+	}
+	assert.False(t, lim.prepareStep(now).acceptSend)
+
+	ack := applyGateEvent(lim, now.Add(time.Millisecond), gateEvent{
+		kind:        gateCompleteEvent,
+		reservation: first,
+		outcome:     flowcontrol.MessageOutcomeSucceeded,
+	})
+	assert.Equal(t, gateActionAck, ack.action)
+	assert.True(t, lim.prepareStep(now.Add(time.Millisecond)).acceptSend)
+	assert.True(t, lim.gate.grantNextWait())
+	assert.NoError(t, <-waiter.result)
+	assert.Len(t, lim.gate.pendingGrants, 1)
+	assert.False(t, lim.prepareStep(now.Add(time.Millisecond)).acceptSend)
+
+	second := applyGateEvent(lim, now.Add(time.Millisecond), gateEvent{
+		kind: gateCommitEvent,
+		size: 20,
+	}).reservation
+	assert.NotNil(t, second)
+	assert.Empty(t, lim.gate.pendingGrants)
+	assert.True(t, first.successorUsed)
+	assert.Equal(t, uint64(20), lim.inflight())
+	assert.Equal(t, uint64(1), lim.packetsInflight)
+}
+
+func TestGateProductionGrantWaitsForOpenWindow(t *testing.T) {
+	lim := NewLimiter(nil)
+	defer lim.Release()
+	lim.whilePaused(func() {
+		lim.maxPacketsInflight = 1
+	})
+	r, err := lim.gateCommit(10)
+	if !assert.NoError(t, err) {
+		return
+	}
+	waiter, err := lim.gateStartWait(context.Background(), r)
+	if !assert.NoError(t, err) {
+		return
+	}
+	select {
+	case err := <-waiter.result:
+		t.Fatalf("gate granted with a full packet window: %v", err)
+	default:
+	}
+
+	_, err = lim.gateComplete(r, flowcontrol.MessageOutcomeSucceeded, nil)
+	assert.NoError(t, err)
+	assert.NoError(t, <-waiter.result)
+}
+
+func TestGateDefinitelyUnsentReplaysAndWakesSuccessor(t *testing.T) {
+	lim := NewLimiter(nil)
+	defer lim.Release()
+	lim.whilePaused(func() {
+		lim.maxPacketsInflight = 1
+	})
+	r, err := lim.gateCommit(10)
+	if !assert.NoError(t, err) {
+		return
+	}
+	waiter, err := lim.gateStartWait(context.Background(), r)
+	if !assert.NoError(t, err) {
+		return
+	}
+	select {
+	case err := <-waiter.result:
+		t.Fatalf("gate granted with a full packet window: %v", err)
+	default:
+	}
+
+	action, err := lim.gateComplete(r, flowcontrol.MessageOutcomeAbortedBeforeEnqueue, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, gateActionUnsend, action)
+	assert.NoError(t, <-waiter.result)
+
+	next, err := lim.gateCommit(20)
+	assert.NoError(t, err)
+	assert.NotNil(t, next)
+	lim.whilePaused(func() {
+		assert.Empty(t, lim.gate.pendingGrants)
+		assert.Equal(t, uint64(20), lim.inflight())
+		assert.Equal(t, uint64(1), lim.packetsInflight)
+	})
+}
+
+func TestGateControllerWaitSurvivesCompletionBeforeRegistration(t *testing.T) {
+	lim := NewLimiter(nil)
+	defer lim.Release()
+	controller := lim.GateNext()
+	waitNext, complete := controller.CommitMessage(10)
+	complete(flowcontrol.MessageOutcomeSucceeded, nil)
+
+	assert.NoError(t, waitNext(context.Background()))
+	assert.NoError(t, waitNext(context.Background()))
+
+	_, completeNext := controller.CommitMessage(20)
+	completeNext(flowcontrol.MessageOutcomeAbortedBeforeEnqueue, nil)
 }
 
 func TestGateGrantRejectsMissingAndPoisonedWaiter(t *testing.T) {

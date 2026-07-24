@@ -17,11 +17,15 @@ type gateCompletion struct {
 type testGateController struct {
 	waitCalled  chan struct{}
 	completions chan gateCompletion
+	wait        func(context.Context) error
 }
 
 func (g *testGateController) CommitMessage(uint64) (func(context.Context) error, func(flowcontrol.MessageOutcomeKind, error)) {
-	return func(context.Context) error {
+	return func(ctx context.Context) error {
 			g.waitCalled <- struct{}{}
+			if g.wait != nil {
+				return g.wait(ctx)
+			}
 			return nil
 		}, func(kind flowcontrol.MessageOutcomeKind, err error) {
 			g.completions <- gateCompletion{kind: kind, err: err}
@@ -66,6 +70,24 @@ func (p *testPreparedSend) abortCount() int {
 }
 
 var _ PreparedSend = (*testPreparedSend)(nil)
+
+type testPipelinePreparer struct {
+	dummyPipelineCaller
+	prepared PreparedSend
+	called   chan struct{}
+}
+
+func (p *testPipelinePreparer) PreparePipelineSend(_ context.Context, _ []PipelineOp, s Send) (PreparedSend, error) {
+	close(p.called)
+	if s.PlaceArgs != nil {
+		if err := s.PlaceArgs(Struct{}); err != nil {
+			return nil, err
+		}
+	}
+	return p.prepared, nil
+}
+
+var _ PipelineCallerPreparer = (*testPipelinePreparer)(nil)
 
 func newTestGateLimiter() *testGateLimiter {
 	return &testGateLimiter{
@@ -141,6 +163,151 @@ func TestAdmitPreparedSendPublishesAfterCommit(t *testing.T) {
 	default:
 	}
 	second.finish()
+	if release := flow.close(); release != lim {
+		t.Fatalf("close release = %v; want limiter", release)
+	}
+	lim.Release()
+}
+
+func TestAdmittedPipelineSendWaitsBeforePreparation(t *testing.T) {
+	grant := make(chan struct{})
+	lim := newTestGateLimiter()
+	lim.gate.wait = func(ctx context.Context) error {
+		select {
+		case <-grant:
+			return nil
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	flow := newClientFlow(lim)
+	parentTicket := flow.ticketCurrent()
+
+	childDone := make(chan func(flowcontrol.MessageOutcomeKind, error), 1)
+	childPrepared := &testPreparedSend{
+		size: 1,
+		commit: func(terminal func(flowcontrol.MessageOutcomeKind, error)) (*Answer, ReleaseFunc, error) {
+			childDone <- terminal
+			return ImmediateAnswer(Method{}, Ptr{}), func() {}, nil
+		},
+	}
+	preparer := &testPipelinePreparer{
+		prepared: childPrepared,
+		called:   make(chan struct{}),
+	}
+	parentPromise := NewPromise(Method{}, preparer, nil)
+	parentDone := make(chan func(flowcontrol.MessageOutcomeKind, error), 1)
+	parentPrepared := &testPreparedSend{
+		size: 1,
+		commit: func(terminal func(flowcontrol.MessageOutcomeKind, error)) (*Answer, ReleaseFunc, error) {
+			parentDone <- terminal
+			return parentPromise.Answer(), func() {}, nil
+		},
+	}
+	if _, _, err := admitPreparedSend(context.Background(), parentTicket, parentPrepared); err != nil {
+		t.Fatalf("admit parent = %v", err)
+	}
+
+	l := parentPromise.state.Lock()
+	current := l.Value().caller
+	l.Unlock()
+	if _, ok := current.(*admittedPipelineCaller); !ok {
+		t.Fatalf("parent caller = %T; want *admittedPipelineCaller", current)
+	}
+	if _, ok := current.(PipelineCallerPreparer); ok {
+		t.Fatal("admitted pipeline caller implements PipelineCallerPreparer")
+	}
+
+	placeArgs := make(chan struct{})
+	callDone := make(chan *Answer, 1)
+	go func() {
+		ans, _ := parentPromise.Answer().PipelineSend(context.Background(), nil, Send{
+			PlaceArgs: func(Struct) error {
+				close(placeArgs)
+				return nil
+			},
+		})
+		callDone <- ans
+	}()
+	<-lim.gate.waitCalled
+	select {
+	case <-preparer.called:
+		t.Fatal("prepared pipeline call behind a closed gate")
+	default:
+	}
+	select {
+	case <-placeArgs:
+		t.Fatal("called PlaceArgs behind a closed gate")
+	default:
+	}
+
+	close(grant)
+	<-preparer.called
+	<-placeArgs
+	if ans := <-callDone; ans == nil {
+		t.Fatal("PipelineSend returned a nil Answer")
+	}
+
+	(<-childDone)(flowcontrol.MessageOutcomeSucceeded, nil)
+	(<-parentDone)(flowcontrol.MessageOutcomeSucceeded, nil)
+	parentPromise.Resolve(Ptr{}, nil)
+	if release := flow.close(); release != lim {
+		t.Fatalf("close release = %v; want limiter", release)
+	}
+	lim.Release()
+}
+
+func TestAdmittedPipelineWaitDoesNotBlockResolution(t *testing.T) {
+	grant := make(chan struct{})
+	lim := newTestGateLimiter()
+	lim.gate.wait = func(ctx context.Context) error {
+		select {
+		case <-grant:
+			return nil
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	flow := newClientFlow(lim)
+	parentTicket := flow.ticketCurrent()
+	waitNext, complete := lim.gate.CommitMessage(1)
+	parentTicket.publish(waitNext)
+
+	preparer := &testPipelinePreparer{
+		prepared: &testPreparedSend{
+			size: 1,
+			commit: func(func(flowcontrol.MessageOutcomeKind, error)) (*Answer, ReleaseFunc, error) {
+				t.Fatal("prepared unresolved route after Promise rejection")
+				return nil, nil, nil
+			},
+		},
+		called: make(chan struct{}),
+	}
+	p := NewPromise(Method{}, preparer, nil)
+	installPipelineAdmission(p.Answer(), flow)
+
+	callDone := make(chan *Answer, 1)
+	go func() {
+		ans, _ := p.Answer().PipelineSend(context.Background(), nil, Send{})
+		callDone <- ans
+	}()
+	<-lim.gate.waitCalled
+
+	resolvedErr := errors.New("resolved while gated")
+	p.Reject(resolvedErr)
+	close(grant)
+	ans := <-callDone
+	if _, err := ans.Struct(); !errors.Is(err, resolvedErr) {
+		t.Fatalf("pipelined call after resolution = %v; want %v", err, resolvedErr)
+	}
+	select {
+	case <-preparer.called:
+		t.Fatal("used unresolved preparer after Promise resolution won")
+	default:
+	}
+
+	complete(flowcontrol.MessageOutcomeSucceeded, nil)
+	parentTicket.finish()
 	if release := flow.close(); release != lim {
 		t.Fatalf("close release = %v; want limiter", release)
 	}

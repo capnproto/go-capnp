@@ -262,12 +262,17 @@ type PipelineCaller interface {
 // before delegating a pipelined send. It is private so only the capnp package
 // can opt into the late-claim protocol.
 //
-// The marker is intentionally dormant until the admitted RPC pipeline wrapper
-// is installed. Keeping the protocol private lets that wrapper wait for a
+// Keeping the protocol private lets the RPC admission wrapper wait for a
 // predecessor's permission without holding Promise resolution open.
 type pipelineAdmissionController interface {
 	PipelineCaller
 	pipelineAdmissionToken() *pipelineAdmissionToken
+}
+
+type pipelineAdmissionSender interface {
+	pipelineAdmissionController
+	pipelineTicket() *flowTicket
+	pipelineSendWithTicket(context.Context, []PipelineOp, Send, *flowTicket) (*Answer, ReleaseFunc)
 }
 
 type pipelineAdmissionToken struct{ _ byte }
@@ -402,6 +407,18 @@ func (ans *Answer) PipelineSend(ctx context.Context, transform []PipelineOp, s S
 	switch {
 	case l.Value().isUnresolved():
 		caller := l.Value().caller
+		if admitted, ok := caller.(pipelineAdmissionSender); ok {
+			// Keep resolution from retiring the origin limiter during the
+			// brief ticket acquisition. The potentially blocking gate wait
+			// happens only after this admission has been released.
+			l.Value().ongoingCalls++
+			l.Unlock()
+			ticket := func() *flowTicket {
+				defer p.pipelineCallDone()
+				return admitted.pipelineTicket()
+			}()
+			return admitted.pipelineSendWithTicket(ctx, transform, s, ticket)
+		}
 		l.Value().ongoingCalls++
 		l.Unlock()
 		defer p.pipelineCallDone()

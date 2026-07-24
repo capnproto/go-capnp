@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"capnproto.org/go/capnp/v3/exp/clock"
+	"capnproto.org/go/capnp/v3/flowcontrol"
 )
 
 // A packetMeta contains metadata about a packet that was sent.
@@ -94,6 +95,11 @@ func (l *Limiter) computeBDP() float64 {
 func (l *Limiter) prepareStep(now time.Time) limiterWait {
 	bdp := l.computeBDP()
 
+	// A granted GateNext successor has reserved the next packet admission but
+	// cannot be byte-charged until preparation reveals its final size.
+	if len(l.gate.pendingGrants) > 0 {
+		return limiterWait{}
+	}
 	if l.inflight() == 0 {
 		// With nothing on the wire there is no ACK that can unblock an
 		// inaccurate initial pacing estimate, so always accept a send.
@@ -149,6 +155,9 @@ func (l *Limiter) run(ctx context.Context) {
 
 		now := l.clock.Now()
 		wait := l.prepareStep(now)
+		if wait.acceptSend && l.gate.grantNextWait() {
+			continue
+		}
 		if wait.acceptSend {
 			sendReqs = l.chSend
 		} else if wait.hasDeadline {
@@ -321,10 +330,10 @@ type Limiter struct {
 	// Private test seam for deterministic ProbeBW initialization.
 	randInt func() int
 
-	// Private actor-owned GateNext reservation ledger. It is not exposed until
-	// the capnp admission surface is complete.
-	gate   gateState
-	chGate chan gateEvent
+	// Private actor-owned GateNext reservation ledger and stable facade.
+	gate           gateState
+	gateController *gateController
+	chGate         chan gateEvent
 }
 
 // For testing purpoes; temporarily pauses the goroutine managing the limiter,
@@ -353,6 +362,13 @@ func (l *Limiter) inflight() uint64 {
 func NewLimiter(clk clock.Clock) *Limiter {
 	return newLimiter(clk, limiterOptions{randInt: rand.Int})
 }
+
+// GateNext returns the stable successor-admission controller owned by l.
+func (l *Limiter) GateNext() flowcontrol.GateNextController {
+	return l.gateController
+}
+
+var _ flowcontrol.GateNextFlowLimiter = (*Limiter)(nil)
 
 type limiterOptions struct {
 	randInt func() int
@@ -397,6 +413,7 @@ func newLimiterState(clk clock.Clock, options limiterOptions) *Limiter {
 		done:    make(chan struct{}),
 		randInt: options.randInt,
 	}
+	l.gateController = &gateController{limiter: l}
 	l.changeState(&startupState{}, now)
 	return l
 }

@@ -3,6 +3,7 @@ package bbr
 import (
 	"context"
 	"errors"
+	"sync"
 	"time"
 
 	"capnproto.org/go/capnp/v3/flowcontrol"
@@ -18,10 +19,11 @@ import (
 // surviving successors remain valid provisional entries. Fatal completion
 // preserves the first poison error and makes the controller terminal.
 type gateState struct {
-	nextID       uint64
-	reservations []*gateReservation
-	waiters      []*gateWaitAttempt
-	poison       error
+	nextID        uint64
+	reservations  []*gateReservation
+	waiters       []*gateWaitAttempt
+	pendingGrants []*gateReservation
+	poison        error
 }
 
 type gateReservationState uint8
@@ -34,10 +36,12 @@ const (
 )
 
 type gateReservation struct {
-	id     uint64
-	size   uint64
-	state  gateReservationState
-	packet packetMeta
+	id               uint64
+	size             uint64
+	state            gateReservationState
+	packet           packetMeta
+	successorGranted bool
+	successorUsed    bool
 }
 
 // gateCompleteAction tells the limiter actor which BBR lifecycle operation a
@@ -124,6 +128,38 @@ func (l *Limiter) gatePoison(err error) error {
 	_, eventErr := l.gateEvent(gateEvent{kind: gatePoisonEvent, err: err})
 	return eventErr
 }
+
+// gateController is the stable GateNext facade for one Limiter actor.
+type gateController struct {
+	limiter *Limiter
+}
+
+func (c *gateController) CommitMessage(size uint64) (func(context.Context) error, func(flowcontrol.MessageOutcomeKind, error)) {
+	r, err := c.limiter.gateCommit(size)
+	if err != nil {
+		return func(ctx context.Context) error {
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return ctxErr
+			}
+			return err
+		}, func(flowcontrol.MessageOutcomeKind, error) {}
+	}
+
+	var completeOnce sync.Once
+	return func(ctx context.Context) error {
+			return c.limiter.gateWait(ctx, r)
+		}, func(kind flowcontrol.MessageOutcomeKind, err error) {
+			completeOnce.Do(func() {
+				_, _ = c.limiter.gateComplete(r, kind, err)
+			})
+		}
+}
+
+func (c *gateController) Poison(err error) {
+	_ = c.limiter.gatePoison(err)
+}
+
+var _ flowcontrol.GateNextController = (*gateController)(nil)
 
 // gateWait waits for one successor permission. Cancellation is resolved by
 // the actor: a canceled attempt is removed without consuming permission, while
@@ -212,6 +248,7 @@ func (l *Limiter) handleGateEvent(now time.Time, event gateEvent) {
 	switch event.kind {
 	case gateCommitEvent:
 		if l.gate.poison == nil {
+			l.gate.consumePendingGrant()
 			result.reservation = l.gate.commit(event.size)
 			result.reservation.packet = l.doSendAt(now, event.size)
 		} else {
@@ -225,9 +262,13 @@ func (l *Limiter) handleGateEvent(now time.Time, event gateEvent) {
 		case gateActionUnsend:
 			l.unsend(event.reservation)
 		}
+		if l.gate.poison != nil {
+			l.gate.dropPendingGrants()
+		}
 		l.gate.failWaiters()
 	case gatePoisonEvent:
 		l.gate.poisonWith(event.err)
+		l.gate.dropPendingGrants()
 		l.gate.failWaiters()
 	case gateWaitEvent:
 		result.err = l.gate.registerWait(event.waiter)
@@ -237,6 +278,7 @@ func (l *Limiter) handleGateEvent(now time.Time, event gateEvent) {
 		result.granted = l.gate.grantWait(event.reservation)
 	default:
 		l.gate.poisonWith(errors.New("bbr: invalid gate-next event"))
+		l.gate.dropPendingGrants()
 		l.gate.failWaiters()
 	}
 	event.reply <- result
@@ -292,8 +334,16 @@ func (g *gateState) registerWait(a *gateWaitAttempt) error {
 	if g.poison != nil {
 		return g.poison
 	}
-	if a.reservation.state != gateReservationProvisional && a.reservation.state != gateReservationAborted {
+	if a.reservation.state == gateReservationPoisoned {
 		return errors.New("bbr: gate-next permission is no longer available")
+	}
+	if a.reservation.successorUsed {
+		return errors.New("bbr: gate-next permission is no longer available")
+	}
+	if a.reservation.successorGranted {
+		a.state = gateWaitGranted
+		a.result <- nil
+		return nil
 	}
 	for _, waiter := range g.waiters {
 		if waiter.reservation == a.reservation && waiter.state == gateWaitWaiting {
@@ -343,10 +393,44 @@ func (g *gateState) grantWait(r *gateReservation) bool {
 		}
 		g.removeWait(a)
 		a.state = gateWaitGranted
+		r.successorGranted = true
+		g.pendingGrants = append(g.pendingGrants, r)
 		a.result <- nil
 		return true
 	}
 	return false
+}
+
+// grantNextWait grants one actor-queued successor when admission is open.
+func (g *gateState) grantNextWait() bool {
+	for _, a := range g.waiters {
+		if a.state == gateWaitWaiting && g.grantWait(a.reservation) {
+			return true
+		}
+	}
+	return false
+}
+
+// consumePendingGrant converts the oldest granted successor permission into
+// the next exact-size message reservation. A missing grant denotes the
+// bootstrap message of a new limiter generation.
+func (g *gateState) consumePendingGrant() {
+	if len(g.pendingGrants) == 0 {
+		return
+	}
+	r := g.pendingGrants[0]
+	copy(g.pendingGrants, g.pendingGrants[1:])
+	g.pendingGrants[len(g.pendingGrants)-1] = nil
+	g.pendingGrants = g.pendingGrants[:len(g.pendingGrants)-1]
+	r.successorUsed = true
+}
+
+func (g *gateState) dropPendingGrants() {
+	for _, r := range g.pendingGrants {
+		r.successorUsed = true
+	}
+	clear(g.pendingGrants)
+	g.pendingGrants = nil
 }
 
 func (g *gateState) failWaiters() {
