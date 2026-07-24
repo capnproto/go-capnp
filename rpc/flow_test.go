@@ -106,13 +106,43 @@ func (g *blockingGateController) Poison(err error) {
 
 type blockingGateLimiter struct {
 	gate *blockingGateController
+
+	mu       sync.Mutex
+	releases int
+	released chan struct{}
 }
 
 func (*blockingGateLimiter) StartMessage(context.Context, uint64) (func(), error) {
 	return func() {}, errors.New("legacy StartMessage called for prepared RPC send")
 }
 
-func (*blockingGateLimiter) Release() {}
+func (l *blockingGateLimiter) Release() {
+	l.mu.Lock()
+	l.releases++
+	released := l.released
+	l.mu.Unlock()
+	if released != nil {
+		select {
+		case released <- struct{}{}:
+		default:
+		}
+	}
+}
+
+func (l *blockingGateLimiter) releaseCount() int {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.releases
+}
+
+func (l *blockingGateLimiter) waitForRelease(ctx context.Context) error {
+	select {
+	case <-l.released:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
 
 func (l *blockingGateLimiter) GateNext() flowcontrol.GateNextController {
 	return l.gate
@@ -488,6 +518,234 @@ func TestGateNextRPCPipelinePreparesAfterGate(t *testing.T) {
 	}
 	cancel()
 	<-serverDone
+}
+
+func TestGateNextRPCResolvedPipelineHandoffUsesTargetGate(t *testing.T) {
+	const (
+		parentInterface = 0xf004
+		parentMethod    = 4
+		childInterface  = 0xf005
+		childMethod     = 5
+	)
+	clientConn, serverConn := net.Pipe()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	childEntered := make(chan struct{}, 2)
+	unblockChild := make(chan struct{})
+	var unblockChildOnce sync.Once
+	releaseChild := func() { unblockChildOnce.Do(func() { close(unblockChild) }) }
+	defer releaseChild()
+	child := capnp.NewClient(serverpkg.New([]serverpkg.Method{{
+		Method: capnp.Method{InterfaceID: childInterface, MethodID: childMethod},
+		Impl: func(_ context.Context, call *serverpkg.Call) error {
+			call.Go()
+			childEntered <- struct{}{}
+			<-unblockChild
+			return nil
+		},
+	}}, nil, nil))
+	defer child.Release()
+
+	unblockParent := make(chan struct{})
+	var unblockParentOnce sync.Once
+	releaseParentServer := func() { unblockParentOnce.Do(func() { close(unblockParent) }) }
+	defer releaseParentServer()
+	parent := capnp.NewClient(serverpkg.New([]serverpkg.Method{{
+		Method: capnp.Method{InterfaceID: parentInterface, MethodID: parentMethod},
+		Impl: func(_ context.Context, call *serverpkg.Call) error {
+			call.Go()
+			<-unblockParent
+			results, err := call.AllocResults(capnp.ObjectSize{PointerCount: 1})
+			if err != nil {
+				return err
+			}
+			id := results.Message().CapTable().Add(child.AddRef())
+			return results.SetPtr(0, capnp.NewInterface(results.Segment(), id).ToPtr())
+		},
+	}}, nil, nil))
+	defer parent.Release()
+
+	serverDone := make(chan struct{})
+	go func() {
+		defer close(serverDone)
+		conn := NewConn(NewStreamTransport(serverConn), &Options{BootstrapClient: parent})
+		defer conn.Close()
+		<-ctx.Done()
+	}()
+
+	trans := newCountingTransport(NewStreamTransport(clientConn))
+	conn := NewConn(trans, nil)
+	defer conn.Close()
+	client := conn.Bootstrap(ctx)
+	if err := client.Resolve(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := trans.waitForCount(ctx, 2); err != nil {
+		t.Fatal(err)
+	}
+
+	originGate := &blockingGateController{
+		waitEntered: make(chan struct{}, 1),
+		grant:       make(chan struct{}),
+		completions: make(chan flowcontrol.MessageOutcomeKind, 4),
+		poisons:     make(chan error, 1),
+	}
+	originLimiter := &blockingGateLimiter{
+		gate:     originGate,
+		released: make(chan struct{}, 1),
+	}
+	client.SetFlowLimiter(originLimiter)
+
+	parentAnswer, releaseParent := client.SendCall(ctx, capnp.Send{
+		Method: capnp.Method{InterfaceID: parentInterface, MethodID: parentMethod},
+	})
+
+	placed := make(chan struct{})
+	type pipelineResult struct {
+		answer  *capnp.Answer
+		release capnp.ReleaseFunc
+	}
+	pipelineDone := make(chan pipelineResult, 1)
+	go func() {
+		answer, release := parentAnswer.PipelineSend(ctx, []capnp.PipelineOp{{Field: 0}}, capnp.Send{
+			Method: capnp.Method{InterfaceID: childInterface, MethodID: childMethod},
+			PlaceArgs: func(capnp.Struct) error {
+				close(placed)
+				return nil
+			},
+		})
+		pipelineDone <- pipelineResult{answer: answer, release: release}
+	}()
+	<-originGate.waitEntered
+
+	// Resolve the parent while the pipelined call is parked outside the
+	// Promise resolution barrier. The call must lose its unresolved claim and
+	// hand its FIFO position to the concrete target below.
+	releaseParentServer()
+	if _, err := parentAnswer.Struct(); err != nil {
+		t.Fatal(err)
+	}
+	target := parentAnswer.Field(0, nil).Client()
+	targetGate := &blockingGateController{
+		waitEntered: make(chan struct{}, 1),
+		grant:       make(chan struct{}),
+		completions: make(chan flowcontrol.MessageOutcomeKind, 4),
+		poisons:     make(chan error, 1),
+	}
+	targetLimiter := &blockingGateLimiter{
+		gate:     targetGate,
+		released: make(chan struct{}, 1),
+	}
+	target.SetFlowLimiter(targetLimiter)
+
+	// Give the resolved target a predecessor so the handed-off call must
+	// consume the target limiter's GateNext permission before preparing.
+	targetPredecessor, releaseTargetPredecessor := target.SendCall(ctx, capnp.Send{
+		Method: capnp.Method{InterfaceID: childInterface, MethodID: childMethod},
+	})
+	select {
+	case <-childEntered:
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	}
+	beforeHandoff := trans.count()
+
+	close(originGate.grant)
+	select {
+	case <-targetGate.waitEntered:
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	}
+	select {
+	case <-placed:
+		t.Fatal("resolved pipeline handoff called PlaceArgs behind the target gate")
+	default:
+	}
+	if got := trans.count(); got != beforeHandoff {
+		t.Fatalf("transport NewMessage count = %d; want %d while target gate is closed", got, beforeHandoff)
+	}
+	select {
+	case <-childEntered:
+		t.Fatal("resolved pipeline handoff reached the target behind its closed gate")
+	default:
+	}
+
+	close(targetGate.grant)
+	var pipelined pipelineResult
+	select {
+	case pipelined = <-pipelineDone:
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	}
+	select {
+	case <-placed:
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	}
+	select {
+	case <-childEntered:
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	}
+	if got := trans.count(); got != beforeHandoff+1 {
+		t.Fatalf("transport NewMessage count = %d; want %d after target gate opened", got, beforeHandoff+1)
+	}
+
+	releaseChild()
+	if _, err := targetPredecessor.Struct(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pipelined.answer.Struct(); err != nil {
+		t.Fatal(err)
+	}
+	if kind := <-originGate.completions; kind != flowcontrol.MessageOutcomeSucceeded {
+		t.Fatalf("origin terminal outcome = %v; want succeeded", kind)
+	}
+	for range 2 {
+		if kind := <-targetGate.completions; kind != flowcontrol.MessageOutcomeSucceeded {
+			t.Fatalf("target terminal outcome = %v; want succeeded", kind)
+		}
+	}
+	select {
+	case kind := <-originGate.completions:
+		t.Fatalf("duplicate origin terminal completion %v", kind)
+	default:
+	}
+	select {
+	case kind := <-targetGate.completions:
+		t.Fatalf("duplicate target terminal completion %v", kind)
+	default:
+	}
+	select {
+	case err := <-originGate.poisons:
+		t.Fatalf("origin controller poisoned during successful handoff: %v", err)
+	default:
+	}
+	select {
+	case err := <-targetGate.poisons:
+		t.Fatalf("target controller poisoned during successful handoff: %v", err)
+	default:
+	}
+
+	pipelined.release()
+	releaseTargetPredecessor()
+	releaseParent()
+	client.Release()
+	if err := originLimiter.waitForRelease(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := targetLimiter.waitForRelease(ctx); err != nil {
+		t.Fatal(err)
+	}
+	cancel()
+	<-serverDone
+	if got := originLimiter.releaseCount(); got != 1 {
+		t.Fatalf("origin limiter Release count = %d; want 1", got)
+	}
+	if got := targetLimiter.releaseCount(); got != 1 {
+		t.Fatalf("target limiter Release count = %d; want 1", got)
+	}
 }
 
 func TestGateNextRPCPrecommitCancellationDoesNotPoisonStream(t *testing.T) {
