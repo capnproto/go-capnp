@@ -33,6 +33,14 @@ type countingTransport struct {
 
 	mu          sync.Mutex
 	newMessages int
+	changed     chan struct{}
+}
+
+func newCountingTransport(t Transport) *countingTransport {
+	return &countingTransport{
+		Transport: t,
+		changed:   make(chan struct{}, 1),
+	}
 }
 
 func (t *countingTransport) NewMessage() (transport.OutgoingMessage, error) {
@@ -41,6 +49,10 @@ func (t *countingTransport) NewMessage() (transport.OutgoingMessage, error) {
 		t.mu.Lock()
 		t.newMessages++
 		t.mu.Unlock()
+		select {
+		case t.changed <- struct{}{}:
+		default:
+		}
 	}
 	return msg, err
 }
@@ -49,6 +61,22 @@ func (t *countingTransport) count() int {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	return t.newMessages
+}
+
+func (t *countingTransport) waitForCount(ctx context.Context, want int) error {
+	for {
+		t.mu.Lock()
+		reached := t.newMessages >= want
+		t.mu.Unlock()
+		if reached {
+			return nil
+		}
+		select {
+		case <-t.changed:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
 }
 
 type blockingGateController struct {
@@ -253,12 +281,18 @@ func TestGateNextRPCImportPreparesAfterGate(t *testing.T) {
 		<-ctx.Done()
 	}()
 
-	trans := &countingTransport{Transport: NewStreamTransport(clientConn)}
+	trans := newCountingTransport(NewStreamTransport(clientConn))
 	conn := NewConn(trans, nil)
 	defer conn.Close()
 	client := testcapnp.StreamTest(conn.Bootstrap(ctx))
 	defer client.Release()
 	if err := client.Resolve(ctx); err != nil {
+		t.Fatal(err)
+	}
+	// Resolve can return before the bootstrap question's asynchronous Finish
+	// allocates its transport message. Drain that known lifecycle message so it
+	// cannot race the call-specific allocation baseline below.
+	if err := trans.waitForCount(ctx, 2); err != nil {
 		t.Fatal(err)
 	}
 
@@ -370,12 +404,15 @@ func TestGateNextRPCPipelinePreparesAfterGate(t *testing.T) {
 		<-ctx.Done()
 	}()
 
-	trans := &countingTransport{Transport: NewStreamTransport(clientConn)}
+	trans := newCountingTransport(NewStreamTransport(clientConn))
 	conn := NewConn(trans, nil)
 	defer conn.Close()
 	client := conn.Bootstrap(ctx)
 	defer client.Release()
 	if err := client.Resolve(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := trans.waitForCount(ctx, 2); err != nil {
 		t.Fatal(err)
 	}
 
@@ -468,12 +505,15 @@ func TestGateNextRPCPrecommitCancellationDoesNotPoisonStream(t *testing.T) {
 		<-ctx.Done()
 	}()
 
-	trans := &countingTransport{Transport: NewStreamTransport(clientConn)}
+	trans := newCountingTransport(NewStreamTransport(clientConn))
 	conn := NewConn(trans, nil)
 	defer conn.Close()
 	client := testcapnp.StreamTest(conn.Bootstrap(ctx))
 	defer client.Release()
 	if err := client.Resolve(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := trans.waitForCount(ctx, 2); err != nil {
 		t.Fatal(err)
 	}
 
