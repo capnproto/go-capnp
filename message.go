@@ -298,14 +298,34 @@ func (m *Message) WriteTo(w io.Writer) (int64, error) {
 	return wc.N, err
 }
 
+// checkRootForSerialization rejects the two representations of a message
+// whose root has not been initialized. It deliberately does not validate the
+// rest of the message: decoding and low-level message construction may need
+// to preserve malformed pointer data for the caller to inspect.
+func (m *Message) checkRootForSerialization() error {
+	first, err := m.Segment(0)
+	if err != nil || len(first.Data()) == 0 {
+		return errors.New("message has no root")
+	}
+	root, err := m.Root()
+	if err == nil && !root.IsValid() {
+		return errors.New("message has no root")
+	}
+	return nil
+}
+
 // Marshal concatenates the segments in the message into a single byte
-// slice including framing.
+// slice including framing. It returns an error if the message has no root.
 func (m *Message) Marshal() ([]byte, error) {
-	// Compute buffer size.
 	nsegs := m.NumSegments()
 	if nsegs == 0 {
 		return nil, errors.New("marshal: message has no segments")
 	}
+	if err := m.checkRootForSerialization(); err != nil {
+		return nil, exc.WrapError("marshal", err)
+	}
+
+	// Compute buffer size.
 	hdrSize := streamHeaderSize(SegmentID(nsegs - 1))
 	if hdrSize > uint64(maxInt) {
 		return nil, errors.New("marshal: header size overflows int")

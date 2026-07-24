@@ -76,6 +76,20 @@ func TestDecoder(t *testing.T) {
 	}
 }
 
+// Decoding only parses framing. A message without a root pointer remains
+// inspectable after decoding.
+func TestDecoderRootless(t *testing.T) {
+	t.Parallel()
+
+	msg, err := NewDecoder(bytes.NewReader([]byte{
+		0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00,
+	})).Decode()
+	require.NoError(t, err)
+	_, err = msg.Root()
+	require.Error(t, err)
+}
+
 type tooManySegsArena struct {
 	data []byte
 }

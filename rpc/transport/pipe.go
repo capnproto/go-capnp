@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"bytes"
 	"io"
 	"sync"
 
@@ -40,12 +41,12 @@ type pipe struct {
 }
 
 func (p *pipe) Encode(m *capnp.Message) (err error) {
-	b, err := m.Marshal()
-	if err != nil {
+	var buf bytes.Buffer
+	if err := capnp.NewEncoder(&buf).Encode(m); err != nil {
 		return err
 	}
 
-	if m, err = capnp.Unmarshal(b); err != nil {
+	if m, err = capnp.Unmarshal(buf.Bytes()); err != nil {
 		return err
 	}
 
