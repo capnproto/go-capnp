@@ -1031,27 +1031,3 @@ func TestIssue3(t *testing.T) {
 		}
 	}
 }
-
-type rpcResolve struct {
-	PromiseID uint32 `capnp:"promiseId"`
-	Which     rpccp.Resolve_Which
-	Cap       *rpcCapDescriptor
-	Exception *rpcException
-}
-
-type rpcRelease struct {
-	ID             uint32 `capnp:"id"`
-	ReferenceCount uint32
-}
-
-type rpcDisembargo struct {
-	Target  rpcMessageTarget
-	Context rpcDisembargoContext
-}
-
-type rpcDisembargoContext struct {
-	Which            rpccp.Disembargo_context_Which
-	SenderLoopback   uint32
-	ReceiverLoopback uint32
-	Accept           capnp.Ptr
-}
