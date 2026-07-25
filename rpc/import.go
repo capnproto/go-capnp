@@ -51,6 +51,14 @@ type impent struct {
 	resolver capnp.Resolver[capnp.Client]
 }
 
+// takeResolver transfers terminal ownership of an imported promise.
+// The caller must hold c.lk.
+func (e *impent) takeResolver() capnp.Resolver[capnp.Client] {
+	resolver := e.resolver
+	e.resolver = nil
+	return resolver
+}
+
 // addImport returns a client that represents the given import,
 // incrementing the number of references to this import from this vat.
 // This is separate from the reference counting that capnp.Client does.
@@ -62,11 +70,16 @@ func (c *lockedConn) addImport(id importID, isPromise bool) capnp.Client {
 		client, ok := ent.wc.AddRef()
 		if !ok {
 			ent.generation++
-			client = capnp.NewClient(&importClient{
+			hook := &importClient{
 				c:          (*Conn)(c),
 				id:         id,
 				generation: ent.generation,
-			})
+			}
+			if isPromise && ent.resolver != nil {
+				client, ent.resolver = capnp.NewPromisedClient(hook)
+			} else {
+				client = capnp.NewClient(hook)
+			}
 			ent.wc = client.WeakRef()
 		}
 		return client
