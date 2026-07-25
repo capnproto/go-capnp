@@ -866,6 +866,8 @@ func (c *Conn) handleCall(ctx context.Context, in transport.IncomingMessage) err
 				ans.sendMsg = nil
 				ans.returner.msgReleaser = nil
 				dq.Defer(func() {
+					// The answer and unsent send path each own one reference.
+					retReleaser.Decr()
 					retReleaser.Decr()
 					in.Release()
 				})
@@ -887,6 +889,8 @@ func (c *Conn) handleCall(ctx context.Context, in transport.IncomingMessage) err
 				ans.sendMsg = nil
 				ans.returner.msgReleaser = nil
 				dq.Defer(func() {
+					// The answer and unsent send path each own one reference.
+					retReleaser.Decr()
 					retReleaser.Decr()
 					in.Release()
 				})
