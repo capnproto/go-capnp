@@ -470,11 +470,66 @@ func TestHandleResolveRejectsCurrentPromiseGeneration(t *testing.T) {
 	if err := current.Resolve(context.Background()); err != nil {
 		t.Fatal("resolve re-received imported promise:", err)
 	}
+	if !oldSnapshot.IsResolved() {
+		t.Error("original snapshot remained unresolved after current generation resolved")
+	} else if err := oldSnapshot.Resolve(context.Background()); err != nil {
+		t.Fatal("resolve original imported promise snapshot:", err)
+	}
+	oldResolutionErr, ok := oldSnapshot.Brand().Value.(error)
+	if !ok || !strings.Contains(oldResolutionErr.Error(), "resolution failed") {
+		t.Fatalf("original resolved promise brand = %v; want resolution failure", oldResolutionErr)
+	}
 	resolved := current.Snapshot()
 	resolutionErr, ok := resolved.Brand().Value.(error)
 	resolved.Release()
 	if !ok || !strings.Contains(resolutionErr.Error(), "resolution failed") {
 		t.Fatalf("resolved promise brand = %v; want resolution failure", resolutionErr)
+	}
+}
+
+func TestHandleResolveRejectsSnapshotAcrossTransientGeneration(t *testing.T) {
+	conn, _ := newResolveLifecycleConn(t)
+
+	var first capnp.Client
+	conn.withLocked(func(c *lockedConn) {
+		first = c.addImport(resolvePromiseID, true)
+	})
+	snapshot := first.Snapshot()
+	defer snapshot.Release()
+	first.Release()
+
+	var current capnp.Client
+	conn.withLocked(func(c *lockedConn) {
+		current = c.addImport(resolvePromiseID, true)
+	})
+	current.Release()
+
+	conn.withLocked(func(c *lockedConn) {
+		imp, ok := c.lk.imports.Find(resolvePromiseID)
+		if !ok {
+			t.Fatal("transient current generation removed import retained by an older snapshot")
+		}
+		if imp.liveHooks != 1 {
+			t.Fatalf("live import hooks = %d; want 1 retained snapshot hook", imp.liveHooks)
+		}
+	})
+
+	in := resolveToException(t, resolvePromiseID)
+	if err := conn.handleResolve(context.Background(), in); err != nil {
+		t.Fatal("handleResolve:", err)
+	}
+	if got := atomic.LoadInt32(&in.releases); got != 1 {
+		t.Fatalf("incoming message releases = %d; want 1", got)
+	}
+	if !snapshot.IsResolved() {
+		t.Fatal("original snapshot remained unresolved after incoming Resolve")
+	}
+	if err := snapshot.Resolve(context.Background()); err != nil {
+		t.Fatal("resolve original imported promise snapshot:", err)
+	}
+	resolutionErr, ok := snapshot.Brand().Value.(error)
+	if !ok || !strings.Contains(resolutionErr.Error(), "resolution failed") {
+		t.Fatalf("original resolved promise brand = %v; want resolution failure", resolutionErr)
 	}
 }
 

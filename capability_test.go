@@ -338,6 +338,61 @@ func TestPromisedClient_EarlyClose(t *testing.T) {
 	}
 }
 
+func TestPromisedClientSnapshotOutlivesClient(t *testing.T) {
+	t.Run("Fulfill", func(t *testing.T) {
+		promised, resolver := NewPromisedClient(new(dummyHook))
+		snapshot := promised.Snapshot()
+		defer snapshot.Release()
+		promised.Release()
+
+		const replacementBrand = 42
+		replacement := NewClient(&dummyHook{brand: Brand{Value: replacementBrand}})
+		defer replacement.Release()
+		resolver.Fulfill(replacement)
+
+		if err := snapshot.Resolve(context.Background()); err != nil {
+			t.Fatal("resolve snapshot:", err)
+		}
+		if got := snapshot.Brand().Value; got != replacementBrand {
+			t.Fatalf("resolved snapshot brand = %v; want %d", got, replacementBrand)
+		}
+	})
+
+	t.Run("ReleaseRace", func(t *testing.T) {
+		for range 100 {
+			promised, resolver := NewPromisedClient(new(dummyHook))
+			snapshot := promised.Snapshot()
+			wantErr := errors.New("promise rejected")
+
+			start := make(chan struct{})
+			released := make(chan struct{})
+			rejected := make(chan struct{})
+			go func() {
+				<-start
+				promised.Release()
+				close(released)
+			}()
+			go func() {
+				<-start
+				resolver.Reject(wantErr)
+				close(rejected)
+			}()
+			close(start)
+			<-released
+			<-rejected
+
+			if err := snapshot.Resolve(context.Background()); err != nil {
+				t.Fatal("resolve snapshot:", err)
+			}
+			gotErr, ok := snapshot.Brand().Value.(error)
+			if !ok || !errors.Is(gotErr, wantErr) {
+				t.Fatalf("resolved snapshot brand = %v; want %v", gotErr, wantErr)
+			}
+			snapshot.Release()
+		}
+	})
+}
+
 type dummyHook struct {
 	calls     int
 	brand     Brand
