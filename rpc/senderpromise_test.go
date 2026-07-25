@@ -138,7 +138,6 @@ func TestSenderPromiseFulfillNull(t *testing.T) {
 	// Null is represented by a callable, always-failing senderHosted
 	// capability. Resolve(cap=none) is not valid here.
 	resolver.Fulfill(testcapnp.Empty{})
-	promise.Release()
 	resolved, release, err := recvMessage(ctx, p2)
 	require.NoError(t, err)
 	require.Equal(t, rpccp.Message_Which_resolve, resolved.Which)
@@ -211,7 +210,6 @@ func TestSenderPromiseFulfillNull(t *testing.T) {
 	require.Equal(t, replacementID, ordinaryDesc.SenderHosted)
 	release()
 
-	ordinary.Release()
 	require.NoError(t, sendMessage(ctx, p2, &rpcMessage{
 		Which: rpccp.Message_Which_finish,
 		Finish: &rpcFinish{
