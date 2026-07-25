@@ -1797,40 +1797,59 @@ func (c *lockedConn) getAnswerSnapshot(
 }
 
 func (c *Conn) handleResolve(ctx context.Context, in transport.IncomingMessage) error {
+	defer in.Release()
+
 	dq := &deferred.Queue{}
 	defer dq.Run()
 
 	resolve, err := in.Message().Resolve()
 	if err != nil {
-		in.Release()
 		c.er.ReportError(exc.WrapError("read resolve", err))
 		return nil
 	}
 
 	promiseID := importID(resolve.PromiseId())
 	err = withLockedConn1(c, func(c *lockedConn) error {
-		imp, ok := c.lk.imports.Find(promiseID)
-		if !ok {
-			return errors.New(
-				"incoming resolve: no such import ID: " + str.Utod(promiseID),
-			)
-		}
-		if imp.resolver == nil {
-			return errors.New(
-				"incoming resolve: import ID " +
-					str.Utod(promiseID) +
-					"is not a promise",
-			)
-		}
 		switch resolve.Which() {
 		case rpccp.Resolve_Which_cap:
 			desc, err := resolve.Cap()
 			if err != nil {
 				return exc.WrapError("reading cap from resolve message", err)
 			}
+			switch desc.Which() {
+			case rpccp.CapDescriptor_Which_none:
+				return rpcerr.Failed(errors.New(
+					"incoming resolve: cap descriptor is none",
+				))
+			case rpccp.CapDescriptor_Which_senderHosted,
+				rpccp.CapDescriptor_Which_senderPromise,
+				rpccp.CapDescriptor_Which_receiverHosted,
+				rpccp.CapDescriptor_Which_receiverAnswer,
+				rpccp.CapDescriptor_Which_thirdPartyHosted:
+			default:
+				return rpcerr.Failed(errors.New(
+					"incoming resolve: unknown cap descriptor type " +
+						desc.Which().String(),
+				))
+			}
+
 			client, err := c.recvCap(desc)
 			if err != nil {
 				return err
+			}
+
+			imp, ok := c.lk.imports.Find(promiseID)
+			if !ok {
+				dq.Defer(client.Release)
+				return nil
+			}
+			if imp.resolver == nil {
+				dq.Defer(client.Release)
+				return errors.New(
+					"incoming resolve: import ID " +
+						str.Utod(promiseID) +
+						" is not a promise",
+				)
 			}
 			if c.isLocalClient(client) {
 				var id embargoID
@@ -1860,13 +1879,29 @@ func (c *Conn) handleResolve(ctx context.Context, in transport.IncomingMessage) 
 		case rpccp.Resolve_Which_exception:
 			ex, err := resolve.Exception()
 			if err != nil {
-				err = exc.WrapError("reading exception from resolve message", err)
-			} else {
-				err = ex.ToError()
+				return exc.WrapError("reading exception from resolve message", err)
+			}
+			err = ex.ToError()
+
+			imp, ok := c.lk.imports.Find(promiseID)
+			if !ok {
+				return nil
+			}
+			if imp.resolver == nil {
+				return errors.New(
+					"incoming resolve: import ID " +
+						str.Utod(promiseID) +
+						" is not a promise",
+				)
 			}
 			dq.Defer(func() {
 				imp.resolver.Reject(err)
 			})
+		default:
+			return rpcerr.Failed(errors.New(
+				"incoming resolve: unknown resolve type " +
+					resolve.Which().String(),
+			))
 		}
 		return nil
 	})
