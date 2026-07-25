@@ -622,11 +622,13 @@ func (c *Conn) receive(ctx context.Context) func() error {
 					return fmt.Errorf("handle Resolve: %w", err)
 				}
 
-			case rpccp.Message_Which_accept, rpccp.Message_Which_provide:
-				if c.network != nil {
-					panic("TODO: 3PH")
-				}
-				fallthrough
+			case rpccp.Message_Which_accept,
+				rpccp.Message_Which_provide,
+				rpccp.Message_Which_thirdPartyAnswer:
+				// Three-party handoff is not implemented. Echo the message as
+				// Unimplemented so a Level 3 peer can fail or fall back without
+				// losing the connection.
+				c.handleUnknownMessageType(ctx, in)
 
 			default:
 				c.handleUnknownMessageType(ctx, in)
@@ -774,9 +776,10 @@ func (c *Conn) handleCall(ctx context.Context, in transport.IncomingMessage) err
 		// TODO(someday): handle SendResultsTo.yourself
 		c.er.ReportError(errors.New("incoming call: results destination is not caller"))
 
+		release := util.Idempotent(in.Release)
 		c.withLocked(func(c *lockedConn) {
 			c.sendMessage(ctx, func(m rpccp.Message) error {
-				defer in.Release()
+				defer release()
 
 				mm, err := m.NewUnimplemented()
 				if err != nil {
@@ -789,6 +792,7 @@ func (c *Conn) handleCall(ctx context.Context, in transport.IncomingMessage) err
 
 				return nil
 			}, func(err error) {
+				release()
 				if err != nil && !isFatalSendError(err) {
 					c.er.ReportError(rpcerr.Annotate(err, "incoming call: send unimplemented"))
 				}
@@ -1293,24 +1297,23 @@ func (c *lockedConn) parseReturn(dq *deferred.Queue, ret rpccp.Return, called []
 		}
 		return parsedReturn{err: exc.New(exc.Type(e.Type()), "", reason)}
 	case rpccp.Return_Which_awaitFromThirdParty:
-		// TODO: 3PH. Can wait until after the MVP, because we can keep
-		// setting allowThirdPartyTailCall = false
-		fallthrough
+		return parsedReturn{err: rpcerr.Unimplemented(errors.New(
+			"parse return: three-party handoff not implemented: " + w.String(),
+		)), parseFailed: true}
 	default:
 		// TODO: go through other variants and make sure we're handling
 		// them all correctly.
 		return parsedReturn{err: rpcerr.Failed(errors.New(
 			"parse return: unhandled type " + w.String(),
-		)), parseFailed: true, unimplemented: true}
+		)), parseFailed: true}
 	}
 }
 
 type parsedReturn struct {
-	result        capnp.Ptr
-	disembargoes  []senderLoopback
-	err           error
-	parseFailed   bool
-	unimplemented bool
+	result       capnp.Ptr
+	disembargoes []senderLoopback
+	err          error
+	parseFailed  bool
 }
 
 func (c *Conn) handleFinish(ctx context.Context, in transport.IncomingMessage) error {
@@ -1384,14 +1387,16 @@ func (c *lockedConn) recvCap(d rpccp.CapDescriptor) (capnp.Client, error) {
 			thirdPartyDesc, err := d.ThirdPartyHosted()
 			if err != nil {
 				return capnp.Client{}, exc.WrapError(
-					"reading ThridPartyCapDescriptor",
+					"reading third-party capability descriptor",
 					err,
 				)
 			}
 			id := importID(thirdPartyDesc.VineId())
 			return c.addImport(id, false), nil
 		}
-		panic("TODO: 3PH")
+		return capnp.Client{}, rpcerr.Unimplemented(errors.New(
+			"receive capability: three-party handoff not implemented",
+		))
 	case rpccp.CapDescriptor_Which_receiverHosted:
 		id := exportID(d.ReceiverHosted())
 		ent := c.findExport(id)
@@ -1477,15 +1482,9 @@ func (c *lockedConn) isLocalClient(client capnp.Client) bool {
 		if ic.c == (*Conn)(c) {
 			return false
 		}
-		if c.network == nil || c.network != ic.c.network {
-			// Different connections on different networks. We must
-			// be proxying it, so as far as this connection is
-			// concerned, it lives on our side.
-			return true
-		}
-		// Might have to do more refactoring re: what to do in this case;
-		// just checking for embargo or not might not be sufficient:
-		panic("TODO: 3PH")
+		// Until three-party handoff is implemented, capabilities from every
+		// other connection are proxied through this vat.
+		return true
 	}
 
 	if pc, ok := bv.(capnp.PipelineClient); ok {
@@ -1494,10 +1493,7 @@ func (c *lockedConn) isLocalClient(client capnp.Client) bool {
 			if q.c == (*Conn)(c) {
 				return false
 			}
-			if c.network == nil || c.network != q.c.network {
-				return true
-			}
-			panic("TODO: 3PH")
+			return true
 		}
 	}
 
@@ -1548,8 +1544,14 @@ func (c *lockedConn) recvPayload(dq *deferred.Queue, payload rpccp.Payload) (_ c
 			// as this might trigger a deadlock.  Use the deferred.Queue instead.
 			dq.Defer(cl.Release)
 			for j := 0; j < i; j++ {
-				dq.Defer(mtab.At(j).Release)
+				client := mtab.At(j)
+				mtab.Set(capnp.CapabilityID(j), capnp.Client{})
+				dq.Defer(client.Release)
 			}
+			// The clients above are released outside the connection lock. Clear
+			// their now-empty slots so releasing the incoming message cannot
+			// release them a second time.
+			mtab.Reset()
 
 			err = rpcerr.Annotate(err, "read payload: capability "+str.Itod(i))
 			break
@@ -1732,9 +1734,6 @@ func (c *Conn) handleDisembargo(ctx context.Context, in transport.IncomingMessag
 		})
 
 	case rpccp.Disembargo_context_Which_accept:
-		if c.network != nil {
-			panic("TODO: 3PH")
-		}
 		fallthrough
 	default:
 		c.er.ReportError(errors.New("incoming disembargo: context " + d.Context().Which().String() + " not implemented"))
@@ -1863,7 +1862,7 @@ func (c *Conn) handleResolve(ctx context.Context, in transport.IncomingMessage) 
 				rpccp.CapDescriptor_Which_receiverAnswer:
 			case rpccp.CapDescriptor_Which_thirdPartyHosted:
 				if c.network != nil {
-					return rpcerr.Failed(errors.New(
+					return rpcerr.Unimplemented(errors.New(
 						"incoming resolve: third-party handoff not implemented",
 					))
 				}
@@ -1984,14 +1983,19 @@ func (c *Conn) handleUnknownMessageType(ctx context.Context, in transport.Incomi
 	err := errors.New("unknown message type " + in.Message().Which().String() + " from remote")
 	c.er.ReportError(err)
 
+	release := util.Idempotent(in.Release)
 	c.withLocked(func(c *lockedConn) {
 		c.sendMessage(ctx, func(m rpccp.Message) error {
-			defer in.Release()
+			defer release()
 			if err := m.SetUnimplemented(in.Message()); err != nil {
 				return rpcerr.Annotate(err, "send unimplemented")
 			}
 			return nil
-		}, nil)
+		}, func(error) {
+			// prepareMessage does not call build when allocation fails, and a
+			// queued send can instead fail or be aborted during shutdown.
+			release()
+		})
 	})
 }
 

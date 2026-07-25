@@ -112,9 +112,8 @@ func (c *lockedConn) sendCap(d rpccp.CapDescriptor, snapshot capnp.ClientSnapsho
 				return 0, false, nil
 			}
 		}
-		if c.network != nil && c.network == ic.c.network {
-			panic("TODO: 3PH")
-		}
+		// Three-party handoff is not implemented. If the import belongs to a
+		// different connection, fall through and proxy it as a local export.
 	}
 
 	if pc, ok := bv.(capnp.PipelineClient); ok {
@@ -135,9 +134,8 @@ func (c *lockedConn) sendCap(d rpccp.CapDescriptor, snapshot capnp.ClientSnapsho
 				pa.SetQuestionId(uint32(q.id))
 				return 0, false, nil
 			}
-			if c.network != nil && c.network == q.c.network {
-				panic("TODO: 3PH")
-			}
+			// Three-party handoff is not implemented. If the pipeline belongs
+			// to a different connection, proxy it as a local export.
 		}
 	}
 
