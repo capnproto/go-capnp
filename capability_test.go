@@ -5,7 +5,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"capnproto.org/go/capnp/v3/flowcontrol"
@@ -390,6 +392,249 @@ func TestPromisedClientSnapshotOutlivesClient(t *testing.T) {
 			}
 			snapshot.Release()
 		}
+	})
+}
+
+func requireClientPromiseCycle(t *testing.T, snapshot *ClientSnapshot) {
+	t.Helper()
+
+	if err := snapshot.Resolve(context.Background()); err != nil {
+		t.Fatal("resolve cyclic promise:", err)
+	}
+	got, ok := snapshot.Brand().Value.(error)
+	if !ok || !errors.Is(got, errClientPromiseResolutionCycle) {
+		t.Fatalf("resolved promise brand = %v; want %v", got, errClientPromiseResolutionCycle)
+	}
+}
+
+func TestClientPromiseRejectsDirectResolutionCycle(t *testing.T) {
+	hook := new(dummyHook)
+	client, resolver := NewPromisedClient(hook)
+	snapshot := client.Snapshot()
+
+	self := client.AddRef()
+	resolver.Fulfill(self)
+	self.Release()
+
+	answer, release := client.SendCall(context.Background(), Send{})
+	_, err := answer.Struct()
+	release()
+	if !errors.Is(err, errClientPromiseResolutionCycle) {
+		t.Fatalf("call error = %v; want %v", err, errClientPromiseResolutionCycle)
+	}
+
+	client.Release()
+	requireClientPromiseCycle(t, &snapshot)
+	snapshot.Release()
+	if hook.shutdowns != 1 {
+		t.Fatalf("promise hook shutdowns = %d; want 1", hook.shutdowns)
+	}
+}
+
+func TestClientPromiseRejectsTwoNodeResolutionCycle(t *testing.T) {
+	firstHook := new(dummyHook)
+	secondHook := new(dummyHook)
+	first, firstResolver := NewPromisedClient(firstHook)
+	second, secondResolver := NewPromisedClient(secondHook)
+	firstSnapshot := first.Snapshot()
+	secondSnapshot := second.Snapshot()
+
+	secondTarget := second.AddRef()
+	firstResolver.Fulfill(secondTarget)
+	secondTarget.Release()
+	firstTarget := first.AddRef()
+	secondResolver.Fulfill(firstTarget)
+	firstTarget.Release()
+
+	first.Release()
+	second.Release()
+	requireClientPromiseCycle(t, &firstSnapshot)
+	requireClientPromiseCycle(t, &secondSnapshot)
+	firstSnapshot.Release()
+	secondSnapshot.Release()
+
+	if firstHook.shutdowns != 1 {
+		t.Fatalf("first promise hook shutdowns = %d; want 1", firstHook.shutdowns)
+	}
+	if secondHook.shutdowns != 1 {
+		t.Fatalf("second promise hook shutdowns = %d; want 1", secondHook.shutdowns)
+	}
+}
+
+func TestClientPromiseRejectsSimultaneousResolutionCycle(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		firstHook := new(dummyHook)
+		secondHook := new(dummyHook)
+		first, firstResolver := NewPromisedClient(firstHook)
+		second, secondResolver := NewPromisedClient(secondHook)
+		firstSnapshot := first.Snapshot()
+		secondSnapshot := second.Snapshot()
+		firstTarget := first.AddRef()
+		secondTarget := second.AddRef()
+
+		// Capture both source and target hooks before publishing either edge.
+		// This deterministically exercises the stale-target race where
+		// independent ancestry checks would both pass.
+		firstPromise := firstResolver.(*clientPromise)
+		secondPromise := secondResolver.(*clientPromise)
+		firstSource, ok := firstPromise.hook.AddRef()
+		if !ok {
+			t.Fatal("first promise hook was released")
+		}
+		secondSource, ok := secondPromise.hook.AddRef()
+		if !ok {
+			t.Fatal("second promise hook was released")
+		}
+		firstTargetHook, _, _ := firstTarget.startCall()
+		secondTargetHook, _, _ := secondTarget.startCall()
+
+		firstDone := make(chan struct{})
+		secondDone := make(chan struct{})
+		go func() {
+			publishClientPromiseResolution(firstSource, secondTargetHook)
+			firstSource.Release()
+			close(firstDone)
+		}()
+		go func() {
+			publishClientPromiseResolution(secondSource, firstTargetHook)
+			secondSource.Release()
+			close(secondDone)
+		}()
+
+		firstReleased := make(chan struct{})
+		secondReleased := make(chan struct{})
+		go func() {
+			first.Release()
+			close(firstReleased)
+		}()
+		go func() {
+			second.Release()
+			close(secondReleased)
+		}()
+		synctest.Wait()
+
+		<-firstDone
+		<-secondDone
+		<-firstReleased
+		<-secondReleased
+		firstTarget.Release()
+		secondTarget.Release()
+
+		requireClientPromiseCycle(t, &firstSnapshot)
+		requireClientPromiseCycle(t, &secondSnapshot)
+		firstSnapshot.Release()
+		secondSnapshot.Release()
+		if firstHook.shutdowns != 1 {
+			t.Fatalf("first promise hook shutdowns = %d; want 1", firstHook.shutdowns)
+		}
+		if secondHook.shutdowns != 1 {
+			t.Fatalf("second promise hook shutdowns = %d; want 1", secondHook.shutdowns)
+		}
+	})
+}
+
+func TestClientPromiseCycleReleasesTargetAfterGraphUnlock(t *testing.T) {
+	concrete := NewClient(&dummyHook{brand: Brand{Value: 42}})
+	defer concrete.Release()
+	reentrant, reentrantResolver := NewPromisedClient(new(dummyHook))
+	defer reentrant.Release()
+
+	shutdownDone := make(chan struct{})
+	shutdownHook := &fulfillOnShutdownHook{
+		resolver: reentrantResolver,
+		target:   concrete,
+		done:     shutdownDone,
+	}
+	cycleTarget, cycleTargetResolver := NewPromisedClient(shutdownHook)
+	source, sourceResolver := NewPromisedClient(new(dummyHook))
+	sourceSnapshot := source.Snapshot()
+	defer sourceSnapshot.Release()
+
+	sourcePromise := sourceResolver.(*clientPromise)
+	sourceHook, ok := sourcePromise.hook.AddRef()
+	if !ok {
+		t.Fatal("source promise hook was released")
+	}
+	cycleTargetPromise := cycleTargetResolver.(*clientPromise)
+	cycleTargetHook, ok := cycleTargetPromise.hook.AddRef()
+	if !ok {
+		t.Fatal("cycle target hook was released")
+	}
+
+	// Establish cycleTarget -> source without compressing cycleTarget's
+	// cursor, then make cycleTargetHookForSource its final reference.
+	sourceAsTarget, _, _ := source.startCall()
+	publishClientPromiseResolution(cycleTargetHook, sourceAsTarget)
+	cycleTargetHookForSource := cycleTargetHook.AddRef()
+	cycleTarget.Release()
+	cycleTargetHook.Release()
+
+	// Publishing source -> cycleTarget rejects the cycle.  Releasing the
+	// displaced cycle target runs Shutdown, which synchronously fulfills a
+	// third promise and therefore reacquires the graph mutex.
+	publishClientPromiseResolution(sourceHook, cycleTargetHookForSource)
+	sourceHook.Release()
+
+	select {
+	case <-shutdownDone:
+	default:
+		t.Fatal("cycle target was not shut down after rejection")
+	}
+	if !shutdownHook.graphUnlocked {
+		t.Fatal("cycle target was shut down while the resolution graph was locked")
+	}
+	if err := reentrant.Resolve(context.Background()); err != nil {
+		t.Fatal("resolve promise fulfilled during shutdown:", err)
+	}
+	if !reentrant.IsSame(concrete) {
+		t.Fatalf("reentrant promise = %v; want %v", reentrant, concrete)
+	}
+
+	source.Release()
+	requireClientPromiseCycle(t, &sourceSnapshot)
+}
+
+func TestClientPromiseAcyclicResolutionCompresses(t *testing.T) {
+	first, firstResolver := NewPromisedClient(new(dummyHook))
+	defer first.Release()
+	second, secondResolver := NewPromisedClient(new(dummyHook))
+	defer second.Release()
+	concrete := NewClient(&dummyHook{brand: Brand{Value: 42}})
+	defer concrete.Release()
+
+	secondTarget := second.AddRef()
+	firstResolver.Fulfill(secondTarget)
+	secondTarget.Release()
+	secondResolver.Fulfill(concrete)
+
+	if err := first.Resolve(context.Background()); err != nil {
+		t.Fatal("resolve acyclic chain:", err)
+	}
+	if !first.IsSame(concrete) {
+		t.Fatalf("resolved client = %v; want %v", first, concrete)
+	}
+}
+
+type fulfillOnShutdownHook struct {
+	dummyHook
+	once     sync.Once
+	resolver Resolver[Client]
+	target   Client
+	done     chan struct{}
+
+	graphUnlocked bool
+}
+
+func (h *fulfillOnShutdownHook) Shutdown() {
+	h.once.Do(func() {
+		if !clientPromiseResolutionMu.TryLock() {
+			close(h.done)
+			return
+		}
+		h.graphUnlocked = true
+		clientPromiseResolutionMu.Unlock()
+		h.resolver.Fulfill(h.target)
+		close(h.done)
 	})
 }
 
