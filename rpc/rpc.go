@@ -1845,6 +1845,20 @@ func (c *Conn) handleResolve(ctx context.Context, in transport.IncomingMessage) 
 						"incoming resolve: third-party handoff not implemented",
 					))
 				}
+				thirdParty, err := desc.ThirdPartyHosted()
+				if err != nil {
+					return exc.WrapError(
+						"reading third-party capability from resolve message",
+						err,
+					)
+				}
+				if importID(thirdParty.VineId()) == promiseID {
+					return rpcerr.Failed(errors.New(
+						"incoming resolve: promise ID " +
+							str.Utod(promiseID) +
+							" resolved to itself",
+					))
+				}
 			default:
 				return rpcerr.Failed(errors.New(
 					"incoming resolve: unknown cap descriptor type " +
@@ -1869,6 +1883,18 @@ func (c *Conn) handleResolve(ctx context.Context, in transport.IncomingMessage) 
 						str.Utod(promiseID) +
 						" is not a promise",
 				)
+			}
+			if self, ok := imp.wc.AddRef(); ok {
+				same := client.IsSame(self)
+				dq.Defer(self.Release)
+				if same {
+					dq.Defer(client.Release)
+					return rpcerr.Failed(errors.New(
+						"incoming resolve: promise ID " +
+							str.Utod(promiseID) +
+							" resolved to itself",
+					))
+				}
 			}
 			if c.isLocalClient(client) {
 				var id embargoID

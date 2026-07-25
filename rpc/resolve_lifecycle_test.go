@@ -21,10 +21,14 @@ const (
 )
 
 func newResolveLifecycleConn(t *testing.T) (*Conn, Transport) {
+	return newResolveLifecycleConnWithOptions(t, nil)
+}
+
+func newResolveLifecycleConnWithOptions(t *testing.T, opts *Options) (*Conn, Transport) {
 	t.Helper()
 
 	left, right := transportpkg.NewPipe(16)
-	conn := NewConn(NewTransport(left), nil)
+	conn := NewConn(NewTransport(left), opts)
 	peer := NewTransport(right)
 	t.Cleanup(func() {
 		if err := conn.Close(); err != nil {
@@ -88,6 +92,21 @@ func resolveToSenderPromise(t *testing.T, promiseID, replacementID importID) *co
 		desc, err := resolve.NewCap()
 		if err == nil {
 			desc.SetSenderPromise(uint32(replacementID))
+		}
+		return err
+	})
+}
+
+func resolveToThirdPartyHosted(t *testing.T, promiseID, vineID importID) *countingIncomingMessage {
+	t.Helper()
+	return newResolveMessage(t, promiseID, func(resolve rpccp.Resolve) error {
+		desc, err := resolve.NewCap()
+		if err != nil {
+			return err
+		}
+		thirdParty, err := desc.NewThirdPartyHosted()
+		if err == nil {
+			thirdParty.SetVineId(uint32(vineID))
 		}
 		return err
 	})
@@ -301,6 +320,50 @@ func addReflectedAnswer(
 	}
 	t.Cleanup(release)
 	return id, release, shutdown
+}
+
+func addResolveAnswerReturningClient(
+	t *testing.T,
+	conn *Conn,
+	client capnp.Client,
+) answerID {
+	t.Helper()
+
+	message, seg := capnp.NewSingleSegmentMessage(nil)
+	results, err := rpccp.NewRootPayload(seg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	capID := message.CapTable().Add(client.AddRef())
+	if err := results.SetContent(capnp.NewInterface(seg, capID).ToPtr()); err != nil {
+		t.Fatal(err)
+	}
+	snapshot := client.Snapshot()
+
+	const id = answerID(44)
+	conn.withLocked(func(c *lockedConn) {
+		if !c.lk.answers.Create(id, &ansent{
+			returner: ansReturner{
+				results:         results,
+				resultsCapTable: []capnp.ClientSnapshot{snapshot},
+			},
+		}) {
+			t.Fatal("create self-referencing answer")
+		}
+	})
+	t.Cleanup(func() {
+		var answer *ansent
+		conn.withLocked(func(c *lockedConn) {
+			answer, _ = c.lk.answers.Remove(id)
+		})
+		if answer != nil {
+			for i := range answer.returner.resultsCapTable {
+				answer.returner.resultsCapTable[i].Release()
+			}
+		}
+		message.Release()
+	})
+	return id
 }
 
 func requireResolveClientShutdown(t *testing.T, shutdown <-chan struct{}) {
@@ -567,10 +630,11 @@ func TestHandleResolveInvalidDescriptorsReleaseMessage(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			conn, _ := newResolveLifecycleConn(t)
+			var opts *Options
 			if test.networked {
-				conn.network = resolveTestNetwork{}
+				opts = &Options{Network: resolveTestNetwork{}}
 			}
+			conn, _ := newResolveLifecycleConnWithOptions(t, opts)
 			in := newResolveMessage(t, resolvePromiseID, test.build)
 
 			err := conn.handleResolve(context.Background(), in)
@@ -669,6 +733,11 @@ func TestHandleResolveRejectsSelfResolution(t *testing.T) {
 			addPromise: true,
 			newResolve: resolveToSenderPromise,
 		},
+		{
+			name:       "known promise to third-party vine",
+			addPromise: true,
+			newResolve: resolveToThirdPartyHosted,
+		},
 	}
 
 	for _, test := range tests {
@@ -686,6 +755,45 @@ func TestHandleResolveRejectsSelfResolution(t *testing.T) {
 			if got := atomic.LoadInt32(&in.releases); got != 1 {
 				t.Fatalf("incoming message releases = %d; want 1", got)
 			}
+			conn.withLocked(func(c *lockedConn) {
+				ent, _ := c.lk.imports.Find(resolvePromiseID)
+				if test.addPromise {
+					if ent == nil || ent.wireRefs != 1 {
+						t.Errorf("self-resolution import = %+v; want one unchanged wire reference", ent)
+					}
+				} else if ent != nil {
+					t.Error("self-resolution created an import entry")
+				}
+			})
 		})
 	}
+}
+
+func TestHandleResolveRejectsReflectedSelfResolution(t *testing.T) {
+	conn, _ := newResolveLifecycleConn(t)
+	promise := addResolvePromise(t, conn)
+	answerID := addResolveAnswerReturningClient(t, conn, promise)
+	in := resolveToReceiverAnswer(t, resolvePromiseID, answerID)
+
+	err := conn.handleResolve(context.Background(), in)
+	if err == nil || !strings.Contains(err.Error(), "resolved to itself") {
+		t.Fatalf("handleResolve error = %v; want self-resolution error", err)
+	}
+	if got := atomic.LoadInt32(&in.releases); got != 1 {
+		t.Fatalf("incoming message releases = %d; want 1", got)
+	}
+	conn.withLocked(func(c *lockedConn) {
+		ent, _ := c.lk.imports.Find(resolvePromiseID)
+		if ent == nil || ent.wireRefs != 1 {
+			t.Errorf("reflected self-resolution import = %+v; want one unchanged wire reference", ent)
+		}
+		embargoes := 0
+		c.lk.embargoes.Range(func(_ embargoID, _ *embargo) bool {
+			embargoes++
+			return true
+		})
+		if embargoes != 0 {
+			t.Errorf("reflected self-resolution created %d embargoes; want 0", embargoes)
+		}
+	})
 }
