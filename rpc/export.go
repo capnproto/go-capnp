@@ -194,7 +194,17 @@ func (c *lockedConn) sendSenderPromise(id exportID, d rpccp.CapDescriptor) {
 				return
 			}
 
-			sendRef := waitRef.AddRef()
+			var sendRef capnp.ClientSnapshot
+			if waitRef.IsValid() {
+				sendRef = waitRef.AddRef()
+			} else {
+				// CapDescriptor.none is not a valid promise resolution.
+				// Represent a null resolution as a resolved, always-failing
+				// capability, matching the C++ implementation's wire shape.
+				nullClient := capnp.ErrorClient(errors.New("call on null client"))
+				sendRef = nullClient.Snapshot()
+				nullClient.Release()
+			}
 			var (
 				resolvedID exportID
 				isExport   bool

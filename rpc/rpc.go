@@ -720,7 +720,11 @@ func (c *Conn) handleBootstrap(in transport.IncomingMessage) error {
 
 	c.withLocked(func(c *lockedConn) {
 		if _, ok := c.lk.answers.Find(ans.returner.id); ok {
-			dq.Defer(ans.returner.msgReleaser.Decr)
+			if ans.returner.msgReleaser != nil {
+				// The answer and unsent send path each own one reference.
+				dq.Defer(ans.returner.msgReleaser.Decr)
+				dq.Defer(ans.returner.msgReleaser.Decr)
+			}
 			err = rpcerr.Failed(errors.New("incoming bootstrap: answer ID " + str.Utod(ans.returner.id) + " reused"))
 			return
 		}
@@ -1326,9 +1330,10 @@ func (c *Conn) handleFinish(ctx context.Context, in transport.IncomingMessage) e
 	return withLockedConn1(c, func(c *lockedConn) error {
 		ans, _ := c.lk.answers.Find(id)
 		if ans == nil {
-			return rpcerr.Failed(errors.New(
-				"incoming finish: unknown answer ID " + str.Utod(id),
-			))
+			// The answer may already have been retired.  We cannot distinguish
+			// that case from an invalid ID without retaining tombstones, so
+			// defensively ignore the message.
+			return nil
 		}
 		if ans.flags.Contains(finishReceived) {
 			return rpcerr.Failed(errors.New(

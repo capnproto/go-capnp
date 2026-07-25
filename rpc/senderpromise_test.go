@@ -3,6 +3,7 @@ package rpc_test
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -70,6 +71,188 @@ func TestSenderPromiseFulfill(t *testing.T) {
 		assert.Equal(t, rpccp.CapDescriptor_Which_senderHosted, desc.Which)
 		assert.NotEqual(t, bootExportID, desc.SenderHosted)
 	}
+}
+
+func TestSenderPromiseFulfillNull(t *testing.T) {
+	ctx := context.Background()
+	promise, resolver := capnp.NewLocalPromise[testcapnp.Empty]()
+	onShutdown := make(chan struct{})
+	ordinary := testcapnp.Empty_ServerToClient(emptyShutdowner{
+		onShutdown: onShutdown,
+	})
+	provider := testcapnp.EmptyProvider_ServerToClient(&nullThenEmptyProvider{
+		first: promise,
+		next:  ordinary,
+	})
+
+	left, right := transport.NewPipe(1)
+	p1, p2 := rpc.NewTransport(left), rpc.NewTransport(right)
+	conn := rpc.NewConn(p1, &rpc.Options{
+		Logger:          testErrorReporter{tb: t, fail: true},
+		BootstrapClient: capnp.Client(provider),
+	})
+	defer finishTest(t, conn, p2)
+
+	// Bootstrap the provider.
+	require.NoError(t, sendMessage(ctx, p2, &rpcMessage{
+		Which: rpccp.Message_Which_bootstrap,
+		Bootstrap: &rpcBootstrap{
+			QuestionID: 0,
+		},
+	}))
+	providerID, err := recvBootstrapReturn(ctx, p2, 0)
+	require.NoError(t, err)
+	require.NoError(t, sendMessage(ctx, p2, &rpcMessage{
+		Which: rpccp.Message_Which_finish,
+		Finish: &rpcFinish{
+			QuestionID:        0,
+			ReleaseResultCaps: false,
+		},
+	}))
+
+	// The first call returns the unresolved promise.
+	require.NoError(t, sendMessage(ctx, p2, &rpcMessage{
+		Which: rpccp.Message_Which_call,
+		Call: &rpcCall{
+			QuestionID: 1,
+			Target: rpcMessageTarget{
+				Which:       rpccp.MessageTarget_Which_importedCap,
+				ImportedCap: providerID,
+			},
+			InterfaceID: testcapnp.EmptyProvider_TypeID,
+			MethodID:    0,
+			Params:      rpcPayload{},
+		},
+	}))
+	ret, release, err := recvMessage(ctx, p2)
+	require.NoError(t, err)
+	require.Equal(t, rpccp.Message_Which_return, ret.Which)
+	require.Equal(t, uint32(1), ret.Return.AnswerID)
+	require.Equal(t, rpccp.Return_Which_results, ret.Return.Which)
+	require.Len(t, ret.Return.Results.CapTable, 1)
+	promiseDesc := ret.Return.Results.CapTable[0]
+	require.Equal(t, rpccp.CapDescriptor_Which_senderPromise, promiseDesc.Which)
+	promiseID := promiseDesc.SenderPromise
+	release()
+
+	// Null is represented by a callable, always-failing senderHosted
+	// capability. Resolve(cap=none) is not valid here.
+	resolver.Fulfill(testcapnp.Empty{})
+	resolved, release, err := recvMessage(ctx, p2)
+	require.NoError(t, err)
+	require.Equal(t, rpccp.Message_Which_resolve, resolved.Which)
+	require.Equal(t, promiseID, resolved.Resolve.PromiseID)
+	require.Equal(t, rpccp.Resolve_Which_cap, resolved.Resolve.Which)
+	require.Equal(t, rpccp.CapDescriptor_Which_senderHosted, resolved.Resolve.Cap.Which)
+	replacementID := resolved.Resolve.Cap.SenderHosted
+	require.NotEqual(t, promiseID, replacementID)
+	release()
+
+	// Calling the replacement fails as an ordinary RPC call; it does not
+	// panic or tear down the connection.
+	require.NoError(t, sendMessage(ctx, p2, &rpcMessage{
+		Which: rpccp.Message_Which_call,
+		Call: &rpcCall{
+			QuestionID: 2,
+			Target: rpcMessageTarget{
+				Which:       rpccp.MessageTarget_Which_importedCap,
+				ImportedCap: replacementID,
+			},
+			InterfaceID: testcapnp.Empty_TypeID,
+			MethodID:    0,
+			Params:      rpcPayload{},
+		},
+	}))
+	failed, release, err := recvMessage(ctx, p2)
+	require.NoError(t, err)
+	require.Equal(t, rpccp.Message_Which_return, failed.Which)
+	require.Equal(t, uint32(2), failed.Return.AnswerID)
+	require.Equal(t, rpccp.Return_Which_exception, failed.Return.Which)
+	require.Contains(t, failed.Return.Exception.Reason, "call on null client")
+	release()
+	require.NoError(t, sendMessage(ctx, p2, &rpcMessage{
+		Which: rpccp.Message_Which_finish,
+		Finish: &rpcFinish{
+			QuestionID: 2,
+		},
+	}))
+
+	// Releasing the replacement removes exactly one export reference. The
+	// next export reuses its ID, proving that the replacement balanced.
+	require.NoError(t, sendMessage(ctx, p2, &rpcMessage{
+		Which: rpccp.Message_Which_release,
+		Release: &rpcRelease{
+			ID:             replacementID,
+			ReferenceCount: 1,
+		},
+	}))
+	require.NoError(t, sendMessage(ctx, p2, &rpcMessage{
+		Which: rpccp.Message_Which_call,
+		Call: &rpcCall{
+			QuestionID: 3,
+			Target: rpcMessageTarget{
+				Which:       rpccp.MessageTarget_Which_importedCap,
+				ImportedCap: providerID,
+			},
+			InterfaceID: testcapnp.EmptyProvider_TypeID,
+			MethodID:    0,
+			Params:      rpcPayload{},
+		},
+	}))
+	succeeded, release, err := recvMessage(ctx, p2)
+	require.NoError(t, err)
+	require.Equal(t, rpccp.Message_Which_return, succeeded.Which)
+	require.Equal(t, uint32(3), succeeded.Return.AnswerID)
+	require.Equal(t, rpccp.Return_Which_results, succeeded.Return.Which)
+	require.Len(t, succeeded.Return.Results.CapTable, 1)
+	ordinaryDesc := succeeded.Return.Results.CapTable[0]
+	require.Equal(t, rpccp.CapDescriptor_Which_senderHosted, ordinaryDesc.Which)
+	require.Equal(t, replacementID, ordinaryDesc.SenderHosted)
+	release()
+
+	require.NoError(t, sendMessage(ctx, p2, &rpcMessage{
+		Which: rpccp.Message_Which_finish,
+		Finish: &rpcFinish{
+			QuestionID:        3,
+			ReleaseResultCaps: true,
+		},
+	}))
+	require.NoError(t, sendMessage(ctx, p2, &rpcMessage{
+		Which: rpccp.Message_Which_finish,
+		Finish: &rpcFinish{
+			QuestionID:        1,
+			ReleaseResultCaps: true,
+		},
+	}))
+	require.NoError(t, sendMessage(ctx, p2, &rpcMessage{
+		Which: rpccp.Message_Which_release,
+		Release: &rpcRelease{
+			ID:             providerID,
+			ReferenceCount: 1,
+		},
+	}))
+	select {
+	case <-onShutdown:
+	case <-time.After(5 * time.Second):
+		t.Fatal("ordinary replacement capability did not shut down")
+	}
+}
+
+type nullThenEmptyProvider struct {
+	calls atomic.Uint32
+	first testcapnp.Empty
+	next  testcapnp.Empty
+}
+
+func (p *nullThenEmptyProvider) GetEmpty(_ context.Context, call testcapnp.EmptyProvider_getEmpty) error {
+	results, err := call.AllocResults()
+	if err != nil {
+		return err
+	}
+	if p.calls.Add(1) == 1 {
+		return results.SetEmpty(p.first)
+	}
+	return results.SetEmpty(p.next)
 }
 
 // Tests that if we get an unimplemented message in response to a resolve message, we correctly
