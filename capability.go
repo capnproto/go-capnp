@@ -423,6 +423,84 @@ type resolveState struct {
 	resolvedHook *rc.Ref[clientHook]
 }
 
+// clientPromiseResolutionMu serializes updates to the graph formed by
+// resolveState.resolvedHook.  Keeping the check and edge publication atomic
+// prevents concurrent fulfillments from introducing a cycle.
+var clientPromiseResolutionMu sync.Mutex
+
+var errClientPromiseResolutionCycle = errors.New("client promise resolution cycle")
+
+// clientPromiseResolutionReaches reports whether following the resolved
+// promise chain from hook reaches target.  The caller must hold
+// clientPromiseResolutionMu.
+func clientPromiseResolutionReaches(hook *rc.Ref[clientHook], target *clientHook) bool {
+	for hook != nil {
+		if hook.Value() == target {
+			return true
+		}
+
+		resolution, ok := hook.Value().resolution.Get()
+		if !ok {
+			return false
+		}
+
+		var next *rc.Ref[clientHook]
+		resolved := mutex.With1(resolution, func(state *resolveState) bool {
+			if !state.isResolved() {
+				return false
+			}
+			next = state.resolvedHook
+			return true
+		})
+		if !resolved {
+			return false
+		}
+		hook = next
+	}
+	return false
+}
+
+// publishClientPromiseResolution publishes source's resolution, consuming
+// target.  source remains owned by the caller.
+func publishClientPromiseResolution(source, target *rc.Ref[clientHook]) {
+	// Unless ownership is transferred to the source promise below, release
+	// the target on every exit, including duplicate-settlement panics.
+	defer func() {
+		target.Release()
+	}()
+	// Releasing a client hook can invoke arbitrary Shutdown code.  Keep any
+	// displaced target alive until after the resolution graph is unlocked.
+	var displacedTarget *rc.Ref[clientHook]
+	defer func() {
+		displacedTarget.Release()
+	}()
+
+	func() {
+		clientPromiseResolutionMu.Lock()
+		defer clientPromiseResolutionMu.Unlock()
+
+		if clientPromiseResolutionReaches(target, source.Value()) {
+			displacedTarget = target
+			rejected := ErrorClient(errClientPromiseResolutionCycle)
+			target, _, _ = rejected.startCall()
+			rejected.Release()
+		}
+
+		resolution, ok := source.Value().resolution.Get()
+		if !ok {
+			panic("BUG: clientPromise referred to a clientHook that was not a promise")
+		}
+		resolution.With(func(state *resolveState) {
+			if state.isResolved() {
+				panic("ClientPromise.Fulfill called more than once")
+			}
+			state.resolvedHook = target
+			target = nil // resolveState now owns the target reference.
+			close(state.resolved)
+		})
+	}()
+}
+
 // NewClient creates the first reference to a capability.
 // If hook is nil, then NewClient returns nil.
 //
@@ -1530,18 +1608,9 @@ func (cp *clientPromise) fulfill(dq *deferred.Queue, c Client) {
 		rh = h
 	}
 
-	// Mark hook as resolved.
-	r, ok := hook.Value().resolution.Get()
-	if !ok {
-		panic("BUG: clientPromise referred to a clientHook that was not a promise")
-	}
-	r.With(func(s *resolveState) {
-		if s.isResolved() {
-			panic("ClientPromise.Fulfill called more than once")
-		}
-		s.resolvedHook = rh
-		close(s.resolved)
-	})
+	// Mark hook as resolved.  Edge publication is serialized with ancestry
+	// checks so simultaneous fulfillments cannot each publish half of a cycle.
+	publishClientPromiseResolution(hook, rh)
 
 	if cursor, ok := cp.cursor.AddRef(); ok {
 		dq.Defer(cursor.Release)
