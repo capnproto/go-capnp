@@ -22,33 +22,49 @@ type impent struct {
 	// Release.referenceCount field.
 	wireRefs int
 
-	// generation is a counter used to disambiguate the following
-	// condition:
-	//
-	// 1) An import given to application code.
-	// 2) A new reference to the import is received over the wire, while
-	//    the application concurrently closes the import.
-	//    importClient.Shutdown is called, but the receive has the lock
-	//    first.
-	// 3) Conn.addImport attempts to return a weak client reference, but
-	//    can't because it has been closed.  It creates a new client
-	//    with a new importClient.
-	// 4) importClient.Shutdown attempts to remove the import from the import
-	//    table.  This is the critical step: it needs to be informed that
-	//    it should not do this because another client has been created.
-	//    No release message should be sent.
-	//
-	// The generation counter solves this by amending steps 3 and 4.  When
-	// a new importClient is created, generation is incremented.
-	// When importClient.Shutdown is called, then it must check that the
-	// importClient's generation matches the entry's generation before
-	// removing the entry from the table and sending a release message.
+	// generation identifies the newest importClient hook. Only that hook may
+	// send calls or be reflected back to the peer. It is incremented when a
+	// weak client cursor can no longer be upgraded and addImport creates a
+	// replacement hook.
 	generation uint64
+
+	// liveHooks counts importClient hooks that have not called Shutdown.
+	// Snapshots retain hooks independently of client cursors, so hooks from
+	// older generations may remain live after generation advances. The import
+	// entry and its promise resolver must remain registered until every hook
+	// generation shuts down.
+	liveHooks int
 
 	// If resolver is non-nil, then this is a promise (received as
 	// CapDescriptor_Which_senderPromise), and when a resolve message
 	// arrives we should use this to fulfill the promise locally.
 	resolver capnp.Resolver[capnp.Client]
+}
+
+// importPromiseResolvers settles every live local view of one unresolved
+// import. A new client generation gets a new resolver, while snapshots may
+// keep earlier generations alive after their client cursors are released.
+type importPromiseResolvers []capnp.Resolver[capnp.Client]
+
+func (rs importPromiseResolvers) Fulfill(client capnp.Client) {
+	for _, resolver := range rs {
+		resolver.Fulfill(client)
+	}
+}
+
+func (rs importPromiseResolvers) Reject(err error) {
+	for _, resolver := range rs {
+		resolver.Reject(err)
+	}
+}
+
+func joinImportPromiseResolvers(
+	first, second capnp.Resolver[capnp.Client],
+) capnp.Resolver[capnp.Client] {
+	if resolvers, ok := first.(importPromiseResolvers); ok {
+		return append(resolvers, second)
+	}
+	return importPromiseResolvers{first, second}
 }
 
 // takeResolver transfers terminal ownership of an imported promise.
@@ -70,13 +86,16 @@ func (c *lockedConn) addImport(id importID, isPromise bool) capnp.Client {
 		client, ok := ent.wc.AddRef()
 		if !ok {
 			ent.generation++
+			ent.liveHooks++
 			hook := &importClient{
 				c:          (*Conn)(c),
 				id:         id,
 				generation: ent.generation,
 			}
 			if isPromise && ent.resolver != nil {
-				client, ent.resolver = capnp.NewPromisedClient(hook)
+				var resolver capnp.Resolver[capnp.Client]
+				client, resolver = capnp.NewPromisedClient(hook)
+				ent.resolver = joinImportPromiseResolvers(ent.resolver, resolver)
 			} else {
 				client = capnp.NewClient(hook)
 			}
@@ -98,9 +117,10 @@ func (c *lockedConn) addImport(id importID, isPromise bool) capnp.Client {
 		client = capnp.NewClient(hook)
 	}
 	c.lk.imports.Create(id, &impent{
-		wc:       client.WeakRef(),
-		wireRefs: 1,
-		resolver: resolver,
+		wc:        client.WeakRef(),
+		wireRefs:  1,
+		liveHooks: 1,
+		resolver:  resolver,
 	})
 	return client
 }
@@ -203,9 +223,14 @@ func (ic *importClient) Shutdown() {
 		defer c.tasks.Done()
 
 		ent, ok := c.lk.imports.Find(ic.id)
-		if !ok || ic.generation != ent.generation {
-			// A new reference was added concurrently with the Shutdown.  See
-			// impent.generation documentation for an explanation.
+		if !ok {
+			return
+		}
+		if ent.liveHooks <= 0 {
+			panic("rpc: import has no live hooks")
+		}
+		ent.liveHooks--
+		if ent.liveHooks > 0 {
 			return
 		}
 		c.lk.imports.Remove(ic.id)

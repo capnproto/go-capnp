@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"testing/synctest"
@@ -18,6 +19,22 @@ type trackedImportResolver struct {
 	allowReject   <-chan struct{}
 	fulfills      atomic.Int32
 	rejects       atomic.Int32
+}
+
+type terminalCountingImportResolver struct {
+	inner    capnp.Resolver[capnp.Client]
+	fulfills atomic.Int32
+	rejects  atomic.Int32
+}
+
+func (r *terminalCountingImportResolver) Fulfill(client capnp.Client) {
+	r.fulfills.Add(1)
+	r.inner.Fulfill(client)
+}
+
+func (r *terminalCountingImportResolver) Reject(err error) {
+	r.rejects.Add(1)
+	r.inner.Reject(err)
 }
 
 func (r *trackedImportResolver) Fulfill(client capnp.Client) {
@@ -147,6 +164,181 @@ func TestImportedPromiseShutdownRejectsBeforeDone(t *testing.T) {
 		}
 		if got := tracker.rejects.Load(); got != 1 {
 			t.Fatalf("promise Reject calls after second Close = %d; want 1", got)
+		}
+	})
+}
+
+func TestImportedPromiseShutdownRejectsRetainedSnapshot(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		left, right := transportpkg.NewPipe(16)
+		conn := NewConn(NewTransport(left), nil)
+		peer := NewTransport(right)
+		defer peer.Close()
+
+		const id = importID(8)
+		var client capnp.Client
+		conn.withLocked(func(c *lockedConn) {
+			client = c.addImport(id, true)
+		})
+
+		snapshot := client.Snapshot()
+		defer snapshot.Release()
+		client.Release()
+
+		conn.withLocked(func(c *lockedConn) {
+			imp, ok := c.lk.imports.Find(id)
+			if !ok {
+				t.Fatal("promise import was removed while its snapshot remained live")
+			}
+			if live, ok := imp.wc.AddRef(); ok {
+				live.Release()
+				t.Fatal("promise import retained a live client cursor")
+			}
+		})
+
+		resolveCtx, cancelResolve := context.WithCancel(context.Background())
+		defer cancelResolve()
+		resolveResult := make(chan error, 1)
+		go func() {
+			resolveResult <- snapshot.Resolve(resolveCtx)
+		}()
+
+		closeResult := make(chan error, 1)
+		go func() {
+			closeResult <- conn.Close()
+		}()
+		synctest.Wait()
+
+		if err := <-closeResult; err != nil {
+			t.Fatal("close connection:", err)
+		}
+		select {
+		case err := <-resolveResult:
+			if err != nil {
+				t.Fatalf("snapshot Resolve error = %v; want nil", err)
+			}
+		default:
+			cancelResolve()
+			synctest.Wait()
+			<-resolveResult
+			t.Fatal("snapshot remained unresolved after connection shutdown")
+		}
+
+		resolutionErr, ok := snapshot.Brand().Value.(error)
+		if !ok || !capnp.IsDisconnected(resolutionErr) {
+			t.Fatalf("resolved snapshot brand = %v; want disconnected error", resolutionErr)
+		}
+	})
+}
+
+func TestImportedPromiseShutdownRejectsSnapshotAcrossTransientGeneration(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		left, right := transportpkg.NewPipe(16)
+		conn := NewConn(NewTransport(left), nil)
+		peer := NewTransport(right)
+		defer peer.Close()
+
+		const id = importID(9)
+		var first capnp.Client
+		conn.withLocked(func(c *lockedConn) {
+			first = c.addImport(id, true)
+		})
+		snapshot := first.Snapshot()
+		defer snapshot.Release()
+		first.Release()
+
+		var current capnp.Client
+		conn.withLocked(func(c *lockedConn) {
+			current = c.addImport(id, true)
+		})
+		current.Release()
+
+		conn.withLocked(func(c *lockedConn) {
+			imp, ok := c.lk.imports.Find(id)
+			if !ok {
+				t.Fatal("transient current generation removed import retained by an older snapshot")
+			}
+			if imp.liveHooks != 1 {
+				t.Fatalf("live import hooks = %d; want 1 retained snapshot hook", imp.liveHooks)
+			}
+		})
+
+		if err := conn.Close(); err != nil {
+			t.Fatal("close connection:", err)
+		}
+		if !snapshot.IsResolved() {
+			t.Fatal("snapshot remained unresolved after connection shutdown")
+		}
+		if err := snapshot.Resolve(context.Background()); err != nil {
+			t.Fatal("resolve retained snapshot:", err)
+		}
+		resolutionErr, ok := snapshot.Brand().Value.(error)
+		if !ok || !capnp.IsDisconnected(resolutionErr) {
+			t.Fatalf("resolved snapshot brand = %v; want disconnected error", resolutionErr)
+		}
+	})
+}
+
+func TestImportedPromiseResolveRaceShutdownHasSingleTerminalCallback(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		left, right := transportpkg.NewPipe(16)
+		conn := NewConn(NewTransport(left), nil)
+		peer := NewTransport(right)
+		defer peer.Close()
+
+		const id = importID(10)
+		var client capnp.Client
+		tracker := &terminalCountingImportResolver{}
+		conn.withLocked(func(c *lockedConn) {
+			client = c.addImport(id, true)
+			imp, ok := c.lk.imports.Find(id)
+			if !ok {
+				t.Fatal("promise import was not created")
+			}
+			tracker.inner = imp.takeResolver()
+			imp.resolver = tracker
+		})
+		snapshot := client.Snapshot()
+		defer snapshot.Release()
+		client.Release()
+
+		in := resolveToException(t, id)
+		start := make(chan struct{})
+		resolveResult := make(chan error, 1)
+		closeResult := make(chan error, 1)
+		go func() {
+			<-start
+			resolveResult <- conn.handleResolve(context.Background(), in)
+		}()
+		go func() {
+			<-start
+			closeResult <- conn.Close()
+		}()
+		close(start)
+		synctest.Wait()
+
+		if err := <-resolveResult; err != nil {
+			t.Fatal("handle Resolve:", err)
+		}
+		if err := <-closeResult; err != nil {
+			t.Fatal("close connection:", err)
+		}
+		if got := tracker.fulfills.Load(); got != 0 {
+			t.Fatalf("promise Fulfill calls = %d; want 0", got)
+		}
+		if got := tracker.rejects.Load(); got != 1 {
+			t.Fatalf("promise Reject calls = %d; want 1", got)
+		}
+		if !snapshot.IsResolved() {
+			t.Fatal("snapshot remained unresolved after Resolve/Close race")
+		}
+		if err := snapshot.Resolve(context.Background()); err != nil {
+			t.Fatal("resolve retained snapshot:", err)
+		}
+		resolutionErr, ok := snapshot.Brand().Value.(error)
+		if !ok || (!capnp.IsDisconnected(resolutionErr) &&
+			!strings.Contains(resolutionErr.Error(), "resolution failed")) {
+			t.Fatalf("resolved snapshot brand = %v; want Resolve or shutdown rejection", resolutionErr)
 		}
 	})
 }

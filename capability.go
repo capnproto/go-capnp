@@ -467,10 +467,16 @@ func newPromisedClient(hook ClientHook) (Client, *clientPromise) {
 		metadata:   *NewMetadata(),
 		resolution: maybe.New(&rs),
 	})
+	promiseHook := mutex.With1(&cursor.Value().hook, func(h **rc.Ref[clientHook]) *rc.WeakRef[clientHook] {
+		return (*h).Weak()
+	})
 	cs := mutex.New(clientState{cursor: cursor, flow: newClientFlow(flowcontrol.NopLimiter)})
 	c := Client{client: &client{state: cs}}
 	setupLeakReporting(c)
-	return c, &clientPromise{cursor: cursor.Weak()}
+	return c, &clientPromise{
+		hook:   promiseHook,
+		cursor: cursor.Weak(),
+	}
 }
 
 // startCall holds onto a hook to prevent it from shutting down until
@@ -1479,6 +1485,12 @@ func SetClientLeakFunc(clientLeakFunc func(msg string)) {
 
 // A ClientPromise resolves the identity of a client created by NewPromisedClient.
 type clientPromise struct {
+	// hook keeps settlement reachable while any client view remains live.
+	// In particular, ClientSnapshot holds a clientHook without retaining
+	// the original clientCursor.
+	hook *rc.WeakRef[clientHook]
+
+	// cursor is retained separately for best-effort path shortening.
 	cursor *rc.WeakRef[clientCursor]
 }
 
@@ -1502,11 +1514,11 @@ func (cp *clientPromise) Fulfill(c Client) {
 // to return answers or shut down the underlying hook; instead, it adds functions
 // to do this to dq.
 func (cp *clientPromise) fulfill(dq *deferred.Queue, c Client) {
-	cursor, ok := cp.cursor.AddRef()
+	hook, ok := cp.hook.AddRef()
 	if !ok {
 		return
 	}
-	dq.Defer(cursor.Release)
+	dq.Defer(hook.Release)
 
 	// Obtain next client hook.
 	var rh *rc.Ref[clientHook]
@@ -1519,20 +1531,22 @@ func (cp *clientPromise) fulfill(dq *deferred.Queue, c Client) {
 	}
 
 	// Mark hook as resolved.
-	cursor.Value().hook.With(func(h **rc.Ref[clientHook]) {
-		r, ok := (*h).Value().resolution.Get()
-		if !ok {
-			panic("BUG: clientPromise referred to a clientHook that was not a promise")
+	r, ok := hook.Value().resolution.Get()
+	if !ok {
+		panic("BUG: clientPromise referred to a clientHook that was not a promise")
+	}
+	r.With(func(s *resolveState) {
+		if s.isResolved() {
+			panic("ClientPromise.Fulfill called more than once")
 		}
-		r.With(func(s *resolveState) {
-			if s.isResolved() {
-				panic("ClientPromise.Fulfill called more than once")
-			}
-			s.resolvedHook = rh
-			close(s.resolved)
-		})
+		s.resolvedHook = rh
+		close(s.resolved)
 	})
-	cursor.Value().compress()
+
+	if cursor, ok := cp.cursor.AddRef(); ok {
+		dq.Defer(cursor.Release)
+		cursor.Value().compress()
+	}
 }
 
 // A WeakClient is a weak reference to a capability: it refers to a
