@@ -518,6 +518,21 @@ func TestHandleResolveInvalidDescriptorsReleaseMessage(t *testing.T) {
 			want: "invalid export",
 		},
 		{
+			name: "unknown receiver-answer target",
+			build: func(resolve rpccp.Resolve) error {
+				desc, err := resolve.NewCap()
+				if err != nil {
+					return err
+				}
+				answer, err := desc.NewReceiverAnswer()
+				if err == nil {
+					answer.SetQuestionId(99)
+				}
+				return err
+			},
+			want: "no such question id",
+		},
+		{
 			name: "unknown resolve union",
 			build: func(resolve rpccp.Resolve) error {
 				capnp.Struct(resolve).SetUint16(4, 99)
