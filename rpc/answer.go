@@ -409,7 +409,10 @@ func (ans *ansent) completeSendException(dq *deferred.Queue) {
 //
 // shutdown has its own strategy for cleaning up an answer.
 func (ans *ansent) destroy(dq *deferred.Queue) error {
-	dq.Defer(ans.returner.msgReleaser.Decr)
+	// errorAnswer has no return message when newReturn fails.
+	if ans.returner.msgReleaser != nil {
+		dq.Defer(ans.returner.msgReleaser.Decr)
+	}
 	c := ans.lockedConn()
 	c.lk.answers.Remove(ans.returner.id)
 	for _, s := range ans.returner.resultsCapTable {

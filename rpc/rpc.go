@@ -703,7 +703,11 @@ func (c *Conn) handleBootstrap(in transport.IncomingMessage) error {
 
 	c.withLocked(func(c *lockedConn) {
 		if _, ok := c.lk.answers.Find(ans.returner.id); ok {
-			dq.Defer(ans.returner.msgReleaser.Decr)
+			if ans.returner.msgReleaser != nil {
+				// The answer and unsent send path each own one reference.
+				dq.Defer(ans.returner.msgReleaser.Decr)
+				dq.Defer(ans.returner.msgReleaser.Decr)
+			}
 			err = rpcerr.Failed(errors.New("incoming bootstrap: answer ID " + str.Utod(ans.returner.id) + " reused"))
 			return
 		}
