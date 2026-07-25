@@ -376,9 +376,24 @@ func requireResolveClientShutdown(t *testing.T, shutdown <-chan struct{}) {
 	}
 }
 
+func requirePromiseResolverConsumed(t *testing.T, conn *Conn, id importID) {
+	t.Helper()
+
+	conn.withLocked(func(c *lockedConn) {
+		imp, ok := c.lk.imports.Find(id)
+		if !ok {
+			t.Errorf("promise import %d was removed during resolution", id)
+		} else if imp.resolver != nil {
+			t.Errorf("promise import %d retained its resolver after resolution", id)
+		}
+	})
+}
+
 func TestHandleResolveFulfillsKnownPromiseAndReleasesMessage(t *testing.T) {
 	conn, _ := newResolveLifecycleConn(t)
 	promise := addResolvePromise(t, conn)
+	unresolvedSnapshot := promise.Snapshot()
+	defer unresolvedSnapshot.Release()
 	in := resolveToSenderHosted(t, resolvePromiseID, resolveReplacementID)
 
 	if err := conn.handleResolve(context.Background(), in); err != nil {
@@ -387,6 +402,7 @@ func TestHandleResolveFulfillsKnownPromiseAndReleasesMessage(t *testing.T) {
 	if got := atomic.LoadInt32(&in.releases); got != 1 {
 		t.Fatalf("incoming message releases = %d; want 1", got)
 	}
+	requirePromiseResolverConsumed(t, conn, resolvePromiseID)
 	if err := promise.Resolve(context.Background()); err != nil {
 		t.Fatal("resolve imported promise:", err)
 	}
@@ -400,6 +416,8 @@ func TestHandleResolveFulfillsKnownPromiseAndReleasesMessage(t *testing.T) {
 func TestHandleResolveRejectsKnownPromiseAndReleasesMessage(t *testing.T) {
 	conn, _ := newResolveLifecycleConn(t)
 	promise := addResolvePromise(t, conn)
+	unresolvedSnapshot := promise.Snapshot()
+	defer unresolvedSnapshot.Release()
 	in := resolveToException(t, resolvePromiseID)
 
 	if err := conn.handleResolve(context.Background(), in); err != nil {
@@ -408,12 +426,53 @@ func TestHandleResolveRejectsKnownPromiseAndReleasesMessage(t *testing.T) {
 	if got := atomic.LoadInt32(&in.releases); got != 1 {
 		t.Fatalf("incoming message releases = %d; want 1", got)
 	}
+	requirePromiseResolverConsumed(t, conn, resolvePromiseID)
 	if err := promise.Resolve(context.Background()); err != nil {
 		t.Fatal("resolve imported promise:", err)
 	}
 	snapshot := promise.Snapshot()
 	resolutionErr, ok := snapshot.Brand().Value.(error)
 	snapshot.Release()
+	if !ok || !strings.Contains(resolutionErr.Error(), "resolution failed") {
+		t.Fatalf("resolved promise brand = %v; want resolution failure", resolutionErr)
+	}
+}
+
+func TestHandleResolveRejectsCurrentPromiseGeneration(t *testing.T) {
+	conn, _ := newResolveLifecycleConn(t)
+
+	var first, current capnp.Client
+	conn.withLocked(func(c *lockedConn) {
+		first = c.addImport(resolvePromiseID, true)
+	})
+	oldSnapshot := first.Snapshot()
+	defer oldSnapshot.Release()
+	first.Release()
+
+	conn.withLocked(func(c *lockedConn) {
+		current = c.addImport(resolvePromiseID, true)
+	})
+	defer current.Release()
+	currentSnapshot := current.Snapshot()
+	if !currentSnapshot.IsPromise() {
+		currentSnapshot.Release()
+		t.Fatal("re-received senderPromise is not a promise")
+	}
+	currentSnapshot.Release()
+
+	in := resolveToException(t, resolvePromiseID)
+	if err := conn.handleResolve(context.Background(), in); err != nil {
+		t.Fatal("handleResolve:", err)
+	}
+	if got := atomic.LoadInt32(&in.releases); got != 1 {
+		t.Fatalf("incoming message releases = %d; want 1", got)
+	}
+	if err := current.Resolve(context.Background()); err != nil {
+		t.Fatal("resolve re-received imported promise:", err)
+	}
+	resolved := current.Snapshot()
+	resolutionErr, ok := resolved.Brand().Value.(error)
+	resolved.Release()
 	if !ok || !strings.Contains(resolutionErr.Error(), "resolution failed") {
 		t.Fatalf("resolved promise brand = %v; want resolution failure", resolutionErr)
 	}

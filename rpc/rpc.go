@@ -435,13 +435,14 @@ func (c *lockedConn) release(dq *deferred.Queue) {
 	embargoes := c.lk.embargoes.Clear()
 	answers := c.lk.answers.Clear()
 	questions := c.lk.questions.Clear()
-	c.lk.imports.Clear()
+	imports := c.lk.imports.Clear()
 
 	c.releaseBootstrap(dq)
 	c.releaseExports(dq, exports)
 	c.liftEmbargoes(dq, embargoes)
 	c.releaseAnswers(dq, answers)
 	c.releaseQuestions(dq, questions)
+	c.releaseImports(dq, imports)
 
 }
 
@@ -493,6 +494,22 @@ func (c *lockedConn) releaseQuestions(dq *deferred.Queue, questions []*question)
 			qr := q // Capture a different variable each time through the loop.
 			dq.Defer(func() {
 				qr.Reject(ExcClosed)
+			})
+		}
+	}
+}
+
+func (c *lockedConn) releaseImports(dq *deferred.Queue, imports []*impent) {
+	for _, imp := range imports {
+		if imp == nil {
+			continue
+		}
+		resolver := imp.takeResolver()
+		if resolver != nil {
+			// Promise resolution may shut down its import client, which takes
+			// c.lk. Run it after the import table has been cleared and unlocked.
+			dq.Defer(func() {
+				resolver.Reject(ExcClosed)
 			})
 		}
 	}
@@ -1901,6 +1918,7 @@ func (c *Conn) handleResolve(ctx context.Context, in transport.IncomingMessage) 
 					))
 				}
 			}
+			resolver := imp.takeResolver()
 			if c.isLocalClient(client) {
 				var id embargoID
 				id, client = c.embargo(client)
@@ -1923,7 +1941,7 @@ func (c *Conn) handleResolve(ctx context.Context, in transport.IncomingMessage) 
 				})
 			}
 			dq.Defer(func() {
-				imp.resolver.Fulfill(client)
+				resolver.Fulfill(client)
 				client.Release()
 			})
 		case rpccp.Resolve_Which_exception:
@@ -1944,8 +1962,9 @@ func (c *Conn) handleResolve(ctx context.Context, in transport.IncomingMessage) 
 						" is not a promise",
 				)
 			}
+			resolver := imp.takeResolver()
 			dq.Defer(func() {
-				imp.resolver.Reject(err)
+				resolver.Reject(err)
 			})
 		default:
 			return rpcerr.Failed(errors.New(
