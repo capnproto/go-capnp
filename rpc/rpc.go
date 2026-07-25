@@ -1309,9 +1309,10 @@ func (c *Conn) handleFinish(ctx context.Context, in transport.IncomingMessage) e
 	return withLockedConn1(c, func(c *lockedConn) error {
 		ans, _ := c.lk.answers.Find(id)
 		if ans == nil {
-			return rpcerr.Failed(errors.New(
-				"incoming finish: unknown answer ID " + str.Utod(id),
-			))
+			// The answer may already have been retired.  We cannot distinguish
+			// that case from an invalid ID without retaining tombstones, so
+			// defensively ignore the message.
+			return nil
 		}
 		if ans.flags.Contains(finishReceived) {
 			return rpcerr.Failed(errors.New(
