@@ -1821,11 +1821,30 @@ func (c *Conn) handleResolve(ctx context.Context, in transport.IncomingMessage) 
 				return rpcerr.Failed(errors.New(
 					"incoming resolve: cap descriptor is none",
 				))
-			case rpccp.CapDescriptor_Which_senderHosted,
-				rpccp.CapDescriptor_Which_senderPromise,
-				rpccp.CapDescriptor_Which_receiverHosted,
-				rpccp.CapDescriptor_Which_receiverAnswer,
-				rpccp.CapDescriptor_Which_thirdPartyHosted:
+			case rpccp.CapDescriptor_Which_senderHosted:
+				if importID(desc.SenderHosted()) == promiseID {
+					return rpcerr.Failed(errors.New(
+						"incoming resolve: promise ID " +
+							str.Utod(promiseID) +
+							" resolved to itself",
+					))
+				}
+			case rpccp.CapDescriptor_Which_senderPromise:
+				if importID(desc.SenderPromise()) == promiseID {
+					return rpcerr.Failed(errors.New(
+						"incoming resolve: promise ID " +
+							str.Utod(promiseID) +
+							" resolved to itself",
+					))
+				}
+			case rpccp.CapDescriptor_Which_receiverHosted,
+				rpccp.CapDescriptor_Which_receiverAnswer:
+			case rpccp.CapDescriptor_Which_thirdPartyHosted:
+				if c.network != nil {
+					return rpcerr.Failed(errors.New(
+						"incoming resolve: third-party handoff not implemented",
+					))
+				}
 			default:
 				return rpcerr.Failed(errors.New(
 					"incoming resolve: unknown cap descriptor type " +

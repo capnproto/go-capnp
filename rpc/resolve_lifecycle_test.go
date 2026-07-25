@@ -204,6 +204,12 @@ func (f resolveShutdownFunc) Shutdown() {
 	f()
 }
 
+type resolveTestNetwork struct{}
+
+func (resolveTestNetwork) LocalID() PeerID             { return PeerID{} }
+func (resolveTestNetwork) Dial(PeerID) (*Conn, error)  { return nil, nil }
+func (resolveTestNetwork) Serve(context.Context) error { return nil }
+
 func newTrackedResolveClient() (capnp.Client, <-chan struct{}) {
 	shutdown := make(chan struct{})
 	client := capnp.NewClient(server.New(nil, nil, resolveShutdownFunc(func() {
@@ -483,9 +489,10 @@ func TestHandleResolveUnknownPromiseReleasesReflectedReplacementLocally(t *testi
 
 func TestHandleResolveInvalidDescriptorsReleaseMessage(t *testing.T) {
 	tests := []struct {
-		name  string
-		build func(rpccp.Resolve) error
-		want  string
+		name      string
+		networked bool
+		build     func(rpccp.Resolve) error
+		want      string
 	}{
 		{
 			name: "none",
@@ -533,6 +540,22 @@ func TestHandleResolveInvalidDescriptorsReleaseMessage(t *testing.T) {
 			want: "no such question id",
 		},
 		{
+			name:      "networked third-party target",
+			networked: true,
+			build: func(resolve rpccp.Resolve) error {
+				desc, err := resolve.NewCap()
+				if err != nil {
+					return err
+				}
+				thirdParty, err := desc.NewThirdPartyHosted()
+				if err == nil {
+					thirdParty.SetVineId(uint32(resolveReplacementID))
+				}
+				return err
+			},
+			want: "third-party handoff not implemented",
+		},
+		{
 			name: "unknown resolve union",
 			build: func(resolve rpccp.Resolve) error {
 				capnp.Struct(resolve).SetUint16(4, 99)
@@ -545,6 +568,9 @@ func TestHandleResolveInvalidDescriptorsReleaseMessage(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			conn, _ := newResolveLifecycleConn(t)
+			if test.networked {
+				conn.network = resolveTestNetwork{}
+			}
 			in := newResolveMessage(t, resolvePromiseID, test.build)
 
 			err := conn.handleResolve(context.Background(), in)
@@ -621,4 +647,45 @@ func TestHandleResolveAlreadyResolvedImportReleasesReplacement(t *testing.T) {
 			t.Error("replacement capability remains imported after invalid duplicate Resolve")
 		}
 	})
+}
+
+func TestHandleResolveRejectsSelfResolution(t *testing.T) {
+	tests := []struct {
+		name       string
+		addPromise bool
+		newResolve func(*testing.T, importID, importID) *countingIncomingMessage
+	}{
+		{
+			name:       "unknown promise to sender promise",
+			newResolve: resolveToSenderPromise,
+		},
+		{
+			name:       "known promise to sender hosted",
+			addPromise: true,
+			newResolve: resolveToSenderHosted,
+		},
+		{
+			name:       "known promise to sender promise",
+			addPromise: true,
+			newResolve: resolveToSenderPromise,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			conn, _ := newResolveLifecycleConn(t)
+			if test.addPromise {
+				addResolvePromise(t, conn)
+			}
+			in := test.newResolve(t, resolvePromiseID, resolvePromiseID)
+
+			err := conn.handleResolve(context.Background(), in)
+			if err == nil || !strings.Contains(err.Error(), "resolved to itself") {
+				t.Fatalf("handleResolve error = %v; want self-resolution error", err)
+			}
+			if got := atomic.LoadInt32(&in.releases); got != 1 {
+				t.Fatalf("incoming message releases = %d; want 1", got)
+			}
+		})
+	}
 }
