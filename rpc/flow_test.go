@@ -626,6 +626,12 @@ func TestGateNextRPCResolvedPipelineHandoffUsesTargetGate(t *testing.T) {
 	if _, err := parentAnswer.Struct(); err != nil {
 		t.Fatal(err)
 	}
+	// parentAnswer.Struct can wake before the Return drain queues Finish.
+	// Stabilize the global transport count before measuring the handed-off
+	// call below.
+	if err := trans.waitForCount(ctx, 4); err != nil {
+		t.Fatal(err)
+	}
 	target := parentAnswer.Field(0, nil).Client()
 	targetGate := &blockingGateController{
 		waitEntered: make(chan struct{}, 1),
