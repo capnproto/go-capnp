@@ -55,24 +55,33 @@ func TestUnknownFinishKeepsConnectionUsable(t *testing.T) {
 	const (
 		unknownID   answerID = 87
 		bootstrapID answerID = 88
+		nextID      answerID = 89
 	)
+	requireReturn := func(id answerID) {
+		in := recvPeerMessage(t, peer)
+		defer in.Release()
+		if got := in.Message().Which(); got != rpccp.Message_Which_return {
+			t.Fatalf("message after Finish = %v; want Return", got)
+		}
+		ret, err := in.Message().Return()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := answerID(ret.AnswerId()); got != id {
+			t.Errorf("return answer ID = %d; want %d", got, id)
+		}
+	}
+
 	sendAnswerFinish(t, peer, unknownID)
 	sendBootstrapMarker(t, peer, uint32(bootstrapID))
+	requireReturn(bootstrapID)
 
-	in := recvPeerMessage(t, peer)
-	defer in.Release()
-	if got := in.Message().Which(); got != rpccp.Message_Which_return {
-		t.Fatalf("message after unknown Finish = %v; want Return", got)
-	}
-	ret, err := in.Message().Return()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := answerID(ret.AnswerId()); got != bootstrapID {
-		t.Errorf("return answer ID = %d; want %d", got, bootstrapID)
-	}
-
+	// The first Finish retires the answer. The second is now unknown and
+	// must not prevent the receive loop from serving another request.
 	sendAnswerFinish(t, peer, bootstrapID)
+	sendAnswerFinish(t, peer, bootstrapID)
+	sendBootstrapMarker(t, peer, uint32(nextID))
+	requireReturn(nextID)
 }
 
 func TestDuplicateFinishForLiveAnswerFails(t *testing.T) {
