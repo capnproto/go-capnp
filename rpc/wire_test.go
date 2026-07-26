@@ -88,6 +88,7 @@ type rpcCallSendResultsTo struct {
 type rpcReturn struct {
 	AnswerID         uint32 `capnp:"answerId"`
 	ReleaseParamCaps bool
+	NoFinishNeeded   bool
 
 	Which                 rpccp.Return_Which
 	Results               *rpcPayload
