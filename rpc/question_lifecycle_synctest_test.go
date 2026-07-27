@@ -8,6 +8,7 @@ import (
 
 	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/rpc"
+	"capnproto.org/go/capnp/v3/server"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
 )
 
@@ -330,6 +331,53 @@ func TestLifecycleQuestionCancelBalancesLateCapabilityReturn(t *testing.T) {
 		}
 		if err := checkConstraintAlternatives(alternatives, ledger); err != nil {
 			t.Fatal(err)
+		}
+	})
+}
+
+func TestLifecycleQuestionReturnReleasesParameterExports(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		fixture := newQuestionTraceFixture(t)
+		shutdown := make(chan struct{})
+		local := newLifecycleServer(func(context.Context, *server.Call) error {
+			return nil
+		}, func() { close(shutdown) })
+
+		answer, releaseAnswer := fixture.target.SendCall(context.Background(), capnp.Send{
+			Method:   capnp.Method{InterfaceID: interfaceID, MethodID: methodID},
+			ArgsSize: capnp.ObjectSize{PointerCount: 1},
+			PlaceArgs: func(args capnp.Struct) error {
+				id := args.Message().CapTable().Add(local)
+				return args.SetPtr(0, capnp.NewInterface(args.Segment(), id).ToPtr())
+			},
+		})
+
+		call, releaseCall, err := recvMessage(context.Background(), fixture.peer)
+		if err != nil {
+			local.Release()
+			t.Fatal("receive Call:", err)
+		}
+		if call.Which != rpccp.Message_Which_call || len(call.Call.Params.CapTable) != 1 {
+			releaseCall()
+			local.Release()
+			t.Fatalf("Call = %+v; want one parameter capability", call)
+		}
+		questionID := call.Call.QuestionID
+		releaseCall()
+		local.Release()
+
+		sendLifecycleReturn(t, fixture.peer, questionID, false, 0)
+		if _, err := answer.Struct(); err != nil {
+			t.Fatal("read Return:", err)
+		}
+		releaseAnswer()
+		receiveLifecycleFinish(t, fixture.peer, questionID, false)
+		synctest.Wait()
+
+		select {
+		case <-shutdown:
+		default:
+			t.Fatal("parameter export was not released by Return.releaseParamCaps")
 		}
 	})
 }

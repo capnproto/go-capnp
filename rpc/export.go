@@ -268,7 +268,9 @@ func (c *lockedConn) fillPayloadCapTable(payload rpccp.Payload) (map[exportID]ui
 	for i := 0; i < clients.Len(); i++ {
 		id, isExport, err := c.sendCap(list.At(i), clients.At(i).Snapshot())
 		if err != nil {
-			return nil, rpcerr.WrapFailed("Serializing capability", err)
+			// Call construction needs the partial ledger to undo increments when
+			// serialization fails after an earlier descriptor was exported.
+			return refs, rpcerr.WrapFailed("Serializing capability", err)
 		}
 		if isExport {
 			if refs == nil {

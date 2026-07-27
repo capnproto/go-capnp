@@ -51,6 +51,7 @@ func sendLifecycleCapabilityFieldReturn(
 	t *testing.T,
 	peer rpc.Transport,
 	answerID uint32,
+	releaseParamCaps bool,
 	descriptor func(rpccp.CapDescriptor),
 ) {
 	t.Helper()
@@ -65,6 +66,7 @@ func sendLifecycleCapabilityFieldReturn(
 		t.Fatal(err)
 	}
 	ret.SetAnswerId(answerID)
+	ret.SetReleaseParamCaps(releaseParamCaps)
 	results, err := ret.NewResults()
 	if err != nil {
 		t.Fatal(err)
@@ -359,6 +361,7 @@ func TestLifecyclePromisePathShorteningPreservesDeliveryOrder(t *testing.T) {
 			t,
 			peer,
 			questionA,
+			false, // the peer reflects this parameter capability in a later Call
 			func(cap rpccp.CapDescriptor) { cap.SetReceiverHosted(export.SenderHosted) },
 		)
 		var (

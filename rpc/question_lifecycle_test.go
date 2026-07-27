@@ -13,6 +13,7 @@ import (
 	"capnproto.org/go/capnp/v3/exp/spsc"
 	transportpkg "capnproto.org/go/capnp/v3/rpc/transport"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
+	"capnproto.org/go/capnp/v3/util/deferred"
 )
 
 type gatedQuestionCaller struct {
@@ -630,6 +631,101 @@ func TestQuestionInitialCallFailureIDPolicy(t *testing.T) {
 				t.Fatal("queue abort removed question before shutdown cleanup")
 			}
 		})
+	})
+}
+
+func TestQuestionParamExportsReleaseExactAliasCount(t *testing.T) {
+	c := &Conn{bgctx: context.Background()}
+	q := &question{c: c}
+	export := (*lockedConn)(c).lk.exports.Add(&expent{wireRefs: 4, cancel: func() {}})
+	q.paramExports = map[exportID]uint32{export: 3}
+
+	dq := &deferred.Queue{}
+	c.withLocked(func(c *lockedConn) {
+		if err := q.releaseParamExports(c, dq); err != nil {
+			t.Fatal(err)
+		}
+		if err := q.releaseParamExports(c, dq); err != nil {
+			t.Fatal(err)
+		}
+	})
+	dq.Run()
+
+	c.withLocked(func(c *lockedConn) {
+		entry, ok := c.lk.exports.Find(export)
+		if !ok || entry.wireRefs != 1 {
+			t.Fatalf("aliased parameter export refs = %v; want 1", entry)
+		}
+		if q.paramExports != nil {
+			t.Fatal("parameter exports retained after release")
+		}
+	})
+}
+
+func TestQuestionParamExportsDiscardOnShutdown(t *testing.T) {
+	c := &Conn{bgctx: context.Background()}
+	q := &question{c: c}
+	export := (*lockedConn)(c).lk.exports.Add(&expent{wireRefs: 1, cancel: func() {}})
+	q.paramExports = map[exportID]uint32{export: 1}
+
+	dq := &deferred.Queue{}
+	c.withLocked(func(c *lockedConn) {
+		c.lk.closing = true
+		if err := q.releaseParamExports(c, dq); err != nil {
+			t.Fatal(err)
+		}
+		if q.paramExports != nil {
+			t.Fatal("parameter exports retained after shutdown discard")
+		}
+		if _, ok := c.lk.exports.Find(export); !ok {
+			t.Fatal("shutdown discard released export before connection cleanup")
+		}
+	})
+	dq.Run()
+}
+
+func TestQuestionAmbiguousReturnReleasesParameterExports(t *testing.T) {
+	c, q := newUnsentQuestion()
+	q.owner = questionOwnerSendFailure
+	export := (*lockedConn)(c).lk.exports.Add(&expent{wireRefs: 2, cancel: func() {}})
+	q.paramExports = map[exportID]uint32{export: 1}
+
+	incoming := newQuestionReturnMessage(t, false, false)
+	if err := c.handleReturn(context.Background(), incoming); err != nil {
+		t.Fatal(err)
+	}
+
+	c.withLocked(func(c *lockedConn) {
+		entry, ok := c.lk.exports.Find(export)
+		if !ok || entry.wireRefs != 1 {
+			t.Fatalf("ambiguous Return export refs = %v; want 1", entry)
+		}
+		if q.paramExports != nil {
+			t.Fatal("ambiguous Return retained parameter exports")
+		}
+	})
+}
+
+func TestQuestionCanceledLateReturnReleasesParameterExports(t *testing.T) {
+	c, q := newUnsentQuestion()
+	q.owner = questionOwnerCancel
+	q.finish = questionFinishSent
+	export := (*lockedConn)(c).lk.exports.Add(&expent{wireRefs: 2, cancel: func() {}})
+	q.paramExports = map[exportID]uint32{export: 1}
+
+	incoming := newQuestionReturnMessage(t, false, false)
+	if err := c.handleReturn(context.Background(), incoming); err != nil {
+		t.Fatal(err)
+	}
+
+	c.withLocked(func(c *lockedConn) {
+		entry, ok := c.lk.exports.Find(export)
+		if !ok || entry.wireRefs != 1 {
+			t.Fatalf("canceled late Return export refs = %v; want 1", entry)
+		}
+		if q.paramExports != nil {
+			t.Fatal("canceled late Return retained parameter exports")
+		}
 	})
 }
 
