@@ -9,6 +9,7 @@ import (
 	"capnproto.org/go/capnp/v3/flowcontrol"
 	"capnproto.org/go/capnp/v3/internal/syncutil"
 	rpccp "capnproto.org/go/capnp/v3/std/capnp/rpc"
+	"capnproto.org/go/capnp/v3/util/deferred"
 )
 
 // A questionID is an index into the questions table.
@@ -32,6 +33,7 @@ type question struct {
 	noFinishNeeded bool
 	finish         questionFinishState
 	called         [][]capnp.PipelineOp // paths to called clients
+	paramExports   map[exportID]uint32  // refs from this Call's parameter table
 }
 
 type questionTerminalOwner uint8
@@ -140,9 +142,31 @@ func (q *question) signalDrainDone() {
 	}
 }
 
+// releaseParamExports transfers the parameter export references out of q and
+// releases them unless shutdown has already released the entire export table.
+// The caller MUST hold q.c.lk.
+func (q *question) releaseParamExports(c *lockedConn, dq *deferred.Queue) error {
+	refs := q.paramExports
+	q.paramExports = nil
+	if len(refs) == 0 || c.lk.closing {
+		return nil
+	}
+	return c.releaseExportRefs(dq, refs)
+}
+
+// discardParamExports transfers the parameter export references out of q
+// without releasing them. The peer retains responsibility through ordinary
+// Release messages, or shutdown has already released the whole export table.
+// The caller MUST hold q.c.lk.
+func (q *question) discardParamExports() {
+	q.paramExports = nil
+}
+
 // handleCallSend completes the initial Call send. The caller MUST NOT hold
 // q.c.lk; it is invoked by the sender loop.
 func (q *question) handleCallSend(ctx context.Context, outcome sendOutcome, annotation string) {
+	dq := &deferred.Queue{}
+	defer dq.Run()
 	var callErr error
 	if outcome.err != nil {
 		callErr = rpcerr.Annotate(outcome.err, annotation)
@@ -191,6 +215,9 @@ func (q *question) handleCallSend(ctx context.Context, outcome sendOutcome, anno
 			q.p.Reject(callErr)
 			q.c.withLocked(func(c *lockedConn) {
 				if current, ok := c.lk.questions.Find(q.id); ok && current == q {
+					if err := q.releaseParamExports(c, dq); err != nil {
+						c.er.ReportError(rpcerr.Annotate(err, "discard unsent Call parameter exports"))
+					}
 					c.lk.questions.Remove(q.id)
 				}
 			})
@@ -340,7 +367,7 @@ func (c *lockedConn) startCall(ctx context.Context, s capnp.Send, preflight func
 
 	q := c.newQuestion(s.Method)
 	c.sendMessageOutcome(ctx, func(m rpccp.Message) error {
-		return c.newCallMessage(m, q.id, s, populateTarget)
+		return c.newCallMessage(m, q, s, populateTarget)
 	}, false, func(outcome sendOutcome) { q.handleCallSend(ctx, outcome, "send message") })
 
 	ans := q.p.Answer()
@@ -413,6 +440,8 @@ func (p *preparedCall) Commit(terminal func(flowcontrol.MessageOutcomeKind, erro
 
 	var committed bool
 	var commitErr error
+	dq := &deferred.Queue{}
+	defer dq.Run()
 	p.c.withLocked(func(c *lockedConn) {
 		if p.ctx.Err() != nil {
 			commitErr = p.ctx.Err()
@@ -428,7 +457,12 @@ func (p *preparedCall) Commit(terminal func(flowcontrol.MessageOutcomeKind, erro
 				return
 			}
 		}
-		if _, err := c.fillPayloadCapTable(p.payload); err != nil {
+		refs, err := c.fillPayloadCapTable(p.payload)
+		if err != nil {
+			p.q.paramExports = refs
+			if releaseErr := p.q.releaseParamExports(c, dq); releaseErr != nil {
+				c.er.ReportError(rpcerr.Annotate(releaseErr, "discard uncommitted Call parameter exports"))
+			}
 			commitErr = rpcerr.Annotate(err, "build call message")
 			return
 		}
@@ -443,6 +477,16 @@ func (p *preparedCall) Commit(terminal func(flowcontrol.MessageOutcomeKind, erro
 				terminal(flowcontrol.MessageOutcomeFatal, outcome.err)
 			}
 		})
+		if committed {
+			// The sender may run immediately after commit, but Return handling
+			// cannot observe q until this lock is released.
+			p.q.paramExports = refs
+			return
+		}
+		p.q.paramExports = refs
+		if err := p.q.releaseParamExports(c, dq); err != nil {
+			c.er.ReportError(rpcerr.Annotate(err, "discard uncommitted Call parameter exports"))
+		}
 	})
 	if !committed {
 		p.msg.abort()
@@ -477,15 +521,16 @@ func (p *preparedCall) Abort() {
 	p.removeQuestion()
 }
 
-func (c *lockedConn) newCallMessage(msg rpccp.Message, qid questionID, s capnp.Send, populateTarget func(rpccp.MessageTarget) error) error {
-	payload, err := newCallMessageUnsealed(msg, qid, s, populateTarget)
+func (c *lockedConn) newCallMessage(msg rpccp.Message, q *question, s capnp.Send, populateTarget func(rpccp.MessageTarget) error) error {
+	payload, err := newCallMessageUnsealed(msg, q.id, s, populateTarget)
 	if err != nil {
 		return err
 	}
 	if s.PlaceArgs == nil {
 		return nil
 	}
-	_, err = c.fillPayloadCapTable(payload)
+	refs, err := c.fillPayloadCapTable(payload)
+	q.paramExports = refs
 	if err != nil {
 		return rpcerr.Annotate(err, "build call message")
 	}

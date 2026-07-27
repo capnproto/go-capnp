@@ -488,7 +488,13 @@ func (c *lockedConn) releaseAnswers(dq *deferred.Queue, answers []*ansent) {
 
 func (c *lockedConn) releaseQuestions(dq *deferred.Queue, questions []*question) {
 	for _, q := range questions {
-		if q != nil && q.owner == questionOwnerNone {
+		if q == nil {
+			continue
+		}
+		// release has already cleared and deferred every export snapshot, so
+		// question-local accounting must not decrement the export table here.
+		q.discardParamExports()
+		if q.owner == questionOwnerNone {
 			// Terminal owners resolve or reject their own Promise. Questions
 			// without one are still pending and are rejected by shutdown.
 			qr := q // Capture a different variable each time through the loop.
@@ -1136,11 +1142,25 @@ func (c *Conn) handleReturn(_ context.Context, in transport.IncomingMessage) err
 			return
 		}
 		q.returnReceived = true
+		releaseParamCaps := ret.ReleaseParamCaps()
+		applyParamExports := func() {
+			if releaseParamCaps {
+				if err := q.releaseParamExports(c, dq); err != nil {
+					c.er.ReportError(rpcerr.Annotate(err, "incoming return: release parameter exports"))
+				}
+			} else {
+				q.discardParamExports()
+			}
+		}
 
 		switch q.owner {
 		case questionOwnerCancel:
 			// Cancellation owns the single Finish(true). A late Return never
 			// parses result capabilities and cannot suppress that Finish.
+			// This path does not parse results, so it can release parameter
+			// exports immediately. Normal results must parse first because a
+			// receiverHosted result can still name one of those exports.
+			applyParamExports()
 			dq.Defer(in.Release)
 			if q.finish == questionFinishSent {
 				c.lk.questions.release(qid)
@@ -1148,6 +1168,7 @@ func (c *Conn) handleReturn(_ context.Context, in transport.IncomingMessage) err
 			return
 		case questionOwnerSendFailure:
 			// Delivery was ambiguous and shutdown owns the retained ID.
+			applyParamExports()
 			dq.Defer(in.Release)
 			return
 		case questionOwnerNone:
@@ -1161,6 +1182,7 @@ func (c *Conn) handleReturn(_ context.Context, in transport.IncomingMessage) err
 		}
 
 		pr := c.parseReturn(dq, ret, q.called) // fills in CapTable and adds imports to local vat
+		applyParamExports()
 		if pr.parseFailed {
 			c.er.ReportError(rpcerr.Annotate(pr.err, "incoming return"))
 		}
