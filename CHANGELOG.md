@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `bufferpool`: do not pool buffers bigger than the largest bucket. `Get` never
+  reuses them for such sizes, so they piled up in the largest bucket until GC.
 - Clarify that a `PipelineCaller` or `Resolver` used by `capnp.NewPromise`
   must not synchronously resolve, or wait for resolution of, that same
   `Promise`. Promise resolution waits for already-admitted pipelined calls to

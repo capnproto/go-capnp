@@ -124,6 +124,12 @@ func (bs bucketSlice) Get(size int) []byte {
 }
 
 func (bs bucketSlice) Put(buf []byte) {
+	// Get never takes a buffer from the pool for a size above the largest bucket, so
+	// keeping a bigger buffer only helps smaller requests. When most requests are
+	// bigger, such buffers pile up in the largest bucket until the next GC.
+	if cap(buf) > 1<<(len(bs)-1) {
+		return
+	}
 	i := bucketToPut(cap(buf))
 	if i < len(bs) {
 		bs[i].Put(buf)
