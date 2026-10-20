@@ -67,6 +67,16 @@ func TestPut(t *testing.T) {
 	assert.NotEqual(t, 0, fullBuf[9], "first byte after clearing should not be zero")
 }
 
+func TestPutOversized(t *testing.T) {
+	t.Parallel()
+
+	// The largest bucket holds 8-byte buffers.
+	pool := bufferpool.NewPool(1, 4)
+
+	pool.Put(make([]byte, 12))
+	assert.Equal(t, 8, cap(pool.Get(8)), "buffers bigger than the largest bucket should not be pooled")
+}
+
 func BenchmarkPool(b *testing.B) {
 	pool := bufferpool.NewPool(0, 0)
 	const size = 32
